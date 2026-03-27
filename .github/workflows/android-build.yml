@@ -1,0 +1,51 @@
+name: Android Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag'
+        required: true
+        default: 'android-dev'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0'
+          channel: 'stable'
+          
+      - name: Get dependencies
+        working-directory: flutter_app
+        run: flutter pub get
+        
+      - name: Build APK
+        working-directory: flutter_app
+        run: flutter build apk --release
+        
+      - name: Rename APK
+        run: |
+          mv flutter_app/build/app/outputs/flutter-apk/app-release.apk bini_health_${{ github.event.inputs.version }}.apk
+          
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.event.inputs.version }}
+          name: "Android Build ${{ github.event.inputs.version }}"
+          files: bini_health_${{ github.event.inputs.version }}.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
