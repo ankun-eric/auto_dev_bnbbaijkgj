@@ -1,0 +1,53 @@
+<view class="checkup-page">
+  <!-- 上传区域 -->
+  <view class="upload-section card">
+    <text class="section-title">上传体检报告</text>
+    <text class="upload-tip">拍照或选择图片上传体检报告，AI为您智能解读</text>
+    <view class="upload-area" bindtap="uploadReport">
+      <text class="upload-icon">📤</text>
+      <text class="upload-text">点击上传报告</text>
+      <text class="upload-hint">支持拍照或从相册选择</text>
+    </view>
+  </view>
+
+  <!-- AI分析结果 -->
+  <view class="result-section card" wx:if="{{analysisResult}}">
+    <view class="result-header">
+      <text class="section-title">AI分析结果</text>
+      <view class="tag tag-green">已分析</view>
+    </view>
+    <view class="result-content">
+      <view class="result-item" wx:for="{{analysisResult.items}}" wx:key="name">
+        <view class="result-row">
+          <text class="result-name">{{item.name}}</text>
+          <text class="result-value {{item.status === 'abnormal' ? 'text-danger' : 'text-normal'}}">{{item.value}}</text>
+        </view>
+        <text class="result-ref">参考范围: {{item.reference}}</text>
+        <text class="result-advice" wx:if="{{item.advice}}">{{item.advice}}</text>
+      </view>
+    </view>
+    <view class="result-summary">
+      <text class="summary-title">综合建议</text>
+      <text class="summary-text">{{analysisResult.summary}}</text>
+    </view>
+  </view>
+
+  <!-- 历史报告 -->
+  <view class="section-title" style="padding: 0 24rpx;">历史报告</view>
+  <view class="history-list">
+    <view class="history-item card" wx:for="{{historyReports}}" wx:key="id" bindtap="viewReport" data-id="{{item.id}}">
+      <view class="history-header">
+        <text class="history-date">{{item.date}}</text>
+        <view class="tag tag-blue">{{item.status}}</view>
+      </view>
+      <text class="history-name">{{item.name}}</text>
+      <text class="history-summary ellipsis">{{item.summary}}</text>
+    </view>
+  </view>
+
+  <view class="empty-state" wx:if="{{historyReports.length === 0 && !analysisResult}}">
+    <text class="empty-icon">📋</text>
+    <text class="empty-text">暂无体检报告</text>
+    <text class="empty-text">上传报告获取AI智能解读</text>
+  </view>
+</view>

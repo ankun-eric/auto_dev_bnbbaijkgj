@@ -1,0 +1,58 @@
+<view class="article-detail-page">
+  <view class="article-header">
+    <text class="article-title">{{article.title}}</text>
+    <view class="article-meta">
+      <text class="meta-author">{{article.author}}</text>
+      <text class="meta-time">{{article.time}}</text>
+      <text class="meta-views">{{article.views}}阅读</text>
+    </view>
+  </view>
+
+  <view class="article-content">
+    <text class="content-text">{{article.content}}</text>
+  </view>
+
+  <!-- 标签 -->
+  <view class="article-tags">
+    <view class="tag tag-green" wx:for="{{article.tags}}" wx:key="*this">{{item}}</view>
+  </view>
+
+  <!-- 互动栏 -->
+  <view class="action-bar">
+    <view class="action-item {{liked ? 'action-active' : ''}}" bindtap="toggleLike">
+      <text class="action-icon">{{liked ? '❤️' : '🤍'}}</text>
+      <text class="action-num">{{article.likes}}</text>
+    </view>
+    <view class="action-item" bindtap="focusComment">
+      <text class="action-icon">💬</text>
+      <text class="action-num">{{article.comments}}</text>
+    </view>
+    <view class="action-item" bindtap="shareArticle">
+      <text class="action-icon">📤</text>
+      <text class="action-num">分享</text>
+    </view>
+  </view>
+
+  <!-- 评论区 -->
+  <view class="comments-section">
+    <text class="section-title">评论 ({{commentList.length}})</text>
+    <view class="comment-item" wx:for="{{commentList}}" wx:key="id">
+      <view class="comment-avatar" style="background: {{item.color}};">
+        <text class="avatar-char">{{item.user[0]}}</text>
+      </view>
+      <view class="comment-content">
+        <text class="comment-user">{{item.user}}</text>
+        <text class="comment-text">{{item.content}}</text>
+        <text class="comment-time">{{item.time}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 评论输入 -->
+  <view class="comment-bar safe-bottom">
+    <input class="comment-input" placeholder="写评论..." value="{{commentValue}}" bindinput="onCommentInput" focus="{{commentFocus}}" />
+    <view class="comment-send {{commentValue ? 'send-active' : ''}}" bindtap="submitComment">
+      <text>发送</text>
+    </view>
+  </view>
+</view>

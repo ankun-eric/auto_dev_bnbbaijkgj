@@ -1,0 +1,19 @@
+<view class="mall-page">
+  <view class="points-bar">
+    <text class="my-points">我的积分: <text class="points-num">{{totalPoints}}</text></text>
+  </view>
+
+  <view class="goods-grid">
+    <view class="goods-card card" wx:for="{{goods}}" wx:key="id" bindtap="exchangeGoods" data-item="{{item}}">
+      <view class="goods-icon-wrap" style="background: {{item.bgColor}};">
+        <text class="goods-icon">{{item.icon}}</text>
+      </view>
+      <text class="goods-name">{{item.name}}</text>
+      <text class="goods-desc">{{item.desc}}</text>
+      <view class="goods-footer">
+        <text class="goods-points">{{item.points}}积分</text>
+        <text class="goods-stock">剩余{{item.stock}}</text>
+      </view>
+    </view>
+  </view>
+</view>

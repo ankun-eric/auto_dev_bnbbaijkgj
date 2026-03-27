@@ -1,0 +1,71 @@
+<view class="home-page">
+  <!-- 搜索栏 -->
+  <view class="search-bar" bindtap="onSearchTap">
+    <view class="search-input">
+      <text class="search-icon">🔍</text>
+      <text class="search-placeholder">搜索症状、药品、健康知识...</text>
+    </view>
+    <view class="notification-btn" bindtap="goNotifications">
+      <text class="bell-icon">🔔</text>
+      <view class="badge" wx:if="{{unreadCount > 0}}">{{unreadCount}}</view>
+    </view>
+  </view>
+
+  <!-- 轮播Banner -->
+  <swiper class="banner-swiper" indicator-dots autoplay circular interval="{{4000}}">
+    <swiper-item wx:for="{{banners}}" wx:key="id">
+      <view class="banner-item" style="background: {{item.bgColor}};">
+        <view class="banner-content">
+          <text class="banner-title">{{item.title}}</text>
+          <text class="banner-desc">{{item.desc}}</text>
+        </view>
+      </view>
+    </swiper-item>
+  </swiper>
+
+  <!-- 功能入口网格 -->
+  <view class="card">
+    <view class="grid-menu">
+      <view class="grid-item" wx:for="{{menuItems}}" wx:key="id" bindtap="onMenuTap" data-item="{{item}}">
+        <view class="grid-icon" style="background: {{item.bgColor}};">
+          <text class="icon-text">{{item.icon}}</text>
+        </view>
+        <text class="grid-label">{{item.label}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 健康提醒 -->
+  <view class="card" wx:if="{{healthTips.length > 0}}">
+    <view class="section-header">
+      <text class="section-title">健康提醒</text>
+    </view>
+    <view class="tip-item" wx:for="{{healthTips}}" wx:key="id">
+      <text class="tip-icon">💡</text>
+      <text class="tip-text">{{item.content}}</text>
+    </view>
+  </view>
+
+  <!-- 健康知识推荐 -->
+  <view class="section-header">
+    <text class="section-title">健康知识</text>
+    <text class="section-more" bindtap="goArticles">更多 ></text>
+  </view>
+
+  <view class="article-list">
+    <view class="article-card card" wx:for="{{articles}}" wx:key="id" bindtap="goArticleDetail" data-id="{{item.id}}">
+      <view class="article-info">
+        <text class="article-title ellipsis-2">{{item.title}}</text>
+        <view class="article-meta">
+          <text class="tag tag-green" wx:if="{{item.tag}}">{{item.tag}}</text>
+          <text class="article-time">{{item.time}}</text>
+        </view>
+      </view>
+      <image class="article-cover" src="{{item.cover}}" mode="aspectFill" wx:if="{{item.cover}}" />
+    </view>
+  </view>
+
+  <view class="loading-wrap" wx:if="{{loading}}">
+    <text class="text-hint">加载中...</text>
+  </view>
+</view>

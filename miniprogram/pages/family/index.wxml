@@ -1,0 +1,73 @@
+<view class="family-page">
+  <!-- SOS紧急按钮 -->
+  <view class="sos-section card">
+    <view class="sos-btn" bindlongpress="triggerSOS">
+      <text class="sos-text">SOS</text>
+    </view>
+    <text class="sos-hint">长按紧急呼叫</text>
+  </view>
+
+  <!-- 家庭成员列表 -->
+  <view class="section-title">家庭成员 ({{members.length}}人)</view>
+  <view class="member-list">
+    <view class="member-card card" wx:for="{{members}}" wx:key="id">
+      <view class="member-header">
+        <view class="member-avatar" style="background: {{item.color}};">
+          <text class="avatar-char">{{item.name[0]}}</text>
+        </view>
+        <view class="member-info">
+          <text class="member-name">{{item.name}}</text>
+          <text class="member-relation">{{item.relation}} · {{item.age}}岁</text>
+        </view>
+        <view class="member-actions">
+          <text class="action-icon" bindtap="editMember" data-index="{{index}}">✏️</text>
+          <text class="action-icon" bindtap="deleteMember" data-index="{{index}}">🗑️</text>
+        </view>
+      </view>
+      <view class="member-tags" wx:if="{{item.conditions.length > 0}}">
+        <view class="tag tag-blue" wx:for="{{item.conditions}}" wx:for-item="cond" wx:key="*this">{{cond}}</view>
+      </view>
+      <view class="member-footer">
+        <text class="member-phone">📱 {{item.phone}}</text>
+        <text class="consult-btn" bindtap="consultFor" data-member="{{item}}">代问诊</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 添加按钮 -->
+  <view class="add-member-btn" bindtap="addMember">
+    <text class="add-icon">+</text>
+    <text class="add-text">添加家庭成员</text>
+  </view>
+
+  <!-- 添加弹窗 -->
+  <view class="modal-mask" wx:if="{{showAddModal}}" bindtap="closeModal">
+    <view class="modal-box" catchtap="">
+      <text class="modal-title">{{editIndex >= 0 ? '编辑' : '添加'}}家庭成员</text>
+      <view class="modal-form">
+        <view class="form-row">
+          <text class="form-label">姓名</text>
+          <input class="form-input" placeholder="请输入姓名" value="{{formData.name}}" bindinput="onFormInput" data-field="name" />
+        </view>
+        <view class="form-row">
+          <text class="form-label">关系</text>
+          <picker range="{{relations}}" value="{{relationIndex}}" bindchange="onRelationChange">
+            <text class="form-value">{{formData.relation || '请选择'}}</text>
+          </picker>
+        </view>
+        <view class="form-row">
+          <text class="form-label">年龄</text>
+          <input class="form-input" type="number" placeholder="请输入年龄" value="{{formData.age}}" bindinput="onFormInput" data-field="age" />
+        </view>
+        <view class="form-row">
+          <text class="form-label">手机号</text>
+          <input class="form-input" type="number" placeholder="请输入手机号" value="{{formData.phone}}" bindinput="onFormInput" data-field="phone" />
+        </view>
+      </view>
+      <view class="modal-actions">
+        <button class="btn-outline" bindtap="closeModal">取消</button>
+        <button class="btn-primary" bindtap="saveMember">保存</button>
+      </view>
+    </view>
+  </view>
+</view>

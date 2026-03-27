@@ -1,0 +1,85 @@
+.detail-page {
+  padding-bottom: 140rpx;
+}
+
+.detail-banner {
+  padding: 60rpx 32rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: linear-gradient(135deg, #52c41a, #13c2c2);
+}
+
+.banner-icon { font-size: 80rpx; margin-bottom: 16rpx; }
+.banner-name { font-size: 36rpx; font-weight: bold; color: #fff; }
+
+.card { margin: 24rpx; }
+
+.price-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 16rpx;
+}
+
+.price { display: flex; align-items: baseline; }
+.price-sym { font-size: 28rpx; color: #ff4d4f; }
+.price-num { font-size: 48rpx; font-weight: bold; color: #ff4d4f; }
+.free-label { font-size: 36rpx; color: #52c41a; font-weight: bold; }
+.sales-text { font-size: 24rpx; color: #999; }
+
+.detail-desc {
+  font-size: 28rpx;
+  color: #666;
+  line-height: 1.7;
+}
+
+.content-item {
+  display: flex;
+  align-items: flex-start;
+  padding: 12rpx 0;
+}
+
+.check-icon {
+  color: #52c41a;
+  margin-right: 12rpx;
+  font-weight: bold;
+}
+
+.content-text { font-size: 28rpx; color: #333; flex: 1; line-height: 1.5; }
+
+.notice-item {
+  display: flex;
+  align-items: flex-start;
+  padding: 10rpx 0;
+}
+
+.notice-num {
+  width: 36rpx;
+  height: 36rpx;
+  border-radius: 50%;
+  background: #f0f0f0;
+  color: #999;
+  font-size: 22rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 12rpx;
+  flex-shrink: 0;
+}
+
+.notice-text { font-size: 26rpx; color: #666; line-height: 1.5; }
+
+.bottom-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 20rpx 32rpx;
+  background: #fff;
+  display: flex;
+  gap: 20rpx;
+  box-shadow: 0 -2rpx 8rpx rgba(0, 0, 0, 0.04);
+}
+
+.bottom-bar button { flex: 1; }

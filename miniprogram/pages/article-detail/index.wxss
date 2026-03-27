@@ -1,0 +1,127 @@
+.article-detail-page {
+  padding-bottom: 120rpx;
+  background: #fff;
+  min-height: 100vh;
+}
+
+.article-header {
+  padding: 32rpx;
+  border-bottom: 1rpx solid #f5f5f5;
+}
+
+.article-title {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #333;
+  line-height: 1.5;
+  display: block;
+  margin-bottom: 16rpx;
+}
+
+.article-meta {
+  display: flex;
+  gap: 20rpx;
+}
+
+.meta-author { font-size: 24rpx; color: #52c41a; }
+.meta-time, .meta-views { font-size: 24rpx; color: #999; }
+
+.article-content {
+  padding: 32rpx;
+}
+
+.content-text {
+  font-size: 30rpx;
+  color: #333;
+  line-height: 2;
+}
+
+.article-tags {
+  display: flex;
+  gap: 12rpx;
+  padding: 0 32rpx 24rpx;
+}
+
+/* 互动栏 */
+.action-bar {
+  display: flex;
+  justify-content: space-around;
+  padding: 24rpx 32rpx;
+  border-top: 1rpx solid #f5f5f5;
+  border-bottom: 1rpx solid #f5f5f5;
+}
+
+.action-item {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+}
+
+.action-icon { font-size: 32rpx; }
+.action-num { font-size: 24rpx; color: #999; }
+.action-active .action-num { color: #ff4d4f; }
+
+/* 评论 */
+.comments-section {
+  padding: 24rpx 32rpx;
+}
+
+.comment-item {
+  display: flex;
+  padding: 20rpx 0;
+  border-bottom: 1rpx solid #f5f5f5;
+}
+
+.comment-avatar {
+  width: 60rpx;
+  height: 60rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 16rpx;
+  flex-shrink: 0;
+}
+
+.avatar-char { font-size: 24rpx; color: #fff; font-weight: bold; }
+
+.comment-content { flex: 1; }
+.comment-user { font-size: 26rpx; font-weight: bold; color: #333; display: block; margin-bottom: 6rpx; }
+.comment-text { font-size: 28rpx; color: #666; line-height: 1.5; display: block; margin-bottom: 6rpx; }
+.comment-time { font-size: 22rpx; color: #ccc; }
+
+/* 评论输入 */
+.comment-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 16rpx 24rpx;
+  background: #fff;
+  border-top: 1rpx solid #eee;
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.comment-input {
+  flex: 1;
+  height: 64rpx;
+  background: #f5f5f5;
+  border-radius: 32rpx;
+  padding: 0 24rpx;
+  font-size: 28rpx;
+}
+
+.comment-send {
+  padding: 12rpx 28rpx;
+  border-radius: 32rpx;
+  background: #e8e8e8;
+  font-size: 26rpx;
+  color: #999;
+}
+
+.send-active {
+  background: #52c41a;
+  color: #fff;
+}

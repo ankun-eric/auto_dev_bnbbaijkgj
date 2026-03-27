@@ -1,0 +1,53 @@
+<view class="services-page">
+  <!-- 分类Tab -->
+  <scroll-view class="tab-scroll" scroll-x enable-flex>
+    <view class="tab-list">
+      <view class="tab-item {{currentTab === index ? 'tab-active' : ''}}" 
+            wx:for="{{tabs}}" wx:key="index" 
+            bindtap="switchTab" data-index="{{index}}">
+        <text>{{item}}</text>
+      </view>
+    </view>
+  </scroll-view>
+
+  <!-- 服务列表 -->
+  <view class="service-list">
+    <view class="service-card card" wx:for="{{services}}" wx:key="id" bindtap="goServiceDetail" data-id="{{item.id}}">
+      <view class="service-icon-wrap" style="background: {{item.bgColor}};">
+        <text class="service-icon">{{item.icon}}</text>
+      </view>
+      <view class="service-info">
+        <text class="service-name">{{item.name}}</text>
+        <text class="service-desc ellipsis-2">{{item.desc}}</text>
+        <view class="service-footer">
+          <view class="service-price" wx:if="{{item.price}}">
+            <text class="price-symbol">¥</text>
+            <text class="price-value">{{item.price}}</text>
+            <text class="price-unit">/次</text>
+          </view>
+          <text class="service-free" wx:else>免费</text>
+          <text class="service-sales">{{item.sales}}人已使用</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 专家推荐 -->
+  <view class="section-header">
+    <text class="section-title">推荐专家</text>
+    <text class="section-more" bindtap="goExperts">更多 ></text>
+  </view>
+
+  <scroll-view class="expert-scroll" scroll-x enable-flex>
+    <view class="expert-list">
+      <view class="expert-card" wx:for="{{experts}}" wx:key="id" bindtap="goExpertDetail" data-id="{{item.id}}">
+        <view class="expert-avatar">
+          <text class="avatar-placeholder">{{item.name[0]}}</text>
+        </view>
+        <text class="expert-name">{{item.name}}</text>
+        <text class="expert-title">{{item.title}}</text>
+        <text class="expert-dept">{{item.department}}</text>
+      </view>
+    </view>
+  </scroll-view>
+</view>

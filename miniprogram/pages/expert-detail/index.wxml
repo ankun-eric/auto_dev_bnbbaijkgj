@@ -1,0 +1,62 @@
+<view class="expert-detail-page">
+  <!-- 头部 -->
+  <view class="header">
+    <view class="header-avatar" style="background: {{expert.color}};">
+      <text class="avatar-char">{{expert.name[0]}}</text>
+    </view>
+    <text class="header-name">{{expert.name}}</text>
+    <text class="header-title">{{expert.title}} · {{expert.department}}</text>
+    <text class="header-hospital">{{expert.hospital}}</text>
+    <view class="header-stats">
+      <view class="stat">
+        <text class="stat-val">{{expert.consultCount}}</text>
+        <text class="stat-lab">接诊量</text>
+      </view>
+      <view class="stat">
+        <text class="stat-val">{{expert.rating}}%</text>
+        <text class="stat-lab">好评率</text>
+      </view>
+      <view class="stat">
+        <text class="stat-val">{{expert.experience}}年</text>
+        <text class="stat-lab">从业经验</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 擅长 -->
+  <view class="card">
+    <text class="section-title">擅长领域</text>
+    <text class="desc-text">{{expert.speciality}}</text>
+  </view>
+
+  <!-- 简介 -->
+  <view class="card">
+    <text class="section-title">个人简介</text>
+    <text class="desc-text">{{expert.bio}}</text>
+  </view>
+
+  <!-- 排班 -->
+  <view class="card">
+    <text class="section-title">出诊排班</text>
+    <scroll-view class="schedule-scroll" scroll-x>
+      <view class="schedule-list">
+        <view class="schedule-item {{item.available ? '' : 'schedule-disabled'}}" 
+              wx:for="{{schedule}}" wx:key="date"
+              bindtap="selectSchedule" data-item="{{item}}">
+          <text class="schedule-day">{{item.weekday}}</text>
+          <text class="schedule-date">{{item.date}}</text>
+          <text class="schedule-status">{{item.available ? '可预约' : '已满'}}</text>
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+
+  <!-- 底部按钮 -->
+  <view class="bottom-bar safe-bottom">
+    <view class="price-info">
+      <text class="price-label">图文问诊</text>
+      <text class="price-val">¥{{expert.price}}</text>
+    </view>
+    <button class="btn-primary book-btn" bindtap="bookExpert">预约问诊</button>
+  </view>
+</view>

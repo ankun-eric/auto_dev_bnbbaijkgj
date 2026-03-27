@@ -1,0 +1,38 @@
+<view class="plan-page">
+  <!-- 今日进度 -->
+  <view class="progress-card card">
+    <text class="section-title">今日健康任务</text>
+    <view class="progress-ring-wrap">
+      <view class="progress-ring">
+        <text class="progress-num">{{completedCount}}/{{tasks.length}}</text>
+        <text class="progress-label">已完成</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 任务列表 -->
+  <view class="task-list">
+    <view class="task-item card" wx:for="{{tasks}}" wx:key="id">
+      <view class="task-check {{item.completed ? 'task-done' : ''}}" bindtap="toggleTask" data-index="{{index}}">
+        <text class="check-mark" wx:if="{{item.completed}}">✓</text>
+      </view>
+      <view class="task-info">
+        <text class="task-name {{item.completed ? 'task-name-done' : ''}}">{{item.name}}</text>
+        <text class="task-desc">{{item.desc}}</text>
+      </view>
+      <view class="task-reward">
+        <text class="reward-points">+{{item.points}}</text>
+        <text class="reward-label">积分</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 健康建议 -->
+  <view class="card">
+    <text class="section-title">今日健康建议</text>
+    <view class="tip-item" wx:for="{{tips}}" wx:key="index">
+      <text class="tip-icon">💡</text>
+      <text class="tip-text">{{item}}</text>
+    </view>
+  </view>
+</view>

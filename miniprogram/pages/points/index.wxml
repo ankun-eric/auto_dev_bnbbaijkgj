@@ -1,0 +1,43 @@
+<view class="points-page">
+  <!-- 积分头部 -->
+  <view class="points-header">
+    <text class="points-label">我的积分</text>
+    <text class="points-value">{{totalPoints}}</text>
+    <view class="points-actions">
+      <view class="action-btn" bindtap="goMall">
+        <text class="action-icon">🛍️</text>
+        <text class="action-text">积分兑换</text>
+      </view>
+      <view class="action-btn" bindtap="signIn">
+        <text class="action-icon">📅</text>
+        <text class="action-text">{{signedToday ? '已签到' : '签到'}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 签到日历 -->
+  <view class="card">
+    <text class="section-title">连续签到 {{signDays}} 天</text>
+    <view class="sign-week">
+      <view class="sign-day {{item.signed ? 'signed' : ''}} {{item.today ? 'today' : ''}}" wx:for="{{weekDays}}" wx:key="day">
+        <text class="day-label">{{item.day}}</text>
+        <text class="day-icon">{{item.signed ? '✓' : item.points}}</text>
+        <text class="day-points">+{{item.points}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 积分记录 -->
+  <view class="section-title" style="padding: 0 24rpx;">积分记录</view>
+  <view class="record-list">
+    <view class="record-item card" wx:for="{{records}}" wx:key="id">
+      <view class="record-info">
+        <text class="record-title">{{item.title}}</text>
+        <text class="record-time">{{item.time}}</text>
+      </view>
+      <text class="record-points {{item.amount > 0 ? 'points-add' : 'points-sub'}}">
+        {{item.amount > 0 ? '+' : ''}}{{item.amount}}
+      </text>
+    </view>
+  </view>
+</view>

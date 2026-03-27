@@ -1,0 +1,51 @@
+<view class="login-page">
+  <view class="login-header">
+    <view class="logo-wrapper">
+      <view class="logo-icon">
+        <text class="logo-text">核</text>
+      </view>
+    </view>
+    <text class="app-name">宾尼小康·核销系统</text>
+    <text class="app-desc">门店工作人员专用</text>
+  </view>
+
+  <view class="login-form">
+    <view class="form-item">
+      <view class="input-wrapper">
+        <text class="input-icon">📱</text>
+        <input
+          class="input-field"
+          type="number"
+          maxlength="11"
+          placeholder="请输入手机号"
+          placeholder-class="placeholder"
+          value="{{phone}}"
+          bindinput="onPhoneInput"
+        />
+      </view>
+    </view>
+
+    <view class="form-item">
+      <view class="input-wrapper">
+        <text class="input-icon">🔒</text>
+        <input
+          class="input-field"
+          password="{{!showPassword}}"
+          placeholder="请输入密码"
+          placeholder-class="placeholder"
+          value="{{password}}"
+          bindinput="onPasswordInput"
+        />
+        <text class="toggle-pwd" bindtap="togglePassword">{{showPassword ? '隐藏' : '显示'}}</text>
+      </view>
+    </view>
+
+    <button class="login-btn" bindtap="handleLogin" loading="{{loading}}">
+      登录
+    </button>
+  </view>
+
+  <view class="login-footer">
+    <text class="footer-text">仅限授权门店工作人员使用</text>
+  </view>
+</view>

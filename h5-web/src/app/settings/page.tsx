@@ -1,0 +1,131 @@
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { NavBar, List, Switch, Dialog, Toast, Avatar, Input, Button } from 'antd-mobile';
+import { RightOutline } from 'antd-mobile-icons';
+import { logout, useAuth } from '@/lib/auth';
+
+export default function SettingsPage() {
+  const router = useRouter();
+  const { user } = useAuth();
+  const [pushEnabled, setPushEnabled] = useState(true);
+  const [editingNickname, setEditingNickname] = useState(false);
+  const [nickname, setNickname] = useState(user?.nickname || '用户');
+
+  const handleLogout = () => {
+    Dialog.confirm({
+      content: '确定要退出登录吗？',
+      confirmText: '退出',
+      cancelText: '取消',
+      onConfirm: () => {
+        logout();
+      },
+    });
+  };
+
+  const handleClearCache = () => {
+    Dialog.confirm({
+      content: '确定要清除缓存吗？',
+      confirmText: '清除',
+      cancelText: '取消',
+      onConfirm: () => {
+        Toast.show({ content: '缓存已清除' });
+      },
+    });
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <NavBar onBack={() => router.back()} style={{ background: '#fff' }}>
+        设置
+      </NavBar>
+
+      <div className="pt-2">
+        <List header="个人信息" style={{ '--border-top': 'none' }}>
+          <List.Item
+            prefix={
+              <Avatar
+                src=""
+                style={{
+                  '--size': '40px',
+                  '--border-radius': '50%',
+                  background: 'linear-gradient(135deg, #52c41a40, #13c2c240)',
+                }}
+              />
+            }
+            extra="更换头像"
+            arrow
+          >
+            头像
+          </List.Item>
+          <List.Item
+            extra={
+              editingNickname ? (
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={nickname}
+                    onChange={setNickname}
+                    style={{ '--text-align': 'right', '--font-size': '14px' }}
+                  />
+                  <span className="text-primary text-xs" onClick={() => {
+                    setEditingNickname(false);
+                    Toast.show({ content: '已保存' });
+                  }}>
+                    保存
+                  </span>
+                </div>
+              ) : (
+                nickname
+              )
+            }
+            arrow={!editingNickname}
+            onClick={() => !editingNickname && setEditingNickname(true)}
+          >
+            昵称
+          </List.Item>
+          <List.Item extra={user?.phone || '未绑定'} arrow>
+            手机号
+          </List.Item>
+        </List>
+
+        <List header="通知设置" style={{ '--border-top': 'none' }}>
+          <List.Item extra={<Switch checked={pushEnabled} onChange={setPushEnabled}
+            style={{ '--checked-color': '#52c41a' }} />}>
+            推送通知
+          </List.Item>
+          <List.Item extra={<Switch defaultChecked style={{ '--checked-color': '#52c41a' }} />}>
+            健康提醒
+          </List.Item>
+        </List>
+
+        <List header="其他" style={{ '--border-top': 'none' }}>
+          <List.Item onClick={handleClearCache} arrow>
+            清除缓存
+          </List.Item>
+          <List.Item extra="1.0.0" arrow={false}>
+            当前版本
+          </List.Item>
+          <List.Item arrow>用户协议</List.Item>
+          <List.Item arrow>隐私政策</List.Item>
+          <List.Item arrow>关于我们</List.Item>
+        </List>
+
+        <div className="px-4 mt-6 mb-8">
+          <Button
+            block
+            onClick={handleLogout}
+            style={{
+              color: '#f5222d',
+              borderColor: '#f5222d',
+              borderRadius: 24,
+              height: 44,
+            }}
+          >
+            退出登录
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}

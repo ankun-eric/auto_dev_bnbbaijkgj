@@ -1,0 +1,42 @@
+<view class="articles-page">
+  <!-- 搜索栏 -->
+  <view class="search-bar">
+    <text class="search-icon">🔍</text>
+    <input class="search-input" placeholder="搜索健康知识" value="{{keyword}}" bindinput="onSearch" focus="{{searchFocus}}" />
+  </view>
+
+  <!-- 分类Tab -->
+  <scroll-view class="tab-scroll" scroll-x>
+    <view class="tab-list">
+      <view class="tab-item {{currentTab === index ? 'tab-active' : ''}}" 
+            wx:for="{{tabs}}" wx:key="index" 
+            bindtap="switchTab" data-index="{{index}}">{{item}}</view>
+    </view>
+  </scroll-view>
+
+  <!-- 文章列表 -->
+  <view class="article-list">
+    <view class="article-card card" wx:for="{{articles}}" wx:key="id" bindtap="goDetail" data-id="{{item.id}}">
+      <view class="article-body">
+        <view class="article-info">
+          <text class="article-title ellipsis-2">{{item.title}}</text>
+          <view class="article-meta">
+            <text class="tag tag-green" wx:if="{{item.tag}}">{{item.tag}}</text>
+            <text class="article-author">{{item.author}}</text>
+            <text class="article-time">{{item.time}}</text>
+          </view>
+        </view>
+        <image class="article-cover" src="{{item.cover}}" mode="aspectFill" wx:if="{{item.cover}}" />
+      </view>
+      <view class="article-stats">
+        <text class="stat-item">👁️ {{item.views}}</text>
+        <text class="stat-item">❤️ {{item.likes}}</text>
+        <text class="stat-item">💬 {{item.comments}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="loading-wrap" wx:if="{{loading}}">
+    <text class="text-hint">加载中...</text>
+  </view>
+</view>

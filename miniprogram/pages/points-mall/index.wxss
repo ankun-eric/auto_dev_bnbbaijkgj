@@ -1,0 +1,51 @@
+.mall-page {
+  min-height: 100vh;
+  padding-bottom: 24rpx;
+}
+
+.points-bar {
+  background: linear-gradient(135deg, #52c41a, #13c2c2);
+  padding: 28rpx 32rpx;
+}
+
+.my-points { font-size: 26rpx; color: rgba(255, 255, 255, 0.8); }
+.points-num { font-size: 36rpx; font-weight: bold; color: #fff; }
+
+.goods-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+  padding: 24rpx;
+}
+
+.goods-card {
+  width: calc(50% - 8rpx);
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24rpx;
+}
+
+.goods-icon-wrap {
+  width: 100rpx;
+  height: 100rpx;
+  border-radius: 24rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16rpx;
+}
+
+.goods-icon { font-size: 48rpx; }
+.goods-name { font-size: 26rpx; font-weight: bold; color: #333; margin-bottom: 6rpx; }
+.goods-desc { font-size: 22rpx; color: #999; text-align: center; margin-bottom: 12rpx; }
+
+.goods-footer {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.goods-points { font-size: 26rpx; font-weight: bold; color: #ff4d4f; }
+.goods-stock { font-size: 20rpx; color: #ccc; }

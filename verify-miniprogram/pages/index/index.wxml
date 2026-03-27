@@ -1,0 +1,56 @@
+<view class="container">
+  <!-- 顶部用户信息 -->
+  <view class="header-card card">
+    <view class="user-row">
+      <view class="avatar">
+        <text class="avatar-text">{{userName ? userName[0] : '店'}}</text>
+      </view>
+      <view class="user-info">
+        <text class="user-name">{{userName || '门店工作人员'}}</text>
+        <text class="user-role">核销专员</text>
+      </view>
+      <view class="logout-btn" bindtap="handleLogout">
+        <text class="logout-text">退出</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 今日统计 -->
+  <view class="stats-card card">
+    <text class="stats-title">今日核销统计</text>
+    <view class="stats-row">
+      <view class="stat-item">
+        <text class="stat-num text-green">{{todayCount}}</text>
+        <text class="stat-label">核销笔数</text>
+      </view>
+      <view class="stat-divider"></view>
+      <view class="stat-item">
+        <text class="stat-num text-cyan">¥{{todayAmount}}</text>
+        <text class="stat-label">核销金额</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 扫码核销大按钮 -->
+  <view class="scan-area" bindtap="goScan">
+    <view class="scan-btn-big">
+      <view class="scan-icon-wrapper">
+        <text class="scan-icon-text">📷</text>
+      </view>
+      <text class="scan-btn-label">扫码核销</text>
+      <text class="scan-btn-desc">扫描用户订单核销码</text>
+    </view>
+  </view>
+
+  <!-- 快捷入口 -->
+  <view class="quick-entry card" bindtap="goRecords">
+    <view class="entry-left">
+      <text class="entry-icon">📋</text>
+      <view class="entry-text">
+        <text class="entry-title">核销记录</text>
+        <text class="entry-desc">查看历史核销订单</text>
+      </view>
+    </view>
+    <text class="entry-arrow">›</text>
+  </view>
+</view>

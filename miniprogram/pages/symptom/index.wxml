@@ -1,0 +1,107 @@
+<view class="symptom-page">
+  <!-- 步骤指示器 -->
+  <view class="steps-bar">
+    <view class="step {{currentStep >= 0 ? 'step-active' : ''}}">
+      <view class="step-dot">1</view>
+      <text class="step-label">选择部位</text>
+    </view>
+    <view class="step-line {{currentStep >= 1 ? 'line-active' : ''}}"></view>
+    <view class="step {{currentStep >= 1 ? 'step-active' : ''}}">
+      <view class="step-dot">2</view>
+      <text class="step-label">选择症状</text>
+    </view>
+    <view class="step-line {{currentStep >= 2 ? 'line-active' : ''}}"></view>
+    <view class="step {{currentStep >= 2 ? 'step-active' : ''}}">
+      <view class="step-dot">3</view>
+      <text class="step-label">AI分析</text>
+    </view>
+  </view>
+
+  <!-- 步骤1: 选择身体部位 -->
+  <view class="step-content" wx:if="{{currentStep === 0}}">
+    <text class="content-title">请选择不适的身体部位</text>
+    <view class="body-parts">
+      <view class="part-item {{selectedPart === item.id ? 'part-selected' : ''}}"
+            wx:for="{{bodyParts}}" wx:key="id"
+            bindtap="selectPart" data-part="{{item}}">
+        <text class="part-icon">{{item.icon}}</text>
+        <text class="part-name">{{item.name}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 步骤2: 选择具体症状 -->
+  <view class="step-content" wx:if="{{currentStep === 1}}">
+    <text class="content-title">请选择您的症状（可多选）</text>
+    <view class="symptom-list">
+      <view class="symptom-tag {{item.selected ? 'symptom-selected' : ''}}"
+            wx:for="{{symptoms}}" wx:key="id"
+            bindtap="toggleSymptom" data-index="{{index}}">
+        <text>{{item.name}}</text>
+      </view>
+    </view>
+
+    <view class="extra-section">
+      <text class="content-subtitle">持续时间</text>
+      <view class="duration-list">
+        <view class="duration-item {{selectedDuration === item ? 'duration-selected' : ''}}"
+              wx:for="{{durations}}" wx:key="*this"
+              bindtap="selectDuration" data-duration="{{item}}">
+          <text>{{item}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="extra-section">
+      <text class="content-subtitle">补充描述</text>
+      <textarea class="desc-input" placeholder="请描述其他症状或情况..." value="{{extraDesc}}" bindinput="onDescInput" maxlength="500" />
+    </view>
+  </view>
+
+  <!-- 步骤3: AI分析结果 -->
+  <view class="step-content" wx:if="{{currentStep === 2}}">
+    <view class="analysis-loading" wx:if="{{analyzing}}">
+      <view class="loading-animation">
+        <text class="loading-icon">🔍</text>
+      </view>
+      <text class="loading-text">AI正在分析您的症状...</text>
+    </view>
+
+    <view class="analysis-result" wx:if="{{!analyzing && analysisResult}}">
+      <view class="result-card card">
+        <text class="result-title">分析结果</text>
+        <view class="possible-list">
+          <view class="possible-item" wx:for="{{analysisResult.possibilities}}" wx:key="name">
+            <view class="possible-header">
+              <text class="possible-name">{{item.name}}</text>
+              <text class="possible-prob">可能性 {{item.probability}}%</text>
+            </view>
+            <view class="prob-bar">
+              <view class="prob-fill" style="width: {{item.probability}}%;"></view>
+            </view>
+            <text class="possible-desc">{{item.description}}</text>
+          </view>
+        </view>
+      </view>
+
+      <view class="advice-card card">
+        <text class="result-title">建议</text>
+        <view class="advice-item" wx:for="{{analysisResult.advices}}" wx:key="index">
+          <text class="advice-num">{{index + 1}}</text>
+          <text class="advice-text">{{item}}</text>
+        </view>
+      </view>
+
+      <view class="action-btns">
+        <button class="btn-primary" bindtap="goChat">咨询AI医生</button>
+        <button class="btn-outline" bindtap="restart">重新自查</button>
+      </view>
+    </view>
+  </view>
+
+  <!-- 底部按钮 -->
+  <view class="bottom-bar safe-bottom" wx:if="{{currentStep < 2}}">
+    <button class="btn-outline" bindtap="prevStep" wx:if="{{currentStep > 0}}">上一步</button>
+    <button class="btn-primary" bindtap="nextStep">{{currentStep === 1 ? '开始分析' : '下一步'}}</button>
+  </view>
+</view>

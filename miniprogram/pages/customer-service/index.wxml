@@ -1,0 +1,49 @@
+<view class="cs-page">
+  <!-- 常见问题 -->
+  <view class="faq-section" wx:if="{{!chatStarted}}">
+    <view class="cs-header">
+      <view class="cs-avatar">
+        <text class="cs-emoji">🎧</text>
+      </view>
+      <text class="cs-title">宾尼小康客服</text>
+      <text class="cs-subtitle">有问题随时找我</text>
+    </view>
+
+    <view class="card">
+      <text class="section-title">常见问题</text>
+      <view class="faq-item" wx:for="{{faqList}}" wx:key="id" bindtap="askFaq" data-item="{{item}}">
+        <text class="faq-text">{{item.question}}</text>
+        <text class="faq-arrow">›</text>
+      </view>
+    </view>
+
+    <button class="btn-primary start-btn" bindtap="startChat">开始对话</button>
+  </view>
+
+  <!-- 对话界面 -->
+  <scroll-view class="msg-list" scroll-y wx:if="{{chatStarted}}" scroll-into-view="{{scrollToId}}">
+    <view class="msg-item" wx:for="{{messages}}" wx:key="id" id="msg-{{item.id}}">
+      <view class="msg-row msg-left" wx:if="{{item.role === 'service'}}">
+        <view class="msg-avatar cs-avatar-sm">
+          <text>🎧</text>
+        </view>
+        <view class="msg-bubble service-bubble">
+          <text class="msg-text">{{item.content}}</text>
+        </view>
+      </view>
+      <view class="msg-row msg-right" wx:elif="{{item.role === 'user'}}">
+        <view class="msg-bubble user-bubble">
+          <text class="msg-text">{{item.content}}</text>
+        </view>
+      </view>
+    </view>
+    <view id="msg-bottom" style="height: 20rpx;"></view>
+  </scroll-view>
+
+  <view class="input-area safe-bottom" wx:if="{{chatStarted}}">
+    <input class="chat-input" placeholder="输入您的问题..." value="{{inputValue}}" bindinput="onInput" bindconfirm="sendMessage" />
+    <view class="send-btn {{inputValue ? 'send-active' : ''}}" bindtap="sendMessage">
+      <text>发送</text>
+    </view>
+  </view>
+</view>

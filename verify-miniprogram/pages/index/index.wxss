@@ -1,0 +1,185 @@
+.header-card {
+  background: linear-gradient(135deg, #52c41a, #13c2c2);
+  color: #fff;
+}
+
+.user-row {
+  display: flex;
+  align-items: center;
+}
+
+.avatar {
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 24rpx;
+}
+
+.avatar-text {
+  font-size: 40rpx;
+  font-weight: 700;
+  color: #fff;
+}
+
+.user-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.user-name {
+  font-size: 34rpx;
+  font-weight: 600;
+  color: #fff;
+}
+
+.user-role {
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.8);
+  margin-top: 6rpx;
+}
+
+.logout-btn {
+  padding: 12rpx 28rpx;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 24rpx;
+}
+
+.logout-text {
+  font-size: 24rpx;
+  color: #fff;
+}
+
+.stats-card {
+  padding: 36rpx 32rpx;
+}
+
+.stats-title {
+  font-size: 28rpx;
+  color: #999;
+  margin-bottom: 28rpx;
+  display: block;
+}
+
+.stats-row {
+  display: flex;
+  align-items: center;
+}
+
+.stat-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.stat-num {
+  font-size: 52rpx;
+  font-weight: 700;
+  margin-bottom: 8rpx;
+}
+
+.stat-label {
+  font-size: 24rpx;
+  color: #999;
+}
+
+.stat-divider {
+  width: 2rpx;
+  height: 64rpx;
+  background: #eee;
+}
+
+.scan-area {
+  margin: 24rpx 0;
+}
+
+.scan-btn-big {
+  background: linear-gradient(135deg, #52c41a, #73d13d);
+  border-radius: 24rpx;
+  padding: 60rpx 40rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-shadow: 0 16rpx 48rpx rgba(82, 196, 26, 0.3);
+}
+
+.scan-btn-big:active {
+  opacity: 0.9;
+  transform: scale(0.98);
+}
+
+.scan-icon-wrapper {
+  width: 120rpx;
+  height: 120rpx;
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 24rpx;
+}
+
+.scan-icon-text {
+  font-size: 56rpx;
+}
+
+.scan-btn-label {
+  font-size: 40rpx;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 10rpx;
+}
+
+.scan-btn-desc {
+  font-size: 26rpx;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.quick-entry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 32rpx;
+}
+
+.quick-entry:active {
+  background: #fafafa;
+}
+
+.entry-left {
+  display: flex;
+  align-items: center;
+}
+
+.entry-icon {
+  font-size: 44rpx;
+  margin-right: 20rpx;
+}
+
+.entry-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.entry-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #333;
+}
+
+.entry-desc {
+  font-size: 24rpx;
+  color: #999;
+  margin-top: 6rpx;
+}
+
+.entry-arrow {
+  font-size: 40rpx;
+  color: #ccc;
+  font-weight: 300;
+}

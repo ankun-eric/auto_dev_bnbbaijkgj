@@ -1,0 +1,97 @@
+.expert-detail-page {
+  padding-bottom: 140rpx;
+}
+
+.header {
+  background: linear-gradient(135deg, #52c41a, #13c2c2);
+  padding: 48rpx 32rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.header-avatar {
+  width: 140rpx;
+  height: 140rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16rpx;
+  border: 4rpx solid rgba(255, 255, 255, 0.3);
+}
+
+.avatar-char { font-size: 56rpx; color: #fff; font-weight: bold; }
+.header-name { font-size: 36rpx; font-weight: bold; color: #fff; margin-bottom: 8rpx; }
+.header-title { font-size: 26rpx; color: rgba(255, 255, 255, 0.9); margin-bottom: 4rpx; }
+.header-hospital { font-size: 24rpx; color: rgba(255, 255, 255, 0.7); margin-bottom: 24rpx; }
+
+.header-stats {
+  display: flex;
+  gap: 60rpx;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.stat-val { font-size: 32rpx; font-weight: bold; color: #fff; }
+.stat-lab { font-size: 22rpx; color: rgba(255, 255, 255, 0.7); margin-top: 4rpx; }
+
+.card { margin: 24rpx; }
+
+.desc-text {
+  font-size: 28rpx;
+  color: #666;
+  line-height: 1.7;
+}
+
+/* 排班 */
+.schedule-scroll { white-space: nowrap; }
+
+.schedule-list {
+  display: flex;
+  gap: 16rpx;
+  margin-top: 16rpx;
+}
+
+.schedule-item {
+  flex-shrink: 0;
+  width: 140rpx;
+  padding: 20rpx;
+  border: 2rpx solid #eee;
+  border-radius: 12rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.schedule-disabled {
+  opacity: 0.4;
+}
+
+.schedule-day { font-size: 26rpx; color: #333; font-weight: bold; }
+.schedule-date { font-size: 22rpx; color: #999; margin: 4rpx 0; }
+.schedule-status { font-size: 22rpx; color: #52c41a; }
+.schedule-disabled .schedule-status { color: #999; }
+
+/* 底部 */
+.bottom-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 20rpx 32rpx;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  box-shadow: 0 -2rpx 8rpx rgba(0, 0, 0, 0.04);
+}
+
+.price-info { margin-right: 24rpx; }
+.price-label { font-size: 22rpx; color: #999; display: block; }
+.price-val { font-size: 36rpx; font-weight: bold; color: #ff4d4f; }
+
+.book-btn { flex: 1; }

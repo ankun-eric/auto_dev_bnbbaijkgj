@@ -1,0 +1,65 @@
+<view class="chat-page">
+  <!-- 消息列表 -->
+  <scroll-view class="msg-list" scroll-y scroll-into-view="{{scrollToId}}" scroll-with-animation>
+    <!-- 提示信息 -->
+    <view class="chat-notice">
+      <text class="notice-text">AI问诊仅供参考，不能替代专业医疗诊断。如有紧急情况请立即就医。</text>
+    </view>
+
+    <view class="msg-item" wx:for="{{messages}}" wx:key="id" id="msg-{{item.id}}">
+      <!-- AI消息 -->
+      <view class="msg-row msg-left" wx:if="{{item.role === 'assistant'}}">
+        <view class="msg-avatar ai-avatar">
+          <text class="avatar-emoji">🤖</text>
+        </view>
+        <view class="msg-bubble ai-bubble">
+          <text class="msg-text">{{item.content}}</text>
+          <text class="msg-time">{{item.time}}</text>
+        </view>
+      </view>
+
+      <!-- 用户消息 -->
+      <view class="msg-row msg-right" wx:elif="{{item.role === 'user'}}">
+        <view class="msg-bubble user-bubble">
+          <image class="msg-image" src="{{item.image}}" mode="widthFix" wx:if="{{item.image}}" bindtap="previewImage" data-url="{{item.image}}" />
+          <text class="msg-text" wx:else>{{item.content}}</text>
+          <text class="msg-time user-time">{{item.time}}</text>
+        </view>
+        <view class="msg-avatar user-avatar">
+          <text class="avatar-emoji">👤</text>
+        </view>
+      </view>
+
+      <!-- 加载中 -->
+      <view class="msg-row msg-left" wx:elif="{{item.role === 'loading'}}">
+        <view class="msg-avatar ai-avatar">
+          <text class="avatar-emoji">🤖</text>
+        </view>
+        <view class="msg-bubble ai-bubble">
+          <view class="typing-dots">
+            <view class="dot"></view>
+            <view class="dot"></view>
+            <view class="dot"></view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view id="msg-bottom" style="height: 20rpx;"></view>
+  </scroll-view>
+
+  <!-- 输入区域 -->
+  <view class="input-area safe-bottom">
+    <view class="input-bar">
+      <view class="tool-btn" bindtap="chooseImage">
+        <text class="tool-icon">📷</text>
+      </view>
+      <input class="chat-input" placeholder="描述您的症状..." value="{{inputValue}}"
+             bindinput="onInput" confirm-type="send" bindconfirm="sendMessage"
+             adjust-position="{{false}}" focus="{{inputFocus}}" />
+      <view class="send-btn {{inputValue ? 'send-active' : ''}}" bindtap="sendMessage">
+        <text class="send-text">发送</text>
+      </view>
+    </view>
+  </view>
+</view>

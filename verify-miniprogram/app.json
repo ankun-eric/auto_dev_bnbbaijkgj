@@ -1,0 +1,17 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/login/index",
+    "pages/scan/index",
+    "pages/records/index",
+    "pages/result/index"
+  ],
+  "window": {
+    "navigationBarTextStyle": "white",
+    "navigationBarTitleText": "宾尼小康·核销",
+    "navigationBarBackgroundColor": "#52c41a",
+    "backgroundColor": "#f5f5f5"
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

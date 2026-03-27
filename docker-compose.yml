@@ -1,0 +1,88 @@
+version: '3.8'
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: bini-health-db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: bini_health_2026
+      MYSQL_DATABASE: bini_health
+      MYSQL_CHARSET: utf8mb4
+      MYSQL_COLLATION: utf8mb4_unicode_ci
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./backend/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - bini-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: bini-health-backend
+    restart: always
+    environment:
+      DATABASE_URL: mysql+aiomysql://root:bini_health_2026@db:3306/bini_health
+      SECRET_KEY: bini-health-secret-key-2026-very-secure
+      AI_BASE_URL: ${AI_BASE_URL:-}
+      AI_MODEL_NAME: ${AI_MODEL_NAME:-}
+      AI_API_KEY: ${AI_API_KEY:-}
+    volumes:
+      - uploads_data:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - bini-network
+
+  admin-web:
+    build:
+      context: ./admin-web
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_API_URL=/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api
+        - NEXT_PUBLIC_BASE_PATH=/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin
+    container_name: bini-health-admin
+    restart: always
+    environment:
+      NEXT_PUBLIC_API_URL: /autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api
+      NEXT_PUBLIC_BASE_PATH: /autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin
+      BACKEND_URL: http://backend:8000
+    depends_on:
+      - backend
+    networks:
+      - bini-network
+
+  h5-web:
+    build:
+      context: ./h5-web
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_API_URL=/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api
+        - NEXT_PUBLIC_BASE_PATH=/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857
+    container_name: bini-health-h5
+    restart: always
+    environment:
+      NEXT_PUBLIC_API_URL: /autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api
+      NEXT_PUBLIC_BASE_PATH: /autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857
+      BACKEND_URL: http://backend:8000
+    depends_on:
+      - backend
+    networks:
+      - bini-network
+
+volumes:
+  mysql_data:
+  uploads_data:
+
+networks:
+  bini-network:
+    driver: bridge

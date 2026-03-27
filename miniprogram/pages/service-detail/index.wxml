@@ -1,0 +1,39 @@
+<view class="detail-page">
+  <view class="detail-banner" style="background: {{service.bgColor}};">
+    <text class="banner-icon">{{service.icon}}</text>
+    <text class="banner-name">{{service.name}}</text>
+  </view>
+
+  <view class="card">
+    <view class="price-row">
+      <view class="price" wx:if="{{service.price > 0}}">
+        <text class="price-sym">¥</text>
+        <text class="price-num">{{service.price}}</text>
+      </view>
+      <text class="free-label" wx:else>免费</text>
+      <text class="sales-text">{{service.sales}}人已使用</text>
+    </view>
+    <text class="detail-desc">{{service.fullDesc}}</text>
+  </view>
+
+  <view class="card">
+    <text class="section-title">服务内容</text>
+    <view class="content-item" wx:for="{{service.contents}}" wx:key="index">
+      <text class="check-icon">✓</text>
+      <text class="content-text">{{item}}</text>
+    </view>
+  </view>
+
+  <view class="card">
+    <text class="section-title">注意事项</text>
+    <view class="notice-item" wx:for="{{service.notices}}" wx:key="index">
+      <text class="notice-num">{{index + 1}}</text>
+      <text class="notice-text">{{item}}</text>
+    </view>
+  </view>
+
+  <view class="bottom-bar safe-bottom">
+    <button class="btn-outline" bindtap="contactService">咨询客服</button>
+    <button class="btn-primary" bindtap="buyService">{{service.price > 0 ? '立即购买' : '立即使用'}}</button>
+  </view>
+</view>

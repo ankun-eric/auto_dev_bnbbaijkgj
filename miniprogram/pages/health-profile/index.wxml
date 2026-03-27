@@ -1,0 +1,90 @@
+<view class="health-profile-page">
+  <!-- 基础信息 -->
+  <view class="card">
+    <text class="section-title">基础信息</text>
+    <view class="form-item">
+      <text class="form-label">姓名</text>
+      <input class="form-input" placeholder="请输入姓名" value="{{profile.name}}" bindinput="onInput" data-field="name" />
+    </view>
+    <view class="form-item">
+      <text class="form-label">性别</text>
+      <view class="gender-group">
+        <view class="gender-btn {{profile.gender === '男' ? 'gender-active' : ''}}" bindtap="setGender" data-gender="男">男</view>
+        <view class="gender-btn {{profile.gender === '女' ? 'gender-active' : ''}}" bindtap="setGender" data-gender="女">女</view>
+      </view>
+    </view>
+    <view class="form-item">
+      <text class="form-label">出生日期</text>
+      <picker mode="date" value="{{profile.birthday}}" bindchange="onDateChange">
+        <text class="form-value {{profile.birthday ? '' : 'placeholder'}}">{{profile.birthday || '请选择'}}</text>
+      </picker>
+    </view>
+    <view class="form-item">
+      <text class="form-label">身高(cm)</text>
+      <input class="form-input" type="digit" placeholder="请输入" value="{{profile.height}}" bindinput="onInput" data-field="height" />
+    </view>
+    <view class="form-item">
+      <text class="form-label">体重(kg)</text>
+      <input class="form-input" type="digit" placeholder="请输入" value="{{profile.weight}}" bindinput="onInput" data-field="weight" />
+    </view>
+    <view class="form-item">
+      <text class="form-label">血型</text>
+      <picker range="{{bloodTypes}}" value="{{bloodTypeIndex}}" bindchange="onBloodTypeChange">
+        <text class="form-value {{profile.bloodType ? '' : 'placeholder'}}">{{profile.bloodType || '请选择'}}</text>
+      </picker>
+    </view>
+  </view>
+
+  <!-- 过敏史 -->
+  <view class="card">
+    <view class="section-header-row">
+      <text class="section-title">过敏史</text>
+      <text class="add-btn" bindtap="addAllergy">+ 添加</text>
+    </view>
+    <view class="tag-list" wx:if="{{profile.allergies.length > 0}}">
+      <view class="removable-tag" wx:for="{{profile.allergies}}" wx:key="*this">
+        <text>{{item}}</text>
+        <text class="tag-remove" bindtap="removeAllergy" data-index="{{index}}">×</text>
+      </view>
+    </view>
+    <text class="empty-hint" wx:else>暂无过敏信息</text>
+  </view>
+
+  <!-- 既往病史 -->
+  <view class="card">
+    <view class="section-header-row">
+      <text class="section-title">既往病史</text>
+      <text class="add-btn" bindtap="addDisease">+ 添加</text>
+    </view>
+    <view class="tag-list" wx:if="{{profile.diseases.length > 0}}">
+      <view class="removable-tag" wx:for="{{profile.diseases}}" wx:key="*this">
+        <text>{{item}}</text>
+        <text class="tag-remove" bindtap="removeDisease" data-index="{{index}}">×</text>
+      </view>
+    </view>
+    <text class="empty-hint" wx:else>暂无病史信息</text>
+  </view>
+
+  <!-- 用药记录 -->
+  <view class="card">
+    <view class="section-header-row">
+      <text class="section-title">当前用药</text>
+      <text class="add-btn" bindtap="addMedication">+ 添加</text>
+    </view>
+    <view class="med-list" wx:if="{{profile.medications.length > 0}}">
+      <view class="med-item" wx:for="{{profile.medications}}" wx:key="name">
+        <view class="med-info">
+          <text class="med-name">{{item.name}}</text>
+          <text class="med-dosage">{{item.dosage}}</text>
+        </view>
+        <text class="tag-remove" bindtap="removeMedication" data-index="{{index}}">×</text>
+      </view>
+    </view>
+    <text class="empty-hint" wx:else>暂无用药信息</text>
+  </view>
+
+  <!-- 保存按钮 -->
+  <view class="save-section safe-bottom">
+    <button class="btn-primary save-btn" bindtap="saveProfile">保存档案</button>
+  </view>
+</view>

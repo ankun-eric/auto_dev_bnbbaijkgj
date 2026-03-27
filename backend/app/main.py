@@ -1,0 +1,71 @@
+import os
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+
+from app.api import (
+    admin,
+    auth,
+    chat,
+    content,
+    customer_service,
+    drug,
+    expert,
+    family,
+    health_profile,
+    notification,
+    order,
+    plan,
+    points,
+    service,
+    tcm,
+    upload,
+)
+from app.core.database import Base, engine
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    from app.init_data import init_default_data
+    await init_default_data()
+    yield
+
+
+app = FastAPI(title="宾尼小康 AI健康管家", version="1.0.0", lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(auth.router)
+app.include_router(health_profile.router)
+app.include_router(chat.router)
+app.include_router(tcm.router)
+app.include_router(service.router)
+app.include_router(order.router)
+app.include_router(expert.router)
+app.include_router(points.router)
+app.include_router(plan.router)
+app.include_router(family.router)
+app.include_router(content.router)
+app.include_router(notification.router)
+app.include_router(customer_service.router)
+app.include_router(drug.router)
+app.include_router(upload.router)
+app.include_router(admin.router)
+
+os.makedirs("uploads", exist_ok=True)
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+
+
+@app.get("/api/health")
+async def health_check():
+    return {"status": "ok", "service": "bini-health-api"}

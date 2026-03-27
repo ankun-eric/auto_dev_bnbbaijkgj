@@ -1,0 +1,34 @@
+<view class="notifications-page">
+  <!-- Tab -->
+  <view class="tab-bar">
+    <view class="tab-item {{currentTab === 0 ? 'tab-active' : ''}}" bindtap="switchTab" data-index="0">全部</view>
+    <view class="tab-item {{currentTab === 1 ? 'tab-active' : ''}}" bindtap="switchTab" data-index="1">系统</view>
+    <view class="tab-item {{currentTab === 2 ? 'tab-active' : ''}}" bindtap="switchTab" data-index="2">订单</view>
+    <view class="tab-item {{currentTab === 3 ? 'tab-active' : ''}}" bindtap="switchTab" data-index="3">健康</view>
+  </view>
+
+  <view class="notify-list" wx:if="{{notifications.length > 0}}">
+    <view class="notify-item card {{item.read ? '' : 'unread'}}" wx:for="{{notifications}}" wx:key="id" bindtap="readNotify" data-index="{{index}}">
+      <view class="notify-icon-wrap" style="background: {{item.bgColor}};">
+        <text class="notify-icon">{{item.icon}}</text>
+      </view>
+      <view class="notify-content">
+        <view class="notify-header">
+          <text class="notify-title">{{item.title}}</text>
+          <text class="notify-time">{{item.time}}</text>
+        </view>
+        <text class="notify-desc ellipsis-2">{{item.content}}</text>
+      </view>
+      <view class="unread-dot" wx:if="{{!item.read}}"></view>
+    </view>
+  </view>
+
+  <view class="empty-state" wx:else>
+    <text class="empty-icon">🔔</text>
+    <text class="empty-text">暂无消息</text>
+  </view>
+
+  <view class="clear-btn" bindtap="clearAll" wx:if="{{notifications.length > 0}}">
+    <text class="clear-text">全部已读</text>
+  </view>
+</view>

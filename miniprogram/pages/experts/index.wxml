@@ -1,0 +1,41 @@
+<view class="experts-page">
+  <!-- 筛选栏 -->
+  <view class="filter-bar">
+    <view class="filter-item {{currentDept === '' ? 'filter-active' : ''}}" bindtap="filterDept" data-dept="">全部</view>
+    <view class="filter-item {{currentDept === item ? 'filter-active' : ''}}" 
+          wx:for="{{departments}}" wx:key="*this" 
+          bindtap="filterDept" data-dept="{{item}}">{{item}}</view>
+  </view>
+
+  <!-- 专家列表 -->
+  <view class="expert-list">
+    <view class="expert-card card" wx:for="{{experts}}" wx:key="id" bindtap="goDetail" data-id="{{item.id}}">
+      <view class="expert-top">
+        <view class="expert-avatar" style="background: {{item.color}};">
+          <text class="avatar-char">{{item.name[0]}}</text>
+        </view>
+        <view class="expert-info">
+          <view class="name-row">
+            <text class="expert-name">{{item.name}}</text>
+            <text class="expert-title">{{item.title}}</text>
+          </view>
+          <text class="expert-dept">{{item.department}} · {{item.hospital}}</text>
+          <view class="expert-tags">
+            <view class="tag tag-green" wx:for="{{item.tags}}" wx:for-item="tag" wx:key="*this">{{tag}}</view>
+          </view>
+        </view>
+      </view>
+      <text class="expert-desc ellipsis-2">{{item.description}}</text>
+      <view class="expert-bottom">
+        <view class="consult-info">
+          <text class="consult-count">接诊 {{item.consultCount}} 次</text>
+          <text class="rating">好评 {{item.rating}}%</text>
+        </view>
+        <view class="consult-price">
+          <text class="price-label">图文问诊</text>
+          <text class="price-value">¥{{item.price}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>

@@ -1,0 +1,196 @@
+.services-page {
+  padding-bottom: 24rpx;
+}
+
+/* Tab */
+.tab-scroll {
+  background: #fff;
+  white-space: nowrap;
+}
+
+.tab-list {
+  display: flex;
+  padding: 0 12rpx;
+}
+
+.tab-item {
+  padding: 24rpx 28rpx;
+  font-size: 28rpx;
+  color: #666;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.tab-active {
+  color: #52c41a;
+  font-weight: bold;
+}
+
+.tab-active::after {
+  content: '';
+  position: absolute;
+  bottom: 4rpx;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 40rpx;
+  height: 4rpx;
+  background: #52c41a;
+  border-radius: 2rpx;
+}
+
+/* 服务列表 */
+.service-list {
+  padding: 24rpx;
+}
+
+.service-card {
+  display: flex;
+  align-items: flex-start;
+}
+
+.service-icon-wrap {
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 20rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-right: 20rpx;
+}
+
+.service-icon {
+  font-size: 44rpx;
+}
+
+.service-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.service-name {
+  font-size: 30rpx;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 8rpx;
+}
+
+.service-desc {
+  font-size: 24rpx;
+  color: #999;
+  margin-bottom: 12rpx;
+  line-height: 1.5;
+}
+
+.service-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.service-price {
+  display: flex;
+  align-items: baseline;
+}
+
+.price-symbol {
+  font-size: 22rpx;
+  color: #ff4d4f;
+}
+
+.price-value {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #ff4d4f;
+}
+
+.price-unit {
+  font-size: 20rpx;
+  color: #999;
+  margin-left: 4rpx;
+}
+
+.service-free {
+  font-size: 28rpx;
+  color: #52c41a;
+  font-weight: bold;
+}
+
+.service-sales {
+  font-size: 22rpx;
+  color: #ccc;
+}
+
+/* Section header */
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 24rpx;
+  margin: 24rpx 0 16rpx;
+}
+
+.section-more {
+  font-size: 24rpx;
+  color: #999;
+}
+
+/* 专家 */
+.expert-scroll {
+  white-space: nowrap;
+  padding-left: 24rpx;
+}
+
+.expert-list {
+  display: flex;
+  gap: 20rpx;
+  padding-right: 24rpx;
+}
+
+.expert-card {
+  width: 200rpx;
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 28rpx 20rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.04);
+}
+
+.expert-avatar {
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #52c41a, #13c2c2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12rpx;
+}
+
+.avatar-placeholder {
+  font-size: 36rpx;
+  color: #fff;
+  font-weight: bold;
+}
+
+.expert-name {
+  font-size: 26rpx;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 6rpx;
+}
+
+.expert-title {
+  font-size: 20rpx;
+  color: #52c41a;
+  margin-bottom: 4rpx;
+}
+
+.expert-dept {
+  font-size: 20rpx;
+  color: #999;
+}

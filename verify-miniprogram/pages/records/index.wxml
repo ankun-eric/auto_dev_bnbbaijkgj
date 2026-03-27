@@ -1,0 +1,72 @@
+<view class="container records-page">
+  <!-- 日期筛选 -->
+  <view class="filter-bar card">
+    <view class="filter-row">
+      <text class="filter-label">筛选日期</text>
+      <view class="date-pickers">
+        <picker mode="date" value="{{startDate}}" bindchange="onStartDateChange">
+          <view class="date-btn">{{startDate || '开始日期'}}</view>
+        </picker>
+        <text class="date-sep">至</text>
+        <picker mode="date" value="{{endDate}}" bindchange="onEndDateChange">
+          <view class="date-btn">{{endDate || '结束日期'}}</view>
+        </picker>
+      </view>
+    </view>
+    <view class="quick-dates">
+      <view class="quick-date-btn {{activeQuick === 'today' ? 'active' : ''}}" bindtap="filterToday">今日</view>
+      <view class="quick-date-btn {{activeQuick === 'week' ? 'active' : ''}}" bindtap="filterWeek">本周</view>
+      <view class="quick-date-btn {{activeQuick === 'month' ? 'active' : ''}}" bindtap="filterMonth">本月</view>
+      <view class="quick-date-btn {{activeQuick === 'all' ? 'active' : ''}}" bindtap="filterAll">全部</view>
+    </view>
+  </view>
+
+  <!-- 统计摘要 -->
+  <view class="summary-bar">
+    <text class="summary-text">共 <text class="text-green">{{totalCount}}</text> 条记录</text>
+  </view>
+
+  <!-- 记录列表 -->
+  <view class="record-list" wx:if="{{records.length > 0}}">
+    <view class="record-item card" wx:for="{{records}}" wx:key="id">
+      <view class="record-top">
+        <text class="record-service">{{item.serviceName}}</text>
+        <view class="record-badge success">已核销</view>
+      </view>
+      <view class="record-info">
+        <view class="record-row">
+          <text class="info-label">订单号</text>
+          <text class="info-value">{{item.orderNo}}</text>
+        </view>
+        <view class="record-row">
+          <text class="info-label">用户</text>
+          <text class="info-value">{{item.userName}}</text>
+        </view>
+        <view class="record-row">
+          <text class="info-label">金额</text>
+          <text class="info-value price">¥{{item.amount}}</text>
+        </view>
+        <view class="record-row">
+          <text class="info-label">核销时间</text>
+          <text class="info-value">{{item.verifyTime}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 空状态 -->
+  <view class="empty-state" wx:if="{{!loading && records.length === 0}}">
+    <text class="empty-icon">📭</text>
+    <text class="empty-text">暂无核销记录</text>
+    <text class="empty-sub">核销订单后将在此显示</text>
+  </view>
+
+  <!-- 加载状态 -->
+  <view class="loading-more" wx:if="{{loading}}">
+    <text class="loading-text">加载中...</text>
+  </view>
+
+  <view class="load-end" wx:if="{{!loading && noMore && records.length > 0}}">
+    <text class="load-end-text">— 没有更多了 —</text>
+  </view>
+</view>

@@ -1,0 +1,46 @@
+<view class="order-detail-page">
+  <!-- 状态 -->
+  <view class="status-banner">
+    <text class="status-icon">{{order.status === 'paid' ? '✅' : order.status === 'pending' ? '⏳' : '📦'}}</text>
+    <text class="status-text">{{order.statusText}}</text>
+  </view>
+
+  <!-- 核销码 -->
+  <view class="card qr-card" wx:if="{{order.status === 'paid'}}">
+    <text class="section-title">核销码</text>
+    <view class="qr-code-wrap">
+      <text class="qr-code-text">{{order.verifyCode}}</text>
+    </view>
+    <text class="qr-hint">到店出示此核销码</text>
+  </view>
+
+  <!-- 服务信息 -->
+  <view class="card">
+    <text class="section-title">服务信息</text>
+    <view class="info-row">
+      <text class="info-label">服务名称</text>
+      <text class="info-value">{{order.name}}</text>
+    </view>
+    <view class="info-row">
+      <text class="info-label">订单编号</text>
+      <text class="info-value">{{order.orderNo}}</text>
+    </view>
+    <view class="info-row">
+      <text class="info-label">下单时间</text>
+      <text class="info-value">{{order.time}}</text>
+    </view>
+    <view class="info-row">
+      <text class="info-label">订单金额</text>
+      <text class="info-value price">¥{{order.price}}</text>
+    </view>
+    <view class="info-row">
+      <text class="info-label">支付方式</text>
+      <text class="info-value">{{order.payMethod}}</text>
+    </view>
+  </view>
+
+  <view class="bottom-bar safe-bottom" wx:if="{{order.status === 'pending'}}">
+    <button class="btn-outline" bindtap="cancelOrder">取消订单</button>
+    <button class="btn-primary" bindtap="payOrder">立即支付</button>
+  </view>
+</view>
