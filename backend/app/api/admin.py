@@ -37,8 +37,10 @@ from app.schemas.admin import (
     DashboardStats,
     SystemConfigUpdate,
 )
+from app.schemas.user import RegisterSettingsResponse
 from app.schemas.content import ArticleCreate, ArticleResponse, ArticleUpdate, VideoCreate, VideoResponse
 from app.schemas.service import ServiceCategoryCreate, ServiceCategoryResponse, ServiceItemCreate, ServiceItemResponse, ServiceItemUpdate
+from app.services.register_service import get_register_settings, save_register_settings
 
 router = APIRouter(prefix="/api/admin", tags=["管理后台"])
 
@@ -1047,3 +1049,21 @@ async def update_protocol_settings(
         else:
             db.add(SystemConfig(config_key=config_key, config_value=str(value), config_type="protocol", description=key))
     return {"message": "协议设置更新成功"}
+
+
+@router.get("/settings/register", response_model=RegisterSettingsResponse)
+async def get_registration_settings(
+    current_user=Depends(admin_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    return await get_register_settings(db)
+
+
+@router.post("/settings/register")
+async def update_registration_settings(
+    data: dict = Body(...),
+    current_user=Depends(admin_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    settings = await save_register_settings(db, data)
+    return {"message": "注册设置更新成功", "settings": settings}

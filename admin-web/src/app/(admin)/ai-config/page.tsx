@@ -77,13 +77,14 @@ export default function AIConfigPage() {
       try {
         const res = await post('/api/admin/ai-config/test', values);
         setTestResult({
-          success: res.code === 0,
+          success: res.success ?? (res.code === 0),
           message: res.message || '连接成功',
         });
-      } catch {
+      } catch (e: any) {
+        const detail = e?.response?.data?.detail || e?.message || '网络请求失败';
         setTestResult({
-          success: true,
-          message: '测试连接完成（模拟）- API配置格式正确',
+          success: false,
+          message: `连接失败: ${detail}`,
         });
       }
     } catch {

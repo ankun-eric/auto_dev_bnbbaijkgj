@@ -1,18 +1,86 @@
-const { post } = require('../../utils/request');
+const { get, post } = require('../../utils/request');
 const app = getApp();
+
+const DEFAULT_REGISTER_SETTINGS = {
+  enable_self_registration: true,
+  wechat_register_mode: 'authorize_member',
+  douyin_register_mode: 'authorize_member',
+  register_page_layout: 'vertical',
+  show_profile_completion_prompt: true,
+  member_card_no_rule: 'incremental'
+};
+
+function formatMemberLevel(level) {
+  if (level === undefined || level === null) return '会员';
+  const map = { 0: '普通会员', 1: '银卡会员', 2: '金卡会员', 3: '钻石会员' };
+  return map[level] != null ? map[level] : `会员Lv.${level}`;
+}
+
+function mapUserFromApi(u) {
+  if (!u) return {};
+  return {
+    id: u.id,
+    phone: u.phone || '',
+    nickname: u.nickname || '',
+    avatar: u.avatar || '',
+    role: u.role,
+    member_card_no: u.member_card_no,
+    member_level: u.member_level,
+    memberLevel: formatMemberLevel(u.member_level),
+    points: u.points,
+    status: u.status
+  };
+}
 
 Page({
   data: {
     phone: '',
     code: '',
     agreed: false,
-    codeCooldown: 0
+    codeCooldown: 0,
+    settingsLoading: true,
+    registerSettings: DEFAULT_REGISTER_SETTINGS,
+    layoutClass: 'layout-vertical',
+    submitButtonText: '登录',
+    registerHelperText: ''
   },
 
   _timer: null,
 
+  onLoad() {
+    this.loadRegisterSettings();
+  },
+
   onUnload() {
     if (this._timer) clearInterval(this._timer);
+  },
+
+  applyRegisterSettings(registerSettings) {
+    const horizontal = registerSettings.register_page_layout === 'horizontal';
+    const submitButtonText = registerSettings.enable_self_registration ? '登录 / 注册' : '登录';
+    const registerHelperText = registerSettings.enable_self_registration
+      ? '未注册手机号验证后将自动创建会员'
+      : '当前未开放自助注册，仅支持已开通账号登录';
+    this.setData({
+      registerSettings,
+      layoutClass: horizontal ? 'layout-horizontal' : 'layout-vertical',
+      submitButtonText,
+      registerHelperText
+    });
+  },
+
+  async loadRegisterSettings() {
+    try {
+      const res = await get('/api/auth/register-settings', {}, {
+        showLoading: false,
+        suppressErrorToast: true
+      });
+      this.applyRegisterSettings({ ...DEFAULT_REGISTER_SETTINGS, ...res });
+    } catch (e) {
+      this.applyRegisterSettings(DEFAULT_REGISTER_SETTINGS);
+    } finally {
+      this.setData({ settingsLoading: false });
+    }
   },
 
   onPhoneInput(e) {
@@ -36,7 +104,10 @@ Page({
     }
 
     try {
-      // await post('/api/auth/sms-code', { phone, type: 'login' });
+      await post('/api/auth/sms-code', { phone, type: 'login' }, {
+        showLoading: true,
+        suppressErrorToast: true
+      });
       wx.showToast({ title: '验证码已发送', icon: 'success' });
       this.setData({ codeCooldown: 60 });
       this._timer = setInterval(() => {
@@ -48,7 +119,16 @@ Page({
         }
       }, 1000);
     } catch (e) {
-      console.log('sendCode error', e);
+      const detail = e.detail || '发送失败，请稍后重试';
+      if (e.statusCode === 403) {
+        wx.showModal({
+          title: '无法发送验证码',
+          content: detail,
+          showCancel: false
+        });
+      } else {
+        wx.showToast({ title: detail, icon: 'none', duration: 3000 });
+      }
     }
   },
 
@@ -67,22 +147,85 @@ Page({
       return;
     }
 
-    wx.showLoading({ title: '登录中...' });
+    wx.showLoading({ title: '登录中...', mask: true });
     try {
-      // const res = await post('/api/auth/sms-login', { phone, code });
-      const mockData = {
-        token: 'mock_token_' + Date.now(),
-        userInfo: { nickname: '健康用户', phone, avatar: '', memberLevel: '普通会员' }
-      };
-      app.setLoginInfo(mockData.token, mockData.userInfo);
+      const res = await post('/api/auth/sms-login', { phone, code }, {
+        showLoading: false,
+        suppressErrorToast: true
+      });
+      const accessToken = res.access_token;
+      const userInfo = mapUserFromApi(res.user);
+      if (!accessToken) {
+        wx.hideLoading();
+        wx.showToast({ title: '登录响应异常', icon: 'none' });
+        return;
+      }
+      app.setLoginInfo(accessToken, userInfo);
       wx.hideLoading();
-      wx.showToast({ title: '登录成功', icon: 'success' });
-      setTimeout(() => {
+
+      const { registerSettings } = this.data;
+      const needProfilePrompt =
+        res.needs_profile_completion &&
+        registerSettings.show_profile_completion_prompt;
+
+      const goHome = () => {
         wx.switchTab({ url: '/pages/home/index' });
-      }, 1500);
+      };
+
+      const promptProfileThen = (next) => {
+        if (!needProfilePrompt) {
+          next();
+          return;
+        }
+        wx.showModal({
+          title: '补充会员信息',
+          content: '完善基础健康信息后，可获得更精准的 AI 健康建议，是否现在去完善？',
+          confirmText: '立即完善',
+          cancelText: '稍后再说',
+          success: (r) => {
+            if (r.confirm) {
+              wx.navigateTo({ url: '/pages/health-profile/index' });
+            } else {
+              next();
+            }
+          }
+        });
+      };
+
+      if (res.is_new_user) {
+        const cardNo = res.user && res.user.member_card_no;
+        if (cardNo) {
+          wx.showModal({
+            title: '注册成功',
+            content: `欢迎加入！您的会员卡号：${cardNo}`,
+            showCancel: false,
+            confirmText: '知道了',
+            success: () => promptProfileThen(goHome)
+          });
+        } else {
+          wx.showToast({ title: '注册成功，欢迎加入', icon: 'success', duration: 2000 });
+          setTimeout(() => promptProfileThen(goHome), 1800);
+        }
+      } else {
+        wx.showToast({ title: '登录成功', icon: 'success' });
+        setTimeout(() => promptProfileThen(goHome), 1200);
+      }
     } catch (e) {
       wx.hideLoading();
-      console.log('login error', e);
+      const detail = e.detail || '登录失败，请检查验证码';
+      if (e.statusCode === 403) {
+        const closed =
+          typeof detail === 'string' &&
+          (detail.indexOf('自助注册') !== -1 || detail.indexOf('暂未开放') !== -1);
+        wx.showModal({
+          title: closed ? '无法注册' : '提示',
+          content: detail,
+          showCancel: false,
+          confirmText: '我知道了'
+        });
+      } else {
+        wx.showToast({ title: detail, icon: 'none', duration: 3000 });
+      }
     }
   },
 

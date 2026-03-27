@@ -1,12 +1,14 @@
 'use client';
 
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { List, Card, Button, Tag, FloatingBubble } from 'antd-mobile';
+import { List, Card, Button, Tag, FloatingBubble, Toast, SpinLoading } from 'antd-mobile';
 import { AddOutline, MessageOutline } from 'antd-mobile-icons';
+import api from '@/lib/api';
 
 const consultTypes = [
   {
-    key: 'health',
+    key: 'health_qa',
     title: '健康问答',
     desc: 'AI全科医生在线解答',
     icon: '💬',
@@ -35,43 +37,58 @@ const consultTypes = [
   },
 ];
 
-const recentChats = [
-  {
-    id: 'session-1',
-    title: '头痛相关咨询',
-    lastMessage: '建议您注意休息，避免长时间用眼...',
-    time: '今天 14:30',
-    type: 'health',
-  },
-  {
-    id: 'session-2',
-    title: '体质辨识',
-    lastMessage: '根据您的舌象分析，您偏向气虚体质...',
-    time: '昨天 09:15',
-    type: 'tcm',
-  },
-  {
-    id: 'session-3',
-    title: '阿莫西林用药咨询',
-    lastMessage: '阿莫西林属于青霉素类抗生素...',
-    time: '3天前',
-    type: 'drug',
-  },
-];
+interface SessionItem {
+  id: number;
+  title: string;
+  session_type: string;
+  updated_at: string;
+}
 
 const typeLabel: Record<string, { text: string; color: string }> = {
+  health_qa: { text: '问答', color: '#52c41a' },
   health: { text: '问答', color: '#52c41a' },
+  symptom_check: { text: '自查', color: '#1890ff' },
   symptom: { text: '自查', color: '#1890ff' },
   tcm: { text: '中医', color: '#eb2f96' },
+  drug_query: { text: '用药', color: '#fa8c16' },
   drug: { text: '用药', color: '#fa8c16' },
 };
 
 export default function AIPage() {
   const router = useRouter();
+  const [recentChats, setRecentChats] = useState<SessionItem[]>([]);
+  const [creating, setCreating] = useState(false);
 
-  const startNewChat = (type: string) => {
-    const sessionId = `new-${type}-${Date.now()}`;
-    router.push(`/chat/${sessionId}?type=${type}`);
+  const fetchSessions = useCallback(async () => {
+    try {
+      const res: any = await api.get('/api/chat/sessions', { params: { page: 1, page_size: 10 } });
+      const data = res.data || res;
+      setRecentChats(data.items || []);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchSessions();
+  }, [fetchSessions]);
+
+  const startNewChat = async (type: string) => {
+    if (creating) return;
+    setCreating(true);
+    try {
+      const res: any = await api.post('/api/chat/sessions', {
+        session_type: type,
+        title: '新对话',
+      });
+      const data = res.data || res;
+      const sessionId = data.id;
+      router.push(`/chat/${sessionId}?type=${type}`);
+    } catch {
+      Toast.show({ content: '创建会话失败，请检查网络或登录状态', icon: 'fail' });
+    } finally {
+      setCreating(false);
+    }
   };
 
   return (
@@ -93,6 +110,7 @@ export default function AIPage() {
                 else if (ct.key === 'drug') router.push('/drug');
                 else startNewChat(ct.key);
               }}
+              style={{ opacity: creating ? 0.6 : 1, pointerEvents: creating ? 'none' : 'auto' }}
             >
               <div className="flex items-start">
                 <div
@@ -121,7 +139,8 @@ export default function AIPage() {
             <p className="text-sm text-gray-400 mt-3">暂无对话记录</p>
             <Button
               size="small"
-              onClick={() => startNewChat('health')}
+              onClick={() => startNewChat('health_qa')}
+              loading={creating}
               style={{
                 marginTop: 12,
                 color: '#52c41a',
@@ -134,35 +153,39 @@ export default function AIPage() {
           </div>
         ) : (
           <List style={{ '--border-top': 'none', '--border-bottom': 'none' }}>
-            {recentChats.map((chat) => (
-              <Card
-                key={chat.id}
-                onClick={() => router.push(`/chat/${chat.id}`)}
-                style={{ marginBottom: 8, borderRadius: 12 }}
-              >
-                <div className="flex items-start">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center">
-                      <span className="font-medium text-sm">{chat.title}</span>
-                      <Tag
-                        style={{
-                          '--border-radius': '4px',
-                          '--background-color': `${typeLabel[chat.type].color}15`,
-                          '--text-color': typeLabel[chat.type].color,
-                          '--border-color': 'transparent',
-                          fontSize: 10,
-                          marginLeft: 8,
-                        }}
-                      >
-                        {typeLabel[chat.type].text}
-                      </Tag>
+            {recentChats.map((chat) => {
+              const label = typeLabel[chat.session_type] || { text: '对话', color: '#999' };
+              return (
+                <Card
+                  key={chat.id}
+                  onClick={() => router.push(`/chat/${chat.id}`)}
+                  style={{ marginBottom: 8, borderRadius: 12 }}
+                >
+                  <div className="flex items-start">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center">
+                        <span className="font-medium text-sm">{chat.title}</span>
+                        <Tag
+                          style={{
+                            '--border-radius': '4px',
+                            '--background-color': `${label.color}15`,
+                            '--text-color': label.color,
+                            '--border-color': 'transparent',
+                            fontSize: 10,
+                            marginLeft: 8,
+                          }}
+                        >
+                          {label.text}
+                        </Tag>
+                      </div>
                     </div>
-                    <p className="text-xs text-gray-400 mt-1 truncate">{chat.lastMessage}</p>
+                    <span className="text-xs text-gray-300 ml-2 whitespace-nowrap">
+                      {new Date(chat.updated_at).toLocaleDateString('zh-CN')}
+                    </span>
                   </div>
-                  <span className="text-xs text-gray-300 ml-2 whitespace-nowrap">{chat.time}</span>
-                </div>
-              </Card>
-            ))}
+                </Card>
+              );
+            })}
           </List>
         )}
       </div>
@@ -175,7 +198,7 @@ export default function AIPage() {
           '--background': 'linear-gradient(135deg, #52c41a, #13c2c2)',
           '--size': '52px',
         }}
-        onClick={() => startNewChat('health')}
+        onClick={() => startNewChat('health_qa')}
       >
         <AddOutline fontSize={24} color="#fff" />
       </FloatingBubble>

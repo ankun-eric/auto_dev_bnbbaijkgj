@@ -4,6 +4,17 @@ from typing import Optional
 from pydantic import BaseModel, ConfigDict
 
 
+class RegisterSettingsResponse(BaseModel):
+    """Normalized register settings (invalid stored enums fall back to defaults at read time)."""
+
+    enable_self_registration: bool
+    wechat_register_mode: str
+    douyin_register_mode: str
+    register_page_layout: str
+    show_profile_completion_prompt: bool
+    member_card_no_rule: str
+
+
 class UserCreate(BaseModel):
     phone: str
     password: str
@@ -36,6 +47,7 @@ class UserResponse(BaseModel):
     nickname: Optional[str] = None
     avatar: Optional[str] = None
     role: str
+    member_card_no: Optional[str] = None
     member_level: int
     points: int
     status: str
@@ -48,6 +60,8 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserResponse
+    is_new_user: bool = False
+    needs_profile_completion: bool = False
 
 
 class FamilyMemberCreate(BaseModel):

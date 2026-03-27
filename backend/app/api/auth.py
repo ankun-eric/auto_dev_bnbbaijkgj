@@ -15,6 +15,7 @@ from app.core.security import (
 )
 from app.models.models import User, VerificationCode
 from app.schemas.user import (
+    RegisterSettingsResponse,
     SMSCodeRequest,
     SMSLoginRequest,
     TokenResponse,
@@ -23,12 +24,26 @@ from app.schemas.user import (
     UserResponse,
     UserUpdate,
 )
+from app.services.register_service import (
+    ensure_member_card_no,
+    get_register_settings,
+    is_profile_completed,
+)
 
 router = APIRouter(prefix="/api/auth", tags=["认证"])
 
 
+@router.get("/register-settings", response_model=RegisterSettingsResponse)
+async def register_settings(db: AsyncSession = Depends(get_db)):
+    return await get_register_settings(db)
+
+
 @router.post("/register", response_model=TokenResponse)
 async def register(data: UserCreate, db: AsyncSession = Depends(get_db)):
+    register_settings = await get_register_settings(db)
+    if not register_settings["enable_self_registration"]:
+        raise HTTPException(status_code=403, detail="当前暂未开放自助注册")
+
     result = await db.execute(select(User).where(User.phone == data.phone))
     if result.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="该手机号已注册")
@@ -38,14 +53,21 @@ async def register(data: UserCreate, db: AsyncSession = Depends(get_db)):
         password_hash=get_password_hash(data.password),
         nickname=data.nickname or f"用户{data.phone[-4:]}",
     )
+    await ensure_member_card_no(db, user, register_settings)
     db.add(user)
     await db.flush()
     await db.refresh(user)
 
+    needs_profile_completion = (
+        register_settings["show_profile_completion_prompt"]
+        and not await is_profile_completed(db, user.id)
+    )
     token = create_access_token({"sub": str(user.id)})
     return TokenResponse(
         access_token=token,
         user=UserResponse.model_validate(user),
+        is_new_user=True,
+        needs_profile_completion=needs_profile_completion,
     )
 
 
@@ -60,15 +82,28 @@ async def login(data: UserLogin, db: AsyncSession = Depends(get_db)):
     if user.status != "active":
         raise HTTPException(status_code=403, detail="账号已被禁用")
 
+    register_settings = await get_register_settings(db)
+    await ensure_member_card_no(db, user, register_settings)
+    needs_profile_completion = (
+        register_settings["show_profile_completion_prompt"]
+        and not await is_profile_completed(db, user.id)
+    )
     token = create_access_token({"sub": str(user.id)})
     return TokenResponse(
         access_token=token,
         user=UserResponse.model_validate(user),
+        needs_profile_completion=needs_profile_completion,
     )
 
 
 @router.post("/sms-code")
 async def send_sms_code(data: SMSCodeRequest, db: AsyncSession = Depends(get_db)):
+    register_settings = await get_register_settings(db)
+    if data.type in {"login", "register"} and not register_settings["enable_self_registration"]:
+        result = await db.execute(select(User).where(User.phone == data.phone))
+        if result.scalar_one_or_none() is None:
+            raise HTTPException(status_code=403, detail="当前暂未开放自助注册")
+
     code = "".join(random.choices(string.digits, k=6))
     expires_at = datetime.now(timezone.utc) + timedelta(minutes=5)
 
@@ -86,6 +121,7 @@ async def send_sms_code(data: SMSCodeRequest, db: AsyncSession = Depends(get_db)
 
 @router.post("/sms-login", response_model=TokenResponse)
 async def sms_login(data: SMSLoginRequest, db: AsyncSession = Depends(get_db)):
+    register_settings = await get_register_settings(db)
     result = await db.execute(
         select(VerificationCode)
         .where(
@@ -101,19 +137,31 @@ async def sms_login(data: SMSLoginRequest, db: AsyncSession = Depends(get_db)):
 
     result = await db.execute(select(User).where(User.phone == data.phone))
     user = result.scalar_one_or_none()
+    is_new_user = False
     if not user:
+        if not register_settings["enable_self_registration"]:
+            raise HTTPException(status_code=403, detail="当前暂未开放自助注册")
         user = User(phone=data.phone, nickname=f"用户{data.phone[-4:]}")
+        await ensure_member_card_no(db, user, register_settings)
         db.add(user)
         await db.flush()
         await db.refresh(user)
+        is_new_user = True
 
     if user.status != "active":
         raise HTTPException(status_code=403, detail="账号已被禁用")
 
+    await ensure_member_card_no(db, user, register_settings)
+    needs_profile_completion = (
+        register_settings["show_profile_completion_prompt"]
+        and not await is_profile_completed(db, user.id)
+    )
     token = create_access_token({"sub": str(user.id)})
     return TokenResponse(
         access_token=token,
         user=UserResponse.model_validate(user),
+        is_new_user=is_new_user,
+        needs_profile_completion=needs_profile_completion,
     )
 
 

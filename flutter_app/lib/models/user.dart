@@ -6,7 +6,11 @@ class User {
   final String? gender;
   final String? birthday;
   final int? age;
+  /// Backend returns int; stored as string for display compatibility.
   final String? memberLevel;
+  final String? memberCardNo;
+  final String? role;
+  final String? status;
   final int points;
   final String? createdAt;
 
@@ -19,22 +23,29 @@ class User {
     this.birthday,
     this.age,
     this.memberLevel,
+    this.memberCardNo,
+    this.role,
+    this.status,
     this.points = 0,
     this.createdAt,
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
+    final ml = json['member_level'];
     return User(
       id: json['id']?.toString() ?? '',
-      phone: json['phone'] ?? '',
-      nickname: json['nickname'],
-      avatar: json['avatar'],
-      gender: json['gender'],
-      birthday: json['birthday'],
-      age: json['age'],
-      memberLevel: json['member_level'],
-      points: json['points'] ?? 0,
-      createdAt: json['created_at'],
+      phone: json['phone']?.toString() ?? '',
+      nickname: json['nickname']?.toString(),
+      avatar: json['avatar']?.toString(),
+      gender: json['gender']?.toString(),
+      birthday: json['birthday']?.toString(),
+      age: json['age'] is int ? json['age'] as int : int.tryParse(json['age']?.toString() ?? ''),
+      memberLevel: ml == null ? null : ml.toString(),
+      memberCardNo: json['member_card_no']?.toString(),
+      role: json['role']?.toString(),
+      status: json['status']?.toString(),
+      points: json['points'] is int ? json['points'] as int : int.tryParse(json['points']?.toString() ?? '') ?? 0,
+      createdAt: json['created_at']?.toString(),
     );
   }
 
@@ -48,6 +59,9 @@ class User {
       'birthday': birthday,
       'age': age,
       'member_level': memberLevel,
+      'member_card_no': memberCardNo,
+      'role': role,
+      'status': status,
       'points': points,
       'created_at': createdAt,
     };
@@ -60,6 +74,9 @@ class User {
     String? birthday,
     int? age,
     String? memberLevel,
+    String? memberCardNo,
+    String? role,
+    String? status,
     int? points,
   }) {
     return User(
@@ -71,6 +88,9 @@ class User {
       birthday: birthday ?? this.birthday,
       age: age ?? this.age,
       memberLevel: memberLevel ?? this.memberLevel,
+      memberCardNo: memberCardNo ?? this.memberCardNo,
+      role: role ?? this.role,
+      status: status ?? this.status,
       points: points ?? this.points,
       createdAt: createdAt,
     );

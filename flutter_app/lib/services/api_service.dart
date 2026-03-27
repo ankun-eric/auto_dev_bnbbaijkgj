@@ -53,16 +53,22 @@ class ApiService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final refreshToken = prefs.getString('refresh_token');
-      if (refreshToken == null) return false;
+      if (refreshToken == null || refreshToken.isEmpty) return false;
 
       final response = await Dio().post(
         '${ApiConfig.baseUrl}${ApiConfig.refreshToken}',
         data: {'refresh_token': refreshToken},
       );
 
-      if (response.statusCode == 200) {
-        await prefs.setString('access_token', response.data['access_token']);
-        await prefs.setString('refresh_token', response.data['refresh_token']);
+      if (response.statusCode == 200 && response.data is Map) {
+        final body = response.data as Map;
+        final at = body['access_token']?.toString();
+        if (at == null || at.isEmpty) return false;
+        await prefs.setString('access_token', at);
+        final rt = body['refresh_token']?.toString();
+        if (rt != null && rt.isNotEmpty) {
+          await prefs.setString('refresh_token', rt);
+        }
         return true;
       }
       return false;
@@ -87,6 +93,10 @@ class ApiService {
   }
 
   // Auth
+  Future<Response> getRegisterSettings() async {
+    return _dio.get(ApiConfig.registerSettings);
+  }
+
   Future<Response> login(String phone, String code) async {
     return _dio.post(ApiConfig.login, data: {'phone': phone, 'code': code});
   }
@@ -103,8 +113,12 @@ class ApiService {
     return _dio.post(ApiConfig.appleLogin, data: {'identity_token': identityToken});
   }
 
-  Future<Response> logout() async {
-    return _dio.post(ApiConfig.logout);
+  Future<Response?> logout() async {
+    try {
+      return await _dio.post(ApiConfig.logout);
+    } catch (_) {
+      return null;
+    }
   }
 
   // User

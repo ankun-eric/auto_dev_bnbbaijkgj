@@ -3,8 +3,8 @@ import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
 
 const api = axios.create({
-  baseURL: '',
-  timeout: 30000,
+  baseURL: basePath,
+  timeout: 60000,
   headers: {
     'Content-Type': 'application/json',
   },

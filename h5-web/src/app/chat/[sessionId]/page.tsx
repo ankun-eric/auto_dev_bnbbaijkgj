@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { NavBar, Input, Button, SpinLoading, Image } from 'antd-mobile';
+import { NavBar, Input, Button, SpinLoading, Image, Toast } from 'antd-mobile';
 import api from '@/lib/api';
 
 interface Message {
@@ -12,23 +12,47 @@ interface Message {
   time: string;
 }
 
-const mockMessages: Message[] = [
-  {
-    id: '1',
-    role: 'assistant',
-    content: '您好！我是宾尼小康AI健康助手。请问您有什么健康问题需要咨询吗？',
-    time: '14:30',
-  },
-];
+const welcomeMessage: Message = {
+  id: 'welcome',
+  role: 'assistant',
+  content: '您好！我是宾尼小康AI健康助手。请问您有什么健康问题需要咨询吗？',
+  time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+};
 
 export default function ChatPage() {
   const router = useRouter();
   const params = useParams();
   const sessionId = params.sessionId as string;
-  const [messages, setMessages] = useState<Message[]>(mockMessages);
+  const [messages, setMessages] = useState<Message[]>([welcomeMessage]);
   const [inputVal, setInputVal] = useState('');
   const [loading, setLoading] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
+
+  const loadHistory = useCallback(async () => {
+    if (!sessionId || isNaN(Number(sessionId))) return;
+    try {
+      const res: any = await api.get(`/api/chat/sessions/${sessionId}/messages`, {
+        params: { page: 1, page_size: 50 },
+      });
+      const data = res.data || res;
+      const items = data.items || [];
+      if (items.length > 0) {
+        const historyMsgs: Message[] = items.map((m: any) => ({
+          id: String(m.id),
+          role: m.role as 'user' | 'assistant',
+          content: m.content,
+          time: new Date(m.created_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+        }));
+        setMessages([welcomeMessage, ...historyMsgs]);
+      }
+    } catch {
+      // first time entering, no history yet
+    }
+  }, [sessionId]);
+
+  useEffect(() => {
+    loadHistory();
+  }, [loadHistory]);
 
   useEffect(() => {
     scrollToBottom();
@@ -68,11 +92,20 @@ export default function ChatPage() {
         time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
       };
       setMessages((prev) => [...prev, aiMsg]);
-    } catch {
+    } catch (err: any) {
+      let errorContent = '网络连接异常，请检查网络后重试。';
+      const status = err?.response?.status;
+      if (status === 401) {
+        errorContent = '登录已过期，请重新登录。';
+      } else if (status === 404) {
+        errorContent = '会话不存在，请返回重新创建对话。';
+      } else if (status === 422) {
+        errorContent = '请求参数异常，请返回重新创建对话。';
+      }
       const fallbackMsg: Message = {
         id: `ai-${Date.now()}`,
         role: 'assistant',
-        content: '网络连接异常，请检查网络后重试。您也可以尝试描述更多症状细节，以便我更好地为您分析。',
+        content: errorContent,
         time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
       };
       setMessages((prev) => [...prev, fallbackMsg]);

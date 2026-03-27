@@ -1,18 +1,39 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Tabs, Form, Input, Switch, Button, InputNumber, Card, Space, message, Typography, Select, Divider } from 'antd';
-import { SaveOutlined, SettingOutlined, BellOutlined, FileProtectOutlined } from '@ant-design/icons';
-import { post } from '@/lib/api';
+import React, { useEffect, useState } from 'react';
+import { Tabs, Form, Input, Switch, Button, InputNumber, Card, Space, message, Typography, Select, Divider, Radio, Modal, Tooltip } from 'antd';
+import { SaveOutlined, SettingOutlined, BellOutlined, FileProtectOutlined, UserAddOutlined, QuestionCircleOutlined } from '@ant-design/icons';
+import { get, post } from '@/lib/api';
 
-const { Title, Text } = Typography;
+const { Title, Text, Link } = Typography;
 const { TextArea } = Input;
 
 export default function SettingsPage() {
   const [basicForm] = Form.useForm();
   const [pushForm] = Form.useForm();
   const [protocolForm] = Form.useForm();
+  const [registerForm] = Form.useForm();
   const [saving, setSaving] = useState(false);
+  const [exampleModal, setExampleModal] = useState<{ open: boolean; title: string; content: React.ReactNode }>({ open: false, title: '', content: null });
+
+  const enableSelfRegistration = Form.useWatch('enable_self_registration', registerForm);
+  const memberCardNoRule = Form.useWatch('member_card_no_rule', registerForm);
+
+  const showExample = (title: string, content: React.ReactNode) => {
+    setExampleModal({ open: true, title, content });
+  };
+
+  useEffect(() => {
+    const loadRegisterSettings = async () => {
+      try {
+        const values = await get('/api/admin/settings/register');
+        registerForm.setFieldsValue(values);
+      } catch {
+        message.warning('注册设置加载失败，已显示页面默认值');
+      }
+    };
+    loadRegisterSettings();
+  }, [registerForm]);
 
   const handleSaveBasic = async () => {
     try {
@@ -49,6 +70,21 @@ export default function SettingsPage() {
       } catch {}
       message.success('协议保存成功');
     } catch {} finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveRegister = async () => {
+    try {
+      const values = await registerForm.validateFields();
+      setSaving(true);
+      await post('/api/admin/settings/register', values);
+      message.success('注册设置保存成功');
+    } catch (e: unknown) {
+      if ((e as { errorFields?: unknown })?.errorFields) return;
+      const detail = (e as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail;
+      message.error(typeof detail === 'string' ? detail : '注册设置保存失败，请稍后重试');
+    } finally {
       setSaving(false);
     }
   };
@@ -243,6 +279,160 @@ export default function SettingsPage() {
       ),
     },
     {
+      key: 'register',
+      label: (
+        <Space><UserAddOutlined />注册设置</Space>
+      ),
+      children: (
+        <Card style={{ borderRadius: 12 }}>
+          <Form
+            form={registerForm}
+            layout="vertical"
+            initialValues={{
+              enable_self_registration: true,
+              wechat_register_mode: 'authorize_member',
+              douyin_register_mode: 'authorize_member',
+              register_page_layout: 'vertical',
+              show_profile_completion_prompt: true,
+              member_card_no_rule: 'incremental',
+            }}
+          >
+            <Form.Item label="自助注册会员" name="enable_self_registration">
+              <Radio.Group
+                options={[
+                  { label: '关闭', value: false },
+                  { label: '开启', value: true },
+                ]}
+                optionType="default"
+              />
+            </Form.Item>
+            <div style={{ marginTop: -16, marginBottom: 16, paddingLeft: 12 }}>
+              <Text type="secondary">
+                {enableSelfRegistration
+                  ? '开启后，未注册手机号或授权用户可按配置自动成为会员。'
+                  : '关闭后，新用户无法自助开通会员，以下渠道注册方式仅保留配置，不会对外开放。'}
+              </Text>
+            </div>
+
+            <Form.Item
+              label={
+                <Space>
+                  微信端注册方式
+                  <Link onClick={() => showExample('微信端注册方式说明', (
+                    <div>
+                      <Title level={5}>授权即会员</Title>
+                      <Text>用户通过微信授权登录后，系统自动将其注册为会员，无需填写任何额外信息。适合追求快速转化、降低注册门槛的场景。</Text>
+                      <Divider />
+                      <Title level={5}>填写注册信息</Title>
+                      <Text>用户授权登录后，需要填写手机号、姓名等注册信息才能成为会员。适合需要收集用户详细资料的场景。</Text>
+                    </div>
+                  ))}>示例</Link>
+                </Space>
+              }
+              name="wechat_register_mode"
+              style={{ paddingLeft: 24 }}
+            >
+              <Radio.Group disabled={!enableSelfRegistration}>
+                <Radio value="authorize_member">
+                  <Space>
+                    授权即会员
+                    <Tooltip title="微信授权后直接成为会员，无需填写额外信息">
+                      <QuestionCircleOutlined style={{ color: '#999' }} />
+                    </Tooltip>
+                  </Space>
+                </Radio>
+                <Radio value="fill_profile">填写注册信息</Radio>
+              </Radio.Group>
+            </Form.Item>
+
+            <Form.Item
+              label={
+                <Space>
+                  抖音端注册方式
+                  <Link onClick={() => showExample('抖音端注册方式说明', (
+                    <div>
+                      <Title level={5}>授权即会员</Title>
+                      <Text>用户通过抖音授权登录后，系统自动将其注册为会员，流程简洁快速。</Text>
+                      <Divider />
+                      <Title level={5}>填写注册信息</Title>
+                      <Text>用户授权登录后，需要补充填写手机号等注册信息，适合需要完整用户资料的业务场景。</Text>
+                    </div>
+                  ))}>示例</Link>
+                </Space>
+              }
+              name="douyin_register_mode"
+              style={{ paddingLeft: 24 }}
+            >
+              <Radio.Group disabled={!enableSelfRegistration}>
+                <Radio value="authorize_member">授权即会员</Radio>
+                <Radio value="fill_profile">填写注册信息</Radio>
+              </Radio.Group>
+            </Form.Item>
+
+            <Form.Item
+              label={
+                <Space>
+                  注册页布局
+                  <Link onClick={() => showExample('注册页布局说明', (
+                    <div>
+                      <Title level={5}>上下结构</Title>
+                      <Text>Logo/品牌图在上方，注册表单在下方，适合移动端竖屏浏览，视觉流程自上而下。</Text>
+                      <Divider />
+                      <Title level={5}>左右结构</Title>
+                      <Text>品牌展示区在左侧，注册表单在右侧，适合PC端或平板横屏，充分利用宽屏空间。</Text>
+                    </div>
+                  ))}>示例</Link>
+                </Space>
+              }
+              name="register_page_layout"
+            >
+              <Radio.Group>
+                <Radio value="vertical">上下结构</Radio>
+                <Radio value="horizontal">左右结构</Radio>
+              </Radio.Group>
+            </Form.Item>
+
+            <Form.Item
+              label={
+                <Space>
+                  会员信息补充提醒
+                  <Link onClick={() => showExample('会员信息补充提醒说明', (
+                    <div>
+                      <Text>开启后，当会员资料不完整（如缺少手机号、姓名等关键信息）时，系统会在用户登录后弹出提醒，引导用户补充完善个人信息。</Text>
+                    </div>
+                  ))}>示例</Link>
+                </Space>
+              }
+              name="show_profile_completion_prompt"
+            >
+              <Radio.Group
+                options={[
+                  { label: '关闭', value: false },
+                  { label: '开启', value: true },
+                ]}
+              />
+            </Form.Item>
+
+            <Form.Item label="会员卡号生成规则" name="member_card_no_rule">
+              <Radio.Group>
+                <Radio value="incremental">默认（递增）</Radio>
+                <Radio value="random">随机生成</Radio>
+              </Radio.Group>
+            </Form.Item>
+            <div style={{ marginTop: -16, marginBottom: 16, paddingLeft: 12 }}>
+              <Text type="secondary">
+                {memberCardNoRule === 'random' ? '随机生成8位数字卡号' : '按顺序递增生成卡号，如1、2、3'}
+              </Text>
+            </div>
+
+            <Form.Item>
+              <Button type="primary" icon={<SaveOutlined />} onClick={handleSaveRegister} loading={saving}>保存注册设置</Button>
+            </Form.Item>
+          </Form>
+        </Card>
+      ),
+    },
+    {
       key: 'protocol',
       label: (
         <Space><FileProtectOutlined />协议管理</Space>
@@ -280,6 +470,16 @@ export default function SettingsPage() {
     <div>
       <Title level={4} style={{ marginBottom: 24 }}>系统设置</Title>
       <Tabs items={tabItems} />
+      <Modal
+        title={exampleModal.title}
+        open={exampleModal.open}
+        footer={null}
+        onCancel={() => setExampleModal((s) => ({ ...s, open: false }))}
+        destroyOnClose
+        width={560}
+      >
+        {exampleModal.content}
+      </Modal>
     </div>
   );
 }

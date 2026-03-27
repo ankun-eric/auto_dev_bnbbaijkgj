@@ -149,6 +149,7 @@ class User(Base):
     role = mapped_column(Enum(UserRole), default=UserRole.user, nullable=False)
     wechat_openid = mapped_column(String(100), unique=True, nullable=True)
     apple_id = mapped_column(String(100), unique=True, nullable=True)
+    member_card_no = mapped_column(String(50), unique=True, nullable=True, index=True)
     member_level = mapped_column(Integer, default=0)
     points = mapped_column(Integer, default=0)
     status = mapped_column(String(20), default="active")

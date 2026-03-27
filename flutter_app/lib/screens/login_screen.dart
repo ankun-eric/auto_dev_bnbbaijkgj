@@ -2,7 +2,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import '../models/user.dart';
 import '../providers/auth_provider.dart';
+import '../services/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -17,6 +19,38 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _agreeTerms = false;
   int _countdown = 0;
   Timer? _timer;
+  Map<String, dynamic>? _registerSettings;
+
+  bool _parseBool(dynamic v, bool def) {
+    if (v == null) return def;
+    if (v is bool) return v;
+    return {'1', 'true', 'yes', 'on'}.contains(v.toString().trim().toLowerCase());
+  }
+
+  bool get _enableSelfReg => _parseBool(_registerSettings?['enable_self_registration'], true);
+
+  bool get _showProfilePromptSetting =>
+      _parseBool(_registerSettings?['show_profile_completion_prompt'], true);
+
+  bool get _layoutHorizontal =>
+      (_registerSettings?['register_page_layout']?.toString() ?? 'vertical') == 'horizontal';
+
+  String get _loginSubtitle =>
+      _enableSelfReg ? '手机号验证码登录，新用户将自动注册' : '请使用已注册手机号验证登录';
+
+  String get _primaryButtonLabel => _enableSelfReg ? '登录 / 注册' : '登录';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRegisterSettings();
+  }
+
+  Future<void> _loadRegisterSettings() async {
+    final s = await AuthService().fetchRegisterSettings();
+    if (!mounted) return;
+    setState(() => _registerSettings = s);
+  }
 
   @override
   void dispose() {
@@ -45,12 +79,45 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final success = await authProvider.sendSmsCode(phone);
-    if (success) {
+    final sent = await authProvider.sendSmsCode(phone);
+    if (sent['success'] == true) {
       _startCountdown();
       Fluttertoast.showToast(msg: '验证码已发送');
     } else {
-      Fluttertoast.showToast(msg: '发送失败，请稍后重试');
+      Fluttertoast.showToast(msg: sent['message']?.toString() ?? '发送失败，请稍后重试');
+    }
+  }
+
+  Future<void> _showPostLoginHints(Map<String, dynamic> result) async {
+    final user = result['user'] as User?;
+    if (result['is_new_user'] == true) {
+      final card = user?.memberCardNo;
+      if (card != null && card.isNotEmpty && mounted) {
+        await showDialog<void>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('注册成功'),
+            content: SelectableText('您的会员卡号：$card'),
+            actions: [
+              TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('知道了')),
+            ],
+          ),
+        );
+      }
+    }
+    final needProfile =
+        result['needs_profile_completion'] == true && _showProfilePromptSetting;
+    if (needProfile && mounted) {
+      await showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('完善资料'),
+          content: const Text('为给您更精准的健康建议，建议尽快完善个人健康档案。'),
+          actions: [
+            TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('知道了')),
+          ],
+        ),
+      );
     }
   }
 
@@ -76,9 +143,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (!mounted) return;
     if (result['success'] == true) {
+      await _showPostLoginHints(result);
+      if (!mounted) return;
       Navigator.of(context).pushReplacementNamed('/main');
     } else {
-      Fluttertoast.showToast(msg: result['message'] ?? '登录失败');
+      Fluttertoast.showToast(msg: result['message']?.toString() ?? '登录失败');
     }
   }
 
@@ -93,28 +162,69 @@ class _LoginScreenState extends State<LoginScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 32),
           child: Column(
             children: [
-              const SizedBox(height: 100),
-              Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF52C41A), Color(0xFF13C2C2)],
+              SizedBox(height: _layoutHorizontal ? 72 : 100),
+              if (_layoutHorizontal)
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 72,
+                      height: 72,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF52C41A), Color(0xFF13C2C2)],
+                        ),
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      child: const Icon(Icons.favorite, size: 36, color: Colors.white),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            '宾尼小康',
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF333333),
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            _loginSubtitle,
+                            style: TextStyle(fontSize: 13, color: Colors.grey[600], height: 1.35),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                )
+              else ...[
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF52C41A), Color(0xFF13C2C2)],
+                    ),
+                    borderRadius: BorderRadius.circular(20),
                   ),
-                  borderRadius: BorderRadius.circular(20),
+                  child: const Icon(Icons.favorite, size: 40, color: Colors.white),
                 ),
-                child: const Icon(Icons.favorite, size: 40, color: Colors.white),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                '宾尼小康',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF333333)),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                '您的AI智能健康管家',
-                style: TextStyle(fontSize: 14, color: Colors.grey[500]),
-              ),
+                const SizedBox(height: 16),
+                const Text(
+                  '宾尼小康',
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF333333)),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  _loginSubtitle,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 14, color: Colors.grey[600], height: 1.4),
+                ),
+              ],
               const SizedBox(height: 48),
               Container(
                 decoration: BoxDecoration(
@@ -189,7 +299,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           height: 24,
                           child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                         )
-                      : const Text('登 录', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+                      : Text(_primaryButtonLabel, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
                 ),
               ),
               const SizedBox(height: 24),

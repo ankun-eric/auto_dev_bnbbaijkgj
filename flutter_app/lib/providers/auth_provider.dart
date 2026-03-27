@@ -43,7 +43,7 @@ class AuthProvider extends ChangeNotifier {
     return result;
   }
 
-  Future<bool> sendSmsCode(String phone) async {
+  Future<Map<String, dynamic>> sendSmsCode(String phone) async {
     return await _authService.sendSmsCode(phone);
   }
 

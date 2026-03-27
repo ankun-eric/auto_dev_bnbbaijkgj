@@ -24,12 +24,14 @@ from app.api import (
     upload,
 )
 from app.core.database import Base, engine
+from app.services.schema_sync import sync_register_schema
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        await sync_register_schema(conn)
     from app.init_data import init_default_data
     await init_default_data()
     yield

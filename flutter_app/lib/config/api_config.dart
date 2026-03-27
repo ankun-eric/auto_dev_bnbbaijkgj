@@ -1,7 +1,9 @@
 class ApiConfig {
-  static const String baseUrl = 'https://api.binihealth.com';
+  // 当前构建默认直连本项目部署根路径；各接口常量已自带 /api 前缀。
+  static const String baseUrl = 'https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857';
 
   // Auth
+  static const String registerSettings = '/api/auth/register-settings';
   static const String login = '/api/auth/sms-login';
   static const String sendSmsCode = '/api/auth/sms-code';
   static const String register = '/api/auth/register';

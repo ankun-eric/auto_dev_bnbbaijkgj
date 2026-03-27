@@ -148,6 +148,42 @@ async def _init_system_configs(db: AsyncSession):
             "config_type": "number",
             "description": "邀请好友奖励积分",
         },
+        {
+            "config_key": "register_enable_self_registration",
+            "config_value": "True",
+            "config_type": "register",
+            "description": "是否开放自助注册",
+        },
+        {
+            "config_key": "register_wechat_register_mode",
+            "config_value": "authorize_member",
+            "config_type": "register",
+            "description": "微信端注册方式",
+        },
+        {
+            "config_key": "register_douyin_register_mode",
+            "config_value": "authorize_member",
+            "config_type": "register",
+            "description": "抖音端注册方式",
+        },
+        {
+            "config_key": "register_register_page_layout",
+            "config_value": "vertical",
+            "config_type": "register",
+            "description": "注册页布局",
+        },
+        {
+            "config_key": "register_show_profile_completion_prompt",
+            "config_value": "True",
+            "config_type": "register",
+            "description": "会员信息补充提醒",
+        },
+        {
+            "config_key": "register_member_card_no_rule",
+            "config_value": "incremental",
+            "config_type": "register",
+            "description": "会员卡号生成规则",
+        },
     ]
     for cfg in configs:
         db.add(SystemConfig(**cfg))

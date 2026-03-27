@@ -1,10 +1,12 @@
 import axios, { AxiosRequestConfig } from 'axios';
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
+const apiBase = apiUrl ? apiUrl.replace(/\/api\/?$/, '') : '';
 
 const api = axios.create({
-  baseURL: '',
-  timeout: 30000,
+  baseURL: apiBase,
+  timeout: 60000,
   headers: { 'Content-Type': 'application/json' },
 });
 

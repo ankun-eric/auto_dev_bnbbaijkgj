@@ -6,12 +6,33 @@
   padding: 0 48rpx;
 }
 
+.login-page.layout-horizontal .logo-section {
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+}
+
+.login-page.layout-horizontal .logo-circle {
+  margin-bottom: 0;
+  margin-right: 28rpx;
+}
+
+.login-page.layout-horizontal .logo-text-block {
+  align-items: flex-start;
+}
+
 /* Logo */
 .logo-section {
   display: flex;
   flex-direction: column;
   align-items: center;
   padding: 100rpx 0 60rpx;
+}
+
+.logo-text-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .logo-circle {
@@ -47,6 +68,28 @@
 .form-section {
   flex: 1;
   padding-top: 40rpx;
+}
+
+.register-hint {
+  display: block;
+  font-size: 24rpx;
+  color: #999;
+  line-height: 1.5;
+  margin-top: 8rpx;
+  margin-bottom: 8rpx;
+}
+
+.settings-loading {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+}
+
+.settings-loading-text {
+  font-size: 28rpx;
+  color: #999;
 }
 
 .input-group {
