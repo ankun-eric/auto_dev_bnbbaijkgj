@@ -29,17 +29,33 @@ jobs:
           flutter-version: '3.24.0'
           channel: 'stable'
           
+      - name: Create local.properties
+        working-directory: flutter_app/android
+        run: |
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          echo "flutter.sdk=$FLUTTER_ROOT" >> local.properties
+          
       - name: Get dependencies
         working-directory: flutter_app
         run: flutter pub get
         
       - name: Build APK
         working-directory: flutter_app
-        run: flutter build apk --release
-        
-      - name: Rename APK
         run: |
-          mv flutter_app/build/app/outputs/flutter-apk/app-release.apk bini_health_${{ github.event.inputs.version }}.apk
+          flutter build apk --release --no-tree-shake-icons
+          
+      - name: Find and Rename APK
+        run: |
+          echo "Searching for APK files..."
+          find flutter_app/build -name "*.apk" -type f 2>/dev/null || true
+          APK_PATH=$(find flutter_app/build -name "*.apk" -type f | head -1)
+          if [ -z "$APK_PATH" ]; then
+            echo "ERROR: No APK found!"
+            find flutter_app/build -type f | head -50
+            exit 1
+          fi
+          echo "Found APK at: $APK_PATH"
+          mv "$APK_PATH" bini_health_${{ github.event.inputs.version }}.apk
           
       - name: Create Release
         uses: softprops/action-gh-release@v1
