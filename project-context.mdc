@@ -1,0 +1,59 @@
+# Project Context
+
+## Project Overview
+
+- Project name: `bini-health`
+- Repository: `https://github.com/ankun-eric/auto_dev_bnbbaijkgj`
+- Production base URL: `https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857`
+- Main stacks:
+  - `backend`: FastAPI + SQLAlchemy + MySQL
+  - `admin-web`: Next.js + React + Ant Design
+  - `h5-web`: Next.js + React + Ant Design Mobile
+  - `flutter_app`: Flutter mobile client
+  - `miniprogram`: WeChat mini program
+  - `verify-miniprogram`: verification mini program
+
+## Current Deployment Entrypoints
+
+- H5: `https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/`
+- Admin: `https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/`
+- API: `https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api/`
+
+## Latest Feature: 注册逻辑补充
+
+### Backend
+
+- Added centralized registration settings service in `backend/app/services/register_service.py`.
+- Added schema sync helper in `backend/app/services/schema_sync.py` to backfill missing legacy DB fields.
+- `auth` APIs now expose normalized register settings and enforce self-registration gates.
+- Login/register responses now reflect `needs_profile_completion` consistently.
+- Added tests for registration settings normalization, self-registration blocking, and completion-prompt behavior.
+
+### Admin Web
+
+- `系统设置 -> 注册设置` supports:
+  - 自助注册会员开关
+  - 微信端/抖音端注册方式
+  - 注册页布局
+  - 会员信息补充提醒
+  - 会员卡号生成规则
+- Save failures now surface backend validation messages.
+
+### H5 / Flutter / Mini Program
+
+- Login pages now load registration settings dynamically from backend.
+- Client behavior follows backend settings for self-registration, layout, prompt copy, and post-login guidance.
+- New users receive member-card feedback; incomplete profiles can be prompted after login.
+
+## Generated Delivery Artifacts
+
+- Android Release tag: `android-v20260327-160518`
+- iOS Release tag: `ios-v20260327-160529`
+- Mini program package:
+  - `miniprogram_20260327_160757_21b5.zip`
+  - `verify_miniprogram_20260327_160757_fe9f.zip`
+
+## Notes For Next Iteration
+
+- If remote DB schema lags behind models, check `schema_sync.py` and startup initialization path first.
+- Registration settings are the single source of truth for cross-end login/registration behavior.
