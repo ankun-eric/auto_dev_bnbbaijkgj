@@ -42,20 +42,38 @@ jobs:
       - name: Build APK
         working-directory: flutter_app
         run: |
-          flutter build apk --release --no-tree-shake-icons
-          
-      - name: Find and Rename APK
+          flutter build apk --release --no-tree-shake-icons 2>&1 || true
+          echo "=== Searching for APK files ==="
+          find build/ -name "*.apk" -type f 2>/dev/null || true
+          if [ ! -f build/app/outputs/flutter-apk/app-release.apk ]; then
+            echo "APK not found at expected path, trying direct Gradle build..."
+            cd android
+            if [ -f gradlew ]; then
+              chmod +x gradlew
+              ./gradlew assembleRelease --no-daemon
+            else
+              $FLUTTER_ROOT/bin/cache/artifacts/gradle_wrapper/gradlew assembleRelease --no-daemon -p .
+            fi
+            cd ..
+            echo "=== APK search after Gradle ==="
+            find . -name "*.apk" -type f 2>/dev/null || true
+          fi
+
+      - name: Rename APK
         run: |
-          echo "Searching for APK files..."
-          find flutter_app/build -name "*.apk" -type f 2>/dev/null || true
-          APK_PATH=$(find flutter_app/build -name "*.apk" -type f | head -1)
+          APK_PATH=$(find flutter_app/ -name "app-release.apk" -type f | head -1)
+          if [ -z "$APK_PATH" ]; then
+            APK_PATH=$(find flutter_app/ -name "*.apk" -type f | head -1)
+          fi
           if [ -z "$APK_PATH" ]; then
             echo "ERROR: No APK found!"
-            find flutter_app/build -type f | head -50
+            find flutter_app/ -type f -name "*.apk" 2>/dev/null
+            find flutter_app/build/ -type d 2>/dev/null | head -30
             exit 1
           fi
           echo "Found APK at: $APK_PATH"
-          mv "$APK_PATH" bini_health_${{ github.event.inputs.version }}.apk
+          cp "$APK_PATH" bini_health_${{ github.event.inputs.version }}.apk
+          ls -la bini_health_${{ github.event.inputs.version }}.apk
           
       - name: Create Release
         uses: softprops/action-gh-release@v1
