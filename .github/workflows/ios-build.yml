@@ -1,0 +1,49 @@
+name: iOS Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag'
+        required: true
+        default: 'ios-dev'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0'
+          channel: 'stable'
+          
+      - name: Get dependencies
+        working-directory: flutter_app
+        run: flutter pub get
+        
+      - name: Build iOS (no codesign)
+        working-directory: flutter_app
+        run: flutter build ios --release --no-codesign
+        
+      - name: Create IPA
+        run: |
+          cd flutter_app/build/ios/iphoneos
+          mkdir Payload
+          cp -r Runner.app Payload/
+          zip -r bini_health_${{ github.event.inputs.version }}.ipa Payload/
+          mv bini_health_${{ github.event.inputs.version }}.ipa $GITHUB_WORKSPACE/
+          
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.event.inputs.version }}
+          name: "iOS Build ${{ github.event.inputs.version }}"
+          files: bini_health_${{ github.event.inputs.version }}.ipa
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
