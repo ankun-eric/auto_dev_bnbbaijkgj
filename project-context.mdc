@@ -19,41 +19,45 @@
 - Admin: `https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/`
 - API: `https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api/`
 
-## Latest Feature: 注册逻辑补充
+## Latest Feature: 用户/商家小程序合并
 
 ### Backend
 
-- Added centralized registration settings service in `backend/app/services/register_service.py`.
-- Added schema sync helper in `backend/app/services/schema_sync.py` to backfill missing legacy DB fields.
-- `auth` APIs now expose normalized register settings and enforce self-registration gates.
-- Login/register responses now reflect `needs_profile_completion` consistently.
-- Added tests for registration settings normalization, self-registration blocking, and completion-prompt behavior.
+- Added multi-identity account support with `AccountIdentity`, `MerchantProfile`, `MerchantStore`, `MerchantStoreMembership`, `MerchantStorePermission`, `MerchantNotification`, and `MerchantOrderVerification`.
+- `auth` APIs now return unified `session_context` and merchant profile data for login routing, dual-identity role selection, and role switching.
+- Added merchant-facing APIs in `backend/app/api/merchant.py` for store listing, dashboard, order verification, verification records, notifications, and merchant profile.
+- Added admin merchant management APIs in `backend/app/api/admin_merchant.py` for store maintenance, merchant/staff account creation, updates, permission assignment, and bulk import.
+- Added backend regression coverage in `backend/tests/test_merchant.py` for dual-identity creation, merchant login context, order verification, and verification record queries.
 
 ### Admin Web
 
-- `系统设置 -> 注册设置` supports:
-  - 自助注册会员开关
-  - 微信端/抖音端注册方式
-  - 注册页布局
-  - 会员信息补充提醒
-  - 会员卡号生成规则
-- Save failures now surface backend validation messages.
+- Added `商家管理 -> 门店管理` and `商家管理 -> 商家账号` menus in the admin layout.
+- Added store management page for creating, editing, enabling, and disabling merchant stores.
+- Added merchant account management page for owner/staff maintenance, dual-identity setup, store binding, module permission configuration, and batch import.
 
-### H5 / Flutter / Mini Program
+### Mini Program
 
-- Login pages now load registration settings dynamically from backend.
-- Client behavior follows backend settings for self-registration, layout, prompt copy, and post-login guidance.
-- New users receive member-card feedback; incomplete profiles can be prompted after login.
+- Merged original user mini program and merchant verification mini program into the single `miniprogram` project.
+- Added role-aware login flow: unauthenticated users default to the user homepage, single-role accounts enter directly, dual-identity accounts choose role after login.
+- Added role switching, store selection, no-permission guidance, merchant message center, and custom tab bar support.
+- Converted the four main tab pages into role containers so user and merchant experiences stay isolated while sharing the same account/login framework.
+- Merchant mode now requires store selection on each entry and keeps orders, messages, and profile data isolated from user mode.
 
 ## Generated Delivery Artifacts
 
-- Android Release tag: `android-v20260327-160518`
-- iOS Release tag: `ios-v20260327-160529`
-- Mini program package:
-  - `miniprogram_20260327_160757_21b5.zip`
-  - `verify_miniprogram_20260327_160757_fe9f.zip`
+- Merged mini program package:
+  - `miniprogram_20260327_163902_ee97.zip`
+
+## Deployment Verification
+
+- H5 homepage: `https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/`
+- Admin homepage: `https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/`
+- Admin merchant accounts page: `https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/merchant/accounts/`
+- API health: `https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api/health`
+- Download package: `https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/miniprogram_20260327_163902_ee97.zip`
 
 ## Notes For Next Iteration
 
-- If remote DB schema lags behind models, check `schema_sync.py` and startup initialization path first.
-- Registration settings are the single source of truth for cross-end login/registration behavior.
+- Merchant identities are granted by admin only; new self-registered accounts still default to normal users.
+- Old user and merchant accounts require admin-side manual merge before official cutover.
+- If remote DB schema lags behind models, check startup schema synchronization and the new merchant-related tables first.

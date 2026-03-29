@@ -1,0 +1,25 @@
+<view class="store-page">
+  <view class="intro-card">
+    <text class="intro-title">进入商家端前，请先选择门店</text>
+    <text class="intro-desc">系统不会记忆上次门店，每次进入商家端都需要重新选择。</text>
+  </view>
+
+  <view class="store-list" wx:if="{{stores.length > 0}}">
+    <view class="store-card" wx:for="{{stores}}" wx:key="id" data-store="{{item}}" bindtap="selectStore">
+      <view class="store-header">
+        <text class="store-name">{{item.store_name}}</text>
+        <text class="store-role">{{item.member_role === 'owner' ? '主账号' : '员工账号'}}</text>
+      </view>
+      <text class="store-code">门店编码：{{item.store_code}}</text>
+      <text class="store-address" wx:if="{{item.address}}">{{item.address}}</text>
+      <view class="module-list">
+        <text class="module-tag" wx:for="{{item.module_codes}}" wx:key="*this">{{item}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="empty-state" wx:elif="{{!loading}}">
+    <text class="empty-title">暂无可用门店</text>
+    <text class="empty-desc">请联系后台为您开通门店与模块权限。</text>
+  </view>
+</view>

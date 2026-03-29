@@ -1,9 +1,15 @@
+const { syncTabBar } = require('../../utils/util');
+
 const app = getApp();
 
 Page({
   data: {
+    pageMode: 'user',
     isLoggedIn: false,
     userInfo: null,
+    merchantProfile: null,
+    currentStore: null,
+    canSwitchRole: false,
     points: 0,
     orderCount: 0,
     familyCount: 0,
@@ -16,23 +22,48 @@ Page({
       { id: 'plan', label: '健康计划', icon: '📅', path: '/pages/health-plan/index' },
       { id: 'service', label: '在线客服', icon: '🎧', path: '/pages/customer-service/index' },
       { id: 'settings', label: '设置', icon: '⚙️', path: '/pages/settings/index' }
+    ],
+    merchantMenuList: [
+      { id: 'store', label: '重新选择门店', icon: '🏪', path: '/pages/store-select/index' },
+      { id: 'message', label: '商家消息', icon: '🔔', path: '/pages/merchant-messages/index' }
     ]
   },
 
   onShow() {
+    syncTabBar(this, '/pages/profile/index');
+    const pageMode = app.getCurrentRole() || 'user';
+    const userInfo = app.getUserInfo();
+    const merchantProfile = app.getMerchantProfile();
+    if (pageMode === 'merchant') {
+      if (!app.hasMerchantIdentity()) {
+        wx.navigateTo({ url: '/pages/no-permission/index?scene=merchant' });
+        return;
+      }
+      if (!app.getCurrentStore()) {
+        wx.navigateTo({ url: '/pages/store-select/index' });
+        return;
+      }
+    } else if (app.globalData.isLoggedIn && !app.hasUserIdentity()) {
+      wx.navigateTo({ url: '/pages/no-permission/index?scene=user' });
+      return;
+    }
+
     this.setData({
+      pageMode,
       isLoggedIn: app.globalData.isLoggedIn,
-      userInfo: app.globalData.userInfo
+      userInfo,
+      merchantProfile,
+      currentStore: app.getCurrentStore(),
+      canSwitchRole: app.isDualIdentity()
     });
-    if (app.globalData.isLoggedIn) {
+
+    if (pageMode === 'user' && app.globalData.isLoggedIn) {
       this.loadUserData();
     }
   },
 
   async loadUserData() {
     try {
-      // const res = await get('/api/auth/me');
-      // this.setData({ ...res.data });
       this.setData({
         points: 1280,
         orderCount: 5,
@@ -42,6 +73,27 @@ Page({
     } catch (e) {
       console.log('loadUserData error', e);
     }
+  },
+
+  switchRole() {
+    if (!app.isDualIdentity()) return;
+    const currentRole = this.data.pageMode;
+    const targetRole = currentRole === 'merchant' ? 'user' : 'merchant';
+    const targetLabel = targetRole === 'merchant' ? '商家端' : '用户端';
+    wx.showModal({
+      title: '切换角色',
+      content: `确认切换到${targetLabel}吗？`,
+      success: (res) => {
+        if (!res.confirm) return;
+        app.setCurrentRole(targetRole);
+        if (targetRole === 'merchant') {
+          app.clearCurrentStore();
+          wx.navigateTo({ url: '/pages/store-select/index' });
+          return;
+        }
+        wx.switchTab({ url: '/pages/home/index' });
+      }
+    });
   },
 
   goLogin() {
@@ -68,5 +120,17 @@ Page({
   onMenuTap(e) {
     const item = e.currentTarget.dataset.item;
     wx.navigateTo({ url: item.path });
+  },
+
+  logout() {
+    wx.showModal({
+      title: '确认退出',
+      content: '确定要退出当前账号吗？',
+      success: (res) => {
+        if (!res.confirm) return;
+        app.logout();
+        wx.reLaunch({ url: '/pages/login/index' });
+      }
+    });
   }
 });

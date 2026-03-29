@@ -3,6 +3,8 @@ from typing import Optional
 
 from pydantic import BaseModel, ConfigDict
 
+from app.schemas.merchant import MerchantProfileResponse, SessionContextResponse
+
 
 class RegisterSettingsResponse(BaseModel):
     """Normalized register settings (invalid stored enums fall back to defaults at read time)."""
@@ -62,6 +64,8 @@ class TokenResponse(BaseModel):
     user: UserResponse
     is_new_user: bool = False
     needs_profile_completion: bool = False
+    session_context: Optional[SessionContextResponse] = None
+    merchant_profile: Optional[MerchantProfileResponse] = None
 
 
 class FamilyMemberCreate(BaseModel):

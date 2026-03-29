@@ -1,7 +1,14 @@
 const { get } = require('../../utils/request');
+const { syncTabBar } = require('../../utils/util');
 
 Page({
   data: {
+    pageMode: 'user',
+    canSwitchRole: false,
+    currentStore: null,
+    merchantUserName: '',
+    todayCount: 0,
+    todayAmount: '0.00',
     banners: [
       { id: 1, title: 'AI智能问诊', desc: '24小时在线，专业健康咨询', bgColor: 'linear-gradient(135deg, #52c41a, #13c2c2)' },
       { id: 2, title: '体检报告解读', desc: '上传报告，AI秒级分析', bgColor: 'linear-gradient(135deg, #13c2c2, #1890ff)' },
@@ -28,36 +35,117 @@ Page({
     loading: false
   },
 
-  onLoad() {
-    this.loadData();
+  onShow() {
+    syncTabBar(this, '/pages/home/index');
+    if (!this.syncRoleState()) return;
+    this.loadCurrentModeData();
   },
 
   onPullDownRefresh() {
-    this.loadData().then(() => {
+    if (!this.syncRoleState()) {
       wx.stopPullDownRefresh();
+      return;
+    }
+    this.loadCurrentModeData().finally(() => wx.stopPullDownRefresh());
+  },
+
+  syncRoleState() {
+    const app = getApp();
+    const pageMode = app.getCurrentRole() || 'user';
+    if (pageMode === 'merchant') {
+      if (!app.hasMerchantIdentity()) {
+        wx.navigateTo({ url: '/pages/no-permission/index?scene=merchant' });
+        return false;
+      }
+      if (!app.getCurrentStore()) {
+        wx.navigateTo({ url: '/pages/store-select/index' });
+        return false;
+      }
+    } else if (app.globalData.isLoggedIn && !app.hasUserIdentity()) {
+      wx.navigateTo({ url: '/pages/no-permission/index?scene=user' });
+      return false;
+    }
+
+    const merchantProfile = app.getMerchantProfile() || {};
+    this.setData({
+      pageMode,
+      canSwitchRole: app.isDualIdentity(),
+      currentStore: app.getCurrentStore(),
+      merchantUserName: merchantProfile.nickname || (app.getUserInfo() || {}).nickname || '工作人员'
+    });
+    return true;
+  },
+
+  loadCurrentModeData() {
+    if (this.data.pageMode === 'merchant') {
+      return this.loadMerchantDashboard();
+    }
+    return this.loadUserData();
+  },
+
+  async loadUserData() {
+    this.setData({ loading: true });
+    try {
+      // 用户端首页暂继续沿用现有静态展示与后续页面能力。
+    } finally {
+      this.setData({ loading: false });
+    }
+  },
+
+  async loadMerchantDashboard() {
+    const currentStore = this.data.currentStore;
+    if (!currentStore) return Promise.resolve();
+    this.setData({ loading: true });
+    try {
+      const res = await get('/api/merchant/dashboard', { store_id: currentStore.id }, { showLoading: false });
+      this.setData({
+        todayCount: res.today_count || 0,
+        todayAmount: Number(res.today_amount || 0).toFixed(2)
+      });
+    } catch (e) {
+      wx.showToast({ title: e.detail || '商家数据加载失败', icon: 'none' });
+    } finally {
+      this.setData({ loading: false });
+    }
+  },
+
+  switchRole() {
+    const app = getApp();
+    if (!app.isDualIdentity()) return;
+    const currentRole = this.data.pageMode;
+    const targetRole = currentRole === 'merchant' ? 'user' : 'merchant';
+    const targetLabel = targetRole === 'merchant' ? '商家端' : '用户端';
+    wx.showModal({
+      title: '切换角色',
+      content: `确认切换到${targetLabel}吗？`,
+      success: (res) => {
+        if (!res.confirm) return;
+        app.setCurrentRole(targetRole);
+        if (targetRole === 'merchant') {
+          app.clearCurrentStore();
+          wx.navigateTo({ url: '/pages/store-select/index' });
+          return;
+        }
+        wx.switchTab({ url: '/pages/home/index' });
+      }
     });
   },
 
-  async loadData() {
-    this.setData({ loading: true });
-    try {
-      // const res = await get('/api/home/data');
-      // this.setData({ ...res.data });
-    } catch (e) {
-      console.log('loadData error', e);
-    }
-    this.setData({ loading: false });
-  },
-
   onSearchTap() {
+    if (this.data.pageMode !== 'user') return;
     wx.navigateTo({ url: '/pages/articles/index?focus=true' });
   },
 
   goNotifications() {
+    if (this.data.pageMode === 'merchant') {
+      wx.navigateTo({ url: '/pages/merchant-messages/index' });
+      return;
+    }
     wx.navigateTo({ url: '/pages/notifications/index' });
   },
 
   onMenuTap(e) {
+    if (this.data.pageMode !== 'user') return;
     const item = e.currentTarget.dataset.item;
     wx.navigateTo({ url: item.path });
   },
@@ -69,5 +157,13 @@ Page({
   goArticleDetail(e) {
     const id = e.currentTarget.dataset.id;
     wx.navigateTo({ url: `/pages/article-detail/index?id=${id}` });
+  },
+
+  goScan() {
+    wx.switchTab({ url: '/pages/ai/index' });
+  },
+
+  goRecords() {
+    wx.switchTab({ url: '/pages/services/index' });
   }
 });

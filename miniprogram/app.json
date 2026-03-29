@@ -23,8 +23,11 @@
     "pages/articles/index",
     "pages/article-detail/index",
     "pages/notifications/index",
+    "pages/merchant-messages/index",
     "pages/customer-service/index",
-    "pages/settings/index"
+    "pages/settings/index",
+    "pages/store-select/index",
+    "pages/no-permission/index"
   ],
   "window": {
     "navigationBarTextStyle": "black",
@@ -33,6 +36,7 @@
     "backgroundColor": "#f5f5f5"
   },
   "tabBar": {
+    "custom": true,
     "color": "#999999",
     "selectedColor": "#52c41a",
     "backgroundColor": "#ffffff",

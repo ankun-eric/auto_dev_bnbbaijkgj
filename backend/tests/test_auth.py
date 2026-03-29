@@ -176,7 +176,7 @@ async def test_register_blocked_when_self_registration_disabled(client: AsyncCli
 
 
 @pytest.mark.asyncio
-async def test_sms_login_creates_member_card_no_incrementally(client: AsyncClient):
+async def test_sms_login_creates_member_card_no_incrementally(client: AsyncClient, latest_sms_code):
     first_register = await client.post("/api/auth/register", json={
         "phone": "13800007777",
         "password": "test1234",
@@ -190,7 +190,8 @@ async def test_sms_login_creates_member_card_no_incrementally(client: AsyncClien
         "type": "login",
     })
     assert code_resp.status_code == 200
-    sms_code = code_resp.json()["code"]
+    assert code_resp.json().get("code") is None
+    sms_code = await latest_sms_code("13800008888")
 
     login_resp = await client.post("/api/auth/sms-login", json={
         "phone": "13800008888",
@@ -279,7 +280,9 @@ async def test_sms_code_register_type_blocked_new_user_when_self_registration_di
 
 
 @pytest.mark.asyncio
-async def test_sms_login_allowed_when_registration_disabled_existing_user(client: AsyncClient, db_session):
+async def test_sms_login_allowed_when_registration_disabled_existing_user(
+    client: AsyncClient, db_session, latest_sms_code
+):
     reg_resp = await client.post("/api/auth/register", json={
         "phone": "13800030003",
         "password": "test1234",
@@ -299,7 +302,7 @@ async def test_sms_login_allowed_when_registration_disabled_existing_user(client
         "type": "login",
     })
     assert code_resp.status_code == 200
-    sms_code = code_resp.json()["code"]
+    sms_code = await latest_sms_code("13800030003")
 
     login_resp = await client.post("/api/auth/sms-login", json={
         "phone": "13800030003",
@@ -398,7 +401,7 @@ async def test_password_login_skips_profile_completion_when_prompt_disabled(
 
 @pytest.mark.asyncio
 async def test_sms_login_existing_user_needs_profile_completion_reflects_health_profile(
-    client: AsyncClient, db_session
+    client: AsyncClient, db_session, latest_sms_code
 ):
     reg = await client.post(
         "/api/auth/register",
@@ -416,9 +419,10 @@ async def test_sms_login_existing_user_needs_profile_completion_reflects_health_
         json={"phone": "13800043043", "type": "login"},
     )
     assert code_resp.status_code == 200
+    sms_code = await latest_sms_code("13800043043")
     first_login = await client.post(
         "/api/auth/sms-login",
-        json={"phone": "13800043043", "code": code_resp.json()["code"]},
+        json={"phone": "13800043043", "code": sms_code},
     )
     assert first_login.status_code == 200
     assert first_login.json()["is_new_user"] is False
@@ -435,14 +439,10 @@ async def test_sms_login_existing_user_needs_profile_completion_reflects_health_
     )
     await db_session.commit()
 
-    code_resp2 = await client.post(
-        "/api/auth/sms-code",
-        json={"phone": "13800043043", "type": "login"},
-    )
-    assert code_resp2.status_code == 200
+    # Reuse same verification code (sms-login does not consume the row; avoid second sms-code within 60s).
     second_login = await client.post(
         "/api/auth/sms-login",
-        json={"phone": "13800043043", "code": code_resp2.json()["code"]},
+        json={"phone": "13800043043", "code": sms_code},
     )
     assert second_login.status_code == 200
     assert second_login.json()["needs_profile_completion"] is False
@@ -583,3 +583,100 @@ async def test_register_settings_requires_admin_role(client: AsyncClient, auth_h
     response = await client.get("/api/admin/settings/register", headers=auth_headers)
     assert response.status_code == 403
     assert "权限不足" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_sms_code_rate_limit_60s(client: AsyncClient, db_session):
+    first = await client.post("/api/auth/sms-code", json={
+        "phone": "13800099001",
+        "type": "login",
+    })
+    assert first.status_code == 200
+
+    second = await client.post("/api/auth/sms-code", json={
+        "phone": "13800099001",
+        "type": "login",
+    })
+    assert second.status_code == 429
+    assert "频繁" in second.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_sms_code_rate_limit_different_phones_ok(client: AsyncClient):
+    first = await client.post("/api/auth/sms-code", json={
+        "phone": "13800099002",
+        "type": "login",
+    })
+    assert first.status_code == 200
+
+    second = await client.post("/api/auth/sms-code", json={
+        "phone": "13800099003",
+        "type": "login",
+    })
+    assert second.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_sms_code_response_no_code_field(client: AsyncClient):
+    resp = await client.post("/api/auth/sms-code", json={
+        "phone": "13800099004",
+        "type": "login",
+    })
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["message"] == "验证码已发送"
+    assert "code" not in data
+
+
+@pytest.mark.asyncio
+async def test_sms_login_wrong_code(client: AsyncClient, latest_sms_code):
+    await client.post("/api/auth/sms-code", json={
+        "phone": "13800099005",
+        "type": "login",
+    })
+    login_resp = await client.post("/api/auth/sms-login", json={
+        "phone": "13800099005",
+        "code": "000000",
+    })
+    assert login_resp.status_code == 400
+    assert "无效" in login_resp.json()["detail"] or "过期" in login_resp.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_sms_login_auto_register_new_user(client: AsyncClient, latest_sms_code):
+    await client.post("/api/auth/sms-code", json={
+        "phone": "13800099006",
+        "type": "login",
+    })
+    code = await latest_sms_code("13800099006")
+    login_resp = await client.post("/api/auth/sms-login", json={
+        "phone": "13800099006",
+        "code": code,
+    })
+    assert login_resp.status_code == 200
+    data = login_resp.json()
+    assert data["is_new_user"] is True
+    assert "access_token" in data
+    assert data["user"]["phone"] == "13800099006"
+
+
+@pytest.mark.asyncio
+async def test_sms_login_existing_user(client: AsyncClient, latest_sms_code):
+    await client.post("/api/auth/register", json={
+        "phone": "13800099007",
+        "password": "test1234",
+        "nickname": "已有用户",
+    })
+    await client.post("/api/auth/sms-code", json={
+        "phone": "13800099007",
+        "type": "login",
+    })
+    code = await latest_sms_code("13800099007")
+    login_resp = await client.post("/api/auth/sms-login", json={
+        "phone": "13800099007",
+        "code": code,
+    })
+    assert login_resp.status_code == 200
+    data = login_resp.json()
+    assert data["is_new_user"] is False
+    assert "access_token" in data

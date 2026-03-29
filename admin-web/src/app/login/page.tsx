@@ -28,7 +28,7 @@ export default function LoginPage() {
         message.error(res.message || '登录失败');
       }
     } catch (err: any) {
-      message.error(err?.response?.data?.message || '登录失败，请检查账号密码');
+      message.error(err?.response?.data?.detail || err?.response?.data?.message || '登录失败，请检查账号密码');
     } finally {
       setLoading(false);
     }

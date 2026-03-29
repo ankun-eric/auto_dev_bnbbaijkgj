@@ -132,3 +132,154 @@
   font-size: 30rpx;
   font-weight: bold;
 }
+
+.merchant-scan-page {
+  min-height: 100vh;
+  padding: 24rpx;
+  box-sizing: border-box;
+}
+
+.scan-prompt {
+  padding-top: 80rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.scan-animation-wrapper {
+  position: relative;
+  width: 260rpx;
+  height: 260rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 28rpx;
+}
+
+.scan-circle {
+  width: 200rpx;
+  height: 200rpx;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #52c41a, #13c2c2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  z-index: 2;
+}
+
+.scan-circle-inner {
+  width: 130rpx;
+  height: 130rpx;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.22);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.scan-emoji {
+  font-size: 54rpx;
+}
+
+.scan-ripple {
+  position: absolute;
+  width: 220rpx;
+  height: 220rpx;
+  border-radius: 50%;
+  border: 4rpx solid rgba(82, 196, 26, 0.2);
+}
+
+.scan-ripple.delay {
+  width: 250rpx;
+  height: 250rpx;
+}
+
+.scan-tip {
+  font-size: 30rpx;
+  color: #333;
+  font-weight: 600;
+}
+
+.scan-sub-tip {
+  margin-top: 12rpx;
+  font-size: 24rpx;
+  color: #999;
+}
+
+.order-card {
+  margin-top: 24rpx;
+}
+
+.order-header,
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.order-header {
+  margin-bottom: 24rpx;
+}
+
+.order-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #333;
+}
+
+.order-status {
+  padding: 8rpx 18rpx;
+  border-radius: 999rpx;
+  font-size: 22rpx;
+}
+
+.status-done {
+  color: #52c41a;
+  background: rgba(82, 196, 26, 0.12);
+}
+
+.status-pending {
+  color: #faad14;
+  background: rgba(250, 173, 20, 0.12);
+}
+
+.order-detail-list {
+  display: flex;
+  flex-direction: column;
+  gap: 18rpx;
+}
+
+.detail-label {
+  font-size: 24rpx;
+  color: #999;
+}
+
+.detail-value {
+  flex: 1;
+  text-align: right;
+  font-size: 26rpx;
+  color: #333;
+}
+
+.detail-value.price {
+  color: #ff4d4f;
+  font-weight: 600;
+}
+
+.order-actions,
+.rescan-area {
+  margin-top: 28rpx;
+}
+
+.verified-notice {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #52c41a;
+  font-size: 26rpx;
+}
+
+.verified-icon {
+  margin-right: 10rpx;
+}

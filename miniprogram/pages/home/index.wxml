@@ -1,17 +1,16 @@
-<view class="home-page">
-  <!-- 搜索栏 -->
+<view class="home-page" wx:if="{{pageMode === 'user'}}">
   <view class="search-bar" bindtap="onSearchTap">
     <view class="search-input">
       <text class="search-icon">🔍</text>
       <text class="search-placeholder">搜索症状、药品、健康知识...</text>
     </view>
-    <view class="notification-btn" bindtap="goNotifications">
+    <view class="switch-role-chip" wx:if="{{canSwitchRole}}" catchtap="switchRole">切换角色</view>
+    <view class="notification-btn" catchtap="goNotifications">
       <text class="bell-icon">🔔</text>
       <view class="badge" wx:if="{{unreadCount > 0}}">{{unreadCount}}</view>
     </view>
   </view>
 
-  <!-- 轮播Banner -->
   <swiper class="banner-swiper" indicator-dots autoplay circular interval="{{4000}}">
     <swiper-item wx:for="{{banners}}" wx:key="id">
       <view class="banner-item" style="background: {{item.bgColor}};">
@@ -23,7 +22,6 @@
     </swiper-item>
   </swiper>
 
-  <!-- 功能入口网格 -->
   <view class="card">
     <view class="grid-menu">
       <view class="grid-item" wx:for="{{menuItems}}" wx:key="id" bindtap="onMenuTap" data-item="{{item}}">
@@ -35,7 +33,6 @@
     </view>
   </view>
 
-  <!-- 健康提醒 -->
   <view class="card" wx:if="{{healthTips.length > 0}}">
     <view class="section-header">
       <text class="section-title">健康提醒</text>
@@ -46,7 +43,6 @@
     </view>
   </view>
 
-  <!-- 健康知识推荐 -->
   <view class="section-header">
     <text class="section-title">健康知识</text>
     <text class="section-more" bindtap="goArticles">更多 ></text>
@@ -64,8 +60,72 @@
       <image class="article-cover" src="{{item.cover}}" mode="aspectFill" wx:if="{{item.cover}}" />
     </view>
   </view>
+</view>
 
-  <view class="loading-wrap" wx:if="{{loading}}">
-    <text class="text-hint">加载中...</text>
+<view class="container merchant-home-page" wx:else>
+  <view class="header-card card">
+    <view class="user-row">
+      <view class="avatar">
+        <text class="avatar-text">{{merchantUserName ? merchantUserName[0] : '店'}}</text>
+      </view>
+      <view class="user-info">
+        <text class="user-name">{{merchantUserName || '门店工作人员'}}</text>
+        <text class="user-role">{{currentStore.store_name}}</text>
+      </view>
+      <view class="switch-link" wx:if="{{canSwitchRole}}" bindtap="switchRole">
+        <text class="switch-link-text">切换角色</text>
+      </view>
+    </view>
   </view>
+
+  <view class="stats-card card">
+    <text class="stats-title">今日门店核销统计</text>
+    <view class="stats-row">
+      <view class="stat-item">
+        <text class="stat-num text-green">{{todayCount}}</text>
+        <text class="stat-label">核销笔数</text>
+      </view>
+      <view class="stat-divider"></view>
+      <view class="stat-item">
+        <text class="stat-num text-cyan">¥{{todayAmount}}</text>
+        <text class="stat-label">核销金额</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="scan-area" bindtap="goScan">
+    <view class="scan-btn-big">
+      <view class="scan-icon-wrapper">
+        <text class="scan-icon-text">📷</text>
+      </view>
+      <text class="scan-btn-label">扫码核销</text>
+      <text class="scan-btn-desc">扫描用户订单核销码</text>
+    </view>
+  </view>
+
+  <view class="quick-entry card" bindtap="goRecords">
+    <view class="entry-left">
+      <text class="entry-icon">📋</text>
+      <view class="entry-text">
+        <text class="entry-title">核销记录</text>
+        <text class="entry-desc">查看当前门店历史核销订单</text>
+      </view>
+    </view>
+    <text class="entry-arrow">›</text>
+  </view>
+
+  <view class="quick-entry card" bindtap="goNotifications">
+    <view class="entry-left">
+      <text class="entry-icon">🔔</text>
+      <view class="entry-text">
+        <text class="entry-title">商家消息</text>
+        <text class="entry-desc">查看与商家端相关的独立消息</text>
+      </view>
+    </view>
+    <text class="entry-arrow">›</text>
+  </view>
+</view>
+
+<view class="loading-wrap" wx:if="{{loading}}">
+  <text class="text-hint">加载中...</text>
 </view>

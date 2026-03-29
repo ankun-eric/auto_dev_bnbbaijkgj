@@ -7,6 +7,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.api import (
     admin,
+    admin_merchant,
     auth,
     chat,
     content,
@@ -19,6 +20,7 @@ from app.api import (
     order,
     plan,
     points,
+    merchant,
     service,
     tcm,
     upload,
@@ -63,6 +65,8 @@ app.include_router(customer_service.router)
 app.include_router(drug.router)
 app.include_router(upload.router)
 app.include_router(admin.router)
+app.include_router(admin_merchant.router)
+app.include_router(merchant.router)
 
 os.makedirs("uploads", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")

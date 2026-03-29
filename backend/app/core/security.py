@@ -61,3 +61,31 @@ def require_role(*roles: str):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="权限不足")
         return current_user
     return role_checker
+
+
+async def get_identity_codes_for_user(db: AsyncSession, user_id: int) -> set[str]:
+    from app.models.models import AccountIdentity
+
+    result = await db.execute(
+        select(AccountIdentity.identity_type).where(
+            AccountIdentity.user_id == user_id,
+            AccountIdentity.status == "active",
+        )
+    )
+    return {
+        identity.value if hasattr(identity, "value") else str(identity)
+        for identity in result.scalars().all()
+    }
+
+
+def require_identity(*identity_codes: str):
+    async def identity_checker(
+        current_user=Depends(get_current_user),
+        db: AsyncSession = Depends(get_db),
+    ):
+        user_identity_codes = await get_identity_codes_for_user(db, current_user.id)
+        if not any(code in user_identity_codes for code in identity_codes):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="权限不足")
+        return current_user
+
+    return identity_checker

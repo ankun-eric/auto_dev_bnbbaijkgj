@@ -1,5 +1,4 @@
-<view class="profile-page">
-  <!-- 用户信息头部 -->
+<view class="profile-page" wx:if="{{pageMode === 'user'}}">
   <view class="user-header" bindtap="goLogin" wx:if="{{!isLoggedIn}}">
     <view class="avatar-wrap">
       <text class="avatar-text">?</text>
@@ -22,10 +21,12 @@
         <text class="member-text">{{userInfo.memberLevel}}</text>
       </view>
     </view>
-    <text class="arrow" bindtap="goHealthProfile">›</text>
+    <view class="header-actions">
+      <text class="switch-role-inline" wx:if="{{canSwitchRole}}" bindtap="switchRole">切换角色</text>
+      <text class="arrow" bindtap="goHealthProfile">›</text>
+    </view>
   </view>
 
-  <!-- 会员/积分 -->
   <view class="stats-bar card">
     <view class="stat-item" bindtap="goPoints">
       <text class="stat-value">{{points}}</text>
@@ -48,7 +49,6 @@
     </view>
   </view>
 
-  <!-- 订单快捷入口 -->
   <view class="card">
     <view class="card-header">
       <text class="card-title">我的订单</text>
@@ -74,12 +74,65 @@
     </view>
   </view>
 
-  <!-- 功能菜单 -->
   <view class="menu-card card">
+    <view class="menu-item role-switch-item" wx:if="{{canSwitchRole}}" bindtap="switchRole">
+      <view class="menu-left">
+        <text class="menu-icon">🔁</text>
+        <text class="menu-label">切换到商家端</text>
+      </view>
+      <text class="arrow">›</text>
+    </view>
     <view class="menu-item" wx:for="{{menuList}}" wx:key="id" bindtap="onMenuTap" data-item="{{item}}">
       <view class="menu-left">
         <text class="menu-icon">{{item.icon}}</text>
         <text class="menu-label">{{item.label}}</text>
+      </view>
+      <text class="arrow">›</text>
+    </view>
+  </view>
+</view>
+
+<view class="profile-page" wx:else>
+  <view class="user-header merchant-header">
+    <view class="avatar-wrap">
+      <image class="avatar-img" src="{{merchantProfile.avatar}}" wx:if="{{merchantProfile.avatar}}" />
+      <text class="avatar-text" wx:else>{{merchantProfile.nickname ? merchantProfile.nickname[0] : '店'}}</text>
+    </view>
+    <view class="user-info">
+      <text class="user-name">{{merchantProfile.nickname || userInfo.nickname || '商家账号'}}</text>
+      <view class="member-tag">
+        <text class="member-text">{{currentStore.store_name}}</text>
+      </view>
+    </view>
+    <text class="switch-role-inline" wx:if="{{canSwitchRole}}" bindtap="switchRole">切换角色</text>
+  </view>
+
+  <view class="stats-bar card">
+    <view class="stat-item">
+      <text class="stat-value">{{currentStore.store_code}}</text>
+      <text class="stat-label">当前门店编码</text>
+    </view>
+  </view>
+
+  <view class="menu-card card">
+    <view class="menu-item role-switch-item" wx:if="{{canSwitchRole}}" bindtap="switchRole">
+      <view class="menu-left">
+        <text class="menu-icon">🔁</text>
+        <text class="menu-label">切换到用户端</text>
+      </view>
+      <text class="arrow">›</text>
+    </view>
+    <view class="menu-item" wx:for="{{merchantMenuList}}" wx:key="id" bindtap="onMenuTap" data-item="{{item}}">
+      <view class="menu-left">
+        <text class="menu-icon">{{item.icon}}</text>
+        <text class="menu-label">{{item.label}}</text>
+      </view>
+      <text class="arrow">›</text>
+    </view>
+    <view class="menu-item" bindtap="logout">
+      <view class="menu-left">
+        <text class="menu-icon">🚪</text>
+        <text class="menu-label">退出登录</text>
       </view>
       <text class="arrow">›</text>
     </view>

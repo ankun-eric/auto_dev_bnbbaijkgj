@@ -1,0 +1,26 @@
+<view class="notifications-page">
+  <view class="notify-list" wx:if="{{notifications.length > 0}}">
+    <view class="notify-item card {{item.is_read ? '' : 'unread'}}" wx:for="{{notifications}}" wx:key="id" bindtap="readNotify" data-item="{{item}}">
+      <view class="notify-icon-wrap">
+        <text class="notify-icon">🏪</text>
+      </view>
+      <view class="notify-content">
+        <view class="notify-header">
+          <text class="notify-title">{{item.title}}</text>
+          <text class="notify-time">{{item.created_at}}</text>
+        </view>
+        <text class="notify-desc">{{item.content}}</text>
+      </view>
+      <view class="unread-dot" wx:if="{{!item.is_read}}"></view>
+    </view>
+  </view>
+
+  <view class="empty-state" wx:else>
+    <text class="empty-icon">📭</text>
+    <text class="empty-text">暂无商家消息</text>
+  </view>
+
+  <view class="clear-btn" bindtap="clearAll" wx:if="{{notifications.length > 0 && unreadCount > 0}}">
+    <text class="clear-text">全部已读</text>
+  </view>
+</view>

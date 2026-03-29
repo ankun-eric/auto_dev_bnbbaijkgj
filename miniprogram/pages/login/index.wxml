@@ -64,6 +64,15 @@
       <text class="link" bindtap="showAgreement" data-type="privacy">《隐私政策》</text>
     </text>
   </view>
+
+  <view class="role-picker-mask" wx:if="{{showRolePicker}}">
+    <view class="role-picker-card">
+      <text class="role-picker-title">请选择本次进入身份</text>
+      <text class="role-picker-desc">同一账号已同时开通用户端与商家端，请选择本次要进入的角色。</text>
+      <button class="role-picker-btn user-btn" data-role="user" bindtap="chooseLoginRole">进入用户端</button>
+      <button class="role-picker-btn merchant-btn" data-role="merchant" bindtap="chooseLoginRole">进入商家端</button>
+    </view>
+  </view>
 </view>
 
 <view class="settings-loading" wx:if="{{settingsLoading}}">

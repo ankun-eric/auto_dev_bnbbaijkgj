@@ -1,0 +1,45 @@
+.permission-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32rpx;
+  box-sizing: border-box;
+}
+
+.card {
+  width: 100%;
+  background: #ffffff;
+  border-radius: 24rpx;
+  padding: 48rpx 36rpx;
+  text-align: center;
+  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.05);
+}
+
+.emoji {
+  display: block;
+  font-size: 72rpx;
+  margin-bottom: 20rpx;
+}
+
+.title {
+  display: block;
+  font-size: 34rpx;
+  font-weight: 600;
+  color: #333333;
+  margin-bottom: 16rpx;
+}
+
+.desc {
+  display: block;
+  font-size: 26rpx;
+  line-height: 1.8;
+  color: #666666;
+  margin-bottom: 32rpx;
+}
+
+.btn {
+  background: #52c41a;
+  color: #ffffff;
+  border-radius: 999rpx;
+}

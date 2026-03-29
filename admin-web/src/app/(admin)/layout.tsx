@@ -28,6 +28,15 @@ type MenuItem = Required<MenuProps>['items'][number];
 const menuItems: MenuItem[] = [
   { key: '/dashboard', icon: <DashboardOutlined />, label: '数据概览' },
   { key: '/users', icon: <UserOutlined />, label: '用户管理' },
+  {
+    key: 'merchant',
+    icon: <ShopOutlined />,
+    label: '商家管理',
+    children: [
+      { key: '/merchant/stores', label: '门店管理' },
+      { key: '/merchant/accounts', label: '商家账号' },
+    ],
+  },
   { key: '/ai-config', icon: <RobotOutlined />, label: 'AI模型配置' },
   {
     key: 'services',
@@ -65,6 +74,7 @@ const menuItems: MenuItem[] = [
 
 function getOpenKeys(pathname: string): string[] {
   if (pathname.startsWith('/services')) return ['services'];
+  if (pathname.startsWith('/merchant')) return ['merchant'];
   if (pathname.startsWith('/content')) return ['content'];
   if (pathname.startsWith('/points')) return ['points'];
   return [];

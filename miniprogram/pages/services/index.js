@@ -1,7 +1,9 @@
 const { get } = require('../../utils/request');
+const { ensureMerchantEntry, syncTabBar } = require('../../utils/util');
 
 Page({
   data: {
+    pageMode: 'user',
     currentTab: 0,
     tabs: ['全部', '在线问诊', '体检套餐', '健康管理', '中医服务', '上门服务'],
     services: [
@@ -16,11 +18,49 @@ Page({
       { id: '2', name: '李芳', title: '副主任医师', department: '中医科' },
       { id: '3', name: '王建国', title: '主治医师', department: '全科' },
       { id: '4', name: '陈晓燕', title: '主任医师', department: '营养科' }
-    ]
+    ],
+    records: [],
+    loading: false,
+    noMore: false,
+    page: 1,
+    pageSize: 20,
+    totalCount: 0,
+    startDate: '',
+    endDate: '',
+    activeQuick: 'today'
   },
 
   onLoad() {
+    this.initDates();
+  },
+
+  onShow() {
+    syncTabBar(this, '/pages/services/index');
+    const app = getApp();
+    const pageMode = app.getCurrentRole() || 'user';
+    this.setData({ pageMode });
+    if (pageMode === 'merchant') {
+      if (!ensureMerchantEntry()) return;
+      this.resetMerchantRecords();
+      this.loadRecords();
+      return;
+    }
     this.loadServices();
+  },
+
+  onPullDownRefresh() {
+    if (this.data.pageMode === 'merchant') {
+      this.resetMerchantRecords();
+      this.loadRecords().finally(() => wx.stopPullDownRefresh());
+      return;
+    }
+    this.loadServices().finally(() => wx.stopPullDownRefresh());
+  },
+
+  onReachBottom() {
+    if (this.data.pageMode === 'merchant' && !this.data.noMore && !this.data.loading) {
+      this.loadRecords();
+    }
   },
 
   switchTab(e) {
@@ -36,6 +76,7 @@ Page({
     } catch (e) {
       console.log('loadServices error', e);
     }
+    return Promise.resolve();
   },
 
   goServiceDetail(e) {
@@ -50,5 +91,135 @@ Page({
   goExpertDetail(e) {
     const id = e.currentTarget.dataset.id;
     wx.navigateTo({ url: `/pages/expert-detail/index?id=${id}` });
+  },
+
+  initDates() {
+    const today = this.formatDate(new Date());
+    this.setData({
+      startDate: today,
+      endDate: today
+    });
+  },
+
+  formatDate(date) {
+    const y = date.getFullYear();
+    const m = `${date.getMonth() + 1}`.padStart(2, '0');
+    const d = `${date.getDate()}`.padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  },
+
+  resetMerchantRecords() {
+    this.setData({
+      records: [],
+      noMore: false,
+      page: 1,
+      totalCount: 0
+    });
+  },
+
+  onStartDateChange(e) {
+    this.setData({
+      startDate: e.detail.value,
+      activeQuick: '',
+      page: 1,
+      records: [],
+      noMore: false
+    });
+    this.loadRecords();
+  },
+
+  onEndDateChange(e) {
+    this.setData({
+      endDate: e.detail.value,
+      activeQuick: '',
+      page: 1,
+      records: [],
+      noMore: false
+    });
+    this.loadRecords();
+  },
+
+  filterToday() {
+    const today = this.formatDate(new Date());
+    this.setData({
+      startDate: today,
+      endDate: today,
+      activeQuick: 'today',
+      page: 1,
+      records: [],
+      noMore: false
+    });
+    this.loadRecords();
+  },
+
+  filterWeek() {
+    const now = new Date();
+    const day = now.getDay() || 7;
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - day + 1);
+    this.setData({
+      startDate: this.formatDate(monday),
+      endDate: this.formatDate(now),
+      activeQuick: 'week',
+      page: 1,
+      records: [],
+      noMore: false
+    });
+    this.loadRecords();
+  },
+
+  filterMonth() {
+    const now = new Date();
+    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+    this.setData({
+      startDate: this.formatDate(firstDay),
+      endDate: this.formatDate(now),
+      activeQuick: 'month',
+      page: 1,
+      records: [],
+      noMore: false
+    });
+    this.loadRecords();
+  },
+
+  filterAll() {
+    this.setData({
+      startDate: '',
+      endDate: '',
+      activeQuick: 'all',
+      page: 1,
+      records: [],
+      noMore: false
+    });
+    this.loadRecords();
+  },
+
+  async loadRecords() {
+    const app = getApp();
+    const currentStore = app.getCurrentStore();
+    if (!currentStore || this.data.loading) return Promise.resolve();
+
+    this.setData({ loading: true });
+    try {
+      const res = await get('/api/merchant/orders/records', {
+        store_id: currentStore.id,
+        page: this.data.page,
+        page_size: this.data.pageSize,
+        start_date: this.data.startDate || undefined,
+        end_date: this.data.endDate || undefined
+      }, { showLoading: false });
+      const list = res.items || [];
+      const newRecords = this.data.records.concat(list);
+      this.setData({
+        records: newRecords,
+        totalCount: res.total || 0,
+        page: this.data.page + 1,
+        noMore: newRecords.length >= (res.total || 0) || list.length < this.data.pageSize
+      });
+    } catch (e) {
+      wx.showToast({ title: e.detail || '加载失败', icon: 'none' });
+    } finally {
+      this.setData({ loading: false });
+    }
   }
 });

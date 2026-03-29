@@ -31,6 +31,17 @@ class UserRole(str, enum.Enum):
     merchant = "merchant"
 
 
+class IdentityType(str, enum.Enum):
+    user = "user"
+    merchant_owner = "merchant_owner"
+    merchant_staff = "merchant_staff"
+
+
+class MerchantMemberRole(str, enum.Enum):
+    owner = "owner"
+    staff = "staff"
+
+
 class SessionType(str, enum.Enum):
     health_qa = "health_qa"
     symptom_check = "symptom_check"
@@ -190,6 +201,100 @@ class VerificationCode(Base):
     type = mapped_column(String(20), nullable=False)
     expires_at = mapped_column(DateTime, nullable=False)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class AccountIdentity(Base):
+    __tablename__ = "account_identities"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    identity_type = mapped_column(Enum(IdentityType), nullable=False)
+    status = mapped_column(String(20), default="active")
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    __table_args__ = (UniqueConstraint("user_id", "identity_type", name="uq_account_identity_user_type"),)
+
+
+class MerchantProfile(Base):
+    __tablename__ = "merchant_profiles"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, unique=True, index=True)
+    nickname = mapped_column(String(100), nullable=True)
+    avatar = mapped_column(String(500), nullable=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class MerchantStore(Base):
+    __tablename__ = "merchant_stores"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    store_name = mapped_column(String(100), nullable=False)
+    store_code = mapped_column(String(50), nullable=False, unique=True, index=True)
+    contact_name = mapped_column(String(100), nullable=True)
+    contact_phone = mapped_column(String(20), nullable=True)
+    address = mapped_column(String(255), nullable=True)
+    status = mapped_column(String(20), default="active")
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class MerchantStoreMembership(Base):
+    __tablename__ = "merchant_store_memberships"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    store_id = mapped_column(Integer, ForeignKey("merchant_stores.id"), nullable=False, index=True)
+    member_role = mapped_column(Enum(MerchantMemberRole), nullable=False)
+    status = mapped_column(String(20), default="active")
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    __table_args__ = (UniqueConstraint("user_id", "store_id", name="uq_merchant_store_member"),)
+
+    store = relationship("MerchantStore")
+
+
+class MerchantStorePermission(Base):
+    __tablename__ = "merchant_store_permissions"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    membership_id = mapped_column(Integer, ForeignKey("merchant_store_memberships.id"), nullable=False, index=True)
+    module_code = mapped_column(String(50), nullable=False)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (UniqueConstraint("membership_id", "module_code", name="uq_merchant_store_permission"),)
+
+    membership = relationship("MerchantStoreMembership")
+
+
+class MerchantNotification(Base):
+    __tablename__ = "merchant_notifications"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    store_id = mapped_column(Integer, ForeignKey("merchant_stores.id"), nullable=True, index=True)
+    title = mapped_column(String(200), nullable=False)
+    content = mapped_column(Text, nullable=True)
+    is_read = mapped_column(Boolean, default=False)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+
+    store = relationship("MerchantStore")
+
+
+class MerchantOrderVerification(Base):
+    __tablename__ = "merchant_order_verifications"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    order_id = mapped_column(Integer, ForeignKey("orders.id"), nullable=False, unique=True, index=True)
+    store_id = mapped_column(Integer, ForeignKey("merchant_stores.id"), nullable=False, index=True)
+    verified_by_user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    verified_at = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+
+    store = relationship("MerchantStore")
+    order = relationship("Order")
 
 
 # ──────────────── 健康档案 ────────────────

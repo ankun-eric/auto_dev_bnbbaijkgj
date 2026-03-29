@@ -3,17 +3,27 @@ import string
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.security import (
     create_access_token,
+    get_identity_codes_for_user,
     get_current_user,
     get_password_hash,
     verify_password,
 )
-from app.models.models import User, VerificationCode
+from app.models.models import (
+    AccountIdentity,
+    IdentityType,
+    MerchantProfile,
+    MerchantStoreMembership,
+    User,
+    UserRole,
+    VerificationCode,
+)
+from app.schemas.merchant import MerchantProfileResponse, MerchantProfileUpdate, SessionContextResponse
 from app.schemas.user import (
     RegisterSettingsResponse,
     SMSCodeRequest,
@@ -29,8 +39,89 @@ from app.services.register_service import (
     get_register_settings,
     is_profile_completed,
 )
+from app.services.sms_service import send_sms
 
 router = APIRouter(prefix="/api/auth", tags=["认证"])
+
+
+async def ensure_identity(db: AsyncSession, user_id: int, identity_type: IdentityType) -> None:
+    result = await db.execute(
+        select(AccountIdentity).where(
+            AccountIdentity.user_id == user_id,
+            AccountIdentity.identity_type == identity_type,
+        )
+    )
+    identity = result.scalar_one_or_none()
+    if identity:
+        identity.status = "active"
+        identity.updated_at = datetime.utcnow()
+        return
+    db.add(AccountIdentity(user_id=user_id, identity_type=identity_type))
+
+
+async def ensure_default_identity_for_legacy_user(db: AsyncSession, user: User) -> None:
+    if user.role != UserRole.user:
+        return
+    identity_codes = await get_identity_codes_for_user(db, user.id)
+    if not identity_codes:
+        await ensure_identity(db, user.id, IdentityType.user)
+
+
+async def build_session_context(db: AsyncSession, user: User) -> SessionContextResponse:
+    await ensure_default_identity_for_legacy_user(db, user)
+    identity_codes = await get_identity_codes_for_user(db, user.id)
+    can_access_user = IdentityType.user.value in identity_codes
+    can_access_merchant = (
+        IdentityType.merchant_owner.value in identity_codes
+        or IdentityType.merchant_staff.value in identity_codes
+    )
+    if not can_access_user and not can_access_merchant:
+        raise HTTPException(status_code=403, detail="账号未配置可用身份")
+
+    merchant_identity_type = None
+    if IdentityType.merchant_owner.value in identity_codes:
+        merchant_identity_type = "owner"
+    elif IdentityType.merchant_staff.value in identity_codes:
+        merchant_identity_type = "staff"
+
+    if can_access_user and can_access_merchant:
+        default_entry = "select_role"
+    elif can_access_merchant:
+        default_entry = "merchant"
+    else:
+        default_entry = "user"
+
+    merchant_store_count = 0
+    if can_access_merchant:
+        count_result = await db.execute(
+            select(func.count(MerchantStoreMembership.id)).where(
+                MerchantStoreMembership.user_id == user.id,
+                MerchantStoreMembership.status == "active",
+            )
+        )
+        merchant_store_count = count_result.scalar() or 0
+
+    return SessionContextResponse(
+        identity_codes=sorted(identity_codes),
+        can_access_user=can_access_user,
+        can_access_merchant=can_access_merchant,
+        is_dual_identity=can_access_user and can_access_merchant,
+        default_entry=default_entry,
+        merchant_identity_type=merchant_identity_type,
+        show_role_switch=can_access_user and can_access_merchant,
+        merchant_store_count=merchant_store_count,
+    )
+
+
+async def get_merchant_profile_response(db: AsyncSession, user: User) -> MerchantProfileResponse | None:
+    session_context = await build_session_context(db, user)
+    if not session_context.can_access_merchant:
+        return None
+    result = await db.execute(select(MerchantProfile).where(MerchantProfile.user_id == user.id))
+    profile = result.scalar_one_or_none()
+    if profile:
+        return MerchantProfileResponse.model_validate(profile)
+    return MerchantProfileResponse(nickname=user.nickname, avatar=user.avatar)
 
 
 @router.get("/register-settings", response_model=RegisterSettingsResponse)
@@ -56,6 +147,7 @@ async def register(data: UserCreate, db: AsyncSession = Depends(get_db)):
     await ensure_member_card_no(db, user, register_settings)
     db.add(user)
     await db.flush()
+    await ensure_identity(db, user.id, IdentityType.user)
     await db.refresh(user)
 
     needs_profile_completion = (
@@ -63,11 +155,13 @@ async def register(data: UserCreate, db: AsyncSession = Depends(get_db)):
         and not await is_profile_completed(db, user.id)
     )
     token = create_access_token({"sub": str(user.id)})
+    session_context = await build_session_context(db, user)
     return TokenResponse(
         access_token=token,
         user=UserResponse.model_validate(user),
         is_new_user=True,
         needs_profile_completion=needs_profile_completion,
+        session_context=session_context,
     )
 
 
@@ -83,16 +177,22 @@ async def login(data: UserLogin, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=403, detail="账号已被禁用")
 
     register_settings = await get_register_settings(db)
+    await ensure_default_identity_for_legacy_user(db, user)
     await ensure_member_card_no(db, user, register_settings)
+    token = create_access_token({"sub": str(user.id)})
+    session_context = await build_session_context(db, user)
     needs_profile_completion = (
-        register_settings["show_profile_completion_prompt"]
+        session_context.can_access_user
+        and register_settings["show_profile_completion_prompt"]
         and not await is_profile_completed(db, user.id)
     )
-    token = create_access_token({"sub": str(user.id)})
+    merchant_profile = await get_merchant_profile_response(db, user)
     return TokenResponse(
         access_token=token,
         user=UserResponse.model_validate(user),
         needs_profile_completion=needs_profile_completion,
+        session_context=session_context,
+        merchant_profile=merchant_profile,
     )
 
 
@@ -104,8 +204,25 @@ async def send_sms_code(data: SMSCodeRequest, db: AsyncSession = Depends(get_db)
         if result.scalar_one_or_none() is None:
             raise HTTPException(status_code=403, detail="当前暂未开放自助注册")
 
+    recent = await db.execute(
+        select(VerificationCode)
+        .where(
+            VerificationCode.phone == data.phone,
+            VerificationCode.created_at > datetime.utcnow() - timedelta(seconds=60),
+        )
+        .order_by(VerificationCode.created_at.desc())
+        .limit(1)
+    )
+    if recent.scalar_one_or_none():
+        raise HTTPException(status_code=429, detail="发送过于频繁，请60秒后重试")
+
     code = "".join(random.choices(string.digits, k=6))
     expires_at = datetime.now(timezone.utc) + timedelta(minutes=5)
+
+    try:
+        await send_sms(data.phone, code)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
 
     vc = VerificationCode(
         phone=data.phone,
@@ -116,7 +233,7 @@ async def send_sms_code(data: SMSCodeRequest, db: AsyncSession = Depends(get_db)
     db.add(vc)
     await db.flush()
 
-    return {"message": "验证码已发送", "code": code}
+    return {"message": "验证码已发送"}
 
 
 @router.post("/sms-login", response_model=TokenResponse)
@@ -145,23 +262,30 @@ async def sms_login(data: SMSLoginRequest, db: AsyncSession = Depends(get_db)):
         await ensure_member_card_no(db, user, register_settings)
         db.add(user)
         await db.flush()
+        await ensure_identity(db, user.id, IdentityType.user)
         await db.refresh(user)
         is_new_user = True
 
     if user.status != "active":
         raise HTTPException(status_code=403, detail="账号已被禁用")
 
+    await ensure_default_identity_for_legacy_user(db, user)
     await ensure_member_card_no(db, user, register_settings)
+    token = create_access_token({"sub": str(user.id)})
+    session_context = await build_session_context(db, user)
     needs_profile_completion = (
-        register_settings["show_profile_completion_prompt"]
+        session_context.can_access_user
+        and register_settings["show_profile_completion_prompt"]
         and not await is_profile_completed(db, user.id)
     )
-    token = create_access_token({"sub": str(user.id)})
+    merchant_profile = await get_merchant_profile_response(db, user)
     return TokenResponse(
         access_token=token,
         user=UserResponse.model_validate(user),
         is_new_user=is_new_user,
         needs_profile_completion=needs_profile_completion,
+        session_context=session_context,
+        merchant_profile=merchant_profile,
     )
 
 
@@ -184,3 +308,49 @@ async def update_me(
     await db.flush()
     await db.refresh(current_user)
     return UserResponse.model_validate(current_user)
+
+
+@router.get("/session-context", response_model=SessionContextResponse)
+async def get_session_context(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    return await build_session_context(db, current_user)
+
+
+@router.get("/merchant-profile", response_model=MerchantProfileResponse)
+async def get_merchant_profile(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    session_context = await build_session_context(db, current_user)
+    if not session_context.can_access_merchant:
+        raise HTTPException(status_code=403, detail="暂无商家权限")
+    profile = await get_merchant_profile_response(db, current_user)
+    return profile or MerchantProfileResponse()
+
+
+@router.put("/merchant-profile", response_model=MerchantProfileResponse)
+async def update_merchant_profile(
+    data: MerchantProfileUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    session_context = await build_session_context(db, current_user)
+    if not session_context.can_access_merchant:
+        raise HTTPException(status_code=403, detail="暂无商家权限")
+
+    result = await db.execute(select(MerchantProfile).where(MerchantProfile.user_id == current_user.id))
+    profile = result.scalar_one_or_none()
+    if not profile:
+        profile = MerchantProfile(user_id=current_user.id)
+        db.add(profile)
+        await db.flush()
+    if data.nickname is not None:
+        profile.nickname = data.nickname
+    if data.avatar is not None:
+        profile.avatar = data.avatar
+    profile.updated_at = datetime.utcnow()
+    await db.flush()
+    await db.refresh(profile)
+    return MerchantProfileResponse.model_validate(profile)

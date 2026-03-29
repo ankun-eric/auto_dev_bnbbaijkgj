@@ -8,7 +8,7 @@
   </view>
 
   <view class="notify-list" wx:if="{{notifications.length > 0}}">
-    <view class="notify-item card {{item.read ? '' : 'unread'}}" wx:for="{{notifications}}" wx:key="id" bindtap="readNotify" data-index="{{index}}">
+    <view class="notify-item card {{item.read ? '' : 'unread'}}" wx:for="{{notifications}}" wx:key="id" bindtap="readNotify" data-item="{{item}}">
       <view class="notify-icon-wrap" style="background: {{item.bgColor}};">
         <text class="notify-icon">{{item.icon}}</text>
       </view>

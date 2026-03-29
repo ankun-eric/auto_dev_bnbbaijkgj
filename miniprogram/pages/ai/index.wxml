@@ -1,5 +1,4 @@
-<view class="ai-page">
-  <!-- 顶部问诊类型 -->
+<view class="ai-page" wx:if="{{pageMode === 'user'}}">
   <view class="type-section">
     <text class="section-title">选择问诊类型</text>
     <view class="type-grid">
@@ -13,7 +12,6 @@
     </view>
   </view>
 
-  <!-- 快速问题 -->
   <view class="card">
     <text class="section-title">快速提问</text>
     <view class="quick-list">
@@ -24,7 +22,6 @@
     </view>
   </view>
 
-  <!-- 最近对话 -->
   <view class="section-header">
     <text class="section-title">最近对话</text>
     <text class="section-more" bindtap="viewAllChats" wx:if="{{chatHistory.length > 0}}">查看全部 ></text>
@@ -46,8 +43,71 @@
     <text class="empty-text">开始一次AI问诊吧</text>
   </view>
 
-  <!-- 新建对话按钮 -->
   <view class="new-chat-btn" bindtap="newChat">
     <text class="new-chat-text">+ 新建对话</text>
+  </view>
+</view>
+
+<view class="container merchant-scan-page" wx:else>
+  <view class="scan-prompt" wx:if="{{!orderInfo}}">
+    <view class="scan-animation-wrapper" bindtap="startScan">
+      <view class="scan-circle">
+        <view class="scan-circle-inner">
+          <text class="scan-emoji">📷</text>
+        </view>
+      </view>
+      <view class="scan-ripple"></view>
+      <view class="scan-ripple delay"></view>
+    </view>
+    <text class="scan-tip">点击上方按钮扫描核销码</text>
+    <text class="scan-sub-tip">请对准用户手机上的核销二维码</text>
+  </view>
+
+  <view class="order-card card" wx:if="{{orderInfo}}">
+    <view class="order-header">
+      <text class="order-title">订单信息</text>
+      <view class="order-status {{orderInfo.status === 'verified' ? 'status-done' : 'status-pending'}}">
+        <text>{{orderInfo.status === 'verified' ? '已核销' : '待核销'}}</text>
+      </view>
+    </view>
+
+    <view class="order-detail-list">
+      <view class="detail-row">
+        <text class="detail-label">订单号</text>
+        <text class="detail-value">{{orderInfo.order_no}}</text>
+      </view>
+      <view class="detail-row">
+        <text class="detail-label">服务名称</text>
+        <text class="detail-value">{{orderInfo.service_name}}</text>
+      </view>
+      <view class="detail-row">
+        <text class="detail-label">用户</text>
+        <text class="detail-value">{{orderInfo.user_name}}</text>
+      </view>
+      <view class="detail-row">
+        <text class="detail-label">金额</text>
+        <text class="detail-value price">¥{{orderInfo.amount}}</text>
+      </view>
+      <view class="detail-row">
+        <text class="detail-label">下单时间</text>
+        <text class="detail-value">{{orderInfo.create_time}}</text>
+      </view>
+    </view>
+
+    <view class="order-actions" wx:if="{{orderInfo.status !== 'verified'}}">
+      <button class="btn-primary verify-btn" bindtap="handleVerify" loading="{{verifying}}">
+        确认核销
+      </button>
+    </view>
+    <view class="order-actions" wx:else>
+      <view class="verified-notice">
+        <text class="verified-icon">✅</text>
+        <text class="verified-text">该订单已核销完成</text>
+      </view>
+    </view>
+
+    <view class="rescan-area">
+      <button class="btn-secondary" bindtap="startScan">重新扫码</button>
+    </view>
   </view>
 </view>

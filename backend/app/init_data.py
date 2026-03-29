@@ -35,22 +35,32 @@ async def init_default_data():
 
 
 async def _init_admin(db: AsyncSession):
+    from app.core.security import verify_password
+
+    default_phone = "13800000000"
+    default_password = "admin123"
+
     result = await db.execute(
         select(User).where(User.role == UserRole.admin).limit(1)
     )
-    if result.scalar_one_or_none():
+    existing_admin = result.scalar_one_or_none()
+    if existing_admin:
+        if existing_admin.password_hash and not verify_password(default_password, existing_admin.password_hash):
+            existing_admin.password_hash = get_password_hash(default_password)
+            await db.flush()
+            logger.info("Reset default admin password (phone: %s)", existing_admin.phone)
         return
 
     admin = User(
-        phone="13800000000",
-        password_hash="$2b$12$LJ3m4ys3zGHlOhKGxXWpPuVHCDLSDKUqG9nJKPPMhmFQpJCRYCXWm",
+        phone=default_phone,
+        password_hash=get_password_hash(default_password),
         nickname="平台管理员",
         role=UserRole.admin,
         status="active",
     )
     db.add(admin)
     await db.flush()
-    logger.info("Created default admin user (phone: 13800000000)")
+    logger.info("Created default admin user (phone: %s)", default_phone)
 
 
 async def _init_service_categories(db: AsyncSession):

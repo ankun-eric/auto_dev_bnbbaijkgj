@@ -42,7 +42,9 @@ Page({
     registerSettings: DEFAULT_REGISTER_SETTINGS,
     layoutClass: 'layout-vertical',
     submitButtonText: '登录',
-    registerHelperText: ''
+    registerHelperText: '',
+    showRolePicker: false,
+    pendingLoginResult: null
   },
 
   _timer: null,
@@ -153,63 +155,8 @@ Page({
         showLoading: false,
         suppressErrorToast: true
       });
-      const accessToken = res.access_token;
-      const userInfo = mapUserFromApi(res.user);
-      if (!accessToken) {
-        wx.hideLoading();
-        wx.showToast({ title: '登录响应异常', icon: 'none' });
-        return;
-      }
-      app.setLoginInfo(accessToken, userInfo);
       wx.hideLoading();
-
-      const { registerSettings } = this.data;
-      const needProfilePrompt =
-        res.needs_profile_completion &&
-        registerSettings.show_profile_completion_prompt;
-
-      const goHome = () => {
-        wx.switchTab({ url: '/pages/home/index' });
-      };
-
-      const promptProfileThen = (next) => {
-        if (!needProfilePrompt) {
-          next();
-          return;
-        }
-        wx.showModal({
-          title: '补充会员信息',
-          content: '完善基础健康信息后，可获得更精准的 AI 健康建议，是否现在去完善？',
-          confirmText: '立即完善',
-          cancelText: '稍后再说',
-          success: (r) => {
-            if (r.confirm) {
-              wx.navigateTo({ url: '/pages/health-profile/index' });
-            } else {
-              next();
-            }
-          }
-        });
-      };
-
-      if (res.is_new_user) {
-        const cardNo = res.user && res.user.member_card_no;
-        if (cardNo) {
-          wx.showModal({
-            title: '注册成功',
-            content: `欢迎加入！您的会员卡号：${cardNo}`,
-            showCancel: false,
-            confirmText: '知道了',
-            success: () => promptProfileThen(goHome)
-          });
-        } else {
-          wx.showToast({ title: '注册成功，欢迎加入', icon: 'success', duration: 2000 });
-          setTimeout(() => promptProfileThen(goHome), 1800);
-        }
-      } else {
-        wx.showToast({ title: '登录成功', icon: 'success' });
-        setTimeout(() => promptProfileThen(goHome), 1200);
-      }
+      this.handleLoginSuccess(res);
     } catch (e) {
       wx.hideLoading();
       const detail = e.detail || '登录失败，请检查验证码';
@@ -227,6 +174,105 @@ Page({
         wx.showToast({ title: detail, icon: 'none', duration: 3000 });
       }
     }
+  },
+
+  handleLoginSuccess(res) {
+    const accessToken = res.access_token;
+    const userInfo = mapUserFromApi(res.user);
+    const sessionContext = res.session_context || {};
+    const merchantProfile = res.merchant_profile || null;
+    if (!accessToken) {
+      wx.showToast({ title: '登录响应异常', icon: 'none' });
+      return;
+    }
+
+    app.setLoginInfo(accessToken, userInfo, {
+      sessionContext,
+      merchantProfile,
+      currentRole: sessionContext.default_entry === 'merchant' ? 'merchant' : 'user'
+    });
+
+    if (sessionContext.is_dual_identity) {
+      this.setData({
+        showRolePicker: true,
+        pendingLoginResult: res
+      });
+      return;
+    }
+
+    const targetRole = sessionContext.can_access_merchant && !sessionContext.can_access_user
+      ? 'merchant'
+      : 'user';
+    app.setCurrentRole(targetRole);
+    this.finishLoginFlow(targetRole, res);
+  },
+
+  finishLoginFlow(targetRole, res) {
+    const { registerSettings } = this.data;
+    const needProfilePrompt = targetRole === 'user'
+      && res.needs_profile_completion
+      && registerSettings.show_profile_completion_prompt;
+    const cardNo = res.user && res.user.member_card_no;
+
+    const goNext = () => {
+      if (targetRole === 'merchant') {
+        app.clearCurrentStore();
+        wx.redirectTo({ url: '/pages/store-select/index' });
+        return;
+      }
+      wx.switchTab({ url: '/pages/home/index' });
+    };
+
+    const promptProfileThen = () => {
+      if (!needProfilePrompt) {
+        goNext();
+        return;
+      }
+      wx.showModal({
+        title: '补充会员信息',
+        content: '完善基础健康信息后，可获得更精准的 AI 健康建议，是否现在去完善？',
+        confirmText: '立即完善',
+        cancelText: '稍后再说',
+        success: (r) => {
+          if (r.confirm) {
+            wx.navigateTo({ url: '/pages/health-profile/index' });
+          } else {
+            goNext();
+          }
+        }
+      });
+    };
+
+    if (res.is_new_user && targetRole === 'user') {
+      if (cardNo) {
+        wx.showModal({
+          title: '注册成功',
+          content: `欢迎加入！您的会员卡号：${cardNo}`,
+          showCancel: false,
+          confirmText: '知道了',
+          success: () => promptProfileThen()
+        });
+      } else {
+        wx.showToast({ title: '注册成功，欢迎加入', icon: 'success', duration: 2000 });
+        setTimeout(() => promptProfileThen(), 1800);
+      }
+      return;
+    }
+
+    wx.showToast({ title: '登录成功', icon: 'success' });
+    setTimeout(() => promptProfileThen(), 1000);
+  },
+
+  chooseLoginRole(e) {
+    const role = e.currentTarget.dataset.role;
+    const res = this.data.pendingLoginResult;
+    if (!res || !role) return;
+    app.setCurrentRole(role);
+    this.setData({
+      showRolePicker: false,
+      pendingLoginResult: null
+    });
+    this.finishLoginFlow(role, res);
   },
 
   loginByWechat() {

@@ -1,14 +1,14 @@
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
 from app.core.database import Base, get_db
 from app.core.security import get_password_hash
 from app.main import app
-from app.models.models import User, UserRole
+from app.models.models import User, UserRole, VerificationCode
 
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 
@@ -64,6 +64,25 @@ async def db_session():
     async with test_session() as session:
         yield session
         await session.commit()
+
+
+@pytest_asyncio.fixture
+async def latest_sms_code():
+    """Read the newest VerificationCode for a phone after POST /api/auth/sms-code (response no longer returns code)."""
+
+    async def _fetch(phone: str) -> str:
+        async with test_session() as session:
+            result = await session.execute(
+                select(VerificationCode)
+                .where(VerificationCode.phone == phone)
+                .order_by(VerificationCode.created_at.desc())
+                .limit(1)
+            )
+            vc = result.scalar_one_or_none()
+            assert vc is not None, f"expected VerificationCode for {phone}"
+            return vc.code
+
+    return _fetch
 
 
 @pytest_asyncio.fixture
