@@ -1,26 +1,60 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Table, Button, Space, Modal, Form, Input, Select, InputNumber, Switch, Rate, Tag, message, Typography, Avatar, Descriptions } from 'antd';
-import { PlusOutlined, EditOutlined, CalendarOutlined, UserOutlined, EyeOutlined } from '@ant-design/icons';
+import { Table, Button, Space, Modal, Form, Input, Select, Switch, Rate, Tag, message, Typography, Avatar } from 'antd';
+import { PlusOutlined, EditOutlined, CalendarOutlined, UserOutlined } from '@ant-design/icons';
 import { get, post, put } from '@/lib/api';
 
 const { Title } = Typography;
 const { TextArea } = Input;
 
+/** 后端 GET /api/admin/experts 单条结构 */
+interface ExpertApiItem {
+  id: number;
+  name: string;
+  title: string;
+  hospital: string;
+  department: string;
+  specialties: string;
+  avatar: string | null;
+  consultation_fee: number;
+  rating: number;
+  status: 'active' | 'deleted';
+  created_at: string;
+  introduction?: string;
+}
+
+/** 表格与表单使用的归一化结构（由 API 映射而来） */
 interface Expert {
   id: number;
   name: string;
-  avatar: string;
+  avatar: string | null;
   title: string;
   hospital: string;
   department: string;
   specialty: string;
   rating: number;
-  consultCount: number;
-  status: number;
+  consultation_fee: number;
+  status: 'active' | 'deleted';
   intro: string;
   createdAt: string;
+}
+
+function mapApiItemToExpert(row: ExpertApiItem): Expert {
+  return {
+    id: row.id,
+    name: row.name,
+    avatar: row.avatar,
+    title: row.title,
+    hospital: row.hospital,
+    department: row.department,
+    specialty: row.specialties ?? '',
+    rating: row.rating,
+    consultation_fee: row.consultation_fee,
+    status: row.status,
+    intro: row.introduction ?? '',
+    createdAt: row.created_at ?? '',
+  };
 }
 
 const departmentOptions = [
@@ -42,22 +76,14 @@ const titleOptions = [
   { label: '心理咨询师', value: '心理咨询师' },
 ];
 
-const mockExperts: Expert[] = [
-  { id: 1, name: '张医生', avatar: '', title: '主任医师', hospital: '北京协和医院', department: '中医科', specialty: '中医内科、体质调理', rating: 4.9, consultCount: 1256, status: 1, intro: '从医30年，擅长中医体质辨识与调理', createdAt: '2026-01-10' },
-  { id: 2, name: '李营养师', avatar: '', title: '注册营养师', hospital: '上海交通大学附属医院', department: '营养科', specialty: '临床营养、减重管理', rating: 4.8, consultCount: 890, status: 1, intro: '营养学博士，擅长个性化营养方案制定', createdAt: '2026-01-15' },
-  { id: 3, name: '王医生', avatar: '', title: '副主任医师', hospital: '广州中医药大学附属医院', department: '内科', specialty: '心血管疾病、慢病管理', rating: 4.7, consultCount: 678, status: 1, intro: '内科专家，专注慢性病管理', createdAt: '2026-02-01' },
-  { id: 4, name: '陈心理师', avatar: '', title: '心理咨询师', hospital: '深圳心理健康中心', department: '心理科', specialty: '焦虑症、抑郁症、职场心理', rating: 4.9, consultCount: 1120, status: 1, intro: '国家二级心理咨询师，10年咨询经验', createdAt: '2026-02-10' },
-  { id: 5, name: '刘医生', avatar: '', title: '主治医师', hospital: '成都中医院', department: '康复科', specialty: '运动康复、骨科康复', rating: 4.6, consultCount: 456, status: 0, intro: '运动医学硕士，擅长运动损伤康复', createdAt: '2026-03-01' },
-];
-
 export default function ExpertsPage() {
-  const [experts, setExperts] = useState<Expert[]>(mockExperts);
+  const [experts, setExperts] = useState<Expert[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [scheduleVisible, setScheduleVisible] = useState(false);
   const [editingRecord, setEditingRecord] = useState<Expert | null>(null);
   const [currentExpert, setCurrentExpert] = useState<Expert | null>(null);
-  const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: mockExperts.length });
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
   const [form] = Form.useForm();
 
   useEffect(() => {
@@ -67,13 +93,23 @@ export default function ExpertsPage() {
   const fetchData = async (page = 1, pageSize = 10) => {
     setLoading(true);
     try {
-      const res = await get('/api/admin/experts', { page, pageSize });
-      if (res) {
-        const items = res.items || res.list || res;
-        setExperts(Array.isArray(items) ? items : []);
-        setPagination((prev) => ({ ...prev, current: page, total: res.total ?? (Array.isArray(items) ? items.length : 0) }));
-      }
-    } catch {} finally {
+      const res = await get<{ items?: ExpertApiItem[]; list?: ExpertApiItem[]; total?: number; page?: number; page_size?: number }>(
+        '/api/admin/experts',
+        { page, page_size: pageSize }
+      );
+      const rawItems = res?.items ?? res?.list ?? [];
+      const items = Array.isArray(rawItems) ? rawItems.map((row) => mapApiItemToExpert(row as ExpertApiItem)) : [];
+      setExperts(items);
+      setPagination((prev) => ({
+        ...prev,
+        current: page,
+        pageSize,
+        total: res?.total ?? items.length,
+      }));
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { detail?: string } }; message?: string };
+      message.error(err?.response?.data?.detail || err?.message || '加载专家列表失败');
+    } finally {
       setLoading(false);
     }
   };
@@ -87,36 +123,54 @@ export default function ExpertsPage() {
 
   const handleEdit = (record: Expert) => {
     setEditingRecord(record);
-    form.setFieldsValue({ ...record, status: record.status === 1 });
+    form.setFieldsValue({ ...record, status: record.status === 'active' });
     setModalVisible(true);
+  };
+
+  const buildApiBody = (values: Record<string, unknown>) => {
+    const statusBool = Boolean(values.status);
+    return {
+      name: values.name,
+      title: values.title,
+      hospital: values.hospital,
+      department: values.department,
+      rating: values.rating,
+      specialties: values.specialty,
+      introduction: values.intro,
+      status: statusBool ? 'active' : ('deleted' as const),
+    };
   };
 
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
-      const payload = { ...values, status: values.status ? 1 : 0 };
+      const apiBody = buildApiBody(values);
 
       if (editingRecord) {
         try {
-          await put(`/api/admin/experts/${editingRecord.id}`, payload);
-        } catch {}
-        setExperts((prev) => prev.map((e) => (e.id === editingRecord.id ? { ...e, ...payload } : e)));
-        message.success('编辑成功');
+          await put(`/api/admin/experts/${editingRecord.id}`, apiBody);
+          message.success('编辑成功');
+          await fetchData(pagination.current, pagination.pageSize);
+        } catch (e: unknown) {
+          const err = e as { response?: { data?: { detail?: string } }; message?: string };
+          message.error(err?.response?.data?.detail || err?.message || '编辑失败');
+          return;
+        }
       } else {
         try {
-          const res = await post('/api/admin/experts', payload);
-          payload.id = res?.id || Date.now();
-        } catch {
-          payload.id = Date.now();
+          await post('/api/admin/experts', apiBody);
+          message.success('新增成功');
+          await fetchData(pagination.current, pagination.pageSize);
+        } catch (e: unknown) {
+          const err = e as { response?: { data?: { detail?: string } }; message?: string };
+          message.error(err?.response?.data?.detail || err?.message || '新增失败');
+          return;
         }
-        payload.consultCount = 0;
-        payload.avatar = '';
-        payload.createdAt = new Date().toISOString().split('T')[0];
-        setExperts((prev) => [...prev, payload]);
-        message.success('新增成功');
       }
       setModalVisible(false);
-    } catch {}
+    } catch {
+      /* 表单校验失败，antd 已提示 */
+    }
   };
 
   const weekDays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
@@ -131,7 +185,7 @@ export default function ExpertsPage() {
       width: 120,
       render: (v: string, r: Expert) => (
         <Space>
-          <Avatar size="small" icon={<UserOutlined />} src={r.avatar} style={{ backgroundColor: '#52c41a' }} />
+          <Avatar size="small" icon={<UserOutlined />} src={r.avatar || undefined} style={{ backgroundColor: '#52c41a' }} />
           {v}
         </Space>
       ),
@@ -146,19 +200,21 @@ export default function ExpertsPage() {
       width: 140,
       render: (v: number) => <Rate disabled defaultValue={v} allowHalf style={{ fontSize: 14 }} />,
     },
-    { title: '咨询次数', dataIndex: 'consultCount', key: 'consultCount', width: 90 },
+    { title: '咨询次数', dataIndex: 'consultCount', key: 'consultCount', width: 90, render: () => '-' },
     {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
       width: 80,
-      render: (v: number) => <Tag color={v === 1 ? 'green' : 'red'}>{v === 1 ? '在职' : '停诊'}</Tag>,
+      render: (v: Expert['status']) => (
+        <Tag color={v === 'active' ? 'green' : 'red'}>{v === 'active' ? '在职' : '停诊'}</Tag>
+      ),
     },
     {
       title: '操作',
       key: 'action',
       width: 180,
-      render: (_: any, record: Expert) => (
+      render: (_: unknown, record: Expert) => (
         <Space>
           <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>编辑</Button>
           <Button type="link" size="small" icon={<CalendarOutlined />} onClick={() => { setCurrentExpert(record); setScheduleVisible(true); }}>排班</Button>

@@ -16,7 +16,7 @@ interface VideoRecord {
   duration: string;
   views: number;
   likes: number;
-  status: number;
+  status: string;
   coverUrl: string;
   videoUrl: string;
   description: string;
@@ -31,20 +31,38 @@ const categoryOptions = [
   { label: '心理辅导', value: '心理辅导' },
 ];
 
-const mockVideos: VideoRecord[] = [
-  { id: 1, title: '每日5分钟颈椎操', category: '运动教学', duration: '05:32', views: 8920, likes: 456, status: 1, coverUrl: '', videoUrl: '', description: '简单有效的颈椎锻炼方法', createdAt: '2026-03-25 10:00:00' },
-  { id: 2, title: '春季养肝食疗方', category: '营养课堂', duration: '12:15', views: 5430, likes: 287, status: 1, coverUrl: '', videoUrl: '', description: '中医推荐的春季养肝食谱', createdAt: '2026-03-24 14:30:00' },
-  { id: 3, title: '正念冥想入门教程', category: '心理辅导', duration: '18:40', views: 3210, likes: 198, status: 1, coverUrl: '', videoUrl: '', description: '零基础学习正念冥想', createdAt: '2026-03-23 09:00:00' },
-  { id: 4, title: '高血压预防知识', category: '健康科普', duration: '08:55', views: 6780, likes: 345, status: 1, coverUrl: '', videoUrl: '', description: '了解高血压的预防与管理', createdAt: '2026-03-22 16:00:00' },
-  { id: 5, title: '艾灸养生入门', category: '中医讲堂', duration: '15:20', views: 4150, likes: 223, status: 0, coverUrl: '', videoUrl: '', description: '家庭艾灸的基础知识', createdAt: '2026-03-20 11:30:00' },
-];
+function mapVideoFromApi(raw: Record<string, unknown>): VideoRecord {
+  return {
+    id: Number(raw.id),
+    title: String(raw.title ?? ''),
+    category: String(raw.category ?? ''),
+    duration: raw.duration != null ? String(raw.duration) : '',
+    views: Number(raw.view_count ?? 0),
+    likes: Number(raw.like_count ?? 0),
+    status: String(raw.status ?? 'archived'),
+    coverUrl: String(raw.cover_image ?? ''),
+    videoUrl: String(raw.video_url ?? ''),
+    description: String(raw.description ?? ''),
+    createdAt: String(raw.created_at ?? ''),
+  };
+}
+
+function isVideoPublished(status: string) {
+  return status === 'published';
+}
+
+function videoStatusLabel(status: string) {
+  if (status === 'published') return '已发布';
+  if (status === 'draft') return '草稿';
+  return '已下架';
+}
 
 export default function VideosPage() {
-  const [videos, setVideos] = useState<VideoRecord[]>(mockVideos);
+  const [videos, setVideos] = useState<VideoRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingRecord, setEditingRecord] = useState<VideoRecord | null>(null);
-  const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: mockVideos.length });
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
   const [form] = Form.useForm();
 
   useEffect(() => {
@@ -54,13 +72,17 @@ export default function VideosPage() {
   const fetchData = async (page = 1, pageSize = 10) => {
     setLoading(true);
     try {
-      const res = await get('/api/admin/content/videos', { page, pageSize });
+      const res = await get('/api/admin/content/videos', { page, page_size: pageSize });
       if (res) {
         const items = res.items || res.list || res;
-        setVideos(Array.isArray(items) ? items : []);
-        setPagination((prev) => ({ ...prev, current: page, total: res.total ?? (Array.isArray(items) ? items.length : 0) }));
+        const rawList = Array.isArray(items) ? items : [];
+        setVideos(rawList.map((r: Record<string, unknown>) => mapVideoFromApi(r)));
+        setPagination((prev) => ({ ...prev, current: page, total: res.total ?? rawList.length }));
       }
-    } catch {} finally {
+    } catch {
+      setVideos([]);
+      setPagination((prev) => ({ ...prev, current: page, total: 0 }));
+    } finally {
       setLoading(false);
     }
   };
@@ -74,43 +96,84 @@ export default function VideosPage() {
 
   const handleEdit = (record: VideoRecord) => {
     setEditingRecord(record);
-    form.setFieldsValue({ ...record, status: record.status === 1 });
+    form.setFieldsValue({
+      title: record.title,
+      category: record.category,
+      duration: record.duration,
+      coverUrl: record.coverUrl,
+      videoUrl: record.videoUrl,
+      description: record.description,
+      status: isVideoPublished(record.status),
+    });
     setModalVisible(true);
   };
 
   const handleToggleStatus = async (record: VideoRecord) => {
-    const newStatus = record.status === 1 ? 0 : 1;
+    const newStatus = isVideoPublished(record.status) ? 'archived' : 'published';
     try {
       await put(`/api/admin/content/videos/${record.id}`, { status: newStatus });
     } catch {}
     setVideos((prev) => prev.map((v) => (v.id === record.id ? { ...v, status: newStatus } : v)));
-    message.success(newStatus === 1 ? '已上架' : '已下架');
+    message.success(isVideoPublished(newStatus) ? '已上架' : '已下架');
   };
 
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
-      const payload = { ...values, status: values.status ? 1 : 0 };
+      const statusStr = values.status ? 'published' : 'archived';
+      const payload = {
+        title: values.title,
+        category: values.category,
+        duration: values.duration,
+        description: values.description,
+        cover_image: values.coverUrl,
+        video_url: values.videoUrl,
+        status: statusStr,
+      };
 
       if (editingRecord) {
         try {
           await put(`/api/admin/content/videos/${editingRecord.id}`, payload);
         } catch {}
-        setVideos((prev) => prev.map((v) => (v.id === editingRecord.id ? { ...v, ...payload } : v)));
+        setVideos((prev) =>
+          prev.map((v) =>
+            v.id === editingRecord.id
+              ? {
+                  ...v,
+                  title: values.title,
+                  category: values.category,
+                  duration: values.duration ?? v.duration,
+                  coverUrl: values.coverUrl ?? v.coverUrl,
+                  videoUrl: values.videoUrl ?? v.videoUrl,
+                  description: values.description ?? v.description,
+                  status: statusStr,
+                  views: v.views,
+                  likes: v.likes,
+                  createdAt: v.createdAt,
+                }
+              : v
+          )
+        );
         message.success('编辑成功');
       } else {
+        const localRow: VideoRecord = {
+          id: Date.now(),
+          title: values.title,
+          category: values.category,
+          duration: values.duration ?? '',
+          views: 0,
+          likes: 0,
+          status: statusStr,
+          coverUrl: values.coverUrl ?? '',
+          videoUrl: values.videoUrl ?? '',
+          description: values.description ?? '',
+          createdAt: new Date().toISOString(),
+        };
         try {
           const res = await post('/api/admin/content/videos', payload);
-          payload.id = res?.id || Date.now();
-        } catch {
-          payload.id = Date.now();
-        }
-        payload.views = 0;
-        payload.likes = 0;
-        payload.coverUrl = '';
-        payload.videoUrl = '';
-        payload.createdAt = new Date().toISOString();
-        setVideos((prev) => [...prev, payload]);
+          if (res?.id != null) localRow.id = res.id;
+        } catch {}
+        setVideos((prev) => [...prev, localRow]);
         message.success('新增成功');
       }
       setModalVisible(false);
@@ -140,25 +203,32 @@ export default function VideosPage() {
       dataIndex: 'status',
       key: 'status',
       width: 80,
-      render: (v: number) => <Tag color={v === 1 ? 'green' : 'red'}>{v === 1 ? '已发布' : '已下架'}</Tag>,
+      render: (v: string) => (
+        <Tag color={isVideoPublished(v) ? 'green' : v === 'draft' ? 'default' : 'red'}>{videoStatusLabel(v)}</Tag>
+      ),
     },
     {
       title: '发布时间',
       dataIndex: 'createdAt',
       key: 'createdAt',
       width: 170,
-      render: (v: string) => dayjs(v).format('YYYY-MM-DD HH:mm'),
+      render: (v: string) => (v ? dayjs(v).format('YYYY-MM-DD HH:mm') : '—'),
     },
     {
       title: '操作',
       key: 'action',
       width: 150,
-      render: (_: any, record: VideoRecord) => (
+      render: (_: unknown, record: VideoRecord) => (
         <Space>
-          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>编辑</Button>
-          <Popconfirm title={record.status === 1 ? '确定下架？' : '确定上架？'} onConfirm={() => handleToggleStatus(record)}>
-            <Button type="link" size="small" icon={record.status === 1 ? <ArrowDownOutlined /> : <ArrowUpOutlined />}>
-              {record.status === 1 ? '下架' : '上架'}
+          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>
+            编辑
+          </Button>
+          <Popconfirm
+            title={isVideoPublished(record.status) ? '确定下架？' : '确定上架？'}
+            onConfirm={() => handleToggleStatus(record)}
+          >
+            <Button type="link" size="small" icon={isVideoPublished(record.status) ? <ArrowDownOutlined /> : <ArrowUpOutlined />}>
+              {isVideoPublished(record.status) ? '下架' : '上架'}
             </Button>
           </Popconfirm>
         </Space>
@@ -169,8 +239,12 @@ export default function VideosPage() {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <Title level={4} style={{ margin: 0 }}>视频管理</Title>
-        <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>新增视频</Button>
+        <Title level={4} style={{ margin: 0 }}>
+          视频管理
+        </Title>
+        <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
+          新增视频
+        </Button>
       </div>
 
       <Table

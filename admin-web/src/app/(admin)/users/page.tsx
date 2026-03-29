@@ -3,10 +3,12 @@
 import React, { useEffect, useState } from 'react';
 import { Table, Button, Input, Space, Tag, Modal, Descriptions, message, Typography, Avatar, Popconfirm } from 'antd';
 import { SearchOutlined, UserOutlined, EyeOutlined, StopOutlined, CheckCircleOutlined } from '@ant-design/icons';
-import { get, post } from '@/lib/api';
+import { get, put } from '@/lib/api';
 import dayjs from 'dayjs';
 
 const { Title } = Typography;
+
+type UserStatus = 'active' | 'disabled' | 'banned';
 
 interface UserRecord {
   id: number;
@@ -16,27 +18,40 @@ interface UserRecord {
   role: string;
   level: string;
   points: number;
-  status: number;
+  status: UserStatus;
   createdAt: string;
 }
 
-const mockUsers: UserRecord[] = [
-  { id: 1, phone: '138****1234', nickname: '张三', role: 'user', level: '黄金会员', points: 2580, status: 1, createdAt: '2026-01-15 10:30:00' },
-  { id: 2, phone: '139****5678', nickname: '李四', role: 'user', level: '白银会员', points: 1200, status: 1, createdAt: '2026-02-20 14:22:00' },
-  { id: 3, phone: '137****9012', nickname: '王五', role: 'vip', level: '钻石会员', points: 8900, status: 1, createdAt: '2025-12-05 09:15:00' },
-  { id: 4, phone: '136****3456', nickname: '赵六', role: 'user', level: '普通会员', points: 350, status: 0, createdAt: '2026-03-01 16:48:00' },
-  { id: 5, phone: '135****7890', nickname: '孙七', role: 'user', level: '黄金会员', points: 3100, status: 1, createdAt: '2026-01-28 11:30:00' },
-  { id: 6, phone: '188****2345', nickname: '周八', role: 'vip', level: '钻石会员', points: 12500, status: 1, createdAt: '2025-11-10 08:20:00' },
-  { id: 7, phone: '199****6789', nickname: '吴九', role: 'user', level: '白银会员', points: 980, status: 1, createdAt: '2026-03-15 13:45:00' },
-  { id: 8, phone: '177****0123', nickname: '郑十', role: 'user', level: '普通会员', points: 150, status: 0, createdAt: '2026-03-20 17:00:00' },
-];
+function mapApiUser(row: Record<string, unknown>): UserRecord {
+  const statusRaw = row.status;
+  const status: UserStatus =
+    statusRaw === 'active' || statusRaw === 'disabled' || statusRaw === 'banned'
+      ? statusRaw
+      : 'active';
+
+  return {
+    id: Number(row.id),
+    phone: String(row.phone ?? ''),
+    nickname: String(row.nickname ?? ''),
+    avatar: row.avatar != null ? String(row.avatar) : undefined,
+    role: String(row.role ?? 'user'),
+    level: String(row.member_level ?? ''),
+    points: Number(row.points ?? 0),
+    status,
+    createdAt: String(row.created_at ?? ''),
+  };
+}
+
+function isActiveStatus(s: UserStatus): boolean {
+  return s === 'active';
+}
 
 export default function UsersPage() {
-  const [users, setUsers] = useState<UserRecord[]>(mockUsers);
+  const [users, setUsers] = useState<UserRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchPhone, setSearchPhone] = useState('');
   const [searchNickname, setSearchNickname] = useState('');
-  const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: mockUsers.length });
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
   const [detailVisible, setDetailVisible] = useState(false);
   const [currentUser, setCurrentUser] = useState<UserRecord | null>(null);
 
@@ -47,37 +62,63 @@ export default function UsersPage() {
   const fetchData = async (page = 1, pageSize = 10) => {
     setLoading(true);
     try {
-      const res = await get('/api/admin/users', { page, pageSize, phone: searchPhone, nickname: searchNickname });
-      if (res) {
-        const items = res.items || res.list || res;
-        setUsers(Array.isArray(items) ? items : []);
-        setPagination((prev) => ({ ...prev, current: page, total: res.total ?? (Array.isArray(items) ? items.length : 0) }));
-      }
-    } catch {
-      let filtered = mockUsers;
-      if (searchPhone) filtered = filtered.filter((u) => u.phone.includes(searchPhone));
-      if (searchNickname) filtered = filtered.filter((u) => u.nickname.includes(searchNickname));
-      setUsers(filtered);
-      setPagination((prev) => ({ ...prev, current: page, total: filtered.length }));
+      const keyword = [searchPhone, searchNickname].filter(Boolean).join(' ').trim();
+      const res = await get<{
+        items?: Record<string, unknown>[];
+        list?: Record<string, unknown>[];
+        total?: number;
+        page?: number;
+        page_size?: number;
+      }>('/api/admin/users', {
+        page,
+        page_size: pageSize,
+        ...(keyword ? { keyword } : {}),
+      });
+
+      const rawItems = res.items ?? res.list ?? [];
+      const items = Array.isArray(rawItems) ? rawItems.map(mapApiUser) : [];
+      setUsers(items);
+      setPagination((prev) => ({
+        ...prev,
+        current: res.page ?? page,
+        pageSize: res.page_size ?? pageSize,
+        total: res.total ?? items.length,
+      }));
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { message?: string } }; message?: string };
+      message.error(err?.response?.data?.message || err?.message || '加载用户列表失败');
+      setUsers([]);
+      setPagination((prev) => ({ ...prev, current: page, pageSize, total: 0 }));
     } finally {
       setLoading(false);
     }
   };
 
   const handleToggleStatus = async (record: UserRecord) => {
+    const active = isActiveStatus(record.status);
+    const nextStatus: UserStatus = active ? 'banned' : 'active';
     try {
-      await post(`/api/admin/users/${record.id}/toggle-status`, { status: record.status === 1 ? 0 : 1 });
-      message.success(record.status === 1 ? '已封禁' : '已解封');
-    } catch {}
-    setUsers((prev) =>
-      prev.map((u) => (u.id === record.id ? { ...u, status: u.status === 1 ? 0 : 1 } : u))
-    );
+      await put(`/api/admin/users/${record.id}/status`, undefined, { params: { status: nextStatus } });
+      message.success(active ? '已封禁' : '已解封');
+      setUsers((prev) => prev.map((u) => (u.id === record.id ? { ...u, status: nextStatus } : u)));
+      setCurrentUser((prev) => (prev && prev.id === record.id ? { ...prev, status: nextStatus } : prev));
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { message?: string } }; message?: string };
+      message.error(err?.response?.data?.message || err?.message || '操作失败');
+    }
   };
 
   const roleMap: Record<string, { color: string; text: string }> = {
     user: { color: 'blue', text: '普通用户' },
     vip: { color: 'gold', text: 'VIP用户' },
     admin: { color: 'red', text: '管理员' },
+  };
+
+  const statusTag = (status: UserStatus) => {
+    if (status === 'active') return <Tag color="green">正常</Tag>;
+    if (status === 'banned') return <Tag color="red">封禁</Tag>;
+    if (status === 'disabled') return <Tag color="orange">禁用</Tag>;
+    return <Tag>{status}</Tag>;
   };
 
   const columns = [
@@ -112,9 +153,7 @@ export default function UsersPage() {
       dataIndex: 'status',
       key: 'status',
       width: 80,
-      render: (v: number) => (
-        <Tag color={v === 1 ? 'green' : 'red'}>{v === 1 ? '正常' : '封禁'}</Tag>
-      ),
+      render: (v: UserStatus) => statusTag(v),
     },
     {
       title: '注册时间',
@@ -127,22 +166,22 @@ export default function UsersPage() {
       title: '操作',
       key: 'action',
       width: 160,
-      render: (_: any, record: UserRecord) => (
+      render: (_: unknown, record: UserRecord) => (
         <Space>
           <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => { setCurrentUser(record); setDetailVisible(true); }}>
             详情
           </Button>
           <Popconfirm
-            title={record.status === 1 ? '确定封禁该用户？' : '确定解封该用户？'}
+            title={isActiveStatus(record.status) ? '确定封禁该用户？' : '确定解封该用户？'}
             onConfirm={() => handleToggleStatus(record)}
           >
             <Button
               type="link"
               size="small"
-              danger={record.status === 1}
-              icon={record.status === 1 ? <StopOutlined /> : <CheckCircleOutlined />}
+              danger={isActiveStatus(record.status)}
+              icon={isActiveStatus(record.status) ? <StopOutlined /> : <CheckCircleOutlined />}
             >
-              {record.status === 1 ? '封禁' : '解封'}
+              {isActiveStatus(record.status) ? '封禁' : '解封'}
             </Button>
           </Popconfirm>
         </Space>
@@ -209,9 +248,7 @@ export default function UsersPage() {
             </Descriptions.Item>
             <Descriptions.Item label="会员等级">{currentUser.level}</Descriptions.Item>
             <Descriptions.Item label="积分">{currentUser.points}</Descriptions.Item>
-            <Descriptions.Item label="状态">
-              <Tag color={currentUser.status === 1 ? 'green' : 'red'}>{currentUser.status === 1 ? '正常' : '封禁'}</Tag>
-            </Descriptions.Item>
+            <Descriptions.Item label="状态">{statusTag(currentUser.status)}</Descriptions.Item>
             <Descriptions.Item label="注册时间">{dayjs(currentUser.createdAt).format('YYYY-MM-DD HH:mm:ss')}</Descriptions.Item>
           </Descriptions>
         )}

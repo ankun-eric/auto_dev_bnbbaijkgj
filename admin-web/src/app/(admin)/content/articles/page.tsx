@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { Table, Button, Space, Modal, Form, Input, Select, Switch, Tag, message, Typography, Popconfirm } from 'antd';
-import { PlusOutlined, EditOutlined, EyeOutlined, ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons';
 import { get, post, put } from '@/lib/api';
 import dayjs from 'dayjs';
 
@@ -13,10 +13,10 @@ interface Article {
   id: number;
   title: string;
   category: string;
-  author: string;
+  authorId: number | null;
   views: number;
   likes: number;
-  status: number;
+  status: string;
   content: string;
   summary: string;
   createdAt: string;
@@ -31,20 +31,37 @@ const categoryOptions = [
   { label: '疾病预防', value: '疾病预防' },
 ];
 
-const mockArticles: Article[] = [
-  { id: 1, title: '春季养生指南：如何提高免疫力', category: '健康科普', author: '健康编辑', views: 3256, likes: 128, status: 1, content: '春季是万物复苏的季节...', summary: '春季养生重点在于提高免疫力', createdAt: '2026-03-25 10:00:00' },
-  { id: 2, title: '每日营养搭配：科学饮食从这里开始', category: '营养饮食', author: '营养师小王', views: 2180, likes: 96, status: 1, content: '科学的饮食搭配...', summary: '了解每日营养需求，科学搭配饮食', createdAt: '2026-03-24 14:30:00' },
-  { id: 3, title: '办公室简易健身操：缓解久坐疲劳', category: '运动健身', author: '健身教练', views: 4520, likes: 215, status: 1, content: '长时间坐在办公室...', summary: '简单易学的办公室健身操', createdAt: '2026-03-23 09:15:00' },
-  { id: 4, title: '如何应对职场焦虑：心理调适技巧', category: '心理健康', author: '心理咨询师', views: 1890, likes: 87, status: 1, content: '现代职场压力...', summary: '职场压力管理与心理调适方法', createdAt: '2026-03-22 16:00:00' },
-  { id: 5, title: '中医四季养生之道', category: '中医养生', author: '中医专家', views: 2650, likes: 145, status: 0, content: '中医讲究天人合一...', summary: '遵循自然规律的中医养生方法', createdAt: '2026-03-20 11:30:00' },
-];
+function mapArticleFromApi(raw: Record<string, unknown>): Article {
+  return {
+    id: Number(raw.id),
+    title: String(raw.title ?? ''),
+    category: String(raw.category ?? ''),
+    authorId: raw.author_id != null ? Number(raw.author_id) : null,
+    views: Number(raw.view_count ?? 0),
+    likes: Number(raw.like_count ?? 0),
+    status: String(raw.status ?? 'archived'),
+    content: String(raw.content ?? ''),
+    summary: String((raw as { summary?: string }).summary ?? ''),
+    createdAt: String(raw.created_at ?? ''),
+  };
+}
+
+function isArticlePublished(status: string) {
+  return status === 'published';
+}
+
+function articleStatusLabel(status: string) {
+  if (status === 'published') return '已发布';
+  if (status === 'draft') return '草稿';
+  return '已下架';
+}
 
 export default function ArticlesPage() {
-  const [articles, setArticles] = useState<Article[]>(mockArticles);
+  const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingRecord, setEditingRecord] = useState<Article | null>(null);
-  const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: mockArticles.length });
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
   const [form] = Form.useForm();
 
   useEffect(() => {
@@ -54,13 +71,17 @@ export default function ArticlesPage() {
   const fetchData = async (page = 1, pageSize = 10) => {
     setLoading(true);
     try {
-      const res = await get('/api/admin/content/articles', { page, pageSize });
+      const res = await get('/api/admin/content/articles', { page, page_size: pageSize });
       if (res) {
         const items = res.items || res.list || res;
-        setArticles(Array.isArray(items) ? items : []);
-        setPagination((prev) => ({ ...prev, current: page, total: res.total ?? (Array.isArray(items) ? items.length : 0) }));
+        const rawList = Array.isArray(items) ? items : [];
+        setArticles(rawList.map((r: Record<string, unknown>) => mapArticleFromApi(r)));
+        setPagination((prev) => ({ ...prev, current: page, total: res.total ?? rawList.length }));
       }
-    } catch {} finally {
+    } catch {
+      setArticles([]);
+      setPagination((prev) => ({ ...prev, current: page, total: 0 }));
+    } finally {
       setLoading(false);
     }
   };
@@ -74,41 +95,95 @@ export default function ArticlesPage() {
 
   const handleEdit = (record: Article) => {
     setEditingRecord(record);
-    form.setFieldsValue({ ...record, status: record.status === 1 });
+    form.setFieldsValue({
+      title: record.title,
+      category: record.category,
+      author: record.authorId != null ? String(record.authorId) : '',
+      summary: record.summary,
+      content: record.content,
+      status: isArticlePublished(record.status),
+    });
     setModalVisible(true);
   };
 
   const handleToggleStatus = async (record: Article) => {
-    const newStatus = record.status === 1 ? 0 : 1;
+    const newStatus = isArticlePublished(record.status) ? 'archived' : 'published';
     try {
       await put(`/api/admin/content/articles/${record.id}`, { status: newStatus });
     } catch {}
     setArticles((prev) => prev.map((a) => (a.id === record.id ? { ...a, status: newStatus } : a)));
-    message.success(newStatus === 1 ? '已上架' : '已下架');
+    message.success(isArticlePublished(newStatus) ? '已上架' : '已下架');
   };
 
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
-      const payload = { ...values, status: values.status ? 1 : 0 };
+      const statusStr = values.status ? 'published' : 'archived';
+      const payload = {
+        title: values.title,
+        category: values.category,
+        content: values.content,
+        summary: values.summary,
+        status: statusStr,
+        author_id: values.author ? Number(values.author) : undefined,
+      };
 
       if (editingRecord) {
         try {
           await put(`/api/admin/content/articles/${editingRecord.id}`, payload);
         } catch {}
-        setArticles((prev) => prev.map((a) => (a.id === editingRecord.id ? { ...a, ...payload } : a)));
+        setArticles((prev) =>
+          prev.map((a) =>
+            a.id === editingRecord.id
+              ? {
+                  ...a,
+                  ...values,
+                  authorId: payload.author_id ?? a.authorId,
+                  status: statusStr,
+                  views: a.views,
+                  likes: a.likes,
+                  createdAt: a.createdAt,
+                }
+              : a
+          )
+        );
         message.success('编辑成功');
       } else {
         try {
           const res = await post('/api/admin/content/articles', payload);
-          payload.id = res?.id || Date.now();
+          const newId = res?.id ?? Date.now();
+          setArticles((prev) => [
+            ...prev,
+            {
+              id: newId,
+              title: values.title,
+              category: values.category,
+              content: values.content,
+              summary: values.summary ?? '',
+              authorId: payload.author_id ?? null,
+              status: statusStr,
+              views: 0,
+              likes: 0,
+              createdAt: new Date().toISOString(),
+            },
+          ]);
         } catch {
-          payload.id = Date.now();
+          setArticles((prev) => [
+            ...prev,
+            {
+              id: Date.now(),
+              title: values.title,
+              category: values.category,
+              content: values.content,
+              summary: values.summary ?? '',
+              authorId: payload.author_id ?? null,
+              status: statusStr,
+              views: 0,
+              likes: 0,
+              createdAt: new Date().toISOString(),
+            },
+          ]);
         }
-        payload.views = 0;
-        payload.likes = 0;
-        payload.createdAt = new Date().toISOString();
-        setArticles((prev) => [...prev, payload]);
         message.success('新增成功');
       }
       setModalVisible(false);
@@ -119,7 +194,13 @@ export default function ArticlesPage() {
     { title: 'ID', dataIndex: 'id', key: 'id', width: 60 },
     { title: '标题', dataIndex: 'title', key: 'title', ellipsis: true },
     { title: '分类', dataIndex: 'category', key: 'category', width: 100, render: (v: string) => <Tag color="cyan">{v}</Tag> },
-    { title: '作者', dataIndex: 'author', key: 'author', width: 110 },
+    {
+      title: '作者',
+      dataIndex: 'authorId',
+      key: 'authorId',
+      width: 110,
+      render: (v: number | null) => (v != null ? `ID ${v}` : '—'),
+    },
     { title: '浏览量', dataIndex: 'views', key: 'views', width: 80 },
     { title: '点赞', dataIndex: 'likes', key: 'likes', width: 70 },
     {
@@ -127,25 +208,32 @@ export default function ArticlesPage() {
       dataIndex: 'status',
       key: 'status',
       width: 80,
-      render: (v: number) => <Tag color={v === 1 ? 'green' : 'red'}>{v === 1 ? '已发布' : '已下架'}</Tag>,
+      render: (v: string) => (
+        <Tag color={isArticlePublished(v) ? 'green' : v === 'draft' ? 'default' : 'red'}>{articleStatusLabel(v)}</Tag>
+      ),
     },
     {
       title: '发布时间',
       dataIndex: 'createdAt',
       key: 'createdAt',
       width: 170,
-      render: (v: string) => dayjs(v).format('YYYY-MM-DD HH:mm'),
+      render: (v: string) => (v ? dayjs(v).format('YYYY-MM-DD HH:mm') : '—'),
     },
     {
       title: '操作',
       key: 'action',
       width: 160,
-      render: (_: any, record: Article) => (
+      render: (_: unknown, record: Article) => (
         <Space>
-          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>编辑</Button>
-          <Popconfirm title={record.status === 1 ? '确定下架？' : '确定上架？'} onConfirm={() => handleToggleStatus(record)}>
-            <Button type="link" size="small" icon={record.status === 1 ? <ArrowDownOutlined /> : <ArrowUpOutlined />}>
-              {record.status === 1 ? '下架' : '上架'}
+          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>
+            编辑
+          </Button>
+          <Popconfirm
+            title={isArticlePublished(record.status) ? '确定下架？' : '确定上架？'}
+            onConfirm={() => handleToggleStatus(record)}
+          >
+            <Button type="link" size="small" icon={isArticlePublished(record.status) ? <ArrowDownOutlined /> : <ArrowUpOutlined />}>
+              {isArticlePublished(record.status) ? '下架' : '上架'}
             </Button>
           </Popconfirm>
         </Space>
@@ -156,8 +244,12 @@ export default function ArticlesPage() {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <Title level={4} style={{ margin: 0 }}>文章管理</Title>
-        <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>新增文章</Button>
+        <Title level={4} style={{ margin: 0 }}>
+          文章管理
+        </Title>
+        <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
+          新增文章
+        </Button>
       </div>
 
       <Table
@@ -191,7 +283,7 @@ export default function ArticlesPage() {
               <Select options={categoryOptions} placeholder="请选择分类" />
             </Form.Item>
             <Form.Item label="作者" name="author" rules={[{ required: true, message: '请输入作者' }]} style={{ flex: 1 }}>
-              <Input placeholder="请输入作者" />
+              <Input placeholder="作者用户 ID" />
             </Form.Item>
           </Space>
           <Form.Item label="文章摘要" name="summary">

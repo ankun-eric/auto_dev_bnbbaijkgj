@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Table, Button, Space, Modal, Form, Input, InputNumber, Select, Switch, Upload, Tag, message, Typography, Popconfirm, Image } from 'antd';
+import { Table, Button, Space, Modal, Form, Input, InputNumber, Select, Switch, Upload, Tag, message, Typography, Popconfirm } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, UploadOutlined, GiftOutlined } from '@ant-design/icons';
 import { get, post, put, del } from '@/lib/api';
 
@@ -14,36 +14,57 @@ interface MallGoods {
   category: string;
   points: number;
   stock: number;
-  exchangeCount: number;
-  status: number;
+  status: string;
   image: string;
   description: string;
   createdAt: string;
 }
 
+const TYPE_LABELS: Record<string, string> = {
+  virtual: '虚拟商品',
+  physical: '实物商品',
+  service: '体验服务',
+  third_party: '第三方商品',
+};
+
 const categoryOptions = [
-  { label: '健康用品', value: '健康用品' },
-  { label: '优惠券', value: '优惠券' },
-  { label: '虚拟商品', value: '虚拟商品' },
-  { label: '体验服务', value: '体验服务' },
-  { label: '周边礼品', value: '周边礼品' },
+  { label: '虚拟商品', value: 'virtual' },
+  { label: '实物商品', value: 'physical' },
+  { label: '体验服务', value: 'service' },
+  { label: '第三方商品', value: 'third_party' },
 ];
 
-const mockGoods: MallGoods[] = [
-  { id: 1, name: '健康体检优惠券 (100元)', category: '优惠券', points: 500, stock: 200, exchangeCount: 156, status: 1, image: '', description: '可用于任意体检套餐抵扣100元', createdAt: '2026-01-10' },
-  { id: 2, name: 'AI健康咨询次卡(3次)', category: '虚拟商品', points: 300, stock: 500, exchangeCount: 289, status: 1, image: '', description: '3次AI深度健康咨询服务', createdAt: '2026-01-15' },
-  { id: 3, name: '智能体脂秤', category: '健康用品', points: 5000, stock: 50, exchangeCount: 23, status: 1, image: '', description: '支持蓝牙连接，多项身体数据监测', createdAt: '2026-02-01' },
-  { id: 4, name: '专家一对一咨询', category: '体验服务', points: 2000, stock: 30, exchangeCount: 12, status: 1, image: '', description: '30分钟专家视频咨询', createdAt: '2026-02-10' },
-  { id: 5, name: '宾尼小康定制水杯', category: '周边礼品', points: 800, stock: 100, exchangeCount: 67, status: 1, image: '', description: '品牌定制保温水杯', createdAt: '2026-02-20' },
-  { id: 6, name: '营养方案折扣券(8折)', category: '优惠券', points: 200, stock: 0, exchangeCount: 345, status: 0, image: '', description: '营养方案定制服务8折优惠券', createdAt: '2026-03-01' },
-];
+function firstImage(images: unknown): string {
+  if (Array.isArray(images) && images.length > 0) return String(images[0]);
+  if (typeof images === 'string') return images;
+  return '';
+}
+
+function mapMallItemFromApi(raw: Record<string, unknown>): MallGoods {
+  const typeKey = String(raw.type ?? '');
+  return {
+    id: Number(raw.id),
+    name: String(raw.name ?? ''),
+    category: typeKey,
+    points: Number(raw.price_points ?? 0),
+    stock: Number(raw.stock ?? 0),
+    status: String(raw.status ?? ''),
+    image: firstImage(raw.images),
+    description: String(raw.description ?? ''),
+    createdAt: String(raw.created_at ?? ''),
+  };
+}
+
+function isMallOnShelf(status: string) {
+  return status === 'active';
+}
 
 export default function PointsMallPage() {
-  const [goods, setGoods] = useState<MallGoods[]>(mockGoods);
+  const [goods, setGoods] = useState<MallGoods[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingRecord, setEditingRecord] = useState<MallGoods | null>(null);
-  const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: mockGoods.length });
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
   const [form] = Form.useForm();
 
   useEffect(() => {
@@ -53,13 +74,17 @@ export default function PointsMallPage() {
   const fetchData = async (page = 1, pageSize = 10) => {
     setLoading(true);
     try {
-      const res = await get('/api/admin/points/mall', { page, pageSize });
+      const res = await get('/api/admin/points/mall', { page, page_size: pageSize });
       if (res) {
         const items = res.items || res.list || res;
-        setGoods(Array.isArray(items) ? items : []);
-        setPagination((prev) => ({ ...prev, current: page, total: res.total ?? (Array.isArray(items) ? items.length : 0) }));
+        const rawList = Array.isArray(items) ? items : [];
+        setGoods(rawList.map((r: Record<string, unknown>) => mapMallItemFromApi(r)));
+        setPagination((prev) => ({ ...prev, current: page, total: res.total ?? rawList.length }));
       }
-    } catch {} finally {
+    } catch {
+      setGoods([]);
+      setPagination((prev) => ({ ...prev, current: page, total: 0 }));
+    } finally {
       setLoading(false);
     }
   };
@@ -73,7 +98,15 @@ export default function PointsMallPage() {
 
   const handleEdit = (record: MallGoods) => {
     setEditingRecord(record);
-    form.setFieldsValue({ ...record, status: record.status === 1 });
+    form.setFieldsValue({
+      name: record.name,
+      category: categoryOptions.some((o) => o.value === record.category) ? record.category : 'virtual',
+      points: record.points,
+      stock: record.stock,
+      image: record.image,
+      description: record.description,
+      status: isMallOnShelf(record.status),
+    });
     setModalVisible(true);
   };
 
@@ -88,25 +121,57 @@ export default function PointsMallPage() {
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
-      const payload = { ...values, status: values.status ? 1 : 0 };
+      const onShelf = Boolean(values.status);
+      const statusStr = onShelf ? 'active' : 'inactive';
+      const payload = {
+        name: values.name,
+        type: values.category,
+        price_points: values.points,
+        stock: values.stock,
+        description: values.description,
+        status: statusStr,
+        images: values.image ? [values.image] : [],
+      };
 
       if (editingRecord) {
         try {
           await put(`/api/admin/points/mall/${editingRecord.id}`, payload);
         } catch {}
-        setGoods((prev) => prev.map((g) => (g.id === editingRecord.id ? { ...g, ...payload } : g)));
+        setGoods((prev) =>
+          prev.map((g) =>
+            g.id === editingRecord.id
+              ? {
+                  ...g,
+                  name: values.name,
+                  category: values.category,
+                  points: values.points,
+                  stock: values.stock,
+                  description: values.description ?? g.description,
+                  status: statusStr,
+                  image: typeof values.image === 'string' ? values.image : g.image,
+                  createdAt: g.createdAt,
+                }
+              : g
+          )
+        );
         message.success('编辑成功');
       } else {
+        const localRow: MallGoods = {
+          id: Date.now(),
+          name: values.name,
+          category: values.category,
+          points: values.points,
+          stock: values.stock,
+          status: statusStr,
+          image: typeof values.image === 'string' ? values.image : '',
+          description: values.description ?? '',
+          createdAt: new Date().toISOString().split('T')[0],
+        };
         try {
           const res = await post('/api/admin/points/mall', payload);
-          payload.id = res?.id || Date.now();
-        } catch {
-          payload.id = Date.now();
-        }
-        payload.exchangeCount = 0;
-        payload.image = '';
-        payload.createdAt = new Date().toISOString().split('T')[0];
-        setGoods((prev) => [...prev, payload]);
+          if (res?.id != null) localRow.id = res.id;
+        } catch {}
+        setGoods((prev) => [...prev, localRow]);
         message.success('新增成功');
       }
       setModalVisible(false);
@@ -127,7 +192,13 @@ export default function PointsMallPage() {
         </Space>
       ),
     },
-    { title: '分类', dataIndex: 'category', key: 'category', width: 100, render: (v: string) => <Tag color="orange">{v}</Tag> },
+    {
+      title: '分类',
+      dataIndex: 'category',
+      key: 'category',
+      width: 100,
+      render: (v: string) => <Tag color="orange">{TYPE_LABELS[v] ?? v}</Tag>,
+    },
     {
       title: '所需积分',
       dataIndex: 'points',
@@ -142,23 +213,35 @@ export default function PointsMallPage() {
       width: 80,
       render: (v: number) => <Tag color={v > 0 ? 'green' : 'red'}>{v}</Tag>,
     },
-    { title: '已兑换', dataIndex: 'exchangeCount', key: 'exchangeCount', width: 80 },
+    {
+      title: '已兑换',
+      dataIndex: 'exchangeCount',
+      key: 'exchangeCount',
+      width: 80,
+      render: () => '—',
+    },
     {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
       width: 80,
-      render: (v: number) => <Tag color={v === 1 ? 'green' : 'red'}>{v === 1 ? '上架' : '下架'}</Tag>,
+      render: (v: string) => (
+        <Tag color={isMallOnShelf(v) ? 'green' : 'red'}>{isMallOnShelf(v) ? '上架' : '下架'}</Tag>
+      ),
     },
     {
       title: '操作',
       key: 'action',
       width: 150,
-      render: (_: any, record: MallGoods) => (
+      render: (_: unknown, record: MallGoods) => (
         <Space>
-          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>编辑</Button>
+          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>
+            编辑
+          </Button>
           <Popconfirm title="确定删除该商品？" onConfirm={() => handleDelete(record.id)}>
-            <Button type="link" size="small" danger icon={<DeleteOutlined />}>删除</Button>
+            <Button type="link" size="small" danger icon={<DeleteOutlined />}>
+              删除
+            </Button>
           </Popconfirm>
         </Space>
       ),
@@ -168,8 +251,12 @@ export default function PointsMallPage() {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <Title level={4} style={{ margin: 0 }}>积分商城管理</Title>
-        <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>新增商品</Button>
+        <Title level={4} style={{ margin: 0 }}>
+          积分商城管理
+        </Title>
+        <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
+          新增商品
+        </Button>
       </div>
 
       <Table

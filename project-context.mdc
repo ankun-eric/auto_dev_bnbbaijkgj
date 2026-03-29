@@ -116,6 +116,26 @@
 - Fixed `admin-web/src/app/(admin)/dashboard/page.tsx` — `fetchData()` now maps backend fields (both camelCase and snake_case) to frontend `DashboardData` interface with defaultData fallback using `??` operator, preventing `undefined.map()` crash.
 - Fixed data fetching in all 11 admin pages (users, orders, ai-config, experts, articles, videos, categories, items, mall, levels, rules) — removed incorrect `res.code === 0 && res.data` checks and changed to direct `res.items || []` usage matching the backend's `{ items, total, page, page_size }` response format.
 
+## Bug Fix: 管理后台多菜单数据无法显示
+
+### Root Cause
+
+前端页面组件使用 camelCase 字段名（如 `createdAt`、`memberLevel`、`pageSize`），而后端 API 返回 snake_case 字段名（如 `created_at`、`member_level`、`page_size`）。字段名不匹配导致前端解析数据为 `undefined`，表格无法渲染数据行。
+
+### Admin Web
+
+- Fixed `admin-web/src/app/(admin)/users/page.tsx` — Added `mapApiUser()` mapping function to convert backend snake_case fields to frontend camelCase. Fixed API query parameter `pageSize` → `page_size`, `searchPhone`/`searchNickname` → `keyword`. Updated status handling from numeric to string-based (`active`/`disabled`/`banned`).
+- Fixed `admin-web/src/app/(admin)/orders/page.tsx` — Added `mapOrder()` mapping function, `deriveStatus()` for consolidated order status, `payMethodMap` for payment method display. Fixed API parameters and removed mock data fallback.
+- Fixed `admin-web/src/app/(admin)/experts/page.tsx` — Added `mapApiItemToExpert()` for `specialties` → `specialty`, `introduction` → `intro`, `created_at` → `createdAt`. Form submission also maps correctly.
+- Fixed `admin-web/src/app/(admin)/content/articles/page.tsx` — Added `mapArticleFromApi()` for `view_count` → `views`, `like_count` → `likes`, `author_id` → `authorId`, `created_at` → `createdAt`.
+- Fixed `admin-web/src/app/(admin)/content/videos/page.tsx` — Added `mapVideoFromApi()` for `video_url` → `videoUrl`, `cover_image` → `coverUrl`, `view_count` → `views`, `like_count` → `likes`.
+- Fixed `admin-web/src/app/(admin)/services/items/page.tsx` — Added `mapServiceItemFromApi()` for `category_id` → `categoryId`, `original_price` → `originalPrice`, `sales_count` → `sales`.
+- Fixed `admin-web/src/app/(admin)/points/mall/page.tsx` — Added `mapMallItemFromApi()` for `type` → `category`, `price_points` → `points`, image extraction from `images` array.
+
+### Verification
+
+All 9 admin API endpoints return HTTP 200 with correct data structure. Admin frontend loads and renders data correctly for all menu pages.
+
 ## Notes For Next Iteration
 
 - Merchant identities are granted by admin only; new self-registered accounts still default to normal users.
