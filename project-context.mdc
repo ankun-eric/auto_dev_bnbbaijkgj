@@ -43,10 +43,28 @@
 - Converted the four main tab pages into role containers so user and merchant experiences stay isolated while sharing the same account/login framework.
 - Merchant mode now requires store selection on each entry and keeps orders, messages, and profile data isolated from user mode.
 
+## Latest Feature: 短信验证码登录接入腾讯云
+
+### Backend
+
+- Integrated Tencent Cloud SMS SDK (`tencentcloud-sdk-python`) for sending real SMS verification codes.
+- Added `backend/app/services/sms_service.py` — async `send_sms(phone, code)` function that calls Tencent Cloud SMS API; falls back to no-op with warning when SecretId/SecretKey are not configured.
+- Updated `backend/app/core/config.py` — added `TENCENT_SMS_SECRET_ID`, `TENCENT_SMS_SECRET_KEY`, `TENCENT_SMS_SDK_APP_ID`, `TENCENT_SMS_SIGN_NAME`, `TENCENT_SMS_TEMPLATE_ID`, `TENCENT_SMS_APP_KEY` settings.
+- Updated `POST /api/auth/sms-code` endpoint: added 60-second rate limiting per phone number (HTTP 429), calls Tencent Cloud SMS to send real SMS, removed plain-text code from response body.
+- Added 6 new test cases in `backend/tests/test_auth.py` covering rate limiting, response format, wrong code rejection, auto-registration, and existing user login.
+- Updated `backend/tests/conftest.py` with `latest_sms_code` fixture to read verification codes from DB (since response no longer returns them).
+
+### Mini Program / Flutter APP / H5
+
+- No code changes needed — all three clients already had SMS login UI and API calls in place. The backend SMS integration makes them fully functional.
+
 ## Generated Delivery Artifacts
 
-- Merged mini program package:
+- Mini program packages:
   - `miniprogram_20260327_163902_ee97.zip`
+  - `miniprogram_20260329_122617_9985.zip`
+- Android APK: `app_20260329_123556_bd53.apk` (GitHub Release: `android-v20260329-122726-0486`)
+- iOS IPA: `bini_health_ios-v20260329-122702-c96a.ipa` (GitHub Release: `ios-v20260329-122702-c96a`)
 
 ## Deployment Verification
 
@@ -54,10 +72,13 @@
 - Admin homepage: `https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/`
 - Admin merchant accounts page: `https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/merchant/accounts/`
 - API health: `https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api/health`
-- Download package: `https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/miniprogram_20260327_163902_ee97.zip`
+- Mini program download: `https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/miniprogram_20260329_122617_9985.zip`
+- Android APK download: `https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/apk/app_20260329_123556_bd53.apk`
+- iOS Release: `https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-v20260329-122702-c96a`
 
 ## Notes For Next Iteration
 
 - Merchant identities are granted by admin only; new self-registered accounts still default to normal users.
 - Old user and merchant accounts require admin-side manual merge before official cutover.
 - If remote DB schema lags behind models, check startup schema synchronization and the new merchant-related tables first.
+- To enable real SMS sending in production, set `TENCENT_SMS_SECRET_ID` and `TENCENT_SMS_SECRET_KEY` environment variables. Without these, SMS sending is skipped with a warning log.
