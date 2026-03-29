@@ -57,7 +57,7 @@ export default function LoginPage() {
     setSending(true);
     try {
       await api.post('/api/auth/sms-code', { phone, type: 'login' });
-      Toast.show({ content: '验证码已发送' });
+      Toast.show({ content: '验证码已发送，请注意查收短信' });
       setCountdown(60);
       const timer = setInterval(() => {
         setCountdown((prev) => {
@@ -69,9 +69,18 @@ export default function LoginPage() {
         });
       }, 1000);
     } catch (error: any) {
-      Toast.show({ content: error?.response?.data?.detail || '发送失败，请稍后重试' });
+      const status = error?.response?.status;
+      const detail = error?.response?.data?.detail;
+      if (status === 429 || status === 403) {
+        Toast.show({ content: detail || '发送失败，请稍后重试' });
+      } else if (status === 500) {
+        Toast.show({ content: '短信发送失败，请稍后重试' });
+      } else {
+        Toast.show({ content: detail || '发送失败，请稍后重试' });
+      }
+    } finally {
+      setSending(false);
     }
-    setSending(false);
   };
 
   const handleLogin = async () => {

@@ -58,6 +58,33 @@
 
 - No code changes needed — all three clients already had SMS login UI and API calls in place. The backend SMS integration makes them fully functional.
 
+## Latest Feature: 短信BUG修复 + 短信管理模块
+
+### Backend
+
+- **BUG修复**: Rewrote `backend/app/services/sms_service.py` — `send_sms()` now raises `RuntimeError` instead of silently returning when SMS credentials are not configured. Added DB-first config resolution (`sms_configs` table) with env-var fallback. All sends are logged to `sms_logs` table.
+- Added `SmsConfig` model (`sms_configs` table) for storing SMS configuration in DB with encrypted SecretKey (base64).
+- Added `SmsLog` model (`sms_logs` table) for recording every SMS send attempt with status, error message, test flag, and operator ID.
+- Added `backend/app/schemas/sms.py` — `SmsConfigCreate`, `SmsConfigUpdate`, `SmsConfigResponse`, `SmsLogResponse`, `SmsTestRequest` schemas.
+- Added `backend/app/api/sms.py` — admin-only SMS management API:
+  - `GET /api/admin/sms/config` — get SMS config (SecretKey masked, returns `has_secret_key` flag)
+  - `PUT /api/admin/sms/config` — update SMS config (partial update supported)
+  - `GET /api/admin/sms/logs` — get SMS send logs with pagination, phone/status search (phone masked)
+  - `POST /api/admin/sms/test` — test send SMS to a phone number
+- Updated `docker-compose.yml` — added Tencent Cloud SMS environment variables to backend service.
+
+### H5 Frontend
+
+- Updated `h5-web/src/app/login/page.tsx` — `sendCode` function now shows different Toast messages based on actual backend response: success → "验证码已发送，请注意查收短信", 500 → "短信发送失败，请稍后重试", 429/403 → shows backend detail message. Uses `finally` block for consistent loading state cleanup.
+
+### Admin Web
+
+- Updated `admin-web/src/app/(admin)/layout.tsx` — changed "系统设置" single menu item to "系统管理" submenu group containing "系统设置" and "短信管理".
+- Added `admin-web/src/app/(admin)/sms/page.tsx` — SMS management page with 3 tabs:
+  - **短信配置**: Form to manage Tencent Cloud SMS config (SecretKey as password field, shows "已设置" or "未设置")
+  - **发送记录**: Table listing all SMS send logs with pagination, phone/status search, masked phone display
+  - **测试发送**: Test send form with phone input, optional template ID, and result alert display
+
 ## Generated Delivery Artifacts
 
 - Mini program packages:
@@ -81,4 +108,5 @@
 - Merchant identities are granted by admin only; new self-registered accounts still default to normal users.
 - Old user and merchant accounts require admin-side manual merge before official cutover.
 - If remote DB schema lags behind models, check startup schema synchronization and the new merchant-related tables first.
-- To enable real SMS sending in production, set `TENCENT_SMS_SECRET_ID` and `TENCENT_SMS_SECRET_KEY` environment variables. Without these, SMS sending is skipped with a warning log.
+- SMS config can be managed from admin panel (系统管理 → 短信管理). DB config takes priority over env vars. If neither is set, SMS sending raises RuntimeError (HTTP 500 to frontend).
+- To enable real SMS sending: either configure via admin panel or set `TENCENT_SMS_SECRET_ID` and `TENCENT_SMS_SECRET_KEY` environment variables.

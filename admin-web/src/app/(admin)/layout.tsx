@@ -16,6 +16,7 @@ import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   LogoutOutlined,
+  MessageOutlined,
 } from '@ant-design/icons';
 import { useRouter, usePathname } from 'next/navigation';
 import type { MenuProps } from 'antd';
@@ -69,7 +70,15 @@ const menuItems: MenuItem[] = [
     ],
   },
   { key: '/customer-service', icon: <CustomerServiceOutlined />, label: '客服工作台' },
-  { key: '/settings', icon: <SettingOutlined />, label: '系统设置' },
+  {
+    key: 'system',
+    icon: <SettingOutlined />,
+    label: '系统管理',
+    children: [
+      { key: '/settings', label: '系统设置' },
+      { key: '/sms', label: '短信管理' },
+    ],
+  },
 ];
 
 function getOpenKeys(pathname: string): string[] {
@@ -77,6 +86,7 @@ function getOpenKeys(pathname: string): string[] {
   if (pathname.startsWith('/merchant')) return ['merchant'];
   if (pathname.startsWith('/content')) return ['content'];
   if (pathname.startsWith('/points')) return ['points'];
+  if (pathname.startsWith('/sms') || pathname.startsWith('/settings')) return ['system'];
   return [];
 }
 

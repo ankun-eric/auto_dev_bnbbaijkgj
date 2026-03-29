@@ -17,7 +17,7 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - bini-health-network
+      - bini-network
 
   backend:
     build:
@@ -31,13 +31,19 @@ services:
       AI_BASE_URL: ${AI_BASE_URL:-}
       AI_MODEL_NAME: ${AI_MODEL_NAME:-}
       AI_API_KEY: ${AI_API_KEY:-}
+      TENCENT_SMS_SECRET_ID: ${TENCENT_SMS_SECRET_ID:-}
+      TENCENT_SMS_SECRET_KEY: ${TENCENT_SMS_SECRET_KEY:-}
+      TENCENT_SMS_SDK_APP_ID: ${TENCENT_SMS_SDK_APP_ID:-1400920269}
+      TENCENT_SMS_SIGN_NAME: ${TENCENT_SMS_SIGN_NAME:-呃唉帮帮网络}
+      TENCENT_SMS_TEMPLATE_ID: ${TENCENT_SMS_TEMPLATE_ID:-2201340}
+      TENCENT_SMS_APP_KEY: ${TENCENT_SMS_APP_KEY:-7e3c8242bf0799cca367fa18fa47a7ea}
     volumes:
       - uploads_data:/app/uploads
     depends_on:
       db:
         condition: service_healthy
     networks:
-      - bini-health-network
+      - bini-network
 
   admin-web:
     build:
@@ -51,10 +57,11 @@ services:
     environment:
       NEXT_PUBLIC_API_URL: /autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api
       NEXT_PUBLIC_BASE_PATH: /autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin
+      BACKEND_URL: http://backend:8000
     depends_on:
       - backend
     networks:
-      - bini-health-network
+      - bini-network
 
   h5-web:
     build:
@@ -68,15 +75,16 @@ services:
     environment:
       NEXT_PUBLIC_API_URL: /autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api
       NEXT_PUBLIC_BASE_PATH: /autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857
+      BACKEND_URL: http://backend:8000
     depends_on:
       - backend
     networks:
-      - bini-health-network
+      - bini-network
 
 volumes:
   mysql_data:
   uploads_data:
 
 networks:
-  bini-health-network:
+  bini-network:
     driver: bridge

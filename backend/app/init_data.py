@@ -45,10 +45,16 @@ async def _init_admin(db: AsyncSession):
     )
     existing_admin = result.scalar_one_or_none()
     if existing_admin:
-        if existing_admin.password_hash and not verify_password(default_password, existing_admin.password_hash):
+        changed = False
+        if existing_admin.phone != default_phone:
+            existing_admin.phone = default_phone
+            changed = True
+        if not existing_admin.password_hash or not verify_password(default_password, existing_admin.password_hash):
             existing_admin.password_hash = get_password_hash(default_password)
+            changed = True
+        if changed:
             await db.flush()
-            logger.info("Reset default admin password (phone: %s)", existing_admin.phone)
+            logger.info("Reset admin credentials to phone=%s", default_phone)
         return
 
     admin = User(
