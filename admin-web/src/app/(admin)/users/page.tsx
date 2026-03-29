@@ -48,9 +48,10 @@ export default function UsersPage() {
     setLoading(true);
     try {
       const res = await get('/api/admin/users', { page, pageSize, phone: searchPhone, nickname: searchNickname });
-      if (res.code === 0 && res.data) {
-        setUsers(res.data.list || res.data);
-        setPagination((prev) => ({ ...prev, current: page, total: res.data.total || res.data.length }));
+      if (res) {
+        const items = res.items || res.list || res;
+        setUsers(Array.isArray(items) ? items : []);
+        setPagination((prev) => ({ ...prev, current: page, total: res.total ?? (Array.isArray(items) ? items.length : 0) }));
       }
     } catch {
       let filtered = mockUsers;

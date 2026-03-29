@@ -42,8 +42,9 @@ export default function ServiceCategoriesPage() {
     setLoading(true);
     try {
       const res = await get('/api/admin/services/categories');
-      if (res.code === 0 && res.data) {
-        setCategories(res.data);
+      if (res) {
+        const items = res.items || res.list || res;
+        setCategories(Array.isArray(items) ? items : []);
       }
     } catch {} finally {
       setLoading(false);
@@ -87,7 +88,7 @@ export default function ServiceCategoriesPage() {
       } else {
         try {
           const res = await post('/api/admin/services/categories', payload);
-          payload.id = res?.data?.id || Date.now();
+          payload.id = res?.id || Date.now();
         } catch {
           payload.id = Date.now();
         }

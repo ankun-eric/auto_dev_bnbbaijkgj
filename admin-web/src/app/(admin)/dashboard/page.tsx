@@ -76,7 +76,16 @@ export default function DashboardPage() {
     try {
       const res = await get('/api/admin/dashboard');
       if (res) {
-        setData(res.data || res);
+        setData({
+          ...defaultData,
+          totalUsers: res.totalUsers ?? res.total_users ?? defaultData.totalUsers,
+          todayOrders: res.todayOrders ?? res.today_orders ?? defaultData.todayOrders,
+          aiCalls: res.aiCalls ?? res.ai_calls ?? defaultData.aiCalls,
+          totalRevenue: res.totalRevenue ?? res.total_revenue ?? defaultData.totalRevenue,
+          userGrowth: res.userGrowth ?? res.user_growth ?? defaultData.userGrowth,
+          orderTrend: res.orderTrend ?? res.order_trend ?? defaultData.orderTrend,
+          recentOrders: res.recentOrders ?? res.recent_orders ?? defaultData.recentOrders,
+        });
       }
     } catch {
       // Use default mock data

@@ -56,8 +56,8 @@ export default function PointRulesPage() {
     setLoading(true);
     try {
       const res = await get('/api/admin/points/rules');
-      if (res.code === 0 && res.data) {
-        form.setFieldsValue(res.data);
+      if (res) {
+        form.setFieldsValue(res);
       }
     } catch {
       form.setFieldsValue(defaultRules);

@@ -103,6 +103,19 @@
 - Android APK download: `https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/apk/app_20260329_123556_bd53.apk`
 - iOS Release: `https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-v20260329-122702-c96a`
 
+## Bug Fix: 管理后台登录后客户端崩溃
+
+### Backend
+
+- Extended `DashboardStats` schema (`backend/app/schemas/admin.py`) with `DashboardTrendPoint`, `DashboardRecentOrder` sub-schemas and new fields: `user_growth`, `order_trend`, `recent_orders`, `ai_calls`. Added camelCase serialization aliases for all fields.
+- Extended `GET /api/admin/dashboard` endpoint (`backend/app/api/admin.py`) to return 7-day user growth trend, 7-day order trend, recent 5 orders (with user/service join), and AI call count (from `ChatMessage` table). Added `response_model_by_alias=True` for camelCase JSON output.
+- Added helper functions `_day_label()`, `_rows_to_trend()`, `_order_row_status()` for dashboard data aggregation.
+
+### Admin Web
+
+- Fixed `admin-web/src/app/(admin)/dashboard/page.tsx` — `fetchData()` now maps backend fields (both camelCase and snake_case) to frontend `DashboardData` interface with defaultData fallback using `??` operator, preventing `undefined.map()` crash.
+- Fixed data fetching in all 11 admin pages (users, orders, ai-config, experts, articles, videos, categories, items, mall, levels, rules) — removed incorrect `res.code === 0 && res.data` checks and changed to direct `res.items || []` usage matching the backend's `{ items, total, page, page_size }` response format.
+
 ## Notes For Next Iteration
 
 - Merchant identities are granted by admin only; new self-registered accounts still default to normal users.

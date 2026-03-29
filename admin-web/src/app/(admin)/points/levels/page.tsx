@@ -43,8 +43,9 @@ export default function PointsLevelsPage() {
     setLoading(true);
     try {
       const res = await get('/api/admin/points/levels');
-      if (res.code === 0 && res.data) {
-        setLevels(res.data);
+      if (res) {
+        const items = res.items || res.list || res;
+        setLevels(Array.isArray(items) ? items : []);
       }
     } catch {} finally {
       setLoading(false);
@@ -85,7 +86,7 @@ export default function PointsLevelsPage() {
       } else {
         try {
           const res = await post('/api/admin/points/levels', values);
-          values.id = res?.data?.id || Date.now();
+          values.id = res?.id || Date.now();
         } catch {
           values.id = Date.now();
         }

@@ -55,9 +55,10 @@ export default function VideosPage() {
     setLoading(true);
     try {
       const res = await get('/api/admin/content/videos', { page, pageSize });
-      if (res.code === 0 && res.data) {
-        setVideos(res.data.list || res.data);
-        setPagination((prev) => ({ ...prev, current: page, total: res.data.total || res.data.length }));
+      if (res) {
+        const items = res.items || res.list || res;
+        setVideos(Array.isArray(items) ? items : []);
+        setPagination((prev) => ({ ...prev, current: page, total: res.total ?? (Array.isArray(items) ? items.length : 0) }));
       }
     } catch {} finally {
       setLoading(false);
@@ -100,7 +101,7 @@ export default function VideosPage() {
       } else {
         try {
           const res = await post('/api/admin/content/videos', payload);
-          payload.id = res?.data?.id || Date.now();
+          payload.id = res?.id || Date.now();
         } catch {
           payload.id = Date.now();
         }

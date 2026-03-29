@@ -64,9 +64,10 @@ export default function OrdersPage() {
     setLoading(true);
     try {
       const res = await get('/api/admin/orders', { page, pageSize, status: activeTab === 'all' ? '' : activeTab, search: searchText });
-      if (res.code === 0 && res.data) {
-        setOrders(res.data.list || res.data);
-        setPagination((prev) => ({ ...prev, current: page, total: res.data.total || res.data.length }));
+      if (res) {
+        const items = res.items || res.list || res;
+        setOrders(Array.isArray(items) ? items : []);
+        setPagination((prev) => ({ ...prev, current: page, total: res.total ?? (Array.isArray(items) ? items.length : 0) }));
       }
     } catch {
       let filtered = mockOrders;

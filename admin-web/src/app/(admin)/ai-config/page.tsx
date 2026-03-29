@@ -39,9 +39,9 @@ export default function AIConfigPage() {
     setLoading(true);
     try {
       const res = await get('/api/admin/ai-config');
-      if (res.code === 0 && res.data) {
-        setCurrentConfig(res.data);
-        form.setFieldsValue(res.data);
+      if (res) {
+        setCurrentConfig(res);
+        form.setFieldsValue(res);
       }
     } catch {
       form.setFieldsValue(defaultConfig);

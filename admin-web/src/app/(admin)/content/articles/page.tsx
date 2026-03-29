@@ -55,9 +55,10 @@ export default function ArticlesPage() {
     setLoading(true);
     try {
       const res = await get('/api/admin/content/articles', { page, pageSize });
-      if (res.code === 0 && res.data) {
-        setArticles(res.data.list || res.data);
-        setPagination((prev) => ({ ...prev, current: page, total: res.data.total || res.data.length }));
+      if (res) {
+        const items = res.items || res.list || res;
+        setArticles(Array.isArray(items) ? items : []);
+        setPagination((prev) => ({ ...prev, current: page, total: res.total ?? (Array.isArray(items) ? items.length : 0) }));
       }
     } catch {} finally {
       setLoading(false);
@@ -100,7 +101,7 @@ export default function ArticlesPage() {
       } else {
         try {
           const res = await post('/api/admin/content/articles', payload);
-          payload.id = res?.data?.id || Date.now();
+          payload.id = res?.id || Date.now();
         } catch {
           payload.id = Date.now();
         }

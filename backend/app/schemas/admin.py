@@ -1,7 +1,7 @@
 from datetime import datetime
-from typing import Any, Optional
+from typing import Optional
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class AIModelConfigCreate(BaseModel):
@@ -36,12 +36,47 @@ class SystemConfigUpdate(BaseModel):
     config_value: str
 
 
+class DashboardTrendPoint(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    date: str
+    count: int
+
+
+class DashboardRecentOrder(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    user: str
+    service: str
+    amount: float
+    status: str
+    time: str
+
+
 class DashboardStats(BaseModel):
-    total_users: int = 0
-    total_orders: int = 0
-    total_revenue: float = 0
-    today_new_users: int = 0
-    today_orders: int = 0
-    today_revenue: float = 0
-    active_experts: int = 0
-    total_articles: int = 0
+    """管理后台仪表盘；JSON 使用 camelCase 别名以匹配 admin-web。"""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    total_users: int = Field(default=0, serialization_alias="totalUsers")
+    total_orders: int = Field(default=0, serialization_alias="totalOrders")
+    total_revenue: float = Field(default=0, serialization_alias="totalRevenue")
+    today_new_users: int = Field(default=0, serialization_alias="todayNewUsers")
+    today_orders: int = Field(default=0, serialization_alias="todayOrders")
+    today_revenue: float = Field(default=0, serialization_alias="todayRevenue")
+    active_experts: int = Field(default=0, serialization_alias="activeExperts")
+    total_articles: int = Field(default=0, serialization_alias="totalArticles")
+    user_growth: list[DashboardTrendPoint] = Field(
+        default_factory=list,
+        serialization_alias="userGrowth",
+    )
+    order_trend: list[DashboardTrendPoint] = Field(
+        default_factory=list,
+        serialization_alias="orderTrend",
+    )
+    recent_orders: list[DashboardRecentOrder] = Field(
+        default_factory=list,
+        serialization_alias="recentOrders",
+    )
+    ai_calls: int = Field(default=0, serialization_alias="aiCalls")

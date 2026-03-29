@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from typing import Optional
 
 import httpx
@@ -12,9 +12,11 @@ from app.core.security import create_access_token, require_role, verify_password
 from app.models.models import (
     AIModelConfig,
     Article,
+    ChatMessage,
     ContentStatus,
     Expert,
     MemberLevel,
+    MessageRole,
     Notification,
     NotificationType,
     Order,
@@ -34,7 +36,9 @@ from app.schemas.admin import (
     AIModelConfigCreate,
     AIModelConfigResponse,
     AIModelConfigUpdate,
+    DashboardRecentOrder,
     DashboardStats,
+    DashboardTrendPoint,
     SystemConfigUpdate,
 )
 from app.schemas.user import RegisterSettingsResponse
@@ -45,6 +49,34 @@ from app.services.register_service import get_register_settings, save_register_s
 router = APIRouter(prefix="/api/admin", tags=["管理后台"])
 
 admin_dep = require_role("admin")
+
+
+def _day_label(d: date | datetime) -> str:
+    if isinstance(d, datetime):
+        d = d.date()
+    return d.strftime("%m-%d")
+
+
+def _rows_to_trend(labels: list[str], rows) -> list[DashboardTrendPoint]:
+    counts = dict.fromkeys(labels, 0)
+    for row in rows:
+        day_val, cnt = row[0], row[1]
+        if day_val is None:
+            continue
+        key = _day_label(day_val) if isinstance(day_val, (date, datetime)) else str(day_val)[5:10]
+        if key in counts:
+            counts[key] = int(cnt or 0)
+    return [DashboardTrendPoint(date=lab, count=counts[lab]) for lab in labels]
+
+
+def _order_row_status(order: Order) -> str:
+    if order.payment_status == PaymentStatus.refunded:
+        return "refunded"
+    if order.order_status == OrderStatus.completed:
+        return "completed"
+    if order.payment_status == PaymentStatus.paid:
+        return "paid"
+    return "pending"
 
 
 class AdminLoginRequest(BaseModel):
@@ -741,8 +773,8 @@ async def update_points_rules(
 
 # ── 仪表盘 ──
 
-@router.get("/dashboard", response_model=DashboardStats)
-@router.get("/dashboard/stats", response_model=DashboardStats)
+@router.get("/dashboard", response_model=DashboardStats, response_model_by_alias=True)
+@router.get("/dashboard/stats", response_model=DashboardStats, response_model_by_alias=True)
 async def get_dashboard_stats(
     current_user=Depends(admin_dep),
     db: AsyncSession = Depends(get_db),
@@ -775,6 +807,54 @@ async def get_dashboard_stats(
     total_articles_result = await db.execute(select(func.count(Article.id)).where(Article.status == ContentStatus.published))
     total_articles = total_articles_result.scalar() or 0
 
+    ai_calls_result = await db.execute(select(func.count(ChatMessage.id)).where(ChatMessage.role == MessageRole.assistant))
+    ai_calls = ai_calls_result.scalar() or 0
+
+    end_day = datetime.utcnow().date()
+    start_day = end_day - timedelta(days=6)
+    trend_window_start = datetime.combine(start_day, datetime.min.time())
+    trend_labels = [_day_label(start_day + timedelta(days=i)) for i in range(7)]
+
+    ug_rows = (
+        await db.execute(
+            select(func.date(User.created_at), func.count(User.id))
+            .where(User.created_at >= trend_window_start)
+            .group_by(func.date(User.created_at))
+        )
+    ).all()
+    user_growth = _rows_to_trend(trend_labels, ug_rows)
+
+    ot_rows = (
+        await db.execute(
+            select(func.date(Order.created_at), func.count(Order.id))
+            .where(Order.created_at >= trend_window_start)
+            .group_by(func.date(Order.created_at))
+        )
+    ).all()
+    order_trend = _rows_to_trend(trend_labels, ot_rows)
+
+    recent_orders: list[DashboardRecentOrder] = []
+    ro_result = await db.execute(
+        select(Order, User, ServiceItem)
+        .join(User, Order.user_id == User.id)
+        .join(ServiceItem, Order.service_item_id == ServiceItem.id)
+        .order_by(Order.created_at.desc())
+        .limit(5)
+    )
+    for order, u, svc in ro_result.all():
+        nickname = (u.nickname or "").strip() or (u.phone or f"用户{u.id}")
+        created = order.created_at or datetime.utcnow()
+        recent_orders.append(
+            DashboardRecentOrder(
+                id=order.order_no,
+                user=nickname,
+                service=svc.name or "",
+                amount=float(order.total_amount or 0),
+                status=_order_row_status(order),
+                time=created.strftime("%Y-%m-%d %H:%M"),
+            )
+        )
+
     return DashboardStats(
         total_users=total_users,
         total_orders=total_orders,
@@ -784,6 +864,10 @@ async def get_dashboard_stats(
         today_revenue=today_revenue,
         active_experts=active_experts,
         total_articles=total_articles,
+        user_growth=user_growth,
+        order_trend=order_trend,
+        recent_orders=recent_orders,
+        ai_calls=ai_calls,
     )
 
 
