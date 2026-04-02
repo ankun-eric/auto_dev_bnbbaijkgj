@@ -879,6 +879,8 @@ class AIModelConfig(Base):
     model_name = mapped_column(String(100), nullable=False)
     api_key_encrypted = mapped_column(String(500), nullable=True)
     is_active = mapped_column(Boolean, default=False)
+    max_tokens = mapped_column(Integer, default=4096)
+    temperature = mapped_column(Float, default=0.7)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

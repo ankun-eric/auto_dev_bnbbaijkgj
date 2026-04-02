@@ -9,7 +9,7 @@ from app.core.config import settings
 from app.models.models import AIModelConfig
 
 
-async def _get_active_model_config(db: Optional[AsyncSession] = None) -> Dict[str, str]:
+async def _get_active_model_config(db: Optional[AsyncSession] = None) -> Dict[str, Any]:
     if db:
         result = await db.execute(select(AIModelConfig).where(AIModelConfig.is_active == True))
         config = result.scalar_one_or_none()
@@ -18,11 +18,15 @@ async def _get_active_model_config(db: Optional[AsyncSession] = None) -> Dict[st
                 "base_url": config.base_url,
                 "model": config.model_name,
                 "api_key": config.api_key_encrypted or "",
+                "max_tokens": config.max_tokens or 4096,
+                "temperature": config.temperature if config.temperature is not None else 0.7,
             }
     return {
         "base_url": settings.AI_BASE_URL,
         "model": settings.AI_MODEL_NAME,
         "api_key": settings.AI_API_KEY,
+        "max_tokens": 4096,
+        "temperature": 0.7,
     }
 
 
@@ -48,8 +52,8 @@ async def call_ai_model(
     payload = {
         "model": config["model"],
         "messages": all_messages,
-        "temperature": 0.7,
-        "max_tokens": 2000,
+        "temperature": float(config.get("temperature", 0.7)),
+        "max_tokens": int(config.get("max_tokens", 4096)),
     }
 
     try:

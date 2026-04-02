@@ -4,6 +4,23 @@ from sqlalchemy import inspect, text
 from sqlalchemy.ext.asyncio import AsyncConnection
 
 
+async def _sync_ai_model_configs(conn: AsyncConnection) -> None:
+    def _load(sync_conn):
+        inspector = inspect(sync_conn)
+        tables = set(inspector.get_table_names())
+        if "ai_model_configs" not in tables:
+            return None
+        return {col["name"] for col in inspector.get_columns("ai_model_configs")}
+
+    columns = await conn.run_sync(_load)
+    if columns is None:
+        return
+    if "max_tokens" not in columns:
+        await conn.execute(text("ALTER TABLE ai_model_configs ADD COLUMN max_tokens INT DEFAULT 4096"))
+    if "temperature" not in columns:
+        await conn.execute(text("ALTER TABLE ai_model_configs ADD COLUMN temperature FLOAT DEFAULT 0.7"))
+
+
 async def sync_register_schema(conn: AsyncConnection) -> None:
     def load_user_schema(sync_conn):
         inspector = inspect(sync_conn)
@@ -18,6 +35,8 @@ async def sync_register_schema(conn: AsyncConnection) -> None:
             if constraint.get("name")
         }
         return columns, indexes, unique_constraints
+
+    await _sync_ai_model_configs(conn)
 
     columns, indexes, unique_constraints = await conn.run_sync(load_user_schema)
 

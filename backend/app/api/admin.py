@@ -109,17 +109,44 @@ async def admin_login(data: AdminLoginRequest, db: AsyncSession = Depends(get_db
 
 # ── AI配置 ──
 
+def _mask_api_key(key: str | None) -> str:
+    if not key:
+        return ""
+    if len(key) <= 8:
+        return key[:2] + "****"
+    visible = len(key) - 7
+    if visible < 2:
+        visible = 2
+    return key[:visible] + "****"
+
+
+def _ai_config_to_dict(config: AIModelConfig) -> dict:
+    return {
+        "id": config.id,
+        "provider_name": config.provider_name,
+        "base_url": config.base_url,
+        "model_name": config.model_name,
+        "api_key": _mask_api_key(config.api_key_encrypted),
+        "is_active": config.is_active,
+        "max_tokens": config.max_tokens if config.max_tokens is not None else 4096,
+        "temperature": config.temperature if config.temperature is not None else 0.7,
+        "created_at": config.created_at.isoformat() if config.created_at else None,
+        "updated_at": config.updated_at.isoformat() if config.updated_at else None,
+    }
+
+
 @router.get("/ai-config")
 async def list_ai_configs(
     current_user=Depends(admin_dep),
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(select(AIModelConfig).order_by(AIModelConfig.created_at.desc()))
-    items = [AIModelConfigResponse.model_validate(c) for c in result.scalars().all()]
+    configs = result.scalars().all()
+    items = [_ai_config_to_dict(c) for c in configs]
     return {"items": items}
 
 
-@router.post("/ai-config", response_model=AIModelConfigResponse)
+@router.post("/ai-config")
 async def create_ai_config(
     data: AIModelConfigCreate,
     current_user=Depends(admin_dep),
@@ -134,14 +161,16 @@ async def create_ai_config(
         model_name=data.model_name,
         api_key_encrypted=data.api_key,
         is_active=data.is_active,
+        max_tokens=data.max_tokens,
+        temperature=data.temperature,
     )
     db.add(config)
     await db.flush()
     await db.refresh(config)
-    return AIModelConfigResponse.model_validate(config)
+    return _ai_config_to_dict(config)
 
 
-@router.put("/ai-config/{config_id}", response_model=AIModelConfigResponse)
+@router.put("/ai-config/{config_id}")
 async def update_ai_config(
     config_id: int,
     data: AIModelConfigUpdate,
@@ -166,11 +195,15 @@ async def update_ai_config(
         config.api_key_encrypted = data.api_key
     if data.is_active is not None:
         config.is_active = data.is_active
+    if data.max_tokens is not None:
+        config.max_tokens = data.max_tokens
+    if data.temperature is not None:
+        config.temperature = data.temperature
 
     config.updated_at = datetime.utcnow()
     await db.flush()
     await db.refresh(config)
-    return AIModelConfigResponse.model_validate(config)
+    return _ai_config_to_dict(config)
 
 
 @router.delete("/ai-config/{config_id}")

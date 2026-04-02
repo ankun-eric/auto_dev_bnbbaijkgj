@@ -5,11 +5,13 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class AIModelConfigCreate(BaseModel):
-    provider_name: str
+    provider_name: str = "OpenAI"
     base_url: str
     model_name: str
     api_key: Optional[str] = None
     is_active: bool = False
+    max_tokens: int = 4096
+    temperature: float = 0.7
 
 
 class AIModelConfigUpdate(BaseModel):
@@ -18,6 +20,8 @@ class AIModelConfigUpdate(BaseModel):
     model_name: Optional[str] = None
     api_key: Optional[str] = None
     is_active: Optional[bool] = None
+    max_tokens: Optional[int] = None
+    temperature: Optional[float] = None
 
 
 class AIModelConfigResponse(BaseModel):
@@ -25,7 +29,10 @@ class AIModelConfigResponse(BaseModel):
     provider_name: str
     base_url: str
     model_name: str
+    api_key: Optional[str] = None
     is_active: bool
+    max_tokens: int = 4096
+    temperature: float = 0.7
     created_at: datetime
     updated_at: datetime
 
