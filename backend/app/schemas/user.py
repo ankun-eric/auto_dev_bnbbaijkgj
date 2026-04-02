@@ -11,7 +11,6 @@ class RegisterSettingsResponse(BaseModel):
 
     enable_self_registration: bool
     wechat_register_mode: str
-    douyin_register_mode: str
     register_page_layout: str
     show_profile_completion_prompt: bool
     member_card_no_rule: str

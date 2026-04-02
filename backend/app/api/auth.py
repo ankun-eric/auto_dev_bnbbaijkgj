@@ -220,7 +220,7 @@ async def send_sms_code(data: SMSCodeRequest, db: AsyncSession = Depends(get_db)
     expires_at = datetime.now(timezone.utc) + timedelta(minutes=5)
 
     try:
-        await send_sms(data.phone, code)
+        await send_sms(data.phone, code, db=db)
     except RuntimeError as exc:
         raise HTTPException(status_code=500, detail=str(exc))
 

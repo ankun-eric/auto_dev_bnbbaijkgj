@@ -9,7 +9,6 @@ import api from '@/lib/api';
 interface RegisterSettings {
   enable_self_registration: boolean;
   wechat_register_mode: 'authorize_member' | 'fill_profile';
-  douyin_register_mode: 'authorize_member' | 'fill_profile';
   register_page_layout: 'vertical' | 'horizontal';
   show_profile_completion_prompt: boolean;
   member_card_no_rule: 'incremental' | 'random';
@@ -18,7 +17,6 @@ interface RegisterSettings {
 const defaultRegisterSettings: RegisterSettings = {
   enable_self_registration: true,
   wechat_register_mode: 'authorize_member',
-  douyin_register_mode: 'authorize_member',
   register_page_layout: 'vertical',
   show_profile_completion_prompt: true,
   member_card_no_rule: 'incremental',
@@ -136,12 +134,9 @@ export default function LoginPage() {
     }
   };
 
-  const showChannelHint = async (channel: 'wechat' | 'douyin') => {
-    const isWechat = channel === 'wechat';
-    const channelLabel = isWechat ? '微信' : '抖音';
-    const registerMode = isWechat
-      ? registerSettings.wechat_register_mode
-      : registerSettings.douyin_register_mode;
+  const showChannelHint = async () => {
+    const channelLabel = '微信';
+    const registerMode = registerSettings.wechat_register_mode;
 
     if (!registerSettings.enable_self_registration) {
       await Dialog.alert({
@@ -155,7 +150,7 @@ export default function LoginPage() {
     if (registerMode === 'authorize_member') {
       await Dialog.alert({
         title: `${channelLabel}授权即会员`,
-        content: `当前策略为“授权即会员”。在对应${channelLabel}客户端完成授权后，可直接成为会员；当前 H5 页面仍可使用手机号验证码继续登录。`,
+        content: `当前策略为"授权即会员"。在对应${channelLabel}客户端完成授权后，可直接成为会员；当前 H5 页面仍可使用手机号验证码继续登录。`,
         confirmText: '知道了',
       });
       return;
@@ -163,7 +158,7 @@ export default function LoginPage() {
 
     await Dialog.alert({
       title: `${channelLabel}需填写注册信息`,
-      content: `当前策略为“填写注册信息”。在对应${channelLabel}客户端授权后，还需要补充手机号等注册资料；当前 H5 页面可先通过手机号验证码完成登录。`,
+      content: `当前策略为"填写注册信息"。在对应${channelLabel}客户端授权后，还需要补充手机号等注册资料；当前 H5 页面可先通过手机号验证码完成登录。`,
       confirmText: '去登录',
     });
   };
@@ -194,13 +189,6 @@ export default function LoginPage() {
       label: '微信',
       desc: registerSettings.wechat_register_mode === 'authorize_member' ? '授权即会员' : '授权后填写注册信息',
       bg: '#f6ffed',
-    },
-    {
-      key: 'douyin' as const,
-      icon: '🎵',
-      label: '抖音',
-      desc: registerSettings.douyin_register_mode === 'authorize_member' ? '授权即会员' : '授权后填写注册信息',
-      bg: '#fff1f0',
     },
   ];
 
@@ -310,7 +298,7 @@ export default function LoginPage() {
                 key={item.key}
                 className="rounded-2xl px-4 py-3 min-w-[140px] text-left"
                 style={{ background: item.bg }}
-                onClick={() => showChannelHint(item.key)}
+                onClick={() => showChannelHint()}
               >
                 <div className="flex items-center justify-center gap-2 text-base">
                   <span>{item.icon}</span>

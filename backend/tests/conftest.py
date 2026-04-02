@@ -34,6 +34,16 @@ async def override_get_db():
 app.dependency_overrides[get_db] = override_get_db
 
 
+@pytest.fixture(autouse=True)
+def mock_send_sms(monkeypatch):
+    """SMS tests exercise auth flow only; avoid Tencent API and production DB for config."""
+
+    async def _noop(*args, **kwargs):
+        return None
+
+    monkeypatch.setattr("app.api.auth.send_sms", _noop)
+
+
 @pytest_asyncio.fixture(scope="session", autouse=True)
 async def prepare_database():
     async with test_engine.begin() as conn:

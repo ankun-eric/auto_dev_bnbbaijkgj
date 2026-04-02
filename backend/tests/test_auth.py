@@ -151,7 +151,6 @@ async def test_get_register_settings_defaults(client: AsyncClient):
     data = response.json()
     assert data["enable_self_registration"] is True
     assert data["wechat_register_mode"] == "authorize_member"
-    assert data["douyin_register_mode"] == "authorize_member"
     assert data["register_page_layout"] == "vertical"
     assert data["show_profile_completion_prompt"] is True
     assert data["member_card_no_rule"] == "incremental"
@@ -495,7 +494,6 @@ async def test_admin_save_register_settings_normalizes_illegal_enums(client: Asy
         "/api/admin/settings/register",
         json={
             "register_page_layout": "diagonal",
-            "douyin_register_mode": "unknown",
             "member_card_no_rule": "uuid_v4",
         },
         headers=headers,
@@ -503,7 +501,6 @@ async def test_admin_save_register_settings_normalizes_illegal_enums(client: Asy
     assert update_resp.status_code == 200
     settings = update_resp.json()["settings"]
     assert settings["register_page_layout"] == "vertical"
-    assert settings["douyin_register_mode"] == "authorize_member"
     assert settings["member_card_no_rule"] == "incremental"
 
     read_resp = await client.get("/api/admin/settings/register", headers=headers)

@@ -291,7 +291,6 @@ export default function SettingsPage() {
             initialValues={{
               enable_self_registration: true,
               wechat_register_mode: 'authorize_member',
-              douyin_register_mode: 'authorize_member',
               register_page_layout: 'vertical',
               show_profile_completion_prompt: true,
               member_card_no_rule: 'incremental',
@@ -341,30 +340,6 @@ export default function SettingsPage() {
                     </Tooltip>
                   </Space>
                 </Radio>
-                <Radio value="fill_profile">填写注册信息</Radio>
-              </Radio.Group>
-            </Form.Item>
-
-            <Form.Item
-              label={
-                <Space>
-                  抖音端注册方式
-                  <Link onClick={() => showExample('抖音端注册方式说明', (
-                    <div>
-                      <Title level={5}>授权即会员</Title>
-                      <Text>用户通过抖音授权登录后，系统自动将其注册为会员，流程简洁快速。</Text>
-                      <Divider />
-                      <Title level={5}>填写注册信息</Title>
-                      <Text>用户授权登录后，需要补充填写手机号等注册信息，适合需要完整用户资料的业务场景。</Text>
-                    </div>
-                  ))}>示例</Link>
-                </Space>
-              }
-              name="douyin_register_mode"
-              style={{ paddingLeft: 24 }}
-            >
-              <Radio.Group disabled={!enableSelfRegistration}>
-                <Radio value="authorize_member">授权即会员</Radio>
                 <Radio value="fill_profile">填写注册信息</Radio>
               </Radio.Group>
             </Form.Item>

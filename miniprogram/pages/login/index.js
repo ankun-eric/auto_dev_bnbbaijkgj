@@ -4,7 +4,6 @@ const app = getApp();
 const DEFAULT_REGISTER_SETTINGS = {
   enable_self_registration: true,
   wechat_register_mode: 'authorize_member',
-  douyin_register_mode: 'authorize_member',
   register_page_layout: 'vertical',
   show_profile_completion_prompt: true,
   member_card_no_rule: 'incremental'

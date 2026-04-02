@@ -11,7 +11,6 @@ from app.models.models import HealthProfile, SystemConfig, User
 DEFAULT_REGISTER_SETTINGS = {
     "enable_self_registration": True,
     "wechat_register_mode": "authorize_member",
-    "douyin_register_mode": "authorize_member",
     "register_page_layout": "vertical",
     "show_profile_completion_prompt": True,
     "member_card_no_rule": "incremental",
@@ -20,7 +19,6 @@ DEFAULT_REGISTER_SETTINGS = {
 BOOL_KEYS = {"enable_self_registration", "show_profile_completion_prompt"}
 ENUM_OPTIONS = {
     "wechat_register_mode": {"authorize_member", "fill_profile"},
-    "douyin_register_mode": {"authorize_member", "fill_profile"},
     "register_page_layout": {"vertical", "horizontal"},
     "member_card_no_rule": {"incremental", "random"},
 }

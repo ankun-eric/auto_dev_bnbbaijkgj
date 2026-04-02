@@ -177,12 +177,6 @@ async def _init_system_configs(db: AsyncSession):
             "description": "微信端注册方式",
         },
         {
-            "config_key": "register_douyin_register_mode",
-            "config_value": "authorize_member",
-            "config_type": "register",
-            "description": "抖音端注册方式",
-        },
-        {
             "config_key": "register_register_page_layout",
             "config_value": "vertical",
             "config_type": "register",
