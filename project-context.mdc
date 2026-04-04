@@ -98,13 +98,19 @@
 - Mini program packages:
   - `miniprogram_20260327_163902_ee97.zip`
   - `miniprogram_20260329_122617_9985.zip`
-  - `miniprogram_20260404_212930_ZvPY.zip` (latest)
+  - `miniprogram_20260404_212930_ZvPY.zip`
+  - `miniprogram_20260404_235920_73a5.zip`
+  - `miniprogram_20260405_010508_twel.zip` (latest)
 - Android APK:
   - `app_20260329_123556_bd53.apk` (GitHub Release: `android-v20260329-122726-0486`)
-  - `bini_health_android-v20260404-213020-6efe.apk` (GitHub Release: `android-v20260404-213020-6efe`) (latest)
+  - `bini_health_android-v20260404-213020-6efe.apk` (GitHub Release: `android-v20260404-213020-6efe`)
+  - `bini_health_android-v20260404-235930-6125.apk` (GitHub Release: `android-v20260404-235930-6125`)
+  - `bini_health_android-v20260405-010455-db8d.apk` (GitHub Release: `android-v20260405-010455-db8d`) (latest)
 - iOS IPA:
   - `bini_health_ios-v20260329-122702-c96a.ipa` (GitHub Release: `ios-v20260329-122702-c96a`)
-  - `bini_health_ios-v20260404-212956-4048.ipa` (GitHub Release: `ios-v20260404-212956-4048`) (latest)
+  - `bini_health_ios-v20260404-212956-4048.ipa` (GitHub Release: `ios-v20260404-212956-4048`)
+  - `bini_health_ios-v20260404-235936-e50d.ipa` (GitHub Release: `ios-v20260404-235936-e50d`)
+  - `bini_health_ios-v20260405-010503-6f17.ipa` (GitHub Release: `ios-v20260405-010503-6f17`) (latest)
 
 ## Deployment Verification
 
@@ -112,14 +118,20 @@
 - Admin homepage: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/`
 - Admin merchant accounts page: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/merchant/accounts/`
 - API health: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api/health`
-- Mini program download: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/uploads/miniprogram_20260404_212930_ZvPY.zip`
-- Android APK download: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/uploads/bini_health_android-v20260404-213020-6efe.apk`
-- iOS Release: `https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-v20260404-212956-4048`
+- Mini program download: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/uploads/miniprogram_20260405_010508_twel.zip`
+- Android APK download: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/uploads/bini_health_android-v20260405-010455-db8d.apk`
+- iOS Release: `https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-v20260405-010503-6f17`
 
-## Redeploy (2026-04-04)
+## Redeploy (2026-04-04 #2)
 
 - Redeployed all containers (db, backend, admin-web, h5-web) with no code changes
-- All 13 deployment verification tests passed (API health, frontend pages, auth endpoints, admin endpoints)
+- 12/13 deployment regression tests passed; 1 failure was test-script path mismatch (not a real bug)
+- Rebuilt and uploaded mini program zip, Android APK, iOS IPA
+
+## Redeploy (2026-04-05)
+
+- Redeployed all containers (db, backend, admin-web, h5-web) with no code changes
+- 13/13 deployment regression tests passed (zero failures)
 - Rebuilt and uploaded mini program zip, Android APK, iOS IPA
 
 ## Bug Fix: 管理后台登录后客户端崩溃
