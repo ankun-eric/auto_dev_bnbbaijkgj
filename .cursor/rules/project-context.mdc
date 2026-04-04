@@ -223,6 +223,26 @@ All 9 admin API endpoints return HTTP 200 with correct data structure. Admin fro
 - Updated `docker-compose.prod.yml` — all container names now use DEPLOY_ID prefix (`3b7b999d-e51c-4c0d-8f6e-baf90cd26857-{service}`)
 - Updated `gateway-routes.conf` — proxy_pass targets use DEPLOY_ID-prefixed container names with `set $target` variable pattern
 
+## SSL Certificate Installation (2026-04-05)
+
+### Problem
+- Gateway-nginx was using a self-signed SSL certificate (`CN=101.33.205.59`) which caused browser security warnings when accessing `https://newbb.test.bangbangvip.com`
+
+### Solution
+- Installed `certbot` via apt on the server
+- Configured ACME challenge route in gateway-nginx (`/.well-known/acme-challenge/`)
+- Obtained Let's Encrypt certificate for `newbb.test.bangbangvip.com` using webroot mode
+- Copied certificate to `/home/ubuntu/gateway/ssl/` (mounted into gateway-nginx container)
+- Updated nginx.conf with proper `server_name`, SSL session settings, and ACME challenge support
+- Created `/etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh` for automatic cert renewal
+- Certificate valid until 2026-07-03, auto-renewed by certbot
+
+### Server Configuration Changes
+- `/home/ubuntu/gateway/nginx.conf` — added `server_name newbb.test.bangbangvip.com`, ACME challenge location, SSL session cache/timeout settings
+- `/home/ubuntu/gateway/docker-compose.yml` — added `certbot-webroot` volume mount
+- `/home/ubuntu/gateway/ssl/server.crt` — replaced self-signed cert with Let's Encrypt fullchain.pem
+- `/home/ubuntu/gateway/ssl/server.key` — replaced with Let's Encrypt privkey.pem
+
 ## Notes For Next Iteration
 
 - Merchant identities are granted by admin only; new self-registered accounts still default to normal users.
@@ -230,3 +250,4 @@ All 9 admin API endpoints return HTTP 200 with correct data structure. Admin fro
 - If remote DB schema lags behind models, check startup schema synchronization and the new merchant-related tables first.
 - SMS config can be managed from admin panel (系统管理 → 短信管理). DB config takes priority over env vars. If neither is set, SMS sending raises RuntimeError (HTTP 500 to frontend).
 - To enable real SMS sending: either configure via admin panel or set `TENCENT_SMS_SECRET_ID` and `TENCENT_SMS_SECRET_KEY` environment variables.
+- SSL certificate auto-renews via certbot. If renewal fails, manually run: `sudo certbot renew` then copy certs to `/home/ubuntu/gateway/ssl/` and reload nginx.
