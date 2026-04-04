@@ -98,8 +98,13 @@
 - Mini program packages:
   - `miniprogram_20260327_163902_ee97.zip`
   - `miniprogram_20260329_122617_9985.zip`
-- Android APK: `app_20260329_123556_bd53.apk` (GitHub Release: `android-v20260329-122726-0486`)
-- iOS IPA: `bini_health_ios-v20260329-122702-c96a.ipa` (GitHub Release: `ios-v20260329-122702-c96a`)
+  - `miniprogram_20260404_212930_ZvPY.zip` (latest)
+- Android APK:
+  - `app_20260329_123556_bd53.apk` (GitHub Release: `android-v20260329-122726-0486`)
+  - `bini_health_android-v20260404-213020-6efe.apk` (GitHub Release: `android-v20260404-213020-6efe`) (latest)
+- iOS IPA:
+  - `bini_health_ios-v20260329-122702-c96a.ipa` (GitHub Release: `ios-v20260329-122702-c96a`)
+  - `bini_health_ios-v20260404-212956-4048.ipa` (GitHub Release: `ios-v20260404-212956-4048`) (latest)
 
 ## Deployment Verification
 
@@ -107,9 +112,15 @@
 - Admin homepage: `https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/`
 - Admin merchant accounts page: `https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/merchant/accounts/`
 - API health: `https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api/health`
-- Mini program download: `https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/miniprogram_20260329_122617_9985.zip`
-- Android APK download: `https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/apk/app_20260329_123556_bd53.apk`
-- iOS Release: `https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-v20260329-122702-c96a`
+- Mini program download: `https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/uploads/miniprogram_20260404_212930_ZvPY.zip`
+- Android APK download: `https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/uploads/bini_health_android-v20260404-213020-6efe.apk`
+- iOS Release: `https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-v20260404-212956-4048`
+
+## Redeploy (2026-04-04)
+
+- Redeployed all containers (db, backend, admin-web, h5-web) with no code changes
+- All 13 deployment verification tests passed (API health, frontend pages, auth endpoints, admin endpoints)
+- Rebuilt and uploaded mini program zip, Android APK, iOS IPA
 
 ## Bug Fix: 管理后台登录后客户端崩溃
 
@@ -172,6 +183,33 @@ All 9 admin API endpoints return HTTP 200 with correct data structure. Admin fro
 
 - Updated `user_docs/注册设置与会员注册.md` to remove all Douyin references.
 - Created `user_docs/删除抖音授权登录.md` user manual.
+
+## Bug Fix: AI模型配置菜单打开报错
+
+### Root Cause
+
+前端 AI 模型配置页面（`admin-web/src/app/(admin)/ai-config/page.tsx`）与后端 API 存在严重的契约不一致：
+1. 后端 `GET /api/admin/ai-config` 返回 `{"items": [...]}`（列表），前端把响应当作单个配置对象使用
+2. 前端使用 `baseUrl`/`model`/`apiKey` 等 camelCase 字段名，后端使用 `base_url`/`model_name`/`api_key` 等 snake_case
+3. `currentConfig.apiKey.substring(0, 8)` 在 `apiKey` 为 `undefined` 时抛出 `TypeError`，导致客户端崩溃
+
+### Backend
+
+- Added `max_tokens` (Integer, default 4096) and `temperature` (Float, default 0.7) columns to `AIModelConfig` model (`backend/app/models/models.py`)
+- Updated `AIModelConfigCreate`/`AIModelConfigUpdate`/`AIModelConfigResponse` schemas (`backend/app/schemas/admin.py`) to include `max_tokens`, `temperature`, and `api_key` fields
+- Rewrote AI config API endpoints (`backend/app/api/admin.py`) — replaced `response_model` + Pydantic `model_validate()` with manual `_ai_config_to_dict()` helper to ensure all fields (including `max_tokens`, `temperature`, masked `api_key`) are always present in responses
+- Added `_mask_api_key()` helper for API key display masking
+- Added `_sync_ai_model_configs()` in `backend/app/services/schema_sync.py` for database migration (ALTER TABLE to add new columns)
+- Updated `backend/app/services/ai_service.py` — `_get_active_model_config()` now returns `max_tokens`/`temperature` from DB config; `call_ai_model()` uses these values instead of hardcoded defaults
+
+### Admin Web
+
+- Completely rewrote `admin-web/src/app/(admin)/ai-config/page.tsx` — changed from single-config form to full CRUD list management with Ant Design Table + Modal. Supports create, edit, delete, and test connection. All field names now match backend snake_case convention (`provider_name`, `base_url`, `model_name`, `api_key`, `max_tokens`, `temperature`, `is_active`). Added proper null safety for all data access.
+
+### Deployment
+
+- Updated `docker-compose.prod.yml` — all container names now use DEPLOY_ID prefix (`3b7b999d-e51c-4c0d-8f6e-baf90cd26857-{service}`)
+- Updated `gateway-routes.conf` — proxy_pass targets use DEPLOY_ID-prefixed container names with `set $target` variable pattern
 
 ## Notes For Next Iteration
 

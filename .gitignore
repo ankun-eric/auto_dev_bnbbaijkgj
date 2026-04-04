@@ -42,3 +42,8 @@ flutter_app/build/
 
 # Docker
 mysql_data/
+
+# Binary artifacts
+*.apk
+*.ipa
+*.zip
