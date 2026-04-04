@@ -13,6 +13,14 @@
   - `miniprogram`: WeChat mini program
   - `verify-miniprogram`: verification mini program
 
+## Deployment Server (SSH)
+
+- Host: `101.33.205.59`
+- Port: `22`
+- User: `ubuntu`
+- Password: `Bangbang987`
+- Project directory on server: `/home/ubuntu/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/`
+
 ## Current Deployment Entrypoints
 
 - H5: `https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/`
