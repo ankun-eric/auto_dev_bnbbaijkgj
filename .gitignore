@@ -47,3 +47,6 @@ mysql_data/
 *.apk
 *.ipa
 *.zip
+
+# Temporary SSH scripts
+ssh_*.py
