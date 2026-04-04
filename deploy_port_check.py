@@ -1,6 +1,6 @@
 import paramiko
 
-HOST = "101.33.205.59"
+HOST = "newbb.test.bangbangvip.com"
 USER = "ubuntu"
 PASS = "Bangbang987"
 
@@ -26,7 +26,7 @@ print(f"\nIPTABLES DOCKER NAT for 8000:\n{out}")
 out, _ = run_cmd("docker ps --format '{{.Names}}\t{{.Ports}}' | grep 8000")
 print(f"\nDocker port 8000 mappings:\n{out}")
 
-# Test directly from 101.33.205.59 to localhost:8000
+# Test directly from server to localhost:8000
 out, _ = run_cmd('curl -s http://localhost:8000/api/health')
 print(f"\nlocalhost:8000 health: {out}")
 

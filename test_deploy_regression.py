@@ -9,9 +9,9 @@ import urllib3
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-API_BASE = "https://101.33.205.59/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api"
-H5_BASE = "https://101.33.205.59/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857"
-ADMIN_BASE = "https://101.33.205.59/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin"
+API_BASE = "https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api"
+H5_BASE = "https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857"
+ADMIN_BASE = "https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin"
 TIMEOUT = 30
 
 
@@ -144,7 +144,7 @@ class TestUploadsPath:
     def test_uploads_route_reachable(self, http):
         """GET /uploads/ should not return 502/503/504 (route is configured)"""
         resp = http.get(
-            f"https://101.33.205.59/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/uploads/",
+            f"https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/uploads/",
             timeout=TIMEOUT,
         )
         assert resp.status_code not in (502, 503, 504), (
@@ -178,7 +178,7 @@ class TestH5StaticAssets:
 
         asset_url = assets[0]
         if asset_url.startswith("/"):
-            asset_url = f"https://101.33.205.59{asset_url}"
+            asset_url = f"https://newbb.test.bangbangvip.com{asset_url}"
         elif not asset_url.startswith("http"):
             asset_url = f"{H5_BASE}/{asset_url}"
 
@@ -211,7 +211,7 @@ class TestAdminStaticAssets:
 
         asset_url = assets[0]
         if asset_url.startswith("/"):
-            asset_url = f"https://101.33.205.59{asset_url}"
+            asset_url = f"https://newbb.test.bangbangvip.com{asset_url}"
         elif not asset_url.startswith("http"):
             asset_url = f"{ADMIN_BASE}/{asset_url}"
 
