@@ -335,4 +335,5 @@ All 9 admin API endpoints return HTTP 200 with correct data structure. Admin fro
 - WeChat push config can be managed from admin panel (系统管理 → 微信推送管理). Uses SystemConfig table with `wechat_push_*` keys.
 - Email notify config can be managed from admin panel (系统管理 → 邮件通知管理). Uses SystemConfig table with `email_notify_*` keys. Supports SMTP test send.
 - Legacy `push_*` config keys are auto-migrated to new namespaces on startup.
+- `POST /api/admin/settings/push` is deprecated (returns HTTP 410). Use `/api/admin/sms/config`, `/api/admin/wechat-push/config`, `/api/admin/email-notify/config` instead.
 - SSL certificate auto-renews via certbot. If renewal fails, manually run: `sudo certbot renew` then copy certs to `/home/ubuntu/gateway/ssl/` and reload nginx.

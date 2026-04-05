@@ -223,6 +223,36 @@ All 9 admin API endpoints return HTTP 200 with correct data structure. Admin fro
 - Updated `docker-compose.prod.yml` — all container names now use DEPLOY_ID prefix (`3b7b999d-e51c-4c0d-8f6e-baf90cd26857-{service}`)
 - Updated `gateway-routes.conf` — proxy_pass targets use DEPLOY_ID-prefixed container names with `set $target` variable pattern
 
+## Latest Feature: 消息管理模块拆分与增强
+
+### Backend
+
+- **SMS Multi-Provider**: Enhanced `SmsConfig` model with `provider` field (tencent/aliyun) and Aliyun-specific fields (`access_key_id`, `access_key_secret_encrypted`). Only one provider can be active at a time (mutual exclusion enforced in `PUT /api/admin/sms/config`).
+- **SMS Templates**: Added `SmsTemplate` model and full CRUD API (`GET/POST/PUT/DELETE /api/admin/sms/templates`) with filtering by provider, scene, and name search.
+- **SMS Logs**: Enhanced `SmsLog` with `provider` field; `GET /api/admin/sms/logs` supports provider filter and phone masking.
+- **SMS Test Send**: `POST /api/admin/sms/test` supports provider selection regardless of active status.
+- **WeChat Push Module**: Added `backend/app/api/wechat_push.py` with `GET/PUT /api/admin/wechat-push/config` endpoints. Stores config in `SystemConfig` table with `wechat_push_*` keys. AppSecret encrypted and masked in responses.
+- **Email Notify Module**: Added `backend/app/api/email_notify.py` with `GET/PUT /api/admin/email-notify/config`, `GET /api/admin/email-notify/logs`, `POST /api/admin/email-notify/test` endpoints. Added `EmailLog` model for send records. SMTP password encrypted and masked.
+- **Data Migration**: Added `_migrate_push_config_keys()` in `backend/app/init_data.py` — migrates legacy `push_*` SystemConfig keys to `wechat_push_*` and `email_notify_*` namespaces on startup (idempotent). Added `_migrate_sms_config_provider()` to ensure existing SmsConfig rows have a provider field.
+- **Schemas**: Added `backend/app/schemas/wechat_push.py` and `backend/app/schemas/email_notify.py`.
+
+### Admin Web
+
+- **Menu Restructure**: Updated `admin-web/src/app/(admin)/layout.tsx` — "系统管理" submenu now contains "系统设置", "短信管理", "微信推送管理", "邮件通知管理" as direct children.
+- **SMS Page Enhancement**: `admin-web/src/app/(admin)/sms/page.tsx` — 4 tabs: 短信配置 (dual provider with enable switches), 短信模板 (CRUD with filters), 发送记录 (with provider filter), 测试发送 (with provider selection).
+- **WeChat Push Page**: Added `admin-web/src/app/(admin)/wechat-push/page.tsx` — dedicated WeChat push configuration page.
+- **Email Notify Page**: Added `admin-web/src/app/(admin)/email-notify/page.tsx` — 3 tabs: 邮件配置, 发送记录, 测试发送.
+- **Settings Page**: Removed "推送管理" tab from `admin-web/src/app/(admin)/settings/page.tsx`.
+
+### Testing
+
+- Added `backend/tests/test_message_modules.py` — 48 test cases covering SMS config (8), SMS templates (7), SMS logs (5), SMS test send (4), WeChat push config (7), Email config (7), Email logs (4), Email test send (4), plus 2 message template tests. All passed.
+- Full test suite: 156/156 passed, 0 failed.
+
+### User Documentation
+
+- Created `user_docs/消息管理模块拆分与增强.md` — comprehensive user manual for all three messaging modules.
+
 ## Notes For Next Iteration
 
 - Merchant identities are granted by admin only; new self-registered accounts still default to normal users.
