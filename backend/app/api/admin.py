@@ -1256,13 +1256,26 @@ async def admin_list_member_levels(
     result = await db.execute(select(MemberLevel).order_by(MemberLevel.min_points.asc()))
     items = []
     for lv in result.scalars().all():
+        count_result = await db.execute(
+            select(func.count(User.id)).where(
+                User.points >= lv.min_points,
+                User.points <= lv.max_points,
+            )
+        )
+        member_count = count_result.scalar() or 0
+        benefits_str = lv.benefits
+        if isinstance(lv.benefits, dict):
+            benefits_str = lv.benefits.get("desc", "")
         items.append({
             "id": lv.id,
-            "level_name": lv.level_name,
-            "min_points": lv.min_points,
-            "max_points": lv.max_points,
-            "discount_rate": lv.discount_rate,
-            "benefits": lv.benefits,
+            "name": lv.level_name,
+            "icon": lv.icon or "",
+            "minPoints": lv.min_points,
+            "maxPoints": lv.max_points,
+            "discount": int(lv.discount_rate * 100) if lv.discount_rate else 100,
+            "benefits": benefits_str or "",
+            "color": lv.color or "#52c41a",
+            "memberCount": member_count,
         })
     return {"items": items}
 
@@ -1274,26 +1287,83 @@ async def admin_create_or_update_level(
     db: AsyncSession = Depends(get_db),
 ):
     level_id = data.get("id")
+    level_name = data.get("name") or data.get("level_name", "")
+    icon = data.get("icon", "")
+    min_points = data.get("minPoints") if data.get("minPoints") is not None else data.get("min_points", 0)
+    max_points = data.get("maxPoints") if data.get("maxPoints") is not None else data.get("max_points", 0)
+    discount_raw = data.get("discount")
+    discount_rate = (discount_raw / 100.0) if discount_raw is not None else data.get("discount_rate", 1.0)
+    benefits = data.get("benefits")
+    color = data.get("color")
+
     if level_id:
         result = await db.execute(select(MemberLevel).where(MemberLevel.id == level_id))
         level = result.scalar_one_or_none()
         if level:
-            for field in ["level_name", "min_points", "max_points", "discount_rate", "benefits"]:
-                if field in data:
-                    setattr(level, field, data[field])
+            level.level_name = level_name
+            level.icon = icon
+            level.min_points = min_points
+            level.max_points = max_points
+            level.discount_rate = discount_rate
+            level.benefits = benefits
+            level.color = color
             return {"message": "更新成功", "id": level.id}
 
     level = MemberLevel(
-        level_name=data.get("level_name", ""),
-        min_points=data.get("min_points", 0),
-        max_points=data.get("max_points", 0),
-        discount_rate=data.get("discount_rate", 1.0),
-        benefits=data.get("benefits"),
+        level_name=level_name,
+        icon=icon,
+        min_points=min_points,
+        max_points=max_points,
+        discount_rate=discount_rate,
+        benefits=benefits,
+        color=color,
     )
     db.add(level)
     await db.flush()
     await db.refresh(level)
     return {"message": "创建成功", "id": level.id}
+
+
+@router.put("/points/levels/{level_id}")
+async def admin_update_member_level(
+    level_id: int,
+    data: dict = Body(...),
+    current_user=Depends(admin_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(MemberLevel).where(MemberLevel.id == level_id))
+    level = result.scalar_one_or_none()
+    if not level:
+        raise HTTPException(status_code=404, detail="等级不存在")
+    if "name" in data:
+        level.level_name = data["name"]
+    if "icon" in data:
+        level.icon = data["icon"]
+    if "minPoints" in data:
+        level.min_points = data["minPoints"]
+    if "maxPoints" in data:
+        level.max_points = data["maxPoints"]
+    if "discount" in data:
+        level.discount_rate = data["discount"] / 100.0
+    if "benefits" in data:
+        level.benefits = data["benefits"]
+    if "color" in data:
+        level.color = data["color"]
+    return {"message": "更新成功", "id": level.id}
+
+
+@router.delete("/points/levels/{level_id}")
+async def admin_delete_member_level(
+    level_id: int,
+    current_user=Depends(admin_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(MemberLevel).where(MemberLevel.id == level_id))
+    level = result.scalar_one_or_none()
+    if not level:
+        raise HTTPException(status_code=404, detail="等级不存在")
+    await db.delete(level)
+    return {"message": "删除成功"}
 
 
 # ── 积分规则（兼容POST） ──

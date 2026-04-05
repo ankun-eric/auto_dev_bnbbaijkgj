@@ -116,7 +116,7 @@ export default function PointsLevelsPage() {
       title: '积分范围',
       key: 'pointsRange',
       width: 180,
-      render: (_: any, r: MemberLevel) => `${r.minPoints.toLocaleString()} ~ ${r.maxPoints.toLocaleString()}`,
+      render: (_: any, r: MemberLevel) => `${(r.minPoints ?? 0).toLocaleString()} ~ ${(r.maxPoints ?? 0).toLocaleString()}`,
     },
     {
       title: '折扣',
@@ -136,7 +136,7 @@ export default function PointsLevelsPage() {
       dataIndex: 'memberCount',
       key: 'memberCount',
       width: 100,
-      render: (v: number) => v.toLocaleString(),
+      render: (v: number) => (v ?? 0).toLocaleString(),
     },
     {
       title: '操作',

@@ -28,6 +28,23 @@ async def _sync_ai_model_configs(conn: AsyncConnection) -> None:
         await conn.execute(text("ALTER TABLE ai_model_configs ADD COLUMN template_synced_at DATETIME NULL"))
 
 
+async def _sync_member_levels(conn: AsyncConnection) -> None:
+    def _load(sync_conn):
+        inspector = inspect(sync_conn)
+        tables = set(inspector.get_table_names())
+        if "member_levels" not in tables:
+            return None
+        return {col["name"] for col in inspector.get_columns("member_levels")}
+
+    columns = await conn.run_sync(_load)
+    if columns is None:
+        return
+    if "icon" not in columns:
+        await conn.execute(text("ALTER TABLE member_levels ADD COLUMN icon VARCHAR(50) NULL"))
+    if "color" not in columns:
+        await conn.execute(text("ALTER TABLE member_levels ADD COLUMN color VARCHAR(20) NULL"))
+
+
 async def sync_register_schema(conn: AsyncConnection) -> None:
     def load_user_schema(sync_conn):
         inspector = inspect(sync_conn)
@@ -44,6 +61,7 @@ async def sync_register_schema(conn: AsyncConnection) -> None:
         return columns, indexes, unique_constraints
 
     await _sync_ai_model_configs(conn)
+    await _sync_member_levels(conn)
 
     columns, indexes, unique_constraints = await conn.run_sync(load_user_schema)
 

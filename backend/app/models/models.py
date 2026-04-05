@@ -661,10 +661,12 @@ class MemberLevel(Base):
 
     id = mapped_column(Integer, primary_key=True, autoincrement=True)
     level_name = mapped_column(String(50), nullable=False)
+    icon = mapped_column(String(50), nullable=True)
     min_points = mapped_column(Integer, default=0)
     max_points = mapped_column(Integer, default=0)
     discount_rate = mapped_column(Float, default=1.0)
     benefits = mapped_column(JSON, nullable=True)
+    color = mapped_column(String(20), nullable=True)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
 
 

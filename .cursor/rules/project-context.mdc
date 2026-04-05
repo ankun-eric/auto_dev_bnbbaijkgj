@@ -261,6 +261,34 @@ All 9 admin API endpoints return HTTP 200 with correct data structure. Admin fro
 - SSL/TLS verified, gateway-nginx routing confirmed
 - No mobile/client-side code changes in this iteration (Flutter, miniprogram, H5 unaffected)
 
+## Bug Fix: 会员等级菜单报错
+
+### Root Cause
+
+管理后台「会员等级配置」页面因前后端数据契约不一致而崩溃：
+1. 后端 `GET /api/admin/points/levels` 返回 snake_case 字段名（`level_name`, `min_points`, `max_points`, `discount_rate`），前端期望 camelCase（`name`, `minPoints`, `maxPoints`, `discount`），导致 `undefined.toLocaleString()` TypeError
+2. 后端缺少 `PUT` 和 `DELETE` 路由，编辑和删除操作返回 405/404
+3. 后端 `MemberLevel` 模型缺少 `icon` 和 `color` 字段，前端无法渲染等级图标和颜色标签
+4. `POST` 创建接口仅接受 snake_case 字段，前端提交的 camelCase 字段被忽略
+
+### Backend
+
+- Updated `MemberLevel` model (`backend/app/models/models.py`) — added `icon` (String(50), nullable) and `color` (String(20), nullable) columns
+- Rewrote `GET /api/admin/points/levels` (`backend/app/api/admin.py`) — returns camelCase fields (`name`, `icon`, `minPoints`, `maxPoints`, `discount`, `benefits`, `color`, `memberCount`), with `discount` as integer percentage and `benefits` as string
+- Rewrote `POST /api/admin/points/levels` — accepts both camelCase and snake_case field names, maps `discount` (integer %) to `discount_rate` (float)
+- Added `PUT /api/admin/points/levels/{level_id}` — update individual level with camelCase fields
+- Added `DELETE /api/admin/points/levels/{level_id}` — delete individual level
+- Added `_sync_member_levels()` in `backend/app/services/schema_sync.py` — auto-adds `icon` and `color` columns to existing `member_levels` table on startup
+- Updated `backend/app/init_data.py` — default member levels now include `icon` (emoji) and `color` (hex) fields
+
+### Admin Web
+
+- Updated `admin-web/src/app/(admin)/points/levels/page.tsx` — added null-safety guards for `minPoints`, `maxPoints`, `memberCount` rendering (`?? 0` fallback)
+
+### Testing
+
+- 15/15 server API tests passed (login, GET camelCase fields, no snake_case leakage, benefits string type, discount integer type, POST create, PUT update, DELETE, 404 on nonexistent)
+
 ## Notes For Next Iteration
 
 - Merchant identities are granted by admin only; new self-registered accounts still default to normal users.

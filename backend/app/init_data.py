@@ -100,31 +100,39 @@ async def _init_member_levels(db: AsyncSession):
     levels = [
         {
             "level_name": "普通会员",
+            "icon": "🥉",
             "min_points": 0,
             "max_points": 999,
             "discount_rate": 1.0,
             "benefits": {"desc": "基础会员权益"},
+            "color": "#8c8c8c",
         },
         {
             "level_name": "银卡会员",
+            "icon": "🥈",
             "min_points": 1000,
             "max_points": 4999,
             "discount_rate": 0.95,
             "benefits": {"desc": "95折优惠, 优先预约"},
+            "color": "#a0d911",
         },
         {
             "level_name": "金卡会员",
+            "icon": "🥇",
             "min_points": 5000,
             "max_points": 19999,
             "discount_rate": 0.9,
             "benefits": {"desc": "9折优惠, 专属客服, 优先预约"},
+            "color": "#faad14",
         },
         {
             "level_name": "钻石会员",
+            "icon": "💎",
             "min_points": 20000,
             "max_points": 999999,
             "discount_rate": 0.85,
             "benefits": {"desc": "85折优惠, 专属客服, 优先预约, 免费体检"},
+            "color": "#1890ff",
         },
     ]
     for level in levels:
