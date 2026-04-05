@@ -1336,22 +1336,14 @@ async def update_basic_settings(
     return {"message": "基本设置更新成功"}
 
 
-@router.post("/settings/push")
+@router.post("/settings/push", deprecated=True)
 async def update_push_settings(
-    data: dict = Body(...),
     current_user=Depends(admin_dep),
-    db: AsyncSession = Depends(get_db),
 ):
-    for key, value in data.items():
-        config_key = f"push_{key}"
-        result = await db.execute(select(SystemConfig).where(SystemConfig.config_key == config_key))
-        config = result.scalar_one_or_none()
-        if config:
-            config.config_value = str(value)
-            config.updated_at = datetime.utcnow()
-        else:
-            db.add(SystemConfig(config_key=config_key, config_value=str(value), config_type="push", description=key))
-    return {"message": "推送设置更新成功"}
+    raise HTTPException(
+        status_code=410,
+        detail="此接口已废弃。短信配置请使用 /api/admin/sms/config，微信推送请使用 /api/admin/wechat-push/config，邮件通知请使用 /api/admin/email-notify/config",
+    )
 
 
 @router.post("/settings/protocol")
