@@ -17,6 +17,7 @@ import {
   MenuUnfoldOutlined,
   LogoutOutlined,
   MessageOutlined,
+  MailOutlined,
 } from '@ant-design/icons';
 import { useRouter, usePathname } from 'next/navigation';
 import type { MenuProps } from 'antd';
@@ -77,6 +78,8 @@ const menuItems: MenuItem[] = [
     children: [
       { key: '/settings', label: '系统设置' },
       { key: '/sms', label: '短信管理' },
+      { key: '/wechat-push', icon: <MessageOutlined />, label: '微信推送管理' },
+      { key: '/email-notify', icon: <MailOutlined />, label: '邮件通知管理' },
     ],
   },
 ];
@@ -86,7 +89,7 @@ function getOpenKeys(pathname: string): string[] {
   if (pathname.startsWith('/merchant')) return ['merchant'];
   if (pathname.startsWith('/content')) return ['content'];
   if (pathname.startsWith('/points')) return ['points'];
-  if (pathname.startsWith('/sms') || pathname.startsWith('/settings')) return ['system'];
+  if (pathname.startsWith('/sms') || pathname.startsWith('/settings') || pathname.startsWith('/wechat-push') || pathname.startsWith('/email-notify')) return ['system'];
   return [];
 }
 

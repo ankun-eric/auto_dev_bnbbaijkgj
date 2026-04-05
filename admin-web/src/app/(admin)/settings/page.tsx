@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Tabs, Form, Input, Switch, Button, InputNumber, Card, Space, message, Typography, Select, Divider, Radio, Modal, Tooltip } from 'antd';
-import { SaveOutlined, SettingOutlined, BellOutlined, FileProtectOutlined, UserAddOutlined, QuestionCircleOutlined } from '@ant-design/icons';
+import { Tabs, Form, Input, Switch, Button, InputNumber, Card, Space, message, Typography, Divider, Radio, Modal, Tooltip } from 'antd';
+import { SaveOutlined, SettingOutlined, FileProtectOutlined, UserAddOutlined, QuestionCircleOutlined } from '@ant-design/icons';
 import { get, post } from '@/lib/api';
 
 const { Title, Text, Link } = Typography;
@@ -10,7 +10,6 @@ const { TextArea } = Input;
 
 export default function SettingsPage() {
   const [basicForm] = Form.useForm();
-  const [pushForm] = Form.useForm();
   const [protocolForm] = Form.useForm();
   const [registerForm] = Form.useForm();
   const [saving, setSaving] = useState(false);
@@ -43,19 +42,6 @@ export default function SettingsPage() {
         await post('/api/admin/settings/basic', values);
       } catch {}
       message.success('基础配置保存成功');
-    } catch {} finally {
-      setSaving(false);
-    }
-  };
-
-  const handleSavePush = async () => {
-    try {
-      const values = await pushForm.validateFields();
-      setSaving(true);
-      try {
-        await post('/api/admin/settings/push', values);
-      } catch {}
-      message.success('推送配置保存成功');
     } catch {} finally {
       setSaving(false);
     }
@@ -175,104 +161,6 @@ export default function SettingsPage() {
 
             <Form.Item>
               <Button type="primary" icon={<SaveOutlined />} onClick={handleSaveBasic} loading={saving}>保存基础配置</Button>
-            </Form.Item>
-          </Form>
-        </Card>
-      ),
-    },
-    {
-      key: 'push',
-      label: (
-        <Space><BellOutlined />推送管理</Space>
-      ),
-      children: (
-        <Card style={{ borderRadius: 12 }}>
-          <Form
-            form={pushForm}
-            layout="vertical"
-            initialValues={{
-              enableSMS: true,
-              smsProvider: 'aliyun',
-              smsAccessKey: '',
-              smsSecret: '',
-              smsSign: '宾尼小康',
-              enableWechatPush: true,
-              wechatAppId: '',
-              wechatAppSecret: '',
-              orderNotifyTemplate: '',
-              serviceNotifyTemplate: '',
-              enableEmailNotify: false,
-              smtpHost: '',
-              smtpPort: 465,
-              smtpUser: '',
-              smtpPassword: '',
-            }}
-          >
-            <Title level={5}>短信配置</Title>
-            <Form.Item label="启用短信通知" name="enableSMS" valuePropName="checked">
-              <Switch />
-            </Form.Item>
-            <Form.Item label="短信服务商" name="smsProvider">
-              <Select options={[{ label: '阿里云', value: 'aliyun' }, { label: '腾讯云', value: 'tencent' }, { label: '华为云', value: 'huawei' }]} style={{ width: 200 }} />
-            </Form.Item>
-            <Space style={{ width: '100%' }} size={16}>
-              <Form.Item label="Access Key" name="smsAccessKey" style={{ flex: 1 }}>
-                <Input placeholder="Access Key" />
-              </Form.Item>
-              <Form.Item label="Secret" name="smsSecret" style={{ flex: 1 }}>
-                <Input.Password placeholder="Secret" />
-              </Form.Item>
-            </Space>
-            <Form.Item label="短信签名" name="smsSign">
-              <Input placeholder="短信签名" style={{ width: 200 }} />
-            </Form.Item>
-
-            <Divider />
-
-            <Title level={5}>微信推送</Title>
-            <Form.Item label="启用微信推送" name="enableWechatPush" valuePropName="checked">
-              <Switch />
-            </Form.Item>
-            <Space style={{ width: '100%' }} size={16}>
-              <Form.Item label="微信 AppID" name="wechatAppId" style={{ flex: 1 }}>
-                <Input placeholder="AppID" />
-              </Form.Item>
-              <Form.Item label="微信 AppSecret" name="wechatAppSecret" style={{ flex: 1 }}>
-                <Input.Password placeholder="AppSecret" />
-              </Form.Item>
-            </Space>
-            <Form.Item label="订单通知模板ID" name="orderNotifyTemplate">
-              <Input placeholder="模板ID" />
-            </Form.Item>
-            <Form.Item label="服务通知模板ID" name="serviceNotifyTemplate">
-              <Input placeholder="模板ID" />
-            </Form.Item>
-
-            <Divider />
-
-            <Title level={5}>邮件通知</Title>
-            <Form.Item label="启用邮件通知" name="enableEmailNotify" valuePropName="checked">
-              <Switch />
-            </Form.Item>
-            <Space style={{ width: '100%' }} size={16}>
-              <Form.Item label="SMTP服务器" name="smtpHost" style={{ flex: 1 }}>
-                <Input placeholder="smtp.example.com" />
-              </Form.Item>
-              <Form.Item label="端口" name="smtpPort" style={{ width: 120 }}>
-                <InputNumber min={1} max={65535} style={{ width: '100%' }} />
-              </Form.Item>
-            </Space>
-            <Space style={{ width: '100%' }} size={16}>
-              <Form.Item label="用户名" name="smtpUser" style={{ flex: 1 }}>
-                <Input placeholder="邮箱用户名" />
-              </Form.Item>
-              <Form.Item label="密码" name="smtpPassword" style={{ flex: 1 }}>
-                <Input.Password placeholder="邮箱密码" />
-              </Form.Item>
-            </Space>
-
-            <Form.Item>
-              <Button type="primary" icon={<SaveOutlined />} onClick={handleSavePush} loading={saving}>保存推送配置</Button>
             </Form.Item>
           </Form>
         </Card>

@@ -11,6 +11,7 @@ from app.models.models import (
     ConstitutionQuestion,
     MemberLevel,
     ServiceCategory,
+    SmsConfig,
     SystemConfig,
     User,
     UserRole,
@@ -28,6 +29,8 @@ async def init_default_data():
             await _init_system_configs(db)
             await _init_constitution_questions(db)
             await _init_ai_model_templates(db)
+            await _migrate_push_config_keys(db)
+            await _migrate_sms_config_provider(db)
             await db.commit()
             logger.info("Default data initialization completed")
         except Exception as e:
@@ -297,3 +300,65 @@ async def _init_ai_model_templates(db: AsyncSession):
         db.add(AIModelTemplate(**tpl))
     await db.flush()
     logger.info("Created default AI model templates")
+
+
+_PUSH_KEY_MIGRATION = {
+    "push_enable_wechat_push": "wechat_push_enable",
+    "push_wechat_app_id": "wechat_push_app_id",
+    "push_wechat_app_secret": "wechat_push_app_secret",
+    "push_order_notify_template": "wechat_push_order_notify_template",
+    "push_service_notify_template": "wechat_push_service_notify_template",
+    "push_enable_email_notify": "email_notify_enable",
+    "push_smtp_host": "email_notify_smtp_host",
+    "push_smtp_port": "email_notify_smtp_port",
+    "push_smtp_user": "email_notify_smtp_user",
+    "push_smtp_password": "email_notify_smtp_password",
+}
+
+
+async def _migrate_push_config_keys(db: AsyncSession):
+    """Migrate legacy push_* SystemConfig keys to new namespaced keys (idempotent)."""
+    old_keys = list(_PUSH_KEY_MIGRATION.keys())
+    result = await db.execute(
+        select(SystemConfig).where(SystemConfig.config_key.in_(old_keys))
+    )
+    old_configs = {c.config_key: c.config_value for c in result.scalars().all()}
+    if not old_configs:
+        return
+
+    new_keys = list(_PUSH_KEY_MIGRATION.values())
+    result = await db.execute(
+        select(SystemConfig.config_key).where(SystemConfig.config_key.in_(new_keys))
+    )
+    existing_new = {row[0] for row in result.all()}
+
+    migrated = 0
+    for old_key, new_key in _PUSH_KEY_MIGRATION.items():
+        if old_key in old_configs and new_key not in existing_new:
+            config_type = "wechat_push" if new_key.startswith("wechat_push") else "email_notify"
+            db.add(SystemConfig(
+                config_key=new_key,
+                config_value=old_configs[old_key],
+                config_type=config_type,
+                description=new_key,
+            ))
+            migrated += 1
+
+    if migrated:
+        await db.flush()
+        logger.info("Migrated %d push config keys to new namespaces", migrated)
+
+
+async def _migrate_sms_config_provider(db: AsyncSession):
+    """Ensure existing SmsConfig rows have a provider value (default to 'tencent')."""
+    result = await db.execute(
+        select(SmsConfig).where(
+            (SmsConfig.provider == None) | (SmsConfig.provider == "")  # noqa: E711
+        )
+    )
+    configs = result.scalars().all()
+    for cfg in configs:
+        cfg.provider = "tencent"
+    if configs:
+        await db.flush()
+        logger.info("Set provider='tencent' on %d existing SmsConfig rows", len(configs))

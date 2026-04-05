@@ -907,12 +907,15 @@ class SmsConfig(Base):
     __tablename__ = "sms_configs"
 
     id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    provider = mapped_column(String(20), nullable=False, default="tencent")
     secret_id = mapped_column(String(255), nullable=True)
     secret_key_encrypted = mapped_column(String(500), nullable=True)
     sdk_app_id = mapped_column(String(50), nullable=True)
     sign_name = mapped_column(String(100), nullable=True)
     template_id = mapped_column(String(50), nullable=True)
     app_key = mapped_column(String(255), nullable=True)
+    access_key_id = mapped_column(String(255), nullable=True)
+    access_key_secret_encrypted = mapped_column(String(500), nullable=True)
     is_active = mapped_column(Boolean, default=True)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -925,8 +928,39 @@ class SmsLog(Base):
     phone = mapped_column(String(20), nullable=False, index=True)
     code = mapped_column(String(10), nullable=True)
     template_id = mapped_column(String(50), nullable=True)
+    provider = mapped_column(String(20), nullable=True)
     status = mapped_column(String(20), nullable=False)
     error_message = mapped_column(Text, nullable=True)
+    is_test = mapped_column(Boolean, default=False)
+    operator_id = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class SmsTemplate(Base):
+    __tablename__ = "sms_templates"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name = mapped_column(String(100), nullable=False)
+    provider = mapped_column(String(20), nullable=False)
+    template_id = mapped_column(String(100), nullable=False)
+    content = mapped_column(String(500), nullable=True)
+    sign_name = mapped_column(String(50), nullable=True)
+    scene = mapped_column(String(20), nullable=True)
+    variables = mapped_column(String(500), nullable=True)
+    status = mapped_column(Boolean, default=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class EmailLog(Base):
+    __tablename__ = "email_logs"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    to_email = mapped_column(String(200), nullable=False, index=True)
+    subject = mapped_column(String(500), nullable=False)
+    content = mapped_column(Text, nullable=True)
+    status = mapped_column(String(20), nullable=False)
+    error_message = mapped_column(String(500), nullable=True)
     is_test = mapped_column(Boolean, default=False)
     operator_id = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
