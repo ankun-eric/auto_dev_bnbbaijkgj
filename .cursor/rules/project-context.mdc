@@ -288,11 +288,51 @@ All 9 admin API endpoints return HTTP 200 with correct data structure. Admin fro
 
 - 17 automated test cases in `test_ai_config.py` covering template CRUD, config CRUD, activation, sync-check, sync, delete constraints, and permission checks — all passed
 
+## Latest Feature: 消息管理模块拆分与增强
+
+### Backend
+
+- **SMS Config Enhancement**: `GET/PUT /api/admin/sms/config` now returns/accepts both Tencent Cloud and Alibaba Cloud configurations via `SmsMultiConfigResponse` (contains `tencent` and `aliyun` sub-objects). Only one provider can be active at a time (enabling one auto-disables the other).
+- **SMS Templates CRUD**: Added `SmsTemplate` model (`sms_templates` table) and full CRUD API:
+  - `GET /api/admin/sms/templates` — list with pagination, provider/scene/name filtering
+  - `POST /api/admin/sms/templates` — create template
+  - `PUT /api/admin/sms/templates/{id}` — update template
+  - `DELETE /api/admin/sms/templates/{id}` — delete template
+- **SMS Logs Enhancement**: `GET /api/admin/sms/logs` now supports `provider` filter parameter. `SmsLog` model already has `provider` field.
+- **SMS Test Enhancement**: `POST /api/admin/sms/test` now accepts `provider` parameter to select which provider to use for test sending, independent of the active provider setting.
+- **Aliyun SMS Integration**: Added `_send_via_aliyun()` and `_send_via_aliyun_http()` in `sms_service.py` for Alibaba Cloud SMS sending (SDK with HTTP fallback).
+- **SmsConfig Model Enhancement**: Added `access_key_id`, `access_key_secret_encrypted` fields for Aliyun; `provider` field distinguishes `tencent`/`aliyun`.
+- **WeChat Push Module**: New `backend/app/api/wechat_push.py` with `GET/PUT /api/admin/wechat-push/config`. Uses `SystemConfig` table with `wechat_push_*` keys. Schema in `backend/app/schemas/wechat_push.py`.
+- **Email Notify Module**: New `backend/app/api/email_notify.py` with:
+  - `GET/PUT /api/admin/email-notify/config` — SMTP configuration management
+  - `GET /api/admin/email-notify/logs` — email send log listing with pagination/filtering
+  - `POST /api/admin/email-notify/test` — test email sending via SMTP
+  Uses `SystemConfig` table with `email_notify_*` keys. `EmailLog` model (`email_logs` table) for recording sends.
+- **Data Migration**: `_migrate_push_config_keys()` in `init_data.py` migrates legacy `push_*` SystemConfig keys to new `wechat_push_*` and `email_notify_*` namespaces. `_migrate_sms_config_provider()` ensures existing SmsConfig rows have `provider='tencent'`.
+- **Tests**: 48 test cases in `backend/tests/test_message_modules.py` covering SMS config (dual-provider, exclusive active), SMS templates CRUD, SMS logs, SMS test send, WeChat push config, email config, email logs, email test send — all passed.
+
+### Admin Web
+
+- **Layout Update**: Added "微信推送管理" and "邮件通知管理" menu items under "系统管理" submenu group in `admin-web/src/app/(admin)/layout.tsx`.
+- **SMS Page Enhancement**: `admin-web/src/app/(admin)/sms/page.tsx` now has 4 tabs:
+  - 短信配置: Dual-provider form (Tencent + Aliyun) with exclusive enable switches
+  - 短信模板: Template CRUD table with provider/scene filtering and search
+  - 发送记录: Log table with provider filter column
+  - 测试发送: Provider selector dropdown for test sends
+- **WeChat Push Page**: New `admin-web/src/app/(admin)/wechat-push/page.tsx` — standalone config form for WeChat push settings.
+- **Email Notify Page**: New `admin-web/src/app/(admin)/email-notify/page.tsx` with 3 tabs:
+  - 邮件配置: SMTP configuration form
+  - 发送记录: Email log table with status filtering
+  - 测试发送: Test email form with subject/content
+- **Settings Page**: Removed "推送管理" tab from `admin-web/src/app/(admin)/settings/page.tsx`. Now only contains: 基础配置, 注册设置, 协议管理.
+
 ## Notes For Next Iteration
 
 - Merchant identities are granted by admin only; new self-registered accounts still default to normal users.
 - Old user and merchant accounts require admin-side manual merge before official cutover.
 - If remote DB schema lags behind models, check startup schema synchronization and the new merchant-related tables first.
-- SMS config can be managed from admin panel (系统管理 → 短信管理). DB config takes priority over env vars. If neither is set, SMS sending raises RuntimeError (HTTP 500 to frontend).
-- To enable real SMS sending: either configure via admin panel or set `TENCENT_SMS_SECRET_ID` and `TENCENT_SMS_SECRET_KEY` environment variables.
+- SMS config can be managed from admin panel (系统管理 → 短信管理). Supports both Tencent Cloud and Alibaba Cloud, only one active at a time. DB config takes priority over env vars.
+- WeChat push config can be managed from admin panel (系统管理 → 微信推送管理). Uses SystemConfig table with `wechat_push_*` keys.
+- Email notify config can be managed from admin panel (系统管理 → 邮件通知管理). Uses SystemConfig table with `email_notify_*` keys. Supports SMTP test send.
+- Legacy `push_*` config keys are auto-migrated to new namespaces on startup.
 - SSL certificate auto-renews via certbot. If renewal fails, manually run: `sudo certbot renew` then copy certs to `/home/ubuntu/gateway/ssl/` and reload nginx.
