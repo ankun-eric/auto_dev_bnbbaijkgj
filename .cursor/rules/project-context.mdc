@@ -251,20 +251,22 @@ All 9 admin API endpoints return HTTP 200 with correct data structure. Admin fro
 
 ### User Documentation
 
-- Created `user_docs/manual_20260406_120000_c8f3.md` — comprehensive user manual for all three messaging modules.
+- Created `user_docs/消息管理模块拆分与增强.md` — comprehensive user manual for all three messaging modules (SMS, WeChat push, Email notify).
 
 ## Redeploy (2026-04-06)
 
 - Redeployed all containers (db, backend, admin-web, h5-web) for message management module split and enhancement
-- 48/48 pytest tests passed in container; all API endpoints and admin pages verified accessible
+- 54/54 server API tests passed (SMS config/templates/logs/test, WeChat push config, Email config/logs/test, permissions, deprecated endpoint)
 - All 4 containers healthy: db (MySQL 8.0), backend (FastAPI), admin-web (Next.js), h5-web (Next.js)
-- SSL/TLS verified (TLSv1.3), gateway-nginx routing confirmed
-- No mobile/client-side code changes in this iteration
+- SSL/TLS verified, gateway-nginx routing confirmed
+- No mobile/client-side code changes in this iteration (Flutter, miniprogram, H5 unaffected)
 
 ## Notes For Next Iteration
 
 - Merchant identities are granted by admin only; new self-registered accounts still default to normal users.
 - Old user and merchant accounts require admin-side manual merge before official cutover.
 - If remote DB schema lags behind models, check startup schema synchronization and the new merchant-related tables first.
-- SMS config can be managed from admin panel (系统管理 → 短信管理). DB config takes priority over env vars. If neither is set, SMS sending raises RuntimeError (HTTP 500 to frontend).
-- To enable real SMS sending: either configure via admin panel or set `TENCENT_SMS_SECRET_ID` and `TENCENT_SMS_SECRET_KEY` environment variables.
+- SMS config can be managed from admin panel (系统管理 → 短信管理). Supports dual provider (Tencent Cloud + Alibaba Cloud), only one active at a time. DB config takes priority over env vars.
+- To enable real SMS sending: configure via admin panel (dual provider supported) or set `TENCENT_SMS_SECRET_ID` and `TENCENT_SMS_SECRET_KEY` environment variables.
+- WeChat push config: 系统管理 → 微信推送管理. Email notify config: 系统管理 → 邮件通知管理 (with logs and test send).
+- The old `POST /api/admin/settings/push` endpoint is deprecated (returns 410 Gone). Use the new independent module APIs instead.
