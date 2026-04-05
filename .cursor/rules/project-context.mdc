@@ -255,9 +255,10 @@ All 9 admin API endpoints return HTTP 200 with correct data structure. Admin fro
 
 ## Redeploy (2026-04-06)
 
-- Redeployed backend and admin-web containers for message management module split and enhancement
-- 22/22 server-side API tests passed (zero failures)
-- All 4 containers healthy: db, backend, admin-web, h5-web
+- Redeployed all containers (db, backend, admin-web, h5-web) for message management module split and enhancement
+- 48/48 pytest tests passed in container; all API endpoints and admin pages verified accessible
+- All 4 containers healthy: db (MySQL 8.0), backend (FastAPI), admin-web (Next.js), h5-web (Next.js)
+- SSL/TLS verified (TLSv1.3), gateway-nginx routing confirmed
 - No mobile/client-side code changes in this iteration
 
 ## Notes For Next Iteration
