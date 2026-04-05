@@ -19,6 +19,13 @@ async def _sync_ai_model_configs(conn: AsyncConnection) -> None:
         await conn.execute(text("ALTER TABLE ai_model_configs ADD COLUMN max_tokens INT DEFAULT 4096"))
     if "temperature" not in columns:
         await conn.execute(text("ALTER TABLE ai_model_configs ADD COLUMN temperature FLOAT DEFAULT 0.7"))
+    if "template_id" not in columns:
+        await conn.execute(text(
+            "ALTER TABLE ai_model_configs ADD COLUMN template_id INT NULL, "
+            "ADD CONSTRAINT fk_ai_config_template FOREIGN KEY (template_id) REFERENCES ai_model_templates(id)"
+        ))
+    if "template_synced_at" not in columns:
+        await conn.execute(text("ALTER TABLE ai_model_configs ADD COLUMN template_synced_at DATETIME NULL"))
 
 
 async def sync_register_schema(conn: AsyncConnection) -> None:

@@ -57,6 +57,11 @@ export async function del<T = any>(url: string, config?: AxiosRequestConfig): Pr
   return res.data;
 }
 
+export async function patch<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
+  const res = await api.patch(url, data, config);
+  return res.data;
+}
+
 export async function upload<T = any>(url: string, file: File, fieldName = 'file'): Promise<T> {
   const formData = new FormData();
   formData.append(fieldName, file);

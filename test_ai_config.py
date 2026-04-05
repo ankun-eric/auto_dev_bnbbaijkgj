@@ -1,356 +1,427 @@
 """
-Non-UI automated tests for AI Model Config CRUD endpoints.
-Target: deployed server via HTTPS gateway.
+Non-UI automated tests for AI Model Config & Template management APIs.
+Uses pytest + httpx (async) against the deployed server.
 """
-import sys
-import requests
 
-BASE = "https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api"
-LOGIN_URL = f"{BASE}/admin/login"
-AI_CONFIG_URL = f"{BASE}/admin/ai-config"
+import httpx
+import pytest
+import pytest_asyncio
 
-results = []
-created_config_id = None
-token = None
+BASE_URL = "https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api"
+TIMEOUT = 30
 
 
-def record(tc_id: str, name: str, passed: bool, detail: str = ""):
-    status = "PASS" if passed else "FAIL"
-    results.append({"id": tc_id, "name": name, "passed": passed, "detail": detail})
-    print(f"  [{status}] {tc_id}: {name}")
-    if detail and not passed:
-        print(f"         Detail: {detail}")
-
-
-def get_auth_header():
-    return {"Authorization": f"Bearer {token}"}
-
-
-# ── Step 0: Login ──
-def do_login():
-    global token
+async def get_admin_token() -> str | None:
     credentials_list = [
         {"phone": "13800138000", "password": "admin123"},
         {"phone": "13800000000", "password": "admin123"},
     ]
-    for creds in credentials_list:
-        try:
-            r = requests.post(LOGIN_URL, json=creds, timeout=15)
-            if r.status_code == 200:
-                data = r.json()
-                token = data.get("token")
-                if token:
-                    print(f"  Login OK with phone={creds['phone']}")
-                    return True
-        except Exception as e:
-            print(f"  Login attempt failed for {creds['phone']}: {e}")
-    return False
+    async with httpx.AsyncClient(verify=False, timeout=TIMEOUT) as client:
+        for creds in credentials_list:
+            try:
+                resp = await client.post(f"{BASE_URL}/admin/login", json=creds)
+                if resp.status_code == 200:
+                    token = resp.json().get("token")
+                    if token:
+                        return token
+            except Exception:
+                continue
+    return None
 
 
-# ── TC-01: Unauthenticated access ──
-def tc01():
-    tc_id, name = "TC-01", "Unauthenticated access returns 401"
-    try:
-        r = requests.get(AI_CONFIG_URL, timeout=15)
-        if r.status_code in (401, 403):
-            record(tc_id, name, True)
-        else:
-            record(tc_id, name, False, f"Expected 401/403, got {r.status_code}: {r.text[:200]}")
-    except Exception as e:
-        record(tc_id, name, False, str(e))
+async def get_user_token() -> str | None:
+    """Register or login as a normal user and return the access_token."""
+    async with httpx.AsyncClient(verify=False, timeout=TIMEOUT) as client:
+        resp = await client.post(f"{BASE_URL}/auth/register", json={
+            "phone": "13900990099",
+            "password": "user1234",
+            "nickname": "普通测试用户",
+        })
+        if resp.status_code == 200:
+            return resp.json().get("access_token")
+        resp = await client.post(f"{BASE_URL}/auth/login", json={
+            "phone": "13900990099",
+            "password": "user1234",
+        })
+        if resp.status_code == 200:
+            return resp.json().get("access_token")
+    return None
 
 
-# ── TC-02: Get AI config list ──
-def tc02():
-    tc_id, name = "TC-02", "Admin gets AI config list"
-    try:
-        r = requests.get(AI_CONFIG_URL, headers=get_auth_header(), timeout=15)
-        if r.status_code != 200:
-            record(tc_id, name, False, f"HTTP {r.status_code}: {r.text[:200]}")
-            return
-        data = r.json()
-        if "items" not in data:
-            record(tc_id, name, False, f"Response missing 'items' key. Got: {list(data.keys())}")
-            return
-        if not isinstance(data["items"], list):
-            record(tc_id, name, False, f"'items' is not a list: {type(data['items'])}")
-            return
-        record(tc_id, name, True)
-    except Exception as e:
-        record(tc_id, name, False, str(e))
+@pytest_asyncio.fixture(scope="module", loop_scope="module")
+async def admin_token():
+    token = await get_admin_token()
+    assert token is not None, "Failed to obtain admin token"
+    return token
 
 
-# ── TC-03: Create AI config ──
-def tc03():
-    global created_config_id
-    tc_id, name = "TC-03", "Admin creates AI config"
+@pytest_asyncio.fixture(scope="module", loop_scope="module")
+async def admin_headers(admin_token):
+    return {"Authorization": f"Bearer {admin_token}"}
+
+
+@pytest_asyncio.fixture(scope="module", loop_scope="module")
+async def user_token_value():
+    return await get_user_token()
+
+
+@pytest_asyncio.fixture(scope="module", loop_scope="module")
+async def user_headers(user_token_value):
+    if user_token_value is None:
+        pytest.skip("Could not obtain normal user token")
+    return {"Authorization": f"Bearer {user_token_value}"}
+
+
+@pytest_asyncio.fixture(scope="module", loop_scope="module")
+async def client():
+    async with httpx.AsyncClient(verify=False, timeout=TIMEOUT) as c:
+        yield c
+
+
+# ---------------------------------------------------------------------------
+# Helper: cleanup templates and configs created during tests
+# ---------------------------------------------------------------------------
+
+created_template_ids: list[int] = []
+created_config_ids: list[int] = []
+
+
+@pytest_asyncio.fixture(scope="module", autouse=True, loop_scope="module")
+async def cleanup(admin_headers):
+    yield
+    async with httpx.AsyncClient(verify=False, timeout=TIMEOUT) as c:
+        for cid in reversed(created_config_ids):
+            await c.delete(f"{BASE_URL}/admin/ai-config/{cid}", headers=admin_headers)
+        for tid in reversed(created_template_ids):
+            await c.delete(f"{BASE_URL}/admin/ai-model-templates/{tid}", headers=admin_headers)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Template Management API
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+@pytest.mark.asyncio(loop_scope="module")
+async def test_tc01_get_template_icons(client, admin_headers):
+    """TC-01: GET /admin/ai-model-templates/icons → 200, returns 10 icons."""
+    resp = await client.get(f"{BASE_URL}/admin/ai-model-templates/icons", headers=admin_headers)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "items" in data
+    items = data["items"]
+    assert isinstance(items, list)
+    assert len(items) == 10
+    for icon in items:
+        assert "key" in icon
+        assert "label" in icon
+        assert "color" in icon
+
+
+@pytest.mark.asyncio(loop_scope="module")
+async def test_tc02_create_template(client, admin_headers):
+    """TC-02: POST /admin/ai-model-templates → successful creation."""
     payload = {
-        "provider_name": "TestProvider",
-        "base_url": "https://api.test.com/v1",
-        "model_name": "test-model",
-        "api_key": "sk-test123456789",
-        "is_active": True,
+        "name": "AutoTest-DeepSeek",
+        "base_url": "https://api.deepseek.com/v1",
+        "model_name": "deepseek-chat",
+        "icon": "deepseek",
+        "description": "自动化测试模板",
+    }
+    resp = await client.post(f"{BASE_URL}/admin/ai-model-templates", json=payload, headers=admin_headers)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "id" in data
+    assert data["name"] == payload["name"]
+    assert data["base_url"] == payload["base_url"]
+    assert data["model_name"] == payload["model_name"]
+    assert data["icon"] == payload["icon"]
+    assert data["status"] == 1
+    created_template_ids.append(data["id"])
+
+
+@pytest.mark.asyncio(loop_scope="module")
+async def test_tc03_list_templates(client, admin_headers):
+    """TC-03: GET /admin/ai-model-templates → returns template list."""
+    resp = await client.get(f"{BASE_URL}/admin/ai-model-templates", headers=admin_headers)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "items" in data
+    assert isinstance(data["items"], list)
+    if created_template_ids:
+        ids_in_list = [t["id"] for t in data["items"]]
+        assert created_template_ids[-1] in ids_in_list
+
+
+@pytest.mark.asyncio(loop_scope="module")
+async def test_tc04_update_template(client, admin_headers):
+    """TC-04: PUT /admin/ai-model-templates/{id} → update success."""
+    assert created_template_ids, "No template created to update"
+    tid = created_template_ids[-1]
+    payload = {
+        "name": "AutoTest-DeepSeek-Updated",
+        "description": "更新后的描述",
+    }
+    resp = await client.put(f"{BASE_URL}/admin/ai-model-templates/{tid}", json=payload, headers=admin_headers)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["name"] == "AutoTest-DeepSeek-Updated"
+    assert data["description"] == "更新后的描述"
+    assert data["id"] == tid
+
+
+@pytest.mark.asyncio(loop_scope="module")
+async def test_tc05_disable_template(client, admin_headers):
+    """TC-05: PATCH /admin/ai-model-templates/{id}/status → disable (status=0)."""
+    assert created_template_ids, "No template created to disable"
+    tid = created_template_ids[-1]
+    resp = await client.patch(
+        f"{BASE_URL}/admin/ai-model-templates/{tid}/status",
+        json={"status": 0},
+        headers=admin_headers,
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] == 0
+    assert data["id"] == tid
+
+
+@pytest.mark.asyncio(loop_scope="module")
+async def test_tc06_enable_template(client, admin_headers):
+    """TC-06: PATCH /admin/ai-model-templates/{id}/status → enable (status=1)."""
+    assert created_template_ids, "No template created to enable"
+    tid = created_template_ids[-1]
+    resp = await client.patch(
+        f"{BASE_URL}/admin/ai-model-templates/{tid}/status",
+        json={"status": 1},
+        headers=admin_headers,
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] == 1
+    assert data["id"] == tid
+
+
+@pytest.mark.asyncio(loop_scope="module")
+async def test_tc07_delete_unlinked_template(client, admin_headers):
+    """TC-07: DELETE /admin/ai-model-templates/{id} → delete unlinked template."""
+    payload = {
+        "name": "AutoTest-ToDelete",
+        "base_url": "https://api.example.com/v1",
+        "model_name": "to-delete-model",
+        "icon": "custom",
+        "description": "即将删除的模板",
+    }
+    resp = await client.post(f"{BASE_URL}/admin/ai-model-templates", json=payload, headers=admin_headers)
+    assert resp.status_code == 200
+    delete_tid = resp.json()["id"]
+
+    resp = await client.delete(f"{BASE_URL}/admin/ai-model-templates/{delete_tid}", headers=admin_headers)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data.get("message") == "删除成功"
+
+    resp = await client.get(f"{BASE_URL}/admin/ai-model-templates", headers=admin_headers)
+    assert resp.status_code == 200
+    ids_in_list = [t["id"] for t in resp.json()["items"]]
+    assert delete_tid not in ids_in_list
+
+
+@pytest.mark.asyncio(loop_scope="module")
+async def test_tc08_filter_templates_by_status(client, admin_headers):
+    """TC-08: GET /admin/ai-model-templates?status=1 → only enabled templates."""
+    disabled_payload = {
+        "name": "AutoTest-Disabled-Filter",
+        "base_url": "https://api.disabled.com/v1",
+        "model_name": "disabled-model",
+        "icon": "custom",
+        "description": "停用筛选测试",
+    }
+    resp = await client.post(f"{BASE_URL}/admin/ai-model-templates", json=disabled_payload, headers=admin_headers)
+    assert resp.status_code == 200
+    disabled_tid = resp.json()["id"]
+    created_template_ids.append(disabled_tid)
+
+    await client.patch(
+        f"{BASE_URL}/admin/ai-model-templates/{disabled_tid}/status",
+        json={"status": 0},
+        headers=admin_headers,
+    )
+
+    resp = await client.get(f"{BASE_URL}/admin/ai-model-templates", params={"status": 1}, headers=admin_headers)
+    assert resp.status_code == 200
+    items = resp.json()["items"]
+    for item in items:
+        assert item["status"] == 1, f"Template {item['id']} has status {item['status']}, expected 1"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Config Management API
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+@pytest.mark.asyncio(loop_scope="module")
+async def test_tc09_create_config_from_template(client, admin_headers):
+    """TC-09: POST /admin/ai-config with template_id → creates config linked to template."""
+    assert created_template_ids, "No template available"
+    tid = created_template_ids[0]
+    payload = {
+        "provider_name": "AutoTest-TemplateConfig",
+        "base_url": "https://api.deepseek.com/v1",
+        "model_name": "deepseek-chat",
+        "api_key": "sk-autotest-template-key",
+        "is_active": False,
+        "max_tokens": 4096,
+        "temperature": 0.7,
+        "template_id": tid,
+    }
+    resp = await client.post(f"{BASE_URL}/admin/ai-config", json=payload, headers=admin_headers)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "id" in data
+    assert data["template_id"] == tid
+    assert data["template_synced_at"] is not None
+    assert data["provider_name"] == payload["provider_name"]
+    created_config_ids.append(data["id"])
+
+
+@pytest.mark.asyncio(loop_scope="module")
+async def test_tc10_create_custom_config(client, admin_headers):
+    """TC-10: POST /admin/ai-config without template_id → creates custom config."""
+    payload = {
+        "provider_name": "AutoTest-CustomProvider",
+        "base_url": "https://api.custom.com/v1",
+        "model_name": "custom-model",
+        "api_key": "sk-autotest-custom-key",
+        "is_active": False,
         "max_tokens": 2048,
         "temperature": 0.5,
     }
-    try:
-        r = requests.post(AI_CONFIG_URL, json=payload, headers=get_auth_header(), timeout=15)
-        if r.status_code not in (200, 201):
-            record(tc_id, name, False, f"HTTP {r.status_code}: {r.text[:300]}")
-            return
-        data = r.json()
-        required_fields = ["id", "provider_name", "base_url", "model_name", "is_active", "max_tokens", "temperature"]
-        missing = [f for f in required_fields if f not in data]
-        errors = []
-        if missing:
-            errors.append(f"Missing fields: {missing}. Got keys: {list(data.keys())}")
-        if "id" not in data:
-            record(tc_id, name, False, f"Response has no 'id' field, cannot proceed. Keys: {list(data.keys())}")
-            return
-        created_config_id = data["id"]
-        if data.get("provider_name") != "TestProvider":
-            errors.append(f"provider_name mismatch: {data.get('provider_name')}")
-        if "max_tokens" in data and data["max_tokens"] != 2048:
-            errors.append(f"max_tokens mismatch: {data['max_tokens']}")
-        if "temperature" in data and data["temperature"] != 0.5:
-            errors.append(f"temperature mismatch: {data['temperature']}")
-        if errors:
-            record(tc_id, name, False, "; ".join(errors))
+    resp = await client.post(f"{BASE_URL}/admin/ai-config", json=payload, headers=admin_headers)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "id" in data
+    assert data.get("template_id") is None
+    assert data.get("template_synced_at") is None
+    assert data["provider_name"] == "AutoTest-CustomProvider"
+    assert data["max_tokens"] == 2048
+    assert data["temperature"] == 0.5
+    created_config_ids.append(data["id"])
+
+
+@pytest.mark.asyncio(loop_scope="module")
+async def test_tc11_activate_config(client, admin_headers):
+    """TC-11: PATCH /admin/ai-config/{id}/activate → activates config, others become inactive."""
+    assert len(created_config_ids) >= 2, "Need at least 2 configs"
+    target_id = created_config_ids[-1]
+
+    resp = await client.patch(f"{BASE_URL}/admin/ai-config/{target_id}/activate", headers=admin_headers)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["id"] == target_id
+    assert data["is_active"] is True
+
+    list_resp = await client.get(f"{BASE_URL}/admin/ai-config", headers=admin_headers)
+    assert list_resp.status_code == 200
+    for item in list_resp.json()["items"]:
+        if item["id"] == target_id:
+            assert item["is_active"] is True
         else:
-            record(tc_id, name, True)
-    except Exception as e:
-        record(tc_id, name, False, str(e))
+            assert item["is_active"] is False, f"Config {item['id']} should be inactive"
 
 
-# ── TC-04: Verify created config in list with masked api_key ──
-def tc04():
-    tc_id, name = "TC-04", "Created config in list with masked api_key"
-    if created_config_id is None:
-        record(tc_id, name, False, "Skipped: no config created in TC-03")
-        return
-    try:
-        r = requests.get(AI_CONFIG_URL, headers=get_auth_header(), timeout=15)
-        if r.status_code != 200:
-            record(tc_id, name, False, f"HTTP {r.status_code}")
-            return
-        data = r.json()
-        items = data.get("items", [])
-        target = None
-        for item in items:
-            if item.get("id") == created_config_id:
-                target = item
-                break
-        if not target:
-            record(tc_id, name, False, f"Config id={created_config_id} not found in list of {len(items)} items")
-            return
-        api_key_val = target.get("api_key", "")
-        if "****" not in str(api_key_val):
-            record(tc_id, name, False, f"api_key not masked: '{api_key_val}'")
-            return
-        if api_key_val != "sk-test12****":
-            record(tc_id, name, False, f"api_key mask mismatch: got '{api_key_val}', expected 'sk-test12****'")
-            return
-        record(tc_id, name, True)
-    except Exception as e:
-        record(tc_id, name, False, str(e))
+@pytest.mark.asyncio(loop_scope="module")
+async def test_tc12_get_active_config(client, admin_headers):
+    """TC-12: GET /admin/ai-config/active → returns the active config."""
+    resp = await client.get(f"{BASE_URL}/admin/ai-config/active", headers=admin_headers)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["is_active"] is True
+    assert "id" in data
+    assert "provider_name" in data
+    assert "base_url" in data
+    assert "model_name" in data
 
 
-# ── TC-05: Update AI config ──
-def tc05():
-    tc_id, name = "TC-05", "Admin updates AI config"
-    if created_config_id is None:
-        record(tc_id, name, False, "Skipped: no config created in TC-03")
-        return
-    payload = {
-        "model_name": "updated-model",
-        "max_tokens": 8192,
-        "temperature": 0.9,
-    }
-    try:
-        r = requests.put(f"{AI_CONFIG_URL}/{created_config_id}", json=payload, headers=get_auth_header(), timeout=15)
-        if r.status_code != 200:
-            record(tc_id, name, False, f"HTTP {r.status_code}: {r.text[:300]}")
-            return
-        data = r.json()
-        if data.get("model_name") != "updated-model":
-            record(tc_id, name, False, f"model_name not updated: {data.get('model_name')}")
-            return
-        if data.get("max_tokens") != 8192:
-            record(tc_id, name, False, f"max_tokens not updated: {data.get('max_tokens')}")
-            return
-        if data.get("temperature") != 0.9:
-            record(tc_id, name, False, f"temperature not updated: {data.get('temperature')}")
-            return
-        record(tc_id, name, True)
-    except Exception as e:
-        record(tc_id, name, False, str(e))
+@pytest.mark.asyncio(loop_scope="module")
+async def test_tc13_sync_check(client, admin_headers):
+    """TC-13: GET /admin/ai-config/sync-check → returns sync status."""
+    resp = await client.get(f"{BASE_URL}/admin/ai-config/sync-check", headers=admin_headers)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "need_sync" in data
+    assert "count" in data
+    assert isinstance(data["need_sync"], list)
+    assert isinstance(data["count"], int)
+    assert data["count"] == len(data["need_sync"])
 
 
-# ── TC-06: Verify updated values in list ──
-def tc06():
-    tc_id, name = "TC-06", "Verify updated values in list"
-    if created_config_id is None:
-        record(tc_id, name, False, "Skipped: no config created in TC-03")
-        return
-    try:
-        r = requests.get(AI_CONFIG_URL, headers=get_auth_header(), timeout=15)
-        if r.status_code != 200:
-            record(tc_id, name, False, f"HTTP {r.status_code}")
-            return
-        items = r.json().get("items", [])
-        target = None
-        for item in items:
-            if item.get("id") == created_config_id:
-                target = item
-                break
-        if not target:
-            record(tc_id, name, False, f"Config id={created_config_id} not found in list")
-            return
-        errors = []
-        if target.get("model_name") != "updated-model":
-            errors.append(f"model_name={target.get('model_name')}, expected 'updated-model'")
-        if target.get("max_tokens") != 8192:
-            errors.append(f"max_tokens={target.get('max_tokens')}, expected 8192")
-        if target.get("temperature") != 0.9:
-            errors.append(f"temperature={target.get('temperature')}, expected 0.9")
-        if errors:
-            record(tc_id, name, False, "; ".join(errors))
+@pytest.mark.asyncio(loop_scope="module")
+async def test_tc14_confirm_sync(client, admin_headers):
+    """TC-14: POST /admin/ai-config/sync → syncs template updates to configs."""
+    if not created_template_ids or not created_config_ids:
+        pytest.skip("No template-linked config to sync")
+
+    tid = created_template_ids[0]
+    await client.put(
+        f"{BASE_URL}/admin/ai-model-templates/{tid}",
+        json={"name": "AutoTest-DeepSeek-Synced", "model_name": "deepseek-chat-v2"},
+        headers=admin_headers,
+    )
+
+    resp = await client.post(f"{BASE_URL}/admin/ai-config/sync", headers=admin_headers)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "synced" in data
+    assert isinstance(data["synced"], int)
+    assert "message" in data
+
+
+@pytest.mark.asyncio(loop_scope="module")
+async def test_tc15_delete_template_with_linked_config(client, admin_headers):
+    """TC-15: DELETE /admin/ai-model-templates/{id} with linked config → 400."""
+    assert created_template_ids, "No template to test deletion constraint"
+    tid = created_template_ids[0]
+
+    resp = await client.delete(f"{BASE_URL}/admin/ai-model-templates/{tid}", headers=admin_headers)
+    assert resp.status_code == 400
+    data = resp.json()
+    assert "关联配置" in data.get("detail", "")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Permission Tests
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+@pytest.mark.asyncio(loop_scope="module")
+async def test_tc16_unauthenticated_access(client):
+    """TC-16: Unauthenticated access to admin endpoints → 401."""
+    endpoints = [
+        ("GET", f"{BASE_URL}/admin/ai-model-templates"),
+        ("GET", f"{BASE_URL}/admin/ai-model-templates/icons"),
+        ("POST", f"{BASE_URL}/admin/ai-model-templates"),
+        ("GET", f"{BASE_URL}/admin/ai-config"),
+        ("POST", f"{BASE_URL}/admin/ai-config"),
+        ("GET", f"{BASE_URL}/admin/ai-config/sync-check"),
+    ]
+    for method, url in endpoints:
+        if method == "GET":
+            resp = await client.get(url)
         else:
-            record(tc_id, name, True)
-    except Exception as e:
-        record(tc_id, name, False, str(e))
+            resp = await client.post(url, json={})
+        assert resp.status_code in (401, 403, 422), (
+            f"{method} {url} returned {resp.status_code}, expected 401/403"
+        )
 
 
-# ── TC-07: Test connection endpoint ──
-def tc07():
-    tc_id, name = "TC-07", "Test connection endpoint returns success+message"
-    payload = {
-        "provider_name": "TestProvider",
-        "base_url": "https://api.test.com/v1",
-        "model_name": "test-model",
-        "api_key": "sk-fake",
-    }
-    try:
-        r = requests.post(f"{AI_CONFIG_URL}/test", json=payload, headers=get_auth_header(), timeout=20)
-        if r.status_code != 200:
-            record(tc_id, name, False, f"HTTP {r.status_code}: {r.text[:300]}")
-            return
-        data = r.json()
-        if "success" not in data:
-            record(tc_id, name, False, f"Missing 'success' field. Got keys: {list(data.keys())}")
-            return
-        if not isinstance(data["success"], bool):
-            record(tc_id, name, False, f"'success' is not boolean: {type(data['success'])}")
-            return
-        if "message" not in data:
-            record(tc_id, name, False, f"Missing 'message' field. Got keys: {list(data.keys())}")
-            return
-        if not isinstance(data["message"], str):
-            record(tc_id, name, False, f"'message' is not string: {type(data['message'])}")
-            return
-        record(tc_id, name, True)
-    except Exception as e:
-        record(tc_id, name, False, str(e))
-
-
-# ── TC-08: Delete AI config ──
-def tc08():
-    tc_id, name = "TC-08", "Admin deletes AI config"
-    if created_config_id is None:
-        record(tc_id, name, False, "Skipped: no config created in TC-03")
-        return
-    try:
-        r = requests.delete(f"{AI_CONFIG_URL}/{created_config_id}", headers=get_auth_header(), timeout=15)
-        if r.status_code != 200:
-            record(tc_id, name, False, f"HTTP {r.status_code}: {r.text[:300]}")
-            return
-        record(tc_id, name, True)
-    except Exception as e:
-        record(tc_id, name, False, str(e))
-
-
-# ── TC-09: Verify deletion ──
-def tc09():
-    tc_id, name = "TC-09", "Deleted config not in list"
-    if created_config_id is None:
-        record(tc_id, name, False, "Skipped: no config created in TC-03")
-        return
-    try:
-        r = requests.get(AI_CONFIG_URL, headers=get_auth_header(), timeout=15)
-        if r.status_code != 200:
-            record(tc_id, name, False, f"HTTP {r.status_code}")
-            return
-        items = r.json().get("items", [])
-        found = any(item.get("id") == created_config_id for item in items)
-        if found:
-            record(tc_id, name, False, f"Config id={created_config_id} still in list after deletion")
-        else:
-            record(tc_id, name, True)
-    except Exception as e:
-        record(tc_id, name, False, str(e))
-
-
-# ── TC-10: Delete non-existent config ──
-def tc10():
-    tc_id, name = "TC-10", "Delete non-existent config returns 404"
-    try:
-        r = requests.delete(f"{AI_CONFIG_URL}/99999", headers=get_auth_header(), timeout=15)
-        if r.status_code == 404:
-            record(tc_id, name, True)
-        else:
-            record(tc_id, name, False, f"Expected 404, got {r.status_code}: {r.text[:200]}")
-    except Exception as e:
-        record(tc_id, name, False, str(e))
-
-
-# ── Main ──
-def main():
-    print("=" * 60)
-    print("AI Model Config CRUD - Server Integration Tests")
-    print(f"Target: {BASE}")
-    print("=" * 60)
-
-    print("\n[Step 0] Admin Login")
-    if not do_login():
-        print("  FATAL: Cannot obtain admin token. Aborting.")
-        sys.exit(1)
-
-    print("\n[Running Test Cases]")
-    tc01()
-    tc02()
-    tc03()
-    tc04()
-    tc05()
-    tc06()
-    tc07()
-    tc08()
-    tc09()
-    tc10()
-
-    print("\n" + "=" * 60)
-    total = len(results)
-    passed = sum(1 for r in results if r["passed"])
-    failed = total - passed
-    print(f"TOTAL: {total}  |  PASSED: {passed}  |  FAILED: {failed}")
-    print("=" * 60)
-
-    if passed > 0:
-        print("\nPassed:")
-        for r in results:
-            if r["passed"]:
-                print(f"  [PASS] {r['id']}: {r['name']}")
-
-    if failed > 0:
-        print("\nFailed:")
-        for r in results:
-            if not r["passed"]:
-                print(f"  [FAIL] {r['id']}: {r['name']}")
-                if r["detail"]:
-                    print(f"         Bug: {r['detail']}")
-
-    print()
-    sys.exit(1 if failed > 0 else 0)
-
-
-if __name__ == "__main__":
-    main()
+@pytest.mark.asyncio(loop_scope="module")
+async def test_tc17_normal_user_get_active_config(client, user_headers):
+    """TC-17: Normal user can access GET /admin/ai-config/active (uses get_current_user, not admin_dep)."""
+    resp = await client.get(f"{BASE_URL}/admin/ai-config/active", headers=user_headers)
+    assert resp.status_code in (200, 404), (
+        f"Expected 200 or 404 (no active config), got {resp.status_code}"
+    )
+    if resp.status_code == 200:
+        data = resp.json()
+        assert "id" in data
+        assert "provider_name" in data

@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import async_session
 from app.core.security import get_password_hash
 from app.models.models import (
+    AIModelTemplate,
     ConstitutionQuestion,
     MemberLevel,
     ServiceCategory,
@@ -26,6 +27,7 @@ async def init_default_data():
             await _init_member_levels(db)
             await _init_system_configs(db)
             await _init_constitution_questions(db)
+            await _init_ai_model_templates(db)
             await db.commit()
             logger.info("Default data initialization completed")
         except Exception as e:
@@ -268,3 +270,30 @@ async def _init_constitution_questions(db: AsyncSession):
         )
     await db.flush()
     logger.info("Created default constitution questions (36 questions, 9 types)")
+
+
+async def _init_ai_model_templates(db: AsyncSession):
+    result = await db.execute(select(AIModelTemplate).limit(1))
+    if result.scalar_one_or_none():
+        return
+
+    templates = [
+        {
+            "name": "火山引擎 DeepSeek-V3.2",
+            "base_url": "https://ark.cn-beijing.volces.com/api/v3",
+            "model_name": "deepseek-v3-241226",
+            "icon": "volcano",
+            "description": "火山引擎提供的 DeepSeek V3.2 模型服务，适合通用对话和文本生成场景",
+        },
+        {
+            "name": "腾讯云 DeepSeek-V3.2",
+            "base_url": "https://api.lkeap.cloud.tencent.com/v1",
+            "model_name": "deepseek-v3",
+            "icon": "tencent",
+            "description": "腾讯云提供的 DeepSeek V3.2 模型服务，国内访问速度快，稳定可靠",
+        },
+    ]
+    for tpl in templates:
+        db.add(AIModelTemplate(**tpl))
+    await db.flush()
+    logger.info("Created default AI model templates")

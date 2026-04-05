@@ -870,6 +870,20 @@ class SystemConfig(Base):
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+class AIModelTemplate(Base):
+    __tablename__ = "ai_model_templates"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name = mapped_column(String(100), nullable=False)
+    base_url = mapped_column(String(500), nullable=False)
+    model_name = mapped_column(String(100), nullable=False)
+    icon = mapped_column(String(50), nullable=False)
+    description = mapped_column(String(500), nullable=False)
+    status = mapped_column(Integer, default=1)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class AIModelConfig(Base):
     __tablename__ = "ai_model_configs"
 
@@ -881,8 +895,12 @@ class AIModelConfig(Base):
     is_active = mapped_column(Boolean, default=False)
     max_tokens = mapped_column(Integer, default=4096)
     temperature = mapped_column(Float, default=0.7)
+    template_id = mapped_column(Integer, ForeignKey("ai_model_templates.id"), nullable=True)
+    template_synced_at = mapped_column(DateTime, nullable=True)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    template = relationship("AIModelTemplate")
 
 
 class SmsConfig(Base):

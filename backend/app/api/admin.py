@@ -8,9 +8,10 @@ from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.core.security import create_access_token, require_role, verify_password
+from app.core.security import create_access_token, get_current_user, require_role, verify_password
 from app.models.models import (
     AIModelConfig,
+    AIModelTemplate,
     Article,
     ChatMessage,
     ContentStatus,
@@ -36,6 +37,9 @@ from app.schemas.admin import (
     AIModelConfigCreate,
     AIModelConfigResponse,
     AIModelConfigUpdate,
+    AIModelTemplateCreate,
+    AIModelTemplateResponse,
+    AIModelTemplateUpdate,
     DashboardRecentOrder,
     DashboardStats,
     DashboardTrendPoint,
@@ -130,6 +134,8 @@ def _ai_config_to_dict(config: AIModelConfig) -> dict:
         "is_active": config.is_active,
         "max_tokens": config.max_tokens if config.max_tokens is not None else 4096,
         "temperature": config.temperature if config.temperature is not None else 0.7,
+        "template_id": config.template_id,
+        "template_synced_at": config.template_synced_at.isoformat() if config.template_synced_at else None,
         "created_at": config.created_at.isoformat() if config.created_at else None,
         "updated_at": config.updated_at.isoformat() if config.updated_at else None,
     }
@@ -163,8 +169,96 @@ async def create_ai_config(
         is_active=data.is_active,
         max_tokens=data.max_tokens,
         temperature=data.temperature,
+        template_id=data.template_id,
+        template_synced_at=datetime.utcnow() if data.template_id else None,
     )
     db.add(config)
+    await db.flush()
+    await db.refresh(config)
+    return _ai_config_to_dict(config)
+
+
+@router.get("/ai-config/active")
+async def get_active_ai_config(
+    current_user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(AIModelConfig).where(AIModelConfig.is_active == True))
+    config = result.scalar_one_or_none()
+    if not config:
+        raise HTTPException(status_code=404, detail="暂无活跃配置")
+    return _ai_config_to_dict(config)
+
+
+@router.get("/ai-config/sync-check")
+async def ai_config_sync_check(
+    current_user=Depends(admin_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(AIModelConfig).where(AIModelConfig.template_id.isnot(None))
+    )
+    configs = result.scalars().all()
+    need_sync = []
+    for cfg in configs:
+        tpl_result = await db.execute(
+            select(AIModelTemplate).where(AIModelTemplate.id == cfg.template_id)
+        )
+        tpl = tpl_result.scalar_one_or_none()
+        if not tpl:
+            continue
+        if cfg.template_synced_at is None or cfg.template_synced_at < tpl.updated_at:
+            need_sync.append({
+                "config_id": cfg.id,
+                "config_name": cfg.provider_name,
+                "template_id": tpl.id,
+                "template_name": tpl.name,
+                "template_updated_at": tpl.updated_at.isoformat(),
+                "config_synced_at": cfg.template_synced_at.isoformat() if cfg.template_synced_at else None,
+            })
+    return {"need_sync": need_sync, "count": len(need_sync)}
+
+
+@router.post("/ai-config/sync")
+async def ai_config_sync(
+    current_user=Depends(admin_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(AIModelConfig).where(AIModelConfig.template_id.isnot(None))
+    )
+    configs = result.scalars().all()
+    synced = 0
+    for cfg in configs:
+        tpl_result = await db.execute(
+            select(AIModelTemplate).where(AIModelTemplate.id == cfg.template_id)
+        )
+        tpl = tpl_result.scalar_one_or_none()
+        if not tpl:
+            continue
+        if cfg.template_synced_at is None or cfg.template_synced_at < tpl.updated_at:
+            cfg.base_url = tpl.base_url
+            cfg.model_name = tpl.model_name
+            cfg.provider_name = tpl.name
+            cfg.template_synced_at = datetime.utcnow()
+            cfg.updated_at = datetime.utcnow()
+            synced += 1
+    return {"message": f"已同步 {synced} 个配置", "synced": synced}
+
+
+@router.patch("/ai-config/{config_id}/activate")
+async def activate_ai_config(
+    config_id: int,
+    current_user=Depends(admin_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(AIModelConfig).where(AIModelConfig.id == config_id))
+    config = result.scalar_one_or_none()
+    if not config:
+        raise HTTPException(status_code=404, detail="配置不存在")
+    await db.execute(update(AIModelConfig).values(is_active=False))
+    config.is_active = True
+    config.updated_at = datetime.utcnow()
     await db.flush()
     await db.refresh(config)
     return _ai_config_to_dict(config)
@@ -237,6 +331,116 @@ async def test_ai_config(
             return {"success": False, "message": f"API返回状态码 {resp.status_code}"}
     except Exception as e:
         return {"success": False, "message": f"连接失败: {str(e)}"}
+
+
+# ── AI 模型模板管理 ──
+
+PRESET_ICONS = [
+    {"key": "volcano", "label": "火山引擎", "color": "#FF6B35"},
+    {"key": "tencent", "label": "腾讯云", "color": "#006eff"},
+    {"key": "openai", "label": "OpenAI", "color": "#10a37f"},
+    {"key": "deepseek", "label": "DeepSeek", "color": "#4D6BFE"},
+    {"key": "baidu", "label": "百度文心", "color": "#2932E1"},
+    {"key": "alibaba", "label": "阿里通义", "color": "#FF6A00"},
+    {"key": "zhipu", "label": "智谱AI", "color": "#5B5EA6"},
+    {"key": "moonshot", "label": "月之暗面", "color": "#000000"},
+    {"key": "anthropic", "label": "Anthropic", "color": "#D97757"},
+    {"key": "custom", "label": "自定义", "color": "#8c8c8c"},
+]
+
+
+@router.get("/ai-model-templates/icons")
+async def get_template_icons(current_user=Depends(admin_dep)):
+    return {"items": PRESET_ICONS}
+
+
+@router.get("/ai-model-templates")
+async def list_ai_model_templates(
+    status: Optional[int] = None,
+    current_user=Depends(admin_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    query = select(AIModelTemplate)
+    if status is not None:
+        query = query.where(AIModelTemplate.status == status)
+    query = query.order_by(AIModelTemplate.created_at.desc())
+    result = await db.execute(query)
+    templates = result.scalars().all()
+    items = [AIModelTemplateResponse.model_validate(t) for t in templates]
+    return {"items": items}
+
+
+@router.post("/ai-model-templates")
+async def create_ai_model_template(
+    data: AIModelTemplateCreate,
+    current_user=Depends(admin_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    template = AIModelTemplate(**data.model_dump())
+    db.add(template)
+    await db.flush()
+    await db.refresh(template)
+    return AIModelTemplateResponse.model_validate(template)
+
+
+@router.put("/ai-model-templates/{template_id}")
+async def update_ai_model_template(
+    template_id: int,
+    data: AIModelTemplateUpdate,
+    current_user=Depends(admin_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(AIModelTemplate).where(AIModelTemplate.id == template_id))
+    template = result.scalar_one_or_none()
+    if not template:
+        raise HTTPException(status_code=404, detail="模板不存在")
+
+    for key, value in data.model_dump(exclude_unset=True).items():
+        setattr(template, key, value)
+    template.updated_at = datetime.utcnow()
+    await db.flush()
+    await db.refresh(template)
+    return AIModelTemplateResponse.model_validate(template)
+
+
+@router.patch("/ai-model-templates/{template_id}/status")
+async def toggle_template_status(
+    template_id: int,
+    status: int = Body(..., embed=True),
+    current_user=Depends(admin_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(AIModelTemplate).where(AIModelTemplate.id == template_id))
+    template = result.scalar_one_or_none()
+    if not template:
+        raise HTTPException(status_code=404, detail="模板不存在")
+
+    template.status = status
+    template.updated_at = datetime.utcnow()
+    await db.flush()
+    await db.refresh(template)
+    return AIModelTemplateResponse.model_validate(template)
+
+
+@router.delete("/ai-model-templates/{template_id}")
+async def delete_ai_model_template(
+    template_id: int,
+    current_user=Depends(admin_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(AIModelTemplate).where(AIModelTemplate.id == template_id))
+    template = result.scalar_one_or_none()
+    if not template:
+        raise HTTPException(status_code=404, detail="模板不存在")
+
+    linked = await db.execute(
+        select(func.count(AIModelConfig.id)).where(AIModelConfig.template_id == template_id)
+    )
+    if (linked.scalar() or 0) > 0:
+        raise HTTPException(status_code=400, detail="该模板下存在关联配置，无法删除")
+
+    await db.delete(template)
+    return {"message": "删除成功"}
 
 
 # ── 用户管理 ──

@@ -243,6 +243,51 @@ All 9 admin API endpoints return HTTP 200 with correct data structure. Admin fro
 - `/home/ubuntu/gateway/ssl/server.crt` — replaced self-signed cert with Let's Encrypt fullchain.pem
 - `/home/ubuntu/gateway/ssl/server.key` — replaced with Let's Encrypt privkey.pem
 
+## Latest Feature: AI 大模型配置优化
+
+### Backend
+
+- Added `AIModelTemplate` model (`ai_model_templates` table) for preset model templates with fields: `name`, `base_url`, `model_name`, `icon`, `description`, `status` (1=enabled, 0=disabled).
+- Extended `AIModelConfig` model with `template_id` (FK → `ai_model_templates.id`, nullable) and `template_synced_at` (DateTime, nullable) for template-config association and sync tracking.
+- Added template management APIs in `backend/app/api/admin.py`:
+  - `GET /api/admin/ai-model-templates` — list templates (filterable by status)
+  - `POST /api/admin/ai-model-templates` — create template
+  - `PUT /api/admin/ai-model-templates/{id}` — update template
+  - `PATCH /api/admin/ai-model-templates/{id}/status` — toggle enable/disable
+  - `DELETE /api/admin/ai-model-templates/{id}` — delete (blocked if configs reference it)
+  - `GET /api/admin/ai-model-templates/icons` — preset icon list (10 icons)
+- Added config optimization APIs:
+  - `PATCH /api/admin/ai-config/{id}/activate` — one-click activate (BR-01: only one active at a time)
+  - `GET /api/admin/ai-config/active` — get active config (accessible by all authenticated users)
+  - `GET /api/admin/ai-config/sync-check` — check for unsynced template updates
+  - `POST /api/admin/ai-config/sync` — confirm sync template updates to linked configs
+- Updated `POST /api/admin/ai-config` to accept `template_id` parameter for template-based config creation
+- Added `AIModelTemplateCreate`, `AIModelTemplateUpdate`, `AIModelTemplateResponse` schemas in `backend/app/schemas/admin.py`
+- Added `_init_ai_model_templates()` in `backend/app/init_data.py` to seed 2 preset templates (火山引擎 DeepSeek-V3.2, 腾讯云 DeepSeek-V3.2)
+- Added database migration for `template_id` and `template_synced_at` columns in `backend/app/services/schema_sync.py`
+
+### Admin Web
+
+- Completely rewrote `admin-web/src/app/(admin)/ai-config/page.tsx` with:
+  - **Tab 页签切换**: "配置列表" (default) and "模板管理" tabs
+  - **模板管理 Tab**: CRUD table for templates with icon selector (10 preset AI brand icons), status toggle, delete with constraint check
+  - **配置列表 Tab**: One-click activate button ("设为活跃" / "当前活跃" tag), template-based add flow (card selector modal → auto-fill form), template sync notification modal
+  - **添加配置流程**: Card-based template selector modal → pre-filled form (Base URL, model name auto-filled, user only needs API Key) or blank custom config form
+  - **模板同步弹窗**: Auto sync-check on page load, shows unsynced template changes with sync/ignore options
+- Added `patch` method to `admin-web/src/lib/api.ts` for PATCH request support
+
+### Business Rules Implemented
+
+- BR-01: Only one active config at a time
+- BR-05/BR-06: Template update sync notification (once per update, dismiss = no re-prompt until next update)
+- BR-07: Cannot delete template referenced by configs
+- BR-08: Disabling template doesn't affect existing linked configs
+- BR-09: 10 preset AI brand icons (volcano, tencent, openai, deepseek, baidu, alibaba, zhipu, moonshot, anthropic, custom)
+
+### Testing
+
+- 17 automated test cases in `test_ai_config.py` covering template CRUD, config CRUD, activation, sync-check, sync, delete constraints, and permission checks — all passed
+
 ## Notes For Next Iteration
 
 - Merchant identities are granted by admin only; new self-registered accounts still default to normal users.

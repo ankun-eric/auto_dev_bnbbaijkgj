@@ -12,6 +12,7 @@ class AIModelConfigCreate(BaseModel):
     is_active: bool = False
     max_tokens: int = 4096
     temperature: float = 0.7
+    template_id: Optional[int] = None
 
 
 class AIModelConfigUpdate(BaseModel):
@@ -87,3 +88,33 @@ class DashboardStats(BaseModel):
         serialization_alias="recentOrders",
     )
     ai_calls: int = Field(default=0, serialization_alias="aiCalls")
+
+
+class AIModelTemplateCreate(BaseModel):
+    name: str
+    base_url: str
+    model_name: str
+    icon: str
+    description: str
+
+
+class AIModelTemplateUpdate(BaseModel):
+    name: Optional[str] = None
+    base_url: Optional[str] = None
+    model_name: Optional[str] = None
+    icon: Optional[str] = None
+    description: Optional[str] = None
+
+
+class AIModelTemplateResponse(BaseModel):
+    id: int
+    name: str
+    base_url: str
+    model_name: str
+    icon: str
+    description: str
+    status: int
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
