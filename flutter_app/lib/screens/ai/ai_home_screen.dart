@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/chat_provider.dart';
 import '../../models/chat_session.dart';
+import '../../widgets/chat_history_drawer.dart';
 
 class AiHomeScreen extends StatefulWidget {
   const AiHomeScreen({super.key});
@@ -11,6 +12,8 @@ class AiHomeScreen extends StatefulWidget {
 }
 
 class _AiHomeScreenState extends State<AiHomeScreen> {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
   final List<Map<String, dynamic>> _consultTypes = [
     {
       'type': 'general',
@@ -61,15 +64,28 @@ class _AiHomeScreenState extends State<AiHomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: _scaffoldKey,
+      drawer: ChatHistoryDrawer(
+        onNewChat: () {
+          // User picks from the consult type grid on the main screen
+        },
+        onSessionTap: (session) {
+          Navigator.pushNamed(context, '/chat');
+        },
+      ),
       appBar: AppBar(
         title: const Text('AI问诊'),
         backgroundColor: const Color(0xFF52C41A),
         centerTitle: true,
         automaticallyImplyLeading: false,
+        leading: IconButton(
+          icon: const Icon(Icons.menu, color: Colors.white),
+          onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.history),
-            onPressed: () {},
+            onPressed: () => _scaffoldKey.currentState?.openDrawer(),
           ),
         ],
       ),
@@ -185,7 +201,7 @@ class _AiHomeScreenState extends State<AiHomeScreen> {
                     ),
                     if (chatProvider.sessions.isNotEmpty)
                       TextButton(
-                        onPressed: () {},
+                        onPressed: () => _scaffoldKey.currentState?.openDrawer(),
                         child: const Text('查看全部', style: TextStyle(color: Color(0xFF52C41A))),
                       ),
                   ],

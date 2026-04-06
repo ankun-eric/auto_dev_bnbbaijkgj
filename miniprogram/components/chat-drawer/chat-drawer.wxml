@@ -1,0 +1,47 @@
+<view class="drawer-mask {{show ? 'show' : ''}}" bindtap="onClose" catchtouchmove="preventBubble"></view>
+
+<view class="drawer-panel {{show ? 'show' : ''}}" catchtouchmove="preventBubble">
+  <!-- 顶部操作区 -->
+  <view class="drawer-header">
+    <view class="drawer-title">对话记录</view>
+    <view class="new-chat-btn" bindtap="onNewChat">
+      <text class="btn-icon">+</text>
+      <text class="btn-text">新建对话</text>
+    </view>
+  </view>
+
+  <!-- 对话列表 -->
+  <scroll-view class="session-list" scroll-y>
+    <block wx:if="{{groupedSessions.length > 0}}">
+      <view class="session-group" wx:for="{{groupedSessions}}" wx:key="label">
+        <view class="group-label">{{item.label}}</view>
+        <view
+          class="session-item {{item2.is_pinned ? 'pinned' : ''}}"
+          wx:for="{{item.items}}"
+          wx:for-item="item2"
+          wx:key="id"
+          bindtap="onSessionTap"
+          bindlongpress="onLongPress"
+          data-session="{{item2}}"
+        >
+          <view class="session-info">
+            <view class="session-title-row">
+              <text class="pin-icon" wx:if="{{item2.is_pinned}}">📌</text>
+              <text class="session-title">{{item2.title || '未命名对话'}}</text>
+            </view>
+            <view class="session-meta">
+              <text class="session-type-tag">{{item2.typeLabel}}</text>
+              <text class="session-count">{{item2.message_count || 0}}条消息</text>
+            </view>
+          </view>
+          <text class="session-arrow">›</text>
+        </view>
+      </view>
+    </block>
+
+    <view class="empty-sessions" wx:else>
+      <text class="empty-icon">💬</text>
+      <text class="empty-text">暂无对话记录</text>
+    </view>
+  </scroll-view>
+</view>

@@ -40,6 +40,7 @@ const menuItems: MenuItem[] = [
     ],
   },
   { key: '/ai-config', icon: <RobotOutlined />, label: 'AI模型配置' },
+  { key: '/chat-records', icon: <MessageOutlined />, label: 'AI对话记录' },
   {
     key: 'services',
     icon: <ShopOutlined />,

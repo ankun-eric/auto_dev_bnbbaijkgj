@@ -28,6 +28,9 @@ class ApiConfig {
   static const String sendMessage = '/api/chat/sessions';
   static const String createSession = '/api/chat/sessions';
 
+  // Chat History (new endpoints)
+  static const String chatSessionsList = '/api/chat-sessions';
+
   // Checkup
   static const String checkupReports = '/api/health/checkup-reports';
   static const String uploadCheckup = '/api/health/checkup-reports';

@@ -346,6 +346,54 @@ All 9 admin API endpoints return HTTP 200 with correct data structure. Admin fro
 
 - Created `user_docs/短信验证接入.md` — user manual covering SMS login flow, admin SMS config management, AppKey authentication architecture, and usage notes.
 
+## Latest Feature: AI对话记录查询
+
+### Backend
+
+- Extended `ChatSession` model with `model_name`, `message_count`, `is_pinned`, `is_deleted`, `share_token`, `device_info`, `ip_address`, `ip_location` fields.
+- Extended `ChatMessage` model with `response_time_ms`, `prompt_tokens`, `completion_tokens`, `image_urls`, `file_urls` fields.
+- Added `backend/app/schemas/chat_history.py` — admin/user/shared view schemas.
+- Added `backend/app/api/chat_history.py` — full CRUD + filter + export API:
+  - Admin: `GET /api/admin/chat-sessions` (list with filters), `GET /api/admin/chat-sessions/{id}` (detail), `GET /api/admin/chat-sessions/{id}/export` (CSV/XLSX)
+  - User: `GET /api/chat-sessions`, `GET/PUT/DELETE /api/chat-sessions/{id}`, `PUT /api/chat-sessions/{id}/pin`, `POST /api/chat-sessions/{id}/share`
+  - Public: `GET /api/shared/chat/{share_token}`
+- Updated `backend/app/api/chat.py` — records device info, IP, model name, message count, response time, token usage per message.
+- Updated `backend/app/services/ai_service.py` — `call_ai_model()` returns usage/model metadata.
+- Added `openpyxl==3.1.5` dependency for XLSX export.
+
+### Admin Web
+
+- Added `admin-web/src/app/(admin)/chat-records/page.tsx` — chat records list with multi-dimensional filtering (user search, time range, keyword, AI model, message count range), pagination, export buttons.
+- Added `admin-web/src/app/(admin)/chat-records/[id]/page.tsx` — chat record detail with user info, session metadata, chat bubble UI with message metadata (response time, token usage).
+- Added "AI对话记录" menu item in admin layout.
+
+### H5 Web
+
+- Added `h5-web/src/components/ChatSidebar.tsx` — reusable chat history sidebar with time-grouped sessions, long-press actions (rename, pin, share, delete), new chat button.
+- Updated AI home page and chat page to integrate ChatSidebar.
+- Added `h5-web/src/app/shared/chat/[token]/page.tsx` — public read-only shared chat page.
+
+### Mini Program
+
+- Added `miniprogram/components/chat-drawer/` — native drawer component for chat history with time grouping, long-press actions, sharing support.
+- Updated AI home and chat pages to integrate chat-drawer.
+
+### Flutter App
+
+- Extended `ChatSession` model with `isPinned`, `isDeleted`, `shareToken` fields.
+- Added `getChatSessionsList`, `deleteChatSession`, `renameChatSession`, `pinChatSession`, `shareChatSession` API methods.
+- Added `flutter_app/lib/widgets/chat_history_drawer.dart` — drawer widget with time-grouped sessions, long-press actions.
+- Updated AI home and chat screens to integrate ChatHistoryDrawer.
+
+### Testing
+
+- 18/18 local pytest tests passed.
+- 23/23 server API tests passed (admin login, admin list/filter/detail/export, user list/detail/rename/pin/share/delete, shared chat access, auth checks, soft delete visibility).
+
+### User Documentation
+
+- Created `user_docs/AI对话记录查询.md` — comprehensive user manual for admin and user-side chat history features.
+
 ## Notes For Next Iteration
 
 - Merchant identities are granted by admin only; new self-registered accounts still default to normal users.

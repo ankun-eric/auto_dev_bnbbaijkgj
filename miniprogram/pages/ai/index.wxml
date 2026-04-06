@@ -1,4 +1,14 @@
 <view class="ai-page" wx:if="{{pageMode === 'user'}}">
+  <!-- 顶部操作栏 -->
+  <view class="top-bar">
+    <view class="history-btn" bindtap="openDrawer">
+      <text class="history-icon">☰</text>
+      <text class="history-text">历史</text>
+    </view>
+    <text class="page-title">AI问诊</text>
+    <view class="top-bar-placeholder"></view>
+  </view>
+
   <view class="type-section">
     <text class="section-title">选择问诊类型</text>
     <view class="type-grid">
@@ -46,6 +56,17 @@
   <view class="new-chat-btn" bindtap="newChat">
     <text class="new-chat-text">+ 新建对话</text>
   </view>
+
+  <!-- 对话历史抽屉 -->
+  <chat-drawer
+    show="{{drawerShow}}"
+    sessions="{{allSessions}}"
+    bind:close="onDrawerClose"
+    bind:sessiontap="onSessionTap"
+    bind:newchat="onDrawerNewChat"
+    bind:refresh="onDrawerRefresh"
+    bind:share="onDrawerShare"
+  />
 </view>
 
 <view class="container merchant-scan-page" wx:else>

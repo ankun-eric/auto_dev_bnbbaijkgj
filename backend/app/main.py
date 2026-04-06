@@ -10,6 +10,7 @@ from app.api import (
     admin_merchant,
     auth,
     chat,
+    chat_history,
     content,
     customer_service,
     drug,
@@ -55,6 +56,7 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(health_profile.router)
 app.include_router(chat.router)
+app.include_router(chat_history.router)
 app.include_router(tcm.router)
 app.include_router(service.router)
 app.include_router(order.router)

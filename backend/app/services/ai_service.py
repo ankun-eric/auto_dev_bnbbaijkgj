@@ -34,10 +34,20 @@ async def call_ai_model(
     messages: List[Dict[str, str]],
     system_prompt: str = "",
     db: Optional[AsyncSession] = None,
-) -> str:
+    return_usage: bool = False,
+) -> Any:
+    """Call the AI model.
+
+    When *return_usage* is True the function returns a dict:
+        {"content": str, "model": str, "usage": {"prompt_tokens": int, "completion_tokens": int} | None}
+    Otherwise it returns a plain string (backward compatible).
+    """
     config = await _get_active_model_config(db)
     if not config["base_url"] or not config["model"]:
-        return "AI服务未配置，请联系管理员配置AI模型。"
+        fallback = "AI服务未配置，请联系管理员配置AI模型。"
+        if return_usage:
+            return {"content": fallback, "model": config["model"], "usage": None}
+        return fallback
 
     all_messages = []
     if system_prompt:
@@ -61,9 +71,20 @@ async def call_ai_model(
             resp = await client.post(url, json=payload, headers=headers)
             resp.raise_for_status()
             data = resp.json()
-            return data["choices"][0]["message"]["content"]
+            content = data["choices"][0]["message"]["content"]
+            if return_usage:
+                usage = data.get("usage")
+                return {
+                    "content": content,
+                    "model": config["model"],
+                    "usage": usage,
+                }
+            return content
     except Exception as e:
-        return f"AI服务调用失败: {str(e)}"
+        fallback = f"AI服务调用失败: {str(e)}"
+        if return_usage:
+            return {"content": fallback, "model": config["model"], "usage": None}
+        return fallback
 
 
 async def analyze_checkup_report(ocr_text: str, user_profile: Optional[Dict] = None, db: Optional[AsyncSession] = None) -> str:

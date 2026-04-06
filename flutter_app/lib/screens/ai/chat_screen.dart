@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../providers/chat_provider.dart';
 import '../../models/chat_message.dart';
 import '../../widgets/custom_app_bar.dart';
+import '../../widgets/chat_history_drawer.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -14,6 +15,7 @@ class ChatScreen extends StatefulWidget {
 }
 
 class _ChatScreenState extends State<ChatScreen> {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final TextEditingController _textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final ImagePicker _picker = ImagePicker();
@@ -59,9 +61,19 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: _scaffoldKey,
+      drawer: ChatHistoryDrawer(
+        onSessionTap: (session) {
+          // Already loaded via provider, just stay on this page
+        },
+      ),
       appBar: CustomAppBar(
         title: Provider.of<ChatProvider>(context).currentSession?.typeLabel ?? 'AI问诊',
         actions: [
+          IconButton(
+            icon: const Icon(Icons.history, color: Colors.white),
+            onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+          ),
           IconButton(
             icon: const Icon(Icons.more_horiz, color: Colors.white),
             onPressed: () {},

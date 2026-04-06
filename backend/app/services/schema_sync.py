@@ -75,6 +75,53 @@ async def _sync_member_levels(conn: AsyncConnection) -> None:
         await conn.execute(text("ALTER TABLE member_levels ADD COLUMN color VARCHAR(20) NULL"))
 
 
+async def _sync_chat_session_fields(conn: AsyncConnection) -> None:
+    def _load(sync_conn):
+        inspector = inspect(sync_conn)
+        tables = set(inspector.get_table_names())
+        session_cols = None
+        message_cols = None
+        if "chat_sessions" in tables:
+            session_cols = {col["name"] for col in inspector.get_columns("chat_sessions")}
+        if "chat_messages" in tables:
+            message_cols = {col["name"] for col in inspector.get_columns("chat_messages")}
+        return session_cols, message_cols
+
+    session_cols, message_cols = await conn.run_sync(_load)
+
+    if session_cols is not None:
+        if "model_name" not in session_cols:
+            await conn.execute(text("ALTER TABLE chat_sessions ADD COLUMN model_name VARCHAR(100) NULL"))
+        if "message_count" not in session_cols:
+            await conn.execute(text("ALTER TABLE chat_sessions ADD COLUMN message_count INT DEFAULT 0"))
+        if "is_pinned" not in session_cols:
+            await conn.execute(text("ALTER TABLE chat_sessions ADD COLUMN is_pinned BOOLEAN DEFAULT FALSE"))
+        if "is_deleted" not in session_cols:
+            await conn.execute(text("ALTER TABLE chat_sessions ADD COLUMN is_deleted BOOLEAN DEFAULT FALSE"))
+        if "share_token" not in session_cols:
+            await conn.execute(text(
+                "ALTER TABLE chat_sessions ADD COLUMN share_token VARCHAR(100) NULL UNIQUE"
+            ))
+        if "device_info" not in session_cols:
+            await conn.execute(text("ALTER TABLE chat_sessions ADD COLUMN device_info VARCHAR(500) NULL"))
+        if "ip_address" not in session_cols:
+            await conn.execute(text("ALTER TABLE chat_sessions ADD COLUMN ip_address VARCHAR(50) NULL"))
+        if "ip_location" not in session_cols:
+            await conn.execute(text("ALTER TABLE chat_sessions ADD COLUMN ip_location VARCHAR(100) NULL"))
+
+    if message_cols is not None:
+        if "response_time_ms" not in message_cols:
+            await conn.execute(text("ALTER TABLE chat_messages ADD COLUMN response_time_ms INT NULL"))
+        if "prompt_tokens" not in message_cols:
+            await conn.execute(text("ALTER TABLE chat_messages ADD COLUMN prompt_tokens INT NULL"))
+        if "completion_tokens" not in message_cols:
+            await conn.execute(text("ALTER TABLE chat_messages ADD COLUMN completion_tokens INT NULL"))
+        if "image_urls" not in message_cols:
+            await conn.execute(text("ALTER TABLE chat_messages ADD COLUMN image_urls JSON NULL"))
+        if "file_urls" not in message_cols:
+            await conn.execute(text("ALTER TABLE chat_messages ADD COLUMN file_urls JSON NULL"))
+
+
 async def sync_register_schema(conn: AsyncConnection) -> None:
     def load_user_schema(sync_conn):
         inspector = inspect(sync_conn)
@@ -93,6 +140,7 @@ async def sync_register_schema(conn: AsyncConnection) -> None:
     await _sync_ai_model_configs(conn)
     await _sync_member_levels(conn)
     await _sync_sms_tables(conn)
+    await _sync_chat_session_fields(conn)
 
     columns, indexes, unique_constraints = await conn.run_sync(load_user_schema)
 

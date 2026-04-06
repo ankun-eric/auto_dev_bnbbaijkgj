@@ -1,3 +1,6 @@
 {
-  "navigationBarTitleText": "AI问诊"
+  "navigationBarTitleText": "AI问诊",
+  "usingComponents": {
+    "chat-drawer": "/components/chat-drawer/chat-drawer"
+  }
 }

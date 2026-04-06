@@ -1,7 +1,8 @@
 import json
+import time
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
 from jose import JWTError, jwt
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -102,6 +103,7 @@ async def list_messages(
 async def send_message(
     session_id: int,
     data: ChatMessageCreate,
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -122,6 +124,14 @@ async def send_message(
     db.add(user_msg)
     await db.flush()
 
+    if not session.device_info:
+        session.device_info = request.headers.get("User-Agent", "")[:500]
+    if not session.ip_address:
+        session.ip_address = (
+            request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
+            or request.client.host if request.client else None
+        )
+
     history_result = await db.execute(
         select(ChatMessage)
         .where(ChatMessage.session_id == session_id)
@@ -137,15 +147,29 @@ async def send_message(
         SYSTEM_PROMPTS["health_qa"],
     )
 
-    ai_reply = await call_ai_model(messages, system_prompt, db)
+    start_time = time.time()
+    ai_result = await call_ai_model(messages, system_prompt, db, return_usage=True)
+    elapsed_ms = int((time.time() - start_time) * 1000)
+
+    ai_content = ai_result["content"]
+    usage = ai_result.get("usage")
+    model_used = ai_result.get("model")
+
+    if not session.model_name and model_used:
+        session.model_name = model_used
 
     ai_msg = ChatMessage(
         session_id=session_id,
         role=MessageRole.assistant,
-        content=ai_reply,
+        content=ai_content,
         message_type=MessageType.text,
+        response_time_ms=elapsed_ms,
+        prompt_tokens=usage.get("prompt_tokens") if usage else None,
+        completion_tokens=usage.get("completion_tokens") if usage else None,
     )
     db.add(ai_msg)
+
+    session.message_count = (session.message_count or 0) + 1
 
     if session.title == "新对话" and len(history_msgs) <= 2:
         session.title = data.content[:50]

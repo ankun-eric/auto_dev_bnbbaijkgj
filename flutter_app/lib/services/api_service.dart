@@ -170,6 +170,27 @@ class ApiService {
     return _dio.post(ApiConfig.createSession, data: {'session_type': type});
   }
 
+  // Chat History
+  Future<Response> getChatSessionsList({int page = 1, int pageSize = 100}) async {
+    return _dio.get(ApiConfig.chatSessionsList, queryParameters: {'page': page, 'page_size': pageSize});
+  }
+
+  Future<Response> deleteChatSession(String sessionId) async {
+    return _dio.delete('${ApiConfig.chatSessionsList}/$sessionId');
+  }
+
+  Future<Response> renameChatSession(String sessionId, String title) async {
+    return _dio.put('${ApiConfig.chatSessionsList}/$sessionId', data: {'title': title});
+  }
+
+  Future<Response> pinChatSession(String sessionId, bool isPinned) async {
+    return _dio.put('${ApiConfig.chatSessionsList}/$sessionId/pin', data: {'is_pinned': isPinned});
+  }
+
+  Future<Response> shareChatSession(String sessionId) async {
+    return _dio.post('${ApiConfig.chatSessionsList}/$sessionId/share');
+  }
+
   // Checkup
   Future<Response> getCheckupReports({int page = 1}) async {
     return _dio.get(ApiConfig.checkupReports, queryParameters: {'page': page});

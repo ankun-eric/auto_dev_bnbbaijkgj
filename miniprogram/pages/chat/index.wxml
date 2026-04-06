@@ -1,4 +1,12 @@
 <view class="chat-page">
+  <!-- 顶部操作栏 -->
+  <view class="chat-top-bar">
+    <view class="drawer-toggle" bindtap="openDrawer">
+      <text class="toggle-icon">☰</text>
+    </view>
+    <view class="top-bar-spacer"></view>
+  </view>
+
   <!-- 消息列表 -->
   <scroll-view class="msg-list" scroll-y scroll-into-view="{{scrollToId}}" scroll-with-animation>
     <!-- 提示信息 -->
@@ -62,4 +70,15 @@
       </view>
     </view>
   </view>
+
+  <!-- 对话历史抽屉 -->
+  <chat-drawer
+    show="{{drawerShow}}"
+    sessions="{{allSessions}}"
+    bind:close="onDrawerClose"
+    bind:sessiontap="onSessionTap"
+    bind:newchat="onDrawerNewChat"
+    bind:refresh="onDrawerRefresh"
+    bind:share="onDrawerShare"
+  />
 </view>

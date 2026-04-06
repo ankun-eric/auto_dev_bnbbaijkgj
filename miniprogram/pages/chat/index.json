@@ -1,4 +1,7 @@
 {
   "navigationBarTitleText": "AI问诊",
-  "disableScroll": true
+  "disableScroll": true,
+  "usingComponents": {
+    "chat-drawer": "/components/chat-drawer/chat-drawer"
+  }
 }

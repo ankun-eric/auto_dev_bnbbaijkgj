@@ -2,8 +2,9 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { NavBar, Input, Button, SpinLoading, Image, Toast } from 'antd-mobile';
+import { NavBar, Input, Button, SpinLoading, Toast } from 'antd-mobile';
 import api from '@/lib/api';
+import ChatSidebar from '@/components/ChatSidebar';
 
 interface Message {
   id: string;
@@ -26,6 +27,7 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([welcomeMessage]);
   const [inputVal, setInputVal] = useState('');
   const [loading, setLoading] = useState(false);
+  const [sidebarVisible, setSidebarVisible] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
 
   const loadHistory = useCallback(async () => {
@@ -127,10 +129,31 @@ export default function ChatPage() {
     });
   };
 
+  const handleSessionCreated = (newSessionId: number) => {
+    router.push(`/chat/${newSessionId}`);
+  };
+
   return (
     <div className="flex flex-col h-screen bg-gray-50">
       <NavBar
         onBack={() => router.back()}
+        left={
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setSidebarVisible(true);
+            }}
+            className="w-8 h-8 flex items-center justify-center rounded-lg -ml-1"
+            style={{ background: 'rgba(255,255,255,0.2)' }}
+            aria-label="打开历史对话"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round">
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <line x1="3" y1="12" x2="21" y2="12" />
+              <line x1="3" y1="18" x2="21" y2="18" />
+            </svg>
+          </button>
+        }
         style={{
           '--height': '48px',
           background: 'linear-gradient(135deg, #52c41a, #13c2c2)',
@@ -220,6 +243,13 @@ export default function ChatPage() {
           ➤
         </Button>
       </div>
+
+      <ChatSidebar
+        visible={sidebarVisible}
+        onClose={() => setSidebarVisible(false)}
+        currentSessionId={sessionId}
+        onSessionCreated={handleSessionCreated}
+      />
     </div>
   );
 }

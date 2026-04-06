@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { List, Card, Button, Tag, FloatingBubble, Toast, SpinLoading } from 'antd-mobile';
 import { AddOutline, MessageOutline } from 'antd-mobile-icons';
 import api from '@/lib/api';
+import ChatSidebar from '@/components/ChatSidebar';
 
 const consultTypes = [
   {
@@ -58,6 +59,7 @@ export default function AIPage() {
   const router = useRouter();
   const [recentChats, setRecentChats] = useState<SessionItem[]>([]);
   const [creating, setCreating] = useState(false);
+  const [sidebarVisible, setSidebarVisible] = useState(false);
 
   const fetchSessions = useCallback(async () => {
     try {
@@ -94,8 +96,25 @@ export default function AIPage() {
   return (
     <div className="pb-20">
       <div className="gradient-header">
-        <h1 className="text-xl font-bold">AI智能问诊</h1>
-        <p className="text-xs opacity-80 mt-1">选择问诊类型，开始健康咨询</p>
+        <div className="flex items-center justify-between">
+          <button
+            onClick={() => setSidebarVisible(true)}
+            className="w-9 h-9 flex items-center justify-center rounded-lg"
+            style={{ background: 'rgba(255,255,255,0.2)' }}
+            aria-label="打开历史对话"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round">
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <line x1="3" y1="12" x2="21" y2="12" />
+              <line x1="3" y1="18" x2="21" y2="18" />
+            </svg>
+          </button>
+          <div className="text-center flex-1">
+            <h1 className="text-xl font-bold">AI智能问诊</h1>
+            <p className="text-xs opacity-80 mt-1">选择问诊类型，开始健康咨询</p>
+          </div>
+          <div className="w-9" />
+        </div>
       </div>
 
       <div className="px-4 -mt-4">
@@ -130,7 +149,13 @@ export default function AIPage() {
 
         <div className="flex items-center justify-between mb-3">
           <span className="section-title mb-0">最近对话</span>
-          <span className="text-xs text-gray-400">{recentChats.length}条记录</span>
+          <button
+            className="text-xs px-3 py-1 rounded-full"
+            style={{ color: '#52c41a', background: '#f0faf0' }}
+            onClick={() => setSidebarVisible(true)}
+          >
+            查看全部
+          </button>
         </div>
 
         {recentChats.length === 0 ? (
@@ -202,6 +227,11 @@ export default function AIPage() {
       >
         <AddOutline fontSize={24} color="#fff" />
       </FloatingBubble>
+
+      <ChatSidebar
+        visible={sidebarVisible}
+        onClose={() => setSidebarVisible(false)}
+      />
     </div>
   );
 }

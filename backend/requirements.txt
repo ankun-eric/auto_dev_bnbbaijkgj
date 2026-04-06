@@ -17,3 +17,4 @@ python-dotenv==1.0.1
 alembic==1.13.0
 cryptography==43.0.0
 tencentcloud-sdk-python==3.0.1200
+openpyxl==3.1.5

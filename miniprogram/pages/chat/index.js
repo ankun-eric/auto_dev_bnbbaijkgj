@@ -1,4 +1,4 @@
-const { post, get } = require('../../utils/request');
+const { post, get, put, del } = require('../../utils/request');
 const { generateId } = require('../../utils/util');
 
 Page({
@@ -8,12 +8,16 @@ Page({
     scrollToId: '',
     inputFocus: false,
     chatId: '',
-    chatType: 'general'
+    chatType: 'general',
+    drawerShow: false,
+    allSessions: []
   },
 
   onLoad(options) {
     const { type = 'general', chatId, question } = options;
     this.setData({ chatType: type, chatId: chatId || generateId() });
+
+    wx.showShareMenu({ withShareTicket: true, menus: ['shareAppMessage', 'shareTimeline'] });
 
     const typeNames = {
       general: '综合问诊', symptom: '症状分析', tcm: '中医问诊', nutrition: '营养咨询'
@@ -34,6 +38,14 @@ Page({
     }
   },
 
+  onShareAppMessage() {
+    const chatId = this.data.chatId;
+    return {
+      title: '宾尼小康AI健康咨询',
+      path: `/pages/chat/index?chatId=${chatId}&type=${this.data.chatType}`
+    };
+  },
+
   async loadChatHistory(chatId) {
     try {
       // const res = await get(`/api/chat/${chatId}/messages`);
@@ -41,6 +53,70 @@ Page({
     } catch (e) {
       console.log('loadChatHistory error', e);
     }
+  },
+
+  async loadSessions() {
+    try {
+      const res = await get('/api/chat-sessions', { page: 1, page_size: 100 }, { showLoading: false, suppressErrorToast: true });
+      const sessions = Array.isArray(res) ? res : (res.items || res.data || []);
+      this.setData({ allSessions: sessions });
+    } catch (e) {
+      console.log('loadSessions error', e);
+    }
+  },
+
+  openDrawer() {
+    this.loadSessions();
+    this.setData({ drawerShow: true });
+  },
+
+  onDrawerClose() {
+    this.setData({ drawerShow: false });
+  },
+
+  onSessionTap(e) {
+    const { session } = e.detail;
+    this.setData({ drawerShow: false });
+
+    const typeNames = {
+      general: '综合问诊', symptom: '症状分析', tcm: '中医问诊', nutrition: '营养咨询'
+    };
+    const type = session.session_type || 'general';
+    this.setData({
+      chatId: session.id,
+      chatType: type,
+      messages: []
+    });
+    wx.setNavigationBarTitle({ title: typeNames[type] || 'AI问诊' });
+    this.addMessage('assistant', `您好！我是宾尼小康AI健康助手，很高兴为您提供${typeNames[type] || '健康'}咨询服务。\n\n请描述您的症状或健康问题，我会为您提供专业的分析和建议。`);
+    this.loadChatHistory(session.id);
+  },
+
+  onDrawerNewChat() {
+    this.setData({ drawerShow: false });
+    const typeNames = {
+      general: '综合问诊', symptom: '症状分析', tcm: '中医问诊', nutrition: '营养咨询'
+    };
+    const type = 'general';
+    this.setData({
+      chatId: generateId(),
+      chatType: type,
+      messages: []
+    });
+    wx.setNavigationBarTitle({ title: typeNames[type] });
+    this.addMessage('assistant', `您好！我是宾尼小康AI健康助手，很高兴为您提供${typeNames[type]}咨询服务。\n\n请描述您的症状或健康问题，我会为您提供专业的分析和建议。`);
+  },
+
+  onDrawerRefresh() {
+    this.loadSessions();
+  },
+
+  onDrawerShare(e) {
+    const { session, shareToken, shareUrl } = e.detail;
+    wx.setClipboardData({
+      data: shareUrl || shareToken,
+      success: () => wx.showToast({ title: '分享链接已复制', icon: 'success' })
+    });
   },
 
   onInput(e) {

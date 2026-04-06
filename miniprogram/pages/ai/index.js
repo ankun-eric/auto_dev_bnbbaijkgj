@@ -16,10 +16,9 @@ Page({
       '失眠有什么好的调理方法？',
       '血压偏高该注意什么？'
     ],
-    chatHistory: [
-      { id: '1', type: '综合问诊', summary: '关于最近失眠的咨询，AI建议保持规律作息...', time: '今天 14:30' },
-      { id: '2', type: '症状分析', summary: '头痛伴有眩晕症状分析结果...', time: '昨天 09:15' }
-    ],
+    chatHistory: [],
+    drawerShow: false,
+    allSessions: [],
     orderInfo: null,
     verifying: false
   },
@@ -39,11 +38,70 @@ Page({
 
   async loadChatHistory() {
     try {
-      // const res = await get('/api/chat/sessions');
-      // this.setData({ chatHistory: res.data });
+      const res = await get('/api/chat-sessions', { page: 1, page_size: 100 }, { showLoading: false, suppressErrorToast: true });
+      const sessions = Array.isArray(res) ? res : (res.items || res.data || []);
+      this.setData({
+        allSessions: sessions,
+        chatHistory: sessions.slice(0, 3).map(s => ({
+          id: s.id,
+          type: this._getTypeLabel(s.session_type),
+          summary: s.title || '未命名对话',
+          time: this._formatSessionTime(s.updated_at || s.created_at)
+        }))
+      });
     } catch (e) {
       console.log('loadChatHistory error', e);
     }
+  },
+
+  _getTypeLabel(type) {
+    const map = { general: '综合问诊', symptom: '症状分析', tcm: '中医问诊', nutrition: '营养咨询' };
+    return map[type] || type || '对话';
+  },
+
+  _formatSessionTime(dateStr) {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const ts = d.getTime();
+    const pad = n => String(n).padStart(2, '0');
+    const timeStr = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    if (ts >= todayStart) return `今天 ${timeStr}`;
+    if (ts >= todayStart - 86400000) return `昨天 ${timeStr}`;
+    return `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${timeStr}`;
+  },
+
+  openDrawer() {
+    if (!checkLogin()) return;
+    this.setData({ drawerShow: true });
+  },
+
+  onDrawerClose() {
+    this.setData({ drawerShow: false });
+  },
+
+  onSessionTap(e) {
+    const { session } = e.detail;
+    this.setData({ drawerShow: false });
+    wx.navigateTo({ url: `/pages/chat/index?chatId=${session.id}&type=${session.session_type || 'general'}` });
+  },
+
+  onDrawerNewChat() {
+    this.setData({ drawerShow: false });
+    wx.navigateTo({ url: '/pages/chat/index?type=general' });
+  },
+
+  onDrawerRefresh() {
+    this.loadChatHistory();
+  },
+
+  onDrawerShare(e) {
+    const { session, shareToken, shareUrl } = e.detail;
+    wx.setClipboardData({
+      data: shareUrl || shareToken,
+      success: () => wx.showToast({ title: '分享链接已复制', icon: 'success' })
+    });
   },
 
   startConsult(e) {
@@ -73,7 +131,8 @@ Page({
   },
 
   viewAllChats() {
-    wx.navigateTo({ url: '/pages/chat/index?viewHistory=true' });
+    if (!checkLogin()) return;
+    this.setData({ drawerShow: true });
   },
 
   startScan() {
