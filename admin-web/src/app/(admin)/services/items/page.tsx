@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Table, Button, Space, Modal, Form, Input, InputNumber, Select, Switch, Upload, message, Typography, Tag, Popconfirm } from 'antd';
 import { PlusOutlined, EditOutlined, UploadOutlined, ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons';
 import { get, post, put } from '@/lib/api';
@@ -20,17 +20,14 @@ interface ServiceItem {
   status: string;
   image: string;
   description: string;
+  serviceType: string;
   createdAt: string;
 }
 
-const categoryOptions = [
-  { label: 'AI健康咨询', value: 1 },
-  { label: '营养管理', value: 2 },
-  { label: '体检服务', value: 3 },
-  { label: '心理健康', value: 4 },
-  { label: '中医养生', value: 5 },
-  { label: '运动健身', value: 6 },
-];
+interface CategoryOption {
+  label: string;
+  value: number;
+}
 
 function firstImage(images: unknown): string {
   if (Array.isArray(images) && images.length > 0) return String(images[0]);
@@ -38,9 +35,9 @@ function firstImage(images: unknown): string {
   return '';
 }
 
-function mapServiceItemFromApi(raw: Record<string, unknown>): ServiceItem {
+function mapServiceItemFromApi(raw: Record<string, unknown>, categoryMap: Map<number, string>): ServiceItem {
   const categoryId = Number(raw.category_id ?? 0);
-  const categoryName = categoryOptions.find((c) => c.value === categoryId)?.label ?? '—';
+  const categoryName = categoryMap.get(categoryId) ?? '未分类';
   return {
     id: Number(raw.id),
     name: String(raw.name ?? ''),
@@ -53,6 +50,7 @@ function mapServiceItemFromApi(raw: Record<string, unknown>): ServiceItem {
     status: String(raw.status ?? 'deleted'),
     image: firstImage(raw.images),
     description: String(raw.description ?? ''),
+    serviceType: String(raw.service_type ?? 'online'),
     createdAt: String(raw.created_at ?? raw.updated_at ?? ''),
   };
 }
@@ -67,20 +65,44 @@ export default function ServiceItemsPage() {
   const [modalVisible, setModalVisible] = useState(false);
   const [editingRecord, setEditingRecord] = useState<ServiceItem | null>(null);
   const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
+  const [categoryOptions, setCategoryOptions] = useState<CategoryOption[]>([]);
+  const [categoryMap, setCategoryMap] = useState<Map<number, string>>(new Map());
   const [form] = Form.useForm();
 
-  useEffect(() => {
-    fetchData();
+  const fetchCategories = useCallback(async () => {
+    try {
+      const res = await get('/api/admin/services/categories');
+      if (res) {
+        const rawList = res.items || res.list || res;
+        if (Array.isArray(rawList)) {
+          const opts: CategoryOption[] = rawList
+            .filter((c: Record<string, unknown>) => c.status === 'active')
+            .map((c: Record<string, unknown>) => ({
+              label: String(c.name ?? ''),
+              value: Number(c.id),
+            }));
+          const map = new Map<number, string>();
+          rawList.forEach((c: Record<string, unknown>) => {
+            map.set(Number(c.id), String(c.name ?? ''));
+          });
+          setCategoryOptions(opts);
+          setCategoryMap(map);
+          return map;
+        }
+      }
+    } catch {}
+    return new Map<number, string>();
   }, []);
 
-  const fetchData = async (page = 1, pageSize = 10) => {
+  const fetchData = useCallback(async (page = 1, pageSize = 10, catMap?: Map<number, string>) => {
     setLoading(true);
+    const usedMap = catMap ?? categoryMap;
     try {
       const res = await get('/api/admin/services/items', { page, page_size: pageSize });
       if (res) {
         const itemsRaw = res.items || res.list || res;
         const rawList = Array.isArray(itemsRaw) ? itemsRaw : [];
-        setItems(rawList.map((r: Record<string, unknown>) => mapServiceItemFromApi(r)));
+        setItems(rawList.map((r: Record<string, unknown>) => mapServiceItemFromApi(r, usedMap)));
         setPagination((prev) => ({ ...prev, current: page, total: res.total ?? rawList.length }));
       }
     } catch {
@@ -89,12 +111,19 @@ export default function ServiceItemsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [categoryMap]);
+
+  useEffect(() => {
+    (async () => {
+      const catMap = await fetchCategories();
+      await fetchData(1, 10, catMap);
+    })();
+  }, []);
 
   const handleAdd = () => {
     setEditingRecord(null);
     form.resetFields();
-    form.setFieldsValue({ status: true, stock: 999 });
+    form.setFieldsValue({ status: true, stock: 999, serviceType: 'online' });
     setModalVisible(true);
   };
 
@@ -108,6 +137,7 @@ export default function ServiceItemsPage() {
       stock: record.stock,
       image: record.image,
       description: record.description,
+      serviceType: record.serviceType,
       status: isServiceActive(record.status),
     });
     setModalVisible(true);
@@ -117,16 +147,17 @@ export default function ServiceItemsPage() {
     const newStatus = isServiceActive(record.status) ? 'deleted' : 'active';
     try {
       await put(`/api/admin/services/items/${record.id}`, { status: newStatus });
-    } catch {}
-    setItems((prev) => prev.map((i) => (i.id === record.id ? { ...i, status: newStatus } : i)));
-    message.success(isServiceActive(newStatus) ? '已上架' : '已下架');
+      message.success(isServiceActive(newStatus) ? '已上架' : '已下架');
+      fetchData(pagination.current, pagination.pageSize);
+    } catch {
+      message.error('操作失败');
+    }
   };
 
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
       const statusStr = values.status ? 'active' : 'deleted';
-      const categoryName = categoryOptions.find((c) => c.value === values.categoryId)?.label ?? '';
       const payload = {
         name: values.name,
         category_id: values.categoryId,
@@ -134,59 +165,23 @@ export default function ServiceItemsPage() {
         original_price: values.originalPrice,
         stock: values.stock,
         description: values.description,
+        service_type: values.serviceType || 'online',
         status: statusStr,
         images: values.image ? [values.image] : [],
       };
 
       if (editingRecord) {
-        try {
-          await put(`/api/admin/services/items/${editingRecord.id}`, payload);
-        } catch {}
-        setItems((prev) =>
-          prev.map((i) =>
-            i.id === editingRecord.id
-              ? {
-                  ...i,
-                  name: values.name,
-                  categoryId: values.categoryId,
-                  categoryName,
-                  price: values.price,
-                  originalPrice: values.originalPrice ?? i.originalPrice,
-                  stock: values.stock,
-                  description: values.description ?? i.description,
-                  status: statusStr,
-                  image: typeof values.image === 'string' ? values.image : i.image,
-                  sales: i.sales,
-                  createdAt: i.createdAt,
-                }
-              : i
-          )
-        );
+        await put(`/api/admin/services/items/${editingRecord.id}`, payload);
         message.success('编辑成功');
       } else {
-        const localRow: ServiceItem = {
-          id: Date.now(),
-          name: values.name,
-          categoryId: values.categoryId,
-          categoryName,
-          price: values.price,
-          originalPrice: values.originalPrice ?? 0,
-          stock: values.stock,
-          sales: 0,
-          status: statusStr,
-          image: typeof values.image === 'string' ? values.image : '',
-          description: values.description ?? '',
-          createdAt: new Date().toISOString().split('T')[0],
-        };
-        try {
-          const res = await post('/api/admin/services/items', payload);
-          if (res?.id != null) localRow.id = res.id;
-        } catch {}
-        setItems((prev) => [...prev, localRow]);
+        await post('/api/admin/services/items', payload);
         message.success('新增成功');
       }
       setModalVisible(false);
-    } catch {}
+      fetchData(pagination.current, pagination.pageSize);
+    } catch {
+      message.error('操作失败');
+    }
   };
 
   const columns = [
@@ -199,7 +194,7 @@ export default function ServiceItemsPage() {
       dataIndex: 'originalPrice',
       key: 'originalPrice',
       width: 90,
-      render: (v: number) => <span style={{ textDecoration: 'line-through', color: '#999' }}>¥{v}</span>,
+      render: (v: number) => v ? <span style={{ textDecoration: 'line-through', color: '#999' }}>¥{v}</span> : '—',
     },
     { title: '库存', dataIndex: 'stock', key: 'stock', width: 70 },
     { title: '销量', dataIndex: 'sales', key: 'sales', width: 70 },
@@ -212,6 +207,7 @@ export default function ServiceItemsPage() {
         <Tag color={isServiceActive(v) ? 'green' : 'red'}>{isServiceActive(v) ? '上架' : '下架'}</Tag>
       ),
     },
+    { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt', width: 160, render: (v: string) => v ? v.slice(0, 19).replace('T', ' ') : '' },
     {
       title: '操作',
       key: 'action',
@@ -256,7 +252,7 @@ export default function ServiceItemsPage() {
           showTotal: (total) => `共 ${total} 条`,
           onChange: (page, pageSize) => fetchData(page, pageSize),
         }}
-        scroll={{ x: 1000 }}
+        scroll={{ x: 1100 }}
       />
 
       <Modal
@@ -285,13 +281,17 @@ export default function ServiceItemsPage() {
           <Form.Item label="库存" name="stock" rules={[{ required: true, message: '请输入库存' }]}>
             <InputNumber min={0} style={{ width: '100%' }} />
           </Form.Item>
-          <Form.Item label="服务图片" name="image">
-            <Upload listType="picture-card" maxCount={1} beforeUpload={() => false}>
-              <div>
-                <UploadOutlined />
-                <div style={{ marginTop: 8 }}>上传图片</div>
-              </div>
-            </Upload>
+          <Form.Item label="服务类型" name="serviceType">
+            <Select
+              options={[
+                { label: '线上服务', value: 'online' },
+                { label: '线下服务', value: 'offline' },
+              ]}
+              placeholder="请选择服务类型"
+            />
+          </Form.Item>
+          <Form.Item label="服务图片URL" name="image">
+            <Input placeholder="请输入图片URL地址" />
           </Form.Item>
           <Form.Item label="服务描述" name="description">
             <TextArea rows={4} placeholder="请输入服务描述" />

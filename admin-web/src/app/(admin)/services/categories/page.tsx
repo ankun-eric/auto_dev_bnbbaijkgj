@@ -11,24 +11,26 @@ interface Category {
   id: number;
   name: string;
   icon: string;
-  sort: number;
-  status: number;
   description: string;
-  serviceCount: number;
-  createdAt: string;
+  sort_order: number;
+  status: string;
+  created_at: string;
 }
 
-const mockCategories: Category[] = [
-  { id: 1, name: 'AI健康咨询', icon: '🤖', sort: 1, status: 1, description: '智能AI健康问答服务', serviceCount: 5, createdAt: '2026-01-10' },
-  { id: 2, name: '营养管理', icon: '🥗', sort: 2, status: 1, description: '个性化营养方案定制', serviceCount: 8, createdAt: '2026-01-10' },
-  { id: 3, name: '体检服务', icon: '🏥', sort: 3, status: 1, description: '体检预约及报告解读', serviceCount: 3, createdAt: '2026-01-15' },
-  { id: 4, name: '心理健康', icon: '🧠', sort: 4, status: 1, description: '心理评估与咨询', serviceCount: 4, createdAt: '2026-02-01' },
-  { id: 5, name: '中医养生', icon: '🌿', sort: 5, status: 0, description: '中医体质辨识与调理', serviceCount: 6, createdAt: '2026-02-15' },
-  { id: 6, name: '运动健身', icon: '🏃', sort: 6, status: 1, description: '运动方案与指导', serviceCount: 7, createdAt: '2026-03-01' },
-];
+function mapCategoryFromApi(raw: Record<string, unknown>): Category {
+  return {
+    id: Number(raw.id),
+    name: String(raw.name ?? ''),
+    icon: String(raw.icon ?? ''),
+    description: String(raw.description ?? ''),
+    sort_order: Number(raw.sort_order ?? 0),
+    status: String(raw.status ?? 'active'),
+    created_at: String(raw.created_at ?? ''),
+  };
+}
 
 export default function ServiceCategoriesPage() {
-  const [categories, setCategories] = useState<Category[]>(mockCategories);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingRecord, setEditingRecord] = useState<Category | null>(null);
@@ -44,9 +46,12 @@ export default function ServiceCategoriesPage() {
       const res = await get('/api/admin/services/categories');
       if (res) {
         const items = res.items || res.list || res;
-        setCategories(Array.isArray(items) ? items : []);
+        const rawList = Array.isArray(items) ? items : [];
+        setCategories(rawList.map((r: Record<string, unknown>) => mapCategoryFromApi(r)));
       }
-    } catch {} finally {
+    } catch {
+      setCategories([]);
+    } finally {
       setLoading(false);
     }
   };
@@ -54,13 +59,19 @@ export default function ServiceCategoriesPage() {
   const handleAdd = () => {
     setEditingRecord(null);
     form.resetFields();
-    form.setFieldsValue({ sort: categories.length + 1, status: true });
+    form.setFieldsValue({ sort_order: categories.length + 1, status: true });
     setModalVisible(true);
   };
 
   const handleEdit = (record: Category) => {
     setEditingRecord(record);
-    form.setFieldsValue({ ...record, status: record.status === 1 });
+    form.setFieldsValue({
+      name: record.name,
+      icon: record.icon,
+      description: record.description,
+      sort_order: record.sort_order,
+      status: record.status === 'active',
+    });
     setModalVisible(true);
   };
 
@@ -68,37 +79,34 @@ export default function ServiceCategoriesPage() {
     try {
       await del(`/api/admin/services/categories/${id}`);
       message.success('删除成功');
-    } catch {}
-    setCategories((prev) => prev.filter((c) => c.id !== id));
+      fetchData();
+    } catch {
+      message.error('删除失败');
+    }
   };
 
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
-      const payload = { ...values, status: values.status ? 1 : 0 };
+      const payload = {
+        name: values.name,
+        icon: values.icon,
+        description: values.description || '',
+        sort_order: values.sort_order || 0,
+      };
 
       if (editingRecord) {
-        try {
-          await put(`/api/admin/services/categories/${editingRecord.id}`, payload);
-        } catch {}
-        setCategories((prev) =>
-          prev.map((c) => (c.id === editingRecord.id ? { ...c, ...payload } : c))
-        );
+        await put(`/api/admin/services/categories/${editingRecord.id}`, payload);
         message.success('编辑成功');
       } else {
-        try {
-          const res = await post('/api/admin/services/categories', payload);
-          payload.id = res?.id || Date.now();
-        } catch {
-          payload.id = Date.now();
-        }
-        payload.serviceCount = 0;
-        payload.createdAt = new Date().toISOString().split('T')[0];
-        setCategories((prev) => [...prev, payload]);
+        await post('/api/admin/services/categories', payload);
         message.success('新增成功');
       }
       setModalVisible(false);
-    } catch {}
+      fetchData();
+    } catch {
+      message.error('操作失败');
+    }
   };
 
   const columns = [
@@ -112,20 +120,20 @@ export default function ServiceCategoriesPage() {
     },
     { title: '分类名称', dataIndex: 'name', key: 'name', width: 150 },
     { title: '描述', dataIndex: 'description', key: 'description' },
-    { title: '排序', dataIndex: 'sort', key: 'sort', width: 70 },
-    { title: '服务数', dataIndex: 'serviceCount', key: 'serviceCount', width: 80 },
+    { title: '排序', dataIndex: 'sort_order', key: 'sort_order', width: 70 },
     {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
       width: 80,
-      render: (v: number) => <Tag color={v === 1 ? 'green' : 'red'}>{v === 1 ? '启用' : '禁用'}</Tag>,
+      render: (v: string) => <Tag color={v === 'active' ? 'green' : 'red'}>{v === 'active' ? '启用' : '禁用'}</Tag>,
     },
+    { title: '创建时间', dataIndex: 'created_at', key: 'created_at', width: 180, render: (v: string) => v ? v.slice(0, 19).replace('T', ' ') : '' },
     {
       title: '操作',
       key: 'action',
       width: 150,
-      render: (_: any, record: Category) => (
+      render: (_: unknown, record: Category) => (
         <Space>
           <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>编辑</Button>
           <Popconfirm title="确定删除该分类？" onConfirm={() => handleDelete(record.id)}>
@@ -162,7 +170,7 @@ export default function ServiceCategoriesPage() {
           <Form.Item label="描述" name="description">
             <Input.TextArea placeholder="请输入分类描述" rows={3} />
           </Form.Item>
-          <Form.Item label="排序" name="sort">
+          <Form.Item label="排序" name="sort_order">
             <InputNumber min={1} style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item label="启用" name="status" valuePropName="checked">

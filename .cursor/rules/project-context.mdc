@@ -508,6 +508,38 @@ All 9 admin API endpoints return HTTP 200 with correct data structure. Admin fro
 
 - Created `user_docs/AI健康咨询改版.md` — user manual for AI health consultation rebranding
 
+## Bug Fix: 后台服务管理页面数据不一致
+
+### Root Cause
+
+管理后台的「服务管理」模块存在前端数据源问题：
+1. 服务分类管理页面使用硬编码的 mock 数据（AI健康咨询、营养管理等），与数据库中的真实分类（健康食品、口腔服务、体检服务、专家咨询、养老服务）不一致
+2. 服务项目管理页面的分类下拉选项也是硬编码的，无法正确关联数据库中的分类
+3. 后端 `ServiceItemUpdate` schema 缺少 `category_id` 字段，导致编辑时无法修改分类
+
+### Admin Web
+
+- Rewrote `admin-web/src/app/(admin)/services/categories/page.tsx` — removed mock data, added `mapCategoryFromApi()` mapping function for API field conversion (`sort_order`, string `status`), all CRUD operations now correctly call API and refresh data
+- Rewrote `admin-web/src/app/(admin)/services/items/page.tsx` — replaced hardcoded `categoryOptions` with dynamic API fetch via `fetchCategories()`, added `categoryMap` state for name resolution, all CRUD operations use API with proper data refresh
+
+### Backend
+
+- Updated `backend/app/schemas/service.py` — added `category_id: Optional[int] = None` to `ServiceItemUpdate` schema, enabling category reassignment during item editing
+
+### Testing
+
+- 11/11 server API tests passed (admin login, category list/create/update/delete, item list/create/update-with-category-change/delete, public categories, public items)
+
+### Deployment (2026-04-06 #2)
+
+- Rebuilt and redeployed backend and admin-web containers
+- All 4 containers healthy (db, backend, admin-web, h5-web)
+- No mobile/client-side code changes (Flutter, miniprogram, H5 unaffected)
+
+### User Documentation
+
+- Created `user_docs/后台服务管理.md` — user manual for admin service management feature
+
 ## Notes For Next Iteration
 
 - Merchant identities are granted by admin only; new self-registered accounts still default to normal users.

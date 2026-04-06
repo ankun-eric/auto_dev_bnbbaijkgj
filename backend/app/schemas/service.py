@@ -35,6 +35,7 @@ class ServiceItemCreate(BaseModel):
 
 
 class ServiceItemUpdate(BaseModel):
+    category_id: Optional[int] = None
     name: Optional[str] = None
     description: Optional[str] = None
     price: Optional[float] = None
