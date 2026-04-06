@@ -45,8 +45,7 @@ class _TrendScreenState extends State<TrendScreen> {
 
   Future<void> _loadAnalysis() async {
     try {
-      final rawData = _trendData.map((e) => e.toJson()).toList();
-      final response = await _api.getTrendAnalysis(widget.indicatorName, rawData);
+      final response = await _api.getTrendAnalysis(widget.indicatorName);
       if (response.statusCode == 200) {
         final analysis = response.data['data'];
         if (mounted) {
