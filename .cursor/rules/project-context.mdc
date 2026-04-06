@@ -540,6 +540,77 @@ All 9 admin API endpoints return HTTP 200 with correct data structure. Admin fro
 
 - Created `user_docs/后台服务管理.md` — user manual for admin service management feature
 
+## Latest Feature: 体检报告智能解读全面升级
+
+### Backend
+
+- Added 2 new models in `backend/app/models/models.py`: `OcrConfig` (ocr_configs table), `ReportAlert` (report_alerts table).
+- Extended `CheckupReport` model with: `thumbnail_url`, `file_type`, `abnormal_count`, `share_token`, `share_expires_at`, `ai_analysis_json`, `status`.
+- Extended `CheckupIndicator` model with: `category`, `advice`.
+- Created `backend/app/services/ocr_service.py` — Baidu OCR integration (token management, standard/high-accuracy recognition, image quality check, PDF text extraction).
+- Created `backend/app/schemas/report.py` — Pydantic schemas for report upload, detail, list, analysis, trend, alert, share, and OCR config.
+- Created `backend/app/api/report.py` — 15 API endpoints:
+  - User: `POST /api/report/upload`, `POST /api/report/analyze`, `GET /api/report/detail/{id}`, `GET /api/report/list`, `GET /api/report/trend/{indicator_name}`, `POST /api/report/trend/analysis`, `POST /api/report/alert/check`, `GET /api/report/alerts`, `PUT /api/report/alerts/{id}/read`, `POST /api/report/share`, `GET /api/report/share/{token}` (no auth)
+  - Admin: `GET /api/admin/ocr/config`, `PUT /api/admin/ocr/config`, `POST /api/admin/ocr/test`
+- Updated `backend/app/services/ai_service.py` — added `analyze_report_structured()` (structured JSON interpretation with categories/abnormal/normal indicators) and `analyze_trend()` (trend analysis).
+- Updated `backend/app/services/schema_sync.py` — added `_sync_report_tables()` for auto-migration.
+- Updated `backend/app/init_data.py` — added `_init_ocr_config()`.
+- Updated `backend/app/main.py` — registered report router.
+
+### Admin Web
+
+- Updated `admin-web/src/app/(admin)/layout.tsx` — added "OCR识别配置" menu item under AI管理.
+- Created `admin-web/src/app/(admin)/ocr-config/page.tsx` — OCR config management page with enable/disable switch, API Key, Secret Key (masked), recognition type selector (standard/high-accuracy), connection test button.
+
+### H5 Web
+
+- Completely rewrote `h5-web/src/app/checkup/page.tsx` — three upload methods (gallery/camera/PDF), real API integration replacing mock data, alert banner.
+- Created `h5-web/src/app/checkup/result/[id]/page.tsx` — AI interpretation result page with dual view switching.
+- Created `h5-web/src/app/checkup/detail/[id]/page.tsx` — report detail page with original image preview, trend links.
+- Created `h5-web/src/app/checkup/trend/page.tsx` — indicator trend chart (canvas) with normal range and AI analysis.
+- Created `h5-web/src/app/shared/report/[token]/page.tsx` — public shared report page (no login required).
+- Created `h5-web/src/components/AlertBanner.tsx` — trend deterioration alert banner component.
+
+### Mini Program
+
+- Completely rewrote `miniprogram/pages/checkup/` — three upload methods, real API, alert banner, paginated history.
+- Created `miniprogram/pages/checkup-detail/` — report detail with dual view, share, trend links.
+- Created `miniprogram/pages/checkup-trend/` — canvas trend chart with normal range marking.
+- Updated `miniprogram/app.json` — registered new pages.
+
+### Flutter App
+
+- Created `flutter_app/lib/models/checkup_report.dart` — data models (CheckupReport, CheckupIndicator, TrendData, ReportAlert).
+- Created `flutter_app/lib/screens/health/report_detail_screen.dart` — report detail/interpretation page with dual TabBar view.
+- Created `flutter_app/lib/screens/health/trend_screen.dart` — trend chart (CustomPainter) with normal range and AI analysis.
+- Updated `flutter_app/lib/screens/health/checkup_screen.dart` — completely rewritten with three upload methods, alert banner, real API data.
+- Updated `flutter_app/lib/services/api_service.dart` — added 9 report-related API methods.
+- Updated `flutter_app/lib/config/api_config.dart` — added report API path constants.
+- Updated `flutter_app/lib/providers/health_provider.dart` — added report list/alert state management.
+- Updated `flutter_app/lib/main.dart` — registered new routes.
+- Updated `flutter_app/pubspec.yaml` — added `file_picker` dependency.
+
+### Testing
+
+- 46/46 local pytest tests passed (report upload, OCR config, report list/detail, trend, alerts, share, auth).
+- 29/29 server API tests passed (admin login, OCR config CRUD, report upload/list/detail, trends, alerts, share, auth checks).
+
+### Deployment (2026-04-06 #3)
+
+- Rebuilt and redeployed all containers (db, backend, admin-web, h5-web)
+- All 4 containers healthy
+- Rebuilt miniprogram zip, Android APK, iOS IPA
+
+### Generated Delivery Artifacts
+
+- Mini program: `miniprogram_20260406_215540_wbd7.zip`
+- Android APK: `bini_health_android-v20260406-220450-75mh.apk` (GitHub Release: `android-v20260406-220450-75mh`)
+- iOS IPA: `bini_health_ios-v20260406-215633-4221.ipa` (GitHub Release: `ios-v20260406-215633-4221`)
+
+### User Documentation
+
+- Created `user_docs/体检报告智能解读.md` — comprehensive user manual for health checkup report intelligent interpretation.
+
 ## Notes For Next Iteration
 
 - Merchant identities are granted by admin only; new self-registered accounts still default to normal users.
