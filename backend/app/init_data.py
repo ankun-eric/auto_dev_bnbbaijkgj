@@ -12,6 +12,7 @@ from app.models.models import (
     MemberLevel,
     ServiceCategory,
     SmsConfig,
+    SmsTemplate,
     SystemConfig,
     User,
     UserRole,
@@ -31,6 +32,7 @@ async def init_default_data():
             await _init_ai_model_templates(db)
             await _migrate_push_config_keys(db)
             await _migrate_sms_config_provider(db)
+            await _init_sms_config_and_template(db)
             await db.commit()
             logger.info("Default data initialization completed")
         except Exception as e:
@@ -370,3 +372,70 @@ async def _migrate_sms_config_provider(db: AsyncSession):
     if configs:
         await db.flush()
         logger.info("Set provider='tencent' on %d existing SmsConfig rows", len(configs))
+
+
+async def _init_sms_config_and_template(db: AsyncSession):
+    """Seed default Tencent Cloud SMS config and login verification template."""
+    from app.core.config import settings
+
+    expected_sdk_app_id = settings.TENCENT_SMS_SDK_APP_ID or "1400920269"
+    expected_app_key = settings.TENCENT_SMS_APP_KEY or "7e3c8242bf0799cca367fa18fa47a7ea"
+    expected_sign_name = settings.TENCENT_SMS_SIGN_NAME or "呃唉帮帮网络"
+    expected_template_id = settings.TENCENT_SMS_TEMPLATE_ID or "2201340"
+
+    result = await db.execute(
+        select(SmsConfig).where(SmsConfig.provider == "tencent").limit(1)
+    )
+    existing = result.scalar_one_or_none()
+    if not existing:
+        db.add(SmsConfig(
+            provider="tencent",
+            sdk_app_id=expected_sdk_app_id,
+            app_key=expected_app_key,
+            sign_name=expected_sign_name,
+            template_id=expected_template_id,
+            is_active=True,
+        ))
+        await db.flush()
+        logger.info("Created default Tencent Cloud SMS config (AppKey mode)")
+    else:
+        changed = False
+        if existing.sdk_app_id != expected_sdk_app_id:
+            existing.sdk_app_id = expected_sdk_app_id
+            changed = True
+        if existing.app_key != expected_app_key:
+            existing.app_key = expected_app_key
+            changed = True
+        if existing.sign_name != expected_sign_name:
+            existing.sign_name = expected_sign_name
+            changed = True
+        if existing.template_id != expected_template_id:
+            existing.template_id = expected_template_id
+            changed = True
+        if changed:
+            await db.flush()
+            logger.info("Updated Tencent SMS config to match env defaults")
+
+    result = await db.execute(
+        select(SmsTemplate).where(
+            SmsTemplate.template_id == "2201340",
+            SmsTemplate.provider == "tencent",
+        ).limit(1)
+    )
+    if not result.scalar_one_or_none():
+        variables = json.dumps([
+            {"name": "验证码", "description": "6位数字验证码", "default": ""},
+            {"name": "有效时间", "description": "验证码有效分钟数", "default": "5"},
+        ], ensure_ascii=False)
+        db.add(SmsTemplate(
+            name="登录验证",
+            provider="tencent",
+            template_id="2201340",
+            content="{1}为您的登录验证码，请于{2}分钟内填写，如非本人操作，请忽略本短信。",
+            sign_name="呃唉帮帮网络",
+            scene="login",
+            variables=variables,
+            status=True,
+        ))
+        await db.flush()
+        logger.info("Created default SMS template: 登录验证 (template_id=2201340)")

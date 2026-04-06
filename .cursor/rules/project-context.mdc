@@ -324,6 +324,28 @@ All 9 admin API endpoints return HTTP 200 with correct data structure. Admin fro
 - All 4 containers healthy (db, backend, admin-web, h5-web)
 - No mobile/client-side code changes (Flutter, miniprogram, H5 unaffected)
 
+## Latest Feature: 短信验证接入（腾讯云 AppKey 认证模式）
+
+### Backend
+
+- **AppKey HTTP API**: Added `_send_via_tencent_appkey()` in `backend/app/services/sms_service.py` — sends SMS via Tencent Cloud legacy HTTP API (`https://yun.tim.qq.com/v5/tlssmssvr/sendsms`) using SDKAppID + AppKey authentication with SHA256 signature. This is an alternative to the CAM SecretId/SecretKey SDK method.
+- **Dual Auth Mode**: Updated `_resolve_sms_config()` to support both `cam` and `appkey` authentication modes. Priority: DB config (CAM > AppKey) > env vars (CAM > AppKey). `_send_via_tencent()` routes to the appropriate send function based on `auth_mode` in resolved config.
+- **Auto-Init SMS Config**: Added `_init_sms_config_and_template()` in `backend/app/init_data.py` — on startup, creates or updates the default Tencent Cloud SMS config (SDKAppID: 1400920269, AppKey, SignName: 呃唉帮帮网络, TemplateID: 2201340) and the "登录验证" SMS template. Existing DB values are overwritten if they differ from expected defaults.
+- **Tests**: Added `backend/tests/test_sms_appkey.py` — 9 test cases covering AppKey config resolution priority, signature calculation, custom template params, API error handling, end-to-end SMS login flow, admin test send, and admin config retrieval. All 43 tests passed locally.
+
+### Bug Fix During Deployment
+
+- **SMS Config Init**: Fixed `_init_sms_config_and_template()` logic — changed from "only fill empty fields" to "compare and overwrite with expected defaults". This ensures stale test data in the DB is replaced with correct production credentials on container restart.
+- **Rate Limiting**: The SMS rate limit (60s per phone, HTTP 429) was failing because incorrect template_id caused `send_sms()` to error before creating `VerificationCode` entries. Fixed by correcting the SMS config initialization above.
+
+### Deployment Verification
+
+- 11/11 server tests passed (health, admin login, SMS config, templates, template variables, no-auth, rate limit, wrong code, config update, SMS logs, test send)
+
+### User Documentation
+
+- Created `user_docs/短信验证接入.md` — user manual covering SMS login flow, admin SMS config management, AppKey authentication architecture, and usage notes.
+
 ## Notes For Next Iteration
 
 - Merchant identities are granted by admin only; new self-registered accounts still default to normal users.

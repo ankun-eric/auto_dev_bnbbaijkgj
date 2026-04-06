@@ -3,6 +3,7 @@ import hashlib
 import hmac
 import json
 import logging
+import random
 import urllib.parse
 import uuid
 from datetime import datetime
@@ -48,9 +49,7 @@ async def _get_db_sms_config(db: AsyncSession | None = None, provider: str | Non
 async def _resolve_sms_config(db: AsyncSession | None = None, provider: str | None = None):
     """
     Resolve SMS credentials for the given provider.
-    If provider is specified, fetch that provider's config regardless of is_active.
-    If provider is None, use the active config.
-    Falls back to environment variables for tencent.
+    Priority: DB config (CAM creds > AppKey-only) > env vars (CAM > AppKey).
     """
     db_config = await _get_db_sms_config(db, provider=provider)
 
@@ -69,9 +68,20 @@ async def _resolve_sms_config(db: AsyncSession | None = None, provider: str | No
             if db_config.secret_id and db_config.secret_key_encrypted:
                 return {
                     "provider": "tencent",
+                    "auth_mode": "cam",
                     "secret_id": db_config.secret_id,
                     "secret_key": decrypt_secret_key(db_config.secret_key_encrypted),
                     "sdk_app_id": db_config.sdk_app_id or settings.TENCENT_SMS_SDK_APP_ID,
+                    "sign_name": db_config.sign_name or settings.TENCENT_SMS_SIGN_NAME,
+                    "template_id": db_config.template_id or settings.TENCENT_SMS_TEMPLATE_ID,
+                    "app_key": db_config.app_key or "",
+                }
+            if db_config.app_key and db_config.sdk_app_id:
+                return {
+                    "provider": "tencent",
+                    "auth_mode": "appkey",
+                    "app_key": db_config.app_key,
+                    "sdk_app_id": db_config.sdk_app_id,
                     "sign_name": db_config.sign_name or settings.TENCENT_SMS_SIGN_NAME,
                     "template_id": db_config.template_id or settings.TENCENT_SMS_TEMPLATE_ID,
                 }
@@ -84,15 +94,30 @@ async def _resolve_sms_config(db: AsyncSession | None = None, provider: str | No
     if secret_id and secret_key:
         return {
             "provider": "tencent",
+            "auth_mode": "cam",
             "secret_id": secret_id,
             "secret_key": secret_key,
             "sdk_app_id": settings.TENCENT_SMS_SDK_APP_ID,
             "sign_name": settings.TENCENT_SMS_SIGN_NAME,
             "template_id": settings.TENCENT_SMS_TEMPLATE_ID,
+            "app_key": settings.TENCENT_SMS_APP_KEY,
+        }
+
+    app_key = settings.TENCENT_SMS_APP_KEY
+    sdk_app_id = settings.TENCENT_SMS_SDK_APP_ID
+    if app_key and sdk_app_id:
+        return {
+            "provider": "tencent",
+            "auth_mode": "appkey",
+            "app_key": app_key,
+            "sdk_app_id": sdk_app_id,
+            "sign_name": settings.TENCENT_SMS_SIGN_NAME,
+            "template_id": settings.TENCENT_SMS_TEMPLATE_ID,
         }
 
     raise RuntimeError(
-        "短信服务未配置：TENCENT_SMS_SECRET_ID / TENCENT_SMS_SECRET_KEY 未设置，且数据库中无有效短信配置"
+        "短信服务未配置：需要配置腾讯云 CAM 密钥（SecretId/SecretKey）或应用密钥（SDKAppID/AppKey），"
+        "或在管理后台的短信管理中配置"
     )
 
 
@@ -135,10 +160,12 @@ async def _send_via_tencent(
     phone: str, code: str, cfg: dict,
     template_params: list[str] | None = None,
 ) -> None:
+    auth_mode = cfg.get("auth_mode", "cam")
+    if auth_mode == "appkey":
+        await _send_via_tencent_appkey(phone, code, cfg, template_params=template_params)
+        return
+
     from tencentcloud.common import credential
-    from tencentcloud.common.exception.tencent_cloud_sdk_exception import (
-        TencentCloudSDKException,
-    )
     from tencentcloud.sms.v20210111 import models, sms_client
 
     cred = credential.Credential(cfg["secret_id"], cfg["secret_key"])
@@ -157,7 +184,49 @@ async def _send_via_tencent(
     if send_status.Code != "Ok":
         raise RuntimeError(f"短信发送失败: {send_status.Message}")
 
-    logger.info("腾讯云短信发送成功: phone=%s", phone)
+    logger.info("腾讯云短信(SDK)发送成功: phone=%s", phone)
+
+
+async def _send_via_tencent_appkey(
+    phone: str, code: str, cfg: dict,
+    template_params: list[str] | None = None,
+) -> None:
+    """Send SMS via Tencent Cloud old HTTP API using AppKey + SDKAppID authentication."""
+    import httpx
+    import time as _time
+
+    app_key = cfg["app_key"]
+    sdk_app_id = cfg["sdk_app_id"]
+    sign_name = cfg["sign_name"]
+    tpl_id = int(cfg["template_id"])
+    params = template_params if template_params else [code, "5"]
+
+    rnd = random.randint(100000, 999999)
+    cur_time = int(_time.time())
+
+    sig_raw = f"appkey={app_key}&random={rnd}&time={cur_time}&mobile={phone}"
+    sig = hashlib.sha256(sig_raw.encode("utf-8")).hexdigest()
+
+    body = {
+        "ext": "",
+        "extend": "",
+        "params": params,
+        "sig": sig,
+        "sign": sign_name,
+        "tel": {"mobile": phone, "nationcode": "86"},
+        "time": cur_time,
+        "tpl_id": tpl_id,
+    }
+
+    url = f"https://yun.tim.qq.com/v5/tlssmssvr/sendsms?sdkappid={sdk_app_id}&random={rnd}"
+
+    async with httpx.AsyncClient(timeout=15) as client:
+        resp = await client.post(url, json=body)
+        result = resp.json()
+        if result.get("result") != 0:
+            raise RuntimeError(f"短信发送失败: {result.get('errmsg', '未知错误')}")
+
+    logger.info("腾讯云短信(AppKey)发送成功: phone=%s", phone)
 
 
 async def _send_via_aliyun(
