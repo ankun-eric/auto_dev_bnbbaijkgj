@@ -13,6 +13,7 @@ from app.core.security import get_current_user
 from app.models.models import ChatMessage, ChatSession, MessageRole, MessageType, SessionType, User
 from app.schemas.chat import ChatMessageCreate, ChatMessageResponse, ChatSessionCreate, ChatSessionResponse
 from app.services.ai_service import call_ai_model, symptom_analysis
+from app.services.knowledge_search import search_knowledge
 
 router = APIRouter(prefix="/api/chat", tags=["AI对话"])
 
@@ -142,10 +143,34 @@ async def send_message(
 
     messages = [{"role": m.role.value if hasattr(m.role, "value") else m.role, "content": m.content} for m in history_msgs]
 
-    system_prompt = SYSTEM_PROMPTS.get(
-        session.session_type.value if hasattr(session.session_type, "value") else session.session_type,
-        SYSTEM_PROMPTS["health_qa"],
-    )
+    session_type_val = session.session_type.value if hasattr(session.session_type, "value") else session.session_type
+    system_prompt = SYSTEM_PROMPTS.get(session_type_val, SYSTEM_PROMPTS["health_qa"])
+
+    knowledge_hits = []
+    try:
+        kb_result = await search_knowledge(
+            data.content, session_type_val, db,
+            session_id=session_id, message_id=None,
+        )
+        knowledge_hits = kb_result.get("hits", [])
+        if knowledge_hits:
+            kb_context_parts = []
+            for hit in knowledge_hits:
+                if hit.get("question"):
+                    kb_context_parts.append(f"Q: {hit['question']}")
+                if hit.get("content_json"):
+                    content_val = hit["content_json"]
+                    if isinstance(content_val, dict):
+                        kb_context_parts.append(f"A: {json.dumps(content_val, ensure_ascii=False)}")
+                    elif isinstance(content_val, str):
+                        kb_context_parts.append(f"A: {content_val}")
+                elif hit.get("title"):
+                    kb_context_parts.append(f"A: {hit['title']}")
+            if kb_context_parts:
+                kb_context = "\n".join(kb_context_parts)
+                system_prompt += f"\n\n以下是知识库中匹配到的参考信息，请优先参考这些内容回答用户问题：\n{kb_context}"
+    except Exception:
+        pass
 
     start_time = time.time()
     ai_result = await call_ai_model(messages, system_prompt, db, return_usage=True)
@@ -176,7 +201,11 @@ async def send_message(
 
     await db.flush()
     await db.refresh(ai_msg)
-    return ChatMessageResponse.model_validate(ai_msg)
+
+    resp = ChatMessageResponse.model_validate(ai_msg).model_dump()
+    if knowledge_hits:
+        resp["knowledge_hits"] = knowledge_hits
+    return resp
 
 
 @router.websocket("/ws/{session_id}")

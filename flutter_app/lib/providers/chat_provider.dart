@@ -70,6 +70,15 @@ class ChatProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<bool> submitKnowledgeFeedback(int hitLogId, String feedback) async {
+    try {
+      final response = await _api.postChatKnowledgeFeedback(hitLogId, feedback);
+      return response.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<void> sendMessage(String content, {String type = 'text'}) async {
     if (_currentSession == null || _isSending) return;
 

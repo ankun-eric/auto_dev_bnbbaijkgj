@@ -1013,3 +1013,178 @@ class CustomerServiceMessage(Base):
     created_at = mapped_column(DateTime, default=datetime.utcnow)
 
     session = relationship("CustomerServiceSession", back_populates="messages")
+
+
+# ──────────────── 知识库管理 ────────────────
+
+
+class KnowledgeEntryType(str, enum.Enum):
+    qa = "qa"
+    doc = "doc"
+
+
+class KnowledgeDisplayMode(str, enum.Enum):
+    direct = "direct"
+    ai_rewrite = "ai_rewrite"
+
+
+class MatchType(str, enum.Enum):
+    exact = "exact"
+    semantic = "semantic"
+    keyword = "keyword"
+
+
+class FallbackStrategy(str, enum.Enum):
+    ai_fallback = "ai_fallback"
+    fixed_text = "fixed_text"
+    human_service = "human_service"
+    recommend = "recommend"
+
+
+class ImportSourceType(str, enum.Enum):
+    excel = "excel"
+    csv = "csv"
+    word = "word"
+    pdf = "pdf"
+    txt = "txt"
+    markdown = "markdown"
+    url = "url"
+
+
+class KnowledgeBase(Base):
+    __tablename__ = "knowledge_bases"
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name = mapped_column(String(200), nullable=False)
+    description = mapped_column(Text, nullable=True)
+    status = mapped_column(String(20), default="active")
+    is_global = mapped_column(Boolean, default=False)
+    entry_count = mapped_column(Integer, default=0)
+    active_entry_count = mapped_column(Integer, default=0)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_by = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
+
+
+class KnowledgeEntry(Base):
+    __tablename__ = "knowledge_entries"
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    kb_id = mapped_column(Integer, ForeignKey("knowledge_bases.id"), nullable=False, index=True)
+    type = mapped_column(Enum(KnowledgeEntryType), nullable=False)
+    question = mapped_column(Text, nullable=True)
+    title = mapped_column(String(500), nullable=True)
+    content_json = mapped_column(JSON, nullable=True)
+    keywords = mapped_column(JSON, nullable=True)
+    display_mode = mapped_column(Enum(KnowledgeDisplayMode), default=KnowledgeDisplayMode.direct)
+    status = mapped_column(String(20), default="active")
+    hit_count = mapped_column(Integer, default=0)
+    last_hit_at = mapped_column(DateTime, nullable=True)
+    embedding_vector = mapped_column(Text, nullable=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_by = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
+    knowledge_base = relationship("KnowledgeBase")
+
+
+class KnowledgeEntryProduct(Base):
+    __tablename__ = "knowledge_entry_products"
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    entry_id = mapped_column(Integer, ForeignKey("knowledge_entries.id"), nullable=False, index=True)
+    product_id = mapped_column(Integer, nullable=False)
+    product_type = mapped_column(String(20), nullable=False)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class KnowledgeSearchConfig(Base):
+    __tablename__ = "knowledge_search_configs"
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    scope = mapped_column(String(50), nullable=False, unique=True)
+    config_json = mapped_column(JSON, nullable=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class KnowledgeFallbackConfig(Base):
+    __tablename__ = "knowledge_fallback_configs"
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    scene = mapped_column(String(50), nullable=False, unique=True)
+    strategy = mapped_column(Enum(FallbackStrategy), default=FallbackStrategy.ai_fallback)
+    custom_text = mapped_column(Text, nullable=True)
+    recommend_count = mapped_column(Integer, default=3)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class KnowledgeSceneBinding(Base):
+    __tablename__ = "knowledge_scene_bindings"
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    scene = mapped_column(String(50), nullable=False, index=True)
+    kb_id = mapped_column(Integer, ForeignKey("knowledge_bases.id"), nullable=False, index=True)
+    is_primary = mapped_column(Boolean, default=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class KnowledgeHitLog(Base):
+    __tablename__ = "knowledge_hit_logs"
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    entry_id = mapped_column(Integer, ForeignKey("knowledge_entries.id"), nullable=False, index=True)
+    kb_id = mapped_column(Integer, ForeignKey("knowledge_bases.id"), nullable=False, index=True)
+    match_type = mapped_column(Enum(MatchType), nullable=False)
+    match_score = mapped_column(Float, nullable=True)
+    user_question = mapped_column(Text, nullable=True)
+    search_time_ms = mapped_column(Integer, nullable=True)
+    user_feedback = mapped_column(String(20), nullable=True)
+    session_id = mapped_column(Integer, nullable=True)
+    message_id = mapped_column(Integer, nullable=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class KnowledgeMissedQuestion(Base):
+    __tablename__ = "knowledge_missed_questions"
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    question = mapped_column(Text, nullable=False)
+    scene = mapped_column(String(50), nullable=True)
+    count = mapped_column(Integer, default=1)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class KnowledgeImportTask(Base):
+    __tablename__ = "knowledge_import_tasks"
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    kb_id = mapped_column(Integer, ForeignKey("knowledge_bases.id"), nullable=False, index=True)
+    source_type = mapped_column(Enum(ImportSourceType), nullable=False)
+    source_url = mapped_column(String(1000), nullable=True)
+    file_path = mapped_column(String(500), nullable=True)
+    status = mapped_column(String(20), default="processing")
+    result_json = mapped_column(JSON, nullable=True)
+    created_by = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class CosConfig(Base):
+    __tablename__ = "cos_configs"
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    secret_id = mapped_column(String(255), nullable=True)
+    secret_key_encrypted = mapped_column(String(500), nullable=True)
+    bucket = mapped_column(String(200), nullable=True)
+    region = mapped_column(String(50), nullable=True)
+    image_prefix = mapped_column(String(200), default="images/")
+    video_prefix = mapped_column(String(200), default="videos/")
+    file_prefix = mapped_column(String(200), default="files/")
+    is_active = mapped_column(Boolean, default=False)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class CosFile(Base):
+    __tablename__ = "cos_files"
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    file_key = mapped_column(String(500), nullable=False, unique=True)
+    file_url = mapped_column(String(1000), nullable=False)
+    file_type = mapped_column(String(50), nullable=True)
+    file_size = mapped_column(Integer, nullable=True)
+    original_name = mapped_column(String(300), nullable=True)
+    module = mapped_column(String(50), nullable=True)
+    ref_id = mapped_column(Integer, nullable=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)

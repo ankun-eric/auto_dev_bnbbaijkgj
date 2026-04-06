@@ -5,12 +5,14 @@ import { useRouter, useParams } from 'next/navigation';
 import { NavBar, Input, Button, SpinLoading, Toast } from 'antd-mobile';
 import api from '@/lib/api';
 import ChatSidebar from '@/components/ChatSidebar';
+import KnowledgeCard, { type KnowledgeHit } from '@/components/KnowledgeCard';
 
 interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   time: string;
+  knowledge_hits?: KnowledgeHit[];
 }
 
 const welcomeMessage: Message = {
@@ -66,6 +68,16 @@ export default function ChatPage() {
     }
   };
 
+  const handleKnowledgeFeedback = async (hitLogId: number, feedback: 'like' | 'dislike') => {
+    try {
+      await api.post('/api/chat/feedback', { hit_log_id: hitLogId, feedback });
+      Toast.show({ content: '感谢反馈', icon: 'success' });
+    } catch {
+      Toast.show({ content: '反馈失败，请稍后重试', icon: 'fail' });
+      throw new Error('feedback failed');
+    }
+  };
+
   const sendMessage = async () => {
     const text = inputVal.trim();
     if (!text || loading) return;
@@ -88,10 +100,11 @@ export default function ChatPage() {
       });
       const resData = res.data || res;
       const aiMsg: Message = {
-        id: `ai-${Date.now()}`,
+        id: resData.id != null ? String(resData.id) : `ai-${Date.now()}`,
         role: 'assistant',
         content: resData.content || '抱歉，我暂时无法回答这个问题。请稍后重试。',
         time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+        knowledge_hits: Array.isArray(resData.knowledge_hits) ? resData.knowledge_hits : undefined,
       };
       setMessages((prev) => [...prev, aiMsg]);
     } catch (err: any) {
@@ -186,6 +199,18 @@ export default function ChatPage() {
               >
                 {msg.role === 'assistant' ? renderMarkdown(msg.content) : msg.content}
               </div>
+              {msg.role === 'assistant' && msg.knowledge_hits && msg.knowledge_hits.length > 0 ? (
+                <div className="mt-2 space-y-2 w-full">
+                  {msg.knowledge_hits.map((hit, idx) => (
+                    <KnowledgeCard
+                      key={`${msg.id}-kb-${idx}`}
+                      hit={hit}
+                      hitLogId={hit.hit_log_id}
+                      onFeedback={handleKnowledgeFeedback}
+                    />
+                  ))}
+                </div>
+              ) : null}
               <div
                 className={`text-xs text-gray-300 mt-1 ${
                   msg.role === 'user' ? 'text-right' : 'text-left'

@@ -12,12 +12,14 @@ from app.api import (
     chat,
     chat_history,
     content,
+    cos,
     customer_service,
     drug,
     email_notify,
     expert,
     family,
     health_profile,
+    knowledge,
     notification,
     order,
     plan,
@@ -75,6 +77,8 @@ app.include_router(merchant.router)
 app.include_router(sms.router)
 app.include_router(email_notify.router)
 app.include_router(wechat_push.router)
+app.include_router(knowledge.router)
+app.include_router(cos.router)
 
 os.makedirs("uploads", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")

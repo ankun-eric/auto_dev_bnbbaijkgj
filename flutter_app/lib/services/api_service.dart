@@ -170,6 +170,13 @@ class ApiService {
     return _dio.post(ApiConfig.createSession, data: {'session_type': type});
   }
 
+  Future<Response> postChatKnowledgeFeedback(int hitLogId, String feedback) async {
+    return _dio.post(
+      ApiConfig.chatKnowledgeFeedback,
+      data: {'hit_log_id': hitLogId, 'feedback': feedback},
+    );
+  }
+
   // Chat History
   Future<Response> getChatSessionsList({int page = 1, int pageSize = 100}) async {
     return _dio.get(ApiConfig.chatSessionsList, queryParameters: {'page': page, 'page_size': pageSize});

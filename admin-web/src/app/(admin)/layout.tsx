@@ -18,6 +18,11 @@ import {
   LogoutOutlined,
   MessageOutlined,
   MailOutlined,
+  BookOutlined,
+  SearchOutlined,
+  CloudOutlined,
+  BarChartOutlined,
+  DatabaseOutlined,
 } from '@ant-design/icons';
 import { useRouter, usePathname } from 'next/navigation';
 import type { MenuProps } from 'antd';
@@ -39,8 +44,18 @@ const menuItems: MenuItem[] = [
       { key: '/merchant/accounts', label: '商家账号' },
     ],
   },
-  { key: '/ai-config', icon: <RobotOutlined />, label: 'AI模型配置' },
-  { key: '/chat-records', icon: <MessageOutlined />, label: 'AI对话记录' },
+  {
+    key: 'ai',
+    icon: <RobotOutlined />,
+    label: 'AI管理',
+    children: [
+      { key: '/ai-config', label: 'AI模型配置' },
+      { key: '/chat-records', label: 'AI对话记录' },
+      { key: '/knowledge', label: '知识库管理' },
+      { key: '/search-config', label: '检索策略配置' },
+      { key: '/fallback-config', label: '兜底策略配置' },
+    ],
+  },
   {
     key: 'services',
     icon: <ShopOutlined />,
@@ -79,8 +94,9 @@ const menuItems: MenuItem[] = [
     children: [
       { key: '/settings', label: '系统设置' },
       { key: '/sms', label: '短信管理' },
-      { key: '/wechat-push', icon: <MessageOutlined />, label: '微信推送管理' },
-      { key: '/email-notify', icon: <MailOutlined />, label: '邮件通知管理' },
+      { key: '/wechat-push', label: '微信推送管理' },
+      { key: '/email-notify', label: '邮件通知管理' },
+      { key: '/cos-config', label: '存储配置' },
     ],
   },
 ];
@@ -90,7 +106,8 @@ function getOpenKeys(pathname: string): string[] {
   if (pathname.startsWith('/merchant')) return ['merchant'];
   if (pathname.startsWith('/content')) return ['content'];
   if (pathname.startsWith('/points')) return ['points'];
-  if (pathname.startsWith('/sms') || pathname.startsWith('/settings') || pathname.startsWith('/wechat-push') || pathname.startsWith('/email-notify')) return ['system'];
+  if (pathname.startsWith('/ai-config') || pathname.startsWith('/chat-records') || pathname.startsWith('/knowledge') || pathname.startsWith('/search-config') || pathname.startsWith('/fallback-config')) return ['ai'];
+  if (pathname.startsWith('/sms') || pathname.startsWith('/settings') || pathname.startsWith('/wechat-push') || pathname.startsWith('/email-notify') || pathname.startsWith('/cos-config')) return ['system'];
   return [];
 }
 

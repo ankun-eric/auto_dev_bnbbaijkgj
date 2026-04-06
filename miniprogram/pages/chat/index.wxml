@@ -22,6 +22,16 @@
         </view>
         <view class="msg-bubble ai-bubble">
           <text class="msg-text">{{item.content}}</text>
+          <block wx:if="{{item.knowledgeHits && item.knowledgeHits.length}}">
+            <knowledge-card
+              wx:for="{{item.knowledgeHits}}"
+              wx:for-item="kh"
+              wx:key="entry_id"
+              hit="{{kh}}"
+              hit-log-id="{{kh.hit_log_id}}"
+              bind:submitted="onKnowledgeFeedback"
+            />
+          </block>
           <text class="msg-time">{{item.time}}</text>
         </view>
       </view>

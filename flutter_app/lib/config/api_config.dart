@@ -31,6 +31,9 @@ class ApiConfig {
   // Chat History (new endpoints)
   static const String chatSessionsList = '/api/chat-sessions';
 
+  /// 知识库命中反馈（见 knowledge 路由）
+  static const String chatKnowledgeFeedback = '/api/chat/feedback';
+
   // Checkup
   static const String checkupReports = '/api/health/checkup-reports';
   static const String uploadCheckup = '/api/health/checkup-reports';

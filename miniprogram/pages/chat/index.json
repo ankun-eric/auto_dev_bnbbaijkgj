@@ -2,6 +2,7 @@
   "navigationBarTitleText": "AI问诊",
   "disableScroll": true,
   "usingComponents": {
-    "chat-drawer": "/components/chat-drawer/chat-drawer"
+    "chat-drawer": "/components/chat-drawer/chat-drawer",
+    "knowledge-card": "/components/knowledge-card/index"
   }
 }

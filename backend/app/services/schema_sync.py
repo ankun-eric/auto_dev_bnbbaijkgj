@@ -122,6 +122,46 @@ async def _sync_chat_session_fields(conn: AsyncConnection) -> None:
             await conn.execute(text("ALTER TABLE chat_messages ADD COLUMN file_urls JSON NULL"))
 
 
+async def _sync_knowledge_tables(conn: AsyncConnection) -> None:
+    def _load(sync_conn):
+        inspector = inspect(sync_conn)
+        tables = set(inspector.get_table_names())
+        result = {}
+        for tbl in [
+            "knowledge_bases", "knowledge_entries", "knowledge_entry_products",
+            "knowledge_search_configs", "knowledge_fallback_configs",
+            "knowledge_scene_bindings", "knowledge_hit_logs",
+            "knowledge_missed_questions", "knowledge_import_tasks",
+            "cos_configs", "cos_files",
+        ]:
+            if tbl in tables:
+                result[tbl] = {col["name"] for col in inspector.get_columns(tbl)}
+        return result
+
+    table_cols = await conn.run_sync(_load)
+
+    if "knowledge_entries" in table_cols:
+        cols = table_cols["knowledge_entries"]
+        if "embedding_vector" not in cols:
+            await conn.execute(text("ALTER TABLE knowledge_entries ADD COLUMN embedding_vector TEXT NULL"))
+        if "updated_by" not in cols:
+            await conn.execute(text("ALTER TABLE knowledge_entries ADD COLUMN updated_by INT NULL"))
+
+    if "knowledge_bases" in table_cols:
+        cols = table_cols["knowledge_bases"]
+        if "active_entry_count" not in cols:
+            await conn.execute(text("ALTER TABLE knowledge_bases ADD COLUMN active_entry_count INT DEFAULT 0"))
+        if "updated_by" not in cols:
+            await conn.execute(text("ALTER TABLE knowledge_bases ADD COLUMN updated_by INT NULL"))
+
+    if "knowledge_hit_logs" in table_cols:
+        cols = table_cols["knowledge_hit_logs"]
+        if "session_id" not in cols:
+            await conn.execute(text("ALTER TABLE knowledge_hit_logs ADD COLUMN session_id INT NULL"))
+        if "message_id" not in cols:
+            await conn.execute(text("ALTER TABLE knowledge_hit_logs ADD COLUMN message_id INT NULL"))
+
+
 async def sync_register_schema(conn: AsyncConnection) -> None:
     def load_user_schema(sync_conn):
         inspector = inspect(sync_conn)
@@ -141,6 +181,7 @@ async def sync_register_schema(conn: AsyncConnection) -> None:
     await _sync_member_levels(conn)
     await _sync_sms_tables(conn)
     await _sync_chat_session_fields(conn)
+    await _sync_knowledge_tables(conn)
 
     columns, indexes, unique_constraints = await conn.run_sync(load_user_schema)
 

@@ -1,0 +1,60 @@
+<view class="kb-card">
+  <view class="kb-header" wx:if="{{displayQuestion || displayTitle}}">
+    <text class="kb-tag">知识库</text>
+    <text class="kb-q" wx:if="{{displayQuestion}}">{{displayQuestion}}</text>
+    <text class="kb-title" wx:if="{{displayTitle && displayTitle !== displayQuestion}}">{{displayTitle}}</text>
+  </view>
+
+  <view class="kb-body" wx:if="{{displayText}}">
+    <text class="kb-text">{{displayText}}</text>
+  </view>
+
+  <view class="kb-images" wx:if="{{images.length}}">
+    <image
+      wx:for="{{images}}"
+      wx:for-index="ix"
+      wx:key="ix"
+      class="kb-img"
+      src="{{item}}"
+      mode="aspectFill"
+      bindtap="onPreviewImage"
+      data-url="{{item}}"
+    />
+  </view>
+
+  <view class="kb-products" wx:if="{{products.length}}">
+    <view class="kb-product" wx:for="{{products}}" wx:for-index="pi" wx:key="pi">
+      <image class="kb-product-img" src="{{item.image}}" mode="aspectFill" wx:if="{{item.image}}" />
+      <view class="kb-product-placeholder" wx:else>图</view>
+      <view class="kb-product-info">
+        <text class="kb-product-name">{{item.name}}</text>
+        <text class="kb-product-price" wx:if="{{item.price}}">¥{{item.price}}</text>
+      </view>
+      <view
+        class="kb-product-btn"
+        bindtap="onViewProduct"
+        data-path="{{item.path}}"
+        data-url="{{item.url}}"
+      >
+        <text class="kb-product-btn-text">查看详情</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="kb-actions">
+    <view
+      class="kb-action {{feedback === 'like' ? 'kb-action-on' : ''}}"
+      bindtap="onLike"
+    >
+      <text class="kb-action-icon">👍</text>
+      <text class="kb-action-label">有用</text>
+    </view>
+    <view
+      class="kb-action {{feedback === 'dislike' ? 'kb-action-on' : ''}}"
+      bindtap="onDislike"
+    >
+      <text class="kb-action-icon">👎</text>
+      <text class="kb-action-label">无用</text>
+    </view>
+  </view>
+</view>

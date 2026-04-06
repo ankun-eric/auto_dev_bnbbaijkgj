@@ -6,6 +6,7 @@ import '../../providers/chat_provider.dart';
 import '../../models/chat_message.dart';
 import '../../widgets/custom_app_bar.dart';
 import '../../widgets/chat_history_drawer.dart';
+import '../../widgets/knowledge_card.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -263,15 +264,31 @@ class _ChatScreenState extends State<ChatScreen> {
                       message.content,
                       style: const TextStyle(color: Colors.white, fontSize: 15, height: 1.5),
                     )
-                  : MarkdownBody(
-                      data: message.content,
-                      styleSheet: MarkdownStyleSheet(
-                        p: const TextStyle(fontSize: 15, height: 1.6, color: Color(0xFF333333)),
-                        h1: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                        h2: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                        h3: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                        listBullet: const TextStyle(fontSize: 15),
-                      ),
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        MarkdownBody(
+                          data: message.content,
+                          styleSheet: MarkdownStyleSheet(
+                            p: const TextStyle(fontSize: 15, height: 1.6, color: Color(0xFF333333)),
+                            h1: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                            h2: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                            h3: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                            listBullet: const TextStyle(fontSize: 15),
+                          ),
+                        ),
+                        if (message.knowledgeHits != null && message.knowledgeHits!.isNotEmpty)
+                          ...message.knowledgeHits!.map(
+                            (h) => KnowledgeCard(
+                              hit: h,
+                              onFeedback: (hitLogId, feedback) => Provider.of<ChatProvider>(
+                                    context,
+                                    listen: false,
+                                  ).submitKnowledgeFeedback(hitLogId, feedback),
+                            ),
+                          ),
+                      ],
                     ),
             ),
           ),

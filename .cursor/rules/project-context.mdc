@@ -394,6 +394,54 @@ All 9 admin API endpoints return HTTP 200 with correct data structure. Admin fro
 
 - Created `user_docs/AI对话记录查询.md` — comprehensive user manual for admin and user-side chat history features.
 
+## Latest Feature: 知识库管理模块 + 腾讯云COS存储
+
+### Backend
+
+- Added 11 new SQLAlchemy models in `backend/app/models/models.py`: `KnowledgeBase`, `KnowledgeEntry`, `KnowledgeEntryProduct`, `KnowledgeSearchConfig`, `KnowledgeFallbackConfig`, `KnowledgeSceneBinding`, `KnowledgeHitLog`, `KnowledgeMissedQuestion`, `KnowledgeImportTask`, `CosConfig`, `CosFile`.
+- Added 5 new enums: `KnowledgeEntryType`, `KnowledgeDisplayMode`, `MatchType`, `FallbackStrategy`, `ImportSourceType`.
+- Created `backend/app/api/knowledge.py` — 26 API endpoints for knowledge base CRUD, entry management, import, search/fallback strategy configuration, scene bindings, statistics, and user feedback. Static routes placed before parameterized `{kb_id}` routes to avoid FastAPI path conflicts.
+- Created `backend/app/api/cos.py` — 7 API endpoints for COS configuration, connection testing, file management, usage statistics, and unified upload.
+- Created `backend/app/schemas/knowledge.py` and `backend/app/schemas/cos.py` for Pydantic validation schemas.
+- Created `backend/app/services/knowledge_search.py` — multi-level knowledge retrieval engine (exact → semantic → keyword matching) with hit/miss logging.
+- Updated `backend/app/api/chat.py` — integrated knowledge retrieval into AI dialogue flow; responses include `knowledge_hits` field.
+- Updated `backend/app/services/schema_sync.py` — added `_sync_knowledge_tables()` for database migration.
+- Updated `backend/app/main.py` — registered `knowledge` and `cos` routers.
+
+### Admin Web
+
+- Updated admin layout (`admin-web/src/app/(admin)/layout.tsx`) — added `AI管理` menu group containing `知识库管理`, `检索策略配置`, `兜底策略配置`; added `存储配置` under `系统管理`.
+- Created `admin-web/src/app/(admin)/knowledge/page.tsx` — knowledge base list with CRUD, status toggle, global flag.
+- Created `admin-web/src/app/(admin)/knowledge/[id]/page.tsx` — knowledge entry management with QA/doc forms, rich text, keywords, product association, batch import.
+- Created `admin-web/src/app/(admin)/knowledge/stats/page.tsx` — data statistics with overview cards, hit rankings, missed questions, trend charts, distribution.
+- Created `admin-web/src/app/(admin)/search-config/page.tsx` — global and per-KB search strategy configuration with scene bindings.
+- Created `admin-web/src/app/(admin)/fallback-config/page.tsx` — per-scene fallback strategy configuration.
+- Created `admin-web/src/app/(admin)/cos-config/page.tsx` — COS storage configuration with file management and usage statistics.
+
+### H5 Web
+
+- Created `h5-web/src/components/KnowledgeCard.tsx` — rich knowledge card component for AI chat (text, images, video, product cards, feedback buttons).
+- Updated `h5-web/src/app/chat/[sessionId]/page.tsx` — integrated KnowledgeCard display and feedback API calls.
+
+### Mini Program
+
+- Created `miniprogram/components/knowledge-card/` — native WeChat Mini Program component for knowledge display with image preview, product navigation, and feedback.
+- Updated `miniprogram/pages/chat/` — integrated knowledge-card component into AI chat page.
+
+### Flutter App
+
+- Created `flutter_app/lib/models/knowledge_hit.dart` — KnowledgeHit and ProductCard data models.
+- Created `flutter_app/lib/widgets/knowledge_card.dart` — knowledge display widget with feedback UI.
+- Updated `flutter_app/lib/models/chat_message.dart`, `chat_screen.dart`, `chat_provider.dart`, `api_service.dart`, `api_config.dart` — integrated knowledge hits display and feedback.
+
+### Testing
+
+- 26/26 server API tests passed covering: KB CRUD, entry CRUD, search/fallback config, scene bindings, statistics, COS config/files/usage, auth checks, cleanup.
+
+### User Documentation
+
+- Created `USER_MANUAL.md` — comprehensive user manual for all knowledge base management features.
+
 ## Notes For Next Iteration
 
 - Merchant identities are granted by admin only; new self-registered accounts still default to normal users.

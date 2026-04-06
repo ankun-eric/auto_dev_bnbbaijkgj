@@ -1,3 +1,5 @@
+import 'knowledge_hit.dart';
+
 class ChatMessage {
   final String id;
   final String sessionId;
@@ -7,6 +9,7 @@ class ChatMessage {
   final String? imageUrl;
   final bool isLoading;
   final String? createdAt;
+  final List<KnowledgeHit>? knowledgeHits;
 
   ChatMessage({
     required this.id,
@@ -17,20 +20,30 @@ class ChatMessage {
     this.imageUrl,
     this.isLoading = false,
     this.createdAt,
+    this.knowledgeHits,
   });
 
   bool get isUser => role == 'user';
   bool get isAssistant => role == 'assistant';
 
   factory ChatMessage.fromJson(Map<String, dynamic> json) {
+    List<KnowledgeHit>? hits;
+    final rawHits = json['knowledge_hits'];
+    if (rawHits is List) {
+      hits = rawHits
+          .map((e) => KnowledgeHit.fromJson(Map<String, dynamic>.from(e as Map)))
+          .toList();
+    }
+
     return ChatMessage(
       id: json['id']?.toString() ?? '',
       sessionId: json['session_id']?.toString() ?? '',
       role: json['role'] ?? 'user',
       content: json['content'] ?? '',
-      type: json['type'] ?? 'text',
-      imageUrl: json['image_url'],
-      createdAt: json['created_at'],
+      type: json['message_type']?.toString() ?? json['type']?.toString() ?? 'text',
+      imageUrl: json['image_url'] as String?,
+      createdAt: json['created_at']?.toString(),
+      knowledgeHits: hits,
     );
   }
 
@@ -56,3 +69,4 @@ class ChatMessage {
     );
   }
 }
+
