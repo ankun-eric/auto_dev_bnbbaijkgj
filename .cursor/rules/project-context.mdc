@@ -442,6 +442,72 @@ All 9 admin API endpoints return HTTP 200 with correct data structure. Admin fro
 
 - Created `USER_MANUAL.md` — comprehensive user manual for all knowledge base management features.
 
+## Latest Feature: AI问诊→AI健康咨询改版
+
+### Backend
+
+- Added 3 new models in `backend/app/models/models.py`: `AiSensitiveWord`, `AiPromptConfig`, `AiDisclaimerConfig`.
+- Created `backend/app/schemas/ai_center.py` — Pydantic schemas for sensitive words, prompt configs, and disclaimer configs.
+- Created `backend/app/api/ai_center.py` — admin-only AI configuration center API:
+  - `GET/POST/PUT/DELETE /api/admin/ai-center/sensitive-words` — sensitive word CRUD with search and pagination
+  - `GET/PUT /api/admin/ai-center/prompts` and `/prompts/{chat_type}` — per-type system prompt configuration
+  - `GET/PUT /api/admin/ai-center/disclaimers` and `/disclaimers/{chat_type}` — per-type disclaimer text configuration with enable/disable toggle
+- Updated `backend/app/api/chat.py`:
+  - Replaced hardcoded `SYSTEM_PROMPTS` with dynamic DB-backed prompt retrieval (`_get_system_prompt()`)
+  - Added `_filter_sensitive_words()` — filters AI response through sensitive word database before returning to client
+  - Added `_append_disclaimer()` — appends disclaimer text with `---disclaimer---` separator based on session type config
+  - Both `send_message` and `websocket_chat` endpoints integrated with above functions
+- Updated `backend/app/init_data.py`:
+  - `_init_ai_center_configs()` — seeds default prompt configs (5 types), disclaimer configs (5 types, customer_service disabled), and 4 default sensitive words
+  - `_clean_chat_history_once()` — one-time physical deletion of all chat sessions and messages (flagged via SystemConfig)
+- Updated `backend/app/services/schema_sync.py` — added `_sync_ai_center_tables()` for new table migration
+- Updated `backend/app/main.py` — registered `ai_center` router
+
+### Admin Web
+
+- Updated `admin-web/src/app/(admin)/layout.tsx` — added "AI配置中心" top-level menu with 3 sub-items: 敏感词管理, 提示词配置, 免责提示配置
+- Created `admin-web/src/app/(admin)/ai-center/sensitive-words/page.tsx` — sensitive word management (CRUD table with search, pagination, modal form)
+- Created `admin-web/src/app/(admin)/ai-center/prompts/page.tsx` — per-type prompt configuration (Tabs + TextArea + save)
+- Created `admin-web/src/app/(admin)/ai-center/disclaimers/page.tsx` — per-type disclaimer configuration (Tabs + TextArea + Switch + save)
+
+### H5 Frontend
+
+- Updated all "AI问诊" text to "AI健康咨询" across: tab bar, home page, AI page, chat page, sidebar
+- Updated session type display names: 症状自查→健康自查, 中医辨证→中医养生, 药物查询→用药参考
+- Added `---disclaimer---` separator parsing in chat page — renders disclaimer as gray italic text below AI responses
+
+### Mini Program
+
+- Updated all "AI问诊" text to "AI健康咨询" across: app.json tabBar, AI page, chat page, home page, custom tab bar, FAQ
+- Updated consultTypes IDs to match backend enum (health_qa, symptom_check, tcm, drug_query)
+- Added `_parseMessage()` for disclaimer parsing in chat page with dedicated WXML/WXSS rendering
+
+### Flutter App
+
+- Updated all "AI问诊"/"问诊" text to "AI健康咨询"/"健康咨询" across: AI home, chat screen, main screen, points, notifications
+- Updated `_consultTypes` to use backend-compatible type keys (health_qa, symptom_check, tcm, drug_query)
+- Added `_buildAiMessageContent()` in chat screen — parses `---disclaimer---` separator and renders disclaimer with dashed border
+
+### Testing
+
+- 26/26 server API tests passed (admin login, sensitive words CRUD/search, prompt config list/update, disclaimer config list/update, unauthorized access checks)
+
+### Deployment (2026-04-06)
+
+- Rebuilt and redeployed all containers (db, backend, admin-web, h5-web)
+- All 4 containers healthy
+- Rebuilt miniprogram zip, Android APK, iOS IPA
+
+### Generated Delivery Artifacts
+
+- Mini program: `miniprogram_20260406_195919_vhob.zip`
+- Android APK: `bini_health_android-v20260406-200031-4d73.apk` (GitHub Release: `android-v20260406-200031-4d73`)
+- iOS IPA: `bini_health_ios-v20260406-200126-d0b4.ipa` (GitHub Release: `ios-v20260406-200126-d0b4`)
+
+### User Documentation
+
+- Created `user_docs/AI健康咨询改版.md` — user manual for AI health consultation rebranding
+
 ## Notes For Next Iteration
 
 - Merchant identities are granted by admin only; new self-registered accounts still default to normal users.
