@@ -9,6 +9,7 @@ import {
   SettingOutlined, UnorderedListOutlined, SendOutlined, SaveOutlined,
   SearchOutlined, CheckCircleOutlined, ExclamationCircleOutlined,
   PlusOutlined, EditOutlined, DeleteOutlined, FileTextOutlined,
+  MinusCircleOutlined, EyeOutlined, SwapOutlined,
 } from '@ant-design/icons';
 import { get, put, post, del } from '@/lib/api';
 import dayjs from 'dayjs';
@@ -45,6 +46,12 @@ interface SmsConfigResponse {
   aliyun: AliyunConfig;
 }
 
+interface TemplateVariable {
+  name: string;
+  description?: string;
+  default_value?: string;
+}
+
 interface SmsTemplate {
   id: number;
   name: string;
@@ -53,7 +60,7 @@ interface SmsTemplate {
   content: string;
   sign_name: string;
   scene: string;
-  variables: string;
+  variables: TemplateVariable[] | null;
   status: boolean;
   created_at: string;
   updated_at?: string;
@@ -109,7 +116,20 @@ export default function SmsPage() {
   // Test state
   const [testForm] = Form.useForm();
   const [testSending, setTestSending] = useState(false);
-  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [testResult, setTestResult] = useState<{ success: boolean; message: string; params_used?: string[]; preview_content?: string } | null>(null);
+  const [selectedTemplate, setSelectedTemplate] = useState<SmsTemplate | null>(null);
+  const [inputMode, setInputMode] = useState<'auto' | 'advanced'>('auto');
+
+  // Preview modal state
+  const [previewModalOpen, setPreviewModalOpen] = useState(false);
+  const [previewData, setPreviewData] = useState<{
+    phone: string;
+    provider: string;
+    templateName: string;
+    templateId: string;
+    params: { name: string; value: string }[];
+    previewContent: string;
+  } | null>(null);
 
   const fetchConfig = useCallback(async () => {
     setConfigLoading(true);
@@ -174,7 +194,7 @@ export default function SmsPage() {
   }, [fetchConfig]);
 
   useEffect(() => {
-    if (activeTab === 'templates') fetchTemplates();
+    if (activeTab === 'templates' || activeTab === 'test') fetchTemplates();
   }, [activeTab, fetchTemplates]);
 
   useEffect(() => {
@@ -254,7 +274,7 @@ export default function SmsPage() {
         content: record.content,
         sign_name: record.sign_name,
         scene: record.scene,
-        variables: record.variables,
+        variables: Array.isArray(record.variables) ? record.variables : [],
         status: record.status,
       });
     }
@@ -265,11 +285,17 @@ export default function SmsPage() {
     try {
       const values = await templateForm.validateFields();
       setTemplateSaving(true);
+      const payload = {
+        ...values,
+        variables: Array.isArray(values.variables) && values.variables.length > 0
+          ? values.variables.map((v: any) => ({ name: v.name, description: v.description || '', default_value: v.default_value || '' }))
+          : null,
+      };
       if (editingTemplate) {
-        await put(`/api/admin/sms/templates/${editingTemplate.id}`, values);
+        await put(`/api/admin/sms/templates/${editingTemplate.id}`, payload);
         message.success('模板更新成功');
       } else {
-        await post('/api/admin/sms/templates', values);
+        await post('/api/admin/sms/templates', payload);
         message.success('模板创建成功');
       }
       setTemplateModalOpen(false);
@@ -294,21 +320,113 @@ export default function SmsPage() {
     }
   };
 
-  const handleTestSend = async () => {
+  const buildTemplateParams = (): { params: string[]; paramPairs: { name: string; value: string }[] } | null => {
+    if (!selectedTemplate) return null;
+    const vars = selectedTemplate.variables;
+    if (inputMode === 'auto') {
+      if (!Array.isArray(vars) || vars.length === 0) return null;
+      const paramPairs: { name: string; value: string }[] = [];
+      const params: string[] = [];
+      const formVars = testForm.getFieldValue('template_vars') || {};
+      for (const v of vars) {
+        const val = formVars[v.name] ?? v.default_value ?? '';
+        params.push(String(val));
+        paramPairs.push({ name: v.name, value: String(val) });
+      }
+      return { params, paramPairs };
+    } else {
+      const raw = testForm.getFieldValue('advanced_params') || '';
+      const params = raw ? raw.split(',').map((s: string) => s.trim()) : [];
+      const paramPairs = params.map((val: string, idx: number) => ({
+        name: Array.isArray(vars) && vars[idx] ? vars[idx].name : `参数${idx + 1}`,
+        value: val,
+      }));
+      return { params, paramPairs };
+    }
+  };
+
+  const generatePreviewContent = (content: string, params: string[]): string => {
+    let result = content;
+    params.forEach((val, idx) => {
+      result = result.replace(new RegExp(`\\{${idx + 1}\\}`, 'g'), val);
+    });
+    return result;
+  };
+
+  const handlePreviewAndSend = async () => {
     try {
-      const values = await testForm.validateFields();
-      setTestSending(true);
-      setTestResult(null);
-      const res = await post<{ message: string; success: boolean }>('/api/admin/sms/test', {
-        phone: values.phone,
-        provider: values.provider,
-        ...(values.template_id ? { template_id: values.template_id } : {}),
+      await testForm.validateFields(['provider', 'phone', 'template_select']);
+      if (!selectedTemplate) {
+        message.warning('请选择短信模板');
+        return;
+      }
+      const result = buildTemplateParams();
+      if (inputMode === 'auto') {
+        const vars = selectedTemplate.variables;
+        if (!Array.isArray(vars) || vars.length === 0) {
+          message.warning('该模板未配置变量信息，请切换到高级输入模式');
+          return;
+        }
+        if (result) {
+          const missing = result.paramPairs.filter(p => !p.value);
+          if (missing.length > 0) {
+            message.warning(`请填写变量: ${missing.map(m => m.name).join(', ')}`);
+            return;
+          }
+        }
+      } else {
+        const vars = selectedTemplate.variables;
+        if (result && Array.isArray(vars) && vars.length > 0 && result.params.length !== vars.length) {
+          message.warning(`参数个数不匹配，模板需要 ${vars.length} 个参数，当前输入 ${result.params.length} 个`);
+          return;
+        }
+      }
+
+      const params = result?.params || [];
+      const paramPairs = result?.paramPairs || [];
+      const previewContent = generatePreviewContent(selectedTemplate.content, params);
+
+      setPreviewData({
+        phone: testForm.getFieldValue('phone'),
+        provider: testForm.getFieldValue('provider'),
+        templateName: selectedTemplate.name,
+        templateId: selectedTemplate.template_id,
+        params: paramPairs,
+        previewContent,
       });
-      setTestResult({ success: res.success, message: res.message });
+      setPreviewModalOpen(true);
+    } catch {
+      // validation error
+    }
+  };
+
+  const handleConfirmSend = async () => {
+    if (!previewData || !selectedTemplate) return;
+    setPreviewModalOpen(false);
+    setTestSending(true);
+    setTestResult(null);
+    try {
+      const res = await post<{ message: string; success: boolean; params_used?: string[]; preview_content?: string }>('/api/admin/sms/test', {
+        phone: previewData.phone,
+        provider: previewData.provider,
+        template_id: selectedTemplate.template_id,
+        template_params: previewData.params.map(p => p.value),
+      });
+      setTestResult({
+        success: res.success,
+        message: res.message,
+        params_used: res.params_used,
+        preview_content: res.preview_content || previewData.previewContent,
+      });
       if (res.success) message.success('测试短信发送成功');
     } catch (e: any) {
       const detail = e?.response?.data?.detail || e?.message || '发送失败';
-      setTestResult({ success: false, message: typeof detail === 'string' ? detail : '发送失败' });
+      setTestResult({
+        success: false,
+        message: typeof detail === 'string' ? detail : '发送失败',
+        params_used: previewData.params.map(p => p.value),
+        preview_content: previewData.previewContent,
+      });
     } finally {
       setTestSending(false);
     }
@@ -337,7 +455,15 @@ export default function SmsPage() {
       title: '用途场景', dataIndex: 'scene', key: 'scene', width: 100,
       render: (v: string) => <Tag color={sceneColor(v)}>{sceneLabel(v)}</Tag>,
     },
-    { title: '变量说明', dataIndex: 'variables', key: 'variables', width: 160, ellipsis: true },
+    {
+      title: '变量说明', dataIndex: 'variables', key: 'variables', width: 160,
+      render: (v: TemplateVariable[] | null) => {
+        if (Array.isArray(v) && v.length > 0) {
+          return v.map(item => item.name).join(', ');
+        }
+        return <Tag color="warning">未配置</Tag>;
+      },
+    },
     {
       title: '状态', dataIndex: 'status', key: 'status', width: 80,
       render: (v: boolean) => <Tag color={v ? 'green' : 'default'}>{v ? '启用' : '禁用'}</Tag>,
@@ -535,8 +661,36 @@ export default function SmsPage() {
                   { label: '其他', value: 'other' },
                 ]} />
               </Form.Item>
-              <Form.Item label="变量说明" name="variables">
-                <Input placeholder="如: {code}=验证码, {name}=用户名" />
+              <Form.Item label="模板变量配置">
+                <Form.List name="variables">
+                  {(fields, { add, remove }) => (
+                    <>
+                      {fields.map((field, index) => (
+                        <Space key={field.key} style={{ display: 'flex', marginBottom: 8 }} align="baseline">
+                          <span style={{ color: '#999', minWidth: 32 }}>{`{${index + 1}}`}</span>
+                          <Form.Item
+                            {...field}
+                            name={[field.name, 'name']}
+                            rules={[{ required: true, message: '请输入变量名称' }]}
+                            style={{ marginBottom: 0 }}
+                          >
+                            <Input placeholder="变量名称" style={{ width: 120 }} />
+                          </Form.Item>
+                          <Form.Item {...field} name={[field.name, 'description']} style={{ marginBottom: 0 }}>
+                            <Input placeholder="变量说明（选填）" style={{ width: 140 }} />
+                          </Form.Item>
+                          <Form.Item {...field} name={[field.name, 'default_value']} style={{ marginBottom: 0 }}>
+                            <Input placeholder="默认值（选填）" style={{ width: 120 }} />
+                          </Form.Item>
+                          <MinusCircleOutlined onClick={() => remove(field.name)} style={{ color: '#ff4d4f' }} />
+                        </Space>
+                      ))}
+                      <Button type="dashed" onClick={() => add()} block icon={<PlusOutlined />}>
+                        添加变量
+                      </Button>
+                    </>
+                  )}
+                </Form.List>
               </Form.Item>
               <Form.Item label="状态" name="status" valuePropName="checked">
                 <Switch checkedChildren="启用" unCheckedChildren="禁用" />
@@ -611,7 +765,7 @@ export default function SmsPage() {
       key: 'test',
       label: <Space><SendOutlined />测试发送</Space>,
       children: (
-        <Card style={{ borderRadius: 12, maxWidth: 480 }}>
+        <Card style={{ borderRadius: 12, maxWidth: 560 }}>
           <Form form={testForm} layout="vertical">
             <Form.Item label="服务商" name="provider" rules={[{ required: true, message: '请选择服务商' }]}>
               <Select
@@ -632,25 +786,170 @@ export default function SmsPage() {
             >
               <Input placeholder="请输入接收手机号" maxLength={11} />
             </Form.Item>
-            <Form.Item label="模板ID（可选）" name="template_id">
-              <Input placeholder="留空则使用配置中的默认模板ID" />
+            <Form.Item label="短信模板" name="template_select" rules={[{ required: true, message: '请选择短信模板' }]}>
+              <Select
+                placeholder="请选择短信模板"
+                showSearch
+                optionFilterProp="label"
+                onChange={(val: number) => {
+                  const tpl = templates.find(t => t.id === val) || null;
+                  setSelectedTemplate(tpl);
+                  setTestResult(null);
+                  setInputMode('auto');
+                }}
+                options={templates.map(t => ({
+                  label: `${t.name}（${providerLabel(t.provider)} - ${t.template_id}）`,
+                  value: t.id,
+                }))}
+              />
             </Form.Item>
+
+            {selectedTemplate && (
+              <Form.Item
+                label={
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                    <span>{`模板参数（${inputMode === 'auto' ? '自动模式' : '高级模式'}）`}</span>
+                    <Button
+                      type="link"
+                      size="small"
+                      icon={<SwapOutlined />}
+                      onClick={() => setInputMode(inputMode === 'auto' ? 'advanced' : 'auto')}
+                      style={{ padding: 0 }}
+                    >
+                      {inputMode === 'auto' ? '切换到高级输入' : '切换到自动模式'}
+                    </Button>
+                  </div>
+                }
+              >
+                {inputMode === 'auto' ? (
+                  Array.isArray(selectedTemplate.variables) && selectedTemplate.variables.length > 0 ? (
+                    <div style={{ border: '1px solid #f0f0f0', borderRadius: 8, padding: 16 }}>
+                      {selectedTemplate.variables.map((v, idx) => (
+                        <Form.Item
+                          key={v.name}
+                          label={<span>{`{${idx + 1}} ${v.name}`}{v.description && <span style={{ color: '#999', marginLeft: 8, fontSize: 12 }}>({v.description})</span>}</span>}
+                          name={['template_vars', v.name]}
+                          initialValue={v.default_value || ''}
+                          style={{ marginBottom: idx < (selectedTemplate.variables?.length || 0) - 1 ? 12 : 0 }}
+                        >
+                          <Input placeholder={v.description || `请输入${v.name}`} />
+                        </Form.Item>
+                      ))}
+                    </div>
+                  ) : (
+                    <Alert
+                      type="warning"
+                      message="该模板尚未配置变量信息，请先在模板管理中补全，或切换到高级输入模式"
+                      showIcon
+                    />
+                  )
+                ) : (
+                  <Form.Item name="advanced_params" noStyle>
+                    <Input.TextArea
+                      rows={3}
+                      placeholder="请按英文逗号分隔输入参数值，如：123456,5"
+                    />
+                  </Form.Item>
+                )}
+              </Form.Item>
+            )}
+
             <Form.Item>
-              <Button type="primary" icon={<SendOutlined />} onClick={handleTestSend} loading={testSending}>
+              <Button type="primary" icon={<EyeOutlined />} onClick={handlePreviewAndSend} loading={testSending}>
                 发送测试短信
               </Button>
             </Form.Item>
           </Form>
+
           {testResult && (
-            <Alert
-              type={testResult.success ? 'success' : 'error'}
-              message={testResult.success ? '发送成功' : '发送失败'}
-              description={testResult.message}
-              icon={testResult.success ? <CheckCircleOutlined /> : <ExclamationCircleOutlined />}
-              showIcon
-              style={{ marginTop: 16 }}
-            />
+            <div style={{ marginTop: 16 }}>
+              <Alert
+                type={testResult.success ? 'success' : 'error'}
+                message={testResult.success ? '发送成功' : '发送失败'}
+                description={testResult.message}
+                icon={testResult.success ? <CheckCircleOutlined /> : <ExclamationCircleOutlined />}
+                showIcon
+              />
+              {previewData && (
+                <div style={{
+                  marginTop: 12,
+                  border: `1px solid ${testResult.success ? '#b7eb8f' : '#ffa39e'}`,
+                  borderRadius: 8,
+                  padding: 16,
+                  background: testResult.success ? '#f6ffed' : '#fff2f0',
+                }}>
+                  <Typography.Text strong style={{ display: 'block', marginBottom: 8 }}>参数列表：</Typography.Text>
+                  <div style={{ marginBottom: 12 }}>
+                    {previewData.params.map((p, idx) => (
+                      <Tag key={idx} style={{ marginBottom: 4 }}>{`${p.name}: ${p.value}`}</Tag>
+                    ))}
+                  </div>
+                  <Typography.Text strong style={{ display: 'block', marginBottom: 8 }}>短信预览内容：</Typography.Text>
+                  <div style={{
+                    background: '#fff',
+                    border: '1px solid #d9d9d9',
+                    borderRadius: 6,
+                    padding: 12,
+                    color: '#333',
+                    lineHeight: 1.6,
+                  }}>
+                    {testResult.preview_content || previewData.previewContent}
+                  </div>
+                </div>
+              )}
+            </div>
           )}
+
+          <Modal
+            title="发送确认"
+            open={previewModalOpen}
+            onOk={handleConfirmSend}
+            onCancel={() => setPreviewModalOpen(false)}
+            okText="确认发送"
+            cancelText="取消"
+            width={480}
+          >
+            {previewData && (
+              <div>
+                <div style={{ marginBottom: 12 }}>
+                  <Typography.Text type="secondary">收信手机号：</Typography.Text>
+                  <Typography.Text strong>{previewData.phone}</Typography.Text>
+                </div>
+                <div style={{ marginBottom: 12 }}>
+                  <Typography.Text type="secondary">服务商：</Typography.Text>
+                  <Typography.Text>{providerLabel(previewData.provider)}</Typography.Text>
+                </div>
+                <div style={{ marginBottom: 12 }}>
+                  <Typography.Text type="secondary">模板名称：</Typography.Text>
+                  <Typography.Text>{previewData.templateName}</Typography.Text>
+                  <Typography.Text type="secondary" style={{ marginLeft: 8 }}>({previewData.templateId})</Typography.Text>
+                </div>
+                {previewData.params.length > 0 && (
+                  <div style={{ marginBottom: 12 }}>
+                    <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 4 }}>模板参数：</Typography.Text>
+                    {previewData.params.map((p, idx) => (
+                      <div key={idx} style={{ paddingLeft: 16, marginBottom: 2 }}>
+                        <Typography.Text>{`{${idx + 1}} ${p.name}：`}</Typography.Text>
+                        <Typography.Text strong>{p.value}</Typography.Text>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div style={{ marginBottom: 0 }}>
+                  <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 4 }}>短信预览内容：</Typography.Text>
+                  <div style={{
+                    background: '#f5f5f5',
+                    borderRadius: 6,
+                    padding: 12,
+                    border: '1px solid #e8e8e8',
+                    lineHeight: 1.6,
+                  }}>
+                    {previewData.previewContent}
+                  </div>
+                </div>
+              </div>
+            )}
+          </Modal>
         </Card>
       ),
     },

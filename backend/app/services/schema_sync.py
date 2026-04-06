@@ -28,6 +28,36 @@ async def _sync_ai_model_configs(conn: AsyncConnection) -> None:
         await conn.execute(text("ALTER TABLE ai_model_configs ADD COLUMN template_synced_at DATETIME NULL"))
 
 
+async def _sync_sms_tables(conn: AsyncConnection) -> None:
+    def _load(sync_conn):
+        inspector = inspect(sync_conn)
+        tables = set(inspector.get_table_names())
+        logs_cols = None
+        tpl_cols = None
+        if "sms_logs" in tables:
+            logs_cols = {col["name"] for col in inspector.get_columns("sms_logs")}
+        if "sms_templates" in tables:
+            tpl_cols = {col["name"] for col in inspector.get_columns("sms_templates")}
+        return logs_cols, tpl_cols
+
+    logs_cols, tpl_cols = await conn.run_sync(_load)
+
+    if logs_cols is not None and "template_params" not in logs_cols:
+        await conn.execute(text("ALTER TABLE sms_logs ADD COLUMN template_params VARCHAR(1000) NULL"))
+
+    if tpl_cols is not None:
+        def _check_col_type(sync_conn):
+            inspector = inspect(sync_conn)
+            for col in inspector.get_columns("sms_templates"):
+                if col["name"] == "variables":
+                    return str(col["type"])
+            return ""
+
+        col_type = await conn.run_sync(_check_col_type)
+        if "TEXT" not in col_type.upper():
+            await conn.execute(text("ALTER TABLE sms_templates MODIFY COLUMN variables TEXT NULL"))
+
+
 async def _sync_member_levels(conn: AsyncConnection) -> None:
     def _load(sync_conn):
         inspector = inspect(sync_conn)
@@ -62,6 +92,7 @@ async def sync_register_schema(conn: AsyncConnection) -> None:
 
     await _sync_ai_model_configs(conn)
     await _sync_member_levels(conn)
+    await _sync_sms_tables(conn)
 
     columns, indexes, unique_constraints = await conn.run_sync(load_user_schema)
 

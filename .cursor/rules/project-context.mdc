@@ -289,6 +289,31 @@ All 9 admin API endpoints return HTTP 200 with correct data structure. Admin fro
 
 - 15/15 server API tests passed (login, GET camelCase fields, no snake_case leakage, benefits string type, discount integer type, POST create, PUT update, DELETE, 404 on nonexistent)
 
+## Latest Feature: 短信测试发送支持自定义模板参数
+
+### Backend
+
+- **Model Changes**: `SmsTemplate.variables` field type changed from `String(500)` to `Text` for larger JSON storage. `SmsLog` model added `template_params` field (`String(1000)`, nullable) to record template parameters used in each send.
+- **Schema Changes**: `SmsTestRequest` — `template_id` now required (was Optional), added `template_params: Optional[list[str]]`. Added `SmsTestResponse` with `success`, `message`, `params_used`, `preview_content` fields. `SmsTemplateCreate/Update` — `variables` field type changed from `Optional[str]` to `Optional[list[dict]]`. `SmsTemplateResponse` — `variables` now returns parsed `list[dict]` with a field_validator that auto-parses JSON strings from DB. `SmsLogResponse` — added `template_params` field.
+- **API Changes**: `POST /api/admin/sms/test` — supports custom `template_params` array; if not provided, falls back to random 6-digit code. Returns `params_used` and `preview_content` (template content with `{1}`, `{2}` placeholders replaced by actual params). Template CRUD endpoints now serialize/deserialize `variables` as JSON between list[dict] API format and string DB storage.
+- **Service Changes**: `send_sms()` function now accepts optional `template_params` and `template_id` parameters. Custom params are passed through to Tencent/Aliyun SDK calls. `_record_sms_log()` records `template_params` as JSON string.
+- **Schema Sync**: Added `_sync_sms_tables()` in `backend/app/services/schema_sync.py` — auto-adds `template_params` column to existing `sms_logs` table and modifies `sms_templates.variables` column to `TEXT` type on startup.
+
+### Admin Web
+
+- **Template Modal**: Replaced simple text input for variables with dynamic `Form.List` — each row has sequence number (`{1}`, `{2}`), variable name (required), description (optional), default value (optional), and delete button. "Add Variable" button at bottom.
+- **Template List**: "变量说明" column now shows variable names list for configured templates, or `<Tag color="warning">未配置</Tag>` for unconfigured ones.
+- **Test Send Form**: Replaced optional template_id text input with required template dropdown selector. Added dynamic template parameter input area with two modes:
+  - **Auto mode (default)**: Generates input fields based on template's variable config, pre-filled with default values
+  - **Advanced mode**: Single TextArea for comma-separated parameter input
+- **Preview Confirmation**: Before sending, shows confirmation modal with phone number, template info, parameter list, and SMS preview content (placeholders replaced with actual values).
+- **Enhanced Results**: Test result display now includes parameter list (as Tags) and full SMS preview content, with success/error styling.
+
+### Testing
+
+- 9/9 local pytest tests passed (template CRUD with variables, test send with/without params, preview content, auth, logs)
+- 9/9 server API tests passed (same coverage on deployed environment)
+
 ## Notes For Next Iteration
 
 - Merchant identities are granted by admin only; new self-registered accounts still default to normal users.

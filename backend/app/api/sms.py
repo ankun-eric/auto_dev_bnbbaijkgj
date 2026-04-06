@@ -1,3 +1,4 @@
+import json
 import random
 import string
 from datetime import datetime
@@ -22,6 +23,7 @@ from app.schemas.sms import (
     SmsTemplateResponse,
     SmsTemplateUpdate,
     SmsTestRequest,
+    SmsTestResponse,
     TencentConfigResponse,
 )
 from app.services.sms_service import encrypt_secret_key, send_sms
@@ -209,6 +211,7 @@ async def create_sms_template(
     current_user=Depends(admin_dep),
     db: AsyncSession = Depends(get_db),
 ):
+    variables_str = json.dumps(data.variables, ensure_ascii=False) if data.variables is not None else None
     tpl = SmsTemplate(
         name=data.name,
         provider=data.provider,
@@ -216,7 +219,7 @@ async def create_sms_template(
         content=data.content,
         sign_name=data.sign_name,
         scene=data.scene,
-        variables=data.variables,
+        variables=variables_str,
         status=data.status if data.status is not None else True,
     )
     db.add(tpl)
@@ -237,10 +240,12 @@ async def update_sms_template(
     if not tpl:
         raise HTTPException(status_code=404, detail="模板不存在")
 
-    for field in ("name", "provider", "template_id", "content", "sign_name", "scene", "variables", "status"):
+    for field in ("name", "provider", "template_id", "content", "sign_name", "scene", "status"):
         val = getattr(data, field, None)
         if val is not None:
             setattr(tpl, field, val)
+    if data.variables is not None:
+        tpl.variables = json.dumps(data.variables, ensure_ascii=False)
 
     tpl.updated_at = datetime.utcnow()
     await db.flush()
@@ -306,13 +311,29 @@ async def get_sms_logs(
 
 # ──────── Test ────────
 
-@router.post("/test")
+@router.post("/test", response_model=SmsTestResponse)
 async def test_sms(
     data: SmsTestRequest,
     current_user=Depends(admin_dep),
     db: AsyncSession = Depends(get_db),
 ):
     code = "".join(random.choices(string.digits, k=6))
+
+    if data.template_params:
+        params_used = data.template_params
+    else:
+        params_used = [code]
+
+    preview_content: Optional[str] = None
+    result = await db.execute(
+        select(SmsTemplate).where(SmsTemplate.template_id == data.template_id).limit(1)
+    )
+    tpl = result.scalar_one_or_none()
+    if tpl and tpl.content:
+        preview_content = tpl.content
+        for i, val in enumerate(params_used):
+            preview_content = preview_content.replace(f"{{{i + 1}}}", val)
+
     try:
         await send_sms(
             data.phone, code,
@@ -320,7 +341,19 @@ async def test_sms(
             operator_id=current_user.id,
             provider=data.provider,
             db=db,
+            template_params=data.template_params,
+            template_id=data.template_id,
         )
-        return {"success": True, "message": "测试短信发送成功"}
+        return SmsTestResponse(
+            success=True,
+            message="测试短信发送成功",
+            params_used=params_used,
+            preview_content=preview_content,
+        )
     except RuntimeError as exc:
-        return {"success": False, "message": str(exc)}
+        return SmsTestResponse(
+            success=False,
+            message=str(exc),
+            params_used=params_used,
+            preview_content=preview_content,
+        )

@@ -1,7 +1,8 @@
+import json
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 
 class SmsConfigCreate(BaseModel):
@@ -90,14 +91,23 @@ class SmsLogResponse(BaseModel):
     error_message: Optional[str] = None
     is_test: bool
     operator_id: Optional[int] = None
+    template_params: Optional[str] = None
     created_at: Optional[datetime] = None
     model_config = {"from_attributes": True}
 
 
 class SmsTestRequest(BaseModel):
     phone: str
-    template_id: Optional[str] = None
+    template_id: str
     provider: Optional[str] = "tencent"
+    template_params: Optional[list[str]] = None
+
+
+class SmsTestResponse(BaseModel):
+    success: bool
+    message: str
+    params_used: Optional[list[str]] = None
+    preview_content: Optional[str] = None
 
 
 class SmsTemplateCreate(BaseModel):
@@ -107,7 +117,7 @@ class SmsTemplateCreate(BaseModel):
     content: Optional[str] = None
     sign_name: Optional[str] = None
     scene: Optional[str] = "other"
-    variables: Optional[str] = None
+    variables: Optional[list[dict]] = None
     status: Optional[bool] = True
 
 
@@ -118,7 +128,7 @@ class SmsTemplateUpdate(BaseModel):
     content: Optional[str] = None
     sign_name: Optional[str] = None
     scene: Optional[str] = None
-    variables: Optional[str] = None
+    variables: Optional[list[dict]] = None
     status: Optional[bool] = None
 
 
@@ -130,8 +140,27 @@ class SmsTemplateResponse(BaseModel):
     content: Optional[str] = None
     sign_name: Optional[str] = None
     scene: Optional[str] = None
-    variables: Optional[str] = None
+    variables: Optional[list[dict]] = None
     status: bool
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     model_config = {"from_attributes": True}
+
+    @field_validator("variables", mode="before")
+    @classmethod
+    def parse_variables(cls, v: Any) -> Optional[list[dict]]:
+        if v is None:
+            return None
+        if isinstance(v, list):
+            return v
+        if isinstance(v, str):
+            if not v.strip():
+                return None
+            try:
+                parsed = json.loads(v)
+                if isinstance(parsed, list):
+                    return parsed
+            except (json.JSONDecodeError, TypeError):
+                pass
+            return None
+        return None

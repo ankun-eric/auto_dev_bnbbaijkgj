@@ -935,6 +935,7 @@ class SmsLog(Base):
     error_message = mapped_column(Text, nullable=True)
     is_test = mapped_column(Boolean, default=False)
     operator_id = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
+    template_params = mapped_column(String(1000), nullable=True)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
 
 
@@ -948,7 +949,7 @@ class SmsTemplate(Base):
     content = mapped_column(String(500), nullable=True)
     sign_name = mapped_column(String(50), nullable=True)
     scene = mapped_column(String(20), nullable=True)
-    variables = mapped_column(String(500), nullable=True)
+    variables = mapped_column(Text, nullable=True)
     status = mapped_column(Boolean, default=True)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

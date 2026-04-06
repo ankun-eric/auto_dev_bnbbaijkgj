@@ -106,6 +106,7 @@ async def _record_sms_log(
     operator_id: int | None = None,
     provider: str | None = None,
     db: AsyncSession | None = None,
+    template_params: list[str] | None = None,
 ):
     from app.models.models import SmsLog
 
@@ -118,6 +119,7 @@ async def _record_sms_log(
         is_test=is_test,
         operator_id=operator_id,
         provider=provider,
+        template_params=json.dumps(template_params) if template_params else None,
     )
 
     if db is not None:
@@ -129,7 +131,10 @@ async def _record_sms_log(
         await session.commit()
 
 
-async def _send_via_tencent(phone: str, code: str, cfg: dict) -> None:
+async def _send_via_tencent(
+    phone: str, code: str, cfg: dict,
+    template_params: list[str] | None = None,
+) -> None:
     from tencentcloud.common import credential
     from tencentcloud.common.exception.tencent_cloud_sdk_exception import (
         TencentCloudSDKException,
@@ -143,7 +148,7 @@ async def _send_via_tencent(phone: str, code: str, cfg: dict) -> None:
     req.SmsSdkAppId = cfg["sdk_app_id"]
     req.SignName = cfg["sign_name"]
     req.TemplateId = cfg["template_id"]
-    req.TemplateParamSet = [code, "5"]
+    req.TemplateParamSet = template_params if template_params else [code, "5"]
     req.PhoneNumberSet = [f"+86{phone}"]
 
     resp = client.SendSms(req)
@@ -155,7 +160,15 @@ async def _send_via_tencent(phone: str, code: str, cfg: dict) -> None:
     logger.info("腾讯云短信发送成功: phone=%s", phone)
 
 
-async def _send_via_aliyun(phone: str, code: str, cfg: dict) -> None:
+async def _send_via_aliyun(
+    phone: str, code: str, cfg: dict,
+    template_params: list[str] | None = None,
+) -> None:
+    if template_params:
+        param_dict = {str(i + 1): v for i, v in enumerate(template_params)}
+    else:
+        param_dict = {"code": code}
+
     try:
         from alibabacloud_dysmsapi20170525.client import Client as DysmsapiClient
         from alibabacloud_tea_openapi.models import Config as OpenApiConfig
@@ -172,7 +185,7 @@ async def _send_via_aliyun(phone: str, code: str, cfg: dict) -> None:
             phone_numbers=phone,
             sign_name=cfg["sign_name"],
             template_code=cfg["template_id"],
-            template_param=json.dumps({"code": code}),
+            template_param=json.dumps(param_dict),
         )
         resp = client.send_sms(request)
         body = resp.body
@@ -182,12 +195,20 @@ async def _send_via_aliyun(phone: str, code: str, cfg: dict) -> None:
 
     except ImportError:
         logger.info("alibabacloud SDK not installed, using HTTP API fallback")
-        await _send_via_aliyun_http(phone, code, cfg)
+        await _send_via_aliyun_http(phone, code, cfg, template_params=template_params)
 
 
-async def _send_via_aliyun_http(phone: str, code: str, cfg: dict) -> None:
+async def _send_via_aliyun_http(
+    phone: str, code: str, cfg: dict,
+    template_params: list[str] | None = None,
+) -> None:
     """Fallback: call Alibaba Cloud SMS via HTTP API without SDK."""
     import httpx
+
+    if template_params:
+        param_dict = {str(i + 1): v for i, v in enumerate(template_params)}
+    else:
+        param_dict = {"code": code}
 
     access_key_id = cfg["access_key_id"]
     access_key_secret = cfg["access_key_secret"]
@@ -203,7 +224,7 @@ async def _send_via_aliyun_http(phone: str, code: str, cfg: dict) -> None:
         "SignatureNonce": str(uuid.uuid4()),
         "SignatureVersion": "1.0",
         "TemplateCode": cfg["template_id"],
-        "TemplateParam": json.dumps({"code": code}),
+        "TemplateParam": json.dumps(param_dict),
         "Timestamp": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
         "Version": "2017-05-25",
     }
@@ -232,38 +253,44 @@ async def send_sms(
     operator_id: int | None = None,
     provider: str | None = None,
     db: AsyncSession | None = None,
+    template_params: list[str] | None = None,
+    template_id: str | None = None,
 ) -> None:
     cfg = await _resolve_sms_config(db, provider=provider)
     resolved_provider = cfg["provider"]
-    template_id = cfg["template_id"]
+    resolved_template_id = template_id if template_id else cfg["template_id"]
+    cfg["template_id"] = resolved_template_id
 
     try:
         if resolved_provider == "aliyun":
-            await _send_via_aliyun(phone, code, cfg)
+            await _send_via_aliyun(phone, code, cfg, template_params=template_params)
         else:
-            await _send_via_tencent(phone, code, cfg)
+            await _send_via_tencent(phone, code, cfg, template_params=template_params)
 
         await _record_sms_log(
-            phone, code, template_id, "success",
+            phone, code, resolved_template_id, "success",
             is_test=is_test, operator_id=operator_id,
             provider=resolved_provider, db=db,
+            template_params=template_params,
         )
 
     except RuntimeError as exc:
         await _record_sms_log(
-            phone, code, template_id, "failed",
+            phone, code, resolved_template_id, "failed",
             error_message=str(exc),
             is_test=is_test, operator_id=operator_id,
             provider=resolved_provider, db=db,
+            template_params=template_params,
         )
         raise
 
     except Exception as exc:
         logger.error("短信发送异常 (%s): %s", resolved_provider, exc)
         await _record_sms_log(
-            phone, code, template_id, "failed",
+            phone, code, resolved_template_id, "failed",
             error_message=str(exc),
             is_test=is_test, operator_id=operator_id,
             provider=resolved_provider, db=db,
+            template_params=template_params,
         )
         raise RuntimeError(f"短信发送失败: {exc}") from exc
