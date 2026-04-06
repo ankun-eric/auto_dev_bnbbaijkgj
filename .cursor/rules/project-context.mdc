@@ -611,6 +611,39 @@ All 9 admin API endpoints return HTTP 200 with correct data structure. Admin fro
 
 - Created `user_docs/体检报告智能解读.md` — comprehensive user manual for health checkup report intelligent interpretation.
 
+## Latest Feature: AI大模型配置快捷测试
+
+### Backend
+
+- Extended `AIModelConfig` model (`backend/app/models/models.py`) with 3 new fields: `last_test_status` (String(20), nullable), `last_test_time` (DateTime, nullable), `last_test_message` (String(500), nullable).
+- Added `AIModelConfigTestRequest` schema (`backend/app/schemas/admin.py`) — supports `config_id` (test existing config from DB) or direct parameters (`base_url`, `model_name`, `api_key`), plus customizable `test_message` (default "你好").
+- Rewrote `POST /api/admin/ai-config/test` endpoint (`backend/app/api/admin.py`) — supports two invocation modes: by `config_id` (reads config from DB, persists test result) or by direct parameters. Returns enhanced response with `success`, `message`, `response_time`, `model_reply`, `error_detail`.
+- Updated `_ai_config_to_dict()` to include `last_test_status`, `last_test_time`, `last_test_message` in list API responses.
+- Updated `backend/app/services/schema_sync.py` — added auto-migration for 3 new columns on existing `ai_model_configs` table.
+
+### Admin Web
+
+- Updated `admin-web/src/app/(admin)/ai-config/page.tsx`:
+  - Added "最近测试" column between "状态" and "操作" columns — shows green "正常" / red "异常" tag with test time, or gray "未测试"
+  - Added blue outline "测试" button in operations column
+  - Added quick test modal with: auto-test on open, loading animation, success/failure result display (response time, model reply, error detail), customizable test message input, "去编辑" / "重新测试" / "关闭" footer buttons
+  - Test results persist to DB and survive page refresh
+
+### Testing
+
+- Added `backend/tests/test_ai_config_quick_test.py` — 5 local tests (missing params, nonexistent config_id, invalid URL, list new fields, custom test_message)
+- 6/6 server API tests passed (list new fields, missing params, nonexistent config_id, invalid URL, custom test_message, config_id with persistence verification)
+
+### Deployment (2026-04-06 #4)
+
+- Rebuilt and redeployed backend and admin-web containers
+- All 4 containers healthy (db, backend, admin-web, h5-web)
+- No mobile/client-side code changes (Flutter, miniprogram, H5 unaffected)
+
+### User Documentation
+
+- Created `user_docs/AI大模型配置快捷测试.md` — user manual for AI model config quick test feature
+
 ## Notes For Next Iteration
 
 - Merchant identities are granted by admin only; new self-registered accounts still default to normal users.

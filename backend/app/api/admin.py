@@ -36,6 +36,7 @@ from app.models.models import (
 from app.schemas.admin import (
     AIModelConfigCreate,
     AIModelConfigResponse,
+    AIModelConfigTestRequest,
     AIModelConfigUpdate,
     AIModelTemplateCreate,
     AIModelTemplateResponse,
@@ -136,6 +137,9 @@ def _ai_config_to_dict(config: AIModelConfig) -> dict:
         "temperature": config.temperature if config.temperature is not None else 0.7,
         "template_id": config.template_id,
         "template_synced_at": config.template_synced_at.isoformat() if config.template_synced_at else None,
+        "last_test_status": config.last_test_status,
+        "last_test_time": config.last_test_time.isoformat() if config.last_test_time else None,
+        "last_test_message": config.last_test_message,
         "created_at": config.created_at.isoformat() if config.created_at else None,
         "updated_at": config.updated_at.isoformat() if config.updated_at else None,
     }
@@ -316,21 +320,96 @@ async def delete_ai_config(
 
 @router.post("/ai-config/test")
 async def test_ai_config(
-    data: AIModelConfigCreate,
+    data: AIModelConfigTestRequest,
     current_user=Depends(admin_dep),
+    db: AsyncSession = Depends(get_db),
 ):
+    import time
+
+    base_url = data.base_url
+    model_name = data.model_name
+    api_key = data.api_key
+    config_obj = None
+
+    if data.config_id:
+        result = await db.execute(select(AIModelConfig).where(AIModelConfig.id == data.config_id))
+        config_obj = result.scalar_one_or_none()
+        if not config_obj:
+            raise HTTPException(status_code=404, detail="配置不存在")
+        base_url = config_obj.base_url
+        model_name = config_obj.model_name
+        api_key = config_obj.api_key_encrypted
+
+    if not base_url or not model_name or not api_key:
+        return {"success": False, "message": "缺少必要的配置信息", "response_time": None, "model_reply": None, "error_detail": "缺少 base_url、model_name 或 api_key"}
+
+    test_message = data.test_message or "你好"
+    start_time = time.time()
+
     try:
-        async with httpx.AsyncClient(timeout=15) as client:
+        async with httpx.AsyncClient(timeout=30) as client:
             resp = await client.post(
-                f"{data.base_url.rstrip('/')}/chat/completions",
-                headers={"Authorization": f"Bearer {data.api_key}", "Content-Type": "application/json"},
-                json={"model": data.model_name, "messages": [{"role": "user", "content": "你好"}], "max_tokens": 50},
+                f"{base_url.rstrip('/')}/chat/completions",
+                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                json={"model": model_name, "messages": [{"role": "user", "content": test_message}], "max_tokens": 100},
             )
+            elapsed = round(time.time() - start_time, 2)
+
             if resp.status_code == 200:
-                return {"success": True, "message": "连接测试成功"}
-            return {"success": False, "message": f"API返回状态码 {resp.status_code}"}
+                resp_data = resp.json()
+                model_reply = ""
+                try:
+                    model_reply = resp_data["choices"][0]["message"]["content"]
+                except (KeyError, IndexError):
+                    model_reply = str(resp_data)
+
+                if config_obj:
+                    config_obj.last_test_status = "success"
+                    config_obj.last_test_time = datetime.utcnow()
+                    config_obj.last_test_message = (model_reply[:500] if model_reply else "")
+                    await db.flush()
+
+                return {
+                    "success": True,
+                    "message": "连接测试成功",
+                    "response_time": elapsed,
+                    "model_reply": model_reply,
+                    "error_detail": None,
+                }
+            else:
+                error_text = resp.text[:500] if resp.text else ""
+                error_detail = f"API返回状态码 {resp.status_code}: {error_text}"
+
+                if config_obj:
+                    config_obj.last_test_status = "failed"
+                    config_obj.last_test_time = datetime.utcnow()
+                    config_obj.last_test_message = error_detail[:500]
+                    await db.flush()
+
+                return {
+                    "success": False,
+                    "message": "连接失败",
+                    "response_time": elapsed,
+                    "model_reply": None,
+                    "error_detail": error_detail,
+                }
     except Exception as e:
-        return {"success": False, "message": f"连接失败: {str(e)}"}
+        elapsed = round(time.time() - start_time, 2)
+        error_detail = f"连接失败: {str(e)}"
+
+        if config_obj:
+            config_obj.last_test_status = "failed"
+            config_obj.last_test_time = datetime.utcnow()
+            config_obj.last_test_message = error_detail[:500]
+            await db.flush()
+
+        return {
+            "success": False,
+            "message": "连接失败",
+            "response_time": elapsed if elapsed > 0 else None,
+            "model_reply": None,
+            "error_detail": error_detail,
+        }
 
 
 # ── AI 模型模板管理 ──

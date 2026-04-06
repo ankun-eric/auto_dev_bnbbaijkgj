@@ -40,6 +40,15 @@ class AIModelConfigResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class AIModelConfigTestRequest(BaseModel):
+    config_id: Optional[int] = None
+    provider_name: Optional[str] = None
+    base_url: Optional[str] = None
+    model_name: Optional[str] = None
+    api_key: Optional[str] = None
+    test_message: str = "你好"
+
+
 class SystemConfigUpdate(BaseModel):
     config_value: str
 

@@ -922,6 +922,9 @@ class AIModelConfig(Base):
     temperature = mapped_column(Float, default=0.7)
     template_id = mapped_column(Integer, ForeignKey("ai_model_templates.id"), nullable=True)
     template_synced_at = mapped_column(DateTime, nullable=True)
+    last_test_status = mapped_column(String(20), nullable=True)
+    last_test_time = mapped_column(DateTime, nullable=True)
+    last_test_message = mapped_column(String(500), nullable=True)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

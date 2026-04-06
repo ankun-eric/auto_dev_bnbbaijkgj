@@ -29,6 +29,9 @@ interface AIConfig {
   temperature: number;
   template_id?: number | null;
   template_synced_at?: string | null;
+  last_test_status?: string | null;
+  last_test_time?: string | null;
+  last_test_message?: string | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -116,6 +119,19 @@ export default function AIConfigPage() {
   // Template selector modal
   const [templateSelectorOpen, setTemplateSelectorOpen] = useState(false);
   const [enabledTemplates, setEnabledTemplates] = useState<AITemplate[]>([]);
+
+  // Quick test state
+  const [quickTestModalOpen, setQuickTestModalOpen] = useState(false);
+  const [quickTestConfig, setQuickTestConfig] = useState<AIConfig | null>(null);
+  const [quickTestLoading, setQuickTestLoading] = useState(false);
+  const [quickTestResult, setQuickTestResult] = useState<{
+    success: boolean;
+    message: string;
+    response_time?: number | null;
+    model_reply?: string | null;
+    error_detail?: string | null;
+  } | null>(null);
+  const [quickTestMessage, setQuickTestMessage] = useState('你好');
 
   // Sync check state
   const [syncModalOpen, setSyncModalOpen] = useState(false);
@@ -312,6 +328,52 @@ export default function AIConfigPage() {
     }
   };
 
+  // ────────── Quick Test ──────────
+
+  const handleQuickTest = async (config: AIConfig) => {
+    setQuickTestConfig(config);
+    setQuickTestMessage('你好');
+    setQuickTestResult(null);
+    setQuickTestModalOpen(true);
+    doQuickTest(config.id!, '你好');
+  };
+
+  const doQuickTest = async (configId: number, testMessage: string) => {
+    setQuickTestLoading(true);
+    setQuickTestResult(null);
+    try {
+      const res = await post('/api/admin/ai-config/test', {
+        config_id: configId,
+        test_message: testMessage,
+      });
+      setQuickTestResult({
+        success: res.success ?? false,
+        message: res.message || '',
+        response_time: res.response_time,
+        model_reply: res.model_reply,
+        error_detail: res.error_detail,
+      });
+      fetchConfigs();
+    } catch (e: any) {
+      setQuickTestResult({
+        success: false,
+        message: '请求失败',
+        response_time: null,
+        model_reply: null,
+        error_detail: e?.response?.data?.detail || e?.message || '网络请求失败',
+      });
+    } finally {
+      setQuickTestLoading(false);
+    }
+  };
+
+  const handleGoEdit = () => {
+    setQuickTestModalOpen(false);
+    if (quickTestConfig) {
+      openEditConfig(quickTestConfig);
+    }
+  };
+
   // ────────── Template CRUD ──────────
 
   const fetchTemplates = useCallback(async () => {
@@ -463,9 +525,29 @@ export default function AIConfigPage() {
         ),
     },
     {
+      title: '最近测试',
+      key: 'last_test',
+      width: 140,
+      render: (_: any, record: AIConfig) => {
+        if (!record.last_test_status) {
+          return <Text type="secondary">未测试</Text>;
+        }
+        const isSuccess = record.last_test_status === 'success';
+        const timeStr = record.last_test_time
+          ? new Date(record.last_test_time).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+          : '';
+        return (
+          <div>
+            <Tag color={isSuccess ? 'green' : 'red'}>{isSuccess ? '正常' : '异常'}</Tag>
+            <div style={{ fontSize: 12, color: '#999', marginTop: 2 }}>{timeStr}</div>
+          </div>
+        );
+      },
+    },
+    {
       title: '操作',
       key: 'action',
-      width: 140,
+      width: 200,
       render: (_: any, record: AIConfig) => (
         <Space size="small">
           <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEditConfig(record)}>
@@ -476,6 +558,11 @@ export default function AIConfigPage() {
               删除
             </Button>
           </Popconfirm>
+          <Button type="default" size="small" icon={<ApiOutlined />}
+            style={{ color: '#1677ff', borderColor: '#1677ff' }}
+            onClick={() => handleQuickTest(record)}>
+            测试
+          </Button>
         </Space>
       ),
     },
@@ -842,6 +929,85 @@ export default function AIConfigPage() {
             </Button>
           </Form.Item>
         </Form>
+      </Modal>
+
+      {/* ── Quick Test Modal ── */}
+      <Modal
+        title={`测试AI模型 - ${quickTestConfig?.provider_name || ''} / ${quickTestConfig?.model_name || ''}`}
+        open={quickTestModalOpen}
+        onCancel={() => setQuickTestModalOpen(false)}
+        destroyOnClose
+        footer={
+          <Space>
+            {quickTestResult && !quickTestResult.success && (
+              <>
+                <Button onClick={handleGoEdit}>去编辑</Button>
+                <Button type="primary" ghost onClick={() => quickTestConfig?.id && doQuickTest(quickTestConfig.id, quickTestMessage)}>
+                  重新测试
+                </Button>
+              </>
+            )}
+            <Button onClick={() => setQuickTestModalOpen(false)}>关闭</Button>
+          </Space>
+        }
+        width={560}
+      >
+        {quickTestLoading && (
+          <div style={{ textAlign: 'center', padding: '32px 0' }}>
+            <Spin size="large" />
+            <div style={{ marginTop: 16, color: '#999' }}>正在测试连接...</div>
+          </div>
+        )}
+        {quickTestResult && !quickTestLoading && (
+          <Alert
+            type={quickTestResult.success ? 'success' : 'error'}
+            showIcon
+            icon={quickTestResult.success ? <CheckCircleOutlined /> : <ExclamationCircleOutlined />}
+            message={quickTestResult.success ? '测试成功' : '测试失败'}
+            description={
+              <div>
+                {quickTestResult.response_time != null && (
+                  <div style={{ marginBottom: 8 }}>
+                    <Text strong>响应时间：</Text>
+                    <Text>{quickTestResult.response_time}秒</Text>
+                  </div>
+                )}
+                {quickTestResult.success && quickTestResult.model_reply && (
+                  <div>
+                    <Text strong>模型回复：</Text>
+                    <div style={{ marginTop: 4, padding: '8px 12px', background: '#f5f5f5', borderRadius: 6, whiteSpace: 'pre-wrap' }}>
+                      {quickTestResult.model_reply}
+                    </div>
+                  </div>
+                )}
+                {!quickTestResult.success && quickTestResult.error_detail && (
+                  <div>
+                    <Text strong>错误原因：</Text>
+                    <div style={{ marginTop: 4, padding: '8px 12px', background: '#fff2f0', borderRadius: 6 }}>
+                      {quickTestResult.error_detail}
+                    </div>
+                  </div>
+                )}
+              </div>
+            }
+            style={{ marginBottom: 16 }}
+          />
+        )}
+        <div style={{ display: 'flex', gap: 8 }}>
+          <Input
+            value={quickTestMessage}
+            onChange={(e) => setQuickTestMessage(e.target.value)}
+            placeholder="输入测试消息"
+            onPressEnter={() => quickTestConfig?.id && !quickTestLoading && doQuickTest(quickTestConfig.id, quickTestMessage)}
+          />
+          <Button
+            type="primary"
+            loading={quickTestLoading}
+            onClick={() => quickTestConfig?.id && doQuickTest(quickTestConfig.id, quickTestMessage)}
+          >
+            发送测试
+          </Button>
+        </div>
       </Modal>
     </div>
   );

@@ -26,6 +26,12 @@ async def _sync_ai_model_configs(conn: AsyncConnection) -> None:
         ))
     if "template_synced_at" not in columns:
         await conn.execute(text("ALTER TABLE ai_model_configs ADD COLUMN template_synced_at DATETIME NULL"))
+    if "last_test_status" not in columns:
+        await conn.execute(text("ALTER TABLE ai_model_configs ADD COLUMN last_test_status VARCHAR(20) NULL"))
+    if "last_test_time" not in columns:
+        await conn.execute(text("ALTER TABLE ai_model_configs ADD COLUMN last_test_time DATETIME NULL"))
+    if "last_test_message" not in columns:
+        await conn.execute(text("ALTER TABLE ai_model_configs ADD COLUMN last_test_message VARCHAR(500) NULL"))
 
 
 async def _sync_sms_tables(conn: AsyncConnection) -> None:
