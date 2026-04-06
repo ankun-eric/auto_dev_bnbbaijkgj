@@ -1,0 +1,192 @@
+.trend-page {
+  padding: 24rpx;
+  min-height: 100vh;
+  padding-bottom: calc(env(safe-area-inset-bottom) + 40rpx);
+}
+
+/* 指标头部 */
+.indicator-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.indicator-title {
+  font-size: 34rpx;
+  font-weight: bold;
+  color: #333;
+}
+
+.indicator-unit {
+  font-size: 24rpx;
+  color: #999;
+}
+
+/* 图表区域 */
+.chart-section {
+  overflow: hidden;
+}
+
+.chart-legend {
+  display: flex;
+  gap: 24rpx;
+  margin-bottom: 16rpx;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+}
+
+.legend-dot {
+  width: 14rpx;
+  height: 14rpx;
+  border-radius: 50%;
+  margin-right: 8rpx;
+}
+
+.dot-green {
+  background: #52c41a;
+}
+
+.dot-red {
+  background: #ff4d4f;
+}
+
+.legend-band {
+  width: 24rpx;
+  height: 14rpx;
+  background: rgba(82, 196, 26, 0.15);
+  border-radius: 2rpx;
+  margin-right: 8rpx;
+}
+
+.legend-text {
+  font-size: 22rpx;
+  color: #999;
+}
+
+.chart-container {
+  position: relative;
+  border-radius: 12rpx;
+  overflow: hidden;
+  background: #fff;
+}
+
+.trend-canvas {
+  display: block;
+}
+
+.trend-canvas-old {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+/* 数据表格 */
+.data-table {
+  margin-top: 12rpx;
+}
+
+.table-header {
+  display: flex;
+  padding: 16rpx 0;
+  border-bottom: 2rpx solid #f0f0f0;
+}
+
+.table-header .table-col {
+  font-size: 24rpx;
+  color: #999;
+  font-weight: 500;
+}
+
+.table-row {
+  display: flex;
+  padding: 18rpx 0;
+  border-bottom: 1rpx solid #f9f9f9;
+}
+
+.table-row.row-abnormal {
+  background: rgba(255, 77, 79, 0.04);
+  margin: 0 -24rpx;
+  padding: 18rpx 24rpx;
+}
+
+.table-col {
+  font-size: 26rpx;
+  color: #333;
+}
+
+.col-date {
+  flex: 2;
+}
+
+.col-value {
+  flex: 2;
+  font-weight: 600;
+}
+
+.col-status {
+  flex: 1;
+  text-align: right;
+}
+
+.text-danger {
+  color: #ff4d4f;
+}
+
+.text-normal {
+  color: #52c41a;
+}
+
+.status-abnormal {
+  font-size: 22rpx;
+  color: #ff4d4f;
+  background: rgba(255, 77, 79, 0.08);
+  padding: 4rpx 12rpx;
+  border-radius: 6rpx;
+}
+
+.status-normal {
+  font-size: 22rpx;
+  color: #52c41a;
+  background: rgba(82, 196, 26, 0.08);
+  padding: 4rpx 12rpx;
+  border-radius: 6rpx;
+}
+
+/* AI分析 */
+.ai-analysis-box {
+  background: linear-gradient(135deg, #f6ffed, #e6fffb);
+  border-radius: 12rpx;
+  padding: 24rpx;
+  margin-top: 12rpx;
+  display: flex;
+  align-items: flex-start;
+}
+
+.ai-icon {
+  font-size: 36rpx;
+  margin-right: 16rpx;
+  flex-shrink: 0;
+}
+
+.ai-analysis-text {
+  font-size: 26rpx;
+  color: #555;
+  line-height: 1.7;
+  flex: 1;
+}
+
+/* 免责声明 */
+.disclaimer {
+  padding: 24rpx;
+  margin-top: 12rpx;
+}
+
+.disclaimer-text {
+  font-size: 22rpx;
+  color: #bbb;
+  line-height: 1.7;
+  text-align: center;
+}

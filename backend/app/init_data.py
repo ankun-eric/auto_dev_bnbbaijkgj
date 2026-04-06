@@ -15,6 +15,7 @@ from app.models.models import (
     ChatSession,
     ConstitutionQuestion,
     MemberLevel,
+    OcrConfig,
     ServiceCategory,
     SmsConfig,
     SmsTemplate,
@@ -39,6 +40,7 @@ async def init_default_data():
             await _migrate_sms_config_provider(db)
             await _init_sms_config_and_template(db)
             await _init_ai_center_configs(db)
+            await _init_ocr_config(db)
             await _clean_chat_history_once(db)
             await db.commit()
             logger.info("Default data initialization completed")
@@ -555,6 +557,19 @@ async def _init_ai_center_configs(db: AsyncSession):
             db.add(AiSensitiveWord(**w))
         await db.flush()
         logger.info("Created default AI sensitive words")
+
+
+async def _init_ocr_config(db: AsyncSession):
+    result = await db.execute(select(OcrConfig).limit(1))
+    if result.scalar_one_or_none():
+        return
+
+    db.add(OcrConfig(
+        enabled=True,
+        ocr_type="general_basic",
+    ))
+    await db.flush()
+    logger.info("Created default OCR config")
 
 
 async def _clean_chat_history_once(db: AsyncSession):

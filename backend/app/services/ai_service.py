@@ -220,3 +220,72 @@ async def identify_drug_from_image(image_description: str, db: Optional[AsyncSes
     )
     messages = [{"role": "user", "content": f"药品图片描述: {image_description}"}]
     return await call_ai_model(messages, system_prompt, db)
+
+
+async def analyze_report_structured(
+    ocr_text: str,
+    user_profile: Optional[Dict] = None,
+    db: Optional[AsyncSession] = None,
+) -> Dict[str, Any]:
+    """Return a structured JSON interpretation of a checkup report."""
+    system_prompt = (
+        "你是一位专业的健康顾问AI，擅长解读体检报告。请根据提供的体检报告OCR文本，"
+        "提取各项指标并给出结构化JSON解读结果。\n"
+        "回复必须是合法JSON，格式如下:\n"
+        "{\n"
+        '  "categories": [{"category_name": "分类名", "indicators": [{"name": "指标名", '
+        '"value": "数值", "unit": "单位", "reference_range": "参考范围", '
+        '"status": "normal/abnormal/critical", "advice": "异常建议"}]}],\n'
+        '  "abnormal_indicators": [同上indicator格式],\n'
+        '  "normal_indicators": [同上indicator格式],\n'
+        '  "overall_assessment": "总体评估文字",\n'
+        '  "suggestions": ["建议1", "建议2"],\n'
+        '  "disclaimer": "以上解读仅供健康参考，不构成医疗诊断或治疗建议，如有异常请及时就医。"\n'
+        "}"
+    )
+
+    profile_info = ""
+    if user_profile:
+        profile_info = (
+            f"\n用户信息: 性别{user_profile.get('gender','未知')}, "
+            f"年龄相关生日{user_profile.get('birthday','未知')}, "
+            f"身高{user_profile.get('height','未知')}cm, "
+            f"体重{user_profile.get('weight','未知')}kg"
+        )
+
+    messages = [{"role": "user", "content": f"请结构化解读以下体检报告:\n{ocr_text}{profile_info}"}]
+    result = await call_ai_model(messages, system_prompt, db)
+
+    try:
+        parsed = json.loads(result)
+    except json.JSONDecodeError:
+        parsed = {
+            "categories": [],
+            "abnormal_indicators": [],
+            "normal_indicators": [],
+            "overall_assessment": result,
+            "suggestions": [],
+            "disclaimer": "以上解读仅供健康参考，不构成医疗诊断或治疗建议，如有异常请及时就医。",
+        }
+
+    if "disclaimer" not in parsed or not parsed["disclaimer"]:
+        parsed["disclaimer"] = "以上解读仅供健康参考，不构成医疗诊断或治疗建议，如有异常请及时就医。"
+
+    return parsed
+
+
+async def analyze_trend(
+    indicator_name: str,
+    trend_data: List[Dict[str, Any]],
+    db: Optional[AsyncSession] = None,
+) -> str:
+    """AI trend analysis for a specific indicator over time."""
+    system_prompt = (
+        "你是一位专业的健康顾问AI。请根据用户某项体检指标的历史趋势数据，"
+        "分析变化趋势，给出健康建议。回复用中文纯文本，不要用JSON。"
+    )
+    data_str = json.dumps(trend_data, ensure_ascii=False, default=str)
+    messages = [
+        {"role": "user", "content": f"请分析指标「{indicator_name}」的历史趋势:\n{data_str}"}
+    ]
+    return await call_ai_model(messages, system_prompt, db)

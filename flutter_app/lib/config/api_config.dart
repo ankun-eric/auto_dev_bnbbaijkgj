@@ -34,10 +34,20 @@ class ApiConfig {
   /// 知识库命中反馈（见 knowledge 路由）
   static const String chatKnowledgeFeedback = '/api/chat/feedback';
 
-  // Checkup
+  // Checkup (legacy)
   static const String checkupReports = '/api/health/checkup-reports';
   static const String uploadCheckup = '/api/health/checkup-reports';
   static const String analyzeCheckup = '/api/health/checkup-reports';
+
+  // Report (new intelligent analysis)
+  static const String reportUpload = '/api/report/upload';
+  static const String reportAnalyze = '/api/report/analyze';
+  static const String reportDetail = '/api/report/detail';
+  static const String reportList = '/api/report/list';
+  static const String reportTrend = '/api/report/trend';
+  static const String reportTrendAnalysis = '/api/report/trend/analysis';
+  static const String reportAlerts = '/api/report/alerts';
+  static const String reportShare = '/api/report/share';
 
   // Symptom (uses chat with session_type=symptom_check)
   static const String symptomCheck = '/api/chat/sessions';

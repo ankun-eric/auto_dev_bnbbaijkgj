@@ -1,0 +1,260 @@
+.detail-page {
+  padding: 24rpx;
+  min-height: 100vh;
+  padding-bottom: calc(env(safe-area-inset-bottom) + 40rpx);
+}
+
+.loading-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+}
+
+/* 报告原图 */
+.images-section {
+  overflow: hidden;
+}
+
+.images-scroll {
+  white-space: nowrap;
+  margin-top: 16rpx;
+}
+
+.images-list {
+  display: inline-flex;
+  gap: 16rpx;
+}
+
+.report-image {
+  width: 200rpx;
+  height: 280rpx;
+  border-radius: 12rpx;
+  flex-shrink: 0;
+}
+
+/* 视图切换 */
+.view-switch {
+  display: flex;
+  background: #f5f5f5;
+  border-radius: 12rpx;
+  padding: 4rpx;
+  margin-bottom: 24rpx;
+}
+
+.switch-tab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16rpx 0;
+  border-radius: 10rpx;
+  font-size: 26rpx;
+  color: #666;
+  transition: all 0.25s;
+}
+
+.switch-tab.active {
+  background: #fff;
+  color: var(--primary-color);
+  font-weight: 600;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.06);
+}
+
+.abnormal-count {
+  background: #ff4d4f;
+  color: #fff;
+  font-size: 20rpx;
+  min-width: 32rpx;
+  height: 32rpx;
+  line-height: 32rpx;
+  text-align: center;
+  border-radius: 16rpx;
+  margin-left: 8rpx;
+  padding: 0 8rpx;
+}
+
+/* 综合摘要 */
+.summary-box {
+  background: linear-gradient(135deg, #f6ffed, #e6fffb);
+  border-radius: 12rpx;
+  padding: 24rpx;
+  margin-bottom: 24rpx;
+}
+
+.summary-label {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: var(--primary-color);
+  display: block;
+  margin-bottom: 12rpx;
+}
+
+.summary-content {
+  font-size: 26rpx;
+  color: #555;
+  line-height: 1.7;
+}
+
+/* 指标列表 */
+.sub-section-title {
+  margin-bottom: 16rpx;
+}
+
+.sub-title-text {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #333;
+}
+
+.category-header {
+  padding: 16rpx 0 8rpx;
+  margin-top: 12rpx;
+}
+
+.category-name {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: var(--primary-color);
+}
+
+.indicator-item {
+  background: #fafafa;
+  border-radius: 12rpx;
+  padding: 20rpx;
+  margin-bottom: 12rpx;
+  border-left: 6rpx solid #e8e8e8;
+}
+
+.indicator-item.abnormal {
+  background: #fff2f0;
+  border-left-color: #ff4d4f;
+}
+
+.indicator-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8rpx;
+}
+
+.indicator-left {
+  display: flex;
+  align-items: center;
+}
+
+.indicator-dot {
+  width: 14rpx;
+  height: 14rpx;
+  border-radius: 50%;
+  margin-right: 12rpx;
+  flex-shrink: 0;
+}
+
+.dot-red {
+  background: #ff4d4f;
+}
+
+.dot-green {
+  background: #52c41a;
+}
+
+.indicator-name {
+  font-size: 28rpx;
+  color: #333;
+  font-weight: 500;
+}
+
+.indicator-value {
+  font-size: 28rpx;
+  font-weight: bold;
+}
+
+.text-danger {
+  color: #ff4d4f;
+}
+
+.text-normal {
+  color: #52c41a;
+}
+
+.indicator-sub {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-left: 26rpx;
+}
+
+.indicator-ref {
+  font-size: 22rpx;
+  color: #999;
+}
+
+.trend-btn {
+  display: flex;
+  align-items: center;
+  padding: 4rpx 16rpx;
+  border-radius: 20rpx;
+  background: rgba(82, 196, 26, 0.08);
+}
+
+.trend-btn-text {
+  font-size: 22rpx;
+  color: var(--primary-color);
+}
+
+.trend-arrow {
+  font-size: 24rpx;
+  color: var(--primary-color);
+  margin-left: 4rpx;
+}
+
+.indicator-advice {
+  display: block;
+  font-size: 24rpx;
+  color: #faad14;
+  margin-top: 10rpx;
+  padding-left: 26rpx;
+  line-height: 1.5;
+}
+
+/* 分享 */
+.share-section {
+  display: flex;
+  justify-content: center;
+  padding: 24rpx 0;
+}
+
+.share-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+  color: #fff;
+  border-radius: 44rpx;
+  padding: 20rpx 60rpx;
+  font-size: 30rpx;
+}
+
+.share-btn-icon {
+  font-size: 32rpx;
+  margin-right: 10rpx;
+}
+
+.share-btn-text {
+  color: #fff;
+  font-weight: 500;
+}
+
+/* 免责声明 */
+.disclaimer {
+  padding: 24rpx;
+  margin-top: 12rpx;
+}
+
+.disclaimer-text {
+  font-size: 22rpx;
+  color: #bbb;
+  line-height: 1.7;
+  text-align: center;
+}

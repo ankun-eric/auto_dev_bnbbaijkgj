@@ -1,0 +1,87 @@
+<view class="trend-page">
+  <!-- 指标标题 -->
+  <view class="card indicator-header">
+    <text class="indicator-title">{{indicatorName}}</text>
+    <text class="indicator-unit" wx:if="{{unit}}">单位: {{unit}}</text>
+  </view>
+
+  <!-- 趋势图 -->
+  <view class="card chart-section" wx:if="{{!loading && trendData.length > 0}}">
+    <text class="section-title">历史趋势</text>
+    <view class="chart-legend">
+      <view class="legend-item">
+        <view class="legend-dot dot-green"></view>
+        <text class="legend-text">正常值</text>
+      </view>
+      <view class="legend-item">
+        <view class="legend-dot dot-red"></view>
+        <text class="legend-text">超标值</text>
+      </view>
+      <view class="legend-item">
+        <view class="legend-band"></view>
+        <text class="legend-text">正常范围</text>
+      </view>
+    </view>
+    <view class="chart-container">
+      <canvas
+        type="2d"
+        id="trendCanvas"
+        class="trend-canvas"
+        style="width: {{canvasWidth}}px; height: {{canvasHeight}}px;"
+      ></canvas>
+      <canvas
+        canvas-id="trendCanvasOld"
+        class="trend-canvas trend-canvas-old"
+        style="width: {{canvasWidth}}px; height: {{canvasHeight}}px;"
+      ></canvas>
+    </view>
+  </view>
+
+  <!-- 数据列表 -->
+  <view class="card" wx:if="{{!loading && trendData.length > 0}}">
+    <text class="section-title">历史记录</text>
+    <view class="data-table">
+      <view class="table-header">
+        <text class="table-col col-date">日期</text>
+        <text class="table-col col-value">数值</text>
+        <text class="table-col col-status">状态</text>
+      </view>
+      <view class="table-row {{(refMin != null && item.value < refMin) || (refMax != null && item.value > refMax) ? 'row-abnormal' : ''}}" wx:for="{{trendData}}" wx:key="index">
+        <text class="table-col col-date">{{item.date || item.created_at || '-'}}</text>
+        <text class="table-col col-value {{(refMin != null && item.value < refMin) || (refMax != null && item.value > refMax) ? 'text-danger' : 'text-normal'}}">{{item.value}}{{unit ? ' ' + unit : ''}}</text>
+        <text class="table-col col-status">
+          <text wx:if="{{(refMin != null && item.value < refMin) || (refMax != null && item.value > refMax)}}" class="status-abnormal">异常</text>
+          <text wx:else class="status-normal">正常</text>
+        </text>
+      </view>
+    </view>
+  </view>
+
+  <!-- AI趋势分析 -->
+  <view class="card" wx:if="{{aiAnalysis}}">
+    <text class="section-title">AI趋势分析</text>
+    <view class="ai-analysis-box">
+      <text class="ai-icon">🤖</text>
+      <text class="ai-analysis-text">{{aiAnalysis}}</text>
+    </view>
+  </view>
+
+  <!-- 空状态 -->
+  <view class="card" wx:if="{{!loading && trendData.length === 0}}">
+    <view class="empty-state">
+      <text class="empty-icon">📈</text>
+      <text class="empty-text">暂无历史趋势数据</text>
+      <text class="empty-text">多次上传报告后可查看趋势变化</text>
+    </view>
+  </view>
+
+  <!-- 加载 -->
+  <view class="loading-wrap" wx:if="{{loading}}">
+    <text class="text-hint">加载中...</text>
+  </view>
+
+  <!-- 免责声明 -->
+  <view class="disclaimer">
+    <text class="disclaimer-text">⚠️ 免责声明：本解读结果由AI智能分析生成，仅供参考，不构成医疗诊断或治疗建议。如有健康疑问，请及时咨询专业医生。</text>
+  </view>
+</view>

@@ -1,53 +1,79 @@
 <view class="checkup-page">
-  <!-- 上传区域 -->
-  <view class="upload-section card">
-    <text class="section-title">上传体检报告</text>
-    <text class="upload-tip">拍照或选择图片上传体检报告，AI为您智能解读</text>
-    <view class="upload-area" bindtap="uploadReport">
-      <text class="upload-icon">📤</text>
-      <text class="upload-text">点击上传报告</text>
-      <text class="upload-hint">支持拍照或从相册选择</text>
+  <!-- 预警横幅 -->
+  <view class="alert-banner" wx:if="{{hasUnreadAlerts}}" bindtap="dismissAlert">
+    <view class="alert-banner-inner">
+      <text class="alert-icon">⚠️</text>
+      <text class="alert-text">您有未读的健康预警，请及时查看</text>
+      <text class="alert-close">✕</text>
     </view>
   </view>
 
-  <!-- AI分析结果 -->
-  <view class="result-section card" wx:if="{{analysisResult}}">
-    <view class="result-header">
-      <text class="section-title">AI分析结果</text>
-      <view class="tag tag-green">已分析</view>
-    </view>
-    <view class="result-content">
-      <view class="result-item" wx:for="{{analysisResult.items}}" wx:key="name">
-        <view class="result-row">
-          <text class="result-name">{{item.name}}</text>
-          <text class="result-value {{item.status === 'abnormal' ? 'text-danger' : 'text-normal'}}">{{item.value}}</text>
+  <!-- 上传区域 -->
+  <view class="upload-section card">
+    <text class="section-title">上传体检报告</text>
+    <text class="upload-tip">选择上传方式，AI为您智能解读体检报告</text>
+    <view class="upload-buttons">
+      <view class="upload-btn" bindtap="chooseFromAlbum">
+        <view class="upload-btn-icon-wrap album">
+          <text class="upload-btn-icon">🖼️</text>
         </view>
-        <text class="result-ref">参考范围: {{item.reference}}</text>
-        <text class="result-advice" wx:if="{{item.advice}}">{{item.advice}}</text>
+        <text class="upload-btn-label">相册选图</text>
+        <text class="upload-btn-hint">选择已有图片</text>
       </view>
-    </view>
-    <view class="result-summary">
-      <text class="summary-title">综合建议</text>
-      <text class="summary-text">{{analysisResult.summary}}</text>
+      <view class="upload-btn" bindtap="takePhoto">
+        <view class="upload-btn-icon-wrap camera">
+          <text class="upload-btn-icon">📷</text>
+        </view>
+        <text class="upload-btn-label">拍照上传</text>
+        <text class="upload-btn-hint">直接拍摄报告</text>
+      </view>
+      <view class="upload-btn" bindtap="choosePDF">
+        <view class="upload-btn-icon-wrap pdf">
+          <text class="upload-btn-icon">📄</text>
+        </view>
+        <text class="upload-btn-label">PDF上传</text>
+        <text class="upload-btn-hint">导入PDF文件</text>
+      </view>
     </view>
   </view>
 
   <!-- 历史报告 -->
-  <view class="section-title" style="padding: 0 24rpx;">历史报告</view>
-  <view class="history-list">
-    <view class="history-item card" wx:for="{{historyReports}}" wx:key="id" bindtap="viewReport" data-id="{{item.id}}">
-      <view class="history-header">
-        <text class="history-date">{{item.date}}</text>
-        <view class="tag tag-blue">{{item.status}}</view>
+  <view class="history-section">
+    <text class="section-title" style="padding: 0 24rpx;">历史报告</text>
+    <view class="history-list" wx:if="{{historyReports.length > 0}}">
+      <view class="history-item card" wx:for="{{historyReports}}" wx:key="id" bindtap="viewReport" data-id="{{item.id}}">
+        <view class="history-item-content">
+          <image class="history-thumb" wx:if="{{item.thumbnail}}" src="{{item.thumbnail}}" mode="aspectFill" />
+          <view class="history-thumb-placeholder" wx:else>
+            <text class="placeholder-icon">📋</text>
+          </view>
+          <view class="history-info">
+            <view class="history-header">
+              <text class="history-date">{{item.dateFormatted || item.date}}</text>
+              <view class="tag tag-green" wx:if="{{item.status === 'analyzed' || item.status === '已分析'}}">已分析</view>
+              <view class="tag tag-blue" wx:elif="{{item.status === 'pending' || item.status === '待分析'}}">待分析</view>
+              <view class="tag tag-green" wx:else>{{item.status || '已上传'}}</view>
+            </view>
+            <text class="history-name ellipsis">{{item.name || item.title || '体检报告'}}</text>
+            <view class="history-meta" wx:if="{{item.abnormalCount > 0}}">
+              <text class="abnormal-badge">{{item.abnormalCount}}项异常</text>
+            </view>
+          </view>
+          <view class="history-arrow">
+            <text class="arrow-icon">›</text>
+          </view>
+        </view>
       </view>
-      <text class="history-name">{{item.name}}</text>
-      <text class="history-summary ellipsis">{{item.summary}}</text>
     </view>
-  </view>
 
-  <view class="empty-state" wx:if="{{historyReports.length === 0 && !analysisResult}}">
-    <text class="empty-icon">📋</text>
-    <text class="empty-text">暂无体检报告</text>
-    <text class="empty-text">上传报告获取AI智能解读</text>
+    <view class="loading-more" wx:if="{{loading}}">
+      <text class="text-hint">加载中...</text>
+    </view>
+
+    <view class="empty-state" wx:if="{{historyReports.length === 0 && !loading}}">
+      <text class="empty-icon">📋</text>
+      <text class="empty-text">暂无体检报告</text>
+      <text class="empty-text">上传报告获取AI智能解读</text>
+    </view>
   </view>
 </view>

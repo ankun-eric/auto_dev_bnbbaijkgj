@@ -211,7 +211,52 @@ class ApiService {
   }
 
   Future<Response> analyzeCheckup(String reportId) async {
-    return _dio.post(ApiConfig.analyzeCheckup, data: {'report_id': reportId});
+    return _dio.post(ApiConfig.analyzeCheckup, data: {'report_id': int.tryParse(reportId) ?? reportId});
+  }
+
+  // Report (intelligent analysis)
+  Future<Response> uploadReport(String filePath) async {
+    final formData = FormData.fromMap({
+      'file': await MultipartFile.fromFile(filePath),
+    });
+    return _dio.post(ApiConfig.reportUpload, data: formData);
+  }
+
+  Future<Response> analyzeReport(int reportId) async {
+    return _dio.post(ApiConfig.reportAnalyze, data: {'report_id': reportId});
+  }
+
+  Future<Response> getReportDetail(int id) async {
+    return _dio.get('${ApiConfig.reportDetail}/$id');
+  }
+
+  Future<Response> getReportList({int page = 1, int pageSize = 20}) async {
+    return _dio.get(ApiConfig.reportList, queryParameters: {
+      'page': page,
+      'page_size': pageSize,
+    });
+  }
+
+  Future<Response> getIndicatorTrend(String indicatorName) async {
+    return _dio.get('${ApiConfig.reportTrend}/$indicatorName');
+  }
+
+  Future<Response> getTrendAnalysis(String indicatorName) async {
+    return _dio.post(ApiConfig.reportTrendAnalysis, data: {
+      'indicator_name': indicatorName,
+    });
+  }
+
+  Future<Response> getReportAlerts() async {
+    return _dio.get(ApiConfig.reportAlerts);
+  }
+
+  Future<Response> markAlertRead(int id) async {
+    return _dio.put('${ApiConfig.reportAlerts}/$id/read');
+  }
+
+  Future<Response> shareReport(int reportId) async {
+    return _dio.post(ApiConfig.reportShare, data: {'report_id': reportId});
   }
 
   // Symptom

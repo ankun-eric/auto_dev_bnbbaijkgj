@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/health_profile.dart';
+import '../models/checkup_report.dart';
 import '../services/api_service.dart';
 
 class HealthProvider extends ChangeNotifier {
@@ -10,10 +11,20 @@ class HealthProvider extends ChangeNotifier {
   List<Map<String, dynamic>> _checkupReports = [];
   Map<String, dynamic>? _latestAnalysis;
 
+  List<CheckupReport> _reportList = [];
+  List<ReportAlert> _alerts = [];
+  int _unreadAlertCount = 0;
+  bool _isUploading = false;
+
   HealthProfile? get healthProfile => _healthProfile;
   bool get isLoading => _isLoading;
   List<Map<String, dynamic>> get checkupReports => _checkupReports;
   Map<String, dynamic>? get latestAnalysis => _latestAnalysis;
+
+  List<CheckupReport> get reportList => _reportList;
+  List<ReportAlert> get alerts => _alerts;
+  int get unreadAlertCount => _unreadAlertCount;
+  bool get isUploading => _isUploading;
 
   Future<void> loadHealthProfile() async {
     _isLoading = true;
@@ -77,6 +88,102 @@ class HealthProvider extends ChangeNotifier {
     _isLoading = false;
     notifyListeners();
     return null;
+  }
+
+  // --- New report methods ---
+
+  Future<void> loadReportList({int page = 1, int pageSize = 20}) async {
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      final response = await _api.getReportList(page: page, pageSize: pageSize);
+      if (response.statusCode == 200) {
+        final body = response.data;
+        final list = body is List
+            ? body as List
+            : (body?['items'] as List?) ?? [];
+        _reportList = list.map((e) => CheckupReport.fromJson(e)).toList();
+      }
+    } catch (_) {}
+
+    _isLoading = false;
+    notifyListeners();
+  }
+
+  Future<CheckupReport?> uploadAndAnalyzeReport(String filePath, {String fileType = 'image'}) async {
+    _isUploading = true;
+    notifyListeners();
+
+    try {
+      final uploadResponse = await _api.uploadReport(filePath);
+      if (uploadResponse.statusCode == 200) {
+        final reportId = uploadResponse.data['id'];
+        if (reportId == null) {
+          _isUploading = false;
+          notifyListeners();
+          return null;
+        }
+        final analyzeResponse = await _api.analyzeReport(reportId is int ? reportId : int.parse(reportId.toString()));
+        if (analyzeResponse.statusCode == 200) {
+          final report = CheckupReport.fromJson(analyzeResponse.data);
+          await loadReportList();
+          _isUploading = false;
+          notifyListeners();
+          return report;
+        }
+      }
+    } catch (_) {}
+
+    _isUploading = false;
+    notifyListeners();
+    return null;
+  }
+
+  Future<CheckupReport?> getReportDetail(int id) async {
+    try {
+      final response = await _api.getReportDetail(id);
+      if (response.statusCode == 200) {
+        return CheckupReport.fromJson(response.data);
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  Future<void> loadAlerts() async {
+    try {
+      final response = await _api.getReportAlerts();
+      if (response.statusCode == 200) {
+        final body = response.data;
+        final list = body is List
+            ? body as List
+            : (body?['items'] as List?) ?? [];
+        _alerts = list.map((e) => ReportAlert.fromJson(e)).toList();
+        _unreadAlertCount = _alerts.where((a) => !a.isRead).length;
+        notifyListeners();
+      }
+    } catch (_) {}
+  }
+
+  Future<void> markAlertRead(int id) async {
+    try {
+      final response = await _api.markAlertRead(id);
+      if (response.statusCode == 200) {
+        final idx = _alerts.indexWhere((a) => a.id == id);
+        if (idx >= 0) {
+          _alerts[idx] = ReportAlert(
+            id: _alerts[idx].id,
+            indicatorName: _alerts[idx].indicatorName,
+            alertType: _alerts[idx].alertType,
+            alertMessage: _alerts[idx].alertMessage,
+            isRead: true,
+            createdAt: _alerts[idx].createdAt,
+          );
+          _unreadAlertCount = _alerts.where((a) => !a.isRead).length;
+          notifyListeners();
+        }
+      }
+    } catch (_) {}
   }
 
   Future<Map<String, dynamic>?> checkSymptom(Map<String, dynamic> data) async {

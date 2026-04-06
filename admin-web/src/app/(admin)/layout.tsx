@@ -54,6 +54,7 @@ const menuItems: MenuItem[] = [
       { key: '/knowledge', label: '知识库管理' },
       { key: '/search-config', label: '检索策略配置' },
       { key: '/fallback-config', label: '兜底策略配置' },
+      { key: '/ocr-config', label: 'OCR识别配置' },
     ],
   },
   {
@@ -116,7 +117,7 @@ function getOpenKeys(pathname: string): string[] {
   if (pathname.startsWith('/merchant')) return ['merchant'];
   if (pathname.startsWith('/content')) return ['content'];
   if (pathname.startsWith('/points')) return ['points'];
-  if (pathname.startsWith('/ai-config') || pathname.startsWith('/chat-records') || pathname.startsWith('/knowledge') || pathname.startsWith('/search-config') || pathname.startsWith('/fallback-config')) return ['ai'];
+  if (pathname.startsWith('/ai-config') || pathname.startsWith('/chat-records') || pathname.startsWith('/knowledge') || pathname.startsWith('/search-config') || pathname.startsWith('/fallback-config') || pathname.startsWith('/ocr-config')) return ['ai'];
   if (pathname.startsWith('/ai-center')) return ['ai-center'];
   if (pathname.startsWith('/sms') || pathname.startsWith('/settings') || pathname.startsWith('/wechat-push') || pathname.startsWith('/email-notify') || pathname.startsWith('/cos-config')) return ['system'];
   return [];

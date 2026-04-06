@@ -400,13 +400,21 @@ class CheckupReport(Base):
     report_date = mapped_column(Date, nullable=True)
     report_type = mapped_column(String(50), nullable=True)
     file_url = mapped_column(String(500), nullable=True)
+    thumbnail_url = mapped_column(String(500), nullable=True)
+    file_type = mapped_column(String(20), default="image")
     ocr_result = mapped_column(JSON, nullable=True)
     ai_analysis = mapped_column(Text, nullable=True)
+    ai_analysis_json = mapped_column(JSON, nullable=True)
     indicators = mapped_column(JSON, nullable=True)
+    abnormal_count = mapped_column(Integer, default=0)
+    status = mapped_column(String(20), default="pending")
+    share_token = mapped_column(String(100), nullable=True, unique=True)
+    share_expires_at = mapped_column(DateTime, nullable=True)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
 
     user = relationship("User")
     checkup_indicators = relationship("CheckupIndicator", back_populates="report")
+    alerts = relationship("ReportAlert", back_populates="report")
 
 
 class CheckupIndicator(Base):
@@ -419,6 +427,8 @@ class CheckupIndicator(Base):
     unit = mapped_column(String(50), nullable=True)
     reference_range = mapped_column(String(100), nullable=True)
     status = mapped_column(Enum(IndicatorStatus), default=IndicatorStatus.normal)
+    category = mapped_column(String(100), nullable=True)
+    advice = mapped_column(String(500), nullable=True)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
 
     report = relationship("CheckupReport", back_populates="checkup_indicators")
@@ -1222,3 +1232,36 @@ class CosFile(Base):
     module = mapped_column(String(50), nullable=True)
     ref_id = mapped_column(Integer, nullable=True)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
+
+
+# ──────────────── 体检报告相关配置 ────────────────
+
+
+class OcrConfig(Base):
+    __tablename__ = "ocr_configs"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    enabled = mapped_column(Boolean, default=True)
+    api_key = mapped_column(String(200), nullable=True)
+    secret_key_encrypted = mapped_column(String(500), nullable=True)
+    ocr_type = mapped_column(String(50), default="general_basic")
+    access_token = mapped_column(Text, nullable=True)
+    token_expires_at = mapped_column(DateTime, nullable=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class ReportAlert(Base):
+    __tablename__ = "report_alerts"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    report_id = mapped_column(Integer, ForeignKey("checkup_reports.id"), nullable=False, index=True)
+    indicator_name = mapped_column(String(100), nullable=False)
+    alert_type = mapped_column(String(50), nullable=False)
+    alert_message = mapped_column(Text, nullable=True)
+    is_read = mapped_column(Boolean, default=False)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User")
+    report = relationship("CheckupReport", back_populates="alerts")

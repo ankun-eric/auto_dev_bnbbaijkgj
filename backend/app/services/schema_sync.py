@@ -208,6 +208,45 @@ async def _sync_ai_center_tables(conn: AsyncConnection) -> None:
             ))
 
 
+async def _sync_report_tables(conn: AsyncConnection) -> None:
+    def _load(sync_conn):
+        inspector = inspect(sync_conn)
+        tables = set(inspector.get_table_names())
+        result = {}
+        for tbl in ["checkup_reports", "checkup_indicators", "ocr_configs", "report_alerts"]:
+            if tbl in tables:
+                result[tbl] = {col["name"] for col in inspector.get_columns(tbl)}
+        return result, tables
+
+    table_cols, all_tables = await conn.run_sync(_load)
+
+    if "checkup_reports" in table_cols:
+        cols = table_cols["checkup_reports"]
+        if "thumbnail_url" not in cols:
+            await conn.execute(text("ALTER TABLE checkup_reports ADD COLUMN thumbnail_url VARCHAR(500) NULL"))
+        if "file_type" not in cols:
+            await conn.execute(text("ALTER TABLE checkup_reports ADD COLUMN file_type VARCHAR(20) DEFAULT 'image'"))
+        if "abnormal_count" not in cols:
+            await conn.execute(text("ALTER TABLE checkup_reports ADD COLUMN abnormal_count INT DEFAULT 0"))
+        if "share_token" not in cols:
+            await conn.execute(text(
+                "ALTER TABLE checkup_reports ADD COLUMN share_token VARCHAR(100) NULL UNIQUE"
+            ))
+        if "share_expires_at" not in cols:
+            await conn.execute(text("ALTER TABLE checkup_reports ADD COLUMN share_expires_at DATETIME NULL"))
+        if "ai_analysis_json" not in cols:
+            await conn.execute(text("ALTER TABLE checkup_reports ADD COLUMN ai_analysis_json JSON NULL"))
+        if "status" not in cols:
+            await conn.execute(text("ALTER TABLE checkup_reports ADD COLUMN status VARCHAR(20) DEFAULT 'pending'"))
+
+    if "checkup_indicators" in table_cols:
+        cols = table_cols["checkup_indicators"]
+        if "category" not in cols:
+            await conn.execute(text("ALTER TABLE checkup_indicators ADD COLUMN category VARCHAR(100) NULL"))
+        if "advice" not in cols:
+            await conn.execute(text("ALTER TABLE checkup_indicators ADD COLUMN advice VARCHAR(500) NULL"))
+
+
 async def sync_register_schema(conn: AsyncConnection) -> None:
     def load_user_schema(sync_conn):
         inspector = inspect(sync_conn)
@@ -229,6 +268,7 @@ async def sync_register_schema(conn: AsyncConnection) -> None:
     await _sync_chat_session_fields(conn)
     await _sync_knowledge_tables(conn)
     await _sync_ai_center_tables(conn)
+    await _sync_report_tables(conn)
 
     columns, indexes, unique_constraints = await conn.run_sync(load_user_schema)
 

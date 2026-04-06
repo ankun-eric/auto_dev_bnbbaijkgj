@@ -1,69 +1,167 @@
-const { post, get, uploadFile } = require('../../utils/request');
+const { get, post, uploadFile } = require('../../utils/request');
 const { checkLogin } = require('../../utils/util');
 
 Page({
   data: {
-    analysisResult: null,
-    historyReports: [
-      { id: '1', date: '2026-03-15', name: '年度体检报告', status: '已分析', summary: '整体健康状况良好，血脂偏高需注意' },
-      { id: '2', date: '2026-01-08', name: '血常规检查', status: '已分析', summary: '各项指标正常' }
-    ]
+    historyReports: [],
+    alerts: [],
+    hasUnreadAlerts: false,
+    loading: false,
+    page: 1,
+    pageSize: 10,
+    hasMore: true,
+    uploading: false
   },
 
   onLoad() {
     this.loadHistory();
+    this.loadAlerts();
   },
 
-  async loadHistory() {
-    try {
-      // const res = await get('/api/health/checkup-reports');
-      // this.setData({ historyReports: res.data });
-    } catch (e) {
-      console.log('loadHistory error', e);
+  onShow() {
+    this.setData({ page: 1, historyReports: [], hasMore: true });
+    this.loadHistory();
+    this.loadAlerts();
+  },
+
+  onPullDownRefresh() {
+    this.setData({ page: 1, historyReports: [], hasMore: true });
+    Promise.all([this.loadHistory(), this.loadAlerts()]).finally(() => {
+      wx.stopPullDownRefresh();
+    });
+  },
+
+  onReachBottom() {
+    if (this.data.hasMore && !this.data.loading) {
+      this.loadHistory();
     }
   },
 
-  uploadReport() {
-    if (!checkLogin()) return;
+  async loadHistory() {
+    if (this.data.loading) return;
+    this.setData({ loading: true });
+    try {
+      const res = await get('/api/report/list', {
+        page: this.data.page,
+        page_size: this.data.pageSize
+      }, { showLoading: false, suppressErrorToast: true });
+      const items = res.items || res.data || [];
+      const list = items.map(item => ({
+        ...item,
+        dateFormatted: (item.created_at || item.date || '').substring(0, 10),
+        abnormalCount: item.abnormal_count || 0,
+        thumbnail: item.thumbnail || item.image_url || ''
+      }));
+      this.setData({
+        historyReports: [...this.data.historyReports, ...list],
+        page: this.data.page + 1,
+        hasMore: list.length >= this.data.pageSize,
+        loading: false
+      });
+    } catch (e) {
+      console.log('loadHistory error', e);
+      this.setData({ loading: false });
+    }
+  },
 
+  async loadAlerts() {
+    try {
+      const res = await get('/api/report/alerts', {}, { showLoading: false, suppressErrorToast: true });
+      const alerts = res.items || res.data || res || [];
+      const unread = Array.isArray(alerts) ? alerts.filter(a => !a.is_read) : [];
+      this.setData({
+        alerts: Array.isArray(alerts) ? alerts : [],
+        hasUnreadAlerts: unread.length > 0
+      });
+    } catch (e) {
+      console.log('loadAlerts error', e);
+    }
+  },
+
+  dismissAlert() {
+    const unread = this.data.alerts.filter(a => !a.is_read);
+    unread.forEach(a => {
+      const { put } = require('../../utils/request');
+      put(`/api/report/alerts/${a.id}/read`, {}, { showLoading: false, suppressErrorToast: true }).catch(() => {});
+    });
+    this.setData({ hasUnreadAlerts: false });
+  },
+
+  chooseFromAlbum() {
+    if (!checkLogin()) return;
     wx.chooseMedia({
       count: 9,
       mediaType: ['image'],
-      sourceType: ['album', 'camera'],
-      success: async (res) => {
-        const filePaths = res.tempFiles.map(f => f.tempFilePath);
-        wx.showLoading({ title: 'AI分析中...', mask: true });
-
-        try {
-          // for (const path of filePaths) {
-          //   await uploadFile('/api/checkup/upload', path);
-          // }
-          await new Promise(resolve => setTimeout(resolve, 2000));
-
-          this.setData({
-            analysisResult: {
-              items: [
-                { name: '血红蛋白', value: '145 g/L', reference: '120-160 g/L', status: 'normal' },
-                { name: '白细胞计数', value: '6.8×10⁹/L', reference: '4.0-10.0×10⁹/L', status: 'normal' },
-                { name: '总胆固醇', value: '5.8 mmol/L', reference: '3.1-5.2 mmol/L', status: 'abnormal', advice: '建议减少高脂肪饮食，增加运动量' },
-                { name: '空腹血糖', value: '5.1 mmol/L', reference: '3.9-6.1 mmol/L', status: 'normal' },
-                { name: '甘油三酯', value: '2.1 mmol/L', reference: '0.56-1.70 mmol/L', status: 'abnormal', advice: '建议控制碳水化合物和酒精摄入' }
-              ],
-              summary: '整体健康状况良好。总胆固醇和甘油三酯偏高，建议调整饮食结构，减少高脂肪食物摄入，增加有氧运动。3个月后复查血脂。'
-            }
-          });
-          wx.hideLoading();
-          wx.showToast({ title: '分析完成', icon: 'success' });
-        } catch (e) {
-          wx.hideLoading();
-          wx.showToast({ title: '分析失败', icon: 'none' });
-        }
+      sourceType: ['album'],
+      success: (res) => {
+        this.handleUploadFiles(res.tempFiles.map(f => f.tempFilePath));
       }
     });
   },
 
+  takePhoto() {
+    if (!checkLogin()) return;
+    wx.chooseMedia({
+      count: 1,
+      mediaType: ['image'],
+      sourceType: ['camera'],
+      success: (res) => {
+        this.handleUploadFiles(res.tempFiles.map(f => f.tempFilePath));
+      }
+    });
+  },
+
+  choosePDF() {
+    if (!checkLogin()) return;
+    wx.chooseMessageFile({
+      count: 1,
+      type: 'file',
+      extension: ['pdf'],
+      success: (res) => {
+        this.handleUploadFiles(res.tempFiles.map(f => f.path));
+      }
+    });
+  },
+
+  async handleUploadFiles(filePaths) {
+    if (!filePaths || !filePaths.length) return;
+    this.setData({ uploading: true });
+    wx.showLoading({ title: '上传中...', mask: true });
+
+    try {
+      let lastResult = null;
+      for (const path of filePaths) {
+        lastResult = await uploadFile('/api/report/upload', path);
+      }
+
+      const reportId = lastResult && (lastResult.report_id || lastResult.id);
+      if (!reportId) {
+        wx.hideLoading();
+        this.setData({ uploading: false });
+        wx.showToast({ title: '上传成功', icon: 'success' });
+        this.setData({ page: 1, historyReports: [], hasMore: true });
+        this.loadHistory();
+        return;
+      }
+
+      wx.showLoading({ title: 'AI解读中...', mask: true });
+      await post('/api/report/analyze', { report_id: parseInt(reportId) }, { showLoading: false, suppressErrorToast: true });
+      wx.hideLoading();
+      this.setData({ uploading: false });
+      wx.navigateTo({ url: `/pages/checkup-detail/index?id=${reportId}` });
+    } catch (e) {
+      wx.hideLoading();
+      this.setData({ uploading: false });
+      if (e && e.statusCode === 503) {
+        wx.showToast({ title: '解读功能暂时维护中，请稍后再试', icon: 'none', duration: 3000 });
+      } else {
+        wx.showToast({ title: (e && e.detail) || '上传失败，请重试', icon: 'none' });
+      }
+    }
+  },
+
   viewReport(e) {
     const id = e.currentTarget.dataset.id;
-    wx.showToast({ title: '查看报告详情', icon: 'none' });
+    wx.navigateTo({ url: `/pages/checkup-detail/index?id=${id}` });
   }
 });

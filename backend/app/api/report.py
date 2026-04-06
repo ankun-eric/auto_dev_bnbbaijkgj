@@ -1,0 +1,728 @@
+import os
+import uuid
+from datetime import datetime, timedelta
+from typing import Optional
+
+from fastapi import APIRouter, Body, Depends, File, HTTPException, Query, UploadFile
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+from app.core.config import settings
+from app.core.database import get_db
+from app.core.security import get_current_user, require_role
+from app.models.models import (
+    CheckupIndicator,
+    CheckupReport,
+    HealthProfile,
+    OcrConfig,
+    ReportAlert,
+    User,
+)
+from app.schemas.report import (
+    AlertListResponse,
+    AlertResponse,
+    IndicatorDetail,
+    IndicatorResponse,
+    OcrConfigResponse,
+    OcrConfigUpdate,
+    ReportAnalysisResponse,
+    ReportDetailResponse,
+    ReportListItem,
+    ReportListResponse,
+    ReportUploadResponse,
+    ShareCreateResponse,
+    ShareViewResponse,
+    TrendAnalysisRequest,
+    TrendAnalysisResponse,
+    TrendDataPoint,
+    TrendDataResponse,
+    CategoryView,
+)
+from app.services.ai_service import analyze_report_structured, analyze_trend
+from app.services.ocr_service import (
+    check_image_quality,
+    ensure_access_token,
+    extract_pdf_text,
+    ocr_recognize,
+)
+
+router = APIRouter(prefix="/api", tags=["体检报告"])
+
+ALLOWED_REPORT_TYPES = {
+    "image/jpeg", "image/png", "image/gif", "image/webp", "image/bmp",
+    "application/pdf",
+}
+MAX_REPORT_SIZE = 20 * 1024 * 1024
+DISCLAIMER = "以上解读仅供健康参考，不构成医疗诊断或治疗建议，如有异常请及时就医。"
+
+
+async def _get_ocr_config(db: AsyncSession) -> Optional[OcrConfig]:
+    result = await db.execute(select(OcrConfig).limit(1))
+    return result.scalar_one_or_none()
+
+
+# ──────────────── Upload ────────────────
+
+
+@router.post("/report/upload", response_model=ReportUploadResponse)
+async def upload_report(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    ocr_cfg = await _get_ocr_config(db)
+    if not ocr_cfg or not ocr_cfg.enabled:
+        raise HTTPException(status_code=503, detail="解读功能暂时维护中，请稍后再试")
+
+    if file.content_type not in ALLOWED_REPORT_TYPES:
+        raise HTTPException(status_code=400, detail="不支持的文件格式，请上传图片(JPG/PNG)或PDF")
+
+    content = await file.read()
+    if len(content) > MAX_REPORT_SIZE:
+        raise HTTPException(status_code=400, detail="文件大小不能超过20MB")
+
+    file_type = "pdf" if file.content_type == "application/pdf" else "image"
+
+    if file_type == "image":
+        quality = check_image_quality(content)
+        if not quality["ok"]:
+            raise HTTPException(status_code=400, detail=quality["message"])
+
+    os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
+    ext = os.path.splitext(file.filename or "report.jpg")[1]
+    filename = f"report_{uuid.uuid4().hex}{ext}"
+    filepath = os.path.join(settings.UPLOAD_DIR, filename)
+    with open(filepath, "wb") as f:
+        f.write(content)
+
+    file_url = f"/uploads/{filename}"
+
+    report = CheckupReport(
+        user_id=current_user.id,
+        file_url=file_url,
+        thumbnail_url=file_url if file_type == "image" else None,
+        file_type=file_type,
+        status="pending",
+    )
+    db.add(report)
+    await db.flush()
+
+    return ReportUploadResponse(
+        id=report.id,
+        file_url=file_url,
+        thumbnail_url=report.thumbnail_url,
+        file_type=file_type,
+        status="pending",
+        message="上传成功，请调用解读接口进行AI解读",
+    )
+
+
+# ──────────────── OCR (internal) ────────────────
+
+
+@router.post("/report/ocr")
+async def report_ocr(
+    report_id: int = Body(embed=True),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    report = await db.get(CheckupReport, report_id)
+    if not report or report.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="报告不存在")
+
+    ocr_cfg = await _get_ocr_config(db)
+    if not ocr_cfg or not ocr_cfg.enabled:
+        raise HTTPException(status_code=503, detail="解读功能暂时维护中，请稍后再试")
+
+    file_path = os.path.join(settings.UPLOAD_DIR, os.path.basename(report.file_url or ""))
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="报告文件不存在")
+
+    with open(file_path, "rb") as f:
+        file_data = f.read()
+
+    if report.file_type == "pdf":
+        ocr_text = extract_pdf_text(file_data)
+    else:
+        if not ocr_cfg.api_key or not ocr_cfg.secret_key_encrypted:
+            raise HTTPException(status_code=500, detail="OCR服务未配置API密钥")
+
+        token, expires_at = await ensure_access_token(
+            ocr_cfg.api_key,
+            ocr_cfg.secret_key_encrypted,
+            ocr_cfg.access_token,
+            ocr_cfg.token_expires_at,
+        )
+        ocr_cfg.access_token = token
+        ocr_cfg.token_expires_at = expires_at
+        await db.flush()
+
+        ocr_text = await ocr_recognize(file_data, ocr_cfg.ocr_type, token)
+
+    report.ocr_result = {"text": ocr_text}
+    await db.flush()
+
+    return {"report_id": report_id, "ocr_text": ocr_text}
+
+
+# ──────────────── AI Analyze ────────────────
+
+
+@router.post("/report/analyze", response_model=ReportAnalysisResponse)
+async def analyze_report(
+    report_id: int = Body(embed=True),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(CheckupReport)
+        .options(selectinload(CheckupReport.checkup_indicators))
+        .where(CheckupReport.id == report_id, CheckupReport.user_id == current_user.id)
+    )
+    report = result.scalar_one_or_none()
+    if not report:
+        raise HTTPException(status_code=404, detail="报告不存在")
+
+    ocr_cfg = await _get_ocr_config(db)
+    if not ocr_cfg or not ocr_cfg.enabled:
+        raise HTTPException(status_code=503, detail="解读功能暂时维护中，请稍后再试")
+
+    ocr_text = ""
+    if report.ocr_result and isinstance(report.ocr_result, dict):
+        ocr_text = report.ocr_result.get("text", "")
+
+    if not ocr_text:
+        file_path = os.path.join(settings.UPLOAD_DIR, os.path.basename(report.file_url or ""))
+        if os.path.exists(file_path):
+            with open(file_path, "rb") as f:
+                file_data = f.read()
+            if report.file_type == "pdf":
+                ocr_text = extract_pdf_text(file_data)
+            else:
+                if ocr_cfg.api_key and ocr_cfg.secret_key_encrypted:
+                    token, expires_at = await ensure_access_token(
+                        ocr_cfg.api_key, ocr_cfg.secret_key_encrypted,
+                        ocr_cfg.access_token, ocr_cfg.token_expires_at,
+                    )
+                    ocr_cfg.access_token = token
+                    ocr_cfg.token_expires_at = expires_at
+                    ocr_text = await ocr_recognize(file_data, ocr_cfg.ocr_type, token)
+            report.ocr_result = {"text": ocr_text}
+
+    if not ocr_text:
+        raise HTTPException(status_code=400, detail="未能提取报告文字，请确认文件有效")
+
+    report.status = "analyzing"
+    await db.flush()
+
+    profile_result = await db.execute(
+        select(HealthProfile).where(HealthProfile.user_id == current_user.id)
+    )
+    hp = profile_result.scalar_one_or_none()
+    user_profile = None
+    if hp:
+        user_profile = {
+            "gender": hp.gender,
+            "birthday": str(hp.birthday) if hp.birthday else None,
+            "height": hp.height,
+            "weight": hp.weight,
+        }
+
+    try:
+        analysis = await analyze_report_structured(ocr_text, user_profile, db)
+    except Exception as e:
+        report.status = "failed"
+        await db.flush()
+        raise HTTPException(status_code=500, detail=f"AI解读失败: {str(e)}")
+
+    for old_ind in list(report.checkup_indicators):
+        await db.delete(old_ind)
+    await db.flush()
+
+    abnormal_count = 0
+    categories_out: list[CategoryView] = []
+    abnormal_out: list[IndicatorDetail] = []
+    normal_out: list[IndicatorDetail] = []
+
+    for cat in analysis.get("categories", []):
+        cat_name = cat.get("category_name", "其他")
+        cat_indicators: list[IndicatorDetail] = []
+        for ind in cat.get("indicators", []):
+            status_val = ind.get("status", "normal")
+            indicator = CheckupIndicator(
+                report_id=report.id,
+                indicator_name=ind.get("name", ""),
+                value=ind.get("value"),
+                unit=ind.get("unit"),
+                reference_range=ind.get("reference_range"),
+                status=status_val,
+                category=cat_name,
+                advice=ind.get("advice"),
+            )
+            db.add(indicator)
+
+            detail = IndicatorDetail(
+                name=ind.get("name", ""),
+                value=ind.get("value"),
+                unit=ind.get("unit"),
+                reference_range=ind.get("reference_range"),
+                status=status_val,
+                advice=ind.get("advice"),
+            )
+            cat_indicators.append(detail)
+
+            if status_val in ("abnormal", "critical"):
+                abnormal_count += 1
+                abnormal_out.append(detail)
+            else:
+                normal_out.append(detail)
+
+        categories_out.append(CategoryView(category_name=cat_name, indicators=cat_indicators))
+
+    report.ai_analysis = analysis.get("overall_assessment", "")
+    report.ai_analysis_json = analysis
+    report.abnormal_count = abnormal_count
+    report.status = "completed"
+    await db.flush()
+
+    return ReportAnalysisResponse(
+        report_id=report.id,
+        status="completed",
+        categories=categories_out,
+        abnormal_indicators=abnormal_out,
+        normal_indicators=normal_out,
+        overall_assessment=analysis.get("overall_assessment"),
+        suggestions=analysis.get("suggestions", []),
+        disclaimer=analysis.get("disclaimer", DISCLAIMER),
+    )
+
+
+# ──────────────── Detail ────────────────
+
+
+@router.get("/report/detail/{report_id}", response_model=ReportDetailResponse)
+async def get_report_detail(
+    report_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(CheckupReport)
+        .options(selectinload(CheckupReport.checkup_indicators))
+        .where(CheckupReport.id == report_id, CheckupReport.user_id == current_user.id)
+    )
+    report = result.scalar_one_or_none()
+    if not report:
+        raise HTTPException(status_code=404, detail="报告不存在")
+
+    indicators = [
+        IndicatorResponse(
+            id=ind.id,
+            report_id=ind.report_id,
+            indicator_name=ind.indicator_name,
+            value=ind.value,
+            unit=ind.unit,
+            reference_range=ind.reference_range,
+            status=ind.status.value if hasattr(ind.status, "value") else str(ind.status),
+            category=ind.category,
+            advice=ind.advice,
+            created_at=ind.created_at,
+        )
+        for ind in report.checkup_indicators
+    ]
+
+    return ReportDetailResponse(
+        id=report.id,
+        user_id=report.user_id,
+        report_date=report.report_date,
+        report_type=report.report_type,
+        file_url=report.file_url,
+        thumbnail_url=report.thumbnail_url,
+        file_type=report.file_type,
+        ocr_result=report.ocr_result,
+        ai_analysis=report.ai_analysis,
+        ai_analysis_json=report.ai_analysis_json,
+        abnormal_count=report.abnormal_count or 0,
+        status=report.status,
+        indicators=indicators,
+        created_at=report.created_at,
+    )
+
+
+# ──────────────── List ────────────────
+
+
+@router.get("/report/list", response_model=ReportListResponse)
+async def list_reports(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=50),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    base_query = select(CheckupReport).where(CheckupReport.user_id == current_user.id)
+
+    count_result = await db.execute(
+        select(func.count()).select_from(base_query.subquery())
+    )
+    total = count_result.scalar() or 0
+
+    result = await db.execute(
+        base_query.order_by(CheckupReport.created_at.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+    )
+    reports = result.scalars().all()
+
+    items = [
+        ReportListItem(
+            id=r.id,
+            report_date=r.report_date,
+            report_type=r.report_type,
+            file_url=r.file_url,
+            thumbnail_url=r.thumbnail_url,
+            file_type=r.file_type,
+            abnormal_count=r.abnormal_count or 0,
+            status=r.status,
+            created_at=r.created_at,
+        )
+        for r in reports
+    ]
+
+    return ReportListResponse(items=items, total=total, page=page, page_size=page_size)
+
+
+# ──────────────── Trend ────────────────
+
+
+@router.get("/report/trend/{indicator_name}", response_model=TrendDataResponse)
+async def get_indicator_trend(
+    indicator_name: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(CheckupIndicator)
+        .join(CheckupReport, CheckupIndicator.report_id == CheckupReport.id)
+        .where(
+            CheckupReport.user_id == current_user.id,
+            CheckupIndicator.indicator_name == indicator_name,
+        )
+        .order_by(CheckupReport.created_at.asc())
+    )
+    indicators = result.scalars().all()
+
+    report_ids = [ind.report_id for ind in indicators]
+    reports_result = await db.execute(
+        select(CheckupReport).where(CheckupReport.id.in_(report_ids))
+    )
+    reports_map = {r.id: r for r in reports_result.scalars().all()}
+
+    data_points = []
+    unit = None
+    ref_range = None
+    for ind in indicators:
+        rpt = reports_map.get(ind.report_id)
+        if not unit and ind.unit:
+            unit = ind.unit
+        if not ref_range and ind.reference_range:
+            ref_range = ind.reference_range
+        data_points.append(TrendDataPoint(
+            report_id=ind.report_id,
+            report_date=rpt.report_date if rpt else None,
+            value=ind.value,
+            status=ind.status.value if hasattr(ind.status, "value") else str(ind.status),
+            created_at=ind.created_at,
+        ))
+
+    return TrendDataResponse(
+        indicator_name=indicator_name,
+        unit=unit,
+        reference_range=ref_range,
+        data_points=data_points,
+    )
+
+
+@router.post("/report/trend/analysis", response_model=TrendAnalysisResponse)
+async def trend_analysis(
+    body: TrendAnalysisRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(CheckupIndicator)
+        .join(CheckupReport, CheckupIndicator.report_id == CheckupReport.id)
+        .where(
+            CheckupReport.user_id == current_user.id,
+            CheckupIndicator.indicator_name == body.indicator_name,
+        )
+        .order_by(CheckupReport.created_at.asc())
+    )
+    indicators = result.scalars().all()
+    if not indicators:
+        raise HTTPException(status_code=404, detail="未找到该指标的历史数据")
+
+    report_ids = [ind.report_id for ind in indicators]
+    reports_result = await db.execute(
+        select(CheckupReport).where(CheckupReport.id.in_(report_ids))
+    )
+    reports_map = {r.id: r for r in reports_result.scalars().all()}
+
+    trend_data = []
+    for ind in indicators:
+        rpt = reports_map.get(ind.report_id)
+        trend_data.append({
+            "date": str(rpt.report_date) if rpt and rpt.report_date else str(ind.created_at.date()),
+            "value": ind.value,
+            "unit": ind.unit,
+            "status": ind.status.value if hasattr(ind.status, "value") else str(ind.status),
+        })
+
+    analysis_text = await analyze_trend(body.indicator_name, trend_data, db)
+    return TrendAnalysisResponse(
+        indicator_name=body.indicator_name,
+        analysis=analysis_text,
+        disclaimer=DISCLAIMER,
+    )
+
+
+# ──────────────── Alert ────────────────
+
+
+@router.post("/report/alert/check")
+async def check_alerts(
+    report_id: int = Body(embed=True),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(CheckupReport)
+        .options(selectinload(CheckupReport.checkup_indicators))
+        .where(CheckupReport.id == report_id, CheckupReport.user_id == current_user.id)
+    )
+    report = result.scalar_one_or_none()
+    if not report:
+        raise HTTPException(status_code=404, detail="报告不存在")
+
+    new_alerts: list[dict] = []
+
+    for ind in report.checkup_indicators:
+        ind_status = ind.status.value if hasattr(ind.status, "value") else str(ind.status)
+        if ind_status not in ("abnormal", "critical"):
+            continue
+
+        prev_result = await db.execute(
+            select(CheckupIndicator)
+            .join(CheckupReport, CheckupIndicator.report_id == CheckupReport.id)
+            .where(
+                CheckupReport.user_id == current_user.id,
+                CheckupReport.id != report.id,
+                CheckupIndicator.indicator_name == ind.indicator_name,
+            )
+            .order_by(CheckupReport.created_at.desc())
+            .limit(3)
+        )
+        prev_indicators = prev_result.scalars().all()
+
+        if not prev_indicators:
+            alert = ReportAlert(
+                user_id=current_user.id,
+                report_id=report.id,
+                indicator_name=ind.indicator_name,
+                alert_type="new_abnormal",
+                alert_message=f"指标「{ind.indicator_name}」首次出现异常，当前值: {ind.value} {ind.unit or ''}",
+            )
+            db.add(alert)
+            new_alerts.append({"indicator_name": ind.indicator_name, "alert_type": "new_abnormal"})
+            continue
+
+        consecutive_abnormal = all(
+            (pi.status.value if hasattr(pi.status, "value") else str(pi.status)) in ("abnormal", "critical")
+            for pi in prev_indicators
+        )
+        if consecutive_abnormal and len(prev_indicators) >= 2:
+            alert = ReportAlert(
+                user_id=current_user.id,
+                report_id=report.id,
+                indicator_name=ind.indicator_name,
+                alert_type="consecutive_abnormal",
+                alert_message=f"指标「{ind.indicator_name}」连续{len(prev_indicators)+1}次异常，请关注",
+            )
+            db.add(alert)
+            new_alerts.append({"indicator_name": ind.indicator_name, "alert_type": "consecutive_abnormal"})
+
+    await db.flush()
+    return {"report_id": report_id, "alerts_generated": len(new_alerts), "alerts": new_alerts}
+
+
+@router.get("/report/alerts", response_model=AlertListResponse)
+async def get_alerts(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=50),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    base_q = select(ReportAlert).where(ReportAlert.user_id == current_user.id)
+
+    count_result = await db.execute(select(func.count()).select_from(base_q.subquery()))
+    total = count_result.scalar() or 0
+
+    result = await db.execute(
+        base_q.order_by(ReportAlert.created_at.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+    )
+    alerts = result.scalars().all()
+
+    items = [AlertResponse.model_validate(a) for a in alerts]
+    return AlertListResponse(items=items, total=total, page=page, page_size=page_size)
+
+
+@router.put("/report/alerts/{alert_id}/read")
+async def mark_alert_read(
+    alert_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    alert = await db.get(ReportAlert, alert_id)
+    if not alert or alert.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="预警不存在")
+    alert.is_read = True
+    await db.flush()
+    return {"id": alert_id, "is_read": True}
+
+
+# ──────────────── Share ────────────────
+
+
+@router.post("/report/share", response_model=ShareCreateResponse)
+async def create_share(
+    report_id: int = Body(embed=True),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    report = await db.get(CheckupReport, report_id)
+    if not report or report.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="报告不存在")
+
+    token = uuid.uuid4().hex
+    expires_at = datetime.utcnow() + timedelta(days=7)
+
+    report.share_token = token
+    report.share_expires_at = expires_at
+    await db.flush()
+
+    return ShareCreateResponse(
+        share_url=f"/api/report/share/{token}",
+        share_token=token,
+        expires_at=expires_at,
+    )
+
+
+@router.get("/report/share/{token}", response_model=ShareViewResponse)
+async def view_share(
+    token: str,
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(CheckupReport)
+        .options(selectinload(CheckupReport.checkup_indicators))
+        .where(CheckupReport.share_token == token)
+    )
+    report = result.scalar_one_or_none()
+    if not report:
+        raise HTTPException(status_code=404, detail="分享链接无效")
+
+    if report.share_expires_at and report.share_expires_at < datetime.utcnow():
+        raise HTTPException(status_code=410, detail="分享链接已过期")
+
+    indicators = [
+        IndicatorResponse(
+            id=ind.id,
+            report_id=ind.report_id,
+            indicator_name=ind.indicator_name,
+            value=ind.value,
+            unit=ind.unit,
+            reference_range=ind.reference_range,
+            status=ind.status.value if hasattr(ind.status, "value") else str(ind.status),
+            category=ind.category,
+            advice=ind.advice,
+            created_at=ind.created_at,
+        )
+        for ind in report.checkup_indicators
+    ]
+
+    return ShareViewResponse(
+        report_date=report.report_date,
+        report_type=report.report_type,
+        ai_analysis=report.ai_analysis,
+        ai_analysis_json=report.ai_analysis_json,
+        abnormal_count=report.abnormal_count or 0,
+        indicators=indicators,
+        disclaimer=DISCLAIMER,
+    )
+
+
+# ──────────────── Admin OCR Config ────────────────
+
+admin_router = APIRouter(prefix="/api/admin", tags=["管理后台-OCR配置"])
+
+
+@admin_router.get("/ocr/config", response_model=OcrConfigResponse)
+async def get_ocr_config(
+    current_user: User = Depends(require_role("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    cfg = await _get_ocr_config(db)
+    if not cfg:
+        raise HTTPException(status_code=404, detail="OCR配置不存在")
+    return OcrConfigResponse.model_validate(cfg)
+
+
+@admin_router.put("/ocr/config", response_model=OcrConfigResponse)
+async def update_ocr_config(
+    body: OcrConfigUpdate,
+    current_user: User = Depends(require_role("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    cfg = await _get_ocr_config(db)
+    if not cfg:
+        raise HTTPException(status_code=404, detail="OCR配置不存在")
+
+    if body.enabled is not None:
+        cfg.enabled = body.enabled
+    if body.api_key is not None:
+        cfg.api_key = body.api_key
+    if body.secret_key is not None:
+        cfg.secret_key_encrypted = body.secret_key
+        cfg.access_token = None
+        cfg.token_expires_at = None
+    if body.ocr_type is not None:
+        cfg.ocr_type = body.ocr_type
+    await db.flush()
+
+    return OcrConfigResponse.model_validate(cfg)
+
+
+@admin_router.post("/ocr/test")
+async def test_ocr_connection(
+    current_user: User = Depends(require_role("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    cfg = await _get_ocr_config(db)
+    if not cfg:
+        raise HTTPException(status_code=404, detail="OCR配置不存在")
+    if not cfg.api_key or not cfg.secret_key_encrypted:
+        raise HTTPException(status_code=400, detail="请先配置API Key和Secret Key")
+
+    try:
+        token, expires_at = await ensure_access_token(
+            cfg.api_key, cfg.secret_key_encrypted,
+            cfg.access_token, cfg.token_expires_at,
+        )
+        cfg.access_token = token
+        cfg.token_expires_at = expires_at
+        await db.flush()
+        return {"success": True, "message": "OCR连接测试成功"}
+    except Exception as e:
+        return {"success": False, "message": f"连接失败: {str(e)}"}

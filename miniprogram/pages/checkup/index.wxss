@@ -1,126 +1,159 @@
 .checkup-page {
   padding: 24rpx;
   min-height: 100vh;
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
+/* 预警横幅 */
+.alert-banner {
+  margin: -24rpx -24rpx 24rpx -24rpx;
+  padding: 0 24rpx;
+}
+
+.alert-banner-inner {
+  background: linear-gradient(135deg, #fff7e6, #ffe7ba);
+  border-radius: 0 0 16rpx 16rpx;
+  padding: 20rpx 24rpx;
+  display: flex;
+  align-items: center;
+}
+
+.alert-icon {
+  font-size: 32rpx;
+  margin-right: 12rpx;
+}
+
+.alert-text {
+  flex: 1;
+  font-size: 26rpx;
+  color: #d46b08;
+  font-weight: 500;
+}
+
+.alert-close {
+  font-size: 28rpx;
+  color: #d46b08;
+  padding: 0 8rpx;
+}
+
+/* 上传区域 */
 .upload-tip {
   font-size: 24rpx;
   color: #999;
   display: block;
-  margin-bottom: 20rpx;
+  margin-bottom: 28rpx;
 }
 
-.upload-area {
-  border: 2rpx dashed #d9d9d9;
-  border-radius: 16rpx;
-  padding: 60rpx 0;
+.upload-buttons {
+  display: flex;
+  justify-content: space-between;
+  gap: 20rpx;
+}
+
+.upload-btn {
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
+  padding: 28rpx 12rpx;
+  border-radius: 16rpx;
   background: #fafafa;
+  border: 2rpx solid #f0f0f0;
+  transition: all 0.2s;
 }
 
-.upload-icon {
-  font-size: 64rpx;
-  margin-bottom: 16rpx;
+.upload-btn:active {
+  transform: scale(0.96);
+  background: #f0f0f0;
 }
 
-.upload-text {
-  font-size: 28rpx;
-  color: #52c41a;
-  font-weight: bold;
-  margin-bottom: 8rpx;
-}
-
-.upload-hint {
-  font-size: 22rpx;
-  color: #ccc;
-}
-
-/* 分析结果 */
-.result-header {
+.upload-btn-icon-wrap {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 50%;
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 20rpx;
+  justify-content: center;
+  margin-bottom: 12rpx;
 }
 
-.result-item {
-  padding: 16rpx 0;
-  border-bottom: 1rpx solid #f5f5f5;
+.upload-btn-icon-wrap.album {
+  background: linear-gradient(135deg, #e6f7ff, #bae7ff);
 }
 
-.result-item:last-child {
-  border-bottom: none;
+.upload-btn-icon-wrap.camera {
+  background: linear-gradient(135deg, #f6ffed, #d9f7be);
 }
 
-.result-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 6rpx;
+.upload-btn-icon-wrap.pdf {
+  background: linear-gradient(135deg, #fff2e8, #ffd8bf);
 }
 
-.result-name {
-  font-size: 28rpx;
-  color: #333;
+.upload-btn-icon {
+  font-size: 40rpx;
 }
 
-.result-value {
-  font-size: 28rpx;
-  font-weight: bold;
-}
-
-.text-danger {
-  color: #ff4d4f;
-}
-
-.text-normal {
-  color: #52c41a;
-}
-
-.result-ref {
-  font-size: 22rpx;
-  color: #999;
-  display: block;
-}
-
-.result-advice {
-  font-size: 24rpx;
-  color: #faad14;
-  margin-top: 8rpx;
-  display: block;
-}
-
-.result-summary {
-  background: #f6ffed;
-  border-radius: 12rpx;
-  padding: 20rpx;
-  margin-top: 20rpx;
-}
-
-.summary-title {
-  font-size: 28rpx;
-  font-weight: bold;
-  color: #52c41a;
-  display: block;
-  margin-bottom: 8rpx;
-}
-
-.summary-text {
+.upload-btn-label {
   font-size: 26rpx;
-  color: #666;
-  line-height: 1.7;
+  color: #333;
+  font-weight: 600;
+  margin-bottom: 4rpx;
 }
 
-/* 历史 */
+.upload-btn-hint {
+  font-size: 20rpx;
+  color: #bbb;
+}
+
+/* 历史报告 */
+.history-section {
+  margin-top: 12rpx;
+}
+
 .history-list {
   margin-top: 16rpx;
 }
 
+.history-item {
+  padding: 20rpx 24rpx;
+}
+
+.history-item-content {
+  display: flex;
+  align-items: center;
+}
+
+.history-thumb {
+  width: 100rpx;
+  height: 100rpx;
+  border-radius: 12rpx;
+  margin-right: 20rpx;
+  flex-shrink: 0;
+}
+
+.history-thumb-placeholder {
+  width: 100rpx;
+  height: 100rpx;
+  border-radius: 12rpx;
+  margin-right: 20rpx;
+  flex-shrink: 0;
+  background: #f5f5f5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.placeholder-icon {
+  font-size: 48rpx;
+}
+
+.history-info {
+  flex: 1;
+  min-width: 0;
+}
+
 .history-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
   margin-bottom: 8rpx;
 }
@@ -128,6 +161,7 @@
 .history-date {
   font-size: 24rpx;
   color: #999;
+  margin-right: 12rpx;
 }
 
 .history-name {
@@ -135,10 +169,33 @@
   font-weight: bold;
   color: #333;
   display: block;
-  margin-bottom: 8rpx;
+  margin-bottom: 6rpx;
 }
 
-.history-summary {
-  font-size: 24rpx;
-  color: #666;
+.history-meta {
+  display: flex;
+  align-items: center;
+}
+
+.abnormal-badge {
+  font-size: 22rpx;
+  color: #ff4d4f;
+  background: rgba(255, 77, 79, 0.08);
+  padding: 2rpx 12rpx;
+  border-radius: 6rpx;
+}
+
+.history-arrow {
+  flex-shrink: 0;
+  margin-left: 12rpx;
+}
+
+.arrow-icon {
+  font-size: 36rpx;
+  color: #ccc;
+}
+
+.loading-more {
+  text-align: center;
+  padding: 30rpx;
 }

@@ -26,6 +26,7 @@ from app.api import (
     plan,
     points,
     merchant,
+    report,
     service,
     sms,
     tcm,
@@ -81,6 +82,8 @@ app.include_router(wechat_push.router)
 app.include_router(knowledge.router)
 app.include_router(cos.router)
 app.include_router(ai_center.router)
+app.include_router(report.router)
+app.include_router(report.admin_router)
 
 os.makedirs("uploads", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")

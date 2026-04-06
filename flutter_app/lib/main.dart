@@ -11,6 +11,8 @@ import 'screens/home/home_screen.dart';
 import 'screens/ai/ai_home_screen.dart';
 import 'screens/ai/chat_screen.dart';
 import 'screens/health/checkup_screen.dart';
+import 'screens/health/report_detail_screen.dart';
+import 'screens/health/trend_screen.dart';
 import 'screens/health/symptom_screen.dart';
 import 'screens/health/tcm_screen.dart';
 import 'screens/health/drug_screen.dart';
@@ -128,6 +130,14 @@ class BiniHealthApp extends StatelessWidget {
           '/ai': (context) => const AiHomeScreen(),
           '/chat': (context) => const ChatScreen(),
           '/checkup': (context) => const CheckupScreen(),
+          '/report-detail': (context) {
+            final id = ModalRoute.of(context)!.settings.arguments as int;
+            return ReportDetailScreen(reportId: id);
+          },
+          '/trend': (context) {
+            final name = ModalRoute.of(context)!.settings.arguments as String;
+            return TrendScreen(indicatorName: name);
+          },
           '/symptom': (context) => const SymptomScreen(),
           '/tcm': (context) => const TcmScreen(),
           '/drug': (context) => const DrugScreen(),
