@@ -704,6 +704,45 @@ All 9 admin API endpoints return HTTP 200 with correct data structure. Admin fro
 ### User Documentation
 - Created `user_docs/manual_20260406_230500_b8f3.md`
 
+## Latest Feature: OCR 多厂商配置与智能识别系统 (2026-04-06)
+
+### Backend
+- Added 5 new models in `backend/app/models/models.py`: `OcrProviderConfig`, `OcrSceneTemplate`, `OcrCallRecord`, `OcrCallStatistics`, `OcrUploadConfig`
+- Added `backend/app/schemas/ocr.py` — OCR schemas with config JSON masking for secret fields
+- Rewrote `backend/app/services/ocr_service.py` — Multi-provider OCR: Baidu (access_token), Tencent (TC3-HMAC-SHA256), Aliyun (ACS3-HMAC-SHA256), smart failover, statistics tracking
+- Added `backend/app/api/ocr.py` — 16 API endpoints (admin + business):
+  - `GET/PUT /api/admin/ocr/providers/{provider}` — Provider config CRUD
+  - `POST /api/admin/ocr/providers/{provider}/preferred|disable` — Manual intervention
+  - `GET /api/admin/ocr/statistics` — Success rate stats (today/7d/30d/all)
+  - `GET/POST/PUT/DELETE /api/admin/ocr/scenes` — Scene template CRUD (presets undeletable)
+  - `GET/PUT /api/admin/ocr/upload-limits` — Upload limits config
+  - `POST /api/admin/ocr/test-ocr` — Test OCR only
+  - `POST /api/admin/ocr/test-full` — Test OCR + AI full pipeline
+  - `GET /api/admin/ocr/records` — Call records with filters
+  - `POST /api/admin/ocr/records/batch-delete` — Batch delete records
+  - `POST /api/ocr/recognize` — Business: single image OCR+AI
+  - `POST /api/ocr/batch-recognize` — Business: batch image OCR+AI
+- Updated `backend/app/init_data.py` — Auto-init 3 provider configs (baidu/tencent/aliyun), 2 preset scenes (体检报告/拍照识药), 1 upload limit config
+- Added `backend/tests/test_ocr.py` — 38 test cases covering all OCR admin APIs
+
+### Admin Web
+- Rewrote `admin-web/src/app/(admin)/ocr-config/page.tsx` — Complete OCR multi-provider management page:
+  - Tab-based provider config (Baidu/Tencent/Aliyun) with status badges
+  - Provider config forms with secret field masking
+  - Success rate statistics with time dimension filters
+  - AI scene template management (CRUD, presets)
+  - Upload limits configuration
+  - Test OCR and Test Full Flow modals
+  - Recognition records table with filters and batch delete
+
+### Deployment (2026-04-06 #6)
+- Rebuilt backend and admin-web containers
+- DB auto-migrated new OCR tables
+- All API smoke tests passed on server
+
+### User Documentation
+- Created `user_docs/OCR多厂商配置与智能识别系统.md`
+
 ## Notes For Next Iteration
 
 - Merchant identities are granted by admin only; new self-registered accounts still default to normal users.
@@ -713,3 +752,5 @@ All 9 admin API endpoints return HTTP 200 with correct data structure. Admin fro
 - To enable real SMS sending: configure via admin panel (dual provider supported) or set `TENCENT_SMS_SECRET_ID` and `TENCENT_SMS_SECRET_KEY` environment variables.
 - WeChat push config: 系统管理 → 微信推送管理. Email notify config: 系统管理 → 邮件通知管理 (with logs and test send).
 - The old `POST /api/admin/settings/push` endpoint is deprecated (returns 410 Gone). Use the new independent module APIs instead.
+- OCR multi-provider: Configure via admin panel (AI管理 → OCR识别配置). Supports Baidu/Tencent/Aliyun with smart failover. At least 2 providers recommended for failover.
+- OCR AI post-processing: Scene templates drive AI structured output. Presets: 体检报告识别, 拍照识药. Custom scenes can be added.

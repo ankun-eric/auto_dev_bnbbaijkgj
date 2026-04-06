@@ -1269,3 +1269,71 @@ class ReportAlert(Base):
 
     user = relationship("User")
     report = relationship("CheckupReport", back_populates="alerts")
+
+
+# ──────────────── OCR 多厂商识别 ────────────────
+
+
+class OcrProviderConfig(Base):
+    __tablename__ = "ocr_provider_configs"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    provider_name = mapped_column(String(50), unique=True, nullable=False)
+    display_name = mapped_column(String(100), nullable=False)
+    config_json = mapped_column(JSON, nullable=True)
+    is_enabled = mapped_column(Boolean, default=False)
+    is_preferred = mapped_column(Boolean, default=False)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class OcrSceneTemplate(Base):
+    __tablename__ = "ocr_scene_templates"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    scene_name = mapped_column(String(100), unique=True, nullable=False)
+    prompt_content = mapped_column(Text, nullable=True)
+    ai_model_id = mapped_column(Integer, ForeignKey("ai_model_configs.id"), nullable=True)
+    ocr_provider = mapped_column(String(50), nullable=True)
+    is_preset = mapped_column(Boolean, default=False)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    ai_model = relationship("AIModelConfig")
+
+
+class OcrCallRecord(Base):
+    __tablename__ = "ocr_call_records"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    scene_name = mapped_column(String(100), nullable=True)
+    provider_name = mapped_column(String(50), nullable=False)
+    status = mapped_column(String(20), nullable=False)
+    original_image_url = mapped_column(String(1000), nullable=True)
+    ocr_raw_text = mapped_column(Text, nullable=True)
+    ai_structured_result = mapped_column(JSON, nullable=True)
+    error_message = mapped_column(Text, nullable=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class OcrCallStatistics(Base):
+    __tablename__ = "ocr_call_statistics"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    provider_name = mapped_column(String(50), nullable=False, index=True)
+    call_date = mapped_column(Date, nullable=False, index=True)
+    total_calls = mapped_column(Integer, default=0)
+    success_calls = mapped_column(Integer, default=0)
+
+    __table_args__ = (
+        UniqueConstraint("provider_name", "call_date", name="uq_ocr_stats_provider_date"),
+    )
+
+
+class OcrUploadConfig(Base):
+    __tablename__ = "ocr_upload_configs"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    max_batch_count = mapped_column(Integer, default=5)
+    max_file_size_mb = mapped_column(Integer, default=5)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

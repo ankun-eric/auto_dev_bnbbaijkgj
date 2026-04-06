@@ -16,6 +16,9 @@ from app.models.models import (
     ConstitutionQuestion,
     MemberLevel,
     OcrConfig,
+    OcrProviderConfig,
+    OcrSceneTemplate,
+    OcrUploadConfig,
     ServiceCategory,
     SmsConfig,
     SmsTemplate,
@@ -41,6 +44,7 @@ async def init_default_data():
             await _init_sms_config_and_template(db)
             await _init_ai_center_configs(db)
             await _init_ocr_config(db)
+            await _init_ocr_provider_configs(db)
             await _clean_chat_history_once(db)
             await db.commit()
             logger.info("Default data initialization completed")
@@ -570,6 +574,92 @@ async def _init_ocr_config(db: AsyncSession):
     ))
     await db.flush()
     logger.info("Created default OCR config")
+
+
+async def _init_ocr_provider_configs(db: AsyncSession):
+    result = await db.execute(select(OcrProviderConfig).limit(1))
+    if result.scalar_one_or_none():
+        return
+
+    providers = [
+        {
+            "provider_name": "baidu",
+            "display_name": "百度云",
+            "config_json": {
+                "api_key": "",
+                "secret_key": "",
+                "ocr_type": "general_basic",
+            },
+            "is_enabled": False,
+            "is_preferred": False,
+        },
+        {
+            "provider_name": "tencent",
+            "display_name": "腾讯云",
+            "config_json": {
+                "secret_id": "",
+                "secret_key": "",
+                "region": "ap-guangzhou",
+            },
+            "is_enabled": False,
+            "is_preferred": False,
+        },
+        {
+            "provider_name": "aliyun",
+            "display_name": "阿里云",
+            "config_json": {
+                "access_key_id": "",
+                "access_key_secret": "",
+            },
+            "is_enabled": False,
+            "is_preferred": False,
+        },
+    ]
+    for p in providers:
+        db.add(OcrProviderConfig(**p))
+    await db.flush()
+    logger.info("Created default OCR provider configs (baidu/tencent/aliyun)")
+
+    # Preset scene templates
+    result = await db.execute(select(OcrSceneTemplate).limit(1))
+    if not result.scalar_one_or_none():
+        scenes = [
+            {
+                "scene_name": "体检报告识别",
+                "prompt_content": (
+                    "你是一位专业的健康顾问AI。请对以下体检报告OCR文字进行结构化整理，"
+                    "提取各项检查指标（指标名称、数值、单位、参考范围、是否异常），"
+                    "返回JSON格式: {\"indicators\": [{\"name\": \"...\", \"value\": \"...\", "
+                    "\"unit\": \"...\", \"reference_range\": \"...\", \"status\": \"normal/abnormal\"}], "
+                    "\"summary\": \"总结\", \"suggestions\": [\"建议1\"]}"
+                ),
+                "is_preset": True,
+            },
+            {
+                "scene_name": "拍照识药",
+                "prompt_content": (
+                    "你是一位专业的药学AI顾问。请根据以下药品包装上OCR识别的文字，"
+                    "提取药品信息，返回JSON格式: {\"drug_name\": \"药品名称\", "
+                    "\"generic_name\": \"通用名\", \"manufacturer\": \"生产厂家\", "
+                    "\"specification\": \"规格\", \"dosage\": \"用法用量\", "
+                    "\"indications\": \"适应症\", \"contraindications\": \"禁忌\", "
+                    "\"side_effects\": \"不良反应\", \"storage\": \"储存条件\", "
+                    "\"expiry\": \"有效期\"}"
+                ),
+                "is_preset": True,
+            },
+        ]
+        for s in scenes:
+            db.add(OcrSceneTemplate(**s))
+        await db.flush()
+        logger.info("Created preset OCR scene templates")
+
+    # Default upload config
+    result = await db.execute(select(OcrUploadConfig).limit(1))
+    if not result.scalar_one_or_none():
+        db.add(OcrUploadConfig(max_batch_count=5, max_file_size_mb=5))
+        await db.flush()
+        logger.info("Created default OCR upload config")
 
 
 async def _clean_chat_history_once(db: AsyncSession):

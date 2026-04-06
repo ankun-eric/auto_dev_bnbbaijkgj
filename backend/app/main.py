@@ -22,6 +22,7 @@ from app.api import (
     health_profile,
     knowledge,
     notification,
+    ocr,
     order,
     plan,
     points,
@@ -84,6 +85,8 @@ app.include_router(cos.router)
 app.include_router(ai_center.router)
 app.include_router(report.router)
 app.include_router(report.admin_router)
+app.include_router(ocr.router)
+app.include_router(ocr.admin_router)
 
 os.makedirs("uploads", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
