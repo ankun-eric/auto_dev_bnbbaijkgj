@@ -13,7 +13,7 @@ class _PointsScreenState extends State<PointsScreen> {
 
   final List<Map<String, dynamic>> _records = [
     {'title': '每日签到', 'points': '+10', 'date': '2024-03-27', 'isIncome': true},
-    {'title': '完成问诊', 'points': '+20', 'date': '2024-03-26', 'isIncome': true},
+    {'title': '完成健康咨询', 'points': '+20', 'date': '2024-03-26', 'isIncome': true},
     {'title': '兑换礼品', 'points': '-200', 'date': '2024-03-25', 'isIncome': false},
     {'title': '健康打卡', 'points': '+5', 'date': '2024-03-24', 'isIncome': true},
     {'title': '分享文章', 'points': '+10', 'date': '2024-03-23', 'isIncome': true},
@@ -83,7 +83,7 @@ class _PointsScreenState extends State<PointsScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
                   _buildEarnItem(Icons.check_circle_outline, '签到', '+10/天'),
-                  _buildEarnItem(Icons.smart_toy, '问诊', '+20/次'),
+                  _buildEarnItem(Icons.smart_toy, '咨询', '+20/次'),
                   _buildEarnItem(Icons.share, '分享', '+10/次'),
                   _buildEarnItem(Icons.checklist, '打卡', '+5/次'),
                 ],

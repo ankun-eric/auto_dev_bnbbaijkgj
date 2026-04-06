@@ -218,3 +218,16 @@
   font-size: 26rpx;
   color: #fff;
 }
+
+.disclaimer {
+  margin-top: 12rpx;
+  padding-top: 12rpx;
+  border-top: 1rpx dashed #e8e8e8;
+}
+
+.disclaimer-text {
+  font-size: 22rpx;
+  color: #999;
+  font-style: italic;
+  line-height: 1.5;
+}

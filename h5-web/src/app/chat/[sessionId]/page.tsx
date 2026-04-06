@@ -128,7 +128,7 @@ export default function ChatPage() {
     setLoading(false);
   };
 
-  const renderMarkdown = (text: string) => {
+  const renderMarkdownBlock = (text: string) => {
     const lines = text.split('\n');
     return lines.map((line, i) => {
       const boldLine = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
@@ -140,6 +140,28 @@ export default function ChatPage() {
         />
       );
     });
+  };
+
+  const renderMarkdown = (text: string) => {
+    const parts = text.split('---disclaimer---');
+    return (
+      <>
+        <div>{renderMarkdownBlock(parts[0])}</div>
+        {parts[1] && (
+          <div style={{
+            marginTop: 8,
+            paddingTop: 8,
+            borderTop: '1px dashed #e8e8e8',
+            fontSize: 11,
+            color: '#999',
+            fontStyle: 'italic',
+            lineHeight: 1.4,
+          }}>
+            {parts[1].trim()}
+          </div>
+        )}
+      </>
+    );
   };
 
   const handleSessionCreated = (newSessionId: number) => {
@@ -174,7 +196,7 @@ export default function ChatPage() {
           '--border-bottom': 'none',
         } as React.CSSProperties}
       >
-        <span className="text-white font-medium">AI健康助手</span>
+        <span className="text-white font-medium">AI健康咨询</span>
       </NavBar>
 
       <div ref={listRef} className="flex-1 overflow-y-auto px-4 py-3">

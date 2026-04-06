@@ -16,31 +16,31 @@ class _AiHomeScreenState extends State<AiHomeScreen> {
 
   final List<Map<String, dynamic>> _consultTypes = [
     {
-      'type': 'general',
-      'title': '综合问诊',
-      'desc': '常见疾病症状咨询',
-      'icon': Icons.medical_information,
+      'type': 'health_qa',
+      'title': '健康问答',
+      'desc': 'AI健康顾问在线解答',
+      'icon': Icons.chat_bubble_outline,
       'color': const Color(0xFF52C41A),
     },
     {
-      'type': 'pediatric',
-      'title': '儿科问诊',
-      'desc': '儿童健康问题咨询',
-      'icon': Icons.child_care,
+      'type': 'symptom_check',
+      'title': '健康自查',
+      'desc': '智能健康自查参考',
+      'icon': Icons.search,
       'color': const Color(0xFF1890FF),
     },
     {
-      'type': 'gynecology',
-      'title': '妇科问诊',
-      'desc': '女性健康问题咨询',
-      'icon': Icons.female,
+      'type': 'tcm',
+      'title': '中医养生',
+      'desc': '中医养生体质调理',
+      'icon': Icons.spa,
       'color': const Color(0xFFEB2F96),
     },
     {
-      'type': 'tcm',
-      'title': '中医问诊',
-      'desc': '中医辨证施治咨询',
-      'icon': Icons.spa,
+      'type': 'drug_query',
+      'title': '用药参考',
+      'desc': '用药参考与注意事项',
+      'icon': Icons.medication,
       'color': const Color(0xFF722ED1),
     },
   ];
@@ -74,7 +74,7 @@ class _AiHomeScreenState extends State<AiHomeScreen> {
         },
       ),
       appBar: AppBar(
-        title: const Text('AI问诊'),
+        title: const Text('AI健康咨询'),
         backgroundColor: const Color(0xFF52C41A),
         centerTitle: true,
         automaticallyImplyLeading: false,
@@ -121,7 +121,7 @@ class _AiHomeScreenState extends State<AiHomeScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              '小康AI医生',
+                              '小康AI健康顾问',
                               style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
                             ),
                             SizedBox(height: 4),
@@ -137,7 +137,7 @@ class _AiHomeScreenState extends State<AiHomeScreen> {
                 ),
                 const SizedBox(height: 24),
                 const Text(
-                  '选择问诊类型',
+                  '选择咨询类型',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF333333)),
                 ),
                 const SizedBox(height: 12),
@@ -224,7 +224,7 @@ class _AiHomeScreenState extends State<AiHomeScreen> {
                           const SizedBox(height: 12),
                           Text('暂无对话记录', style: TextStyle(color: Colors.grey[500])),
                           const SizedBox(height: 8),
-                          Text('选择上方问诊类型开始对话', style: TextStyle(color: Colors.grey[400], fontSize: 13)),
+                          Text('选择上方咨询类型开始对话', style: TextStyle(color: Colors.grey[400], fontSize: 13)),
                         ],
                       ),
                     ),

@@ -29,14 +29,17 @@ class _ChatHistoryDrawerState extends State<ChatHistoryDrawer> {
 
   String _getTypeLabel(String type) {
     switch (type) {
+      case 'health_qa':
       case 'general':
-        return '综合';
+        return '问答';
+      case 'symptom_check':
       case 'pediatric':
-        return '儿科';
-      case 'gynecology':
-        return '妇科';
+        return '自查';
       case 'tcm':
-        return '中医';
+      case 'gynecology':
+        return '养生';
+      case 'drug_query':
+        return '用药';
       default:
         return 'AI';
     }
@@ -44,13 +47,16 @@ class _ChatHistoryDrawerState extends State<ChatHistoryDrawer> {
 
   Color _getTypeColor(String type) {
     switch (type) {
+      case 'health_qa':
       case 'general':
         return const Color(0xFF52C41A);
+      case 'symptom_check':
       case 'pediatric':
         return const Color(0xFF1890FF);
+      case 'tcm':
       case 'gynecology':
         return const Color(0xFFEB2F96);
-      case 'tcm':
+      case 'drug_query':
         return const Color(0xFF722ED1);
       default:
         return const Color(0xFF52C41A);

@@ -31,7 +31,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     NotificationModel(
       id: '3',
       title: '系统通知',
-      content: '您的积分账户新增20积分，来自完成问诊奖励。',
+      content: '您的积分账户新增20积分，来自完成健康咨询奖励。',
       type: 'system',
       isRead: true,
       createdAt: '2024-03-25 10:00',

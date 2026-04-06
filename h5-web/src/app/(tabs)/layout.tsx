@@ -11,7 +11,7 @@ import {
 
 const tabs = [
   { key: '/home', title: '首页', icon: <AppOutline /> },
-  { key: '/ai', title: 'AI问诊', icon: <MessageOutline /> },
+  { key: '/ai', title: 'AI健康咨询', icon: <MessageOutline /> },
   { key: '/services', title: '服务', icon: <UnorderedListOutline /> },
   { key: '/profile', title: '我的', icon: <UserOutline /> },
 ];

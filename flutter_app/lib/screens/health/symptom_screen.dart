@@ -259,7 +259,7 @@ class _SymptomScreenState extends State<SymptomScreen> {
             child: ElevatedButton.icon(
               onPressed: () => Navigator.pushNamed(context, '/ai'),
               icon: const Icon(Icons.smart_toy),
-              label: const Text('咨询AI医生'),
+              label: const Text('咨询AI健康顾问'),
             ),
           ),
         ],

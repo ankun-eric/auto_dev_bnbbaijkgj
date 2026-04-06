@@ -14,15 +14,18 @@ Page({
   },
 
   onLoad(options) {
-    const { type = 'general', chatId, question } = options;
+    const { type = 'health_qa', chatId, question } = options;
     this.setData({ chatType: type, chatId: chatId || generateId() });
 
     wx.showShareMenu({ withShareTicket: true, menus: ['shareAppMessage', 'shareTimeline'] });
 
     const typeNames = {
-      general: '综合问诊', symptom: '症状分析', tcm: '中医问诊', nutrition: '营养咨询'
+      health_qa: '健康问答', general: '健康问答',
+      symptom_check: '健康自查', symptom: '健康自查',
+      tcm: '中医养生',
+      drug_query: '用药参考', nutrition: '用药参考'
     };
-    wx.setNavigationBarTitle({ title: typeNames[type] || 'AI问诊' });
+    wx.setNavigationBarTitle({ title: typeNames[type] || 'AI健康咨询' });
 
     this.addMessage('assistant', `您好！我是宾尼小康AI健康助手，很高兴为您提供${typeNames[type] || '健康'}咨询服务。\n\n请描述您的症状或健康问题，我会为您提供专业的分析和建议。`);
 
@@ -79,15 +82,18 @@ Page({
     this.setData({ drawerShow: false });
 
     const typeNames = {
-      general: '综合问诊', symptom: '症状分析', tcm: '中医问诊', nutrition: '营养咨询'
+      health_qa: '健康问答', general: '健康问答',
+      symptom_check: '健康自查', symptom: '健康自查',
+      tcm: '中医养生',
+      drug_query: '用药参考', nutrition: '用药参考'
     };
-    const type = session.session_type || 'general';
+    const type = session.session_type || 'health_qa';
     this.setData({
       chatId: session.id,
       chatType: type,
       messages: []
     });
-    wx.setNavigationBarTitle({ title: typeNames[type] || 'AI问诊' });
+    wx.setNavigationBarTitle({ title: typeNames[type] || 'AI健康咨询' });
     this.addMessage('assistant', `您好！我是宾尼小康AI健康助手，很高兴为您提供${typeNames[type] || '健康'}咨询服务。\n\n请描述您的症状或健康问题，我会为您提供专业的分析和建议。`);
     this.loadChatHistory(session.id);
   },
@@ -95,9 +101,12 @@ Page({
   onDrawerNewChat() {
     this.setData({ drawerShow: false });
     const typeNames = {
-      general: '综合问诊', symptom: '症状分析', tcm: '中医问诊', nutrition: '营养咨询'
+      health_qa: '健康问答', general: '健康问答',
+      symptom_check: '健康自查', symptom: '健康自查',
+      tcm: '中医养生',
+      drug_query: '用药参考', nutrition: '用药参考'
     };
-    const type = 'general';
+    const type = 'health_qa';
     this.setData({
       chatId: generateId(),
       chatType: type,
@@ -148,11 +157,25 @@ Page({
     }
   },
 
+  _parseMessage(content) {
+    const parts = content.split('---disclaimer---');
+    return {
+      mainContent: parts[0].trim(),
+      disclaimer: parts.length > 1 ? parts[1].trim() : ''
+    };
+  },
+
   addMessage(role, content, extra = {}) {
     const id = generateId();
     const now = new Date();
     const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-    const messages = [...this.data.messages, { id, role, content, time, ...extra }];
+    const msgData = { id, role, content, time, ...extra };
+    if (role === 'assistant' && content && content.includes('---disclaimer---')) {
+      const parsed = this._parseMessage(content);
+      msgData.mainContent = parsed.mainContent;
+      msgData.disclaimer = parsed.disclaimer;
+    }
+    const messages = [...this.data.messages, msgData];
     this.setData({ messages, scrollToId: `msg-${id}` });
     return id;
   },

@@ -1162,6 +1162,40 @@ class KnowledgeImportTask(Base):
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+# ──────────────── AI中心配置 ────────────────
+
+
+class AiSensitiveWord(Base):
+    __tablename__ = "ai_sensitive_words"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    sensitive_word = mapped_column(String(200), nullable=False)
+    replacement_word = mapped_column(String(200), nullable=False)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class AiPromptConfig(Base):
+    __tablename__ = "ai_prompt_configs"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    chat_type = mapped_column(String(50), unique=True, nullable=False)
+    display_name = mapped_column(String(100), nullable=False)
+    system_prompt = mapped_column(Text, nullable=True)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class AiDisclaimerConfig(Base):
+    __tablename__ = "ai_disclaimer_configs"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    chat_type = mapped_column(String(50), unique=True, nullable=False)
+    display_name = mapped_column(String(100), nullable=False)
+    disclaimer_text = mapped_column(Text, nullable=True)
+    is_enabled = mapped_column(Boolean, default=True)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class CosConfig(Base):
     __tablename__ = "cos_configs"
     id = mapped_column(Integer, primary_key=True, autoincrement=True)

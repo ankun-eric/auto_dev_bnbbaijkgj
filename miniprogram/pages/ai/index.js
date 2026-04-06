@@ -5,10 +5,10 @@ Page({
   data: {
     pageMode: 'user',
     consultTypes: [
-      { id: 'general', name: '综合问诊', desc: '全科健康咨询', icon: '🩺', bgColor: 'rgba(82,196,26,0.12)' },
-      { id: 'symptom', name: '症状分析', desc: '智能症状自查', icon: '🔍', bgColor: 'rgba(19,194,194,0.12)' },
-      { id: 'tcm', name: '中医问诊', desc: '中医辨证论治', icon: '🌿', bgColor: 'rgba(114,46,209,0.12)' },
-      { id: 'nutrition', name: '营养咨询', desc: '饮食健康指导', icon: '🥗', bgColor: 'rgba(250,173,20,0.12)' }
+      { id: 'health_qa', name: '健康问答', desc: 'AI健康顾问在线解答', icon: '💬', bgColor: 'rgba(82,196,26,0.12)' },
+      { id: 'symptom_check', name: '健康自查', desc: '智能健康自查参考', icon: '🔍', bgColor: 'rgba(19,194,194,0.12)' },
+      { id: 'tcm', name: '中医养生', desc: '中医养生体质调理', icon: '🌿', bgColor: 'rgba(114,46,209,0.12)' },
+      { id: 'drug_query', name: '用药参考', desc: '用药参考与注意事项', icon: '💊', bgColor: 'rgba(250,173,20,0.12)' }
     ],
     quickQuestions: [
       '最近经常头痛怎么办？',
@@ -55,7 +55,13 @@ Page({
   },
 
   _getTypeLabel(type) {
-    const map = { general: '综合问诊', symptom: '症状分析', tcm: '中医问诊', nutrition: '营养咨询' };
+    const map = {
+      health_qa: '健康问答', general: '健康问答',
+      symptom_check: '健康自查', symptom: '健康自查',
+      tcm: '中医养生',
+      drug_query: '用药参考', nutrition: '用药参考',
+      customer_service: '在线客服'
+    };
     return map[type] || type || '对话';
   },
 
@@ -84,12 +90,12 @@ Page({
   onSessionTap(e) {
     const { session } = e.detail;
     this.setData({ drawerShow: false });
-    wx.navigateTo({ url: `/pages/chat/index?chatId=${session.id}&type=${session.session_type || 'general'}` });
+    wx.navigateTo({ url: `/pages/chat/index?chatId=${session.id}&type=${session.session_type || 'health_qa'}` });
   },
 
   onDrawerNewChat() {
     this.setData({ drawerShow: false });
-    wx.navigateTo({ url: '/pages/chat/index?type=general' });
+    wx.navigateTo({ url: '/pages/chat/index?type=health_qa' });
   },
 
   onDrawerRefresh() {
@@ -117,7 +123,7 @@ Page({
   quickAsk(e) {
     if (!checkLogin()) return;
     const question = e.currentTarget.dataset.question;
-    wx.navigateTo({ url: `/pages/chat/index?type=general&question=${encodeURIComponent(question)}` });
+    wx.navigateTo({ url: `/pages/chat/index?type=health_qa&question=${encodeURIComponent(question)}` });
   },
 
   continueChat(e) {
@@ -127,7 +133,7 @@ Page({
 
   newChat() {
     if (!checkLogin()) return;
-    wx.navigateTo({ url: '/pages/chat/index?type=general' });
+    wx.navigateTo({ url: '/pages/chat/index?type=health_qa' });
   },
 
   viewAllChats() {

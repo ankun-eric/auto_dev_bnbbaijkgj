@@ -27,16 +27,19 @@ class ChatSession {
 
   String get typeLabel {
     switch (type) {
+      case 'health_qa':
       case 'general':
-        return '综合问诊';
+        return '健康问答';
+      case 'symptom_check':
       case 'pediatric':
-        return '儿科问诊';
-      case 'gynecology':
-        return '妇科问诊';
+        return '健康自查';
       case 'tcm':
-        return '中医问诊';
+      case 'gynecology':
+        return '中医养生';
+      case 'drug_query':
+        return '用药参考';
       default:
-        return 'AI问诊';
+        return 'AI健康咨询';
     }
   }
 

@@ -11,7 +11,7 @@
   <scroll-view class="msg-list" scroll-y scroll-into-view="{{scrollToId}}" scroll-with-animation>
     <!-- 提示信息 -->
     <view class="chat-notice">
-      <text class="notice-text">AI问诊仅供参考，不能替代专业医疗诊断。如有紧急情况请立即就医。</text>
+      <text class="notice-text">AI健康咨询仅供参考，不能替代专业医疗诊断。如有紧急情况请立即就医。</text>
     </view>
 
     <view class="msg-item" wx:for="{{messages}}" wx:key="id" id="msg-{{item.id}}">
@@ -21,7 +21,10 @@
           <text class="avatar-emoji">🤖</text>
         </view>
         <view class="msg-bubble ai-bubble">
-          <text class="msg-text">{{item.content}}</text>
+          <text class="msg-text">{{item.mainContent || item.content}}</text>
+          <view wx:if="{{item.disclaimer}}" class="disclaimer">
+            <text class="disclaimer-text">{{item.disclaimer}}</text>
+          </view>
           <block wx:if="{{item.knowledgeHits && item.knowledgeHits.length}}">
             <knowledge-card
               wx:for="{{item.knowledgeHits}}"

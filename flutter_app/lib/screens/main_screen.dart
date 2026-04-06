@@ -50,7 +50,7 @@ class _MainScreenState extends State<MainScreen> {
             BottomNavigationBarItem(
               icon: Icon(Icons.smart_toy_outlined),
               activeIcon: Icon(Icons.smart_toy),
-              label: 'AI问诊',
+              label: 'AI咨询',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.medical_services_outlined),

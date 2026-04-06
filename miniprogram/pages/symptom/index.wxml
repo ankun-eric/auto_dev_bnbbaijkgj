@@ -93,7 +93,7 @@
       </view>
 
       <view class="action-btns">
-        <button class="btn-primary" bindtap="goChat">咨询AI医生</button>
+        <button class="btn-primary" bindtap="goChat">咨询AI健康顾问</button>
         <button class="btn-outline" bindtap="restart">重新自查</button>
       </view>
     </view>

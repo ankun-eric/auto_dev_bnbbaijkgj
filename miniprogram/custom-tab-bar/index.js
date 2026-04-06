@@ -1,6 +1,6 @@
 const userTabs = [
   { pagePath: '/pages/home/index', text: '首页', icon: '🏠' },
-  { pagePath: '/pages/ai/index', text: 'AI问诊', icon: '🤖' },
+  { pagePath: '/pages/ai/index', text: 'AI健康咨询', icon: '🤖' },
   { pagePath: '/pages/services/index', text: '服务', icon: '🧰' },
   { pagePath: '/pages/profile/index', text: '我的', icon: '👤' }
 ];

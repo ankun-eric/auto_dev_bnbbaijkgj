@@ -1,10 +1,14 @@
 const { del, put, post } = require('../../utils/request');
 
 const SESSION_TYPE_MAP = {
-  general: '综合问诊',
-  symptom: '症状分析',
-  tcm: '中医问诊',
-  nutrition: '营养咨询'
+  health_qa: '健康问答',
+  general: '健康问答',
+  symptom_check: '健康自查',
+  symptom: '健康自查',
+  tcm: '中医养生',
+  drug_query: '用药参考',
+  nutrition: '用药参考',
+  customer_service: '在线客服'
 };
 
 Component({

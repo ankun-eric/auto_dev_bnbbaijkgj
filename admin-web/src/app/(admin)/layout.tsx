@@ -57,6 +57,16 @@ const menuItems: MenuItem[] = [
     ],
   },
   {
+    key: 'ai-center',
+    icon: <SettingOutlined />,
+    label: 'AI配置中心',
+    children: [
+      { key: '/ai-center/sensitive-words', label: '敏感词管理' },
+      { key: '/ai-center/prompts', label: '提示词配置' },
+      { key: '/ai-center/disclaimers', label: '免责提示配置' },
+    ],
+  },
+  {
     key: 'services',
     icon: <ShopOutlined />,
     label: '服务管理',
@@ -107,6 +117,7 @@ function getOpenKeys(pathname: string): string[] {
   if (pathname.startsWith('/content')) return ['content'];
   if (pathname.startsWith('/points')) return ['points'];
   if (pathname.startsWith('/ai-config') || pathname.startsWith('/chat-records') || pathname.startsWith('/knowledge') || pathname.startsWith('/search-config') || pathname.startsWith('/fallback-config')) return ['ai'];
+  if (pathname.startsWith('/ai-center')) return ['ai-center'];
   if (pathname.startsWith('/sms') || pathname.startsWith('/settings') || pathname.startsWith('/wechat-push') || pathname.startsWith('/email-notify') || pathname.startsWith('/cos-config')) return ['system'];
   return [];
 }

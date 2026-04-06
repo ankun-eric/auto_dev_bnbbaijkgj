@@ -8,6 +8,11 @@ from app.core.database import async_session
 from app.core.security import get_password_hash
 from app.models.models import (
     AIModelTemplate,
+    AiDisclaimerConfig,
+    AiPromptConfig,
+    AiSensitiveWord,
+    ChatMessage,
+    ChatSession,
     ConstitutionQuestion,
     MemberLevel,
     ServiceCategory,
@@ -33,6 +38,8 @@ async def init_default_data():
             await _migrate_push_config_keys(db)
             await _migrate_sms_config_provider(db)
             await _init_sms_config_and_template(db)
+            await _init_ai_center_configs(db)
+            await _clean_chat_history_once(db)
             await db.commit()
             logger.info("Default data initialization completed")
         except Exception as e:
@@ -439,3 +446,134 @@ async def _init_sms_config_and_template(db: AsyncSession):
         ))
         await db.flush()
         logger.info("Created default SMS template: 登录验证 (template_id=2201340)")
+
+
+async def _init_ai_center_configs(db: AsyncSession):
+    # ── 提示词配置 ──
+    result = await db.execute(select(AiPromptConfig).limit(1))
+    if not result.scalar_one_or_none():
+        prompts = [
+            {
+                "chat_type": "health_qa",
+                "display_name": "健康问答",
+                "system_prompt": (
+                    "你是「宾尼小康」AI健康咨询助手，一个专业、友好的健康咨询助手。"
+                    "请用通俗易懂的语言回答用户的健康相关问题，提供健康参考信息，"
+                    "并在必要时建议用户及时就医。所有内容仅供健康参考，不构成任何医疗诊断或治疗建议。"
+                ),
+            },
+            {
+                "chat_type": "symptom_check",
+                "display_name": "健康自查",
+                "system_prompt": (
+                    "你是一位专业的AI健康自查助手。请根据用户描述的身体状况进行初步健康参考分析，"
+                    "给出可能的相关因素和健康建议。所有内容仅供自我健康参考，"
+                    "不能替代专业医疗检查，如有异常请尽快就医。"
+                ),
+            },
+            {
+                "chat_type": "tcm",
+                "display_name": "中医养生",
+                "system_prompt": (
+                    "你是一位中医AI养生助手，精通中医养生理论。请根据用户描述，"
+                    "从中医养生角度提供调理建议。所有中医养生建议仅供参考，"
+                    "个人体质不同，建议在专业中医师指导下调理。"
+                ),
+            },
+            {
+                "chat_type": "drug_query",
+                "display_name": "用药参考",
+                "system_prompt": (
+                    "你是一位药学AI用药参考助手，请提供药品的基本信息供用户参考，"
+                    "包括常见用法、注意事项、相互作用等。所有用药信息仅供参考，"
+                    "具体用药请严格遵医嘱，切勿自行用药。"
+                ),
+            },
+            {
+                "chat_type": "customer_service",
+                "display_name": "在线客服",
+                "system_prompt": (
+                    "你是「宾尼小康」平台的AI客服助手，请热情友好地解答用户关于平台服务的问题。"
+                ),
+            },
+        ]
+        for p in prompts:
+            db.add(AiPromptConfig(**p))
+        await db.flush()
+        logger.info("Created default AI prompt configs")
+
+    # ── 免责提示配置 ──
+    result = await db.execute(select(AiDisclaimerConfig).limit(1))
+    if not result.scalar_one_or_none():
+        disclaimers = [
+            {
+                "chat_type": "health_qa",
+                "display_name": "健康问答",
+                "disclaimer_text": "以上内容仅供健康参考，不构成任何医疗诊断或治疗建议，如有不适请及时就医。",
+                "is_enabled": True,
+            },
+            {
+                "chat_type": "symptom_check",
+                "display_name": "健康自查",
+                "disclaimer_text": "以上内容仅供自我健康参考，不能替代专业医疗检查，如有异常请尽快就医。",
+                "is_enabled": True,
+            },
+            {
+                "chat_type": "tcm",
+                "display_name": "中医养生",
+                "disclaimer_text": "以上中医养生建议仅供参考，个人体质不同，建议在专业中医师指导下调理。",
+                "is_enabled": True,
+            },
+            {
+                "chat_type": "drug_query",
+                "display_name": "用药参考",
+                "disclaimer_text": "以上用药信息仅供参考，具体用药请严格遵医嘱，切勿自行用药。",
+                "is_enabled": True,
+            },
+            {
+                "chat_type": "customer_service",
+                "display_name": "在线客服",
+                "disclaimer_text": "",
+                "is_enabled": False,
+            },
+        ]
+        for d in disclaimers:
+            db.add(AiDisclaimerConfig(**d))
+        await db.flush()
+        logger.info("Created default AI disclaimer configs")
+
+    # ── 默认敏感词 ──
+    result = await db.execute(select(AiSensitiveWord).limit(1))
+    if not result.scalar_one_or_none():
+        words = [
+            {"sensitive_word": "诊断为", "replacement_word": "可能与…有关"},
+            {"sensitive_word": "确诊", "replacement_word": "初步判断"},
+            {"sensitive_word": "处方", "replacement_word": "建议参考"},
+            {"sensitive_word": "开药", "replacement_word": "建议咨询医生后用药"},
+        ]
+        for w in words:
+            db.add(AiSensitiveWord(**w))
+        await db.flush()
+        logger.info("Created default AI sensitive words")
+
+
+async def _clean_chat_history_once(db: AsyncSession):
+    flag_key = "ai_chat_history_cleaned"
+    result = await db.execute(
+        select(SystemConfig).where(SystemConfig.config_key == flag_key)
+    )
+    if result.scalar_one_or_none():
+        return
+
+    from sqlalchemy import delete
+    await db.execute(delete(ChatMessage))
+    await db.execute(delete(ChatSession))
+
+    db.add(SystemConfig(
+        config_key=flag_key,
+        config_value="true",
+        config_type="system",
+        description="AI聊天记录一次性清理标志",
+    ))
+    await db.flush()
+    logger.info("Cleaned all chat history (one-time migration)")

@@ -8,6 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from app.api import (
     admin,
     admin_merchant,
+    ai_center,
     auth,
     chat,
     chat_history,
@@ -79,6 +80,7 @@ app.include_router(email_notify.router)
 app.include_router(wechat_push.router)
 app.include_router(knowledge.router)
 app.include_router(cos.router)
+app.include_router(ai_center.router)
 
 os.makedirs("uploads", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")

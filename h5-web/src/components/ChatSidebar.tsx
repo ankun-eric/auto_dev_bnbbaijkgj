@@ -37,11 +37,11 @@ interface ChatSidebarProps {
 const typeLabel: Record<string, { text: string; color: string }> = {
   health_qa: { text: '问答', color: '#52c41a' },
   health: { text: '问答', color: '#52c41a' },
-  symptom_check: { text: '自查', color: '#1890ff' },
-  symptom: { text: '自查', color: '#1890ff' },
-  tcm: { text: '中医', color: '#eb2f96' },
-  drug_query: { text: '用药', color: '#fa8c16' },
-  drug: { text: '用药', color: '#fa8c16' },
+  symptom_check: { text: '健康自查', color: '#1890ff' },
+  symptom: { text: '健康自查', color: '#1890ff' },
+  tcm: { text: '养生', color: '#eb2f96' },
+  drug_query: { text: '参考', color: '#fa8c16' },
+  drug: { text: '参考', color: '#fa8c16' },
 };
 
 function groupByTime(items: SessionItem[]): TimeGroup[] {

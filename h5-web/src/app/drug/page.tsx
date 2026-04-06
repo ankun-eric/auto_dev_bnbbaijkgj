@@ -102,7 +102,7 @@ function DrugPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <NavBar onBack={() => router.back()} style={{ background: '#fff' }}>
-        药物查询
+        用药参考
       </NavBar>
 
       <Tabs

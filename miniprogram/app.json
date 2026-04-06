@@ -43,7 +43,7 @@
     "borderStyle": "black",
     "list": [
       { "pagePath": "pages/home/index", "text": "首页", "iconPath": "assets/icons/home.png", "selectedIconPath": "assets/icons/home-active.png" },
-      { "pagePath": "pages/ai/index", "text": "AI问诊", "iconPath": "assets/icons/ai.png", "selectedIconPath": "assets/icons/ai-active.png" },
+      { "pagePath": "pages/ai/index", "text": "AI健康咨询", "iconPath": "assets/icons/ai.png", "selectedIconPath": "assets/icons/ai-active.png" },
       { "pagePath": "pages/services/index", "text": "服务", "iconPath": "assets/icons/service.png", "selectedIconPath": "assets/icons/service-active.png" },
       { "pagePath": "pages/profile/index", "text": "我的", "iconPath": "assets/icons/profile.png", "selectedIconPath": "assets/icons/profile-active.png" }
     ]

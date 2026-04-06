@@ -13,17 +13,17 @@ import {
 } from 'antd-mobile-icons';
 
 const banners = [
-  { id: 1, title: 'AI智能问诊', desc: '7×24小时在线健康咨询', color: '#52c41a' },
-  { id: 2, title: '中医辨证', desc: '智能舌诊面诊体质分析', color: '#13c2c2' },
+  { id: 1, title: 'AI健康咨询', desc: '7×24小时在线健康咨询', color: '#52c41a' },
+  { id: 2, title: '中医养生', desc: '中医养生体质调理', color: '#13c2c2' },
   { id: 3, title: '健康计划', desc: '个性化健康管理方案', color: '#1890ff' },
 ];
 
 const features = [
-  { icon: <MessageOutline style={{ fontSize: 24 }} />, title: 'AI问诊', path: '/ai', color: '#52c41a' },
+  { icon: <MessageOutline style={{ fontSize: 24 }} />, title: 'AI健康咨询', path: '/ai', color: '#52c41a' },
   { icon: <FileOutline style={{ fontSize: 24 }} />, title: '体检报告', path: '/checkup', color: '#1890ff' },
-  { icon: <SearchOutline style={{ fontSize: 24 }} />, title: '症状自查', path: '/symptom', color: '#722ed1' },
-  { icon: <HeartOutline style={{ fontSize: 24 }} />, title: '中医辨证', path: '/tcm', color: '#eb2f96' },
-  { icon: <AppstoreOutline style={{ fontSize: 24 }} />, title: '药物查询', path: '/drug', color: '#fa8c16' },
+  { icon: <SearchOutline style={{ fontSize: 24 }} />, title: '健康自查', path: '/symptom', color: '#722ed1' },
+  { icon: <HeartOutline style={{ fontSize: 24 }} />, title: '中医养生', path: '/tcm', color: '#eb2f96' },
+  { icon: <AppstoreOutline style={{ fontSize: 24 }} />, title: '用药参考', path: '/drug', color: '#fa8c16' },
   { icon: <CheckShieldOutline style={{ fontSize: 24 }} />, title: '健康计划', path: '/health-plan', color: '#13c2c2' },
 ];
 

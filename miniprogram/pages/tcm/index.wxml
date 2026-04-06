@@ -18,7 +18,7 @@
     </view>
     <view class="feature-card card" bindtap="goTcmChat">
       <text class="feature-icon">🌿</text>
-      <text class="feature-name">中医问诊</text>
+      <text class="feature-name">中医养生</text>
       <text class="feature-desc">AI中医师在线辨证</text>
     </view>
   </view>

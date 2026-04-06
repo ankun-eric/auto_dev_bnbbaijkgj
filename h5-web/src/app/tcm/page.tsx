@@ -86,7 +86,7 @@ export default function TcmPage() {
         }}
         style={{ background: '#fff' }}
       >
-        中医辨证
+        中医养生
       </NavBar>
 
       {!activeFeature && (
@@ -96,7 +96,7 @@ export default function TcmPage() {
             style={{ background: 'linear-gradient(135deg, #52c41a20, #13c2c220)' }}
           >
             <div className="text-3xl mb-2">🏥</div>
-            <h2 className="font-bold text-lg text-gray-800">智能中医辨证</h2>
+            <h2 className="font-bold text-lg text-gray-800">智能中医养生</h2>
             <p className="text-xs text-gray-500 mt-1">融合传统中医智慧与AI技术</p>
           </div>
 

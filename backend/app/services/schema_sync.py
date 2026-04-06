@@ -162,6 +162,52 @@ async def _sync_knowledge_tables(conn: AsyncConnection) -> None:
             await conn.execute(text("ALTER TABLE knowledge_hit_logs ADD COLUMN message_id INT NULL"))
 
 
+async def _sync_ai_center_tables(conn: AsyncConnection) -> None:
+    def _load(sync_conn):
+        inspector = inspect(sync_conn)
+        tables = set(inspector.get_table_names())
+        result = {}
+        for tbl in ["ai_sensitive_words", "ai_prompt_configs", "ai_disclaimer_configs"]:
+            if tbl in tables:
+                result[tbl] = {col["name"] for col in inspector.get_columns(tbl)}
+        return result
+
+    table_cols = await conn.run_sync(_load)
+
+    if "ai_sensitive_words" in table_cols:
+        cols = table_cols["ai_sensitive_words"]
+        if "updated_at" not in cols:
+            await conn.execute(text(
+                "ALTER TABLE ai_sensitive_words ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP"
+            ))
+
+    if "ai_prompt_configs" in table_cols:
+        cols = table_cols["ai_prompt_configs"]
+        if "display_name" not in cols:
+            await conn.execute(text(
+                "ALTER TABLE ai_prompt_configs ADD COLUMN display_name VARCHAR(100) NOT NULL DEFAULT ''"
+            ))
+        if "system_prompt" not in cols:
+            await conn.execute(text(
+                "ALTER TABLE ai_prompt_configs ADD COLUMN system_prompt TEXT NULL"
+            ))
+
+    if "ai_disclaimer_configs" in table_cols:
+        cols = table_cols["ai_disclaimer_configs"]
+        if "display_name" not in cols:
+            await conn.execute(text(
+                "ALTER TABLE ai_disclaimer_configs ADD COLUMN display_name VARCHAR(100) NOT NULL DEFAULT ''"
+            ))
+        if "disclaimer_text" not in cols:
+            await conn.execute(text(
+                "ALTER TABLE ai_disclaimer_configs ADD COLUMN disclaimer_text TEXT NULL"
+            ))
+        if "is_enabled" not in cols:
+            await conn.execute(text(
+                "ALTER TABLE ai_disclaimer_configs ADD COLUMN is_enabled BOOLEAN DEFAULT TRUE"
+            ))
+
+
 async def sync_register_schema(conn: AsyncConnection) -> None:
     def load_user_schema(sync_conn):
         inspector = inspect(sync_conn)
@@ -182,6 +228,7 @@ async def sync_register_schema(conn: AsyncConnection) -> None:
     await _sync_sms_tables(conn)
     await _sync_chat_session_fields(conn)
     await _sync_knowledge_tables(conn)
+    await _sync_ai_center_tables(conn)
 
     columns, indexes, unique_constraints = await conn.run_sync(load_user_schema)
 

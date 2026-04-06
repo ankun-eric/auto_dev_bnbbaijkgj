@@ -11,28 +11,28 @@ const consultTypes = [
   {
     key: 'health_qa',
     title: '健康问答',
-    desc: 'AI全科医生在线解答',
+    desc: 'AI健康顾问在线解答',
     icon: '💬',
     color: '#52c41a',
   },
   {
     key: 'symptom',
-    title: '症状自查',
-    desc: '智能分析症状可能原因',
+    title: '健康自查',
+    desc: '智能健康自查参考',
     icon: '🔍',
     color: '#1890ff',
   },
   {
     key: 'tcm',
-    title: '中医辨证',
-    desc: '舌诊面诊体质分析',
+    title: '中医养生',
+    desc: '中医养生体质调理',
     icon: '🏥',
     color: '#eb2f96',
   },
   {
     key: 'drug',
-    title: '药物查询',
-    desc: '用药指南与相互作用',
+    title: '用药参考',
+    desc: '用药参考与注意事项',
     icon: '💊',
     color: '#fa8c16',
   },
@@ -48,11 +48,11 @@ interface SessionItem {
 const typeLabel: Record<string, { text: string; color: string }> = {
   health_qa: { text: '问答', color: '#52c41a' },
   health: { text: '问答', color: '#52c41a' },
-  symptom_check: { text: '自查', color: '#1890ff' },
-  symptom: { text: '自查', color: '#1890ff' },
-  tcm: { text: '中医', color: '#eb2f96' },
-  drug_query: { text: '用药', color: '#fa8c16' },
-  drug: { text: '用药', color: '#fa8c16' },
+  symptom_check: { text: '健康自查', color: '#1890ff' },
+  symptom: { text: '健康自查', color: '#1890ff' },
+  tcm: { text: '养生', color: '#eb2f96' },
+  drug_query: { text: '参考', color: '#fa8c16' },
+  drug: { text: '参考', color: '#fa8c16' },
 };
 
 export default function AIPage() {
@@ -110,8 +110,8 @@ export default function AIPage() {
             </svg>
           </button>
           <div className="text-center flex-1">
-            <h1 className="text-xl font-bold">AI智能问诊</h1>
-            <p className="text-xs opacity-80 mt-1">选择问诊类型，开始健康咨询</p>
+            <h1 className="text-xl font-bold">AI健康咨询</h1>
+            <p className="text-xs opacity-80 mt-1">选择咨询类型，开始健康咨询</p>
           </div>
           <div className="w-9" />
         </div>
@@ -173,7 +173,7 @@ export default function AIPage() {
                 borderRadius: 20,
               }}
             >
-              开始第一次问诊
+              开始第一次健康咨询
             </Button>
           </div>
         ) : (

@@ -74,7 +74,7 @@
         </view>
       </scroll-view>
       <view class="modal-footer">
-        <button class="btn-primary" bindtap="askAboutDrug">咨询AI医生</button>
+        <button class="btn-primary" bindtap="askAboutDrug">咨询AI健康顾问</button>
       </view>
     </view>
   </view>

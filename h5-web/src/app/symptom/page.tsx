@@ -73,7 +73,7 @@ export default function SymptomPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <NavBar onBack={() => (step > 0 ? setStep(step - 1) : router.back())} style={{ background: '#fff' }}>
-        症状自查
+        健康自查
       </NavBar>
 
       <div className="px-4 pt-4">

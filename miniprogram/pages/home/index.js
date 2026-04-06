@@ -10,12 +10,12 @@ Page({
     todayCount: 0,
     todayAmount: '0.00',
     banners: [
-      { id: 1, title: 'AI智能问诊', desc: '24小时在线，专业健康咨询', bgColor: 'linear-gradient(135deg, #52c41a, #13c2c2)' },
+      { id: 1, title: 'AI健康咨询', desc: '24小时在线，专业健康咨询', bgColor: 'linear-gradient(135deg, #52c41a, #13c2c2)' },
       { id: 2, title: '体检报告解读', desc: '上传报告，AI秒级分析', bgColor: 'linear-gradient(135deg, #13c2c2, #1890ff)' },
       { id: 3, title: '中医智能辨证', desc: '舌诊面诊，科学辨体质', bgColor: 'linear-gradient(135deg, #722ed1, #eb2f96)' }
     ],
     menuItems: [
-      { id: 'ai', label: 'AI问诊', icon: '🤖', bgColor: 'rgba(82,196,26,0.12)', path: '/pages/chat/index?type=general' },
+      { id: 'ai', label: 'AI健康咨询', icon: '🤖', bgColor: 'rgba(82,196,26,0.12)', path: '/pages/chat/index?type=health_qa' },
       { id: 'checkup', label: '体检报告', icon: '📋', bgColor: 'rgba(19,194,194,0.12)', path: '/pages/checkup/index' },
       { id: 'symptom', label: '症状自查', icon: '🩺', bgColor: 'rgba(24,144,255,0.12)', path: '/pages/symptom/index' },
       { id: 'tcm', label: '中医辨证', icon: '🌿', bgColor: 'rgba(114,46,209,0.12)', path: '/pages/tcm/index' },

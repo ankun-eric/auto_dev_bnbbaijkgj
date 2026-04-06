@@ -10,20 +10,58 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.database import async_session, get_db
 from app.core.security import get_current_user
-from app.models.models import ChatMessage, ChatSession, MessageRole, MessageType, SessionType, User
+from app.models.models import (
+    AiDisclaimerConfig,
+    AiPromptConfig,
+    AiSensitiveWord,
+    ChatMessage,
+    ChatSession,
+    MessageRole,
+    MessageType,
+    SessionType,
+    User,
+)
 from app.schemas.chat import ChatMessageCreate, ChatMessageResponse, ChatSessionCreate, ChatSessionResponse
 from app.services.ai_service import call_ai_model, symptom_analysis
 from app.services.knowledge_search import search_knowledge
 
 router = APIRouter(prefix="/api/chat", tags=["AI对话"])
 
-SYSTEM_PROMPTS = {
-    "health_qa": "你是「宾尼小康」AI健康管家，一个专业、友好的健康咨询助手。请用通俗易懂的语言回答用户的健康问题，并在必要时建议就医。声明仅供参考。",
-    "symptom_check": "你是一位专业的AI症状分析助手。请根据用户描述的症状进行初步分析，给出可能的病因和建议。声明仅供参考，不构成医疗诊断。",
-    "tcm": "你是一位中医AI辨证助手，精通中医理论。请根据用户描述，从中医角度进行分析和建议。",
-    "drug_query": "你是一位药学AI顾问，请准确回答用户关于药品的问题，包括用法用量、注意事项、相互作用等。",
+DEFAULT_SYSTEM_PROMPTS = {
+    "health_qa": "你是「宾尼小康」AI健康咨询助手，一个专业、友好的健康咨询助手。请用通俗易懂的语言回答用户的健康相关问题，提供健康参考信息，并在必要时建议用户及时就医。所有内容仅供健康参考，不构成任何医疗诊断或治疗建议。",
+    "symptom_check": "你是一位专业的AI健康自查助手。请根据用户描述的身体状况进行初步健康参考分析，给出可能的相关因素和健康建议。所有内容仅供自我健康参考，不能替代专业医疗检查，如有异常请尽快就医。",
+    "tcm": "你是一位中医AI养生助手，精通中医养生理论。请根据用户描述，从中医养生角度提供调理建议。所有中医养生建议仅供参考，个人体质不同，建议在专业中医师指导下调理。",
+    "drug_query": "你是一位药学AI用药参考助手，请提供药品的基本信息供用户参考，包括常见用法、注意事项、相互作用等。所有用药信息仅供参考，具体用药请严格遵医嘱，切勿自行用药。",
     "customer_service": "你是「宾尼小康」平台的AI客服助手，请热情友好地解答用户关于平台服务的问题。",
 }
+
+
+async def _get_system_prompt(session_type: str, db: AsyncSession) -> str:
+    result = await db.execute(
+        select(AiPromptConfig).where(AiPromptConfig.chat_type == session_type)
+    )
+    config = result.scalar_one_or_none()
+    if config and config.system_prompt:
+        return config.system_prompt
+    return DEFAULT_SYSTEM_PROMPTS.get(session_type, DEFAULT_SYSTEM_PROMPTS["health_qa"])
+
+
+async def _filter_sensitive_words(content: str, db: AsyncSession) -> str:
+    result = await db.execute(select(AiSensitiveWord))
+    words = result.scalars().all()
+    for w in words:
+        content = content.replace(w.sensitive_word, w.replacement_word)
+    return content
+
+
+async def _append_disclaimer(content: str, session_type: str, db: AsyncSession) -> str:
+    result = await db.execute(
+        select(AiDisclaimerConfig).where(AiDisclaimerConfig.chat_type == session_type)
+    )
+    config = result.scalar_one_or_none()
+    if config and config.is_enabled and config.disclaimer_text:
+        content += "\n\n---disclaimer---\n" + config.disclaimer_text
+    return content
 
 
 @router.post("/sessions", response_model=ChatSessionResponse)
@@ -144,7 +182,7 @@ async def send_message(
     messages = [{"role": m.role.value if hasattr(m.role, "value") else m.role, "content": m.content} for m in history_msgs]
 
     session_type_val = session.session_type.value if hasattr(session.session_type, "value") else session.session_type
-    system_prompt = SYSTEM_PROMPTS.get(session_type_val, SYSTEM_PROMPTS["health_qa"])
+    system_prompt = await _get_system_prompt(session_type_val, db)
 
     knowledge_hits = []
     try:
@@ -179,6 +217,9 @@ async def send_message(
     ai_content = ai_result["content"]
     usage = ai_result.get("usage")
     model_used = ai_result.get("model")
+
+    ai_content = await _filter_sensitive_words(ai_content, db)
+    ai_content = await _append_disclaimer(ai_content, session_type_val, db)
 
     if not session.model_name and model_used:
         session.model_name = model_used
@@ -259,9 +300,12 @@ async def websocket_chat(websocket: WebSocket, session_id: int):
                 messages = [{"role": m.role.value if hasattr(m.role, "value") else m.role, "content": m.content} for m in history_msgs]
 
                 stype = session.session_type.value if hasattr(session.session_type, "value") else session.session_type
-                system_prompt = SYSTEM_PROMPTS.get(stype, SYSTEM_PROMPTS["health_qa"])
+                system_prompt = await _get_system_prompt(stype, db)
 
                 ai_reply = await call_ai_model(messages, system_prompt, db)
+
+                ai_reply = await _filter_sensitive_words(ai_reply, db)
+                ai_reply = await _append_disclaimer(ai_reply, stype, db)
 
                 ai_msg = ChatMessage(
                     session_id=session_id,

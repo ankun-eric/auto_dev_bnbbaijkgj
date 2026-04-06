@@ -69,7 +69,7 @@ class _ChatScreenState extends State<ChatScreen> {
         },
       ),
       appBar: CustomAppBar(
-        title: Provider.of<ChatProvider>(context).currentSession?.typeLabel ?? 'AI问诊',
+        title: Provider.of<ChatProvider>(context).currentSession?.typeLabel ?? 'AI健康咨询',
         actions: [
           IconButton(
             icon: const Icon(Icons.history, color: Colors.white),
@@ -141,7 +141,7 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
           const SizedBox(height: 16),
           const Text(
-            '您好，我是小康AI医生',
+            '您好，我是小康AI健康顾问',
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
@@ -264,32 +264,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       message.content,
                       style: const TextStyle(color: Colors.white, fontSize: 15, height: 1.5),
                     )
-                  : Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        MarkdownBody(
-                          data: message.content,
-                          styleSheet: MarkdownStyleSheet(
-                            p: const TextStyle(fontSize: 15, height: 1.6, color: Color(0xFF333333)),
-                            h1: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                            h2: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                            h3: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                            listBullet: const TextStyle(fontSize: 15),
-                          ),
-                        ),
-                        if (message.knowledgeHits != null && message.knowledgeHits!.isNotEmpty)
-                          ...message.knowledgeHits!.map(
-                            (h) => KnowledgeCard(
-                              hit: h,
-                              onFeedback: (hitLogId, feedback) => Provider.of<ChatProvider>(
-                                    context,
-                                    listen: false,
-                                  ).submitKnowledgeFeedback(hitLogId, feedback),
-                            ),
-                          ),
-                      ],
-                    ),
+                  : _buildAiMessageContent(message),
             ),
           ),
           if (isUser) ...[
@@ -298,6 +273,57 @@ class _ChatScreenState extends State<ChatScreen> {
           ],
         ],
       ),
+    );
+  }
+
+  Widget _buildAiMessageContent(ChatMessage message) {
+    final parts = message.content.split('---disclaimer---');
+    final mainContent = parts[0].trim();
+    final disclaimer = parts.length > 1 ? parts[1].trim() : null;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        MarkdownBody(
+          data: mainContent,
+          styleSheet: MarkdownStyleSheet(
+            p: const TextStyle(fontSize: 15, height: 1.6, color: Color(0xFF333333)),
+            h1: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            h2: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            h3: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            listBullet: const TextStyle(fontSize: 15),
+          ),
+        ),
+        if (disclaimer != null) ...[
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.only(top: 8),
+            decoration: const BoxDecoration(
+              border: Border(top: BorderSide(color: Color(0xFFE8E8E8), width: 0.5, style: BorderStyle.solid)),
+            ),
+            child: Text(
+              disclaimer,
+              style: const TextStyle(
+                fontSize: 11,
+                color: Color(0xFF999999),
+                fontStyle: FontStyle.italic,
+                height: 1.4,
+              ),
+            ),
+          ),
+        ],
+        if (message.knowledgeHits != null && message.knowledgeHits!.isNotEmpty)
+          ...message.knowledgeHits!.map(
+            (h) => KnowledgeCard(
+              hit: h,
+              onFeedback: (hitLogId, feedback) => Provider.of<ChatProvider>(
+                    context,
+                    listen: false,
+                  ).submitKnowledgeFeedback(hitLogId, feedback),
+            ),
+          ),
+      ],
     );
   }
 

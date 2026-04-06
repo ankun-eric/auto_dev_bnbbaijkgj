@@ -16,7 +16,7 @@ interface Notification {
 const mockNotifications: Notification[] = [
   { id: 1, title: '健康提醒', content: '您今天的步数目标尚未完成，距离8000步还差3200步', time: '10分钟前', read: false, type: 'health' },
   { id: 2, title: '订单通知', content: '您的体检套餐订单已确认，请按预约时间前往', time: '1小时前', read: false, type: 'order' },
-  { id: 3, title: '系统通知', content: '宾尼小康V2.0版本更新，新增中医辨证功能', time: '昨天', read: false, type: 'system' },
+  { id: 3, title: '系统通知', content: '宾尼小康V2.0版本更新，新增中医养生功能', time: '昨天', read: false, type: 'system' },
   { id: 4, title: '活动通知', content: '签到7天赢取100积分活动开始啦！', time: '2天前', read: true, type: 'activity' },
   { id: 5, title: '健康报告', content: '您的3月健康报告已生成，点击查看', time: '3天前', read: true, type: 'health' },
 ];

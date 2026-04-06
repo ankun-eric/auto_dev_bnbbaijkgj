@@ -16,13 +16,13 @@ class _HomeScreenState extends State<HomeScreen> {
   final PageController _bannerController = PageController();
   int _currentBanner = 0;
   final List<Map<String, dynamic>> _banners = [
-    {'title': 'AI智能问诊', 'subtitle': '足不出户，在线问诊', 'color': const Color(0xFF52C41A)},
+    {'title': 'AI健康咨询', 'subtitle': '足不出户，在线咨询', 'color': const Color(0xFF52C41A)},
     {'title': '中医体质辨识', 'subtitle': '了解体质，养生有方', 'color': const Color(0xFF13C2C2)},
     {'title': '家庭健康管理', 'subtitle': '全家健康，一手掌握', 'color': const Color(0xFF1890FF)},
   ];
 
   final List<Map<String, dynamic>> _features = [
-    {'icon': Icons.smart_toy, 'label': 'AI问诊', 'route': '/ai', 'color': const Color(0xFF52C41A)},
+    {'icon': Icons.smart_toy, 'label': 'AI咨询', 'route': '/ai', 'color': const Color(0xFF52C41A)},
     {'icon': Icons.assignment, 'label': '体检报告', 'route': '/checkup', 'color': const Color(0xFF1890FF)},
     {'icon': Icons.search, 'label': '症状自查', 'route': '/symptom', 'color': const Color(0xFFFA8C16)},
     {'icon': Icons.spa, 'label': '中医辨证', 'route': '/tcm', 'color': const Color(0xFF722ED1)},
