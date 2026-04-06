@@ -10,6 +10,8 @@ class ArticleCreate(BaseModel):
     cover_image: Optional[str] = None
     category: Optional[str] = None
     tags: Optional[Any] = None
+    summary: Optional[str] = None
+    status: Optional[str] = None
 
 
 class ArticleUpdate(BaseModel):
@@ -19,6 +21,7 @@ class ArticleUpdate(BaseModel):
     category: Optional[str] = None
     tags: Optional[Any] = None
     status: Optional[str] = None
+    summary: Optional[str] = None
 
 
 class ArticleResponse(BaseModel):
@@ -29,6 +32,7 @@ class ArticleResponse(BaseModel):
     author_id: Optional[int] = None
     category: Optional[str] = None
     tags: Optional[Any] = None
+    summary: Optional[str] = None
     view_count: int
     like_count: int
     status: str
@@ -44,7 +48,17 @@ class VideoCreate(BaseModel):
     video_url: str
     cover_image: Optional[str] = None
     category: Optional[str] = None
-    duration: int = 0
+    duration: Optional[Any] = 0
+
+
+class VideoUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    video_url: Optional[str] = None
+    cover_image: Optional[str] = None
+    category: Optional[str] = None
+    duration: Optional[Any] = None
+    status: Optional[str] = None
 
 
 class VideoResponse(BaseModel):

@@ -32,6 +32,7 @@ class ServiceItemCreate(BaseModel):
     images: Optional[Any] = None
     service_type: str = "online"
     stock: int = 0
+    status: Optional[str] = "active"
 
 
 class ServiceItemUpdate(BaseModel):

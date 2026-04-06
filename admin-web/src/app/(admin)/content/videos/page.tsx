@@ -1,10 +1,17 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Table, Button, Space, Modal, Form, Input, Select, Switch, Upload, Tag, message, Typography, Popconfirm } from 'antd';
-import { PlusOutlined, EditOutlined, UploadOutlined, ArrowUpOutlined, ArrowDownOutlined, PlayCircleOutlined } from '@ant-design/icons';
-import { get, post, put } from '@/lib/api';
+import {
+  Table, Button, Space, Modal, Form, Input, Select, Switch, Upload, Tag, message,
+  Typography, Popconfirm, Card, Statistic, Row, Col,
+} from 'antd';
+import {
+  PlusOutlined, EditOutlined, UploadOutlined, ArrowUpOutlined, ArrowDownOutlined,
+  PlayCircleOutlined, SearchOutlined, VideoCameraOutlined,
+} from '@ant-design/icons';
+import { get, post, put, upload as uploadFile } from '@/lib/api';
 import dayjs from 'dayjs';
+import type { RcFile, UploadFile } from 'antd/es/upload/interface';
 
 const { Title } = Typography;
 const { TextArea } = Input;
@@ -13,7 +20,7 @@ interface VideoRecord {
   id: number;
   title: string;
   category: string;
-  duration: string;
+  duration: number;
   views: number;
   likes: number;
   status: string;
@@ -31,30 +38,42 @@ const categoryOptions = [
   { label: '心理辅导', value: '心理辅导' },
 ];
 
+const statusConfig: Record<string, { color: string; text: string }> = {
+  draft: { color: 'default', text: '草稿' },
+  published: { color: 'green', text: '已发布' },
+  archived: { color: 'red', text: '已下架' },
+};
+
+function formatDuration(seconds: number): string {
+  if (!seconds || seconds <= 0) return '00:00';
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
+function parseDuration(str: string): number {
+  if (!str) return 0;
+  const parts = str.split(':');
+  if (parts.length === 2) {
+    return (parseInt(parts[0], 10) || 0) * 60 + (parseInt(parts[1], 10) || 0);
+  }
+  return parseInt(str, 10) || 0;
+}
+
 function mapVideoFromApi(raw: Record<string, unknown>): VideoRecord {
   return {
     id: Number(raw.id),
     title: String(raw.title ?? ''),
     category: String(raw.category ?? ''),
-    duration: raw.duration != null ? String(raw.duration) : '',
+    duration: Number(raw.duration ?? 0),
     views: Number(raw.view_count ?? 0),
     likes: Number(raw.like_count ?? 0),
-    status: String(raw.status ?? 'archived'),
+    status: String(raw.status ?? 'draft'),
     coverUrl: String(raw.cover_image ?? ''),
     videoUrl: String(raw.video_url ?? ''),
     description: String(raw.description ?? ''),
     createdAt: String(raw.created_at ?? ''),
   };
-}
-
-function isVideoPublished(status: string) {
-  return status === 'published';
-}
-
-function videoStatusLabel(status: string) {
-  if (status === 'published') return '已发布';
-  if (status === 'draft') return '草稿';
-  return '已下架';
 }
 
 export default function VideosPage() {
@@ -63,34 +82,50 @@ export default function VideosPage() {
   const [modalVisible, setModalVisible] = useState(false);
   const [editingRecord, setEditingRecord] = useState<VideoRecord | null>(null);
   const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
+  const [filterCategory, setFilterCategory] = useState<string | undefined>(undefined);
+  const [searchText, setSearchText] = useState('');
+  const [coverFileList, setCoverFileList] = useState<UploadFile[]>([]);
+  const [videoFileList, setVideoFileList] = useState<UploadFile[]>([]);
+  const [previewVisible, setPreviewVisible] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState('');
   const [form] = Form.useForm();
-
-  useEffect(() => {
-    fetchData();
-  }, []);
 
   const fetchData = async (page = 1, pageSize = 10) => {
     setLoading(true);
     try {
-      const res = await get('/api/admin/content/videos', { page, page_size: pageSize });
+      const params: Record<string, unknown> = { page, page_size: pageSize };
+      if (filterCategory) params.category = filterCategory;
+      if (searchText) params.keyword = searchText;
+      const res = await get('/api/admin/content/videos', params);
       if (res) {
         const items = res.items || res.list || res;
         const rawList = Array.isArray(items) ? items : [];
         setVideos(rawList.map((r: Record<string, unknown>) => mapVideoFromApi(r)));
-        setPagination((prev) => ({ ...prev, current: page, total: res.total ?? rawList.length }));
+        setPagination(prev => ({ ...prev, current: page, total: res.total ?? rawList.length }));
       }
-    } catch {
+    } catch (err: any) {
       setVideos([]);
-      setPagination((prev) => ({ ...prev, current: page, total: 0 }));
+      setPagination(prev => ({ ...prev, current: page, total: 0 }));
+      message.error('加载视频失败');
     } finally {
       setLoading(false);
     }
   };
 
+  useEffect(() => { fetchData(); }, []);
+
+  const handleSearch = () => fetchData(1, pagination.pageSize);
+
+  const totalVideos = pagination.total;
+  const totalViews = videos.reduce((sum, v) => sum + v.views, 0);
+  const todayVideos = videos.filter(v => v.createdAt && dayjs(v.createdAt).isSame(dayjs(), 'day')).length;
+
   const handleAdd = () => {
     setEditingRecord(null);
     form.resetFields();
-    form.setFieldsValue({ status: true });
+    form.setFieldsValue({ status: 'draft' });
+    setCoverFileList([]);
+    setVideoFileList([]);
     setModalVisible(true);
   };
 
@@ -99,138 +134,129 @@ export default function VideosPage() {
     form.setFieldsValue({
       title: record.title,
       category: record.category,
-      duration: record.duration,
+      duration: formatDuration(record.duration),
       coverUrl: record.coverUrl,
       videoUrl: record.videoUrl,
       description: record.description,
-      status: isVideoPublished(record.status),
+      status: record.status,
     });
+    setCoverFileList(record.coverUrl ? [{ uid: '-1', name: 'cover', status: 'done', url: record.coverUrl }] : []);
+    setVideoFileList(record.videoUrl ? [{ uid: '-1', name: 'video', status: 'done', url: record.videoUrl }] : []);
     setModalVisible(true);
   };
 
-  const handleToggleStatus = async (record: VideoRecord) => {
-    const newStatus = isVideoPublished(record.status) ? 'archived' : 'published';
+  const handleToggleStatus = async (record: VideoRecord, targetStatus: string) => {
     try {
-      await put(`/api/admin/content/videos/${record.id}`, { status: newStatus });
-    } catch {}
-    setVideos((prev) => prev.map((v) => (v.id === record.id ? { ...v, status: newStatus } : v)));
-    message.success(isVideoPublished(newStatus) ? '已上架' : '已下架');
+      await put(`/api/admin/content/videos/${record.id}`, { status: targetStatus });
+      message.success(targetStatus === 'published' ? '已发布' : '已下架');
+      fetchData(pagination.current, pagination.pageSize);
+    } catch (err: any) {
+      message.error(err?.response?.data?.detail || '操作失败');
+    }
+  };
+
+  const doUpload = async (file: RcFile): Promise<string> => {
+    try {
+      const res = await uploadFile('/api/admin/upload', file);
+      return (res as any)?.url || (res as any)?.data?.url || '';
+    } catch {
+      message.error('上传失败');
+      return '';
+    }
   };
 
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
-      const statusStr = values.status ? 'published' : 'archived';
+      const durationSeconds = parseDuration(values.duration || '');
+
+      let coverUrl = values.coverUrl || '';
+      if (coverFileList.length > 0 && coverFileList[0].originFileObj) {
+        coverUrl = await doUpload(coverFileList[0].originFileObj as RcFile);
+        if (!coverUrl) return;
+      } else if (coverFileList.length > 0 && coverFileList[0].url) {
+        coverUrl = coverFileList[0].url;
+      }
+
+      let videoUrl = values.videoUrl || '';
+      if (videoFileList.length > 0 && videoFileList[0].originFileObj) {
+        videoUrl = await doUpload(videoFileList[0].originFileObj as RcFile);
+        if (!videoUrl) return;
+      } else if (videoFileList.length > 0 && videoFileList[0].url) {
+        videoUrl = videoFileList[0].url;
+      }
+
       const payload = {
         title: values.title,
         category: values.category,
-        duration: values.duration,
-        description: values.description,
-        cover_image: values.coverUrl,
-        video_url: values.videoUrl,
-        status: statusStr,
+        duration: durationSeconds,
+        description: values.description || '',
+        cover_image: coverUrl,
+        video_url: videoUrl,
+        status: values.status || 'draft',
       };
 
       if (editingRecord) {
-        try {
-          await put(`/api/admin/content/videos/${editingRecord.id}`, payload);
-        } catch {}
-        setVideos((prev) =>
-          prev.map((v) =>
-            v.id === editingRecord.id
-              ? {
-                  ...v,
-                  title: values.title,
-                  category: values.category,
-                  duration: values.duration ?? v.duration,
-                  coverUrl: values.coverUrl ?? v.coverUrl,
-                  videoUrl: values.videoUrl ?? v.videoUrl,
-                  description: values.description ?? v.description,
-                  status: statusStr,
-                  views: v.views,
-                  likes: v.likes,
-                  createdAt: v.createdAt,
-                }
-              : v
-          )
-        );
+        await put(`/api/admin/content/videos/${editingRecord.id}`, payload);
         message.success('编辑成功');
       } else {
-        const localRow: VideoRecord = {
-          id: Date.now(),
-          title: values.title,
-          category: values.category,
-          duration: values.duration ?? '',
-          views: 0,
-          likes: 0,
-          status: statusStr,
-          coverUrl: values.coverUrl ?? '',
-          videoUrl: values.videoUrl ?? '',
-          description: values.description ?? '',
-          createdAt: new Date().toISOString(),
-        };
-        try {
-          const res = await post('/api/admin/content/videos', payload);
-          if (res?.id != null) localRow.id = res.id;
-        } catch {}
-        setVideos((prev) => [...prev, localRow]);
+        await post('/api/admin/content/videos', payload);
         message.success('新增成功');
       }
       setModalVisible(false);
-    } catch {}
+      fetchData(pagination.current, pagination.pageSize);
+    } catch (err: any) {
+      if (err?.errorFields) return;
+      message.error(err?.response?.data?.detail || '操作失败');
+    }
   };
 
   const columns = [
     { title: 'ID', dataIndex: 'id', key: 'id', width: 60 },
     {
-      title: '标题',
-      dataIndex: 'title',
-      key: 'title',
-      ellipsis: true,
-      render: (v: string) => (
-        <Space>
-          <PlayCircleOutlined style={{ color: '#52c41a' }} />
-          {v}
-        </Space>
-      ),
+      title: '标题', dataIndex: 'title', key: 'title', ellipsis: true,
+      render: (v: string) => <Space><PlayCircleOutlined style={{ color: '#52c41a' }} />{v}</Space>,
     },
-    { title: '分类', dataIndex: 'category', key: 'category', width: 100, render: (v: string) => <Tag color="purple">{v}</Tag> },
-    { title: '时长', dataIndex: 'duration', key: 'duration', width: 80 },
+    {
+      title: '分类', dataIndex: 'category', key: 'category', width: 100,
+      render: (v: string) => <Tag color="purple">{v || '-'}</Tag>,
+    },
+    {
+      title: '时长', dataIndex: 'duration', key: 'duration', width: 80,
+      render: (v: number) => formatDuration(v),
+    },
     { title: '播放量', dataIndex: 'views', key: 'views', width: 80 },
     { title: '点赞', dataIndex: 'likes', key: 'likes', width: 70 },
     {
-      title: '状态',
-      dataIndex: 'status',
-      key: 'status',
-      width: 80,
-      render: (v: string) => (
-        <Tag color={isVideoPublished(v) ? 'green' : v === 'draft' ? 'default' : 'red'}>{videoStatusLabel(v)}</Tag>
-      ),
+      title: '状态', dataIndex: 'status', key: 'status', width: 90,
+      render: (v: string) => {
+        const c = statusConfig[v] || { color: 'default', text: v };
+        return <Tag color={c.color}>{c.text}</Tag>;
+      },
     },
     {
-      title: '发布时间',
-      dataIndex: 'createdAt',
-      key: 'createdAt',
-      width: 170,
-      render: (v: string) => (v ? dayjs(v).format('YYYY-MM-DD HH:mm') : '—'),
+      title: '发布时间', dataIndex: 'createdAt', key: 'createdAt', width: 170,
+      render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm') : '—',
     },
     {
-      title: '操作',
-      key: 'action',
-      width: 150,
+      title: '操作', key: 'action', width: 240, fixed: 'right' as const,
       render: (_: unknown, record: VideoRecord) => (
-        <Space>
-          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>
-            编辑
-          </Button>
-          <Popconfirm
-            title={isVideoPublished(record.status) ? '确定下架？' : '确定上架？'}
-            onConfirm={() => handleToggleStatus(record)}
-          >
-            <Button type="link" size="small" icon={isVideoPublished(record.status) ? <ArrowDownOutlined /> : <ArrowUpOutlined />}>
-              {isVideoPublished(record.status) ? '下架' : '上架'}
-            </Button>
-          </Popconfirm>
+        <Space size={0} wrap>
+          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>编辑</Button>
+          {record.videoUrl && (
+            <Button type="link" size="small" icon={<PlayCircleOutlined />}
+              onClick={() => { setPreviewUrl(record.videoUrl); setPreviewVisible(true); }}>播放</Button>
+          )}
+          {record.status !== 'published' && (
+            <Popconfirm title="确定发布？" onConfirm={() => handleToggleStatus(record, 'published')}>
+              <Button type="link" size="small" icon={<ArrowUpOutlined />}>发布</Button>
+            </Popconfirm>
+          )}
+          {record.status === 'published' && (
+            <Popconfirm title="确定下架？" onConfirm={() => handleToggleStatus(record, 'archived')}>
+              <Button type="link" size="small" danger icon={<ArrowDownOutlined />}>下架</Button>
+            </Popconfirm>
+          )}
         </Space>
       ),
     },
@@ -238,14 +264,29 @@ export default function VideosPage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <Title level={4} style={{ margin: 0 }}>
-          视频管理
-        </Title>
-        <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
-          新增视频
-        </Button>
-      </div>
+      <Title level={4} style={{ marginBottom: 16 }}>视频管理</Title>
+
+      <Row gutter={16} style={{ marginBottom: 24 }}>
+        <Col span={8}><Card size="small"><Statistic title="视频总数" value={totalVideos} prefix={<VideoCameraOutlined />} /></Card></Col>
+        <Col span={8}><Card size="small"><Statistic title="总播放量" value={totalViews} prefix={<PlayCircleOutlined />} /></Card></Col>
+        <Col span={8}><Card size="small"><Statistic title="今日新增" value={todayVideos} prefix={<PlusOutlined />} /></Card></Col>
+      </Row>
+
+      <Row gutter={16} style={{ marginBottom: 16 }}>
+        <Col>
+          <Select placeholder="按分类筛选" allowClear style={{ width: 140 }} options={categoryOptions}
+            value={filterCategory} onChange={v => setFilterCategory(v)} />
+        </Col>
+        <Col>
+          <Input placeholder="搜索视频名称" prefix={<SearchOutlined />} value={searchText}
+            onChange={e => setSearchText(e.target.value)} onPressEnter={handleSearch}
+            style={{ width: 220 }} allowClear />
+        </Col>
+        <Col><Button type="primary" onClick={handleSearch}>搜索</Button></Col>
+        <Col flex="auto" style={{ textAlign: 'right' }}>
+          <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>新增视频</Button>
+        </Col>
+      </Row>
 
       <Table
         columns={columns}
@@ -255,10 +296,10 @@ export default function VideosPage() {
         pagination={{
           ...pagination,
           showSizeChanger: true,
-          showTotal: (total) => `共 ${total} 条`,
+          showTotal: total => `共 ${total} 条`,
           onChange: (page, pageSize) => fetchData(page, pageSize),
         }}
-        scroll={{ x: 950 }}
+        scroll={{ x: 1100 }}
       />
 
       <Modal
@@ -273,34 +314,68 @@ export default function VideosPage() {
           <Form.Item label="视频标题" name="title" rules={[{ required: true, message: '请输入视频标题' }]}>
             <Input placeholder="请输入视频标题" />
           </Form.Item>
-          <Space style={{ width: '100%' }} size={16}>
-            <Form.Item label="分类" name="category" rules={[{ required: true, message: '请选择分类' }]} style={{ flex: 1 }}>
-              <Select options={categoryOptions} placeholder="请选择分类" />
-            </Form.Item>
-            <Form.Item label="时长" name="duration" style={{ flex: 1 }}>
-              <Input placeholder="例如: 05:30" />
-            </Form.Item>
-          </Space>
+          <Row gutter={16}>
+            <Col span={8}>
+              <Form.Item label="分类" name="category" rules={[{ required: true, message: '请选择分类' }]}>
+                <Select options={categoryOptions} placeholder="请选择分类" />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item label="时长 (分:秒)" name="duration">
+                <Input placeholder="例如: 05:30" />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item label="状态" name="status">
+                <Select options={[
+                  { label: '草稿', value: 'draft' },
+                  { label: '已发布', value: 'published' },
+                  { label: '已下架', value: 'archived' },
+                ]} />
+              </Form.Item>
+            </Col>
+          </Row>
           <Form.Item label="封面图" name="coverUrl">
-            <Upload listType="picture-card" maxCount={1} beforeUpload={() => false}>
-              <div>
-                <UploadOutlined />
-                <div style={{ marginTop: 8 }}>上传封面</div>
-              </div>
-            </Upload>
+            <div>
+              <Upload
+                listType="picture-card"
+                maxCount={1}
+                fileList={coverFileList}
+                beforeUpload={() => false}
+                onChange={({ fileList }) => setCoverFileList(fileList)}
+                onRemove={() => { setCoverFileList([]); form.setFieldsValue({ coverUrl: '' }); }}
+                accept="image/*"
+              >
+                {coverFileList.length === 0 && (
+                  <div><UploadOutlined /><div style={{ marginTop: 8 }}>上传封面</div></div>
+                )}
+              </Upload>
+            </div>
           </Form.Item>
           <Form.Item label="视频文件" name="videoUrl">
-            <Upload maxCount={1} beforeUpload={() => false} accept="video/*">
-              <Button icon={<UploadOutlined />}>上传视频</Button>
-            </Upload>
+            <div>
+              <Upload
+                maxCount={1}
+                fileList={videoFileList}
+                beforeUpload={() => false}
+                onChange={({ fileList }) => setVideoFileList(fileList)}
+                onRemove={() => { setVideoFileList([]); form.setFieldsValue({ videoUrl: '' }); }}
+                accept="video/*"
+              >
+                {videoFileList.length === 0 && <Button icon={<UploadOutlined />}>上传视频</Button>}
+              </Upload>
+            </div>
           </Form.Item>
           <Form.Item label="视频描述" name="description">
             <TextArea rows={3} placeholder="请输入视频描述" />
           </Form.Item>
-          <Form.Item label="发布" name="status" valuePropName="checked">
-            <Switch />
-          </Form.Item>
         </Form>
+      </Modal>
+
+      <Modal title="视频预览" open={previewVisible} onCancel={() => { setPreviewVisible(false); setPreviewUrl(''); }} footer={null} width={700} destroyOnClose>
+        {previewUrl && (
+          <video src={previewUrl} controls autoPlay style={{ width: '100%', maxHeight: 400 }} />
+        )}
       </Modal>
     </div>
   );

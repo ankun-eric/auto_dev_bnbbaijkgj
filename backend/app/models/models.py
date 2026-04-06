@@ -801,6 +801,7 @@ class Article(Base):
     id = mapped_column(Integer, primary_key=True, autoincrement=True)
     title = mapped_column(String(300), nullable=False)
     content = mapped_column(Text, nullable=False)
+    summary = mapped_column(String(500), nullable=True)
     cover_image = mapped_column(String(500), nullable=True)
     author_id = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
     category = mapped_column(String(50), nullable=True)

@@ -11,6 +11,7 @@ from app.core.database import get_db
 from app.core.security import get_current_user
 from app.models.models import AllergyRecord, HealthProfile, MedicationRecord, User
 from app.services.ai_service import drug_interaction_check, drug_query, identify_drug_from_image
+from app.utils.cos_helper import try_cos_upload
 
 router = APIRouter(prefix="/api/drugs", tags=["药品"])
 
@@ -54,20 +55,25 @@ async def identify_drug(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
-    ext = os.path.splitext(file.filename or "drug.jpg")[1]
-    filename = f"drug_{uuid.uuid4().hex}{ext}"
-    filepath = os.path.join(settings.UPLOAD_DIR, filename)
-
     content = await file.read()
-    with open(filepath, "wb") as f:
-        f.write(content)
+
+    cos_url = await try_cos_upload(db, content, file.filename or "drug.jpg", file.content_type, "drugs/")
+    if cos_url:
+        image_url = cos_url
+    else:
+        os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
+        ext = os.path.splitext(file.filename or "drug.jpg")[1]
+        filename = f"drug_{uuid.uuid4().hex}{ext}"
+        filepath = os.path.join(settings.UPLOAD_DIR, filename)
+        with open(filepath, "wb") as f:
+            f.write(content)
+        image_url = f"/uploads/{filename}"
 
     image_desc = f"用户上传了一张药品图片，文件名: {file.filename}, 大小: {len(content)} bytes"
 
     result = await identify_drug_from_image(image_desc, db)
 
     return {
-        "image_url": f"/uploads/{filename}",
+        "image_url": image_url,
         "analysis": result,
     }

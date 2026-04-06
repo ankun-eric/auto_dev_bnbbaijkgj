@@ -4,7 +4,7 @@ from typing import Optional
 import httpx
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from pydantic import BaseModel
-from sqlalchemy import func, select, update
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -46,8 +46,9 @@ from app.schemas.admin import (
     DashboardTrendPoint,
     SystemConfigUpdate,
 )
+from app.schemas.points import PointsMallItemCreate, PointsMallItemUpdate
 from app.schemas.user import RegisterSettingsResponse
-from app.schemas.content import ArticleCreate, ArticleResponse, ArticleUpdate, VideoCreate, VideoResponse
+from app.schemas.content import ArticleCreate, ArticleResponse, ArticleUpdate, VideoCreate, VideoResponse, VideoUpdate
 from app.schemas.service import ServiceCategoryCreate, ServiceCategoryResponse, ServiceItemCreate, ServiceItemResponse, ServiceItemUpdate
 from app.services.register_service import get_register_settings, save_register_settings
 
@@ -689,6 +690,36 @@ async def admin_create_item(
     return ServiceItemResponse.model_validate(item)
 
 
+@router.put("/services/items/batch-status")
+async def admin_batch_update_service_status(
+    item_ids: list[int] = Body(...),
+    status: str = Body(...),
+    current_user=Depends(admin_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(ServiceItem).where(ServiceItem.id.in_(item_ids)))
+    items = result.scalars().all()
+    for item in items:
+        item.status = status
+    await db.flush()
+    return {"updated": len(items)}
+
+
+@router.put("/services/items/sort")
+async def admin_update_service_sort(
+    items: list[dict] = Body(...),
+    current_user=Depends(admin_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    for item_data in items:
+        result = await db.execute(select(ServiceItem).where(ServiceItem.id == item_data["id"]))
+        item = result.scalar_one_or_none()
+        if item and hasattr(item, 'sort_order'):
+            item.sort_order = item_data.get("sort_order", 0)
+    await db.flush()
+    return {"success": True}
+
+
 @router.put("/services/items/{item_id}", response_model=ServiceItemResponse)
 async def admin_update_item(
     item_id: int,
@@ -730,6 +761,8 @@ async def admin_list_orders(
     order_status: Optional[str] = None,
     payment_status: Optional[str] = None,
     keyword: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     current_user=Depends(admin_dep),
@@ -739,14 +772,27 @@ async def admin_list_orders(
     count_query = select(func.count(Order.id))
 
     if order_status:
-        query = query.where(Order.order_status == order_status)
-        count_query = count_query.where(Order.order_status == order_status)
+        statuses = [s.strip() for s in order_status.split(",")]
+        if len(statuses) > 1:
+            query = query.where(Order.order_status.in_(statuses))
+            count_query = count_query.where(Order.order_status.in_(statuses))
+        else:
+            query = query.where(Order.order_status == order_status)
+            count_query = count_query.where(Order.order_status == order_status)
     if payment_status:
         query = query.where(Order.payment_status == payment_status)
         count_query = count_query.where(Order.payment_status == payment_status)
     if keyword:
         query = query.where(Order.order_no.contains(keyword))
         count_query = count_query.where(Order.order_no.contains(keyword))
+    if start_date:
+        from datetime import datetime as dt
+        query = query.where(Order.created_at >= dt.fromisoformat(start_date))
+        count_query = count_query.where(Order.created_at >= dt.fromisoformat(start_date))
+    if end_date:
+        from datetime import datetime as dt
+        query = query.where(Order.created_at <= dt.fromisoformat(end_date + "T23:59:59"))
+        count_query = count_query.where(Order.created_at <= dt.fromisoformat(end_date + "T23:59:59"))
 
     total_result = await db.execute(count_query)
     total = total_result.scalar() or 0
@@ -761,9 +807,205 @@ async def admin_list_orders(
     return {"items": items, "total": total, "page": page, "page_size": page_size}
 
 
+@router.get("/orders/statistics")
+async def admin_order_statistics(
+    current_user=Depends(admin_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    now = datetime.utcnow()
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    today_count = (await db.execute(
+        select(func.count(Order.id)).where(Order.created_at >= today_start)
+    )).scalar() or 0
+
+    today_amount = (await db.execute(
+        select(func.coalesce(func.sum(Order.paid_amount), 0)).where(
+            Order.created_at >= today_start,
+            Order.payment_status == "paid"
+        )
+    )).scalar() or 0
+
+    month_count = (await db.execute(
+        select(func.count(Order.id)).where(Order.created_at >= month_start)
+    )).scalar() or 0
+
+    month_amount = (await db.execute(
+        select(func.coalesce(func.sum(Order.paid_amount), 0)).where(
+            Order.created_at >= month_start,
+            Order.payment_status == "paid"
+        )
+    )).scalar() or 0
+
+    total_count = (await db.execute(
+        select(func.count(Order.id))
+    )).scalar() or 0
+
+    total_amount = (await db.execute(
+        select(func.coalesce(func.sum(Order.paid_amount), 0)).where(
+            Order.payment_status == "paid"
+        )
+    )).scalar() or 0
+
+    return {
+        "today_count": today_count,
+        "today_amount": float(today_amount),
+        "month_count": month_count,
+        "month_amount": float(month_amount),
+        "total_count": total_count,
+        "total_amount": float(total_amount),
+    }
+
+
+@router.get("/orders/trends")
+async def admin_order_trends(
+    days: int = Query(7, ge=1, le=30),
+    current_user=Depends(admin_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    now = datetime.utcnow()
+    results = []
+    for i in range(days - 1, -1, -1):
+        day_start = (now - timedelta(days=i)).replace(hour=0, minute=0, second=0, microsecond=0)
+        day_end = day_start.replace(hour=23, minute=59, second=59)
+
+        day_count = (await db.execute(
+            select(func.count(Order.id)).where(
+                Order.created_at >= day_start,
+                Order.created_at <= day_end
+            )
+        )).scalar() or 0
+
+        day_amount = (await db.execute(
+            select(func.coalesce(func.sum(Order.paid_amount), 0)).where(
+                Order.created_at >= day_start,
+                Order.created_at <= day_end,
+                Order.payment_status == "paid"
+            )
+        )).scalar() or 0
+
+        results.append({
+            "date": day_start.strftime("%Y-%m-%d"),
+            "count": day_count,
+            "amount": float(day_amount),
+        })
+
+    return {"trends": results}
+
+
+@router.get("/orders/distribution")
+async def admin_order_distribution(
+    current_user=Depends(admin_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    category_results = (await db.execute(
+        select(
+            ServiceItem.name,
+            func.count(Order.id).label("count")
+        ).join(ServiceItem, Order.service_item_id == ServiceItem.id)
+        .group_by(ServiceItem.name)
+    )).all()
+
+    category_distribution = [{"name": r[0] or "未知", "count": r[1]} for r in category_results]
+
+    status_results = (await db.execute(
+        select(
+            Order.order_status,
+            func.count(Order.id).label("count")
+        ).group_by(Order.order_status)
+    )).all()
+
+    status_distribution = [{"status": r[0], "count": r[1]} for r in status_results]
+
+    return {
+        "category_distribution": category_distribution,
+        "status_distribution": status_distribution,
+    }
+
+
+@router.put("/orders/{order_id}/confirm")
+async def admin_confirm_order(
+    order_id: int,
+    current_user=Depends(admin_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.schemas.order import OrderResponse
+    result = await db.execute(select(Order).where(Order.id == order_id))
+    order = result.scalar_one_or_none()
+    if not order:
+        raise HTTPException(status_code=404, detail="订单不存在")
+    if order.order_status != "pending" or order.payment_status != "paid":
+        raise HTTPException(status_code=400, detail="只有已支付待确认的订单可以确认")
+    order.order_status = "confirmed"
+    await db.flush()
+    await db.refresh(order)
+    return OrderResponse.model_validate(order)
+
+
+@router.put("/orders/{order_id}/start-service")
+async def admin_start_service(
+    order_id: int,
+    current_user=Depends(admin_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.schemas.order import OrderResponse
+    result = await db.execute(select(Order).where(Order.id == order_id))
+    order = result.scalar_one_or_none()
+    if not order:
+        raise HTTPException(status_code=404, detail="订单不存在")
+    if order.order_status != "confirmed":
+        raise HTTPException(status_code=400, detail="只有已确认的订单可以开始服务")
+    order.order_status = "processing"
+    await db.flush()
+    await db.refresh(order)
+    return OrderResponse.model_validate(order)
+
+
+@router.put("/orders/{order_id}/complete")
+async def admin_complete_order(
+    order_id: int,
+    current_user=Depends(admin_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.schemas.order import OrderResponse
+    result = await db.execute(select(Order).where(Order.id == order_id))
+    order = result.scalar_one_or_none()
+    if not order:
+        raise HTTPException(status_code=404, detail="订单不存在")
+    if order.order_status != "processing":
+        raise HTTPException(status_code=400, detail="只有服务中的订单可以完成")
+    order.order_status = "completed"
+    await db.flush()
+    await db.refresh(order)
+    return OrderResponse.model_validate(order)
+
+
+@router.put("/orders/{order_id}/cancel")
+async def admin_cancel_order(
+    order_id: int,
+    reason: Optional[str] = Body(None),
+    current_user=Depends(admin_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.schemas.order import OrderResponse
+    result = await db.execute(select(Order).where(Order.id == order_id))
+    order = result.scalar_one_or_none()
+    if not order:
+        raise HTTPException(status_code=404, detail="订单不存在")
+    order.order_status = "cancelled"
+    if reason and hasattr(order, 'notes'):
+        order.notes = f"取消原因: {reason}"
+    await db.flush()
+    await db.refresh(order)
+    return OrderResponse.model_validate(order)
+
+
 @router.put("/orders/{order_id}/refund")
 async def admin_refund_order(
     order_id: int,
+    reason: Optional[str] = Body(None),
+    refund_amount: Optional[float] = Body(None),
     current_user=Depends(admin_dep),
     db: AsyncSession = Depends(get_db),
 ):
@@ -836,10 +1078,12 @@ async def admin_create_article(
     current_user=Depends(admin_dep),
     db: AsyncSession = Depends(get_db),
 ):
+    article_data = data.model_dump(exclude_unset=True)
+    article_status = article_data.pop("status", None) or "published"
     article = Article(
-        **data.model_dump(),
+        **article_data,
         author_id=current_user.id,
-        status=ContentStatus.published,
+        status=article_status,
     )
     db.add(article)
     await db.flush()
@@ -914,8 +1158,19 @@ async def admin_create_video(
     current_user=Depends(admin_dep),
     db: AsyncSession = Depends(get_db),
 ):
+    video_data = data.model_dump()
+    dur = video_data.get("duration")
+    if dur is not None:
+        if isinstance(dur, str) and ':' in dur:
+            parts = dur.split(':')
+            video_data['duration'] = int(parts[0]) * 60 + int(parts[1])
+        else:
+            try:
+                video_data['duration'] = int(dur)
+            except (ValueError, TypeError):
+                video_data['duration'] = 0
     video = Video(
-        **data.model_dump(),
+        **video_data,
         author_id=current_user.id,
         status=ContentStatus.published,
     )
@@ -928,7 +1183,7 @@ async def admin_create_video(
 @router.put("/content/videos/{video_id}", response_model=VideoResponse)
 async def admin_update_video(
     video_id: int,
-    data: VideoCreate,
+    data: VideoUpdate,
     current_user=Depends(admin_dep),
     db: AsyncSession = Depends(get_db),
 ):
@@ -937,8 +1192,20 @@ async def admin_update_video(
     if not video:
         raise HTTPException(status_code=404, detail="视频不存在")
 
-    for key, value in data.model_dump().items():
-        setattr(video, key, value)
+    update_data = data.model_dump(exclude_unset=True)
+    if 'duration' in update_data and update_data['duration'] is not None:
+        dur = update_data['duration']
+        if isinstance(dur, str) and ':' in dur:
+            parts = dur.split(':')
+            update_data['duration'] = int(parts[0]) * 60 + int(parts[1])
+        else:
+            try:
+                update_data['duration'] = int(dur)
+            except (ValueError, TypeError):
+                update_data['duration'] = 0
+    for key, value in update_data.items():
+        if hasattr(video, key):
+            setattr(video, key, value)
     await db.flush()
     await db.refresh(video)
     return VideoResponse.model_validate(video)
@@ -983,20 +1250,18 @@ async def admin_list_mall_items(
 
 @router.post("/points/mall")
 async def admin_create_mall_item(
-    name: str = Query(...),
-    description: str = Query(""),
-    type: str = Query("virtual"),
-    price_points: int = Query(...),
-    stock: int = Query(0),
+    data: PointsMallItemCreate,
     current_user=Depends(admin_dep),
     db: AsyncSession = Depends(get_db),
 ):
     item = PointsMallItem(
-        name=name,
-        description=description,
-        type=type,
-        price_points=price_points,
-        stock=stock,
+        name=data.name,
+        description=data.description,
+        type=data.type,
+        price_points=data.price_points,
+        stock=data.stock,
+        images=data.images,
+        status=data.status or "active",
     )
     db.add(item)
     await db.flush()
@@ -1008,11 +1273,7 @@ async def admin_create_mall_item(
 @router.put("/points/mall/{item_id}")
 async def admin_update_mall_item(
     item_id: int,
-    name: Optional[str] = None,
-    description: Optional[str] = None,
-    price_points: Optional[int] = None,
-    stock: Optional[int] = None,
-    status: Optional[str] = None,
+    data: PointsMallItemUpdate,
     current_user=Depends(admin_dep),
     db: AsyncSession = Depends(get_db),
 ):
@@ -1021,18 +1282,14 @@ async def admin_update_mall_item(
     if not item:
         raise HTTPException(status_code=404, detail="商品不存在")
 
-    if name is not None:
-        item.name = name
-    if description is not None:
-        item.description = description
-    if price_points is not None:
-        item.price_points = price_points
-    if stock is not None:
-        item.stock = stock
-    if status is not None:
-        item.status = status
-
-    return {"message": "更新成功"}
+    update_data = data.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        if hasattr(item, key):
+            setattr(item, key, value)
+    await db.flush()
+    await db.refresh(item)
+    from app.schemas.points import PointsMallItemResponse
+    return PointsMallItemResponse.model_validate(item)
 
 
 @router.delete("/points/mall/{item_id}")
@@ -1085,6 +1342,48 @@ async def update_points_rules(
             config = SystemConfig(config_key=key, config_value=str(value), config_type="points")
             db.add(config)
     return {"message": "积分规则更新成功"}
+
+
+# ── 积分兑换记录 ──
+
+@router.get("/points/exchange-records")
+async def admin_list_exchange_records(
+    keyword: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    current_user=Depends(admin_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.models.models import PointsExchange
+    query = select(PointsExchange)
+    count_query = select(func.count(PointsExchange.id))
+
+    if keyword:
+        user_subq = select(User.id).where(
+            or_(User.nickname.contains(keyword), User.phone.contains(keyword))
+        )
+        query = query.where(PointsExchange.user_id.in_(user_subq))
+        count_query = count_query.where(PointsExchange.user_id.in_(user_subq))
+
+    if start_date:
+        from datetime import datetime as dt
+        query = query.where(PointsExchange.created_at >= dt.fromisoformat(start_date))
+        count_query = count_query.where(PointsExchange.created_at >= dt.fromisoformat(start_date))
+    if end_date:
+        from datetime import datetime as dt
+        query = query.where(PointsExchange.created_at <= dt.fromisoformat(end_date + "T23:59:59"))
+        count_query = count_query.where(PointsExchange.created_at <= dt.fromisoformat(end_date + "T23:59:59"))
+
+    total = (await db.execute(count_query)).scalar() or 0
+    query = query.order_by(PointsExchange.created_at.desc())
+    query = query.offset((page - 1) * page_size).limit(page_size)
+    records = (await db.execute(query)).scalars().all()
+
+    from app.schemas.points import PointsExchangeResponse
+    items = [PointsExchangeResponse.model_validate(r) for r in records]
+    return {"items": items, "total": total, "page": page, "page_size": page_size}
 
 
 # ── 仪表盘 ──

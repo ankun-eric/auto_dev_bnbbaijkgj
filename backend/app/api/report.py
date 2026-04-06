@@ -46,6 +46,7 @@ from app.services.ocr_service import (
     extract_pdf_text,
     ocr_recognize,
 )
+from app.utils.cos_helper import try_cos_upload
 
 router = APIRouter(prefix="/api", tags=["体检报告"])
 
@@ -89,14 +90,17 @@ async def upload_report(
         if not quality["ok"]:
             raise HTTPException(status_code=400, detail=quality["message"])
 
-    os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
-    ext = os.path.splitext(file.filename or "report.jpg")[1]
-    filename = f"report_{uuid.uuid4().hex}{ext}"
-    filepath = os.path.join(settings.UPLOAD_DIR, filename)
-    with open(filepath, "wb") as f:
-        f.write(content)
-
-    file_url = f"/uploads/{filename}"
+    cos_url = await try_cos_upload(db, content, file.filename or "report.jpg", file.content_type, "reports/")
+    if cos_url:
+        file_url = cos_url
+    else:
+        os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
+        ext = os.path.splitext(file.filename or "report.jpg")[1]
+        filename = f"report_{uuid.uuid4().hex}{ext}"
+        filepath = os.path.join(settings.UPLOAD_DIR, filename)
+        with open(filepath, "wb") as f:
+            f.write(content)
+        file_url = f"/uploads/{filename}"
 
     report = CheckupReport(
         user_id=current_user.id,

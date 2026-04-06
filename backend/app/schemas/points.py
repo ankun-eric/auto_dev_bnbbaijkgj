@@ -70,3 +70,23 @@ class MemberLevelResponse(BaseModel):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class PointsMallItemCreate(BaseModel):
+    name: str
+    description: Optional[str] = ""
+    type: Optional[str] = "virtual"
+    price_points: int
+    stock: Optional[int] = 0
+    images: Optional[Any] = None
+    status: Optional[str] = "active"
+
+
+class PointsMallItemUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    type: Optional[str] = None
+    price_points: Optional[int] = None
+    stock: Optional[int] = None
+    images: Optional[Any] = None
+    status: Optional[str] = None

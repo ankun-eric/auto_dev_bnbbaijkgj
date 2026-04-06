@@ -35,6 +35,7 @@ from app.schemas.health import (
     VisitRecordResponse,
 )
 from app.services.ai_service import analyze_checkup_report
+from app.utils.cos_helper import try_cos_upload
 
 router = APIRouter(prefix="/api/health", tags=["健康档案"])
 
@@ -334,16 +335,19 @@ async def upload_checkup_report(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
-    ext = os.path.splitext(file.filename or "file")[1]
-    filename = f"checkup_{uuid.uuid4().hex}{ext}"
-    filepath = os.path.join(settings.UPLOAD_DIR, filename)
-
     content = await file.read()
-    with open(filepath, "wb") as f:
-        f.write(content)
 
-    file_url = f"/uploads/{filename}"
+    cos_url = await try_cos_upload(db, content, file.filename or "file", file.content_type, "checkup/")
+    if cos_url:
+        file_url = cos_url
+    else:
+        os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
+        ext = os.path.splitext(file.filename or "file")[1]
+        filename = f"checkup_{uuid.uuid4().hex}{ext}"
+        filepath = os.path.join(settings.UPLOAD_DIR, filename)
+        with open(filepath, "wb") as f:
+            f.write(content)
+        file_url = f"/uploads/{filename}"
 
     ocr_text = "体检报告OCR文本提取结果（实际环境中接入OCR服务）"
 

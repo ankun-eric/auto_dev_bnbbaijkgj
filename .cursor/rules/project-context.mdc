@@ -644,6 +644,66 @@ All 9 admin API endpoints return HTTP 200 with correct data structure. Admin fro
 
 - Created `user_docs/AI大模型配置快捷测试.md` — user manual for AI model config quick test feature
 
+## Latest Feature: 管理后台BUG修复与功能增强 (V1.0)
+
+### BUG修复
+
+#### BUG-01: 订单管理Tab切换闭包问题
+- Fixed `admin-web/src/app/(admin)/orders/page.tsx` — Tab切换改为 `useEffect` 监听 `activeTab` 变化触发数据刷新，避免闭包读取旧状态
+- Fixed `backend/app/api/admin.py` — `admin_list_orders` 支持逗号分隔的多状态过滤（`order_status=confirmed,processing`），支持 `start_date`/`end_date` 时间范围过滤
+
+#### BUG-02/03: 服务项目、文章列表0条数据
+- Fixed `backend/app/schemas/content.py` — `ArticleCreate` 添加 `summary`、`status` 字段；`ArticleUpdate` 和 `ArticleResponse` 添加 `summary` 字段
+- Fixed `backend/app/models/models.py` — `Article` 模型添加 `summary` 列 (VARCHAR(500))
+
+#### BUG-04: 视频管理duration类型不匹配
+- Fixed `backend/app/schemas/content.py` — `VideoCreate.duration` 改为 `Optional[Any]`；新增 `VideoUpdate` schema
+- Fixed `backend/app/api/admin.py` — 视频创建和更新时自动转换 "分:秒" 格式字符串为整数秒数；视频更新路由改用 `VideoUpdate` + `exclude_unset=True`
+
+#### BUG-05: 积分商城前后端参数不一致
+- Fixed `backend/app/api/admin.py` — 积分商城 `POST /points/mall` 和 `PUT /points/mall/{id}` 改为接收 Pydantic JSON Body
+- Added `backend/app/schemas/points.py` — 新增 `PointsMallItemCreate` 和 `PointsMallItemUpdate` schema
+
+#### BUG-06: 文件上传统一接入COS
+- Created `backend/app/utils/cos_helper.py` — 共享 `try_cos_upload()` 工具函数，实现腾讯云COS签名上传+本地降级
+- Updated `backend/app/api/upload.py` — `upload_image`/`upload_file` 接入COS上传
+- Updated `backend/app/api/report.py` — 体检报告上传接入COS
+- Updated `backend/app/api/health_profile.py` — 健康档案上传接入COS
+- Updated `backend/app/api/drug.py` — 药品识别图片上传接入COS
+
+### 功能增强
+
+#### 订单管理
+- Added `GET /api/admin/orders/statistics` — 订单统计（今日/本月/累计 订单数+金额）
+- Added `GET /api/admin/orders/trends?days=7` — 订单趋势（每日订单数+金额折线图数据）
+- Added `GET /api/admin/orders/distribution` — 订单分布（按服务分类+按状态分布）
+- Added `PUT /api/admin/orders/{id}/confirm|start-service|complete|cancel|refund` — 订单状态操作API
+- Rewrote `admin-web/src/app/(admin)/orders/page.tsx` — 数据看板（6卡片+4图表）、订单详情Drawer、状态操作、时间筛选、搜索
+
+#### 服务项目管理
+- Added `PUT /api/admin/services/items/batch-status` — 批量上下架API
+- Added `PUT /api/admin/services/items/sort` — 排序更新API
+- Updated `backend/app/schemas/service.py` — `ServiceItemCreate` 添加 `status` 字段
+- Rewrote `admin-web/src/app/(admin)/services/items/page.tsx` — 批量上下架、排序值编辑、分类筛选+搜索
+
+#### 内容管理
+- Rewrote `admin-web/src/app/(admin)/content/articles/page.tsx` — 摘要字段、分类+标签筛选、发布/下架状态管理、置顶功能、移除乐观更新
+
+#### 视频管理
+- Rewrote `admin-web/src/app/(admin)/content/videos/page.tsx` — 视频上传预览、分类管理、发布/下架、播放量统计卡片、搜索
+
+#### 积分商城
+- Added `GET /api/admin/points/exchange-records` — 兑换记录查询API
+- Rewrote `admin-web/src/app/(admin)/points/mall/page.tsx` — 完整CRUD、批量上下架、兑换记录Tab（含CSV导出）、库存警告
+
+### Deployment (2026-04-06 #5)
+- Rebuilt all containers (db, backend, admin, h5)
+- DB migration: `ALTER TABLE articles ADD COLUMN summary VARCHAR(500) NULL`
+- 18/18 server API tests passed
+
+### User Documentation
+- Created `user_docs/manual_20260406_230500_b8f3.md`
+
 ## Notes For Next Iteration
 
 - Merchant identities are granted by admin only; new self-registered accounts still default to normal users.
