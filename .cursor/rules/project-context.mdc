@@ -312,7 +312,17 @@ All 9 admin API endpoints return HTTP 200 with correct data structure. Admin fro
 ### Testing
 
 - 9/9 local pytest tests passed (template CRUD with variables, test send with/without params, preview content, auth, logs)
-- 9/9 server API tests passed (same coverage on deployed environment)
+- 11/11 server API tests passed (template CRUD with variables, test send with/without custom params, preview content, auth check, log recording, cleanup)
+
+### User Documentation
+
+- Created `user_docs/短信测试发送支持自定义模板参数.md` — user manual covering template variable configuration, custom parameter test sending, preview confirmation, and enhanced result display.
+
+### Deployment (2026-04-06)
+
+- Rebuilt and redeployed backend and admin-web containers
+- All 4 containers healthy (db, backend, admin-web, h5-web)
+- No mobile/client-side code changes (Flutter, miniprogram, H5 unaffected)
 
 ## Notes For Next Iteration
 

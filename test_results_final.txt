@@ -1,0 +1,69 @@
+============================================================
+1. API Health Check
+============================================================
+{"status":"ok","service":"bini-health-api"}
+HTTP_CODE:200
+
+============================================================
+2. Admin Login
+============================================================
+{"token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiZXhwIjoxNzc1NDk4MjM0fQ.o8F2J4a6NkeoN2oByi3fvIP5vXWm5J2LjZGPEVtzvTY","user":{"id":1,"name":"平台管理员","phone":"13800000000","role":"admin"}}
+HTTP_CODE:200
+Token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ...
+
+============================================================
+3. API Endpoint Tests (correct paths: /api/admin/...)
+============================================================
+
+--- SMS Config (/api/admin/sms/config) ---
+{"tencent":{"id":2,"secret_id":"AKID_test_regression","sdk_app_id":"1400000001","sign_name":"test_sign","template_id":"tpl_001","app_key":"test_app_key","is_active":true,"has_secret_key":true,"created_at":"2026-04-05T17:51:23","updated_at":"2026-04-05T17:54:11"},"aliyun":{"id":1,"access_key_id":"ak_test","sign_name":"aliyun_sign","template_id":"SMS_123","is_active":false,"has_access_key_secret":true,"created_at":"2026-04-05T17:49:28","updated_at":"2026-04-05T17:54:12"}}
+HTTP_CODE:200
+
+--- SMS Templates (/api/admin/sms/templates) ---
+{"items":[{"id":11,"name":"修改后_upd_3fe7c526","provider":"tencent","template_id":"UP_upd_3fe7c526","content":"新内容","sign_name":null,"scene":"other","variables":null,"status":true,"created_at":"2026-04-05T17:53:07","updated_at":"2026-04-05T17:53:07"},{"id":8,"name":"模板A_list_6b27a441","provider":"tencent","template_id":"A_list_6b27a441","content":null,"sign_name":null,"scene":"other","variables":null,"status":true,"created_at":"2026-04-05T17:53:06","updated_at":"2026-04-05T17:53:06"},{"id":9,"name":"腾讯_filt_1e1d1ec9","provider":"tencent","template_id":"T_filt_1e1d1ec9","content":null,"sign_name":null,"scene":"other","variables":null,"status":true,"created_at":"2026-04-05T17:53:06","updated_at":"2026-04-05T17:53:06"},{"id":10,"name":"阿里_filt_1e1d1ec9","provider":"aliyun","template_id":"A_filt_1e1d1ec9","content":null,"sign_name":null,"scene":"other","variables":null,"status":true,"created_at":"2026-04-05T17:53:06","updated_at":"2026-04-05T17:53:06"},{"id":7,"name":"验证码模板_a3a9a1cc","provider":"tencent","template_id":"TPL_fde9bf6a","content":"您的验证码是{code}","sign_name":"宾尼","scene":"verification","variables":null,"status":true,"created_at":"2026-04-05T17:53:04","updated_at":"2026-04-05T17:53:04"},{"id":1,"name":"deploy_test_template","provider":"tencent","template_id":"999999","content":null,"sign_name":null,"scene":"other","variables":null,"status":true,"created_at":"2026-04-05T17:51:24","updated_at":"2026-04-05T17:51:24"}],"total":6,"page":1,"page_size":20}
+HTTP_CODE:200
+
+--- SMS Logs (/api/admin/sms/logs) ---
+{"items":[{"id":2,"phone":"138****0099","code":"210723","template_id":"tmpl_regression","provider":"tencent","status":"failed","error_message":"[TencentCloudSDKException] code:AuthFailure.SecretIdNotFound message:SecretId不存在，请输入正确的密钥。 requestId:c0fb2eaf-3058-480a-af2c-8a43f685924e","is_test":true,"operator_id":1,"created_at":"2026-04-05T17:53:50"},{"id":1,"phone":"138****9999","code":"966732","template_id":"T1","provider":"tencent","status":"failed","error_message":"[TencentCloudSDKException] code:AuthFailure.SecretIdNotFound message:SecretId不存在，请输入正确的密钥。 requestId:282c956e-798b-4880-8ecb-bbdbc40fdf21","is_test":true,"operator_id":1,"created_at":"2026-04-05T17:53:10"}],"total":2,"page":1,"page_size":20}
+HTTP_CODE:200
+
+--- WeChat Push Config (/api/admin/wechat-push/config) ---
+{"enable_wechat_push":false,"wechat_app_id":"wx_test_id","has_wechat_app_secret":true,"order_notify_template":"tpl_order","service_notify_template":"tpl_service"}
+HTTP_CODE:200
+
+--- Email Notify Config (/api/admin/email-notify/config) ---
+{"enable_email_notify":false,"smtp_host":"smtp.test.com","smtp_port":465,"smtp_user":"t@t.com","has_smtp_password":true}
+HTTP_CODE:200
+
+--- Email Notify Logs (/api/admin/email-notify/logs) ---
+{"items":[{"id":2,"to_email":"regression@test.com","subject":"Regression Test","status":"failed","error_message":"[Errno -2] Name or service not known","is_test":true,"created_at":"2026-04-05T17:53:52"},{"id":1,"to_email":"test@example.com","subject":"自动化测试邮件","status":"failed","error_message":"[Errno -2] Name or service not known","is_test":true,"created_at":"2026-04-05T17:53:16"}],"total":2,"page":1,"page_size":20}
+HTTP_CODE:200
+
+============================================================
+4. Test original spec paths (expected 404)
+============================================================
+SMS Config (original): HTTP 404
+SMS Templates (original): HTTP 404
+WeChat Push Config (original): HTTP 404
+Email Notify Config (original): HTTP 404
+
+============================================================
+5. Frontend Page Accessibility
+============================================================
+Admin Dashboard: HTTP 200
+SMS Admin (no trailing /): HTTP 200
+SMS Admin (with trailing /): HTTP 200
+WeChat Push Admin (no trailing /): HTTP 200
+WeChat Push Admin (with trailing /): HTTP 200
+Email Notify Admin (no trailing /): HTTP 200
+Email Notify Admin (with trailing /): HTTP 200
+
+============================================================
+6. User Auth Login (/api/auth/login)
+============================================================
+{"detail":"账号未配置可用身份"}
+HTTP_CODE:403
+
+============================================================
+ALL TESTS COMPLETED
+============================================================
