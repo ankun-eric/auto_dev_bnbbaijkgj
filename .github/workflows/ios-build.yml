@@ -80,15 +80,26 @@ jobs:
           PLIST
           flutter pub get
 
-      - name: Disable code signing
+      - name: Disable code signing completely
         working-directory: flutter_app
         run: |
-          sed -i '' 's/CODE_SIGNING_REQUIRED = YES/CODE_SIGNING_REQUIRED = NO/g' ios/Runner.xcodeproj/project.pbxproj
-          sed -i '' 's/CODE_SIGNING_ALLOWED = YES/CODE_SIGNING_ALLOWED = NO/g' ios/Runner.xcodeproj/project.pbxproj
-          sed -i '' 's/CODE_SIGN_IDENTITY = "Apple Development"/CODE_SIGN_IDENTITY = ""/g' ios/Runner.xcodeproj/project.pbxproj
-          sed -i '' 's/CODE_SIGN_IDENTITY = "iPhone Developer"/CODE_SIGN_IDENTITY = ""/g' ios/Runner.xcodeproj/project.pbxproj
-          sed -i '' '/DEVELOPMENT_TEAM/d' ios/Runner.xcodeproj/project.pbxproj
+          echo 'CODE_SIGNING_REQUIRED=NO' >> ios/Flutter/Release.xcconfig
+          echo 'CODE_SIGNING_ALLOWED=NO' >> ios/Flutter/Release.xcconfig
+          echo 'CODE_SIGN_IDENTITY=' >> ios/Flutter/Release.xcconfig
+          echo 'CODE_SIGNING_REQUIRED=NO' >> ios/Flutter/Debug.xcconfig
+          echo 'CODE_SIGNING_ALLOWED=NO' >> ios/Flutter/Debug.xcconfig
+          echo 'CODE_SIGN_IDENTITY=' >> ios/Flutter/Debug.xcconfig
 
+          ruby -e '
+            path = "ios/Runner.xcodeproj/project.pbxproj"
+            content = File.read(path)
+            content.gsub!(/ProvisioningStyle = Automatic/, "ProvisioningStyle = Manual")
+            content.gsub!(/CODE_SIGN_STYLE = Automatic/, "CODE_SIGN_STYLE = Manual")
+            content.gsub!(/"CODE_SIGN_IDENTITY\[sdk=iphoneos\*\]" = .*?;/, "\"CODE_SIGN_IDENTITY[sdk=iphoneos*]\" = \"\";")
+            content.gsub!(/DEVELOPMENT_TEAM = .*?;/, "DEVELOPMENT_TEAM = \"\";")
+            File.write(path, content)
+          '
+        
       - name: Build iOS (no codesign)
         working-directory: flutter_app
         run: flutter build ios --release --no-codesign
