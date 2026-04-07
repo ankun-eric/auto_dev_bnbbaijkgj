@@ -172,6 +172,7 @@ class OcrRecognizeResponse(BaseModel):
     ocr_text: Optional[str] = None
     ai_result: Optional[Dict[str, Any]] = None
     record_id: Optional[int] = None
+    session_id: Optional[int] = None
     error: Optional[str] = None
 
 

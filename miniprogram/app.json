@@ -12,6 +12,7 @@
     "pages/symptom/index",
     "pages/tcm/index",
     "pages/drug/index",
+    "pages/drug-chat/index",
     "pages/health-profile/index",
     "pages/family/index",
     "pages/service-detail/index",

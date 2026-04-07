@@ -297,6 +297,21 @@ class ApiService {
     return _dio.post(ApiConfig.drugIdentify, data: formData);
   }
 
+  Future<Response> getDrugIdentifyHistory({int page = 1, int pageSize = 20}) async {
+    return _dio.get(ApiConfig.drugIdentifyHistory, queryParameters: {
+      'page': page,
+      'page_size': pageSize,
+    });
+  }
+
+  Future<Response> ocrRecognizeDrug(String imagePath) async {
+    final formData = FormData.fromMap({
+      'file': await MultipartFile.fromFile(imagePath),
+      'scene_name': '拍照识药',
+    });
+    return _dio.post(ApiConfig.ocrRecognize, data: formData);
+  }
+
   // Health Plan
   Future<Response> getHealthPlan() async {
     return _dio.get(ApiConfig.healthPlan);

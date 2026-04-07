@@ -89,6 +89,7 @@ app.include_router(report.admin_router)
 app.include_router(ocr.router)
 app.include_router(ocr.admin_router)
 app.include_router(ocr_details.router)
+app.include_router(ocr_details.user_router)
 
 os.makedirs("uploads", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")

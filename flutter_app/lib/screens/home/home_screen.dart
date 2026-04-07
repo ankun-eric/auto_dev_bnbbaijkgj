@@ -26,7 +26,7 @@ class _HomeScreenState extends State<HomeScreen> {
     {'icon': Icons.assignment, 'label': '体检报告', 'route': '/checkup', 'color': const Color(0xFF1890FF)},
     {'icon': Icons.search, 'label': '症状自查', 'route': '/symptom', 'color': const Color(0xFFFA8C16)},
     {'icon': Icons.spa, 'label': '中医辨证', 'route': '/tcm', 'color': const Color(0xFF722ED1)},
-    {'icon': Icons.medication, 'label': '药物查询', 'route': '/drug', 'color': const Color(0xFFEB2F96)},
+    {'icon': Icons.medication, 'label': '用药参考', 'route': '/drug', 'color': const Color(0xFFEB2F96)},
     {'icon': Icons.calendar_today, 'label': '健康计划', 'route': '/health-plan', 'color': const Color(0xFF13C2C2)},
   ];
 

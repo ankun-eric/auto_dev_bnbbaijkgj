@@ -1375,4 +1375,8 @@ class DrugIdentifyDetail(Base):
     ocr_raw_text = mapped_column(Text, nullable=True)
     ai_structured_result = mapped_column(JSON, nullable=True)
     ocr_call_record_id = mapped_column(Integer, ForeignKey("ocr_call_records.id"), nullable=True)
+    session_id = mapped_column(Integer, ForeignKey("chat_sessions.id"), nullable=True)
+    status = mapped_column(String(20), default="success")
     created_at = mapped_column(DateTime, default=datetime.utcnow)
+
+    session = relationship("ChatSession")

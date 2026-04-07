@@ -531,16 +531,35 @@ async def recognize(
     await db.flush()
     await db.refresh(record)
 
+    drug_session_id = None
     if scene_name == "体检报告识别" and ai_result:
         try:
             await _write_checkup_detail(db, current_user, provider_used, record, ocr_text, ai_result, original_image_url)
         except Exception as e:
             logger.warning("Failed to write checkup detail: %s", e)
-    elif scene_name == "拍照识药" and ai_result:
-        try:
-            await _write_drug_detail(db, current_user, provider_used, record, ocr_text, ai_result, original_image_url)
-        except Exception as e:
-            logger.warning("Failed to write drug detail: %s", e)
+    elif scene_name == "拍照识药":
+        if ai_result:
+            try:
+                drug_session_id = await _write_drug_detail(db, current_user, provider_used, record, ocr_text, ai_result, original_image_url)
+            except Exception as e:
+                logger.warning("Failed to write drug detail: %s", e)
+        else:
+            try:
+                from app.models.models import DrugIdentifyDetail as _DID
+                failed_detail = _DID(
+                    user_id=current_user.id if current_user else None,
+                    user_phone=getattr(current_user, "phone", None),
+                    user_nickname=getattr(current_user, "nickname", None),
+                    provider_name=provider_used,
+                    original_image_url=original_image_url,
+                    ocr_raw_text=ocr_text,
+                    ocr_call_record_id=record.id,
+                    status="failed",
+                )
+                db.add(failed_detail)
+                await db.flush()
+            except Exception as e:
+                logger.warning("Failed to write failed drug detail: %s", e)
 
     return OcrRecognizeResponse(
         success=True,
@@ -548,6 +567,7 @@ async def recognize(
         ocr_text=ocr_text,
         ai_result=ai_result,
         record_id=record.id,
+        session_id=drug_session_id,
     )
 
 
@@ -738,7 +758,13 @@ async def _write_checkup_detail(db, user, provider, record, ocr_text, ai_result,
 
 
 async def _write_drug_detail(db, user, provider, record, ocr_text, ai_result, image_url):
-    from app.models.models import DrugIdentifyDetail
+    from app.models.models import (
+        ChatMessage,
+        ChatSession,
+        DrugIdentifyDetail,
+        MessageRole,
+        SessionType,
+    )
 
     drug_name = None
     drug_category = None
@@ -750,6 +776,35 @@ async def _write_drug_detail(db, user, provider, record, ocr_text, ai_result, im
         drug_category = ai_result.get("drug_category") or ai_result.get("drugCategory") or ai_result.get("药品分类")
         dosage = ai_result.get("dosage") or ai_result.get("用法用量")
         precautions = ai_result.get("precautions") or ai_result.get("注意事项") or ai_result.get("禁忌")
+
+    session_id = None
+    if user:
+        session = ChatSession(
+            user_id=user.id,
+            session_type=SessionType.drug_query,
+            title=drug_name or "拍照识药",
+        )
+        db.add(session)
+        await db.flush()
+        await db.refresh(session)
+        session_id = session.id
+
+        user_msg = ChatMessage(
+            session_id=session_id,
+            role=MessageRole.user,
+            content="拍照识药",
+            image_urls=[image_url] if image_url else None,
+        )
+        db.add(user_msg)
+
+        ai_content = json.dumps(ai_result, ensure_ascii=False) if isinstance(ai_result, dict) else str(ai_result)
+        assistant_msg = ChatMessage(
+            session_id=session_id,
+            role=MessageRole.assistant,
+            content=ai_content,
+        )
+        db.add(assistant_msg)
+        await db.flush()
 
     detail = DrugIdentifyDetail(
         user_id=user.id if user else None,
@@ -764,6 +819,9 @@ async def _write_drug_detail(db, user, provider, record, ocr_text, ai_result, im
         ocr_raw_text=ocr_text,
         ai_structured_result=ai_result,
         ocr_call_record_id=record.id,
+        session_id=session_id,
+        status="success",
     )
     db.add(detail)
     await db.flush()
+    return session_id

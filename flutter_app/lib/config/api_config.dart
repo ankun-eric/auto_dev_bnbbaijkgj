@@ -60,6 +60,8 @@ class ApiConfig {
   // Drug
   static const String drugSearch = '/api/drugs/query';
   static const String drugIdentify = '/api/drugs/identify';
+  static const String drugIdentifyHistory = '/api/drug-identify/history';
+  static const String ocrRecognize = '/api/ocr/recognize';
 
   // Health Plan
   static const String healthPlan = '/api/plans';

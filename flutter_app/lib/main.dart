@@ -16,6 +16,7 @@ import 'screens/health/trend_screen.dart';
 import 'screens/health/symptom_screen.dart';
 import 'screens/health/tcm_screen.dart';
 import 'screens/health/drug_screen.dart';
+import 'screens/health/drug_chat_screen.dart';
 import 'screens/health/health_profile_screen.dart';
 import 'screens/family/family_screen.dart';
 import 'screens/services/services_screen.dart';
@@ -141,6 +142,7 @@ class BiniHealthApp extends StatelessWidget {
           '/symptom': (context) => const SymptomScreen(),
           '/tcm': (context) => const TcmScreen(),
           '/drug': (context) => const DrugScreen(),
+          '/drug-chat': (context) => const DrugChatScreen(),
           '/health-profile': (context) => const HealthProfileScreen(),
           '/family': (context) => const FamilyScreen(),
           '/services': (context) => const ServicesScreen(),

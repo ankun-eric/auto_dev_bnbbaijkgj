@@ -276,6 +276,10 @@ async def _sync_ocr_detail_tables(conn: AsyncConnection) -> None:
         cols = table_cols["drug_identify_details"]
         if "ocr_call_record_id" not in cols:
             await conn.execute(text("ALTER TABLE drug_identify_details ADD COLUMN ocr_call_record_id INT NULL"))
+        if "session_id" not in cols:
+            await conn.execute(text("ALTER TABLE drug_identify_details ADD COLUMN session_id INT NULL"))
+        if "status" not in cols:
+            await conn.execute(text("ALTER TABLE drug_identify_details ADD COLUMN status VARCHAR(20) DEFAULT 'success'"))
 
 
 async def sync_register_schema(conn: AsyncConnection) -> None:

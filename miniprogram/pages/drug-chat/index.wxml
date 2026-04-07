@@ -1,0 +1,70 @@
+<view class="chat-page">
+  <!-- 消息列表 -->
+  <scroll-view class="msg-list" scroll-y scroll-into-view="{{scrollToId}}" scroll-with-animation>
+    <view class="chat-notice">
+      <text class="notice-text">AI识别结果仅供参考，用药请遵医嘱。</text>
+    </view>
+
+    <view class="msg-item" wx:for="{{messages}}" wx:key="id" id="msg-{{item.id}}">
+      <!-- AI消息 -->
+      <view class="msg-row msg-left" wx:if="{{item.role === 'assistant'}}">
+        <view class="msg-avatar ai-avatar">
+          <text class="avatar-emoji">🤖</text>
+        </view>
+        <view class="msg-bubble ai-bubble">
+          <text class="msg-text">{{item.mainContent || item.content}}</text>
+          <view wx:if="{{item.disclaimer}}" class="disclaimer">
+            <text class="disclaimer-text">{{item.disclaimer}}</text>
+          </view>
+          <text class="msg-time">{{item.time}}</text>
+        </view>
+      </view>
+
+      <!-- 用户消息 -->
+      <view class="msg-row msg-right" wx:elif="{{item.role === 'user'}}">
+        <view class="msg-bubble user-bubble">
+          <image class="msg-image" src="{{item.image}}" mode="widthFix" wx:if="{{item.image}}" bindtap="previewImage" data-url="{{item.image}}" />
+          <text class="msg-text" wx:else>{{item.content}}</text>
+          <text class="msg-time user-time">{{item.time}}</text>
+        </view>
+        <view class="msg-avatar user-avatar">
+          <text class="avatar-emoji">👤</text>
+        </view>
+      </view>
+
+      <!-- 加载中 -->
+      <view class="msg-row msg-left" wx:elif="{{item.role === 'loading'}}">
+        <view class="msg-avatar ai-avatar">
+          <text class="avatar-emoji">🤖</text>
+        </view>
+        <view class="msg-bubble ai-bubble">
+          <view class="typing-dots">
+            <view class="dot"></view>
+            <view class="dot"></view>
+            <view class="dot"></view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view id="msg-bottom" style="height: 20rpx;"></view>
+  </scroll-view>
+
+  <!-- 输入区域 -->
+  <view class="input-area safe-bottom">
+    <view class="input-bar">
+      <view class="tool-btn" bindtap="takePhoto">
+        <text class="tool-icon">📷</text>
+      </view>
+      <view class="tool-btn" bindtap="chooseAlbum">
+        <text class="tool-icon">🖼️</text>
+      </view>
+      <input class="chat-input" placeholder="输入您的问题..." value="{{inputValue}}"
+             bindinput="onInput" confirm-type="send" bindconfirm="sendMessage"
+             adjust-position="{{false}}" focus="{{inputFocus}}" />
+      <view class="send-btn {{inputValue ? 'send-active' : ''}}" bindtap="sendMessage">
+        <text class="send-text">发送</text>
+      </view>
+    </view>
+  </view>
+</view>

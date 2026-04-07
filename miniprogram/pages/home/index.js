@@ -19,7 +19,7 @@ Page({
       { id: 'checkup', label: '体检报告', icon: '📋', bgColor: 'rgba(19,194,194,0.12)', path: '/pages/checkup/index' },
       { id: 'symptom', label: '症状自查', icon: '🩺', bgColor: 'rgba(24,144,255,0.12)', path: '/pages/symptom/index' },
       { id: 'tcm', label: '中医辨证', icon: '🌿', bgColor: 'rgba(114,46,209,0.12)', path: '/pages/tcm/index' },
-      { id: 'drug', label: '药物查询', icon: '💊', bgColor: 'rgba(250,173,20,0.12)', path: '/pages/drug/index' },
+      { id: 'drug', label: '用药参考', icon: '💊', bgColor: 'rgba(250,173,20,0.12)', path: '/pages/drug/index' },
       { id: 'plan', label: '健康计划', icon: '📅', bgColor: 'rgba(235,47,150,0.12)', path: '/pages/health-plan/index' }
     ],
     healthTips: [

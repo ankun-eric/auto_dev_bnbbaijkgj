@@ -54,6 +54,10 @@ class _AiHomeScreenState extends State<AiHomeScreen> {
   }
 
   void _createNewSession(String type) async {
+    if (type == 'drug_query') {
+      Navigator.pushNamed(context, '/drug');
+      return;
+    }
     final chatProvider = Provider.of<ChatProvider>(context, listen: false);
     final session = await chatProvider.createSession(type);
     if (session != null && mounted) {

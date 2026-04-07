@@ -52,6 +52,8 @@ class DrugIdentifyDetailResponse(BaseModel):
     ocr_raw_text: Optional[str] = None
     ai_structured_result: Optional[Dict[str, Any]] = None
     ocr_call_record_id: Optional[int] = None
+    session_id: Optional[int] = None
+    status: Optional[str] = None
     created_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
@@ -69,3 +71,30 @@ class DrugIdentifyStatisticsResponse(BaseModel):
     today_count: int
     drug_types_count: int
     month_count: int
+
+
+class DrugIdentifyHistoryItem(BaseModel):
+    id: int
+    image_url: Optional[str] = None
+    drug_name: Optional[str] = None
+    status: Optional[str] = None
+    created_at: Optional[datetime] = None
+    session_id: Optional[int] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class DrugIdentifyHistoryResponse(BaseModel):
+    items: List[DrugIdentifyHistoryItem]
+    total: int
+
+
+class ConversationMessageItem(BaseModel):
+    role: str
+    content: str
+    image_urls: Optional[Any] = None
+    created_at: Optional[datetime] = None
+
+
+class ConversationResponse(BaseModel):
+    messages: List[ConversationMessageItem]

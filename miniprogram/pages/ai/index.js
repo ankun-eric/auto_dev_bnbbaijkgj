@@ -117,6 +117,10 @@ Page({
     }
     if (!checkLogin()) return;
     const type = e.currentTarget.dataset.type;
+    if (type.id === 'drug_query') {
+      wx.navigateTo({ url: '/pages/drug/index' });
+      return;
+    }
     wx.navigateTo({ url: `/pages/chat/index?type=${type.id}` });
   },
 

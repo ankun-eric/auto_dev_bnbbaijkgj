@@ -7,7 +7,7 @@ import {
 } from 'antd';
 import {
   SearchOutlined, ReloadOutlined, MedicineBoxOutlined, PlusCircleOutlined,
-  ExperimentOutlined, CalendarOutlined,
+  ExperimentOutlined, CalendarOutlined, MessageOutlined,
 } from '@ant-design/icons';
 import { get } from '@/lib/api';
 import dayjs from 'dayjs';
@@ -43,6 +43,7 @@ interface DrugDetail {
   original_image_url: string;
   ocr_raw_text: string;
   ai_structured_result: any;
+  session_id?: number;
 }
 
 interface ListResponse {
@@ -58,6 +59,31 @@ interface StatsData {
   drug_categories: number;
   month_drugs: number;
 }
+
+interface ConversationMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  content_type?: 'text' | 'image';
+  image_urls?: string[];
+  created_at?: string;
+  disclaimer?: string;
+}
+
+interface ConversationData {
+  session_id: number;
+  messages: ConversationMessage[];
+  drug_name?: string;
+}
+
+const msgBubbleStyle = (isUser: boolean): React.CSSProperties => ({
+  maxWidth: '80%',
+  padding: '10px 14px',
+  borderRadius: isUser ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
+  background: isUser ? '#1677ff' : '#f5f5f5',
+  color: isUser ? '#fff' : '#333',
+  wordBreak: 'break-word',
+  lineHeight: 1.6,
+});
 
 function maskPhone(phone: string): string {
   if (!phone || phone.length < 7) return phone || '-';
@@ -79,10 +105,20 @@ export default function DrugDetailsPage() {
   const [detail, setDetail] = useState<DrugDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
 
+  const [convDrawerOpen, setConvDrawerOpen] = useState(false);
+  const [convLoading, setConvLoading] = useState(false);
+  const [conversation, setConversation] = useState<ConversationData | null>(null);
+  const [convDrugName, setConvDrugName] = useState('');
+
   const fetchStats = useCallback(async () => {
     try {
-      const res = await get<StatsData>('/api/admin/drug-details/statistics');
-      setStats(res);
+      const res = await get<any>('/api/admin/drug-details/statistics');
+      setStats({
+        total_drugs: res.total ?? res.total_drugs ?? 0,
+        today_new: res.today_count ?? res.today_new ?? 0,
+        drug_categories: res.drug_types_count ?? res.drug_categories ?? 0,
+        month_drugs: res.month_count ?? res.month_drugs ?? 0,
+      });
     } catch {
       // ignore
     }
@@ -135,6 +171,21 @@ export default function DrugDetailsPage() {
       setDetail(record);
     } finally {
       setDetailLoading(false);
+    }
+  };
+
+  const handleViewConversation = async (record: DrugDetail) => {
+    setConvDrugName(record.drug_name || '未知药品');
+    setConvDrawerOpen(true);
+    setConvLoading(true);
+    try {
+      const res = await get<ConversationData>(`/api/admin/drug-details/${record.id}/conversation`);
+      setConversation(res);
+    } catch {
+      message.error('获取对话记录失败');
+      setConversation(null);
+    } finally {
+      setConvLoading(false);
     }
   };
 
@@ -201,11 +252,22 @@ export default function DrugDetailsPage() {
     {
       title: '操作',
       key: 'action',
-      width: 80,
+      width: 150,
       render: (_: any, record: DrugDetail) => (
-        <Button type="link" size="small" onClick={() => handleViewDetail(record)}>
-          详情
-        </Button>
+        <Space size={0}>
+          <Button type="link" size="small" onClick={() => handleViewDetail(record)}>
+            详情
+          </Button>
+          <Button
+            type="link"
+            size="small"
+            icon={<MessageOutlined />}
+            disabled={!record.session_id}
+            onClick={() => handleViewConversation(record)}
+          >
+            查看对话
+          </Button>
+        </Space>
       ),
     },
   ];
@@ -391,6 +453,67 @@ export default function DrugDetailsPage() {
               </Card>
             )}
           </div>
+        )}
+      </Drawer>
+
+      <Drawer
+        title={`对话记录 - ${convDrugName}`}
+        open={convDrawerOpen}
+        onClose={() => { setConvDrawerOpen(false); setConversation(null); }}
+        width={600}
+        loading={convLoading}
+      >
+        {conversation && conversation.messages && conversation.messages.length > 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: '8px 0' }}>
+            {conversation.messages.map((msg, idx) => {
+              const isUser = msg.role === 'user';
+              return (
+                <div
+                  key={idx}
+                  style={{
+                    display: 'flex',
+                    justifyContent: isUser ? 'flex-end' : 'flex-start',
+                  }}
+                >
+                  <div style={{ maxWidth: '80%' }}>
+                    <div style={msgBubbleStyle(isUser)}>
+                      {msg.image_urls && msg.image_urls.length > 0 ? (
+                        <Space direction="vertical" size={4}>
+                          {msg.image_urls.map((url, imgIdx) => (
+                            <Image
+                              key={imgIdx}
+                              src={url}
+                              style={{ maxWidth: '100%', maxHeight: 200, borderRadius: 8 }}
+                              fallback="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mN8/+F/PQAJpAN4kNMRdQAAAABJRU5ErkJggg=="
+                            />
+                          ))}
+                          {msg.content && <span style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</span>}
+                        </Space>
+                      ) : (
+                        <span style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</span>
+                      )}
+                    </div>
+                    {msg.disclaimer && (
+                      <div style={{ color: '#999', fontSize: 12, fontStyle: 'italic', marginTop: 4, padding: '0 4px' }}>
+                        {msg.disclaimer}
+                      </div>
+                    )}
+                    {msg.created_at && (
+                      <div style={{ color: '#bbb', fontSize: 11, marginTop: 4, textAlign: isUser ? 'right' : 'left', padding: '0 4px' }}>
+                        {dayjs(msg.created_at).format('YYYY-MM-DD HH:mm:ss')}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          !convLoading && (
+            <div style={{ textAlign: 'center', color: '#999', padding: '60px 0' }}>
+              暂无对话记录
+            </div>
+          )
         )}
       </Drawer>
     </div>

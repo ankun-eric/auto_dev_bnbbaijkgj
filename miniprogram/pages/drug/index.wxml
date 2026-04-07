@@ -1,80 +1,47 @@
 <view class="drug-page">
-  <!-- 搜索栏 -->
-  <view class="search-section">
-    <view class="search-bar">
-      <text class="search-icon">🔍</text>
-      <input class="search-input" placeholder="搜索药品名称" value="{{keyword}}" bindinput="onSearch" bindconfirm="doSearch" />
-      <text class="clear-btn" wx:if="{{keyword}}" bindtap="clearSearch">✕</text>
+  <!-- 拍照操作区域 -->
+  <view class="camera-section">
+    <view class="camera-icon-wrap">
+      <text class="camera-big-icon">📷</text>
     </view>
-    <view class="camera-btn" bindtap="scanDrug">
-      <text class="camera-icon">📷</text>
-      <text class="camera-text">拍照识药</text>
-    </view>
-  </view>
-
-  <!-- 热门搜索 -->
-  <view class="card" wx:if="{{!keyword && searchResults.length === 0}}">
-    <text class="section-title">热门搜索</text>
-    <view class="hot-tags">
-      <view class="hot-tag" wx:for="{{hotKeywords}}" wx:key="*this" bindtap="searchKeyword" data-keyword="{{item}}">
-        <text>{{item}}</text>
-      </view>
+    <text class="camera-title">拍照识别药品</text>
+    <text class="camera-desc">拍摄药品照片或从相册选择，AI 为您智能识别</text>
+    <view class="camera-actions">
+      <button class="btn-primary" bindtap="takePhoto" loading="{{uploading}}">拍照识药</button>
+      <button class="btn-outline" bindtap="chooseAlbum" disabled="{{uploading}}">从相册选择</button>
     </view>
   </view>
 
-  <!-- 搜索结果 -->
-  <view class="result-list" wx:if="{{searchResults.length > 0}}">
-    <view class="drug-card card" wx:for="{{searchResults}}" wx:key="id" bindtap="showDrugDetail" data-drug="{{item}}">
-      <view class="drug-header">
-        <text class="drug-name">{{item.name}}</text>
-        <view class="tag tag-green" wx:if="{{item.otc}}">OTC</view>
-        <view class="tag tag-blue" wx:if="{{item.prescription}}">处方药</view>
-      </view>
-      <text class="drug-generic">{{item.generic}}</text>
-      <text class="drug-spec">规格: {{item.spec}}</text>
-      <text class="drug-usage ellipsis">用法: {{item.usage}}</text>
+  <!-- 历史记录 -->
+  <view class="history-section">
+    <view class="section-header">
+      <text class="section-title">识别历史</text>
     </view>
-  </view>
 
-  <!-- 药品详情弹窗 -->
-  <view class="drug-modal" wx:if="{{showDetail}}" bindtap="closeDetail">
-    <view class="modal-content" catchtap="">
-      <view class="modal-header">
-        <text class="modal-title">{{currentDrug.name}}</text>
-        <text class="modal-close" bindtap="closeDetail">✕</text>
-      </view>
-      <scroll-view class="modal-body" scroll-y>
-        <view class="detail-section">
-          <text class="detail-label">通用名</text>
-          <text class="detail-value">{{currentDrug.generic}}</text>
+    <view wx:if="{{loading && historyList.length === 0}}" class="loading-wrap">
+      <text class="loading-text">加载中...</text>
+    </view>
+
+    <view wx:elif="{{historyList.length === 0}}" class="empty-wrap">
+      <text class="empty-icon">📋</text>
+      <text class="empty-text">暂无识别记录</text>
+      <text class="empty-hint">拍照识别药品后，记录将显示在这里</text>
+    </view>
+
+    <view wx:else class="history-list">
+      <view class="history-item" wx:for="{{historyList}}" wx:key="id" bindtap="goChat" data-sessionid="{{item.sessionId}}">
+        <image class="history-thumb" src="{{item.thumbnail}}" mode="aspectFill" wx:if="{{item.thumbnail}}" />
+        <view class="history-thumb history-thumb-placeholder" wx:else>
+          <text class="thumb-icon">💊</text>
         </view>
-        <view class="detail-section">
-          <text class="detail-label">规格</text>
-          <text class="detail-value">{{currentDrug.spec}}</text>
+        <view class="history-info">
+          <text class="history-name">{{item.drugName}}</text>
+          <text class="history-time">{{item.time}}</text>
         </view>
-        <view class="detail-section">
-          <text class="detail-label">用法用量</text>
-          <text class="detail-value">{{currentDrug.usage}}</text>
+        <view class="history-status status-{{item.status}}">
+          <text class="status-text">{{item.statusText}}</text>
         </view>
-        <view class="detail-section">
-          <text class="detail-label">适应症</text>
-          <text class="detail-value">{{currentDrug.indication}}</text>
-        </view>
-        <view class="detail-section">
-          <text class="detail-label">不良反应</text>
-          <text class="detail-value">{{currentDrug.sideEffects}}</text>
-        </view>
-        <view class="detail-section">
-          <text class="detail-label">禁忌</text>
-          <text class="detail-value">{{currentDrug.contraindication}}</text>
-        </view>
-        <view class="detail-section">
-          <text class="detail-label">注意事项</text>
-          <text class="detail-value">{{currentDrug.precautions}}</text>
-        </view>
-      </scroll-view>
-      <view class="modal-footer">
-        <button class="btn-primary" bindtap="askAboutDrug">咨询AI健康顾问</button>
+        <text class="history-arrow">›</text>
       </view>
     </view>
   </view>

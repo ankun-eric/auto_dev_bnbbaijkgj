@@ -7,20 +7,25 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.core.security import require_role
-from app.models.models import CheckupReportDetail, DrugIdentifyDetail
+from app.core.security import get_current_user, require_role
+from app.models.models import ChatMessage, CheckupReportDetail, DrugIdentifyDetail
 from app.schemas.ocr_details import (
     CheckupReportDetailListResponse,
     CheckupReportDetailResponse,
     CheckupReportStatisticsResponse,
+    ConversationMessageItem,
+    ConversationResponse,
     DrugIdentifyDetailListResponse,
     DrugIdentifyDetailResponse,
+    DrugIdentifyHistoryItem,
+    DrugIdentifyHistoryResponse,
     DrugIdentifyStatisticsResponse,
 )
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/admin", tags=["OCR明细管理"])
+user_router = APIRouter(prefix="/api/drug-identify", tags=["拍照识药"])
 
 
 def _mask_phone(phone: Optional[str]) -> Optional[str]:
@@ -265,3 +270,76 @@ async def get_drug_detail(
     if not detail:
         raise HTTPException(status_code=404, detail="记录不存在")
     return DrugIdentifyDetailResponse.model_validate(detail)
+
+
+@router.get("/drug-details/{detail_id}/conversation", response_model=ConversationResponse)
+async def get_drug_detail_conversation(
+    detail_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(require_role("admin")),
+):
+    result = await db.execute(
+        select(DrugIdentifyDetail).where(DrugIdentifyDetail.id == detail_id)
+    )
+    detail = result.scalar_one_or_none()
+    if not detail:
+        raise HTTPException(status_code=404, detail="记录不存在")
+
+    if not detail.session_id:
+        return ConversationResponse(messages=[])
+
+    msg_result = await db.execute(
+        select(ChatMessage)
+        .where(ChatMessage.session_id == detail.session_id)
+        .order_by(ChatMessage.created_at.asc())
+    )
+    messages = [
+        ConversationMessageItem(
+            role=msg.role.value if hasattr(msg.role, "value") else str(msg.role),
+            content=msg.content,
+            image_urls=msg.image_urls,
+            created_at=msg.created_at,
+        )
+        for msg in msg_result.scalars().all()
+    ]
+    return ConversationResponse(messages=messages)
+
+
+# ──────────────── 用户端：识别历史 ────────────────
+
+
+@user_router.get("/history", response_model=DrugIdentifyHistoryResponse)
+async def drug_identify_history(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    count_query = select(func.count(DrugIdentifyDetail.id)).where(
+        DrugIdentifyDetail.user_id == current_user.id
+    )
+    total_result = await db.execute(count_query)
+    total = total_result.scalar() or 0
+
+    query = (
+        select(DrugIdentifyDetail)
+        .where(DrugIdentifyDetail.user_id == current_user.id)
+        .order_by(DrugIdentifyDetail.created_at.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+    )
+    result = await db.execute(query)
+
+    items = [
+        DrugIdentifyHistoryItem(
+            id=row.id,
+            image_url=row.original_image_url,
+            drug_name=row.drug_name,
+            status=row.status,
+            created_at=row.created_at,
+            session_id=row.session_id,
+        )
+        for row in result.scalars().all()
+    ]
+
+    return DrugIdentifyHistoryResponse(items=items, total=total)
