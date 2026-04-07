@@ -787,6 +787,72 @@ All 9 admin API endpoints return HTTP 200 with correct data structure. Admin fro
 
 - Created `user_docs/OCR识别明细拆分与提示词统一管理.md`
 
+## Latest Feature: 用药参考 · 拍照识药改版 (2026-04-07)
+
+### Backend
+
+- Updated `DrugIdentifyDetail` model — added `session_id` (FK to `chat_sessions.id`), `status` (default 'success'), `image_url` fields
+- Updated `backend/app/api/ocr.py` — `recognize` and `batch_recognize` now create `ChatSession` (type=drug_query) + initial `ChatMessage` records when `scene_name=="拍照识药"` succeeds; `session_id` linked to `DrugIdentifyDetail` and returned in response
+- Updated `backend/app/schemas/ocr.py` — `OcrRecognizeResponse` added `session_id` field
+- Created user-facing API (`user_router` in `backend/app/api/ocr_details.py`):
+  - `GET /api/drug-identify/history` — user's drug identification history (paginated, ordered by created_at desc)
+- Added admin API:
+  - `GET /api/admin/drug-details/{id}/conversation` — view full conversation of a drug identification record
+- Updated `backend/app/schemas/ocr_details.py` — added `DrugIdentifyHistoryItem`, `DrugIdentifyHistoryResponse`, `ConversationMessageItem`, `ConversationResponse` schemas
+- Updated `backend/app/main.py` — registered `ocr_details.user_router`
+- Updated `backend/app/services/schema_sync.py` — auto-migration for `session_id` and `status` columns
+
+### H5 Web
+
+- Completely rewrote `h5-web/src/app/drug/page.tsx` — new "拍照识药" main page with camera/album upload, AI recognition loading, history list with thumbnails
+- Created `h5-web/src/app/drug/chat/[sessionId]/page.tsx` — AI conversation page with chat bubbles, text follow-up, re-take photo in conversation, multi-drug comparison, disclaimer rendering
+
+### Mini Program
+
+- Completely rewrote `miniprogram/pages/drug/` — new "拍照识药" page with `wx.chooseMedia` for camera/album, `wx.uploadFile` for OCR, history list
+- Created `miniprogram/pages/drug-chat/` — AI conversation page with chat UI, image upload in conversation, disclaimer parsing
+- Updated `miniprogram/app.json` — registered `pages/drug-chat/index`
+- Updated `miniprogram/pages/home/index.js` — label "药物查询" → "用药参考"
+- Updated `miniprogram/pages/ai/index.js` — drug_query navigates to `/pages/drug/index` instead of creating chat session
+
+### Flutter App
+
+- Completely rewrote `flutter_app/lib/screens/health/drug_screen.dart` — new "拍照识药" page with `ImagePicker`, OCR API, history list
+- Created `flutter_app/lib/screens/health/drug_chat_screen.dart` — AI conversation page with chat UI, image upload, disclaimer parsing
+- Updated `flutter_app/lib/config/api_config.dart` — added `drugIdentifyHistory` and `ocrRecognize` endpoints
+- Updated `flutter_app/lib/services/api_service.dart` — added `getDrugIdentifyHistory()` and `ocrRecognizeDrug()` methods
+- Updated `flutter_app/lib/main.dart` — registered `/drug-chat` route
+- Updated `flutter_app/lib/screens/home/home_screen.dart` — label '药物查询' → '用药参考'
+- Updated `flutter_app/lib/screens/ai/ai_home_screen.dart` — drug_query navigates to `/drug`
+
+### Admin Web
+
+- Updated `admin-web/src/app/(admin)/drug-details/page.tsx`:
+  - Added "查看对话" button in operations column (visible when `session_id` exists)
+  - Added Ant Design Drawer (600px) for conversation display with chat bubbles, image preview, timestamps, disclaimer rendering
+  - Updated stats field mapping with fallback support
+
+### Testing
+
+- Created `backend/tests/test_drug_identify.py` — 9 test cases (admin/user login, history list, pagination, conversation view, auth checks, 404, health check). All passed.
+- 11/11 server API tests passed
+
+### Deployment (2026-04-07)
+
+- Rebuilt and redeployed all containers (db, backend, admin-web, h5-web)
+- All 4 containers healthy
+- Rebuilt miniprogram zip, Android APK, iOS IPA
+
+### Generated Delivery Artifacts
+
+- Mini program: `miniprogram_20260407_133412_aidq.zip`
+- Android APK: `app_20260407_133434_a2a4.apk` (GitHub Release: `android-v20260407-133434-a2a4`)
+- iOS IPA: `bini_health_ios-v20260407-133445-3e3a.ipa` (GitHub Release: `ios-v20260407-133445-3e3a`)
+
+### User Documentation
+
+- Created `user_docs/拍照识药改版.md` — user manual for photo drug identification feature
+
 ## Notes For Next Iteration
 
 - Merchant identities are granted by admin only; new self-registered accounts still default to normal users.
