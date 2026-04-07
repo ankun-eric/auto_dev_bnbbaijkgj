@@ -253,6 +253,31 @@ async def _sync_report_tables(conn: AsyncConnection) -> None:
             await conn.execute(text("ALTER TABLE checkup_indicators ADD COLUMN advice VARCHAR(500) NULL"))
 
 
+async def _sync_ocr_detail_tables(conn: AsyncConnection) -> None:
+    def _load(sync_conn):
+        inspector = inspect(sync_conn)
+        tables = set(inspector.get_table_names())
+        result = {}
+        for tbl in ["checkup_report_details", "drug_identify_details"]:
+            if tbl in tables:
+                result[tbl] = {col["name"] for col in inspector.get_columns(tbl)}
+        return result
+
+    table_cols = await conn.run_sync(_load)
+
+    if "checkup_report_details" in table_cols:
+        cols = table_cols["checkup_report_details"]
+        if "abnormal_indicators" not in cols:
+            await conn.execute(text("ALTER TABLE checkup_report_details ADD COLUMN abnormal_indicators JSON NULL"))
+        if "ocr_call_record_id" not in cols:
+            await conn.execute(text("ALTER TABLE checkup_report_details ADD COLUMN ocr_call_record_id INT NULL"))
+
+    if "drug_identify_details" in table_cols:
+        cols = table_cols["drug_identify_details"]
+        if "ocr_call_record_id" not in cols:
+            await conn.execute(text("ALTER TABLE drug_identify_details ADD COLUMN ocr_call_record_id INT NULL"))
+
+
 async def sync_register_schema(conn: AsyncConnection) -> None:
     def load_user_schema(sync_conn):
         inspector = inspect(sync_conn)
@@ -275,6 +300,7 @@ async def sync_register_schema(conn: AsyncConnection) -> None:
     await _sync_knowledge_tables(conn)
     await _sync_ai_center_tables(conn)
     await _sync_report_tables(conn)
+    await _sync_ocr_detail_tables(conn)
 
     columns, indexes, unique_constraints = await conn.run_sync(load_user_schema)
 

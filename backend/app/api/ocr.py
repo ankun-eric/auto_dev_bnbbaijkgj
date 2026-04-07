@@ -226,7 +226,6 @@ async def create_scene(
 
     scene = OcrSceneTemplate(
         scene_name=body.scene_name,
-        prompt_content=body.prompt_content,
         ai_model_id=body.ai_model_id,
         ocr_provider=body.ocr_provider,
         is_preset=False,
@@ -234,6 +233,20 @@ async def create_scene(
     db.add(scene)
     await db.flush()
     await db.refresh(scene)
+
+    from app.models.models import AiPromptConfig
+    chat_type = f"ocr_custom_{scene.id}"
+    existing_prompt = await db.execute(
+        select(AiPromptConfig).where(AiPromptConfig.chat_type == chat_type)
+    )
+    if not existing_prompt.scalar_one_or_none():
+        db.add(AiPromptConfig(
+            chat_type=chat_type,
+            display_name=scene.scene_name,
+            system_prompt="",
+        ))
+        await db.flush()
+
     return OcrSceneTemplateResponse.model_validate(scene)
 
 
@@ -261,8 +274,6 @@ async def update_scene(
         if dup.scalar_one_or_none():
             raise HTTPException(status_code=400, detail="场景名称已存在")
         scene.scene_name = body.scene_name
-    if body.prompt_content is not None:
-        scene.prompt_content = body.prompt_content
     if body.ai_model_id is not None:
         scene.ai_model_id = body.ai_model_id
     if body.ocr_provider is not None:
@@ -499,12 +510,14 @@ async def recognize(
         return OcrRecognizeResponse(success=False, error=str(e), record_id=record.id)
 
     ai_result = None
-    if scene and scene.prompt_content:
+    if scene:
         try:
             ai_result = await _call_ai_with_scene(ocr_text, scene, db)
         except Exception as e:
             logger.warning("AI processing failed: %s", e)
             ai_result = {"error": str(e), "raw_text": ocr_text}
+
+    original_image_url = None
 
     record = OcrCallRecord(
         scene_name=scene_name,
@@ -512,10 +525,22 @@ async def recognize(
         status="success",
         ocr_raw_text=ocr_text,
         ai_structured_result=ai_result,
+        original_image_url=original_image_url,
     )
     db.add(record)
     await db.flush()
     await db.refresh(record)
+
+    if scene_name == "体检报告识别" and ai_result:
+        try:
+            await _write_checkup_detail(db, current_user, provider_used, record, ocr_text, ai_result, original_image_url)
+        except Exception as e:
+            logger.warning("Failed to write checkup detail: %s", e)
+    elif scene_name == "拍照识药" and ai_result:
+        try:
+            await _write_drug_detail(db, current_user, provider_used, record, ocr_text, ai_result, original_image_url)
+        except Exception as e:
+            logger.warning("Failed to write drug detail: %s", e)
 
     return OcrRecognizeResponse(
         success=True,
@@ -586,19 +611,33 @@ async def batch_recognize(
             continue
 
         ai_result = None
-        if scene and scene.prompt_content:
+        if scene:
             try:
                 ai_result = await _call_ai_with_scene(ocr_text, scene, db)
             except Exception as e:
                 ai_result = {"error": str(e), "raw_text": ocr_text}
 
+        original_image_url = None
+
         record = OcrCallRecord(
             scene_name=scene_name, provider_name=provider_used,
             status="success", ocr_raw_text=ocr_text, ai_structured_result=ai_result,
+            original_image_url=original_image_url,
         )
         db.add(record)
         await db.flush()
         await db.refresh(record)
+
+        if scene_name == "体检报告识别" and ai_result:
+            try:
+                await _write_checkup_detail(db, current_user, provider_used, record, ocr_text, ai_result, original_image_url)
+            except Exception as e:
+                logger.warning("Failed to write checkup detail: %s", e)
+        elif scene_name == "拍照识药" and ai_result:
+            try:
+                await _write_drug_detail(db, current_user, provider_used, record, ocr_text, ai_result, original_image_url)
+            except Exception as e:
+                logger.warning("Failed to write drug detail: %s", e)
 
         results.append(OcrRecognizeResponse(
             success=True, provider_name=provider_used,
@@ -620,7 +659,27 @@ async def _call_ai_with_scene(
     scene: OcrSceneTemplate,
     db: AsyncSession,
 ) -> dict:
-    system_prompt = scene.prompt_content or "请根据以下OCR文字内容进行结构化整理，返回JSON格式。"
+    SCENE_TO_CHAT_TYPE = {
+        "体检报告识别": "ocr_checkup_report",
+        "拍照识药": "ocr_drug_identify",
+    }
+
+    system_prompt = None
+    chat_type = SCENE_TO_CHAT_TYPE.get(scene.scene_name)
+    if not chat_type:
+        chat_type = f"ocr_custom_{scene.id}"
+
+    from app.models.models import AiPromptConfig
+    prompt_result = await db.execute(
+        select(AiPromptConfig).where(AiPromptConfig.chat_type == chat_type)
+    )
+    prompt_config = prompt_result.scalar_one_or_none()
+    if prompt_config and prompt_config.system_prompt:
+        system_prompt = prompt_config.system_prompt
+
+    if not system_prompt:
+        system_prompt = scene.prompt_content or "请根据以下OCR文字内容进行结构化整理，返回JSON格式。"
+
     messages = [{"role": "user", "content": f"以下是OCR识别的文字内容:\n\n{ocr_text}"}]
 
     result = await call_ai_model(messages, system_prompt, db)
@@ -639,3 +698,72 @@ async def _call_ai_with_scene(
         return json.loads(text)
     except (json.JSONDecodeError, ValueError):
         return {"raw_result": result}
+
+
+async def _write_checkup_detail(db, user, provider, record, ocr_text, ai_result, image_url):
+    from app.models.models import CheckupReportDetail
+
+    report_type = None
+    abnormal_count = 0
+    summary = None
+    abnormal_indicators = None
+    status = "normal"
+
+    if isinstance(ai_result, dict):
+        report_type = ai_result.get("report_type") or ai_result.get("reportType")
+        indicators = ai_result.get("abnormal_indicators") or ai_result.get("abnormalIndicators") or []
+        abnormal_count = len(indicators) if isinstance(indicators, list) else 0
+        summary = ai_result.get("summary") or ai_result.get("摘要") or ai_result.get("解读摘要")
+        abnormal_indicators = indicators if indicators else None
+        if abnormal_count > 0:
+            status = "abnormal"
+
+    detail = CheckupReportDetail(
+        user_id=user.id if user else None,
+        user_phone=getattr(user, "phone", None),
+        user_nickname=getattr(user, "nickname", None),
+        report_type=report_type,
+        abnormal_count=abnormal_count,
+        summary=summary,
+        status=status,
+        provider_name=provider,
+        original_image_url=image_url,
+        ocr_raw_text=ocr_text,
+        ai_structured_result=ai_result,
+        abnormal_indicators=abnormal_indicators,
+        ocr_call_record_id=record.id,
+    )
+    db.add(detail)
+    await db.flush()
+
+
+async def _write_drug_detail(db, user, provider, record, ocr_text, ai_result, image_url):
+    from app.models.models import DrugIdentifyDetail
+
+    drug_name = None
+    drug_category = None
+    dosage = None
+    precautions = None
+
+    if isinstance(ai_result, dict):
+        drug_name = ai_result.get("drug_name") or ai_result.get("drugName") or ai_result.get("药品名称")
+        drug_category = ai_result.get("drug_category") or ai_result.get("drugCategory") or ai_result.get("药品分类")
+        dosage = ai_result.get("dosage") or ai_result.get("用法用量")
+        precautions = ai_result.get("precautions") or ai_result.get("注意事项") or ai_result.get("禁忌")
+
+    detail = DrugIdentifyDetail(
+        user_id=user.id if user else None,
+        user_phone=getattr(user, "phone", None),
+        user_nickname=getattr(user, "nickname", None),
+        drug_name=drug_name,
+        drug_category=drug_category,
+        dosage=dosage,
+        precautions=precautions,
+        provider_name=provider,
+        original_image_url=image_url,
+        ocr_raw_text=ocr_text,
+        ai_structured_result=ai_result,
+        ocr_call_record_id=record.id,
+    )
+    db.add(detail)
+    await db.flush()

@@ -45,6 +45,7 @@ async def init_default_data():
             await _init_ai_center_configs(db)
             await _init_ocr_config(db)
             await _init_ocr_provider_configs(db)
+            await _init_ocr_prompt_configs(db)
             await _clean_chat_history_once(db)
             await db.commit()
             logger.info("Default data initialization completed")
@@ -660,6 +661,40 @@ async def _init_ocr_provider_configs(db: AsyncSession):
         db.add(OcrUploadConfig(max_batch_count=5, max_file_size_mb=5))
         await db.flush()
         logger.info("Created default OCR upload config")
+
+
+async def _init_ocr_prompt_configs(db: AsyncSession):
+    """Ensure OCR prompt configs exist (may be added after initial seeding)."""
+    ocr_prompts = [
+        {
+            "chat_type": "ocr_checkup_report",
+            "display_name": "体检报告识别",
+            "system_prompt": (
+                "你是一位专业的体检报告解读助手。请根据以下OCR识别的体检报告文字内容进行结构化分析，"
+                "返回JSON格式，包含以下字段：report_type（报告类型如血常规、肝功能等）、"
+                "summary（解读摘要）、abnormal_indicators（异常指标列表，每项包含name/实际值value/"
+                "参考范围reference_range/异常说明description）、normal_indicators（正常指标列表）。"
+            ),
+        },
+        {
+            "chat_type": "ocr_drug_identify",
+            "display_name": "拍照识药",
+            "system_prompt": (
+                "你是一位专业的药品识别助手。请根据以下OCR识别的药品说明书文字内容进行结构化分析，"
+                "返回JSON格式，包含以下字段：drug_name（药品名称）、drug_category（药品分类：处方药/"
+                "非处方药/中成药）、dosage（用法用量）、precautions（注意事项/禁忌）、indications"
+                "（适应症）、ingredients（主要成分）。"
+            ),
+        },
+    ]
+    for p in ocr_prompts:
+        result = await db.execute(
+            select(AiPromptConfig).where(AiPromptConfig.chat_type == p["chat_type"])
+        )
+        if not result.scalar_one_or_none():
+            db.add(AiPromptConfig(**p))
+    await db.flush()
+    logger.info("Ensured OCR prompt configs exist")
 
 
 async def _clean_chat_history_once(db: AsyncSession):

@@ -1337,3 +1337,42 @@ class OcrUploadConfig(Base):
     max_batch_count = mapped_column(Integer, default=5)
     max_file_size_mb = mapped_column(Integer, default=5)
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class CheckupReportDetail(Base):
+    __tablename__ = "checkup_report_details"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
+    user_phone = mapped_column(String(20), nullable=True)
+    user_nickname = mapped_column(String(100), nullable=True)
+    report_type = mapped_column(String(50), nullable=True)
+    abnormal_count = mapped_column(Integer, default=0)
+    summary = mapped_column(Text, nullable=True)
+    status = mapped_column(String(20), default="normal")
+    provider_name = mapped_column(String(50), nullable=False)
+    original_image_url = mapped_column(String(1000), nullable=True)
+    ocr_raw_text = mapped_column(Text, nullable=True)
+    ai_structured_result = mapped_column(JSON, nullable=True)
+    abnormal_indicators = mapped_column(JSON, nullable=True)
+    ocr_call_record_id = mapped_column(Integer, ForeignKey("ocr_call_records.id"), nullable=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class DrugIdentifyDetail(Base):
+    __tablename__ = "drug_identify_details"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
+    user_phone = mapped_column(String(20), nullable=True)
+    user_nickname = mapped_column(String(100), nullable=True)
+    drug_name = mapped_column(String(200), nullable=True)
+    drug_category = mapped_column(String(50), nullable=True)
+    dosage = mapped_column(Text, nullable=True)
+    precautions = mapped_column(Text, nullable=True)
+    provider_name = mapped_column(String(50), nullable=False)
+    original_image_url = mapped_column(String(1000), nullable=True)
+    ocr_raw_text = mapped_column(Text, nullable=True)
+    ai_structured_result = mapped_column(JSON, nullable=True)
+    ocr_call_record_id = mapped_column(Integer, ForeignKey("ocr_call_records.id"), nullable=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)

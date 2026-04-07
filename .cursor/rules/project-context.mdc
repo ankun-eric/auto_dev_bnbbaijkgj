@@ -743,6 +743,50 @@ All 9 admin API endpoints return HTTP 200 with correct data structure. Admin fro
 ### User Documentation
 - Created `user_docs/OCR多厂商配置与智能识别系统.md`
 
+## Latest Feature: OCR识别明细拆分与提示词统一管理
+
+### Backend
+
+- Added 2 new models in `backend/app/models/models.py`: `CheckupReportDetail` (checkup_report_details table), `DrugIdentifyDetail` (drug_identify_details table).
+- Created `backend/app/schemas/ocr_details.py` — Pydantic schemas for checkup report and drug identification details (list, statistics, detail responses).
+- Created `backend/app/api/ocr_details.py` — 6 admin-only API endpoints:
+  - `GET /api/admin/checkup-details/statistics` — total, today, abnormal, month counts
+  - `GET /api/admin/checkup-details` — paginated list with filters (date, keyword, report_type, status), phone masked
+  - `GET /api/admin/checkup-details/{id}` — single detail with full phone
+  - `GET /api/admin/drug-details/statistics` — total, today, drug types, month counts
+  - `GET /api/admin/drug-details` — paginated list with filters (date, keyword, drug_name, drug_category), phone masked
+  - `GET /api/admin/drug-details/{id}` — single detail with full phone
+- Updated `backend/app/api/ocr.py`:
+  - `_call_ai_with_scene` now reads prompt from `AiPromptConfig` (via chat_type mapping) instead of `OcrSceneTemplate.prompt_content`
+  - `recognize` and `batch_recognize` dual-write to `checkup_report_details` or `drug_identify_details` table after OCR+AI
+  - `create_scene` auto-creates `AiPromptConfig` entry with `chat_type=ocr_custom_{id}`
+- Updated `backend/app/schemas/ocr.py` — removed `prompt_content` from `OcrSceneTemplateCreate`, `OcrSceneTemplateUpdate`, `OcrSceneTemplateResponse`
+- Updated `backend/app/init_data.py` — added `_init_ocr_prompt_configs()` to seed `ocr_checkup_report` and `ocr_drug_identify` prompt configs
+- Updated `backend/app/main.py` — registered `ocr_details.router`
+
+### Admin Web
+
+- Updated `admin-web/src/app/(admin)/layout.tsx` — added "体检报告解读明细" and "拍照识药记录明细" menu items under AI管理
+- Created `admin-web/src/app/(admin)/checkup-details/page.tsx` — checkup report detail management page with stats cards, filters, table, detail drawer
+- Created `admin-web/src/app/(admin)/drug-details/page.tsx` — drug identification detail management page with stats cards, filters, table, detail drawer
+- Updated `admin-web/src/app/(admin)/ai-center/prompts/page.tsx` — added `ocr_checkup_report` and `ocr_drug_identify` tabs
+- Updated `admin-web/src/app/(admin)/ocr-config/page.tsx` — removed recognition records tab, removed prompt_content from scene template form, added auto-linkage notification on scene creation
+
+### Testing
+
+- Added `backend/tests/test_ocr_details.py` — 19 local pytest tests covering checkup/drug statistics, list with filters, detail, 404, auth, prompt config CRUD
+- 31/31 server API tests passed (admin login, health, checkup stats/list/detail/filters/404, drug stats/list/detail/filters/404, prompt OCR types, scene template no prompt_content, auth checks, admin page)
+
+### Deployment (2026-04-07)
+
+- Rebuilt backend and admin-web containers
+- All 4 containers healthy (db, backend, admin-web, h5-web)
+- No mobile/client-side code changes (Flutter, miniprogram, H5 unaffected)
+
+### User Documentation
+
+- Created `user_docs/OCR识别明细拆分与提示词统一管理.md`
+
 ## Notes For Next Iteration
 
 - Merchant identities are granted by admin only; new self-registered accounts still default to normal users.
@@ -754,3 +798,5 @@ All 9 admin API endpoints return HTTP 200 with correct data structure. Admin fro
 - The old `POST /api/admin/settings/push` endpoint is deprecated (returns 410 Gone). Use the new independent module APIs instead.
 - OCR multi-provider: Configure via admin panel (AI管理 → OCR识别配置). Supports Baidu/Tencent/Aliyun with smart failover. At least 2 providers recommended for failover.
 - OCR AI post-processing: Scene templates drive AI structured output. Presets: 体检报告识别, 拍照识药. Custom scenes can be added.
+- OCR prompt management: Prompts are now managed via AI配置中心 → 提示词配置 (chat_type: ocr_checkup_report, ocr_drug_identify). Scene templates no longer contain prompt_content.
+- OCR detail tables: `checkup_report_details` and `drug_identify_details` store business-specific fields extracted from AI results. Admin pages: AI管理 → 体检报告解读明细 / 拍照识药记录明细.

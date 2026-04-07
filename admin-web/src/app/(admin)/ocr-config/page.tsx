@@ -3,22 +3,19 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   Card, Form, Input, InputNumber, Button, Space, message, Typography, Select,
-  Switch, Spin, Tabs, Table, Tag, Modal, Upload, DatePicker, Image, Radio,
+  Switch, Spin, Tabs, Table, Tag, Modal, Upload, Radio,
   Statistic, Row, Col, Tooltip, Popconfirm,
 } from 'antd';
 import {
-  SaveOutlined, CheckCircleOutlined, CloseCircleOutlined,
+  SaveOutlined,
   PlusOutlined, EditOutlined, DeleteOutlined, UploadOutlined,
-  ExperimentOutlined, SearchOutlined, ReloadOutlined, EyeOutlined,
+  ExperimentOutlined,
   StarOutlined, StopOutlined, CloudOutlined,
 } from '@ant-design/icons';
 import { get, put, post, del } from '@/lib/api';
 import api from '@/lib/api';
-import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
-const { RangePicker } = DatePicker;
-const { TextArea } = Input;
 
 // ────────────────────── Types ──────────────────────
 
@@ -71,25 +68,6 @@ interface AIModel {
 interface UploadLimits {
   max_batch_count: number;
   max_file_size_mb: number;
-}
-
-interface OcrRecord {
-  id: number;
-  created_at: string;
-  scene_name: string;
-  provider_name: string;
-  status: string;
-  original_image_url: string;
-  ocr_raw_text: string;
-  ai_structured_result: any;
-  error_message: string;
-}
-
-interface RecordsResponse {
-  items: OcrRecord[];
-  total: number;
-  page: number;
-  page_size: number;
 }
 
 // ────────────────────── Constants ──────────────────────
@@ -174,22 +152,6 @@ export default function OcrConfigPage() {
   const [testFullLoading, setTestFullLoading] = useState(false);
   const [testFullResult, setTestFullResult] = useState<any>(null);
 
-  // Records
-  const [records, setRecords] = useState<OcrRecord[]>([]);
-  const [recordsLoading, setRecordsLoading] = useState(false);
-  const [recordsPagination, setRecordsPagination] = useState({ current: 1, pageSize: 20, total: 0 });
-  const [recordFilters, setRecordFilters] = useState<{
-    dateRange: [dayjs.Dayjs | null, dayjs.Dayjs | null] | null;
-    provider: string | undefined;
-    status: string | undefined;
-    scene: string | undefined;
-    keyword: string;
-  }>({ dateRange: null, provider: undefined, status: undefined, scene: undefined, keyword: '' });
-  const [selectedRecordKeys, setSelectedRecordKeys] = useState<React.Key[]>([]);
-
-  // AI result detail modal
-  const [aiResultModalOpen, setAiResultModalOpen] = useState(false);
-  const [aiResultDetail, setAiResultDetail] = useState<any>(null);
 
   // ────────── Data Fetching ──────────
 
@@ -257,33 +219,12 @@ export default function OcrConfigPage() {
     }
   }, [limitsForm]);
 
-  const fetchRecords = useCallback(async (page = 1, pageSize = 20) => {
-    setRecordsLoading(true);
-    try {
-      const params: Record<string, any> = { page, page_size: pageSize };
-      if (recordFilters.dateRange?.[0]) params.start_date = recordFilters.dateRange[0].format('YYYY-MM-DD');
-      if (recordFilters.dateRange?.[1]) params.end_date = recordFilters.dateRange[1].format('YYYY-MM-DD');
-      if (recordFilters.provider) params.provider_name = recordFilters.provider;
-      if (recordFilters.status) params.status = recordFilters.status;
-      if (recordFilters.scene) params.scene_name = recordFilters.scene;
-      if (recordFilters.keyword) params.keyword = recordFilters.keyword;
-      const res = await get<RecordsResponse>('/api/admin/ocr/records', params);
-      setRecords(res.items || []);
-      setRecordsPagination({ current: res.page || page, pageSize: res.page_size || pageSize, total: res.total || 0 });
-    } catch {
-      setRecords([]);
-    } finally {
-      setRecordsLoading(false);
-    }
-  }, [recordFilters]);
-
   useEffect(() => {
     fetchProviders();
     fetchScenes();
     fetchAiModels();
     fetchUploadLimits();
-    fetchRecords();
-  }, [fetchProviders, fetchScenes, fetchAiModels, fetchUploadLimits, fetchRecords]);
+  }, [fetchProviders, fetchScenes, fetchAiModels, fetchUploadLimits]);
 
   useEffect(() => {
     fetchStatistics(statPeriod);
@@ -436,7 +377,7 @@ export default function OcrConfigPage() {
   const openCreateScene = () => {
     setEditingScene(null);
     sceneForm.resetFields();
-    sceneForm.setFieldsValue({ scene_name: '', prompt_content: '', ai_model_id: null, ocr_provider: 'auto' });
+    sceneForm.setFieldsValue({ scene_name: '', ai_model_id: null, ocr_provider: 'auto' });
     setSceneModalOpen(true);
   };
 
@@ -445,7 +386,6 @@ export default function OcrConfigPage() {
     sceneForm.resetFields();
     sceneForm.setFieldsValue({
       scene_name: record.scene_name,
-      prompt_content: record.prompt_content,
       ai_model_id: record.ai_model_id,
       ocr_provider: record.ocr_provider || 'auto',
     });
@@ -462,6 +402,7 @@ export default function OcrConfigPage() {
       } else {
         await post('/api/admin/ocr/scenes', values);
         message.success('场景创建成功');
+        message.info('已自动创建对应提示词配置，请前往【AI配置中心 → 提示词配置】完善内容');
       }
       setSceneModalOpen(false);
       fetchScenes();
@@ -497,33 +438,6 @@ export default function OcrConfigPage() {
       message.error(e?.response?.data?.detail || '保存失败');
     } finally {
       setLimitsSaving(false);
-    }
-  };
-
-  // ────────── Records ──────────
-
-  const handleSearchRecords = () => {
-    setSelectedRecordKeys([]);
-    fetchRecords(1, recordsPagination.pageSize);
-  };
-
-  const handleResetRecordFilters = () => {
-    setRecordFilters({ dateRange: null, provider: undefined, status: undefined, scene: undefined, keyword: '' });
-    setSelectedRecordKeys([]);
-  };
-
-  const handleBatchDelete = async () => {
-    if (selectedRecordKeys.length === 0) {
-      message.warning('请先选择要删除的记录');
-      return;
-    }
-    try {
-      await post('/api/admin/ocr/records/batch-delete', selectedRecordKeys);
-      message.success('批量删除成功');
-      setSelectedRecordKeys([]);
-      fetchRecords(recordsPagination.current, recordsPagination.pageSize);
-    } catch (e: any) {
-      message.error(e?.response?.data?.detail || '删除失败');
     }
   };
 
@@ -599,86 +513,6 @@ export default function OcrConfigPage() {
     },
   ];
 
-  // ────────── Record columns ──────────
-
-  const recordColumns = [
-    {
-      title: '调用时间',
-      dataIndex: 'created_at',
-      key: 'created_at',
-      width: 170,
-      render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm:ss') : '-',
-    },
-    { title: '业务场景', dataIndex: 'scene_name', key: 'scene_name', width: 120 },
-    {
-      title: '使用厂商',
-      dataIndex: 'provider_name',
-      key: 'provider_name',
-      width: 100,
-      render: (v: string) => PROVIDER_LABELS[v] || v || '-',
-    },
-    {
-      title: '识别状态',
-      dataIndex: 'status',
-      key: 'status',
-      width: 100,
-      render: (v: string) => {
-        if (v === 'success') return <Tag color="green">成功</Tag>;
-        if (v === 'failed') return <Tag color="red">失败</Tag>;
-        return <Tag>{v || '未知'}</Tag>;
-      },
-    },
-    {
-      title: '原始图片',
-      dataIndex: 'original_image_url',
-      key: 'original_image_url',
-      width: 100,
-      render: (v: string) =>
-        v ? (
-          <Image
-            src={v}
-            width={48}
-            height={48}
-            style={{ objectFit: 'cover', borderRadius: 4 }}
-            preview={{ mask: <EyeOutlined /> }}
-            fallback="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mN8/+F/PQAJpAN4kNMRdQAAAABJRU5ErkJggg=="
-          />
-        ) : '-',
-    },
-    {
-      title: 'OCR原始文字',
-      dataIndex: 'ocr_raw_text',
-      key: 'ocr_raw_text',
-      width: 180,
-      ellipsis: true,
-      render: (v: string) => (
-        <Tooltip title={v} placement="topLeft">
-          <span>{v && v.length > 30 ? v.slice(0, 30) + '...' : v || '-'}</span>
-        </Tooltip>
-      ),
-    },
-    {
-      title: 'AI结构化结果',
-      key: 'ai_structured_result',
-      width: 120,
-      render: (_: any, record: OcrRecord) =>
-        record.ai_structured_result ? (
-          <Button
-            type="link"
-            size="small"
-            icon={<EyeOutlined />}
-            onClick={() => {
-              setAiResultDetail(record.ai_structured_result);
-              setAiResultModalOpen(true);
-            }}
-          >
-            查看
-          </Button>
-        ) : (
-          <Text type="secondary">-</Text>
-        ),
-    },
-  ];
 
   // ────────── Render: Test Full result table ──────────
 
@@ -721,33 +555,6 @@ export default function OcrConfigPage() {
     return <pre style={{ whiteSpace: 'pre-wrap', background: '#f5f5f5', padding: 12, borderRadius: 6, marginTop: 16 }}>{String(testFullResult)}</pre>;
   };
 
-  // ────────── Render: AI result detail ──────────
-
-  const renderAiResultDetail = () => {
-    if (!aiResultDetail) return null;
-    if (typeof aiResultDetail === 'object') {
-      const entries = Array.isArray(aiResultDetail) ? aiResultDetail : Object.entries(aiResultDetail);
-      if (!Array.isArray(aiResultDetail)) {
-        return (
-          <Table
-            dataSource={Object.entries(aiResultDetail).map(([key, value], idx) => ({
-              key: idx,
-              field: key,
-              value: typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value ?? ''),
-            }))}
-            columns={[
-              { title: '字段', dataIndex: 'field', key: 'field', width: 200 },
-              { title: '值', dataIndex: 'value', key: 'value' },
-            ]}
-            pagination={false}
-            size="small"
-          />
-        );
-      }
-      return <pre style={{ whiteSpace: 'pre-wrap', background: '#f5f5f5', padding: 12, borderRadius: 6 }}>{JSON.stringify(entries, null, 2)}</pre>;
-    }
-    return <pre style={{ whiteSpace: 'pre-wrap', background: '#f5f5f5', padding: 12, borderRadius: 6 }}>{String(aiResultDetail)}</pre>;
-  };
 
   // ────────── Current statistics ──────────
 
@@ -947,83 +754,6 @@ export default function OcrConfigPage() {
         />
       </Spin>
 
-      {/* ── Records Section ── */}
-      <Card title="识别记录管理" style={{ borderRadius: 12, marginTop: 24 }}>
-        <Space style={{ marginBottom: 16 }} wrap>
-          <RangePicker
-            value={recordFilters.dateRange as any}
-            onChange={(dates) => setRecordFilters((prev) => ({ ...prev, dateRange: dates as [dayjs.Dayjs | null, dayjs.Dayjs | null] | null }))}
-          />
-          <Select
-            placeholder="OCR厂商"
-            value={recordFilters.provider}
-            onChange={(v) => setRecordFilters((prev) => ({ ...prev, provider: v }))}
-            allowClear
-            style={{ width: 130 }}
-            options={PROVIDER_KEYS.map((k) => ({ label: PROVIDER_LABELS[k], value: k }))}
-          />
-          <Select
-            placeholder="识别状态"
-            value={recordFilters.status}
-            onChange={(v) => setRecordFilters((prev) => ({ ...prev, status: v }))}
-            allowClear
-            style={{ width: 120 }}
-            options={[
-              { label: '成功', value: 'success' },
-              { label: '失败', value: 'failed' },
-            ]}
-          />
-          <Select
-            placeholder="业务场景"
-            value={recordFilters.scene}
-            onChange={(v) => setRecordFilters((prev) => ({ ...prev, scene: v }))}
-            allowClear
-            style={{ width: 150 }}
-            options={scenes.map((s) => ({ label: s.scene_name, value: s.scene_name }))}
-          />
-          <Input.Search
-            placeholder="关键词搜索"
-            value={recordFilters.keyword}
-            onChange={(e) => setRecordFilters((prev) => ({ ...prev, keyword: e.target.value }))}
-            onSearch={handleSearchRecords}
-            style={{ width: 200 }}
-            allowClear
-          />
-          <Button type="primary" icon={<SearchOutlined />} onClick={handleSearchRecords}>搜索</Button>
-          <Button icon={<ReloadOutlined />} onClick={() => { handleResetRecordFilters(); setTimeout(() => fetchRecords(1, recordsPagination.pageSize), 0); }}>重置</Button>
-        </Space>
-        {selectedRecordKeys.length > 0 && (
-          <div style={{ marginBottom: 12 }}>
-            <Space>
-              <Text>已选择 {selectedRecordKeys.length} 条记录</Text>
-              <Popconfirm title={`确定删除选中的 ${selectedRecordKeys.length} 条记录？`} onConfirm={handleBatchDelete}>
-                <Button danger size="small" icon={<DeleteOutlined />}>批量删除</Button>
-              </Popconfirm>
-            </Space>
-          </div>
-        )}
-        <Table
-          dataSource={records}
-          columns={recordColumns}
-          rowKey="id"
-          loading={recordsLoading}
-          rowSelection={{
-            selectedRowKeys: selectedRecordKeys,
-            onChange: (keys) => setSelectedRecordKeys(keys),
-          }}
-          pagination={{
-            current: recordsPagination.current,
-            pageSize: recordsPagination.pageSize,
-            total: recordsPagination.total,
-            showSizeChanger: true,
-            showQuickJumper: true,
-            showTotal: (total) => `共 ${total} 条`,
-            onChange: (page, pageSize) => fetchRecords(page, pageSize),
-          }}
-          scroll={{ x: 1100 }}
-        />
-      </Card>
-
       {/* ── Test OCR Modal ── */}
       <Modal
         title={`测试OCR识别 - ${PROVIDER_LABELS[activeProvider]}`}
@@ -1125,9 +855,6 @@ export default function OcrConfigPage() {
           <Form.Item label="场景名称" name="scene_name" rules={[{ required: true, message: '请输入场景名称' }]}>
             <Input placeholder="请输入场景名称" />
           </Form.Item>
-          <Form.Item label="提示词" name="prompt_content" rules={[{ required: true, message: '请输入提示词' }]}>
-            <TextArea rows={4} placeholder="请输入AI处理提示词" />
-          </Form.Item>
           <Form.Item label="AI模型" name="ai_model_id">
             <Select
               placeholder="默认模型"
@@ -1149,16 +876,6 @@ export default function OcrConfigPage() {
         </Form>
       </Modal>
 
-      {/* ── AI Result Detail Modal ── */}
-      <Modal
-        title="AI 结构化结果详情"
-        open={aiResultModalOpen}
-        onCancel={() => setAiResultModalOpen(false)}
-        footer={<Button onClick={() => setAiResultModalOpen(false)}>关闭</Button>}
-        width={600}
-      >
-        {renderAiResultDetail()}
-      </Modal>
     </div>
   );
 }

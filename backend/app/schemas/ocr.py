@@ -64,14 +64,12 @@ class OcrProviderConfigUpdate(BaseModel):
 
 class OcrSceneTemplateCreate(BaseModel):
     scene_name: str
-    prompt_content: Optional[str] = None
     ai_model_id: Optional[int] = None
     ocr_provider: Optional[str] = None
 
 
 class OcrSceneTemplateUpdate(BaseModel):
     scene_name: Optional[str] = None
-    prompt_content: Optional[str] = None
     ai_model_id: Optional[int] = None
     ocr_provider: Optional[str] = None
 
@@ -79,7 +77,6 @@ class OcrSceneTemplateUpdate(BaseModel):
 class OcrSceneTemplateResponse(BaseModel):
     id: int
     scene_name: str
-    prompt_content: Optional[str] = None
     ai_model_id: Optional[int] = None
     ocr_provider: Optional[str] = None
     is_preset: bool
