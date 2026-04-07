@@ -10,7 +10,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.security import get_current_user, require_role
 from app.models.models import (
-    AIModelConfig,
     OcrCallRecord,
     OcrCallStatistics,
     OcrProviderConfig,
@@ -226,26 +225,12 @@ async def create_scene(
 
     scene = OcrSceneTemplate(
         scene_name=body.scene_name,
-        ai_model_id=body.ai_model_id,
-        ocr_provider=body.ocr_provider,
+        prompt_content=body.prompt_content,
         is_preset=False,
     )
     db.add(scene)
     await db.flush()
     await db.refresh(scene)
-
-    from app.models.models import AiPromptConfig
-    chat_type = f"ocr_custom_{scene.id}"
-    existing_prompt = await db.execute(
-        select(AiPromptConfig).where(AiPromptConfig.chat_type == chat_type)
-    )
-    if not existing_prompt.scalar_one_or_none():
-        db.add(AiPromptConfig(
-            chat_type=chat_type,
-            display_name=scene.scene_name,
-            system_prompt="",
-        ))
-        await db.flush()
 
     return OcrSceneTemplateResponse.model_validate(scene)
 
@@ -274,10 +259,8 @@ async def update_scene(
         if dup.scalar_one_or_none():
             raise HTTPException(status_code=400, detail="场景名称已存在")
         scene.scene_name = body.scene_name
-    if body.ai_model_id is not None:
-        scene.ai_model_id = body.ai_model_id
-    if body.ocr_provider is not None:
-        scene.ocr_provider = body.ocr_provider
+    if body.prompt_content is not None:
+        scene.prompt_content = body.prompt_content
 
     await db.flush()
     await db.refresh(scene)
@@ -487,17 +470,14 @@ async def recognize(
         return OcrRecognizeResponse(success=False, error=quality["message"])
 
     scene = None
-    preferred_provider = None
     if scene_name:
         result = await db.execute(
             select(OcrSceneTemplate).where(OcrSceneTemplate.scene_name == scene_name)
         )
         scene = result.scalar_one_or_none()
-        if scene and scene.ocr_provider:
-            preferred_provider = scene.ocr_provider
 
     try:
-        ocr_text, provider_used = await smart_ocr_recognize(image_data, db, preferred_provider)
+        ocr_text, provider_used = await smart_ocr_recognize(image_data, db, None)
     except Exception as e:
         record = OcrCallRecord(
             scene_name=scene_name,
@@ -591,14 +571,11 @@ async def batch_recognize(
     fail_count = 0
 
     scene = None
-    preferred_provider = None
     if scene_name:
         result = await db.execute(
             select(OcrSceneTemplate).where(OcrSceneTemplate.scene_name == scene_name)
         )
         scene = result.scalar_one_or_none()
-        if scene and scene.ocr_provider:
-            preferred_provider = scene.ocr_provider
 
     for f in files:
         image_data = await f.read()
@@ -616,7 +593,7 @@ async def batch_recognize(
             continue
 
         try:
-            ocr_text, provider_used = await smart_ocr_recognize(image_data, db, preferred_provider)
+            ocr_text, provider_used = await smart_ocr_recognize(image_data, db, None)
         except Exception as e:
             record = OcrCallRecord(
                 scene_name=scene_name, provider_name="unknown",
@@ -679,26 +656,7 @@ async def _call_ai_with_scene(
     scene: OcrSceneTemplate,
     db: AsyncSession,
 ) -> dict:
-    SCENE_TO_CHAT_TYPE = {
-        "体检报告识别": "ocr_checkup_report",
-        "拍照识药": "ocr_drug_identify",
-    }
-
-    system_prompt = None
-    chat_type = SCENE_TO_CHAT_TYPE.get(scene.scene_name)
-    if not chat_type:
-        chat_type = f"ocr_custom_{scene.id}"
-
-    from app.models.models import AiPromptConfig
-    prompt_result = await db.execute(
-        select(AiPromptConfig).where(AiPromptConfig.chat_type == chat_type)
-    )
-    prompt_config = prompt_result.scalar_one_or_none()
-    if prompt_config and prompt_config.system_prompt:
-        system_prompt = prompt_config.system_prompt
-
-    if not system_prompt:
-        system_prompt = scene.prompt_content or "请根据以下OCR文字内容进行结构化整理，返回JSON格式。"
+    system_prompt = scene.prompt_content or "请根据以下OCR文字内容进行结构化整理，返回JSON格式。"
 
     messages = [{"role": "user", "content": f"以下是OCR识别的文字内容:\n\n{ocr_text}"}]
 

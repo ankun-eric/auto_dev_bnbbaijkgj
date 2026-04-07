@@ -282,6 +282,40 @@ async def _sync_ocr_detail_tables(conn: AsyncConnection) -> None:
             await conn.execute(text("ALTER TABLE drug_identify_details ADD COLUMN status VARCHAR(20) DEFAULT 'success'"))
 
 
+async def _sync_ocr_scene_templates(conn: AsyncConnection) -> None:
+    def _load(sync_conn):
+        inspector = inspect(sync_conn)
+        tables = set(inspector.get_table_names())
+        if "ocr_scene_templates" not in tables:
+            return None, []
+        cols = {col["name"] for col in inspector.get_columns("ocr_scene_templates")}
+        fks = inspector.get_foreign_keys("ocr_scene_templates")
+        return cols, fks
+
+    columns, fks = await conn.run_sync(_load)
+    if columns is None:
+        return
+
+    if "ai_model_id" in columns or "ocr_provider" in columns:
+        for fk in fks:
+            if "ai_model_id" in fk.get("constrained_columns", []):
+                fk_name = fk.get("name")
+                if fk_name:
+                    await conn.execute(text(
+                        f"ALTER TABLE ocr_scene_templates DROP FOREIGN KEY {fk_name}"
+                    ))
+
+        drop_parts = []
+        if "ai_model_id" in columns:
+            drop_parts.append("DROP COLUMN ai_model_id")
+        if "ocr_provider" in columns:
+            drop_parts.append("DROP COLUMN ocr_provider")
+        if drop_parts:
+            await conn.execute(text(
+                f"ALTER TABLE ocr_scene_templates {', '.join(drop_parts)}"
+            ))
+
+
 async def sync_register_schema(conn: AsyncConnection) -> None:
     def load_user_schema(sync_conn):
         inspector = inspect(sync_conn)
@@ -305,6 +339,7 @@ async def sync_register_schema(conn: AsyncConnection) -> None:
     await _sync_ai_center_tables(conn)
     await _sync_report_tables(conn)
     await _sync_ocr_detail_tables(conn)
+    await _sync_ocr_scene_templates(conn)
 
     columns, indexes, unique_constraints = await conn.run_sync(load_user_schema)
 

@@ -1293,13 +1293,9 @@ class OcrSceneTemplate(Base):
     id = mapped_column(Integer, primary_key=True, autoincrement=True)
     scene_name = mapped_column(String(100), unique=True, nullable=False)
     prompt_content = mapped_column(Text, nullable=True)
-    ai_model_id = mapped_column(Integer, ForeignKey("ai_model_configs.id"), nullable=True)
-    ocr_provider = mapped_column(String(50), nullable=True)
     is_preset = mapped_column(Boolean, default=False)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    ai_model = relationship("AIModelConfig")
 
 
 class OcrCallRecord(Base):

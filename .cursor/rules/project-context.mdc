@@ -853,6 +853,43 @@ All 9 admin API endpoints return HTTP 200 with correct data structure. Admin fro
 
 - Created `user_docs/拍照识药改版.md` — user manual for photo drug identification feature
 
+## Latest Feature: OCR全局设置拆分 (2026-04-07)
+
+### Backend
+
+- Modified `OcrSceneTemplate` model (`backend/app/models/models.py`) — removed `ai_model_id`, `ocr_provider` fields and `ai_model` relationship. Scene templates now only contain: `id`, `scene_name`, `prompt_content`, `is_preset`, `created_at`, `updated_at`.
+- Updated `backend/app/schemas/ocr.py` — `OcrSceneTemplateCreate/Update/Response` schemas: removed `ai_model_id`/`ocr_provider`, added `prompt_content` field.
+- Updated `backend/app/api/ocr.py`:
+  - Scene CRUD: `create_scene` no longer creates `AiPromptConfig` entries; stores `prompt_content` directly in scene template. `update_scene` handles `prompt_content` update.
+  - `_call_ai_with_scene`: reads prompt directly from `scene.prompt_content` instead of querying `AiPromptConfig` table. Falls back to default prompt if empty.
+  - `recognize`/`batch_recognize`: removed `scene.ocr_provider` preference; all scenes use automatic provider selection.
+- Added `_sync_ocr_scene_templates` in `backend/app/services/schema_sync.py` — drops `ai_model_id`/`ocr_provider` columns from `ocr_scene_templates` table on startup.
+- Added `_migrate_ocr_prompts_to_templates` in `backend/app/init_data.py` — idempotent migration: copies prompts from `AiPromptConfig` (ocr_checkup_report, ocr_drug_identify, ocr_custom_*) to `OcrSceneTemplate.prompt_content`, then deletes OCR-related `AiPromptConfig` entries. Removed `_init_ocr_prompt_configs` call from init sequence.
+
+### Admin Web
+
+- Updated `admin-web/src/app/(admin)/layout.tsx` — added "OCR全局设置" menu item under AI管理, after "OCR识别配置".
+- Created `admin-web/src/app/(admin)/ocr-global-config/page.tsx` — new page with 2 tabs:
+  - **场景模板管理**: card grid layout showing all scene templates (name, prompt excerpt with tooltip, edit/delete actions, preset tag). Create/edit modal with scene_name + prompt_content (TextArea).
+  - **上传限制**: form with max_batch_count and max_file_size_mb inputs, save button.
+- Updated `admin-web/src/app/(admin)/ocr-config/page.tsx` — removed "AI处理配置" card (scene table + CRUD), "上传限制配置" card, and scene edit modal. Retained: provider config, statistics, test OCR, test full flow (with scene dropdown for testing).
+- Updated `admin-web/src/app/(admin)/ai-center/prompts/page.tsx` — removed `ocr_checkup_report` and `ocr_drug_identify` tabs from CHAT_TYPES.
+
+### Testing
+
+- Created `backend/tests/test_ocr_global_config.py` — 17 test cases covering scene CRUD with prompt_content, legacy field absence verification, upload limits, preset protection, auth checks.
+- 15/15 server API tests passed (health, login, scene list no legacy fields, create/update/delete scenes, preset protection, upload limits CRUD, auth checks, admin page accessibility).
+
+### Deployment (2026-04-07)
+
+- Rebuilt backend and admin-web containers
+- All 4 containers healthy (db, backend, admin-web, h5-web)
+- No mobile/client-side code changes (Flutter, miniprogram, H5 unaffected)
+
+### User Documentation
+
+- Created `user_docs/OCR全局设置拆分.md` — user manual for OCR global settings split feature
+
 ## Notes For Next Iteration
 
 - Merchant identities are granted by admin only; new self-registered accounts still default to normal users.
@@ -863,6 +900,7 @@ All 9 admin API endpoints return HTTP 200 with correct data structure. Admin fro
 - WeChat push config: 系统管理 → 微信推送管理. Email notify config: 系统管理 → 邮件通知管理 (with logs and test send).
 - The old `POST /api/admin/settings/push` endpoint is deprecated (returns 410 Gone). Use the new independent module APIs instead.
 - OCR multi-provider: Configure via admin panel (AI管理 → OCR识别配置). Supports Baidu/Tencent/Aliyun with smart failover. At least 2 providers recommended for failover.
-- OCR AI post-processing: Scene templates drive AI structured output. Presets: 体检报告识别, 拍照识药. Custom scenes can be added.
-- OCR prompt management: Prompts are now managed via AI配置中心 → 提示词配置 (chat_type: ocr_checkup_report, ocr_drug_identify). Scene templates no longer contain prompt_content.
+- OCR AI post-processing: Scene templates drive AI structured output with embedded prompt_content. Presets: 体检报告识别, 拍照识药. Custom scenes can be added.
+- OCR global settings: Configure via admin panel (AI管理 → OCR全局设置). Scene templates and upload limits are managed here. Scene templates contain scene_name + prompt_content only (no ocr_provider/ai_model_id).
+- OCR prompt management: Prompts are now embedded directly in scene templates (OcrSceneTemplate.prompt_content), no longer stored in AiPromptConfig table.
 - OCR detail tables: `checkup_report_details` and `drug_identify_details` store business-specific fields extracted from AI results. Admin pages: AI管理 → 体检报告解读明细 / 拍照识药记录明细.

@@ -4,15 +4,15 @@ import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   Card, Form, Input, InputNumber, Button, Space, message, Typography, Select,
   Switch, Spin, Tabs, Table, Tag, Modal, Upload, Radio,
-  Statistic, Row, Col, Tooltip, Popconfirm,
+  Statistic, Row, Col, Tooltip,
 } from 'antd';
 import {
   SaveOutlined,
-  PlusOutlined, EditOutlined, DeleteOutlined, UploadOutlined,
+  UploadOutlined,
   ExperimentOutlined,
   StarOutlined, StopOutlined, CloudOutlined,
 } from '@ant-design/icons';
-import { get, put, post, del } from '@/lib/api';
+import { get, put, post } from '@/lib/api';
 import api from '@/lib/api';
 
 const { Title, Text } = Typography;
@@ -54,20 +54,7 @@ interface Scene {
   id: number;
   scene_name: string;
   prompt_content: string;
-  ai_model_id: number | null;
-  ocr_provider: string;
   is_preset: boolean;
-}
-
-interface AIModel {
-  id: number;
-  provider_name: string;
-  model_name: string;
-}
-
-interface UploadLimits {
-  max_batch_count: number;
-  max_file_size_mb: number;
 }
 
 // ────────────────────── Constants ──────────────────────
@@ -123,21 +110,8 @@ export default function OcrConfigPage() {
   const [statistics, setStatistics] = useState<Record<string, StatisticsData>>({});
   const [statsLoading, setStatsLoading] = useState(false);
 
-  // Scenes
+  // Scenes (only for test-full dropdown)
   const [scenes, setScenes] = useState<Scene[]>([]);
-  const [scenesLoading, setScenesLoading] = useState(false);
-  const [sceneModalOpen, setSceneModalOpen] = useState(false);
-  const [editingScene, setEditingScene] = useState<Scene | null>(null);
-  const [sceneForm] = Form.useForm();
-  const [sceneSaving, setSceneSaving] = useState(false);
-
-  // AI models
-  const [aiModels, setAiModels] = useState<AIModel[]>([]);
-
-  // Upload limits
-  const [limitsForm] = Form.useForm();
-  const [limitsLoading, setLimitsLoading] = useState(false);
-  const [limitsSaving, setLimitsSaving] = useState(false);
 
   // Test OCR modal
   const [testOcrOpen, setTestOcrOpen] = useState(false);
@@ -184,47 +158,18 @@ export default function OcrConfigPage() {
   }, []);
 
   const fetchScenes = useCallback(async () => {
-    setScenesLoading(true);
     try {
       const res = await get<Scene[]>('/api/admin/ocr/scenes');
       setScenes(Array.isArray(res) ? res : []);
     } catch {
       setScenes([]);
-    } finally {
-      setScenesLoading(false);
     }
   }, []);
-
-  const fetchAiModels = useCallback(async () => {
-    try {
-      const res = await get<{ items: AIModel[] }>('/api/admin/ai-config/models');
-      setAiModels(res.items || res as any || []);
-    } catch {
-      setAiModels([]);
-    }
-  }, []);
-
-  const fetchUploadLimits = useCallback(async () => {
-    setLimitsLoading(true);
-    try {
-      const res = await get<UploadLimits>('/api/admin/ocr/upload-limits');
-      limitsForm.setFieldsValue({
-        max_batch_count: res.max_batch_count ?? 10,
-        max_file_size_mb: res.max_file_size_mb ?? 5,
-      });
-    } catch {
-      limitsForm.setFieldsValue({ max_batch_count: 10, max_file_size_mb: 5 });
-    } finally {
-      setLimitsLoading(false);
-    }
-  }, [limitsForm]);
 
   useEffect(() => {
     fetchProviders();
     fetchScenes();
-    fetchAiModels();
-    fetchUploadLimits();
-  }, [fetchProviders, fetchScenes, fetchAiModels, fetchUploadLimits]);
+  }, [fetchProviders, fetchScenes]);
 
   useEffect(() => {
     fetchStatistics(statPeriod);
@@ -371,148 +316,6 @@ export default function OcrConfigPage() {
       setTestFullLoading(false);
     }
   };
-
-  // ────────── Scenes CRUD ──────────
-
-  const openCreateScene = () => {
-    setEditingScene(null);
-    sceneForm.resetFields();
-    sceneForm.setFieldsValue({ scene_name: '', ai_model_id: null, ocr_provider: 'auto' });
-    setSceneModalOpen(true);
-  };
-
-  const openEditScene = (record: Scene) => {
-    setEditingScene(record);
-    sceneForm.resetFields();
-    sceneForm.setFieldsValue({
-      scene_name: record.scene_name,
-      ai_model_id: record.ai_model_id,
-      ocr_provider: record.ocr_provider || 'auto',
-    });
-    setSceneModalOpen(true);
-  };
-
-  const handleSaveScene = async () => {
-    try {
-      const values = await sceneForm.validateFields();
-      setSceneSaving(true);
-      if (editingScene) {
-        await put(`/api/admin/ocr/scenes/${editingScene.id}`, values);
-        message.success('场景更新成功');
-      } else {
-        await post('/api/admin/ocr/scenes', values);
-        message.success('场景创建成功');
-        message.info('已自动创建对应提示词配置，请前往【AI配置中心 → 提示词配置】完善内容');
-      }
-      setSceneModalOpen(false);
-      fetchScenes();
-    } catch (e: any) {
-      if (e?.errorFields) return;
-      message.error(e?.response?.data?.detail || '保存失败');
-    } finally {
-      setSceneSaving(false);
-    }
-  };
-
-  const handleDeleteScene = async (id: number) => {
-    try {
-      await del(`/api/admin/ocr/scenes/${id}`);
-      message.success('场景删除成功');
-      fetchScenes();
-    } catch (e: any) {
-      message.error(e?.response?.data?.detail || '删除失败');
-    }
-  };
-
-  // ────────── Upload Limits ──────────
-
-  const handleSaveLimits = async () => {
-    try {
-      const values = await limitsForm.validateFields();
-      setLimitsSaving(true);
-      await put('/api/admin/ocr/upload-limits', values);
-      message.success('上传限制配置保存成功');
-      fetchUploadLimits();
-    } catch (e: any) {
-      if (e?.errorFields) return;
-      message.error(e?.response?.data?.detail || '保存失败');
-    } finally {
-      setLimitsSaving(false);
-    }
-  };
-
-  // ────────── AI model options ──────────
-
-  const aiModelOptions = useMemo(
-    () => aiModels.map((m) => ({
-      label: `${m.provider_name} - ${m.model_name}`,
-      value: m.id,
-    })),
-    [aiModels],
-  );
-
-  const ocrProviderOptions = useMemo(
-    () => [
-      { label: '自动', value: 'auto' },
-      ...PROVIDER_KEYS.map((k) => ({ label: PROVIDER_LABELS[k], value: k })),
-    ],
-    [],
-  );
-
-  // ────────── Scene columns ──────────
-
-  const sceneColumns = [
-    { title: '场景名称', dataIndex: 'scene_name', key: 'scene_name', width: 160 },
-    {
-      title: '提示词摘要',
-      dataIndex: 'prompt_content',
-      key: 'prompt_content',
-      ellipsis: true,
-      render: (v: string) => (
-        <Tooltip title={v}>
-          <span>{v && v.length > 40 ? v.slice(0, 40) + '...' : v || '-'}</span>
-        </Tooltip>
-      ),
-    },
-    {
-      title: 'AI模型',
-      dataIndex: 'ai_model_id',
-      key: 'ai_model_id',
-      width: 200,
-      render: (v: number | null) => {
-        if (!v) return <Text type="secondary">默认</Text>;
-        const m = aiModels.find((item) => item.id === v);
-        return m ? `${m.provider_name} - ${m.model_name}` : `模型#${v}`;
-      },
-    },
-    {
-      title: 'OCR厂商',
-      dataIndex: 'ocr_provider',
-      key: 'ocr_provider',
-      width: 120,
-      render: (v: string) => (v === 'auto' || !v) ? '自动' : (PROVIDER_LABELS[v] || v),
-    },
-    {
-      title: '操作',
-      key: 'action',
-      width: 160,
-      render: (_: any, record: Scene) => (
-        <Space size="small">
-          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEditScene(record)}>
-            编辑
-          </Button>
-          {!record.is_preset ? (
-            <Popconfirm title="确定删除此场景？" onConfirm={() => handleDeleteScene(record.id)}>
-              <Button type="link" size="small" danger icon={<DeleteOutlined />}>删除</Button>
-            </Popconfirm>
-          ) : (
-            <Tag color="blue">预设</Tag>
-          )}
-        </Space>
-      ),
-    },
-  ];
-
 
   // ────────── Render: Test Full result table ──────────
 
@@ -695,59 +498,6 @@ export default function OcrConfigPage() {
                     </Space>
                   </Spin>
                 </Card>
-
-                {/* ── AI Scene Config ── */}
-                <Card
-                  title="AI 处理配置"
-                  style={{ borderRadius: 12 }}
-                  extra={
-                    <Button type="primary" icon={<PlusOutlined />} onClick={openCreateScene}>
-                      新增场景
-                    </Button>
-                  }
-                >
-                  <Spin spinning={scenesLoading}>
-                    <Table
-                      dataSource={scenes}
-                      columns={sceneColumns}
-                      rowKey="id"
-                      pagination={false}
-                      locale={{ emptyText: '暂无场景配置' }}
-                    />
-                  </Spin>
-                </Card>
-
-                {/* ── Upload Limits ── */}
-                <Card title="上传限制配置" style={{ borderRadius: 12 }}>
-                  <Spin spinning={limitsLoading}>
-                    <Form
-                      form={limitsForm}
-                      labelCol={{ span: 7 }}
-                      wrapperCol={{ span: 10 }}
-                      initialValues={{ max_batch_count: 10, max_file_size_mb: 5 }}
-                    >
-                      <Form.Item
-                        label="单次最多上传张数"
-                        name="max_batch_count"
-                        rules={[{ required: true, message: '请输入最大张数' }]}
-                      >
-                        <InputNumber min={1} max={100} style={{ width: '100%' }} addonAfter="张" />
-                      </Form.Item>
-                      <Form.Item
-                        label="单张图片大小上限"
-                        name="max_file_size_mb"
-                        rules={[{ required: true, message: '请输入大小上限' }]}
-                      >
-                        <InputNumber min={0.1} max={50} step={0.5} style={{ width: '100%' }} addonAfter="MB" />
-                      </Form.Item>
-                      <Form.Item wrapperCol={{ offset: 7, span: 10 }}>
-                        <Button type="primary" icon={<SaveOutlined />} onClick={handleSaveLimits} loading={limitsSaving}>
-                          保存限制配置
-                        </Button>
-                      </Form.Item>
-                    </Form>
-                  </Spin>
-                </Card>
               </div>
             ),
           }))}
@@ -841,41 +591,6 @@ export default function OcrConfigPage() {
           </div>
         )}
       </Modal>
-
-      {/* ── Scene Edit Modal ── */}
-      <Modal
-        title={editingScene ? '编辑场景' : '新增场景'}
-        open={sceneModalOpen}
-        onCancel={() => setSceneModalOpen(false)}
-        footer={null}
-        width={560}
-        destroyOnClose
-      >
-        <Form form={sceneForm} layout="vertical" style={{ marginTop: 16 }}>
-          <Form.Item label="场景名称" name="scene_name" rules={[{ required: true, message: '请输入场景名称' }]}>
-            <Input placeholder="请输入场景名称" />
-          </Form.Item>
-          <Form.Item label="AI模型" name="ai_model_id">
-            <Select
-              placeholder="默认模型"
-              allowClear
-              options={aiModelOptions}
-            />
-          </Form.Item>
-          <Form.Item label="OCR厂商" name="ocr_provider">
-            <Select options={ocrProviderOptions} />
-          </Form.Item>
-          <Form.Item>
-            <Space>
-              <Button type="primary" icon={<SaveOutlined />} onClick={handleSaveScene} loading={sceneSaving}>
-                保存
-              </Button>
-              <Button onClick={() => setSceneModalOpen(false)}>取消</Button>
-            </Space>
-          </Form.Item>
-        </Form>
-      </Modal>
-
     </div>
   );
 }

@@ -45,7 +45,7 @@ async def init_default_data():
             await _init_ai_center_configs(db)
             await _init_ocr_config(db)
             await _init_ocr_provider_configs(db)
-            await _init_ocr_prompt_configs(db)
+            await _migrate_ocr_prompts_to_templates(db)
             await _clean_chat_history_once(db)
             await db.commit()
             logger.info("Default data initialization completed")
@@ -661,6 +661,65 @@ async def _init_ocr_provider_configs(db: AsyncSession):
         db.add(OcrUploadConfig(max_batch_count=5, max_file_size_mb=5))
         await db.flush()
         logger.info("Created default OCR upload config")
+
+
+async def _migrate_ocr_prompts_to_templates(db: AsyncSession):
+    """Migrate AiPromptConfig OCR prompts to OcrSceneTemplate.prompt_content (idempotent)."""
+    migration_flag = "ocr_prompt_migration_done"
+    flag_result = await db.execute(
+        select(SystemConfig).where(SystemConfig.config_key == migration_flag)
+    )
+    if flag_result.scalar_one_or_none():
+        return
+
+    SCENE_PROMPT_MAP = {
+        "ocr_checkup_report": "体检报告识别",
+        "ocr_drug_identify": "拍照识药",
+    }
+
+    for chat_type, scene_name in SCENE_PROMPT_MAP.items():
+        prompt_result = await db.execute(
+            select(AiPromptConfig).where(AiPromptConfig.chat_type == chat_type)
+        )
+        prompt = prompt_result.scalar_one_or_none()
+        if not prompt or not prompt.system_prompt:
+            continue
+
+        scene_result = await db.execute(
+            select(OcrSceneTemplate).where(OcrSceneTemplate.scene_name == scene_name)
+        )
+        scene = scene_result.scalar_one_or_none()
+        if scene and not scene.prompt_content:
+            scene.prompt_content = prompt.system_prompt
+
+    custom_prompts_result = await db.execute(
+        select(AiPromptConfig).where(AiPromptConfig.chat_type.like("ocr_custom_%"))
+    )
+    for prompt in custom_prompts_result.scalars().all():
+        try:
+            scene_id = int(prompt.chat_type.replace("ocr_custom_", ""))
+            scene_result = await db.execute(
+                select(OcrSceneTemplate).where(OcrSceneTemplate.id == scene_id)
+            )
+            scene = scene_result.scalar_one_or_none()
+            if scene and not scene.prompt_content and prompt.system_prompt:
+                scene.prompt_content = prompt.system_prompt
+        except (ValueError, TypeError):
+            continue
+
+    from sqlalchemy import delete as sql_delete
+    await db.execute(
+        sql_delete(AiPromptConfig).where(AiPromptConfig.chat_type.like("ocr_%"))
+    )
+
+    db.add(SystemConfig(
+        config_key=migration_flag,
+        config_value="true",
+        config_type="system",
+        description="OCR提示词迁移到场景模板标志",
+    ))
+    await db.flush()
+    logger.info("Migrated OCR prompts from AiPromptConfig to OcrSceneTemplate")
 
 
 async def _init_ocr_prompt_configs(db: AsyncSession):

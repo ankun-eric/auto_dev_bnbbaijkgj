@@ -15,8 +15,6 @@ const CHAT_TYPES = [
   { key: 'tcm', label: '中医养生' },
   { key: 'drug_query', label: '用药参考' },
   { key: 'customer_service', label: '在线客服' },
-  { key: 'ocr_checkup_report', label: '体检报告识别' },
-  { key: 'ocr_drug_identify', label: '拍照识药' },
 ];
 
 interface PromptConfig {
