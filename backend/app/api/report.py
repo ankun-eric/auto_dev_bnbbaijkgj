@@ -47,6 +47,7 @@ from app.services.ocr_service import (
     ocr_recognize,
 )
 from app.utils.cos_helper import try_cos_upload
+from app.utils.file_helper import read_file_content
 
 router = APIRouter(prefix="/api", tags=["体检报告"])
 
@@ -102,12 +103,33 @@ async def upload_report(
             f.write(content)
         file_url = f"/uploads/{filename}"
 
+    ocr_text = ""
+    ocr_result_dict = None
+    try:
+        if file_type == "pdf":
+            ocr_text = extract_pdf_text(content)
+        else:
+            if ocr_cfg.api_key and ocr_cfg.secret_key_encrypted:
+                token, expires_at = await ensure_access_token(
+                    ocr_cfg.api_key, ocr_cfg.secret_key_encrypted,
+                    ocr_cfg.access_token, ocr_cfg.token_expires_at,
+                )
+                ocr_cfg.access_token = token
+                ocr_cfg.token_expires_at = expires_at
+                await db.flush()
+                ocr_text = await ocr_recognize(content, ocr_cfg.ocr_type or "general_basic", token)
+        if ocr_text:
+            ocr_result_dict = {"text": ocr_text}
+    except Exception:
+        pass
+
     report = CheckupReport(
         user_id=current_user.id,
         file_url=file_url,
         thumbnail_url=file_url if file_type == "image" else None,
         file_type=file_type,
         status="pending",
+        ocr_result=ocr_result_dict,
     )
     db.add(report)
     await db.flush()
@@ -139,12 +161,9 @@ async def report_ocr(
     if not ocr_cfg or not ocr_cfg.enabled:
         raise HTTPException(status_code=503, detail="解读功能暂时维护中，请稍后再试")
 
-    file_path = os.path.join(settings.UPLOAD_DIR, os.path.basename(report.file_url or ""))
-    if not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="报告文件不存在")
-
-    with open(file_path, "rb") as f:
-        file_data = f.read()
+    file_data = await read_file_content(report.file_url or "")
+    if not file_data:
+        raise HTTPException(status_code=404, detail="报告文件不存在或已失效，请重新上传")
 
     if report.file_type == "pdf":
         ocr_text = extract_pdf_text(file_data)
@@ -162,7 +181,7 @@ async def report_ocr(
         ocr_cfg.token_expires_at = expires_at
         await db.flush()
 
-        ocr_text = await ocr_recognize(file_data, ocr_cfg.ocr_type, token)
+        ocr_text = await ocr_recognize(file_data, ocr_cfg.ocr_type or "general_basic", token)
 
     report.ocr_result = {"text": ocr_text}
     await db.flush()
@@ -197,25 +216,31 @@ async def analyze_report(
         ocr_text = report.ocr_result.get("text", "")
 
     if not ocr_text:
-        file_path = os.path.join(settings.UPLOAD_DIR, os.path.basename(report.file_url or ""))
-        if os.path.exists(file_path):
-            with open(file_path, "rb") as f:
-                file_data = f.read()
-            if report.file_type == "pdf":
-                ocr_text = extract_pdf_text(file_data)
-            else:
-                if ocr_cfg.api_key and ocr_cfg.secret_key_encrypted:
-                    token, expires_at = await ensure_access_token(
-                        ocr_cfg.api_key, ocr_cfg.secret_key_encrypted,
-                        ocr_cfg.access_token, ocr_cfg.token_expires_at,
-                    )
-                    ocr_cfg.access_token = token
-                    ocr_cfg.token_expires_at = expires_at
-                    ocr_text = await ocr_recognize(file_data, ocr_cfg.ocr_type, token)
+        file_data = await read_file_content(report.file_url or "")
+        if not file_data:
+            raise HTTPException(
+                status_code=400,
+                detail="报告文件不存在或已失效，请重新上传",
+            )
+        if report.file_type == "pdf":
+            ocr_text = extract_pdf_text(file_data)
+        else:
+            if ocr_cfg.api_key and ocr_cfg.secret_key_encrypted:
+                token, expires_at = await ensure_access_token(
+                    ocr_cfg.api_key, ocr_cfg.secret_key_encrypted,
+                    ocr_cfg.access_token, ocr_cfg.token_expires_at,
+                )
+                ocr_cfg.access_token = token
+                ocr_cfg.token_expires_at = expires_at
+                ocr_text = await ocr_recognize(file_data, ocr_cfg.ocr_type or "general_basic", token)
+        if ocr_text:
             report.ocr_result = {"text": ocr_text}
 
     if not ocr_text:
-        raise HTTPException(status_code=400, detail="未能提取报告文字，请确认文件有效")
+        raise HTTPException(
+            status_code=400,
+            detail="OCR未能识别到文字内容，请上传更清晰的体检报告图片",
+        )
 
     report.status = "analyzing"
     await db.flush()

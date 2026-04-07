@@ -890,6 +890,37 @@ All 9 admin API endpoints return HTTP 200 with correct data structure. Admin fro
 
 - Created `user_docs/OCR全局设置拆分.md` — user manual for OCR global settings split feature
 
+## Bug Fix: 体检报告上传后OCR识别失败 (2026-04-07)
+
+### Root Cause
+
+`/api/report/analyze` 和 `/api/report/ocr` 接口使用 `os.path.join(settings.UPLOAD_DIR, os.path.basename(report.file_url))` 在本地磁盘查找文件。当 COS 云存储启用时，`file_url` 为完整的 HTTPS URL（如 `https://xxx.cos.ap-guangzhou.myqcloud.com/reports/xxxx.jpg`），本地磁盘不存在该文件，导致 OCR 永远无法执行，`ocr_text` 为空，最终抛出"未能提取报告文字"错误。
+
+### Backend
+
+- Created `backend/app/utils/file_helper.py` — unified file reading helper that supports both local paths (`/uploads/xxx`) and remote COS URLs (`https://xxx.cos.xxx`). Remote files downloaded via httpx with 30s timeout and redirect following.
+- Updated `backend/app/api/report.py`:
+  - `upload_report`: now pre-executes OCR at upload time while file content is still in memory; result stored in `report.ocr_result`; OCR failure is non-blocking (upload still succeeds)
+  - `analyze_report`: uses pre-stored `ocr_result` from upload; if empty, falls back to `read_file_content()` which supports COS remote URLs; improved error messages distinguishing "file not found" vs "OCR recognition empty"
+  - `report_ocr`: replaced `os.path.join + os.path.exists + open` with `read_file_content()` call
+  - Error message "未能提取报告文字，请确认文件有效" split into two: "报告文件不存在或已失效，请重新上传" (file missing) and "OCR未能识别到文字内容，请上传更清晰的体检报告图片" (OCR returned empty)
+
+### Testing
+
+- Added 7 new test cases in `backend/tests/test_report.py`: upload pre-OCR, OCR failure non-blocking, analyze with pre-stored OCR, analyze COS URL fallback, file-not-found error, report_ocr COS URL, report_ocr file missing
+- 53/53 local pytest tests passed
+- 16/16 server API tests passed
+
+### Deployment (2026-04-07)
+
+- Rebuilt backend container only
+- All 4 containers healthy (db, backend, admin-web, h5-web)
+- No mobile/client-side code changes (Flutter, miniprogram, H5, admin-web unaffected)
+
+### User Documentation
+
+- Created `user_docs/体检报告OCR识别修复.md`
+
 ## Notes For Next Iteration
 
 - Merchant identities are granted by admin only; new self-registered accounts still default to normal users.

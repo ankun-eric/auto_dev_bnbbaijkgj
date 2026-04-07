@@ -655,3 +655,225 @@ async def test_ocr_config_unauthorized(client: AsyncClient):
 async def test_ocr_test_unauthorized(client: AsyncClient):
     resp = await client.post("/api/admin/ocr/test")
     assert resp.status_code == 401
+
+
+# ──────────────── 11. Bug Fix: Upload Pre-OCR & COS URL Support ────────────────
+
+
+@pytest.mark.asyncio
+async def test_upload_pre_executes_ocr(client: AsyncClient, auth_headers, db_session):
+    """Verify that upload pre-executes OCR and stores result when OCR succeeds."""
+    await _create_ocr_config(db_session)
+    image_data = _make_test_image()
+
+    with patch("app.api.report.try_cos_upload", new_callable=AsyncMock, return_value=None), \
+         patch("app.api.report.ensure_access_token", new_callable=AsyncMock) as mock_token, \
+         patch("app.api.report.ocr_recognize", new_callable=AsyncMock) as mock_ocr:
+        mock_token.return_value = ("fake_token", datetime.utcnow() + timedelta(days=1))
+        mock_ocr.return_value = "血红蛋白 150 g/L"
+
+        resp = await client.post(
+            "/api/report/upload",
+            files={"file": ("report.jpg", image_data, "image/jpeg")},
+            headers=auth_headers,
+        )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    report_id = data["id"]
+
+    report = await db_session.get(CheckupReport, report_id)
+    assert report is not None
+    assert report.ocr_result is not None
+    assert report.ocr_result.get("text") == "血红蛋白 150 g/L"
+
+
+@pytest.mark.asyncio
+async def test_upload_ocr_failure_does_not_block(client: AsyncClient, auth_headers, db_session):
+    """Verify that OCR failure at upload time does not prevent the upload itself."""
+    await _create_ocr_config(db_session)
+    image_data = _make_test_image()
+
+    with patch("app.api.report.try_cos_upload", new_callable=AsyncMock, return_value=None), \
+         patch("app.api.report.ensure_access_token", new_callable=AsyncMock) as mock_token:
+        mock_token.side_effect = RuntimeError("token fetch failed")
+
+        resp = await client.post(
+            "/api/report/upload",
+            files={"file": ("report.jpg", image_data, "image/jpeg")},
+            headers=auth_headers,
+        )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] == "pending"
+
+
+@pytest.mark.asyncio
+async def test_analyze_uses_pre_stored_ocr(client: AsyncClient, auth_headers, db_session):
+    """When ocr_result already populated (from upload), analyze skips file read."""
+    await _create_ocr_config(db_session)
+    user_id = await _get_user_id(client, auth_headers)
+
+    report = await _create_report(
+        db_session, user_id,
+        status="pending",
+        file_url="https://cos.example.com/reports/test.jpg",
+        ocr_result={"text": "血红蛋白 150 g/L 参考范围 120-160"},
+        ai_analysis=None,
+        ai_analysis_json=None,
+    )
+
+    mock_analysis = {
+        "overall_assessment": "正常",
+        "categories": [{
+            "category_name": "血常规",
+            "indicators": [{
+                "name": "血红蛋白",
+                "value": "150",
+                "unit": "g/L",
+                "reference_range": "120-160",
+                "status": "normal",
+            }],
+        }],
+        "suggestions": ["保持良好生活习惯"],
+    }
+
+    with patch("app.api.report.analyze_report_structured", new_callable=AsyncMock) as mock_ai:
+        mock_ai.return_value = mock_analysis
+        resp = await client.post(
+            "/api/report/analyze",
+            json={"report_id": report.id},
+            headers=auth_headers,
+        )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] == "completed"
+    assert len(data["categories"]) >= 1
+
+
+@pytest.mark.asyncio
+async def test_analyze_cos_url_fallback(client: AsyncClient, auth_headers, db_session):
+    """When ocr_result is empty and file_url is a COS URL, read_file_content fetches remotely."""
+    await _create_ocr_config(db_session)
+    user_id = await _get_user_id(client, auth_headers)
+
+    report = await _create_report(
+        db_session, user_id,
+        status="pending",
+        file_url="https://cos.example.com/reports/test.jpg",
+        ocr_result=None,
+        ai_analysis=None,
+        ai_analysis_json=None,
+    )
+
+    mock_analysis = {
+        "overall_assessment": "正常",
+        "categories": [],
+        "suggestions": [],
+    }
+
+    with patch("app.api.report.read_file_content", new_callable=AsyncMock) as mock_read, \
+         patch("app.api.report.ensure_access_token", new_callable=AsyncMock) as mock_token, \
+         patch("app.api.report.ocr_recognize", new_callable=AsyncMock) as mock_ocr, \
+         patch("app.api.report.analyze_report_structured", new_callable=AsyncMock) as mock_ai:
+        mock_read.return_value = _make_test_image()
+        mock_token.return_value = ("fake_token", datetime.utcnow() + timedelta(days=1))
+        mock_ocr.return_value = "血红蛋白 150 g/L"
+        mock_ai.return_value = mock_analysis
+
+        resp = await client.post(
+            "/api/report/analyze",
+            json={"report_id": report.id},
+            headers=auth_headers,
+        )
+
+    assert resp.status_code == 200
+    mock_read.assert_called_once_with("https://cos.example.com/reports/test.jpg")
+
+
+@pytest.mark.asyncio
+async def test_analyze_file_not_found_error(client: AsyncClient, auth_headers, db_session):
+    """When file cannot be read, returns clear error message."""
+    await _create_ocr_config(db_session)
+    user_id = await _get_user_id(client, auth_headers)
+
+    report = await _create_report(
+        db_session, user_id,
+        status="pending",
+        file_url="https://cos.example.com/reports/missing.jpg",
+        ocr_result=None,
+        ai_analysis=None,
+        ai_analysis_json=None,
+    )
+
+    with patch("app.api.report.read_file_content", new_callable=AsyncMock) as mock_read:
+        mock_read.return_value = None
+        resp = await client.post(
+            "/api/report/analyze",
+            json={"report_id": report.id},
+            headers=auth_headers,
+        )
+
+    assert resp.status_code == 400
+    assert "重新上传" in resp.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_report_ocr_cos_url(client: AsyncClient, auth_headers, db_session):
+    """report_ocr should read from COS URL via read_file_content."""
+    await _create_ocr_config(db_session)
+    user_id = await _get_user_id(client, auth_headers)
+
+    report = await _create_report(
+        db_session, user_id,
+        status="pending",
+        file_url="https://cos.example.com/reports/test.jpg",
+        ocr_result=None,
+        ai_analysis=None,
+        ai_analysis_json=None,
+    )
+
+    with patch("app.api.report.read_file_content", new_callable=AsyncMock) as mock_read, \
+         patch("app.api.report.ensure_access_token", new_callable=AsyncMock) as mock_token, \
+         patch("app.api.report.ocr_recognize", new_callable=AsyncMock) as mock_ocr:
+        mock_read.return_value = _make_test_image()
+        mock_token.return_value = ("fake_token", datetime.utcnow() + timedelta(days=1))
+        mock_ocr.return_value = "OCR识别文字结果"
+
+        resp = await client.post(
+            "/api/report/ocr",
+            json={"report_id": report.id},
+            headers=auth_headers,
+        )
+
+    assert resp.status_code == 200
+    assert resp.json()["ocr_text"] == "OCR识别文字结果"
+
+
+@pytest.mark.asyncio
+async def test_report_ocr_file_missing(client: AsyncClient, auth_headers, db_session):
+    """report_ocr returns 404 when file cannot be read."""
+    await _create_ocr_config(db_session)
+    user_id = await _get_user_id(client, auth_headers)
+
+    report = await _create_report(
+        db_session, user_id,
+        status="pending",
+        file_url="https://cos.example.com/reports/gone.jpg",
+        ocr_result=None,
+        ai_analysis=None,
+        ai_analysis_json=None,
+    )
+
+    with patch("app.api.report.read_file_content", new_callable=AsyncMock) as mock_read:
+        mock_read.return_value = None
+        resp = await client.post(
+            "/api/report/ocr",
+            json={"report_id": report.id},
+            headers=auth_headers,
+        )
+
+    assert resp.status_code == 404
+    assert "重新上传" in resp.json()["detail"]
