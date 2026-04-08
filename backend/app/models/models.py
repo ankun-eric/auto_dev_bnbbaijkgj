@@ -1378,3 +1378,37 @@ class DrugIdentifyDetail(Base):
     created_at = mapped_column(DateTime, default=datetime.utcnow)
 
     session = relationship("ChatSession")
+
+
+# ──────────────── Prompt 模板管理 ────────────────
+
+
+class PromptTemplate(Base):
+    __tablename__ = "prompt_templates"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name = mapped_column(String(100), nullable=False)
+    prompt_type = mapped_column(String(50), nullable=False)
+    content = mapped_column(Text, nullable=False)
+    version = mapped_column(Integer, default=1)
+    is_active = mapped_column(Boolean, default=True)
+    parent_id = mapped_column(Integer, ForeignKey("prompt_templates.id"), nullable=True)
+    preview_input = mapped_column(Text, nullable=True)
+    created_by = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+# ──────────────── 分享链接 ────────────────
+
+
+class ShareLink(Base):
+    __tablename__ = "share_links"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    link_token = mapped_column(String(64), unique=True, nullable=False)
+    link_type = mapped_column(String(20), nullable=False)
+    record_id = mapped_column(Integer, nullable=False)
+    user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
+    view_count = mapped_column(Integer, default=0)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)

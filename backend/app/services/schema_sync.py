@@ -337,6 +337,50 @@ async def _sync_ocr_scene_templates(conn: AsyncConnection) -> None:
             ))
 
 
+async def _sync_prompt_templates(conn: AsyncConnection) -> None:
+    def _load(sync_conn):
+        inspector = inspect(sync_conn)
+        return "prompt_templates" in set(inspector.get_table_names())
+
+    exists = await conn.run_sync(_load)
+    if not exists:
+        await conn.execute(text(
+            "CREATE TABLE prompt_templates ("
+            "id INT AUTO_INCREMENT PRIMARY KEY, "
+            "name VARCHAR(100) NOT NULL, "
+            "prompt_type VARCHAR(50) NOT NULL, "
+            "content TEXT NOT NULL, "
+            "version INT DEFAULT 1, "
+            "is_active BOOLEAN DEFAULT TRUE, "
+            "parent_id INT NULL, "
+            "preview_input TEXT NULL, "
+            "created_by INT NULL, "
+            "created_at DATETIME DEFAULT CURRENT_TIMESTAMP, "
+            "updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
+            ")"
+        ))
+
+
+async def _sync_share_links(conn: AsyncConnection) -> None:
+    def _load(sync_conn):
+        inspector = inspect(sync_conn)
+        return "share_links" in set(inspector.get_table_names())
+
+    exists = await conn.run_sync(_load)
+    if not exists:
+        await conn.execute(text(
+            "CREATE TABLE share_links ("
+            "id INT AUTO_INCREMENT PRIMARY KEY, "
+            "link_token VARCHAR(64) NOT NULL UNIQUE, "
+            "link_type VARCHAR(20) NOT NULL, "
+            "record_id INT NOT NULL, "
+            "user_id INT NOT NULL, "
+            "view_count INT DEFAULT 0, "
+            "created_at DATETIME DEFAULT CURRENT_TIMESTAMP"
+            ")"
+        ))
+
+
 async def sync_register_schema(conn: AsyncConnection) -> None:
     def load_user_schema(sync_conn):
         inspector = inspect(sync_conn)
@@ -362,6 +406,8 @@ async def sync_register_schema(conn: AsyncConnection) -> None:
     await _sync_ocr_detail_tables(conn)
     await _sync_ocr_call_records(conn)
     await _sync_ocr_scene_templates(conn)
+    await _sync_prompt_templates(conn)
+    await _sync_share_links(conn)
 
     columns, indexes, unique_constraints = await conn.run_sync(load_user_schema)
 

@@ -1,4 +1,5 @@
 <view class="detail-page" wx:if="{{!loading}}">
+
   <!-- 报告原图 -->
   <view class="card images-section" wx:if="{{images.length > 0}}">
     <text class="section-title">报告原图</text>
@@ -17,103 +18,104 @@
     </scroll-view>
   </view>
 
-  <!-- 视图切换 -->
-  <view class="card" wx:if="{{analysisResult}}">
-    <view class="view-switch">
-      <view class="switch-tab {{viewMode === 'category' ? 'active' : ''}}" bindtap="switchView" data-mode="category">
-        <text>分类视图</text>
-      </view>
-      <view class="switch-tab {{viewMode === 'abnormal' ? 'active' : ''}}" bindtap="switchView" data-mode="abnormal">
-        <text>异常优先</text>
-        <view class="abnormal-count" wx:if="{{abnormalItems.length > 0}}">{{abnormalItems.length}}</view>
-      </view>
+  <!-- 区域1：异常汇总卡片区 -->
+  <view class="section-block" wx:if="{{aiData}}">
+    <view class="section-header">
+      <text class="section-title-text">异常指标（{{abnormalCards.length}}项）</text>
     </view>
 
-    <!-- 综合摘要 -->
-    <view class="summary-box" wx:if="{{analysisResult.summary}}">
-      <text class="summary-label">AI综合解读</text>
-      <text class="summary-content">{{analysisResult.summary}}</text>
+    <!-- 无异常绿色提示 -->
+    <view class="all-normal-tip" wx:if="{{abnormalCards.length === 0}}">
+      <text class="all-normal-icon">✓</text>
+      <text class="all-normal-text">所有指标均在正常范围内</text>
     </view>
 
-    <!-- 分类视图 -->
-    <view class="items-list" wx:if="{{viewMode === 'category'}}">
-      <block wx:for="{{categoryItems}}" wx:key="index">
-        <view class="category-header" wx:if="{{item.isCategory}}">
-          <text class="category-name">{{item.categoryName}}</text>
-        </view>
-        <view class="indicator-item {{item.status === 'abnormal' || item.is_abnormal ? 'abnormal' : ''}}" wx:else>
-          <view class="indicator-main">
-            <view class="indicator-left">
-              <view class="indicator-dot {{item.status === 'abnormal' || item.is_abnormal ? 'dot-red' : 'dot-green'}}"></view>
-              <text class="indicator-name">{{item.name}}</text>
-            </view>
-            <text class="indicator-value {{item.status === 'abnormal' || item.is_abnormal ? 'text-danger' : 'text-normal'}}">{{item.value}}</text>
-          </view>
-          <view class="indicator-sub">
-            <text class="indicator-ref">参考: {{item.reference || item.ref_range || '-'}}</text>
-            <view class="trend-btn" bindtap="viewTrend" data-name="{{item.name}}">
-              <text class="trend-btn-text">查看趋势</text>
-              <text class="trend-arrow">›</text>
-            </view>
-          </view>
-          <text class="indicator-advice" wx:if="{{item.advice || item.suggestion}}">💡 {{item.advice || item.suggestion}}</text>
-        </view>
-      </block>
-    </view>
-
-    <!-- 异常优先视图 -->
-    <view class="items-list" wx:if="{{viewMode === 'abnormal'}}">
-      <view class="sub-section-title" wx:if="{{abnormalItems.length > 0}}">
-        <text class="sub-title-text">⚠️ 异常指标 ({{abnormalItems.length}}项)</text>
-      </view>
-      <view class="indicator-item abnormal" wx:for="{{abnormalItems}}" wx:key="name">
-        <view class="indicator-main">
-          <view class="indicator-left">
-            <view class="indicator-dot dot-red"></view>
-            <text class="indicator-name">{{item.name}}</text>
-          </view>
-          <text class="indicator-value text-danger">{{item.value}}</text>
-        </view>
-        <view class="indicator-sub">
-          <text class="indicator-ref">参考: {{item.reference || item.ref_range || '-'}}</text>
-          <view class="trend-btn" bindtap="viewTrend" data-name="{{item.name}}">
-            <text class="trend-btn-text">查看趋势</text>
-            <text class="trend-arrow">›</text>
-          </view>
-        </view>
-        <text class="indicator-advice" wx:if="{{item.advice || item.suggestion}}">💡 {{item.advice || item.suggestion}}</text>
-      </view>
-
-      <view class="sub-section-title" wx:if="{{normalItems.length > 0}}" style="margin-top: 24rpx;">
-        <text class="sub-title-text">✅ 正常指标 ({{normalItems.length}}项)</text>
-      </view>
-      <view class="indicator-item" wx:for="{{normalItems}}" wx:key="name">
-        <view class="indicator-main">
-          <view class="indicator-left">
-            <view class="indicator-dot dot-green"></view>
-            <text class="indicator-name">{{item.name}}</text>
-          </view>
-          <text class="indicator-value text-normal">{{item.value}}</text>
-        </view>
-        <view class="indicator-sub">
-          <text class="indicator-ref">参考: {{item.reference || item.ref_range || '-'}}</text>
-          <view class="trend-btn" bindtap="viewTrend" data-name="{{item.name}}">
-            <text class="trend-btn-text">查看趋势</text>
-            <text class="trend-arrow">›</text>
-          </view>
+    <!-- 异常指标卡片 -->
+    <view class="abnormal-card" wx:for="{{abnormalCards}}" wx:key="name">
+      <view class="abnormal-card-header">
+        <text class="abnormal-card-name">{{item.name}}</text>
+        <view class="status-tag {{item.statusColor === 'high' ? 'tag-high' : 'tag-low'}}">
+          <text class="status-tag-text">{{item.status}}</text>
         </view>
       </view>
-
-      <view class="empty-state" wx:if="{{abnormalItems.length === 0 && normalItems.length === 0}}">
-        <text class="empty-icon">📋</text>
-        <text class="empty-text">暂无解读数据</text>
+      <view class="abnormal-card-value-row">
+        <text class="abnormal-card-value {{item.statusColor === 'high' ? 'value-high' : 'value-low'}}">{{item.value}}</text>
+        <text class="abnormal-card-unit">{{item.unit}}</text>
+      </view>
+      <text class="abnormal-card-ref" wx:if="{{item.reference}}">参考范围：{{item.reference}}</text>
+      <view class="abnormal-card-suggestion" wx:if="{{item.suggestion}}">
+        <text class="suggestion-icon">💡</text>
+        <text class="suggestion-text">{{item.suggestion}}</text>
       </view>
     </view>
   </view>
 
+  <!-- 区域2：分类详情区 -->
+  <view class="section-block" wx:if="{{aiData && categories.length > 0}}">
+    <view class="section-header">
+      <text class="section-title-text">分类详情</text>
+    </view>
+
+    <view class="category-block" wx:for="{{categories}}" wx:key="name" wx:for-index="catIdx">
+      <!-- 分类折叠头 -->
+      <view class="category-fold-header" bindtap="toggleCategory" data-idx="{{catIdx}}">
+        <view class="category-fold-left">
+          <text class="category-fold-name">{{item.name}}</text>
+          <view class="category-abnormal-badge" wx:if="{{item.abnormalCount > 0}}">
+            <text class="category-abnormal-num">{{item.abnormalCount}}项异常</text>
+          </view>
+        </view>
+        <text class="category-fold-arrow {{expandedCategories[catIdx] ? 'arrow-up' : 'arrow-down'}}">›</text>
+      </view>
+
+      <!-- 展开内容：指标行 -->
+      <view class="category-items" wx:if="{{expandedCategories[catIdx]}}">
+        <view class="indicator-row {{subItem.isAbnormal ? 'indicator-row-abnormal' : ''}}" wx:for="{{item.items}}" wx:key="name" wx:for-item="subItem">
+          <view class="indicator-row-left">
+            <view class="indicator-dot-sm {{subItem.statusColor === 'high' ? 'dot-high' : (subItem.statusColor === 'low' ? 'dot-low' : 'dot-normal')}}"></view>
+            <text class="indicator-row-name">{{subItem.name}}</text>
+          </view>
+          <view class="indicator-row-right">
+            <text class="indicator-row-value {{subItem.statusColor === 'high' ? 'value-high' : (subItem.statusColor === 'low' ? 'value-low' : 'value-ok')}}">{{subItem.value}} {{subItem.unit}}</text>
+            <text class="indicator-row-ref">{{subItem.reference}}</text>
+            <view class="status-tag-sm {{subItem.statusColor === 'high' ? 'tag-high' : (subItem.statusColor === 'low' ? 'tag-low' : 'tag-normal')}}" wx:if="{{subItem.status}}">
+              <text class="status-tag-sm-text">{{subItem.status}}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 区域3：综合建议区 -->
+  <view class="section-block" wx:if="{{aiData && aiData.summary}}">
+    <view class="section-header">
+      <text class="section-title-text">综合建议</text>
+    </view>
+    <view class="summary-card">
+      <text class="summary-content">{{aiData.summary}}</text>
+    </view>
+    <view class="disclaimer-box">
+      <text class="disclaimer-text">{{disclaimer}}</text>
+    </view>
+  </view>
+
+  <!-- AI原始文本回退 -->
+  <view class="section-block" wx:if="{{!aiData && aiRawText}}">
+    <view class="section-header">
+      <text class="section-title-text">AI解读结果</text>
+    </view>
+    <view class="summary-card">
+      <text class="summary-content">{{aiRawText}}</text>
+    </view>
+    <view class="disclaimer-box">
+      <text class="disclaimer-text">{{disclaimer}}</text>
+    </view>
+  </view>
+
   <!-- 无分析结果 -->
-  <view class="card" wx:if="{{!analysisResult}}">
-    <view class="empty-state" style="padding: 60rpx 0;">
+  <view class="section-block" wx:if="{{!aiData && !aiRawText}}">
+    <view class="empty-state">
       <text class="empty-icon">🔬</text>
       <text class="empty-text">AI正在分析中，请稍后刷新查看</text>
     </view>
@@ -123,14 +125,10 @@
   <view class="share-section">
     <view class="share-btn" bindtap="shareReport">
       <text class="share-btn-icon">📤</text>
-      <text class="share-btn-text">分享报告</text>
+      <text class="share-btn-text">生成分享链接</text>
     </view>
   </view>
 
-  <!-- 免责声明 -->
-  <view class="disclaimer">
-    <text class="disclaimer-text">{{disclaimer}}</text>
-  </view>
 </view>
 
 <!-- 加载中 -->

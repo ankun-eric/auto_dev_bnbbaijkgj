@@ -16,6 +16,7 @@ from app.models.models import (
     CheckupReport,
     HealthProfile,
     OcrConfig,
+    PromptTemplate,
     ReportAlert,
     User,
 )
@@ -258,8 +259,17 @@ async def analyze_report(
             "weight": hp.weight,
         }
 
+    tpl_result = await db.execute(
+        select(PromptTemplate).where(
+            PromptTemplate.prompt_type == "checkup_report",
+            PromptTemplate.is_active == True,  # noqa: E712
+        )
+    )
+    active_tpl = tpl_result.scalar_one_or_none()
+    custom_prompt = active_tpl.content if active_tpl else None
+
     try:
-        analysis = await analyze_report_structured(ocr_text, user_profile, db)
+        analysis = await analyze_report_structured(ocr_text, user_profile, db, custom_prompt=custom_prompt)
     except Exception as e:
         report.status = "failed"
         await db.flush()
@@ -633,6 +643,37 @@ async def create_share(
     report = await db.get(CheckupReport, report_id)
     if not report or report.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="报告不存在")
+
+    token = uuid.uuid4().hex
+    expires_at = datetime.utcnow() + timedelta(days=7)
+
+    report.share_token = token
+    report.share_expires_at = expires_at
+    await db.flush()
+
+    return ShareCreateResponse(
+        share_url=f"/api/report/share/{token}",
+        share_token=token,
+        expires_at=expires_at,
+    )
+
+
+@router.post("/report/{report_id}/share", response_model=ShareCreateResponse)
+async def create_share_by_path(
+    report_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    report = await db.get(CheckupReport, report_id)
+    if not report or report.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="报告不存在")
+
+    if report.share_token and report.share_expires_at and report.share_expires_at > datetime.utcnow():
+        return ShareCreateResponse(
+            share_url=f"/api/report/share/{report.share_token}",
+            share_token=report.share_token,
+            expires_at=report.share_expires_at,
+        )
 
     token = uuid.uuid4().hex
     expires_at = datetime.utcnow() + timedelta(days=7)

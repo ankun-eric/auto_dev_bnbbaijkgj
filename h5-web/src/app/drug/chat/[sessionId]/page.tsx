@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { NavBar, TextArea, Button, SpinLoading, Toast, ImageViewer } from 'antd-mobile';
+import { NavBar, TextArea, Button, SpinLoading, Toast, ImageViewer, Tabs, Dialog } from 'antd-mobile';
 import api from '@/lib/api';
 
 interface Message {
@@ -14,6 +14,33 @@ interface Message {
   created_at?: string;
 }
 
+interface DrugInfo {
+  name: string;
+  ingredients?: string;
+  specification?: string;
+  indications?: string;
+  dosage?: string;
+  precautions?: string;
+  ai_suggestion_general?: string;
+  ai_suggestion_personal?: string | null;
+}
+
+interface DrugInteraction {
+  drugs: string[];
+  risk: string;
+}
+
+interface DrugAiResult {
+  drugs: DrugInfo[];
+  interactions?: DrugInteraction[];
+}
+
+interface DrugRecord {
+  id: number;
+  ai_result?: string | DrugAiResult;
+  session_id?: string;
+}
+
 const welcomeMessage: Message = {
   id: 'welcome',
   role: 'assistant',
@@ -21,11 +48,221 @@ const welcomeMessage: Message = {
   time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
 };
 
+const BASE_SHARE_URL =
+  'https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/shared/drug';
+
 function formatMsgTime(dateStr?: string) {
   if (!dateStr) return '';
   const d = new Date(dateStr);
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function parseAiResult(raw: string | DrugAiResult | undefined): DrugAiResult | null {
+  if (!raw) return null;
+  if (typeof raw === 'string') {
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+  return raw;
+}
+
+function DrugInfoCard({ drug, recordId }: { drug: DrugInfo; recordId: number | null }) {
+  const [activeTab, setActiveTab] = useState('general');
+  const [personalSuggestion, setPersonalSuggestion] = useState<string>('');
+  const [personalLoading, setPersonalLoading] = useState(false);
+  const [personalFetched, setPersonalFetched] = useState(false);
+
+  const fetchPersonal = async () => {
+    if (!recordId || personalFetched) return;
+    setPersonalLoading(true);
+    try {
+      const res: any = await api.get(`/api/drug-identify/${recordId}/personal-suggestion`);
+      const data = res.data || res;
+      setPersonalSuggestion(data.suggestion || data.content || data.personal_suggestion || '');
+    } catch {
+      setPersonalSuggestion('暂无个性化建议');
+    } finally {
+      setPersonalLoading(false);
+      setPersonalFetched(true);
+    }
+  };
+
+  const handleTabChange = (key: string) => {
+    setActiveTab(key);
+    if (key === 'personal') fetchPersonal();
+  };
+
+  return (
+    <div className="rounded-xl bg-white overflow-hidden" style={{ border: '1px solid #f0f0f0', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+      {/* Drug name header */}
+      <div className="px-4 py-3" style={{ background: 'linear-gradient(135deg, #52c41a18, #13c2c218)' }}>
+        <h3 className="font-bold text-base text-gray-800">{drug.name}</h3>
+        {drug.specification && (
+          <p className="text-xs text-gray-400 mt-0.5">{drug.specification}</p>
+        )}
+      </div>
+
+      {/* Info rows */}
+      <div className="px-4 py-3 space-y-2.5">
+        {drug.ingredients && (
+          <InfoRow label="主要成分" value={drug.ingredients} />
+        )}
+        {drug.indications && (
+          <InfoRow label="适应症" value={drug.indications} />
+        )}
+        {drug.dosage && (
+          <InfoRow label="用法用量" value={drug.dosage} />
+        )}
+        {drug.precautions && (
+          <InfoRow label="注意事项" value={drug.precautions} highlight />
+        )}
+      </div>
+
+      {/* AI suggestion tabs */}
+      {(drug.ai_suggestion_general || recordId) && (
+        <div className="border-t" style={{ borderColor: '#f0f0f0' }}>
+          <Tabs
+            activeKey={activeTab}
+            onChange={handleTabChange}
+            style={{
+              '--title-font-size': '13px',
+              '--active-title-color': '#52c41a',
+              '--active-line-color': '#52c41a',
+            }}
+          >
+            <Tabs.Tab title="通用建议" key="general" />
+            <Tabs.Tab title="个性化建议" key="personal" />
+          </Tabs>
+          <div className="px-4 pb-4 pt-2">
+            {activeTab === 'general' ? (
+              drug.ai_suggestion_general ? (
+                <p className="text-sm text-gray-600 leading-relaxed">{drug.ai_suggestion_general}</p>
+              ) : (
+                <p className="text-sm text-gray-400">暂无通用建议</p>
+              )
+            ) : personalLoading ? (
+              <div className="flex items-center gap-2 py-3">
+                <SpinLoading style={{ '--size': '18px', '--color': '#52c41a' }} />
+                <span className="text-sm text-gray-400">加载个性化建议...</span>
+              </div>
+            ) : personalSuggestion ? (
+              <p className="text-sm text-gray-600 leading-relaxed">{personalSuggestion}</p>
+            ) : (
+              <p className="text-sm text-gray-400">暂无个性化建议</p>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function InfoRow({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
+  return (
+    <div>
+      <span
+        className="text-xs font-medium mr-1"
+        style={{ color: highlight ? '#FF4D4F' : '#52c41a' }}
+      >
+        {label}
+      </span>
+      <span className="text-xs text-gray-600 leading-relaxed">{value}</span>
+    </div>
+  );
+}
+
+function DrugResultPanel({
+  aiResult,
+  recordId,
+  onShare,
+  shareLoading,
+}: {
+  aiResult: DrugAiResult;
+  recordId: number | null;
+  onShare: () => void;
+  shareLoading: boolean;
+}) {
+  const drugs = aiResult.drugs || [];
+  const interactions = aiResult.interactions || [];
+  const [expandedIdx, setExpandedIdx] = useState<number | null>(0);
+
+  return (
+    <div className="space-y-4">
+      {/* Interaction warning */}
+      {interactions.length > 0 && (
+        <div
+          className="rounded-xl px-4 py-3"
+          style={{ background: '#FFFBE6', border: '1px solid #FFE58F' }}
+        >
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-base">⚠️</span>
+            <span className="font-semibold text-sm" style={{ color: '#FAAD14' }}>
+              药物相互作用提示
+            </span>
+          </div>
+          <div className="space-y-2">
+            {interactions.map((inter, idx) => (
+              <div key={idx} className="text-xs text-gray-600">
+                <span className="font-medium text-gray-700">
+                  {inter.drugs.join(' + ')}：
+                </span>
+                {inter.risk}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Drug cards */}
+      {drugs.length === 1 ? (
+        <DrugInfoCard drug={drugs[0]} recordId={recordId} />
+      ) : (
+        <div className="space-y-3">
+          {drugs.map((drug, idx) => (
+            <div key={idx}>
+              <button
+                className="w-full text-left rounded-xl bg-white px-4 py-3 flex items-center justify-between"
+                style={{ border: '1px solid #f0f0f0' }}
+                onClick={() => setExpandedIdx(expandedIdx === idx ? null : idx)}
+              >
+                <div>
+                  <span className="font-semibold text-sm text-gray-800">{drug.name}</span>
+                  {drug.specification && (
+                    <span className="text-xs text-gray-400 ml-2">{drug.specification}</span>
+                  )}
+                </div>
+                <span className="text-gray-400 text-sm">{expandedIdx === idx ? '▲' : '▼'}</span>
+              </button>
+              {expandedIdx === idx && (
+                <div className="mt-1">
+                  <DrugInfoCard drug={drug} recordId={recordId} />
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Share button */}
+      <button
+        onClick={onShare}
+        disabled={shareLoading}
+        className="w-full py-2.5 rounded-xl text-sm font-medium"
+        style={{
+          background: '#f5f5f5',
+          color: '#555',
+          border: '1px solid #e8e8e8',
+          opacity: shareLoading ? 0.7 : 1,
+        }}
+      >
+        复制分享链接
+      </button>
+    </div>
+  );
 }
 
 export default function DrugChatPage() {
@@ -39,6 +276,11 @@ export default function DrugChatPage() {
   const [uploading, setUploading] = useState(false);
   const [imageViewerVisible, setImageViewerVisible] = useState(false);
   const [viewerImages, setViewerImages] = useState<string[]>([]);
+  const [drugRecord, setDrugRecord] = useState<DrugRecord | null>(null);
+  const [drugResultVisible, setDrugResultVisible] = useState(false);
+  const [shareLoading, setShareLoading] = useState(false);
+  const [shareLink, setShareLink] = useState('');
+  const [shareLinkVisible, setShareLinkVisible] = useState(false);
 
   const listRef = useRef<HTMLDivElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
@@ -66,7 +308,12 @@ export default function DrugChatPage() {
           role: m.role as 'user' | 'assistant',
           content: m.content,
           image_urls: m.image_urls,
-          time: formatMsgTime(m.created_at) || new Date(m.created_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+          time:
+            formatMsgTime(m.created_at) ||
+            new Date(m.created_at).toLocaleTimeString('zh-CN', {
+              hour: '2-digit',
+              minute: '2-digit',
+            }),
           created_at: m.created_at,
         }));
         setMessages([welcomeMessage, ...historyMsgs]);
@@ -76,9 +323,30 @@ export default function DrugChatPage() {
     }
   }, [sessionId]);
 
+  const fetchDrugRecord = useCallback(async () => {
+    if (!sessionId) return;
+    try {
+      const res: any = await api.get('/api/drug-identify/history', {
+        params: { page: 1, page_size: 50 },
+      });
+      const data = res.data || res;
+      const items = data.items || data.records || data || [];
+      const record = Array.isArray(items)
+        ? items.find(
+            (r: any) =>
+              r.session_id === sessionId || String(r.chat_session_id) === sessionId
+          )
+        : null;
+      if (record) setDrugRecord(record);
+    } catch {
+      // no record found
+    }
+  }, [sessionId]);
+
   useEffect(() => {
     loadHistory();
-  }, [loadHistory]);
+    fetchDrugRecord();
+  }, [loadHistory, fetchDrugRecord]);
 
   useEffect(() => {
     scrollToBottom();
@@ -170,6 +438,8 @@ export default function DrugChatPage() {
         time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
       };
       setMessages((prev) => [...prev, aiMsg]);
+
+      await fetchDrugRecord();
     } catch {
       Toast.show({ content: '识别失败，请重试', icon: 'fail' });
     } finally {
@@ -177,6 +447,39 @@ export default function DrugChatPage() {
       setLoading(false);
       if (cameraRef.current) cameraRef.current.value = '';
       if (albumRef.current) albumRef.current.value = '';
+    }
+  };
+
+  const handleShare = async () => {
+    if (!drugRecord?.id) {
+      Toast.show({ content: '暂无可分享的药物识别记录' });
+      return;
+    }
+    setShareLoading(true);
+    try {
+      const res: any = await api.post(`/api/drug-identify/${drugRecord.id}/share`);
+      const data = res.data || res;
+      const token = data.share_token || data.token;
+      if (!token) {
+        Toast.show({ content: '生成分享链接失败' });
+        return;
+      }
+      const url = `${BASE_SHARE_URL}/${token}`;
+      setShareLink(url);
+      setShareLinkVisible(true);
+    } catch {
+      Toast.show({ content: '生成分享链接失败' });
+    } finally {
+      setShareLoading(false);
+    }
+  };
+
+  const handleCopyFromDialog = async () => {
+    try {
+      await navigator.clipboard.writeText(shareLink);
+      Toast.show({ icon: 'success', content: '链接已复制' });
+    } catch {
+      Toast.show({ content: '复制失败' });
     }
   };
 
@@ -223,10 +526,23 @@ export default function DrugChatPage() {
     setImageViewerVisible(true);
   };
 
+  const aiResult = drugRecord ? parseAiResult(drugRecord.ai_result) : null;
+
   return (
     <div className="flex flex-col h-screen bg-gray-50">
       <NavBar
         onBack={() => router.push('/drug')}
+        right={
+          aiResult ? (
+            <button
+              className="text-sm font-medium"
+              style={{ color: '#52c41a' }}
+              onClick={() => setDrugResultVisible(true)}
+            >
+              查看解读
+            </button>
+          ) : null
+        }
         style={{
           '--height': '48px',
           background: 'linear-gradient(135deg, #52c41a, #13c2c2)',
@@ -262,6 +578,32 @@ export default function DrugChatPage() {
         </div>
       )}
 
+      {/* Drug result panel (inline, above messages) */}
+      {aiResult && drugResultVisible && (
+        <div
+          className="overflow-y-auto border-b"
+          style={{ maxHeight: '60vh', borderColor: '#e8e8e8', background: '#f9f9f9' }}
+        >
+          <div className="px-4 py-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="font-semibold text-sm text-gray-700">药物识别解读</span>
+              <button
+                className="text-xs text-gray-400"
+                onClick={() => setDrugResultVisible(false)}
+              >
+                收起 ▲
+              </button>
+            </div>
+            <DrugResultPanel
+              aiResult={aiResult}
+              recordId={drugRecord?.id ?? null}
+              onShare={handleShare}
+              shareLoading={shareLoading}
+            />
+          </div>
+        </div>
+      )}
+
       {/* Messages */}
       <div ref={listRef} className="flex-1 overflow-y-auto px-4 py-3">
         {messages.map((msg) => (
@@ -278,7 +620,6 @@ export default function DrugChatPage() {
               </div>
             )}
             <div className="max-w-[80%]">
-              {/* Image thumbnails */}
               {msg.image_urls && msg.image_urls.length > 0 && (
                 <div className="flex flex-wrap gap-2 mb-2">
                   {msg.image_urls.map((url, idx) => (
@@ -293,7 +634,6 @@ export default function DrugChatPage() {
                 </div>
               )}
 
-              {/* Message bubble */}
               <div
                 className={`rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                   msg.role === 'user'
@@ -342,8 +682,17 @@ export default function DrugChatPage() {
 
       {/* Bottom input area */}
       <div className="bg-white border-t border-gray-100 px-4 py-3 safe-area-bottom">
+        {aiResult && !drugResultVisible && (
+          <button
+            onClick={() => setDrugResultVisible(true)}
+            className="w-full mb-2 py-2 rounded-xl text-xs font-medium flex items-center justify-center gap-1"
+            style={{ background: '#F6FFED', color: '#52C41A', border: '1px solid #B7EB8F' }}
+          >
+            <span>💊</span>
+            <span>查看药物识别解读结果</span>
+          </button>
+        )}
         <div className="flex items-end gap-2">
-          {/* Camera button */}
           <button
             onClick={() => cameraRef.current?.click()}
             disabled={uploading || loading}
@@ -359,7 +708,6 @@ export default function DrugChatPage() {
             </svg>
           </button>
 
-          {/* Album button */}
           <button
             onClick={() => albumRef.current?.click()}
             disabled={uploading || loading}
@@ -376,7 +724,6 @@ export default function DrugChatPage() {
             </svg>
           </button>
 
-          {/* Text input */}
           <div className="flex-1 bg-gray-50 rounded-2xl px-4 py-2">
             <TextArea
               placeholder="输入用药问题..."
@@ -387,7 +734,6 @@ export default function DrugChatPage() {
             />
           </div>
 
-          {/* Send button */}
           <Button
             onClick={sendMessage}
             disabled={!inputVal.trim() || loading}
@@ -410,12 +756,37 @@ export default function DrugChatPage() {
         </div>
       </div>
 
-      {/* Image viewer */}
       <ImageViewer.Multi
         images={viewerImages}
         visible={imageViewerVisible}
         defaultIndex={0}
         onClose={() => setImageViewerVisible(false)}
+      />
+
+      {/* Share link dialog */}
+      <Dialog
+        visible={shareLinkVisible}
+        title="药物识别分享链接"
+        content={
+          <div>
+            <div
+              className="rounded-lg p-3 mt-2 break-all text-xs text-gray-600"
+              style={{ background: '#f5f5f5' }}
+            >
+              {shareLink}
+            </div>
+            <button
+              onClick={handleCopyFromDialog}
+              className="mt-3 w-full py-2.5 rounded-xl text-sm font-medium text-white"
+              style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}
+            >
+              复制链接
+            </button>
+          </div>
+        }
+        closeOnMaskClick
+        onClose={() => setShareLinkVisible(false)}
+        actions={[]}
       />
     </div>
   );

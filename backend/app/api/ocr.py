@@ -15,6 +15,7 @@ from app.models.models import (
     OcrProviderConfig,
     OcrSceneTemplate,
     OcrUploadConfig,
+    PromptTemplate,
 )
 from app.schemas.ocr import (
     OcrBatchRecognizeResponse,
@@ -746,6 +747,27 @@ async def _call_ai_with_scene(
     db: AsyncSession,
 ) -> dict:
     system_prompt = scene.prompt_content or "请根据以下OCR文字内容进行结构化整理，返回JSON格式。"
+
+    if scene.scene_name == "体检报告识别":
+        tpl_result = await db.execute(
+            select(PromptTemplate).where(
+                PromptTemplate.prompt_type == "checkup_report",
+                PromptTemplate.is_active == True,  # noqa: E712
+            )
+        )
+        tpl = tpl_result.scalar_one_or_none()
+        if tpl:
+            system_prompt = tpl.content
+    elif scene.scene_name == "拍照识药":
+        tpl_result = await db.execute(
+            select(PromptTemplate).where(
+                PromptTemplate.prompt_type == "drug_general",
+                PromptTemplate.is_active == True,  # noqa: E712
+            )
+        )
+        tpl = tpl_result.scalar_one_or_none()
+        if tpl:
+            system_prompt = tpl.content
 
     messages = [{"role": "user", "content": f"以下是OCR识别的文字内容:\n\n{ocr_text}"}]
 

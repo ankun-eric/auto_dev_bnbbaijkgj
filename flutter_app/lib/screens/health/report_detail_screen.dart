@@ -1,12 +1,20 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import '../../config/api_config.dart';
+import '../../models/ai_analysis.dart';
 import '../../models/checkup_report.dart';
 import '../../providers/health_provider.dart';
 import '../../services/api_service.dart';
 import '../../widgets/custom_app_bar.dart';
 import '../../widgets/loading_widget.dart';
 import 'trend_screen.dart';
+
+const kColorAbnormalHigh = Color(0xFFFF4D4F);
+const kColorAbnormalLow = Color(0xFFFAAD14);
+const kColorNormal = Color(0xFF52C41A);
 
 class ReportDetailScreen extends StatefulWidget {
   final int reportId;
@@ -23,6 +31,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
   bool _isLoading = true;
   late TabController _tabController;
   final ApiService _api = ApiService();
+  ReportAnalysisResult? _analysisResult;
 
   @override
   void initState() {
@@ -41,12 +50,34 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
     setState(() => _isLoading = true);
     final provider = Provider.of<HealthProvider>(context, listen: false);
     final report = await provider.getReportDetail(widget.reportId);
+    ReportAnalysisResult? parsed;
+    if (report != null) {
+      parsed = _parseAnalysis(report);
+    }
     if (mounted) {
       setState(() {
         _report = report;
+        _analysisResult = parsed;
         _isLoading = false;
       });
     }
+  }
+
+  ReportAnalysisResult? _parseAnalysis(CheckupReport report) {
+    try {
+      final raw = report.aiAnalysisJson;
+      if (raw != null && raw.containsKey('categories')) {
+        return ReportAnalysisResult.fromJson(raw);
+      }
+      final jsonStr = report.aiAnalysis;
+      if (jsonStr != null && jsonStr.isNotEmpty) {
+        final decoded = jsonDecode(jsonStr);
+        if (decoded is Map<String, dynamic>) {
+          return ReportAnalysisResult.fromJson(decoded);
+        }
+      }
+    } catch (_) {}
+    return null;
   }
 
   Map<String, List<CheckupIndicator>> _groupByCategory(List<CheckupIndicator> indicators) {
@@ -68,63 +99,30 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
     return list;
   }
 
-  void _showShareDialog() {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('分享报告', style: TextStyle(fontSize: 18)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildShareOption(
-              icon: Icons.image_outlined,
-              label: '生成图片',
-              onTap: () {
-                Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('报告图片已生成')),
-                );
-              },
-            ),
-            const Divider(height: 1),
-            _buildShareOption(
-              icon: Icons.link,
-              label: '复制链接',
-              onTap: () async {
-                Navigator.pop(ctx);
-                try {
-                  final response = await _api.shareReport(widget.reportId);
-                  if (response.statusCode == 200) {
-                    final link = response.data['data']?['share_url'] ?? '';
-                    if (link.isNotEmpty) {
-                      await Clipboard.setData(ClipboardData(text: link));
-                    }
-                  }
-                } catch (_) {}
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('链接已复制到剪贴板')),
-                  );
-                }
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildShareOption({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-  }) {
-    return ListTile(
-      leading: Icon(icon, color: const Color(0xFF52C41A)),
-      title: Text(label),
-      onTap: onTap,
-    );
+  Future<void> _shareReport() async {
+    try {
+      final response = await _api.shareReport(widget.reportId);
+      if (!mounted) return;
+      String link = '';
+      if (response.statusCode == 200) {
+        final d = response.data;
+        link = d['data']?['share_url'] ?? d['share_url'] ?? '';
+        if (link.isEmpty) {
+          final token = d['data']?['share_token'] ?? d['share_token'] ?? '';
+          if (token.isNotEmpty) {
+            link = '${ApiConfig.baseUrl}/api/report/share/$token';
+          }
+        }
+      }
+      if (link.isNotEmpty) {
+        await Clipboard.setData(ClipboardData(text: link));
+      }
+    } catch (_) {}
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('报告链接已复制到剪贴板')),
+      );
+    }
   }
 
   @override
@@ -136,7 +134,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
           if (_report != null)
             IconButton(
               icon: const Icon(Icons.share_outlined, color: Colors.white),
-              onPressed: _showShareDialog,
+              onPressed: _shareReport,
             ),
         ],
       ),
@@ -152,34 +150,27 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
     final report = _report!;
     return Column(
       children: [
-        // Image preview
-        if (report.fileUrl != null && report.fileType != 'pdf')
-          _buildImagePreview(report),
-
-        // Tab bar
         Container(
           color: Colors.white,
           child: TabBar(
             controller: _tabController,
-            labelColor: const Color(0xFF52C41A),
+            labelColor: kColorNormal,
             unselectedLabelColor: Colors.grey[600],
-            indicatorColor: const Color(0xFF52C41A),
+            indicatorColor: kColorNormal,
             indicatorWeight: 3,
             labelStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
             tabs: const [
-              Tab(text: '分类视图'),
-              Tab(text: '异常优先'),
+              Tab(text: 'AI 解读'),
+              Tab(text: '原始报告'),
             ],
           ),
         ),
-
-        // Tab content
         Expanded(
           child: TabBarView(
             controller: _tabController,
             children: [
-              _buildCategoryView(report),
-              _buildAbnormalFirstView(report),
+              _buildAiTab(report),
+              _buildRawTab(report),
             ],
           ),
         ),
@@ -187,70 +178,58 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
     );
   }
 
-  Widget _buildImagePreview(CheckupReport report) {
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => Scaffold(
-              backgroundColor: Colors.black,
-              appBar: AppBar(
-                backgroundColor: Colors.black,
-                iconTheme: const IconThemeData(color: Colors.white),
-                elevation: 0,
-              ),
-              body: Center(
-                child: InteractiveViewer(
-                  child: Image.network(
-                    report.fileUrl!,
-                    fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => const Icon(
-                      Icons.broken_image,
-                      color: Colors.white54,
-                      size: 64,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-      child: Container(
-        height: 140,
-        width: double.infinity,
-        color: Colors.grey[100],
-        child: Stack(
-          alignment: Alignment.center,
+  Widget _buildAiTab(CheckupReport report) {
+    if (_analysisResult != null) {
+      return _buildStructuredAiView(report, _analysisResult!);
+    }
+    return _buildFallbackAiView(report);
+  }
+
+  Widget _buildStructuredAiView(CheckupReport report, ReportAnalysisResult result) {
+    final abnormals = result.allAbnormalItems;
+    final hasAbnormal = abnormals.isNotEmpty;
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        _buildAbnormalSummaryCard(abnormals, hasAbnormal),
+        if (abnormals.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          ...abnormals.map((item) => _buildAbnormalItemCard(item)),
+        ],
+        const SizedBox(height: 16),
+        _buildCategoryExpansionList(result.categories),
+        const SizedBox(height: 16),
+        _buildSummarySection(result.summary),
+        const SizedBox(height: 12),
+        _buildDisclaimerSection(),
+        const SizedBox(height: 20),
+      ],
+    );
+  }
+
+  Widget _buildAbnormalSummaryCard(List<IndicatorItem> abnormals, bool hasAbnormal) {
+    final bgColor = hasAbnormal ? const Color(0xFFFFF0F0) : const Color(0xFFF0FFF4);
+    final textColor = hasAbnormal ? kColorAbnormalHigh : kColorNormal;
+    final icon = hasAbnormal ? Icons.warning_amber_rounded : Icons.check_circle_outline;
+    final label = hasAbnormal ? '异常指标（${abnormals.length}项）' : '所有指标正常';
+
+    return Card(
+      elevation: 0,
+      color: bgColor,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
           children: [
-            Image.network(
-              report.thumbnailUrl ?? report.fileUrl!,
-              fit: BoxFit.cover,
-              width: double.infinity,
-              errorBuilder: (_, __, ___) => const Icon(
-                Icons.image_not_supported_outlined,
-                size: 48,
-                color: Colors.grey,
-              ),
-            ),
-            Positioned(
-              bottom: 8,
-              right: 8,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.black54,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.zoom_in, color: Colors.white, size: 16),
-                    SizedBox(width: 4),
-                    Text('点击查看原图', style: TextStyle(color: Colors.white, fontSize: 12)),
-                  ],
-                ),
+            Icon(icon, color: textColor, size: 22),
+            const SizedBox(width: 10),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: textColor,
               ),
             ),
           ],
@@ -259,51 +238,258 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
     );
   }
 
-  Widget _buildCategoryView(CheckupReport report) {
+  Widget _buildAbnormalItemCard(IndicatorItem item) {
+    final isHigh = item.status == '偏高';
+    final statusColor = isHigh ? kColorAbnormalHigh : kColorAbnormalLow;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 2,
+      shadowColor: Colors.black12,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    item.name,
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: statusColor,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    item.status,
+                    style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Text(
+                  item.value,
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: statusColor,
+                  ),
+                ),
+                if (item.unit.isNotEmpty) ...[
+                  const SizedBox(width: 4),
+                  Text(
+                    item.unit,
+                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                  ),
+                ],
+              ],
+            ),
+            if (item.reference.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(
+                '参考范围：${item.reference}',
+                style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+              ),
+            ],
+            if (item.suggestion != null && item.suggestion!.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE6F4FF),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.lightbulb_outline, size: 16, color: Color(0xFF1890FF)),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        item.suggestion!,
+                        style: const TextStyle(fontSize: 13, color: Color(0xFF1890FF), height: 1.4),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCategoryExpansionList(List<IndicatorCategory> categories) {
+    if (categories.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.only(bottom: 8),
+          child: Text(
+            '分类详情',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF333333)),
+          ),
+        ),
+        ...categories.map((cat) => _buildCategoryExpansion(cat)),
+      ],
+    );
+  }
+
+  Widget _buildCategoryExpansion(IndicatorCategory cat) {
+    final abnormalCount = cat.items.where((i) => i.isAbnormal).length;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: Colors.grey[200]!),
+      ),
+      child: ExpansionTile(
+        tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        title: Row(
+          children: [
+            Text(
+              cat.name,
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+            ),
+            if (abnormalCount > 0) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: kColorAbnormalHigh.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '$abnormalCount项异常',
+                  style: const TextStyle(fontSize: 11, color: kColorAbnormalHigh),
+                ),
+              ),
+            ],
+          ],
+        ),
+        children: [
+          const Divider(height: 1, indent: 16, endIndent: 16),
+          ...cat.items.map((item) => _buildIndicatorRow(item)),
+          const SizedBox(height: 8),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildIndicatorRow(IndicatorItem item) {
+    Color statusColor;
+    if (item.status == '偏高') {
+      statusColor = kColorAbnormalHigh;
+    } else if (item.status == '偏低') {
+      statusColor = kColorAbnormalLow;
+    } else {
+      statusColor = kColorNormal;
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 3,
+            child: Text(item.name, style: const TextStyle(fontSize: 13)),
+          ),
+          Expanded(
+            flex: 2,
+            child: Text(
+              '${item.value} ${item.unit}'.trim(),
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: item.isAbnormal ? FontWeight.bold : FontWeight.normal,
+                color: item.isAbnormal ? statusColor : const Color(0xFF333333),
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 2,
+            child: Text(
+              item.reference,
+              style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: statusColor.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(
+              item.status,
+              style: TextStyle(fontSize: 11, color: statusColor, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSummarySection(String summary) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF0FFF4),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.analytics_outlined, color: kColorNormal, size: 20),
+              SizedBox(width: 8),
+              Text(
+                '综合建议',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF333333)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            summary,
+            style: TextStyle(fontSize: 14, color: Colors.grey[800], height: 1.6),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFallbackAiView(CheckupReport report) {
     final grouped = _groupByCategory(report.indicators);
-    if (grouped.isEmpty) {
-      return _buildNoIndicatorsView(report);
-    }
-
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        ...grouped.entries.map((entry) => _buildCategorySection(entry.key, entry.value)),
-        _buildAssessmentSection(report),
+        if (grouped.isNotEmpty)
+          ...grouped.entries.map((entry) => _buildLegacyCategorySection(entry.key, entry.value)),
+        _buildLegacyAssessmentSection(report),
         _buildDisclaimerSection(),
         const SizedBox(height: 20),
       ],
     );
   }
 
-  Widget _buildAbnormalFirstView(CheckupReport report) {
-    final sorted = _sortAbnormalFirst(report.indicators);
-    if (sorted.isEmpty) {
-      return _buildNoIndicatorsView(report);
-    }
-
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        ...sorted.map((indicator) => _buildIndicatorCard(indicator)),
-        _buildAssessmentSection(report),
-        _buildDisclaimerSection(),
-        const SizedBox(height: 20),
-      ],
-    );
-  }
-
-  Widget _buildNoIndicatorsView(CheckupReport report) {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        _buildAssessmentSection(report),
-        _buildDisclaimerSection(),
-      ],
-    );
-  }
-
-  Widget _buildCategorySection(String category, List<CheckupIndicator> indicators) {
+  Widget _buildLegacyCategorySection(String category, List<CheckupIndicator> indicators) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -315,7 +501,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
                 width: 4,
                 height: 18,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF52C41A),
+                  color: kColorNormal,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -327,19 +513,19 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
             ],
           ),
         ),
-        ...indicators.map((indicator) => _buildIndicatorCard(indicator)),
+        ...indicators.map((indicator) => _buildLegacyIndicatorCard(indicator)),
         const SizedBox(height: 8),
       ],
     );
   }
 
-  Widget _buildIndicatorCard(CheckupIndicator indicator) {
+  Widget _buildLegacyIndicatorCard(CheckupIndicator indicator) {
     final isAbnormal = indicator.isAbnormal;
     final statusColor = indicator.status == 'high'
-        ? const Color(0xFFFF4D4F)
+        ? kColorAbnormalHigh
         : indicator.status == 'low'
-            ? const Color(0xFFFAAD14)
-            : const Color(0xFF52C41A);
+            ? kColorAbnormalLow
+            : kColorNormal;
     final statusLabel = indicator.status == 'high'
         ? '偏高'
         : indicator.status == 'low'
@@ -352,9 +538,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: isAbnormal
-            ? Border.all(color: statusColor.withOpacity(0.3))
-            : null,
+        border: isAbnormal ? Border.all(color: statusColor.withOpacity(0.3)) : null,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.02),
@@ -386,11 +570,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
                 ),
                 child: Text(
                   statusLabel,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: statusColor,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: TextStyle(fontSize: 12, color: statusColor, fontWeight: FontWeight.w600),
                 ),
               ),
             ],
@@ -425,7 +605,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.lightbulb_outline, size: 16, color: Color(0xFFFAAD14)),
+                  const Icon(Icons.lightbulb_outline, size: 16, color: kColorAbnormalLow),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
@@ -452,21 +632,17 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF52C41A).withOpacity(0.08),
+                  color: kColorNormal.withOpacity(0.08),
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.trending_up, size: 16, color: Color(0xFF52C41A)),
+                    Icon(Icons.trending_up, size: 16, color: kColorNormal),
                     SizedBox(width: 4),
                     Text(
                       '查看趋势',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Color(0xFF52C41A),
-                        fontWeight: FontWeight.w500,
-                      ),
+                      style: TextStyle(fontSize: 13, color: kColorNormal, fontWeight: FontWeight.w500),
                     ),
                   ],
                 ),
@@ -478,7 +654,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
     );
   }
 
-  Widget _buildAssessmentSection(CheckupReport report) {
+  Widget _buildLegacyAssessmentSection(CheckupReport report) {
     final analysisJson = report.aiAnalysisJson;
     final summary = analysisJson?['summary'] ?? report.aiAnalysis ?? '暂无综合评估';
     final advice = analysisJson?['advice'];
@@ -499,7 +675,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
         children: [
           const Row(
             children: [
-              Icon(Icons.analytics_outlined, color: Color(0xFF52C41A), size: 22),
+              Icon(Icons.analytics_outlined, color: kColorNormal, size: 22),
               SizedBox(width: 8),
               Text(
                 '综合评估',
@@ -541,14 +717,155 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.warning_amber_rounded, size: 18, color: Color(0xFFFAAD14)),
+          const Icon(Icons.warning_amber_rounded, size: 18, color: kColorAbnormalLow),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               '免责声明：本解读结果由AI智能分析生成，仅供参考，不构成医疗诊断或治疗建议。如有健康疑问，请及时咨询专业医生。',
-              style: TextStyle(fontSize: 12, color: Colors.grey[700], height: 1.5),
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey[700],
+                height: 1.5,
+                fontStyle: FontStyle.italic,
+              ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRawTab(CheckupReport report) {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        if (report.fileUrl != null && report.fileType != 'pdf')
+          _buildImagePreview(report),
+        if (report.fileType == 'pdf')
+          _buildPdfPlaceholder(report),
+        if (report.fileUrl == null)
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.all(40),
+              child: Column(
+                children: [
+                  Icon(Icons.description_outlined, size: 60, color: Colors.grey[300]),
+                  const SizedBox(height: 12),
+                  Text('暂无原始报告文件', style: TextStyle(color: Colors.grey[500])),
+                ],
+              ),
+            ),
+          ),
+        if (report.indicators.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          const Text(
+            '原始指标数据',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF333333)),
+          ),
+          const SizedBox(height: 8),
+          ..._groupByCategory(report.indicators).entries.map(
+            (entry) => _buildLegacyCategorySection(entry.key, entry.value),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildImagePreview(CheckupReport report) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => Scaffold(
+              backgroundColor: Colors.black,
+              appBar: AppBar(
+                backgroundColor: Colors.black,
+                iconTheme: const IconThemeData(color: Colors.white),
+                elevation: 0,
+              ),
+              body: Center(
+                child: InteractiveViewer(
+                  child: Image.network(
+                    report.fileUrl!,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => const Icon(
+                      Icons.broken_image,
+                      color: Colors.white54,
+                      size: 64,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+      child: Container(
+        height: 200,
+        width: double.infinity,
+        margin: const EdgeInsets.only(bottom: 16),
+        decoration: BoxDecoration(
+          color: Colors.grey[100],
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.network(
+                report.thumbnailUrl ?? report.fileUrl!,
+                fit: BoxFit.cover,
+                width: double.infinity,
+                errorBuilder: (_, __, ___) => const Icon(
+                  Icons.image_not_supported_outlined,
+                  size: 48,
+                  color: Colors.grey,
+                ),
+              ),
+            ),
+            Positioned(
+              bottom: 8,
+              right: 8,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.zoom_in, color: Colors.white, size: 16),
+                    SizedBox(width: 4),
+                    Text('点击查看原图', style: TextStyle(color: Colors.white, fontSize: 12)),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPdfPlaceholder(CheckupReport report) {
+    return Container(
+      height: 140,
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.picture_as_pdf, size: 48, color: Colors.red),
+          const SizedBox(height: 8),
+          Text('PDF 报告', style: TextStyle(color: Colors.grey[600])),
+          const SizedBox(height: 4),
+          Text('暂不支持预览，请下载查看', style: TextStyle(color: Colors.grey[400], fontSize: 12)),
         ],
       ),
     );

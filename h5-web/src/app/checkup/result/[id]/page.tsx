@@ -2,42 +2,63 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { NavBar, Tabs, Tag, Toast, SpinLoading, ActionSheet, Collapse } from 'antd-mobile';
+import { NavBar, Toast, SpinLoading, Collapse, Dialog } from 'antd-mobile';
 import api from '@/lib/api';
 
-interface Indicator {
-  id: number;
-  indicator_name: string;
+interface AiItem {
+  name: string;
   value: string;
   unit: string;
-  reference_range: string;
+  reference: string;
   status: string;
-  category?: string;
-  advice?: string;
+  suggestion?: string;
+}
+
+interface AiCategory {
+  name: string;
+  items: AiItem[];
+}
+
+interface AiAnalysisJson {
+  summary?: string;
+  categories?: AiCategory[];
+  abnormal_items?: string[];
 }
 
 interface ReportDetail {
   id: number;
   ai_analysis?: string;
-  ai_analysis_json?: {
-    overall_assessment?: string;
-    suggestions?: string[];
-  };
-  indicators: Indicator[];
-  abnormal_count: number;
+  ai_analysis_json?: AiAnalysisJson | string;
   created_at: string;
 }
 
-const DISCLAIMER = '⚠️ 免责声明：本解读结果由AI智能分析生成，仅供参考，不构成医疗诊断或治疗建议。如有健康疑问，请及时咨询专业医生。';
+const DISCLAIMER =
+  '⚠️ 免责声明：本解读结果由AI智能分析生成，仅供参考，不构成医疗诊断或治疗建议。如有健康疑问，请及时咨询专业医生。';
+
+const BASE_SHARE_URL =
+  'https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/shared/report';
+
+function getStatusColor(status: string): string {
+  if (status === '偏高' || status === 'high' || status === 'critical') return '#FF4D4F';
+  if (status === '偏低' || status === 'low') return '#FAAD14';
+  if (status === '正常' || status === 'normal') return '#52C41A';
+  return '#FF4D4F';
+}
+
+function isAbnormalStatus(status: string): boolean {
+  return status !== '正常' && status !== 'normal' && status !== '';
+}
 
 export default function ResultPage() {
   const router = useRouter();
   const params = useParams();
   const id = params.id as string;
+
   const [detail, setDetail] = useState<ReportDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('category');
-  const [shareVisible, setShareVisible] = useState(false);
+  const [shareLoading, setShareLoading] = useState(false);
+  const [shareLink, setShareLink] = useState('');
+  const [shareLinkVisible, setShareLinkVisible] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -57,31 +78,70 @@ export default function ResultPage() {
     }
   };
 
-  const groupByCategory = (indicators: Indicator[]): Record<string, Indicator[]> => {
-    const groups: Record<string, Indicator[]> = {};
-    indicators.forEach((ind) => {
-      const cat = ind.category || '其他';
-      if (!groups[cat]) groups[cat] = [];
-      groups[cat].push(ind);
-    });
-    return groups;
+  const parseAiJson = (detail: ReportDetail): AiAnalysisJson | null => {
+    if (!detail.ai_analysis_json) return null;
+    if (typeof detail.ai_analysis_json === 'string') {
+      try {
+        return JSON.parse(detail.ai_analysis_json);
+      } catch {
+        return null;
+      }
+    }
+    return detail.ai_analysis_json as AiAnalysisJson;
   };
 
-  const handleShare = async (action: string) => {
-    setShareVisible(false);
-    if (action === 'link') {
-      try {
-        const res: any = await api.post('/api/report/share', { report_id: Number(id) });
-        const data = res.data || res;
-        const shareUrl = `${window.location.origin}/shared/report/${data.token || data.share_token}`;
-        await navigator.clipboard.writeText(shareUrl);
-        Toast.show({ icon: 'success', content: '链接已复制' });
-      } catch {
+  const getShareToken = async (): Promise<string | null> => {
+    try {
+      const res: any = await api.post(`/api/report/${id}/share`);
+      const data = res.data || res;
+      return data.share_token || data.token || null;
+    } catch {
+      return null;
+    }
+  };
+
+  const handleShareLink = async () => {
+    setShareLoading(true);
+    try {
+      const token = await getShareToken();
+      if (!token) {
         Toast.show({ content: '生成分享链接失败' });
+        return;
       }
-    } else if (action === 'image') {
-      Toast.show({ content: '正在生成图片...' });
-      setTimeout(() => Toast.show({ content: '图片已保存' }), 1500);
+      const url = `${BASE_SHARE_URL}/${token}`;
+      setShareLink(url);
+      setShareLinkVisible(true);
+    } catch {
+      Toast.show({ content: '生成分享链接失败' });
+    } finally {
+      setShareLoading(false);
+    }
+  };
+
+  const handleCopyShareLink = async () => {
+    setShareLoading(true);
+    try {
+      const token = await getShareToken();
+      if (!token) {
+        Toast.show({ content: '生成分享链接失败' });
+        return;
+      }
+      const url = `${BASE_SHARE_URL}/${token}`;
+      await navigator.clipboard.writeText(url);
+      Toast.show({ icon: 'success', content: '链接已复制到剪贴板' });
+    } catch {
+      Toast.show({ content: '复制失败，请重试' });
+    } finally {
+      setShareLoading(false);
+    }
+  };
+
+  const handleCopyFromDialog = async () => {
+    try {
+      await navigator.clipboard.writeText(shareLink);
+      Toast.show({ icon: 'success', content: '链接已复制' });
+    } catch {
+      Toast.show({ content: '复制失败' });
     }
   };
 
@@ -109,238 +169,264 @@ export default function ResultPage() {
     );
   }
 
-  const indicators = detail.indicators || [];
-  const categories = groupByCategory(indicators);
-  const isAbnormal = (ind: Indicator) => ind.status === 'abnormal' || ind.status === 'critical';
-  const abnormalIndicators = indicators.filter(isAbnormal);
-  const normalIndicators = indicators.filter((i) => !isAbnormal(i));
-  const overallAssessment = detail.ai_analysis_json?.overall_assessment || detail.ai_analysis || '';
-  const suggestions = detail.ai_analysis_json?.suggestions || [];
+  const aiJson = parseAiJson(detail);
+  const categories = aiJson?.categories || [];
+  const summary = aiJson?.summary || detail.ai_analysis || '';
+
+  const allAbnormalItems: AiItem[] = [];
+  categories.forEach((cat) => {
+    cat.items.forEach((item) => {
+      if (isAbnormalStatus(item.status)) {
+        allAbnormalItems.push(item);
+      }
+    });
+  });
+
+  const hasAiData = categories.length > 0;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <NavBar
-        onBack={() => router.back()}
-        right={
-          <button
-            className="text-sm text-primary"
-            onClick={() => setShareVisible(true)}
-          >
-            分享
-          </button>
-        }
-        style={{ background: '#fff' }}
-      >
+    <div className="min-h-screen bg-gray-50 pb-32">
+      <NavBar onBack={() => router.back()} style={{ background: '#fff' }}>
         解读结果
       </NavBar>
 
-      {/* AI Summary */}
-      <div className="mx-4 mt-3">
-        <div
-          className="rounded-xl p-4"
-          style={{
-            background: 'linear-gradient(135deg, #52c41a, #13c2c2)',
-          }}
-        >
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center">
-              <span className="text-white text-xs font-bold">AI</span>
-            </div>
-            <span className="text-white font-medium text-sm">综合评估</span>
-          </div>
-          <p className="text-white/90 text-sm leading-relaxed">
-            {overallAssessment || '暂无综合评估'}
-          </p>
-          {suggestions.length > 0 && (
-            <div className="mt-3 pt-3 border-t border-white/20">
-              <p className="text-white/80 text-xs font-medium mb-1">综合建议</p>
-              <p className="text-white/90 text-sm leading-relaxed">{suggestions.join('；')}</p>
-            </div>
-          )}
+      {/* 区域1：异常汇总卡片区 */}
+      <div className="px-4 pt-3">
+        <div className="flex items-center gap-2 mb-3">
+          <div className="w-1 h-5 rounded-full" style={{ background: '#FF4D4F' }} />
+          <span className="font-semibold text-base text-gray-800">
+            异常指标（{allAbnormalItems.length}项）
+          </span>
         </div>
-      </div>
 
-      {/* Tabs */}
-      <div className="mx-4 mt-3">
-        <Tabs
-          activeKey={activeTab}
-          onChange={setActiveTab}
-          style={{
-            '--title-font-size': '14px',
-            '--active-title-color': '#52c41a',
-            '--active-line-color': '#52c41a',
-          }}
-        >
-          <Tabs.Tab title="按分类" key="category" />
-          <Tabs.Tab title="异常优先" key="abnormal" />
-        </Tabs>
-      </div>
-
-      {/* Category view */}
-      {activeTab === 'category' && (
-        <div className="px-4 mt-2 pb-4">
-          {Object.entries(categories).length > 0 ? (
-            <Collapse defaultActiveKey={Object.keys(categories)}>
-              {Object.entries(categories).map(([cat, items]) => {
-                const abnCount = items.filter((i) => i.status === 'abnormal' || i.status === 'critical').length;
-                return (
-                  <Collapse.Panel
-                    key={cat}
-                    title={
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-sm">{cat}</span>
-                        {abnCount > 0 && (
-                          <Tag
-                            style={{
-                              '--background-color': '#f5222d15',
-                              '--text-color': '#f5222d',
-                              '--border-color': 'transparent',
-                              fontSize: 10,
-                            }}
-                          >
-                            {abnCount}项异常
-                          </Tag>
-                        )}
-                      </div>
-                    }
-                  >
-                    <div className="space-y-2">
-                      {items.map((ind, idx) => (
-                        <IndicatorRow key={idx} indicator={ind} router={router} />
-                      ))}
-                    </div>
-                  </Collapse.Panel>
-                );
-              })}
-            </Collapse>
-          ) : (
-            <div className="text-center text-gray-400 py-8 text-sm">暂无指标数据</div>
-          )}
-        </div>
-      )}
-
-      {/* Abnormal first view */}
-      {activeTab === 'abnormal' && (
-        <div className="px-4 mt-2 pb-4">
-          {abnormalIndicators.length > 0 && (
-            <div className="mb-4">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-1 h-4 rounded-full bg-red-500" />
-                <span className="text-sm font-medium text-gray-800">
-                  异常指标 ({abnormalIndicators.length})
-                </span>
-              </div>
-              <div className="space-y-2">
-                {abnormalIndicators.map((ind, idx) => (
-                  <IndicatorRow key={idx} indicator={ind} showDesc router={router} />
-                ))}
-              </div>
-            </div>
-          )}
-          {normalIndicators.length > 0 && (
+        {allAbnormalItems.length === 0 ? (
+          <div
+            className="rounded-xl p-4 flex items-center gap-3"
+            style={{ background: '#F6FFED', border: '1px solid #B7EB8F' }}
+          >
+            <span className="text-2xl">✅</span>
             <div>
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-1 h-4 rounded-full bg-green-500" />
-                <span className="text-sm font-medium text-gray-800">
-                  正常指标 ({normalIndicators.length})
-                </span>
-              </div>
-              <div className="space-y-2">
-                {normalIndicators.map((ind, idx) => (
-                  <IndicatorRow key={idx} indicator={ind} router={router} />
-                ))}
-              </div>
+              <p className="font-medium text-sm" style={{ color: '#52C41A' }}>
+                所有指标均在正常范围内
+              </p>
+              {!hasAiData && (
+                <p className="text-xs text-gray-400 mt-0.5">暂无AI结构化解读数据</p>
+              )}
             </div>
-          )}
-          {indicators.length === 0 && (
-            <div className="text-center text-gray-400 py-8 text-sm">暂无指标数据</div>
-          )}
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {allAbnormalItems.map((item, idx) => {
+              const color = getStatusColor(item.status);
+              const isBgRed = item.status === '偏高' || item.status === 'high' || item.status === 'critical';
+              return (
+                <div
+                  key={idx}
+                  className="rounded-xl p-4 bg-white"
+                  style={{
+                    border: `1px solid ${isBgRed ? '#FFCCC7' : '#FFE58F'}`,
+                    boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+                  }}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <span className="text-base font-bold text-gray-800">{item.name}</span>
+                      <div className="flex items-baseline gap-1 mt-1">
+                        <span className="text-xl font-bold" style={{ color }}>
+                          {item.value}
+                        </span>
+                        <span className="text-xs text-gray-400">{item.unit}</span>
+                      </div>
+                      <p className="text-xs text-gray-400 mt-0.5">正常范围：{item.reference}</p>
+                    </div>
+                    <span
+                      className="text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0"
+                      style={{ background: `${color}18`, color }}
+                    >
+                      {item.status}
+                    </span>
+                  </div>
+                  {item.suggestion && (
+                    <div
+                      className="mt-3 pt-3 rounded-lg px-3 py-2"
+                      style={{ background: `${color}08`, borderTop: `1px solid ${color}20` }}
+                    >
+                      <p className="text-xs leading-relaxed" style={{ color: '#555' }}>
+                        💡 {item.suggestion}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* 区域2：分类详情区 */}
+      {hasAiData && (
+        <div className="px-4 mt-5">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-1 h-5 rounded-full bg-blue-400" />
+            <span className="font-semibold text-base text-gray-800">分类详情</span>
+          </div>
+
+          <Collapse defaultActiveKey={categories.map((c) => c.name)}>
+            {categories.map((cat) => {
+              const abnCount = cat.items.filter((i) => isAbnormalStatus(i.status)).length;
+              return (
+                <Collapse.Panel
+                  key={cat.name}
+                  title={
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-sm">{cat.name}</span>
+                      {abnCount > 0 && (
+                        <span
+                          className="text-xs px-1.5 py-0.5 rounded-full"
+                          style={{ background: '#FFF1F0', color: '#FF4D4F' }}
+                        >
+                          {abnCount}项异常
+                        </span>
+                      )}
+                    </div>
+                  }
+                >
+                  <div className="space-y-1">
+                    {cat.items.map((item, idx) => {
+                      const abnormal = isAbnormalStatus(item.status);
+                      const color = abnormal ? getStatusColor(item.status) : '#52C41A';
+                      return (
+                        <div
+                          key={idx}
+                          className="flex items-center py-2 border-b last:border-b-0"
+                          style={{ borderColor: '#f5f5f5' }}
+                        >
+                          <span
+                            className="flex-1 text-sm"
+                            style={{ color: abnormal ? '#333' : '#555' }}
+                          >
+                            {item.name}
+                          </span>
+                          <span
+                            className="text-sm font-semibold mx-2"
+                            style={{ color: abnormal ? getStatusColor(item.status) : '#333' }}
+                          >
+                            {item.value}
+                            <span className="text-xs font-normal text-gray-400 ml-0.5">
+                              {item.unit}
+                            </span>
+                          </span>
+                          <span className="text-xs text-gray-400 mr-2 hidden sm:inline">
+                            {item.reference}
+                          </span>
+                          <span
+                            className="text-xs px-1.5 py-0.5 rounded-full flex-shrink-0"
+                            style={{ background: `${color}18`, color }}
+                          >
+                            {item.status || '正常'}
+                          </span>
+                          <button
+                            className="ml-2 text-xs text-gray-400 flex-shrink-0"
+                            onClick={() =>
+                              router.push(
+                                `/checkup/trend?indicator_name=${encodeURIComponent(item.name)}`
+                              )
+                            }
+                          >
+                            趋势›
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </Collapse.Panel>
+              );
+            })}
+          </Collapse>
         </div>
       )}
 
-      {/* Disclaimer */}
-      <div className="px-4 pb-8">
-        <div className="rounded-xl bg-amber-50 p-3">
+      {/* 区域3：综合建议区 */}
+      <div className="px-4 mt-5">
+        <div className="flex items-center gap-2 mb-3">
+          <div
+            className="w-6 h-6 rounded-full flex items-center justify-center"
+            style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}
+          >
+            <span className="text-white text-[10px] font-bold">AI</span>
+          </div>
+          <span className="font-semibold text-base text-gray-800">综合健康建议</span>
+        </div>
+
+        <div className="rounded-xl bg-white p-4" style={{ border: '1px solid #f0f0f0' }}>
+          {summary ? (
+            <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">{summary}</p>
+          ) : (
+            <p className="text-sm text-gray-400">暂无综合建议</p>
+          )}
+        </div>
+
+        <div className="rounded-xl bg-amber-50 p-3 mt-3">
           <p className="text-xs text-amber-700 leading-relaxed">{DISCLAIMER}</p>
         </div>
       </div>
 
-      {/* Share Action Sheet */}
-      <ActionSheet
-        visible={shareVisible}
-        actions={[
-          { text: '生成图片', key: 'image', onClick: () => handleShare('image') },
-          { text: '复制链接', key: 'link', onClick: () => handleShare('link') },
-        ]}
-        cancelText="取消"
-        onClose={() => setShareVisible(false)}
-      />
-    </div>
-  );
-}
-
-function IndicatorRow({
-  indicator,
-  showDesc = false,
-  router,
-}: {
-  indicator: Indicator;
-  showDesc?: boolean;
-  router: ReturnType<typeof useRouter>;
-}) {
-  const abnormal = indicator.status === 'abnormal' || indicator.status === 'critical';
-
-  return (
-    <div
-      className="bg-white rounded-xl p-3"
-      style={{
-        border: abnormal ? '1px solid #ffccc7' : '1px solid #f0f0f0',
-      }}
-    >
-      <div className="flex items-center justify-between">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <span
-              className={`text-sm font-medium ${abnormal ? 'text-red-600' : 'text-gray-800'}`}
-            >
-              {indicator.indicator_name}
-            </span>
-            {abnormal && (
-              <Tag
-                style={{
-                  '--background-color': '#f5222d15',
-                  '--text-color': '#f5222d',
-                  '--border-color': 'transparent',
-                  fontSize: 10,
-                  padding: '0 4px',
-                }}
-              >
-                {indicator.status === 'critical' ? '危急' : '异常'}
-              </Tag>
-            )}
-          </div>
-          <div className="flex items-center gap-2 mt-1">
-            <span className={`text-base font-bold ${abnormal ? 'text-red-600' : 'text-gray-800'}`}>
-              {indicator.value}
-            </span>
-            <span className="text-xs text-gray-400">{indicator.unit}</span>
-          </div>
-          <div className="text-xs text-gray-400 mt-0.5">参考范围: {indicator.reference_range}</div>
+      {/* 分享按钮区 */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 py-3 safe-area-bottom">
+        <div className="flex gap-3">
+          <button
+            onClick={handleShareLink}
+            disabled={shareLoading}
+            className="flex-1 py-2.5 rounded-xl text-sm font-medium"
+            style={{
+              background: 'linear-gradient(135deg, #52c41a, #13c2c2)',
+              color: '#fff',
+              opacity: shareLoading ? 0.7 : 1,
+            }}
+          >
+            生成图片分享
+          </button>
+          <button
+            onClick={handleCopyShareLink}
+            disabled={shareLoading}
+            className="flex-1 py-2.5 rounded-xl text-sm font-medium"
+            style={{
+              background: '#f5f5f5',
+              color: '#555',
+              border: '1px solid #e8e8e8',
+              opacity: shareLoading ? 0.7 : 1,
+            }}
+          >
+            复制分享链接
+          </button>
         </div>
-        <button
-          className="text-xs px-2 py-1 rounded-full bg-gray-50 text-gray-500 flex-shrink-0"
-          onClick={() =>
-            router.push(`/checkup/trend?indicator_name=${encodeURIComponent(indicator.indicator_name)}`)
-          }
-        >
-          趋势 ›
-        </button>
       </div>
-      {showDesc && indicator.advice && (
-        <div className="mt-2 pt-2 border-t border-gray-50">
-          <p className="text-xs text-gray-500 leading-relaxed">{indicator.advice}</p>
-        </div>
-      )}
+
+      {/* 分享链接对话框 */}
+      <Dialog
+        visible={shareLinkVisible}
+        title="分享链接"
+        content={
+          <div>
+            <div
+              className="rounded-lg p-3 mt-2 break-all text-xs text-gray-600"
+              style={{ background: '#f5f5f5' }}
+            >
+              {shareLink}
+            </div>
+            <button
+              onClick={handleCopyFromDialog}
+              className="mt-3 w-full py-2.5 rounded-xl text-sm font-medium text-white"
+              style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}
+            >
+              复制链接
+            </button>
+          </div>
+        }
+        closeOnMaskClick
+        onClose={() => setShareLinkVisible(false)}
+        actions={[]}
+      />
     </div>
   );
 }

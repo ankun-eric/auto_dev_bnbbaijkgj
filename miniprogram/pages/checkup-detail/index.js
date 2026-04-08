@@ -6,13 +6,13 @@ Page({
     reportId: '',
     report: null,
     images: [],
-    analysisResult: null,
-    viewMode: 'category',
-    categoryItems: [],
-    abnormalItems: [],
-    normalItems: [],
+    aiData: null,
+    aiRawText: '',
+    abnormalCards: [],
+    categories: [],
+    expandedCategories: {},
     loading: true,
-    disclaimer: '⚠️ 免责声明：本解读结果由AI智能分析生成，仅供参考，不构成医疗诊断或治疗建议。如有健康疑问，请及时咨询专业医生。'
+    disclaimer: '免责声明：本解读结果由AI智能分析生成，仅供参考，不构成医疗诊断或治疗建议。如有健康疑问，请及时咨询专业医生。'
   },
 
   onLoad(options) {
@@ -31,44 +31,81 @@ Page({
       const res = await get(`/api/report/detail/${id}`, {}, { suppressErrorToast: true });
       const report = res.data || res;
       const images = report.file_url && report.file_type !== 'pdf' ? [report.file_url] : [];
-      const indicators = report.indicators || [];
-      const analysisJson = report.ai_analysis_json || null;
 
-      let categoryItems = [];
-      let abnormalItems = [];
-      let normalItems = [];
+      let aiData = null;
+      let aiRawText = '';
 
-      const grouped = {};
-      indicators.forEach(ind => {
-        const cat = ind.category || '其他';
-        if (!grouped[cat]) grouped[cat] = [];
-        grouped[cat].push({
-          name: ind.indicator_name,
-          value: ind.value,
-          unit: ind.unit,
-          reference_range: ind.reference_range,
-          status: ind.status,
-          advice: ind.advice,
-          is_abnormal: ind.status === 'abnormal' || ind.status === 'critical'
+      const rawJson = report.ai_analysis_json;
+      if (rawJson) {
+        try {
+          aiData = typeof rawJson === 'string' ? JSON.parse(rawJson) : rawJson;
+        } catch (e) {
+          aiRawText = typeof rawJson === 'string' ? rawJson : (report.ai_result || '');
+        }
+      } else if (report.ai_result) {
+        try {
+          aiData = typeof report.ai_result === 'string' ? JSON.parse(report.ai_result) : report.ai_result;
+        } catch (e) {
+          aiRawText = typeof report.ai_result === 'string' ? report.ai_result : '';
+        }
+      }
+
+      let abnormalCards = [];
+      let categories = [];
+      let expandedCategories = {};
+
+      if (aiData && aiData.categories) {
+        const abnormalNames = Array.isArray(aiData.abnormal_items) ? aiData.abnormal_items : [];
+
+        aiData.categories.forEach((cat, catIdx) => {
+          const items = Array.isArray(cat.items) ? cat.items : [];
+          let catAbnormalCount = 0;
+
+          items.forEach(item => {
+            const isAbnormal = item.status && item.status !== '正常' && item.status !== 'normal';
+            if (isAbnormal) {
+              catAbnormalCount++;
+              abnormalCards.push({
+                name: item.name,
+                value: item.value,
+                unit: item.unit || '',
+                reference: item.reference || '',
+                status: item.status,
+                suggestion: item.suggestion || '',
+                statusColor: item.status && item.status.includes('高') ? 'high' : 'low'
+              });
+            }
+          });
+
+          categories.push({
+            name: cat.name,
+            abnormalCount: catAbnormalCount,
+            items: items.map(item => {
+              const isAbnormal = item.status && item.status !== '正常' && item.status !== 'normal';
+              return {
+                name: item.name,
+                value: item.value,
+                unit: item.unit || '',
+                reference: item.reference || '',
+                status: item.status || '正常',
+                isAbnormal,
+                statusColor: isAbnormal ? (item.status && item.status.includes('高') ? 'high' : 'low') : 'normal'
+              };
+            })
+          });
+
+          expandedCategories[catIdx] = false;
         });
-      });
-
-      Object.keys(grouped).forEach(cat => {
-        categoryItems.push({ isCategory: true, categoryName: cat });
-        grouped[cat].forEach(item => {
-          categoryItems.push(item);
-          if (item.is_abnormal) abnormalItems.push(item);
-          else normalItems.push(item);
-        });
-      });
+      }
 
       this.setData({
         report,
         images: typeof images === 'string' ? [images] : images,
-        analysisResult: analysisJson,
-        categoryItems,
-        abnormalItems,
-        normalItems,
+        aiData,
+        aiRawText,
+        abnormalCards,
+        categories,
+        expandedCategories,
         loading: false
       });
     } catch (e) {
@@ -78,9 +115,10 @@ Page({
     }
   },
 
-  switchView(e) {
-    const mode = e.currentTarget.dataset.mode;
-    this.setData({ viewMode: mode });
+  toggleCategory(e) {
+    const idx = e.currentTarget.dataset.idx;
+    const key = `expandedCategories.${idx}`;
+    this.setData({ [key]: !this.data.expandedCategories[idx] });
   },
 
   previewImage(e) {
@@ -88,30 +126,19 @@ Page({
     wx.previewImage({ current: url, urls: this.data.images });
   },
 
-  viewTrend(e) {
-    const name = e.currentTarget.dataset.name;
-    wx.navigateTo({
-      url: `/pages/checkup-trend/index?name=${encodeURIComponent(name)}`
-    });
-  },
-
   async shareReport() {
     if (!checkLogin()) return;
+    const id = this.data.reportId;
     wx.showLoading({ title: '生成分享...', mask: true });
     try {
-      const res = await post('/api/report/share', { report_id: parseInt(this.data.reportId) });
+      const res = await post(`/api/report/${id}/share`, {});
       wx.hideLoading();
-      const shareUrl = res.share_url || res.url || '';
-      const shareText = res.share_text || '';
+      const token = res.share_token || res.token || '';
+      const shareUrl = res.share_url || res.url || (token ? `${getApp().globalData.baseUrl}/share/report/${token}` : '');
       if (shareUrl) {
         wx.setClipboardData({
           data: shareUrl,
-          success: () => wx.showToast({ title: '分享链接已复制', icon: 'success' })
-        });
-      } else if (shareText) {
-        wx.setClipboardData({
-          data: shareText,
-          success: () => wx.showToast({ title: '分享内容已复制', icon: 'success' })
+          success: () => wx.showToast({ title: '链接已复制', icon: 'success' })
         });
       } else {
         wx.showToast({ title: '分享成功', icon: 'success' });

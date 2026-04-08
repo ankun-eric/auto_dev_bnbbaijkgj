@@ -48,6 +48,7 @@ class ApiConfig {
   static const String reportTrendAnalysis = '/api/report/trend/analysis';
   static const String reportAlerts = '/api/report/alerts';
   static const String reportShare = '/api/report/share';
+  static const String reportShareByPath = '/api/report';
 
   // Symptom (uses chat with session_type=symptom_check)
   static const String symptomCheck = '/api/chat/sessions';
@@ -61,6 +62,8 @@ class ApiConfig {
   static const String drugSearch = '/api/drugs/query';
   static const String drugIdentify = '/api/drugs/identify';
   static const String drugIdentifyHistory = '/api/drug-identify/history';
+  static const String drugIdentifyShare = '/api/drug-identify';
+  static const String drugIdentifyPersonalSuggestion = '/api/drug-identify';
   static const String ocrRecognize = '/api/ocr/recognize';
   static const String ocrBatchRecognize = '/api/ocr/batch-recognize';
 

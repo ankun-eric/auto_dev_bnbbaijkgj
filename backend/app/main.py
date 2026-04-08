@@ -16,6 +16,7 @@ from app.api import (
     cos,
     customer_service,
     drug,
+    drug_identify_share,
     email_notify,
     expert,
     family,
@@ -28,6 +29,7 @@ from app.api import (
     plan,
     points,
     merchant,
+    prompt_templates,
     report,
     service,
     sms,
@@ -90,6 +92,8 @@ app.include_router(ocr.router)
 app.include_router(ocr.admin_router)
 app.include_router(ocr_details.router)
 app.include_router(ocr_details.user_router)
+app.include_router(prompt_templates.router)
+app.include_router(drug_identify_share.router)
 
 os.makedirs("uploads", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")

@@ -226,9 +226,10 @@ async def analyze_report_structured(
     ocr_text: str,
     user_profile: Optional[Dict] = None,
     db: Optional[AsyncSession] = None,
+    custom_prompt: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Return a structured JSON interpretation of a checkup report."""
-    system_prompt = (
+    system_prompt = custom_prompt or (
         "你是一位专业的健康顾问AI，擅长解读体检报告。请根据提供的体检报告OCR文本，"
         "提取各项指标并给出结构化JSON解读结果。\n"
         "回复必须是合法JSON，格式如下:\n"

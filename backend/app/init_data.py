@@ -19,6 +19,7 @@ from app.models.models import (
     OcrProviderConfig,
     OcrSceneTemplate,
     OcrUploadConfig,
+    PromptTemplate,
     ServiceCategory,
     SmsConfig,
     SmsTemplate,
@@ -46,6 +47,7 @@ async def init_default_data():
             await _init_ocr_config(db)
             await _init_ocr_provider_configs(db)
             await _migrate_ocr_prompts_to_templates(db)
+            await _init_prompt_templates(db)
             await _clean_chat_history_once(db)
             await db.commit()
             logger.info("Default data initialization completed")
@@ -754,6 +756,145 @@ async def _init_ocr_prompt_configs(db: AsyncSession):
             db.add(AiPromptConfig(**p))
     await db.flush()
     logger.info("Ensured OCR prompt configs exist")
+
+
+_DEFAULT_PROMPT_TEMPLATES = [
+    {
+        "name": "体检报告解读",
+        "prompt_type": "checkup_report",
+        "content": (
+            "你是一位专业的健康顾问AI，擅长解读体检报告。请根据提供的体检报告OCR文本，分析各项指标，以结构化JSON格式输出解读结果。\n\n"
+            "请严格按照以下JSON格式输出，不要输出其他内容：\n"
+            "{\n"
+            '  "summary": "综合健康建议文字（200字以内）",\n'
+            '  "categories": [\n'
+            "    {\n"
+            '      "name": "指标分类名称（如血常规、肝功能等）",\n'
+            '      "items": [\n'
+            "        {\n"
+            '          "name": "指标名称",\n'
+            '          "value": "数值",\n'
+            '          "unit": "单位",\n'
+            '          "reference": "参考范围",\n'
+            '          "status": "正常/偏高/偏低",\n'
+            '          "suggestion": "单项建议（50字以内，仅异常项需要）"\n'
+            "        }\n"
+            "      ]\n"
+            "    }\n"
+            "  ],\n"
+            '  "abnormal_items": ["异常指标名称列表"]\n'
+            "}"
+        ),
+    },
+    {
+        "name": "药物识别通用建议",
+        "prompt_type": "drug_general",
+        "content": (
+            "你是一位专业药剂师AI，请根据提供的药物图片OCR文本，识别药物信息并给出通用用药建议。\n\n"
+            "请严格按照以下JSON格式输出，不要输出其他内容：\n"
+            "{\n"
+            '  "drugs": [\n'
+            "    {\n"
+            '      "name": "药品名称",\n'
+            '      "ingredients": "主要成分",\n'
+            '      "specification": "规格",\n'
+            '      "indications": "适应症",\n'
+            '      "dosage": "用法用量",\n'
+            '      "precautions": "注意事项",\n'
+            '      "ai_suggestion_general": "通用用药建议（100字以内）",\n'
+            '      "ai_suggestion_personal": null\n'
+            "    }\n"
+            "  ],\n"
+            '  "interactions": []\n'
+            "}"
+        ),
+    },
+    {
+        "name": "药物识别个性化建议",
+        "prompt_type": "drug_personal",
+        "content": (
+            "你是一位专业药剂师AI，请根据提供的药物图片OCR文本及用户健康档案，识别药物信息并给出个性化用药建议。\n\n"
+            "用户健康档案信息：\n"
+            "{health_profile}\n\n"
+            "请严格按照以下JSON格式输出，不要输出其他内容：\n"
+            "{\n"
+            '  "drugs": [\n'
+            "    {\n"
+            '      "name": "药品名称",\n'
+            '      "ingredients": "主要成分",\n'
+            '      "specification": "规格",\n'
+            '      "indications": "适应症",\n'
+            '      "dosage": "用法用量",\n'
+            '      "precautions": "注意事项",\n'
+            '      "ai_suggestion_general": "通用用药建议（100字以内）",\n'
+            '      "ai_suggestion_personal": "结合健康档案的个性化建议（100字以内）"\n'
+            "    }\n"
+            "  ],\n"
+            '  "interactions": [\n'
+            "    {\n"
+            '      "drugs": ["药品A", "药品B"],\n'
+            '      "risk": "相互作用风险描述"\n'
+            "    }\n"
+            "  ]\n"
+            "}"
+        ),
+    },
+    {
+        "name": "药物相互作用分析",
+        "prompt_type": "drug_interaction",
+        "content": (
+            "你是一位专业药剂师AI，请分析以下药物之间的相互作用风险。\n\n"
+            "药物列表：{drug_list}\n\n"
+            "请严格按照以下JSON格式输出，不要输出其他内容：\n"
+            "{\n"
+            '  "interactions": [\n'
+            "    {\n"
+            '      "drugs": ["药品A", "药品B"],\n'
+            '      "risk": "相互作用风险描述"\n'
+            "    }\n"
+            "  ],\n"
+            '  "summary": "总体用药安全评估（100字以内）"\n'
+            "}"
+        ),
+    },
+    {
+        "name": "趋势解读",
+        "prompt_type": "trend_analysis",
+        "content": (
+            "你是一位专业健康顾问AI，请根据以下体检指标历史数据，对趋势进行解读并给出建议。\n\n"
+            "指标名称：{indicator_name}\n"
+            "历史数据：{trend_data}\n"
+            "正常参考范围：{reference_range}\n\n"
+            "请严格按照以下JSON格式输出，不要输出其他内容：\n"
+            "{\n"
+            '  "trend_description": "趋势描述（100字以内）",\n'
+            '  "risk_level": "正常/关注/警告",\n'
+            '  "suggestion": "趋势建议（150字以内）"\n'
+            "}"
+        ),
+    },
+]
+
+
+async def _init_prompt_templates(db: AsyncSession):
+    for tpl_data in _DEFAULT_PROMPT_TEMPLATES:
+        result = await db.execute(
+            select(PromptTemplate).where(
+                PromptTemplate.prompt_type == tpl_data["prompt_type"],
+                PromptTemplate.is_active == True,  # noqa: E712
+            )
+        )
+        if result.scalar_one_or_none():
+            continue
+        db.add(PromptTemplate(
+            name=tpl_data["name"],
+            prompt_type=tpl_data["prompt_type"],
+            content=tpl_data["content"],
+            version=1,
+            is_active=True,
+        ))
+    await db.flush()
+    logger.info("Initialized default prompt templates")
 
 
 async def _clean_chat_history_once(db: AsyncSession):

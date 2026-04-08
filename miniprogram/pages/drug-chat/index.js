@@ -1,25 +1,80 @@
 const { get, post, uploadFile } = require('../../utils/request');
 const { generateId, checkLogin } = require('../../utils/util');
+const app = getApp();
 
 Page({
   data: {
     sessionId: '',
+    recordId: '',
     messages: [],
     inputValue: '',
     scrollToId: '',
     inputFocus: false,
-    sending: false
+    sending: false,
+
+    // 结构化药物识别结果
+    drugResult: null,
+    interactions: [],
+    drugs: [],
+    expandedDrugs: {},
+    activeTab: 'general',   // 'general' | 'personal'
+    personalSuggestion: '',
+    loadingPersonal: false,
+    showDrugPanel: false
   },
 
   onLoad(options) {
-    const { sessionId } = options;
-    if (!sessionId) {
+    const { sessionId, session_id, record_id, recordId } = options;
+    const sid = sessionId || session_id;
+    const rid = recordId || record_id || '';
+
+    if (!sid) {
       wx.showToast({ title: '参数错误', icon: 'none' });
       setTimeout(() => wx.navigateBack(), 1500);
       return;
     }
-    this.setData({ sessionId });
-    this.loadMessages(sessionId);
+    this.setData({ sessionId: sid, recordId: rid });
+    this.loadMessages(sid);
+
+    if (rid) {
+      this.loadDrugRecord(rid);
+    }
+  },
+
+  async loadDrugRecord(recordId) {
+    try {
+      const res = await get(`/api/drug-identify/${recordId}`, {}, { suppressErrorToast: true, showLoading: false });
+      const raw = res.data || res;
+      const aiResultRaw = raw.ai_result;
+      if (!aiResultRaw) return;
+
+      let drugResult = null;
+      try {
+        drugResult = typeof aiResultRaw === 'string' ? JSON.parse(aiResultRaw) : aiResultRaw;
+      } catch (e) {
+        return;
+      }
+
+      if (!drugResult || !Array.isArray(drugResult.drugs)) return;
+
+      const drugs = drugResult.drugs.map((d, idx) => ({
+        ...d,
+        _idx: idx
+      }));
+      const interactions = Array.isArray(drugResult.interactions) ? drugResult.interactions : [];
+      const expandedDrugs = {};
+      drugs.forEach((d, i) => { expandedDrugs[i] = drugs.length === 1; });
+
+      this.setData({
+        drugResult,
+        drugs,
+        interactions,
+        expandedDrugs,
+        showDrugPanel: true
+      });
+    } catch (e) {
+      console.log('loadDrugRecord error', e);
+    }
   },
 
   async loadMessages(sessionId) {
@@ -48,6 +103,68 @@ Page({
       console.log('loadMessages error', e);
     } finally {
       wx.hideLoading();
+    }
+  },
+
+  toggleDrug(e) {
+    const idx = e.currentTarget.dataset.idx;
+    const key = `expandedDrugs.${idx}`;
+    this.setData({ [key]: !this.data.expandedDrugs[idx] });
+  },
+
+  switchTab(e) {
+    const tab = e.currentTarget.dataset.tab;
+    this.setData({ activeTab: tab });
+    if (tab === 'personal' && !this.data.personalSuggestion) {
+      this.loadPersonalSuggestion();
+    }
+  },
+
+  async loadPersonalSuggestion() {
+    const { recordId } = this.data;
+    if (!recordId) {
+      wx.showToast({ title: '无法获取个性化建议', icon: 'none' });
+      return;
+    }
+    if (!app.globalData.token) {
+      wx.showToast({ title: '请先登录', icon: 'none' });
+      return;
+    }
+    this.setData({ loadingPersonal: true });
+    try {
+      const res = await get(`/api/drug-identify/${recordId}/personal-suggestion`, {}, { showLoading: false, suppressErrorToast: true });
+      const suggestion = res.suggestion || res.content || res.data || '';
+      this.setData({ personalSuggestion: suggestion });
+    } catch (e) {
+      wx.showToast({ title: '获取个性化建议失败', icon: 'none' });
+    } finally {
+      this.setData({ loadingPersonal: false });
+    }
+  },
+
+  async shareDrug() {
+    const { recordId } = this.data;
+    if (!recordId) {
+      wx.showToast({ title: '暂无可分享记录', icon: 'none' });
+      return;
+    }
+    wx.showLoading({ title: '生成分享...', mask: true });
+    try {
+      const res = await post(`/api/drug-identify/${recordId}/share`, {});
+      wx.hideLoading();
+      const token = res.share_token || res.token || '';
+      const shareUrl = res.share_url || res.url || (token ? `${app.globalData.baseUrl}/share/drug/${token}` : '');
+      if (shareUrl) {
+        wx.setClipboardData({
+          data: shareUrl,
+          success: () => wx.showToast({ title: '链接已复制', icon: 'success' })
+        });
+      } else {
+        wx.showToast({ title: '分享成功', icon: 'success' });
+      }
+    } catch (e) {
+      wx.hideLoading();
+      wx.showToast({ title: '分享失败', icon: 'none' });
     }
   },
 
@@ -158,14 +275,19 @@ Page({
         scene_name: '拍照识药'
       });
       const newSessionId = res.session_id || res.id || res.sessionId;
+      const newRecordId = res.record_id || res.recordId || '';
       this._removeMessage(loadingId);
 
       if (newSessionId && newSessionId !== this.data.sessionId) {
         wx.redirectTo({
-          url: '/pages/drug-chat/index?sessionId=' + newSessionId
+          url: `/pages/drug-chat/index?sessionId=${newSessionId}${newRecordId ? '&record_id=' + newRecordId : ''}`
         });
       } else {
         this.loadMessages(this.data.sessionId);
+        if (newRecordId) {
+          this.setData({ recordId: newRecordId });
+          this.loadDrugRecord(newRecordId);
+        }
       }
     } catch (e) {
       this._removeMessage(loadingId);

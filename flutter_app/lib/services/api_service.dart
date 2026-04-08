@@ -256,7 +256,7 @@ class ApiService {
   }
 
   Future<Response> shareReport(int reportId) async {
-    return _dio.post(ApiConfig.reportShare, data: {'report_id': reportId});
+    return _dio.post('${ApiConfig.reportShareByPath}/$reportId/share');
   }
 
   // Symptom
@@ -302,6 +302,14 @@ class ApiService {
       'page': page,
       'page_size': pageSize,
     });
+  }
+
+  Future<Response> shareDrugIdentify(int recordId) async {
+    return _dio.post('${ApiConfig.drugIdentifyShare}/$recordId/share');
+  }
+
+  Future<Response> getDrugPersonalSuggestion(int recordId) async {
+    return _dio.get('${ApiConfig.drugIdentifyPersonalSuggestion}/$recordId/personal-suggestion');
   }
 
   Future<Response> ocrRecognizeDrug(String imagePath) async {
