@@ -27,7 +27,33 @@
 - Admin: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api/`
 
-## Latest Feature: 用户/商家小程序合并
+## Latest Feature: OCR 识别多图上传
+
+### Backend
+- `POST /api/ocr/batch-recognize` enhanced: now returns `merged_ocr_text`, `merged_ai_result`, `merged_record_id`, `session_id` after AI-merging all successful OCR texts.
+- `POST /api/admin/ocr/test-ocr` upgraded to accept `files: List[UploadFile]`, returns `OcrTestBatchResponse` with per-image results and `merged_ocr_text`.
+- `POST /api/admin/ocr/test-full` upgraded to accept `files: List[UploadFile]`, returns `OcrTestFullBatchResponse` with per-image results, `merged_ocr_text`, and `merged_ai_result`.
+- `OcrCallRecord` model: added `image_count INT DEFAULT 1` and `image_urls JSON NULL` fields; `schema_sync.py` handles column migration on startup.
+- New schemas: `OcrTestBatchResponse`, `OcrTestFullBatchResponse`; updated `OcrBatchRecognizeResponse`, `OcrCallRecordResponse`.
+
+### Admin Web
+- `admin-web/src/app/(admin)/ocr-global-config/page.tsx`: added new "OCR测试" tab with multi-image upload (Ant Design Upload), provider/scene selectors, and result display (per-image + merged OCR text + merged AI result JSON).
+
+### H5
+- `h5-web/src/app/checkup/page.tsx`: multi-image upload with thumbnail preview grid, delete per image, progress display, calls `POST /api/ocr/batch-recognize` with `scene_name=体检报告识别`, navigates to `/checkup/result/{merged_record_id}`.
+- `h5-web/src/app/drug/page.tsx`: multi-image upload, calls `POST /api/ocr/batch-recognize` with `scene_name=拍照识药`, navigates to `/drug/chat/{session_id}`.
+
+### Mini Program
+- `miniprogram/pages/checkup/`: multi-image selection (album/camera), thumbnail preview with delete, progress text, "开始识别" button; uploads sequentially via `/api/ocr/recognize`.
+- `miniprogram/pages/drug/`: same multi-image pattern, calls `/api/ocr/recognize` per image, navigates to drug-chat on first successful `session_id`.
+
+### Flutter App
+- `flutter_app/lib/screens/health/checkup_screen.dart`: `pickMultiImage()`, thumbnail grid with delete, `_startRecognize()` calls `HealthProvider.uploadAndAnalyzeMultipleReports`.
+- `flutter_app/lib/screens/health/drug_screen.dart`: same pattern, calls `HealthProvider.recognizeMultipleDrugs` → navigates to drug-chat.
+- `flutter_app/lib/providers/health_provider.dart`: added `uploadAndAnalyzeMultipleReports` and `recognizeMultipleDrugs` methods.
+- `flutter_app/lib/services/api_service.dart`: added `ocrBatchRecognize(List<String> imagePaths, {String? sceneName})`.
+
+## Latest Feature (previous): 用户/商家小程序合并
 
 ### Backend
 
