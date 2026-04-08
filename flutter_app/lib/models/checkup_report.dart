@@ -10,6 +10,7 @@ class CheckupReport {
   final Map<String, dynamic>? aiAnalysisJson;
   final List<CheckupIndicator> indicators;
   final String createdAt;
+  final double? healthScore;
 
   CheckupReport({
     required this.id,
@@ -23,6 +24,7 @@ class CheckupReport {
     this.aiAnalysisJson,
     this.indicators = const [],
     required this.createdAt,
+    this.healthScore,
   });
 
   factory CheckupReport.fromJson(Map<String, dynamic> json) {
@@ -43,6 +45,7 @@ class CheckupReport {
               .toList() ??
           [],
       createdAt: json['created_at'] ?? '',
+      healthScore: (json['health_score'] ?? json['healthScore'])?.toDouble(),
     );
   }
 
@@ -59,6 +62,7 @@ class CheckupReport {
       'ai_analysis_json': aiAnalysisJson,
       'indicators': indicators.map((e) => e.toJson()).toList(),
       'created_at': createdAt,
+      'health_score': healthScore,
     };
   }
 }
@@ -110,7 +114,7 @@ class CheckupIndicator {
     };
   }
 
-  bool get isAbnormal => status == 'high' || status == 'low';
+  bool get isAbnormal => status == 'abnormal' || status == 'critical' || status == 'high' || status == 'low';
 }
 
 class TrendData {

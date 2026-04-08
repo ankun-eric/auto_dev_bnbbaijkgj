@@ -1,109 +1,365 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { NavBar, Toast, SpinLoading, Collapse, Dialog } from 'antd-mobile';
+import { NavBar, Toast, Dialog } from 'antd-mobile';
 import api from '@/lib/api';
 
-interface AiItem {
+/* ───── types ───── */
+
+interface ItemDetail {
+  explanation: string;
+  possibleCauses: string;
+  dietAdvice: string;
+  exerciseAdvice: string;
+  lifestyleAdvice: string;
+  recheckAdvice: string;
+  medicalAdvice: string;
+}
+
+interface IndicatorItem {
   name: string;
   value: string;
   unit: string;
-  reference: string;
-  status: string;
-  suggestion?: string;
+  referenceRange: string;
+  riskLevel: number;
+  riskName: string;
+  detail?: ItemDetail;
 }
 
-interface AiCategory {
+interface Category {
   name: string;
-  items: AiItem[];
+  emoji: string;
+  items: IndicatorItem[];
 }
 
-interface AiAnalysisJson {
-  summary?: string;
-  categories?: AiCategory[];
-  abnormal_items?: string[];
+interface HealthScore {
+  score: number;
+  level: string;
+  comment: string;
 }
 
-interface ReportDetail {
+interface Summary {
+  totalItems: number;
+  abnormalCount: number;
+  excellentCount: number;
+  normalCount: number;
+}
+
+interface AnalysisResult {
+  report_id: number;
+  status: string;
+  healthScore: HealthScore;
+  summary: Summary;
+  categories: Category[];
+  disclaimer: string;
+}
+
+interface ReportListItem {
   id: number;
-  ai_analysis?: string;
-  ai_analysis_json?: AiAnalysisJson | string;
   created_at: string;
+  health_score?: number;
 }
 
-const DISCLAIMER =
-  '⚠️ 免责声明：本解读结果由AI智能分析生成，仅供参考，不构成医疗诊断或治疗建议。如有健康疑问，请及时咨询专业医生。';
+/* ───── constants ───── */
+
+const RISK_MAP: Record<number, { name: string; color: string; emoji: string }> = {
+  1: { name: '优秀', color: '#1B8C3D', emoji: '✅' },
+  2: { name: '正常', color: '#4CAF50', emoji: '🟢' },
+  3: { name: '轻度异常', color: '#FFC107', emoji: '⚠️' },
+  4: { name: '中度异常', color: '#FF9800', emoji: '🔶' },
+  5: { name: '严重异常', color: '#F44336', emoji: '🔴' },
+};
+
+const SCORE_COLOR_RANGES = [
+  { min: 90, max: 100, color: '#0D7A3E' },
+  { min: 75, max: 89, color: '#4CAF50' },
+  { min: 60, max: 74, color: '#FFC107' },
+  { min: 40, max: 59, color: '#FF9800' },
+  { min: 0, max: 39, color: '#F44336' },
+];
+
+const LOADING_MESSAGES = [
+  '🔬 AI 正在分析您的指标…',
+  '📊 正在评估各项指标的风险等级…',
+  '📝 正在生成个性化健康建议…',
+  '✅ 分析完成！',
+];
 
 const BASE_SHARE_URL =
   'https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/shared/report';
 
-function getStatusColor(status: string): string {
-  if (status === '偏高' || status === 'high' || status === 'critical') return '#FF4D4F';
-  if (status === '偏低' || status === 'low') return '#FAAD14';
-  if (status === '正常' || status === 'normal') return '#52C41A';
-  return '#FF4D4F';
+function getScoreColor(score: number): string {
+  for (const r of SCORE_COLOR_RANGES) {
+    if (score >= r.min && score <= r.max) return r.color;
+  }
+  return '#F44336';
 }
 
-function isAbnormalStatus(status: string): boolean {
-  return status !== '正常' && status !== 'normal' && status !== '';
+function getRisk(level: number) {
+  return RISK_MAP[level] || RISK_MAP[2];
 }
+
+/* ───── SVG Gauge ───── */
+
+function ScoreGauge({ score, comment }: { score: number; comment: string }) {
+  const color = getScoreColor(score);
+  const radius = 80;
+  const stroke = 10;
+  const circumference = 2 * Math.PI * radius;
+  const arc = circumference * 0.75;
+  const offset = arc - (score / 100) * arc;
+
+  return (
+    <div className="flex flex-col items-center pt-6 pb-4">
+      <svg width="200" height="170" viewBox="0 0 200 200">
+        <circle
+          cx="100"
+          cy="100"
+          r={radius}
+          fill="none"
+          stroke="#f0f0f0"
+          strokeWidth={stroke}
+          strokeDasharray={`${arc} ${circumference}`}
+          strokeDashoffset="0"
+          strokeLinecap="round"
+          transform="rotate(135 100 100)"
+        />
+        <circle
+          cx="100"
+          cy="100"
+          r={radius}
+          fill="none"
+          stroke={color}
+          strokeWidth={stroke}
+          strokeDasharray={`${arc} ${circumference}`}
+          strokeDashoffset={offset}
+          strokeLinecap="round"
+          transform="rotate(135 100 100)"
+          style={{ transition: 'stroke-dashoffset 1s ease-out, stroke 0.5s' }}
+        />
+        <text
+          x="100"
+          y="95"
+          textAnchor="middle"
+          dominantBaseline="central"
+          style={{ fontSize: 44, fontWeight: 700, fill: color }}
+        >
+          {score}
+        </text>
+        <text
+          x="100"
+          y="130"
+          textAnchor="middle"
+          style={{ fontSize: 13, fill: '#999' }}
+        >
+          健康评分
+        </text>
+      </svg>
+      <p className="text-sm text-gray-600 mt-1 text-center px-6 leading-relaxed">{comment}</p>
+    </div>
+  );
+}
+
+/* ───── Detail section labels ───── */
+
+const DETAIL_SECTIONS: { key: keyof ItemDetail; emoji: string; label: string }[] = [
+  { key: 'explanation', emoji: '📖', label: '指标含义' },
+  { key: 'possibleCauses', emoji: '🔍', label: '可能原因' },
+  { key: 'dietAdvice', emoji: '🥗', label: '饮食建议' },
+  { key: 'exerciseAdvice', emoji: '🏃', label: '运动建议' },
+  { key: 'lifestyleAdvice', emoji: '🌙', label: '生活习惯' },
+  { key: 'recheckAdvice', emoji: '🔄', label: '复查建议' },
+  { key: 'medicalAdvice', emoji: '🏥', label: '就医指引' },
+];
+
+/* ───── Indicator Card ───── */
+
+function IndicatorCard({ item }: { item: IndicatorItem }) {
+  const isAbnormal = item.riskLevel >= 3;
+  const [expanded, setExpanded] = useState(isAbnormal);
+  const risk = getRisk(item.riskLevel);
+  const hasDetail = item.detail && Object.values(item.detail).some((v) => v);
+
+  return (
+    <div
+      className="bg-white rounded-xl p-4 mb-3"
+      style={{
+        border: `1px solid ${isAbnormal ? risk.color + '40' : '#f0f0f0'}`,
+        boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+      }}
+    >
+      {/* header row */}
+      <div className="flex items-start justify-between">
+        <div className="flex-1">
+          <span className="text-sm font-semibold text-gray-800">{item.name}</span>
+          <div className="flex items-baseline gap-1 mt-1">
+            <span className="text-xl font-bold" style={{ color: risk.color }}>
+              {item.value}
+            </span>
+            <span className="text-xs text-gray-400">{item.unit}</span>
+          </div>
+          <p className="text-xs text-gray-400 mt-0.5">参考范围：{item.referenceRange}</p>
+        </div>
+        <span
+          className="text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0 flex items-center gap-0.5"
+          style={{ background: `${risk.color}18`, color: risk.color }}
+        >
+          {risk.emoji} {item.riskName || risk.name}
+        </span>
+      </div>
+
+      {/* collapsible detail */}
+      {hasDetail && (
+        <>
+          <button
+            className="w-full text-xs text-gray-400 mt-3 flex items-center justify-center gap-1"
+            onClick={() => setExpanded(!expanded)}
+          >
+            {expanded ? '收起详情' : '展开详情'}
+            <span
+              className="inline-block transition-transform"
+              style={{ transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)' }}
+            >
+              ▾
+            </span>
+          </button>
+          {expanded && item.detail && (
+            <div className="mt-3 pt-3 border-t border-gray-100 space-y-3">
+              {DETAIL_SECTIONS.map(({ key, emoji, label }) => {
+                const text = item.detail![key];
+                if (!text) return null;
+                return (
+                  <div key={key}>
+                    <p className="text-xs font-medium text-gray-600 mb-0.5">
+                      {emoji} {label}
+                    </p>
+                    <p className="text-xs text-gray-500 leading-relaxed">{text}</p>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ───── Progressive Loading ───── */
+
+function ProgressiveLoading() {
+  const [msgIdx, setMsgIdx] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setMsgIdx((prev) => (prev < LOADING_MESSAGES.length - 1 ? prev + 1 : prev));
+    }, 2500);
+    return () => clearInterval(timer);
+  }, []);
+
+  const progress = ((msgIdx + 1) / LOADING_MESSAGES.length) * 100;
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="text-center px-8 w-full max-w-xs">
+        <div className="relative mx-auto mb-6">
+          <svg width="80" height="80" viewBox="0 0 80 80">
+            <circle cx="40" cy="40" r="34" fill="none" stroke="#f0f0f0" strokeWidth="6" />
+            <circle
+              cx="40"
+              cy="40"
+              r="34"
+              fill="none"
+              stroke="#52c41a"
+              strokeWidth="6"
+              strokeDasharray={`${2 * Math.PI * 34}`}
+              strokeDashoffset={`${2 * Math.PI * 34 * (1 - progress / 100)}`}
+              strokeLinecap="round"
+              transform="rotate(-90 40 40)"
+              style={{ transition: 'stroke-dashoffset 0.6s ease-out' }}
+            />
+          </svg>
+          <span className="absolute inset-0 flex items-center justify-center text-sm font-bold text-green-600">
+            {Math.round(progress)}%
+          </span>
+        </div>
+        <div className="space-y-2">
+          {LOADING_MESSAGES.map((msg, i) => (
+            <p
+              key={i}
+              className="text-sm transition-all duration-500"
+              style={{
+                color: i === msgIdx ? '#333' : i < msgIdx ? '#bbb' : '#e0e0e0',
+                fontWeight: i === msgIdx ? 600 : 400,
+                transform: i === msgIdx ? 'scale(1.05)' : 'scale(1)',
+              }}
+            >
+              {msg}
+            </p>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ───── Main page ───── */
 
 export default function ResultPage() {
   const router = useRouter();
   const params = useParams();
   const id = params.id as string;
 
-  const [detail, setDetail] = useState<ReportDetail | null>(null);
+  const [result, setResult] = useState<AnalysisResult | null>(null);
   const [loading, setLoading] = useState(true);
+  const [hasHistory, setHasHistory] = useState(false);
+  const [prevReportId, setPrevReportId] = useState<number | null>(null);
   const [shareLoading, setShareLoading] = useState(false);
   const [shareLink, setShareLink] = useState('');
   const [shareLinkVisible, setShareLinkVisible] = useState(false);
 
-  useEffect(() => {
-    if (!id) return;
-    fetchDetail();
-  }, [id]);
-
-  const fetchDetail = async () => {
+  const fetchAnalysis = useCallback(async () => {
     setLoading(true);
     try {
-      const res: any = await api.get(`/api/report/detail/${id}`);
+      const res: any = await api.post('/api/report/analyze', { report_id: Number(id) });
       const data = res.data || res;
-      setDetail(data);
+      setResult(data);
     } catch {
-      Toast.show({ content: '加载失败，请重试' });
+      Toast.show({ content: '分析失败，请重试' });
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
-  const parseAiJson = (detail: ReportDetail): AiAnalysisJson | null => {
-    if (!detail.ai_analysis_json) return null;
-    if (typeof detail.ai_analysis_json === 'string') {
-      try {
-        return JSON.parse(detail.ai_analysis_json);
-      } catch {
-        return null;
+  const fetchHistory = useCallback(async () => {
+    try {
+      const res: any = await api.get('/api/report/list', { params: { page: 1, page_size: 50 } });
+      const data = res.data || res;
+      const items: ReportListItem[] = data.items || data.list || [];
+      const currentIdx = items.findIndex((r) => r.id === Number(id));
+      if (currentIdx >= 0 && items.length > 1) {
+        setHasHistory(true);
+        const prev = items.find((r, i) => i !== currentIdx);
+        if (prev) setPrevReportId(prev.id);
       }
+    } catch {
+      /* ignore */
     }
-    return detail.ai_analysis_json as AiAnalysisJson;
-  };
+  }, [id]);
 
-  const getShareToken = async (): Promise<string | null> => {
+  useEffect(() => {
+    if (!id) return;
+    fetchAnalysis();
+    fetchHistory();
+  }, [id, fetchAnalysis, fetchHistory]);
+
+  const handleShare = async () => {
+    setShareLoading(true);
     try {
       const res: any = await api.post(`/api/report/${id}/share`);
       const data = res.data || res;
-      return data.share_token || data.token || null;
-    } catch {
-      return null;
-    }
-  };
-
-  const handleShareLink = async () => {
-    setShareLoading(true);
-    try {
-      const token = await getShareToken();
+      const token = data.share_token || data.token;
       if (!token) {
         Toast.show({ content: '生成分享链接失败' });
         return;
@@ -118,24 +374,6 @@ export default function ResultPage() {
     }
   };
 
-  const handleCopyShareLink = async () => {
-    setShareLoading(true);
-    try {
-      const token = await getShareToken();
-      if (!token) {
-        Toast.show({ content: '生成分享链接失败' });
-        return;
-      }
-      const url = `${BASE_SHARE_URL}/${token}`;
-      await navigator.clipboard.writeText(url);
-      Toast.show({ icon: 'success', content: '链接已复制到剪贴板' });
-    } catch {
-      Toast.show({ content: '复制失败，请重试' });
-    } finally {
-      setShareLoading(false);
-    }
-  };
-
   const handleCopyFromDialog = async () => {
     try {
       await navigator.clipboard.writeText(shareLink);
@@ -145,18 +383,14 @@ export default function ResultPage() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <SpinLoading style={{ '--size': '36px', '--color': '#52c41a' }} />
-          <p className="text-sm text-gray-400 mt-4">加载解读结果...</p>
-        </div>
-      </div>
-    );
-  }
+  const expandedCategories = useMemo(() => {
+    if (!result) return new Set<string>();
+    return new Set(result.categories.map((c) => c.name));
+  }, [result]);
 
-  if (!detail) {
+  if (loading) return <ProgressiveLoading />;
+
+  if (!result) {
     return (
       <div className="min-h-screen bg-gray-50">
         <NavBar onBack={() => router.back()} style={{ background: '#fff' }}>
@@ -169,184 +403,64 @@ export default function ResultPage() {
     );
   }
 
-  const aiJson = parseAiJson(detail);
-  const categories = aiJson?.categories || [];
-  const summary = aiJson?.summary || detail.ai_analysis || '';
-
-  const allAbnormalItems: AiItem[] = [];
-  categories.forEach((cat) => {
-    cat.items.forEach((item) => {
-      if (isAbnormalStatus(item.status)) {
-        allAbnormalItems.push(item);
-      }
-    });
-  });
-
-  const hasAiData = categories.length > 0;
+  const { healthScore, summary, categories, disclaimer } = result;
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-32">
-      <NavBar onBack={() => router.back()} style={{ background: '#fff' }}>
+    <div className="min-h-screen bg-gray-50 pb-8">
+      {/* NavBar */}
+      <NavBar
+        onBack={() => router.back()}
+        right={
+          <button
+            className="text-sm font-medium"
+            style={{ color: '#52c41a' }}
+            onClick={handleShare}
+            disabled={shareLoading}
+          >
+            分享
+          </button>
+        }
+        style={{ background: '#fff' }}
+      >
         解读结果
       </NavBar>
 
-      {/* 区域1：异常汇总卡片区 */}
-      <div className="px-4 pt-3">
-        <div className="flex items-center gap-2 mb-3">
-          <div className="w-1 h-5 rounded-full" style={{ background: '#FF4D4F' }} />
-          <span className="font-semibold text-base text-gray-800">
-            异常指标（{allAbnormalItems.length}项）
-          </span>
-        </div>
-
-        {allAbnormalItems.length === 0 ? (
-          <div
-            className="rounded-xl p-4 flex items-center gap-3"
-            style={{ background: '#F6FFED', border: '1px solid #B7EB8F' }}
-          >
-            <span className="text-2xl">✅</span>
-            <div>
-              <p className="font-medium text-sm" style={{ color: '#52C41A' }}>
-                所有指标均在正常范围内
-              </p>
-              {!hasAiData && (
-                <p className="text-xs text-gray-400 mt-0.5">暂无AI结构化解读数据</p>
-              )}
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {allAbnormalItems.map((item, idx) => {
-              const color = getStatusColor(item.status);
-              const isBgRed = item.status === '偏高' || item.status === 'high' || item.status === 'critical';
-              return (
-                <div
-                  key={idx}
-                  className="rounded-xl p-4 bg-white"
-                  style={{
-                    border: `1px solid ${isBgRed ? '#FFCCC7' : '#FFE58F'}`,
-                    boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
-                  }}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <span className="text-base font-bold text-gray-800">{item.name}</span>
-                      <div className="flex items-baseline gap-1 mt-1">
-                        <span className="text-xl font-bold" style={{ color }}>
-                          {item.value}
-                        </span>
-                        <span className="text-xs text-gray-400">{item.unit}</span>
-                      </div>
-                      <p className="text-xs text-gray-400 mt-0.5">正常范围：{item.reference}</p>
-                    </div>
-                    <span
-                      className="text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0"
-                      style={{ background: `${color}18`, color }}
-                    >
-                      {item.status}
-                    </span>
-                  </div>
-                  {item.suggestion && (
-                    <div
-                      className="mt-3 pt-3 rounded-lg px-3 py-2"
-                      style={{ background: `${color}08`, borderTop: `1px solid ${color}20` }}
-                    >
-                      <p className="text-xs leading-relaxed" style={{ color: '#555' }}>
-                        💡 {item.suggestion}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
+      {/* ─── Zone 1: Health Score Gauge ─── */}
+      <div
+        className="mx-4 mt-3 rounded-2xl overflow-hidden"
+        style={{
+          background: 'linear-gradient(180deg, #f8fdf5 0%, #ffffff 100%)',
+          border: '1px solid #e8f5e0',
+        }}
+      >
+        <ScoreGauge score={healthScore.score} comment={healthScore.comment} />
       </div>
 
-      {/* 区域2：分类详情区 */}
-      {hasAiData && (
-        <div className="px-4 mt-5">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-1 h-5 rounded-full bg-blue-400" />
-            <span className="font-semibold text-base text-gray-800">分类详情</span>
-          </div>
-
-          <Collapse defaultActiveKey={categories.map((c) => c.name)}>
-            {categories.map((cat) => {
-              const abnCount = cat.items.filter((i) => isAbnormalStatus(i.status)).length;
-              return (
-                <Collapse.Panel
-                  key={cat.name}
-                  title={
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-sm">{cat.name}</span>
-                      {abnCount > 0 && (
-                        <span
-                          className="text-xs px-1.5 py-0.5 rounded-full"
-                          style={{ background: '#FFF1F0', color: '#FF4D4F' }}
-                        >
-                          {abnCount}项异常
-                        </span>
-                      )}
-                    </div>
-                  }
-                >
-                  <div className="space-y-1">
-                    {cat.items.map((item, idx) => {
-                      const abnormal = isAbnormalStatus(item.status);
-                      const color = abnormal ? getStatusColor(item.status) : '#52C41A';
-                      return (
-                        <div
-                          key={idx}
-                          className="flex items-center py-2 border-b last:border-b-0"
-                          style={{ borderColor: '#f5f5f5' }}
-                        >
-                          <span
-                            className="flex-1 text-sm"
-                            style={{ color: abnormal ? '#333' : '#555' }}
-                          >
-                            {item.name}
-                          </span>
-                          <span
-                            className="text-sm font-semibold mx-2"
-                            style={{ color: abnormal ? getStatusColor(item.status) : '#333' }}
-                          >
-                            {item.value}
-                            <span className="text-xs font-normal text-gray-400 ml-0.5">
-                              {item.unit}
-                            </span>
-                          </span>
-                          <span className="text-xs text-gray-400 mr-2 hidden sm:inline">
-                            {item.reference}
-                          </span>
-                          <span
-                            className="text-xs px-1.5 py-0.5 rounded-full flex-shrink-0"
-                            style={{ background: `${color}18`, color }}
-                          >
-                            {item.status || '正常'}
-                          </span>
-                          <button
-                            className="ml-2 text-xs text-gray-400 flex-shrink-0"
-                            onClick={() =>
-                              router.push(
-                                `/checkup/trend?indicator_name=${encodeURIComponent(item.name)}`
-                              )
-                            }
-                          >
-                            趋势›
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </Collapse.Panel>
-              );
-            })}
-          </Collapse>
+      {/* ─── Zone 2: Summary Cards ─── */}
+      <div className="px-4 mt-4 grid grid-cols-3 gap-3">
+        <div className="bg-white rounded-xl p-3 text-center" style={{ border: '1px solid #f0f0f0' }}>
+          <p className="text-2xl font-bold text-gray-800">{summary.totalItems}</p>
+          <p className="text-xs text-gray-400 mt-1">共检测项</p>
         </div>
-      )}
+        <div className="bg-white rounded-xl p-3 text-center" style={{ border: '1px solid #ffccc7' }}>
+          <p className="text-2xl font-bold" style={{ color: '#F44336' }}>
+            {summary.abnormalCount}
+          </p>
+          <p className="text-xs mt-1" style={{ color: '#F44336' }}>
+            项异常
+          </p>
+        </div>
+        <div className="bg-white rounded-xl p-3 text-center" style={{ border: '1px solid #b7eb8f' }}>
+          <p className="text-2xl font-bold" style={{ color: '#1B8C3D' }}>
+            {summary.excellentCount}
+          </p>
+          <p className="text-xs mt-1" style={{ color: '#1B8C3D' }}>
+            项优秀
+          </p>
+        </div>
+      </div>
 
-      {/* 区域3：综合建议区 */}
+      {/* ─── Zone 3: Categorized Indicators ─── */}
       <div className="px-4 mt-5">
         <div className="flex items-center gap-2 mb-3">
           <div
@@ -355,54 +469,37 @@ export default function ResultPage() {
           >
             <span className="text-white text-[10px] font-bold">AI</span>
           </div>
-          <span className="font-semibold text-base text-gray-800">综合健康建议</span>
+          <span className="font-semibold text-base text-gray-800">分类指标详细解读</span>
         </div>
 
-        <div className="rounded-xl bg-white p-4" style={{ border: '1px solid #f0f0f0' }}>
-          {summary ? (
-            <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">{summary}</p>
-          ) : (
-            <p className="text-sm text-gray-400">暂无综合建议</p>
-          )}
-        </div>
-
-        <div className="rounded-xl bg-amber-50 p-3 mt-3">
-          <p className="text-xs text-amber-700 leading-relaxed">{DISCLAIMER}</p>
-        </div>
+        {categories.map((cat) => (
+          <CategorySection key={cat.name} category={cat} defaultOpen={expandedCategories.has(cat.name)} />
+        ))}
       </div>
 
-      {/* 分享按钮区 */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 py-3 safe-area-bottom">
-        <div className="flex gap-3">
+      {/* ─── Zone 4: Compare Entry ─── */}
+      {hasHistory && prevReportId && (
+        <div className="px-4 mt-5">
           <button
-            onClick={handleShareLink}
-            disabled={shareLoading}
-            className="flex-1 py-2.5 rounded-xl text-sm font-medium"
-            style={{
-              background: 'linear-gradient(135deg, #52c41a, #13c2c2)',
-              color: '#fff',
-              opacity: shareLoading ? 0.7 : 1,
-            }}
+            className="w-full py-3 rounded-xl text-sm font-medium text-white flex items-center justify-center gap-2"
+            style={{ background: 'linear-gradient(135deg, #1890ff, #096dd9)' }}
+            onClick={() => router.push(`/checkup/compare?id1=${prevReportId}&id2=${id}`)}
           >
-            生成图片分享
-          </button>
-          <button
-            onClick={handleCopyShareLink}
-            disabled={shareLoading}
-            className="flex-1 py-2.5 rounded-xl text-sm font-medium"
-            style={{
-              background: '#f5f5f5',
-              color: '#555',
-              border: '1px solid #e8e8e8',
-              opacity: shareLoading ? 0.7 : 1,
-            }}
-          >
-            复制分享链接
+            📊 与上次报告对比
           </button>
         </div>
-      </div>
+      )}
 
-      {/* 分享链接对话框 */}
+      {/* ─── Disclaimer ─── */}
+      {disclaimer && (
+        <div className="px-4 mt-5">
+          <div className="rounded-xl bg-amber-50 p-3">
+            <p className="text-xs text-amber-700 leading-relaxed">⚠️ {disclaimer}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Share dialog */}
       <Dialog
         visible={shareLinkVisible}
         title="分享链接"
@@ -427,6 +524,48 @@ export default function ResultPage() {
         onClose={() => setShareLinkVisible(false)}
         actions={[]}
       />
+    </div>
+  );
+}
+
+/* ───── Category Section with collapse ───── */
+
+function CategorySection({ category, defaultOpen }: { category: Category; defaultOpen: boolean }) {
+  const [open, setOpen] = useState(defaultOpen);
+  const abnormalCount = category.items.filter((i) => i.riskLevel >= 3).length;
+
+  return (
+    <div className="mb-4">
+      <button
+        className="w-full flex items-center justify-between py-2"
+        onClick={() => setOpen(!open)}
+      >
+        <div className="flex items-center gap-2">
+          <span className="text-lg">{category.emoji}</span>
+          <span className="font-medium text-sm text-gray-800">{category.name}</span>
+          {abnormalCount > 0 && (
+            <span
+              className="text-xs px-1.5 py-0.5 rounded-full"
+              style={{ background: '#FFF1F0', color: '#F44336' }}
+            >
+              {abnormalCount}项异常
+            </span>
+          )}
+        </div>
+        <span
+          className="text-gray-400 text-xs transition-transform"
+          style={{ transform: open ? 'rotate(180deg)' : 'rotate(0deg)' }}
+        >
+          ▾
+        </span>
+      </button>
+      {open && (
+        <div>
+          {category.items.map((item, idx) => (
+            <IndicatorCard key={idx} item={item} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

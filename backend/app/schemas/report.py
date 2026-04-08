@@ -46,6 +46,7 @@ class ReportDetailResponse(BaseModel):
     ai_analysis: Optional[str] = None
     ai_analysis_json: Optional[Any] = None
     abnormal_count: int = 0
+    health_score: Optional[int] = None
     status: Optional[str] = None
     indicators: List[IndicatorResponse] = []
     created_at: datetime
@@ -61,6 +62,8 @@ class ReportListItem(BaseModel):
     thumbnail_url: Optional[str] = None
     file_type: Optional[str] = None
     abnormal_count: int = 0
+    health_score: Optional[int] = None
+    ai_analysis_json: Optional[Any] = None
     status: Optional[str] = None
     created_at: datetime
 
@@ -99,6 +102,86 @@ class ReportAnalysisResponse(BaseModel):
     normal_indicators: List[IndicatorDetail] = []
     overall_assessment: Optional[str] = None
     suggestions: List[str] = []
+    disclaimer: str = ""
+
+
+# ──────────────── Enhanced Analysis ────────────────
+
+
+class HealthScoreInfo(BaseModel):
+    score: int
+    level: str
+    comment: str
+
+
+class SummaryInfo(BaseModel):
+    totalItems: int
+    abnormalCount: int
+    excellentCount: int
+    normalCount: int
+
+
+class IndicatorDetailAdvice(BaseModel):
+    explanation: Optional[str] = None
+    possibleCauses: Optional[str] = None
+    dietAdvice: Optional[str] = None
+    exerciseAdvice: Optional[str] = None
+    lifestyleAdvice: Optional[str] = None
+    recheckAdvice: Optional[str] = None
+    medicalAdvice: Optional[str] = None
+
+
+class EnhancedIndicatorItem(BaseModel):
+    name: str
+    value: Optional[str] = None
+    unit: Optional[str] = None
+    referenceRange: Optional[str] = None
+    riskLevel: int = 2
+    riskName: str = "正常"
+    detail: Optional[IndicatorDetailAdvice] = None
+
+
+class EnhancedCategoryView(BaseModel):
+    name: str
+    emoji: str = "📋"
+    items: List[EnhancedIndicatorItem] = []
+
+
+class EnhancedReportAnalysisResponse(BaseModel):
+    report_id: int
+    status: str
+    healthScore: Optional[HealthScoreInfo] = None
+    summary: Optional[SummaryInfo] = None
+    categories: List[EnhancedCategoryView] = []
+    disclaimer: str = ""
+
+
+# ──────────────── Report Comparison ────────────────
+
+
+class CompareIndicatorItem(BaseModel):
+    name: str
+    previousValue: Optional[str] = None
+    currentValue: Optional[str] = None
+    unit: Optional[str] = None
+    change: Optional[str] = None
+    direction: Optional[str] = None
+    previousRiskLevel: Optional[int] = None
+    currentRiskLevel: Optional[int] = None
+    suggestion: Optional[str] = None
+
+
+class CompareScoreDiff(BaseModel):
+    previousScore: Optional[int] = None
+    currentScore: Optional[int] = None
+    diff: Optional[int] = None
+    comment: Optional[str] = None
+
+
+class ReportCompareResponse(BaseModel):
+    aiSummary: Optional[str] = None
+    scoreDiff: Optional[CompareScoreDiff] = None
+    indicators: List[CompareIndicatorItem] = []
     disclaimer: str = ""
 
 

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -6,15 +7,39 @@ import 'package:provider/provider.dart';
 import '../../config/api_config.dart';
 import '../../models/ai_analysis.dart';
 import '../../models/checkup_report.dart';
+import '../../models/enhanced_report.dart';
 import '../../providers/health_provider.dart';
 import '../../services/api_service.dart';
 import '../../widgets/custom_app_bar.dart';
 import '../../widgets/loading_widget.dart';
+import 'report_compare_screen.dart';
 import 'trend_screen.dart';
 
-const kColorAbnormalHigh = Color(0xFFFF4D4F);
-const kColorAbnormalLow = Color(0xFFFAAD14);
-const kColorNormal = Color(0xFF52C41A);
+const _kPrimaryGreen = Color(0xFF52C41A);
+
+const _kRiskColors = <int, Color>{
+  1: Color(0xFF1B8C3D),
+  2: Color(0xFF4CAF50),
+  3: Color(0xFFFFC107),
+  4: Color(0xFFFF9800),
+  5: Color(0xFFF44336),
+};
+
+const _kRiskEmojis = <int, String>{
+  1: '✅',
+  2: '🟢',
+  3: '⚠️',
+  4: '🔶',
+  5: '🔴',
+};
+
+Color _scoreColor(double score) {
+  if (score >= 90) return const Color(0xFF1B8C3D);
+  if (score >= 75) return const Color(0xFF4CAF50);
+  if (score >= 60) return const Color(0xFFFFC107);
+  if (score >= 40) return const Color(0xFFFF9800);
+  return const Color(0xFFF44336);
+}
 
 class ReportDetailScreen extends StatefulWidget {
   final int reportId;
@@ -31,7 +56,21 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
   bool _isLoading = true;
   late TabController _tabController;
   final ApiService _api = ApiService();
-  ReportAnalysisResult? _analysisResult;
+
+  EnhancedReportAnalysis? _enhancedAnalysis;
+  ReportAnalysisResult? _legacyAnalysis;
+
+  // Loading animation
+  bool _isAnalyzing = false;
+  int _loadingTextIndex = 0;
+  static const _loadingTexts = [
+    '正在读取报告数据...',
+    'AI 正在分析您的健康指标...',
+    '正在生成健康评分...',
+    '正在匹配医学知识库...',
+    '正在生成个性化建议...',
+    '即将完成，请稍候...',
+  ];
 
   @override
   void initState() {
@@ -47,23 +86,66 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
   }
 
   Future<void> _loadDetail() async {
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _isAnalyzing = true;
+    });
+    _startLoadingAnimation();
+
     final provider = Provider.of<HealthProvider>(context, listen: false);
     final report = await provider.getReportDetail(widget.reportId);
-    ReportAnalysisResult? parsed;
+
+    EnhancedReportAnalysis? enhanced;
+    ReportAnalysisResult? legacy;
     if (report != null) {
-      parsed = _parseAnalysis(report);
+      enhanced = _parseEnhancedAnalysis(report);
+      if (enhanced == null) {
+        legacy = _parseLegacyAnalysis(report);
+      }
     }
+
     if (mounted) {
       setState(() {
         _report = report;
-        _analysisResult = parsed;
+        _enhancedAnalysis = enhanced;
+        _legacyAnalysis = legacy;
         _isLoading = false;
+        _isAnalyzing = false;
       });
     }
   }
 
-  ReportAnalysisResult? _parseAnalysis(CheckupReport report) {
+  void _startLoadingAnimation() {
+    Future.doWhile(() async {
+      await Future.delayed(const Duration(seconds: 2));
+      if (!mounted || !_isAnalyzing) return false;
+      setState(() {
+        _loadingTextIndex = (_loadingTextIndex + 1) % _loadingTexts.length;
+      });
+      return _isAnalyzing;
+    });
+  }
+
+  EnhancedReportAnalysis? _parseEnhancedAnalysis(CheckupReport report) {
+    try {
+      final raw = report.aiAnalysisJson;
+      if (raw != null && raw.containsKey('healthScore') || (raw != null && raw.containsKey('health_score'))) {
+        return EnhancedReportAnalysis.fromJson(raw!);
+      }
+      if (raw != null && raw.containsKey('categories')) {
+        final cats = raw['categories'] as List?;
+        if (cats != null && cats.isNotEmpty) {
+          final first = cats.first;
+          if (first is Map && first.containsKey('emoji')) {
+            return EnhancedReportAnalysis.fromJson(raw);
+          }
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  ReportAnalysisResult? _parseLegacyAnalysis(CheckupReport report) {
     try {
       final raw = report.aiAnalysisJson;
       if (raw != null && raw.containsKey('categories')) {
@@ -78,25 +160,6 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
       }
     } catch (_) {}
     return null;
-  }
-
-  Map<String, List<CheckupIndicator>> _groupByCategory(List<CheckupIndicator> indicators) {
-    final map = <String, List<CheckupIndicator>>{};
-    for (final item in indicators) {
-      final cat = item.category ?? '其他';
-      map.putIfAbsent(cat, () => []).add(item);
-    }
-    return map;
-  }
-
-  List<CheckupIndicator> _sortAbnormalFirst(List<CheckupIndicator> indicators) {
-    final list = List<CheckupIndicator>.from(indicators);
-    list.sort((a, b) {
-      if (a.isAbnormal && !b.isAbnormal) return -1;
-      if (!a.isAbnormal && b.isAbnormal) return 1;
-      return 0;
-    });
-    return list;
   }
 
   Future<void> _shareReport() async {
@@ -125,6 +188,27 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
     }
   }
 
+  void _navigateToCompare() {
+    final provider = Provider.of<HealthProvider>(context, listen: false);
+    final reports = provider.reportList;
+    if (reports.length < 2) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('至少需要两份报告才能进行对比')),
+      );
+      return;
+    }
+    final other = reports.firstWhere((r) => r.id != widget.reportId, orElse: () => reports.first);
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ReportCompareScreen(
+          reportId1: other.id,
+          reportId2: widget.reportId,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -138,25 +222,67 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
             ),
         ],
       ),
-      body: _isLoading
-          ? const LoadingWidget(message: '加载报告详情...')
-          : _report == null
-              ? const Center(child: Text('加载失败，请重试'))
-              : _buildBody(),
+      body: _buildContent(),
+    );
+  }
+
+  Widget _buildContent() {
+    if (_isLoading) {
+      return _buildLoadingAnimation();
+    }
+    if (_report == null) {
+      return const Center(child: Text('加载失败，请重试'));
+    }
+    return _buildBody();
+  }
+
+  Widget _buildLoadingAnimation() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: 80,
+            height: 80,
+            child: CircularProgressIndicator(
+              strokeWidth: 3,
+              valueColor: AlwaysStoppedAnimation(_kPrimaryGreen),
+            ),
+          ),
+          const SizedBox(height: 24),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 500),
+            transitionBuilder: (child, animation) => FadeTransition(
+              opacity: animation,
+              child: SlideTransition(
+                position: Tween<Offset>(
+                  begin: const Offset(0, 0.3),
+                  end: Offset.zero,
+                ).animate(animation),
+                child: child,
+              ),
+            ),
+            child: Text(
+              _loadingTexts[_loadingTextIndex],
+              key: ValueKey<int>(_loadingTextIndex),
+              style: TextStyle(fontSize: 15, color: Colors.grey[600]),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildBody() {
-    final report = _report!;
     return Column(
       children: [
         Container(
           color: Colors.white,
           child: TabBar(
             controller: _tabController,
-            labelColor: kColorNormal,
+            labelColor: _kPrimaryGreen,
             unselectedLabelColor: Colors.grey[600],
-            indicatorColor: kColorNormal,
+            indicatorColor: _kPrimaryGreen,
             indicatorWeight: 3,
             labelStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
             tabs: const [
@@ -169,8 +295,8 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
           child: TabBarView(
             controller: _tabController,
             children: [
-              _buildAiTab(report),
-              _buildRawTab(report),
+              _buildAiTab(),
+              _buildRawTab(),
             ],
           ),
         ),
@@ -178,39 +304,400 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
     );
   }
 
-  Widget _buildAiTab(CheckupReport report) {
-    if (_analysisResult != null) {
-      return _buildStructuredAiView(report, _analysisResult!);
+  Widget _buildAiTab() {
+    if (_enhancedAnalysis != null) {
+      return _buildEnhancedAiView(_enhancedAnalysis!);
     }
-    return _buildFallbackAiView(report);
+    if (_legacyAnalysis != null) {
+      return _buildLegacyAiView(_legacyAnalysis!);
+    }
+    return _buildFallbackView();
   }
 
-  Widget _buildStructuredAiView(CheckupReport report, ReportAnalysisResult result) {
-    final abnormals = result.allAbnormalItems;
-    final hasAbnormal = abnormals.isNotEmpty;
+  // ─── Enhanced AI View ────────────────────────────────────────────
 
+  Widget _buildEnhancedAiView(EnhancedReportAnalysis analysis) {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        _buildAbnormalSummaryCard(abnormals, hasAbnormal),
-        if (abnormals.isNotEmpty) ...[
-          const SizedBox(height: 12),
-          ...abnormals.map((item) => _buildAbnormalItemCard(item)),
+        if (analysis.healthScore != null)
+          _buildScoreDashboard(analysis.healthScore!),
+        if (analysis.summary != null) ...[
+          const SizedBox(height: 16),
+          _buildSummaryCards(analysis.summary!),
         ],
         const SizedBox(height: 16),
-        _buildCategoryExpansionList(result.categories),
+        _buildEnhancedCategoryList(analysis.categories),
         const SizedBox(height: 16),
-        _buildSummarySection(result.summary),
-        const SizedBox(height: 12),
-        _buildDisclaimerSection(),
+        _buildCompareEntryButton(),
+        const SizedBox(height: 16),
+        _buildDisclaimerSection(analysis.disclaimer),
         const SizedBox(height: 20),
       ],
     );
   }
 
-  Widget _buildAbnormalSummaryCard(List<IndicatorItem> abnormals, bool hasAbnormal) {
+  // ─── Zone 1: Score Dashboard ─────────────────────────────────────
+
+  Widget _buildScoreDashboard(HealthScoreInfo scoreInfo) {
+    final color = _scoreColor(scoreInfo.score);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [color.withOpacity(0.08), color.withOpacity(0.02)],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withOpacity(0.2)),
+      ),
+      child: Column(
+        children: [
+          const Text(
+            'AI 综合健康评分',
+            style: TextStyle(fontSize: 14, color: Color(0xFF666666)),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: 160,
+            height: 160,
+            child: CustomPaint(
+              painter: _ScoreGaugePainter(
+                score: scoreInfo.score,
+                color: color,
+              ),
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      scoreInfo.score.toInt().toString(),
+                      style: TextStyle(
+                        fontSize: 48,
+                        fontWeight: FontWeight.bold,
+                        color: color,
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: color.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        scoreInfo.level,
+                        style: TextStyle(fontSize: 13, color: color, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          if (scoreInfo.comment.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.auto_awesome, size: 18, color: color),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      scoreInfo.comment,
+                      style: TextStyle(fontSize: 14, color: Colors.grey[700], height: 1.5),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: _shareReport,
+            icon: const Icon(Icons.share_outlined, size: 16),
+            label: const Text('分享报告'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: color,
+              side: BorderSide(color: color.withOpacity(0.4)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── Zone 2: Summary Cards ───────────────────────────────────────
+
+  Widget _buildSummaryCards(SummaryInfo summary) {
+    return Row(
+      children: [
+        Expanded(child: _statCard('检查项目', '${summary.totalItems}', const Color(0xFF1890FF))),
+        const SizedBox(width: 10),
+        Expanded(child: _statCard('异常项', '${summary.abnormalCount}', const Color(0xFFF44336))),
+        const SizedBox(width: 10),
+        Expanded(child: _statCard('优秀项', '${summary.excellentCount}', const Color(0xFF1B8C3D))),
+      ],
+    );
+  }
+
+  Widget _statCard(String label, String value, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.15)),
+      ),
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: color),
+          ),
+          const SizedBox(height: 4),
+          Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+        ],
+      ),
+    );
+  }
+
+  // ─── Zone 3: Category Detail List ────────────────────────────────
+
+  Widget _buildEnhancedCategoryList(List<EnhancedCategory> categories) {
+    if (categories.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.only(bottom: 10),
+          child: Text(
+            '分类指标详细解读',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF333333)),
+          ),
+        ),
+        ...categories.map((cat) => _buildEnhancedCategoryExpansion(cat)),
+      ],
+    );
+  }
+
+  Widget _buildEnhancedCategoryExpansion(EnhancedCategory cat) {
+    final hasAbnormal = cat.abnormalCount > 0;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: hasAbnormal ? const Color(0xFFF44336).withOpacity(0.2) : Colors.grey[200]!),
+      ),
+      child: ExpansionTile(
+        initiallyExpanded: hasAbnormal,
+        tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        title: Row(
+          children: [
+            Text(cat.emoji, style: const TextStyle(fontSize: 18)),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                cat.name,
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+              ),
+            ),
+            if (cat.abnormalCount > 0)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF44336).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '${cat.abnormalCount}项异常',
+                  style: const TextStyle(fontSize: 11, color: Color(0xFFF44336)),
+                ),
+              ),
+          ],
+        ),
+        children: [
+          const Divider(height: 1, indent: 16, endIndent: 16),
+          ...cat.items.map((item) => _buildEnhancedIndicatorCard(item)),
+          const SizedBox(height: 8),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEnhancedIndicatorCard(EnhancedIndicatorItem item) {
+    final riskColor = _kRiskColors[item.riskLevel] ?? const Color(0xFF4CAF50);
+    final riskEmoji = _kRiskEmojis[item.riskLevel] ?? '🟢';
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: item.isAbnormal ? riskColor.withOpacity(0.04) : Colors.grey[50],
+        borderRadius: BorderRadius.circular(10),
+        border: item.isAbnormal ? Border.all(color: riskColor.withOpacity(0.2)) : null,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  item.name,
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                ),
+              ),
+              Chip(
+                label: Text('$riskEmoji ${item.riskName}'),
+                labelStyle: TextStyle(fontSize: 11, color: riskColor, fontWeight: FontWeight.w600),
+                backgroundColor: riskColor.withOpacity(0.1),
+                side: BorderSide(color: riskColor.withOpacity(0.2)),
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text(
+                item.value,
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: item.isAbnormal ? riskColor : const Color(0xFF333333),
+                ),
+              ),
+              if (item.unit.isNotEmpty) ...[
+                const SizedBox(width: 4),
+                Text(item.unit, style: TextStyle(fontSize: 13, color: Colors.grey[600])),
+              ],
+              const Spacer(),
+              if (item.referenceRange.isNotEmpty)
+                Text(
+                  '参考: ${item.referenceRange}',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                ),
+            ],
+          ),
+          if (item.detail != null) ...[
+            const SizedBox(height: 8),
+            _buildDetailAdviceExpansion(item.detail!, item.isAbnormal),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetailAdviceExpansion(IndicatorDetailAdvice detail, bool defaultExpanded) {
+    final entries = detail.adviceEntries;
+    if (entries.isEmpty) return const SizedBox.shrink();
+
+    return ExpansionTile(
+      initiallyExpanded: defaultExpanded,
+      tilePadding: EdgeInsets.zero,
+      childrenPadding: EdgeInsets.zero,
+      title: const Text(
+        '查看详细建议',
+        style: TextStyle(fontSize: 13, color: Color(0xFF1890FF), fontWeight: FontWeight.w500),
+      ),
+      leading: const Icon(Icons.lightbulb_outline, size: 16, color: Color(0xFF1890FF)),
+      children: entries.map((entry) => _buildAdviceModule(entry.key, entry.value)).toList(),
+    );
+  }
+
+  Widget _buildAdviceModule(String title, String content) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF5F7FA),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF333333)),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            content,
+            style: TextStyle(fontSize: 13, color: Colors.grey[700], height: 1.5),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── Zone 4: Compare Entry ───────────────────────────────────────
+
+  Widget _buildCompareEntryButton() {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        onPressed: _navigateToCompare,
+        icon: const Icon(Icons.compare_arrows, size: 20),
+        label: const Text('与历史报告对比分析'),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF1890FF),
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          elevation: 0,
+        ),
+      ),
+    );
+  }
+
+  // ─── Legacy AI View (fallback) ───────────────────────────────────
+
+  Widget _buildLegacyAiView(ReportAnalysisResult result) {
+    final abnormals = result.allAbnormalItems;
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        _buildLegacyAbnormalSummary(abnormals),
+        if (abnormals.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          ...abnormals.map((item) => _buildLegacyAbnormalCard(item)),
+        ],
+        const SizedBox(height: 16),
+        _buildLegacyCategoryList(result.categories),
+        const SizedBox(height: 16),
+        _buildLegacySummarySection(result.summary),
+        const SizedBox(height: 16),
+        _buildCompareEntryButton(),
+        const SizedBox(height: 12),
+        _buildDisclaimerSection(null),
+        const SizedBox(height: 20),
+      ],
+    );
+  }
+
+  Widget _buildLegacyAbnormalSummary(List<IndicatorItem> abnormals) {
+    final hasAbnormal = abnormals.isNotEmpty;
     final bgColor = hasAbnormal ? const Color(0xFFFFF0F0) : const Color(0xFFF0FFF4);
-    final textColor = hasAbnormal ? kColorAbnormalHigh : kColorNormal;
+    final textColor = hasAbnormal ? const Color(0xFFFF4D4F) : _kPrimaryGreen;
     final icon = hasAbnormal ? Icons.warning_amber_rounded : Icons.check_circle_outline;
     final label = hasAbnormal ? '异常指标（${abnormals.length}项）' : '所有指标正常';
 
@@ -224,23 +711,16 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
           children: [
             Icon(icon, color: textColor, size: 22),
             const SizedBox(width: 10),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: textColor,
-              ),
-            ),
+            Text(label, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textColor)),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildAbnormalItemCard(IndicatorItem item) {
+  Widget _buildLegacyAbnormalCard(IndicatorItem item) {
     final isHigh = item.status == '偏高';
-    final statusColor = isHigh ? kColorAbnormalHigh : kColorAbnormalLow;
+    final statusColor = isHigh ? const Color(0xFFFF4D4F) : const Color(0xFFFAAD14);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -254,22 +734,11 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
           children: [
             Row(
               children: [
-                Expanded(
-                  child: Text(
-                    item.name,
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                ),
+                Expanded(child: Text(item.name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold))),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: statusColor,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    item.status,
-                    style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
-                  ),
+                  decoration: BoxDecoration(color: statusColor, borderRadius: BorderRadius.circular(12)),
+                  child: Text(item.status, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
                 ),
               ],
             ),
@@ -278,48 +747,29 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
               crossAxisAlignment: CrossAxisAlignment.baseline,
               textBaseline: TextBaseline.alphabetic,
               children: [
-                Text(
-                  item.value,
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: statusColor,
-                  ),
-                ),
+                Text(item.value, style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: statusColor)),
                 if (item.unit.isNotEmpty) ...[
                   const SizedBox(width: 4),
-                  Text(
-                    item.unit,
-                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                  ),
+                  Text(item.unit, style: TextStyle(fontSize: 14, color: Colors.grey[600])),
                 ],
               ],
             ),
             if (item.reference.isNotEmpty) ...[
               const SizedBox(height: 4),
-              Text(
-                '参考范围：${item.reference}',
-                style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-              ),
+              Text('参考范围：${item.reference}', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
             ],
             if (item.suggestion != null && item.suggestion!.isNotEmpty) ...[
               const SizedBox(height: 10),
               Container(
                 padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE6F4FF),
-                  borderRadius: BorderRadius.circular(8),
-                ),
+                decoration: BoxDecoration(color: const Color(0xFFE6F4FF), borderRadius: BorderRadius.circular(8)),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Icon(Icons.lightbulb_outline, size: 16, color: Color(0xFF1890FF)),
                     const SizedBox(width: 6),
                     Expanded(
-                      child: Text(
-                        item.suggestion!,
-                        style: const TextStyle(fontSize: 13, color: Color(0xFF1890FF), height: 1.4),
-                      ),
+                      child: Text(item.suggestion!, style: const TextStyle(fontSize: 13, color: Color(0xFF1890FF), height: 1.4)),
                     ),
                   ],
                 ),
@@ -331,86 +781,70 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
     );
   }
 
-  Widget _buildCategoryExpansionList(List<IndicatorCategory> categories) {
+  Widget _buildLegacyCategoryList(List<IndicatorCategory> categories) {
     if (categories.isEmpty) return const SizedBox.shrink();
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Padding(
           padding: EdgeInsets.only(bottom: 8),
-          child: Text(
-            '分类详情',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF333333)),
-          ),
+          child: Text('分类详情', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF333333))),
         ),
-        ...categories.map((cat) => _buildCategoryExpansion(cat)),
+        ...categories.map((cat) {
+          final abnormalCount = cat.items.where((i) => i.isAbnormal).length;
+          return Card(
+            margin: const EdgeInsets.only(bottom: 8),
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: BorderSide(color: Colors.grey[200]!),
+            ),
+            child: ExpansionTile(
+              tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              title: Row(
+                children: [
+                  Text(cat.name, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                  if (abnormalCount > 0) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFF4D4F).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text('$abnormalCount项异常', style: const TextStyle(fontSize: 11, color: Color(0xFFFF4D4F))),
+                    ),
+                  ],
+                ],
+              ),
+              children: [
+                const Divider(height: 1, indent: 16, endIndent: 16),
+                ...cat.items.map((item) => _buildLegacyIndicatorRow(item)),
+                const SizedBox(height: 8),
+              ],
+            ),
+          );
+        }),
       ],
     );
   }
 
-  Widget _buildCategoryExpansion(IndicatorCategory cat) {
-    final abnormalCount = cat.items.where((i) => i.isAbnormal).length;
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.grey[200]!),
-      ),
-      child: ExpansionTile(
-        tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        title: Row(
-          children: [
-            Text(
-              cat.name,
-              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-            ),
-            if (abnormalCount > 0) ...[
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: kColorAbnormalHigh.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  '$abnormalCount项异常',
-                  style: const TextStyle(fontSize: 11, color: kColorAbnormalHigh),
-                ),
-              ),
-            ],
-          ],
-        ),
-        children: [
-          const Divider(height: 1, indent: 16, endIndent: 16),
-          ...cat.items.map((item) => _buildIndicatorRow(item)),
-          const SizedBox(height: 8),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildIndicatorRow(IndicatorItem item) {
+  Widget _buildLegacyIndicatorRow(IndicatorItem item) {
     Color statusColor;
-    if (item.status == '偏高') {
-      statusColor = kColorAbnormalHigh;
-    } else if (item.status == '偏低') {
-      statusColor = kColorAbnormalLow;
+    if (item.status == '偏高' || item.status == 'critical') {
+      statusColor = const Color(0xFFFF4D4F);
+    } else if (item.status == '偏低' || item.status == 'abnormal') {
+      statusColor = const Color(0xFFFAAD14);
     } else {
-      statusColor = kColorNormal;
+      statusColor = _kPrimaryGreen;
     }
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: [
-          Expanded(
-            flex: 3,
-            child: Text(item.name, style: const TextStyle(fontSize: 13)),
-          ),
+          Expanded(flex: 3, child: Text(item.name, style: const TextStyle(fontSize: 13))),
           Expanded(
             flex: 2,
             child: Text(
@@ -422,30 +856,18 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
               ),
             ),
           ),
-          Expanded(
-            flex: 2,
-            child: Text(
-              item.reference,
-              style: TextStyle(fontSize: 11, color: Colors.grey[500]),
-            ),
-          ),
+          Expanded(flex: 2, child: Text(item.reference, style: TextStyle(fontSize: 11, color: Colors.grey[500]))),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            decoration: BoxDecoration(
-              color: statusColor.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Text(
-              item.status,
-              style: TextStyle(fontSize: 11, color: statusColor, fontWeight: FontWeight.w600),
-            ),
+            decoration: BoxDecoration(color: statusColor.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
+            child: Text(item.status, style: TextStyle(fontSize: 11, color: statusColor, fontWeight: FontWeight.w600)),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildSummarySection(String summary) {
+  Widget _buildLegacySummarySection(String summary) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -457,39 +879,46 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
         children: [
           const Row(
             children: [
-              Icon(Icons.analytics_outlined, color: kColorNormal, size: 20),
+              Icon(Icons.analytics_outlined, color: _kPrimaryGreen, size: 20),
               SizedBox(width: 8),
-              Text(
-                '综合建议',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF333333)),
-              ),
+              Text('综合建议', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF333333))),
             ],
           ),
           const SizedBox(height: 10),
-          Text(
-            summary,
-            style: TextStyle(fontSize: 14, color: Colors.grey[800], height: 1.6),
-          ),
+          Text(summary, style: TextStyle(fontSize: 14, color: Colors.grey[800], height: 1.6)),
         ],
       ),
     );
   }
 
-  Widget _buildFallbackAiView(CheckupReport report) {
+  // ─── Fallback View ───────────────────────────────────────────────
+
+  Widget _buildFallbackView() {
+    final report = _report!;
     final grouped = _groupByCategory(report.indicators);
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
         if (grouped.isNotEmpty)
-          ...grouped.entries.map((entry) => _buildLegacyCategorySection(entry.key, entry.value)),
-        _buildLegacyAssessmentSection(report),
-        _buildDisclaimerSection(),
+          ...grouped.entries.map((entry) => _buildFallbackCategorySection(entry.key, entry.value)),
+        _buildFallbackAssessment(report),
+        const SizedBox(height: 16),
+        _buildCompareEntryButton(),
+        _buildDisclaimerSection(null),
         const SizedBox(height: 20),
       ],
     );
   }
 
-  Widget _buildLegacyCategorySection(String category, List<CheckupIndicator> indicators) {
+  Map<String, List<CheckupIndicator>> _groupByCategory(List<CheckupIndicator> indicators) {
+    final map = <String, List<CheckupIndicator>>{};
+    for (final item in indicators) {
+      map.putIfAbsent(item.category ?? '其他', () => []).add(item);
+    }
+    return map;
+  }
+
+  Widget _buildFallbackCategorySection(String category, List<CheckupIndicator> indicators) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -498,39 +927,32 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
           child: Row(
             children: [
               Container(
-                width: 4,
-                height: 18,
-                decoration: BoxDecoration(
-                  color: kColorNormal,
-                  borderRadius: BorderRadius.circular(2),
-                ),
+                width: 4, height: 18,
+                decoration: BoxDecoration(color: _kPrimaryGreen, borderRadius: BorderRadius.circular(2)),
               ),
               const SizedBox(width: 8),
-              Text(
-                category,
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF333333)),
-              ),
+              Text(category, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF333333))),
             ],
           ),
         ),
-        ...indicators.map((indicator) => _buildLegacyIndicatorCard(indicator)),
+        ...indicators.map((ind) => _buildFallbackIndicatorCard(ind)),
         const SizedBox(height: 8),
       ],
     );
   }
 
-  Widget _buildLegacyIndicatorCard(CheckupIndicator indicator) {
+  Widget _buildFallbackIndicatorCard(CheckupIndicator indicator) {
     final isAbnormal = indicator.isAbnormal;
-    final statusColor = indicator.status == 'high'
-        ? kColorAbnormalHigh
-        : indicator.status == 'low'
-            ? kColorAbnormalLow
-            : kColorNormal;
-    final statusLabel = indicator.status == 'high'
-        ? '偏高'
-        : indicator.status == 'low'
-            ? '偏低'
-            : '正常';
+    final statusColor = (indicator.status == 'high' || indicator.status == 'critical')
+        ? const Color(0xFFFF4D4F)
+        : (indicator.status == 'low' || indicator.status == 'abnormal')
+            ? const Color(0xFFFAAD14)
+            : _kPrimaryGreen;
+    final statusLabel = indicator.status == 'high' ? '偏高'
+        : indicator.status == 'low' ? '偏低'
+        : indicator.status == 'critical' ? '严重异常'
+        : indicator.status == 'abnormal' ? '异常'
+        : '正常';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -539,13 +961,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: isAbnormal ? Border.all(color: statusColor.withOpacity(0.3)) : null,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.02),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 6, offset: const Offset(0, 2))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -555,23 +971,13 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
               Expanded(
                 child: Text(
                   indicator.indicatorName,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: isAbnormal ? statusColor : const Color(0xFF333333),
-                  ),
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: isAbnormal ? statusColor : const Color(0xFF333333)),
                 ),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  statusLabel,
-                  style: TextStyle(fontSize: 12, color: statusColor, fontWeight: FontWeight.w600),
-                ),
+                decoration: BoxDecoration(color: statusColor.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+                child: Text(statusLabel, style: TextStyle(fontSize: 12, color: statusColor, fontWeight: FontWeight.w600)),
               ),
             ],
           ),
@@ -580,39 +986,24 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
             children: [
               Text(
                 '${indicator.value ?? '-'} ${indicator.unit ?? ''}',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: isAbnormal ? statusColor : const Color(0xFF333333),
-                ),
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: isAbnormal ? statusColor : const Color(0xFF333333)),
               ),
               const SizedBox(width: 12),
               if (indicator.referenceRange != null)
-                Text(
-                  '参考: ${indicator.referenceRange}',
-                  style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-                ),
+                Text('参考: ${indicator.referenceRange}', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
             ],
           ),
           if (indicator.advice != null && indicator.advice!.isNotEmpty) ...[
             const SizedBox(height: 8),
             Container(
               padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF5F7FA),
-                borderRadius: BorderRadius.circular(8),
-              ),
+              decoration: BoxDecoration(color: const Color(0xFFF5F7FA), borderRadius: BorderRadius.circular(8)),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.lightbulb_outline, size: 16, color: kColorAbnormalLow),
+                  const Icon(Icons.lightbulb_outline, size: 16, color: Color(0xFFFAAD14)),
                   const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      indicator.advice!,
-                      style: TextStyle(fontSize: 13, color: Colors.grey[700], height: 1.4),
-                    ),
-                  ),
+                  Expanded(child: Text(indicator.advice!, style: TextStyle(fontSize: 13, color: Colors.grey[700], height: 1.4))),
                 ],
               ),
             ),
@@ -621,29 +1012,16 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
           Align(
             alignment: Alignment.centerRight,
             child: GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => TrendScreen(indicatorName: indicator.indicatorName),
-                  ),
-                );
-              },
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => TrendScreen(indicatorName: indicator.indicatorName))),
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: kColorNormal.withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(14),
-                ),
+                decoration: BoxDecoration(color: _kPrimaryGreen.withOpacity(0.08), borderRadius: BorderRadius.circular(14)),
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.trending_up, size: 16, color: kColorNormal),
+                    Icon(Icons.trending_up, size: 16, color: _kPrimaryGreen),
                     SizedBox(width: 4),
-                    Text(
-                      '查看趋势',
-                      style: TextStyle(fontSize: 13, color: kColorNormal, fontWeight: FontWeight.w500),
-                    ),
+                    Text('查看趋势', style: TextStyle(fontSize: 13, color: _kPrimaryGreen, fontWeight: FontWeight.w500)),
                   ],
                 ),
               ),
@@ -654,10 +1032,9 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
     );
   }
 
-  Widget _buildLegacyAssessmentSection(CheckupReport report) {
+  Widget _buildFallbackAssessment(CheckupReport report) {
     final analysisJson = report.aiAnalysisJson;
     final summary = analysisJson?['summary'] ?? report.aiAnalysis ?? '暂无综合评估';
-    final advice = analysisJson?['advice'];
 
     return Container(
       margin: const EdgeInsets.only(top: 10, bottom: 10),
@@ -675,37 +1052,23 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
         children: [
           const Row(
             children: [
-              Icon(Icons.analytics_outlined, color: kColorNormal, size: 22),
+              Icon(Icons.analytics_outlined, color: _kPrimaryGreen, size: 22),
               SizedBox(width: 8),
-              Text(
-                '综合评估',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF333333)),
-              ),
+              Text('综合评估', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF333333))),
             ],
           ),
           const SizedBox(height: 12),
-          Text(
-            summary.toString(),
-            style: TextStyle(fontSize: 14, color: Colors.grey[800], height: 1.6),
-          ),
-          if (advice != null) ...[
-            const SizedBox(height: 12),
-            const Text(
-              '建议',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF333333)),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              advice.toString(),
-              style: TextStyle(fontSize: 14, color: Colors.grey[700], height: 1.6),
-            ),
-          ],
+          Text(summary.toString(), style: TextStyle(fontSize: 14, color: Colors.grey[800], height: 1.6)),
         ],
       ),
     );
   }
 
-  Widget _buildDisclaimerSection() {
+  // ─── Shared Widgets ──────────────────────────────────────────────
+
+  Widget _buildDisclaimerSection(String? disclaimer) {
+    final text = disclaimer ?? '本解读结果由AI智能分析生成，仅供参考，不构成医疗诊断或治疗建议。如有健康疑问，请及时咨询专业医生。';
+
     return Container(
       margin: const EdgeInsets.only(top: 8),
       padding: const EdgeInsets.all(14),
@@ -717,17 +1080,12 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.warning_amber_rounded, size: 18, color: kColorAbnormalLow),
+          const Icon(Icons.warning_amber_rounded, size: 18, color: Color(0xFFFAAD14)),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              '免责声明：本解读结果由AI智能分析生成，仅供参考，不构成医疗诊断或治疗建议。如有健康疑问，请及时咨询专业医生。',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey[700],
-                height: 1.5,
-                fontStyle: FontStyle.italic,
-              ),
+              '免责声明：$text',
+              style: TextStyle(fontSize: 12, color: Colors.grey[700], height: 1.5, fontStyle: FontStyle.italic),
             ),
           ),
         ],
@@ -735,14 +1093,17 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
     );
   }
 
-  Widget _buildRawTab(CheckupReport report) {
+  // ─── Raw Tab ─────────────────────────────────────────────────────
+
+  Widget _buildRawTab() {
+    final report = _report!;
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
         if (report.fileUrl != null && report.fileType != 'pdf')
           _buildImagePreview(report),
         if (report.fileType == 'pdf')
-          _buildPdfPlaceholder(report),
+          _buildPdfPlaceholder(),
         if (report.fileUrl == null)
           Center(
             child: Padding(
@@ -758,13 +1119,10 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
           ),
         if (report.indicators.isNotEmpty) ...[
           const SizedBox(height: 16),
-          const Text(
-            '原始指标数据',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF333333)),
-          ),
+          const Text('原始指标数据', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF333333))),
           const SizedBox(height: 8),
           ..._groupByCategory(report.indicators).entries.map(
-            (entry) => _buildLegacyCategorySection(entry.key, entry.value),
+            (entry) => _buildFallbackCategorySection(entry.key, entry.value),
           ),
         ],
       ],
@@ -779,21 +1137,13 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
           MaterialPageRoute(
             builder: (_) => Scaffold(
               backgroundColor: Colors.black,
-              appBar: AppBar(
-                backgroundColor: Colors.black,
-                iconTheme: const IconThemeData(color: Colors.white),
-                elevation: 0,
-              ),
+              appBar: AppBar(backgroundColor: Colors.black, iconTheme: const IconThemeData(color: Colors.white), elevation: 0),
               body: Center(
                 child: InteractiveViewer(
                   child: Image.network(
                     report.fileUrl!,
                     fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => const Icon(
-                      Icons.broken_image,
-                      color: Colors.white54,
-                      size: 64,
-                    ),
+                    errorBuilder: (_, __, ___) => const Icon(Icons.broken_image, color: Colors.white54, size: 64),
                   ),
                 ),
               ),
@@ -805,10 +1155,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
         height: 200,
         width: double.infinity,
         margin: const EdgeInsets.only(bottom: 16),
-        decoration: BoxDecoration(
-          color: Colors.grey[100],
-          borderRadius: BorderRadius.circular(12),
-        ),
+        decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(12)),
         child: Stack(
           alignment: Alignment.center,
           children: [
@@ -818,11 +1165,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
                 report.thumbnailUrl ?? report.fileUrl!,
                 fit: BoxFit.cover,
                 width: double.infinity,
-                errorBuilder: (_, __, ___) => const Icon(
-                  Icons.image_not_supported_outlined,
-                  size: 48,
-                  color: Colors.grey,
-                ),
+                errorBuilder: (_, __, ___) => const Icon(Icons.image_not_supported_outlined, size: 48, color: Colors.grey),
               ),
             ),
             Positioned(
@@ -830,10 +1173,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
               right: 8,
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.black54,
-                  borderRadius: BorderRadius.circular(12),
-                ),
+                decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(12)),
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -850,14 +1190,11 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
     );
   }
 
-  Widget _buildPdfPlaceholder(CheckupReport report) {
+  Widget _buildPdfPlaceholder() {
     return Container(
       height: 140,
       margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: Colors.grey[100],
-        borderRadius: BorderRadius.circular(12),
-      ),
+      decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(12)),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -869,5 +1206,60 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
         ],
       ),
     );
+  }
+}
+
+// ─── Score Gauge CustomPainter ──────────────────────────────────────
+
+class _ScoreGaugePainter extends CustomPainter {
+  final double score;
+  final Color color;
+
+  _ScoreGaugePainter({required this.score, required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = math.min(size.width, size.height) / 2 - 8;
+
+    // Background arc
+    final bgPaint = Paint()
+      ..color = Colors.grey[200]!
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 12
+      ..strokeCap = StrokeCap.round;
+
+    const startAngle = 0.75 * math.pi;
+    const sweepAngle = 1.5 * math.pi;
+
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      startAngle,
+      sweepAngle,
+      false,
+      bgPaint,
+    );
+
+    // Score arc
+    final scorePaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 12
+      ..strokeCap = StrokeCap.round;
+
+    final scoreSweep = sweepAngle * (score / 100).clamp(0.0, 1.0);
+
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      startAngle,
+      scoreSweep,
+      false,
+      scorePaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _ScoreGaugePainter oldDelegate) {
+    return oldDelegate.score != score || oldDelegate.color != color;
   }
 }

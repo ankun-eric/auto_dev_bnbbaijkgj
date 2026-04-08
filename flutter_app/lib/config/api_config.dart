@@ -49,6 +49,7 @@ class ApiConfig {
   static const String reportAlerts = '/api/report/alerts';
   static const String reportShare = '/api/report/share';
   static const String reportShareByPath = '/api/report';
+  static const String reportCompare = '/api/report/compare';
 
   // Symptom (uses chat with session_type=symptom_check)
   static const String symptomCheck = '/api/chat/sessions';

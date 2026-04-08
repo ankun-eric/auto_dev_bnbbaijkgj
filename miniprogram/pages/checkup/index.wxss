@@ -110,17 +110,112 @@
   margin-top: 12rpx;
 }
 
+.history-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24rpx;
+  margin-bottom: 16rpx;
+}
+
+.compare-toggle {
+  padding: 8rpx 20rpx;
+  background: linear-gradient(135deg, #e8f5e9, #e0f7fa);
+  border-radius: 24rpx;
+}
+
+.compare-toggle:active {
+  opacity: 0.8;
+}
+
+.compare-toggle-text {
+  font-size: 24rpx;
+  color: #333;
+  font-weight: 500;
+}
+
+/* 对比操作栏 */
+.compare-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16rpx 24rpx;
+  background: #fff;
+  border-radius: 12rpx;
+  margin-bottom: 16rpx;
+  box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.04);
+}
+
+.compare-bar-hint {
+  font-size: 24rpx;
+  color: #666;
+  flex: 1;
+}
+
+.compare-bar-btn {
+  background: linear-gradient(135deg, #52c41a, #13c2c2);
+  padding: 12rpx 32rpx;
+  border-radius: 28rpx;
+  flex-shrink: 0;
+  margin-left: 16rpx;
+}
+
+.compare-bar-btn:active {
+  opacity: 0.85;
+}
+
+.compare-bar-btn.disabled {
+  opacity: 0.4;
+}
+
+.compare-bar-btn-text {
+  font-size: 26rpx;
+  color: #fff;
+  font-weight: 500;
+}
+
 .history-list {
-  margin-top: 16rpx;
+  margin-top: 0;
 }
 
 .history-item {
   padding: 20rpx 24rpx;
+  transition: border 0.2s;
+  border: 2rpx solid transparent;
+}
+
+.history-item-selected {
+  border-color: #52c41a;
+  background: #f6ffed;
 }
 
 .history-item-content {
   display: flex;
   align-items: center;
+}
+
+/* 勾选框 */
+.check-box {
+  margin-right: 16rpx;
+  flex-shrink: 0;
+}
+
+.check-inner {
+  width: 44rpx;
+  height: 44rpx;
+  border-radius: 50%;
+  border: 3rpx solid #d9d9d9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28rpx;
+  color: #fff;
+  transition: all 0.2s;
+}
+
+.check-inner.checked {
+  background: #52c41a;
+  border-color: #52c41a;
 }
 
 .history-thumb {
@@ -183,6 +278,34 @@
   background: rgba(255, 77, 79, 0.08);
   padding: 2rpx 12rpx;
   border-radius: 6rpx;
+}
+
+/* 健康评分徽章 */
+.score-badge {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 50%;
+  border: 4rpx solid;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-left: 12rpx;
+  background: #fff;
+}
+
+.score-badge-num {
+  font-size: 32rpx;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.score-badge-label {
+  font-size: 18rpx;
+  color: #999;
+  line-height: 1;
+  margin-top: 2rpx;
 }
 
 .history-arrow {

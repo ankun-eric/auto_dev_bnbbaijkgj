@@ -222,28 +222,76 @@ async def identify_drug_from_image(image_description: str, db: Optional[AsyncSes
     return await call_ai_model(messages, system_prompt, db)
 
 
+_ENHANCED_REPORT_PROMPT = (
+    "你是一位专业的健康顾问AI，擅长解读体检报告。请根据提供的体检报告OCR文本，"
+    "提取各项指标并给出结构化JSON解读结果。\n\n"
+    "## 输出要求\n"
+    "回复必须是且仅是合法JSON（不要包含 ```json 标记），严格遵循以下格式:\n"
+    "{\n"
+    '  "healthScore": {\n'
+    '    "score": <0-100整数，综合健康评分>,\n'
+    '    "level": "<优秀/良好/正常/偏低/较差>",\n'
+    '    "comment": "<对整体健康状况的一句话评语>"\n'
+    "  },\n"
+    '  "summary": {\n'
+    '    "totalItems": <检查项目总数>,\n'
+    '    "abnormalCount": <异常项目数，riskLevel>=3>,\n'
+    '    "excellentCount": <优秀项目数，riskLevel==1>,\n'
+    '    "normalCount": <正常项目数，riskLevel==2>\n'
+    "  },\n"
+    '  "categories": [\n'
+    "    {\n"
+    '      "name": "分类名称（如血常规、肝功能等）",\n'
+    '      "emoji": "<该分类对应的Emoji图标，如🩸、🫀、🦴、🧬、💉、🔬、🫁、🧪、👁️、🦷>",\n'
+    '      "items": [\n'
+    "        {\n"
+    '          "name": "指标名称",\n'
+    '          "value": "检测值",\n'
+    '          "unit": "单位",\n'
+    '          "referenceRange": "参考范围",\n'
+    '          "riskLevel": <1-5整数>,\n'
+    '          "riskName": "<优秀/正常/轻度异常/中度异常/严重异常>",\n'
+    '          "detail": {\n'
+    '            "explanation": "该指标的含义和作用（200-300字）",\n'
+    '            "possibleCauses": "可能原因分析（200-300字）",\n'
+    '            "dietAdvice": "饮食建议（200-300字）",\n'
+    '            "exerciseAdvice": "运动建议（200-300字）",\n'
+    '            "lifestyleAdvice": "生活方式建议（200-300字）",\n'
+    '            "recheckAdvice": "复查建议",\n'
+    '            "medicalAdvice": "就医建议，包括推荐科室"\n'
+    "          }\n"
+    "        }\n"
+    "      ]\n"
+    "    }\n"
+    "  ]\n"
+    "}\n\n"
+    "## 风险等级说明\n"
+    "- 1=优秀：指标在最佳范围内\n"
+    "- 2=正常：指标在参考范围内\n"
+    "- 3=轻度异常：指标略超出参考范围\n"
+    "- 4=中度异常：指标明显偏离参考范围\n"
+    "- 5=严重异常：指标严重偏离，需要立即关注\n\n"
+    "## Emoji映射参考\n"
+    "血常规🩸 心脏🫀 肝功能🧪 肾功能💧 血脂🧈 血糖🍬 甲状腺🦋 "
+    "肿瘤标志物🔬 尿常规🧫 骨骼🦴 肺功能🫁 眼科👁️ 口腔🦷 基因🧬\n\n"
+    "## 重要\n"
+    "- 每项detail中的建议字段请写200-300字，内容丰富具体\n"
+    "- riskLevel为1或2时，detail可以简短或设为null\n"
+    "- riskLevel为3-5时，detail的所有字段都必须填写\n"
+    "- 综合评分应综合考虑所有异常项的严重程度"
+)
+
+_DEFAULT_DISCLAIMER = "以上解读仅供健康参考，不构成医疗诊断或治疗建议，如有异常请及时就医。"
+
+
 async def analyze_report_structured(
     ocr_text: str,
     user_profile: Optional[Dict] = None,
     db: Optional[AsyncSession] = None,
     custom_prompt: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """Return a structured JSON interpretation of a checkup report."""
-    system_prompt = custom_prompt or (
-        "你是一位专业的健康顾问AI，擅长解读体检报告。请根据提供的体检报告OCR文本，"
-        "提取各项指标并给出结构化JSON解读结果。\n"
-        "回复必须是合法JSON，格式如下:\n"
-        "{\n"
-        '  "categories": [{"category_name": "分类名", "indicators": [{"name": "指标名", '
-        '"value": "数值", "unit": "单位", "reference_range": "参考范围", '
-        '"status": "normal/abnormal/critical", "advice": "异常建议"}]}],\n'
-        '  "abnormal_indicators": [同上indicator格式],\n'
-        '  "normal_indicators": [同上indicator格式],\n'
-        '  "overall_assessment": "总体评估文字",\n'
-        '  "suggestions": ["建议1", "建议2"],\n'
-        '  "disclaimer": "以上解读仅供健康参考，不构成医疗诊断或治疗建议，如有异常请及时就医。"\n'
-        "}"
-    )
+    """Return a structured JSON interpretation of a checkup report (enhanced format)."""
+    system_prompt = custom_prompt or _ENHANCED_REPORT_PROMPT
 
     profile_info = ""
     if user_profile:
@@ -258,19 +306,79 @@ async def analyze_report_structured(
     result = await call_ai_model(messages, system_prompt, db)
 
     try:
-        parsed = json.loads(result)
-    except json.JSONDecodeError:
+        cleaned = result.strip()
+        if cleaned.startswith("```"):
+            first_nl = cleaned.index("\n")
+            cleaned = cleaned[first_nl + 1:]
+        if cleaned.endswith("```"):
+            cleaned = cleaned[:-3]
+        parsed = json.loads(cleaned.strip())
+    except (json.JSONDecodeError, ValueError):
         parsed = {
+            "healthScore": {"score": 0, "level": "待分析", "comment": result[:200] if result else "AI解析失败"},
+            "summary": {"totalItems": 0, "abnormalCount": 0, "excellentCount": 0, "normalCount": 0},
             "categories": [],
-            "abnormal_indicators": [],
-            "normal_indicators": [],
-            "overall_assessment": result,
-            "suggestions": [],
-            "disclaimer": "以上解读仅供健康参考，不构成医疗诊断或治疗建议，如有异常请及时就医。",
         }
 
-    if "disclaimer" not in parsed or not parsed["disclaimer"]:
-        parsed["disclaimer"] = "以上解读仅供健康参考，不构成医疗诊断或治疗建议，如有异常请及时就医。"
+    if "disclaimer" not in parsed or not parsed.get("disclaimer"):
+        parsed["disclaimer"] = _DEFAULT_DISCLAIMER
+
+    return parsed
+
+
+async def analyze_report_compare(
+    report1_json: Dict,
+    report2_json: Dict,
+    db: Optional[AsyncSession] = None,
+) -> Dict[str, Any]:
+    """Generate a comparison between two report analysis JSONs via AI."""
+    system_prompt = (
+        "你是一位专业的健康顾问AI。用户提供了两次体检报告的结构化JSON数据，"
+        "请对比两次报告的各项指标变化，并生成结构化的对比分析。\n\n"
+        "回复必须是且仅是合法JSON（不要包含 ```json 标记），格式如下:\n"
+        "{\n"
+        '  "aiSummary": "3-5句话总结两次体检的整体变化趋势",\n'
+        '  "scoreDiff": {\n'
+        '    "comment": "对评分变化的简短评语"\n'
+        "  },\n"
+        '  "indicators": [\n'
+        "    {\n"
+        '      "name": "指标名称",\n'
+        '      "change": "变化描述，如 升高0.5、降低1.2、无变化",\n'
+        '      "direction": "better/worse/same/new",\n'
+        '      "suggestion": "针对该指标变化的个性化建议（改善的给予鼓励，恶化的给出行动建议）"\n'
+        "    }\n"
+        "  ]\n"
+        "}\n\n"
+        "direction字段说明:\n"
+        "- better: 指标向好的方向变化\n"
+        "- worse: 指标向差的方向变化\n"
+        "- same: 基本无变化\n"
+        "- new: 新增指标，上次没有\n"
+    )
+
+    data = json.dumps(
+        {"previousReport": report1_json, "currentReport": report2_json},
+        ensure_ascii=False,
+        default=str,
+    )
+    messages = [{"role": "user", "content": f"请对比以下两次体检报告:\n{data}"}]
+    result = await call_ai_model(messages, system_prompt, db)
+
+    try:
+        cleaned = result.strip()
+        if cleaned.startswith("```"):
+            first_nl = cleaned.index("\n")
+            cleaned = cleaned[first_nl + 1:]
+        if cleaned.endswith("```"):
+            cleaned = cleaned[:-3]
+        parsed = json.loads(cleaned.strip())
+    except (json.JSONDecodeError, ValueError):
+        parsed = {
+            "aiSummary": result[:500] if result else "AI对比分析失败",
+            "scoreDiff": None,
+            "indicators": [],
+        }
 
     return parsed
 

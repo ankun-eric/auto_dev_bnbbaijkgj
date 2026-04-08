@@ -244,6 +244,8 @@ async def _sync_report_tables(conn: AsyncConnection) -> None:
             await conn.execute(text("ALTER TABLE checkup_reports ADD COLUMN ai_analysis_json JSON NULL"))
         if "status" not in cols:
             await conn.execute(text("ALTER TABLE checkup_reports ADD COLUMN status VARCHAR(20) DEFAULT 'pending'"))
+        if "health_score" not in cols:
+            await conn.execute(text("ALTER TABLE checkup_reports ADD COLUMN health_score INT NULL"))
 
     if "checkup_indicators" in table_cols:
         cols = table_cols["checkup_indicators"]

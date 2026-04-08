@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
@@ -9,6 +10,17 @@ import '../../widgets/custom_app_bar.dart';
 import '../../widgets/empty_widget.dart';
 import '../../widgets/loading_widget.dart';
 import 'report_detail_screen.dart';
+import 'report_compare_screen.dart';
+
+const _kPrimaryGreen = Color(0xFF52C41A);
+
+Color _scoreColor(double score) {
+  if (score >= 90) return const Color(0xFF1B8C3D);
+  if (score >= 75) return const Color(0xFF4CAF50);
+  if (score >= 60) return const Color(0xFFFFC107);
+  if (score >= 40) return const Color(0xFFFF9800);
+  return const Color(0xFFF44336);
+}
 
 class CheckupScreen extends StatefulWidget {
   const CheckupScreen({super.key});
@@ -24,6 +36,10 @@ class _CheckupScreenState extends State<CheckupScreen> {
   final int _maxImages = 5;
   bool _isRecognizing = false;
   String _progressText = '';
+
+  // Selection mode
+  bool _selectionMode = false;
+  final Set<int> _selectedReportIds = {};
 
   @override
   void initState() {
@@ -151,6 +167,10 @@ class _CheckupScreenState extends State<CheckupScreen> {
   }
 
   void _navigateToDetail(int reportId) {
+    if (_selectionMode) {
+      _toggleSelection(reportId);
+      return;
+    }
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -159,10 +179,69 @@ class _CheckupScreenState extends State<CheckupScreen> {
     );
   }
 
+  void _enterSelectionMode(int reportId) {
+    setState(() {
+      _selectionMode = true;
+      _selectedReportIds.clear();
+      _selectedReportIds.add(reportId);
+    });
+  }
+
+  void _toggleSelection(int reportId) {
+    setState(() {
+      if (_selectedReportIds.contains(reportId)) {
+        _selectedReportIds.remove(reportId);
+        if (_selectedReportIds.isEmpty) {
+          _selectionMode = false;
+        }
+      } else {
+        if (_selectedReportIds.length < 2) {
+          _selectedReportIds.add(reportId);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('最多选择两份报告进行对比')),
+          );
+        }
+      }
+    });
+  }
+
+  void _exitSelectionMode() {
+    setState(() {
+      _selectionMode = false;
+      _selectedReportIds.clear();
+    });
+  }
+
+  void _navigateToCompare() {
+    if (_selectedReportIds.length != 2) return;
+    final ids = _selectedReportIds.toList();
+    _exitSelectionMode();
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ReportCompareScreen(
+          reportId1: ids[0],
+          reportId2: ids[1],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const CustomAppBar(title: '体检报告'),
+      appBar: CustomAppBar(
+        title: _selectionMode ? '选择报告对比' : '体检报告',
+        actions: _selectionMode
+            ? [
+                TextButton(
+                  onPressed: _exitSelectionMode,
+                  child: const Text('取消', style: TextStyle(color: Colors.white, fontSize: 15)),
+                ),
+              ]
+            : null,
+      ),
       body: Consumer<HealthProvider>(
         builder: (context, provider, child) {
           if (provider.isUploading || _isRecognizing) {
@@ -175,24 +254,15 @@ class _CheckupScreenState extends State<CheckupScreen> {
 
           return RefreshIndicator(
             onRefresh: _refresh,
-            color: const Color(0xFF52C41A),
+            color: _kPrimaryGreen,
             child: CustomScrollView(
               slivers: [
-                // Alert banner
                 if (provider.unreadAlertCount > 0)
                   SliverToBoxAdapter(child: _buildAlertBanner(provider)),
-
-                // Upload section
                 SliverToBoxAdapter(child: _buildUploadSection()),
-
-                // Selected images preview
                 if (_selectedImages.isNotEmpty)
                   SliverToBoxAdapter(child: _buildSelectedImagesSection()),
-
-                // History header
                 SliverToBoxAdapter(child: _buildHistoryHeader(provider)),
-
-                // Report list
                 if (provider.isLoading)
                   const SliverFillRemaining(
                     child: LoadingWidget(message: '加载中...'),
@@ -208,12 +278,41 @@ class _CheckupScreenState extends State<CheckupScreen> {
                       childCount: provider.reportList.length,
                     ),
                   ),
-
-                const SliverToBoxAdapter(child: SizedBox(height: 20)),
+                const SliverToBoxAdapter(child: SizedBox(height: 80)),
               ],
             ),
           );
         },
+      ),
+      bottomSheet: _selectionMode && _selectedReportIds.length == 2
+          ? _buildCompareBottomBar()
+          : null,
+    );
+  }
+
+  Widget _buildCompareBottomBar() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 8, offset: const Offset(0, -2))],
+      ),
+      child: SafeArea(
+        child: SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: _navigateToCompare,
+            icon: const Icon(Icons.compare_arrows, size: 20),
+            label: const Text('对比分析'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1890FF),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              elevation: 0,
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -336,7 +435,7 @@ class _CheckupScreenState extends State<CheckupScreen> {
                                 '标为已读',
                                 style: TextStyle(
                                   fontSize: 13,
-                                  color: Color(0xFF52C41A),
+                                  color: _kPrimaryGreen,
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
@@ -377,7 +476,7 @@ class _CheckupScreenState extends State<CheckupScreen> {
                 icon: Icons.photo_library_outlined,
                 label: '从相册选择',
                 subtitle: '支持多选',
-                color: const Color(0xFF52C41A),
+                color: _kPrimaryGreen,
                 onTap: _pickFromGallery,
               )),
               const SizedBox(width: 10),
@@ -500,7 +599,7 @@ class _CheckupScreenState extends State<CheckupScreen> {
               icon: const Icon(Icons.auto_awesome, size: 18),
               label: const Text('开始识别'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF52C41A),
+                backgroundColor: _kPrimaryGreen,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -556,10 +655,31 @@ class _CheckupScreenState extends State<CheckupScreen> {
             style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
           ),
           const Spacer(),
-          Text(
-            '共${provider.reportList.length}份',
-            style: TextStyle(fontSize: 13, color: Colors.grey[500]),
-          ),
+          if (!_selectionMode && provider.reportList.length >= 2)
+            GestureDetector(
+              onTap: () {
+                setState(() {
+                  _selectionMode = true;
+                  _selectedReportIds.clear();
+                });
+              },
+              child: const Text(
+                '对比报告',
+                style: TextStyle(fontSize: 13, color: Color(0xFF1890FF), fontWeight: FontWeight.w500),
+              ),
+            ),
+          if (!_selectionMode) ...[
+            const SizedBox(width: 12),
+            Text(
+              '共${provider.reportList.length}份',
+              style: TextStyle(fontSize: 13, color: Colors.grey[500]),
+            ),
+          ],
+          if (_selectionMode)
+            Text(
+              '已选 ${_selectedReportIds.length}/2',
+              style: const TextStyle(fontSize: 13, color: Color(0xFF1890FF), fontWeight: FontWeight.w500),
+            ),
         ],
       ),
     );
@@ -569,19 +689,26 @@ class _CheckupScreenState extends State<CheckupScreen> {
     final statusMap = {
       'pending': {'label': '待分析', 'color': const Color(0xFFFA8C16)},
       'analyzing': {'label': '分析中', 'color': const Color(0xFF1890FF)},
-      'completed': {'label': '已完成', 'color': const Color(0xFF52C41A)},
+      'completed': {'label': '已完成', 'color': _kPrimaryGreen},
       'failed': {'label': '分析失败', 'color': const Color(0xFFFF4D4F)},
     };
     final statusInfo = statusMap[report.status] ?? statusMap['pending']!;
+    final isSelected = _selectedReportIds.contains(report.id);
 
     return GestureDetector(
       onTap: () => _navigateToDetail(report.id),
+      onLongPress: () {
+        if (!_selectionMode) {
+          _enterSelectionMode(report.id);
+        }
+      },
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: isSelected ? const Color(0xFFE6F7FF) : Colors.white,
           borderRadius: BorderRadius.circular(12),
+          border: isSelected ? Border.all(color: const Color(0xFF1890FF), width: 1.5) : null,
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.03),
@@ -592,19 +719,17 @@ class _CheckupScreenState extends State<CheckupScreen> {
         ),
         child: Row(
           children: [
-            Container(
-              width: 50,
-              height: 50,
-              decoration: BoxDecoration(
-                color: const Color(0xFF52C41A).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
+            if (_selectionMode)
+              Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: Icon(
+                  isSelected ? Icons.check_circle : Icons.radio_button_unchecked,
+                  color: isSelected ? const Color(0xFF1890FF) : Colors.grey[400],
+                  size: 24,
+                ),
               ),
-              child: Icon(
-                report.fileType == 'pdf' ? Icons.picture_as_pdf : Icons.description,
-                color: const Color(0xFF52C41A),
-                size: 26,
-              ),
-            ),
+            // Score mini gauge or icon
+            _buildReportLeadingWidget(report),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
@@ -666,11 +791,101 @@ class _CheckupScreenState extends State<CheckupScreen> {
                 ],
               ),
             ),
-            const SizedBox(width: 8),
-            const Icon(Icons.chevron_right, color: Colors.grey, size: 22),
+            if (!_selectionMode) ...[
+              const SizedBox(width: 8),
+              const Icon(Icons.chevron_right, color: Colors.grey, size: 22),
+            ],
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildReportLeadingWidget(CheckupReport report) {
+    if (report.healthScore != null && report.healthScore! > 0) {
+      final score = report.healthScore!;
+      final color = _scoreColor(score);
+      return SizedBox(
+        width: 50,
+        height: 50,
+        child: CustomPaint(
+          painter: _MiniScoreRingPainter(score: score, color: color),
+          child: Center(
+            child: Text(
+              score.toInt().toString(),
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      width: 50,
+      height: 50,
+      decoration: BoxDecoration(
+        color: _kPrimaryGreen.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Icon(
+        report.fileType == 'pdf' ? Icons.picture_as_pdf : Icons.description,
+        color: _kPrimaryGreen,
+        size: 26,
+      ),
+    );
+  }
+}
+
+class _MiniScoreRingPainter extends CustomPainter {
+  final double score;
+  final Color color;
+
+  _MiniScoreRingPainter({required this.score, required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = math.min(size.width, size.height) / 2 - 4;
+
+    final bgPaint = Paint()
+      ..color = Colors.grey[200]!
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 5
+      ..strokeCap = StrokeCap.round;
+
+    const startAngle = -math.pi / 2;
+    const fullSweep = 2 * math.pi;
+
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      startAngle,
+      fullSweep,
+      false,
+      bgPaint,
+    );
+
+    final scorePaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 5
+      ..strokeCap = StrokeCap.round;
+
+    final scoreSweep = fullSweep * (score / 100).clamp(0.0, 1.0);
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      startAngle,
+      scoreSweep,
+      false,
+      scorePaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _MiniScoreRingPainter oldDelegate) {
+    return oldDelegate.score != score || oldDelegate.color != color;
   }
 }

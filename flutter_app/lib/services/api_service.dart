@@ -259,6 +259,13 @@ class ApiService {
     return _dio.post('${ApiConfig.reportShareByPath}/$reportId/share');
   }
 
+  Future<Response> compareReports(int id1, int id2) async {
+    return _dio.post(ApiConfig.reportCompare, data: {
+      'report_id_1': id1,
+      'report_id_2': id2,
+    });
+  }
+
   // Symptom
   Future<Response> checkSymptom(Map<String, dynamic> data) async {
     return _dio.post(ApiConfig.symptomCheck, data: data);

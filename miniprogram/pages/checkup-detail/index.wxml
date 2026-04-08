@@ -1,85 +1,137 @@
+<!-- 加载动画 -->
+<view class="loading-page" wx:if="{{loading}}">
+  <view class="analyze-animation">
+    <view class="analyze-spinner"></view>
+    <text class="analyze-text">{{analyzeText}}</text>
+    <view class="analyze-dots">
+      <view class="dot {{analyzeTextIndex >= 0 ? 'dot-active' : ''}}"></view>
+      <view class="dot {{analyzeTextIndex >= 1 ? 'dot-active' : ''}}"></view>
+      <view class="dot {{analyzeTextIndex >= 2 ? 'dot-active' : ''}}"></view>
+      <view class="dot {{analyzeTextIndex >= 3 ? 'dot-active' : ''}}"></view>
+    </view>
+  </view>
+</view>
+
+<!-- 主内容 -->
 <view class="detail-page" wx:if="{{!loading}}">
 
-  <!-- 报告原图 -->
-  <view class="card images-section" wx:if="{{images.length > 0}}">
-    <text class="section-title">报告原图</text>
-    <scroll-view scroll-x class="images-scroll">
-      <view class="images-list">
-        <image
-          wx:for="{{images}}"
-          wx:key="index"
-          class="report-image"
-          src="{{item}}"
-          mode="aspectFill"
-          bindtap="previewImage"
-          data-url="{{item}}"
-        />
+  <!-- 区域1：AI 综合健康评分 -->
+  <view class="score-section card" wx:if="{{aiData && healthScore > 0}}">
+    <view class="score-header">
+      <text class="score-title">AI 综合健康评分</text>
+      <view class="share-btn-small" bindtap="shareReport">
+        <text class="share-icon-text">📤</text>
+        <text class="share-label">分享</text>
       </view>
-    </scroll-view>
+    </view>
+    <view class="score-ring-wrap">
+      <canvas id="scoreCanvas" type="2d" class="score-canvas"></canvas>
+      <view class="score-center">
+        <text class="score-number" style="color: {{healthScoreColor}}">{{healthScore}}</text>
+        <text class="score-level" style="color: {{healthScoreColor}}">{{healthScoreLevel}}</text>
+      </view>
+    </view>
+    <text class="score-comment" wx:if="{{healthScoreComment}}">{{healthScoreComment}}</text>
   </view>
 
-  <!-- 区域1：异常汇总卡片区 -->
-  <view class="section-block" wx:if="{{aiData}}">
-    <view class="section-header">
-      <text class="section-title-text">异常指标（{{abnormalCards.length}}项）</text>
-    </view>
-
-    <!-- 无异常绿色提示 -->
-    <view class="all-normal-tip" wx:if="{{abnormalCards.length === 0}}">
-      <text class="all-normal-icon">✓</text>
-      <text class="all-normal-text">所有指标均在正常范围内</text>
-    </view>
-
-    <!-- 异常指标卡片 -->
-    <view class="abnormal-card" wx:for="{{abnormalCards}}" wx:key="name">
-      <view class="abnormal-card-header">
-        <text class="abnormal-card-name">{{item.name}}</text>
-        <view class="status-tag {{item.statusColor === 'high' ? 'tag-high' : 'tag-low'}}">
-          <text class="status-tag-text">{{item.status}}</text>
-        </view>
+  <!-- 区域2：异常指标汇总 -->
+  <view class="summary-section" wx:if="{{aiData}}">
+    <view class="summary-cards">
+      <view class="summary-card summary-card-abnormal">
+        <text class="summary-card-num" style="color: #F44336">{{abnormalCount}}</text>
+        <text class="summary-card-label">异常指标</text>
       </view>
-      <view class="abnormal-card-value-row">
-        <text class="abnormal-card-value {{item.statusColor === 'high' ? 'value-high' : 'value-low'}}">{{item.value}}</text>
-        <text class="abnormal-card-unit">{{item.unit}}</text>
+      <view class="summary-card summary-card-normal">
+        <text class="summary-card-num" style="color: #4CAF50">{{normalCount}}</text>
+        <text class="summary-card-label">正常指标</text>
       </view>
-      <text class="abnormal-card-ref" wx:if="{{item.reference}}">参考范围：{{item.reference}}</text>
-      <view class="abnormal-card-suggestion" wx:if="{{item.suggestion}}">
-        <text class="suggestion-icon">💡</text>
-        <text class="suggestion-text">{{item.suggestion}}</text>
+      <view class="summary-card summary-card-excellent">
+        <text class="summary-card-num" style="color: #1B8C3D">{{excellentCount}}</text>
+        <text class="summary-card-label">优秀指标</text>
       </view>
     </view>
   </view>
 
-  <!-- 区域2：分类详情区 -->
-  <view class="section-block" wx:if="{{aiData && categories.length > 0}}">
-    <view class="section-header">
-      <text class="section-title-text">分类详情</text>
-    </view>
-
-    <view class="category-block" wx:for="{{categories}}" wx:key="name" wx:for-index="catIdx">
-      <!-- 分类折叠头 -->
-      <view class="category-fold-header" bindtap="toggleCategory" data-idx="{{catIdx}}">
-        <view class="category-fold-left">
-          <text class="category-fold-name">{{item.name}}</text>
-          <view class="category-abnormal-badge" wx:if="{{item.abnormalCount > 0}}">
-            <text class="category-abnormal-num">{{item.abnormalCount}}项异常</text>
-          </view>
-        </view>
-        <text class="category-fold-arrow {{expandedCategories[catIdx] ? 'arrow-up' : 'arrow-down'}}">›</text>
+  <!-- 区域3：分类指标详细解读 -->
+  <view class="categories-section" wx:if="{{categories.length > 0}}">
+    <view class="cat-block card" wx:for="{{categories}}" wx:key="name" wx:for-index="catIdx">
+      <view class="cat-header">
+        <text class="cat-emoji">{{item.emoji}}</text>
+        <text class="cat-name">{{item.name}}</text>
+        <text class="cat-count">{{item.items.length}}项</text>
       </view>
 
-      <!-- 展开内容：指标行 -->
-      <view class="category-items" wx:if="{{expandedCategories[catIdx]}}">
-        <view class="indicator-row {{subItem.isAbnormal ? 'indicator-row-abnormal' : ''}}" wx:for="{{item.items}}" wx:key="name" wx:for-item="subItem">
-          <view class="indicator-row-left">
-            <view class="indicator-dot-sm {{subItem.statusColor === 'high' ? 'dot-high' : (subItem.statusColor === 'low' ? 'dot-low' : 'dot-normal')}}"></view>
-            <text class="indicator-row-name">{{subItem.name}}</text>
+      <view class="indicator-list">
+        <view class="indicator-card" wx:for="{{item.items}}" wx:key="name" wx:for-item="ind">
+          <!-- 指标主行 -->
+          <view class="ind-main" bindtap="toggleItemDetail" data-key="{{ind.expandKey}}">
+            <view class="ind-left">
+              <text class="ind-name">{{ind.name}}</text>
+              <view class="risk-tag" style="background: {{ind.riskBg}}; border: 1rpx solid {{ind.riskColor}}20;">
+                <text class="risk-tag-emoji">{{ind.riskEmoji}}</text>
+                <text class="risk-tag-text" style="color: {{ind.riskColor}}">{{ind.riskName}}</text>
+              </view>
+            </view>
+            <view class="ind-right">
+              <view class="ind-value-wrap">
+                <text class="ind-value" style="color: {{ind.riskColor}}">{{ind.value}}</text>
+                <text class="ind-unit">{{ind.unit}}</text>
+              </view>
+              <text class="ind-ref" wx:if="{{ind.referenceRange}}">参考: {{ind.referenceRange}}</text>
+            </view>
+            <text class="ind-arrow {{expandedItems[ind.expandKey] ? 'arrow-up' : ''}}">›</text>
           </view>
-          <view class="indicator-row-right">
-            <text class="indicator-row-value {{subItem.statusColor === 'high' ? 'value-high' : (subItem.statusColor === 'low' ? 'value-low' : 'value-ok')}}">{{subItem.value}} {{subItem.unit}}</text>
-            <text class="indicator-row-ref">{{subItem.reference}}</text>
-            <view class="status-tag-sm {{subItem.statusColor === 'high' ? 'tag-high' : (subItem.statusColor === 'low' ? 'tag-low' : 'tag-normal')}}" wx:if="{{subItem.status}}">
-              <text class="status-tag-sm-text">{{subItem.status}}</text>
+
+          <!-- 展开的详细建议 -->
+          <view class="ind-detail" wx:if="{{expandedItems[ind.expandKey] && ind.detail}}">
+            <view class="detail-module" wx:if="{{ind.detail.explanation}}">
+              <view class="detail-module-header">
+                <text class="detail-module-icon">📖</text>
+                <text class="detail-module-title">指标含义</text>
+              </view>
+              <text class="detail-module-content">{{ind.detail.explanation}}</text>
+            </view>
+            <view class="detail-module" wx:if="{{ind.detail.possibleCauses}}">
+              <view class="detail-module-header">
+                <text class="detail-module-icon">🔍</text>
+                <text class="detail-module-title">可能原因</text>
+              </view>
+              <text class="detail-module-content">{{ind.detail.possibleCauses}}</text>
+            </view>
+            <view class="detail-module" wx:if="{{ind.detail.dietAdvice}}">
+              <view class="detail-module-header">
+                <text class="detail-module-icon">🥗</text>
+                <text class="detail-module-title">饮食建议</text>
+              </view>
+              <text class="detail-module-content">{{ind.detail.dietAdvice}}</text>
+            </view>
+            <view class="detail-module" wx:if="{{ind.detail.exerciseAdvice}}">
+              <view class="detail-module-header">
+                <text class="detail-module-icon">🏃</text>
+                <text class="detail-module-title">运动建议</text>
+              </view>
+              <text class="detail-module-content">{{ind.detail.exerciseAdvice}}</text>
+            </view>
+            <view class="detail-module" wx:if="{{ind.detail.lifestyleAdvice}}">
+              <view class="detail-module-header">
+                <text class="detail-module-icon">🌙</text>
+                <text class="detail-module-title">生活习惯</text>
+              </view>
+              <text class="detail-module-content">{{ind.detail.lifestyleAdvice}}</text>
+            </view>
+            <view class="detail-module" wx:if="{{ind.detail.recheckAdvice}}">
+              <view class="detail-module-header">
+                <text class="detail-module-icon">🔄</text>
+                <text class="detail-module-title">复查建议</text>
+              </view>
+              <text class="detail-module-content">{{ind.detail.recheckAdvice}}</text>
+            </view>
+            <view class="detail-module" wx:if="{{ind.detail.medicalAdvice}}">
+              <view class="detail-module-header">
+                <text class="detail-module-icon">🏥</text>
+                <text class="detail-module-title">就医指引</text>
+              </view>
+              <text class="detail-module-content">{{ind.detail.medicalAdvice}}</text>
             </view>
           </view>
         </view>
@@ -87,53 +139,39 @@
     </view>
   </view>
 
-  <!-- 区域3：综合建议区 -->
-  <view class="section-block" wx:if="{{aiData && aiData.summary}}">
-    <view class="section-header">
-      <text class="section-title-text">综合建议</text>
-    </view>
-    <view class="summary-card">
-      <text class="summary-content">{{aiData.summary}}</text>
-    </view>
-    <view class="disclaimer-box">
-      <text class="disclaimer-text">{{disclaimer}}</text>
-    </view>
-  </view>
-
   <!-- AI原始文本回退 -->
-  <view class="section-block" wx:if="{{!aiData && aiRawText}}">
+  <view class="card" wx:if="{{!aiData && aiRawText}}">
     <view class="section-header">
       <text class="section-title-text">AI解读结果</text>
     </view>
-    <view class="summary-card">
-      <text class="summary-content">{{aiRawText}}</text>
-    </view>
-    <view class="disclaimer-box">
-      <text class="disclaimer-text">{{disclaimer}}</text>
+    <view class="raw-text-card">
+      <text class="raw-text-content">{{aiRawText}}</text>
     </view>
   </view>
 
   <!-- 无分析结果 -->
-  <view class="section-block" wx:if="{{!aiData && !aiRawText}}">
+  <view class="card" wx:if="{{!aiData && !aiRawText}}">
     <view class="empty-state">
       <text class="empty-icon">🔬</text>
       <text class="empty-text">AI正在分析中，请稍后刷新查看</text>
     </view>
   </view>
 
-  <!-- 分享按钮 -->
-  <view class="share-section">
-    <view class="share-btn" bindtap="shareReport">
-      <text class="share-btn-icon">📤</text>
-      <text class="share-btn-text">生成分享链接</text>
+  <!-- 免责声明 -->
+  <view class="disclaimer-box" wx:if="{{aiData || aiRawText}}">
+    <text class="disclaimer-text">{{disclaimer}}</text>
+  </view>
+
+  <!-- 区域4：报告对比入口 -->
+  <view class="compare-entry" wx:if="{{aiData}}" bindtap="goCompare">
+    <view class="compare-entry-inner">
+      <text class="compare-icon">📊</text>
+      <view class="compare-text-wrap">
+        <text class="compare-title">报告对比分析</text>
+        <text class="compare-desc">与历史报告对比，追踪健康变化</text>
+      </view>
+      <text class="compare-arrow">›</text>
     </view>
   </view>
 
-</view>
-
-<!-- 加载中 -->
-<view class="loading-page" wx:if="{{loading}}">
-  <view class="loading-wrap">
-    <text class="text-hint">加载中...</text>
-  </view>
 </view>

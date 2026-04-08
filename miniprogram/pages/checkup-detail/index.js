@@ -1,17 +1,56 @@
 const { get, post } = require('../../utils/request');
 const { checkLogin } = require('../../utils/util');
 
+const RISK_CONFIG = {
+  1: { name: '优秀', color: '#1B8C3D', emoji: '✅', bg: 'rgba(27,140,61,0.08)' },
+  2: { name: '正常', color: '#4CAF50', emoji: '🟢', bg: 'rgba(76,175,80,0.08)' },
+  3: { name: '轻度异常', color: '#FFC107', emoji: '⚠️', bg: 'rgba(255,193,7,0.10)' },
+  4: { name: '中度异常', color: '#FF9800', emoji: '🔶', bg: 'rgba(255,152,0,0.10)' },
+  5: { name: '严重异常', color: '#F44336', emoji: '🔴', bg: 'rgba(244,67,54,0.10)' }
+};
+
+function getScoreColor(score) {
+  if (score >= 90) return '#1B8C3D';
+  if (score >= 75) return '#4CAF50';
+  if (score >= 60) return '#FFC107';
+  if (score >= 40) return '#FF9800';
+  return '#F44336';
+}
+
+function getScoreLevel(score) {
+  if (score >= 90) return '优秀';
+  if (score >= 75) return '良好';
+  if (score >= 60) return '一般';
+  if (score >= 40) return '偏低';
+  return '较差';
+}
+
 Page({
   data: {
     reportId: '',
     report: null,
-    images: [],
     aiData: null,
     aiRawText: '',
-    abnormalCards: [],
+
+    healthScore: 0,
+    healthScoreColor: '#4CAF50',
+    healthScoreLevel: '',
+    healthScoreComment: '',
+
+    totalItems: 0,
+    abnormalCount: 0,
+    excellentCount: 0,
+    normalCount: 0,
+
     categories: [],
-    expandedCategories: {},
+    expandedItems: {},
+
     loading: true,
+    analyzing: false,
+    analyzeText: 'AI正在分析...',
+    analyzeTexts: ['AI正在分析...', '正在评估风险...', '正在生成建议...', '分析完成！'],
+    analyzeTextIndex: 0,
+
     disclaimer: '免责声明：本解读结果由AI智能分析生成，仅供参考，不构成医疗诊断或治疗建议。如有健康疑问，请及时咨询专业医生。'
   },
 
@@ -25,12 +64,45 @@ Page({
     this.loadDetail(id);
   },
 
+  onUnload() {
+    this.clearAnalyzeTimer();
+  },
+
+  clearAnalyzeTimer() {
+    if (this._analyzeTimer) {
+      clearInterval(this._analyzeTimer);
+      this._analyzeTimer = null;
+    }
+  },
+
+  startAnalyzeAnimation() {
+    this.setData({ analyzing: true, analyzeTextIndex: 0, analyzeText: this.data.analyzeTexts[0] });
+    let idx = 0;
+    this._analyzeTimer = setInterval(() => {
+      idx++;
+      if (idx >= this.data.analyzeTexts.length) {
+        this.clearAnalyzeTimer();
+        return;
+      }
+      this.setData({ analyzeTextIndex: idx, analyzeText: this.data.analyzeTexts[idx] });
+    }, 1500);
+  },
+
+  stopAnalyzeAnimation() {
+    this.clearAnalyzeTimer();
+    this.setData({
+      analyzing: false,
+      analyzeTextIndex: this.data.analyzeTexts.length - 1,
+      analyzeText: this.data.analyzeTexts[this.data.analyzeTexts.length - 1]
+    });
+  },
+
   async loadDetail(id) {
     this.setData({ loading: true });
+    this.startAnalyzeAnimation();
     try {
       const res = await get(`/api/report/detail/${id}`, {}, { suppressErrorToast: true });
       const report = res.data || res;
-      const images = report.file_url && report.file_type !== 'pdf' ? [report.file_url] : [];
 
       let aiData = null;
       let aiRawText = '';
@@ -50,80 +122,144 @@ Page({
         }
       }
 
-      let abnormalCards = [];
+      let healthScore = 0;
+      let healthScoreColor = '#4CAF50';
+      let healthScoreLevel = '';
+      let healthScoreComment = '';
+      let totalItems = 0;
+      let abnormalCount = 0;
+      let excellentCount = 0;
+      let normalCount = 0;
       let categories = [];
-      let expandedCategories = {};
+      let expandedItems = {};
 
-      if (aiData && aiData.categories) {
-        const abnormalNames = Array.isArray(aiData.abnormal_items) ? aiData.abnormal_items : [];
+      if (aiData) {
+        if (aiData.healthScore) {
+          healthScore = aiData.healthScore.score || report.health_score || 0;
+          healthScoreLevel = aiData.healthScore.level || getScoreLevel(healthScore);
+          healthScoreComment = aiData.healthScore.comment || '';
+        } else {
+          healthScore = report.health_score || 0;
+          healthScoreLevel = getScoreLevel(healthScore);
+        }
+        healthScoreColor = getScoreColor(healthScore);
 
-        aiData.categories.forEach((cat, catIdx) => {
-          const items = Array.isArray(cat.items) ? cat.items : [];
-          let catAbnormalCount = 0;
+        if (aiData.summary) {
+          totalItems = aiData.summary.totalItems || 0;
+          abnormalCount = aiData.summary.abnormalCount || 0;
+          excellentCount = aiData.summary.excellentCount || 0;
+          normalCount = aiData.summary.normalCount || 0;
+        }
 
-          items.forEach(item => {
-            const isAbnormal = item.status && item.status !== '正常' && item.status !== 'normal';
-            if (isAbnormal) {
-              catAbnormalCount++;
-              abnormalCards.push({
-                name: item.name,
-                value: item.value,
-                unit: item.unit || '',
-                reference: item.reference || '',
-                status: item.status,
-                suggestion: item.suggestion || '',
-                statusColor: item.status && item.status.includes('高') ? 'high' : 'low'
-              });
-            }
-          });
-
-          categories.push({
-            name: cat.name,
-            abnormalCount: catAbnormalCount,
-            items: items.map(item => {
-              const isAbnormal = item.status && item.status !== '正常' && item.status !== 'normal';
+        if (aiData.categories && Array.isArray(aiData.categories)) {
+          categories = aiData.categories.map((cat, catIdx) => {
+            const items = (cat.items || []).map((item, itemIdx) => {
+              const rl = item.riskLevel || 2;
+              const rc = RISK_CONFIG[rl] || RISK_CONFIG[2];
+              const key = `${catIdx}_${itemIdx}`;
+              const defaultExpanded = rl >= 3;
+              if (defaultExpanded) {
+                expandedItems[key] = true;
+              }
               return {
-                name: item.name,
-                value: item.value,
-                unit: item.unit || '',
-                reference: item.reference || '',
-                status: item.status || '正常',
-                isAbnormal,
-                statusColor: isAbnormal ? (item.status && item.status.includes('高') ? 'high' : 'low') : 'normal'
+                ...item,
+                riskLevel: rl,
+                riskName: item.riskName || rc.name,
+                riskColor: rc.color,
+                riskEmoji: rc.emoji,
+                riskBg: rc.bg,
+                detail: item.detail || {},
+                expandKey: key
               };
-            })
+            });
+            return {
+              name: cat.name || '其他',
+              emoji: cat.emoji || '📋',
+              items
+            };
           });
-
-          expandedCategories[catIdx] = false;
-        });
+        }
       }
 
+      this.stopAnalyzeAnimation();
       this.setData({
         report,
-        images: typeof images === 'string' ? [images] : images,
         aiData,
         aiRawText,
-        abnormalCards,
+        healthScore,
+        healthScoreColor,
+        healthScoreLevel,
+        healthScoreComment,
+        totalItems,
+        abnormalCount,
+        excellentCount,
+        normalCount,
         categories,
-        expandedCategories,
+        expandedItems,
         loading: false
       });
+
+      if (aiData && healthScore > 0) {
+        setTimeout(() => this.drawScoreRing(), 100);
+      }
     } catch (e) {
+      this.stopAnalyzeAnimation();
       console.log('loadDetail error', e);
       this.setData({ loading: false });
       wx.showToast({ title: '加载失败', icon: 'none' });
     }
   },
 
-  toggleCategory(e) {
-    const idx = e.currentTarget.dataset.idx;
-    const key = `expandedCategories.${idx}`;
-    this.setData({ [key]: !this.data.expandedCategories[idx] });
+  drawScoreRing() {
+    const query = wx.createSelectorQuery();
+    query.select('#scoreCanvas').fields({ node: true, size: true }).exec((res) => {
+      if (!res || !res[0]) return;
+      const canvas = res[0].node;
+      const ctx = canvas.getContext('2d');
+      const sysInfo = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
+      const dpr = sysInfo.pixelRatio || 2;
+      canvas.width = res[0].width * dpr;
+      canvas.height = res[0].height * dpr;
+      ctx.scale(dpr, dpr);
+
+      const w = res[0].width;
+      const h = res[0].height;
+      const cx = w / 2;
+      const cy = h / 2;
+      const radius = Math.min(w, h) / 2 - 12;
+      const lineWidth = 14;
+      const score = this.data.healthScore;
+      const color = this.data.healthScoreColor;
+
+      ctx.clearRect(0, 0, w, h);
+
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+      ctx.strokeStyle = '#f0f0f0';
+      ctx.lineWidth = lineWidth;
+      ctx.lineCap = 'round';
+      ctx.stroke();
+
+      const startAngle = -Math.PI / 2;
+      const endAngle = startAngle + (Math.PI * 2 * score / 100);
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, startAngle, endAngle);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = lineWidth;
+      ctx.lineCap = 'round';
+      ctx.stroke();
+    });
   },
 
-  previewImage(e) {
-    const url = e.currentTarget.dataset.url;
-    wx.previewImage({ current: url, urls: this.data.images });
+  toggleItemDetail(e) {
+    const key = e.currentTarget.dataset.key;
+    const field = `expandedItems.${key}`;
+    this.setData({ [field]: !this.data.expandedItems[key] });
+  },
+
+  goCompare() {
+    const id = this.data.reportId;
+    wx.navigateTo({ url: `/pages/checkup-compare/index?id1=${id}` });
   },
 
   async shareReport() {

@@ -1,3 +1,13 @@
+<wxs module="utils">
+module.exports.isSelected = function(selectedIds, id) {
+  if (!selectedIds || !selectedIds.length) return false;
+  var sid = '' + id;
+  for (var i = 0; i < selectedIds.length; i++) {
+    if (selectedIds[i] === sid) return true;
+  }
+  return false;
+}
+</wxs>
 <view class="checkup-page">
   <!-- 预警横幅 -->
   <view class="alert-banner" wx:if="{{hasUnreadAlerts}}" bindtap="dismissAlert">
@@ -54,10 +64,37 @@
 
   <!-- 历史报告 -->
   <view class="history-section">
-    <text class="section-title" style="padding: 0 24rpx;">历史报告</text>
+    <view class="history-section-header">
+      <text class="section-title" style="margin-bottom: 0;">历史报告</text>
+      <view class="compare-toggle" wx:if="{{historyReports.length >= 2}}" bindtap="toggleCompareMode">
+        <text class="compare-toggle-text">{{compareMode ? '取消对比' : '📊 对比分析'}}</text>
+      </view>
+    </view>
+
+    <!-- 对比操作栏 -->
+    <view class="compare-bar" wx:if="{{compareMode}}">
+      <text class="compare-bar-hint">请勾选2份报告进行对比（已选 {{selectedIds.length}}/2）</text>
+      <view class="compare-bar-btn {{selectedIds.length === 2 ? '' : 'disabled'}}" bindtap="goCompare">
+        <text class="compare-bar-btn-text">开始对比</text>
+      </view>
+    </view>
+
     <view class="history-list" wx:if="{{historyReports.length > 0}}">
-      <view class="history-item card" wx:for="{{historyReports}}" wx:key="id" bindtap="viewReport" data-id="{{item.id}}">
+      <view
+        class="history-item card {{compareMode && utils.isSelected(selectedIds, item.id) ? 'history-item-selected' : ''}}"
+        wx:for="{{historyReports}}"
+        wx:key="id"
+        bindtap="onItemTap"
+        data-id="{{item.id}}"
+      >
         <view class="history-item-content">
+          <!-- 对比模式勾选框 -->
+          <view class="check-box" wx:if="{{compareMode}}">
+            <view class="check-inner {{utils.isSelected(selectedIds, item.id) ? 'checked' : ''}}">
+              <text wx:if="{{utils.isSelected(selectedIds, item.id)}}">✓</text>
+            </view>
+          </view>
+
           <image class="history-thumb" wx:if="{{item.thumbnail}}" src="{{item.thumbnail}}" mode="aspectFill" />
           <view class="history-thumb-placeholder" wx:else>
             <text class="placeholder-icon">📋</text>
@@ -70,11 +107,18 @@
               <view class="tag tag-green" wx:else>{{item.status || '已上传'}}</view>
             </view>
             <text class="history-name ellipsis">{{item.name || item.title || '体检报告'}}</text>
-            <view class="history-meta" wx:if="{{item.abnormalCount > 0}}">
-              <text class="abnormal-badge">{{item.abnormalCount}}项异常</text>
+            <view class="history-meta">
+              <text class="abnormal-badge" wx:if="{{item.abnormalCount > 0}}">{{item.abnormalCount}}项异常</text>
             </view>
           </view>
-          <view class="history-arrow">
+
+          <!-- 健康评分徽章 -->
+          <view class="score-badge" wx:if="{{item.healthScore > 0}}" style="border-color: {{item.scoreColor}};">
+            <text class="score-badge-num" style="color: {{item.scoreColor}};">{{item.healthScore}}</text>
+            <text class="score-badge-label">分</text>
+          </view>
+
+          <view class="history-arrow" wx:if="{{!compareMode}}">
             <text class="arrow-icon">›</text>
           </view>
         </view>

@@ -407,6 +407,7 @@ class CheckupReport(Base):
     ai_analysis_json = mapped_column(JSON, nullable=True)
     indicators = mapped_column(JSON, nullable=True)
     abnormal_count = mapped_column(Integer, default=0)
+    health_score = mapped_column(Integer, nullable=True)
     status = mapped_column(String(20), default="pending")
     share_token = mapped_column(String(100), nullable=True, unique=True)
     share_expires_at = mapped_column(DateTime, nullable=True)

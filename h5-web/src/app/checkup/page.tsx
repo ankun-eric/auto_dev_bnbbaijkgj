@@ -20,12 +20,22 @@ interface ReportItem {
   created_at: string;
   summary?: string;
   image_count?: number;
+  health_score?: number;
+  ai_analysis_json?: any;
 }
 
 interface SelectedFile {
   file: File;
   previewUrl: string;
   id: string;
+}
+
+function getScoreColor(score: number): string {
+  if (score >= 90) return '#0D7A3E';
+  if (score >= 75) return '#4CAF50';
+  if (score >= 60) return '#FFC107';
+  if (score >= 40) return '#FF9800';
+  return '#F44336';
 }
 
 export default function CheckupPage() {
@@ -37,8 +47,35 @@ export default function CheckupPage() {
   const [hasMore, setHasMore] = useState(true);
   const [loadingList, setLoadingList] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<SelectedFile[]>([]);
+  const [compareMode, setCompareMode] = useState(false);
+  const [selectedReportIds, setSelectedReportIds] = useState<Set<number>>(new Set());
   const imageInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+
+  const toggleReportSelect = (id: number) => {
+    setSelectedReportIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        if (next.size >= 2) {
+          Toast.show({ content: '最多选择2份报告进行对比' });
+          return prev;
+        }
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const handleCompare = () => {
+    const ids = Array.from(selectedReportIds);
+    if (ids.length !== 2) {
+      Toast.show({ content: '请选择2份报告进行对比' });
+      return;
+    }
+    router.push(`/checkup/compare?id1=${ids[0]}&id2=${ids[1]}`);
+  };
 
   const fetchReports = useCallback(async (pageNum: number, reset = false) => {
     if (loadingList) return;
@@ -294,7 +331,24 @@ export default function CheckupPage() {
           }}
         />
 
-        <div className="section-title mt-4">历史报告</div>
+        <div className="flex items-center justify-between mt-4">
+          <div className="section-title">历史报告</div>
+          {reports.length >= 2 && (
+            <button
+              className="text-xs px-3 py-1 rounded-full"
+              style={{
+                background: compareMode ? '#1890ff' : '#f5f5f5',
+                color: compareMode ? '#fff' : '#666',
+              }}
+              onClick={() => {
+                setCompareMode(!compareMode);
+                setSelectedReportIds(new Set());
+              }}
+            >
+              {compareMode ? '取消对比' : '对比模式'}
+            </button>
+          )}
+        </div>
         {reports.length === 0 && !loadingList ? (
           <Empty description="暂无体检报告" style={{ padding: '40px 0' }} />
         ) : (
@@ -302,9 +356,28 @@ export default function CheckupPage() {
             <Card
               key={report.id}
               style={{ marginBottom: 12, borderRadius: 12 }}
-              onClick={() => router.push(`/checkup/detail/${report.id}`)}
+              onClick={() => {
+                if (compareMode) {
+                  toggleReportSelect(report.id);
+                } else {
+                  router.push(`/checkup/detail/${report.id}`);
+                }
+              }}
             >
               <div className="flex items-center gap-3">
+                {compareMode && (
+                  <div
+                    className="w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center"
+                    style={{
+                      borderColor: selectedReportIds.has(report.id) ? '#1890ff' : '#d9d9d9',
+                      background: selectedReportIds.has(report.id) ? '#1890ff' : '#fff',
+                    }}
+                  >
+                    {selectedReportIds.has(report.id) && (
+                      <span className="text-white text-xs">✓</span>
+                    )}
+                  </div>
+                )}
                 <div className="w-14 h-14 rounded-lg overflow-hidden flex-shrink-0 bg-gray-100 flex items-center justify-center relative">
                   {report.file_type === 'pdf' ? (
                     <div className="flex flex-col items-center">
@@ -395,10 +468,49 @@ export default function CheckupPage() {
                     )}
                   </div>
                 </div>
-                <div className="text-gray-300 text-lg">›</div>
+                {report.health_score != null && report.health_score > 0 && (
+                  <div className="flex-shrink-0 text-center mr-1">
+                    <div
+                      className="w-10 h-10 rounded-full flex items-center justify-center"
+                      style={{
+                        background: `${getScoreColor(report.health_score)}15`,
+                        border: `2px solid ${getScoreColor(report.health_score)}`,
+                      }}
+                    >
+                      <span
+                        className="text-sm font-bold"
+                        style={{ color: getScoreColor(report.health_score) }}
+                      >
+                        {report.health_score}
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-gray-400">评分</span>
+                  </div>
+                )}
+                {!compareMode && <div className="text-gray-300 text-lg">›</div>}
               </div>
             </Card>
           ))
+        )}
+
+        {/* Compare action bar */}
+        {compareMode && selectedReportIds.size > 0 && (
+          <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 py-3 safe-area-bottom z-50">
+            <button
+              className="w-full py-3 rounded-xl text-sm font-medium text-white"
+              style={{
+                background: selectedReportIds.size === 2
+                  ? 'linear-gradient(135deg, #1890ff, #096dd9)'
+                  : '#ccc',
+              }}
+              disabled={selectedReportIds.size !== 2}
+              onClick={handleCompare}
+            >
+              {selectedReportIds.size === 2
+                ? '开始对比分析'
+                : `已选${selectedReportIds.size}/2份报告`}
+            </button>
+          </div>
         )}
 
         <InfiniteScroll loadMore={loadMore} hasMore={hasMore}>

@@ -13,7 +13,9 @@ Page({
     uploading: false,
     selectedImages: [],
     maxImages: 5,
-    uploadProgressText: ''
+    uploadProgressText: '',
+    compareMode: false,
+    selectedIds: []
   },
 
   onLoad() {
@@ -53,7 +55,9 @@ Page({
         ...item,
         dateFormatted: (item.created_at || item.date || '').substring(0, 10),
         abnormalCount: item.abnormal_count || 0,
-        thumbnail: item.thumbnail || item.image_url || ''
+        thumbnail: item.thumbnail || item.image_url || '',
+        healthScore: item.health_score || 0,
+        scoreColor: this.getScoreColor(item.health_score || 0)
       }));
       this.setData({
         historyReports: [...this.data.historyReports, ...list],
@@ -65,6 +69,15 @@ Page({
       console.log('loadHistory error', e);
       this.setData({ loading: false });
     }
+  },
+
+  getScoreColor(score) {
+    if (score >= 90) return '#1B8C3D';
+    if (score >= 75) return '#4CAF50';
+    if (score >= 60) return '#FFC107';
+    if (score >= 40) return '#FF9800';
+    if (score > 0) return '#F44336';
+    return '#ccc';
   },
 
   async loadAlerts() {
@@ -236,8 +249,51 @@ Page({
     }
   },
 
+  onItemTap(e) {
+    const id = e.currentTarget.dataset.id;
+    if (this.data.compareMode) {
+      this.toggleSelectReport(e);
+    } else {
+      wx.navigateTo({ url: `/pages/checkup-detail/index?id=${id}` });
+    }
+  },
+
   viewReport(e) {
     const id = e.currentTarget.dataset.id;
     wx.navigateTo({ url: `/pages/checkup-detail/index?id=${id}` });
+  },
+
+  toggleCompareMode() {
+    this.setData({
+      compareMode: !this.data.compareMode,
+      selectedIds: []
+    });
+  },
+
+  toggleSelectReport(e) {
+    const id = String(e.currentTarget.dataset.id);
+    let selected = [...this.data.selectedIds];
+    const idx = selected.indexOf(id);
+    if (idx >= 0) {
+      selected.splice(idx, 1);
+    } else {
+      if (selected.length >= 2) {
+        wx.showToast({ title: '最多选择2份报告', icon: 'none' });
+        return;
+      }
+      selected.push(id);
+    }
+    this.setData({ selectedIds: selected });
+  },
+
+  goCompare() {
+    const { selectedIds } = this.data;
+    if (selectedIds.length !== 2) {
+      wx.showToast({ title: '请选择2份报告进行对比', icon: 'none' });
+      return;
+    }
+    wx.navigateTo({
+      url: `/pages/checkup-compare/index?id1=${selectedIds[0]}&id2=${selectedIds[1]}`
+    });
   }
 });

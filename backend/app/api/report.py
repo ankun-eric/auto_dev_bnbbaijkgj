@@ -23,24 +23,33 @@ from app.models.models import (
 from app.schemas.report import (
     AlertListResponse,
     AlertResponse,
+    CompareIndicatorItem,
+    CompareScoreDiff,
+    EnhancedCategoryView,
+    EnhancedIndicatorItem,
+    EnhancedReportAnalysisResponse,
+    HealthScoreInfo,
     IndicatorDetail,
+    IndicatorDetailAdvice,
     IndicatorResponse,
     OcrConfigResponse,
     OcrConfigUpdate,
     ReportAnalysisResponse,
+    ReportCompareResponse,
     ReportDetailResponse,
     ReportListItem,
     ReportListResponse,
     ReportUploadResponse,
     ShareCreateResponse,
     ShareViewResponse,
+    SummaryInfo,
     TrendAnalysisRequest,
     TrendAnalysisResponse,
     TrendDataPoint,
     TrendDataResponse,
     CategoryView,
 )
-from app.services.ai_service import analyze_report_structured, analyze_trend
+from app.services.ai_service import analyze_report_compare, analyze_report_structured, analyze_trend
 from app.services.ocr_service import (
     check_image_quality,
     ensure_access_token,
@@ -193,7 +202,16 @@ async def report_ocr(
 # ──────────────── AI Analyze ────────────────
 
 
-@router.post("/report/analyze", response_model=ReportAnalysisResponse)
+def _risk_level_to_status(risk_level: int) -> str:
+    """Map enhanced riskLevel (1-5) to legacy IndicatorStatus string."""
+    if risk_level <= 2:
+        return "normal"
+    if risk_level <= 3:
+        return "abnormal"
+    return "critical"
+
+
+@router.post("/report/analyze", response_model=EnhancedReportAnalysisResponse)
 async def analyze_report(
     report_id: int = Body(embed=True),
     current_user: User = Depends(get_current_user),
@@ -280,59 +298,93 @@ async def analyze_report(
     await db.flush()
 
     abnormal_count = 0
-    categories_out: list[CategoryView] = []
-    abnormal_out: list[IndicatorDetail] = []
-    normal_out: list[IndicatorDetail] = []
+    categories_out: list[EnhancedCategoryView] = []
 
     for cat in analysis.get("categories", []):
-        cat_name = cat.get("category_name", "其他")
-        cat_indicators: list[IndicatorDetail] = []
-        for ind in cat.get("indicators", []):
-            status_val = ind.get("status", "normal")
+        cat_name = cat.get("name", cat.get("category_name", "其他"))
+        cat_emoji = cat.get("emoji", "📋")
+        cat_items: list[EnhancedIndicatorItem] = []
+
+        for ind in cat.get("items", cat.get("indicators", [])):
+            risk_level = ind.get("riskLevel", 2)
+            risk_name = ind.get("riskName", "正常")
+            status_val = _risk_level_to_status(risk_level)
+
             indicator = CheckupIndicator(
                 report_id=report.id,
                 indicator_name=ind.get("name", ""),
                 value=ind.get("value"),
                 unit=ind.get("unit"),
-                reference_range=ind.get("reference_range"),
+                reference_range=ind.get("referenceRange", ind.get("reference_range")),
                 status=status_val,
                 category=cat_name,
-                advice=ind.get("advice"),
+                advice=ind.get("detail", {}).get("explanation", "") if isinstance(ind.get("detail"), dict) else ind.get("advice"),
             )
             db.add(indicator)
 
-            detail = IndicatorDetail(
+            detail_raw = ind.get("detail")
+            detail_obj = None
+            if isinstance(detail_raw, dict):
+                detail_obj = IndicatorDetailAdvice(
+                    explanation=detail_raw.get("explanation"),
+                    possibleCauses=detail_raw.get("possibleCauses"),
+                    dietAdvice=detail_raw.get("dietAdvice"),
+                    exerciseAdvice=detail_raw.get("exerciseAdvice"),
+                    lifestyleAdvice=detail_raw.get("lifestyleAdvice"),
+                    recheckAdvice=detail_raw.get("recheckAdvice"),
+                    medicalAdvice=detail_raw.get("medicalAdvice"),
+                )
+
+            item = EnhancedIndicatorItem(
                 name=ind.get("name", ""),
                 value=ind.get("value"),
                 unit=ind.get("unit"),
-                reference_range=ind.get("reference_range"),
-                status=status_val,
-                advice=ind.get("advice"),
+                referenceRange=ind.get("referenceRange", ind.get("reference_range")),
+                riskLevel=risk_level,
+                riskName=risk_name,
+                detail=detail_obj,
             )
-            cat_indicators.append(detail)
+            cat_items.append(item)
 
-            if status_val in ("abnormal", "critical"):
+            if risk_level >= 3:
                 abnormal_count += 1
-                abnormal_out.append(detail)
-            else:
-                normal_out.append(detail)
 
-        categories_out.append(CategoryView(category_name=cat_name, indicators=cat_indicators))
+        categories_out.append(EnhancedCategoryView(name=cat_name, emoji=cat_emoji, items=cat_items))
 
-    report.ai_analysis = analysis.get("overall_assessment", "")
+    health_score_raw = analysis.get("healthScore")
+    health_score_obj = None
+    score_value = None
+    if isinstance(health_score_raw, dict):
+        score_value = health_score_raw.get("score")
+        health_score_obj = HealthScoreInfo(
+            score=score_value or 0,
+            level=health_score_raw.get("level", "待分析"),
+            comment=health_score_raw.get("comment", ""),
+        )
+
+    summary_raw = analysis.get("summary")
+    summary_obj = None
+    if isinstance(summary_raw, dict):
+        summary_obj = SummaryInfo(
+            totalItems=summary_raw.get("totalItems", 0),
+            abnormalCount=summary_raw.get("abnormalCount", abnormal_count),
+            excellentCount=summary_raw.get("excellentCount", 0),
+            normalCount=summary_raw.get("normalCount", 0),
+        )
+
+    report.ai_analysis = health_score_obj.comment if health_score_obj else analysis.get("overall_assessment", "")
     report.ai_analysis_json = analysis
     report.abnormal_count = abnormal_count
+    report.health_score = score_value
     report.status = "completed"
     await db.flush()
 
-    return ReportAnalysisResponse(
+    return EnhancedReportAnalysisResponse(
         report_id=report.id,
         status="completed",
+        healthScore=health_score_obj,
+        summary=summary_obj,
         categories=categories_out,
-        abnormal_indicators=abnormal_out,
-        normal_indicators=normal_out,
-        overall_assessment=analysis.get("overall_assessment"),
-        suggestions=analysis.get("suggestions", []),
         disclaimer=analysis.get("disclaimer", DISCLAIMER),
     )
 
@@ -383,6 +435,7 @@ async def get_report_detail(
         ai_analysis=report.ai_analysis,
         ai_analysis_json=report.ai_analysis_json,
         abnormal_count=report.abnormal_count or 0,
+        health_score=getattr(report, "health_score", None),
         status=report.status,
         indicators=indicators,
         created_at=report.created_at,
@@ -422,6 +475,8 @@ async def list_reports(
             thumbnail_url=r.thumbnail_url,
             file_type=r.file_type,
             abnormal_count=r.abnormal_count or 0,
+            health_score=getattr(r, "health_score", None),
+            ai_analysis_json=r.ai_analysis_json,
             status=r.status,
             created_at=r.created_at,
         )
@@ -429,6 +484,127 @@ async def list_reports(
     ]
 
     return ReportListResponse(items=items, total=total, page=page, page_size=page_size)
+
+
+# ──────────────── Compare ────────────────
+
+
+@router.post("/report/compare", response_model=ReportCompareResponse)
+async def compare_reports(
+    report_id_1: int = Body(...),
+    report_id_2: int = Body(...),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    r1_result = await db.execute(
+        select(CheckupReport)
+        .options(selectinload(CheckupReport.checkup_indicators))
+        .where(CheckupReport.id == report_id_1, CheckupReport.user_id == current_user.id)
+    )
+    report1 = r1_result.scalar_one_or_none()
+    if not report1:
+        raise HTTPException(status_code=404, detail="第一份报告不存在")
+
+    r2_result = await db.execute(
+        select(CheckupReport)
+        .options(selectinload(CheckupReport.checkup_indicators))
+        .where(CheckupReport.id == report_id_2, CheckupReport.user_id == current_user.id)
+    )
+    report2 = r2_result.scalar_one_or_none()
+    if not report2:
+        raise HTTPException(status_code=404, detail="第二份报告不存在")
+
+    def _build_indicator_map(report_obj):
+        ind_map = {}
+        for ind in report_obj.checkup_indicators:
+            ind_map[ind.indicator_name] = {
+                "value": ind.value,
+                "unit": ind.unit,
+                "reference_range": ind.reference_range,
+                "status": ind.status.value if hasattr(ind.status, "value") else str(ind.status),
+                "category": ind.category,
+            }
+        return ind_map
+
+    prev_map = _build_indicator_map(report1)
+    curr_map = _build_indicator_map(report2)
+    all_names = list(dict.fromkeys(list(prev_map.keys()) + list(curr_map.keys())))
+
+    def _status_to_risk(s):
+        if s == "critical":
+            return 5
+        if s == "abnormal":
+            return 3
+        return 2
+
+    indicators_out: list[CompareIndicatorItem] = []
+    for name in all_names:
+        prev = prev_map.get(name)
+        curr = curr_map.get(name)
+        direction = "new" if prev is None else "same"
+        prev_risk = _status_to_risk(prev["status"]) if prev else None
+        curr_risk = _status_to_risk(curr["status"]) if curr else None
+
+        if report1.ai_analysis_json and isinstance(report1.ai_analysis_json, dict):
+            for cat in report1.ai_analysis_json.get("categories", []):
+                for it in cat.get("items", cat.get("indicators", [])):
+                    if it.get("name") == name:
+                        prev_risk = it.get("riskLevel", prev_risk)
+        if report2.ai_analysis_json and isinstance(report2.ai_analysis_json, dict):
+            for cat in report2.ai_analysis_json.get("categories", []):
+                for it in cat.get("items", cat.get("indicators", [])):
+                    if it.get("name") == name:
+                        curr_risk = it.get("riskLevel", curr_risk)
+
+        indicators_out.append(CompareIndicatorItem(
+            name=name,
+            previousValue=prev["value"] if prev else None,
+            currentValue=curr["value"] if curr else None,
+            unit=(curr or prev or {}).get("unit"),
+            change=None,
+            direction=direction,
+            previousRiskLevel=prev_risk,
+            currentRiskLevel=curr_risk,
+            suggestion=None,
+        ))
+
+    report1_json = report1.ai_analysis_json or {}
+    report2_json = report2.ai_analysis_json or {}
+
+    try:
+        ai_compare = await analyze_report_compare(report1_json, report2_json, db)
+    except Exception:
+        ai_compare = {"aiSummary": "AI对比分析暂时不可用", "scoreDiff": None, "indicators": []}
+
+    ai_ind_map = {item.get("name"): item for item in ai_compare.get("indicators", []) if item.get("name")}
+    for item in indicators_out:
+        ai_item = ai_ind_map.get(item.name)
+        if ai_item:
+            item.change = ai_item.get("change", item.change)
+            item.direction = ai_item.get("direction", item.direction)
+            item.suggestion = ai_item.get("suggestion", item.suggestion)
+
+    prev_score = getattr(report1, "health_score", None)
+    curr_score = getattr(report2, "health_score", None)
+    score_diff_obj = None
+    if prev_score is not None or curr_score is not None:
+        diff = None
+        if prev_score is not None and curr_score is not None:
+            diff = curr_score - prev_score
+        ai_score_comment = (ai_compare.get("scoreDiff") or {}).get("comment")
+        score_diff_obj = CompareScoreDiff(
+            previousScore=prev_score,
+            currentScore=curr_score,
+            diff=diff,
+            comment=ai_score_comment,
+        )
+
+    return ReportCompareResponse(
+        aiSummary=ai_compare.get("aiSummary"),
+        scoreDiff=score_diff_obj,
+        indicators=indicators_out,
+        disclaimer=DISCLAIMER,
+    )
 
 
 # ──────────────── Trend ────────────────

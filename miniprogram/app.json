@@ -8,6 +8,7 @@
     "pages/chat/index",
     "pages/checkup/index",
     "pages/checkup-detail/index",
+    "pages/checkup-compare/index",
     "pages/checkup-trend/index",
     "pages/symptom/index",
     "pages/tcm/index",

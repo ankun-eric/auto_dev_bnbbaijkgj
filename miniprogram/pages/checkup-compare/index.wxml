@@ -1,0 +1,146 @@
+<view class="compare-page">
+
+  <!-- 报告选择区 -->
+  <view class="picker-section card">
+    <text class="picker-title">选择对比报告</text>
+    <view class="picker-row">
+      <view class="picker-item" bindtap="openPicker" data-for="id1">
+        <text class="picker-label">报告一</text>
+        <text class="picker-value {{id1 ? '' : 'placeholder'}}">{{report1Name || '点击选择'}}</text>
+        <text class="picker-arrow">›</text>
+      </view>
+      <view class="picker-vs">VS</view>
+      <view class="picker-item" bindtap="openPicker" data-for="id2">
+        <text class="picker-label">报告二</text>
+        <text class="picker-value {{id2 ? '' : 'placeholder'}}">{{report2Name || '点击选择'}}</text>
+        <text class="picker-arrow">›</text>
+      </view>
+    </view>
+    <view class="compare-btn" bindtap="doCompare">
+      <text class="compare-btn-text">{{loading ? '分析中...' : '开始对比'}}</text>
+    </view>
+  </view>
+
+  <!-- 加载中 -->
+  <view class="loading-section" wx:if="{{loading}}">
+    <view class="compare-spinner"></view>
+    <text class="loading-text">AI正在对比分析中...</text>
+  </view>
+
+  <!-- 对比结果 -->
+  <block wx:if="{{hasCompared && !loading}}">
+
+    <!-- AI 总结 -->
+    <view class="card ai-summary-card" wx:if="{{aiSummary}}">
+      <view class="ai-summary-header">
+        <text class="ai-icon">🤖</text>
+        <text class="ai-title">AI 对比分析总结</text>
+      </view>
+      <text class="ai-summary-text">{{aiSummary}}</text>
+    </view>
+
+    <!-- 评分对比 -->
+    <view class="card score-compare-card" wx:if="{{scoreDiff}}">
+      <text class="score-compare-title">健康评分对比</text>
+      <view class="score-compare-row">
+        <view class="score-item">
+          <text class="score-item-label">上次</text>
+          <text class="score-item-value">{{scoreDiff.previousScore}}</text>
+        </view>
+        <view class="score-diff-wrap">
+          <text class="score-diff-arrow" style="color: {{scoreDiff.diff >= 0 ? '#4CAF50' : '#F44336'}}">
+            {{scoreDiff.diff >= 0 ? '↑' : '↓'}}
+          </text>
+          <text class="score-diff-value" style="color: {{scoreDiff.diff >= 0 ? '#4CAF50' : '#F44336'}}">
+            {{scoreDiff.diff >= 0 ? '+' : ''}}{{scoreDiff.diff}}
+          </text>
+        </view>
+        <view class="score-item">
+          <text class="score-item-label">本次</text>
+          <text class="score-item-value score-current">{{scoreDiff.currentScore}}</text>
+        </view>
+      </view>
+      <text class="score-compare-comment" wx:if="{{scoreDiff.comment}}">{{scoreDiff.comment}}</text>
+    </view>
+
+    <!-- 筛选按钮 -->
+    <view class="filter-bar" wx:if="{{indicators.length > 0}}">
+      <view class="filter-btn {{filter === 'all' ? 'filter-active' : ''}}" bindtap="setFilter" data-filter="all">
+        <text>全部 ({{indicators.length}})</text>
+      </view>
+      <view class="filter-btn filter-better {{filter === 'better' ? 'filter-active' : ''}}" bindtap="setFilter" data-filter="better">
+        <text>变好 ↑</text>
+      </view>
+      <view class="filter-btn filter-worse {{filter === 'worse' ? 'filter-active' : ''}}" bindtap="setFilter" data-filter="worse">
+        <text>变差 ↓</text>
+      </view>
+    </view>
+
+    <!-- 指标对比列表 -->
+    <view class="indicator-compare-list" wx:if="{{filteredIndicators.length > 0}}">
+      <view class="ind-compare-card card" wx:for="{{filteredIndicators}}" wx:key="name">
+        <view class="ind-compare-header">
+          <text class="ind-compare-name">{{item.name}}</text>
+          <view class="ind-direction" style="background: {{item.directionColor}}15;">
+            <text class="ind-direction-icon" style="color: {{item.directionColor}}">{{item.directionIcon}}</text>
+            <text class="ind-direction-text" style="color: {{item.directionColor}}">{{item.change}}</text>
+          </view>
+        </view>
+        <view class="ind-compare-values">
+          <view class="ind-prev">
+            <text class="ind-prev-label">上次</text>
+            <text class="ind-prev-value">{{item.previousValue}} {{item.unit}}</text>
+          </view>
+          <text class="ind-compare-arrow-mid">→</text>
+          <view class="ind-curr">
+            <text class="ind-curr-label">本次</text>
+            <text class="ind-curr-value" style="color: {{item.directionColor}}">{{item.currentValue}} {{item.unit}}</text>
+          </view>
+        </view>
+        <view class="ind-compare-suggestion" wx:if="{{item.suggestion}}">
+          <text class="suggestion-icon">💡</text>
+          <text class="suggestion-text">{{item.suggestion}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="empty-filter" wx:if="{{filteredIndicators.length === 0 && hasCompared}}">
+      <text class="empty-text">暂无符合条件的指标</text>
+    </view>
+
+    <!-- 免责声明 -->
+    <view class="disclaimer-box" wx:if="{{disclaimer}}">
+      <text class="disclaimer-text">{{disclaimer}}</text>
+    </view>
+  </block>
+
+  <!-- 报告选择弹窗 -->
+  <view class="picker-mask" wx:if="{{showPicker}}" bindtap="closePicker">
+    <view class="picker-popup" catchtap="">
+      <view class="picker-popup-header">
+        <text class="picker-popup-title">选择报告</text>
+        <text class="picker-popup-close" bindtap="closePicker">✕</text>
+      </view>
+      <scroll-view scroll-y class="picker-popup-list">
+        <view
+          class="picker-popup-item {{item.id + '' === (pickerFor === 'id1' ? id1 : id2) ? 'picker-popup-item-selected' : ''}}"
+          wx:for="{{reportList}}"
+          wx:key="id"
+          bindtap="selectReport"
+          data-id="{{item.id}}"
+        >
+          <view class="picker-popup-item-left">
+            <text class="picker-popup-item-date">{{item.date}}</text>
+            <text class="picker-popup-item-name">{{item.name}}</text>
+          </view>
+          <view class="picker-popup-item-score" wx:if="{{item.healthScore > 0}}">
+            <text class="picker-popup-score-text">{{item.healthScore}}分</text>
+          </view>
+        </view>
+        <view class="picker-popup-empty" wx:if="{{reportList.length === 0}}">
+          <text>暂无可选报告</text>
+        </view>
+      </scroll-view>
+    </view>
+  </view>
+</view>
