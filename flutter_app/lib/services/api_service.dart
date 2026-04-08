@@ -481,4 +481,34 @@ class ApiService {
   Future<Response> getRecommendations() async {
     return _dio.get(ApiConfig.recommendations);
   }
+
+  // Home dynamic config
+  Future<Map<String, dynamic>> getHomeConfig() async {
+    final response = await _dio.get(ApiConfig.homeConfig);
+    return response.data is Map<String, dynamic>
+        ? response.data as Map<String, dynamic>
+        : <String, dynamic>{};
+  }
+
+  Future<List<Map<String, dynamic>>> getHomeMenus() async {
+    final response = await _dio.get(ApiConfig.homeMenus);
+    final data = response.data;
+    if (data is Map && data['items'] is List) {
+      return (data['items'] as List)
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+    }
+    return [];
+  }
+
+  Future<List<Map<String, dynamic>>> getHomeBanners() async {
+    final response = await _dio.get(ApiConfig.homeBanners);
+    final data = response.data;
+    if (data is Map && data['items'] is List) {
+      return (data['items'] as List)
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+    }
+    return [];
+  }
 }

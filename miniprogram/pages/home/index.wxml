@@ -1,8 +1,11 @@
-<view class="home-page" wx:if="{{pageMode === 'user'}}">
-  <view class="search-bar" bindtap="onSearchTap">
-    <view class="search-input">
+<view class="home-page" style="font-size:{{fontBaseSize}}rpx;" wx:if="{{pageMode === 'user'}}">
+  <view class="search-bar" wx:if="{{homeConfig.search_visible !== false}}">
+    <view class="search-input" bindtap="onSearchTap">
       <text class="search-icon">🔍</text>
-      <text class="search-placeholder">搜索症状、药品、健康知识...</text>
+      <text class="search-placeholder">{{homeConfig.search_placeholder || '搜索症状、药品、健康知识...'}}</text>
+    </view>
+    <view class="font-btn" wx:if="{{homeConfig.font_switch_enabled}}" catchtap="onFontBtnTap">
+      <text class="font-btn-text">Aa</text>
     </view>
     <view class="switch-role-chip" wx:if="{{canSwitchRole}}" catchtap="switchRole">切换角色</view>
     <view class="notification-btn" catchtap="goNotifications">
@@ -11,10 +14,24 @@
     </view>
   </view>
 
+  <view class="search-bar" wx:elif="{{homeConfig.search_visible === false}}">
+    <view class="search-bar-right">
+      <view class="font-btn" wx:if="{{homeConfig.font_switch_enabled}}" catchtap="onFontBtnTap">
+        <text class="font-btn-text">Aa</text>
+      </view>
+      <view class="switch-role-chip" wx:if="{{canSwitchRole}}" catchtap="switchRole">切换角色</view>
+      <view class="notification-btn" catchtap="goNotifications">
+        <text class="bell-icon">🔔</text>
+        <view class="badge" wx:if="{{unreadCount > 0}}">{{unreadCount}}</view>
+      </view>
+    </view>
+  </view>
+
   <swiper class="banner-swiper" indicator-dots autoplay circular interval="{{4000}}">
     <swiper-item wx:for="{{banners}}" wx:key="id">
-      <view class="banner-item" style="background: {{item.bgColor}};">
-        <view class="banner-content">
+      <view class="banner-item" bindtap="onBannerTap" data-item="{{item}}" style="{{item.image_url ? '' : 'background:' + (item.bgColor || 'linear-gradient(135deg, #52c41a, #13c2c2)')}}">
+        <image class="banner-image" wx:if="{{item.image_url}}" src="{{item.image_url}}" mode="aspectFill" />
+        <view class="banner-content" wx:if="{{!item.image_url && item.title}}">
           <text class="banner-title">{{item.title}}</text>
           <text class="banner-desc">{{item.desc}}</text>
         </view>
@@ -24,11 +41,12 @@
 
   <view class="card">
     <view class="grid-menu">
-      <view class="grid-item" wx:for="{{menuItems}}" wx:key="id" bindtap="onMenuTap" data-item="{{item}}">
-        <view class="grid-icon" style="background: {{item.bgColor}};">
-          <text class="icon-text">{{item.icon}}</text>
+      <view class="grid-item" style="width:{{gridColumnWidth}}" wx:for="{{menuItems}}" wx:key="id" bindtap="onMenuTap" data-item="{{item}}">
+        <view class="grid-icon" style="background: {{item.bgColor || 'rgba(82,196,26,0.12)'}};">
+          <image class="icon-img" wx:if="{{item.icon_type === 'image' && item.icon_content}}" src="{{item.icon_content}}" mode="aspectFit" />
+          <text class="icon-text" wx:else>{{item.icon_content || item.icon || '📌'}}</text>
         </view>
-        <text class="grid-label">{{item.label}}</text>
+        <text class="grid-label">{{item.name || item.label}}</text>
       </view>
     </view>
   </view>
@@ -58,6 +76,27 @@
         </view>
       </view>
       <image class="article-cover" src="{{item.cover}}" mode="aspectFill" wx:if="{{item.cover}}" />
+    </view>
+  </view>
+
+  <!-- Font size modal -->
+  <view class="font-modal-mask" wx:if="{{showFontModal}}" catchtap="onFontModalClose"></view>
+  <view class="font-modal" wx:if="{{showFontModal}}" catchtouchmove="true">
+    <view class="font-modal-header">
+      <text class="font-modal-title">字体大小</text>
+      <text class="font-modal-close" catchtap="onFontModalClose">✕</text>
+    </view>
+    <view class="font-modal-preview">
+      <text style="font-size:{{previewFontSize}};">预览文字 Aa 你好</text>
+    </view>
+    <view class="font-slider-wrap">
+      <view class="font-slider-labels">
+        <text wx:for="{{fontLabels}}" wx:key="*this" class="font-slider-label {{fontSliderIdx === index ? 'active' : ''}}">{{item}}</text>
+      </view>
+      <slider min="0" max="2" step="1" value="{{fontSliderIdx}}" block-size="24" activeColor="#52c41a" bindchange="onFontSliderChange" />
+    </view>
+    <view class="font-modal-footer">
+      <view class="font-confirm-btn" bindtap="onFontConfirm">确定</view>
     </view>
   </view>
 </view>

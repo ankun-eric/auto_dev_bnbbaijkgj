@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { List, Grid, Badge, Avatar, Tag } from 'antd-mobile';
 import {
@@ -14,6 +15,9 @@ import {
   MessageOutline,
 } from 'antd-mobile-icons';
 import { useAuth } from '@/lib/auth';
+import { useFontSize } from '@/lib/useFontSize';
+import FontSettingPopup from '@/components/FontSettingPopup';
+import api from '@/lib/api';
 
 const orderTabs = [
   { icon: '💳', title: '待支付', badge: '2', path: '/orders?tab=pending' },
@@ -22,31 +26,63 @@ const orderTabs = [
   { icon: '📦', title: '全部', badge: '', path: '/orders' },
 ];
 
-const menuGroups = [
-  {
-    items: [
-      { icon: <FileOutline />, title: '健康档案', path: '/health-profile', color: '#52c41a' },
-      { icon: <TeamOutline />, title: '家庭成员', path: '/family', color: '#1890ff' },
-      { icon: <ClockCircleOutline />, title: '我的预约', path: '/orders?tab=appointment', color: '#722ed1' },
-    ],
-  },
-  {
-    items: [
-      { icon: <StarOutline />, title: '积分商城', path: '/points', color: '#fa8c16' },
-      { icon: <BellOutline />, title: '消息通知', path: '/notifications', badge: '5', color: '#f5222d' },
-      { icon: <MessageOutline />, title: '在线客服', path: '/customer-service', color: '#13c2c2' },
-    ],
-  },
-  {
-    items: [
-      { icon: <SetOutline />, title: '设置', path: '/settings', color: '#8c8c8c' },
-    ],
-  },
-];
-
 export default function ProfilePage() {
   const router = useRouter();
   const { user } = useAuth();
+  const [fontPopupVisible, setFontPopupVisible] = useState(false);
+  const [fontConfig, setFontConfig] = useState<{
+    font_switch_enabled: boolean;
+    font_default_level: 'standard' | 'large' | 'xlarge';
+    font_standard_size: number;
+    font_large_size: number;
+    font_xlarge_size: number;
+  }>({
+    font_switch_enabled: false,
+    font_default_level: 'standard',
+    font_standard_size: 14,
+    font_large_size: 18,
+    font_xlarge_size: 22,
+  });
+
+  useEffect(() => {
+    api.get('/api/home-config').then((res: unknown) => {
+      const data = res as Record<string, unknown>;
+      setFontConfig({
+        font_switch_enabled: !!data.font_switch_enabled,
+        font_default_level: (data.font_default_level as 'standard' | 'large' | 'xlarge') || 'standard',
+        font_standard_size: (data.font_standard_size as number) || 14,
+        font_large_size: (data.font_large_size as number) || 18,
+        font_xlarge_size: (data.font_xlarge_size as number) || 22,
+      });
+    }).catch(() => {});
+  }, []);
+
+  const { fontLevel, setFontLevel } = useFontSize(fontConfig);
+
+  const menuGroups = [
+    {
+      items: [
+        { icon: <FileOutline />, title: '健康档案', path: '/health-profile', color: '#52c41a' },
+        { icon: <TeamOutline />, title: '家庭成员', path: '/family', color: '#1890ff' },
+        { icon: <ClockCircleOutline />, title: '我的预约', path: '/orders?tab=appointment', color: '#722ed1' },
+      ],
+    },
+    {
+      items: [
+        { icon: <StarOutline />, title: '积分商城', path: '/points', color: '#fa8c16' },
+        { icon: <BellOutline />, title: '消息通知', path: '/notifications', badge: '5', color: '#f5222d' },
+        { icon: <MessageOutline />, title: '在线客服', path: '/customer-service', color: '#13c2c2' },
+      ],
+    },
+    {
+      items: [
+        ...(fontConfig.font_switch_enabled
+          ? [{ icon: <HeartOutline />, title: '字体大小', path: '', color: '#fa541c', action: 'font' as const }]
+          : []),
+        { icon: <SetOutline />, title: '设置', path: '/settings', color: '#8c8c8c' },
+      ],
+    },
+  ];
 
   return (
     <div className="pb-20">
@@ -139,7 +175,13 @@ export default function ProfilePage() {
                       {item.icon}
                     </div>
                   }
-                  onClick={() => router.push(item.path)}
+                  onClick={() => {
+                    if ('action' in item && item.action === 'font') {
+                      setFontPopupVisible(true);
+                    } else {
+                      router.push(item.path);
+                    }
+                  }}
                   arrow
                   extra={
                     'badge' in item && item.badge ? (
@@ -154,6 +196,16 @@ export default function ProfilePage() {
           </div>
         ))}
       </div>
+
+      <FontSettingPopup
+        visible={fontPopupVisible}
+        onClose={() => setFontPopupVisible(false)}
+        fontLevel={fontLevel}
+        onFontLevelChange={setFontLevel}
+        standardSize={fontConfig.font_standard_size}
+        largeSize={fontConfig.font_large_size}
+        xlargeSize={fontConfig.font_xlarge_size}
+      />
     </div>
   );
 }

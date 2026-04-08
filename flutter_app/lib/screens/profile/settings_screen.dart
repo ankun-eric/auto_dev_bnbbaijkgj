@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/font_provider.dart';
 import '../../widgets/custom_app_bar.dart';
+import '../../widgets/font_size_sheet.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -31,6 +33,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   _buildSettingItem('账号安全', Icons.shield_outlined, onTap: () {}),
                   _buildDivider(),
                   _buildSettingItem('隐私设置', Icons.lock_outline, onTap: () {}),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              color: Colors.white,
+              child: Column(
+                children: [
+                  Consumer<FontProvider>(
+                    builder: (context, fontProvider, _) {
+                      return _buildSettingItem(
+                        '字体大小',
+                        Icons.text_fields,
+                        trailing: fontProvider.fontLevelLabel,
+                        onTap: () => FontSizeSheet.show(context),
+                      );
+                    },
+                  ),
+                  _buildDivider(),
                 ],
               ),
             ),

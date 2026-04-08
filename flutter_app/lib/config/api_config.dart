@@ -115,4 +115,9 @@ class ApiConfig {
   // Home (these are composite endpoints, may need frontend assembly)
   static const String banners = '/api/content/articles';
   static const String recommendations = '/api/content/articles';
+
+  // Home dynamic config
+  static const String homeConfig = '/api/home-config';
+  static const String homeMenus = '/api/home-menus';
+  static const String homeBanners = '/api/home-banners';
 }

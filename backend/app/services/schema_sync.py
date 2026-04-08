@@ -383,6 +383,51 @@ async def _sync_share_links(conn: AsyncConnection) -> None:
         ))
 
 
+async def _sync_home_tables(conn: AsyncConnection) -> None:
+    def _load(sync_conn):
+        inspector = inspect(sync_conn)
+        tables = set(inspector.get_table_names())
+        result = {}
+        for tbl in ["home_menu_items", "home_banners"]:
+            if tbl in tables:
+                result[tbl] = {col["name"] for col in inspector.get_columns(tbl)}
+        return result, tables
+
+    table_cols, all_tables = await conn.run_sync(_load)
+
+    if "home_menu_items" not in all_tables:
+        await conn.execute(text(
+            "CREATE TABLE home_menu_items ("
+            "id INT AUTO_INCREMENT PRIMARY KEY, "
+            "name VARCHAR(20) NOT NULL, "
+            "icon_type ENUM('emoji','image') NOT NULL DEFAULT 'emoji', "
+            "icon_content VARCHAR(500) NOT NULL, "
+            "link_type ENUM('internal','external','miniprogram') NOT NULL DEFAULT 'internal', "
+            "link_url VARCHAR(500) NOT NULL, "
+            "miniprogram_appid VARCHAR(100) NULL, "
+            "sort_order INT NOT NULL DEFAULT 0, "
+            "is_visible BOOLEAN NOT NULL DEFAULT TRUE, "
+            "created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "
+            "updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
+            ")"
+        ))
+
+    if "home_banners" not in all_tables:
+        await conn.execute(text(
+            "CREATE TABLE home_banners ("
+            "id INT AUTO_INCREMENT PRIMARY KEY, "
+            "image_url VARCHAR(500) NOT NULL, "
+            "link_type ENUM('none','internal','external','miniprogram') NOT NULL DEFAULT 'none', "
+            "link_url VARCHAR(500) NULL, "
+            "miniprogram_appid VARCHAR(100) NULL, "
+            "sort_order INT NOT NULL DEFAULT 0, "
+            "is_visible BOOLEAN NOT NULL DEFAULT TRUE, "
+            "created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "
+            "updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
+            ")"
+        ))
+
+
 async def sync_register_schema(conn: AsyncConnection) -> None:
     def load_user_schema(sync_conn):
         inspector = inspect(sync_conn)
@@ -410,6 +455,7 @@ async def sync_register_schema(conn: AsyncConnection) -> None:
     await _sync_ocr_scene_templates(conn)
     await _sync_prompt_templates(conn)
     await _sync_share_links(conn)
+    await _sync_home_tables(conn)
 
     columns, indexes, unique_constraints = await conn.run_sync(load_user_schema)
 

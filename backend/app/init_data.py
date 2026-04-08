@@ -14,7 +14,11 @@ from app.models.models import (
     ChatMessage,
     ChatSession,
     ConstitutionQuestion,
+    HomeBanner,
+    HomeMenuItem,
     MemberLevel,
+    MenuIconType,
+    MenuLinkType,
     OcrConfig,
     OcrProviderConfig,
     OcrSceneTemplate,
@@ -49,6 +53,7 @@ async def init_default_data():
             await _migrate_ocr_prompts_to_templates(db)
             await _init_prompt_templates(db)
             await _clean_chat_history_once(db)
+            await _init_home_config(db)
             await db.commit()
             logger.info("Default data initialization completed")
         except Exception as e:
@@ -917,3 +922,40 @@ async def _clean_chat_history_once(db: AsyncSession):
     ))
     await db.flush()
     logger.info("Cleaned all chat history (one-time migration)")
+
+
+async def _init_home_config(db: AsyncSession):
+    _home_configs = [
+        {"config_key": "home_search_visible", "config_value": "true", "config_type": "home", "description": "首页搜索栏是否显示"},
+        {"config_key": "home_search_placeholder", "config_value": "搜索症状、药品、健康知识...", "config_type": "home", "description": "首页搜索栏占位文本"},
+        {"config_key": "home_grid_columns", "config_value": "3", "config_type": "home", "description": "首页菜单列数"},
+        {"config_key": "home_font_switch_enabled", "config_value": "true", "config_type": "home", "description": "字体切换开关"},
+        {"config_key": "home_font_default_level", "config_value": "standard", "config_type": "home", "description": "默认字体等级"},
+        {"config_key": "home_font_standard_size", "config_value": "14", "config_type": "home", "description": "标准字号"},
+        {"config_key": "home_font_large_size", "config_value": "18", "config_type": "home", "description": "大字号"},
+        {"config_key": "home_font_xlarge_size", "config_value": "22", "config_type": "home", "description": "超大字号"},
+    ]
+    for cfg in _home_configs:
+        result = await db.execute(
+            select(SystemConfig).where(SystemConfig.config_key == cfg["config_key"])
+        )
+        if not result.scalar_one_or_none():
+            db.add(SystemConfig(**cfg))
+    await db.flush()
+
+    result = await db.execute(select(HomeMenuItem).limit(1))
+    if not result.scalar_one_or_none():
+        default_menus = [
+            {"name": "AI健康咨询", "icon_type": MenuIconType.emoji, "icon_content": "🤖", "link_type": MenuLinkType.internal, "link_url": "/chat?type=health_qa", "sort_order": 0},
+            {"name": "体检报告", "icon_type": MenuIconType.emoji, "icon_content": "📋", "link_type": MenuLinkType.internal, "link_url": "/checkup", "sort_order": 1},
+            {"name": "健康自查", "icon_type": MenuIconType.emoji, "icon_content": "🩺", "link_type": MenuLinkType.internal, "link_url": "/symptom", "sort_order": 2},
+            {"name": "中医养生", "icon_type": MenuIconType.emoji, "icon_content": "🌿", "link_type": MenuLinkType.internal, "link_url": "/tcm", "sort_order": 3},
+            {"name": "用药参考", "icon_type": MenuIconType.emoji, "icon_content": "💊", "link_type": MenuLinkType.internal, "link_url": "/drug", "sort_order": 4},
+            {"name": "健康计划", "icon_type": MenuIconType.emoji, "icon_content": "📅", "link_type": MenuLinkType.internal, "link_url": "/health-plan", "sort_order": 5},
+        ]
+        for menu in default_menus:
+            db.add(HomeMenuItem(**menu))
+        await db.flush()
+        logger.info("Created default home menu items")
+
+    logger.info("Home config initialization completed")

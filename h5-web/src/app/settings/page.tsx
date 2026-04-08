@@ -1,10 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { NavBar, List, Switch, Dialog, Toast, Avatar, Input, Button } from 'antd-mobile';
-import { RightOutline } from 'antd-mobile-icons';
 import { logout, useAuth } from '@/lib/auth';
+import { useFontSize } from '@/lib/useFontSize';
+import FontSettingPopup from '@/components/FontSettingPopup';
+import api from '@/lib/api';
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -12,6 +14,35 @@ export default function SettingsPage() {
   const [pushEnabled, setPushEnabled] = useState(true);
   const [editingNickname, setEditingNickname] = useState(false);
   const [nickname, setNickname] = useState(user?.nickname || '用户');
+  const [fontPopupVisible, setFontPopupVisible] = useState(false);
+  const [fontConfig, setFontConfig] = useState<{
+    font_switch_enabled: boolean;
+    font_default_level: 'standard' | 'large' | 'xlarge';
+    font_standard_size: number;
+    font_large_size: number;
+    font_xlarge_size: number;
+  }>({
+    font_switch_enabled: false,
+    font_default_level: 'standard',
+    font_standard_size: 14,
+    font_large_size: 18,
+    font_xlarge_size: 22,
+  });
+
+  useEffect(() => {
+    api.get('/api/home-config').then((res: unknown) => {
+      const data = res as Record<string, unknown>;
+      setFontConfig({
+        font_switch_enabled: !!data.font_switch_enabled,
+        font_default_level: (data.font_default_level as 'standard' | 'large' | 'xlarge') || 'standard',
+        font_standard_size: (data.font_standard_size as number) || 14,
+        font_large_size: (data.font_large_size as number) || 18,
+        font_xlarge_size: (data.font_xlarge_size as number) || 22,
+      });
+    }).catch(() => {});
+  }, []);
+
+  const { fontLevel, setFontLevel } = useFontSize(fontConfig);
 
   const handleLogout = () => {
     Dialog.confirm({
@@ -33,6 +64,12 @@ export default function SettingsPage() {
         Toast.show({ content: '缓存已清除' });
       },
     });
+  };
+
+  const FONT_LEVEL_LABELS: Record<string, string> = {
+    standard: '标准',
+    large: '大',
+    xlarge: '超大',
   };
 
   return (
@@ -99,6 +136,18 @@ export default function SettingsPage() {
           </List.Item>
         </List>
 
+        {fontConfig.font_switch_enabled && (
+          <List header="显示设置" style={{ '--border-top': 'none' }}>
+            <List.Item
+              extra={FONT_LEVEL_LABELS[fontLevel] || '标准'}
+              arrow
+              onClick={() => setFontPopupVisible(true)}
+            >
+              字体大小
+            </List.Item>
+          </List>
+        )}
+
         <List header="其他" style={{ '--border-top': 'none' }}>
           <List.Item onClick={handleClearCache} arrow>
             清除缓存
@@ -126,6 +175,16 @@ export default function SettingsPage() {
           </Button>
         </div>
       </div>
+
+      <FontSettingPopup
+        visible={fontPopupVisible}
+        onClose={() => setFontPopupVisible(false)}
+        fontLevel={fontLevel}
+        onFontLevelChange={setFontLevel}
+        standardSize={fontConfig.font_standard_size}
+        largeSize={fontConfig.font_large_size}
+        xlargeSize={fontConfig.font_xlarge_size}
+      />
     </div>
   );
 }

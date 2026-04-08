@@ -4,6 +4,23 @@ const DEFAULT_API_BASE_URL = 'https://newbb.test.bangbangvip.com/autodev/3b7b999
 App({
   onLaunch() {
     this.checkLoginStatus();
+    this.initFontSize();
+  },
+
+  initFontSize() {
+    const level = wx.getStorageSync('font_level') || '';
+    if (level) {
+      this.globalData.fontLevel = level;
+    }
+  },
+
+  getFontLevel() {
+    return this.globalData.fontLevel || '';
+  },
+
+  setFontLevel(level) {
+    this.globalData.fontLevel = level;
+    wx.setStorageSync('font_level', level);
   },
 
   checkLoginStatus() {
@@ -156,6 +173,7 @@ App({
     currentRole: '',
     currentStore: null,
     merchantProfile: null,
-    isLoggedIn: false
+    isLoggedIn: false,
+    fontLevel: ''
   }
 });

@@ -21,6 +21,7 @@ from app.api import (
     expert,
     family,
     health_profile,
+    home_config,
     knowledge,
     notification,
     ocr,
@@ -94,6 +95,8 @@ app.include_router(ocr_details.router)
 app.include_router(ocr_details.user_router)
 app.include_router(prompt_templates.router)
 app.include_router(drug_identify_share.router)
+app.include_router(home_config.router)
+app.include_router(home_config.admin_router)
 
 os.makedirs("uploads", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")

@@ -24,6 +24,7 @@ import {
   BarChartOutlined,
   DatabaseOutlined,
   FormOutlined,
+  HomeOutlined,
 } from '@ant-design/icons';
 import { useRouter, usePathname } from 'next/navigation';
 import type { MenuProps } from 'antd';
@@ -70,6 +71,16 @@ const menuItems: MenuItem[] = [
       { key: '/ai-center/prompts', label: '提示词配置' },
       { key: '/prompt-templates', icon: <FormOutlined />, label: 'Prompt 模板配置' },
       { key: '/ai-center/disclaimers', label: '免责提示配置' },
+    ],
+  },
+  {
+    key: 'home-config',
+    icon: <HomeOutlined />,
+    label: '首页配置',
+    children: [
+      { key: '/home-settings', label: '首页基础设置' },
+      { key: '/home-menus', label: '首页菜单管理' },
+      { key: '/home-banners', label: '首页Banner管理' },
     ],
   },
   {
@@ -124,6 +135,7 @@ function getOpenKeys(pathname: string): string[] {
   if (pathname.startsWith('/points')) return ['points'];
   if (pathname.startsWith('/ai-config') || pathname.startsWith('/chat-records') || pathname.startsWith('/knowledge') || pathname.startsWith('/search-config') || pathname.startsWith('/fallback-config') || pathname.startsWith('/ocr-config') || pathname.startsWith('/ocr-global-config') || pathname.startsWith('/checkup-details') || pathname.startsWith('/drug-details')) return ['ai'];
   if (pathname.startsWith('/ai-center') || pathname.startsWith('/prompt-templates')) return ['ai-center'];
+  if (pathname.startsWith('/home-settings') || pathname.startsWith('/home-menus') || pathname.startsWith('/home-banners')) return ['home-config'];
   if (pathname.startsWith('/sms') || pathname.startsWith('/settings') || pathname.startsWith('/wechat-push') || pathname.startsWith('/email-notify') || pathname.startsWith('/cos-config')) return ['system'];
   return [];
 }

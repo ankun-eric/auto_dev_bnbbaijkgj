@@ -1,6 +1,35 @@
 const { get } = require('../../utils/request');
 const { syncTabBar } = require('../../utils/util');
 
+const DEFAULT_BANNERS = [
+  { id: 1, title: 'AI健康咨询', desc: '24小时在线，专业健康咨询', bgColor: 'linear-gradient(135deg, #52c41a, #13c2c2)', image_url: '', link_type: 'none' },
+  { id: 2, title: '体检报告解读', desc: '上传报告，AI秒级分析', bgColor: 'linear-gradient(135deg, #13c2c2, #1890ff)', image_url: '', link_type: 'none' },
+  { id: 3, title: '中医智能辨证', desc: '舌诊面诊，科学辨体质', bgColor: 'linear-gradient(135deg, #722ed1, #eb2f96)', image_url: '', link_type: 'none' }
+];
+
+const DEFAULT_MENUS = [
+  { id: 'ai', name: 'AI健康咨询', icon_type: 'emoji', icon_content: '🤖', link_type: 'internal', link_url: '/pages/chat/index?type=health_qa', sort_order: 0 },
+  { id: 'checkup', name: '体检报告', icon_type: 'emoji', icon_content: '📋', link_type: 'internal', link_url: '/pages/checkup/index', sort_order: 1 },
+  { id: 'symptom', name: '症状自查', icon_type: 'emoji', icon_content: '🩺', link_type: 'internal', link_url: '/pages/symptom/index', sort_order: 2 },
+  { id: 'tcm', name: '中医辨证', icon_type: 'emoji', icon_content: '🌿', link_type: 'internal', link_url: '/pages/tcm/index', sort_order: 3 },
+  { id: 'drug', name: '用药参考', icon_type: 'emoji', icon_content: '💊', link_type: 'internal', link_url: '/pages/drug/index', sort_order: 4 },
+  { id: 'plan', name: '健康计划', icon_type: 'emoji', icon_content: '📅', link_type: 'internal', link_url: '/pages/health-plan/index', sort_order: 5 }
+];
+
+const DEFAULT_CONFIG = {
+  search_visible: true,
+  search_placeholder: '搜索症状、药品、健康知识...',
+  grid_columns: 3,
+  font_switch_enabled: false,
+  font_default_level: 'standard',
+  font_standard_size: 28,
+  font_large_size: 34,
+  font_xlarge_size: 40
+};
+
+const FONT_LEVELS = ['standard', 'large', 'xlarge'];
+const FONT_LABELS = ['标准', '大', '超大'];
+
 Page({
   data: {
     pageMode: 'user',
@@ -9,19 +38,10 @@ Page({
     merchantUserName: '',
     todayCount: 0,
     todayAmount: '0.00',
-    banners: [
-      { id: 1, title: 'AI健康咨询', desc: '24小时在线，专业健康咨询', bgColor: 'linear-gradient(135deg, #52c41a, #13c2c2)' },
-      { id: 2, title: '体检报告解读', desc: '上传报告，AI秒级分析', bgColor: 'linear-gradient(135deg, #13c2c2, #1890ff)' },
-      { id: 3, title: '中医智能辨证', desc: '舌诊面诊，科学辨体质', bgColor: 'linear-gradient(135deg, #722ed1, #eb2f96)' }
-    ],
-    menuItems: [
-      { id: 'ai', label: 'AI健康咨询', icon: '🤖', bgColor: 'rgba(82,196,26,0.12)', path: '/pages/chat/index?type=health_qa' },
-      { id: 'checkup', label: '体检报告', icon: '📋', bgColor: 'rgba(19,194,194,0.12)', path: '/pages/checkup/index' },
-      { id: 'symptom', label: '症状自查', icon: '🩺', bgColor: 'rgba(24,144,255,0.12)', path: '/pages/symptom/index' },
-      { id: 'tcm', label: '中医辨证', icon: '🌿', bgColor: 'rgba(114,46,209,0.12)', path: '/pages/tcm/index' },
-      { id: 'drug', label: '用药参考', icon: '💊', bgColor: 'rgba(250,173,20,0.12)', path: '/pages/drug/index' },
-      { id: 'plan', label: '健康计划', icon: '📅', bgColor: 'rgba(235,47,150,0.12)', path: '/pages/health-plan/index' }
-    ],
+    banners: DEFAULT_BANNERS,
+    menuItems: DEFAULT_MENUS,
+    homeConfig: DEFAULT_CONFIG,
+    gridColumnWidth: '33.33%',
     healthTips: [
       { id: 1, content: '今日气温变化大，注意添衣保暖' },
       { id: 2, content: '建议每天饮水 2000ml 以上' }
@@ -32,12 +52,20 @@ Page({
       { id: 3, title: '运动健身：适合上班族的5分钟锻炼法', tag: '运动', time: '1天前', cover: '' }
     ],
     unreadCount: 3,
-    loading: false
+    loading: false,
+    showFontModal: false,
+    fontLevel: 'standard',
+    fontLevels: FONT_LEVELS,
+    fontLabels: FONT_LABELS,
+    fontSliderIdx: 0,
+    fontBaseSize: 28,
+    previewFontSize: '28rpx'
   },
 
   onShow() {
     syncTabBar(this, '/pages/home/index');
     if (!this.syncRoleState()) return;
+    this.applyFontLevel();
     this.loadCurrentModeData();
   },
 
@@ -86,9 +114,148 @@ Page({
   async loadUserData() {
     this.setData({ loading: true });
     try {
-      // 用户端首页暂继续沿用现有静态展示与后续页面能力。
+      await Promise.all([
+        this.loadHomeConfig(),
+        this.loadBanners(),
+        this.loadMenus()
+      ]);
     } finally {
       this.setData({ loading: false });
+    }
+  },
+
+  async loadHomeConfig() {
+    try {
+      const res = await get('/api/home-config', {}, { showLoading: false, suppressErrorToast: true });
+      const config = { ...DEFAULT_CONFIG, ...res };
+      const gridColumnWidth = (100 / (config.grid_columns || 3)).toFixed(2) + '%';
+      this.setData({ homeConfig: config, gridColumnWidth });
+
+      const app = getApp();
+      const savedLevel = wx.getStorageSync('font_level');
+      if (!savedLevel && config.font_default_level) {
+        app.setFontLevel(config.font_default_level);
+      }
+      this.applyFontLevel();
+    } catch (e) {
+      this.setData({ homeConfig: DEFAULT_CONFIG, gridColumnWidth: '33.33%' });
+    }
+  },
+
+  async loadBanners() {
+    try {
+      const res = await get('/api/home-banners', {}, { showLoading: false, suppressErrorToast: true });
+      if (res && res.items && res.items.length > 0) {
+        this.setData({ banners: res.items });
+      }
+    } catch (e) {
+      // keep default banners
+    }
+  },
+
+  async loadMenus() {
+    try {
+      const res = await get('/api/home-menus', {}, { showLoading: false, suppressErrorToast: true });
+      if (res && res.items && res.items.length > 0) {
+        this.setData({ menuItems: res.items });
+      }
+    } catch (e) {
+      // keep default menus
+    }
+  },
+
+  applyFontLevel() {
+    const app = getApp();
+    const level = app.getFontLevel() || this.data.homeConfig.font_default_level || 'standard';
+    const config = this.data.homeConfig;
+    const sizeMap = {
+      standard: config.font_standard_size || 28,
+      large: config.font_large_size || 34,
+      xlarge: config.font_xlarge_size || 40
+    };
+    const baseSize = sizeMap[level] || 28;
+    const idx = FONT_LEVELS.indexOf(level);
+    this.setData({
+      fontLevel: level,
+      fontSliderIdx: idx >= 0 ? idx : 0,
+      fontBaseSize: baseSize,
+      previewFontSize: baseSize + 'rpx'
+    });
+  },
+
+  onFontBtnTap() {
+    this.applyFontLevel();
+    this.setData({ showFontModal: true });
+  },
+
+  onFontModalClose() {
+    this.setData({ showFontModal: false });
+  },
+
+  onFontSliderChange(e) {
+    const idx = e.detail.value;
+    const level = FONT_LEVELS[idx] || 'standard';
+    const config = this.data.homeConfig;
+    const sizeMap = {
+      standard: config.font_standard_size || 28,
+      large: config.font_large_size || 34,
+      xlarge: config.font_xlarge_size || 40
+    };
+    const baseSize = sizeMap[level] || 28;
+    this.setData({
+      fontSliderIdx: idx,
+      fontLevel: level,
+      fontBaseSize: baseSize,
+      previewFontSize: baseSize + 'rpx'
+    });
+  },
+
+  onFontConfirm() {
+    const app = getApp();
+    const level = this.data.fontLevel;
+    app.setFontLevel(level);
+    this.setData({ showFontModal: false });
+    wx.showToast({ title: '字体大小已更新', icon: 'success' });
+  },
+
+  onBannerTap(e) {
+    const item = e.currentTarget.dataset.item;
+    if (!item) return;
+    this.handleLink(item);
+  },
+
+  onMenuTap(e) {
+    if (this.data.pageMode !== 'user') return;
+    const item = e.currentTarget.dataset.item;
+    if (!item) return;
+    this.handleLink(item);
+  },
+
+  handleLink(item) {
+    const linkType = item.link_type;
+    const linkUrl = item.link_url || item.path || '';
+    if (linkType === 'internal' && linkUrl) {
+      wx.navigateTo({
+        url: linkUrl,
+        fail() {
+          wx.switchTab({ url: linkUrl });
+        }
+      });
+    } else if (linkType === 'external' && linkUrl) {
+      wx.setClipboardData({
+        data: linkUrl,
+        success() {
+          wx.showToast({ title: '链接已复制', icon: 'success' });
+        }
+      });
+    } else if (linkType === 'miniprogram' && item.miniprogram_appid) {
+      wx.navigateToMiniProgram({
+        appId: item.miniprogram_appid,
+        path: linkUrl || '',
+        fail() {
+          wx.showToast({ title: '无法打开小程序', icon: 'none' });
+        }
+      });
     }
   },
 
@@ -142,12 +309,6 @@ Page({
       return;
     }
     wx.navigateTo({ url: '/pages/notifications/index' });
-  },
-
-  onMenuTap(e) {
-    if (this.data.pageMode !== 'user') return;
-    const item = e.currentTarget.dataset.item;
-    wx.navigateTo({ url: item.path });
   },
 
   goArticles() {

@@ -146,6 +146,24 @@ class CSSenderType(str, enum.Enum):
     ai = "ai"
 
 
+class MenuIconType(str, enum.Enum):
+    emoji = "emoji"
+    image = "image"
+
+
+class MenuLinkType(str, enum.Enum):
+    internal = "internal"
+    external = "external"
+    miniprogram = "miniprogram"
+
+
+class BannerLinkType(str, enum.Enum):
+    none = "none"
+    internal = "internal"
+    external = "external"
+    miniprogram = "miniprogram"
+
+
 # ──────────────── 用户体系 ────────────────
 
 
@@ -1413,3 +1431,36 @@ class ShareLink(Base):
     user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
     view_count = mapped_column(Integer, default=0)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
+
+
+# ──────────────── 首页配置 ────────────────
+
+
+class HomeMenuItem(Base):
+    __tablename__ = "home_menu_items"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name = mapped_column(String(20), nullable=False)
+    icon_type = mapped_column(Enum(MenuIconType), nullable=False, default=MenuIconType.emoji)
+    icon_content = mapped_column(String(500), nullable=False)
+    link_type = mapped_column(Enum(MenuLinkType), nullable=False, default=MenuLinkType.internal)
+    link_url = mapped_column(String(500), nullable=False)
+    miniprogram_appid = mapped_column(String(100), nullable=True)
+    sort_order = mapped_column(Integer, nullable=False, default=0)
+    is_visible = mapped_column(Boolean, nullable=False, default=True)
+    created_at = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class HomeBanner(Base):
+    __tablename__ = "home_banners"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    image_url = mapped_column(String(500), nullable=False)
+    link_type = mapped_column(Enum(BannerLinkType), nullable=False, default=BannerLinkType.none)
+    link_url = mapped_column(String(500), nullable=True)
+    miniprogram_appid = mapped_column(String(100), nullable=True)
+    sort_order = mapped_column(Integer, nullable=False, default=0)
+    is_visible = mapped_column(Boolean, nullable=False, default=True)
+    created_at = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)

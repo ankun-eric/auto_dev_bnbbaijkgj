@@ -14,8 +14,10 @@ page {
   --warning-color: #faad14;
   --success-color: #52c41a;
 
+  --font-base: 28rpx;
+
   font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Helvetica, 'PingFang SC', 'Microsoft YaHei', Arial, sans-serif;
-  font-size: 28rpx;
+  font-size: var(--font-base);
   color: var(--text-primary);
   background-color: var(--bg-color);
   box-sizing: border-box;

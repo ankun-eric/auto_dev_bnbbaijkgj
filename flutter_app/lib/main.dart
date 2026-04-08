@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'providers/auth_provider.dart';
 import 'providers/chat_provider.dart';
 import 'providers/health_provider.dart';
+import 'providers/font_provider.dart';
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/main_screen.dart';
@@ -36,7 +37,7 @@ import 'screens/profile/settings_screen.dart';
 import 'screens/notifications/notifications_screen.dart';
 import 'screens/customer_service/cs_screen.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
@@ -46,11 +47,16 @@ void main() {
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.light,
   ));
-  runApp(const BiniHealthApp());
+
+  final fontProvider = FontProvider();
+  await fontProvider.init();
+
+  runApp(BiniHealthApp(fontProvider: fontProvider));
 }
 
 class BiniHealthApp extends StatelessWidget {
-  const BiniHealthApp({super.key});
+  final FontProvider fontProvider;
+  const BiniHealthApp({super.key, required this.fontProvider});
 
   static const Color primaryColor = Color(0xFF52C41A);
   static const Color secondaryColor = Color(0xFF13C2C2);
@@ -78,6 +84,7 @@ class BiniHealthApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => ChatProvider()),
         ChangeNotifierProvider(create: (_) => HealthProvider()),
+        ChangeNotifierProvider.value(value: fontProvider),
       ],
       child: MaterialApp(
         title: '宾尼小康',
