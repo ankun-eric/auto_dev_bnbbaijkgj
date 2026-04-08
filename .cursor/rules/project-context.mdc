@@ -947,6 +947,77 @@ All 9 admin API endpoints return HTTP 200 with correct data structure. Admin fro
 
 - Created `user_docs/体检报告OCR识别修复.md`
 
+## Latest Feature: 体检报告解读 & 药物识别解读格式化升级 (2026-04-08)
+
+### Backend
+
+- Added 2 new models in `backend/app/models/models.py`: `PromptTemplate` (prompt_templates table for managing AI prompt templates with version control), `ShareLink` (share_links table for permanent public share tokens).
+- Created `backend/app/api/prompt_templates.py` — 5 admin-only endpoints for Prompt template management:
+  - `GET /api/admin/prompt-templates` — list all active templates
+  - `GET /api/admin/prompt-templates/{type}` — get template with history versions
+  - `PUT /api/admin/prompt-templates/{type}` — update (auto-creates new version, keeps old as history)
+  - `POST /api/admin/prompt-templates/{type}/preview` — preview AI output with given input
+  - `POST /api/admin/prompt-templates/{type}/rollback/{version}` — rollback to specific version
+- Created `backend/app/api/drug_identify_share.py` — drug identification share endpoints:
+  - `POST /api/drug-identify/{record_id}/share` — generate permanent share link
+  - `GET /api/drug-identify/share/{token}` — public view (no auth required)
+- Updated `backend/app/api/report.py` — added `POST /api/report/{id}/share` endpoint; `analyze_report` now reads prompt from `prompt_templates` table.
+- Updated `backend/app/api/ocr.py` — `_call_ai_with_scene` now reads prompt from `prompt_templates` table for "体检报告识别" and "拍照识药" scenes.
+- Updated `backend/app/api/ocr_details.py` — added `GET /api/drug-identify/{record_id}/personal-suggestion` endpoint that reads user health profile and uses `drug_personal` prompt template.
+- Updated `backend/app/services/schema_sync.py` — added `_sync_prompt_templates()` and `_sync_share_links()` for auto table creation.
+- Updated `backend/app/init_data.py` — added `_init_prompt_templates()` to seed 5 default prompt templates (checkup_report, drug_general, drug_personal, drug_interaction, trend_analysis).
+- Updated `backend/app/main.py` — registered `prompt_templates.router` and `drug_identify_share.router`.
+- Added `backend/tests/test_prompt_templates.py` — 12 test cases for prompt template management.
+- Added `backend/tests/test_share_links.py` — 14 test cases for share link functionality.
+
+### Admin Web
+
+- Added `admin-web/src/app/(admin)/prompt-templates/page.tsx` — Prompt template configuration page with:
+  - Left nav: 5 template type tabs
+  - Right: current template content editor + version info
+  - "预览效果" button: preview modal with example input and AI output
+  - "保存" button: auto-creates new version
+  - History versions collapse with rollback buttons
+- Updated `admin-web/src/app/(admin)/layout.tsx` — added "Prompt 模板配置" menu item under "AI配置中心".
+
+### H5 Web
+
+- Updated `h5-web/src/app/checkup/result/[id]/page.tsx` — completely redesigned with 3-zone layout: (1) abnormal indicator cards with red/yellow status tags and per-item suggestions, (2) collapsible category detail list, (3) summary health advice + share buttons.
+- Updated `h5-web/src/app/drug/chat/[sessionId]/page.tsx` — upgraded to render structured drug analysis JSON: multi-drug interaction warning (yellow banner), drug info cards with expand/collapse, general/personal suggestion tabs with API integration.
+- Created `h5-web/src/app/shared/drug/[token]/page.tsx` — public share page for drug identification results (no login required).
+
+### Mini Program
+
+- Updated `miniprogram/pages/checkup-detail/` (index.js, index.wxml, index.wxss) — 3-zone structured layout: abnormal card list with red/yellow/green status tags, collapsible category details, summary section, share link button.
+- Updated `miniprogram/pages/drug-chat/` (index.js, index.wxml, index.wxss) — structured drug analysis display with interaction warning box, collapsible drug cards, general/personal tab switching, share button.
+
+### Flutter App
+
+- Created `flutter_app/lib/models/ai_analysis.dart` — data models: `IndicatorItem`, `IndicatorCategory`, `ReportAnalysisResult`, `DrugInfo`, `DrugInteraction`, `DrugAnalysisResult` (all with fromJson).
+- Updated `flutter_app/lib/screens/health/report_detail_screen.dart` — TabBarView with "AI解读" tab (abnormal summary cards with color-coded chips, category ExpansionTile, summary section, share FAB) and "原始报告" tab (preserved existing view).
+- Updated `flutter_app/lib/screens/health/drug_chat_screen.dart` — structured drug display with interaction warning Container, ExpansionTile per drug, general/personal suggestion tabs, share AppBar button.
+- Updated `flutter_app/lib/config/api_config.dart` and `flutter_app/lib/services/api_service.dart` — added `shareReport`, `shareDrugIdentify`, `getDrugPersonalSuggestion` methods.
+
+### Testing
+
+- 30/30 server API tests passed (health check, admin auth, prompt template CRUD/preview/rollback, report share, drug identify share, personal suggestion, OCR detail stats).
+
+### Deployment (2026-04-08)
+
+- Rebuilt and redeployed backend, h5, and admin containers.
+- All 4 containers healthy (db, backend, h5, admin).
+- Rebuilt miniprogram zip, Android APK, iOS IPA.
+
+### Generated Delivery Artifacts
+
+- Mini program: `miniprogram_20260408_123718_f468.zip`
+- Android APK: `bini_health_android-v20260408-123559-vulk.apk` (GitHub Release: `android-v20260408-123559-vulk`)
+- iOS IPA: `bini_health_ios-v20260408-123624-cqfr.ipa` (GitHub Release: `ios-v20260408-123624-cqfr`)
+
+### User Documentation
+
+- Created `user_docs/体检报告解读与药物识别解读升级.md`
+
 ## Notes For Next Iteration
 
 - Merchant identities are granted by admin only; new self-registered accounts still default to normal users.

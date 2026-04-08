@@ -1,4 +1,4 @@
-"""One-off: zip miniprogram, SFTP to server, verify HTTP 200."""
+"""Zip miniprogram, SFTP to server host, docker cp into backend uploads, verify HTTP 200."""
 import os
 import random
 import zipfile
@@ -9,12 +9,20 @@ import paramiko
 
 HOST = "newbb.test.bangbangvip.com"
 USER = "ubuntu"
-PASSWORD = "Bangbang987"
+PASSWORD = os.environ.get("MINIPROGRAM_SSH_PASSWORD", "Bangbang987")
 REMOTE_BASE = "/home/ubuntu/3b7b999d-e51c-4c0d-8f6e-baf90cd26857"
 UPLOADS_SUBDIR = "uploads"
 PROJECT_ROOT = r"C:\auto_output\bnbbaijkgj"
 MINIPROGRAM_DIR = os.path.join(PROJECT_ROOT, "miniprogram")
 BASE_URL = "https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857"
+
+
+def _backend_container_name(client: paramiko.SSHClient) -> str:
+    _, stdout, _ = client.exec_command(
+        "docker ps --format '{{.Names}}' | grep -E '3b7b999d.*backend' | head -1"
+    )
+    name = stdout.read().decode().strip()
+    return name or "3b7b999d-e51c-4c0d-8f6e-baf90cd26857-backend"
 
 
 def main() -> None:
@@ -42,25 +50,30 @@ def main() -> None:
     try:
         stdin, stdout, stderr = client.exec_command(f"ls -la {REMOTE_BASE}/")
         out = stdout.read().decode("utf-8", errors="replace")
-        err = stderr.read().decode("utf-8", errors="replace")
         print("--- 远程 ls ---")
         print(out or "(empty stdout)")
-        if err.strip():
-            print("stderr:", err)
 
         uploads_remote = f"{REMOTE_BASE}/{UPLOADS_SUBDIR}"
-        stdin, stdout, stderr = client.exec_command(f"mkdir -p {uploads_remote}")
-        stderr.read()
-        if stdout.channel.recv_exit_status() != 0:
-            raise RuntimeError(f"mkdir failed: {stderr.read().decode()}")
+        client.exec_command(f"mkdir -p {uploads_remote}")
 
         sftp = client.open_sftp()
         try:
-            remote_file = f"{uploads_remote}/{zip_name}"
-            sftp.put(zip_path, remote_file)
-            print(f"已上传: {remote_file}")
+            remote_host_file = f"{uploads_remote}/{zip_name}"
+            sftp.put(zip_path, remote_host_file)
+            print(f"已上传到主机: {remote_host_file}")
         finally:
             sftp.close()
+
+        cname = _backend_container_name(client)
+        print(f"后端容器: {cname}")
+        inner_path = f"/app/uploads/{zip_name}"
+        docker_cp = f"docker cp {uploads_remote}/{zip_name} {cname}:{inner_path}"
+        _, stdout, stderr = client.exec_command(docker_cp)
+        stderr.read()
+        code = stdout.channel.recv_exit_status()
+        if code != 0:
+            raise RuntimeError(f"docker cp 失败 exit={code}: {stderr.read().decode()}")
+        print(f"已复制进容器: {cname}:{inner_path}")
     finally:
         client.close()
 
@@ -69,6 +82,8 @@ def main() -> None:
     print(f"HTTP {r.status_code} {verify_url}")
     if r.status_code != 200:
         raise SystemExit(f"验证失败: 期望 200，得到 {r.status_code}")
+    if len(r.content) != size:
+        print(f"警告: 响应体大小 {len(r.content)} 与本地 {size} 不一致")
 
     print("\n下载 URL:")
     print(verify_url)
