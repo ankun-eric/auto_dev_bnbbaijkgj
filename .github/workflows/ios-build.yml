@@ -26,7 +26,83 @@ jobs:
       - name: Get dependencies
         working-directory: flutter_app
         run: flutter pub get
-      
+
+      - name: Regenerate iOS project
+        working-directory: flutter_app
+        run: |
+          rm -rf ios
+          flutter create --platforms ios --org com.binihealth --project-name bini_health .
+          flutter pub get
+
+      - name: Update Info.plist permissions
+        working-directory: flutter_app
+        run: |
+          cat > ios/Runner/Info.plist << 'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+          	<key>CFBundleDevelopmentRegion</key>
+          	<string>zh_CN</string>
+          	<key>CFBundleDisplayName</key>
+          	<string>宾尼小康</string>
+          	<key>CFBundleExecutable</key>
+          	<string>$(EXECUTABLE_NAME)</string>
+          	<key>CFBundleIdentifier</key>
+          	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+          	<key>CFBundleInfoDictionaryVersion</key>
+          	<string>6.0</string>
+          	<key>CFBundleName</key>
+          	<string>bini_health</string>
+          	<key>CFBundlePackageType</key>
+          	<string>APPL</string>
+          	<key>CFBundleShortVersionString</key>
+          	<string>$(FLUTTER_BUILD_NAME)</string>
+          	<key>CFBundleSignature</key>
+          	<string>????</string>
+          	<key>CFBundleVersion</key>
+          	<string>$(FLUTTER_BUILD_NUMBER)</string>
+          	<key>LSRequiresIPhoneOS</key>
+          	<true/>
+          	<key>UILaunchStoryboardName</key>
+          	<string>LaunchScreen</string>
+          	<key>UIMainStoryboardFile</key>
+          	<string>Main</string>
+          	<key>UISupportedInterfaceOrientations</key>
+          	<array>
+          		<string>UIInterfaceOrientationPortrait</string>
+          	</array>
+          	<key>NSCameraUsageDescription</key>
+          	<string>需要访问相机进行舌诊、面诊拍照和药物识别</string>
+          	<key>NSPhotoLibraryUsageDescription</key>
+          	<string>需要访问相册以上传体检报告和健康相关图片</string>
+          	<key>NSMicrophoneUsageDescription</key>
+          	<string>需要使用麦克风进行语音问诊</string>
+          	<key>NSPhotoLibraryAddUsageDescription</key>
+          	<string>需要保存健康报告图片到相册</string>
+          </dict>
+          </plist>
+          PLIST
+
+      - name: Disable code signing
+        working-directory: flutter_app
+        run: |
+          echo 'CODE_SIGNING_REQUIRED=NO' >> ios/Flutter/Release.xcconfig
+          echo 'CODE_SIGNING_ALLOWED=NO' >> ios/Flutter/Release.xcconfig
+          echo 'CODE_SIGN_IDENTITY=' >> ios/Flutter/Release.xcconfig
+          echo 'CODE_SIGNING_REQUIRED=NO' >> ios/Flutter/Debug.xcconfig
+          echo 'CODE_SIGNING_ALLOWED=NO' >> ios/Flutter/Debug.xcconfig
+          echo 'CODE_SIGN_IDENTITY=' >> ios/Flutter/Debug.xcconfig
+          ruby -e '
+            path = "ios/Runner.xcodeproj/project.pbxproj"
+            content = File.read(path)
+            content.gsub!(/ProvisioningStyle = Automatic/, "ProvisioningStyle = Manual")
+            content.gsub!(/CODE_SIGN_STYLE = Automatic/, "CODE_SIGN_STYLE = Manual")
+            content.gsub!(/"CODE_SIGN_IDENTITY\[sdk=iphoneos\*\]" = .*?;/, "\"CODE_SIGN_IDENTITY[sdk=iphoneos*]\" = \"\";")
+            content.gsub!(/DEVELOPMENT_TEAM = .*?;/, "DEVELOPMENT_TEAM = \"\";")
+            File.write(path, content)
+          '
+
       - name: Build iOS (no codesign)
         working-directory: flutter_app
         run: flutter build ios --release --no-codesign
