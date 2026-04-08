@@ -571,12 +571,12 @@ All 9 admin API endpoints return HTTP 200 with correct data structure. Admin fro
 ### Backend
 
 - Added 2 new models in `backend/app/models/models.py`: `OcrConfig` (ocr_configs table), `ReportAlert` (report_alerts table).
-- Extended `CheckupReport` model with: `thumbnail_url`, `file_type`, `abnormal_count`, `share_token`, `share_expires_at`, `ai_analysis_json`, `status`.
+- Extended `CheckupReport` model with: `thumbnail_url`, `file_type`, `abnormal_count`, `share_token`, `share_expires_at`, `ai_analysis_json`, `status`, `health_score` (Integer, nullable — see 体检报告解读功能优化).
 - Extended `CheckupIndicator` model with: `category`, `advice`.
 - Created `backend/app/services/ocr_service.py` — Baidu OCR integration (token management, standard/high-accuracy recognition, image quality check, PDF text extraction).
 - Created `backend/app/schemas/report.py` — Pydantic schemas for report upload, detail, list, analysis, trend, alert, share, and OCR config.
-- Created `backend/app/api/report.py` — 15 API endpoints:
-  - User: `POST /api/report/upload`, `POST /api/report/analyze`, `GET /api/report/detail/{id}`, `GET /api/report/list`, `GET /api/report/trend/{indicator_name}`, `POST /api/report/trend/analysis`, `POST /api/report/alert/check`, `GET /api/report/alerts`, `PUT /api/report/alerts/{id}/read`, `POST /api/report/share`, `GET /api/report/share/{token}` (no auth)
+- Created `backend/app/api/report.py` — user/admin report APIs (incl. `POST /api/report/compare` after 体检报告解读功能优化; `POST /api/report/analyze` returns enhanced structured analysis — see that section):
+  - User: `POST /api/report/upload`, `POST /api/report/analyze`, `POST /api/report/compare` (auth), `GET /api/report/detail/{id}`, `GET /api/report/list`, `GET /api/report/trend/{indicator_name}`, `POST /api/report/trend/analysis`, `POST /api/report/alert/check`, `GET /api/report/alerts`, `PUT /api/report/alerts/{id}/read`, `POST /api/report/share`, `GET /api/report/share/{token}` (no auth)
   - Admin: `GET /api/admin/ocr/config`, `PUT /api/admin/ocr/config`, `POST /api/admin/ocr/test`
 - Updated `backend/app/services/ai_service.py` — added `analyze_report_structured()` (structured JSON interpretation with categories/abnormal/normal indicators) and `analyze_trend()` (trend analysis).
 - Updated `backend/app/services/schema_sync.py` — added `_sync_report_tables()` for auto-migration.
@@ -1018,6 +1018,39 @@ All 9 admin API endpoints return HTTP 200 with correct data structure. Admin fro
 
 - Created `user_docs/体检报告解读与药物识别解读升级.md`
 
+## Latest Feature: 体检报告解读功能优化 (2026-04-08)
+
+### 数据模型
+
+- `CheckupReport` (`backend/app/models/models.py`): added `health_score` (Integer, nullable).
+- `backend/app/services/schema_sync.py`: migration for `health_score` column on existing `checkup_reports` table.
+
+### API 路由
+
+- `POST /api/report/analyze` (`backend/app/api/report.py`): response upgraded to `EnhancedReportAnalysisResponse` — five-level risk per indicator, detailed advice JSON from enhanced prompt via `analyze_report_structured()` in `backend/app/services/ai_service.py`.
+- `POST /api/report/compare` (auth): compares two reports; uses `analyze_report_compare()` in `ai_service.py`; response `ReportCompareResponse` with indicator diffs and score deltas.
+
+### Schema（后端）
+
+- `backend/app/schemas/report.py`: `HealthScoreInfo`, `SummaryInfo`, `IndicatorDetailAdvice`, `EnhancedIndicatorItem`, `EnhancedCategoryView`, `EnhancedReportAnalysisResponse`, `CompareIndicatorItem`, `CompareScoreDiff`, `ReportCompareResponse`, etc.
+
+### 前端页面与组件
+
+- **H5** (`h5-web`): `src/app/checkup/result/[id]/page.tsx` — rewritten: SVG ring health score gauge, collapsible category details; `src/app/checkup/compare/page.tsx` — new report compare page; `src/app/checkup/page.tsx` — health score mini ring + compare mode entry.
+- **小程序** (`miniprogram`): `pages/checkup-detail/` — Canvas gauge + five-level risk tags; `pages/checkup-compare/` — new compare flow (`index.js` / `json` / `wxml` / `wxss`); `pages/checkup/` — compare mode + score display; `app.json` registers `checkup-compare`.
+- **Flutter** (`flutter_app`): `lib/screens/health/report_detail_screen.dart` — `CustomPainter` gauge + `ExpansionTile`; `lib/screens/health/report_compare_screen.dart` — new compare screen; `lib/screens/health/checkup_screen.dart` — score ring + compare selection; `main.dart` registers `/report-compare`.
+
+### 关键文件索引
+
+- Backend: `backend/app/models/models.py`, `backend/app/schemas/report.py`, `backend/app/services/ai_service.py`, `backend/app/api/report.py`, `backend/app/services/schema_sync.py`
+- H5: `h5-web/src/app/checkup/result/[id]/page.tsx`, `h5-web/src/app/checkup/compare/page.tsx`, `h5-web/src/app/checkup/page.tsx`
+- Miniprogram: `miniprogram/pages/checkup-detail/*`, `miniprogram/pages/checkup-compare/*`, `miniprogram/pages/checkup/*`, `miniprogram/app.json`
+- Flutter: `flutter_app/lib/models/enhanced_report.dart`, `flutter_app/lib/screens/health/report_detail_screen.dart`, `flutter_app/lib/screens/health/report_compare_screen.dart`, `flutter_app/lib/screens/health/checkup_screen.dart`, `flutter_app/lib/config/api_config.dart` (`reportCompare`), `flutter_app/lib/services/api_service.dart` (`compareReports`), `flutter_app/lib/main.dart`
+
+### 测试
+
+- `test_server_report_enhance.py`: 17 cases covering enhanced analysis, compare flow, etc.
+
 ## Notes For Next Iteration
 
 - Merchant identities are granted by admin only; new self-registered accounts still default to normal users.
@@ -1032,3 +1065,4 @@ All 9 admin API endpoints return HTTP 200 with correct data structure. Admin fro
 - OCR global settings: Configure via admin panel (AI管理 → OCR全局设置). Scene templates and upload limits are managed here. Scene templates contain scene_name + prompt_content only (no ocr_provider/ai_model_id).
 - OCR prompt management: Prompts are now embedded directly in scene templates (OcrSceneTemplate.prompt_content), no longer stored in AiPromptConfig table.
 - OCR detail tables: `checkup_report_details` and `drug_identify_details` store business-specific fields extracted from AI results. Admin pages: AI管理 → 体检报告解读明细 / 拍照识药记录明细.
+- Checkup report (2026-04-08): enhanced analyze + compare APIs; H5 `/checkup/compare`, miniprogram `checkup-compare`, Flutter `/report-compare`; `health_score` on `CheckupReport`.
