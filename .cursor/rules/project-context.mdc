@@ -1066,3 +1066,4 @@ All 9 admin API endpoints return HTTP 200 with correct data structure. Admin fro
 - OCR prompt management: Prompts are now embedded directly in scene templates (OcrSceneTemplate.prompt_content), no longer stored in AiPromptConfig table.
 - OCR detail tables: `checkup_report_details` and `drug_identify_details` store business-specific fields extracted from AI results. Admin pages: AI管理 → 体检报告解读明细 / 拍照识药记录明细.
 - Checkup report (2026-04-08): enhanced analyze + compare APIs; H5 `/checkup/compare`, miniprogram `checkup-compare`, Flutter `/report-compare`; `health_score` on `CheckupReport`.
+- Home dynamic config (2026-04-08): `home_menu_items` and `home_banners` tables; 8 system_config keys for search/grid/font settings; admin CRUD APIs + user public APIs; admin-web 3 new pages under "首页配置"; all three client ends (H5/miniprogram/Flutter) now fetch banners/menus/config from API instead of hardcoded data; font size 3-level switching with local persistence.
