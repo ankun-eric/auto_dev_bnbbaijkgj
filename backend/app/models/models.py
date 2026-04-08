@@ -1309,6 +1309,8 @@ class OcrCallRecord(Base):
     ocr_raw_text = mapped_column(Text, nullable=True)
     ai_structured_result = mapped_column(JSON, nullable=True)
     error_message = mapped_column(Text, nullable=True)
+    image_count = mapped_column(Integer, default=1, nullable=False)
+    image_urls = mapped_column(JSON, nullable=True)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
 
 

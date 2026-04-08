@@ -1,4 +1,4 @@
-const { get, post, uploadFile } = require('../../utils/request');
+const { get, uploadFile } = require('../../utils/request');
 const { checkLogin } = require('../../utils/util');
 
 Page({
@@ -10,7 +10,10 @@ Page({
     page: 1,
     pageSize: 10,
     hasMore: true,
-    uploading: false
+    uploading: false,
+    selectedImages: [],
+    maxImages: 5,
+    uploadProgressText: ''
   },
 
   onLoad() {
@@ -89,24 +92,39 @@ Page({
 
   chooseFromAlbum() {
     if (!checkLogin()) return;
+    const remaining = this.data.maxImages - this.data.selectedImages.length;
+    if (remaining <= 0) {
+      wx.showToast({ title: `最多选择${this.data.maxImages}张图片`, icon: 'none' });
+      return;
+    }
     wx.chooseMedia({
-      count: 9,
+      count: remaining,
       mediaType: ['image'],
       sourceType: ['album'],
       success: (res) => {
-        this.handleUploadFiles(res.tempFiles.map(f => f.tempFilePath));
+        const newImages = res.tempFiles.map(f => ({ path: f.tempFilePath }));
+        this.setData({
+          selectedImages: [...this.data.selectedImages, ...newImages]
+        });
       }
     });
   },
 
   takePhoto() {
     if (!checkLogin()) return;
+    if (this.data.selectedImages.length >= this.data.maxImages) {
+      wx.showToast({ title: `最多选择${this.data.maxImages}张图片`, icon: 'none' });
+      return;
+    }
     wx.chooseMedia({
       count: 1,
       mediaType: ['image'],
       sourceType: ['camera'],
       success: (res) => {
-        this.handleUploadFiles(res.tempFiles.map(f => f.tempFilePath));
+        const newImages = res.tempFiles.map(f => ({ path: f.tempFilePath }));
+        this.setData({
+          selectedImages: [...this.data.selectedImages, ...newImages]
+        });
       }
     });
   },
@@ -123,32 +141,90 @@ Page({
     });
   },
 
+  removeImage(e) {
+    const idx = e.currentTarget.dataset.index;
+    const images = [...this.data.selectedImages];
+    images.splice(idx, 1);
+    this.setData({ selectedImages: images });
+  },
+
+  async startRecognize() {
+    if (this.data.selectedImages.length === 0) {
+      wx.showToast({ title: '请先选择图片', icon: 'none' });
+      return;
+    }
+    if (this.data.uploading) return;
+
+    const images = this.data.selectedImages;
+    const total = images.length;
+    this.setData({ uploading: true, uploadProgressText: `正在上传 1/${total} 张...` });
+
+    try {
+      let lastRecordId = null;
+      let successCount = 0;
+
+      for (let i = 0; i < images.length; i++) {
+        this.setData({ uploadProgressText: `正在上传 ${i + 1}/${total} 张...` });
+        try {
+          const res = await uploadFile('/api/ocr/recognize', images[i].path, 'file', {
+            scene_name: '体检报告识别'
+          });
+          const recordId = res && (res.record_id || res.id);
+          if (recordId) {
+            lastRecordId = recordId;
+            successCount++;
+          }
+        } catch (uploadErr) {
+          console.log('单张上传失败', uploadErr);
+        }
+      }
+
+      this.setData({ uploading: false, uploadProgressText: '', selectedImages: [] });
+
+      if (!lastRecordId) {
+        wx.showToast({ title: '识别失败，请重试', icon: 'none' });
+        return;
+      }
+
+      wx.navigateTo({ url: `/pages/checkup-detail/index?id=${lastRecordId}` });
+    } catch (e) {
+      this.setData({ uploading: false, uploadProgressText: '' });
+      if (e && e.statusCode === 503) {
+        wx.showToast({ title: '解读功能暂时维护中，请稍后再试', icon: 'none', duration: 3000 });
+      } else {
+        wx.showToast({ title: (e && e.detail) || '上传失败，请重试', icon: 'none' });
+      }
+    }
+  },
+
   async handleUploadFiles(filePaths) {
     if (!filePaths || !filePaths.length) return;
     this.setData({ uploading: true });
     wx.showLoading({ title: '上传中...', mask: true });
 
     try {
-      let lastResult = null;
+      let lastRecordId = null;
       for (const path of filePaths) {
-        lastResult = await uploadFile('/api/report/upload', path);
+        try {
+          const res = await uploadFile('/api/ocr/recognize', path, 'file', {
+            scene_name: '体检报告识别'
+          });
+          const recordId = res && (res.record_id || res.id);
+          if (recordId) lastRecordId = recordId;
+        } catch (e) {
+          console.log('文件上传失败', e);
+        }
       }
 
-      const reportId = lastResult && (lastResult.report_id || lastResult.id);
-      if (!reportId) {
-        wx.hideLoading();
-        this.setData({ uploading: false });
-        wx.showToast({ title: '上传成功', icon: 'success' });
-        this.setData({ page: 1, historyReports: [], hasMore: true });
-        this.loadHistory();
+      wx.hideLoading();
+      this.setData({ uploading: false });
+
+      if (!lastRecordId) {
+        wx.showToast({ title: '识别失败，请重试', icon: 'none' });
         return;
       }
 
-      wx.showLoading({ title: 'AI解读中...', mask: true });
-      await post('/api/report/analyze', { report_id: parseInt(reportId) }, { showLoading: false, suppressErrorToast: true });
-      wx.hideLoading();
-      this.setData({ uploading: false });
-      wx.navigateTo({ url: `/pages/checkup-detail/index?id=${reportId}` });
+      wx.navigateTo({ url: `/pages/checkup-detail/index?id=${lastRecordId}` });
     } catch (e) {
       wx.hideLoading();
       this.setData({ uploading: false });

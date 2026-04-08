@@ -2,10 +2,13 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { NavBar, Button, Card, Tag, Toast, Empty, SpinLoading, InfiniteScroll, Image, ActionSheet } from 'antd-mobile';
+import { NavBar, Card, Tag, Toast, Empty, SpinLoading, InfiniteScroll, Image } from 'antd-mobile';
 import { PictureOutline, CameraOutline, FileOutline } from 'antd-mobile-icons';
 import api from '@/lib/api';
 import AlertBanner from '@/components/AlertBanner';
+
+const MAX_IMAGES = 5;
+const MAX_SIZE = 20 * 1024 * 1024;
 
 interface ReportItem {
   id: number;
@@ -16,6 +19,13 @@ interface ReportItem {
   status: string;
   created_at: string;
   summary?: string;
+  image_count?: number;
+}
+
+interface SelectedFile {
+  file: File;
+  previewUrl: string;
+  id: string;
 }
 
 export default function CheckupPage() {
@@ -26,9 +36,9 @@ export default function CheckupPage() {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [loadingList, setLoadingList] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<SelectedFile[]>([]);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
-  const pdfInputRef = useRef<HTMLInputElement>(null);
 
   const fetchReports = useCallback(async (pageNum: number, reset = false) => {
     if (loadingList) return;
@@ -63,53 +73,83 @@ export default function CheckupPage() {
     await fetchReports(page + 1);
   };
 
-  const handleFileUpload = async (file: File) => {
-    if (!file) return;
-
-    const maxSize = 20 * 1024 * 1024;
-    if (file.size > maxSize) {
-      Toast.show({ content: '文件大小不能超过20MB' });
+  const addFiles = (files: FileList | null) => {
+    if (!files) return;
+    const current = selectedFiles.length;
+    const remaining = MAX_IMAGES - current;
+    if (remaining <= 0) {
+      Toast.show({ content: `最多只能选择${MAX_IMAGES}张图片` });
       return;
     }
+    const toAdd = Array.from(files).slice(0, remaining);
+    const oversized = toAdd.filter((f) => f.size > MAX_SIZE);
+    if (oversized.length > 0) {
+      Toast.show({ content: '部分图片超过20MB，已跳过' });
+    }
+    const valid = toAdd.filter((f) => f.size <= MAX_SIZE);
+    if (valid.length === 0) return;
+    const newItems: SelectedFile[] = valid.map((file) => ({
+      file,
+      previewUrl: URL.createObjectURL(file),
+      id: `${Date.now()}-${Math.random()}`,
+    }));
+    setSelectedFiles((prev) => [...prev, ...newItems]);
+  };
 
+  const removeFile = (id: string) => {
+    setSelectedFiles((prev) => {
+      const item = prev.find((f) => f.id === id);
+      if (item) URL.revokeObjectURL(item.previewUrl);
+      return prev.filter((f) => f.id !== id);
+    });
+  };
+
+  const handleSubmit = async () => {
+    if (selectedFiles.length === 0) return;
     setUploading(true);
-    setUploadProgress('上传中...');
+    setUploadProgress(`正在上传 0/${selectedFiles.length} 张...`);
 
     try {
       const formData = new FormData();
-      formData.append('file', file);
-      const uploadRes: any = await api.post('/api/report/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+      selectedFiles.forEach((sf, idx) => {
+        formData.append('files', sf.file);
+        setUploadProgress(`正在上传 ${idx + 1}/${selectedFiles.length} 张...`);
       });
-      const uploadData = uploadRes.data || uploadRes;
-      const reportId = uploadData.report_id || uploadData.id;
+      formData.append('scene_name', '体检报告识别');
 
-      if (!reportId) {
-        Toast.show({ content: '上传失败，请重试' });
+      setUploadProgress('识别中，请稍候...');
+
+      const res: any = await api.post('/api/ocr/batch-recognize', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 60000,
+      });
+      const data = res.data || res;
+
+      if (data.fail_count && data.fail_count > 0 && data.fail_count === selectedFiles.length) {
+        Toast.show({ content: '所有图片识别失败，请重试' });
         setUploading(false);
         setUploadProgress('');
         return;
       }
 
-      setUploadProgress('OCR识别中...');
+      if (data.fail_count && data.fail_count > 0) {
+        Toast.show({ content: `${data.fail_count}张图片识别失败，已跳过` });
+      }
 
-      const analyzeRes: any = await api.post('/api/report/analyze', { report_id: Number(reportId) });
-      const analyzeData = analyzeRes.data || analyzeRes;
-
-      if (analyzeData.ocr_disabled || analyzeData.ocr_closed) {
-        Toast.show({ content: '解读功能暂时维护中，请稍后再试' });
+      const mergedId = data.merged_record_id;
+      if (!mergedId) {
+        Toast.show({ content: '识别返回异常，请重试' });
         setUploading(false);
         setUploadProgress('');
-        fetchReports(1, true);
         return;
       }
 
-      setUploadProgress('AI解读中...');
-      Toast.show({ icon: 'success', content: '解读完成' });
+      Toast.show({ icon: 'success', content: '识别完成' });
+      selectedFiles.forEach((sf) => URL.revokeObjectURL(sf.previewUrl));
+      setSelectedFiles([]);
       setUploading(false);
       setUploadProgress('');
-
-      router.push(`/checkup/result/${reportId}`);
+      router.push(`/checkup/result/${mergedId}`);
     } catch (err: any) {
       const msg = err?.response?.data?.detail || err?.response?.data?.message || '上传失败，请重试';
       if (msg.includes('维护') || msg.includes('OCR') || msg.includes('closed')) {
@@ -120,12 +160,6 @@ export default function CheckupPage() {
       setUploading(false);
       setUploadProgress('');
     }
-  };
-
-  const onInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) handleFileUpload(file);
-    e.target.value = '';
   };
 
   const formatDate = (dateStr: string) => {
@@ -152,14 +186,14 @@ export default function CheckupPage() {
         <div className="card">
           <div className="section-title">上传体检报告</div>
           <p className="text-xs text-gray-400 mb-4">
-            支持图片、拍照或PDF文件，AI将为您智能解读
+            支持图片或拍照，最多{MAX_IMAGES}张，AI将为您智能解读
           </p>
 
           <div className="flex gap-3">
             <button
               className="flex-1 flex flex-col items-center gap-2 py-4 rounded-xl border border-dashed border-gray-200 bg-gray-50 active:bg-gray-100 transition-colors"
               onClick={() => imageInputRef.current?.click()}
-              disabled={uploading}
+              disabled={uploading || selectedFiles.length >= MAX_IMAGES}
             >
               <div
                 className="w-10 h-10 rounded-full flex items-center justify-center"
@@ -173,7 +207,7 @@ export default function CheckupPage() {
             <button
               className="flex-1 flex flex-col items-center gap-2 py-4 rounded-xl border border-dashed border-gray-200 bg-gray-50 active:bg-gray-100 transition-colors"
               onClick={() => cameraInputRef.current?.click()}
-              disabled={uploading}
+              disabled={uploading || selectedFiles.length >= MAX_IMAGES}
             >
               <div
                 className="w-10 h-10 rounded-full flex items-center justify-center"
@@ -183,27 +217,57 @@ export default function CheckupPage() {
               </div>
               <span className="text-xs text-gray-600">拍照</span>
             </button>
-
-            <button
-              className="flex-1 flex flex-col items-center gap-2 py-4 rounded-xl border border-dashed border-gray-200 bg-gray-50 active:bg-gray-100 transition-colors"
-              onClick={() => pdfInputRef.current?.click()}
-              disabled={uploading}
-            >
-              <div
-                className="w-10 h-10 rounded-full flex items-center justify-center"
-                style={{ background: '#fa8c1615', color: '#fa8c16' }}
-              >
-                <FileOutline fontSize={22} />
-              </div>
-              <span className="text-xs text-gray-600">PDF</span>
-            </button>
           </div>
 
+          {/* Selected images preview */}
+          {selectedFiles.length > 0 && (
+            <div className="mt-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs text-gray-500">
+                  已选 <span className="text-blue-500 font-medium">{selectedFiles.length}</span>/{MAX_IMAGES} 张
+                </span>
+                {selectedFiles.length < MAX_IMAGES && (
+                  <span className="text-xs text-gray-400">还可添加{MAX_IMAGES - selectedFiles.length}张</span>
+                )}
+              </div>
+              <div className="grid grid-cols-4 gap-2">
+                {selectedFiles.map((sf) => (
+                  <div key={sf.id} className="relative aspect-square">
+                    <img
+                      src={sf.previewUrl}
+                      alt="preview"
+                      className="w-full h-full object-cover rounded-lg"
+                    />
+                    <button
+                      className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-gray-700 flex items-center justify-center"
+                      onClick={() => removeFile(sf.id)}
+                      disabled={uploading}
+                    >
+                      <span className="text-white text-xs leading-none">×</span>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Upload progress */}
           {uploading && (
             <div className="flex items-center justify-center gap-2 mt-4 py-3 rounded-xl bg-green-50">
               <SpinLoading style={{ '--size': '18px', '--color': '#52c41a' }} />
               <span className="text-sm text-green-600">{uploadProgress}</span>
             </div>
+          )}
+
+          {/* Submit button */}
+          {selectedFiles.length > 0 && !uploading && (
+            <button
+              className="w-full mt-4 py-3 rounded-xl text-white text-sm font-medium"
+              style={{ background: 'linear-gradient(135deg, #1890ff, #096dd9)' }}
+              onClick={handleSubmit}
+            >
+              开始识别（{selectedFiles.length}张）
+            </button>
           )}
         </div>
 
@@ -211,8 +275,12 @@ export default function CheckupPage() {
           ref={imageInputRef}
           type="file"
           accept="image/*"
+          multiple
           className="hidden"
-          onChange={onInputChange}
+          onChange={(e) => {
+            addFiles(e.target.files);
+            e.target.value = '';
+          }}
         />
         <input
           ref={cameraInputRef}
@@ -220,14 +288,10 @@ export default function CheckupPage() {
           accept="image/*"
           capture="environment"
           className="hidden"
-          onChange={onInputChange}
-        />
-        <input
-          ref={pdfInputRef}
-          type="file"
-          accept=".pdf,application/pdf"
-          className="hidden"
-          onChange={onInputChange}
+          onChange={(e) => {
+            addFiles(e.target.files);
+            e.target.value = '';
+          }}
         />
 
         <div className="section-title mt-4">历史报告</div>
@@ -241,7 +305,7 @@ export default function CheckupPage() {
               onClick={() => router.push(`/checkup/detail/${report.id}`)}
             >
               <div className="flex items-center gap-3">
-                <div className="w-14 h-14 rounded-lg overflow-hidden flex-shrink-0 bg-gray-100 flex items-center justify-center">
+                <div className="w-14 h-14 rounded-lg overflow-hidden flex-shrink-0 bg-gray-100 flex items-center justify-center relative">
                   {report.file_type === 'pdf' ? (
                     <div className="flex flex-col items-center">
                       <FileOutline fontSize={24} color="#fa8c16" />
@@ -257,6 +321,14 @@ export default function CheckupPage() {
                     />
                   ) : (
                     <PictureOutline fontSize={24} color="#ccc" />
+                  )}
+                  {report.image_count && report.image_count > 1 && (
+                    <div
+                      className="absolute bottom-0 left-0 right-0 text-center text-white text-[9px] py-0.5"
+                      style={{ background: 'rgba(0,0,0,0.45)', borderRadius: '0 0 8px 8px' }}
+                    >
+                      共{report.image_count}张
+                    </div>
                   )}
                 </div>
                 <div className="flex-1 min-w-0">

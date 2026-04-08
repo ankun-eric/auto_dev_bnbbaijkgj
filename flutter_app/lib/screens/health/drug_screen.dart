@@ -1,5 +1,8 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
+import '../../providers/health_provider.dart';
 import '../../services/api_service.dart';
 import '../../widgets/custom_app_bar.dart';
 
@@ -14,9 +17,13 @@ class _DrugScreenState extends State<DrugScreen> {
   final ImagePicker _picker = ImagePicker();
   final ApiService _api = ApiService();
 
+  List<XFile> _selectedImages = [];
+  final int _maxImages = 5;
+  bool _isRecognizing = false;
+  String _progressText = '';
+
   List<Map<String, dynamic>> _historyList = [];
   bool _isLoadingHistory = true;
-  bool _isIdentifying = false;
 
   @override
   void initState() {
@@ -42,35 +49,80 @@ class _DrugScreenState extends State<DrugScreen> {
     setState(() => _isLoadingHistory = false);
   }
 
-  Future<void> _pickAndIdentify(ImageSource source) async {
-    final image = await _picker.pickImage(source: source);
-    if (image == null || !mounted) return;
-
-    setState(() => _isIdentifying = true);
-    try {
-      final response = await _api.ocrRecognizeDrug(image.path);
-      if (!mounted) return;
-      setState(() => _isIdentifying = false);
-
-      if (response.statusCode == 200) {
-        final data = response.data['data'] ?? response.data;
-        final sessionId = data['session_id']?.toString() ?? '';
-        if (sessionId.isNotEmpty) {
-          Navigator.pushNamed(context, '/drug-chat', arguments: {
-            'sessionId': sessionId,
-            'drugName': data['drug_name']?.toString() ?? '药品识别',
-          });
-          _loadHistory();
-        } else {
-          _showError('识别成功但未获取到会话信息');
+  Future<void> _pickFromGallery() async {
+    final images = await _picker.pickMultiImage();
+    if (images.isNotEmpty) {
+      setState(() {
+        final remaining = _maxImages - _selectedImages.length;
+        if (remaining > 0) {
+          _selectedImages.addAll(images.take(remaining));
         }
+      });
+    }
+  }
+
+  Future<void> _pickFromCamera() async {
+    if (_selectedImages.length >= _maxImages) {
+      _showError('最多只能选择 $_maxImages 张图片');
+      return;
+    }
+    final image = await _picker.pickImage(source: ImageSource.camera);
+    if (image != null) {
+      setState(() {
+        _selectedImages.add(image);
+      });
+    }
+  }
+
+  void _removeImage(int index) {
+    setState(() {
+      _selectedImages.removeAt(index);
+    });
+  }
+
+  Future<void> _startRecognize() async {
+    if (_selectedImages.isEmpty || !mounted) return;
+
+    setState(() {
+      _isRecognizing = true;
+      _progressText = '正在识别 1/${_selectedImages.length} 张...';
+    });
+
+    final provider = Provider.of<HealthProvider>(context, listen: false);
+    final filePaths = _selectedImages.map((e) => e.path).toList();
+
+    final result = await provider.recognizeMultipleDrugs(
+      filePaths,
+      onProgress: (current, total) {
+        if (mounted) {
+          setState(() {
+            _progressText = '正在识别 $current/$total 张...';
+          });
+        }
+      },
+    );
+
+    if (!mounted) return;
+    setState(() {
+      _isRecognizing = false;
+      _progressText = '';
+    });
+
+    if (result != null) {
+      final sessionId = result['session_id']?.toString() ?? '';
+      final drugName = result['drug_name']?.toString() ?? '药品识别';
+      if (sessionId.isNotEmpty) {
+        setState(() => _selectedImages.clear());
+        Navigator.pushNamed(context, '/drug-chat', arguments: {
+          'sessionId': sessionId,
+          'drugName': drugName,
+        });
+        _loadHistory();
       } else {
-        _showError('识别失败，请重试');
+        _showError('识别成功但未获取到会话信息');
       }
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _isIdentifying = false);
-      _showError('网络异常，请检查网络后重试');
+    } else {
+      _showError('识别失败，请重试');
     }
   }
 
@@ -145,13 +197,14 @@ class _DrugScreenState extends State<DrugScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildCameraSection(),
+                  if (_selectedImages.isNotEmpty) _buildSelectedImagesSection(),
                   const SizedBox(height: 16),
                   _buildHistorySection(),
                 ],
               ),
             ),
           ),
-          if (_isIdentifying) _buildLoadingOverlay(),
+          if (_isRecognizing) _buildLoadingOverlay(),
         ],
       ),
     );
@@ -206,7 +259,7 @@ class _DrugScreenState extends State<DrugScreen> {
                     borderRadius: BorderRadius.circular(24),
                   ),
                   child: ElevatedButton.icon(
-                    onPressed: _isIdentifying ? null : () => _pickAndIdentify(ImageSource.camera),
+                    onPressed: _isRecognizing ? null : _pickFromCamera,
                     icon: const Icon(Icons.camera_alt, size: 18),
                     label: const Text('拍照识药'),
                     style: ElevatedButton.styleFrom(
@@ -222,7 +275,7 @@ class _DrugScreenState extends State<DrugScreen> {
               const SizedBox(width: 12),
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: _isIdentifying ? null : () => _pickAndIdentify(ImageSource.gallery),
+                  onPressed: _isRecognizing ? null : _pickFromGallery,
                   icon: const Icon(Icons.photo_library, size: 18),
                   label: const Text('从相册选择'),
                   style: OutlinedButton.styleFrom(
@@ -237,6 +290,115 @@ class _DrugScreenState extends State<DrugScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildSelectedImagesSection() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                '已选 ${_selectedImages.length}/$_maxImages 张',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF333333),
+                ),
+              ),
+              const Spacer(),
+              GestureDetector(
+                onTap: () => setState(() => _selectedImages.clear()),
+                child: Text(
+                  '清空',
+                  style: TextStyle(fontSize: 13, color: Colors.grey[500]),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              for (int i = 0; i < _selectedImages.length; i++)
+                _buildImageThumb(i),
+            ],
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFEB2F96), Color(0xFF722ED1)],
+                ),
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: ElevatedButton.icon(
+                onPressed: _startRecognize,
+                icon: const Icon(Icons.auto_awesome, size: 18),
+                label: const Text('开始识别'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.transparent,
+                  shadowColor: Colors.transparent,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildImageThumb(int index) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: Image.file(
+            File(_selectedImages[index].path),
+            width: 80,
+            height: 80,
+            fit: BoxFit.cover,
+          ),
+        ),
+        Positioned(
+          top: -6,
+          right: -6,
+          child: GestureDetector(
+            onTap: () => _removeImage(index),
+            child: Container(
+              width: 22,
+              height: 22,
+              decoration: const BoxDecoration(
+                color: Color(0xFFFF4D4F),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.close, color: Colors.white, size: 14),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -403,7 +565,10 @@ class _DrugScreenState extends State<DrugScreen> {
               const SizedBox(height: 16),
               const Text('正在识别药品...', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
               const SizedBox(height: 6),
-              Text('AI正在分析图片，请稍候', style: TextStyle(fontSize: 13, color: Colors.grey[500])),
+              Text(
+                _progressText.isNotEmpty ? _progressText : 'AI正在分析图片，请稍候',
+                style: TextStyle(fontSize: 13, color: Colors.grey[500]),
+              ),
             ],
           ),
         ),

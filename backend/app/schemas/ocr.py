@@ -95,6 +95,8 @@ class OcrCallRecordResponse(BaseModel):
     ocr_raw_text: Optional[str] = None
     ai_structured_result: Optional[Dict[str, Any]] = None
     error_message: Optional[str] = None
+    image_count: int = 1
+    image_urls: Optional[List[str]] = None
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
@@ -152,11 +154,28 @@ class OcrTestResponse(BaseModel):
     error: Optional[str] = None
 
 
+class OcrTestBatchResponse(BaseModel):
+    success: bool
+    provider_name: str
+    results: List[OcrTestResponse]
+    merged_ocr_text: Optional[str] = None
+    error: Optional[str] = None
+
+
 class OcrTestFullResponse(BaseModel):
     success: bool
     provider_name: str
     ocr_text: Optional[str] = None
     ai_result: Optional[Dict[str, Any]] = None
+    error: Optional[str] = None
+
+
+class OcrTestFullBatchResponse(BaseModel):
+    success: bool
+    provider_name: str
+    results: List[OcrTestFullResponse]
+    merged_ocr_text: Optional[str] = None
+    merged_ai_result: Optional[Dict[str, Any]] = None
     error: Optional[str] = None
 
 
@@ -178,3 +197,7 @@ class OcrBatchRecognizeResponse(BaseModel):
     total: int
     success_count: int
     fail_count: int
+    merged_ocr_text: Optional[str] = None
+    merged_ai_result: Optional[Dict[str, Any]] = None
+    merged_record_id: Optional[int] = None
+    session_id: Optional[int] = None

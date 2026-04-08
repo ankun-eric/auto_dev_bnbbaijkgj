@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
@@ -19,6 +20,11 @@ class CheckupScreen extends StatefulWidget {
 class _CheckupScreenState extends State<CheckupScreen> {
   final ImagePicker _picker = ImagePicker();
 
+  List<XFile> _selectedImages = [];
+  final int _maxImages = 5;
+  bool _isRecognizing = false;
+  String _progressText = '';
+
   @override
   void initState() {
     super.initState();
@@ -38,16 +44,29 @@ class _CheckupScreenState extends State<CheckupScreen> {
   }
 
   Future<void> _pickFromGallery() async {
-    final image = await _picker.pickImage(source: ImageSource.gallery);
-    if (image != null) {
-      _handleUpload(image.path);
+    final images = await _picker.pickMultiImage();
+    if (images.isNotEmpty) {
+      setState(() {
+        final remaining = _maxImages - _selectedImages.length;
+        if (remaining > 0) {
+          _selectedImages.addAll(images.take(remaining));
+        }
+      });
     }
   }
 
   Future<void> _pickFromCamera() async {
+    if (_selectedImages.length >= _maxImages) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('最多只能选择 $_maxImages 张图片')),
+      );
+      return;
+    }
     final image = await _picker.pickImage(source: ImageSource.camera);
     if (image != null) {
-      _handleUpload(image.path);
+      setState(() {
+        _selectedImages.add(image);
+      });
     }
   }
 
@@ -57,11 +76,17 @@ class _CheckupScreenState extends State<CheckupScreen> {
       allowedExtensions: ['pdf'],
     );
     if (result != null && result.files.single.path != null) {
-      _handleUpload(result.files.single.path!, fileType: 'pdf');
+      _handleSingleUpload(result.files.single.path!, fileType: 'pdf');
     }
   }
 
-  Future<void> _handleUpload(String filePath, {String fileType = 'image'}) async {
+  void _removeImage(int index) {
+    setState(() {
+      _selectedImages.removeAt(index);
+    });
+  }
+
+  Future<void> _handleSingleUpload(String filePath, {String fileType = 'image'}) async {
     if (!mounted) return;
     final provider = Provider.of<HealthProvider>(context, listen: false);
     final report = await provider.uploadAndAnalyzeReport(filePath, fileType: fileType);
@@ -73,6 +98,52 @@ class _CheckupScreenState extends State<CheckupScreen> {
         ),
       );
     } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('上传或分析失败，请重试')),
+      );
+    }
+  }
+
+  Future<void> _startRecognize() async {
+    if (_selectedImages.isEmpty) return;
+    if (!mounted) return;
+
+    setState(() {
+      _isRecognizing = true;
+      _progressText = '正在上传 1/${_selectedImages.length} 张...';
+    });
+
+    final provider = Provider.of<HealthProvider>(context, listen: false);
+    final filePaths = _selectedImages.map((e) => e.path).toList();
+
+    final report = await provider.uploadAndAnalyzeMultipleReports(
+      filePaths,
+      onProgress: (current, total) {
+        if (mounted) {
+          setState(() {
+            _progressText = '正在上传 $current/$total 张...';
+          });
+        }
+      },
+    );
+
+    if (!mounted) return;
+    setState(() {
+      _isRecognizing = false;
+      _progressText = '';
+    });
+
+    if (report != null) {
+      setState(() {
+        _selectedImages.clear();
+      });
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ReportDetailScreen(reportId: report.id),
+        ),
+      );
+    } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('上传或分析失败，请重试')),
       );
@@ -94,8 +165,12 @@ class _CheckupScreenState extends State<CheckupScreen> {
       appBar: const CustomAppBar(title: '体检报告'),
       body: Consumer<HealthProvider>(
         builder: (context, provider, child) {
-          if (provider.isUploading) {
-            return const LoadingWidget(message: '正在上传并分析报告...');
+          if (provider.isUploading || _isRecognizing) {
+            return LoadingWidget(
+              message: _isRecognizing && _progressText.isNotEmpty
+                  ? _progressText
+                  : '正在上传并分析报告...',
+            );
           }
 
           return RefreshIndicator(
@@ -109,6 +184,10 @@ class _CheckupScreenState extends State<CheckupScreen> {
 
                 // Upload section
                 SliverToBoxAdapter(child: _buildUploadSection()),
+
+                // Selected images preview
+                if (_selectedImages.isNotEmpty)
+                  SliverToBoxAdapter(child: _buildSelectedImagesSection()),
 
                 // History header
                 SliverToBoxAdapter(child: _buildHistoryHeader(provider)),
@@ -288,7 +367,7 @@ class _CheckupScreenState extends State<CheckupScreen> {
           ),
           const SizedBox(height: 4),
           Text(
-            'AI智能解读，助您了解健康状况',
+            'AI智能解读，助您了解健康状况（最多可选 $_maxImages 张）',
             style: TextStyle(fontSize: 13, color: Colors.grey[500]),
           ),
           const SizedBox(height: 14),
@@ -297,7 +376,7 @@ class _CheckupScreenState extends State<CheckupScreen> {
               Expanded(child: _buildUploadCard(
                 icon: Icons.photo_library_outlined,
                 label: '从相册选择',
-                subtitle: '选取图片',
+                subtitle: '支持多选',
                 color: const Color(0xFF52C41A),
                 onTap: _pickFromGallery,
               )),
@@ -375,6 +454,95 @@ class _CheckupScreenState extends State<CheckupScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildSelectedImagesSection() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                '已选 ${_selectedImages.length}/$_maxImages 张',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF333333),
+                ),
+              ),
+              const Spacer(),
+              GestureDetector(
+                onTap: () => setState(() => _selectedImages.clear()),
+                child: Text(
+                  '清空',
+                  style: TextStyle(fontSize: 13, color: Colors.grey[500]),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              for (int i = 0; i < _selectedImages.length; i++)
+                _buildImageThumb(i),
+            ],
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _startRecognize,
+              icon: const Icon(Icons.auto_awesome, size: 18),
+              label: const Text('开始识别'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF52C41A),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                elevation: 0,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildImageThumb(int index) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: Image.file(
+            File(_selectedImages[index].path),
+            width: 80,
+            height: 80,
+            fit: BoxFit.cover,
+          ),
+        ),
+        Positioned(
+          top: -6,
+          right: -6,
+          child: GestureDetector(
+            onTap: () => _removeImage(index),
+            child: Container(
+              width: 22,
+              height: 22,
+              decoration: const BoxDecoration(
+                color: Color(0xFFFF4D4F),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.close, color: Colors.white, size: 14),
+            ),
+          ),
+        ),
+      ],
     );
   }
 

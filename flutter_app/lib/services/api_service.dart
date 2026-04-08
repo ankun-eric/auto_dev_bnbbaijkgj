@@ -312,6 +312,20 @@ class ApiService {
     return _dio.post(ApiConfig.ocrRecognize, data: formData);
   }
 
+  Future<Response> ocrBatchRecognize(List<String> imagePaths, {String? sceneName}) async {
+    final files = await Future.wait(
+      imagePaths.map((p) => MultipartFile.fromFile(p)),
+    );
+    final formData = FormData();
+    for (final f in files) {
+      formData.files.add(MapEntry('files', f));
+    }
+    if (sceneName != null) {
+      formData.fields.add(MapEntry('scene_name', sceneName));
+    }
+    return _dio.post(ApiConfig.ocrBatchRecognize, data: formData);
+  }
+
   // Health Plan
   Future<Response> getHealthPlan() async {
     return _dio.get(ApiConfig.healthPlan);

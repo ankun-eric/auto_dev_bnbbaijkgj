@@ -62,6 +62,7 @@ class ApiConfig {
   static const String drugIdentify = '/api/drugs/identify';
   static const String drugIdentifyHistory = '/api/drug-identify/history';
   static const String ocrRecognize = '/api/ocr/recognize';
+  static const String ocrBatchRecognize = '/api/ocr/batch-recognize';
 
   // Health Plan
   static const String healthPlan = '/api/plans';

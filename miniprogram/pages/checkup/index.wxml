@@ -35,6 +35,21 @@
         <text class="upload-btn-hint">导入PDF文件</text>
       </view>
     </view>
+
+    <!-- 已选图片预览 -->
+    <view wx:if="{{selectedImages.length > 0}}" class="selected-images">
+      <view class="selected-count">已选 {{selectedImages.length}}/{{maxImages}} 张</view>
+      <view class="image-grid">
+        <view wx:for="{{selectedImages}}" wx:key="index" class="image-item">
+          <image src="{{item.path}}" mode="aspectFill" class="thumb" />
+          <view class="delete-btn" catchtap="removeImage" data-index="{{index}}">×</view>
+        </view>
+      </view>
+      <view wx:if="{{uploadProgressText}}" class="progress-text">{{uploadProgressText}}</view>
+      <button class="start-btn" bindtap="startRecognize" loading="{{uploading}}" disabled="{{uploading}}">
+        {{uploading ? uploadProgressText || '上传中...' : '开始识别'}}
+      </button>
+    </view>
   </view>
 
   <!-- 历史报告 -->

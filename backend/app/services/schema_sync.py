@@ -282,6 +282,27 @@ async def _sync_ocr_detail_tables(conn: AsyncConnection) -> None:
             await conn.execute(text("ALTER TABLE drug_identify_details ADD COLUMN status VARCHAR(20) DEFAULT 'success'"))
 
 
+async def _sync_ocr_call_records(conn: AsyncConnection) -> None:
+    def _load(sync_conn):
+        inspector = inspect(sync_conn)
+        tables = set(inspector.get_table_names())
+        if "ocr_call_records" not in tables:
+            return None
+        return {col["name"] for col in inspector.get_columns("ocr_call_records")}
+
+    columns = await conn.run_sync(_load)
+    if columns is None:
+        return
+    if "image_count" not in columns:
+        await conn.execute(text(
+            "ALTER TABLE ocr_call_records ADD COLUMN image_count INT NOT NULL DEFAULT 1"
+        ))
+    if "image_urls" not in columns:
+        await conn.execute(text(
+            "ALTER TABLE ocr_call_records ADD COLUMN image_urls JSON NULL"
+        ))
+
+
 async def _sync_ocr_scene_templates(conn: AsyncConnection) -> None:
     def _load(sync_conn):
         inspector = inspect(sync_conn)
@@ -339,6 +360,7 @@ async def sync_register_schema(conn: AsyncConnection) -> None:
     await _sync_ai_center_tables(conn)
     await _sync_report_tables(conn)
     await _sync_ocr_detail_tables(conn)
+    await _sync_ocr_call_records(conn)
     await _sync_ocr_scene_templates(conn)
 
     columns, indexes, unique_constraints = await conn.run_sync(load_user_schema)

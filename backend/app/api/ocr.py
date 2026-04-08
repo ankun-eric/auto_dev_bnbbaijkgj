@@ -28,6 +28,8 @@ from app.schemas.ocr import (
     OcrSceneTemplateResponse,
     OcrSceneTemplateUpdate,
     OcrStatisticsResponse,
+    OcrTestBatchResponse,
+    OcrTestFullBatchResponse,
     OcrTestFullResponse,
     OcrTestResponse,
     OcrUploadConfigResponse,
@@ -330,78 +332,126 @@ async def update_upload_limits(
 # ──────────────── Admin: Test OCR ────────────────
 
 
-@admin_router.post("/test-ocr", response_model=OcrTestResponse)
+@admin_router.post("/test-ocr", response_model=OcrTestBatchResponse)
 async def test_ocr(
-    file: UploadFile = File(...),
+    files: List[UploadFile] = File(...),
     provider: str = Form(...),
     db: AsyncSession = Depends(get_db),
     current_user=Depends(require_role("admin")),
 ):
-    image_data = await file.read()
-    quality = check_image_quality(image_data)
-    if not quality["ok"]:
-        return OcrTestResponse(success=False, provider_name=provider, error=quality["message"])
-
-    result = await db.execute(
+    cfg_result = await db.execute(
         select(OcrProviderConfig).where(OcrProviderConfig.provider_name == provider)
     )
-    cfg = result.scalar_one_or_none()
+    cfg = cfg_result.scalar_one_or_none()
     if not cfg:
-        return OcrTestResponse(success=False, provider_name=provider, error="厂商配置不存在")
+        return OcrTestBatchResponse(
+            success=False, provider_name=provider, results=[],
+            error="厂商配置不存在",
+        )
 
-    try:
-        text = await ocr_recognize_with_provider(image_data, provider, cfg.config_json or {})
-        return OcrTestResponse(success=True, provider_name=provider, ocr_text=text)
-    except Exception as e:
-        logger.warning("Test OCR failed for %s: %s", provider, e)
-        return OcrTestResponse(success=False, provider_name=provider, error=str(e))
+    per_results: List[OcrTestResponse] = []
+    successful_texts: List[str] = []
+
+    for f in files:
+        image_data = await f.read()
+        quality = check_image_quality(image_data)
+        if not quality["ok"]:
+            per_results.append(OcrTestResponse(
+                success=False, provider_name=provider, error=quality["message"],
+            ))
+            continue
+        try:
+            text = await ocr_recognize_with_provider(image_data, provider, cfg.config_json or {})
+            per_results.append(OcrTestResponse(success=True, provider_name=provider, ocr_text=text))
+            successful_texts.append(text)
+        except Exception as e:
+            logger.warning("Test OCR failed for %s: %s", provider, e)
+            per_results.append(OcrTestResponse(success=False, provider_name=provider, error=str(e)))
+
+    merged_text = "\n".join(successful_texts) if successful_texts else None
+    overall_success = any(r.success for r in per_results)
+    return OcrTestBatchResponse(
+        success=overall_success,
+        provider_name=provider,
+        results=per_results,
+        merged_ocr_text=merged_text,
+    )
 
 
-@admin_router.post("/test-full", response_model=OcrTestFullResponse)
+@admin_router.post("/test-full", response_model=OcrTestFullBatchResponse)
 async def test_full(
-    file: UploadFile = File(...),
+    files: List[UploadFile] = File(...),
     provider: str = Form(...),
     scene_id: int = Form(...),
     db: AsyncSession = Depends(get_db),
     current_user=Depends(require_role("admin")),
 ):
-    image_data = await file.read()
-    quality = check_image_quality(image_data)
-    if not quality["ok"]:
-        return OcrTestFullResponse(success=False, provider_name=provider, error=quality["message"])
-
-    result = await db.execute(
+    cfg_result = await db.execute(
         select(OcrProviderConfig).where(OcrProviderConfig.provider_name == provider)
     )
-    cfg = result.scalar_one_or_none()
+    cfg = cfg_result.scalar_one_or_none()
     if not cfg:
-        return OcrTestFullResponse(success=False, provider_name=provider, error="厂商配置不存在")
+        return OcrTestFullBatchResponse(
+            success=False, provider_name=provider, results=[],
+            error="厂商配置不存在",
+        )
 
-    try:
-        ocr_text = await ocr_recognize_with_provider(image_data, provider, cfg.config_json or {})
-    except Exception as e:
-        return OcrTestFullResponse(success=False, provider_name=provider, error=f"OCR失败: {e}")
-
-    result = await db.execute(
+    scene_result = await db.execute(
         select(OcrSceneTemplate).where(OcrSceneTemplate.id == scene_id)
     )
-    scene = result.scalar_one_or_none()
-    if not scene:
-        return OcrTestFullResponse(
-            success=True, provider_name=provider, ocr_text=ocr_text,
-            error="场景模板不存在，仅返回OCR结果",
-        )
+    scene = scene_result.scalar_one_or_none()
 
-    try:
-        ai_result = await _call_ai_with_scene(ocr_text, scene, db)
-        return OcrTestFullResponse(
-            success=True, provider_name=provider, ocr_text=ocr_text, ai_result=ai_result,
-        )
-    except Exception as e:
-        return OcrTestFullResponse(
+    per_results: List[OcrTestFullResponse] = []
+    successful_texts: List[str] = []
+
+    for f in files:
+        image_data = await f.read()
+        quality = check_image_quality(image_data)
+        if not quality["ok"]:
+            per_results.append(OcrTestFullResponse(
+                success=False, provider_name=provider, error=quality["message"],
+            ))
+            continue
+
+        try:
+            ocr_text = await ocr_recognize_with_provider(image_data, provider, cfg.config_json or {})
+        except Exception as e:
+            per_results.append(OcrTestFullResponse(
+                success=False, provider_name=provider, error=f"OCR失败: {e}",
+            ))
+            continue
+
+        if not scene:
+            per_results.append(OcrTestFullResponse(
+                success=True, provider_name=provider, ocr_text=ocr_text,
+                error="场景模板不存在，仅返回OCR结果",
+            ))
+            successful_texts.append(ocr_text)
+            continue
+
+        per_results.append(OcrTestFullResponse(
             success=True, provider_name=provider, ocr_text=ocr_text,
-            error=f"AI处理失败: {e}",
-        )
+        ))
+        successful_texts.append(ocr_text)
+
+    merged_text = "\n".join(successful_texts) if successful_texts else None
+    merged_ai_result = None
+
+    if merged_text and scene:
+        try:
+            merged_ai_result = await _call_ai_with_scene(merged_text, scene, db)
+        except Exception as e:
+            logger.warning("Merged AI processing failed: %s", e)
+            merged_ai_result = {"error": str(e), "raw_text": merged_text}
+
+    overall_success = any(r.success for r in per_results)
+    return OcrTestFullBatchResponse(
+        success=overall_success,
+        provider_name=provider,
+        results=per_results,
+        merged_ocr_text=merged_text,
+        merged_ai_result=merged_ai_result,
+    )
 
 
 # ──────────────── Admin: Records ────────────────
@@ -569,13 +619,15 @@ async def batch_recognize(
     results = []
     success_count = 0
     fail_count = 0
+    successful_ocr_texts: List[str] = []
+    last_provider_used = "unknown"
 
     scene = None
     if scene_name:
-        result = await db.execute(
+        scene_result = await db.execute(
             select(OcrSceneTemplate).where(OcrSceneTemplate.scene_name == scene_name)
         )
-        scene = result.scalar_one_or_none()
+        scene = scene_result.scalar_one_or_none()
 
     for f in files:
         image_data = await f.read()
@@ -607,44 +659,81 @@ async def batch_recognize(
             fail_count += 1
             continue
 
-        ai_result = None
-        if scene:
-            try:
-                ai_result = await _call_ai_with_scene(ocr_text, scene, db)
-            except Exception as e:
-                ai_result = {"error": str(e), "raw_text": ocr_text}
+        last_provider_used = provider_used
+        successful_ocr_texts.append(ocr_text)
 
         original_image_url = None
 
         record = OcrCallRecord(
             scene_name=scene_name, provider_name=provider_used,
-            status="success", ocr_raw_text=ocr_text, ai_structured_result=ai_result,
+            status="success", ocr_raw_text=ocr_text,
             original_image_url=original_image_url,
         )
         db.add(record)
         await db.flush()
         await db.refresh(record)
 
-        if scene_name == "体检报告识别" and ai_result:
-            try:
-                await _write_checkup_detail(db, current_user, provider_used, record, ocr_text, ai_result, original_image_url)
-            except Exception as e:
-                logger.warning("Failed to write checkup detail: %s", e)
-        elif scene_name == "拍照识药" and ai_result:
-            try:
-                await _write_drug_detail(db, current_user, provider_used, record, ocr_text, ai_result, original_image_url)
-            except Exception as e:
-                logger.warning("Failed to write drug detail: %s", e)
-
         results.append(OcrRecognizeResponse(
             success=True, provider_name=provider_used,
-            ocr_text=ocr_text, ai_result=ai_result, record_id=record.id,
+            ocr_text=ocr_text, record_id=record.id,
         ))
         success_count += 1
 
+    # Merged processing
+    merged_ocr_text = None
+    merged_ai_result = None
+    merged_record_id = None
+    session_id = None
+
+    if successful_ocr_texts:
+        merged_ocr_text = "\n\n---\n\n".join(successful_ocr_texts)
+
+        if scene:
+            try:
+                merged_ai_result = await _call_ai_with_scene(merged_ocr_text, scene, db)
+            except Exception as e:
+                logger.warning("Merged AI processing failed: %s", e)
+                merged_ai_result = {"error": str(e), "raw_text": merged_ocr_text}
+
+        merged_record = OcrCallRecord(
+            scene_name=scene_name,
+            provider_name=last_provider_used,
+            status="success",
+            ocr_raw_text=merged_ocr_text,
+            ai_structured_result=merged_ai_result,
+            image_count=len(successful_ocr_texts),
+        )
+        db.add(merged_record)
+        await db.flush()
+        await db.refresh(merged_record)
+        merged_record_id = merged_record.id
+
+        if scene_name == "体检报告识别" and merged_ai_result:
+            try:
+                await _write_checkup_detail(
+                    db, current_user, last_provider_used,
+                    merged_record, merged_ocr_text, merged_ai_result, None,
+                )
+            except Exception as e:
+                logger.warning("Failed to write checkup detail: %s", e)
+        elif scene_name == "拍照识药" and merged_ai_result:
+            try:
+                session_id = await _write_drug_detail(
+                    db, current_user, last_provider_used,
+                    merged_record, merged_ocr_text, merged_ai_result, None,
+                )
+            except Exception as e:
+                logger.warning("Failed to write drug detail: %s", e)
+
     return OcrBatchRecognizeResponse(
-        results=results, total=len(files),
-        success_count=success_count, fail_count=fail_count,
+        results=results,
+        total=len(files),
+        success_count=success_count,
+        fail_count=fail_count,
+        merged_ocr_text=merged_ocr_text,
+        merged_ai_result=merged_ai_result,
+        merged_record_id=merged_record_id,
+        session_id=session_id,
     )
 
 

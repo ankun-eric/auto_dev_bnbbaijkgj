@@ -6,7 +6,10 @@ Page({
   data: {
     historyList: [],
     loading: false,
-    uploading: false
+    uploading: false,
+    selectedImages: [],
+    maxImages: 5,
+    uploadProgressText: ''
   },
 
   onShow() {
@@ -58,48 +61,86 @@ Page({
 
   takePhoto() {
     if (!checkLogin()) return;
+    if (this.data.selectedImages.length >= this.data.maxImages) {
+      wx.showToast({ title: `最多选择${this.data.maxImages}张图片`, icon: 'none' });
+      return;
+    }
     wx.chooseMedia({
       count: 1,
       mediaType: ['image'],
       sourceType: ['camera'],
       success: (res) => {
-        const filePath = res.tempFiles[0].tempFilePath;
-        this._uploadAndRecognize(filePath);
+        const newImages = res.tempFiles.map(f => ({ path: f.tempFilePath }));
+        this.setData({
+          selectedImages: [...this.data.selectedImages, ...newImages]
+        });
       }
     });
   },
 
   chooseAlbum() {
     if (!checkLogin()) return;
+    const remaining = this.data.maxImages - this.data.selectedImages.length;
+    if (remaining <= 0) {
+      wx.showToast({ title: `最多选择${this.data.maxImages}张图片`, icon: 'none' });
+      return;
+    }
     wx.chooseMedia({
-      count: 1,
+      count: remaining,
       mediaType: ['image'],
       sourceType: ['album'],
       success: (res) => {
-        const filePath = res.tempFiles[0].tempFilePath;
-        this._uploadAndRecognize(filePath);
+        const newImages = res.tempFiles.map(f => ({ path: f.tempFilePath }));
+        this.setData({
+          selectedImages: [...this.data.selectedImages, ...newImages]
+        });
       }
     });
   },
 
-  async _uploadAndRecognize(filePath) {
-    this.setData({ uploading: true });
+  removeImage(e) {
+    const idx = e.currentTarget.dataset.index;
+    const images = [...this.data.selectedImages];
+    images.splice(idx, 1);
+    this.setData({ selectedImages: images });
+  },
+
+  async startRecognize() {
+    if (this.data.selectedImages.length === 0) {
+      wx.showToast({ title: '请先选择图片', icon: 'none' });
+      return;
+    }
+    if (this.data.uploading) return;
+
+    const images = this.data.selectedImages;
+    const total = images.length;
+    this.setData({ uploading: true, uploadProgressText: `正在上传 1/${total} 张...` });
+
+    let firstSessionId = null;
     try {
-      const res = await uploadFile('/api/ocr/recognize', filePath, 'file', {
-        scene_name: '拍照识药'
-      });
-      const sessionId = res.session_id || res.id || res.sessionId;
-      if (!sessionId) {
+      for (let i = 0; i < images.length; i++) {
+        this.setData({ uploadProgressText: `正在上传 ${i + 1}/${total} 张...` });
+        const res = await uploadFile('/api/ocr/recognize', images[i].path, 'file', {
+          scene_name: '拍照识药'
+        });
+        const sessionId = res && (res.session_id || res.id || res.sessionId);
+        if (sessionId && !firstSessionId) {
+          firstSessionId = sessionId;
+        }
+      }
+
+      this.setData({ uploading: false, uploadProgressText: '', selectedImages: [] });
+
+      if (!firstSessionId) {
         wx.showToast({ title: '识别失败，请重试', icon: 'none' });
         return;
       }
       wx.navigateTo({
-        url: '/pages/drug-chat/index?sessionId=' + sessionId
+        url: '/pages/drug-chat/index?sessionId=' + firstSessionId
       });
     } catch (e) {
+      this.setData({ uploading: false, uploadProgressText: '' });
       wx.showToast({ title: e.detail || '识别失败，请重试', icon: 'none' });
-    } finally {
-      this.setData({ uploading: false });
     }
   },
 

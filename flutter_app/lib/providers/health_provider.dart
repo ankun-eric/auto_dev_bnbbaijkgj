@@ -140,6 +140,63 @@ class HealthProvider extends ChangeNotifier {
     return null;
   }
 
+  Future<CheckupReport?> uploadAndAnalyzeMultipleReports(
+    List<String> filePaths, {
+    Function(int current, int total)? onProgress,
+  }) async {
+    _isUploading = true;
+    notifyListeners();
+
+    try {
+      onProgress?.call(1, filePaths.length);
+      final response = await _api.ocrBatchRecognize(filePaths, sceneName: '体检报告识别');
+      if (response.statusCode == 200) {
+        final data = response.data is Map ? response.data : {};
+        final mergedRecordId = data['merged_record_id'];
+        if (mergedRecordId != null) {
+          final recordId = mergedRecordId is int ? mergedRecordId : int.parse(mergedRecordId.toString());
+          await loadReportList();
+          _isUploading = false;
+          notifyListeners();
+          return CheckupReport(
+            id: recordId,
+            status: 'completed',
+            createdAt: DateTime.now().toIso8601String(),
+            fileType: 'image',
+          );
+        }
+      }
+    } catch (_) {}
+
+    _isUploading = false;
+    notifyListeners();
+    return null;
+  }
+
+  Future<Map<String, dynamic>?> recognizeMultipleDrugs(
+    List<String> filePaths, {
+    Function(int current, int total)? onProgress,
+  }) async {
+    onProgress?.call(1, filePaths.length);
+    try {
+      final response = await _api.ocrBatchRecognize(filePaths, sceneName: '拍照识药');
+      if (response.statusCode == 200) {
+        final data = response.data is Map ? response.data : {};
+        final sessionId = data['session_id']?.toString() ?? '';
+        if (sessionId.isNotEmpty) {
+          final aiResult = data['merged_ai_result'];
+          final drugName = (aiResult is Map
+                  ? (aiResult['drug_name'] ?? aiResult['drugName'] ?? aiResult['药品名称'])
+                  : null)
+              ?.toString() ??
+              '药品识别';
+          return {'session_id': sessionId, 'drug_name': drugName};
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
   Future<CheckupReport?> getReportDetail(int id) async {
     try {
       final response = await _api.getReportDetail(id);

@@ -7,8 +7,23 @@
     <text class="camera-title">拍照识别药品</text>
     <text class="camera-desc">拍摄药品照片或从相册选择，AI 为您智能识别</text>
     <view class="camera-actions">
-      <button class="btn-primary" bindtap="takePhoto" loading="{{uploading}}">拍照识药</button>
+      <button class="btn-primary" bindtap="takePhoto" disabled="{{uploading}}">拍照识药</button>
       <button class="btn-outline" bindtap="chooseAlbum" disabled="{{uploading}}">从相册选择</button>
+    </view>
+
+    <!-- 已选图片预览 -->
+    <view wx:if="{{selectedImages.length > 0}}" class="selected-images">
+      <view class="selected-count">已选 {{selectedImages.length}}/{{maxImages}} 张</view>
+      <view class="image-grid">
+        <view wx:for="{{selectedImages}}" wx:key="index" class="image-item">
+          <image src="{{item.path}}" mode="aspectFill" class="thumb" />
+          <view class="delete-btn" catchtap="removeImage" data-index="{{index}}">×</view>
+        </view>
+      </view>
+      <view wx:if="{{uploadProgressText}}" class="progress-text">{{uploadProgressText}}</view>
+      <button class="btn-start" bindtap="startRecognize" loading="{{uploading}}" disabled="{{uploading}}">
+        {{uploading ? uploadProgressText || '上传中...' : '开始识别'}}
+      </button>
     </view>
   </view>
 
