@@ -1464,3 +1464,92 @@ class HomeBanner(Base):
     is_visible = mapped_column(Boolean, nullable=False, default=True)
     created_at = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+# ──────────────── 统一搜索 ────────────────
+
+
+class SearchHistory(Base):
+    __tablename__ = "search_histories"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    keyword = mapped_column(String(200), nullable=False)
+    search_count = mapped_column(Integer, default=1)
+    created_at = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    __table_args__ = (UniqueConstraint("user_id", "keyword", name="uq_search_history_user_keyword"),)
+
+    user = relationship("User")
+
+
+class SearchHotWord(Base):
+    __tablename__ = "search_hot_words"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    keyword = mapped_column(String(200), unique=True, nullable=False)
+    search_count = mapped_column(Integer, default=0)
+    result_count = mapped_column(Integer, default=0)
+    category_hint = mapped_column(String(50), nullable=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class SearchRecommendWord(Base):
+    __tablename__ = "search_recommend_words"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    keyword = mapped_column(String(200), nullable=False)
+    sort_order = mapped_column(Integer, default=0)
+    category_hint = mapped_column(String(50), nullable=True)
+    is_active = mapped_column(Boolean, default=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class SearchBlockWord(Base):
+    __tablename__ = "search_block_words"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    keyword = mapped_column(String(200), unique=True, nullable=False)
+    block_mode = mapped_column(String(20), default="full")
+    tip_content = mapped_column(String(500), nullable=True)
+    is_active = mapped_column(Boolean, default=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class SearchLog(Base):
+    __tablename__ = "search_logs"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id = mapped_column(Integer, nullable=True, index=True)
+    keyword = mapped_column(String(200), nullable=False, index=True)
+    result_count = mapped_column(Integer, default=0)
+    result_counts_json = mapped_column(Text, nullable=True)
+    clicked_type = mapped_column(String(50), nullable=True)
+    clicked_item_id = mapped_column(Integer, nullable=True)
+    source = mapped_column(String(20), default="text")
+    ip_address = mapped_column(String(50), nullable=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow, index=True)
+
+
+class AsrConfig(Base):
+    __tablename__ = "asr_configs"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    provider = mapped_column(String(20), default="tencent")
+    app_id = mapped_column(String(100), nullable=True)
+    secret_id = mapped_column(String(200), nullable=True)
+    secret_key_encrypted = mapped_column(String(500), nullable=True)
+    is_enabled = mapped_column(Boolean, default=False)
+    supported_dialects = mapped_column(String(200), default="普通话,粤语")
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class DrugSearchKeyword(Base):
+    __tablename__ = "drug_search_keywords"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    keyword = mapped_column(String(100), unique=True, nullable=False)
+    is_active = mapped_column(Boolean, default=True)

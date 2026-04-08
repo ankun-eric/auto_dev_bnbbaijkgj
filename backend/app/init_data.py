@@ -11,9 +11,11 @@ from app.models.models import (
     AiDisclaimerConfig,
     AiPromptConfig,
     AiSensitiveWord,
+    AsrConfig,
     ChatMessage,
     ChatSession,
     ConstitutionQuestion,
+    DrugSearchKeyword,
     HomeBanner,
     HomeMenuItem,
     MemberLevel,
@@ -54,6 +56,7 @@ async def init_default_data():
             await _init_prompt_templates(db)
             await _clean_chat_history_once(db)
             await _init_home_config(db)
+            await _init_search_data(db)
             await db.commit()
             logger.info("Default data initialization completed")
         except Exception as e:
@@ -959,3 +962,25 @@ async def _init_home_config(db: AsyncSession):
         logger.info("Created default home menu items")
 
     logger.info("Home config initialization completed")
+
+
+async def _init_search_data(db: AsyncSession):
+    result = await db.execute(select(DrugSearchKeyword).limit(1))
+    if not result.scalar_one_or_none():
+        default_keywords = ["拍照识药", "识药", "药品识别", "拍药", "认药"]
+        for kw in default_keywords:
+            db.add(DrugSearchKeyword(keyword=kw, is_active=True))
+        await db.flush()
+        logger.info("Created default drug search keywords (%d)", len(default_keywords))
+
+    result = await db.execute(select(AsrConfig).limit(1))
+    if not result.scalar_one_or_none():
+        db.add(AsrConfig(
+            provider="tencent",
+            is_enabled=False,
+            supported_dialects="普通话,粤语",
+        ))
+        await db.flush()
+        logger.info("Created default ASR config (disabled)")
+
+    logger.info("Search data initialization completed")

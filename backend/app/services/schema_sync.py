@@ -428,6 +428,55 @@ async def _sync_home_tables(conn: AsyncConnection) -> None:
         ))
 
 
+async def _sync_search_tables(conn: AsyncConnection) -> None:
+    def _load(sync_conn):
+        inspector = inspect(sync_conn)
+        tables = set(inspector.get_table_names())
+        result = {}
+        for tbl in [
+            "search_histories", "search_hot_words", "search_recommend_words",
+            "search_block_words", "search_logs", "asr_configs", "drug_search_keywords",
+        ]:
+            if tbl in tables:
+                result[tbl] = {col["name"] for col in inspector.get_columns(tbl)}
+        return result, tables
+
+    table_cols, all_tables = await conn.run_sync(_load)
+
+    if "search_histories" in table_cols:
+        cols = table_cols["search_histories"]
+        if "search_count" not in cols:
+            await conn.execute(text("ALTER TABLE search_histories ADD COLUMN search_count INT DEFAULT 1"))
+        if "updated_at" not in cols:
+            await conn.execute(text("ALTER TABLE search_histories ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP"))
+
+    if "search_hot_words" in table_cols:
+        cols = table_cols["search_hot_words"]
+        if "result_count" not in cols:
+            await conn.execute(text("ALTER TABLE search_hot_words ADD COLUMN result_count INT DEFAULT 0"))
+        if "category_hint" not in cols:
+            await conn.execute(text("ALTER TABLE search_hot_words ADD COLUMN category_hint VARCHAR(50) NULL"))
+
+    if "search_recommend_words" in table_cols:
+        cols = table_cols["search_recommend_words"]
+        if "category_hint" not in cols:
+            await conn.execute(text("ALTER TABLE search_recommend_words ADD COLUMN category_hint VARCHAR(50) NULL"))
+
+    if "search_logs" in table_cols:
+        cols = table_cols["search_logs"]
+        if "result_counts_json" not in cols:
+            await conn.execute(text("ALTER TABLE search_logs ADD COLUMN result_counts_json TEXT NULL"))
+        if "source" not in cols:
+            await conn.execute(text("ALTER TABLE search_logs ADD COLUMN source VARCHAR(20) DEFAULT 'text'"))
+        if "ip_address" not in cols:
+            await conn.execute(text("ALTER TABLE search_logs ADD COLUMN ip_address VARCHAR(50) NULL"))
+
+    if "asr_configs" in table_cols:
+        cols = table_cols["asr_configs"]
+        if "supported_dialects" not in cols:
+            await conn.execute(text("ALTER TABLE asr_configs ADD COLUMN supported_dialects VARCHAR(200) DEFAULT '普通话,粤语'"))
+
+
 async def sync_register_schema(conn: AsyncConnection) -> None:
     def load_user_schema(sync_conn):
         inspector = inspect(sync_conn)
@@ -456,6 +505,7 @@ async def sync_register_schema(conn: AsyncConnection) -> None:
     await _sync_prompt_templates(conn)
     await _sync_share_links(conn)
     await _sync_home_tables(conn)
+    await _sync_search_tables(conn)
 
     columns, indexes, unique_constraints = await conn.run_sync(load_user_schema)
 

@@ -84,6 +84,17 @@ const menuItems: MenuItem[] = [
     ],
   },
   {
+    key: 'search-manage',
+    icon: <SearchOutlined />,
+    label: '搜索管理',
+    children: [
+      { key: '/search/recommend', label: '推荐搜索词' },
+      { key: '/search/statistics', label: '搜索统计' },
+      { key: '/search/block-words', label: '屏蔽词管理' },
+      { key: '/search/asr-config', label: '语音配置' },
+    ],
+  },
+  {
     key: 'services',
     icon: <ShopOutlined />,
     label: '服务管理',
@@ -136,6 +147,7 @@ function getOpenKeys(pathname: string): string[] {
   if (pathname.startsWith('/ai-config') || pathname.startsWith('/chat-records') || pathname.startsWith('/knowledge') || pathname.startsWith('/search-config') || pathname.startsWith('/fallback-config') || pathname.startsWith('/ocr-config') || pathname.startsWith('/ocr-global-config') || pathname.startsWith('/checkup-details') || pathname.startsWith('/drug-details')) return ['ai'];
   if (pathname.startsWith('/ai-center') || pathname.startsWith('/prompt-templates')) return ['ai-center'];
   if (pathname.startsWith('/home-settings') || pathname.startsWith('/home-menus') || pathname.startsWith('/home-banners')) return ['home-config'];
+  if (pathname.startsWith('/search')) return ['search-manage'];
   if (pathname.startsWith('/sms') || pathname.startsWith('/settings') || pathname.startsWith('/wechat-push') || pathname.startsWith('/email-notify') || pathname.startsWith('/cos-config')) return ['system'];
   return [];
 }

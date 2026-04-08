@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { SearchBar, Swiper, Grid, List, Tag, Badge, NoticeBar, SpinLoading } from 'antd-mobile';
+import { Swiper, Grid, List, Tag, Badge, NoticeBar, SpinLoading } from 'antd-mobile';
 import { useHomeConfig, HomeBanner, HomeMenu } from '@/lib/useHomeConfig';
 import { useFontSize } from '@/lib/useFontSize';
 import FontSettingPopup from '@/components/FontSettingPopup';
@@ -36,7 +36,7 @@ function handleLink(
 
 export default function HomePage() {
   const router = useRouter();
-  const [searchVal, setSearchVal] = useState('');
+
   const [fontPopupVisible, setFontPopupVisible] = useState(false);
 
   const { config, banners, menus, loading } = useHomeConfig();
@@ -84,17 +84,21 @@ export default function HomePage() {
           </div>
         </div>
         {config.search_visible && (
-          <SearchBar
-            placeholder={config.search_placeholder || '搜索症状、疾病、药品'}
-            value={searchVal}
-            onChange={setSearchVal}
+          <div
+            className="flex items-center px-4 cursor-pointer"
             style={{
-              '--border-radius': '20px',
-              '--background': 'rgba(255,255,255,0.9)',
-              '--height': '36px',
+              height: 36,
+              borderRadius: 20,
+              background: 'rgba(255,255,255,0.9)',
             }}
-            onSearch={() => router.push(`/drug?q=${searchVal}`)}
-          />
+            onClick={() => router.push('/search')}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <span className="ml-2 text-sm text-gray-400">搜索文章、视频、服务、商品</span>
+          </div>
         )}
       </div>
 

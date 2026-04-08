@@ -8,6 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from app.api import (
     admin,
     admin_merchant,
+    admin_search,
     ai_center,
     auth,
     chat,
@@ -32,6 +33,7 @@ from app.api import (
     merchant,
     prompt_templates,
     report,
+    search,
     service,
     sms,
     tcm,
@@ -97,6 +99,8 @@ app.include_router(prompt_templates.router)
 app.include_router(drug_identify_share.router)
 app.include_router(home_config.router)
 app.include_router(home_config.admin_router)
+app.include_router(search.router)
+app.include_router(admin_search.router)
 
 os.makedirs("uploads", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")

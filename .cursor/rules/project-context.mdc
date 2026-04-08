@@ -1052,6 +1052,73 @@ All 9 admin API endpoints return HTTP 200 with correct data structure. Admin fro
 
 - `test_server_report_enhance.py`: 17 cases covering enhanced analysis, compare flow, etc.
 
+## Latest Feature: 统一搜索功能 (2026-04-08)
+
+### 数据模型
+
+- Added 7 new models in `backend/app/models/models.py`: `SearchHistory`, `SearchHotWord`, `SearchRecommendWord`, `SearchBlockWord`, `SearchLog`, `AsrConfig`, `DrugSearchKeyword`.
+- `SearchHistory`: user search history with per-user keyword dedup (unique: user_id + keyword).
+- `SearchHotWord`: global hot word statistics aggregated from SearchLog.
+- `SearchRecommendWord`: admin-managed recommended search words with sort_order.
+- `SearchBlockWord`: blocked keywords with two modes (full block / tip replacement).
+- `SearchLog`: per-search logging with result counts, click tracking, source (text/voice).
+- `AsrConfig`: single-row ASR voice recognition config (Tencent Cloud).
+- `DrugSearchKeyword`: trigger keywords for photo drug identification feature.
+
+### API 路由
+
+**H5 用户端 (backend/app/api/search.py)**:
+- `GET /api/search` — unified search across Article/Video/ServiceItem/PointsMallItem with block word filtering
+- `GET /api/search/suggest` — typeahead suggestions from hot words + recommend words
+- `GET /api/search/hot` — hot search words (recommend + auto-statistics, max 10)
+- `GET /api/search/history` — user search history (auth required)
+- `DELETE /api/search/history/{id}` — delete single history item (auth required)
+- `DELETE /api/search/history` — clear all history (auth required)
+- `POST /api/search/log` — log search result click
+- `POST /api/search/asr/token` — get ASR temporary credentials
+- `GET /api/search/drug-keywords` — photo drug identification trigger keywords
+
+**管理后台 (backend/app/api/admin_search.py)**:
+- `GET/POST/PUT/DELETE /api/admin/search/recommend-words` — recommend word CRUD
+- `GET /api/admin/search/statistics` — search analytics (top keywords, trend, no-result, type distribution)
+- `GET/POST/PUT/DELETE /api/admin/search/block-words` — block word CRUD
+- `POST /api/admin/search/block-words/batch` — batch import block words
+- `GET/PUT /api/admin/search/asr-config` — ASR config management (SecretKey encrypted)
+- `POST /api/admin/search/asr-config/test` — test ASR config connectivity
+
+### Schema
+
+- `backend/app/schemas/search.py` — Pydantic schemas for all search-related endpoints.
+
+### H5 前端
+
+- Modified `h5-web/src/app/(tabs)/home/page.tsx` — search bar now navigates to `/search` instead of `/drug?q=`.
+- Created `h5-web/src/app/search/page.tsx` — search page with hot words, history (6→20 expandable, swipe-delete, bulk clear), suggestions (300ms debounce), voice search popup.
+- Created `h5-web/src/app/search/result/page.tsx` — search results page with 5 tabs (all/article/video/service/points_mall), drug keyword card, empty state with AI consultation entry.
+
+### 管理后台
+
+- Updated `admin-web/src/app/(admin)/layout.tsx` — added "搜索管理" top-level menu with 4 sub-items.
+- Created `admin-web/src/app/(admin)/search/recommend/page.tsx` — recommend search word CRUD.
+- Created `admin-web/src/app/(admin)/search/statistics/page.tsx` — search analytics with charts.
+- Created `admin-web/src/app/(admin)/search/block-words/page.tsx` — block word CRUD + batch import.
+- Created `admin-web/src/app/(admin)/search/asr-config/page.tsx` — ASR voice config with test button.
+
+### 测试
+
+- `backend/tests/test_search.py`: 28 local pytest tests (all passed).
+- `test_server_search.py`: 33 server API tests (30 passed, 3 skipped due to SMS auth).
+
+### 部署 (2026-04-08)
+
+- Rebuilt backend, admin-web, h5-web containers.
+- All 4 containers healthy (db, backend, admin-web, h5-web).
+- No mobile/client-side code changes (Flutter, miniprogram unaffected).
+
+### 用户文档
+
+- Created `user_docs/统一搜索功能.md` — user manual for unified search feature.
+
 ## Notes For Next Iteration
 
 - Merchant identities are granted by admin only; new self-registered accounts still default to normal users.
@@ -1068,3 +1135,4 @@ All 9 admin API endpoints return HTTP 200 with correct data structure. Admin fro
 - OCR detail tables: `checkup_report_details` and `drug_identify_details` store business-specific fields extracted from AI results. Admin pages: AI管理 → 体检报告解读明细 / 拍照识药记录明细.
 - Checkup report (2026-04-08): enhanced analyze + compare APIs; H5 `/checkup/compare`, miniprogram `checkup-compare`, Flutter `/report-compare`; `health_score` on `CheckupReport`.
 - Home dynamic config (2026-04-08): `home_menu_items` and `home_banners` tables; 8 system_config keys for search/grid/font settings; admin CRUD APIs + user public APIs; admin-web 3 new pages under "首页配置"; all three client ends (H5/miniprogram/Flutter) now fetch banners/menus/config from API instead of hardcoded data; font size 3-level switching with local persistence.
+- Unified search (2026-04-08): H5-only, 7 new DB tables (SearchHistory, SearchHotWord, SearchRecommendWord, SearchBlockWord, SearchLog, AsrConfig, DrugSearchKeyword); H5 `/search` and `/search/result` pages; admin "搜索管理" menu with 4 sub-pages (推荐搜索词, 搜索统计, 屏蔽词管理, 语音配置). Block words checked server-side before search. ASR SecretKey encrypted. Default drug keywords: 拍照识药, 识药, 药品识别, 拍药, 认药.
