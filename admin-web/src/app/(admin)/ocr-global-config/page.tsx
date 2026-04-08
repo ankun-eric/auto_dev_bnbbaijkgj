@@ -4,13 +4,10 @@ import React, { useEffect, useState, useCallback } from 'react';
 import {
   Typography, Tabs, Card, Button, Space, Modal, Form, Input,
   InputNumber, Spin, message, Tooltip, Popconfirm, Tag, Row, Col,
-  Upload, Select, Collapse, Divider, Alert,
 } from 'antd';
-import type { UploadFile } from 'antd';
 import {
   PlusOutlined, EditOutlined, DeleteOutlined, SaveOutlined,
-  FileTextOutlined, UploadOutlined, ExperimentOutlined,
-  CheckCircleOutlined, CloseCircleOutlined,
+  FileTextOutlined, UploadOutlined,
 } from '@ant-design/icons';
 import { get, put, post, del } from '@/lib/api';
 
@@ -29,36 +26,6 @@ interface UploadLimits {
   max_file_size_mb: number;
 }
 
-interface OcrProvider {
-  provider: string;
-  name: string;
-}
-
-interface OcrSingleResult {
-  success: boolean;
-  provider_name: string;
-  ocr_text?: string;
-  ai_result?: any;
-  error?: string;
-}
-
-interface OcrTestBatchResponse {
-  success: boolean;
-  provider_name: string;
-  results: OcrSingleResult[];
-  merged_ocr_text?: string;
-  error?: string;
-}
-
-interface OcrTestFullBatchResponse {
-  success: boolean;
-  provider_name: string;
-  results: OcrSingleResult[];
-  merged_ocr_text?: string;
-  merged_ai_result?: any;
-  error?: string;
-}
-
 export default function OcrGlobalConfigPage() {
   const [activeTab, setActiveTab] = useState('scenes');
 
@@ -74,16 +41,6 @@ export default function OcrGlobalConfigPage() {
   const [limitsForm] = Form.useForm();
   const [limitsLoading, setLimitsLoading] = useState(false);
   const [limitsSaving, setLimitsSaving] = useState(false);
-
-  // OCR Test
-  const [testFiles, setTestFiles] = useState<UploadFile[]>([]);
-  const [providers, setProviders] = useState<OcrProvider[]>([]);
-  const [selectedProvider, setSelectedProvider] = useState<string>('');
-  const [selectedSceneId, setSelectedSceneId] = useState<number | undefined>(undefined);
-  const [uploadLimits, setUploadLimits] = useState<UploadLimits>({ max_batch_count: 10, max_file_size_mb: 5 });
-  const [testLoading, setTestLoading] = useState(false);
-  const [testOcrResult, setTestOcrResult] = useState<OcrTestBatchResponse | null>(null);
-  const [testFullResult, setTestFullResult] = useState<OcrTestFullBatchResponse | null>(null);
 
   const fetchScenes = useCallback(async () => {
     setScenesLoading(true);
@@ -105,7 +62,6 @@ export default function OcrGlobalConfigPage() {
         max_batch_count: res.max_batch_count ?? 10,
         max_file_size_mb: res.max_file_size_mb ?? 5,
       });
-      setUploadLimits({ max_batch_count: res.max_batch_count ?? 10, max_file_size_mb: res.max_file_size_mb ?? 5 });
     } catch {
       limitsForm.setFieldsValue({ max_batch_count: 10, max_file_size_mb: 5 });
     } finally {
@@ -113,24 +69,10 @@ export default function OcrGlobalConfigPage() {
     }
   }, [limitsForm]);
 
-  const fetchProviders = useCallback(async () => {
-    try {
-      const res = await get<OcrProvider[]>('/api/admin/ocr/providers');
-      const list = Array.isArray(res) ? res : [];
-      setProviders(list);
-      if (list.length > 0 && !selectedProvider) {
-        setSelectedProvider(list[0].provider);
-      }
-    } catch {
-      setProviders([]);
-    }
-  }, [selectedProvider]);
-
   useEffect(() => {
     fetchScenes();
     fetchUploadLimits();
-    fetchProviders();
-  }, [fetchScenes, fetchUploadLimits, fetchProviders]);
+  }, [fetchScenes, fetchUploadLimits]);
 
   // ────────── Scenes CRUD ──────────
 
@@ -194,51 +136,6 @@ export default function OcrGlobalConfigPage() {
       message.error(e?.response?.data?.detail || '保存失败');
     } finally {
       setLimitsSaving(false);
-    }
-  };
-
-  // ────────── OCR Test ──────────
-
-  const handleTestOcr = async () => {
-    if (testFiles.length === 0) { message.warning('请先选择图片'); return; }
-    if (!selectedProvider) { message.warning('请选择OCR提供商'); return; }
-    setTestLoading(true);
-    setTestOcrResult(null);
-    setTestFullResult(null);
-    try {
-      const formData = new FormData();
-      testFiles.forEach((f) => { if (f.originFileObj) formData.append('files', f.originFileObj); });
-      formData.append('provider', selectedProvider);
-      const res = await post<OcrTestBatchResponse>('/api/admin/ocr/test-ocr', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      setTestOcrResult(res);
-    } catch (e: any) {
-      message.error(e?.response?.data?.detail || 'OCR测试失败');
-    } finally {
-      setTestLoading(false);
-    }
-  };
-
-  const handleTestFull = async () => {
-    if (testFiles.length === 0) { message.warning('请先选择图片'); return; }
-    if (!selectedProvider) { message.warning('请选择OCR提供商'); return; }
-    setTestLoading(true);
-    setTestOcrResult(null);
-    setTestFullResult(null);
-    try {
-      const formData = new FormData();
-      testFiles.forEach((f) => { if (f.originFileObj) formData.append('files', f.originFileObj); });
-      formData.append('provider', selectedProvider);
-      if (selectedSceneId !== undefined) formData.append('scene_id', String(selectedSceneId));
-      const res = await post<OcrTestFullBatchResponse>('/api/admin/ocr/test-full', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      setTestFullResult(res);
-    } catch (e: any) {
-      message.error(e?.response?.data?.detail || '完整测试失败');
-    } finally {
-      setTestLoading(false);
     }
   };
 
@@ -343,164 +240,6 @@ export default function OcrGlobalConfigPage() {
     </Card>
   );
 
-  const renderOcrTest = () => {
-    const activeResult = testFullResult ?? testOcrResult;
-    return (
-      <div>
-        <Card style={{ borderRadius: 12, marginBottom: 16 }}>
-          <Row gutter={[16, 16]}>
-            <Col span={24}>
-              <Text strong>选择图片</Text>
-              <div style={{ marginTop: 8 }}>
-                <Upload
-                  multiple
-                  listType="picture-card"
-                  fileList={testFiles}
-                  beforeUpload={() => false}
-                  onChange={({ fileList }) => setTestFiles(fileList)}
-                  accept="image/*"
-                  maxCount={uploadLimits.max_batch_count}
-                >
-                  {testFiles.length < uploadLimits.max_batch_count && (
-                    <div>
-                      <PlusOutlined />
-                      <div style={{ marginTop: 8 }}>上传图片</div>
-                    </div>
-                  )}
-                </Upload>
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  最多 {uploadLimits.max_batch_count} 张，单张不超过 {uploadLimits.max_file_size_mb} MB
-                </Text>
-              </div>
-            </Col>
-            <Col xs={24} md={12}>
-              <Text strong>OCR 提供商</Text>
-              <Select
-                style={{ width: '100%', marginTop: 8 }}
-                value={selectedProvider || undefined}
-                onChange={setSelectedProvider}
-                placeholder="请选择OCR提供商"
-                options={providers.map((p) => ({ value: p.provider, label: p.name }))}
-              />
-            </Col>
-            <Col xs={24} md={12}>
-              <Text strong>场景模板（可选）</Text>
-              <Select
-                style={{ width: '100%', marginTop: 8 }}
-                value={selectedSceneId}
-                onChange={setSelectedSceneId}
-                placeholder="不选则不使用AI处理"
-                allowClear
-                options={scenes.map((s) => ({ value: s.id, label: s.scene_name }))}
-              />
-            </Col>
-            <Col span={24}>
-              <Space>
-                <Button
-                  type="primary"
-                  icon={<ExperimentOutlined />}
-                  onClick={handleTestOcr}
-                  loading={testLoading}
-                  disabled={testFiles.length === 0 || !selectedProvider}
-                >
-                  仅OCR测试
-                </Button>
-                <Button
-                  type="default"
-                  icon={<ExperimentOutlined />}
-                  onClick={handleTestFull}
-                  loading={testLoading}
-                  disabled={testFiles.length === 0 || !selectedProvider}
-                >
-                  完整测试（含AI）
-                </Button>
-              </Space>
-            </Col>
-          </Row>
-        </Card>
-
-        {activeResult && (
-          <Card style={{ borderRadius: 12 }} title="测试结果">
-            <Spin spinning={testLoading}>
-              {activeResult.error && (
-                <Alert type="error" message={activeResult.error} style={{ marginBottom: 16 }} />
-              )}
-              <div style={{ marginBottom: 8 }}>
-                <Tag color={activeResult.success ? 'success' : 'error'}>
-                  {activeResult.success ? '成功' : '失败'}
-                </Tag>
-                <Text type="secondary">提供商：{activeResult.provider_name}</Text>
-              </div>
-
-              {activeResult.results && activeResult.results.length > 0 && (
-                <>
-                  <Divider orientation="left">逐图结果</Divider>
-                  <Collapse
-                    size="small"
-                    items={activeResult.results.map((r, idx) => ({
-                      key: idx,
-                      label: (
-                        <Space>
-                          {r.success
-                            ? <CheckCircleOutlined style={{ color: '#52c41a' }} />
-                            : <CloseCircleOutlined style={{ color: '#ff4d4f' }} />}
-                          <span>图片 {idx + 1}</span>
-                          {!r.success && r.error && <Text type="danger" style={{ fontSize: 12 }}>{r.error}</Text>}
-                        </Space>
-                      ),
-                      children: r.success ? (
-                        <div>
-                          {r.ocr_text && (
-                            <div style={{ marginBottom: 8 }}>
-                              <Text strong>OCR 文本：</Text>
-                              <pre style={{ background: '#f5f5f5', padding: 8, borderRadius: 4, whiteSpace: 'pre-wrap', wordBreak: 'break-all', marginTop: 4 }}>
-                                {r.ocr_text}
-                              </pre>
-                            </div>
-                          )}
-                          {r.ai_result !== undefined && (
-                            <div>
-                              <Text strong>AI 结果：</Text>
-                              <pre style={{ background: '#f5f5f5', padding: 8, borderRadius: 4, whiteSpace: 'pre-wrap', wordBreak: 'break-all', marginTop: 4 }}>
-                                {typeof r.ai_result === 'string' ? r.ai_result : JSON.stringify(r.ai_result, null, 2)}
-                              </pre>
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <Alert type="error" message={r.error || '识别失败'} />
-                      ),
-                    }))}
-                  />
-                </>
-              )}
-
-              {activeResult.merged_ocr_text && (
-                <>
-                  <Divider orientation="left">合并 OCR 文本</Divider>
-                  <pre style={{ background: '#f5f5f5', padding: 12, borderRadius: 6, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
-                    {activeResult.merged_ocr_text}
-                  </pre>
-                </>
-              )}
-
-              {(activeResult as OcrTestFullBatchResponse).merged_ai_result !== undefined && (
-                <>
-                  <Divider orientation="left">合并 AI 结果</Divider>
-                  <pre style={{ background: '#f5f5f5', padding: 12, borderRadius: 6, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
-                    {typeof (activeResult as OcrTestFullBatchResponse).merged_ai_result === 'string'
-                      ? (activeResult as OcrTestFullBatchResponse).merged_ai_result
-                      : JSON.stringify((activeResult as OcrTestFullBatchResponse).merged_ai_result, null, 2)}
-                  </pre>
-                </>
-              )}
-            </Spin>
-          </Card>
-        )}
-      </div>
-    );
-  };
-
   return (
     <div>
       <Title level={4} style={{ marginBottom: 24 }}>OCR全局设置</Title>
@@ -521,13 +260,6 @@ export default function OcrGlobalConfigPage() {
               <span><UploadOutlined style={{ marginRight: 6 }} />上传限制</span>
             ),
             children: renderUploadLimits(),
-          },
-          {
-            key: 'ocr-test',
-            label: (
-              <span><ExperimentOutlined style={{ marginRight: 6 }} />OCR测试</span>
-            ),
-            children: renderOcrTest(),
           },
         ]}
       />

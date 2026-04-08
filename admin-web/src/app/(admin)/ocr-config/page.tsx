@@ -4,13 +4,15 @@ import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   Card, Form, Input, InputNumber, Button, Space, message, Typography, Select,
   Switch, Spin, Tabs, Table, Tag, Modal, Upload, Radio,
-  Statistic, Row, Col, Tooltip,
+  Statistic, Row, Col, Tooltip, Collapse, Divider, Alert,
 } from 'antd';
+import type { UploadFile } from 'antd';
 import {
   SaveOutlined,
   UploadOutlined,
   ExperimentOutlined,
   StarOutlined, StopOutlined, CloudOutlined,
+  PlusOutlined, CheckCircleOutlined, CloseCircleOutlined,
 } from '@ant-design/icons';
 import { get, put, post } from '@/lib/api';
 import api from '@/lib/api';
@@ -55,6 +57,28 @@ interface Scene {
   scene_name: string;
   prompt_content: string;
   is_preset: boolean;
+}
+
+interface UploadLimits {
+  max_batch_count: number;
+  max_file_size_mb: number;
+}
+
+interface OcrSingleResult {
+  success: boolean;
+  provider_name: string;
+  ocr_text?: string;
+  ai_result?: any;
+  error?: string;
+}
+
+interface OcrTestFullBatchResponse {
+  success: boolean;
+  provider_name: string;
+  results: OcrSingleResult[];
+  merged_ocr_text?: string;
+  merged_ai_result?: any;
+  error?: string;
 }
 
 // ────────────────────── Constants ──────────────────────
@@ -119,12 +143,13 @@ export default function OcrConfigPage() {
   const [testOcrLoading, setTestOcrLoading] = useState(false);
   const [testOcrResult, setTestOcrResult] = useState<string | null>(null);
 
-  // Test full modal
+  // Test full modal (multi-image)
   const [testFullOpen, setTestFullOpen] = useState(false);
-  const [testFullFile, setTestFullFile] = useState<File | null>(null);
+  const [testFullFiles, setTestFullFiles] = useState<UploadFile[]>([]);
   const [testFullScene, setTestFullScene] = useState<number | undefined>(undefined);
   const [testFullLoading, setTestFullLoading] = useState(false);
-  const [testFullResult, setTestFullResult] = useState<any>(null);
+  const [testFullResult, setTestFullResult] = useState<OcrTestFullBatchResponse | null>(null);
+  const [maxBatchCount, setMaxBatchCount] = useState<number>(10);
 
 
   // ────────── Data Fetching ──────────
@@ -166,10 +191,20 @@ export default function OcrConfigPage() {
     }
   }, []);
 
+  const fetchUploadLimits = useCallback(async () => {
+    try {
+      const res = await get<UploadLimits>('/api/admin/ocr/upload-limits');
+      setMaxBatchCount(res.max_batch_count ?? 10);
+    } catch {
+      setMaxBatchCount(10);
+    }
+  }, []);
+
   useEffect(() => {
     fetchProviders();
     fetchScenes();
-  }, [fetchProviders, fetchScenes]);
+    fetchUploadLimits();
+  }, [fetchProviders, fetchScenes, fetchUploadLimits]);
 
   useEffect(() => {
     fetchStatistics(statPeriod);
@@ -288,10 +323,10 @@ export default function OcrConfigPage() {
     }
   };
 
-  // ────────── Test Full Flow ──────────
+  // ────────── Test Full Flow (Multi-image) ──────────
 
   const handleTestFull = async () => {
-    if (!testFullFile) {
+    if (testFullFiles.length === 0) {
       message.warning('请先选择图片');
       return;
     }
@@ -303,13 +338,16 @@ export default function OcrConfigPage() {
     setTestFullResult(null);
     try {
       const formData = new FormData();
-      formData.append('file', testFullFile);
+      testFullFiles.forEach((f) => {
+        if (f.originFileObj) formData.append('files', f.originFileObj);
+      });
       formData.append('provider', activeProvider);
       formData.append('scene_id', String(testFullScene));
       const res = await api.post('/api/admin/ocr/test-full', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      setTestFullResult(res.data?.result || res.data);
+      const data = res.data;
+      setTestFullResult(data);
     } catch (e: any) {
       message.error(e?.response?.data?.detail || '完整流程测试失败');
     } finally {
@@ -317,45 +355,88 @@ export default function OcrConfigPage() {
     }
   };
 
-  // ────────── Render: Test Full result table ──────────
+  // ────────── Render: Test Full batch results ──────────
 
   const renderFullTestResult = () => {
     if (!testFullResult) return null;
-    if (typeof testFullResult === 'object' && !Array.isArray(testFullResult)) {
-      const entries = Object.entries(testFullResult);
-      return (
-        <Table
-          dataSource={entries.map(([key, value], idx) => ({ key: idx, field: key, value: typeof value === 'object' ? JSON.stringify(value) : String(value ?? '') }))}
-          columns={[
-            { title: '字段', dataIndex: 'field', key: 'field', width: 200 },
-            { title: '值', dataIndex: 'value', key: 'value' },
-          ]}
-          pagination={false}
-          size="small"
-          style={{ marginTop: 16 }}
-        />
-      );
-    }
-    if (Array.isArray(testFullResult)) {
-      if (testFullResult.length === 0) return <Text type="secondary">空结果</Text>;
-      const cols = Object.keys(testFullResult[0]).map((k) => ({
-        title: k,
-        dataIndex: k,
-        key: k,
-        render: (v: any) => (typeof v === 'object' ? JSON.stringify(v) : String(v ?? '')),
-      }));
-      return (
-        <Table
-          dataSource={testFullResult.map((item: any, idx: number) => ({ ...item, key: idx }))}
-          columns={cols}
-          pagination={false}
-          size="small"
-          scroll={{ x: 'max-content' }}
-          style={{ marginTop: 16 }}
-        />
-      );
-    }
-    return <pre style={{ whiteSpace: 'pre-wrap', background: '#f5f5f5', padding: 12, borderRadius: 6, marginTop: 16 }}>{String(testFullResult)}</pre>;
+
+    return (
+      <div style={{ marginTop: 16 }}>
+        <div style={{ marginBottom: 12 }}>
+          <Tag color={testFullResult.success ? 'success' : 'error'}>
+            {testFullResult.success ? '成功' : '失败'}
+          </Tag>
+          <Text type="secondary">提供商：{testFullResult.provider_name}</Text>
+        </div>
+
+        {testFullResult.error && (
+          <Alert type="error" message={testFullResult.error} style={{ marginBottom: 16 }} />
+        )}
+
+        {testFullResult.results && testFullResult.results.length > 0 && (
+          <>
+            <Divider orientation="left">逐图结果</Divider>
+            <Collapse
+              size="small"
+              items={testFullResult.results.map((r: OcrSingleResult, idx: number) => ({
+                key: idx,
+                label: (
+                  <Space>
+                    {r.success
+                      ? <CheckCircleOutlined style={{ color: '#52c41a' }} />
+                      : <CloseCircleOutlined style={{ color: '#ff4d4f' }} />}
+                    <span>图片 {idx + 1}</span>
+                    {!r.success && r.error && <Text type="danger" style={{ fontSize: 12 }}>{r.error}</Text>}
+                  </Space>
+                ),
+                children: r.success ? (
+                  <div>
+                    {r.ocr_text && (
+                      <div style={{ marginBottom: 8 }}>
+                        <Text strong>OCR 文本：</Text>
+                        <pre style={{ background: '#f5f5f5', padding: 8, borderRadius: 4, whiteSpace: 'pre-wrap', wordBreak: 'break-all', marginTop: 4 }}>
+                          {r.ocr_text}
+                        </pre>
+                      </div>
+                    )}
+                    {r.ai_result !== undefined && (
+                      <div>
+                        <Text strong>AI 结构化结果：</Text>
+                        <pre style={{ background: '#f5f5f5', padding: 8, borderRadius: 4, whiteSpace: 'pre-wrap', wordBreak: 'break-all', marginTop: 4 }}>
+                          {typeof r.ai_result === 'string' ? r.ai_result : JSON.stringify(r.ai_result, null, 2)}
+                        </pre>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <Alert type="error" message={r.error || '识别失败'} />
+                ),
+              }))}
+            />
+          </>
+        )}
+
+        {testFullResult.merged_ocr_text && (
+          <>
+            <Divider orientation="left">合并 OCR 文本</Divider>
+            <pre style={{ background: '#f5f5f5', padding: 12, borderRadius: 6, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+              {testFullResult.merged_ocr_text}
+            </pre>
+          </>
+        )}
+
+        {testFullResult.merged_ai_result !== undefined && (
+          <>
+            <Divider orientation="left">合并 AI 结果</Divider>
+            <pre style={{ background: '#f5f5f5', padding: 12, borderRadius: 6, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+              {typeof testFullResult.merged_ai_result === 'string'
+                ? testFullResult.merged_ai_result
+                : JSON.stringify(testFullResult.merged_ai_result, null, 2)}
+            </pre>
+          </>
+        )}
+      </div>
+    );
   };
 
 
@@ -435,7 +516,7 @@ export default function OcrConfigPage() {
                         <Button icon={<ExperimentOutlined />} onClick={() => { setTestOcrFile(null); setTestOcrResult(null); setTestOcrOpen(true); }}>
                           测试OCR
                         </Button>
-                        <Button icon={<ExperimentOutlined />} onClick={() => { setTestFullFile(null); setTestFullScene(undefined); setTestFullResult(null); setTestFullOpen(true); }}>
+                        <Button icon={<ExperimentOutlined />} onClick={() => { setTestFullFiles([]); setTestFullScene(undefined); setTestFullResult(null); setTestFullOpen(true); }}>
                           测试完整流程
                         </Button>
                       </Space>
@@ -543,33 +624,36 @@ export default function OcrConfigPage() {
         )}
       </Modal>
 
-      {/* ── Test Full Flow Modal ── */}
+      {/* ── Test Full Flow Modal (Multi-image) ── */}
       <Modal
         title={`测试完整流程 - ${PROVIDER_LABELS[activeProvider]}`}
         open={testFullOpen}
-        onCancel={() => setTestFullOpen(false)}
+        onCancel={() => { if (!testFullLoading) setTestFullOpen(false); }}
         footer={null}
-        width={700}
+        width={850}
         destroyOnClose
       >
         <div style={{ marginBottom: 16 }}>
+          <Text style={{ display: 'block', marginBottom: 8 }}>上传图片：</Text>
           <Upload
             accept="image/*"
-            maxCount={1}
-            beforeUpload={(file) => {
-              setTestFullFile(file);
-              return false;
-            }}
-            onRemove={() => setTestFullFile(null)}
+            multiple
+            maxCount={maxBatchCount}
+            fileList={testFullFiles}
+            beforeUpload={() => false}
+            onChange={({ fileList }) => setTestFullFiles(fileList)}
             listType="picture-card"
           >
-            {!testFullFile && (
+            {testFullFiles.length < maxBatchCount && (
               <div>
-                <UploadOutlined style={{ fontSize: 24 }} />
-                <div style={{ marginTop: 8 }}>选择图片</div>
+                <PlusOutlined />
+                <div style={{ marginTop: 8 }}>上传图片</div>
               </div>
             )}
           </Upload>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            最多 {maxBatchCount} 张
+          </Text>
         </div>
         <div style={{ marginBottom: 16 }}>
           <Text style={{ display: 'block', marginBottom: 8 }}>业务场景：</Text>
@@ -581,15 +665,15 @@ export default function OcrConfigPage() {
             options={scenes.map((s) => ({ label: s.scene_name, value: s.id }))}
           />
         </div>
-        <Button type="primary" onClick={handleTestFull} loading={testFullLoading} disabled={!testFullFile || !testFullScene}>
+        <Button
+          type="primary"
+          onClick={handleTestFull}
+          loading={testFullLoading}
+          disabled={testFullFiles.length === 0 || !testFullScene}
+        >
           开始测试
         </Button>
-        {testFullResult && (
-          <div style={{ marginTop: 16 }}>
-            <Text strong>AI 结构化结果：</Text>
-            {renderFullTestResult()}
-          </div>
-        )}
+        {renderFullTestResult()}
       </Modal>
     </div>
   );

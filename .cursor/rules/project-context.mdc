@@ -37,7 +37,8 @@
 - New schemas: `OcrTestBatchResponse`, `OcrTestFullBatchResponse`; updated `OcrBatchRecognizeResponse`, `OcrCallRecordResponse`.
 
 ### Admin Web
-- `admin-web/src/app/(admin)/ocr-global-config/page.tsx`: added new "OCR测试" tab with multi-image upload (Ant Design Upload), provider/scene selectors, and result display (per-image + merged OCR text + merged AI result JSON).
+- `admin-web/src/app/(admin)/ocr-global-config/page.tsx`: removed "OCR测试" tab; now only has "场景模板管理" and "上传限制" two tabs.
+- `admin-web/src/app/(admin)/ocr-config/page.tsx`: upgraded "测试完整流程" modal to support multi-image upload (picture-card mode), dynamic maxCount from upload-limits API, batch result display with Collapse (per-image + merged OCR text + merged AI result), modal width 850px.
 
 ### H5
 - `h5-web/src/app/checkup/page.tsx`: multi-image upload with thumbnail preview grid, delete per image, progress display, calls `POST /api/ocr/batch-recognize` with `scene_name=体检报告识别`, navigates to `/checkup/result/{merged_record_id}`.
