@@ -27,6 +27,27 @@
 - Admin: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api/`
 
+## Latest Feature: 首页菜单 Emoji 图标智能推荐 (2026-04-09)
+
+### Admin Web
+
+- Updated `admin-web/src/app/(admin)/home-menus/page.tsx` — 新增 Emoji 图标智能推荐功能：
+  - 文件头部新增 `EMOJI_KEYWORD_MAP`（11组关键词→Emoji映射）和 `EMOJI_FALLBACK`（兜底列表）常量，以及 `getRecommendedEmojis(title)` 纯前端匹配函数
+  - 组件内新增 `selectedEmoji` 状态和 `Form.useWatch('name', form)` 实时监听菜单名称变化
+  - 弹窗表单中 Emoji 类型分支新增推荐图标区域（浅蓝色背景，标题有值时显示可点击的匹配 Emoji 按钮并高亮选中态，标题为空时显示置灰禁用状态和提示文案）
+  - 新增当前图标大图预览区域（使用 `Form.Item shouldUpdate` 响应 `icon_content` 变化）
+  - 点击推荐 Emoji 自动调用 `form.setFieldsValue({ icon_content: emoji })` 同步更新表单字段
+
+### 数据库兼容性确认
+
+- `home_menu_items.icon_content` 字段已确认支持 UTF-8 4 字节 Emoji 字符存储（含 U+1F3E5 等复杂码位），无需数据库迁移
+
+### User Documentation
+
+- Created `user_docs/首页菜单Emoji图标智能推荐.md` — user manual for home menu emoji icon recommendation feature
+
+---
+
 ## Latest Feature: 健康自查跳转AI咨询增强 (2026-04-09)
 
 ### Backend

@@ -11,6 +11,32 @@ import {
 } from '@ant-design/icons';
 import { get, post, put, del, upload } from '@/lib/api';
 
+const EMOJI_KEYWORD_MAP: { keywords: string[]; emojis: string[] }[] = [
+  { keywords: ['体检', '检查', '检测', '化验'], emojis: ['🏥', '🩺', '💊', '🔬', '📋'] },
+  { keywords: ['运动', '健身', '锻炼', '跑步'], emojis: ['🏃', '💪', '🧘', '🚴', '🏋️'] },
+  { keywords: ['饮食', '营养', '食谱'], emojis: ['🥗', '🍎', '🥦', '🍽️', '🥕'] },
+  { keywords: ['心理', '情绪', '压力', '心情'], emojis: ['🧠', '😊', '💆', '🌿', '❤️'] },
+  { keywords: ['睡眠', '休息', '失眠'], emojis: ['😴', '🌙', '🛌', '💤', '⭐'] },
+  { keywords: ['家庭', '亲子', '家人', '宝宝'], emojis: ['👨‍👩‍👧', '👶', '🏠', '❤️', '🌸'] },
+  { keywords: ['预约', '挂号', '就诊', '看诊'], emojis: ['📅', '🗓️', '📞', '🏨', '✅'] },
+  { keywords: ['报告', '记录', '档案', '数据'], emojis: ['📊', '📈', '📋', '🗂️', '📝'] },
+  { keywords: ['购物', '商城', '积分', '会员'], emojis: ['🛒', '🎁', '💳', '⭐', '🏆'] },
+  { keywords: ['专家', '医生', '咨询', '问诊'], emojis: ['👨‍⚕️', '🩺', '💬', '🔍', '📱'] },
+  { keywords: ['健康', '养生', '保健'], emojis: ['💚', '🌿', '🍃', '✨', '🌟'] },
+];
+
+const EMOJI_FALLBACK = ['⭐', '📋', '🔖', '💡', '🎯', '🌟', '✅', '🏷️'];
+
+function getRecommendedEmojis(title: string): string[] {
+  if (!title) return EMOJI_FALLBACK.slice(0, 5);
+  for (const group of EMOJI_KEYWORD_MAP) {
+    if (group.keywords.some((kw) => title.includes(kw))) {
+      return group.emojis.slice(0, 5);
+    }
+  }
+  return EMOJI_FALLBACK.slice(0, 5);
+}
+
 const { Title } = Typography;
 
 interface HomeMenu {
@@ -35,6 +61,8 @@ export default function HomeMenusPage() {
   const [iconType, setIconType] = useState<string>('emoji');
   const [linkType, setLinkType] = useState<string>('internal');
   const [uploading, setUploading] = useState(false);
+  const [selectedEmoji, setSelectedEmoji] = useState<string>('');
+  const watchedName = Form.useWatch('name', form);
 
   const fetchMenus = useCallback(async () => {
     setLoading(true);
@@ -79,10 +107,12 @@ export default function HomeMenusPage() {
       });
       setIconType(record.icon_type || 'emoji');
       setLinkType(record.link_type || 'internal');
+      setSelectedEmoji(record.icon_type === 'emoji' ? (record.icon_content || '') : '');
     } else {
       form.setFieldsValue({ is_visible: true, sort_order: 0, icon_type: 'emoji', link_type: 'internal' });
       setIconType('emoji');
       setLinkType('internal');
+      setSelectedEmoji('');
     }
     setModalOpen(true);
   };
@@ -282,9 +312,97 @@ export default function HomeMenusPage() {
             </Radio.Group>
           </Form.Item>
           {iconType === 'emoji' ? (
-            <Form.Item label="图标内容" name="icon_content" rules={[{ required: true, message: '请输入Emoji图标' }]}>
-              <Input placeholder="请输入Emoji，如 🏠" maxLength={4} />
-            </Form.Item>
+            <>
+              {/* Emoji recommendation area */}
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 13, color: '#666', marginBottom: 8 }}>推荐图标：</div>
+                <div
+                  style={{
+                    background: '#f0f8ff',
+                    padding: 12,
+                    borderRadius: 8,
+                  }}
+                >
+                  {watchedName ? (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                      {getRecommendedEmojis(watchedName).map((emoji) => (
+                        <button
+                          key={emoji}
+                          type="button"
+                          onClick={() => {
+                            setSelectedEmoji(emoji);
+                            form.setFieldsValue({ icon_content: emoji });
+                          }}
+                          style={{
+                            fontSize: 22,
+                            padding: '4px 8px',
+                            border: selectedEmoji === emoji ? '2px solid #52c41a' : '1px solid #d9d9d9',
+                            borderRadius: 6,
+                            backgroundColor: selectedEmoji === emoji ? '#f6ffed' : '#fff',
+                            cursor: 'pointer',
+                            lineHeight: 1.4,
+                          }}
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, opacity: 0.4 }}>
+                      {EMOJI_FALLBACK.slice(0, 5).map((emoji) => (
+                        <button
+                          key={emoji}
+                          type="button"
+                          disabled
+                          style={{
+                            fontSize: 22,
+                            padding: '4px 8px',
+                            border: '1px solid #d9d9d9',
+                            borderRadius: 6,
+                            backgroundColor: '#fff',
+                            cursor: 'not-allowed',
+                            lineHeight: 1.4,
+                          }}
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                      <div style={{ width: '100%', marginTop: 6, fontSize: 12, color: '#999' }}>
+                        请先填写菜单名称以获取推荐图标
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Current icon preview */}
+              <Form.Item noStyle shouldUpdate={(prev, cur) => prev.icon_content !== cur.icon_content}>
+                {() => {
+                  const iconContent = form.getFieldValue('icon_content');
+                  if (!iconContent) return null;
+                  return (
+                    <div
+                      style={{
+                        background: '#f5f5f5',
+                        borderRadius: 8,
+                        padding: '8px 16px',
+                        marginBottom: 8,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                      }}
+                    >
+                      <span style={{ fontSize: 13, color: '#666' }}>当前图标：</span>
+                      <span style={{ fontSize: 32, lineHeight: 1 }}>{iconContent}</span>
+                    </div>
+                  );
+                }}
+              </Form.Item>
+
+              <Form.Item label="图标内容" name="icon_content" rules={[{ required: true, message: '请输入Emoji图标' }]}>
+                <Input placeholder="请输入Emoji，如 🏠" maxLength={4} />
+              </Form.Item>
+            </>
           ) : (
             <Form.Item label="图标图片" name="icon_content" rules={[{ required: true, message: '请上传图标图片' }]}>
               <Input
