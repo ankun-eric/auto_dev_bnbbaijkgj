@@ -1252,6 +1252,32 @@ All 9 admin API endpoints return HTTP 200 with correct data structure. Admin fro
 
 - Created `user_docs/统一搜索功能.md` — user manual for unified search feature.
 
+## Latest Feature: 首页公告栏后台可配置 (2026-04-09)
+
+### Backend
+- `models/models.py`: 新增 `HomeNotice` 模型（home_notices 表），字段：`id`, `content`（Text），`link_url`（String(500)，可空），`start_time`（DateTime），`end_time`（DateTime），`is_enabled`（Boolean，默认 True），`sort_order`（Integer，默认 0），`created_at`, `updated_at`。
+- `schemas/notice.py`（新建）：`NoticeCreate`, `NoticeUpdate`, `NoticeResponse`, `NoticePatchStatus`, `NoticeSortItem`。
+- `api/notice.py`（新建）：用户端 `GET /api/notices/active`（响应头 `Cache-Control: public, max-age=1800`）；管理端 `GET/POST /api/admin/notices`、`PUT /api/admin/notices/{id}`、`DELETE /api/admin/notices/{id}`、`PATCH /api/admin/notices/{id}/status`、`PUT /api/admin/notices/sort`。
+- `services/schema_sync.py`：新增 `_sync_notice_table()` 自动建表。
+- `main.py`：注册 `notice.router` 和 `notice.admin_router`。
+
+### Admin Web
+- `admin-web/src/app/(admin)/notices/page.tsx`（新建）：公告管理页面，含 Table 列表、新增/编辑 Modal、快捷启用/禁用 Switch、删除 Popconfirm。
+- `admin-web/src/app/(admin)/layout.tsx`：在"首页配置"菜单组下新增"公告管理"（key: `/notices`）。
+
+### H5 Web
+- `h5-web/src/app/(tabs)/home/page.tsx`：NoticeBar 改为动态从 `GET /api/notices/active` 获取，模块级 30 分钟内存缓存，接口失败降级到默认文字，有 link_url 时点击跳转。
+
+### Deployment (2026-04-09)
+- Rebuilt backend, admin-web, h5-web containers
+- 16/16 server API tests passed (notice CRUD, status toggle, active filter, auth checks)
+- All 4 containers healthy
+
+### User Documentation
+- Created `user_docs/首页公告栏后台可配置功能.md`
+
+---
+
 ## Notes For Next Iteration
 
 - Merchant identities are granted by admin only; new self-registered accounts still default to normal users.

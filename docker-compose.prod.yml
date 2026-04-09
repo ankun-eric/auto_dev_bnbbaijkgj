@@ -44,8 +44,8 @@ services:
       TENCENT_SMS_APP_KEY: ${TENCENT_SMS_APP_KEY:-7e3c8242bf0799cca367fa18fa47a7ea}
     volumes:
       - uploads_data:/app/uploads
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"
     depends_on:
       db:
         condition: service_healthy
@@ -67,8 +67,8 @@ services:
       NEXT_PUBLIC_API_URL: /autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api
       NEXT_PUBLIC_BASE_PATH: /autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin
       BACKEND_URL: http://3b7b999d-e51c-4c0d-8f6e-baf90cd26857-backend:8000
-    ports:
-      - "3000:3000"
+    expose:
+      - "3000"
     depends_on:
       - backend
     networks:
@@ -89,8 +89,8 @@ services:
       NEXT_PUBLIC_API_URL: /autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api
       NEXT_PUBLIC_BASE_PATH: /autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857
       BACKEND_URL: http://3b7b999d-e51c-4c0d-8f6e-baf90cd26857-backend:8000
-    ports:
-      - "3001:3001"
+    expose:
+      - "3001"
     depends_on:
       - backend
     networks:
