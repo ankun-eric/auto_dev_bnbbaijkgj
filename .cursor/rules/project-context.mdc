@@ -70,9 +70,9 @@
   - F04: 全流程文案替换为温暖亲切风格
   - 修复: `mimeToFormat()` 中 mp4 映射从 'mp4' 改为 'm4a'（匹配后端 _ASR_FORMAT_MAP），新增 mpeg→mp3 映射
 
-### Deployment (2026-04-09)
-- Rebuilt h5-web container only
-- 5/5 server API tests passed
+### Deployment (2026-04-10)
+- Rebuilt h5-web container only (voice search UX optimization deployed)
+- 6/6 server API tests passed (search page, ASR token, hot search, suggest, homepage, health)
 
 ### User Documentation
 - Created `user_docs/语音搜索体验优化.md`
