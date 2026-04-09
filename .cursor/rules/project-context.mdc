@@ -27,6 +27,39 @@
 - Admin: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api/`
 
+## Latest Feature: 首页公告栏后台可配置 (2026-04-09)
+
+### Backend
+- `models/models.py`: 新增 `HomeNotice` 模型（home_notices 表），字段：content（Text）、link_url（String 500）、start_time（DateTime）、end_time（DateTime）、is_enabled（Boolean）、sort_order（Integer）、created_at、updated_at
+- `schemas/notice.py`（新建）：NoticeCreate、NoticeUpdate、NoticeResponse、NoticePatchStatus、NoticeSortItem
+- `api/notice.py`（新建）：
+  - `GET /api/notices/active`（无需认证，带 Cache-Control: max-age=1800）
+  - `GET /api/admin/notices`（分页列表）
+  - `POST /api/admin/notices`（新增）
+  - `PUT /api/admin/notices/{id}`（编辑）
+  - `DELETE /api/admin/notices/{id}`（删除）
+  - `PATCH /api/admin/notices/{id}/status`（启用/禁用）
+  - `PUT /api/admin/notices/sort`（排序）
+- `services/schema_sync.py`: 新增 `_sync_notice_table()` 自动建表
+- `main.py`: 注册 notice.router 和 notice.admin_router
+
+### H5 Web
+- `h5-web/src/app/(tabs)/home/page.tsx`: 公告栏改为动态获取，30 分钟前端缓存（noticeCache），多条公告以 ` | ` 拼接展示，点击跳转 link_url，无有效公告时显示 FALLBACK_NOTICE
+
+### Admin Web
+- `admin-web/src/app/(admin)/notices/page.tsx`（新建）：公告管理页，支持增删改查、启用/禁用开关、排序权重编辑
+- `admin-web/src/app/(admin)/layout.tsx`: 在"首页配置"菜单组下新增"公告管理"入口（key: /notices）
+
+### Deployment (2026-04-09)
+- Rebuilt backend, admin-web, h5-web containers
+- 18/18 server API tests passed (admin CRUD, status toggle, sort, active filter by time+enabled, cache header, auth)
+- All 4 containers healthy
+
+### User Documentation
+- Created `user_docs/manual_20260409_首页公告栏后台可配置.md`
+
+---
+
 ## Latest Feature: 健康档案功能完善 - 注册引导流程 (2026-04-09)
 
 ### Backend

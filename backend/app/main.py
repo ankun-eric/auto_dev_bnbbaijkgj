@@ -24,6 +24,7 @@ from app.api import (
     health_profile,
     home_config,
     knowledge,
+    notice,
     notification,
     ocr,
     ocr_details,
@@ -99,6 +100,8 @@ app.include_router(prompt_templates.router)
 app.include_router(drug_identify_share.router)
 app.include_router(home_config.router)
 app.include_router(home_config.admin_router)
+app.include_router(notice.router)
+app.include_router(notice.admin_router)
 app.include_router(search.router)
 app.include_router(admin_search.router)
 

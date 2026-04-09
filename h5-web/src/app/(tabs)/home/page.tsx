@@ -1,11 +1,26 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Swiper, Grid, List, Tag, Badge, NoticeBar, SpinLoading } from 'antd-mobile';
 import { useHomeConfig, HomeBanner, HomeMenu } from '@/lib/useHomeConfig';
 import { useFontSize } from '@/lib/useFontSize';
 import FontSettingPopup from '@/components/FontSettingPopup';
+import api from '@/lib/api';
+
+interface NoticeItem {
+  id: number;
+  content: string;
+  link_url: string;
+  start_time: string;
+  end_time: string;
+  is_enabled: boolean;
+  sort_order: number;
+}
+
+const FALLBACK_NOTICE = '宾尼小康提醒您：定期体检，关注健康，预防疾病。';
+const CACHE_DURATION = 30 * 60 * 1000;
+let noticeCache: { data: NoticeItem[]; timestamp: number } | null = null;
 
 const articles = [
   { id: 1, title: '春季养生：这5个习惯让你元气满满', tag: '养生', views: 1230 },
@@ -38,6 +53,26 @@ export default function HomePage() {
   const router = useRouter();
 
   const [fontPopupVisible, setFontPopupVisible] = useState(false);
+  const [notices, setNotices] = useState<NoticeItem[] | null>(null);
+
+  useEffect(() => {
+    const fetchNotices = async () => {
+      const now = Date.now();
+      if (noticeCache && now - noticeCache.timestamp < CACHE_DURATION) {
+        setNotices(noticeCache.data);
+        return;
+      }
+      try {
+        const json = await api.get('/api/notices/active') as { items?: NoticeItem[] };
+        const data: NoticeItem[] = json.items ?? [];
+        noticeCache = { data, timestamp: Date.now() };
+        setNotices(data);
+      } catch {
+        setNotices(null);
+      }
+    };
+    fetchNotices();
+  }, []);
 
   const { config, banners, menus, loading } = useHomeConfig();
   const { fontLevel, fontSize, setFontLevel, fontSwitchEnabled } = useFontSize({
@@ -103,11 +138,24 @@ export default function HomePage() {
       </div>
 
       <div className="px-4 -mt-2">
-        <NoticeBar
-          content="宾尼小康提醒您：定期体检，关注健康，预防疾病。"
-          color="info"
-          style={{ borderRadius: 8, marginBottom: 12, fontSize: 12 }}
-        />
+        {(() => {
+          if (notices !== null && notices.length === 0) return null;
+          const items = notices && notices.length > 0 ? notices : null;
+          const content = items
+            ? items.map((n) => n.content).join(' | ')
+            : FALLBACK_NOTICE;
+          const linkUrl = items
+            ? (items.find((n) => n.link_url)?.link_url ?? '')
+            : '';
+          return (
+            <NoticeBar
+              content={content}
+              color="info"
+              style={{ borderRadius: 8, marginBottom: 12, fontSize: 12 }}
+              onClick={linkUrl ? () => router.push(linkUrl) : undefined}
+            />
+          );
+        })()}
 
         {banners.length > 0 && (
           <Swiper
