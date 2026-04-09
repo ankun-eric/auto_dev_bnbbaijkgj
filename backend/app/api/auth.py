@@ -17,6 +17,7 @@ from app.core.security import (
 from app.models.models import (
     AccountIdentity,
     FamilyMember,
+    HealthProfile,
     IdentityType,
     MerchantProfile,
     MerchantStoreMembership,
@@ -61,6 +62,19 @@ async def ensure_self_family_member(db: AsyncSession, user_id: int) -> None:
         is_self=True,
         status="active",
     ))
+    await db.flush()
+
+
+async def ensure_self_health_profile(db: AsyncSession, user_id: int) -> None:
+    result = await db.execute(
+        select(HealthProfile).where(
+            HealthProfile.user_id == user_id,
+            HealthProfile.family_member_id.is_(None),
+        )
+    )
+    if result.scalar_one_or_none():
+        return
+    db.add(HealthProfile(user_id=user_id, family_member_id=None))
     await db.flush()
 
 
@@ -169,6 +183,10 @@ async def register(data: UserCreate, db: AsyncSession = Depends(get_db)):
     await db.flush()
     await ensure_identity(db, user.id, IdentityType.user)
     await ensure_self_family_member(db, user.id)
+    try:
+        await ensure_self_health_profile(db, user.id)
+    except Exception:
+        pass
     await db.refresh(user)
 
     needs_profile_completion = (
@@ -285,6 +303,10 @@ async def sms_login(data: SMSLoginRequest, db: AsyncSession = Depends(get_db)):
         await db.flush()
         await ensure_identity(db, user.id, IdentityType.user)
         await ensure_self_family_member(db, user.id)
+        try:
+            await ensure_self_health_profile(db, user.id)
+        except Exception:
+            pass
         await db.refresh(user)
         is_new_user = True
 

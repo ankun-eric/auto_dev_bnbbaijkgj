@@ -362,6 +362,7 @@ class HealthProfile(Base):
     food_allergies = mapped_column(Text, nullable=True)
     other_allergies = mapped_column(Text, nullable=True)
     genetic_diseases = mapped_column(JSON, nullable=True)
+    guide_count = Column(Integer, default=0, nullable=False, server_default="0")
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -1596,3 +1597,20 @@ class DrugSearchKeyword(Base):
     id = mapped_column(Integer, primary_key=True, autoincrement=True)
     keyword = mapped_column(String(100), unique=True, nullable=False)
     is_active = mapped_column(Boolean, default=True)
+
+
+# ──────────────── 首页公告栏 ────────────────
+
+
+class HomeNotice(Base):
+    __tablename__ = "home_notices"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    content = mapped_column(Text, nullable=False)
+    link_url = mapped_column(String(500), nullable=True)
+    start_time = mapped_column(DateTime, nullable=False)
+    end_time = mapped_column(DateTime, nullable=False)
+    is_enabled = mapped_column(Boolean, nullable=False, default=True)
+    sort_order = mapped_column(Integer, nullable=False, default=0)
+    created_at = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)

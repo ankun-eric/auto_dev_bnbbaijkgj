@@ -103,6 +103,8 @@ export default function LoginPage() {
           ? `注册成功！您的会员卡号: ${res.user.member_card_no}`
           : '注册成功，欢迎加入';
         Toast.show({ content: cardInfo, duration: 3000 });
+        router.replace('/health-guide');
+        return;
       } else {
         Toast.show({ content: '登录成功' });
       }
@@ -113,7 +115,7 @@ export default function LoginPage() {
           confirmText: '立即完善',
           cancelText: '稍后再说',
         });
-        router.replace(shouldComplete ? '/health-profile' : '/home');
+        router.replace(shouldComplete ? '/health-guide' : '/home');
         return;
       }
       router.replace('/home');

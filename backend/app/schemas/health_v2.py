@@ -76,3 +76,19 @@ class HealthProfileV2Response(BaseModel):
         filled = sum(1 for f in fields if f is not None)
         self.completeness = round(filled / len(fields), 2)
         return self
+
+
+class HealthGuideStatusResponse(BaseModel):
+    should_show_guide: bool
+    guide_count: int
+    profile_completeness: float
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class HealthGuideUpdateRequest(BaseModel):
+    action: str  # "skip" or "complete"
+
+
+class HealthGuideUpdateResponse(BaseModel):
+    guide_count: int

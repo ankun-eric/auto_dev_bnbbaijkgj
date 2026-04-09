@@ -11,6 +11,7 @@ import {
   Input,
   TextArea,
 } from 'antd-mobile';
+import api from '@/lib/api';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -169,6 +170,9 @@ function Section({
 export default function HealthProfilePage() {
   const router = useRouter();
 
+  // Guide banner
+  const [showGuideBanner, setShowGuideBanner] = useState(false);
+
   // Members
   const [members, setMembers] = useState<FamilyMember[]>([]);
   const [membersLoading, setMembersLoading] = useState(true);
@@ -264,6 +268,17 @@ export default function HealthProfilePage() {
   useEffect(() => {
     fetchMembers();
     fetchPresets();
+    const fetchGuideStatus = async () => {
+      try {
+        const res: any = await api.get('/api/health/guide-status');
+        if (res.guide_count === 1 && res.profile_completeness < 1.0) {
+          setShowGuideBanner(true);
+        }
+      } catch {
+        // ignore
+      }
+    };
+    fetchGuideStatus();
   }, []);
 
   useEffect(() => {
@@ -388,6 +403,33 @@ export default function HealthProfilePage() {
       >
         健康档案
       </NavBar>
+
+      {/* ── Guide banner ───────────────────────────────────────────────────── */}
+      {showGuideBanner && (
+        <div className="px-4 pb-2">
+          <div
+            className="flex items-center justify-between cursor-pointer"
+            style={{
+              background: 'linear-gradient(135deg, #f6ffed, #e6fffb)',
+              border: '1px solid #b7eb8f',
+              borderRadius: 12,
+              padding: '12px 16px',
+            }}
+            onClick={() => router.replace('/health-guide')}
+          >
+            <span className="text-sm text-gray-700 flex-1">您的健康档案还未完善，点击立即补充</span>
+            <button
+              className="ml-2 text-gray-400 text-lg leading-none flex-shrink-0"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowGuideBanner(false);
+              }}
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── Member switcher ────────────────────────────────────────────────── */}
       <div className="px-4 pb-2">

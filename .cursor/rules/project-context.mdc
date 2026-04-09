@@ -27,6 +27,29 @@
 - Admin: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api/`
 
+## Latest Feature: 健康档案功能完善 - 注册引导流程 (2026-04-09)
+
+### Backend
+- `models/models.py`: `HealthProfile` 新增 `guide_count`（Integer，默认0，记录用户查看引导次数）
+- `schemas/health_v2.py`: 新增 `HealthGuideStatusResponse`、`HealthGuideUpdateRequest`、`HealthGuideUpdateResponse` 三个 Schema
+- `api/health_profile.py`: 新增 `GET /api/health/guide-status`（获取引导状态，返回 should_show_guide/guide_count/profile_completeness）、`POST /api/health/guide-status`（更新引导次数，支持 action=skip/complete）
+- `api/auth.py`: 注册（register/sms_login 新用户分支）成功后，自动调用 `ensure_self_health_profile` 创建空的本人健康档案记录（try/except 包裹，不影响注册流程）
+
+### H5 Web
+- `h5-web/src/app/health-guide/page.tsx`（新建）：4步健康档案引导页；顶部步骤进度指示器（第X步/共4步+进度条）；Step1基本信息/Step2慢性病史/Step3过敏史/Step4遗传病史；右上角「跳过」按钮；底部「上一步/下一步/完成」按钮；完成后 Toast 提示并跳转首页
+- `h5-web/src/app/login/page.tsx`: 新用户（is_new_user=true）注册成功后直接跳转 `/health-guide`；老用户档案不完整时弹 Dialog 确认后跳转 `/health-guide`
+- `h5-web/src/app/health-profile/page.tsx`: 页面加载时调用 GET /api/health/guide-status；guide_count===1 且档案未完善时显示顶部 Banner 提示（点击跳转 /health-guide，× 关闭）
+
+### User Documentation
+- Created `user_docs/健康档案功能完善.md`
+
+### Deployment (2026-04-09)
+- Added `guide_count` column to health_profiles table via ALTER TABLE
+- Rebuilt backend and h5-web containers
+- 31/31 server API tests passed
+
+---
+
 ## Latest Feature: 健康档案 & 家庭成员功能重构 (2026-04-09)
 
 ### Backend
