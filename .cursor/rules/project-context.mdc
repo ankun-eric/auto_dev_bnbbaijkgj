@@ -1346,8 +1346,52 @@ All 9 admin API endpoints return HTTP 200 with correct data structure. Admin fro
 
 ---
 
+## Latest Feature: 语音搜索多端升级 (2026-04-09)
+
+### Backend
+- `backend/app/api/search.py`: 新增 `POST /api/search/asr/recognize` 语音识别接口（multipart/form-data 上传音频文件，调用腾讯云一句话识别 ASR API，TC3-HMAC-SHA256 签名，5秒超时，IP频率限制每分钟10次）
+- `backend/app/schemas/search.py`: 新增 `AsrRecognizeResponse` Schema（success/data/error/error_code）
+- 辅助函数：`_check_asr_rate_limit()`、`_tc3_hmac_sha256()`、`_build_asr_authorization()`、`_call_tencent_asr()`
+
+### H5 Web
+- `h5-web/src/app/search/page.tsx`: 语音搜索完整升级 — 移除占位文案，实现长按录音（MediaRecorder + AnalyserNode）、全屏声波动画遮罩、腾讯云 ASR 识别、2秒自动搜索倒计时；支持浏览器兼容性检测（不支持时隐藏麦克风按钮）
+
+### Mini Program
+- `miniprogram/pages/search/`（新建）: 搜索页，含输入搜索+热门搜索+历史+联想+语音搜索（微信同声传译插件 WechatSI）
+- `miniprogram/pages/search-result/`（新建）: 搜索结果页，Tab切换（全部/文章/视频/服务/积分商品）+分页加载
+- `miniprogram/pages/home/index.js`: `onSearchTap` 跳转改为 `/pages/search/index`
+- `miniprogram/app.json`: 注册 `pages/search/index` 和 `pages/search-result/index`
+
+### Flutter App
+- `flutter_app/lib/screens/search/search_screen.dart`（新建）: 搜索主页面，含热门搜索+历史+联想+语音搜索（record 插件录音 + 后端 ASR）
+- `flutter_app/lib/screens/search/search_result_screen.dart`（新建）: 搜索结果页，5个Tab+分页
+- `flutter_app/lib/config/api_config.dart`: 新增 8 个搜索 API 路径常量
+- `flutter_app/lib/services/api_service.dart`: 新增 8 个搜索 API 方法（含 asrRecognize MultipartFile 上传）
+- `flutter_app/lib/main.dart`: 注册 `/search` 和 `/search-result` 路由
+- `flutter_app/lib/screens/home/home_screen.dart`: 搜索框 onTap 跳转 `/search`
+- `flutter_app/pubspec.yaml`: 添加 `record: ^5.1.0` 依赖
+
+### Testing
+- `backend/tests/test_voice_search.py`: 11 个本地测试全部通过
+- `test_server_voice_search.py`: 12/12 服务器 API 测试全部通过
+
+### Deployment (2026-04-09)
+- Rebuilt backend and h5-web containers
+- All 4 containers healthy (db, backend, admin-web, h5-web)
+
+### Generated Delivery Artifacts
+- Mini program: `miniprogram_20260409_230548_2d04.zip`
+- Android APK: `bini_health_android-v20260409-232937-31da.apk` (GitHub Release: `android-v20260409-232937-31da`)
+- iOS IPA: `bini_health_ios-v20260409-231810-5d7b.ipa` (GitHub Release: `ios-v20260409-231810-5d7b`)
+
+### User Documentation
+- Created `user_docs/语音搜索多端升级.md`
+
+---
+
 ## Notes For Next Iteration
 
+- Voice search: H5 uses browser MediaRecorder + backend ASR; miniprogram uses WechatSI plugin (no backend ASR needed); Flutter uses record plugin + backend ASR. ASR config managed via admin panel (搜索管理 → 语音配置).
 - Merchant identities are granted by admin only; new self-registered accounts still default to normal users.
 - Old user and merchant accounts require admin-side manual merge before official cutover.
 - If remote DB schema lags behind models, check startup schema synchronization and the new merchant-related tables first.
