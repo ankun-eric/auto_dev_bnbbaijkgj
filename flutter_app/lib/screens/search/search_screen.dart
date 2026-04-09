@@ -63,6 +63,7 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   void _onInputChanged() {
+    setState(() {}); // 确保搜索栏图标状态即时刷新
     final text = _controller.text.trim();
     _debounceTimer?.cancel();
     if (text.isEmpty) {
@@ -230,31 +231,35 @@ class _SearchScreenState extends State<SearchScreen> {
               style: const TextStyle(fontSize: 14),
             ),
           ),
-          if (_controller.text.isNotEmpty)
+          GestureDetector(
+            onTap: _startRecording,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF52C41A).withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.mic, color: Color(0xFF52C41A), size: 18),
+              ),
+            ),
+          ),
+          if (_controller.text.isNotEmpty) ...[
+            const SizedBox(width: 8),
             GestureDetector(
               onTap: () {
                 _controller.clear();
                 _cancelAutoSearch();
               },
               child: const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 6),
+                padding: EdgeInsets.only(right: 4),
                 child: Icon(Icons.close, size: 18, color: Color(0xFF999999)),
               ),
             ),
-          GestureDetector(
-            onLongPressStart: (_) => _startRecording(),
-            onTap: _startRecording,
-            child: Container(
-              width: 36,
-              height: 36,
-              margin: const EdgeInsets.only(right: 2),
-              decoration: BoxDecoration(
-                color: const Color(0xFF52C41A).withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.mic, color: Color(0xFF52C41A), size: 20),
-            ),
-          ),
+          ],
+          const SizedBox(width: 4),
         ],
       ),
     );
@@ -416,13 +421,18 @@ class _VoiceRecordDialogState extends State<_VoiceRecordDialog> with TickerProvi
   String? _filePath;
 
   late AnimationController _waveController;
+  late Animation<double> _pulseAnimation;
   List<double> _amplitudes = List.filled(7, 0.15);
   final Random _random = Random();
 
   @override
   void initState() {
     super.initState();
-    _waveController = AnimationController(vsync: this, duration: const Duration(milliseconds: 300));
+    _waveController = AnimationController(vsync: this, duration: const Duration(milliseconds: 750));
+    _pulseAnimation = Tween<double>(begin: 0.94, end: 1.06).animate(
+      CurvedAnimation(parent: _waveController, curve: Curves.easeInOut),
+    );
+    _waveController.repeat(reverse: true);
     _startRecording();
   }
 
@@ -525,7 +535,8 @@ class _VoiceRecordDialogState extends State<_VoiceRecordDialog> with TickerProvi
         return;
       }
       final asrData = result['data'];
-      final text = (asrData is Map ? asrData['text']?.toString() : null) ?? result['text']?.toString() ?? '';
+      final rawText = (asrData is Map ? asrData['text']?.toString() : null) ?? result['text']?.toString() ?? '';
+      final text = _removePunctuation(rawText);
       if (text.isEmpty) {
         setState(() {
           _recognizing = false;
@@ -541,6 +552,17 @@ class _VoiceRecordDialogState extends State<_VoiceRecordDialog> with TickerProvi
         _error = '识别失败，请重试';
       });
     }
+  }
+
+  static String _removePunctuation(String str) {
+    return str
+        .replaceAll(
+          RegExp(
+            r'[\u3002\uff1b\uff0c\uff1a\u201c\u201d\u2018\u2019\uff08\uff09\u3001\uff1f\u300a\u300b\uff01\u3010\u3011\u2026\u2014\uff5e\u00b7.,!?;:\x27\x22()\[\]{}\-_\/\\@#\$%\^&\*\+=~`<>]',
+          ),
+          '',
+        )
+        .trim();
   }
 
   @override
@@ -580,7 +602,7 @@ class _VoiceRecordDialogState extends State<_VoiceRecordDialog> with TickerProvi
       mainAxisSize: MainAxisSize.min,
       children: [
         SizedBox(
-          height: 80,
+          height: 100,
           child: Row(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.center,
@@ -588,7 +610,7 @@ class _VoiceRecordDialogState extends State<_VoiceRecordDialog> with TickerProvi
               return AnimatedContainer(
                 duration: const Duration(milliseconds: 150),
                 width: 6,
-                height: 80 * _amplitudes[i],
+                height: 100 * _amplitudes[i],
                 margin: const EdgeInsets.symmetric(horizontal: 3),
                 decoration: BoxDecoration(
                   color: const Color(0xFF52C41A),
@@ -607,8 +629,52 @@ class _VoiceRecordDialogState extends State<_VoiceRecordDialog> with TickerProvi
             fontWeight: FontWeight.w600,
           ),
         ),
-        const SizedBox(height: 16),
-        const Text('松开或点击结束', style: TextStyle(color: Colors.white70, fontSize: 14)),
+        const SizedBox(height: 24),
+        GestureDetector(
+          onTap: _stopAndRecognize,
+          child: ScaleTransition(
+            scale: _pulseAnimation,
+            child: Container(
+              width: 100,
+              height: 100,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                border: Border.all(color: const Color(0xFF52C41A), width: 3),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF52C41A).withOpacity(0.35),
+                    blurRadius: 14,
+                    spreadRadius: 0,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF52C41A),
+                      borderRadius: BorderRadius.circular(1),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    '点我结束~',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Color(0xFF52C41A),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ],
     );
   }

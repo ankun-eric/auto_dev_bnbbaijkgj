@@ -69,6 +69,10 @@ function mimeToFormat(mime: string): string {
   return 'webm';
 }
 
+const removePunctuation = (str: string): string => {
+  return str.replace(/[\u3002\uff1b\uff0c\uff1a\u201c\u201d\u2018\u2019\uff08\uff09\u3001\uff1f\u300a\u300b\uff01\u3010\u3011\u2026\u2014\uff5e\u00b7.,!?;:'"()\[\]{}\-_\/\\@#\$%\^&\*\+=~`<>]/g, '').trim();
+};
+
 export default function SearchPage() {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -276,20 +280,21 @@ export default function SearchPage() {
         return;
       }
       const text = data?.data?.text || data?.text || '';
-      if (!text) {
+      const cleanText = removePunctuation(text);
+      if (!cleanText) {
         setErrorMsg('好像没听到声音哦，再试试~');
         setOverlayState('error');
         return;
       }
       closeOverlay();
-      setKeyword(text);
+      setKeyword(cleanText);
       setAutoSearchCountdown(AUTO_SEARCH_SEC);
       let remaining = AUTO_SEARCH_SEC;
       autoSearchTimerRef.current = setInterval(() => {
         remaining -= 1;
         if (remaining <= 0) {
           clearAutoSearch();
-          doSearch(text, 'voice');
+          doSearch(cleanText, 'voice');
         } else {
           setAutoSearchCountdown(remaining);
         }
@@ -480,29 +485,31 @@ export default function SearchPage() {
               placeholder="搜索文章、视频、服务、商品"
               className="flex-1 bg-transparent border-none outline-none text-sm ml-2 text-gray-800 placeholder-gray-400"
             />
-            {keyword && (
-              <button
-                className="flex-shrink-0 w-5 h-5 rounded-full bg-gray-300 flex items-center justify-center"
-                onClick={handleClearKeyword}
-              >
-                <span className="text-white text-xs leading-none">×</span>
-              </button>
-            )}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {showMicButton && (
+                <button
+                  className="flex-shrink-0 w-8 h-8 flex items-center justify-center"
+                  onClick={handleMicClick}
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#52c41a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                    <line x1="12" y1="19" x2="12" y2="23" />
+                    <line x1="8" y1="23" x2="16" y2="23" />
+                  </svg>
+                </button>
+              )}
+              {keyword && (
+                <button
+                  className="flex-shrink-0 w-5 h-5 rounded-full bg-gray-300 flex items-center justify-center"
+                  onClick={handleClearKeyword}
+                >
+                  <span className="text-white text-xs leading-none">×</span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
-        {showMicButton && (
-          <button
-            className="flex-shrink-0 w-8 h-8 flex items-center justify-center"
-            onClick={handleMicClick}
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#52c41a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-              <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-              <line x1="12" y1="19" x2="12" y2="23" />
-              <line x1="8" y1="23" x2="16" y2="23" />
-            </svg>
-          </button>
-        )}
         <button
           className="flex-shrink-0 text-sm font-medium ml-1"
           style={{ color: '#52c41a' }}
@@ -723,12 +730,12 @@ export default function SearchPage() {
               </div>
 
               {/* Sound wave bars (7 bars) */}
-              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 5, height: 80, marginBottom: 32 }}>
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 5, height: 100, marginBottom: 32 }}>
                 {volumeBars.map((v, i) => (
                   <div key={i} style={{
                     width: 5, borderRadius: 3,
                     background: 'linear-gradient(to top, #52c41a, #13c2c2)',
-                    height: `${Math.max(12, v * 80)}px`,
+                    height: `${Math.max(15, v * 100)}px`,
                     transition: 'height 0.1s ease-out',
                   }} />
                 ))}
@@ -738,7 +745,7 @@ export default function SearchPage() {
               <button
                 onClick={stopRecording}
                 style={{
-                  width: 80, height: 80, borderRadius: '50%',
+                  width: 100, height: 100, borderRadius: '50%',
                   background: '#fff', border: '3px solid #52c41a',
                   display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                   cursor: 'pointer', gap: 4,
@@ -746,8 +753,8 @@ export default function SearchPage() {
                   animation: 'pulse-glow 1.5s ease-in-out infinite',
                 }}
               >
-                <div style={{ width: 8, height: 8, background: '#52c41a', borderRadius: 1 }} />
-                <span style={{ fontSize: 12, color: '#52c41a', fontWeight: 500, lineHeight: 1.2 }}>点我结束~</span>
+                <div style={{ width: 10, height: 10, background: '#52c41a', borderRadius: 1 }} />
+                <span style={{ fontSize: 16, color: '#52c41a', fontWeight: 500, lineHeight: 1.2 }}>点我结束~</span>
               </button>
             </>
           )}

@@ -12,12 +12,14 @@
         bindinput="onInput"
         bindconfirm="onSearch"
       />
-      <view class="clear-btn" wx:if="{{keyword}}" catchtap="onClear">
-        <text class="clear-icon">✕</text>
+      <view class="search-box-icons">
+        <view class="mic-btn-inline" catchtap="onMicTap">
+          <text class="mic-icon-inline">🎤</text>
+        </view>
+        <view class="clear-btn" wx:if="{{keyword}}" catchtap="onClear">
+          <text class="clear-icon">✕</text>
+        </view>
       </view>
-    </view>
-    <view class="mic-btn" bindlongpress="onMicLongPress" bindtouchend="onMicTouchEnd" catchtap="onMicTap">
-      <text class="mic-icon">🎤</text>
     </view>
     <view class="search-btn" bindtap="onSearch">
       <text class="search-btn-text">搜索</text>
@@ -81,7 +83,10 @@
           <view class="wave-bar wave-bar-5"></view>
         </view>
         <text class="voice-duration">{{recordingTime}}s / 15s</text>
-        <text class="voice-hint">松开结束</text>
+        <view class="stop-btn" catchtap="onStopRecording">
+          <view class="stop-btn-dot"></view>
+          <text class="stop-btn-text">点我结束~</text>
+        </view>
       </view>
 
       <!-- Recognizing State -->

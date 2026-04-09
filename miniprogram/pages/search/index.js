@@ -22,7 +22,6 @@ Page({
   _autoSearchTimer: null,
   _countdownTimer: null,
   _recognizeManager: null,
-  _pendingVoiceSource: false,
   /** 下一次搜索是否来自语音识别（不落 data，避免 setData 下划线字段异常） */
   _pendingVoiceSource: false,
 
@@ -44,22 +43,27 @@ Page({
     if (this._countdownTimer) { clearInterval(this._countdownTimer); this._countdownTimer = null; }
   },
 
+  _removePunctuation(str) {
+    return str.replace(/[\u3002\uff1b\uff0c\uff1a\u201c\u201d\u2018\u2019\uff08\uff09\u3001\uff1f\u300a\u300b\uff01\u3010\u3011\u2026\u2014\uff5e\u00b7.,!?;:'"()\[\]{}\-_\/\\@#\$%\^&\*\+=~`<>]/g, '').trim();
+  },
+
   _initRecognizeManager() {
     const manager = plugin.getRecordRecognitionManager();
 
     manager.onRecognize = (res) => {
       if (res.result) {
-        this.setData({ keyword: res.result });
+        this.setData({ keyword: this._removePunctuation(res.result) });
       }
     };
 
     manager.onStop = (res) => {
       if (this._recordTimer) { clearInterval(this._recordTimer); this._recordTimer = null; }
 
-      if (res.result) {
+      const text = res.result ? this._removePunctuation(res.result) : '';
+      if (text) {
         this._pendingVoiceSource = true;
         this.setData({
-          keyword: res.result,
+          keyword: text,
           showVoiceOverlay: false,
           voiceState: '',
         });
@@ -243,8 +247,19 @@ Page({
 
   // --- Voice ---
   onMicTap() {
-    // Short tap hint
-    wx.showToast({ title: '长按开始语音搜索', icon: 'none', duration: 1500 });
+    if (this.data.showVoiceOverlay) return;
+    this._cancelAutoSearch();
+    this.setData({
+      showVoiceOverlay: true,
+      voiceState: 'recording',
+      recordingTime: 0,
+      voiceErrorMsg: ''
+    });
+    this._startRecording();
+  },
+
+  onStopRecording() {
+    this._stopRecording();
   },
 
   onMicLongPress() {
