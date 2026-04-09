@@ -79,6 +79,37 @@
 
 ---
 
+## Feature: 语音搜索体验细节打磨 (2026-04-10)
+
+### H5 Web
+- `h5-web/src/app/search/page.tsx`: 三项体验优化
+  - F01 ASR去标点: 新增 `removePunctuation()` 工具函数，清除识别结果中所有中英文标点；空结果不触发搜索并显示错误提示
+  - F02 按钮放大: "点我结束"按钮从 80px→100px，文字从 12px→16px，脉动动画同步缩放
+  - F03 双图标: 搜索框有文字时同时显示麦克风和清除(×)图标，麦克风在左清除在右，间距8px
+
+### Mini Program
+- `miniprogram/pages/search/index.js`: 新增 `_removePunctuation()` 方法，`onRecognize`/`onStop` 回调中调用去标点；`onMicTap` 改为点击即录音；新增 `onStopRecording` 结束录音方法
+- `miniprogram/pages/search/index.wxml`: 搜索框内新增 `.search-box-icons` 容器（内嵌麦克风+清除图标）；录音遮罩新增 `.stop-btn` 圆形按钮（200rpx/32rpx）
+- `miniprogram/pages/search/index.wxss`: 新增 `.stop-btn`/`.stop-btn-dot`/`.stop-btn-text`/`.search-box-icons`/`.mic-btn-inline` 样式；`@keyframes pulse-glow` 脉动动画
+
+### Flutter App
+- `flutter_app/lib/screens/search/search_screen.dart`: `_VoiceRecordDialogState` 新增 `_removePunctuation()` 静态方法；`_recognize()` 中调用去标点，空结果显示错误；录音按钮改为 `GestureDetector` + `ScaleTransition` 圆形按钮（100px/16px）；搜索栏内同时显示麦克风和清除图标
+
+### Deployment (2026-04-10)
+- Rebuilt h5-web container (voice search UX detail polishing deployed)
+- 7/7 server API tests passed
+- Mini program packaged: `miniprogram_20260410_012921_b620.zip`
+- Android APK: `bini_health_android-v20260410-013002-86b8.apk` (GitHub Release: `android-v20260410-013002-86b8`)
+
+### Generated Delivery Artifacts
+- Mini program: `miniprogram_20260410_012921_b620.zip` (download: `/uploads/miniprogram_20260410_012921_b620.zip`)
+- Android APK: `bini_health_android-v20260410-013002-86b8.apk` (download: `/uploads/bini_health_android-v20260410-013002-86b8.apk`)
+
+### User Documentation
+- Updated `user_docs/语音搜索体验优化.md`
+
+---
+
 ## Feature: 健康档案功能完善 - 注册引导流程 (2026-04-09)
 
 ### Backend
