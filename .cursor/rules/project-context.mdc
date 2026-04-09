@@ -27,7 +27,23 @@
 - Admin: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api/`
 
-## Latest Feature: OCR 识别多图上传
+## Latest Feature: 健康自查跳转AI咨询增强 (2026-04-09)
+
+### Backend
+- `models/models.py`: `HealthProfile` 移除 `user_id` unique 约束，新增 `family_member_id`（外键 `family_members.id`）、`medical_histories`（JSON）、`allergies`（JSON）字段；`FamilyMember` 新增 `birthday`、`gender`、`height`、`weight`、`medical_histories`、`allergies` 字段；`ChatSession` 新增 `symptom_info`（JSON）字段。
+- `api/family.py`: 新增 `GET /api/family/members/{id}`（获取单个家庭成员）、`PUT /api/family/members/{id}`（更新家庭成员含健康字段）。
+- `api/health_profile.py`: 新增 `GET /api/health/profile/member/{id}`、`PUT /api/health/profile/member/{id}`（家庭成员健康档案的 upsert）；现有接口加 `family_member_id IS NULL` 条件区分主用户档案与家庭成员档案。
+- `api/chat.py`: `POST /api/chat/sessions` 支持 `symptom_info` 和 `family_member_id`；新增辅助函数 `_build_health_context()` 将家庭成员健康档案自动注入 AI system prompt；新增 `POST /api/chat/sessions/{id}/switch-member` 切换咨询对象接口。
+- `schemas/user.py`: `FamilyMemberCreate/Response` 新增健康字段；新增 `FamilyMemberUpdate`。
+- `schemas/health.py`: `HealthProfileCreate/Update/Response` 新增 `family_member_id`、`medical_histories`、`allergies`。
+- `schemas/chat.py`: `ChatSessionCreate/Response` 新增 `symptom_info`。
+- `backend/migrate_symptom_feature.py`: 数据库迁移脚本（MySQL ALTER TABLE）。
+
+### H5 Web
+- `h5-web/src/app/symptom/page.tsx`: 点击"AI智能分析"后弹出家庭成员选择 Popup，支持选择已有成员、新建成员（含 DatePicker 生日选择）、查看/编辑健康档案；"确认并开始分析"调用后端创建真实 ChatSession，使用真实 session_id 跳转。
+- `h5-web/src/app/chat/[sessionId]/page.tsx`: 读取 URL `type/msg/member` 参数，自动发送第一条消息（防重复机制）；新增顶部症状摘要条（展开/收起）；第一条 symptom 消息渲染为绿色症状卡片；输入框旁新增「👤」切换咨询对象图标，支持随时切换。
+
+## Latest Feature (previous): OCR 识别多图上传
 
 ### Backend
 - `POST /api/ocr/batch-recognize` enhanced: now returns `merged_ocr_text`, `merged_ai_result`, `merged_record_id`, `session_id` after AI-merging all successful OCR texts.

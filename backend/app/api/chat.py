@@ -1,8 +1,9 @@
 import json
 import time
+from datetime import date
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
 from jose import JWTError, jwt
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,6 +17,8 @@ from app.models.models import (
     AiSensitiveWord,
     ChatMessage,
     ChatSession,
+    FamilyMember,
+    HealthProfile,
     MessageRole,
     MessageType,
     SessionType,
@@ -64,6 +67,95 @@ async def _append_disclaimer(content: str, session_type: str, db: AsyncSession) 
     return content
 
 
+def _calc_age(birthday: date) -> int:
+    today = date.today()
+    return today.year - birthday.year - ((today.month, today.day) < (birthday.month, birthday.day))
+
+
+def _calc_bmi(height: float, weight: float) -> float:
+    return weight / ((height / 100) ** 2)
+
+
+async def _build_health_context(session: ChatSession, db: AsyncSession) -> str:
+    """Build a health profile context string to append to system_prompt."""
+    context_parts = []
+
+    if session.family_member_id:
+        member_result = await db.execute(
+            select(FamilyMember).where(FamilyMember.id == session.family_member_id)
+        )
+        member = member_result.scalar_one_or_none()
+
+        profile_result = await db.execute(
+            select(HealthProfile).where(
+                HealthProfile.user_id == session.user_id,
+                HealthProfile.family_member_id == session.family_member_id,
+            )
+        )
+        profile = profile_result.scalar_one_or_none()
+
+        if member:
+            nickname = member.nickname or "家庭成员"
+            rel = member.relationship_type
+            gender = (profile.gender if profile and profile.gender else None) or member.gender or "未知"
+            birthday = (profile.birthday if profile and profile.birthday else None) or member.birthday
+            height = (profile.height if profile and profile.height else None) or member.height
+            weight = (profile.weight if profile and profile.weight else None) or member.weight
+            medical_histories = (profile.medical_histories if profile and profile.medical_histories else None) or member.medical_histories or []
+            allergies = (profile.allergies if profile and profile.allergies else None) or member.allergies or []
+
+            age_str = f"{_calc_age(birthday)}岁" if birthday else "年龄未知"
+            bmi_str = f"，BMI：{_calc_bmi(height, weight):.1f}" if height and weight else ""
+            height_str = f"{height}cm" if height else "未知"
+            weight_str = f"{weight}kg" if weight else "未知"
+            histories_str = "、".join(medical_histories) if medical_histories else "无"
+            allergies_str = "、".join(allergies) if allergies else "无"
+
+            context_parts.append(f"\n\n## 本次咨询对象健康档案")
+            context_parts.append(f"咨询对象：{rel}·{nickname}，{gender}，{age_str}")
+            context_parts.append(f"身高：{height_str}，体重：{weight_str}{bmi_str}")
+            context_parts.append(f"既往病史：{histories_str}")
+            context_parts.append(f"过敏史：{allergies_str}")
+
+    if session.symptom_info:
+        si = session.symptom_info
+        parts = []
+        if si.get("body_part"):
+            parts.append(f"部位：{si['body_part']}")
+        if si.get("symptoms"):
+            symptoms = si["symptoms"]
+            if isinstance(symptoms, list):
+                parts.append(f"症状：{'、'.join(symptoms)}")
+            else:
+                parts.append(f"症状：{symptoms}")
+        if si.get("duration"):
+            parts.append(f"持续时间：{si['duration']}")
+        if si.get("description"):
+            parts.append(si["description"])
+        if parts:
+            context_parts.append(f"\n本次自查症状：{'；'.join(parts)}")
+
+    if not context_parts:
+        return ""
+
+    if session.family_member_id:
+        _member_result = await db.execute(
+            select(FamilyMember).where(FamilyMember.id == session.family_member_id)
+        )
+        _member = _member_result.scalar_one_or_none()
+        rel = _member.relationship_type if _member else "家庭成员"
+        context_parts.append(
+            f'\n\n请以亲切自然的语气，在回复中自然融入对咨询对象信息的引用，不要集中列出，'
+            f'开头可以"您好，我注意到这次是为您的{rel}咨询..."'
+        )
+    else:
+        context_parts.append(
+            "\n\n请结合用户的症状信息提供针对性的健康建议。"
+        )
+
+    return "\n".join(context_parts)
+
+
 @router.post("/sessions", response_model=ChatSessionResponse)
 async def create_session(
     data: ChatSessionCreate,
@@ -75,6 +167,7 @@ async def create_session(
         session_type=data.session_type,
         title=data.title or "新对话",
         family_member_id=data.family_member_id,
+        symptom_info=data.symptom_info,
     )
     db.add(session)
     await db.flush()
@@ -184,6 +277,10 @@ async def send_message(
     session_type_val = session.session_type.value if hasattr(session.session_type, "value") else session.session_type
     system_prompt = await _get_system_prompt(session_type_val, db)
 
+    health_context = await _build_health_context(session, db)
+    if health_context:
+        system_prompt += health_context
+
     knowledge_hits = []
     try:
         kb_result = await search_knowledge(
@@ -247,6 +344,66 @@ async def send_message(
     if knowledge_hits:
         resp["knowledge_hits"] = knowledge_hits
     return resp
+
+
+@router.post("/sessions/{session_id}/switch-member")
+async def switch_session_member(
+    session_id: int,
+    family_member_id: Optional[int] = Body(None, embed=True),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(ChatSession).where(ChatSession.id == session_id, ChatSession.user_id == current_user.id)
+    )
+    session = result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(status_code=404, detail="会话不存在")
+
+    if family_member_id is not None:
+        member_result = await db.execute(
+            select(FamilyMember).where(FamilyMember.id == family_member_id, FamilyMember.user_id == current_user.id)
+        )
+        member = member_result.scalar_one_or_none()
+        if not member:
+            raise HTTPException(status_code=404, detail="家庭成员不存在")
+
+        profile_result = await db.execute(
+            select(HealthProfile).where(
+                HealthProfile.user_id == current_user.id,
+                HealthProfile.family_member_id == family_member_id,
+            )
+        )
+        profile = profile_result.scalar_one_or_none()
+
+        nickname = member.nickname or "家庭成员"
+        rel = member.relationship_type
+        gender = (profile.gender if profile and profile.gender else None) or member.gender or "未知"
+        birthday = (profile.birthday if profile and profile.birthday else None) or member.birthday
+        height = (profile.height if profile and profile.height else None) or member.height
+        weight = (profile.weight if profile and profile.weight else None) or member.weight
+        medical_histories = (profile.medical_histories if profile and profile.medical_histories else None) or member.medical_histories or []
+        allergies = (profile.allergies if profile and profile.allergies else None) or member.allergies or []
+
+        age_str = f"{_calc_age(birthday)}岁" if birthday else "年龄未知"
+        bmi_str = f"，BMI：{_calc_bmi(height, weight):.1f}" if height and weight else ""
+        histories_str = "、".join(medical_histories) if medical_histories else "无"
+        allergies_str = "、".join(allergies) if allergies else "无"
+
+        switch_summary = (
+            f"用户已将咨询对象切换为{rel}·{nickname}（{gender}，{age_str}"
+            f"，身高：{height or '未知'}cm，体重：{weight or '未知'}kg{bmi_str}"
+            f"，既往病史：{histories_str}，过敏史：{allergies_str}）"
+        )
+        session.family_member_id = family_member_id
+        message = f"已切换咨询对象为{rel}·{nickname}"
+    else:
+        switch_summary = "用户已将咨询对象切换回自己"
+        session.family_member_id = None
+        message = "已切换咨询对象为自己"
+
+    await db.flush()
+    return {"message": message, "family_member_id": family_member_id, "switch_summary": switch_summary}
 
 
 @router.websocket("/ws/{session_id}")

@@ -8,6 +8,7 @@ class ChatSessionCreate(BaseModel):
     session_type: str
     title: Optional[str] = None
     family_member_id: Optional[int] = None
+    symptom_info: Optional[dict] = None
 
 
 class ChatSessionResponse(BaseModel):
@@ -16,6 +17,7 @@ class ChatSessionResponse(BaseModel):
     session_type: str
     title: Optional[str] = None
     family_member_id: Optional[int] = None
+    symptom_info: Optional[dict] = None
     created_at: datetime
     updated_at: datetime
 

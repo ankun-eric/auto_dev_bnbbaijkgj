@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.security import get_current_user
 from app.models.models import FamilyMember, Notification, NotificationType, User
-from app.schemas.user import FamilyMemberCreate, FamilyMemberResponse
+from app.schemas.user import FamilyMemberCreate, FamilyMemberResponse, FamilyMemberUpdate
 
 router = APIRouter(prefix="/api/family", tags=["家庭成员"])
 
@@ -27,6 +27,12 @@ async def add_family_member(
         member_user_id=data.member_user_id,
         relationship_type=data.relationship_type,
         nickname=data.nickname,
+        birthday=data.birthday,
+        gender=data.gender,
+        height=data.height,
+        weight=data.weight,
+        medical_histories=data.medical_histories if data.medical_histories else None,
+        allergies=data.allergies if data.allergies else None,
     )
     db.add(member)
     await db.flush()
@@ -34,7 +40,7 @@ async def add_family_member(
     return FamilyMemberResponse.model_validate(member)
 
 
-@router.get("/members")
+@router.get("/members", response_model=dict)
 async def list_family_members(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
@@ -55,6 +61,44 @@ async def list_family_members(
     )
     items = [FamilyMemberResponse.model_validate(m) for m in result.scalars().all()]
     return {"items": items, "total": total, "page": page, "page_size": page_size}
+
+
+@router.get("/members/{member_id}", response_model=FamilyMemberResponse)
+async def get_family_member(
+    member_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(FamilyMember).where(FamilyMember.id == member_id, FamilyMember.user_id == current_user.id)
+    )
+    member = result.scalar_one_or_none()
+    if not member:
+        raise HTTPException(status_code=404, detail="家庭成员不存在")
+    return FamilyMemberResponse.model_validate(member)
+
+
+@router.put("/members/{member_id}", response_model=FamilyMemberResponse)
+async def update_family_member(
+    member_id: int,
+    data: FamilyMemberUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(FamilyMember).where(FamilyMember.id == member_id, FamilyMember.user_id == current_user.id)
+    )
+    member = result.scalar_one_or_none()
+    if not member:
+        raise HTTPException(status_code=404, detail="家庭成员不存在")
+
+    update_data = data.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(member, key, value)
+
+    await db.flush()
+    await db.refresh(member)
+    return FamilyMemberResponse.model_validate(member)
 
 
 @router.delete("/members/{member_id}")

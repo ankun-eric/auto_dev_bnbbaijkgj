@@ -1,5 +1,5 @@
-from datetime import datetime
-from typing import Optional
+from datetime import date, datetime
+from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict
 
@@ -71,6 +71,23 @@ class FamilyMemberCreate(BaseModel):
     member_user_id: Optional[int] = None
     relationship_type: str
     nickname: Optional[str] = None
+    birthday: Optional[date] = None
+    gender: Optional[str] = None
+    height: Optional[float] = None
+    weight: Optional[float] = None
+    medical_histories: List[str] = []
+    allergies: List[str] = []
+
+
+class FamilyMemberUpdate(BaseModel):
+    relationship_type: Optional[str] = None
+    nickname: Optional[str] = None
+    birthday: Optional[date] = None
+    gender: Optional[str] = None
+    height: Optional[float] = None
+    weight: Optional[float] = None
+    medical_histories: Optional[List[str]] = None
+    allergies: Optional[List[str]] = None
 
 
 class FamilyMemberResponse(BaseModel):
@@ -79,6 +96,12 @@ class FamilyMemberResponse(BaseModel):
     member_user_id: Optional[int] = None
     relationship_type: str
     nickname: Optional[str] = None
+    birthday: Optional[date] = None
+    gender: Optional[str] = None
+    height: Optional[float] = None
+    weight: Optional[float] = None
+    medical_histories: Optional[List[str]] = None
+    allergies: Optional[List[str]] = None
     status: str
     created_at: datetime
 

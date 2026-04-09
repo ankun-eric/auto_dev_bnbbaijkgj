@@ -1,10 +1,11 @@
 from datetime import date, datetime
-from typing import Any, Optional
+from typing import Any, List, Optional
 
 from pydantic import BaseModel, ConfigDict
 
 
 class HealthProfileCreate(BaseModel):
+    family_member_id: Optional[int] = None
     height: Optional[float] = None
     weight: Optional[float] = None
     blood_type: Optional[str] = None
@@ -15,9 +16,12 @@ class HealthProfileCreate(BaseModel):
     exercise_habit: Optional[str] = None
     sleep_habit: Optional[str] = None
     diet_habit: Optional[str] = None
+    medical_histories: Optional[List[str]] = None
+    allergies: Optional[List[str]] = None
 
 
 class HealthProfileUpdate(BaseModel):
+    family_member_id: Optional[int] = None
     height: Optional[float] = None
     weight: Optional[float] = None
     blood_type: Optional[str] = None
@@ -28,11 +32,14 @@ class HealthProfileUpdate(BaseModel):
     exercise_habit: Optional[str] = None
     sleep_habit: Optional[str] = None
     diet_habit: Optional[str] = None
+    medical_histories: Optional[List[str]] = None
+    allergies: Optional[List[str]] = None
 
 
 class HealthProfileResponse(BaseModel):
     id: int
     user_id: int
+    family_member_id: Optional[int] = None
     height: Optional[float] = None
     weight: Optional[float] = None
     blood_type: Optional[str] = None
@@ -43,6 +50,8 @@ class HealthProfileResponse(BaseModel):
     exercise_habit: Optional[str] = None
     sleep_habit: Optional[str] = None
     diet_habit: Optional[str] = None
+    medical_histories: Optional[List[str]] = None
+    allergies: Optional[List[str]] = None
     created_at: datetime
     updated_at: datetime
 

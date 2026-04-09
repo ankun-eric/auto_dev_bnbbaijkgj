@@ -185,7 +185,7 @@ class User(Base):
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    health_profile = relationship("HealthProfile", back_populates="user", uselist=False)
+    health_profile = relationship("HealthProfile", back_populates="user", uselist=True)
     family_members = relationship("FamilyMember", back_populates="user", foreign_keys="FamilyMember.user_id")
     chat_sessions = relationship("ChatSession", back_populates="user")
     orders = relationship("Order", back_populates="user")
@@ -203,6 +203,12 @@ class FamilyMember(Base):
     member_user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
     relationship_type = mapped_column(String(50), nullable=False)
     nickname = mapped_column(String(100), nullable=True)
+    birthday = mapped_column(Date, nullable=True)
+    gender = mapped_column(String(10), nullable=True)
+    height = mapped_column(Float, nullable=True)
+    weight = mapped_column(Float, nullable=True)
+    medical_histories = mapped_column(JSON, nullable=True)
+    allergies = mapped_column(JSON, nullable=True)
     status = mapped_column(String(20), default="active")
     created_at = mapped_column(DateTime, default=datetime.utcnow)
 
@@ -322,7 +328,8 @@ class HealthProfile(Base):
     __tablename__ = "health_profiles"
 
     id = mapped_column(Integer, primary_key=True, autoincrement=True)
-    user_id = mapped_column(Integer, ForeignKey("users.id"), unique=True, nullable=False)
+    user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    family_member_id = mapped_column(Integer, ForeignKey("family_members.id"), nullable=True)
     height = mapped_column(Float, nullable=True)
     weight = mapped_column(Float, nullable=True)
     blood_type = mapped_column(String(10), nullable=True)
@@ -333,10 +340,13 @@ class HealthProfile(Base):
     exercise_habit = mapped_column(String(50), nullable=True)
     sleep_habit = mapped_column(String(50), nullable=True)
     diet_habit = mapped_column(String(50), nullable=True)
+    medical_histories = mapped_column(JSON, nullable=True)
+    allergies = mapped_column(JSON, nullable=True)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     user = relationship("User", back_populates="health_profile")
+    family_member = relationship("FamilyMember")
 
 
 class AllergyRecord(Base):
@@ -468,6 +478,7 @@ class ChatSession(Base):
     message_count = mapped_column(Integer, default=0)
     is_pinned = mapped_column(Boolean, default=False)
     is_deleted = mapped_column(Boolean, default=False)
+    symptom_info = mapped_column(JSON, nullable=True)
     share_token = mapped_column(String(100), nullable=True, unique=True)
     device_info = mapped_column(String(500), nullable=True)
     ip_address = mapped_column(String(50), nullable=True)

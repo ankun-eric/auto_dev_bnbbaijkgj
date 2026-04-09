@@ -14,6 +14,7 @@ from app.models.models import (
     CheckupIndicator,
     CheckupReport,
     FamilyMedicalHistory,
+    FamilyMember,
     HealthProfile,
     MedicalHistory,
     MedicationRecord,
@@ -47,7 +48,12 @@ async def get_health_profile(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(select(HealthProfile).where(HealthProfile.user_id == current_user.id))
+    result = await db.execute(
+        select(HealthProfile).where(
+            HealthProfile.user_id == current_user.id,
+            HealthProfile.family_member_id.is_(None),
+        )
+    )
     profile = result.scalar_one_or_none()
     if not profile:
         raise HTTPException(status_code=404, detail="健康档案不存在")
@@ -60,12 +66,19 @@ async def create_health_profile(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(select(HealthProfile).where(HealthProfile.user_id == current_user.id))
+    result = await db.execute(
+        select(HealthProfile).where(
+            HealthProfile.user_id == current_user.id,
+            HealthProfile.family_member_id.is_(None),
+        )
+    )
     existing = result.scalar_one_or_none()
     if existing:
         raise HTTPException(status_code=400, detail="健康档案已存在，请使用更新接口")
 
-    profile = HealthProfile(user_id=current_user.id, **data.model_dump(exclude_unset=True))
+    create_data = data.model_dump(exclude_unset=True)
+    create_data.pop("family_member_id", None)
+    profile = HealthProfile(user_id=current_user.id, family_member_id=None, **create_data)
     db.add(profile)
     await db.flush()
     await db.refresh(profile)
@@ -78,13 +91,79 @@ async def update_health_profile(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(select(HealthProfile).where(HealthProfile.user_id == current_user.id))
+    result = await db.execute(
+        select(HealthProfile).where(
+            HealthProfile.user_id == current_user.id,
+            HealthProfile.family_member_id.is_(None),
+        )
+    )
     profile = result.scalar_one_or_none()
     if not profile:
-        profile = HealthProfile(user_id=current_user.id)
+        profile = HealthProfile(user_id=current_user.id, family_member_id=None)
         db.add(profile)
 
     update_data = data.model_dump(exclude_unset=True)
+    update_data.pop("family_member_id", None)
+    for key, value in update_data.items():
+        setattr(profile, key, value)
+    profile.updated_at = datetime.utcnow()
+    await db.flush()
+    await db.refresh(profile)
+    return HealthProfileResponse.model_validate(profile)
+
+
+@router.get("/profile/member/{member_id}", response_model=HealthProfileResponse)
+async def get_member_health_profile(
+    member_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    member_result = await db.execute(
+        select(FamilyMember).where(FamilyMember.id == member_id, FamilyMember.user_id == current_user.id)
+    )
+    member = member_result.scalar_one_or_none()
+    if not member:
+        raise HTTPException(status_code=404, detail="家庭成员不存在")
+
+    result = await db.execute(
+        select(HealthProfile).where(
+            HealthProfile.user_id == current_user.id,
+            HealthProfile.family_member_id == member_id,
+        )
+    )
+    profile = result.scalar_one_or_none()
+    if not profile:
+        raise HTTPException(status_code=404, detail="家庭成员健康档案不存在")
+    return HealthProfileResponse.model_validate(profile)
+
+
+@router.put("/profile/member/{member_id}", response_model=HealthProfileResponse)
+async def upsert_member_health_profile(
+    member_id: int,
+    data: HealthProfileUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    member_result = await db.execute(
+        select(FamilyMember).where(FamilyMember.id == member_id, FamilyMember.user_id == current_user.id)
+    )
+    member = member_result.scalar_one_or_none()
+    if not member:
+        raise HTTPException(status_code=404, detail="家庭成员不存在")
+
+    result = await db.execute(
+        select(HealthProfile).where(
+            HealthProfile.user_id == current_user.id,
+            HealthProfile.family_member_id == member_id,
+        )
+    )
+    profile = result.scalar_one_or_none()
+    if not profile:
+        profile = HealthProfile(user_id=current_user.id, family_member_id=member_id)
+        db.add(profile)
+
+    update_data = data.model_dump(exclude_unset=True)
+    update_data.pop("family_member_id", None)
     for key, value in update_data.items():
         setattr(profile, key, value)
     profile.updated_at = datetime.utcnow()
@@ -351,7 +430,12 @@ async def upload_checkup_report(
 
     ocr_text = "体检报告OCR文本提取结果（实际环境中接入OCR服务）"
 
-    profile_result = await db.execute(select(HealthProfile).where(HealthProfile.user_id == current_user.id))
+    profile_result = await db.execute(
+        select(HealthProfile).where(
+            HealthProfile.user_id == current_user.id,
+            HealthProfile.family_member_id.is_(None),
+        )
+    )
     profile = profile_result.scalar_one_or_none()
     user_profile = None
     if profile:

@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
-import { useRouter, useParams } from 'next/navigation';
-import { NavBar, Input, Button, SpinLoading, Toast } from 'antd-mobile';
+import { useState, useRef, useEffect, useCallback, Suspense } from 'react';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
+import { NavBar, Input, Button, SpinLoading, Toast, Popup, Tag } from 'antd-mobile';
 import api from '@/lib/api';
 import ChatSidebar from '@/components/ChatSidebar';
 import KnowledgeCard, { type KnowledgeHit } from '@/components/KnowledgeCard';
@@ -15,6 +15,23 @@ interface Message {
   knowledge_hits?: KnowledgeHit[];
 }
 
+interface FamilyMember {
+  id: number;
+  nickname: string;
+  relationship_type: string;
+}
+
+const relationshipLabelMap: Record<string, string> = {
+  father: '父亲',
+  mother: '母亲',
+  spouse: '配偶',
+  child: '子女',
+  sibling: '兄弟姐妹',
+  grandparent: '祖父母',
+  maternal_grandparent: '外祖父母',
+  other: '其他',
+};
+
 const welcomeMessage: Message = {
   id: 'welcome',
   role: 'assistant',
@@ -22,14 +39,33 @@ const welcomeMessage: Message = {
   time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
 };
 
-export default function ChatPage() {
+function ChatPageInner() {
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const sessionId = params.sessionId as string;
+
+  const urlType = searchParams.get('type') || '';
+  const urlMsg = searchParams.get('msg') || '';
+  const urlMember = searchParams.get('member') || '';
+  const isSymptom = urlType === 'symptom';
+
   const [messages, setMessages] = useState<Message[]>([welcomeMessage]);
   const [inputVal, setInputVal] = useState('');
   const [loading, setLoading] = useState(false);
   const [sidebarVisible, setSidebarVisible] = useState(false);
+
+  // Symptom banner
+  const [bannerExpanded, setBannerExpanded] = useState(true);
+  const [firstCardExpanded, setFirstCardExpanded] = useState(false);
+  const autoSentRef = useRef(false);
+  const firstUserMsgIdRef = useRef<string | null>(null);
+
+  // Switch member popup
+  const [memberPopupVisible, setMemberPopupVisible] = useState(false);
+  const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([]);
+  const [switchingMember, setSwitchingMember] = useState(false);
+
   const listRef = useRef<HTMLDivElement>(null);
 
   const loadHistory = useCallback(async () => {
@@ -58,6 +94,27 @@ export default function ChatPage() {
     loadHistory();
   }, [loadHistory]);
 
+  // Auto-send symptom message after history loads
+  useEffect(() => {
+    if (!isSymptom || !urlMsg || autoSentRef.current) return;
+    const timer = setTimeout(() => {
+      if (autoSentRef.current) return;
+      autoSentRef.current = true;
+      sendMessageText(urlMsg);
+    }, 300);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSymptom, urlMsg]);
+
+  // Collapse banner after AI first reply
+  useEffect(() => {
+    if (!isSymptom) return;
+    const aiReplies = messages.filter((m) => m.role === 'assistant' && m.id !== 'welcome');
+    if (aiReplies.length > 0 && bannerExpanded) {
+      setBannerExpanded(false);
+    }
+  }, [messages, isSymptom]);
+
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
@@ -78,8 +135,7 @@ export default function ChatPage() {
     }
   };
 
-  const sendMessage = async () => {
-    const text = inputVal.trim();
+  const sendMessageText = async (text: string) => {
     if (!text || loading) return;
 
     const userMsg: Message = {
@@ -88,6 +144,10 @@ export default function ChatPage() {
       content: text,
       time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
     };
+
+    if (firstUserMsgIdRef.current === null) {
+      firstUserMsgIdRef.current = userMsg.id;
+    }
 
     setMessages((prev) => [...prev, userMsg]);
     setInputVal('');
@@ -126,6 +186,12 @@ export default function ChatPage() {
       setMessages((prev) => [...prev, fallbackMsg]);
     }
     setLoading(false);
+  };
+
+  const sendMessage = async () => {
+    const text = inputVal.trim();
+    if (!text || loading) return;
+    await sendMessageText(text);
   };
 
   const renderMarkdownBlock = (text: string) => {
@@ -168,6 +234,44 @@ export default function ChatPage() {
     router.push(`/chat/${newSessionId}`);
   };
 
+  const openMemberPopup = async () => {
+    try {
+      const res: any = await api.get('/api/family/members');
+      const data = res.data || res;
+      setFamilyMembers(Array.isArray(data.items) ? data.items : Array.isArray(data) ? data : []);
+    } catch {
+      setFamilyMembers([]);
+    }
+    setMemberPopupVisible(true);
+  };
+
+  const handleSwitchMember = async (memberId: number | null, label: string) => {
+    setSwitchingMember(true);
+    try {
+      await api.post(`/api/chat/sessions/${sessionId}/switch-member`, {
+        family_member_id: memberId,
+      });
+      setMemberPopupVisible(false);
+      Toast.show({
+        content: `已切换为${label}，后续AI回复将基于新的档案`,
+        icon: 'success',
+        duration: 2500,
+      });
+    } catch {
+      Toast.show({ content: '切换失败，请稍后重试', icon: 'fail' });
+    }
+    setSwitchingMember(false);
+  };
+
+  // Determine if a message is the first user message (for symptom card rendering)
+  const isFirstUserMsg = (msg: Message): boolean => {
+    if (!isSymptom) return false;
+    const userMsgs = messages.filter((m) => m.role === 'user');
+    return userMsgs.length > 0 && userMsgs[0].id === msg.id;
+  };
+
+  const bannerText = urlMsg.slice(0, 50) + (urlMsg.length > 50 ? '...' : '');
+
   return (
     <div className="flex flex-col h-screen bg-gray-50">
       <NavBar
@@ -199,6 +303,42 @@ export default function ChatPage() {
         <span className="text-white font-medium">AI健康咨询</span>
       </NavBar>
 
+      {/* Symptom banner */}
+      {isSymptom && urlMsg && (
+        <div
+          className="mx-3 mt-2 rounded-xl px-3 py-2 cursor-pointer flex items-start gap-2"
+          style={{ background: '#f6ffed', border: '1px solid #b7eb8f' }}
+          onClick={() => setBannerExpanded((v) => !v)}
+        >
+          <span style={{ color: '#52c41a', fontSize: 15, flexShrink: 0, marginTop: 1 }}>✚</span>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between gap-1">
+              <span className="text-xs font-medium" style={{ color: '#52c41a' }}>健康自查</span>
+              {urlMember && (
+                <span className="text-xs" style={{ color: '#87d068' }}>
+                  咨询对象：{urlMember}
+                </span>
+              )}
+              <span className="text-xs" style={{ color: '#52c41a', flexShrink: 0 }}>
+                {bannerExpanded ? '▲' : '▼'}
+              </span>
+            </div>
+            <div
+              className="text-xs mt-1"
+              style={{
+                color: '#555',
+                overflow: 'hidden',
+                maxHeight: bannerExpanded ? 'none' : '1.5em',
+                whiteSpace: bannerExpanded ? 'normal' : 'nowrap',
+                textOverflow: bannerExpanded ? 'unset' : 'ellipsis',
+              }}
+            >
+              {bannerText}
+            </div>
+          </div>
+        </div>
+      )}
+
       <div ref={listRef} className="flex-1 overflow-y-auto px-4 py-3">
         {messages.map((msg) => (
           <div
@@ -212,15 +352,44 @@ export default function ChatPage() {
               </div>
             )}
             <div className="max-w-[75%]">
-              <div
-                className={`rounded-2xl px-4 py-3 text-sm leading-relaxed ${
-                  msg.role === 'user'
-                    ? 'bg-primary text-white rounded-tr-sm'
-                    : 'bg-white text-gray-700 rounded-tl-sm shadow-sm'
-                }`}
-              >
-                {msg.role === 'assistant' ? renderMarkdown(msg.content) : msg.content}
-              </div>
+              {/* Symptom card for first user message */}
+              {msg.role === 'user' && isFirstUserMsg(msg) ? (
+                <div
+                  className="rounded-2xl rounded-tr-sm px-4 py-3 text-sm leading-relaxed cursor-pointer"
+                  style={{ background: '#f6ffed', border: '1.5px solid #52c41a' }}
+                  onClick={() => setFirstCardExpanded((v) => !v)}
+                >
+                  <div className="flex items-center gap-1 mb-2">
+                    <span style={{ color: '#52c41a', fontSize: 14 }}>✚</span>
+                    <span className="font-semibold text-xs" style={{ color: '#52c41a' }}>健康自查摘要</span>
+                    <span className="ml-auto text-xs" style={{ color: '#52c41a' }}>
+                      {firstCardExpanded ? '▲' : '▼'}
+                    </span>
+                  </div>
+                  <div
+                    style={{
+                      color: '#444',
+                      overflow: 'hidden',
+                      maxHeight: firstCardExpanded ? 'none' : '1.6em',
+                      whiteSpace: firstCardExpanded ? 'normal' : 'nowrap',
+                      textOverflow: firstCardExpanded ? 'unset' : 'ellipsis',
+                      fontSize: 13,
+                    }}
+                  >
+                    {msg.content}
+                  </div>
+                </div>
+              ) : (
+                <div
+                  className={`rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+                    msg.role === 'user'
+                      ? 'bg-primary text-white rounded-tr-sm'
+                      : 'bg-white text-gray-700 rounded-tl-sm shadow-sm'
+                  }`}
+                >
+                  {msg.role === 'assistant' ? renderMarkdown(msg.content) : msg.content}
+                </div>
+              )}
               {msg.role === 'assistant' && msg.knowledge_hits && msg.knowledge_hits.length > 0 ? (
                 <div className="mt-2 space-y-2 w-full">
                   {msg.knowledge_hits.map((hit, idx) => (
@@ -261,7 +430,20 @@ export default function ChatPage() {
         )}
       </div>
 
-      <div className="bg-white border-t border-gray-100 px-4 py-3 flex items-end gap-2 safe-area-bottom">
+      <div className="bg-white border-t border-gray-100 px-3 py-3 flex items-end gap-2 safe-area-bottom">
+        {/* Switch member button */}
+        <button
+          onClick={openMemberPopup}
+          className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-full"
+          style={{ background: '#f0fff0', border: '1px solid #b7eb8f' }}
+          aria-label="切换咨询对象"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#52c41a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="8" r="4" />
+            <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
+          </svg>
+        </button>
+
         <div className="flex-1 bg-gray-50 rounded-2xl px-4 py-2">
           <Input
             placeholder="输入您的健康问题..."
@@ -297,6 +479,86 @@ export default function ChatPage() {
         currentSessionId={sessionId}
         onSessionCreated={handleSessionCreated}
       />
+
+      {/* Switch member popup */}
+      <Popup
+        visible={memberPopupVisible}
+        onMaskClick={() => setMemberPopupVisible(false)}
+        position="bottom"
+        bodyStyle={{ borderRadius: '16px 16px 0 0', maxHeight: '70vh', overflowY: 'auto' }}
+      >
+        <div className="px-4 pb-6">
+          <div className="flex items-center justify-between py-4 border-b border-gray-100">
+            <span className="text-base font-semibold">切换咨询对象</span>
+            <button
+              onClick={() => setMemberPopupVisible(false)}
+              className="text-gray-400 text-xl leading-none"
+            >
+              ×
+            </button>
+          </div>
+
+          <div className="mt-3 space-y-2">
+            <div
+              className="flex items-center gap-3 px-3 py-3 rounded-xl cursor-pointer"
+              style={{ background: '#f9f9f9' }}
+              onClick={() => handleSwitchMember(null, '自己')}
+            >
+              <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm"
+                style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}>
+                我
+              </div>
+              <span className="text-sm font-medium">为自己</span>
+            </div>
+
+            {familyMembers.map((m) => (
+              <div
+                key={m.id}
+                className="flex items-center gap-3 px-3 py-3 rounded-xl cursor-pointer"
+                style={{ background: '#f9f9f9' }}
+                onClick={() => {
+                  const label = `${relationshipLabelMap[m.relationship_type] || m.relationship_type}·${m.nickname}`;
+                  handleSwitchMember(m.id, label);
+                }}
+              >
+                <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm"
+                  style={{ background: '#87d068' }}>
+                  {m.nickname.charAt(0)}
+                </div>
+                <div>
+                  <div className="text-sm font-medium">{m.nickname}</div>
+                  <div className="text-xs text-gray-400">
+                    {relationshipLabelMap[m.relationship_type] || m.relationship_type}
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            <div
+              className="flex items-center gap-3 px-3 py-3 rounded-xl cursor-pointer"
+              style={{ background: '#f9f9f9' }}
+              onClick={() => {
+                setMemberPopupVisible(false);
+                router.push('/family/add');
+              }}
+            >
+              <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-lg"
+                style={{ background: '#52c41a' }}>
+                +
+              </div>
+              <span className="text-sm font-medium" style={{ color: '#52c41a' }}>新建家庭成员</span>
+            </div>
+          </div>
+        </div>
+      </Popup>
     </div>
+  );
+}
+
+export default function ChatPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-screen"><SpinLoading /></div>}>
+      <ChatPageInner />
+    </Suspense>
   );
 }
