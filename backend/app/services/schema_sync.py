@@ -644,6 +644,11 @@ async def sync_register_schema(conn: AsyncConnection) -> None:
 
     columns, indexes, unique_constraints = await conn.run_sync(load_user_schema)
 
+    if "chat_font_size" not in columns:
+        await conn.execute(text(
+            "ALTER TABLE users ADD COLUMN chat_font_size VARCHAR(20) DEFAULT 'standard'"
+        ))
+
     if "wechat_openid" not in columns:
         await conn.execute(text("ALTER TABLE users ADD COLUMN wechat_openid VARCHAR(100) NULL"))
     if "apple_id" not in columns:

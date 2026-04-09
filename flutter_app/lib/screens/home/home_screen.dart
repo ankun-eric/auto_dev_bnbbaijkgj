@@ -5,7 +5,6 @@ import '../../providers/font_provider.dart';
 import '../../models/article.dart';
 import '../../services/api_service.dart';
 import '../../widgets/article_card.dart';
-import '../../widgets/font_size_sheet.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -25,8 +24,6 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _searchVisible = true;
   String _searchPlaceholder = '搜索症状、疾病、药品';
   int _gridColumns = 3;
-  bool _fontSwitchEnabled = false;
-
   List<Map<String, dynamic>> _banners = [];
   List<Map<String, dynamic>> _menus = [];
 
@@ -81,7 +78,6 @@ class _HomeScreenState extends State<HomeScreen> {
           _searchVisible = config['search_visible'] ?? true;
           _searchPlaceholder = config['search_placeholder'] ?? _searchPlaceholder;
           _gridColumns = config['grid_columns'] ?? _gridColumns;
-          _fontSwitchEnabled = config['font_switch_enabled'] ?? false;
         }
         _menus = menus.isNotEmpty ? menus : List<Map<String, dynamic>>.from(_defaultMenus);
         _banners = banners.isNotEmpty ? banners : List<Map<String, dynamic>>.from(_defaultBanners);
@@ -221,14 +217,6 @@ class _HomeScreenState extends State<HomeScreen> {
             )
           : const Text('宾尼小康', style: TextStyle(color: Colors.white, fontSize: 18)),
       actions: [
-        if (_fontSwitchEnabled)
-          IconButton(
-            icon: const Text(
-              'Aa',
-              style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            onPressed: () => FontSizeSheet.show(context),
-          ),
         IconButton(
           icon: const Icon(Icons.notifications_outlined, color: Colors.white),
           onPressed: () => Navigator.pushNamed(context, '/notifications'),

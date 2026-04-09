@@ -83,16 +83,6 @@
       <text class="arrow">›</text>
     </view>
     <block wx:for="{{menuList}}" wx:key="id">
-      <view class="menu-item" wx:if="{{item.id === 'settings' && fontSwitchEnabled}}" bindtap="onFontSettingTap">
-        <view class="menu-left">
-          <text class="menu-icon">🔤</text>
-          <text class="menu-label">字体大小</text>
-        </view>
-        <view class="menu-right-info">
-          <text class="menu-value">{{fontLevel === 'standard' ? '标准' : (fontLevel === 'large' ? '大' : '超大')}}</text>
-          <text class="arrow">›</text>
-        </view>
-      </view>
       <view class="menu-item" bindtap="onMenuTap" data-item="{{item}}">
         <view class="menu-left">
           <text class="menu-icon">{{item.icon}}</text>
@@ -103,26 +93,6 @@
     </block>
   </view>
 
-  <!-- Font size modal -->
-  <view class="font-modal-mask" wx:if="{{showFontModal}}" catchtap="onFontModalClose"></view>
-  <view class="font-modal" wx:if="{{showFontModal}}" catchtouchmove="true">
-    <view class="font-modal-header">
-      <text class="font-modal-title">字体大小</text>
-      <text class="font-modal-close" catchtap="onFontModalClose">✕</text>
-    </view>
-    <view class="font-modal-preview">
-      <text style="font-size:{{previewFontSize}};">预览文字 Aa 你好</text>
-    </view>
-    <view class="font-slider-wrap">
-      <view class="font-slider-labels">
-        <text wx:for="{{fontLabels}}" wx:key="*this" class="font-slider-label {{fontSliderIdx === index ? 'active' : ''}}">{{item}}</text>
-      </view>
-      <slider min="0" max="2" step="1" value="{{fontSliderIdx}}" block-size="24" activeColor="#52c41a" bindchange="onFontSliderChange" />
-    </view>
-    <view class="font-modal-footer">
-      <view class="font-confirm-btn" bindtap="onFontConfirm">确定</view>
-    </view>
-  </view>
 </view>
 
 <view class="profile-page" wx:else>

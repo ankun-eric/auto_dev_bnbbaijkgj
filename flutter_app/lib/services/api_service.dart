@@ -553,6 +553,27 @@ class ApiService {
         : <String, dynamic>{};
   }
 
+  // Font Setting
+  Future<Map<String, dynamic>> getUserFontSetting() async {
+    try {
+      final response = await _dio.get(ApiConfig.userFontSetting);
+      return response.data is Map<String, dynamic>
+          ? response.data as Map<String, dynamic>
+          : <String, dynamic>{};
+    } catch (_) {
+      return <String, dynamic>{};
+    }
+  }
+
+  Future<bool> updateUserFontSetting(String level) async {
+    try {
+      await _dio.put(ApiConfig.userFontSetting, data: {'font_size_level': level});
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   // Home dynamic config
   Future<Map<String, dynamic>> getHomeConfig() async {
     final response = await _dio.get(ApiConfig.homeConfig);

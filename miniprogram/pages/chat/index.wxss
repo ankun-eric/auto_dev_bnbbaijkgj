@@ -33,6 +33,88 @@
   flex: 1;
 }
 
+/* 字体大小按钮 */
+.font-size-trigger {
+  width: 64rpx;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12rpx;
+  background: rgba(82, 196, 26, 0.12);
+}
+
+.font-trigger-text {
+  font-size: 26rpx;
+  font-weight: bold;
+  color: #52c41a;
+}
+
+/* 字体选择浮层 */
+.font-popover-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 998;
+}
+
+.font-popover {
+  position: absolute;
+  top: 88rpx;
+  right: 24rpx;
+  background: #fff;
+  border-radius: 16rpx;
+  box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.12);
+  z-index: 999;
+  padding: 8rpx 0;
+  min-width: 280rpx;
+}
+
+.font-popover-arrow {
+  position: absolute;
+  top: -12rpx;
+  right: 24rpx;
+  width: 0;
+  height: 0;
+  border-left: 14rpx solid transparent;
+  border-right: 14rpx solid transparent;
+  border-bottom: 14rpx solid #fff;
+}
+
+.font-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24rpx 32rpx;
+}
+
+.font-option:active {
+  background: #f5f5f5;
+}
+
+.font-option-active {
+  background: rgba(82, 196, 26, 0.08);
+}
+
+.font-option-label {
+  font-size: 28rpx;
+  color: #333;
+}
+
+.font-option-active .font-option-label {
+  color: #52c41a;
+  font-weight: bold;
+}
+
+.font-option-check {
+  font-size: 28rpx;
+  color: #52c41a;
+  font-weight: bold;
+  margin-left: 20rpx;
+}
+
 /* 消息列表 */
 .msg-list {
   flex: 1;

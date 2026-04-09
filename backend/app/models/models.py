@@ -182,6 +182,7 @@ class User(Base):
     member_level = mapped_column(Integer, default=0)
     points = mapped_column(Integer, default=0)
     status = mapped_column(String(20), default="active")
+    chat_font_size = mapped_column(String(20), default="standard")
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

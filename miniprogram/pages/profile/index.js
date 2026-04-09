@@ -1,10 +1,6 @@
 const { syncTabBar } = require('../../utils/util');
-const { get } = require('../../utils/request');
 
 const app = getApp();
-
-const FONT_LEVELS = ['standard', 'large', 'xlarge'];
-const FONT_LABELS = ['标准', '大', '超大'];
 
 Page({
   data: {
@@ -18,15 +14,6 @@ Page({
     orderCount: 0,
     familyCount: 0,
     checkDays: 0,
-    fontSwitchEnabled: false,
-    showFontModal: false,
-    fontLevel: 'standard',
-    fontLevels: FONT_LEVELS,
-    fontLabels: FONT_LABELS,
-    fontSliderIdx: 0,
-    fontBaseSize: 28,
-    previewFontSize: '28rpx',
-    fontConfig: { font_standard_size: 28, font_large_size: 34, font_xlarge_size: 40 },
     menuList: [
       { id: 'health', label: '健康档案', icon: '📋', path: '/pages/health-profile/index' },
       { id: 'family', label: '家庭成员', icon: '👨‍👩‍👧‍👦', path: '/pages/family/index' },
@@ -71,7 +58,6 @@ Page({
     });
 
     if (pageMode === 'user') {
-      this.loadFontConfig();
       if (app.globalData.isLoggedIn) {
         this.loadUserData();
       }
@@ -136,76 +122,6 @@ Page({
   onMenuTap(e) {
     const item = e.currentTarget.dataset.item;
     wx.navigateTo({ url: item.path });
-  },
-
-  async loadFontConfig() {
-    try {
-      const res = await get('/api/home-config', {}, { showLoading: false, suppressErrorToast: true });
-      const enabled = !!res.font_switch_enabled;
-      const config = {
-        font_standard_size: res.font_standard_size || 28,
-        font_large_size: res.font_large_size || 34,
-        font_xlarge_size: res.font_xlarge_size || 40
-      };
-      this.setData({ fontSwitchEnabled: enabled, fontConfig: config });
-      if (enabled) {
-        this.applyFontLevel();
-      }
-    } catch (e) {
-      this.setData({ fontSwitchEnabled: false });
-    }
-  },
-
-  applyFontLevel() {
-    const level = app.getFontLevel() || 'standard';
-    const config = this.data.fontConfig;
-    const sizeMap = {
-      standard: config.font_standard_size || 28,
-      large: config.font_large_size || 34,
-      xlarge: config.font_xlarge_size || 40
-    };
-    const baseSize = sizeMap[level] || 28;
-    const idx = FONT_LEVELS.indexOf(level);
-    this.setData({
-      fontLevel: level,
-      fontSliderIdx: idx >= 0 ? idx : 0,
-      fontBaseSize: baseSize,
-      previewFontSize: baseSize + 'rpx'
-    });
-  },
-
-  onFontSettingTap() {
-    this.applyFontLevel();
-    this.setData({ showFontModal: true });
-  },
-
-  onFontModalClose() {
-    this.setData({ showFontModal: false });
-  },
-
-  onFontSliderChange(e) {
-    const idx = e.detail.value;
-    const level = FONT_LEVELS[idx] || 'standard';
-    const config = this.data.fontConfig;
-    const sizeMap = {
-      standard: config.font_standard_size || 28,
-      large: config.font_large_size || 34,
-      xlarge: config.font_xlarge_size || 40
-    };
-    const baseSize = sizeMap[level] || 28;
-    this.setData({
-      fontSliderIdx: idx,
-      fontLevel: level,
-      fontBaseSize: baseSize,
-      previewFontSize: baseSize + 'rpx'
-    });
-  },
-
-  onFontConfirm() {
-    const level = this.data.fontLevel;
-    app.setFontLevel(level);
-    this.setData({ showFontModal: false });
-    wx.showToast({ title: '字体大小已更新', icon: 'success' });
   },
 
   logout() {

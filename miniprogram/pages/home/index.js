@@ -27,9 +27,6 @@ const DEFAULT_CONFIG = {
   font_xlarge_size: 40
 };
 
-const FONT_LEVELS = ['standard', 'large', 'xlarge'];
-const FONT_LABELS = ['标准', '大', '超大'];
-
 Page({
   data: {
     pageMode: 'user',
@@ -52,20 +49,12 @@ Page({
       { id: 3, title: '运动健身：适合上班族的5分钟锻炼法', tag: '运动', time: '1天前', cover: '' }
     ],
     unreadCount: 3,
-    loading: false,
-    showFontModal: false,
-    fontLevel: 'standard',
-    fontLevels: FONT_LEVELS,
-    fontLabels: FONT_LABELS,
-    fontSliderIdx: 0,
-    fontBaseSize: 28,
-    previewFontSize: '28rpx'
+    loading: false
   },
 
   onShow() {
     syncTabBar(this, '/pages/home/index');
     if (!this.syncRoleState()) return;
-    this.applyFontLevel();
     this.loadCurrentModeData();
   },
 
@@ -130,13 +119,6 @@ Page({
       const config = { ...DEFAULT_CONFIG, ...res };
       const gridColumnWidth = (100 / (config.grid_columns || 3)).toFixed(2) + '%';
       this.setData({ homeConfig: config, gridColumnWidth });
-
-      const app = getApp();
-      const savedLevel = wx.getStorageSync('font_level');
-      if (!savedLevel && config.font_default_level) {
-        app.setFontLevel(config.font_default_level);
-      }
-      this.applyFontLevel();
     } catch (e) {
       this.setData({ homeConfig: DEFAULT_CONFIG, gridColumnWidth: '33.33%' });
     }
@@ -162,60 +144,6 @@ Page({
     } catch (e) {
       // keep default menus
     }
-  },
-
-  applyFontLevel() {
-    const app = getApp();
-    const level = app.getFontLevel() || this.data.homeConfig.font_default_level || 'standard';
-    const config = this.data.homeConfig;
-    const sizeMap = {
-      standard: config.font_standard_size || 28,
-      large: config.font_large_size || 34,
-      xlarge: config.font_xlarge_size || 40
-    };
-    const baseSize = sizeMap[level] || 28;
-    const idx = FONT_LEVELS.indexOf(level);
-    this.setData({
-      fontLevel: level,
-      fontSliderIdx: idx >= 0 ? idx : 0,
-      fontBaseSize: baseSize,
-      previewFontSize: baseSize + 'rpx'
-    });
-  },
-
-  onFontBtnTap() {
-    this.applyFontLevel();
-    this.setData({ showFontModal: true });
-  },
-
-  onFontModalClose() {
-    this.setData({ showFontModal: false });
-  },
-
-  onFontSliderChange(e) {
-    const idx = e.detail.value;
-    const level = FONT_LEVELS[idx] || 'standard';
-    const config = this.data.homeConfig;
-    const sizeMap = {
-      standard: config.font_standard_size || 28,
-      large: config.font_large_size || 34,
-      xlarge: config.font_xlarge_size || 40
-    };
-    const baseSize = sizeMap[level] || 28;
-    this.setData({
-      fontSliderIdx: idx,
-      fontLevel: level,
-      fontBaseSize: baseSize,
-      previewFontSize: baseSize + 'rpx'
-    });
-  },
-
-  onFontConfirm() {
-    const app = getApp();
-    const level = this.data.fontLevel;
-    app.setFontLevel(level);
-    this.setData({ showFontModal: false });
-    wx.showToast({ title: '字体大小已更新', icon: 'success' });
   },
 
   onBannerTap(e) {

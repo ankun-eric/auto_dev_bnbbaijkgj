@@ -4,8 +4,6 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Swiper, Grid, List, Tag, Badge, NoticeBar, SpinLoading } from 'antd-mobile';
 import { useHomeConfig, HomeBanner, HomeMenu } from '@/lib/useHomeConfig';
-import { useFontSize } from '@/lib/useFontSize';
-import FontSettingPopup from '@/components/FontSettingPopup';
 import api from '@/lib/api';
 
 interface NoticeItem {
@@ -52,7 +50,6 @@ function handleLink(
 export default function HomePage() {
   const router = useRouter();
 
-  const [fontPopupVisible, setFontPopupVisible] = useState(false);
   const [notices, setNotices] = useState<NoticeItem[] | null>(null);
 
   useEffect(() => {
@@ -75,13 +72,6 @@ export default function HomePage() {
   }, []);
 
   const { config, banners, menus, loading } = useHomeConfig();
-  const { fontLevel, fontSize, setFontLevel, fontSwitchEnabled } = useFontSize({
-    font_switch_enabled: config.font_switch_enabled,
-    font_default_level: config.font_default_level,
-    font_standard_size: config.font_standard_size,
-    font_large_size: config.font_large_size,
-    font_xlarge_size: config.font_xlarge_size,
-  });
 
   if (loading) {
     return (
@@ -92,7 +82,7 @@ export default function HomePage() {
   }
 
   return (
-    <div className="pb-20" style={{ fontSize }}>
+    <div className="pb-20">
       <div className="gradient-header">
         <div className="flex items-center justify-between mb-4">
           <div>
@@ -100,14 +90,6 @@ export default function HomePage() {
             <p className="text-xs opacity-80 mt-1">AI健康管家 · 关爱您的每一天</p>
           </div>
           <div className="flex items-center gap-2">
-            {fontSwitchEnabled && (
-              <div
-                className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center cursor-pointer"
-                onClick={() => setFontPopupVisible(true)}
-              >
-                <span className="text-white text-sm font-bold">Aa</span>
-              </div>
-            )}
             <Badge content="3" style={{ '--right': '-2px', '--top': '2px' }}>
               <div
                 className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center"
@@ -277,15 +259,6 @@ export default function HomePage() {
         </div>
       </div>
 
-      <FontSettingPopup
-        visible={fontPopupVisible}
-        onClose={() => setFontPopupVisible(false)}
-        fontLevel={fontLevel}
-        onFontLevelChange={setFontLevel}
-        standardSize={config.font_standard_size}
-        largeSize={config.font_large_size}
-        xlargeSize={config.font_xlarge_size}
-      />
     </div>
   );
 }

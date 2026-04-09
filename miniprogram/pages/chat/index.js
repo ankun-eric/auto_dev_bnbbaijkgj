@@ -1,6 +1,12 @@
 const { post, get, put, del } = require('../../utils/request');
 const { generateId } = require('../../utils/util');
 
+const FONT_SIZE_OPTIONS = [
+  { level: 'standard', label: '标准', size: '28rpx' },
+  { level: 'large', label: '大', size: '36rpx' },
+  { level: 'extra_large', label: '超大', size: '44rpx' }
+];
+
 Page({
   data: {
     messages: [],
@@ -10,7 +16,11 @@ Page({
     chatId: '',
     chatType: 'general',
     drawerShow: false,
-    allSessions: []
+    allSessions: [],
+    showFontPopover: false,
+    fontSizeLevel: 'standard',
+    fontSizeOptions: FONT_SIZE_OPTIONS,
+    msgFontSize: '28rpx'
   },
 
   onLoad(options) {
@@ -29,6 +39,8 @@ Page({
 
     this.addMessage('assistant', `您好！我是宾尼小康AI健康助手，很高兴为您提供${typeNames[type] || '健康'}咨询服务。\n\n请描述您的症状或健康问题，我会为您提供专业的分析和建议。`);
 
+    this.loadFontSetting();
+
     if (question) {
       setTimeout(() => {
         this.setData({ inputValue: decodeURIComponent(question) });
@@ -38,6 +50,51 @@ Page({
 
     if (chatId) {
       this.loadChatHistory(chatId);
+    }
+  },
+
+  async loadFontSetting() {
+    try {
+      const res = await get('/api/user/font-setting', {}, { showLoading: false, suppressErrorToast: true });
+      const level = res && res.font_size_level ? res.font_size_level : 'standard';
+      this.applyFontLevel(level);
+    } catch (e) {
+      this.applyFontLevel('standard');
+    }
+  },
+
+  applyFontLevel(level) {
+    const sizeMap = { standard: '28rpx', large: '36rpx', extra_large: '44rpx' };
+    this.setData({
+      fontSizeLevel: level,
+      msgFontSize: sizeMap[level] || '28rpx'
+    });
+  },
+
+  toggleFontPopover() {
+    this.setData({ showFontPopover: !this.data.showFontPopover });
+  },
+
+  closeFontPopover() {
+    this.setData({ showFontPopover: false });
+  },
+
+  async onFontOptionTap(e) {
+    const level = e.currentTarget.dataset.level;
+    if (level === this.data.fontSizeLevel) {
+      this.setData({ showFontPopover: false });
+      return;
+    }
+    this.applyFontLevel(level);
+    this.setData({ showFontPopover: false });
+
+    const labelMap = { standard: '标准', large: '大', extra_large: '超大' };
+    wx.showToast({ title: `已切换为${labelMap[level]}字体`, icon: 'success' });
+
+    try {
+      await put('/api/user/font-setting', { font_size_level: level }, { showLoading: false, suppressErrorToast: true });
+    } catch (e) {
+      console.log('save font setting error', e);
     }
   },
 

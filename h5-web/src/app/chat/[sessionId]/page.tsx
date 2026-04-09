@@ -4,8 +4,29 @@ import { useState, useRef, useEffect, useCallback, Suspense } from 'react';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { NavBar, Input, Button, SpinLoading, Toast, Popup, Tag } from 'antd-mobile';
 import api from '@/lib/api';
+import { useAuth } from '@/lib/auth';
 import ChatSidebar from '@/components/ChatSidebar';
 import KnowledgeCard, { type KnowledgeHit } from '@/components/KnowledgeCard';
+
+type FontSizeLevel = 'standard' | 'large' | 'extra_large';
+
+const FONT_SIZE_MAP: Record<FontSizeLevel, number> = {
+  standard: 14,
+  large: 18,
+  extra_large: 22,
+};
+
+const FONT_LABEL_MAP: Record<FontSizeLevel, string> = {
+  standard: '标准（14px）',
+  large: '大（18px）',
+  extra_large: '超大（22px）',
+};
+
+const FONT_TOAST_MAP: Record<FontSizeLevel, string> = {
+  standard: '已切换为标准字体',
+  large: '已切换为大字体',
+  extra_large: '已切换为超大字体',
+};
 
 interface Message {
   id: string;
@@ -44,6 +65,7 @@ function ChatPageInner() {
   const params = useParams();
   const searchParams = useSearchParams();
   const sessionId = params.sessionId as string;
+  const { isLoggedIn } = useAuth();
 
   const urlType = searchParams.get('type') || '';
   const urlMsg = searchParams.get('msg') || '';
@@ -54,6 +76,56 @@ function ChatPageInner() {
   const [inputVal, setInputVal] = useState('');
   const [loading, setLoading] = useState(false);
   const [sidebarVisible, setSidebarVisible] = useState(false);
+
+  // Font size state
+  const [fontSizeLevel, setFontSizeLevel] = useState<FontSizeLevel>('standard');
+  const [fontPopoverVisible, setFontPopoverVisible] = useState(false);
+  const fontBtnRef = useRef<HTMLButtonElement>(null);
+  const fontPopoverRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    api.get('/api/user/font-setting')
+      .then((res: any) => {
+        const data = res.data || res;
+        const level = data.font_size_level;
+        if (level && FONT_SIZE_MAP[level as FontSizeLevel] !== undefined) {
+          setFontSizeLevel(level as FontSizeLevel);
+        }
+      })
+      .catch(() => {});
+  }, [isLoggedIn]);
+
+  useEffect(() => {
+    if (!fontPopoverVisible) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        fontPopoverRef.current && !fontPopoverRef.current.contains(e.target as Node) &&
+        fontBtnRef.current && !fontBtnRef.current.contains(e.target as Node)
+      ) {
+        setFontPopoverVisible(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside as any);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside as any);
+    };
+  }, [fontPopoverVisible]);
+
+  const handleFontChange = (level: FontSizeLevel) => {
+    setFontSizeLevel(level);
+    setFontPopoverVisible(false);
+    Toast.show({ content: FONT_TOAST_MAP[level], duration: 1500 });
+    if (isLoggedIn) {
+      api.put('/api/user/font-setting', { font_size_level: level }).catch(() => {
+        Toast.show({ content: '保存失败，请稍后重试', icon: 'fail', duration: 1500 });
+      });
+    }
+  };
+
+  const chatFontSize = FONT_SIZE_MAP[fontSizeLevel];
 
   // Symptom banner
   const [bannerExpanded, setBannerExpanded] = useState(true);
@@ -210,6 +282,7 @@ function ChatPageInner() {
 
   const renderMarkdown = (text: string) => {
     const parts = text.split('---disclaimer---');
+    const disclaimerSize = Math.max(chatFontSize - 3, 11);
     return (
       <>
         <div>{renderMarkdownBlock(parts[0])}</div>
@@ -218,7 +291,7 @@ function ChatPageInner() {
             marginTop: 8,
             paddingTop: 8,
             borderTop: '1px dashed #e8e8e8',
-            fontSize: 11,
+            fontSize: disclaimerSize,
             color: '#999',
             fontStyle: 'italic',
             lineHeight: 1.4,
@@ -293,6 +366,77 @@ function ChatPageInner() {
             </svg>
           </button>
         }
+        right={
+          isLoggedIn ? (
+            <div style={{ position: 'relative' }}>
+              <button
+                ref={fontBtnRef}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setFontPopoverVisible((v) => !v);
+                }}
+                className="w-8 h-8 flex items-center justify-center rounded-lg"
+                style={{ background: 'rgba(255,255,255,0.2)' }}
+                aria-label="字体大小设置"
+              >
+                <span className="text-white text-sm font-bold">Aa</span>
+              </button>
+              {fontPopoverVisible && (
+                <div
+                  ref={fontPopoverRef}
+                  style={{
+                    position: 'absolute',
+                    top: '100%',
+                    right: 0,
+                    marginTop: 8,
+                    width: 120,
+                    background: '#fff',
+                    borderRadius: 8,
+                    boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+                    zIndex: 100,
+                    overflow: 'hidden',
+                  }}
+                >
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: -6,
+                      right: 12,
+                      width: 12,
+                      height: 12,
+                      background: '#fff',
+                      transform: 'rotate(45deg)',
+                      boxShadow: '-2px -2px 4px rgba(0,0,0,0.04)',
+                    }}
+                  />
+                  {(['standard', 'large', 'extra_large'] as FontSizeLevel[]).map((level) => {
+                    const isActive = fontSizeLevel === level;
+                    return (
+                      <div
+                        key={level}
+                        onClick={() => handleFontChange(level)}
+                        style={{
+                          padding: '10px 12px',
+                          fontSize: 13,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          background: isActive ? '#f6ffed' : '#fff',
+                          color: isActive ? '#52c41a' : '#333',
+                          fontWeight: isActive ? 600 : 400,
+                        }}
+                      >
+                        <span>{FONT_LABEL_MAP[level]}</span>
+                        {isActive && <span style={{ color: '#52c41a', fontSize: 14 }}>✓</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          ) : null
+        }
         style={{
           '--height': '48px',
           background: 'linear-gradient(135deg, #52c41a, #13c2c2)',
@@ -355,8 +499,8 @@ function ChatPageInner() {
               {/* Symptom card for first user message */}
               {msg.role === 'user' && isFirstUserMsg(msg) ? (
                 <div
-                  className="rounded-2xl rounded-tr-sm px-4 py-3 text-sm leading-relaxed cursor-pointer"
-                  style={{ background: '#f6ffed', border: '1.5px solid #52c41a' }}
+                  className="rounded-2xl rounded-tr-sm px-4 py-3 leading-relaxed cursor-pointer"
+                  style={{ background: '#f6ffed', border: '1.5px solid #52c41a', fontSize: chatFontSize }}
                   onClick={() => setFirstCardExpanded((v) => !v)}
                 >
                   <div className="flex items-center gap-1 mb-2">
@@ -373,7 +517,6 @@ function ChatPageInner() {
                       maxHeight: firstCardExpanded ? 'none' : '1.6em',
                       whiteSpace: firstCardExpanded ? 'normal' : 'nowrap',
                       textOverflow: firstCardExpanded ? 'unset' : 'ellipsis',
-                      fontSize: 13,
                     }}
                   >
                     {msg.content}
@@ -381,11 +524,12 @@ function ChatPageInner() {
                 </div>
               ) : (
                 <div
-                  className={`rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+                  className={`rounded-2xl px-4 py-3 leading-relaxed ${
                     msg.role === 'user'
                       ? 'bg-primary text-white rounded-tr-sm'
                       : 'bg-white text-gray-700 rounded-tl-sm shadow-sm'
                   }`}
+                  style={{ fontSize: chatFontSize }}
                 >
                   {msg.role === 'assistant' ? renderMarkdown(msg.content) : msg.content}
                 </div>

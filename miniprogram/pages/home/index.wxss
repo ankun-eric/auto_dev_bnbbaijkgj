@@ -40,22 +40,6 @@
   font-size: 26rpx;
 }
 
-.font-btn {
-  margin-left: 20rpx;
-  padding: 10rpx 18rpx;
-  border-radius: 999rpx;
-  background: rgba(82, 196, 26, 0.12);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.font-btn-text {
-  font-size: 26rpx;
-  font-weight: bold;
-  color: #52c41a;
-}
-
 .notification-btn {
   position: relative;
   margin-left: 20rpx;
@@ -233,98 +217,6 @@
   border-radius: 12rpx;
   margin-left: 20rpx;
   flex-shrink: 0;
-}
-
-/* Font modal */
-.font-modal-mask {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  z-index: 999;
-}
-
-.font-modal {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: #fff;
-  border-radius: 32rpx 32rpx 0 0;
-  padding: 40rpx 32rpx;
-  padding-bottom: calc(40rpx + env(safe-area-inset-bottom));
-  z-index: 1000;
-  animation: slideUp 0.3s ease;
-}
-
-@keyframes slideUp {
-  from { transform: translateY(100%); }
-  to { transform: translateY(0); }
-}
-
-.font-modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 32rpx;
-}
-
-.font-modal-title {
-  font-size: 34rpx;
-  font-weight: bold;
-  color: #333;
-}
-
-.font-modal-close {
-  font-size: 36rpx;
-  color: #999;
-  padding: 10rpx;
-}
-
-.font-modal-preview {
-  text-align: center;
-  padding: 40rpx 24rpx;
-  background: #f8f8f8;
-  border-radius: 16rpx;
-  margin-bottom: 40rpx;
-  color: #333;
-}
-
-.font-slider-wrap {
-  padding: 0 12rpx;
-  margin-bottom: 40rpx;
-}
-
-.font-slider-labels {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 16rpx;
-}
-
-.font-slider-label {
-  font-size: 26rpx;
-  color: #999;
-}
-
-.font-slider-label.active {
-  color: #52c41a;
-  font-weight: bold;
-}
-
-.font-modal-footer {
-  display: flex;
-  justify-content: center;
-}
-
-.font-confirm-btn {
-  background: linear-gradient(135deg, #52c41a, #13c2c2);
-  color: #fff;
-  border-radius: 44rpx;
-  padding: 20rpx 120rpx;
-  font-size: 30rpx;
-  text-align: center;
 }
 
 /* Merchant page styles */

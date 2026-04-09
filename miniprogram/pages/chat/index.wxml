@@ -5,6 +5,25 @@
       <text class="toggle-icon">☰</text>
     </view>
     <view class="top-bar-spacer"></view>
+    <view class="font-size-trigger" catchtap="toggleFontPopover">
+      <text class="font-trigger-text">Aa</text>
+    </view>
+  </view>
+
+  <!-- 字体大小选择浮层 -->
+  <view class="font-popover-mask" wx:if="{{showFontPopover}}" catchtap="closeFontPopover"></view>
+  <view class="font-popover" wx:if="{{showFontPopover}}">
+    <view class="font-popover-arrow"></view>
+    <view
+      class="font-option {{fontSizeLevel === item.level ? 'font-option-active' : ''}}"
+      wx:for="{{fontSizeOptions}}"
+      wx:key="level"
+      catchtap="onFontOptionTap"
+      data-level="{{item.level}}"
+    >
+      <text class="font-option-label">{{item.label}}（{{item.size}}）</text>
+      <text class="font-option-check" wx:if="{{fontSizeLevel === item.level}}">✓</text>
+    </view>
   </view>
 
   <!-- 消息列表 -->
@@ -21,7 +40,7 @@
           <text class="avatar-emoji">🤖</text>
         </view>
         <view class="msg-bubble ai-bubble">
-          <text class="msg-text">{{item.mainContent || item.content}}</text>
+          <text class="msg-text" style="font-size:{{msgFontSize}};">{{item.mainContent || item.content}}</text>
           <view wx:if="{{item.disclaimer}}" class="disclaimer">
             <text class="disclaimer-text">{{item.disclaimer}}</text>
           </view>
@@ -43,7 +62,7 @@
       <view class="msg-row msg-right" wx:elif="{{item.role === 'user'}}">
         <view class="msg-bubble user-bubble">
           <image class="msg-image" src="{{item.image}}" mode="widthFix" wx:if="{{item.image}}" bindtap="previewImage" data-url="{{item.image}}" />
-          <text class="msg-text" wx:else>{{item.content}}</text>
+          <text class="msg-text" wx:else style="font-size:{{msgFontSize}};">{{item.content}}</text>
           <text class="msg-time user-time">{{item.time}}</text>
         </view>
         <view class="msg-avatar user-avatar">

@@ -126,6 +126,9 @@ class ApiConfig {
   static const String asrRecognize = '/api/search/asr/recognize';
   static const String drugKeywords = '/api/search/drug-keywords';
 
+  // Font Setting
+  static const String userFontSetting = '/api/user/font-setting';
+
   // Home dynamic config
   static const String homeConfig = '/api/home-config';
   static const String homeMenus = '/api/home-menus';

@@ -22,6 +22,7 @@ from app.api import (
     email_notify,
     expert,
     family,
+    font_setting,
     health_profile,
     home_config,
     knowledge,
@@ -67,6 +68,7 @@ app.add_middleware(
 )
 
 app.include_router(auth.router)
+app.include_router(font_setting.router)
 app.include_router(health_profile.router)
 app.include_router(chat.router)
 app.include_router(chat_history.router)

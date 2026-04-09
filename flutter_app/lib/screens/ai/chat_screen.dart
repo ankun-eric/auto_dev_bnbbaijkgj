@@ -7,6 +7,7 @@ import '../../models/chat_message.dart';
 import '../../widgets/custom_app_bar.dart';
 import '../../widgets/chat_history_drawer.dart';
 import '../../widgets/knowledge_card.dart';
+import '../../services/api_service.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -20,6 +21,74 @@ class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final ImagePicker _picker = ImagePicker();
+  final ApiService _apiService = ApiService();
+
+  static const Map<String, double> _fontSizeMap = {
+    'standard': 14.0,
+    'large': 18.0,
+    'extra_large': 22.0,
+  };
+
+  static const Map<String, String> _fontLabelMap = {
+    'standard': '标准',
+    'large': '大',
+    'extra_large': '超大',
+  };
+
+  String _fontSizeLevel = 'standard';
+  double _chatFontSize = 14.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFontSetting();
+  }
+
+  Future<void> _loadFontSetting() async {
+    try {
+      final result = await _apiService.getUserFontSetting();
+      final level = result['font_size_level']?.toString() ?? 'standard';
+      if (_fontSizeMap.containsKey(level) && mounted) {
+        setState(() {
+          _fontSizeLevel = level;
+          _chatFontSize = _fontSizeMap[level]!;
+        });
+      }
+    } catch (_) {
+      // keep default
+    }
+  }
+
+  Future<void> _switchFontSize(String level) async {
+    if (level == _fontSizeLevel) return;
+
+    setState(() {
+      _fontSizeLevel = level;
+      _chatFontSize = _fontSizeMap[level]!;
+    });
+
+    final label = _fontLabelMap[level] ?? '标准';
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('已切换为${label}字体'),
+          duration: const Duration(milliseconds: 1500),
+          backgroundColor: const Color(0xFF52C41A),
+        ),
+      );
+    }
+
+    final success = await _apiService.updateUserFontSetting(level);
+    if (!success && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('保存失败，请稍后重试'),
+          duration: Duration(milliseconds: 1500),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
 
   void _scrollToBottom() {
     if (_scrollController.hasClients) {
@@ -59,6 +128,52 @@ class _ChatScreenState extends State<ChatScreen> {
     super.dispose();
   }
 
+  void _showFontSizeMenu() {
+    final RenderBox button = context.findRenderObject() as RenderBox;
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+
+    showMenu<String>(
+      context: context,
+      position: RelativeRect.fromRect(
+        Rect.fromLTWH(
+          overlay.size.width - 160,
+          kToolbarHeight + MediaQuery.of(context).padding.top,
+          140,
+          0,
+        ),
+        Offset.zero & overlay.size,
+      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      items: _fontSizeMap.keys.map((level) {
+        final label = _fontLabelMap[level]!;
+        final size = _fontSizeMap[level]!;
+        final isSelected = level == _fontSizeLevel;
+        return PopupMenuItem<String>(
+          value: level,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '$label（${size.toInt()}px）',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: isSelected ? const Color(0xFF52C41A) : const Color(0xFF333333),
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                ),
+              ),
+              if (isSelected)
+                const Icon(Icons.check, color: Color(0xFF52C41A), size: 18),
+            ],
+          ),
+        );
+      }).toList(),
+    ).then((value) {
+      if (value != null) {
+        _switchFontSize(value);
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -71,6 +186,13 @@ class _ChatScreenState extends State<ChatScreen> {
       appBar: CustomAppBar(
         title: Provider.of<ChatProvider>(context).currentSession?.typeLabel ?? 'AI健康咨询',
         actions: [
+          IconButton(
+            icon: const Text(
+              'Aa',
+              style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            onPressed: _showFontSizeMenu,
+          ),
           IconButton(
             icon: const Icon(Icons.history, color: Colors.white),
             onPressed: () => _scaffoldKey.currentState?.openDrawer(),
@@ -262,7 +384,7 @@ class _ChatScreenState extends State<ChatScreen> {
               child: isUser
                   ? Text(
                       message.content,
-                      style: const TextStyle(color: Colors.white, fontSize: 15, height: 1.5),
+                      style: TextStyle(color: Colors.white, fontSize: _chatFontSize, height: 1.5),
                     )
                   : _buildAiMessageContent(message),
             ),
@@ -288,11 +410,11 @@ class _ChatScreenState extends State<ChatScreen> {
         MarkdownBody(
           data: mainContent,
           styleSheet: MarkdownStyleSheet(
-            p: const TextStyle(fontSize: 15, height: 1.6, color: Color(0xFF333333)),
-            h1: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            h2: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            h3: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            listBullet: const TextStyle(fontSize: 15),
+            p: TextStyle(fontSize: _chatFontSize, height: 1.6, color: const Color(0xFF333333)),
+            h1: TextStyle(fontSize: _chatFontSize + 5, fontWeight: FontWeight.bold),
+            h2: TextStyle(fontSize: _chatFontSize + 3, fontWeight: FontWeight.bold),
+            h3: TextStyle(fontSize: _chatFontSize + 1, fontWeight: FontWeight.bold),
+            listBullet: TextStyle(fontSize: _chatFontSize),
           ),
         ),
         if (disclaimer != null) ...[
