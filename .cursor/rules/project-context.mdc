@@ -1278,6 +1278,38 @@ All 9 admin API endpoints return HTTP 200 with correct data structure. Admin fro
 
 ---
 
+## Latest Feature: 首页菜单 Emoji 选择器优化 (2026-04-09)
+
+### Admin Web
+
+- Updated `admin-web/src/app/(admin)/home-menus/page.tsx` — 全面优化 Emoji 图标选择功能：
+  - **关键词映射扩充**: `EMOJI_KEYWORD_MAP` 从 11 组扩充至 48 组，覆盖中医、药品、疫苗、保险、慢病管理、急救、康复、口腔、眼科、皮肤、妇科、儿科、养生、减肥等 40+ 健康管理场景
+  - **Emoji 选择面板 (EmojiPickerModal)**: 新增 Modal 弹窗选择器，支持 7 大分类浏览（医疗健康/运动健身/食物饮料/自然植物/活动物品/符号标志/动物），网格布局（10列，36x36px），选中蓝色高亮
+  - **中文搜索**: 基于 `EMOJI_LABEL_MAP`（260+ Emoji 中文标签映射）实现中文关键词搜索，300ms debounce
+  - **智能推荐整合**: 面板顶部根据菜单名称实时推荐匹配 Emoji（最多 8 个），`getRecommendedEmojis` 返回 `{ emojis, isDefault }` 结构
+  - **去除手动输入框**: 原 `<Input maxLength={4}>` 替换为 72x72px 可视化预览区域 + "选择图标" Button + "清除" 链接
+  - **表单集成**: 隐藏 `Form.Item name="icon_content"` 持有选中值，`icon_type === 'emoji'` 时 required 校验
+
+### 纯前端改造说明
+
+- 本次为纯前端优化，无后端接口变更、无数据库迁移
+- `home_menu_items.icon_content` 字段已确认支持 UTF-8 4 字节 Emoji 字符存储
+
+### Testing
+
+- 11/11 server API tests passed (health check, admin login, menu CRUD with regular/composite Emoji, persistence verification, unauthorized access)
+
+### Deployment (2026-04-09)
+
+- Rebuilt admin-web container only
+- All containers healthy
+
+### User Documentation
+
+- Created `user_docs/首页菜单Emoji选择器优化.md`
+
+---
+
 ## Notes For Next Iteration
 
 - Merchant identities are granted by admin only; new self-registered accounts still default to normal users.

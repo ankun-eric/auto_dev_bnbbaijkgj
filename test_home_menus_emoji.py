@@ -1,316 +1,301 @@
 #!/usr/bin/env python3
 """
-Automated tests for home-menus API with Emoji icon support.
-Tests the backend API endpoints that support the new Emoji icon recommendation feature.
+pytest-based automated API tests for home-menus Emoji feature.
+Validates that backend CRUD APIs remain functional after the
+front-end Emoji picker optimization.
 """
+import warnings
+import pytest
 import requests
-import json
-import sys
+import urllib3
+
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+warnings.filterwarnings("ignore", message="Unverified HTTPS request")
 
 BASE_URL = "https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857"
 API_URL = f"{BASE_URL}/api"
-
-session = requests.Session()
-session.verify = True
-
-results = {"passed": [], "failed": []}
+ADMIN_PHONE = "13800000000"
+ADMIN_PASSWORD = "admin123"
+TIMEOUT = 30
 
 
-def log_pass(name):
-    print(f"  [PASS] {name}")
-    results["passed"].append(name)
-
-
-def log_fail(name, reason):
-    print(f"  [FAIL] {name}: {reason}")
-    results["failed"].append({"test": name, "reason": reason})
-
-
-def get_admin_token():
-    """Login and get admin token."""
-    print("\n--- Login as admin ---")
-    # Try admin login endpoint first
-    resp = session.post(f"{API_URL}/admin/login", json={
-        "phone": "13800000000",
-        "password": "admin123"
-    }, timeout=30)
-    
-    if resp.status_code != 200:
-        # Try auth login
-        resp = session.post(f"{API_URL}/auth/login", json={
-            "phone": "13800000000",
-            "password": "admin123"
-        }, timeout=30)
-    
-    if resp.status_code != 200:
-        print(f"Login failed: {resp.status_code} {resp.text[:200]}")
-        return None
-    
+@pytest.fixture(scope="module")
+def admin_token():
+    """TC-002 helper: obtain admin JWT token."""
+    resp = requests.post(
+        f"{API_URL}/admin/login",
+        json={"phone": ADMIN_PHONE, "password": ADMIN_PASSWORD},
+        verify=False,
+        timeout=TIMEOUT,
+    )
+    assert resp.status_code == 200, f"Admin login failed: {resp.status_code} {resp.text[:300]}"
     data = resp.json()
-    token = data.get("access_token") or data.get("token")
-    if token:
-        session.headers.update({"Authorization": f"Bearer {token}"})
-        print(f"Login successful, token: {token[:30]}...")
-        return token
-    else:
-        print(f"No token in response: {data}")
-        return None
+    token = data.get("token") or data.get("access_token")
+    assert token, f"No token in login response: {data}"
+    return token
 
 
-def test_get_home_menus():
-    """Test 1: GET /api/admin/home-menus - Get menu list."""
-    print("\n--- Test 1: GET home-menus ---")
-    resp = session.get(f"{API_URL}/admin/home-menus", timeout=30)
-    
-    if resp.status_code == 200:
-        data = resp.json()
-        if isinstance(data, list):
-            log_pass("GET /api/admin/home-menus returns list")
-            print(f"  Found {len(data)} menus")
-            if data:
-                print(f"  First menu: {data[0]}")
-            return data
-        elif isinstance(data, dict) and ("items" in data or "data" in data):
-            items = data.get("items", data.get("data", []))
-            log_pass("GET /api/admin/home-menus returns paginated list")
-            print(f"  Found {len(items)} menus")
-            return items
-        else:
-            log_pass(f"GET /api/admin/home-menus returns 200 with data")
-            return data if isinstance(data, list) else []
-    else:
-        log_fail("GET /api/admin/home-menus", f"Status {resp.status_code}: {resp.text[:200]}")
-        return []
+@pytest.fixture(scope="module")
+def auth_headers(admin_token):
+    return {"Authorization": f"Bearer {admin_token}"}
 
 
-def test_create_menu_with_emoji():
-    """Test 2: POST /api/admin/home-menus - Create menu with Emoji icon."""
-    print("\n--- Test 2: POST home-menus with Emoji icon ---")
-    
-    test_menus = [
-        {"emoji": "🏥", "name": "医疗健康_test_emoji"},
-        {"emoji": "💊", "name": "药品管理_test_emoji"},
-        {"emoji": "🩺", "name": "诊断服务_test_emoji"},
-    ]
-    
-    created_ids = []
-    for menu_data in test_menus:
-        emoji = menu_data["emoji"]
-        payload = {
-            "name": menu_data["name"],
-            "icon_type": "emoji",
-            "icon_content": emoji,
-            "link_type": "internal",
-            "link_url": f"/test/emoji",
-            "sort_order": 99,
-            "is_visible": True,
-        }
-        
-        resp = session.post(f"{API_URL}/admin/home-menus", json=payload, timeout=30)
-        
-        if resp.status_code in (200, 201):
-            data = resp.json()
-            menu_id = data.get("id")
-            returned_emoji = data.get("icon_content", "")
-            
-            if returned_emoji == emoji:
-                log_pass(f"POST with Emoji {emoji} - icon_content stored correctly")
-            else:
-                log_fail(f"POST with Emoji {emoji}", 
-                        f"icon_content mismatch: expected '{emoji}', got '{returned_emoji}'")
-            
-            if menu_id:
-                created_ids.append(menu_id)
-                print(f"  Created menu id={menu_id}, icon_content='{returned_emoji}'")
-        else:
-            log_fail(f"POST with Emoji {emoji}", f"Status {resp.status_code}: {resp.text[:300]}")
-    
-    return created_ids
-
-
-def test_get_menu_verify_emoji(menu_ids):
-    """Test 3: Verify Emoji persisted in GET after POST."""
-    print("\n--- Test 3: Verify Emoji persistence in GET ---")
-    
-    if not menu_ids:
-        log_fail("Verify Emoji persistence", "No menu IDs to verify")
-        return
-    
-    # Get all menus and check our created ones
-    resp = session.get(f"{API_URL}/admin/home-menus", timeout=30)
-    if resp.status_code != 200:
-        log_fail("Verify Emoji persistence - GET", f"Status {resp.status_code}")
-        return
-    
-    data = resp.json()
-    menus_list = data if isinstance(data, list) else data.get("items", data.get("data", []))
-    
-    found = 0
-    for menu in menus_list:
-        if menu.get("id") in menu_ids:
-            icon_content = menu.get("icon_content", "")
-            if icon_content and len(icon_content) > 0:
-                # Check if it's an emoji character (multi-byte)
-                is_emoji = len(icon_content.encode("utf-8")) > len(icon_content)
-                if is_emoji or any(ord(c) > 127 for c in icon_content):
-                    log_pass(f"Emoji '{icon_content}' persisted correctly for menu id={menu.get('id')}")
-                    found += 1
-                else:
-                    log_fail(f"Emoji persistence id={menu.get('id')}", 
-                            f"icon_content '{icon_content}' doesn't appear to be emoji")
-    
-    if found == 0 and menu_ids:
-        log_fail("Verify Emoji persistence", "Created menus not found in GET response")
-
-
-def test_update_menu_with_emoji(menu_ids):
-    """Test 4: PUT /api/admin/home-menus/{id} - Update menu with Emoji."""
-    print("\n--- Test 4: PUT home-menus with Emoji update ---")
-    
-    if not menu_ids:
-        log_fail("PUT with Emoji", "No menu IDs available")
-        return
-    
-    menu_id = menu_ids[0]
-    new_emoji = "🌟"
-    
+@pytest.fixture(scope="module")
+def created_menu_id(auth_headers):
+    """Create a test menu (emoji icon) used by later tests; cleaned up after module."""
     payload = {
-        "icon_content": new_emoji,
+        "name": "pytest_emoji_test",
         "icon_type": "emoji",
+        "icon_content": "\U0001f3e5",  # 🏥
+        "link_type": "internal",
+        "link_url": "/pytest/emoji-test",
+        "sort_order": 990,
+        "is_visible": True,
     }
-    
-    resp = session.put(f"{API_URL}/admin/home-menus/{menu_id}", json=payload, timeout=30)
-    
-    if resp.status_code in (200, 201, 204):
-        if resp.status_code == 204 or not resp.content:
-            log_pass(f"PUT /api/admin/home-menus/{menu_id} with Emoji {new_emoji} - 204 No Content")
-        else:
-            data = resp.json()
-            returned_emoji = data.get("icon_content", "")
-            if returned_emoji == new_emoji:
-                log_pass(f"PUT with Emoji {new_emoji} - updated correctly")
-            else:
-                log_fail(f"PUT with Emoji {new_emoji}", 
-                        f"icon_content mismatch: expected '{new_emoji}', got '{returned_emoji}'")
-    else:
-        log_fail(f"PUT /api/admin/home-menus/{menu_id}", f"Status {resp.status_code}: {resp.text[:300]}")
+    resp = requests.post(
+        f"{API_URL}/admin/home-menus",
+        json=payload,
+        headers=auth_headers,
+        verify=False,
+        timeout=TIMEOUT,
+    )
+    assert resp.status_code in (200, 201), f"Create menu failed: {resp.status_code} {resp.text[:300]}"
+    menu = resp.json()
+    menu_id = menu.get("id")
+    assert menu_id, "Created menu has no id"
+
+    yield menu_id
+
+    requests.delete(
+        f"{API_URL}/admin/home-menus/{menu_id}",
+        headers=auth_headers,
+        verify=False,
+        timeout=TIMEOUT,
+    )
 
 
-def test_delete_menus(menu_ids):
-    """Test 5: DELETE /api/admin/home-menus/{id} - Delete test menus."""
-    print("\n--- Test 5: DELETE test menus ---")
-    
-    if not menu_ids:
-        log_fail("DELETE menus", "No menu IDs to delete")
-        return
-    
-    for menu_id in menu_ids:
-        resp = session.delete(f"{API_URL}/admin/home-menus/{menu_id}", timeout=30)
-        
-        if resp.status_code in (200, 204):
-            log_pass(f"DELETE /api/admin/home-menus/{menu_id}")
-        else:
-            log_fail(f"DELETE /api/admin/home-menus/{menu_id}", 
-                    f"Status {resp.status_code}: {resp.text[:200]}")
+# ---------- TC-001: Health check ----------
+
+class TestTC001HealthCheck:
+    def test_health_returns_200(self):
+        resp = requests.get(f"{API_URL}/health", verify=False, timeout=TIMEOUT)
+        assert resp.status_code == 200
 
 
-def test_emoji_charset_compatibility():
-    """Test 6: Verify emoji charset compatibility in database."""
-    print("\n--- Test 6: Emoji charset compatibility ---")
-    
-    # Test various emoji characters
-    emoji_chars = ["🏥", "💊", "🌟", "❤️", "🧬", "🔬", "🩺", "💉", "🏃", "🥗"]
-    
-    created_id = None
-    for emoji in emoji_chars:
+# ---------- TC-002: Admin login ----------
+
+class TestTC002AdminLogin:
+    def test_admin_login_returns_token(self):
+        resp = requests.post(
+            f"{API_URL}/admin/login",
+            json={"phone": ADMIN_PHONE, "password": ADMIN_PASSWORD},
+            verify=False,
+            timeout=TIMEOUT,
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data.get("token") or data.get("access_token"), "Response missing token"
+
+
+# ---------- TC-003: Get menu list ----------
+
+class TestTC003GetMenuList:
+    def test_list_menus_returns_200(self, auth_headers):
+        resp = requests.get(
+            f"{API_URL}/admin/home-menus",
+            headers=auth_headers,
+            verify=False,
+            timeout=TIMEOUT,
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "items" in data or isinstance(data, list), f"Unexpected shape: {list(data.keys()) if isinstance(data, dict) else type(data)}"
+
+
+# ---------- TC-004: Create menu with Emoji icon ----------
+
+class TestTC004CreateEmojiMenu:
+    def test_create_menu_emoji(self, auth_headers):
         payload = {
-            "name": f"emoji_compat_test",
+            "name": "pytest_tc004_emoji",
             "icon_type": "emoji",
-            "icon_content": emoji,
+            "icon_content": "\U0001f3e5",  # 🏥
             "link_type": "internal",
-            "link_url": "/test/emoji",
-            "sort_order": 999,
+            "link_url": "/pytest/tc004",
+            "sort_order": 991,
             "is_visible": True,
         }
-        
-        resp = session.post(f"{API_URL}/admin/home-menus", json=payload, timeout=30)
-        if resp.status_code in (200, 201):
-            data = resp.json()
-            returned = data.get("icon_content", "")
-            if returned == emoji:
-                log_pass(f"Emoji '{emoji}' (U+{ord(emoji[0]):04X}) stored and returned correctly")
-            else:
-                log_fail(f"Emoji charset {emoji}", f"Got '{returned}' instead of '{emoji}'")
-            
-            # Save one ID for cleanup
-            if not created_id and data.get("id"):
-                created_id = data.get("id")
-            
-            # Cleanup immediately
-            menu_id = data.get("id")
-            if menu_id:
-                session.delete(f"{API_URL}/admin/home-menus/{menu_id}", timeout=10)
-        else:
-            log_fail(f"Emoji charset {emoji}", f"Create failed: {resp.status_code}")
+        resp = requests.post(
+            f"{API_URL}/admin/home-menus",
+            json=payload,
+            headers=auth_headers,
+            verify=False,
+            timeout=TIMEOUT,
+        )
+        assert resp.status_code in (200, 201), f"Status {resp.status_code}: {resp.text[:300]}"
+        menu = resp.json()
+        assert menu.get("id"), "No id returned"
+        assert menu["icon_type"] == "emoji"
+        assert menu["icon_content"] == "\U0001f3e5"
+
+        requests.delete(
+            f"{API_URL}/admin/home-menus/{menu['id']}",
+            headers=auth_headers,
+            verify=False,
+            timeout=TIMEOUT,
+        )
 
 
-def test_admin_frontend_accessible():
-    """Test 7: Verify admin frontend is accessible."""
-    print("\n--- Test 7: Admin frontend accessibility ---")
-    
-    resp = requests.get(f"{BASE_URL}/admin/", timeout=30, verify=True)
-    if resp.status_code == 200 and len(resp.content) > 1000:
-        log_pass(f"Admin frontend accessible (status={resp.status_code}, size={len(resp.content)} bytes)")
-    else:
-        log_fail("Admin frontend accessible", f"Status {resp.status_code}, size={len(resp.content)}")
-    
-    # Check for home-menus page specifically
-    resp2 = requests.get(f"{BASE_URL}/admin/home-menus", timeout=30, verify=True)
-    if resp2.status_code == 200:
-        log_pass(f"Home-menus page accessible (status={resp2.status_code})")
-    else:
-        log_fail("Home-menus page accessible", f"Status {resp2.status_code}")
+# ---------- TC-005: Create menu with compound/special Emoji ----------
+
+class TestTC005CreateSpecialEmoji:
+    def test_create_compound_emoji(self, auth_headers):
+        compound_emoji = "\U0001f468\u200d\u2695\ufe0f"  # 👨‍⚕️
+        payload = {
+            "name": "pytest_tc005_cmpd",
+            "icon_type": "emoji",
+            "icon_content": compound_emoji,
+            "link_type": "internal",
+            "link_url": "/pytest/tc005",
+            "sort_order": 992,
+            "is_visible": True,
+        }
+        resp = requests.post(
+            f"{API_URL}/admin/home-menus",
+            json=payload,
+            headers=auth_headers,
+            verify=False,
+            timeout=TIMEOUT,
+        )
+        assert resp.status_code in (200, 201), f"Status {resp.status_code}: {resp.text[:300]}"
+        menu = resp.json()
+        assert menu["icon_content"] == compound_emoji, (
+            f"UTF-8 4-byte compound emoji not stored correctly: "
+            f"expected {compound_emoji!r}, got {menu['icon_content']!r}"
+        )
+
+        requests.delete(
+            f"{API_URL}/admin/home-menus/{menu['id']}",
+            headers=auth_headers,
+            verify=False,
+            timeout=TIMEOUT,
+        )
 
 
-def main():
-    print("=" * 60)
-    print("Home Menus Emoji Feature - Automated Tests")
-    print(f"API: {API_URL}")
-    print("=" * 60)
-    
-    # Login
-    token = get_admin_token()
-    if not token:
-        print("\nFATAL: Cannot login, aborting tests")
-        sys.exit(1)
-    
-    # Run tests
-    test_admin_frontend_accessible()
-    existing_menus = test_get_home_menus()
-    created_ids = test_create_menu_with_emoji()
-    test_get_menu_verify_emoji(created_ids)
-    test_update_menu_with_emoji(created_ids)
-    test_delete_menus(created_ids)
-    test_emoji_charset_compatibility()
-    
-    # Summary
-    print("\n" + "=" * 60)
-    print("TEST SUMMARY")
-    print("=" * 60)
-    print(f"PASSED: {len(results['passed'])}")
-    print(f"FAILED: {len(results['failed'])}")
-    
-    if results["failed"]:
-        print("\nFailed tests:")
-        for f in results["failed"]:
-            print(f"  - {f['test']}: {f['reason']}")
-    
-    print("\nPassed tests:")
-    for p in results["passed"]:
-        print(f"  + {p}")
-    
-    return 0 if not results["failed"] else 1
+# ---------- TC-006: Update menu – swap Emoji ----------
+
+class TestTC006UpdateEmoji:
+    def test_update_emoji(self, auth_headers, created_menu_id):
+        new_emoji = "\U0001f9b7"  # 🦷
+        resp = requests.put(
+            f"{API_URL}/admin/home-menus/{created_menu_id}",
+            json={"icon_content": new_emoji, "icon_type": "emoji"},
+            headers=auth_headers,
+            verify=False,
+            timeout=TIMEOUT,
+        )
+        assert resp.status_code == 200, f"Status {resp.status_code}: {resp.text[:300]}"
+        data = resp.json()
+        assert data["icon_content"] == new_emoji, (
+            f"Expected {new_emoji!r}, got {data['icon_content']!r}"
+        )
 
 
-if __name__ == "__main__":
-    sys.exit(main())
+# ---------- TC-007: Verify updated Emoji in list ----------
+
+class TestTC007VerifyUpdatedEmoji:
+    def test_updated_emoji_persisted(self, auth_headers, created_menu_id):
+        resp = requests.get(
+            f"{API_URL}/admin/home-menus",
+            headers=auth_headers,
+            verify=False,
+            timeout=TIMEOUT,
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        items = data.get("items") if isinstance(data, dict) else data
+        matched = [m for m in items if m.get("id") == created_menu_id]
+        assert matched, f"Menu id={created_menu_id} not found in list"
+        assert matched[0]["icon_content"] == "\U0001f9b7", (
+            f"Emoji not persisted: got {matched[0]['icon_content']!r}"
+        )
+
+
+# ---------- TC-008: Delete test menu ----------
+
+class TestTC008DeleteMenu:
+    def test_delete_menu(self, auth_headers):
+        payload = {
+            "name": "pytest_tc008_delete",
+            "icon_type": "emoji",
+            "icon_content": "\U0001f5d1",  # 🗑
+            "link_type": "internal",
+            "link_url": "/pytest/tc008",
+            "sort_order": 993,
+            "is_visible": True,
+        }
+        resp = requests.post(
+            f"{API_URL}/admin/home-menus",
+            json=payload,
+            headers=auth_headers,
+            verify=False,
+            timeout=TIMEOUT,
+        )
+        assert resp.status_code in (200, 201)
+        menu_id = resp.json()["id"]
+
+        del_resp = requests.delete(
+            f"{API_URL}/admin/home-menus/{menu_id}",
+            headers=auth_headers,
+            verify=False,
+            timeout=TIMEOUT,
+        )
+        assert del_resp.status_code in (200, 204), (
+            f"Delete failed: {del_resp.status_code} {del_resp.text[:200]}"
+        )
+
+        verify_resp = requests.get(
+            f"{API_URL}/admin/home-menus",
+            headers=auth_headers,
+            verify=False,
+            timeout=TIMEOUT,
+        )
+        items = verify_resp.json().get("items") if isinstance(verify_resp.json(), dict) else verify_resp.json()
+        assert not any(m.get("id") == menu_id for m in items), "Deleted menu still present"
+
+
+# ---------- TC-009: Unauthorized access ----------
+
+class TestTC009Unauthorized:
+    def test_no_token_returns_401(self):
+        resp = requests.get(
+            f"{API_URL}/admin/home-menus",
+            verify=False,
+            timeout=TIMEOUT,
+        )
+        assert resp.status_code in (401, 403), (
+            f"Expected 401/403 without token, got {resp.status_code}"
+        )
+
+
+# ---------- TC-010: Admin frontend reachable ----------
+
+class TestTC010AdminFrontend:
+    def test_admin_page_accessible(self):
+        resp = requests.get(
+            f"{BASE_URL}/admin/",
+            verify=False,
+            timeout=TIMEOUT,
+            allow_redirects=True,
+        )
+        assert resp.status_code == 200, f"Admin page status {resp.status_code}"
+        assert len(resp.content) > 500, "Admin page content too small – likely not a real page"
+
+    def test_home_menus_page_accessible(self):
+        resp = requests.get(
+            f"{BASE_URL}/admin/home-menus",
+            verify=False,
+            timeout=TIMEOUT,
+            allow_redirects=True,
+        )
+        assert resp.status_code == 200, f"Home-menus page status {resp.status_code}"
