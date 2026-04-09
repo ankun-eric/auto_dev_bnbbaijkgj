@@ -89,24 +89,48 @@ jobs:
         run: |
           echo 'CODE_SIGNING_REQUIRED=NO' >> ios/Flutter/Release.xcconfig
           echo 'CODE_SIGNING_ALLOWED=NO' >> ios/Flutter/Release.xcconfig
-          echo 'CODE_SIGN_IDENTITY=' >> ios/Flutter/Release.xcconfig
+          echo 'CODE_SIGN_IDENTITY=-' >> ios/Flutter/Release.xcconfig
           echo 'CODE_SIGNING_REQUIRED=NO' >> ios/Flutter/Debug.xcconfig
           echo 'CODE_SIGNING_ALLOWED=NO' >> ios/Flutter/Debug.xcconfig
-          echo 'CODE_SIGN_IDENTITY=' >> ios/Flutter/Debug.xcconfig
+          echo 'CODE_SIGN_IDENTITY=-' >> ios/Flutter/Debug.xcconfig
           ruby -e '
             path = "ios/Runner.xcodeproj/project.pbxproj"
             content = File.read(path)
             content.gsub!(/ProvisioningStyle = Automatic/, "ProvisioningStyle = Manual")
             content.gsub!(/CODE_SIGN_STYLE = Automatic/, "CODE_SIGN_STYLE = Manual")
-            content.gsub!(/"CODE_SIGN_IDENTITY\[sdk=iphoneos\*\]" = .*?;/, "\"CODE_SIGN_IDENTITY[sdk=iphoneos*]\" = \"\";")
+            content.gsub!(/"CODE_SIGN_IDENTITY\[sdk=iphoneos\*\]" = .*?;/, "\"CODE_SIGN_IDENTITY[sdk=iphoneos*]\" = \"-\";")
             content.gsub!(/DEVELOPMENT_TEAM = .*?;/, "DEVELOPMENT_TEAM = \"\";")
+            content.gsub!(/CODE_SIGN_IDENTITY = "Apple Development"/, "CODE_SIGN_IDENTITY = \"-\"")
+            content.gsub!(/CODE_SIGN_IDENTITY = "iPhone Developer"/, "CODE_SIGN_IDENTITY = \"-\"")
             File.write(path, content)
           '
 
       - name: Build iOS (no codesign)
         working-directory: flutter_app
-        run: flutter build ios --release --no-codesign
-      
+        run: |
+          flutter build ios --release --no-codesign 2>&1 || true
+          # If flutter build fails, fall back to xcodebuild directly
+          if [ ! -d "build/ios/iphoneos/Runner.app" ]; then
+            echo "Flutter build did not produce .app, trying xcodebuild directly..."
+            cd ios
+            xcodebuild -workspace Runner.xcworkspace \
+              -scheme Runner \
+              -configuration Release \
+              -sdk iphoneos \
+              -derivedDataPath ../build/ios \
+              CODE_SIGNING_REQUIRED=NO \
+              CODE_SIGNING_ALLOWED=NO \
+              CODE_SIGN_IDENTITY="-" \
+              CODE_SIGN_ENTITLEMENTS="" \
+              DEVELOPMENT_TEAM="" \
+              COMPILER_INDEX_STORE_ENABLE=NO
+            cd ..
+            if [ -d "build/ios/Build/Products/Release-iphoneos/Runner.app" ]; then
+              mkdir -p build/ios/iphoneos
+              cp -r build/ios/Build/Products/Release-iphoneos/Runner.app build/ios/iphoneos/
+            fi
+          fi
+
       - name: Create IPA
         run: |
           mkdir -p Payload
