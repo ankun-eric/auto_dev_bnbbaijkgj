@@ -116,6 +116,16 @@ class ApiConfig {
   static const String banners = '/api/content/articles';
   static const String recommendations = '/api/content/articles';
 
+  // Search
+  static const String search = '/api/search';
+  static const String searchSuggest = '/api/search/suggest';
+  static const String searchHot = '/api/search/hot';
+  static const String searchHistory = '/api/search/history';
+  static const String searchLog = '/api/search/log';
+  static const String asrToken = '/api/search/asr/token';
+  static const String asrRecognize = '/api/search/asr/recognize';
+  static const String drugKeywords = '/api/search/drug-keywords';
+
   // Home dynamic config
   static const String homeConfig = '/api/home-config';
   static const String homeMenus = '/api/home-menus';

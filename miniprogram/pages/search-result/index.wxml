@@ -1,0 +1,71 @@
+<view class="result-page">
+  <!-- Search Bar (click to go back to search page) -->
+  <view class="result-header">
+    <view class="result-search-box" bindtap="onSearchBoxTap">
+      <text class="search-icon">🔍</text>
+      <text class="search-keyword">{{query}}</text>
+    </view>
+  </view>
+
+  <!-- Tabs -->
+  <view class="tab-bar">
+    <view
+      class="tab-item {{currentTab === item.value ? 'active' : ''}}"
+      wx:for="{{tabs}}"
+      wx:key="value"
+      bindtap="onTabTap"
+      data-value="{{item.value}}"
+    >
+      <text class="tab-text">{{item.label}}</text>
+      <view class="tab-line" wx:if="{{currentTab === item.value}}"></view>
+    </view>
+  </view>
+
+  <!-- Result List -->
+  <view class="result-body">
+    <!-- Loading -->
+    <view class="loading-wrap" wx:if="{{loading && page === 1}}">
+      <view class="spinner"></view>
+      <text class="loading-text">加载中...</text>
+    </view>
+
+    <!-- Result Items -->
+    <view class="result-list" wx:if="{{!loading || page > 1}}">
+      <view class="result-item" wx:for="{{results}}" wx:key="id" bindtap="onResultTap" data-item="{{item}}">
+        <view class="result-info">
+          <view class="result-type-tag">
+            <text class="type-tag-text">{{item.type_label || item.type || '内容'}}</text>
+          </view>
+          <text class="result-title">{{item.title}}</text>
+          <text class="result-desc" wx:if="{{item.summary || item.description}}">{{item.summary || item.description}}</text>
+          <view class="result-meta">
+            <text class="meta-text" wx:if="{{item.source}}">{{item.source}}</text>
+            <text class="meta-text" wx:if="{{item.time}}">{{item.time}}</text>
+          </view>
+        </view>
+        <image class="result-cover" src="{{item.cover_image || item.cover || item.image}}" mode="aspectFill" wx:if="{{item.cover_image || item.cover || item.image}}" />
+      </view>
+    </view>
+
+    <!-- Load More -->
+    <view class="load-more" wx:if="{{!loading && hasMore && results.length > 0}}">
+      <text class="load-more-text" bindtap="loadMore">加载更多</text>
+    </view>
+
+    <view class="load-more" wx:if="{{loadingMore}}">
+      <view class="spinner-sm"></view>
+      <text class="load-more-text">加载中...</text>
+    </view>
+
+    <view class="load-more" wx:if="{{!hasMore && results.length > 0}}">
+      <text class="no-more-text">没有更多了</text>
+    </view>
+
+    <!-- Empty State -->
+    <view class="empty-state" wx:if="{{!loading && results.length === 0}}">
+      <text class="empty-icon">📭</text>
+      <text class="empty-title">未找到相关结果</text>
+      <text class="empty-desc">换个关键词试试吧</text>
+    </view>
+  </view>
+</view>

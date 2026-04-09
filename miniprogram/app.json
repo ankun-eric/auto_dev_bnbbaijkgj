@@ -31,7 +31,9 @@
     "pages/customer-service/index",
     "pages/settings/index",
     "pages/store-select/index",
-    "pages/no-permission/index"
+    "pages/no-permission/index",
+    "pages/search/index",
+    "pages/search-result/index"
   ],
   "window": {
     "navigationBarTextStyle": "black",
@@ -51,6 +53,12 @@
       { "pagePath": "pages/services/index", "text": "服务", "iconPath": "assets/icons/service.png", "selectedIconPath": "assets/icons/service-active.png" },
       { "pagePath": "pages/profile/index", "text": "我的", "iconPath": "assets/icons/profile.png", "selectedIconPath": "assets/icons/profile-active.png" }
     ]
+  },
+  "plugins": {
+    "WechatSI": {
+      "version": "0.3.6",
+      "provider": "wx069ba97219f66d99"
+    }
   },
   "style": "v2",
   "sitemapLocation": "sitemap.json",

@@ -482,6 +482,77 @@ class ApiService {
     return _dio.get(ApiConfig.recommendations);
   }
 
+  // Search
+  Future<Map<String, dynamic>> search({
+    String q = '',
+    String type = 'all',
+    int page = 1,
+    int pageSize = 20,
+    String source = 'text',
+  }) async {
+    final response = await _dio.get(ApiConfig.search, queryParameters: {
+      'q': q,
+      'type': type,
+      'page': page,
+      'page_size': pageSize,
+      'source': source,
+    });
+    return response.data is Map<String, dynamic>
+        ? response.data as Map<String, dynamic>
+        : <String, dynamic>{};
+  }
+
+  Future<List<dynamic>> searchSuggest(String q) async {
+    final response = await _dio.get(ApiConfig.searchSuggest, queryParameters: {'q': q});
+    final data = response.data;
+    if (data is Map && data['items'] is List) return data['items'] as List;
+    if (data is List) return data;
+    return [];
+  }
+
+  Future<List<dynamic>> searchHot() async {
+    final response = await _dio.get(ApiConfig.searchHot);
+    final data = response.data;
+    if (data is Map && data['items'] is List) return data['items'] as List;
+    if (data is List) return data;
+    return [];
+  }
+
+  Future<List<dynamic>> searchHistory() async {
+    final response = await _dio.get(ApiConfig.searchHistory);
+    final data = response.data;
+    if (data is Map && data['items'] is List) return data['items'] as List;
+    if (data is List) return data;
+    return [];
+  }
+
+  Future<void> deleteSearchHistory(int id) async {
+    await _dio.delete('${ApiConfig.searchHistory}/$id');
+  }
+
+  Future<void> clearSearchHistory() async {
+    await _dio.delete(ApiConfig.searchHistory);
+  }
+
+  Future<Map<String, dynamic>> getAsrToken() async {
+    final response = await _dio.post(ApiConfig.asrToken);
+    return response.data is Map<String, dynamic>
+        ? response.data as Map<String, dynamic>
+        : <String, dynamic>{};
+  }
+
+  Future<Map<String, dynamic>> asrRecognize(String filePath, String format) async {
+    final formData = FormData.fromMap({
+      'audio_file': await MultipartFile.fromFile(filePath),
+      'format': format,
+      'sample_rate': '16000',
+    });
+    final response = await _dio.post(ApiConfig.asrRecognize, data: formData);
+    return response.data is Map<String, dynamic>
+        ? response.data as Map<String, dynamic>
+        : <String, dynamic>{};
+  }
+
   // Home dynamic config
   Future<Map<String, dynamic>> getHomeConfig() async {
     final response = await _dio.get(ApiConfig.homeConfig);

@@ -36,6 +36,8 @@ import 'screens/profile/profile_screen.dart';
 import 'screens/profile/settings_screen.dart';
 import 'screens/notifications/notifications_screen.dart';
 import 'screens/customer_service/cs_screen.dart';
+import 'screens/search/search_screen.dart';
+import 'screens/search/search_result_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -175,6 +177,8 @@ class BiniHealthApp extends StatelessWidget {
           '/settings': (context) => const SettingsScreen(),
           '/notifications': (context) => const NotificationsScreen(),
           '/customer-service': (context) => const CsScreen(),
+          '/search': (context) => const SearchScreen(),
+          '/search-result': (context) => const SearchResultScreen(),
         },
       ),
     );

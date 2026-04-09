@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Toast, Dialog, Popup, Tag, SpinLoading, SwipeAction } from 'antd-mobile';
+import { Toast, Dialog, Tag, SpinLoading, SwipeAction } from 'antd-mobile';
 import { Action } from 'antd-mobile/es/components/swipe-action';
 import api from '@/lib/api';
 
@@ -36,6 +36,13 @@ const CATEGORY_COLORS: Record<string, string> = {
   '积分商品': '#fa8c16',
 };
 
+type VoiceOverlayState = 'idle' | 'recording' | 'recognizing' | 'error';
+
+const MAX_RECORD_SEC = 15;
+const MIN_RECORD_SEC = 1;
+const LONG_PRESS_MS = 300;
+const AUTO_SEARCH_SEC = 2;
+
 function useDebounce<T>(value: T, delay: number): T {
   const [debounced, setDebounced] = useState(value);
   useEffect(() => {
@@ -43,6 +50,23 @@ function useDebounce<T>(value: T, delay: number): T {
     return () => clearTimeout(t);
   }, [value, delay]);
   return debounced;
+}
+
+function getPreferredMimeType(): string {
+  if (typeof MediaRecorder !== 'undefined') {
+    if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) return 'audio/webm;codecs=opus';
+    if (MediaRecorder.isTypeSupported('audio/webm')) return 'audio/webm';
+    if (MediaRecorder.isTypeSupported('audio/mp4')) return 'audio/mp4';
+    if (MediaRecorder.isTypeSupported('audio/mp3')) return 'audio/mp3';
+  }
+  return '';
+}
+
+function mimeToFormat(mime: string): string {
+  if (mime.includes('webm')) return 'webm';
+  if (mime.includes('mp4')) return 'mp4';
+  if (mime.includes('mp3')) return 'mp3';
+  return 'webm';
 }
 
 export default function SearchPage() {
@@ -55,10 +79,31 @@ export default function SearchPage() {
   const [suggestions, setSuggestions] = useState<SuggestItem[]>([]);
   const [historyExpanded, setHistoryExpanded] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [voiceVisible, setVoiceVisible] = useState(false);
-  const [asrEnabled, setAsrEnabled] = useState(false);
-  const [voiceListening, setVoiceListening] = useState(false);
   const [suggestLoading, setSuggestLoading] = useState(false);
+
+  const [micAvailable, setMicAvailable] = useState(false);
+  const [asrEnabled, setAsrEnabled] = useState(false);
+
+  const [overlayState, setOverlayState] = useState<VoiceOverlayState>('idle');
+  const [recordSec, setRecordSec] = useState(0);
+  const [volumeBars, setVolumeBars] = useState<number[]>([0, 0, 0, 0, 0]);
+  const [errorMsg, setErrorMsg] = useState('');
+
+  const [autoSearchCountdown, setAutoSearchCountdown] = useState<number | null>(null);
+
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const streamRef = useRef<MediaStream | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const animFrameRef = useRef<number>(0);
+  const recordTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const recordStartTimeRef = useRef<number>(0);
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isPressedRef = useRef(false);
+  const autoSearchTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const mimeTypeRef = useRef('');
+  const maxTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const debouncedKeyword = useDebounce(keyword, 300);
 
@@ -71,13 +116,30 @@ export default function SearchPage() {
     inputRef.current?.focus();
   }, []);
 
+  useEffect(() => {
+    let active = true;
+    const checkCapabilities = async () => {
+      const hasMic = !!(navigator.mediaDevices?.getUserMedia);
+      if (active) setMicAvailable(hasMic);
+      if (!hasMic) return;
+      try {
+        const data: any = await api.post('/api/search/asr/token');
+        if (active && data?.provider) {
+          setAsrEnabled(true);
+        }
+      } catch {
+        if (active) setAsrEnabled(false);
+      }
+    };
+    checkCapabilities();
+    return () => { active = false; };
+  }, []);
+
   const fetchHot = useCallback(async () => {
     try {
       const data: any = await api.get('/api/search/hot');
       setHotList((Array.isArray(data) ? data : []).slice(0, 10));
-    } catch {
-      // ignore
-    }
+    } catch { /* ignore */ }
   }, []);
 
   const fetchHistory = useCallback(async () => {
@@ -85,9 +147,7 @@ export default function SearchPage() {
     try {
       const data: any = await api.get('/api/search/history');
       setHistoryList((Array.isArray(data) ? data : []).slice(0, 20));
-    } catch {
-      // ignore
-    }
+    } catch { /* ignore */ }
   }, [isLoggedIn]);
 
   useEffect(() => {
@@ -107,19 +167,19 @@ export default function SearchPage() {
         const data: any = await api.get('/api/search/suggest', { params: { q: debouncedKeyword } });
         if (cancelled) return;
         setSuggestions(Array.isArray(data) ? data : []);
-      } catch {
-        // ignore
-      } finally {
+      } catch { /* ignore */ } finally {
         if (!cancelled) setSuggestLoading(false);
       }
     })();
     return () => { cancelled = true; };
   }, [debouncedKeyword]);
 
-  const doSearch = (q: string) => {
+  const doSearch = useCallback((q: string, source: string = 'text') => {
     if (!q.trim()) return;
-    router.push(`/search/result?q=${encodeURIComponent(q.trim())}`);
-  };
+    const params = new URLSearchParams({ q: q.trim() });
+    if (source === 'voice') params.set('source', 'voice');
+    router.push(`/search/result?${params.toString()}`);
+  }, [router]);
 
   const handleDeleteOne = async (id: number) => {
     try {
@@ -148,30 +208,6 @@ export default function SearchPage() {
     });
   };
 
-  const checkAsr = async () => {
-    try {
-      const data: any = await api.post('/api/search/asr/token');
-      if (data.provider) {
-        setAsrEnabled(true);
-        return true;
-      }
-    } catch {
-      // ignore
-    }
-    setAsrEnabled(false);
-    return false;
-  };
-
-  const openVoice = async () => {
-    const ok = await checkAsr();
-    if (!ok) {
-      Toast.show({ content: '语音搜索功能即将上线', position: 'center' });
-      return;
-    }
-    setVoiceVisible(true);
-    setVoiceListening(true);
-  };
-
   const handleSuggestClick = (item: SuggestItem) => {
     if (item.is_drug_keyword) {
       router.push('/drug');
@@ -180,17 +216,255 @@ export default function SearchPage() {
     doSearch(item.keyword);
   };
 
+  const clearAutoSearch = useCallback(() => {
+    if (autoSearchTimerRef.current) {
+      clearInterval(autoSearchTimerRef.current);
+      autoSearchTimerRef.current = null;
+    }
+    setAutoSearchCountdown(null);
+  }, []);
+
+  const cleanupRecording = useCallback(() => {
+    if (animFrameRef.current) {
+      cancelAnimationFrame(animFrameRef.current);
+      animFrameRef.current = 0;
+    }
+    if (recordTimerRef.current) {
+      clearInterval(recordTimerRef.current);
+      recordTimerRef.current = null;
+    }
+    if (maxTimerRef.current) {
+      clearTimeout(maxTimerRef.current);
+      maxTimerRef.current = null;
+    }
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      try { mediaRecorderRef.current.stop(); } catch { /* ignore */ }
+    }
+    mediaRecorderRef.current = null;
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(t => t.stop());
+      streamRef.current = null;
+    }
+    if (audioCtxRef.current && audioCtxRef.current.state !== 'closed') {
+      try { audioCtxRef.current.close(); } catch { /* ignore */ }
+    }
+    audioCtxRef.current = null;
+    analyserRef.current = null;
+  }, []);
+
+  const closeOverlay = useCallback(() => {
+    cleanupRecording();
+    setOverlayState('idle');
+    setRecordSec(0);
+    setVolumeBars([0, 0, 0, 0, 0]);
+    setErrorMsg('');
+  }, [cleanupRecording]);
+
+  const sendToAsr = useCallback(async (blob: Blob) => {
+    setOverlayState('recognizing');
+    try {
+      const fd = new FormData();
+      const fmt = mimeToFormat(mimeTypeRef.current);
+      fd.append('audio_file', blob, `recording.${fmt}`);
+      fd.append('format', fmt);
+      fd.append('sample_rate', '16000');
+      const data: any = await api.post('/api/search/asr/recognize', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 30000,
+      });
+      if (data?.success === false) {
+        setErrorMsg(data?.error || '未能识别语音内容');
+        setOverlayState('error');
+        return;
+      }
+      const text = data?.data?.text || data?.text || '';
+      if (!text) {
+        setErrorMsg('未能识别语音内容');
+        setOverlayState('error');
+        return;
+      }
+      closeOverlay();
+      setKeyword(text);
+      setAutoSearchCountdown(AUTO_SEARCH_SEC);
+      let remaining = AUTO_SEARCH_SEC;
+      autoSearchTimerRef.current = setInterval(() => {
+        remaining -= 1;
+        if (remaining <= 0) {
+          clearAutoSearch();
+          doSearch(text, 'voice');
+        } else {
+          setAutoSearchCountdown(remaining);
+        }
+      }, 1000);
+    } catch {
+      setErrorMsg('语音识别失败，请重试');
+      setOverlayState('error');
+    }
+  }, [closeOverlay, clearAutoSearch, doSearch]);
+
+  const stopRecording = useCallback(() => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+    }
+  }, []);
+
+  const startRecording = useCallback(async () => {
+    audioChunksRef.current = [];
+    setRecordSec(0);
+    setErrorMsg('');
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+
+      const ctx = new AudioContext();
+      audioCtxRef.current = ctx;
+      const source = ctx.createMediaStreamSource(stream);
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 256;
+      source.connect(analyser);
+      analyserRef.current = analyser;
+
+      const mime = getPreferredMimeType();
+      mimeTypeRef.current = mime;
+      const recorder = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+      mediaRecorderRef.current = recorder;
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+
+      recorder.onstop = () => {
+        const elapsed = (Date.now() - recordStartTimeRef.current) / 1000;
+        if (animFrameRef.current) {
+          cancelAnimationFrame(animFrameRef.current);
+          animFrameRef.current = 0;
+        }
+        if (recordTimerRef.current) {
+          clearInterval(recordTimerRef.current);
+          recordTimerRef.current = null;
+        }
+        if (maxTimerRef.current) {
+          clearTimeout(maxTimerRef.current);
+          maxTimerRef.current = null;
+        }
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach(t => t.stop());
+          streamRef.current = null;
+        }
+        if (elapsed < MIN_RECORD_SEC) {
+          setErrorMsg('说话时间太短');
+          setOverlayState('error');
+          return;
+        }
+        const blob = new Blob(audioChunksRef.current, { type: mime || 'audio/webm' });
+        sendToAsr(blob);
+      };
+
+      recorder.start(250);
+      recordStartTimeRef.current = Date.now();
+      setOverlayState('recording');
+
+      recordTimerRef.current = setInterval(() => {
+        const s = Math.floor((Date.now() - recordStartTimeRef.current) / 1000);
+        setRecordSec(s);
+      }, 500);
+
+      maxTimerRef.current = setTimeout(() => {
+        stopRecording();
+      }, MAX_RECORD_SEC * 1000);
+
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+      const updateBars = () => {
+        if (!analyserRef.current) return;
+        analyserRef.current.getByteFrequencyData(dataArray);
+        const barCount = 5;
+        const step = Math.floor(dataArray.length / barCount);
+        const bars: number[] = [];
+        for (let i = 0; i < barCount; i++) {
+          let sum = 0;
+          for (let j = 0; j < step; j++) sum += dataArray[i * step + j];
+          bars.push(Math.min(1, (sum / step) / 180));
+        }
+        setVolumeBars(bars);
+        animFrameRef.current = requestAnimationFrame(updateBars);
+      };
+      animFrameRef.current = requestAnimationFrame(updateBars);
+    } catch (err: any) {
+      cleanupRecording();
+      const msg = err?.name === 'NotAllowedError' ? '麦克风权限被拒绝' : '无法启动录音';
+      setErrorMsg(msg);
+      setOverlayState('error');
+    }
+  }, [sendToAsr, stopRecording, cleanupRecording]);
+
+  const handlePressStart = useCallback(() => {
+    if (overlayState !== 'idle') return;
+    isPressedRef.current = true;
+    longPressTimerRef.current = setTimeout(() => {
+      if (isPressedRef.current) {
+        startRecording();
+      }
+    }, LONG_PRESS_MS);
+  }, [overlayState, startRecording]);
+
+  const handlePressEnd = useCallback(() => {
+    isPressedRef.current = false;
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+    if (overlayState === 'recording') {
+      stopRecording();
+    }
+  }, [overlayState, stopRecording]);
+
+  useEffect(() => {
+    return () => {
+      cleanupRecording();
+      clearAutoSearch();
+      if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+    };
+  }, [cleanupRecording, clearAutoSearch]);
+
+  const handleKeywordChange = (val: string) => {
+    setKeyword(val);
+    if (autoSearchCountdown !== null) {
+      clearAutoSearch();
+      if (val.trim()) {
+        setAutoSearchCountdown(AUTO_SEARCH_SEC);
+        let remaining = AUTO_SEARCH_SEC;
+        autoSearchTimerRef.current = setInterval(() => {
+          remaining -= 1;
+          if (remaining <= 0) {
+            clearAutoSearch();
+            doSearch(val);
+          } else {
+            setAutoSearchCountdown(remaining);
+          }
+        }, 1000);
+      }
+    }
+  };
+
+  const handleClearKeyword = () => {
+    setKeyword('');
+    clearAutoSearch();
+  };
+
+  const handleCancelAutoSearch = () => {
+    clearAutoSearch();
+  };
+
   const displayHistory = historyExpanded ? historyList : historyList.slice(0, 6);
 
   const swipeActions: Action[] = [
-    {
-      key: 'delete',
-      text: '删除',
-      color: 'danger',
-    },
+    { key: 'delete', text: '删除', color: 'danger' },
   ];
 
   const showSuggestions = keyword.trim().length > 0;
+  const showMicButton = micAvailable && asrEnabled;
+
+  const overlayVisible = overlayState !== 'idle';
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
@@ -215,9 +489,12 @@ export default function SearchPage() {
               type="text"
               value={keyword}
               maxLength={100}
-              onChange={(e) => setKeyword(e.target.value)}
+              onChange={(e) => handleKeywordChange(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') doSearch(keyword);
+                if (e.key === 'Enter') {
+                  clearAutoSearch();
+                  doSearch(keyword);
+                }
               }}
               placeholder="搜索文章、视频、服务、商品"
               className="flex-1 bg-transparent border-none outline-none text-sm ml-2 text-gray-800 placeholder-gray-400"
@@ -225,37 +502,58 @@ export default function SearchPage() {
             {keyword && (
               <button
                 className="flex-shrink-0 w-5 h-5 rounded-full bg-gray-300 flex items-center justify-center"
-                onClick={() => setKeyword('')}
+                onClick={handleClearKeyword}
               >
                 <span className="text-white text-xs leading-none">×</span>
               </button>
             )}
           </div>
         </div>
-        <button
-          className="flex-shrink-0 w-8 h-8 flex items-center justify-center"
-          onClick={openVoice}
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#52c41a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-            <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-            <line x1="12" y1="19" x2="12" y2="23" />
-            <line x1="8" y1="23" x2="16" y2="23" />
-          </svg>
-        </button>
+        {showMicButton && (
+          <button
+            className="flex-shrink-0 w-8 h-8 flex items-center justify-center"
+            onTouchStart={(e) => { e.preventDefault(); handlePressStart(); }}
+            onTouchEnd={handlePressEnd}
+            onTouchCancel={handlePressEnd}
+            onMouseDown={handlePressStart}
+            onMouseUp={handlePressEnd}
+            onMouseLeave={handlePressEnd}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#52c41a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+              <line x1="12" y1="19" x2="12" y2="23" />
+              <line x1="8" y1="23" x2="16" y2="23" />
+            </svg>
+          </button>
+        )}
         <button
           className="flex-shrink-0 text-sm font-medium ml-1"
           style={{ color: '#52c41a' }}
-          onClick={() => doSearch(keyword)}
+          onClick={() => { clearAutoSearch(); doSearch(keyword); }}
         >
           搜索
         </button>
       </div>
 
+      {/* Auto search countdown hint */}
+      {autoSearchCountdown !== null && (
+        <div style={{ padding: '8px 16px', background: '#f6ffed', borderBottom: '1px solid #b7eb8f', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: 13, color: '#333' }}>
+            {autoSearchCountdown}秒后自动搜索
+          </span>
+          <button
+            style={{ fontSize: 13, color: '#1890ff', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 8px' }}
+            onClick={handleCancelAutoSearch}
+          >
+            点击取消
+          </button>
+        </div>
+      )}
+
       {/* Content area */}
       <div className="flex-1 overflow-y-auto">
         {showSuggestions ? (
-          /* Suggestion list */
           <div className="px-4 py-2">
             {suggestLoading && (
               <div className="flex justify-center py-4">
@@ -292,9 +590,7 @@ export default function SearchPage() {
             ))}
           </div>
         ) : (
-          /* Hot search + History */
           <div className="px-4 py-4">
-            {/* Hot search */}
             <div className="mb-6">
               <h3 className="text-base font-semibold text-gray-800 mb-3">热门搜索</h3>
               <div className="flex flex-wrap gap-2">
@@ -321,7 +617,6 @@ export default function SearchPage() {
               </div>
             </div>
 
-            {/* Search history */}
             <div>
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-base font-semibold text-gray-800">搜索历史</h3>
@@ -406,85 +701,102 @@ export default function SearchPage() {
         )}
       </div>
 
-      {/* Voice search popup */}
-      <Popup
-        visible={voiceVisible}
-        onMaskClick={() => {
-          setVoiceVisible(false);
-          setVoiceListening(false);
-        }}
-        position="bottom"
-        bodyStyle={{
-          borderTopLeftRadius: 16,
-          borderTopRightRadius: 16,
-          minHeight: '40vh',
-          background: 'linear-gradient(180deg, #f0faf0 0%, #fff 100%)',
-        }}
-      >
-        <div className="flex flex-col items-center py-8 px-6">
-          <div className="text-base font-medium text-gray-700 mb-8">
-            {voiceListening ? '正在聆听...' : '请说出您想搜索的内容'}
-          </div>
+      {/* Voice recording overlay */}
+      {overlayVisible && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, zIndex: 9999,
+            background: 'rgba(0,0,0,0.6)',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          }}
+          onTouchEnd={overlayState === 'recording' ? handlePressEnd : undefined}
+          onMouseUp={overlayState === 'recording' ? handlePressEnd : undefined}
+        >
+          {/* Close button */}
+          <button
+            onClick={closeOverlay}
+            style={{
+              position: 'absolute', top: 16, right: 16,
+              width: 36, height: 36, borderRadius: '50%',
+              background: 'rgba(255,255,255,0.15)', border: 'none', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
 
-          {/* Mic icon with pulse animation */}
-          <div className="relative mb-8">
-            {voiceListening && (
-              <>
-                <div className="absolute inset-0 w-20 h-20 rounded-full animate-ping" style={{ background: 'rgba(82,196,26,0.15)' }} />
-                <div className="absolute inset-0 w-20 h-20 rounded-full animate-pulse" style={{ background: 'rgba(82,196,26,0.1)' }} />
-              </>
-            )}
-            <div
-              className="relative w-20 h-20 rounded-full flex items-center justify-center cursor-pointer"
-              style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}
-              onClick={() => setVoiceListening(!voiceListening)}
-            >
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-                <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                <line x1="12" y1="19" x2="12" y2="23" />
-                <line x1="8" y1="23" x2="16" y2="23" />
-              </svg>
-            </div>
-          </div>
+          {overlayState === 'recording' && (
+            <>
+              {/* Timer */}
+              <div style={{
+                fontSize: 20, fontWeight: 600, marginBottom: 32,
+                color: recordSec >= MAX_RECORD_SEC - 3 ? '#ff4d4f' : '#fff',
+                fontVariantNumeric: 'tabular-nums',
+              }}>
+                {recordSec}s / {MAX_RECORD_SEC}s
+              </div>
 
-          {/* Wave animation */}
-          {voiceListening && (
-            <div className="flex items-end gap-1 h-8 mb-6">
-              {[...Array(12)].map((_, i) => (
-                <div
-                  key={i}
-                  className="w-1 rounded-full"
-                  style={{
-                    background: `linear-gradient(to top, #52c41a, #13c2c2)`,
-                    animation: `voiceWave 0.8s ease-in-out ${i * 0.08}s infinite alternate`,
-                    height: 8,
-                  }}
-                />
-              ))}
+              {/* Sound wave bars driven by real volume */}
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 80, marginBottom: 32 }}>
+                {volumeBars.map((v, i) => (
+                  <div key={i} style={{
+                    width: 6, borderRadius: 3,
+                    background: 'linear-gradient(to top, #52c41a, #13c2c2)',
+                    height: `${Math.max(12, v * 80)}px`,
+                    transition: 'height 0.1s ease-out',
+                  }} />
+                ))}
+              </div>
+
+              {/* Hint */}
+              <div style={{ fontSize: 16, color: '#fff', fontWeight: 500 }}>
+                松开结束
+              </div>
+            </>
+          )}
+
+          {overlayState === 'recognizing' && (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20 }}>
+              <SpinLoading style={{ '--size': '40px', '--color': '#52c41a' } as any} />
+              <div style={{ fontSize: 16, color: '#fff', fontWeight: 500 }}>
+                正在识别...
+              </div>
             </div>
           )}
 
-          <p className="text-sm text-gray-400 mt-2">语音搜索功能即将上线</p>
-
-          <button
-            className="mt-6 text-sm text-gray-500 px-6 py-2 rounded-full bg-gray-100"
-            onClick={() => {
-              setVoiceVisible(false);
-              setVoiceListening(false);
-            }}
-          >
-            取消
-          </button>
+          {overlayState === 'error' && (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, padding: '0 32px' }}>
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ff4d4f" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              <div style={{ fontSize: 15, color: '#fff', textAlign: 'center' }}>
+                {errorMsg}
+              </div>
+              <button
+                onClick={() => {
+                  cleanupRecording();
+                  setOverlayState('idle');
+                  setRecordSec(0);
+                  setErrorMsg('');
+                  setTimeout(() => startRecording(), 100);
+                }}
+                style={{
+                  marginTop: 8, padding: '10px 32px', borderRadius: 24,
+                  background: 'linear-gradient(135deg, #52c41a, #13c2c2)',
+                  color: '#fff', fontSize: 15, fontWeight: 500,
+                  border: 'none', cursor: 'pointer',
+                }}
+              >
+                重试
+              </button>
+            </div>
+          )}
         </div>
-      </Popup>
-
-      <style jsx>{`
-        @keyframes voiceWave {
-          from { height: 8px; }
-          to { height: 28px; }
-        }
-      `}</style>
+      )}
     </div>
   );
 }

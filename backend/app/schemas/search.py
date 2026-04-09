@@ -187,3 +187,13 @@ class DrugSearchKeywordResponse(BaseModel):
     is_active: bool
 
     model_config = ConfigDict(from_attributes=True)
+
+
+# ──────────────── ASR 语音识别 ────────────────
+
+
+class AsrRecognizeResponse(BaseModel):
+    success: bool
+    data: Optional[dict] = None
+    error: Optional[str] = None
+    error_code: Optional[str] = None

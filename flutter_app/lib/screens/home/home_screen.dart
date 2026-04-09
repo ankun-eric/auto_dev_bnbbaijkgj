@@ -195,7 +195,7 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: const Color(0xFF52C41A),
       title: _searchVisible
           ? GestureDetector(
-              onTap: () {},
+              onTap: () => Navigator.pushNamed(context, '/search'),
               child: Container(
                 height: 38,
                 decoration: BoxDecoration(

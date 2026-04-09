@@ -300,7 +300,7 @@ Page({
 
   onSearchTap() {
     if (this.data.pageMode !== 'user') return;
-    wx.navigateTo({ url: '/pages/articles/index?focus=true' });
+    wx.navigateTo({ url: '/pages/search/index' });
   },
 
   goNotifications() {

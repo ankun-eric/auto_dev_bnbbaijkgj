@@ -47,6 +47,7 @@ function SearchResultContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const q = searchParams.get('q') || '';
+  const searchSource = searchParams.get('source') === 'voice' ? 'voice' : 'text';
 
   const [keyword, setKeyword] = useState(q);
   const [activeTab, setActiveTab] = useState('all');
@@ -79,6 +80,10 @@ function SearchResultContent() {
   }, [fetchDrugKeywords]);
 
   useEffect(() => {
+    setKeyword(q);
+  }, [q]);
+
+  useEffect(() => {
     if (q && drugKeywords.length > 0) {
       const matched = drugKeywords.some((kw: string) =>
         q.toLowerCase().includes(kw.toLowerCase()) || kw.toLowerCase().includes(q.toLowerCase())
@@ -91,7 +96,7 @@ function SearchResultContent() {
     if (!query.trim()) return;
     setAllLoading(true);
     try {
-      const data: any = await api.get('/api/search', { params: { q: query, type: 'all' } });
+      const data: any = await api.get('/api/search', { params: { q: query, type: 'all', source: searchSource } });
       setAllItems(data.items || []);
       setTypeCounts(data.type_counts || {});
       setBlockTip(data.block_tip || null);
@@ -100,14 +105,14 @@ function SearchResultContent() {
     } finally {
       setAllLoading(false);
     }
-  }, []);
+  }, [searchSource]);
 
   const fetchTab = useCallback(async (query: string, type: string, pageNum: number, append = false) => {
     if (!query.trim()) return;
     setLoading(true);
     try {
       const data: any = await api.get('/api/search', {
-        params: { q: query, type, page: pageNum, page_size: pageSize },
+        params: { q: query, type, page: pageNum, page_size: pageSize, source: searchSource },
       });
       const items: SearchItem[] = data.items || [];
       if (append) {
@@ -121,7 +126,7 @@ function SearchResultContent() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [searchSource, pageSize]);
 
   const fetchHot = useCallback(async () => {
     try {
