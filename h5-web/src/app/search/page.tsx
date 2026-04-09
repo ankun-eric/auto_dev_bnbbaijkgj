@@ -40,7 +40,6 @@ type VoiceOverlayState = 'idle' | 'recording' | 'recognizing' | 'error';
 
 const MAX_RECORD_SEC = 15;
 const MIN_RECORD_SEC = 1;
-const LONG_PRESS_MS = 300;
 const AUTO_SEARCH_SEC = 2;
 
 function useDebounce<T>(value: T, delay: number): T {
@@ -63,9 +62,10 @@ function getPreferredMimeType(): string {
 }
 
 function mimeToFormat(mime: string): string {
+  if (!mime) return 'webm';
   if (mime.includes('webm')) return 'webm';
-  if (mime.includes('mp4')) return 'mp4';
-  if (mime.includes('mp3')) return 'mp3';
+  if (mime.includes('mp4')) return 'm4a';
+  if (mime.includes('mp3') || mime.includes('mpeg')) return 'mp3';
   return 'webm';
 }
 
@@ -86,7 +86,7 @@ export default function SearchPage() {
 
   const [overlayState, setOverlayState] = useState<VoiceOverlayState>('idle');
   const [recordSec, setRecordSec] = useState(0);
-  const [volumeBars, setVolumeBars] = useState<number[]>([0, 0, 0, 0, 0]);
+  const [volumeBars, setVolumeBars] = useState<number[]>([0, 0, 0, 0, 0, 0, 0]);
   const [errorMsg, setErrorMsg] = useState('');
 
   const [autoSearchCountdown, setAutoSearchCountdown] = useState<number | null>(null);
@@ -99,8 +99,6 @@ export default function SearchPage() {
   const animFrameRef = useRef<number>(0);
   const recordTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const recordStartTimeRef = useRef<number>(0);
-  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isPressedRef = useRef(false);
   const autoSearchTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const mimeTypeRef = useRef('');
   const maxTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -256,7 +254,7 @@ export default function SearchPage() {
     cleanupRecording();
     setOverlayState('idle');
     setRecordSec(0);
-    setVolumeBars([0, 0, 0, 0, 0]);
+    setVolumeBars([0, 0, 0, 0, 0, 0, 0]);
     setErrorMsg('');
   }, [cleanupRecording]);
 
@@ -273,13 +271,13 @@ export default function SearchPage() {
         timeout: 30000,
       });
       if (data?.success === false) {
-        setErrorMsg(data?.error || '未能识别语音内容');
+        setErrorMsg(data?.error || '好像没听到声音哦，再试试~');
         setOverlayState('error');
         return;
       }
       const text = data?.data?.text || data?.text || '';
       if (!text) {
-        setErrorMsg('未能识别语音内容');
+        setErrorMsg('好像没听到声音哦，再试试~');
         setOverlayState('error');
         return;
       }
@@ -297,7 +295,7 @@ export default function SearchPage() {
         }
       }, 1000);
     } catch {
-      setErrorMsg('语音识别失败，请重试');
+      setErrorMsg('没听清楚，再说一次好吗~');
       setOverlayState('error');
     }
   }, [closeOverlay, clearAutoSearch, doSearch]);
@@ -352,7 +350,7 @@ export default function SearchPage() {
           streamRef.current = null;
         }
         if (elapsed < MIN_RECORD_SEC) {
-          setErrorMsg('说话时间太短');
+          setErrorMsg('说的太快了，再试一次吧~');
           setOverlayState('error');
           return;
         }
@@ -377,7 +375,7 @@ export default function SearchPage() {
       const updateBars = () => {
         if (!analyserRef.current) return;
         analyserRef.current.getByteFrequencyData(dataArray);
-        const barCount = 5;
+        const barCount = 7;
         const step = Math.floor(dataArray.length / barCount);
         const bars: number[] = [];
         for (let i = 0; i < barCount; i++) {
@@ -391,38 +389,21 @@ export default function SearchPage() {
       animFrameRef.current = requestAnimationFrame(updateBars);
     } catch (err: any) {
       cleanupRecording();
-      const msg = err?.name === 'NotAllowedError' ? '麦克风权限被拒绝' : '无法启动录音';
+      const msg = err?.name === 'NotAllowedError' ? '需要你允许使用麦克风才能听到你说话哦~' : '录音启动失败了，再试一次吧~';
       setErrorMsg(msg);
       setOverlayState('error');
     }
   }, [sendToAsr, stopRecording, cleanupRecording]);
 
-  const handlePressStart = useCallback(() => {
+  const handleMicClick = useCallback(() => {
     if (overlayState !== 'idle') return;
-    isPressedRef.current = true;
-    longPressTimerRef.current = setTimeout(() => {
-      if (isPressedRef.current) {
-        startRecording();
-      }
-    }, LONG_PRESS_MS);
+    startRecording();
   }, [overlayState, startRecording]);
-
-  const handlePressEnd = useCallback(() => {
-    isPressedRef.current = false;
-    if (longPressTimerRef.current) {
-      clearTimeout(longPressTimerRef.current);
-      longPressTimerRef.current = null;
-    }
-    if (overlayState === 'recording') {
-      stopRecording();
-    }
-  }, [overlayState, stopRecording]);
 
   useEffect(() => {
     return () => {
       cleanupRecording();
       clearAutoSearch();
-      if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
     };
   }, [cleanupRecording, clearAutoSearch]);
 
@@ -512,12 +493,7 @@ export default function SearchPage() {
         {showMicButton && (
           <button
             className="flex-shrink-0 w-8 h-8 flex items-center justify-center"
-            onTouchStart={(e) => { e.preventDefault(); handlePressStart(); }}
-            onTouchEnd={handlePressEnd}
-            onTouchCancel={handlePressEnd}
-            onMouseDown={handlePressStart}
-            onMouseUp={handlePressEnd}
-            onMouseLeave={handlePressEnd}
+            onClick={handleMicClick}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#52c41a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
@@ -540,13 +516,13 @@ export default function SearchPage() {
       {autoSearchCountdown !== null && (
         <div style={{ padding: '8px 16px', background: '#f6ffed', borderBottom: '1px solid #b7eb8f', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span style={{ fontSize: 13, color: '#333' }}>
-            {autoSearchCountdown}秒后自动搜索
+            听到啦~ {autoSearchCountdown}秒后帮你搜索
           </span>
           <button
             style={{ fontSize: 13, color: '#1890ff', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 8px' }}
             onClick={handleCancelAutoSearch}
           >
-            点击取消
+            先不搜了
           </button>
         </div>
       )}
@@ -709,8 +685,6 @@ export default function SearchPage() {
             background: 'rgba(0,0,0,0.6)',
             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
           }}
-          onTouchEnd={overlayState === 'recording' ? handlePressEnd : undefined}
-          onMouseUp={overlayState === 'recording' ? handlePressEnd : undefined}
         >
           {/* Close button */}
           <button
@@ -729,20 +703,30 @@ export default function SearchPage() {
 
           {overlayState === 'recording' && (
             <>
+              <style dangerouslySetInnerHTML={{ __html: `
+                @-webkit-keyframes pulse-glow {
+                  0%, 100% { box-shadow: 0 0 0 0 rgba(82,196,26,0.4); -webkit-transform: scale(1); transform: scale(1); }
+                  50% { box-shadow: 0 0 20px 10px rgba(82,196,26,0.2); -webkit-transform: scale(1.05); transform: scale(1.05); }
+                }
+                @keyframes pulse-glow {
+                  0%, 100% { box-shadow: 0 0 0 0 rgba(82,196,26,0.4); transform: scale(1); }
+                  50% { box-shadow: 0 0 20px 10px rgba(82,196,26,0.2); transform: scale(1.05); }
+                }
+              `}} />
               {/* Timer */}
               <div style={{
-                fontSize: 20, fontWeight: 600, marginBottom: 32,
+                fontSize: 20, fontWeight: 600, marginBottom: 24,
                 color: recordSec >= MAX_RECORD_SEC - 3 ? '#ff4d4f' : '#fff',
                 fontVariantNumeric: 'tabular-nums',
               }}>
                 {recordSec}s / {MAX_RECORD_SEC}s
               </div>
 
-              {/* Sound wave bars driven by real volume */}
-              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 80, marginBottom: 32 }}>
+              {/* Sound wave bars (7 bars) */}
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 5, height: 80, marginBottom: 32 }}>
                 {volumeBars.map((v, i) => (
                   <div key={i} style={{
-                    width: 6, borderRadius: 3,
+                    width: 5, borderRadius: 3,
                     background: 'linear-gradient(to top, #52c41a, #13c2c2)',
                     height: `${Math.max(12, v * 80)}px`,
                     transition: 'height 0.1s ease-out',
@@ -750,10 +734,21 @@ export default function SearchPage() {
                 ))}
               </div>
 
-              {/* Hint */}
-              <div style={{ fontSize: 16, color: '#fff', fontWeight: 500 }}>
-                松开结束
-              </div>
+              {/* Pulsing stop button */}
+              <button
+                onClick={stopRecording}
+                style={{
+                  width: 80, height: 80, borderRadius: '50%',
+                  background: '#fff', border: '3px solid #52c41a',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer', gap: 4,
+                  WebkitAnimation: 'pulse-glow 1.5s ease-in-out infinite',
+                  animation: 'pulse-glow 1.5s ease-in-out infinite',
+                }}
+              >
+                <div style={{ width: 8, height: 8, background: '#52c41a', borderRadius: 1 }} />
+                <span style={{ fontSize: 12, color: '#52c41a', fontWeight: 500, lineHeight: 1.2 }}>点我结束~</span>
+              </button>
             </>
           )}
 
@@ -761,7 +756,7 @@ export default function SearchPage() {
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20 }}>
               <SpinLoading style={{ '--size': '40px', '--color': '#52c41a' } as any} />
               <div style={{ fontSize: 16, color: '#fff', fontWeight: 500 }}>
-                正在识别...
+                我在认真听，马上就好~
               </div>
             </div>
           )}
@@ -791,7 +786,7 @@ export default function SearchPage() {
                   border: 'none', cursor: 'pointer',
                 }}
               >
-                重试
+                再来一次~
               </button>
             </div>
           )}

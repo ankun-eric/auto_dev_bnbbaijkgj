@@ -60,7 +60,26 @@
 
 ---
 
-## Latest Feature: 健康档案功能完善 - 注册引导流程 (2026-04-09)
+## Feature: 语音搜索体验优化 (2026-04-09)
+
+### H5 Web
+- `h5-web/src/app/search/page.tsx`: 语音搜索交互全面优化
+  - F01: 录音触发从长按 300ms 改为单击（移除 LONG_PRESS_MS、handlePressStart/handlePressEnd，改为 onClick→handleMicClick）
+  - F02: 录音中"松开结束"文字替换为 80px 脉动呼吸大按钮（CSS pulse-glow 动画，白色背景+绿色边框，显示"点我结束~"）
+  - F03: 声波竖条从 5 根增加到 7 根（barCount=7，volumeBars 初始化为 7 元素数组）
+  - F04: 全流程文案替换为温暖亲切风格
+  - 修复: `mimeToFormat()` 中 mp4 映射从 'mp4' 改为 'm4a'（匹配后端 _ASR_FORMAT_MAP），新增 mpeg→mp3 映射
+
+### Deployment (2026-04-09)
+- Rebuilt h5-web container only
+- 5/5 server API tests passed
+
+### User Documentation
+- Created `user_docs/语音搜索体验优化.md`
+
+---
+
+## Feature: 健康档案功能完善 - 注册引导流程 (2026-04-09)
 
 ### Backend
 - `models/models.py`: `HealthProfile` 新增 `guide_count`（Integer，默认0，记录用户查看引导次数）
