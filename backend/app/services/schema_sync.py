@@ -587,6 +587,28 @@ async def run_all_migrations(conn: AsyncConnection) -> None:
     await _sync_health_profile_v2_fields(conn)
 
 
+async def _sync_bottom_nav_table(conn: AsyncConnection) -> None:
+    def _load(sync_conn):
+        inspector = inspect(sync_conn)
+        return "bottom_nav_config" in set(inspector.get_table_names())
+
+    exists = await conn.run_sync(_load)
+    if not exists:
+        await conn.execute(text(
+            "CREATE TABLE bottom_nav_config ("
+            "id INT AUTO_INCREMENT PRIMARY KEY, "
+            "name VARCHAR(20) NOT NULL, "
+            "icon_key VARCHAR(50) NOT NULL, "
+            "path VARCHAR(200) NOT NULL, "
+            "sort_order INT NOT NULL DEFAULT 0, "
+            "is_visible BOOLEAN NOT NULL DEFAULT TRUE, "
+            "is_fixed BOOLEAN NOT NULL DEFAULT FALSE, "
+            "created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "
+            "updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
+            ")"
+        ))
+
+
 async def sync_register_schema(conn: AsyncConnection) -> None:
     def load_user_schema(sync_conn):
         inspector = inspect(sync_conn)
@@ -617,6 +639,7 @@ async def sync_register_schema(conn: AsyncConnection) -> None:
     await _sync_home_tables(conn)
     await _sync_search_tables(conn)
     await _sync_notice_table(conn)
+    await _sync_bottom_nav_table(conn)
     await run_all_migrations(conn)
 
     columns, indexes, unique_constraints = await conn.run_sync(load_user_schema)

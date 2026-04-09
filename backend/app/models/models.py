@@ -1614,3 +1614,20 @@ class HomeNotice(Base):
     sort_order = mapped_column(Integer, nullable=False, default=0)
     created_at = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+# ──────────────── 底部导航配置 ────────────────
+
+
+class BottomNavConfig(Base):
+    __tablename__ = "bottom_nav_config"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name = mapped_column(String(20), nullable=False)
+    icon_key = mapped_column(String(50), nullable=False)
+    path = mapped_column(String(200), nullable=False)
+    sort_order = mapped_column(Integer, nullable=False, default=0)
+    is_visible = mapped_column(Boolean, nullable=False, default=True)
+    is_fixed = mapped_column(Boolean, nullable=False, default=False)
+    created_at = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)

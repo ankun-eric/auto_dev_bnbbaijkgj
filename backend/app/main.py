@@ -11,6 +11,7 @@ from app.api import (
     admin_search,
     ai_center,
     auth,
+    bottom_nav,
     chat,
     chat_history,
     content,
@@ -102,6 +103,8 @@ app.include_router(home_config.router)
 app.include_router(home_config.admin_router)
 app.include_router(notice.router)
 app.include_router(notice.admin_router)
+app.include_router(bottom_nav.router)
+app.include_router(bottom_nav.admin_router)
 app.include_router(search.router)
 app.include_router(admin_search.router)
 

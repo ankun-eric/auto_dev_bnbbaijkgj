@@ -12,6 +12,7 @@ from app.models.models import (
     AiPromptConfig,
     AiSensitiveWord,
     AsrConfig,
+    BottomNavConfig,
     ChatMessage,
     ChatSession,
     ConstitutionQuestion,
@@ -61,6 +62,7 @@ async def init_default_data():
             await _init_search_data(db)
             await _init_relation_types(db)
             await _init_disease_presets(db)
+            await _init_bottom_nav_config(db)
             await db.commit()
             logger.info("Default data initialization completed")
         except Exception as e:
@@ -1017,3 +1019,20 @@ async def _init_disease_presets(db: AsyncSession):
 
     await db.flush()
     logger.info("Created default disease presets (%d chronic, %d genetic)", len(chronic), len(genetic))
+
+
+async def _init_bottom_nav_config(db: AsyncSession):
+    result = await db.execute(select(BottomNavConfig).limit(1))
+    if result.scalar_one_or_none():
+        return
+
+    default_navs = [
+        {"name": "首页", "icon_key": "home", "path": "/", "sort_order": 0, "is_visible": True, "is_fixed": True},
+        {"name": "AI健康咨询", "icon_key": "chat", "path": "/ai", "sort_order": 1, "is_visible": True, "is_fixed": False},
+        {"name": "服务", "icon_key": "service", "path": "/services", "sort_order": 2, "is_visible": True, "is_fixed": False},
+        {"name": "我的", "icon_key": "profile", "path": "/profile", "sort_order": 99, "is_visible": True, "is_fixed": True},
+    ]
+    for nav in default_navs:
+        db.add(BottomNavConfig(**nav))
+    await db.flush()
+    logger.info("Created default bottom nav config (%d items)", len(default_navs))

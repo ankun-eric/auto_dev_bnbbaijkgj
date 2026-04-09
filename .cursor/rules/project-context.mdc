@@ -1408,6 +1408,39 @@ All 9 admin API endpoints return HTTP 200 with correct data structure. Admin fro
 
 ---
 
+## Latest Feature: 底部导航Tab后台可配置 (2026-04-10)
+
+### Backend
+- `models/models.py`: 新增 `BottomNavConfig` 模型（bottom_nav_config 表），字段：name（String(20)）、icon_key（String(50)）、path（String(200)）、sort_order（Integer）、is_visible（Boolean）、is_fixed（Boolean）、created_at、updated_at
+- `schemas/bottom_nav.py`（新建）：BottomNavCreate、BottomNavUpdate、BottomNavResponse、BottomNavSortItem
+- `api/bottom_nav.py`（新建）：
+  - `GET /api/h5/bottom-nav`（无需认证，返回 is_visible=true 的导航项，首页固定首位、我的固定末位）
+  - `GET /api/admin/bottom-nav`（管理端获取全部）
+  - `POST /api/admin/bottom-nav`（新增，校验 name≤6字符、path以/开头、icon_key在预设范围内、可配置项≤3个）
+  - `PUT /api/admin/bottom-nav/sort`（批量排序）
+  - `PUT /api/admin/bottom-nav/{id}`（编辑，不可编辑固定项）
+  - `DELETE /api/admin/bottom-nav/{id}`（删除，不可删除固定项）
+- `services/schema_sync.py`: 新增 `_sync_bottom_nav_table()` 自动建表
+- `init_data.py`: 新增 `_init_bottom_nav_config()` 初始化 4 条默认数据（首页、AI健康咨询、服务、我的）
+- `main.py`: 注册 bottom_nav.router 和 bottom_nav.admin_router
+
+### Admin Web
+- `admin-web/src/app/(admin)/bottom-nav/page.tsx`（新建）：底部导航配置管理页，支持列表展示、新增/编辑弹窗、上移/下移排序、显示/隐藏开关、删除确认
+- `admin-web/src/app/(admin)/layout.tsx`: 在"首页配置"菜单组下新增"底部导航配置"入口（key: /bottom-nav）
+
+### H5 Web
+- `h5-web/src/app/(tabs)/layout.tsx`: 底部导航栏从硬编码改为动态读取 `GET /api/h5/bottom-nav` 配置渲染，5分钟 localStorage 缓存，接口失败降级显示首页+我的
+
+### Deployment (2026-04-10)
+- Rebuilt backend, admin-web, h5-web containers
+- 32/32 server API tests passed (bottom-nav CRUD, validation, sort, visibility, auth checks, H5 public API)
+- All 4 containers healthy
+
+### User Documentation
+- Created `user_docs/底部导航Tab后台可配置.md`
+
+---
+
 ## Notes For Next Iteration
 
 - Voice search: H5 uses browser MediaRecorder + backend ASR; miniprogram uses WechatSI plugin (no backend ASR needed); Flutter uses record plugin + backend ASR. ASR config managed via admin panel (搜索管理 → 语音配置).
