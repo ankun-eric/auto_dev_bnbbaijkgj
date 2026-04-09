@@ -217,7 +217,7 @@ export default function AIPage() {
 
       <FloatingBubble
         style={{
-          '--initial-position-bottom': '80px',
+          '--initial-position-bottom': 'calc(80px + env(safe-area-inset-bottom))',
           '--initial-position-right': '20px',
           '--edge-distance': '20px',
           '--background': 'linear-gradient(135deg, #52c41a, #13c2c2)',

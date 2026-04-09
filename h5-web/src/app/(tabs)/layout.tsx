@@ -129,10 +129,10 @@ export default function TabsLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <div className="flex flex-col min-h-screen">
-      <div className="flex-1 overflow-y-auto">{children}</div>
+      <div className="flex-1 overflow-y-auto" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>{children}</div>
       <div
         className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full bg-white border-t border-gray-100"
-        style={{ maxWidth: 750, zIndex: 100 }}
+        style={{ maxWidth: 750, zIndex: 100, paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
         <TabBar
           activeKey={activeKey}

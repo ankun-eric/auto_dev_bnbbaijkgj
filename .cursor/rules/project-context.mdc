@@ -1472,6 +1472,35 @@ All 9 admin API endpoints return HTTP 200 with correct data structure. Admin fro
 
 ---
 
+## Bug Fix: H5 底部菜单 iPhone 安全区域适配 (2026-04-10)
+
+### Root Cause
+
+H5 底部 TabBar 使用 `fixed bottom-0` 直接贴底定位，未为 iPhone 全面屏的 Home Indicator 预留安全区域空间，导致中间菜单项文字被横线遮盖。
+
+### H5 Web
+
+- `h5-web/src/app/(tabs)/layout.tsx`: TabBar 外层容器添加 `paddingBottom: env(safe-area-inset-bottom)`，菜单项上移至安全区域内；内容区域添加相同 padding 防止被 TabBar 遮挡
+- `h5-web/src/app/globals.css`: `.page-container` 的 `padding-bottom` 改为 `calc(80px + env(safe-area-inset-bottom))`
+- `h5-web/src/app/(tabs)/ai/page.tsx`: FloatingBubble 初始位置适配为 `calc(80px + env(safe-area-inset-bottom))`
+
+### Scope
+
+- 仅修改 H5 前端，小程序和 Flutter APP 已有安全区域适配，无需改动
+- `viewport-fit=cover` 已在 `h5-web/src/app/layout.tsx` 中正确设置
+
+### Deployment (2026-04-10)
+
+- Rebuilt h5-web container only
+- All 4 containers healthy (db, backend, admin-web, h5-web)
+- `safe-area-inset-bottom` 已在构建产物中验证存在
+
+### User Documentation
+
+- Created `user_docs/H5底部菜单iPhone安全区域适配.md`
+
+---
+
 ## Notes For Next Iteration
 
 - Voice search: H5 uses browser MediaRecorder + backend ASR; miniprogram uses WechatSI plugin (no backend ASR needed); Flutter uses record plugin + backend ASR. ASR config managed via admin panel (搜索管理 → 语音配置).
