@@ -38,7 +38,20 @@ jobs:
       - name: Get dependencies
         working-directory: flutter_app
         run: flutter pub get
-        
+
+      - name: Patch record_android build.gradle
+        run: |
+          for RECORD_GRADLE in $(find ~/.pub-cache -path "*/record_android*/android/build.gradle" -type f); do
+            echo "Patching $RECORD_GRADLE"
+            sed -i 's/compileSdk\s*=\?\s*flutter\.compileSdkVersion/compileSdk = 35/' "$RECORD_GRADLE"
+            sed -i 's/compileSdkVersion\s*=\?\s*flutter\.compileSdkVersion/compileSdkVersion 35/' "$RECORD_GRADLE"
+            sed -i 's/targetSdkVersion\s*=\?\s*flutter\.targetSdkVersion/targetSdkVersion 34/' "$RECORD_GRADLE"
+            sed -i 's/minSdkVersion\s*=\?\s*flutter\.minSdkVersion/minSdkVersion 21/' "$RECORD_GRADLE"
+            sed -i 's/minSdk\s*=\?\s*flutter\.minSdkVersion/minSdk = 21/' "$RECORD_GRADLE"
+            echo "--- Patched content: ---"
+            cat "$RECORD_GRADLE"
+          done
+
       - name: Build APK
         working-directory: flutter_app
         run: |
