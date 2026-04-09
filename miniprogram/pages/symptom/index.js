@@ -1,8 +1,36 @@
-const { post } = require('../../utils/request');
+const { get, post } = require('../../utils/request');
+
+const RELATION_EMOJI = {
+  '本人': '👤',
+  '爸爸': '👨',
+  '妈妈': '👩',
+  '老公': '💑',
+  '老婆': '💑',
+  '儿子': '👦',
+  '女儿': '👧',
+  '哥哥': '👱‍♂️',
+  '弟弟': '🧑',
+  '姐姐': '👱‍♀️',
+  '妹妹': '👧',
+  '爷爷': '👴',
+  '奶奶': '👵',
+  '外公': '👴',
+  '外婆': '👵',
+  '其他': '🧑',
+};
+
+function getMemberEmoji(name) {
+  return RELATION_EMOJI[name] || '🧑';
+}
 
 Page({
   data: {
     currentStep: 0,
+    // Family members
+    members: [],
+    selectedMemberId: null,
+    selectedMemberName: '',
+    membersLoaded: false,
     bodyParts: [
       { id: 'head', name: '头部', icon: '🧠' },
       { id: 'eye', name: '眼睛', icon: '👁️' },
@@ -21,6 +49,46 @@ Page({
     extraDesc: '',
     analyzing: false,
     analysisResult: null
+  },
+
+  onLoad() {
+    this.loadFamilyMembers();
+  },
+
+  async loadFamilyMembers() {
+    try {
+      const res = await get('/api/family/members', {}, { showLoading: false, suppressErrorToast: true });
+      const list = (res && (res.items || res)) || [];
+      const members = list.map(m => ({
+        id: m.id,
+        nickname: m.nickname,
+        relationship_type: m.relationship_type || '本人',
+        is_self: m.is_self,
+        emoji: getMemberEmoji(m.relationship_type || '本人'),
+        label: `${getMemberEmoji(m.relationship_type || '本人')} ${m.relationship_type || '本人'} ${m.nickname}`
+      }));
+
+      // Sort: is_self first
+      members.sort((a, b) => (b.is_self ? 1 : 0) - (a.is_self ? 1 : 0));
+
+      const selfMember = members.find(m => m.is_self) || members[0];
+      this.setData({
+        members,
+        membersLoaded: true,
+        selectedMemberId: selfMember ? selfMember.id : null,
+        selectedMemberName: selfMember ? selfMember.label : ''
+      });
+    } catch (e) {
+      this.setData({ membersLoaded: true });
+    }
+  },
+
+  selectMember(e) {
+    const member = e.currentTarget.dataset.member;
+    this.setData({
+      selectedMemberId: member.id,
+      selectedMemberName: member.label
+    });
   },
 
   selectPart(e) {
@@ -93,13 +161,6 @@ Page({
   async analyze() {
     try {
       const selected = this.data.symptoms.filter(s => s.selected).map(s => s.name);
-      // Step 1: Create a symptom_check session
-      // const sessionRes = await post('/api/chat/sessions', { session_type: 'symptom_check' });
-      // Step 2: Send symptoms as a message
-      // const res = await post(`/api/chat/sessions/${sessionRes.id}/messages`, {
-      //   content: `部位:${this.data.selectedPart}, 症状:${selected.join(',')}, 持续:${this.data.selectedDuration}, 备注:${this.data.extraDesc}`,
-      //   message_type: 'text'
-      // });
       await new Promise(resolve => setTimeout(resolve, 2500));
 
       this.setData({
@@ -126,8 +187,12 @@ Page({
 
   goChat() {
     const selected = this.data.symptoms.filter(s => s.selected).map(s => s.name).join('、');
+    const memberName = this.data.selectedMemberName;
+    const question = memberName
+      ? `为${memberName}咨询，症状：${selected}`
+      : `我有以下症状：${selected}`;
     wx.navigateTo({
-      url: `/pages/chat/index?type=symptom&question=${encodeURIComponent('我有以下症状：' + selected)}`
+      url: `/pages/chat/index?type=symptom&question=${encodeURIComponent(question)}`
     });
   },
 

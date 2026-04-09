@@ -63,7 +63,7 @@ export default function ProfilePage() {
     {
       items: [
         { icon: <FileOutline />, title: '健康档案', path: '/health-profile', color: '#52c41a' },
-        { icon: <TeamOutline />, title: '家庭成员', path: '/family', color: '#1890ff' },
+        { icon: <TeamOutline />, title: '家庭成员', path: '/health-profile', color: '#1890ff' },
         { icon: <ClockCircleOutline />, title: '我的预约', path: '/orders?tab=appointment', color: '#722ed1' },
       ],
     },

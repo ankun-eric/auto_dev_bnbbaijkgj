@@ -1,200 +1,858 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { NavBar, Form, Input, Picker, Button, Card, List, Tag, TextArea, Toast } from 'antd-mobile';
+import {
+  NavBar,
+  Toast,
+  Popup,
+  Dialog,
+  DatePicker,
+  Input,
+  TextArea,
+} from 'antd-mobile';
 
-const mockProfile = {
-  name: '张三',
-  gender: '男',
-  age: '35',
-  height: '175',
-  weight: '70',
-  bloodType: 'A型',
-  allergies: ['青霉素', '花粉'],
-  diseases: ['高血压'],
-  medications: ['降压药'],
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface FamilyMember {
+  id: number;
+  user_id: number;
+  is_self: boolean;
+  nickname: string;
+  relationship_type: string;
+  relation_type_id: number | null;
+  relation_type_name: string;
+  birthday?: string;
+  gender?: string;
+  height?: number;
+  weight?: number;
+  status: number;
+}
+
+interface RelationType {
+  id: number;
+  name: string;
+  sort_order: number;
+}
+
+interface HealthProfile {
+  id: number;
+  name: string;
+  gender: string;
+  birthday: string;
+  height: number | null;
+  weight: number | null;
+  blood_type: string;
+  chronic_diseases: string[];
+  drug_allergies: string;
+  food_allergies: string;
+  other_allergies: string;
+  genetic_diseases: string[];
+  completeness: number;
+}
+
+interface DiseasePreset {
+  id: number;
+  name: string;
+  category: string;
+}
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const RELATION_EMOJI: Record<string, string> = {
+  '本人': '👤',
+  '爸爸': '👨',
+  '妈妈': '👩',
+  '老公': '👨‍❤️‍👨',
+  '老婆': '👩‍❤️‍👩',
+  '儿子': '👦',
+  '女儿': '👧',
+  '哥哥': '👱‍♂️',
+  '弟弟': '🧑',
+  '姐姐': '👱‍♀️',
+  '妹妹': '👧',
+  '爷爷': '👴',
+  '奶奶': '👵',
+  '外公': '👴',
+  '外婆': '👵',
+  '其他': '🧑',
 };
+
+function getMemberEmoji(relationName: string): string {
+  return RELATION_EMOJI[relationName] || '🧑';
+}
+
+const BLOOD_TYPES = ['A', 'B', 'O', 'AB'];
+
+function getToken(): string {
+  if (typeof window === 'undefined') return '';
+  return localStorage.getItem('token') || '';
+}
+
+function authHeaders(): HeadersInit {
+  const token = getToken();
+  return token ? { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' };
+}
+
+function calcAge(birthday: string): string {
+  if (!birthday) return '';
+  const birth = new Date(birthday);
+  const now = new Date();
+  const age = now.getFullYear() - birth.getFullYear();
+  return `${age}岁`;
+}
+
+function formatDate(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+// ─── Debounce hook ────────────────────────────────────────────────────────────
+
+function useDebounce<T extends (...args: any[]) => any>(fn: T, delay: number): T {
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  return useCallback((...args: Parameters<T>) => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => fn(...args), delay);
+  }, [fn, delay]) as T;
+}
+
+// ─── Progress bar ─────────────────────────────────────────────────────────────
+
+function ProgressBar({ value }: { value: number }) {
+  const color = value < 30 ? '#f5222d' : value < 70 ? '#fa8c16' : '#52c41a';
+  return (
+    <div className="mt-3">
+      <div className="flex justify-between items-center mb-1">
+        <span className="text-xs text-gray-500">档案完整度</span>
+        <span className="text-xs font-semibold" style={{ color }}>{value}%</span>
+      </div>
+      <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
+        <div
+          className="h-full rounded-full transition-all duration-500"
+          style={{ width: `${value}%`, background: color }}
+        />
+      </div>
+    </div>
+  );
+}
+
+// ─── Collapsible section ──────────────────────────────────────────────────────
+
+function Section({
+  title,
+  defaultOpen = false,
+  children,
+}: {
+  title: string;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="rounded-2xl overflow-hidden mb-3 bg-white shadow-sm">
+      <button
+        className="w-full flex items-center justify-between px-4 py-3"
+        onClick={() => setOpen(!open)}
+      >
+        <span className="font-semibold text-sm text-gray-800">{title}</span>
+        <span className="text-gray-400 text-lg leading-none transition-transform duration-200" style={{ transform: open ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+          ›
+        </span>
+      </button>
+      {open && <div className="px-4 pb-4">{children}</div>}
+    </div>
+  );
+}
+
+// ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function HealthProfilePage() {
   const router = useRouter();
-  const [editing, setEditing] = useState(false);
-  const [profile, setProfile] = useState(mockProfile);
-  const [allergyInput, setAllergyInput] = useState('');
-  const [diseaseInput, setDiseaseInput] = useState('');
-  const [medInput, setMedInput] = useState('');
 
-  const handleSave = () => {
-    Toast.show({ content: '保存成功' });
-    setEditing(false);
+  // Members
+  const [members, setMembers] = useState<FamilyMember[]>([]);
+  const [membersLoading, setMembersLoading] = useState(true);
+  const [selectedMemberId, setSelectedMemberId] = useState<number | null>(null);
+
+  // Health profile
+  const [profile, setProfile] = useState<HealthProfile | null>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+
+  // Presets
+  const [chronicPresets, setChronicPresets] = useState<DiseasePreset[]>([]);
+  const [geneticPresets, setGeneticPresets] = useState<DiseasePreset[]>([]);
+
+  // Add member popup
+  const [addPopupVisible, setAddPopupVisible] = useState(false);
+  const [relationTypes, setRelationTypes] = useState<RelationType[]>([]);
+  const [addStep, setAddStep] = useState<'relation' | 'info'>('relation');
+  const [selectedRelation, setSelectedRelation] = useState<RelationType | null>(null);
+  const [newNickname, setNewNickname] = useState('');
+  const [newGender, setNewGender] = useState('');
+  const [newBirthday, setNewBirthday] = useState('');
+  const [newBirthdayPickerVisible, setNewBirthdayPickerVisible] = useState(false);
+  const [addLoading, setAddLoading] = useState(false);
+
+  // Delete member
+  const [deletingMemberId, setDeletingMemberId] = useState<number | null>(null);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // DatePicker for profile
+  const [birthdayPickerVisible, setBirthdayPickerVisible] = useState(false);
+
+  // ── Fetch members ────────────────────────────────────────────────────────────
+
+  const fetchMembers = async () => {
+    setMembersLoading(true);
+    try {
+      const res = await fetch('/api/family/members', { headers: authHeaders() });
+      const data = await res.json();
+      const items: FamilyMember[] = Array.isArray(data.items) ? data.items : [];
+      setMembers(items);
+      if (selectedMemberId === null && items.length > 0) {
+        const self = items.find((m) => m.is_self) || items[0];
+        setSelectedMemberId(self.id);
+      }
+    } catch {
+      setMembers([]);
+    }
+    setMembersLoading(false);
   };
 
-  const addTag = (type: 'allergies' | 'diseases' | 'medications', value: string) => {
-    if (value.trim()) {
-      setProfile({ ...profile, [type]: [...profile[type], value.trim()] });
-      if (type === 'allergies') setAllergyInput('');
-      if (type === 'diseases') setDiseaseInput('');
-      if (type === 'medications') setMedInput('');
+  // ── Fetch health profile ─────────────────────────────────────────────────────
+
+  const fetchProfile = async (memberId: number) => {
+    setProfileLoading(true);
+    try {
+      const res = await fetch(`/api/health/profile/member/${memberId}`, { headers: authHeaders() });
+      const data = await res.json();
+      setProfile(data);
+    } catch {
+      setProfile(null);
+    }
+    setProfileLoading(false);
+  };
+
+  // ── Fetch presets ────────────────────────────────────────────────────────────
+
+  const fetchPresets = async () => {
+    try {
+      const [c, g] = await Promise.all([
+        fetch('/api/disease-presets?category=chronic', { headers: authHeaders() }).then((r) => r.json()),
+        fetch('/api/disease-presets?category=genetic', { headers: authHeaders() }).then((r) => r.json()),
+      ]);
+      setChronicPresets(Array.isArray(c.items) ? c.items : []);
+      setGeneticPresets(Array.isArray(g.items) ? g.items : []);
+    } catch {
+      // ignore
     }
   };
 
-  const removeTag = (type: 'allergies' | 'diseases' | 'medications', index: number) => {
-    setProfile({ ...profile, [type]: profile[type].filter((_, i) => i !== index) });
+  // ── Fetch relation types ─────────────────────────────────────────────────────
+
+  const fetchRelationTypes = async () => {
+    try {
+      const res = await fetch('/api/relation-types', { headers: authHeaders() });
+      const data = await res.json();
+      setRelationTypes(Array.isArray(data.items) ? data.items : []);
+    } catch {
+      setRelationTypes([]);
+    }
   };
 
+  useEffect(() => {
+    fetchMembers();
+    fetchPresets();
+  }, []);
+
+  useEffect(() => {
+    if (selectedMemberId !== null) {
+      fetchProfile(selectedMemberId);
+    }
+  }, [selectedMemberId]);
+
+  // ── Auto-save (debounced) ────────────────────────────────────────────────────
+
+  const saveProfile = useCallback(async (memberId: number, patch: Partial<HealthProfile>) => {
+    setSaveStatus('saving');
+    try {
+      await fetch(`/api/health/profile/member/${memberId}`, {
+        method: 'PUT',
+        headers: authHeaders(),
+        body: JSON.stringify(patch),
+      });
+      setSaveStatus('saved');
+      setTimeout(() => setSaveStatus('idle'), 1200);
+    } catch {
+      setSaveStatus('idle');
+    }
+  }, []);
+
+  const debouncedSave = useDebounce(saveProfile, 1500);
+
+  const updateProfile = (patch: Partial<HealthProfile>) => {
+    if (!profile || selectedMemberId === null) return;
+    const updated = { ...profile, ...patch };
+    setProfile(updated);
+    debouncedSave(selectedMemberId, patch);
+  };
+
+  // ── Add member ───────────────────────────────────────────────────────────────
+
+  const openAddPopup = async () => {
+    setAddStep('relation');
+    setSelectedRelation(null);
+    setNewNickname('');
+    setNewGender('');
+    setNewBirthday('');
+    await fetchRelationTypes();
+    setAddPopupVisible(true);
+  };
+
+  const handleAddConfirm = async () => {
+    if (!selectedRelation) return;
+    if (!newNickname.trim()) {
+      Toast.show({ content: '请输入姓名' });
+      return;
+    }
+    setAddLoading(true);
+    try {
+      const body: any = {
+        nickname: newNickname.trim(),
+        relationship_type: selectedRelation.name,
+        relation_type_id: selectedRelation.id,
+      };
+      if (newGender) body.gender = newGender;
+      if (newBirthday) body.birthday = newBirthday;
+
+      const res = await fetch('/api/family/members', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify(body),
+      });
+      const created = await res.json();
+      setAddPopupVisible(false);
+      await fetchMembers();
+      if (created.id) setSelectedMemberId(created.id);
+    } catch {
+      Toast.show({ content: '添加失败，请重试', icon: 'fail' });
+    }
+    setAddLoading(false);
+  };
+
+  // ── Delete member ────────────────────────────────────────────────────────────
+
+  const handleLongPressStart = (member: FamilyMember) => {
+    if (member.is_self) return;
+    longPressTimer.current = setTimeout(() => {
+      setDeletingMemberId(member.id);
+    }, 600);
+  };
+
+  const handleLongPressEnd = () => {
+    if (longPressTimer.current) clearTimeout(longPressTimer.current);
+  };
+
+  const confirmDelete = async () => {
+    if (deletingMemberId === null) return;
+    try {
+      await fetch(`/api/family/members/${deletingMemberId}`, {
+        method: 'DELETE',
+        headers: authHeaders(),
+      });
+      const selfMember = members.find((m) => m.is_self);
+      setDeletingMemberId(null);
+      await fetchMembers();
+      if (selfMember) setSelectedMemberId(selfMember.id);
+    } catch {
+      Toast.show({ content: '删除失败', icon: 'fail' });
+      setDeletingMemberId(null);
+    }
+  };
+
+  // ── Render ───────────────────────────────────────────────────────────────────
+
+  const selectedMember = members.find((m) => m.id === selectedMemberId);
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen" style={{ background: 'linear-gradient(160deg, #f0faf0 0%, #e8f4ff 100%)' }}>
       <NavBar
         onBack={() => router.back()}
+        style={{ background: 'transparent' }}
         right={
-          <span className="text-sm text-primary" onClick={() => editing ? handleSave() : setEditing(true)}>
-            {editing ? '保存' : '编辑'}
-          </span>
+          <div className="text-xs font-medium" style={{ color: saveStatus === 'saving' ? '#fa8c16' : saveStatus === 'saved' ? '#52c41a' : 'transparent' }}>
+            {saveStatus === 'saving' ? '保存中…' : saveStatus === 'saved' ? '已保存 ✓' : '.'}
+          </div>
         }
-        style={{ background: '#fff' }}
       >
         健康档案
       </NavBar>
 
-      <div className="px-4 pt-4">
+      {/* ── Member switcher ────────────────────────────────────────────────── */}
+      <div className="px-4 pb-2">
         <div
-          className="rounded-xl p-4 mb-4 text-center"
-          style={{ background: 'linear-gradient(135deg, #52c41a20, #13c2c220)' }}
+          className="flex items-center gap-3 overflow-x-auto pb-1"
+          style={{ scrollbarWidth: 'none' }}
         >
-          <div className="text-3xl mb-2">📋</div>
-          <h2 className="font-bold">{profile.name}的健康档案</h2>
-          <p className="text-xs text-gray-500 mt-1">完善健康信息，获得更精准的AI建议</p>
+          {membersLoading ? (
+            <div className="text-sm text-gray-400 py-2">加载中...</div>
+          ) : (
+            members.map((m) => {
+              const emoji = getMemberEmoji(m.relation_type_name || m.relationship_type);
+              const isSelected = m.id === selectedMemberId;
+              return (
+                <div
+                  key={m.id}
+                  className="flex flex-col items-center flex-shrink-0 cursor-pointer"
+                  style={{ minWidth: 56 }}
+                  onClick={() => setSelectedMemberId(m.id)}
+                  onTouchStart={() => handleLongPressStart(m)}
+                  onTouchEnd={handleLongPressEnd}
+                  onMouseDown={() => handleLongPressStart(m)}
+                  onMouseUp={handleLongPressEnd}
+                  onMouseLeave={handleLongPressEnd}
+                >
+                  <div
+                    className="flex items-center justify-center text-xl rounded-full transition-all"
+                    style={{
+                      width: 44,
+                      height: 44,
+                      background: isSelected
+                        ? 'linear-gradient(135deg, #52c41a, #13c2c2)'
+                        : 'rgba(255,255,255,0.85)',
+                      boxShadow: isSelected ? '0 4px 12px rgba(82,196,26,0.35)' : '0 1px 4px rgba(0,0,0,0.08)',
+                      border: isSelected ? 'none' : '1.5px solid #e8e8e8',
+                    }}
+                  >
+                    {emoji}
+                  </div>
+                  <span
+                    className="text-xs mt-1 font-medium"
+                    style={{
+                      color: isSelected ? '#52c41a' : '#888',
+                      borderBottom: isSelected ? '2px solid #52c41a' : '2px solid transparent',
+                      paddingBottom: 1,
+                    }}
+                  >
+                    {m.relation_type_name || m.relationship_type || '本人'}
+                  </span>
+                </div>
+              );
+            })
+          )}
+
+          {/* Add button */}
+          <div
+            className="flex flex-col items-center flex-shrink-0 cursor-pointer"
+            style={{ minWidth: 56 }}
+            onClick={openAddPopup}
+          >
+            <div
+              className="flex items-center justify-center text-xl rounded-full"
+              style={{
+                width: 44,
+                height: 44,
+                background: 'rgba(255,255,255,0.85)',
+                border: '1.5px dashed #b7eb8f',
+                color: '#52c41a',
+                fontSize: 22,
+              }}
+            >
+              +
+            </div>
+            <span className="text-xs mt-1 text-gray-400">添加</span>
+          </div>
         </div>
-
-        <Card style={{ borderRadius: 12, marginBottom: 12 }} title="基础信息">
-          <List style={{ '--border-top': 'none', '--border-bottom': 'none', '--padding-left': '0' }}>
-            <List.Item extra={editing ? <Input value={profile.name} onChange={(v) => setProfile({ ...profile, name: v })} style={{ '--text-align': 'right' }} /> : profile.name}>
-              姓名
-            </List.Item>
-            <List.Item extra={profile.gender}>性别</List.Item>
-            <List.Item extra={editing ? <Input value={profile.age} onChange={(v) => setProfile({ ...profile, age: v })} style={{ '--text-align': 'right' }} /> : `${profile.age}岁`}>
-              年龄
-            </List.Item>
-            <List.Item extra={editing ? <Input value={profile.height} onChange={(v) => setProfile({ ...profile, height: v })} style={{ '--text-align': 'right' }} /> : `${profile.height}cm`}>
-              身高
-            </List.Item>
-            <List.Item extra={editing ? <Input value={profile.weight} onChange={(v) => setProfile({ ...profile, weight: v })} style={{ '--text-align': 'right' }} /> : `${profile.weight}kg`}>
-              体重
-            </List.Item>
-            <List.Item extra={profile.bloodType}>血型</List.Item>
-          </List>
-        </Card>
-
-        <Card style={{ borderRadius: 12, marginBottom: 12 }} title="过敏史">
-          <div className="flex flex-wrap gap-2">
-            {profile.allergies.map((a, i) => (
-              <Tag
-                key={i}
-                style={{
-                  '--background-color': '#f5222d15',
-                  '--text-color': '#f5222d',
-                  '--border-color': 'transparent',
-                  padding: '4px 10px',
-                  borderRadius: 16,
-                }}
-                onClick={() => editing && removeTag('allergies', i)}
-              >
-                {a} {editing && '×'}
-              </Tag>
-            ))}
-          </div>
-          {editing && (
-            <div className="flex gap-2 mt-3">
-              <input
-                className="flex-1 bg-gray-50 rounded-lg px-3 py-2 text-sm outline-none"
-                placeholder="添加过敏源"
-                value={allergyInput}
-                onChange={(e) => setAllergyInput(e.target.value)}
-              />
-              <Button size="small" onClick={() => addTag('allergies', allergyInput)}
-                style={{ color: '#52c41a', borderColor: '#52c41a', borderRadius: 16 }}>
-                添加
-              </Button>
-            </div>
-          )}
-        </Card>
-
-        <Card style={{ borderRadius: 12, marginBottom: 12 }} title="既往病史">
-          <div className="flex flex-wrap gap-2">
-            {profile.diseases.map((d, i) => (
-              <Tag
-                key={i}
-                style={{
-                  '--background-color': '#fa8c1615',
-                  '--text-color': '#fa8c16',
-                  '--border-color': 'transparent',
-                  padding: '4px 10px',
-                  borderRadius: 16,
-                }}
-                onClick={() => editing && removeTag('diseases', i)}
-              >
-                {d} {editing && '×'}
-              </Tag>
-            ))}
-          </div>
-          {editing && (
-            <div className="flex gap-2 mt-3">
-              <input
-                className="flex-1 bg-gray-50 rounded-lg px-3 py-2 text-sm outline-none"
-                placeholder="添加病史"
-                value={diseaseInput}
-                onChange={(e) => setDiseaseInput(e.target.value)}
-              />
-              <Button size="small" onClick={() => addTag('diseases', diseaseInput)}
-                style={{ color: '#52c41a', borderColor: '#52c41a', borderRadius: 16 }}>
-                添加
-              </Button>
-            </div>
-          )}
-        </Card>
-
-        <Card style={{ borderRadius: 12, marginBottom: 12 }} title="用药记录">
-          <div className="flex flex-wrap gap-2">
-            {profile.medications.map((m, i) => (
-              <Tag
-                key={i}
-                style={{
-                  '--background-color': '#1890ff15',
-                  '--text-color': '#1890ff',
-                  '--border-color': 'transparent',
-                  padding: '4px 10px',
-                  borderRadius: 16,
-                }}
-                onClick={() => editing && removeTag('medications', i)}
-              >
-                {m} {editing && '×'}
-              </Tag>
-            ))}
-          </div>
-          {editing && (
-            <div className="flex gap-2 mt-3">
-              <input
-                className="flex-1 bg-gray-50 rounded-lg px-3 py-2 text-sm outline-none"
-                placeholder="添加用药"
-                value={medInput}
-                onChange={(e) => setMedInput(e.target.value)}
-              />
-              <Button size="small" onClick={() => addTag('medications', medInput)}
-                style={{ color: '#52c41a', borderColor: '#52c41a', borderRadius: 16 }}>
-                添加
-              </Button>
-            </div>
-          )}
-        </Card>
-
-        <Card style={{ borderRadius: 12, marginBottom: 80 }} title="健康趋势">
-          <div className="text-center py-8 text-gray-400 text-sm">
-            <div className="text-3xl mb-2">📊</div>
-            <p>体检数据趋势图</p>
-            <p className="text-xs mt-1">上传多次体检报告后自动生成</p>
-          </div>
-        </Card>
       </div>
+
+      {/* ── Profile header card ────────────────────────────────────────────── */}
+      {selectedMember && (
+        <div className="px-4 mb-3">
+          <div
+            className="rounded-2xl p-4"
+            style={{ background: 'linear-gradient(135deg, #52c41a22, #13c2c222)', border: '1px solid #b7eb8f40' }}
+          >
+            <div className="flex items-center gap-3">
+              <div
+                className="text-3xl flex items-center justify-center rounded-full"
+                style={{ width: 56, height: 56, background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}
+              >
+                {getMemberEmoji(selectedMember.relation_type_name || selectedMember.relationship_type)}
+              </div>
+              <div className="flex-1">
+                <div className="font-bold text-base text-gray-800">
+                  {profile?.name || selectedMember.nickname}
+                </div>
+                <div className="text-xs text-gray-500 mt-0.5">
+                  {selectedMember.relation_type_name || selectedMember.relationship_type}
+                  {profile?.birthday ? ` · ${calcAge(profile.birthday)}` : ''}
+                </div>
+                {profile && <ProgressBar value={Math.round(profile.completeness * 100)} />}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Profile content ────────────────────────────────────────────────── */}
+      <div className="px-4 pb-24">
+        {profileLoading ? (
+          <div className="text-center py-12 text-gray-400 text-sm">加载档案中...</div>
+        ) : profile ? (
+          <>
+            {/* 基本信息 */}
+            <Section title="📋 基本信息" defaultOpen={true}>
+              <div className="space-y-3">
+                <FieldRow label="姓名">
+                  <input
+                    className="text-sm text-gray-700 text-right bg-transparent outline-none w-full"
+                    placeholder="请输入姓名"
+                    value={profile.name || ''}
+                    onChange={(e) => updateProfile({ name: e.target.value })}
+                  />
+                </FieldRow>
+
+                <FieldRow label="性别">
+                  <div className="flex gap-2">
+                    {['male', 'female'].map((g) => (
+                      <button
+                        key={g}
+                        className="px-4 py-1 rounded-full text-xs font-medium transition-all"
+                        style={{
+                          background: profile.gender === g ? 'linear-gradient(135deg, #52c41a, #13c2c2)' : '#f5f5f5',
+                          color: profile.gender === g ? '#fff' : '#888',
+                        }}
+                        onClick={() => updateProfile({ gender: g })}
+                      >
+                        {g === 'male' ? '男' : '女'}
+                      </button>
+                    ))}
+                  </div>
+                </FieldRow>
+
+                <FieldRow label="出生日期">
+                  <button
+                    className="text-sm text-gray-700 text-right"
+                    onClick={() => setBirthdayPickerVisible(true)}
+                  >
+                    {profile.birthday ? (
+                      <span>{profile.birthday} <span className="text-xs text-gray-400">({calcAge(profile.birthday)})</span></span>
+                    ) : (
+                      <span className="text-gray-300">请选择</span>
+                    )}
+                  </button>
+                </FieldRow>
+
+                <FieldRow label="身高 (cm)">
+                  <input
+                    type="number"
+                    className="text-sm text-gray-700 text-right bg-transparent outline-none w-28"
+                    placeholder="请输入"
+                    value={profile.height ?? ''}
+                    onChange={(e) => updateProfile({ height: e.target.value ? Number(e.target.value) : null })}
+                  />
+                </FieldRow>
+
+                <FieldRow label="体重 (kg)">
+                  <input
+                    type="number"
+                    className="text-sm text-gray-700 text-right bg-transparent outline-none w-28"
+                    placeholder="请输入"
+                    value={profile.weight ?? ''}
+                    onChange={(e) => updateProfile({ weight: e.target.value ? Number(e.target.value) : null })}
+                  />
+                </FieldRow>
+
+                <FieldRow label="血型">
+                  <div className="flex gap-2">
+                    {BLOOD_TYPES.map((bt) => (
+                      <button
+                        key={bt}
+                        className="px-3 py-1 rounded-full text-xs font-medium transition-all"
+                        style={{
+                          background: profile.blood_type === bt ? 'linear-gradient(135deg, #f5222d, #fa8c16)' : '#f5f5f5',
+                          color: profile.blood_type === bt ? '#fff' : '#888',
+                        }}
+                        onClick={() => updateProfile({ blood_type: bt })}
+                      >
+                        {bt}
+                      </button>
+                    ))}
+                  </div>
+                </FieldRow>
+              </div>
+            </Section>
+
+            {/* 慢性病史 */}
+            <Section title="🏥 慢性病史 / 既往病史">
+              <div className="flex flex-wrap gap-2">
+                {chronicPresets.map((p) => {
+                  const selected = profile.chronic_diseases?.includes(p.name);
+                  return (
+                    <button
+                      key={p.id}
+                      className="px-3 py-1.5 rounded-full text-xs font-medium transition-all"
+                      style={{
+                        background: selected ? 'linear-gradient(135deg, #fa8c16, #faad14)' : '#f5f5f5',
+                        color: selected ? '#fff' : '#666',
+                      }}
+                      onClick={() => {
+                        const list = profile.chronic_diseases || [];
+                        updateProfile({
+                          chronic_diseases: selected
+                            ? list.filter((x) => x !== p.name)
+                            : [...list, p.name],
+                        });
+                      }}
+                    >
+                      {p.name}
+                    </button>
+                  );
+                })}
+              </div>
+              {chronicPresets.length === 0 && (
+                <p className="text-xs text-gray-400 text-center py-3">暂无预设选项</p>
+              )}
+            </Section>
+
+            {/* 过敏史 */}
+            <Section title="⚠️ 过敏史">
+              <div className="space-y-3">
+                <div>
+                  <div className="text-xs text-gray-500 mb-1">药物过敏</div>
+                  <textarea
+                    className="w-full text-sm text-gray-700 bg-gray-50 rounded-xl px-3 py-2 outline-none resize-none"
+                    rows={2}
+                    placeholder="请描述药物过敏情况（如无请留空）"
+                    value={profile.drug_allergies || ''}
+                    onChange={(e) => updateProfile({ drug_allergies: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <div className="text-xs text-gray-500 mb-1">食物过敏</div>
+                  <textarea
+                    className="w-full text-sm text-gray-700 bg-gray-50 rounded-xl px-3 py-2 outline-none resize-none"
+                    rows={2}
+                    placeholder="请描述食物过敏情况（如无请留空）"
+                    value={profile.food_allergies || ''}
+                    onChange={(e) => updateProfile({ food_allergies: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <div className="text-xs text-gray-500 mb-1">其他过敏</div>
+                  <textarea
+                    className="w-full text-sm text-gray-700 bg-gray-50 rounded-xl px-3 py-2 outline-none resize-none"
+                    rows={2}
+                    placeholder="请描述其他过敏情况（如无请留空）"
+                    value={profile.other_allergies || ''}
+                    onChange={(e) => updateProfile({ other_allergies: e.target.value })}
+                  />
+                </div>
+              </div>
+            </Section>
+
+            {/* 家族遗传病史 */}
+            <Section title="🧬 家族遗传病史">
+              <div className="flex flex-wrap gap-2">
+                {geneticPresets.map((p) => {
+                  const selected = profile.genetic_diseases?.includes(p.name);
+                  return (
+                    <button
+                      key={p.id}
+                      className="px-3 py-1.5 rounded-full text-xs font-medium transition-all"
+                      style={{
+                        background: selected ? 'linear-gradient(135deg, #722ed1, #1890ff)' : '#f5f5f5',
+                        color: selected ? '#fff' : '#666',
+                      }}
+                      onClick={() => {
+                        const list = profile.genetic_diseases || [];
+                        updateProfile({
+                          genetic_diseases: selected
+                            ? list.filter((x) => x !== p.name)
+                            : [...list, p.name],
+                        });
+                      }}
+                    >
+                      {p.name}
+                    </button>
+                  );
+                })}
+              </div>
+              {geneticPresets.length === 0 && (
+                <p className="text-xs text-gray-400 text-center py-3">暂无预设选项</p>
+              )}
+            </Section>
+          </>
+        ) : selectedMemberId !== null ? (
+          <div className="text-center py-12 text-gray-400 text-sm">暂无档案数据</div>
+        ) : null}
+      </div>
+
+      {/* ── Birthday DatePicker ────────────────────────────────────────────── */}
+      <DatePicker
+        visible={birthdayPickerVisible}
+        onClose={() => setBirthdayPickerVisible(false)}
+        precision="day"
+        max={new Date()}
+        min={new Date('1900-01-01')}
+        title="选择出生日期"
+        onConfirm={(val) => {
+          updateProfile({ birthday: formatDate(val as Date) });
+          setBirthdayPickerVisible(false);
+        }}
+      />
+
+      {/* ── Add member Popup ───────────────────────────────────────────────── */}
+      <Popup
+        visible={addPopupVisible}
+        onMaskClick={() => setAddPopupVisible(false)}
+        position="bottom"
+        bodyStyle={{ borderRadius: '20px 20px 0 0', maxHeight: '85vh', overflowY: 'auto' }}
+      >
+        <div className="px-4 pb-8">
+          {/* Header */}
+          <div className="flex items-center justify-between py-4 border-b border-gray-100">
+            <span className="text-base font-bold text-gray-800">添加家庭成员</span>
+            <button className="text-gray-400 text-2xl leading-none" onClick={() => setAddPopupVisible(false)}>×</button>
+          </div>
+
+          {/* Step 1: Choose relation */}
+          <div className="mt-4">
+            <div className="text-sm font-semibold text-gray-700 mb-3">选择关系</div>
+            <div className="grid grid-cols-4 gap-3">
+              {relationTypes.map((rt) => {
+                const emoji = getMemberEmoji(rt.name);
+                const isSelected = selectedRelation?.id === rt.id;
+                return (
+                  <button
+                    key={rt.id}
+                    className="flex flex-col items-center py-2 rounded-xl transition-all"
+                    style={{
+                      background: isSelected ? 'linear-gradient(135deg, #f6ffed, #e6fffb)' : '#f9f9f9',
+                      border: isSelected ? '1.5px solid #52c41a' : '1.5px solid transparent',
+                    }}
+                    onClick={() => {
+                      setSelectedRelation(rt);
+                      setAddStep('info');
+                    }}
+                  >
+                    <span className="text-2xl">{emoji}</span>
+                    <span className="text-xs mt-1" style={{ color: isSelected ? '#52c41a' : '#555' }}>{rt.name}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Step 2: Fill info */}
+          {addStep === 'info' && selectedRelation && (
+            <div className="mt-5 p-4 rounded-2xl" style={{ background: '#f6ffed', border: '1px solid #b7eb8f' }}>
+              <div className="text-sm font-semibold mb-4" style={{ color: '#52c41a' }}>
+                {getMemberEmoji(selectedRelation.name)} 填写{selectedRelation.name}信息
+              </div>
+
+              <div className="space-y-3">
+                <div>
+                  <div className="text-xs text-gray-500 mb-1">姓名 <span className="text-red-400">*</span></div>
+                  <input
+                    className="w-full bg-white text-sm rounded-xl px-3 py-2 outline-none border border-gray-200"
+                    placeholder="请输入姓名"
+                    value={newNickname}
+                    onChange={(e) => setNewNickname(e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <div className="text-xs text-gray-500 mb-1">性别</div>
+                  <div className="flex gap-3">
+                    {['male', 'female'].map((g) => (
+                      <button
+                        key={g}
+                        className="flex-1 py-2 rounded-xl text-sm font-medium transition-all"
+                        style={{
+                          background: newGender === g ? 'linear-gradient(135deg, #52c41a, #13c2c2)' : '#fff',
+                          color: newGender === g ? '#fff' : '#666',
+                          border: `1px solid ${newGender === g ? '#52c41a' : '#e8e8e8'}`,
+                        }}
+                        onClick={() => setNewGender(g)}
+                      >
+                        {g === 'male' ? '男' : '女'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="text-xs text-gray-500 mb-1">出生日期</div>
+                  <button
+                    className="w-full bg-white text-sm rounded-xl px-3 py-2 text-left border border-gray-200 flex items-center justify-between"
+                    onClick={() => setNewBirthdayPickerVisible(true)}
+                  >
+                    <span style={{ color: newBirthday ? '#333' : '#bbb' }}>{newBirthday || '请选择出生日期'}</span>
+                    <span>📅</span>
+                  </button>
+                </div>
+              </div>
+
+              <button
+                className="w-full mt-4 py-3 rounded-2xl text-white font-semibold text-sm"
+                style={{ background: addLoading ? '#d9d9d9' : 'linear-gradient(135deg, #52c41a, #13c2c2)' }}
+                disabled={addLoading}
+                onClick={handleAddConfirm}
+              >
+                {addLoading ? '添加中...' : '确认添加'}
+              </button>
+            </div>
+          )}
+        </div>
+      </Popup>
+
+      {/* New member birthday picker */}
+      <DatePicker
+        visible={newBirthdayPickerVisible}
+        onClose={() => setNewBirthdayPickerVisible(false)}
+        precision="day"
+        max={new Date()}
+        min={new Date('1900-01-01')}
+        title="选择出生日期"
+        onConfirm={(val) => {
+          setNewBirthday(formatDate(val as Date));
+          setNewBirthdayPickerVisible(false);
+        }}
+      />
+
+      {/* ── Delete confirm dialog ──────────────────────────────────────────── */}
+      <Dialog
+        visible={deletingMemberId !== null}
+        title="删除成员"
+        content="删除后该成员的健康档案数据也会一并删除，确认删除吗？"
+        closeOnAction
+        onClose={() => setDeletingMemberId(null)}
+        actions={[
+          [
+            { key: 'cancel', text: '取消', onClick: () => setDeletingMemberId(null) },
+            {
+              key: 'confirm',
+              text: '确认删除',
+              bold: true,
+              style: { color: '#f5222d' },
+              onClick: confirmDelete,
+            },
+          ],
+        ]}
+      />
+    </div>
+  );
+}
+
+// ─── Helper: FieldRow ─────────────────────────────────────────────────────────
+
+function FieldRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between py-2 border-b border-gray-50 last:border-b-0">
+      <span className="text-sm text-gray-500 flex-shrink-0 w-24">{label}</span>
+      <div className="flex-1 flex justify-end">{children}</div>
     </div>
   );
 }

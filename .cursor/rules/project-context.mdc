@@ -27,6 +27,46 @@
 - Admin: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api/`
 
+## Latest Feature: 健康档案 & 家庭成员功能重构 (2026-04-09)
+
+### Backend
+- `models/models.py`: 新增 `RelationType`（relation_types 表，管理关系类型名称）、`DiseasePreset`（disease_presets 表，慢性病/遗传病预设）；`FamilyMember` 新增 `is_self`（Boolean，标识本人）、`relation_type_id`（FK）；`HealthProfile` 新增 `name`、`chronic_diseases`（JSON）、`drug_allergies`、`food_allergies`、`other_allergies`、`genetic_diseases`（JSON）字段。
+- `schemas/health_v2.py`（新建）：`HealthProfileV2Response`（含 completeness 自动计算，6项基本信息完成率）、`HealthProfileV2Update`、`DiseasePresetResponse`、`RelationTypeResponse`。
+- `schemas/user.py`：`FamilyMemberResponse` 新增 `is_self`、`relation_type_id`、`relation_type_name`；`FamilyMemberCreate` 新增 `name`、`relation_type_id`。
+- `api/family.py`（完全重写）：GET/POST/DELETE `/api/family/members`（本人不可删除，删除时级联删除 HealthProfile）；GET `/api/relation-types`（公开，无需认证）；GET `/api/disease-presets`（公开，支持 ?category=chronic/genetic）。
+- `api/health_profile.py`：新增 `GET /api/health/profile/member/{member_id}`（不存在则自动创建空档案）和 `PUT /api/health/profile/member/{member_id}`（upsert，返回带 completeness 的 HealthProfileV2Response）。
+- `api/auth.py`：用户注册后自动创建 `is_self=True` 的"本人"家庭成员。
+- `api/admin.py`：新增 `GET /api/admin/health/users`（用户健康档案列表）、`GET /api/admin/health/users/{user_id}/members`；`GET/POST/PUT/DELETE /api/admin/relation-types`；`GET/POST/PUT/DELETE /api/admin/disease-presets`。
+- `services/schema_sync.py`：新增4个迁移函数（relation_types 建表、disease_presets 建表、health_profiles 新字段、family_members 新字段）。
+- `init_data.py`：初始化15种关系类型（爸爸～其他）、9种慢性病预设、8种遗传病预设。
+
+### H5 Web
+- `h5-web/src/app/health-profile/page.tsx`（完全重写）：顶部横向滚动成员切换栏（Emoji+关系名称，含"+"添加成员）；档案完整度进度条；分模块折叠卡片（基本信息/慢性病史/过敏史/遗传病史）；1.5秒 debounce 自动保存；添加成员 Popup（选关系→姓名→性别→生日）；长按删除确认 Dialog。
+- `h5-web/src/app/(tabs)/profile/page.tsx`："家庭成员"入口改为跳转 `/health-profile`。
+- `h5-web/src/app/symptom/page.tsx`：家庭成员选择展示格式改为 Emoji+关系名称+昵称。
+
+### Admin Web
+- `admin-web/src/app/(admin)/health-records/page.tsx`（新建）：用户健康档案列表页（成员数、完整度进度条、Drawer展开详情）。
+- `admin-web/src/app/(admin)/relation-types/page.tsx`（新建）：关系类型 CRUD 管理页。
+- `admin-web/src/app/(admin)/disease-presets/page.tsx`（新建）：疾病预设 CRUD 管理页（两个Tab：慢性病/遗传病）。
+- `admin-web/src/app/(admin)/layout.tsx`：新增"健康档案管理"菜单组（用户档案查看/关系类型配置/预设列表管理）。
+
+### Mini Program
+- `miniprogram/pages/symptom/`：健康自查页新增家庭成员选择横向滚动栏（从 API 获取，Emoji+关系名+昵称）。
+
+### Generated Delivery Artifacts
+- Mini program: `miniprogram_20260409_125527_df56.zip` (download: `/uploads/miniprogram_20260409_125527_df56.zip`)
+
+### Deployment (2026-04-09)
+- Rebuilt backend, h5-web, admin-web containers
+- 24/24 server API tests passed (relation-types, disease-presets, admin CRUD, health endpoints)
+- All 4 containers healthy
+
+### User Documentation
+- Created `user_docs/健康档案与家庭成员功能重构.md`
+
+---
+
 ## Latest Feature: 首页菜单 Emoji 图标智能推荐 (2026-04-09)
 
 ### Admin Web

@@ -67,10 +67,21 @@ class TokenResponse(BaseModel):
     merchant_profile: Optional[MerchantProfileResponse] = None
 
 
+class RelationTypeResponse(BaseModel):
+    id: int
+    name: str
+    sort_order: int
+    is_active: bool
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class FamilyMemberCreate(BaseModel):
     member_user_id: Optional[int] = None
     relationship_type: str
+    name: Optional[str] = None
     nickname: Optional[str] = None
+    relation_type_id: Optional[int] = None
     birthday: Optional[date] = None
     gender: Optional[str] = None
     height: Optional[float] = None
@@ -82,6 +93,7 @@ class FamilyMemberCreate(BaseModel):
 class FamilyMemberUpdate(BaseModel):
     relationship_type: Optional[str] = None
     nickname: Optional[str] = None
+    relation_type_id: Optional[int] = None
     birthday: Optional[date] = None
     gender: Optional[str] = None
     height: Optional[float] = None
@@ -96,6 +108,9 @@ class FamilyMemberResponse(BaseModel):
     member_user_id: Optional[int] = None
     relationship_type: str
     nickname: Optional[str] = None
+    is_self: bool = False
+    relation_type_id: Optional[int] = None
+    relation_type_name: Optional[str] = None
     birthday: Optional[date] = None
     gender: Optional[str] = None
     height: Optional[float] = None

@@ -15,6 +15,7 @@ from app.models.models import (
     ChatMessage,
     ChatSession,
     ConstitutionQuestion,
+    DiseasePreset,
     DrugSearchKeyword,
     HomeBanner,
     HomeMenuItem,
@@ -26,6 +27,7 @@ from app.models.models import (
     OcrSceneTemplate,
     OcrUploadConfig,
     PromptTemplate,
+    RelationType,
     ServiceCategory,
     SmsConfig,
     SmsTemplate,
@@ -57,6 +59,8 @@ async def init_default_data():
             await _clean_chat_history_once(db)
             await _init_home_config(db)
             await _init_search_data(db)
+            await _init_relation_types(db)
+            await _init_disease_presets(db)
             await db.commit()
             logger.info("Default data initialization completed")
         except Exception as e:
@@ -984,3 +988,32 @@ async def _init_search_data(db: AsyncSession):
         logger.info("Created default ASR config (disabled)")
 
     logger.info("Search data initialization completed")
+
+
+async def _init_relation_types(db: AsyncSession):
+    result = await db.execute(select(RelationType).limit(1))
+    if result.scalar_one_or_none():
+        return
+
+    names = ["爸爸", "妈妈", "老公", "老婆", "儿子", "女儿", "哥哥", "弟弟", "姐姐", "妹妹", "爷爷", "奶奶", "外公", "外婆", "其他"]
+    for i, name in enumerate(names):
+        db.add(RelationType(name=name, sort_order=i, is_active=True))
+    await db.flush()
+    logger.info("Created default relation types (%d)", len(names))
+
+
+async def _init_disease_presets(db: AsyncSession):
+    result = await db.execute(select(DiseasePreset).limit(1))
+    if result.scalar_one_or_none():
+        return
+
+    chronic = ["高血压", "糖尿病", "冠心病", "脑卒中", "慢性肺病", "肿瘤/癌症", "肾病", "肝病", "甲状腺疾病"]
+    for i, name in enumerate(chronic):
+        db.add(DiseasePreset(name=name, category="chronic", sort_order=i, is_active=True))
+
+    genetic = ["高血压", "糖尿病", "心脏病", "癌症", "精神疾病", "遗传性肾病", "血液病", "先天性疾病"]
+    for i, name in enumerate(genetic):
+        db.add(DiseasePreset(name=name, category="genetic", sort_order=i, is_active=True))
+
+    await db.flush()
+    logger.info("Created default disease presets (%d chronic, %d genetic)", len(chronic), len(genetic))

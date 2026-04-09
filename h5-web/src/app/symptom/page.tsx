@@ -111,6 +111,36 @@ const relationshipLabelMap: Record<string, string> = {
   other: '其他',
 };
 
+const RELATION_EMOJI: Record<string, string> = {
+  '本人': '👤',
+  '爸爸': '👨',
+  '妈妈': '👩',
+  '老公': '👨‍❤️‍👨',
+  '老婆': '👩‍❤️‍👩',
+  '儿子': '👦',
+  '女儿': '👧',
+  '哥哥': '👱‍♂️',
+  '弟弟': '🧑',
+  '姐姐': '👱‍♀️',
+  '妹妹': '👧',
+  '爷爷': '👴',
+  '奶奶': '👵',
+  '外公': '👴',
+  '外婆': '👵',
+  '其他': '🧑',
+  '父亲': '👨',
+  '母亲': '👩',
+  '配偶': '💑',
+  '子女': '👧',
+  '兄弟姐妹': '👫',
+  '祖父母': '👴',
+  '外祖父母': '👵',
+};
+
+function getMemberEmoji(relationName: string): string {
+  return RELATION_EMOJI[relationName] || '🧑';
+}
+
 export default function SymptomPage() {
   const router = useRouter();
   const [step, setStep] = useState(0);
@@ -493,35 +523,36 @@ export default function SymptomPage() {
             </div>
 
             {/* Family members */}
-            {familyMembers.map((m) => (
-              <div
-                key={m.id}
-                className="flex items-center justify-between px-3 py-3 rounded-xl cursor-pointer"
-                style={{
-                  background: selectedMemberId === m.id && !showAddForm ? '#f6ffed' : '#f9f9f9',
-                  border: selectedMemberId === m.id && !showAddForm ? '1px solid #52c41a' : '1px solid transparent',
-                }}
-                onClick={() => handleSelectMember(m.id)}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm"
-                    style={{ background: '#87d068' }}>
-                    {m.nickname.charAt(0)}
-                  </div>
-                  <div>
-                    <div className="text-sm font-medium">{m.nickname}</div>
-                    <div className="text-xs text-gray-400">
-                      {relationshipLabelMap[m.relationship_type] || m.relationship_type}
+            {familyMembers.map((m) => {
+              const relationLabel = (m as any).relation_type_name || relationshipLabelMap[m.relationship_type] || m.relationship_type;
+              const emoji = getMemberEmoji(relationLabel);
+              return (
+                <div
+                  key={m.id}
+                  className="flex items-center justify-between px-3 py-3 rounded-xl cursor-pointer"
+                  style={{
+                    background: selectedMemberId === m.id && !showAddForm ? '#f6ffed' : '#f9f9f9',
+                    border: selectedMemberId === m.id && !showAddForm ? '1px solid #52c41a' : '1px solid transparent',
+                  }}
+                  onClick={() => handleSelectMember(m.id)}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full flex items-center justify-center text-xl"
+                      style={{ background: selectedMemberId === m.id && !showAddForm ? 'linear-gradient(135deg,#52c41a,#13c2c2)' : '#f0f0f0' }}>
+                      {emoji}
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium">{relationLabel} · {m.nickname}</div>
                     </div>
                   </div>
+                  <Radio
+                    checked={selectedMemberId === m.id && !showAddForm}
+                    onChange={() => handleSelectMember(m.id)}
+                    style={{ '--icon-size': '18px', '--font-size': '14px', '--gap': '6px' }}
+                  />
                 </div>
-                <Radio
-                  checked={selectedMemberId === m.id && !showAddForm}
-                  onChange={() => handleSelectMember(m.id)}
-                  style={{ '--icon-size': '18px', '--font-size': '14px', '--gap': '6px' }}
-                />
-              </div>
-            ))}
+              );
+            })}
 
             {/* Add member button */}
             <div

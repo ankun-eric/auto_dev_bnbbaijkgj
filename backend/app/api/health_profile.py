@@ -35,6 +35,7 @@ from app.schemas.health import (
     VisitRecordCreate,
     VisitRecordResponse,
 )
+from app.schemas.health_v2 import HealthProfileV2Response, HealthProfileV2Update
 from app.services.ai_service import analyze_checkup_report
 from app.utils.cos_helper import try_cos_upload
 
@@ -112,7 +113,7 @@ async def update_health_profile(
     return HealthProfileResponse.model_validate(profile)
 
 
-@router.get("/profile/member/{member_id}", response_model=HealthProfileResponse)
+@router.get("/profile/member/{member_id}", response_model=HealthProfileV2Response)
 async def get_member_health_profile(
     member_id: int,
     current_user: User = Depends(get_current_user),
@@ -133,14 +134,17 @@ async def get_member_health_profile(
     )
     profile = result.scalar_one_or_none()
     if not profile:
-        raise HTTPException(status_code=404, detail="家庭成员健康档案不存在")
-    return HealthProfileResponse.model_validate(profile)
+        profile = HealthProfile(user_id=current_user.id, family_member_id=member_id)
+        db.add(profile)
+        await db.flush()
+        await db.refresh(profile)
+    return HealthProfileV2Response.model_validate(profile)
 
 
-@router.put("/profile/member/{member_id}", response_model=HealthProfileResponse)
+@router.put("/profile/member/{member_id}", response_model=HealthProfileV2Response)
 async def upsert_member_health_profile(
     member_id: int,
-    data: HealthProfileUpdate,
+    data: HealthProfileV2Update,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -163,13 +167,12 @@ async def upsert_member_health_profile(
         db.add(profile)
 
     update_data = data.model_dump(exclude_unset=True)
-    update_data.pop("family_member_id", None)
     for key, value in update_data.items():
         setattr(profile, key, value)
     profile.updated_at = datetime.utcnow()
     await db.flush()
     await db.refresh(profile)
-    return HealthProfileResponse.model_validate(profile)
+    return HealthProfileV2Response.model_validate(profile)
 
 
 # ── 过敏记录 ──

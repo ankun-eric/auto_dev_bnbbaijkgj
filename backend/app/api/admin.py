@@ -1828,3 +1828,318 @@ async def update_registration_settings(
 ):
     settings = await save_register_settings(db, data)
     return {"message": "注册设置更新成功", "settings": settings}
+
+
+# ── 健康档案管理 ──
+
+from app.models.models import FamilyMember, HealthProfile, RelationType, DiseasePreset
+
+
+def _calc_completeness(hp: HealthProfile | None) -> float:
+    """计算健康档案完整度（6个基本字段）"""
+    if hp is None:
+        return 0.0
+    fields = [hp.name, hp.gender, hp.birthday, hp.height, hp.weight, hp.blood_type]
+    filled = sum(1 for f in fields if f is not None)
+    return round(filled / len(fields) * 100, 1)
+
+
+@router.get("/health/users")
+async def admin_health_users(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    keyword: str = Query("", description="手机号/昵称搜索"),
+    current_user=Depends(admin_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    stmt = select(User).where(User.role != UserRole.admin)
+    if keyword:
+        stmt = stmt.where(
+            or_(User.phone.ilike(f"%{keyword}%"), User.nickname.ilike(f"%{keyword}%"))
+        )
+    total_result = await db.execute(select(func.count()).select_from(stmt.subquery()))
+    total = total_result.scalar() or 0
+
+    stmt = stmt.order_by(User.id.desc()).offset((page - 1) * page_size).limit(page_size)
+    users_result = await db.execute(stmt)
+    users = users_result.scalars().all()
+
+    items = []
+    for user in users:
+        member_result = await db.execute(
+            select(func.count(FamilyMember.id)).where(
+                FamilyMember.user_id == user.id,
+                FamilyMember.status != "removed",
+            )
+        )
+        member_count = member_result.scalar() or 0
+
+        hp_result = await db.execute(
+            select(HealthProfile).where(HealthProfile.user_id == user.id)
+        )
+        profiles = hp_result.scalars().all()
+        if profiles:
+            avg_completeness = round(
+                sum(_calc_completeness(hp) for hp in profiles) / len(profiles), 1
+            )
+        else:
+            avg_completeness = 0.0
+
+        items.append({
+            "user_id": user.id,
+            "phone": user.phone or "",
+            "nickname": user.nickname or "",
+            "member_count": member_count,
+            "avg_completeness": avg_completeness,
+        })
+
+    return {"items": items, "total": total, "page": page, "page_size": page_size}
+
+
+@router.get("/health/users/{user_id}/members")
+async def admin_health_user_members(
+    user_id: int,
+    current_user=Depends(admin_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    user_result = await db.execute(select(User).where(User.id == user_id))
+    user = user_result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="用户不存在")
+
+    members_result = await db.execute(
+        select(FamilyMember).where(
+            FamilyMember.user_id == user_id,
+            FamilyMember.status != "removed",
+        )
+    )
+    members = members_result.scalars().all()
+
+    items = []
+    for member in members:
+        hp_result = await db.execute(
+            select(HealthProfile).where(HealthProfile.family_member_id == member.id)
+        )
+        hp = hp_result.scalar_one_or_none()
+        if hp is None:
+            hp_result2 = await db.execute(
+                select(HealthProfile).where(
+                    HealthProfile.user_id == user_id,
+                    HealthProfile.family_member_id.is_(None),
+                )
+            )
+            hp = hp_result2.scalar_one_or_none() if member.is_self else None
+
+        health_profile_data = None
+        if hp:
+            health_profile_data = {
+                "id": hp.id,
+                "name": hp.name,
+                "gender": hp.gender,
+                "birthday": hp.birthday.isoformat() if hp.birthday else None,
+                "height": hp.height,
+                "weight": hp.weight,
+                "blood_type": hp.blood_type,
+                "smoking": hp.smoking,
+                "drinking": hp.drinking,
+                "exercise_habit": hp.exercise_habit,
+                "sleep_habit": hp.sleep_habit,
+                "diet_habit": hp.diet_habit,
+                "chronic_diseases": hp.chronic_diseases,
+                "medical_histories": hp.medical_histories,
+                "genetic_diseases": hp.genetic_diseases,
+                "allergies": hp.allergies,
+                "completeness": _calc_completeness(hp),
+            }
+
+        items.append({
+            "member_id": member.id,
+            "is_self": member.is_self,
+            "nickname": member.nickname or "",
+            "relationship_type": member.relationship_type or "",
+            "health_profile": health_profile_data,
+        })
+
+    return {"items": items}
+
+
+# ── 关系类型 CRUD ──
+
+
+class RelationTypeCreate(BaseModel):
+    name: str
+    sort_order: int = 0
+    is_active: bool = True
+
+
+class RelationTypeUpdate(BaseModel):
+    name: str | None = None
+    sort_order: int | None = None
+    is_active: bool | None = None
+
+
+@router.get("/relation-types")
+async def admin_list_relation_types(
+    current_user=Depends(admin_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(RelationType).order_by(RelationType.sort_order, RelationType.id))
+    items = result.scalars().all()
+    return {
+        "items": [
+            {
+                "id": rt.id,
+                "name": rt.name,
+                "sort_order": rt.sort_order,
+                "is_active": rt.is_active,
+                "created_at": rt.created_at.isoformat() if rt.created_at else None,
+            }
+            for rt in items
+        ]
+    }
+
+
+@router.post("/relation-types")
+async def admin_create_relation_type(
+    data: RelationTypeCreate,
+    current_user=Depends(admin_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    rt = RelationType(name=data.name, sort_order=data.sort_order, is_active=data.is_active)
+    db.add(rt)
+    await db.flush()
+    await db.refresh(rt)
+    return {"id": rt.id, "name": rt.name, "sort_order": rt.sort_order, "is_active": rt.is_active}
+
+
+@router.put("/relation-types/{rt_id}")
+async def admin_update_relation_type(
+    rt_id: int,
+    data: RelationTypeUpdate,
+    current_user=Depends(admin_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(RelationType).where(RelationType.id == rt_id))
+    rt = result.scalar_one_or_none()
+    if not rt:
+        raise HTTPException(status_code=404, detail="关系类型不存在")
+    if data.name is not None:
+        rt.name = data.name
+    if data.sort_order is not None:
+        rt.sort_order = data.sort_order
+    if data.is_active is not None:
+        rt.is_active = data.is_active
+    rt.updated_at = datetime.utcnow()
+    await db.flush()
+    return {"id": rt.id, "name": rt.name, "sort_order": rt.sort_order, "is_active": rt.is_active}
+
+
+@router.delete("/relation-types/{rt_id}")
+async def admin_delete_relation_type(
+    rt_id: int,
+    current_user=Depends(admin_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(RelationType).where(RelationType.id == rt_id))
+    rt = result.scalar_one_or_none()
+    if not rt:
+        raise HTTPException(status_code=404, detail="关系类型不存在")
+    await db.delete(rt)
+    await db.flush()
+    return {"message": "删除成功"}
+
+
+# ── 疾病预设 CRUD ──
+
+
+class DiseasePresetCreate(BaseModel):
+    name: str
+    category: str
+    sort_order: int = 0
+    is_active: bool = True
+
+
+class DiseasePresetUpdate(BaseModel):
+    name: str | None = None
+    category: str | None = None
+    sort_order: int | None = None
+    is_active: bool | None = None
+
+
+@router.get("/disease-presets")
+async def admin_list_disease_presets(
+    category: str = Query("", description="chronic 或 genetic"),
+    current_user=Depends(admin_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    stmt = select(DiseasePreset)
+    if category:
+        stmt = stmt.where(DiseasePreset.category == category)
+    stmt = stmt.order_by(DiseasePreset.sort_order, DiseasePreset.id)
+    result = await db.execute(stmt)
+    items = result.scalars().all()
+    return {
+        "items": [
+            {
+                "id": dp.id,
+                "name": dp.name,
+                "category": dp.category,
+                "sort_order": dp.sort_order,
+                "is_active": dp.is_active,
+                "created_at": dp.created_at.isoformat() if dp.created_at else None,
+            }
+            for dp in items
+        ]
+    }
+
+
+@router.post("/disease-presets")
+async def admin_create_disease_preset(
+    data: DiseasePresetCreate,
+    current_user=Depends(admin_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    dp = DiseasePreset(name=data.name, category=data.category, sort_order=data.sort_order, is_active=data.is_active)
+    db.add(dp)
+    await db.flush()
+    await db.refresh(dp)
+    return {"id": dp.id, "name": dp.name, "category": dp.category, "sort_order": dp.sort_order, "is_active": dp.is_active}
+
+
+@router.put("/disease-presets/{dp_id}")
+async def admin_update_disease_preset(
+    dp_id: int,
+    data: DiseasePresetUpdate,
+    current_user=Depends(admin_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(DiseasePreset).where(DiseasePreset.id == dp_id))
+    dp = result.scalar_one_or_none()
+    if not dp:
+        raise HTTPException(status_code=404, detail="预设不存在")
+    if data.name is not None:
+        dp.name = data.name
+    if data.category is not None:
+        dp.category = data.category
+    if data.sort_order is not None:
+        dp.sort_order = data.sort_order
+    if data.is_active is not None:
+        dp.is_active = data.is_active
+    dp.updated_at = datetime.utcnow()
+    await db.flush()
+    return {"id": dp.id, "name": dp.name, "category": dp.category, "sort_order": dp.sort_order, "is_active": dp.is_active}
+
+
+@router.delete("/disease-presets/{dp_id}")
+async def admin_delete_disease_preset(
+    dp_id: int,
+    current_user=Depends(admin_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(DiseasePreset).where(DiseasePreset.id == dp_id))
+    dp = result.scalar_one_or_none()
+    if not dp:
+        raise HTTPException(status_code=404, detail="预设不存在")
+    await db.delete(dp)
+    await db.flush()
+    return {"message": "删除成功"}

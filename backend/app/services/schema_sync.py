@@ -477,6 +477,94 @@ async def _sync_search_tables(conn: AsyncConnection) -> None:
             await conn.execute(text("ALTER TABLE asr_configs ADD COLUMN supported_dialects VARCHAR(200) DEFAULT '普通话,粤语'"))
 
 
+async def _sync_health_profile_v2_fields(conn: AsyncConnection) -> None:
+    def _load(sync_conn):
+        inspector = inspect(sync_conn)
+        tables = set(inspector.get_table_names())
+        if "health_profiles" not in tables:
+            return None
+        return {col["name"] for col in inspector.get_columns("health_profiles")}
+
+    columns = await conn.run_sync(_load)
+    if columns is None:
+        return
+    if "name" not in columns:
+        await conn.execute(text("ALTER TABLE health_profiles ADD COLUMN name VARCHAR(100) NULL"))
+    if "chronic_diseases" not in columns:
+        await conn.execute(text("ALTER TABLE health_profiles ADD COLUMN chronic_diseases JSON NULL"))
+    if "drug_allergies" not in columns:
+        await conn.execute(text("ALTER TABLE health_profiles ADD COLUMN drug_allergies TEXT NULL"))
+    if "food_allergies" not in columns:
+        await conn.execute(text("ALTER TABLE health_profiles ADD COLUMN food_allergies TEXT NULL"))
+    if "other_allergies" not in columns:
+        await conn.execute(text("ALTER TABLE health_profiles ADD COLUMN other_allergies TEXT NULL"))
+    if "genetic_diseases" not in columns:
+        await conn.execute(text("ALTER TABLE health_profiles ADD COLUMN genetic_diseases JSON NULL"))
+
+
+async def _sync_family_member_v2_fields(conn: AsyncConnection) -> None:
+    def _load(sync_conn):
+        inspector = inspect(sync_conn)
+        tables = set(inspector.get_table_names())
+        if "family_members" not in tables:
+            return None
+        return {col["name"] for col in inspector.get_columns("family_members")}
+
+    columns = await conn.run_sync(_load)
+    if columns is None:
+        return
+    if "is_self" not in columns:
+        await conn.execute(text("ALTER TABLE family_members ADD COLUMN is_self BOOLEAN NOT NULL DEFAULT FALSE"))
+    if "relation_type_id" not in columns:
+        await conn.execute(text("ALTER TABLE family_members ADD COLUMN relation_type_id INT NULL"))
+
+
+async def _sync_relation_types_table(conn: AsyncConnection) -> None:
+    def _load(sync_conn):
+        inspector = inspect(sync_conn)
+        return "relation_types" in set(inspector.get_table_names())
+
+    exists = await conn.run_sync(_load)
+    if not exists:
+        await conn.execute(text(
+            "CREATE TABLE relation_types ("
+            "id INT AUTO_INCREMENT PRIMARY KEY, "
+            "name VARCHAR(50) NOT NULL, "
+            "sort_order INT DEFAULT 0, "
+            "is_active BOOLEAN DEFAULT TRUE, "
+            "created_at DATETIME DEFAULT CURRENT_TIMESTAMP, "
+            "updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
+            ")"
+        ))
+
+
+async def _sync_disease_presets_table(conn: AsyncConnection) -> None:
+    def _load(sync_conn):
+        inspector = inspect(sync_conn)
+        return "disease_presets" in set(inspector.get_table_names())
+
+    exists = await conn.run_sync(_load)
+    if not exists:
+        await conn.execute(text(
+            "CREATE TABLE disease_presets ("
+            "id INT AUTO_INCREMENT PRIMARY KEY, "
+            "name VARCHAR(100) NOT NULL, "
+            "category VARCHAR(20) NOT NULL, "
+            "sort_order INT DEFAULT 0, "
+            "is_active BOOLEAN DEFAULT TRUE, "
+            "created_at DATETIME DEFAULT CURRENT_TIMESTAMP, "
+            "updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
+            ")"
+        ))
+
+
+async def run_all_migrations(conn: AsyncConnection) -> None:
+    await _sync_relation_types_table(conn)
+    await _sync_disease_presets_table(conn)
+    await _sync_family_member_v2_fields(conn)
+    await _sync_health_profile_v2_fields(conn)
+
+
 async def sync_register_schema(conn: AsyncConnection) -> None:
     def load_user_schema(sync_conn):
         inspector = inspect(sync_conn)
@@ -506,6 +594,7 @@ async def sync_register_schema(conn: AsyncConnection) -> None:
     await _sync_share_links(conn)
     await _sync_home_tables(conn)
     await _sync_search_tables(conn)
+    await run_all_migrations(conn)
 
     columns, indexes, unique_constraints = await conn.run_sync(load_user_schema)
 

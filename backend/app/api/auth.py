@@ -16,6 +16,7 @@ from app.core.security import (
 )
 from app.models.models import (
     AccountIdentity,
+    FamilyMember,
     IdentityType,
     MerchantProfile,
     MerchantStoreMembership,
@@ -42,6 +43,25 @@ from app.services.register_service import (
 from app.services.sms_service import send_sms
 
 router = APIRouter(prefix="/api/auth", tags=["认证"])
+
+
+async def ensure_self_family_member(db: AsyncSession, user_id: int) -> None:
+    result = await db.execute(
+        select(FamilyMember).where(
+            FamilyMember.user_id == user_id,
+            FamilyMember.is_self == True,  # noqa: E712
+        )
+    )
+    if result.scalar_one_or_none():
+        return
+    db.add(FamilyMember(
+        user_id=user_id,
+        relationship_type="本人",
+        nickname="本人",
+        is_self=True,
+        status="active",
+    ))
+    await db.flush()
 
 
 async def ensure_identity(db: AsyncSession, user_id: int, identity_type: IdentityType) -> None:
@@ -148,6 +168,7 @@ async def register(data: UserCreate, db: AsyncSession = Depends(get_db)):
     db.add(user)
     await db.flush()
     await ensure_identity(db, user.id, IdentityType.user)
+    await ensure_self_family_member(db, user.id)
     await db.refresh(user)
 
     needs_profile_completion = (
@@ -263,6 +284,7 @@ async def sms_login(data: SMSLoginRequest, db: AsyncSession = Depends(get_db)):
         db.add(user)
         await db.flush()
         await ensure_identity(db, user.id, IdentityType.user)
+        await ensure_self_family_member(db, user.id)
         await db.refresh(user)
         is_new_user = True
 

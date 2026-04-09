@@ -1,16 +1,77 @@
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.security import get_current_user
-from app.models.models import FamilyMember, Notification, NotificationType, User
+from app.models.models import (
+    DiseasePreset,
+    FamilyMember,
+    HealthProfile,
+    Notification,
+    NotificationType,
+    RelationType,
+    User,
+)
+from app.schemas.health_v2 import DiseasePresetResponse, RelationTypeResponse
 from app.schemas.user import FamilyMemberCreate, FamilyMemberResponse, FamilyMemberUpdate
 
-router = APIRouter(prefix="/api/family", tags=["家庭成员"])
+router = APIRouter(tags=["家庭成员"])
 
 
-@router.post("/members", response_model=FamilyMemberResponse)
+def _to_member_response(member: FamilyMember) -> FamilyMemberResponse:
+    relation_type_name = None
+    if member.relation_type is not None:
+        relation_type_name = member.relation_type.name
+    return FamilyMemberResponse(
+        id=member.id,
+        user_id=member.user_id,
+        member_user_id=member.member_user_id,
+        relationship_type=member.relationship_type,
+        nickname=member.nickname,
+        is_self=member.is_self,
+        relation_type_id=member.relation_type_id,
+        relation_type_name=relation_type_name,
+        birthday=member.birthday,
+        gender=member.gender,
+        height=member.height,
+        weight=member.weight,
+        medical_histories=member.medical_histories,
+        allergies=member.allergies,
+        status=member.status,
+        created_at=member.created_at,
+    )
+
+
+@router.get("/api/family/members")
+async def list_family_members(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(FamilyMember).where(
+            FamilyMember.user_id == current_user.id,
+            FamilyMember.status == "active",
+        )
+    )
+    members = result.scalars().all()
+
+    # Load relation types for all members
+    for m in members:
+        if m.relation_type_id and m.relation_type is None:
+            rt_result = await db.execute(select(RelationType).where(RelationType.id == m.relation_type_id))
+            m.relation_type = rt_result.scalar_one_or_none()
+
+    self_members = [m for m in members if m.is_self]
+    other_members = sorted([m for m in members if not m.is_self], key=lambda x: x.created_at)
+    ordered = self_members + other_members
+
+    return {"items": [_to_member_response(m) for m in ordered], "total": len(ordered)}
+
+
+@router.post("/api/family/members", response_model=FamilyMemberResponse)
 async def add_family_member(
     data: FamilyMemberCreate,
     current_user: User = Depends(get_current_user),
@@ -18,52 +79,36 @@ async def add_family_member(
 ):
     if data.member_user_id:
         result = await db.execute(select(User).where(User.id == data.member_user_id))
-        member_user = result.scalar_one_or_none()
-        if not member_user:
+        if not result.scalar_one_or_none():
             raise HTTPException(status_code=404, detail="关联用户不存在")
 
+    nickname = data.nickname or data.name
     member = FamilyMember(
         user_id=current_user.id,
         member_user_id=data.member_user_id,
         relationship_type=data.relationship_type,
-        nickname=data.nickname,
+        nickname=nickname,
+        relation_type_id=data.relation_type_id,
         birthday=data.birthday,
         gender=data.gender,
         height=data.height,
         weight=data.weight,
         medical_histories=data.medical_histories if data.medical_histories else None,
         allergies=data.allergies if data.allergies else None,
+        is_self=False,
     )
     db.add(member)
     await db.flush()
     await db.refresh(member)
-    return FamilyMemberResponse.model_validate(member)
+
+    if member.relation_type_id:
+        rt_result = await db.execute(select(RelationType).where(RelationType.id == member.relation_type_id))
+        member.relation_type = rt_result.scalar_one_or_none()
+
+    return _to_member_response(member)
 
 
-@router.get("/members", response_model=dict)
-async def list_family_members(
-    page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    total_result = await db.execute(
-        select(func.count(FamilyMember.id)).where(FamilyMember.user_id == current_user.id, FamilyMember.status == "active")
-    )
-    total = total_result.scalar() or 0
-
-    result = await db.execute(
-        select(FamilyMember)
-        .where(FamilyMember.user_id == current_user.id, FamilyMember.status == "active")
-        .order_by(FamilyMember.created_at.desc())
-        .offset((page - 1) * page_size)
-        .limit(page_size)
-    )
-    items = [FamilyMemberResponse.model_validate(m) for m in result.scalars().all()]
-    return {"items": items, "total": total, "page": page, "page_size": page_size}
-
-
-@router.get("/members/{member_id}", response_model=FamilyMemberResponse)
+@router.get("/api/family/members/{member_id}", response_model=FamilyMemberResponse)
 async def get_family_member(
     member_id: int,
     current_user: User = Depends(get_current_user),
@@ -75,10 +120,15 @@ async def get_family_member(
     member = result.scalar_one_or_none()
     if not member:
         raise HTTPException(status_code=404, detail="家庭成员不存在")
-    return FamilyMemberResponse.model_validate(member)
+
+    if member.relation_type_id:
+        rt_result = await db.execute(select(RelationType).where(RelationType.id == member.relation_type_id))
+        member.relation_type = rt_result.scalar_one_or_none()
+
+    return _to_member_response(member)
 
 
-@router.put("/members/{member_id}", response_model=FamilyMemberResponse)
+@router.put("/api/family/members/{member_id}", response_model=FamilyMemberResponse)
 async def update_family_member(
     member_id: int,
     data: FamilyMemberUpdate,
@@ -98,10 +148,15 @@ async def update_family_member(
 
     await db.flush()
     await db.refresh(member)
-    return FamilyMemberResponse.model_validate(member)
+
+    if member.relation_type_id:
+        rt_result = await db.execute(select(RelationType).where(RelationType.id == member.relation_type_id))
+        member.relation_type = rt_result.scalar_one_or_none()
+
+    return _to_member_response(member)
 
 
-@router.delete("/members/{member_id}")
+@router.delete("/api/family/members/{member_id}")
 async def remove_family_member(
     member_id: int,
     current_user: User = Depends(get_current_user),
@@ -114,11 +169,53 @@ async def remove_family_member(
     if not member:
         raise HTTPException(status_code=404, detail="家庭成员不存在")
 
+    if member.is_self:
+        raise HTTPException(status_code=400, detail="本人成员不可删除")
+
+    # 软删除该成员的健康档案
+    hp_result = await db.execute(
+        select(HealthProfile).where(
+            HealthProfile.user_id == current_user.id,
+            HealthProfile.family_member_id == member_id,
+        )
+    )
+    health_profile = hp_result.scalar_one_or_none()
+    if health_profile:
+        await db.delete(health_profile)
+
     member.status = "removed"
+    await db.flush()
     return {"message": "已移除家庭成员"}
 
 
-@router.post("/sos")
+@router.get("/api/relation-types")
+async def list_relation_types(
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(RelationType)
+        .where(RelationType.is_active == True)  # noqa: E712
+        .order_by(RelationType.sort_order)
+    )
+    items = [RelationTypeResponse.model_validate(r) for r in result.scalars().all()]
+    return {"items": items}
+
+
+@router.get("/api/disease-presets")
+async def list_disease_presets(
+    category: Optional[str] = Query(None, description="chronic 或 genetic"),
+    db: AsyncSession = Depends(get_db),
+):
+    query = select(DiseasePreset).where(DiseasePreset.is_active == True)  # noqa: E712
+    if category:
+        query = query.where(DiseasePreset.category == category)
+    query = query.order_by(DiseasePreset.sort_order)
+    result = await db.execute(query)
+    items = [DiseasePresetResponse.model_validate(r) for r in result.scalars().all()]
+    return {"items": items}
+
+
+@router.post("/api/family/sos")
 async def send_sos(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),

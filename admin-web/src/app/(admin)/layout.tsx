@@ -25,6 +25,7 @@ import {
   DatabaseOutlined,
   FormOutlined,
   HomeOutlined,
+  HeartOutlined,
 } from '@ant-design/icons';
 import { useRouter, usePathname } from 'next/navigation';
 import type { MenuProps } from 'antd';
@@ -124,6 +125,16 @@ const menuItems: MenuItem[] = [
       { key: '/points/levels', label: '会员等级' },
     ],
   },
+  {
+    key: 'health',
+    icon: <HeartOutlined />,
+    label: '健康档案管理',
+    children: [
+      { key: '/health-records', label: '用户档案查看' },
+      { key: '/relation-types', label: '关系类型配置' },
+      { key: '/disease-presets', label: '预设列表管理' },
+    ],
+  },
   { key: '/customer-service', icon: <CustomerServiceOutlined />, label: '客服工作台' },
   {
     key: 'system',
@@ -149,6 +160,7 @@ function getOpenKeys(pathname: string): string[] {
   if (pathname.startsWith('/home-settings') || pathname.startsWith('/home-menus') || pathname.startsWith('/home-banners')) return ['home-config'];
   if (pathname.startsWith('/search')) return ['search-manage'];
   if (pathname.startsWith('/sms') || pathname.startsWith('/settings') || pathname.startsWith('/wechat-push') || pathname.startsWith('/email-notify') || pathname.startsWith('/cos-config')) return ['system'];
+  if (pathname.startsWith('/health-records') || pathname.startsWith('/relation-types') || pathname.startsWith('/disease-presets')) return ['health'];
   return [];
 }
 

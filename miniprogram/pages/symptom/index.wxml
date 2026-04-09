@@ -1,4 +1,20 @@
 <view class="symptom-page">
+  <!-- 为谁咨询 -->
+  <view class="member-section" wx:if="{{membersLoaded && members.length > 0}}">
+    <text class="member-section-title">为谁咨询</text>
+    <scroll-view class="member-scroll" scroll-x>
+      <view class="member-list">
+        <view class="member-item {{selectedMemberId === item.id ? 'member-selected' : ''}}"
+              wx:for="{{members}}" wx:key="id"
+              bindtap="selectMember" data-member="{{item}}">
+          <text class="member-emoji">{{item.emoji}}</text>
+          <text class="member-relation">{{item.relationship_type}}</text>
+          <text class="member-name">{{item.nickname}}</text>
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+
   <!-- 步骤指示器 -->
   <view class="steps-bar">
     <view class="step {{currentStep >= 0 ? 'step-active' : ''}}">

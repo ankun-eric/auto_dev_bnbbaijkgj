@@ -195,6 +195,17 @@ class User(Base):
     articles = relationship("Article", back_populates="author")
 
 
+class RelationType(Base):
+    __tablename__ = "relation_types"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name = mapped_column(String(50), nullable=False)
+    sort_order = mapped_column(Integer, default=0)
+    is_active = mapped_column(Boolean, default=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class FamilyMember(Base):
     __tablename__ = "family_members"
 
@@ -210,10 +221,13 @@ class FamilyMember(Base):
     medical_histories = mapped_column(JSON, nullable=True)
     allergies = mapped_column(JSON, nullable=True)
     status = mapped_column(String(20), default="active")
+    is_self = mapped_column(Boolean, default=False, nullable=False)
+    relation_type_id = mapped_column(Integer, ForeignKey("relation_types.id"), nullable=True)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
 
     user = relationship("User", back_populates="family_members", foreign_keys=[user_id])
     member_user = relationship("User", foreign_keys=[member_user_id])
+    relation_type = relationship("RelationType")
 
 
 class VerificationCode(Base):
@@ -330,6 +344,7 @@ class HealthProfile(Base):
     id = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     family_member_id = mapped_column(Integer, ForeignKey("family_members.id"), nullable=True)
+    name = mapped_column(String(100), nullable=True)
     height = mapped_column(Float, nullable=True)
     weight = mapped_column(Float, nullable=True)
     blood_type = mapped_column(String(10), nullable=True)
@@ -340,13 +355,30 @@ class HealthProfile(Base):
     exercise_habit = mapped_column(String(50), nullable=True)
     sleep_habit = mapped_column(String(50), nullable=True)
     diet_habit = mapped_column(String(50), nullable=True)
+    chronic_diseases = mapped_column(JSON, nullable=True)
     medical_histories = mapped_column(JSON, nullable=True)
     allergies = mapped_column(JSON, nullable=True)
+    drug_allergies = mapped_column(Text, nullable=True)
+    food_allergies = mapped_column(Text, nullable=True)
+    other_allergies = mapped_column(Text, nullable=True)
+    genetic_diseases = mapped_column(JSON, nullable=True)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     user = relationship("User", back_populates="health_profile")
     family_member = relationship("FamilyMember")
+
+
+class DiseasePreset(Base):
+    __tablename__ = "disease_presets"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name = mapped_column(String(100), nullable=False)
+    category = mapped_column(String(20), nullable=False)
+    sort_order = mapped_column(Integer, default=0)
+    is_active = mapped_column(Boolean, default=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
 class AllergyRecord(Base):
