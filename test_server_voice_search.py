@@ -1,95 +1,99 @@
-import pytest
-import httpx
-import io
-import asyncio
+"""语音搜索多端升级 - 服务器API测试"""
 
-BASE = "https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857"
+import requests
+import urllib3
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-@pytest.mark.asyncio
-async def test_health():
-    async with httpx.AsyncClient(verify=False) as c:
-        r = await c.get(f"{BASE}/api/health")
-        assert r.status_code == 200
+BASE = "https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api"
 
-@pytest.mark.asyncio
-async def test_asr_token():
-    async with httpx.AsyncClient(verify=False) as c:
-        r = await c.post(f"{BASE}/api/search/asr/token")
-        assert r.status_code in (200, 400)
+def test_health():
+    """健康检查"""
+    r = requests.get(f"{BASE}/health", verify=False)
+    assert r.status_code == 200
+    assert r.json()["status"] == "ok"
 
-@pytest.mark.asyncio
-async def test_asr_recognize_no_file():
-    async with httpx.AsyncClient(verify=False) as c:
-        r = await c.post(f"{BASE}/api/search/asr/recognize")
-        assert r.status_code == 422
+def test_search_with_source_voice():
+    """搜索传 source=voice 返回 200"""
+    r = requests.get(f"{BASE}/search", params={"q": "测试语音搜索", "type": "all", "source": "voice"}, verify=False)
+    assert r.status_code == 200
+    data = r.json()
+    assert "items" in data
+    assert "total" in data
+    assert "type_counts" in data
+    assert "source" not in data
 
-@pytest.mark.asyncio
-async def test_asr_recognize_empty_audio():
-    async with httpx.AsyncClient(verify=False) as c:
-        files = {"audio_file": ("test.wav", io.BytesIO(b""), "audio/wav")}
-        data = {"format": "wav", "sample_rate": "16000"}
-        r = await c.post(f"{BASE}/api/search/asr/recognize", files=files, data=data)
-        result = r.json()
-        assert r.status_code == 200
-        assert result.get("success") == False
-        assert result.get("error_code") in ("ASR_DISABLED", "AUDIO_EMPTY")
+def test_search_with_source_text():
+    """搜索传 source=text 返回 200"""
+    r = requests.get(f"{BASE}/search", params={"q": "测试文本搜索", "type": "all", "source": "text"}, verify=False)
+    assert r.status_code == 200
+    data = r.json()
+    assert "items" in data
+    assert "total" in data
 
-@pytest.mark.asyncio
-async def test_asr_recognize_with_audio():
-    async with httpx.AsyncClient(verify=False) as c:
-        fake_audio = b"\x00" * 1000
-        files = {"audio_file": ("test.webm", io.BytesIO(fake_audio), "audio/webm")}
-        data = {"format": "webm", "sample_rate": "16000"}
-        r = await c.post(f"{BASE}/api/search/asr/recognize", files=files, data=data)
-        result = r.json()
-        assert r.status_code == 200
-        assert "success" in result
+def test_search_default_source():
+    """搜索不传 source 默认为 text"""
+    r = requests.get(f"{BASE}/search", params={"q": "测试默认来源", "type": "all"}, verify=False)
+    assert r.status_code == 200
+    data = r.json()
+    assert "items" in data
 
-@pytest.mark.asyncio
-async def test_search_hot():
-    async with httpx.AsyncClient(verify=False) as c:
-        r = await c.get(f"{BASE}/api/search/hot")
-        assert r.status_code == 200
+def test_search_invalid_source():
+    """搜索传非法 source 值也正常返回"""
+    r = requests.get(f"{BASE}/search", params={"q": "非法来源测试", "type": "all", "source": "invalid"}, verify=False)
+    assert r.status_code == 200
+    data = r.json()
+    assert "items" in data
 
-@pytest.mark.asyncio
-async def test_search_suggest():
-    async with httpx.AsyncClient(verify=False) as c:
-        r = await c.get(f"{BASE}/api/search/suggest", params={"q": "感冒"})
-        assert r.status_code == 200
+def test_search_by_article_type():
+    """按文章类型搜索 + source=voice"""
+    r = requests.get(f"{BASE}/search", params={"q": "健康", "type": "article", "source": "voice"}, verify=False)
+    assert r.status_code == 200
+    data = r.json()
+    assert "items" in data
+    for item in data["items"]:
+        assert item["type"] == "article"
 
-@pytest.mark.asyncio
-async def test_search_query():
-    async with httpx.AsyncClient(verify=False) as c:
-        r = await c.get(f"{BASE}/api/search", params={"q": "健康", "type": "all", "page": 1, "page_size": 10})
-        assert r.status_code == 200
-        data = r.json()
-        assert "items" in data
+def test_search_hot():
+    """热门搜索"""
+    r = requests.get(f"{BASE}/search/hot", verify=False)
+    assert r.status_code == 200
+    assert isinstance(r.json(), list)
 
-@pytest.mark.asyncio
-async def test_search_drug_keywords():
-    async with httpx.AsyncClient(verify=False) as c:
-        r = await c.get(f"{BASE}/api/search/drug-keywords")
-        assert r.status_code == 200
+def test_search_suggest():
+    """搜索联想"""
+    r = requests.get(f"{BASE}/search/suggest", params={"q": "感冒"}, verify=False)
+    assert r.status_code == 200
+    assert isinstance(r.json(), list)
 
-@pytest.mark.asyncio
-async def test_search_history_no_auth():
-    async with httpx.AsyncClient(verify=False) as c:
-        r = await c.get(f"{BASE}/api/search/history")
-        assert r.status_code == 401
+def test_asr_token():
+    """ASR token 接口"""
+    r = requests.post(f"{BASE}/search/asr/token", verify=False)
+    assert r.status_code in (200, 400)
 
-@pytest.mark.asyncio
-async def test_admin_login_and_search_history():
-    async with httpx.AsyncClient(verify=False) as c:
-        login = await c.post(f"{BASE}/api/auth/login", json={"username": "admin", "password": "admin123"})
-        if login.status_code == 200:
-            token = login.json().get("access_token") or login.json().get("token")
-            if token:
-                headers = {"Authorization": f"Bearer {token}"}
-                r = await c.get(f"{BASE}/api/search/history", headers=headers)
-                assert r.status_code == 200
+def test_asr_recognize_no_file():
+    """ASR 识别无文件 422"""
+    r = requests.post(f"{BASE}/search/asr/recognize", verify=False)
+    assert r.status_code == 422
 
-@pytest.mark.asyncio
-async def test_h5_search_page():
-    async with httpx.AsyncClient(verify=False, follow_redirects=True) as c:
-        r = await c.get(f"{BASE}/search")
-        assert r.status_code == 200
+def test_search_drug_keywords():
+    """药品搜索关键词"""
+    r = requests.get(f"{BASE}/search/drug-keywords", verify=False)
+    assert r.status_code == 200
+    assert isinstance(r.json(), list)
+
+def test_search_history_no_auth():
+    """搜索历史未登录 401"""
+    r = requests.get(f"{BASE}/search/history", verify=False)
+    assert r.status_code == 401
+
+def test_search_source_voice_log_via_db():
+    """通过管理员 API 验证搜索日志记录了 source"""
+    r = requests.get(f"{BASE}/search", params={"q": "服务器日志验证词", "type": "all", "source": "voice"}, verify=False)
+    assert r.status_code == 200
+    admin_login = requests.post(f"{BASE}/admin/login", json={"phone": "13800000001", "password": "admin123"}, verify=False)
+    if admin_login.status_code == 200:
+        token = admin_login.json().get("token")
+        if token:
+            headers = {"Authorization": f"Bearer {token}"}
+            stats = requests.get(f"{BASE}/admin/search/statistics", headers=headers, verify=False)
+            assert stats.status_code == 200

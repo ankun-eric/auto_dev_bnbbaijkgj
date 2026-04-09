@@ -27,7 +27,167 @@
 - Admin: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api/`
 
-## Latest Feature: 用户/商家小程序合并
+## Latest Feature: 首页公告栏后台可配置 (2026-04-09)
+
+### Backend
+- `models/models.py`: 新增 `HomeNotice` 模型（home_notices 表），字段：content（Text）、link_url（String 500）、start_time（DateTime）、end_time（DateTime）、is_enabled（Boolean）、sort_order（Integer）、created_at、updated_at
+- `schemas/notice.py`（新建）：NoticeCreate、NoticeUpdate、NoticeResponse、NoticePatchStatus、NoticeSortItem
+- `api/notice.py`（新建）：
+  - `GET /api/notices/active`（无需认证，带 Cache-Control: max-age=1800）
+  - `GET /api/admin/notices`（分页列表）
+  - `POST /api/admin/notices`（新增）
+  - `PUT /api/admin/notices/{id}`（编辑）
+  - `DELETE /api/admin/notices/{id}`（删除）
+  - `PATCH /api/admin/notices/{id}/status`（启用/禁用）
+  - `PUT /api/admin/notices/sort`（排序）
+- `services/schema_sync.py`: 新增 `_sync_notice_table()` 自动建表
+- `main.py`: 注册 notice.router 和 notice.admin_router
+
+### H5 Web
+- `h5-web/src/app/(tabs)/home/page.tsx`: 公告栏改为动态获取，30 分钟前端缓存（noticeCache），多条公告以 ` | ` 拼接展示，点击跳转 link_url，无有效公告时显示 FALLBACK_NOTICE
+
+### Admin Web
+- `admin-web/src/app/(admin)/notices/page.tsx`（新建）：公告管理页，支持增删改查、启用/禁用开关、排序权重编辑
+- `admin-web/src/app/(admin)/layout.tsx`: 在"首页配置"菜单组下新增"公告管理"入口（key: /notices）
+
+### Deployment (2026-04-09)
+- Rebuilt backend, admin-web, h5-web containers
+- 18/18 server API tests passed (admin CRUD, status toggle, sort, active filter by time+enabled, cache header, auth)
+- All 4 containers healthy
+
+### User Documentation
+- Created `user_docs/manual_20260409_首页公告栏后台可配置.md`
+
+---
+
+## Latest Feature: 健康档案功能完善 - 注册引导流程 (2026-04-09)
+
+### Backend
+- `models/models.py`: `HealthProfile` 新增 `guide_count`（Integer，默认0，记录用户查看引导次数）
+- `schemas/health_v2.py`: 新增 `HealthGuideStatusResponse`、`HealthGuideUpdateRequest`、`HealthGuideUpdateResponse` 三个 Schema
+- `api/health_profile.py`: 新增 `GET /api/health/guide-status`（获取引导状态，返回 should_show_guide/guide_count/profile_completeness）、`POST /api/health/guide-status`（更新引导次数，支持 action=skip/complete）
+- `api/auth.py`: 注册（register/sms_login 新用户分支）成功后，自动调用 `ensure_self_health_profile` 创建空的本人健康档案记录（try/except 包裹，不影响注册流程）
+
+### H5 Web
+- `h5-web/src/app/health-guide/page.tsx`（新建）：4步健康档案引导页；顶部步骤进度指示器（第X步/共4步+进度条）；Step1基本信息/Step2慢性病史/Step3过敏史/Step4遗传病史；右上角「跳过」按钮；底部「上一步/下一步/完成」按钮；完成后 Toast 提示并跳转首页
+- `h5-web/src/app/login/page.tsx`: 新用户（is_new_user=true）注册成功后直接跳转 `/health-guide`；老用户档案不完整时弹 Dialog 确认后跳转 `/health-guide`
+- `h5-web/src/app/health-profile/page.tsx`: 页面加载时调用 GET /api/health/guide-status；guide_count===1 且档案未完善时显示顶部 Banner 提示（点击跳转 /health-guide，× 关闭）
+
+### User Documentation
+- Created `user_docs/健康档案功能完善.md`
+
+### Deployment (2026-04-09)
+- Added `guide_count` column to health_profiles table via ALTER TABLE
+- Rebuilt backend and h5-web containers
+- 31/31 server API tests passed
+
+---
+
+## Latest Feature: 健康档案 & 家庭成员功能重构 (2026-04-09)
+
+### Backend
+- `models/models.py`: 新增 `RelationType`（relation_types 表，管理关系类型名称）、`DiseasePreset`（disease_presets 表，慢性病/遗传病预设）；`FamilyMember` 新增 `is_self`（Boolean，标识本人）、`relation_type_id`（FK）；`HealthProfile` 新增 `name`、`chronic_diseases`（JSON）、`drug_allergies`、`food_allergies`、`other_allergies`、`genetic_diseases`（JSON）字段。
+- `schemas/health_v2.py`（新建）：`HealthProfileV2Response`（含 completeness 自动计算，6项基本信息完成率）、`HealthProfileV2Update`、`DiseasePresetResponse`、`RelationTypeResponse`。
+- `schemas/user.py`：`FamilyMemberResponse` 新增 `is_self`、`relation_type_id`、`relation_type_name`；`FamilyMemberCreate` 新增 `name`、`relation_type_id`。
+- `api/family.py`（完全重写）：GET/POST/DELETE `/api/family/members`（本人不可删除，删除时级联删除 HealthProfile）；GET `/api/relation-types`（公开，无需认证）；GET `/api/disease-presets`（公开，支持 ?category=chronic/genetic）。
+- `api/health_profile.py`：新增 `GET /api/health/profile/member/{member_id}`（不存在则自动创建空档案）和 `PUT /api/health/profile/member/{member_id}`（upsert，返回带 completeness 的 HealthProfileV2Response）。
+- `api/auth.py`：用户注册后自动创建 `is_self=True` 的"本人"家庭成员。
+- `api/admin.py`：新增 `GET /api/admin/health/users`（用户健康档案列表）、`GET /api/admin/health/users/{user_id}/members`；`GET/POST/PUT/DELETE /api/admin/relation-types`；`GET/POST/PUT/DELETE /api/admin/disease-presets`。
+- `services/schema_sync.py`：新增4个迁移函数（relation_types 建表、disease_presets 建表、health_profiles 新字段、family_members 新字段）。
+- `init_data.py`：初始化15种关系类型（爸爸～其他）、9种慢性病预设、8种遗传病预设。
+
+### H5 Web
+- `h5-web/src/app/health-profile/page.tsx`（完全重写）：顶部横向滚动成员切换栏（Emoji+关系名称，含"+"添加成员）；档案完整度进度条；分模块折叠卡片（基本信息/慢性病史/过敏史/遗传病史）；1.5秒 debounce 自动保存；添加成员 Popup（选关系→姓名→性别→生日）；长按删除确认 Dialog。
+- `h5-web/src/app/(tabs)/profile/page.tsx`："家庭成员"入口改为跳转 `/health-profile`。
+- `h5-web/src/app/symptom/page.tsx`：家庭成员选择展示格式改为 Emoji+关系名称+昵称。
+
+### Admin Web
+- `admin-web/src/app/(admin)/health-records/page.tsx`（新建）：用户健康档案列表页（成员数、完整度进度条、Drawer展开详情）。
+- `admin-web/src/app/(admin)/relation-types/page.tsx`（新建）：关系类型 CRUD 管理页。
+- `admin-web/src/app/(admin)/disease-presets/page.tsx`（新建）：疾病预设 CRUD 管理页（两个Tab：慢性病/遗传病）。
+- `admin-web/src/app/(admin)/layout.tsx`：新增"健康档案管理"菜单组（用户档案查看/关系类型配置/预设列表管理）。
+
+### Mini Program
+- `miniprogram/pages/symptom/`：健康自查页新增家庭成员选择横向滚动栏（从 API 获取，Emoji+关系名+昵称）。
+
+### Generated Delivery Artifacts
+- Mini program: `miniprogram_20260409_125527_df56.zip` (download: `/uploads/miniprogram_20260409_125527_df56.zip`)
+
+### Deployment (2026-04-09)
+- Rebuilt backend, h5-web, admin-web containers
+- 24/24 server API tests passed (relation-types, disease-presets, admin CRUD, health endpoints)
+- All 4 containers healthy
+
+### User Documentation
+- Created `user_docs/健康档案与家庭成员功能重构.md`
+
+---
+
+## Latest Feature: 首页菜单 Emoji 图标智能推荐 (2026-04-09)
+
+### Admin Web
+
+- Updated `admin-web/src/app/(admin)/home-menus/page.tsx` — 新增 Emoji 图标智能推荐功能：
+  - 文件头部新增 `EMOJI_KEYWORD_MAP`（11组关键词→Emoji映射）和 `EMOJI_FALLBACK`（兜底列表）常量，以及 `getRecommendedEmojis(title)` 纯前端匹配函数
+  - 组件内新增 `selectedEmoji` 状态和 `Form.useWatch('name', form)` 实时监听菜单名称变化
+  - 弹窗表单中 Emoji 类型分支新增推荐图标区域（浅蓝色背景，标题有值时显示可点击的匹配 Emoji 按钮并高亮选中态，标题为空时显示置灰禁用状态和提示文案）
+  - 新增当前图标大图预览区域（使用 `Form.Item shouldUpdate` 响应 `icon_content` 变化）
+  - 点击推荐 Emoji 自动调用 `form.setFieldsValue({ icon_content: emoji })` 同步更新表单字段
+
+### 数据库兼容性确认
+
+- `home_menu_items.icon_content` 字段已确认支持 UTF-8 4 字节 Emoji 字符存储（含 U+1F3E5 等复杂码位），无需数据库迁移
+
+### User Documentation
+
+- Created `user_docs/首页菜单Emoji图标智能推荐.md` — user manual for home menu emoji icon recommendation feature
+
+---
+
+## Latest Feature: 健康自查跳转AI咨询增强 (2026-04-09)
+
+### Backend
+- `models/models.py`: `HealthProfile` 移除 `user_id` unique 约束，新增 `family_member_id`（外键 `family_members.id`）、`medical_histories`（JSON）、`allergies`（JSON）字段；`FamilyMember` 新增 `birthday`、`gender`、`height`、`weight`、`medical_histories`、`allergies` 字段；`ChatSession` 新增 `symptom_info`（JSON）字段。
+- `api/family.py`: 新增 `GET /api/family/members/{id}`（获取单个家庭成员）、`PUT /api/family/members/{id}`（更新家庭成员含健康字段）。
+- `api/health_profile.py`: 新增 `GET /api/health/profile/member/{id}`、`PUT /api/health/profile/member/{id}`（家庭成员健康档案的 upsert）；现有接口加 `family_member_id IS NULL` 条件区分主用户档案与家庭成员档案。
+- `api/chat.py`: `POST /api/chat/sessions` 支持 `symptom_info` 和 `family_member_id`；新增辅助函数 `_build_health_context()` 将家庭成员健康档案自动注入 AI system prompt；新增 `POST /api/chat/sessions/{id}/switch-member` 切换咨询对象接口。
+- `schemas/user.py`: `FamilyMemberCreate/Response` 新增健康字段；新增 `FamilyMemberUpdate`。
+- `schemas/health.py`: `HealthProfileCreate/Update/Response` 新增 `family_member_id`、`medical_histories`、`allergies`。
+- `schemas/chat.py`: `ChatSessionCreate/Response` 新增 `symptom_info`。
+- `backend/migrate_symptom_feature.py`: 数据库迁移脚本（MySQL ALTER TABLE）。
+
+### H5 Web
+- `h5-web/src/app/symptom/page.tsx`: 点击"AI智能分析"后弹出家庭成员选择 Popup，支持选择已有成员、新建成员（含 DatePicker 生日选择）、查看/编辑健康档案；"确认并开始分析"调用后端创建真实 ChatSession，使用真实 session_id 跳转。
+- `h5-web/src/app/chat/[sessionId]/page.tsx`: 读取 URL `type/msg/member` 参数，自动发送第一条消息（防重复机制）；新增顶部症状摘要条（展开/收起）；第一条 symptom 消息渲染为绿色症状卡片；输入框旁新增「👤」切换咨询对象图标，支持随时切换。
+
+## Latest Feature (previous): OCR 识别多图上传
+
+### Backend
+- `POST /api/ocr/batch-recognize` enhanced: now returns `merged_ocr_text`, `merged_ai_result`, `merged_record_id`, `session_id` after AI-merging all successful OCR texts.
+- `POST /api/admin/ocr/test-ocr` upgraded to accept `files: List[UploadFile]`, returns `OcrTestBatchResponse` with per-image results and `merged_ocr_text`.
+- `POST /api/admin/ocr/test-full` upgraded to accept `files: List[UploadFile]`, returns `OcrTestFullBatchResponse` with per-image results, `merged_ocr_text`, and `merged_ai_result`.
+- `OcrCallRecord` model: added `image_count INT DEFAULT 1` and `image_urls JSON NULL` fields; `schema_sync.py` handles column migration on startup.
+- New schemas: `OcrTestBatchResponse`, `OcrTestFullBatchResponse`; updated `OcrBatchRecognizeResponse`, `OcrCallRecordResponse`.
+
+### Admin Web
+- `admin-web/src/app/(admin)/ocr-global-config/page.tsx`: removed "OCR测试" tab; now only has "场景模板管理" and "上传限制" two tabs.
+- `admin-web/src/app/(admin)/ocr-config/page.tsx`: upgraded "测试完整流程" modal to support multi-image upload (picture-card mode), dynamic maxCount from upload-limits API, batch result display with Collapse (per-image + merged OCR text + merged AI result), modal width 850px.
+
+### H5
+- `h5-web/src/app/checkup/page.tsx`: multi-image upload with thumbnail preview grid, delete per image, progress display, calls `POST /api/ocr/batch-recognize` with `scene_name=体检报告识别`, navigates to `/checkup/result/{merged_record_id}`.
+- `h5-web/src/app/drug/page.tsx`: multi-image upload, calls `POST /api/ocr/batch-recognize` with `scene_name=拍照识药`, navigates to `/drug/chat/{session_id}`.
+
+### Mini Program
+- `miniprogram/pages/checkup/`: multi-image selection (album/camera), thumbnail preview with delete, progress text, "开始识别" button; uploads sequentially via `/api/ocr/recognize`.
+- `miniprogram/pages/drug/`: same multi-image pattern, calls `/api/ocr/recognize` per image, navigates to drug-chat on first successful `session_id`.
+
+### Flutter App
+- `flutter_app/lib/screens/health/checkup_screen.dart`: `pickMultiImage()`, thumbnail grid with delete, `_startRecognize()` calls `HealthProvider.uploadAndAnalyzeMultipleReports`.
+- `flutter_app/lib/screens/health/drug_screen.dart`: same pattern, calls `HealthProvider.recognizeMultipleDrugs` → navigates to drug-chat.
+- `flutter_app/lib/providers/health_provider.dart`: added `uploadAndAnalyzeMultipleReports` and `recognizeMultipleDrugs` methods.
+- `flutter_app/lib/services/api_service.dart`: added `ocrBatchRecognize(List<String> imagePaths, {String? sceneName})`.
+
+## Latest Feature (previous): 用户/商家小程序合并
 
 ### Backend
 
@@ -251,20 +411,955 @@ All 9 admin API endpoints return HTTP 200 with correct data structure. Admin fro
 
 ### User Documentation
 
-- Created `user_docs/manual_20260406_120000_c8f3.md` — comprehensive user manual for all three messaging modules.
+- Created `user_docs/消息管理模块拆分与增强.md` — comprehensive user manual for all three messaging modules (SMS, WeChat push, Email notify).
 
 ## Redeploy (2026-04-06)
 
 - Redeployed all containers (db, backend, admin-web, h5-web) for message management module split and enhancement
-- 48/48 pytest tests passed in container; all API endpoints and admin pages verified accessible
+- 54/54 server API tests passed (SMS config/templates/logs/test, WeChat push config, Email config/logs/test, permissions, deprecated endpoint)
 - All 4 containers healthy: db (MySQL 8.0), backend (FastAPI), admin-web (Next.js), h5-web (Next.js)
-- SSL/TLS verified (TLSv1.3), gateway-nginx routing confirmed
-- No mobile/client-side code changes in this iteration
+- SSL/TLS verified, gateway-nginx routing confirmed
+- No mobile/client-side code changes in this iteration (Flutter, miniprogram, H5 unaffected)
+
+## Bug Fix: 会员等级菜单报错
+
+### Root Cause
+
+管理后台「会员等级配置」页面因前后端数据契约不一致而崩溃：
+1. 后端 `GET /api/admin/points/levels` 返回 snake_case 字段名（`level_name`, `min_points`, `max_points`, `discount_rate`），前端期望 camelCase（`name`, `minPoints`, `maxPoints`, `discount`），导致 `undefined.toLocaleString()` TypeError
+2. 后端缺少 `PUT` 和 `DELETE` 路由，编辑和删除操作返回 405/404
+3. 后端 `MemberLevel` 模型缺少 `icon` 和 `color` 字段，前端无法渲染等级图标和颜色标签
+4. `POST` 创建接口仅接受 snake_case 字段，前端提交的 camelCase 字段被忽略
+
+### Backend
+
+- Updated `MemberLevel` model (`backend/app/models/models.py`) — added `icon` (String(50), nullable) and `color` (String(20), nullable) columns
+- Rewrote `GET /api/admin/points/levels` (`backend/app/api/admin.py`) — returns camelCase fields (`name`, `icon`, `minPoints`, `maxPoints`, `discount`, `benefits`, `color`, `memberCount`), with `discount` as integer percentage and `benefits` as string
+- Rewrote `POST /api/admin/points/levels` — accepts both camelCase and snake_case field names, maps `discount` (integer %) to `discount_rate` (float)
+- Added `PUT /api/admin/points/levels/{level_id}` — update individual level with camelCase fields
+- Added `DELETE /api/admin/points/levels/{level_id}` — delete individual level
+- Added `_sync_member_levels()` in `backend/app/services/schema_sync.py` — auto-adds `icon` and `color` columns to existing `member_levels` table on startup
+- Updated `backend/app/init_data.py` — default member levels now include `icon` (emoji) and `color` (hex) fields
+
+### Admin Web
+
+- Updated `admin-web/src/app/(admin)/points/levels/page.tsx` — added null-safety guards for `minPoints`, `maxPoints`, `memberCount` rendering (`?? 0` fallback)
+
+### Testing
+
+- 15/15 server API tests passed (login, GET camelCase fields, no snake_case leakage, benefits string type, discount integer type, POST create, PUT update, DELETE, 404 on nonexistent)
+
+## Latest Feature: 短信测试发送支持自定义模板参数
+
+### Backend
+
+- **Model Changes**: `SmsTemplate.variables` field type changed from `String(500)` to `Text` for larger JSON storage. `SmsLog` model added `template_params` field (`String(1000)`, nullable) to record template parameters used in each send.
+- **Schema Changes**: `SmsTestRequest` — `template_id` now required (was Optional), added `template_params: Optional[list[str]]`. Added `SmsTestResponse` with `success`, `message`, `params_used`, `preview_content` fields. `SmsTemplateCreate/Update` — `variables` field type changed from `Optional[str]` to `Optional[list[dict]]`. `SmsTemplateResponse` — `variables` now returns parsed `list[dict]` with a field_validator that auto-parses JSON strings from DB. `SmsLogResponse` — added `template_params` field.
+- **API Changes**: `POST /api/admin/sms/test` — supports custom `template_params` array; if not provided, falls back to random 6-digit code. Returns `params_used` and `preview_content` (template content with `{1}`, `{2}` placeholders replaced by actual params). Template CRUD endpoints now serialize/deserialize `variables` as JSON between list[dict] API format and string DB storage.
+- **Service Changes**: `send_sms()` function now accepts optional `template_params` and `template_id` parameters. Custom params are passed through to Tencent/Aliyun SDK calls. `_record_sms_log()` records `template_params` as JSON string.
+- **Schema Sync**: Added `_sync_sms_tables()` in `backend/app/services/schema_sync.py` — auto-adds `template_params` column to existing `sms_logs` table and modifies `sms_templates.variables` column to `TEXT` type on startup.
+
+### Admin Web
+
+- **Template Modal**: Replaced simple text input for variables with dynamic `Form.List` — each row has sequence number (`{1}`, `{2}`), variable name (required), description (optional), default value (optional), and delete button. "Add Variable" button at bottom.
+- **Template List**: "变量说明" column now shows variable names list for configured templates, or `<Tag color="warning">未配置</Tag>` for unconfigured ones.
+- **Test Send Form**: Replaced optional template_id text input with required template dropdown selector. Added dynamic template parameter input area with two modes:
+  - **Auto mode (default)**: Generates input fields based on template's variable config, pre-filled with default values
+  - **Advanced mode**: Single TextArea for comma-separated parameter input
+- **Preview Confirmation**: Before sending, shows confirmation modal with phone number, template info, parameter list, and SMS preview content (placeholders replaced with actual values).
+- **Enhanced Results**: Test result display now includes parameter list (as Tags) and full SMS preview content, with success/error styling.
+
+### Testing
+
+- 9/9 local pytest tests passed (template CRUD with variables, test send with/without params, preview content, auth, logs)
+- 11/11 server API tests passed (template CRUD with variables, test send with/without custom params, preview content, auth check, log recording, cleanup)
+
+### User Documentation
+
+- Created `user_docs/短信测试发送支持自定义模板参数.md` — user manual covering template variable configuration, custom parameter test sending, preview confirmation, and enhanced result display.
+
+### Deployment (2026-04-06)
+
+- Rebuilt and redeployed backend and admin-web containers
+- All 4 containers healthy (db, backend, admin-web, h5-web)
+- No mobile/client-side code changes (Flutter, miniprogram, H5 unaffected)
+
+## Latest Feature: 短信验证接入（腾讯云 AppKey 认证模式）
+
+### Backend
+
+- **AppKey HTTP API**: Added `_send_via_tencent_appkey()` in `backend/app/services/sms_service.py` — sends SMS via Tencent Cloud legacy HTTP API (`https://yun.tim.qq.com/v5/tlssmssvr/sendsms`) using SDKAppID + AppKey authentication with SHA256 signature. This is an alternative to the CAM SecretId/SecretKey SDK method.
+- **Dual Auth Mode**: Updated `_resolve_sms_config()` to support both `cam` and `appkey` authentication modes. Priority: DB config (CAM > AppKey) > env vars (CAM > AppKey). `_send_via_tencent()` routes to the appropriate send function based on `auth_mode` in resolved config.
+- **Auto-Init SMS Config**: Added `_init_sms_config_and_template()` in `backend/app/init_data.py` — on startup, creates or updates the default Tencent Cloud SMS config (SDKAppID: 1400920269, AppKey, SignName: 呃唉帮帮网络, TemplateID: 2201340) and the "登录验证" SMS template. Existing DB values are overwritten if they differ from expected defaults.
+- **Tests**: Added `backend/tests/test_sms_appkey.py` — 9 test cases covering AppKey config resolution priority, signature calculation, custom template params, API error handling, end-to-end SMS login flow, admin test send, and admin config retrieval. All 43 tests passed locally.
+
+### Bug Fix During Deployment
+
+- **SMS Config Init**: Fixed `_init_sms_config_and_template()` logic — changed from "only fill empty fields" to "compare and overwrite with expected defaults". This ensures stale test data in the DB is replaced with correct production credentials on container restart.
+- **Rate Limiting**: The SMS rate limit (60s per phone, HTTP 429) was failing because incorrect template_id caused `send_sms()` to error before creating `VerificationCode` entries. Fixed by correcting the SMS config initialization above.
+
+### Deployment Verification
+
+- 11/11 server tests passed (health, admin login, SMS config, templates, template variables, no-auth, rate limit, wrong code, config update, SMS logs, test send)
+
+### User Documentation
+
+- Created `user_docs/短信验证接入.md` — user manual covering SMS login flow, admin SMS config management, AppKey authentication architecture, and usage notes.
+
+## Latest Feature: AI对话记录查询
+
+### Backend
+
+- Extended `ChatSession` model with `model_name`, `message_count`, `is_pinned`, `is_deleted`, `share_token`, `device_info`, `ip_address`, `ip_location` fields.
+- Extended `ChatMessage` model with `response_time_ms`, `prompt_tokens`, `completion_tokens`, `image_urls`, `file_urls` fields.
+- Added `backend/app/schemas/chat_history.py` — admin/user/shared view schemas.
+- Added `backend/app/api/chat_history.py` — full CRUD + filter + export API:
+  - Admin: `GET /api/admin/chat-sessions` (list with filters), `GET /api/admin/chat-sessions/{id}` (detail), `GET /api/admin/chat-sessions/{id}/export` (CSV/XLSX)
+  - User: `GET /api/chat-sessions`, `GET/PUT/DELETE /api/chat-sessions/{id}`, `PUT /api/chat-sessions/{id}/pin`, `POST /api/chat-sessions/{id}/share`
+  - Public: `GET /api/shared/chat/{share_token}`
+- Updated `backend/app/api/chat.py` — records device info, IP, model name, message count, response time, token usage per message.
+- Updated `backend/app/services/ai_service.py` — `call_ai_model()` returns usage/model metadata.
+- Added `openpyxl==3.1.5` dependency for XLSX export.
+
+### Admin Web
+
+- Added `admin-web/src/app/(admin)/chat-records/page.tsx` — chat records list with multi-dimensional filtering (user search, time range, keyword, AI model, message count range), pagination, export buttons.
+- Added `admin-web/src/app/(admin)/chat-records/[id]/page.tsx` — chat record detail with user info, session metadata, chat bubble UI with message metadata (response time, token usage).
+- Added "AI对话记录" menu item in admin layout.
+
+### H5 Web
+
+- Added `h5-web/src/components/ChatSidebar.tsx` — reusable chat history sidebar with time-grouped sessions, long-press actions (rename, pin, share, delete), new chat button.
+- Updated AI home page and chat page to integrate ChatSidebar.
+- Added `h5-web/src/app/shared/chat/[token]/page.tsx` — public read-only shared chat page.
+
+### Mini Program
+
+- Added `miniprogram/components/chat-drawer/` — native drawer component for chat history with time grouping, long-press actions, sharing support.
+- Updated AI home and chat pages to integrate chat-drawer.
+
+### Flutter App
+
+- Extended `ChatSession` model with `isPinned`, `isDeleted`, `shareToken` fields.
+- Added `getChatSessionsList`, `deleteChatSession`, `renameChatSession`, `pinChatSession`, `shareChatSession` API methods.
+- Added `flutter_app/lib/widgets/chat_history_drawer.dart` — drawer widget with time-grouped sessions, long-press actions.
+- Updated AI home and chat screens to integrate ChatHistoryDrawer.
+
+### Testing
+
+- 18/18 local pytest tests passed.
+- 23/23 server API tests passed (admin login, admin list/filter/detail/export, user list/detail/rename/pin/share/delete, shared chat access, auth checks, soft delete visibility).
+
+### User Documentation
+
+- Created `user_docs/AI对话记录查询.md` — comprehensive user manual for admin and user-side chat history features.
+
+## Latest Feature: 知识库管理模块 + 腾讯云COS存储
+
+### Backend
+
+- Added 11 new SQLAlchemy models in `backend/app/models/models.py`: `KnowledgeBase`, `KnowledgeEntry`, `KnowledgeEntryProduct`, `KnowledgeSearchConfig`, `KnowledgeFallbackConfig`, `KnowledgeSceneBinding`, `KnowledgeHitLog`, `KnowledgeMissedQuestion`, `KnowledgeImportTask`, `CosConfig`, `CosFile`.
+- Added 5 new enums: `KnowledgeEntryType`, `KnowledgeDisplayMode`, `MatchType`, `FallbackStrategy`, `ImportSourceType`.
+- Created `backend/app/api/knowledge.py` — 26 API endpoints for knowledge base CRUD, entry management, import, search/fallback strategy configuration, scene bindings, statistics, and user feedback. Static routes placed before parameterized `{kb_id}` routes to avoid FastAPI path conflicts.
+- Created `backend/app/api/cos.py` — 7 API endpoints for COS configuration, connection testing, file management, usage statistics, and unified upload.
+- Created `backend/app/schemas/knowledge.py` and `backend/app/schemas/cos.py` for Pydantic validation schemas.
+- Created `backend/app/services/knowledge_search.py` — multi-level knowledge retrieval engine (exact → semantic → keyword matching) with hit/miss logging.
+- Updated `backend/app/api/chat.py` — integrated knowledge retrieval into AI dialogue flow; responses include `knowledge_hits` field.
+- Updated `backend/app/services/schema_sync.py` — added `_sync_knowledge_tables()` for database migration.
+- Updated `backend/app/main.py` — registered `knowledge` and `cos` routers.
+
+### Admin Web
+
+- Updated admin layout (`admin-web/src/app/(admin)/layout.tsx`) — added `AI管理` menu group containing `知识库管理`, `检索策略配置`, `兜底策略配置`; added `存储配置` under `系统管理`.
+- Created `admin-web/src/app/(admin)/knowledge/page.tsx` — knowledge base list with CRUD, status toggle, global flag.
+- Created `admin-web/src/app/(admin)/knowledge/[id]/page.tsx` — knowledge entry management with QA/doc forms, rich text, keywords, product association, batch import.
+- Created `admin-web/src/app/(admin)/knowledge/stats/page.tsx` — data statistics with overview cards, hit rankings, missed questions, trend charts, distribution.
+- Created `admin-web/src/app/(admin)/search-config/page.tsx` — global and per-KB search strategy configuration with scene bindings.
+- Created `admin-web/src/app/(admin)/fallback-config/page.tsx` — per-scene fallback strategy configuration.
+- Created `admin-web/src/app/(admin)/cos-config/page.tsx` — COS storage configuration with file management and usage statistics.
+
+### H5 Web
+
+- Created `h5-web/src/components/KnowledgeCard.tsx` — rich knowledge card component for AI chat (text, images, video, product cards, feedback buttons).
+- Updated `h5-web/src/app/chat/[sessionId]/page.tsx` — integrated KnowledgeCard display and feedback API calls.
+
+### Mini Program
+
+- Created `miniprogram/components/knowledge-card/` — native WeChat Mini Program component for knowledge display with image preview, product navigation, and feedback.
+- Updated `miniprogram/pages/chat/` — integrated knowledge-card component into AI chat page.
+
+### Flutter App
+
+- Created `flutter_app/lib/models/knowledge_hit.dart` — KnowledgeHit and ProductCard data models.
+- Created `flutter_app/lib/widgets/knowledge_card.dart` — knowledge display widget with feedback UI.
+- Updated `flutter_app/lib/models/chat_message.dart`, `chat_screen.dart`, `chat_provider.dart`, `api_service.dart`, `api_config.dart` — integrated knowledge hits display and feedback.
+
+### Testing
+
+- 26/26 server API tests passed covering: KB CRUD, entry CRUD, search/fallback config, scene bindings, statistics, COS config/files/usage, auth checks, cleanup.
+
+### User Documentation
+
+- Created `USER_MANUAL.md` — comprehensive user manual for all knowledge base management features.
+
+## Latest Feature: AI问诊→AI健康咨询改版
+
+### Backend
+
+- Added 3 new models in `backend/app/models/models.py`: `AiSensitiveWord`, `AiPromptConfig`, `AiDisclaimerConfig`.
+- Created `backend/app/schemas/ai_center.py` — Pydantic schemas for sensitive words, prompt configs, and disclaimer configs.
+- Created `backend/app/api/ai_center.py` — admin-only AI configuration center API:
+  - `GET/POST/PUT/DELETE /api/admin/ai-center/sensitive-words` — sensitive word CRUD with search and pagination
+  - `GET/PUT /api/admin/ai-center/prompts` and `/prompts/{chat_type}` — per-type system prompt configuration
+  - `GET/PUT /api/admin/ai-center/disclaimers` and `/disclaimers/{chat_type}` — per-type disclaimer text configuration with enable/disable toggle
+- Updated `backend/app/api/chat.py`:
+  - Replaced hardcoded `SYSTEM_PROMPTS` with dynamic DB-backed prompt retrieval (`_get_system_prompt()`)
+  - Added `_filter_sensitive_words()` — filters AI response through sensitive word database before returning to client
+  - Added `_append_disclaimer()` — appends disclaimer text with `---disclaimer---` separator based on session type config
+  - Both `send_message` and `websocket_chat` endpoints integrated with above functions
+- Updated `backend/app/init_data.py`:
+  - `_init_ai_center_configs()` — seeds default prompt configs (5 types), disclaimer configs (5 types, customer_service disabled), and 4 default sensitive words
+  - `_clean_chat_history_once()` — one-time physical deletion of all chat sessions and messages (flagged via SystemConfig)
+- Updated `backend/app/services/schema_sync.py` — added `_sync_ai_center_tables()` for new table migration
+- Updated `backend/app/main.py` — registered `ai_center` router
+
+### Admin Web
+
+- Updated `admin-web/src/app/(admin)/layout.tsx` — added "AI配置中心" top-level menu with 3 sub-items: 敏感词管理, 提示词配置, 免责提示配置
+- Created `admin-web/src/app/(admin)/ai-center/sensitive-words/page.tsx` — sensitive word management (CRUD table with search, pagination, modal form)
+- Created `admin-web/src/app/(admin)/ai-center/prompts/page.tsx` — per-type prompt configuration (Tabs + TextArea + save)
+- Created `admin-web/src/app/(admin)/ai-center/disclaimers/page.tsx` — per-type disclaimer configuration (Tabs + TextArea + Switch + save)
+
+### H5 Frontend
+
+- Updated all "AI问诊" text to "AI健康咨询" across: tab bar, home page, AI page, chat page, sidebar
+- Updated session type display names: 症状自查→健康自查, 中医辨证→中医养生, 药物查询→用药参考
+- Added `---disclaimer---` separator parsing in chat page — renders disclaimer as gray italic text below AI responses
+
+### Mini Program
+
+- Updated all "AI问诊" text to "AI健康咨询" across: app.json tabBar, AI page, chat page, home page, custom tab bar, FAQ
+- Updated consultTypes IDs to match backend enum (health_qa, symptom_check, tcm, drug_query)
+- Added `_parseMessage()` for disclaimer parsing in chat page with dedicated WXML/WXSS rendering
+
+### Flutter App
+
+- Updated all "AI问诊"/"问诊" text to "AI健康咨询"/"健康咨询" across: AI home, chat screen, main screen, points, notifications
+- Updated `_consultTypes` to use backend-compatible type keys (health_qa, symptom_check, tcm, drug_query)
+- Added `_buildAiMessageContent()` in chat screen — parses `---disclaimer---` separator and renders disclaimer with dashed border
+
+### Testing
+
+- 26/26 server API tests passed (admin login, sensitive words CRUD/search, prompt config list/update, disclaimer config list/update, unauthorized access checks)
+
+### Deployment (2026-04-06)
+
+- Rebuilt and redeployed all containers (db, backend, admin-web, h5-web)
+- All 4 containers healthy
+- Rebuilt miniprogram zip, Android APK, iOS IPA
+
+### Generated Delivery Artifacts
+
+- Mini program: `miniprogram_20260406_195919_vhob.zip`
+- Android APK: `bini_health_android-v20260406-200031-4d73.apk` (GitHub Release: `android-v20260406-200031-4d73`)
+- iOS IPA: `bini_health_ios-v20260406-200126-d0b4.ipa` (GitHub Release: `ios-v20260406-200126-d0b4`)
+
+### User Documentation
+
+- Created `user_docs/AI健康咨询改版.md` — user manual for AI health consultation rebranding
+
+## Bug Fix: 后台服务管理页面数据不一致
+
+### Root Cause
+
+管理后台的「服务管理」模块存在前端数据源问题：
+1. 服务分类管理页面使用硬编码的 mock 数据（AI健康咨询、营养管理等），与数据库中的真实分类（健康食品、口腔服务、体检服务、专家咨询、养老服务）不一致
+2. 服务项目管理页面的分类下拉选项也是硬编码的，无法正确关联数据库中的分类
+3. 后端 `ServiceItemUpdate` schema 缺少 `category_id` 字段，导致编辑时无法修改分类
+
+### Admin Web
+
+- Rewrote `admin-web/src/app/(admin)/services/categories/page.tsx` — removed mock data, added `mapCategoryFromApi()` mapping function for API field conversion (`sort_order`, string `status`), all CRUD operations now correctly call API and refresh data
+- Rewrote `admin-web/src/app/(admin)/services/items/page.tsx` — replaced hardcoded `categoryOptions` with dynamic API fetch via `fetchCategories()`, added `categoryMap` state for name resolution, all CRUD operations use API with proper data refresh
+
+### Backend
+
+- Updated `backend/app/schemas/service.py` — added `category_id: Optional[int] = None` to `ServiceItemUpdate` schema, enabling category reassignment during item editing
+
+### Testing
+
+- 11/11 server API tests passed (admin login, category list/create/update/delete, item list/create/update-with-category-change/delete, public categories, public items)
+
+### Deployment (2026-04-06 #2)
+
+- Rebuilt and redeployed backend and admin-web containers
+- All 4 containers healthy (db, backend, admin-web, h5-web)
+- No mobile/client-side code changes (Flutter, miniprogram, H5 unaffected)
+
+### User Documentation
+
+- Created `user_docs/后台服务管理.md` — user manual for admin service management feature
+
+## Latest Feature: 体检报告智能解读全面升级
+
+### Backend
+
+- Added 2 new models in `backend/app/models/models.py`: `OcrConfig` (ocr_configs table), `ReportAlert` (report_alerts table).
+- Extended `CheckupReport` model with: `thumbnail_url`, `file_type`, `abnormal_count`, `share_token`, `share_expires_at`, `ai_analysis_json`, `status`, `health_score` (Integer, nullable — see 体检报告解读功能优化).
+- Extended `CheckupIndicator` model with: `category`, `advice`.
+- Created `backend/app/services/ocr_service.py` — Baidu OCR integration (token management, standard/high-accuracy recognition, image quality check, PDF text extraction).
+- Created `backend/app/schemas/report.py` — Pydantic schemas for report upload, detail, list, analysis, trend, alert, share, and OCR config.
+- Created `backend/app/api/report.py` — user/admin report APIs (incl. `POST /api/report/compare` after 体检报告解读功能优化; `POST /api/report/analyze` returns enhanced structured analysis — see that section):
+  - User: `POST /api/report/upload`, `POST /api/report/analyze`, `POST /api/report/compare` (auth), `GET /api/report/detail/{id}`, `GET /api/report/list`, `GET /api/report/trend/{indicator_name}`, `POST /api/report/trend/analysis`, `POST /api/report/alert/check`, `GET /api/report/alerts`, `PUT /api/report/alerts/{id}/read`, `POST /api/report/share`, `GET /api/report/share/{token}` (no auth)
+  - Admin: `GET /api/admin/ocr/config`, `PUT /api/admin/ocr/config`, `POST /api/admin/ocr/test`
+- Updated `backend/app/services/ai_service.py` — added `analyze_report_structured()` (structured JSON interpretation with categories/abnormal/normal indicators) and `analyze_trend()` (trend analysis).
+- Updated `backend/app/services/schema_sync.py` — added `_sync_report_tables()` for auto-migration.
+- Updated `backend/app/init_data.py` — added `_init_ocr_config()`.
+- Updated `backend/app/main.py` — registered report router.
+
+### Admin Web
+
+- Updated `admin-web/src/app/(admin)/layout.tsx` — added "OCR识别配置" menu item under AI管理.
+- Created `admin-web/src/app/(admin)/ocr-config/page.tsx` — OCR config management page with enable/disable switch, API Key, Secret Key (masked), recognition type selector (standard/high-accuracy), connection test button.
+
+### H5 Web
+
+- Completely rewrote `h5-web/src/app/checkup/page.tsx` — three upload methods (gallery/camera/PDF), real API integration replacing mock data, alert banner.
+- Created `h5-web/src/app/checkup/result/[id]/page.tsx` — AI interpretation result page with dual view switching.
+- Created `h5-web/src/app/checkup/detail/[id]/page.tsx` — report detail page with original image preview, trend links.
+- Created `h5-web/src/app/checkup/trend/page.tsx` — indicator trend chart (canvas) with normal range and AI analysis.
+- Created `h5-web/src/app/shared/report/[token]/page.tsx` — public shared report page (no login required).
+- Created `h5-web/src/components/AlertBanner.tsx` — trend deterioration alert banner component.
+
+### Mini Program
+
+- Completely rewrote `miniprogram/pages/checkup/` — three upload methods, real API, alert banner, paginated history.
+- Created `miniprogram/pages/checkup-detail/` — report detail with dual view, share, trend links.
+- Created `miniprogram/pages/checkup-trend/` — canvas trend chart with normal range marking.
+- Updated `miniprogram/app.json` — registered new pages.
+
+### Flutter App
+
+- Created `flutter_app/lib/models/checkup_report.dart` — data models (CheckupReport, CheckupIndicator, TrendData, ReportAlert).
+- Created `flutter_app/lib/screens/health/report_detail_screen.dart` — report detail/interpretation page with dual TabBar view.
+- Created `flutter_app/lib/screens/health/trend_screen.dart` — trend chart (CustomPainter) with normal range and AI analysis.
+- Updated `flutter_app/lib/screens/health/checkup_screen.dart` — completely rewritten with three upload methods, alert banner, real API data.
+- Updated `flutter_app/lib/services/api_service.dart` — added 9 report-related API methods.
+- Updated `flutter_app/lib/config/api_config.dart` — added report API path constants.
+- Updated `flutter_app/lib/providers/health_provider.dart` — added report list/alert state management.
+- Updated `flutter_app/lib/main.dart` — registered new routes.
+- Updated `flutter_app/pubspec.yaml` — added `file_picker` dependency.
+
+### Testing
+
+- 46/46 local pytest tests passed (report upload, OCR config, report list/detail, trend, alerts, share, auth).
+- 29/29 server API tests passed (admin login, OCR config CRUD, report upload/list/detail, trends, alerts, share, auth checks).
+
+### Deployment (2026-04-06 #3)
+
+- Rebuilt and redeployed all containers (db, backend, admin-web, h5-web)
+- All 4 containers healthy
+- Rebuilt miniprogram zip, Android APK, iOS IPA
+
+### Generated Delivery Artifacts
+
+- Mini program: `miniprogram_20260406_215540_wbd7.zip`
+- Android APK: `bini_health_android-v20260406-220450-75mh.apk` (GitHub Release: `android-v20260406-220450-75mh`)
+- iOS IPA: `bini_health_ios-v20260406-215633-4221.ipa` (GitHub Release: `ios-v20260406-215633-4221`)
+
+### User Documentation
+
+- Created `user_docs/体检报告智能解读.md` — comprehensive user manual for health checkup report intelligent interpretation.
+
+## Latest Feature: AI大模型配置快捷测试
+
+### Backend
+
+- Extended `AIModelConfig` model (`backend/app/models/models.py`) with 3 new fields: `last_test_status` (String(20), nullable), `last_test_time` (DateTime, nullable), `last_test_message` (String(500), nullable).
+- Added `AIModelConfigTestRequest` schema (`backend/app/schemas/admin.py`) — supports `config_id` (test existing config from DB) or direct parameters (`base_url`, `model_name`, `api_key`), plus customizable `test_message` (default "你好").
+- Rewrote `POST /api/admin/ai-config/test` endpoint (`backend/app/api/admin.py`) — supports two invocation modes: by `config_id` (reads config from DB, persists test result) or by direct parameters. Returns enhanced response with `success`, `message`, `response_time`, `model_reply`, `error_detail`.
+- Updated `_ai_config_to_dict()` to include `last_test_status`, `last_test_time`, `last_test_message` in list API responses.
+- Updated `backend/app/services/schema_sync.py` — added auto-migration for 3 new columns on existing `ai_model_configs` table.
+
+### Admin Web
+
+- Updated `admin-web/src/app/(admin)/ai-config/page.tsx`:
+  - Added "最近测试" column between "状态" and "操作" columns — shows green "正常" / red "异常" tag with test time, or gray "未测试"
+  - Added blue outline "测试" button in operations column
+  - Added quick test modal with: auto-test on open, loading animation, success/failure result display (response time, model reply, error detail), customizable test message input, "去编辑" / "重新测试" / "关闭" footer buttons
+  - Test results persist to DB and survive page refresh
+
+### Testing
+
+- Added `backend/tests/test_ai_config_quick_test.py` — 5 local tests (missing params, nonexistent config_id, invalid URL, list new fields, custom test_message)
+- 6/6 server API tests passed (list new fields, missing params, nonexistent config_id, invalid URL, custom test_message, config_id with persistence verification)
+
+### Deployment (2026-04-06 #4)
+
+- Rebuilt and redeployed backend and admin-web containers
+- All 4 containers healthy (db, backend, admin-web, h5-web)
+- No mobile/client-side code changes (Flutter, miniprogram, H5 unaffected)
+
+### User Documentation
+
+- Created `user_docs/AI大模型配置快捷测试.md` — user manual for AI model config quick test feature
+
+## Latest Feature: 管理后台BUG修复与功能增强 (V1.0)
+
+### BUG修复
+
+#### BUG-01: 订单管理Tab切换闭包问题
+- Fixed `admin-web/src/app/(admin)/orders/page.tsx` — Tab切换改为 `useEffect` 监听 `activeTab` 变化触发数据刷新，避免闭包读取旧状态
+- Fixed `backend/app/api/admin.py` — `admin_list_orders` 支持逗号分隔的多状态过滤（`order_status=confirmed,processing`），支持 `start_date`/`end_date` 时间范围过滤
+
+#### BUG-02/03: 服务项目、文章列表0条数据
+- Fixed `backend/app/schemas/content.py` — `ArticleCreate` 添加 `summary`、`status` 字段；`ArticleUpdate` 和 `ArticleResponse` 添加 `summary` 字段
+- Fixed `backend/app/models/models.py` — `Article` 模型添加 `summary` 列 (VARCHAR(500))
+
+#### BUG-04: 视频管理duration类型不匹配
+- Fixed `backend/app/schemas/content.py` — `VideoCreate.duration` 改为 `Optional[Any]`；新增 `VideoUpdate` schema
+- Fixed `backend/app/api/admin.py` — 视频创建和更新时自动转换 "分:秒" 格式字符串为整数秒数；视频更新路由改用 `VideoUpdate` + `exclude_unset=True`
+
+#### BUG-05: 积分商城前后端参数不一致
+- Fixed `backend/app/api/admin.py` — 积分商城 `POST /points/mall` 和 `PUT /points/mall/{id}` 改为接收 Pydantic JSON Body
+- Added `backend/app/schemas/points.py` — 新增 `PointsMallItemCreate` 和 `PointsMallItemUpdate` schema
+
+#### BUG-06: 文件上传统一接入COS
+- Created `backend/app/utils/cos_helper.py` — 共享 `try_cos_upload()` 工具函数，实现腾讯云COS签名上传+本地降级
+- Updated `backend/app/api/upload.py` — `upload_image`/`upload_file` 接入COS上传
+- Updated `backend/app/api/report.py` — 体检报告上传接入COS
+- Updated `backend/app/api/health_profile.py` — 健康档案上传接入COS
+- Updated `backend/app/api/drug.py` — 药品识别图片上传接入COS
+
+### 功能增强
+
+#### 订单管理
+- Added `GET /api/admin/orders/statistics` — 订单统计（今日/本月/累计 订单数+金额）
+- Added `GET /api/admin/orders/trends?days=7` — 订单趋势（每日订单数+金额折线图数据）
+- Added `GET /api/admin/orders/distribution` — 订单分布（按服务分类+按状态分布）
+- Added `PUT /api/admin/orders/{id}/confirm|start-service|complete|cancel|refund` — 订单状态操作API
+- Rewrote `admin-web/src/app/(admin)/orders/page.tsx` — 数据看板（6卡片+4图表）、订单详情Drawer、状态操作、时间筛选、搜索
+
+#### 服务项目管理
+- Added `PUT /api/admin/services/items/batch-status` — 批量上下架API
+- Added `PUT /api/admin/services/items/sort` — 排序更新API
+- Updated `backend/app/schemas/service.py` — `ServiceItemCreate` 添加 `status` 字段
+- Rewrote `admin-web/src/app/(admin)/services/items/page.tsx` — 批量上下架、排序值编辑、分类筛选+搜索
+
+#### 内容管理
+- Rewrote `admin-web/src/app/(admin)/content/articles/page.tsx` — 摘要字段、分类+标签筛选、发布/下架状态管理、置顶功能、移除乐观更新
+
+#### 视频管理
+- Rewrote `admin-web/src/app/(admin)/content/videos/page.tsx` — 视频上传预览、分类管理、发布/下架、播放量统计卡片、搜索
+
+#### 积分商城
+- Added `GET /api/admin/points/exchange-records` — 兑换记录查询API
+- Rewrote `admin-web/src/app/(admin)/points/mall/page.tsx` — 完整CRUD、批量上下架、兑换记录Tab（含CSV导出）、库存警告
+
+### Deployment (2026-04-06 #5)
+- Rebuilt all containers (db, backend, admin, h5)
+- DB migration: `ALTER TABLE articles ADD COLUMN summary VARCHAR(500) NULL`
+- 18/18 server API tests passed
+
+### User Documentation
+- Created `user_docs/manual_20260406_230500_b8f3.md`
+
+## Latest Feature: OCR 多厂商配置与智能识别系统 (2026-04-06)
+
+### Backend
+- Added 5 new models in `backend/app/models/models.py`: `OcrProviderConfig`, `OcrSceneTemplate`, `OcrCallRecord`, `OcrCallStatistics`, `OcrUploadConfig`
+- Added `backend/app/schemas/ocr.py` — OCR schemas with config JSON masking for secret fields
+- Rewrote `backend/app/services/ocr_service.py` — Multi-provider OCR: Baidu (access_token), Tencent (TC3-HMAC-SHA256), Aliyun (ACS3-HMAC-SHA256), smart failover, statistics tracking
+- Added `backend/app/api/ocr.py` — 16 API endpoints (admin + business):
+  - `GET/PUT /api/admin/ocr/providers/{provider}` — Provider config CRUD
+  - `POST /api/admin/ocr/providers/{provider}/preferred|disable` — Manual intervention
+  - `GET /api/admin/ocr/statistics` — Success rate stats (today/7d/30d/all)
+  - `GET/POST/PUT/DELETE /api/admin/ocr/scenes` — Scene template CRUD (presets undeletable)
+  - `GET/PUT /api/admin/ocr/upload-limits` — Upload limits config
+  - `POST /api/admin/ocr/test-ocr` — Test OCR only
+  - `POST /api/admin/ocr/test-full` — Test OCR + AI full pipeline
+  - `GET /api/admin/ocr/records` — Call records with filters
+  - `POST /api/admin/ocr/records/batch-delete` — Batch delete records
+  - `POST /api/ocr/recognize` — Business: single image OCR+AI
+  - `POST /api/ocr/batch-recognize` — Business: batch image OCR+AI
+- Updated `backend/app/init_data.py` — Auto-init 3 provider configs (baidu/tencent/aliyun), 2 preset scenes (体检报告/拍照识药), 1 upload limit config
+- Added `backend/tests/test_ocr.py` — 38 test cases covering all OCR admin APIs
+
+### Admin Web
+- Rewrote `admin-web/src/app/(admin)/ocr-config/page.tsx` — Complete OCR multi-provider management page:
+  - Tab-based provider config (Baidu/Tencent/Aliyun) with status badges
+  - Provider config forms with secret field masking
+  - Success rate statistics with time dimension filters
+  - AI scene template management (CRUD, presets)
+  - Upload limits configuration
+  - Test OCR and Test Full Flow modals
+  - Recognition records table with filters and batch delete
+
+### Deployment (2026-04-06 #6)
+- Rebuilt backend and admin-web containers
+- DB auto-migrated new OCR tables
+- All API smoke tests passed on server
+
+### User Documentation
+- Created `user_docs/OCR多厂商配置与智能识别系统.md`
+
+## Latest Feature: OCR识别明细拆分与提示词统一管理
+
+### Backend
+
+- Added 2 new models in `backend/app/models/models.py`: `CheckupReportDetail` (checkup_report_details table), `DrugIdentifyDetail` (drug_identify_details table).
+- Created `backend/app/schemas/ocr_details.py` — Pydantic schemas for checkup report and drug identification details (list, statistics, detail responses).
+- Created `backend/app/api/ocr_details.py` — 6 admin-only API endpoints:
+  - `GET /api/admin/checkup-details/statistics` — total, today, abnormal, month counts
+  - `GET /api/admin/checkup-details` — paginated list with filters (date, keyword, report_type, status), phone masked
+  - `GET /api/admin/checkup-details/{id}` — single detail with full phone
+  - `GET /api/admin/drug-details/statistics` — total, today, drug types, month counts
+  - `GET /api/admin/drug-details` — paginated list with filters (date, keyword, drug_name, drug_category), phone masked
+  - `GET /api/admin/drug-details/{id}` — single detail with full phone
+- Updated `backend/app/api/ocr.py`:
+  - `_call_ai_with_scene` now reads prompt from `AiPromptConfig` (via chat_type mapping) instead of `OcrSceneTemplate.prompt_content`
+  - `recognize` and `batch_recognize` dual-write to `checkup_report_details` or `drug_identify_details` table after OCR+AI
+  - `create_scene` auto-creates `AiPromptConfig` entry with `chat_type=ocr_custom_{id}`
+- Updated `backend/app/schemas/ocr.py` — removed `prompt_content` from `OcrSceneTemplateCreate`, `OcrSceneTemplateUpdate`, `OcrSceneTemplateResponse`
+- Updated `backend/app/init_data.py` — added `_init_ocr_prompt_configs()` to seed `ocr_checkup_report` and `ocr_drug_identify` prompt configs
+- Updated `backend/app/main.py` — registered `ocr_details.router`
+
+### Admin Web
+
+- Updated `admin-web/src/app/(admin)/layout.tsx` — added "体检报告解读明细" and "拍照识药记录明细" menu items under AI管理
+- Created `admin-web/src/app/(admin)/checkup-details/page.tsx` — checkup report detail management page with stats cards, filters, table, detail drawer
+- Created `admin-web/src/app/(admin)/drug-details/page.tsx` — drug identification detail management page with stats cards, filters, table, detail drawer
+- Updated `admin-web/src/app/(admin)/ai-center/prompts/page.tsx` — added `ocr_checkup_report` and `ocr_drug_identify` tabs
+- Updated `admin-web/src/app/(admin)/ocr-config/page.tsx` — removed recognition records tab, removed prompt_content from scene template form, added auto-linkage notification on scene creation
+
+### Testing
+
+- Added `backend/tests/test_ocr_details.py` — 19 local pytest tests covering checkup/drug statistics, list with filters, detail, 404, auth, prompt config CRUD
+- 31/31 server API tests passed (admin login, health, checkup stats/list/detail/filters/404, drug stats/list/detail/filters/404, prompt OCR types, scene template no prompt_content, auth checks, admin page)
+
+### Deployment (2026-04-07)
+
+- Rebuilt backend and admin-web containers
+- All 4 containers healthy (db, backend, admin-web, h5-web)
+- No mobile/client-side code changes (Flutter, miniprogram, H5 unaffected)
+
+### User Documentation
+
+- Created `user_docs/OCR识别明细拆分与提示词统一管理.md`
+
+## Latest Feature: 用药参考 · 拍照识药改版 (2026-04-07)
+
+### Backend
+
+- Updated `DrugIdentifyDetail` model — added `session_id` (FK to `chat_sessions.id`), `status` (default 'success'), `image_url` fields
+- Updated `backend/app/api/ocr.py` — `recognize` and `batch_recognize` now create `ChatSession` (type=drug_query) + initial `ChatMessage` records when `scene_name=="拍照识药"` succeeds; `session_id` linked to `DrugIdentifyDetail` and returned in response
+- Updated `backend/app/schemas/ocr.py` — `OcrRecognizeResponse` added `session_id` field
+- Created user-facing API (`user_router` in `backend/app/api/ocr_details.py`):
+  - `GET /api/drug-identify/history` — user's drug identification history (paginated, ordered by created_at desc)
+- Added admin API:
+  - `GET /api/admin/drug-details/{id}/conversation` — view full conversation of a drug identification record
+- Updated `backend/app/schemas/ocr_details.py` — added `DrugIdentifyHistoryItem`, `DrugIdentifyHistoryResponse`, `ConversationMessageItem`, `ConversationResponse` schemas
+- Updated `backend/app/main.py` — registered `ocr_details.user_router`
+- Updated `backend/app/services/schema_sync.py` — auto-migration for `session_id` and `status` columns
+
+### H5 Web
+
+- Completely rewrote `h5-web/src/app/drug/page.tsx` — new "拍照识药" main page with camera/album upload, AI recognition loading, history list with thumbnails
+- Created `h5-web/src/app/drug/chat/[sessionId]/page.tsx` — AI conversation page with chat bubbles, text follow-up, re-take photo in conversation, multi-drug comparison, disclaimer rendering
+
+### Mini Program
+
+- Completely rewrote `miniprogram/pages/drug/` — new "拍照识药" page with `wx.chooseMedia` for camera/album, `wx.uploadFile` for OCR, history list
+- Created `miniprogram/pages/drug-chat/` — AI conversation page with chat UI, image upload in conversation, disclaimer parsing
+- Updated `miniprogram/app.json` — registered `pages/drug-chat/index`
+- Updated `miniprogram/pages/home/index.js` — label "药物查询" → "用药参考"
+- Updated `miniprogram/pages/ai/index.js` — drug_query navigates to `/pages/drug/index` instead of creating chat session
+
+### Flutter App
+
+- Completely rewrote `flutter_app/lib/screens/health/drug_screen.dart` — new "拍照识药" page with `ImagePicker`, OCR API, history list
+- Created `flutter_app/lib/screens/health/drug_chat_screen.dart` — AI conversation page with chat UI, image upload, disclaimer parsing
+- Updated `flutter_app/lib/config/api_config.dart` — added `drugIdentifyHistory` and `ocrRecognize` endpoints
+- Updated `flutter_app/lib/services/api_service.dart` — added `getDrugIdentifyHistory()` and `ocrRecognizeDrug()` methods
+- Updated `flutter_app/lib/main.dart` — registered `/drug-chat` route
+- Updated `flutter_app/lib/screens/home/home_screen.dart` — label '药物查询' → '用药参考'
+- Updated `flutter_app/lib/screens/ai/ai_home_screen.dart` — drug_query navigates to `/drug`
+
+### Admin Web
+
+- Updated `admin-web/src/app/(admin)/drug-details/page.tsx`:
+  - Added "查看对话" button in operations column (visible when `session_id` exists)
+  - Added Ant Design Drawer (600px) for conversation display with chat bubbles, image preview, timestamps, disclaimer rendering
+  - Updated stats field mapping with fallback support
+
+### Testing
+
+- Created `backend/tests/test_drug_identify.py` — 9 test cases (admin/user login, history list, pagination, conversation view, auth checks, 404, health check). All passed.
+- 11/11 server API tests passed
+
+### Deployment (2026-04-07)
+
+- Rebuilt and redeployed all containers (db, backend, admin-web, h5-web)
+- All 4 containers healthy
+- Rebuilt miniprogram zip, Android APK, iOS IPA
+
+### Generated Delivery Artifacts
+
+- Mini program: `miniprogram_20260407_133412_aidq.zip`
+- Android APK: `app_20260407_133434_a2a4.apk` (GitHub Release: `android-v20260407-133434-a2a4`)
+- iOS IPA: `bini_health_ios-v20260407-133445-3e3a.ipa` (GitHub Release: `ios-v20260407-133445-3e3a`)
+
+### User Documentation
+
+- Created `user_docs/拍照识药改版.md` — user manual for photo drug identification feature
+
+## Latest Feature: OCR全局设置拆分 (2026-04-07)
+
+### Backend
+
+- Modified `OcrSceneTemplate` model (`backend/app/models/models.py`) — removed `ai_model_id`, `ocr_provider` fields and `ai_model` relationship. Scene templates now only contain: `id`, `scene_name`, `prompt_content`, `is_preset`, `created_at`, `updated_at`.
+- Updated `backend/app/schemas/ocr.py` — `OcrSceneTemplateCreate/Update/Response` schemas: removed `ai_model_id`/`ocr_provider`, added `prompt_content` field.
+- Updated `backend/app/api/ocr.py`:
+  - Scene CRUD: `create_scene` no longer creates `AiPromptConfig` entries; stores `prompt_content` directly in scene template. `update_scene` handles `prompt_content` update.
+  - `_call_ai_with_scene`: reads prompt directly from `scene.prompt_content` instead of querying `AiPromptConfig` table. Falls back to default prompt if empty.
+  - `recognize`/`batch_recognize`: removed `scene.ocr_provider` preference; all scenes use automatic provider selection.
+- Added `_sync_ocr_scene_templates` in `backend/app/services/schema_sync.py` — drops `ai_model_id`/`ocr_provider` columns from `ocr_scene_templates` table on startup.
+- Added `_migrate_ocr_prompts_to_templates` in `backend/app/init_data.py` — idempotent migration: copies prompts from `AiPromptConfig` (ocr_checkup_report, ocr_drug_identify, ocr_custom_*) to `OcrSceneTemplate.prompt_content`, then deletes OCR-related `AiPromptConfig` entries. Removed `_init_ocr_prompt_configs` call from init sequence.
+
+### Admin Web
+
+- Updated `admin-web/src/app/(admin)/layout.tsx` — added "OCR全局设置" menu item under AI管理, after "OCR识别配置".
+- Created `admin-web/src/app/(admin)/ocr-global-config/page.tsx` — new page with 2 tabs:
+  - **场景模板管理**: card grid layout showing all scene templates (name, prompt excerpt with tooltip, edit/delete actions, preset tag). Create/edit modal with scene_name + prompt_content (TextArea).
+  - **上传限制**: form with max_batch_count and max_file_size_mb inputs, save button.
+- Updated `admin-web/src/app/(admin)/ocr-config/page.tsx` — removed "AI处理配置" card (scene table + CRUD), "上传限制配置" card, and scene edit modal. Retained: provider config, statistics, test OCR, test full flow (with scene dropdown for testing).
+- Updated `admin-web/src/app/(admin)/ai-center/prompts/page.tsx` — removed `ocr_checkup_report` and `ocr_drug_identify` tabs from CHAT_TYPES.
+
+### Testing
+
+- Created `backend/tests/test_ocr_global_config.py` — 17 test cases covering scene CRUD with prompt_content, legacy field absence verification, upload limits, preset protection, auth checks.
+- 15/15 server API tests passed (health, login, scene list no legacy fields, create/update/delete scenes, preset protection, upload limits CRUD, auth checks, admin page accessibility).
+
+### Deployment (2026-04-07)
+
+- Rebuilt backend and admin-web containers
+- All 4 containers healthy (db, backend, admin-web, h5-web)
+- No mobile/client-side code changes (Flutter, miniprogram, H5 unaffected)
+
+### User Documentation
+
+- Created `user_docs/OCR全局设置拆分.md` — user manual for OCR global settings split feature
+
+## Bug Fix: 体检报告上传后OCR识别失败 (2026-04-07)
+
+### Root Cause
+
+`/api/report/analyze` 和 `/api/report/ocr` 接口使用 `os.path.join(settings.UPLOAD_DIR, os.path.basename(report.file_url))` 在本地磁盘查找文件。当 COS 云存储启用时，`file_url` 为完整的 HTTPS URL（如 `https://xxx.cos.ap-guangzhou.myqcloud.com/reports/xxxx.jpg`），本地磁盘不存在该文件，导致 OCR 永远无法执行，`ocr_text` 为空，最终抛出"未能提取报告文字"错误。
+
+### Backend
+
+- Created `backend/app/utils/file_helper.py` — unified file reading helper that supports both local paths (`/uploads/xxx`) and remote COS URLs (`https://xxx.cos.xxx`). Remote files downloaded via httpx with 30s timeout and redirect following.
+- Updated `backend/app/api/report.py`:
+  - `upload_report`: now pre-executes OCR at upload time while file content is still in memory; result stored in `report.ocr_result`; OCR failure is non-blocking (upload still succeeds)
+  - `analyze_report`: uses pre-stored `ocr_result` from upload; if empty, falls back to `read_file_content()` which supports COS remote URLs; improved error messages distinguishing "file not found" vs "OCR recognition empty"
+  - `report_ocr`: replaced `os.path.join + os.path.exists + open` with `read_file_content()` call
+  - Error message "未能提取报告文字，请确认文件有效" split into two: "报告文件不存在或已失效，请重新上传" (file missing) and "OCR未能识别到文字内容，请上传更清晰的体检报告图片" (OCR returned empty)
+
+### Testing
+
+- Added 7 new test cases in `backend/tests/test_report.py`: upload pre-OCR, OCR failure non-blocking, analyze with pre-stored OCR, analyze COS URL fallback, file-not-found error, report_ocr COS URL, report_ocr file missing
+- 53/53 local pytest tests passed
+- 16/16 server API tests passed
+
+### Deployment (2026-04-07)
+
+- Rebuilt backend container only
+- All 4 containers healthy (db, backend, admin-web, h5-web)
+- No mobile/client-side code changes (Flutter, miniprogram, H5, admin-web unaffected)
+
+### User Documentation
+
+- Created `user_docs/体检报告OCR识别修复.md`
+
+## Latest Feature: 体检报告解读 & 药物识别解读格式化升级 (2026-04-08)
+
+### Backend
+
+- Added 2 new models in `backend/app/models/models.py`: `PromptTemplate` (prompt_templates table for managing AI prompt templates with version control), `ShareLink` (share_links table for permanent public share tokens).
+- Created `backend/app/api/prompt_templates.py` — 5 admin-only endpoints for Prompt template management:
+  - `GET /api/admin/prompt-templates` — list all active templates
+  - `GET /api/admin/prompt-templates/{type}` — get template with history versions
+  - `PUT /api/admin/prompt-templates/{type}` — update (auto-creates new version, keeps old as history)
+  - `POST /api/admin/prompt-templates/{type}/preview` — preview AI output with given input
+  - `POST /api/admin/prompt-templates/{type}/rollback/{version}` — rollback to specific version
+- Created `backend/app/api/drug_identify_share.py` — drug identification share endpoints:
+  - `POST /api/drug-identify/{record_id}/share` — generate permanent share link
+  - `GET /api/drug-identify/share/{token}` — public view (no auth required)
+- Updated `backend/app/api/report.py` — added `POST /api/report/{id}/share` endpoint; `analyze_report` now reads prompt from `prompt_templates` table.
+- Updated `backend/app/api/ocr.py` — `_call_ai_with_scene` now reads prompt from `prompt_templates` table for "体检报告识别" and "拍照识药" scenes.
+- Updated `backend/app/api/ocr_details.py` — added `GET /api/drug-identify/{record_id}/personal-suggestion` endpoint that reads user health profile and uses `drug_personal` prompt template.
+- Updated `backend/app/services/schema_sync.py` — added `_sync_prompt_templates()` and `_sync_share_links()` for auto table creation.
+- Updated `backend/app/init_data.py` — added `_init_prompt_templates()` to seed 5 default prompt templates (checkup_report, drug_general, drug_personal, drug_interaction, trend_analysis).
+- Updated `backend/app/main.py` — registered `prompt_templates.router` and `drug_identify_share.router`.
+- Added `backend/tests/test_prompt_templates.py` — 12 test cases for prompt template management.
+- Added `backend/tests/test_share_links.py` — 14 test cases for share link functionality.
+
+### Admin Web
+
+- Added `admin-web/src/app/(admin)/prompt-templates/page.tsx` — Prompt template configuration page with:
+  - Left nav: 5 template type tabs
+  - Right: current template content editor + version info
+  - "预览效果" button: preview modal with example input and AI output
+  - "保存" button: auto-creates new version
+  - History versions collapse with rollback buttons
+- Updated `admin-web/src/app/(admin)/layout.tsx` — added "Prompt 模板配置" menu item under "AI配置中心".
+
+### H5 Web
+
+- Updated `h5-web/src/app/checkup/result/[id]/page.tsx` — completely redesigned with 3-zone layout: (1) abnormal indicator cards with red/yellow status tags and per-item suggestions, (2) collapsible category detail list, (3) summary health advice + share buttons.
+- Updated `h5-web/src/app/drug/chat/[sessionId]/page.tsx` — upgraded to render structured drug analysis JSON: multi-drug interaction warning (yellow banner), drug info cards with expand/collapse, general/personal suggestion tabs with API integration.
+- Created `h5-web/src/app/shared/drug/[token]/page.tsx` — public share page for drug identification results (no login required).
+
+### Mini Program
+
+- Updated `miniprogram/pages/checkup-detail/` (index.js, index.wxml, index.wxss) — 3-zone structured layout: abnormal card list with red/yellow/green status tags, collapsible category details, summary section, share link button.
+- Updated `miniprogram/pages/drug-chat/` (index.js, index.wxml, index.wxss) — structured drug analysis display with interaction warning box, collapsible drug cards, general/personal tab switching, share button.
+
+### Flutter App
+
+- Created `flutter_app/lib/models/ai_analysis.dart` — data models: `IndicatorItem`, `IndicatorCategory`, `ReportAnalysisResult`, `DrugInfo`, `DrugInteraction`, `DrugAnalysisResult` (all with fromJson).
+- Updated `flutter_app/lib/screens/health/report_detail_screen.dart` — TabBarView with "AI解读" tab (abnormal summary cards with color-coded chips, category ExpansionTile, summary section, share FAB) and "原始报告" tab (preserved existing view).
+- Updated `flutter_app/lib/screens/health/drug_chat_screen.dart` — structured drug display with interaction warning Container, ExpansionTile per drug, general/personal suggestion tabs, share AppBar button.
+- Updated `flutter_app/lib/config/api_config.dart` and `flutter_app/lib/services/api_service.dart` — added `shareReport`, `shareDrugIdentify`, `getDrugPersonalSuggestion` methods.
+
+### Testing
+
+- 30/30 server API tests passed (health check, admin auth, prompt template CRUD/preview/rollback, report share, drug identify share, personal suggestion, OCR detail stats).
+
+### Deployment (2026-04-08)
+
+- Rebuilt and redeployed backend, h5, and admin containers.
+- All 4 containers healthy (db, backend, h5, admin).
+- Rebuilt miniprogram zip, Android APK, iOS IPA.
+
+### Generated Delivery Artifacts
+
+- Mini program: `miniprogram_20260408_123718_f468.zip`
+- Android APK: `bini_health_android-v20260408-123559-vulk.apk` (GitHub Release: `android-v20260408-123559-vulk`)
+- iOS IPA: `bini_health_ios-v20260408-123624-cqfr.ipa` (GitHub Release: `ios-v20260408-123624-cqfr`)
+
+### User Documentation
+
+- Created `user_docs/体检报告解读与药物识别解读升级.md`
+
+## Latest Feature: 体检报告解读功能优化 (2026-04-08)
+
+### 数据模型
+
+- `CheckupReport` (`backend/app/models/models.py`): added `health_score` (Integer, nullable).
+- `backend/app/services/schema_sync.py`: migration for `health_score` column on existing `checkup_reports` table.
+
+### API 路由
+
+- `POST /api/report/analyze` (`backend/app/api/report.py`): response upgraded to `EnhancedReportAnalysisResponse` — five-level risk per indicator, detailed advice JSON from enhanced prompt via `analyze_report_structured()` in `backend/app/services/ai_service.py`.
+- `POST /api/report/compare` (auth): compares two reports; uses `analyze_report_compare()` in `ai_service.py`; response `ReportCompareResponse` with indicator diffs and score deltas.
+
+### Schema（后端）
+
+- `backend/app/schemas/report.py`: `HealthScoreInfo`, `SummaryInfo`, `IndicatorDetailAdvice`, `EnhancedIndicatorItem`, `EnhancedCategoryView`, `EnhancedReportAnalysisResponse`, `CompareIndicatorItem`, `CompareScoreDiff`, `ReportCompareResponse`, etc.
+
+### 前端页面与组件
+
+- **H5** (`h5-web`): `src/app/checkup/result/[id]/page.tsx` — rewritten: SVG ring health score gauge, collapsible category details; `src/app/checkup/compare/page.tsx` — new report compare page; `src/app/checkup/page.tsx` — health score mini ring + compare mode entry.
+- **小程序** (`miniprogram`): `pages/checkup-detail/` — Canvas gauge + five-level risk tags; `pages/checkup-compare/` — new compare flow (`index.js` / `json` / `wxml` / `wxss`); `pages/checkup/` — compare mode + score display; `app.json` registers `checkup-compare`.
+- **Flutter** (`flutter_app`): `lib/screens/health/report_detail_screen.dart` — `CustomPainter` gauge + `ExpansionTile`; `lib/screens/health/report_compare_screen.dart` — new compare screen; `lib/screens/health/checkup_screen.dart` — score ring + compare selection; `main.dart` registers `/report-compare`.
+
+### 关键文件索引
+
+- Backend: `backend/app/models/models.py`, `backend/app/schemas/report.py`, `backend/app/services/ai_service.py`, `backend/app/api/report.py`, `backend/app/services/schema_sync.py`
+- H5: `h5-web/src/app/checkup/result/[id]/page.tsx`, `h5-web/src/app/checkup/compare/page.tsx`, `h5-web/src/app/checkup/page.tsx`
+- Miniprogram: `miniprogram/pages/checkup-detail/*`, `miniprogram/pages/checkup-compare/*`, `miniprogram/pages/checkup/*`, `miniprogram/app.json`
+- Flutter: `flutter_app/lib/models/enhanced_report.dart`, `flutter_app/lib/screens/health/report_detail_screen.dart`, `flutter_app/lib/screens/health/report_compare_screen.dart`, `flutter_app/lib/screens/health/checkup_screen.dart`, `flutter_app/lib/config/api_config.dart` (`reportCompare`), `flutter_app/lib/services/api_service.dart` (`compareReports`), `flutter_app/lib/main.dart`
+
+### 测试
+
+- `test_server_report_enhance.py`: 17 cases covering enhanced analysis, compare flow, etc.
+
+## Latest Feature: 统一搜索功能 (2026-04-08)
+
+### 数据模型
+
+- Added 7 new models in `backend/app/models/models.py`: `SearchHistory`, `SearchHotWord`, `SearchRecommendWord`, `SearchBlockWord`, `SearchLog`, `AsrConfig`, `DrugSearchKeyword`.
+- `SearchHistory`: user search history with per-user keyword dedup (unique: user_id + keyword).
+- `SearchHotWord`: global hot word statistics aggregated from SearchLog.
+- `SearchRecommendWord`: admin-managed recommended search words with sort_order.
+- `SearchBlockWord`: blocked keywords with two modes (full block / tip replacement).
+- `SearchLog`: per-search logging with result counts, click tracking, source (text/voice).
+- `AsrConfig`: single-row ASR voice recognition config (Tencent Cloud).
+- `DrugSearchKeyword`: trigger keywords for photo drug identification feature.
+
+### API 路由
+
+**H5 用户端 (backend/app/api/search.py)**:
+- `GET /api/search` — unified search across Article/Video/ServiceItem/PointsMallItem with block word filtering
+- `GET /api/search/suggest` — typeahead suggestions from hot words + recommend words
+- `GET /api/search/hot` — hot search words (recommend + auto-statistics, max 10)
+- `GET /api/search/history` — user search history (auth required)
+- `DELETE /api/search/history/{id}` — delete single history item (auth required)
+- `DELETE /api/search/history` — clear all history (auth required)
+- `POST /api/search/log` — log search result click
+- `POST /api/search/asr/token` — get ASR temporary credentials
+- `GET /api/search/drug-keywords` — photo drug identification trigger keywords
+
+**管理后台 (backend/app/api/admin_search.py)**:
+- `GET/POST/PUT/DELETE /api/admin/search/recommend-words` — recommend word CRUD
+- `GET /api/admin/search/statistics` — search analytics (top keywords, trend, no-result, type distribution)
+- `GET/POST/PUT/DELETE /api/admin/search/block-words` — block word CRUD
+- `POST /api/admin/search/block-words/batch` — batch import block words
+- `GET/PUT /api/admin/search/asr-config` — ASR config management (SecretKey encrypted)
+- `POST /api/admin/search/asr-config/test` — test ASR config connectivity
+
+### Schema
+
+- `backend/app/schemas/search.py` — Pydantic schemas for all search-related endpoints.
+
+### H5 前端
+
+- Modified `h5-web/src/app/(tabs)/home/page.tsx` — search bar now navigates to `/search` instead of `/drug?q=`.
+- Created `h5-web/src/app/search/page.tsx` — search page with hot words, history (6→20 expandable, swipe-delete, bulk clear), suggestions (300ms debounce), voice search popup.
+- Created `h5-web/src/app/search/result/page.tsx` — search results page with 5 tabs (all/article/video/service/points_mall), drug keyword card, empty state with AI consultation entry.
+
+### 管理后台
+
+- Updated `admin-web/src/app/(admin)/layout.tsx` — added "搜索管理" top-level menu with 4 sub-items.
+- Created `admin-web/src/app/(admin)/search/recommend/page.tsx` — recommend search word CRUD.
+- Created `admin-web/src/app/(admin)/search/statistics/page.tsx` — search analytics with charts.
+- Created `admin-web/src/app/(admin)/search/block-words/page.tsx` — block word CRUD + batch import.
+- Created `admin-web/src/app/(admin)/search/asr-config/page.tsx` — ASR voice config with test button.
+
+### 测试
+
+- `backend/tests/test_search.py`: 28 local pytest tests (all passed).
+- `test_server_search.py`: 33 server API tests (30 passed, 3 skipped due to SMS auth).
+
+### 部署 (2026-04-08)
+
+- Rebuilt backend, admin-web, h5-web containers.
+- All 4 containers healthy (db, backend, admin-web, h5-web).
+- No mobile/client-side code changes (Flutter, miniprogram unaffected).
+
+### 用户文档
+
+- Created `user_docs/统一搜索功能.md` — user manual for unified search feature.
+
+## Latest Feature: 首页公告栏后台可配置 (2026-04-09)
+
+### Backend
+- `models/models.py`: 新增 `HomeNotice` 模型（home_notices 表），字段：`id`, `content`（Text），`link_url`（String(500)，可空），`start_time`（DateTime），`end_time`（DateTime），`is_enabled`（Boolean，默认 True），`sort_order`（Integer，默认 0），`created_at`, `updated_at`。
+- `schemas/notice.py`（新建）：`NoticeCreate`, `NoticeUpdate`, `NoticeResponse`, `NoticePatchStatus`, `NoticeSortItem`。
+- `api/notice.py`（新建）：用户端 `GET /api/notices/active`（响应头 `Cache-Control: public, max-age=1800`）；管理端 `GET/POST /api/admin/notices`、`PUT /api/admin/notices/{id}`、`DELETE /api/admin/notices/{id}`、`PATCH /api/admin/notices/{id}/status`、`PUT /api/admin/notices/sort`。
+- `services/schema_sync.py`：新增 `_sync_notice_table()` 自动建表。
+- `main.py`：注册 `notice.router` 和 `notice.admin_router`。
+
+### Admin Web
+- `admin-web/src/app/(admin)/notices/page.tsx`（新建）：公告管理页面，含 Table 列表、新增/编辑 Modal、快捷启用/禁用 Switch、删除 Popconfirm。
+- `admin-web/src/app/(admin)/layout.tsx`：在"首页配置"菜单组下新增"公告管理"（key: `/notices`）。
+
+### H5 Web
+- `h5-web/src/app/(tabs)/home/page.tsx`：NoticeBar 改为动态从 `GET /api/notices/active` 获取，模块级 30 分钟内存缓存，接口失败降级到默认文字，有 link_url 时点击跳转。
+
+### Deployment (2026-04-09)
+- Rebuilt backend, admin-web, h5-web containers
+- 16/16 server API tests passed (notice CRUD, status toggle, active filter, auth checks)
+- All 4 containers healthy
+
+### User Documentation
+- Created `user_docs/首页公告栏后台可配置功能.md`
+
+---
+
+## Latest Feature: 首页菜单 Emoji 选择器优化 (2026-04-09)
+
+### Admin Web
+
+- Updated `admin-web/src/app/(admin)/home-menus/page.tsx` — 全面优化 Emoji 图标选择功能：
+  - **关键词映射扩充**: `EMOJI_KEYWORD_MAP` 从 11 组扩充至 48 组，覆盖中医、药品、疫苗、保险、慢病管理、急救、康复、口腔、眼科、皮肤、妇科、儿科、养生、减肥等 40+ 健康管理场景
+  - **Emoji 选择面板 (EmojiPickerModal)**: 新增 Modal 弹窗选择器，支持 7 大分类浏览（医疗健康/运动健身/食物饮料/自然植物/活动物品/符号标志/动物），网格布局（10列，36x36px），选中蓝色高亮
+  - **中文搜索**: 基于 `EMOJI_LABEL_MAP`（260+ Emoji 中文标签映射）实现中文关键词搜索，300ms debounce
+  - **智能推荐整合**: 面板顶部根据菜单名称实时推荐匹配 Emoji（最多 8 个），`getRecommendedEmojis` 返回 `{ emojis, isDefault }` 结构
+  - **去除手动输入框**: 原 `<Input maxLength={4}>` 替换为 72x72px 可视化预览区域 + "选择图标" Button + "清除" 链接
+  - **表单集成**: 隐藏 `Form.Item name="icon_content"` 持有选中值，`icon_type === 'emoji'` 时 required 校验
+
+### 纯前端改造说明
+
+- 本次为纯前端优化，无后端接口变更、无数据库迁移
+- `home_menu_items.icon_content` 字段已确认支持 UTF-8 4 字节 Emoji 字符存储
+
+### Testing
+
+- 11/11 server API tests passed (health check, admin login, menu CRUD with regular/composite Emoji, persistence verification, unauthorized access)
+
+### Deployment (2026-04-09)
+
+- Rebuilt admin-web container only
+- All containers healthy
+
+### User Documentation
+
+- Created `user_docs/首页菜单Emoji选择器优化.md`
+
+---
+
+## Latest Feature: 语音搜索多端升级 (2026-04-09)
+
+### Backend
+- `backend/app/api/search.py`: `GET /api/search` 新增 `source` 查询参数 (`text`/`voice`，默认 `text`)。非法值规范化为 `text`。`_record_search_log()` 接受并记录 `source` 参数到 `SearchLog.source` 字段。屏蔽词命中时也正确记录 source。
+- `backend/app/schemas/search.py`: 无变更（`SearchResponse` 不暴露 source 字段）。
+
+### H5 Web
+- `h5-web/src/app/search/page.tsx`: `doSearch` 函数接受 `source` 参数，语音识别成功后调用 `doSearch(text, 'voice')`，URL 中传递 `source=voice`。
+- `h5-web/src/app/search/result/page.tsx`: 读取 URL 中的 `source` 参数并传递给后端 API。
+
+### Mini Program
+- `miniprogram/pages/search/index.js`: 使用实例属性 `_pendingVoiceSource` 追踪语音来源。语音识别成功后设为 `true`，手动输入/清除/标签点击/联想点击时重置为 `false`。`onSearch` 读取该属性决定 source 值并传递到搜索结果页 URL。
+- `miniprogram/pages/search-result/index.js`: 从 `options.source` 读取 source 参数（规范化为 voice/text），传递给 `GET /api/search` 调用。
+
+### Flutter App
+- `flutter_app/lib/screens/search/search_screen.dart`: `_doSearch` 接受可选 `source` 参数，通过 `Navigator.pushNamed` 的 arguments Map 传递。
+- `flutter_app/lib/screens/search/search_result_screen.dart`: 从路由 arguments 解析 `source`（规范化为 voice/text），传递给 `ApiService.search()`。
+- `flutter_app/lib/services/api_service.dart`: `search()` 方法新增 `source` 参数，加入 API 请求 queryParameters。
+
+### Testing
+- `backend/tests/test_voice_search.py`: 新增 6 个 source 参数专项测试（voice/text/默认/非法值/屏蔽词/响应不泄漏），加上原有 11 个语音搜索测试共 17 个全部通过。
+- `backend/tests/test_search.py`: 原有 28 个测试全部通过。
+- `test_server_voice_search.py`: 13/13 服务器 API 测试全部通过。
+
+### Deployment (2026-04-09)
+- Rebuilt backend and h5-web containers
+- All 4 containers healthy (db, backend, admin-web, h5-web)
+
+### Generated Delivery Artifacts
+- Mini program: `miniprogram_20260409_231132_78t0.zip` (download: `/uploads/miniprogram_20260409_231132_78t0.zip`)
+
+### User Documentation
+- Created `user_docs/语音搜索多端升级.md`
+
+---
 
 ## Notes For Next Iteration
 
 - Merchant identities are granted by admin only; new self-registered accounts still default to normal users.
 - Old user and merchant accounts require admin-side manual merge before official cutover.
 - If remote DB schema lags behind models, check startup schema synchronization and the new merchant-related tables first.
-- SMS config can be managed from admin panel (系统管理 → 短信管理). DB config takes priority over env vars. If neither is set, SMS sending raises RuntimeError (HTTP 500 to frontend).
-- To enable real SMS sending: either configure via admin panel or set `TENCENT_SMS_SECRET_ID` and `TENCENT_SMS_SECRET_KEY` environment variables.
+- SMS config can be managed from admin panel (系统管理 → 短信管理). Supports dual provider (Tencent Cloud + Alibaba Cloud), only one active at a time. DB config takes priority over env vars.
+- To enable real SMS sending: configure via admin panel (dual provider supported) or set `TENCENT_SMS_SECRET_ID` and `TENCENT_SMS_SECRET_KEY` environment variables.
+- WeChat push config: 系统管理 → 微信推送管理. Email notify config: 系统管理 → 邮件通知管理 (with logs and test send).
+- The old `POST /api/admin/settings/push` endpoint is deprecated (returns 410 Gone). Use the new independent module APIs instead.
+- OCR multi-provider: Configure via admin panel (AI管理 → OCR识别配置). Supports Baidu/Tencent/Aliyun with smart failover. At least 2 providers recommended for failover.
+- OCR AI post-processing: Scene templates drive AI structured output with embedded prompt_content. Presets: 体检报告识别, 拍照识药. Custom scenes can be added.
+- OCR global settings: Configure via admin panel (AI管理 → OCR全局设置). Scene templates and upload limits are managed here. Scene templates contain scene_name + prompt_content only (no ocr_provider/ai_model_id).
+- OCR prompt management: Prompts are now embedded directly in scene templates (OcrSceneTemplate.prompt_content), no longer stored in AiPromptConfig table.
+- OCR detail tables: `checkup_report_details` and `drug_identify_details` store business-specific fields extracted from AI results. Admin pages: AI管理 → 体检报告解读明细 / 拍照识药记录明细.
+- Checkup report (2026-04-08): enhanced analyze + compare APIs; H5 `/checkup/compare`, miniprogram `checkup-compare`, Flutter `/report-compare`; `health_score` on `CheckupReport`.
+- Home dynamic config (2026-04-08): `home_menu_items` and `home_banners` tables; 8 system_config keys for search/grid/font settings; admin CRUD APIs + user public APIs; admin-web 3 new pages under "首页配置"; all three client ends (H5/miniprogram/Flutter) now fetch banners/menus/config from API instead of hardcoded data; font size 3-level switching with local persistence.
+- Unified search (2026-04-08): H5-only, 7 new DB tables (SearchHistory, SearchHotWord, SearchRecommendWord, SearchBlockWord, SearchLog, AsrConfig, DrugSearchKeyword); H5 `/search` and `/search/result` pages; admin "搜索管理" menu with 4 sub-pages (推荐搜索词, 搜索统计, 屏蔽词管理, 语音配置). Block words checked server-side before search. ASR SecretKey encrypted. Default drug keywords: 拍照识药, 识药, 药品识别, 拍药, 认药.

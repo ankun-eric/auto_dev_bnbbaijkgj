@@ -1310,6 +1310,42 @@ All 9 admin API endpoints return HTTP 200 with correct data structure. Admin fro
 
 ---
 
+## Latest Feature: 语音搜索多端升级 (2026-04-09)
+
+### Backend
+- `backend/app/api/search.py`: `GET /api/search` 新增 `source` 查询参数 (`text`/`voice`，默认 `text`)。非法值规范化为 `text`。`_record_search_log()` 接受并记录 `source` 参数到 `SearchLog.source` 字段。屏蔽词命中时也正确记录 source。
+- `backend/app/schemas/search.py`: 无变更（`SearchResponse` 不暴露 source 字段）。
+
+### H5 Web
+- `h5-web/src/app/search/page.tsx`: `doSearch` 函数接受 `source` 参数，语音识别成功后调用 `doSearch(text, 'voice')`，URL 中传递 `source=voice`。
+- `h5-web/src/app/search/result/page.tsx`: 读取 URL 中的 `source` 参数并传递给后端 API。
+
+### Mini Program
+- `miniprogram/pages/search/index.js`: 使用实例属性 `_pendingVoiceSource` 追踪语音来源。语音识别成功后设为 `true`，手动输入/清除/标签点击/联想点击时重置为 `false`。`onSearch` 读取该属性决定 source 值并传递到搜索结果页 URL。
+- `miniprogram/pages/search-result/index.js`: 从 `options.source` 读取 source 参数（规范化为 voice/text），传递给 `GET /api/search` 调用。
+
+### Flutter App
+- `flutter_app/lib/screens/search/search_screen.dart`: `_doSearch` 接受可选 `source` 参数，通过 `Navigator.pushNamed` 的 arguments Map 传递。
+- `flutter_app/lib/screens/search/search_result_screen.dart`: 从路由 arguments 解析 `source`（规范化为 voice/text），传递给 `ApiService.search()`。
+- `flutter_app/lib/services/api_service.dart`: `search()` 方法新增 `source` 参数，加入 API 请求 queryParameters。
+
+### Testing
+- `backend/tests/test_voice_search.py`: 新增 6 个 source 参数专项测试（voice/text/默认/非法值/屏蔽词/响应不泄漏），加上原有 11 个语音搜索测试共 17 个全部通过。
+- `backend/tests/test_search.py`: 原有 28 个测试全部通过。
+- `test_server_voice_search.py`: 13/13 服务器 API 测试全部通过。
+
+### Deployment (2026-04-09)
+- Rebuilt backend and h5-web containers
+- All 4 containers healthy (db, backend, admin-web, h5-web)
+
+### Generated Delivery Artifacts
+- Mini program: `miniprogram_20260409_231132_78t0.zip` (download: `/uploads/miniprogram_20260409_231132_78t0.zip`)
+
+### User Documentation
+- Created `user_docs/语音搜索多端升级.md`
+
+---
+
 ## Notes For Next Iteration
 
 - Merchant identities are granted by admin only; new self-registered accounts still default to normal users.

@@ -1,3 +1,5 @@
+# Pack miniprogram; scp to host ~/.../uploads/ then docker cp into backend so /uploads/ URL returns 200:
+# docker cp /home/ubuntu/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/uploads/<zip> 3b7b999d-e51c-4c0d-8f6e-baf90cd26857-backend:/app/uploads/
 $ErrorActionPreference = 'Stop'
 $source = 'C:\auto_output\bnbbaijkgj\miniprogram'
 $ts = Get-Date -Format 'yyyyMMdd_HHmmss'
