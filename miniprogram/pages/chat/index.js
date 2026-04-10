@@ -1,6 +1,8 @@
 const { post, get, put, del } = require('../../utils/request');
 const { generateId } = require('../../utils/util');
 
+const plugin = requirePlugin('WechatSI');
+
 const FONT_SIZE_OPTIONS = [
   { level: 'standard', label: '标准', size: '28rpx' },
   { level: 'large', label: '大', size: '36rpx' },
@@ -20,8 +22,19 @@ Page({
     showFontPopover: false,
     fontSizeLevel: 'standard',
     fontSizeOptions: FONT_SIZE_OPTIONS,
-    msgFontSize: '28rpx'
+    msgFontSize: '28rpx',
+    voiceMode: false,
+    isRecording: false,
+    showRecordOverlay: false,
+    recordCancelling: false,
+    recordingTime: 0
   },
+
+  _recognizeManager: null,
+  _recordTimer: null,
+  _touchStartY: 0,
+  _touchStartTime: 0,
+  _discardNextResult: false,
 
   onLoad(options) {
     const { type = 'health_qa', chatId, question } = options;
@@ -184,6 +197,174 @@ Page({
       success: () => wx.showToast({ title: '分享链接已复制', icon: 'success' })
     });
   },
+
+  onUnload() {
+    if (this._recordTimer) {
+      clearInterval(this._recordTimer);
+      this._recordTimer = null;
+    }
+    this._recognizeManager = null;
+  },
+
+  _initRecognizeManager() {
+    const manager = plugin.getRecordRecognitionManager();
+
+    manager.onStart = () => {
+      let t = 0;
+      this._recordTimer = setInterval(() => {
+        t++;
+        this.setData({ recordingTime: t });
+        if (t >= 30) {
+          this._finishRecording();
+        }
+      }, 1000);
+    };
+
+    manager.onStop = (res) => {
+      if (this._recordTimer) {
+        clearInterval(this._recordTimer);
+        this._recordTimer = null;
+      }
+      if (this._discardNextResult) {
+        this._discardNextResult = false;
+        return;
+      }
+      const text = res.result ? res.result.replace(/[\u3002\uff1b\uff0c\uff1a\u201c\u201d\u2018\u2019\uff08\uff09\u3001\uff1f\u300a\u300b\uff01\u3010\u3011\u2026\u2014\uff5e\u00b7.,!?;:'"()\[\]{}\-_\/\\@#\$%\^&\*\+=~`<>]/g, '').trim() : '';
+      if (text) {
+        this.setData({ inputValue: text });
+        this.sendMessage();
+      } else {
+        wx.showToast({ title: '未识别到语音内容，请重试', icon: 'none' });
+      }
+    };
+
+    manager.onError = () => {
+      if (this._recordTimer) {
+        clearInterval(this._recordTimer);
+        this._recordTimer = null;
+      }
+      this.setData({
+        isRecording: false,
+        showRecordOverlay: false,
+        recordCancelling: false,
+        voiceMode: false
+      });
+      wx.showToast({ title: '语音服务暂不可用，已切换为键盘输入', icon: 'none' });
+    };
+
+    this._recognizeManager = manager;
+  },
+
+  toggleVoiceMode() {
+    if (this.data.voiceMode) {
+      this.setData({ voiceMode: false, inputFocus: true });
+      return;
+    }
+    this._checkRecordAuth(() => {
+      this.setData({ voiceMode: true, inputFocus: false });
+    });
+  },
+
+  _checkRecordAuth(successCb) {
+    wx.authorize({
+      scope: 'scope.record',
+      success: () => {
+        if (!this._recognizeManager) this._initRecognizeManager();
+        successCb();
+      },
+      fail: () => {
+        wx.showModal({
+          title: '允许访问麦克风',
+          content: '请授权麦克风，以便AI发送语音消息',
+          cancelText: '取消',
+          confirmText: '去授权',
+          success: (res) => {
+            if (res.confirm) {
+              wx.openSetting({
+                success: (settingRes) => {
+                  if (settingRes.authSetting['scope.record']) {
+                    if (!this._recognizeManager) this._initRecognizeManager();
+                    successCb();
+                  } else {
+                    wx.showToast({ title: '请在设置中开启麦克风权限', icon: 'none' });
+                  }
+                }
+              });
+            } else {
+              wx.showToast({ title: '请在设置中开启麦克风权限', icon: 'none' });
+            }
+          }
+        });
+      }
+    });
+  },
+
+  onRecordTouchStart(e) {
+    this._touchStartY = e.touches[0].clientY;
+    this._touchStartTime = Date.now();
+    this.setData({
+      isRecording: true,
+      showRecordOverlay: true,
+      recordCancelling: false,
+      recordingTime: 0
+    });
+    if (!this._recognizeManager) this._initRecognizeManager();
+    this._recognizeManager.start({ lang: 'zh_CN' });
+  },
+
+  onRecordTouchMove(e) {
+    if (!this.data.isRecording) return;
+    const moveY = this._touchStartY - e.touches[0].clientY;
+    this.setData({ recordCancelling: moveY > 80 });
+  },
+
+  onRecordTouchEnd() {
+    if (!this.data.isRecording) return;
+    const duration = Date.now() - this._touchStartTime;
+    if (duration < 500) {
+      this._cancelRecording();
+      wx.showToast({ title: '录音时间太短', icon: 'none' });
+      return;
+    }
+    if (this.data.recordCancelling) {
+      this._cancelRecording();
+    } else {
+      this._finishRecording();
+    }
+  },
+
+  _finishRecording() {
+    if (this._recordTimer) {
+      clearInterval(this._recordTimer);
+      this._recordTimer = null;
+    }
+    this.setData({
+      isRecording: false,
+      showRecordOverlay: false,
+      recordCancelling: false
+    });
+    if (this._recognizeManager) {
+      this._recognizeManager.stop();
+    }
+  },
+
+  _cancelRecording() {
+    if (this._recordTimer) {
+      clearInterval(this._recordTimer);
+      this._recordTimer = null;
+    }
+    this.setData({
+      isRecording: false,
+      showRecordOverlay: false,
+      recordCancelling: false
+    });
+    this._discardNextResult = true;
+    if (this._recognizeManager) {
+      this._recognizeManager.stop();
+    }
+  },
+
+  preventTouchMove() {},
 
   onInput(e) {
     this.setData({ inputValue: e.detail.value });

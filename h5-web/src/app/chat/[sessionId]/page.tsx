@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback, Suspense } from 'react';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
-import { NavBar, Input, Button, SpinLoading, Toast, Popup, Tag, DatePicker } from 'antd-mobile';
+import { NavBar, Input, Button, SpinLoading, Toast, Popup, Tag, DatePicker, Dialog } from 'antd-mobile';
 import api from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import ChatSidebar from '@/components/ChatSidebar';
@@ -184,6 +184,243 @@ function ChatPageInner() {
   const [newAllergyOther, setNewAllergyOther] = useState('');
   const [addLoading, setAddLoading] = useState(false);
   const [newBirthdayPickerVisible, setNewBirthdayPickerVisible] = useState(false);
+
+  // Voice input state
+  const [voiceMode, setVoiceMode] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingOverlayVisible, setRecordingOverlayVisible] = useState(false);
+  const [isCancelZone, setIsCancelZone] = useState(false);
+  const [volumeBars, setVolumeBars] = useState<number[]>([0, 0, 0, 0, 0]);
+  const [isRecognizing, setIsRecognizing] = useState(false);
+
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const streamRef = useRef<MediaStream | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const animFrameRef = useRef<number>(0);
+  const recordStartTimeRef = useRef<number>(0);
+  const maxRecordTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const touchStartYRef = useRef<number>(0);
+  const mimeTypeRef = useRef('');
+  const cancelledRef = useRef(false);
+
+  const getPreferredMimeType = (): string => {
+    if (typeof MediaRecorder !== 'undefined') {
+      if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) return 'audio/webm;codecs=opus';
+      if (MediaRecorder.isTypeSupported('audio/webm')) return 'audio/webm';
+      if (MediaRecorder.isTypeSupported('audio/mp4')) return 'audio/mp4';
+      if (MediaRecorder.isTypeSupported('audio/mp3')) return 'audio/mp3';
+    }
+    return '';
+  };
+
+  const mimeToFormat = (mime: string): string => {
+    if (!mime) return 'webm';
+    if (mime.includes('webm')) return 'webm';
+    if (mime.includes('mp4')) return 'm4a';
+    if (mime.includes('mp3') || mime.includes('mpeg')) return 'mp3';
+    return 'webm';
+  };
+
+  const cleanupRecording = useCallback(() => {
+    if (animFrameRef.current) {
+      cancelAnimationFrame(animFrameRef.current);
+      animFrameRef.current = 0;
+    }
+    if (maxRecordTimerRef.current) {
+      clearTimeout(maxRecordTimerRef.current);
+      maxRecordTimerRef.current = null;
+    }
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      try { mediaRecorderRef.current.stop(); } catch { /* ignore */ }
+    }
+    mediaRecorderRef.current = null;
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(t => t.stop());
+      streamRef.current = null;
+    }
+    if (audioCtxRef.current && audioCtxRef.current.state !== 'closed') {
+      try { audioCtxRef.current.close(); } catch { /* ignore */ }
+    }
+    audioCtxRef.current = null;
+    analyserRef.current = null;
+  }, []);
+
+  useEffect(() => {
+    return () => { cleanupRecording(); };
+  }, [cleanupRecording]);
+
+  const sendToAsr = useCallback(async (blob: Blob) => {
+    setIsRecognizing(true);
+    try {
+      const fd = new FormData();
+      const fmt = mimeToFormat(mimeTypeRef.current);
+      fd.append('audio_file', blob, `recording.${fmt}`);
+      fd.append('format', fmt);
+      fd.append('sample_rate', '16000');
+      const data: any = await api.post('/api/search/asr/recognize', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 30000,
+      });
+      setIsRecognizing(false);
+      setRecordingOverlayVisible(false);
+      const text = data?.data?.text || data?.text || '';
+      const cleanText = text.replace(/[\u3002\uff1b\uff0c\uff1a\u201c\u201d\u2018\u2019\uff08\uff09\u3001\uff1f\u300a\u300b\uff01\u3010\u3011\u2026\u2014\uff5e\u00b7.,!?;:'"()\[\]{}\-_\/\\@#\$%\^&\*\+=~`<>]/g, '').trim();
+      if (!cleanText) {
+        Toast.show({ content: '未识别到语音内容，请重试', icon: 'fail', duration: 2000 });
+        return;
+      }
+      sendMessageText(cleanText);
+    } catch {
+      setIsRecognizing(false);
+      setRecordingOverlayVisible(false);
+      Toast.show({ content: '语音服务暂不可用，已切换为键盘输入', icon: 'fail', duration: 2500 });
+      setVoiceMode(false);
+    }
+  }, []);
+
+  const startRecording = useCallback(async () => {
+    audioChunksRef.current = [];
+    cancelledRef.current = false;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+
+      const ctx = new AudioContext();
+      audioCtxRef.current = ctx;
+      const source = ctx.createMediaStreamSource(stream);
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 256;
+      source.connect(analyser);
+      analyserRef.current = analyser;
+
+      const mime = getPreferredMimeType();
+      mimeTypeRef.current = mime;
+      const recorder = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+      mediaRecorderRef.current = recorder;
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+
+      recorder.onstop = () => {
+        if (animFrameRef.current) {
+          cancelAnimationFrame(animFrameRef.current);
+          animFrameRef.current = 0;
+        }
+        if (maxRecordTimerRef.current) {
+          clearTimeout(maxRecordTimerRef.current);
+          maxRecordTimerRef.current = null;
+        }
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach(t => t.stop());
+          streamRef.current = null;
+        }
+
+        setIsRecording(false);
+        setVolumeBars([0, 0, 0, 0, 0]);
+
+        if (cancelledRef.current) {
+          setRecordingOverlayVisible(false);
+          return;
+        }
+
+        const elapsed = (Date.now() - recordStartTimeRef.current) / 1000;
+        if (elapsed < 0.5) {
+          setRecordingOverlayVisible(false);
+          Toast.show({ content: '录音时间太短', duration: 1500 });
+          return;
+        }
+
+        const blob = new Blob(audioChunksRef.current, { type: mime || 'audio/webm' });
+        sendToAsr(blob);
+      };
+
+      recorder.start(250);
+      recordStartTimeRef.current = Date.now();
+      setIsRecording(true);
+      setRecordingOverlayVisible(true);
+      setIsCancelZone(false);
+
+      maxRecordTimerRef.current = setTimeout(() => {
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+          mediaRecorderRef.current.stop();
+        }
+      }, 30000);
+
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+      const updateBars = () => {
+        if (!analyserRef.current) return;
+        analyserRef.current.getByteFrequencyData(dataArray);
+        const barCount = 5;
+        const step = Math.floor(dataArray.length / barCount);
+        const bars: number[] = [];
+        for (let i = 0; i < barCount; i++) {
+          let sum = 0;
+          for (let j = 0; j < step; j++) sum += dataArray[i * step + j];
+          bars.push(Math.min(1, (sum / step) / 180));
+        }
+        setVolumeBars(bars);
+        animFrameRef.current = requestAnimationFrame(updateBars);
+      };
+      animFrameRef.current = requestAnimationFrame(updateBars);
+    } catch {
+      cleanupRecording();
+      setIsRecording(false);
+      setRecordingOverlayVisible(false);
+      Toast.show({ content: '录音启动失败，请重试', icon: 'fail' });
+    }
+  }, [sendToAsr, cleanupRecording]);
+
+  const handleVoiceTouchStart = useCallback((e: React.TouchEvent) => {
+    e.preventDefault();
+    touchStartYRef.current = e.touches[0].clientY;
+    setIsCancelZone(false);
+    startRecording();
+  }, [startRecording]);
+
+  const handleVoiceTouchMove = useCallback((e: React.TouchEvent) => {
+    const diff = touchStartYRef.current - e.touches[0].clientY;
+    setIsCancelZone(diff > 80);
+  }, []);
+
+  const handleVoiceTouchEnd = useCallback(() => {
+    if (!mediaRecorderRef.current || mediaRecorderRef.current.state === 'inactive') return;
+    if (isCancelZone) {
+      cancelledRef.current = true;
+    }
+    mediaRecorderRef.current.stop();
+  }, [isCancelZone]);
+
+  const checkMicPermission = useCallback(async () => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      Toast.show({ content: '当前浏览器不支持语音输入', icon: 'fail' });
+      return;
+    }
+    try {
+      const result = await Dialog.confirm({
+        title: '允许访问麦克风',
+        content: '请授权麦克风，以便AI发送语音消息',
+        confirmText: '去授权',
+        cancelText: '取消',
+      });
+      if (!result) return;
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach(t => t.stop());
+      setVoiceMode(true);
+    } catch {
+      Toast.show({ content: '请在设置中开启麦克风权限', icon: 'fail', duration: 2500 });
+    }
+  }, []);
+
+  const handleMicToggle = useCallback(() => {
+    if (voiceMode) {
+      setVoiceMode(false);
+      return;
+    }
+    checkMicPermission();
+  }, [voiceMode, checkMicPermission]);
 
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -694,34 +931,160 @@ function ChatPageInner() {
           </svg>
         </button>
 
-        <div className="flex-1 bg-gray-50 rounded-2xl px-4 py-2">
-          <Input
-            placeholder="输入您的健康问题..."
-            value={inputVal}
-            onChange={setInputVal}
-            onEnterPress={sendMessage}
-            style={{ '--font-size': '14px' }}
-          />
-        </div>
-        <Button
-          onClick={sendMessage}
-          disabled={!inputVal.trim() || loading}
+        {voiceMode ? (
+          <div
+            className="flex-1 rounded-2xl flex items-center justify-center select-none"
+            style={{
+              height: 40,
+              background: isCancelZone && isRecording ? '#d32f2f' : '#52c41a',
+              color: '#fff',
+              fontSize: 14,
+              fontWeight: 500,
+              userSelect: 'none',
+              WebkitUserSelect: 'none',
+              touchAction: 'none',
+            }}
+            onTouchStart={handleVoiceTouchStart}
+            onTouchMove={handleVoiceTouchMove}
+            onTouchEnd={handleVoiceTouchEnd}
+            onTouchCancel={handleVoiceTouchEnd}
+          >
+            {isRecording ? (isCancelZone ? '松开取消' : '松开结束') : '按住说话'}
+          </div>
+        ) : (
+          <div className="flex-1 bg-gray-50 rounded-2xl px-4 py-2">
+            <Input
+              placeholder="发信息..."
+              value={inputVal}
+              onChange={setInputVal}
+              onEnterPress={sendMessage}
+              style={{ '--font-size': '14px' }}
+            />
+          </div>
+        )}
+
+        <button
+          onClick={handleMicToggle}
+          className="w-10 h-10 flex-shrink-0 flex items-center justify-center"
+          aria-label={voiceMode ? '切换键盘' : '语音输入'}
+        >
+          {voiceMode ? (
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#52c41a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="2" y="4" width="20" height="16" rx="3" ry="3" />
+              <line x1="6" y1="8" x2="6" y2="8" />
+              <line x1="10" y1="8" x2="10" y2="8" />
+              <line x1="14" y1="8" x2="14" y2="8" />
+              <line x1="18" y1="8" x2="18" y2="8" />
+              <line x1="6" y1="12" x2="6" y2="12" />
+              <line x1="18" y1="12" x2="18" y2="12" />
+              <line x1="8" y1="16" x2="16" y2="16" />
+            </svg>
+          ) : (
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#52c41a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+              <line x1="12" y1="19" x2="12" y2="23" />
+              <line x1="8" y1="23" x2="16" y2="23" />
+            </svg>
+          )}
+        </button>
+
+        {!voiceMode && (
+          <Button
+            onClick={sendMessage}
+            disabled={!inputVal.trim() || loading}
+            style={{
+              background: inputVal.trim() ? 'linear-gradient(135deg, #52c41a, #13c2c2)' : '#e8e8e8',
+              color: inputVal.trim() ? '#fff' : '#999',
+              border: 'none',
+              borderRadius: '50%',
+              width: 40,
+              height: 40,
+              padding: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            ➤
+          </Button>
+        )}
+      </div>
+
+      {/* Voice recording overlay */}
+      {recordingOverlayVisible && (
+        <div
           style={{
-            background: inputVal.trim() ? 'linear-gradient(135deg, #52c41a, #13c2c2)' : '#e8e8e8',
-            color: inputVal.trim() ? '#fff' : '#999',
-            border: 'none',
-            borderRadius: '50%',
-            width: 40,
-            height: 40,
-            padding: 0,
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9999,
+            background: isCancelZone ? 'rgba(180,30,30,0.6)' : 'rgba(0,0,0,0.5)',
             display: 'flex',
+            flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
+            transition: 'background 0.2s ease',
           }}
         >
-          ➤
-        </Button>
-      </div>
+          <style dangerouslySetInnerHTML={{ __html: `
+            @keyframes voice-wave-bar {
+              0%, 100% { transform: scaleY(0.3); }
+              50% { transform: scaleY(1); }
+            }
+          `}} />
+
+          {isRecognizing ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20 }}>
+              <SpinLoading style={{ '--size': '40px', '--color': '#52c41a' } as React.CSSProperties} />
+              <div style={{ fontSize: 16, color: '#fff', fontWeight: 500 }}>识别中...</div>
+            </div>
+          ) : (
+            <>
+              {/* Sound wave animation */}
+              <div style={{
+                width: 120,
+                height: 120,
+                borderRadius: '50%',
+                background: isCancelZone ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.1)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 4,
+                marginBottom: 32,
+              }}>
+                {volumeBars.map((v, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      width: 6,
+                      borderRadius: 3,
+                      background: isCancelZone ? '#ff6b6b' : '#52c41a',
+                      height: `${Math.max(12, v * 60)}px`,
+                      transition: 'height 0.08s ease-out, background 0.2s ease',
+                      animation: isRecording ? `voice-wave-bar ${0.6 + i * 0.15}s ease-in-out infinite` : 'none',
+                      animationDelay: `${i * 0.1}s`,
+                    }}
+                  />
+                ))}
+              </div>
+
+              {/* Hint text */}
+              <div style={{
+                fontSize: 15,
+                color: '#fff',
+                fontWeight: 400,
+                textAlign: 'center',
+              }}>
+                {isCancelZone ? (
+                  <span style={{ color: '#ff6b6b' }}>松开取消</span>
+                ) : (
+                  '松开发送，上滑取消'
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       <ChatSidebar
         visible={sidebarVisible}
