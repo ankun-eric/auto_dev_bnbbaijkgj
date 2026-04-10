@@ -27,7 +27,26 @@
 - Admin: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api/`
 
-## Latest Bugfix: 语音搜索麦克风图标消失修复 (2026-04-10)
+## Latest Bugfix: 健康档案"本人"记录缺失彻底修复 (2026-04-10)
+
+### Problem
+用户登录后进入健康档案页面，顶部成员切换栏完全没有"本人"选项。三层防线（注册时创建、API兜底、存量修复脚本）全部失效。
+
+### Root Causes
+1. 存量修复脚本使用一次性标记 `fix_legacy_users_self_member_done`，标记打上后永不再执行修复
+2. 注册流程 `try/except` 中 `db.rollback()` 导致连锁回滚
+3. API 兜底逻辑只创建 FamilyMember 未创建 HealthProfile
+
+### Backend Changes
+- **`api/auth.py`**: 去掉 register 和 sms_login 中 ensure_self_family_member/ensure_self_health_profile 异常处理的 db.rollback() + db.add(user) + db.flush()，仅保留 logger.error()
+- **`api/family.py`**: GET /api/family/members 兜底逻辑强化——创建 FamilyMember 后同时创建/关联 HealthProfile，整段包裹 try/except 保护
+- **`init_data.py`**: 删除一次性标记机制（flag_key 检查和写入），每次启动都扫描缺少"本人"成员的用户；启动时自动清除旧标记 `fix_legacy_users_self_member_done`；HealthProfile 查询增加 family_member_id 过滤
+- **`tests/test_family.py`**: 新增 4 个验证用例（自动创建本人、排序第一、不可删除、无重复创建）
+
+### Strategy Change
+从"防御性一次修复"转变为"持续性自动检查"——任何用户、任何时候，只要请求家庭成员列表时发现缺少"本人"记录，就自动创建 FamilyMember + HealthProfile
+
+## Previous Bugfix: 语音搜索麦克风图标消失修复 (2026-04-10)
 
 ### Problem
 用户在搜索页面通过语音搜索后，跳转到搜索结果页面时，搜索栏中的麦克风图标消失，无法在搜索结果页面继续使用语音搜索。根因：三端的搜索结果页面缺少语音搜索功能集成。

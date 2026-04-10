@@ -214,16 +214,10 @@ async def register(data: UserCreate, db: AsyncSession = Depends(get_db)):
         await ensure_self_family_member(db, user.id)
     except Exception as e:
         logger.error("Failed to create self family member for user %s: %s", user.id, e)
-        await db.rollback()
-        db.add(user)
-        await db.flush()
     try:
         await ensure_self_health_profile(db, user.id)
     except Exception as e:
         logger.error("Failed to create self health profile for user %s: %s", user.id, e)
-        await db.rollback()
-        db.add(user)
-        await db.flush()
 
     result_user = await db.execute(select(User).where(User.id == user.id))
     user = result_user.scalar_one()
@@ -345,16 +339,10 @@ async def sms_login(data: SMSLoginRequest, db: AsyncSession = Depends(get_db)):
             await ensure_self_family_member(db, user.id)
         except Exception as e:
             logger.error("Failed to create self family member for user %s: %s", user.id, e)
-            await db.rollback()
-            db.add(user)
-            await db.flush()
         try:
             await ensure_self_health_profile(db, user.id)
         except Exception as e:
             logger.error("Failed to create self health profile for user %s: %s", user.id, e)
-            await db.rollback()
-            db.add(user)
-            await db.flush()
         result_user = await db.execute(select(User).where(User.id == user.id))
         user = result_user.scalar_one()
         is_new_user = True

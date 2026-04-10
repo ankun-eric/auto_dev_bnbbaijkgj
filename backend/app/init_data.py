@@ -1050,14 +1050,13 @@ async def _init_bottom_nav_config(db: AsyncSession):
 
 
 async def _fix_legacy_users_missing_self_member(db: AsyncSession):
-    flag_key = "fix_legacy_users_self_member_done"
-    result = await db.execute(
-        select(SystemConfig).where(SystemConfig.config_key == flag_key)
-    )
-    if result.scalar_one_or_none():
-        return
+    """每次启动都检查并补充缺少「本人」成员的用户，不使用一次性标记。"""
+    from sqlalchemy import and_, delete as sql_delete
 
-    from sqlalchemy import and_, exists
+    old_flag_key = "fix_legacy_users_self_member_done"
+    await db.execute(
+        sql_delete(SystemConfig).where(SystemConfig.config_key == old_flag_key)
+    )
 
     self_member_exists = (
         select(FamilyMember.id)
@@ -1076,14 +1075,7 @@ async def _fix_legacy_users_missing_self_member(db: AsyncSession):
     users_without_self = result.scalars().all()
 
     if not users_without_self:
-        db.add(SystemConfig(
-            config_key=flag_key,
-            config_value="true",
-            config_type="system",
-            description="存量用户补充本人成员标志",
-        ))
-        await db.flush()
-        logger.info("No legacy users missing self member")
+        logger.info("All users have self member, no fix needed")
         return
 
     rt_result = await db.execute(
@@ -1108,26 +1100,27 @@ async def _fix_legacy_users_missing_self_member(db: AsyncSession):
         hp_any_result = await db.execute(
             select(HealthProfile).where(
                 HealthProfile.user_id == user.id,
+                HealthProfile.family_member_id == member.id,
             )
         )
         existing_hp = hp_any_result.scalar_one_or_none()
-        if existing_hp and existing_hp.family_member_id is None:
-            existing_hp.family_member_id = member.id
-        elif not existing_hp:
-            db.add(HealthProfile(user_id=user.id, family_member_id=member.id))
+        if not existing_hp:
+            hp_unlinked_result = await db.execute(
+                select(HealthProfile).where(
+                    HealthProfile.user_id == user.id,
+                    HealthProfile.family_member_id.is_(None),
+                )
+            )
+            unlinked_hp = hp_unlinked_result.scalar_one_or_none()
+            if unlinked_hp:
+                unlinked_hp.family_member_id = member.id
+            else:
+                db.add(HealthProfile(user_id=user.id, family_member_id=member.id))
 
         created_count += 1
 
     await db.flush()
-
-    db.add(SystemConfig(
-        config_key=flag_key,
-        config_value="true",
-        config_type="system",
-        description="存量用户补充本人成员标志",
-    ))
-    await db.flush()
-    logger.info("Fixed %d legacy users: created self member and health profiles", created_count)
+    logger.info("Fixed %d users: created self member and health profiles", created_count)
 
 
 async def _fix_self_members_missing_relation_type(db: AsyncSession):

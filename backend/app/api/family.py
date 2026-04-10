@@ -65,28 +65,54 @@ async def list_family_members(
     members = list(result.scalars().all())
 
     if not any(m.is_self for m in members):
-        relation_type_id = None
-        rt_result = await db.execute(
-            select(RelationType).where(RelationType.name == "本人")
-        )
-        rt = rt_result.scalar_one_or_none()
-        if rt:
-            relation_type_id = rt.id
+        try:
+            relation_type_id = None
+            rt_result = await db.execute(
+                select(RelationType).where(RelationType.name == "本人")
+            )
+            rt = rt_result.scalar_one_or_none()
+            if rt:
+                relation_type_id = rt.id
 
-        self_member = FamilyMember(
-            user_id=current_user.id,
-            relationship_type="本人",
-            nickname="本人",
-            is_self=True,
-            status="active",
-            relation_type_id=relation_type_id,
-        )
-        db.add(self_member)
-        await db.flush()
-        await db.refresh(self_member, attribute_names=["id", "created_at"])
-        if rt:
-            self_member.relation_type = rt
-        members.append(self_member)
+            self_member = FamilyMember(
+                user_id=current_user.id,
+                relationship_type="本人",
+                nickname="本人",
+                is_self=True,
+                status="active",
+                relation_type_id=relation_type_id,
+            )
+            db.add(self_member)
+            await db.flush()
+            await db.refresh(self_member, attribute_names=["id", "created_at"])
+            if rt:
+                self_member.relation_type = rt
+            members.append(self_member)
+
+            hp_result = await db.execute(
+                select(HealthProfile).where(
+                    HealthProfile.user_id == current_user.id,
+                    HealthProfile.family_member_id == self_member.id,
+                )
+            )
+            if not hp_result.scalar_one_or_none():
+                hp_unlinked = await db.execute(
+                    select(HealthProfile).where(
+                        HealthProfile.user_id == current_user.id,
+                        HealthProfile.family_member_id.is_(None),
+                    )
+                )
+                unlinked_hp = hp_unlinked.scalar_one_or_none()
+                if unlinked_hp:
+                    unlinked_hp.family_member_id = self_member.id
+                else:
+                    db.add(HealthProfile(
+                        user_id=current_user.id,
+                        family_member_id=self_member.id,
+                    ))
+                await db.flush()
+        except Exception:
+            logger.exception("Failed to auto-create self member for user %s", current_user.id)
 
     self_members = [m for m in members if m.is_self]
     other_members = sorted([m for m in members if not m.is_self], key=lambda x: x.created_at)
