@@ -1,23 +1,54 @@
+<wxs module="chk">
+var includes = function(arr, x) {
+  if (!arr || !arr.length) return false;
+  for (var i = 0; i < arr.length; i++) {
+    if (arr[i] === x) return true;
+  }
+  return false;
+};
+module.exports.includes = includes;
+</wxs>
+
 <view class="form-page">
   <view class="form-card card">
     <view class="form-item">
-      <text class="form-label">名称 *</text>
-      <input class="form-input" placeholder="如：每日饮水2000ml" value="{{name}}" bindinput="onInput" data-field="name" />
+      <text class="form-label">打卡名称 *</text>
+      <input class="form-input" placeholder="如：喝水、冥想、跑步" value="{{name}}" bindinput="onInput" data-field="name" />
     </view>
 
     <view class="form-item">
-      <text class="form-label">描述</text>
-      <textarea class="form-textarea" placeholder="简单描述打卡内容" value="{{description}}" bindinput="onInput" data-field="description" />
+      <text class="form-label">提醒时间 *</text>
+      <picker mode="time" value="{{remindTime || '08:00'}}" bindchange="onRemindTimeChange">
+        <view class="form-picker">
+          <text class="picker-text">{{remindTime || '请选择提醒时间'}}</text>
+          <text class="picker-arrow">›</text>
+        </view>
+      </picker>
     </view>
 
     <view class="form-item">
-      <text class="form-label">目标</text>
-      <input class="form-input" placeholder="如：连续30天" value="{{target}}" bindinput="onInput" data-field="target" />
+      <text class="form-label">重复频率 *</text>
+      <picker mode="selector" range="{{freqLabels}}" value="{{repeatFrequencyIndex}}" bindchange="onRepeatFrequencyChange">
+        <view class="form-picker">
+          <text class="picker-text">{{freqLabels[repeatFrequencyIndex]}}</text>
+          <text class="picker-arrow">›</text>
+        </view>
+      </picker>
     </view>
 
-    <view class="form-item">
-      <text class="form-label">图标</text>
-      <input class="form-input" placeholder="输入一个emoji表情，如：💧" value="{{icon}}" bindinput="onInput" data-field="icon" />
+    <view class="form-item" wx:if="{{repeatFrequency === 'custom'}}">
+      <text class="form-label">重复日期 *</text>
+      <view class="day-row">
+        <view
+          wx:for="{{weekdays}}"
+          wx:key="day"
+          class="day-chip {{chk.includes(customDays, item.day) ? 'day-chip--on' : ''}}"
+          data-day="{{item.day}}"
+          bindtap="onToggleWeekday"
+        >
+          {{item.label}}
+        </view>
+      </view>
     </view>
   </view>
 

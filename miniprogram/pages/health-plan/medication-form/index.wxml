@@ -11,10 +11,10 @@
     </view>
 
     <view class="form-item">
-      <text class="form-label">频率</text>
-      <picker mode="selector" range="{{frequencyOptions}}" value="{{frequencyIndex}}" bindchange="onFrequencyChange">
+      <text class="form-label">用药时段 *</text>
+      <picker mode="selector" range="{{periodLabels}}" value="{{timePeriodIndex}}" bindchange="onTimePeriodChange">
         <view class="form-picker">
-          <text class="picker-text">{{frequencyOptions[frequencyIndex]}}</text>
+          <text class="picker-text">{{periodLabels[timePeriodIndex]}}</text>
           <text class="picker-arrow">›</text>
         </view>
       </picker>
@@ -22,24 +22,9 @@
 
     <view class="form-item">
       <text class="form-label">提醒时间</text>
-      <input class="form-input" placeholder="如：08:00, 20:00" value="{{remind_times}}" bindinput="onInput" data-field="remind_times" />
-    </view>
-
-    <view class="form-item">
-      <text class="form-label">开始日期</text>
-      <picker mode="date" value="{{start_date}}" bindchange="onStartDateChange">
+      <picker mode="time" value="{{remindTime || '08:00'}}" bindchange="onRemindTimeChange">
         <view class="form-picker">
-          <text class="picker-text">{{start_date || '请选择'}}</text>
-          <text class="picker-arrow">›</text>
-        </view>
-      </picker>
-    </view>
-
-    <view class="form-item">
-      <text class="form-label">结束日期</text>
-      <picker mode="date" value="{{end_date}}" bindchange="onEndDateChange">
-        <view class="form-picker">
-          <text class="picker-text">{{end_date || '不限'}}</text>
+          <text class="picker-text">{{remindTime || '请选择提醒时间'}}</text>
           <text class="picker-arrow">›</text>
         </view>
       </picker>

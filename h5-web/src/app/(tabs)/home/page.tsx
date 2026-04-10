@@ -428,95 +428,45 @@ export default function HomePage() {
                   {group.is_empty && <span className="text-xs text-gray-300 ml-2">今日无待办</span>}
                 </div>
 
-                {group.group_type === 'custom' && group.sub_groups ? (
-                  group.sub_groups.map((sub) => (
-                    <div key={sub.sub_group_name} className="ml-2 mb-2" style={{ opacity: sub.is_empty ? 0.5 : 1 }}>
-                      <div className="flex items-center mb-1">
-                        <span className="text-xs text-gray-400">{sub.sub_group_name}</span>
+                {group.is_empty ? (
+                  <div className="text-xs text-gray-300 ml-4 mb-1">今日无待办</div>
+                ) : (
+                  group.items.map((item) => (
+                    <div key={item.id}>
+                      <div
+                        className="flex items-center py-1.5 ml-2 cursor-pointer"
+                        onClick={() => handleQuickCheck(item)}
+                      >
+                        <div
+                          className="w-4 h-4 rounded-full border-2 flex items-center justify-center mr-2 shrink-0"
+                          style={{
+                            borderColor: item.is_completed ? '#52c41a' : '#ddd',
+                            background: item.is_completed ? '#52c41a' : 'transparent',
+                          }}
+                        >
+                          {item.is_completed && <span className="text-white" style={{ fontSize: 8 }}>✓</span>}
+                        </div>
+                        <span className={`text-sm flex-1 ${item.is_completed ? 'text-gray-400 line-through' : ''}`}>
+                          {item.name}
+                          {item.remind_time && <span className="text-xs text-gray-400 ml-1">{item.remind_time}</span>}
+                        </span>
                       </div>
-                      {sub.is_empty ? (
-                        <div className="text-xs text-gray-300 ml-4 mb-1">今日无待办</div>
-                      ) : (
-                        sub.items.map((item) => (
-                          <div key={item.id} className="ml-2">
-                            <div
-                              className="flex items-center py-1.5 cursor-pointer"
-                              onClick={() => handleQuickCheck(item)}
-                            >
-                              <div
-                                className="w-4 h-4 rounded-full border-2 flex items-center justify-center mr-2 shrink-0"
-                                style={{
-                                  borderColor: item.is_completed ? '#52c41a' : '#ddd',
-                                  background: item.is_completed ? '#52c41a' : 'transparent',
-                                }}
-                              >
-                                {item.is_completed && <span className="text-white" style={{ fontSize: 8 }}>✓</span>}
-                              </div>
-                              <span className={`text-sm flex-1 ${item.is_completed ? 'text-gray-400 line-through' : ''}`}>
-                                {item.name}
-                                {item.extra?.plan_name && <span className="text-xs text-gray-400 ml-1">{String(item.extra.plan_name)}</span>}
-                              </span>
-                            </div>
-                            {inputVisible === item.id && (
-                              <div className="flex items-center ml-6 mb-1 gap-2">
-                                <input
-                                  type="number"
-                                  value={inputValue}
-                                  onChange={(e) => setInputValue(e.target.value)}
-                                  placeholder={`输入${item.target_unit || '数值'}`}
-                                  className="flex-1 text-xs px-2 py-1.5 rounded-lg border border-gray-200"
-                                  autoFocus
-                                />
-                                <Button size="mini" color="primary" style={{ borderRadius: 6, background: '#52c41a', border: 'none', fontSize: 11 }} onClick={() => handleValueSubmit(item)}>确认</Button>
-                                <Button size="mini" style={{ borderRadius: 6, fontSize: 11 }} onClick={() => { setInputVisible(null); setInputValue(''); }}>取消</Button>
-                              </div>
-                            )}
-                          </div>
-                        ))
+                      {inputVisible === item.id && (
+                        <div className="flex items-center ml-8 mb-1 gap-2">
+                          <input
+                            type="number"
+                            value={inputValue}
+                            onChange={(e) => setInputValue(e.target.value)}
+                            placeholder={`输入${item.target_unit || '数值'}`}
+                            className="flex-1 text-xs px-2 py-1.5 rounded-lg border border-gray-200"
+                            autoFocus
+                          />
+                          <Button size="mini" color="primary" style={{ borderRadius: 6, background: '#52c41a', border: 'none', fontSize: 11 }} onClick={() => handleValueSubmit(item)}>确认</Button>
+                          <Button size="mini" style={{ borderRadius: 6, fontSize: 11 }} onClick={() => { setInputVisible(null); setInputValue(''); }}>取消</Button>
+                        </div>
                       )}
                     </div>
                   ))
-                ) : (
-                  group.is_empty ? (
-                    <div className="text-xs text-gray-300 ml-4 mb-1">今日无待办</div>
-                  ) : (
-                    group.items.map((item) => (
-                      <div key={item.id}>
-                        <div
-                          className="flex items-center py-1.5 ml-2 cursor-pointer"
-                          onClick={() => handleQuickCheck(item)}
-                        >
-                          <div
-                            className="w-4 h-4 rounded-full border-2 flex items-center justify-center mr-2 shrink-0"
-                            style={{
-                              borderColor: item.is_completed ? '#52c41a' : '#ddd',
-                              background: item.is_completed ? '#52c41a' : 'transparent',
-                            }}
-                          >
-                            {item.is_completed && <span className="text-white" style={{ fontSize: 8 }}>✓</span>}
-                          </div>
-                          <span className={`text-sm flex-1 ${item.is_completed ? 'text-gray-400 line-through' : ''}`}>
-                            {item.name}
-                            {item.remind_time && <span className="text-xs text-gray-400 ml-1">{item.remind_time}</span>}
-                          </span>
-                        </div>
-                        {inputVisible === item.id && (
-                          <div className="flex items-center ml-8 mb-1 gap-2">
-                            <input
-                              type="number"
-                              value={inputValue}
-                              onChange={(e) => setInputValue(e.target.value)}
-                              placeholder={`输入${item.target_unit || '数值'}`}
-                              className="flex-1 text-xs px-2 py-1.5 rounded-lg border border-gray-200"
-                              autoFocus
-                            />
-                            <Button size="mini" color="primary" style={{ borderRadius: 6, background: '#52c41a', border: 'none', fontSize: 11 }} onClick={() => handleValueSubmit(item)}>确认</Button>
-                            <Button size="mini" style={{ borderRadius: 6, fontSize: 11 }} onClick={() => { setInputVisible(null); setInputValue(''); }}>取消</Button>
-                          </div>
-                        )}
-                      </div>
-                    ))
-                  )
                 )}
               </div>
             );})

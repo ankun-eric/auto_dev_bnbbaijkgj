@@ -619,41 +619,10 @@ class _HomeScreenState extends State<HomeScreen> {
     final items = _parseList(group['items']);
     final isEmpty = group['is_empty'] == true || items.isEmpty;
     final groupName = group['group_name']?.toString() ?? '';
-    final subGroups = _parseList(group['sub_groups']);
 
     final widgets = <Widget>[];
 
-    if (groupType == 'custom' && subGroups.isNotEmpty) {
-      for (final sg in subGroups) {
-        final sgItems = _parseList(sg['items']);
-        final sgEmpty = sg['is_empty'] == true || sgItems.isEmpty;
-        final sgName = sg['sub_group_name']?.toString() ?? '';
-
-        if (sgEmpty) {
-          widgets.add(_buildTodoItem(
-            icon: icon,
-            color: Colors.grey[300]!,
-            title: sgName,
-            subtitle: '今日无待办',
-            done: false,
-            onCheck: null,
-            greyed: true,
-          ));
-        } else {
-          for (final item in sgItems.take(2)) {
-            final planName = (item['extra'] is Map) ? (item['extra'] as Map)['plan_name']?.toString() ?? '' : '';
-            widgets.add(_buildTodoItem(
-              icon: icon,
-              color: color,
-              title: item['name']?.toString() ?? '',
-              subtitle: '$sgName · $planName'.replaceAll(RegExp(r'^ · | · $'), ''),
-              done: item['is_completed'] == true,
-              onCheck: () => _handleQuickCheckin(item),
-            ));
-          }
-        }
-      }
-    } else if (isEmpty) {
+    if (isEmpty) {
       widgets.add(_buildTodoItem(
         icon: icon,
         color: Colors.grey[300]!,
@@ -671,6 +640,8 @@ class _HomeScreenState extends State<HomeScreen> {
           subtitle = [extra['time_period'] ?? '', item['remind_time'] ?? ''].where((s) => s.toString().isNotEmpty).join(' ');
         } else if (groupType == 'checkin' && item['target_value'] != null) {
           subtitle = '目标: ${item['target_value']} ${item['target_unit'] ?? ''}';
+        } else if (item['extra'] is Map && (item['extra'] as Map)['plan_name'] != null) {
+          subtitle = (item['extra'] as Map)['plan_name'].toString();
         }
         widgets.add(_buildTodoItem(
           icon: icon,

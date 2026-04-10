@@ -43,7 +43,6 @@ from app.schemas.health_plan_v2 import (
     TodayTodoGroup,
     TodayTodoItem,
     TodayTodoResponse,
-    TodayTodoSubGroup,
     UserPlanCreate,
     UserPlanResponse,
     UserPlanTaskCheckInCreate,
@@ -109,6 +108,34 @@ async def list_medications(
         groups.setdefault(period, []).append(resp)
 
     return {"groups": groups, "total": len(reminders)}
+
+
+@router.get("/medications/{reminder_id}", response_model=MedicationReminderResponse)
+async def get_medication_detail(
+    reminder_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(MedicationReminder).where(
+            MedicationReminder.id == reminder_id,
+            MedicationReminder.user_id == current_user.id,
+        )
+    )
+    reminder = result.scalar_one_or_none()
+    if not reminder:
+        raise HTTPException(status_code=404, detail="用药提醒不存在")
+    resp = MedicationReminderResponse.model_validate(reminder)
+    today = date.today()
+    checkin_result = await db.execute(
+        select(MedicationCheckIn).where(
+            MedicationCheckIn.reminder_id == reminder_id,
+            MedicationCheckIn.user_id == current_user.id,
+            MedicationCheckIn.check_in_date == today,
+        )
+    )
+    resp.today_checked = checkin_result.scalar_one_or_none() is not None
+    return resp
 
 
 @router.put("/medications/{reminder_id}", response_model=MedicationReminderResponse)
@@ -269,6 +296,35 @@ async def list_checkin_items(
         resp_items.append(resp)
 
     return {"items": resp_items, "total": len(resp_items)}
+
+
+@router.get("/checkin-items/{item_id}", response_model=HealthCheckInItemResponse)
+async def get_checkin_item_detail(
+    item_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(HealthCheckInItem).where(
+            HealthCheckInItem.id == item_id,
+            HealthCheckInItem.user_id == current_user.id,
+        )
+    )
+    item = result.scalar_one_or_none()
+    if not item:
+        raise HTTPException(status_code=404, detail="打卡项不存在")
+    resp = HealthCheckInItemResponse.model_validate(item)
+    today = date.today()
+    record_result = await db.execute(
+        select(HealthCheckInRecord).where(
+            HealthCheckInRecord.item_id == item_id,
+            HealthCheckInRecord.user_id == current_user.id,
+            HealthCheckInRecord.check_in_date == today,
+            HealthCheckInRecord.is_completed == True,
+        )
+    )
+    resp.today_completed = record_result.scalar_one_or_none() is not None
+    return resp
 
 
 @router.put("/checkin-items/{item_id}", response_model=HealthCheckInItemResponse)
@@ -590,6 +646,9 @@ async def list_user_plans(
     if status:
         query = query.where(UserPlan.status == status)
         count_query = count_query.where(UserPlan.status == status)
+    else:
+        query = query.where(UserPlan.status != "deleted")
+        count_query = count_query.where(UserPlan.status != "deleted")
 
     total_result = await db.execute(count_query)
     total = total_result.scalar() or 0
@@ -1049,17 +1108,10 @@ async def get_today_todos(
     total_completed += ci_completed
     total_count += len(checkin_todo_items)
 
-    # 3. custom plans grouped by template category as sub_groups
-    cat_result = await db.execute(
-        select(PlanTemplateCategory)
-        .where(PlanTemplateCategory.status == "active")
-        .order_by(PlanTemplateCategory.sort_order.asc())
-    )
-    all_categories = cat_result.scalars().all()
-
+    # 3. custom plans — flat list (no sub_groups)
     plan_result = await db.execute(
         select(UserPlan)
-        .options(selectinload(UserPlan.tasks), selectinload(UserPlan.category))
+        .options(selectinload(UserPlan.tasks))
         .where(UserPlan.user_id == current_user.id, UserPlan.status == "active")
     )
     user_plans = plan_result.scalars().all()
@@ -1080,12 +1132,11 @@ async def get_today_todos(
         )
         plan_completed_ids = {row[0] for row in ptr_result.all()}
 
-    cat_items_map: dict[int, list[TodayTodoItem]] = {}
-    uncategorized_items: list[TodayTodoItem] = []
+    plan_todo_items: list[TodayTodoItem] = []
     for p in user_plans:
         for t in sorted(p.tasks, key=lambda x: x.sort_order):
             is_done = t.id in plan_completed_ids
-            item = TodayTodoItem(
+            plan_todo_items.append(TodayTodoItem(
                 id=t.id,
                 name=t.task_name,
                 type="plan_task",
@@ -1095,51 +1146,19 @@ async def get_today_todos(
                 target_unit=t.target_unit,
                 is_completed=is_done,
                 extra={"plan_name": p.plan_name},
-            )
-            if p.category_id:
-                cat_items_map.setdefault(p.category_id, []).append(item)
-            else:
-                uncategorized_items.append(item)
+            ))
 
-    sub_groups: list[TodayTodoSubGroup] = []
-    custom_all_items: list[TodayTodoItem] = []
-    for cat in all_categories:
-        cat_task_items = cat_items_map.get(cat.id, [])
-        sg_completed = sum(1 for i in cat_task_items if i.is_completed)
-        sub_groups.append(TodayTodoSubGroup(
-            sub_group_name=cat.name,
-            category_id=cat.id,
-            items=cat_task_items,
-            completed_count=sg_completed,
-            total_count=len(cat_task_items),
-            is_empty=len(cat_task_items) == 0,
-        ))
-        custom_all_items.extend(cat_task_items)
-
-    if uncategorized_items:
-        uc_completed = sum(1 for i in uncategorized_items if i.is_completed)
-        sub_groups.append(TodayTodoSubGroup(
-            sub_group_name="其他计划",
-            category_id=None,
-            items=uncategorized_items,
-            completed_count=uc_completed,
-            total_count=len(uncategorized_items),
-            is_empty=False,
-        ))
-        custom_all_items.extend(uncategorized_items)
-
-    custom_completed = sum(1 for i in custom_all_items if i.is_completed)
+    plan_completed = sum(1 for i in plan_todo_items if i.is_completed)
     groups.append(TodayTodoGroup(
         group_name="健康计划",
         group_type="custom",
-        items=custom_all_items,
-        sub_groups=sub_groups,
-        completed_count=custom_completed,
-        total_count=len(custom_all_items),
-        is_empty=len(custom_all_items) == 0,
+        items=plan_todo_items,
+        completed_count=plan_completed,
+        total_count=len(plan_todo_items),
+        is_empty=len(plan_todo_items) == 0,
     ))
-    total_completed += custom_completed
-    total_count += len(custom_all_items)
+    total_completed += plan_completed
+    total_count += len(plan_todo_items)
 
     return TodayTodoResponse(
         groups=groups,

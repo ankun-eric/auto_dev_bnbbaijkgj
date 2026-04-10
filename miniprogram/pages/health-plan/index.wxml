@@ -76,69 +76,34 @@
           <text class="todo-group-count">{{item.completed_count}}/{{item.total_count}}</text>
         </view>
 
-        <block wx:if="{{!item.sub_groups || item.sub_groups.length === 0}}">
-          <view wx:if="{{item.is_empty}}" class="todo-group-empty">
-            <text class="todo-group-empty-text">今日无待办</text>
-          </view>
-          <view wx:else>
-            <view class="todo-item {{todoItem.is_completed ? 'todo-item-done' : ''}}" wx:for="{{item.items}}" wx:for-item="todoItem" wx:key="id">
-              <view class="todo-left">
-                <view class="todo-check {{todoItem.is_completed ? 'todo-checked' : ''}}">
-                  <text wx:if="{{todoItem.is_completed}}" class="check-mark">✓</text>
-                </view>
-                <view class="todo-info">
-                  <text class="todo-name {{todoItem.is_completed ? 'todo-done' : ''}}">{{todoItem.name}}</text>
-                  <text class="todo-time" wx:if="{{todoItem.remind_time}}">{{todoItem.remind_time}}</text>
-                </view>
+        <view wx:if="{{item.is_empty}}" class="todo-group-empty">
+          <text class="todo-group-empty-text">今日无待办</text>
+        </view>
+        <view wx:else>
+          <view class="todo-item {{todoItem.is_completed ? 'todo-item-done' : ''}}" wx:for="{{item.items}}" wx:for-item="todoItem" wx:key="id">
+            <view class="todo-left">
+              <view class="todo-check {{todoItem.is_completed ? 'todo-checked' : ''}}">
+                <text wx:if="{{todoItem.is_completed}}" class="check-mark">✓</text>
               </view>
-              <view class="todo-btn" wx:if="{{!todoItem.is_completed}}" catchtap="onTodoCheckin"
-                data-type="{{todoItem.type}}" data-id="{{todoItem.id}}"
-                data-source-id="{{todoItem.source_id}}"
-                data-target-value="{{todoItem.target_value}}"
-                data-target-unit="{{todoItem.target_unit}}"
-                data-name="{{todoItem.name}}">
-                <text class="todo-btn-text">打卡</text>
-              </view>
-              <view class="todo-btn-done" wx:else>
-                <text class="done-mark">✓</text>
+              <view class="todo-info">
+                <text class="todo-name {{todoItem.is_completed ? 'todo-done' : ''}}">{{todoItem.name}}</text>
+                <text class="todo-time" wx:if="{{todoItem.remind_time}}">{{todoItem.remind_time}}</text>
+                <text class="todo-time" wx:if="{{todoItem.extra.plan_name}}">{{todoItem.extra.plan_name}}</text>
               </view>
             </view>
-          </view>
-        </block>
-
-        <block wx:else>
-          <view class="todo-subgroup" wx:for="{{item.sub_groups}}" wx:for-item="subGroup" wx:key="sub_group_name">
-            <view class="todo-subgroup-header {{subGroup.is_empty ? 'subgroup-empty' : ''}}">
-              <text class="todo-subgroup-name">{{subGroup.sub_group_name}}</text>
-              <text class="todo-subgroup-count" wx:if="{{!subGroup.is_empty}}">{{subGroup.completed_count}}/{{subGroup.total_count}}</text>
-              <text class="todo-subgroup-empty-tag" wx:if="{{subGroup.is_empty}}">今日无待办</text>
+            <view class="todo-btn" wx:if="{{!todoItem.is_completed}}" catchtap="onTodoCheckin"
+              data-type="{{todoItem.type}}" data-id="{{todoItem.id}}"
+              data-source-id="{{todoItem.source_id}}"
+              data-target-value="{{todoItem.target_value}}"
+              data-target-unit="{{todoItem.target_unit}}"
+              data-name="{{todoItem.name}}">
+              <text class="todo-btn-text">打卡</text>
             </view>
-            <view wx:if="{{!subGroup.is_empty}}">
-              <view class="todo-item {{todoItem.is_completed ? 'todo-item-done' : ''}}" wx:for="{{subGroup.items}}" wx:for-item="todoItem" wx:key="id">
-                <view class="todo-left">
-                  <view class="todo-check {{todoItem.is_completed ? 'todo-checked' : ''}}">
-                    <text wx:if="{{todoItem.is_completed}}" class="check-mark">✓</text>
-                  </view>
-                  <view class="todo-info">
-                    <text class="todo-name {{todoItem.is_completed ? 'todo-done' : ''}}">{{todoItem.name}}</text>
-                    <text class="todo-time" wx:if="{{todoItem.extra.plan_name}}">{{todoItem.extra.plan_name}}</text>
-                  </view>
-                </view>
-                <view class="todo-btn" wx:if="{{!todoItem.is_completed}}" catchtap="onTodoCheckin"
-                  data-type="{{todoItem.type}}" data-id="{{todoItem.id}}"
-                  data-source-id="{{todoItem.source_id}}"
-                  data-target-value="{{todoItem.target_value}}"
-                  data-target-unit="{{todoItem.target_unit}}"
-                  data-name="{{todoItem.name}}">
-                  <text class="todo-btn-text">打卡</text>
-                </view>
-                <view class="todo-btn-done" wx:else>
-                  <text class="done-mark">✓</text>
-                </view>
-              </view>
+            <view class="todo-btn-done" wx:else>
+              <text class="done-mark">✓</text>
             </view>
           </view>
-        </block>
+        </view>
       </view>
     </view>
   </view>

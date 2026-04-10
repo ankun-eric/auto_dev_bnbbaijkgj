@@ -322,7 +322,6 @@ class _HealthPlanScreenState extends State<HealthPlanScreen> {
     final groupName = group['group_name']?.toString() ?? '';
     final isEmpty = group['is_empty'] == true;
     final items = _parseList(group['items']);
-    final subGroups = _parseList(group['sub_groups']);
     final completedCount = group['completed_count'] ?? 0;
     final totalCount = group['total_count'] ?? 0;
 
@@ -342,49 +341,10 @@ class _HealthPlanScreenState extends State<HealthPlanScreen> {
             ],
           ),
         ),
-        if (groupType == 'custom' && subGroups.isNotEmpty)
-          ...subGroups.map((sg) => _buildSubGroupSection(sg, icon, color))
-        else if (isEmpty)
+        if (isEmpty)
           _buildEmptyGroupHint(groupName)
         else
           ...items.map((item) => _buildTodoCard(item, groupType, color)),
-      ],
-    );
-  }
-
-  Widget _buildSubGroupSection(Map<String, dynamic> sg, IconData icon, Color color) {
-    final sgName = sg['sub_group_name']?.toString() ?? '';
-    final sgItems = _parseList(sg['items']);
-    final sgEmpty = sg['is_empty'] == true || sgItems.isEmpty;
-
-    if (sgEmpty) {
-      return Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: Colors.grey[50],
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: Colors.grey[300], size: 18),
-            const SizedBox(width: 10),
-            Text(sgName, style: TextStyle(fontSize: 14, color: Colors.grey[400])),
-            const Spacer(),
-            Text('今日无待办', style: TextStyle(fontSize: 12, color: Colors.grey[300])),
-          ],
-        ),
-      );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 4, top: 4, bottom: 4),
-          child: Text(sgName, style: TextStyle(fontSize: 12, color: Colors.grey[500], fontWeight: FontWeight.w500)),
-        ),
-        ...sgItems.map((item) => _buildTodoCard(item, 'plan_task', color)),
       ],
     );
   }
