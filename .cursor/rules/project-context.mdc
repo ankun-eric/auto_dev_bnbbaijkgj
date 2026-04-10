@@ -32,7 +32,48 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api/`
 
-## Latest Update: "我的"页面菜单精简 (2026-04-11)
+## Latest Update: 健康计划模块 Bug 修复 v2 (2026-04-11)
+
+### 概要
+修复健康计划模块 4 个 Bug：移除今日待办中「健康计划」分组下多余的 PlanTemplateCategory 子分组层级（sub_groups）；修复自定义计划删除后列表未过滤已删除记录；新增健康打卡和用药提醒的详情接口（GET）以支持编辑功能。
+
+### 变更范围
+- 后端：`health_plan_v2.py` — 移除 today-todos sub_groups 逻辑、list_user_plans 增加 deleted 过滤、新增 GET /checkin-items/{id} 和 GET /medications/{id} 详情接口
+- H5：`(tabs)/home/page.tsx` — 移除 sub_groups 渲染分支
+- 微信小程序：`home/index.wxml`、`health-plan/index.wxml`、`checkin-form/index.js+wxml+wxss`、`medication-form/index.js+wxml` — 移除 sub_groups + 修复编辑表单字段映射
+- Flutter：`health_plan_screen.dart`、`home_screen.dart` — 移除 sub_groups 渲染
+
+### Backend — 新增 API
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| GET | `/api/health-plan/medications/{reminder_id}` | 用药提醒详情（含 today_checked 状态） |
+| GET | `/api/health-plan/checkin-items/{item_id}` | 健康打卡项详情（含 today_completed 状态） |
+
+### Backend — 接口行为变更
+
+| 接口 | 变更 |
+| --- | --- |
+| GET `/api/health-plan/today-todos` | 「健康计划」分组不再返回 `sub_groups`，直接平铺 `items` |
+| GET `/api/health-plan/user-plans` | 无 status 参数时默认过滤 `status != "deleted"` |
+
+### 关键文件
+- `backend/app/api/health_plan_v2.py`
+- `h5-web/src/app/(tabs)/home/page.tsx`
+- `miniprogram/pages/home/index.wxml`
+- `miniprogram/pages/health-plan/index.wxml`
+- `miniprogram/pages/health-plan/checkin-form/index.{js,wxml,wxss}`
+- `miniprogram/pages/health-plan/medication-form/index.{js,wxml}`
+- `flutter_app/lib/screens/plan/health_plan_screen.dart`
+- `flutter_app/lib/screens/home/home_screen.dart`
+- `tests/test_health_plan_bugfix_v2.py`（12 个测试用例，全部通过）
+
+### 用户手册
+- `user_docs/健康计划模块Bug修复v2.md`
+
+---
+
+## Previous Update: "我的"页面菜单精简 (2026-04-11)
 
 ### 概要
 精简 H5 端"我的"页面（`/profile`）菜单结构，移除"健康档案"和"家庭成员"两个不常用的菜单入口，将"我的预约"合并至第二组并置顶，菜单从三组缩减为两组。功能页面 `/health-profile` 和 `/family` 本身保留不变。
