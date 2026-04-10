@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback, Suspense } from 'react';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
-import { NavBar, Input, Button, SpinLoading, Toast, Popup, Tag, DatePicker, Dialog } from 'antd-mobile';
+import { NavBar, Input, SpinLoading, Toast, Popup, Tag, DatePicker, Dialog } from 'antd-mobile';
 import api from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import ChatSidebar from '@/components/ChatSidebar';
@@ -78,6 +78,14 @@ const RELATION_EMOJI: Record<string, string> = {
 
 function getMemberEmoji(relationName: string): string {
   return RELATION_EMOJI[relationName] || '🧑';
+}
+
+function getRelationColor(relationName: string): string {
+  if (relationName === '本人') return '#52c41a';
+  if (['爸爸', '妈妈', '父亲', '母亲'].includes(relationName)) return '#1890ff';
+  if (['儿子', '女儿', '子女'].includes(relationName)) return '#eb2f96';
+  if (['爷爷', '奶奶', '外公', '外婆', '祖父母', '外祖父母'].includes(relationName)) return '#fa8c16';
+  return '#8c8c8c';
 }
 
 const ADD_MEDICAL_OPTIONS = ['高血压', '糖尿病', '心脏病', '哮喘', '甲状腺疾病', '肝病', '肾病', '痛风'];
@@ -167,6 +175,7 @@ function ChatPageInner() {
   const [memberPopupVisible, setMemberPopupVisible] = useState(false);
   const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([]);
   const [switchingMember, setSwitchingMember] = useState(false);
+  const [currentRelationLabel, setCurrentRelationLabel] = useState('本人');
 
   // Add member popup state (two-step)
   const [addMemberPopupVisible, setAddMemberPopupVisible] = useState(false);
@@ -399,6 +408,17 @@ function ChatPageInner() {
       return;
     }
     try {
+      if (navigator.permissions) {
+        const permStatus = await navigator.permissions.query({ name: 'microphone' as PermissionName });
+        if (permStatus.state === 'granted') {
+          setVoiceMode(true);
+          return;
+        }
+        if (permStatus.state === 'denied') {
+          Toast.show({ content: '麦克风权限已被禁止，请在系统设置中开启', icon: 'fail', duration: 2500 });
+          return;
+        }
+      }
       const result = await Dialog.confirm({
         title: '允许访问麦克风',
         content: '请授权麦克风，以便AI发送语音消息',
@@ -604,12 +624,13 @@ function ChatPageInner() {
     setMemberPopupVisible(true);
   };
 
-  const handleSwitchMember = async (memberId: number | null, label: string) => {
+  const handleSwitchMember = async (memberId: number | null, label: string, relationName: string) => {
     setSwitchingMember(true);
     try {
       await api.post(`/api/chat/sessions/${sessionId}/switch-member`, {
         family_member_id: memberId,
       });
+      setCurrentRelationLabel(relationName);
       setMemberPopupVisible(false);
       Toast.show({
         content: `已切换为${label}，后续AI回复将基于新的档案`,
@@ -627,7 +648,8 @@ function ChatPageInner() {
     try {
       const res: any = await api.get('/api/relation-types');
       const data = res.data || res;
-      setRelationTypes(Array.isArray(data.items) ? data.items : []);
+      const items = Array.isArray(data.items) ? data.items : [];
+      setRelationTypes(items.filter((rt: any) => rt.name !== '本人'));
     } catch {
       setRelationTypes([]);
     }
@@ -658,6 +680,7 @@ function ChatPageInner() {
     try {
       const body: any = {
         nickname: newNickname.trim(),
+        name: newNickname.trim(),
         relationship_type: selectedRelation.name,
         relation_type_id: selectedRelation.id,
         gender: newGender,
@@ -922,13 +945,12 @@ function ChatPageInner() {
         <button
           onClick={openMemberPopup}
           className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-full"
-          style={{ background: '#f0fff0', border: '1px solid #b7eb8f' }}
+          style={{ background: getRelationColor(currentRelationLabel), border: 'none' }}
           aria-label="切换咨询对象"
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#52c41a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="8" r="4" />
-            <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
-          </svg>
+          <span style={{ color: '#fff', fontSize: 11, fontWeight: 600, lineHeight: 1.1, textAlign: 'center' }}>
+            {currentRelationLabel.length > 2 ? currentRelationLabel.slice(0, 2) : currentRelationLabel}
+          </span>
         </button>
 
         {voiceMode ? (
@@ -952,14 +974,32 @@ function ChatPageInner() {
             {isRecording ? (isCancelZone ? '松开取消' : '松开结束') : '按住说话'}
           </div>
         ) : (
-          <div className="flex-1 bg-gray-50 rounded-2xl px-4 py-2">
+          <div className="flex-1 bg-gray-50 rounded-2xl px-3 py-1 flex items-center" style={{ position: 'relative' }}>
             <Input
               placeholder="发信息..."
               value={inputVal}
               onChange={setInputVal}
               onEnterPress={sendMessage}
-              style={{ '--font-size': '14px' }}
+              style={{ '--font-size': '14px', flex: 1 }}
             />
+            <button
+              onClick={sendMessage}
+              disabled={!inputVal.trim() || loading}
+              className="flex-shrink-0 flex items-center justify-center"
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: '50%',
+                border: 'none',
+                background: inputVal.trim() ? 'linear-gradient(135deg, #52c41a, #13c2c2)' : '#e8e8e8',
+                color: inputVal.trim() ? '#fff' : '#999',
+                marginLeft: 4,
+                cursor: inputVal.trim() ? 'pointer' : 'default',
+                fontSize: 14,
+              }}
+            >
+              ➤
+            </button>
           </div>
         )}
 
@@ -988,27 +1028,6 @@ function ChatPageInner() {
             </svg>
           )}
         </button>
-
-        {!voiceMode && (
-          <Button
-            onClick={sendMessage}
-            disabled={!inputVal.trim() || loading}
-            style={{
-              background: inputVal.trim() ? 'linear-gradient(135deg, #52c41a, #13c2c2)' : '#e8e8e8',
-              color: inputVal.trim() ? '#fff' : '#999',
-              border: 'none',
-              borderRadius: '50%',
-              width: 40,
-              height: 40,
-              padding: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            ➤
-          </Button>
-        )}
       </div>
 
       {/* Voice recording overlay */}
@@ -1122,7 +1141,7 @@ function ChatPageInner() {
                   key={m.id}
                   className="flex items-center gap-3 px-3 py-3 rounded-xl cursor-pointer"
                   style={{ background: '#f9f9f9' }}
-                  onClick={() => handleSwitchMember(m.is_self ? null : m.id, switchLabel)}
+                  onClick={() => handleSwitchMember(m.is_self ? null : m.id, switchLabel, m.is_self ? '本人' : relationLabel)}
                 >
                   <div className="w-9 h-9 rounded-full flex items-center justify-center text-xl"
                     style={{ background: m.is_self ? 'linear-gradient(135deg, #52c41a, #13c2c2)' : '#87d068' }}>

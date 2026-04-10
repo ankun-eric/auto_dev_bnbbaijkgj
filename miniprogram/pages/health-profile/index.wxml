@@ -1,4 +1,19 @@
 <view class="health-profile-page">
+  <!-- 家庭成员 Tab -->
+  <view class="family-tabs-wrapper">
+    <scroll-view class="family-tabs" scroll-x>
+      <view class="family-tab {{activeTabIndex === index ? 'family-tab-active' : ''}}"
+            wx:for="{{familyTabs}}" wx:key="id"
+            bindtap="onTabSelect" data-index="{{index}}"
+            style="background: {{activeTabIndex === index ? item.color : '#f0f0f0'}};">
+        <text class="family-tab-text" style="color: {{activeTabIndex === index ? '#fff' : '#666'}};">{{item.name}}</text>
+      </view>
+      <view class="family-tab family-tab-add" bindtap="onAddMemberTap">
+        <text class="family-tab-text" style="color: #999;">+</text>
+      </view>
+    </scroll-view>
+  </view>
+
   <!-- 基础信息 -->
   <view class="card">
     <text class="section-title">基础信息</text>

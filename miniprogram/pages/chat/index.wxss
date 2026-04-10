@@ -276,29 +276,43 @@
   font-size: 40rpx;
 }
 
+.input-wrapper {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  background: #f5f5f5;
+  border-radius: 36rpx;
+  padding: 0 8rpx 0 24rpx;
+  height: 72rpx;
+  min-width: 0;
+}
+
 .chat-input {
   flex: 1;
   height: 72rpx;
-  background: #f5f5f5;
-  border-radius: 36rpx;
-  padding: 0 24rpx;
   font-size: 28rpx;
+  min-width: 0;
 }
 
-.send-btn {
-  padding: 14rpx 28rpx;
-  border-radius: 32rpx;
+.send-btn-inline {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 50%;
   background: #e8e8e8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
 }
 
-.send-active {
-  background: linear-gradient(135deg, #52c41a, #13c2c2);
+.send-btn-inline.send-active {
+  background: #52c41a;
 }
 
-.send-text {
-  font-size: 26rpx;
+.send-icon-arrow {
+  font-size: 32rpx;
   color: #fff;
+  font-weight: bold;
 }
 
 .disclaimer {
@@ -444,4 +458,84 @@
 
 .record-hint-cancel {
   color: #ff4d4f;
+}
+
+/* Consult target button */
+.consult-target-btn {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.consult-target-text {
+  font-size: 20rpx;
+  color: #fff;
+  font-weight: bold;
+}
+
+/* Target picker popup */
+.target-picker-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 998;
+}
+
+.target-picker {
+  position: fixed;
+  bottom: 120rpx;
+  left: 24rpx;
+  background: #fff;
+  border-radius: 16rpx;
+  box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.12);
+  z-index: 999;
+  padding: 16rpx;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+  max-width: 400rpx;
+}
+
+.target-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4rpx;
+  position: relative;
+}
+
+.target-avatar-small {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.target-avatar-text-small {
+  font-size: 20rpx;
+  color: #fff;
+  font-weight: bold;
+}
+
+.target-option-check {
+  position: absolute;
+  top: -4rpx;
+  right: -4rpx;
+  font-size: 20rpx;
+  color: #52c41a;
+  font-weight: bold;
+  background: #fff;
+  border-radius: 50%;
+  width: 28rpx;
+  height: 28rpx;
+  text-align: center;
+  line-height: 28rpx;
 }

@@ -3,6 +3,48 @@
   padding-bottom: 140rpx;
 }
 
+/* Family Tabs */
+.family-tabs-wrapper {
+  margin-bottom: 24rpx;
+}
+
+.family-tabs {
+  white-space: nowrap;
+  padding: 8rpx 0;
+}
+
+.family-tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 50%;
+  margin-right: 20rpx;
+  background: #f0f0f0;
+  vertical-align: middle;
+}
+
+.family-tab-active {
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.15);
+}
+
+.family-tab-text {
+  font-size: 22rpx;
+  font-weight: bold;
+}
+
+.family-tab-add {
+  background: #f0f0f0;
+  border: 2rpx dashed #ccc;
+}
+
+.family-tab-add .family-tab-text {
+  font-size: 36rpx;
+  font-weight: normal;
+  color: #999;
+}
+
 .form-item {
   display: flex;
   align-items: center;

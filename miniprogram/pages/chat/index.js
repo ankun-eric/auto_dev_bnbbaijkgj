@@ -1,6 +1,17 @@
 const { post, get, put, del } = require('../../utils/request');
 const { generateId } = require('../../utils/util');
 
+const RELATION_COLORS = {
+  '本人': '#52c41a',
+  '爸爸': '#1890ff', '妈妈': '#1890ff',
+  '儿子': '#eb2f96', '女儿': '#eb2f96',
+  '爷爷': '#fa8c16', '奶奶': '#fa8c16',
+  '外公': '#fa8c16', '外婆': '#fa8c16'
+};
+function getRelationColor(name) {
+  return RELATION_COLORS[name] || '#8c8c8c';
+}
+
 const plugin = requirePlugin('WechatSI');
 
 const FONT_SIZE_OPTIONS = [
@@ -27,7 +38,10 @@ Page({
     isRecording: false,
     showRecordOverlay: false,
     recordCancelling: false,
-    recordingTime: 0
+    recordingTime: 0,
+    consultTarget: { name: '本人', color: '#52c41a' },
+    showTargetPicker: false,
+    familyMembers: []
   },
 
   _recognizeManager: null,
@@ -53,6 +67,7 @@ Page({
     this.addMessage('assistant', `您好！我是宾尼小康AI健康助手，很高兴为您提供${typeNames[type] || '健康'}咨询服务。\n\n请描述您的症状或健康问题，我会为您提供专业的分析和建议。`);
 
     this.loadFontSetting();
+    this.loadFamilyMembers();
 
     if (question) {
       setTimeout(() => {
@@ -198,6 +213,40 @@ Page({
     });
   },
 
+  async loadFamilyMembers() {
+    try {
+      const res = await get('/api/family/members', {}, { showLoading: false, suppressErrorToast: true });
+      const items = res && res.items ? res.items : [];
+      const members = items.map(m => ({
+        id: m.id,
+        name: m.relation_type_name || m.nickname || '本人',
+        color: getRelationColor(m.relation_type_name || ''),
+        is_self: m.is_self
+      }));
+      if (!members.some(m => m.is_self)) {
+        members.unshift({ id: 0, name: '本人', color: '#52c41a', is_self: true });
+      }
+      this.setData({ familyMembers: members });
+    } catch (e) {
+      console.log('loadFamilyMembers error', e);
+    }
+  },
+
+  toggleTargetPicker() {
+    if (!this.data.familyMembers.length) {
+      this.loadFamilyMembers();
+    }
+    this.setData({ showTargetPicker: !this.data.showTargetPicker });
+  },
+
+  onSelectTarget(e) {
+    const member = e.currentTarget.dataset.member;
+    this.setData({
+      consultTarget: { name: member.name, color: member.color },
+      showTargetPicker: false
+    });
+  },
+
   onUnload() {
     if (this._recordTimer) {
       clearInterval(this._recordTimer);
@@ -266,33 +315,42 @@ Page({
   },
 
   _checkRecordAuth(successCb) {
-    wx.authorize({
-      scope: 'scope.record',
-      success: () => {
-        if (!this._recognizeManager) this._initRecognizeManager();
-        successCb();
-      },
-      fail: () => {
-        wx.showModal({
-          title: '允许访问麦克风',
-          content: '请授权麦克风，以便AI发送语音消息',
-          cancelText: '取消',
-          confirmText: '去授权',
-          success: (res) => {
-            if (res.confirm) {
-              wx.openSetting({
-                success: (settingRes) => {
-                  if (settingRes.authSetting['scope.record']) {
-                    if (!this._recognizeManager) this._initRecognizeManager();
-                    successCb();
-                  } else {
-                    wx.showToast({ title: '请在设置中开启麦克风权限', icon: 'none' });
-                  }
+    wx.getSetting({
+      success: (res) => {
+        if (res.authSetting['scope.record']) {
+          if (!this._recognizeManager) this._initRecognizeManager();
+          successCb();
+          return;
+        }
+        wx.authorize({
+          scope: 'scope.record',
+          success: () => {
+            if (!this._recognizeManager) this._initRecognizeManager();
+            successCb();
+          },
+          fail: () => {
+            wx.showModal({
+              title: '允许访问麦克风',
+              content: '请授权麦克风，以便AI发送语音消息',
+              cancelText: '取消',
+              confirmText: '去授权',
+              success: (modalRes) => {
+                if (modalRes.confirm) {
+                  wx.openSetting({
+                    success: (settingRes) => {
+                      if (settingRes.authSetting['scope.record']) {
+                        if (!this._recognizeManager) this._initRecognizeManager();
+                        successCb();
+                      } else {
+                        wx.showToast({ title: '请在设置中开启麦克风权限', icon: 'none' });
+                      }
+                    }
+                  });
+                } else {
+                  wx.showToast({ title: '请在设置中开启麦克风权限', icon: 'none' });
                 }
-              });
-            } else {
-              wx.showToast({ title: '请在设置中开启麦克风权限', icon: 'none' });
-            }
+              }
+            });
           }
         });
       }

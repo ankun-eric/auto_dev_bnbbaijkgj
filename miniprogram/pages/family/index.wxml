@@ -49,11 +49,19 @@
           <text class="form-label">姓名</text>
           <input class="form-input" placeholder="请输入姓名" value="{{formData.name}}" bindinput="onFormInput" data-field="name" />
         </view>
-        <view class="form-row">
+        <view class="form-row form-row-vertical">
           <text class="form-label">关系</text>
-          <picker range="{{relations}}" value="{{relationIndex}}" bindchange="onRelationChange">
-            <text class="form-value">{{formData.relation || '请选择'}}</text>
-          </picker>
+          <view class="relation-grid">
+            <view
+              class="relation-grid-item {{selectedRelationIndex === index ? 'relation-grid-active' : ''}}"
+              wx:for="{{relationTypes}}"
+              wx:key="id"
+              bindtap="onRelationSelect"
+              data-index="{{index}}"
+            >
+              <text class="relation-grid-text">{{item.name}}</text>
+            </view>
+          </view>
         </view>
         <view class="form-row">
           <text class="form-label">年龄</text>

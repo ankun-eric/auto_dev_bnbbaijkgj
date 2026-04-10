@@ -84,20 +84,18 @@ function getMemberEmoji(relationName: string): string {
   return RELATION_EMOJI[relationName] || '🧑';
 }
 
+function getRelationColor(relationName: string): string {
+  if (relationName === '本人') return '#52c41a';
+  if (['爸爸', '妈妈', '父亲', '母亲'].includes(relationName)) return '#1890ff';
+  if (['儿子', '女儿', '子女'].includes(relationName)) return '#eb2f96';
+  if (['爷爷', '奶奶', '外公', '外婆', '祖父母', '外祖父母'].includes(relationName)) return '#fa8c16';
+  return '#8c8c8c';
+}
+
 const BLOOD_TYPES = ['A', 'B', 'O', 'AB'];
 
 const ADD_MEDICAL_OPTIONS = ['高血压', '糖尿病', '心脏病', '哮喘', '甲状腺疾病', '肝病', '肾病', '痛风'];
 const ADD_ALLERGY_OPTIONS = ['青霉素', '花粉', '海鲜', '牛奶', '尘螨', '坚果', '磺胺类', '头孢类'];
-
-function getToken(): string {
-  if (typeof window === 'undefined') return '';
-  return localStorage.getItem('token') || '';
-}
-
-function authHeaders(): HeadersInit {
-  const token = getToken();
-  return token ? { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' };
-}
 
 function calcAge(birthday: string): string {
   if (!birthday) return '';
@@ -220,8 +218,8 @@ export default function HealthProfilePage() {
   const fetchMembers = async () => {
     setMembersLoading(true);
     try {
-      const res = await fetch('/api/family/members', { headers: authHeaders() });
-      const data = await res.json();
+      const res: any = await api.get('/api/family/members');
+      const data = res.data || res;
       const items: FamilyMember[] = Array.isArray(data.items) ? data.items : [];
       setMembers(items);
       if (selectedMemberId === null && items.length > 0) {
@@ -239,8 +237,8 @@ export default function HealthProfilePage() {
   const fetchProfile = async (memberId: number) => {
     setProfileLoading(true);
     try {
-      const res = await fetch(`/api/health/profile/member/${memberId}`, { headers: authHeaders() });
-      const data = await res.json();
+      const res: any = await api.get(`/api/health/profile/member/${memberId}`);
+      const data = res.data || res;
       setProfile(data);
     } catch {
       setProfile(null);
@@ -252,10 +250,12 @@ export default function HealthProfilePage() {
 
   const fetchPresets = async () => {
     try {
-      const [c, g] = await Promise.all([
-        fetch('/api/disease-presets?category=chronic', { headers: authHeaders() }).then((r) => r.json()),
-        fetch('/api/disease-presets?category=genetic', { headers: authHeaders() }).then((r) => r.json()),
+      const [cRes, gRes]: any[] = await Promise.all([
+        api.get('/api/disease-presets', { params: { category: 'chronic' } }),
+        api.get('/api/disease-presets', { params: { category: 'genetic' } }),
       ]);
+      const c = cRes.data || cRes;
+      const g = gRes.data || gRes;
       setChronicPresets(Array.isArray(c.items) ? c.items : []);
       setGeneticPresets(Array.isArray(g.items) ? g.items : []);
     } catch {
@@ -267,9 +267,10 @@ export default function HealthProfilePage() {
 
   const fetchRelationTypes = async () => {
     try {
-      const res = await fetch('/api/relation-types', { headers: authHeaders() });
-      const data = await res.json();
-      setRelationTypes(Array.isArray(data.items) ? data.items : []);
+      const res: any = await api.get('/api/relation-types');
+      const data = res.data || res;
+      const items = Array.isArray(data.items) ? data.items : [];
+      setRelationTypes(items.filter((rt: any) => rt.name !== '本人'));
     } catch {
       setRelationTypes([]);
     }
@@ -302,11 +303,7 @@ export default function HealthProfilePage() {
   const saveProfile = useCallback(async (memberId: number, patch: Partial<HealthProfile>) => {
     setSaveStatus('saving');
     try {
-      await fetch(`/api/health/profile/member/${memberId}`, {
-        method: 'PUT',
-        headers: authHeaders(),
-        body: JSON.stringify(patch),
-      });
+      await api.put(`/api/health/profile/member/${memberId}`, patch);
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 1200);
     } catch {
@@ -350,6 +347,7 @@ export default function HealthProfilePage() {
     try {
       const body: any = {
         nickname: newNickname.trim(),
+        name: newNickname.trim(),
         relationship_type: selectedRelation.name,
         relation_type_id: selectedRelation.id,
         gender: newGender,
@@ -364,12 +362,8 @@ export default function HealthProfilePage() {
       if (newAllergyOther.trim()) allergies.push(newAllergyOther.trim());
       if (allergies.length) body.allergies = allergies;
 
-      const res = await fetch('/api/family/members', {
-        method: 'POST',
-        headers: authHeaders(),
-        body: JSON.stringify(body),
-      });
-      const created = await res.json();
+      const createdRes: any = await api.post('/api/family/members', body);
+      const created = createdRes.data || createdRes;
       setAddPopupVisible(false);
       await fetchMembers();
       if (created.id) setSelectedMemberId(created.id);
@@ -395,10 +389,7 @@ export default function HealthProfilePage() {
   const confirmDelete = async () => {
     if (deletingMemberId === null) return;
     try {
-      await fetch(`/api/family/members/${deletingMemberId}`, {
-        method: 'DELETE',
-        headers: authHeaders(),
-      });
+      await api.delete(`/api/family/members/${deletingMemberId}`);
       const selfMember = members.find((m) => m.is_self);
       setDeletingMemberId(null);
       await fetchMembers();
@@ -454,7 +445,7 @@ export default function HealthProfilePage() {
         </div>
       )}
 
-      {/* ── Member switcher ────────────────────────────────────────────────── */}
+      {/* ── Member switcher (Tab circle icons) ─────────────────────────── */}
       <div className="px-4 pb-2">
         <div
           className="flex items-center gap-3 overflow-x-auto pb-1"
@@ -464,8 +455,9 @@ export default function HealthProfilePage() {
             <div className="text-sm text-gray-400 py-2">加载中...</div>
           ) : (
             members.map((m) => {
-              const emoji = getMemberEmoji(m.relation_type_name || m.relationship_type);
+              const relationName = m.relation_type_name || m.relationship_type || '本人';
               const isSelected = m.id === selectedMemberId;
+              const color = getRelationColor(relationName);
               return (
                 <div
                   key={m.id}
@@ -479,28 +471,35 @@ export default function HealthProfilePage() {
                   onMouseLeave={handleLongPressEnd}
                 >
                   <div
-                    className="flex items-center justify-center text-xl rounded-full transition-all"
+                    className="flex items-center justify-center rounded-full transition-all"
                     style={{
                       width: 44,
                       height: 44,
-                      background: isSelected
-                        ? 'linear-gradient(135deg, #52c41a, #13c2c2)'
-                        : 'rgba(255,255,255,0.85)',
-                      boxShadow: isSelected ? '0 4px 12px rgba(82,196,26,0.35)' : '0 1px 4px rgba(0,0,0,0.08)',
+                      background: isSelected ? color : '#f0f0f0',
+                      boxShadow: isSelected ? `0 4px 12px ${color}55` : '0 1px 4px rgba(0,0,0,0.08)',
                       border: isSelected ? 'none' : '1.5px solid #e8e8e8',
                     }}
                   >
-                    {emoji}
+                    <span style={{
+                      color: isSelected ? '#fff' : '#555',
+                      fontSize: relationName.length > 2 ? 11 : 13,
+                      fontWeight: 600,
+                      lineHeight: 1.1,
+                    }}>
+                      {relationName.length > 2 ? relationName.slice(0, 2) : relationName}
+                    </span>
                   </div>
+                  {isSelected && (
+                    <div style={{ width: 6, height: 6, borderRadius: '50%', background: color, marginTop: 4 }} />
+                  )}
                   <span
-                    className="text-xs mt-1 font-medium"
+                    className="text-xs font-medium"
                     style={{
-                      color: isSelected ? '#52c41a' : '#888',
-                      borderBottom: isSelected ? '2px solid #52c41a' : '2px solid transparent',
-                      paddingBottom: 1,
+                      color: isSelected ? color : '#888',
+                      marginTop: isSelected ? 2 : 8,
                     }}
                   >
-                    {m.relation_type_name || m.relationship_type || '本人'}
+                    {relationName}
                   </span>
                 </div>
               );
@@ -514,7 +513,7 @@ export default function HealthProfilePage() {
             onClick={openAddPopup}
           >
             <div
-              className="flex items-center justify-center text-xl rounded-full"
+              className="flex items-center justify-center rounded-full"
               style={{
                 width: 44,
                 height: 44,
@@ -526,7 +525,7 @@ export default function HealthProfilePage() {
             >
               +
             </div>
-            <span className="text-xs mt-1 text-gray-400">添加</span>
+            <span className="text-xs mt-1 text-gray-400" style={{ marginTop: 8 }}>添加</span>
           </div>
         </div>
       </div>

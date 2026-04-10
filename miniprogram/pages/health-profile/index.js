@@ -1,7 +1,20 @@
 const { get, post } = require('../../utils/request');
 
+const RELATION_COLORS = {
+  '本人': '#52c41a',
+  '爸爸': '#1890ff', '妈妈': '#1890ff',
+  '儿子': '#eb2f96', '女儿': '#eb2f96',
+  '爷爷': '#fa8c16', '奶奶': '#fa8c16',
+  '外公': '#fa8c16', '外婆': '#fa8c16'
+};
+function getRelationColor(name) {
+  return RELATION_COLORS[name] || '#8c8c8c';
+}
+
 Page({
   data: {
+    familyTabs: [],
+    activeTabIndex: 0,
     profile: {
       name: '',
       gender: '',
@@ -18,7 +31,41 @@ Page({
   },
 
   onLoad() {
+    this.loadFamilyTabs();
+  },
+
+  async loadFamilyTabs() {
+    try {
+      const res = await get('/api/family/members', {}, { showLoading: false, suppressErrorToast: true });
+      const items = res && res.items ? res.items : [];
+      const tabs = items.map(m => ({
+        id: m.id,
+        name: m.relation_type_name || m.nickname || '本人',
+        color: getRelationColor(m.relation_type_name || ''),
+        is_self: m.is_self
+      }));
+      if (!tabs.some(t => t.is_self)) {
+        tabs.unshift({ id: 0, name: '本人', color: '#52c41a', is_self: true });
+      }
+      this.setData({ familyTabs: tabs, activeTabIndex: 0 });
+      this.loadProfile();
+    } catch (e) {
+      this.setData({
+        familyTabs: [{ id: 0, name: '本人', color: '#52c41a', is_self: true }],
+        activeTabIndex: 0
+      });
+      this.loadProfile();
+    }
+  },
+
+  onTabSelect(e) {
+    const index = e.currentTarget.dataset.index;
+    this.setData({ activeTabIndex: index });
     this.loadProfile();
+  },
+
+  onAddMemberTap() {
+    wx.navigateTo({ url: '/pages/family/index' });
   },
 
   async loadProfile() {

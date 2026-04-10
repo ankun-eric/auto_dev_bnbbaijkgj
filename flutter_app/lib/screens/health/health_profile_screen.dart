@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/health_provider.dart';
+import '../../services/api_service.dart';
 import '../../widgets/custom_app_bar.dart';
 import '../../widgets/loading_widget.dart';
 
@@ -13,20 +14,69 @@ class HealthProfileScreen extends StatefulWidget {
 
 class _HealthProfileScreenState extends State<HealthProfileScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  final ApiService _apiService = ApiService();
+
+  int _selectedMemberIndex = 0;
+  List<Map<String, dynamic>> _familyMembers = [
+    {'name': '本人', 'relation': '本人', 'is_self': true},
+  ];
+
+  static Color _relationColor(String relation) {
+    if (relation == '本人') return const Color(0xFF52C41A);
+    if (relation == '爸爸' || relation == '妈妈' || relation == '父亲' || relation == '母亲') {
+      return const Color(0xFF1890FF);
+    }
+    if (relation == '儿子' || relation == '女儿' || relation == '子女') {
+      return const Color(0xFFEB2F96);
+    }
+    if (relation == '爷爷' || relation == '奶奶') return const Color(0xFFFA8C16);
+    return const Color(0xFF8C8C8C);
+  }
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _loadFamilyMembers();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<HealthProvider>(context, listen: false).loadHealthProfile();
     });
+  }
+
+  Future<void> _loadFamilyMembers() async {
+    try {
+      final response = await _apiService.getFamilyMembers();
+      if (response.statusCode == 200 && mounted) {
+        final items = response.data['items'] as List? ?? [];
+        if (items.isNotEmpty) {
+          setState(() {
+            _familyMembers = items.map((e) {
+              final m = Map<String, dynamic>.from(e as Map);
+              return {
+                'id': m['id'],
+                'name': m['nickname'] ?? m['name'] ?? '',
+                'relation': m['relation_type_name'] ?? m['relationship_type'] ?? '本人',
+                'is_self': m['is_self'] ?? false,
+              };
+            }).toList();
+          });
+        }
+      }
+    } catch (_) {}
   }
 
   @override
   void dispose() {
     _tabController.dispose();
     super.dispose();
+  }
+
+  void _onMemberTap(int index) {
+    setState(() => _selectedMemberIndex = index);
+  }
+
+  void _onAddMember() {
+    Navigator.pushNamed(context, '/family');
   }
 
   @override
@@ -39,32 +89,135 @@ class _HealthProfileScreenState extends State<HealthProfileScreen> with SingleTi
           icon: const Icon(Icons.arrow_back_ios, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: Colors.white,
-          indicatorWeight: 3,
-          tabs: const [
-            Tab(text: '基础信息'),
-            Tab(text: '健康记录'),
-            Tab(text: '用药记录'),
-          ],
+      ),
+      body: Column(
+        children: [
+          _buildMemberTabs(),
+          Container(
+            color: Colors.white,
+            child: TabBar(
+              controller: _tabController,
+              indicatorColor: const Color(0xFF52C41A),
+              indicatorWeight: 3,
+              labelColor: const Color(0xFF52C41A),
+              unselectedLabelColor: const Color(0xFF999999),
+              tabs: const [
+                Tab(text: '基础信息'),
+                Tab(text: '健康记录'),
+                Tab(text: '用药记录'),
+              ],
+            ),
+          ),
+          Expanded(
+            child: Consumer<HealthProvider>(
+              builder: (context, provider, child) {
+                if (provider.isLoading) {
+                  return const LoadingWidget();
+                }
+
+                return TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _buildBasicInfo(provider),
+                    _buildHealthRecords(),
+                    _buildMedicationRecords(),
+                  ],
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMemberTabs() {
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: SizedBox(
+        height: 72,
+        child: ListView.builder(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          itemCount: _familyMembers.length + 1,
+          itemBuilder: (context, index) {
+            if (index == _familyMembers.length) {
+              return _buildAddButton();
+            }
+            final member = _familyMembers[index];
+            final relation = member['relation']?.toString() ?? '本人';
+            final isSelected = index == _selectedMemberIndex;
+            final color = _relationColor(relation);
+
+            return GestureDetector(
+              onTap: () => _onMemberTap(index),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: isSelected ? color : const Color(0xFFF0F0F0),
+                        boxShadow: isSelected
+                            ? [BoxShadow(color: color.withOpacity(0.3), blurRadius: 6, offset: const Offset(0, 2))]
+                            : null,
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        relation.length > 2 ? relation.substring(0, 2) : relation,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: isSelected ? Colors.white : const Color(0xFF333333),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      relation,
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: isSelected ? color : const Color(0xFF999999),
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
         ),
       ),
-      body: Consumer<HealthProvider>(
-        builder: (context, provider, child) {
-          if (provider.isLoading) {
-            return const LoadingWidget();
-          }
+    );
+  }
 
-          return TabBarView(
-            controller: _tabController,
-            children: [
-              _buildBasicInfo(provider),
-              _buildHealthRecords(),
-              _buildMedicationRecords(),
-            ],
-          );
-        },
+  Widget _buildAddButton() {
+    return GestureDetector(
+      onTap: _onAddMember,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: Color(0xFFF0F0F0),
+              ),
+              alignment: Alignment.center,
+              child: const Icon(Icons.add, color: Color(0xFF999999), size: 22),
+            ),
+            const SizedBox(height: 4),
+            const Text('添加', style: TextStyle(fontSize: 10, color: Color(0xFF999999))),
+          ],
+        ),
       ),
     );
   }

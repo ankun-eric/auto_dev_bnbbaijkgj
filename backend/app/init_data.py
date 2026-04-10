@@ -997,22 +997,18 @@ async def _init_search_data(db: AsyncSession):
 
 
 async def _init_relation_types(db: AsyncSession):
-    result = await db.execute(select(RelationType).limit(1))
-    if not result.scalar_one_or_none():
-        names = ["本人", "爸爸", "妈妈", "老公", "老婆", "儿子", "女儿", "哥哥", "弟弟", "姐姐", "妹妹", "爷爷", "奶奶", "外公", "外婆", "其他"]
-        for i, name in enumerate(names):
+    names = ["本人", "爸爸", "妈妈", "老公", "老婆", "儿子", "女儿", "哥哥", "弟弟", "姐姐", "妹妹", "爷爷", "奶奶", "外公", "外婆", "其他"]
+    created = 0
+    for i, name in enumerate(names):
+        result = await db.execute(
+            select(RelationType).where(RelationType.name == name)
+        )
+        if not result.scalar_one_or_none():
             db.add(RelationType(name=name, sort_order=i, is_active=True))
+            created += 1
+    if created:
         await db.flush()
-        logger.info("Created default relation types (%d)", len(names))
-        return
-
-    rt_result = await db.execute(
-        select(RelationType).where(RelationType.name == "本人")
-    )
-    if not rt_result.scalar_one_or_none():
-        db.add(RelationType(name="本人", sort_order=-1, is_active=True))
-        await db.flush()
-        logger.info("Added missing '本人' relation type")
+        logger.info("Upserted relation types: %d new entries created", created)
 
 
 async def _init_disease_presets(db: AsyncSession):

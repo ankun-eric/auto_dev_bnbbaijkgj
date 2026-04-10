@@ -248,7 +248,8 @@ export default function SymptomPage() {
     try {
       const res: any = await api.get('/api/relation-types');
       const data = res.data || res;
-      setRelationTypes(Array.isArray(data.items) ? data.items : []);
+      const items = Array.isArray(data.items) ? data.items : [];
+      setRelationTypes(items.filter((rt: any) => rt.name !== '本人'));
     } catch {
       setRelationTypes([]);
     }
@@ -264,6 +265,7 @@ export default function SymptomPage() {
     try {
       const body: any = {
         nickname: newNickname.trim(),
+        name: newNickname.trim(),
         relationship_type: selectedRelation.name,
         relation_type_id: selectedRelation.id,
         gender: newGender,

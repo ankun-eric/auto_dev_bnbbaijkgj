@@ -204,3 +204,50 @@
 .modal-actions button {
   flex: 1;
 }
+
+/* Relation grid */
+.form-row-vertical {
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.form-row-vertical .form-label {
+  margin-bottom: 16rpx;
+}
+
+.relation-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+  width: 100%;
+}
+
+.relation-grid-item {
+  width: calc(25% - 12rpx);
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2rpx solid #eee;
+  border-radius: 12rpx;
+  box-sizing: border-box;
+}
+
+.relation-grid-item:active {
+  background: #f5f5f5;
+}
+
+.relation-grid-active {
+  border-color: #52c41a;
+  background: #f6ffed;
+}
+
+.relation-grid-text {
+  font-size: 26rpx;
+  color: #333;
+}
+
+.relation-grid-active .relation-grid-text {
+  color: #52c41a;
+  font-weight: bold;
+}

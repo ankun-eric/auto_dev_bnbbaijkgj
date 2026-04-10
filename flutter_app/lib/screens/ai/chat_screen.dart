@@ -32,6 +32,10 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _isVoiceMode = false;
   bool _isRecording = false;
   bool _isCancelZone = false;
+
+  // 当前咨询对象
+  String _currentConsultTarget = '本人';
+  List<Map<String, dynamic>> _familyMembers = [];
   DateTime? _recordStartTime;
   Timer? _recordTimer;
   Timer? _amplitudeTimer;
@@ -55,10 +59,35 @@ class _ChatScreenState extends State<ChatScreen> {
   String _fontSizeLevel = 'standard';
   double _chatFontSize = 14.0;
 
+  static Color _relationColor(String relation) {
+    if (relation == '本人') return const Color(0xFF52C41A);
+    if (relation == '爸爸' || relation == '妈妈' || relation == '父亲' || relation == '母亲') {
+      return const Color(0xFF1890FF);
+    }
+    if (relation == '儿子' || relation == '女儿' || relation == '子女') {
+      return const Color(0xFFEB2F96);
+    }
+    if (relation == '爷爷' || relation == '奶奶') return const Color(0xFFFA8C16);
+    return const Color(0xFF8C8C8C);
+  }
+
   @override
   void initState() {
     super.initState();
     _loadFontSetting();
+    _loadFamilyMembers();
+  }
+
+  Future<void> _loadFamilyMembers() async {
+    try {
+      final response = await _apiService.getFamilyMembers();
+      if (response.statusCode == 200 && mounted) {
+        final items = response.data['items'] as List? ?? [];
+        setState(() {
+          _familyMembers = items.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+        });
+      }
+    } catch (_) {}
   }
 
   Future<void> _loadFontSetting() async {
@@ -158,7 +187,35 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<bool> _requestMicPermission() async {
-    final status = await Permission.microphone.request();
+    var status = await Permission.microphone.status;
+    if (status.isGranted) return true;
+
+    if (status.isPermanentlyDenied) {
+      if (!mounted) return false;
+      final goSettings = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('允许访问麦克风'),
+          content: const Text('麦克风权限已被永久拒绝，请前往系统设置手动开启'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('取消'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('去设置', style: TextStyle(color: Color(0xFF52C41A))),
+            ),
+          ],
+        ),
+      );
+      if (goSettings == true) {
+        openAppSettings();
+      }
+      return false;
+    }
+
+    status = await Permission.microphone.request();
     if (status.isGranted) return true;
 
     if (!mounted) return false;
@@ -717,11 +774,81 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
+  void _showConsultTargetPicker() {
+    final targets = <Map<String, String>>[
+      {'name': '本人'},
+      ..._familyMembers
+          .where((m) => m['is_self'] != true)
+          .map((m) => {'name': (m['relation_type_name'] ?? m['nickname'] ?? '').toString()}),
+    ];
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('选择咨询对象', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: targets.map((t) {
+                  final name = t['name']!;
+                  final color = _relationColor(name);
+                  final isSelected = _currentConsultTarget == name;
+                  return GestureDetector(
+                    onTap: () {
+                      setState(() => _currentConsultTarget = name);
+                      Navigator.pop(ctx);
+                    },
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: isSelected ? color : const Color(0xFFF0F0F0),
+                            border: isSelected ? Border.all(color: color, width: 2) : null,
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            name.length > 2 ? name.substring(0, 2) : name,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: isSelected ? Colors.white : const Color(0xFF333333),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(name, style: const TextStyle(fontSize: 11, color: Color(0xFF666666))),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildInputBar() {
+    final targetColor = _relationColor(_currentConsultTarget);
     return Container(
       padding: EdgeInsets.only(
-        left: 12,
-        right: 12,
+        left: 8,
+        right: 8,
         top: 8,
         bottom: MediaQuery.of(context).padding.bottom + 8,
       ),
@@ -737,30 +864,59 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
       child: Row(
         children: [
+          GestureDetector(
+            onTap: _showConsultTargetPicker,
+            child: Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: targetColor,
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                _currentConsultTarget.length > 2
+                    ? _currentConsultTarget.substring(0, 2)
+                    : _currentConsultTarget,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 4),
           IconButton(
             icon: Icon(
               _isVoiceMode ? Icons.keyboard : Icons.mic,
               color: const Color(0xFF52C41A),
+              size: 22,
             ),
+            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+            padding: EdgeInsets.zero,
             onPressed: _toggleVoiceMode,
           ),
           Expanded(
             child: _isVoiceMode ? _buildHoldToTalkButton() : _buildTextField(),
           ),
           IconButton(
-            icon: const Icon(Icons.photo_outlined, color: Color(0xFF52C41A)),
+            icon: const Icon(Icons.photo_outlined, color: Color(0xFF52C41A), size: 22),
+            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+            padding: EdgeInsets.zero,
             onPressed: _pickImage,
           ),
+          const SizedBox(width: 4),
           GestureDetector(
             onTap: _sendMessage,
             child: Container(
-              width: 40,
-              height: 40,
+              width: 36,
+              height: 36,
               decoration: BoxDecoration(
                 color: const Color(0xFF52C41A),
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(18),
               ),
-              child: const Icon(Icons.send, color: Colors.white, size: 18),
+              child: const Icon(Icons.send, color: Colors.white, size: 16),
             ),
           ),
         ],

@@ -91,9 +91,10 @@ class ApiConfig {
   static const String payOrder = '/api/orders';
 
   // Family
-  static const String familyMembers = '/api/family';
-  static const String addFamilyMember = '/api/family';
-  static const String removeFamilyMember = '/api/family';
+  static const String familyMembers = '/api/family/members';
+  static const String addFamilyMember = '/api/family/members';
+  static const String removeFamilyMember = '/api/family/members';
+  static const String relationTypes = '/api/relation-types';
   static const String sosAlert = '/api/family/sos';
 
   // Points

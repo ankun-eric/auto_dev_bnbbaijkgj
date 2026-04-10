@@ -419,8 +419,12 @@ class ApiService {
     return _dio.post(ApiConfig.addFamilyMember, data: data);
   }
 
+  Future<Response> getRelationTypes() async {
+    return _dio.get(ApiConfig.relationTypes);
+  }
+
   Future<Response> removeFamilyMember(String memberId) async {
-    return _dio.post(ApiConfig.removeFamilyMember, data: {'member_id': memberId});
+    return _dio.delete('${ApiConfig.removeFamilyMember}/$memberId');
   }
 
   Future<Response> sendSosAlert(Map<String, dynamic> data) async {

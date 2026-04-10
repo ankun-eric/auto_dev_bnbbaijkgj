@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../services/api_service.dart';
 import '../../widgets/custom_app_bar.dart';
 
 class FamilyScreen extends StatefulWidget {
@@ -9,78 +10,189 @@ class FamilyScreen extends StatefulWidget {
 }
 
 class _FamilyScreenState extends State<FamilyScreen> {
-  final List<Map<String, dynamic>> _members = [
+  final ApiService _apiService = ApiService();
+
+  List<Map<String, dynamic>> _members = [
     {'name': '我', 'relation': '本人', 'avatar': Icons.person, 'age': 30, 'gender': '男'},
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFamilyMembers();
+  }
+
+  Future<void> _loadFamilyMembers() async {
+    try {
+      final response = await _apiService.getFamilyMembers();
+      if (response.statusCode == 200 && mounted) {
+        final items = response.data['items'] as List? ?? [];
+        if (items.isNotEmpty) {
+          setState(() {
+            _members = items.map((e) {
+              final m = Map<String, dynamic>.from(e as Map);
+              return {
+                'id': m['id'],
+                'name': m['nickname'] ?? m['name'] ?? '',
+                'relation': m['relation_type_name'] ?? m['relationship_type'] ?? '',
+                'avatar': (m['is_self'] == true) ? Icons.person : Icons.person_outline,
+                'age': 0,
+                'gender': m['gender'] ?? '未知',
+                'is_self': m['is_self'] ?? false,
+              };
+            }).toList();
+          });
+        }
+      }
+    } catch (_) {}
+  }
 
   void _addMember() {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) {
         final nameController = TextEditingController();
-        String relation = '配偶';
-        return Padding(
-          padding: EdgeInsets.only(
-            left: 24,
-            right: 24,
-            top: 24,
-            bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('添加家庭成员', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 20),
-              TextField(
-                controller: nameController,
-                decoration: InputDecoration(
-                  labelText: '姓名',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Text('关系', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                children: ['配偶', '父亲', '母亲', '子女', '其他'].map((r) {
-                  return ChoiceChip(
-                    label: Text(r),
-                    selected: relation == r,
-                    selectedColor: const Color(0xFF52C41A).withOpacity(0.2),
-                    onSelected: (selected) {
-                      if (selected) relation = r;
-                    },
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () {
-                    if (nameController.text.isNotEmpty) {
-                      setState(() {
-                        _members.add({
-                          'name': nameController.text,
-                          'relation': relation,
-                          'avatar': Icons.person_outline,
-                          'age': 0,
-                          'gender': '未知',
-                        });
-                      });
-                      Navigator.pop(context);
+        String selectedRelation = '';
+        List<Map<String, dynamic>> relationTypes = [];
+        bool isLoadingRelations = true;
+
+        return StatefulBuilder(
+          builder: (ctx, setModalState) {
+            if (isLoadingRelations) {
+              _apiService.getRelationTypes().then((response) {
+                if (response.statusCode == 200) {
+                  final items = response.data['items'] as List? ?? [];
+                  final filtered = items
+                      .map((e) => Map<String, dynamic>.from(e as Map))
+                      .where((r) => r['name'] != '本人')
+                      .toList();
+                  setModalState(() {
+                    relationTypes = filtered;
+                    if (filtered.isNotEmpty) {
+                      selectedRelation = filtered[0]['name']?.toString() ?? '';
                     }
-                  },
-                  child: const Text('确认添加'),
-                ),
+                    isLoadingRelations = false;
+                  });
+                } else {
+                  setModalState(() {
+                    relationTypes = [
+                      {'name': '配偶'},
+                      {'name': '父亲'},
+                      {'name': '母亲'},
+                      {'name': '子女'},
+                      {'name': '其他'},
+                    ];
+                    selectedRelation = '配偶';
+                    isLoadingRelations = false;
+                  });
+                }
+              }).catchError((_) {
+                setModalState(() {
+                  relationTypes = [
+                    {'name': '配偶'},
+                    {'name': '父亲'},
+                    {'name': '母亲'},
+                    {'name': '子女'},
+                    {'name': '其他'},
+                  ];
+                  selectedRelation = '配偶';
+                  isLoadingRelations = false;
+                });
+              });
+            }
+
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 24,
+                right: 24,
+                top: 24,
+                bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
               ),
-            ],
-          ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('添加家庭成员', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 20),
+                  TextField(
+                    controller: nameController,
+                    decoration: InputDecoration(
+                      labelText: '姓名',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text('关系', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+                  const SizedBox(height: 8),
+                  if (isLoadingRelations)
+                    const Center(child: Padding(
+                      padding: EdgeInsets.all(8),
+                      child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2)),
+                    ))
+                  else
+                    Wrap(
+                      spacing: 8,
+                      children: relationTypes.map((r) {
+                        final name = r['name']?.toString() ?? '';
+                        return ChoiceChip(
+                          label: Text(name),
+                          selected: selectedRelation == name,
+                          selectedColor: const Color(0xFF52C41A).withOpacity(0.2),
+                          onSelected: (selected) {
+                            if (selected) {
+                              setModalState(() {
+                                selectedRelation = name;
+                              });
+                            }
+                          },
+                        );
+                      }).toList(),
+                    ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        if (nameController.text.isNotEmpty && selectedRelation.isNotEmpty) {
+                          try {
+                            final selectedRt = relationTypes.firstWhere(
+                              (r) => r['name']?.toString() == selectedRelation,
+                              orElse: () => <String, dynamic>{},
+                            );
+                            final payload = <String, dynamic>{
+                              'name': nameController.text,
+                              'nickname': nameController.text,
+                              'relationship_type': selectedRelation,
+                            };
+                            if (selectedRt['id'] != null) {
+                              payload['relation_type_id'] = selectedRt['id'];
+                            }
+                            await _apiService.addFamilyMember(payload);
+                          } catch (_) {}
+                          setState(() {
+                            _members.add({
+                              'name': nameController.text,
+                              'relation': selectedRelation,
+                              'avatar': Icons.person_outline,
+                              'age': 0,
+                              'gender': '未知',
+                            });
+                          });
+                          if (context.mounted) Navigator.pop(ctx);
+                          _loadFamilyMembers();
+                        }
+                      },
+                      child: const Text('确认添加'),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
         );
       },
     );
