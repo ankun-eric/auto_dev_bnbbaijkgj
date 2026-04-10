@@ -27,7 +27,29 @@
 - Admin: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api/`
 
-## Latest Bugfix: 档案管理 — 新用户注册及家庭成员管理全面修复 (2026-04-10)
+## Latest Bugfix: 语音搜索麦克风图标消失修复 (2026-04-10)
+
+### Problem
+用户在搜索页面通过语音搜索后，跳转到搜索结果页面时，搜索栏中的麦克风图标消失，无法在搜索结果页面继续使用语音搜索。根因：三端的搜索结果页面缺少语音搜索功能集成。
+
+### H5 Changes
+- **`h5-web/src/app/search/result/page.tsx`**: 完整集成语音搜索功能（MediaRecorder 录音、ASR 识别、语音遮罩 UI、自动搜索倒计时、去标点），麦克风图标始终显示在搜索栏中与清除按钮并列
+
+### Mini Program Changes
+- **`miniprogram/pages/search-result/index.wxml`**: 搜索栏新增 input、麦克风按钮、清除按钮、搜索按钮及语音录音遮罩 UI
+- **`miniprogram/pages/search-result/index.js`**: 集成 WechatSI 语音识别，新增录音/识别/重试/关闭等方法，语音识别成功后在当前页面重新搜索
+- **`miniprogram/pages/search-result/index.wxss`**: 新增搜索栏和语音遮罩样式
+
+### Flutter Changes
+- **`flutter_app/lib/screens/search/search_result_screen.dart`**: 集成语音搜索功能（record 插件录音 + ASR 识别），搜索栏新增麦克风按钮（绿色圆形背景），内含完整 `_VoiceRecordDialog` 对话框组件
+
+### Affected Platforms
+- H5 Web（已自动部署）
+- 微信小程序（已重新打包：miniprogram_20260410_111600_fc1d.zip）
+- 安卓 APK（已重新构建：bini_health_android-v20260410-111607-c1ad.apk）
+- iOS IPA（已重新构建：ios-v20260410-111603-0503）
+
+## Previous Bugfix: 档案管理 — 新用户注册及家庭成员管理全面修复 (2026-04-10)
 
 ### Backend Changes
 - **`api/auth.py`**: `ensure_self_family_member()` 注册时自动创建 is_self=True 成员（含 relation_type_id）；`ensure_self_health_profile()` 修复 user_id 唯一约束冲突；异常处理增加 db.rollback() 防止 session 状态损坏

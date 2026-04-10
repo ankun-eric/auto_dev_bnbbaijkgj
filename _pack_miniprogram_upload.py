@@ -1,93 +1,124 @@
-"""Zip miniprogram, SFTP to server host, docker cp into backend uploads, verify HTTP 200."""
+#!/usr/bin/env python3
+"""Zip miniprogram (exclude junk), SFTP to server, copy into backend uploads, verify HTTP."""
 import os
 import random
+import sys
 import zipfile
 from datetime import datetime
 
-import httpx
 import paramiko
+import urllib.request
 
+SRC = r"C:\auto_output\bnbbaijkgj\miniprogram"
+OUT_DIR = r"C:\auto_output\bnbbaijkgj"
 HOST = "newbb.test.bangbangvip.com"
 USER = "ubuntu"
-PASSWORD = os.environ.get("MINIPROGRAM_SSH_PASSWORD", "Bangbang987")
-REMOTE_BASE = "/home/ubuntu/3b7b999d-e51c-4c0d-8f6e-baf90cd26857"
-UPLOADS_SUBDIR = "uploads"
-PROJECT_ROOT = r"C:\auto_output\bnbbaijkgj"
-MINIPROGRAM_DIR = os.path.join(PROJECT_ROOT, "miniprogram")
-BASE_URL = "https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857"
+PASSWORD = "Bangbang987"
+PROJECT_ID = "3b7b999d-e51c-4c0d-8f6e-baf90cd26857"
+REMOTE_BASE = f"/home/ubuntu/{PROJECT_ID}"
+BACKEND_CONTAINER = f"{PROJECT_ID}-backend"
+BASE_URL = f"https://newbb.test.bangbangvip.com/autodev/{PROJECT_ID}"
+
+EXCLUDE_NAMES = {
+    "node_modules",
+    ".git",
+    "__pycache__",
+    ".DS_Store",
+    "dist",
+    "build",
+    ".idea",
+    ".vscode",
+}
 
 
-def _backend_container_name(client: paramiko.SSHClient) -> str:
-    _, stdout, _ = client.exec_command(
-        "docker ps --format '{{.Names}}' | grep -E '3b7b999d.*backend' | head -1"
-    )
-    name = stdout.read().decode().strip()
-    return name or "3b7b999d-e51c-4c0d-8f6e-baf90cd26857-backend"
+def should_skip(path: str) -> bool:
+    parts = path.replace("\\", "/").split("/")
+    return any(p in EXCLUDE_NAMES for p in parts)
 
 
-def main() -> None:
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    rand_hex = "".join(random.choices("0123456789abcdef", k=4))
-    zip_name = f"miniprogram_{timestamp}_{rand_hex}.zip"
-    zip_path = os.path.join(PROJECT_ROOT, zip_name)
+def make_zip_name() -> str:
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    h = "".join(random.choice("0123456789abcdef") for _ in range(4))
+    return f"miniprogram_{ts}_{h}.zip"
 
-    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
-        for root, dirs, files in os.walk(MINIPROGRAM_DIR):
-            dirs[:] = [d for d in dirs if d not in ("node_modules", ".git", "__pycache__")]
-            for file in files:
-                file_path = os.path.join(root, file)
-                arcname = os.path.relpath(file_path, MINIPROGRAM_DIR)
-                zf.write(file_path, arcname)
 
-    size = os.path.getsize(zip_path)
-    print(f"打包完成: {zip_path}")
-    print(f"文件大小: {size} bytes")
+def build_zip(dest_path: str, zip_name: str) -> str:
+    zpath = os.path.join(dest_path, zip_name)
+    with zipfile.ZipFile(zpath, "w", zipfile.ZIP_DEFLATED) as zf:
+        for root, dirs, files in os.walk(SRC):
+            dirs[:] = [d for d in dirs if d not in EXCLUDE_NAMES]
+            rel_root = os.path.relpath(root, os.path.dirname(SRC))
+            if rel_root == ".":
+                arc_prefix = "miniprogram"
+            else:
+                arc_prefix = os.path.join("miniprogram", rel_root)
+            for name in files:
+                fp = os.path.join(root, name)
+                if should_skip(fp):
+                    continue
+                arc = os.path.join(arc_prefix, name).replace("\\", "/")
+                zf.write(fp, arc)
+    return zpath
 
-    client = paramiko.SSHClient()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    client.connect(HOST, username=USER, password=PASSWORD, timeout=30)
 
+def ssh_client():
+    c = paramiko.SSHClient()
+    c.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    c.connect(HOST, username=USER, password=PASSWORD, timeout=60)
+    return c
+
+
+def main():
+    zip_name = make_zip_name()
+    print("Creating:", zip_name)
+    zpath = build_zip(OUT_DIR, zip_name)
+    size = os.path.getsize(zpath)
+    print("Local zip bytes:", size)
+
+    remote_path = f"{REMOTE_BASE}/{zip_name}"
+    download_url = f"{BASE_URL}/uploads/{zip_name}"
+
+    client = ssh_client()
     try:
-        stdin, stdout, stderr = client.exec_command(f"ls -la {REMOTE_BASE}/")
-        out = stdout.read().decode("utf-8", errors="replace")
-        print("--- 远程 ls ---")
-        print(out or "(empty stdout)")
-
-        uploads_remote = f"{REMOTE_BASE}/{UPLOADS_SUBDIR}"
-        client.exec_command(f"mkdir -p {uploads_remote}")
+        stdin, stdout, stderr = client.exec_command(f"mkdir -p {REMOTE_BASE}")
+        stdout.channel.recv_exit_status()
 
         sftp = client.open_sftp()
-        try:
-            remote_host_file = f"{uploads_remote}/{zip_name}"
-            sftp.put(zip_path, remote_host_file)
-            print(f"已上传到主机: {remote_host_file}")
-        finally:
-            sftp.close()
+        print("Uploading to", remote_path)
+        sftp.put(zpath, remote_path)
+        sftp.chmod(remote_path, 0o644)
+        sftp.close()
 
-        cname = _backend_container_name(client)
-        print(f"后端容器: {cname}")
-        inner_path = f"/app/uploads/{zip_name}"
-        docker_cp = f"docker cp {uploads_remote}/{zip_name} {cname}:{inner_path}"
-        _, stdout, stderr = client.exec_command(docker_cp)
-        stderr.read()
-        code = stdout.channel.recv_exit_status()
-        if code != 0:
-            raise RuntimeError(f"docker cp 失败 exit={code}: {stderr.read().decode()}")
-        print(f"已复制进容器: {cname}:{inner_path}")
+        cmd = (
+            f"docker cp {remote_path} {BACKEND_CONTAINER}:/app/uploads/{zip_name} "
+            f"&& docker exec {BACKEND_CONTAINER} ls -la /app/uploads/{zip_name}"
+        )
+        stdin, stdout, stderr = client.exec_command(cmd)
+        out = stdout.read().decode()
+        err = stderr.read().decode()
+        print("docker cp:", out or err)
+        if stdout.channel.recv_exit_status() != 0:
+            print("VERIFY_FAIL: docker cp failed")
+            return 1
     finally:
         client.close()
 
-    verify_url = f"{BASE_URL}/{UPLOADS_SUBDIR}/{zip_name}"
-    r = httpx.get(verify_url, follow_redirects=True, timeout=60)
-    print(f"HTTP {r.status_code} {verify_url}")
-    if r.status_code != 200:
-        raise SystemExit(f"验证失败: 期望 200，得到 {r.status_code}")
-    if len(r.content) != size:
-        print(f"警告: 响应体大小 {len(r.content)} 与本地 {size} 不一致")
+    print("HEAD", download_url)
+    req = urllib.request.Request(download_url, method="HEAD")
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            code = r.status
+            cl = r.headers.get("Content-Length")
+            print("HTTP", code, "Content-Length:", cl)
+            if code != 200 or (cl and int(cl) != size):
+                return 1
+    except Exception as e:
+        print("VERIFY_FAIL:", e)
+        return 1
 
-    print("\n下载 URL:")
-    print(verify_url)
+    print("DOWNLOAD_URL:", download_url)
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
