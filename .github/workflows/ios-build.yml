@@ -123,4 +123,4 @@ jobs:
           gh release create ${{ github.event.inputs.version }} \
             bini_health_ios.ipa \
             --title "iOS Build ${{ github.event.inputs.version }}" \
-            --notes "OCR多图上传功能 - iOS构建（未签名，需使用AltStore等工具安装）"
+            --notes "iOS构建 ${{ github.event.inputs.version }}（未签名，需使用AltStore等工具安装）"
