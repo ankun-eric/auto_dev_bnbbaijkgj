@@ -4,8 +4,6 @@ import { useRouter } from 'next/navigation';
 import { List, Grid, Badge, Avatar, Tag } from 'antd-mobile';
 import {
   RightOutline,
-  FileOutline,
-  TeamOutline,
   ClockCircleOutline,
   StarOutline,
   BellOutline,
@@ -28,13 +26,7 @@ export default function ProfilePage() {
   const menuGroups = [
     {
       items: [
-        { icon: <FileOutline />, title: '健康档案', path: '/health-profile', color: '#52c41a' },
-        { icon: <TeamOutline />, title: '家庭成员', path: '/health-profile', color: '#1890ff' },
         { icon: <ClockCircleOutline />, title: '我的预约', path: '/orders?tab=appointment', color: '#722ed1' },
-      ],
-    },
-    {
-      items: [
         { icon: <StarOutline />, title: '积分商城', path: '/points', color: '#fa8c16' },
         { icon: <BellOutline />, title: '消息通知', path: '/notifications', badge: '5', color: '#f5222d' },
         { icon: <MessageOutline />, title: '在线客服', path: '/customer-service', color: '#13c2c2' },

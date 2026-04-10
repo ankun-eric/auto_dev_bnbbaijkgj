@@ -32,7 +32,32 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api/`
 
-## Latest Feature: 首页城市定位与切换 (2026-04-11)
+## Latest Update: "我的"页面菜单精简 (2026-04-11)
+
+### 概要
+精简 H5 端"我的"页面（`/profile`）菜单结构，移除"健康档案"和"家庭成员"两个不常用的菜单入口，将"我的预约"合并至第二组并置顶，菜单从三组缩减为两组。功能页面 `/health-profile` 和 `/family` 本身保留不变。
+
+### 变更范围
+- 仅 H5 前端 `h5-web/src/app/(tabs)/profile/page.tsx` 一个文件
+- 无后端、数据库、小程序、Flutter 端变更
+
+### 菜单调整
+| 调整前（三组） | 调整后（两组） |
+| --- | --- |
+| 第一组：健康档案、家庭成员、我的预约 | 第一组：我的预约、积分商城、消息通知、在线客服 |
+| 第二组：积分商城、消息通知、在线客服 | 第二组：设置 |
+| 第三组：设置 | — |
+
+### 关键文件
+- `h5-web/src/app/(tabs)/profile/page.tsx`（移除 FileOutline/TeamOutline 导入，重组 menuGroups 数组）
+- `tests/test_profile_menu_simplify.py`（10 个测试用例，验证页面可访问性和菜单变更）
+
+### 用户手册
+- `user_docs/我的页面菜单精简.md`
+
+---
+
+## Previous Feature: 首页城市定位与切换 (2026-04-11)
 
 ### 概要
 在首页搜索栏左侧新增城市定位显示区域，支持 GPS 自动定位和手动切换城市。后端新增全国 349 个城市数据库，提供城市列表、热门城市、经纬度定位等 API。管理后台新增热门城市管理页面。
