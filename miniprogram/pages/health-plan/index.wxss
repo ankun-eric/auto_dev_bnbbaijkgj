@@ -1,77 +1,91 @@
 .plan-page {
   padding: 24rpx;
   min-height: 100vh;
+  background: #f5f5f5;
 }
 
-.progress-ring-wrap {
-  display: flex;
-  justify-content: center;
-  padding: 32rpx 0;
-}
+/* 统计概览 */
+.stats-overview { margin-bottom: 24rpx; }
+.stats-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20rpx; }
+.stats-title-text { font-size: 30rpx; font-weight: 600; color: #333; }
+.stats-arrow { font-size: 24rpx; color: #999; }
+.stats-row { display: flex; justify-content: space-around; }
+.stat-col { display: flex; flex-direction: column; align-items: center; }
+.stat-value { font-size: 44rpx; font-weight: bold; }
+.stat-label { font-size: 22rpx; color: #999; margin-top: 8rpx; }
+.text-green { color: #52c41a; }
+.text-cyan { color: #13c2c2; }
+.text-blue { color: #1890ff; }
+.stats-empty { text-align: center; padding: 20rpx 0; }
+.text-hint { font-size: 26rpx; color: #999; }
 
-.progress-ring {
-  width: 180rpx;
-  height: 180rpx;
-  border-radius: 50%;
-  border: 8rpx solid #f0f0f0;
-  border-top-color: #52c41a;
-  border-right-color: #52c41a;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-}
-
-.progress-num { font-size: 40rpx; font-weight: bold; color: #52c41a; }
-.progress-label { font-size: 22rpx; color: #999; }
-
-.task-list { margin-bottom: 24rpx; }
-
-.task-item {
+/* 分类入口 */
+.category-grid { margin-bottom: 24rpx; }
+.category-card {
   display: flex;
   align-items: center;
-  margin-bottom: 12rpx;
+  margin-bottom: 16rpx;
+  padding: 28rpx 24rpx;
 }
-
-.task-check {
-  width: 44rpx;
-  height: 44rpx;
-  border-radius: 50%;
-  border: 3rpx solid #d9d9d9;
+.category-card:last-child { margin-bottom: 0; }
+.category-icon-wrap {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 20rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-right: 16rpx;
+  margin-right: 20rpx;
   flex-shrink: 0;
 }
+.category-icon { font-size: 36rpx; }
+.category-text { flex: 1; }
+.category-name { font-size: 30rpx; color: #333; font-weight: 600; display: block; }
+.category-desc { font-size: 24rpx; color: #999; display: block; margin-top: 6rpx; }
+.category-arrow { font-size: 36rpx; color: #ccc; flex-shrink: 0; }
 
-.task-done {
-  border-color: #52c41a;
-  background: #52c41a;
-}
-
-.check-mark { font-size: 24rpx; color: #fff; }
-
-.task-info { flex: 1; }
-.task-name { font-size: 28rpx; color: #333; font-weight: 500; display: block; }
-.task-name-done { text-decoration: line-through; color: #999; }
-.task-desc { font-size: 22rpx; color: #999; }
-
-.task-reward {
+/* AI按钮 */
+.ai-btn {
+  margin-bottom: 24rpx;
+  background: linear-gradient(135deg, #52c41a, #13c2c2) !important;
+  color: #fff;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  flex-shrink: 0;
+  justify-content: space-between;
 }
+.ai-btn-disabled { opacity: 0.7; }
+.ai-btn-inner { display: flex; align-items: center; flex: 1; }
+.ai-icon { font-size: 48rpx; margin-right: 20rpx; }
+.ai-text { flex: 1; }
+.ai-title { font-size: 30rpx; font-weight: 600; display: block; }
+.ai-desc { font-size: 24rpx; color: rgba(255,255,255,0.85); display: block; margin-top: 6rpx; }
+.ai-arrow { font-size: 36rpx; color: rgba(255,255,255,0.7); }
+.ai-loading-text { font-size: 24rpx; color: rgba(255,255,255,0.85); }
 
-.reward-points { font-size: 26rpx; font-weight: bold; color: #faad14; }
-.reward-label { font-size: 20rpx; color: #ccc; }
+/* 今日待办 */
+.today-section { margin-bottom: 24rpx; }
+.section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16rpx; }
+.section-title { font-size: 30rpx; font-weight: 600; color: #333; }
+.loading-hint, .empty-hint { text-align: center; padding: 40rpx 0; }
+.empty-hint { display: flex; flex-direction: column; align-items: center; }
+.empty-icon { font-size: 48rpx; margin-bottom: 12rpx; }
+.empty-text { font-size: 26rpx; color: #999; }
 
-.tip-item {
+.todo-item {
   display: flex;
-  align-items: flex-start;
-  padding: 10rpx 0;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16rpx 0;
+  border-bottom: 1rpx solid #f5f5f5;
 }
-
-.tip-icon { margin-right: 12rpx; font-size: 28rpx; }
-.tip-text { font-size: 26rpx; color: #666; line-height: 1.5; flex: 1; }
+.todo-item:last-child { border-bottom: none; }
+.todo-left { display: flex; align-items: center; flex: 1; overflow: hidden; }
+.todo-type-icon { font-size: 28rpx; margin-right: 16rpx; flex-shrink: 0; }
+.todo-info { flex: 1; overflow: hidden; }
+.todo-name { font-size: 28rpx; color: #333; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.todo-done { text-decoration: line-through; color: #999; }
+.todo-time { font-size: 22rpx; color: #999; display: block; margin-top: 4rpx; }
+.todo-btn { flex-shrink: 0; margin-left: 16rpx; }
+.todo-btn-text { font-size: 24rpx; color: #fff; background: #52c41a; padding: 8rpx 24rpx; border-radius: 24rpx; }
+.todo-btn-done { flex-shrink: 0; margin-left: 16rpx; }
+.done-mark { font-size: 28rpx; color: #52c41a; font-weight: bold; }

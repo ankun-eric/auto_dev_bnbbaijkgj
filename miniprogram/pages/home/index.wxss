@@ -161,6 +161,31 @@
   flex: 1;
 }
 
+/* 今日待办 */
+.today-todos-card { margin: 0 24rpx 24rpx; }
+.todo-loading, .todo-empty { padding: 40rpx 0; text-align: center; }
+.todo-empty { display: flex; flex-direction: column; align-items: center; }
+.todo-empty-icon { font-size: 64rpx; margin-bottom: 16rpx; }
+.todo-empty-text { font-size: 26rpx; color: #999; margin-bottom: 20rpx; }
+.todo-empty-btn { padding: 12rpx 40rpx; background: #52c41a; color: #fff; border-radius: 32rpx; font-size: 26rpx; }
+.todo-list { margin-top: 12rpx; }
+.todo-item { display: flex; align-items: center; justify-content: space-between; padding: 16rpx 0; border-bottom: 1rpx solid #f5f5f5; }
+.todo-item:last-child { border-bottom: none; }
+.todo-left { display: flex; align-items: center; flex: 1; overflow: hidden; }
+.todo-type-badge { width: 56rpx; height: 56rpx; border-radius: 14rpx; display: flex; align-items: center; justify-content: center; margin-right: 16rpx; flex-shrink: 0; font-size: 28rpx; }
+.todo-type-medication { background: rgba(82,196,26,0.12); }
+.todo-type-checkin_item { background: rgba(19,194,194,0.12); }
+.todo-type-plan_task { background: rgba(24,144,255,0.12); }
+.todo-type-default { background: rgba(82,196,26,0.12); }
+.todo-info { flex: 1; overflow: hidden; }
+.todo-name { font-size: 28rpx; color: #333; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.todo-done { text-decoration: line-through; color: #999; }
+.todo-time { font-size: 22rpx; color: #999; display: block; margin-top: 4rpx; }
+.todo-action { flex-shrink: 0; margin-left: 16rpx; }
+.todo-checkin-btn { font-size: 24rpx; color: #fff; background: #52c41a; padding: 8rpx 24rpx; border-radius: 24rpx; }
+.todo-action-done { flex-shrink: 0; margin-left: 16rpx; }
+.todo-done-icon { font-size: 28rpx; color: #52c41a; font-weight: bold; }
+
 /* Section header */
 .section-header {
   display: flex;

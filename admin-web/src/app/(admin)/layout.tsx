@@ -26,6 +26,7 @@ import {
   FormOutlined,
   HomeOutlined,
   HeartOutlined,
+  ScheduleOutlined,
 } from '@ant-design/icons';
 import { useRouter, usePathname } from 'next/navigation';
 import type { MenuProps } from 'antd';
@@ -128,6 +129,17 @@ const menuItems: MenuItem[] = [
     ],
   },
   {
+    key: 'health-plan',
+    icon: <ScheduleOutlined />,
+    label: '健康计划管理',
+    children: [
+      { key: '/health-plan/recommended', label: '推荐计划管理' },
+      { key: '/health-plan/categories', label: '模板分类管理' },
+      { key: '/health-plan/default-tasks', label: '通用任务配置' },
+      { key: '/health-plan/statistics', label: '打卡数据统计' },
+    ],
+  },
+  {
     key: 'health',
     icon: <HeartOutlined />,
     label: '健康档案管理',
@@ -162,6 +174,7 @@ function getOpenKeys(pathname: string): string[] {
   if (pathname.startsWith('/home-settings') || pathname.startsWith('/home-menus') || pathname.startsWith('/home-banners') || pathname.startsWith('/notices') || pathname.startsWith('/bottom-nav')) return ['home-config'];
   if (pathname.startsWith('/search')) return ['search-manage'];
   if (pathname.startsWith('/sms') || pathname.startsWith('/settings') || pathname.startsWith('/wechat-push') || pathname.startsWith('/email-notify') || pathname.startsWith('/cos-config')) return ['system'];
+  if (pathname.startsWith('/health-plan')) return ['health-plan'];
   if (pathname.startsWith('/health-records') || pathname.startsWith('/relation-types') || pathname.startsWith('/disease-presets')) return ['health'];
   return [];
 }

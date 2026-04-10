@@ -1,0 +1,67 @@
+<view class="page-wrap">
+  <view class="loading-wrap" wx:if="{{loading}}">
+    <text class="text-hint">加载中...</text>
+  </view>
+
+  <view wx:elif="{{medications.length === 0}}" class="empty-wrap">
+    <text class="empty-icon">💊</text>
+    <text class="empty-text">暂无用药提醒</text>
+    <text class="empty-desc">添加您的用药计划，按时提醒服药</text>
+    <view class="empty-btn" bindtap="goAdd">添加用药提醒</view>
+  </view>
+
+  <view wx:else class="list-wrap">
+    <view class="med-card card" wx:for="{{medications}}" wx:key="id">
+      <view class="med-header">
+        <view class="med-title-row">
+          <text class="med-icon">💊</text>
+          <text class="med-name">{{item.name}}</text>
+          <view class="med-status {{item.is_paused ? 'status-paused' : 'status-active'}}">
+            <text>{{item.is_paused ? '已暂停' : '进行中'}}</text>
+          </view>
+        </view>
+      </view>
+
+      <view class="med-body">
+        <view class="med-info-row" wx:if="{{item.dosage}}">
+          <text class="info-label">剂量</text>
+          <text class="info-value">{{item.dosage}}</text>
+        </view>
+        <view class="med-info-row" wx:if="{{item.frequency}}">
+          <text class="info-label">频率</text>
+          <text class="info-value">{{item.frequency}}</text>
+        </view>
+        <view class="med-info-row" wx:if="{{item.remind_times}}">
+          <text class="info-label">提醒时间</text>
+          <text class="info-value">{{item.remind_times}}</text>
+        </view>
+        <view class="med-info-row" wx:if="{{item.notes}}">
+          <text class="info-label">备注</text>
+          <text class="info-value">{{item.notes}}</text>
+        </view>
+      </view>
+
+      <view class="med-actions">
+        <view class="action-btn action-checkin" catchtap="onCheckin" data-id="{{item.id}}" wx:if="{{!item.is_paused && !item.today_checked}}">
+          <text>打卡</text>
+        </view>
+        <view class="action-btn action-done" wx:if="{{item.today_checked}}">
+          <text>✓ 已打卡</text>
+        </view>
+        <view class="action-btn action-pause" catchtap="onTogglePause" data-id="{{item.id}}">
+          <text>{{item.is_paused ? '恢复' : '暂停'}}</text>
+        </view>
+        <view class="action-btn action-edit" catchtap="goEdit" data-id="{{item.id}}">
+          <text>编辑</text>
+        </view>
+        <view class="action-btn action-delete" catchtap="onDelete" data-id="{{item.id}}">
+          <text>删除</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view class="fab-btn" bindtap="goAdd">
+    <text class="fab-icon">+</text>
+  </view>
+</view>

@@ -1,29 +1,95 @@
+const { get, post } = require('../../utils/request');
+
 Page({
   data: {
-    completedCount: 2,
-    tasks: [
-      { id: 1, name: '喝水 2000ml', desc: '保持充足水分摄入', points: 10, completed: true },
-      { id: 2, name: '步行 6000步', desc: '适量有氧运动', points: 15, completed: true },
-      { id: 3, name: '睡前冥想 10分钟', desc: '放松身心', points: 10, completed: false },
-      { id: 4, name: '摄入蔬果 5份', desc: '均衡营养', points: 10, completed: false },
-      { id: 5, name: '血压测量', desc: '记录今日血压', points: 20, completed: false }
+    categories: [
+      { key: 'medication', icon: '💊', name: '用药提醒', desc: '按时服药，健康管理', color: '#52c41a', url: '/pages/health-plan/medications/index' },
+      { key: 'checkin', icon: '✅', name: '健康打卡', desc: '每日打卡，养成习惯', color: '#13c2c2', url: '/pages/health-plan/checkin/index' },
+      { key: 'plan', icon: '📋', name: '自定义计划', desc: '个性化健康计划', color: '#1890ff', url: '/pages/health-plan/categories/index' }
     ],
-    tips: [
-      '今天天气晴朗，适合户外散步30分钟',
-      '建议午餐多食用深色蔬菜，补充维生素',
-      '注意用眼卫生，每45分钟休息一次'
-    ]
+    stats: null,
+    statsLoading: false,
+    todayTodos: [],
+    todayLoading: false,
+    aiGenerating: false
   },
 
-  toggleTask(e) {
-    const index = e.currentTarget.dataset.index;
-    const completed = !this.data.tasks[index].completed;
-    this.setData({
-      [`tasks[${index}].completed`]: completed,
-      completedCount: this.data.completedCount + (completed ? 1 : -1)
-    });
-    if (completed) {
-      wx.showToast({ title: `+${this.data.tasks[index].points}积分`, icon: 'success' });
+  onShow() {
+    this.loadStats();
+    this.loadTodayTodos();
+  },
+
+  onPullDownRefresh() {
+    Promise.all([this.loadStats(), this.loadTodayTodos()])
+      .finally(() => wx.stopPullDownRefresh());
+  },
+
+  async loadStats() {
+    this.setData({ statsLoading: true });
+    try {
+      const res = await get('/api/health-plan/statistics', {}, { showLoading: false, suppressErrorToast: true });
+      this.setData({ stats: res });
+    } catch (e) {
+      this.setData({ stats: null });
+    } finally {
+      this.setData({ statsLoading: false });
+    }
+  },
+
+  async loadTodayTodos() {
+    this.setData({ todayLoading: true });
+    try {
+      const res = await get('/api/health-plan/today-todos', {}, { showLoading: false, suppressErrorToast: true });
+      const items = Array.isArray(res) ? res : (res && res.items ? res.items : []);
+      this.setData({ todayTodos: items.slice(0, 5) });
+    } catch (e) {
+      this.setData({ todayTodos: [] });
+    } finally {
+      this.setData({ todayLoading: false });
+    }
+  },
+
+  onCategoryTap(e) {
+    const { url } = e.currentTarget.dataset;
+    if (url) wx.navigateTo({ url });
+  },
+
+  async onAiGenerate() {
+    if (this.data.aiGenerating) return;
+    this.setData({ aiGenerating: true });
+    try {
+      await post('/api/health-plan/ai-generate', {});
+      wx.showToast({ title: 'AI计划已生成', icon: 'success' });
+      this.loadTodayTodos();
+    } catch (e) {
+      // error handled by request
+    } finally {
+      this.setData({ aiGenerating: false });
+    }
+  },
+
+  goStatistics() {
+    wx.navigateTo({ url: '/pages/health-plan/statistics/index' });
+  },
+
+  async onTodoCheckin(e) {
+    const { type, id, taskId } = e.currentTarget.dataset;
+    let url = '';
+    if (type === 'medication') {
+      url = `/api/health-plan/medications/${id}/checkin`;
+    } else if (type === 'checkin_item') {
+      url = `/api/health-plan/checkin-items/${id}/checkin`;
+    } else if (type === 'plan_task') {
+      url = `/api/health-plan/user-plans/${id}/tasks/${taskId}/checkin`;
+    }
+    if (!url) return;
+    try {
+      await post(url, {});
+      wx.showToast({ title: '打卡成功', icon: 'success' });
+      this.loadTodayTodos();
+      this.loadStats();
+    } catch (e) {
+      // error handled by request
     }
   }
 });

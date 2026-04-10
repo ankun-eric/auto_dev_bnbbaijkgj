@@ -30,6 +30,16 @@ import 'screens/order/order_detail_screen.dart';
 import 'screens/points/points_screen.dart';
 import 'screens/points/points_mall_screen.dart';
 import 'screens/plan/health_plan_screen.dart';
+import 'screens/plan/medication_list_screen.dart';
+import 'screens/plan/medication_form_screen.dart';
+import 'screens/plan/checkin_list_screen.dart';
+import 'screens/plan/checkin_form_screen.dart';
+import 'screens/plan/template_categories_screen.dart';
+import 'screens/plan/category_detail_screen.dart';
+import 'screens/plan/recommended_plan_detail_screen.dart';
+import 'screens/plan/create_plan_screen.dart';
+import 'screens/plan/user_plan_detail_screen.dart';
+import 'screens/plan/statistics_screen.dart';
 import 'screens/content/articles_screen.dart';
 import 'screens/content/article_detail_screen.dart';
 import 'screens/profile/profile_screen.dart';
@@ -171,6 +181,16 @@ class BiniHealthApp extends StatelessWidget {
           '/points': (context) => const PointsScreen(),
           '/points-mall': (context) => const PointsMallScreen(),
           '/health-plan': (context) => const HealthPlanScreen(),
+          '/hp-medications': (context) => const MedicationListScreen(),
+          '/hp-medication-form': (context) => const MedicationFormScreen(),
+          '/hp-checkins': (context) => const CheckinListScreen(),
+          '/hp-checkin-form': (context) => const CheckinFormScreen(),
+          '/hp-template-categories': (context) => const TemplateCategoriesScreen(),
+          '/hp-category-detail': (context) => const CategoryDetailScreen(),
+          '/hp-recommended-plan': (context) => const RecommendedPlanDetailScreen(),
+          '/hp-create-plan': (context) => const CreatePlanScreen(),
+          '/hp-user-plan': (context) => const UserPlanDetailScreen(),
+          '/hp-statistics': (context) => const StatisticsScreen(),
           '/articles': (context) => const ArticlesScreen(),
           '/article-detail': (context) => const ArticleDetailScreen(),
           '/profile': (context) => const ProfileScreen(),

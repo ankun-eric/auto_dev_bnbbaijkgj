@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Swiper, Grid, List, Tag, Badge, NoticeBar, SpinLoading } from 'antd-mobile';
+import { Swiper, Grid, List, Tag, Badge, NoticeBar, SpinLoading, Toast, Dialog, Button } from 'antd-mobile';
 import { useHomeConfig, HomeBanner, HomeMenu } from '@/lib/useHomeConfig';
 import api from '@/lib/api';
 
@@ -27,11 +27,33 @@ const articles = [
   { id: 4, title: '每天走路30分钟，身体会有哪些变化', tag: '运动', views: 1560 },
 ];
 
-const tasks = [
-  { id: 1, title: '今日步数 8000步', done: false },
-  { id: 2, title: '饮水 2000ml', done: false },
-  { id: 3, title: '午休 30分钟', done: true },
-];
+interface TodoItem {
+  id: number;
+  type: string;
+  category: string;
+  sub_category?: string;
+  title: string;
+  subtitle?: string;
+  is_checked: boolean;
+  has_target: boolean;
+  target_value?: number;
+  target_unit?: string;
+  actual_value?: number;
+}
+
+interface TodoGroup {
+  category: string;
+  label: string;
+  icon: string;
+  items: TodoItem[];
+  sub_groups?: { name: string; icon: string; items: TodoItem[] }[];
+}
+
+interface TodayTodosResponse {
+  completed_count: number;
+  total_count: number;
+  groups: TodoGroup[];
+}
 
 const FALLBACK_COLORS = ['#52c41a', '#13c2c2', '#1890ff', '#722ed1', '#eb2f96', '#fa8c16'];
 
@@ -51,6 +73,22 @@ export default function HomePage() {
   const router = useRouter();
 
   const [notices, setNotices] = useState<NoticeItem[] | null>(null);
+  const [todayTodos, setTodayTodos] = useState<TodayTodosResponse | null>(null);
+  const [todosLoading, setTodosLoading] = useState(true);
+  const [inputVisible, setInputVisible] = useState<number | null>(null);
+  const [inputValue, setInputValue] = useState('');
+
+  const fetchTodos = useCallback(async () => {
+    try {
+      const res: any = await api.get('/api/health-plan/today-todos');
+      const data = res.data || res;
+      setTodayTodos(data);
+    } catch {
+      setTodayTodos(null);
+    } finally {
+      setTodosLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     const fetchNotices = async () => {
@@ -69,7 +107,47 @@ export default function HomePage() {
       }
     };
     fetchNotices();
-  }, []);
+    fetchTodos();
+  }, [fetchTodos]);
+
+  const handleQuickCheck = async (item: TodoItem) => {
+    if (item.is_checked) return;
+    if (item.has_target) {
+      setInputVisible(item.id);
+      setInputValue('');
+      return;
+    }
+    try {
+      await api.post(`/api/health-plan/today-todos/${item.id}/check`, {
+        type: item.type,
+        value: null,
+      });
+      Toast.show({ content: '打卡成功', icon: 'success' });
+      fetchTodos();
+    } catch {
+      Toast.show({ content: '打卡失败', icon: 'fail' });
+    }
+  };
+
+  const handleValueSubmit = async (item: TodoItem) => {
+    const val = parseFloat(inputValue);
+    if (isNaN(val) || val < 0) {
+      Toast.show({ content: '请输入有效数值', icon: 'fail' });
+      return;
+    }
+    try {
+      await api.post(`/api/health-plan/today-todos/${item.id}/check`, {
+        type: item.type,
+        value: val,
+      });
+      Toast.show({ content: '打卡成功', icon: 'success' });
+      setInputVisible(null);
+      setInputValue('');
+      fetchTodos();
+    } catch {
+      Toast.show({ content: '打卡失败', icon: 'fail' });
+    }
+  };
 
   const { config, banners, menus, loading } = useHomeConfig();
 
@@ -207,27 +285,142 @@ export default function HomePage() {
 
         <div className="card">
           <div className="flex items-center justify-between mb-3">
-            <span className="section-title mb-0">每日健康任务</span>
-            <span className="text-xs text-primary" onClick={() => router.push('/health-plan')}>
-              查看全部
-            </span>
-          </div>
-          {tasks.map((t) => (
-            <div key={t.id} className="flex items-center py-2 border-b border-gray-50 last:border-b-0">
-              <div
-                className="w-5 h-5 rounded-full border-2 flex items-center justify-center mr-3"
-                style={{
-                  borderColor: t.done ? '#52c41a' : '#ddd',
-                  background: t.done ? '#52c41a' : 'transparent',
-                }}
-              >
-                {t.done && <span className="text-white text-xs">✓</span>}
-              </div>
-              <span className={`text-sm ${t.done ? 'text-gray-400 line-through' : 'text-gray-700'}`}>
-                {t.title}
+            <span className="section-title mb-0">📋 今日待办</span>
+            <div className="flex items-center gap-2">
+              {todayTodos && todayTodos.total_count > 0 && (
+                <span className="text-xs text-gray-400">
+                  已完成 {todayTodos.completed_count}/{todayTodos.total_count}
+                </span>
+              )}
+              <span className="text-xs" style={{ color: '#52c41a' }} onClick={() => router.push('/health-plan')}>
+                查看全部
               </span>
             </div>
-          ))}
+          </div>
+
+          {todosLoading ? (
+            <div className="flex items-center justify-center py-6">
+              <SpinLoading color="primary" style={{ '--size': '24px' }} />
+            </div>
+          ) : !todayTodos || todayTodos.total_count === 0 ? (
+            <div className="text-center py-6">
+              <div className="text-3xl mb-2">🎉</div>
+              <div className="text-sm text-gray-400 mb-3">暂无待办任务</div>
+              <Button
+                size="mini"
+                style={{ borderRadius: 20, color: '#52c41a', borderColor: '#52c41a' }}
+                onClick={() => router.push('/health-plan')}
+              >
+                创建你的第一个健康计划
+              </Button>
+            </div>
+          ) : (
+            todayTodos.groups?.map((group) => (
+              <div key={group.category} className="mb-3 last:mb-0">
+                <div className="flex items-center mb-2">
+                  <span className="text-sm mr-1">{group.icon}</span>
+                  <span className="text-xs font-medium text-gray-600">{group.label}</span>
+                </div>
+
+                {group.category === 'custom' && group.sub_groups ? (
+                  group.sub_groups.map((sub) => (
+                    <div key={sub.name} className="ml-2 mb-2">
+                      <div className="flex items-center mb-1">
+                        <span className="text-xs mr-1">{sub.icon}</span>
+                        <span className="text-xs text-gray-400">{sub.name}</span>
+                      </div>
+                      {sub.items.length === 0 ? (
+                        <div className="text-xs text-gray-300 ml-4 mb-1">今日无待办</div>
+                      ) : (
+                        sub.items.map((item) => (
+                          <div key={item.id} className="ml-2">
+                            <div
+                              className="flex items-center py-1.5 cursor-pointer"
+                              onClick={() => handleQuickCheck(item)}
+                            >
+                              <div
+                                className="w-4 h-4 rounded-full border-2 flex items-center justify-center mr-2 shrink-0"
+                                style={{
+                                  borderColor: item.is_checked ? '#52c41a' : '#ddd',
+                                  background: item.is_checked ? '#52c41a' : 'transparent',
+                                }}
+                              >
+                                {item.is_checked && <span className="text-white" style={{ fontSize: 8 }}>✓</span>}
+                              </div>
+                              <span className={`text-sm flex-1 ${item.is_checked ? 'text-gray-400 line-through' : ''}`}>
+                                {item.title}
+                                {item.subtitle && <span className="text-xs text-gray-400 ml-1">{item.subtitle}</span>}
+                              </span>
+                            </div>
+                            {inputVisible === item.id && (
+                              <div className="flex items-center ml-6 mb-1 gap-2">
+                                <input
+                                  type="number"
+                                  value={inputValue}
+                                  onChange={(e) => setInputValue(e.target.value)}
+                                  placeholder={`输入${item.target_unit || '数值'}`}
+                                  className="flex-1 text-xs px-2 py-1.5 rounded-lg border border-gray-200"
+                                  autoFocus
+                                />
+                                <Button size="mini" color="primary" style={{ borderRadius: 6, background: '#52c41a', border: 'none', fontSize: 11 }} onClick={() => handleValueSubmit(item)}>确认</Button>
+                                <Button size="mini" style={{ borderRadius: 6, fontSize: 11 }} onClick={() => { setInputVisible(null); setInputValue(''); }}>取消</Button>
+                              </div>
+                            )}
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  group.items?.map((item) => (
+                    <div key={item.id}>
+                      <div
+                        className="flex items-center py-1.5 ml-2 cursor-pointer"
+                        onClick={() => handleQuickCheck(item)}
+                      >
+                        <div
+                          className="w-4 h-4 rounded-full border-2 flex items-center justify-center mr-2 shrink-0"
+                          style={{
+                            borderColor: item.is_checked ? '#52c41a' : '#ddd',
+                            background: item.is_checked ? '#52c41a' : 'transparent',
+                          }}
+                        >
+                          {item.is_checked && <span className="text-white" style={{ fontSize: 8 }}>✓</span>}
+                        </div>
+                        <span className={`text-sm flex-1 ${item.is_checked ? 'text-gray-400 line-through' : ''}`}>
+                          {item.title}
+                          {item.subtitle && <span className="text-xs text-gray-400 ml-1">{item.subtitle}</span>}
+                        </span>
+                      </div>
+                      {inputVisible === item.id && (
+                        <div className="flex items-center ml-8 mb-1 gap-2">
+                          <input
+                            type="number"
+                            value={inputValue}
+                            onChange={(e) => setInputValue(e.target.value)}
+                            placeholder={`输入${item.target_unit || '数值'}`}
+                            className="flex-1 text-xs px-2 py-1.5 rounded-lg border border-gray-200"
+                            autoFocus
+                          />
+                          <Button size="mini" color="primary" style={{ borderRadius: 6, background: '#52c41a', border: 'none', fontSize: 11 }} onClick={() => handleValueSubmit(item)}>确认</Button>
+                          <Button size="mini" style={{ borderRadius: 6, fontSize: 11 }} onClick={() => { setInputVisible(null); setInputValue(''); }}>取消</Button>
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            ))
+          )}
+
+          {todayTodos && todayTodos.total_count > 0 && (
+            <div
+              className="text-center pt-2 mt-2 border-t border-gray-50 cursor-pointer"
+              onClick={() => router.push('/health-plan/statistics')}
+            >
+              <span className="text-xs" style={{ color: '#52c41a' }}>📊 查看统计</span>
+            </div>
+          )}
         </div>
 
         <div className="mb-4">

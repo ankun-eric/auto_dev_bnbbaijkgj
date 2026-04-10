@@ -1,0 +1,38 @@
+<view class="page-wrap">
+  <view class="loading-wrap" wx:if="{{loading}}">
+    <text class="text-hint">加载中...</text>
+  </view>
+
+  <view wx:elif="{{category}}" class="detail-wrap">
+    <view class="cat-header card">
+      <text class="cat-icon">{{category.icon || '📂'}}</text>
+      <text class="cat-name">{{category.name}}</text>
+      <text class="cat-desc" wx:if="{{category.description}}">{{category.description}}</text>
+    </view>
+
+    <view class="section-header">
+      <text class="section-title">推荐计划</text>
+    </view>
+
+    <view wx:if="{{plans.length === 0}}" class="empty-hint">
+      <text class="text-hint">暂无推荐计划</text>
+    </view>
+
+    <view class="plan-list">
+      <view class="plan-card card" wx:for="{{plans}}" wx:key="id" bindtap="onPlanTap" data-id="{{item.id}}">
+        <view class="plan-row">
+          <view class="plan-info">
+            <text class="plan-name">{{item.name || item.title}}</text>
+            <text class="plan-desc">{{item.description || ''}}</text>
+            <view class="plan-tags">
+              <text class="plan-tag" wx:if="{{item.duration}}">{{item.duration}}</text>
+              <text class="plan-tag" wx:if="{{item.difficulty}}">{{item.difficulty}}</text>
+              <text class="plan-tag" wx:if="{{item.task_count}}">{{item.task_count}}个任务</text>
+            </view>
+          </view>
+          <text class="plan-arrow">›</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>

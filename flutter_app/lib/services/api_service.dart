@@ -341,7 +341,7 @@ class ApiService {
     return _dio.post(ApiConfig.ocrBatchRecognize, data: formData);
   }
 
-  // Health Plan
+  // Health Plan (legacy)
   Future<Response> getHealthPlan() async {
     return _dio.get(ApiConfig.healthPlan);
   }
@@ -352,6 +352,106 @@ class ApiService {
 
   Future<Response> checkinTask(String taskId) async {
     return _dio.post(ApiConfig.taskCheckin, data: {'task_id': taskId});
+  }
+
+  // Health Plan V2 - Medications
+  Future<Response> createMedication(Map<String, dynamic> data) async {
+    return _dio.post(ApiConfig.hpMedications, data: data);
+  }
+
+  Future<Response> getMedications() async {
+    return _dio.get(ApiConfig.hpMedications);
+  }
+
+  Future<Response> updateMedication(int id, Map<String, dynamic> data) async {
+    return _dio.put('${ApiConfig.hpMedications}/$id', data: data);
+  }
+
+  Future<Response> deleteMedication(int id) async {
+    return _dio.delete('${ApiConfig.hpMedications}/$id');
+  }
+
+  Future<Response> pauseMedication(int id, bool isPaused) async {
+    return _dio.put('${ApiConfig.hpMedications}/$id/pause', data: {'is_paused': isPaused});
+  }
+
+  Future<Response> checkinMedication(int id) async {
+    return _dio.post('${ApiConfig.hpMedications}/$id/checkin');
+  }
+
+  // Health Plan V2 - Checkin Items
+  Future<Response> createCheckinItem(Map<String, dynamic> data) async {
+    return _dio.post(ApiConfig.hpCheckinItems, data: data);
+  }
+
+  Future<Response> getCheckinItems() async {
+    return _dio.get(ApiConfig.hpCheckinItems);
+  }
+
+  Future<Response> updateCheckinItem(int id, Map<String, dynamic> data) async {
+    return _dio.put('${ApiConfig.hpCheckinItems}/$id', data: data);
+  }
+
+  Future<Response> deleteCheckinItem(int id) async {
+    return _dio.delete('${ApiConfig.hpCheckinItems}/$id');
+  }
+
+  Future<Response> checkinCheckinItem(int id, {double? actualValue, bool? isCompleted}) async {
+    final data = <String, dynamic>{};
+    if (actualValue != null) data['actual_value'] = actualValue;
+    if (isCompleted != null) data['is_completed'] = isCompleted;
+    return _dio.post('${ApiConfig.hpCheckinItems}/$id/checkin', data: data);
+  }
+
+  // Health Plan V2 - Template Categories & Custom Plans
+  Future<Response> getTemplateCategories() async {
+    return _dio.get(ApiConfig.hpTemplateCategories);
+  }
+
+  Future<Response> getTemplateCategoryDetail(int id) async {
+    return _dio.get('${ApiConfig.hpTemplateCategories}/$id');
+  }
+
+  Future<Response> getRecommendedPlanDetail(int id) async {
+    return _dio.get('${ApiConfig.hpRecommendedPlans}/$id');
+  }
+
+  Future<Response> joinRecommendedPlan(int id) async {
+    return _dio.post('${ApiConfig.hpRecommendedPlans}/$id/join');
+  }
+
+  Future<Response> createUserPlan(Map<String, dynamic> data) async {
+    return _dio.post(ApiConfig.hpUserPlans, data: data);
+  }
+
+  Future<Response> getUserPlans() async {
+    return _dio.get(ApiConfig.hpUserPlans);
+  }
+
+  Future<Response> getUserPlanDetail(int id) async {
+    return _dio.get('${ApiConfig.hpUserPlans}/$id');
+  }
+
+  Future<Response> checkinUserPlanTask(int planId, int taskId) async {
+    return _dio.post('${ApiConfig.hpUserPlans}/$planId/tasks/$taskId/checkin');
+  }
+
+  // Health Plan V2 - AI
+  Future<Response> aiGeneratePlan(Map<String, dynamic> data) async {
+    return _dio.post(ApiConfig.hpAiGenerate, data: data);
+  }
+
+  Future<Response> aiGenerateCategoryPlan(int categoryId, {Map<String, dynamic>? data}) async {
+    return _dio.post('${ApiConfig.hpAiGenerateCategory}/$categoryId', data: data ?? {});
+  }
+
+  // Health Plan V2 - Today / Statistics
+  Future<Response> getTodayTodos() async {
+    return _dio.get(ApiConfig.hpTodayTodos);
+  }
+
+  Future<Response> getHpStatistics() async {
+    return _dio.get(ApiConfig.hpStatistics);
   }
 
   // Services

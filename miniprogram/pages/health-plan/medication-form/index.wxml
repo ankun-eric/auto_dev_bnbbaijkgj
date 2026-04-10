@@ -1,0 +1,59 @@
+<view class="form-page">
+  <view class="form-card card">
+    <view class="form-item">
+      <text class="form-label">药品名称 *</text>
+      <input class="form-input" placeholder="请输入药品名称" value="{{name}}" bindinput="onInput" data-field="name" />
+    </view>
+
+    <view class="form-item">
+      <text class="form-label">剂量</text>
+      <input class="form-input" placeholder="如：一次2片" value="{{dosage}}" bindinput="onInput" data-field="dosage" />
+    </view>
+
+    <view class="form-item">
+      <text class="form-label">频率</text>
+      <picker mode="selector" range="{{frequencyOptions}}" value="{{frequencyIndex}}" bindchange="onFrequencyChange">
+        <view class="form-picker">
+          <text class="picker-text">{{frequencyOptions[frequencyIndex]}}</text>
+          <text class="picker-arrow">›</text>
+        </view>
+      </picker>
+    </view>
+
+    <view class="form-item">
+      <text class="form-label">提醒时间</text>
+      <input class="form-input" placeholder="如：08:00, 20:00" value="{{remind_times}}" bindinput="onInput" data-field="remind_times" />
+    </view>
+
+    <view class="form-item">
+      <text class="form-label">开始日期</text>
+      <picker mode="date" value="{{start_date}}" bindchange="onStartDateChange">
+        <view class="form-picker">
+          <text class="picker-text">{{start_date || '请选择'}}</text>
+          <text class="picker-arrow">›</text>
+        </view>
+      </picker>
+    </view>
+
+    <view class="form-item">
+      <text class="form-label">结束日期</text>
+      <picker mode="date" value="{{end_date}}" bindchange="onEndDateChange">
+        <view class="form-picker">
+          <text class="picker-text">{{end_date || '不限'}}</text>
+          <text class="picker-arrow">›</text>
+        </view>
+      </picker>
+    </view>
+
+    <view class="form-item">
+      <text class="form-label">备注</text>
+      <textarea class="form-textarea" placeholder="如：饭后服用" value="{{notes}}" bindinput="onInput" data-field="notes" />
+    </view>
+  </view>
+
+  <view class="form-submit">
+    <button class="submit-btn {{submitting ? 'btn-disabled' : ''}}" bindtap="onSubmit" disabled="{{submitting}}">
+      {{submitting ? '保存中...' : '保存'}}
+    </button>
+  </view>
+</view>

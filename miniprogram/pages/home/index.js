@@ -1,4 +1,4 @@
-const { get } = require('../../utils/request');
+const { get, post } = require('../../utils/request');
 const { syncTabBar } = require('../../utils/util');
 
 const DEFAULT_BANNERS = [
@@ -39,6 +39,8 @@ Page({
     menuItems: DEFAULT_MENUS,
     homeConfig: DEFAULT_CONFIG,
     gridColumnWidth: '33.33%',
+    todayTodos: [],
+    todayTodosLoading: false,
     healthTips: [
       { id: 1, content: '今日气温变化大，注意添衣保暖' },
       { id: 2, content: '建议每天饮水 2000ml 以上' }
@@ -106,7 +108,8 @@ Page({
       await Promise.all([
         this.loadHomeConfig(),
         this.loadBanners(),
-        this.loadMenus()
+        this.loadMenus(),
+        this.loadTodayTodos()
       ]);
     } finally {
       this.setData({ loading: false });
@@ -185,6 +188,43 @@ Page({
         }
       });
     }
+  },
+
+  async loadTodayTodos() {
+    this.setData({ todayTodosLoading: true });
+    try {
+      const res = await get('/api/health-plan/today-todos', {}, { showLoading: false, suppressErrorToast: true });
+      const items = Array.isArray(res) ? res : (res && res.items ? res.items : []);
+      this.setData({ todayTodos: items });
+    } catch (e) {
+      this.setData({ todayTodos: [] });
+    } finally {
+      this.setData({ todayTodosLoading: false });
+    }
+  },
+
+  async onTodoCheckin(e) {
+    const { type, id, taskId } = e.currentTarget.dataset;
+    let url = '';
+    if (type === 'medication') {
+      url = `/api/health-plan/medications/${id}/checkin`;
+    } else if (type === 'checkin_item') {
+      url = `/api/health-plan/checkin-items/${id}/checkin`;
+    } else if (type === 'plan_task') {
+      url = `/api/health-plan/user-plans/${id}/tasks/${taskId}/checkin`;
+    }
+    if (!url) return;
+    try {
+      await post(url, {});
+      wx.showToast({ title: '打卡成功', icon: 'success' });
+      this.loadTodayTodos();
+    } catch (e) {
+      // error toast handled by request
+    }
+  },
+
+  goHealthPlan() {
+    wx.navigateTo({ url: '/pages/health-plan/index' });
   },
 
   async loadMerchantDashboard() {

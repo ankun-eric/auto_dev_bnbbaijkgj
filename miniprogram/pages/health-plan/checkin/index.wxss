@@ -1,0 +1,41 @@
+.page-wrap { padding: 24rpx; min-height: 100vh; background: #f5f5f5; padding-bottom: 140rpx; }
+.loading-wrap, .empty-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 120rpx 0; }
+.empty-icon { font-size: 80rpx; margin-bottom: 20rpx; }
+.empty-text { font-size: 30rpx; color: #333; font-weight: 600; margin-bottom: 12rpx; }
+.empty-desc { font-size: 26rpx; color: #999; margin-bottom: 32rpx; }
+.empty-btn { padding: 16rpx 48rpx; background: #13c2c2; color: #fff; border-radius: 36rpx; font-size: 28rpx; }
+.text-hint { font-size: 26rpx; color: #999; }
+
+.checkin-card { margin-bottom: 20rpx; }
+.checkin-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12rpx; }
+.checkin-title-row { display: flex; align-items: center; flex: 1; }
+.checkin-emoji { font-size: 32rpx; margin-right: 12rpx; }
+.checkin-name { font-size: 30rpx; font-weight: 600; color: #333; }
+.checkin-streak { flex-shrink: 0; }
+.streak-text { font-size: 24rpx; color: #faad14; }
+
+.checkin-body { margin-bottom: 16rpx; }
+.checkin-desc { font-size: 26rpx; color: #666; display: block; margin-bottom: 8rpx; }
+.checkin-target { font-size: 24rpx; color: #999; display: block; }
+
+.checkin-actions { display: flex; border-top: 1rpx solid #f0f0f0; padding-top: 16rpx; }
+.action-btn { flex: 1; text-align: center; font-size: 24rpx; padding: 10rpx 0; }
+.action-checkin { color: #13c2c2; font-weight: 600; }
+.action-done { color: #52c41a; }
+.action-edit { color: #1890ff; }
+.action-delete { color: #ff4d4f; }
+
+.fab-btn {
+  position: fixed;
+  right: 40rpx;
+  bottom: 100rpx;
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #13c2c2, #1890ff);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8rpx 24rpx rgba(19,194,194,0.4);
+}
+.fab-icon { font-size: 48rpx; color: #fff; font-weight: 300; }

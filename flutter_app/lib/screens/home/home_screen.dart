@@ -27,6 +27,12 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Map<String, dynamic>> _banners = [];
   List<Map<String, dynamic>> _menus = [];
 
+  // Today todos
+  List<Map<String, dynamic>> _todayMedications = [];
+  List<Map<String, dynamic>> _todayCheckins = [];
+  List<Map<String, dynamic>> _todayPlanTasks = [];
+  bool _todayTodosLoading = false;
+
   final List<Article> _articles = [
     Article(id: '1', title: '春季养生：如何预防过敏性鼻炎', summary: '春季是过敏性鼻炎的高发季节，了解预防措施...', author: '健康专家', viewCount: 2345),
     Article(id: '2', title: '每天走一万步真的健康吗？', summary: '运动量因人而异，科学运动更重要...', author: '运动医学', viewCount: 1892),
@@ -52,6 +58,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _loadData();
+    _loadTodayTodos();
   }
 
   Future<void> _loadData() async {
@@ -91,6 +98,46 @@ class _HomeScreenState extends State<HomeScreen> {
         _loading = false;
       });
     }
+  }
+
+  Future<void> _loadTodayTodos() async {
+    setState(() => _todayTodosLoading = true);
+    try {
+      final response = await _apiService.getTodayTodos();
+      if (response.statusCode == 200 && mounted) {
+        final data = response.data is Map ? response.data as Map<String, dynamic> : <String, dynamic>{};
+        setState(() {
+          _todayMedications = _parseList(data['medications']);
+          _todayCheckins = _parseList(data['checkin_items']);
+          _todayPlanTasks = _parseList(data['plan_tasks']);
+          _todayTodosLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _todayTodosLoading = false);
+    }
+  }
+
+  List<Map<String, dynamic>> _parseList(dynamic list) {
+    if (list is List) {
+      return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    }
+    return [];
+  }
+
+  Future<void> _handleTodoCheckin(String type, Map<String, dynamic> item) async {
+    try {
+      final id = item['id'] as int;
+      if (type == 'medication') {
+        await _apiService.checkinMedication(id);
+      } else if (type == 'checkin') {
+        await _apiService.checkinCheckinItem(id, isCompleted: true);
+      } else if (type == 'plan_task') {
+        final planId = item['plan_id'] as int;
+        await _apiService.checkinUserPlanTask(planId, id);
+      }
+      _loadTodayTodos();
+    } catch (_) {}
   }
 
   @override
@@ -161,7 +208,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       const SizedBox(height: 20),
                       _buildFeatureGrid(),
                       const SizedBox(height: 20),
-                      _buildHealthTip(),
+                      _buildTodayTodos(),
                       const SizedBox(height: 20),
                       _buildSectionHeader('健康知识', onMore: () => Navigator.pushNamed(context, '/articles')),
                       const SizedBox(height: 8),
@@ -423,7 +470,9 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildHealthTip() {
+  Widget _buildTodayTodos() {
+    final totalCount = _todayMedications.length + _todayCheckins.length + _todayPlanTasks.length;
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(16),
@@ -437,31 +486,139 @@ class _HomeScreenState extends State<HomeScreen> {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFF52C41A).withOpacity(0.2)),
       ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF52C41A).withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.today, color: Color(0xFF52C41A), size: 18),
+                  ),
+                  const SizedBox(width: 8),
+                  const Text('今日待办', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF333333))),
+                ],
+              ),
+              GestureDetector(
+                onTap: () => Navigator.pushNamed(context, '/health-plan'),
+                child: Row(
+                  children: [
+                    Text('查看全部', style: TextStyle(fontSize: 13, color: Colors.grey[500])),
+                    Icon(Icons.chevron_right, size: 18, color: Colors.grey[500]),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (_todayTodosLoading)
+            const Center(child: Padding(
+              padding: EdgeInsets.all(12),
+              child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF52C41A))),
+            ))
+          else if (totalCount == 0)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Text('今天暂无待办事项', style: TextStyle(fontSize: 14, color: Colors.grey[400])),
+              ),
+            )
+          else ...[
+            ..._todayMedications.take(2).map((m) => _buildTodoItem(
+              icon: Icons.medication,
+              color: const Color(0xFFFA8C16),
+              title: m['medicine_name']?.toString() ?? '',
+              subtitle: '${m['time_period'] ?? ''} ${m['remind_time'] ?? ''}',
+              done: m['is_checked'] == true,
+              onCheck: () => _handleTodoCheckin('medication', m),
+            )),
+            ..._todayCheckins.take(2).map((c) => _buildTodoItem(
+              icon: Icons.check_circle_outline,
+              color: const Color(0xFF52C41A),
+              title: c['name']?.toString() ?? '',
+              subtitle: c['target_value'] != null ? '目标: ${c['target_value']} ${c['target_unit'] ?? ''}' : '',
+              done: c['is_checked'] == true,
+              onCheck: () => _handleTodoCheckin('checkin', c),
+            )),
+            ..._todayPlanTasks.take(2).map((t) => _buildTodoItem(
+              icon: Icons.flag_outlined,
+              color: const Color(0xFF1890FF),
+              title: t['task_name']?.toString() ?? t['name']?.toString() ?? '',
+              subtitle: t['plan_name']?.toString() ?? '',
+              done: t['is_checked'] == true,
+              onCheck: () => _handleTodoCheckin('plan_task', t),
+            )),
+            if (totalCount > 6)
+              Center(
+                child: GestureDetector(
+                  onTap: () => Navigator.pushNamed(context, '/health-plan'),
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text('还有 ${totalCount - 6} 项待办...', style: const TextStyle(fontSize: 13, color: Color(0xFF52C41A))),
+                  ),
+                ),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTodoItem({
+    required IconData icon,
+    required Color color,
+    required String title,
+    required String subtitle,
+    required bool done,
+    required VoidCallback onCheck,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+      ),
       child: Row(
         children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: const Color(0xFF52C41A).withOpacity(0.15),
-              borderRadius: BorderRadius.circular(10),
+          GestureDetector(
+            onTap: done ? null : onCheck,
+            child: Container(
+              width: 22,
+              height: 22,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: done ? color : Colors.transparent,
+                border: Border.all(color: done ? color : Colors.grey[300]!, width: 2),
+              ),
+              child: done ? const Icon(Icons.check, size: 13, color: Colors.white) : null,
             ),
-            child: const Icon(Icons.lightbulb_outline, color: Color(0xFF52C41A), size: 22),
           ),
-          const SizedBox(width: 12),
-          const Expanded(
+          const SizedBox(width: 10),
+          Icon(icon, color: color, size: 18),
+          const SizedBox(width: 8),
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '今日健康提示',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF333333)),
+                  title,
+                  style: TextStyle(
+                    fontSize: 14,
+                    decoration: done ? TextDecoration.lineThrough : null,
+                    color: done ? Colors.grey[400] : const Color(0xFF333333),
+                  ),
                 ),
-                SizedBox(height: 4),
-                Text(
-                  '春季多饮水、早睡早起，适当进行户外运动有助于增强免疫力。',
-                  style: TextStyle(fontSize: 13, color: Color(0xFF666666), height: 1.4),
-                ),
+                if (subtitle.isNotEmpty)
+                  Text(subtitle, style: TextStyle(fontSize: 11, color: Colors.grey[400])),
               ],
             ),
           ),

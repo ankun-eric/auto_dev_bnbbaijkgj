@@ -1,175 +1,180 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { NavBar, Card, Button, ProgressBar, Tag, Checkbox, Toast, FloatingBubble } from 'antd-mobile';
-import { AddOutline } from 'antd-mobile-icons';
+import { NavBar, Card, SpinLoading, Toast } from 'antd-mobile';
+import api from '@/lib/api';
 
-interface Task {
-  id: number;
-  title: string;
-  desc: string;
-  done: boolean;
-  points: number;
+interface TodayTodos {
+  medications_count: number;
+  checkin_count: number;
+  custom_plan_count: number;
+  completed_count: number;
+  total_count: number;
 }
 
-interface Plan {
-  id: number;
-  title: string;
-  desc: string;
-  progress: number;
-  days: number;
-  totalDays: number;
-  color: string;
+function mapTodayTodos(data: any): TodayTodos {
+  const groups: any[] = data.groups || [];
+  let medicationsCount = 0;
+  let checkinCount = 0;
+  let customPlanCount = 0;
+  groups.forEach((g: any) => {
+    const itemCount = g.items?.length || g.total_count || 0;
+    if (g.group_type === 'medication') medicationsCount += itemCount;
+    else if (g.group_type === 'checkin') checkinCount += itemCount;
+    else customPlanCount += itemCount;
+  });
+  return {
+    medications_count: medicationsCount,
+    checkin_count: checkinCount,
+    custom_plan_count: customPlanCount,
+    completed_count: data.total_completed || 0,
+    total_count: data.total_count || 0,
+  };
 }
 
-const mockPlans: Plan[] = [
-  { id: 1, title: '减重计划', desc: '目标：1个月减重5斤', progress: 45, days: 14, totalDays: 30, color: '#52c41a' },
-  { id: 2, title: '睡眠改善', desc: '目标：每晚11点前入睡', progress: 70, days: 21, totalDays: 30, color: '#1890ff' },
-];
-
-const initialTasks: Task[] = [
-  { id: 1, title: '晨起一杯温水', desc: '250ml温水，唤醒身体', done: false, points: 5 },
-  { id: 2, title: '步行8000步', desc: '日常运动，增强体质', done: false, points: 10 },
-  { id: 3, title: '午餐吃蔬菜', desc: '至少200g绿叶蔬菜', done: true, points: 5 },
-  { id: 4, title: '饮水2000ml', desc: '分多次少量饮水', done: false, points: 5 },
-  { id: 5, title: '冥想10分钟', desc: '放松身心，缓解压力', done: false, points: 10 },
-  { id: 6, title: '11点前入睡', desc: '保证充足睡眠', done: false, points: 10 },
+const categories = [
+  {
+    key: 'medications',
+    title: '用药提醒',
+    desc: '设置每日用药时间，按时推送提醒',
+    icon: '💊',
+    color: '#fa8c16',
+    gradient: 'linear-gradient(135deg, #fa8c16, #f5af19)',
+    countKey: 'medications_count' as keyof TodayTodos,
+  },
+  {
+    key: 'checkin',
+    title: '健康打卡',
+    desc: '自定义每日健康习惯打卡项',
+    icon: '✅',
+    color: '#52c41a',
+    gradient: 'linear-gradient(135deg, #52c41a, #73d13d)',
+    countKey: 'checkin_count' as keyof TodayTodos,
+  },
+  {
+    key: 'custom',
+    title: '自定义计划',
+    desc: '基于模板创建个性化健康管理计划',
+    icon: '📋',
+    color: '#1890ff',
+    gradient: 'linear-gradient(135deg, #1890ff, #40a9ff)',
+    countKey: 'custom_plan_count' as keyof TodayTodos,
+  },
 ];
 
 export default function HealthPlanPage() {
   const router = useRouter();
-  const [tasks, setTasks] = useState<Task[]>(initialTasks);
+  const [loading, setLoading] = useState(true);
+  const [todos, setTodos] = useState<TodayTodos | null>(null);
 
-  const toggleTask = (id: number) => {
-    setTasks(tasks.map((t) => {
-      if (t.id === id && !t.done) {
-        Toast.show({ content: `打卡成功 +${t.points}积分` });
-        return { ...t, done: true };
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const res: any = await api.get('/api/health-plan/today-todos');
+        setTodos(mapTodayTodos(res.data || res));
+      } catch {
+        setTodos({ medications_count: 0, checkin_count: 0, custom_plan_count: 0, completed_count: 0, total_count: 0 });
+      } finally {
+        setLoading(false);
       }
-      return t;
-    }));
+    };
+    fetchData();
+  }, []);
+
+  const handleAIGenerate = () => {
+    Toast.show({ content: 'AI正在为您生成个性化健康计划...', icon: 'loading' });
+    setTimeout(() => {
+      const sessionId = `plan-${Date.now()}`;
+      router.push(`/chat/${sessionId}?type=health&msg=${encodeURIComponent('请根据我的健康档案为我制定一份个性化的健康计划')}`);
+    }, 1000);
   };
 
-  const doneCount = tasks.filter((t) => t.done).length;
-  const totalPoints = tasks.reduce((sum, t) => sum + (t.done ? t.points : 0), 0);
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <NavBar onBack={() => router.back()} style={{ background: '#fff' }}>健康计划</NavBar>
+        <div className="flex items-center justify-center" style={{ height: 'calc(100vh - 45px)' }}>
+          <SpinLoading color="primary" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
-      <NavBar onBack={() => router.back()} style={{ background: '#fff' }}>
-        健康计划
-      </NavBar>
+      <NavBar onBack={() => router.back()} style={{ background: '#fff' }}>健康计划</NavBar>
 
-      <div
-        className="px-4 py-5"
-        style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}
-      >
-        <div className="flex items-center justify-between text-white">
-          <div>
-            <div className="text-lg font-bold">今日任务</div>
-            <div className="text-xs opacity-70 mt-1">已完成 {doneCount}/{tasks.length} · 已获{totalPoints}积分</div>
-          </div>
-          <div className="text-right">
-            <div className="text-2xl font-bold">{Math.round((doneCount / tasks.length) * 100)}%</div>
-            <div className="text-xs opacity-70">完成率</div>
-          </div>
+      <div className="px-4 py-5" style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}>
+        <div className="text-white text-center">
+          <div className="text-lg font-bold mb-1">AI 健康计划</div>
+          <div className="text-xs opacity-80 mb-4">根据您的健康档案，智能生成专属健康方案</div>
         </div>
-        <ProgressBar
-          percent={(doneCount / tasks.length) * 100}
+        <div
+          onClick={handleAIGenerate}
+          className="flex items-center justify-center py-3 rounded-xl cursor-pointer"
           style={{
-            '--track-width': '8px',
-            '--fill-color': '#fff',
-            '--track-color': 'rgba(255,255,255,0.3)',
-            marginTop: 12,
+            background: 'rgba(255,255,255,0.95)',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
           }}
-        />
+        >
+          <span className="text-xl mr-2">🤖</span>
+          <span className="text-base font-bold" style={{ color: '#52c41a' }}>AI 为我生成计划</span>
+        </div>
+        {todos && todos.total_count > 0 && (
+          <div className="flex items-center justify-center mt-3 text-white text-xs opacity-80">
+            今日待办 {todos.completed_count}/{todos.total_count} 已完成
+          </div>
+        )}
       </div>
 
       <div className="px-4 -mt-3">
-        <Card style={{ borderRadius: 12, marginBottom: 16 }}>
-          <div className="section-title">今日打卡</div>
-          {tasks.map((task) => (
-            <div
-              key={task.id}
-              className="flex items-center py-3 border-b border-gray-50 last:border-b-0"
-              onClick={() => toggleTask(task.id)}
-            >
-              <Checkbox
-                checked={task.done}
-                style={{
-                  '--icon-size': '20px',
-                } as React.CSSProperties}
-              />
-              <div className="flex-1 ml-3">
-                <div className={`text-sm ${task.done ? 'text-gray-400 line-through' : ''}`}>
-                  {task.title}
-                </div>
-                <div className="text-xs text-gray-400 mt-0.5">{task.desc}</div>
+        {categories.map((cat) => (
+          <Card
+            key={cat.key}
+            onClick={() => router.push(`/health-plan/${cat.key}`)}
+            style={{ borderRadius: 12, marginBottom: 12, overflow: 'hidden', padding: 0 }}
+            bodyStyle={{ padding: 0 }}
+          >
+            <div className="flex items-center p-4">
+              <div
+                className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl mr-4 shrink-0"
+                style={{ background: `${cat.color}15` }}
+              >
+                {cat.icon}
               </div>
-              <Tag
-                style={{
-                  '--background-color': task.done ? '#52c41a15' : '#fa8c1615',
-                  '--text-color': task.done ? '#52c41a' : '#fa8c16',
-                  '--border-color': 'transparent',
-                  fontSize: 10,
-                }}
-              >
-                {task.done ? `+${task.points}` : `${task.points}分`}
-              </Tag>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-base">{cat.title}</span>
+                  {todos && (
+                    <span
+                      className="text-xs px-2 py-0.5 rounded-full"
+                      style={{ background: `${cat.color}15`, color: cat.color }}
+                    >
+                      {todos[cat.countKey] || 0} 项
+                    </span>
+                  )}
+                </div>
+                <div className="text-xs text-gray-400 mt-1">{cat.desc}</div>
+              </div>
+              <div className="ml-2 text-gray-300">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
+              </div>
             </div>
-          ))}
-        </Card>
-
-        <div className="section-title">我的计划</div>
-        {mockPlans.map((plan) => (
-          <Card key={plan.id} style={{ borderRadius: 12, marginBottom: 12 }}>
-            <div className="flex items-center justify-between mb-2">
-              <span className="font-medium">{plan.title}</span>
-              <Tag
-                style={{
-                  '--background-color': `${plan.color}15`,
-                  '--text-color': plan.color,
-                  '--border-color': 'transparent',
-                  fontSize: 10,
-                }}
-              >
-                第{plan.days}天
-              </Tag>
-            </div>
-            <p className="text-xs text-gray-400 mb-2">{plan.desc}</p>
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-xs text-gray-400">进度</span>
-              <span className="text-xs" style={{ color: plan.color }}>{plan.progress}%</span>
-            </div>
-            <ProgressBar
-              percent={plan.progress}
-              style={{
-                '--track-width': '6px',
-                '--fill-color': plan.color,
-              }}
-            />
           </Card>
         ))}
-      </div>
 
-      <FloatingBubble
-        style={{
-          '--initial-position-bottom': '24px',
-          '--initial-position-right': '20px',
-          '--edge-distance': '20px',
-          '--background': 'linear-gradient(135deg, #52c41a, #13c2c2)',
-          '--size': '52px',
-        }}
-        onClick={() => {
-          Toast.show({ content: 'AI正在为您生成个性化健康计划...' });
-          setTimeout(() => {
-            const sessionId = `plan-${Date.now()}`;
-            router.push(`/chat/${sessionId}?type=health&msg=${encodeURIComponent('请根据我的健康档案为我制定一份个性化的健康计划')}`);
-          }, 1000);
-        }}
-      >
-        <AddOutline fontSize={24} color="#fff" />
-      </FloatingBubble>
+        <div
+          className="card cursor-pointer flex items-center justify-center py-4"
+          onClick={() => router.push('/health-plan/statistics')}
+          style={{ background: 'linear-gradient(135deg, #f0faf0, #e8f8f5)', border: '1px dashed #52c41a40' }}
+        >
+          <span className="text-xl mr-2">📊</span>
+          <span className="text-sm font-medium" style={{ color: '#52c41a' }}>查看打卡统计</span>
+        </div>
+      </div>
     </div>
   );
 }

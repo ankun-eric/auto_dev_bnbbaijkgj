@@ -1,0 +1,29 @@
+<view class="form-page">
+  <view class="form-card card">
+    <view class="form-item">
+      <text class="form-label">名称 *</text>
+      <input class="form-input" placeholder="如：每日饮水2000ml" value="{{name}}" bindinput="onInput" data-field="name" />
+    </view>
+
+    <view class="form-item">
+      <text class="form-label">描述</text>
+      <textarea class="form-textarea" placeholder="简单描述打卡内容" value="{{description}}" bindinput="onInput" data-field="description" />
+    </view>
+
+    <view class="form-item">
+      <text class="form-label">目标</text>
+      <input class="form-input" placeholder="如：连续30天" value="{{target}}" bindinput="onInput" data-field="target" />
+    </view>
+
+    <view class="form-item">
+      <text class="form-label">图标</text>
+      <input class="form-input" placeholder="输入一个emoji表情，如：💧" value="{{icon}}" bindinput="onInput" data-field="icon" />
+    </view>
+  </view>
+
+  <view class="form-submit">
+    <button class="submit-btn {{submitting ? 'btn-disabled' : ''}}" bindtap="onSubmit" disabled="{{submitting}}">
+      {{submitting ? '保存中...' : '保存'}}
+    </button>
+  </view>
+</view>

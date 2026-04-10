@@ -1632,3 +1632,191 @@ class BottomNavConfig(Base):
     is_fixed = mapped_column(Boolean, nullable=False, default=False)
     created_at = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+# ──────────────── 健康计划V2 ────────────────
+
+
+class MedicationReminder(Base):
+    __tablename__ = "medication_reminders"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    medicine_name = mapped_column(String(200), nullable=False)
+    dosage = mapped_column(String(100), nullable=True)
+    time_period = mapped_column(String(20), nullable=True)
+    remind_time = mapped_column(String(10), nullable=True)
+    notes = mapped_column(Text, nullable=True)
+    is_paused = mapped_column(Boolean, default=False)
+    status = mapped_column(String(20), default="active")
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User")
+    check_ins = relationship("MedicationCheckIn", back_populates="reminder")
+
+
+class MedicationCheckIn(Base):
+    __tablename__ = "medication_check_ins"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    reminder_id = mapped_column(Integer, ForeignKey("medication_reminders.id"), nullable=False, index=True)
+    user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    check_in_date = mapped_column(Date, nullable=False)
+    check_in_time = mapped_column(DateTime, nullable=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+
+    reminder = relationship("MedicationReminder", back_populates="check_ins")
+    user = relationship("User")
+
+
+class HealthCheckInItem(Base):
+    __tablename__ = "health_checkin_items"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    name = mapped_column(String(200), nullable=False)
+    target_value = mapped_column(Float, nullable=True)
+    target_unit = mapped_column(String(50), nullable=True)
+    remind_times = mapped_column(JSON, nullable=True)
+    repeat_frequency = mapped_column(String(50), default="daily")
+    custom_days = mapped_column(JSON, nullable=True)
+    status = mapped_column(String(20), default="active")
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User")
+    records = relationship("HealthCheckInRecord", back_populates="item")
+
+
+class HealthCheckInRecord(Base):
+    __tablename__ = "health_checkin_records"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    item_id = mapped_column(Integer, ForeignKey("health_checkin_items.id"), nullable=False, index=True)
+    user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    check_in_date = mapped_column(Date, nullable=False)
+    actual_value = mapped_column(Float, nullable=True)
+    is_completed = mapped_column(Boolean, default=False)
+    check_in_time = mapped_column(DateTime, nullable=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+
+    item = relationship("HealthCheckInItem", back_populates="records")
+    user = relationship("User")
+
+
+class PlanTemplateCategory(Base):
+    __tablename__ = "plan_template_categories"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name = mapped_column(String(100), nullable=False)
+    description = mapped_column(Text, nullable=True)
+    icon = mapped_column(String(50), nullable=True)
+    sort_order = mapped_column(Integer, default=0)
+    preset_tasks = mapped_column(JSON, nullable=True)
+    status = mapped_column(String(20), default="active")
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+
+    recommended_plans = relationship("RecommendedPlan", back_populates="category")
+
+
+class RecommendedPlan(Base):
+    __tablename__ = "recommended_plans"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    category_id = mapped_column(Integer, ForeignKey("plan_template_categories.id"), nullable=False, index=True)
+    name = mapped_column(String(200), nullable=False)
+    description = mapped_column(Text, nullable=True)
+    target_audience = mapped_column(String(200), nullable=True)
+    duration_days = mapped_column(Integer, nullable=True)
+    cover_image = mapped_column(String(500), nullable=True)
+    is_published = mapped_column(Boolean, default=True)
+    sort_order = mapped_column(Integer, default=0)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+
+    category = relationship("PlanTemplateCategory", back_populates="recommended_plans")
+    tasks = relationship("RecommendedPlanTask", back_populates="plan")
+
+
+class RecommendedPlanTask(Base):
+    __tablename__ = "recommended_plan_tasks"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    plan_id = mapped_column(Integer, ForeignKey("recommended_plans.id"), nullable=False, index=True)
+    task_name = mapped_column(String(200), nullable=False)
+    target_value = mapped_column(Float, nullable=True)
+    target_unit = mapped_column(String(50), nullable=True)
+    sort_order = mapped_column(Integer, default=0)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+
+    plan = relationship("RecommendedPlan", back_populates="tasks")
+
+
+class UserPlan(Base):
+    __tablename__ = "user_plans"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    category_id = mapped_column(Integer, ForeignKey("plan_template_categories.id"), nullable=True)
+    source_type = mapped_column(String(20), default="custom")
+    recommended_plan_id = mapped_column(Integer, ForeignKey("recommended_plans.id"), nullable=True)
+    plan_name = mapped_column(String(200), nullable=False)
+    description = mapped_column(Text, nullable=True)
+    duration_days = mapped_column(Integer, nullable=True)
+    current_day = mapped_column(Integer, default=1)
+    status = mapped_column(String(20), default="active")
+    start_date = mapped_column(Date, nullable=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User")
+    category = relationship("PlanTemplateCategory")
+    recommended_plan = relationship("RecommendedPlan")
+    tasks = relationship("UserPlanTask", back_populates="plan")
+
+
+class UserPlanTask(Base):
+    __tablename__ = "user_plan_tasks"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    plan_id = mapped_column(Integer, ForeignKey("user_plans.id"), nullable=False, index=True)
+    user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    task_name = mapped_column(String(200), nullable=False)
+    target_value = mapped_column(Float, nullable=True)
+    target_unit = mapped_column(String(50), nullable=True)
+    sort_order = mapped_column(Integer, default=0)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+
+    plan = relationship("UserPlan", back_populates="tasks")
+    user = relationship("User")
+    records = relationship("UserPlanTaskRecord", back_populates="task")
+
+
+class UserPlanTaskRecord(Base):
+    __tablename__ = "user_plan_task_records"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    task_id = mapped_column(Integer, ForeignKey("user_plan_tasks.id"), nullable=False, index=True)
+    user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    check_in_date = mapped_column(Date, nullable=False)
+    actual_value = mapped_column(Float, nullable=True)
+    is_completed = mapped_column(Boolean, default=False)
+    check_in_time = mapped_column(DateTime, nullable=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+
+    task = relationship("UserPlanTask", back_populates="records")
+    user = relationship("User")
+
+
+class DefaultHealthTask(Base):
+    __tablename__ = "default_health_tasks"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name = mapped_column(String(200), nullable=False)
+    description = mapped_column(Text, nullable=True)
+    target_value = mapped_column(Float, nullable=True)
+    target_unit = mapped_column(String(50), nullable=True)
+    category_type = mapped_column(String(50), nullable=True)
+    template_category_id = mapped_column(Integer, ForeignKey("plan_template_categories.id"), nullable=True)
+    sort_order = mapped_column(Integer, default=0)
+    is_active = mapped_column(Boolean, default=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+
+    template_category = relationship("PlanTemplateCategory")

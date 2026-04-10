@@ -1,0 +1,119 @@
+<view class="page-wrap">
+  <view class="loading-wrap" wx:if="{{loading}}">
+    <text class="text-hint">加载中...</text>
+  </view>
+
+  <view wx:elif="{{stats}}" class="stats-wrap">
+    <!-- 核心数据 -->
+    <view class="hero-card card">
+      <view class="hero-row">
+        <view class="hero-item">
+          <text class="hero-value text-green">{{stats.streak_days || 0}}</text>
+          <text class="hero-label">连续打卡天数</text>
+        </view>
+        <view class="hero-divider"></view>
+        <view class="hero-item">
+          <text class="hero-value text-cyan">{{stats.total_checkins || 0}}</text>
+          <text class="hero-label">累计打卡次数</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 今日概览 -->
+    <view class="section-card card">
+      <text class="section-title">今日概览</text>
+      <view class="stats-grid">
+        <view class="stats-item">
+          <text class="stats-num text-green">{{stats.today_completed || 0}}</text>
+          <text class="stats-label">已完成</text>
+        </view>
+        <view class="stats-item">
+          <text class="stats-num text-orange">{{stats.today_pending || 0}}</text>
+          <text class="stats-label">待完成</text>
+        </view>
+        <view class="stats-item">
+          <text class="stats-num text-blue">{{stats.today_total || 0}}</text>
+          <text class="stats-label">总任务</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 分类统计 -->
+    <view class="section-card card">
+      <text class="section-title">分类统计</text>
+      <view class="category-stats">
+        <view class="cat-stat-item">
+          <view class="cat-stat-icon" style="background: rgba(82,196,26,0.12);">
+            <text>💊</text>
+          </view>
+          <view class="cat-stat-info">
+            <text class="cat-stat-name">用药提醒</text>
+            <view class="cat-stat-bar">
+              <view class="cat-stat-fill" style="width: {{stats.medication_rate || 0}}%; background: #52c41a;"></view>
+            </view>
+          </view>
+          <text class="cat-stat-value">{{stats.medication_count || 0}}次</text>
+        </view>
+
+        <view class="cat-stat-item">
+          <view class="cat-stat-icon" style="background: rgba(19,194,194,0.12);">
+            <text>✅</text>
+          </view>
+          <view class="cat-stat-info">
+            <text class="cat-stat-name">健康打卡</text>
+            <view class="cat-stat-bar">
+              <view class="cat-stat-fill" style="width: {{stats.checkin_rate || 0}}%; background: #13c2c2;"></view>
+            </view>
+          </view>
+          <text class="cat-stat-value">{{stats.checkin_count || 0}}次</text>
+        </view>
+
+        <view class="cat-stat-item">
+          <view class="cat-stat-icon" style="background: rgba(24,144,255,0.12);">
+            <text>📋</text>
+          </view>
+          <view class="cat-stat-info">
+            <text class="cat-stat-name">计划任务</text>
+            <view class="cat-stat-bar">
+              <view class="cat-stat-fill" style="width: {{stats.plan_rate || 0}}%; background: #1890ff;"></view>
+            </view>
+          </view>
+          <text class="cat-stat-value">{{stats.plan_count || 0}}次</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 本周完成率 -->
+    <view class="section-card card" wx:if="{{stats.weekly_data}}">
+      <text class="section-title">本周打卡</text>
+      <view class="weekly-chart">
+        <view class="week-col" wx:for="{{stats.weekly_data}}" wx:key="day">
+          <view class="week-bar-wrap">
+            <view class="week-bar" style="height: {{item.rate || 0}}%;"></view>
+          </view>
+          <text class="week-label">{{item.day}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 成就 -->
+    <view class="section-card card" wx:if="{{stats.achievements && stats.achievements.length > 0}}">
+      <text class="section-title">我的成就</text>
+      <view class="achievement-list">
+        <view class="achievement-item" wx:for="{{stats.achievements}}" wx:key="id">
+          <text class="achievement-icon">{{item.icon || '🏆'}}</text>
+          <view class="achievement-info">
+            <text class="achievement-name">{{item.name}}</text>
+            <text class="achievement-desc">{{item.description}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view wx:else class="empty-wrap">
+    <text class="empty-icon">📊</text>
+    <text class="empty-text">暂无统计数据</text>
+    <text class="empty-desc">开始健康打卡后，这里会显示您的统计数据</text>
+  </view>
+</view>

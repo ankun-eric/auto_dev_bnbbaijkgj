@@ -1,0 +1,46 @@
+<view class="page-wrap">
+  <view class="loading-wrap" wx:if="{{loading}}">
+    <text class="text-hint">加载中...</text>
+  </view>
+
+  <view wx:elif="{{plan}}" class="detail-wrap">
+    <view class="plan-header card">
+      <text class="plan-title">{{plan.name || plan.title}}</text>
+      <text class="plan-desc" wx:if="{{plan.description}}">{{plan.description}}</text>
+      <view class="progress-section">
+        <view class="progress-row">
+          <text class="progress-label">完成进度</text>
+          <text class="progress-value">{{plan.progress || 0}}%</text>
+        </view>
+        <view class="progress-bar">
+          <view class="progress-fill" style="width: {{plan.progress || 0}}%;"></view>
+        </view>
+      </view>
+    </view>
+
+    <view class="section-header">
+      <text class="section-title">任务列表 ({{tasks.length}})</text>
+    </view>
+
+    <view wx:if="{{tasks.length === 0}}" class="empty-hint">
+      <text class="text-hint">暂无任务</text>
+    </view>
+
+    <view class="task-list">
+      <view class="task-card card" wx:for="{{tasks}}" wx:key="id">
+        <view class="task-row">
+          <view class="task-check {{item.is_completed || item.today_checked ? 'task-done' : ''}}" catchtap="onTaskCheckin" data-task-id="{{item.id}}">
+            <text class="check-mark" wx:if="{{item.is_completed || item.today_checked}}">✓</text>
+          </view>
+          <view class="task-info">
+            <text class="task-name {{item.is_completed || item.today_checked ? 'task-name-done' : ''}}">{{item.name || item.title}}</text>
+            <text class="task-desc" wx:if="{{item.description}}">{{item.description}}</text>
+          </view>
+          <view class="task-action" wx:if="{{!(item.is_completed || item.today_checked)}}" catchtap="onTaskCheckin" data-task-id="{{item.id}}">
+            <text class="checkin-text">打卡</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>

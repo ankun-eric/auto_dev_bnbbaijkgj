@@ -55,6 +55,44 @@
     </view>
   </view>
 
+  <!-- 今日待办 -->
+  <view class="card today-todos-card">
+    <view class="section-header">
+      <text class="section-title">今日待办</text>
+      <text class="section-more" bindtap="goHealthPlan">全部计划 ></text>
+    </view>
+    <view wx:if="{{todayTodosLoading}}" class="todo-loading">
+      <text class="text-hint">加载中...</text>
+    </view>
+    <view wx:elif="{{todayTodos.length === 0}}" class="todo-empty">
+      <text class="todo-empty-icon">📋</text>
+      <text class="todo-empty-text">暂无今日待办，去创建健康计划吧</text>
+      <view class="todo-empty-btn" bindtap="goHealthPlan">去创建</view>
+    </view>
+    <view wx:else class="todo-list">
+      <view class="todo-item" wx:for="{{todayTodos}}" wx:key="index">
+        <view class="todo-left">
+          <view class="todo-type-badge todo-type-{{item.type || 'default'}}">
+            <text wx:if="{{item.type === 'medication'}}">💊</text>
+            <text wx:elif="{{item.type === 'checkin_item'}}">✅</text>
+            <text wx:elif="{{item.type === 'plan_task'}}">📋</text>
+            <text wx:else>📌</text>
+          </view>
+          <view class="todo-info">
+            <text class="todo-name {{item.is_completed ? 'todo-done' : ''}}">{{item.name || item.title}}</text>
+            <text class="todo-time" wx:if="{{item.time}}">{{item.time}}</text>
+          </view>
+        </view>
+        <view class="todo-action" wx:if="{{!item.is_completed}}" catchtap="onTodoCheckin" data-type="{{item.type}}" data-id="{{item.id}}" data-task-id="{{item.task_id}}">
+          <text class="todo-checkin-btn">打卡</text>
+        </view>
+        <view class="todo-action-done" wx:else>
+          <text class="todo-done-icon">✓</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
   <view class="section-header">
     <text class="section-title">健康知识</text>
     <text class="section-more" bindtap="goArticles">更多 ></text>

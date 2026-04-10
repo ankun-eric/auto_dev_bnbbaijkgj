@@ -68,10 +68,27 @@ class ApiConfig {
   static const String ocrRecognize = '/api/ocr/recognize';
   static const String ocrBatchRecognize = '/api/ocr/batch-recognize';
 
-  // Health Plan
+  // Health Plan (legacy)
   static const String healthPlan = '/api/plans';
   static const String planTasks = '/api/plans';
   static const String taskCheckin = '/api/plans';
+
+  // Health Plan V2 - Medications
+  static const String hpMedications = '/api/health-plan/medications';
+
+  // Health Plan V2 - Checkin Items
+  static const String hpCheckinItems = '/api/health-plan/checkin-items';
+
+  // Health Plan V2 - Custom Plans
+  static const String hpTemplateCategories = '/api/health-plan/template-categories';
+  static const String hpRecommendedPlans = '/api/health-plan/recommended-plans';
+  static const String hpUserPlans = '/api/health-plan/user-plans';
+
+  // Health Plan V2 - AI / Today / Statistics
+  static const String hpAiGenerate = '/api/health-plan/ai-generate';
+  static const String hpAiGenerateCategory = '/api/health-plan/ai-generate-category';
+  static const String hpTodayTodos = '/api/health-plan/today-todos';
+  static const String hpStatistics = '/api/health-plan/statistics';
 
   // Services
   static const String serviceCategories = '/api/services/categories';

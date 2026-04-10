@@ -1,0 +1,50 @@
+<view class="page-wrap">
+  <view class="loading-wrap" wx:if="{{loading}}">
+    <text class="text-hint">加载中...</text>
+  </view>
+
+  <view wx:elif="{{items.length === 0}}" class="empty-wrap">
+    <text class="empty-icon">✅</text>
+    <text class="empty-text">暂无打卡项目</text>
+    <text class="empty-desc">创建打卡项目，养成健康好习惯</text>
+    <view class="empty-btn" bindtap="goAdd">创建打卡项目</view>
+  </view>
+
+  <view wx:else class="list-wrap">
+    <view class="checkin-card card" wx:for="{{items}}" wx:key="id">
+      <view class="checkin-header">
+        <view class="checkin-title-row">
+          <text class="checkin-emoji">✅</text>
+          <text class="checkin-name">{{item.name}}</text>
+        </view>
+        <view class="checkin-streak" wx:if="{{item.streak_days}}">
+          <text class="streak-text">🔥 连续{{item.streak_days}}天</text>
+        </view>
+      </view>
+
+      <view class="checkin-body" wx:if="{{item.description || item.target}}">
+        <text class="checkin-desc" wx:if="{{item.description}}">{{item.description}}</text>
+        <text class="checkin-target" wx:if="{{item.target}}">目标: {{item.target}}</text>
+      </view>
+
+      <view class="checkin-actions">
+        <view class="action-btn action-checkin" catchtap="onCheckin" data-id="{{item.id}}" wx:if="{{!item.today_checked}}">
+          <text>打卡</text>
+        </view>
+        <view class="action-btn action-done" wx:if="{{item.today_checked}}">
+          <text>✓ 今日已打卡</text>
+        </view>
+        <view class="action-btn action-edit" catchtap="goEdit" data-id="{{item.id}}">
+          <text>编辑</text>
+        </view>
+        <view class="action-btn action-delete" catchtap="onDelete" data-id="{{item.id}}">
+          <text>删除</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view class="fab-btn" bindtap="goAdd">
+    <text class="fab-icon">+</text>
+  </view>
+</view>

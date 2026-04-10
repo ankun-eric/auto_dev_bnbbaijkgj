@@ -1,0 +1,48 @@
+<view class="page-wrap">
+  <view class="loading-wrap" wx:if="{{loading}}">
+    <text class="text-hint">加载中...</text>
+  </view>
+
+  <view wx:elif="{{plan}}" class="detail-wrap">
+    <view class="plan-header card">
+      <text class="plan-title">{{plan.name || plan.title}}</text>
+      <text class="plan-desc" wx:if="{{plan.description}}">{{plan.description}}</text>
+      <view class="plan-meta-row">
+        <view class="meta-item" wx:if="{{plan.duration}}">
+          <text class="meta-icon">⏱</text>
+          <text class="meta-text">{{plan.duration}}</text>
+        </view>
+        <view class="meta-item" wx:if="{{plan.difficulty}}">
+          <text class="meta-icon">📊</text>
+          <text class="meta-text">{{plan.difficulty}}</text>
+        </view>
+        <view class="meta-item" wx:if="{{plan.join_count}}">
+          <text class="meta-icon">👥</text>
+          <text class="meta-text">{{plan.join_count}}人参与</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="section-header">
+      <text class="section-title">计划任务 ({{tasks.length}})</text>
+    </view>
+
+    <view class="task-list">
+      <view class="task-card card" wx:for="{{tasks}}" wx:key="id">
+        <view class="task-row">
+          <view class="task-num">{{index + 1}}</view>
+          <view class="task-info">
+            <text class="task-name">{{item.name || item.title}}</text>
+            <text class="task-desc" wx:if="{{item.description}}">{{item.description}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view class="bottom-bar">
+      <button class="join-btn {{joining ? 'btn-disabled' : ''}}" bindtap="onJoin" disabled="{{joining}}">
+        {{joining ? '加入中...' : '加入计划'}}
+      </button>
+    </view>
+  </view>
+</view>

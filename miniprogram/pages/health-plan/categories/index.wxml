@@ -1,0 +1,63 @@
+<view class="page-wrap">
+  <view class="loading-wrap" wx:if="{{loading}}">
+    <text class="text-hint">加载中...</text>
+  </view>
+
+  <view wx:else>
+    <!-- 我的计划 -->
+    <view class="section" wx:if="{{myPlans.length > 0}}">
+      <view class="section-header">
+        <text class="section-title">我的计划</text>
+      </view>
+      <view class="plan-card card" wx:for="{{myPlans}}" wx:key="id" bindtap="onPlanTap" data-id="{{item.id}}">
+        <view class="plan-row">
+          <view class="plan-info">
+            <text class="plan-name">{{item.name || item.title}}</text>
+            <text class="plan-meta">{{item.task_count || 0}}个任务 · {{item.progress || 0}}%完成</text>
+          </view>
+          <text class="plan-arrow">›</text>
+        </view>
+        <view class="plan-progress-bar">
+          <view class="plan-progress-fill" style="width: {{item.progress || 0}}%;"></view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 分类模板 -->
+    <view class="section">
+      <view class="section-header">
+        <text class="section-title">推荐分类</text>
+      </view>
+      <view wx:if="{{categories.length === 0}}" class="empty-hint">
+        <text class="text-hint">暂无推荐分类</text>
+      </view>
+      <view class="category-grid">
+        <view class="cat-card card" wx:for="{{categories}}" wx:key="id">
+          <view class="cat-main" bindtap="onCategoryTap" data-id="{{item.id}}">
+            <text class="cat-icon">{{item.icon || '📂'}}</text>
+            <view class="cat-text">
+              <text class="cat-name">{{item.name}}</text>
+              <text class="cat-desc">{{item.description || item.plan_count + '个计划'}}</text>
+            </view>
+            <text class="cat-arrow">›</text>
+          </view>
+          <view class="cat-ai-btn" catchtap="onAiGenerate" data-id="{{item.id}}" wx:if="{{!aiGenerating}}">
+            <text class="ai-text">🤖 AI生成</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 自定义创建 -->
+    <view class="create-section">
+      <view class="create-btn card" bindtap="goCreatePlan">
+        <text class="create-icon">✏️</text>
+        <view class="create-text">
+          <text class="create-title">自定义创建计划</text>
+          <text class="create-desc">根据个人需求创建专属健康计划</text>
+        </view>
+        <text class="create-arrow">›</text>
+      </view>
+    </view>
+  </view>
+</view>

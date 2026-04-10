@@ -7,6 +7,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.api import (
     admin,
+    admin_health_plan,
     admin_merchant,
     admin_search,
     ai_center,
@@ -23,6 +24,7 @@ from app.api import (
     expert,
     family,
     font_setting,
+    health_plan_v2,
     health_profile,
     home_config,
     knowledge,
@@ -109,6 +111,8 @@ app.include_router(bottom_nav.router)
 app.include_router(bottom_nav.admin_router)
 app.include_router(search.router)
 app.include_router(admin_search.router)
+app.include_router(health_plan_v2.router)
+app.include_router(admin_health_plan.router)
 
 os.makedirs("uploads", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")

@@ -29,6 +29,7 @@ from app.models.models import (
     OcrProviderConfig,
     OcrSceneTemplate,
     OcrUploadConfig,
+    PlanTemplateCategory,
     PromptTemplate,
     RelationType,
     ServiceCategory,
@@ -65,6 +66,7 @@ async def init_default_data():
             await _init_relation_types(db)
             await _init_disease_presets(db)
             await _init_bottom_nav_config(db)
+            await _init_plan_template_categories(db)
             await _fix_legacy_users_missing_self_member(db)
             await _fix_self_members_missing_relation_type(db)
             await db.commit()
@@ -1043,6 +1045,89 @@ async def _init_bottom_nav_config(db: AsyncSession):
         db.add(BottomNavConfig(**nav))
     await db.flush()
     logger.info("Created default bottom nav config (%d items)", len(default_navs))
+
+
+async def _init_plan_template_categories(db: AsyncSession):
+    result = await db.execute(select(PlanTemplateCategory).limit(1))
+    if result.scalar_one_or_none():
+        return
+
+    categories = [
+        {
+            "name": "运动健身",
+            "description": "科学运动，强健体魄",
+            "icon": "🏃",
+            "sort_order": 1,
+            "preset_tasks": [
+                {"task_name": "步行8000步", "target_value": 8000, "target_unit": "步"},
+                {"task_name": "拉伸运动", "target_value": 15, "target_unit": "分钟"},
+            ],
+        },
+        {
+            "name": "饮食营养",
+            "description": "均衡膳食，健康饮食",
+            "icon": "🥗",
+            "sort_order": 2,
+            "preset_tasks": [
+                {"task_name": "饮水2000ml", "target_value": 2000, "target_unit": "ml"},
+                {"task_name": "吃蔬果", "target_value": 5, "target_unit": "份"},
+            ],
+        },
+        {
+            "name": "睡眠管理",
+            "description": "规律作息，优质睡眠",
+            "icon": "😴",
+            "sort_order": 3,
+            "preset_tasks": [
+                {"task_name": "23:00前入睡", "target_value": None, "target_unit": None},
+                {"task_name": "睡够7小时", "target_value": 7, "target_unit": "小时"},
+            ],
+        },
+        {
+            "name": "心理健康",
+            "description": "关注情绪，身心平衡",
+            "icon": "🧘",
+            "sort_order": 4,
+            "preset_tasks": [
+                {"task_name": "冥想10分钟", "target_value": 10, "target_unit": "分钟"},
+                {"task_name": "记录心情", "target_value": None, "target_unit": None},
+            ],
+        },
+        {
+            "name": "慢病管理",
+            "description": "科学管理慢性疾病",
+            "icon": "💊",
+            "sort_order": 5,
+            "preset_tasks": [
+                {"task_name": "测量血压", "target_value": None, "target_unit": None},
+                {"task_name": "测量血糖", "target_value": None, "target_unit": None},
+            ],
+        },
+        {
+            "name": "体重管理",
+            "description": "科学减重，保持身材",
+            "icon": "⚖️",
+            "sort_order": 6,
+            "preset_tasks": [
+                {"task_name": "记录体重", "target_value": None, "target_unit": "kg"},
+                {"task_name": "控制热量摄入", "target_value": 1800, "target_unit": "kcal"},
+            ],
+        },
+        {
+            "name": "中医养生",
+            "description": "传统养生，调理身体",
+            "icon": "🌿",
+            "sort_order": 7,
+            "preset_tasks": [
+                {"task_name": "喝养生茶", "target_value": None, "target_unit": None},
+                {"task_name": "穴位按摩", "target_value": 10, "target_unit": "分钟"},
+            ],
+        },
+    ]
+    for cat in categories:
+        db.add(PlanTemplateCategory(**cat))
+    await db.flush()
+    logger.info("Created default plan template categories (%d)", len(categories))
 
 
 async def _fix_legacy_users_missing_self_member(db: AsyncSession):

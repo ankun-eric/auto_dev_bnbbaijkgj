@@ -1,38 +1,87 @@
 <view class="plan-page">
-  <!-- 今日进度 -->
-  <view class="progress-card card">
-    <text class="section-title">今日健康任务</text>
-    <view class="progress-ring-wrap">
-      <view class="progress-ring">
-        <text class="progress-num">{{completedCount}}/{{tasks.length}}</text>
-        <text class="progress-label">已完成</text>
+  <!-- 统计概览 -->
+  <view class="stats-overview card" bindtap="goStatistics">
+    <view class="stats-header">
+      <text class="stats-title-text">打卡统计</text>
+      <text class="stats-arrow">详情 ></text>
+    </view>
+    <view class="stats-row" wx:if="{{stats}}">
+      <view class="stat-col">
+        <text class="stat-value text-green">{{stats.today_completed || 0}}</text>
+        <text class="stat-label">今日完成</text>
       </view>
+      <view class="stat-col">
+        <text class="stat-value text-cyan">{{stats.streak_days || 0}}</text>
+        <text class="stat-label">连续天数</text>
+      </view>
+      <view class="stat-col">
+        <text class="stat-value text-blue">{{stats.total_checkins || 0}}</text>
+        <text class="stat-label">累计打卡</text>
+      </view>
+    </view>
+    <view class="stats-empty" wx:else>
+      <text class="text-hint">暂无统计数据</text>
     </view>
   </view>
 
-  <!-- 任务列表 -->
-  <view class="task-list">
-    <view class="task-item card" wx:for="{{tasks}}" wx:key="id">
-      <view class="task-check {{item.completed ? 'task-done' : ''}}" bindtap="toggleTask" data-index="{{index}}">
-        <text class="check-mark" wx:if="{{item.completed}}">✓</text>
+  <!-- 三大分类入口 -->
+  <view class="category-grid">
+    <view class="category-card card" wx:for="{{categories}}" wx:key="key" bindtap="onCategoryTap" data-url="{{item.url}}">
+      <view class="category-icon-wrap" style="background: {{item.color}}20;">
+        <text class="category-icon">{{item.icon}}</text>
       </view>
-      <view class="task-info">
-        <text class="task-name {{item.completed ? 'task-name-done' : ''}}">{{item.name}}</text>
-        <text class="task-desc">{{item.desc}}</text>
+      <view class="category-text">
+        <text class="category-name">{{item.name}}</text>
+        <text class="category-desc">{{item.desc}}</text>
       </view>
-      <view class="task-reward">
-        <text class="reward-points">+{{item.points}}</text>
-        <text class="reward-label">积分</text>
-      </view>
+      <text class="category-arrow">›</text>
     </view>
   </view>
 
-  <!-- 健康建议 -->
-  <view class="card">
-    <text class="section-title">今日健康建议</text>
-    <view class="tip-item" wx:for="{{tips}}" wx:key="index">
-      <text class="tip-icon">💡</text>
-      <text class="tip-text">{{item}}</text>
+  <!-- AI生成按钮 -->
+  <view class="ai-btn card {{aiGenerating ? 'ai-btn-disabled' : ''}}" bindtap="onAiGenerate">
+    <view class="ai-btn-inner">
+      <text class="ai-icon">🤖</text>
+      <view class="ai-text">
+        <text class="ai-title">AI智能生成计划</text>
+        <text class="ai-desc">根据您的健康状况，AI为您量身定制</text>
+      </view>
+    </view>
+    <text class="ai-arrow" wx:if="{{!aiGenerating}}">›</text>
+    <text class="ai-loading-text" wx:else>生成中...</text>
+  </view>
+
+  <!-- 今日待办 -->
+  <view class="card today-section">
+    <view class="section-header">
+      <text class="section-title">今日待办</text>
+    </view>
+    <view wx:if="{{todayLoading}}" class="loading-hint">
+      <text class="text-hint">加载中...</text>
+    </view>
+    <view wx:elif="{{todayTodos.length === 0}}" class="empty-hint">
+      <text class="empty-icon">📝</text>
+      <text class="empty-text">暂无待办事项</text>
+    </view>
+    <view wx:else>
+      <view class="todo-item" wx:for="{{todayTodos}}" wx:key="index">
+        <view class="todo-left">
+          <text class="todo-type-icon" wx:if="{{item.type === 'medication'}}">💊</text>
+          <text class="todo-type-icon" wx:elif="{{item.type === 'checkin_item'}}">✅</text>
+          <text class="todo-type-icon" wx:elif="{{item.type === 'plan_task'}}">📋</text>
+          <text class="todo-type-icon" wx:else>📌</text>
+          <view class="todo-info">
+            <text class="todo-name {{item.is_completed ? 'todo-done' : ''}}">{{item.name || item.title}}</text>
+            <text class="todo-time" wx:if="{{item.time}}">{{item.time}}</text>
+          </view>
+        </view>
+        <view class="todo-btn" wx:if="{{!item.is_completed}}" catchtap="onTodoCheckin" data-type="{{item.type}}" data-id="{{item.id}}" data-task-id="{{item.task_id}}">
+          <text class="todo-btn-text">打卡</text>
+        </view>
+        <view class="todo-btn-done" wx:else>
+          <text class="done-mark">✓</text>
+        </view>
+      </view>
     </view>
   </view>
 </view>
