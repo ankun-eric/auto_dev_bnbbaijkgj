@@ -105,7 +105,6 @@ jobs:
             content.gsub!(/CODE_SIGN_IDENTITY = ".*?";/, "CODE_SIGN_IDENTITY = \"\";")
             content.gsub!(/CODE_SIGN_IDENTITY = .*?;/, "CODE_SIGN_IDENTITY = \"\";")
             content.gsub!(/PROVISIONING_PROFILE_SPECIFIER = ".*?";/, "PROVISIONING_PROFILE_SPECIFIER = \"\";")
-            # Insert CODE_SIGNING_ALLOWED = NO into every buildSettings block
             content.gsub!(/buildSettings = \{/) { |m| "#{m}\n\t\t\t\tCODE_SIGNING_ALLOWED = NO;\n\t\t\t\tCODE_SIGNING_REQUIRED = NO;" }
             File.write(path, content)
           '
@@ -126,7 +125,7 @@ jobs:
             CODE_SIGN_IDENTITY="" \
             DEVELOPMENT_TEAM="" \
             PROVISIONING_PROFILE_SPECIFIER="" \
-            | xcbeautify || true
+            2>&1 | tail -100 || true
           echo "=== Build output ==="
           find build/derived -name "*.app" -type d 2>/dev/null || echo "No .app found in derived"
 
