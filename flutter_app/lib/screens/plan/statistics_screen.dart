@@ -76,7 +76,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     final todayCompleted = (_stats['today_completed'] ?? 0).toInt();
     final todayTotal = (_stats['today_total'] ?? 0).toInt();
     final progress = (_stats['today_progress'] ?? 0).toDouble();
-    final fraction = todayTotal > 0 ? todayCompleted / todayTotal : 0.0;
+    final double fraction = todayTotal > 0 ? todayCompleted.toDouble() / todayTotal.toDouble() : 0.0;
 
     return Container(
       width: double.infinity,
@@ -115,7 +115,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                           showTitle: false,
                         ),
                         PieChartSectionData(
-                          value: fraction < 1 ? 1 - fraction : 0.001,
+                          value: fraction < 1.0 ? (1.0 - fraction) : 0.001,
                           color: Colors.white.withOpacity(0.2),
                           radius: 18,
                           showTitle: false,
@@ -195,7 +195,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  '${math.max(streakDays, consecutiveDays)}',
+                  '${math.max<int>(streakDays, consecutiveDays)}',
                   style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF722ED1)),
                 ),
                 Text('最长连续天数', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
