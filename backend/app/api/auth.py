@@ -1,3 +1,4 @@
+import logging
 import random
 import string
 from datetime import datetime, timedelta, timezone
@@ -21,10 +22,12 @@ from app.models.models import (
     IdentityType,
     MerchantProfile,
     MerchantStoreMembership,
+    RelationType,
     User,
     UserRole,
     VerificationCode,
 )
+
 from app.schemas.merchant import MerchantProfileResponse, MerchantProfileUpdate, SessionContextResponse
 from app.schemas.user import (
     RegisterSettingsResponse,
@@ -43,6 +46,8 @@ from app.services.register_service import (
 )
 from app.services.sms_service import send_sms
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/api/auth", tags=["认证"])
 
 
@@ -55,26 +60,49 @@ async def ensure_self_family_member(db: AsyncSession, user_id: int) -> None:
     )
     if result.scalar_one_or_none():
         return
+
+    relation_type_id = None
+    rt_result = await db.execute(
+        select(RelationType).where(RelationType.name == "本人")
+    )
+    rt = rt_result.scalar_one_or_none()
+    if rt:
+        relation_type_id = rt.id
+
     db.add(FamilyMember(
         user_id=user_id,
         relationship_type="本人",
         nickname="本人",
         is_self=True,
         status="active",
+        relation_type_id=relation_type_id,
     ))
     await db.flush()
 
 
 async def ensure_self_health_profile(db: AsyncSession, user_id: int) -> None:
-    result = await db.execute(
-        select(HealthProfile).where(
-            HealthProfile.user_id == user_id,
-            HealthProfile.family_member_id.is_(None),
+    member_result = await db.execute(
+        select(FamilyMember).where(
+            FamilyMember.user_id == user_id,
+            FamilyMember.is_self == True,  # noqa: E712
         )
     )
-    if result.scalar_one_or_none():
+    self_member = member_result.scalar_one_or_none()
+
+    result = await db.execute(
+        select(HealthProfile).where(HealthProfile.user_id == user_id)
+    )
+    existing = result.scalar_one_or_none()
+    if existing:
+        if self_member and existing.family_member_id != self_member.id:
+            existing.family_member_id = self_member.id
+            await db.flush()
         return
-    db.add(HealthProfile(user_id=user_id, family_member_id=None))
+
+    db.add(HealthProfile(
+        user_id=user_id,
+        family_member_id=self_member.id if self_member else None,
+    ))
     await db.flush()
 
 
@@ -182,12 +210,23 @@ async def register(data: UserCreate, db: AsyncSession = Depends(get_db)):
     db.add(user)
     await db.flush()
     await ensure_identity(db, user.id, IdentityType.user)
-    await ensure_self_family_member(db, user.id)
+    try:
+        await ensure_self_family_member(db, user.id)
+    except Exception as e:
+        logger.error("Failed to create self family member for user %s: %s", user.id, e)
+        await db.rollback()
+        db.add(user)
+        await db.flush()
     try:
         await ensure_self_health_profile(db, user.id)
-    except Exception:
-        pass
-    await db.refresh(user)
+    except Exception as e:
+        logger.error("Failed to create self health profile for user %s: %s", user.id, e)
+        await db.rollback()
+        db.add(user)
+        await db.flush()
+
+    result_user = await db.execute(select(User).where(User.id == user.id))
+    user = result_user.scalar_one()
 
     needs_profile_completion = (
         register_settings["show_profile_completion_prompt"]
@@ -302,12 +341,22 @@ async def sms_login(data: SMSLoginRequest, db: AsyncSession = Depends(get_db)):
         db.add(user)
         await db.flush()
         await ensure_identity(db, user.id, IdentityType.user)
-        await ensure_self_family_member(db, user.id)
+        try:
+            await ensure_self_family_member(db, user.id)
+        except Exception as e:
+            logger.error("Failed to create self family member for user %s: %s", user.id, e)
+            await db.rollback()
+            db.add(user)
+            await db.flush()
         try:
             await ensure_self_health_profile(db, user.id)
-        except Exception:
-            pass
-        await db.refresh(user)
+        except Exception as e:
+            logger.error("Failed to create self health profile for user %s: %s", user.id, e)
+            await db.rollback()
+            db.add(user)
+            await db.flush()
+        result_user = await db.execute(select(User).where(User.id == user.id))
+        user = result_user.scalar_one()
         is_new_user = True
 
     if user.status != "active":

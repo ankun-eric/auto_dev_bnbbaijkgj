@@ -27,7 +27,26 @@
 - Admin: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api/`
 
-## Latest Feature: 首页公告栏后台可配置 (2026-04-09)
+## Latest Bugfix: 档案管理 — 新用户注册及家庭成员管理全面修复 (2026-04-10)
+
+### Backend Changes
+- **`api/auth.py`**: `ensure_self_family_member()` 注册时自动创建 is_self=True 成员（含 relation_type_id）；`ensure_self_health_profile()` 修复 user_id 唯一约束冲突；异常处理增加 db.rollback() 防止 session 状态损坏
+- **`api/family.py`**: 使用 `selectinload` 替代 lazy loading 解决 async MissingGreenlet 异常；后端兜底创建 is_self 成员；添加成员必填字段校验
+- **`api/health_profile.py`**: 更新健康档案时同步 name/gender/birthday 到关联 FamilyMember
+- **`init_data.py`**: 新增"本人"关系类型；存量用户补充 is_self 成员和 relation_type_id
+
+### H5 Frontend Changes
+- **`health-guide/page.tsx`**: Step1 必填字段标红色 *
+- **`health-profile/page.tsx`**: 两步弹窗添加成员，必填校验，新增身高/体重/病史/过敏史字段
+- **`symptom/page.tsx`**: 移除硬编码"为自己"，重构为两步弹窗
+- **`chat/[sessionId]/page.tsx`**: 移除硬编码"为自己"，弹窗式添加成员
+- **`family/page.tsx`**: 旧页面自动跳转到 /health-profile
+
+### Database Note
+- `health_profiles.user_id` 有数据库级唯一约束，每个 user_id 只能有一条记录
+- `relation_types` 表新增"本人"记录
+
+## Previous Feature: 首页公告栏后台可配置 (2026-04-09)
 
 ### Backend
 - `models/models.py`: 新增 `HomeNotice` 模型（home_notices 表），字段：content（Text）、link_url（String 500）、start_time（DateTime）、end_time（DateTime）、is_enabled（Boolean）、sort_order（Integer）、created_at、updated_at

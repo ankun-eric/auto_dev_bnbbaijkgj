@@ -1,8 +1,10 @@
+import logging
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
 from app.core.security import get_current_user
@@ -15,6 +17,8 @@ from app.models.models import (
     RelationType,
     User,
 )
+
+logger = logging.getLogger(__name__)
 from app.schemas.health_v2 import DiseasePresetResponse, RelationTypeResponse
 from app.schemas.user import FamilyMemberCreate, FamilyMemberResponse, FamilyMemberUpdate
 
@@ -51,18 +55,38 @@ async def list_family_members(
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
-        select(FamilyMember).where(
+        select(FamilyMember)
+        .options(selectinload(FamilyMember.relation_type))
+        .where(
             FamilyMember.user_id == current_user.id,
             FamilyMember.status == "active",
         )
     )
-    members = result.scalars().all()
+    members = list(result.scalars().all())
 
-    # Load relation types for all members
-    for m in members:
-        if m.relation_type_id and m.relation_type is None:
-            rt_result = await db.execute(select(RelationType).where(RelationType.id == m.relation_type_id))
-            m.relation_type = rt_result.scalar_one_or_none()
+    if not any(m.is_self for m in members):
+        relation_type_id = None
+        rt_result = await db.execute(
+            select(RelationType).where(RelationType.name == "本人")
+        )
+        rt = rt_result.scalar_one_or_none()
+        if rt:
+            relation_type_id = rt.id
+
+        self_member = FamilyMember(
+            user_id=current_user.id,
+            relationship_type="本人",
+            nickname="本人",
+            is_self=True,
+            status="active",
+            relation_type_id=relation_type_id,
+        )
+        db.add(self_member)
+        await db.flush()
+        await db.refresh(self_member, attribute_names=["id", "created_at"])
+        if rt:
+            self_member.relation_type = rt
+        members.append(self_member)
 
     self_members = [m for m in members if m.is_self]
     other_members = sorted([m for m in members if not m.is_self], key=lambda x: x.created_at)
@@ -77,6 +101,15 @@ async def add_family_member(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    if not data.name or not data.name.strip():
+        raise HTTPException(status_code=400, detail="姓名为必填项")
+    if not data.gender or not data.gender.strip():
+        raise HTTPException(status_code=400, detail="性别为必填项")
+    if not data.birthday:
+        raise HTTPException(status_code=400, detail="出生日期为必填项")
+    if not data.relation_type_id and not data.relationship_type:
+        raise HTTPException(status_code=400, detail="成员关系为必填项")
+
     if data.member_user_id:
         result = await db.execute(select(User).where(User.id == data.member_user_id))
         if not result.scalar_one_or_none():
@@ -99,11 +132,13 @@ async def add_family_member(
     )
     db.add(member)
     await db.flush()
-    await db.refresh(member)
 
-    if member.relation_type_id:
-        rt_result = await db.execute(select(RelationType).where(RelationType.id == member.relation_type_id))
-        member.relation_type = rt_result.scalar_one_or_none()
+    result2 = await db.execute(
+        select(FamilyMember)
+        .options(selectinload(FamilyMember.relation_type))
+        .where(FamilyMember.id == member.id)
+    )
+    member = result2.scalar_one()
 
     return _to_member_response(member)
 
@@ -115,15 +150,13 @@ async def get_family_member(
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
-        select(FamilyMember).where(FamilyMember.id == member_id, FamilyMember.user_id == current_user.id)
+        select(FamilyMember)
+        .options(selectinload(FamilyMember.relation_type))
+        .where(FamilyMember.id == member_id, FamilyMember.user_id == current_user.id)
     )
     member = result.scalar_one_or_none()
     if not member:
         raise HTTPException(status_code=404, detail="家庭成员不存在")
-
-    if member.relation_type_id:
-        rt_result = await db.execute(select(RelationType).where(RelationType.id == member.relation_type_id))
-        member.relation_type = rt_result.scalar_one_or_none()
 
     return _to_member_response(member)
 
@@ -136,7 +169,9 @@ async def update_family_member(
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
-        select(FamilyMember).where(FamilyMember.id == member_id, FamilyMember.user_id == current_user.id)
+        select(FamilyMember)
+        .options(selectinload(FamilyMember.relation_type))
+        .where(FamilyMember.id == member_id, FamilyMember.user_id == current_user.id)
     )
     member = result.scalar_one_or_none()
     if not member:
@@ -147,11 +182,13 @@ async def update_family_member(
         setattr(member, key, value)
 
     await db.flush()
-    await db.refresh(member)
 
-    if member.relation_type_id:
-        rt_result = await db.execute(select(RelationType).where(RelationType.id == member.relation_type_id))
-        member.relation_type = rt_result.scalar_one_or_none()
+    result2 = await db.execute(
+        select(FamilyMember)
+        .options(selectinload(FamilyMember.relation_type))
+        .where(FamilyMember.id == member_id)
+    )
+    member = result2.scalar_one()
 
     return _to_member_response(member)
 

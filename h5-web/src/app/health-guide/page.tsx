@@ -122,7 +122,7 @@ export default function HealthGuidePage() {
   }, []);
 
   const saveCurrentStep = async () => {
-    if (!memberId) return;
+    if (!memberId) throw new Error('成员信息缺失，请刷新重试');
     let patch: Record<string, any> = {};
     if (currentStep === 1) {
       patch = {
@@ -340,7 +340,7 @@ function Step1Form({
     <div className="rounded-2xl bg-white shadow-sm p-4 space-y-4">
       <div className="text-sm font-bold text-gray-700 mb-2">📋 基本信息</div>
 
-      <FormRow label="姓名">
+      <FormRow label={<>姓名<span style={{color:'#ff4d4f'}}> *</span></>}>
         <Input
           placeholder="请输入姓名"
           value={data.name}
@@ -349,7 +349,7 @@ function Step1Form({
         />
       </FormRow>
 
-      <FormRow label="性别">
+      <FormRow label={<>性别<span style={{color:'#ff4d4f'}}> *</span></>}>
         <div className="flex gap-2">
           {['male', 'female'].map((g) => (
             <button
@@ -367,7 +367,7 @@ function Step1Form({
         </div>
       </FormRow>
 
-      <FormRow label="出生日期">
+      <FormRow label={<>出生日期<span style={{color:'#ff4d4f'}}> *</span></>}>
         <button
           className="text-sm text-right"
           style={{ color: data.birthday ? '#333' : '#bbb' }}
@@ -558,7 +558,7 @@ function Step4Form({
 
 // ─── Helper: FormRow ──────────────────────────────────────────────────────────
 
-function FormRow({ label, children }: { label: string; children: React.ReactNode }) {
+function FormRow({ label, children }: { label: React.ReactNode; children: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between py-2 border-b border-gray-50 last:border-b-0">
       <span className="text-sm text-gray-500 flex-shrink-0 w-28">{label}</span>

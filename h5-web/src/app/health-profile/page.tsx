@@ -10,6 +10,7 @@ import {
   DatePicker,
   Input,
   TextArea,
+  Tag,
 } from 'antd-mobile';
 import api from '@/lib/api';
 
@@ -84,6 +85,9 @@ function getMemberEmoji(relationName: string): string {
 }
 
 const BLOOD_TYPES = ['A', 'B', 'O', 'AB'];
+
+const ADD_MEDICAL_OPTIONS = ['高血压', '糖尿病', '心脏病', '哮喘', '甲状腺疾病', '肝病', '肾病', '痛风'];
+const ADD_ALLERGY_OPTIONS = ['青霉素', '花粉', '海鲜', '牛奶', '尘螨', '坚果', '磺胺类', '头孢类'];
 
 function getToken(): string {
   if (typeof window === 'undefined') return '';
@@ -196,6 +200,12 @@ export default function HealthProfilePage() {
   const [newGender, setNewGender] = useState('');
   const [newBirthday, setNewBirthday] = useState('');
   const [newBirthdayPickerVisible, setNewBirthdayPickerVisible] = useState(false);
+  const [newHeight, setNewHeight] = useState('');
+  const [newWeight, setNewWeight] = useState('');
+  const [newMedicalHistories, setNewMedicalHistories] = useState<string[]>([]);
+  const [newMedicalOther, setNewMedicalOther] = useState('');
+  const [newAllergies, setNewAllergies] = useState<string[]>([]);
+  const [newAllergyOther, setNewAllergyOther] = useState('');
   const [addLoading, setAddLoading] = useState(false);
 
   // Delete member
@@ -321,14 +331,19 @@ export default function HealthProfilePage() {
     setNewNickname('');
     setNewGender('');
     setNewBirthday('');
+    setNewHeight('');
+    setNewWeight('');
+    setNewMedicalHistories([]);
+    setNewMedicalOther('');
+    setNewAllergies([]);
+    setNewAllergyOther('');
     await fetchRelationTypes();
     setAddPopupVisible(true);
   };
 
   const handleAddConfirm = async () => {
-    if (!selectedRelation) return;
-    if (!newNickname.trim()) {
-      Toast.show({ content: '请输入姓名' });
+    if (!selectedRelation || !newNickname.trim() || !newGender || !newBirthday) {
+      Toast.show({ content: '请填写完整的成员信息' });
       return;
     }
     setAddLoading(true);
@@ -337,9 +352,17 @@ export default function HealthProfilePage() {
         nickname: newNickname.trim(),
         relationship_type: selectedRelation.name,
         relation_type_id: selectedRelation.id,
+        gender: newGender,
+        birthday: newBirthday,
       };
-      if (newGender) body.gender = newGender;
-      if (newBirthday) body.birthday = newBirthday;
+      if (newHeight) body.height = Number(newHeight);
+      if (newWeight) body.weight = Number(newWeight);
+      const medicals = [...newMedicalHistories];
+      if (newMedicalOther.trim()) medicals.push(newMedicalOther.trim());
+      if (medicals.length) body.medical_histories = medicals;
+      const allergies = [...newAllergies];
+      if (newAllergyOther.trim()) allergies.push(newAllergyOther.trim());
+      if (allergies.length) body.allergies = allergies;
 
       const res = await fetch('/api/family/members', {
         method: 'POST',
@@ -546,7 +569,7 @@ export default function HealthProfilePage() {
             {/* 基本信息 */}
             <Section title="📋 基本信息" defaultOpen={true}>
               <div className="space-y-3">
-                <FieldRow label="姓名">
+                <FieldRow label={<>姓名<span style={{color:'#ff4d4f'}}> *</span></>}>
                   <input
                     className="text-sm text-gray-700 text-right bg-transparent outline-none w-full"
                     placeholder="请输入姓名"
@@ -555,7 +578,7 @@ export default function HealthProfilePage() {
                   />
                 </FieldRow>
 
-                <FieldRow label="性别">
+                <FieldRow label={<>性别<span style={{color:'#ff4d4f'}}> *</span></>}>
                   <div className="flex gap-2">
                     {['male', 'female'].map((g) => (
                       <button
@@ -573,7 +596,7 @@ export default function HealthProfilePage() {
                   </div>
                 </FieldRow>
 
-                <FieldRow label="出生日期">
+                <FieldRow label={<>出生日期<span style={{color:'#ff4d4f'}}> *</span></>}>
                   <button
                     className="text-sm text-gray-700 text-right"
                     onClick={() => setBirthdayPickerVisible(true)}
@@ -806,7 +829,7 @@ export default function HealthProfilePage() {
                 </div>
 
                 <div>
-                  <div className="text-xs text-gray-500 mb-1">性别</div>
+                  <div className="text-xs text-gray-500 mb-1">性别 <span style={{color:'#ff4d4f'}}>*</span></div>
                   <div className="flex gap-3">
                     {['male', 'female'].map((g) => (
                       <button
@@ -826,7 +849,7 @@ export default function HealthProfilePage() {
                 </div>
 
                 <div>
-                  <div className="text-xs text-gray-500 mb-1">出生日期</div>
+                  <div className="text-xs text-gray-500 mb-1">出生日期 <span style={{color:'#ff4d4f'}}>*</span></div>
                   <button
                     className="w-full bg-white text-sm rounded-xl px-3 py-2 text-left border border-gray-200 flex items-center justify-between"
                     onClick={() => setNewBirthdayPickerVisible(true)}
@@ -834,6 +857,87 @@ export default function HealthProfilePage() {
                     <span style={{ color: newBirthday ? '#333' : '#bbb' }}>{newBirthday || '请选择出生日期'}</span>
                     <span>📅</span>
                   </button>
+                </div>
+
+                <div className="flex gap-3">
+                  <div className="flex-1">
+                    <div className="text-xs text-gray-500 mb-1">身高 (cm)</div>
+                    <input
+                      type="number"
+                      className="w-full bg-white text-sm rounded-xl px-3 py-2 outline-none border border-gray-200"
+                      placeholder="如：170"
+                      value={newHeight}
+                      onChange={(e) => setNewHeight(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-xs text-gray-500 mb-1">体重 (kg)</div>
+                    <input
+                      type="number"
+                      className="w-full bg-white text-sm rounded-xl px-3 py-2 outline-none border border-gray-200"
+                      placeholder="如：65"
+                      value={newWeight}
+                      onChange={(e) => setNewWeight(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="text-xs text-gray-500 mb-1">既往病史</div>
+                  <div className="flex flex-wrap gap-2">
+                    {ADD_MEDICAL_OPTIONS.map((opt) => (
+                      <Tag
+                        key={opt}
+                        onClick={() => setNewMedicalHistories((prev) => prev.includes(opt) ? prev.filter((x) => x !== opt) : [...prev, opt])}
+                        style={{
+                          '--background-color': newMedicalHistories.includes(opt) ? '#52c41a' : '#fff',
+                          '--text-color': newMedicalHistories.includes(opt) ? '#fff' : '#666',
+                          '--border-color': newMedicalHistories.includes(opt) ? '#52c41a' : '#d9d9d9',
+                          padding: '4px 10px',
+                          borderRadius: 14,
+                          fontSize: 12,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {opt}
+                      </Tag>
+                    ))}
+                  </div>
+                  <input
+                    className="w-full bg-white text-sm rounded-xl px-3 py-2 outline-none border border-gray-200 mt-2"
+                    placeholder="其他病史（可选）"
+                    value={newMedicalOther}
+                    onChange={(e) => setNewMedicalOther(e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <div className="text-xs text-gray-500 mb-1">过敏史</div>
+                  <div className="flex flex-wrap gap-2">
+                    {ADD_ALLERGY_OPTIONS.map((opt) => (
+                      <Tag
+                        key={opt}
+                        onClick={() => setNewAllergies((prev) => prev.includes(opt) ? prev.filter((x) => x !== opt) : [...prev, opt])}
+                        style={{
+                          '--background-color': newAllergies.includes(opt) ? '#52c41a' : '#fff',
+                          '--text-color': newAllergies.includes(opt) ? '#fff' : '#666',
+                          '--border-color': newAllergies.includes(opt) ? '#52c41a' : '#d9d9d9',
+                          padding: '4px 10px',
+                          borderRadius: 14,
+                          fontSize: 12,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {opt}
+                      </Tag>
+                    ))}
+                  </div>
+                  <input
+                    className="w-full bg-white text-sm rounded-xl px-3 py-2 outline-none border border-gray-200 mt-2"
+                    placeholder="其他过敏史（可选）"
+                    value={newAllergyOther}
+                    onChange={(e) => setNewAllergyOther(e.target.value)}
+                  />
                 </div>
               </div>
 
@@ -890,7 +994,7 @@ export default function HealthProfilePage() {
 
 // ─── Helper: FieldRow ─────────────────────────────────────────────────────────
 
-function FieldRow({ label, children }: { label: string; children: React.ReactNode }) {
+function FieldRow({ label, children }: { label: React.ReactNode; children: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between py-2 border-b border-gray-50 last:border-b-0">
       <span className="text-sm text-gray-500 flex-shrink-0 w-24">{label}</span>

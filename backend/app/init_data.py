@@ -18,6 +18,8 @@ from app.models.models import (
     ConstitutionQuestion,
     DiseasePreset,
     DrugSearchKeyword,
+    FamilyMember,
+    HealthProfile,
     HomeBanner,
     HomeMenuItem,
     MemberLevel,
@@ -63,6 +65,8 @@ async def init_default_data():
             await _init_relation_types(db)
             await _init_disease_presets(db)
             await _init_bottom_nav_config(db)
+            await _fix_legacy_users_missing_self_member(db)
+            await _fix_self_members_missing_relation_type(db)
             await db.commit()
             logger.info("Default data initialization completed")
         except Exception as e:
@@ -994,14 +998,21 @@ async def _init_search_data(db: AsyncSession):
 
 async def _init_relation_types(db: AsyncSession):
     result = await db.execute(select(RelationType).limit(1))
-    if result.scalar_one_or_none():
+    if not result.scalar_one_or_none():
+        names = ["本人", "爸爸", "妈妈", "老公", "老婆", "儿子", "女儿", "哥哥", "弟弟", "姐姐", "妹妹", "爷爷", "奶奶", "外公", "外婆", "其他"]
+        for i, name in enumerate(names):
+            db.add(RelationType(name=name, sort_order=i, is_active=True))
+        await db.flush()
+        logger.info("Created default relation types (%d)", len(names))
         return
 
-    names = ["爸爸", "妈妈", "老公", "老婆", "儿子", "女儿", "哥哥", "弟弟", "姐姐", "妹妹", "爷爷", "奶奶", "外公", "外婆", "其他"]
-    for i, name in enumerate(names):
-        db.add(RelationType(name=name, sort_order=i, is_active=True))
-    await db.flush()
-    logger.info("Created default relation types (%d)", len(names))
+    rt_result = await db.execute(
+        select(RelationType).where(RelationType.name == "本人")
+    )
+    if not rt_result.scalar_one_or_none():
+        db.add(RelationType(name="本人", sort_order=-1, is_active=True))
+        await db.flush()
+        logger.info("Added missing '本人' relation type")
 
 
 async def _init_disease_presets(db: AsyncSession):
@@ -1036,3 +1047,112 @@ async def _init_bottom_nav_config(db: AsyncSession):
         db.add(BottomNavConfig(**nav))
     await db.flush()
     logger.info("Created default bottom nav config (%d items)", len(default_navs))
+
+
+async def _fix_legacy_users_missing_self_member(db: AsyncSession):
+    flag_key = "fix_legacy_users_self_member_done"
+    result = await db.execute(
+        select(SystemConfig).where(SystemConfig.config_key == flag_key)
+    )
+    if result.scalar_one_or_none():
+        return
+
+    from sqlalchemy import and_, exists
+
+    self_member_exists = (
+        select(FamilyMember.id)
+        .where(
+            and_(
+                FamilyMember.user_id == User.id,
+                FamilyMember.is_self == True,  # noqa: E712
+            )
+        )
+        .correlate(User)
+        .exists()
+    )
+    result = await db.execute(
+        select(User).where(~self_member_exists)
+    )
+    users_without_self = result.scalars().all()
+
+    if not users_without_self:
+        db.add(SystemConfig(
+            config_key=flag_key,
+            config_value="true",
+            config_type="system",
+            description="存量用户补充本人成员标志",
+        ))
+        await db.flush()
+        logger.info("No legacy users missing self member")
+        return
+
+    rt_result = await db.execute(
+        select(RelationType).where(RelationType.name == "本人")
+    )
+    rt = rt_result.scalar_one_or_none()
+    relation_type_id = rt.id if rt else None
+
+    created_count = 0
+    for user in users_without_self:
+        member = FamilyMember(
+            user_id=user.id,
+            relationship_type="本人",
+            nickname="本人",
+            is_self=True,
+            status="active",
+            relation_type_id=relation_type_id,
+        )
+        db.add(member)
+        await db.flush()
+
+        hp_any_result = await db.execute(
+            select(HealthProfile).where(
+                HealthProfile.user_id == user.id,
+            )
+        )
+        existing_hp = hp_any_result.scalar_one_or_none()
+        if existing_hp and existing_hp.family_member_id is None:
+            existing_hp.family_member_id = member.id
+        elif not existing_hp:
+            db.add(HealthProfile(user_id=user.id, family_member_id=member.id))
+
+        created_count += 1
+
+    await db.flush()
+
+    db.add(SystemConfig(
+        config_key=flag_key,
+        config_value="true",
+        config_type="system",
+        description="存量用户补充本人成员标志",
+    ))
+    await db.flush()
+    logger.info("Fixed %d legacy users: created self member and health profiles", created_count)
+
+
+async def _fix_self_members_missing_relation_type(db: AsyncSession):
+    """Backfill relation_type_id for is_self FamilyMember records that are missing it."""
+    rt_result = await db.execute(
+        select(RelationType).where(RelationType.name == "本人")
+    )
+    rt = rt_result.scalar_one_or_none()
+    if not rt:
+        return
+
+    from sqlalchemy import and_
+    result = await db.execute(
+        select(FamilyMember).where(
+            and_(
+                FamilyMember.is_self == True,  # noqa: E712
+                FamilyMember.relation_type_id.is_(None),
+            )
+        )
+    )
+    members = result.scalars().all()
+    if not members:
+        return
+
+    for m in members:
+        m.relation_type_id = rt.id
+    await db.flush()
+    logger.info("Backfilled relation_type_id for %d self members", len(members))

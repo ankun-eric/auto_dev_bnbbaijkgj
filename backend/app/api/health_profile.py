@@ -176,6 +176,15 @@ async def upsert_member_health_profile(
     for key, value in update_data.items():
         setattr(profile, key, value)
     profile.updated_at = datetime.utcnow()
+
+    if any(k in update_data for k in ("name", "gender", "birthday")):
+        if "name" in update_data:
+            member.nickname = update_data["name"]
+        if "gender" in update_data:
+            member.gender = update_data["gender"]
+        if "birthday" in update_data:
+            member.birthday = update_data["birthday"]
+
     await db.flush()
     await db.refresh(profile)
     return HealthProfileV2Response.model_validate(profile)

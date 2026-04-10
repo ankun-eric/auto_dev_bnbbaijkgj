@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback, Suspense } from 'react';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
-import { NavBar, Input, Button, SpinLoading, Toast, Popup, Tag } from 'antd-mobile';
+import { NavBar, Input, Button, SpinLoading, Toast, Popup, Tag, DatePicker } from 'antd-mobile';
 import api from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import ChatSidebar from '@/components/ChatSidebar';
@@ -40,18 +40,48 @@ interface FamilyMember {
   id: number;
   nickname: string;
   relationship_type: string;
+  is_self?: boolean;
+  relation_type_name?: string;
 }
 
-const relationshipLabelMap: Record<string, string> = {
-  father: '父亲',
-  mother: '母亲',
-  spouse: '配偶',
-  child: '子女',
-  sibling: '兄弟姐妹',
-  grandparent: '祖父母',
-  maternal_grandparent: '外祖父母',
-  other: '其他',
+interface RelationType {
+  id: number;
+  name: string;
+  sort_order: number;
+}
+
+const RELATION_EMOJI: Record<string, string> = {
+  '本人': '👤',
+  '爸爸': '👨',
+  '妈妈': '👩',
+  '老公': '👨‍❤️‍👨',
+  '老婆': '👩‍❤️‍👩',
+  '儿子': '👦',
+  '女儿': '👧',
+  '哥哥': '👱‍♂️',
+  '弟弟': '🧑',
+  '姐姐': '👱‍♀️',
+  '妹妹': '👧',
+  '爷爷': '👴',
+  '奶奶': '👵',
+  '外公': '👴',
+  '外婆': '👵',
+  '其他': '🧑',
+  '父亲': '👨',
+  '母亲': '👩',
+  '配偶': '💑',
+  '子女': '👧',
+  '兄弟姐妹': '👫',
+  '祖父母': '👴',
+  '外祖父母': '👵',
 };
+
+function getMemberEmoji(relationName: string): string {
+  return RELATION_EMOJI[relationName] || '🧑';
+}
+
+const ADD_MEDICAL_OPTIONS = ['高血压', '糖尿病', '心脏病', '哮喘', '甲状腺疾病', '肝病', '肾病', '痛风'];
+const ADD_ALLERGY_OPTIONS = ['青霉素', '花粉', '海鲜', '牛奶', '尘螨', '坚果', '磺胺类', '头孢类'];
 
 const welcomeMessage: Message = {
   id: 'welcome',
@@ -138,6 +168,23 @@ function ChatPageInner() {
   const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([]);
   const [switchingMember, setSwitchingMember] = useState(false);
 
+  // Add member popup state (two-step)
+  const [addMemberPopupVisible, setAddMemberPopupVisible] = useState(false);
+  const [relationTypes, setRelationTypes] = useState<RelationType[]>([]);
+  const [addStep, setAddStep] = useState<'relation' | 'info'>('relation');
+  const [selectedRelation, setSelectedRelation] = useState<RelationType | null>(null);
+  const [newNickname, setNewNickname] = useState('');
+  const [newGender, setNewGender] = useState('');
+  const [newBirthday, setNewBirthday] = useState('');
+  const [newHeight, setNewHeight] = useState('');
+  const [newWeight, setNewWeight] = useState('');
+  const [newMedicalHistories, setNewMedicalHistories] = useState<string[]>([]);
+  const [newMedicalOther, setNewMedicalOther] = useState('');
+  const [newAllergies, setNewAllergies] = useState<string[]>([]);
+  const [newAllergyOther, setNewAllergyOther] = useState('');
+  const [addLoading, setAddLoading] = useState(false);
+  const [newBirthdayPickerVisible, setNewBirthdayPickerVisible] = useState(false);
+
   const listRef = useRef<HTMLDivElement>(null);
 
   const loadHistory = useCallback(async () => {
@@ -166,7 +213,6 @@ function ChatPageInner() {
     loadHistory();
   }, [loadHistory]);
 
-  // Auto-send symptom message after history loads
   useEffect(() => {
     if (!isSymptom || !urlMsg || autoSentRef.current) return;
     const timer = setTimeout(() => {
@@ -178,7 +224,6 @@ function ChatPageInner() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSymptom, urlMsg]);
 
-  // Collapse banner after AI first reply
   useEffect(() => {
     if (!isSymptom) return;
     const aiReplies = messages.filter((m) => m.role === 'assistant' && m.id !== 'welcome');
@@ -307,7 +352,7 @@ function ChatPageInner() {
     router.push(`/chat/${newSessionId}`);
   };
 
-  const openMemberPopup = async () => {
+  const fetchMemberList = async () => {
     try {
       const res: any = await api.get('/api/family/members');
       const data = res.data || res;
@@ -315,6 +360,10 @@ function ChatPageInner() {
     } catch {
       setFamilyMembers([]);
     }
+  };
+
+  const openMemberPopup = async () => {
+    await fetchMemberList();
     setMemberPopupVisible(true);
   };
 
@@ -336,7 +385,66 @@ function ChatPageInner() {
     setSwitchingMember(false);
   };
 
-  // Determine if a message is the first user message (for symptom card rendering)
+  // Add member popup functions
+  const fetchRelationTypes = async () => {
+    try {
+      const res: any = await api.get('/api/relation-types');
+      const data = res.data || res;
+      setRelationTypes(Array.isArray(data.items) ? data.items : []);
+    } catch {
+      setRelationTypes([]);
+    }
+  };
+
+  const openAddMemberPopup = async () => {
+    setAddStep('relation');
+    setSelectedRelation(null);
+    setNewNickname('');
+    setNewGender('');
+    setNewBirthday('');
+    setNewHeight('');
+    setNewWeight('');
+    setNewMedicalHistories([]);
+    setNewMedicalOther('');
+    setNewAllergies([]);
+    setNewAllergyOther('');
+    await fetchRelationTypes();
+    setAddMemberPopupVisible(true);
+  };
+
+  const handleAddMemberConfirm = async () => {
+    if (!selectedRelation || !newNickname.trim() || !newGender || !newBirthday) {
+      Toast.show({ content: '请填写完整的成员信息' });
+      return;
+    }
+    setAddLoading(true);
+    try {
+      const body: any = {
+        nickname: newNickname.trim(),
+        relationship_type: selectedRelation.name,
+        relation_type_id: selectedRelation.id,
+        gender: newGender,
+        birthday: newBirthday,
+      };
+      if (newHeight) body.height = Number(newHeight);
+      if (newWeight) body.weight = Number(newWeight);
+      const medicals = [...newMedicalHistories];
+      if (newMedicalOther.trim()) medicals.push(newMedicalOther.trim());
+      if (medicals.length) body.medical_histories = medicals;
+      const allergies = [...newAllergies];
+      if (newAllergyOther.trim()) allergies.push(newAllergyOther.trim());
+      if (allergies.length) body.allergies = allergies;
+
+      await api.post('/api/family/members', body);
+      setAddMemberPopupVisible(false);
+      await fetchMemberList();
+      Toast.show({ content: '成员添加成功', icon: 'success' });
+    } catch {
+      Toast.show({ content: '添加失败，请重试', icon: 'fail' });
+    }
+    setAddLoading(false);
+  };
+
   const isFirstUserMsg = (msg: Message): boolean => {
     if (!isSymptom) return false;
     const userMsgs = messages.filter((m) => m.role === 'user');
@@ -496,7 +604,6 @@ function ChatPageInner() {
               </div>
             )}
             <div className="max-w-[75%]">
-              {/* Symptom card for first user message */}
               {msg.role === 'user' && isFirstUserMsg(msg) ? (
                 <div
                   className="rounded-2xl rounded-tr-sm px-4 py-3 leading-relaxed cursor-pointer"
@@ -575,7 +682,6 @@ function ChatPageInner() {
       </div>
 
       <div className="bg-white border-t border-gray-100 px-3 py-3 flex items-end gap-2 safe-area-bottom">
-        {/* Switch member button */}
         <button
           onClick={openMemberPopup}
           className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-full"
@@ -643,47 +749,35 @@ function ChatPageInner() {
           </div>
 
           <div className="mt-3 space-y-2">
-            <div
-              className="flex items-center gap-3 px-3 py-3 rounded-xl cursor-pointer"
-              style={{ background: '#f9f9f9' }}
-              onClick={() => handleSwitchMember(null, '自己')}
-            >
-              <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm"
-                style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}>
-                我
-              </div>
-              <span className="text-sm font-medium">为自己</span>
-            </div>
-
-            {familyMembers.map((m) => (
-              <div
-                key={m.id}
-                className="flex items-center gap-3 px-3 py-3 rounded-xl cursor-pointer"
-                style={{ background: '#f9f9f9' }}
-                onClick={() => {
-                  const label = `${relationshipLabelMap[m.relationship_type] || m.relationship_type}·${m.nickname}`;
-                  handleSwitchMember(m.id, label);
-                }}
-              >
-                <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm"
-                  style={{ background: '#87d068' }}>
-                  {m.nickname.charAt(0)}
-                </div>
-                <div>
-                  <div className="text-sm font-medium">{m.nickname}</div>
-                  <div className="text-xs text-gray-400">
-                    {relationshipLabelMap[m.relationship_type] || m.relationship_type}
+            {familyMembers.map((m) => {
+              const relationLabel = m.relation_type_name || m.relationship_type;
+              const emoji = m.is_self ? '👤' : getMemberEmoji(relationLabel);
+              const displayName = m.is_self ? '本人' : `${relationLabel} · ${m.nickname}`;
+              const switchLabel = m.is_self ? '本人' : `${relationLabel}·${m.nickname}`;
+              return (
+                <div
+                  key={m.id}
+                  className="flex items-center gap-3 px-3 py-3 rounded-xl cursor-pointer"
+                  style={{ background: '#f9f9f9' }}
+                  onClick={() => handleSwitchMember(m.is_self ? null : m.id, switchLabel)}
+                >
+                  <div className="w-9 h-9 rounded-full flex items-center justify-center text-xl"
+                    style={{ background: m.is_self ? 'linear-gradient(135deg, #52c41a, #13c2c2)' : '#87d068' }}>
+                    {m.is_self ? <span className="text-white text-sm">我</span> : emoji}
+                  </div>
+                  <div>
+                    <div className="text-sm font-medium">{displayName}</div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
 
             <div
               className="flex items-center gap-3 px-3 py-3 rounded-xl cursor-pointer"
               style={{ background: '#f9f9f9' }}
               onClick={() => {
                 setMemberPopupVisible(false);
-                router.push('/family/add');
+                openAddMemberPopup();
               }}
             >
               <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-lg"
@@ -695,6 +789,205 @@ function ChatPageInner() {
           </div>
         </div>
       </Popup>
+
+      {/* Add member popup (two-step) */}
+      <Popup
+        visible={addMemberPopupVisible}
+        onMaskClick={() => setAddMemberPopupVisible(false)}
+        position="bottom"
+        bodyStyle={{ borderRadius: '20px 20px 0 0', maxHeight: '85vh', overflowY: 'auto' }}
+      >
+        <div className="px-4 pb-8">
+          <div className="flex items-center justify-between py-4 border-b border-gray-100">
+            <span className="text-base font-bold text-gray-800">添加家庭成员</span>
+            <button className="text-gray-400 text-2xl leading-none" onClick={() => setAddMemberPopupVisible(false)}>×</button>
+          </div>
+
+          <div className="mt-4">
+            <div className="text-sm font-semibold text-gray-700 mb-3">选择关系</div>
+            <div className="grid grid-cols-4 gap-3">
+              {relationTypes.map((rt) => {
+                const emoji = getMemberEmoji(rt.name);
+                const isSelected = selectedRelation?.id === rt.id;
+                return (
+                  <button
+                    key={rt.id}
+                    className="flex flex-col items-center py-2 rounded-xl transition-all"
+                    style={{
+                      background: isSelected ? 'linear-gradient(135deg, #f6ffed, #e6fffb)' : '#f9f9f9',
+                      border: isSelected ? '1.5px solid #52c41a' : '1.5px solid transparent',
+                    }}
+                    onClick={() => {
+                      setSelectedRelation(rt);
+                      setAddStep('info');
+                    }}
+                  >
+                    <span className="text-2xl">{emoji}</span>
+                    <span className="text-xs mt-1" style={{ color: isSelected ? '#52c41a' : '#555' }}>{rt.name}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {addStep === 'info' && selectedRelation && (
+            <div className="mt-5 p-4 rounded-2xl" style={{ background: '#f6ffed', border: '1px solid #b7eb8f' }}>
+              <div className="text-sm font-semibold mb-4" style={{ color: '#52c41a' }}>
+                {getMemberEmoji(selectedRelation.name)} 填写{selectedRelation.name}信息
+              </div>
+
+              <div className="space-y-3">
+                <div>
+                  <div className="text-xs text-gray-500 mb-1">姓名 <span style={{color:'#ff4d4f'}}>*</span></div>
+                  <input
+                    className="w-full bg-white text-sm rounded-xl px-3 py-2 outline-none border border-gray-200"
+                    placeholder="请输入姓名"
+                    value={newNickname}
+                    onChange={(e) => setNewNickname(e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <div className="text-xs text-gray-500 mb-1">性别 <span style={{color:'#ff4d4f'}}>*</span></div>
+                  <div className="flex gap-3">
+                    {['male', 'female'].map((g) => (
+                      <button
+                        key={g}
+                        className="flex-1 py-2 rounded-xl text-sm font-medium transition-all"
+                        style={{
+                          background: newGender === g ? 'linear-gradient(135deg, #52c41a, #13c2c2)' : '#fff',
+                          color: newGender === g ? '#fff' : '#666',
+                          border: `1px solid ${newGender === g ? '#52c41a' : '#e8e8e8'}`,
+                        }}
+                        onClick={() => setNewGender(g)}
+                      >
+                        {g === 'male' ? '男' : '女'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="text-xs text-gray-500 mb-1">出生日期 <span style={{color:'#ff4d4f'}}>*</span></div>
+                  <button
+                    className="w-full bg-white text-sm rounded-xl px-3 py-2 text-left border border-gray-200 flex items-center justify-between"
+                    onClick={() => setNewBirthdayPickerVisible(true)}
+                  >
+                    <span style={{ color: newBirthday ? '#333' : '#bbb' }}>{newBirthday || '请选择出生日期'}</span>
+                    <span>📅</span>
+                  </button>
+                </div>
+
+                <div className="flex gap-3">
+                  <div className="flex-1">
+                    <div className="text-xs text-gray-500 mb-1">身高 (cm)</div>
+                    <input
+                      type="number"
+                      className="w-full bg-white text-sm rounded-xl px-3 py-2 outline-none border border-gray-200"
+                      placeholder="如：170"
+                      value={newHeight}
+                      onChange={(e) => setNewHeight(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-xs text-gray-500 mb-1">体重 (kg)</div>
+                    <input
+                      type="number"
+                      className="w-full bg-white text-sm rounded-xl px-3 py-2 outline-none border border-gray-200"
+                      placeholder="如：65"
+                      value={newWeight}
+                      onChange={(e) => setNewWeight(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="text-xs text-gray-500 mb-1">既往病史</div>
+                  <div className="flex flex-wrap gap-2">
+                    {ADD_MEDICAL_OPTIONS.map((opt) => (
+                      <Tag
+                        key={opt}
+                        onClick={() => setNewMedicalHistories((prev) => prev.includes(opt) ? prev.filter((x) => x !== opt) : [...prev, opt])}
+                        style={{
+                          '--background-color': newMedicalHistories.includes(opt) ? '#52c41a' : '#fff',
+                          '--text-color': newMedicalHistories.includes(opt) ? '#fff' : '#666',
+                          '--border-color': newMedicalHistories.includes(opt) ? '#52c41a' : '#d9d9d9',
+                          padding: '4px 10px',
+                          borderRadius: 14,
+                          fontSize: 12,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {opt}
+                      </Tag>
+                    ))}
+                  </div>
+                  <input
+                    className="w-full bg-white text-sm rounded-xl px-3 py-2 outline-none border border-gray-200 mt-2"
+                    placeholder="其他病史（可选）"
+                    value={newMedicalOther}
+                    onChange={(e) => setNewMedicalOther(e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <div className="text-xs text-gray-500 mb-1">过敏史</div>
+                  <div className="flex flex-wrap gap-2">
+                    {ADD_ALLERGY_OPTIONS.map((opt) => (
+                      <Tag
+                        key={opt}
+                        onClick={() => setNewAllergies((prev) => prev.includes(opt) ? prev.filter((x) => x !== opt) : [...prev, opt])}
+                        style={{
+                          '--background-color': newAllergies.includes(opt) ? '#52c41a' : '#fff',
+                          '--text-color': newAllergies.includes(opt) ? '#fff' : '#666',
+                          '--border-color': newAllergies.includes(opt) ? '#52c41a' : '#d9d9d9',
+                          padding: '4px 10px',
+                          borderRadius: 14,
+                          fontSize: 12,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {opt}
+                      </Tag>
+                    ))}
+                  </div>
+                  <input
+                    className="w-full bg-white text-sm rounded-xl px-3 py-2 outline-none border border-gray-200 mt-2"
+                    placeholder="其他过敏史（可选）"
+                    value={newAllergyOther}
+                    onChange={(e) => setNewAllergyOther(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <button
+                className="w-full mt-4 py-3 rounded-2xl text-white font-semibold text-sm"
+                style={{ background: addLoading ? '#d9d9d9' : 'linear-gradient(135deg, #52c41a, #13c2c2)' }}
+                disabled={addLoading}
+                onClick={handleAddMemberConfirm}
+              >
+                {addLoading ? '添加中...' : '确认添加'}
+              </button>
+            </div>
+          )}
+        </div>
+      </Popup>
+
+      {/* New member birthday picker */}
+      <DatePicker
+        visible={newBirthdayPickerVisible}
+        onClose={() => setNewBirthdayPickerVisible(false)}
+        precision="day"
+        max={new Date()}
+        min={new Date('1900-01-01')}
+        title="选择出生日期"
+        onConfirm={(val) => {
+          const d = val as Date;
+          const str = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          setNewBirthday(str);
+          setNewBirthdayPickerVisible(false);
+        }}
+      />
     </div>
   );
 }
