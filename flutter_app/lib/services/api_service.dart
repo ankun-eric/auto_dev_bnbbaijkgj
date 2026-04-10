@@ -712,6 +712,29 @@ class ApiService {
         : {};
   }
 
+  // Function Buttons
+  Future<Response> getFunctionButtons() async {
+    return _dio.get(ApiConfig.chatFunctionButtons);
+  }
+
+  // Voice Call (Digital Human)
+  Future<Response> startVoiceCall({int? digitalHumanId, String? chatSessionId}) async {
+    final data = <String, dynamic>{};
+    if (digitalHumanId != null) data['digital_human_id'] = digitalHumanId;
+    if (chatSessionId != null) data['chat_session_id'] = chatSessionId;
+    return _dio.post(ApiConfig.voiceCallStart, data: data);
+  }
+
+  Future<Response> sendVoiceCallMessage(int callId, String userText) async {
+    return _dio.post('${ApiConfig.voiceCall}/$callId/message', data: {'user_text': userText});
+  }
+
+  Future<Response> endVoiceCall(int callId, {List<Map<String, dynamic>>? dialogContent}) async {
+    return _dio.post('${ApiConfig.voiceCall}/$callId/end', data: {
+      'dialog_content': dialogContent ?? [],
+    });
+  }
+
   // Home dynamic config
   Future<Map<String, dynamic>> getHomeConfig() async {
     final response = await _dio.get(ApiConfig.homeConfig);

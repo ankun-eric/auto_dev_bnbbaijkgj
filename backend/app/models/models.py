@@ -1858,3 +1858,64 @@ class City(Base):
     is_active = Column(Boolean, default=True, comment="是否启用")
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+# ──────────────── 功能按钮与数字人 ────────────────
+
+
+class ChatFunctionButton(Base):
+    __tablename__ = "chat_function_buttons"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name = mapped_column(String(50), nullable=False)
+    icon_url = mapped_column(String(500), nullable=True)
+    button_type = mapped_column(String(50), nullable=False)
+    sort_weight = mapped_column(Integer, default=0)
+    is_enabled = mapped_column(Boolean, default=True)
+    params = mapped_column(JSON, nullable=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class DigitalHuman(Base):
+    __tablename__ = "digital_humans"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name = mapped_column(String(100), nullable=False)
+    silent_video_url = mapped_column(String(500), nullable=False)
+    speaking_video_url = mapped_column(String(500), nullable=False)
+    tts_voice_id = mapped_column(String(100), nullable=True)
+    description = mapped_column(Text, nullable=True)
+    thumbnail_url = mapped_column(String(500), nullable=True)
+    is_enabled = mapped_column(Boolean, default=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class VoiceCallRecord(Base):
+    __tablename__ = "voice_call_records"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    digital_human_id = mapped_column(Integer, nullable=True)
+    chat_session_id = mapped_column(Integer, nullable=True)
+    start_time = mapped_column(DateTime, nullable=False)
+    end_time = mapped_column(DateTime, nullable=True)
+    duration_seconds = mapped_column(Integer, nullable=True)
+    dialog_content = mapped_column(JSON, nullable=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User")
+
+
+class VoiceServiceConfig(Base):
+    __tablename__ = "voice_service_configs"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    config_key = mapped_column(String(100), unique=True, nullable=False)
+    config_value = mapped_column(Text, nullable=False)
+    config_type = mapped_column(String(50), nullable=False)
+    description = mapped_column(String(200), nullable=True)
+    updated_by = mapped_column(Integer, nullable=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

@@ -44,7 +44,8 @@
     "pages/no-permission/index",
     "pages/search/index",
     "pages/search-result/index",
-    "pages/city-select/index"
+    "pages/city-select/index",
+    "pages/digital-human-call/index"
   ],
   "window": {
     "navigationBarTextStyle": "black",

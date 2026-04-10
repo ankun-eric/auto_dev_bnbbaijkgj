@@ -88,6 +88,22 @@
     <view id="msg-bottom" style="height: 20rpx;"></view>
   </scroll-view>
 
+  <!-- 功能按钮区域 -->
+  <scroll-view scroll-x class="function-buttons-area" wx:if="{{functionButtons.length > 0}}">
+    <view class="button-list">
+      <view 
+        class="func-btn" 
+        wx:for="{{functionButtons}}" 
+        wx:key="id"
+        bindtap="onFunctionButtonTap"
+        data-button="{{item}}"
+      >
+        <image class="func-btn-icon" src="{{item.icon_url}}" mode="aspectFit" wx:if="{{item.icon_url}}" />
+        <text class="func-btn-text">{{item.name}}</text>
+      </view>
+    </view>
+  </scroll-view>
+
   <!-- 输入区域 -->
   <view class="input-area safe-bottom">
     <view class="input-bar">

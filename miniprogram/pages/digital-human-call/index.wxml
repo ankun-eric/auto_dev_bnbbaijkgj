@@ -1,0 +1,73 @@
+<view class="dh-page">
+  <!-- 数字人视频 -->
+  <video
+    id="dhVideo"
+    class="dh-video"
+    src="{{currentVideoUrl}}"
+    autoplay
+    loop
+    muted="{{videoMuted}}"
+    show-center-play-btn="{{false}}"
+    controls="{{false}}"
+    object-fit="cover"
+    enable-progress-gesture="{{false}}"
+  />
+
+  <!-- 顶部状态栏 -->
+  <view class="dh-top-bar" style="padding-top: {{statusBarHeight}}px;">
+    <view class="dh-call-status">
+      <view class="dh-status-dot {{callStatus === 'connected' ? 'dot-active' : ''}}"></view>
+      <text class="dh-status-text">{{statusText}}</text>
+    </view>
+    <text class="dh-duration" wx:if="{{callStatus === 'connected'}}">{{durationText}}</text>
+  </view>
+
+  <!-- 对话气泡区域 -->
+  <view class="dh-dialog-area">
+    <scroll-view scroll-y class="dh-dialog-scroll" scroll-into-view="{{scrollToDialog}}" scroll-with-animation>
+      <view class="dh-dialog-item" wx:for="{{dialogs}}" wx:key="id" id="dialog-{{item.id}}">
+        <view class="dh-dialog-bubble {{item.role === 'user' ? 'dh-bubble-user' : 'dh-bubble-ai'}}">
+          <text class="dh-dialog-text">{{item.text}}</text>
+        </view>
+      </view>
+      <view id="dialog-bottom" style="height: 20rpx;"></view>
+    </scroll-view>
+  </view>
+
+  <!-- 底部控制栏 -->
+  <view class="dh-bottom-bar safe-bottom">
+    <view class="dh-record-hint" wx:if="{{callStatus === 'connected'}}">
+      <text class="dh-hint-text">{{isRecording ? '正在聆听...' : '点击麦克风开始说话'}}</text>
+    </view>
+    <view class="dh-controls">
+      <!-- 麦克风按钮 -->
+      <view
+        class="dh-mic-btn {{isRecording ? 'dh-mic-active' : ''}}"
+        bindtap="toggleRecording"
+        wx:if="{{callStatus === 'connected'}}"
+      >
+        <text class="dh-mic-icon">🎤</text>
+      </view>
+      <!-- 挂断按钮 -->
+      <view class="dh-hangup-btn" bindtap="hangUp">
+        <text class="dh-hangup-icon">📞</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 权限提示弹窗 -->
+  <view class="dh-permission-mask" wx:if="{{showPermissionDialog}}" catchtap="dismissPermission">
+    <view class="dh-permission-dialog" catchtap="">
+      <text class="dh-perm-title">需要麦克风权限</text>
+      <text class="dh-perm-desc">数字人通话需要使用麦克风来接收您的语音</text>
+      <view class="dh-perm-btns">
+        <view class="dh-perm-cancel" bindtap="dismissPermission">
+          <text class="dh-perm-cancel-text">取消</text>
+        </view>
+        <button class="dh-perm-confirm" open-type="openSetting" bindopensetting="onPermissionSetting">
+          去授权
+        </button>
+      </view>
+    </view>
+  </view>
+</view>

@@ -34,6 +34,13 @@ class ApiConfig {
   /// 知识库命中反馈（见 knowledge 路由）
   static const String chatKnowledgeFeedback = '/api/chat/feedback';
 
+  // Function Buttons
+  static const String chatFunctionButtons = '/api/chat/function-buttons';
+
+  // Digital Human / Voice Call
+  static const String voiceCallStart = '/api/chat/voice-call/start';
+  static const String voiceCall = '/api/chat/voice-call';
+
   // Checkup (legacy)
   static const String checkupReports = '/api/health/checkup-reports';
   static const String uploadCheckup = '/api/health/checkup-reports';

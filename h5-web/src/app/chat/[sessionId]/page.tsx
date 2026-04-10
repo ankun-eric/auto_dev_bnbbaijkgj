@@ -8,6 +8,39 @@ import { useAuth } from '@/lib/auth';
 import ChatSidebar from '@/components/ChatSidebar';
 import KnowledgeCard, { type KnowledgeHit } from '@/components/KnowledgeCard';
 
+interface FunctionButton {
+  id: string;
+  name: string;
+  button_type: 'digital_human_call' | 'photo_upload' | 'file_upload' | 'ai_dialog_trigger' | 'external_link';
+  params: Record<string, any>;
+}
+
+const BUTTON_EMOJI: Record<string, string> = {
+  digital_human_call: '📞',
+  photo_upload: '📷',
+  file_upload: '📄',
+  external_link: '🔗',
+};
+
+const AI_TRIGGER_EMOJI: Record<string, string> = {
+  '症状自查': '🩺',
+  '用药提醒': '💊',
+  '健康日记': '📝',
+  '预约挂号': '🏥',
+  '急救指南': '🚑',
+};
+
+const AI_TRIGGER_MSG: Record<string, string> = {
+  '症状自查': '我想进行症状自查',
+  '用药提醒': '我要设置用药提醒',
+  '健康日记': '我想写健康日记',
+  '预约挂号': '我想预约挂号',
+  '急救指南': '我需要急救指南',
+};
+
+let _btnCache: { data: FunctionButton[]; ts: number } | null = null;
+const BTN_CACHE_TTL = 5 * 60 * 1000;
+
 type FontSizeLevel = 'standard' | 'large' | 'extra_large';
 
 const FONT_SIZE_MAP: Record<FontSizeLevel, number> = {
@@ -193,6 +226,94 @@ function ChatPageInner() {
   const [newAllergyOther, setNewAllergyOther] = useState('');
   const [addLoading, setAddLoading] = useState(false);
   const [newBirthdayPickerVisible, setNewBirthdayPickerVisible] = useState(false);
+
+  // Function buttons
+  const [funcButtons, setFuncButtons] = useState<FunctionButton[]>([]);
+  const funcScrollRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (_btnCache && Date.now() - _btnCache.ts < BTN_CACHE_TTL) {
+      setFuncButtons(_btnCache.data);
+      return;
+    }
+    api.get('/api/chat/function-buttons')
+      .then((res: any) => {
+        const data = res.data || res;
+        const items: FunctionButton[] = Array.isArray(data.items) ? data.items : Array.isArray(data) ? data : [];
+        _btnCache = { data: items, ts: Date.now() };
+        setFuncButtons(items);
+      })
+      .catch(() => {});
+  }, []);
+
+  const getFuncBtnEmoji = (btn: FunctionButton) => {
+    if (btn.button_type === 'ai_dialog_trigger') {
+      for (const key of Object.keys(AI_TRIGGER_EMOJI)) {
+        if (btn.name.includes(key)) return AI_TRIGGER_EMOJI[key];
+      }
+      return '💬';
+    }
+    return BUTTON_EMOJI[btn.button_type] || '🔗';
+  };
+
+  const handleFuncBtnClick = (btn: FunctionButton) => {
+    switch (btn.button_type) {
+      case 'digital_human_call':
+        router.push(`/digital-human-call?dhId=${btn.params.digital_human_id || ''}&sessionId=${sessionId}`);
+        break;
+      case 'photo_upload':
+        photoInputRef.current?.click();
+        break;
+      case 'file_upload':
+        fileInputRef.current?.click();
+        break;
+      case 'ai_dialog_trigger': {
+        let triggerMsg = '';
+        for (const key of Object.keys(AI_TRIGGER_MSG)) {
+          if (btn.name.includes(key)) { triggerMsg = AI_TRIGGER_MSG[key]; break; }
+        }
+        if (!triggerMsg) triggerMsg = btn.name;
+        sendMessageText(triggerMsg);
+        break;
+      }
+      case 'external_link':
+        if (btn.params.url) window.open(btn.params.url, '_blank');
+        break;
+    }
+  };
+
+  const handleFileUpload = async (file: File, type: 'photo' | 'file') => {
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('message_type', type === 'photo' ? 'image' : 'file');
+    try {
+      Toast.show({ icon: 'loading', content: '上传中...', duration: 0 });
+      const res: any = await api.post(`/api/chat/sessions/${sessionId}/messages`, fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 60000,
+      });
+      Toast.clear();
+      const resData = res.data || res;
+      const userMsg: Message = {
+        id: `user-${Date.now()}`,
+        role: 'user',
+        content: type === 'photo' ? `[图片] ${file.name}` : `[文件] ${file.name}`,
+        time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+      };
+      const aiMsg: Message = {
+        id: resData.id != null ? String(resData.id) : `ai-${Date.now()}`,
+        role: 'assistant',
+        content: resData.content || '已收到您上传的内容。',
+        time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+      };
+      setMessages((prev) => [...prev, userMsg, aiMsg]);
+    } catch {
+      Toast.clear();
+      Toast.show({ content: '上传失败，请重试', icon: 'fail' });
+    }
+  };
 
   // Voice input state
   const [voiceMode, setVoiceMode] = useState(false);
@@ -940,6 +1061,69 @@ function ChatPageInner() {
           </div>
         )}
       </div>
+
+      {/* Hidden file inputs for photo/file upload */}
+      <input
+        ref={photoInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) handleFileUpload(f, 'photo');
+          e.target.value = '';
+        }}
+      />
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) handleFileUpload(f, 'file');
+          e.target.value = '';
+        }}
+      />
+
+      {/* Function buttons bar */}
+      {funcButtons.length > 0 && (
+        <div className="bg-white border-t border-gray-100" style={{ position: 'relative' }}>
+          <div
+            ref={funcScrollRef}
+            className="flex items-center gap-3 overflow-x-auto px-3 py-2 no-scrollbar"
+            style={{ scrollBehavior: 'smooth', WebkitOverflowScrolling: 'touch', height: 64 }}
+          >
+            {funcButtons.map((btn) => (
+              <button
+                key={btn.id}
+                onClick={() => handleFuncBtnClick(btn)}
+                className="flex items-center gap-1.5 flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all active:scale-95"
+                style={{
+                  background: '#f5f5f5',
+                  border: '1px solid #e8e8e8',
+                  color: '#333',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <span style={{ fontSize: 16 }}>{getFuncBtnEmoji(btn)}</span>
+                <span>{btn.name}</span>
+              </button>
+            ))}
+          </div>
+          <div style={{
+            position: 'absolute', right: 0, top: 0, bottom: 0, width: 32,
+            background: 'linear-gradient(to right, transparent, white)',
+            pointerEvents: 'none',
+          }} />
+          <div style={{
+            position: 'absolute', left: 0, top: 0, bottom: 0, width: 32,
+            background: 'linear-gradient(to left, transparent, white)',
+            pointerEvents: 'none',
+          }} />
+        </div>
+      )}
 
       <div className="bg-white border-t border-gray-100 px-3 py-3 flex items-end gap-2 safe-area-bottom">
         <button

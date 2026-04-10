@@ -28,6 +28,7 @@ import {
   HeartOutlined,
   ScheduleOutlined,
   EnvironmentOutlined,
+  PhoneOutlined,
 } from '@ant-design/icons';
 import { useRouter, usePathname } from 'next/navigation';
 import type { MenuProps } from 'antd';
@@ -74,6 +75,16 @@ const menuItems: MenuItem[] = [
       { key: '/ai-center/prompts', label: '提示词配置' },
       { key: '/prompt-templates', icon: <FormOutlined />, label: 'Prompt 模板配置' },
       { key: '/ai-center/disclaimers', label: '免责提示配置' },
+    ],
+  },
+  {
+    key: 'ai-consult-config',
+    icon: <PhoneOutlined />,
+    label: 'AI咨询配置',
+    children: [
+      { key: '/function-buttons', label: '功能按钮管理' },
+      { key: '/digital-humans', label: '数字人形象管理' },
+      { key: '/voice-service', label: '语音服务配置' },
     ],
   },
   {
@@ -171,6 +182,7 @@ function getOpenKeys(pathname: string): string[] {
   if (pathname.startsWith('/points')) return ['points'];
   if (pathname.startsWith('/ai-config') || pathname.startsWith('/chat-records') || pathname.startsWith('/knowledge') || pathname.startsWith('/search-config') || pathname.startsWith('/fallback-config') || pathname.startsWith('/ocr-config') || pathname.startsWith('/ocr-global-config') || pathname.startsWith('/checkup-details') || pathname.startsWith('/drug-details')) return ['ai'];
   if (pathname.startsWith('/ai-center') || pathname.startsWith('/prompt-templates')) return ['ai-center'];
+  if (pathname.startsWith('/function-buttons') || pathname.startsWith('/digital-humans') || pathname.startsWith('/voice-service')) return ['ai-consult-config'];
   if (pathname.startsWith('/home-settings') || pathname.startsWith('/home-menus') || pathname.startsWith('/home-banners') || pathname.startsWith('/notices') || pathname.startsWith('/bottom-nav')) return ['home-config'];
   if (pathname.startsWith('/search')) return ['search-manage'];
   if (pathname.startsWith('/sms') || pathname.startsWith('/settings') || pathname.startsWith('/wechat-push') || pathname.startsWith('/email-notify') || pathname.startsWith('/cos-config')) return ['system'];

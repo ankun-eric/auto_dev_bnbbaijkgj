@@ -13,6 +13,7 @@ from app.models.models import (
     AiSensitiveWord,
     AsrConfig,
     BottomNavConfig,
+    ChatFunctionButton,
     ChatMessage,
     ChatSession,
     ConstitutionQuestion,
@@ -38,6 +39,7 @@ from app.models.models import (
     SystemConfig,
     User,
     UserRole,
+    VoiceServiceConfig,
 )
 
 logger = logging.getLogger(__name__)
@@ -69,6 +71,8 @@ async def init_default_data():
             await _init_plan_template_categories(db)
             await _fix_legacy_users_missing_self_member(db)
             await _fix_self_members_missing_relation_type(db)
+            await _init_chat_function_buttons(db)
+            await _init_voice_service_configs(db)
             await db.commit()
             logger.info("Default data initialization completed")
         except Exception as e:
@@ -1230,3 +1234,135 @@ async def _fix_self_members_missing_relation_type(db: AsyncSession):
         m.relation_type_id = rt.id
     await db.flush()
     logger.info("Backfilled relation_type_id for %d self members", len(members))
+
+
+async def _init_chat_function_buttons(db: AsyncSession):
+    result = await db.execute(select(ChatFunctionButton).limit(1))
+    if result.scalar_one_or_none():
+        return
+
+    buttons = [
+        {
+            "name": "数字人通话",
+            "icon_url": "",
+            "button_type": "digital_human_call",
+            "sort_weight": 1,
+            "is_enabled": True,
+            "params": {"default_digital_human_id": 1},
+        },
+        {
+            "name": "拍照识药",
+            "icon_url": "",
+            "button_type": "photo_upload",
+            "sort_weight": 2,
+            "is_enabled": True,
+            "params": {"action": "recognize_medicine"},
+        },
+        {
+            "name": "报告解读",
+            "icon_url": "",
+            "button_type": "file_upload",
+            "sort_weight": 3,
+            "is_enabled": True,
+            "params": {"action": "analyze_report"},
+        },
+        {
+            "name": "健康问答",
+            "icon_url": "",
+            "button_type": "ai_dialog_trigger",
+            "sort_weight": 4,
+            "is_enabled": True,
+            "params": {"session_type": "health_qa"},
+        },
+        {
+            "name": "健康自查",
+            "icon_url": "",
+            "button_type": "ai_dialog_trigger",
+            "sort_weight": 5,
+            "is_enabled": True,
+            "params": {"session_type": "symptom_check"},
+        },
+        {
+            "name": "中医养生",
+            "icon_url": "",
+            "button_type": "ai_dialog_trigger",
+            "sort_weight": 6,
+            "is_enabled": True,
+            "params": {"session_type": "tcm"},
+        },
+        {
+            "name": "用药参考",
+            "icon_url": "",
+            "button_type": "ai_dialog_trigger",
+            "sort_weight": 7,
+            "is_enabled": True,
+            "params": {"session_type": "drug_query"},
+        },
+        {
+            "name": "在线客服",
+            "icon_url": "",
+            "button_type": "external_link",
+            "sort_weight": 8,
+            "is_enabled": True,
+            "params": {"url": "/customer-service"},
+        },
+    ]
+    for btn in buttons:
+        db.add(ChatFunctionButton(**btn))
+    await db.flush()
+    logger.info("Created default chat function buttons (%d)", len(buttons))
+
+
+async def _init_voice_service_configs(db: AsyncSession):
+    result = await db.execute(select(VoiceServiceConfig).limit(1))
+    if result.scalar_one_or_none():
+        return
+
+    configs = [
+        {
+            "config_key": "vad_silence_duration",
+            "config_value": "800",
+            "config_type": "vad_param",
+            "description": "静音检测时长（毫秒），超过此时长判定用户停止说话",
+        },
+        {
+            "config_key": "vad_threshold",
+            "config_value": "0.5",
+            "config_type": "vad_param",
+            "description": "VAD 灵敏度阈值（0-1），越低越灵敏",
+        },
+        {
+            "config_key": "vad_min_speech_duration",
+            "config_value": "300",
+            "config_type": "vad_param",
+            "description": "最短有效语音时长（毫秒），低于此时长忽略",
+        },
+        {
+            "config_key": "vad_max_speech_duration",
+            "config_value": "60000",
+            "config_type": "vad_param",
+            "description": "最长单次录音时长（毫秒）",
+        },
+        {
+            "config_key": "vad_sample_rate",
+            "config_value": "16000",
+            "config_type": "vad_param",
+            "description": "音频采样率（Hz）",
+        },
+        {
+            "config_key": "tts_api_key",
+            "config_value": "",
+            "config_type": "credential",
+            "description": "TTS 服务 API Key",
+        },
+        {
+            "config_key": "tts_api_url",
+            "config_value": "",
+            "config_type": "credential",
+            "description": "TTS 服务 API 地址",
+        },
+    ]
+    for cfg in configs:
+        db.add(VoiceServiceConfig(**cfg))
+    await db.flush()
+    logger.info("Created default voice service configs (%d)", len(configs))

@@ -1,4 +1,4 @@
-const { post, get, put, del } = require('../../utils/request');
+const { post, get, put, del, uploadFile } = require('../../utils/request');
 const { generateId } = require('../../utils/util');
 
 const RELATION_COLORS = {
@@ -41,7 +41,8 @@ Page({
     recordingTime: 0,
     consultTarget: { name: '本人', color: '#52c41a' },
     showTargetPicker: false,
-    familyMembers: []
+    familyMembers: [],
+    functionButtons: []
   },
 
   _recognizeManager: null,
@@ -49,6 +50,7 @@ Page({
   _touchStartY: 0,
   _touchStartTime: 0,
   _discardNextResult: false,
+  _btnCacheExpire: 0,
 
   onLoad(options) {
     const { type = 'health_qa', chatId, question } = options;
@@ -68,6 +70,7 @@ Page({
 
     this.loadFontSetting();
     this.loadFamilyMembers();
+    this.loadFunctionButtons();
 
     if (question) {
       setTimeout(() => {
@@ -229,6 +232,110 @@ Page({
       this.setData({ familyMembers: members });
     } catch (e) {
       console.log('loadFamilyMembers error', e);
+    }
+  },
+
+  async loadFunctionButtons() {
+    const now = Date.now();
+    if (this._btnCacheExpire > now && this.data.functionButtons.length) return;
+    try {
+      const res = await get('/api/chat/function-buttons', {}, { showLoading: false, suppressErrorToast: true });
+      const buttons = Array.isArray(res) ? res : (res.items || res.data || []);
+      this.setData({ functionButtons: buttons.filter(b => b.is_enabled) });
+      this._btnCacheExpire = now + 5 * 60 * 1000;
+    } catch (e) {
+      console.log('loadFunctionButtons error', e);
+    }
+  },
+
+  onFunctionButtonTap(e) {
+    const btn = e.currentTarget.dataset.button;
+    if (!btn) return;
+    const params = btn.params || {};
+
+    switch (btn.button_type) {
+      case 'digital_human_call':
+        wx.navigateTo({
+          url: `/pages/digital-human-call/index?digitalHumanId=${params.digital_human_id || ''}&sessionId=${this.data.chatId}`
+        });
+        break;
+
+      case 'photo_upload':
+        wx.chooseMedia({
+          count: 1,
+          mediaType: ['image'],
+          sourceType: ['album', 'camera'],
+          success: (res) => {
+            const filePath = res.tempFiles[0].tempFilePath;
+            this._uploadAndSendImage(filePath);
+          }
+        });
+        break;
+
+      case 'file_upload':
+        wx.chooseMessageFile({
+          count: 1,
+          type: 'file',
+          success: (res) => {
+            const filePath = res.tempFiles[0].path;
+            const fileName = res.tempFiles[0].name;
+            this._uploadAndSendFile(filePath, fileName);
+          }
+        });
+        break;
+
+      case 'ai_dialog_trigger': {
+        const triggerMsg = params.message || btn.name;
+        this.setData({ inputValue: triggerMsg });
+        this.sendMessage();
+        break;
+      }
+
+      case 'external_link':
+        if (params.url) {
+          if (params.url.startsWith('/pages/')) {
+            wx.navigateTo({ url: params.url });
+          } else {
+            wx.navigateTo({ url: `/pages/webview/index?url=${encodeURIComponent(params.url)}` });
+          }
+        }
+        break;
+
+      default:
+        wx.showToast({ title: '暂不支持该功能', icon: 'none' });
+    }
+  },
+
+  async _uploadAndSendImage(filePath) {
+    const id = generateId();
+    const now = new Date();
+    const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+    const messages = [...this.data.messages, { id, role: 'user', content: '', image: filePath, time }];
+    this.setData({ messages, scrollToId: `msg-${id}` });
+
+    const loadingId = this.addMessage('loading', '');
+    try {
+      const uploadRes = await uploadFile('/api/chat/upload-image', filePath, 'file', { session_id: this.data.chatId });
+      this.removeMessage(loadingId);
+      const reply = (uploadRes && uploadRes.ai_reply) || '已收到您上传的图片，正在分析中...';
+      this.addMessage('assistant', reply);
+    } catch (e) {
+      this.removeMessage(loadingId);
+      this.addMessage('assistant', '图片上传失败，请稍后重试。');
+    }
+  },
+
+  async _uploadAndSendFile(filePath, fileName) {
+    this.addMessage('user', `[文件] ${fileName}`);
+    const loadingId = this.addMessage('loading', '');
+    try {
+      const uploadRes = await uploadFile('/api/chat/upload-file', filePath, 'file', { session_id: this.data.chatId, file_name: fileName });
+      this.removeMessage(loadingId);
+      const reply = (uploadRes && uploadRes.ai_reply) || '已收到您上传的文件，正在分析中...';
+      this.addMessage('assistant', reply);
+    } catch (e) {
+      this.removeMessage(loadingId);
+      this.addMessage('assistant', '文件上传失败，请稍后重试。');
     }
   },
 

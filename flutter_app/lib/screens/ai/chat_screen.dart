@@ -5,13 +5,17 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:record/record.dart';
 import '../../providers/chat_provider.dart';
 import '../../models/chat_message.dart';
+import '../../models/function_button.dart';
 import '../../widgets/custom_app_bar.dart';
 import '../../widgets/chat_history_drawer.dart';
 import '../../widgets/knowledge_card.dart';
+import '../../widgets/function_buttons_bar.dart';
 import '../../services/api_service.dart';
 
 class ChatScreen extends StatefulWidget {
@@ -32,6 +36,10 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _isVoiceMode = false;
   bool _isRecording = false;
   bool _isCancelZone = false;
+
+  List<FunctionButton> _functionButtons = [];
+  DateTime? _functionButtonsCachedAt;
+  static const _buttonsCacheDuration = Duration(minutes: 5);
 
   // 当前咨询对象
   String _currentConsultTarget = '本人';
@@ -76,6 +84,7 @@ class _ChatScreenState extends State<ChatScreen> {
     super.initState();
     _loadFontSetting();
     _loadFamilyMembers();
+    _loadFunctionButtons();
   }
 
   Future<void> _loadFamilyMembers() async {
@@ -88,6 +97,100 @@ class _ChatScreenState extends State<ChatScreen> {
         });
       }
     } catch (_) {}
+  }
+
+  Future<void> _loadFunctionButtons() async {
+    if (_functionButtonsCachedAt != null &&
+        DateTime.now().difference(_functionButtonsCachedAt!) < _buttonsCacheDuration) {
+      return;
+    }
+    try {
+      final response = await _apiService.getFunctionButtons();
+      if (response.statusCode == 200 && mounted) {
+        final items = response.data['items'] as List? ?? response.data['data'] as List? ?? [];
+        setState(() {
+          _functionButtons = items
+              .map((e) => FunctionButton.fromJson(Map<String, dynamic>.from(e as Map)))
+              .where((b) => b.isEnabled)
+              .toList()
+            ..sort((a, b) => b.sortWeight.compareTo(a.sortWeight));
+          _functionButtonsCachedAt = DateTime.now();
+        });
+      }
+    } catch (_) {}
+  }
+
+  void _handleFunctionButton(FunctionButton btn) {
+    switch (btn.buttonType) {
+      case 'digital_human_call':
+        Navigator.pushNamed(context, '/digital-human-call', arguments: {
+          'sessionId': Provider.of<ChatProvider>(context, listen: false).currentSession?.id,
+        });
+        break;
+      case 'photo_upload':
+        _handlePhotoUpload();
+        break;
+      case 'file_upload':
+        _handleFileUpload();
+        break;
+      case 'ai_dialog_trigger':
+        final triggerMsg = btn.params?['trigger_message']?.toString() ?? btn.name;
+        final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+        chatProvider.sendMessage(triggerMsg);
+        _scrollToBottom();
+        break;
+      case 'external_link':
+        final url = btn.params?['url']?.toString();
+        if (url != null && url.isNotEmpty) {
+          launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+        }
+        break;
+    }
+  }
+
+  Future<void> _handlePhotoUpload() async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.camera_alt, color: Color(0xFF52C41A)),
+                title: const Text('拍照'),
+                onTap: () => Navigator.pop(ctx, ImageSource.camera),
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library, color: Color(0xFF52C41A)),
+                title: const Text('从相册选择'),
+                onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (source == null) return;
+    final image = await _picker.pickImage(source: source);
+    if (image != null) {
+      final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+      chatProvider.sendMessage(image.path, type: 'image');
+      _scrollToBottom();
+    }
+  }
+
+  Future<void> _handleFileUpload() async {
+    final result = await FilePicker.platform.pickFiles();
+    if (result != null && result.files.single.path != null) {
+      final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+      chatProvider.sendMessage(result.files.single.path!, type: 'file');
+      _scrollToBottom();
+    }
   }
 
   Future<void> _loadFontSetting() async {
@@ -543,6 +646,10 @@ class _ChatScreenState extends State<ChatScreen> {
                 );
               },
             ),
+          ),
+          FunctionButtonsBar(
+            buttons: _functionButtons,
+            onButtonTap: _handleFunctionButton,
           ),
           _buildInputBar(),
         ],

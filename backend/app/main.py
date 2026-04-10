@@ -25,6 +25,7 @@ from app.api import (
     expert,
     family,
     font_setting,
+    function_button,
     health_plan_v2,
     health_profile,
     home_config,
@@ -124,6 +125,8 @@ app.include_router(health_plan_v2.router)
 app.include_router(admin_health_plan.router)
 app.include_router(city.router)
 app.include_router(city.admin_router)
+app.include_router(function_button.router)
+app.include_router(function_button.admin_router)
 
 os.makedirs("uploads", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
