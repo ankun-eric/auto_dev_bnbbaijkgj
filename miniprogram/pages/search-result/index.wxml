@@ -1,9 +1,62 @@
 <view class="result-page">
-  <!-- Search Bar (click to go back to search page) -->
+  <!-- Search Bar -->
   <view class="result-header">
-    <view class="result-search-box" bindtap="onSearchBoxTap">
+    <view class="search-box">
       <text class="search-icon">🔍</text>
-      <text class="search-keyword">{{query}}</text>
+      <input
+        class="search-input"
+        placeholder="搜索症状、药品、健康知识..."
+        value="{{keyword}}"
+        confirm-type="search"
+        bindinput="onInput"
+        bindconfirm="onSearchAgain"
+      />
+      <view class="search-box-icons">
+        <view class="mic-btn-inline" catchtap="onMicTap">
+          <text class="mic-icon-inline">🎤</text>
+        </view>
+        <view class="clear-btn" wx:if="{{keyword}}" catchtap="onClear">
+          <text class="clear-icon">✕</text>
+        </view>
+      </view>
+    </view>
+    <view class="search-btn" bindtap="onSearchAgain">
+      <text class="search-btn-text">搜索</text>
+    </view>
+  </view>
+
+  <!-- Voice Overlay -->
+  <view class="voice-overlay" wx:if="{{showVoiceOverlay}}" catchtouchmove="preventMove">
+    <view class="voice-overlay-mask"></view>
+    <view class="voice-content">
+      <view class="voice-recording" wx:if="{{voiceState === 'recording'}}">
+        <view class="wave-container">
+          <view class="wave-bar wave-bar-1"></view>
+          <view class="wave-bar wave-bar-2"></view>
+          <view class="wave-bar wave-bar-3"></view>
+          <view class="wave-bar wave-bar-4"></view>
+          <view class="wave-bar wave-bar-5"></view>
+        </view>
+        <text class="voice-duration">{{recordingTime}}s / 15s</text>
+        <view class="stop-btn" catchtap="onStopRecording">
+          <view class="stop-btn-dot"></view>
+          <text class="stop-btn-text">点我结束~</text>
+        </view>
+      </view>
+      <view class="voice-recognizing" wx:if="{{voiceState === 'recognizing'}}">
+        <view class="voice-spinner"></view>
+        <text class="voice-hint">正在识别...</text>
+      </view>
+      <view class="voice-error" wx:if="{{voiceState === 'error'}}">
+        <text class="error-icon">⚠️</text>
+        <text class="error-text">{{voiceErrorMsg || '识别失败，请重试'}}</text>
+        <view class="retry-btn" catchtap="onRetryVoice">
+          <text class="retry-text">重试</text>
+        </view>
+        <view class="close-btn" catchtap="onCloseVoice">
+          <text class="close-text">关闭</text>
+        </view>
+      </view>
     </view>
   </view>
 

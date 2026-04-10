@@ -1,5 +1,7 @@
 const { get } = require('../../utils/request');
 
+const plugin = requirePlugin('WechatSI');
+
 const TYPE_LABEL_MAP = {
   all: '全部',
   article: '文章',
@@ -11,6 +13,7 @@ const TYPE_LABEL_MAP = {
 Page({
   data: {
     query: '',
+    keyword: '',
     currentTab: 'all',
     tabs: [
       { label: '全部', value: 'all' },
@@ -24,21 +27,166 @@ Page({
     pageSize: 20,
     hasMore: true,
     loading: false,
-    loadingMore: false
+    loadingMore: false,
+    showVoiceOverlay: false,
+    voiceState: '',
+    voiceErrorMsg: '',
+    recordingTime: 0
   },
+
+  _recordTimer: null,
+  _recognizeManager: null,
 
   onLoad(options) {
     const q = options.q ? decodeURIComponent(options.q) : '';
     let source = options.source === 'voice' ? 'voice' : 'text';
-    this.setData({ query: q, _searchSource: source });
+    this.setData({ query: q, keyword: q, _searchSource: source });
+    this._initRecognizeManager();
     if (q) {
       this.doSearch();
     }
   },
 
-  onSearchBoxTap() {
-    wx.navigateBack();
+  onUnload() {
+    if (this._recordTimer) { clearInterval(this._recordTimer); this._recordTimer = null; }
+    this._recognizeManager = null;
   },
+
+  _removePunctuation(str) {
+    return str.replace(/[\u3002\uff1b\uff0c\uff1a\u201c\u201d\u2018\u2019\uff08\uff09\u3001\uff1f\u300a\u300b\uff01\u3010\u3011\u2026\u2014\uff5e\u00b7.,!?;:'"()\[\]{}\-_\/\\@#\$%\^&\*\+=~`<>]/g, '').trim();
+  },
+
+  _initRecognizeManager() {
+    const manager = plugin.getRecordRecognitionManager();
+
+    manager.onRecognize = (res) => {
+      if (res.result) {
+        this.setData({ keyword: this._removePunctuation(res.result) });
+      }
+    };
+
+    manager.onStop = (res) => {
+      if (this._recordTimer) { clearInterval(this._recordTimer); this._recordTimer = null; }
+
+      const text = res.result ? this._removePunctuation(res.result) : '';
+      if (text) {
+        this.setData({
+          keyword: text,
+          showVoiceOverlay: false,
+          voiceState: ''
+        });
+        this._doVoiceSearch(text);
+      } else {
+        this.setData({
+          voiceState: 'error',
+          voiceErrorMsg: '未识别到内容，请重试'
+        });
+      }
+    };
+
+    manager.onError = (res) => {
+      if (this._recordTimer) { clearInterval(this._recordTimer); this._recordTimer = null; }
+      this.setData({
+        voiceState: 'error',
+        voiceErrorMsg: res.msg || '语音识别出错，请重试'
+      });
+    };
+
+    manager.onStart = () => {
+      let t = 0;
+      this._recordTimer = setInterval(() => {
+        t++;
+        this.setData({ recordingTime: t });
+        if (t >= 15) {
+          this._stopRecording();
+        }
+      }, 1000);
+    };
+
+    this._recognizeManager = manager;
+  },
+
+  _doVoiceSearch(text) {
+    this.setData({
+      query: text,
+      keyword: text,
+      _searchSource: 'voice',
+      results: [],
+      page: 1,
+      hasMore: true
+    });
+    this.doSearch();
+  },
+
+  onInput(e) {
+    this.setData({ keyword: e.detail.value });
+  },
+
+  onClear() {
+    this.setData({ keyword: '' });
+  },
+
+  onSearchAgain() {
+    const q = this.data.keyword.trim();
+    if (!q) return;
+    this.setData({
+      query: q,
+      _searchSource: 'text',
+      results: [],
+      page: 1,
+      hasMore: true
+    });
+    this.doSearch();
+  },
+
+  onMicTap() {
+    if (this.data.showVoiceOverlay) return;
+    this.setData({
+      showVoiceOverlay: true,
+      voiceState: 'recording',
+      recordingTime: 0,
+      voiceErrorMsg: ''
+    });
+    this._startRecording();
+  },
+
+  onStopRecording() {
+    this._stopRecording();
+  },
+
+  _startRecording() {
+    if (!this._recognizeManager) {
+      this._initRecognizeManager();
+    }
+    this._recognizeManager.start({ lang: 'zh_CN' });
+  },
+
+  _stopRecording() {
+    if (this._recordTimer) { clearInterval(this._recordTimer); this._recordTimer = null; }
+    this.setData({ voiceState: 'recognizing' });
+    if (this._recognizeManager) {
+      this._recognizeManager.stop();
+    }
+  },
+
+  onRetryVoice() {
+    this.setData({
+      voiceState: 'recording',
+      recordingTime: 0,
+      voiceErrorMsg: ''
+    });
+    this._startRecording();
+  },
+
+  onCloseVoice() {
+    this.setData({
+      showVoiceOverlay: false,
+      voiceState: '',
+      voiceErrorMsg: ''
+    });
+  },
+
+  preventMove() {},
 
   onTabTap(e) {
     const value = e.currentTarget.dataset.value;

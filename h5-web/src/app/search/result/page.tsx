@@ -5,6 +5,34 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Tabs, Tag, Toast, SpinLoading, Empty } from 'antd-mobile';
 import api from '@/lib/api';
 
+type VoiceOverlayState = 'idle' | 'recording' | 'recognizing' | 'error';
+
+const MAX_RECORD_SEC = 15;
+const MIN_RECORD_SEC = 1;
+const AUTO_SEARCH_SEC = 2;
+
+function getPreferredMimeType(): string {
+  if (typeof MediaRecorder !== 'undefined') {
+    if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) return 'audio/webm;codecs=opus';
+    if (MediaRecorder.isTypeSupported('audio/webm')) return 'audio/webm';
+    if (MediaRecorder.isTypeSupported('audio/mp4')) return 'audio/mp4';
+    if (MediaRecorder.isTypeSupported('audio/mp3')) return 'audio/mp3';
+  }
+  return '';
+}
+
+function mimeToFormat(mime: string): string {
+  if (!mime) return 'webm';
+  if (mime.includes('webm')) return 'webm';
+  if (mime.includes('mp4')) return 'm4a';
+  if (mime.includes('mp3') || mime.includes('mpeg')) return 'mp3';
+  return 'webm';
+}
+
+const removePunctuation = (str: string): string => {
+  return str.replace(/[\u3002\uff1b\uff0c\uff1a\u201c\u201d\u2018\u2019\uff08\uff09\u3001\uff1f\u300a\u300b\uff01\u3010\u3011\u2026\u2014\uff5e\u00b7.,!?;:'"()\[\]{}\-_\/\\@#\$%\^&\*\+=~`<>]/g, '').trim();
+};
+
 const TAB_TYPES = [
   { key: 'all', title: '全部' },
   { key: 'article', title: '文章' },
@@ -65,6 +93,26 @@ function SearchResultContent() {
   const inputRef = useRef<HTMLInputElement>(null);
   const pageSize = 10;
 
+  const [micAvailable, setMicAvailable] = useState(false);
+  const [asrEnabled, setAsrEnabled] = useState(false);
+  const [overlayState, setOverlayState] = useState<VoiceOverlayState>('idle');
+  const [recordSec, setRecordSec] = useState(0);
+  const [volumeBars, setVolumeBars] = useState<number[]>([0, 0, 0, 0, 0, 0, 0]);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [autoSearchCountdown, setAutoSearchCountdown] = useState<number | null>(null);
+
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const streamRef = useRef<MediaStream | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const animFrameRef = useRef<number>(0);
+  const recordTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const recordStartTimeRef = useRef<number>(0);
+  const autoSearchTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const mimeTypeRef = useRef('');
+  const maxTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const fetchDrugKeywords = useCallback(async () => {
     try {
       const data: any = await api.get('/api/search/drug-keywords');
@@ -78,6 +126,223 @@ function SearchResultContent() {
   useEffect(() => {
     fetchDrugKeywords();
   }, [fetchDrugKeywords]);
+
+  useEffect(() => {
+    let active = true;
+    const checkCapabilities = async () => {
+      const hasMic = !!(navigator.mediaDevices?.getUserMedia);
+      if (active) setMicAvailable(hasMic);
+      if (!hasMic) return;
+      try {
+        const data: any = await api.post('/api/search/asr/token');
+        if (active && data?.provider) {
+          setAsrEnabled(true);
+        }
+      } catch {
+        if (active) setAsrEnabled(false);
+      }
+    };
+    checkCapabilities();
+    return () => { active = false; };
+  }, []);
+
+  const clearAutoSearch = useCallback(() => {
+    if (autoSearchTimerRef.current) {
+      clearInterval(autoSearchTimerRef.current);
+      autoSearchTimerRef.current = null;
+    }
+    setAutoSearchCountdown(null);
+  }, []);
+
+  const cleanupRecording = useCallback(() => {
+    if (animFrameRef.current) {
+      cancelAnimationFrame(animFrameRef.current);
+      animFrameRef.current = 0;
+    }
+    if (recordTimerRef.current) {
+      clearInterval(recordTimerRef.current);
+      recordTimerRef.current = null;
+    }
+    if (maxTimerRef.current) {
+      clearTimeout(maxTimerRef.current);
+      maxTimerRef.current = null;
+    }
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      try { mediaRecorderRef.current.stop(); } catch { /* ignore */ }
+    }
+    mediaRecorderRef.current = null;
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(t => t.stop());
+      streamRef.current = null;
+    }
+    if (audioCtxRef.current && audioCtxRef.current.state !== 'closed') {
+      try { audioCtxRef.current.close(); } catch { /* ignore */ }
+    }
+    audioCtxRef.current = null;
+    analyserRef.current = null;
+  }, []);
+
+  const closeOverlay = useCallback(() => {
+    cleanupRecording();
+    setOverlayState('idle');
+    setRecordSec(0);
+    setVolumeBars([0, 0, 0, 0, 0, 0, 0]);
+    setErrorMsg('');
+  }, [cleanupRecording]);
+
+  const doVoiceSearch = useCallback((text: string) => {
+    router.replace(`/search/result?q=${encodeURIComponent(text)}&source=voice`);
+  }, [router]);
+
+  const sendToAsr = useCallback(async (blob: Blob) => {
+    setOverlayState('recognizing');
+    try {
+      const fd = new FormData();
+      const fmt = mimeToFormat(mimeTypeRef.current);
+      fd.append('audio_file', blob, `recording.${fmt}`);
+      fd.append('format', fmt);
+      fd.append('sample_rate', '16000');
+      const data: any = await api.post('/api/search/asr/recognize', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 30000,
+      });
+      if (data?.success === false) {
+        setErrorMsg(data?.error || '好像没听到声音哦，再试试~');
+        setOverlayState('error');
+        return;
+      }
+      const text = data?.data?.text || data?.text || '';
+      const cleanText = removePunctuation(text);
+      if (!cleanText) {
+        setErrorMsg('好像没听到声音哦，再试试~');
+        setOverlayState('error');
+        return;
+      }
+      closeOverlay();
+      setKeyword(cleanText);
+      setAutoSearchCountdown(AUTO_SEARCH_SEC);
+      let remaining = AUTO_SEARCH_SEC;
+      autoSearchTimerRef.current = setInterval(() => {
+        remaining -= 1;
+        if (remaining <= 0) {
+          clearAutoSearch();
+          doVoiceSearch(cleanText);
+        } else {
+          setAutoSearchCountdown(remaining);
+        }
+      }, 1000);
+    } catch {
+      setErrorMsg('没听清楚，再说一次好吗~');
+      setOverlayState('error');
+    }
+  }, [closeOverlay, clearAutoSearch, doVoiceSearch]);
+
+  const stopRecording = useCallback(() => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+    }
+  }, []);
+
+  const startRecording = useCallback(async () => {
+    audioChunksRef.current = [];
+    setRecordSec(0);
+    setErrorMsg('');
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+
+      const ctx = new AudioContext();
+      audioCtxRef.current = ctx;
+      const source = ctx.createMediaStreamSource(stream);
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 256;
+      source.connect(analyser);
+      analyserRef.current = analyser;
+
+      const mime = getPreferredMimeType();
+      mimeTypeRef.current = mime;
+      const recorder = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+      mediaRecorderRef.current = recorder;
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+
+      recorder.onstop = () => {
+        const elapsed = (Date.now() - recordStartTimeRef.current) / 1000;
+        if (animFrameRef.current) {
+          cancelAnimationFrame(animFrameRef.current);
+          animFrameRef.current = 0;
+        }
+        if (recordTimerRef.current) {
+          clearInterval(recordTimerRef.current);
+          recordTimerRef.current = null;
+        }
+        if (maxTimerRef.current) {
+          clearTimeout(maxTimerRef.current);
+          maxTimerRef.current = null;
+        }
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach(t => t.stop());
+          streamRef.current = null;
+        }
+        if (elapsed < MIN_RECORD_SEC) {
+          setErrorMsg('说的太快了，再试一次吧~');
+          setOverlayState('error');
+          return;
+        }
+        const blob = new Blob(audioChunksRef.current, { type: mime || 'audio/webm' });
+        sendToAsr(blob);
+      };
+
+      recorder.start(250);
+      recordStartTimeRef.current = Date.now();
+      setOverlayState('recording');
+
+      recordTimerRef.current = setInterval(() => {
+        const s = Math.floor((Date.now() - recordStartTimeRef.current) / 1000);
+        setRecordSec(s);
+      }, 500);
+
+      maxTimerRef.current = setTimeout(() => {
+        stopRecording();
+      }, MAX_RECORD_SEC * 1000);
+
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+      const updateBars = () => {
+        if (!analyserRef.current) return;
+        analyserRef.current.getByteFrequencyData(dataArray);
+        const barCount = 7;
+        const step = Math.floor(dataArray.length / barCount);
+        const bars: number[] = [];
+        for (let i = 0; i < barCount; i++) {
+          let sum = 0;
+          for (let j = 0; j < step; j++) sum += dataArray[i * step + j];
+          bars.push(Math.min(1, (sum / step) / 180));
+        }
+        setVolumeBars(bars);
+        animFrameRef.current = requestAnimationFrame(updateBars);
+      };
+      animFrameRef.current = requestAnimationFrame(updateBars);
+    } catch (err: any) {
+      cleanupRecording();
+      const msg = err?.name === 'NotAllowedError' ? '需要你允许使用麦克风才能听到你说话哦~' : '录音启动失败了，再试一次吧~';
+      setErrorMsg(msg);
+      setOverlayState('error');
+    }
+  }, [sendToAsr, stopRecording, cleanupRecording]);
+
+  const handleMicClick = useCallback(() => {
+    if (overlayState !== 'idle') return;
+    startRecording();
+  }, [overlayState, startRecording]);
+
+  useEffect(() => {
+    return () => {
+      cleanupRecording();
+      clearAutoSearch();
+    };
+  }, [cleanupRecording, clearAutoSearch]);
 
   useEffect(() => {
     setKeyword(q);
@@ -154,6 +419,7 @@ function SearchResultContent() {
 
   const handleSearch = () => {
     if (!keyword.trim()) return;
+    clearAutoSearch();
     router.replace(`/search/result?q=${encodeURIComponent(keyword.trim())}`);
   };
 
@@ -221,21 +487,39 @@ function SearchResultContent() {
               type="text"
               value={keyword}
               maxLength={100}
-              onChange={(e) => setKeyword(e.target.value)}
+              onChange={(e) => {
+                setKeyword(e.target.value);
+                if (autoSearchCountdown !== null) clearAutoSearch();
+              }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') handleSearch();
               }}
               placeholder="搜索文章、视频、服务、商品"
               className="flex-1 bg-transparent border-none outline-none text-sm ml-2 text-gray-800 placeholder-gray-400"
             />
-            {keyword && (
-              <button
-                className="flex-shrink-0 w-5 h-5 rounded-full bg-gray-300 flex items-center justify-center"
-                onClick={() => setKeyword('')}
-              >
-                <span className="text-white text-xs leading-none">×</span>
-              </button>
-            )}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {micAvailable && asrEnabled && (
+                <button
+                  className="flex-shrink-0 w-8 h-8 flex items-center justify-center"
+                  onClick={handleMicClick}
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#52c41a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                    <line x1="12" y1="19" x2="12" y2="23" />
+                    <line x1="8" y1="23" x2="16" y2="23" />
+                  </svg>
+                </button>
+              )}
+              {keyword && (
+                <button
+                  className="flex-shrink-0 w-5 h-5 rounded-full bg-gray-300 flex items-center justify-center"
+                  onClick={() => { setKeyword(''); clearAutoSearch(); }}
+                >
+                  <span className="text-white text-xs leading-none">×</span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
         <button
@@ -246,6 +530,21 @@ function SearchResultContent() {
           搜索
         </button>
       </div>
+
+      {/* Auto search countdown hint */}
+      {autoSearchCountdown !== null && (
+        <div style={{ padding: '8px 16px', background: '#f6ffed', borderBottom: '1px solid #b7eb8f', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: 13, color: '#333' }}>
+            听到啦~ {autoSearchCountdown}秒后帮你搜索
+          </span>
+          <button
+            style={{ fontSize: 13, color: '#1890ff', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 8px' }}
+            onClick={() => clearAutoSearch()}
+          >
+            先不搜了
+          </button>
+        </div>
+      )}
 
       {/* Drug quick entry */}
       {showDrugEntry && (
@@ -381,6 +680,117 @@ function SearchResultContent() {
           </div>
         )}
       </div>
+
+      {overlayState !== 'idle' && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, zIndex: 9999,
+            background: 'rgba(0,0,0,0.6)',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          <button
+            onClick={closeOverlay}
+            style={{
+              position: 'absolute', top: 16, right: 16,
+              width: 36, height: 36, borderRadius: '50%',
+              background: 'rgba(255,255,255,0.15)', border: 'none', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+
+          {overlayState === 'recording' && (
+            <>
+              <style dangerouslySetInnerHTML={{ __html: `
+                @-webkit-keyframes pulse-glow {
+                  0%, 100% { box-shadow: 0 0 0 0 rgba(82,196,26,0.4); -webkit-transform: scale(1); transform: scale(1); }
+                  50% { box-shadow: 0 0 20px 10px rgba(82,196,26,0.2); -webkit-transform: scale(1.05); transform: scale(1.05); }
+                }
+                @keyframes pulse-glow {
+                  0%, 100% { box-shadow: 0 0 0 0 rgba(82,196,26,0.4); transform: scale(1); }
+                  50% { box-shadow: 0 0 20px 10px rgba(82,196,26,0.2); transform: scale(1.05); }
+                }
+              `}} />
+              <div style={{
+                fontSize: 20, fontWeight: 600, marginBottom: 24,
+                color: recordSec >= MAX_RECORD_SEC - 3 ? '#ff4d4f' : '#fff',
+                fontVariantNumeric: 'tabular-nums',
+              }}>
+                {recordSec}s / {MAX_RECORD_SEC}s
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 5, height: 100, marginBottom: 32 }}>
+                {volumeBars.map((v, i) => (
+                  <div key={i} style={{
+                    width: 5, borderRadius: 3,
+                    background: 'linear-gradient(to top, #52c41a, #13c2c2)',
+                    height: `${Math.max(15, v * 100)}px`,
+                    transition: 'height 0.1s ease-out',
+                  }} />
+                ))}
+              </div>
+
+              <button
+                onClick={stopRecording}
+                style={{
+                  width: 100, height: 100, borderRadius: '50%',
+                  background: '#fff', border: '3px solid #52c41a',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer', gap: 4,
+                  WebkitAnimation: 'pulse-glow 1.5s ease-in-out infinite',
+                  animation: 'pulse-glow 1.5s ease-in-out infinite',
+                }}
+              >
+                <div style={{ width: 10, height: 10, background: '#52c41a', borderRadius: 1 }} />
+                <span style={{ fontSize: 16, color: '#52c41a', fontWeight: 500, lineHeight: 1.2 }}>点我结束~</span>
+              </button>
+            </>
+          )}
+
+          {overlayState === 'recognizing' && (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20 }}>
+              <SpinLoading style={{ '--size': '40px', '--color': '#52c41a' } as any} />
+              <div style={{ fontSize: 16, color: '#fff', fontWeight: 500 }}>
+                我在认真听，马上就好~
+              </div>
+            </div>
+          )}
+
+          {overlayState === 'error' && (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, padding: '0 32px' }}>
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ff4d4f" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              <div style={{ fontSize: 15, color: '#fff', textAlign: 'center' }}>
+                {errorMsg}
+              </div>
+              <button
+                onClick={() => {
+                  cleanupRecording();
+                  setOverlayState('idle');
+                  setRecordSec(0);
+                  setErrorMsg('');
+                  setTimeout(() => startRecording(), 100);
+                }}
+                style={{
+                  marginTop: 8, padding: '10px 32px', borderRadius: 24,
+                  background: 'linear-gradient(135deg, #52c41a, #13c2c2)',
+                  color: '#fff', fontSize: 15, fontWeight: 500,
+                  border: 'none', cursor: 'pointer',
+                }}
+              >
+                再来一次~
+              </button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
