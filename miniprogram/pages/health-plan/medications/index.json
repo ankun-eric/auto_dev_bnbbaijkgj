@@ -1,3 +1,4 @@
 {
-  "navigationBarTitleText": "用药提醒"
+  "navigationBarTitleText": "用药提醒",
+  "enablePullDownRefresh": true
 }

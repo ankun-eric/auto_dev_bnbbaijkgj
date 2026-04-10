@@ -39,8 +39,18 @@ Page({
     menuItems: DEFAULT_MENUS,
     homeConfig: DEFAULT_CONFIG,
     gridColumnWidth: '33.33%',
-    todayTodos: [],
+    todoGroups: [],
+    todoTotalCompleted: 0,
+    todoTotalCount: 0,
     todayTodosLoading: false,
+    checkinDialog: false,
+    checkinDialogType: '',
+    checkinDialogId: 0,
+    checkinDialogSourceId: 0,
+    checkinDialogName: '',
+    checkinDialogTarget: 0,
+    checkinDialogUnit: '',
+    checkinDialogValue: '',
     healthTips: [
       { id: 1, content: '今日气温变化大，注意添衣保暖' },
       { id: 2, content: '建议每天饮水 2000ml 以上' }
@@ -194,28 +204,70 @@ Page({
     this.setData({ todayTodosLoading: true });
     try {
       const res = await get('/api/health-plan/today-todos', {}, { showLoading: false, suppressErrorToast: true });
-      const items = Array.isArray(res) ? res : (res && res.items ? res.items : []);
-      this.setData({ todayTodos: items });
+      if (res && res.groups) {
+        this.setData({
+          todoGroups: res.groups || [],
+          todoTotalCompleted: res.total_completed || 0,
+          todoTotalCount: res.total_count || 0,
+        });
+      } else {
+        this.setData({ todoGroups: [], todoTotalCompleted: 0, todoTotalCount: 0 });
+      }
     } catch (e) {
-      this.setData({ todayTodos: [] });
+      this.setData({ todoGroups: [], todoTotalCompleted: 0, todoTotalCount: 0 });
     } finally {
       this.setData({ todayTodosLoading: false });
     }
   },
 
-  async onTodoCheckin(e) {
-    const { type, id, taskId } = e.currentTarget.dataset;
+  onTodoCheckin(e) {
+    const { type, id, sourceId, targetValue, targetUnit, name } = e.currentTarget.dataset;
+    if (targetValue && targetValue > 0) {
+      this.setData({
+        checkinDialog: true,
+        checkinDialogType: type,
+        checkinDialogId: id,
+        checkinDialogSourceId: sourceId,
+        checkinDialogName: name || '',
+        checkinDialogTarget: targetValue,
+        checkinDialogUnit: targetUnit || '',
+        checkinDialogValue: '',
+      });
+      return;
+    }
+    this.doCheckin(type, id, sourceId, null);
+  },
+
+  onCheckinDialogInput(e) {
+    this.setData({ checkinDialogValue: e.detail.value });
+  },
+
+  onCheckinDialogCancel() {
+    this.setData({ checkinDialog: false });
+  },
+
+  onCheckinDialogConfirm() {
+    const { checkinDialogType, checkinDialogId, checkinDialogSourceId, checkinDialogValue } = this.data;
+    const val = checkinDialogValue ? parseFloat(checkinDialogValue) : null;
+    this.setData({ checkinDialog: false });
+    this.doCheckin(checkinDialogType, checkinDialogId, checkinDialogSourceId, val);
+  },
+
+  async doCheckin(type, id, sourceId, value) {
     let url = '';
+    let body = {};
     if (type === 'medication') {
       url = `/api/health-plan/medications/${id}/checkin`;
-    } else if (type === 'checkin_item') {
+    } else if (type === 'checkin') {
       url = `/api/health-plan/checkin-items/${id}/checkin`;
+      if (value != null) body.actual_value = value;
     } else if (type === 'plan_task') {
-      url = `/api/health-plan/user-plans/${id}/tasks/${taskId}/checkin`;
+      url = `/api/health-plan/user-plans/${sourceId}/tasks/${id}/checkin`;
+      if (value != null) body.actual_value = value;
     }
     if (!url) return;
     try {
-      await post(url, {});
+      await post(url, body);
       wx.showToast({ title: '打卡成功', icon: 'success' });
       this.loadTodayTodos();
     } catch (e) {

@@ -56,7 +56,10 @@ async def lifespan(app: FastAPI):
         await sync_register_schema(conn)
     from app.init_data import init_default_data
     await init_default_data()
+    from app.services.notification_scheduler import init_scheduler, shutdown_scheduler
+    init_scheduler()
     yield
+    shutdown_scheduler()
 
 
 app = FastAPI(title="宾尼小康 AI健康管家", version="1.0.0", lifespan=lifespan)

@@ -1,3 +1,4 @@
 {
-  "navigationBarTitleText": "健康打卡"
+  "navigationBarTitleText": "健康打卡",
+  "enablePullDownRefresh": true
 }

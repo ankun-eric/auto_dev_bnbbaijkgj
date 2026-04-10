@@ -1,3 +1,4 @@
 {
-  "navigationBarTitleText": "健康计划分类"
+  "navigationBarTitleText": "健康计划分类",
+  "enablePullDownRefresh": true
 }

@@ -3,6 +3,7 @@ const { get, post, put, del } = require('../../../utils/request');
 Page({
   data: {
     medications: [],
+    medGroups: [],
     loading: false
   },
 
@@ -19,24 +20,35 @@ Page({
     try {
       const res = await get('/api/health-plan/medications', {}, { showLoading: false });
       let items = [];
+      let medGroups = [];
       if (res && res.groups && typeof res.groups === 'object') {
-        Object.values(res.groups).forEach(function(groupItems) {
-          if (Array.isArray(groupItems)) {
-            groupItems.forEach(function(item) {
-              items.push(Object.assign({}, item, {
-                name: item.medicine_name || item.name,
-                frequency: item.time_period || item.frequency,
-                remind_times: item.remind_time || item.remind_times,
-              }));
+        var groupKeys = Object.keys(res.groups);
+        groupKeys.forEach(function(period) {
+          var groupItems = res.groups[period];
+          if (!Array.isArray(groupItems)) return;
+          var mapped = groupItems.map(function(item) {
+            return Object.assign({}, item, {
+              name: item.medicine_name || item.name,
+              frequency: item.time_period || item.frequency,
+              remind_times: item.remind_time || item.remind_times,
             });
-          }
+          });
+          items = items.concat(mapped);
+          medGroups.push({ period: period, items: mapped });
         });
       } else {
-        items = Array.isArray(res) ? res : (res && res.items ? res.items : []);
+        var raw = Array.isArray(res) ? res : (res && res.items ? res.items : []);
+        items = raw.map(function(item) {
+          return Object.assign({}, item, {
+            name: item.medicine_name || item.name,
+            frequency: item.time_period || item.frequency,
+            remind_times: item.remind_time || item.remind_times,
+          });
+        });
       }
-      this.setData({ medications: items });
+      this.setData({ medications: items, medGroups: medGroups });
     } catch (e) {
-      this.setData({ medications: [] });
+      this.setData({ medications: [], medGroups: [] });
     } finally {
       this.setData({ loading: false });
     }

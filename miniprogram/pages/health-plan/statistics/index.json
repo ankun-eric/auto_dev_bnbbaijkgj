@@ -1,3 +1,4 @@
 {
-  "navigationBarTitleText": "打卡统计"
+  "navigationBarTitleText": "打卡统计",
+  "enablePullDownRefresh": true
 }

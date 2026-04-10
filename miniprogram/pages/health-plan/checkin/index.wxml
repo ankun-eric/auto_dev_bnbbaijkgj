@@ -22,13 +22,13 @@
         </view>
       </view>
 
-      <view class="checkin-body" wx:if="{{item.description || item.target}}">
+      <view class="checkin-body" wx:if="{{item.description || item.target_value}}">
         <text class="checkin-desc" wx:if="{{item.description}}">{{item.description}}</text>
-        <text class="checkin-target" wx:if="{{item.target}}">目标: {{item.target}}</text>
+        <text class="checkin-target" wx:if="{{item.target_value}}">目标: {{item.target_value}} {{item.target_unit || ''}}</text>
       </view>
 
       <view class="checkin-actions">
-        <view class="action-btn action-checkin" catchtap="onCheckin" data-id="{{item.id}}" wx:if="{{!item.today_checked}}">
+        <view class="action-btn action-checkin" catchtap="onCheckin" data-id="{{item.id}}" data-target-value="{{item.target_value}}" data-target-unit="{{item.target_unit}}" data-name="{{item.name}}" wx:if="{{!item.today_checked}}">
           <text>打卡</text>
         </view>
         <view class="action-btn action-done" wx:if="{{item.today_checked}}">
@@ -46,5 +46,19 @@
 
   <view class="fab-btn" bindtap="goAdd">
     <text class="fab-icon">+</text>
+  </view>
+
+  <!-- 打卡数值输入对话框 -->
+  <view class="checkin-dialog-mask" wx:if="{{checkinDialog}}" catchtap="onCheckinDialogCancel">
+    <view class="checkin-dialog" catchtap="">
+      <text class="checkin-dialog-title">{{checkinName}}</text>
+      <text class="checkin-dialog-hint">目标: {{checkinTarget}} {{checkinUnit}}</text>
+      <input class="checkin-dialog-input" type="digit" placeholder="请输入实际值"
+        value="{{checkinValue}}" bindinput="onCheckinDialogInput" focus="{{checkinDialog}}" />
+      <view class="checkin-dialog-actions">
+        <view class="checkin-dialog-btn checkin-dialog-cancel" bindtap="onCheckinDialogCancel">取消</view>
+        <view class="checkin-dialog-btn checkin-dialog-confirm" bindtap="onCheckinDialogConfirm">确认打卡</view>
+      </view>
+    </view>
   </view>
 </view>

@@ -450,6 +450,12 @@ class ApiService {
     return _dio.get(ApiConfig.hpTodayTodos);
   }
 
+  Future<Response> quickCheckin(int itemId, String type, {double? value}) async {
+    final data = <String, dynamic>{'type': type};
+    if (value != null) data['value'] = value;
+    return _dio.post('${ApiConfig.hpTodayTodos}/$itemId/check', data: data);
+  }
+
   Future<Response> getHpStatistics() async {
     return _dio.get(ApiConfig.hpStatistics);
   }

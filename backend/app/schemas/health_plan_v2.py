@@ -258,6 +258,11 @@ class UserPlanTaskCheckInCreate(BaseModel):
     actual_value: Optional[float] = None
 
 
+class QuickCheckInRequest(BaseModel):
+    type: str
+    value: Optional[float] = None
+
+
 class UserPlanTaskRecordResponse(BaseModel):
     id: int
     task_id: int
@@ -338,12 +343,23 @@ class TodayTodoItem(BaseModel):
     extra: Optional[Any] = None
 
 
+class TodayTodoSubGroup(BaseModel):
+    sub_group_name: str
+    category_id: Optional[int] = None
+    items: List[TodayTodoItem]
+    completed_count: int = 0
+    total_count: int = 0
+    is_empty: bool = False
+
+
 class TodayTodoGroup(BaseModel):
     group_name: str
     group_type: str
     items: List[TodayTodoItem]
+    sub_groups: Optional[List[TodayTodoSubGroup]] = None
     completed_count: int = 0
     total_count: int = 0
+    is_empty: bool = False
 
 
 class TodayTodoResponse(BaseModel):
@@ -355,10 +371,22 @@ class TodayTodoResponse(BaseModel):
 # ──────────────── 统计 ────────────────
 
 
+class PlanRanking(BaseModel):
+    plan_id: int
+    plan_name: str
+    completion_rate: float = 0.0
+    completed_count: int = 0
+    total_count: int = 0
+
+
 class CheckInStatisticsResponse(BaseModel):
     today_completed: int = 0
     today_total: int = 0
     today_progress: float = 0.0
+    streak_days: int = 0
     consecutive_days: int = 0
     weekly_data: Optional[List[Any]] = None
     monthly_data: Optional[List[Any]] = None
+    weekly_rates: Optional[List[float]] = None
+    monthly_rates: Optional[List[float]] = None
+    plan_rankings: Optional[List[PlanRanking]] = None

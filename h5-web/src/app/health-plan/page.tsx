@@ -5,32 +5,12 @@ import { useRouter } from 'next/navigation';
 import { NavBar, Card, SpinLoading, Toast } from 'antd-mobile';
 import api from '@/lib/api';
 
-interface TodayTodos {
+interface PlanCounts {
   medications_count: number;
   checkin_count: number;
   custom_plan_count: number;
   completed_count: number;
   total_count: number;
-}
-
-function mapTodayTodos(data: any): TodayTodos {
-  const groups: any[] = data.groups || [];
-  let medicationsCount = 0;
-  let checkinCount = 0;
-  let customPlanCount = 0;
-  groups.forEach((g: any) => {
-    const itemCount = g.items?.length || g.total_count || 0;
-    if (g.group_type === 'medication') medicationsCount += itemCount;
-    else if (g.group_type === 'checkin') checkinCount += itemCount;
-    else customPlanCount += itemCount;
-  });
-  return {
-    medications_count: medicationsCount,
-    checkin_count: checkinCount,
-    custom_plan_count: customPlanCount,
-    completed_count: data.total_completed || 0,
-    total_count: data.total_count || 0,
-  };
 }
 
 const categories = [
@@ -41,7 +21,7 @@ const categories = [
     icon: '💊',
     color: '#fa8c16',
     gradient: 'linear-gradient(135deg, #fa8c16, #f5af19)',
-    countKey: 'medications_count' as keyof TodayTodos,
+    countKey: 'medications_count' as keyof PlanCounts,
   },
   {
     key: 'checkin',
@@ -50,7 +30,7 @@ const categories = [
     icon: '✅',
     color: '#52c41a',
     gradient: 'linear-gradient(135deg, #52c41a, #73d13d)',
-    countKey: 'checkin_count' as keyof TodayTodos,
+    countKey: 'checkin_count' as keyof PlanCounts,
   },
   {
     key: 'custom',
@@ -59,22 +39,49 @@ const categories = [
     icon: '📋',
     color: '#1890ff',
     gradient: 'linear-gradient(135deg, #1890ff, #40a9ff)',
-    countKey: 'custom_plan_count' as keyof TodayTodos,
+    countKey: 'custom_plan_count' as keyof PlanCounts,
   },
 ];
 
 export default function HealthPlanPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [todos, setTodos] = useState<TodayTodos | null>(null);
+  const [counts, setCounts] = useState<PlanCounts | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res: any = await api.get('/api/health-plan/today-todos');
-        setTodos(mapTodayTodos(res.data || res));
+        const [todosRes, medsRes, checkinRes, plansRes] = await Promise.allSettled([
+          api.get('/api/health-plan/today-todos'),
+          api.get('/api/health-plan/medications'),
+          api.get('/api/health-plan/checkin-items'),
+          api.get('/api/health-plan/user-plans'),
+        ]);
+
+        const todosData: any = todosRes.status === 'fulfilled' ? ((todosRes.value as any).data || todosRes.value) : {};
+        const medsData: any = medsRes.status === 'fulfilled' ? ((medsRes.value as any).data || medsRes.value) : {};
+        const checkinData: any = checkinRes.status === 'fulfilled' ? ((checkinRes.value as any).data || checkinRes.value) : {};
+        const plansData: any = plansRes.status === 'fulfilled' ? ((plansRes.value as any).data || plansRes.value) : {};
+
+        const medsGroups = medsData.groups || {};
+        let medsCount = 0;
+        Object.values(medsGroups).forEach((items: any) => { medsCount += Array.isArray(items) ? items.length : 0; });
+
+        const checkinItems = checkinData.items || checkinData || [];
+        const checkinCount = Array.isArray(checkinItems) ? checkinItems.length : 0;
+
+        const userPlans = plansData.items || plansData || [];
+        const plansCount = Array.isArray(userPlans) ? userPlans.length : 0;
+
+        setCounts({
+          medications_count: medsCount,
+          checkin_count: checkinCount,
+          custom_plan_count: plansCount,
+          completed_count: todosData.total_completed || 0,
+          total_count: todosData.total_count || 0,
+        });
       } catch {
-        setTodos({ medications_count: 0, checkin_count: 0, custom_plan_count: 0, completed_count: 0, total_count: 0 });
+        setCounts({ medications_count: 0, checkin_count: 0, custom_plan_count: 0, completed_count: 0, total_count: 0 });
       } finally {
         setLoading(false);
       }
@@ -121,9 +128,9 @@ export default function HealthPlanPage() {
           <span className="text-xl mr-2">🤖</span>
           <span className="text-base font-bold" style={{ color: '#52c41a' }}>AI 为我生成计划</span>
         </div>
-        {todos && todos.total_count > 0 && (
+        {counts && counts.total_count > 0 && (
           <div className="flex items-center justify-center mt-3 text-white text-xs opacity-80">
-            今日待办 {todos.completed_count}/{todos.total_count} 已完成
+            今日待办 {counts.completed_count}/{counts.total_count} 已完成
           </div>
         )}
       </div>
@@ -146,12 +153,12 @@ export default function HealthPlanPage() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-base">{cat.title}</span>
-                  {todos && (
+                  {counts && (
                     <span
                       className="text-xs px-2 py-0.5 rounded-full"
                       style={{ background: `${cat.color}15`, color: cat.color }}
                     >
-                      {todos[cat.countKey] || 0} 项
+                      {counts[cat.countKey] || 0} 项
                     </span>
                   )}
                 </div>

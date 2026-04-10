@@ -39,3 +39,13 @@
   box-shadow: 0 8rpx 24rpx rgba(19,194,194,0.4);
 }
 .fab-icon { font-size: 48rpx; color: #fff; font-weight: 300; }
+
+.checkin-dialog-mask { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 999; display: flex; align-items: center; justify-content: center; }
+.checkin-dialog { width: 560rpx; background: #fff; border-radius: 24rpx; padding: 40rpx; }
+.checkin-dialog-title { font-size: 30rpx; font-weight: 600; color: #333; display: block; text-align: center; margin-bottom: 12rpx; }
+.checkin-dialog-hint { font-size: 24rpx; color: #999; display: block; text-align: center; margin-bottom: 32rpx; }
+.checkin-dialog-input { border: 2rpx solid #e8e8e8; border-radius: 12rpx; padding: 20rpx 24rpx; font-size: 32rpx; text-align: center; margin-bottom: 32rpx; }
+.checkin-dialog-actions { display: flex; justify-content: space-between; }
+.checkin-dialog-btn { flex: 1; text-align: center; padding: 18rpx 0; border-radius: 36rpx; font-size: 28rpx; }
+.checkin-dialog-cancel { background: #f5f5f5; color: #666; margin-right: 16rpx; }
+.checkin-dialog-confirm { background: #13c2c2; color: #fff; }

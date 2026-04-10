@@ -29,28 +29,38 @@ const articles = [
 
 interface TodoItem {
   id: number;
+  name: string;
   type: string;
-  category: string;
-  sub_category?: string;
-  title: string;
-  subtitle?: string;
-  is_checked: boolean;
-  has_target: boolean;
+  source: string;
+  source_id?: number;
   target_value?: number;
   target_unit?: string;
-  actual_value?: number;
+  is_completed: boolean;
+  remind_time?: string;
+  extra?: Record<string, unknown>;
+}
+
+interface TodoSubGroup {
+  sub_group_name: string;
+  category_id?: number;
+  items: TodoItem[];
+  completed_count: number;
+  total_count: number;
+  is_empty: boolean;
 }
 
 interface TodoGroup {
-  category: string;
-  label: string;
-  icon: string;
+  group_name: string;
+  group_type: string;
   items: TodoItem[];
-  sub_groups?: { name: string; icon: string; items: TodoItem[] }[];
+  sub_groups?: TodoSubGroup[];
+  completed_count: number;
+  total_count: number;
+  is_empty: boolean;
 }
 
 interface TodayTodosResponse {
-  completed_count: number;
+  total_completed: number;
   total_count: number;
   groups: TodoGroup[];
 }
@@ -111,8 +121,8 @@ export default function HomePage() {
   }, [fetchTodos]);
 
   const handleQuickCheck = async (item: TodoItem) => {
-    if (item.is_checked) return;
-    if (item.has_target) {
+    if (item.is_completed) return;
+    if (item.target_value != null && item.target_value > 0) {
       setInputVisible(item.id);
       setInputValue('');
       return;
@@ -289,7 +299,7 @@ export default function HomePage() {
             <div className="flex items-center gap-2">
               {todayTodos && todayTodos.total_count > 0 && (
                 <span className="text-xs text-gray-400">
-                  已完成 {todayTodos.completed_count}/{todayTodos.total_count}
+                  已完成 {todayTodos.total_completed}/{todayTodos.total_count}
                 </span>
               )}
               <span className="text-xs" style={{ color: '#52c41a' }} onClick={() => router.push('/health-plan')}>
@@ -315,21 +325,23 @@ export default function HomePage() {
               </Button>
             </div>
           ) : (
-            todayTodos.groups?.map((group) => (
-              <div key={group.category} className="mb-3 last:mb-0">
+            todayTodos.groups?.map((group) => {
+              const groupIcon = group.group_type === 'medication' ? '💊' : group.group_type === 'checkin' ? '✅' : '📋';
+              return (
+              <div key={group.group_type} className="mb-3 last:mb-0" style={{ opacity: group.is_empty ? 0.5 : 1 }}>
                 <div className="flex items-center mb-2">
-                  <span className="text-sm mr-1">{group.icon}</span>
-                  <span className="text-xs font-medium text-gray-600">{group.label}</span>
+                  <span className="text-sm mr-1">{groupIcon}</span>
+                  <span className="text-xs font-medium text-gray-600">{group.group_name}</span>
+                  {group.is_empty && <span className="text-xs text-gray-300 ml-2">今日无待办</span>}
                 </div>
 
-                {group.category === 'custom' && group.sub_groups ? (
+                {group.group_type === 'custom' && group.sub_groups ? (
                   group.sub_groups.map((sub) => (
-                    <div key={sub.name} className="ml-2 mb-2">
+                    <div key={sub.sub_group_name} className="ml-2 mb-2" style={{ opacity: sub.is_empty ? 0.5 : 1 }}>
                       <div className="flex items-center mb-1">
-                        <span className="text-xs mr-1">{sub.icon}</span>
-                        <span className="text-xs text-gray-400">{sub.name}</span>
+                        <span className="text-xs text-gray-400">{sub.sub_group_name}</span>
                       </div>
-                      {sub.items.length === 0 ? (
+                      {sub.is_empty ? (
                         <div className="text-xs text-gray-300 ml-4 mb-1">今日无待办</div>
                       ) : (
                         sub.items.map((item) => (
@@ -341,15 +353,15 @@ export default function HomePage() {
                               <div
                                 className="w-4 h-4 rounded-full border-2 flex items-center justify-center mr-2 shrink-0"
                                 style={{
-                                  borderColor: item.is_checked ? '#52c41a' : '#ddd',
-                                  background: item.is_checked ? '#52c41a' : 'transparent',
+                                  borderColor: item.is_completed ? '#52c41a' : '#ddd',
+                                  background: item.is_completed ? '#52c41a' : 'transparent',
                                 }}
                               >
-                                {item.is_checked && <span className="text-white" style={{ fontSize: 8 }}>✓</span>}
+                                {item.is_completed && <span className="text-white" style={{ fontSize: 8 }}>✓</span>}
                               </div>
-                              <span className={`text-sm flex-1 ${item.is_checked ? 'text-gray-400 line-through' : ''}`}>
-                                {item.title}
-                                {item.subtitle && <span className="text-xs text-gray-400 ml-1">{item.subtitle}</span>}
+                              <span className={`text-sm flex-1 ${item.is_completed ? 'text-gray-400 line-through' : ''}`}>
+                                {item.name}
+                                {item.extra?.plan_name && <span className="text-xs text-gray-400 ml-1">{String(item.extra.plan_name)}</span>}
                               </span>
                             </div>
                             {inputVisible === item.id && (
@@ -372,55 +384,67 @@ export default function HomePage() {
                     </div>
                   ))
                 ) : (
-                  group.items?.map((item) => (
-                    <div key={item.id}>
-                      <div
-                        className="flex items-center py-1.5 ml-2 cursor-pointer"
-                        onClick={() => handleQuickCheck(item)}
-                      >
+                  group.is_empty ? (
+                    <div className="text-xs text-gray-300 ml-4 mb-1">今日无待办</div>
+                  ) : (
+                    group.items.map((item) => (
+                      <div key={item.id}>
                         <div
-                          className="w-4 h-4 rounded-full border-2 flex items-center justify-center mr-2 shrink-0"
-                          style={{
-                            borderColor: item.is_checked ? '#52c41a' : '#ddd',
-                            background: item.is_checked ? '#52c41a' : 'transparent',
-                          }}
+                          className="flex items-center py-1.5 ml-2 cursor-pointer"
+                          onClick={() => handleQuickCheck(item)}
                         >
-                          {item.is_checked && <span className="text-white" style={{ fontSize: 8 }}>✓</span>}
+                          <div
+                            className="w-4 h-4 rounded-full border-2 flex items-center justify-center mr-2 shrink-0"
+                            style={{
+                              borderColor: item.is_completed ? '#52c41a' : '#ddd',
+                              background: item.is_completed ? '#52c41a' : 'transparent',
+                            }}
+                          >
+                            {item.is_completed && <span className="text-white" style={{ fontSize: 8 }}>✓</span>}
+                          </div>
+                          <span className={`text-sm flex-1 ${item.is_completed ? 'text-gray-400 line-through' : ''}`}>
+                            {item.name}
+                            {item.remind_time && <span className="text-xs text-gray-400 ml-1">{item.remind_time}</span>}
+                          </span>
                         </div>
-                        <span className={`text-sm flex-1 ${item.is_checked ? 'text-gray-400 line-through' : ''}`}>
-                          {item.title}
-                          {item.subtitle && <span className="text-xs text-gray-400 ml-1">{item.subtitle}</span>}
-                        </span>
+                        {inputVisible === item.id && (
+                          <div className="flex items-center ml-8 mb-1 gap-2">
+                            <input
+                              type="number"
+                              value={inputValue}
+                              onChange={(e) => setInputValue(e.target.value)}
+                              placeholder={`输入${item.target_unit || '数值'}`}
+                              className="flex-1 text-xs px-2 py-1.5 rounded-lg border border-gray-200"
+                              autoFocus
+                            />
+                            <Button size="mini" color="primary" style={{ borderRadius: 6, background: '#52c41a', border: 'none', fontSize: 11 }} onClick={() => handleValueSubmit(item)}>确认</Button>
+                            <Button size="mini" style={{ borderRadius: 6, fontSize: 11 }} onClick={() => { setInputVisible(null); setInputValue(''); }}>取消</Button>
+                          </div>
+                        )}
                       </div>
-                      {inputVisible === item.id && (
-                        <div className="flex items-center ml-8 mb-1 gap-2">
-                          <input
-                            type="number"
-                            value={inputValue}
-                            onChange={(e) => setInputValue(e.target.value)}
-                            placeholder={`输入${item.target_unit || '数值'}`}
-                            className="flex-1 text-xs px-2 py-1.5 rounded-lg border border-gray-200"
-                            autoFocus
-                          />
-                          <Button size="mini" color="primary" style={{ borderRadius: 6, background: '#52c41a', border: 'none', fontSize: 11 }} onClick={() => handleValueSubmit(item)}>确认</Button>
-                          <Button size="mini" style={{ borderRadius: 6, fontSize: 11 }} onClick={() => { setInputVisible(null); setInputValue(''); }}>取消</Button>
-                        </div>
-                      )}
-                    </div>
-                  ))
+                    ))
+                  )
                 )}
               </div>
-            ))
+            );})
           )}
 
-          {todayTodos && todayTodos.total_count > 0 && (
+          <div className="flex items-center justify-between pt-2 mt-2 border-t border-gray-50">
+            {todayTodos && todayTodos.total_count > 0 && (
+              <div
+                className="cursor-pointer"
+                onClick={() => router.push('/health-plan/statistics')}
+              >
+                <span className="text-xs" style={{ color: '#52c41a' }}>📊 查看统计</span>
+              </div>
+            )}
             <div
-              className="text-center pt-2 mt-2 border-t border-gray-50 cursor-pointer"
-              onClick={() => router.push('/health-plan/statistics')}
+              className="cursor-pointer ml-auto"
+              onClick={() => router.push('/health-plan')}
             >
-              <span className="text-xs" style={{ color: '#52c41a' }}>📊 查看统计</span>
+              <span className="text-xs font-medium" style={{ color: '#52c41a' }}>查看全部计划 &gt;</span>
             </div>
-          )}
+          </div>
         </div>
 
         <div className="mb-4">

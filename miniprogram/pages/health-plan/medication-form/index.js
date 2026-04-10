@@ -92,10 +92,12 @@ Page({
 
     this.setData({ submitting: true });
     try {
+      let result;
       if (this.data.isEdit) {
-        await put(`/api/health-plan/medications/${this.data.id}`, payload);
+        result = await put(`/api/health-plan/medications/${this.data.id}`, payload);
       } else {
-        await post('/api/health-plan/medications', payload);
+        result = await post('/api/health-plan/medications', payload);
+        this.requestSubscribeMessage(result && result.id);
       }
       wx.showToast({ title: '保存成功', icon: 'success' });
       setTimeout(() => wx.navigateBack(), 1500);
@@ -104,5 +106,25 @@ Page({
     } finally {
       this.setData({ submitting: false });
     }
+  },
+
+  requestSubscribeMessage(reminderId) {
+    const tmplIds = getApp().globalData.subscribeTemplateIds;
+    if (!tmplIds || tmplIds.length === 0) return;
+    wx.requestSubscribeMessage({
+      tmplIds: tmplIds,
+      success: (res) => {
+        const accepted = [];
+        tmplIds.forEach(function(id) {
+          if (res[id] === 'accept') accepted.push(id);
+        });
+        if (accepted.length > 0 && reminderId) {
+          post('/api/health-plan/medications/' + reminderId + '/subscribe', {
+            template_ids: accepted,
+          }, { showLoading: false, suppressErrorToast: true }).catch(function() {});
+        }
+      },
+      fail: function() {}
+    });
   }
 });

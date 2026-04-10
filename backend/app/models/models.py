@@ -1820,3 +1820,19 @@ class DefaultHealthTask(Base):
     created_at = mapped_column(DateTime, default=datetime.utcnow)
 
     template_category = relationship("PlanTemplateCategory")
+
+
+class NotificationLog(Base):
+    __tablename__ = "notification_logs"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    source_type = mapped_column(String(50), nullable=False)
+    source_id = mapped_column(Integer, nullable=True)
+    title = mapped_column(String(200), nullable=False)
+    content = mapped_column(Text, nullable=True)
+    status = mapped_column(String(20), default="pending")
+    scheduled_time = mapped_column(DateTime, nullable=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User")

@@ -19,6 +19,7 @@ import {
   EditOutlined,
   DeleteOutlined,
   AppstoreOutlined,
+  MinusCircleOutlined,
 } from '@ant-design/icons';
 import { get, post, put, del } from '@/lib/api';
 
@@ -72,12 +73,19 @@ export default function TemplateCategoriesPage() {
 
   const openEdit = (item: CategoryItem) => {
     setEditingItem(item);
+    const tasks = Array.isArray(item.preset_tasks)
+      ? item.preset_tasks.map((t: any) => ({
+          name: t.name ?? '',
+          target_value: t.target_value ?? null,
+          target_unit: t.target_unit ?? '',
+        }))
+      : [];
     form.setFieldsValue({
       name: item.name,
       description: item.description,
       icon: item.icon,
       sort_order: item.sort_order,
-      preset_tasks_json: item.preset_tasks ? JSON.stringify(item.preset_tasks, null, 2) : '',
+      preset_tasks_list: tasks.length > 0 ? tasks : undefined,
     });
     setModalOpen(true);
   };
@@ -87,16 +95,14 @@ export default function TemplateCategoriesPage() {
       const values = await form.validateFields();
       setModalLoading(true);
 
-      let preset_tasks = null;
-      if (values.preset_tasks_json) {
-        try {
-          preset_tasks = JSON.parse(values.preset_tasks_json);
-        } catch {
-          message.error('预设任务列表JSON格式不正确');
-          setModalLoading(false);
-          return;
-        }
-      }
+      const preset_tasks =
+        values.preset_tasks_list && values.preset_tasks_list.length > 0
+          ? values.preset_tasks_list.map((t: any) => ({
+              name: t.name,
+              target_value: t.target_value ?? null,
+              target_unit: t.target_unit ?? null,
+            }))
+          : null;
 
       const payload = {
         name: values.name,
@@ -243,16 +249,35 @@ export default function TemplateCategoriesPage() {
           <Form.Item label="排序值" name="sort_order">
             <InputNumber min={0} max={9999} style={{ width: '100%' }} placeholder="数字越小越靠前" />
           </Form.Item>
-          <Form.Item
-            label="预设任务列表（JSON）"
-            name="preset_tasks_json"
-            tooltip='格式示例：[{"name":"步行","target_value":8000,"target_unit":"步"}]'
-          >
-            <TextArea
-              placeholder='[{"name":"步行","target_value":8000,"target_unit":"步"}]'
-              rows={4}
-              style={{ fontFamily: 'monospace' }}
-            />
+          <Form.Item label="预设建议任务">
+            <Form.List name="preset_tasks_list">
+              {(fields, { add, remove }) => (
+                <>
+                  {fields.map(({ key, name, ...restField }) => (
+                    <Space key={key} style={{ display: 'flex', marginBottom: 8 }} align="baseline">
+                      <Form.Item
+                        {...restField}
+                        name={[name, 'name']}
+                        rules={[{ required: true, message: '请输入任务名' }]}
+                        style={{ marginBottom: 0 }}
+                      >
+                        <Input placeholder="任务名称" style={{ width: 150 }} />
+                      </Form.Item>
+                      <Form.Item {...restField} name={[name, 'target_value']} style={{ marginBottom: 0 }}>
+                        <InputNumber placeholder="目标值" style={{ width: 100 }} />
+                      </Form.Item>
+                      <Form.Item {...restField} name={[name, 'target_unit']} style={{ marginBottom: 0 }}>
+                        <Input placeholder="单位" style={{ width: 80 }} />
+                      </Form.Item>
+                      <MinusCircleOutlined onClick={() => remove(name)} style={{ color: '#ff4d4f' }} />
+                    </Space>
+                  ))}
+                  <Button type="dashed" onClick={() => add()} block icon={<PlusOutlined />}>
+                    添加预设任务
+                  </Button>
+                </>
+              )}
+            </Form.List>
           </Form.Item>
         </Form>
       </Modal>

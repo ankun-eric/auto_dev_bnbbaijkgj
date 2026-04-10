@@ -11,12 +11,17 @@ class HealthPlanScreen extends StatefulWidget {
 class _HealthPlanScreenState extends State<HealthPlanScreen> {
   final ApiService _apiService = ApiService();
   bool _loading = true;
-
-  List<Map<String, dynamic>> _todayMedications = [];
-  List<Map<String, dynamic>> _todayCheckins = [];
-  List<Map<String, dynamic>> _todayPlanTasks = [];
-
   bool _aiGenerating = false;
+
+  List<Map<String, dynamic>> _todoGroups = [];
+  int _totalCompleted = 0;
+  int _totalCount = 0;
+
+  static const _groupTypeConfig = <String, Map<String, dynamic>>{
+    'medication': {'icon': Icons.medication_rounded, 'color': Color(0xFFFA8C16), 'label': '用药提醒', 'route': '/hp-medications'},
+    'checkin': {'icon': Icons.check_circle_outline_rounded, 'color': Color(0xFF52C41A), 'label': '健康打卡', 'route': '/hp-checkins'},
+    'custom': {'icon': Icons.flag_rounded, 'color': Color(0xFF1890FF), 'label': '自定义计划', 'route': '/hp-template-categories'},
+  };
 
   @override
   void initState() {
@@ -30,9 +35,9 @@ class _HealthPlanScreenState extends State<HealthPlanScreen> {
       if (response.statusCode == 200 && mounted) {
         final data = response.data is Map ? response.data as Map<String, dynamic> : <String, dynamic>{};
         setState(() {
-          _todayMedications = _parseList(data['medications']);
-          _todayCheckins = _parseList(data['checkin_items']);
-          _todayPlanTasks = _parseList(data['plan_tasks']);
+          _todoGroups = _parseList(data['groups']);
+          _totalCompleted = data['total_completed'] ?? 0;
+          _totalCount = data['total_count'] ?? 0;
           _loading = false;
         });
         return;
@@ -68,17 +73,42 @@ class _HealthPlanScreenState extends State<HealthPlanScreen> {
     if (mounted) setState(() => _aiGenerating = false);
   }
 
-  Future<void> _handleCheckin(String type, Map<String, dynamic> item) async {
-    try {
-      final id = item['id'] as int;
-      if (type == 'medication') {
-        await _apiService.checkinMedication(id);
-      } else if (type == 'checkin') {
-        await _apiService.checkinCheckinItem(id, isCompleted: true);
-      } else if (type == 'plan_task') {
-        final planId = item['plan_id'] as int;
-        await _apiService.checkinUserPlanTask(planId, id);
+  Future<void> _handleQuickCheckin(Map<String, dynamic> item) async {
+    final type = item['type']?.toString() ?? '';
+    if (type == 'checkin' && item['target_value'] != null) {
+      final controller = TextEditingController();
+      final result = await showDialog<double>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text('${item['name']} 打卡'),
+          content: TextField(
+            controller: controller,
+            keyboardType: TextInputType.number,
+            decoration: InputDecoration(
+              hintText: '请输入实际值',
+              suffixText: item['target_unit']?.toString() ?? '',
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, double.tryParse(controller.text)),
+              child: const Text('确认打卡'),
+            ),
+          ],
+        ),
+      );
+      if (result != null) {
+        try {
+          await _apiService.quickCheckin(item['id'] as int, type, value: result);
+          _loadTodayTodos();
+        } catch (_) {}
       }
+      return;
+    }
+
+    try {
+      await _apiService.quickCheckin(item['id'] as int, type);
       _loadTodayTodos();
     } catch (_) {}
   }
@@ -116,6 +146,8 @@ class _HealthPlanScreenState extends State<HealthPlanScreen> {
                     _buildCategoryCards(),
                     const SizedBox(height: 20),
                     _buildTodaySection(),
+                    const SizedBox(height: 20),
+                    _buildStatisticsEntry(),
                   ],
                 ),
               ),
@@ -186,35 +218,20 @@ class _HealthPlanScreenState extends State<HealthPlanScreen> {
 
   Widget _buildCategoryCards() {
     final categories = [
-      {
-        'icon': Icons.medication_rounded,
-        'title': '用药提醒',
-        'subtitle': '按时服药，健康管理',
-        'color': const Color(0xFFFA8C16),
-        'route': '/hp-medications',
-      },
-      {
-        'icon': Icons.check_circle_outline_rounded,
-        'title': '健康打卡',
-        'subtitle': '每日打卡，养成习惯',
-        'color': const Color(0xFF52C41A),
-        'route': '/hp-checkins',
-      },
-      {
-        'icon': Icons.flag_rounded,
-        'title': '自定义计划',
-        'subtitle': '个性定制，目标达成',
-        'color': const Color(0xFF1890FF),
-        'route': '/hp-template-categories',
-      },
+      _groupTypeConfig['medication']!,
+      _groupTypeConfig['checkin']!,
+      _groupTypeConfig['custom']!,
     ];
+    final subtitles = ['按时服药，健康管理', '每日打卡，养成习惯', '个性定制，目标达成'];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text('健康管理', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF333333))),
         const SizedBox(height: 12),
-        ...categories.map((cat) {
+        ...categories.asMap().entries.map((entry) {
+          final idx = entry.key;
+          final cat = entry.value;
           final color = cat['color'] as Color;
           return GestureDetector(
             onTap: () => Navigator.pushNamed(context, cat['route'] as String).then((_) => _loadTodayTodos()),
@@ -244,9 +261,9 @@ class _HealthPlanScreenState extends State<HealthPlanScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(cat['title'] as String, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF333333))),
+                        Text(cat['label'] as String, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF333333))),
                         const SizedBox(height: 2),
-                        Text(cat['subtitle'] as String, style: TextStyle(fontSize: 13, color: Colors.grey[500])),
+                        Text(subtitles[idx], style: TextStyle(fontSize: 13, color: Colors.grey[500])),
                       ],
                     ),
                   ),
@@ -261,11 +278,6 @@ class _HealthPlanScreenState extends State<HealthPlanScreen> {
   }
 
   Widget _buildTodaySection() {
-    final total = _todayMedications.length + _todayCheckins.length + _todayPlanTasks.length;
-    final doneCount = _todayMedications.where((m) => m['is_checked'] == true).length +
-        _todayCheckins.where((c) => c['is_checked'] == true).length +
-        _todayPlanTasks.where((t) => t['is_checked'] == true).length;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -273,12 +285,12 @@ class _HealthPlanScreenState extends State<HealthPlanScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const Text('今日待办', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF333333))),
-            if (total > 0)
-              Text('$doneCount/$total 已完成', style: TextStyle(fontSize: 13, color: Colors.grey[500])),
+            if (_totalCount > 0)
+              Text('$_totalCompleted/$_totalCount 已完成', style: TextStyle(fontSize: 13, color: Colors.grey[500])),
           ],
         ),
         const SizedBox(height: 12),
-        if (total == 0)
+        if (_totalCount == 0)
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 40),
@@ -296,62 +308,120 @@ class _HealthPlanScreenState extends State<HealthPlanScreen> {
               ],
             ),
           )
-        else ...[
-          if (_todayMedications.isNotEmpty) ...[
-            _buildGroupLabel('用药提醒', Icons.medication, const Color(0xFFFA8C16)),
-            ..._todayMedications.map((m) => _buildTodoCard(
-              title: m['medicine_name']?.toString() ?? '',
-              subtitle: '${m['dosage'] ?? ''} · ${m['time_period'] ?? ''} ${m['remind_time'] ?? ''}',
-              done: m['is_checked'] == true,
-              color: const Color(0xFFFA8C16),
-              onCheck: () => _handleCheckin('medication', m),
-            )),
-          ],
-          if (_todayCheckins.isNotEmpty) ...[
-            _buildGroupLabel('健康打卡', Icons.check_circle_outline, const Color(0xFF52C41A)),
-            ..._todayCheckins.map((c) => _buildTodoCard(
-              title: c['name']?.toString() ?? '',
-              subtitle: c['target_value'] != null ? '目标: ${c['target_value']} ${c['target_unit'] ?? ''}' : '',
-              done: c['is_checked'] == true,
-              color: const Color(0xFF52C41A),
-              onCheck: () => _handleCheckin('checkin', c),
-            )),
-          ],
-          if (_todayPlanTasks.isNotEmpty) ...[
-            _buildGroupLabel('计划任务', Icons.flag_outlined, const Color(0xFF1890FF)),
-            ..._todayPlanTasks.map((t) => _buildTodoCard(
-              title: t['task_name']?.toString() ?? t['name']?.toString() ?? '',
-              subtitle: t['plan_name']?.toString() ?? '',
-              done: t['is_checked'] == true,
-              color: const Color(0xFF1890FF),
-              onCheck: () => _handleCheckin('plan_task', t),
-            )),
-          ],
-        ],
+        else
+          for (final group in _todoGroups) _buildGroupSection(group),
       ],
     );
   }
 
-  Widget _buildGroupLabel(String label, IconData icon, Color color) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 8, bottom: 6),
+  Widget _buildGroupSection(Map<String, dynamic> group) {
+    final groupType = group['group_type']?.toString() ?? '';
+    final config = _groupTypeConfig[groupType] ?? _groupTypeConfig['custom']!;
+    final icon = config['icon'] as IconData;
+    final color = config['color'] as Color;
+    final groupName = group['group_name']?.toString() ?? '';
+    final isEmpty = group['is_empty'] == true;
+    final items = _parseList(group['items']);
+    final subGroups = _parseList(group['sub_groups']);
+    final completedCount = group['completed_count'] ?? 0;
+    final totalCount = group['total_count'] ?? 0;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 8, bottom: 6),
+          child: Row(
+            children: [
+              Icon(icon, size: 16, color: color),
+              const SizedBox(width: 6),
+              Text(groupName, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: color)),
+              const Spacer(),
+              if (totalCount > 0)
+                Text('$completedCount/$totalCount', style: TextStyle(fontSize: 11, color: Colors.grey[400])),
+            ],
+          ),
+        ),
+        if (groupType == 'custom' && subGroups.isNotEmpty)
+          ...subGroups.map((sg) => _buildSubGroupSection(sg, icon, color))
+        else if (isEmpty)
+          _buildEmptyGroupHint(groupName)
+        else
+          ...items.map((item) => _buildTodoCard(item, groupType, color)),
+      ],
+    );
+  }
+
+  Widget _buildSubGroupSection(Map<String, dynamic> sg, IconData icon, Color color) {
+    final sgName = sg['sub_group_name']?.toString() ?? '';
+    final sgItems = _parseList(sg['items']);
+    final sgEmpty = sg['is_empty'] == true || sgItems.isEmpty;
+
+    if (sgEmpty) {
+      return Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.grey[50],
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: Colors.grey[300], size: 18),
+            const SizedBox(width: 10),
+            Text(sgName, style: TextStyle(fontSize: 14, color: Colors.grey[400])),
+            const Spacer(),
+            Text('今日无待办', style: TextStyle(fontSize: 12, color: Colors.grey[300])),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4, top: 4, bottom: 4),
+          child: Text(sgName, style: TextStyle(fontSize: 12, color: Colors.grey[500], fontWeight: FontWeight.w500)),
+        ),
+        ...sgItems.map((item) => _buildTodoCard(item, 'plan_task', color)),
+      ],
+    );
+  }
+
+  Widget _buildEmptyGroupHint(String groupName) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(10),
+      ),
       child: Row(
         children: [
-          Icon(icon, size: 16, color: color),
-          const SizedBox(width: 6),
-          Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: color)),
+          Icon(Icons.info_outline, size: 16, color: Colors.grey[300]),
+          const SizedBox(width: 8),
+          Text('$groupName 今日无待办', style: TextStyle(fontSize: 13, color: Colors.grey[400])),
         ],
       ),
     );
   }
 
-  Widget _buildTodoCard({
-    required String title,
-    required String subtitle,
-    required bool done,
-    required Color color,
-    required VoidCallback onCheck,
-  }) {
+  Widget _buildTodoCard(Map<String, dynamic> item, String groupType, Color color) {
+    final done = item['is_completed'] == true;
+    final name = item['name']?.toString() ?? '';
+    String subtitle = '';
+    if (groupType == 'medication') {
+      final extra = item['extra'] is Map ? item['extra'] as Map : {};
+      subtitle = [extra['dosage'] ?? '', extra['time_period'] ?? '', item['remind_time'] ?? '']
+          .where((s) => s.toString().isNotEmpty)
+          .join(' · ');
+    } else if (item['target_value'] != null) {
+      subtitle = '目标: ${item['target_value']} ${item['target_unit'] ?? ''}';
+    } else if (item['extra'] is Map && (item['extra'] as Map)['plan_name'] != null) {
+      subtitle = (item['extra'] as Map)['plan_name'].toString();
+    }
+
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(14),
@@ -363,7 +433,7 @@ class _HealthPlanScreenState extends State<HealthPlanScreen> {
       child: Row(
         children: [
           GestureDetector(
-            onTap: done ? null : onCheck,
+            onTap: done ? null : () => _handleQuickCheckin(item),
             child: Container(
               width: 24,
               height: 24,
@@ -381,7 +451,7 @@ class _HealthPlanScreenState extends State<HealthPlanScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  title,
+                  name,
                   style: TextStyle(
                     fontSize: 15,
                     decoration: done ? TextDecoration.lineThrough : null,
@@ -394,6 +464,46 @@ class _HealthPlanScreenState extends State<HealthPlanScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildStatisticsEntry() {
+    return GestureDetector(
+      onTap: () => Navigator.pushNamed(context, '/hp-statistics'),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2))],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: const Color(0xFF722ED1).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.insights, color: Color(0xFF722ED1), size: 24),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('打卡统计', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF333333))),
+                  const SizedBox(height: 2),
+                  Text('查看打卡趋势和成就', style: TextStyle(fontSize: 13, color: Colors.grey[500])),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, color: Colors.grey[400], size: 22),
+          ],
+        ),
       ),
     );
   }

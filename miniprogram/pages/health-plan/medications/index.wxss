@@ -6,6 +6,10 @@
 .empty-btn { padding: 16rpx 48rpx; background: #52c41a; color: #fff; border-radius: 36rpx; font-size: 28rpx; }
 .text-hint { font-size: 26rpx; color: #999; }
 
+.med-group { margin-bottom: 8rpx; }
+.med-group-header { display: flex; align-items: center; justify-content: space-between; padding: 16rpx 0 8rpx; }
+.med-group-title { font-size: 28rpx; font-weight: 600; color: #333; }
+.med-group-count { font-size: 22rpx; color: #999; }
 .med-card { margin-bottom: 20rpx; }
 .med-header { margin-bottom: 16rpx; }
 .med-title-row { display: flex; align-items: center; }

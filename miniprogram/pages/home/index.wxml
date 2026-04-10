@@ -59,36 +59,110 @@
   <view class="card today-todos-card">
     <view class="section-header">
       <text class="section-title">今日待办</text>
-      <text class="section-more" bindtap="goHealthPlan">全部计划 ></text>
+      <text class="section-more" wx:if="{{todoTotalCount > 0}}" style="font-size:22rpx;color:#999;">{{todoTotalCompleted}}/{{todoTotalCount}}</text>
     </view>
     <view wx:if="{{todayTodosLoading}}" class="todo-loading">
       <text class="text-hint">加载中...</text>
     </view>
-    <view wx:elif="{{todayTodos.length === 0}}" class="todo-empty">
+    <view wx:elif="{{todoTotalCount === 0}}" class="todo-empty">
       <text class="todo-empty-icon">📋</text>
       <text class="todo-empty-text">暂无今日待办，去创建健康计划吧</text>
       <view class="todo-empty-btn" bindtap="goHealthPlan">去创建</view>
     </view>
-    <view wx:else class="todo-list">
-      <view class="todo-item" wx:for="{{todayTodos}}" wx:key="index">
-        <view class="todo-left">
-          <view class="todo-type-badge todo-type-{{item.type || 'default'}}">
-            <text wx:if="{{item.type === 'medication'}}">💊</text>
-            <text wx:elif="{{item.type === 'checkin_item'}}">✅</text>
-            <text wx:elif="{{item.type === 'plan_task'}}">📋</text>
-            <text wx:else>📌</text>
+    <view wx:else class="todo-groups">
+      <view class="todo-group" wx:for="{{todoGroups}}" wx:key="group_type">
+        <view class="todo-group-header">
+          <view class="todo-group-title-row">
+            <text class="todo-group-icon" wx:if="{{item.group_type === 'medication'}}">💊</text>
+            <text class="todo-group-icon" wx:elif="{{item.group_type === 'checkin'}}">✅</text>
+            <text class="todo-group-icon" wx:else>📋</text>
+            <text class="todo-group-name">{{item.group_name}}</text>
           </view>
-          <view class="todo-info">
-            <text class="todo-name {{item.is_completed ? 'todo-done' : ''}}">{{item.name || item.title}}</text>
-            <text class="todo-time" wx:if="{{item.time}}">{{item.time}}</text>
+          <text class="todo-group-count">{{item.completed_count}}/{{item.total_count}}</text>
+        </view>
+
+        <!-- 无sub_groups的组（用药提醒、健康打卡） -->
+        <block wx:if="{{!item.sub_groups || item.sub_groups.length === 0}}">
+          <view wx:if="{{item.is_empty}}" class="todo-group-empty">
+            <text class="todo-group-empty-text">今日无待办</text>
           </view>
-        </view>
-        <view class="todo-action" wx:if="{{!item.is_completed}}" catchtap="onTodoCheckin" data-type="{{item.type}}" data-id="{{item.id}}" data-task-id="{{item.task_id}}">
-          <text class="todo-checkin-btn">打卡</text>
-        </view>
-        <view class="todo-action-done" wx:else>
-          <text class="todo-done-icon">✓</text>
-        </view>
+          <view wx:else>
+            <view class="todo-item {{todoItem.is_completed ? 'todo-item-done' : ''}}" wx:for="{{item.items}}" wx:for-item="todoItem" wx:key="id">
+              <view class="todo-left">
+                <view class="todo-check-circle {{todoItem.is_completed ? 'todo-checked' : ''}}">
+                  <text wx:if="{{todoItem.is_completed}}" class="todo-check-mark">✓</text>
+                </view>
+                <view class="todo-info">
+                  <text class="todo-name {{todoItem.is_completed ? 'todo-done' : ''}}">{{todoItem.name}}</text>
+                  <text class="todo-time" wx:if="{{todoItem.remind_time}}">{{todoItem.remind_time}}</text>
+                </view>
+              </view>
+              <view class="todo-action" wx:if="{{!todoItem.is_completed}}" catchtap="onTodoCheckin"
+                data-type="{{todoItem.type}}" data-id="{{todoItem.id}}"
+                data-source-id="{{todoItem.source_id}}"
+                data-target-value="{{todoItem.target_value}}"
+                data-target-unit="{{todoItem.target_unit}}"
+                data-name="{{todoItem.name}}">
+                <text class="todo-checkin-btn">打卡</text>
+              </view>
+              <view class="todo-action-done" wx:else>
+                <text class="todo-done-icon">✓</text>
+              </view>
+            </view>
+          </view>
+        </block>
+
+        <!-- 有sub_groups的组（健康计划按模板分类细分） -->
+        <block wx:else>
+          <view class="todo-subgroup" wx:for="{{item.sub_groups}}" wx:for-item="subGroup" wx:key="sub_group_name">
+            <view class="todo-subgroup-header {{subGroup.is_empty ? 'todo-subgroup-empty-header' : ''}}">
+              <text class="todo-subgroup-name">{{subGroup.sub_group_name}}</text>
+              <text class="todo-subgroup-count" wx:if="{{!subGroup.is_empty}}">{{subGroup.completed_count}}/{{subGroup.total_count}}</text>
+              <text class="todo-subgroup-empty-tag" wx:if="{{subGroup.is_empty}}">今日无待办</text>
+            </view>
+            <view wx:if="{{!subGroup.is_empty}}">
+              <view class="todo-item {{todoItem.is_completed ? 'todo-item-done' : ''}}" wx:for="{{subGroup.items}}" wx:for-item="todoItem" wx:key="id">
+                <view class="todo-left">
+                  <view class="todo-check-circle {{todoItem.is_completed ? 'todo-checked' : ''}}">
+                    <text wx:if="{{todoItem.is_completed}}" class="todo-check-mark">✓</text>
+                  </view>
+                  <view class="todo-info">
+                    <text class="todo-name {{todoItem.is_completed ? 'todo-done' : ''}}">{{todoItem.name}}</text>
+                    <text class="todo-time" wx:if="{{todoItem.extra.plan_name}}">{{todoItem.extra.plan_name}}</text>
+                  </view>
+                </view>
+                <view class="todo-action" wx:if="{{!todoItem.is_completed}}" catchtap="onTodoCheckin"
+                  data-type="{{todoItem.type}}" data-id="{{todoItem.id}}"
+                  data-source-id="{{todoItem.source_id}}"
+                  data-target-value="{{todoItem.target_value}}"
+                  data-target-unit="{{todoItem.target_unit}}"
+                  data-name="{{todoItem.name}}">
+                  <text class="todo-checkin-btn">打卡</text>
+                </view>
+                <view class="todo-action-done" wx:else>
+                  <text class="todo-done-icon">✓</text>
+                </view>
+              </view>
+            </view>
+          </view>
+        </block>
+      </view>
+    </view>
+    <view class="todo-footer" bindtap="goHealthPlan">
+      <text class="todo-footer-text">查看全部计划 ></text>
+    </view>
+  </view>
+
+  <!-- 打卡数值输入对话框 -->
+  <view class="checkin-dialog-mask" wx:if="{{checkinDialog}}" catchtap="onCheckinDialogCancel">
+    <view class="checkin-dialog" catchtap="">
+      <text class="checkin-dialog-title">{{checkinDialogName}}</text>
+      <text class="checkin-dialog-hint">目标: {{checkinDialogTarget}} {{checkinDialogUnit}}</text>
+      <input class="checkin-dialog-input" type="digit" placeholder="请输入实际值"
+        value="{{checkinDialogValue}}" bindinput="onCheckinDialogInput" focus="{{checkinDialog}}" />
+      <view class="checkin-dialog-actions">
+        <view class="checkin-dialog-btn checkin-dialog-cancel" bindtap="onCheckinDialogCancel">取消</view>
+        <view class="checkin-dialog-btn checkin-dialog-confirm" bindtap="onCheckinDialogConfirm">确认打卡</view>
       </view>
     </view>
   </view>

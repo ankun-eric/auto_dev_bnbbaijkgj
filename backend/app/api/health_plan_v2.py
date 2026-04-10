@@ -35,12 +35,15 @@ from app.schemas.health_plan_v2 import (
     MedicationReminderCreate,
     MedicationReminderResponse,
     MedicationReminderUpdate,
+    PlanRanking,
     PlanTemplateCategoryResponse,
+    QuickCheckInRequest,
     RecommendedPlanResponse,
     RecommendedPlanTaskResponse,
     TodayTodoGroup,
     TodayTodoItem,
     TodayTodoResponse,
+    TodayTodoSubGroup,
     UserPlanCreate,
     UserPlanResponse,
     UserPlanTaskCheckInCreate,
@@ -750,19 +753,36 @@ async def ai_generate_plan(
     )
     profile = profile_result.scalar_one_or_none()
 
-    user_profile = {}
-    if profile:
-        user_profile = {
-            "gender": profile.gender,
-            "birthday": str(profile.birthday) if profile.birthday else None,
-            "height": profile.height,
-            "weight": profile.weight,
-            "smoking": profile.smoking,
-            "drinking": profile.drinking,
-            "exercise_habit": profile.exercise_habit,
-            "sleep_habit": profile.sleep_habit,
-            "chronic_diseases": profile.chronic_diseases,
-        }
+    if not profile:
+        raise HTTPException(status_code=400, detail="请先完善您的健康档案后再生成AI计划")
+
+    required_fields = [profile.gender, profile.birthday, profile.height, profile.weight]
+    if not all(required_fields):
+        raise HTTPException(status_code=400, detail="健康档案信息不完整，请至少填写性别、出生日期、身高、体重")
+
+    user_profile = {
+        "gender": profile.gender,
+        "birthday": str(profile.birthday) if profile.birthday else None,
+        "height": profile.height,
+        "weight": profile.weight,
+        "smoking": profile.smoking,
+        "drinking": profile.drinking,
+        "exercise_habit": profile.exercise_habit,
+        "sleep_habit": profile.sleep_habit,
+        "chronic_diseases": profile.chronic_diseases,
+    }
+
+    # deactivate old AI-generated plans (without category)
+    old_plans_result = await db.execute(
+        select(UserPlan).where(
+            UserPlan.user_id == current_user.id,
+            UserPlan.source_type == "ai",
+            UserPlan.category_id.is_(None),
+            UserPlan.status == "active",
+        )
+    )
+    for old_plan in old_plans_result.scalars().all():
+        old_plan.status = "replaced"
 
     system_prompt = (
         "你是一位专业的AI健康规划师。请根据用户的健康档案信息，生成个性化的健康计划。"
@@ -841,15 +861,32 @@ async def ai_generate_category_plan(
     )
     profile = profile_result.scalar_one_or_none()
 
-    user_profile = {}
-    if profile:
-        user_profile = {
-            "gender": profile.gender,
-            "birthday": str(profile.birthday) if profile.birthday else None,
-            "height": profile.height,
-            "weight": profile.weight,
-            "chronic_diseases": profile.chronic_diseases,
-        }
+    if not profile:
+        raise HTTPException(status_code=400, detail="请先完善您的健康档案后再生成AI计划")
+
+    required_fields = [profile.gender, profile.birthday, profile.height, profile.weight]
+    if not all(required_fields):
+        raise HTTPException(status_code=400, detail="健康档案信息不完整，请至少填写性别、出生日期、身高、体重")
+
+    user_profile = {
+        "gender": profile.gender,
+        "birthday": str(profile.birthday) if profile.birthday else None,
+        "height": profile.height,
+        "weight": profile.weight,
+        "chronic_diseases": profile.chronic_diseases,
+    }
+
+    # deactivate old AI-generated plans for this category
+    old_plans_result = await db.execute(
+        select(UserPlan).where(
+            UserPlan.user_id == current_user.id,
+            UserPlan.source_type == "ai",
+            UserPlan.category_id == category_id,
+            UserPlan.status == "active",
+        )
+    )
+    for old_plan in old_plans_result.scalars().all():
+        old_plan.status = "replaced"
 
     system_prompt = (
         f"你是一位专业的AI健康规划师。请为用户生成一个「{category.name}」类型的个性化健康计划。"
@@ -923,7 +960,7 @@ async def get_today_todos(
     total_completed = 0
     total_count = 0
 
-    # 1. 用药提醒
+    # 1. medication group (always present)
     med_result = await db.execute(
         select(MedicationReminder).where(
             MedicationReminder.user_id == current_user.id,
@@ -941,7 +978,7 @@ async def get_today_todos(
     med_checked_ids = {row[0] for row in med_checkin_result.all()}
 
     med_items = []
-    for m in medications:
+    for m in sorted(medications, key=lambda x: (x.remind_time or "99:99")):
         is_done = m.id in med_checked_ids
         med_items.append(TodayTodoItem(
             id=m.id,
@@ -954,19 +991,19 @@ async def get_today_todos(
             extra={"dosage": m.dosage, "time_period": m.time_period},
         ))
 
-    if med_items:
-        med_completed = sum(1 for i in med_items if i.is_completed)
-        groups.append(TodayTodoGroup(
-            group_name="用药提醒",
-            group_type="medication",
-            items=med_items,
-            completed_count=med_completed,
-            total_count=len(med_items),
-        ))
-        total_completed += med_completed
-        total_count += len(med_items)
+    med_completed = sum(1 for i in med_items if i.is_completed)
+    groups.append(TodayTodoGroup(
+        group_name="用药提醒",
+        group_type="medication",
+        items=med_items,
+        completed_count=med_completed,
+        total_count=len(med_items),
+        is_empty=len(med_items) == 0,
+    ))
+    total_completed += med_completed
+    total_count += len(med_items)
 
-    # 2. 健康打卡
+    # 2. checkin group (always present)
     checkin_result = await db.execute(
         select(HealthCheckInItem).where(
             HealthCheckInItem.user_id == current_user.id,
@@ -985,6 +1022,7 @@ async def get_today_todos(
 
     checkin_todo_items = []
     for ci in checkin_items_db:
+        first_time = ci.remind_times[0] if ci.remind_times and len(ci.remind_times) > 0 else None
         is_done = ci.id in checkin_completed_ids
         checkin_todo_items.append(TodayTodoItem(
             id=ci.id,
@@ -995,21 +1033,30 @@ async def get_today_todos(
             target_value=ci.target_value,
             target_unit=ci.target_unit,
             is_completed=is_done,
+            remind_time=first_time,
         ))
+    checkin_todo_items.sort(key=lambda x: (x.remind_time or "99:99"))
 
-    if checkin_todo_items:
-        ci_completed = sum(1 for i in checkin_todo_items if i.is_completed)
-        groups.append(TodayTodoGroup(
-            group_name="健康打卡",
-            group_type="checkin",
-            items=checkin_todo_items,
-            completed_count=ci_completed,
-            total_count=len(checkin_todo_items),
-        ))
-        total_completed += ci_completed
-        total_count += len(checkin_todo_items)
+    ci_completed = sum(1 for i in checkin_todo_items if i.is_completed)
+    groups.append(TodayTodoGroup(
+        group_name="健康打卡",
+        group_type="checkin",
+        items=checkin_todo_items,
+        completed_count=ci_completed,
+        total_count=len(checkin_todo_items),
+        is_empty=len(checkin_todo_items) == 0,
+    ))
+    total_completed += ci_completed
+    total_count += len(checkin_todo_items)
 
-    # 3. 自定义计划（按模板分类细分）
+    # 3. custom plans grouped by template category as sub_groups
+    cat_result = await db.execute(
+        select(PlanTemplateCategory)
+        .where(PlanTemplateCategory.status == "active")
+        .order_by(PlanTemplateCategory.sort_order.asc())
+    )
+    all_categories = cat_result.scalars().all()
+
     plan_result = await db.execute(
         select(UserPlan)
         .options(selectinload(UserPlan.tasks), selectinload(UserPlan.category))
@@ -1033,18 +1080,12 @@ async def get_today_todos(
         )
         plan_completed_ids = {row[0] for row in ptr_result.all()}
 
-    category_groups: dict = {}
+    cat_items_map: dict[int, list[TodayTodoItem]] = {}
+    uncategorized_items: list[TodayTodoItem] = []
     for p in user_plans:
-        cat_name = p.category.name if p.category else "其他计划"
-        cat_key = f"plan_{p.category_id or 0}"
-        if cat_key not in category_groups:
-            category_groups[cat_key] = {
-                "name": cat_name,
-                "items": [],
-            }
-        for t in p.tasks:
+        for t in sorted(p.tasks, key=lambda x: x.sort_order):
             is_done = t.id in plan_completed_ids
-            category_groups[cat_key]["items"].append(TodayTodoItem(
+            item = TodayTodoItem(
                 id=t.id,
                 name=t.task_name,
                 type="plan_task",
@@ -1054,26 +1095,172 @@ async def get_today_todos(
                 target_unit=t.target_unit,
                 is_completed=is_done,
                 extra={"plan_name": p.plan_name},
-            ))
+            )
+            if p.category_id:
+                cat_items_map.setdefault(p.category_id, []).append(item)
+            else:
+                uncategorized_items.append(item)
 
-    for key, group_data in category_groups.items():
-        items_list = group_data["items"]
-        g_completed = sum(1 for i in items_list if i.is_completed)
-        groups.append(TodayTodoGroup(
-            group_name=group_data["name"],
-            group_type=key,
-            items=items_list,
-            completed_count=g_completed,
-            total_count=len(items_list),
+    sub_groups: list[TodayTodoSubGroup] = []
+    custom_all_items: list[TodayTodoItem] = []
+    for cat in all_categories:
+        cat_task_items = cat_items_map.get(cat.id, [])
+        sg_completed = sum(1 for i in cat_task_items if i.is_completed)
+        sub_groups.append(TodayTodoSubGroup(
+            sub_group_name=cat.name,
+            category_id=cat.id,
+            items=cat_task_items,
+            completed_count=sg_completed,
+            total_count=len(cat_task_items),
+            is_empty=len(cat_task_items) == 0,
         ))
-        total_completed += g_completed
-        total_count += len(items_list)
+        custom_all_items.extend(cat_task_items)
+
+    if uncategorized_items:
+        uc_completed = sum(1 for i in uncategorized_items if i.is_completed)
+        sub_groups.append(TodayTodoSubGroup(
+            sub_group_name="其他计划",
+            category_id=None,
+            items=uncategorized_items,
+            completed_count=uc_completed,
+            total_count=len(uncategorized_items),
+            is_empty=False,
+        ))
+        custom_all_items.extend(uncategorized_items)
+
+    custom_completed = sum(1 for i in custom_all_items if i.is_completed)
+    groups.append(TodayTodoGroup(
+        group_name="健康计划",
+        group_type="custom",
+        items=custom_all_items,
+        sub_groups=sub_groups,
+        completed_count=custom_completed,
+        total_count=len(custom_all_items),
+        is_empty=len(custom_all_items) == 0,
+    ))
+    total_completed += custom_completed
+    total_count += len(custom_all_items)
 
     return TodayTodoResponse(
         groups=groups,
         total_completed=total_completed,
         total_count=total_count,
     )
+
+
+# ──────────────── 快速打卡 ────────────────
+
+
+@router.post("/today-todos/{item_id}/check")
+async def quick_check_in(
+    item_id: int,
+    data: QuickCheckInRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    today = date.today()
+
+    if data.type == "medication":
+        result = await db.execute(
+            select(MedicationReminder).where(
+                MedicationReminder.id == item_id,
+                MedicationReminder.user_id == current_user.id,
+                MedicationReminder.status == "active",
+            )
+        )
+        reminder = result.scalar_one_or_none()
+        if not reminder:
+            raise HTTPException(status_code=404, detail="用药提醒不存在")
+
+        existing = await db.execute(
+            select(MedicationCheckIn).where(
+                MedicationCheckIn.reminder_id == item_id,
+                MedicationCheckIn.user_id == current_user.id,
+                MedicationCheckIn.check_in_date == today,
+            )
+        )
+        if existing.scalar_one_or_none():
+            raise HTTPException(status_code=400, detail="今日已打卡")
+
+        checkin = MedicationCheckIn(
+            reminder_id=item_id,
+            user_id=current_user.id,
+            check_in_date=today,
+            check_in_time=datetime.utcnow(),
+        )
+        db.add(checkin)
+        await db.flush()
+        return {"message": "打卡成功", "type": "medication"}
+
+    elif data.type == "checkin":
+        result = await db.execute(
+            select(HealthCheckInItem).where(
+                HealthCheckInItem.id == item_id,
+                HealthCheckInItem.user_id == current_user.id,
+                HealthCheckInItem.status == "active",
+            )
+        )
+        item = result.scalar_one_or_none()
+        if not item:
+            raise HTTPException(status_code=404, detail="打卡项不存在")
+
+        existing = await db.execute(
+            select(HealthCheckInRecord).where(
+                HealthCheckInRecord.item_id == item_id,
+                HealthCheckInRecord.user_id == current_user.id,
+                HealthCheckInRecord.check_in_date == today,
+            )
+        )
+        if existing.scalar_one_or_none():
+            raise HTTPException(status_code=400, detail="今日已打卡")
+
+        record = HealthCheckInRecord(
+            item_id=item_id,
+            user_id=current_user.id,
+            check_in_date=today,
+            actual_value=data.value,
+            is_completed=True,
+            check_in_time=datetime.utcnow(),
+        )
+        db.add(record)
+        await db.flush()
+        return {"message": "打卡成功", "type": "checkin"}
+
+    elif data.type == "plan_task":
+        result = await db.execute(
+            select(UserPlanTask).where(
+                UserPlanTask.id == item_id,
+                UserPlanTask.user_id == current_user.id,
+            )
+        )
+        task = result.scalar_one_or_none()
+        if not task:
+            raise HTTPException(status_code=404, detail="计划任务不存在")
+
+        existing = await db.execute(
+            select(UserPlanTaskRecord).where(
+                UserPlanTaskRecord.task_id == item_id,
+                UserPlanTaskRecord.user_id == current_user.id,
+                UserPlanTaskRecord.check_in_date == today,
+            )
+        )
+        if existing.scalar_one_or_none():
+            raise HTTPException(status_code=400, detail="今日已打卡")
+
+        record = UserPlanTaskRecord(
+            task_id=item_id,
+            user_id=current_user.id,
+            check_in_date=today,
+            actual_value=data.value,
+            is_completed=True,
+            check_in_time=datetime.utcnow(),
+        )
+        db.add(record)
+        await db.flush()
+        return {"message": "打卡成功", "type": "plan_task"}
+
+    else:
+        raise HTTPException(status_code=400, detail="不支持的打卡类型，请使用 medication/checkin/plan_task")
 
 
 # ──────────────── 打卡统计 ────────────────
@@ -1144,12 +1331,11 @@ async def get_statistics(
     today_completed = med_done + ci_done + plan_done
     today_progress = round(today_completed / today_total * 100, 1) if today_total > 0 else 0.0
 
-    # consecutive days
-    consecutive = 0
+    # streak_days (consecutive days with at least one check-in)
+    streak = 0
     check_date = today
-    while True:
+    while streak <= 365:
         has_any = False
-
         mc = await db.execute(
             select(func.count(MedicationCheckIn.id)).where(
                 MedicationCheckIn.user_id == current_user.id,
@@ -1158,7 +1344,6 @@ async def get_statistics(
         )
         if (mc.scalar() or 0) > 0:
             has_any = True
-
         if not has_any:
             cr = await db.execute(
                 select(func.count(HealthCheckInRecord.id)).where(
@@ -1169,7 +1354,6 @@ async def get_statistics(
             )
             if (cr.scalar() or 0) > 0:
                 has_any = True
-
         if not has_any:
             pr = await db.execute(
                 select(func.count(UserPlanTaskRecord.id)).where(
@@ -1180,47 +1364,90 @@ async def get_statistics(
             )
             if (pr.scalar() or 0) > 0:
                 has_any = True
-
         if has_any:
-            consecutive += 1
+            streak += 1
             check_date -= timedelta(days=1)
         else:
             break
 
-        if consecutive > 365:
-            break
-
-    # weekly data
-    weekly_data = []
-    for i in range(7):
-        d = today - timedelta(days=6 - i)
-        day_med = await db.execute(
+    async def _day_completion(d: date) -> tuple[int, int]:
+        """Returns (completed, total) for a given date."""
+        d_med = await db.execute(
             select(func.count(MedicationCheckIn.id)).where(
                 MedicationCheckIn.user_id == current_user.id,
                 MedicationCheckIn.check_in_date == d,
             )
         )
-        day_ci = await db.execute(
+        d_ci = await db.execute(
             select(func.count(HealthCheckInRecord.id)).where(
                 HealthCheckInRecord.user_id == current_user.id,
                 HealthCheckInRecord.check_in_date == d,
                 HealthCheckInRecord.is_completed == True,
             )
         )
-        day_plan = await db.execute(
+        d_plan = await db.execute(
             select(func.count(UserPlanTaskRecord.id)).where(
                 UserPlanTaskRecord.user_id == current_user.id,
                 UserPlanTaskRecord.check_in_date == d,
                 UserPlanTaskRecord.is_completed == True,
             )
         )
-        total_day = (day_med.scalar() or 0) + (day_ci.scalar() or 0) + (day_plan.scalar() or 0)
-        weekly_data.append({"date": d.isoformat(), "count": total_day})
+        completed = (d_med.scalar() or 0) + (d_ci.scalar() or 0) + (d_plan.scalar() or 0)
+        return completed, today_total
+
+    # weekly data + weekly_rates (last 7 days)
+    weekly_data = []
+    weekly_rates: list[float] = []
+    for i in range(7):
+        d = today - timedelta(days=6 - i)
+        completed_d, total_d = await _day_completion(d)
+        weekly_data.append({"date": d.isoformat(), "count": completed_d})
+        weekly_rates.append(round(completed_d / total_d * 100, 1) if total_d > 0 else 0.0)
+
+    # monthly_rates (last 30 days)
+    monthly_rates: list[float] = []
+    monthly_data = []
+    for i in range(30):
+        d = today - timedelta(days=29 - i)
+        completed_d, total_d = await _day_completion(d)
+        monthly_data.append({"date": d.isoformat(), "count": completed_d})
+        monthly_rates.append(round(completed_d / total_d * 100, 1) if total_d > 0 else 0.0)
+
+    # plan_rankings
+    plan_rankings: list[PlanRanking] = []
+    for p in user_plans:
+        if not p.tasks:
+            continue
+        task_ids = [t.id for t in p.tasks]
+        days_active = max((today - p.start_date).days, 1) if p.start_date else 1
+        total_possible = len(task_ids) * days_active
+        done_result = await db.execute(
+            select(func.count(UserPlanTaskRecord.id)).where(
+                UserPlanTaskRecord.task_id.in_(task_ids),
+                UserPlanTaskRecord.user_id == current_user.id,
+                UserPlanTaskRecord.is_completed == True,
+            )
+        )
+        done_count = done_result.scalar() or 0
+        rate = round(done_count / total_possible * 100, 1) if total_possible > 0 else 0.0
+        plan_rankings.append(PlanRanking(
+            plan_id=p.id,
+            plan_name=p.plan_name,
+            completion_rate=rate,
+            completed_count=done_count,
+            total_count=total_possible,
+        ))
+    plan_rankings.sort(key=lambda x: x.completion_rate, reverse=True)
 
     return CheckInStatisticsResponse(
         today_completed=today_completed,
         today_total=today_total,
         today_progress=today_progress,
-        consecutive_days=consecutive,
+        streak_days=streak,
+        consecutive_days=streak,
         weekly_data=weekly_data,
+        monthly_data=monthly_data,
+        weekly_rates=weekly_rates,
+        monthly_rates=monthly_rates,
+        plan_rankings=plan_rankings,
     )

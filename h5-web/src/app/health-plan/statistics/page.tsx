@@ -34,21 +34,27 @@ export default function StatisticsPage() {
   const [timeRange, setTimeRange] = useState<'week' | 'month'>('week');
 
   useEffect(() => {
+    const mapDayData = (items: any[], rates: number[] | null): DayData[] =>
+      (items || []).map((d: any, i: number) => ({
+        date: d.date || '',
+        rate: rates && rates[i] != null ? rates[i] : (d.rate ?? d.count ?? 0),
+      }));
+
     const fetchData = async () => {
       try {
         const res: any = await api.get('/api/health-plan/statistics');
         const raw = res.data || res;
-        const weeklyData = (raw.weekly_data || []).map((d: any) => ({
-          date: d.date,
-          rate: d.count || 0,
-        }));
         setStats({
-          today_completed: raw.today_completed || 0,
-          today_total: raw.today_total || 0,
-          streak_days: raw.consecutive_days || 0,
-          weekly_data: weeklyData,
-          monthly_data: raw.monthly_data || [],
-          plan_ranks: raw.plan_ranks || [],
+          today_completed: raw.today_completed ?? 0,
+          today_total: raw.today_total ?? 0,
+          streak_days: raw.streak_days ?? raw.consecutive_days ?? 0,
+          weekly_data: mapDayData(raw.weekly_data, raw.weekly_rates),
+          monthly_data: mapDayData(raw.monthly_data, raw.monthly_rates),
+          plan_ranks: (raw.plan_rankings || []).map((p: any, i: number) => ({
+            name: p.plan_name || p.name || `计划${i + 1}`,
+            rate: p.completion_rate ?? p.rate ?? 0,
+            color: p.color || RANK_COLORS[i % RANK_COLORS.length],
+          })),
         });
       } catch {
         setStats({
@@ -124,6 +130,37 @@ export default function StatisticsPage() {
       </div>
 
       <div className="px-4 -mt-3">
+        {chartData.length > 0 && (
+          <Card style={{ borderRadius: 12, marginBottom: 12 }}>
+            <div className="flex items-center justify-around text-center">
+              <div>
+                <div className="text-lg font-bold" style={{ color: '#52c41a' }}>
+                  {chartData.length > 0
+                    ? Math.round(chartData.reduce((sum, d) => sum + d.rate, 0) / chartData.length)
+                    : 0}%
+                </div>
+                <div className="text-xs text-gray-400 mt-1">
+                  {timeRange === 'week' ? '本周' : '本月'}平均完成率
+                </div>
+              </div>
+              <div style={{ width: 1, height: 30, background: '#f0f0f0' }} />
+              <div>
+                <div className="text-lg font-bold" style={{ color: '#1890ff' }}>
+                  {chartData.filter((d) => d.rate >= 100).length}
+                </div>
+                <div className="text-xs text-gray-400 mt-1">全部完成天数</div>
+              </div>
+              <div style={{ width: 1, height: 30, background: '#f0f0f0' }} />
+              <div>
+                <div className="text-lg font-bold" style={{ color: '#fa8c16' }}>
+                  {Math.max(...chartData.map((d) => d.rate), 0)}%
+                </div>
+                <div className="text-xs text-gray-400 mt-1">最高完成率</div>
+              </div>
+            </div>
+          </Card>
+        )}
+
         <Card style={{ borderRadius: 12, marginBottom: 12 }}>
           <div className="flex items-center justify-between mb-4">
             <div className="section-title mb-0">完成率趋势</div>
@@ -173,14 +210,25 @@ export default function StatisticsPage() {
                 })}
               </div>
               <div className="flex gap-1 mt-1">
-                {chartData.map((d, i) => (
-                  <div key={i} className="flex-1 text-center text-xs text-gray-400" style={{ fontSize: 10 }}>
-                    {timeRange === 'week'
-                      ? d.date.slice(-2)
-                      : (i % 5 === 0 || i === chartData.length - 1) ? d.date.slice(-2) : ''
+                {chartData.map((d, i) => {
+                  let label = '';
+                  if (timeRange === 'week') {
+                    const WEEKDAY_NAMES = ['日', '一', '二', '三', '四', '五', '六'];
+                    try {
+                      const dayOfWeek = new Date(d.date).getDay();
+                      label = WEEKDAY_NAMES[dayOfWeek] || d.date.slice(-2);
+                    } catch {
+                      label = d.date.slice(-2);
                     }
-                  </div>
-                ))}
+                  } else {
+                    label = (i % 5 === 0 || i === chartData.length - 1) ? d.date.slice(-2) : '';
+                  }
+                  return (
+                    <div key={i} className="flex-1 text-center text-xs text-gray-400" style={{ fontSize: 10 }}>
+                      {label}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}

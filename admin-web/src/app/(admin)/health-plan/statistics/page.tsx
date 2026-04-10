@@ -23,26 +23,27 @@ import {
   TrophyOutlined,
 } from '@ant-design/icons';
 import { get } from '@/lib/api';
-import dayjs, { Dayjs } from 'dayjs';
+import type { Dayjs } from 'dayjs';
 
 const { Title } = Typography;
-const { RangePicker } = DatePicker;
 
 interface StatisticsOverview {
-  active_users: number;
-  average_completion_rate: number;
-  plan_participation: Array<{ plan_name: string; user_count: number }>;
+  total_users: number;
+  today_active_users: number;
+  total_medication_reminders: number;
+  total_checkin_items: number;
+  total_user_plans: number;
+  daily_trend: Array<{ date: string; count: number }>;
 }
 
 interface UserCheckinDetail {
+  type: string;
   user_id: number;
-  username: string;
-  nickname?: string;
-  plan_name: string;
-  plan_type?: string;
-  total_tasks: number;
-  completed_tasks: number;
-  completion_rate: number;
+  record_id: number;
+  source_id: number;
+  check_in_date: string;
+  actual_value?: number;
+  check_in_time?: string;
 }
 
 export default function StatisticsPage() {
@@ -52,7 +53,7 @@ export default function StatisticsPage() {
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
   const [userSearch, setUserSearch] = useState('');
-  const [dateRange, setDateRange] = useState<[Dayjs | null, Dayjs | null] | null>(null);
+  const [checkDate, setCheckDate] = useState<Dayjs | null>(null);
 
   const fetchOverview = useCallback(async () => {
     setOverviewLoading(true);
@@ -72,9 +73,11 @@ export default function StatisticsPage() {
       setDetailsLoading(true);
       try {
         const params: Record<string, unknown> = { page, page_size: pageSize };
-        if (userSearch) params.user_search = userSearch;
-        if (dateRange?.[0]) params.start_date = dateRange[0].format('YYYY-MM-DD');
-        if (dateRange?.[1]) params.end_date = dateRange[1].format('YYYY-MM-DD');
+        if (userSearch) {
+          const parsed = parseInt(userSearch, 10);
+          if (!isNaN(parsed)) params.user_id = parsed;
+        }
+        if (checkDate) params.check_date = checkDate.format('YYYY-MM-DD');
 
         const res = await get<{
           items?: UserCheckinDetail[];
@@ -82,6 +85,7 @@ export default function StatisticsPage() {
           total?: number;
           page?: number;
           page_size?: number;
+          date?: string;
         }>('/api/admin/health-plan/user-checkin-details', params);
 
         const items = res.items ?? res.list ?? [];
@@ -99,7 +103,7 @@ export default function StatisticsPage() {
         setDetailsLoading(false);
       }
     },
-    [userSearch, dateRange]
+    [userSearch, checkDate]
   );
 
   useEffect(() => {
@@ -110,36 +114,36 @@ export default function StatisticsPage() {
     fetchDetails();
   }, [fetchDetails]);
 
-  const getCompletionColor = (rate: number) => {
-    if (rate >= 80) return 'green';
-    if (rate >= 50) return 'orange';
-    return 'red';
+  const typeLabels: Record<string, string> = {
+    medication: '用药打卡',
+    checkin: '健康打卡',
+    plan_task: '计划任务',
   };
 
   const columns = [
+    { title: '用户ID', dataIndex: 'user_id', key: 'user_id', width: 100 },
     {
-      title: '用户',
-      key: 'user',
-      width: 130,
-      render: (_: unknown, record: UserCheckinDetail) => record.nickname || record.username || `用户${record.user_id}`,
-    },
-    { title: '计划名称', dataIndex: 'plan_name', key: 'plan_name' },
-    {
-      title: '计划类型',
-      dataIndex: 'plan_type',
-      key: 'plan_type',
+      title: '类型',
+      dataIndex: 'type',
+      key: 'type',
       width: 100,
+      render: (v: string) => <Tag color={v === 'medication' ? 'orange' : v === 'checkin' ? 'green' : 'blue'}>{typeLabels[v] || v}</Tag>,
+    },
+    { title: '记录ID', dataIndex: 'record_id', key: 'record_id', width: 100 },
+    { title: '来源ID', dataIndex: 'source_id', key: 'source_id', width: 100 },
+    { title: '打卡日期', dataIndex: 'check_in_date', key: 'check_in_date', width: 120 },
+    {
+      title: '实际值',
+      dataIndex: 'actual_value',
+      key: 'actual_value',
+      width: 100,
+      render: (v: number | undefined) => v != null ? v : '-',
+    },
+    {
+      title: '打卡时间',
+      dataIndex: 'check_in_time',
+      key: 'check_in_time',
       render: (v: string | undefined) => v || '-',
-    },
-    { title: '总任务数', dataIndex: 'total_tasks', key: 'total_tasks', width: 100 },
-    { title: '完成数', dataIndex: 'completed_tasks', key: 'completed_tasks', width: 90 },
-    {
-      title: '完成率',
-      dataIndex: 'completion_rate',
-      key: 'completion_rate',
-      width: 100,
-      sorter: (a: UserCheckinDetail, b: UserCheckinDetail) => a.completion_rate - b.completion_rate,
-      render: (v: number) => <Tag color={getCompletionColor(v)}>{v.toFixed(1)}%</Tag>,
     },
   ];
 
@@ -154,8 +158,8 @@ export default function StatisticsPage() {
         <Col xs={24} sm={8}>
           <Card loading={overviewLoading}>
             <Statistic
-              title="活跃用户数"
-              value={overview?.active_users ?? 0}
+              title="今日活跃用户"
+              value={overview?.today_active_users ?? 0}
               prefix={<TeamOutlined />}
               valueStyle={{ color: '#1890ff' }}
             />
@@ -164,10 +168,8 @@ export default function StatisticsPage() {
         <Col xs={24} sm={8}>
           <Card loading={overviewLoading}>
             <Statistic
-              title="平均完成率"
-              value={overview?.average_completion_rate ?? 0}
-              precision={1}
-              suffix="%"
+              title="总用户数"
+              value={overview?.total_users ?? 0}
               prefix={<CheckCircleOutlined />}
               valueStyle={{ color: '#52c41a' }}
             />
@@ -176,8 +178,8 @@ export default function StatisticsPage() {
         <Col xs={24} sm={8}>
           <Card loading={overviewLoading}>
             <Statistic
-              title="参与计划数"
-              value={overview?.plan_participation?.length ?? 0}
+              title="活跃计划数"
+              value={overview?.total_user_plans ?? 0}
               prefix={<TrophyOutlined />}
               valueStyle={{ color: '#faad14' }}
             />
@@ -185,12 +187,33 @@ export default function StatisticsPage() {
         </Col>
       </Row>
 
-      {overview?.plan_participation && overview.plan_participation.length > 0 && (
-        <Card title="各计划参与人数" size="small" style={{ marginBottom: 24 }}>
+      <Row gutter={16} style={{ marginBottom: 24 }}>
+        <Col xs={24} sm={12}>
+          <Card loading={overviewLoading}>
+            <Statistic
+              title="用药提醒数"
+              value={overview?.total_medication_reminders ?? 0}
+              valueStyle={{ color: '#fa8c16' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12}>
+          <Card loading={overviewLoading}>
+            <Statistic
+              title="打卡项数"
+              value={overview?.total_checkin_items ?? 0}
+              valueStyle={{ color: '#13c2c2' }}
+            />
+          </Card>
+        </Col>
+      </Row>
+
+      {overview?.daily_trend && overview.daily_trend.length > 0 && (
+        <Card title="每日打卡趋势" size="small" style={{ marginBottom: 24 }}>
           <Space wrap>
-            {overview.plan_participation.map((p, i) => (
+            {overview.daily_trend.map((d, i) => (
               <Tag key={i} color="blue">
-                {p.plan_name}: {p.user_count} 人
+                {d.date}: {d.count} 次
               </Tag>
             ))}
           </Space>
@@ -201,7 +224,7 @@ export default function StatisticsPage() {
 
       <Space style={{ marginBottom: 16 }} wrap>
         <Input
-          placeholder="搜索用户名/昵称"
+          placeholder="输入用户ID"
           prefix={<SearchOutlined />}
           value={userSearch}
           onChange={(e) => setUserSearch(e.target.value)}
@@ -209,9 +232,10 @@ export default function StatisticsPage() {
           style={{ width: 200 }}
           allowClear
         />
-        <RangePicker
-          value={dateRange as [Dayjs, Dayjs] | null}
-          onChange={(dates) => setDateRange(dates as [Dayjs | null, Dayjs | null] | null)}
+        <DatePicker
+          value={checkDate}
+          onChange={(date) => setCheckDate(date)}
+          placeholder="选择日期"
         />
         <Button type="primary" onClick={() => fetchDetails(1)}>
           查询
@@ -219,7 +243,7 @@ export default function StatisticsPage() {
         <Button
           onClick={() => {
             setUserSearch('');
-            setDateRange(null);
+            setCheckDate(null);
             setTimeout(() => fetchDetails(1), 0);
           }}
         >
@@ -230,7 +254,7 @@ export default function StatisticsPage() {
       <Table
         columns={columns}
         dataSource={details}
-        rowKey={(record) => `${record.user_id}-${record.plan_name}`}
+        rowKey={(record) => `${record.type}-${record.record_id}`}
         loading={detailsLoading}
         pagination={{
           ...pagination,

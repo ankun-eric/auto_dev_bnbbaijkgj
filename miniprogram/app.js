@@ -174,6 +174,7 @@ App({
     currentStore: null,
     merchantProfile: null,
     isLoggedIn: false,
-    fontLevel: ''
+    fontLevel: '',
+    subscribeTemplateIds: []
   }
 });

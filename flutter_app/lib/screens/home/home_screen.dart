@@ -28,9 +28,9 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Map<String, dynamic>> _menus = [];
 
   // Today todos
-  List<Map<String, dynamic>> _todayMedications = [];
-  List<Map<String, dynamic>> _todayCheckins = [];
-  List<Map<String, dynamic>> _todayPlanTasks = [];
+  List<Map<String, dynamic>> _todoGroups = [];
+  int _todoTotalCompleted = 0;
+  int _todoTotalCount = 0;
   bool _todayTodosLoading = false;
 
   final List<Article> _articles = [
@@ -107,9 +107,9 @@ class _HomeScreenState extends State<HomeScreen> {
       if (response.statusCode == 200 && mounted) {
         final data = response.data is Map ? response.data as Map<String, dynamic> : <String, dynamic>{};
         setState(() {
-          _todayMedications = _parseList(data['medications']);
-          _todayCheckins = _parseList(data['checkin_items']);
-          _todayPlanTasks = _parseList(data['plan_tasks']);
+          _todoGroups = _parseList(data['groups']);
+          _todoTotalCompleted = data['total_completed'] ?? 0;
+          _todoTotalCount = data['total_count'] ?? 0;
           _todayTodosLoading = false;
         });
       }
@@ -125,17 +125,11 @@ class _HomeScreenState extends State<HomeScreen> {
     return [];
   }
 
-  Future<void> _handleTodoCheckin(String type, Map<String, dynamic> item) async {
+  Future<void> _handleQuickCheckin(Map<String, dynamic> item) async {
     try {
       final id = item['id'] as int;
-      if (type == 'medication') {
-        await _apiService.checkinMedication(id);
-      } else if (type == 'checkin') {
-        await _apiService.checkinCheckinItem(id, isCompleted: true);
-      } else if (type == 'plan_task') {
-        final planId = item['plan_id'] as int;
-        await _apiService.checkinUserPlanTask(planId, id);
-      }
+      final type = item['type']?.toString() ?? '';
+      await _apiService.quickCheckin(id, type);
       _loadTodayTodos();
     } catch (_) {}
   }
@@ -470,9 +464,13 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildTodayTodos() {
-    final totalCount = _todayMedications.length + _todayCheckins.length + _todayPlanTasks.length;
+  static const _groupTypeConfig = <String, Map<String, dynamic>>{
+    'medication': {'icon': Icons.medication, 'color': Color(0xFFFA8C16)},
+    'checkin': {'icon': Icons.check_circle_outline, 'color': Color(0xFF52C41A)},
+    'custom': {'icon': Icons.flag_outlined, 'color': Color(0xFF1890FF)},
+  };
 
+  Widget _buildTodayTodos() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(16),
@@ -505,6 +503,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(width: 8),
                   const Text('今日待办', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF333333))),
+                  if (_todoTotalCount > 0) ...[
+                    const SizedBox(width: 8),
+                    Text('$_todoTotalCompleted/$_todoTotalCount', style: TextStyle(fontSize: 12, color: Colors.grey[400])),
+                  ],
                 ],
               ),
               GestureDetector(
@@ -524,7 +526,7 @@ class _HomeScreenState extends State<HomeScreen> {
               padding: EdgeInsets.all(12),
               child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF52C41A))),
             ))
-          else if (totalCount == 0)
+          else if (_todoTotalCount == 0)
             Center(
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 12),
@@ -532,44 +534,85 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             )
           else ...[
-            ..._todayMedications.take(2).map((m) => _buildTodoItem(
-              icon: Icons.medication,
-              color: const Color(0xFFFA8C16),
-              title: m['medicine_name']?.toString() ?? '',
-              subtitle: '${m['time_period'] ?? ''} ${m['remind_time'] ?? ''}',
-              done: m['is_checked'] == true,
-              onCheck: () => _handleTodoCheckin('medication', m),
-            )),
-            ..._todayCheckins.take(2).map((c) => _buildTodoItem(
-              icon: Icons.check_circle_outline,
-              color: const Color(0xFF52C41A),
-              title: c['name']?.toString() ?? '',
-              subtitle: c['target_value'] != null ? '目标: ${c['target_value']} ${c['target_unit'] ?? ''}' : '',
-              done: c['is_checked'] == true,
-              onCheck: () => _handleTodoCheckin('checkin', c),
-            )),
-            ..._todayPlanTasks.take(2).map((t) => _buildTodoItem(
-              icon: Icons.flag_outlined,
-              color: const Color(0xFF1890FF),
-              title: t['task_name']?.toString() ?? t['name']?.toString() ?? '',
-              subtitle: t['plan_name']?.toString() ?? '',
-              done: t['is_checked'] == true,
-              onCheck: () => _handleTodoCheckin('plan_task', t),
-            )),
-            if (totalCount > 6)
-              Center(
-                child: GestureDetector(
-                  onTap: () => Navigator.pushNamed(context, '/health-plan'),
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Text('还有 ${totalCount - 6} 项待办...', style: const TextStyle(fontSize: 13, color: Color(0xFF52C41A))),
-                  ),
-                ),
-              ),
+            for (final group in _todoGroups) ..._buildGroupItems(group),
           ],
         ],
       ),
     );
+  }
+
+  List<Widget> _buildGroupItems(Map<String, dynamic> group) {
+    final groupType = group['group_type']?.toString() ?? '';
+    final config = _groupTypeConfig[groupType] ?? _groupTypeConfig['custom']!;
+    final icon = config['icon'] as IconData;
+    final color = config['color'] as Color;
+    final items = _parseList(group['items']);
+    final isEmpty = group['is_empty'] == true || items.isEmpty;
+    final groupName = group['group_name']?.toString() ?? '';
+    final subGroups = _parseList(group['sub_groups']);
+
+    final widgets = <Widget>[];
+
+    if (groupType == 'custom' && subGroups.isNotEmpty) {
+      for (final sg in subGroups) {
+        final sgItems = _parseList(sg['items']);
+        final sgEmpty = sg['is_empty'] == true || sgItems.isEmpty;
+        final sgName = sg['sub_group_name']?.toString() ?? '';
+
+        if (sgEmpty) {
+          widgets.add(_buildTodoItem(
+            icon: icon,
+            color: Colors.grey[300]!,
+            title: sgName,
+            subtitle: '今日无待办',
+            done: false,
+            onCheck: null,
+            greyed: true,
+          ));
+        } else {
+          for (final item in sgItems.take(2)) {
+            final planName = (item['extra'] is Map) ? (item['extra'] as Map)['plan_name']?.toString() ?? '' : '';
+            widgets.add(_buildTodoItem(
+              icon: icon,
+              color: color,
+              title: item['name']?.toString() ?? '',
+              subtitle: '$sgName · $planName'.replaceAll(RegExp(r'^ · | · $'), ''),
+              done: item['is_completed'] == true,
+              onCheck: () => _handleQuickCheckin(item),
+            ));
+          }
+        }
+      }
+    } else if (isEmpty) {
+      widgets.add(_buildTodoItem(
+        icon: icon,
+        color: Colors.grey[300]!,
+        title: groupName,
+        subtitle: '今日无待办',
+        done: false,
+        onCheck: null,
+        greyed: true,
+      ));
+    } else {
+      for (final item in items.take(3)) {
+        String subtitle = '';
+        if (groupType == 'medication') {
+          final extra = item['extra'] is Map ? item['extra'] as Map : {};
+          subtitle = [extra['time_period'] ?? '', item['remind_time'] ?? ''].where((s) => s.toString().isNotEmpty).join(' ');
+        } else if (groupType == 'checkin' && item['target_value'] != null) {
+          subtitle = '目标: ${item['target_value']} ${item['target_unit'] ?? ''}';
+        }
+        widgets.add(_buildTodoItem(
+          icon: icon,
+          color: color,
+          title: item['name']?.toString() ?? '',
+          subtitle: subtitle,
+          done: item['is_completed'] == true,
+          onCheck: () => _handleQuickCheckin(item),
+        ));
+      }
+    }
+    return widgets;
   }
 
   Widget _buildTodoItem({
@@ -578,32 +621,34 @@ class _HomeScreenState extends State<HomeScreen> {
     required String title,
     required String subtitle,
     required bool done,
-    required VoidCallback onCheck,
+    VoidCallback? onCheck,
+    bool greyed = false,
   }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: greyed ? Colors.grey[50] : Colors.white,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
         children: [
-          GestureDetector(
-            onTap: done ? null : onCheck,
-            child: Container(
-              width: 22,
-              height: 22,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: done ? color : Colors.transparent,
-                border: Border.all(color: done ? color : Colors.grey[300]!, width: 2),
+          if (!greyed)
+            GestureDetector(
+              onTap: done ? null : onCheck,
+              child: Container(
+                width: 22,
+                height: 22,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: done ? color : Colors.transparent,
+                  border: Border.all(color: done ? color : Colors.grey[300]!, width: 2),
+                ),
+                child: done ? const Icon(Icons.check, size: 13, color: Colors.white) : null,
               ),
-              child: done ? const Icon(Icons.check, size: 13, color: Colors.white) : null,
             ),
-          ),
-          const SizedBox(width: 10),
-          Icon(icon, color: color, size: 18),
+          if (!greyed) const SizedBox(width: 10),
+          Icon(icon, color: greyed ? Colors.grey[300] : color, size: 18),
           const SizedBox(width: 8),
           Expanded(
             child: Column(
@@ -614,7 +659,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   style: TextStyle(
                     fontSize: 14,
                     decoration: done ? TextDecoration.lineThrough : null,
-                    color: done ? Colors.grey[400] : const Color(0xFF333333),
+                    color: greyed ? Colors.grey[400] : (done ? Colors.grey[400] : const Color(0xFF333333)),
                   ),
                 ),
                 if (subtitle.isNotEmpty)

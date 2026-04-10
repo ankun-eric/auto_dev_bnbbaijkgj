@@ -168,15 +168,33 @@
 .todo-empty-icon { font-size: 64rpx; margin-bottom: 16rpx; }
 .todo-empty-text { font-size: 26rpx; color: #999; margin-bottom: 20rpx; }
 .todo-empty-btn { padding: 12rpx 40rpx; background: #52c41a; color: #fff; border-radius: 32rpx; font-size: 26rpx; }
-.todo-list { margin-top: 12rpx; }
-.todo-item { display: flex; align-items: center; justify-content: space-between; padding: 16rpx 0; border-bottom: 1rpx solid #f5f5f5; }
+
+.todo-groups { margin-top: 8rpx; }
+.todo-group { margin-bottom: 20rpx; }
+.todo-group:last-child { margin-bottom: 0; }
+.todo-group-header { display: flex; align-items: center; justify-content: space-between; padding: 12rpx 0; }
+.todo-group-title-row { display: flex; align-items: center; }
+.todo-group-icon { font-size: 28rpx; margin-right: 8rpx; }
+.todo-group-name { font-size: 26rpx; font-weight: 600; color: #333; }
+.todo-group-count { font-size: 22rpx; color: #999; }
+.todo-group-empty { padding: 16rpx 0; padding-left: 36rpx; }
+.todo-group-empty-text { font-size: 24rpx; color: #ccc; }
+
+.todo-subgroup { margin-bottom: 12rpx; }
+.todo-subgroup:last-child { margin-bottom: 0; }
+.todo-subgroup-header { display: flex; align-items: center; justify-content: space-between; padding: 8rpx 0 8rpx 36rpx; }
+.todo-subgroup-name { font-size: 24rpx; color: #666; font-weight: 500; }
+.todo-subgroup-count { font-size: 20rpx; color: #999; }
+.todo-subgroup-empty-header { opacity: 0.5; }
+.todo-subgroup-empty-tag { font-size: 20rpx; color: #ccc; }
+
+.todo-item { display: flex; align-items: center; justify-content: space-between; padding: 14rpx 0 14rpx 36rpx; border-bottom: 1rpx solid #f9f9f9; }
 .todo-item:last-child { border-bottom: none; }
+.todo-item-done { opacity: 0.6; }
 .todo-left { display: flex; align-items: center; flex: 1; overflow: hidden; }
-.todo-type-badge { width: 56rpx; height: 56rpx; border-radius: 14rpx; display: flex; align-items: center; justify-content: center; margin-right: 16rpx; flex-shrink: 0; font-size: 28rpx; }
-.todo-type-medication { background: rgba(82,196,26,0.12); }
-.todo-type-checkin_item { background: rgba(19,194,194,0.12); }
-.todo-type-plan_task { background: rgba(24,144,255,0.12); }
-.todo-type-default { background: rgba(82,196,26,0.12); }
+.todo-check-circle { width: 40rpx; height: 40rpx; border-radius: 50%; border: 2rpx solid #d9d9d9; display: flex; align-items: center; justify-content: center; margin-right: 16rpx; flex-shrink: 0; }
+.todo-checked { background: #52c41a; border-color: #52c41a; }
+.todo-check-mark { font-size: 22rpx; color: #fff; font-weight: bold; }
 .todo-info { flex: 1; overflow: hidden; }
 .todo-name { font-size: 28rpx; color: #333; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .todo-done { text-decoration: line-through; color: #999; }
@@ -185,6 +203,20 @@
 .todo-checkin-btn { font-size: 24rpx; color: #fff; background: #52c41a; padding: 8rpx 24rpx; border-radius: 24rpx; }
 .todo-action-done { flex-shrink: 0; margin-left: 16rpx; }
 .todo-done-icon { font-size: 28rpx; color: #52c41a; font-weight: bold; }
+
+.todo-footer { padding: 16rpx 0 4rpx; text-align: center; border-top: 1rpx solid #f5f5f5; }
+.todo-footer-text { font-size: 24rpx; color: #52c41a; }
+
+/* 打卡数值输入对话框 */
+.checkin-dialog-mask { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 999; display: flex; align-items: center; justify-content: center; }
+.checkin-dialog { width: 560rpx; background: #fff; border-radius: 24rpx; padding: 40rpx; }
+.checkin-dialog-title { font-size: 30rpx; font-weight: 600; color: #333; display: block; text-align: center; margin-bottom: 12rpx; }
+.checkin-dialog-hint { font-size: 24rpx; color: #999; display: block; text-align: center; margin-bottom: 32rpx; }
+.checkin-dialog-input { border: 2rpx solid #e8e8e8; border-radius: 12rpx; padding: 20rpx 24rpx; font-size: 32rpx; text-align: center; margin-bottom: 32rpx; }
+.checkin-dialog-actions { display: flex; justify-content: space-between; }
+.checkin-dialog-btn { flex: 1; text-align: center; padding: 18rpx 0; border-radius: 36rpx; font-size: 28rpx; }
+.checkin-dialog-cancel { background: #f5f5f5; color: #666; margin-right: 16rpx; }
+.checkin-dialog-confirm { background: #52c41a; color: #fff; }
 
 /* Section header */
 .section-header {
