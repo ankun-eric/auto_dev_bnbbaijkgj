@@ -32,6 +32,66 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api/`
 
+## Latest Update: 健康计划模块 Bug 修复与功能简化 (2026-04-10)
+
+### 概要
+对健康计划模块进行全面 Bug 修复（5 项）和功能优化（12 项），核心目标是简化流程、去除冗余参数、优化中老年用户 H5 交互体验，同时清理管理后台中不再使用的功能。
+
+### Bug 修复
+- **Bug1**: 用药提醒表单——药品名称、用药时段缺少红色 `*` 必填标识
+- **Bug2**: 用药提醒——选择多个用药时段只生成一条记录，改为每个时段生成独立记录
+- **Bug3**: 用药提醒——"添加用药提醒"按钮 `+` 图标与文字未垂直对齐
+- **Bug7**: 健康打卡——"添加打卡项"按钮布局未对齐
+- **Bug9**: 健康打卡——编辑页面内容为空，已有数据未加载
+
+### 功能优化（H5）
+- **需求4/8/14**: 用药提醒、健康打卡、自定义计划——编辑(✏️)/删除(🗑️)按钮外露在记录右侧，保留左滑操作
+- **需求5**: 健康计划首页——删除"AI 为我生成计划"模块
+- **需求6/13**: 健康打卡、自定义计划——去掉"目标值"参数，统一为简单打卡模式
+- **需求10**: 健康打卡——打卡名称/提醒时间/重复频率全部必填 + 红色 `*`
+- **需求11**: 健康打卡 & 用药提醒——时间选择器替换为 antd-mobile Picker 弹出滚轮
+- **需求12**: 自定义计划——去掉模板分类和推荐计划，入口直接显示"我的计划列表"
+
+### 功能优化（管理后台）
+- **需求15**: 删除"推荐计划管理"和"模板分类管理"菜单及对应数据库表（`plan_template_categories`、`recommended_plans`、`recommended_plan_tasks`）
+- **需求16**: 通用任务配置去掉 `target_value`、`target_unit`、`template_category_id` 字段
+- **需求17**: 打卡数据统计增强——新增 `GET /api/admin/health-plan/user-daily-summary` 接口，支持按用户+日期范围查看每日打卡汇总（含展开明细）
+
+### 数据库变更
+- 删除表：`plan_template_categories`、`recommended_plans`、`recommended_plan_tasks`
+- 删除字段：`default_health_tasks` 表中 `target_value`、`target_unit`、`template_category_id`
+
+### 关键文件变更
+
+```text
+h5-web/src/app/health-plan/
+├── page.tsx                        # 删除 AI 生成计划模块
+├── medications/page.tsx            # Bug3 按钮对齐 + 需求4 编辑删除外露
+├── medications/add/page.tsx        # Bug1 必填标识 + Bug2 多时段多记录 + 需求11 Picker
+├── checkin/page.tsx                # 需求6 去目标值 + Bug7 按钮对齐 + 需求8 编辑删除外露
+├── checkin/add/page.tsx            # Bug9 编辑加载 + 需求10 必填 + 需求11 Picker
+├── custom/page.tsx                 # 需求12 直接显示我的计划 + 需求14 编辑删除外露
+├── custom/create/page.tsx          # 需求13 任务去目标值
+└── custom/my-plan/[planId]/page.tsx # 需求13 执行页去目标值
+
+admin-web/src/app/(admin)/
+├── layout.tsx                      # 需求15 删除推荐计划/模板分类菜单
+├── health-plan/default-tasks/page.tsx  # 需求16 去冗余字段
+└── health-plan/statistics/page.tsx     # 需求17 每日打卡汇总UI
+
+backend/app/api/
+├── health_plan_v2.py               # 用药/打卡/计划接口适配
+└── admin_health_plan.py            # 需求17 user-daily-summary API
+
+tests/
+└── test_health_plan_module.py      # 更新测试用例（61项全通过）
+```
+
+### 用户手册
+- `user_docs/健康计划模块Bug修复与功能调整.md`
+
+---
+
 ## Latest Feature: 健康计划 v2 增强（今日待办 / 快速打卡 / 统计 / 通知调度）(2026-04-10)
 
 ### Backend — 模型与服务

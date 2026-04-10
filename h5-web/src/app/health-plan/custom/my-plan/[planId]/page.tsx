@@ -2,18 +2,15 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { NavBar, Card, Button, ProgressBar, SpinLoading, Toast, Tag, Dialog } from 'antd-mobile';
+import { NavBar, Card, Button, ProgressBar, SpinLoading, Toast, Tag } from 'antd-mobile';
 import api from '@/lib/api';
 
 interface PlanTask {
   id: number;
   name: string;
   task_name?: string;
-  target_value: number | null;
-  target_unit: string;
   is_checked: boolean;
   today_completed?: boolean;
-  actual_value: number | null;
 }
 
 interface MyPlanDetail {
@@ -37,8 +34,6 @@ export default function MyPlanExecutionPage() {
 
   const [loading, setLoading] = useState(true);
   const [plan, setPlan] = useState<MyPlanDetail | null>(null);
-  const [inputVisible, setInputVisible] = useState<number | null>(null);
-  const [inputValue, setInputValue] = useState('');
 
   const fetchData = useCallback(async () => {
     try {
@@ -71,23 +66,6 @@ export default function MyPlanExecutionPage() {
     try {
       await api.post(`/api/health-plan/user-plans/${planId}/tasks/${task.id}/checkin`, { actual_value: null });
       Toast.show({ content: '打卡成功', icon: 'success' });
-      fetchData();
-    } catch {
-      Toast.show({ content: '打卡失败', icon: 'fail' });
-    }
-  };
-
-  const handleValueCheck = async (task: PlanTask) => {
-    const val = parseFloat(inputValue);
-    if (isNaN(val) || val < 0) {
-      Toast.show({ content: '请输入有效数值', icon: 'fail' });
-      return;
-    }
-    try {
-      await api.post(`/api/health-plan/user-plans/${planId}/tasks/${task.id}/checkin`, { actual_value: val });
-      Toast.show({ content: '打卡成功', icon: 'success' });
-      setInputVisible(null);
-      setInputValue('');
       fetchData();
     } catch {
       Toast.show({ content: '打卡失败', icon: 'fail' });
@@ -166,13 +144,7 @@ export default function MyPlanExecutionPage() {
           {(!plan.tasks || plan.tasks.length === 0) ? (
             <div className="text-center text-gray-400 text-sm py-4">暂无任务</div>
           ) : (
-            plan.tasks.map((task) => {
-              const hasTarget = task.target_value && task.target_value > 0;
-              const progress = hasTarget
-                ? Math.min(100, Math.round(((task.actual_value || 0) / task.target_value!) * 100))
-                : task.is_checked ? 100 : 0;
-
-              return (
+            plan.tasks.map((task) => (
                 <div key={task.id} className="py-3 border-b border-gray-50 last:border-b-0">
                   <div className="flex items-center">
                     <div
@@ -182,7 +154,7 @@ export default function MyPlanExecutionPage() {
                         background: task.is_checked ? '#52c41a' : 'transparent',
                       }}
                       onClick={() => {
-                        if (!task.is_checked && !hasTarget) handleSimpleCheck(task);
+                        if (!task.is_checked) handleSimpleCheck(task);
                       }}
                     >
                       {task.is_checked && <span className="text-white text-xs">✓</span>}
@@ -191,22 +163,8 @@ export default function MyPlanExecutionPage() {
                       <div className={`text-sm ${task.is_checked ? 'text-gray-400 line-through' : ''}`}>
                         {task.name}
                       </div>
-                      {hasTarget && (
-                        <div className="text-xs text-gray-400 mt-0.5">
-                          {task.actual_value || 0}/{task.target_value}{task.target_unit} ({progress}%)
-                        </div>
-                      )}
                     </div>
-                    {hasTarget && !task.is_checked && (
-                      <Button
-                        size="mini"
-                        style={{ borderRadius: 8, color: '#52c41a', borderColor: '#52c41a' }}
-                        onClick={() => { setInputVisible(task.id); setInputValue(''); }}
-                      >
-                        记录
-                      </Button>
-                    )}
-                    {!hasTarget && !task.is_checked && (
+                    {!task.is_checked && (
                       <Button
                         size="mini"
                         color="primary"
@@ -216,47 +174,12 @@ export default function MyPlanExecutionPage() {
                         打卡
                       </Button>
                     )}
+                    {task.is_checked && (
+                      <span className="text-xs text-gray-400">已完成</span>
+                    )}
                   </div>
-
-                  {hasTarget && (
-                    <div className="ml-8 mt-1">
-                      <ProgressBar
-                        percent={progress}
-                        style={{ '--track-width': '4px', '--fill-color': '#52c41a' }}
-                      />
-                    </div>
-                  )}
-
-                  {inputVisible === task.id && (
-                    <div className="flex items-center mt-2 ml-8 gap-2">
-                      <input
-                        type="number"
-                        value={inputValue}
-                        onChange={(e) => setInputValue(e.target.value)}
-                        placeholder={`输入${task.target_unit || '数值'}`}
-                        className="flex-1 text-sm px-3 py-2 rounded-lg border border-gray-200"
-                        autoFocus
-                      />
-                      <Button
-                        size="mini"
-                        color="primary"
-                        style={{ borderRadius: 8, background: '#52c41a', border: 'none' }}
-                        onClick={() => handleValueCheck(task)}
-                      >
-                        确认
-                      </Button>
-                      <Button
-                        size="mini"
-                        style={{ borderRadius: 8 }}
-                        onClick={() => { setInputVisible(null); setInputValue(''); }}
-                      >
-                        取消
-                      </Button>
-                    </div>
-                  )}
                 </div>
-              );
-            })
+            ))
           )}
         </Card>
       </div>

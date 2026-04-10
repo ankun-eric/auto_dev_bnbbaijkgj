@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { NavBar, Card, SpinLoading, Toast } from 'antd-mobile';
+import { NavBar, Card, SpinLoading } from 'antd-mobile';
 import api from '@/lib/api';
 
 interface PlanCounts {
@@ -89,14 +89,6 @@ export default function HealthPlanPage() {
     fetchData();
   }, []);
 
-  const handleAIGenerate = () => {
-    Toast.show({ content: 'AI正在为您生成个性化健康计划...', icon: 'loading' });
-    setTimeout(() => {
-      const sessionId = `plan-${Date.now()}`;
-      router.push(`/chat/${sessionId}?type=health&msg=${encodeURIComponent('请根据我的健康档案为我制定一份个性化的健康计划')}`);
-    }, 1000);
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -112,30 +104,7 @@ export default function HealthPlanPage() {
     <div className="min-h-screen bg-gray-50 pb-20">
       <NavBar onBack={() => router.back()} style={{ background: '#fff' }}>健康计划</NavBar>
 
-      <div className="px-4 py-5" style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}>
-        <div className="text-white text-center">
-          <div className="text-lg font-bold mb-1">AI 健康计划</div>
-          <div className="text-xs opacity-80 mb-4">根据您的健康档案，智能生成专属健康方案</div>
-        </div>
-        <div
-          onClick={handleAIGenerate}
-          className="flex items-center justify-center py-3 rounded-xl cursor-pointer"
-          style={{
-            background: 'rgba(255,255,255,0.95)',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-          }}
-        >
-          <span className="text-xl mr-2">🤖</span>
-          <span className="text-base font-bold" style={{ color: '#52c41a' }}>AI 为我生成计划</span>
-        </div>
-        {counts && counts.total_count > 0 && (
-          <div className="flex items-center justify-center mt-3 text-white text-xs opacity-80">
-            今日待办 {counts.completed_count}/{counts.total_count} 已完成
-          </div>
-        )}
-      </div>
-
-      <div className="px-4 -mt-3">
+      <div className="px-4 pt-4">
         {categories.map((cat) => (
           <Card
             key={cat.key}

@@ -1,30 +1,18 @@
 'use client';
 
-import { Suspense, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { NavBar, Form, Input, Button, Toast, TextArea, Stepper, Switch, SpinLoading } from 'antd-mobile';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { NavBar, Form, Input, Button, Toast, TextArea, Stepper, Switch } from 'antd-mobile';
 import { AddOutline, CloseOutline } from 'antd-mobile-icons';
 import api from '@/lib/api';
 
 interface TaskItem {
   tempId: string;
   name: string;
-  target_value: string;
-  target_unit: string;
 }
 
 export default function CreateCustomPlanPage() {
-  return (
-    <Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center"><SpinLoading color="primary" /></div>}>
-      <CreateCustomPlanContent />
-    </Suspense>
-  );
-}
-
-function CreateCustomPlanContent() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const categoryId = searchParams.get('categoryId') || '';
 
   const [submitting, setSubmitting] = useState(false);
   const [name, setName] = useState('');
@@ -32,11 +20,11 @@ function CreateCustomPlanContent() {
   const [isInfinite, setIsInfinite] = useState(false);
   const [durationDays, setDurationDays] = useState(30);
   const [tasks, setTasks] = useState<TaskItem[]>([
-    { tempId: '1', name: '', target_value: '', target_unit: '' },
+    { tempId: '1', name: '' },
   ]);
 
   const addTask = () => {
-    setTasks([...tasks, { tempId: String(Date.now()), name: '', target_value: '', target_unit: '' }]);
+    setTasks([...tasks, { tempId: String(Date.now()), name: '' }]);
   };
 
   const removeTask = (tempId: string) => {
@@ -65,14 +53,11 @@ function CreateCustomPlanContent() {
     setSubmitting(true);
     try {
       await api.post('/api/health-plan/user-plans', {
-        category_id: categoryId ? parseInt(categoryId) : null,
         plan_name: name.trim(),
         description: description.trim(),
         duration_days: isInfinite ? null : durationDays,
         tasks: validTasks.map((t, idx) => ({
           task_name: t.name.trim(),
-          target_value: t.target_value ? parseFloat(t.target_value) : null,
-          target_unit: t.target_unit.trim() || null,
           sort_order: idx,
         })),
       });
@@ -168,24 +153,8 @@ function CreateCustomPlanContent() {
                 placeholder="任务名称（必填）"
                 value={task.name}
                 onChange={(val) => updateTask(task.tempId, 'name', val)}
-                className="mb-2"
                 style={{ '--font-size': '14px' } as React.CSSProperties}
               />
-              <div className="flex gap-2">
-                <Input
-                  type="number"
-                  placeholder="目标值"
-                  value={task.target_value}
-                  onChange={(val) => updateTask(task.tempId, 'target_value', val)}
-                  style={{ flex: 2, '--font-size': '13px' } as React.CSSProperties}
-                />
-                <Input
-                  placeholder="单位"
-                  value={task.target_unit}
-                  onChange={(val) => updateTask(task.tempId, 'target_unit', val)}
-                  style={{ flex: 1, '--font-size': '13px' } as React.CSSProperties}
-                />
-              </div>
             </div>
           ))}
         </div>

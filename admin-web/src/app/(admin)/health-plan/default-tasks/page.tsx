@@ -31,18 +31,10 @@ interface DefaultTaskItem {
   id: number;
   name: string;
   description: string | null;
-  target_value: number | null;
-  target_unit: string | null;
   category_type: string | null;
-  template_category_id: number | null;
   sort_order: number;
   is_active: boolean;
   created_at: string | null;
-}
-
-interface CategoryOption {
-  id: number;
-  name: string;
 }
 
 const categoryTypeOptions = [
@@ -56,23 +48,11 @@ const categoryTypeOptions = [
 
 export default function DefaultTasksPage() {
   const [data, setData] = useState<DefaultTaskItem[]>([]);
-  const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [modalLoading, setModalLoading] = useState(false);
   const [editingItem, setEditingItem] = useState<DefaultTaskItem | null>(null);
   const [form] = Form.useForm();
-
-  const fetchCategories = useCallback(async () => {
-    try {
-      const res = await get<{ items?: CategoryOption[]; list?: CategoryOption[] }>(
-        '/api/admin/health-plan/template-categories'
-      );
-      setCategories(res.items ?? res.list ?? []);
-    } catch {
-      /* ignore */
-    }
-  }, []);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -90,9 +70,8 @@ export default function DefaultTasksPage() {
   }, []);
 
   useEffect(() => {
-    fetchCategories();
     fetchData();
-  }, [fetchCategories, fetchData]);
+  }, [fetchData]);
 
   const openCreate = () => {
     setEditingItem(null);
@@ -106,10 +85,7 @@ export default function DefaultTasksPage() {
     form.setFieldsValue({
       name: item.name,
       description: item.description,
-      target_value: item.target_value,
-      target_unit: item.target_unit,
       category_type: item.category_type,
-      template_category_id: item.template_category_id,
       sort_order: item.sort_order,
       is_active: item.is_active,
     });
@@ -156,12 +132,6 @@ export default function DefaultTasksPage() {
     return opt?.label || type;
   };
 
-  const getCategoryName = (id: number | null) => {
-    if (!id) return '-';
-    const cat = categories.find((c) => c.id === id);
-    return cat?.name || '-';
-  };
-
   const columns = [
     { title: 'ID', dataIndex: 'id', key: 'id', width: 70 },
     { title: '任务名称', dataIndex: 'name', key: 'name' },
@@ -173,20 +143,6 @@ export default function DefaultTasksPage() {
       render: (v: string | null) => v || '-',
     },
     {
-      title: '目标值',
-      dataIndex: 'target_value',
-      key: 'target_value',
-      width: 90,
-      render: (v: number | null) => v ?? '-',
-    },
-    {
-      title: '单位',
-      dataIndex: 'target_unit',
-      key: 'target_unit',
-      width: 80,
-      render: (v: string | null) => v || '-',
-    },
-    {
       title: '分类类型',
       dataIndex: 'category_type',
       key: 'category_type',
@@ -195,12 +151,6 @@ export default function DefaultTasksPage() {
         const name = getCategoryTypeName(v);
         return name !== '-' ? <Tag>{name}</Tag> : '-';
       },
-    },
-    {
-      title: '归属模板分类',
-      key: 'template_category',
-      width: 120,
-      render: (_: unknown, record: DefaultTaskItem) => getCategoryName(record.template_category_id),
     },
     { title: '排序', dataIndex: 'sort_order', key: 'sort_order', width: 80 },
     {
@@ -271,21 +221,8 @@ export default function DefaultTasksPage() {
           <Form.Item label="描述" name="description">
             <TextArea placeholder="请输入任务描述" rows={2} maxLength={500} />
           </Form.Item>
-          <Form.Item label="目标值" name="target_value">
-            <InputNumber min={0} style={{ width: '100%' }} placeholder="如：8000" />
-          </Form.Item>
-          <Form.Item label="单位" name="target_unit">
-            <Input placeholder="如：步、杯、分钟" maxLength={50} />
-          </Form.Item>
           <Form.Item label="分类类型" name="category_type">
             <Select placeholder="请选择分类类型" allowClear options={categoryTypeOptions} />
-          </Form.Item>
-          <Form.Item label="归属模板分类" name="template_category_id">
-            <Select
-              placeholder="请选择归属模板分类"
-              allowClear
-              options={categories.map((c) => ({ label: c.name, value: c.id }))}
-            />
           </Form.Item>
           <Form.Item label="排序值" name="sort_order">
             <InputNumber min={0} max={9999} style={{ width: '100%' }} placeholder="数字越小越靠前" />

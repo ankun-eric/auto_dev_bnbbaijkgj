@@ -2,16 +2,13 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { NavBar, Card, Button, Dialog, Toast, SpinLoading, ProgressBar, SwipeAction } from 'antd-mobile';
+import { NavBar, Card, Button, Dialog, Toast, SpinLoading, SwipeAction } from 'antd-mobile';
 import { AddOutline } from 'antd-mobile-icons';
 import api from '@/lib/api';
 
 interface CheckinItem {
   id: number;
   name: string;
-  target_value: number | null;
-  target_unit: string;
-  actual_value: number | null;
   is_checked: boolean;
   remind_time: string | null;
   repeat_frequency: string;
@@ -22,8 +19,6 @@ export default function CheckinPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<CheckinItem[]>([]);
-  const [inputVisible, setInputVisible] = useState<number | null>(null);
-  const [inputValue, setInputValue] = useState('');
 
   const fetchData = useCallback(async () => {
     try {
@@ -54,23 +49,6 @@ export default function CheckinPage() {
     }
   };
 
-  const handleValueCheck = async (item: CheckinItem) => {
-    const val = parseFloat(inputValue);
-    if (isNaN(val) || val < 0) {
-      Toast.show({ content: '请输入有效数值', icon: 'fail' });
-      return;
-    }
-    try {
-      await api.post(`/api/health-plan/checkin-items/${item.id}/checkin`, { actual_value: val });
-      Toast.show({ content: '打卡成功', icon: 'success' });
-      setInputVisible(null);
-      setInputValue('');
-      fetchData();
-    } catch {
-      Toast.show({ content: '打卡失败', icon: 'fail' });
-    }
-  };
-
   const handleDelete = async (item: CheckinItem) => {
     const confirmed = await Dialog.confirm({ content: `确定删除「${item.name}」吗？` });
     if (confirmed) {
@@ -82,11 +60,6 @@ export default function CheckinPage() {
         Toast.show({ content: '删除失败', icon: 'fail' });
       }
     }
-  };
-
-  const getProgress = (item: CheckinItem): number => {
-    if (!item.target_value || item.target_value <= 0) return item.is_checked ? 100 : 0;
-    return Math.min(100, Math.round(((item.actual_value || 0) / item.target_value) * 100));
   };
 
   if (loading) {
@@ -126,114 +99,71 @@ export default function CheckinPage() {
             </Button>
           </Card>
         ) : (
-          items.map((item) => {
-            const progress = getProgress(item);
-            const hasTarget = item.target_value && item.target_value > 0;
-            return (
-              <SwipeAction
-                key={item.id}
-                rightActions={[
-                  {
-                    key: 'edit',
-                    text: '编辑',
-                    color: 'primary',
-                    onClick: () => router.push(`/health-plan/checkin/add?id=${item.id}`),
-                  },
-                  {
-                    key: 'delete',
-                    text: '删除',
-                    color: 'danger',
-                    onClick: () => handleDelete(item),
-                  },
-                ]}
-              >
-                <Card style={{ borderRadius: 12, marginBottom: 12 }}>
-                  <div className="flex items-start">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="font-medium text-sm">{item.name}</span>
-                        {hasTarget && (
-                          <span className="text-xs text-gray-400">
-                            目标: {item.target_value}{item.target_unit}
-                          </span>
-                        )}
-                      </div>
-
-                      {hasTarget ? (
-                        <>
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-xs text-gray-500">
-                              已完成: {item.actual_value || 0}{item.target_unit}
-                            </span>
-                            <span className="text-xs" style={{ color: '#52c41a' }}>{progress}%</span>
-                          </div>
-                          <ProgressBar
-                            percent={progress}
-                            style={{ '--track-width': '6px', '--fill-color': '#52c41a' }}
-                          />
-                          {inputVisible === item.id ? (
-                            <div className="flex items-center mt-2 gap-2">
-                              <input
-                                type="number"
-                                value={inputValue}
-                                onChange={(e) => setInputValue(e.target.value)}
-                                placeholder={`输入${item.target_unit || '数值'}`}
-                                className="flex-1 text-sm px-3 py-2 rounded-lg border border-gray-200"
-                                autoFocus
-                              />
-                              <Button
-                                size="mini"
-                                color="primary"
-                                style={{ borderRadius: 8, background: '#52c41a', border: 'none' }}
-                                onClick={() => handleValueCheck(item)}
-                              >
-                                确认
-                              </Button>
-                              <Button
-                                size="mini"
-                                style={{ borderRadius: 8 }}
-                                onClick={() => { setInputVisible(null); setInputValue(''); }}
-                              >
-                                取消
-                              </Button>
-                            </div>
-                          ) : (
-                            <Button
-                              size="mini"
-                              style={{ marginTop: 8, borderRadius: 8, color: '#52c41a', borderColor: '#52c41a' }}
-                              onClick={() => { setInputVisible(item.id); setInputValue(''); }}
-                            >
-                              记录数值
-                            </Button>
-                          )}
-                        </>
-                      ) : (
-                        <div className="flex items-center justify-between mt-2">
-                          <span className={`text-xs ${item.is_checked ? 'text-green-500' : 'text-gray-400'}`}>
-                            {item.is_checked ? '✅ 已完成' : '⬜ 未完成'}
-                          </span>
-                          {!item.is_checked && (
-                            <Button
-                              size="mini"
-                              color="primary"
-                              style={{ borderRadius: 8, background: '#52c41a', border: 'none' }}
-                              onClick={() => handleSimpleCheck(item)}
-                            >
-                              打卡
-                            </Button>
-                          )}
-                        </div>
-                      )}
-
+          items.map((item) => (
+            <SwipeAction
+              key={item.id}
+              rightActions={[
+                {
+                  key: 'edit',
+                  text: '编辑',
+                  color: 'primary',
+                  onClick: () => router.push(`/health-plan/checkin/add?id=${item.id}`),
+                },
+                {
+                  key: 'delete',
+                  text: '删除',
+                  color: 'danger',
+                  onClick: () => handleDelete(item),
+                },
+              ]}
+            >
+              <Card style={{ borderRadius: 12, marginBottom: 12 }}>
+                <div className="flex items-center">
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-sm truncate">{item.name}</div>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className={`text-xs ${item.is_checked ? 'text-green-500' : 'text-gray-400'}`}>
+                        {item.is_checked ? '✅ 已完成' : '⬜ 未完成'}
+                      </span>
                       {item.remind_time && (
-                        <div className="text-xs text-gray-400 mt-2">⏰ 提醒: {item.remind_time}</div>
+                        <span className="text-xs text-gray-400">⏰ {item.remind_time}</span>
                       )}
                     </div>
                   </div>
-                </Card>
-              </SwipeAction>
-            );
-          })
+                  <div className="flex items-center gap-2 ml-3 flex-shrink-0">
+                    <span
+                      className="text-base cursor-pointer"
+                      style={{ padding: 4 }}
+                      onClick={() => router.push(`/health-plan/checkin/add?id=${item.id}`)}
+                    >✏️</span>
+                    <span
+                      className="text-base cursor-pointer"
+                      style={{ padding: 4 }}
+                      onClick={() => handleDelete(item)}
+                    >🗑️</span>
+                    {item.is_checked ? (
+                      <Button
+                        size="mini"
+                        disabled
+                        style={{ borderRadius: 8, background: '#f0f0f0', color: '#999', border: 'none' }}
+                      >
+                        已完成
+                      </Button>
+                    ) : (
+                      <Button
+                        size="mini"
+                        color="primary"
+                        style={{ borderRadius: 8, background: '#52c41a', border: 'none' }}
+                        onClick={() => handleSimpleCheck(item)}
+                      >
+                        打卡
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </Card>
+            </SwipeAction>
+          ))
         )}
       </div>
 
@@ -245,7 +175,9 @@ export default function CheckinPage() {
           style={{ borderRadius: 12, background: 'linear-gradient(135deg, #52c41a, #73d13d)', border: 'none', height: 48 }}
           onClick={() => router.push('/health-plan/checkin/add')}
         >
-          <AddOutline /> 添加打卡项
+          <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+            <AddOutline /> 添加打卡项
+          </span>
         </Button>
       </div>
     </div>

@@ -216,6 +216,56 @@ class TestMedicationCRUD:
         assert r.status_code == 401
 
 
+class TestMedicationMultiPeriod:
+    """Bug 2: selecting multiple time periods should create one record per period."""
+
+    def test_multi_period_creates_multiple_records(self, session, user_headers):
+        tag = _uid()
+        periods = ["早上", "中午", "晚上"]
+        created_ids = []
+        for period in periods:
+            r = session.post(
+                f"{BASE_URL}/api/health-plan/medications",
+                headers=user_headers,
+                json={
+                    "medicine_name": f"MultiMed_{tag}",
+                    "dosage": "1片",
+                    "time_period": period,
+                    "remind_time": "08:00",
+                },
+                timeout=TIMEOUT,
+            )
+            assert r.status_code == 200, f"Create for period {period} failed: {r.text}"
+            data = r.json()
+            assert "id" in data
+            created_ids.append(data["id"])
+
+        assert len(created_ids) == 3, f"Expected 3 records, got {len(created_ids)}"
+        assert len(set(created_ids)) == 3, "All record IDs should be unique"
+
+        r = session.get(
+            f"{BASE_URL}/api/health-plan/medications",
+            headers=user_headers,
+            timeout=TIMEOUT,
+        )
+        assert r.status_code == 200
+        groups = r.json().get("groups", {})
+        found = 0
+        for period_items in groups.values():
+            if isinstance(period_items, list):
+                for item in period_items:
+                    if item.get("medicine_name") == f"MultiMed_{tag}":
+                        found += 1
+        assert found >= 3, f"Expected >=3 matching meds in list, found {found}"
+
+        for mid in created_ids:
+            session.delete(
+                f"{BASE_URL}/api/health-plan/medications/{mid}",
+                headers=user_headers,
+                timeout=TIMEOUT,
+            )
+
+
 # ══════════════════════════════════════════
 #  2. 健康打卡 CRUD
 # ══════════════════════════════════════════
@@ -231,8 +281,6 @@ class TestCheckInItemCRUD:
             headers=user_headers,
             json={
                 "name": f"步数_{tag}",
-                "target_value": 8000,
-                "target_unit": "步",
                 "repeat_frequency": "daily",
             },
             timeout=TIMEOUT,
@@ -261,7 +309,7 @@ class TestCheckInItemCRUD:
         r = session.put(
             f"{BASE_URL}/api/health-plan/checkin-items/{item_id}",
             headers=user_headers,
-            json={"name": f"更新步数_{tag}", "target_value": 10000},
+            json={"name": f"更新步数_{tag}"},
             timeout=TIMEOUT,
         )
         assert r.status_code == 200
@@ -423,8 +471,8 @@ class TestTemplateCategoriesAndPlans:
                 "description": "autotest plan",
                 "duration_days": 14,
                 "tasks": [
-                    {"task_name": "跑步", "target_value": 5, "target_unit": "公里", "sort_order": 0},
-                    {"task_name": "喝水", "target_value": 2000, "target_unit": "ml", "sort_order": 1},
+                    {"task_name": "跑步", "sort_order": 0},
+                    {"task_name": "喝水", "sort_order": 1},
                 ],
             },
             timeout=TIMEOUT,
@@ -579,7 +627,7 @@ class TestTodayTodosAndStatistics:
         cr = session.post(
             f"{BASE_URL}/api/health-plan/checkin-items",
             headers=user_headers,
-            json={"name": f"QuickCI_{tag}", "target_value": 5000, "target_unit": "步"},
+            json={"name": f"QuickCI_{tag}", "repeat_frequency": "daily"},
             timeout=TIMEOUT,
         )
         assert cr.status_code == 200
@@ -799,6 +847,53 @@ class TestAdminAPIs:
             headers=admin_headers,
             timeout=TIMEOUT,
         )
+
+    def test_admin_user_daily_summary(self, session, admin_headers):
+        r = session.get(
+            f"{BASE_URL}/api/admin/health-plan/user-daily-summary",
+            headers=admin_headers,
+            timeout=TIMEOUT,
+        )
+        assert r.status_code == 200, r.text
+        data = r.json()
+        assert "daily_data" in data, "Missing field: daily_data"
+        assert "users" in data, "Missing field: users"
+        assert isinstance(data["daily_data"], list)
+        assert isinstance(data["users"], list)
+        if data["daily_data"]:
+            day = data["daily_data"][0]
+            for field in ["date", "total_expected", "total_completed", "completion_rate", "details"]:
+                assert field in day, f"Missing daily_data field: {field}"
+
+    def test_admin_user_daily_summary_with_filters(self, session, admin_headers):
+        from datetime import date, timedelta
+        today = date.today()
+        start = (today - timedelta(days=3)).isoformat()
+        end = today.isoformat()
+        r = session.get(
+            f"{BASE_URL}/api/admin/health-plan/user-daily-summary",
+            headers=admin_headers,
+            params={"start_date": start, "end_date": end},
+            timeout=TIMEOUT,
+        )
+        assert r.status_code == 200, r.text
+        data = r.json()
+        assert len(data["daily_data"]) <= 4
+
+    def test_admin_user_daily_summary_unauth(self, session):
+        r = session.get(
+            f"{BASE_URL}/api/admin/health-plan/user-daily-summary",
+            timeout=TIMEOUT,
+        )
+        assert r.status_code == 401
+
+    def test_admin_user_daily_summary_with_user_token(self, session, user_headers):
+        r = session.get(
+            f"{BASE_URL}/api/admin/health-plan/user-daily-summary",
+            headers=user_headers,
+            timeout=TIMEOUT,
+        )
+        assert r.status_code == 403
 
     def test_admin_default_task_crud(self, session, admin_headers):
         tag = _uid()

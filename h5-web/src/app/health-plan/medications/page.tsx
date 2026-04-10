@@ -203,6 +203,22 @@ export default function MedicationsPage() {
                       {item.is_checked && (
                         <span className="text-xs text-green-500 ml-2">已服用</span>
                       )}
+                      <div className="flex items-center gap-1 ml-2 shrink-0" onClick={(e) => e.stopPropagation()}>
+                        <div
+                          className="w-8 h-8 flex items-center justify-center rounded-full"
+                          style={{ background: '#1890ff15' }}
+                          onClick={() => router.push(`/health-plan/medications/add?id=${item.id}`)}
+                        >
+                          <span style={{ fontSize: 14 }}>✏️</span>
+                        </div>
+                        <div
+                          className="w-8 h-8 flex items-center justify-center rounded-full"
+                          style={{ background: '#ff4d4f15' }}
+                          onClick={() => handleDelete(item)}
+                        >
+                          <span style={{ fontSize: 14 }}>🗑️</span>
+                        </div>
+                      </div>
                     </div>
                   </SwipeAction>
                 ))}
@@ -220,7 +236,9 @@ export default function MedicationsPage() {
           style={{ borderRadius: 12, background: 'linear-gradient(135deg, #fa8c16, #f5af19)', border: 'none', height: 48 }}
           onClick={() => router.push('/health-plan/medications/add')}
         >
-          <AddOutline /> 添加用药提醒
+          <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+            <AddOutline /> 添加用药提醒
+          </span>
         </Button>
       </div>
     </div>

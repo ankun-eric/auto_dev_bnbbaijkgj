@@ -2,30 +2,31 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  Button,
   Card,
   Col,
   DatePicker,
-  Input,
   Row,
+  Select,
   Space,
   Statistic,
   Table,
   Tag,
   Typography,
+  Button,
   message,
 } from 'antd';
 import {
   BarChartOutlined,
-  SearchOutlined,
   TeamOutlined,
   CheckCircleOutlined,
   TrophyOutlined,
 } from '@ant-design/icons';
 import { get } from '@/lib/api';
 import type { Dayjs } from 'dayjs';
+import dayjs from 'dayjs';
 
 const { Title } = Typography;
+const { RangePicker } = DatePicker;
 
 interface StatisticsOverview {
   total_users: number;
@@ -36,24 +37,35 @@ interface StatisticsOverview {
   daily_trend: Array<{ date: string; count: number }>;
 }
 
-interface UserCheckinDetail {
+interface DailyDetail {
+  name: string;
   type: string;
-  user_id: number;
-  record_id: number;
-  source_id: number;
-  check_in_date: string;
-  actual_value?: number;
-  check_in_time?: string;
+  is_completed: boolean;
+  check_time: string | null;
+}
+
+interface DailySummaryItem {
+  date: string;
+  total_expected: number;
+  total_completed: number;
+  completion_rate: number;
+  details: DailyDetail[];
+}
+
+interface UserOption {
+  id: number;
+  phone: string | null;
+  nickname: string | null;
 }
 
 export default function StatisticsPage() {
   const [overview, setOverview] = useState<StatisticsOverview | null>(null);
   const [overviewLoading, setOverviewLoading] = useState(false);
-  const [details, setDetails] = useState<UserCheckinDetail[]>([]);
-  const [detailsLoading, setDetailsLoading] = useState(false);
-  const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
-  const [userSearch, setUserSearch] = useState('');
-  const [checkDate, setCheckDate] = useState<Dayjs | null>(null);
+  const [dailyData, setDailyData] = useState<DailySummaryItem[]>([]);
+  const [dailyLoading, setDailyLoading] = useState(false);
+  const [users, setUsers] = useState<UserOption[]>([]);
+  const [selectedUserId, setSelectedUserId] = useState<number | undefined>(undefined);
+  const [dateRange, setDateRange] = useState<[Dayjs, Dayjs] | null>(null);
 
   const fetchOverview = useCallback(async () => {
     setOverviewLoading(true);
@@ -68,51 +80,36 @@ export default function StatisticsPage() {
     }
   }, []);
 
-  const fetchDetails = useCallback(
-    async (page = 1, pageSize = 10) => {
-      setDetailsLoading(true);
-      try {
-        const params: Record<string, unknown> = { page, page_size: pageSize };
-        if (userSearch) {
-          const parsed = parseInt(userSearch, 10);
-          if (!isNaN(parsed)) params.user_id = parsed;
-        }
-        if (checkDate) params.check_date = checkDate.format('YYYY-MM-DD');
-
-        const res = await get<{
-          items?: UserCheckinDetail[];
-          list?: UserCheckinDetail[];
-          total?: number;
-          page?: number;
-          page_size?: number;
-          date?: string;
-        }>('/api/admin/health-plan/user-checkin-details', params);
-
-        const items = res.items ?? res.list ?? [];
-        setDetails(items);
-        setPagination((prev) => ({
-          ...prev,
-          current: res.page ?? page,
-          pageSize: res.page_size ?? pageSize,
-          total: res.total ?? items.length,
-        }));
-      } catch (e: unknown) {
-        const err = e as { response?: { data?: { detail?: string } }; message?: string };
-        message.error(err?.response?.data?.detail || err?.message || '加载打卡明细失败');
-      } finally {
-        setDetailsLoading(false);
+  const fetchDailySummary = useCallback(async () => {
+    setDailyLoading(true);
+    try {
+      const params: Record<string, unknown> = {};
+      if (selectedUserId) params.user_id = selectedUserId;
+      if (dateRange) {
+        params.start_date = dateRange[0].format('YYYY-MM-DD');
+        params.end_date = dateRange[1].format('YYYY-MM-DD');
       }
-    },
-    [userSearch, checkDate]
-  );
+      const res = await get<{ daily_data: DailySummaryItem[]; users: UserOption[] }>(
+        '/api/admin/health-plan/user-daily-summary',
+        params,
+      );
+      setDailyData(res.daily_data ?? []);
+      if (res.users) setUsers(res.users);
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { detail?: string } }; message?: string };
+      message.error(err?.response?.data?.detail || err?.message || '加载每日汇总失败');
+    } finally {
+      setDailyLoading(false);
+    }
+  }, [selectedUserId, dateRange]);
 
   useEffect(() => {
     fetchOverview();
   }, [fetchOverview]);
 
   useEffect(() => {
-    fetchDetails();
-  }, [fetchDetails]);
+    fetchDailySummary();
+  }, [fetchDailySummary]);
 
   const typeLabels: Record<string, string> = {
     medication: '用药打卡',
@@ -120,32 +117,68 @@ export default function StatisticsPage() {
     plan_task: '计划任务',
   };
 
-  const columns = [
-    { title: '用户ID', dataIndex: 'user_id', key: 'user_id', width: 100 },
+  const summaryColumns = [
+    { title: '日期', dataIndex: 'date', key: 'date', width: 120 },
+    { title: '应打卡数', dataIndex: 'total_expected', key: 'total_expected', width: 110 },
+    { title: '已完成数', dataIndex: 'total_completed', key: 'total_completed', width: 110 },
+    {
+      title: '完成率',
+      dataIndex: 'completion_rate',
+      key: 'completion_rate',
+      width: 110,
+      render: (v: number) => {
+        const color = v >= 80 ? 'green' : v >= 50 ? 'orange' : 'red';
+        return <Tag color={color}>{v}%</Tag>;
+      },
+    },
+    {
+      title: '明细条数',
+      key: 'detail_count',
+      width: 100,
+      render: (_: unknown, record: DailySummaryItem) => record.details.length,
+    },
+  ];
+
+  const detailColumns = [
+    { title: '项目名称', dataIndex: 'name', key: 'name' },
     {
       title: '类型',
       dataIndex: 'type',
       key: 'type',
       width: 100,
-      render: (v: string) => <Tag color={v === 'medication' ? 'orange' : v === 'checkin' ? 'green' : 'blue'}>{typeLabels[v] || v}</Tag>,
+      render: (v: string) => (
+        <Tag color={v === 'medication' ? 'orange' : v === 'checkin' ? 'green' : 'blue'}>
+          {typeLabels[v] || v}
+        </Tag>
+      ),
     },
-    { title: '记录ID', dataIndex: 'record_id', key: 'record_id', width: 100 },
-    { title: '来源ID', dataIndex: 'source_id', key: 'source_id', width: 100 },
-    { title: '打卡日期', dataIndex: 'check_in_date', key: 'check_in_date', width: 120 },
     {
-      title: '实际值',
-      dataIndex: 'actual_value',
-      key: 'actual_value',
+      title: '是否完成',
+      dataIndex: 'is_completed',
+      key: 'is_completed',
       width: 100,
-      render: (v: number | undefined) => v != null ? v : '-',
+      render: (v: boolean) => (
+        <Tag color={v ? 'green' : 'default'}>{v ? '已完成' : '未完成'}</Tag>
+      ),
     },
     {
       title: '打卡时间',
-      dataIndex: 'check_in_time',
-      key: 'check_in_time',
-      render: (v: string | undefined) => v || '-',
+      dataIndex: 'check_time',
+      key: 'check_time',
+      width: 180,
+      render: (v: string | null) => v || '-',
     },
   ];
+
+  const expandedRowRender = (record: DailySummaryItem) => (
+    <Table
+      columns={detailColumns}
+      dataSource={record.details}
+      rowKey={(item, index) => `${record.date}-${item.type}-${item.name}-${index}`}
+      pagination={false}
+      size="small"
+    />
+  );
 
   return (
     <div>
@@ -220,31 +253,38 @@ export default function StatisticsPage() {
         </Card>
       )}
 
-      <Title level={5} style={{ marginBottom: 16 }}>用户打卡明细</Title>
+      <Title level={5} style={{ marginBottom: 16 }}>每日打卡汇总</Title>
 
       <Space style={{ marginBottom: 16 }} wrap>
-        <Input
-          placeholder="输入用户ID"
-          prefix={<SearchOutlined />}
-          value={userSearch}
-          onChange={(e) => setUserSearch(e.target.value)}
-          onPressEnter={() => fetchDetails(1)}
-          style={{ width: 200 }}
+        <Select
+          showSearch
+          allowClear
+          placeholder="选择用户"
+          value={selectedUserId}
+          onChange={(val) => setSelectedUserId(val)}
+          style={{ width: 240 }}
+          filterOption={(input, option) =>
+            (option?.label as string ?? '').toLowerCase().includes(input.toLowerCase())
+          }
+          options={users.map((u) => ({
+            label: `${u.nickname || '未设置昵称'} (${u.phone || u.id})`,
+            value: u.id,
+          }))}
+        />
+        <RangePicker
+          value={dateRange}
+          onChange={(dates) => {
+            setDateRange(dates as [Dayjs, Dayjs] | null);
+          }}
           allowClear
         />
-        <DatePicker
-          value={checkDate}
-          onChange={(date) => setCheckDate(date)}
-          placeholder="选择日期"
-        />
-        <Button type="primary" onClick={() => fetchDetails(1)}>
+        <Button type="primary" onClick={() => fetchDailySummary()}>
           查询
         </Button>
         <Button
           onClick={() => {
-            setUserSearch('');
-            setCheckDate(null);
-            setTimeout(() => fetchDetails(1), 0);
+            setSelectedUserId(undefined);
+            setDateRange(null);
           }}
         >
           重置
@@ -252,18 +292,13 @@ export default function StatisticsPage() {
       </Space>
 
       <Table
-        columns={columns}
-        dataSource={details}
-        rowKey={(record) => `${record.type}-${record.record_id}`}
-        loading={detailsLoading}
-        pagination={{
-          ...pagination,
-          showSizeChanger: true,
-          showQuickJumper: true,
-          showTotal: (total) => `共 ${total} 条`,
-          onChange: (page, pageSize) => fetchDetails(page, pageSize),
-        }}
-        scroll={{ x: 700 }}
+        columns={summaryColumns}
+        dataSource={dailyData}
+        rowKey="date"
+        loading={dailyLoading}
+        expandable={{ expandedRowRender }}
+        pagination={false}
+        scroll={{ x: 600 }}
       />
     </div>
   );

@@ -579,3 +579,109 @@ async def admin_user_checkin_details(
     paged = details[start:end]
 
     return {"items": paged, "total": total, "page": page, "page_size": page_size, "date": target_date.isoformat()}
+
+
+@router.get("/user-daily-summary")
+async def admin_user_daily_summary(
+    user_id: Optional[int] = None,
+    start_date: Optional[date] = None,
+    end_date: Optional[date] = None,
+    current_user: User = Depends(require_role("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    """按用户+日期范围查看打卡汇总"""
+    end = end_date or date.today()
+    start = start_date or (end - timedelta(days=6))
+
+    users_result = await db.execute(select(User.id, User.phone, User.nickname))
+    all_users = [{"id": r[0], "phone": r[1], "nickname": r[2]} for r in users_result.all()]
+
+    daily_data = []
+    current = start
+    while current <= end:
+        med_query = select(MedicationReminder).where(MedicationReminder.status == "active")
+        if user_id:
+            med_query = med_query.where(MedicationReminder.user_id == user_id)
+        med_result = await db.execute(med_query)
+        med_reminders = med_result.scalars().all()
+
+        med_checkin_query = select(MedicationCheckIn).where(MedicationCheckIn.check_in_date == current)
+        if user_id:
+            med_checkin_query = med_checkin_query.where(MedicationCheckIn.user_id == user_id)
+        med_checkin_result = await db.execute(med_checkin_query)
+        med_checkins = med_checkin_result.scalars().all()
+        med_checked_ids = {c.reminder_id for c in med_checkins}
+
+        ci_query = select(HealthCheckInItem).where(HealthCheckInItem.status == "active")
+        if user_id:
+            ci_query = ci_query.where(HealthCheckInItem.user_id == user_id)
+        ci_result = await db.execute(ci_query)
+        ci_items = ci_result.scalars().all()
+
+        ci_record_query = select(HealthCheckInRecord).where(
+            HealthCheckInRecord.check_in_date == current,
+            HealthCheckInRecord.is_completed == True,
+        )
+        if user_id:
+            ci_record_query = ci_record_query.where(HealthCheckInRecord.user_id == user_id)
+        ci_record_result = await db.execute(ci_record_query)
+        ci_records = ci_record_result.scalars().all()
+        ci_completed_ids = {r.item_id for r in ci_records}
+
+        plan_task_query = select(UserPlanTask).join(UserPlan).where(UserPlan.status == "active")
+        if user_id:
+            plan_task_query = plan_task_query.where(UserPlanTask.user_id == user_id)
+        plan_task_result = await db.execute(plan_task_query)
+        plan_tasks = plan_task_result.scalars().all()
+
+        plan_record_query = select(UserPlanTaskRecord).where(
+            UserPlanTaskRecord.check_in_date == current,
+            UserPlanTaskRecord.is_completed == True,
+        )
+        if user_id:
+            plan_record_query = plan_record_query.where(UserPlanTaskRecord.user_id == user_id)
+        plan_record_result = await db.execute(plan_record_query)
+        plan_records = plan_record_result.scalars().all()
+        plan_completed_ids = {r.task_id for r in plan_records}
+
+        total_expected = len(med_reminders) + len(ci_items) + len(plan_tasks)
+        total_completed = len(med_checked_ids) + len(ci_completed_ids) + len(plan_completed_ids)
+
+        details = []
+        for m in med_reminders:
+            details.append({
+                "name": m.medicine_name,
+                "type": "medication",
+                "is_completed": m.id in med_checked_ids,
+                "check_time": next((c.check_in_time.isoformat() for c in med_checkins if c.reminder_id == m.id), None),
+            })
+        for ci in ci_items:
+            record = next((r for r in ci_records if r.item_id == ci.id), None)
+            details.append({
+                "name": ci.name,
+                "type": "checkin",
+                "is_completed": ci.id in ci_completed_ids,
+                "check_time": record.check_in_time.isoformat() if record and record.check_in_time else None,
+            })
+        for pt in plan_tasks:
+            record = next((r for r in plan_records if r.task_id == pt.id), None)
+            details.append({
+                "name": pt.task_name,
+                "type": "plan_task",
+                "is_completed": pt.id in plan_completed_ids,
+                "check_time": record.check_in_time.isoformat() if record and record.check_in_time else None,
+            })
+
+        completion_rate = round((total_completed / total_expected * 100), 1) if total_expected > 0 else 0
+
+        daily_data.append({
+            "date": current.isoformat(),
+            "total_expected": total_expected,
+            "total_completed": total_completed,
+            "completion_rate": completion_rate,
+            "details": details,
+        })
+
+        current += timedelta(days=1)
+
+    return {"daily_data": daily_data, "users": all_users}

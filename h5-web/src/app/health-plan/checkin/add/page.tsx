@@ -2,7 +2,7 @@
 
 import { Suspense, useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { NavBar, Form, Input, Button, Toast, SpinLoading } from 'antd-mobile';
+import { NavBar, Form, Input, Button, Toast, SpinLoading, Picker } from 'antd-mobile';
 import api from '@/lib/api';
 
 const FREQ_OPTIONS = [
@@ -20,6 +20,16 @@ const WEEKDAYS = [
   { value: 6, label: '六' },
   { value: 0, label: '日' },
 ];
+
+const TIME_HOUR_COL = Array.from({ length: 24 }, (_, i) => {
+  const v = String(i).padStart(2, '0');
+  return { label: v, value: v };
+});
+const TIME_MINUTE_COL = Array.from({ length: 60 }, (_, i) => {
+  const v = String(i).padStart(2, '0');
+  return { label: v, value: v };
+});
+const TIME_PICKER_COLUMNS = [TIME_HOUR_COL, TIME_MINUTE_COL];
 
 export default function CheckinAddPage() {
   return (
@@ -39,11 +49,10 @@ function CheckinAddContent() {
   const [submitting, setSubmitting] = useState(false);
 
   const [name, setName] = useState('');
-  const [targetValue, setTargetValue] = useState('');
-  const [targetUnit, setTargetUnit] = useState('');
   const [remindTime, setRemindTime] = useState('');
   const [frequency, setFrequency] = useState('daily');
   const [customDays, setCustomDays] = useState<number[]>([]);
+  const [timePickerVisible, setTimePickerVisible] = useState(false);
 
   useEffect(() => {
     if (!editId) return;
@@ -52,8 +61,6 @@ function CheckinAddContent() {
         const res: any = await api.get(`/api/health-plan/checkin-items/${editId}`);
         const data = res.data || res;
         setName(data.name || '');
-        setTargetValue(data.target_value ? String(data.target_value) : '');
-        setTargetUnit(data.target_unit || '');
         const times = Array.isArray(data.remind_times) ? data.remind_times : [];
         setRemindTime(times[0] || data.remind_time || '');
         setFrequency(data.repeat_frequency || data.frequency || 'daily');
@@ -78,13 +85,19 @@ function CheckinAddContent() {
       Toast.show({ content: '请输入打卡名称', icon: 'fail' });
       return;
     }
+    if (!remindTime) {
+      Toast.show({ content: '请选择提醒时间', icon: 'fail' });
+      return;
+    }
+    if (frequency === 'custom' && customDays.length === 0) {
+      Toast.show({ content: '请选择重复日期', icon: 'fail' });
+      return;
+    }
 
     setSubmitting(true);
     try {
       const payload: any = {
         name: name.trim(),
-        target_value: targetValue ? parseFloat(targetValue) : null,
-        target_unit: targetUnit.trim() || null,
         remind_times: remindTime ? [remindTime] : null,
         repeat_frequency: frequency,
         custom_days: frequency === 'custom' ? customDays : null,
@@ -118,6 +131,12 @@ function CheckinAddContent() {
     );
   }
 
+  const pickerValue = (() => {
+    if (!remindTime) return ['08', '00'];
+    const [h = '00', m = '00'] = remindTime.split(':');
+    return [h.padStart(2, '0'), m.padStart(2, '0')];
+  })();
+
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
       <NavBar onBack={() => router.back()} style={{ background: '#fff' }}>
@@ -128,7 +147,7 @@ function CheckinAddContent() {
         <div className="card">
           <div className="section-title">打卡信息</div>
           <Form layout="vertical">
-            <Form.Item label="打卡名称" required>
+            <Form.Item label={<span><span style={{ color: 'red' }}>*</span> 打卡名称</span>} required>
               <Input
                 placeholder="如：喝水、冥想、跑步"
                 value={name}
@@ -136,38 +155,19 @@ function CheckinAddContent() {
                 clearable
               />
             </Form.Item>
-            <Form.Item label="目标值" help="不填则为简单完成/未完成打卡">
-              <div className="flex gap-2">
-                <Input
-                  type="number"
-                  placeholder="如：2000"
-                  value={targetValue}
-                  onChange={setTargetValue}
-                  clearable
-                  style={{ flex: 2 }}
-                />
-                <Input
-                  placeholder="单位(ml/步/分钟)"
-                  value={targetUnit}
-                  onChange={setTargetUnit}
-                  clearable
-                  style={{ flex: 1 }}
-                />
+            <Form.Item label={<span><span style={{ color: 'red' }}>*</span> 提醒时间</span>} required>
+              <div
+                className="w-full text-sm px-3 py-2 rounded-lg border border-gray-200 bg-white cursor-pointer"
+                onClick={() => setTimePickerVisible(true)}
+              >
+                {remindTime ? remindTime : <span className="text-gray-400">请选择提醒时间</span>}
               </div>
-            </Form.Item>
-            <Form.Item label="提醒时间">
-              <input
-                type="time"
-                value={remindTime}
-                onChange={(e) => setRemindTime(e.target.value)}
-                className="w-full text-sm px-3 py-2 rounded-lg border border-gray-200"
-              />
             </Form.Item>
           </Form>
         </div>
 
         <div className="card">
-          <div className="section-title">重复频率</div>
+          <div className="section-title"><span style={{ color: 'red' }}>*</span> 重复频率</div>
           <div className="flex gap-2 mb-3">
             {FREQ_OPTIONS.map((opt) => (
               <div
@@ -207,6 +207,20 @@ function CheckinAddContent() {
           )}
         </div>
       </div>
+
+      <Picker
+        columns={TIME_PICKER_COLUMNS}
+        visible={timePickerVisible}
+        title="选择提醒时间"
+        value={pickerValue}
+        onClose={() => setTimePickerVisible(false)}
+        onCancel={() => setTimePickerVisible(false)}
+        onConfirm={(val) => {
+          const [h, m] = val as string[];
+          setRemindTime(`${h}:${m}`);
+          setTimePickerVisible(false);
+        }}
+      />
 
       <div className="fixed bottom-0 left-0 right-0 p-4 bg-white" style={{ maxWidth: 750, margin: '0 auto', boxShadow: '0 -2px 8px rgba(0,0,0,0.06)', paddingBottom: 'calc(16px + env(safe-area-inset-bottom))' }}>
         <Button

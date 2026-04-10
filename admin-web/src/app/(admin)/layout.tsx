@@ -133,8 +133,6 @@ const menuItems: MenuItem[] = [
     icon: <ScheduleOutlined />,
     label: '健康计划管理',
     children: [
-      { key: '/health-plan/recommended', label: '推荐计划管理' },
-      { key: '/health-plan/categories', label: '模板分类管理' },
       { key: '/health-plan/default-tasks', label: '通用任务配置' },
       { key: '/health-plan/statistics', label: '打卡数据统计' },
     ],
