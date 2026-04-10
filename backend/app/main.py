@@ -15,6 +15,7 @@ from app.api import (
     bottom_nav,
     chat,
     chat_history,
+    city,
     content,
     cos,
     customer_service,
@@ -56,6 +57,11 @@ async def lifespan(app: FastAPI):
         await sync_register_schema(conn)
     from app.init_data import init_default_data
     await init_default_data()
+    from app.init_cities import init_cities
+    from app.core.database import async_session
+    async with async_session() as db:
+        await init_cities(db)
+        await db.commit()
     from app.services.notification_scheduler import init_scheduler, shutdown_scheduler
     init_scheduler()
     yield
@@ -116,6 +122,8 @@ app.include_router(search.router)
 app.include_router(admin_search.router)
 app.include_router(health_plan_v2.router)
 app.include_router(admin_health_plan.router)
+app.include_router(city.router)
+app.include_router(city.admin_router)
 
 os.makedirs("uploads", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")

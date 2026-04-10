@@ -43,7 +43,8 @@
     "pages/store-select/index",
     "pages/no-permission/index",
     "pages/search/index",
-    "pages/search-result/index"
+    "pages/search-result/index",
+    "pages/city-select/index"
   ],
   "window": {
     "navigationBarTextStyle": "black",

@@ -21,6 +21,37 @@
   margin-left: auto;
 }
 
+.city-selector {
+  display: flex;
+  align-items: center;
+  max-width: 160rpx;
+  flex-shrink: 0;
+}
+
+.city-name {
+  font-size: 28rpx;
+  color: #333;
+  font-weight: 500;
+  max-width: 120rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.city-arrow {
+  font-size: 18rpx;
+  color: #999;
+  margin-left: 4rpx;
+}
+
+.search-divider {
+  width: 2rpx;
+  height: 32rpx;
+  background: #e0e0e0;
+  margin: 0 16rpx;
+  flex-shrink: 0;
+}
+
 .search-input {
   flex: 1;
   display: flex;

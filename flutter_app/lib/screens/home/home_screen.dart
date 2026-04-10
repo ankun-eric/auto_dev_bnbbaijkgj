@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../providers/font_provider.dart';
 import '../../models/article.dart';
@@ -26,6 +27,11 @@ class _HomeScreenState extends State<HomeScreen> {
   int _gridColumns = 3;
   List<Map<String, dynamic>> _banners = [];
   List<Map<String, dynamic>> _menus = [];
+
+  // City location
+  String? _cityName;
+  String? _cityId;
+  bool _cityLocating = false;
 
   // Today todos
   List<Map<String, dynamic>> _todoGroups = [];
@@ -59,6 +65,34 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _loadData();
     _loadTodayTodos();
+    _loadCityInfo();
+  }
+
+  Future<void> _loadCityInfo() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedName = prefs.getString('selected_city_name');
+    final savedId = prefs.getString('selected_city_id');
+    if (savedName != null && savedName.isNotEmpty) {
+      if (mounted) setState(() { _cityName = savedName; _cityId = savedId; });
+      return;
+    }
+
+    final locatedName = prefs.getString('located_city_name');
+    final locatedTime = prefs.getInt('located_city_time') ?? 0;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    if (locatedName != null && locatedName.isNotEmpty && (now - locatedTime) < 30 * 60 * 1000) {
+      if (mounted) setState(() { _cityName = locatedName; _cityId = prefs.getString('located_city_id'); });
+    }
+  }
+
+  Future<void> _onCitySelected() async {
+    final result = await Navigator.pushNamed(context, '/city-select');
+    if (result is Map<String, dynamic> && mounted) {
+      setState(() {
+        _cityName = result['name']?.toString();
+        _cityId = result['id']?.toString();
+      });
+    }
   }
 
   Future<void> _loadData() async {
@@ -224,6 +258,12 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  String get _cityDisplayText {
+    if (_cityName != null && _cityName!.isNotEmpty) return _cityName!;
+    if (_cityLocating) return '定位中...';
+    return '定位';
+  }
+
   Widget _buildAppBar() {
     return SliverAppBar(
       expandedHeight: 0,
@@ -231,30 +271,60 @@ class _HomeScreenState extends State<HomeScreen> {
       pinned: true,
       backgroundColor: const Color(0xFF52C41A),
       title: _searchVisible
-          ? GestureDetector(
-              onTap: () => Navigator.pushNamed(context, '/search'),
-              child: Container(
-                height: 38,
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(19),
+          ? Row(
+              children: [
+                GestureDetector(
+                  onTap: _onCitySelected,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 72),
+                        child: Text(
+                          _cityDisplayText,
+                          style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
+                      ),
+                      const Icon(Icons.arrow_drop_down, color: Colors.white, size: 20),
+                    ],
+                  ),
                 ),
-                child: Row(
-                  children: [
-                    const SizedBox(width: 14),
-                    Icon(Icons.search, color: Colors.white.withOpacity(0.8), size: 20),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        _searchPlaceholder,
-                        style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 14),
-                        overflow: TextOverflow.ellipsis,
+                Container(
+                  width: 1,
+                  height: 18,
+                  margin: const EdgeInsets.symmetric(horizontal: 8),
+                  color: Colors.white.withOpacity(0.3),
+                ),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => Navigator.pushNamed(context, '/search'),
+                    child: Container(
+                      height: 34,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(17),
+                      ),
+                      child: Row(
+                        children: [
+                          const SizedBox(width: 12),
+                          Icon(Icons.search, color: Colors.white.withOpacity(0.8), size: 18),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              _searchPlaceholder,
+                              style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 13),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                        ],
                       ),
                     ),
-                    const SizedBox(width: 14),
-                  ],
+                  ),
                 ),
-              ),
+              ],
             )
           : const Text('宾尼小康', style: TextStyle(color: Colors.white, fontSize: 18)),
       actions: [

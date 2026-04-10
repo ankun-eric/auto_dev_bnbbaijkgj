@@ -39,6 +39,9 @@ Page({
     menuItems: DEFAULT_MENUS,
     homeConfig: DEFAULT_CONFIG,
     gridColumnWidth: '33.33%',
+    cityName: '定位',
+    cityId: null,
+    locating: false,
     todoGroups: [],
     todoTotalCompleted: 0,
     todoTotalCount: 0,
@@ -64,8 +67,13 @@ Page({
     loading: false
   },
 
+  onLoad() {
+    this.tryGPSLocate();
+  },
+
   onShow() {
     syncTabBar(this, '/pages/home/index');
+    this.loadSelectedCity();
     if (!this.syncRoleState()) return;
     this.loadCurrentModeData();
   },
@@ -316,6 +324,60 @@ Page({
         wx.switchTab({ url: '/pages/home/index' });
       }
     });
+  },
+
+  loadSelectedCity() {
+    const savedId = wx.getStorageSync('selected_city_id');
+    const savedName = wx.getStorageSync('selected_city_name');
+    if (savedId && savedName) {
+      this.setData({ cityId: savedId, cityName: savedName });
+    }
+  },
+
+  tryGPSLocate() {
+    const cached = wx.getStorageSync('gps_city_cache');
+    if (cached && cached.expire > Date.now()) {
+      if (!wx.getStorageSync('selected_city_id')) {
+        this.setData({ cityId: cached.id, cityName: cached.name });
+      }
+      return;
+    }
+
+    this.setData({ locating: true });
+    wx.getLocation({
+      type: 'gcj02',
+      success: (res) => {
+        this.locateByCoords(res.longitude, res.latitude);
+      },
+      fail: () => {
+        this.setData({ locating: false });
+        if (!this.data.cityId) {
+          this.setData({ cityName: '定位' });
+        }
+      }
+    });
+  },
+
+  async locateByCoords(lng, lat) {
+    try {
+      const res = await get('/api/cities/locate', { lng, lat }, { showLoading: false, suppressErrorToast: true });
+      const city = res && res.city ? res.city : res;
+      if (city && city.id && city.name) {
+        const cacheData = { id: city.id, name: city.name, expire: Date.now() + 30 * 60 * 1000 };
+        wx.setStorageSync('gps_city_cache', cacheData);
+        if (!wx.getStorageSync('selected_city_id')) {
+          this.setData({ cityId: city.id, cityName: city.name });
+        }
+      }
+    } catch (e) {
+      // keep current city state
+    } finally {
+      this.setData({ locating: false });
+    }
+  },
+
+  onCityTap() {
+    wx.navigateTo({ url: '/pages/city-select/index' });
   },
 
   onSearchTap() {

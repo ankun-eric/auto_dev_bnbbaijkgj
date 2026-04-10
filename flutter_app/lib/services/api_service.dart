@@ -684,6 +684,34 @@ class ApiService {
     }
   }
 
+  // City
+  Future<Map<String, dynamic>> getCityList({String? keyword}) async {
+    final response = await _dio.get(
+      ApiConfig.cityList,
+      queryParameters: keyword != null ? {'keyword': keyword} : null,
+    );
+    return response.data is Map<String, dynamic>
+        ? response.data as Map<String, dynamic>
+        : {};
+  }
+
+  Future<Map<String, dynamic>> getHotCities() async {
+    final response = await _dio.get(ApiConfig.cityHot);
+    return response.data is Map<String, dynamic>
+        ? response.data as Map<String, dynamic>
+        : {};
+  }
+
+  Future<Map<String, dynamic>> locateCity(double lng, double lat) async {
+    final response = await _dio.get(
+      ApiConfig.cityLocate,
+      queryParameters: {'lng': lng, 'lat': lat},
+    );
+    return response.data is Map<String, dynamic>
+        ? response.data as Map<String, dynamic>
+        : {};
+  }
+
   // Home dynamic config
   Future<Map<String, dynamic>> getHomeConfig() async {
     final response = await _dio.get(ApiConfig.homeConfig);

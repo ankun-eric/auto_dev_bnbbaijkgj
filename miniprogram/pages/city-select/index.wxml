@@ -1,0 +1,65 @@
+<view class="city-select-page">
+  <!-- 搜索框 -->
+  <view class="search-bar">
+    <view class="search-wrap">
+      <text class="search-icon">🔍</text>
+      <input class="search-input" placeholder="搜索城市" value="{{keyword}}" bindinput="onSearchInput" confirm-type="search" />
+      <text class="search-clear" wx:if="{{keyword}}" bindtap="onClearSearch">✕</text>
+    </view>
+  </view>
+
+  <!-- 搜索结果 -->
+  <view class="search-results" wx:if="{{keyword && searchResults.length > 0}}">
+    <view class="city-item" wx:for="{{searchResults}}" wx:key="id" bindtap="onSelectCity" data-city="{{item}}">
+      <text class="city-item-name">{{item.name}}</text>
+    </view>
+  </view>
+  <view class="search-empty" wx:if="{{keyword && searchResults.length === 0 && !searching}}">
+    <text class="empty-text">未找到相关城市</text>
+  </view>
+
+  <!-- 主内容区 -->
+  <scroll-view class="city-content" scroll-y scroll-into-view="{{scrollToId}}" scroll-with-animation wx:if="{{!keyword}}">
+    <!-- GPS 定位城市 -->
+    <view class="section">
+      <text class="section-label">GPS定位</text>
+      <view class="gps-row" bindtap="onSelectGPSCity">
+        <text class="gps-city">{{gpsCity || '定位中...'}}</text>
+        <text class="gps-reload" wx:if="{{!locating}}" catchtap="onRelocate">重新定位</text>
+      </view>
+    </view>
+
+    <!-- 最近访问 -->
+    <view class="section" wx:if="{{recentCities.length > 0}}">
+      <text class="section-label">最近访问</text>
+      <view class="tag-list">
+        <view class="city-tag" wx:for="{{recentCities}}" wx:key="id" bindtap="onSelectCity" data-city="{{item}}">
+          <text>{{item.name}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 热门城市 -->
+    <view class="section" wx:if="{{hotCities.length > 0}}">
+      <text class="section-label">热门城市</text>
+      <view class="hot-grid">
+        <view class="hot-item" wx:for="{{hotCities}}" wx:key="id" bindtap="onSelectCity" data-city="{{item}}">
+          <text>{{item.name}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 全国城市 A-Z 分组 -->
+    <view class="section" wx:for="{{cityGroups}}" wx:key="letter" id="letter-{{item.letter}}">
+      <text class="section-label section-letter">{{item.letter}}</text>
+      <view class="city-item" wx:for="{{item.cities}}" wx:for-item="city" wx:key="id" bindtap="onSelectCity" data-city="{{city}}">
+        <text class="city-item-name">{{city.name}}</text>
+      </view>
+    </view>
+  </scroll-view>
+
+  <!-- 右侧字母索引 -->
+  <view class="letter-index" wx:if="{{!keyword}}">
+    <text class="letter-item" wx:for="{{letters}}" wx:key="*this" bindtap="onLetterTap" data-letter="{{item}}">{{item}}</text>
+  </view>
+</view>

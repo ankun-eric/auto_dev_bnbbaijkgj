@@ -2,6 +2,7 @@ import enum
 from datetime import date, datetime
 
 from sqlalchemy import (
+    DECIMAL,
     JSON,
     Boolean,
     Column,
@@ -1836,3 +1837,24 @@ class NotificationLog(Base):
     created_at = mapped_column(DateTime, default=datetime.utcnow)
 
     user = relationship("User")
+
+
+# ──────────────── 城市定位 ────────────────
+
+
+class City(Base):
+    __tablename__ = "cities"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(50), nullable=False, comment="城市名称(如北京市)")
+    short_name = Column(String(20), nullable=False, comment="城市简称(如北京)")
+    pinyin = Column(String(100), nullable=False, comment="拼音(如beijing)")
+    first_letter = Column(String(1), nullable=False, comment="拼音首字母(如B)")
+    province = Column(String(50), nullable=False, comment="所属省份")
+    longitude = Column(DECIMAL(10, 6), nullable=True, comment="城市中心经度")
+    latitude = Column(DECIMAL(10, 6), nullable=True, comment="城市中心纬度")
+    is_hot = Column(Boolean, default=False, comment="是否热门城市")
+    hot_sort = Column(Integer, default=0, comment="热门排序(越小越靠前)")
+    is_active = Column(Boolean, default=True, comment="是否启用")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

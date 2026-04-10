@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Swiper, Grid, List, Tag, Badge, NoticeBar, SpinLoading, Toast, Dialog, Button } from 'antd-mobile';
 import { useHomeConfig, HomeBanner, HomeMenu } from '@/lib/useHomeConfig';
 import api from '@/lib/api';
+import { getSelectedCity, getLocationCache, requestGeolocation, CityInfo } from '@/lib/cityUtils';
 
 interface NoticeItem {
   id: number;
@@ -79,6 +80,8 @@ function handleLink(
   }
 }
 
+type CityStatus = 'idle' | 'locating' | 'located' | 'failed';
+
 export default function HomePage() {
   const router = useRouter();
 
@@ -87,6 +90,10 @@ export default function HomePage() {
   const [todosLoading, setTodosLoading] = useState(true);
   const [inputVisible, setInputVisible] = useState<number | null>(null);
   const [inputValue, setInputValue] = useState('');
+
+  const [cityDisplay, setCityDisplay] = useState('定位');
+  const [cityStatus, setCityStatus] = useState<CityStatus>('idle');
+  const cityInitRef = useRef(false);
 
   const fetchTodos = useCallback(async () => {
     try {
@@ -119,6 +126,66 @@ export default function HomePage() {
     fetchNotices();
     fetchTodos();
   }, [fetchTodos]);
+
+  const refreshCityDisplay = useCallback(() => {
+    const selected = getSelectedCity();
+    if (selected) {
+      setCityDisplay(selected.name);
+      setCityStatus('located');
+      return;
+    }
+    const cached = getLocationCache();
+    if (cached) {
+      setCityDisplay(cached.name);
+      setCityStatus('located');
+      return;
+    }
+    setCityDisplay('定位');
+    setCityStatus('idle');
+  }, []);
+
+  useEffect(() => {
+    refreshCityDisplay();
+
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === 'selected_city_name' || e.key === 'selected_city_id') {
+        refreshCityDisplay();
+      }
+    };
+    window.addEventListener('storage', onStorage);
+
+    const onFocus = () => refreshCityDisplay();
+    window.addEventListener('focus', onFocus);
+
+    return () => {
+      window.removeEventListener('storage', onStorage);
+      window.removeEventListener('focus', onFocus);
+    };
+  }, [refreshCityDisplay]);
+
+  useEffect(() => {
+    if (cityInitRef.current) return;
+    cityInitRef.current = true;
+
+    const selected = getSelectedCity();
+    if (selected) return;
+
+    setCityStatus('locating');
+    setCityDisplay('定位中...');
+    requestGeolocation().then((city) => {
+      if (getSelectedCity()) {
+        refreshCityDisplay();
+        return;
+      }
+      if (city) {
+        setCityDisplay(city.name);
+        setCityStatus('located');
+      } else {
+        setCityDisplay('定位');
+        setCityStatus('failed');
+      }
+    });
+  }, [refreshCityDisplay]);
 
   const handleQuickCheck = async (item: TodoItem) => {
     if (item.is_completed) return;
@@ -190,19 +257,45 @@ export default function HomePage() {
         </div>
         {config.search_visible && (
           <div
-            className="flex items-center px-4 cursor-pointer"
+            className="flex items-center"
             style={{
               height: 36,
               borderRadius: 20,
               background: 'rgba(255,255,255,0.9)',
             }}
-            onClick={() => router.push('/search')}
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="11" cy="11" r="8" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
-            <span className="ml-2 text-sm text-gray-400">搜索文章、视频、服务、商品</span>
+            <div
+              className="flex items-center shrink-0 pl-3 pr-2"
+              style={{
+                cursor: cityStatus === 'locating' ? 'default' : 'pointer',
+                maxWidth: 90,
+              }}
+              onClick={() => {
+                if (cityStatus === 'locating') return;
+                router.push('/city-select');
+              }}
+            >
+              <span
+                className="text-sm font-medium truncate"
+                style={{ color: '#333', maxWidth: 64, display: 'inline-block' }}
+              >
+                {cityDisplay.length > 4 ? cityDisplay.slice(0, 4) + '…' : cityDisplay}
+              </span>
+              {cityStatus !== 'locating' && (
+                <span className="text-xs ml-0.5" style={{ color: '#999' }}>▼</span>
+              )}
+            </div>
+            <div style={{ width: 1, height: 16, background: '#ddd' }} />
+            <div
+              className="flex-1 flex items-center px-3 cursor-pointer"
+              onClick={() => router.push('/search')}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+              <span className="ml-2 text-sm text-gray-400">搜索文章、视频、服务、商品</span>
+            </div>
           </div>
         )}
       </div>

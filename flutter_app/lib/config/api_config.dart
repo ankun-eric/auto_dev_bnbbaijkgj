@@ -151,4 +151,9 @@ class ApiConfig {
   static const String homeConfig = '/api/home-config';
   static const String homeMenus = '/api/home-menus';
   static const String homeBanners = '/api/home-banners';
+
+  // City
+  static const String cityList = '/api/cities/list';
+  static const String cityHot = '/api/cities/hot';
+  static const String cityLocate = '/api/cities/locate';
 }

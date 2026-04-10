@@ -48,6 +48,7 @@ import 'screens/notifications/notifications_screen.dart';
 import 'screens/customer_service/cs_screen.dart';
 import 'screens/search/search_screen.dart';
 import 'screens/search/search_result_screen.dart';
+import 'screens/city/city_select_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -199,6 +200,7 @@ class BiniHealthApp extends StatelessWidget {
           '/customer-service': (context) => const CsScreen(),
           '/search': (context) => const SearchScreen(),
           '/search-result': (context) => const SearchResultScreen(),
+          '/city-select': (context) => const CitySelectScreen(),
         },
       ),
     );

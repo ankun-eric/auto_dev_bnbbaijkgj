@@ -27,6 +27,7 @@ import {
   HomeOutlined,
   HeartOutlined,
   ScheduleOutlined,
+  EnvironmentOutlined,
 } from '@ant-design/icons';
 import { useRouter, usePathname } from 'next/navigation';
 import type { MenuProps } from 'antd';
@@ -87,6 +88,7 @@ const menuItems: MenuItem[] = [
       { key: '/bottom-nav', label: '底部导航配置' },
     ],
   },
+  { key: '/city-management', icon: <EnvironmentOutlined />, label: '城市管理' },
   {
     key: 'search-manage',
     icon: <SearchOutlined />,

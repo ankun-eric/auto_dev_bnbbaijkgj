@@ -1,5 +1,10 @@
 <view class="home-page" wx:if="{{pageMode === 'user'}}">
   <view class="search-bar" wx:if="{{homeConfig.search_visible !== false}}">
+    <view class="city-selector" bindtap="onCityTap">
+      <text class="city-name">{{cityName}}</text>
+      <text class="city-arrow">▼</text>
+    </view>
+    <view class="search-divider"></view>
     <view class="search-input" bindtap="onSearchTap">
       <text class="search-icon">🔍</text>
       <text class="search-placeholder">{{homeConfig.search_placeholder || '搜索症状、药品、健康知识...'}}</text>
