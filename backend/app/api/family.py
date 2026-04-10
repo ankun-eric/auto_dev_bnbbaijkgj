@@ -103,6 +103,20 @@ async def add_family_member(
     db.add(member)
     await db.flush()
 
+    health_profile = HealthProfile(
+        user_id=current_user.id,
+        family_member_id=member.id,
+        name=nickname,
+        gender=data.gender,
+        birthday=data.birthday,
+        height=data.height,
+        weight=data.weight,
+        medical_histories=data.medical_histories if data.medical_histories else None,
+        allergies=data.allergies if data.allergies else None,
+    )
+    db.add(health_profile)
+    await db.flush()
+
     result2 = await db.execute(
         select(FamilyMember)
         .options(selectinload(FamilyMember.relation_type))

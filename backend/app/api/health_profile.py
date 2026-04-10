@@ -140,7 +140,17 @@ async def get_member_health_profile(
     )
     profile = result.scalar_one_or_none()
     if not profile:
-        profile = HealthProfile(user_id=current_user.id, family_member_id=member_id)
+        profile = HealthProfile(
+            user_id=current_user.id,
+            family_member_id=member_id,
+            name=member.nickname,
+            gender=member.gender,
+            birthday=member.birthday,
+            height=member.height,
+            weight=member.weight,
+            medical_histories=member.medical_histories,
+            allergies=member.allergies,
+        )
         db.add(profile)
         await db.flush()
         await db.refresh(profile)

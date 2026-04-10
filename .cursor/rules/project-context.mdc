@@ -27,7 +27,25 @@
 - Admin: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api/`
 
-## Latest Bugfix: AI咨询对话与健康档案多端一致性与 API 调整 (2026-04-10)
+## Latest Bugfix: 健康档案新添加家庭成员档案数据为空 (2026-04-10)
+
+### 问题描述
+添加新家庭成员后，查看该成员的健康档案显示"暂无档案数据"，所有字段为空。根因是 `POST /api/family/members` 创建 FamilyMember 后未同步创建 HealthProfile 记录，且 `GET /api/health/profile/member/{id}` 自动创建的 HealthProfile 未从 FamilyMember 回填数据。
+
+### Backend Changes
+- **`api/family.py`**: `add_family_member` 函数在创建 FamilyMember 后，立即同步创建对应的 HealthProfile 记录，将 name、gender、birthday、height、weight、medical_histories、allergies 字段同步写入。
+- **`api/health_profile.py`**: `get_member_health_profile` 函数在 HealthProfile 不存在需要自动创建时，从对应的 FamilyMember 记录中读取并回填 nickname→name、gender、birthday、height、weight、medical_histories、allergies 字段。
+
+### Database Changes
+- 移除 `health_profiles` 表上 `user_id` 列的 UNIQUE 约束（`ALTER TABLE health_profiles DROP INDEX user_id`），允许同一用户拥有多条 HealthProfile 记录（本人 + 多个家庭成员各一条）。
+
+### 关键文件
+- `backend/app/api/family.py`（第 103-118 行：同步创建 HealthProfile）
+- `backend/app/api/health_profile.py`（第 142-157 行：回填 FamilyMember 数据）
+
+---
+
+## Bugfix: AI咨询对话与健康档案多端一致性与 API 调整 (2026-04-10)
 
 ### Backend
 - **`api/family.py`**: 移除 `GET /api/family/members` 中的自动创建「本人」兜底逻辑；`POST /api/family/members` 添加成员时取消对 `name` / `gender` / `birthday` 的强制校验（均为可选）；调整 nickname 计算逻辑。
