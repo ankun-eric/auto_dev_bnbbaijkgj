@@ -32,7 +32,87 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api/`
 
-## Latest Update: 健康计划模块 Bug 修复 v2 (2026-04-11)
+## Latest Update: AI 健康咨询功能按钮与数字人对话模式 (2026-04-11)
+
+### 概要
+在 AI 健康咨询聊天页面输入框上方新增可配置的功能按钮横向滚动栏（8 个默认按钮），其中核心创新为"数字人对话模式"——全屏视频通话页面通过语音与 AI 健康顾问实时对话。后台管理系统新增功能按钮管理、数字人形象管理、语音服务配置三个管理页面。
+
+### 数据库变更
+- 新增 `chat_function_buttons` 表：id, name, icon_url, button_type, sort_weight, is_enabled, params, created_at, updated_at
+- 新增 `digital_humans` 表：id, name, silent_video_url, speaking_video_url, tts_voice_id, description, thumbnail_url, is_enabled, created_at, updated_at
+- 新增 `voice_call_records` 表：id, user_id, digital_human_id, chat_session_id, start_time, end_time, duration_seconds, dialog_content, created_at
+- 新增 `voice_service_configs` 表：id, config_key, config_value, config_type, description, updated_by, created_at, updated_at
+
+### Backend — 新增 API
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| GET | `/api/chat/function-buttons` | 获取已启用功能按钮列表（按 sort_weight 排序） |
+| GET | `/api/chat/digital-human/{id}` | 获取数字人形象详情 |
+| POST | `/api/chat/voice-call/start` | 开始数字人通话 |
+| POST | `/api/chat/voice-call/{id}/end` | 结束通话，同步对话到聊天记录 |
+| POST | `/api/chat/voice-call/{id}/message` | 通话中发送消息获取 AI 回复 |
+| POST | `/api/chat/image/recognize-medicine` | 拍照识药 |
+| POST | `/api/chat/image/analyze-report` | 上传报告解读 |
+| GET | `/api/chat/voice-service/vad-config` | 获取 VAD 参数配置 |
+| GET/POST | `/api/admin/function-buttons` | 管理端按钮列表/新增 |
+| PUT/DELETE | `/api/admin/function-buttons/{id}` | 管理端按钮修改/删除 |
+| PUT | `/api/admin/function-buttons/sort` | 批量更新排序 |
+| GET/POST | `/api/admin/digital-humans` | 管理端数字人列表/新增 |
+| PUT/DELETE | `/api/admin/digital-humans/{id}` | 管理端数字人修改/删除 |
+| GET/PUT | `/api/admin/voice-service/config` | 语音服务配置管理 |
+| POST | `/api/admin/voice-service/test-connection` | 测试腾讯云连接 |
+
+### 各端变更
+
+| 端 | 主要变更 |
+| --- | --- |
+| H5 | 聊天页新增功能按钮横向滚动栏；新增 `/digital-human-call` 数字人通话全屏页面 |
+| Admin | 新增 `/function-buttons` 功能按钮管理页；新增 `/digital-humans` 数字人管理页；新增 `/voice-service` 语音配置页；侧边栏新增"AI咨询配置"菜单组 |
+| 微信小程序 | 聊天页新增功能按钮区域；新增 `pages/digital-human-call/` 数字人通话页 |
+| Flutter | 聊天页新增 FunctionButtonsBar 组件；新增 `screens/digital_human/digital_human_call_screen.dart`；新增 video_player 和 connectivity_plus 依赖 |
+
+### 关键文件
+
+```text
+backend/app/
+├── api/function_button.py           # 功能按钮 + 数字人 + 通话 API
+├── schemas/function_button.py       # 相关 Schema
+├── models/models.py                 # 新增 4 个数据模型
+├── init_data.py                     # 初始化 8 个默认按钮 + 7 个 VAD 配置
+
+h5-web/src/app/
+├── chat/[sessionId]/page.tsx        # 聊天页新增功能按钮栏
+└── digital-human-call/page.tsx      # 数字人通话页面（新增）
+
+admin-web/src/app/(admin)/
+├── layout.tsx                       # 侧边栏新增 AI 咨询配置菜单
+├── function-buttons/page.tsx        # 功能按钮管理（新增）
+├── digital-humans/page.tsx          # 数字人形象管理（新增）
+└── voice-service/page.tsx           # 语音服务配置（新增）
+
+miniprogram/pages/
+├── chat/index.{js,wxml,wxss}        # 聊天页新增功能按钮
+└── digital-human-call/index.{js,wxml,wxss,json}  # 数字人通话页面（新增）
+
+flutter_app/lib/
+├── models/function_button.dart      # 功能按钮数据模型（新增）
+├── widgets/function_buttons_bar.dart # 功能按钮栏组件（新增）
+├── screens/digital_human/digital_human_call_screen.dart  # 数字人通话页面（新增）
+├── screens/ai/chat_screen.dart      # 聊天页集成功能按钮栏
+├── config/api_config.dart           # 新增 API 路径
+└── services/api_service.dart        # 新增 API 方法
+
+tests/
+└── test_function_button_digital_human.py  # 24 个测试用例，全部通过
+```
+
+### 用户手册
+- `user_docs/AI健康咨询功能按钮与数字人对话.md`
+
+---
+
+## Previous Update: 健康计划模块 Bug 修复 v2 (2026-04-11)
 
 ### 概要
 修复健康计划模块 4 个 Bug：移除今日待办中「健康计划」分组下多余的 PlanTemplateCategory 子分组层级（sub_groups）；修复自定义计划删除后列表未过滤已删除记录；新增健康打卡和用药提醒的详情接口（GET）以支持编辑功能。
