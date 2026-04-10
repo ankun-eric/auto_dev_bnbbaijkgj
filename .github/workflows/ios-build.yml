@@ -102,17 +102,51 @@ jobs:
             content.gsub!(/CODE_SIGN_STYLE = Automatic/, "CODE_SIGN_STYLE = Manual")
             content.gsub!(/"CODE_SIGN_IDENTITY\[sdk=iphoneos\*\]" = .*?;/, "\"CODE_SIGN_IDENTITY[sdk=iphoneos*]\" = \"\";")
             content.gsub!(/DEVELOPMENT_TEAM = .*?;/, "DEVELOPMENT_TEAM = \"\";")
+            content.gsub!(/CODE_SIGN_IDENTITY = ".*?";/, "CODE_SIGN_IDENTITY = \"\";")
+            content.gsub!(/CODE_SIGN_IDENTITY = .*?;/, "CODE_SIGN_IDENTITY = \"\";")
+            content.gsub!(/PROVISIONING_PROFILE_SPECIFIER = ".*?";/, "PROVISIONING_PROFILE_SPECIFIER = \"\";")
+            # Insert CODE_SIGNING_ALLOWED = NO into every buildSettings block
+            content.gsub!(/buildSettings = \{/) { |m| "#{m}\n\t\t\t\tCODE_SIGNING_ALLOWED = NO;\n\t\t\t\tCODE_SIGNING_REQUIRED = NO;" }
             File.write(path, content)
           '
 
       - name: Build iOS (no codesign)
         working-directory: flutter_app
-        run: flutter build ios --release --no-codesign
+        run: |
+          flutter build ios --release --no-codesign --config-only
+          cd ios
+          xcodebuild -workspace Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/Runner.xcarchive \
+            archive \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            DEVELOPMENT_TEAM="" \
+            PROVISIONING_PROFILE_SPECIFIER="" | tail -20
 
       - name: Create IPA
         run: |
           mkdir -p Payload
-          cp -r flutter_app/build/ios/iphoneos/Runner.app Payload/
+          # Try archive path first, fall back to standard build path
+          if [ -d "flutter_app/ios/build/Runner.xcarchive/Products/Applications/Runner.app" ]; then
+            cp -r flutter_app/ios/build/Runner.xcarchive/Products/Applications/Runner.app Payload/
+          elif [ -d "flutter_app/build/ios/iphoneos/Runner.app" ]; then
+            cp -r flutter_app/build/ios/iphoneos/Runner.app Payload/
+          else
+            echo "Looking for Runner.app..."
+            find flutter_app -name "Runner.app" -type d 2>/dev/null
+            APP_PATH=$(find flutter_app -name "Runner.app" -type d 2>/dev/null | head -1)
+            if [ -n "$APP_PATH" ]; then
+              cp -r "$APP_PATH" Payload/
+            else
+              echo "ERROR: Runner.app not found!"
+              exit 1
+            fi
+          fi
           zip -r bini_health_ios.ipa Payload/
           rm -rf Payload/
       
