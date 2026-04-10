@@ -32,7 +32,74 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api/`
 
-## Latest Update: 健康计划模块 Bug 修复与功能简化 (2026-04-10)
+## Latest Feature: 首页城市定位与切换 (2026-04-11)
+
+### 概要
+在首页搜索栏左侧新增城市定位显示区域，支持 GPS 自动定位和手动切换城市。后端新增全国 349 个城市数据库，提供城市列表、热门城市、经纬度定位等 API。管理后台新增热门城市管理页面。
+
+### 数据库变更
+- 新增 `cities` 表：id, name, short_name, pinyin, first_letter, province, longitude, latitude, is_hot, hot_sort, is_active, created_at, updated_at
+- 初始化数据：349 个中国地级市及以上城市，12 个默认热门城市（北京、上海、广州、深圳、杭州、成都、武汉、南京、重庆、西安、苏州、天津）
+
+### Backend — API（用户端 `/api/cities`，管理端 `/api/admin/cities`）
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| GET | `/api/cities/list` | 获取全部启用城市列表（按首字母分组），支持 keyword 搜索 |
+| GET | `/api/cities/hot` | 获取热门城市列表 |
+| GET | `/api/cities/locate` | 根据经纬度返回匹配城市 |
+| GET | `/api/admin/cities/list` | 管理端获取全部城市列表（含分页、搜索） |
+| GET | `/api/admin/cities/hot` | 管理端获取热门城市列表 |
+| POST | `/api/admin/cities/hot` | 批量设置热门城市 |
+| DELETE | `/api/admin/cities/hot/{city_id}` | 移除热门城市 |
+
+### 各端变更
+
+| 端 | 主要变更 |
+| --- | --- |
+| H5 | 首页搜索栏左侧新增城市区域 `[城市名 ▼] \| [搜索框]`；新增 `/city-select` 城市选择页面；新增 `lib/cityUtils.ts` 城市工具函数 |
+| Admin | 新增 `/city-management` 热门城市管理页面；侧边栏新增"城市管理"菜单 |
+| 微信小程序 | 首页搜索栏新增城市区域；新增 `pages/city-select/` 城市选择页面 |
+| Flutter | 首页搜索栏新增城市区域；新增 `screens/city/city_select_screen.dart` 城市选择页面 |
+
+### 关键文件
+
+```text
+backend/app/
+├── api/city.py                    # 城市 API（用户端 + 管理端）
+├── schemas/city.py                # 城市相关 Schema
+├── models/models.py               # 新增 City 模型
+└── init_cities.py                 # 城市数据初始化（349 个城市）
+
+h5-web/src/app/
+├── (tabs)/home/page.tsx           # 首页搜索栏改造
+├── city-select/page.tsx           # 城市选择页面（新增）
+└── ../lib/cityUtils.ts            # 城市工具函数（新增）
+
+admin-web/src/app/(admin)/
+├── layout.tsx                     # 侧边栏新增城市管理菜单
+└── city-management/page.tsx       # 热门城市管理页面（新增）
+
+miniprogram/pages/
+├── home/index.{js,wxml,wxss}      # 首页搜索栏改造
+└── city-select/index.{js,wxml,wxss,json}  # 城市选择页面（新增）
+
+flutter_app/lib/
+├── screens/home/home_screen.dart  # 首页搜索栏改造
+├── screens/city/city_select_screen.dart  # 城市选择页面（新增）
+├── config/api_config.dart         # 新增城市 API 路径
+└── services/api_service.dart      # 新增城市 API 方法
+
+tests/
+└── test_city_module.py            # 城市模块非 UI 自动化测试（16 个用例）
+```
+
+### 用户手册
+- `user_docs/首页城市定位与切换.md`
+
+---
+
+## Previous Update: 健康计划模块 Bug 修复与功能简化 (2026-04-10)
 
 ### 概要
 对健康计划模块进行全面 Bug 修复（5 项）和功能优化（12 项），核心目标是简化流程、去除冗余参数、优化中老年用户 H5 交互体验，同时清理管理后台中不再使用的功能。
