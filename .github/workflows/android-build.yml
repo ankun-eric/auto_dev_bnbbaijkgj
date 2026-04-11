@@ -59,25 +59,26 @@ jobs:
             fi
           done
 
-      - name: Inject init script for repository fallbacks
+      - name: Patch all plugin gradle files with proper repos and AGP
         run: |
-          mkdir -p ~/.gradle
-          cat > ~/.gradle/init.gradle << 'INITEOF'
-          allprojects {
-            buildscript {
-              repositories {
-                google()
-                mavenCentral()
-                gradlePluginPortal()
-              }
-            }
-            repositories {
-              google()
-              mavenCentral()
-              gradlePluginPortal()
-            }
-          }
-          INITEOF
+          echo "=== Finding all build.gradle files in pub-cache with old AGP or missing repos ==="
+          for GRADLE_FILE in $(find ~/.pub-cache -name "build.gradle" -type f 2>/dev/null); do
+            if grep -q 'com.android.tools.build:gradle:7' "$GRADLE_FILE" 2>/dev/null; then
+              echo "Upgrading AGP and adding repos in: $GRADLE_FILE"
+              sed -i "s|com.android.tools.build:gradle:7\.[0-9.]*|com.android.tools.build:gradle:8.4.1|g" "$GRADLE_FILE"
+              if ! grep -q 'google()' "$GRADLE_FILE" 2>/dev/null; then
+                sed -i '/repositories\s*{/a\        google()\n        mavenCentral()' "$GRADLE_FILE"
+              fi
+            fi
+          done
+
+          echo "=== Checking for any build.gradle.kts with old AGP ==="
+          for GRADLE_FILE in $(find ~/.pub-cache -name "build.gradle.kts" -type f 2>/dev/null); do
+            if grep -q 'com.android.tools.build:gradle:7' "$GRADLE_FILE" 2>/dev/null; then
+              echo "Upgrading AGP in kts: $GRADLE_FILE"
+              sed -i "s|com.android.tools.build:gradle:7\.[0-9.]*|com.android.tools.build:gradle:8.4.1|g" "$GRADLE_FILE"
+            fi
+          done
 
       - name: Build APK
         working-directory: flutter_app
