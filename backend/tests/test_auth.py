@@ -1,4 +1,4 @@
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timedelta
 
 import pytest
 from httpx import AsyncClient
@@ -245,7 +245,7 @@ async def test_sms_login_blocked_when_registration_disabled_new_user(client: Asy
         phone="13800020002",
         code="123456",
         type="login",
-        expires_at=datetime.now(timezone.utc) + timedelta(minutes=5),
+        expires_at=datetime.utcnow() + timedelta(minutes=5),
     )
     db_session.add(vc)
     await db_session.commit()

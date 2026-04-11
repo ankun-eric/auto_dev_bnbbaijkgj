@@ -1,7 +1,7 @@
 import logging
 import random
 import string
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func, select
@@ -293,7 +293,7 @@ async def send_sms_code(data: SMSCodeRequest, db: AsyncSession = Depends(get_db)
             raise HTTPException(status_code=429, detail="发送过于频繁，请60秒后重试")
 
     code = "123456" if is_test else "".join(random.choices(string.digits, k=6))
-    expires_at = datetime.now(timezone.utc) + timedelta(minutes=5)
+    expires_at = datetime.utcnow() + timedelta(minutes=5)
 
     if not is_test:
         try:
@@ -321,7 +321,7 @@ async def sms_login(data: SMSLoginRequest, db: AsyncSession = Depends(get_db)):
         .where(
             VerificationCode.phone == data.phone,
             VerificationCode.code == data.code,
-            VerificationCode.expires_at > datetime.now(timezone.utc),
+            VerificationCode.expires_at > datetime.utcnow(),
         )
         .order_by(VerificationCode.created_at.desc())
         .limit(1)

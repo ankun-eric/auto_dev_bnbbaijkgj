@@ -32,7 +32,31 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api/`
 
-## Latest Update: 健康自查咨询对象联动功能 (2026-04-11)
+## Latest Update: 短信验证码登录 Bug 修复 (2026-04-11)
+
+### 概要
+修复短信验证码登录失败的 Bug：后端 `auth.py` 中验证码生成和校验使用 `datetime.now(timezone.utc)`（aware datetime），而数据库 `VerificationCode.expires_at` 字段使用 naive datetime（`DateTime` 无 `timezone=True`），导致 aware vs naive 比较异常，正确验证码也无法通过校验。统一改为 `datetime.utcnow()`（naive UTC）后修复。
+
+### 各端变更
+
+| 端 | 主要变更 |
+| --- | --- |
+| Backend | `auth.py` 第 296 行验证码生成、第 324 行验证码校验的 `datetime.now(timezone.utc)` 统一改为 `datetime.utcnow()`；移除未使用的 `timezone` import |
+
+### 关键文件
+
+```text
+backend/app/api/auth.py                        # 验证码生成和校验时间统一为 naive UTC
+backend/tests/test_auth.py                      # 测试用例同步修复 datetime 调用
+backend/tests/test_sms_login_server.py          # 新增服务器端短信登录验证测试（4 用例全部通过）
+```
+
+### 用户手册
+- `user_docs/短信验证码登录修复.md`
+
+---
+
+## Previous Update: 健康自查咨询对象联动功能 (2026-04-11)
 
 ### 概要
 实现健康自查流程与 AI 咨询页面的咨询对象数据联动。从健康自查进入 AI 咨询时，自动将咨询对象设为上一步选择的家庭成员并锁定，防止中途切换。会话级持久化：退出后重新进入同一会话，咨询对象仍保持锁定。
