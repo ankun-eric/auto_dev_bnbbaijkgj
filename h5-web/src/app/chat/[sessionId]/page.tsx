@@ -1129,14 +1129,14 @@ function ChatPageInner() {
         <div className="bg-white border-t border-gray-100" style={{ position: 'relative' }}>
           <div
             ref={funcScrollRef}
-            className="flex items-center gap-3 overflow-x-auto px-3 py-2 no-scrollbar"
-            style={{ scrollBehavior: 'smooth', WebkitOverflowScrolling: 'touch', height: 64 }}
+            className="flex items-center gap-2 overflow-x-auto px-3 py-1 no-scrollbar"
+            style={{ scrollBehavior: 'smooth', WebkitOverflowScrolling: 'touch', height: 44 }}
           >
             {funcButtons.map((btn) => (
               <button
                 key={btn.id}
                 onClick={() => handleFuncBtnClick(btn)}
-                className="flex items-center gap-1.5 flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all active:scale-95"
+                className="flex items-center gap-1 flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all active:scale-95"
                 style={{
                   background: '#f5f5f5',
                   border: '1px solid #e8e8e8',
@@ -1144,7 +1144,7 @@ function ChatPageInner() {
                   whiteSpace: 'nowrap',
                 }}
               >
-                <span style={{ fontSize: 16 }}>{getFuncBtnEmoji(btn)}</span>
+                <span style={{ fontSize: 13 }}>{getFuncBtnEmoji(btn)}</span>
                 <span>{btn.name}</span>
               </button>
             ))}

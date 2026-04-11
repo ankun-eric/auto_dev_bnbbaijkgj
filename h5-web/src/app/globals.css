@@ -80,3 +80,7 @@ html, body {
   margin-bottom: 12px;
   color: var(--text-color);
 }
+
+.action-sheet-above-sidebar {
+  --z-index: 1100;
+}

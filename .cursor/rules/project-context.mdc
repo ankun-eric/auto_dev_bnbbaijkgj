@@ -32,7 +32,30 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api/`
 
-## Latest Update: 短信验证码登录Bug修复 (2026-04-11)
+## Latest Update: AI咨询页面H5端UI Bug修复 (2026-04-11)
+
+### 概要
+修复H5端AI咨询对话页面的3个UI Bug：功能按钮栏字体/图标/高度偏大、侧边栏"新建对话"按钮文字与图标大小不一致、长按历史对话弹出的ActionSheet被侧边栏遮挡。
+
+### 修复内容
+1. 功能按钮栏：字体 14px→12px（text-sm→text-xs）、emoji 16px→13px、容器高度 64px→44px、间距缩小
+2. 侧边栏"新建对话"按钮：Button 和 AddOutline 统一设置 fontSize: 14
+3. ActionSheet 层级：改用 popupClassName + CSS 变量 --z-index: 1100，确保弹层覆盖在侧边栏（z-1001）之上
+
+### 关键文件
+
+```text
+h5-web/src/app/chat/[sessionId]/page.tsx   # 功能按钮栏字体/图标/高度缩小
+h5-web/src/components/ChatSidebar.tsx      # 新建对话按钮字号统一 + ActionSheet z-index 修复
+h5-web/src/app/globals.css                 # 新增 .action-sheet-above-sidebar CSS 变量
+```
+
+### 用户手册
+- `user_docs/AI咨询页面H5端UI修复.md`
+
+---
+
+## Previous Update: 短信验证码登录Bug修复 (2026-04-11)
 
 ### 概要
 修复P0级Bug：短信验证码登录失败。根因为部署家庭健康档案共管功能时，数据库变更导致health_profiles表出现同一user_id的多条重复记录，`is_profile_completed`函数中`scalar_one_or_none()`对多行结果抛出`MultipleResultsFound`异常，后端返回500错误。

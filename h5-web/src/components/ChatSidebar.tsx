@@ -304,9 +304,10 @@ export default function ChatSidebar({
               borderRadius: 10,
               height: 40,
               fontWeight: 500,
+              fontSize: 14,
             }}
           >
-            <AddOutline style={{ marginRight: 6 }} />
+            <AddOutline style={{ marginRight: 6, fontSize: 14 }} />
             新建对话
           </Button>
         </div>
@@ -395,7 +396,8 @@ export default function ChatSidebar({
         actions={actionActions}
         onClose={() => setActionVisible(false)}
         cancelText="取消"
-        style={{ zIndex: 1100 }}
+        getContainer={() => document.body}
+        popupClassName="action-sheet-above-sidebar"
       />
     </>
   );
