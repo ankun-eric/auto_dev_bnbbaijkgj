@@ -27,7 +27,7 @@ admin_dep = require_role("admin")
 
 _HOME_CONFIG_KEYS = {
     "home_search_visible": "true",
-    "home_search_placeholder": "搜索症状、药品、健康知识...",
+    "home_search_placeholder": "搜索健康知识、服务、商品",
     "home_grid_columns": "3",
     "home_font_switch_enabled": "true",
     "home_font_default_level": "standard",

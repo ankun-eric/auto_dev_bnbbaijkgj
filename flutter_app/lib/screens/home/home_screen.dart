@@ -25,7 +25,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // Config defaults
   bool _searchVisible = true;
-  String _searchPlaceholder = '搜索症状、疾病、药品';
+  String _searchPlaceholder = '搜索健康知识、服务、商品';
   int _gridColumns = 3;
   List<Map<String, dynamic>> _banners = [];
   List<Map<String, dynamic>> _menus = [];

@@ -36,7 +36,7 @@ export interface HomeMenu {
 
 const DEFAULT_CONFIG: HomeConfig = {
   search_visible: true,
-  search_placeholder: '搜索症状、药品、健康知识...',
+  search_placeholder: '搜索健康知识、服务、商品',
   grid_columns: 3,
   font_switch_enabled: false,
   font_default_level: 'standard',
@@ -60,7 +60,7 @@ const DEFAULT_MENUS: HomeMenu[] = [
 ];
 
 const CACHE_KEY = 'home_data_cache';
-const CACHE_TTL = 5 * 60 * 1000;
+const CACHE_TTL = 60 * 60 * 1000;
 
 interface CachedData {
   config: HomeConfig;

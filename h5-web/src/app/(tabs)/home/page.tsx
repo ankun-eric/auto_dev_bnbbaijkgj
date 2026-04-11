@@ -323,7 +323,7 @@ export default function HomePage() {
                 <circle cx="11" cy="11" r="8" />
                 <line x1="21" y1="21" x2="16.65" y2="16.65" />
               </svg>
-              <span className="ml-2 text-sm text-gray-400">搜索文章、视频、服务、商品</span>
+              <span className="ml-2 text-sm text-gray-400">{config.search_placeholder || '搜索健康知识、服务、商品'}</span>
             </div>
           </div>
         )}
