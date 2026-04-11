@@ -4,10 +4,10 @@ class HealthProfile {
   final double? height;
   final double? weight;
   final String? bloodType;
-  final List<String> allergies;
-  final List<String> chronicDiseases;
+  final List<dynamic> allergies;
+  final List<dynamic> chronicDiseases;
   final List<String> medications;
-  final String? familyHistory;
+  final List<dynamic> geneticDiseases;
   final String? constitution;
   final String? updatedAt;
 
@@ -20,7 +20,7 @@ class HealthProfile {
     this.allergies = const [],
     this.chronicDiseases = const [],
     this.medications = const [],
-    this.familyHistory,
+    this.geneticDiseases = const [],
     this.constitution,
     this.updatedAt,
   });
@@ -33,6 +33,12 @@ class HealthProfile {
     return null;
   }
 
+  static bool isCustomItem(dynamic item) =>
+      item is Map && item['type'] == 'custom';
+
+  static String getItemName(dynamic item) =>
+      item is String ? item : (item is Map ? (item['value'] ?? '') : '');
+
   factory HealthProfile.fromJson(Map<String, dynamic> json) {
     return HealthProfile(
       id: json['id']?.toString() ?? '',
@@ -40,10 +46,10 @@ class HealthProfile {
       height: json['height']?.toDouble(),
       weight: json['weight']?.toDouble(),
       bloodType: json['blood_type'],
-      allergies: List<String>.from(json['allergies'] ?? []),
-      chronicDiseases: List<String>.from(json['chronic_diseases'] ?? []),
+      allergies: List<dynamic>.from(json['allergies'] ?? []),
+      chronicDiseases: List<dynamic>.from(json['chronic_diseases'] ?? []),
       medications: List<String>.from(json['medications'] ?? []),
-      familyHistory: json['family_history'],
+      geneticDiseases: List<dynamic>.from(json['genetic_diseases'] ?? []),
       constitution: json['constitution'],
       updatedAt: json['updated_at'],
     );
@@ -59,7 +65,7 @@ class HealthProfile {
       'allergies': allergies,
       'chronic_diseases': chronicDiseases,
       'medications': medications,
-      'family_history': familyHistory,
+      'genetic_diseases': geneticDiseases,
       'constitution': constitution,
       'updated_at': updatedAt,
     };

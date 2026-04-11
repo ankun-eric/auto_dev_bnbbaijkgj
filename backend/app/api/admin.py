@@ -103,12 +103,16 @@ async def admin_login(data: AdminLoginRequest, db: AsyncSession = Depends(get_db
 
     token = create_access_token({"sub": str(user.id)})
     return {
+        "access_token": token,
+        "token_type": "bearer",
         "token": token,
         "user": {
             "id": user.id,
             "name": user.nickname or "管理员",
             "phone": user.phone,
+            "nickname": user.nickname,
             "role": user.role.value if hasattr(user.role, "value") else user.role,
+            "is_superuser": user.is_superuser,
         },
     }
 
@@ -2099,6 +2103,8 @@ async def admin_create_disease_preset(
     current_user=Depends(admin_dep),
     db: AsyncSession = Depends(get_db),
 ):
+    if not getattr(current_user, 'is_superuser', False):
+        raise HTTPException(status_code=403, detail="仅超级管理员可执行此操作")
     dp = DiseasePreset(name=data.name, category=data.category, sort_order=data.sort_order, is_active=data.is_active)
     db.add(dp)
     await db.flush()
@@ -2113,6 +2119,8 @@ async def admin_update_disease_preset(
     current_user=Depends(admin_dep),
     db: AsyncSession = Depends(get_db),
 ):
+    if not getattr(current_user, 'is_superuser', False):
+        raise HTTPException(status_code=403, detail="仅超级管理员可执行此操作")
     result = await db.execute(select(DiseasePreset).where(DiseasePreset.id == dp_id))
     dp = result.scalar_one_or_none()
     if not dp:
@@ -2136,6 +2144,8 @@ async def admin_delete_disease_preset(
     current_user=Depends(admin_dep),
     db: AsyncSession = Depends(get_db),
 ):
+    if not getattr(current_user, 'is_superuser', False):
+        raise HTTPException(status_code=403, detail="仅超级管理员可执行此操作")
     result = await db.execute(select(DiseasePreset).where(DiseasePreset.id == dp_id))
     dp = result.scalar_one_or_none()
     if not dp:

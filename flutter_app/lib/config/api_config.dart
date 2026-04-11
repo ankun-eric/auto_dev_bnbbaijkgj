@@ -159,6 +159,15 @@ class ApiConfig {
   static const String homeMenus = '/api/home-menus';
   static const String homeBanners = '/api/home-banners';
 
+  // Disease Presets
+  static const String diseasePresets = '/api/disease-presets';
+
+  // Health Profile - Member
+  static const String updateMemberHealthProfile = '/api/health/profile/member';
+
+  // Health Guide
+  static const String guideStatus = '/api/health/guide-status';
+
   // City
   static const String cityList = '/api/cities/list';
   static const String cityHot = '/api/cities/hot';

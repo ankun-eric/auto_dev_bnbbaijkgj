@@ -1,4 +1,4 @@
-const { get, post } = require('../../utils/request');
+const { get, put } = require('../../utils/request');
 
 const RELATION_COLORS = {
   '本人': '#52c41a',
@@ -9,6 +9,13 @@ const RELATION_COLORS = {
 };
 function getRelationColor(name) {
   return RELATION_COLORS[name] || '#8c8c8c';
+}
+
+function isPresetSelected(items, name) {
+  return (items || []).some(i => typeof i === 'string' && i === name);
+}
+function getCustomItems(items) {
+  return (items || []).filter(i => typeof i === 'object' && i.type === 'custom');
 }
 
 Page({
@@ -22,16 +29,55 @@ Page({
       height: '',
       weight: '',
       bloodType: '',
+      chronic_diseases: [],
       allergies: [],
-      diseases: [],
+      genetic_diseases: [],
       medications: []
     },
     bloodTypes: ['A型', 'B型', 'AB型', 'O型', '未知'],
-    bloodTypeIndex: -1
+    bloodTypeIndex: -1,
+
+    chronicPresets: [],
+    allergyPresets: [],
+    geneticPresets: [],
+
+    chronicCustomItems: [],
+    allergyCustomItems: [],
+    geneticCustomItems: [],
+
+    showChronicOther: false,
+    showAllergyOther: false,
+    showGeneticOther: false,
+
+    chronicOtherInput: '',
+    allergyOtherInput: '',
+    geneticOtherInput: ''
   },
 
   onLoad() {
     this.loadFamilyTabs();
+    this.loadPresets();
+  },
+
+  onShow() {
+    this.loadProfile();
+  },
+
+  async loadPresets() {
+    try {
+      const [chronicRes, allergyRes, geneticRes] = await Promise.all([
+        get('/api/disease-presets', { category: 'chronic' }, { showLoading: false, suppressErrorToast: true }),
+        get('/api/disease-presets', { category: 'allergy' }, { showLoading: false, suppressErrorToast: true }),
+        get('/api/disease-presets', { category: 'genetic' }, { showLoading: false, suppressErrorToast: true })
+      ]);
+      this.setData({
+        chronicPresets: (chronicRes && chronicRes.items) || [],
+        allergyPresets: (allergyRes && allergyRes.items) || [],
+        geneticPresets: (geneticRes && geneticRes.items) || []
+      });
+    } catch (e) {
+      console.log('loadPresets error', e);
+    }
   },
 
   async loadFamilyTabs() {
@@ -69,15 +115,48 @@ Page({
   },
 
   async loadProfile() {
+    const tab = this.data.familyTabs[this.data.activeTabIndex];
+    if (!tab) return;
     try {
-      const saved = wx.getStorageSync('healthProfile');
-      if (saved) {
-        this.setData({ profile: saved });
-        const idx = this.data.bloodTypes.indexOf(saved.bloodType);
-        if (idx >= 0) this.setData({ bloodTypeIndex: idx });
+      let profile;
+      if (tab.is_self) {
+        profile = await get('/api/health/profile', {}, { showLoading: false, suppressErrorToast: true });
+      } else {
+        profile = await get(`/api/health/profile/member/${tab.id}`, {}, { showLoading: false, suppressErrorToast: true });
+      }
+      if (profile) {
+        const p = {
+          name: profile.name || '',
+          gender: profile.gender || '',
+          birthday: profile.birthday || '',
+          height: profile.height || '',
+          weight: profile.weight || '',
+          bloodType: profile.blood_type || '',
+          chronic_diseases: profile.chronic_diseases || [],
+          allergies: profile.allergies || [],
+          genetic_diseases: profile.genetic_diseases || [],
+          medications: []
+        };
+        const idx = this.data.bloodTypes.indexOf(p.bloodType);
+        this.setData({
+          profile: p,
+          bloodTypeIndex: idx >= 0 ? idx : -1,
+          chronicCustomItems: getCustomItems(p.chronic_diseases),
+          allergyCustomItems: getCustomItems(p.allergies),
+          geneticCustomItems: getCustomItems(p.genetic_diseases)
+        });
       }
     } catch (e) {
-      console.log('loadProfile error', e);
+      this.setData({
+        profile: {
+          name: '', gender: '', birthday: '', height: '', weight: '', bloodType: '',
+          chronic_diseases: [], allergies: [], genetic_diseases: [], medications: []
+        },
+        bloodTypeIndex: -1,
+        chronicCustomItems: [],
+        allergyCustomItems: [],
+        geneticCustomItems: []
+      });
     }
   },
 
@@ -102,46 +181,181 @@ Page({
     });
   },
 
-  addAllergy() {
-    wx.showModal({
-      title: '添加过敏信息',
-      editable: true,
-      placeholderText: '如：青霉素、花粉、海鲜...',
-      success: (res) => {
-        if (res.confirm && res.content) {
-          const allergies = [...this.data.profile.allergies, res.content.trim()];
-          this.setData({ 'profile.allergies': allergies });
-        }
-      }
+  // ── Chronic disease tag handlers ──
+  toggleChronicPreset(e) {
+    const name = e.currentTarget.dataset.name;
+    let items = [...(this.data.profile.chronic_diseases || [])];
+    const idx = items.findIndex(i => typeof i === 'string' && i === name);
+    if (idx >= 0) {
+      items.splice(idx, 1);
+    } else {
+      items.push(name);
+    }
+    this.setData({ 'profile.chronic_diseases': items });
+  },
+
+  toggleChronicOther() {
+    this.setData({ showChronicOther: !this.data.showChronicOther });
+  },
+
+  onChronicOtherInput(e) {
+    this.setData({ chronicOtherInput: e.detail.value });
+  },
+
+  confirmChronicOther() {
+    const val = (this.data.chronicOtherInput || '').trim();
+    if (!val) return;
+    if (val.length > 100) {
+      wx.showToast({ title: '最多100个字符', icon: 'none' });
+      return;
+    }
+    const presetNames = this.data.chronicPresets.map(p => p.name);
+    if (presetNames.includes(val)) {
+      wx.showToast({ title: '与预设标签重复，请直接选择', icon: 'none' });
+      return;
+    }
+    const items = [...(this.data.profile.chronic_diseases || [])];
+    const exists = items.some(i => typeof i === 'object' && i.type === 'custom' && i.value === val);
+    if (exists) {
+      wx.showToast({ title: '已添加该项', icon: 'none' });
+      return;
+    }
+    items.push({ type: 'custom', value: val });
+    this.setData({
+      'profile.chronic_diseases': items,
+      chronicCustomItems: getCustomItems(items),
+      chronicOtherInput: ''
     });
   },
 
-  removeAllergy(e) {
-    const index = e.currentTarget.dataset.index;
-    const allergies = this.data.profile.allergies.filter((_, i) => i !== index);
-    this.setData({ 'profile.allergies': allergies });
-  },
-
-  addDisease() {
-    wx.showModal({
-      title: '添加既往病史',
-      editable: true,
-      placeholderText: '如：高血压、糖尿病...',
-      success: (res) => {
-        if (res.confirm && res.content) {
-          const diseases = [...this.data.profile.diseases, res.content.trim()];
-          this.setData({ 'profile.diseases': diseases });
-        }
-      }
+  removeChronicCustom(e) {
+    const val = e.currentTarget.dataset.value;
+    const items = (this.data.profile.chronic_diseases || []).filter(
+      i => !(typeof i === 'object' && i.type === 'custom' && i.value === val)
+    );
+    this.setData({
+      'profile.chronic_diseases': items,
+      chronicCustomItems: getCustomItems(items)
     });
   },
 
-  removeDisease(e) {
-    const index = e.currentTarget.dataset.index;
-    const diseases = this.data.profile.diseases.filter((_, i) => i !== index);
-    this.setData({ 'profile.diseases': diseases });
+  // ── Allergy tag handlers ──
+  toggleAllergyPreset(e) {
+    const name = e.currentTarget.dataset.name;
+    let items = [...(this.data.profile.allergies || [])];
+    const idx = items.findIndex(i => typeof i === 'string' && i === name);
+    if (idx >= 0) {
+      items.splice(idx, 1);
+    } else {
+      items.push(name);
+    }
+    this.setData({ 'profile.allergies': items });
   },
 
+  toggleAllergyOther() {
+    this.setData({ showAllergyOther: !this.data.showAllergyOther });
+  },
+
+  onAllergyOtherInput(e) {
+    this.setData({ allergyOtherInput: e.detail.value });
+  },
+
+  confirmAllergyOther() {
+    const val = (this.data.allergyOtherInput || '').trim();
+    if (!val) return;
+    if (val.length > 100) {
+      wx.showToast({ title: '最多100个字符', icon: 'none' });
+      return;
+    }
+    const presetNames = this.data.allergyPresets.map(p => p.name);
+    if (presetNames.includes(val)) {
+      wx.showToast({ title: '与预设标签重复，请直接选择', icon: 'none' });
+      return;
+    }
+    const items = [...(this.data.profile.allergies || [])];
+    const exists = items.some(i => typeof i === 'object' && i.type === 'custom' && i.value === val);
+    if (exists) {
+      wx.showToast({ title: '已添加该项', icon: 'none' });
+      return;
+    }
+    items.push({ type: 'custom', value: val });
+    this.setData({
+      'profile.allergies': items,
+      allergyCustomItems: getCustomItems(items),
+      allergyOtherInput: ''
+    });
+  },
+
+  removeAllergyCustom(e) {
+    const val = e.currentTarget.dataset.value;
+    const items = (this.data.profile.allergies || []).filter(
+      i => !(typeof i === 'object' && i.type === 'custom' && i.value === val)
+    );
+    this.setData({
+      'profile.allergies': items,
+      allergyCustomItems: getCustomItems(items)
+    });
+  },
+
+  // ── Genetic disease tag handlers ──
+  toggleGeneticPreset(e) {
+    const name = e.currentTarget.dataset.name;
+    let items = [...(this.data.profile.genetic_diseases || [])];
+    const idx = items.findIndex(i => typeof i === 'string' && i === name);
+    if (idx >= 0) {
+      items.splice(idx, 1);
+    } else {
+      items.push(name);
+    }
+    this.setData({ 'profile.genetic_diseases': items });
+  },
+
+  toggleGeneticOther() {
+    this.setData({ showGeneticOther: !this.data.showGeneticOther });
+  },
+
+  onGeneticOtherInput(e) {
+    this.setData({ geneticOtherInput: e.detail.value });
+  },
+
+  confirmGeneticOther() {
+    const val = (this.data.geneticOtherInput || '').trim();
+    if (!val) return;
+    if (val.length > 100) {
+      wx.showToast({ title: '最多100个字符', icon: 'none' });
+      return;
+    }
+    const presetNames = this.data.geneticPresets.map(p => p.name);
+    if (presetNames.includes(val)) {
+      wx.showToast({ title: '与预设标签重复，请直接选择', icon: 'none' });
+      return;
+    }
+    const items = [...(this.data.profile.genetic_diseases || [])];
+    const exists = items.some(i => typeof i === 'object' && i.type === 'custom' && i.value === val);
+    if (exists) {
+      wx.showToast({ title: '已添加该项', icon: 'none' });
+      return;
+    }
+    items.push({ type: 'custom', value: val });
+    this.setData({
+      'profile.genetic_diseases': items,
+      geneticCustomItems: getCustomItems(items),
+      geneticOtherInput: ''
+    });
+  },
+
+  removeGeneticCustom(e) {
+    const val = e.currentTarget.dataset.value;
+    const items = (this.data.profile.genetic_diseases || []).filter(
+      i => !(typeof i === 'object' && i.type === 'custom' && i.value === val)
+    );
+    this.setData({
+      'profile.genetic_diseases': items,
+      geneticCustomItems: getCustomItems(items)
+    });
+  },
+
+  // ── Medication handlers (kept as-is) ──
   addMedication() {
     wx.showModal({
       title: '添加用药记录',
@@ -162,10 +376,34 @@ Page({
     this.setData({ 'profile.medications': medications });
   },
 
+  // ── WXS helper proxies (called from WXML via event data) ──
+  _isPresetSelected(items, name) {
+    return isPresetSelected(items, name);
+  },
+
   async saveProfile() {
+    const tab = this.data.familyTabs[this.data.activeTabIndex];
+    if (!tab) return;
+
+    const p = this.data.profile;
+    const payload = {
+      name: p.name || undefined,
+      gender: p.gender || undefined,
+      birthday: p.birthday || undefined,
+      height: p.height ? parseFloat(p.height) : undefined,
+      weight: p.weight ? parseFloat(p.weight) : undefined,
+      blood_type: p.bloodType || undefined,
+      chronic_diseases: p.chronic_diseases,
+      allergies: p.allergies,
+      genetic_diseases: p.genetic_diseases
+    };
+
     try {
-      wx.setStorageSync('healthProfile', this.data.profile);
-      // await post('/api/health/profile', this.data.profile);
+      if (tab.is_self) {
+        await put('/api/health/profile', payload);
+      } else {
+        await put(`/api/health/profile/member/${tab.id}`, payload);
+      }
       wx.showToast({ title: '保存成功', icon: 'success' });
     } catch (e) {
       wx.showToast({ title: '保存失败', icon: 'none' });

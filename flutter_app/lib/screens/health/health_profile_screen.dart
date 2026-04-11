@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/health_provider.dart';
 import '../../services/api_service.dart';
-import '../../widgets/custom_app_bar.dart';
+import '../../widgets/disease_tag_selector.dart';
 import '../../widgets/loading_widget.dart';
+import '../../models/health_profile.dart';
 
 class HealthProfileScreen extends StatefulWidget {
   const HealthProfileScreen({super.key});
@@ -12,7 +13,8 @@ class HealthProfileScreen extends StatefulWidget {
   State<HealthProfileScreen> createState() => _HealthProfileScreenState();
 }
 
-class _HealthProfileScreenState extends State<HealthProfileScreen> with SingleTickerProviderStateMixin {
+class _HealthProfileScreenState extends State<HealthProfileScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final ApiService _apiService = ApiService();
 
@@ -21,9 +23,23 @@ class _HealthProfileScreenState extends State<HealthProfileScreen> with SingleTi
     {'name': '本人', 'relation': '本人', 'is_self': true},
   ];
 
+  List<String> _chronicPresets = [];
+  List<String> _allergyPresets = [];
+  List<String> _geneticPresets = [];
+  bool _presetsLoading = true;
+
+  List<dynamic> _chronicDiseases = [];
+  List<dynamic> _allergies = [];
+  List<dynamic> _geneticDiseases = [];
+
+  bool _saving = false;
+
   static Color _relationColor(String relation) {
     if (relation == '本人') return const Color(0xFF52C41A);
-    if (relation == '爸爸' || relation == '妈妈' || relation == '父亲' || relation == '母亲') {
+    if (relation == '爸爸' ||
+        relation == '妈妈' ||
+        relation == '父亲' ||
+        relation == '母亲') {
       return const Color(0xFF1890FF);
     }
     if (relation == '儿子' || relation == '女儿' || relation == '子女') {
@@ -38,6 +54,7 @@ class _HealthProfileScreenState extends State<HealthProfileScreen> with SingleTi
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
     _loadFamilyMembers();
+    _loadPresets();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<HealthProvider>(context, listen: false).loadHealthProfile();
     });
@@ -55,7 +72,8 @@ class _HealthProfileScreenState extends State<HealthProfileScreen> with SingleTi
               return {
                 'id': m['id'],
                 'name': m['nickname'] ?? m['name'] ?? '',
-                'relation': m['relation_type_name'] ?? m['relationship_type'] ?? '本人',
+                'relation':
+                    m['relation_type_name'] ?? m['relationship_type'] ?? '本人',
                 'is_self': m['is_self'] ?? false,
               };
             }).toList();
@@ -63,6 +81,87 @@ class _HealthProfileScreenState extends State<HealthProfileScreen> with SingleTi
         }
       }
     } catch (_) {}
+  }
+
+  Future<void> _loadPresets() async {
+    setState(() => _presetsLoading = true);
+    try {
+      final results = await Future.wait([
+        _apiService.getDiseasePresets('chronic'),
+        _apiService.getDiseasePresets('allergy'),
+        _apiService.getDiseasePresets('genetic'),
+      ]);
+      if (mounted) {
+        setState(() {
+          _chronicPresets = _parsePresets(results[0].data);
+          _allergyPresets = _parsePresets(results[1].data);
+          _geneticPresets = _parsePresets(results[2].data);
+        });
+      }
+    } catch (_) {}
+    if (mounted) setState(() => _presetsLoading = false);
+  }
+
+  List<String> _parsePresets(dynamic data) {
+    if (data is List) {
+      return data.map((e) => e is Map ? (e['name'] ?? '').toString() : e.toString()).toList();
+    }
+    if (data is Map) {
+      final items = data['items'] ?? data['data'] ?? data['presets'];
+      if (items is List) {
+        return items
+            .map((e) =>
+                e is Map ? (e['name'] ?? '').toString() : e.toString())
+            .toList();
+      }
+    }
+    return [];
+  }
+
+  void _syncFromProfile(HealthProfile? profile) {
+    if (profile == null) return;
+    _chronicDiseases = List<dynamic>.from(profile.chronicDiseases);
+    _allergies = List<dynamic>.from(profile.allergies);
+    _geneticDiseases = List<dynamic>.from(profile.geneticDiseases);
+  }
+
+  Future<void> _save() async {
+    setState(() => _saving = true);
+    final member = _familyMembers[_selectedMemberIndex];
+    final data = {
+      'chronic_diseases': _chronicDiseases,
+      'allergies': _allergies,
+      'genetic_diseases': _geneticDiseases,
+    };
+
+    try {
+      final memberId = member['id'];
+      if (memberId != null && !(member['is_self'] == true)) {
+        await _apiService.updateMemberHealthProfile(memberId, data);
+      } else {
+        await _apiService.updateHealthProfile(data);
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('保存成功'),
+            backgroundColor: Color(0xFF52C41A),
+            duration: Duration(seconds: 1),
+          ),
+        );
+        Provider.of<HealthProvider>(context, listen: false).loadHealthProfile();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('保存失败，请重试'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+    if (mounted) setState(() => _saving = false);
   }
 
   @override
@@ -115,6 +214,13 @@ class _HealthProfileScreenState extends State<HealthProfileScreen> with SingleTi
                   return const LoadingWidget();
                 }
 
+                if (_chronicDiseases.isEmpty &&
+                    _allergies.isEmpty &&
+                    _geneticDiseases.isEmpty &&
+                    provider.healthProfile != null) {
+                  _syncFromProfile(provider.healthProfile);
+                }
+
                 return TabBarView(
                   controller: _tabController,
                   children: [
@@ -162,18 +268,28 @@ class _HealthProfileScreenState extends State<HealthProfileScreen> with SingleTi
                       height: 44,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: isSelected ? color : const Color(0xFFF0F0F0),
+                        color:
+                            isSelected ? color : const Color(0xFFF0F0F0),
                         boxShadow: isSelected
-                            ? [BoxShadow(color: color.withOpacity(0.3), blurRadius: 6, offset: const Offset(0, 2))]
+                            ? [
+                                BoxShadow(
+                                    color: color.withOpacity(0.3),
+                                    blurRadius: 6,
+                                    offset: const Offset(0, 2))
+                              ]
                             : null,
                       ),
                       alignment: Alignment.center,
                       child: Text(
-                        relation.length > 2 ? relation.substring(0, 2) : relation,
+                        relation.length > 2
+                            ? relation.substring(0, 2)
+                            : relation,
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
-                          color: isSelected ? Colors.white : const Color(0xFF333333),
+                          color: isSelected
+                              ? Colors.white
+                              : const Color(0xFF333333),
                         ),
                       ),
                     ),
@@ -212,10 +328,12 @@ class _HealthProfileScreenState extends State<HealthProfileScreen> with SingleTi
                 color: Color(0xFFF0F0F0),
               ),
               alignment: Alignment.center,
-              child: const Icon(Icons.add, color: Color(0xFF999999), size: 22),
+              child: const Icon(Icons.add,
+                  color: Color(0xFF999999), size: 22),
             ),
             const SizedBox(height: 4),
-            const Text('添加', style: TextStyle(fontSize: 10, color: Color(0xFF999999))),
+            const Text('添加',
+                style: TextStyle(fontSize: 10, color: Color(0xFF999999))),
           ],
         ),
       ),
@@ -228,21 +346,71 @@ class _HealthProfileScreenState extends State<HealthProfileScreen> with SingleTi
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
-          _buildInfoCard('身高', '${profile?.height ?? "--"} cm', Icons.height),
-          _buildInfoCard('体重', '${profile?.weight ?? "--"} kg', Icons.monitor_weight),
-          _buildInfoCard('BMI', profile?.bmi?.toStringAsFixed(1) ?? '--', Icons.analytics),
-          _buildInfoCard('血型', profile?.bloodType ?? '--', Icons.bloodtype),
-          _buildInfoCard('过敏史', profile?.allergies.join(', ') ?? '无', Icons.warning_amber),
-          _buildInfoCard('慢性病', profile?.chronicDiseases.join(', ') ?? '无', Icons.medical_information),
-          _buildInfoCard('体质类型', profile?.constitution ?? '未测评', Icons.spa),
+          _buildInfoCard(
+              '身高', '${profile?.height ?? "--"} cm', Icons.height),
+          _buildInfoCard(
+              '体重', '${profile?.weight ?? "--"} kg', Icons.monitor_weight),
+          _buildInfoCard('BMI',
+              profile?.bmi?.toStringAsFixed(1) ?? '--', Icons.analytics),
+          _buildInfoCard(
+              '血型', profile?.bloodType ?? '--', Icons.bloodtype),
+          _buildInfoCard(
+              '体质类型', profile?.constitution ?? '未测评', Icons.spa),
+          const SizedBox(height: 8),
+          if (_presetsLoading)
+            const Padding(
+              padding: EdgeInsets.all(20),
+              child: Center(
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            )
+          else ...[
+            DiseaseTagSelector(
+              title: '慢性病史',
+              presets: _chronicPresets,
+              selectedItems: _chronicDiseases,
+              onChanged: (items) =>
+                  setState(() => _chronicDiseases = items),
+              color: const Color(0xFFFA8C16),
+            ),
+            DiseaseTagSelector(
+              title: '过敏史',
+              presets: _allergyPresets,
+              selectedItems: _allergies,
+              onChanged: (items) => setState(() => _allergies = items),
+              color: const Color(0xFFEB2F96),
+            ),
+            DiseaseTagSelector(
+              title: '家族遗传病史',
+              presets: _geneticPresets,
+              selectedItems: _geneticDiseases,
+              onChanged: (items) =>
+                  setState(() => _geneticDiseases = items),
+              color: const Color(0xFF1890FF),
+            ),
+          ],
           const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: () {},
-              child: const Text('编辑信息'),
+              onPressed: _saving ? null : _save,
+              child: _saving
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Text('保存'),
             ),
           ),
+          const SizedBox(height: 24),
         ],
       ),
     );
@@ -268,9 +436,12 @@ class _HealthProfileScreenState extends State<HealthProfileScreen> with SingleTi
             child: Icon(icon, color: const Color(0xFF52C41A), size: 20),
           ),
           const SizedBox(width: 14),
-          Text(label, style: TextStyle(fontSize: 15, color: Colors.grey[600])),
+          Text(label,
+              style: TextStyle(fontSize: 15, color: Colors.grey[600])),
           const Spacer(),
-          Text(value, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+          Text(value,
+              style: const TextStyle(
+                  fontSize: 15, fontWeight: FontWeight.w500)),
         ],
       ),
     );
@@ -283,7 +454,8 @@ class _HealthProfileScreenState extends State<HealthProfileScreen> with SingleTi
         children: [
           Icon(Icons.folder_open, size: 60, color: Colors.grey[300]),
           const SizedBox(height: 12),
-          Text('暂无健康记录', style: TextStyle(color: Colors.grey[500])),
+          Text('暂无健康记录',
+              style: TextStyle(color: Colors.grey[500])),
         ],
       ),
     );
@@ -294,9 +466,11 @@ class _HealthProfileScreenState extends State<HealthProfileScreen> with SingleTi
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.medication_outlined, size: 60, color: Colors.grey[300]),
+          Icon(Icons.medication_outlined,
+              size: 60, color: Colors.grey[300]),
           const SizedBox(height: 12),
-          Text('暂无用药记录', style: TextStyle(color: Colors.grey[500])),
+          Text('暂无用药记录',
+              style: TextStyle(color: Colors.grey[500])),
         ],
       ),
     );

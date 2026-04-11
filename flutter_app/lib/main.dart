@@ -20,6 +20,7 @@ import 'screens/health/tcm_screen.dart';
 import 'screens/health/drug_screen.dart';
 import 'screens/health/drug_chat_screen.dart';
 import 'screens/health/health_profile_screen.dart';
+import 'screens/health/health_guide_screen.dart';
 import 'screens/family/family_screen.dart';
 import 'screens/services/services_screen.dart';
 import 'screens/services/service_detail_screen.dart';
@@ -173,6 +174,10 @@ class BiniHealthApp extends StatelessWidget {
           '/drug': (context) => const DrugScreen(),
           '/drug-chat': (context) => const DrugChatScreen(),
           '/health-profile': (context) => const HealthProfileScreen(),
+          '/health-guide': (context) {
+            final memberId = ModalRoute.of(context)?.settings.arguments as int?;
+            return HealthGuideScreen(memberId: memberId);
+          },
           '/family': (context) => const FamilyScreen(),
           '/services': (context) => const ServicesScreen(),
           '/service-detail': (context) => const ServiceDetailScreen(),

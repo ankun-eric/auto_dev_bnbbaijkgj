@@ -1019,19 +1019,31 @@ async def _init_relation_types(db: AsyncSession):
 
 async def _init_disease_presets(db: AsyncSession):
     result = await db.execute(select(DiseasePreset).limit(1))
-    if result.scalar_one_or_none():
-        return
+    if not result.scalar_one_or_none():
+        chronic = ["高血压", "糖尿病", "冠心病", "脑卒中", "慢性肺病", "肿瘤/癌症", "肾病", "肝病", "甲状腺疾病"]
+        for i, name in enumerate(chronic):
+            db.add(DiseasePreset(name=name, category="chronic", sort_order=i, is_active=True))
 
-    chronic = ["高血压", "糖尿病", "冠心病", "脑卒中", "慢性肺病", "肿瘤/癌症", "肾病", "肝病", "甲状腺疾病"]
-    for i, name in enumerate(chronic):
-        db.add(DiseasePreset(name=name, category="chronic", sort_order=i, is_active=True))
+        genetic = ["高血压", "糖尿病", "心脏病", "癌症", "精神疾病", "遗传性肾病", "血液病", "先天性疾病"]
+        for i, name in enumerate(genetic):
+            db.add(DiseasePreset(name=name, category="genetic", sort_order=i, is_active=True))
 
-    genetic = ["高血压", "糖尿病", "心脏病", "癌症", "精神疾病", "遗传性肾病", "血液病", "先天性疾病"]
-    for i, name in enumerate(genetic):
-        db.add(DiseasePreset(name=name, category="genetic", sort_order=i, is_active=True))
+        await db.flush()
+        logger.info("Created default disease presets (%d chronic, %d genetic)", len(chronic), len(genetic))
 
-    await db.flush()
-    logger.info("Created default disease presets (%d chronic, %d genetic)", len(chronic), len(genetic))
+    allergy_presets = [
+        "青霉素", "头孢类", "磺胺类", "阿司匹林",
+        "海鲜/贝壳类", "牛奶/乳制品", "鸡蛋", "花生/坚果类", "小麦/面筋",
+        "花粉", "尘螨", "动物皮毛", "乳胶", "酒精",
+    ]
+    result = await db.execute(
+        select(DiseasePreset).where(DiseasePreset.category == "allergy").limit(1)
+    )
+    if not result.scalar_one_or_none():
+        for i, name in enumerate(allergy_presets):
+            db.add(DiseasePreset(name=name, category="allergy", sort_order=i + 1, is_active=True))
+        await db.flush()
+        logger.info("Created default allergy presets (%d items)", len(allergy_presets))
 
 
 async def _init_bottom_nav_config(db: AsyncSession):

@@ -1,50 +1,101 @@
-.health-profile-page {
+.guide-page {
+  min-height: 100vh;
   padding: 24rpx;
-  padding-bottom: 140rpx;
+  padding-bottom: 160rpx;
+  background: #f5f5f5;
 }
 
-/* Family Tabs */
-.family-tabs-wrapper {
+/* Progress bar */
+.progress-bar {
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 24rpx;
   margin-bottom: 24rpx;
 }
 
-.family-tabs {
-  white-space: nowrap;
-  padding: 8rpx 0;
+.progress-steps {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 16rpx;
 }
 
-.family-tab {
-  display: inline-flex;
+.progress-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+}
+
+.step-circle {
+  width: 48rpx;
+  height: 48rpx;
+  border-radius: 50%;
+  background: #e8e8e8;
+  color: #999;
+  display: flex;
   align-items: center;
   justify-content: center;
-  width: 80rpx;
-  height: 80rpx;
-  border-radius: 50%;
-  margin-right: 20rpx;
-  background: #f0f0f0;
-  vertical-align: middle;
-}
-
-.family-tab-active {
-  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.15);
-}
-
-.family-tab-text {
-  font-size: 22rpx;
+  font-size: 24rpx;
   font-weight: bold;
+  margin-bottom: 8rpx;
 }
 
-.family-tab-add {
-  background: #f0f0f0;
-  border: 2rpx dashed #ccc;
+.step-active .step-circle {
+  background: #52c41a;
+  color: #fff;
 }
 
-.family-tab-add .family-tab-text {
-  font-size: 36rpx;
-  font-weight: normal;
+.step-text {
+  font-size: 20rpx;
   color: #999;
 }
 
+.step-active .step-text {
+  color: #52c41a;
+  font-weight: 500;
+}
+
+.progress-track {
+  height: 6rpx;
+  background: #e8e8e8;
+  border-radius: 3rpx;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #52c41a, #13c2c2);
+  border-radius: 3rpx;
+  transition: width 0.3s ease;
+}
+
+/* Step content */
+.step-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 32rpx 0 24rpx;
+}
+
+.step-icon {
+  font-size: 60rpx;
+  margin-bottom: 12rpx;
+}
+
+.step-title {
+  font-size: 34rpx;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 8rpx;
+}
+
+.step-desc {
+  font-size: 26rpx;
+  color: #999;
+  text-align: center;
+}
+
+/* Form */
 .form-item {
   display: flex;
   align-items: center;
@@ -99,30 +150,17 @@
   color: #52c41a;
 }
 
-.section-header-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16rpx;
-}
-
-.add-btn {
-  font-size: 26rpx;
-  color: #52c41a;
-}
-
-/* Preset tags */
+/* Tags */
 .tags-wrap {
   display: flex;
   flex-wrap: wrap;
   gap: 16rpx;
-  margin-top: 16rpx;
 }
 
 .preset-tag {
   display: inline-flex;
   align-items: center;
-  padding: 12rpx 24rpx;
+  padding: 14rpx 28rpx;
   background: #f5f5f5;
   border: 2rpx solid #e8e8e8;
   border-radius: 32rpx;
@@ -147,13 +185,12 @@
   display: flex;
   align-items: center;
   gap: 16rpx;
-  margin-top: 16rpx;
-  padding: 8rpx 0;
+  margin-top: 20rpx;
 }
 
 .custom-input {
   flex: 1;
-  height: 64rpx;
+  height: 68rpx;
   border: 2rpx solid #e8e8e8;
   border-radius: 12rpx;
   padding: 0 20rpx;
@@ -163,8 +200,8 @@
 
 .confirm-btn {
   width: 120rpx !important;
-  height: 64rpx;
-  line-height: 64rpx;
+  height: 68rpx;
+  line-height: 68rpx;
   padding: 0;
   font-size: 26rpx;
   background: #52c41a;
@@ -203,65 +240,45 @@
   color: #d48806;
 }
 
-/* Medications */
-.tag-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12rpx;
-}
-
-.removable-tag {
-  display: flex;
-  align-items: center;
-  padding: 8rpx 20rpx;
-  background: #f6ffed;
-  border-radius: 24rpx;
-  font-size: 24rpx;
-  color: #52c41a;
-}
-
-.tag-remove {
-  margin-left: 8rpx;
-  font-size: 28rpx;
-  color: #999;
-}
-
-.empty-hint {
-  font-size: 24rpx;
-  color: #ccc;
-}
-
-.med-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12rpx 0;
-  border-bottom: 1rpx solid #f5f5f5;
-}
-
-.med-info { flex: 1; }
-
-.med-name {
-  font-size: 28rpx;
-  color: #333;
+.hint-text {
   display: block;
+  margin-top: 20rpx;
+  font-size: 24rpx;
+  color: #bbb;
+  text-align: center;
 }
 
-.med-dosage {
-  font-size: 22rpx;
-  color: #999;
-}
-
-.save-section {
+/* Bottom bar */
+.bottom-bar {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 20rpx 48rpx;
+  padding: 20rpx 32rpx;
   background: #fff;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   box-shadow: 0 -2rpx 8rpx rgba(0, 0, 0, 0.04);
 }
 
-.save-btn {
-  width: 100%;
+.bar-left {
+  flex-shrink: 0;
+}
+
+.bar-right {
+  display: flex;
+  gap: 16rpx;
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  color: #999;
+  font-size: 28rpx;
+  padding: 16rpx 24rpx;
+}
+
+.btn-link::after {
+  border: none;
 }

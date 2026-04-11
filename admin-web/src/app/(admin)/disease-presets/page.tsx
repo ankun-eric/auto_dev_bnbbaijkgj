@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Button,
   Form,
@@ -8,10 +8,10 @@ import {
   InputNumber,
   Modal,
   Popconfirm,
+  Select,
   Space,
   Switch,
   Table,
-  Tabs,
   Tag,
   Typography,
   message,
@@ -21,7 +21,15 @@ import { get, post, put, del } from '@/lib/api';
 
 const { Title } = Typography;
 
-type Category = 'chronic' | 'genetic';
+type Category = 'chronic' | 'allergy' | 'genetic';
+
+const CATEGORY_MAP: Record<Category, string> = {
+  chronic: '慢性病史',
+  allergy: '过敏史',
+  genetic: '家族遗传病史',
+};
+
+const CATEGORY_OPTIONS = Object.entries(CATEGORY_MAP).map(([value, label]) => ({ value, label }));
 
 interface DiseasePresetItem {
   id: number;
@@ -32,22 +40,38 @@ interface DiseasePresetItem {
   created_at: string | null;
 }
 
-interface PresetTableProps {
-  category: Category;
+function getIsSuperuser(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    const raw = localStorage.getItem('admin_user');
+    if (!raw) return false;
+    const user = JSON.parse(raw);
+    return user?.is_superuser === true;
+  } catch {
+    return false;
+  }
 }
 
-function PresetTable({ category }: PresetTableProps) {
+export default function DiseasePresetsPage() {
+  const [category, setCategory] = useState<string>('');
   const [data, setData] = useState<DiseasePresetItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [modalLoading, setModalLoading] = useState(false);
   const [editingItem, setEditingItem] = useState<DiseasePresetItem | null>(null);
+  const [isSuperuser, setIsSuperuser] = useState(false);
   const [form] = Form.useForm();
+
+  useEffect(() => {
+    setIsSuperuser(getIsSuperuser());
+  }, []);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await get<{ items: DiseasePresetItem[] }>('/api/admin/disease-presets', { category });
+      const params: Record<string, string> = {};
+      if (category) params.category = category;
+      const res = await get<{ items: DiseasePresetItem[] }>('/api/admin/disease-presets', params);
       setData(res.items ?? []);
     } catch (e: unknown) {
       const err = e as { response?: { data?: { detail?: string } }; message?: string };
@@ -70,7 +94,12 @@ function PresetTable({ category }: PresetTableProps) {
 
   const openEdit = (item: DiseasePresetItem) => {
     setEditingItem(item);
-    form.setFieldsValue({ name: item.name, sort_order: item.sort_order, is_active: item.is_active });
+    form.setFieldsValue({
+      name: item.name,
+      category: item.category,
+      sort_order: item.sort_order,
+      is_active: item.is_active,
+    });
     setModalOpen(true);
   };
 
@@ -78,12 +107,11 @@ function PresetTable({ category }: PresetTableProps) {
     try {
       const values = await form.validateFields();
       setModalLoading(true);
-      const payload = { ...values, category };
       if (editingItem) {
-        await put(`/api/admin/disease-presets/${editingItem.id}`, payload);
+        await put(`/api/admin/disease-presets/${editingItem.id}`, values);
         message.success('更新成功');
       } else {
-        await post('/api/admin/disease-presets', payload);
+        await post('/api/admin/disease-presets', values);
         message.success('创建成功');
       }
       setModalOpen(false);
@@ -109,44 +137,70 @@ function PresetTable({ category }: PresetTableProps) {
     }
   };
 
-  const categoryLabel = category === 'chronic' ? '慢性病/既往病史' : '家族遗传病史';
+  const columns = useMemo(() => {
+    const cols = [
+      { title: 'ID', dataIndex: 'id', key: 'id', width: 70 },
+      { title: '病种名称', dataIndex: 'name', key: 'name' },
+      {
+        title: '分类',
+        dataIndex: 'category',
+        key: 'category',
+        width: 140,
+        render: (v: Category) => CATEGORY_MAP[v] || v,
+      },
+      { title: '排序值', dataIndex: 'sort_order', key: 'sort_order', width: 100 },
+      {
+        title: '状态',
+        dataIndex: 'is_active',
+        key: 'is_active',
+        width: 100,
+        render: (v: boolean) => <Tag color={v ? 'green' : 'default'}>{v ? '启用' : '禁用'}</Tag>,
+      },
+    ];
 
-  const columns = [
-    { title: 'ID', dataIndex: 'id', key: 'id', width: 70 },
-    { title: '病种名称', dataIndex: 'name', key: 'name' },
-    { title: '排序值', dataIndex: 'sort_order', key: 'sort_order', width: 100 },
-    {
-      title: '状态',
-      dataIndex: 'is_active',
-      key: 'is_active',
-      width: 100,
-      render: (v: boolean) => <Tag color={v ? 'green' : 'default'}>{v ? '启用' : '禁用'}</Tag>,
-    },
-    {
-      title: '操作',
-      key: 'action',
-      width: 140,
-      render: (_: unknown, record: DiseasePresetItem) => (
-        <Space>
-          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEdit(record)}>
-            编辑
-          </Button>
-          <Popconfirm title="确定删除该预设？" onConfirm={() => handleDelete(record.id)}>
-            <Button type="link" size="small" danger icon={<DeleteOutlined />}>
-              删除
+    if (isSuperuser) {
+      cols.push({
+        title: '操作',
+        key: 'action',
+        width: 140,
+        dataIndex: '' as any,
+        render: ((_: unknown, record: DiseasePresetItem) => (
+          <Space>
+            <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEdit(record)}>
+              编辑
             </Button>
-          </Popconfirm>
-        </Space>
-      ),
-    },
-  ];
+            <Popconfirm title="确定删除该预设？" onConfirm={() => handleDelete(record.id)}>
+              <Button type="link" size="small" danger icon={<DeleteOutlined />}>
+                删除
+              </Button>
+            </Popconfirm>
+          </Space>
+        )) as any,
+      });
+    }
+
+    return cols;
+  }, [isSuperuser]);
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
-        <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
-          新增{categoryLabel}预设
-        </Button>
+      <Title level={4} style={{ marginBottom: 24 }}>
+        <MedicineBoxOutlined style={{ marginRight: 8, color: '#52c41a' }} />
+        预设列表管理
+      </Title>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <Select
+          value={category}
+          onChange={setCategory}
+          style={{ width: 200 }}
+          options={[{ value: '', label: '全部' }, ...CATEGORY_OPTIONS]}
+        />
+        {isSuperuser && (
+          <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+            新增预设
+          </Button>
+        )}
       </div>
 
       <Table
@@ -159,7 +213,7 @@ function PresetTable({ category }: PresetTableProps) {
       />
 
       <Modal
-        title={editingItem ? `编辑${categoryLabel}预设` : `新增${categoryLabel}预设`}
+        title={editingItem ? '编辑预设' : '新增预设'}
         open={modalOpen}
         onOk={handleSubmit}
         onCancel={() => setModalOpen(false)}
@@ -167,6 +221,13 @@ function PresetTable({ category }: PresetTableProps) {
         destroyOnClose
       >
         <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
+          <Form.Item
+            label="分类"
+            name="category"
+            rules={[{ required: true, message: '请选择分类' }]}
+          >
+            <Select placeholder="请选择分类" options={CATEGORY_OPTIONS} />
+          </Form.Item>
           <Form.Item
             label="病种名称"
             name="name"
@@ -182,33 +243,6 @@ function PresetTable({ category }: PresetTableProps) {
           </Form.Item>
         </Form>
       </Modal>
-    </div>
-  );
-}
-
-export default function DiseasePresetsPage() {
-  return (
-    <div>
-      <Title level={4} style={{ marginBottom: 24 }}>
-        <MedicineBoxOutlined style={{ marginRight: 8, color: '#52c41a' }} />
-        预设列表管理
-      </Title>
-
-      <Tabs
-        defaultActiveKey="chronic"
-        items={[
-          {
-            key: 'chronic',
-            label: '慢性病 / 既往病史',
-            children: <PresetTable category="chronic" />,
-          },
-          {
-            key: 'genetic',
-            label: '家族遗传病史',
-            children: <PresetTable category="genetic" />,
-          },
-        ]}
-      />
     </div>
   );
 }

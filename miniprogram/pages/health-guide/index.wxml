@@ -1,0 +1,169 @@
+<wxs src="./helpers.wxs" module="h" />
+
+<view class="guide-page">
+  <!-- Progress bar -->
+  <view class="progress-bar">
+    <view class="progress-steps">
+      <view wx:for="{{steps}}" wx:key="index" class="progress-step {{currentStep >= index ? 'step-active' : ''}}">
+        <view class="step-circle">{{index + 1}}</view>
+        <text class="step-text">{{item}}</text>
+      </view>
+    </view>
+    <view class="progress-track">
+      <view class="progress-fill" style="width: {{(currentStep / 3) * 100}}%"></view>
+    </view>
+  </view>
+
+  <!-- Step 1: Basic Info -->
+  <view class="step-content" wx:if="{{currentStep === 0}}">
+    <view class="step-header">
+      <text class="step-icon">👤</text>
+      <text class="step-title">填写基本信息</text>
+      <text class="step-desc">帮助我们更好地为您提供健康服务</text>
+    </view>
+    <view class="card">
+      <view class="form-item">
+        <text class="form-label">姓名</text>
+        <input class="form-input" placeholder="请输入姓名" value="{{name}}" bindinput="onInput" data-field="name" />
+      </view>
+      <view class="form-item">
+        <text class="form-label">性别</text>
+        <view class="gender-group">
+          <view class="gender-btn {{gender === '男' ? 'gender-active' : ''}}" bindtap="setGender" data-gender="男">男</view>
+          <view class="gender-btn {{gender === '女' ? 'gender-active' : ''}}" bindtap="setGender" data-gender="女">女</view>
+        </view>
+      </view>
+      <view class="form-item">
+        <text class="form-label">出生日期</text>
+        <picker mode="date" value="{{birthday}}" bindchange="onDateChange">
+          <text class="form-value {{birthday ? '' : 'placeholder'}}">{{birthday || '请选择'}}</text>
+        </picker>
+      </view>
+      <view class="form-item">
+        <text class="form-label">身高(cm)</text>
+        <input class="form-input" type="digit" placeholder="请输入" value="{{height}}" bindinput="onInput" data-field="height" />
+      </view>
+      <view class="form-item">
+        <text class="form-label">体重(kg)</text>
+        <input class="form-input" type="digit" placeholder="请输入" value="{{weight}}" bindinput="onInput" data-field="weight" />
+      </view>
+      <view class="form-item">
+        <text class="form-label">血型</text>
+        <picker range="{{bloodTypes}}" value="{{bloodTypeIndex}}" bindchange="onBloodTypeChange">
+          <text class="form-value {{bloodType ? '' : 'placeholder'}}">{{bloodType || '请选择'}}</text>
+        </picker>
+      </view>
+    </view>
+  </view>
+
+  <!-- Step 2: Chronic Diseases -->
+  <view class="step-content" wx:if="{{currentStep === 1}}">
+    <view class="step-header">
+      <text class="step-icon">🏥</text>
+      <text class="step-title">慢性病史</text>
+      <text class="step-desc">选择您曾经或正在患有的慢性疾病（可多选）</text>
+    </view>
+    <view class="card">
+      <view class="tags-wrap">
+        <view wx:for="{{chronicPresets}}" wx:key="id"
+          class="preset-tag {{h.isPresetSelected(chronic_diseases, item.name) ? 'preset-tag-selected' : ''}}"
+          bindtap="toggleChronicPreset" data-name="{{item.name}}">
+          {{item.name}}
+        </view>
+        <view class="preset-tag preset-tag-other {{showChronicOther ? 'preset-tag-selected' : ''}}"
+          bindtap="toggleChronicOther">
+          其它 ✚
+        </view>
+      </view>
+      <view wx:if="{{showChronicOther}}" class="custom-input-wrap">
+        <input class="custom-input" placeholder="请输入其它慢性病…"
+          value="{{chronicOtherInput}}" bindinput="onChronicOtherInput" maxlength="100"/>
+        <button class="confirm-btn" bindtap="confirmChronicOther">确认</button>
+      </view>
+      <view class="custom-tags" wx:if="{{chronicCustomItems.length > 0}}">
+        <view wx:for="{{chronicCustomItems}}" wx:key="value" class="custom-tag">
+          {{item.value}} <text class="delete-btn" bindtap="removeChronicCustom" data-value="{{item.value}}">✕</text>
+        </view>
+      </view>
+      <text class="hint-text" wx:if="{{chronic_diseases.length === 0}}">如无慢性病史可直接跳过</text>
+    </view>
+  </view>
+
+  <!-- Step 3: Allergies -->
+  <view class="step-content" wx:if="{{currentStep === 2}}">
+    <view class="step-header">
+      <text class="step-icon">⚠️</text>
+      <text class="step-title">过敏史</text>
+      <text class="step-desc">选择您的过敏原（可多选）</text>
+    </view>
+    <view class="card">
+      <view class="tags-wrap">
+        <view wx:for="{{allergyPresets}}" wx:key="id"
+          class="preset-tag {{h.isPresetSelected(allergies, item.name) ? 'preset-tag-selected' : ''}}"
+          bindtap="toggleAllergyPreset" data-name="{{item.name}}">
+          {{item.name}}
+        </view>
+        <view class="preset-tag preset-tag-other {{showAllergyOther ? 'preset-tag-selected' : ''}}"
+          bindtap="toggleAllergyOther">
+          其它 ✚
+        </view>
+      </view>
+      <view wx:if="{{showAllergyOther}}" class="custom-input-wrap">
+        <input class="custom-input" placeholder="请输入其它过敏源…"
+          value="{{allergyOtherInput}}" bindinput="onAllergyOtherInput" maxlength="100"/>
+        <button class="confirm-btn" bindtap="confirmAllergyOther">确认</button>
+      </view>
+      <view class="custom-tags" wx:if="{{allergyCustomItems.length > 0}}">
+        <view wx:for="{{allergyCustomItems}}" wx:key="value" class="custom-tag">
+          {{item.value}} <text class="delete-btn" bindtap="removeAllergyCustom" data-value="{{item.value}}">✕</text>
+        </view>
+      </view>
+      <text class="hint-text" wx:if="{{allergies.length === 0}}">如无过敏史可直接跳过</text>
+    </view>
+  </view>
+
+  <!-- Step 4: Genetic Diseases -->
+  <view class="step-content" wx:if="{{currentStep === 3}}">
+    <view class="step-header">
+      <text class="step-icon">🧬</text>
+      <text class="step-title">家族遗传病史</text>
+      <text class="step-desc">选择您家族中存在的遗传疾病（可多选）</text>
+    </view>
+    <view class="card">
+      <view class="tags-wrap">
+        <view wx:for="{{geneticPresets}}" wx:key="id"
+          class="preset-tag {{h.isPresetSelected(genetic_diseases, item.name) ? 'preset-tag-selected' : ''}}"
+          bindtap="toggleGeneticPreset" data-name="{{item.name}}">
+          {{item.name}}
+        </view>
+        <view class="preset-tag preset-tag-other {{showGeneticOther ? 'preset-tag-selected' : ''}}"
+          bindtap="toggleGeneticOther">
+          其它 ✚
+        </view>
+      </view>
+      <view wx:if="{{showGeneticOther}}" class="custom-input-wrap">
+        <input class="custom-input" placeholder="请输入其它遗传病…"
+          value="{{geneticOtherInput}}" bindinput="onGeneticOtherInput" maxlength="100"/>
+        <button class="confirm-btn" bindtap="confirmGeneticOther">确认</button>
+      </view>
+      <view class="custom-tags" wx:if="{{geneticCustomItems.length > 0}}">
+        <view wx:for="{{geneticCustomItems}}" wx:key="value" class="custom-tag">
+          {{item.value}} <text class="delete-btn" bindtap="removeGeneticCustom" data-value="{{item.value}}">✕</text>
+        </view>
+      </view>
+      <text class="hint-text" wx:if="{{genetic_diseases.length === 0}}">如无家族遗传病史可直接跳过</text>
+    </view>
+  </view>
+
+  <!-- Bottom bar -->
+  <view class="bottom-bar safe-bottom">
+    <view class="bar-left">
+      <button class="btn-link" bindtap="skipGuide">跳过</button>
+    </view>
+    <view class="bar-right">
+      <button class="btn-outline" wx:if="{{currentStep > 0}}" bindtap="prevStep">上一步</button>
+      <button class="btn-primary" wx:if="{{currentStep < 3}}" bindtap="nextStep">下一步</button>
+      <button class="btn-primary" wx:if="{{currentStep === 3}}" bindtap="finishGuide">完成</button>
+    </view>
+  </view>
+</view>

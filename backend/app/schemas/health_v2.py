@@ -33,13 +33,13 @@ class HealthProfileV2Update(BaseModel):
     exercise_habit: Optional[str] = None
     sleep_habit: Optional[str] = None
     diet_habit: Optional[str] = None
-    chronic_diseases: Optional[List[str]] = None
+    chronic_diseases: Optional[List[Any]] = None
     medical_histories: Optional[List[str]] = None
-    allergies: Optional[List[str]] = None
+    allergies: Optional[List[Any]] = None
     drug_allergies: Optional[str] = None
     food_allergies: Optional[str] = None
     other_allergies: Optional[str] = None
-    genetic_diseases: Optional[List[str]] = None
+    genetic_diseases: Optional[List[Any]] = None
 
 
 class HealthProfileV2Response(BaseModel):

@@ -15,6 +15,7 @@
     "pages/drug/index",
     "pages/drug-chat/index",
     "pages/health-profile/index",
+    "pages/health-guide/index",
     "pages/family/index",
     "pages/service-detail/index",
     "pages/orders/index",

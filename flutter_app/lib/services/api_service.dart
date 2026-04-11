@@ -146,6 +146,18 @@ class ApiService {
     return _dio.put(ApiConfig.updateHealthProfile, data: data);
   }
 
+  Future<Response> updateMemberHealthProfile(int memberId, Map<String, dynamic> data) async {
+    return _dio.put('${ApiConfig.updateMemberHealthProfile}/$memberId', data: data);
+  }
+
+  Future<Response> getDiseasePresets(String category) async {
+    return _dio.get(ApiConfig.diseasePresets, queryParameters: {'category': category});
+  }
+
+  Future<Response> postGuideStatus() async {
+    return _dio.post(ApiConfig.guideStatus);
+  }
+
   Future<Response> getHealthRecords({int page = 1, int pageSize = 20}) async {
     return _dio.get(ApiConfig.healthRecords, queryParameters: {'page': page, 'page_size': pageSize});
   }

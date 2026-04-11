@@ -17,6 +17,7 @@ import {
   DatePicker,
 } from 'antd-mobile';
 import api from '@/lib/api';
+import DiseaseTagSelector, { type DiseaseItem } from '@/components/DiseaseTagSelector';
 
 const bodyParts = [
   { key: 'head', label: '头部', icon: '🧠' },
@@ -42,13 +43,11 @@ const commonSymptoms: Record<string, string[]> = {
   mental: ['失眠', '焦虑', '疲劳', '注意力不集中'],
 };
 
-const medicalHistoryOptions = [
-  '高血压', '糖尿病', '心脏病', '哮喘', '甲状腺疾病', '肝病', '肾病', '痛风',
-];
-
-const allergyOptions = [
-  '青霉素', '花粉', '海鲜', '牛奶', '尘螨', '坚果', '磺胺类', '头孢类',
-];
+interface DiseasePreset {
+  id: number;
+  name: string;
+  category: string;
+}
 
 interface FamilyMember {
   id: number;
@@ -75,10 +74,9 @@ interface HealthProfile {
   gender: string;
   height: string;
   weight: string;
-  medical_histories: string[];
-  medical_other: string;
-  allergies: string[];
-  allergy_other: string;
+  chronic_diseases: DiseaseItem[];
+  allergies: DiseaseItem[];
+  genetic_diseases: DiseaseItem[];
 }
 
 const emptyProfile = (): HealthProfile => ({
@@ -86,10 +84,9 @@ const emptyProfile = (): HealthProfile => ({
   gender: '',
   height: '',
   weight: '',
-  medical_histories: [],
-  medical_other: '',
+  chronic_diseases: [],
   allergies: [],
-  allergy_other: '',
+  genetic_diseases: [],
 });
 
 const RELATION_EMOJI: Record<string, string> = {
@@ -131,6 +128,11 @@ export default function SymptomPage() {
   const [duration, setDuration] = useState('');
   const [analyzing, setAnalyzing] = useState(false);
 
+  // Disease presets from API
+  const [chronicPresets, setChronicPresets] = useState<DiseasePreset[]>([]);
+  const [allergyPresets, setAllergyPresets] = useState<DiseasePreset[]>([]);
+  const [geneticPresets, setGeneticPresets] = useState<DiseasePreset[]>([]);
+
   // Family member popup state
   const [memberPopupVisible, setMemberPopupVisible] = useState(false);
   const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([]);
@@ -148,10 +150,8 @@ export default function SymptomPage() {
   const [newBirthday, setNewBirthday] = useState('');
   const [newHeight, setNewHeight] = useState('');
   const [newWeight, setNewWeight] = useState('');
-  const [newMedicalHistories, setNewMedicalHistories] = useState<string[]>([]);
-  const [newMedicalOther, setNewMedicalOther] = useState('');
-  const [newAllergies, setNewAllergies] = useState<string[]>([]);
-  const [newAllergyOther, setNewAllergyOther] = useState('');
+  const [newMedicalHistories, setNewMedicalHistories] = useState<DiseaseItem[]>([]);
+  const [newAllergies, setNewAllergies] = useState<DiseaseItem[]>([]);
   const [addLoading, setAddLoading] = useState(false);
   const [newBirthdayPickerVisible, setNewBirthdayPickerVisible] = useState(false);
 
@@ -174,7 +174,26 @@ export default function SymptomPage() {
     else openMemberPopup();
   };
 
+  const fetchDiseasePresets = async () => {
+    try {
+      const [cRes, aRes, gRes]: any[] = await Promise.all([
+        api.get('/api/disease-presets', { params: { category: 'chronic' } }),
+        api.get('/api/disease-presets', { params: { category: 'allergy' } }),
+        api.get('/api/disease-presets', { params: { category: 'genetic' } }),
+      ]);
+      const c = cRes.data || cRes;
+      const a = aRes.data || aRes;
+      const g = gRes.data || gRes;
+      setChronicPresets(Array.isArray(c.items) ? c.items : []);
+      setAllergyPresets(Array.isArray(a.items) ? a.items : []);
+      setGeneticPresets(Array.isArray(g.items) ? g.items : []);
+    } catch {
+      // ignore
+    }
+  };
+
   const openMemberPopup = async () => {
+    await fetchDiseasePresets();
     try {
       const res: any = await api.get('/api/family/members');
       const data = res.data || res;
@@ -194,25 +213,32 @@ export default function SymptomPage() {
     setMemberPopupVisible(true);
   };
 
-  const loadProfileFromMember = (members: FamilyMember[], id: number | null) => {
+  const loadProfileFromMember = async (members: FamilyMember[], id: number | null) => {
     const m = id !== null ? members.find((x) => x.id === id) : undefined;
-    if (m) {
-      const allMedical = m.medical_histories || [];
-      const knownMedical = allMedical.filter((h) => medicalHistoryOptions.includes(h));
-      const otherMedical = allMedical.filter((h) => !medicalHistoryOptions.includes(h)).join('、');
-      const allAllergy = m.allergies || [];
-      const knownAllergy = allAllergy.filter((a) => allergyOptions.includes(a));
-      const otherAllergy = allAllergy.filter((a) => !allergyOptions.includes(a)).join('、');
-      setProfileEdits({
-        birthday: m.birthday || '',
-        gender: m.gender || '',
-        height: m.height != null ? String(m.height) : '',
-        weight: m.weight != null ? String(m.weight) : '',
-        medical_histories: knownMedical,
-        medical_other: otherMedical,
-        allergies: knownAllergy,
-        allergy_other: otherAllergy,
-      });
+    if (m && m.id !== -1) {
+      try {
+        const res: any = await api.get(`/api/health/profile/member/${m.id}`);
+        const p = res.data || res;
+        setProfileEdits({
+          birthday: p.birthday || m.birthday || '',
+          gender: p.gender || m.gender || '',
+          height: p.height != null ? String(p.height) : (m.height != null ? String(m.height) : ''),
+          weight: p.weight != null ? String(p.weight) : (m.weight != null ? String(m.weight) : ''),
+          chronic_diseases: p.chronic_diseases || [],
+          allergies: p.allergies || [],
+          genetic_diseases: p.genetic_diseases || [],
+        });
+      } catch {
+        setProfileEdits({
+          birthday: m.birthday || '',
+          gender: m.gender || '',
+          height: m.height != null ? String(m.height) : '',
+          weight: m.weight != null ? String(m.weight) : '',
+          chronic_diseases: [],
+          allergies: [],
+          genetic_diseases: [],
+        });
+      }
     } else {
       setProfileEdits(emptyProfile());
     }
@@ -223,20 +249,6 @@ export default function SymptomPage() {
     loadProfileFromMember(familyMembers, id);
   };
 
-  const toggleProfileTag = (field: 'medical_histories' | 'allergies', val: string) => {
-    setProfileEdits((prev) => ({
-      ...prev,
-      [field]: prev[field].includes(val)
-        ? prev[field].filter((x) => x !== val)
-        : [...prev[field], val],
-    }));
-  };
-
-  const buildMedicalHistories = (selected: string[], other: string): string[] => {
-    const list = [...selected];
-    if (other.trim()) list.push(other.trim());
-    return list;
-  };
 
   // Add member popup
   const openAddMemberPopup = async () => {
@@ -248,9 +260,7 @@ export default function SymptomPage() {
     setNewHeight('');
     setNewWeight('');
     setNewMedicalHistories([]);
-    setNewMedicalOther('');
     setNewAllergies([]);
-    setNewAllergyOther('');
     try {
       const res: any = await api.get('/api/relation-types');
       const data = res.data || res;
@@ -279,12 +289,8 @@ export default function SymptomPage() {
       };
       if (newHeight) body.height = Number(newHeight);
       if (newWeight) body.weight = Number(newWeight);
-      const medicals = [...newMedicalHistories];
-      if (newMedicalOther.trim()) medicals.push(newMedicalOther.trim());
-      if (medicals.length) body.medical_histories = medicals;
-      const allergies = [...newAllergies];
-      if (newAllergyOther.trim()) allergies.push(newAllergyOther.trim());
-      if (allergies.length) body.allergies = allergies;
+      if (newMedicalHistories.length) body.chronic_diseases = newMedicalHistories;
+      if (newAllergies.length) body.allergies = newAllergies;
 
       const res: any = await api.post('/api/family/members', body);
       const created = res.data || res;
@@ -329,20 +335,16 @@ export default function SymptomPage() {
           memberLabel = `${relationLabel}·${m.nickname}`;
         }
 
-        // Update profile if it's a real member
         if (familyMemberId !== null) {
-          const medical = buildMedicalHistories(profileEdits.medical_histories, profileEdits.medical_other);
-          const allergies = buildMedicalHistories(profileEdits.allergies, profileEdits.allergy_other);
           const updatePayload: any = {};
           if (profileEdits.birthday) updatePayload.birthday = profileEdits.birthday;
           if (profileEdits.gender) updatePayload.gender = profileEdits.gender;
           if (profileEdits.height) updatePayload.height = Number(profileEdits.height);
           if (profileEdits.weight) updatePayload.weight = Number(profileEdits.weight);
-          if (medical.length) updatePayload.medical_histories = medical;
-          if (allergies.length) updatePayload.allergies = allergies;
-          if (Object.keys(updatePayload).length > 0) {
-            await api.put(`/api/family/members/${familyMemberId}`, updatePayload).catch(() => null);
-          }
+          updatePayload.chronic_diseases = profileEdits.chronic_diseases;
+          updatePayload.allergies = profileEdits.allergies;
+          updatePayload.genetic_diseases = profileEdits.genetic_diseases;
+          await api.put(`/api/health/profile/member/${familyMemberId}`, updatePayload).catch(() => null);
         }
       }
 
@@ -632,60 +634,35 @@ export default function SymptomPage() {
               </div>
 
               <div>
-                <div className="text-xs text-gray-500 mb-1">既往病史</div>
-                <div className="flex flex-wrap gap-2">
-                  {medicalHistoryOptions.map((opt) => (
-                    <Tag
-                      key={opt}
-                      onClick={() => toggleProfileTag('medical_histories', opt)}
-                      style={{
-                        '--background-color': profileEdits.medical_histories.includes(opt) ? '#52c41a' : '#fff',
-                        '--text-color': profileEdits.medical_histories.includes(opt) ? '#fff' : '#666',
-                        '--border-color': profileEdits.medical_histories.includes(opt) ? '#52c41a' : '#d9d9d9',
-                        padding: '4px 10px',
-                        borderRadius: 14,
-                        fontSize: 12,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      {opt}
-                    </Tag>
-                  ))}
-                </div>
-                <Input
-                  placeholder="其他病史（可选）"
-                  value={profileEdits.medical_other}
-                  onChange={(v) => setProfileEdits((p) => ({ ...p, medical_other: v }))}
-                  style={{ '--font-size': '13px', marginTop: 6, background: '#fff', borderRadius: 8, padding: '5px 10px', border: '1px solid #d9d9d9' }}
+                <div className="text-xs text-gray-500 mb-1">既往病史（慢性病史）</div>
+                <DiseaseTagSelector
+                  items={profileEdits.chronic_diseases}
+                  presets={chronicPresets}
+                  onChange={(items) => setProfileEdits((p) => ({ ...p, chronic_diseases: items }))}
+                  activeColor="linear-gradient(135deg, #fa8c16, #faad14)"
+                  categoryLabel="慢性病史"
                 />
               </div>
 
               <div>
                 <div className="text-xs text-gray-500 mb-1">过敏史</div>
-                <div className="flex flex-wrap gap-2">
-                  {allergyOptions.map((opt) => (
-                    <Tag
-                      key={opt}
-                      onClick={() => toggleProfileTag('allergies', opt)}
-                      style={{
-                        '--background-color': profileEdits.allergies.includes(opt) ? '#52c41a' : '#fff',
-                        '--text-color': profileEdits.allergies.includes(opt) ? '#fff' : '#666',
-                        '--border-color': profileEdits.allergies.includes(opt) ? '#52c41a' : '#d9d9d9',
-                        padding: '4px 10px',
-                        borderRadius: 14,
-                        fontSize: 12,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      {opt}
-                    </Tag>
-                  ))}
-                </div>
-                <Input
-                  placeholder="其他过敏史（可选）"
-                  value={profileEdits.allergy_other}
-                  onChange={(v) => setProfileEdits((p) => ({ ...p, allergy_other: v }))}
-                  style={{ '--font-size': '13px', marginTop: 6, background: '#fff', borderRadius: 8, padding: '5px 10px', border: '1px solid #d9d9d9' }}
+                <DiseaseTagSelector
+                  items={profileEdits.allergies}
+                  presets={allergyPresets}
+                  onChange={(items) => setProfileEdits((p) => ({ ...p, allergies: items }))}
+                  activeColor="linear-gradient(135deg, #f5222d, #fa541c)"
+                  categoryLabel="过敏史"
+                />
+              </div>
+
+              <div>
+                <div className="text-xs text-gray-500 mb-1">家族遗传病史</div>
+                <DiseaseTagSelector
+                  items={profileEdits.genetic_diseases}
+                  presets={geneticPresets}
+                  onChange={(items) => setProfileEdits((p) => ({ ...p, genetic_diseases: items }))}
+                  activeColor="linear-gradient(135deg, #722ed1, #1890ff)"
+                  categoryLabel="遗传病史"
                 />
               </div>
             </div>
@@ -823,59 +800,23 @@ export default function SymptomPage() {
 
                 <div>
                   <div className="text-xs text-gray-500 mb-1">既往病史</div>
-                  <div className="flex flex-wrap gap-2">
-                    {medicalHistoryOptions.map((opt) => (
-                      <Tag
-                        key={opt}
-                        onClick={() => setNewMedicalHistories((prev) => prev.includes(opt) ? prev.filter((x) => x !== opt) : [...prev, opt])}
-                        style={{
-                          '--background-color': newMedicalHistories.includes(opt) ? '#52c41a' : '#fff',
-                          '--text-color': newMedicalHistories.includes(opt) ? '#fff' : '#666',
-                          '--border-color': newMedicalHistories.includes(opt) ? '#52c41a' : '#d9d9d9',
-                          padding: '4px 10px',
-                          borderRadius: 14,
-                          fontSize: 12,
-                          cursor: 'pointer',
-                        }}
-                      >
-                        {opt}
-                      </Tag>
-                    ))}
-                  </div>
-                  <input
-                    className="w-full bg-white text-sm rounded-xl px-3 py-2 outline-none border border-gray-200 mt-2"
-                    placeholder="其他病史（可选）"
-                    value={newMedicalOther}
-                    onChange={(e) => setNewMedicalOther(e.target.value)}
+                  <DiseaseTagSelector
+                    items={newMedicalHistories}
+                    presets={chronicPresets}
+                    onChange={(items) => setNewMedicalHistories(items)}
+                    activeColor="linear-gradient(135deg, #fa8c16, #faad14)"
+                    categoryLabel="慢性病史"
                   />
                 </div>
 
                 <div>
                   <div className="text-xs text-gray-500 mb-1">过敏史</div>
-                  <div className="flex flex-wrap gap-2">
-                    {allergyOptions.map((opt) => (
-                      <Tag
-                        key={opt}
-                        onClick={() => setNewAllergies((prev) => prev.includes(opt) ? prev.filter((x) => x !== opt) : [...prev, opt])}
-                        style={{
-                          '--background-color': newAllergies.includes(opt) ? '#52c41a' : '#fff',
-                          '--text-color': newAllergies.includes(opt) ? '#fff' : '#666',
-                          '--border-color': newAllergies.includes(opt) ? '#52c41a' : '#d9d9d9',
-                          padding: '4px 10px',
-                          borderRadius: 14,
-                          fontSize: 12,
-                          cursor: 'pointer',
-                        }}
-                      >
-                        {opt}
-                      </Tag>
-                    ))}
-                  </div>
-                  <input
-                    className="w-full bg-white text-sm rounded-xl px-3 py-2 outline-none border border-gray-200 mt-2"
-                    placeholder="其他过敏史（可选）"
-                    value={newAllergyOther}
-                    onChange={(e) => setNewAllergyOther(e.target.value)}
+                  <DiseaseTagSelector
+                    items={newAllergies}
+                    presets={allergyPresets}
+                    onChange={(items) => setNewAllergies(items)}
+                    activeColor="linear-gradient(135deg, #f5222d, #fa541c)"
+                    categoryLabel="过敏史"
                   />
                 </div>
               </div>
