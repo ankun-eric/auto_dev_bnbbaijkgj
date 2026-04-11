@@ -32,7 +32,43 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api/`
 
-## Latest Update: 健康自查"为谁咨询"弹窗默认选中本人自动带出档案 Bug 修复 (2026-04-11)
+## Latest Update: 健康自查咨询对象联动功能 (2026-04-11)
+
+### 概要
+实现健康自查流程与 AI 咨询页面的咨询对象数据联动。从健康自查进入 AI 咨询时，自动将咨询对象设为上一步选择的家庭成员并锁定，防止中途切换。会话级持久化：退出后重新进入同一会话，咨询对象仍保持锁定。
+
+### Backend — 接口行为变更
+
+| 接口 | 变更 |
+| --- | --- |
+| GET `/api/chat-sessions/{id}` | 响应新增 `family_member_id`、`family_member_relation`、`family_member_nickname` 三个字段，支持前端恢复咨询对象 |
+
+### 各端变更
+
+| 端 | 主要变更 |
+| --- | --- |
+| H5 | `currentRelationLabel` 从 URL `member` 参数初始化；新增 `isSymptomLocked` 状态；`openMemberPopup` 锁定时显示 Toast；重新进入会话时从 session 详情恢复 |
+| 微信小程序 | `onLoad` 接收 `member` 参数自动设置 `consultTarget`；`toggleTargetPicker` 锁定判断；新增 `restoreSessionMember` 方法 |
+| Flutter | 新增 `_isSymptomLocked` 字段；`_initConsultTarget` 检查 session 类型；`_restoreSessionMember` 从 API 恢复；`_showConsultTargetPicker` 锁定判断；`ApiService` 新增 `getChatSessionDetail` |
+
+### 关键文件
+
+```text
+backend/app/api/chat_history.py                     # session 详情新增 family_member 字段
+h5-web/src/app/chat/[sessionId]/page.tsx             # 咨询对象联动 + 锁定
+miniprogram/pages/chat/index.js                      # 咨询对象联动 + 锁定
+flutter_app/lib/screens/ai/chat_screen.dart          # 咨询对象联动 + 锁定
+flutter_app/lib/services/api_service.dart             # 新增 getChatSessionDetail
+flutter_app/lib/models/chat_session.dart              # 新增 symptom 类型标签
+backend/tests/test_consultation_target_linkage.py     # 4 个测试用例
+```
+
+### 用户手册
+- `user_docs/健康自查咨询对象联动.md`
+
+---
+
+## Previous Update: 健康自查"为谁咨询"弹窗默认选中本人自动带出档案 Bug 修复 (2026-04-11)
 
 ### 概要
 修复 H5 端健康自查页面 `/symptom` 的 Bug：弹出"为谁咨询"弹窗时默认选中"本人"但未自动加载本人健康档案信息。提取 `loadProfileFromMember` 辅助函数，在 `openMemberPopup` 中直接从 API 返回的 `items` 局部变量加载默认选中成员的档案数据，同时修复了添加新成员后自动选中时的同类问题。
