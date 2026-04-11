@@ -9,7 +9,7 @@ alwaysApply: false
 
 - Project name: `bini-health`
 - Repository: `https://github.com/ankun-eric/auto_dev_bnbbaijkgj`
-- Production base URL: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857`
+- Production base URL: `https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857`
 - Main stacks:
   - `backend`: FastAPI + SQLAlchemy + MySQL
   - `admin-web`: Next.js + React + Ant Design
@@ -20,19 +20,51 @@ alwaysApply: false
 
 ## Deployment Server (SSH)
 
-- Host: `newbb.test.bangbangvip.com`
+- Host: `newbb.bangbangvip.com`
 - Port: `22`
 - User: `ubuntu`
-- Password: `Bangbang987`
+- Password: `Newbang888`
 - Project directory on server: `/home/ubuntu/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/`
 
 ## Current Deployment Entrypoints
 
-- H5: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/`
-- Admin: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/`
-- API: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api/`
+- H5: `https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/`
+- Admin: `https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/`
+- API: `https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api/`
 
-## Latest Update: 健康档案共管功能优化 (2026-04-11)
+## Latest Update: 首页搜索栏提示文字后台配置化 (2026-04-11)
+
+### 概要
+将首页搜索栏的 placeholder 提示文字统一改为从后台接口 `/api/home-config` 动态获取，各端默认兜底值统一为"搜索健康知识、服务、商品"，H5端缓存时长从5分钟调整为1小时。
+
+### 各端变更
+
+| 端 | 主要变更 |
+| --- | --- |
+| Backend | 默认 search_placeholder 更新为"搜索健康知识、服务、商品" |
+| H5 Web | 搜索栏 placeholder 从硬编码改为使用 config.search_placeholder；缓存时长从5分钟调整为1小时 |
+| Flutter App | 默认兜底值更新为"搜索健康知识、服务、商品" |
+| 微信小程序 | DEFAULT_CONFIG 和 wxml 模板中的兜底值更新为"搜索健康知识、服务、商品" |
+
+### 关键文件
+
+```text
+h5-web/src/app/(tabs)/home/page.tsx          # H5首页：搜索栏placeholder改为动态获取
+h5-web/src/lib/useHomeConfig.ts              # H5首页配置hook：默认值+缓存时长调整
+flutter_app/lib/screens/home/home_screen.dart # Flutter首页：默认兜底值更新
+miniprogram/pages/home/index.js              # 小程序首页JS：DEFAULT_CONFIG默认值更新
+miniprogram/pages/home/index.wxml            # 小程序首页模板：兜底文案更新
+backend/app/api/home_config.py               # 后端首页配置API：默认值更新
+backend/app/init_data.py                     # 后端初始化数据：默认值更新
+tests/test_search_placeholder_config.py      # 9个自动化测试用例（全部通过）
+```
+
+### 用户手册
+- `user_docs/首页搜索栏提示文字后台配置化.md`
+
+---
+
+## Previous Update: 健康档案共管功能优化 (2026-04-11)
 
 ### 概要
 围绕"家庭健康档案共管"功能进行全面优化：新增关联好处说明（M1）、首页扫码入口（M2）、邀请二维码优化（M3）、授权结果系统消息通知（M4）、管理后台系统消息管理（M5）。
@@ -1215,12 +1247,12 @@ tests/
 
 ## Deployment Verification
 
-- H5 homepage: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/`
-- Admin homepage: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/`
-- Admin merchant accounts page: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/merchant/accounts/`
-- API health: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api/health`
-- Mini program download: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/uploads/miniprogram_20260405_010508_twel.zip`
-- Android APK download: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/uploads/bini_health_android-v20260405-010455-db8d.apk`
+- H5 homepage: `https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/`
+- Admin homepage: `https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/`
+- Admin merchant accounts page: `https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/merchant/accounts/`
+- API health: `https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api/health`
+- Mini program download: `https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/uploads/miniprogram_20260405_010508_twel.zip`
+- Android APK download: `https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/uploads/bini_health_android-v20260405-010455-db8d.apk`
 - iOS Release: `https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-v20260405-010503-6f17`
 
 ## Redeploy (2026-04-04 #2)

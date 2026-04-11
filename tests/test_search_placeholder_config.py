@@ -10,7 +10,7 @@
 import pytest
 import httpx
 
-BASE_URL = "https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857"
+BASE_URL = "https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857"
 DEFAULT_PLACEHOLDER = "搜索健康知识、服务、商品"
 
 
@@ -23,8 +23,8 @@ def http_client():
 @pytest.fixture(scope="module")
 def admin_token(http_client):
     resp = http_client.post("/api/auth/login", json={
-        "phone": "13800138000",
-        "code": "888888",
+        "phone": "13800000000",
+        "password": "admin123",
     })
     if resp.status_code == 200:
         data = resp.json()
