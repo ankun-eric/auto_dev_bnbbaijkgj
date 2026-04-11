@@ -4,9 +4,9 @@ import sys
 import time
 import os
 
-HOST = "newbb.test.bangbangvip.com"
+HOST = "newbb.bangbangvip.com"
 USER = "ubuntu"
-PASSWORD = "Bangbang987"
+PASSWORD = "Newbang888"
 REMOTE_DIR = "/home/ubuntu/3b7b999d-e51c-4c0d-8f6e-baf90cd26857"
 LOCAL_ADMIN_WEB = os.path.join(os.path.dirname(os.path.abspath(__file__)), "admin-web")
 
@@ -99,7 +99,7 @@ def main():
         
         print("\nVerifying admin page accessibility...")
         out, err, code = run_cmd(ssh, 
-            "curl -s -o /dev/null -w '%{http_code}' -L --max-time 15 https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/")
+            "curl -s -o /dev/null -w '%{http_code}' -L --max-time 15 https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/")
         http_code = out.strip()
         print(f"HTTP Status Code: {http_code}")
         
@@ -108,7 +108,7 @@ def main():
         else:
             print(f"\n⚠️ Admin page returned HTTP {http_code}, checking further...")
             run_cmd(ssh, 
-                "curl -s -L --max-time 15 https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/ | head -50")
+                "curl -s -L --max-time 15 https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/ | head -50")
 
     ssh.close()
     print("\n" + "=" * 60)

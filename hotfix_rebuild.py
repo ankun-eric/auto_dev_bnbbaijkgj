@@ -1,9 +1,9 @@
 import paramiko
 import time
 
-HOST = "newbb.test.bangbangvip.com"
+HOST = "newbb.bangbangvip.com"
 USER = "ubuntu"
-PASS = "Bangbang987"
+PASS = "Newbang888"
 DEPLOY_ID = "3b7b999d-e51c-4c0d-8f6e-baf90cd26857"
 REMOTE_DIR = f"/home/ubuntu/{DEPLOY_ID}"
 
@@ -29,7 +29,7 @@ print("\nWaiting 20s for backend to start...")
 time.sleep(20)
 
 _, stdout, _ = client.exec_command(
-    f"curl -s -o /dev/null -w '%{{http_code}}' https://newbb.test.bangbangvip.com/autodev/{DEPLOY_ID}/api/health",
+    f"curl -s -o /dev/null -w '%{{http_code}}' https://newbb.bangbangvip.com/autodev/{DEPLOY_ID}/api/health",
     timeout=30
 )
 print(f"Health check: {stdout.read().decode().strip()}")

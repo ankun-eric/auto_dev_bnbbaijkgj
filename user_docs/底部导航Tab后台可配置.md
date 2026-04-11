@@ -8,8 +8,8 @@
 
 | 服务 | 链接 | 说明 |
 |------|------|------|
-| H5 前端页面 | [https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/) | H5 主页面入口（经 Nginx 代理） |
-| 管理后台 | [https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/) | 管理后台入口（经 Nginx 代理） |
+| H5 前端页面 | [https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/) | H5 主页面入口（经 Nginx 代理） |
+| 管理后台 | [https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/) | 管理后台入口（经 Nginx 代理） |
 
 ---
 
@@ -32,7 +32,7 @@
 
 #### 1. 进入配置页面
 
-1. 登录管理后台：[https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/)
+1. 登录管理后台：[https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/)
 2. 在左侧菜单中找到「首页配置」分组
 3. 点击「底部导航配置」菜单项
 
@@ -132,7 +132,7 @@ H5 端的底部导航栏会根据管理后台的配置动态渲染：
 | 全部隐藏或删除 | 首页 \| 我的（2个均分） |
 
 **体验步骤：**
-1. 打开 H5 页面：[https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/)
+1. 打开 H5 页面：[https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/)
 2. 查看底部导航栏，可以看到按后台配置显示的 Tab 项
 3. 在管理后台修改配置后，刷新 H5 页面即可看到最新效果
 
@@ -157,5 +157,5 @@ H5 端的底部导航栏会根据管理后台的配置动态渲染：
 
 | 服务 | 链接 | 说明 |
 |------|------|------|
-| H5 前端页面 | [https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/) | H5 主页面入口（经 Nginx 代理） |
-| 管理后台 | [https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/) | 管理后台入口（经 Nginx 代理） |
+| H5 前端页面 | [https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/) | H5 主页面入口（经 Nginx 代理） |
+| 管理后台 | [https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/) | 管理后台入口（经 Nginx 代理） |

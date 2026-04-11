@@ -1,7 +1,7 @@
 import httpx
 import sys
 
-BASE = "https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api"
+BASE = "https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api"
 passed = 0
 failed = 0
 errors = []

@@ -10,14 +10,14 @@
 
 | 用途 | 地址 |
 |------|------|
-| 项目基础 URL | https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857 |
-| Admin 后台 | https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/ |
-| H5 前端 | https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/ |
-| API 根路径 | https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api/ |
+| 项目基础 URL | https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857 |
+| Admin 后台 | https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/ |
+| H5 前端 | https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/ |
+| API 根路径 | https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api/ |
 
 ### 1.2 管理员登录
 
-1. 在浏览器打开：[Admin 后台登录页](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/login)（若自动跳转首页，请通过「退出登录」后再访问登录页）。
+1. 在浏览器打开：[Admin 后台登录页](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/login)（若自动跳转首页，请通过「退出登录」后再访问登录页）。
 2. 使用以下测试账号登录：
    - **手机号**：`13800000000`
    - **密码**：`admin123`
@@ -29,7 +29,7 @@
 ## 二、知识库管理
 
 **入口**：左侧菜单 **AI管理 → 知识库管理**  
-**直达**：[知识库管理](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/knowledge)
+**直达**：[知识库管理](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/knowledge)
 
 ### 2.1 知识库列表与搜索
 
@@ -62,7 +62,7 @@
 
 1. 在列表中点击 **「条目管理」**，进入该知识库的条目列表。  
    **URL 形式**：`.../admin/knowledge/{知识库ID}`  
-   例如：`https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/knowledge/1`（将 `1` 换成实际 ID）。
+   例如：`https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/knowledge/1`（将 `1` 换成实际 ID）。
 
 2. **筛选与排序**：可按关键词、条目类型（Q&A / 文档）、状态（启用/禁用）、排序（如按命中次数）查询；支持 **「搜索」** 与 **「重置」**。
 
@@ -90,14 +90,14 @@
 
 ### 2.8 数据统计入口
 
-在 [知识库管理](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/knowledge) 页面右上角点击 **「数据统计」**，进入统计页（见第六章）。
+在 [知识库管理](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/knowledge) 页面右上角点击 **「数据统计」**，进入统计页（见第六章）。
 
 ---
 
 ## 三、检索策略配置
 
 **入口**：左侧菜单 **AI管理 → 检索策略配置**  
-**直达**：[检索策略配置](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/search-config)
+**直达**：[检索策略配置](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/search-config)
 
 ### 3.1 全局默认策略
 
@@ -124,7 +124,7 @@
 ## 四、兜底策略配置
 
 **入口**：左侧菜单 **AI管理 → 兜底策略配置**  
-**直达**：[兜底策略配置](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/fallback-config)
+**直达**：[兜底策略配置](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/fallback-config)
 
 当知识检索**没有命中**或业务进入兜底分支时，按**对话场景**执行以下策略之一。
 
@@ -147,7 +147,7 @@
 ## 五、存储配置（腾讯云 COS）
 
 **入口**：左侧菜单 **系统管理 → 存储配置**  
-**直达**：[存储配置](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/cos-config)
+**直达**：[存储配置](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/cos-config)
 
 页面分为三个子页：**存储配置**、**文件管理**、**用量统计**。
 
@@ -175,8 +175,8 @@
 
 ## 六、数据统计（知识库）
 
-**入口**：在 [知识库管理](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/knowledge) 点击 **「数据统计」**  
-**直达**：[知识库数据统计](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/knowledge/stats)
+**入口**：在 [知识库管理](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/knowledge) 点击 **「数据统计」**  
+**直达**：[知识库数据统计](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/knowledge/stats)
 
 ### 6.1 概览卡片
 
@@ -206,8 +206,8 @@
 
 ### 7.1 访问 H5
 
-打开：[H5 前端](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/)，进入 AI 对话相关页面（具体入口以产品导航为准）。对话页 URL 通常为：  
-`https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/chat/{会话ID}`
+打开：[H5 前端](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/)，进入 AI 对话相关页面（具体入口以产品导航为准）。对话页 URL 通常为：  
+`https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/chat/{会话ID}`
 
 ### 7.2 检索与展示逻辑（概要）
 

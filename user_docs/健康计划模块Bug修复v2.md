@@ -8,9 +8,9 @@
 
 | 服务 | 链接 | 说明 |
 |------|------|------|
-| H5 端页面 | [https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/) | H5 端主页面入口 |
-| 管理后台 | [https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/) | 管理后台入口 |
-| 安卓 APK 下载 | [app_20260411_011933_fce6.apk](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/app_20260411_011933_fce6.apk) | 安卓客户端安装包，点击下载安装体验 |
+| H5 端页面 | [https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/) | H5 端主页面入口 |
+| 管理后台 | [https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/) | 管理后台入口 |
+| 安卓 APK 下载 | [app_20260411_011933_fce6.apk](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/app_20260411_011933_fce6.apk) | 安卓客户端安装包，点击下载安装体验 |
 | iOS 端下载 | [iOS Build ios-v20260411-011940-89b4](https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-v20260411-011940-89b4) | iOS 客户端，前往 GitHub Release 下载 |
 
 ---
@@ -32,8 +32,8 @@
 
 | 平台 | 变更说明 | 新版本下载 |
 |------|----------|------------|
-| 微信小程序 | 移除今日待办 sub_groups 层级；修复打卡编辑字段映射；修复用药提醒编辑字段映射 | [miniprogram_20260411_012037_801f.zip](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/miniprogram_20260411_012037_801f.zip) |
-| 安卓端 | 移除今日待办和首页的 sub_groups 分类层级，健康计划任务平铺显示 | [app_20260411_011933_fce6.apk](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/app_20260411_011933_fce6.apk) |
+| 微信小程序 | 移除今日待办 sub_groups 层级；修复打卡编辑字段映射；修复用药提醒编辑字段映射 | [miniprogram_20260411_012037_801f.zip](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/miniprogram_20260411_012037_801f.zip) |
+| 安卓端 | 移除今日待办和首页的 sub_groups 分类层级，健康计划任务平铺显示 | [app_20260411_011933_fce6.apk](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/app_20260411_011933_fce6.apk) |
 | iOS 端 | 移除今日待办和首页的 sub_groups 分类层级，健康计划任务平铺显示 | [iOS Build ios-v20260411-011940-89b4](https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-v20260411-011940-89b4) |
 
 > ⚠️ 以上平台的代码在本次更新中有改动，请务必下载最新版本。未列出的平台表示本次无变更，可继续使用当前版本。
@@ -79,7 +79,7 @@
 
 点击以下链接下载微信小程序代码压缩包：
 
-> 📦 下载地址：[miniprogram_20260411_012037_801f.zip](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/miniprogram_20260411_012037_801f.zip)
+> 📦 下载地址：[miniprogram_20260411_012037_801f.zip](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/miniprogram_20260411_012037_801f.zip)
 
 ### 体验步骤
 
@@ -102,7 +102,7 @@
 
 点击以下链接下载安卓客户端安装包：
 
-> 📱 下载地址：[app_20260411_011933_fce6.apk](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/app_20260411_011933_fce6.apk)
+> 📱 下载地址：[app_20260411_011933_fce6.apk](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/app_20260411_011933_fce6.apk)
 
 ### 安装与体验步骤
 
@@ -159,9 +159,9 @@
 
 | 服务 | 链接 | 说明 |
 |------|------|------|
-| H5 端页面 | [https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/) | H5 端主页面入口 |
-| 管理后台 | [https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/) | 管理后台入口 |
-| 安卓 APK 下载 | [app_20260411_011933_fce6.apk](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/app_20260411_011933_fce6.apk) | 安卓客户端安装包，点击下载安装体验 |
+| H5 端页面 | [https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/) | H5 端主页面入口 |
+| 管理后台 | [https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/) | 管理后台入口 |
+| 安卓 APK 下载 | [app_20260411_011933_fce6.apk](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/app_20260411_011933_fce6.apk) | 安卓客户端安装包，点击下载安装体验 |
 | iOS 端下载 | [iOS Build ios-v20260411-011940-89b4](https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-v20260411-011940-89b4) | iOS 客户端，前往 GitHub Release 下载 |
 
 ## 微信小程序体验
@@ -170,7 +170,7 @@
 
 点击以下链接下载微信小程序代码压缩包：
 
-> 📦 下载地址：[miniprogram_20260411_012037_801f.zip](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/miniprogram_20260411_012037_801f.zip)
+> 📦 下载地址：[miniprogram_20260411_012037_801f.zip](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/miniprogram_20260411_012037_801f.zip)
 
 ### 体验步骤
 
@@ -182,7 +182,7 @@
 
 ## 安卓端体验
 
-> 📱 下载地址：[app_20260411_011933_fce6.apk](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/app_20260411_011933_fce6.apk)
+> 📱 下载地址：[app_20260411_011933_fce6.apk](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/app_20260411_011933_fce6.apk)
 
 ## iOS 端体验
 

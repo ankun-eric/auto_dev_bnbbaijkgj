@@ -1,7 +1,7 @@
 import paramiko
 c = paramiko.SSHClient()
 c.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-c.connect('newbb.test.bangbangvip.com', username='ubuntu', password='Bangbang987', timeout=30)
+c.connect('newbb.bangbangvip.com', username='ubuntu', password='Newbang888', timeout=30)
 cmds = [
     'sudo docker ps --filter name=gateway --format "{{.Names}}"',
     'sudo docker ps --filter name=nginx --format "{{.Names}}"',

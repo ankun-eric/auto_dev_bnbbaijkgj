@@ -7,7 +7,7 @@ import httpx
 import pytest
 import pytest_asyncio
 
-BASE_URL = "https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api"
+BASE_URL = "https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api"
 TIMEOUT = 30
 
 

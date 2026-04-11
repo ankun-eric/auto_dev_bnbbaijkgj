@@ -1,5 +1,5 @@
 // 默认指向当前项目部署根路径；request.js 中各接口自行追加 /api/...。
-const DEFAULT_API_BASE_URL = 'https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857';
+const DEFAULT_API_BASE_URL = 'https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857';
 
 App({
   onLaunch() {

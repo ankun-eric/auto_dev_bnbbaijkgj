@@ -1,11 +1,11 @@
 """
 Non-UI automated tests for font size setting feature.
-Target: https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857
+Target: https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857
 """
 import httpx
 import pytest
 
-BASE_URL = "https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857"
+BASE_URL = "https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857"
 API_URL = f"{BASE_URL}/api"
 ADMIN_PHONE = "13800000000"
 ADMIN_PASSWORD = "admin123"

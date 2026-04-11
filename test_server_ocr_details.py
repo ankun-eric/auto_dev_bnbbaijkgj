@@ -3,7 +3,7 @@ import json
 import requests
 import sys
 
-BASE = "https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api"
+BASE = "https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api"
 RESULTS = []
 
 
@@ -116,7 +116,7 @@ def main():
     log("Drug stats unauthorized", r.status_code in (401, 403), f"HTTP {r.status_code}")
 
     # ---- Test 13: Admin page accessible ----
-    admin_url = "https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/"
+    admin_url = "https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/"
     r = requests.get(admin_url, verify=False, allow_redirects=True)
     log("Admin page accessible", r.status_code == 200, f"HTTP {r.status_code}")
 

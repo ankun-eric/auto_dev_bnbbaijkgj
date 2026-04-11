@@ -8,8 +8,8 @@
 
 | 服务 | 链接 | 说明 |
 |------|------|------|
-| H5 移动端 | [https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/) | H5 端主页面入口（经 Nginx 代理） |
-| 管理后台 | [https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/) | 管理后台入口 |
+| H5 移动端 | [https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/) | H5 端主页面入口（经 Nginx 代理） |
+| 管理后台 | [https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/) | 管理后台入口 |
 
 ---
 
@@ -32,7 +32,7 @@
 **修复后**：自定义健康计划的任务按所属计划名称自动分组，每个计划名称作为小标题（带 📋 图标），一目了然。
 
 **操作步骤**：
-1. 打开 H5 端首页 [https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/)
+1. 打开 H5 端首页 [https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/)
 2. 查看页面中部的「📋 今日待办」区域
 3. 在用药提醒和健康打卡分组下方，可以看到每个自定义计划的名称作为独立标题
 4. 每个计划标题下列出该计划的待办任务，可直接点击完成打卡
@@ -63,7 +63,7 @@
 
 **操作步骤**：
 1. 进入健康打卡列表页 — 从首页点击「查看全部计划」，然后选择「健康打卡」
-2. 或直接访问 [https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/health-plan/checkin](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/health-plan/checkin)
+2. 或直接访问 [https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/health-plan/checkin](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/health-plan/checkin)
 3. 每条打卡记录中，第二行的状态标签（✅已完成 / ⬜未完成）后面紧跟编辑和删除图标
 4. 点击 ✏️ 可编辑该打卡项，点击 🗑️ 可删除
 5. 右侧的「打卡」或「已完成」按钮保持不变
@@ -78,7 +78,7 @@
 
 **操作步骤**：
 1. 进入自定义计划列表页
-2. 或直接访问 [https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/health-plan/custom](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/health-plan/custom)
+2. 或直接访问 [https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/health-plan/custom](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/health-plan/custom)
 3. 找到需要编辑的计划，点击计划卡片上的 ✏️ 编辑图标（或左滑出现"编辑"按钮）
 4. 页面跳转到「编辑计划」页面：
    - 页面标题显示"编辑计划"
@@ -106,5 +106,5 @@
 
 | 服务 | 链接 | 说明 |
 |------|------|------|
-| H5 移动端 | [https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/) | H5 端主页面入口（经 Nginx 代理） |
-| 管理后台 | [https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/) | 管理后台入口 |
+| H5 移动端 | [https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/) | H5 端主页面入口（经 Nginx 代理） |
+| 管理后台 | [https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/) | 管理后台入口 |

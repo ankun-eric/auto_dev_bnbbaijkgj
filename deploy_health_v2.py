@@ -7,9 +7,9 @@ import time
 import tarfile
 import tempfile
 
-HOST = "newbb.test.bangbangvip.com"
+HOST = "newbb.bangbangvip.com"
 USER = "ubuntu"
-PASS = "Bangbang987"
+PASS = "Newbang888"
 DEPLOY_ID = "3b7b999d-e51c-4c0d-8f6e-baf90cd26857"
 REMOTE_DIR = f"/home/ubuntu/{DEPLOY_ID}"
 LOCAL_DIR = r"C:\auto_output\bnbbaijkgj"
@@ -143,7 +143,7 @@ def main():
     print("STEP 6: Verify endpoints")
     print("=" * 60)
 
-    BASE = f"https://newbb.test.bangbangvip.com/autodev/{DEPLOY_ID}"
+    BASE = f"https://newbb.bangbangvip.com/autodev/{DEPLOY_ID}"
     endpoints = [
         f"{BASE}/api/health",
         f"{BASE}/api/relation-types",

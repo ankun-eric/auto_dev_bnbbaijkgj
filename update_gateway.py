@@ -5,15 +5,15 @@ REMOTE_DIR = f"/home/ubuntu/{DEPLOY_ID}"
 
 c = paramiko.SSHClient()
 c.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-c.connect('newbb.test.bangbangvip.com', username='ubuntu', password='Bangbang987', timeout=30)
+c.connect('newbb.bangbangvip.com', username='ubuntu', password='Newbang888', timeout=30)
 
 cmds = [
     f"cp {REMOTE_DIR}/gateway-routes.conf /home/ubuntu/gateway/conf.d/{DEPLOY_ID}.conf",
     "docker exec gateway-nginx nginx -t",
     "docker exec gateway-nginx nginx -s reload",
-    f"curl -s -o /dev/null -w '%{{http_code}}' https://newbb.test.bangbangvip.com/autodev/{DEPLOY_ID}/api/health",
-    f"curl -s -o /dev/null -w '%{{http_code}}' https://newbb.test.bangbangvip.com/autodev/{DEPLOY_ID}/admin/",
-    f"curl -s -o /dev/null -w '%{{http_code}}' https://newbb.test.bangbangvip.com/autodev/{DEPLOY_ID}/",
+    f"curl -s -o /dev/null -w '%{{http_code}}' https://newbb.bangbangvip.com/autodev/{DEPLOY_ID}/api/health",
+    f"curl -s -o /dev/null -w '%{{http_code}}' https://newbb.bangbangvip.com/autodev/{DEPLOY_ID}/admin/",
+    f"curl -s -o /dev/null -w '%{{http_code}}' https://newbb.bangbangvip.com/autodev/{DEPLOY_ID}/",
 ]
 for cmd in cmds:
     print(f'\n>>> {cmd}')

@@ -2,7 +2,7 @@
 
 > 更新日期：2026-04-10
 > 适用版本：Bug 全面修复版
-> 在线访问：https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/
+> 在线访问：https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/
 
 ---
 

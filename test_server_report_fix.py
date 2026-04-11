@@ -1,6 +1,6 @@
 """Server-side integration tests for the OCR report bug fix.
 
-Target: https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857
+Target: https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857
 """
 
 import io
@@ -11,7 +11,7 @@ import httpx
 import pytest
 from PIL import Image
 
-BASE = "https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857"
+BASE = "https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857"
 API = f"{BASE}/api"
 
 ADMIN_PHONE = "13800000000"

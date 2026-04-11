@@ -8,9 +8,9 @@
 
 | 服务 | 链接 | 说明 |
 |------|------|------|
-| H5用户端 | [https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/) | H5移动端入口 |
-| 管理后台 | [https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/) | 管理后台入口 |
-| 安卓APK下载 | [bini_health_android-v20260406-200031-4d73.apk](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/uploads/bini_health_android-v20260406-200031-4d73.apk) | 安卓客户端安装包 |
+| H5用户端 | [https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/) | H5移动端入口 |
+| 管理后台 | [https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/) | 管理后台入口 |
+| 安卓APK下载 | [bini_health_android-v20260406-200031-4d73.apk](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/uploads/bini_health_android-v20260406-200031-4d73.apk) | 安卓客户端安装包 |
 | iOS端下载 | [iOS Build ios-v20260406-200126-d0b4](https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-v20260406-200126-d0b4) | iOS客户端安装包（GitHub Release） |
 
 ---
@@ -33,8 +33,8 @@
 
 | 平台 | 变更说明 | 新版本下载 |
 |------|----------|------------|
-| 微信小程序 | 全面替换"AI问诊"为"AI健康咨询"，更新会话类型名称，新增免责提示渲染 | [miniprogram_20260406_195919_vhob.zip](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/uploads/miniprogram_20260406_195919_vhob.zip) |
-| 安卓端 | 全面替换"AI问诊"为"AI健康咨询"，更新会话类型，新增免责提示渲染 | [bini_health_android-v20260406-200031-4d73.apk](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/uploads/bini_health_android-v20260406-200031-4d73.apk) |
+| 微信小程序 | 全面替换"AI问诊"为"AI健康咨询"，更新会话类型名称，新增免责提示渲染 | [miniprogram_20260406_195919_vhob.zip](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/uploads/miniprogram_20260406_195919_vhob.zip) |
+| 安卓端 | 全面替换"AI问诊"为"AI健康咨询"，更新会话类型，新增免责提示渲染 | [bini_health_android-v20260406-200031-4d73.apk](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/uploads/bini_health_android-v20260406-200031-4d73.apk) |
 | iOS端 | 全面替换"AI问诊"为"AI健康咨询"，更新会话类型，新增免责提示渲染 | [iOS Build ios-v20260406-200126-d0b4](https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-v20260406-200126-d0b4) |
 
 > ⚠️ 以上平台的代码在本次更新中有改动，请务必下载最新版本。未列出的平台表示本次无变更，可继续使用当前版本。
@@ -79,7 +79,7 @@ AI回复末尾会自动附加对应类型的免责提示，例如：
 
 #### 1. 登录管理后台
 
-访问 [管理后台](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/)，使用管理员账号登录。
+访问 [管理后台](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/)，使用管理员账号登录。
 
 #### 2. AI配置中心
 
@@ -129,7 +129,7 @@ AI回复末尾会自动附加对应类型的免责提示，例如：
 
 点击以下链接下载微信小程序代码压缩包：
 
-> 📦 下载地址：[miniprogram_20260406_195919_vhob.zip](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/uploads/miniprogram_20260406_195919_vhob.zip)
+> 📦 下载地址：[miniprogram_20260406_195919_vhob.zip](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/uploads/miniprogram_20260406_195919_vhob.zip)
 
 ### 体验步骤
 
@@ -152,7 +152,7 @@ AI回复末尾会自动附加对应类型的免责提示，例如：
 
 点击以下链接下载安卓客户端安装包：
 
-> 📱 下载地址：[bini_health_android-v20260406-200031-4d73.apk](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/uploads/bini_health_android-v20260406-200031-4d73.apk)
+> 📱 下载地址：[bini_health_android-v20260406-200031-4d73.apk](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/uploads/bini_health_android-v20260406-200031-4d73.apk)
 
 ### 安装与体验步骤
 
@@ -210,7 +210,7 @@ AI回复末尾会自动附加对应类型的免责提示，例如：
 
 | 服务 | 链接 | 说明 |
 |------|------|------|
-| H5用户端 | [https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/) | H5移动端入口 |
-| 管理后台 | [https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/) | 管理后台入口 |
-| 安卓APK下载 | [bini_health_android-v20260406-200031-4d73.apk](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/uploads/bini_health_android-v20260406-200031-4d73.apk) | 安卓客户端安装包 |
+| H5用户端 | [https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/) | H5移动端入口 |
+| 管理后台 | [https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/) | 管理后台入口 |
+| 安卓APK下载 | [bini_health_android-v20260406-200031-4d73.apk](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/uploads/bini_health_android-v20260406-200031-4d73.apk) | 安卓客户端安装包 |
 | iOS端下载 | [iOS Build ios-v20260406-200126-d0b4](https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-v20260406-200126-d0b4) | iOS客户端安装包（GitHub Release） |

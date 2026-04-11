@@ -9,9 +9,9 @@ import paramiko
 from pathlib import Path
 
 # Config
-HOST = "newbb.test.bangbangvip.com"
+HOST = "newbb.bangbangvip.com"
 USER = "ubuntu"
-PASSWORD = "Bangbang987"
+PASSWORD = "Newbang888"
 DEPLOY_ID = "3b7b999d-e51c-4c0d-8f6e-baf90cd26857"
 REMOTE_DIR = f"/home/ubuntu/{DEPLOY_ID}"
 LOCAL_DIR = r"C:\auto_output\bnbbaijkgj"

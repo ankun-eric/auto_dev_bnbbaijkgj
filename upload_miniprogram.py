@@ -6,7 +6,7 @@ backend_container = f'{project_id}-backend'
 
 ssh = paramiko.SSHClient()
 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-ssh.connect('newbb.test.bangbangvip.com', username='ubuntu', password='Bangbang987')
+ssh.connect('newbb.bangbangvip.com', username='ubuntu', password='Newbang888')
 
 # Check backend uploads directory
 stdin, stdout, stderr = ssh.exec_command(f'docker exec {backend_container} ls /app/uploads/ 2>&1 | head -10')
@@ -23,7 +23,7 @@ stdin, stdout, stderr = ssh.exec_command(f'docker exec {backend_container} ls -l
 print('File in backend uploads:', stdout.read().decode())
 
 # Test the uploads URL
-stdin, stdout, stderr = ssh.exec_command(f'curl -Is "https://newbb.test.bangbangvip.com/autodev/{project_id}/uploads/{zip_name}" 2>&1 | head -5')
+stdin, stdout, stderr = ssh.exec_command(f'curl -Is "https://newbb.bangbangvip.com/autodev/{project_id}/uploads/{zip_name}" 2>&1 | head -5')
 print('Uploads URL test:', stdout.read().decode())
 
 ssh.close()

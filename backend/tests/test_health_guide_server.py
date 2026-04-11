@@ -9,7 +9,7 @@ import string
 import httpx
 import pytest
 
-BASE_URL = "https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857"
+BASE_URL = "https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857"
 API_URL = f"{BASE_URL}/api"
 
 _PHONE_SUFFIX = "".join(random.choices(string.digits, k=8))
@@ -170,7 +170,7 @@ class TestFrontendHealthGuideHtmlContainsValidationText:
 
         js_url = script_tags[0]
         if js_url.startswith("/"):
-            js_url = f"https://newbb.test.bangbangvip.com{js_url}"
+            js_url = f"https://newbb.bangbangvip.com{js_url}"
 
         js_resp = page_client.get(js_url)
         assert js_resp.status_code == 200, f"JS chunk加载失败: {js_resp.status_code}"

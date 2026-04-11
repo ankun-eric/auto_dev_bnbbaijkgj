@@ -10,10 +10,10 @@ import os
 import tarfile
 import time
 
-HOST = "newbb.test.bangbangvip.com"
+HOST = "newbb.bangbangvip.com"
 PORT = 22
 USER = "ubuntu"
-PASSWORD = "Bangbang987"
+PASSWORD = "Newbang888"
 DEPLOY_ID = "3b7b999d-e51c-4c0d-8f6e-baf90cd26857"
 SERVER_DIR = f"/home/ubuntu/{DEPLOY_ID}"
 LOCAL_ADMIN_WEB = r"C:\auto_output\bnbbaijkgj\admin-web"

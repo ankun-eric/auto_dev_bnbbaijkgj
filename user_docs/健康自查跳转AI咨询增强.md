@@ -12,8 +12,8 @@
 
 | 服务 | 链接 | 说明 |
 |------|------|------|
-| H5 前端页面 | [https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/) | 项目主页面入口（经 Nginx 代理） |
-| 健康自查页面 | [https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/symptom](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/symptom) | 健康自查入口（新功能体验） |
+| H5 前端页面 | [https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/) | 项目主页面入口（经 Nginx 代理） |
+| 健康自查页面 | [https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/symptom](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/symptom) | 健康自查入口（新功能体验） |
 
 ---
 
@@ -46,7 +46,7 @@
 ### 流程一：发起健康自查并选择咨询对象
 
 **步骤 1：进入健康自查**
-1. 打开 H5 应用，在首页找到「健康自查」入口，或直接访问 [健康自查页面](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/symptom)
+1. 打开 H5 应用，在首页找到「健康自查」入口，或直接访问 [健康自查页面](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/symptom)
 2. 进入三步引导流程：
 
 **步骤 2：选择不适部位**
@@ -151,5 +151,5 @@
 
 | 服务 | 链接 | 说明 |
 |------|------|------|
-| H5 前端页面 | [https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/) | 项目主页面入口（经 Nginx 代理） |
-| 健康自查页面 | [https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/symptom](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/symptom) | 健康自查入口（新功能体验） |
+| H5 前端页面 | [https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/) | 项目主页面入口（经 Nginx 代理） |
+| 健康自查页面 | [https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/symptom](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/symptom) | 健康自查入口（新功能体验） |

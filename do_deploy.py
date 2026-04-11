@@ -5,9 +5,9 @@ import sys
 import time
 import io
 
-SERVER = 'newbb.test.bangbangvip.com'
+SERVER = 'newbb.bangbangvip.com'
 USER = 'ubuntu'
-PASSWORD = 'Bangbang987'
+PASSWORD = 'Newbang888'
 DEPLOY_ID = '3b7b999d-e51c-4c0d-8f6e-baf90cd26857'
 REMOTE_DIR = f'/home/ubuntu/{DEPLOY_ID}'
 LOCAL_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -155,7 +155,7 @@ def main():
         print("  Gateway routes updated and reloaded")
 
     print("\n[VERIFY] Health checks:")
-    base_url = f'https://newbb.test.bangbangvip.com/autodev/{DEPLOY_ID}'
+    base_url = f'https://newbb.bangbangvip.com/autodev/{DEPLOY_ID}'
 
     out, _, code = run_cmd(ssh, f'curl -s {base_url}/api/health 2>/dev/null || echo "FAILED"')
     api_ok = code == 0 and 'FAILED' not in out and ('healthy' in out.lower() or 'ok' in out.lower() or '{' in out)

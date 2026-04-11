@@ -14,7 +14,7 @@ from urllib.parse import quote, urljoin
 
 import requests
 
-BASE = "https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857"
+BASE = "https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857"
 API = f"{BASE}/api"
 TIMEOUT = 30
 MAX_CHUNK_BYTES = 800_000

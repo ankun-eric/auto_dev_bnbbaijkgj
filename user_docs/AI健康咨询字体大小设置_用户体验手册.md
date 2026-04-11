@@ -12,13 +12,13 @@
 
 | 页面 | 访问链接 |
 |------|---------|
-| 首页 | [https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/) |
+| 首页 | [https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/) |
 
 ### 安卓 APP
 
 | 项目 | 链接 |
 |------|------|
-| APK 下载 | [bini_health_android-v20260410-021906-4267.apk](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/uploads/bini_health_android-v20260410-021906-4267.apk) |
+| APK 下载 | [bini_health_android-v20260410-021906-4267.apk](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/uploads/bini_health_android-v20260410-021906-4267.apk) |
 
 ### iOS APP
 
@@ -32,7 +32,7 @@
 
 | 项目 | 链接 |
 |------|------|
-| 源码包下载 | [miniprogram_20260410_021818_9bb8.zip](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/uploads/miniprogram_20260410_021818_9bb8.zip) |
+| 源码包下载 | [miniprogram_20260410_021818_9bb8.zip](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/uploads/miniprogram_20260410_021818_9bb8.zip) |
 
 > 下载源码包后，使用微信开发者工具导入即可预览和上传。
 

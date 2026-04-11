@@ -2,9 +2,9 @@ import paramiko
 import sys
 import time
 
-SERVER = "newbb.test.bangbangvip.com"
+SERVER = "newbb.bangbangvip.com"
 USER = "ubuntu"
-PASSWORD = "Bangbang987"
+PASSWORD = "Newbang888"
 
 def ssh_exec(command, timeout=600):
     ssh = paramiko.SSHClient()

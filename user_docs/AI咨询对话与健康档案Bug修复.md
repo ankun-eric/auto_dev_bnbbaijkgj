@@ -8,8 +8,8 @@
 
 | 服务 | 链接 | 说明 |
 |------|------|------|
-| H5 前端页面 | [https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/) | H5 网页端入口（经 Nginx 代理） |
-| 安卓 APK 下载 | [bini_health_android-v20260410-143948-iy52.apk](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/bini_health_android-v20260410-143948-iy52.apk) | 安卓客户端安装包，点击下载后安装体验 |
+| H5 前端页面 | [https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/) | H5 网页端入口（经 Nginx 代理） |
+| 安卓 APK 下载 | [bini_health_android-v20260410-143948-iy52.apk](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/bini_health_android-v20260410-143948-iy52.apk) | 安卓客户端安装包，点击下载后安装体验 |
 | iOS 端下载 | [iOS Build ios-v20260410-144013-y1jl](https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-v20260410-144013-y1jl) | iOS 客户端安装包，前往 GitHub Release 页面下载 |
 
 ---
@@ -36,8 +36,8 @@
 
 | 平台 | 变更说明 | 新版本下载 |
 |------|----------|------------|
-| 微信小程序 | 麦克风权限优化、发送按钮内嵌、咨询对象关系文字+颜色、动态加载关系类型、Grid关系选择、Tab圆形图标切换 | [miniprogram_20260410_144018_0b00.zip](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/miniprogram_20260410_144018_0b00.zip) |
-| 安卓端 | 麦克风权限缓存、输入栏紧凑布局、咨询对象圆形图标、动态加载关系类型、StatefulBuilder弹窗修复、Tab圆形图标切换 | [bini_health_android-v20260410-143948-iy52.apk](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/bini_health_android-v20260410-143948-iy52.apk) |
+| 微信小程序 | 麦克风权限优化、发送按钮内嵌、咨询对象关系文字+颜色、动态加载关系类型、Grid关系选择、Tab圆形图标切换 | [miniprogram_20260410_144018_0b00.zip](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/miniprogram_20260410_144018_0b00.zip) |
+| 安卓端 | 麦克风权限缓存、输入栏紧凑布局、咨询对象圆形图标、动态加载关系类型、StatefulBuilder弹窗修复、Tab圆形图标切换 | [bini_health_android-v20260410-143948-iy52.apk](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/bini_health_android-v20260410-143948-iy52.apk) |
 | iOS 端 | 同安卓端修复内容（Flutter 跨平台共享代码） | [iOS Build ios-v20260410-144013-y1jl](https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-v20260410-144013-y1jl) |
 
 > ⚠️ 以上平台的代码在本次更新中有改动，请务必下载最新版本。
@@ -109,7 +109,7 @@
 
 点击以下链接下载微信小程序代码压缩包：
 
-> 📦 下载地址：[miniprogram_20260410_144018_0b00.zip](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/miniprogram_20260410_144018_0b00.zip)
+> 📦 下载地址：[miniprogram_20260410_144018_0b00.zip](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/miniprogram_20260410_144018_0b00.zip)
 
 ### 体验步骤
 
@@ -132,7 +132,7 @@
 
 点击以下链接下载安卓客户端安装包：
 
-> 📱 下载地址：[bini_health_android-v20260410-143948-iy52.apk](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/bini_health_android-v20260410-143948-iy52.apk)
+> 📱 下载地址：[bini_health_android-v20260410-143948-iy52.apk](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/bini_health_android-v20260410-143948-iy52.apk)
 
 ### 安装与体验步骤
 
@@ -190,6 +190,6 @@
 
 | 服务 | 链接 | 说明 |
 |------|------|------|
-| H5 前端页面 | [https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/) | H5 网页端入口（经 Nginx 代理） |
-| 安卓 APK 下载 | [bini_health_android-v20260410-143948-iy52.apk](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/bini_health_android-v20260410-143948-iy52.apk) | 安卓客户端安装包，点击下载后安装体验 |
+| H5 前端页面 | [https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/) | H5 网页端入口（经 Nginx 代理） |
+| 安卓 APK 下载 | [bini_health_android-v20260410-143948-iy52.apk](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/bini_health_android-v20260410-143948-iy52.apk) | 安卓客户端安装包，点击下载后安装体验 |
 | iOS 端下载 | [iOS Build ios-v20260410-144013-y1jl](https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-v20260410-144013-y1jl) | iOS 客户端安装包，前往 GitHub Release 页面下载 |

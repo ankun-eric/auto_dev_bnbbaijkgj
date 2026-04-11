@@ -8,10 +8,10 @@
 
 | 服务 | 链接 | 说明 |
 |------|------|------|
-| H5 前端页面 | [https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/) | H5 移动端主页面入口 |
-| 安卓 APK 下载 | [bini_health_android-v20260410-123302-2xm7.apk](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/bini_health_android-v20260410-123302-2xm7.apk) | 安卓客户端安装包，点击下载后安装体验 |
+| H5 前端页面 | [https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/) | H5 移动端主页面入口 |
+| 安卓 APK 下载 | [bini_health_android-v20260410-123302-2xm7.apk](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/bini_health_android-v20260410-123302-2xm7.apk) | 安卓客户端安装包，点击下载后安装体验 |
 | iOS 端下载 | [iOS Build ios-v20260410-123303-4088](https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-v20260410-123303-4088) | iOS 客户端安装包，前往 GitHub Release 页面下载 |
-| 微信小程序代码包 | [miniprogram_20260410_123240_a5a5.zip](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/miniprogram_20260410_123240_a5a5.zip) | 小程序代码包，下载后导入微信开发者工具 |
+| 微信小程序代码包 | [miniprogram_20260410_123240_a5a5.zip](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/miniprogram_20260410_123240_a5a5.zip) | 小程序代码包，下载后导入微信开发者工具 |
 
 ---
 
@@ -37,9 +37,9 @@
 
 | 平台 | 变更说明 | 新版本下载 |
 |------|----------|------------|
-| H5 移动端 | AI健康咨询对话页面新增语音/键盘切换、按住说话录音、声波动画遮罩、ASR识别自动发送 | [H5 在线体验](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/) |
-| 微信小程序 | AI健康咨询对话页面新增语音输入，使用WechatSI插件进行端侧语音识别 | [miniprogram_20260410_123240_a5a5.zip](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/miniprogram_20260410_123240_a5a5.zip) |
-| 安卓端 | AI健康咨询对话页面新增语音输入，使用record包录音+后端ASR识别 | [bini_health_android-v20260410-123302-2xm7.apk](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/bini_health_android-v20260410-123302-2xm7.apk) |
+| H5 移动端 | AI健康咨询对话页面新增语音/键盘切换、按住说话录音、声波动画遮罩、ASR识别自动发送 | [H5 在线体验](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/) |
+| 微信小程序 | AI健康咨询对话页面新增语音输入，使用WechatSI插件进行端侧语音识别 | [miniprogram_20260410_123240_a5a5.zip](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/miniprogram_20260410_123240_a5a5.zip) |
+| 安卓端 | AI健康咨询对话页面新增语音输入，使用record包录音+后端ASR识别 | [bini_health_android-v20260410-123302-2xm7.apk](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/bini_health_android-v20260410-123302-2xm7.apk) |
 | iOS 端 | AI健康咨询对话页面新增语音输入，使用record包录音+后端ASR识别 | [iOS Build ios-v20260410-123303-4088](https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-v20260410-123303-4088) |
 
 > ⚠️ 以上平台的代码在本次更新中有改动，请务必下载最新版本。
@@ -89,7 +89,7 @@
 
 点击以下链接下载微信小程序代码压缩包：
 
-> 📦 下载地址：[miniprogram_20260410_123240_a5a5.zip](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/miniprogram_20260410_123240_a5a5.zip)
+> 📦 下载地址：[miniprogram_20260410_123240_a5a5.zip](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/miniprogram_20260410_123240_a5a5.zip)
 
 ### 体验步骤
 
@@ -112,7 +112,7 @@
 
 点击以下链接下载安卓客户端安装包：
 
-> 📱 下载地址：[bini_health_android-v20260410-123302-2xm7.apk](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/bini_health_android-v20260410-123302-2xm7.apk)
+> 📱 下载地址：[bini_health_android-v20260410-123302-2xm7.apk](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/bini_health_android-v20260410-123302-2xm7.apk)
 
 ### 安装与体验步骤
 
@@ -184,10 +184,10 @@
 
 | 服务 | 链接 | 说明 |
 |------|------|------|
-| H5 前端页面 | [https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/) | H5 移动端主页面入口 |
-| 安卓 APK 下载 | [bini_health_android-v20260410-123302-2xm7.apk](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/bini_health_android-v20260410-123302-2xm7.apk) | 安卓客户端安装包，点击下载后安装体验 |
+| H5 前端页面 | [https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/) | H5 移动端主页面入口 |
+| 安卓 APK 下载 | [bini_health_android-v20260410-123302-2xm7.apk](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/bini_health_android-v20260410-123302-2xm7.apk) | 安卓客户端安装包，点击下载后安装体验 |
 | iOS 端下载 | [iOS Build ios-v20260410-123303-4088](https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-v20260410-123303-4088) | iOS 客户端安装包，前往 GitHub Release 页面下载 |
-| 微信小程序代码包 | [miniprogram_20260410_123240_a5a5.zip](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/miniprogram_20260410_123240_a5a5.zip) | 小程序代码包，下载后导入微信开发者工具 |
+| 微信小程序代码包 | [miniprogram_20260410_123240_a5a5.zip](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/miniprogram_20260410_123240_a5a5.zip) | 小程序代码包，下载后导入微信开发者工具 |
 
 ## 微信小程序体验
 
@@ -195,7 +195,7 @@
 
 点击以下链接下载微信小程序代码压缩包：
 
-> 📦 下载地址：[miniprogram_20260410_123240_a5a5.zip](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/miniprogram_20260410_123240_a5a5.zip)
+> 📦 下载地址：[miniprogram_20260410_123240_a5a5.zip](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/miniprogram_20260410_123240_a5a5.zip)
 
 ### 体验步骤
 
@@ -216,7 +216,7 @@
 
 点击以下链接下载安卓客户端安装包：
 
-> 📱 下载地址：[bini_health_android-v20260410-123302-2xm7.apk](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/bini_health_android-v20260410-123302-2xm7.apk)
+> 📱 下载地址：[bini_health_android-v20260410-123302-2xm7.apk](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/bini_health_android-v20260410-123302-2xm7.apk)
 
 ### 安装与体验步骤
 

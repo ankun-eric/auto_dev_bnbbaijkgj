@@ -13,10 +13,10 @@
 
 | 服务 | 链接 | 说明 |
 |------|------|------|
-| H5 前端页面 | [https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/) | H5 用户端主页面入口 |
-| 安卓 APK 下载 | [bini_health_android-v20260408-114940-zqrf.apk](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/uploads/bini_health_android-v20260408-114940-zqrf.apk) | 安卓客户端安装包，点击下载后安装体验 |
+| H5 前端页面 | [https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/) | H5 用户端主页面入口 |
+| 安卓 APK 下载 | [bini_health_android-v20260408-114940-zqrf.apk](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/uploads/bini_health_android-v20260408-114940-zqrf.apk) | 安卓客户端安装包，点击下载后安装体验 |
 | iOS 端下载 | [iOS Build ios-v20260408-115950-retry1](https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-v20260408-115950-retry1) | iOS 客户端安装包，点击前往 GitHub Release 页面下载 |
-| 微信小程序下载 | [miniprogram_20260408_114910_809c.zip](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/uploads/miniprogram_20260408_114910_809c.zip) | 微信小程序代码包，导入微信开发者工具体验 |
+| 微信小程序下载 | [miniprogram_20260408_114910_809c.zip](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/uploads/miniprogram_20260408_114910_809c.zip) | 微信小程序代码包，导入微信开发者工具体验 |
 
 ---
 
@@ -26,7 +26,7 @@
 
 点击以下链接下载微信小程序代码压缩包：
 
-> 📦 下载地址：[miniprogram_20260408_114910_809c.zip](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/uploads/miniprogram_20260408_114910_809c.zip)
+> 📦 下载地址：[miniprogram_20260408_114910_809c.zip](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/uploads/miniprogram_20260408_114910_809c.zip)
 
 ### 体验步骤
 
@@ -49,7 +49,7 @@
 
 点击以下链接下载安卓客户端安装包：
 
-> 📱 下载地址：[bini_health_android-v20260408-114940-zqrf.apk](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/uploads/bini_health_android-v20260408-114940-zqrf.apk)
+> 📱 下载地址：[bini_health_android-v20260408-114940-zqrf.apk](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/uploads/bini_health_android-v20260408-114940-zqrf.apk)
 
 ### 安装与体验步骤
 
@@ -107,8 +107,8 @@
 
 | 平台 | 变更说明 | 新版本下载 |
 |------|----------|------------|
-| 微信小程序 | 体检报告和拍照识药页面支持多图选择、预览、删除，新增"开始识别"按钮 | [miniprogram_20260408_114910_809c.zip](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/uploads/miniprogram_20260408_114910_809c.zip) |
-| 安卓端 | 体检报告和拍照识药页面支持多图选择、预览、删除，新增"开始识别"按钮 | [bini_health_android-v20260408-114940-zqrf.apk](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/uploads/bini_health_android-v20260408-114940-zqrf.apk) |
+| 微信小程序 | 体检报告和拍照识药页面支持多图选择、预览、删除，新增"开始识别"按钮 | [miniprogram_20260408_114910_809c.zip](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/uploads/miniprogram_20260408_114910_809c.zip) |
+| 安卓端 | 体检报告和拍照识药页面支持多图选择、预览、删除，新增"开始识别"按钮 | [bini_health_android-v20260408-114940-zqrf.apk](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/uploads/bini_health_android-v20260408-114940-zqrf.apk) |
 | iOS 端 | 体检报告和拍照识药页面支持多图选择、预览、删除，新增"开始识别"按钮 | [iOS Build ios-v20260408-115950-retry1](https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-v20260408-115950-retry1) |
 
 > ⚠️ 以上平台的代码在本次更新中有改动，请务必下载最新版本。未列出的平台表示本次无变更，可继续使用当前版本。
@@ -232,7 +232,7 @@
 
 | 服务 | 链接 | 说明 |
 |------|------|------|
-| H5 前端页面 | [https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/) | H5 用户端主页面入口 |
-| 安卓 APK 下载 | [bini_health_android-v20260408-114940-zqrf.apk](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/uploads/bini_health_android-v20260408-114940-zqrf.apk) | 安卓客户端安装包，点击下载后安装体验 |
+| H5 前端页面 | [https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/) | H5 用户端主页面入口 |
+| 安卓 APK 下载 | [bini_health_android-v20260408-114940-zqrf.apk](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/uploads/bini_health_android-v20260408-114940-zqrf.apk) | 安卓客户端安装包，点击下载后安装体验 |
 | iOS 端下载 | [iOS Build ios-v20260408-115950-retry1](https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-v20260408-115950-retry1) | iOS 客户端安装包，点击前往 GitHub Release 页面下载 |
-| 微信小程序下载 | [miniprogram_20260408_114910_809c.zip](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/uploads/miniprogram_20260408_114910_809c.zip) | 微信小程序代码包，导入微信开发者工具体验 |
+| 微信小程序下载 | [miniprogram_20260408_114910_809c.zip](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/uploads/miniprogram_20260408_114910_809c.zip) | 微信小程序代码包，导入微信开发者工具体验 |

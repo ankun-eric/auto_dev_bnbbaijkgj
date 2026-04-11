@@ -2,9 +2,9 @@ import paramiko
 import sys
 import os
 
-SERVER = "newbb.test.bangbangvip.com"
+SERVER = "newbb.bangbangvip.com"
 USER = "ubuntu"
-PASSWORD = "Bangbang987"
+PASSWORD = "Newbang888"
 REMOTE_BASE = "/home/ubuntu/3b7b999d-e51c-4c0d-8f6e-baf90cd26857"
 LOCAL_BASE = r"C:\auto_output\bnbbaijkgj"
 

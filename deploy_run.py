@@ -2,9 +2,9 @@ import paramiko
 import sys
 import time
 
-HOST = "newbb.test.bangbangvip.com"
+HOST = "newbb.bangbangvip.com"
 USER = "ubuntu"
-PASS = "Bangbang987"
+PASS = "Newbang888"
 PORT = 22
 DEPLOY_ID = "3b7b999d-e51c-4c0d-8f6e-baf90cd26857"
 REMOTE_DIR = f"/home/ubuntu/{DEPLOY_ID}"
@@ -59,8 +59,8 @@ def main():
     print("\n=== Step 8: Verify deployment ===")
     ssh_exec(ssh, f'docker ps --filter "name={DEPLOY_ID}" --format "table {{{{.Names}}}}\\t{{{{.Status}}}}"')
     ssh_exec(ssh, f"curl -s http://localhost:8000/api/health 2>/dev/null || curl -s http://{DEPLOY_ID}-backend:8000/api/health 2>/dev/null || echo 'Direct health check not available'")
-    ssh_exec(ssh, f"curl -sk https://newbb.test.bangbangvip.com/autodev/{DEPLOY_ID}/api/health")
-    exit_code, out, _ = ssh_exec(ssh, f"curl -sI https://newbb.test.bangbangvip.com/autodev/{DEPLOY_ID}/admin/ | head -5")
+    ssh_exec(ssh, f"curl -sk https://newbb.bangbangvip.com/autodev/{DEPLOY_ID}/api/health")
+    exit_code, out, _ = ssh_exec(ssh, f"curl -sI https://newbb.bangbangvip.com/autodev/{DEPLOY_ID}/admin/ | head -5")
 
     print("\n=== Step 9: Container logs (last 20 lines) ===")
     ssh_exec(ssh, f"docker logs --tail 20 {DEPLOY_ID}-backend 2>&1")

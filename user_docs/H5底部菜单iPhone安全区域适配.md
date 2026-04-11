@@ -8,7 +8,7 @@
 
 | 服务 | 链接 | 说明 |
 |------|------|------|
-| H5 用户端 | [https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/) | H5 移动端主页面入口（经 Nginx 代理） |
+| H5 用户端 | [https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/) | H5 移动端主页面入口（经 Nginx 代理） |
 
 ---
 
@@ -31,7 +31,7 @@
 
 在 iPhone 手机浏览器（Safari 或微信内置浏览器）中，访问以下链接：
 
-[https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/)
+[https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/)
 
 ### 2. 查看底部导航栏
 
@@ -66,4 +66,4 @@
 
 | 服务 | 链接 | 说明 |
 |------|------|------|
-| H5 用户端 | [https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/) | H5 移动端主页面入口（经 Nginx 代理） |
+| H5 用户端 | [https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/) | H5 移动端主页面入口（经 Nginx 代理） |

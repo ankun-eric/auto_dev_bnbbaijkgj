@@ -5,9 +5,9 @@ import sys
 import time
 import paramiko
 
-HOST = "newbb.test.bangbangvip.com"
+HOST = "newbb.bangbangvip.com"
 USER = "ubuntu"
-PASSWORD = "Bangbang987"
+PASSWORD = "Newbang888"
 DEPLOY_ID = "3b7b999d-e51c-4c0d-8f6e-baf90cd26857"
 BASE_URL = f"https://{HOST}/autodev/{DEPLOY_ID}"
 GATEWAY_DIR = "/home/ubuntu/gateway"

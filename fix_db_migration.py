@@ -2,7 +2,7 @@ import paramiko
 
 ssh = paramiko.SSHClient()
 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-ssh.connect('newbb.test.bangbangvip.com', username='ubuntu', password='Bangbang987')
+ssh.connect('newbb.bangbangvip.com', username='ubuntu', password='Newbang888')
 
 cmds = [
     'docker exec 3b7b999d-e51c-4c0d-8f6e-baf90cd26857-db mysql -uroot -pbini_health_2026 bini_health -e "ALTER TABLE articles ADD COLUMN summary VARCHAR(500) NULL;"',

@@ -5,9 +5,9 @@ import stat
 import paramiko
 import time
 
-HOST = "newbb.test.bangbangvip.com"
+HOST = "newbb.bangbangvip.com"
 USER = "ubuntu"
-PASS = "Bangbang987"
+PASS = "Newbang888"
 LOCAL_DIR = r"C:\auto_output\bnbbaijkgj"
 REMOTE_DIR = "/home/ubuntu/3b7b999d-e51c-4c0d-8f6e-baf90cd26857"
 

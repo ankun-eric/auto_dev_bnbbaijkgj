@@ -3,9 +3,9 @@ import os
 import sys
 import time
 
-HOST = "newbb.test.bangbangvip.com"
+HOST = "newbb.bangbangvip.com"
 USER = "ubuntu"
-PASS = "Bangbang987"
+PASS = "Newbang888"
 DEPLOY_ID = "3b7b999d-e51c-4c0d-8f6e-baf90cd26857"
 REMOTE_DIR = f"/home/ubuntu/{DEPLOY_ID}"
 LOCAL_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -79,9 +79,9 @@ def main():
 
     if step in ("verify", "all"):
         client = get_client()
-        run_cmd(client, f"curl -s -o /dev/null -w '%{{http_code}}' https://newbb.test.bangbangvip.com/autodev/{DEPLOY_ID}/api/health")
-        run_cmd(client, f"curl -s -o /dev/null -w '%{{http_code}}' https://newbb.test.bangbangvip.com/autodev/{DEPLOY_ID}/admin/")
-        run_cmd(client, f"curl -s -o /dev/null -w '%{{http_code}}' https://newbb.test.bangbangvip.com/autodev/{DEPLOY_ID}/")
+        run_cmd(client, f"curl -s -o /dev/null -w '%{{http_code}}' https://newbb.bangbangvip.com/autodev/{DEPLOY_ID}/api/health")
+        run_cmd(client, f"curl -s -o /dev/null -w '%{{http_code}}' https://newbb.bangbangvip.com/autodev/{DEPLOY_ID}/admin/")
+        run_cmd(client, f"curl -s -o /dev/null -w '%{{http_code}}' https://newbb.bangbangvip.com/autodev/{DEPLOY_ID}/")
         client.close()
 
     print("\n=== Deployment complete ===")

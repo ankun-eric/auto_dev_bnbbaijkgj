@@ -8,9 +8,9 @@
 
 | 服务 | 链接 | 说明 |
 |------|------|------|
-| H5 用户端 | [https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/) | H5 移动端主页面入口 |
-| 管理后台 | [https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/) | 管理后台入口 |
-| 安卓 APK 下载 | [app_20260411_020523_286f.apk](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/app_20260411_020523_286f.apk) | 安卓客户端安装包 |
+| H5 用户端 | [https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/) | H5 移动端主页面入口 |
+| 管理后台 | [https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/) | 管理后台入口 |
+| 安卓 APK 下载 | [app_20260411_020523_286f.apk](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/app_20260411_020523_286f.apk) | 安卓客户端安装包 |
 | iOS 端下载 | [iOS Build ios-v20260411-020452-1048](https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-v20260411-020452-1048) | iOS 客户端，前往 GitHub Release 页面下载 |
 
 ## 微信小程序体验
@@ -19,7 +19,7 @@
 
 点击以下链接下载微信小程序代码压缩包：
 
-> 📦 下载地址：[miniprogram_20260411_020559_a730.zip](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/miniprogram_20260411_020559_a730.zip)
+> 📦 下载地址：[miniprogram_20260411_020559_a730.zip](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/miniprogram_20260411_020559_a730.zip)
 
 ### 体验步骤
 
@@ -74,8 +74,8 @@
 
 | 平台 | 变更说明 | 新版本下载 |
 |------|----------|------------|
-| 微信小程序 | 聊天页新增功能按钮栏、新增数字人通话页面 | [miniprogram_20260411_020559_a730.zip](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/miniprogram_20260411_020559_a730.zip) |
-| 安卓端 | 聊天页新增功能按钮栏、新增数字人通话页面、新增视频播放依赖 | [app_20260411_020523_286f.apk](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/app_20260411_020523_286f.apk) |
+| 微信小程序 | 聊天页新增功能按钮栏、新增数字人通话页面 | [miniprogram_20260411_020559_a730.zip](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/miniprogram_20260411_020559_a730.zip) |
+| 安卓端 | 聊天页新增功能按钮栏、新增数字人通话页面、新增视频播放依赖 | [app_20260411_020523_286f.apk](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/app_20260411_020523_286f.apk) |
 | iOS 端 | 聊天页新增功能按钮栏、新增数字人通话页面、新增视频播放依赖 | [iOS Build ios-v20260411-020452-1048](https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-v20260411-020452-1048) |
 
 > ⚠️ 以上平台的代码在本次更新中有改动，请务必下载最新版本。未列出的平台表示本次无变更，可继续使用当前版本。
@@ -148,7 +148,7 @@
 
 点击以下链接下载安卓客户端安装包：
 
-> 📱 下载地址：[app_20260411_020523_286f.apk](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/app_20260411_020523_286f.apk)
+> 📱 下载地址：[app_20260411_020523_286f.apk](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/app_20260411_020523_286f.apk)
 
 ### 安装与体验步骤
 
@@ -207,9 +207,9 @@
 
 | 服务 | 链接 | 说明 |
 |------|------|------|
-| H5 用户端 | [https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/) | H5 移动端主页面入口 |
-| 管理后台 | [https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/) | 管理后台入口 |
-| 安卓 APK 下载 | [app_20260411_020523_286f.apk](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/app_20260411_020523_286f.apk) | 安卓客户端安装包 |
+| H5 用户端 | [https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/) | H5 移动端主页面入口 |
+| 管理后台 | [https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/) | 管理后台入口 |
+| 安卓 APK 下载 | [app_20260411_020523_286f.apk](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/app_20260411_020523_286f.apk) | 安卓客户端安装包 |
 | iOS 端下载 | [iOS Build ios-v20260411-020452-1048](https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-v20260411-020452-1048) | iOS 客户端，前往 GitHub Release 页面下载 |
 
 ## 微信小程序体验
@@ -218,7 +218,7 @@
 
 点击以下链接下载微信小程序代码压缩包：
 
-> 📦 下载地址：[miniprogram_20260411_020559_a730.zip](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/miniprogram_20260411_020559_a730.zip)
+> 📦 下载地址：[miniprogram_20260411_020559_a730.zip](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/miniprogram_20260411_020559_a730.zip)
 
 ### 体验步骤
 
@@ -239,7 +239,7 @@
 
 点击以下链接下载安卓客户端安装包：
 
-> 📱 下载地址：[app_20260411_020523_286f.apk](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/app_20260411_020523_286f.apk)
+> 📱 下载地址：[app_20260411_020523_286f.apk](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/app_20260411_020523_286f.apk)
 
 ### 安装与体验步骤
 

@@ -3,7 +3,7 @@ import json
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-BASE = "https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api"
+BASE = "https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api"
 results = []
 
 def test(name, func):
@@ -84,13 +84,13 @@ test("Drug history pagination", t9)
 
 # 10. H5 page accessible
 def t10():
-    r = requests.get("https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/", verify=False)
+    r = requests.get("https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/", verify=False)
     assert r.status_code == 200
 test("H5 page accessible", t10)
 
 # 11. Admin page accessible
 def t11():
-    r = requests.get("https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/", verify=False)
+    r = requests.get("https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/", verify=False)
     assert r.status_code == 200
 test("Admin page accessible", t11)
 

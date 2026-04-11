@@ -21,7 +21,7 @@ def main():
     paramiko = ensure_paramiko()
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    client.connect("newbb.test.bangbangvip.com", port=22, username="ubuntu", password="Bangbang987", timeout=30)
+    client.connect("newbb.bangbangvip.com", port=22, username="ubuntu", password="Newbang888", timeout=30)
 
     DEPLOY_ID = "3b7b999d-e51c-4c0d-8f6e-baf90cd26857"
     CONTAINER = f"{DEPLOY_ID}-backend"

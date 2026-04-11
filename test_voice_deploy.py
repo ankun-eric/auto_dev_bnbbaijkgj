@@ -4,7 +4,7 @@ import sys
 
 requests.packages.urllib3.disable_warnings()
 
-BASE = "https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857"
+BASE = "https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857"
 passed = 0
 failed = 0
 

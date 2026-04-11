@@ -8,8 +8,8 @@
 
 | 服务 | 链接 | 说明 |
 |------|------|------|
-| H5 前端首页 | [https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/) | 比尼健康 H5 端主页入口 |
-| 健康自查页面 | [https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/symptom](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/symptom) | 健康自查功能入口 |
+| H5 前端首页 | [https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/) | 比尼健康 H5 端主页入口 |
+| 健康自查页面 | [https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/symptom](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/symptom) | 健康自查功能入口 |
 
 ## 功能简介
 
@@ -24,7 +24,7 @@
 ### 操作步骤
 
 1. **进入健康自查页面**
-   - 打开比尼健康 H5 页面，点击进入健康自查功能（或直接访问 [健康自查页面](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/symptom)）
+   - 打开比尼健康 H5 页面，点击进入健康自查功能（或直接访问 [健康自查页面](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/symptom)）
 
 2. **第一步：选择不适部位**
    - 从九宫格中选择身体不适的部位（头部、眼睛、耳鼻喉、胸部、腹部、腰背、四肢、皮肤、精神）
@@ -67,5 +67,5 @@
 
 | 服务 | 链接 | 说明 |
 |------|------|------|
-| H5 前端首页 | [https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/) | 比尼健康 H5 端主页入口 |
-| 健康自查页面 | [https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/symptom](https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/symptom) | 健康自查功能入口 |
+| H5 前端首页 | [https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/) | 比尼健康 H5 端主页入口 |
+| 健康自查页面 | [https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/symptom](https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/symptom) | 健康自查功能入口 |

@@ -3,14 +3,14 @@
 import paramiko
 import time
 
-HOST = "newbb.test.bangbangvip.com"
+HOST = "newbb.bangbangvip.com"
 DEPLOY_ID = "3b7b999d-e51c-4c0d-8f6e-baf90cd26857"
 CONTAINER_NAME = f"{DEPLOY_ID}-admin"
 BASE_URL = f"https://{HOST}/autodev/{DEPLOY_ID}"
 
 client = paramiko.SSHClient()
 client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-client.connect(HOST, port=22, username="ubuntu", password="Bangbang987", timeout=30)
+client.connect(HOST, port=22, username="ubuntu", password="Newbang888", timeout=30)
 
 
 def run(cmd, timeout=60):

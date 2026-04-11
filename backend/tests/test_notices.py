@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 
 urllib3.disable_warnings()
 
-BASE_URL = "https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857"
+BASE_URL = "https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857"
 SESSION = requests.Session()
 SESSION.verify = False
 

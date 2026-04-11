@@ -2,7 +2,7 @@ import paramiko
 
 ssh = paramiko.SSHClient()
 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-ssh.connect("newbb.test.bangbangvip.com", username="ubuntu", password="Bangbang987", timeout=30)
+ssh.connect("newbb.bangbangvip.com", username="ubuntu", password="Newbang888", timeout=30)
 
 deploy_id = "3b7b999d-e51c-4c0d-8f6e-baf90cd26857"
 

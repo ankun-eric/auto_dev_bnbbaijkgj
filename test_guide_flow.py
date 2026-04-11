@@ -2,7 +2,7 @@
 """Test complete guide status flow."""
 import requests
 
-BASE_URL = "https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857"
+BASE_URL = "https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857"
 
 resp = requests.post(f"{BASE_URL}/api/admin/login", json={"phone": "13800000000", "password": "admin123"}, timeout=10)
 token = resp.json().get("token") or resp.json().get("access_token", "")

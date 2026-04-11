@@ -6,9 +6,9 @@ import tarfile
 import stat
 
 DEPLOY_ID = "3b7b999d-e51c-4c0d-8f6e-baf90cd26857"
-SSH_HOST = "newbb.test.bangbangvip.com"
+SSH_HOST = "newbb.bangbangvip.com"
 SSH_USER = "ubuntu"
-SSH_PASS = "Bangbang987"
+SSH_PASS = "Newbang888"
 SSH_PORT = 22
 REMOTE_DIR = f"/home/ubuntu/{DEPLOY_ID}"
 PROJECT_DIR = r"C:\auto_output\bnbbaijkgj"
@@ -212,9 +212,9 @@ def main():
     time.sleep(5)
 
     urls = [
-        f"https://newbb.test.bangbangvip.com/autodev/{DEPLOY_ID}/api/health",
-        f"https://newbb.test.bangbangvip.com/autodev/{DEPLOY_ID}/admin/",
-        f"https://newbb.test.bangbangvip.com/autodev/{DEPLOY_ID}/",
+        f"https://newbb.bangbangvip.com/autodev/{DEPLOY_ID}/api/health",
+        f"https://newbb.bangbangvip.com/autodev/{DEPLOY_ID}/admin/",
+        f"https://newbb.bangbangvip.com/autodev/{DEPLOY_ID}/",
     ]
 
     results = {}

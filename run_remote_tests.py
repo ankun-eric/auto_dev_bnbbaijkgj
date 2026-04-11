@@ -23,11 +23,11 @@ def main():
     
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    client.connect("newbb.test.bangbangvip.com", port=22, username="ubuntu", password="Bangbang987", timeout=30)
+    client.connect("newbb.bangbangvip.com", port=22, username="ubuntu", password="Newbang888", timeout=30)
     
     results = []
     DEPLOY_ID = "3b7b999d-e51c-4c0d-8f6e-baf90cd26857"
-    BASE_URL = f"https://newbb.test.bangbangvip.com/autodev/{DEPLOY_ID}"
+    BASE_URL = f"https://newbb.bangbangvip.com/autodev/{DEPLOY_ID}"
     CONTAINER = f"{DEPLOY_ID}-backend"
 
     # Step 1: Install pytest in container
