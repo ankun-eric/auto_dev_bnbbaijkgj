@@ -32,7 +32,60 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api/`
 
-## Latest Update: AI咨询页面H5端UI Bug修复 (2026-04-11)
+## Latest Update: 系统打卡送积分功能 (2026-04-11)
+
+### 概要
+新增"打卡送积分"功能，将三类打卡行为（健康习惯打卡、用药提醒打卡、健康计划任务打卡）统一纳入积分体系。管理员可在后台配置打卡积分规则（启用开关、每次积分值、每日上限），用户打卡时自动发放积分并给予实时反馈。
+
+### 数据库变更
+- `PointsType` 枚举新增 `checkin` 值
+- `SystemConfig` 表新增三条打卡积分配置：`checkin_points_enabled`、`checkin_points_per_action`、`checkin_points_daily_limit`
+
+### Backend — API 变更
+
+| 接口 | 方法 | 说明 |
+| --- | --- | --- |
+| `/api/admin/points/rules` | GET | 返回值增加三个打卡积分配置字段 |
+| `/api/admin/points/rules` | POST | 支持保存打卡积分配置 |
+| `/api/points/checkin/today-progress` | GET | 新增：查询今日打卡积分进度 |
+| `/api/health-plan/medications/{id}/checkin` | POST | 返回值增加 points_earned, points_limit_reached |
+| `/api/health-plan/checkin-items/{id}/checkin` | POST | 返回值增加 points_earned, points_limit_reached |
+| `/api/health-plan/user-plans/{id}/tasks/{id}/checkin` | POST | 返回值增加 points_earned, points_limit_reached |
+| `/api/health-plan/today-todos/{id}/check` | POST | 返回值增加 points_earned, points_limit_reached |
+
+### 各端变更
+
+| 端 | 主要变更 |
+| --- | --- |
+| Backend | 新增 checkin_points_service.py 积分发放服务；PointsType枚举添加checkin；积分规则API增加打卡配置字段；新增今日进度查询接口；4个打卡接口集成积分发放 |
+| Admin-web | 积分规则页面增加Tabs组件（通用规则/打卡规则）；打卡规则Tab包含启用开关、每次积分、每日上限配置 |
+| H5 | 新增CheckinPointsProgress进度条组件+checkinPointsToast辅助函数；健康打卡/用药提醒/健康计划页面集成积分进度和Toast |
+| Flutter | 新增checkin_points_progress.dart进度组件；打卡页面集成积分进度和SnackBar反馈；积分明细增加打卡类型标注 |
+| 微信小程序 | 新增checkin-points-progress组件+checkin-points.js辅助函数；打卡页面集成积分进度和Toast；积分明细增加打卡标签 |
+
+### 关键文件
+
+```text
+backend/app/services/checkin_points_service.py          # 打卡积分发放服务（配置读取、发放、进度查询）
+backend/app/models/models.py                            # PointsType 枚举添加 checkin
+backend/app/api/admin.py                                # 积分规则API增加打卡配置字段
+backend/app/api/points.py                               # 新增今日打卡积分进度查询接口
+backend/app/api/health_plan_v2.py                       # 4个打卡接口集成积分发放逻辑
+admin-web/src/app/(admin)/points/rules/page.tsx         # 积分规则页面增加Tabs（通用规则/打卡规则）
+h5-web/src/components/CheckinPointsProgress.tsx         # H5积分进度条组件
+h5-web/src/utils/checkinPointsToast.ts                  # H5积分Toast辅助函数
+flutter_app/lib/widgets/checkin_points_progress.dart    # Flutter积分进度组件
+miniprogram/components/checkin-points-progress/         # 小程序积分进度组件
+miniprogram/utils/checkin-points.js                     # 小程序积分Toast辅助函数
+backend/tests/test_checkin_points.py                    # 10个打卡积分自动化测试用例（全部通过）
+```
+
+### 用户手册
+- `user_docs/系统打卡送积分功能.md`
+
+---
+
+## Previous Update: AI咨询页面H5端UI Bug修复 (2026-04-11)
 
 ### 概要
 修复H5端AI咨询对话页面的3个UI Bug：功能按钮栏字体/图标/高度偏大、侧边栏"新建对话"按钮文字与图标大小不一致、长按历史对话弹出的ActionSheet被侧边栏遮挡。
