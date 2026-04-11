@@ -103,7 +103,8 @@
 
 .qr-wrap {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
   margin-bottom: 40rpx;
 }
 
@@ -112,6 +113,15 @@
   height: 360rpx;
   border: 2rpx solid #f0f0f0;
   border-radius: 16rpx;
+}
+
+.qr-brand-name {
+  display: block;
+  margin-top: 16rpx;
+  font-size: 26rpx;
+  color: #52c41a;
+  font-weight: 500;
+  text-align: center;
 }
 
 .invite-info {
@@ -186,4 +196,59 @@
 
 .action-share {
   color: #722ed1;
+}
+
+/* Benefits section */
+.benefits-section {
+  width: 100%;
+  margin-top: 40rpx;
+}
+
+.benefit-card {
+  display: flex;
+  align-items: center;
+  background: #f6ffed;
+  border-radius: 16rpx;
+  padding: 28rpx 24rpx;
+  margin-bottom: 20rpx;
+}
+
+.benefit-card:last-child {
+  margin-bottom: 0;
+}
+
+.benefit-icon-wrap {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 50%;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-right: 24rpx;
+  box-shadow: 0 2rpx 8rpx rgba(82, 196, 26, 0.1);
+}
+
+.benefit-icon {
+  font-size: 36rpx;
+}
+
+.benefit-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.benefit-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 8rpx;
+}
+
+.benefit-desc {
+  font-size: 24rpx;
+  color: #666;
+  line-height: 1.5;
 }

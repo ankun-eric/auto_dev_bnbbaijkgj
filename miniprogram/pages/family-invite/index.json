@@ -1,3 +1,6 @@
 {
-  "navigationBarTitleText": "邀请关联"
+  "navigationBarTitleText": "邀请关联",
+  "usingComponents": {
+    "qrcode": "/components/qrcode/index"
+  }
 }

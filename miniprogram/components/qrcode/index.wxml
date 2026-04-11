@@ -1,0 +1,3 @@
+<view class="qrcode-wrap" style="width:{{size}}rpx;height:{{size}}rpx;">
+  <canvas type="2d" id="qrcode-canvas" class="qrcode-canvas" style="width:{{size}}rpx;height:{{size}}rpx;"></canvas>
+</view>

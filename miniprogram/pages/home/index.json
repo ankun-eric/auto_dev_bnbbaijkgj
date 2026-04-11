@@ -1,4 +1,5 @@
 {
   "navigationBarTitleText": "宾尼小康",
+  "navigationStyle": "custom",
   "enablePullDownRefresh": true
 }

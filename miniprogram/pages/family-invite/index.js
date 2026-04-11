@@ -30,12 +30,39 @@ Page({
     }
   },
 
+  onQRReady() {
+    this._qrReady = true;
+  },
+
   saveToAlbum() {
-    if (!this.data.invitation || !this.data.invitation.qr_url) {
+    if (!this.data.invitation) {
       wx.showToast({ title: '暂无邀请图片', icon: 'none' });
       return;
     }
+
+    const qrcodeComp = this.selectComponent('#qrcode');
+    if (qrcodeComp && this._qrReady) {
+      qrcodeComp.toTempFilePath().then((filePath) => {
+        wx.saveImageToPhotosAlbum({
+          filePath,
+          success() {
+            wx.showToast({ title: '已保存到相册', icon: 'success' });
+          },
+          fail() {
+            wx.showToast({ title: '保存失败，请授权相册权限', icon: 'none' });
+          }
+        });
+      }).catch(() => {
+        wx.showToast({ title: '生成图片失败', icon: 'none' });
+      });
+      return;
+    }
+
     const url = this.data.invitation.qr_url;
+    if (!url) {
+      wx.showToast({ title: '暂无邀请图片', icon: 'none' });
+      return;
+    }
     wx.downloadFile({
       url: url.startsWith('http') ? url : app.globalData.baseUrl + url,
       success: (res) => {

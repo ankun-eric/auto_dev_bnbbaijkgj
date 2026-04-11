@@ -764,6 +764,25 @@ class ApiService {
     });
   }
 
+  // Messages
+  Future<Response> getMessages({int page = 1, int pageSize = 20, String? messageType}) async {
+    final params = <String, dynamic>{'page': page, 'page_size': pageSize};
+    if (messageType != null) params['message_type'] = messageType;
+    return _dio.get(ApiConfig.messages, queryParameters: params);
+  }
+
+  Future<Response> markMessageRead(int messageId) async {
+    return _dio.put('${ApiConfig.messages}/$messageId/read');
+  }
+
+  Future<Response> markAllMessagesRead() async {
+    return _dio.put(ApiConfig.messagesReadAll);
+  }
+
+  Future<Response> getUnreadMessageCount() async {
+    return _dio.get(ApiConfig.messagesUnreadCount);
+  }
+
   // Family Management
   Future<Response> createFamilyInvitation(int memberId) async {
     return _dio.post(ApiConfig.familyInvitation, data: {'member_id': memberId});

@@ -134,9 +134,9 @@ class ApiConfig {
   static const String articleDetail = '/api/content/articles';
   static const String collectArticle = '/api/content/favorites';
 
-  // Notifications
-  static const String notifications = '/api/notifications';
-  static const String readNotification = '/api/notifications';
+  // Notifications (legacy, use messages instead)
+  static const String notifications = '/api/messages';
+  static const String readNotification = '/api/messages';
 
   // Home (these are composite endpoints, may need frontend assembly)
   static const String banners = '/api/content/articles';
@@ -178,4 +178,9 @@ class ApiConfig {
   static const String familyInvitation = '/api/family/invitation';
   static const String familyManagement = '/api/family/management';
   static const String familyManagedBy = '/api/family/managed-by';
+
+  // Messages
+  static const String messages = '/api/messages';
+  static const String messagesUnreadCount = '/api/messages/unread-count';
+  static const String messagesReadAll = '/api/messages/read-all';
 }

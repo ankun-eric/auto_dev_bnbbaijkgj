@@ -20,8 +20,14 @@
         <text class="invite-subtitle">扫码或点击链接接受邀请</text>
       </view>
 
-      <view class="qr-wrap" wx:if="{{invitation.qr_url}}">
-        <image class="qr-image" src="{{invitation.qr_url}}" mode="aspectFit" />
+      <view class="qr-wrap" wx:if="{{invitation.qr_content_url || invitation.qr_url}}">
+        <qrcode
+          id="qrcode"
+          text="{{invitation.qr_content_url || invitation.qr_url}}"
+          size="{{360}}"
+          bind:ready="onQRReady"
+        />
+        <text class="qr-brand-name">宾尼小康AI健康管家</text>
       </view>
 
       <view class="invite-info">
@@ -49,6 +55,36 @@
         <text class="action-btn-icon">💬</text>
         <text>分享好友</text>
       </button>
+    </view>
+
+    <view class="benefits-section">
+      <view class="benefit-card">
+        <view class="benefit-icon-wrap">
+          <text class="benefit-icon">📊</text>
+        </view>
+        <view class="benefit-text">
+          <text class="benefit-title">数据共享</text>
+          <text class="benefit-desc">家人健康档案共同维护，随时掌握彼此健康状况</text>
+        </view>
+      </view>
+      <view class="benefit-card">
+        <view class="benefit-icon-wrap">
+          <text class="benefit-icon">🔔</text>
+        </view>
+        <view class="benefit-text">
+          <text class="benefit-title">异常提醒</text>
+          <text class="benefit-desc">健康数据异常时实时通知，第一时间关注家人健康</text>
+        </view>
+      </view>
+      <view class="benefit-card">
+        <view class="benefit-icon-wrap">
+          <text class="benefit-icon">💊</text>
+        </view>
+        <view class="benefit-text">
+          <text class="benefit-title">用药提醒</text>
+          <text class="benefit-desc">远程监督用药情况，确保家人按时服药不遗漏</text>
+        </view>
+      </view>
     </view>
   </view>
 </view>

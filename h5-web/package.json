@@ -13,7 +13,9 @@
     "antd-mobile-icons": "^0.3.0",
     "axios": "^1.7.0",
     "dayjs": "^1.11.13",
+    "html5-qrcode": "^2.3.8",
     "next": "14.2.15",
+    "qrcode.react": "^4.2.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },

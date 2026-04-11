@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../providers/font_provider.dart';
+
 import '../../models/article.dart';
+import '../../providers/font_provider.dart';
 import '../../services/api_service.dart';
 import '../../widgets/article_card.dart';
 
@@ -39,6 +41,9 @@ class _HomeScreenState extends State<HomeScreen> {
   int _todoTotalCount = 0;
   bool _todayTodosLoading = false;
 
+  // Unread messages
+  int _unreadCount = 0;
+
   final List<Article> _articles = [
     Article(id: '1', title: '春季养生：如何预防过敏性鼻炎', summary: '春季是过敏性鼻炎的高发季节，了解预防措施...', author: '健康专家', viewCount: 2345),
     Article(id: '2', title: '每天走一万步真的健康吗？', summary: '运动量因人而异，科学运动更重要...', author: '运动医学', viewCount: 1892),
@@ -66,6 +71,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadData();
     _loadTodayTodos();
     _loadCityInfo();
+    _loadUnreadCount();
   }
 
   Future<void> _loadCityInfo() async {
@@ -152,6 +158,20 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> _loadUnreadCount() async {
+    try {
+      final response = await _apiService.getUnreadMessageCount();
+      if (response.statusCode == 200 && mounted) {
+        final data = response.data is Map<String, dynamic>
+            ? response.data as Map<String, dynamic>
+            : <String, dynamic>{};
+        setState(() {
+          _unreadCount = data['unread_count'] ?? 0;
+        });
+      }
+    } catch (_) {}
+  }
+
   List<Map<String, dynamic>> _parseList(dynamic list) {
     if (list is List) {
       return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
@@ -218,6 +238,41 @@ class _HomeScreenState extends State<HomeScreen> {
       default:
         break;
     }
+  }
+
+  void _openScanner() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => _QrScannerPage(
+        onResult: (String code) {
+          _handleScanResult(code);
+        },
+      )),
+    );
+  }
+
+  void _handleScanResult(String code) {
+    final uri = Uri.tryParse(code);
+    if (uri != null && uri.queryParameters.containsKey('type') && uri.queryParameters.containsKey('code')) {
+      final type = uri.queryParameters['type'];
+      final inviteCode = uri.queryParameters['code'];
+      if (type == 'family_invite' && inviteCode != null && inviteCode.isNotEmpty) {
+        Navigator.pushNamed(context, '/family-auth', arguments: inviteCode);
+        return;
+      }
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('无法识别该二维码'),
+        backgroundColor: Colors.orange,
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
+  void _goToMessages() async {
+    await Navigator.pushNamed(context, '/messages');
+    _loadUnreadCount();
   }
 
   @override
@@ -329,8 +384,35 @@ class _HomeScreenState extends State<HomeScreen> {
           : const Text('宾尼小康', style: TextStyle(color: Colors.white, fontSize: 18)),
       actions: [
         IconButton(
-          icon: const Icon(Icons.notifications_outlined, color: Colors.white),
-          onPressed: () => Navigator.pushNamed(context, '/notifications'),
+          icon: const Icon(Icons.qr_code_scanner, color: Colors.white),
+          onPressed: _openScanner,
+        ),
+        Stack(
+          alignment: Alignment.center,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.notifications_outlined, color: Colors.white),
+              onPressed: _goToMessages,
+            ),
+            if (_unreadCount > 0)
+              Positioned(
+                right: 8,
+                top: 8,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFF4D4F),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                  child: Text(
+                    _unreadCount > 99 ? '99+' : '$_unreadCount',
+                    style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+          ],
         ),
       ],
     );
@@ -516,7 +598,6 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    // Fallback for legacy icon data
     final icon = menu['icon'];
     final color = menu['color'] is Color ? menu['color'] as Color : const Color(0xFF52C41A);
     return Container(
@@ -733,6 +814,80 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               ),
             ),
+        ],
+      ),
+    );
+  }
+}
+
+class _QrScannerPage extends StatefulWidget {
+  final ValueChanged<String> onResult;
+
+  const _QrScannerPage({required this.onResult});
+
+  @override
+  State<_QrScannerPage> createState() => _QrScannerPageState();
+}
+
+class _QrScannerPageState extends State<_QrScannerPage> {
+  final MobileScannerController _controller = MobileScannerController();
+  bool _handled = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _onDetect(BarcodeCapture capture) {
+    if (_handled) return;
+    final barcodes = capture.barcodes;
+    if (barcodes.isEmpty) return;
+    final code = barcodes.first.rawValue;
+    if (code == null || code.isEmpty) return;
+    _handled = true;
+    Navigator.pop(context);
+    widget.onResult(code);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('扫一扫'),
+        backgroundColor: Colors.black,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios, size: 20),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: Stack(
+        children: [
+          MobileScanner(
+            controller: _controller,
+            onDetect: _onDetect,
+          ),
+          Center(
+            child: Container(
+              width: 250,
+              height: 250,
+              decoration: BoxDecoration(
+                border: Border.all(color: const Color(0xFF52C41A), width: 2),
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: 80,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Text(
+                '将二维码放入框内扫描',
+                style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 14),
+              ),
+            ),
+          ),
         ],
       ),
     );

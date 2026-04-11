@@ -11,6 +11,7 @@ class InvitationCreateRequest(BaseModel):
 class InvitationCreateResponse(BaseModel):
     invite_code: str
     qr_url: str
+    qr_content_url: Optional[str] = None
     expires_at: datetime
 
     model_config = ConfigDict(from_attributes=True)

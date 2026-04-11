@@ -1,9 +1,16 @@
+import 'dart:typed_data';
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
+import 'package:image_gallery_saver/image_gallery_saver.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import '../../services/api_service.dart';
+
 import '../../config/api_config.dart';
 import '../../models/family_management.dart';
+import '../../services/api_service.dart';
 
 class FamilyInviteScreen extends StatefulWidget {
   final int memberId;
@@ -16,6 +23,7 @@ class FamilyInviteScreen extends StatefulWidget {
 
 class _FamilyInviteScreenState extends State<FamilyInviteScreen> {
   final ApiService _apiService = ApiService();
+  final GlobalKey _qrCardKey = GlobalKey();
   bool _loading = true;
   FamilyInvitationModel? _invitation;
   String? _error;
@@ -57,6 +65,11 @@ class _FamilyInviteScreenState extends State<FamilyInviteScreen> {
     }
   }
 
+  String get _qrContentUrl {
+    if (_invitation == null) return '';
+    return '${ApiConfig.baseUrl}/api/family/invitation/${_invitation!.inviteCode}?type=family_invite&code=${_invitation!.inviteCode}';
+  }
+
   String get _inviteLink {
     if (_invitation == null) return '';
     return '${ApiConfig.baseUrl}${ApiConfig.familyInvitation}/${_invitation!.inviteCode}';
@@ -88,14 +101,49 @@ class _FamilyInviteScreenState extends State<FamilyInviteScreen> {
     );
   }
 
-  void _saveToLocal() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('邀请图片已保存到本地'),
-        backgroundColor: Color(0xFF52C41A),
-        duration: Duration(seconds: 2),
-      ),
-    );
+  Future<void> _saveToLocal() async {
+    try {
+      final status = await Permission.photos.request();
+      if (!status.isGranted && !await Permission.storage.request().isGranted) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('需要相册权限才能保存图片'), backgroundColor: Colors.orange),
+          );
+        }
+        return;
+      }
+
+      final boundary = _qrCardKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+      if (boundary == null) return;
+
+      final image = await boundary.toImage(pixelRatio: 3.0);
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      if (byteData == null) return;
+
+      final pngBytes = byteData.buffer.asUint8List();
+      final result = await ImageGallerySaver.saveImage(
+        Uint8List.fromList(pngBytes),
+        quality: 100,
+        name: 'bini_invite_${DateTime.now().millisecondsSinceEpoch}',
+      );
+
+      if (mounted) {
+        final success = result is Map && (result['isSuccess'] == true);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(success ? '邀请图片已保存到相册' : '保存失败，请重试'),
+            backgroundColor: success ? const Color(0xFF52C41A) : Colors.red,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('保存失败，请重试'), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 
   @override
@@ -163,64 +211,77 @@ class _FamilyInviteScreenState extends State<FamilyInviteScreen> {
               ],
             ),
           ),
+          const SizedBox(height: 24),
+          _buildBenefitsSection(),
         ],
       ),
     );
   }
 
   Widget _buildInviteCard() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
+    return RepaintBoundary(
+      key: _qrCardKey,
+      child: GestureDetector(
+        onLongPress: _saveToLocal,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.08),
+                blurRadius: 16,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              color: const Color(0xFF52C41A).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: const Icon(Icons.favorite, color: Color(0xFF52C41A), size: 28),
+          child: Column(
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF52C41A).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: const Icon(Icons.favorite, color: Color(0xFF52C41A), size: 28),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                '邀请关联健康档案',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF333333)),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '邀请「${_invitation?.memberNickname ?? ''}」本人关联档案',
+                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+              ),
+              const SizedBox(height: 24),
+              QrImageView(
+                data: _qrContentUrl,
+                version: QrVersions.auto,
+                size: 180,
+                gapless: false,
+                embeddedImage: null,
+                errorStateBuilder: (ctx, err) {
+                  return const Center(child: Text('二维码生成失败'));
+                },
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                '宾尼小康AI健康管家',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF333333)),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '长按二维码可保存到相册',
+                style: TextStyle(fontSize: 12, color: Colors.grey[400]),
+              ),
+            ],
           ),
-          const SizedBox(height: 16),
-          const Text(
-            '邀请关联健康档案',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF333333)),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '邀请「${_invitation?.memberNickname ?? ''}」本人关联档案',
-            style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-          ),
-          const SizedBox(height: 24),
-          QrImageView(
-            data: _inviteLink,
-            version: QrVersions.auto,
-            size: 180,
-            gapless: false,
-            embeddedImage: null,
-            errorStateBuilder: (ctx, err) {
-              return const Center(child: Text('二维码生成失败'));
-            },
-          ),
-          const SizedBox(height: 16),
-          Text(
-            '扫码或点击链接接受邀请',
-            style: TextStyle(fontSize: 13, color: Colors.grey[500]),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -267,6 +328,97 @@ class _FamilyInviteScreenState extends State<FamilyInviteScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildBenefitsSection() {
+    const benefits = [
+      {
+        'icon': Icons.bar_chart,
+        'title': '数据共享',
+        'desc': '家人健康档案共同维护，随时掌握彼此健康状况',
+        'color': Color(0xFF1890FF),
+      },
+      {
+        'icon': Icons.notifications_active,
+        'title': '异常提醒',
+        'desc': '健康数据异常时实时通知，第一时间关注家人健康',
+        'color': Color(0xFFFA8C16),
+      },
+      {
+        'icon': Icons.medication,
+        'title': '用药提醒',
+        'desc': '远程监督用药情况，确保家人按时服药不遗漏',
+        'color': Color(0xFF52C41A),
+      },
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          '关联好处',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF333333)),
+        ),
+        const SizedBox(height: 12),
+        ...benefits.map((b) => _buildBenefitCard(
+              icon: b['icon'] as IconData,
+              title: b['title'] as String,
+              desc: b['desc'] as String,
+              color: b['color'] as Color,
+            )),
+      ],
+    );
+  }
+
+  Widget _buildBenefitCard({
+    required IconData icon,
+    required String title,
+    required String desc,
+    required Color color,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.15)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: color, size: 24),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF333333),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  desc,
+                  style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

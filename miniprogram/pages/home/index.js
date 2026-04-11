@@ -63,11 +63,17 @@ Page({
       { id: 2, title: '高血压患者饮食指南：这些食物要少吃', tag: '饮食', time: '5小时前', cover: '' },
       { id: 3, title: '运动健身：适合上班族的5分钟锻炼法', tag: '运动', time: '1天前', cover: '' }
     ],
-    unreadCount: 3,
-    loading: false
+    unreadCount: 0,
+    loading: false,
+    statusBarHeight: 20,
+    navBarHeight: 64
   },
 
   onLoad() {
+    const sysInfo = wx.getSystemInfoSync();
+    const statusBarHeight = sysInfo.statusBarHeight || 20;
+    const navBarHeight = statusBarHeight + 44;
+    this.setData({ statusBarHeight, navBarHeight });
     this.tryGPSLocate();
   },
 
@@ -127,7 +133,8 @@ Page({
         this.loadHomeConfig(),
         this.loadBanners(),
         this.loadMenus(),
-        this.loadTodayTodos()
+        this.loadTodayTodos(),
+        this.loadUnreadCount()
       ]);
     } finally {
       this.setData({ loading: false });
@@ -400,6 +407,37 @@ Page({
   goArticleDetail(e) {
     const id = e.currentTarget.dataset.id;
     wx.navigateTo({ url: `/pages/article-detail/index?id=${id}` });
+  },
+
+  async loadUnreadCount() {
+    try {
+      const res = await get('/api/messages/unread-count', {}, { showLoading: false, suppressErrorToast: true });
+      if (res && typeof res.unread_count === 'number') {
+        this.setData({ unreadCount: res.unread_count });
+      }
+    } catch (e) {
+      // keep current count
+    }
+  },
+
+  onScanTap() {
+    wx.scanCode({
+      onlyFromCamera: false,
+      success: (res) => {
+        const result = res.result || '';
+        const match = result.match(/type=family_invite&code=([^&]+)/);
+        if (match && match[1]) {
+          wx.navigateTo({ url: `/pages/family-auth/index?code=${match[1]}` });
+        } else {
+          wx.showToast({ title: '无法识别该二维码', icon: 'none' });
+        }
+      },
+      fail: () => {}
+    });
+  },
+
+  goMessages() {
+    wx.navigateTo({ url: '/pages/messages/index' });
   },
 
   goScan() {

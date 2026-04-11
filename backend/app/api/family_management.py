@@ -16,6 +16,7 @@ from app.models.models import (
     ManagementOperationLog,
     Notification,
     NotificationType,
+    SystemMessage,
     User,
 )
 from app.schemas.family_management import (
@@ -97,10 +98,12 @@ async def create_invitation(
     await db.flush()
 
     qr_url = f"/api/family/invitation/{invite_code}"
+    qr_content_url = f"https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/scan?type=family_invite&code={invite_code}"
 
     return InvitationCreateResponse(
         invite_code=invite_code,
         qr_url=qr_url,
+        qr_content_url=qr_content_url,
         expires_at=expires_at,
     )
 
@@ -275,6 +278,38 @@ async def accept_invitation(
         },
     )
     db.add(notification)
+
+    inviter_result = await db.execute(
+        select(User).where(User.id == invitation.inviter_user_id)
+    )
+    inviter = inviter_result.scalar_one_or_none()
+    inviter_name = inviter.nickname or inviter.phone if inviter else "对方"
+    acceptor_name = current_user.nickname or current_user.phone
+
+    msg_to_inviter = SystemMessage(
+        message_type="family_invite_accepted",
+        recipient_user_id=invitation.inviter_user_id,
+        sender_user_id=current_user.id,
+        title="共管邀请已同意",
+        content=f"{acceptor_name}已同意您的健康档案共管邀请，您现在可以查看对方的健康数据了",
+        related_business_id=str(management.id),
+        related_business_type="family_management",
+        click_action="/family-bindlist",
+    )
+    db.add(msg_to_inviter)
+
+    msg_to_acceptor = SystemMessage(
+        message_type="family_invite_accepted",
+        recipient_user_id=current_user.id,
+        sender_user_id=invitation.inviter_user_id,
+        title="共管邀请已同意",
+        content=f"您已同意{inviter_name}的健康档案共管邀请，对方现在可以查看您的健康数据",
+        related_business_id=str(management.id),
+        related_business_type="family_management",
+        click_action="/family-bindlist",
+    )
+    db.add(msg_to_acceptor)
+
     await db.flush()
 
     return {"message": "已接受邀请", "management_id": management.id}
@@ -302,6 +337,39 @@ async def reject_invitation(
         raise HTTPException(status_code=400, detail="邀请已过期")
 
     invitation.status = "cancelled"
+
+    inviter_result = await db.execute(
+        select(User).where(User.id == invitation.inviter_user_id)
+    )
+    inviter = inviter_result.scalar_one_or_none()
+    inviter_name = inviter.nickname or inviter.phone if inviter else "对方"
+    rejector_name = current_user.nickname or current_user.phone
+
+    msg_to_inviter = SystemMessage(
+        message_type="family_invite_rejected",
+        recipient_user_id=invitation.inviter_user_id,
+        sender_user_id=current_user.id,
+        title="共管邀请已被拒绝",
+        content=f"{rejector_name}已拒绝您的健康档案共管邀请",
+        related_business_id=str(invitation.id),
+        related_business_type="family_invitation",
+        click_action="/family-invite",
+        click_action_params={"can_reinvite": True},
+    )
+    db.add(msg_to_inviter)
+
+    msg_to_rejector = SystemMessage(
+        message_type="family_invite_rejected",
+        recipient_user_id=current_user.id,
+        sender_user_id=invitation.inviter_user_id,
+        title="已拒绝共管邀请",
+        content=f"您已拒绝{inviter_name}的健康档案共管邀请",
+        related_business_id=str(invitation.id),
+        related_business_type="family_invitation",
+        click_action="/family-bindlist",
+    )
+    db.add(msg_to_rejector)
+
     await db.flush()
 
     return {"message": "已拒绝邀请"}

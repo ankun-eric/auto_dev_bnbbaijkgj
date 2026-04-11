@@ -16,6 +16,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    func,
 )
 from sqlalchemy.orm import mapped_column, relationship
 
@@ -1983,3 +1984,27 @@ class ManagementOperationLog(Base):
     created_at = mapped_column(DateTime, default=datetime.utcnow)
 
     operator = relationship("User", foreign_keys=[operator_user_id])
+
+
+# ──────────────── 系统消息 ────────────────
+
+
+class SystemMessage(Base):
+    __tablename__ = "system_messages"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    message_type = Column(String(50), nullable=False)
+    recipient_user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    sender_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    title = Column(String(200), nullable=False)
+    content = Column(Text, nullable=False)
+    related_business_id = Column(String(100), nullable=True)
+    related_business_type = Column(String(50), nullable=True)
+    click_action = Column(String(200), nullable=True)
+    click_action_params = Column(JSON, nullable=True)
+    is_read = Column(Boolean, default=False)
+    read_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=func.now())
+
+    recipient = relationship("User", foreign_keys=[recipient_user_id])
+    sender = relationship("User", foreign_keys=[sender_user_id])

@@ -2,6 +2,69 @@
   padding-bottom: 20rpx;
 }
 
+/* Custom navigation bar */
+.custom-nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background: #fff;
+}
+
+.custom-nav-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 44px;
+  padding: 0 24rpx;
+}
+
+.custom-nav-title {
+  font-size: 34rpx;
+  font-weight: 600;
+  color: #333;
+}
+
+.custom-nav-actions {
+  display: flex;
+  align-items: center;
+}
+
+.nav-action-btn {
+  position: relative;
+  width: 68rpx;
+  height: 68rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 8rpx;
+}
+
+.nav-action-icon {
+  font-size: 40rpx;
+}
+
+.nav-msg-btn {
+  position: relative;
+}
+
+.nav-badge {
+  position: absolute;
+  top: 4rpx;
+  right: 2rpx;
+  min-width: 32rpx;
+  height: 32rpx;
+  line-height: 32rpx;
+  text-align: center;
+  font-size: 20rpx;
+  color: #fff;
+  background: #ff4d4f;
+  border-radius: 16rpx;
+  padding: 0 8rpx;
+  box-sizing: border-box;
+}
+
 .merchant-home-page {
   padding: 24rpx;
   padding-bottom: 140rpx;

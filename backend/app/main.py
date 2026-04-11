@@ -9,6 +9,7 @@ from app.api import (
     admin,
     admin_health_plan,
     admin_merchant,
+    admin_messages,
     admin_search,
     ai_center,
     auth,
@@ -31,6 +32,7 @@ from app.api import (
     health_profile,
     home_config,
     knowledge,
+    messages,
     notice,
     notification,
     ocr,
@@ -41,6 +43,7 @@ from app.api import (
     merchant,
     prompt_templates,
     report,
+    scan,
     search,
     service,
     sms,
@@ -129,6 +132,9 @@ app.include_router(city.router)
 app.include_router(city.admin_router)
 app.include_router(function_button.router)
 app.include_router(function_button.admin_router)
+app.include_router(messages.router)
+app.include_router(admin_messages.router)
+app.include_router(scan.router)
 
 os.makedirs("uploads", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")

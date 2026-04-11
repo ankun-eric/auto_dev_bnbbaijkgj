@@ -54,6 +54,7 @@ import 'screens/search/search_screen.dart';
 import 'screens/search/search_result_screen.dart';
 import 'screens/city/city_select_screen.dart';
 import 'screens/digital_human/digital_human_call_screen.dart';
+import 'screens/messages/messages_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -220,6 +221,7 @@ class BiniHealthApp extends StatelessWidget {
           '/search-result': (context) => const SearchResultScreen(),
           '/city-select': (context) => const CitySelectScreen(),
           '/digital-human-call': (context) => const DigitalHumanCallScreen(),
+          '/messages': (context) => const MessagesScreen(),
         },
       ),
     );

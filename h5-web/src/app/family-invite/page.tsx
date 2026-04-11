@@ -1,13 +1,15 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { NavBar, Toast, Button } from 'antd-mobile';
+import { QRCodeCanvas } from 'qrcode.react';
 import api from '@/lib/api';
 
 interface InvitationData {
   invite_code: string;
   qr_url: string;
+  qr_content_url?: string;
   expires_at: string;
 }
 
@@ -64,9 +66,30 @@ function FamilyInviteContent() {
     }
   };
 
-  const handleSaveImage = () => {
-    Toast.show({ content: '请长按图片保存到相册' });
-  };
+  const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+  const qrContentUrl = invitation
+    ? (invitation.qr_content_url || `${typeof window !== 'undefined' ? window.location.origin : ''}${basePath}/scan?type=family_invite&code=${invitation.invite_code}`)
+    : '';
+
+  const qrCanvasRef = useRef<HTMLDivElement>(null);
+
+  const handleSaveImage = useCallback(() => {
+    const canvas = qrCanvasRef.current?.querySelector('canvas');
+    if (!canvas) {
+      Toast.show({ content: '二维码未生成', icon: 'fail' });
+      return;
+    }
+    try {
+      const url = canvas.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.download = `bini-health-invite-${invitation?.invite_code?.slice(0, 8) || 'qr'}.png`;
+      link.href = url;
+      link.click();
+      Toast.show({ content: '图片已保存', icon: 'success' });
+    } catch {
+      Toast.show({ content: '保存失败，请截图保存', icon: 'fail' });
+    }
+  }, [invitation]);
 
   const handleShareWechat = () => {
     Toast.show({ content: '请点击右上角"..."分享给微信好友' });
@@ -116,27 +139,27 @@ function FamilyInviteContent() {
               <div className="px-6 py-6">
                 <div className="text-center mb-6">
                   <div className="text-sm text-gray-600 mb-4">扫描下方二维码接受邀请</div>
-                  {/* QR code placeholder */}
                   <div
-                    className="mx-auto flex items-center justify-center rounded-2xl"
+                    ref={qrCanvasRef}
+                    className="mx-auto flex items-center justify-center rounded-2xl p-3"
                     style={{
-                      width: 180,
-                      height: 180,
-                      background: '#f6ffed',
-                      border: '2px dashed #b7eb8f',
+                      width: 196,
+                      height: 196,
+                      background: '#fff',
+                      border: '2px solid #d9f7be',
                     }}
                   >
-                    <div className="text-center">
-                      <div className="text-4xl mb-2">📱</div>
-                      <div className="text-xs text-gray-400">二维码</div>
-                      <div className="text-xs text-gray-300 mt-1 break-all px-2" style={{ fontSize: 9 }}>
-                        {invitation.invite_code.slice(0, 12)}...
-                      </div>
-                    </div>
+                    <QRCodeCanvas
+                      value={qrContentUrl}
+                      size={164}
+                      level="M"
+                      includeMargin={false}
+                      bgColor="#ffffff"
+                      fgColor="#333333"
+                    />
                   </div>
                 </div>
 
-                {/* Logo area */}
                 <div className="flex items-center justify-center gap-2 mb-2">
                   <div
                     className="w-6 h-6 rounded-full flex items-center justify-center"
@@ -144,7 +167,7 @@ function FamilyInviteContent() {
                   >
                     <span className="text-white text-xs font-bold">B</span>
                   </div>
-                  <span className="text-xs text-gray-400">Bini Health</span>
+                  <span className="text-xs text-gray-500 font-medium">宾尼小康AI健康管家</span>
                 </div>
               </div>
             </div>
@@ -198,6 +221,27 @@ function FamilyInviteContent() {
             {/* Expiry notice */}
             <div className="text-center mt-6">
               <span className="text-xs text-gray-400">邀请有效期：24 小时</span>
+            </div>
+
+            {/* Benefits section */}
+            <div className="mt-6 space-y-3" style={{ maxWidth: 340, margin: '24px auto 0' }}>
+              {[
+                { icon: '📊', title: '数据共享', desc: '家人健康档案共同维护，随时掌握彼此健康状况' },
+                { icon: '🔔', title: '异常提醒', desc: '健康数据异常时实时通知，第一时间关注家人健康' },
+                { icon: '💊', title: '用药提醒', desc: '远程监督用药情况，确保家人按时服药不遗漏' },
+              ].map((item) => (
+                <div
+                  key={item.title}
+                  className="flex items-start gap-3 rounded-xl px-4 py-3"
+                  style={{ background: 'rgba(255,255,255,0.85)', border: '1px solid #e8f5e9' }}
+                >
+                  <span className="text-2xl shrink-0 mt-0.5">{item.icon}</span>
+                  <div>
+                    <div className="text-sm font-medium text-gray-800">{item.title}</div>
+                    <div className="text-xs text-gray-500 mt-0.5 leading-relaxed">{item.desc}</div>
+                  </div>
+                </div>
+              ))}
             </div>
           </>
         ) : null}

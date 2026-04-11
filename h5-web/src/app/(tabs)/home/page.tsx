@@ -7,6 +7,8 @@ import { useHomeConfig, HomeBanner, HomeMenu } from '@/lib/useHomeConfig';
 import api from '@/lib/api';
 import { getSelectedCity, getLocationCache, requestGeolocation, CityInfo } from '@/lib/cityUtils';
 
+const UNREAD_POLL_INTERVAL = 60 * 1000;
+
 interface NoticeItem {
   id: number;
   content: string;
@@ -90,6 +92,7 @@ export default function HomePage() {
   const [todosLoading, setTodosLoading] = useState(true);
   const [inputVisible, setInputVisible] = useState<number | null>(null);
   const [inputValue, setInputValue] = useState('');
+  const [unreadCount, setUnreadCount] = useState(0);
 
   const [cityDisplay, setCityDisplay] = useState('定位');
   const [cityStatus, setCityStatus] = useState<CityStatus>('idle');
@@ -106,6 +109,20 @@ export default function HomePage() {
       setTodosLoading(false);
     }
   }, []);
+
+  const fetchUnreadCount = useCallback(async () => {
+    try {
+      const res: any = await api.get('/api/messages/unread-count');
+      const data = res.data || res;
+      setUnreadCount(data.unread_count ?? 0);
+    } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => {
+    fetchUnreadCount();
+    const timer = setInterval(fetchUnreadCount, UNREAD_POLL_INTERVAL);
+    return () => clearInterval(timer);
+  }, [fetchUnreadCount]);
 
   useEffect(() => {
     const fetchNotices = async () => {
@@ -245,10 +262,22 @@ export default function HomePage() {
             <p className="text-xs opacity-80 mt-1">AI健康管家 · 关爱您的每一天</p>
           </div>
           <div className="flex items-center gap-2">
-            <Badge content="3" style={{ '--right': '-2px', '--top': '2px' }}>
+            <div
+              className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center cursor-pointer"
+              onClick={() => router.push('/scan')}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 7V5a2 2 0 0 1 2-2h2" />
+                <path d="M17 3h2a2 2 0 0 1 2 2v2" />
+                <path d="M21 17v2a2 2 0 0 1-2 2h-2" />
+                <path d="M7 21H5a2 2 0 0 1-2-2v-2" />
+                <line x1="7" y1="12" x2="17" y2="12" />
+              </svg>
+            </div>
+            <Badge content={unreadCount > 0 ? (unreadCount > 99 ? '99+' : unreadCount) : null} style={{ '--right': '-2px', '--top': '2px' }}>
               <div
-                className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center"
-                onClick={() => router.push('/notifications')}
+                className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center cursor-pointer"
+                onClick={() => router.push('/messages')}
               >
                 <span className="text-white text-sm">🔔</span>
               </div>

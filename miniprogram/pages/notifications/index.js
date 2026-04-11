@@ -24,12 +24,12 @@ Page({
 
   async loadData() {
     try {
-      const res = await get('/api/notifications', {}, { showLoading: false });
+      const res = await get('/api/messages', {}, { showLoading: false });
       const targetType = TAB_TYPE_MAP[this.data.currentTab];
       const notifications = (res.items || [])
-        .filter((item) => !targetType || item.type === targetType)
+        .filter((item) => !targetType || item.message_type === targetType)
         .map((item) => {
-          const style = TYPE_ICON_MAP[item.type] || { icon: '🔔', bgColor: 'rgba(82,196,26,0.12)' };
+          const style = TYPE_ICON_MAP[item.message_type] || { icon: '🔔', bgColor: 'rgba(82,196,26,0.12)' };
           return {
             ...item,
             read: item.is_read,
@@ -48,7 +48,7 @@ Page({
     const item = e.currentTarget.dataset.item;
     if (!item || item.read) return;
     try {
-      await put(`/api/notifications/${item.id}/read`, {});
+      await put(`/api/messages/${item.id}/read`, {});
       this.loadData();
     } catch (e2) {
       wx.showToast({ title: e2.detail || '操作失败', icon: 'none' });
@@ -57,7 +57,7 @@ Page({
 
   async clearAll() {
     try {
-      await put('/api/notifications/read-all', {});
+      await put('/api/messages/read-all', {});
       this.loadData();
       wx.showToast({ title: '全部已读', icon: 'success' });
     } catch (e) {

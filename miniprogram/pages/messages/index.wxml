@@ -1,0 +1,45 @@
+<view class="messages-page">
+  <view class="msg-header">
+    <text class="msg-header-title">消息中心</text>
+    <text class="msg-read-all" wx:if="{{messages.length > 0}}" bindtap="markAllRead">全部已读</text>
+  </view>
+
+  <view class="msg-list" wx:if="{{messages.length > 0}}">
+    <view class="msg-item {{item.is_read ? '' : 'msg-unread'}}" wx:for="{{messages}}" wx:key="id" bindtap="onMsgTap" data-item="{{item}}">
+      <view class="msg-dot" wx:if="{{!item.is_read}}"></view>
+      <view class="msg-icon-wrap">
+        <text class="msg-type-icon" wx:if="{{item.message_type === 'family_invite'}}">👨‍👩‍👧</text>
+        <text class="msg-type-icon" wx:elif="{{item.message_type === 'family_auth'}}">🔐</text>
+        <text class="msg-type-icon" wx:elif="{{item.message_type === 'health_alert'}}">🔔</text>
+        <text class="msg-type-icon" wx:elif="{{item.message_type === 'medication_remind'}}">💊</text>
+        <text class="msg-type-icon" wx:else>📩</text>
+      </view>
+      <view class="msg-body">
+        <view class="msg-title-row">
+          <text class="msg-title">{{item.title}}</text>
+          <text class="msg-time">{{item.timeLabel}}</text>
+        </view>
+        <text class="msg-content">{{item.content}}</text>
+        <view class="msg-action-row" wx:if="{{item.click_action === 'family_accept'}}">
+          <view class="msg-action-btn msg-accept-btn" catchtap="onAcceptAuth" data-item="{{item}}">查看关联列表</view>
+        </view>
+        <view class="msg-action-row" wx:elif="{{item.click_action === 'family_reject'}}">
+          <view class="msg-action-btn msg-reinvite-btn" catchtap="onReinvite" data-item="{{item}}">重新邀请</view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view class="msg-empty" wx:elif="{{!loading}}">
+    <text class="msg-empty-icon">📭</text>
+    <text class="msg-empty-text">暂无消息</text>
+  </view>
+
+  <view class="msg-loading" wx:if="{{loading}}">
+    <text class="msg-loading-text">加载中...</text>
+  </view>
+
+  <view class="msg-bottom" wx:if="{{noMore && messages.length > 0}}">
+    <text class="msg-bottom-text">—— 没有更多了 ——</text>
+  </view>
+</view>
