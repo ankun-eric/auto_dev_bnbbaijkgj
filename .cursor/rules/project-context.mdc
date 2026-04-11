@@ -32,7 +32,29 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api/`
 
-## Latest Update: AI 健康咨询功能按钮与数字人对话模式 (2026-04-11)
+## Latest Update: 健康计划模块 H5 端 Bug 修复 (2026-04-11)
+
+### 概要
+修复 H5 端健康计划模块的 3 个 Bug：首页今日待办健康计划按计划名称分组显示、健康打卡列表页编辑删除按钮位置优化、自定义计划编辑页空白问题修复。
+
+### 各端变更
+
+| 端 | 主要变更 |
+| --- | --- |
+| H5 | 首页今日待办按 plan_name 二次分组；打卡列表编辑删除按钮移至状态行；自定义计划编辑页支持 editId 参数加载详情 |
+
+### 关键文件
+
+```text
+h5-web/src/app/
+├── (tabs)/home/page.tsx                       # Bug1: custom 分组按 plan_name 二次分组
+├── health-plan/checkin/page.tsx                # Bug2: 编辑删除按钮移到状态标签同行
+└── health-plan/custom/create/page.tsx          # Bug3: 支持 editId 参数编辑模式
+```
+
+---
+
+## Previous Update: AI 健康咨询功能按钮与数字人对话模式 (2026-04-11)
 
 ### 概要
 在 AI 健康咨询聊天页面输入框上方新增可配置的功能按钮横向滚动栏（8 个默认按钮），其中核心创新为"数字人对话模式"——全屏视频通话页面通过语音与 AI 健康顾问实时对话。后台管理系统新增功能按钮管理、数字人形象管理、语音服务配置三个管理页面。

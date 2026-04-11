@@ -121,26 +121,26 @@ export default function CheckinPage() {
                 <div className="flex items-center">
                   <div className="flex-1 min-w-0">
                     <div className="font-medium text-sm truncate">{item.name}</div>
-                    <div className="flex items-center gap-2 mt-1">
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
                       <span className={`text-xs ${item.is_checked ? 'text-green-500' : 'text-gray-400'}`}>
                         {item.is_checked ? '✅ 已完成' : '⬜ 未完成'}
                       </span>
                       {item.remind_time && (
                         <span className="text-xs text-gray-400">⏰ {item.remind_time}</span>
                       )}
+                      <span
+                        className="text-base cursor-pointer"
+                        style={{ padding: '0 2px', lineHeight: 1 }}
+                        onClick={() => router.push(`/health-plan/checkin/add?id=${item.id}`)}
+                      >✏️</span>
+                      <span
+                        className="text-base cursor-pointer"
+                        style={{ padding: '0 2px', lineHeight: 1 }}
+                        onClick={() => handleDelete(item)}
+                      >🗑️</span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 ml-3 flex-shrink-0">
-                    <span
-                      className="text-base cursor-pointer"
-                      style={{ padding: 4 }}
-                      onClick={() => router.push(`/health-plan/checkin/add?id=${item.id}`)}
-                    >✏️</span>
-                    <span
-                      className="text-base cursor-pointer"
-                      style={{ padding: 4 }}
-                      onClick={() => handleDelete(item)}
-                    >🗑️</span>
+                  <div className="flex items-center ml-3 flex-shrink-0">
                     {item.is_checked ? (
                       <Button
                         size="mini"

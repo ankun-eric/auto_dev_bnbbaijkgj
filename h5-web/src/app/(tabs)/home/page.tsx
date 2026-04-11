@@ -420,6 +420,63 @@ export default function HomePage() {
           ) : (
             todayTodos.groups?.map((group) => {
               const groupIcon = group.group_type === 'medication' ? '💊' : group.group_type === 'checkin' ? '✅' : '📋';
+
+              if (group.group_type === 'custom') {
+                if (group.is_empty) {
+                  return null;
+                }
+                const planGroups: Record<string, TodoItem[]> = {};
+                group.items.forEach((item) => {
+                  const planName = (item.extra?.plan_name as string) || '其他计划';
+                  if (!planGroups[planName]) planGroups[planName] = [];
+                  planGroups[planName].push(item);
+                });
+                return Object.entries(planGroups).map(([planName, planItems]) => (
+                  <div key={`plan-${planName}`} className="mb-3 last:mb-0">
+                    <div className="flex items-center mb-2">
+                      <span className="text-sm mr-1">📋</span>
+                      <span className="text-xs font-medium text-gray-600">{planName}</span>
+                    </div>
+                    {planItems.map((item) => (
+                      <div key={item.id}>
+                        <div
+                          className="flex items-center py-1.5 ml-2 cursor-pointer"
+                          onClick={() => handleQuickCheck(item)}
+                        >
+                          <div
+                            className="w-4 h-4 rounded-full border-2 flex items-center justify-center mr-2 shrink-0"
+                            style={{
+                              borderColor: item.is_completed ? '#52c41a' : '#ddd',
+                              background: item.is_completed ? '#52c41a' : 'transparent',
+                            }}
+                          >
+                            {item.is_completed && <span className="text-white" style={{ fontSize: 8 }}>✓</span>}
+                          </div>
+                          <span className={`text-sm flex-1 ${item.is_completed ? 'text-gray-400 line-through' : ''}`}>
+                            {item.name}
+                            {item.remind_time && <span className="text-xs text-gray-400 ml-1">{item.remind_time}</span>}
+                          </span>
+                        </div>
+                        {inputVisible === item.id && (
+                          <div className="flex items-center ml-8 mb-1 gap-2">
+                            <input
+                              type="number"
+                              value={inputValue}
+                              onChange={(e) => setInputValue(e.target.value)}
+                              placeholder={`输入${item.target_unit || '数值'}`}
+                              className="flex-1 text-xs px-2 py-1.5 rounded-lg border border-gray-200"
+                              autoFocus
+                            />
+                            <Button size="mini" color="primary" style={{ borderRadius: 6, background: '#52c41a', border: 'none', fontSize: 11 }} onClick={() => handleValueSubmit(item)}>确认</Button>
+                            <Button size="mini" style={{ borderRadius: 6, fontSize: 11 }} onClick={() => { setInputVisible(null); setInputValue(''); }}>取消</Button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ));
+              }
+
               return (
               <div key={group.group_type} className="mb-3 last:mb-0" style={{ opacity: group.is_empty ? 0.5 : 1 }}>
                 <div className="flex items-center mb-2">

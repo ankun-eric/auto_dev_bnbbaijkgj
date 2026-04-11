@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { NavBar, Form, Input, Button, Toast, TextArea, Stepper, Switch } from 'antd-mobile';
+import { Suspense, useState, useEffect, useCallback } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { NavBar, Form, Input, Button, Toast, TextArea, Stepper, Switch, SpinLoading } from 'antd-mobile';
 import { AddOutline, CloseOutline } from 'antd-mobile-icons';
 import api from '@/lib/api';
 
@@ -12,8 +12,20 @@ interface TaskItem {
 }
 
 export default function CreateCustomPlanPage() {
-  const router = useRouter();
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center"><SpinLoading color="primary" /></div>}>
+      <CreateCustomPlanContent />
+    </Suspense>
+  );
+}
 
+function CreateCustomPlanContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const editId = searchParams.get('editId');
+  const isEdit = !!editId;
+
+  const [fetching, setFetching] = useState(isEdit);
   const [submitting, setSubmitting] = useState(false);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -22,6 +34,36 @@ export default function CreateCustomPlanPage() {
   const [tasks, setTasks] = useState<TaskItem[]>([
     { tempId: '1', name: '' },
   ]);
+
+  const fetchPlanDetail = useCallback(async () => {
+    if (!editId) return;
+    try {
+      const res: any = await api.get(`/api/health-plan/user-plans/${editId}`);
+      const data = res.data || res;
+      setName(data.plan_name || '');
+      setDescription(data.description || '');
+      if (data.duration_days == null) {
+        setIsInfinite(true);
+      } else {
+        setIsInfinite(false);
+        setDurationDays(data.duration_days);
+      }
+      if (data.tasks && data.tasks.length > 0) {
+        setTasks(data.tasks.map((t: any, idx: number) => ({
+          tempId: String(t.id || idx),
+          name: t.task_name || t.name || '',
+        })));
+      }
+    } catch {
+      Toast.show({ content: '加载计划详情失败', icon: 'fail' });
+    } finally {
+      setFetching(false);
+    }
+  }, [editId]);
+
+  useEffect(() => {
+    if (isEdit) fetchPlanDetail();
+  }, [isEdit, fetchPlanDetail]);
 
   const addTask = () => {
     setTasks([...tasks, { tempId: String(Date.now()), name: '' }]);
@@ -52,27 +94,47 @@ export default function CreateCustomPlanPage() {
 
     setSubmitting(true);
     try {
-      await api.post('/api/health-plan/user-plans', {
-        plan_name: name.trim(),
-        description: description.trim(),
-        duration_days: isInfinite ? null : durationDays,
-        tasks: validTasks.map((t, idx) => ({
-          task_name: t.name.trim(),
-          sort_order: idx,
-        })),
-      });
-      Toast.show({ content: '创建成功', icon: 'success' });
+      if (isEdit) {
+        await api.put(`/api/health-plan/user-plans/${editId}`, {
+          plan_name: name.trim(),
+          description: description.trim(),
+          duration_days: isInfinite ? null : durationDays,
+        });
+        Toast.show({ content: '更新成功', icon: 'success' });
+      } else {
+        await api.post('/api/health-plan/user-plans', {
+          plan_name: name.trim(),
+          description: description.trim(),
+          duration_days: isInfinite ? null : durationDays,
+          tasks: validTasks.map((t, idx) => ({
+            task_name: t.name.trim(),
+            sort_order: idx,
+          })),
+        });
+        Toast.show({ content: '创建成功', icon: 'success' });
+      }
       router.back();
     } catch {
-      Toast.show({ content: '创建失败', icon: 'fail' });
+      Toast.show({ content: isEdit ? '更新失败' : '创建失败', icon: 'fail' });
     } finally {
       setSubmitting(false);
     }
   };
 
+  if (fetching) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <NavBar onBack={() => router.back()} style={{ background: '#fff' }}>编辑计划</NavBar>
+        <div className="flex items-center justify-center" style={{ height: 'calc(100vh - 45px)' }}>
+          <SpinLoading color="primary" />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
-      <NavBar onBack={() => router.back()} style={{ background: '#fff' }}>创建计划</NavBar>
+      <NavBar onBack={() => router.back()} style={{ background: '#fff' }}>{isEdit ? '编辑计划' : '创建计划'}</NavBar>
 
       <div className="px-4 pt-4">
         <div className="card">
@@ -169,7 +231,7 @@ export default function CreateCustomPlanPage() {
           style={{ borderRadius: 12, background: 'linear-gradient(135deg, #52c41a, #13c2c2)', border: 'none', height: 48 }}
           onClick={handleSubmit}
         >
-          创建计划
+          {isEdit ? '保存修改' : '创建计划'}
         </Button>
       </div>
     </div>
