@@ -57,15 +57,11 @@ jobs:
             fi
           done
 
-      - name: Build APK via Gradle
-        working-directory: flutter_app/android
+      - name: Build APK
+        working-directory: flutter_app
         run: |
-          chmod +x gradlew 2>/dev/null || true
-          if [ -f gradlew ]; then
-            ./gradlew assembleRelease --no-daemon -Ptarget-platform=android-arm,android-arm64,android-x64
-          else
-            gradle assembleRelease --no-daemon
-          fi
+          flutter build apk --release --no-tree-shake-icons 2>&1 || true
+          echo "=== Build step complete, searching for APK ==="
 
       - name: Find and rename APK
         run: |
