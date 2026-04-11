@@ -20,11 +20,12 @@ alwaysApply: false
 
 ## Deployment Server (SSH)
 
-- Host: `newbb.bangbangvip.com`
+- Host: `newbb.test.bangbangvip.com`
 - Port: `22`
 - User: `ubuntu`
-- Password: `Newbang888`
+- Password: `Bangbang987`
 - Project directory on server: `/home/ubuntu/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/`
+- Front proxy: `newbb.bangbangvip.com` (43.135.169.167) → proxies to test server via HTTPS
 
 ## Current Deployment Entrypoints
 
@@ -32,7 +33,17 @@ alwaysApply: false
 - Admin: `https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/`
 - API: `https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api/`
 
-## Latest Update: 首页搜索栏提示文字后台配置化 (2026-04-11)
+## Latest Update: 502 Bad Gateway 修复 (2026-04-12)
+
+### 概要
+修复通过 `newbb.bangbangvip.com` 域名访问项目时出现的 502 Bad Gateway 错误。根本原因是前端代理服务器 nginx 配置直连测试服务器的 Docker 内部端口（8000/3000/3001），而这些端口未对外暴露。修复方案为改为通过测试服务器的 Gateway Nginx (HTTPS 443) 转发。
+
+### 关键修复
+- 前端代理服务器 (`newbb.bangbangvip.com`) 的 nginx 配置中，BINI HEALTH 项目的反向代理从 `http://101.33.205.59:端口` 改为 `https://newbb.test.bangbangvip.com/autodev/3b7b999d.../`
+- 修复了 nginx 配置中 `29c7b754` 和 `da347c81` 项目的花括号缺失问题
+- 添加 `proxy_ssl_server_name` 和 `proxy_ssl_name` 确保 SNI 正确
+
+## Previous Update: 首页搜索栏提示文字后台配置化 (2026-04-11)
 
 ### 概要
 将首页搜索栏的 placeholder 提示文字统一改为从后台接口 `/api/home-config` 动态获取，各端默认兜底值统一为"搜索健康知识、服务、商品"，H5端缓存时长从5分钟调整为1小时。
