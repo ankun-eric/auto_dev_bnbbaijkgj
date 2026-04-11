@@ -90,10 +90,13 @@ async def ensure_self_health_profile(db: AsyncSession, user_id: int) -> None:
     self_member = member_result.scalar_one_or_none()
 
     result = await db.execute(
-        select(HealthProfile).where(HealthProfile.user_id == user_id)
+        select(HealthProfile)
+        .where(HealthProfile.user_id == user_id)
+        .order_by(HealthProfile.id.asc())
     )
-    existing = result.scalar_one_or_none()
-    if existing:
+    profiles = result.scalars().all()
+    if profiles:
+        existing = profiles[0]
         if self_member and existing.family_member_id != self_member.id:
             existing.family_member_id = self_member.id
             await db.flush()
@@ -328,6 +331,22 @@ async def sms_login(data: SMSLoginRequest, db: AsyncSession = Depends(get_db)):
     )
     vc = result.scalar_one_or_none()
     if not vc:
+        logger.warning(
+            "SMS login failed: phone=%s, now=%s (submitted code not logged)",
+            data.phone, datetime.utcnow(),
+        )
+        debug_result = await db.execute(
+            select(VerificationCode)
+            .where(VerificationCode.phone == data.phone)
+            .order_by(VerificationCode.created_at.desc())
+            .limit(1)
+        )
+        debug_vc = debug_result.scalar_one_or_none()
+        if debug_vc:
+            logger.warning(
+                "Latest VC for phone=%s: expires_at=%s, created_at=%s (code not logged)",
+                data.phone, debug_vc.expires_at, debug_vc.created_at,
+            )
         raise HTTPException(status_code=400, detail="验证码无效或已过期")
 
     result = await db.execute(select(User).where(User.phone == data.phone))

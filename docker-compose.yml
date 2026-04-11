@@ -10,6 +10,8 @@ services:
       MYSQL_DATABASE: bini_health
       MYSQL_CHARSET: utf8mb4
       MYSQL_COLLATION: utf8mb4_unicode_ci
+      TZ: UTC
+    command: --default-time-zone='+00:00'
     volumes:
       - mysql_data:/var/lib/mysql
       - ./backend/init.sql:/docker-entrypoint-initdb.d/init.sql

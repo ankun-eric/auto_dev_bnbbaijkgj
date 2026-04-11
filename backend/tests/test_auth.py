@@ -5,6 +5,7 @@ from httpx import AsyncClient
 
 from app.core.security import get_password_hash
 from app.models.models import HealthProfile, SystemConfig, User, UserRole, VerificationCode
+from app.services.register_service import is_profile_completed
 
 
 async def create_admin_headers(client: AsyncClient, db_session, phone: str = "13800050005"):
@@ -677,3 +678,76 @@ async def test_sms_login_existing_user(client: AsyncClient, latest_sms_code):
     data = login_resp.json()
     assert data["is_new_user"] is False
     assert "access_token" in data
+
+
+@pytest.mark.asyncio
+async def test_sms_login_with_duplicate_health_profiles_no_exception(
+    client: AsyncClient, db_session, latest_sms_code
+):
+    """Legacy DB may have multiple health_profiles per user; login must not raise MultipleResultsFound."""
+    reg = await client.post(
+        "/api/auth/register",
+        json={
+            "phone": "13800094001",
+            "password": "test1234",
+            "nickname": "重复档案用户",
+        },
+    )
+    assert reg.status_code == 200
+    user_id = reg.json()["user"]["id"]
+
+    db_session.add(HealthProfile(user_id=user_id))
+    await db_session.commit()
+
+    code_resp = await client.post(
+        "/api/auth/sms-code",
+        json={"phone": "13800094001", "type": "login"},
+    )
+    assert code_resp.status_code == 200
+    sms_code = await latest_sms_code("13800094001")
+
+    login_resp = await client.post(
+        "/api/auth/sms-login",
+        json={"phone": "13800094001", "code": sms_code},
+    )
+    assert login_resp.status_code == 200
+    data = login_resp.json()
+    assert "access_token" in data
+    assert data["is_new_user"] is False
+
+
+@pytest.mark.asyncio
+async def test_is_profile_completed_with_duplicate_health_profiles_uses_latest_row(
+    client: AsyncClient, db_session
+):
+    """When several rows exist, completion follows the row with the largest id (order_by id desc)."""
+    reg = await client.post(
+        "/api/auth/register",
+        json={
+            "phone": "13800094002",
+            "password": "test1234",
+            "nickname": "资料重复行",
+        },
+    )
+    assert reg.status_code == 200
+    user_id = reg.json()["user"]["id"]
+
+    assert await is_profile_completed(db_session, user_id) is False
+
+    db_session.add(
+        HealthProfile(
+            user_id=user_id,
+            gender="female",
+            birthday=date(1992, 6, 15),
+            height=165.0,
+            weight=55.0,
+        )
+    )
+    await db_session.commit()
+
+    assert await is_profile_completed(db_session, user_id) is True
+
+    db_session.add(HealthProfile(user_id=user_id))
+    await db_session.commit()
+
+    assert await is_profile_completed(db_session, user_id) is False

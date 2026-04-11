@@ -1,128 +1,134 @@
 """
-Remote server integration tests for SMS login bug fix.
-Targets the deployed API at the configured BASE_URL.
-Uses requests (synchronous) — no project imports.
+Remote server integration tests for SMS login (deployed API).
+Uses requests (synchronous) only — no httpx, no app imports.
 """
 
-import requests
-import pytest
+import time
 
-BASE_URL = (
-    "https://newbb.test.bangbangvip.com"
-    "/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api"
+import urllib3
+import pytest
+import requests
+
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+# pytest 会记录 urllib3 的 InsecureRequestWarning，与 disable_warnings 一并过滤
+pytestmark = pytest.mark.filterwarnings(
+    "ignore:Unverified HTTPS request:urllib3.exceptions.InsecureRequestWarning"
 )
 
+# Project base (HTTPS); API routes are under /api/...
+PROJECT_BASE = (
+    "https://newbb.test.bangbangvip.com"
+    "/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857"
+)
+API_BASE = f"{PROJECT_BASE}/api"
 
-class TestCorrectCodeLogin:
-    """用例 1: 正确验证码登录应成功"""
+REQUEST_KW = {"timeout": 30, "verify": False}
 
-    def test_sms_login_with_correct_code(self):
-        # Step 1: 发送验证码
-        resp = requests.post(
-            f"{BASE_URL}/auth/sms-code",
-            json={"phone": "13800138000", "type": "login"},
-            timeout=15,
-        )
-        assert resp.status_code == 200, (
-            f"发送验证码失败: status={resp.status_code}, body={resp.text}"
-        )
-
-        # Step 2: 使用正确验证码登录
-        login_resp = requests.post(
-            f"{BASE_URL}/auth/sms-login",
-            json={"phone": "13800138000", "code": "123456"},
-            timeout=15,
-        )
-        assert login_resp.status_code == 200, (
-            f"正确验证码登录失败: status={login_resp.status_code}, body={login_resp.text}"
-        )
-        data = login_resp.json()
-        assert "access_token" in data, (
-            f"响应中缺少 access_token, 响应内容: {data}"
-        )
+# Test phones: server treats 13800138000 / 13800000001 / 13800000002 as test numbers (fixed code 123456, no SMS).
+TEST_PHONE_LOGIN = "13800138000"
+TEST_PHONE_WRONG = "13800000001"
+DEFAULT_ADMIN_PHONE = "13800000000"
+DEFAULT_ADMIN_PASSWORD = "admin123"
 
 
-class TestWrongCodeLogin:
-    """用例 2: 错误验证码登录应失败"""
-
-    def test_sms_login_with_wrong_code(self):
-        # Step 1: 发送验证码
-        resp = requests.post(
-            f"{BASE_URL}/auth/sms-code",
-            json={"phone": "13800000001", "type": "login"},
-            timeout=15,
-        )
-        assert resp.status_code == 200, (
-            f"发送验证码失败: status={resp.status_code}, body={resp.text}"
-        )
-
-        # Step 2: 使用错误验证码登录
-        login_resp = requests.post(
-            f"{BASE_URL}/auth/sms-login",
-            json={"phone": "13800000001", "code": "654321"},
-            timeout=15,
-        )
-        assert login_resp.status_code == 400, (
-            f"期望 400, 实际: status={login_resp.status_code}, body={login_resp.text}"
-        )
-        detail = login_resp.json().get("detail", "")
-        assert "验证码无效或已过期" in detail, (
-            f"期望 detail 包含 '验证码无效或已过期', 实际: {detail}"
-        )
+def _post(path: str, **kwargs):
+    url = f"{API_BASE}{path}" if path.startswith("/") else f"{API_BASE}/{path}"
+    return requests.post(url, **REQUEST_KW, **kwargs)
 
 
-class TestRateLimit:
-    """用例 3: 频率限制测试
+def _get(path: str, **kwargs):
+    url = f"{API_BASE}{path}" if path.startswith("/") else f"{API_BASE}/{path}"
+    return requests.get(url, **REQUEST_KW, **kwargs)
 
-    注意：服务端代码对 TEST_PHONES (13800138000, 13800000001, 13800000002)
-    跳过了频率限制检查，因此使用一个非测试手机号来验证频率限制逻辑。
-    非测试手机号会触发真实短信发送，可能返回 500（短信服务不可用），
-    但只要第二次请求返回 429 就说明频率限制生效。
-    如果第一次就返回 500（短信失败且未插入记录），则跳过本用例。
-    """
+
+def _send_sms_code(phone: str, code_type: str = "login"):
+    return _post(
+        "/auth/sms-code",
+        json={"phone": phone, "type": code_type},
+    )
+
+
+def _sms_login(phone: str, code: str):
+    return _post(
+        "/auth/sms-login",
+        json={"phone": phone, "code": code},
+    )
+
+
+class TestServerSmsLogin:
+    def test_health_api(self):
+        r = _get("/health")
+        assert r.status_code == 200, f"GET /api/health expected 200, got {r.status_code}: {r.text}"
+        data = r.json()
+        assert data.get("status") == "ok"
+
+    def test_sms_code_send(self):
+        r = _send_sms_code(TEST_PHONE_LOGIN)
+        assert r.status_code == 200, f"sms-code failed: {r.status_code} {r.text}"
+        body = r.json()
+        assert "message" in body or "验证码" in r.text
+
+    def test_sms_login_success(self):
+        send = _send_sms_code(TEST_PHONE_LOGIN)
+        assert send.status_code == 200, send.text
+        login = _sms_login(TEST_PHONE_LOGIN, "123456")
+        assert login.status_code == 200, f"SMS login failed: {login.status_code} {login.text}"
+
+    def test_sms_login_wrong_code(self):
+        send = _send_sms_code(TEST_PHONE_WRONG)
+        assert send.status_code == 200, send.text
+        login = _sms_login(TEST_PHONE_WRONG, "654321")
+        assert login.status_code == 400, (
+            f"wrong code expected 400, got {login.status_code}: {login.text}"
+        )
+        detail = login.json().get("detail", "")
+        assert "验证码无效或已过期" in detail, detail
+
+    def test_sms_login_returns_token(self):
+        assert _send_sms_code(TEST_PHONE_LOGIN).status_code == 200
+        login = _sms_login(TEST_PHONE_LOGIN, "123456")
+        assert login.status_code == 200, login.text
+        data = login.json()
+        assert "access_token" in data and data["access_token"], data
+
+    def test_sms_login_returns_user_info(self):
+        assert _send_sms_code(TEST_PHONE_LOGIN).status_code == 200
+        login = _sms_login(TEST_PHONE_LOGIN, "123456")
+        assert login.status_code == 200, login.text
+        data = login.json()
+        assert "user" in data and isinstance(data["user"], dict), data
+        u = data["user"]
+        assert "id" in u and "phone" in u, u
+
+    def test_password_login_unaffected(self):
+        """If default admin exists (init_data), password login should still work."""
+        r = _post(
+            "/auth/login",
+            json={"phone": DEFAULT_ADMIN_PHONE, "password": DEFAULT_ADMIN_PASSWORD},
+        )
+        if r.status_code == 400:
+            detail = (r.json() or {}).get("detail", "")
+            if "密码" in detail or "不存在" in detail or "未注册" in detail:
+                pytest.skip("服务器上无默认管理员账号或密码已变更，跳过密码登录校验")
+        assert r.status_code == 200, f"password login: {r.status_code} {r.text}"
+        data = r.json()
+        assert "access_token" in data, data
+        assert data.get("user", {}).get("phone") == DEFAULT_ADMIN_PHONE
 
     def test_sms_code_rate_limit(self):
-        phone = "13900990099"
+        """Non-test phone: second request within 60s should be 429."""
+        suffix = f"{int(time.time()) % 100000000:08d}"
+        phone = f"139{suffix}"
 
-        first = requests.post(
-            f"{BASE_URL}/auth/sms-code",
-            json={"phone": phone, "type": "login"},
-            timeout=15,
-        )
+        first = _send_sms_code(phone)
         if first.status_code == 500:
-            pytest.skip(
-                "短信服务不可用，无法验证频率限制（非测试号首次发送失败）"
-            )
-        assert first.status_code == 200, (
-            f"第一次发送验证码失败: status={first.status_code}, body={first.text}"
-        )
+            pytest.skip("短信通道不可用，无法验证频率限制（首次发送即失败）")
+        assert first.status_code == 200, f"first sms-code: {first.status_code} {first.text}"
 
-        second = requests.post(
-            f"{BASE_URL}/auth/sms-code",
-            json={"phone": phone, "type": "login"},
-            timeout=15,
-        )
+        second = _send_sms_code(phone)
         assert second.status_code == 429, (
-            f"期望 429 频率限制, 实际: status={second.status_code}, body={second.text}"
+            f"expected 429 rate limit, got {second.status_code}: {second.text}"
         )
         detail = second.json().get("detail", "")
-        assert "发送过于频繁" in detail, (
-            f"期望 detail 包含 '发送过于频繁', 实际: {detail}"
-        )
-
-
-class TestPasswordLogin:
-    """用例 4: 密码登录不受影响"""
-
-    def test_password_login_no_500(self):
-        resp = requests.post(
-            f"{BASE_URL}/auth/login",
-            json={"phone": "admin", "password": "admin123"},
-            timeout=15,
-        )
-        assert resp.status_code != 500, (
-            f"密码登录接口返回 500 服务器错误: body={resp.text}"
-        )
-        assert resp.status_code in (200, 400), (
-            f"期望 200 或 400, 实际: status={resp.status_code}, body={resp.text}"
-        )
+        assert "发送过于频繁" in detail, detail

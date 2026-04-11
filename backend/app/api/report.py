@@ -268,7 +268,10 @@ async def analyze_report(
     await db.flush()
 
     profile_result = await db.execute(
-        select(HealthProfile).where(HealthProfile.user_id == current_user.id)
+        select(HealthProfile)
+        .where(HealthProfile.user_id == current_user.id)
+        .order_by(HealthProfile.id.desc())
+        .limit(1)
     )
     hp = profile_result.scalar_one_or_none()
     user_profile = None

@@ -32,7 +32,40 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api/`
 
-## Latest Update: 家庭健康档案共管功能 (2026-04-11)
+## Latest Update: 短信验证码登录Bug修复 (2026-04-11)
+
+### 概要
+修复P0级Bug：短信验证码登录失败。根因为部署家庭健康档案共管功能时，数据库变更导致health_profiles表出现同一user_id的多条重复记录，`is_profile_completed`函数中`scalar_one_or_none()`对多行结果抛出`MultipleResultsFound`异常，后端返回500错误。
+
+### 修复内容
+1. `register_service.py` 的 `is_profile_completed`：添加 `ORDER BY id DESC LIMIT 1` 防止多行结果异常
+2. `auth.py` 的 `ensure_self_health_profile`：改用 `scalars().all()` 安全处理多行
+3. `report.py` 的 HealthProfile 查询：添加 `ORDER BY id DESC LIMIT 1`
+4. `init_data.py` 新增 `_dedup_health_profiles` 函数：启动时自动清理重复记录
+5. `database.py`：SQLAlchemy 连接添加 `init_command` 强制 MySQL 会话时区为 UTC
+6. `docker-compose.yml` / `docker-compose.prod.yml`：MySQL 容器添加 `TZ: UTC` 和 `--default-time-zone='+00:00'`
+7. SMS 登录失败时增加详细调试日志（去敏感化）
+
+### 关键文件
+
+```text
+backend/app/services/register_service.py    # is_profile_completed 添加 limit(1)
+backend/app/api/auth.py                     # ensure_self_health_profile 安全处理多行 + SMS登录调试日志
+backend/app/api/report.py                   # HealthProfile 查询添加 limit(1)
+backend/app/init_data.py                    # 新增 _dedup_health_profiles 去重函数
+backend/app/core/database.py                # SQLAlchemy 连接时区初始化
+docker-compose.yml                          # MySQL TZ=UTC
+docker-compose.prod.yml                     # MySQL TZ=UTC
+backend/tests/test_auth.py                  # 新增2个重复档案场景测试用例
+backend/tests/test_sms_login_server.py      # 服务器端SMS登录集成测试(8用例)
+```
+
+### 用户手册
+- `user_docs/短信验证码登录修复.md`
+
+---
+
+## Previous Update: 家庭健康档案共管功能 (2026-04-11)
 
 ### 概要
 新增"家庭健康档案共管"功能，参考蚂蚁保家庭共管模式。主账号可邀请家人关联，统一管理家人的健康档案、用药提醒、健康打卡、健康计划。支持邀请二维码生成与分享、扫码授权、档案自动合并、双方编辑权、取消授权等完整流程。主账号最多邀请10人，一人最多被3个主账号管理。

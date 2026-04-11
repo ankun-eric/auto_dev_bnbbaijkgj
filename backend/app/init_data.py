@@ -1,7 +1,7 @@
 import json
 import logging
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import async_session
@@ -69,6 +69,7 @@ async def init_default_data():
             await _init_disease_presets(db)
             await _init_bottom_nav_config(db)
             await _init_plan_template_categories(db)
+            await _dedup_health_profiles(db)
             await _fix_legacy_users_missing_self_member(db)
             await _fix_self_members_missing_relation_type(db)
             await _init_chat_function_buttons(db)
@@ -1198,7 +1199,7 @@ async def _fix_legacy_users_missing_self_member(db: AsyncSession):
             select(HealthProfile).where(
                 HealthProfile.user_id == user.id,
                 HealthProfile.family_member_id == member.id,
-            )
+            ).limit(1)
         )
         existing_hp = hp_any_result.scalar_one_or_none()
         if not existing_hp:
@@ -1206,7 +1207,7 @@ async def _fix_legacy_users_missing_self_member(db: AsyncSession):
                 select(HealthProfile).where(
                     HealthProfile.user_id == user.id,
                     HealthProfile.family_member_id.is_(None),
-                )
+                ).order_by(HealthProfile.id.asc()).limit(1)
             )
             unlinked_hp = hp_unlinked_result.scalar_one_or_none()
             if unlinked_hp:
@@ -1323,6 +1324,33 @@ async def _init_chat_function_buttons(db: AsyncSession):
         db.add(ChatFunctionButton(**btn))
     await db.flush()
     logger.info("Created default chat function buttons (%d)", len(buttons))
+
+
+async def _dedup_health_profiles(db: AsyncSession):
+    """Remove duplicate health_profiles per user_id, keeping the oldest record."""
+    dup_result = await db.execute(
+        select(HealthProfile.user_id, func.count(HealthProfile.id).label("cnt"))
+        .group_by(HealthProfile.user_id)
+        .having(func.count(HealthProfile.id) > 1)
+    )
+    dup_rows = dup_result.all()
+    if not dup_rows:
+        return
+
+    total_deleted = 0
+    for row in dup_rows:
+        uid = row[0]
+        all_result = await db.execute(
+            select(HealthProfile)
+            .where(HealthProfile.user_id == uid)
+            .order_by(HealthProfile.id.asc())
+        )
+        profiles = all_result.scalars().all()
+        for dup in profiles[1:]:
+            await db.delete(dup)
+            total_deleted += 1
+    await db.flush()
+    logger.info("Deduplicated health_profiles: removed %d duplicate rows for %d users", total_deleted, len(dup_rows))
 
 
 async def _init_voice_service_configs(db: AsyncSession):

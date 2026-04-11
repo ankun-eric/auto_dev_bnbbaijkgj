@@ -119,7 +119,10 @@ async def ensure_member_card_no(
 
 async def is_profile_completed(db: AsyncSession, user_id: int) -> bool:
     result = await db.execute(
-        select(HealthProfile).where(HealthProfile.user_id == user_id)
+        select(HealthProfile)
+        .where(HealthProfile.user_id == user_id)
+        .order_by(HealthProfile.id.desc())
+        .limit(1)
     )
     profile = result.scalar_one_or_none()
     if not profile:
