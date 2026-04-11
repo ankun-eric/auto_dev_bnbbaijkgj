@@ -33,15 +33,27 @@ alwaysApply: false
 - Admin: `https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/`
 - API: `https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api/`
 
-## Latest Update: 502 Bad Gateway 修复 (2026-04-12)
+## Latest Update: 502 Bad Gateway 修复与客户端 URL 统一 (2026-04-12)
 
 ### 概要
-修复通过 `newbb.bangbangvip.com` 域名访问项目时出现的 502 Bad Gateway 错误。根本原因是前端代理服务器 nginx 配置直连测试服务器的 Docker 内部端口（8000/3000/3001），而这些端口未对外暴露。修复方案为改为通过测试服务器的 Gateway Nginx (HTTPS 443) 转发。
+修复通过 `newbb.bangbangvip.com` 域名访问项目时出现的 502 Bad Gateway 错误，并统一各端 API 基础地址为正式域名。同时修复小程序 zip 文件通过正式域名无法下载的问题。
 
 ### 关键修复
 - 前端代理服务器 (`newbb.bangbangvip.com`) 的 nginx 配置中，BINI HEALTH 项目的反向代理从 `http://101.33.205.59:端口` 改为 `https://newbb.test.bangbangvip.com/autodev/3b7b999d.../`
 - 修复了 nginx 配置中 `29c7b754` 和 `da347c81` 项目的花括号缺失问题
 - 添加 `proxy_ssl_server_name` 和 `proxy_ssl_name` 确保 SNI 正确
+- Flutter baseUrl 从 `newbb.test.bangbangvip.com` 改为 `newbb.bangbangvip.com`
+- 小程序 DEFAULT_API_BASE_URL 改为正式域名
+- H5 Web 分享链接 URL 改为正式域名
+- 修复生产服务器 gateway 中 zip 文件路由从 `root` 改为 `proxy_pass` 到测试服务器
+
+### 客户端包更新
+- 安卓 APK: `bini_health_android-v20260412-014255-3291.apk`
+- iOS IPA: GitHub Release `ios-v20260412-014309-8671`
+- 小程序: `miniprogram_20260412_014230_ce34.zip`
+
+### 用户手册
+- `user_docs/manual_20260412_020100_502修复与客户端更新.md`
 
 ## Previous Update: 首页搜索栏提示文字后台配置化 (2026-04-11)
 

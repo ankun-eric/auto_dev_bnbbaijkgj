@@ -1318,7 +1318,12 @@ async def get_points_rules(
     result = await db.execute(
         select(SystemConfig).where(
             (SystemConfig.config_key.like("points_%")) |
-            (SystemConfig.config_key.like("checkin_%"))
+            (SystemConfig.config_key.like("checkin_%")) |
+            (SystemConfig.config_key.in_(["healthCheckIn", "healthCheckInDailyLimit", "completeProfile",
+                                           "dailySignIn", "consecutiveSignIn7", "consecutiveSignIn30",
+                                           "shareArticle", "inviteFriend", "firstOrder", "orderPerYuan",
+                                           "reviewService", "exchangeRate", "maxDeductionRate",
+                                           "minPointsToUse", "pointsExpireDays", "enableExpire"]))
         )
     )
     configs = result.scalars().all()
@@ -1335,10 +1340,7 @@ async def get_points_rules(
             "checkin_points_per_action": "2",
             "checkin_points_daily_limit": "50",
         }
-    else:
-        rules.setdefault("checkin_points_enabled", "false")
-        rules.setdefault("checkin_points_per_action", "2")
-        rules.setdefault("checkin_points_daily_limit", "50")
+    rules.setdefault("healthCheckInDailyLimit", "0")
     return {"rules": rules}
 
 

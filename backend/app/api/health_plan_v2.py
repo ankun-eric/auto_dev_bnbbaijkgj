@@ -237,8 +237,13 @@ async def checkin_medication(
         check_in_time=datetime.utcnow(),
     )
     db.add(checkin)
-    from app.services.checkin_points_service import award_checkin_points
-    points_result = await award_checkin_points(db, current_user, "用药提醒打卡")
+    points_result = {"points_earned": 0, "points_limit_reached": False}
+    try:
+        from app.services.checkin_points_service import award_checkin_points
+        points_result = await award_checkin_points(db, current_user, "用药提醒打卡")
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"打卡积分发放异常: {e}")
     await db.flush()
     return {"message": "打卡成功", "points_earned": points_result["points_earned"], "points_limit_reached": points_result["points_limit_reached"]}
 
@@ -411,8 +416,13 @@ async def checkin_health_item(
         check_in_time=datetime.utcnow(),
     )
     db.add(record)
-    from app.services.checkin_points_service import award_checkin_points
-    points_result = await award_checkin_points(db, current_user, "健康习惯打卡")
+    points_result = {"points_earned": 0, "points_limit_reached": False}
+    try:
+        from app.services.checkin_points_service import award_checkin_points
+        points_result = await award_checkin_points(db, current_user, "健康习惯打卡")
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"打卡积分发放异常: {e}")
     await db.flush()
     return {"message": "打卡成功", "points_earned": points_result["points_earned"], "points_limit_reached": points_result["points_limit_reached"]}
 
@@ -798,8 +808,13 @@ async def checkin_plan_task(
         check_in_time=datetime.utcnow(),
     )
     db.add(record)
-    from app.services.checkin_points_service import award_checkin_points
-    points_result = await award_checkin_points(db, current_user, "健康计划任务打卡")
+    points_result = {"points_earned": 0, "points_limit_reached": False}
+    try:
+        from app.services.checkin_points_service import award_checkin_points
+        points_result = await award_checkin_points(db, current_user, "健康计划任务打卡")
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"打卡积分发放异常: {e}")
     await db.flush()
     return {"message": "打卡成功", "points_earned": points_result["points_earned"], "points_limit_reached": points_result["points_limit_reached"]}
 
@@ -1214,8 +1229,13 @@ async def quick_check_in(
             check_in_time=datetime.utcnow(),
         )
         db.add(checkin)
-        from app.services.checkin_points_service import award_checkin_points
-        points_result = await award_checkin_points(db, current_user, "用药提醒打卡")
+        points_result = {"points_earned": 0, "points_limit_reached": False}
+        try:
+            from app.services.checkin_points_service import award_checkin_points
+            points_result = await award_checkin_points(db, current_user, "用药提醒打卡")
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"打卡积分发放异常: {e}")
         await db.flush()
         return {"message": "打卡成功", "type": "medication", "points_earned": points_result["points_earned"], "points_limit_reached": points_result["points_limit_reached"]}
 
@@ -1250,8 +1270,13 @@ async def quick_check_in(
             check_in_time=datetime.utcnow(),
         )
         db.add(record)
-        from app.services.checkin_points_service import award_checkin_points
-        points_result = await award_checkin_points(db, current_user, "健康习惯打卡")
+        points_result = {"points_earned": 0, "points_limit_reached": False}
+        try:
+            from app.services.checkin_points_service import award_checkin_points
+            points_result = await award_checkin_points(db, current_user, "健康习惯打卡")
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"打卡积分发放异常: {e}")
         await db.flush()
         return {"message": "打卡成功", "type": "checkin", "points_earned": points_result["points_earned"], "points_limit_reached": points_result["points_limit_reached"]}
 
@@ -1285,8 +1310,13 @@ async def quick_check_in(
             check_in_time=datetime.utcnow(),
         )
         db.add(record)
-        from app.services.checkin_points_service import award_checkin_points
-        points_result = await award_checkin_points(db, current_user, "健康计划任务打卡")
+        points_result = {"points_earned": 0, "points_limit_reached": False}
+        try:
+            from app.services.checkin_points_service import award_checkin_points
+            points_result = await award_checkin_points(db, current_user, "健康计划任务打卡")
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"打卡积分发放异常: {e}")
         await db.flush()
         return {"message": "打卡成功", "type": "plan_task", "points_earned": points_result["points_earned"], "points_limit_reached": points_result["points_limit_reached"]}
 

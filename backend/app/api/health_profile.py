@@ -89,6 +89,15 @@ async def create_health_profile(
     db.add(profile)
     await db.flush()
     await db.refresh(profile)
+
+    try:
+        from app.services.checkin_points_service import award_complete_profile_points
+        await award_complete_profile_points(db, current_user, profile)
+        await db.flush()
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"完善健康档案积分发放异常: {e}")
+
     return HealthProfileResponse.model_validate(profile)
 
 
@@ -116,6 +125,15 @@ async def update_health_profile(
     profile.updated_at = datetime.utcnow()
     await db.flush()
     await db.refresh(profile)
+
+    try:
+        from app.services.checkin_points_service import award_complete_profile_points
+        await award_complete_profile_points(db, current_user, profile)
+        await db.flush()
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"完善健康档案积分发放异常: {e}")
+
     return HealthProfileResponse.model_validate(profile)
 
 

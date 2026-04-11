@@ -99,6 +99,7 @@ class PointsType(str, enum.Enum):
     redeem = "redeem"
     checkin = "checkin"
     deduct = "deduct"
+    completeProfile = "completeProfile"
 
 
 class IndicatorStatus(str, enum.Enum):
