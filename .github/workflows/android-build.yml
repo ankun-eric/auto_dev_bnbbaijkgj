@@ -39,38 +39,49 @@ jobs:
         working-directory: flutter_app
         run: flutter pub get
 
-      - name: Patch record_android build.gradle
+      - name: Patch plugin build.gradle files
         run: |
-          for RECORD_GRADLE in $(find ~/.pub-cache -path "*/record_android*/android/build.gradle" -type f); do
-            echo "Patching $RECORD_GRADLE"
-            sed -i 's/compileSdk\s*=\?\s*flutter\.compileSdkVersion/compileSdk = 35/' "$RECORD_GRADLE"
-            sed -i 's/compileSdkVersion\s*=\?\s*flutter\.compileSdkVersion/compileSdkVersion 35/' "$RECORD_GRADLE"
-            sed -i 's/targetSdkVersion\s*=\?\s*flutter\.targetSdkVersion/targetSdkVersion 34/' "$RECORD_GRADLE"
-            sed -i 's/minSdkVersion\s*=\?\s*flutter\.minSdkVersion/minSdkVersion 21/' "$RECORD_GRADLE"
-            sed -i 's/minSdk\s*=\?\s*flutter\.minSdkVersion/minSdk = 21/' "$RECORD_GRADLE"
-            echo "--- Patched content: ---"
-            cat "$RECORD_GRADLE"
+          echo "=== Patching record_android plugin ==="
+          for GRADLE_FILE in $(find ~/.pub-cache -path "*/record_android*/android/build.gradle" -type f 2>/dev/null); do
+            echo "Patching $GRADLE_FILE"
+            sed -i 's/compileSdk\s*=\?\s*flutter\.compileSdkVersion/compileSdk = 35/' "$GRADLE_FILE"
+            sed -i 's/compileSdkVersion\s*=\?\s*flutter\.compileSdkVersion/compileSdkVersion 35/' "$GRADLE_FILE"
+            sed -i 's/targetSdkVersion\s*=\?\s*flutter\.targetSdkVersion/targetSdkVersion 34/' "$GRADLE_FILE"
+            sed -i 's/minSdkVersion\s*=\?\s*flutter\.minSdkVersion/minSdkVersion 21/' "$GRADLE_FILE"
+            sed -i 's/minSdk\s*=\?\s*flutter\.minSdkVersion/minSdk = 21/' "$GRADLE_FILE"
           done
+
+          echo "=== Patching all plugin gradle subprojects referencing old AGP ==="
+          for GRADLE_FILE in $(find ~/.pub-cache -name "build.gradle" -type f 2>/dev/null); do
+            if grep -q 'com.android.tools.build:gradle:7' "$GRADLE_FILE" 2>/dev/null; then
+              echo "Upgrading AGP in $GRADLE_FILE"
+              sed -i "s|com.android.tools.build:gradle:7\.[0-9.]*|com.android.tools.build:gradle:8.4.1|g" "$GRADLE_FILE"
+            fi
+          done
+
+      - name: Inject init script for repository fallbacks
+        run: |
+          mkdir -p ~/.gradle
+          cat > ~/.gradle/init.gradle << 'INITEOF'
+          allprojects {
+            buildscript {
+              repositories {
+                google()
+                mavenCentral()
+                gradlePluginPortal()
+              }
+            }
+            repositories {
+              google()
+              mavenCentral()
+              gradlePluginPortal()
+            }
+          }
+          INITEOF
 
       - name: Build APK
         working-directory: flutter_app
-        run: |
-          flutter build apk --release --no-tree-shake-icons 2>&1 || true
-          echo "=== Searching for APK files ==="
-          find build/ -name "*.apk" -type f 2>/dev/null || true
-          if [ ! -f build/app/outputs/flutter-apk/app-release.apk ]; then
-            echo "APK not found at expected path, trying direct Gradle build..."
-            cd android
-            if [ -f gradlew ]; then
-              chmod +x gradlew
-              ./gradlew assembleRelease --no-daemon
-            else
-              $FLUTTER_ROOT/bin/cache/artifacts/gradle_wrapper/gradlew assembleRelease --no-daemon -p .
-            fi
-            cd ..
-            echo "=== APK search after Gradle ==="
-            find . -name "*.apk" -type f 2>/dev/null || true
-          fi
+        run: flutter build apk --release --no-tree-shake-icons
 
       - name: Rename APK
         run: |
