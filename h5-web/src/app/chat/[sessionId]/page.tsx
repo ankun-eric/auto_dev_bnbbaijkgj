@@ -208,7 +208,14 @@ function ChatPageInner() {
   const [memberPopupVisible, setMemberPopupVisible] = useState(false);
   const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([]);
   const [switchingMember, setSwitchingMember] = useState(false);
-  const [currentRelationLabel, setCurrentRelationLabel] = useState('本人');
+  const [currentRelationLabel, setCurrentRelationLabel] = useState(() => {
+    if (isSymptom && urlMember) {
+      const relation = urlMember.split('·')[0].trim();
+      return relation || '本人';
+    }
+    return '本人';
+  });
+  const [isSymptomLocked, setIsSymptomLocked] = useState(isSymptom);
 
   // Add member popup state (two-step)
   const [addMemberPopupVisible, setAddMemberPopupVisible] = useState(false);
@@ -603,6 +610,29 @@ function ChatPageInner() {
   }, [isSymptom, urlMsg]);
 
   useEffect(() => {
+    if (isSymptom) return;
+    const restoreSessionMember = async () => {
+      try {
+        const res = await api.get(`/api/chat-sessions/${sessionId}`);
+        if (res) {
+          const sessionType = (res as any).session_type;
+          if (sessionType === 'symptom_check' || sessionType === 'symptom') {
+            setIsSymptomLocked(true);
+            const relation = (res as any).family_member_relation;
+            if (relation) {
+              setCurrentRelationLabel(relation);
+            }
+          }
+        }
+      } catch (e) {
+        console.log('restoreSessionMember error', e);
+      }
+    };
+    restoreSessionMember();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId]);
+
+  useEffect(() => {
     if (!isSymptom) return;
     const aiReplies = messages.filter((m) => m.role === 'assistant' && m.id !== 'welcome');
     if (aiReplies.length > 0 && bannerExpanded) {
@@ -741,6 +771,13 @@ function ChatPageInner() {
   };
 
   const openMemberPopup = async () => {
+    if (isSymptomLocked) {
+      Toast.show({
+        content: '当前为健康自查专属咨询，咨询对象已锁定，如需为其他人咨询请返回重新发起',
+        duration: 2500,
+      });
+      return;
+    }
     await fetchMemberList();
     setMemberPopupVisible(true);
   };

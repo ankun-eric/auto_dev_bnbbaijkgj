@@ -281,7 +281,7 @@ async def user_get_session_detail(
 ):
     result = await db.execute(
         select(ChatSession)
-        .options(selectinload(ChatSession.messages))
+        .options(selectinload(ChatSession.messages), selectinload(ChatSession.family_member))
         .where(
             ChatSession.id == session_id,
             ChatSession.user_id == current_user.id,
@@ -310,6 +310,9 @@ async def user_get_session_detail(
         "id": session.id,
         "session_type": session.session_type.value if hasattr(session.session_type, "value") else session.session_type,
         "title": session.title,
+        "family_member_id": session.family_member_id,
+        "family_member_relation": session.family_member.relationship_type if session.family_member else None,
+        "family_member_nickname": session.family_member.nickname if session.family_member else None,
         "message_count": session.message_count or 0,
         "is_pinned": session.is_pinned or False,
         "created_at": session.created_at.isoformat() if session.created_at else None,

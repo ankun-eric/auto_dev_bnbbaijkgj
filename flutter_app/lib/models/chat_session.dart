@@ -31,6 +31,7 @@ class ChatSession {
       case 'general':
         return '健康问答';
       case 'symptom_check':
+      case 'symptom':
       case 'pediatric':
         return '健康自查';
       case 'tcm':

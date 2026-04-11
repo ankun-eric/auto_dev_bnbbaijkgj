@@ -182,6 +182,10 @@ class ApiService {
     return _dio.get(ApiConfig.chatSessionsList, queryParameters: {'page': page, 'page_size': pageSize});
   }
 
+  Future<Response> getChatSessionDetail(String sessionId) async {
+    return _dio.get('${ApiConfig.chatSessionsList}/$sessionId');
+  }
+
   Future<Response> deleteChatSession(String sessionId) async {
     return _dio.delete('${ApiConfig.chatSessionsList}/$sessionId');
   }

@@ -43,6 +43,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   // 当前咨询对象
   String _currentConsultTarget = '本人';
+  bool _isSymptomLocked = false;
   List<Map<String, dynamic>> _familyMembers = [];
   DateTime? _recordStartTime;
   Timer? _recordTimer;
@@ -85,6 +86,7 @@ class _ChatScreenState extends State<ChatScreen> {
     _loadFontSetting();
     _loadFamilyMembers();
     _loadFunctionButtons();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _initConsultTarget());
   }
 
   Future<void> _loadFamilyMembers() async {
@@ -97,6 +99,41 @@ class _ChatScreenState extends State<ChatScreen> {
         });
       }
     } catch (_) {}
+  }
+
+  void _initConsultTarget() {
+    final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+    final session = chatProvider.currentSession;
+    if (session != null) {
+      final sessionType = session.type;
+      if (sessionType == 'symptom_check' || sessionType == 'symptom') {
+        setState(() {
+          _isSymptomLocked = true;
+        });
+        _restoreSessionMember(session.id);
+      }
+    }
+  }
+
+  Future<void> _restoreSessionMember(String sessionId) async {
+    try {
+      final response = await _apiService.getChatSessionDetail(sessionId);
+      if (response.statusCode == 200 && mounted) {
+        final data = response.data is Map<String, dynamic> ? response.data as Map<String, dynamic> : <String, dynamic>{};
+        final sessionType = data['session_type']?.toString() ?? '';
+        if (sessionType == 'symptom_check' || sessionType == 'symptom') {
+          final relation = data['family_member_relation'] as String?;
+          if (relation != null && relation.isNotEmpty) {
+            setState(() {
+              _currentConsultTarget = relation;
+              _isSymptomLocked = true;
+            });
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('restoreSessionMember error: $e');
+    }
   }
 
   Future<void> _loadFunctionButtons() async {
@@ -882,6 +919,15 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   void _showConsultTargetPicker() {
+    if (_isSymptomLocked) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('当前为健康自查专属咨询，咨询对象已锁定，如需为其他人咨询请返回重新发起'),
+          duration: Duration(milliseconds: 2500),
+        ),
+      );
+      return;
+    }
     final targets = <Map<String, String>>[
       {'name': '本人'},
       ..._familyMembers

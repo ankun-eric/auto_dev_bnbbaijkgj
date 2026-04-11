@@ -42,7 +42,8 @@ Page({
     consultTarget: { name: '本人', color: '#52c41a' },
     showTargetPicker: false,
     familyMembers: [],
-    functionButtons: []
+    functionButtons: [],
+    isSymptomLocked: false
   },
 
   _recognizeManager: null,
@@ -53,8 +54,17 @@ Page({
   _btnCacheExpire: 0,
 
   onLoad(options) {
-    const { type = 'health_qa', chatId, question } = options;
+    const { type = 'health_qa', chatId, question, member } = options;
     this.setData({ chatType: type, chatId: chatId || generateId() });
+
+    const isSymptom = type === 'symptom' || type === 'symptom_check';
+    if (isSymptom) {
+      const relation = member ? decodeURIComponent(member).split('·')[0].trim() : '本人';
+      this.setData({
+        isSymptomLocked: true,
+        consultTarget: { name: relation || '本人', color: getRelationColor(relation || '本人') }
+      });
+    }
 
     wx.showShareMenu({ withShareTicket: true, menus: ['shareAppMessage', 'shareTimeline'] });
 
@@ -81,6 +91,10 @@ Page({
 
     if (chatId) {
       this.loadChatHistory(chatId);
+    }
+
+    if (chatId && !isSymptom) {
+      this.restoreSessionMember(chatId);
     }
   },
 
@@ -340,10 +354,33 @@ Page({
   },
 
   toggleTargetPicker() {
+    if (this.data.isSymptomLocked) {
+      wx.showToast({
+        title: '当前为健康自查专属咨询，咨询对象已锁定，如需为其他人咨询请返回重新发起',
+        icon: 'none',
+        duration: 2500
+      });
+      return;
+    }
     if (!this.data.familyMembers.length) {
       this.loadFamilyMembers();
     }
     this.setData({ showTargetPicker: !this.data.showTargetPicker });
+  },
+
+  async restoreSessionMember(chatId) {
+    try {
+      const res = await get(`/api/chat-sessions/${chatId}`, {}, { showLoading: false, suppressErrorToast: true });
+      if (res && (res.session_type === 'symptom_check' || res.session_type === 'symptom')) {
+        const relation = res.family_member_relation || '本人';
+        this.setData({
+          isSymptomLocked: true,
+          consultTarget: { name: relation, color: getRelationColor(relation) }
+        });
+      }
+    } catch (e) {
+      console.log('restoreSessionMember error', e);
+    }
   },
 
   onSelectTarget(e) {
