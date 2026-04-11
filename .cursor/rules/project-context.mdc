@@ -32,7 +32,70 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api/`
 
-## Latest Update: 系统打卡送积分功能 (2026-04-11)
+## Latest Update: 健康档案共管功能优化 (2026-04-11)
+
+### 概要
+围绕"家庭健康档案共管"功能进行全面优化：新增关联好处说明（M1）、首页扫码入口（M2）、邀请二维码优化（M3）、授权结果系统消息通知（M4）、管理后台系统消息管理（M5）。
+
+### 数据库变更
+- 新增 `system_messages` 表（系统消息记录，含 message_type, recipient_user_id, sender_user_id, title, content, click_action, click_action_params, is_read, read_at 等字段）
+
+### Backend — API 变更
+
+| 接口 | 方法 | 说明 |
+| --- | --- | --- |
+| `/api/messages` | GET | 新增：查询当前用户的消息列表（分页，按类型筛选） |
+| `/api/messages/{id}/read` | PUT | 新增：标记消息为已读 |
+| `/api/messages/read-all` | PUT | 新增：标记所有消息为已读 |
+| `/api/messages/unread-count` | GET | 新增：获取未读消息数量 |
+| `/api/scan` | GET | 新增：扫码路由分发（type=family_invite 验证邀请码） |
+| `/api/admin/messages` | GET | 新增：管理端消息列表查询（分页+筛选） |
+| `/api/admin/messages` | POST | 新增：管理端手动发送系统消息 |
+| `/api/admin/messages/{id}` | GET | 新增：管理端消息详情 |
+| `/api/admin/messages/stats` | GET | 新增：消息统计 |
+| `/api/family/invitation` | POST | 修改：返回新增 qr_content_url 字段 |
+| `/api/family/invitation/{code}/accept` | POST | 修改：接受邀请后给双方发送系统消息 |
+| `/api/family/invitation/{code}/reject` | POST | 修改：拒绝邀请后给双方发送系统消息 |
+
+### 各端变更
+
+| 端 | 主要变更 |
+| --- | --- |
+| Backend | 新增 SystemMessage 模型；新增用户端消息API（列表/已读/未读数）；新增管理端消息API；新增扫码路由；修改邀请接口返回二维码URL；修改授权接口发送系统消息 |
+| Admin-web | 新增"系统消息管理"菜单；新增消息列表页面（筛选+统计）；新增发送消息页面 |
+| H5 | 首页新增扫码图标+扫码页面；邀请页新增好处说明+真实二维码；新增消息列表页面；消息图标增加未读角标 |
+| Flutter | 首页新增扫码图标+mobile_scanner集成；邀请页新增好处说明+二维码长按保存；新增消息列表页面；消息图标增加未读角标 |
+| 微信小程序 | 首页自定义导航栏+扫码（wx.scanCode）；邀请页新增好处说明+canvas二维码+保存相册；新增消息列表页面；消息图标增加未读角标 |
+
+### 关键文件
+
+```text
+backend/app/models/models.py                            # 新增 SystemMessage 模型
+backend/app/api/messages.py                             # 用户端消息 API
+backend/app/api/admin_messages.py                       # 管理端消息 API
+backend/app/api/scan.py                                 # 扫码路由分发
+backend/app/schemas/messages.py                         # 消息相关 Schema
+backend/app/api/family_management.py                    # 修改邀请和授权接口
+admin-web/src/app/(admin)/system-messages/page.tsx      # 管理后台消息列表页
+admin-web/src/app/(admin)/system-messages/send/page.tsx # 管理后台发送消息页
+h5-web/src/app/messages/page.tsx                        # H5消息列表页
+h5-web/src/app/scan/page.tsx                            # H5扫码页
+h5-web/src/app/family-invite/page.tsx                   # H5邀请页（好处说明+二维码优化）
+flutter_app/lib/screens/messages/messages_screen.dart   # Flutter消息列表页
+flutter_app/lib/screens/home/home_screen.dart           # Flutter首页（扫码+角标）
+flutter_app/lib/screens/family/family_invite_screen.dart # Flutter邀请页（好处说明+二维码优化）
+miniprogram/pages/messages/                             # 小程序消息列表页
+miniprogram/components/qrcode/                          # 小程序二维码组件
+miniprogram/pages/family-invite/                        # 小程序邀请页（好处说明+二维码优化）
+tests/test_family_comanage_optimize.py                  # 12个自动化测试用例（11通过1跳过）
+```
+
+### 用户手册
+- `user_docs/健康档案共管功能优化.md`
+
+---
+
+## Previous Update: 系统打卡送积分功能 (2026-04-11)
 
 ### 概要
 新增"打卡送积分"功能，将三类打卡行为（健康习惯打卡、用药提醒打卡、健康计划任务打卡）统一纳入积分体系。管理员可在后台配置打卡积分规则（启用开关、每次积分值、每日上限），用户打卡时自动发放积分并给予实时反馈。
