@@ -33,6 +33,12 @@ interface Step4Data {
   genetic_diseases: string[];
 }
 
+interface Step1Errors {
+  name?: string;
+  gender?: string;
+  birthday?: string;
+}
+
 function formatDate(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
@@ -66,6 +72,7 @@ export default function HealthGuidePage() {
     other_allergies: '',
   });
   const [step4, setStep4] = useState<Step4Data>({ genetic_diseases: [] });
+  const [step1Errors, setStep1Errors] = useState<Step1Errors>({});
 
   useEffect(() => {
     const init = async () => {
@@ -146,10 +153,35 @@ export default function HealthGuidePage() {
     await api.put(`/api/health/profile/member/${memberId}`, patch);
   };
 
+  const validateStep1 = (): boolean => {
+    const errors: Step1Errors = {};
+    const missing: string[] = [];
+    if (!step1.name.trim()) {
+      errors.name = '请输入姓名';
+      missing.push('姓名');
+    }
+    if (!step1.gender) {
+      errors.gender = '请选择性别';
+      missing.push('性别');
+    }
+    if (!step1.birthday) {
+      errors.birthday = '请选择出生日期';
+      missing.push('出生日期');
+    }
+    setStep1Errors(errors);
+    if (missing.length > 0) {
+      Toast.show({ content: `请填写：${missing.join('、')}` });
+      return false;
+    }
+    return true;
+  };
+
   const handleNext = async () => {
+    if (currentStep === 1 && !validateStep1()) return;
     setSubmitting(true);
     try {
       await saveCurrentStep();
+      setStep1Errors({});
       setCurrentStep((s) => s + 1);
     } catch {
       Toast.show({ content: '保存失败，请重试' });
@@ -270,7 +302,7 @@ export default function HealthGuidePage() {
       {/* Step content */}
       <div className="flex-1 px-4 overflow-y-auto pb-4">
         {currentStep === 1 && (
-          <Step1Form data={step1} onChange={setStep1} birthdayPickerVisible={birthdayPickerVisible} setBirthdayPickerVisible={setBirthdayPickerVisible} />
+          <Step1Form data={step1} onChange={setStep1} birthdayPickerVisible={birthdayPickerVisible} setBirthdayPickerVisible={setBirthdayPickerVisible} errors={step1Errors} />
         )}
         {currentStep === 2 && (
           <Step2Form data={step2} onChange={setStep2} presets={chronicPresets} />
@@ -330,52 +362,63 @@ function Step1Form({
   onChange,
   birthdayPickerVisible,
   setBirthdayPickerVisible,
+  errors,
 }: {
   data: Step1Data;
   onChange: (d: Step1Data) => void;
   birthdayPickerVisible: boolean;
   setBirthdayPickerVisible: (v: boolean) => void;
+  errors: Step1Errors;
 }) {
   return (
     <div className="rounded-2xl bg-white shadow-sm p-4 space-y-4">
       <div className="text-sm font-bold text-gray-700 mb-2">📋 基本信息</div>
 
-      <FormRow label={<>姓名<span style={{color:'#ff4d4f'}}> *</span></>}>
-        <Input
-          placeholder="请输入姓名"
-          value={data.name}
-          onChange={(v) => onChange({ ...data, name: v })}
-          style={{ '--font-size': '14px', textAlign: 'right' }}
-        />
-      </FormRow>
+      <div>
+        <FormRow label={<>姓名<span style={{color:'#ff4d4f'}}> *</span></>}>
+          <Input
+            placeholder="请输入姓名"
+            value={data.name}
+            onChange={(v) => onChange({ ...data, name: v })}
+            style={{ '--font-size': '14px', textAlign: 'right' }}
+          />
+        </FormRow>
+        {errors.name && <div className="text-xs mt-1 pl-28" style={{ color: '#ff4d4f' }}>{errors.name}</div>}
+      </div>
 
-      <FormRow label={<>性别<span style={{color:'#ff4d4f'}}> *</span></>}>
-        <div className="flex gap-2">
-          {['male', 'female'].map((g) => (
-            <button
-              key={g}
-              className="px-4 py-1 rounded-full text-xs font-medium transition-all"
-              style={{
-                background: data.gender === g ? 'linear-gradient(135deg, #52c41a, #13c2c2)' : '#f5f5f5',
-                color: data.gender === g ? '#fff' : '#888',
-              }}
-              onClick={() => onChange({ ...data, gender: g })}
-            >
-              {g === 'male' ? '男' : '女'}
-            </button>
-          ))}
-        </div>
-      </FormRow>
+      <div>
+        <FormRow label={<>性别<span style={{color:'#ff4d4f'}}> *</span></>}>
+          <div className="flex gap-2">
+            {['male', 'female'].map((g) => (
+              <button
+                key={g}
+                className="px-4 py-1 rounded-full text-xs font-medium transition-all"
+                style={{
+                  background: data.gender === g ? 'linear-gradient(135deg, #52c41a, #13c2c2)' : '#f5f5f5',
+                  color: data.gender === g ? '#fff' : '#888',
+                }}
+                onClick={() => onChange({ ...data, gender: g })}
+              >
+                {g === 'male' ? '男' : '女'}
+              </button>
+            ))}
+          </div>
+        </FormRow>
+        {errors.gender && <div className="text-xs mt-1 pl-28" style={{ color: '#ff4d4f' }}>{errors.gender}</div>}
+      </div>
 
-      <FormRow label={<>出生日期<span style={{color:'#ff4d4f'}}> *</span></>}>
-        <button
-          className="text-sm text-right"
-          style={{ color: data.birthday ? '#333' : '#bbb' }}
-          onClick={() => setBirthdayPickerVisible(true)}
-        >
-          {data.birthday || '请选择'}
-        </button>
-      </FormRow>
+      <div>
+        <FormRow label={<>出生日期<span style={{color:'#ff4d4f'}}> *</span></>}>
+          <button
+            className="text-sm text-right"
+            style={{ color: data.birthday ? '#333' : '#bbb' }}
+            onClick={() => setBirthdayPickerVisible(true)}
+          >
+            {data.birthday || '请选择'}
+          </button>
+        </FormRow>
+        {errors.birthday && <div className="text-xs mt-1 pl-28" style={{ color: '#ff4d4f' }}>{errors.birthday}</div>}
+      </div>
 
       <FormRow label="身高 (cm)">
         <Input

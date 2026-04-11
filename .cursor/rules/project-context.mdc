@@ -32,7 +32,30 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api/`
 
-## Latest Update: 短信验证码登录 Bug 修复 (2026-04-11)
+## Latest Update: 健康引导页基本信息必填校验修复 (2026-04-11)
+
+### 概要
+修复健康引导页（`/health-guide`）第一步"基本信息"中必填校验缺失的 Bug。`handleNext` 函数在点击"下一步"时直接保存并跳转，完全没有校验逻辑，导致姓名、性别、出生日期可为空。新增 `validateStep1` 校验函数，在第一步点击"下一步"时校验三个必填字段，不通过时在字段下方显示红色错误提示并弹出 Toast 汇总提示。
+
+### 各端变更
+
+| 端 | 主要变更 |
+| --- | --- |
+| H5 | `page.tsx` 新增 `Step1Errors` 接口和 `step1Errors` 状态；新增 `validateStep1` 校验函数（检查 name/gender/birthday）；`handleNext` 第一步时先校验；`Step1Form` 组件接收 `errors` prop 并在必填字段下方显示红色错误文字 |
+
+### 关键文件
+
+```text
+h5-web/src/app/health-guide/page.tsx              # 必填校验逻辑 + 错误提示 UI
+backend/tests/test_health_guide_server.py          # 服务器端自动化测试（6 用例全部通过）
+```
+
+### 用户手册
+- `user_docs/健康引导页必填校验修复.md`
+
+---
+
+## Previous Update: 短信验证码登录 Bug 修复 (2026-04-11)
 
 ### 概要
 修复短信验证码登录失败的 Bug：后端 `auth.py` 中验证码生成和校验使用 `datetime.now(timezone.utc)`（aware datetime），而数据库 `VerificationCode.expires_at` 字段使用 naive datetime（`DateTime` 无 `timezone=True`），导致 aware vs naive 比较异常，正确验证码也无法通过校验。统一改为 `datetime.utcnow()`（naive UTC）后修复。
