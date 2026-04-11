@@ -32,7 +32,67 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api/`
 
-## Latest Update: 体检报告AI解读 & 后台OCR测试Bug修复 (2026-04-11)
+## Latest Update: 家庭健康档案共管功能 (2026-04-11)
+
+### 概要
+新增"家庭健康档案共管"功能，参考蚂蚁保家庭共管模式。主账号可邀请家人关联，统一管理家人的健康档案、用药提醒、健康打卡、健康计划。支持邀请二维码生成与分享、扫码授权、档案自动合并、双方编辑权、取消授权等完整流程。主账号最多邀请10人，一人最多被3个主账号管理。
+
+### 数据库变更
+- 新增 `FamilyManagement` 表：管理关系记录（manager_user_id, managed_user_id, managed_member_id, status）
+- 新增 `FamilyInvitation` 表：邀请记录（invite_code UUID, inviter_user_id, member_id, status, expires_at）
+- 新增 `ManagementOperationLog` 表：操作日志（management_id, operator_user_id, operation_type, operation_detail）
+- 新增 `ManagementStatus` / `InvitationStatus` 枚举
+
+### Backend — API 变更
+
+| 接口 | 方法 | 说明 |
+| --- | --- | --- |
+| `/api/family/invitation` | POST | 生成邀请码（含校验：成员归属、管理上限10人、重复邀请） |
+| `/api/family/invitation/{code}` | GET | 查询邀请详情（自动检测过期） |
+| `/api/family/invitation/{code}/accept` | POST | 接受邀请（校验过期/被管上限3人/自邀/档案合并） |
+| `/api/family/invitation/{code}/reject` | POST | 拒绝邀请 |
+| `/api/family/management` | GET | 我管理的家人列表（分页） |
+| `/api/family/managed-by` | GET | 管理我的人列表（分页） |
+| `/api/family/management/{id}` | DELETE | 解除管理关系（双方均可操作） |
+| `/api/family/management/{id}/logs` | GET | 查询操作记录（分页） |
+
+### 各端变更
+
+| 端 | 主要变更 |
+| --- | --- |
+| Backend | 新增 FamilyManagement/FamilyInvitation/ManagementOperationLog 模型；8个API端点；档案合并逻辑；通知机制 |
+| H5 | 健康档案页成员栏关联状态展示；新增邀请页、授权确认页、关联列表页；"我的"页面增加"家庭关联"入口 |
+| Admin-web | 新增家庭共管管理页面（关系列表、状态筛选、详情查看、解除关联）；侧边栏增加菜单项 |
+| Flutter | 新增 FamilyManagement 数据模型；8个API方法；邀请页/授权页/关联列表页；健康档案页关联状态；"我的"页面入口 |
+| 微信小程序 | 新增邀请页/授权页/关联列表页（各含js/wxml/wxss/json）；健康档案页关联状态；"我的"页面入口；app.json注册 |
+
+### 关键文件
+
+```text
+backend/app/models/models.py                              # FamilyManagement/FamilyInvitation/ManagementOperationLog 模型
+backend/app/schemas/family_management.py                   # 共管相关 Schema
+backend/app/api/family_management.py                       # 8个共管API端点
+h5-web/src/app/health-profile/page.tsx                     # 成员栏关联状态+邀请/解除按钮
+h5-web/src/app/family-invite/page.tsx                      # 邀请图片生成页
+h5-web/src/app/family-auth/page.tsx                        # 授权确认页
+h5-web/src/app/family-bindlist/page.tsx                    # 关联列表页
+admin-web/src/app/(admin)/family-management/page.tsx       # 后台共管管理页
+flutter_app/lib/models/family_management.dart              # Flutter 共管数据模型
+flutter_app/lib/screens/family/family_invite_screen.dart   # Flutter 邀请页
+flutter_app/lib/screens/family/family_auth_screen.dart     # Flutter 授权页
+flutter_app/lib/screens/family/family_bindlist_screen.dart # Flutter 关联列表页
+miniprogram/pages/family-invite/                           # 小程序邀请页
+miniprogram/pages/family-auth/                             # 小程序授权页
+miniprogram/pages/family-bindlist/                         # 小程序关联列表页
+backend/tests/test_family_management.py                    # 12个自动化测试用例（11通过1跳过）
+```
+
+### 用户手册
+- `user_docs/家庭健康档案共管.md`
+
+---
+
+## Previous Update: 体检报告AI解读 & 后台OCR测试Bug修复 (2026-04-11)
 
 ### 概要
 修复两个Bug：(1) H5端体检报告AI解读总是失败 — `call_ai_model()` 超时从60s延长至120s，新增3次自动重试机制，失败时抛出异常而非静默返回错误字符串，增加详细日志记录；(2) 后台OCR配置页面"测试OCR"按钮无响应 — 前端上传字段名 `file` 改为 `files`，与后端参数名一致。
