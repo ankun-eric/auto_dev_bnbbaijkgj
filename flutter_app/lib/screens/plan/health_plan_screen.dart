@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
+import '../../widgets/checkin_points_progress.dart';
 
 class HealthPlanScreen extends StatefulWidget {
   const HealthPlanScreen({super.key});
@@ -10,6 +11,7 @@ class HealthPlanScreen extends StatefulWidget {
 
 class _HealthPlanScreenState extends State<HealthPlanScreen> {
   final ApiService _apiService = ApiService();
+  final _progressKey = GlobalKey<CheckinPointsProgressState>();
   bool _loading = true;
   bool _aiGenerating = false;
 
@@ -73,6 +75,22 @@ class _HealthPlanScreenState extends State<HealthPlanScreen> {
     if (mounted) setState(() => _aiGenerating = false);
   }
 
+  void _showPointsSnackBar(Map<String, dynamic>? responseData) {
+    if (!mounted || responseData == null) return;
+    final pointsEarned = responseData['points_earned'] as int? ?? 0;
+    final limitReached = responseData['points_limit_reached'] == true;
+    if (pointsEarned > 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('打卡成功，获得 $pointsEarned 积分！'), backgroundColor: const Color(0xFF52C41A)),
+      );
+    } else if (limitReached) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('打卡成功！今日打卡积分已达上限'), backgroundColor: Color(0xFFFA8C16)),
+      );
+    }
+    _progressKey.currentState?.loadProgress();
+  }
+
   Future<void> _handleQuickCheckin(Map<String, dynamic> item) async {
     final type = item['type']?.toString() ?? '';
     if (type == 'checkin' && item['target_value'] != null) {
@@ -100,7 +118,8 @@ class _HealthPlanScreenState extends State<HealthPlanScreen> {
       );
       if (result != null) {
         try {
-          await _apiService.quickCheckin(item['id'] as int, type, value: result);
+          final response = await _apiService.quickCheckin(item['id'] as int, type, value: result);
+          _showPointsSnackBar(response.data is Map ? response.data as Map<String, dynamic> : null);
           _loadTodayTodos();
         } catch (_) {}
       }
@@ -108,7 +127,8 @@ class _HealthPlanScreenState extends State<HealthPlanScreen> {
     }
 
     try {
-      await _apiService.quickCheckin(item['id'] as int, type);
+      final response = await _apiService.quickCheckin(item['id'] as int, type);
+      _showPointsSnackBar(response.data is Map ? response.data as Map<String, dynamic> : null);
       _loadTodayTodos();
     } catch (_) {}
   }
@@ -134,13 +154,18 @@ class _HealthPlanScreenState extends State<HealthPlanScreen> {
           ? const Center(child: CircularProgressIndicator(color: Color(0xFF52C41A)))
           : RefreshIndicator(
               color: const Color(0xFF52C41A),
-              onRefresh: _loadTodayTodos,
+              onRefresh: () async {
+                await _loadTodayTodos();
+                _progressKey.currentState?.loadProgress();
+              },
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    CheckinPointsProgress(key: _progressKey),
+                    const SizedBox(height: 16),
                     _buildAiGenerateButton(),
                     const SizedBox(height: 20),
                     _buildCategoryCards(),

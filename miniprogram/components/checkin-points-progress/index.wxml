@@ -1,0 +1,9 @@
+<view class="points-progress-wrap" wx:if="{{show && enabled}}">
+  <view class="progress-inner {{isLimitReached ? 'progress-full' : ''}}">
+    <view class="progress-bar-bg">
+      <view class="progress-bar-fill" style="width: {{percent}}%;"></view>
+    </view>
+    <text class="progress-text" wx:if="{{isLimitReached}}">今日打卡积分已满 ✓</text>
+    <text class="progress-text" wx:else>今日打卡积分：{{earnedToday}} / {{dailyLimit}}</text>
+  </view>
+</view>

@@ -1,4 +1,6 @@
 <view class="page-wrap">
+  <checkin-points-progress refreshKey="{{pointsRefreshKey}}" />
+
   <view class="loading-wrap" wx:if="{{loading}}">
     <text class="text-hint">加载中...</text>
   </view>

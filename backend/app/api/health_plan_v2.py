@@ -237,8 +237,10 @@ async def checkin_medication(
         check_in_time=datetime.utcnow(),
     )
     db.add(checkin)
+    from app.services.checkin_points_service import award_checkin_points
+    points_result = await award_checkin_points(db, current_user, "用药提醒打卡")
     await db.flush()
-    return {"message": "打卡成功"}
+    return {"message": "打卡成功", "points_earned": points_result["points_earned"], "points_limit_reached": points_result["points_limit_reached"]}
 
 
 # ──────────────── 健康打卡 ────────────────
@@ -409,8 +411,10 @@ async def checkin_health_item(
         check_in_time=datetime.utcnow(),
     )
     db.add(record)
+    from app.services.checkin_points_service import award_checkin_points
+    points_result = await award_checkin_points(db, current_user, "健康习惯打卡")
     await db.flush()
-    return {"message": "打卡成功"}
+    return {"message": "打卡成功", "points_earned": points_result["points_earned"], "points_limit_reached": points_result["points_limit_reached"]}
 
 
 @router.get("/checkin-items/{item_id}/records")
@@ -794,8 +798,10 @@ async def checkin_plan_task(
         check_in_time=datetime.utcnow(),
     )
     db.add(record)
+    from app.services.checkin_points_service import award_checkin_points
+    points_result = await award_checkin_points(db, current_user, "健康计划任务打卡")
     await db.flush()
-    return {"message": "打卡成功"}
+    return {"message": "打卡成功", "points_earned": points_result["points_earned"], "points_limit_reached": points_result["points_limit_reached"]}
 
 
 # ──────────────── AI 生成计划 ────────────────
@@ -1208,8 +1214,10 @@ async def quick_check_in(
             check_in_time=datetime.utcnow(),
         )
         db.add(checkin)
+        from app.services.checkin_points_service import award_checkin_points
+        points_result = await award_checkin_points(db, current_user, "用药提醒打卡")
         await db.flush()
-        return {"message": "打卡成功", "type": "medication"}
+        return {"message": "打卡成功", "type": "medication", "points_earned": points_result["points_earned"], "points_limit_reached": points_result["points_limit_reached"]}
 
     elif data.type == "checkin":
         result = await db.execute(
@@ -1242,8 +1250,10 @@ async def quick_check_in(
             check_in_time=datetime.utcnow(),
         )
         db.add(record)
+        from app.services.checkin_points_service import award_checkin_points
+        points_result = await award_checkin_points(db, current_user, "健康习惯打卡")
         await db.flush()
-        return {"message": "打卡成功", "type": "checkin"}
+        return {"message": "打卡成功", "type": "checkin", "points_earned": points_result["points_earned"], "points_limit_reached": points_result["points_limit_reached"]}
 
     elif data.type == "plan_task":
         result = await db.execute(
@@ -1275,8 +1285,10 @@ async def quick_check_in(
             check_in_time=datetime.utcnow(),
         )
         db.add(record)
+        from app.services.checkin_points_service import award_checkin_points
+        points_result = await award_checkin_points(db, current_user, "健康计划任务打卡")
         await db.flush()
-        return {"message": "打卡成功", "type": "plan_task"}
+        return {"message": "打卡成功", "type": "plan_task", "points_earned": points_result["points_earned"], "points_limit_reached": points_result["points_limit_reached"]}
 
     else:
         raise HTTPException(status_code=400, detail="不支持的打卡类型，请使用 medication/checkin/plan_task")

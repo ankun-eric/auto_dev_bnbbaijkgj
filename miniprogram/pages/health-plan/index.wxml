@@ -1,4 +1,6 @@
 <view class="plan-page">
+  <checkin-points-progress refreshKey="{{pointsRefreshKey}}" />
+
   <!-- 统计概览 -->
   <view class="stats-overview card" bindtap="goStatistics">
     <view class="stats-header">

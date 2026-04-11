@@ -1,4 +1,7 @@
 {
   "navigationBarTitleText": "用药提醒",
-  "enablePullDownRefresh": true
+  "enablePullDownRefresh": true,
+  "usingComponents": {
+    "checkin-points-progress": "/components/checkin-points-progress/index"
+  }
 }

@@ -127,6 +127,7 @@ class ApiConfig {
   static const String pointsCheckin = '/api/points/signin';
   static const String pointsMall = '/api/points/mall';
   static const String pointsExchange = '/api/points/exchange';
+  static const String checkinTodayProgress = '/api/points/checkin/today-progress';
 
   // Content
   static const String articles = '/api/content/articles';

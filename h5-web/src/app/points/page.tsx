@@ -1,27 +1,97 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { NavBar, Card, Button, List, Tag, Toast, Grid } from 'antd-mobile';
+import { NavBar, Card, Button, List, Tag, Toast, Grid, SpinLoading, InfiniteScroll } from 'antd-mobile';
+import api from '@/lib/api';
 
-const mockRecords = [
-  { id: 1, title: '每日签到', points: '+10', time: '2024-03-15 08:00', type: 'earn' },
-  { id: 2, title: '完成健康任务', points: '+20', time: '2024-03-14 18:30', type: 'earn' },
-  { id: 3, title: '兑换优惠券', points: '-50', time: '2024-03-13 10:00', type: 'spend' },
-  { id: 4, title: '邀请好友', points: '+100', time: '2024-03-12 15:20', type: 'earn' },
-  { id: 5, title: '健康问答', points: '+5', time: '2024-03-11 09:00', type: 'earn' },
-];
+interface PointRecord {
+  id: number;
+  type: string;
+  points: number;
+  description: string;
+  created_at: string;
+}
+
+const CHECKIN_TYPE_ICONS: Record<string, string> = {
+  checkin: '✅',
+  medication_checkin: '💊',
+  sign_in: '📅',
+  task: '📋',
+};
+
+function getTypeLabel(type: string): string {
+  const map: Record<string, string> = {
+    checkin: '打卡',
+    medication_checkin: '用药打卡',
+    sign_in: '签到',
+    task: '任务',
+    redeem: '兑换',
+  };
+  return map[type] || type;
+}
 
 export default function PointsPage() {
   const router = useRouter();
   const [signedToday, setSignedToday] = useState(false);
-  const totalPoints = 680;
-  const signDays = 7;
+  const [totalPoints, setTotalPoints] = useState(0);
+  const [signDays, setSignDays] = useState(0);
+  const [records, setRecords] = useState<PointRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [hasMore, setHasMore] = useState(false);
+  const [page, setPage] = useState(1);
 
-  const handleSign = () => {
+  const fetchPointsData = useCallback(async () => {
+    try {
+      const [summaryRes, recordsRes]: any[] = await Promise.allSettled([
+        api.get('/api/points/summary'),
+        api.get('/api/points/records?page=1&per_page=20'),
+      ]);
+      if (summaryRes.status === 'fulfilled') {
+        const summary = summaryRes.value?.data || summaryRes.value;
+        setTotalPoints(summary?.total_points ?? 0);
+        setSignDays(summary?.sign_days ?? 0);
+        setSignedToday(summary?.signed_today ?? false);
+      }
+      if (recordsRes.status === 'fulfilled') {
+        const data = recordsRes.value?.data || recordsRes.value;
+        const items = data?.items || data?.records || data || [];
+        setRecords(Array.isArray(items) ? items : []);
+        setHasMore((data?.has_more ?? false) || (data?.total_pages > 1));
+      }
+    } catch {
+      // ignore
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchPointsData(); }, [fetchPointsData]);
+
+  const loadMore = async () => {
+    const nextPage = page + 1;
+    try {
+      const res: any = await api.get(`/api/points/records?page=${nextPage}&per_page=20`);
+      const data = res.data || res;
+      const items = data?.items || data?.records || data || [];
+      setRecords((prev) => [...prev, ...(Array.isArray(items) ? items : [])]);
+      setPage(nextPage);
+      setHasMore(data?.has_more ?? (nextPage < (data?.total_pages ?? 1)));
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleSign = async () => {
     if (signedToday) return;
-    setSignedToday(true);
-    Toast.show({ content: '签到成功 +10积分' });
+    try {
+      await api.post('/api/points/sign-in');
+      setSignedToday(true);
+      Toast.show({ content: '签到成功 +10积分' });
+      fetchPointsData();
+    } catch {
+      Toast.show({ content: '签到失败', icon: 'fail' });
+    }
   };
 
   return (
@@ -101,24 +171,49 @@ export default function PointsPage() {
 
         <div className="section-title">积分记录</div>
         <Card style={{ borderRadius: 12 }}>
-          <List style={{ '--border-top': 'none', '--border-bottom': 'none', '--padding-left': '0' }}>
-            {mockRecords.map((r) => (
-              <List.Item
-                key={r.id}
-                extra={
-                  <span
-                    className="font-bold"
-                    style={{ color: r.type === 'earn' ? '#52c41a' : '#f5222d' }}
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <SpinLoading color="primary" />
+            </div>
+          ) : records.length === 0 ? (
+            <div className="text-center text-gray-400 text-sm py-8">暂无积分记录</div>
+          ) : (
+            <List style={{ '--border-top': 'none', '--border-bottom': 'none', '--padding-left': '0' }}>
+              {records.map((r) => {
+                const isEarn = r.points > 0;
+                const icon = CHECKIN_TYPE_ICONS[r.type] || (isEarn ? '🪙' : '🎁');
+                return (
+                  <List.Item
+                    key={r.id}
+                    prefix={<span style={{ fontSize: 20 }}>{icon}</span>}
+                    extra={
+                      <span
+                        className="font-bold"
+                        style={{ color: isEarn ? '#52c41a' : '#f5222d' }}
+                      >
+                        {isEarn ? '+' : ''}{r.points}
+                      </span>
+                    }
+                    description={
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-400">
+                          {r.created_at ? new Date(r.created_at).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : ''}
+                        </span>
+                        {r.type === 'checkin' && (
+                          <Tag color="success" fill="outline" style={{ fontSize: 10 }}>{getTypeLabel(r.type)}</Tag>
+                        )}
+                      </div>
+                    }
                   >
-                    {r.points}
-                  </span>
-                }
-                description={<span className="text-xs text-gray-400">{r.time}</span>}
-              >
-                <span className="text-sm">{r.title}</span>
-              </List.Item>
-            ))}
-          </List>
+                    <span className="text-sm">{r.description || getTypeLabel(r.type)}</span>
+                  </List.Item>
+                );
+              })}
+            </List>
+          )}
+          {!loading && records.length > 0 && (
+            <InfiniteScroll loadMore={loadMore} hasMore={hasMore} />
+          )}
         </Card>
       </div>
     </div>

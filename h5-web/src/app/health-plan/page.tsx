@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { NavBar, Card, SpinLoading } from 'antd-mobile';
 import api from '@/lib/api';
+import CheckinPointsProgress from '@/components/CheckinPointsProgress';
 
 interface PlanCounts {
   medications_count: number;
@@ -105,6 +106,7 @@ export default function HealthPlanPage() {
       <NavBar onBack={() => router.back()} style={{ background: '#fff' }}>健康计划</NavBar>
 
       <div className="px-4 pt-4">
+        <CheckinPointsProgress />
         {categories.map((cat) => (
           <Card
             key={cat.key}

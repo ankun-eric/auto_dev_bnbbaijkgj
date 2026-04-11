@@ -96,6 +96,7 @@ class PointsType(str, enum.Enum):
     invite = "invite"
     purchase = "purchase"
     redeem = "redeem"
+    checkin = "checkin"
     deduct = "deduct"
 
 

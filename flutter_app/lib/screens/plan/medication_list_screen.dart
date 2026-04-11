@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
+import '../../widgets/checkin_points_progress.dart';
 
 class MedicationListScreen extends StatefulWidget {
   const MedicationListScreen({super.key});
@@ -10,6 +11,7 @@ class MedicationListScreen extends StatefulWidget {
 
 class _MedicationListScreenState extends State<MedicationListScreen> {
   final ApiService _apiService = ApiService();
+  final _progressKey = GlobalKey<CheckinPointsProgressState>();
   bool _loading = true;
   List<Map<String, dynamic>> _medications = [];
 
@@ -54,7 +56,11 @@ class _MedicationListScreenState extends State<MedicationListScreen> {
           items = data;
         }
         setState(() {
-          _medications = items.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+          _medications = items.map((e) {
+            final m = Map<String, dynamic>.from(e as Map);
+            m['is_checked'] = m['today_checked'] ?? m['is_checked'] ?? false;
+            return m;
+          }).toList();
           _loading = false;
         });
         return;
@@ -108,9 +114,26 @@ class _MedicationListScreenState extends State<MedicationListScreen> {
     } catch (_) {}
   }
 
+  void _showPointsSnackBar(Map<String, dynamic>? responseData) {
+    if (!mounted || responseData == null) return;
+    final pointsEarned = responseData['points_earned'] as int? ?? 0;
+    final limitReached = responseData['points_limit_reached'] == true;
+    if (pointsEarned > 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('打卡成功，获得 $pointsEarned 积分！'), backgroundColor: const Color(0xFF52C41A)),
+      );
+    } else if (limitReached) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('打卡成功！今日打卡积分已达上限'), backgroundColor: Color(0xFFFA8C16)),
+      );
+    }
+    _progressKey.currentState?.loadProgress();
+  }
+
   Future<void> _checkin(Map<String, dynamic> med) async {
     try {
-      await _apiService.checkinMedication(med['id'] as int);
+      final response = await _apiService.checkinMedication(med['id'] as int);
+      _showPointsSnackBar(response.data is Map ? response.data as Map<String, dynamic> : null);
       _loadMedications();
     } catch (_) {}
   }
@@ -132,10 +155,19 @@ class _MedicationListScreenState extends State<MedicationListScreen> {
               ? _buildEmpty()
               : RefreshIndicator(
                   color: const Color(0xFFFA8C16),
-                  onRefresh: _loadMedications,
+                  onRefresh: () async {
+                    await _loadMedications();
+                    _progressKey.currentState?.loadProgress();
+                  },
                   child: ListView(
                     padding: const EdgeInsets.all(16),
-                    children: _buildGroupedList(),
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: CheckinPointsProgress(key: _progressKey),
+                      ),
+                      ..._buildGroupedList(),
+                    ],
                   ),
                 ),
       floatingActionButton: FloatingActionButton(

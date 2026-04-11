@@ -51,9 +51,25 @@ class _UserPlanDetailScreenState extends State<UserPlanDetailScreen> {
   Future<void> _checkinTask(Map<String, dynamic> task) async {
     try {
       final taskId = task['id'] as int;
-      await _apiService.checkinUserPlanTask(_planId!, taskId);
+      final response = await _apiService.checkinUserPlanTask(_planId!, taskId);
+      _showPointsSnackBar(response.data is Map ? response.data as Map<String, dynamic> : null);
       _loadDetail();
     } catch (_) {}
+  }
+
+  void _showPointsSnackBar(Map<String, dynamic>? responseData) {
+    if (!mounted || responseData == null) return;
+    final pointsEarned = responseData['points_earned'] as int? ?? 0;
+    final limitReached = responseData['points_limit_reached'] == true;
+    if (pointsEarned > 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('打卡成功，获得 $pointsEarned 积分！'), backgroundColor: const Color(0xFF52C41A)),
+      );
+    } else if (limitReached) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('打卡成功！今日打卡积分已达上限'), backgroundColor: Color(0xFFFA8C16)),
+      );
+    }
   }
 
   @override

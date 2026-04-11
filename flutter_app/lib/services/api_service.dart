@@ -448,8 +448,10 @@ class ApiService {
     return _dio.get('${ApiConfig.hpUserPlans}/$id');
   }
 
-  Future<Response> checkinUserPlanTask(int planId, int taskId) async {
-    return _dio.post('${ApiConfig.hpUserPlans}/$planId/tasks/$taskId/checkin');
+  Future<Response> checkinUserPlanTask(int planId, int taskId, {double? actualValue}) async {
+    final data = <String, dynamic>{};
+    if (actualValue != null) data['actual_value'] = actualValue;
+    return _dio.post('${ApiConfig.hpUserPlans}/$planId/tasks/$taskId/checkin', data: data);
   }
 
   // Health Plan V2 - AI
@@ -572,6 +574,17 @@ class ApiService {
 
   Future<Response> exchangePoints(String itemId) async {
     return _dio.post(ApiConfig.pointsExchange, data: {'item_id': itemId});
+  }
+
+  Future<Map<String, dynamic>> getCheckinTodayProgress() async {
+    try {
+      final response = await _dio.get(ApiConfig.checkinTodayProgress);
+      return response.data is Map<String, dynamic>
+          ? response.data as Map<String, dynamic>
+          : <String, dynamic>{};
+    } catch (_) {
+      return <String, dynamic>{};
+    }
   }
 
   // Content

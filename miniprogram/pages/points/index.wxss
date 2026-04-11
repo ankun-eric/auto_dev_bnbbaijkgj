@@ -80,7 +80,10 @@
   margin-bottom: 12rpx;
 }
 
+.record-title-row { display: flex; align-items: center; gap: 8rpx; }
 .record-title { font-size: 28rpx; color: #333; display: block; }
+.record-tag { font-size: 20rpx; padding: 2rpx 12rpx; border-radius: 12rpx; flex-shrink: 0; }
+.record-tag-checkin { background: rgba(19, 194, 194, 0.12); color: #13c2c2; }
 .record-time { font-size: 22rpx; color: #999; }
 .record-points { font-size: 30rpx; font-weight: bold; }
 .points-add { color: #52c41a; }

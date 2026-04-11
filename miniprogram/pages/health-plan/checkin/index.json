@@ -1,4 +1,7 @@
 {
   "navigationBarTitleText": "健康打卡",
-  "enablePullDownRefresh": true
+  "enablePullDownRefresh": true,
+  "usingComponents": {
+    "checkin-points-progress": "/components/checkin-points-progress/index"
+  }
 }

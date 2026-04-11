@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { NavBar, Card, Button, Dialog, Toast, SpinLoading, SwipeAction } from 'antd-mobile';
 import { AddOutline } from 'antd-mobile-icons';
 import api from '@/lib/api';
+import CheckinPointsProgress from '@/components/CheckinPointsProgress';
+import { showCheckinPointsToast } from '@/utils/checkinPointsToast';
 
 interface CheckinItem {
   id: number;
@@ -19,6 +21,7 @@ export default function CheckinPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<CheckinItem[]>([]);
+  const [pointsRefreshKey, setPointsRefreshKey] = useState(0);
 
   const fetchData = useCallback(async () => {
     try {
@@ -41,9 +44,11 @@ export default function CheckinPage() {
 
   const handleSimpleCheck = async (item: CheckinItem) => {
     try {
-      await api.post(`/api/health-plan/checkin-items/${item.id}/checkin`, { actual_value: null });
-      Toast.show({ content: '打卡成功', icon: 'success' });
+      const res: any = await api.post(`/api/health-plan/checkin-items/${item.id}/checkin`, { actual_value: null });
+      const result = res.data || res;
+      showCheckinPointsToast(result);
       fetchData();
+      setPointsRefreshKey((k) => k + 1);
     } catch {
       Toast.show({ content: '打卡失败', icon: 'fail' });
     }
@@ -85,6 +90,7 @@ export default function CheckinPage() {
       </div>
 
       <div className="px-4 -mt-3">
+        <CheckinPointsProgress refreshKey={pointsRefreshKey} />
         {items.length === 0 ? (
           <Card style={{ borderRadius: 12, textAlign: 'center', padding: '40px 20px' }}>
             <div className="text-4xl mb-3">✅</div>

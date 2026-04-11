@@ -1,3 +1,6 @@
 {
-  "navigationBarTitleText": "健康计划"
+  "navigationBarTitleText": "健康计划",
+  "usingComponents": {
+    "checkin-points-progress": "/components/checkin-points-progress/index"
+  }
 }

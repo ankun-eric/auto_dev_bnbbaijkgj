@@ -1,4 +1,5 @@
 const { get, post } = require('../../utils/request');
+const { showCheckinPointsToast } = require('../../utils/checkin-points');
 
 Page({
   data: {
@@ -14,6 +15,7 @@ Page({
     todoTotalCount: 0,
     todayLoading: false,
     aiGenerating: false,
+    pointsRefreshKey: 0,
     checkinDialog: false,
     checkinDialogType: '',
     checkinDialogId: 0,
@@ -140,8 +142,9 @@ Page({
     }
     if (!url) return;
     try {
-      await post(url, body);
-      wx.showToast({ title: '打卡成功', icon: 'success' });
+      const result = await post(url, body);
+      showCheckinPointsToast(result);
+      this.setData({ pointsRefreshKey: this.data.pointsRefreshKey + 1 });
       this.loadTodayTodos();
       this.loadStats();
     } catch (e) {

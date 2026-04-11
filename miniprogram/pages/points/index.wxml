@@ -32,7 +32,10 @@
   <view class="record-list">
     <view class="record-item card" wx:for="{{records}}" wx:key="id">
       <view class="record-info">
-        <text class="record-title">{{item.title}}</text>
+        <view class="record-title-row">
+          <text class="record-title">{{item.title}}</text>
+          <text class="record-tag record-tag-checkin" wx:if="{{item.type === 'checkin'}}">打卡</text>
+        </view>
         <text class="record-time">{{item.time}}</text>
       </view>
       <text class="record-points {{item.amount > 0 ? 'points-add' : 'points-sub'}}">

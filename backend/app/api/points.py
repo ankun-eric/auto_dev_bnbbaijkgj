@@ -168,6 +168,16 @@ async def exchange_item(
     return PointsExchangeResponse.model_validate(exchange)
 
 
+@router.get("/checkin/today-progress")
+async def get_checkin_today_progress(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.services.checkin_points_service import get_today_progress
+    progress = await get_today_progress(db, current_user.id)
+    return progress
+
+
 @router.get("/level")
 async def get_member_levels(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(MemberLevel).order_by(MemberLevel.min_points.asc()))

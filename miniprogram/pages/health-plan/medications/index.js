@@ -1,10 +1,12 @@
 const { get, post, put, del } = require('../../../utils/request');
+const { showCheckinPointsToast } = require('../../../utils/checkin-points');
 
 Page({
   data: {
     medications: [],
     medGroups: [],
-    loading: false
+    loading: false,
+    pointsRefreshKey: 0
   },
 
   onShow() {
@@ -66,8 +68,9 @@ Page({
   async onCheckin(e) {
     const id = e.currentTarget.dataset.id;
     try {
-      await post(`/api/health-plan/medications/${id}/checkin`, {});
-      wx.showToast({ title: '打卡成功', icon: 'success' });
+      const result = await post(`/api/health-plan/medications/${id}/checkin`, {});
+      showCheckinPointsToast(result);
+      this.setData({ pointsRefreshKey: this.data.pointsRefreshKey + 1 });
       this.loadList();
     } catch (e) {
       // error handled by request

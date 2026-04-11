@@ -1315,7 +1315,12 @@ async def get_points_rules(
     current_user=Depends(admin_dep),
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(select(SystemConfig).where(SystemConfig.config_key.like("points_%")))
+    result = await db.execute(
+        select(SystemConfig).where(
+            (SystemConfig.config_key.like("points_%")) |
+            (SystemConfig.config_key.like("checkin_%"))
+        )
+    )
     configs = result.scalars().all()
     rules = {c.config_key: c.config_value for c in configs}
     if not rules:
@@ -1326,13 +1331,20 @@ async def get_points_rules(
             "points_task_checkin": "10",
             "points_review": "10",
             "points_invite": "50",
+            "checkin_points_enabled": "false",
+            "checkin_points_per_action": "2",
+            "checkin_points_daily_limit": "50",
         }
+    else:
+        rules.setdefault("checkin_points_enabled", "false")
+        rules.setdefault("checkin_points_per_action", "2")
+        rules.setdefault("checkin_points_daily_limit", "50")
     return {"rules": rules}
 
 
 @router.put("/points/rules")
 async def update_points_rules(
-    rules: dict,
+    rules: dict = Body(...),
     current_user=Depends(admin_dep),
     db: AsyncSession = Depends(get_db),
 ):

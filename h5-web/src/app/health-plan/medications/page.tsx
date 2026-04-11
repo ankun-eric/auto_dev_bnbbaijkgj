@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { NavBar, Card, Button, Dialog, Toast, SpinLoading, SwipeAction } from 'antd-mobile';
 import { AddOutline } from 'antd-mobile-icons';
 import api from '@/lib/api';
+import { showCheckinPointsToast } from '@/utils/checkinPointsToast';
 
 interface MedicationItem {
   id: number;
@@ -85,8 +86,9 @@ export default function MedicationsPage() {
 
   const handleCheck = async (item: MedicationItem) => {
     try {
-      await api.post(`/api/health-plan/medications/${item.id}/checkin`);
-      Toast.show({ content: '打卡成功', icon: 'success' });
+      const res: any = await api.post(`/api/health-plan/medications/${item.id}/checkin`);
+      const result = res.data || res;
+      showCheckinPointsToast(result);
       fetchData();
     } catch {
       Toast.show({ content: '打卡失败', icon: 'fail' });

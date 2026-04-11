@@ -1,0 +1,41 @@
+.points-progress-wrap {
+  padding: 16rpx 24rpx;
+}
+
+.progress-inner {
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 20rpx 24rpx;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.06);
+}
+
+.progress-bar-bg {
+  height: 16rpx;
+  background: #f0f0f0;
+  border-radius: 8rpx;
+  overflow: hidden;
+  margin-bottom: 12rpx;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #1890ff, #13c2c2);
+  border-radius: 8rpx;
+  transition: width 0.3s ease;
+}
+
+.progress-full .progress-bar-fill {
+  background: linear-gradient(90deg, #52c41a, #73d13d);
+}
+
+.progress-text {
+  font-size: 24rpx;
+  color: #666;
+  display: block;
+  text-align: center;
+}
+
+.progress-full .progress-text {
+  color: #52c41a;
+  font-weight: 600;
+}

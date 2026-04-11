@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
+import '../../widgets/checkin_points_progress.dart';
 
 class CheckinListScreen extends StatefulWidget {
   const CheckinListScreen({super.key});
@@ -10,6 +11,7 @@ class CheckinListScreen extends StatefulWidget {
 
 class _CheckinListScreenState extends State<CheckinListScreen> {
   final ApiService _apiService = ApiService();
+  final _progressKey = GlobalKey<CheckinPointsProgressState>();
   bool _loading = true;
   List<Map<String, dynamic>> _items = [];
 
@@ -64,6 +66,22 @@ class _CheckinListScreenState extends State<CheckinListScreen> {
     }
   }
 
+  void _showPointsSnackBar(Map<String, dynamic>? responseData) {
+    if (!mounted || responseData == null) return;
+    final pointsEarned = responseData['points_earned'] as int? ?? 0;
+    final limitReached = responseData['points_limit_reached'] == true;
+    if (pointsEarned > 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('打卡成功，获得 $pointsEarned 积分！'), backgroundColor: const Color(0xFF52C41A)),
+      );
+    } else if (limitReached) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('打卡成功！今日打卡积分已达上限'), backgroundColor: Color(0xFFFA8C16)),
+      );
+    }
+    _progressKey.currentState?.loadProgress();
+  }
+
   Future<void> _checkin(Map<String, dynamic> item) async {
     if (item['target_value'] != null) {
       final controller = TextEditingController();
@@ -93,13 +111,15 @@ class _CheckinListScreenState extends State<CheckinListScreen> {
       );
       if (result != null) {
         try {
-          await _apiService.checkinCheckinItem(item['id'] as int, actualValue: result, isCompleted: true);
+          final response = await _apiService.checkinCheckinItem(item['id'] as int, actualValue: result, isCompleted: true);
+          _showPointsSnackBar(response.data is Map ? response.data as Map<String, dynamic> : null);
           _loadItems();
         } catch (_) {}
       }
     } else {
       try {
-        await _apiService.checkinCheckinItem(item['id'] as int, isCompleted: true);
+        final response = await _apiService.checkinCheckinItem(item['id'] as int, isCompleted: true);
+        _showPointsSnackBar(response.data is Map ? response.data as Map<String, dynamic> : null);
         _loadItems();
       } catch (_) {}
     }
@@ -122,11 +142,22 @@ class _CheckinListScreenState extends State<CheckinListScreen> {
               ? _buildEmpty()
               : RefreshIndicator(
                   color: const Color(0xFF52C41A),
-                  onRefresh: _loadItems,
+                  onRefresh: () async {
+                    await _loadItems();
+                    _progressKey.currentState?.loadProgress();
+                  },
                   child: ListView.builder(
                     padding: const EdgeInsets.all(16),
-                    itemCount: _items.length,
-                    itemBuilder: (context, index) => _buildCard(_items[index]),
+                    itemCount: _items.length + 1,
+                    itemBuilder: (context, index) {
+                      if (index == 0) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: CheckinPointsProgress(key: _progressKey),
+                        );
+                      }
+                      return _buildCard(_items[index - 1]);
+                    },
                   ),
                 ),
       floatingActionButton: FloatingActionButton(

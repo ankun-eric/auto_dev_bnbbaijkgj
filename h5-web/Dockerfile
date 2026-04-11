@@ -1,7 +1,7 @@
 FROM node:18-alpine AS builder
 WORKDIR /app
 COPY package.json ./
-RUN npm install --legacy-peer-deps
+RUN npm config set registry https://registry.npmmirror.com && npm install --legacy-peer-deps
 COPY . .
 ARG NEXT_PUBLIC_API_URL=""
 ARG NEXT_PUBLIC_BASE_PATH=""
