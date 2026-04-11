@@ -33,7 +33,52 @@ alwaysApply: false
 - Admin: `https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/`
 - API: `https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api/`
 
-## Latest Update: 502 Bad Gateway 修复与客户端 URL 统一 (2026-04-12)
+## Latest Update: 健康打卡Bug修复与积分规则优化 (2026-04-12)
+
+### 概要
+三合一更新：1) 修复"打卡送积分"上线后导致所有打卡操作失败的P0级Bug（异常容错+数据库枚举同步+配置默认值保护）；2) 积分规则配置页面合并（删除打卡规则Tab，新增"健康打卡每日上限"字段）；3) 实现"完善健康档案"送积分功能（改名+首次完善4字段自动发放一次性积分）。
+
+### 数据库变更
+- `PointsType` 枚举新增 `completeProfile` 值
+- `SystemConfig` 表新增配置项 `healthCheckInDailyLimit`（迁移自 `checkin_points_daily_limit`）
+- 打卡积分配置从旧字段（`checkin_points_*`）迁移到通用规则字段（`healthCheckIn` + `healthCheckInDailyLimit`）
+
+### Backend 变更
+
+| 文件 | 变更 |
+| --- | --- |
+| `backend/app/services/checkin_points_service.py` | 重构配置读取（改用 healthCheckIn/healthCheckInDailyLimit）；添加全面异常容错；新增 `award_complete_profile_points` 函数 |
+| `backend/app/api/health_plan_v2.py` | 6处打卡积分发放调用添加 try-except 容错 |
+| `backend/app/api/health_profile.py` | POST/PUT 保存本人档案时增加完善健康档案积分发放逻辑 |
+| `backend/app/api/admin.py` | 积分规则API查询扩展支持新配置key |
+| `backend/app/models/models.py` | PointsType 枚举添加 completeProfile |
+| `backend/app/main.py` | 启动时自动迁移 PointsType ENUM列和配置数据 |
+
+### Frontend 变更
+
+| 文件 | 变更 |
+| --- | --- |
+| `admin-web/src/app/(admin)/points/rules/page.tsx` | 删除Tabs组件和打卡规则Tab；"完善个人资料"改名为"完善健康档案"；新增"健康打卡每日上限"字段 |
+
+### 关键文件
+
+```text
+backend/app/services/checkin_points_service.py          # 打卡积分服务（重构+完善档案积分）
+backend/app/api/health_plan_v2.py                       # 4个打卡接口异常容错
+backend/app/api/health_profile.py                       # 保存档案时发放积分
+backend/app/api/admin.py                                # 积分规则API
+backend/app/models/models.py                            # PointsType枚举
+backend/app/main.py                                     # 启动迁移脚本
+admin-web/src/app/(admin)/points/rules/page.tsx         # 积分规则配置页面
+backend/tests/test_checkin_points_bugfix.py             # 9个自动化测试用例（全部通过）
+```
+
+### 用户手册
+- `user_docs/健康打卡Bug修复与积分规则优化.md`
+
+---
+
+## Previous Update: 502 Bad Gateway 修复与客户端 URL 统一 (2026-04-12)
 
 ### 概要
 修复通过 `newbb.bangbangvip.com` 域名访问项目时出现的 502 Bad Gateway 错误，并统一各端 API 基础地址为正式域名。同时修复小程序 zip 文件通过正式域名无法下载的问题。
