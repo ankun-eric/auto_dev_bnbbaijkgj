@@ -32,7 +32,62 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api/`
 
-## Latest Update: 健康引导页基本信息必填校验修复 (2026-04-11)
+## Latest Update: 健康管理档案功能优化 (2026-04-11)
+
+### 概要
+全面优化「健康管理档案」模块：慢性病史和家族遗传病史增加"其它"手工填写项；过敏史从三个文本输入框改造为预设标签选择+"其它"手工填写；后台统一管理三类预设标签（新增 allergy 分类）并增加超级管理员权限控制；健康引导页和健康自查页面同步改造；所有入口填写的健康信息同步回写到 HealthProfile。
+
+### 数据库变更
+- `User` 模型新增 `is_superuser` 字段（Boolean，默认 false）
+- `DiseasePreset.category` 新增 `allergy` 分类值（14 条过敏预设种子数据）
+- `HealthProfile.chronic_diseases`/`allergies`/`genetic_diseases` 格式扩展：支持 `["标签名", {"type":"custom","value":"用户自定义"}]` 混合格式
+- `HealthProfile.drug_allergies`/`food_allergies`/`other_allergies` 废弃（保留数据不删除）
+
+### Backend — API 变更
+
+| 接口 | 变更 |
+| --- | --- |
+| GET `/api/disease-presets?category=allergy` | 支持获取过敏预设标签 |
+| POST/PUT/DELETE `/api/admin/disease-presets` | 增加 is_superuser 权限校验，非超级管理员返回 403 |
+| POST `/api/admin/login` | 返回值新增 `is_superuser` 字段 |
+| PUT `/api/health/profile` | 支持混合格式 chronic_diseases/allergies/genetic_diseases |
+| PUT `/api/health/profile/member/{id}` | 同上 |
+
+### 各端变更
+
+| 端 | 主要变更 |
+| --- | --- |
+| Backend | User 模型 is_superuser；allergy 预设种子数据；disease-preset 权限控制；schema 类型扩展 |
+| H5 | 新增 DiseaseTagSelector 可复用组件；健康档案/引导页/自查页三个页面改造为预设标签+"其它" |
+| Admin-web | disease-presets 页面：Tab 改为 Select 分类筛选；新增分类列；权限控制（is_superuser） |
+| Flutter | 新增 DiseaseTagSelector 组件；健康档案/引导页/自查页改造；HealthProfile 模型支持混合格式 |
+| 微信小程序 | 健康档案/引导页/自查页改造为预设标签+"其它"；新增 health-guide 页面 |
+
+### 关键文件
+
+```text
+backend/app/models/models.py                          # User.is_superuser 字段
+backend/app/schemas/health_v2.py                      # chronic_diseases/allergies/genetic_diseases 类型改为 List[Any]
+backend/app/api/admin.py                              # disease-preset 权限控制 + login 返回 is_superuser
+backend/app/init_data.py                              # allergy 预设种子数据
+backend/scripts/migrate_allergy_data.py               # 过敏数据迁移脚本
+h5-web/src/components/DiseaseTagSelector.tsx           # H5 可复用标签选择组件
+h5-web/src/app/health-profile/page.tsx                # 健康档案编辑页改造
+h5-web/src/app/health-guide/page.tsx                  # 健康引导页改造
+h5-web/src/app/symptom/page.tsx                       # 健康自查页面改造
+admin-web/src/app/(admin)/disease-presets/page.tsx    # 管理后台预设标签页改造
+flutter_app/lib/widgets/disease_tag_selector.dart      # Flutter 可复用标签选择组件
+flutter_app/lib/screens/health/health_guide_screen.dart # Flutter 健康引导页（新建）
+miniprogram/pages/health-guide/                        # 小程序健康引导页（新建）
+backend/tests/test_health_profile_optimization.py      # 12 个自动化测试用例
+```
+
+### 用户手册
+- `user_docs/健康管理档案功能优化.md`
+
+---
+
+## Previous Update: 健康引导页基本信息必填校验修复 (2026-04-11)
 
 ### 概要
 修复健康引导页（`/health-guide`）第一步"基本信息"中必填校验缺失的 Bug。`handleNext` 函数在点击"下一步"时直接保存并跳转，完全没有校验逻辑，导致姓名、性别、出生日期可为空。新增 `validateStep1` 校验函数，在第一步点击"下一步"时校验三个必填字段，不通过时在字段下方显示红色错误提示并弹出 Toast 汇总提示。
