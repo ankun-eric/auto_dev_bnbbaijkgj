@@ -22,6 +22,9 @@ import 'screens/health/drug_chat_screen.dart';
 import 'screens/health/health_profile_screen.dart';
 import 'screens/health/health_guide_screen.dart';
 import 'screens/family/family_screen.dart';
+import 'screens/family/family_invite_screen.dart';
+import 'screens/family/family_auth_screen.dart';
+import 'screens/family/family_bindlist_screen.dart';
 import 'screens/services/services_screen.dart';
 import 'screens/services/service_detail_screen.dart';
 import 'screens/services/expert_list_screen.dart';
@@ -179,6 +182,15 @@ class BiniHealthApp extends StatelessWidget {
             return HealthGuideScreen(memberId: memberId);
           },
           '/family': (context) => const FamilyScreen(),
+          '/family-invite': (context) {
+            final memberId = ModalRoute.of(context)!.settings.arguments as int;
+            return FamilyInviteScreen(memberId: memberId);
+          },
+          '/family-auth': (context) {
+            final code = ModalRoute.of(context)!.settings.arguments as String;
+            return FamilyAuthScreen(code: code);
+          },
+          '/family-bindlist': (context) => const FamilyBindListScreen(),
           '/services': (context) => const ServicesScreen(),
           '/service-detail': (context) => const ServiceDetailScreen(),
           '/experts': (context) => const ExpertListScreen(),

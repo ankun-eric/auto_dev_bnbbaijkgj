@@ -17,6 +17,7 @@ Page({
     menuList: [
       { id: 'health', label: '健康档案', icon: '📋', path: '/pages/health-profile/index' },
       { id: 'family', label: '家庭成员', icon: '👨‍👩‍👧‍👦', path: '/pages/family/index' },
+      { id: 'family-bindlist', label: '家庭关联', icon: '🔗', path: '/pages/family-bindlist/index' },
       { id: 'points', label: '积分中心', icon: '🎯', path: '/pages/points/index' },
       { id: 'mall', label: '积分商城', icon: '🛍️', path: '/pages/points-mall/index' },
       { id: 'plan', label: '健康计划', icon: '📅', path: '/pages/health-plan/index' },

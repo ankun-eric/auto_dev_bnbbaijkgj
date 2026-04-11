@@ -5,6 +5,7 @@ import '../../services/api_service.dart';
 import '../../widgets/disease_tag_selector.dart';
 import '../../widgets/loading_widget.dart';
 import '../../models/health_profile.dart';
+import '../../models/family_management.dart';
 
 class HealthProfileScreen extends StatefulWidget {
   const HealthProfileScreen({super.key});
@@ -34,6 +35,9 @@ class _HealthProfileScreenState extends State<HealthProfileScreen>
 
   bool _saving = false;
 
+  List<FamilyManagementModel> _managementList = [];
+  List<ManagedByModel> _managedByList = [];
+
   static Color _relationColor(String relation) {
     if (relation == '本人') return const Color(0xFF52C41A);
     if (relation == '爸爸' ||
@@ -55,6 +59,7 @@ class _HealthProfileScreenState extends State<HealthProfileScreen>
     _tabController = TabController(length: 3, vsync: this);
     _loadFamilyMembers();
     _loadPresets();
+    _loadFamilyManagement();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<HealthProvider>(context, listen: false).loadHealthProfile();
     });
@@ -100,6 +105,118 @@ class _HealthProfileScreenState extends State<HealthProfileScreen>
       }
     } catch (_) {}
     if (mounted) setState(() => _presetsLoading = false);
+  }
+
+  Future<void> _loadFamilyManagement() async {
+    try {
+      final results = await Future.wait([
+        _apiService.getFamilyManagementList(),
+        _apiService.getManagedByList(),
+      ]);
+
+      if (mounted) {
+        setState(() {
+          final mgmtData = results[0].data;
+          List mgmtItems = [];
+          if (mgmtData is Map && mgmtData['items'] is List) {
+            mgmtItems = mgmtData['items'] as List;
+          } else if (mgmtData is List) {
+            mgmtItems = mgmtData;
+          }
+          _managementList = mgmtItems
+              .map((e) => FamilyManagementModel.fromJson(Map<String, dynamic>.from(e as Map)))
+              .toList();
+
+          final byData = results[1].data;
+          List byItems = [];
+          if (byData is Map && byData['items'] is List) {
+            byItems = byData['items'] as List;
+          } else if (byData is List) {
+            byItems = byData;
+          }
+          _managedByList = byItems
+              .map((e) => ManagedByModel.fromJson(Map<String, dynamic>.from(e as Map)))
+              .toList();
+        });
+      }
+    } catch (_) {}
+  }
+
+  bool _isMemberLinked(Map<String, dynamic> member) {
+    final memberId = member['id'];
+    if (memberId == null) return false;
+    return _managementList.any(
+      (m) => m.managedMemberId == memberId && m.status == 'active',
+    );
+  }
+
+  FamilyManagementModel? _getMemberManagement(Map<String, dynamic> member) {
+    final memberId = member['id'];
+    if (memberId == null) return null;
+    try {
+      return _managementList.firstWhere(
+        (m) => m.managedMemberId == memberId && m.status == 'active',
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  void _inviteMember(Map<String, dynamic> member) {
+    final memberId = member['id'];
+    if (memberId == null) return;
+    Navigator.pushNamed(context, '/family-invite', arguments: memberId).then((_) {
+      _loadFamilyManagement();
+    });
+  }
+
+  void _showUnlinkDialog(FamilyManagementModel mgmt) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Color(0xFFFA8C16), size: 24),
+            SizedBox(width: 8),
+            Text('解除关联'),
+          ],
+        ),
+        content: Text('确定解除与「${mgmt.managedUserNickname}」的关联吗？\n\n解除后将无法管理对方的健康档案。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('取消'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _unlinkMember(mgmt.id);
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('确认解除'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _unlinkMember(int managementId) async {
+    try {
+      final response = await _apiService.deleteFamilyManagement(managementId);
+      if (response.statusCode == 200 && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('已解除关联'), backgroundColor: Color(0xFF52C41A)),
+        );
+        _loadFamilyManagement();
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('操作失败，请重试'), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 
   List<String> _parsePresets(dynamic data) {
@@ -191,6 +308,7 @@ class _HealthProfileScreenState extends State<HealthProfileScreen>
       ),
       body: Column(
         children: [
+          if (_managedByList.isNotEmpty) _buildManagedByBanner(),
           _buildMemberTabs(),
           Container(
             color: Colors.white,
@@ -242,7 +360,7 @@ class _HealthProfileScreenState extends State<HealthProfileScreen>
       color: Colors.white,
       padding: const EdgeInsets.symmetric(vertical: 12),
       child: SizedBox(
-        height: 72,
+        height: 82,
         child: ListView.builder(
           scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -256,6 +374,9 @@ class _HealthProfileScreenState extends State<HealthProfileScreen>
             final isSelected = index == _selectedMemberIndex;
             final color = _relationColor(relation);
 
+            final isSelf = member['is_self'] == true;
+            final isLinked = !isSelf && _isMemberLinked(member);
+
             return GestureDetector(
               onTap: () => _onMemberTap(index),
               child: Padding(
@@ -263,35 +384,53 @@ class _HealthProfileScreenState extends State<HealthProfileScreen>
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color:
-                            isSelected ? color : const Color(0xFFF0F0F0),
-                        boxShadow: isSelected
-                            ? [
-                                BoxShadow(
-                                    color: color.withOpacity(0.3),
-                                    blurRadius: 6,
-                                    offset: const Offset(0, 2))
-                              ]
-                            : null,
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        relation.length > 2
-                            ? relation.substring(0, 2)
-                            : relation,
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: isSelected
-                              ? Colors.white
-                              : const Color(0xFF333333),
+                    Stack(
+                      children: [
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color:
+                                isSelected ? color : const Color(0xFFF0F0F0),
+                            boxShadow: isSelected
+                                ? [
+                                    BoxShadow(
+                                        color: color.withOpacity(0.3),
+                                        blurRadius: 6,
+                                        offset: const Offset(0, 2))
+                                  ]
+                                : null,
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            relation.length > 2
+                                ? relation.substring(0, 2)
+                                : relation,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: isSelected
+                                  ? Colors.white
+                                  : const Color(0xFF333333),
+                            ),
+                          ),
                         ),
-                      ),
+                        if (!isSelf && isLinked)
+                          Positioned(
+                            right: 0,
+                            top: 0,
+                            child: Container(
+                              width: 10,
+                              height: 10,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF52C41A),
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white, width: 1.5),
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                     const SizedBox(height: 4),
                     Text(
@@ -302,6 +441,15 @@ class _HealthProfileScreenState extends State<HealthProfileScreen>
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
+                    if (!isSelf)
+                      Text(
+                        isLinked ? '已关联' : '待邀请',
+                        style: TextStyle(
+                          fontSize: 8,
+                          color: isLinked ? const Color(0xFF52C41A) : const Color(0xFFFA8C16),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -340,12 +488,104 @@ class _HealthProfileScreenState extends State<HealthProfileScreen>
     );
   }
 
+  Widget _buildManagedByBanner() {
+    final names = _managedByList.map((e) => e.managerNickname).join('、');
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      color: const Color(0xFFFFF7E6),
+      child: Row(
+        children: [
+          const Icon(Icons.info_outline, size: 16, color: Color(0xFFFA8C16)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '您的健康档案正被 $names 管理',
+              style: const TextStyle(fontSize: 13, color: Color(0xFFFA8C16)),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          GestureDetector(
+            onTap: () => Navigator.pushNamed(context, '/family-bindlist').then((_) => _loadFamilyManagement()),
+            child: const Text(
+              '查看',
+              style: TextStyle(fontSize: 13, color: Color(0xFF1890FF), fontWeight: FontWeight.w500),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMemberActionButtons() {
+    final member = _familyMembers[_selectedMemberIndex];
+    final isSelf = member['is_self'] == true;
+    if (isSelf) return const SizedBox.shrink();
+
+    final isLinked = _isMemberLinked(member);
+    final mgmt = _getMemberManagement(member);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: isLinked
+                ? Row(
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFF52C41A),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Text('已关联', style: TextStyle(fontSize: 14, color: Color(0xFF52C41A), fontWeight: FontWeight.w500)),
+                      const Spacer(),
+                      TextButton(
+                        onPressed: mgmt != null ? () => _showUnlinkDialog(mgmt) : null,
+                        style: TextButton.styleFrom(foregroundColor: Colors.red),
+                        child: const Text('解除关联', style: TextStyle(fontSize: 13)),
+                      ),
+                    ],
+                  )
+                : Row(
+                    children: [
+                      const Icon(Icons.link_off, size: 18, color: Color(0xFF999999)),
+                      const SizedBox(width: 8),
+                      const Text('未关联', style: TextStyle(fontSize: 14, color: Color(0xFF999999))),
+                      const Spacer(),
+                      ElevatedButton.icon(
+                        onPressed: () => _inviteMember(member),
+                        icon: const Icon(Icons.person_add_alt_1, size: 16),
+                        label: const Text('邀请本人关联'),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          textStyle: const TextStyle(fontSize: 13),
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildBasicInfo(HealthProvider provider) {
     final profile = provider.healthProfile;
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
+          _buildMemberActionButtons(),
           _buildInfoCard(
               '身高', '${profile?.height ?? "--"} cm', Icons.height),
           _buildInfoCard(

@@ -1,0 +1,54 @@
+<view class="invite-page">
+  <!-- Loading -->
+  <view class="loading-wrap" wx:if="{{loading}}">
+    <view class="loading-spinner"></view>
+    <text class="loading-text">正在生成邀请…</text>
+  </view>
+
+  <!-- Error -->
+  <view class="error-wrap" wx:elif="{{error}}">
+    <text class="error-icon">⚠️</text>
+    <text class="error-text">{{error}}</text>
+    <button class="retry-btn" bindtap="retry">重新生成</button>
+  </view>
+
+  <!-- Invitation card -->
+  <view class="invite-content" wx:elif="{{invitation}}">
+    <view class="invite-card">
+      <view class="invite-header">
+        <text class="invite-title">家庭健康档案共管邀请</text>
+        <text class="invite-subtitle">扫码或点击链接接受邀请</text>
+      </view>
+
+      <view class="qr-wrap" wx:if="{{invitation.qr_url}}">
+        <image class="qr-image" src="{{invitation.qr_url}}" mode="aspectFit" />
+      </view>
+
+      <view class="invite-info">
+        <view class="info-row">
+          <text class="info-label">邀请码</text>
+          <text class="info-value">{{invitation.invite_code}}</text>
+        </view>
+        <view class="info-row" wx:if="{{invitation.expires_at}}">
+          <text class="info-label">有效期至</text>
+          <text class="info-value">{{invitation.expires_at}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="action-group">
+      <button class="action-btn action-save" bindtap="saveToAlbum">
+        <text class="action-btn-icon">📥</text>
+        <text>保存到本地</text>
+      </button>
+      <button class="action-btn action-copy" bindtap="copyLink">
+        <text class="action-btn-icon">🔗</text>
+        <text>复制链接</text>
+      </button>
+      <button class="action-btn action-share" open-type="share">
+        <text class="action-btn-icon">💬</text>
+        <text>分享好友</text>
+      </button>
+    </view>
+  </view>
+</view>

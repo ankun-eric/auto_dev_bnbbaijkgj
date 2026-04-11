@@ -46,7 +46,10 @@
     "pages/search/index",
     "pages/search-result/index",
     "pages/city-select/index",
-    "pages/digital-human-call/index"
+    "pages/digital-human-call/index",
+    "pages/family-invite/index",
+    "pages/family-auth/index",
+    "pages/family-bindlist/index"
   ],
   "window": {
     "navigationBarTextStyle": "black",

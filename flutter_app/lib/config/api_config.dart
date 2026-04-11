@@ -172,4 +172,9 @@ class ApiConfig {
   static const String cityList = '/api/cities/list';
   static const String cityHot = '/api/cities/hot';
   static const String cityLocate = '/api/cities/locate';
+
+  // Family Management
+  static const String familyInvitation = '/api/family/invitation';
+  static const String familyManagement = '/api/family/management';
+  static const String familyManagedBy = '/api/family/managed-by';
 }

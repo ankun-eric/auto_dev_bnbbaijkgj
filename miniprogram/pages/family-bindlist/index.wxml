@@ -1,0 +1,36 @@
+<view class="bindlist-page">
+  <!-- Loading -->
+  <view class="loading-wrap" wx:if="{{loading}}">
+    <view class="loading-spinner"></view>
+    <text class="loading-text">加载中…</text>
+  </view>
+
+  <!-- Empty -->
+  <view class="empty-wrap" wx:elif="{{empty}}">
+    <text class="empty-icon">🔗</text>
+    <text class="empty-title">暂无关联</text>
+    <text class="empty-desc">还没有家人关联管理您的健康档案</text>
+  </view>
+
+  <!-- List -->
+  <view class="list-wrap" wx:else>
+    <view class="list-header">
+      <text class="list-header-text">以下家人可以查看和管理您的健康档案</text>
+    </view>
+
+    <view class="bind-item" wx:for="{{list}}" wx:key="id">
+      <view class="bind-info">
+        <view class="bind-avatar">
+          <text class="bind-avatar-text">{{item.manager_nickname ? item.manager_nickname[0] : '家'}}</text>
+        </view>
+        <view class="bind-detail">
+          <text class="bind-name">{{item.manager_nickname || '家人'}}</text>
+          <text class="bind-time" wx:if="{{item.created_at}}">关联时间：{{item.created_at}}</text>
+        </view>
+      </view>
+      <view class="bind-action">
+        <text class="revoke-btn" data-item="{{item}}" bindtap="onRevoke">取消授权</text>
+      </view>
+    </view>
+  </view>
+</view>

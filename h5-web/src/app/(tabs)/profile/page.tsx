@@ -9,6 +9,7 @@ import {
   BellOutline,
   SetOutline,
   MessageOutline,
+  TeamOutline,
 } from 'antd-mobile-icons';
 import { useAuth } from '@/lib/auth';
 
@@ -30,6 +31,7 @@ export default function ProfilePage() {
         { icon: <StarOutline />, title: '积分商城', path: '/points', color: '#fa8c16' },
         { icon: <BellOutline />, title: '消息通知', path: '/notifications', badge: '5', color: '#f5222d' },
         { icon: <MessageOutline />, title: '在线客服', path: '/customer-service', color: '#13c2c2' },
+        { icon: <TeamOutline />, title: '家庭关联', path: '/family-bindlist', color: '#52c41a' },
       ],
     },
     {

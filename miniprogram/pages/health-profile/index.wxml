@@ -1,14 +1,25 @@
 <wxs src="./helpers.wxs" module="h" />
 
 <view class="health-profile-page">
+  <!-- 被管理提示条 -->
+  <view class="managed-notice" wx:if="{{isManagedByOthers}}" bindtap="goBindList">
+    <text class="managed-notice-icon">🔗</text>
+    <text class="managed-notice-text">您的健康档案正在被{{managedByList.length}}位家人共管</text>
+    <text class="managed-notice-arrow">查看 ›</text>
+  </view>
+
   <!-- 家庭成员 Tab -->
   <view class="family-tabs-wrapper">
     <scroll-view class="family-tabs" scroll-x>
-      <view class="family-tab {{activeTabIndex === index ? 'family-tab-active' : ''}}"
-            wx:for="{{familyTabs}}" wx:key="id"
-            bindtap="onTabSelect" data-index="{{index}}"
-            style="background: {{activeTabIndex === index ? item.color : '#f0f0f0'}};">
-        <text class="family-tab-text" style="color: {{activeTabIndex === index ? '#fff' : '#666'}};">{{item.name}}</text>
+      <view class="family-tab-item" wx:for="{{familyTabs}}" wx:key="id"
+            bindtap="onTabSelect" data-index="{{index}}">
+        <view class="family-tab {{activeTabIndex === index ? 'family-tab-active' : ''}}"
+              style="background: {{activeTabIndex === index ? item.color : '#f0f0f0'}};">
+          <text class="family-tab-text" style="color: {{activeTabIndex === index ? '#fff' : '#666'}};">{{item.name}}</text>
+          <view class="link-dot link-dot-green" wx:if="{{item.linked && !item.is_self}}"></view>
+        </view>
+        <text class="tab-link-label tab-link-linked" wx:if="{{item.linked && !item.is_self}}">已关联</text>
+        <text class="tab-link-label tab-link-pending" wx:elif="{{!item.is_self}}">待邀请</text>
       </view>
       <view class="family-tab family-tab-add" bindtap="onAddMemberTap">
         <text class="family-tab-text" style="color: #999;">+</text>
@@ -146,6 +157,25 @@
       </view>
     </view>
     <text class="empty-hint" wx:else>暂无用药信息</text>
+  </view>
+
+  <!-- 家庭关联操作 -->
+  <view class="card family-link-card" wx:if="{{familyTabs[activeTabIndex] && !familyTabs[activeTabIndex].is_self}}">
+    <view class="section-title">🔗 家庭关联</view>
+    <view wx:if="{{!currentMemberLinked}}" class="link-action-wrap">
+      <text class="link-hint">邀请本人关联后，对方可同步查看和管理此健康档案</text>
+      <button class="btn-primary invite-btn" bindtap="onInviteLink">邀请本人关联</button>
+    </view>
+    <view wx:else class="link-action-wrap">
+      <view class="linked-status-row">
+        <view class="linked-badge">
+          <text class="linked-badge-dot"></text>
+          <text class="linked-badge-text">已关联</text>
+        </view>
+        <text class="unlink-btn" bindtap="onUnlink">解除关联</text>
+      </view>
+      <text class="link-hint">对方已授权，可同步查看和管理健康档案</text>
+    </view>
   </view>
 
   <!-- 保存按钮 -->

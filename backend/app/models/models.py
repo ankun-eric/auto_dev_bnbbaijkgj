@@ -1920,3 +1920,65 @@ class VoiceServiceConfig(Base):
     updated_by = mapped_column(Integer, nullable=True)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+# ──────────────── 家庭健康档案共管 ────────────────
+
+
+class ManagementStatus(str, enum.Enum):
+    pending = "pending"
+    active = "active"
+    cancelled = "cancelled"
+
+
+class InvitationStatus(str, enum.Enum):
+    pending = "pending"
+    accepted = "accepted"
+    expired = "expired"
+    cancelled = "cancelled"
+
+
+class FamilyManagement(Base):
+    __tablename__ = "family_management"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    manager_user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    managed_user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    managed_member_id = mapped_column(Integer, ForeignKey("family_members.id"), nullable=True)
+    status = mapped_column(String(20), default="active")
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    cancelled_at = mapped_column(DateTime, nullable=True)
+    cancelled_by = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
+
+    manager = relationship("User", foreign_keys=[manager_user_id])
+    managed_user = relationship("User", foreign_keys=[managed_user_id])
+
+
+class FamilyInvitation(Base):
+    __tablename__ = "family_invitations"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    invite_code = mapped_column(String(64), unique=True, nullable=False, index=True)
+    inviter_user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
+    member_id = mapped_column(Integer, ForeignKey("family_members.id"), nullable=False)
+    status = mapped_column(String(20), default="pending")
+    expires_at = mapped_column(DateTime, nullable=False)
+    accepted_by = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
+    accepted_at = mapped_column(DateTime, nullable=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+
+    inviter = relationship("User", foreign_keys=[inviter_user_id])
+    member = relationship("FamilyMember")
+
+
+class ManagementOperationLog(Base):
+    __tablename__ = "management_operation_logs"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    management_id = mapped_column(Integer, ForeignKey("family_management.id"), nullable=False)
+    operator_user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
+    operation_type = mapped_column(String(50), nullable=False)
+    operation_detail = mapped_column(JSON, nullable=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+
+    operator = relationship("User", foreign_keys=[operator_user_id])

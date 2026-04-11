@@ -158,6 +158,7 @@ const menuItems: MenuItem[] = [
       { key: '/health-records', label: '用户档案查看' },
       { key: '/relation-types', label: '关系类型配置' },
       { key: '/disease-presets', label: '预设列表管理' },
+      { key: '/family-management', label: '家庭共管管理' },
     ],
   },
   { key: '/customer-service', icon: <CustomerServiceOutlined />, label: '客服工作台' },
@@ -187,7 +188,7 @@ function getOpenKeys(pathname: string): string[] {
   if (pathname.startsWith('/search')) return ['search-manage'];
   if (pathname.startsWith('/sms') || pathname.startsWith('/settings') || pathname.startsWith('/wechat-push') || pathname.startsWith('/email-notify') || pathname.startsWith('/cos-config')) return ['system'];
   if (pathname.startsWith('/health-plan')) return ['health-plan'];
-  if (pathname.startsWith('/health-records') || pathname.startsWith('/relation-types') || pathname.startsWith('/disease-presets')) return ['health'];
+  if (pathname.startsWith('/health-records') || pathname.startsWith('/relation-types') || pathname.startsWith('/disease-presets') || pathname.startsWith('/family-management')) return ['health'];
   return [];
 }
 

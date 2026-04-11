@@ -8,6 +8,7 @@ import {
   Popup,
   Dialog,
   DatePicker,
+  Button,
 } from 'antd-mobile';
 import api from '@/lib/api';
 import DiseaseTagSelector, { type DiseaseItem } from '@/components/DiseaseTagSelector';
@@ -27,6 +28,26 @@ interface FamilyMember {
   height?: number;
   weight?: number;
   status: number;
+  member_user_id?: number | null;
+}
+
+interface ManagementItem {
+  id: number;
+  manager_user_id: number;
+  manager_nickname?: string;
+  managed_user_id: number;
+  managed_user_nickname?: string;
+  managed_member_id?: number;
+  status: string;
+  created_at: string;
+}
+
+interface ManagedByItem {
+  id: number;
+  manager_user_id: number;
+  manager_nickname?: string;
+  status: string;
+  created_at: string;
 }
 
 interface RelationType {
@@ -206,6 +227,10 @@ export default function HealthProfilePage() {
   // DatePicker for profile
   const [birthdayPickerVisible, setBirthdayPickerVisible] = useState(false);
 
+  // Family management
+  const [managementList, setManagementList] = useState<ManagementItem[]>([]);
+  const [managedByList, setManagedByList] = useState<ManagedByItem[]>([]);
+
   // ── Fetch members ────────────────────────────────────────────────────────────
 
   const fetchMembers = async () => {
@@ -272,9 +297,56 @@ export default function HealthProfilePage() {
     }
   };
 
+  const fetchManagement = async () => {
+    try {
+      const res: any = await api.get('/api/family/management');
+      const data = res.data || res;
+      setManagementList(Array.isArray(data.items) ? data.items : []);
+    } catch {
+      setManagementList([]);
+    }
+  };
+
+  const fetchManagedBy = async () => {
+    try {
+      const res: any = await api.get('/api/family/managed-by');
+      const data = res.data || res;
+      setManagedByList(Array.isArray(data.items) ? data.items : []);
+    } catch {
+      setManagedByList([]);
+    }
+  };
+
+  const handleUnlink = async (managementId: number) => {
+    const result = await Dialog.confirm({
+      title: '解除关联',
+      content: '解除后将无法查看和管理对方的健康档案，确认解除吗？',
+    });
+    if (result) {
+      try {
+        await api.delete(`/api/family/management/${managementId}`);
+        Toast.show({ content: '已解除关联', icon: 'success' });
+        await fetchManagement();
+        await fetchMembers();
+      } catch {
+        Toast.show({ content: '操作失败，请重试', icon: 'fail' });
+      }
+    }
+  };
+
+  const getManagementForMember = (memberId: number): ManagementItem | undefined => {
+    return managementList.find((m) => m.managed_member_id === memberId && m.status === 'active');
+  };
+
+  const isMemberLinked = (member: FamilyMember): boolean => {
+    return !!member.member_user_id || !!getManagementForMember(member.id);
+  };
+
   useEffect(() => {
     fetchMembers();
     fetchPresets();
+    fetchManagement();
+    fetchManagedBy();
     const fetchGuideStatus = async () => {
       try {
         const res: any = await api.get('/api/health/guide-status');
@@ -408,6 +480,32 @@ export default function HealthProfilePage() {
         健康档案
       </NavBar>
 
+      {/* ── Managed-by banner ──────────────────────────────────────────────── */}
+      {managedByList.length > 0 && (
+        <div className="px-4 pb-2">
+          <div
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl"
+            style={{ background: '#e6f7ff', border: '1px solid #91d5ff' }}
+          >
+            <span style={{ fontSize: 16 }}>👥</span>
+            <span className="text-xs text-gray-700 flex-1">
+              您的档案正在被{' '}
+              <span className="font-semibold" style={{ color: '#1890ff' }}>
+                {managedByList.map((m) => m.manager_nickname || '未知用户').join('、')}
+              </span>
+              {' '}共同管理
+            </span>
+            <span
+              className="text-xs flex-shrink-0 cursor-pointer"
+              style={{ color: '#1890ff' }}
+              onClick={() => router.push('/family-bindlist')}
+            >
+              查看
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* ── Guide banner ───────────────────────────────────────────────────── */}
       {showGuideBanner && (
         <div className="px-4 pb-2">
@@ -448,6 +546,7 @@ export default function HealthProfilePage() {
               const relationName = m.relation_type_name || m.relationship_type || '本人';
               const isSelected = m.id === selectedMemberId;
               const color = getRelationColor(relationName);
+              const linked = !m.is_self && isMemberLinked(m);
               return (
                 <div
                   key={m.id}
@@ -460,24 +559,32 @@ export default function HealthProfilePage() {
                   onMouseUp={handleLongPressEnd}
                   onMouseLeave={handleLongPressEnd}
                 >
-                  <div
-                    className="flex items-center justify-center rounded-full transition-all"
-                    style={{
-                      width: 44,
-                      height: 44,
-                      background: isSelected ? color : '#f0f0f0',
-                      boxShadow: isSelected ? `0 4px 12px ${color}55` : '0 1px 4px rgba(0,0,0,0.08)',
-                      border: isSelected ? 'none' : '1.5px solid #e8e8e8',
-                    }}
-                  >
-                    <span style={{
-                      color: isSelected ? '#fff' : '#555',
-                      fontSize: relationName.length > 2 ? 11 : 13,
-                      fontWeight: 600,
-                      lineHeight: 1.1,
-                    }}>
-                      {relationName.length > 2 ? relationName.slice(0, 2) : relationName}
-                    </span>
+                  <div className="relative">
+                    <div
+                      className="flex items-center justify-center rounded-full transition-all"
+                      style={{
+                        width: 44,
+                        height: 44,
+                        background: isSelected ? color : '#f0f0f0',
+                        boxShadow: isSelected ? `0 4px 12px ${color}55` : '0 1px 4px rgba(0,0,0,0.08)',
+                        border: isSelected ? 'none' : '1.5px solid #e8e8e8',
+                      }}
+                    >
+                      <span style={{
+                        color: isSelected ? '#fff' : '#555',
+                        fontSize: relationName.length > 2 ? 11 : 13,
+                        fontWeight: 600,
+                        lineHeight: 1.1,
+                      }}>
+                        {relationName.length > 2 ? relationName.slice(0, 2) : relationName}
+                      </span>
+                    </div>
+                    {!m.is_self && linked && (
+                      <div
+                        className="absolute -top-0.5 -right-0.5"
+                        style={{ width: 10, height: 10, borderRadius: '50%', background: '#52c41a', border: '2px solid #fff' }}
+                      />
+                    )}
                   </div>
                   {isSelected && (
                     <div style={{ width: 6, height: 6, borderRadius: '50%', background: color, marginTop: 4 }} />
@@ -491,6 +598,18 @@ export default function HealthProfilePage() {
                   >
                     {relationName}
                   </span>
+                  {!m.is_self && (
+                    <span
+                      className="text-center mt-0.5"
+                      style={{
+                        fontSize: 9,
+                        color: linked ? '#52c41a' : '#bbb',
+                        lineHeight: 1,
+                      }}
+                    >
+                      {linked ? '已关联' : '待邀请'}
+                    </span>
+                  )}
                 </div>
               );
             })
@@ -546,6 +665,51 @@ export default function HealthProfilePage() {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ── Invite / Unlink button ───────────────────────────────────────── */}
+      {selectedMember && !selectedMember.is_self && (
+        <div className="px-4 mb-3">
+          {isMemberLinked(selectedMember) ? (
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1.5 flex-1">
+                <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#52c41a' }} />
+                <span className="text-sm text-gray-400">已关联</span>
+              </div>
+              <Button
+                size="small"
+                style={{
+                  '--border-color': '#ff4d4f',
+                  '--text-color': '#ff4d4f',
+                  borderRadius: 20,
+                  fontSize: 12,
+                }}
+                onClick={() => {
+                  const mgmt = getManagementForMember(selectedMember.id);
+                  if (mgmt) handleUnlink(mgmt.id);
+                }}
+              >
+                解除关联
+              </Button>
+            </div>
+          ) : (
+            <Button
+              block
+              style={{
+                background: 'linear-gradient(135deg, #52c41a, #13c2c2)',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 24,
+                height: 44,
+                fontWeight: 600,
+                fontSize: 15,
+              }}
+              onClick={() => router.push(`/family-invite?member_id=${selectedMember.id}`)}
+            >
+              邀请本人关联
+            </Button>
+          )}
         </div>
       )}
 

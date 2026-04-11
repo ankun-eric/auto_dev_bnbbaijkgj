@@ -252,6 +252,143 @@
   color: #999;
 }
 
+/* Managed notice bar */
+.managed-notice {
+  display: flex;
+  align-items: center;
+  background: #e6f7ff;
+  border: 1rpx solid #91d5ff;
+  border-radius: 12rpx;
+  padding: 16rpx 24rpx;
+  margin-bottom: 24rpx;
+}
+
+.managed-notice-icon {
+  font-size: 32rpx;
+  margin-right: 12rpx;
+}
+
+.managed-notice-text {
+  flex: 1;
+  font-size: 26rpx;
+  color: #1890ff;
+}
+
+.managed-notice-arrow {
+  font-size: 24rpx;
+  color: #1890ff;
+}
+
+/* Tab link status */
+.family-tab-item {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  margin-right: 20rpx;
+  vertical-align: top;
+}
+
+.family-tab {
+  position: relative;
+  margin-right: 0;
+}
+
+.link-dot {
+  position: absolute;
+  top: 2rpx;
+  right: 2rpx;
+  width: 16rpx;
+  height: 16rpx;
+  border-radius: 50%;
+  border: 2rpx solid #fff;
+}
+
+.link-dot-green {
+  background: #52c41a;
+}
+
+.tab-link-label {
+  font-size: 18rpx;
+  margin-top: 6rpx;
+  line-height: 1;
+}
+
+.tab-link-linked {
+  color: #52c41a;
+}
+
+.tab-link-pending {
+  color: #faad14;
+}
+
+/* Family link card */
+.family-link-card {
+  margin-top: 8rpx;
+}
+
+.link-action-wrap {
+  margin-top: 16rpx;
+}
+
+.link-hint {
+  font-size: 24rpx;
+  color: #999;
+  display: block;
+  margin-bottom: 16rpx;
+}
+
+.invite-btn {
+  width: 100%;
+  height: 80rpx;
+  line-height: 80rpx;
+  font-size: 30rpx;
+  background: #52c41a;
+  color: #fff;
+  border: none;
+  border-radius: 12rpx;
+  text-align: center;
+}
+
+.invite-btn::after {
+  border: none;
+}
+
+.linked-status-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12rpx;
+}
+
+.linked-badge {
+  display: flex;
+  align-items: center;
+  background: #f6ffed;
+  border: 1rpx solid #b7eb8f;
+  border-radius: 24rpx;
+  padding: 8rpx 20rpx;
+}
+
+.linked-badge-dot {
+  width: 12rpx;
+  height: 12rpx;
+  border-radius: 50%;
+  background: #52c41a;
+  margin-right: 8rpx;
+}
+
+.linked-badge-text {
+  font-size: 24rpx;
+  color: #52c41a;
+  font-weight: 500;
+}
+
+.unlink-btn {
+  font-size: 24rpx;
+  color: #ff4d4f;
+  padding: 8rpx 20rpx;
+}
+
 .save-section {
   position: fixed;
   bottom: 0;

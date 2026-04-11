@@ -24,6 +24,7 @@ from app.api import (
     email_notify,
     expert,
     family,
+    family_management,
     font_setting,
     function_button,
     health_plan_v2,
@@ -91,6 +92,7 @@ app.include_router(expert.router)
 app.include_router(points.router)
 app.include_router(plan.router)
 app.include_router(family.router)
+app.include_router(family_management.router)
 app.include_router(content.router)
 app.include_router(notification.router)
 app.include_router(customer_service.router)

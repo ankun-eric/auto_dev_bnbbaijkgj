@@ -1,0 +1,61 @@
+<view class="auth-page">
+  <!-- Loading -->
+  <view class="loading-wrap" wx:if="{{loading}}">
+    <view class="loading-spinner"></view>
+    <text class="loading-text">正在加载邀请信息…</text>
+  </view>
+
+  <!-- Error -->
+  <view class="result-wrap" wx:elif="{{error}}">
+    <text class="result-icon">⚠️</text>
+    <text class="result-text">{{error}}</text>
+    <button class="home-btn" bindtap="goHome">返回首页</button>
+  </view>
+
+  <!-- Result -->
+  <view class="result-wrap" wx:elif="{{resultStatus}}">
+    <text class="result-icon" wx:if="{{resultStatus === 'success'}}">✅</text>
+    <text class="result-icon" wx:elif="{{resultStatus === 'rejected'}}">🚫</text>
+    <text class="result-icon" wx:else>❌</text>
+    <text class="result-text">{{resultMessage}}</text>
+    <view class="result-actions">
+      <button class="home-btn" bindtap="goHome">返回首页</button>
+      <button class="bindlist-btn" wx:if="{{resultStatus === 'success'}}" bindtap="goBindList">查看关联列表</button>
+    </view>
+  </view>
+
+  <!-- Confirmation dialog -->
+  <view class="auth-content" wx:elif="{{invitation}}">
+    <view class="auth-card">
+      <view class="auth-icon-wrap">
+        <text class="auth-icon">🤝</text>
+      </view>
+      <text class="auth-title">家庭健康档案共管邀请</text>
+      <text class="auth-desc">对方希望能查看和管理您的健康档案</text>
+
+      <view class="auth-detail">
+        <view class="detail-row" wx:if="{{invitation.inviter_nickname}}">
+          <text class="detail-label">邀请人</text>
+          <text class="detail-value">{{invitation.inviter_nickname}}</text>
+        </view>
+        <view class="detail-row" wx:if="{{invitation.member_nickname}}">
+          <text class="detail-label">关联身份</text>
+          <text class="detail-value">{{invitation.member_nickname}}</text>
+        </view>
+        <view class="detail-row" wx:if="{{invitation.expires_at}}">
+          <text class="detail-label">有效期至</text>
+          <text class="detail-value">{{invitation.expires_at}}</text>
+        </view>
+      </view>
+
+      <view class="auth-notice">
+        <text class="notice-text">授权后，对方可以查看和编辑您的健康档案信息。您可以随时在「家庭关联」中取消授权。</text>
+      </view>
+    </view>
+
+    <view class="auth-actions">
+      <button class="reject-btn" bindtap="onReject" disabled="{{processing}}">拒绝</button>
+      <button class="accept-btn" bindtap="onAccept" disabled="{{processing}}" loading="{{processing}}">同意授权</button>
+    </view>
+  </view>
+</view>

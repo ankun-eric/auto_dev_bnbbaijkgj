@@ -114,6 +114,7 @@ class ProfileScreen extends StatelessWidget {
                 _buildMenuSection('健康管理', [
                   _MenuItem(Icons.folder_outlined, '健康档案', () => Navigator.pushNamed(context, '/health-profile')),
                   _MenuItem(Icons.family_restroom, '家庭成员', () => Navigator.pushNamed(context, '/family')),
+                  _MenuItem(Icons.link, '家庭关联', () => Navigator.pushNamed(context, '/family-bindlist')),
                   _MenuItem(Icons.calendar_today, '健康计划', () => Navigator.pushNamed(context, '/health-plan')),
                   _MenuItem(Icons.assignment, '体检报告', () => Navigator.pushNamed(context, '/checkup')),
                 ]),

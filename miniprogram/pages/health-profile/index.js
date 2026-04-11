@@ -1,4 +1,4 @@
-const { get, put } = require('../../utils/request');
+const { get, put, del } = require('../../utils/request');
 
 const RELATION_COLORS = {
   '本人': '#52c41a',
@@ -51,12 +51,19 @@ Page({
 
     chronicOtherInput: '',
     allergyOtherInput: '',
-    geneticOtherInput: ''
+    geneticOtherInput: '',
+
+    managementList: [],
+    isManagedByOthers: false,
+    managedByList: [],
+    currentMemberLinked: false,
+    currentMemberManagementId: null
   },
 
   onLoad() {
     this.loadFamilyTabs();
     this.loadPresets();
+    this.loadManagedByInfo();
   },
 
   onShow() {
@@ -82,31 +89,68 @@ Page({
 
   async loadFamilyTabs() {
     try {
-      const res = await get('/api/family/members', {}, { showLoading: false, suppressErrorToast: true });
-      const items = res && res.items ? res.items : [];
+      const [membersRes, mgmtRes] = await Promise.all([
+        get('/api/family/members', {}, { showLoading: false, suppressErrorToast: true }),
+        get('/api/family/management', {}, { showLoading: false, suppressErrorToast: true }).catch(() => ({ items: [] }))
+      ]);
+      const items = membersRes && membersRes.items ? membersRes.items : [];
+      const mgmtItems = mgmtRes && mgmtRes.items ? mgmtRes.items : [];
+      const mgmtMap = {};
+      mgmtItems.forEach(m => { mgmtMap[m.managed_member_id] = m; });
+
       const tabs = items.map(m => ({
         id: m.id,
         name: m.relation_type_name || m.nickname || '本人',
         color: getRelationColor(m.relation_type_name || ''),
-        is_self: m.is_self
+        is_self: m.is_self,
+        linked: !!mgmtMap[m.id],
+        managementId: mgmtMap[m.id] ? mgmtMap[m.id].id : null
       }));
       if (!tabs.some(t => t.is_self)) {
-        tabs.unshift({ id: 0, name: '本人', color: '#52c41a', is_self: true });
+        tabs.unshift({ id: 0, name: '本人', color: '#52c41a', is_self: true, linked: false, managementId: null });
       }
-      this.setData({ familyTabs: tabs, activeTabIndex: 0 });
+      this.setData({
+        familyTabs: tabs,
+        activeTabIndex: 0,
+        managementList: mgmtItems
+      });
+      this.updateCurrentMemberLinkStatus(0);
       this.loadProfile();
     } catch (e) {
       this.setData({
-        familyTabs: [{ id: 0, name: '本人', color: '#52c41a', is_self: true }],
+        familyTabs: [{ id: 0, name: '本人', color: '#52c41a', is_self: true, linked: false, managementId: null }],
         activeTabIndex: 0
       });
       this.loadProfile();
     }
   },
 
+  async loadManagedByInfo() {
+    try {
+      const res = await get('/api/family/managed-by', {}, { showLoading: false, suppressErrorToast: true });
+      const items = res && res.items ? res.items : [];
+      this.setData({
+        isManagedByOthers: items.length > 0,
+        managedByList: items
+      });
+    } catch (e) {
+      this.setData({ isManagedByOthers: false, managedByList: [] });
+    }
+  },
+
+  updateCurrentMemberLinkStatus(index) {
+    const tab = this.data.familyTabs[index];
+    if (!tab) return;
+    this.setData({
+      currentMemberLinked: !!tab.linked,
+      currentMemberManagementId: tab.managementId || null
+    });
+  },
+
   onTabSelect(e) {
     const index = e.currentTarget.dataset.index;
     this.setData({ activeTabIndex: index });
+    this.updateCurrentMemberLinkStatus(index);
     this.loadProfile();
   },
 
@@ -379,6 +423,36 @@ Page({
   // ── WXS helper proxies (called from WXML via event data) ──
   _isPresetSelected(items, name) {
     return isPresetSelected(items, name);
+  },
+
+  onInviteLink() {
+    const tab = this.data.familyTabs[this.data.activeTabIndex];
+    if (!tab || tab.is_self) return;
+    wx.navigateTo({ url: `/pages/family-invite/index?member_id=${tab.id}` });
+  },
+
+  onUnlink() {
+    const tab = this.data.familyTabs[this.data.activeTabIndex];
+    if (!tab || !tab.managementId) return;
+    wx.showModal({
+      title: '解除关联',
+      content: `确定要解除与「${tab.name}」的关联吗？解除后将无法查看对方健康档案。`,
+      confirmColor: '#ff4d4f',
+      success: async (res) => {
+        if (!res.confirm) return;
+        try {
+          await del(`/api/family/management/${tab.managementId}`);
+          wx.showToast({ title: '已解除关联', icon: 'success' });
+          this.loadFamilyTabs();
+        } catch (e) {
+          wx.showToast({ title: '操作失败', icon: 'none' });
+        }
+      }
+    });
+  },
+
+  goBindList() {
+    wx.navigateTo({ url: '/pages/family-bindlist/index' });
   },
 
   async saveProfile() {

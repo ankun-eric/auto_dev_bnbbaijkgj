@@ -751,6 +751,39 @@ class ApiService {
     });
   }
 
+  // Family Management
+  Future<Response> createFamilyInvitation(int memberId) async {
+    return _dio.post(ApiConfig.familyInvitation, data: {'member_id': memberId});
+  }
+
+  Future<Response> getFamilyInvitation(String code) async {
+    return _dio.get('${ApiConfig.familyInvitation}/$code');
+  }
+
+  Future<Response> acceptFamilyInvitation(String code) async {
+    return _dio.post('${ApiConfig.familyInvitation}/$code/accept');
+  }
+
+  Future<Response> rejectFamilyInvitation(String code) async {
+    return _dio.post('${ApiConfig.familyInvitation}/$code/reject');
+  }
+
+  Future<Response> getFamilyManagementList() async {
+    return _dio.get(ApiConfig.familyManagement);
+  }
+
+  Future<Response> getManagedByList() async {
+    return _dio.get(ApiConfig.familyManagedBy);
+  }
+
+  Future<Response> deleteFamilyManagement(int id) async {
+    return _dio.delete('${ApiConfig.familyManagement}/$id');
+  }
+
+  Future<Response> getFamilyManagementLogs(int id) async {
+    return _dio.get('${ApiConfig.familyManagement}/$id/logs');
+  }
+
   // Home dynamic config
   Future<Map<String, dynamic>> getHomeConfig() async {
     final response = await _dio.get(ApiConfig.homeConfig);
