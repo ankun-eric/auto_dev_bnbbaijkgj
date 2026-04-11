@@ -310,7 +310,7 @@ export default function OcrConfigPage() {
     setTestOcrResult(null);
     try {
       const formData = new FormData();
-      formData.append('file', testOcrFile);
+      formData.append('files', testOcrFile);
       formData.append('provider', activeProvider);
       const res = await api.post('/api/admin/ocr/test-ocr', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },

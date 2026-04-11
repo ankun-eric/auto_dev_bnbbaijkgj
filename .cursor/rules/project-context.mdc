@@ -32,7 +32,34 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api/`
 
-## Latest Update: 健康管理档案功能优化 (2026-04-11)
+## Latest Update: 体检报告AI解读 & 后台OCR测试Bug修复 (2026-04-11)
+
+### 概要
+修复两个Bug：(1) H5端体检报告AI解读总是失败 — `call_ai_model()` 超时从60s延长至120s，新增3次自动重试机制，失败时抛出异常而非静默返回错误字符串，增加详细日志记录；(2) 后台OCR配置页面"测试OCR"按钮无响应 — 前端上传字段名 `file` 改为 `files`，与后端参数名一致。
+
+### 各端变更
+
+| 端 | 主要变更 |
+| --- | --- |
+| Backend | `ai_service.py`: 超时120s、3次重试、raise Exception、详细日志；`report.py`: analyze_report异常日志+具体错误信息 |
+| Admin-web | `ocr-config/page.tsx`: handleTestOcr 字段名 `file`→`files` |
+
+### 关键文件
+
+```text
+backend/app/services/ai_service.py            # call_ai_model 超时/重试/异常处理优化
+backend/app/api/report.py                     # analyze_report 接口日志和错误信息增强
+admin-web/src/app/(admin)/ocr-config/page.tsx  # 测试OCR字段名修正
+backend/tests/test_ai_report_bugfix.py         # 10个Bug修复验证测试
+backend/tests/test_server_bugfix_validation.py # 11个服务器验证测试
+```
+
+### 用户手册
+- `user_docs/体检报告AI解读与OCR测试Bug修复.md`
+
+---
+
+## Previous Update: 健康管理档案功能优化 (2026-04-11)
 
 ### 概要
 全面优化「健康管理档案」模块：慢性病史和家族遗传病史增加"其它"手工填写项；过敏史从三个文本输入框改造为预设标签选择+"其它"手工填写；后台统一管理三类预设标签（新增 allergy 分类）并增加超级管理员权限控制；健康引导页和健康自查页面同步改造；所有入口填写的健康信息同步回写到 HealthProfile。

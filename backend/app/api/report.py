@@ -1,3 +1,4 @@
+import logging
 import os
 import uuid
 from datetime import datetime, timedelta
@@ -58,6 +59,8 @@ from app.services.ocr_service import (
 )
 from app.utils.cos_helper import try_cos_upload
 from app.utils.file_helper import read_file_content
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["体检报告"])
 
@@ -289,9 +292,18 @@ async def analyze_report(
     try:
         analysis = await analyze_report_structured(ocr_text, user_profile, db, custom_prompt=custom_prompt)
     except Exception as e:
+        logger.error(
+            "AI解读失败 report_id=%s user_id=%s: %s",
+            report_id, current_user.id, e, exc_info=True,
+        )
         report.status = "failed"
         await db.flush()
-        raise HTTPException(status_code=500, detail=f"AI解读失败: {str(e)}")
+        error_detail = str(e)
+        if "timeout" in error_detail.lower() or "timed out" in error_detail.lower():
+            raise HTTPException(status_code=500, detail="AI解读超时，请稍后重试")
+        if "connect" in error_detail.lower():
+            raise HTTPException(status_code=500, detail="AI服务连接失败，请稍后重试")
+        raise HTTPException(status_code=500, detail=f"AI解读失败: {error_detail}")
 
     for old_ind in list(report.checkup_indicators):
         await db.delete(old_ind)

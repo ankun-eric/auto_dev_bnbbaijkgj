@@ -1,4 +1,6 @@
+import asyncio
 import json
+import logging
 from typing import Any, Dict, List, Optional
 
 import httpx
@@ -7,6 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.models.models import AIModelConfig
+
+logger = logging.getLogger(__name__)
 
 
 async def _get_active_model_config(db: Optional[AsyncSession] = None) -> Dict[str, Any]:
@@ -66,25 +70,56 @@ async def call_ai_model(
         "max_tokens": int(config.get("max_tokens", 4096)),
     }
 
-    try:
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            resp = await client.post(url, json=payload, headers=headers)
-            resp.raise_for_status()
-            data = resp.json()
-            content = data["choices"][0]["message"]["content"]
-            if return_usage:
-                usage = data.get("usage")
-                return {
-                    "content": content,
-                    "model": config["model"],
-                    "usage": usage,
-                }
-            return content
-    except Exception as e:
-        fallback = f"AI服务调用失败: {str(e)}"
-        if return_usage:
-            return {"content": fallback, "model": config["model"], "usage": None}
-        return fallback
+    max_attempts = 3
+    retry_delay = 2
+    last_exception: Optional[Exception] = None
+
+    for attempt in range(1, max_attempts + 1):
+        try:
+            async with httpx.AsyncClient(timeout=120.0) as client:
+                resp = await client.post(url, json=payload, headers=headers)
+                resp.raise_for_status()
+                data = resp.json()
+                content = data["choices"][0]["message"]["content"]
+                if return_usage:
+                    usage = data.get("usage")
+                    return {
+                        "content": content,
+                        "model": config["model"],
+                        "usage": usage,
+                    }
+                return content
+        except (httpx.TimeoutException, httpx.ConnectError, httpx.NetworkError) as e:
+            last_exception = e
+            logger.warning(
+                "AI model call attempt %d/%d failed (url=%s, model=%s): %s",
+                attempt, max_attempts, url, config["model"], e,
+            )
+            if attempt < max_attempts:
+                await asyncio.sleep(retry_delay)
+        except httpx.HTTPStatusError as e:
+            last_exception = e
+            logger.error(
+                "AI model call HTTP error (url=%s, model=%s, status=%s): %s",
+                url, config["model"], e.response.status_code, e,
+            )
+            if e.response.status_code >= 500 and attempt < max_attempts:
+                await asyncio.sleep(retry_delay)
+                continue
+            break
+        except Exception as e:
+            last_exception = e
+            logger.error(
+                "AI model call unexpected error (url=%s, model=%s): %s",
+                url, config["model"], e, exc_info=True,
+            )
+            break
+
+    error_msg = f"AI服务调用失败: {str(last_exception)}"
+    logger.error("AI model call failed after %d attempts: %s", max_attempts, last_exception)
+    if return_usage:
+        return {"content": error_msg, "model": config["model"], "usage": None}
+    raise Exception(error_msg)
 
 
 async def analyze_checkup_report(ocr_text: str, user_profile: Optional[Dict] = None, db: Optional[AsyncSession] = None) -> str:
