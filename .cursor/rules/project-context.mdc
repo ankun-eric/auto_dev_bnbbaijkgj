@@ -32,7 +32,26 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api/`
 
-## Latest Update: 健康计划模块 H5 端 Bug 修复 (2026-04-11)
+## Latest Update: 健康自查"为谁咨询"弹窗默认选中本人自动带出档案 Bug 修复 (2026-04-11)
+
+### 概要
+修复 H5 端健康自查页面 `/symptom` 的 Bug：弹出"为谁咨询"弹窗时默认选中"本人"但未自动加载本人健康档案信息。提取 `loadProfileFromMember` 辅助函数，在 `openMemberPopup` 中直接从 API 返回的 `items` 局部变量加载默认选中成员的档案数据，同时修复了添加新成员后自动选中时的同类问题。
+
+### 各端变更
+
+| 端 | 主要变更 |
+| --- | --- |
+| H5 | `openMemberPopup` 默认选中成员后自动加载档案；`handleAddMemberConfirm` 使用 `loadProfileFromMember(items, id)` 替代 `handleSelectMember` 避免 state 异步问题 |
+
+### 关键文件
+
+```text
+h5-web/src/app/symptom/page.tsx        # loadProfileFromMember 提取 + openMemberPopup / handleAddMemberConfirm 修复
+```
+
+---
+
+## Previous Update: 健康计划模块 H5 端 Bug 修复 (2026-04-11)
 
 ### 概要
 修复 H5 端健康计划模块的 3 个 Bug：首页今日待办健康计划按计划名称分组显示、健康打卡列表页编辑删除按钮位置优化、自定义计划编辑页空白问题修复。

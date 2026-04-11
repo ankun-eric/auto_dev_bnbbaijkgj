@@ -183,18 +183,19 @@ export default function SymptomPage() {
         items = [{ id: -1, nickname: '本人', relationship_type: 'self', is_self: true, relation_type_name: '本人' }, ...items];
       }
       setFamilyMembers(items);
-      setSelectedMemberId(items[0]?.id ?? null);
+      const defaultId = items[0]?.id ?? null;
+      setSelectedMemberId(defaultId);
+      loadProfileFromMember(items, defaultId);
     } catch {
       setFamilyMembers([{ id: -1, nickname: '本人', relationship_type: 'self', is_self: true, relation_type_name: '本人' }]);
       setSelectedMemberId(-1);
+      setProfileEdits(emptyProfile());
     }
-    setProfileEdits(emptyProfile());
     setMemberPopupVisible(true);
   };
 
-  const handleSelectMember = (id: number) => {
-    setSelectedMemberId(id);
-    const m = familyMembers.find((x) => x.id === id);
+  const loadProfileFromMember = (members: FamilyMember[], id: number | null) => {
+    const m = id !== null ? members.find((x) => x.id === id) : undefined;
     if (m) {
       const allMedical = m.medical_histories || [];
       const knownMedical = allMedical.filter((h) => medicalHistoryOptions.includes(h));
@@ -215,6 +216,11 @@ export default function SymptomPage() {
     } else {
       setProfileEdits(emptyProfile());
     }
+  };
+
+  const handleSelectMember = (id: number) => {
+    setSelectedMemberId(id);
+    loadProfileFromMember(familyMembers, id);
   };
 
   const toggleProfileTag = (field: 'medical_histories' | 'allergies', val: string) => {
@@ -295,7 +301,7 @@ export default function SymptomPage() {
         setFamilyMembers(items);
         if (created.id) {
           setSelectedMemberId(created.id);
-          handleSelectMember(created.id);
+          loadProfileFromMember(items, created.id);
         }
       } catch {
         // keep existing list
