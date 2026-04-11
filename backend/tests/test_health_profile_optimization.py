@@ -17,7 +17,7 @@ _PHONE_SUFFIX = "".join(random.choices(string.digits, k=8))
 TEST_PHONE = f"139{_PHONE_SUFFIX}"
 TEST_PASSWORD = "TestPass1234"
 
-ADMIN_PHONE = "admin"
+ADMIN_PHONE = "13800000000"
 ADMIN_PASSWORD = "admin123"
 
 
