@@ -33,45 +33,73 @@ alwaysApply: false
 - Admin: `https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/`
 - API: `https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api/`
 
-## Latest Update: 健康打卡Bug修复与积分规则优化 (2026-04-12)
+## Latest Update: 家人邀请扫码重复扫码修复 (2026-04-12)
 
 ### 概要
-三合一更新：1) 修复"打卡送积分"上线后导致所有打卡操作失败的P0级Bug（异常容错+数据库枚举同步+配置默认值保护）；2) 积分规则配置页面合并（删除打卡规则Tab，新增"健康打卡每日上限"字段）；3) 实现"完善健康档案"送积分功能（改名+首次完善4字段自动发放一次性积分）。
-
-### 数据库变更
-- `PointsType` 枚举新增 `completeProfile` 值
-- `SystemConfig` 表新增配置项 `healthCheckInDailyLimit`（迁移自 `checkin_points_daily_limit`）
-- 打卡积分配置从旧字段（`checkin_points_*`）迁移到通用规则字段（`healthCheckIn` + `healthCheckInDailyLimit`）
+修复家人邀请二维码导致重复扫码的问题。二维码内容从 `/scan?type=family_invite&code=xxx`（扫码中转页）统一修改为 `/family-auth?code=xxx`（直接指向授权页），各端扫码兼容新旧格式，H5 授权页新增微信环境检测与 URL Scheme 跳转，所有端授权页 UI 优化为简洁确认版+详细成功版。
 
 ### Backend 变更
 
 | 文件 | 变更 |
 | --- | --- |
-| `backend/app/services/checkin_points_service.py` | 重构配置读取（改用 healthCheckIn/healthCheckInDailyLimit）；添加全面异常容错；新增 `award_complete_profile_points` 函数 |
-| `backend/app/api/health_plan_v2.py` | 6处打卡积分发放调用添加 try-except 容错 |
-| `backend/app/api/health_profile.py` | POST/PUT 保存本人档案时增加完善健康档案积分发放逻辑 |
-| `backend/app/api/admin.py` | 积分规则API查询扩展支持新配置key |
-| `backend/app/models/models.py` | PointsType 枚举添加 completeProfile |
-| `backend/app/main.py` | 启动时自动迁移 PointsType ENUM列和配置数据 |
+| `backend/app/api/family_management.py` | `qr_content_url` 从 `/scan?type=family_invite&code=` 改为 `/family-auth?code=` |
+| `backend/app/api/scan.py` | `redirect_url` 从 `/family-invite-confirm?code=` 改为 `/family-auth?code=` |
 
-### Frontend 变更
+### H5 变更
 
 | 文件 | 变更 |
 | --- | --- |
-| `admin-web/src/app/(admin)/points/rules/page.tsx` | 删除Tabs组件和打卡规则Tab；"完善个人资料"改名为"完善健康档案"；新增"健康打卡每日上限"字段 |
+| `h5-web/src/app/family-invite/page.tsx` | 二维码 fallback URL 从 `/scan` 改为 `/family-auth` |
+| `h5-web/src/app/scan/page.tsx` | 新增 URL 参数检测，旧二维码自动重定向到 `/family-auth`；Suspense 包裹 |
+| `h5-web/src/app/family-auth/page.tsx` | 新增微信环境检测+URL Scheme 跳转；授权确认页简洁化；授权成功页详细化 |
+
+### Flutter 变更
+
+| 文件 | 变更 |
+| --- | --- |
+| `flutter_app/lib/screens/family/family_invite_screen.dart` | 二维码从 API 地址改为 H5 授权页地址 |
+| `flutter_app/lib/screens/home/home_screen.dart` | 扫码支持新旧两种 URL 格式 |
+| `flutter_app/lib/screens/family/family_auth_screen.dart` | 授权页 UI 优化（简洁确认+详细成功） |
+
+### 小程序变更
+
+| 文件 | 变更 |
+| --- | --- |
+| `miniprogram/pages/home/index.js` | `onScanTap` 支持新旧两种二维码格式 |
+| `miniprogram/pages/family-auth/index.wxml` | 授权页 UI 优化（简洁确认+详细成功） |
+| `miniprogram/pages/family-auth/index.wxss` | 新增成功页样式 |
+| `miniprogram/pages/family-auth/index.js` | 新增 `goHomeLater` 方法 |
 
 ### 关键文件
 
 ```text
-backend/app/services/checkin_points_service.py          # 打卡积分服务（重构+完善档案积分）
-backend/app/api/health_plan_v2.py                       # 4个打卡接口异常容错
-backend/app/api/health_profile.py                       # 保存档案时发放积分
-backend/app/api/admin.py                                # 积分规则API
-backend/app/models/models.py                            # PointsType枚举
-backend/app/main.py                                     # 启动迁移脚本
-admin-web/src/app/(admin)/points/rules/page.tsx         # 积分规则配置页面
-backend/tests/test_checkin_points_bugfix.py             # 9个自动化测试用例（全部通过）
+backend/app/api/family_management.py                     # 邀请接口 qr_content_url 修正
+backend/app/api/scan.py                                  # 扫码中转 redirect_url 修正
+h5-web/src/app/family-invite/page.tsx                    # H5 二维码内容修正
+h5-web/src/app/scan/page.tsx                             # 旧二维码兼容重定向
+h5-web/src/app/family-auth/page.tsx                      # 微信检测+授权页UI优化
+flutter_app/lib/screens/family/family_invite_screen.dart # Flutter 二维码修正
+flutter_app/lib/screens/home/home_screen.dart            # Flutter 扫码兼容
+flutter_app/lib/screens/family/family_auth_screen.dart   # Flutter 授权页UI优化
+miniprogram/pages/home/index.js                          # 小程序扫码兼容
+miniprogram/pages/family-auth/                           # 小程序授权页UI优化
+backend/tests/test_family_invite_qrcode_fix.py           # 9个自动化测试用例（全部通过）
 ```
+
+### 客户端包更新
+- 安卓 APK: `bini_health_android-v20260412-104823-9505.apk`
+- iOS IPA: GitHub Release `ios-v20260412-104713-8390`
+- 小程序: `miniprogram_20260412_104659_gQlZ.zip`
+
+### 用户手册
+- `user_docs/家人邀请扫码修复.md`
+
+---
+
+## Previous Update: 健康打卡Bug修复与积分规则优化 (2026-04-12)
+
+### 概要
+三合一更新：1) 修复"打卡送积分"上线后导致所有打卡操作失败的P0级Bug（异常容错+数据库枚举同步+配置默认值保护）；2) 积分规则配置页面合并（删除打卡规则Tab，新增"健康打卡每日上限"字段）；3) 实现"完善健康档案"送积分功能（改名+首次完善4字段自动发放一次性积分）。
 
 ### 用户手册
 - `user_docs/健康打卡Bug修复与积分规则优化.md`
