@@ -50,7 +50,7 @@ async def _handle_family_invite(code: str, db: AsyncSession):
     )
     member = member_result.scalar_one_or_none()
 
-    redirect_url = f"{BASE_URL}/family-invite-confirm?code={code}"
+    redirect_url = f"{BASE_URL}/family-auth?code={code}"
 
     return {
         "type": "family_invite",

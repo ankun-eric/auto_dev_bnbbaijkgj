@@ -67,7 +67,7 @@ class _FamilyInviteScreenState extends State<FamilyInviteScreen> {
 
   String get _qrContentUrl {
     if (_invitation == null) return '';
-    return '${ApiConfig.baseUrl}/api/family/invitation/${_invitation!.inviteCode}?type=family_invite&code=${_invitation!.inviteCode}';
+    return '${ApiConfig.baseUrl}/family-auth?code=${_invitation!.inviteCode}';
   }
 
   String get _inviteLink {

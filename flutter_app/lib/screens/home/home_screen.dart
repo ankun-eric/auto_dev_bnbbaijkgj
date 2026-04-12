@@ -253,12 +253,23 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _handleScanResult(String code) {
     final uri = Uri.tryParse(code);
-    if (uri != null && uri.queryParameters.containsKey('type') && uri.queryParameters.containsKey('code')) {
-      final type = uri.queryParameters['type'];
-      final inviteCode = uri.queryParameters['code'];
-      if (type == 'family_invite' && inviteCode != null && inviteCode.isNotEmpty) {
-        Navigator.pushNamed(context, '/family-auth', arguments: inviteCode);
-        return;
+    if (uri != null) {
+      // 新格式：/family-auth?code=xxx
+      if (uri.path.contains('/family-auth')) {
+        final inviteCode = uri.queryParameters['code'];
+        if (inviteCode != null && inviteCode.isNotEmpty) {
+          Navigator.pushNamed(context, '/family-auth', arguments: inviteCode);
+          return;
+        }
+      }
+      // 旧格式兼容：type=family_invite&code=xxx
+      if (uri.queryParameters.containsKey('type') && uri.queryParameters.containsKey('code')) {
+        final type = uri.queryParameters['type'];
+        final inviteCode = uri.queryParameters['code'];
+        if (type == 'family_invite' && inviteCode != null && inviteCode.isNotEmpty) {
+          Navigator.pushNamed(context, '/family-auth', arguments: inviteCode);
+          return;
+        }
       }
     }
     ScaffoldMessenger.of(context).showSnackBar(

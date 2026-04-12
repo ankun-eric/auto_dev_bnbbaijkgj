@@ -219,35 +219,93 @@ class _FamilyAuthScreenState extends State<FamilyAuthScreen> {
   }
 
   Widget _buildResult() {
+    if (!_isSuccess) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.error, size: 48, color: Colors.red),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                _resultMessage!,
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Color(0xFF333333)),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 32),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('返回'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final inviterName = _invitation?.inviterNickname ?? '';
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            CircleAvatar(
+              radius: 48,
+              backgroundColor: const Color(0xFF52C41A).withOpacity(0.1),
+              child: const Icon(Icons.person, size: 48, color: Color(0xFF52C41A)),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              inviterName,
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF333333)),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              '$inviterName 已成为你的家人',
+              style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 8),
             Container(
-              width: 80,
-              height: 80,
+              width: 64,
+              height: 64,
               decoration: BoxDecoration(
-                color: (_isSuccess ? const Color(0xFF52C41A) : Colors.red).withOpacity(0.1),
+                color: const Color(0xFF52C41A).withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
-              child: Icon(
-                _isSuccess ? Icons.check_circle : Icons.error,
-                size: 48,
-                color: _isSuccess ? const Color(0xFF52C41A) : Colors.red,
+              child: const Icon(Icons.check_circle, size: 40, color: Color(0xFF52C41A)),
+            ),
+            const SizedBox(height: 40),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  Navigator.pushNamed(context, '/family');
+                },
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                ),
+                child: const Text('查看家庭成员'),
               ),
             ),
-            const SizedBox(height: 24),
-            Text(
-              _resultMessage!,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Color(0xFF333333)),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 32),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('返回'),
+            const SizedBox(height: 16),
+            GestureDetector(
+              onTap: () => Navigator.pop(context),
+              child: Text(
+                '稍后再说',
+                style: TextStyle(fontSize: 15, color: Colors.grey[500], decoration: TextDecoration.underline),
+              ),
             ),
           ],
         ),
@@ -256,124 +314,57 @@ class _FamilyAuthScreenState extends State<FamilyAuthScreen> {
   }
 
   Widget _buildContent() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        children: [
-          const SizedBox(height: 32),
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              color: const Color(0xFF52C41A).withOpacity(0.1),
-              shape: BoxShape.circle,
+    final inviterName = _invitation?.inviterNickname ?? '';
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const SizedBox(height: 48),
+            Text(
+              inviterName,
+              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF333333)),
             ),
-            child: const Icon(Icons.person_add, size: 40, color: Color(0xFF52C41A)),
-          ),
-          const SizedBox(height: 24),
-          const Text(
-            '健康档案关联邀请',
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF333333)),
-          ),
-          const SizedBox(height: 32),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.06),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
+            const SizedBox(height: 16),
+            Text(
+              'TA 邀请你加入家庭健康圈',
+              style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 56),
+            if (_invitation?.status == 'pending') ...[
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _processing ? null : () => _showConfirmDialog(true),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                  ),
+                  child: _processing
+                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Text('同意', style: TextStyle(fontSize: 16)),
                 ),
-              ],
-            ),
-            child: Column(
-              children: [
-                _buildInfoRow('邀请人', _invitation?.inviterNickname ?? ''),
-                const Divider(height: 24),
-                _buildInfoRow('关联成员', _invitation?.memberNickname ?? ''),
-                const Divider(height: 24),
-                _buildInfoRow('邀请状态', _statusText(_invitation?.status ?? '')),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF6FFED),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFB7EB8F)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('授权说明', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF52C41A))),
-                const SizedBox(height: 8),
-                Text(
-                  '同意后，对方可以查看并管理您的健康档案信息。您可以随时在「家庭关联」中取消授权。',
-                  style: TextStyle(fontSize: 13, color: Colors.grey[700], height: 1.6),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 40),
-          if (_invitation?.status == 'pending') ...[
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _processing ? null : () => _showConfirmDialog(true),
-                child: _processing
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                    : const Text('同意授权'),
               ),
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton(
-                onPressed: _processing ? null : () => _showConfirmDialog(false),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.red,
-                  side: const BorderSide(color: Colors.red),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              const SizedBox(height: 14),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: _processing ? null : () => _showConfirmDialog(false),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.grey[600],
+                    side: BorderSide(color: Colors.grey[300]!),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                  ),
+                  child: const Text('拒绝', style: TextStyle(fontSize: 16)),
                 ),
-                child: const Text('拒绝'),
               ),
-            ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
 
-  Widget _buildInfoRow(String label, String value) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(label, style: TextStyle(fontSize: 15, color: Colors.grey[600])),
-        Text(value, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF333333))),
-      ],
-    );
-  }
-
-  String _statusText(String status) {
-    switch (status) {
-      case 'pending':
-        return '待确认';
-      case 'accepted':
-        return '已同意';
-      case 'rejected':
-        return '已拒绝';
-      case 'expired':
-        return '已过期';
-      default:
-        return status;
-    }
-  }
 }

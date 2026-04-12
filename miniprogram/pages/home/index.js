@@ -425,12 +425,20 @@ Page({
       onlyFromCamera: false,
       success: (res) => {
         const result = res.result || '';
-        const match = result.match(/type=family_invite&code=([^&]+)/);
-        if (match && match[1]) {
-          wx.navigateTo({ url: `/pages/family-auth/index?code=${match[1]}` });
-        } else {
-          wx.showToast({ title: '无法识别该二维码', icon: 'none' });
+
+        const familyAuthMatch = result.match(/\/family-auth\?code=([^&]+)/);
+        if (familyAuthMatch && familyAuthMatch[1]) {
+          wx.navigateTo({ url: `/pages/family-auth/index?code=${familyAuthMatch[1]}` });
+          return;
         }
+
+        const oldMatch = result.match(/type=family_invite&code=([^&]+)/);
+        if (oldMatch && oldMatch[1]) {
+          wx.navigateTo({ url: `/pages/family-auth/index?code=${oldMatch[1]}` });
+          return;
+        }
+
+        wx.showToast({ title: '无法识别该二维码', icon: 'none' });
       },
       fail: () => {}
     });

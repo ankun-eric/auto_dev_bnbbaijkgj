@@ -89,6 +89,14 @@ Page({
     wx.switchTab({ url: '/pages/home/index' });
   },
 
+  goHomeLater() {
+    wx.navigateBack({
+      fail: () => {
+        wx.switchTab({ url: '/pages/home/index' });
+      }
+    });
+  },
+
   goBindList() {
     wx.navigateTo({ url: '/pages/family-bindlist/index' });
   }

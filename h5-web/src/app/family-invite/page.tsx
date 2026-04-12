@@ -68,7 +68,7 @@ function FamilyInviteContent() {
 
   const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
   const qrContentUrl = invitation
-    ? (invitation.qr_content_url || `${typeof window !== 'undefined' ? window.location.origin : ''}${basePath}/scan?type=family_invite&code=${invitation.invite_code}`)
+    ? (invitation.qr_content_url || `${typeof window !== 'undefined' ? window.location.origin : ''}${basePath}/family-auth?code=${invitation.invite_code}`)
     : '';
 
   const qrCanvasRef = useRef<HTMLDivElement>(null);

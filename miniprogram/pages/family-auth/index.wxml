@@ -12,50 +12,48 @@
     <button class="home-btn" bindtap="goHome">返回首页</button>
   </view>
 
-  <!-- Result -->
+  <!-- Success result -->
+  <view class="success-wrap" wx:elif="{{resultStatus === 'success'}}">
+    <view class="success-card">
+      <view class="success-avatar-wrap">
+        <image class="success-avatar" wx:if="{{invitation.inviter_avatar}}" src="{{invitation.inviter_avatar}}" mode="aspectFill" />
+        <view class="success-avatar-placeholder" wx:else>
+          <text class="avatar-text">{{invitation.inviter_nickname ? invitation.inviter_nickname[0] : '家'}}</text>
+        </view>
+      </view>
+      <text class="success-name">{{invitation.inviter_nickname || '家人'}}</text>
+      <text class="success-relation">{{invitation.inviter_nickname || '对方'}} 已成为你的家人</text>
+      <text class="success-hint">现在可以查看和管理彼此的健康档案了</text>
+    </view>
+    <view class="success-actions">
+      <button class="home-btn" bindtap="goHome">打开首页查看</button>
+      <text class="later-link" bindtap="goHomeLater">稍后再说</text>
+    </view>
+  </view>
+
+  <!-- Rejected / Error result -->
   <view class="result-wrap" wx:elif="{{resultStatus}}">
-    <text class="result-icon" wx:if="{{resultStatus === 'success'}}">✅</text>
-    <text class="result-icon" wx:elif="{{resultStatus === 'rejected'}}">🚫</text>
+    <text class="result-icon" wx:if="{{resultStatus === 'rejected'}}">🚫</text>
     <text class="result-icon" wx:else>❌</text>
     <text class="result-text">{{resultMessage}}</text>
     <view class="result-actions">
       <button class="home-btn" bindtap="goHome">返回首页</button>
-      <button class="bindlist-btn" wx:if="{{resultStatus === 'success'}}" bindtap="goBindList">查看关联列表</button>
     </view>
   </view>
 
-  <!-- Confirmation dialog -->
+  <!-- Pending confirmation -->
   <view class="auth-content" wx:elif="{{invitation}}">
     <view class="auth-card">
       <view class="auth-icon-wrap">
         <text class="auth-icon">🤝</text>
       </view>
-      <text class="auth-title">家庭健康档案共管邀请</text>
-      <text class="auth-desc">对方希望能查看和管理您的健康档案</text>
-
-      <view class="auth-detail">
-        <view class="detail-row" wx:if="{{invitation.inviter_nickname}}">
-          <text class="detail-label">邀请人</text>
-          <text class="detail-value">{{invitation.inviter_nickname}}</text>
-        </view>
-        <view class="detail-row" wx:if="{{invitation.member_nickname}}">
-          <text class="detail-label">关联身份</text>
-          <text class="detail-value">{{invitation.member_nickname}}</text>
-        </view>
-        <view class="detail-row" wx:if="{{invitation.expires_at}}">
-          <text class="detail-label">有效期至</text>
-          <text class="detail-value">{{invitation.expires_at}}</text>
-        </view>
-      </view>
-
-      <view class="auth-notice">
-        <text class="notice-text">授权后，对方可以查看和编辑您的健康档案信息。您可以随时在「家庭关联」中取消授权。</text>
-      </view>
+      <text class="auth-inviter-name">{{invitation.inviter_nickname || '对方'}}</text>
+      <text class="auth-desc">TA 邀请你加入家庭健康圈</text>
     </view>
 
     <view class="auth-actions">
+      <button class="accept-btn" bindtap="onAccept" disabled="{{processing}}" loading="{{processing}}">同意</button>
       <button class="reject-btn" bindtap="onReject" disabled="{{processing}}">拒绝</button>
-      <button class="accept-btn" bindtap="onAccept" disabled="{{processing}}" loading="{{processing}}">同意授权</button>
     </view>
   </view>
 </view>

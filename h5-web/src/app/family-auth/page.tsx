@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { NavBar, Toast, Button, Dialog, Result } from 'antd-mobile';
 import api from '@/lib/api';
@@ -33,6 +33,7 @@ function FamilyAuthContent() {
   const [invitation, setInvitation] = useState<InvitationDetail | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const wechatCheckedRef = useRef(false);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -47,6 +48,18 @@ function FamilyAuthContent() {
       setStatus('error');
       return;
     }
+
+    const isWechat = /MicroMessenger/i.test(navigator.userAgent);
+    if (isWechat && !wechatCheckedRef.current) {
+      wechatCheckedRef.current = true;
+      const schemeUrl = `weixin://dl/business/?appid=wx_placeholder&path=/pages/family-auth/index&query=code%3D${code}`;
+      window.location.href = schemeUrl;
+      setTimeout(() => {
+        fetchInvitation();
+      }, 3000);
+      return;
+    }
+
     fetchInvitation();
   }, [code]);
 
@@ -109,6 +122,11 @@ function FamilyAuthContent() {
     setSubmitting(false);
   };
 
+  const handleOpenMiniProgram = () => {
+    const schemeUrl = `weixin://dl/business/?appid=wx_placeholder&path=/pages/family-auth/index&query=code%3D${code}`;
+    window.location.href = schemeUrl;
+  };
+
   return (
     <div className="min-h-screen" style={{ background: 'linear-gradient(160deg, #f0faf0 0%, #e8f4ff 100%)' }}>
       <NavBar onBack={() => router.back()} style={{ background: 'transparent' }}>
@@ -148,7 +166,6 @@ function FamilyAuthContent() {
 
         {status === 'confirm' && invitation && (
           <div className="pt-6">
-            {/* Invitation card */}
             <div
               className="rounded-3xl overflow-hidden mx-auto"
               style={{
@@ -157,43 +174,24 @@ function FamilyAuthContent() {
                 boxShadow: '0 8px 32px rgba(82, 196, 26, 0.12)',
               }}
             >
-              <div
-                className="px-6 pt-8 pb-6 text-center"
-                style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}
-              >
-                <div className="text-5xl mb-3">🤝</div>
-                <div className="text-white text-lg font-bold">健康档案共管邀请</div>
+              <div className="px-6 pt-10 pb-6 text-center">
+                <div
+                  className="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center"
+                  style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}
+                >
+                  <span className="text-white text-2xl font-bold">
+                    {(invitation.inviter_nickname || '对')[0]}
+                  </span>
+                </div>
+                <div className="text-lg font-bold text-gray-800 mb-2">
+                  {invitation.inviter_nickname || '对方'}
+                </div>
+                <div className="text-sm text-gray-500">
+                  TA 邀请你加入家庭健康圈
+                </div>
               </div>
 
-              <div className="px-6 py-6">
-                <div className="text-center mb-6">
-                  <div className="text-base text-gray-800 leading-relaxed">
-                    <span className="font-bold" style={{ color: '#52c41a' }}>
-                      {invitation.inviter_nickname || '对方'}
-                    </span>
-                    {' '}邀请您共同管理健康档案
-                  </div>
-                  <div className="text-xs text-gray-400 mt-3">
-                    同意后，对方将可以查看和管理您的健康档案数据
-                  </div>
-                </div>
-
-                <div
-                  className="rounded-xl px-4 py-3 mb-6"
-                  style={{ background: '#f6ffed', border: '1px solid #d9f7be' }}
-                >
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-500">邀请人</span>
-                    <span className="text-gray-800 font-medium">{invitation.inviter_nickname || '未知'}</span>
-                  </div>
-                  {invitation.member_nickname && (
-                    <div className="flex items-center justify-between text-sm mt-2">
-                      <span className="text-gray-500">关联成员</span>
-                      <span className="text-gray-800 font-medium">{invitation.member_nickname}</span>
-                    </div>
-                  )}
-                </div>
-
+              <div className="px-6 pb-8">
                 <div className="space-y-3">
                   <Button
                     block
@@ -203,12 +201,13 @@ function FamilyAuthContent() {
                       color: '#fff',
                       border: 'none',
                       borderRadius: 24,
-                      height: 44,
+                      height: 48,
                       fontWeight: 600,
+                      fontSize: 16,
                     }}
                     onClick={handleAccept}
                   >
-                    同意授权
+                    同意
                   </Button>
                   <Button
                     block
@@ -218,7 +217,7 @@ function FamilyAuthContent() {
                       color: '#999',
                       border: 'none',
                       borderRadius: 24,
-                      height: 44,
+                      height: 48,
                     }}
                     onClick={handleReject}
                   >
@@ -230,28 +229,64 @@ function FamilyAuthContent() {
           </div>
         )}
 
-        {status === 'accepted' && (
-          <div className="pt-12">
-            <Result
-              status="success"
-              title="授权成功"
-              description="您已同意共管邀请，对方可以查看和管理您的健康档案"
-            />
-            <div className="mt-6 px-8">
-              <Button
-                block
-                style={{
-                  background: 'linear-gradient(135deg, #52c41a, #13c2c2)',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: 24,
-                  height: 44,
-                  fontWeight: 600,
-                }}
-                onClick={() => router.replace('/health-profile')}
-              >
-                查看健康档案
-              </Button>
+        {status === 'accepted' && invitation && (
+          <div className="pt-6">
+            <div
+              className="rounded-3xl overflow-hidden mx-auto"
+              style={{
+                maxWidth: 340,
+                background: '#fff',
+                boxShadow: '0 8px 32px rgba(82, 196, 26, 0.12)',
+              }}
+            >
+              <div className="px-6 pt-10 pb-8 text-center">
+                <div
+                  className="w-20 h-20 rounded-full mx-auto mb-4 flex items-center justify-center"
+                  style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}
+                >
+                  <span className="text-white text-3xl font-bold">
+                    {(invitation.inviter_nickname || '对')[0]}
+                  </span>
+                </div>
+                <div className="text-lg font-bold text-gray-800 mb-2">
+                  {invitation.inviter_nickname || '对方'}
+                </div>
+                <div className="text-sm text-gray-500 mb-6">
+                  {invitation.inviter_nickname || '对方'} 已成为你的家人
+                </div>
+
+                <div
+                  className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs mb-8"
+                  style={{ background: '#f6ffed', color: '#52c41a', border: '1px solid #d9f7be' }}
+                >
+                  <span>✓</span>
+                  <span>授权成功</span>
+                </div>
+
+                <div className="space-y-3">
+                  <Button
+                    block
+                    style={{
+                      background: '#07c160',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: 24,
+                      height: 48,
+                      fontWeight: 600,
+                      fontSize: 16,
+                    }}
+                    onClick={handleOpenMiniProgram}
+                  >
+                    打开小程序查看
+                  </Button>
+                  <div
+                    className="text-center text-sm text-gray-400 py-2 cursor-pointer"
+                    onClick={() => router.replace('/health-profile')}
+                  >
+                    稍后再说
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         )}

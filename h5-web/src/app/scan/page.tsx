@@ -1,24 +1,41 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useRef, useState, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { NavBar, Toast } from 'antd-mobile';
 import { Html5Qrcode } from 'html5-qrcode';
 
 export default function ScanPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-black flex items-center justify-center text-gray-400">加载中...</div>}>
+      <ScanContent />
+    </Suspense>
+  );
+}
+
+function ScanContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const type = searchParams.get('type');
+  const codeParam = searchParams.get('code');
+
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const [scanning, setScanning] = useState(false);
   const stoppedRef = useRef(false);
 
   useEffect(() => {
+    if (type === 'family_invite' && codeParam) {
+      router.replace(`/family-auth?code=${codeParam}`);
+      return;
+    }
+
     stoppedRef.current = false;
     startScanner();
     return () => {
       stoppedRef.current = true;
       stopScanner();
     };
-  }, []);
+  }, [type, codeParam]);
 
   const stopScanner = async () => {
     try {
@@ -78,6 +95,14 @@ export default function ScanPage() {
       if (!stoppedRef.current) startScanner();
     }, 2500);
   };
+
+  if (type === 'family_invite' && codeParam) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center text-gray-400">
+        正在跳转...
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-black">
