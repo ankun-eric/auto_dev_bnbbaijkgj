@@ -56,13 +56,13 @@ services:
       context: ./admin-web
       dockerfile: Dockerfile
       args:
-        - NEXT_PUBLIC_API_URL=/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api
-        - NEXT_PUBLIC_BASE_PATH=/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin
+        - NEXT_PUBLIC_API_URL=/autodev/4e9fcd9d-bf85-4aec-90d9-012ce0519a47/api
+        - NEXT_PUBLIC_BASE_PATH=/autodev/4e9fcd9d-bf85-4aec-90d9-012ce0519a47/admin
     container_name: bini-health-admin
     restart: always
     environment:
-      NEXT_PUBLIC_API_URL: /autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api
-      NEXT_PUBLIC_BASE_PATH: /autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin
+      NEXT_PUBLIC_API_URL: /autodev/4e9fcd9d-bf85-4aec-90d9-012ce0519a47/api
+      NEXT_PUBLIC_BASE_PATH: /autodev/4e9fcd9d-bf85-4aec-90d9-012ce0519a47/admin
       BACKEND_URL: http://backend:8000
     depends_on:
       - backend
@@ -74,13 +74,13 @@ services:
       context: ./h5-web
       dockerfile: Dockerfile
       args:
-        - NEXT_PUBLIC_API_URL=/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api
-        - NEXT_PUBLIC_BASE_PATH=/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857
+        - NEXT_PUBLIC_API_URL=/autodev/4e9fcd9d-bf85-4aec-90d9-012ce0519a47/api
+        - NEXT_PUBLIC_BASE_PATH=/autodev/4e9fcd9d-bf85-4aec-90d9-012ce0519a47
     container_name: bini-health-h5
     restart: always
     environment:
-      NEXT_PUBLIC_API_URL: /autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api
-      NEXT_PUBLIC_BASE_PATH: /autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857
+      NEXT_PUBLIC_API_URL: /autodev/4e9fcd9d-bf85-4aec-90d9-012ce0519a47/api
+      NEXT_PUBLIC_BASE_PATH: /autodev/4e9fcd9d-bf85-4aec-90d9-012ce0519a47
       BACKEND_URL: http://backend:8000
     depends_on:
       - backend

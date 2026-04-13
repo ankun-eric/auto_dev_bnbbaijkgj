@@ -49,7 +49,7 @@ const welcomeMessage: Message = {
 };
 
 const BASE_SHARE_URL =
-  'https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/shared/drug';
+  'https://newbb.bangbangvip.com/autodev/4e9fcd9d-bf85-4aec-90d9-012ce0519a47/shared/drug';
 
 function formatMsgTime(dateStr?: string) {
   if (!dateStr) return '';

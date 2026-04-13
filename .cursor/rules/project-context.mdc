@@ -9,7 +9,7 @@ alwaysApply: false
 
 - Project name: `bini-health`
 - Repository: `https://github.com/ankun-eric/auto_dev_bnbbaijkgj`
-- Production base URL: `https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857`
+- Production base URL: `https://newbb.bangbangvip.com/autodev/4e9fcd9d-bf85-4aec-90d9-012ce0519a47`
 - Main stacks:
   - `backend`: FastAPI + SQLAlchemy + MySQL
   - `admin-web`: Next.js + React + Ant Design
@@ -20,20 +20,37 @@ alwaysApply: false
 
 ## Deployment Server (SSH)
 
-- Host: `newbb.test.bangbangvip.com`
+- Host: `newbb.bangbangvip.com`
 - Port: `22`
 - User: `ubuntu`
-- Password: `Bangbang987`
-- Project directory on server: `/home/ubuntu/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/`
-- Front proxy: `newbb.bangbangvip.com` (43.135.169.167) → proxies to test server via HTTPS
+- Password: `Newbang888`
+- Project directory on server: `/home/ubuntu/4e9fcd9d-bf85-4aec-90d9-012ce0519a47/`
+- DEPLOY_ID: `4e9fcd9d-bf85-4aec-90d9-012ce0519a47`
 
 ## Current Deployment Entrypoints
 
-- H5: `https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/`
-- Admin: `https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/admin/`
-- API: `https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/api/`
+- H5: `https://newbb.bangbangvip.com/autodev/4e9fcd9d-bf85-4aec-90d9-012ce0519a47/`
+- Admin: `https://newbb.bangbangvip.com/autodev/4e9fcd9d-bf85-4aec-90d9-012ce0519a47/admin/`
+- API: `https://newbb.bangbangvip.com/autodev/4e9fcd9d-bf85-4aec-90d9-012ce0519a47/api/`
 
-## Latest Update: 家人邀请扫码重复扫码修复 (2026-04-12)
+## Latest Update: 项目重新部署至新服务器 (2026-04-14)
+
+### 概要
+将项目从旧部署环境（DEPLOY_ID: 3b7b999d）迁移至新服务器节点（DEPLOY_ID: 4e9fcd9d-bf85-4aec-90d9-012ce0519a47），部署服务器从 newbb.test.bangbangvip.com 变更为 newbb.bangbangvip.com。数据库数据完整保留，所有前后端服务正常运行，全量链接可达性检查通过。
+
+### 变更内容
+- 更新 DEPLOY_ID：所有容器名、网络名、gateway 路由从旧标识更新为新标识
+- 更新部署服务器：SSH 连接信息更新为新服务器
+- 更新前端 basePath：H5 和 Admin 的 NEXT_PUBLIC_BASE_PATH 和 NEXT_PUBLIC_API_URL 更新
+- 更新客户端 API 地址：Flutter baseUrl、小程序 DEFAULT_API_BASE_URL、后端扫码/邀请链接均已更新
+- 数据库：使用 Docker volume 完整保留，无数据丢失
+
+### 用户手册
+- `user_docs/项目重新部署.md`
+
+---
+
+## Previous Update: 家人邀请扫码重复扫码修复 (2026-04-12)
 
 ### 概要
 修复家人邀请二维码导致重复扫码的问题。二维码内容从 `/scan?type=family_invite&code=xxx`（扫码中转页）统一修改为 `/family-auth?code=xxx`（直接指向授权页），各端扫码兼容新旧格式，H5 授权页新增微信环境检测与 URL Scheme 跳转，所有端授权页 UI 优化为简洁确认版+详细成功版。

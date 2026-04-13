@@ -87,7 +87,7 @@ const LOADING_MESSAGES = [
 ];
 
 const BASE_SHARE_URL =
-  'https://newbb.bangbangvip.com/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857/shared/report';
+  'https://newbb.bangbangvip.com/autodev/4e9fcd9d-bf85-4aec-90d9-012ce0519a47/shared/report';
 
 function getScoreColor(score: number): string {
   for (const r of SCORE_COLOR_RANGES) {
