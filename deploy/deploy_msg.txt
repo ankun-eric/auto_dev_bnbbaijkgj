@@ -1,12 +1,12 @@
 ## 部署服务器信息
-服务器域名/IP: newbb.bangbangvip.com
+服务器域名/IP: newbb.test.bangbangvip.com
 SSH端口: 22
 SSH用户名: ubuntu
 SSH密码: Newbang888
-项目基础URL: https://newbb.bangbangvip.com/autodev/4e9fcd9d-bf85-4aec-90d9-012ce0519a47
+项目基础URL: https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27
 
 ## 部署唯一标识
-DEPLOY_ID: 4e9fcd9d-bf85-4aec-90d9-012ce0519a47
+DEPLOY_ID: 6b099ed3-7175-4a78-91f4-44570c84ed27
 
 ## Git仓库信息
 Git仓库链接: https://github.com/ankun-eric/auto_dev_bnbbaijkgj

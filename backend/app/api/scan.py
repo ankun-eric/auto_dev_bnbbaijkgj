@@ -9,7 +9,7 @@ from app.models.models import FamilyInvitation, FamilyMember, User
 
 router = APIRouter(tags=["扫码路由"])
 
-BASE_URL = "https://newbb.bangbangvip.com/autodev/4e9fcd9d-bf85-4aec-90d9-012ce0519a47"
+BASE_URL = "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27"
 
 
 @router.get("/api/scan")

@@ -9,7 +9,7 @@ alwaysApply: false
 
 - Project name: `bini-health`
 - Repository: `https://github.com/ankun-eric/auto_dev_bnbbaijkgj`
-- Production base URL: `https://newbb.bangbangvip.com/autodev/4e9fcd9d-bf85-4aec-90d9-012ce0519a47`
+- Production base URL: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27`
 - Main stacks:
   - `backend`: FastAPI + SQLAlchemy + MySQL
   - `admin-web`: Next.js + React + Ant Design
@@ -20,20 +20,37 @@ alwaysApply: false
 
 ## Deployment Server (SSH)
 
-- Host: `newbb.bangbangvip.com`
+- Host: `newbb.test.bangbangvip.com`
 - Port: `22`
 - User: `ubuntu`
 - Password: `Newbang888`
-- Project directory on server: `/home/ubuntu/4e9fcd9d-bf85-4aec-90d9-012ce0519a47/`
-- DEPLOY_ID: `4e9fcd9d-bf85-4aec-90d9-012ce0519a47`
+- Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
+- DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
 ## Current Deployment Entrypoints
 
-- H5: `https://newbb.bangbangvip.com/autodev/4e9fcd9d-bf85-4aec-90d9-012ce0519a47/`
-- Admin: `https://newbb.bangbangvip.com/autodev/4e9fcd9d-bf85-4aec-90d9-012ce0519a47/admin/`
-- API: `https://newbb.bangbangvip.com/autodev/4e9fcd9d-bf85-4aec-90d9-012ce0519a47/api/`
+- H5: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/`
+- Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
+- API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 全量重新部署与多端重新打包 (2026-04-14)
+## Latest Update: 部署至测试环境服务器 (2026-04-14)
+
+### 概要
+将项目从正式环境（newbb.bangbangvip.com，DEPLOY_ID: 4e9fcd9d-bf85-4aec-90d9-012ce0519a47）部署到测试环境服务器（newbb.test.bangbangvip.com，DEPLOY_ID: 6b099ed3-7175-4a78-91f4-44570c84ed27）。所有服务端容器（后端、H5、管理后台、数据库）全部重新构建部署，全量链接可达性检查 18/18 全部通过 HTTP 200。
+
+### 变更内容
+- DEPLOY_ID：从 `4e9fcd9d-bf85-4aec-90d9-012ce0519a47` 更新为 `6b099ed3-7175-4a78-91f4-44570c84ed27`
+- 部署服务器：从 `newbb.bangbangvip.com` 变更为 `newbb.test.bangbangvip.com`
+- 所有配置文件：docker-compose.prod.yml、gateway-routes.conf、前后端 API 地址全部更新
+- 客户端 API 地址：Flutter baseUrl、小程序 DEFAULT_API_BASE_URL、后端扫码/邀请链接均更新为测试环境地址
+- 4 个容器全部正常运行：db、backend、admin、h5
+
+### 用户手册
+- `user_docs/测试环境部署_20260414.md`
+
+---
+
+## Previous Update: 全量重新部署与多端重新打包 (2026-04-14)
 
 ### 概要
 对项目进行全量重新部署，所有服务端容器（后端、H5、管理后台、数据库）重新构建启动，所有客户端终端（微信小程序×2、安卓 APK、iOS IPA）全部重新打包上传。全量链接可达性检查通过，所有下载链接验证 HTTP 200。
@@ -53,7 +70,7 @@ alwaysApply: false
 ## Previous Update: 项目重新部署至新服务器 (2026-04-14)
 
 ### 概要
-将项目从旧部署环境（DEPLOY_ID: 3b7b999d）迁移至新服务器节点（DEPLOY_ID: 4e9fcd9d-bf85-4aec-90d9-012ce0519a47），部署服务器从 newbb.test.bangbangvip.com 变更为 newbb.bangbangvip.com。数据库数据完整保留，所有前后端服务正常运行，全量链接可达性检查通过。
+将项目从旧部署环境（DEPLOY_ID: 3b7b999d）迁移至新服务器节点（DEPLOY_ID: 6b099ed3-7175-4a78-91f4-44570c84ed27），部署服务器从 newbb.test.bangbangvip.com 变更为 newbb.test.bangbangvip.com。数据库数据完整保留，所有前后端服务正常运行，全量链接可达性检查通过。
 
 ### 变更内容
 - 更新 DEPLOY_ID：所有容器名、网络名、gateway 路由从旧标识更新为新标识

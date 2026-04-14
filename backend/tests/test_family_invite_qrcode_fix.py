@@ -61,7 +61,7 @@ class TestQRContentURL:
         assert qr_url.startswith("https://"), (
             f"qr_content_url should start with 'https://', got: {qr_url}"
         )
-        assert "newbb.bangbangvip.com" in qr_url, (
+        assert "newbb.test.bangbangvip.com" in qr_url, (
             f"qr_content_url should contain full domain, got: {qr_url}"
         )
 

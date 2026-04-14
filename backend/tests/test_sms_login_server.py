@@ -18,7 +18,7 @@ pytestmark = pytest.mark.filterwarnings(
 
 # Project base (HTTPS); API routes are under /api/...
 PROJECT_BASE = (
-    "https://newbb.bangbangvip.com"
+    "https://newbb.test.bangbangvip.com"
     "/autodev/3b7b999d-e51c-4c0d-8f6e-baf90cd26857"
 )
 API_BASE = f"{PROJECT_BASE}/api"

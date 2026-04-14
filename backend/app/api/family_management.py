@@ -98,7 +98,7 @@ async def create_invitation(
     await db.flush()
 
     qr_url = f"/api/family/invitation/{invite_code}"
-    qr_content_url = f"https://newbb.bangbangvip.com/autodev/4e9fcd9d-bf85-4aec-90d9-012ce0519a47/family-auth?code={invite_code}"
+    qr_content_url = f"https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/family-auth?code={invite_code}"
 
     return InvitationCreateResponse(
         invite_code=invite_code,

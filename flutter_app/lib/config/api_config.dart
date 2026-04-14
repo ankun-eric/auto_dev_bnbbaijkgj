@@ -1,6 +1,6 @@
 class ApiConfig {
   // 当前构建默认直连本项目部署根路径；各接口常量已自带 /api 前缀。
-  static const String baseUrl = 'https://newbb.bangbangvip.com/autodev/4e9fcd9d-bf85-4aec-90d9-012ce0519a47';
+  static const String baseUrl = 'https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27';
 
   // Auth
   static const String registerSettings = '/api/auth/register-settings';

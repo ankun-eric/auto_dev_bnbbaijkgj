@@ -1,7 +1,7 @@
 services:
   db:
     image: mysql:8.0
-    container_name: 4e9fcd9d-bf85-4aec-90d9-012ce0519a47-db
+    container_name: 6b099ed3-7175-4a78-91f4-44570c84ed27-db
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: bini_health_2026
@@ -24,16 +24,16 @@ services:
     networks:
       app-network:
         aliases:
-          - 4e9fcd9d-bf85-4aec-90d9-012ce0519a47-db
+          - 6b099ed3-7175-4a78-91f4-44570c84ed27-db
 
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: 4e9fcd9d-bf85-4aec-90d9-012ce0519a47-backend
+    container_name: 6b099ed3-7175-4a78-91f4-44570c84ed27-backend
     restart: unless-stopped
     environment:
-      DATABASE_URL: mysql+aiomysql://root:bini_health_2026@4e9fcd9d-bf85-4aec-90d9-012ce0519a47-db:3306/bini_health
+      DATABASE_URL: mysql+aiomysql://root:bini_health_2026@6b099ed3-7175-4a78-91f4-44570c84ed27-db:3306/bini_health
       SECRET_KEY: bini-health-secret-key-2026-very-secure
       AI_BASE_URL: ${AI_BASE_URL:-}
       AI_MODEL_NAME: ${AI_MODEL_NAME:-}
@@ -54,21 +54,21 @@ services:
     networks:
       app-network:
         aliases:
-          - 4e9fcd9d-bf85-4aec-90d9-012ce0519a47-backend
+          - 6b099ed3-7175-4a78-91f4-44570c84ed27-backend
 
   admin-web:
     build:
       context: ./admin-web
       dockerfile: Dockerfile
       args:
-        - NEXT_PUBLIC_API_URL=/autodev/4e9fcd9d-bf85-4aec-90d9-012ce0519a47/api
-        - NEXT_PUBLIC_BASE_PATH=/autodev/4e9fcd9d-bf85-4aec-90d9-012ce0519a47/admin
-    container_name: 4e9fcd9d-bf85-4aec-90d9-012ce0519a47-admin
+        - NEXT_PUBLIC_API_URL=/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api
+        - NEXT_PUBLIC_BASE_PATH=/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin
+    container_name: 6b099ed3-7175-4a78-91f4-44570c84ed27-admin
     restart: unless-stopped
     environment:
-      NEXT_PUBLIC_API_URL: /autodev/4e9fcd9d-bf85-4aec-90d9-012ce0519a47/api
-      NEXT_PUBLIC_BASE_PATH: /autodev/4e9fcd9d-bf85-4aec-90d9-012ce0519a47/admin
-      BACKEND_URL: http://4e9fcd9d-bf85-4aec-90d9-012ce0519a47-backend:8000
+      NEXT_PUBLIC_API_URL: /autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api
+      NEXT_PUBLIC_BASE_PATH: /autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin
+      BACKEND_URL: http://6b099ed3-7175-4a78-91f4-44570c84ed27-backend:8000
     expose:
       - "3000"
     depends_on:
@@ -76,21 +76,21 @@ services:
     networks:
       app-network:
         aliases:
-          - 4e9fcd9d-bf85-4aec-90d9-012ce0519a47-admin
+          - 6b099ed3-7175-4a78-91f4-44570c84ed27-admin
 
   h5-web:
     build:
       context: ./h5-web
       dockerfile: Dockerfile
       args:
-        - NEXT_PUBLIC_API_URL=/autodev/4e9fcd9d-bf85-4aec-90d9-012ce0519a47/api
-        - NEXT_PUBLIC_BASE_PATH=/autodev/4e9fcd9d-bf85-4aec-90d9-012ce0519a47
-    container_name: 4e9fcd9d-bf85-4aec-90d9-012ce0519a47-h5
+        - NEXT_PUBLIC_API_URL=/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api
+        - NEXT_PUBLIC_BASE_PATH=/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27
+    container_name: 6b099ed3-7175-4a78-91f4-44570c84ed27-h5
     restart: unless-stopped
     environment:
-      NEXT_PUBLIC_API_URL: /autodev/4e9fcd9d-bf85-4aec-90d9-012ce0519a47/api
-      NEXT_PUBLIC_BASE_PATH: /autodev/4e9fcd9d-bf85-4aec-90d9-012ce0519a47
-      BACKEND_URL: http://4e9fcd9d-bf85-4aec-90d9-012ce0519a47-backend:8000
+      NEXT_PUBLIC_API_URL: /autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api
+      NEXT_PUBLIC_BASE_PATH: /autodev/6b099ed3-7175-4a78-91f4-44570c84ed27
+      BACKEND_URL: http://6b099ed3-7175-4a78-91f4-44570c84ed27-backend:8000
     expose:
       - "3001"
     depends_on:
@@ -98,7 +98,7 @@ services:
     networks:
       app-network:
         aliases:
-          - 4e9fcd9d-bf85-4aec-90d9-012ce0519a47-h5
+          - 6b099ed3-7175-4a78-91f4-44570c84ed27-h5
 
 volumes:
   mysql_data:
@@ -106,5 +106,5 @@ volumes:
 
 networks:
   app-network:
-    name: 4e9fcd9d-bf85-4aec-90d9-012ce0519a47-network
+    name: 6b099ed3-7175-4a78-91f4-44570c84ed27-network
     driver: bridge
