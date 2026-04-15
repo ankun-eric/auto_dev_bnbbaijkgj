@@ -1,7 +1,10 @@
 <view class="home-page" wx:if="{{pageMode === 'user'}}">
   <view class="custom-nav" style="padding-top:{{statusBarHeight}}px;">
     <view class="custom-nav-content">
-      <text class="custom-nav-title">宾尼小康</text>
+      <view class="custom-nav-title-wrap">
+        <image wx:if="{{brandLogoUrl}}" class="brand-logo-small" src="{{brandLogoUrl}}" mode="aspectFit" />
+        <text class="custom-nav-title">宾尼小康</text>
+      </view>
       <view class="custom-nav-actions">
         <view class="nav-action-btn" catchtap="onScanTap">
           <text class="nav-action-icon">📷</text>

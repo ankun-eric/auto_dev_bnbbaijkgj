@@ -1,7 +1,8 @@
 <view class="login-page {{layoutClass}}" wx:if="{{!settingsLoading}}">
   <!-- Logo -->
   <view class="logo-section">
-    <view class="logo-circle">
+    <image wx:if="{{brandLogoUrl}}" class="brand-logo-large" src="{{brandLogoUrl}}" mode="aspectFit" />
+    <view wx:else class="logo-circle">
       <text class="logo-text">宾尼小康</text>
     </view>
     <view class="logo-text-block">

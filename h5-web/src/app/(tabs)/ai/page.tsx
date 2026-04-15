@@ -60,6 +60,7 @@ export default function AIPage() {
   const [recentChats, setRecentChats] = useState<SessionItem[]>([]);
   const [creating, setCreating] = useState(false);
   const [sidebarVisible, setSidebarVisible] = useState(false);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
 
   const fetchSessions = useCallback(async () => {
     try {
@@ -69,6 +70,18 @@ export default function AIPage() {
     } catch {
       // ignore
     }
+  }, []);
+
+  useEffect(() => {
+    const fetchLogo = async () => {
+      try {
+        const res: any = await api.get('/api/settings/logo');
+        if (res?.data?.logo_url) {
+          setLogoUrl(res.data.logo_url);
+        }
+      } catch {}
+    };
+    fetchLogo();
   }, []);
 
   useEffect(() => {
@@ -110,7 +123,10 @@ export default function AIPage() {
             </svg>
           </button>
           <div className="text-center flex-1">
-            <h1 className="text-xl font-bold">AI健康咨询</h1>
+            <div className="flex items-center justify-center gap-2">
+              {logoUrl && <img src={logoUrl} alt="Logo" className="w-8 h-8 rounded" style={{ objectFit: 'contain' }} />}
+              <h1 className="text-xl font-bold">AI健康咨询</h1>
+            </div>
             <p className="text-xs opacity-80 mt-1">选择咨询类型，开始健康咨询</p>
           </div>
           <div className="w-9" />

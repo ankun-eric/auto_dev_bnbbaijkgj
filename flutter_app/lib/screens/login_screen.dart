@@ -5,6 +5,7 @@ import 'package:fluttertoast/fluttertoast.dart';
 import '../models/user.dart';
 import '../providers/auth_provider.dart';
 import '../services/auth_service.dart';
+import '../services/logo_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -167,17 +168,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      width: 72,
-                      height: 72,
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF52C41A), Color(0xFF13C2C2)],
-                        ),
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                      child: const Icon(Icons.favorite, size: 36, color: Colors.white),
-                    ),
+                    _buildLoginLogo(72, 18),
                     const SizedBox(width: 16),
                     Expanded(
                       child: Column(
@@ -202,17 +193,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ],
                 )
               else ...[
-                Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF52C41A), Color(0xFF13C2C2)],
-                    ),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Icon(Icons.favorite, size: 40, color: Colors.white),
-                ),
+                _buildLoginLogo(80, 20),
                 const SizedBox(height: 16),
                 const Text(
                   '宾尼小康',
@@ -378,6 +359,39 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildLoginLogo(double size, double radius) {
+    final logoUrl = LogoService().logoUrl;
+    if (logoUrl != null) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(radius),
+        child: Image.network(
+          logoUrl,
+          width: size,
+          height: size,
+          fit: BoxFit.contain,
+          errorBuilder: (context, error, stackTrace) {
+            return _buildDefaultLoginLogo(size, radius);
+          },
+        ),
+      );
+    }
+    return _buildDefaultLoginLogo(size, radius);
+  }
+
+  Widget _buildDefaultLoginLogo(double size, double radius) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF52C41A), Color(0xFF13C2C2)],
+        ),
+        borderRadius: BorderRadius.circular(radius),
+      ),
+      child: Icon(Icons.favorite, size: size / 2, color: Colors.white),
     );
   }
 

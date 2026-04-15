@@ -5,6 +5,33 @@ App({
   onLaunch() {
     this.checkLoginStatus();
     this.initFontSize();
+    this.fetchBrandLogo();
+  },
+
+  fetchBrandLogo() {
+    const cached = wx.getStorageSync('brandLogoUrl');
+    if (cached) {
+      this.globalData.brandLogoUrl = cached;
+    }
+    const baseUrl = this.globalData.baseUrl;
+    wx.request({
+      url: baseUrl + '/api/settings/logo',
+      method: 'GET',
+      success: (res) => {
+        if (res.statusCode === 200 && res.data && res.data.code === 0) {
+          let logoUrl = (res.data.data && res.data.data.logo_url) || '';
+          if (logoUrl && logoUrl.startsWith('/')) {
+            logoUrl = baseUrl + logoUrl;
+          }
+          this.globalData.brandLogoUrl = logoUrl;
+          if (logoUrl) {
+            wx.setStorageSync('brandLogoUrl', logoUrl);
+          } else {
+            wx.removeStorageSync('brandLogoUrl');
+          }
+        }
+      }
+    });
   },
 
   initFontSize() {
@@ -175,6 +202,7 @@ App({
     merchantProfile: null,
     isLoggedIn: false,
     fontLevel: '',
+    brandLogoUrl: '',
     subscribeTemplateIds: []
   }
 });

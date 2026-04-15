@@ -29,6 +29,19 @@
   color: #666;
 }
 
+.page-title-wrap {
+  display: flex;
+  align-items: center;
+}
+
+.brand-logo-small {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 50%;
+  margin-right: 12rpx;
+  vertical-align: middle;
+}
+
 .page-title {
   font-size: 34rpx;
   font-weight: 600;

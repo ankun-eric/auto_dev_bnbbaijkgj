@@ -55,6 +55,7 @@ import 'screens/search/search_result_screen.dart';
 import 'screens/city/city_select_screen.dart';
 import 'screens/digital_human/digital_human_call_screen.dart';
 import 'screens/messages/messages_screen.dart';
+import 'services/logo_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -69,6 +70,8 @@ void main() async {
 
   final fontProvider = FontProvider();
   await fontProvider.init();
+
+  LogoService().fetchLogo();
 
   runApp(BiniHealthApp(fontProvider: fontProvider));
 }

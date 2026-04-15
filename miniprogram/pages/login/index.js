@@ -43,13 +43,15 @@ Page({
     submitButtonText: '登录',
     registerHelperText: '',
     showRolePicker: false,
-    pendingLoginResult: null
+    pendingLoginResult: null,
+    brandLogoUrl: ''
   },
 
   _timer: null,
 
   onLoad() {
     this.loadRegisterSettings();
+    this.setData({ brandLogoUrl: app.globalData.brandLogoUrl || '' });
   },
 
   onUnload() {

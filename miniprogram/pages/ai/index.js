@@ -20,14 +20,15 @@ Page({
     drawerShow: false,
     allSessions: [],
     orderInfo: null,
-    verifying: false
+    verifying: false,
+    brandLogoUrl: ''
   },
 
   onShow() {
     syncTabBar(this, '/pages/ai/index');
     const app = getApp();
     const pageMode = app.getCurrentRole() || 'user';
-    this.setData({ pageMode });
+    this.setData({ pageMode, brandLogoUrl: app.globalData.brandLogoUrl || '' });
     if (pageMode === 'merchant') {
       if (!ensureMerchantEntry()) return;
       this.setData({ orderInfo: null });

@@ -1,10 +1,12 @@
+import os
 from datetime import date, datetime, timedelta
+from pathlib import Path
 from typing import Optional
 
 import httpx
-from fastapi import APIRouter, Body, Depends, HTTPException, Query
+from fastapi import APIRouter, Body, Depends, File, HTTPException, Query, UploadFile
 from pydantic import BaseModel
-from sqlalchemy import func, or_, select, update
+from sqlalchemy import delete as sa_delete, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -2167,3 +2169,74 @@ async def admin_delete_disease_preset(
     await db.delete(dp)
     await db.flush()
     return {"message": "删除成功"}
+
+
+# ── LOGO 管理 ──
+
+LOGO_DIR = Path("uploads/logo")
+ALLOWED_LOGO_TYPES = {"image/png", "image/jpeg"}
+MAX_LOGO_SIZE = 2 * 1024 * 1024
+
+
+@router.post("/settings/logo")
+async def upload_logo(
+    file: UploadFile = File(...),
+    current_user=Depends(admin_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    if file.content_type not in ALLOWED_LOGO_TYPES:
+        raise HTTPException(status_code=400, detail="仅支持 PNG/JPG/JPEG 格式")
+
+    content = await file.read()
+    if len(content) > MAX_LOGO_SIZE:
+        raise HTTPException(status_code=400, detail="LOGO 文件大小不能超过 2MB")
+
+    ext = os.path.splitext(file.filename or "logo.png")[1].lower() or ".png"
+    LOGO_DIR.mkdir(parents=True, exist_ok=True)
+
+    for old_file in LOGO_DIR.glob("brand_logo.*"):
+        old_file.unlink(missing_ok=True)
+
+    filename = f"brand_logo{ext}"
+    filepath = LOGO_DIR / filename
+    with open(filepath, "wb") as f:
+        f.write(content)
+
+    logo_url = f"/uploads/logo/{filename}"
+
+    result = await db.execute(select(SystemConfig).where(SystemConfig.config_key == "brand_logo_url"))
+    config = result.scalar_one_or_none()
+    if config:
+        config.config_value = logo_url
+        config.updated_at = datetime.utcnow()
+    else:
+        db.add(SystemConfig(config_key="brand_logo_url", config_value=logo_url, config_type="brand"))
+
+    return {"code": 0, "data": {"logo_url": logo_url}}
+
+
+@router.delete("/settings/logo")
+async def delete_logo(
+    current_user=Depends(admin_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    await db.execute(sa_delete(SystemConfig).where(SystemConfig.config_key == "brand_logo_url"))
+
+    if LOGO_DIR.exists():
+        for old_file in LOGO_DIR.glob("brand_logo.*"):
+            old_file.unlink(missing_ok=True)
+
+    return {"code": 0, "message": "LOGO已删除"}
+
+
+settings_router = APIRouter(prefix="/api/settings", tags=["公开设置"])
+
+
+@settings_router.get("/logo")
+async def get_logo(
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(SystemConfig).where(SystemConfig.config_key == "brand_logo_url"))
+    config = result.scalar_one_or_none()
+    logo_url = config.config_value if config else None
+    return {"code": 0, "data": {"logo_url": logo_url}}

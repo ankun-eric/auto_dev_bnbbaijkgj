@@ -32,6 +32,19 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
   const [settingsLoading, setSettingsLoading] = useState(true);
   const [registerSettings, setRegisterSettings] = useState<RegisterSettings>(defaultRegisterSettings);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchLogo = async () => {
+      try {
+        const res: any = await api.get('/api/settings/logo');
+        if (res?.data?.logo_url) {
+          setLogoUrl(res.data.logo_url);
+        }
+      } catch {}
+    };
+    fetchLogo();
+  }, []);
 
   useEffect(() => {
     const fetchRegisterSettings = async () => {
@@ -181,9 +194,6 @@ export default function LoginPage() {
   const helperText = registerSettings.enable_self_registration
     ? '未注册手机号验证后将自动创建会员'
     : '当前未开放自助注册，仅支持已注册账号登录';
-  const profilePromptText = registerSettings.show_profile_completion_prompt
-    ? '首次注册后，如资料不完整，系统会提醒补充会员信息。'
-    : '首次注册后将直接进入首页，不额外弹出资料补充提醒。';
   const channelItems = [
     {
       key: 'wechat' as const,
@@ -200,10 +210,14 @@ export default function LoginPage() {
       style={{ background: 'linear-gradient(180deg, #e8fce8 0%, #ffffff 40%)' }}
     >
       <div className={`flex flex-col items-center transition-all duration-500 ease-in-out ${isHorizontal ? 'flex-1 pt-20 px-8 md:flex-none md:justify-center md:px-6 md:w-2/5 md:pt-0' : 'flex-1 pt-20 px-8'}`}>
-        <div className="w-20 h-20 rounded-full flex items-center justify-center mb-4"
-          style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}>
-          <span className="text-white text-4xl">🌿</span>
-        </div>
+        {logoUrl ? (
+          <img src={logoUrl} alt="Logo" className="w-20 h-20 rounded-full mb-4" style={{ objectFit: 'contain' }} />
+        ) : (
+          <div className="w-20 h-20 rounded-full flex items-center justify-center mb-4"
+            style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}>
+            <span className="text-white text-4xl">🌿</span>
+          </div>
+        )}
         <h1 className="text-2xl font-bold mb-1" style={{ color: '#52c41a' }}>宾尼小康</h1>
         <p className="text-gray-400 text-sm mb-10">AI健康管家 · 您的私人健康助手</p>
       </div>
@@ -251,7 +265,6 @@ export default function LoginPage() {
 
           <div className="space-y-1 px-1">
             <div className="text-xs text-gray-400">{helperText}</div>
-            <div className="text-xs text-gray-300">{profilePromptText}</div>
           </div>
 
           <Button

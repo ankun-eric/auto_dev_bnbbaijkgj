@@ -66,7 +66,8 @@ Page({
     unreadCount: 0,
     loading: false,
     statusBarHeight: 20,
-    navBarHeight: 64
+    navBarHeight: 64,
+    brandLogoUrl: ''
   },
 
   onLoad() {
@@ -80,6 +81,8 @@ Page({
   onShow() {
     syncTabBar(this, '/pages/home/index');
     this.loadSelectedCity();
+    const app = getApp();
+    this.setData({ brandLogoUrl: app.globalData.brandLogoUrl || '' });
     if (!this.syncRoleState()) return;
     this.loadCurrentModeData();
   },

@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../models/article.dart';
 import '../../providers/font_provider.dart';
 import '../../services/api_service.dart';
+import '../../services/logo_service.dart';
 import '../../widgets/article_card.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -392,7 +393,25 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ],
             )
-          : const Text('宾尼小康', style: TextStyle(color: Colors.white, fontSize: 18)),
+          : Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (LogoService().logoUrl != null) ...[
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: Image.network(
+                      LogoService().logoUrl!,
+                      width: 32,
+                      height: 32,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                ],
+                const Text('宾尼小康', style: TextStyle(color: Colors.white, fontSize: 18)),
+              ],
+            ),
       actions: [
         IconButton(
           icon: const Icon(Icons.qr_code_scanner, color: Colors.white),

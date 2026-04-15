@@ -93,6 +93,7 @@ export default function HomePage() {
   const [inputVisible, setInputVisible] = useState<number | null>(null);
   const [inputValue, setInputValue] = useState('');
   const [unreadCount, setUnreadCount] = useState(0);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
 
   const [cityDisplay, setCityDisplay] = useState('定位');
   const [cityStatus, setCityStatus] = useState<CityStatus>('idle');
@@ -116,6 +117,18 @@ export default function HomePage() {
       const data = res.data || res;
       setUnreadCount(data.unread_count ?? 0);
     } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => {
+    const fetchLogo = async () => {
+      try {
+        const res: any = await api.get('/api/settings/logo');
+        if (res?.data?.logo_url) {
+          setLogoUrl(res.data.logo_url);
+        }
+      } catch {}
+    };
+    fetchLogo();
   }, []);
 
   useEffect(() => {
@@ -258,7 +271,10 @@ export default function HomePage() {
       <div className="gradient-header">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="text-xl font-bold">宾尼小康</h1>
+            <div className="flex items-center gap-2">
+              {logoUrl && <img src={logoUrl} alt="Logo" className="w-8 h-8 rounded" style={{ objectFit: 'contain' }} />}
+              <h1 className="text-xl font-bold">宾尼小康</h1>
+            </div>
             <p className="text-xs opacity-80 mt-1">AI健康管家 · 关爱您的每一天</p>
           </div>
           <div className="flex items-center gap-2">

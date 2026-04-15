@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Tabs, Form, Input, Switch, Button, InputNumber, Card, Space, message, Typography, Divider, Radio, Modal, Tooltip } from 'antd';
-import { SaveOutlined, SettingOutlined, FileProtectOutlined, UserAddOutlined, QuestionCircleOutlined } from '@ant-design/icons';
-import { get, post } from '@/lib/api';
+import { Tabs, Form, Input, Switch, Button, InputNumber, Card, Space, message, Typography, Divider, Radio, Modal, Tooltip, Upload } from 'antd';
+import { SaveOutlined, SettingOutlined, FileProtectOutlined, UserAddOutlined, QuestionCircleOutlined, UploadOutlined, DeleteOutlined } from '@ant-design/icons';
+import { get, post, del, upload as apiUpload } from '@/lib/api';
 
 const { Title, Text, Link } = Typography;
 const { TextArea } = Input;
@@ -14,12 +14,57 @@ export default function SettingsPage() {
   const [registerForm] = Form.useForm();
   const [saving, setSaving] = useState(false);
   const [exampleModal, setExampleModal] = useState<{ open: boolean; title: string; content: React.ReactNode }>({ open: false, title: '', content: null });
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [logoLoading, setLogoLoading] = useState(false);
+  const [logoUploading, setLogoUploading] = useState(false);
 
   const enableSelfRegistration = Form.useWatch('enable_self_registration', registerForm);
   const memberCardNoRule = Form.useWatch('member_card_no_rule', registerForm);
 
   const showExample = (title: string, content: React.ReactNode) => {
     setExampleModal({ open: true, title, content });
+  };
+
+  useEffect(() => {
+    const loadLogo = async () => {
+      setLogoLoading(true);
+      try {
+        const res = await get<{ code: number; data: { logo_url: string } }>('/api/settings/logo');
+        if (res?.data?.logo_url) {
+          setLogoUrl(res.data.logo_url);
+        }
+      } catch {
+        // ignore
+      } finally {
+        setLogoLoading(false);
+      }
+    };
+    loadLogo();
+  }, []);
+
+  const handleLogoUpload = async (file: File) => {
+    setLogoUploading(true);
+    try {
+      const res = await apiUpload<{ code: number; data: { logo_url: string } }>('/api/admin/settings/logo', file, 'file');
+      if (res?.data?.logo_url) {
+        setLogoUrl(res.data.logo_url);
+        message.success('LOGO上传成功');
+      }
+    } catch {
+      message.error('LOGO上传失败，请稍后重试');
+    } finally {
+      setLogoUploading(false);
+    }
+  };
+
+  const handleLogoDelete = async () => {
+    try {
+      await del('/api/admin/settings/logo');
+      setLogoUrl(null);
+      message.success('LOGO已删除');
+    } catch {
+      message.error('LOGO删除失败，请稍后重试');
+    }
   };
 
   useEffect(() => {
@@ -83,6 +128,51 @@ export default function SettingsPage() {
       ),
       children: (
         <Card style={{ borderRadius: 12 }}>
+          <Title level={5}>品牌LOGO</Title>
+          <div style={{ marginBottom: 24 }}>
+            <Space align="start" size={16}>
+              {logoUrl && (
+                <img
+                  src={logoUrl}
+                  alt="品牌LOGO"
+                  style={{ width: 80, height: 80, objectFit: 'contain', borderRadius: 8, border: '1px solid #f0f0f0' }}
+                />
+              )}
+              <Space direction="vertical" size={8}>
+                <Upload
+                  accept=".png,.jpg,.jpeg"
+                  showUploadList={false}
+                  beforeUpload={(file) => {
+                    const isValid = file.type === 'image/png' || file.type === 'image/jpeg';
+                    if (!isValid) {
+                      message.error('仅支持 PNG/JPG 格式');
+                      return false;
+                    }
+                    const isLt2M = file.size / 1024 / 1024 < 2;
+                    if (!isLt2M) {
+                      message.error('图片大小不能超过 2MB');
+                      return false;
+                    }
+                    handleLogoUpload(file);
+                    return false;
+                  }}
+                >
+                  <Button icon={<UploadOutlined />} loading={logoUploading}>
+                    {logoUrl ? '更换LOGO' : '上传LOGO'}
+                  </Button>
+                </Upload>
+                {logoUrl && (
+                  <Button icon={<DeleteOutlined />} danger onClick={handleLogoDelete}>
+                    删除
+                  </Button>
+                )}
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  支持 PNG/JPG 格式，建议正方形（如 512×512），大小不超过 2MB
+                </Text>
+              </Space>
+            </Space>
+          </div>
+          <Divider style={{ margin: '0 0 16px' }} />
           <Form
             form={basicForm}
             layout="vertical"

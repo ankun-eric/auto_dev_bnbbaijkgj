@@ -5,7 +5,10 @@
       <text class="history-icon">☰</text>
       <text class="history-text">历史</text>
     </view>
-    <text class="page-title">AI健康咨询</text>
+    <view class="page-title-wrap">
+      <image wx:if="{{brandLogoUrl}}" class="brand-logo-small" src="{{brandLogoUrl}}" mode="aspectFit" />
+      <text class="page-title">AI健康咨询</text>
+    </view>
     <view class="top-bar-placeholder"></view>
   </view>
 
