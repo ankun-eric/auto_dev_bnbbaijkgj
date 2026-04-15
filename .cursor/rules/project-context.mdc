@@ -33,7 +33,44 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: COS全局500错误修复+存储配置页面重构 (2026-04-15)
+## Latest Update: 健康自查优化+体检报告AI解读Bug修复 (2026-04-15)
+
+### 概要
+修复体检报告AI解读全端失败的P0 Bug（根因：batch-recognize接口返回OcrCallRecord.id但前端结果页期望CheckupReport.id）；健康自查症状持续时间增加必选校验；咨询人信息必填校验扩展至所有家庭成员（移除is_self条件限制）。三端（H5/小程序/Flutter）同步更新。
+
+### Backend 变更
+
+| 文件 | 变更 |
+| --- | --- |
+| `backend/app/api/ocr.py` | `_write_checkup_detail` 新增创建 CheckupReport + CheckupIndicator 记录逻辑，使 batch-recognize 返回的 ID 可被 /api/report/analyze 正确查询；recognize 和 batch-recognize 接口返回新增 report_id 字段 |
+| `backend/app/schemas/ocr.py` | OcrRecognizeResponse 和 OcrBatchRecognizeResponse 新增 report_id 可选字段 |
+
+### H5 变更
+
+| 文件 | 变更 |
+| --- | --- |
+| `h5-web/src/app/checkup/page.tsx` | handleSubmit 优先使用 report_id，降级使用 merged_record_id |
+| `h5-web/src/app/checkup/result/[id]/page.tsx` | fetchAnalysis 增强 404 错误处理 |
+| `h5-web/src/app/symptom/page.tsx` | nextStep 增加 duration 必选校验；移除姓名输入框 is_self 条件包裹；出生日期/性别 * 标记始终显示；handleConfirm 校验对所有成员生效 |
+
+### 小程序变更
+
+| 文件 | 变更 |
+| --- | --- |
+| `miniprogram/pages/symptom/index.js` | nextStep 增加 selectedDuration 必选校验；必填校验移除 is_self 条件 |
+| `miniprogram/pages/symptom/index.wxml` | 基本信息区域显示条件从 isSelfSelected 改为 selectedMemberId |
+| `miniprogram/pages/checkup/index.js` | startRecognize/handleUploadFiles 优先使用 report_id |
+
+### Flutter 变更
+
+| 文件 | 变更 |
+| --- | --- |
+| `flutter_app/lib/screens/health/symptom_screen.dart` | 新增持续时间选择步骤和必选校验；基本信息表单和校验移除 isSelf 条件 |
+| `flutter_app/lib/providers/health_provider.dart` | uploadAndAnalyzeMultipleReports 优先使用 report_id |
+
+---
+
+## Previous Update: COS全局500错误修复+存储配置页面重构 (2026-04-15)
 
 ### 概要
 修复COS功能部署后全局500错误（根因：数据库Schema不同步）；彻底移除path_prefix统一路径前缀，改为image_prefix/video_prefix/file_prefix三分类前缀按MIME类型自动分配；存储配置页面Tab从2个拆分为4个（存储配置/上传限制/数据迁移/文件管理）；新增Schema自动同步机制和异常处理增强。
