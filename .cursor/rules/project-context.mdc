@@ -33,7 +33,70 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 502 Bad Gateway 修复 (2026-04-15)
+## Latest Update: 登录页LOGO与文案优化 (2026-04-15)
+
+### 概要
+两项优化：1) 删除 H5 登录页资料补充提醒文案；2) 新增品牌 LOGO 后台可配置功能（管理后台上传 LOGO 后，H5/小程序/Flutter App 三端的登录页、首页、AI 对话页自动替换显示）。
+
+### Backend 变更
+
+| 文件 | 变更 |
+| --- | --- |
+| `backend/app/api/admin.py` | 新增 POST/DELETE `/api/admin/settings/logo`（管理员上传/删除 LOGO）+ `settings_router` 定义 GET `/api/settings/logo`（公开获取 LOGO URL） |
+| `backend/app/main.py` | 注册 `admin.settings_router` |
+| `backend/tests/test_logo_settings.py` | 新增 8 个 LOGO API 自动化测试用例（全部通过） |
+
+### Admin 变更
+
+| 文件 | 变更 |
+| --- | --- |
+| `admin-web/src/app/(admin)/settings/page.tsx` | 系统设置「基础配置」Tab 顶部新增品牌 LOGO 上传/预览/删除组件 |
+
+### H5 变更
+
+| 文件 | 变更 |
+| --- | --- |
+| `h5-web/src/app/login/page.tsx` | 删除 `profilePromptText` 文案；接入动态 LOGO（替代渐变圆形图标） |
+| `h5-web/src/app/(tabs)/home/page.tsx` | 导航栏标题前接入动态小 LOGO |
+| `h5-web/src/app/(tabs)/ai/page.tsx` | 标题前接入动态小 LOGO |
+
+### 小程序变更
+
+| 文件 | 变更 |
+| --- | --- |
+| `miniprogram/app.js` | globalData 新增 `brandLogoUrl`，`onLaunch` 中获取并缓存 LOGO |
+| `miniprogram/pages/login/index.wxml/js/wxss` | 登录页大 LOGO 条件显示 |
+| `miniprogram/pages/home/index.wxml/js/wxss` | 首页导航栏小 LOGO 条件显示 |
+| `miniprogram/pages/ai/index.wxml/js/wxss` | AI 页标题前小 LOGO 条件显示 |
+
+### Flutter 变更
+
+| 文件 | 变更 |
+| --- | --- |
+| `flutter_app/lib/services/logo_service.dart` | 新增 LogoService 单例（获取、缓存 LOGO URL） |
+| `flutter_app/lib/services/api_service.dart` | 新增 `dio` 公开 getter |
+| `flutter_app/lib/main.dart` | 启动时调用 `LogoService().fetchLogo()` |
+| `flutter_app/lib/screens/login_screen.dart` | 登录页大 LOGO 条件显示 |
+| `flutter_app/lib/screens/home/home_screen.dart` | 首页导航栏小 LOGO 条件显示 |
+| `flutter_app/lib/screens/ai/ai_home_screen.dart` | AI 页标题前小 LOGO 条件显示 |
+
+### 新增 API 端点
+
+| 方法 | 路径 | 权限 | 说明 |
+| --- | --- | --- | --- |
+| POST | `/api/admin/settings/logo` | 管理员 | 上传品牌 LOGO（PNG/JPG，≤2MB） |
+| DELETE | `/api/admin/settings/logo` | 管理员 | 删除已上传的 LOGO |
+| GET | `/api/settings/logo` | 公开 | 获取当前 LOGO URL |
+
+### 客户端包更新
+- 小程序: `miniprogram_20260415_120750_8c38.zip`
+
+### 用户手册
+- `user_docs/登录页LOGO与文案优化.md`
+
+---
+
+## Previous Update: 502 Bad Gateway 修复 (2026-04-15)
 
 ### 概要
 修复所有页面（H5 用户端、管理后台）出现 502 Bad Gateway 错误的问题。原因是 Gateway Nginx 容器在项目容器重建后丢失了与项目 Docker 网络的连接，导致 DNS 解析失败。通过 `docker network connect` 重新将 Gateway 加入项目网络修复。
