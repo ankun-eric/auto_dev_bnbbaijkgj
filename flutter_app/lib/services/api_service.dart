@@ -131,11 +131,11 @@ class ApiService {
     return _dio.put(ApiConfig.updateProfile, data: data);
   }
 
-  Future<Response> uploadAvatar(String filePath) async {
+  Future<Response> uploadAvatar(String filePath, {ProgressCallback? onSendProgress}) async {
     final formData = FormData.fromMap({
       'avatar': await MultipartFile.fromFile(filePath),
     });
-    return _dio.post(ApiConfig.uploadAvatar, data: formData);
+    return _dio.post(ApiConfig.uploadAvatar, data: formData, onSendProgress: onSendProgress);
   }
 
   // Health
@@ -220,11 +220,11 @@ class ApiService {
     return _dio.get(ApiConfig.checkupReports, queryParameters: {'page': page});
   }
 
-  Future<Response> uploadCheckupReport(String filePath) async {
+  Future<Response> uploadCheckupReport(String filePath, {ProgressCallback? onSendProgress}) async {
     final formData = FormData.fromMap({
       'file': await MultipartFile.fromFile(filePath),
     });
-    return _dio.post(ApiConfig.uploadCheckup, data: formData);
+    return _dio.post(ApiConfig.uploadCheckup, data: formData, onSendProgress: onSendProgress);
   }
 
   Future<Response> analyzeCheckup(String reportId) async {
@@ -232,11 +232,11 @@ class ApiService {
   }
 
   // Report (intelligent analysis)
-  Future<Response> uploadReport(String filePath) async {
+  Future<Response> uploadReport(String filePath, {ProgressCallback? onSendProgress}) async {
     final formData = FormData.fromMap({
       'file': await MultipartFile.fromFile(filePath),
     });
-    return _dio.post(ApiConfig.reportUpload, data: formData);
+    return _dio.post(ApiConfig.reportUpload, data: formData, onSendProgress: onSendProgress);
   }
 
   Future<Response> analyzeReport(int reportId) async {
@@ -293,12 +293,12 @@ class ApiService {
   }
 
   // TCM
-  Future<Response> tcmDiagnose(String imagePath, String type) async {
+  Future<Response> tcmDiagnose(String imagePath, String type, {ProgressCallback? onSendProgress}) async {
     final formData = FormData.fromMap({
       'image': await MultipartFile.fromFile(imagePath),
       'type': type,
     });
-    return _dio.post(ApiConfig.tcmDiagnose, data: formData);
+    return _dio.post(ApiConfig.tcmDiagnose, data: formData, onSendProgress: onSendProgress);
   }
 
   Future<Response> getConstitutionTest() async {
@@ -314,11 +314,11 @@ class ApiService {
     return _dio.get(ApiConfig.drugSearch, queryParameters: {'keyword': keyword});
   }
 
-  Future<Response> identifyDrug(String imagePath) async {
+  Future<Response> identifyDrug(String imagePath, {ProgressCallback? onSendProgress}) async {
     final formData = FormData.fromMap({
       'image': await MultipartFile.fromFile(imagePath),
     });
-    return _dio.post(ApiConfig.drugIdentify, data: formData);
+    return _dio.post(ApiConfig.drugIdentify, data: formData, onSendProgress: onSendProgress);
   }
 
   Future<Response> getDrugIdentifyHistory({int page = 1, int pageSize = 20}) async {
@@ -336,15 +336,15 @@ class ApiService {
     return _dio.get('${ApiConfig.drugIdentifyPersonalSuggestion}/$recordId/personal-suggestion');
   }
 
-  Future<Response> ocrRecognizeDrug(String imagePath) async {
+  Future<Response> ocrRecognizeDrug(String imagePath, {ProgressCallback? onSendProgress}) async {
     final formData = FormData.fromMap({
       'file': await MultipartFile.fromFile(imagePath),
       'scene_name': '拍照识药',
     });
-    return _dio.post(ApiConfig.ocrRecognize, data: formData);
+    return _dio.post(ApiConfig.ocrRecognize, data: formData, onSendProgress: onSendProgress);
   }
 
-  Future<Response> ocrBatchRecognize(List<String> imagePaths, {String? sceneName}) async {
+  Future<Response> ocrBatchRecognize(List<String> imagePaths, {String? sceneName, ProgressCallback? onSendProgress}) async {
     final files = await Future.wait(
       imagePaths.map((p) => MultipartFile.fromFile(p)),
     );
@@ -355,7 +355,7 @@ class ApiService {
     if (sceneName != null) {
       formData.fields.add(MapEntry('scene_name', sceneName));
     }
-    return _dio.post(ApiConfig.ocrBatchRecognize, data: formData);
+    return _dio.post(ApiConfig.ocrBatchRecognize, data: formData, onSendProgress: onSendProgress);
   }
 
   // Health Plan (legacy)
@@ -681,13 +681,13 @@ class ApiService {
         : <String, dynamic>{};
   }
 
-  Future<Map<String, dynamic>> asrRecognize(String filePath, String format) async {
+  Future<Map<String, dynamic>> asrRecognize(String filePath, String format, {ProgressCallback? onSendProgress}) async {
     final formData = FormData.fromMap({
       'audio_file': await MultipartFile.fromFile(filePath),
       'format': format,
       'sample_rate': '16000',
     });
-    final response = await _dio.post(ApiConfig.asrRecognize, data: formData);
+    final response = await _dio.post(ApiConfig.asrRecognize, data: formData, onSendProgress: onSendProgress);
     return response.data is Map<String, dynamic>
         ? response.data as Map<String, dynamic>
         : <String, dynamic>{};

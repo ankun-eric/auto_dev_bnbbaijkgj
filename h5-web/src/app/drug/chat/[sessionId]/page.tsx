@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { NavBar, TextArea, Button, SpinLoading, Toast, ImageViewer, Tabs, Dialog } from 'antd-mobile';
 import api from '@/lib/api';
+import { checkFileSize, uploadWithProgress } from '@/lib/upload-utils';
 
 interface Message {
   id: string;
@@ -274,6 +275,7 @@ export default function DrugChatPage() {
   const [inputVal, setInputVal] = useState('');
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadPercent, setUploadPercent] = useState(-1);
   const [imageViewerVisible, setImageViewerVisible] = useState(false);
   const [viewerImages, setViewerImages] = useState<string[]>([]);
   const [drugRecord, setDrugRecord] = useState<DrugRecord | null>(null);
@@ -402,17 +404,26 @@ export default function DrugChatPage() {
 
   const handlePhotoFile = async (file: File | undefined) => {
     if (!file || uploading) return;
+
+    const sizeCheck = await checkFileSize(file, 'drug_identify');
+    if (!sizeCheck.ok) {
+      Toast.show({ content: `文件大小超过限制（最大 ${sizeCheck.maxMb} MB）`, icon: 'fail' });
+      return;
+    }
+
     setUploading(true);
+    setUploadPercent(0);
 
     try {
       const formData = new FormData();
       formData.append('file', file);
       formData.append('scene_name', '拍照识药');
-      const ocrRes: any = await api.post('/api/ocr/recognize', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-        timeout: 120000,
-      });
-      const ocrData = ocrRes.data || ocrRes;
+      const ocrData: any = await uploadWithProgress(
+        '/api/ocr/recognize',
+        formData,
+        (pct) => setUploadPercent(pct),
+        { timeout: 120000 },
+      );
 
       const drugName = ocrData.drug_name || ocrData.result?.drug_name || '药品';
       const content = `请分析这个新药品：${drugName}，并与之前的药品进行对比`;
@@ -444,6 +455,7 @@ export default function DrugChatPage() {
       Toast.show({ content: '识别失败，请重试', icon: 'fail' });
     } finally {
       setUploading(false);
+      setUploadPercent(-1);
       setLoading(false);
       if (cameraRef.current) cameraRef.current.value = '';
       if (albumRef.current) albumRef.current.value = '';
@@ -574,7 +586,20 @@ export default function DrugChatPage() {
       {uploading && (
         <div className="fixed inset-0 z-50 bg-black/50 flex flex-col items-center justify-center">
           <SpinLoading style={{ '--size': '48px', '--color': '#52c41a' }} />
-          <span className="text-white text-base mt-4 font-medium">AI识别中...</span>
+          <span className="text-white text-base mt-4 font-medium">
+            {uploadPercent < 100 ? '上传中...' : 'AI识别中...'}
+          </span>
+          {uploadPercent >= 0 && uploadPercent < 100 && (
+            <div className="w-48 mt-3 flex items-center gap-2">
+              <div className="flex-1 h-2 bg-white/20 rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-300 bg-green-400"
+                  style={{ width: `${uploadPercent}%` }}
+                />
+              </div>
+              <span className="text-xs text-white/80 w-10 text-right">{uploadPercent}%</span>
+            </div>
+          )}
         </div>
       )}
 

@@ -88,6 +88,16 @@
     <view id="msg-bottom" style="height: 20rpx;"></view>
   </scroll-view>
 
+  <!-- 上传进度条 -->
+  <view class="upload-progress-bar" wx:if="{{showUploadProgress && uploadPercent >= 0}}">
+    <view class="upload-progress-inner">
+      <view class="upload-progress-track">
+        <view class="upload-progress-fill" style="width: {{uploadPercent}}%;"></view>
+      </view>
+      <text class="upload-progress-text">{{uploadPercent}}%</text>
+    </view>
+  </view>
+
   <!-- 功能按钮区域 -->
   <scroll-view scroll-x class="function-buttons-area" wx:if="{{functionButtons.length > 0}}">
     <view class="button-list">

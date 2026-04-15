@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { NavBar, Toast, Empty, SpinLoading, Card, Tag, Button } from 'antd-mobile';
 import api from '@/lib/api';
+import { checkFileSize, uploadWithProgress } from '@/lib/upload-utils';
 
 const MAX_IMAGES = 5;
 const MAX_SIZE = 20 * 1024 * 1024;
@@ -36,6 +37,7 @@ export default function DrugPage() {
   const [historyLoading, setHistoryLoading] = useState(true);
   const [recognizing, setRecognizing] = useState(false);
   const [uploadProgress, setUploadProgress] = useState('AI识别中...');
+  const [uploadPercent, setUploadPercent] = useState(-1);
   const [error, setError] = useState('');
   const [selectedFiles, setSelectedFiles] = useState<SelectedFile[]>([]);
 
@@ -61,7 +63,7 @@ export default function DrugPage() {
     fetchHistory();
   }, [fetchHistory]);
 
-  const addFiles = (files: FileList | null) => {
+  const addFiles = async (files: FileList | null) => {
     if (!files) return;
     const current = selectedFiles.length;
     const remaining = MAX_IMAGES - current;
@@ -70,11 +72,20 @@ export default function DrugPage() {
       return;
     }
     const toAdd = Array.from(files).slice(0, remaining);
-    const oversized = toAdd.filter((f) => f.size > MAX_SIZE);
-    if (oversized.length > 0) {
-      Toast.show({ content: '部分图片超过20MB，已跳过' });
+
+    const valid: File[] = [];
+    for (const f of toAdd) {
+      const sizeCheck = await checkFileSize(f, 'drug_identify');
+      if (!sizeCheck.ok) {
+        Toast.show({ content: `文件 ${f.name} 超过限制（最大 ${sizeCheck.maxMb} MB），已跳过` });
+        continue;
+      }
+      if (f.size > MAX_SIZE) {
+        Toast.show({ content: '部分图片超过20MB，已跳过' });
+        continue;
+      }
+      valid.push(f);
     }
-    const valid = toAdd.filter((f) => f.size <= MAX_SIZE);
     if (valid.length === 0) return;
     const newItems: SelectedFile[] = valid.map((file) => ({
       file,
@@ -97,6 +108,7 @@ export default function DrugPage() {
     if (selectedFiles.length === 0) return;
     setRecognizing(true);
     setError('');
+    setUploadPercent(0);
     setUploadProgress(`正在上传 ${selectedFiles.length} 张图片...`);
 
     try {
@@ -104,13 +116,15 @@ export default function DrugPage() {
       selectedFiles.forEach((sf) => formData.append('files', sf.file));
       formData.append('scene_name', '拍照识药');
 
-      setUploadProgress('AI识别中...');
-
-      const res: any = await api.post('/api/ocr/batch-recognize', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-        timeout: 120000,
-      });
-      const data = res.data || res;
+      const data: any = await uploadWithProgress(
+        '/api/ocr/batch-recognize',
+        formData,
+        (pct) => {
+          setUploadPercent(pct);
+          if (pct >= 100) setUploadProgress('AI识别中...');
+        },
+        { timeout: 120000 },
+      );
 
       if (data.session_id) {
         selectedFiles.forEach((sf) => URL.revokeObjectURL(sf.previewUrl));
@@ -123,6 +137,7 @@ export default function DrugPage() {
       setError('识别失败，请重新拍照或选择图片');
     } finally {
       setRecognizing(false);
+      setUploadPercent(-1);
       if (cameraInputRef.current) cameraInputRef.current.value = '';
       if (albumInputRef.current) albumInputRef.current.value = '';
     }
@@ -171,6 +186,17 @@ export default function DrugPage() {
         <div className="fixed inset-0 z-50 bg-black/50 flex flex-col items-center justify-center">
           <SpinLoading style={{ '--size': '48px', '--color': '#52c41a' }} />
           <span className="text-white text-base mt-4 font-medium">{uploadProgress}</span>
+          {uploadPercent >= 0 && uploadPercent < 100 && (
+            <div className="w-48 mt-3 flex items-center gap-2">
+              <div className="flex-1 h-2 bg-white/20 rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-300 bg-green-400"
+                  style={{ width: `${uploadPercent}%` }}
+                />
+              </div>
+              <span className="text-xs text-white/80 w-10 text-right">{uploadPercent}%</span>
+            </div>
+          )}
         </div>
       )}
 

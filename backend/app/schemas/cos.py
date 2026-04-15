@@ -1,7 +1,7 @@
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class CosConfigUpdate(BaseModel):
@@ -13,6 +13,9 @@ class CosConfigUpdate(BaseModel):
     video_prefix: Optional[str] = None
     file_prefix: Optional[str] = None
     is_active: Optional[bool] = None
+    cdn_domain: Optional[str] = None
+    cdn_protocol: Optional[str] = None
+    path_prefix: Optional[str] = None
 
 
 class CosConfigResponse(BaseModel):
@@ -25,8 +28,12 @@ class CosConfigResponse(BaseModel):
     video_prefix: str = "videos/"
     file_prefix: str = "files/"
     is_active: bool = False
-    created_at: datetime
-    updated_at: datetime
+    cdn_domain: Optional[str] = None
+    cdn_protocol: str = "https"
+    path_prefix: str = ""
+    test_passed: bool = False
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -50,3 +57,71 @@ class CosUsageResponse(BaseModel):
     total_size: int = 0
     total_size_mb: float = 0.0
     by_type: dict = {}
+
+
+# ──────────────── Upload Limits ────────────────
+
+
+class CosUploadLimitResponse(BaseModel):
+    module: str
+    module_name: Optional[str] = None
+    max_size_mb: int = 50
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class CosUploadLimitUpdate(BaseModel):
+    module: str
+    max_size_mb: int = Field(..., ge=1, le=1024)
+
+
+class CosUploadLimitBatchUpdate(BaseModel):
+    items: List[CosUploadLimitUpdate]
+
+
+# ──────────────── Migration ────────────────
+
+
+class CosMigrationGroupItem(BaseModel):
+    module: str
+    module_name: str
+    file_count: int
+    total_size: int
+    total_size_display: str
+
+
+class CosMigrationScanResponse(BaseModel):
+    groups: List[CosMigrationGroupItem]
+    total_files: int
+    total_size: int
+    total_size_display: str
+
+
+class CosMigrationStartRequest(BaseModel):
+    modules: List[str]
+
+
+class CosMigrationFailedItem(BaseModel):
+    original_url: str
+    error_message: Optional[str] = None
+
+
+class CosMigrationTaskResponse(BaseModel):
+    task_id: int
+    status: str
+    total_files: int
+    migrated_count: int
+    failed_count: int
+    skipped_count: int
+    progress_percent: float
+    current_file: Optional[str] = None
+    estimated_remaining_seconds: Optional[int] = None
+    started_at: Optional[datetime] = None
+    failed_items: List[CosMigrationFailedItem] = []
+
+
+class CosMigrationStartResponse(BaseModel):
+    task_id: int
+    status: str
+    total_files: int
+    message: str

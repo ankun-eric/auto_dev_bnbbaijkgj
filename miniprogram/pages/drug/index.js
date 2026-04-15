@@ -1,6 +1,7 @@
 const { get } = require('../../utils/request');
 const { uploadFile } = require('../../utils/request');
 const { checkLogin, formatRelativeTime } = require('../../utils/util');
+const { checkFileSize, uploadWithProgress } = require('../../utils/upload-utils');
 
 Page({
   data: {
@@ -9,7 +10,8 @@ Page({
     uploading: false,
     selectedImages: [],
     maxImages: 5,
-    uploadProgressText: ''
+    uploadProgressText: '',
+    uploadPercent: -1
   },
 
   onShow() {
@@ -114,14 +116,27 @@ Page({
 
     const images = this.data.selectedImages;
     const total = images.length;
-    this.setData({ uploading: true, uploadProgressText: `正在上传 1/${total} 张...` });
+
+    for (let i = 0; i < images.length; i++) {
+      const sizeCheck = await checkFileSize(images[i].path, 'drug_identify');
+      if (!sizeCheck.ok) {
+        wx.showToast({ title: `第${i + 1}张图片超过限制（最大 ${sizeCheck.maxMb} MB）`, icon: 'none', duration: 2500 });
+        return;
+      }
+    }
+
+    this.setData({ uploading: true, uploadProgressText: `正在上传 1/${total} 张...`, uploadPercent: 0 });
 
     let firstSessionId = null;
     try {
       for (let i = 0; i < images.length; i++) {
         this.setData({ uploadProgressText: `正在上传 ${i + 1}/${total} 张...` });
-        const res = await uploadFile('/api/ocr/recognize', images[i].path, 'file', {
-          scene_name: '拍照识药'
+        const res = await uploadWithProgress('/api/ocr/recognize', images[i].path, {
+          formData: { scene_name: '拍照识药' },
+          onProgress: (percent) => {
+            const overallPercent = Math.round(((i + percent / 100) / total) * 100);
+            this.setData({ uploadPercent: overallPercent });
+          }
         });
         const sessionId = res && (res.session_id || res.id || res.sessionId);
         if (sessionId && !firstSessionId) {
@@ -129,7 +144,7 @@ Page({
         }
       }
 
-      this.setData({ uploading: false, uploadProgressText: '', selectedImages: [] });
+      this.setData({ uploading: false, uploadProgressText: '', uploadPercent: -1, selectedImages: [] });
 
       if (!firstSessionId) {
         wx.showToast({ title: '识别失败，请重试', icon: 'none' });
@@ -139,7 +154,7 @@ Page({
         url: '/pages/drug-chat/index?sessionId=' + firstSessionId
       });
     } catch (e) {
-      this.setData({ uploading: false, uploadProgressText: '' });
+      this.setData({ uploading: false, uploadProgressText: '', uploadPercent: -1 });
       wx.showToast({ title: e.detail || '识别失败，请重试', icon: 'none' });
     }
   },

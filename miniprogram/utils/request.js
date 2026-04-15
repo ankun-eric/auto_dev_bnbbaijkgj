@@ -115,9 +115,12 @@ function del(url, data, options = {}) {
   return request({ url, method: 'DELETE', data, ...options });
 }
 
-function uploadFile(url, filePath, name = 'file', formData = {}) {
+function uploadFile(url, filePath, name = 'file', formData = {}, options = {}) {
+  const { onProgress, showLoading: showLoad = true } = options;
   const token = app.globalData.token;
-  wx.showLoading({ title: '上传中...', mask: true });
+  if (showLoad) {
+    wx.showLoading({ title: '上传中...', mask: true });
+  }
 
   return new Promise((resolve, reject) => {
     const headers = {};
@@ -125,14 +128,14 @@ function uploadFile(url, filePath, name = 'file', formData = {}) {
       headers.Authorization = `Bearer ${token}`;
     }
 
-    wx.uploadFile({
+    const uploadTask = wx.uploadFile({
       url: app.globalData.baseUrl + url,
       filePath,
       name,
       formData,
       header: headers,
       success(res) {
-        wx.hideLoading();
+        if (showLoad) wx.hideLoading();
         try {
           const data = JSON.parse(res.data);
           if (res.statusCode === 200) {
@@ -148,12 +151,18 @@ function uploadFile(url, filePath, name = 'file', formData = {}) {
         }
       },
       fail(err) {
-        wx.hideLoading();
+        if (showLoad) wx.hideLoading();
         const msg = (err && err.errMsg) || '上传失败';
         wx.showToast({ title: msg, icon: 'none' });
         reject({ statusCode: 0, detail: msg, raw: err });
       }
     });
+
+    if (onProgress && uploadTask) {
+      uploadTask.onProgressUpdate(res => {
+        onProgress(res.progress, res.totalBytesSent, res.totalBytesExpectedToSend);
+      });
+    }
   });
 }
 

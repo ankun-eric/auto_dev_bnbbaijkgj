@@ -4,6 +4,7 @@ from datetime import date, datetime
 from sqlalchemy import (
     DECIMAL,
     JSON,
+    BigInteger,
     Boolean,
     Column,
     Date,
@@ -1290,6 +1291,10 @@ class CosConfig(Base):
     video_prefix = mapped_column(String(200), default="videos/")
     file_prefix = mapped_column(String(200), default="files/")
     is_active = mapped_column(Boolean, default=False)
+    cdn_domain = Column(String(300), nullable=True, comment='CDN加速域名')
+    cdn_protocol = Column(String(10), default='https', comment='CDN协议')
+    path_prefix = Column(String(200), default='', comment='统一路径前缀（扁平存储）')
+    test_passed = Column(Boolean, default=False, comment='连接测试是否通过')
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -1305,6 +1310,45 @@ class CosFile(Base):
     module = mapped_column(String(50), nullable=True)
     ref_id = mapped_column(Integer, nullable=True)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class CosUploadLimit(Base):
+    __tablename__ = "cos_upload_limits"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    module = Column(String(50), unique=True, nullable=False)
+    module_name = Column(String(100))
+    max_size_mb = Column(Integer, default=50)
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+
+
+class CosMigrationTask(Base):
+    __tablename__ = "cos_migration_tasks"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    status = Column(String(20), default='scanning')
+    total_files = Column(Integer, default=0)
+    migrated_count = Column(Integer, default=0)
+    failed_count = Column(Integer, default=0)
+    skipped_count = Column(Integer, default=0)
+    total_size = Column(BigInteger, default=0)
+    migrated_size = Column(BigInteger, default=0)
+    started_at = Column(DateTime, nullable=True)
+    completed_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=func.now())
+    created_by = Column(Integer, nullable=True)
+
+
+class CosMigrationDetail(Base):
+    __tablename__ = "cos_migration_details"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    task_id = Column(Integer, nullable=False)
+    module = Column(String(50))
+    original_url = Column(String(1000))
+    cos_url = Column(String(1000), nullable=True)
+    file_size = Column(Integer, default=0)
+    status = Column(String(20), default='pending')
+    error_message = Column(String(500), nullable=True)
+    migrated_at = Column(DateTime, nullable=True)
 
 
 # ──────────────── 体检报告相关配置 ────────────────

@@ -1,12 +1,45 @@
-import os
-import uuid
 import hashlib
 import hmac
+import os
 import time
+import uuid
 from typing import Optional
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+
+async def get_cos_config_cached(db: AsyncSession):
+    """Fetch the active COS config row (latest by id)."""
+    from app.models.models import CosConfig
+
+    result = await db.execute(select(CosConfig).order_by(CosConfig.id.desc()).limit(1))
+    return result.scalar_one_or_none()
+
+
+def _build_cos_authorization(secret_id: str, secret_key: str, host: str, file_key: str, method: str = "put") -> str:
+    now = int(time.time())
+    key_time = f"{now};{now + 3600}"
+    sign_key = hmac.new(secret_key.encode(), key_time.encode(), hashlib.sha1).hexdigest()
+
+    http_string = f"{method}\n/{file_key}\n\nhost={host}\n"
+    sha1_http = hashlib.sha1(http_string.encode()).hexdigest()
+    string_to_sign = f"sha1\n{key_time}\n{sha1_http}\n"
+    signature = hmac.new(sign_key.encode(), string_to_sign.encode(), hashlib.sha1).hexdigest()
+
+    return (
+        f"q-sign-algorithm=sha1&q-ak={secret_id}&q-sign-time={key_time}"
+        f"&q-key-time={key_time}&q-header-list=host&q-url-param-list=&q-signature={signature}"
+    )
+
+
+def _build_file_url(cfg, file_key: str) -> str:
+    """Build the public URL for a COS file, using CDN domain if configured."""
+    if cfg.cdn_domain:
+        protocol = cfg.cdn_protocol or "https"
+        return f"{protocol}://{cfg.cdn_domain}/{file_key}"
+    region = cfg.region or "ap-guangzhou"
+    return f"https://{cfg.bucket}.cos.{region}.myqcloud.com/{file_key}"
 
 
 async def try_cos_upload(
@@ -14,42 +47,35 @@ async def try_cos_upload(
     file_content: bytes,
     filename: str,
     content_type: str,
-    prefix: str = "images/",
+    prefix: str = "",
 ) -> Optional[str]:
-    """Try uploading to COS. Returns full URL on success, None on failure (fallback to local)."""
+    """Try uploading to COS. Returns full URL on success, None on failure (fallback to local).
+
+    Uses path_prefix from config for flat storage: {path_prefix}{uuid}.{ext}
+    Falls back to the provided `prefix` param only if path_prefix is empty.
+    """
     try:
-        from app.models.models import CosConfig
-        result = await db.execute(select(CosConfig).limit(1))
-        cfg = result.scalar_one_or_none()
+        cfg = await get_cos_config_cached(db)
         if not cfg or not cfg.is_active or not cfg.secret_id or not cfg.secret_key_encrypted or not cfg.bucket:
             return None
 
         ext = os.path.splitext(filename)[1] if filename else ""
-        file_key = f"{prefix}{uuid.uuid4().hex}{ext}"
+        effective_prefix = cfg.path_prefix if cfg.path_prefix else prefix
+        file_key = f"{effective_prefix}{uuid.uuid4().hex}{ext}"
 
         region = cfg.region or "ap-guangzhou"
-        bucket = cfg.bucket
-        host = f"{bucket}.cos.{region}.myqcloud.com"
-        url = f"https://{host}/{file_key}"
+        host = f"{cfg.bucket}.cos.{region}.myqcloud.com"
+        upload_url = f"https://{host}/{file_key}"
 
-        now = int(time.time())
-        key_time = f"{now};{now + 3600}"
-        sign_key = hmac.new(cfg.secret_key_encrypted.encode(), key_time.encode(), hashlib.sha1).hexdigest()
-
-        http_string = f"put\n/{file_key}\n\nhost={host}\n"
-        sha1_http = hashlib.sha1(http_string.encode()).hexdigest()
-        string_to_sign = f"sha1\n{key_time}\n{sha1_http}\n"
-        signature = hmac.new(sign_key.encode(), string_to_sign.encode(), hashlib.sha1).hexdigest()
-
-        authorization = (
-            f"q-sign-algorithm=sha1&q-ak={cfg.secret_id}&q-sign-time={key_time}"
-            f"&q-key-time={key_time}&q-header-list=host&q-url-param-list=&q-signature={signature}"
+        authorization = _build_cos_authorization(
+            cfg.secret_id, cfg.secret_key_encrypted, host, file_key, "put"
         )
 
         import httpx
+
         async with httpx.AsyncClient(timeout=30) as client:
             resp = await client.put(
-                url,
+                upload_url,
                 content=file_content,
                 headers={
                     "Host": host,
@@ -58,7 +84,37 @@ async def try_cos_upload(
                 },
             )
             if resp.status_code in (200, 204):
-                return url
+                return _build_file_url(cfg, file_key)
     except Exception:
         pass
     return None
+
+
+async def delete_cos_file(db: AsyncSession, file_key: str) -> bool:
+    """Delete a file from COS by its key. Returns True on success."""
+    try:
+        cfg = await get_cos_config_cached(db)
+        if not cfg or not cfg.is_active or not cfg.secret_id or not cfg.secret_key_encrypted or not cfg.bucket:
+            return False
+
+        region = cfg.region or "ap-guangzhou"
+        host = f"{cfg.bucket}.cos.{region}.myqcloud.com"
+        delete_url = f"https://{host}/{file_key}"
+
+        authorization = _build_cos_authorization(
+            cfg.secret_id, cfg.secret_key_encrypted, host, file_key, "delete"
+        )
+
+        import httpx
+
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.delete(
+                delete_url,
+                headers={
+                    "Host": host,
+                    "Authorization": authorization,
+                },
+            )
+            return resp.status_code in (200, 204, 404)
+    except Exception:
+        return False

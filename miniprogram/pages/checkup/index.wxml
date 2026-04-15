@@ -56,6 +56,12 @@ module.exports.isSelected = function(selectedIds, id) {
         </view>
       </view>
       <view wx:if="{{uploadProgressText}}" class="progress-text">{{uploadProgressText}}</view>
+      <view wx:if="{{uploading && uploadPercent >= 0}}" class="upload-progress-wrap">
+        <view class="upload-progress-track">
+          <view class="upload-progress-fill" style="width: {{uploadPercent}}%;"></view>
+        </view>
+        <text class="upload-progress-pct">{{uploadPercent}}%</text>
+      </view>
       <button class="start-btn" bindtap="startRecognize" loading="{{uploading}}" disabled="{{uploading}}">
         {{uploading ? uploadProgressText || '上传中...' : '开始识别'}}
       </button>

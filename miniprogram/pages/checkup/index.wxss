@@ -401,3 +401,32 @@
 .start-btn[disabled] {
   opacity: 0.7;
 }
+
+.upload-progress-wrap {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin: 16rpx 0;
+}
+
+.upload-progress-track {
+  flex: 1;
+  height: 8rpx;
+  background: #f0f0f0;
+  border-radius: 4rpx;
+  overflow: hidden;
+}
+
+.upload-progress-fill {
+  height: 100%;
+  border-radius: 4rpx;
+  background: linear-gradient(135deg, #52c41a, #13c2c2);
+  transition: width 0.3s ease;
+}
+
+.upload-progress-pct {
+  font-size: 22rpx;
+  color: #999;
+  width: 80rpx;
+  text-align: right;
+}

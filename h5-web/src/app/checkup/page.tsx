@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { NavBar, Card, Tag, Toast, Empty, SpinLoading, InfiniteScroll, Image } from 'antd-mobile';
 import { PictureOutline, CameraOutline, FileOutline } from 'antd-mobile-icons';
 import api from '@/lib/api';
+import { checkFileSize, uploadWithProgress } from '@/lib/upload-utils';
 import AlertBanner from '@/components/AlertBanner';
 
 const MAX_IMAGES = 5;
@@ -42,6 +43,7 @@ export default function CheckupPage() {
   const router = useRouter();
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState('');
+  const [uploadPercent, setUploadPercent] = useState(-1);
   const [reports, setReports] = useState<ReportItem[]>([]);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
@@ -110,7 +112,7 @@ export default function CheckupPage() {
     await fetchReports(page + 1);
   };
 
-  const addFiles = (files: FileList | null) => {
+  const addFiles = async (files: FileList | null) => {
     if (!files) return;
     const current = selectedFiles.length;
     const remaining = MAX_IMAGES - current;
@@ -119,11 +121,20 @@ export default function CheckupPage() {
       return;
     }
     const toAdd = Array.from(files).slice(0, remaining);
-    const oversized = toAdd.filter((f) => f.size > MAX_SIZE);
-    if (oversized.length > 0) {
-      Toast.show({ content: '部分图片超过20MB，已跳过' });
+
+    const valid: File[] = [];
+    for (const f of toAdd) {
+      const sizeCheck = await checkFileSize(f, 'checkup_report');
+      if (!sizeCheck.ok) {
+        Toast.show({ content: `文件 ${f.name} 超过限制（最大 ${sizeCheck.maxMb} MB），已跳过` });
+        continue;
+      }
+      if (f.size > MAX_SIZE) {
+        Toast.show({ content: '部分图片超过20MB，已跳过' });
+        continue;
+      }
+      valid.push(f);
     }
-    const valid = toAdd.filter((f) => f.size <= MAX_SIZE);
     if (valid.length === 0) return;
     const newItems: SelectedFile[] = valid.map((file) => ({
       file,
@@ -145,27 +156,32 @@ export default function CheckupPage() {
     if (selectedFiles.length === 0) return;
     setUploading(true);
     setUploadProgress(`正在上传 0/${selectedFiles.length} 张...`);
+    setUploadPercent(0);
 
     try {
       const formData = new FormData();
-      selectedFiles.forEach((sf, idx) => {
+      selectedFiles.forEach((sf) => {
         formData.append('files', sf.file);
-        setUploadProgress(`正在上传 ${idx + 1}/${selectedFiles.length} 张...`);
       });
       formData.append('scene_name', '体检报告识别');
 
-      setUploadProgress('识别中，请稍候...');
+      setUploadProgress('上传中...');
 
-      const res: any = await api.post('/api/ocr/batch-recognize', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-        timeout: 60000,
-      });
-      const data = res.data || res;
+      const data: any = await uploadWithProgress(
+        '/api/ocr/batch-recognize',
+        formData,
+        (pct) => {
+          setUploadPercent(pct);
+          if (pct >= 100) setUploadProgress('识别中，请稍候...');
+        },
+        { timeout: 60000 },
+      );
 
       if (data.fail_count && data.fail_count > 0 && data.fail_count === selectedFiles.length) {
         Toast.show({ content: '所有图片识别失败，请重试' });
         setUploading(false);
         setUploadProgress('');
+        setUploadPercent(-1);
         return;
       }
 
@@ -178,6 +194,7 @@ export default function CheckupPage() {
         Toast.show({ content: '识别返回异常，请重试' });
         setUploading(false);
         setUploadProgress('');
+        setUploadPercent(-1);
         return;
       }
 
@@ -186,9 +203,10 @@ export default function CheckupPage() {
       setSelectedFiles([]);
       setUploading(false);
       setUploadProgress('');
+      setUploadPercent(-1);
       router.push(`/checkup/result/${mergedId}`);
     } catch (err: any) {
-      const msg = err?.response?.data?.detail || err?.response?.data?.message || '上传失败，请重试';
+      const msg = err?.message || '上传失败，请重试';
       if (msg.includes('维护') || msg.includes('OCR') || msg.includes('closed')) {
         Toast.show({ content: '解读功能暂时维护中，请稍后再试' });
       } else {
@@ -196,6 +214,7 @@ export default function CheckupPage() {
       }
       setUploading(false);
       setUploadProgress('');
+      setUploadPercent(-1);
     }
   };
 
@@ -290,9 +309,22 @@ export default function CheckupPage() {
 
           {/* Upload progress */}
           {uploading && (
-            <div className="flex items-center justify-center gap-2 mt-4 py-3 rounded-xl bg-green-50">
-              <SpinLoading style={{ '--size': '18px', '--color': '#52c41a' }} />
-              <span className="text-sm text-green-600">{uploadProgress}</span>
+            <div className="mt-4 py-3 px-3 rounded-xl bg-green-50">
+              <div className="flex items-center gap-2 mb-2">
+                <SpinLoading style={{ '--size': '18px', '--color': '#52c41a' }} />
+                <span className="text-sm text-green-600">{uploadProgress}</span>
+              </div>
+              {uploadPercent >= 0 && (
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all duration-300"
+                      style={{ width: `${uploadPercent}%`, background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}
+                    />
+                  </div>
+                  <span className="text-xs text-gray-500 w-10 text-right">{uploadPercent}%</span>
+                </div>
+              )}
             </div>
           )}
 

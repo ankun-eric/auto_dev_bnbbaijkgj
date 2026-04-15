@@ -5,6 +5,7 @@ import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { NavBar, Input, SpinLoading, Toast, Popup, Tag, DatePicker, Dialog } from 'antd-mobile';
 import api from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { checkFileSize, uploadWithProgress } from '@/lib/upload-utils';
 import ChatSidebar from '@/components/ChatSidebar';
 import KnowledgeCard, { type KnowledgeHit } from '@/components/KnowledgeCard';
 
@@ -239,6 +240,7 @@ function ChatPageInner() {
   const funcScrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
+  const [uploadPercent, setUploadPercent] = useState(-1);
 
   useEffect(() => {
     if (_btnCache && Date.now() - _btnCache.ts < BTN_CACHE_TTL) {
@@ -292,17 +294,25 @@ function ChatPageInner() {
   };
 
   const handleFileUpload = async (file: File, type: 'photo' | 'file') => {
+    const module = type === 'photo' ? 'chat_image' : 'chat_file';
+    const sizeCheck = await checkFileSize(file, module);
+    if (!sizeCheck.ok) {
+      Toast.show({ content: `文件大小超过限制（最大 ${sizeCheck.maxMb} MB）`, icon: 'fail' });
+      return;
+    }
+
     const fd = new FormData();
     fd.append('file', file);
     fd.append('message_type', type === 'photo' ? 'image' : 'file');
     try {
-      Toast.show({ icon: 'loading', content: '上传中...', duration: 0 });
-      const res: any = await api.post(`/api/chat/sessions/${sessionId}/messages`, fd, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-        timeout: 60000,
-      });
-      Toast.clear();
-      const resData = res.data || res;
+      setUploadPercent(0);
+      const resData: any = await uploadWithProgress(
+        `/api/chat/sessions/${sessionId}/messages`,
+        fd,
+        (pct) => setUploadPercent(pct),
+        { timeout: 60000 },
+      );
+      setUploadPercent(-1);
       const userMsg: Message = {
         id: `user-${Date.now()}`,
         role: 'user',
@@ -317,7 +327,7 @@ function ChatPageInner() {
       };
       setMessages((prev) => [...prev, userMsg, aiMsg]);
     } catch {
-      Toast.clear();
+      setUploadPercent(-1);
       Toast.show({ content: '上传失败，请重试', icon: 'fail' });
     }
   };
@@ -1123,6 +1133,21 @@ function ChatPageInner() {
           e.target.value = '';
         }}
       />
+
+      {/* Upload progress bar */}
+      {uploadPercent >= 0 && (
+        <div className="bg-white px-4 py-2 border-t border-gray-100">
+          <div className="flex items-center gap-2">
+            <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all duration-300"
+                style={{ width: `${uploadPercent}%`, background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}
+              />
+            </div>
+            <span className="text-xs text-gray-500 w-10 text-right">{uploadPercent}%</span>
+          </div>
+        </div>
+      )}
 
       {/* Function buttons bar */}
       {funcButtons.length > 0 && (

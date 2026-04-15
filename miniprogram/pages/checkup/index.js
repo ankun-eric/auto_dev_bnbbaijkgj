@@ -1,5 +1,6 @@
 const { get, uploadFile } = require('../../utils/request');
 const { checkLogin } = require('../../utils/util');
+const { checkFileSize, uploadWithProgress } = require('../../utils/upload-utils');
 
 Page({
   data: {
@@ -14,6 +15,7 @@ Page({
     selectedImages: [],
     maxImages: 5,
     uploadProgressText: '',
+    uploadPercent: -1,
     compareMode: false,
     selectedIds: []
   },
@@ -170,7 +172,16 @@ Page({
 
     const images = this.data.selectedImages;
     const total = images.length;
-    this.setData({ uploading: true, uploadProgressText: `正在上传 1/${total} 张...` });
+
+    for (let i = 0; i < images.length; i++) {
+      const sizeCheck = await checkFileSize(images[i].path, 'checkup_report');
+      if (!sizeCheck.ok) {
+        wx.showToast({ title: `第${i + 1}张图片超过限制（最大 ${sizeCheck.maxMb} MB）`, icon: 'none', duration: 2500 });
+        return;
+      }
+    }
+
+    this.setData({ uploading: true, uploadProgressText: `正在上传 1/${total} 张...`, uploadPercent: 0 });
 
     try {
       let lastRecordId = null;
@@ -179,8 +190,12 @@ Page({
       for (let i = 0; i < images.length; i++) {
         this.setData({ uploadProgressText: `正在上传 ${i + 1}/${total} 张...` });
         try {
-          const res = await uploadFile('/api/ocr/recognize', images[i].path, 'file', {
-            scene_name: '体检报告识别'
+          const res = await uploadWithProgress('/api/ocr/recognize', images[i].path, {
+            formData: { scene_name: '体检报告识别' },
+            onProgress: (percent) => {
+              const overallPercent = Math.round(((i + percent / 100) / total) * 100);
+              this.setData({ uploadPercent: overallPercent });
+            }
           });
           const recordId = res && (res.record_id || res.id);
           if (recordId) {
@@ -192,7 +207,7 @@ Page({
         }
       }
 
-      this.setData({ uploading: false, uploadProgressText: '', selectedImages: [] });
+      this.setData({ uploading: false, uploadProgressText: '', uploadPercent: -1, selectedImages: [] });
 
       if (!lastRecordId) {
         wx.showToast({ title: '识别失败，请重试', icon: 'none' });
@@ -201,7 +216,7 @@ Page({
 
       wx.navigateTo({ url: `/pages/checkup-detail/index?id=${lastRecordId}` });
     } catch (e) {
-      this.setData({ uploading: false, uploadProgressText: '' });
+      this.setData({ uploading: false, uploadProgressText: '', uploadPercent: -1 });
       if (e && e.statusCode === 503) {
         wx.showToast({ title: '解读功能暂时维护中，请稍后再试', icon: 'none', duration: 3000 });
       } else {
@@ -212,15 +227,28 @@ Page({
 
   async handleUploadFiles(filePaths) {
     if (!filePaths || !filePaths.length) return;
-    this.setData({ uploading: true });
-    wx.showLoading({ title: '上传中...', mask: true });
+
+    for (const path of filePaths) {
+      const sizeCheck = await checkFileSize(path, 'checkup_report');
+      if (!sizeCheck.ok) {
+        wx.showToast({ title: `文件大小超过限制（最大 ${sizeCheck.maxMb} MB）`, icon: 'none', duration: 2500 });
+        return;
+      }
+    }
+
+    this.setData({ uploading: true, uploadPercent: 0 });
 
     try {
       let lastRecordId = null;
-      for (const path of filePaths) {
+      const total = filePaths.length;
+      for (let i = 0; i < filePaths.length; i++) {
         try {
-          const res = await uploadFile('/api/ocr/recognize', path, 'file', {
-            scene_name: '体检报告识别'
+          const res = await uploadWithProgress('/api/ocr/recognize', filePaths[i], {
+            formData: { scene_name: '体检报告识别' },
+            onProgress: (percent) => {
+              const overallPercent = Math.round(((i + percent / 100) / total) * 100);
+              this.setData({ uploadPercent: overallPercent });
+            }
           });
           const recordId = res && (res.record_id || res.id);
           if (recordId) lastRecordId = recordId;
@@ -229,8 +257,7 @@ Page({
         }
       }
 
-      wx.hideLoading();
-      this.setData({ uploading: false });
+      this.setData({ uploading: false, uploadPercent: -1 });
 
       if (!lastRecordId) {
         wx.showToast({ title: '识别失败，请重试', icon: 'none' });
@@ -239,8 +266,7 @@ Page({
 
       wx.navigateTo({ url: `/pages/checkup-detail/index?id=${lastRecordId}` });
     } catch (e) {
-      wx.hideLoading();
-      this.setData({ uploading: false });
+      this.setData({ uploading: false, uploadPercent: -1 });
       if (e && e.statusCode === 503) {
         wx.showToast({ title: '解读功能暂时维护中，请稍后再试', icon: 'none', duration: 3000 });
       } else {

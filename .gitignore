@@ -47,6 +47,8 @@ mysql_data/
 *.apk
 *.ipa
 *.zip
+_deploy_tmp/deploy.tar.gz
+_deploy_tmp/deploy.tar
 
 # Temporary SSH scripts
 ssh_*.py

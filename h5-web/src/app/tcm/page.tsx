@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { NavBar, Card, Grid, ImageUploader, Button, Radio, Space, ProgressBar, Toast, Result } from 'antd-mobile';
 import type { ImageUploadItem } from 'antd-mobile/es/components/image-uploader';
+import { checkFileSize } from '@/lib/upload-utils';
 
 const constitutionQuestions = [
   { id: 1, q: '您是否容易疲劳？', options: ['从不', '偶尔', '经常', '总是'] },
@@ -32,6 +33,11 @@ export default function TcmPage() {
   const [showResult, setShowResult] = useState(false);
 
   const handleUpload = async (file: File) => {
+    const sizeCheck = await checkFileSize(file, 'tcm_image');
+    if (!sizeCheck.ok) {
+      Toast.show({ content: `文件大小超过限制（最大 ${sizeCheck.maxMb} MB）`, icon: 'fail' });
+      throw new Error('file too large');
+    }
     return { url: URL.createObjectURL(file) };
   };
 

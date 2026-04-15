@@ -584,3 +584,37 @@
   text-align: center;
   line-height: 28rpx;
 }
+
+.upload-progress-bar {
+  background: #fff;
+  border-top: 1rpx solid #f0f0f0;
+  padding: 12rpx 24rpx;
+}
+
+.upload-progress-inner {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.upload-progress-track {
+  flex: 1;
+  height: 8rpx;
+  background: #f0f0f0;
+  border-radius: 4rpx;
+  overflow: hidden;
+}
+
+.upload-progress-fill {
+  height: 100%;
+  border-radius: 4rpx;
+  background: linear-gradient(135deg, #52c41a, #13c2c2);
+  transition: width 0.3s ease;
+}
+
+.upload-progress-text {
+  font-size: 22rpx;
+  color: #999;
+  width: 80rpx;
+  text-align: right;
+}

@@ -1,5 +1,6 @@
 const { get, post, uploadFile } = require('../../utils/request');
 const { generateId, checkLogin } = require('../../utils/util');
+const { checkFileSize, uploadWithProgress } = require('../../utils/upload-utils');
 const app = getApp();
 
 Page({
@@ -267,12 +268,18 @@ Page({
   },
 
   async _uploadImage(filePath) {
+    const sizeCheck = await checkFileSize(filePath, 'drug_identify');
+    if (!sizeCheck.ok) {
+      wx.showToast({ title: `文件大小超过限制（最大 ${sizeCheck.maxMb} MB）`, icon: 'none', duration: 2500 });
+      return;
+    }
+
     this._addLocalMessage('user', '', { image: filePath });
     const loadingId = this._addLocalMessage('loading', '');
 
     try {
-      const res = await uploadFile('/api/ocr/recognize', filePath, 'file', {
-        scene_name: '拍照识药'
+      const res = await uploadWithProgress('/api/ocr/recognize', filePath, {
+        formData: { scene_name: '拍照识药' }
       });
       const newSessionId = res.session_id || res.id || res.sessionId;
       const newRecordId = res.record_id || res.recordId || '';

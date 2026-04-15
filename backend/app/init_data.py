@@ -17,6 +17,7 @@ from app.models.models import (
     ChatMessage,
     ChatSession,
     ConstitutionQuestion,
+    CosUploadLimit,
     DiseasePreset,
     DrugSearchKeyword,
     FamilyMember,
@@ -74,6 +75,7 @@ async def init_default_data():
             await _fix_self_members_missing_relation_type(db)
             await _init_chat_function_buttons(db)
             await _init_voice_service_configs(db)
+            await _init_cos_upload_limits(db)
             await db.commit()
             logger.info("Default data initialization completed")
         except Exception as e:
@@ -1406,3 +1408,23 @@ async def _init_voice_service_configs(db: AsyncSession):
         db.add(VoiceServiceConfig(**cfg))
     await db.flush()
     logger.info("Created default voice service configs (%d)", len(configs))
+
+
+async def _init_cos_upload_limits(db: AsyncSession):
+    result = await db.execute(select(CosUploadLimit).limit(1))
+    if result.scalar_one_or_none():
+        return
+
+    defaults = [
+        {"module": "avatar", "module_name": "用户头像", "max_size_mb": 2},
+        {"module": "health_record_image", "module_name": "健康记录图片", "max_size_mb": 10},
+        {"module": "health_record_video", "module_name": "健康记录视频", "max_size_mb": 100},
+        {"module": "brand_logo", "module_name": "品牌LOGO", "max_size_mb": 2},
+        {"module": "banner", "module_name": "轮播图/广告图", "max_size_mb": 5},
+        {"module": "report", "module_name": "体检报告图片", "max_size_mb": 10},
+        {"module": "other", "module_name": "其他文件", "max_size_mb": 50},
+    ]
+    for item in defaults:
+        db.add(CosUploadLimit(**item))
+    await db.flush()
+    logger.info("Created default COS upload limits (%d)", len(defaults))

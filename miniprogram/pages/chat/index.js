@@ -1,5 +1,6 @@
 const { post, get, put, del, uploadFile } = require('../../utils/request');
 const { generateId } = require('../../utils/util');
+const { checkFileSize, uploadWithProgress } = require('../../utils/upload-utils');
 
 const RELATION_COLORS = {
   '本人': '#52c41a',
@@ -43,7 +44,9 @@ Page({
     showTargetPicker: false,
     familyMembers: [],
     functionButtons: [],
-    isSymptomLocked: false
+    isSymptomLocked: false,
+    uploadPercent: -1,
+    showUploadProgress: false
   },
 
   _recognizeManager: null,
@@ -321,33 +324,56 @@ Page({
   },
 
   async _uploadAndSendImage(filePath) {
+    const sizeCheck = await checkFileSize(filePath, 'chat_image');
+    if (!sizeCheck.ok) {
+      wx.showToast({ title: `文件大小超过限制（最大 ${sizeCheck.maxMb} MB）`, icon: 'none', duration: 2500 });
+      return;
+    }
+
     const id = generateId();
     const now = new Date();
     const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
     const messages = [...this.data.messages, { id, role: 'user', content: '', image: filePath, time }];
-    this.setData({ messages, scrollToId: `msg-${id}` });
+    this.setData({ messages, scrollToId: `msg-${id}`, showUploadProgress: true, uploadPercent: 0 });
 
     const loadingId = this.addMessage('loading', '');
     try {
-      const uploadRes = await uploadFile('/api/chat/upload-image', filePath, 'file', { session_id: this.data.chatId });
+      const uploadRes = await uploadWithProgress('/api/chat/upload-image', filePath, {
+        formData: { session_id: this.data.chatId },
+        onProgress: (percent) => this.setData({ uploadPercent: percent })
+      });
+      this.setData({ showUploadProgress: false, uploadPercent: -1 });
       this.removeMessage(loadingId);
       const reply = (uploadRes && uploadRes.ai_reply) || '已收到您上传的图片，正在分析中...';
       this.addMessage('assistant', reply);
     } catch (e) {
+      this.setData({ showUploadProgress: false, uploadPercent: -1 });
       this.removeMessage(loadingId);
       this.addMessage('assistant', '图片上传失败，请稍后重试。');
     }
   },
 
   async _uploadAndSendFile(filePath, fileName) {
+    const sizeCheck = await checkFileSize(filePath, 'chat_file');
+    if (!sizeCheck.ok) {
+      wx.showToast({ title: `文件大小超过限制（最大 ${sizeCheck.maxMb} MB）`, icon: 'none', duration: 2500 });
+      return;
+    }
+
     this.addMessage('user', `[文件] ${fileName}`);
+    this.setData({ showUploadProgress: true, uploadPercent: 0 });
     const loadingId = this.addMessage('loading', '');
     try {
-      const uploadRes = await uploadFile('/api/chat/upload-file', filePath, 'file', { session_id: this.data.chatId, file_name: fileName });
+      const uploadRes = await uploadWithProgress('/api/chat/upload-file', filePath, {
+        formData: { session_id: this.data.chatId, file_name: fileName },
+        onProgress: (percent) => this.setData({ uploadPercent: percent })
+      });
+      this.setData({ showUploadProgress: false, uploadPercent: -1 });
       this.removeMessage(loadingId);
       const reply = (uploadRes && uploadRes.ai_reply) || '已收到您上传的文件，正在分析中...';
       this.addMessage('assistant', reply);
     } catch (e) {
+      this.setData({ showUploadProgress: false, uploadPercent: -1 });
       this.removeMessage(loadingId);
       this.addMessage('assistant', '文件上传失败，请稍后重试。');
     }
