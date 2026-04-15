@@ -7,6 +7,24 @@ module.exports.isSelected = function(selectedIds, id) {
   }
   return false;
 }
+
+module.exports.getMemberTagColor = function(member) {
+  if (!member) return '#1677ff';
+  var rt = member.relationship_type || '';
+  if (rt === '本人') return '#1677ff';
+  if (rt === '爸爸' || rt === '父亲') return '#fa8c16';
+  if (rt === '妈妈' || rt === '母亲') return '#eb2f96';
+  if (rt === '配偶' || rt === '老公' || rt === '老婆') return '#722ed1';
+  if (rt === '儿子' || rt === '女儿' || rt === '子女') return '#13c2c2';
+  return '#8c8c8c';
+}
+
+module.exports.getMemberTagName = function(member) {
+  if (!member) return '本人';
+  if (member.nickname) return member.nickname;
+  if (member.relationship_type) return member.relationship_type;
+  return '本人';
+}
 </wxs>
 <view class="checkup-page">
   <!-- 预警横幅 -->
@@ -18,8 +36,26 @@ module.exports.isSelected = function(selectedIds, id) {
     </view>
   </view>
 
-  <!-- 上传区域 -->
-  <view class="upload-section card">
+  <!-- 步骤条 -->
+  <view class="ck-steps-bar" wx:if="{{selectedImages.length > 0}}">
+    <view class="ck-step {{uploadStep >= 1 ? 'ck-step-active' : ''}}" bindtap="onStepTap" data-step="1">
+      <view class="ck-step-dot">1</view>
+      <text class="ck-step-label">上传报告</text>
+    </view>
+    <view class="ck-step-line {{uploadStep >= 2 ? 'ck-line-active' : ''}}"></view>
+    <view class="ck-step {{uploadStep >= 2 ? 'ck-step-active' : ''}}" bindtap="onStepTap" data-step="2">
+      <view class="ck-step-dot">2</view>
+      <text class="ck-step-label">选择对象</text>
+    </view>
+    <view class="ck-step-line {{uploadStep >= 3 ? 'ck-line-active' : ''}}"></view>
+    <view class="ck-step {{uploadStep >= 3 ? 'ck-step-active' : ''}}">
+      <view class="ck-step-dot">3</view>
+      <text class="ck-step-label">AI 解读</text>
+    </view>
+  </view>
+
+  <!-- 上传区域 (步骤1) -->
+  <view class="upload-section card" wx:if="{{uploadStep === 1}}">
     <text class="section-title">上传体检报告</text>
     <text class="upload-tip">选择上传方式，AI为您智能解读体检报告</text>
     <view class="upload-buttons">
@@ -55,16 +91,49 @@ module.exports.isSelected = function(selectedIds, id) {
           <view class="delete-btn" catchtap="removeImage" data-index="{{index}}">×</view>
         </view>
       </view>
-      <view wx:if="{{uploadProgressText}}" class="progress-text">{{uploadProgressText}}</view>
-      <view wx:if="{{uploading && uploadPercent >= 0}}" class="upload-progress-wrap">
-        <view class="upload-progress-track">
-          <view class="upload-progress-fill" style="width: {{uploadPercent}}%;"></view>
-        </view>
-        <text class="upload-progress-pct">{{uploadPercent}}%</text>
-      </view>
-      <button class="start-btn" bindtap="startRecognize" loading="{{uploading}}" disabled="{{uploading}}">
-        {{uploading ? uploadProgressText || '上传中...' : '开始识别'}}
+      <button class="start-btn" bindtap="startRecognize" disabled="{{uploading}}">
+        开始识别
       </button>
+    </view>
+  </view>
+
+  <!-- 选择咨询对象 (步骤2) -->
+  <view class="family-select-section card" wx:if="{{uploadStep === 2}}">
+    <text class="section-title">选择咨询对象</text>
+    <text class="upload-tip">请选择这份体检报告属于谁</text>
+
+    <scroll-view class="ck-member-scroll" scroll-x>
+      <view class="ck-member-list">
+        <view class="ck-member-item {{selectedFamilyMemberId === item.id ? 'ck-member-selected' : ''}}"
+              wx:for="{{familyMembers}}" wx:key="id"
+              bindtap="selectFamilyMember" data-member="{{item}}">
+          <text class="ck-member-emoji">{{item.emoji}}</text>
+          <text class="ck-member-relation">{{item.relationship_type}}</text>
+          <text class="ck-member-name">{{item.nickname}}</text>
+        </view>
+        <view class="ck-member-item ck-member-add" bindtap="goAddFamilyMember">
+          <text class="ck-member-emoji">➕</text>
+          <text class="ck-member-relation">添加</text>
+          <text class="ck-member-name">家庭成员</text>
+        </view>
+      </view>
+    </scroll-view>
+
+    <view class="family-select-actions">
+      <button class="btn-outline family-action-btn" bindtap="onStepTap" data-step="1">上一步</button>
+      <button class="btn-primary family-action-btn" bindtap="confirmFamilyMember">确认并上传</button>
+    </view>
+  </view>
+
+  <!-- 上传中 (步骤3) -->
+  <view class="upload-progress-section card" wx:if="{{uploadStep === 3 && uploading}}">
+    <text class="section-title">AI 解读中</text>
+    <view wx:if="{{uploadProgressText}}" class="progress-text">{{uploadProgressText}}</view>
+    <view wx:if="{{uploadPercent >= 0}}" class="upload-progress-wrap">
+      <view class="upload-progress-track">
+        <view class="upload-progress-fill" style="width: {{uploadPercent}}%;"></view>
+      </view>
+      <text class="upload-progress-pct">{{uploadPercent}}%</text>
     </view>
   </view>
 
@@ -111,6 +180,9 @@ module.exports.isSelected = function(selectedIds, id) {
               <view class="tag tag-green" wx:if="{{item.status === 'analyzed' || item.status === '已分析'}}">已分析</view>
               <view class="tag tag-blue" wx:elif="{{item.status === 'pending' || item.status === '待分析'}}">待分析</view>
               <view class="tag tag-green" wx:else>{{item.status || '已上传'}}</view>
+              <view class="member-tag" style="background: {{utils.getMemberTagColor(item.family_member)}}15; color: {{utils.getMemberTagColor(item.family_member)}}; border: 1rpx solid {{utils.getMemberTagColor(item.family_member)}}30;">
+                {{utils.getMemberTagName(item.family_member)}}
+              </view>
             </view>
             <text class="history-name ellipsis">{{item.name || item.title || '体检报告'}}</text>
             <view class="history-meta">

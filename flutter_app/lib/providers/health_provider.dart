@@ -143,13 +143,18 @@ class HealthProvider extends ChangeNotifier {
   Future<CheckupReport?> uploadAndAnalyzeMultipleReports(
     List<String> filePaths, {
     Function(int current, int total)? onProgress,
+    int? familyMemberId,
   }) async {
     _isUploading = true;
     notifyListeners();
 
     try {
       onProgress?.call(1, filePaths.length);
-      final response = await _api.ocrBatchRecognize(filePaths, sceneName: '体检报告识别');
+      final response = await _api.ocrBatchRecognize(
+        filePaths,
+        sceneName: '体检报告识别',
+        familyMemberId: familyMemberId,
+      );
       if (response.statusCode == 200) {
         final data = response.data is Map ? response.data : {};
         final reportId = data['report_id'] ?? data['merged_record_id'];

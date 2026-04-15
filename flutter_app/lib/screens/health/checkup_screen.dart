@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import '../../providers/health_provider.dart';
 import '../../models/checkup_report.dart';
+import '../../services/api_service.dart';
 import '../../widgets/custom_app_bar.dart';
 import '../../widgets/empty_widget.dart';
 import '../../widgets/loading_widget.dart';
@@ -13,6 +14,20 @@ import 'report_detail_screen.dart';
 import 'report_compare_screen.dart';
 
 const _kPrimaryGreen = Color(0xFF52C41A);
+
+const _kRelationColors = <String, Color>{
+  '本人': Color(0xFF1677FF),
+  '爸爸': Color(0xFFFA8C16),
+  '父亲': Color(0xFFFA8C16),
+  '妈妈': Color(0xFFEB2F96),
+  '母亲': Color(0xFFEB2F96),
+  '配偶': Color(0xFF722ED1),
+  '丈夫': Color(0xFF722ED1),
+  '妻子': Color(0xFF722ED1),
+  '子女': Color(0xFF13C2C2),
+  '儿子': Color(0xFF13C2C2),
+  '女儿': Color(0xFF13C2C2),
+};
 
 Color _scoreColor(double score) {
   if (score >= 90) return const Color(0xFF1B8C3D);
@@ -31,11 +46,20 @@ class CheckupScreen extends StatefulWidget {
 
 class _CheckupScreenState extends State<CheckupScreen> {
   final ImagePicker _picker = ImagePicker();
+  final ApiService _apiService = ApiService();
 
   List<XFile> _selectedImages = [];
   final int _maxImages = 5;
   bool _isRecognizing = false;
   String _progressText = '';
+
+  // Upload step flow: 0=upload, 1=select member, 2=AI analyzing (navigated away)
+  int _uploadStep = 0;
+
+  // Family member selection
+  List<Map<String, dynamic>> _familyMembers = [];
+  int? _selectedFamilyMemberId;
+  bool _membersLoading = true;
 
   // Selection mode
   bool _selectionMode = false;
@@ -48,7 +72,39 @@ class _CheckupScreenState extends State<CheckupScreen> {
       final provider = Provider.of<HealthProvider>(context, listen: false);
       provider.loadReportList();
       provider.loadAlerts();
+      _loadFamilyMembers();
     });
+  }
+
+  Future<void> _loadFamilyMembers() async {
+    try {
+      final response = await _apiService.getFamilyMembers();
+      if (response.statusCode == 200 && mounted) {
+        final items = response.data['items'] as List? ?? [];
+        setState(() {
+          _familyMembers = items.map((e) {
+            final m = Map<String, dynamic>.from(e as Map);
+            return {
+              'id': m['id'],
+              'nickname': m['nickname'] ?? m['name'] ?? '',
+              'relationship_type': m['relation_type_name'] ?? m['relationship_type'] ?? '本人',
+              'is_self': m['is_self'] ?? false,
+              'gender': (m['gender'] ?? '').toString(),
+            };
+          }).toList();
+          if (_familyMembers.isNotEmpty) {
+            final selfMember = _familyMembers.firstWhere(
+              (m) => m['is_self'] == true,
+              orElse: () => _familyMembers.first,
+            );
+            _selectedFamilyMemberId = selfMember['is_self'] == true ? null : selfMember['id'];
+          }
+          _membersLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _membersLoading = false);
+    }
   }
 
   Future<void> _refresh() async {
@@ -120,13 +176,19 @@ class _CheckupScreenState extends State<CheckupScreen> {
     }
   }
 
-  Future<void> _startRecognize() async {
+  void _startRecognize() {
+    if (_selectedImages.isEmpty) return;
+    setState(() => _uploadStep = 1);
+  }
+
+  Future<void> _confirmAndUpload() async {
     if (_selectedImages.isEmpty) return;
     if (!mounted) return;
 
     setState(() {
       _isRecognizing = true;
       _progressText = '正在上传 1/${_selectedImages.length} 张...';
+      _uploadStep = 2;
     });
 
     final provider = Provider.of<HealthProvider>(context, listen: false);
@@ -134,6 +196,7 @@ class _CheckupScreenState extends State<CheckupScreen> {
 
     final report = await provider.uploadAndAnalyzeMultipleReports(
       filePaths,
+      familyMemberId: _selectedFamilyMemberId,
       onProgress: (current, total) {
         if (mounted) {
           setState(() {
@@ -147,6 +210,7 @@ class _CheckupScreenState extends State<CheckupScreen> {
     setState(() {
       _isRecognizing = false;
       _progressText = '';
+      _uploadStep = 0;
     });
 
     if (report != null) {
@@ -230,6 +294,10 @@ class _CheckupScreenState extends State<CheckupScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_uploadStep == 1) {
+      return _buildMemberSelectionPage();
+    }
+
     return Scaffold(
       appBar: CustomAppBar(
         title: _selectionMode ? '选择报告对比' : '体检报告',
@@ -257,6 +325,8 @@ class _CheckupScreenState extends State<CheckupScreen> {
             color: _kPrimaryGreen,
             child: CustomScrollView(
               slivers: [
+                if (_selectedImages.isNotEmpty)
+                  SliverToBoxAdapter(child: _buildUploadStepIndicator()),
                 if (provider.unreadAlertCount > 0)
                   SliverToBoxAdapter(child: _buildAlertBanner(provider)),
                 SliverToBoxAdapter(child: _buildUploadSection()),
@@ -287,6 +357,285 @@ class _CheckupScreenState extends State<CheckupScreen> {
       bottomSheet: _selectionMode && _selectedReportIds.length == 2
           ? _buildCompareBottomBar()
           : null,
+    );
+  }
+
+  Widget _buildUploadStepIndicator() {
+    const steps = ['上传报告', '选择对象', 'AI 解读'];
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      color: Colors.white,
+      child: Row(
+        children: List.generate(steps.length * 2 - 1, (index) {
+          if (index.isOdd) {
+            final stepIdx = index ~/ 2;
+            return Expanded(
+              child: Container(
+                height: 2,
+                color: _uploadStep > stepIdx
+                    ? _kPrimaryGreen
+                    : Colors.grey[300],
+              ),
+            );
+          }
+          final stepIdx = index ~/ 2;
+          final isActive = _uploadStep >= stepIdx;
+          final isDone = _uploadStep > stepIdx;
+          return GestureDetector(
+            onTap: stepIdx < _uploadStep ? () => setState(() => _uploadStep = stepIdx) : null,
+            child: Column(
+              children: [
+                Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: isActive ? _kPrimaryGreen : Colors.grey[300],
+                  ),
+                  child: Center(
+                    child: isDone
+                        ? const Icon(Icons.check, size: 16, color: Colors.white)
+                        : Text(
+                            '${stepIdx + 1}',
+                            style: TextStyle(
+                              color: isActive ? Colors.white : Colors.grey[600],
+                              fontSize: 13,
+                            ),
+                          ),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  steps[stepIdx],
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: isActive ? _kPrimaryGreen : Colors.grey[500],
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
+      ),
+    );
+  }
+
+  Widget _buildMemberSelectionPage() {
+    return Scaffold(
+      appBar: CustomAppBar(
+        title: '选择咨询对象',
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => setState(() => _uploadStep = 0),
+        ),
+      ),
+      body: Column(
+        children: [
+          _buildUploadStepIndicator(),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Row(
+                          children: [
+                            Icon(Icons.people, color: _kPrimaryGreen, size: 20),
+                            SizedBox(width: 8),
+                            Text(
+                              '这份报告属于谁？',
+                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          '选择后将为该成员生成专属健康分析',
+                          style: TextStyle(fontSize: 13, color: Colors.grey[500]),
+                        ),
+                        const SizedBox(height: 16),
+                        if (_membersLoading)
+                          const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(20),
+                              child: SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              ),
+                            ),
+                          )
+                        else
+                          Wrap(
+                            spacing: 12,
+                            runSpacing: 12,
+                            children: [
+                              ..._familyMembers.map((member) {
+                                final isSelf = member['is_self'] == true;
+                                final id = isSelf ? null : member['id'] as int?;
+                                final isSelected = _selectedFamilyMemberId == id;
+                                final relation = member['relationship_type']?.toString() ?? '本人';
+                                final nickname = member['nickname']?.toString() ?? '';
+                                final displayName = nickname.isNotEmpty ? nickname : relation;
+                                final tagColor = _getMemberTagColor(relation);
+
+                                return GestureDetector(
+                                  onTap: () => setState(() => _selectedFamilyMemberId = id),
+                                  child: Container(
+                                    width: 80,
+                                    padding: const EdgeInsets.symmetric(vertical: 14),
+                                    decoration: BoxDecoration(
+                                      color: isSelected
+                                          ? _kPrimaryGreen.withOpacity(0.08)
+                                          : const Color(0xFFF5F5F5),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: isSelected ? _kPrimaryGreen : Colors.transparent,
+                                        width: 2,
+                                      ),
+                                    ),
+                                    child: Column(
+                                      children: [
+                                        Container(
+                                          width: 40,
+                                          height: 40,
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            color: isSelected ? tagColor : const Color(0xFFE8E8E8),
+                                          ),
+                                          alignment: Alignment.center,
+                                          child: Text(
+                                            relation.length > 2 ? relation.substring(0, 2) : relation,
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w600,
+                                              color: isSelected ? Colors.white : const Color(0xFF666666),
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          displayName,
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: isSelected ? _kPrimaryGreen : const Color(0xFF666666),
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              }),
+                              GestureDetector(
+                                onTap: () => Navigator.pushNamed(context, '/family').then((_) => _loadFamilyMembers()),
+                                child: Container(
+                                  width: 80,
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF5F5F5),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: Colors.grey[300]!, style: BorderStyle.solid),
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      Container(
+                                        width: 40,
+                                        height: 40,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          border: Border.all(color: Colors.grey[400]!, width: 1.5),
+                                        ),
+                                        child: Icon(Icons.add, color: Colors.grey[500], size: 22),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        '添加成员',
+                                        style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF0F9EB),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: _kPrimaryGreen.withOpacity(0.2)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.info_outline, size: 18, color: _kPrimaryGreen),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            '已选择 ${_selectedImages.length} 张图片，确认对象后将开始上传识别',
+                            style: TextStyle(fontSize: 13, color: Colors.grey[700]),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Container(
+            padding: EdgeInsets.only(
+              left: 16, right: 16, top: 12,
+              bottom: MediaQuery.of(context).padding.bottom + 12,
+            ),
+            color: Colors.white,
+            child: Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => setState(() => _uploadStep = 0),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      side: const BorderSide(color: _kPrimaryGreen),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text('上一步', style: TextStyle(color: _kPrimaryGreen)),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  flex: 2,
+                  child: ElevatedButton.icon(
+                    onPressed: _confirmAndUpload,
+                    icon: const Icon(Icons.auto_awesome, size: 18),
+                    label: const Text('确认并开始识别'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _kPrimaryGreen,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      elevation: 0,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -685,6 +1034,50 @@ class _CheckupScreenState extends State<CheckupScreen> {
     );
   }
 
+  static Color _getMemberTagColor(String? relation) {
+    if (relation == null || relation.isEmpty) return const Color(0xFF1677FF);
+    final color = _kRelationColors[relation];
+    if (color != null) return color;
+    if (relation.contains('父') || relation.contains('爸')) return const Color(0xFFFA8C16);
+    if (relation.contains('母') || relation.contains('妈')) return const Color(0xFFEB2F96);
+    if (relation.contains('配偶') || relation.contains('丈夫') || relation.contains('妻')) return const Color(0xFF722ED1);
+    if (relation.contains('子') || relation.contains('女儿') || relation.contains('儿子')) return const Color(0xFF13C2C2);
+    return const Color(0xFF8C8C8C);
+  }
+
+  Widget _buildFamilyMemberTag(CheckupReport report) {
+    final fm = report.familyMember;
+    String label;
+    String? relation;
+
+    if (fm != null) {
+      final nickname = (fm['nickname'] ?? '').toString();
+      relation = (fm['relationship_type'] ?? fm['relation_type_name'] ?? '').toString();
+      label = nickname.isNotEmpty ? nickname : (relation.isNotEmpty ? relation : '本人');
+    } else {
+      label = '本人';
+      relation = '本人';
+    }
+
+    final color = _getMemberTagColor(relation);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 11,
+          color: color,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    );
+  }
+
   Widget _buildReportItem(CheckupReport report) {
     final statusMap = {
       'pending': {'label': '待分析', 'color': const Color(0xFFFA8C16)},
@@ -728,20 +1121,27 @@ class _CheckupScreenState extends State<CheckupScreen> {
                   size: 24,
                 ),
               ),
-            // Score mini gauge or icon
             _buildReportLeadingWidget(report),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    report.reportDate != null
-                        ? '体检报告 ${report.reportDate}'
-                        : '体检报告',
-                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          report.reportDate != null
+                              ? '体检报告 ${report.reportDate}'
+                              : '体检报告',
+                          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      _buildFamilyMemberTag(report),
+                    ],
                   ),
                   const SizedBox(height: 6),
                   Row(

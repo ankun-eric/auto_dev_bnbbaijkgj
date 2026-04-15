@@ -352,7 +352,7 @@ class ApiService {
     return _dio.post(ApiConfig.ocrRecognize, data: formData, onSendProgress: onSendProgress);
   }
 
-  Future<Response> ocrBatchRecognize(List<String> imagePaths, {String? sceneName, ProgressCallback? onSendProgress}) async {
+  Future<Response> ocrBatchRecognize(List<String> imagePaths, {String? sceneName, int? familyMemberId, ProgressCallback? onSendProgress}) async {
     final files = await Future.wait(
       imagePaths.map((p) => MultipartFile.fromFile(p)),
     );
@@ -362,6 +362,9 @@ class ApiService {
     }
     if (sceneName != null) {
       formData.fields.add(MapEntry('scene_name', sceneName));
+    }
+    if (familyMemberId != null) {
+      formData.fields.add(MapEntry('family_member_id', familyMemberId.toString()));
     }
     return _dio.post(ApiConfig.ocrBatchRecognize, data: formData, onSendProgress: onSendProgress);
   }

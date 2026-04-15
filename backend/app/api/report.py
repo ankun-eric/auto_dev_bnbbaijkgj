@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime, timedelta
 from typing import Optional
 
-from fastapi import APIRouter, Body, Depends, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, Query, UploadFile
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -15,6 +15,7 @@ from app.core.security import get_current_user, require_role
 from app.models.models import (
     CheckupIndicator,
     CheckupReport,
+    FamilyMember,
     HealthProfile,
     OcrConfig,
     PromptTemplate,
@@ -29,6 +30,7 @@ from app.schemas.report import (
     EnhancedCategoryView,
     EnhancedIndicatorItem,
     EnhancedReportAnalysisResponse,
+    FamilyMemberBrief,
     HealthScoreInfo,
     IndicatorDetail,
     IndicatorDetailAdvice,
@@ -83,6 +85,7 @@ async def _get_ocr_config(db: AsyncSession) -> Optional[OcrConfig]:
 @router.post("/report/upload", response_model=ReportUploadResponse)
 async def upload_report(
     file: UploadFile = File(...),
+    family_member_id: Optional[int] = Form(None),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -143,6 +146,7 @@ async def upload_report(
         file_type=file_type,
         status="pending",
         ocr_result=ocr_result_dict,
+        family_member_id=family_member_id,
     )
     db.add(report)
     await db.flush()
@@ -267,21 +271,35 @@ async def analyze_report(
     report.status = "analyzing"
     await db.flush()
 
-    profile_result = await db.execute(
-        select(HealthProfile)
-        .where(HealthProfile.user_id == current_user.id)
-        .order_by(HealthProfile.id.desc())
-        .limit(1)
-    )
-    hp = profile_result.scalar_one_or_none()
     user_profile = None
-    if hp:
-        user_profile = {
-            "gender": hp.gender,
-            "birthday": str(hp.birthday) if hp.birthday else None,
-            "height": hp.height,
-            "weight": hp.weight,
-        }
+    use_health_profile = True
+
+    if report.family_member_id:
+        fm = await db.get(FamilyMember, report.family_member_id)
+        if fm and not fm.is_self:
+            user_profile = {
+                "gender": fm.gender,
+                "birthday": str(fm.birthday) if fm.birthday else None,
+                "height": fm.height,
+                "weight": fm.weight,
+            }
+            use_health_profile = False
+
+    if use_health_profile:
+        profile_result = await db.execute(
+            select(HealthProfile)
+            .where(HealthProfile.user_id == current_user.id)
+            .order_by(HealthProfile.id.desc())
+            .limit(1)
+        )
+        hp = profile_result.scalar_one_or_none()
+        if hp:
+            user_profile = {
+                "gender": hp.gender,
+                "birthday": str(hp.birthday) if hp.birthday else None,
+                "height": hp.height,
+                "weight": hp.weight,
+            }
 
     tpl_result = await db.execute(
         select(PromptTemplate).where(
@@ -475,14 +493,25 @@ async def list_reports(
     total = count_result.scalar() or 0
 
     result = await db.execute(
-        base_query.order_by(CheckupReport.created_at.desc())
+        base_query
+        .options(selectinload(CheckupReport.family_member))
+        .order_by(CheckupReport.created_at.desc())
         .offset((page - 1) * page_size)
         .limit(page_size)
     )
     reports = result.scalars().all()
 
-    items = [
-        ReportListItem(
+    items = []
+    for r in reports:
+        fm_brief = None
+        if r.family_member:
+            fm_brief = FamilyMemberBrief(
+                id=r.family_member.id,
+                nickname=r.family_member.nickname,
+                relationship_type=r.family_member.relationship_type,
+                is_self=r.family_member.is_self,
+            )
+        items.append(ReportListItem(
             id=r.id,
             report_date=r.report_date,
             report_type=r.report_type,
@@ -493,10 +522,9 @@ async def list_reports(
             health_score=getattr(r, "health_score", None),
             ai_analysis_json=r.ai_analysis_json,
             status=r.status,
+            family_member=fm_brief,
             created_at=r.created_at,
-        )
-        for r in reports
-    ]
+        ))
 
     return ReportListResponse(items=items, total=total, page=page, page_size=page_size)
 

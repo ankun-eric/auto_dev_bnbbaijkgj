@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { NavBar, Card, Tag, Toast, Empty, SpinLoading, InfiniteScroll, Image } from 'antd-mobile';
+import { NavBar, Card, Tag, Toast, Empty, SpinLoading, InfiniteScroll, Image, Popup, Radio } from 'antd-mobile';
 import { PictureOutline, CameraOutline, FileOutline } from 'antd-mobile-icons';
 import api from '@/lib/api';
 import { checkFileSize, uploadWithProgress } from '@/lib/upload-utils';
@@ -10,6 +10,14 @@ import AlertBanner from '@/components/AlertBanner';
 
 const MAX_IMAGES = 5;
 const MAX_SIZE = 20 * 1024 * 1024;
+
+interface FamilyMemberInfo {
+  id: number;
+  nickname: string;
+  relationship_type: string;
+  is_self?: boolean;
+  relation_type_name?: string;
+}
 
 interface ReportItem {
   id: number;
@@ -23,12 +31,41 @@ interface ReportItem {
   image_count?: number;
   health_score?: number;
   ai_analysis_json?: any;
+  family_member?: FamilyMemberInfo | null;
 }
 
 interface SelectedFile {
   file: File;
   previewUrl: string;
   id: string;
+}
+
+const RELATION_EMOJI: Record<string, string> = {
+  '本人': '👤', '爸爸': '👨', '妈妈': '👩', '老公': '👨‍❤️‍👨', '老婆': '👩‍❤️‍👩',
+  '儿子': '👦', '女儿': '👧', '哥哥': '👱‍♂️', '弟弟': '🧑', '姐姐': '👱‍♀️', '妹妹': '👧',
+  '爷爷': '👴', '奶奶': '👵', '外公': '👴', '外婆': '👵', '其他': '🧑',
+  '父亲': '👨', '母亲': '👩', '配偶': '💑', '子女': '👧', '兄弟姐妹': '👫',
+};
+
+function getMemberEmoji(name: string): string {
+  return RELATION_EMOJI[name] || '🧑';
+}
+
+function getMemberTagColor(relationshipType: string): string {
+  const t = relationshipType || '';
+  if (t === 'self' || t === '本人') return '#1677ff';
+  if (['爸爸', '父亲'].includes(t)) return '#fa8c16';
+  if (['妈妈', '母亲'].includes(t)) return '#eb2f96';
+  if (['老公', '老婆', '配偶'].includes(t)) return '#722ed1';
+  if (['儿子', '女儿', '子女'].includes(t)) return '#13c2c2';
+  return '#8c8c8c';
+}
+
+function getMemberTagLabel(member: FamilyMemberInfo | null | undefined): { label: string; color: string } {
+  if (!member) return { label: '本人', color: '#1677ff' };
+  const label = member.nickname || member.relation_type_name || member.relationship_type || '本人';
+  const relType = member.is_self ? '本人' : (member.relation_type_name || member.relationship_type);
+  return { label, color: getMemberTagColor(relType) };
 }
 
 function getScoreColor(score: number): string {
@@ -39,8 +76,60 @@ function getScoreColor(score: number): string {
   return '#F44336';
 }
 
+const STEP_ITEMS = [
+  { title: '上传报告', desc: '选择/拍照上传' },
+  { title: '选择对象', desc: '报告是谁的' },
+  { title: 'AI 解读', desc: '生成健康建议' },
+];
+
+function StepBar({ current, onStepClick }: { current: number; onStepClick: (idx: number) => void }) {
+  return (
+    <div className="flex items-center justify-between px-2 py-3">
+      {STEP_ITEMS.map((item, idx) => {
+        const isActive = idx === current;
+        const isDone = idx < current;
+        const canClick = idx < current;
+        return (
+          <div key={idx} className="flex items-center flex-1">
+            <button
+              className="flex items-center gap-2 flex-1 min-w-0"
+              disabled={!canClick}
+              onClick={() => canClick && onStepClick(idx)}
+            >
+              <div
+                className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold transition-all"
+                style={{
+                  background: isDone ? '#52c41a' : isActive ? 'linear-gradient(135deg, #1890ff, #096dd9)' : '#e8e8e8',
+                  color: isDone || isActive ? '#fff' : '#999',
+                }}
+              >
+                {isDone ? '✓' : idx + 1}
+              </div>
+              <div className="min-w-0">
+                <div
+                  className="text-xs font-medium truncate"
+                  style={{ color: isActive ? '#1890ff' : isDone ? '#52c41a' : '#999' }}
+                >
+                  {item.title}
+                </div>
+              </div>
+            </button>
+            {idx < STEP_ITEMS.length - 1 && (
+              <div
+                className="h-px flex-shrink-0 mx-2"
+                style={{ width: 20, background: idx < current ? '#52c41a' : '#e8e8e8' }}
+              />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function CheckupPage() {
   const router = useRouter();
+  const [currentStep, setCurrentStep] = useState(0);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState('');
   const [uploadPercent, setUploadPercent] = useState(-1);
@@ -53,6 +142,11 @@ export default function CheckupPage() {
   const [selectedReportIds, setSelectedReportIds] = useState<Set<number>>(new Set());
   const imageInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+
+  // Family member popup state
+  const [memberPopupVisible, setMemberPopupVisible] = useState(false);
+  const [familyMembers, setFamilyMembers] = useState<FamilyMemberInfo[]>([]);
+  const [selectedMemberId, setSelectedMemberId] = useState<number | null>(null);
 
   const toggleReportSelect = (id: number) => {
     setSelectedReportIds((prev) => {
@@ -152,7 +246,31 @@ export default function CheckupPage() {
     });
   };
 
-  const handleSubmit = async () => {
+  const openMemberPopup = async () => {
+    try {
+      const res: any = await api.get('/api/family/members');
+      const data = res.data || res;
+      let items: FamilyMemberInfo[] = Array.isArray(data.items) ? data.items : Array.isArray(data) ? data : [];
+      if (!items.some((m) => m.is_self)) {
+        items = [{ id: -1, nickname: '本人', relationship_type: 'self', is_self: true, relation_type_name: '本人' }, ...items];
+      }
+      setFamilyMembers(items);
+      setSelectedMemberId(items[0]?.id ?? null);
+    } catch {
+      setFamilyMembers([{ id: -1, nickname: '本人', relationship_type: 'self', is_self: true, relation_type_name: '本人' }]);
+      setSelectedMemberId(-1);
+    }
+    setCurrentStep(1);
+    setMemberPopupVisible(true);
+  };
+
+  const handleMemberConfirm = () => {
+    setMemberPopupVisible(false);
+    setCurrentStep(2);
+    handleSubmitWithMember();
+  };
+
+  const handleSubmitWithMember = async () => {
     if (selectedFiles.length === 0) return;
     setUploading(true);
     setUploadProgress(`正在上传 0/${selectedFiles.length} 张...`);
@@ -164,6 +282,11 @@ export default function CheckupPage() {
         formData.append('files', sf.file);
       });
       formData.append('scene_name', '体检报告识别');
+
+      const memberId = selectedMemberId !== null && selectedMemberId !== -1 ? selectedMemberId : null;
+      if (memberId !== null) {
+        formData.append('family_member_id', String(memberId));
+      }
 
       setUploadProgress('上传中...');
 
@@ -182,6 +305,7 @@ export default function CheckupPage() {
         setUploading(false);
         setUploadProgress('');
         setUploadPercent(-1);
+        setCurrentStep(0);
         return;
       }
 
@@ -195,6 +319,7 @@ export default function CheckupPage() {
         setUploading(false);
         setUploadProgress('');
         setUploadPercent(-1);
+        setCurrentStep(0);
         return;
       }
 
@@ -215,6 +340,13 @@ export default function CheckupPage() {
       setUploading(false);
       setUploadProgress('');
       setUploadPercent(-1);
+      setCurrentStep(0);
+    }
+  };
+
+  const handleStepClick = (idx: number) => {
+    if (idx < currentStep && !uploading) {
+      setCurrentStep(idx);
     }
   };
 
@@ -238,7 +370,11 @@ export default function CheckupPage() {
 
       <AlertBanner />
 
-      <div className="px-4 pt-4">
+      <div className="px-4 pt-2">
+        <div className="card mb-3">
+          <StepBar current={currentStep} onStepClick={handleStepClick} />
+        </div>
+
         <div className="card">
           <div className="section-title">上传体检报告</div>
           <p className="text-xs text-gray-400 mb-4">
@@ -333,7 +469,7 @@ export default function CheckupPage() {
             <button
               className="w-full mt-4 py-3 rounded-xl text-white text-sm font-medium"
               style={{ background: 'linear-gradient(135deg, #1890ff, #096dd9)' }}
-              onClick={handleSubmit}
+              onClick={openMemberPopup}
             >
               开始识别（{selectedFiles.length}张）
             </button>
@@ -384,145 +520,159 @@ export default function CheckupPage() {
         {reports.length === 0 && !loadingList ? (
           <Empty description="暂无体检报告" style={{ padding: '40px 0' }} />
         ) : (
-          reports.map((report) => (
-            <Card
-              key={report.id}
-              style={{ marginBottom: 12, borderRadius: 12 }}
-              onClick={() => {
-                if (compareMode) {
-                  toggleReportSelect(report.id);
-                } else {
-                  router.push(`/checkup/detail/${report.id}`);
-                }
-              }}
-            >
-              <div className="flex items-center gap-3">
-                {compareMode && (
-                  <div
-                    className="w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center"
-                    style={{
-                      borderColor: selectedReportIds.has(report.id) ? '#1890ff' : '#d9d9d9',
-                      background: selectedReportIds.has(report.id) ? '#1890ff' : '#fff',
-                    }}
-                  >
-                    {selectedReportIds.has(report.id) && (
-                      <span className="text-white text-xs">✓</span>
-                    )}
-                  </div>
-                )}
-                <div className="w-14 h-14 rounded-lg overflow-hidden flex-shrink-0 bg-gray-100 flex items-center justify-center relative">
-                  {report.file_type === 'pdf' ? (
-                    <div className="flex flex-col items-center">
-                      <FileOutline fontSize={24} color="#fa8c16" />
-                      <span className="text-[10px] text-gray-400 mt-0.5">PDF</span>
-                    </div>
-                  ) : report.thumbnail_url ? (
-                    <Image
-                      src={report.thumbnail_url}
-                      width={56}
-                      height={56}
-                      fit="cover"
-                      style={{ borderRadius: 8 }}
-                    />
-                  ) : (
-                    <PictureOutline fontSize={24} color="#ccc" />
-                  )}
-                  {report.image_count && report.image_count > 1 && (
+          reports.map((report) => {
+            const memberTag = getMemberTagLabel(report.family_member);
+            return (
+              <Card
+                key={report.id}
+                style={{ marginBottom: 12, borderRadius: 12 }}
+                onClick={() => {
+                  if (compareMode) {
+                    toggleReportSelect(report.id);
+                  } else {
+                    router.push(`/checkup/detail/${report.id}`);
+                  }
+                }}
+              >
+                <div className="flex items-center gap-3">
+                  {compareMode && (
                     <div
-                      className="absolute bottom-0 left-0 right-0 text-center text-white text-[9px] py-0.5"
-                      style={{ background: 'rgba(0,0,0,0.45)', borderRadius: '0 0 8px 8px' }}
-                    >
-                      共{report.image_count}张
-                    </div>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-gray-800 truncate">
-                    体检报告 - {formatDate(report.created_at)}
-                  </div>
-                  <div className="flex items-center gap-2 mt-1.5">
-                    {report.status === 'completed' ? (
-                      <Tag
-                        style={{
-                          '--background-color': '#52c41a15',
-                          '--text-color': '#52c41a',
-                          '--border-color': 'transparent',
-                          fontSize: 10,
-                        }}
-                      >
-                        已解读
-                      </Tag>
-                    ) : report.status === 'failed' ? (
-                      <Tag
-                        style={{
-                          '--background-color': '#f5222d15',
-                          '--text-color': '#f5222d',
-                          '--border-color': 'transparent',
-                          fontSize: 10,
-                        }}
-                      >
-                        分析失败
-                      </Tag>
-                    ) : report.status === 'analyzing' ? (
-                      <Tag
-                        style={{
-                          '--background-color': '#1890ff15',
-                          '--text-color': '#1890ff',
-                          '--border-color': 'transparent',
-                          fontSize: 10,
-                        }}
-                      >
-                        分析中
-                      </Tag>
-                    ) : (
-                      <Tag
-                        style={{
-                          '--background-color': '#fa8c1615',
-                          '--text-color': '#fa8c16',
-                          '--border-color': 'transparent',
-                          fontSize: 10,
-                        }}
-                      >
-                        待分析
-                      </Tag>
-                    )}
-                    {report.abnormal_count != null && report.abnormal_count > 0 && (
-                      <Tag
-                        style={{
-                          '--background-color': '#f5222d15',
-                          '--text-color': '#f5222d',
-                          '--border-color': 'transparent',
-                          fontSize: 10,
-                        }}
-                      >
-                        {report.abnormal_count}项异常
-                      </Tag>
-                    )}
-                  </div>
-                </div>
-                {report.health_score != null && report.health_score > 0 && (
-                  <div className="flex-shrink-0 text-center mr-1">
-                    <div
-                      className="w-10 h-10 rounded-full flex items-center justify-center"
+                      className="w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center"
                       style={{
-                        background: `${getScoreColor(report.health_score)}15`,
-                        border: `2px solid ${getScoreColor(report.health_score)}`,
+                        borderColor: selectedReportIds.has(report.id) ? '#1890ff' : '#d9d9d9',
+                        background: selectedReportIds.has(report.id) ? '#1890ff' : '#fff',
                       }}
                     >
-                      <span
-                        className="text-sm font-bold"
-                        style={{ color: getScoreColor(report.health_score) }}
+                      {selectedReportIds.has(report.id) && (
+                        <span className="text-white text-xs">✓</span>
+                      )}
+                    </div>
+                  )}
+                  <div className="w-14 h-14 rounded-lg overflow-hidden flex-shrink-0 bg-gray-100 flex items-center justify-center relative">
+                    {report.file_type === 'pdf' ? (
+                      <div className="flex flex-col items-center">
+                        <FileOutline fontSize={24} color="#fa8c16" />
+                        <span className="text-[10px] text-gray-400 mt-0.5">PDF</span>
+                      </div>
+                    ) : report.thumbnail_url ? (
+                      <Image
+                        src={report.thumbnail_url}
+                        width={56}
+                        height={56}
+                        fit="cover"
+                        style={{ borderRadius: 8 }}
+                      />
+                    ) : (
+                      <PictureOutline fontSize={24} color="#ccc" />
+                    )}
+                    {report.image_count && report.image_count > 1 && (
+                      <div
+                        className="absolute bottom-0 left-0 right-0 text-center text-white text-[9px] py-0.5"
+                        style={{ background: 'rgba(0,0,0,0.45)', borderRadius: '0 0 8px 8px' }}
                       >
-                        {report.health_score}
+                        共{report.image_count}张
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-gray-800 truncate">
+                        体检报告 - {formatDate(report.created_at)}
+                      </span>
+                      <span
+                        className="text-[10px] px-1.5 py-0.5 rounded flex-shrink-0"
+                        style={{
+                          background: `${memberTag.color}15`,
+                          color: memberTag.color,
+                        }}
+                      >
+                        {memberTag.label}
                       </span>
                     </div>
-                    <span className="text-[10px] text-gray-400">评分</span>
+                    <div className="flex items-center gap-2 mt-1.5">
+                      {report.status === 'completed' ? (
+                        <Tag
+                          style={{
+                            '--background-color': '#52c41a15',
+                            '--text-color': '#52c41a',
+                            '--border-color': 'transparent',
+                            fontSize: 10,
+                          }}
+                        >
+                          已解读
+                        </Tag>
+                      ) : report.status === 'failed' ? (
+                        <Tag
+                          style={{
+                            '--background-color': '#f5222d15',
+                            '--text-color': '#f5222d',
+                            '--border-color': 'transparent',
+                            fontSize: 10,
+                          }}
+                        >
+                          分析失败
+                        </Tag>
+                      ) : report.status === 'analyzing' ? (
+                        <Tag
+                          style={{
+                            '--background-color': '#1890ff15',
+                            '--text-color': '#1890ff',
+                            '--border-color': 'transparent',
+                            fontSize: 10,
+                          }}
+                        >
+                          分析中
+                        </Tag>
+                      ) : (
+                        <Tag
+                          style={{
+                            '--background-color': '#fa8c1615',
+                            '--text-color': '#fa8c16',
+                            '--border-color': 'transparent',
+                            fontSize: 10,
+                          }}
+                        >
+                          待分析
+                        </Tag>
+                      )}
+                      {report.abnormal_count != null && report.abnormal_count > 0 && (
+                        <Tag
+                          style={{
+                            '--background-color': '#f5222d15',
+                            '--text-color': '#f5222d',
+                            '--border-color': 'transparent',
+                            fontSize: 10,
+                          }}
+                        >
+                          {report.abnormal_count}项异常
+                        </Tag>
+                      )}
+                    </div>
                   </div>
-                )}
-                {!compareMode && <div className="text-gray-300 text-lg">›</div>}
-              </div>
-            </Card>
-          ))
+                  {report.health_score != null && report.health_score > 0 && (
+                    <div className="flex-shrink-0 text-center mr-1">
+                      <div
+                        className="w-10 h-10 rounded-full flex items-center justify-center"
+                        style={{
+                          background: `${getScoreColor(report.health_score)}15`,
+                          border: `2px solid ${getScoreColor(report.health_score)}`,
+                        }}
+                      >
+                        <span
+                          className="text-sm font-bold"
+                          style={{ color: getScoreColor(report.health_score) }}
+                        >
+                          {report.health_score}
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-gray-400">评分</span>
+                    </div>
+                  )}
+                  {!compareMode && <div className="text-gray-300 text-lg">›</div>}
+                </div>
+              </Card>
+            );
+          })
         )}
 
         {/* Compare action bar */}
@@ -555,6 +705,89 @@ export default function CheckupPage() {
 
         <div className="h-6" />
       </div>
+
+      {/* Family member selection popup */}
+      <Popup
+        visible={memberPopupVisible}
+        onMaskClick={() => {
+          setMemberPopupVisible(false);
+          setCurrentStep(0);
+        }}
+        position="bottom"
+        bodyStyle={{ borderRadius: '16px 16px 0 0', maxHeight: '70vh', overflowY: 'auto' }}
+      >
+        <div className="px-4 pb-6">
+          <div className="flex items-center justify-between py-4 border-b border-gray-100">
+            <span className="text-base font-semibold">选择咨询对象</span>
+            <button
+              onClick={() => {
+                setMemberPopupVisible(false);
+                setCurrentStep(0);
+              }}
+              className="text-gray-400 text-xl leading-none"
+            >
+              ×
+            </button>
+          </div>
+          <p className="text-xs text-gray-400 mt-2 mb-3">请选择这份报告是谁的体检报告</p>
+
+          <div className="space-y-2">
+            {familyMembers.map((m) => {
+              const relationLabel = m.relation_type_name || m.relationship_type;
+              const emoji = m.is_self ? '👤' : getMemberEmoji(relationLabel);
+              const displayName = m.is_self ? '本人' : `${relationLabel} · ${m.nickname}`;
+              return (
+                <div
+                  key={m.id}
+                  className="flex items-center justify-between px-3 py-3 rounded-xl cursor-pointer"
+                  style={{
+                    background: selectedMemberId === m.id ? '#f6ffed' : '#f9f9f9',
+                    border: selectedMemberId === m.id ? '1px solid #52c41a' : '1px solid transparent',
+                  }}
+                  onClick={() => setSelectedMemberId(m.id)}
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="w-9 h-9 rounded-full flex items-center justify-center text-xl"
+                      style={{ background: selectedMemberId === m.id ? 'linear-gradient(135deg,#52c41a,#13c2c2)' : '#f0f0f0' }}
+                    >
+                      {m.is_self && selectedMemberId === m.id ? <span className="text-white text-sm">我</span> : emoji}
+                    </div>
+                    <div className="text-sm font-medium">{displayName}</div>
+                  </div>
+                  <Radio
+                    checked={selectedMemberId === m.id}
+                    onChange={() => setSelectedMemberId(m.id)}
+                    style={{ '--icon-size': '18px', '--font-size': '14px', '--gap': '6px' }}
+                  />
+                </div>
+              );
+            })}
+
+            <div
+              className="flex items-center gap-2 px-3 py-3 rounded-xl cursor-pointer"
+              style={{ background: '#f9f9f9', border: '1px solid transparent' }}
+              onClick={() => router.push('/health-profile?from=checkup')}
+            >
+              <div
+                className="w-9 h-9 rounded-full flex items-center justify-center text-white text-lg"
+                style={{ background: '#52c41a' }}
+              >
+                +
+              </div>
+              <span className="text-sm font-medium" style={{ color: '#52c41a' }}>添加家庭成员</span>
+            </div>
+          </div>
+
+          <button
+            className="w-full mt-5 py-3 rounded-xl text-white text-sm font-medium"
+            style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}
+            onClick={handleMemberConfirm}
+          >
+            确认并开始识别
+          </button>
+        </div>
+      </Popup>
     </div>
   );
 }

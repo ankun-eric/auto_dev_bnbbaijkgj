@@ -514,6 +514,7 @@ async def batch_delete_records(
 async def recognize(
     file: UploadFile = File(...),
     scene_name: Optional[str] = Form(None),
+    family_member_id: Optional[int] = Form(None),
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
@@ -568,7 +569,7 @@ async def recognize(
     checkup_report_id = None
     if scene_name == "体检报告识别" and ai_result:
         try:
-            checkup_report = await _write_checkup_detail(db, current_user, provider_used, record, ocr_text, ai_result, original_image_url)
+            checkup_report = await _write_checkup_detail(db, current_user, provider_used, record, ocr_text, ai_result, original_image_url, family_member_id=family_member_id)
             if checkup_report:
                 checkup_report_id = checkup_report.id
         except Exception as e:
@@ -612,6 +613,7 @@ async def recognize(
 async def batch_recognize(
     files: List[UploadFile] = File(...),
     scene_name: Optional[str] = Form(None),
+    family_member_id: Optional[int] = Form(None),
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
@@ -721,6 +723,7 @@ async def batch_recognize(
                 checkup_report = await _write_checkup_detail(
                     db, current_user, last_provider_used,
                     merged_record, merged_ocr_text, merged_ai_result, None,
+                    family_member_id=family_member_id,
                 )
                 if checkup_report:
                     report_id = checkup_report.id
@@ -807,7 +810,7 @@ def _risk_level_to_status(risk_level: int) -> str:
     return "critical"
 
 
-async def _write_checkup_detail(db, user, provider, record, ocr_text, ai_result, image_url):
+async def _write_checkup_detail(db, user, provider, record, ocr_text, ai_result, image_url, *, family_member_id=None):
     from app.models.models import CheckupReportDetail
 
     report_type = None
@@ -870,6 +873,7 @@ async def _write_checkup_detail(db, user, provider, record, ocr_text, ai_result,
         abnormal_count=report_abnormal_count or abnormal_count,
         health_score=health_score_val,
         status="completed",
+        family_member_id=family_member_id,
     )
     db.add(checkup_report)
     await db.flush()

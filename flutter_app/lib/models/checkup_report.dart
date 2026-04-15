@@ -11,6 +11,8 @@ class CheckupReport {
   final List<CheckupIndicator> indicators;
   final String createdAt;
   final double? healthScore;
+  final int? familyMemberId;
+  final Map<String, dynamic>? familyMember;
 
   CheckupReport({
     required this.id,
@@ -25,6 +27,8 @@ class CheckupReport {
     this.indicators = const [],
     required this.createdAt,
     this.healthScore,
+    this.familyMemberId,
+    this.familyMember,
   });
 
   factory CheckupReport.fromJson(Map<String, dynamic> json) {
@@ -46,6 +50,10 @@ class CheckupReport {
           [],
       createdAt: json['created_at'] ?? '',
       healthScore: (json['health_score'] ?? json['healthScore'])?.toDouble(),
+      familyMemberId: json['family_member_id'],
+      familyMember: json['family_member'] is Map<String, dynamic>
+          ? json['family_member']
+          : null,
     );
   }
 
@@ -63,6 +71,8 @@ class CheckupReport {
       'indicators': indicators.map((e) => e.toJson()).toList(),
       'created_at': createdAt,
       'health_score': healthScore,
+      'family_member_id': familyMemberId,
+      'family_member': familyMember,
     };
   }
 }

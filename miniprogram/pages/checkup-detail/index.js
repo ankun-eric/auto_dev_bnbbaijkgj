@@ -9,6 +9,15 @@ const RISK_CONFIG = {
   5: { name: '严重异常', color: '#F44336', emoji: '🔴', bg: 'rgba(244,67,54,0.10)' }
 };
 
+const ANALYZE_PHASES = [
+  { from: 0, to: 30, duration: 2500, text: '🔍 AI 正在分析您的指标…' },
+  { from: 30, to: 60, duration: 3500, text: '📊 正在评估各项指标的风险等级…' },
+  { from: 60, to: 90, duration: 6500, text: '📝 正在生成个性化健康建议…' },
+  { from: 90, to: 99, duration: 50000, text: '🧠 AI 正在深度分析中，请耐心等待…' }
+];
+
+const TIMEOUT_MS = 60000;
+
 function getScoreColor(score) {
   if (score >= 90) return '#1B8C3D';
   if (score >= 75) return '#4CAF50';
@@ -23,6 +32,15 @@ function getScoreLevel(score) {
   if (score >= 60) return '一般';
   if (score >= 40) return '偏低';
   return '较差';
+}
+
+function getErrorMessage(err) {
+  if (!err) return '分析失败，请重试';
+  if (err.errMsg && /request:fail/.test(err.errMsg)) return '网络连接异常，请检查网络后重试';
+  const sc = err.statusCode || (err.raw && err.raw.statusCode);
+  if (sc === 500) return '服务器繁忙，请稍后重试';
+  if (sc === 404) return '报告不存在或已被删除';
+  return '分析失败，请重试';
 }
 
 Page({
@@ -47,9 +65,10 @@ Page({
 
     loading: true,
     analyzing: false,
-    analyzeText: 'AI正在分析...',
-    analyzeTexts: ['AI正在分析...', '正在评估风险...', '正在生成建议...', '分析完成！'],
-    analyzeTextIndex: 0,
+    analyzePercent: 0,
+    analyzeText: '',
+    analyzeTimeout: false,
+    analyzeError: '',
 
     disclaimer: '免责声明：本解读结果由AI智能分析生成，仅供参考，不构成医疗诊断或治疗建议。如有健康疑问，请及时咨询专业医生。'
   },
@@ -69,36 +88,106 @@ Page({
   },
 
   clearAnalyzeTimer() {
-    if (this._analyzeTimer) {
-      clearInterval(this._analyzeTimer);
-      this._analyzeTimer = null;
+    if (this._phaseTimer) {
+      clearInterval(this._phaseTimer);
+      this._phaseTimer = null;
+    }
+    if (this._timeoutTimer) {
+      clearTimeout(this._timeoutTimer);
+      this._timeoutTimer = null;
     }
   },
 
   startAnalyzeAnimation() {
-    this.setData({ analyzing: true, analyzeTextIndex: 0, analyzeText: this.data.analyzeTexts[0] });
-    let idx = 0;
-    this._analyzeTimer = setInterval(() => {
-      idx++;
-      if (idx >= this.data.analyzeTexts.length) {
+    this._analyzeStartTime = Date.now();
+    this._phaseIdx = 0;
+    this._analysisDone = false;
+    this.setData({
+      analyzing: true,
+      analyzePercent: 0,
+      analyzeText: ANALYZE_PHASES[0].text,
+      analyzeTimeout: false,
+      analyzeError: ''
+    });
+    this._runPhase(0);
+
+    this._timeoutTimer = setTimeout(() => {
+      if (!this._analysisDone) {
         this.clearAnalyzeTimer();
-        return;
+        this._analysisDone = true;
+        this.setData({
+          analyzing: false,
+          analyzeTimeout: true,
+          loading: false
+        });
       }
-      this.setData({ analyzeTextIndex: idx, analyzeText: this.data.analyzeTexts[idx] });
-    }, 1500);
+    }, TIMEOUT_MS);
   },
 
-  stopAnalyzeAnimation() {
+  _runPhase(idx) {
+    if (idx >= ANALYZE_PHASES.length || this._analysisDone) return;
+    const phase = ANALYZE_PHASES[idx];
+    this._phaseIdx = idx;
+    this.setData({ analyzeText: phase.text });
+
+    const TICK = 50;
+    const totalTicks = Math.floor(phase.duration / TICK);
+    let tick = 0;
+
+    this._phaseTimer = setInterval(() => {
+      tick++;
+      const progress = tick / totalTicks;
+      const eased = 1 - Math.pow(1 - progress, 3);
+      const percent = Math.min(Math.floor(phase.from + (phase.to - phase.from) * eased), phase.to);
+      this.setData({ analyzePercent: percent });
+
+      if (tick >= totalTicks) {
+        clearInterval(this._phaseTimer);
+        this._phaseTimer = null;
+        this._runPhase(idx + 1);
+      }
+    }, TICK);
+  },
+
+  completeAnalyzeAnimation() {
     this.clearAnalyzeTimer();
+    this._analysisDone = true;
+    this.setData({
+      analyzePercent: 100,
+      analyzeText: '✅ 分析完成！'
+    });
+    return new Promise(resolve => setTimeout(() => {
+      this.setData({ analyzing: false });
+      resolve();
+    }, 500));
+  },
+
+  stopAnalyzeWithError(err) {
+    this.clearAnalyzeTimer();
+    this._analysisDone = true;
     this.setData({
       analyzing: false,
-      analyzeTextIndex: this.data.analyzeTexts.length - 1,
-      analyzeText: this.data.analyzeTexts[this.data.analyzeTexts.length - 1]
+      analyzeError: getErrorMessage(err),
+      loading: false
     });
   },
 
+  retryAnalyze() {
+    this.setData({ analyzeError: '', analyzeTimeout: false });
+    this.loadDetail(this.data.reportId);
+  },
+
+  goBackToList() {
+    const pages = getCurrentPages();
+    if (pages.length > 1) {
+      wx.navigateBack();
+    } else {
+      wx.redirectTo({ url: '/pages/checkup/index' });
+    }
+  },
+
   async loadDetail(id) {
-    this.setData({ loading: true });
+    this.setData({ loading: true, analyzeError: '', analyzeTimeout: false });
     this.startAnalyzeAnimation();
     try {
       const res = await get(`/api/report/detail/${id}`, {}, { suppressErrorToast: true });
@@ -181,7 +270,7 @@ Page({
         }
       }
 
-      this.stopAnalyzeAnimation();
+      await this.completeAnalyzeAnimation();
       this.setData({
         report,
         aiData,
@@ -203,10 +292,8 @@ Page({
         setTimeout(() => this.drawScoreRing(), 100);
       }
     } catch (e) {
-      this.stopAnalyzeAnimation();
       console.log('loadDetail error', e);
-      this.setData({ loading: false });
-      wx.showToast({ title: '加载失败', icon: 'none' });
+      this.stopAnalyzeWithError(e);
     }
   },
 

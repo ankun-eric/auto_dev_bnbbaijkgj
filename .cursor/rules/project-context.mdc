@@ -33,7 +33,71 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 用户编号与推荐人功能 (2026-04-15)
+## Latest Update: 体检报告解读Bug修复+选择咨询对象+报告列表标签 (2026-04-16)
+
+### 概要
+修复体检报告AI解读进度动画与后端接口不同步导致页面"卡住"的Bug（改为渐近百分比模式+超时保护+错误兜底）；新增上传报告时选择咨询对象（家庭成员）功能；报告列表新增咨询对象彩色标签。四端同步开发（后端/H5/小程序/Flutter）。
+
+### Backend 变更
+
+| 文件 | 变更 |
+| --- | --- |
+| `backend/app/models/models.py` | CheckupReport 模型新增 `family_member_id`(Integer, FK → family_members.id, nullable) 和 `family_member` relationship |
+| `backend/app/schemas/report.py` | 新增 FamilyMemberBrief schema(id/nickname/relationship_type/is_self)；ReportListItem 新增 family_member 字段 |
+| `backend/app/api/report.py` | upload 接口支持 family_member_id 参数；analyze 接口根据 family_member 使用对应成员档案；list 接口返回 family_member 关联信息 |
+| `backend/app/api/ocr.py` | recognize 和 batch-recognize 接口新增可选 family_member_id 参数；_write_checkup_detail 传递 family_member_id |
+| `backend/app/services/schema_sync.py` | 新增 checkup_reports 表 family_member_id 列自动同步逻辑 |
+| `backend/tests/test_checkup_family.py` | 新增10个测试用例：模型验证、上传+family_member_id、列表+family_member信息、解读+成员档案 |
+
+### H5 变更
+
+| 文件 | 变更 |
+| --- | --- |
+| `h5-web/src/app/checkup/page.tsx` | 新增3步步骤条(上传→选择对象→AI解读)；新增底部Popup选择咨询对象弹窗；报告列表卡片新增咨询对象彩色标签 |
+| `h5-web/src/app/checkup/result/[id]/page.tsx` | ProgressiveLoading 改为5阶段渐近百分比进度条；60秒超时保护；分类错误兜底(网络异常/500/404/其他)；重新分析+返回列表按钮 |
+
+### 小程序变更
+
+| 文件 | 变更 |
+| --- | --- |
+| `miniprogram/pages/checkup/index.js/wxml/wxss` | 新增3步步骤条；新增页内横向选择咨询对象；上传时传入family_member_id；报告列表新增咨询对象标签 |
+| `miniprogram/pages/checkup-detail/index.js/wxml/wxss` | 分析动画改为5阶段渐近百分比进度环；60秒超时保护；分类错误兜底 |
+
+### Flutter 变更
+
+| 文件 | 变更 |
+| --- | --- |
+| `flutter_app/lib/screens/health/checkup_screen.dart` | 新增3步步骤条；新增整页步骤式选择咨询对象；报告列表新增咨询对象标签 |
+| `flutter_app/lib/screens/health/report_detail_screen.dart` | 加载动画改为5阶段渐近百分比CircularProgressIndicator；60秒超时保护；分类错误兜底 |
+| `flutter_app/lib/models/checkup_report.dart` | CheckupReport 模型新增 familyMemberId 和 familyMember 字段 |
+| `flutter_app/lib/services/api_service.dart` | ocrBatchRecognize 支持 familyMemberId 参数 |
+| `flutter_app/lib/providers/health_provider.dart` | uploadAndAnalyzeMultipleReports 支持 familyMemberId 参数 |
+
+### 新增数据库字段
+
+| 表 | 字段 | 类型 | 说明 |
+| --- | --- | --- | --- |
+| checkup_reports | family_member_id | INTEGER NULLABLE FK→family_members.id | 关联的家庭成员 ID |
+
+### 接口变更
+
+| 方法 | 路径 | 变更 |
+| --- | --- | --- |
+| POST | `/api/report/upload` | 新增可选参数 family_member_id |
+| POST | `/api/ocr/recognize` | 新增可选参数 family_member_id |
+| POST | `/api/ocr/batch-recognize` | 新增可选参数 family_member_id |
+| POST | `/api/report/analyze` | 根据 family_member_id 使用对应成员档案 |
+| GET | `/api/report/list` | 返回数据新增 family_member 关联信息 |
+
+### 客户端包更新
+- 小程序: `miniprogram_20260416_001131_be4a.zip`
+
+### 用户手册
+- `user_docs/体检报告解读优化.md`
+
+---
+
+## Previous Update: 用户编号与推荐人功能 (2026-04-15)
 
 ### 概要
 为每个用户生成8位随机数字用户编号(user_no)用于前端展示和传播标识；建立推荐人绑定机制(referrer_no)，支持通过分享链接自动绑定推荐关系；新增推广落地页、邀请好友页面、推荐管理后台。五端同步开发（后端/Admin/H5/小程序/Flutter）。

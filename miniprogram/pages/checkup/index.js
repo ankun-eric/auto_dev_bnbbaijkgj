@@ -2,6 +2,19 @@ const { get, uploadFile } = require('../../utils/request');
 const { checkLogin } = require('../../utils/util');
 const { checkFileSize, uploadWithProgress } = require('../../utils/upload-utils');
 
+const RELATION_EMOJI = {
+  '本人': '👤', '爸爸': '👨', '妈妈': '👩', '父亲': '👨', '母亲': '👩',
+  '老公': '💑', '老婆': '💑', '配偶': '💑',
+  '儿子': '👦', '女儿': '👧', '子女': '👶',
+  '哥哥': '👱‍♂️', '弟弟': '🧑', '姐姐': '👱‍♀️', '妹妹': '👧',
+  '爷爷': '👴', '奶奶': '👵', '外公': '👴', '外婆': '👵',
+  '其他': '🧑'
+};
+
+function getMemberEmoji(name) {
+  return RELATION_EMOJI[name] || '🧑';
+}
+
 Page({
   data: {
     historyReports: [],
@@ -17,7 +30,13 @@ Page({
     uploadProgressText: '',
     uploadPercent: -1,
     compareMode: false,
-    selectedIds: []
+    selectedIds: [],
+
+    uploadStep: 1,
+    familyMembers: [],
+    familyMembersLoaded: false,
+    selectedFamilyMemberId: null,
+    selectedFamilyMemberName: ''
   },
 
   onLoad() {
@@ -29,6 +48,7 @@ Page({
     this.setData({ page: 1, historyReports: [], hasMore: true });
     this.loadHistory();
     this.loadAlerts();
+    this.loadFamilyMembers();
   },
 
   onPullDownRefresh() {
@@ -59,7 +79,8 @@ Page({
         abnormalCount: item.abnormal_count || 0,
         thumbnail: item.thumbnail || item.image_url || '',
         healthScore: item.health_score || 0,
-        scoreColor: this.getScoreColor(item.health_score || 0)
+        scoreColor: this.getScoreColor(item.health_score || 0),
+        family_member: item.family_member || null
       }));
       this.setData({
         historyReports: [...this.data.historyReports, ...list],
@@ -94,6 +115,58 @@ Page({
     } catch (e) {
       console.log('loadAlerts error', e);
     }
+  },
+
+  async loadFamilyMembers() {
+    try {
+      const res = await get('/api/family/members', {}, { showLoading: false, suppressErrorToast: true });
+      const list = (res && (res.items || res)) || [];
+      const members = list.map(m => ({
+        id: m.id,
+        nickname: m.nickname,
+        relationship_type: m.relationship_type || '本人',
+        is_self: m.is_self,
+        emoji: getMemberEmoji(m.relationship_type || '本人')
+      }));
+      members.sort((a, b) => (b.is_self ? 1 : 0) - (a.is_self ? 1 : 0));
+      const selfMember = members.find(m => m.is_self) || members[0];
+      this.setData({
+        familyMembers: members,
+        familyMembersLoaded: true,
+        selectedFamilyMemberId: selfMember ? selfMember.id : null,
+        selectedFamilyMemberName: selfMember ? (selfMember.nickname || selfMember.relationship_type) : ''
+      });
+    } catch (e) {
+      this.setData({ familyMembersLoaded: true });
+    }
+  },
+
+  selectFamilyMember(e) {
+    const member = e.currentTarget.dataset.member;
+    this.setData({
+      selectedFamilyMemberId: member.id,
+      selectedFamilyMemberName: member.nickname || member.relationship_type
+    });
+  },
+
+  goAddFamilyMember() {
+    wx.navigateTo({ url: '/pages/family/add' });
+  },
+
+  onStepTap(e) {
+    const step = parseInt(e.currentTarget.dataset.step, 10);
+    if (step < this.data.uploadStep) {
+      this.setData({ uploadStep: step });
+    }
+  },
+
+  confirmFamilyMember() {
+    if (!this.data.selectedFamilyMemberId) {
+      wx.showToast({ title: '请选择咨询对象', icon: 'none' });
+      return;
+    }
+    this.setData({ uploadStep: 3 });
+    this.doUpload();
   },
 
   dismissAlert() {
@@ -171,8 +244,6 @@ Page({
     if (this.data.uploading) return;
 
     const images = this.data.selectedImages;
-    const total = images.length;
-
     for (let i = 0; i < images.length; i++) {
       const sizeCheck = await checkFileSize(images[i].path, 'checkup_report');
       if (!sizeCheck.ok) {
@@ -180,6 +251,14 @@ Page({
         return;
       }
     }
+
+    this.setData({ uploadStep: 2 });
+  },
+
+  async doUpload() {
+    const images = this.data.selectedImages;
+    const total = images.length;
+    const familyMemberId = this.data.selectedFamilyMemberId;
 
     this.setData({ uploading: true, uploadProgressText: `正在上传 1/${total} 张...`, uploadPercent: 0 });
 
@@ -190,8 +269,12 @@ Page({
       for (let i = 0; i < images.length; i++) {
         this.setData({ uploadProgressText: `正在上传 ${i + 1}/${total} 张...` });
         try {
+          const formData = { scene_name: '体检报告识别' };
+          if (familyMemberId) {
+            formData.family_member_id = String(familyMemberId);
+          }
           const res = await uploadWithProgress('/api/ocr/recognize', images[i].path, {
-            formData: { scene_name: '体检报告识别' },
+            formData,
             onProgress: (percent) => {
               const overallPercent = Math.round(((i + percent / 100) / total) * 100);
               this.setData({ uploadPercent: overallPercent });
@@ -207,7 +290,7 @@ Page({
         }
       }
 
-      this.setData({ uploading: false, uploadProgressText: '', uploadPercent: -1, selectedImages: [] });
+      this.setData({ uploading: false, uploadProgressText: '', uploadPercent: -1, selectedImages: [], uploadStep: 1 });
 
       if (!lastRecordId) {
         wx.showToast({ title: '识别失败，请重试', icon: 'none' });
@@ -216,7 +299,7 @@ Page({
 
       wx.navigateTo({ url: `/pages/checkup-detail/index?id=${lastRecordId}` });
     } catch (e) {
-      this.setData({ uploading: false, uploadProgressText: '', uploadPercent: -1 });
+      this.setData({ uploading: false, uploadProgressText: '', uploadPercent: -1, uploadStep: 1 });
       if (e && e.statusCode === 503) {
         wx.showToast({ title: '解读功能暂时维护中，请稍后再试', icon: 'none', duration: 3000 });
       } else {
@@ -236,6 +319,7 @@ Page({
       }
     }
 
+    const familyMemberId = this.data.selectedFamilyMemberId;
     this.setData({ uploading: true, uploadPercent: 0 });
 
     try {
@@ -243,8 +327,12 @@ Page({
       const total = filePaths.length;
       for (let i = 0; i < filePaths.length; i++) {
         try {
+          const formData = { scene_name: '体检报告识别' };
+          if (familyMemberId) {
+            formData.family_member_id = String(familyMemberId);
+          }
           const res = await uploadWithProgress('/api/ocr/recognize', filePaths[i], {
-            formData: { scene_name: '体检报告识别' },
+            formData,
             onProgress: (percent) => {
               const overallPercent = Math.round(((i + percent / 100) / total) * 100);
               this.setData({ uploadPercent: overallPercent });

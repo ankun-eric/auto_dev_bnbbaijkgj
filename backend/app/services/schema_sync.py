@@ -246,6 +246,12 @@ async def _sync_report_tables(conn: AsyncConnection) -> None:
             await conn.execute(text("ALTER TABLE checkup_reports ADD COLUMN status VARCHAR(20) DEFAULT 'pending'"))
         if "health_score" not in cols:
             await conn.execute(text("ALTER TABLE checkup_reports ADD COLUMN health_score INT NULL"))
+        if "family_member_id" not in cols:
+            await conn.execute(text(
+                "ALTER TABLE checkup_reports ADD COLUMN family_member_id INT NULL, "
+                "ADD INDEX ix_checkup_reports_family_member_id (family_member_id), "
+                "ADD CONSTRAINT fk_checkup_reports_family_member FOREIGN KEY (family_member_id) REFERENCES family_members(id)"
+            ))
 
     if "checkup_indicators" in table_cols:
         cols = table_cols["checkup_indicators"]

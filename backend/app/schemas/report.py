@@ -54,6 +54,15 @@ class ReportDetailResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class FamilyMemberBrief(BaseModel):
+    id: int
+    nickname: Optional[str] = None
+    relationship_type: Optional[str] = None
+    is_self: bool = False
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class ReportListItem(BaseModel):
     id: int
     report_date: Optional[date] = None
@@ -65,6 +74,7 @@ class ReportListItem(BaseModel):
     health_score: Optional[int] = None
     ai_analysis_json: Optional[Any] = None
     status: Optional[str] = None
+    family_member: Optional[FamilyMemberBrief] = None
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)

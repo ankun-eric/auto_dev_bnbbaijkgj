@@ -479,11 +479,13 @@ class CheckupReport(Base):
     abnormal_count = mapped_column(Integer, default=0)
     health_score = mapped_column(Integer, nullable=True)
     status = mapped_column(String(20), default="pending")
+    family_member_id = mapped_column(Integer, ForeignKey("family_members.id"), nullable=True, index=True)
     share_token = mapped_column(String(100), nullable=True, unique=True)
     share_expires_at = mapped_column(DateTime, nullable=True)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
 
     user = relationship("User")
+    family_member = relationship("FamilyMember")
     checkup_indicators = relationship("CheckupIndicator", back_populates="report")
     alerts = relationship("ReportAlert", back_populates="report")
 

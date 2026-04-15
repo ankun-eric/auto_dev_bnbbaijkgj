@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
 
@@ -60,16 +61,21 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
   EnhancedReportAnalysis? _enhancedAnalysis;
   ReportAnalysisResult? _legacyAnalysis;
 
-  // Loading animation
+  // Progressive loading animation
   bool _isAnalyzing = false;
-  int _loadingTextIndex = 0;
-  static const _loadingTexts = [
-    '正在读取报告数据...',
-    'AI 正在分析您的健康指标...',
-    '正在生成健康评分...',
-    '正在匹配医学知识库...',
-    '正在生成个性化建议...',
-    '即将完成，请稍候...',
+  double _progress = 0.0;
+  String _progressText = '🔍 AI 正在分析您的指标…';
+  Timer? _progressTimer;
+  Timer? _timeoutTimer;
+  bool _isTimedOut = false;
+  bool _hasError = false;
+  String _errorMessage = '';
+
+  static const _phases = <_ProgressPhase>[
+    _ProgressPhase(0.0, 0.30, 2500, '🔍 AI 正在分析您的指标…'),
+    _ProgressPhase(0.30, 0.60, 3500, '📊 正在评估各项指标的风险等级…'),
+    _ProgressPhase(0.60, 0.90, 6500, '📝 正在生成个性化健康建议…'),
+    _ProgressPhase(0.90, 0.99, 50000, '🧠 AI 正在深度分析中，请耐心等待…'),
   ];
 
   @override
@@ -81,6 +87,8 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
 
   @override
   void dispose() {
+    _progressTimer?.cancel();
+    _timeoutTimer?.cancel();
     _tabController.dispose();
     super.dispose();
   }
@@ -89,40 +97,133 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
     setState(() {
       _isLoading = true;
       _isAnalyzing = true;
+      _isTimedOut = false;
+      _hasError = false;
+      _errorMessage = '';
+      _progress = 0.0;
     });
-    _startLoadingAnimation();
+    _startProgressAnimation();
+    _startTimeoutTimer();
 
-    final provider = Provider.of<HealthProvider>(context, listen: false);
-    final report = await provider.getReportDetail(widget.reportId);
+    try {
+      final provider = Provider.of<HealthProvider>(context, listen: false);
+      final report = await provider.getReportDetail(widget.reportId);
 
-    EnhancedReportAnalysis? enhanced;
-    ReportAnalysisResult? legacy;
-    if (report != null) {
-      enhanced = _parseEnhancedAnalysis(report);
-      if (enhanced == null) {
-        legacy = _parseLegacyAnalysis(report);
+      EnhancedReportAnalysis? enhanced;
+      ReportAnalysisResult? legacy;
+      if (report != null) {
+        enhanced = _parseEnhancedAnalysis(report);
+        if (enhanced == null) {
+          legacy = _parseLegacyAnalysis(report);
+        }
       }
-    }
 
-    if (mounted) {
-      setState(() {
-        _report = report;
-        _enhancedAnalysis = enhanced;
-        _legacyAnalysis = legacy;
-        _isLoading = false;
-        _isAnalyzing = false;
-      });
+      _progressTimer?.cancel();
+      _timeoutTimer?.cancel();
+
+      if (mounted) {
+        if (report == null) {
+          setState(() {
+            _hasError = true;
+            _errorMessage = '加载失败，请重试';
+            _isLoading = false;
+            _isAnalyzing = false;
+          });
+          return;
+        }
+        // Phase 5: animate to 100%
+        setState(() {
+          _progress = 1.0;
+          _progressText = '✅ 分析完成！';
+        });
+        await Future.delayed(const Duration(milliseconds: 500));
+        if (mounted) {
+          setState(() {
+            _report = report;
+            _enhancedAnalysis = enhanced;
+            _legacyAnalysis = legacy;
+            _isLoading = false;
+            _isAnalyzing = false;
+          });
+        }
+      }
+    } catch (e) {
+      _progressTimer?.cancel();
+      _timeoutTimer?.cancel();
+      if (mounted) {
+        String msg = '分析失败，请重试';
+        final eStr = e.toString();
+        if (eStr.contains('SocketException') || eStr.contains('Connection')) {
+          msg = '网络连接异常，请检查网络后重试';
+        } else if (eStr.contains('500')) {
+          msg = '服务器繁忙，请稍后重试';
+        } else if (eStr.contains('404')) {
+          msg = '报告不存在或已被删除';
+        }
+        setState(() {
+          _hasError = true;
+          _errorMessage = msg;
+          _isLoading = false;
+          _isAnalyzing = false;
+        });
+      }
     }
   }
 
-  void _startLoadingAnimation() {
-    Future.doWhile(() async {
-      await Future.delayed(const Duration(seconds: 2));
-      if (!mounted || !_isAnalyzing) return false;
+  void _startProgressAnimation() {
+    int phaseIndex = 0;
+    final startTime = DateTime.now();
+
+    _progressTimer?.cancel();
+    _progressTimer = Timer.periodic(const Duration(milliseconds: 50), (timer) {
+      if (!mounted || !_isAnalyzing) {
+        timer.cancel();
+        return;
+      }
+      if (phaseIndex >= _phases.length) {
+        timer.cancel();
+        return;
+      }
+
+      final phase = _phases[phaseIndex];
+      final elapsed = DateTime.now().difference(startTime).inMilliseconds;
+
+      int phaseStartMs = 0;
+      for (int i = 0; i < phaseIndex; i++) {
+        phaseStartMs += _phases[i].durationMs;
+      }
+
+      final phaseElapsed = elapsed - phaseStartMs;
+      final t = (phaseElapsed / phase.durationMs).clamp(0.0, 1.0);
+      final eased = _easeOutCubic(t);
+      final newProgress = phase.startValue + (phase.endValue - phase.startValue) * eased;
+
       setState(() {
-        _loadingTextIndex = (_loadingTextIndex + 1) % _loadingTexts.length;
+        _progress = newProgress;
+        _progressText = phase.text;
       });
-      return _isAnalyzing;
+
+      if (t >= 1.0 && phaseIndex < _phases.length - 1) {
+        phaseIndex++;
+      }
+    });
+  }
+
+  double _easeOutCubic(double t) {
+    return 1.0 - math.pow(1.0 - t, 3).toDouble();
+  }
+
+  void _startTimeoutTimer() {
+    _timeoutTimer?.cancel();
+    _timeoutTimer = Timer(const Duration(seconds: 60), () {
+      if (mounted && _isAnalyzing) {
+        _progressTimer?.cancel();
+        setState(() {
+          _isTimedOut = true;
+          _isAnalyzing = false;
+          _isLoading = false;
+        });
+      }
     });
   }
 
@@ -227,48 +328,164 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
   }
 
   Widget _buildContent() {
+    if (_isTimedOut) {
+      return _buildTimeoutView();
+    }
+    if (_hasError) {
+      return _buildErrorView();
+    }
     if (_isLoading) {
       return _buildLoadingAnimation();
     }
     if (_report == null) {
-      return const Center(child: Text('加载失败，请重试'));
+      return _buildErrorView();
     }
     return _buildBody();
   }
 
   Widget _buildLoadingAnimation() {
+    final percent = (_progress * 100).toInt();
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          SizedBox(
-            width: 80,
-            height: 80,
-            child: CircularProgressIndicator(
-              strokeWidth: 3,
-              valueColor: AlwaysStoppedAnimation(_kPrimaryGreen),
-            ),
-          ),
-          const SizedBox(height: 24),
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 500),
-            transitionBuilder: (child, animation) => FadeTransition(
-              opacity: animation,
-              child: SlideTransition(
-                position: Tween<Offset>(
-                  begin: const Offset(0, 0.3),
-                  end: Offset.zero,
-                ).animate(animation),
-                child: child,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 40),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: 120,
+              height: 120,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  SizedBox(
+                    width: 120,
+                    height: 120,
+                    child: CircularProgressIndicator(
+                      value: _progress,
+                      strokeWidth: 6,
+                      backgroundColor: Colors.grey[200],
+                      valueColor: const AlwaysStoppedAnimation(_kPrimaryGreen),
+                      strokeCap: StrokeCap.round,
+                    ),
+                  ),
+                  Text(
+                    '$percent%',
+                    style: const TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: _kPrimaryGreen,
+                    ),
+                  ),
+                ],
               ),
             ),
-            child: Text(
-              _loadingTexts[_loadingTextIndex],
-              key: ValueKey<int>(_loadingTextIndex),
-              style: TextStyle(fontSize: 15, color: Colors.grey[600]),
+            const SizedBox(height: 28),
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 400),
+              transitionBuilder: (child, animation) => FadeTransition(
+                opacity: animation,
+                child: SlideTransition(
+                  position: Tween<Offset>(
+                    begin: const Offset(0, 0.3),
+                    end: Offset.zero,
+                  ).animate(animation),
+                  child: child,
+                ),
+              ),
+              child: Text(
+                _progressText,
+                key: ValueKey<String>(_progressText),
+                style: TextStyle(fontSize: 15, color: Colors.grey[600]),
+                textAlign: TextAlign.center,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTimeoutView() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.hourglass_bottom, size: 64, color: Colors.grey[400]),
+            const SizedBox(height: 20),
+            const Text(
+              '分析时间较长，已转入后台处理。\n您可以稍后在报告列表中查看结果。',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 15, color: Color(0xFF666666), height: 1.6),
+            ),
+            const SizedBox(height: 28),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _kPrimaryGreen,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  elevation: 0,
+                ),
+                child: const Text('返回报告列表'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorView() {
+    final msg = _errorMessage.isNotEmpty ? _errorMessage : '分析失败，请重试';
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
+            const SizedBox(height: 20),
+            Text(
+              msg,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 15, color: Color(0xFF666666), height: 1.6),
+            ),
+            const SizedBox(height: 28),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _loadDetail,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _kPrimaryGreen,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  elevation: 0,
+                ),
+                child: const Text('重新分析'),
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: () => Navigator.pop(context),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: _kPrimaryGreen,
+                  side: const BorderSide(color: _kPrimaryGreen),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: const Text('返回报告列表'),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1262,4 +1479,13 @@ class _ScoreGaugePainter extends CustomPainter {
   bool shouldRepaint(covariant _ScoreGaugePainter oldDelegate) {
     return oldDelegate.score != score || oldDelegate.color != color;
   }
+}
+
+class _ProgressPhase {
+  final double startValue;
+  final double endValue;
+  final int durationMs;
+  final String text;
+
+  const _ProgressPhase(this.startValue, this.endValue, this.durationMs, this.text);
 }

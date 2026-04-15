@@ -1,13 +1,43 @@
 <!-- 加载动画 -->
-<view class="loading-page" wx:if="{{loading}}">
+<view class="loading-page" wx:if="{{loading && analyzing && !analyzeTimeout && !analyzeError}}">
   <view class="analyze-animation">
-    <view class="analyze-spinner"></view>
+    <view class="analyze-progress-ring-wrap">
+      <view class="analyze-progress-bg"></view>
+      <view class="analyze-progress-circle" style="background: conic-gradient(#52c41a {{analyzePercent * 3.6}}deg, #f0f0f0 0deg);"></view>
+      <view class="analyze-progress-inner">
+        <text class="analyze-percent-num">{{analyzePercent}}</text>
+        <text class="analyze-percent-sign">%</text>
+      </view>
+    </view>
     <text class="analyze-text">{{analyzeText}}</text>
-    <view class="analyze-dots">
-      <view class="dot {{analyzeTextIndex >= 0 ? 'dot-active' : ''}}"></view>
-      <view class="dot {{analyzeTextIndex >= 1 ? 'dot-active' : ''}}"></view>
-      <view class="dot {{analyzeTextIndex >= 2 ? 'dot-active' : ''}}"></view>
-      <view class="dot {{analyzeTextIndex >= 3 ? 'dot-active' : ''}}"></view>
+    <view class="analyze-bar-wrap">
+      <view class="analyze-bar-track">
+        <view class="analyze-bar-fill" style="width: {{analyzePercent}}%;"></view>
+      </view>
+    </view>
+  </view>
+</view>
+
+<!-- 超时提示 -->
+<view class="loading-page" wx:if="{{analyzeTimeout && !analyzeError}}">
+  <view class="analyze-result-state">
+    <text class="state-icon">⏳</text>
+    <text class="state-title">分析时间较长，已转入后台处理</text>
+    <text class="state-desc">您可以稍后在报告列表中查看结果</text>
+    <view class="state-actions">
+      <button class="btn-primary state-btn" bindtap="goBackToList">返回报告列表</button>
+    </view>
+  </view>
+</view>
+
+<!-- 错误提示 -->
+<view class="loading-page" wx:if="{{analyzeError}}">
+  <view class="analyze-result-state">
+    <text class="state-icon">😔</text>
+    <text class="state-title">{{analyzeError}}</text>
+    <view class="state-actions">
+      <button class="btn-primary state-btn" bindtap="retryAnalyze">重新分析</button>
+      <button class="btn-outline state-btn" bindtap="goBackToList">返回报告列表</button>
     </view>
   </view>
 </view>

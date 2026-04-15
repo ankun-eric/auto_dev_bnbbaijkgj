@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { NavBar, Toast, Dialog } from 'antd-mobile';
 import api from '@/lib/api';
@@ -79,12 +79,35 @@ const SCORE_COLOR_RANGES = [
   { min: 0, max: 39, color: '#F44336' },
 ];
 
-const LOADING_MESSAGES = [
-  '🔬 AI 正在分析您的指标…',
-  '📊 正在评估各项指标的风险等级…',
-  '📝 正在生成个性化健康建议…',
-  '✅ 分析完成！',
+type AnalysisStatus = 'loading' | 'success' | 'error' | 'timeout';
+
+interface AnalysisPhase {
+  from: number;
+  to: number;
+  durationMs: number;
+  message: string;
+}
+
+const ANALYSIS_PHASES: AnalysisPhase[] = [
+  { from: 0, to: 30, durationMs: 2500, message: '🔍 AI 正在分析您的指标…' },
+  { from: 30, to: 60, durationMs: 3500, message: '📊 正在评估各项指标的风险等级…' },
+  { from: 60, to: 90, durationMs: 6500, message: '📝 正在生成个性化健康建议…' },
+  { from: 90, to: 99, durationMs: 50000, message: '🧠 AI 正在深度分析中，请耐心等待…' },
 ];
+
+const PHASE_COMPLETE = { from: 99, to: 100, durationMs: 500, message: '✅ 分析完成！' };
+const TIMEOUT_MS = 60000;
+
+function classifyError(err: any): string {
+  if (!err) return '分析失败，请重试';
+  const status = err?.response?.status || err?.status;
+  const msg = err?.message || '';
+  if (msg.includes('Network') || msg.includes('network') || msg.includes('ERR_NETWORK') || msg.includes('Failed to fetch'))
+    return '网络连接异常，请检查网络后重试';
+  if (status === 500) return '服务器繁忙，请稍后重试';
+  if (status === 404) return '报告不存在或已被删除';
+  return '分析失败，请重试';
+}
 
 const BASE_SHARE_URL =
   'https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/shared/report';
@@ -248,17 +271,114 @@ function IndicatorCard({ item }: { item: IndicatorItem }) {
 
 /* ───── Progressive Loading ───── */
 
-function ProgressiveLoading() {
-  const [msgIdx, setMsgIdx] = useState(0);
+function ProgressiveLoading({
+  status,
+  errorMessage,
+  onRetry,
+  onBack,
+}: {
+  status: AnalysisStatus;
+  errorMessage?: string;
+  onRetry: () => void;
+  onBack: () => void;
+}) {
+  const [progress, setProgress] = useState(0);
+  const [phaseIdx, setPhaseIdx] = useState(0);
+  const startTimeRef = useRef(Date.now());
+  const rafRef = useRef<number>(0);
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setMsgIdx((prev) => (prev < LOADING_MESSAGES.length - 1 ? prev + 1 : prev));
-    }, 2500);
-    return () => clearInterval(timer);
-  }, []);
+    if (status === 'success') {
+      setProgress(100);
+      setPhaseIdx(ANALYSIS_PHASES.length);
+      return;
+    }
+    if (status !== 'loading') return;
 
-  const progress = ((msgIdx + 1) / LOADING_MESSAGES.length) * 100;
+    startTimeRef.current = Date.now();
+    let currentPhase = 0;
+    let phaseStartTime = Date.now();
+    let phaseStartProgress = 0;
+
+    const tick = () => {
+      const elapsed = Date.now() - phaseStartTime;
+      const phase = ANALYSIS_PHASES[currentPhase];
+      if (!phase) return;
+
+      const t = Math.min(elapsed / phase.durationMs, 1);
+      const eased = currentPhase < 3 ? t : t * t * t;
+      const newProgress = phaseStartProgress + (phase.to - phase.from) * eased;
+
+      setProgress(Math.min(newProgress, phase.to));
+      setPhaseIdx(currentPhase);
+
+      if (t >= 1 && currentPhase < ANALYSIS_PHASES.length - 1) {
+        currentPhase++;
+        phaseStartTime = Date.now();
+        phaseStartProgress = phase.to;
+      }
+
+      rafRef.current = requestAnimationFrame(tick);
+    };
+
+    rafRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [status]);
+
+  const circumference = 2 * Math.PI * 34;
+  const currentMessage =
+    status === 'success'
+      ? PHASE_COMPLETE.message
+      : status === 'timeout'
+        ? '🧠 AI 正在深度分析中，请耐心等待…'
+        : ANALYSIS_PHASES[phaseIdx]?.message || ANALYSIS_PHASES[0].message;
+
+  if (status === 'error') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center px-8 w-full max-w-xs">
+          <div className="text-4xl mb-4">😔</div>
+          <p className="text-base font-semibold text-gray-700 mb-2">分析遇到问题</p>
+          <p className="text-sm text-gray-500 mb-6">{errorMessage || '分析失败，请重试'}</p>
+          <button
+            className="w-full py-3 rounded-xl text-white text-sm font-medium mb-3"
+            style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}
+            onClick={onRetry}
+          >
+            重新分析
+          </button>
+          <button
+            className="w-full py-3 rounded-xl text-sm font-medium text-gray-600"
+            style={{ background: '#f5f5f5' }}
+            onClick={onBack}
+          >
+            返回报告列表
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (status === 'timeout') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center px-8 w-full max-w-xs">
+          <div className="text-4xl mb-4">⏳</div>
+          <p className="text-base font-semibold text-gray-700 mb-2">分析时间较长</p>
+          <p className="text-sm text-gray-500 mb-6">
+            已转入后台处理。您可以稍后在报告列表中查看结果。
+          </p>
+          <button
+            className="w-full py-3 rounded-xl text-sm font-medium text-gray-600"
+            style={{ background: '#f5f5f5' }}
+            onClick={onBack}
+          >
+            返回报告列表
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -273,11 +393,11 @@ function ProgressiveLoading() {
               fill="none"
               stroke="#52c41a"
               strokeWidth="6"
-              strokeDasharray={`${2 * Math.PI * 34}`}
-              strokeDashoffset={`${2 * Math.PI * 34 * (1 - progress / 100)}`}
+              strokeDasharray={`${circumference}`}
+              strokeDashoffset={`${circumference * (1 - progress / 100)}`}
               strokeLinecap="round"
               transform="rotate(-90 40 40)"
-              style={{ transition: 'stroke-dashoffset 0.6s ease-out' }}
+              style={{ transition: 'stroke-dashoffset 0.3s ease-out' }}
             />
           </svg>
           <span className="absolute inset-0 flex items-center justify-center text-sm font-bold text-green-600">
@@ -285,19 +405,24 @@ function ProgressiveLoading() {
           </span>
         </div>
         <div className="space-y-2">
-          {LOADING_MESSAGES.map((msg, i) => (
+          {ANALYSIS_PHASES.map((phase, i) => (
             <p
               key={i}
               className="text-sm transition-all duration-500"
               style={{
-                color: i === msgIdx ? '#333' : i < msgIdx ? '#bbb' : '#e0e0e0',
-                fontWeight: i === msgIdx ? 600 : 400,
-                transform: i === msgIdx ? 'scale(1.05)' : 'scale(1)',
+                color: i === phaseIdx ? '#333' : i < phaseIdx ? '#bbb' : '#e0e0e0',
+                fontWeight: i === phaseIdx ? 600 : 400,
+                transform: i === phaseIdx ? 'scale(1.05)' : 'scale(1)',
               }}
             >
-              {msg}
+              {phase.message}
             </p>
           ))}
+          {status === 'success' && (
+            <p className="text-sm font-semibold text-green-600" style={{ transform: 'scale(1.05)' }}>
+              {PHASE_COMPLETE.message}
+            </p>
+          )}
         </div>
       </div>
     </div>
@@ -312,28 +437,35 @@ export default function ResultPage() {
   const id = params.id as string;
 
   const [result, setResult] = useState<AnalysisResult | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [analysisStatus, setAnalysisStatus] = useState<AnalysisStatus>('loading');
+  const [errorMessage, setErrorMessage] = useState('');
   const [hasHistory, setHasHistory] = useState(false);
   const [prevReportId, setPrevReportId] = useState<number | null>(null);
   const [shareLoading, setShareLoading] = useState(false);
   const [shareLink, setShareLink] = useState('');
   const [shareLinkVisible, setShareLinkVisible] = useState(false);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout>>();
 
   const fetchAnalysis = useCallback(async () => {
-    setLoading(true);
+    setAnalysisStatus('loading');
+    setErrorMessage('');
+
+    const timer = setTimeout(() => {
+      setAnalysisStatus('timeout');
+    }, TIMEOUT_MS);
+    timeoutRef.current = timer;
+
     try {
       const res: any = await api.post('/api/report/analyze', { report_id: Number(id) });
+      clearTimeout(timer);
       const data = res.data || res;
       setResult(data);
+      setAnalysisStatus('success');
+      await new Promise((r) => setTimeout(r, 600));
     } catch (err: any) {
-      const status = err?.response?.status || err?.status;
-      if (status === 404) {
-        Toast.show({ content: '报告不存在或尚未生成，请返回重试' });
-      } else {
-        Toast.show({ content: '分析失败，请重试' });
-      }
-    } finally {
-      setLoading(false);
+      clearTimeout(timer);
+      setErrorMessage(classifyError(err));
+      setAnalysisStatus('error');
     }
   }, [id]);
 
@@ -357,6 +489,9 @@ export default function ResultPage() {
     if (!id) return;
     fetchAnalysis();
     fetchHistory();
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
   }, [id, fetchAnalysis, fetchHistory]);
 
   const handleShare = async () => {
@@ -393,18 +528,17 @@ export default function ResultPage() {
     return new Set(result.categories.map((c) => c.name));
   }, [result]);
 
-  if (loading) return <ProgressiveLoading />;
+  const handleRetry = () => fetchAnalysis();
+  const handleBackToList = () => router.push('/checkup');
 
-  if (!result) {
+  if (analysisStatus !== 'success' || !result) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <NavBar onBack={() => router.back()} style={{ background: '#fff' }}>
-          解读结果
-        </NavBar>
-        <div className="flex items-center justify-center pt-20">
-          <p className="text-gray-400">加载失败</p>
-        </div>
-      </div>
+      <ProgressiveLoading
+        status={analysisStatus}
+        errorMessage={errorMessage}
+        onRetry={handleRetry}
+        onBack={handleBackToList}
+      />
     );
   }
 

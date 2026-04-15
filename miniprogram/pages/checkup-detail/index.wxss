@@ -18,28 +18,69 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 32rpx;
+  gap: 40rpx;
+  padding: 0 60rpx;
 }
 
-.analyze-spinner {
-  width: 100rpx;
-  height: 100rpx;
-  border: 8rpx solid #f0f0f0;
-  border-top: 8rpx solid #4CAF50;
+.analyze-progress-ring-wrap {
+  position: relative;
+  width: 200rpx;
+  height: 200rpx;
   border-radius: 50%;
-  animation: spin 1s linear infinite;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+.analyze-progress-bg {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: #f0f0f0;
+}
+
+.analyze-progress-circle {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  transition: background 0.15s linear;
+}
+
+.analyze-progress-inner {
+  position: relative;
+  width: 160rpx;
+  height: 160rpx;
+  border-radius: 50%;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+  box-shadow: 0 2rpx 16rpx rgba(0,0,0,0.04);
+}
+
+.analyze-percent-num {
+  font-size: 64rpx;
+  font-weight: 800;
+  color: #52c41a;
+  line-height: 1;
+}
+
+.analyze-percent-sign {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #52c41a;
+  margin-top: 8rpx;
 }
 
 .analyze-text {
-  font-size: 32rpx;
+  font-size: 30rpx;
   color: #333;
   font-weight: 600;
-  animation: fadeInOut 1.5s ease-in-out infinite alternate;
+  text-align: center;
+  animation: fadeInOut 2s ease-in-out infinite alternate;
 }
 
 @keyframes fadeInOut {
@@ -47,22 +88,68 @@
   100% { opacity: 1; }
 }
 
-.analyze-dots {
+.analyze-bar-wrap {
+  width: 100%;
+  max-width: 500rpx;
+}
+
+.analyze-bar-track {
+  width: 100%;
+  height: 12rpx;
+  background: #f0f0f0;
+  border-radius: 6rpx;
+  overflow: hidden;
+}
+
+.analyze-bar-fill {
+  height: 100%;
+  border-radius: 6rpx;
+  background: linear-gradient(90deg, #52c41a, #13c2c2);
+  transition: width 0.15s linear;
+}
+
+/* ========== 超时/错误状态 ========== */
+.analyze-result-state {
   display: flex;
-  gap: 16rpx;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 60rpx;
+  gap: 24rpx;
 }
 
-.dot {
-  width: 16rpx;
-  height: 16rpx;
-  border-radius: 50%;
-  background: #e0e0e0;
-  transition: background 0.3s, transform 0.3s;
+.state-icon {
+  font-size: 100rpx;
+  line-height: 1;
 }
 
-.dot-active {
-  background: #4CAF50;
-  transform: scale(1.3);
+.state-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #333;
+  text-align: center;
+  line-height: 1.6;
+}
+
+.state-desc {
+  font-size: 26rpx;
+  color: #999;
+  text-align: center;
+}
+
+.state-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+  width: 100%;
+  margin-top: 16rpx;
+}
+
+.state-btn {
+  width: 100% !important;
+}
+
+.state-btn::after {
+  border: none;
 }
 
 /* ========== 评分区域 ========== */
