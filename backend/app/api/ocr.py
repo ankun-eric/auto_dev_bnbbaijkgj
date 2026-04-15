@@ -10,6 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.security import get_current_user, require_role
 from app.models.models import (
+    CheckupIndicator,
+    CheckupReport,
     OcrCallRecord,
     OcrCallStatistics,
     OcrProviderConfig,
@@ -563,9 +565,12 @@ async def recognize(
     await db.refresh(record)
 
     drug_session_id = None
+    checkup_report_id = None
     if scene_name == "体检报告识别" and ai_result:
         try:
-            await _write_checkup_detail(db, current_user, provider_used, record, ocr_text, ai_result, original_image_url)
+            checkup_report = await _write_checkup_detail(db, current_user, provider_used, record, ocr_text, ai_result, original_image_url)
+            if checkup_report:
+                checkup_report_id = checkup_report.id
         except Exception as e:
             logger.warning("Failed to write checkup detail: %s", e)
     elif scene_name == "拍照识药":
@@ -598,6 +603,7 @@ async def recognize(
         ocr_text=ocr_text,
         ai_result=ai_result,
         record_id=record.id,
+        report_id=checkup_report_id,
         session_id=drug_session_id,
     )
 
@@ -684,6 +690,7 @@ async def batch_recognize(
     merged_ocr_text = None
     merged_ai_result = None
     merged_record_id = None
+    report_id = None
     session_id = None
 
     if successful_ocr_texts:
@@ -711,10 +718,12 @@ async def batch_recognize(
 
         if scene_name == "体检报告识别" and merged_ai_result:
             try:
-                await _write_checkup_detail(
+                checkup_report = await _write_checkup_detail(
                     db, current_user, last_provider_used,
                     merged_record, merged_ocr_text, merged_ai_result, None,
                 )
+                if checkup_report:
+                    report_id = checkup_report.id
             except Exception as e:
                 logger.warning("Failed to write checkup detail: %s", e)
         elif scene_name == "拍照识药" and merged_ai_result:
@@ -734,6 +743,7 @@ async def batch_recognize(
         merged_ocr_text=merged_ocr_text,
         merged_ai_result=merged_ai_result,
         merged_record_id=merged_record_id,
+        report_id=report_id,
         session_id=session_id,
     )
 
@@ -789,6 +799,14 @@ async def _call_ai_with_scene(
         return {"raw_result": result}
 
 
+def _risk_level_to_status(risk_level: int) -> str:
+    if risk_level <= 2:
+        return "normal"
+    if risk_level <= 3:
+        return "abnormal"
+    return "critical"
+
+
 async def _write_checkup_detail(db, user, provider, record, ocr_text, ai_result, image_url):
     from app.models.models import CheckupReportDetail
 
@@ -824,6 +842,67 @@ async def _write_checkup_detail(db, user, provider, record, ocr_text, ai_result,
     )
     db.add(detail)
     await db.flush()
+
+    # Also create CheckupReport so /api/report/analyze and /api/report/detail can find it
+    if not user:
+        return None
+
+    health_score_val = None
+    report_abnormal_count = 0
+    if isinstance(ai_result, dict):
+        hs = ai_result.get("healthScore")
+        if isinstance(hs, dict):
+            health_score_val = hs.get("score")
+        for cat in ai_result.get("categories", []):
+            for ind in cat.get("items", cat.get("indicators", [])):
+                if ind.get("riskLevel", 2) >= 3:
+                    report_abnormal_count += 1
+
+    checkup_report = CheckupReport(
+        user_id=user.id,
+        report_type=report_type,
+        file_url=image_url,
+        thumbnail_url=image_url,
+        file_type="image",
+        ocr_result={"text": ocr_text},
+        ai_analysis_json=ai_result,
+        ai_analysis=summary or "",
+        abnormal_count=report_abnormal_count or abnormal_count,
+        health_score=health_score_val,
+        status="completed",
+    )
+    db.add(checkup_report)
+    await db.flush()
+    await db.refresh(checkup_report)
+
+    # Create CheckupIndicator records for the report
+    if isinstance(ai_result, dict):
+        for cat in ai_result.get("categories", []):
+            cat_name = cat.get("name", cat.get("category_name", "其他"))
+            for ind in cat.get("items", cat.get("indicators", [])):
+                risk_level = ind.get("riskLevel", 2)
+                ind_status = _risk_level_to_status(risk_level)
+                advice_text = None
+                detail_raw = ind.get("detail")
+                if isinstance(detail_raw, dict):
+                    advice_text = detail_raw.get("explanation", "")
+                else:
+                    advice_text = ind.get("advice")
+
+                indicator = CheckupIndicator(
+                    report_id=checkup_report.id,
+                    indicator_name=ind.get("name", ""),
+                    value=ind.get("value"),
+                    unit=ind.get("unit"),
+                    reference_range=ind.get("referenceRange", ind.get("reference_range")),
+                    status=ind_status,
+                    category=cat_name,
+                    advice=advice_text,
+                )
+                db.add(indicator)
+        await db.flush()
+
+    return checkup_report
 
 
 async def _write_drug_detail(db, user, provider, record, ocr_text, ai_result, image_url):

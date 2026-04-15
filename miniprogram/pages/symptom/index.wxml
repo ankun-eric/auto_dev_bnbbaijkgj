@@ -24,8 +24,8 @@
 
     <!-- 健康信息编辑区域 -->
     <view class="health-edit-panel" wx:if="{{showHealthEdit}}">
-      <!-- 本人基本信息 -->
-      <view class="self-basic-info" wx:if="{{isSelfSelected}}">
+      <!-- 咨询人基本信息 -->
+      <view class="self-basic-info" wx:if="{{selectedMemberId}}">
         <view class="basic-info-title">👤 基本信息</view>
 
         <view class="form-item">

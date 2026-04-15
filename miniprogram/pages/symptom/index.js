@@ -158,14 +158,12 @@ Page({
           genetic_diseases: gd,
           chronicCustomItems: getCustomItems(cd),
           allergyCustomItems: getCustomItems(al),
-          geneticCustomItems: getCustomItems(gd)
+          geneticCustomItems: getCustomItems(gd),
+          selfNickname: profile.nickname || member.nickname || '',
+          selfGender: profile.gender || '',
+          selfBirthday: profile.birthday || '',
+          selfErrors: {}
         };
-        if (member.is_self) {
-          updates.selfNickname = profile.nickname || member.nickname || '';
-          updates.selfGender = profile.gender || '';
-          updates.selfBirthday = profile.birthday || '';
-          updates.selfErrors = {};
-        }
         this.setData(updates);
       }
     } catch (e) {
@@ -324,14 +322,11 @@ Page({
     const payload = {
       chronic_diseases: this.data.chronic_diseases,
       allergies: this.data.allergies,
-      genetic_diseases: this.data.genetic_diseases
+      genetic_diseases: this.data.genetic_diseases,
+      nickname: this.data.selfNickname,
+      gender: this.data.selfGender,
+      birthday: this.data.selfBirthday
     };
-
-    if (member.is_self) {
-      payload.nickname = this.data.selfNickname;
-      payload.gender = this.data.selfGender;
-      payload.birthday = this.data.selfBirthday;
-    }
 
     try {
       if (member.is_self) {
@@ -409,8 +404,12 @@ Page({
         wx.showToast({ title: '请至少选择一个症状', icon: 'none' });
         return;
       }
+      if (!this.data.selectedDuration) {
+        wx.showToast({ title: '请选择症状持续时间', icon: 'none' });
+        return;
+      }
       const selectedMember = this.data.members.find(m => m.id === this.data.selectedMemberId);
-      if (selectedMember && selectedMember.is_self) {
+      if (selectedMember) {
         const errors = {};
         if (!this.data.selfNickname.trim()) errors.nickname = '请输入姓名';
         if (!this.data.selfGender) errors.gender = '请选择性别';

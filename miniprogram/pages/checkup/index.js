@@ -197,9 +197,9 @@ Page({
               this.setData({ uploadPercent: overallPercent });
             }
           });
-          const recordId = res && (res.record_id || res.id);
-          if (recordId) {
-            lastRecordId = recordId;
+          const reportId = res && (res.report_id || res.record_id || res.id);
+          if (reportId) {
+            lastRecordId = reportId;
             successCount++;
           }
         } catch (uploadErr) {
@@ -250,8 +250,8 @@ Page({
               this.setData({ uploadPercent: overallPercent });
             }
           });
-          const recordId = res && (res.record_id || res.id);
-          if (recordId) lastRecordId = recordId;
+          const reportId = res && (res.report_id || res.record_id || res.id);
+          if (reportId) lastRecordId = reportId;
         } catch (e) {
           console.log('文件上传失败', e);
         }

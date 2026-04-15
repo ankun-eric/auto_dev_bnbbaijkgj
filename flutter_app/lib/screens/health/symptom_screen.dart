@@ -22,6 +22,19 @@ class _SymptomScreenState extends State<SymptomScreen> {
   String _selectedMemberName = '本人';
   bool _membersLoading = true;
 
+  // Duration selection
+  String? _selectedDuration;
+  static const List<String> _durationOptions = [
+    '刚刚出现',
+    '几小时内',
+    '1-3天',
+    '3-7天',
+    '1-2周',
+    '2周以上',
+    '1个月以上',
+    '3个月以上',
+  ];
+
   // Self basic info
   String _selfNickname = '';
   String _selfGender = '';
@@ -75,6 +88,8 @@ class _SymptomScreenState extends State<SymptomScreen> {
               'relation':
                   m['relation_type_name'] ?? m['relationship_type'] ?? '本人',
               'is_self': m['is_self'] ?? false,
+              'gender': (m['gender'] ?? '').toString(),
+              'birthday': (m['birthday'] ?? '').toString(),
             };
           }).toList();
           _membersLoading = false;
@@ -388,12 +403,10 @@ class _SymptomScreenState extends State<SymptomScreen> {
       'chronic_diseases': _chronicDiseases,
       'allergies': _allergies,
       'genetic_diseases': _geneticDiseases,
+      'nickname': _selfNickname.trim(),
+      'gender': _selfGender,
+      'birthday': _selfBirthday,
     };
-    if (_isSelfSelected()) {
-      data['nickname'] = _selfNickname.trim();
-      data['gender'] = _selfGender;
-      data['birthday'] = _selfBirthday;
-    }
     try {
       if (_selectedMemberId != null) {
         await _apiService.updateMemberHealthProfile(_selectedMemberId!, data);
@@ -417,7 +430,9 @@ class _SymptomScreenState extends State<SymptomScreen> {
                     ? _buildBodyPartSelector()
                     : _currentStep == 2
                         ? _buildSymptomSelector()
-                        : _buildResultView(),
+                        : _currentStep == 3
+                            ? _buildDurationSelector()
+                            : _buildResultView(),
           ),
           _buildBottomButton(),
         ],
@@ -426,7 +441,7 @@ class _SymptomScreenState extends State<SymptomScreen> {
   }
 
   Widget _buildStepIndicator() {
-    const steps = ['为谁咨询', '选择部位', '选择症状', '查看结果'];
+    const steps = ['为谁咨询', '选择部位', '选择症状', '持续时间', '查看结果'];
     return Container(
       padding: const EdgeInsets.all(16),
       color: Colors.white,
@@ -545,6 +560,13 @@ class _SymptomScreenState extends State<SymptomScreen> {
                           });
                           if (isSelf || id == null) {
                             _loadSelfProfile();
+                          } else {
+                            setState(() {
+                              _selfNickname = (member['name'] ?? '').toString();
+                              _selfGender = (member['gender'] ?? '').toString();
+                              _selfBirthday = (member['birthday'] ?? '').toString();
+                              _nicknameController.text = _selfNickname;
+                            });
                           }
                         },
                         child: Container(
@@ -607,10 +629,8 @@ class _SymptomScreenState extends State<SymptomScreen> {
               ],
             ),
           ),
-          if (_isSelfSelected()) ...[
-            const SizedBox(height: 16),
-            _buildSelfBasicInfoForm(),
-          ],
+          const SizedBox(height: 16),
+          _buildSelfBasicInfoForm(),
           const SizedBox(height: 16),
           if (!_presetsLoading) ...[
             DiseaseTagSelector(
@@ -766,6 +786,57 @@ class _SymptomScreenState extends State<SymptomScreen> {
     );
   }
 
+  Widget _buildDurationSelector() {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        const Text(
+          '症状持续多长时间了？',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 16),
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: _durationOptions.map((duration) {
+            final isSelected = _selectedDuration == duration;
+            return GestureDetector(
+              onTap: () {
+                setState(() {
+                  _selectedDuration = duration;
+                });
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 20, vertical: 10),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? const Color(0xFF52C41A)
+                      : Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: isSelected
+                        ? const Color(0xFF52C41A)
+                        : Colors.grey[300]!,
+                  ),
+                ),
+                child: Text(
+                  duration,
+                  style: TextStyle(
+                    color: isSelected ? Colors.white : Colors.grey[800],
+                    fontWeight: isSelected
+                        ? FontWeight.w600
+                        : FontWeight.normal,
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
   Widget _buildResultView() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -799,6 +870,9 @@ class _SymptomScreenState extends State<SymptomScreen> {
                     style: const TextStyle(fontSize: 15)),
                 const SizedBox(height: 8),
                 Text('症状：${_selectedSymptoms.join("、")}',
+                    style: const TextStyle(fontSize: 15)),
+                const SizedBox(height: 8),
+                Text('持续时间：${_selectedDuration ?? '未选择'}',
                     style: const TextStyle(fontSize: 15)),
                 const Divider(height: 24),
                 const Text(
@@ -882,22 +956,31 @@ class _SymptomScreenState extends State<SymptomScreen> {
               ),
             ),
           if (_currentStep > 0) const SizedBox(width: 12),
-          if (_currentStep < 3)
+          if (_currentStep < 4)
             Expanded(
               child: ElevatedButton(
                 onPressed: _canProceed()
                     ? () {
                         if (_currentStep == 0) {
-                          if (_isSelfSelected() &&
-                              !_validateSelfInfo()) {
+                          if (!_validateSelfInfo()) {
                             return;
                           }
                           _saveHealthProfile();
                         }
+                        if (_currentStep == 3 &&
+                            _selectedDuration == null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('请选择症状持续时间'),
+                              duration: Duration(seconds: 2),
+                            ),
+                          );
+                          return;
+                        }
                         setState(() => _currentStep++);
                       }
                     : null,
-                child: Text(_currentStep == 2 ? '查看结果' : '下一步'),
+                child: Text(_currentStep == 3 ? 'AI智能分析' : '下一步'),
               ),
             ),
         ],
@@ -913,6 +996,8 @@ class _SymptomScreenState extends State<SymptomScreen> {
         return _selectedBodyPart != null;
       case 2:
         return _selectedSymptoms.isNotEmpty;
+      case 3:
+        return true;
       default:
         return false;
     }

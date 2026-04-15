@@ -173,6 +173,10 @@ export default function SymptomPage() {
       Toast.show({ content: '请选择至少一个症状' });
       return;
     }
+    if (step === 2 && !duration) {
+      Toast.show({ content: '请选择症状持续时间' });
+      return;
+    }
     if (step < 2) setStep(step + 1);
     else openMemberPopup();
   };
@@ -327,7 +331,7 @@ export default function SymptomPage() {
   const handleConfirm = async () => {
     setAnalyzing(true);
 
-    if (selectedMember?.is_self) {
+    {
       const errors: {nickname?: string; gender?: string; birthday?: string} = {};
       if (!profileEdits.nickname?.trim()) errors.nickname = '请输入姓名';
       if (!profileEdits.gender) errors.gender = '请选择性别';
@@ -598,24 +602,22 @@ export default function SymptomPage() {
             </div>
 
             <div className="space-y-3">
-              {selectedMember?.is_self && (
-                <div>
-                  <div className="text-xs text-gray-500 mb-1">姓名 <span style={{color:'#ff4d4f'}}>*</span></div>
-                  <Input
-                    placeholder="请输入姓名"
-                    value={profileEdits.nickname}
-                    onChange={(v) => {
-                      setProfileEdits((p) => ({ ...p, nickname: v }));
-                      if (v.trim()) setProfileErrors((e) => ({ ...e, nickname: undefined }));
-                    }}
-                    style={{ '--font-size': '14px', background: '#fff', borderRadius: 8, padding: '6px 12px', border: '1px solid #d9d9d9' }}
-                  />
-                  {profileErrors.nickname && <div style={{ color: '#ff4d4f', fontSize: 12, marginTop: 4 }}>{profileErrors.nickname}</div>}
-                </div>
-              )}
+              <div>
+                <div className="text-xs text-gray-500 mb-1">姓名 <span style={{color:'#ff4d4f'}}>*</span></div>
+                <Input
+                  placeholder="请输入姓名"
+                  value={profileEdits.nickname}
+                  onChange={(v) => {
+                    setProfileEdits((p) => ({ ...p, nickname: v }));
+                    if (v.trim()) setProfileErrors((e) => ({ ...e, nickname: undefined }));
+                  }}
+                  style={{ '--font-size': '14px', background: '#fff', borderRadius: 8, padding: '6px 12px', border: '1px solid #d9d9d9' }}
+                />
+                {profileErrors.nickname && <div style={{ color: '#ff4d4f', fontSize: 12, marginTop: 4 }}>{profileErrors.nickname}</div>}
+              </div>
 
               <div>
-                <div className="text-xs text-gray-500 mb-1">出生日期 {selectedMember?.is_self && <span style={{color:'#ff4d4f'}}>*</span>}</div>
+                <div className="text-xs text-gray-500 mb-1">出生日期 <span style={{color:'#ff4d4f'}}>*</span></div>
                 <div
                   className="bg-white rounded-lg px-3 py-2 text-sm cursor-pointer flex items-center justify-between"
                   style={{ border: '1px solid #d9d9d9' }}
@@ -630,7 +632,7 @@ export default function SymptomPage() {
               </div>
 
               <div>
-                <div className="text-xs text-gray-500 mb-1">性别 {selectedMember?.is_self && <span style={{color:'#ff4d4f'}}>*</span>}</div>
+                <div className="text-xs text-gray-500 mb-1">性别 <span style={{color:'#ff4d4f'}}>*</span></div>
                 <div className="flex gap-3">
                   {['male', 'female'].map((g) => (
                     <div

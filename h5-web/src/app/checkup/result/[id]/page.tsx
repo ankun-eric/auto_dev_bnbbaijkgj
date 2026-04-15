@@ -325,8 +325,13 @@ export default function ResultPage() {
       const res: any = await api.post('/api/report/analyze', { report_id: Number(id) });
       const data = res.data || res;
       setResult(data);
-    } catch {
-      Toast.show({ content: '分析失败，请重试' });
+    } catch (err: any) {
+      const status = err?.response?.status || err?.status;
+      if (status === 404) {
+        Toast.show({ content: '报告不存在或尚未生成，请返回重试' });
+      } else {
+        Toast.show({ content: '分析失败，请重试' });
+      }
     } finally {
       setLoading(false);
     }

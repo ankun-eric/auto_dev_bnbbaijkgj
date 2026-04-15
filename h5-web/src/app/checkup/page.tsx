@@ -189,8 +189,8 @@ export default function CheckupPage() {
         Toast.show({ content: `${data.fail_count}张图片识别失败，已跳过` });
       }
 
-      const mergedId = data.merged_record_id;
-      if (!mergedId) {
+      const reportId = data.report_id || data.merged_record_id;
+      if (!reportId) {
         Toast.show({ content: '识别返回异常，请重试' });
         setUploading(false);
         setUploadProgress('');
@@ -204,7 +204,7 @@ export default function CheckupPage() {
       setUploading(false);
       setUploadProgress('');
       setUploadPercent(-1);
-      router.push(`/checkup/result/${mergedId}`);
+      router.push(`/checkup/result/${reportId}`);
     } catch (err: any) {
       const msg = err?.message || '上传失败，请重试';
       if (msg.includes('维护') || msg.includes('OCR') || msg.includes('closed')) {

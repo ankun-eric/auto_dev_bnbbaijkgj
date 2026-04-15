@@ -152,9 +152,9 @@ class HealthProvider extends ChangeNotifier {
       final response = await _api.ocrBatchRecognize(filePaths, sceneName: '体检报告识别');
       if (response.statusCode == 200) {
         final data = response.data is Map ? response.data : {};
-        final mergedRecordId = data['merged_record_id'];
-        if (mergedRecordId != null) {
-          final recordId = mergedRecordId is int ? mergedRecordId : int.parse(mergedRecordId.toString());
+        final reportId = data['report_id'] ?? data['merged_record_id'];
+        if (reportId != null) {
+          final recordId = reportId is int ? reportId : int.parse(reportId.toString());
           await loadReportList();
           _isUploading = false;
           notifyListeners();
