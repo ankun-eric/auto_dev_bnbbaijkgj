@@ -70,6 +70,7 @@ interface RelationType {
 }
 
 interface HealthProfile {
+  nickname: string;
   birthday: string;
   gender: string;
   height: string;
@@ -80,6 +81,7 @@ interface HealthProfile {
 }
 
 const emptyProfile = (): HealthProfile => ({
+  nickname: '',
   birthday: '',
   gender: '',
   height: '',
@@ -154,6 +156,7 @@ export default function SymptomPage() {
   const [newAllergies, setNewAllergies] = useState<DiseaseItem[]>([]);
   const [addLoading, setAddLoading] = useState(false);
   const [newBirthdayPickerVisible, setNewBirthdayPickerVisible] = useState(false);
+  const [profileErrors, setProfileErrors] = useState<{nickname?: string; gender?: string; birthday?: string}>({});
 
   const toggleSymptom = (s: string) => {
     setSelectedSymptoms((prev) =>
@@ -220,6 +223,7 @@ export default function SymptomPage() {
         const res: any = await api.get(`/api/health/profile/member/${m.id}`);
         const p = res.data || res;
         setProfileEdits({
+          nickname: p.nickname || m.nickname || '',
           birthday: p.birthday || m.birthday || '',
           gender: p.gender || m.gender || '',
           height: p.height != null ? String(p.height) : (m.height != null ? String(m.height) : ''),
@@ -230,6 +234,7 @@ export default function SymptomPage() {
         });
       } catch {
         setProfileEdits({
+          nickname: m.nickname || '',
           birthday: m.birthday || '',
           gender: m.gender || '',
           height: m.height != null ? String(m.height) : '',
@@ -246,6 +251,7 @@ export default function SymptomPage() {
 
   const handleSelectMember = (id: number) => {
     setSelectedMemberId(id);
+    setProfileErrors({});
     loadProfileFromMember(familyMembers, id);
   };
 
@@ -320,6 +326,21 @@ export default function SymptomPage() {
 
   const handleConfirm = async () => {
     setAnalyzing(true);
+
+    if (selectedMember?.is_self) {
+      const errors: {nickname?: string; gender?: string; birthday?: string} = {};
+      if (!profileEdits.nickname?.trim()) errors.nickname = '请输入姓名';
+      if (!profileEdits.gender) errors.gender = '请选择性别';
+      if (!profileEdits.birthday) errors.birthday = '请选择出生日期';
+      if (Object.keys(errors).length > 0) {
+        setProfileErrors(errors);
+        Toast.show({ content: '请填写完整的必填信息' });
+        setAnalyzing(false);
+        return;
+      }
+      setProfileErrors({});
+    }
+
     try {
       let familyMemberId: number | null = null;
       let memberLabel = '自己';
@@ -337,6 +358,7 @@ export default function SymptomPage() {
 
         if (familyMemberId !== null) {
           const updatePayload: any = {};
+          if (profileEdits.nickname) updatePayload.nickname = profileEdits.nickname.trim();
           if (profileEdits.birthday) updatePayload.birthday = profileEdits.birthday;
           if (profileEdits.gender) updatePayload.gender = profileEdits.gender;
           if (profileEdits.height) updatePayload.height = Number(profileEdits.height);
@@ -576,8 +598,24 @@ export default function SymptomPage() {
             </div>
 
             <div className="space-y-3">
+              {selectedMember?.is_self && (
+                <div>
+                  <div className="text-xs text-gray-500 mb-1">姓名 <span style={{color:'#ff4d4f'}}>*</span></div>
+                  <Input
+                    placeholder="请输入姓名"
+                    value={profileEdits.nickname}
+                    onChange={(v) => {
+                      setProfileEdits((p) => ({ ...p, nickname: v }));
+                      if (v.trim()) setProfileErrors((e) => ({ ...e, nickname: undefined }));
+                    }}
+                    style={{ '--font-size': '14px', background: '#fff', borderRadius: 8, padding: '6px 12px', border: '1px solid #d9d9d9' }}
+                  />
+                  {profileErrors.nickname && <div style={{ color: '#ff4d4f', fontSize: 12, marginTop: 4 }}>{profileErrors.nickname}</div>}
+                </div>
+              )}
+
               <div>
-                <div className="text-xs text-gray-500 mb-1">出生日期</div>
+                <div className="text-xs text-gray-500 mb-1">出生日期 {selectedMember?.is_self && <span style={{color:'#ff4d4f'}}>*</span>}</div>
                 <div
                   className="bg-white rounded-lg px-3 py-2 text-sm cursor-pointer flex items-center justify-between"
                   style={{ border: '1px solid #d9d9d9' }}
@@ -588,10 +626,11 @@ export default function SymptomPage() {
                   </span>
                   <span className="text-gray-300">📅</span>
                 </div>
+                {profileErrors.birthday && <div style={{ color: '#ff4d4f', fontSize: 12, marginTop: 4 }}>{profileErrors.birthday}</div>}
               </div>
 
               <div>
-                <div className="text-xs text-gray-500 mb-1">性别</div>
+                <div className="text-xs text-gray-500 mb-1">性别 {selectedMember?.is_self && <span style={{color:'#ff4d4f'}}>*</span>}</div>
                 <div className="flex gap-3">
                   {['male', 'female'].map((g) => (
                     <div
@@ -602,12 +641,16 @@ export default function SymptomPage() {
                         color: profileEdits.gender === g ? '#fff' : '#666',
                         border: `1px solid ${profileEdits.gender === g ? '#52c41a' : '#d9d9d9'}`,
                       }}
-                      onClick={() => setProfileEdits((p) => ({ ...p, gender: g }))}
+                      onClick={() => {
+                        setProfileEdits((p) => ({ ...p, gender: g }));
+                        setProfileErrors((e) => ({ ...e, gender: undefined }));
+                      }}
                     >
                       {g === 'male' ? '男' : '女'}
                     </div>
                   ))}
                 </div>
+                {profileErrors.gender && <div style={{ color: '#ff4d4f', fontSize: 12, marginTop: 4 }}>{profileErrors.gender}</div>}
               </div>
 
               <div className="flex gap-3">

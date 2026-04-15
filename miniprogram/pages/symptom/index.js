@@ -70,10 +70,23 @@ Page({
     selectedDuration: '',
     extraDesc: '',
     analyzing: false,
-    analysisResult: null
+    analysisResult: null,
+
+    // Self basic info
+    isSelfSelected: false,
+    selfNickname: '',
+    selfGender: '',
+    selfBirthday: '',
+    selfErrors: {},
+    today: ''
   },
 
   onLoad() {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    this.setData({ today: `${y}-${m}-${d}` });
     this.loadFamilyMembers();
     this.loadPresets();
   },
@@ -115,7 +128,8 @@ Page({
         members,
         membersLoaded: true,
         selectedMemberId: selfMember ? selfMember.id : null,
-        selectedMemberName: selfMember ? selfMember.label : ''
+        selectedMemberName: selfMember ? selfMember.label : '',
+        isSelfSelected: selfMember ? !!selfMember.is_self : false
       });
 
       if (selfMember) {
@@ -138,14 +152,21 @@ Page({
         const cd = profile.chronic_diseases || [];
         const al = profile.allergies || [];
         const gd = profile.genetic_diseases || [];
-        this.setData({
+        const updates = {
           chronic_diseases: cd,
           allergies: al,
           genetic_diseases: gd,
           chronicCustomItems: getCustomItems(cd),
           allergyCustomItems: getCustomItems(al),
           geneticCustomItems: getCustomItems(gd)
-        });
+        };
+        if (member.is_self) {
+          updates.selfNickname = profile.nickname || member.nickname || '';
+          updates.selfGender = profile.gender || '';
+          updates.selfBirthday = profile.birthday || '';
+          updates.selfErrors = {};
+        }
+        this.setData(updates);
       }
     } catch (e) {
       this.setData({
@@ -159,13 +180,27 @@ Page({
     const member = e.currentTarget.dataset.member;
     this.setData({
       selectedMemberId: member.id,
-      selectedMemberName: member.label
+      selectedMemberName: member.label,
+      isSelfSelected: !!member.is_self,
+      selfErrors: {}
     });
     this.loadMemberHealth(member);
   },
 
   toggleHealthEdit() {
     this.setData({ showHealthEdit: !this.data.showHealthEdit });
+  },
+
+  onSelfNicknameInput(e) {
+    this.setData({ selfNickname: e.detail.value });
+  },
+
+  onSelfGenderSelect(e) {
+    this.setData({ selfGender: e.currentTarget.dataset.gender });
+  },
+
+  onSelfBirthdayChange(e) {
+    this.setData({ selfBirthday: e.detail.value });
   },
 
   // ── Chronic disease handlers ──
@@ -292,6 +327,12 @@ Page({
       genetic_diseases: this.data.genetic_diseases
     };
 
+    if (member.is_self) {
+      payload.nickname = this.data.selfNickname;
+      payload.gender = this.data.selfGender;
+      payload.birthday = this.data.selfBirthday;
+    }
+
     try {
       if (member.is_self) {
         await put('/api/health/profile', payload);
@@ -367,6 +408,19 @@ Page({
       if (selected.length === 0) {
         wx.showToast({ title: '请至少选择一个症状', icon: 'none' });
         return;
+      }
+      const selectedMember = this.data.members.find(m => m.id === this.data.selectedMemberId);
+      if (selectedMember && selectedMember.is_self) {
+        const errors = {};
+        if (!this.data.selfNickname.trim()) errors.nickname = '请输入姓名';
+        if (!this.data.selfGender) errors.gender = '请选择性别';
+        if (!this.data.selfBirthday) errors.birthday = '请选择出生日期';
+        if (Object.keys(errors).length > 0) {
+          this.setData({ selfErrors: errors });
+          wx.showToast({ title: '请填写完整的必填信息', icon: 'none' });
+          return;
+        }
+        this.setData({ selfErrors: {} });
       }
       this.setData({ currentStep: 2, analyzing: true });
       await this.analyze();

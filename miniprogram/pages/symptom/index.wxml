@@ -24,6 +24,37 @@
 
     <!-- 健康信息编辑区域 -->
     <view class="health-edit-panel" wx:if="{{showHealthEdit}}">
+      <!-- 本人基本信息 -->
+      <view class="self-basic-info" wx:if="{{isSelfSelected}}">
+        <view class="basic-info-title">👤 基本信息</view>
+
+        <view class="form-item">
+          <view class="form-label">姓名 <text class="required">*</text></view>
+          <input class="form-input" placeholder="请输入姓名" value="{{selfNickname}}" bindinput="onSelfNicknameInput" />
+          <view class="form-error" wx:if="{{selfErrors.nickname}}">{{selfErrors.nickname}}</view>
+        </view>
+
+        <view class="form-item">
+          <view class="form-label">性别 <text class="required">*</text></view>
+          <view class="gender-select">
+            <view class="gender-btn {{selfGender === 'male' ? 'gender-active' : ''}}" bindtap="onSelfGenderSelect" data-gender="male">男</view>
+            <view class="gender-btn {{selfGender === 'female' ? 'gender-active' : ''}}" bindtap="onSelfGenderSelect" data-gender="female">女</view>
+          </view>
+          <view class="form-error" wx:if="{{selfErrors.gender}}">{{selfErrors.gender}}</view>
+        </view>
+
+        <view class="form-item">
+          <view class="form-label">出生日期 <text class="required">*</text></view>
+          <picker mode="date" value="{{selfBirthday}}" start="1900-01-01" end="{{today}}" bindchange="onSelfBirthdayChange">
+            <view class="form-input date-input">
+              <text class="{{selfBirthday ? '' : 'placeholder'}}">{{selfBirthday || '请选择出生日期'}}</text>
+              <text class="date-icon">📅</text>
+            </view>
+          </picker>
+          <view class="form-error" wx:if="{{selfErrors.birthday}}">{{selfErrors.birthday}}</view>
+        </view>
+      </view>
+
       <!-- 既往病史 -->
       <view class="health-section">
         <view class="health-section-title">🏥 既往病史</view>

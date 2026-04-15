@@ -22,6 +22,13 @@ class _SymptomScreenState extends State<SymptomScreen> {
   String _selectedMemberName = '本人';
   bool _membersLoading = true;
 
+  // Self basic info
+  String _selfNickname = '';
+  String _selfGender = '';
+  String _selfBirthday = '';
+  final TextEditingController _nicknameController = TextEditingController();
+  Map<String, String> _selfErrors = {};
+
   // Health profile editing for selected member
   List<String> _chronicPresets = [];
   List<String> _allergyPresets = [];
@@ -45,6 +52,13 @@ class _SymptomScreenState extends State<SymptomScreen> {
     super.initState();
     _loadFamilyMembers();
     _loadPresets();
+    _loadSelfProfile();
+  }
+
+  @override
+  void dispose() {
+    _nicknameController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadFamilyMembers() async {
@@ -108,12 +122,278 @@ class _SymptomScreenState extends State<SymptomScreen> {
     return [];
   }
 
+  bool _isSelfSelected() {
+    if (_selectedMemberId == null) return true;
+    final member = _familyMembers.firstWhere(
+      (m) => m['id'] == _selectedMemberId,
+      orElse: () => <String, dynamic>{},
+    );
+    return member['is_self'] == true;
+  }
+
+  Future<void> _loadSelfProfile() async {
+    try {
+      final response = await _apiService.getHealthProfile();
+      if (response.statusCode == 200 && mounted) {
+        final data = response.data is Map ? response.data as Map : {};
+        setState(() {
+          _selfNickname = (data['nickname'] ?? '').toString();
+          _selfGender = (data['gender'] ?? '').toString();
+          _selfBirthday = (data['birthday'] ?? '').toString();
+          _nicknameController.text = _selfNickname;
+          _selfErrors = {};
+        });
+      }
+    } catch (_) {}
+  }
+
+  bool _validateSelfInfo() {
+    final errors = <String, String>{};
+    if (_selfNickname.trim().isEmpty) errors['nickname'] = '请输入姓名';
+    if (_selfGender.isEmpty) errors['gender'] = '请选择性别';
+    if (_selfBirthday.isEmpty) errors['birthday'] = '请选择出生日期';
+    setState(() => _selfErrors = errors);
+    if (errors.isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('请填写完整的必填信息'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return false;
+    }
+    return true;
+  }
+
+  Future<void> _pickBirthday() async {
+    final initial = _selfBirthday.isNotEmpty
+        ? (DateTime.tryParse(_selfBirthday) ?? DateTime(2000))
+        : DateTime(2000);
+    final date = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(1900),
+      lastDate: DateTime.now(),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFF52C41A),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (date != null) {
+      setState(() {
+        _selfBirthday =
+            '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+      });
+    }
+  }
+
+  Widget _buildSelfBasicInfoForm() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.person, color: Color(0xFF52C41A), size: 20),
+              SizedBox(width: 8),
+              Text('基本信息',
+                  style: TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.w600)),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _buildFormLabel('姓名', true),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _nicknameController,
+            onChanged: (v) => setState(() {
+              _selfNickname = v;
+              _selfErrors.remove('nickname');
+            }),
+            decoration: InputDecoration(
+              hintText: '请输入姓名',
+              hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              filled: true,
+              fillColor: const Color(0xFFF5F5F5),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide.none,
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: _selfErrors.containsKey('nickname')
+                    ? const BorderSide(color: Color(0xFFFF4D4F))
+                    : BorderSide.none,
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide:
+                    const BorderSide(color: Color(0xFF52C41A)),
+              ),
+            ),
+          ),
+          if (_selfErrors.containsKey('nickname'))
+            _buildErrorText(_selfErrors['nickname']!),
+          const SizedBox(height: 16),
+          _buildFormLabel('性别', true),
+          const SizedBox(height: 8),
+          Row(
+            children: ['male', 'female'].map((g) {
+              final isSelected = _selfGender == g;
+              return Expanded(
+                child: GestureDetector(
+                  onTap: () => setState(() {
+                    _selfGender = g;
+                    _selfErrors.remove('gender');
+                  }),
+                  child: Container(
+                    margin: EdgeInsets.only(
+                        right: g == 'male' ? 6 : 0,
+                        left: g == 'female' ? 6 : 0),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? const Color(0xFFF0F9EB)
+                          : const Color(0xFFF5F5F5),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: isSelected
+                            ? const Color(0xFF52C41A)
+                            : _selfErrors.containsKey('gender')
+                                ? const Color(0xFFFF4D4F)
+                                : Colors.transparent,
+                        width: isSelected ? 2 : 1,
+                      ),
+                    ),
+                    alignment: Alignment.center,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          g == 'male' ? Icons.male : Icons.female,
+                          size: 18,
+                          color: isSelected
+                              ? const Color(0xFF52C41A)
+                              : Colors.grey[600],
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          g == 'male' ? '男' : '女',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: isSelected
+                                ? FontWeight.w600
+                                : FontWeight.normal,
+                            color: isSelected
+                                ? const Color(0xFF52C41A)
+                                : Colors.grey[800],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+          if (_selfErrors.containsKey('gender'))
+            _buildErrorText(_selfErrors['gender']!),
+          const SizedBox(height: 16),
+          _buildFormLabel('出生日期', true),
+          const SizedBox(height: 8),
+          GestureDetector(
+            onTap: _pickBirthday,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 12, vertical: 12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF5F5F5),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: _selfErrors.containsKey('birthday')
+                      ? const Color(0xFFFF4D4F)
+                      : Colors.transparent,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      _selfBirthday.isNotEmpty
+                          ? _selfBirthday
+                          : '请选择出生日期',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: _selfBirthday.isNotEmpty
+                            ? Colors.black87
+                            : Colors.grey[400],
+                      ),
+                    ),
+                  ),
+                  Icon(Icons.calendar_today,
+                      size: 18, color: Colors.grey[400]),
+                ],
+              ),
+            ),
+          ),
+          if (_selfErrors.containsKey('birthday'))
+            _buildErrorText(_selfErrors['birthday']!),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFormLabel(String text, bool required) {
+    return RichText(
+      text: TextSpan(
+        text: text,
+        style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+        children: required
+            ? const [
+                TextSpan(
+                  text: ' *',
+                  style: TextStyle(color: Color(0xFFFF4D4F)),
+                ),
+              ]
+            : null,
+      ),
+    );
+  }
+
+  Widget _buildErrorText(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Text(text,
+          style: const TextStyle(
+              fontSize: 12, color: Color(0xFFFF4D4F))),
+    );
+  }
+
   Future<void> _saveHealthProfile() async {
-    final data = {
+    final data = <String, dynamic>{
       'chronic_diseases': _chronicDiseases,
       'allergies': _allergies,
       'genetic_diseases': _geneticDiseases,
     };
+    if (_isSelfSelected()) {
+      data['nickname'] = _selfNickname.trim();
+      data['gender'] = _selfGender;
+      data['birthday'] = _selfBirthday;
+    }
     try {
       if (_selectedMemberId != null) {
         await _apiService.updateMemberHealthProfile(_selectedMemberId!, data);
@@ -261,7 +541,11 @@ class _SymptomScreenState extends State<SymptomScreen> {
                           setState(() {
                             _selectedMemberId = id;
                             _selectedMemberName = relation;
+                            _selfErrors = {};
                           });
+                          if (isSelf || id == null) {
+                            _loadSelfProfile();
+                          }
                         },
                         child: Container(
                           width: 72,
@@ -323,6 +607,10 @@ class _SymptomScreenState extends State<SymptomScreen> {
               ],
             ),
           ),
+          if (_isSelfSelected()) ...[
+            const SizedBox(height: 16),
+            _buildSelfBasicInfoForm(),
+          ],
           const SizedBox(height: 16),
           if (!_presetsLoading) ...[
             DiseaseTagSelector(
@@ -600,6 +888,10 @@ class _SymptomScreenState extends State<SymptomScreen> {
                 onPressed: _canProceed()
                     ? () {
                         if (_currentStep == 0) {
+                          if (_isSelfSelected() &&
+                              !_validateSelfInfo()) {
+                            return;
+                          }
                           _saveHealthProfile();
                         }
                         setState(() => _currentStep++);
