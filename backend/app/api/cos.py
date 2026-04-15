@@ -79,7 +79,6 @@ async def get_cos_config(
             "is_active": False,
             "cdn_domain": None,
             "cdn_protocol": "https",
-            "path_prefix": "",
             "test_passed": False,
             "created_at": None,
             "updated_at": None,
@@ -96,7 +95,6 @@ async def get_cos_config(
         "is_active": cfg.is_active,
         "cdn_domain": cfg.cdn_domain,
         "cdn_protocol": cfg.cdn_protocol or "https",
-        "path_prefix": cfg.path_prefix or "",
         "test_passed": bool(cfg.test_passed),
         "created_at": cfg.created_at.isoformat() if cfg.created_at else None,
         "updated_at": cfg.updated_at.isoformat() if cfg.updated_at else None,
@@ -134,11 +132,14 @@ async def update_cos_config(
         cfg.cdn_domain = data.cdn_domain
     if data.cdn_protocol is not None:
         cfg.cdn_protocol = data.cdn_protocol
-    if data.path_prefix is not None:
-        cfg.path_prefix = data.path_prefix
     cfg.updated_at = datetime.utcnow()
 
-    await db.flush()
+    try:
+        await db.flush()
+    except Exception as e:
+        await db.rollback()
+        logger.error("COS配置更新失败: %s", e)
+        raise HTTPException(status_code=500, detail=f"数据库操作失败: {str(e)}")
     return {"message": "COS配置更新成功"}
 
 
@@ -161,14 +162,26 @@ async def test_cos_connection(
             if resp.status_code in (200, 403):
                 cfg.test_passed = True
                 cfg.updated_at = datetime.utcnow()
-                await db.flush()
+                try:
+                    await db.flush()
+                except Exception as db_err:
+                    await db.rollback()
+                    logger.error("COS测试结果保存失败: %s", db_err)
                 return {"success": True, "message": "COS连接测试成功（Bucket可达）"}
             cfg.test_passed = False
-            await db.flush()
+            try:
+                await db.flush()
+            except Exception as db_err:
+                await db.rollback()
+                logger.error("COS测试结果保存失败: %s", db_err)
             return {"success": False, "message": f"COS返回状态码 {resp.status_code}"}
     except Exception as e:
         cfg.test_passed = False
-        await db.flush()
+        try:
+            await db.flush()
+        except Exception as db_err:
+            await db.rollback()
+            logger.error("COS测试结果保存失败: %s", db_err)
         return {"success": False, "message": f"连接失败: {str(e)}"}
 
 
@@ -291,12 +304,12 @@ async def _upload_to_cos(
     db: AsyncSession,
 ) -> dict:
     ext = os.path.splitext(file.filename or "file")[1]
-    effective_prefix = cfg.path_prefix if cfg.path_prefix else (cfg.file_prefix or "files/")
-    if not cfg.path_prefix:
-        if file.content_type and file.content_type.startswith("image/"):
-            effective_prefix = cfg.image_prefix or "images/"
-        elif file.content_type and file.content_type.startswith("video/"):
-            effective_prefix = cfg.video_prefix or "videos/"
+    if file.content_type and file.content_type.startswith("image/"):
+        effective_prefix = cfg.image_prefix or "images/"
+    elif file.content_type and file.content_type.startswith("video/"):
+        effective_prefix = cfg.video_prefix or "videos/"
+    else:
+        effective_prefix = cfg.file_prefix or "files/"
 
     file_key = f"{effective_prefix}{uuid.uuid4().hex}{ext}"
     region = cfg.region or "ap-guangzhou"
@@ -366,16 +379,21 @@ async def batch_update_upload_limits(
     current_user=Depends(admin_dep),
     db: AsyncSession = Depends(get_db),
 ):
-    for item in data.items:
-        result = await db.execute(
-            select(CosUploadLimit).where(CosUploadLimit.module == item.module)
-        )
-        existing = result.scalar_one_or_none()
-        if existing:
-            existing.max_size_mb = item.max_size_mb
-        else:
-            db.add(CosUploadLimit(module=item.module, max_size_mb=item.max_size_mb))
-    await db.flush()
+    try:
+        for item in data.items:
+            result = await db.execute(
+                select(CosUploadLimit).where(CosUploadLimit.module == item.module)
+            )
+            existing = result.scalar_one_or_none()
+            if existing:
+                existing.max_size_mb = item.max_size_mb
+            else:
+                db.add(CosUploadLimit(module=item.module, max_size_mb=item.max_size_mb))
+        await db.flush()
+    except Exception as e:
+        await db.rollback()
+        logger.error("上传限制更新失败: %s", e)
+        raise HTTPException(status_code=500, detail=f"数据库操作失败: {str(e)}")
     return {"message": "上传限制配置已更新"}
 
 

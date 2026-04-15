@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class CosConfigUpdate(BaseModel):
@@ -15,7 +15,13 @@ class CosConfigUpdate(BaseModel):
     is_active: Optional[bool] = None
     cdn_domain: Optional[str] = None
     cdn_protocol: Optional[str] = None
-    path_prefix: Optional[str] = None
+
+    @field_validator("image_prefix", "video_prefix", "file_prefix", mode="before")
+    @classmethod
+    def prefix_not_empty(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and v.strip() == "":
+            raise ValueError("分类前缀不允许为空字符串")
+        return v
 
 
 class CosConfigResponse(BaseModel):
@@ -30,7 +36,6 @@ class CosConfigResponse(BaseModel):
     is_active: bool = False
     cdn_domain: Optional[str] = None
     cdn_protocol: str = "https"
-    path_prefix: str = ""
     test_passed: bool = False
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None

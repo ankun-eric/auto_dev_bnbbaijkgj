@@ -51,8 +51,8 @@ async def try_cos_upload(
 ) -> Optional[str]:
     """Try uploading to COS. Returns full URL on success, None on failure (fallback to local).
 
-    Uses path_prefix from config for flat storage: {path_prefix}{uuid}.{ext}
-    Falls back to the provided `prefix` param only if path_prefix is empty.
+    Determines storage prefix by MIME type: image/ -> image_prefix, video/ -> video_prefix, else -> file_prefix.
+    The `prefix` param is used as fallback only when no matching category prefix is configured.
     """
     try:
         cfg = await get_cos_config_cached(db)
@@ -60,7 +60,12 @@ async def try_cos_upload(
             return None
 
         ext = os.path.splitext(filename)[1] if filename else ""
-        effective_prefix = cfg.path_prefix if cfg.path_prefix else prefix
+        if content_type and content_type.startswith("image/"):
+            effective_prefix = cfg.image_prefix or "images/"
+        elif content_type and content_type.startswith("video/"):
+            effective_prefix = cfg.video_prefix or "videos/"
+        else:
+            effective_prefix = cfg.file_prefix or "files/"
         file_key = f"{effective_prefix}{uuid.uuid4().hex}{ext}"
 
         region = cfg.region or "ap-guangzhou"

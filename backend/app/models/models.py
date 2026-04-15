@@ -1293,7 +1293,6 @@ class CosConfig(Base):
     is_active = mapped_column(Boolean, default=False)
     cdn_domain = Column(String(300), nullable=True, comment='CDN加速域名')
     cdn_protocol = Column(String(10), default='https', comment='CDN协议')
-    path_prefix = Column(String(200), default='', comment='统一路径前缀（扁平存储）')
     test_passed = Column(Boolean, default=False, comment='连接测试是否通过')
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

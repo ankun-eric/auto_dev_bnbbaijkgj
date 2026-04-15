@@ -8,6 +8,7 @@ import {
 import {
   SaveOutlined, ApiOutlined, CloudOutlined, FileOutlined,
   SyncOutlined, RocketOutlined, ReloadOutlined, ScanOutlined,
+  UploadOutlined, SwapOutlined,
 } from '@ant-design/icons';
 import { get, put, post } from '@/lib/api';
 
@@ -19,7 +20,9 @@ interface CosConfig {
   secret_key_masked: string;
   bucket: string;
   region: string;
-  path_prefix: string;
+  image_prefix: string;
+  video_prefix: string;
+  file_prefix: string;
   cdn_domain: string | null;
   cdn_protocol: string;
   is_active: boolean;
@@ -120,7 +123,9 @@ export default function CosConfigPage() {
         secret_id: res.secret_id || '',
         bucket: res.bucket || '',
         region: res.region || '',
-        path_prefix: res.path_prefix || '',
+        image_prefix: res.image_prefix || 'images/',
+        video_prefix: res.video_prefix || 'videos/',
+        file_prefix: res.file_prefix || 'files/',
         cdn_domain: res.cdn_domain || '',
         cdn_protocol: res.cdn_protocol || 'https',
       });
@@ -164,8 +169,9 @@ export default function CosConfigPage() {
   }, [fetchConfig, fetchUploadLimits]);
 
   useEffect(() => {
+    if (activeTab === 'limits') fetchUploadLimits();
     if (activeTab === 'files') fetchUsage();
-  }, [activeTab, fetchUsage]);
+  }, [activeTab, fetchUploadLimits, fetchUsage]);
 
   useEffect(() => {
     return () => {
@@ -181,7 +187,9 @@ export default function CosConfigPage() {
         secret_id: values.secret_id,
         bucket: values.bucket,
         region: values.region,
-        path_prefix: values.path_prefix || '',
+        image_prefix: values.image_prefix || 'images/',
+        video_prefix: values.video_prefix || 'videos/',
+        file_prefix: values.file_prefix || 'files/',
         cdn_domain: values.cdn_domain || '',
         cdn_protocol: values.cdn_protocol || 'https',
         is_active: cosEnabled,
@@ -379,8 +387,14 @@ export default function CosConfigPage() {
             <Form.Item label="Region" name="region" rules={[{ required: true, message: '请选择Region' }]}>
               <Select options={REGIONS} placeholder="请选择地域" />
             </Form.Item>
-            <Form.Item label="统一路径前缀" name="path_prefix">
-              <Input placeholder="非必填，如 bini-health/" />
+            <Form.Item label="图片路径前缀" name="image_prefix" rules={[{ required: true, message: '图片路径前缀不能为空' }]}>
+              <Input placeholder="默认 images/" />
+            </Form.Item>
+            <Form.Item label="视频路径前缀" name="video_prefix" rules={[{ required: true, message: '视频路径前缀不能为空' }]}>
+              <Input placeholder="默认 videos/" />
+            </Form.Item>
+            <Form.Item label="文件路径前缀" name="file_prefix" rules={[{ required: true, message: '文件路径前缀不能为空' }]}>
+              <Input placeholder="默认 files/" />
             </Form.Item>
             <Form.Item label="启用COS" valuePropName="checked">
               <Switch
@@ -409,45 +423,7 @@ export default function CosConfigPage() {
           </Form>
         </Card>
 
-        {/* 区块三：上传限制配置 */}
-        <Card
-          title="上传限制配置"
-          style={{ borderRadius: 12 }}
-          extra={
-            <Button
-              type="primary"
-              size="small"
-              icon={<SaveOutlined />}
-              loading={limitsSaving}
-              onClick={handleSaveUploadLimits}
-            >
-              保存上传限制
-            </Button>
-          }
-        >
-          <Spin spinning={limitsLoading}>
-            <div className="flex flex-col gap-3" style={{ maxWidth: 480 }}>
-              {uploadLimits.map((item) => (
-                <div key={item.module} className="flex items-center justify-between">
-                  <Text style={{ width: 140 }}>{item.module_name}</Text>
-                  <Space>
-                    <InputNumber
-                      min={1}
-                      max={1024}
-                      value={item.max_size_mb}
-                      onChange={(val) => updateLimitValue(item.module, val)}
-                      addonAfter="MB"
-                      style={{ width: 160 }}
-                    />
-                  </Space>
-                </div>
-              ))}
-              <Text type="secondary" className="text-xs mt-1">限制范围：1 ~ 1024 MB</Text>
-            </div>
-          </Spin>
-        </Card>
-
-        {/* 区块四：操作区 */}
+        {/* 区块三：操作区 */}
         <Card title="操作" style={{ borderRadius: 12 }}>
           <Space size="middle">
             <Button type="primary" icon={<SaveOutlined />} onClick={handleSaveConfig} loading={configSaving}>
@@ -468,110 +444,151 @@ export default function CosConfigPage() {
           )}
         </Card>
 
-        {/* 区块五：数据迁移 */}
-        <Card title="数据迁移" style={{ borderRadius: 12 }}>
-          <div className="flex flex-col gap-4">
-            <div>
-              <Button
-                icon={<ScanOutlined />}
-                onClick={handleScanMigration}
-                loading={scanLoading}
-              >
-                扫描待迁移文件
-              </Button>
-            </div>
-
-            {scanResult.length > 0 && (
-              <>
-                <Table
-                  columns={scanColumns}
-                  dataSource={scanResult}
-                  rowKey="module"
-                  pagination={false}
-                  size="small"
-                  style={{ maxWidth: 600 }}
-                />
-                <div>
-                  <Button
-                    type="primary"
-                    icon={<RocketOutlined />}
-                    onClick={handleStartMigration}
-                    loading={migrating}
-                    disabled={selectedModules.length === 0}
-                  >
-                    开始迁移
-                  </Button>
-                </div>
-              </>
-            )}
-
-            {migrationProgress && (
-              <Card size="small" style={{ maxWidth: 600, background: '#fafafa' }}>
-                <div className="flex flex-col gap-3">
-                  <Progress
-                    percent={migrationProgress.progress_percent}
-                    status={
-                      migrationProgress.status === 'completed'
-                        ? (migrationProgress.failed_count > 0 ? 'exception' : 'success')
-                        : migrationProgress.status === 'failed'
-                          ? 'exception'
-                          : 'active'
-                    }
-                  />
-                  <div className="flex gap-6 flex-wrap">
-                    <Text>总数: <Text strong>{migrationProgress.total_files}</Text></Text>
-                    <Text>成功: <Text strong type="success">{migrationProgress.migrated_count}</Text></Text>
-                    <Text>失败: <Text strong type="danger">{migrationProgress.failed_count}</Text></Text>
-                    {migrationProgress.skipped_count > 0 && (
-                      <Text>跳过: <Text strong>{migrationProgress.skipped_count}</Text></Text>
-                    )}
-                  </div>
-                  {migrationProgress.status === 'migrating' && migrationProgress.current_file && (
-                    <Text type="secondary" className="text-xs" ellipsis>
-                      <SyncOutlined spin className="mr-1" />
-                      当前: {migrationProgress.current_file}
-                    </Text>
-                  )}
-                  {migrationProgress.status === 'migrating' && migrationProgress.estimated_remaining_seconds != null && (
-                    <Text type="secondary" className="text-xs">
-                      预计剩余: {migrationProgress.estimated_remaining_seconds}秒
-                    </Text>
-                  )}
-                  {migrationProgress.status !== 'migrating' && migrationProgress.status !== 'scanning' && (
-                    <Tag color={migrationProgress.status === 'completed' && migrationProgress.failed_count === 0 ? 'green' : 'red'}>
-                      {migrationProgress.status === 'completed' ? '迁移完成' : '迁移异常'}
-                    </Tag>
-                  )}
-
-                  {migrationProgress.failed_count > 0 && migrationProgress.failed_items?.length > 0 && (
-                    <>
-                      <Table
-                        columns={failedFileColumns}
-                        dataSource={migrationProgress.failed_items}
-                        rowKey="original_url"
-                        pagination={false}
-                        size="small"
-                        scroll={{ y: 200 }}
-                      />
-                      <div>
-                        <Button
-                          icon={<ReloadOutlined />}
-                          onClick={handleRetryFailed}
-                          loading={retrying}
-                          danger
-                        >
-                          重试失败文件
-                        </Button>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </Card>
-            )}
-          </div>
-        </Card>
       </div>
     </Spin>
+  );
+
+  const renderLimitsTab = () => (
+    <Card
+      title="上传限制配置"
+      style={{ borderRadius: 12 }}
+      extra={
+        <Button
+          type="primary"
+          size="small"
+          icon={<SaveOutlined />}
+          loading={limitsSaving}
+          onClick={handleSaveUploadLimits}
+        >
+          保存上传限制
+        </Button>
+      }
+    >
+      <Spin spinning={limitsLoading}>
+        <div className="flex flex-col gap-3" style={{ maxWidth: 480 }}>
+          {uploadLimits.map((item) => (
+            <div key={item.module} className="flex items-center justify-between">
+              <Text style={{ width: 140 }}>{item.module_name}</Text>
+              <Space>
+                <InputNumber
+                  min={1}
+                  max={1024}
+                  value={item.max_size_mb}
+                  onChange={(val) => updateLimitValue(item.module, val)}
+                  addonAfter="MB"
+                  style={{ width: 160 }}
+                />
+              </Space>
+            </div>
+          ))}
+          <Text type="secondary" className="text-xs mt-1">限制范围：1 ~ 1024 MB</Text>
+        </div>
+      </Spin>
+    </Card>
+  );
+
+  const renderMigrationTab = () => (
+    <Card title="数据迁移" style={{ borderRadius: 12 }}>
+      <div className="flex flex-col gap-4">
+        <div>
+          <Button
+            icon={<ScanOutlined />}
+            onClick={handleScanMigration}
+            loading={scanLoading}
+          >
+            扫描待迁移文件
+          </Button>
+        </div>
+
+        {scanResult.length > 0 && (
+          <>
+            <Table
+              columns={scanColumns}
+              dataSource={scanResult}
+              rowKey="module"
+              pagination={false}
+              size="small"
+              style={{ maxWidth: 600 }}
+            />
+            <div>
+              <Button
+                type="primary"
+                icon={<RocketOutlined />}
+                onClick={handleStartMigration}
+                loading={migrating}
+                disabled={selectedModules.length === 0}
+              >
+                开始迁移
+              </Button>
+            </div>
+          </>
+        )}
+
+        {migrationProgress && (
+          <Card size="small" style={{ maxWidth: 600, background: '#fafafa' }}>
+            <div className="flex flex-col gap-3">
+              <Progress
+                percent={migrationProgress.progress_percent}
+                status={
+                  migrationProgress.status === 'completed'
+                    ? (migrationProgress.failed_count > 0 ? 'exception' : 'success')
+                    : migrationProgress.status === 'failed'
+                      ? 'exception'
+                      : 'active'
+                }
+              />
+              <div className="flex gap-6 flex-wrap">
+                <Text>总数: <Text strong>{migrationProgress.total_files}</Text></Text>
+                <Text>成功: <Text strong type="success">{migrationProgress.migrated_count}</Text></Text>
+                <Text>失败: <Text strong type="danger">{migrationProgress.failed_count}</Text></Text>
+                {migrationProgress.skipped_count > 0 && (
+                  <Text>跳过: <Text strong>{migrationProgress.skipped_count}</Text></Text>
+                )}
+              </div>
+              {migrationProgress.status === 'migrating' && migrationProgress.current_file && (
+                <Text type="secondary" className="text-xs" ellipsis>
+                  <SyncOutlined spin className="mr-1" />
+                  当前: {migrationProgress.current_file}
+                </Text>
+              )}
+              {migrationProgress.status === 'migrating' && migrationProgress.estimated_remaining_seconds != null && (
+                <Text type="secondary" className="text-xs">
+                  预计剩余: {migrationProgress.estimated_remaining_seconds}秒
+                </Text>
+              )}
+              {migrationProgress.status !== 'migrating' && migrationProgress.status !== 'scanning' && (
+                <Tag color={migrationProgress.status === 'completed' && migrationProgress.failed_count === 0 ? 'green' : 'red'}>
+                  {migrationProgress.status === 'completed' ? '迁移完成' : '迁移异常'}
+                </Tag>
+              )}
+
+              {migrationProgress.failed_count > 0 && migrationProgress.failed_items?.length > 0 && (
+                <>
+                  <Table
+                    columns={failedFileColumns}
+                    dataSource={migrationProgress.failed_items}
+                    rowKey="original_url"
+                    pagination={false}
+                    size="small"
+                    scroll={{ y: 200 }}
+                  />
+                  <div>
+                    <Button
+                      icon={<ReloadOutlined />}
+                      onClick={handleRetryFailed}
+                      loading={retrying}
+                      danger
+                    >
+                      重试失败文件
+                    </Button>
+                  </div>
+                </>
+              )}
+            </div>
+          </Card>
+        )}
+      </div>
+    </Card>
   );
 
   const renderFilesTab = () => (
@@ -603,6 +620,16 @@ export default function CosConfigPage() {
             key: 'config',
             label: <Space><CloudOutlined />存储配置</Space>,
             children: renderConfigTab(),
+          },
+          {
+            key: 'limits',
+            label: <Space><UploadOutlined />上传限制</Space>,
+            children: renderLimitsTab(),
+          },
+          {
+            key: 'migration',
+            label: <Space><SwapOutlined />数据迁移</Space>,
+            children: renderMigrationTab(),
           },
           {
             key: 'files',

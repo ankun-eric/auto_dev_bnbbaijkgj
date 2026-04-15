@@ -33,28 +33,26 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 腾讯云COS对象存储接入 (2026-04-15)
+## Latest Update: COS全局500错误修复+存储配置页面重构 (2026-04-15)
 
 ### 概要
-接入腾讯云COS对象存储，实现全系统文件存储统一迁移至COS，管理后台提供完整的存储配置管理、CDN加速、上传限制、数据迁移、统计概览功能。H5/小程序/Flutter三端新增上传进度条和文件大小限制校验。
+修复COS功能部署后全局500错误（根因：数据库Schema不同步）；彻底移除path_prefix统一路径前缀，改为image_prefix/video_prefix/file_prefix三分类前缀按MIME类型自动分配；存储配置页面Tab从2个拆分为4个（存储配置/上传限制/数据迁移/文件管理）；新增Schema自动同步机制和异常处理增强。
 
 ### Backend 变更
 
 | 文件 | 变更 |
 | --- | --- |
-| `backend/app/models/models.py` | CosConfig 新增 cdn_domain/cdn_protocol/path_prefix/test_passed 字段；新增 CosUploadLimit、CosMigrationTask、CosMigrationDetail 模型 |
-| `backend/app/schemas/cos.py` | 新增 CosUploadLimitResponse/Update/BatchUpdate、CosMigrationScanResponse/StartRequest/StartResponse/TaskResponse Schema |
-| `backend/app/api/cos.py` | 新增上传限制CRUD、数据迁移扫描/启动/进度/重试接口；简化用量统计为仅返回文件总数 |
-| `backend/app/api/upload.py` | 读取数据库上传限制配置；新增视频上传接口；写入cos_files记录 |
-| `backend/app/utils/cos_helper.py` | 支持CDN域名URL、统一路径前缀扁平存储、新增delete_cos_file函数 |
-| `backend/app/init_data.py` | 新增cos_upload_limits默认数据初始化（7个业务模块） |
-| `backend/tests/test_cos.py` | 新增19个COS功能自动化测试用例 |
+| `backend/app/models/models.py` | CosConfig 移除 path_prefix 字段；保留 image_prefix/video_prefix/file_prefix/cdn_domain/cdn_protocol/test_passed |
+| `backend/app/schemas/cos.py` | CosConfigUpdate/CosConfigResponse 移除 path_prefix；为3个分类前缀添加非空校验 field_validator |
+| `backend/app/api/cos.py` | 移除所有 path_prefix 逻辑；_upload_to_cos 改为纯 MIME 类型分类前缀；update_cos_config/test_cos_connection/batch_update_upload_limits 添加 try-except 异常处理+rollback |
+| `backend/app/utils/cos_helper.py` | try_cos_upload 移除 path_prefix 优先级逻辑，改为按 content_type MIME 类型自动分配 image_prefix/video_prefix/file_prefix |
+| `backend/app/services/schema_sync.py` | 新增 _sync_cos_config_fields 函数：自动补齐 cos_configs 表缺失字段、自动 DROP path_prefix 列 |
 
 ### Admin 变更
 
 | 文件 | 变更 |
 | --- | --- |
-| `admin-web/src/app/(admin)/cos-config/page.tsx` | 全面改造为5区块单页面：COS基础配置/CDN配置/上传限制/操作区/数据迁移；文件管理TAB简化为统计概览 |
+| `admin-web/src/app/(admin)/cos-config/page.tsx` | CosConfig接口移除path_prefix、添加image_prefix/video_prefix/file_prefix；Tab从2个扩展为4个（存储配置/上传限制/数据迁移/文件管理）；存储配置Tab只保留COS基础配置+CDN+操作区；新增renderLimitsTab和renderMigrationTab独立渲染函数；3个分类路径前缀必填输入框 |
 
 ### H5 变更
 

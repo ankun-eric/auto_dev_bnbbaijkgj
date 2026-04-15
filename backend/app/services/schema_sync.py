@@ -609,6 +609,34 @@ async def _sync_bottom_nav_table(conn: AsyncConnection) -> None:
         ))
 
 
+async def _sync_cos_config_fields(conn: AsyncConnection) -> None:
+    def _load(sync_conn):
+        inspector = inspect(sync_conn)
+        tables = set(inspector.get_table_names())
+        if "cos_configs" not in tables:
+            return None
+        return {col["name"] for col in inspector.get_columns("cos_configs")}
+
+    columns = await conn.run_sync(_load)
+    if columns is None:
+        return
+
+    if "cdn_domain" not in columns:
+        await conn.execute(text("ALTER TABLE cos_configs ADD COLUMN cdn_domain VARCHAR(300) NULL"))
+    if "cdn_protocol" not in columns:
+        await conn.execute(text("ALTER TABLE cos_configs ADD COLUMN cdn_protocol VARCHAR(10) DEFAULT 'https'"))
+    if "test_passed" not in columns:
+        await conn.execute(text("ALTER TABLE cos_configs ADD COLUMN test_passed TINYINT(1) DEFAULT 0"))
+    if "image_prefix" not in columns:
+        await conn.execute(text("ALTER TABLE cos_configs ADD COLUMN image_prefix VARCHAR(200) DEFAULT 'images/'"))
+    if "video_prefix" not in columns:
+        await conn.execute(text("ALTER TABLE cos_configs ADD COLUMN video_prefix VARCHAR(200) DEFAULT 'videos/'"))
+    if "file_prefix" not in columns:
+        await conn.execute(text("ALTER TABLE cos_configs ADD COLUMN file_prefix VARCHAR(200) DEFAULT 'files/'"))
+    if "path_prefix" in columns:
+        await conn.execute(text("ALTER TABLE cos_configs DROP COLUMN path_prefix"))
+
+
 async def sync_register_schema(conn: AsyncConnection) -> None:
     def load_user_schema(sync_conn):
         inspector = inspect(sync_conn)
@@ -640,6 +668,7 @@ async def sync_register_schema(conn: AsyncConnection) -> None:
     await _sync_search_tables(conn)
     await _sync_notice_table(conn)
     await _sync_bottom_nav_table(conn)
+    await _sync_cos_config_fields(conn)
     await run_all_migrations(conn)
 
     columns, indexes, unique_constraints = await conn.run_sync(load_user_schema)
