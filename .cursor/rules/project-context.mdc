@@ -33,7 +33,92 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 登录页LOGO与文案优化 (2026-04-15)
+## Latest Update: 腾讯云COS对象存储接入 (2026-04-15)
+
+### 概要
+接入腾讯云COS对象存储，实现全系统文件存储统一迁移至COS，管理后台提供完整的存储配置管理、CDN加速、上传限制、数据迁移、统计概览功能。H5/小程序/Flutter三端新增上传进度条和文件大小限制校验。
+
+### Backend 变更
+
+| 文件 | 变更 |
+| --- | --- |
+| `backend/app/models/models.py` | CosConfig 新增 cdn_domain/cdn_protocol/path_prefix/test_passed 字段；新增 CosUploadLimit、CosMigrationTask、CosMigrationDetail 模型 |
+| `backend/app/schemas/cos.py` | 新增 CosUploadLimitResponse/Update/BatchUpdate、CosMigrationScanResponse/StartRequest/StartResponse/TaskResponse Schema |
+| `backend/app/api/cos.py` | 新增上传限制CRUD、数据迁移扫描/启动/进度/重试接口；简化用量统计为仅返回文件总数 |
+| `backend/app/api/upload.py` | 读取数据库上传限制配置；新增视频上传接口；写入cos_files记录 |
+| `backend/app/utils/cos_helper.py` | 支持CDN域名URL、统一路径前缀扁平存储、新增delete_cos_file函数 |
+| `backend/app/init_data.py` | 新增cos_upload_limits默认数据初始化（7个业务模块） |
+| `backend/tests/test_cos.py` | 新增19个COS功能自动化测试用例 |
+
+### Admin 变更
+
+| 文件 | 变更 |
+| --- | --- |
+| `admin-web/src/app/(admin)/cos-config/page.tsx` | 全面改造为5区块单页面：COS基础配置/CDN配置/上传限制/操作区/数据迁移；文件管理TAB简化为统计概览 |
+
+### H5 变更
+
+| 文件 | 变更 |
+| --- | --- |
+| `h5-web/src/lib/upload-utils.ts` | 新增上传工具库（限制配置获取/文件大小校验/带进度上传） |
+| `h5-web/src/app/chat/[sessionId]/page.tsx` | 上传增加文件大小校验和进度条 |
+| `h5-web/src/app/checkup/page.tsx` | 上传增加文件大小校验和进度条 |
+| `h5-web/src/app/drug/page.tsx` | 上传增加文件大小校验和进度条 |
+| `h5-web/src/app/drug/chat/[sessionId]/page.tsx` | 上传增加文件大小校验 |
+| `h5-web/src/app/tcm/page.tsx` | 上传增加文件大小校验 |
+
+### 小程序变更
+
+| 文件 | 变更 |
+| --- | --- |
+| `miniprogram/utils/upload-utils.js` | 新增上传工具库（限制配置获取/文件大小校验/带进度上传） |
+| `miniprogram/utils/request.js` | uploadFile增加onProgress回调支持 |
+| `miniprogram/pages/chat/index.js/wxml/wxss` | 聊天上传增加进度条和大小校验 |
+| `miniprogram/pages/checkup/index.js/wxml/wxss` | 体检上传增加进度条和大小校验 |
+| `miniprogram/pages/drug/index.js/wxml/wxss` | 识药上传增加进度条和大小校验 |
+| `miniprogram/pages/drug-chat/index.js` | 药品聊天上传增加大小校验 |
+
+### Flutter 变更
+
+| 文件 | 变更 |
+| --- | --- |
+| `flutter_app/lib/utils/upload_utils.dart` | 新增上传工具类（限制配置获取/文件大小校验） |
+| `flutter_app/lib/services/api_service.dart` | 所有上传方法增加 onSendProgress 可选回调参数 |
+
+### 新增 API 端点
+
+| 方法 | 路径 | 权限 | 说明 |
+| --- | --- | --- | --- |
+| GET | `/api/admin/cos/config` | 管理员 | 获取COS配置（含CDN/前缀/测试状态） |
+| PUT | `/api/admin/cos/config` | 管理员 | 更新COS配置 |
+| POST | `/api/admin/cos/test` | 管理员 | 测试COS连接 |
+| GET | `/api/admin/cos/upload-limits` | 管理员 | 获取上传限制配置 |
+| PUT | `/api/admin/cos/upload-limits` | 管理员 | 批量更新上传限制 |
+| GET | `/api/cos/upload-limits` | 公开 | 各端获取上传限制 |
+| GET | `/api/admin/cos/usage` | 管理员 | 获取文件统计（总文件数） |
+| POST | `/api/admin/cos/migration/scan` | 管理员 | 扫描待迁移文件 |
+| POST | `/api/admin/cos/migration/start` | 管理员 | 开始迁移任务 |
+| GET | `/api/admin/cos/migration/progress` | 管理员 | 查询迁移进度 |
+| POST | `/api/admin/cos/migration/retry` | 管理员 | 重试失败文件 |
+| POST | `/api/upload/video` | 已登录用户 | 视频上传 |
+
+### 新增数据库模型
+
+| 模型 | 表名 | 说明 |
+| --- | --- | --- |
+| CosUploadLimit | cos_upload_limits | 按业务模块的上传大小限制配置 |
+| CosMigrationTask | cos_migration_tasks | 迁移任务主表 |
+| CosMigrationDetail | cos_migration_details | 迁移明细表 |
+
+### 客户端包更新
+- 小程序: `miniprogram_20260415_181003_824c.zip`
+
+### 用户手册
+- `user_docs/腾讯云COS对象存储配置.md`
+
+---
+
+## Previous Update: 登录页LOGO与文案优化 (2026-04-15)
 
 ### 概要
 两项优化：1) 删除 H5 登录页资料补充提醒文案；2) 新增品牌 LOGO 后台可配置功能（管理后台上传 LOGO 后，H5/小程序/Flutter App 三端的登录页、首页、AI 对话页自动替换显示）。
