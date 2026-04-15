@@ -7,7 +7,7 @@ import {
 } from 'antd';
 import {
   SaveOutlined, ApiOutlined, CheckCircleOutlined,
-  ExclamationCircleOutlined, PlusOutlined, EditOutlined, DeleteOutlined,
+  ExclamationCircleOutlined, PlusOutlined,
   ThunderboltOutlined, CloudOutlined, RobotOutlined, CodeOutlined,
   GlobalOutlined, CloudServerOutlined, ExperimentOutlined, BulbOutlined,
   AimOutlined, ToolOutlined, SyncOutlined,
@@ -185,6 +185,22 @@ export default function AIConfigPage() {
       fetchConfigs();
     } catch (e: any) {
       message.error(e?.response?.data?.detail || '设置失败');
+    }
+  };
+
+  const handleToggleConfigStatus = async (record: AIConfig) => {
+    if (!record.id) return;
+    try {
+      if (record.is_active) {
+        await put(`/api/admin/ai-config/${record.id}`, { is_active: false });
+        message.success('已停用该配置');
+      } else {
+        await patch(`/api/admin/ai-config/${record.id}/activate`);
+        message.success('已启用该配置');
+      }
+      fetchConfigs();
+    } catch (e: any) {
+      message.error(e?.response?.data?.detail || '操作失败');
     }
   };
 
@@ -479,50 +495,34 @@ export default function AIConfigPage() {
       width: 140,
     },
     {
-      title: 'Base URL',
-      dataIndex: 'base_url',
-      key: 'base_url',
-      ellipsis: true,
-    },
-    {
       title: '模型名称',
       dataIndex: 'model_name',
       key: 'model_name',
       width: 180,
     },
     {
-      title: 'API Key',
-      dataIndex: 'api_key',
-      key: 'api_key',
-      width: 150,
-      render: (val: string) => <span style={{ fontFamily: 'monospace' }}>{val || '未设置'}</span>,
-    },
-    {
-      title: 'Max Tokens',
-      dataIndex: 'max_tokens',
-      key: 'max_tokens',
-      width: 110,
-      render: (val: number) => val ?? 4096,
-    },
-    {
-      title: 'Temperature',
-      dataIndex: 'temperature',
-      key: 'temperature',
-      width: 110,
-      render: (val: number) => val ?? 0.7,
+      title: '参数配置',
+      key: 'params',
+      width: 120,
+      render: (_: any, record: AIConfig) => {
+        const tokens = record.max_tokens ?? 4096;
+        const temp = record.temperature ?? 0.7;
+        return (
+          <Tooltip title={<div><div>Max Tokens: {tokens}</div><div>Temperature: {temp}</div></div>}>
+            <span style={{ cursor: 'default' }}>{tokens} / {temp}</span>
+          </Tooltip>
+        );
+      },
     },
     {
       title: '状态',
       key: 'is_active',
-      width: 120,
-      render: (_: any, record: AIConfig) =>
-        record.is_active ? (
-          <Tag color="green" icon={<CheckCircleOutlined />}>当前活跃</Tag>
-        ) : (
-          <Button type="primary" ghost size="small" onClick={() => record.id && handleActivate(record.id)}>
-            设为活跃
-          </Button>
-        ),
+      width: 100,
+      render: (_: any, record: AIConfig) => (
+        <Tag color={record.is_active ? 'green' : 'orange'}>
+          {record.is_active ? '活跃' : '未启用'}
+        </Tag>
+      ),
     },
     {
       title: '最近测试',
@@ -547,22 +547,22 @@ export default function AIConfigPage() {
     {
       title: '操作',
       key: 'action',
-      width: 200,
+      width: 240,
       render: (_: any, record: AIConfig) => (
         <Space size="small">
-          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEditConfig(record)}>
-            编辑
-          </Button>
-          <Popconfirm title="确定删除此配置？" onConfirm={() => record.id && handleDeleteConfig(record.id)}>
-            <Button type="link" size="small" danger icon={<DeleteOutlined />}>
-              删除
-            </Button>
+          <Popconfirm
+            title={record.is_active ? '确定要停用该配置吗？' : '确定要启用该配置吗？'}
+            onConfirm={() => handleToggleConfigStatus(record)}
+          >
+            <Tooltip title={record.is_active ? '点击停用' : '点击启用'}>
+              <a>{record.is_active ? '停用' : '启用'}</a>
+            </Tooltip>
           </Popconfirm>
-          <Button type="default" size="small" icon={<ApiOutlined />}
-            style={{ color: '#1677ff', borderColor: '#1677ff' }}
-            onClick={() => handleQuickTest(record)}>
-            测试
-          </Button>
+          <a onClick={() => openEditConfig(record)}>编辑</a>
+          <a onClick={() => handleQuickTest(record)}>测试</a>
+          <Popconfirm title="确定删除此配置？" onConfirm={() => record.id && handleDeleteConfig(record.id)}>
+            <a style={{ color: '#ff4d4f' }}>删除</a>
+          </Popconfirm>
         </Space>
       ),
     },
@@ -585,12 +585,6 @@ export default function AIConfigPage() {
       width: 140,
     },
     {
-      title: 'Base URL',
-      dataIndex: 'base_url',
-      key: 'base_url',
-      ellipsis: true,
-    },
-    {
       title: '模型名称',
       dataIndex: 'model_name',
       key: 'model_name',
@@ -601,37 +595,33 @@ export default function AIConfigPage() {
       dataIndex: 'description',
       key: 'description',
       ellipsis: true,
-      width: 200,
     },
     {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
-      width: 80,
+      width: 100,
       render: (val: number) => (
-        <Tag color={val === 1 ? 'green' : 'red'}>{val === 1 ? '启用' : '停用'}</Tag>
+        <Tag color={val === 1 ? 'green' : 'orange'}>{val === 1 ? '已启用' : '未启用'}</Tag>
       ),
     },
     {
       title: '操作',
       key: 'action',
-      width: 200,
+      width: 220,
       render: (_: any, record: AITemplate) => (
         <Space size="small">
-          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEditTemplate(record)}>
-            编辑
-          </Button>
-          <Button
-            type="link"
-            size="small"
-            onClick={() => handleToggleTemplateStatus(record)}
+          <Popconfirm
+            title={record.status === 1 ? '确定要停用该模板吗？' : '确定要启用该模板吗？'}
+            onConfirm={() => handleToggleTemplateStatus(record)}
           >
-            {record.status === 1 ? '停用' : '启用'}
-          </Button>
+            <Tooltip title={record.status === 1 ? '点击停用' : '点击启用'}>
+              <a>{record.status === 1 ? '停用' : '启用'}</a>
+            </Tooltip>
+          </Popconfirm>
+          <a onClick={() => openEditTemplate(record)}>编辑</a>
           <Popconfirm title="确定删除此模板？" onConfirm={() => handleDeleteTemplate(record.id)}>
-            <Button type="link" size="small" danger icon={<DeleteOutlined />}>
-              删除
-            </Button>
+            <a style={{ color: '#ff4d4f' }}>删除</a>
           </Popconfirm>
         </Space>
       ),
@@ -706,7 +696,13 @@ export default function AIConfigPage() {
                     dataSource={configs}
                     columns={configColumns}
                     rowKey="id"
-                    pagination={false}
+                    scroll={{ x: 900 }}
+                    pagination={{
+                      pageSize: 10,
+                      showTotal: (total) => `共 ${total} 条`,
+                      showSizeChanger: true,
+                      pageSizeOptions: ['10', '20', '50'],
+                    }}
                     locale={{ emptyText: '暂无 AI 模型配置，请点击「添加配置」添加' }}
                   />
                 </Card>
@@ -728,7 +724,13 @@ export default function AIConfigPage() {
                     dataSource={templates}
                     columns={templateColumns}
                     rowKey="id"
-                    pagination={false}
+                    scroll={{ x: 800 }}
+                    pagination={{
+                      pageSize: 10,
+                      showTotal: (total) => `共 ${total} 条`,
+                      showSizeChanger: true,
+                      pageSizeOptions: ['10', '20', '50'],
+                    }}
                     locale={{ emptyText: '暂无模板' }}
                   />
                 </Card>

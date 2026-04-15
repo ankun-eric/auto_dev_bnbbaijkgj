@@ -33,7 +33,20 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 健康自查优化+体检报告AI解读Bug修复 (2026-04-15)
+## Latest Update: 管理后台AI大模型配置页面适配优化 (2026-04-15)
+
+### 概要
+修复AI大模型配置页面的UI适配问题：精简表格列（移除API Key和Base URL列，合并Max Tokens+Temperature为参数配置列）；配置列表和模板管理两个Tab均启用分页和横向滚动；状态列改为纯展示（绿色/橙色Tag），启用/停用操作移至操作列并增加Popconfirm确认弹窗。
+
+### Admin 变更
+
+| 文件 | 变更 |
+| --- | --- |
+| `admin-web/src/app/(admin)/ai-config/page.tsx` | 配置列表Tab：移除API Key和Base URL列，合并Max Tokens+Temperature为带Tooltip的参数配置列，状态列改为纯展示Tag（green/orange），操作列新增启用/停用（带Popconfirm+Tooltip）；模板管理Tab：移除Base URL列，状态列改为绿色/橙色Tag，启用/停用操作增加Popconfirm确认；两个Tab均启用分页（10/20/50条）和横向滚动（scroll.x） |
+
+---
+
+## Previous Update: 健康自查优化+体检报告AI解读Bug修复 (2026-04-15)
 
 ### 概要
 修复体检报告AI解读全端失败的P0 Bug（根因：batch-recognize接口返回OcrCallRecord.id但前端结果页期望CheckupReport.id）；健康自查症状持续时间增加必选校验；咨询人信息必填校验扩展至所有家庭成员（移除is_self条件限制）。三端（H5/小程序/Flutter）同步更新。
