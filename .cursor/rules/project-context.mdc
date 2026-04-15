@@ -33,7 +33,93 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 管理后台AI大模型配置页面适配优化 (2026-04-15)
+## Latest Update: 用户编号与推荐人功能 (2026-04-15)
+
+### 概要
+为每个用户生成8位随机数字用户编号(user_no)用于前端展示和传播标识；建立推荐人绑定机制(referrer_no)，支持通过分享链接自动绑定推荐关系；新增推广落地页、邀请好友页面、推荐管理后台。五端同步开发（后端/Admin/H5/小程序/Flutter）。
+
+### Backend 变更
+
+| 文件 | 变更 |
+| --- | --- |
+| `backend/app/models/models.py` | User 模型新增 `user_no`(VARCHAR(8), UNIQUE) 和 `referrer_no`(VARCHAR(8), NULLABLE) 字段 |
+| `backend/app/schemas/user.py` | UserCreate/SMSLoginRequest 新增可选 referrer_no；UserResponse 新增 user_no/referrer_no；新增 ShareLinkResponse、LandingPageResponse、UpdateReferrerRequest、ReferralStatsResponse 等 Schema |
+| `backend/app/api/auth.py` | register 和 sms-login 接口：生成 user_no + 处理 referrer_no 绑定 |
+| `backend/app/api/admin.py` | list_users 新增 user_no/referrer_no/referrer_nickname 返回和搜索；新增 PUT /users/{id}/referrer（超管修改推荐人）；新增 GET /referral/stats（推荐统计） |
+| `backend/app/api/referral.py` | 新增 GET /api/users/share-link（获取分享链接）；GET /api/landing（推广落地页数据） |
+| `backend/app/utils/user_no_generator.py` | 8位随机数字编号生成器，数据库唯一性校验 |
+| `backend/app/services/user_no_migration.py` | 启动时为存量用户批量补全 user_no |
+| `backend/app/services/schema_sync.py` | 自动添加 user_no/referrer_no 列和索引 |
+| `backend/app/main.py` | 注册 referral router；启动时执行 user_no 迁移 |
+| `backend/tests/test_referral.py` | 19 个测试用例：编号生成、推荐绑定、分享链接、落地页、管理员接口等 |
+
+### Admin 变更
+
+| 文件 | 变更 |
+| --- | --- |
+| `admin-web/src/app/(admin)/users/page.tsx` | 表格新增用户编号/推荐人列；操作列新增修改推荐人按钮（仅超管可见，Popconfirm 确认） |
+| `admin-web/src/app/(admin)/referral/page.tsx` | 新增推荐管理页面：统计概览（总推荐/今日/本月）+ 推荐排行榜 |
+| `admin-web/src/app/(admin)/layout.tsx` | 侧边栏新增"推荐管理"菜单项 |
+
+### H5 变更
+
+| 文件 | 变更 |
+| --- | --- |
+| `h5-web/src/app/(tabs)/profile/page.tsx` | 个人中心展示用户编号（支持复制）；新增"邀请好友"菜单 |
+| `h5-web/src/app/invite/page.tsx` | 新增邀请好友页面：二维码+复制链接 |
+| `h5-web/src/app/landing/page.tsx` | 新增推广落地页：产品亮点介绍+注册 CTA |
+| `h5-web/src/app/login/page.tsx` | 支持 ref 参数透传 referrer_no |
+| `h5-web/src/app/(tabs)/home/page.tsx` | 首页新增邀请好友悬浮按钮 |
+| `h5-web/src/lib/auth.ts` | UserInfo 新增 user_no/referrer_no 字段 |
+
+### 小程序变更
+
+| 文件 | 变更 |
+| --- | --- |
+| `miniprogram/pages/profile/index.js/wxml/wxss` | 个人中心展示用户编号（支持复制）；菜单新增邀请好友 |
+| `miniprogram/pages/invite/index.js/wxml/wxss/json` | 新增邀请好友页面：二维码+复制链接+微信分享 |
+| `miniprogram/pages/login/index.js` | 支持 ref 参数透传 referrer_no |
+| `miniprogram/pages/home/index.js/wxml/wxss` | 首页新增邀请好友悬浮按钮+微信分享 |
+| `miniprogram/app.json` | 注册 pages/invite/index 页面 |
+
+### Flutter 变更
+
+| 文件 | 变更 |
+| --- | --- |
+| `flutter_app/lib/screens/profile/profile_screen.dart` | 个人中心展示用户编号（支持复制）；菜单新增邀请好友 |
+| `flutter_app/lib/screens/invite/invite_screen.dart` | 新增邀请好友页面：QR码+复制链接+系统分享 |
+| `flutter_app/lib/screens/login_screen.dart` | 支持 referrerNo 参数 |
+| `flutter_app/lib/screens/home/home_screen.dart` | 首页新增邀请好友卡片 |
+| `flutter_app/lib/services/api_service.dart` | 新增 getShareLink()；login() 支持 referrerNo |
+| `flutter_app/lib/providers/auth_provider.dart` | login() 支持 referrerNo |
+| `flutter_app/lib/models/user.dart` | User 模型新增 userNo/referrerNo |
+| `flutter_app/lib/main.dart` | 注册 /invite 路由 |
+
+### 新增 API 端点
+
+| 方法 | 路径 | 权限 | 说明 |
+| --- | --- | --- | --- |
+| GET | `/api/users/share-link` | 已登录用户 | 获取专属分享链接 |
+| GET | `/api/landing` | 公开 | 推广落地页数据 |
+| PUT | `/api/admin/users/{user_id}/referrer` | 超级管理员 | 修改推荐人 |
+| GET | `/api/admin/referral/stats` | 管理员 | 推荐统计与排行榜 |
+
+### 新增数据库字段
+
+| 表 | 字段 | 类型 | 说明 |
+| --- | --- | --- | --- |
+| users | user_no | VARCHAR(8) UNIQUE | 8位随机数字用户编号 |
+| users | referrer_no | VARCHAR(8) NULLABLE | 推荐人的用户编号 |
+
+### 客户端包更新
+- 小程序: `miniprogram_20260415_230347_c2d2.zip`
+
+### 用户手册
+- `user_docs/用户编号与推荐人功能.md`
+
+---
+
+## Previous Update: 管理后台AI大模型配置页面适配优化 (2026-04-15)
 
 ### 概要
 修复AI大模型配置页面的UI适配问题：精简表格列（移除API Key和Base URL列，合并Max Tokens+Temperature为参数配置列）；配置列表和模板管理两个Tab均启用分页和横向滚动；状态列改为纯展示（绿色/橙色Tag），启用/停用操作移至操作列并增加Popconfirm确认弹窗。
