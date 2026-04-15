@@ -545,8 +545,13 @@ async def list_users(
     count_query = select(func.count(User.id))
 
     if keyword:
-        query = query.where(User.phone.contains(keyword) | User.nickname.contains(keyword))
-        count_query = count_query.where(User.phone.contains(keyword) | User.nickname.contains(keyword))
+        kw_filter = (
+            User.phone.contains(keyword)
+            | User.nickname.contains(keyword)
+            | User.user_no.contains(keyword)
+        )
+        query = query.where(kw_filter)
+        count_query = count_query.where(kw_filter)
     if role:
         query = query.where(User.role == role)
         count_query = count_query.where(User.role == role)
@@ -562,8 +567,18 @@ async def list_users(
         .offset((page - 1) * page_size)
         .limit(page_size)
     )
+    users = result.scalars().all()
+
+    referrer_nos = {u.referrer_no for u in users if u.referrer_no}
+    referrer_nick_map: dict[str, str | None] = {}
+    if referrer_nos:
+        ref_result = await db.execute(
+            select(User.user_no, User.nickname).where(User.user_no.in_(referrer_nos))
+        )
+        referrer_nick_map = {row[0]: row[1] for row in ref_result.all()}
+
     items = []
-    for u in result.scalars().all():
+    for u in users:
         items.append({
             "id": u.id,
             "phone": u.phone,
@@ -572,6 +587,9 @@ async def list_users(
             "member_level": u.member_level,
             "points": u.points,
             "status": u.status,
+            "user_no": u.user_no,
+            "referrer_no": u.referrer_no,
+            "referrer_nickname": referrer_nick_map.get(u.referrer_no) if u.referrer_no else None,
             "created_at": u.created_at.isoformat(),
         })
     return {"items": items, "total": total, "page": page, "page_size": page_size}
@@ -594,6 +612,127 @@ async def update_user_status(
     user.status = status
     user.updated_at = datetime.utcnow()
     return {"message": f"用户状态已更新为 {status}"}
+
+
+# ── 推荐人管理 ──
+
+@router.put("/users/{user_id}/referrer")
+async def update_user_referrer(
+    user_id: int,
+    data: dict = Body(...),
+    current_user=Depends(admin_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    if not getattr(current_user, "is_superuser", False):
+        raise HTTPException(status_code=403, detail="仅超级管理员可执行此操作")
+
+    referrer_no = data.get("referrer_no", "").strip()
+    if not referrer_no:
+        raise HTTPException(status_code=400, detail="referrer_no 不能为空")
+
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="用户不存在")
+
+    if user.user_no == referrer_no:
+        raise HTTPException(status_code=400, detail="不允许自推荐")
+
+    ref_result = await db.execute(select(User).where(User.user_no == referrer_no))
+    referrer = ref_result.scalar_one_or_none()
+    if not referrer:
+        raise HTTPException(status_code=400, detail="推荐人用户编号不存在")
+
+    user.referrer_no = referrer_no
+    user.updated_at = datetime.utcnow()
+    return {"message": "推荐人已更新"}
+
+
+@router.get("/referral/stats")
+async def referral_stats(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    current_user=Depends(admin_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    total_referrals_result = await db.execute(
+        select(func.count(User.id)).where(User.referrer_no.isnot(None))
+    )
+    total_referrals = total_referrals_result.scalar() or 0
+
+    now = datetime.utcnow()
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    today_referrals_result = await db.execute(
+        select(func.count(User.id)).where(
+            User.referrer_no.isnot(None),
+            User.created_at >= today_start,
+        )
+    )
+    today_referrals = today_referrals_result.scalar() or 0
+
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    month_referrals_result = await db.execute(
+        select(func.count(User.id)).where(
+            User.referrer_no.isnot(None),
+            User.created_at >= month_start,
+        )
+    )
+    month_referrals = month_referrals_result.scalar() or 0
+
+    from sqlalchemy import literal_column
+    ranking_count_query = select(
+        func.count(User.id)
+    ).where(User.referrer_no.isnot(None)).group_by(User.referrer_no)
+    ranking_total_result = await db.execute(
+        select(func.count()).select_from(ranking_count_query.subquery())
+    )
+    ranking_total = ranking_total_result.scalar() or 0
+
+    ranking_query = (
+        select(
+            User.referrer_no,
+            func.count(User.id).label("referral_count"),
+        )
+        .where(User.referrer_no.isnot(None))
+        .group_by(User.referrer_no)
+        .order_by(func.count(User.id).desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+    )
+    ranking_result = await db.execute(ranking_query)
+    ranking_rows = ranking_result.all()
+
+    referrer_nos = [row[0] for row in ranking_rows]
+    referrer_map: dict[str, dict] = {}
+    if referrer_nos:
+        ref_users_result = await db.execute(
+            select(User.user_no, User.nickname, User.phone).where(
+                User.user_no.in_(referrer_nos)
+            )
+        )
+        for r in ref_users_result.all():
+            referrer_map[r[0]] = {"nickname": r[1], "phone": r[2]}
+
+    ranking = []
+    for row in ranking_rows:
+        ref_no = row[0]
+        info = referrer_map.get(ref_no, {})
+        ranking.append({
+            "user_no": ref_no,
+            "nickname": info.get("nickname"),
+            "phone": info.get("phone"),
+            "referral_count": row[1],
+        })
+
+    return {
+        "total_referrals": total_referrals,
+        "today_referrals": today_referrals,
+        "month_referrals": month_referrals,
+        "ranking": ranking,
+        "total": ranking_total,
+        "page": page,
+        "page_size": page_size,
+    }
 
 
 # ── 服务分类管理 ──

@@ -47,6 +47,7 @@ import 'screens/plan/statistics_screen.dart';
 import 'screens/content/articles_screen.dart';
 import 'screens/content/article_detail_screen.dart';
 import 'screens/profile/profile_screen.dart';
+import 'screens/invite/invite_screen.dart';
 import 'screens/profile/settings_screen.dart';
 import 'screens/notifications/notifications_screen.dart';
 import 'screens/customer_service/cs_screen.dart';
@@ -155,7 +156,10 @@ class BiniHealthApp extends StatelessWidget {
         initialRoute: '/splash',
         routes: {
           '/splash': (context) => const SplashScreen(),
-          '/login': (context) => const LoginScreen(),
+          '/login': (context) {
+            final referrerNo = ModalRoute.of(context)?.settings.arguments as String?;
+            return LoginScreen(referrerNo: referrerNo);
+          },
           '/main': (context) => const MainScreen(),
           '/home': (context) => const HomeScreen(),
           '/ai': (context) => const AiHomeScreen(),
@@ -224,6 +228,7 @@ class BiniHealthApp extends StatelessWidget {
           '/search-result': (context) => const SearchResultScreen(),
           '/city-select': (context) => const CitySelectScreen(),
           '/digital-human-call': (context) => const DigitalHumanCallScreen(),
+          '/invite': (context) => const InviteScreen(),
           '/messages': (context) => const MessagesScreen(),
         },
       ),

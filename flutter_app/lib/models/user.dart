@@ -9,6 +9,8 @@ class User {
   /// Backend returns int; stored as string for display compatibility.
   final String? memberLevel;
   final String? memberCardNo;
+  final String? userNo;
+  final String? referrerNo;
   final String? role;
   final String? status;
   final int points;
@@ -24,6 +26,8 @@ class User {
     this.age,
     this.memberLevel,
     this.memberCardNo,
+    this.userNo,
+    this.referrerNo,
     this.role,
     this.status,
     this.points = 0,
@@ -42,6 +46,8 @@ class User {
       age: json['age'] is int ? json['age'] as int : int.tryParse(json['age']?.toString() ?? ''),
       memberLevel: ml == null ? null : ml.toString(),
       memberCardNo: json['member_card_no']?.toString(),
+      userNo: json['user_no']?.toString(),
+      referrerNo: json['referrer_no']?.toString(),
       role: json['role']?.toString(),
       status: json['status']?.toString(),
       points: json['points'] is int ? json['points'] as int : int.tryParse(json['points']?.toString() ?? '') ?? 0,
@@ -60,6 +66,8 @@ class User {
       'age': age,
       'member_level': memberLevel,
       'member_card_no': memberCardNo,
+      'user_no': userNo,
+      'referrer_no': referrerNo,
       'role': role,
       'status': status,
       'points': points,
@@ -75,6 +83,8 @@ class User {
     int? age,
     String? memberLevel,
     String? memberCardNo,
+    String? userNo,
+    String? referrerNo,
     String? role,
     String? status,
     int? points,
@@ -89,6 +99,8 @@ class User {
       age: age ?? this.age,
       memberLevel: memberLevel ?? this.memberLevel,
       memberCardNo: memberCardNo ?? this.memberCardNo,
+      userNo: userNo ?? this.userNo,
+      referrerNo: referrerNo ?? this.referrerNo,
       role: role ?? this.role,
       status: status ?? this.status,
       points: points ?? this.points,

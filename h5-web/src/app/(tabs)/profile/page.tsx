@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { List, Grid, Badge, Avatar, Tag } from 'antd-mobile';
+import { List, Grid, Badge, Avatar, Tag, Toast } from 'antd-mobile';
 import {
   RightOutline,
   ClockCircleOutline,
@@ -32,6 +32,7 @@ export default function ProfilePage() {
         { icon: <BellOutline />, title: '消息通知', path: '/notifications', badge: '5', color: '#f5222d' },
         { icon: <MessageOutline />, title: '在线客服', path: '/customer-service', color: '#13c2c2' },
         { icon: <TeamOutline />, title: '家庭关联', path: '/family-bindlist', color: '#52c41a' },
+        { icon: <span>🎁</span>, title: '邀请好友', path: '/invite', color: '#fa541c' },
       ],
     },
     {
@@ -58,6 +59,22 @@ export default function ProfilePage() {
           />
           <div className="ml-4 text-white">
             <div className="text-lg font-bold">{user?.nickname || '点击登录'}</div>
+            {user?.user_no && (
+              <div
+                className="flex items-center mt-0.5 cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigator.clipboard.writeText(user.user_no!).then(() => {
+                    Toast.show({ content: '编号已复制', icon: 'success' });
+                  }).catch(() => {
+                    Toast.show({ content: '复制失败' });
+                  });
+                }}
+              >
+                <span className="text-xs text-white/80">用户编号：{user.user_no}</span>
+                <span className="text-xs text-white/60 ml-1">复制</span>
+              </div>
+            )}
             <div className="flex items-center mt-1">
               <Tag
                 style={{

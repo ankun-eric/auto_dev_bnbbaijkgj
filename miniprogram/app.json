@@ -50,7 +50,8 @@
     "pages/family-invite/index",
     "pages/family-auth/index",
     "pages/family-bindlist/index",
-    "pages/messages/index"
+    "pages/messages/index",
+    "pages/invite/index"
   ],
   "window": {
     "navigationBarTextStyle": "black",

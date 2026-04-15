@@ -684,6 +684,10 @@ async def sync_register_schema(conn: AsyncConnection) -> None:
         await conn.execute(text("ALTER TABLE users ADD COLUMN apple_id VARCHAR(100) NULL"))
     if "member_card_no" not in columns:
         await conn.execute(text("ALTER TABLE users ADD COLUMN member_card_no VARCHAR(50) NULL"))
+    if "user_no" not in columns:
+        await conn.execute(text("ALTER TABLE users ADD COLUMN user_no VARCHAR(8) NULL"))
+    if "referrer_no" not in columns:
+        await conn.execute(text("ALTER TABLE users ADD COLUMN referrer_no VARCHAR(8) NULL"))
 
     unique_names = indexes | unique_constraints
     if "uq_users_wechat_openid" not in unique_names:
@@ -694,3 +698,9 @@ async def sync_register_schema(conn: AsyncConnection) -> None:
         await conn.execute(text("CREATE UNIQUE INDEX uq_users_member_card_no ON users (member_card_no)"))
     if "ix_users_member_card_no" not in indexes:
         await conn.execute(text("CREATE INDEX ix_users_member_card_no ON users (member_card_no)"))
+    if "uq_users_user_no" not in unique_names:
+        await conn.execute(text("CREATE UNIQUE INDEX uq_users_user_no ON users (user_no)"))
+    if "ix_users_user_no" not in indexes:
+        await conn.execute(text("CREATE INDEX ix_users_user_no ON users (user_no)"))
+    if "ix_users_referrer_no" not in indexes:
+        await conn.execute(text("CREATE INDEX ix_users_referrer_no ON users (referrer_no)"))

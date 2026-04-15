@@ -621,6 +621,13 @@ export default function HomePage() {
         </div>
       </div>
 
+      <div
+        className="fixed right-4 bottom-24 z-50 w-12 h-12 rounded-full flex items-center justify-center shadow-lg cursor-pointer"
+        style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}
+        onClick={() => router.push('/invite')}
+      >
+        <span className="text-xl">🎁</span>
+      </div>
     </div>
   );
 }

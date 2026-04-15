@@ -8,7 +8,8 @@ import '../services/auth_service.dart';
 import '../services/logo_service.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  final String? referrerNo;
+  const LoginScreen({super.key, this.referrerNo});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -140,7 +141,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final result = await authProvider.login(phone, code);
+    final result = await authProvider.login(phone, code, referrerNo: widget.referrerNo);
 
     if (!mounted) return;
     if (result['success'] == true) {

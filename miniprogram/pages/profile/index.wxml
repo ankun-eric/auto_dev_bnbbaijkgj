@@ -20,6 +20,10 @@
       <view class="member-tag" wx:if="{{userInfo.memberLevel}}">
         <text class="member-text">{{userInfo.memberLevel}}</text>
       </view>
+      <view class="user-no-row" wx:if="{{userInfo.user_no}}" bindtap="copyUserNo">
+        <text class="user-no-text">用户编号：{{userInfo.user_no}}</text>
+        <text class="user-no-copy">复制</text>
+      </view>
     </view>
     <view class="header-actions">
       <text class="switch-role-inline" wx:if="{{canSwitchRole}}" bindtap="switchRole">切换角色</text>

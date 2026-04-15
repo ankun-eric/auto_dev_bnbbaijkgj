@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Table, Button, Input, Space, Tag, Modal, Descriptions, message, Typography, Avatar, Popconfirm } from 'antd';
-import { SearchOutlined, UserOutlined, EyeOutlined, StopOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import { Table, Button, Input, Space, Tag, Modal, Descriptions, message, Typography, Avatar, Popconfirm, Tooltip, Form } from 'antd';
+import { SearchOutlined, UserOutlined, EyeOutlined, StopOutlined, CheckCircleOutlined, EditOutlined } from '@ant-design/icons';
 import { get, put } from '@/lib/api';
 import dayjs from 'dayjs';
 
@@ -20,6 +20,9 @@ interface UserRecord {
   points: number;
   status: UserStatus;
   createdAt: string;
+  userNo: string;
+  referrerNo: string;
+  referrerNickname: string;
 }
 
 function mapApiUser(row: Record<string, unknown>): UserRecord {
@@ -39,6 +42,9 @@ function mapApiUser(row: Record<string, unknown>): UserRecord {
     points: Number(row.points ?? 0),
     status,
     createdAt: String(row.created_at ?? ''),
+    userNo: String(row.user_no ?? ''),
+    referrerNo: String(row.referrer_no ?? ''),
+    referrerNickname: String(row.referrer_nickname ?? ''),
   };
 }
 
@@ -54,9 +60,21 @@ export default function UsersPage() {
   const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
   const [detailVisible, setDetailVisible] = useState(false);
   const [currentUser, setCurrentUser] = useState<UserRecord | null>(null);
+  const [isSuperuser, setIsSuperuser] = useState(false);
+  const [referrerModalVisible, setReferrerModalVisible] = useState(false);
+  const [referrerTarget, setReferrerTarget] = useState<UserRecord | null>(null);
+  const [referrerForm] = Form.useForm();
+  const [referrerSaving, setReferrerSaving] = useState(false);
 
   useEffect(() => {
     fetchData();
+    try {
+      const stored = localStorage.getItem('admin_user');
+      if (stored) {
+        const u = JSON.parse(stored);
+        setIsSuperuser(!!u.is_superuser);
+      }
+    } catch {}
   }, []);
 
   const fetchData = async (page = 1, pageSize = 10) => {
@@ -108,6 +126,25 @@ export default function UsersPage() {
     }
   };
 
+  const handleUpdateReferrer = async () => {
+    try {
+      const values = await referrerForm.validateFields();
+      setReferrerSaving(true);
+      await put(`/api/admin/users/${referrerTarget!.id}/referrer`, { referrer_no: values.referrer_no });
+      message.success('推荐人修改成功');
+      setReferrerModalVisible(false);
+      referrerForm.resetFields();
+      setReferrerTarget(null);
+      fetchData(pagination.current, pagination.pageSize);
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { message?: string } }; message?: string; errorFields?: unknown };
+      if ((err as any).errorFields) return;
+      message.error(err?.response?.data?.message || err?.message || '修改推荐人失败');
+    } finally {
+      setReferrerSaving(false);
+    }
+  };
+
   const roleMap: Record<string, { color: string; text: string }> = {
     user: { color: 'blue', text: '普通用户' },
     vip: { color: 'gold', text: 'VIP用户' },
@@ -124,6 +161,7 @@ export default function UsersPage() {
   const columns = [
     { title: 'ID', dataIndex: 'id', key: 'id', width: 70 },
     { title: '手机号', dataIndex: 'phone', key: 'phone', width: 130 },
+    { title: '用户编号', dataIndex: 'userNo', key: 'userNo', width: 120 },
     {
       title: '昵称',
       dataIndex: 'nickname',
@@ -156,6 +194,18 @@ export default function UsersPage() {
       render: (v: UserStatus) => statusTag(v),
     },
     {
+      title: '推荐人',
+      dataIndex: 'referrerNickname',
+      key: 'referrerNickname',
+      width: 120,
+      render: (v: string, r: UserRecord) =>
+        v ? (
+          <Tooltip title={`推荐人编号: ${r.referrerNo}`}>{v}</Tooltip>
+        ) : (
+          '—'
+        ),
+    },
+    {
       title: '注册时间',
       dataIndex: 'createdAt',
       key: 'createdAt',
@@ -165,7 +215,7 @@ export default function UsersPage() {
     {
       title: '操作',
       key: 'action',
-      width: 160,
+      width: isSuperuser ? 240 : 160,
       render: (_: unknown, record: UserRecord) => (
         <Space>
           <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => { setCurrentUser(record); setDetailVisible(true); }}>
@@ -184,6 +234,20 @@ export default function UsersPage() {
               {isActiveStatus(record.status) ? '封禁' : '解封'}
             </Button>
           </Popconfirm>
+          {isSuperuser && (
+            <Button
+              type="link"
+              size="small"
+              icon={<EditOutlined />}
+              onClick={() => {
+                setReferrerTarget(record);
+                referrerForm.setFieldsValue({ referrer_no: record.referrerNo || '' });
+                setReferrerModalVisible(true);
+              }}
+            >
+              推荐人
+            </Button>
+          )}
         </Space>
       ),
     },
@@ -228,7 +292,7 @@ export default function UsersPage() {
           showTotal: (total) => `共 ${total} 条`,
           onChange: (page, pageSize) => fetchData(page, pageSize),
         }}
-        scroll={{ x: 1100 }}
+        scroll={{ x: 1400 }}
       />
 
       <Modal
@@ -241,6 +305,7 @@ export default function UsersPage() {
         {currentUser && (
           <Descriptions column={2} bordered size="small">
             <Descriptions.Item label="ID">{currentUser.id}</Descriptions.Item>
+            <Descriptions.Item label="用户编号">{currentUser.userNo}</Descriptions.Item>
             <Descriptions.Item label="手机号">{currentUser.phone}</Descriptions.Item>
             <Descriptions.Item label="昵称">{currentUser.nickname}</Descriptions.Item>
             <Descriptions.Item label="角色">
@@ -249,9 +314,43 @@ export default function UsersPage() {
             <Descriptions.Item label="会员等级">{currentUser.level}</Descriptions.Item>
             <Descriptions.Item label="积分">{currentUser.points}</Descriptions.Item>
             <Descriptions.Item label="状态">{statusTag(currentUser.status)}</Descriptions.Item>
+            <Descriptions.Item label="推荐人">
+              {currentUser.referrerNickname ? `${currentUser.referrerNickname} (${currentUser.referrerNo})` : '—'}
+            </Descriptions.Item>
             <Descriptions.Item label="注册时间">{dayjs(currentUser.createdAt).format('YYYY-MM-DD HH:mm:ss')}</Descriptions.Item>
           </Descriptions>
         )}
+      </Modal>
+
+      <Modal
+        title={`修改推荐人 - ${referrerTarget?.nickname || ''}`}
+        open={referrerModalVisible}
+        onCancel={() => { setReferrerModalVisible(false); referrerForm.resetFields(); setReferrerTarget(null); }}
+        footer={null}
+        destroyOnClose
+      >
+        <Form form={referrerForm} layout="vertical" style={{ marginTop: 16 }}>
+          <Form.Item
+            name="referrer_no"
+            label="推荐人编号"
+            rules={[{ required: true, message: '请输入推荐人编号' }]}
+          >
+            <Input placeholder="请输入推荐人的用户编号" />
+          </Form.Item>
+          <Form.Item>
+            <Space>
+              <Popconfirm
+                title="确定修改该用户的推荐人？"
+                onConfirm={handleUpdateReferrer}
+              >
+                <Button type="primary" loading={referrerSaving}>确认修改</Button>
+              </Popconfirm>
+              <Button onClick={() => { setReferrerModalVisible(false); referrerForm.resetFields(); setReferrerTarget(null); }}>
+                取消
+              </Button>
+            </Space>
+          </Form.Item>
+        </Form>
       </Modal>
     </div>
   );

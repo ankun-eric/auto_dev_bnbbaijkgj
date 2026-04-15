@@ -27,7 +27,9 @@ function mapUserFromApi(u) {
     member_level: u.member_level,
     memberLevel: formatMemberLevel(u.member_level),
     points: u.points,
-    status: u.status
+    status: u.status,
+    user_no: u.user_no || '',
+    referrer_no: u.referrer_no || ''
   };
 }
 
@@ -44,12 +46,16 @@ Page({
     registerHelperText: '',
     showRolePicker: false,
     pendingLoginResult: null,
-    brandLogoUrl: ''
+    brandLogoUrl: '',
+    referrerNo: ''
   },
 
   _timer: null,
 
-  onLoad() {
+  onLoad(options) {
+    if (options.ref) {
+      this.setData({ referrerNo: options.ref });
+    }
     this.loadRegisterSettings();
     this.setData({ brandLogoUrl: app.globalData.brandLogoUrl || '' });
   },
@@ -152,7 +158,11 @@ Page({
 
     wx.showLoading({ title: '登录中...', mask: true });
     try {
-      const res = await post('/api/auth/sms-login', { phone, code }, {
+      const body = { phone, code };
+      if (this.data.referrerNo) {
+        body.referrer_no = this.data.referrerNo;
+      }
+      const res = await post('/api/auth/sms-login', body, {
         showLoading: false,
         suppressErrorToast: true
       });

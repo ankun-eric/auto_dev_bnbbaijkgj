@@ -187,6 +187,8 @@ class User(Base):
     member_level = mapped_column(Integer, default=0)
     points = mapped_column(Integer, default=0)
     status = mapped_column(String(20), default="active")
+    user_no = mapped_column(String(8), unique=True, nullable=True, index=True)
+    referrer_no = mapped_column(String(8), nullable=True, index=True)
     is_superuser = mapped_column(Boolean, default=False, nullable=False, server_default="0")
     chat_font_size = mapped_column(String(20), default="standard")
     created_at = mapped_column(DateTime, default=datetime.utcnow)

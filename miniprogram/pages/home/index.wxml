@@ -237,6 +237,11 @@
   </view>
 </view>
 
+<view class="invite-fab" wx:if="{{pageMode === 'user'}}" bindtap="goInvite">
+  <text class="invite-fab-icon">🎁</text>
+  <text class="invite-fab-text">邀请好友</text>
+</view>
+
 <view class="loading-wrap" wx:if="{{loading}}">
   <text class="text-hint">加载中...</text>
 </view>

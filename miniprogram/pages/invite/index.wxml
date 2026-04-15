@@ -1,0 +1,27 @@
+<view class="invite-page">
+  <view class="invite-card" wx:if="{{!loading}}">
+    <view class="invite-header">
+      <text class="invite-title">邀请好友</text>
+      <text class="invite-desc">分享链接或二维码，邀请好友加入宾尼小康</text>
+    </view>
+
+    <view class="qr-section" wx:if="{{shareLink}}">
+      <qrcode text="{{shareLink}}" size="{{400}}" />
+      <text class="qr-hint">扫描二维码加入</text>
+    </view>
+
+    <view class="user-no-section" wx:if="{{userNo}}">
+      <text class="user-no-label">我的邀请码</text>
+      <text class="user-no-value">{{userNo}}</text>
+    </view>
+
+    <view class="action-section">
+      <button class="copy-btn" bindtap="copyShareLink">复制分享链接</button>
+      <button class="share-btn" open-type="share">分享给微信好友</button>
+    </view>
+  </view>
+
+  <view class="loading-wrap" wx:if="{{loading}}">
+    <text class="loading-text">加载中...</text>
+  </view>
+</view>

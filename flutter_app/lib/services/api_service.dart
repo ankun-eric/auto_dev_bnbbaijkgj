@@ -98,8 +98,12 @@ class ApiService {
     return _dio.get(ApiConfig.registerSettings);
   }
 
-  Future<Response> login(String phone, String code) async {
-    return _dio.post(ApiConfig.login, data: {'phone': phone, 'code': code});
+  Future<Response> login(String phone, String code, {String? referrerNo}) async {
+    final data = <String, dynamic>{'phone': phone, 'code': code};
+    if (referrerNo != null && referrerNo.isNotEmpty) {
+      data['referrer_no'] = referrerNo;
+    }
+    return _dio.post(ApiConfig.login, data: data);
   }
 
   Future<Response> sendSmsCode(String phone) async {
@@ -123,6 +127,10 @@ class ApiService {
   }
 
   // User
+  Future<Response> getShareLink() async {
+    return _dio.get(ApiConfig.shareLink);
+  }
+
   Future<Response> getUserProfile() async {
     return _dio.get(ApiConfig.userProfile);
   }

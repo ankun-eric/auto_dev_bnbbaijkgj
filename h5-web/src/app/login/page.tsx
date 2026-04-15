@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button, Input, Toast, Checkbox, Space, Dialog, SpinLoading } from 'antd-mobile';
 import { login } from '@/lib/auth';
 import api from '@/lib/api';
@@ -22,8 +22,10 @@ const defaultRegisterSettings: RegisterSettings = {
   member_card_no_rule: 'incremental',
 };
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const refParam = searchParams.get('ref') || '';
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
   const [agreed, setAgreed] = useState(false);
@@ -109,7 +111,11 @@ export default function LoginPage() {
     }
     setSubmitting(true);
     try {
-      const res: any = await api.post('/api/auth/sms-login', { phone, code });
+      const loginPayload: Record<string, string> = { phone, code };
+      if (refParam) {
+        loginPayload.referrer_no = refParam;
+      }
+      const res: any = await api.post('/api/auth/sms-login', loginPayload);
       login(res.access_token, res.user);
       if (res.is_new_user) {
         const cardInfo = res.user?.member_card_no
@@ -326,5 +332,17 @@ export default function LoginPage() {
         </Space>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(180deg, #e8fce8 0%, #ffffff 40%)' }}>
+        <SpinLoading color="primary" />
+      </div>
+    }>
+      <LoginContent />
+    </Suspense>
   );
 }

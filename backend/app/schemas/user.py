@@ -20,6 +20,7 @@ class UserCreate(BaseModel):
     phone: str
     password: str
     nickname: Optional[str] = None
+    referrer_no: Optional[str] = None
 
 
 class UserLogin(BaseModel):
@@ -35,6 +36,7 @@ class SMSCodeRequest(BaseModel):
 class SMSLoginRequest(BaseModel):
     phone: str
     code: str
+    referrer_no: Optional[str] = None
 
 
 class UserUpdate(BaseModel):
@@ -52,6 +54,8 @@ class UserResponse(BaseModel):
     member_level: int
     points: int
     status: str
+    user_no: Optional[str] = None
+    referrer_no: Optional[str] = None
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
@@ -121,3 +125,38 @@ class FamilyMemberResponse(BaseModel):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+# ──────────── 推荐人 & 分享链接 ────────────
+
+
+class ShareLinkResponse(BaseModel):
+    share_link: str
+    user_no: str
+
+
+class LandingPageResponse(BaseModel):
+    brand_name: str
+    tagline: str
+    features: List[str]
+
+
+class UpdateReferrerRequest(BaseModel):
+    referrer_no: str
+
+
+class ReferralRankingItem(BaseModel):
+    user_no: str
+    nickname: Optional[str] = None
+    phone: Optional[str] = None
+    referral_count: int
+
+
+class ReferralStatsResponse(BaseModel):
+    total_referrals: int
+    today_referrals: int
+    month_referrals: int
+    ranking: List[ReferralRankingItem]
+    total: Optional[int] = None
+    page: Optional[int] = None
+    page_size: Optional[int] = None

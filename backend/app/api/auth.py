@@ -45,6 +45,7 @@ from app.services.register_service import (
     is_profile_completed,
 )
 from app.services.sms_service import send_sms
+from app.utils.user_no_generator import generate_unique_user_no
 
 logger = logging.getLogger(__name__)
 
@@ -204,11 +205,22 @@ async def register(data: UserCreate, db: AsyncSession = Depends(get_db)):
     if result.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="该手机号已注册")
 
+    user_no = await generate_unique_user_no(db)
     user = User(
         phone=data.phone,
         password_hash=get_password_hash(data.password),
         nickname=data.nickname or f"用户{data.phone[-4:]}",
+        user_no=user_no,
     )
+
+    if data.referrer_no:
+        ref_result = await db.execute(
+            select(User).where(User.user_no == data.referrer_no)
+        )
+        referrer = ref_result.scalar_one_or_none()
+        if referrer and referrer.user_no != user_no:
+            user.referrer_no = data.referrer_no
+
     await ensure_member_card_no(db, user, register_settings)
     db.add(user)
     await db.flush()
@@ -355,7 +367,17 @@ async def sms_login(data: SMSLoginRequest, db: AsyncSession = Depends(get_db)):
     if not user:
         if not register_settings["enable_self_registration"]:
             raise HTTPException(status_code=403, detail="当前暂未开放自助注册")
-        user = User(phone=data.phone, nickname=f"用户{data.phone[-4:]}")
+        user_no = await generate_unique_user_no(db)
+        user = User(phone=data.phone, nickname=f"用户{data.phone[-4:]}", user_no=user_no)
+
+        if data.referrer_no:
+            ref_result = await db.execute(
+                select(User).where(User.user_no == data.referrer_no)
+            )
+            referrer = ref_result.scalar_one_or_none()
+            if referrer and referrer.user_no != user_no:
+                user.referrer_no = data.referrer_no
+
         await ensure_member_card_no(db, user, register_settings)
         db.add(user)
         await db.flush()

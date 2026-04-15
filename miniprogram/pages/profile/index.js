@@ -22,6 +22,7 @@ Page({
       { id: 'mall', label: '积分商城', icon: '🛍️', path: '/pages/points-mall/index' },
       { id: 'plan', label: '健康计划', icon: '📅', path: '/pages/health-plan/index' },
       { id: 'service', label: '在线客服', icon: '🎧', path: '/pages/customer-service/index' },
+      { id: 'invite', label: '邀请好友', icon: '🎁', path: '/pages/invite/index' },
       { id: 'settings', label: '设置', icon: '⚙️', path: '/pages/settings/index' }
     ],
     merchantMenuList: [
@@ -118,6 +119,17 @@ Page({
 
   goFamily() {
     wx.navigateTo({ url: '/pages/family/index' });
+  },
+
+  copyUserNo() {
+    const userNo = this.data.userInfo && this.data.userInfo.user_no;
+    if (!userNo) return;
+    wx.setClipboardData({
+      data: userNo,
+      success() {
+        wx.showToast({ title: '用户编号已复制', icon: 'success' });
+      }
+    });
   },
 
   onMenuTap(e) {

@@ -29,6 +29,7 @@ dependencies:
   video_player: ^2.8.0
   connectivity_plus: ^6.0.0
   mobile_scanner: ^5.1.1
+  share_plus: ^10.1.4
   image_gallery_saver: ^2.0.3
 
 dependency_overrides:

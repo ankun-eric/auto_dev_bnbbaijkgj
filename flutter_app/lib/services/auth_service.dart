@@ -88,9 +88,9 @@ class AuthService {
     }
   }
 
-  Future<Map<String, dynamic>> login(String phone, String code) async {
+  Future<Map<String, dynamic>> login(String phone, String code, {String? referrerNo}) async {
     try {
-      final response = await _api.login(phone, code);
+      final response = await _api.login(phone, code, referrerNo: referrerNo);
       final raw = response.data;
       if (raw is! Map) {
         return {'success': false, 'message': '登录失败'};

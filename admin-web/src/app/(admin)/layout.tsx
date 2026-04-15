@@ -29,6 +29,7 @@ import {
   ScheduleOutlined,
   EnvironmentOutlined,
   PhoneOutlined,
+  TeamOutlined,
 } from '@ant-design/icons';
 import { useRouter, usePathname } from 'next/navigation';
 import type { MenuProps } from 'antd';
@@ -41,6 +42,7 @@ type MenuItem = Required<MenuProps>['items'][number];
 const menuItems: MenuItem[] = [
   { key: '/dashboard', icon: <DashboardOutlined />, label: '数据概览' },
   { key: '/users', icon: <UserOutlined />, label: '用户管理' },
+  { key: '/referral', icon: <TeamOutlined />, label: '推荐管理' },
   {
     key: 'merchant',
     icon: <ShopOutlined />,

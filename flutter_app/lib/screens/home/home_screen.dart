@@ -303,6 +303,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       const SizedBox(height: 20),
                       _buildFeatureGrid(),
                       const SizedBox(height: 20),
+                      _buildInviteBanner(),
+                      const SizedBox(height: 20),
                       _buildTodayTodos(),
                       const SizedBox(height: 20),
                       _buildSectionHeader('健康知识', onMore: () => Navigator.pushNamed(context, '/articles')),
@@ -650,6 +652,47 @@ class _HomeScreenState extends State<HomeScreen> {
     'checkin': {'icon': Icons.check_circle_outline, 'color': Color(0xFF52C41A)},
     'custom': {'icon': Icons.flag_outlined, 'color': Color(0xFF1890FF)},
   };
+
+  Widget _buildInviteBanner() {
+    return GestureDetector(
+      onTap: () => Navigator.pushNamed(context, '/invite'),
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF52C41A), Color(0xFF13C2C2)],
+          ),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.card_giftcard, color: Colors.white, size: 20),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('邀请好友', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
+                  SizedBox(height: 2),
+                  Text('分享给好友，一起体验健康管理', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: Colors.white70, size: 22),
+          ],
+        ),
+      ),
+    );
+  }
 
   Widget _buildTodayTodos() {
     return Container(

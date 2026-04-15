@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 
@@ -53,16 +54,49 @@ class ProfileScreen extends StatelessWidget {
                                 style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
                               ),
                               const SizedBox(height: 6),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.2),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  '${user?.memberLevel ?? '普通'}会员',
-                                  style: const TextStyle(color: Colors.white, fontSize: 12),
-                                ),
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withOpacity(0.2),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      '${user?.memberLevel ?? '普通'}会员',
+                                      style: const TextStyle(color: Colors.white, fontSize: 12),
+                                    ),
+                                  ),
+                                  if (user?.userNo != null && user!.userNo!.isNotEmpty) ...[
+                                    const SizedBox(width: 8),
+                                    GestureDetector(
+                                      onTap: () {
+                                        Clipboard.setData(ClipboardData(text: user.userNo!));
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(content: Text('已复制'), duration: Duration(seconds: 1)),
+                                        );
+                                      },
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withOpacity(0.2),
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Text(
+                                              '编号：${user.userNo}',
+                                              style: const TextStyle(color: Colors.white, fontSize: 12),
+                                            ),
+                                            const SizedBox(width: 4),
+                                            const Icon(Icons.copy, color: Colors.white70, size: 12),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
                               ),
                             ],
                           ),
@@ -124,6 +158,7 @@ class ProfileScreen extends StatelessWidget {
                   _MenuItem(Icons.history, '浏览历史', () {}),
                 ]),
                 _buildMenuSection('其他', [
+                  _MenuItem(Icons.card_giftcard, '邀请好友', () => Navigator.pushNamed(context, '/invite')),
                   _MenuItem(Icons.headset_mic, '联系客服', () => Navigator.pushNamed(context, '/customer-service')),
                   _MenuItem(Icons.info_outline, '关于我们', () {}),
                   _MenuItem(Icons.share_outlined, '分享给朋友', () {}),

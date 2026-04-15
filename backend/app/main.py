@@ -42,6 +42,7 @@ from app.api import (
     points,
     merchant,
     prompt_templates,
+    referral,
     report,
     scan,
     search,
@@ -53,6 +54,7 @@ from app.api import (
 )
 from app.core.database import Base, engine
 from app.services.schema_sync import sync_register_schema
+from app.services.user_no_migration import migrate_existing_users_user_no
 
 
 async def _migrate_points_enums_and_config():
@@ -108,6 +110,7 @@ async def lifespan(app: FastAPI):
         await conn.run_sync(Base.metadata.create_all)
         await sync_register_schema(conn)
     await _migrate_points_enums_and_config()
+    await migrate_existing_users_user_no()
     from app.init_data import init_default_data
     await init_default_data()
     from app.init_cities import init_cities
@@ -183,6 +186,7 @@ app.include_router(function_button.router)
 app.include_router(function_button.admin_router)
 app.include_router(messages.router)
 app.include_router(admin_messages.router)
+app.include_router(referral.router)
 app.include_router(scan.router)
 
 os.makedirs("uploads", exist_ok=True)

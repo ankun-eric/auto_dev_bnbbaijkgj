@@ -28,11 +28,11 @@ class AuthProvider extends ChangeNotifier {
     return loggedIn;
   }
 
-  Future<Map<String, dynamic>> login(String phone, String code) async {
+  Future<Map<String, dynamic>> login(String phone, String code, {String? referrerNo}) async {
     _isLoading = true;
     notifyListeners();
 
-    final result = await _authService.login(phone, code);
+    final result = await _authService.login(phone, code, referrerNo: referrerNo);
     if (result['success'] == true) {
       _user = result['user'];
       _isLoggedIn = true;

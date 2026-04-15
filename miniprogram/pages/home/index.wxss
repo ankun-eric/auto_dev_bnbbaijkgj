@@ -535,3 +535,28 @@
   font-size: 34rpx;
   color: #ccc;
 }
+
+.invite-fab {
+  position: fixed;
+  right: 32rpx;
+  bottom: 200rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: linear-gradient(135deg, #52c41a, #13c2c2);
+  border-radius: 50rpx;
+  padding: 20rpx 16rpx;
+  box-shadow: 0 8rpx 24rpx rgba(82, 196, 26, 0.4);
+  z-index: 50;
+}
+
+.invite-fab-icon {
+  font-size: 40rpx;
+  margin-bottom: 4rpx;
+}
+
+.invite-fab-text {
+  font-size: 20rpx;
+  color: #fff;
+  white-space: nowrap;
+}

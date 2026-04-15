@@ -457,5 +457,19 @@ Page({
 
   goRecords() {
     wx.switchTab({ url: '/pages/services/index' });
+  },
+
+  goInvite() {
+    wx.navigateTo({ url: '/pages/invite/index' });
+  },
+
+  onShareAppMessage() {
+    const userInfo = getApp().getUserInfo() || {};
+    const userNo = userInfo.user_no || '';
+    return {
+      title: '宾尼小康 — AI健康管家，守护你的健康',
+      path: userNo ? `/pages/login/index?ref=${userNo}` : '/pages/home/index',
+      imageUrl: ''
+    };
   }
 });

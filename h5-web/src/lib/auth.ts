@@ -7,6 +7,8 @@ interface UserInfo {
   avatar: string;
   memberLevel: string;
   points: number;
+  user_no?: string;
+  referrer_no?: string;
 }
 
 export function useAuth() {
