@@ -1,0 +1,45 @@
+<view class="refund-page">
+  <!-- 退款原因 -->
+  <view class="reason-section card">
+    <text class="section-label">退款原因</text>
+    <picker range="{{reasons}}" value="{{selectedReason}}" bindchange="selectReason">
+      <view class="reason-picker">
+        <text class="reason-text">{{reasons[selectedReason]}}</text>
+        <text class="picker-arrow">›</text>
+      </view>
+    </picker>
+  </view>
+
+  <!-- 详细描述 -->
+  <view class="desc-section card">
+    <text class="section-label">详细描述</text>
+    <textarea class="refund-textarea" placeholder="请描述退款原因（选填）"
+              value="{{description}}" bindinput="onDescInput"
+              maxlength="300" auto-height />
+    <text class="char-count">{{description.length}}/300</text>
+  </view>
+
+  <!-- 凭证图片 -->
+  <view class="image-section card">
+    <text class="section-label">上传凭证（选填，最多{{maxImages}}张）</text>
+    <view class="image-grid">
+      <view class="image-item" wx:for="{{images}}" wx:key="index">
+        <image class="upload-img" src="{{item}}" mode="aspectFill" />
+        <view class="remove-btn" catchtap="removeImage" data-index="{{index}}">
+          <text>×</text>
+        </view>
+      </view>
+      <view class="image-add" bindtap="chooseImage" wx:if="{{images.length < maxImages}}">
+        <text class="add-icon">+</text>
+        <text class="add-text">添加图片</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 提交 -->
+  <view class="submit-wrap">
+    <view class="submit-btn {{submitting ? 'disabled' : ''}}" bindtap="submitRefund">
+      <text>{{submitting ? '提交中...' : '提交退款申请'}}</text>
+    </view>
+  </view>
+</view>

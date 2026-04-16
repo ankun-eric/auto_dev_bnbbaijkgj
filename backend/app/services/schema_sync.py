@@ -688,6 +688,60 @@ async def _sync_chat_share_records_table(conn: AsyncConnection) -> None:
         ))
 
 
+async def _sync_product_system_tables(conn: AsyncConnection) -> None:
+    """Sync new product/order/coupon system tables (add missing columns to existing tables)."""
+    def _load(sync_conn):
+        inspector = inspect(sync_conn)
+        tables = set(inspector.get_table_names())
+        result = {}
+        for tbl in [
+            "product_categories", "products", "product_stores",
+            "appointment_forms", "appointment_form_fields",
+            "unified_orders", "order_items", "order_redemptions",
+            "user_addresses", "coupons", "user_coupons",
+            "member_qr_tokens", "checkin_records", "store_visit_records",
+            "refund_requests",
+        ]:
+            if tbl in tables:
+                result[tbl] = {col["name"] for col in inspector.get_columns(tbl)}
+        return result
+
+    table_cols = await conn.run_sync(_load)
+
+    if "products" in table_cols:
+        cols = table_cols["products"]
+        if "payment_timeout_minutes" not in cols:
+            await conn.execute(text("ALTER TABLE products ADD COLUMN payment_timeout_minutes INT DEFAULT 15"))
+        if "purchase_appointment_mode" not in cols:
+            await conn.execute(text(
+                "ALTER TABLE products ADD COLUMN purchase_appointment_mode "
+                "ENUM('must_appoint','appoint_later') NULL"
+            ))
+
+    if "unified_orders" in table_cols:
+        cols = table_cols["unified_orders"]
+        if "auto_confirm_days" not in cols:
+            await conn.execute(text("ALTER TABLE unified_orders ADD COLUMN auto_confirm_days INT DEFAULT 7"))
+        if "payment_timeout_minutes" not in cols:
+            await conn.execute(text("ALTER TABLE unified_orders ADD COLUMN payment_timeout_minutes INT DEFAULT 15"))
+
+    if "order_items" in table_cols:
+        cols = table_cols["order_items"]
+        if "verification_qrcode_token" not in cols:
+            await conn.execute(text("ALTER TABLE order_items ADD COLUMN verification_qrcode_token VARCHAR(100) NULL"))
+        if "total_redeem_count" not in cols:
+            await conn.execute(text("ALTER TABLE order_items ADD COLUMN total_redeem_count INT DEFAULT 1"))
+        if "used_redeem_count" not in cols:
+            await conn.execute(text("ALTER TABLE order_items ADD COLUMN used_redeem_count INT DEFAULT 0"))
+
+    if "refund_requests" in table_cols:
+        cols = table_cols["refund_requests"]
+        if "return_tracking_number" not in cols:
+            await conn.execute(text("ALTER TABLE refund_requests ADD COLUMN return_tracking_number VARCHAR(100) NULL"))
+        if "return_tracking_company" not in cols:
+            await conn.execute(text("ALTER TABLE refund_requests ADD COLUMN return_tracking_company VARCHAR(100) NULL"))
+
+
 async def sync_register_schema(conn: AsyncConnection) -> None:
     def load_user_schema(sync_conn):
         inspector = inspect(sync_conn)
@@ -722,6 +776,7 @@ async def sync_register_schema(conn: AsyncConnection) -> None:
     await _sync_cos_config_fields(conn)
     await _sync_drug_identify_family_member(conn)
     await _sync_chat_share_records_table(conn)
+    await _sync_product_system_tables(conn)
     await run_all_migrations(conn)
 
     columns, indexes, unique_constraints = await conn.run_sync(load_user_schema)

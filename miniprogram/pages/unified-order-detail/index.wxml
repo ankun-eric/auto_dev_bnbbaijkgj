@@ -1,0 +1,145 @@
+<view class="detail-page" wx:if="{{order}}">
+  <!-- 订单状态 -->
+  <view class="status-header status-bg-{{order.status}}">
+    <text class="status-text">{{order.status_label || order.status}}</text>
+    <text class="status-desc" wx:if="{{order.status_desc}}">{{order.status_desc}}</text>
+  </view>
+
+  <!-- 核销码 -->
+  <view class="verify-section card" wx:if="{{order.status === 'paid' && (order.verify_code || order.qr_code_url)}}">
+    <text class="section-title">核销码</text>
+    <view class="qr-area" wx:if="{{order.qr_code_url}}">
+      <image class="qr-img" src="{{order.qr_code_url}}" mode="aspectFit"
+             bindtap="previewQrCode" />
+    </view>
+    <view class="verify-code-row" wx:if="{{order.verify_code}}">
+      <text class="verify-code">{{order.verify_code}}</text>
+      <text class="copy-btn" bindtap="copyVerifyCode">复制</text>
+    </view>
+    <text class="verify-hint">请向门店工作人员出示此码进行核销</text>
+  </view>
+
+  <!-- 商品信息 -->
+  <view class="product-section card">
+    <view class="od-product">
+      <image class="od-product-img" src="{{order.product_cover || order.cover_image}}" mode="aspectFill" />
+      <view class="od-product-info">
+        <text class="od-product-name ellipsis-2">{{order.product_name || order.name}}</text>
+        <view class="od-product-meta">
+          <text class="od-price">¥{{order.unit_price || order.price}}</text>
+          <text class="od-qty">×{{order.quantity || 1}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 收货/门店信息 -->
+  <view class="address-section card" wx:if="{{order.address || order.store_name}}">
+    <text class="section-title">{{order.store_name ? '服务门店' : '收货信息'}}</text>
+    <view wx:if="{{order.store_name}}">
+      <text class="addr-line">{{order.store_name}}</text>
+      <text class="addr-sub">{{order.store_address}}</text>
+      <view class="store-phone" wx:if="{{order.store_phone}}" bindtap="callStore">
+        <text class="phone-text">📞 {{order.store_phone}}</text>
+      </view>
+    </view>
+    <view wx:elif="{{order.address}}">
+      <view class="addr-top-row">
+        <text class="addr-name-text">{{order.address.name}}</text>
+        <text class="addr-phone-text">{{order.address.phone}}</text>
+      </view>
+      <text class="addr-sub">{{order.address.full_address || (order.address.province + order.address.city + order.address.district + order.address.detail)}}</text>
+    </view>
+  </view>
+
+  <!-- 预约信息 -->
+  <view class="appt-section card" wx:if="{{order.appointment_date}}">
+    <text class="section-title">预约信息</text>
+    <view class="info-row">
+      <text class="info-label">预约日期</text>
+      <text class="info-value">{{order.appointment_date}}</text>
+    </view>
+    <view class="info-row" wx:if="{{order.appointment_time}}">
+      <text class="info-label">预约时间</text>
+      <text class="info-value">{{order.appointment_time}}</text>
+    </view>
+    <view class="info-row" wx:if="{{order.note}}">
+      <text class="info-label">备注</text>
+      <text class="info-value">{{order.note}}</text>
+    </view>
+  </view>
+
+  <!-- 物流信息 -->
+  <view class="logistics-section card" wx:if="{{order.logistics && order.logistics.length > 0}}">
+    <text class="section-title">物流信息</text>
+    <view class="logistics-item" wx:for="{{order.logistics}}" wx:key="index">
+      <view class="log-dot {{index === 0 ? 'active' : ''}}"></view>
+      <view class="log-content">
+        <text class="log-desc">{{item.description}}</text>
+        <text class="log-time">{{item.time}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 订单信息 -->
+  <view class="order-info-section card">
+    <text class="section-title">订单信息</text>
+    <view class="info-row">
+      <text class="info-label">订单编号</text>
+      <view class="info-right">
+        <text class="info-value">{{order.order_no}}</text>
+        <text class="copy-link" bindtap="copyOrderNo">复制</text>
+      </view>
+    </view>
+    <view class="info-row">
+      <text class="info-label">下单时间</text>
+      <text class="info-value">{{order.created_at}}</text>
+    </view>
+    <view class="info-row" wx:if="{{order.paid_at}}">
+      <text class="info-label">支付时间</text>
+      <text class="info-value">{{order.paid_at}}</text>
+    </view>
+    <view class="info-row">
+      <text class="info-label">支付方式</text>
+      <text class="info-value">{{order.payment_method_label || '微信支付'}}</text>
+    </view>
+  </view>
+
+  <!-- 价格明细 -->
+  <view class="price-section card">
+    <view class="info-row">
+      <text class="info-label">商品金额</text>
+      <text class="info-value">¥{{order.total_amount}}</text>
+    </view>
+    <view class="info-row" wx:if="{{order.coupon_discount}}">
+      <text class="info-label">优惠券</text>
+      <text class="info-value discount">-¥{{order.coupon_discount}}</text>
+    </view>
+    <view class="info-row" wx:if="{{order.points_discount}}">
+      <text class="info-label">积分抵扣</text>
+      <text class="info-value discount">-¥{{order.points_discount}}</text>
+    </view>
+    <view class="price-divider"></view>
+    <view class="info-row">
+      <text class="info-label total-label">实付金额</text>
+      <text class="info-value total-val">¥{{order.final_amount || order.total_amount}}</text>
+    </view>
+  </view>
+
+  <view class="bottom-space"></view>
+
+  <!-- 底部操作 -->
+  <view class="bottom-bar safe-bottom" wx:if="{{order.status === 'pending_payment' || order.status === 'paid' || order.status === 'completed'}}">
+    <view class="bar-actions">
+      <view class="bar-btn outline" wx:if="{{order.status === 'pending_payment'}}" bindtap="cancelOrder">取消订单</view>
+      <view class="bar-btn outline" wx:if="{{order.status === 'paid'}}" bindtap="goRefund">申请退款</view>
+      <view class="bar-btn primary" wx:if="{{order.status === 'pending_payment'}}" bindtap="payOrder">立即付款</view>
+      <view class="bar-btn primary" wx:if="{{order.status === 'paid'}}" bindtap="confirmOrder">确认收货</view>
+      <view class="bar-btn primary" wx:if="{{order.status === 'completed' && !order.is_reviewed}}" bindtap="goReview">评价</view>
+    </view>
+  </view>
+</view>
+
+<view class="loading-wrap" wx:if="{{loading}}">
+  <text class="loading-text">加载中...</text>
+</view>

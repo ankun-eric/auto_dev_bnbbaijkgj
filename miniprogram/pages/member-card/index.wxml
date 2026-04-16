@@ -1,0 +1,59 @@
+<view class="member-page">
+  <view class="card-wrap">
+    <view class="member-card-bg">
+      <view class="card-brand">
+        <text class="brand-name">宾尼小康</text>
+        <text class="brand-tag">会员卡</text>
+      </view>
+
+      <view class="card-user">
+        <view class="card-avatar">
+          <image class="card-avatar-img" src="{{userInfo.avatar}}" wx:if="{{userInfo.avatar}}" />
+          <text class="card-avatar-text" wx:else>{{userInfo.nickname ? userInfo.nickname[0] : '会'}}</text>
+        </view>
+        <view class="card-user-info">
+          <text class="card-nickname">{{userInfo.nickname || '会员用户'}}</text>
+          <text class="card-phone" wx:if="{{userInfo.phone}}">{{userInfo.phone}}</text>
+          <text class="card-no" wx:if="{{userInfo.user_no}}">会员编号：{{userInfo.user_no}}</text>
+        </view>
+      </view>
+
+      <view class="card-level" wx:if="{{userInfo.memberLevel}}">
+        <text class="level-text">{{userInfo.memberLevel}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="qr-section card">
+    <text class="qr-title">会员二维码</text>
+    <text class="qr-hint">出示二维码，享受会员权益</text>
+
+    <view class="qr-area">
+      <image class="qr-img" src="{{qrCodeUrl}}" mode="aspectFit"
+             wx:if="{{qrCodeUrl}}" bindtap="previewQr" />
+      <view class="qr-placeholder" wx:else>
+        <text>二维码加载中...</text>
+      </view>
+    </view>
+
+    <view class="qr-footer">
+      <text class="qr-timer">{{qrExpireTime}}秒后自动刷新</text>
+      <text class="qr-refresh" bindtap="refreshQrCode">手动刷新</text>
+    </view>
+  </view>
+
+  <view class="info-section card" wx:if="{{userInfo}}">
+    <view class="info-row" wx:if="{{userInfo.points !== undefined}}">
+      <text class="info-label">当前积分</text>
+      <text class="info-value points-val">{{userInfo.points || 0}}</text>
+    </view>
+    <view class="info-row" wx:if="{{userInfo.memberLevel}}">
+      <text class="info-label">会员等级</text>
+      <text class="info-value">{{userInfo.memberLevel}}</text>
+    </view>
+    <view class="info-row" wx:if="{{userInfo.register_date}}">
+      <text class="info-label">注册时间</text>
+      <text class="info-value">{{userInfo.register_date}}</text>
+    </view>
+  </view>
+</view>

@@ -1,0 +1,230 @@
+import uuid
+from datetime import datetime, timedelta
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.database import get_db
+from app.core.security import get_current_user, require_identity
+from app.models.models import (
+    CheckinRecord,
+    MemberQRToken,
+    MerchantStore,
+    OrderItem,
+    OrderRedemption,
+    PointsRecord,
+    PointsType,
+    StoreVisitRecord,
+    SystemConfig,
+    User,
+)
+from app.schemas.member_qr import (
+    CheckinConfigRequest,
+    CheckinRecordResponse,
+    CheckinRequest,
+    CheckinResponse,
+    MemberQRCodeResponse,
+    RedeemRequest,
+    RedeemResponse,
+    StoreVisitResponse,
+    VerifyMemberQRRequest,
+    VerifyMemberQRResponse,
+)
+
+router = APIRouter(tags=["会员码"])
+
+
+@router.get("/api/member/qrcode")
+async def get_member_qrcode(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    token = uuid.uuid4().hex
+    expires_at = datetime.utcnow() + timedelta(minutes=5)
+    qr_token = MemberQRToken(
+        user_id=current_user.id,
+        token=token,
+        expires_at=expires_at,
+    )
+    db.add(qr_token)
+    await db.flush()
+    return MemberQRCodeResponse(
+        token=token, expires_at=expires_at, user_id=current_user.id
+    )
+
+
+@router.post("/api/verify/member-qrcode")
+async def verify_member_qrcode(
+    data: VerifyMemberQRRequest,
+    current_user: User = Depends(require_identity("merchant_owner", "merchant_staff")),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(MemberQRToken).where(MemberQRToken.token == data.token)
+    )
+    qr_token = result.scalar_one_or_none()
+    if not qr_token:
+        raise HTTPException(status_code=404, detail="无效的会员码")
+    if qr_token.expires_at < datetime.utcnow():
+        raise HTTPException(status_code=400, detail="会员码已过期")
+
+    user_result = await db.execute(select(User).where(User.id == qr_token.user_id))
+    user = user_result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="用户不存在")
+
+    return VerifyMemberQRResponse(
+        user_id=user.id,
+        nickname=user.nickname,
+        avatar=user.avatar,
+        phone=user.phone,
+        member_level=user.member_level or 0,
+        points=user.points or 0,
+    )
+
+
+@router.post("/api/verify/checkin")
+async def checkin_at_store(
+    data: CheckinRequest,
+    current_user: User = Depends(require_identity("merchant_owner", "merchant_staff")),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(MemberQRToken).where(MemberQRToken.token == data.token)
+    )
+    qr_token = result.scalar_one_or_none()
+    if not qr_token:
+        raise HTTPException(status_code=404, detail="无效的会员码")
+    if qr_token.expires_at < datetime.utcnow():
+        raise HTTPException(status_code=400, detail="会员码已过期")
+
+    store_result = await db.execute(
+        select(MerchantStore).where(MerchantStore.id == data.store_id)
+    )
+    store = store_result.scalar_one_or_none()
+    if not store:
+        raise HTTPException(status_code=404, detail="门店不存在")
+
+    config_result = await db.execute(
+        select(SystemConfig).where(SystemConfig.config_key == "checkin_points_per_visit")
+    )
+    config = config_result.scalar_one_or_none()
+    points_earned = int(config.config_value) if config and config.config_value else 5
+
+    checkin = CheckinRecord(
+        user_id=qr_token.user_id,
+        store_id=data.store_id,
+        staff_user_id=current_user.id,
+        points_earned=points_earned,
+    )
+    db.add(checkin)
+
+    visit = StoreVisitRecord(
+        user_id=qr_token.user_id,
+        store_id=data.store_id,
+        staff_user_id=current_user.id,
+    )
+    db.add(visit)
+
+    user_result = await db.execute(select(User).where(User.id == qr_token.user_id))
+    user = user_result.scalar_one_or_none()
+    if user and points_earned > 0:
+        user.points += points_earned
+        pr = PointsRecord(
+            user_id=user.id,
+            points=points_earned,
+            type=PointsType.checkin,
+            description=f"到店签到 {store.store_name}",
+        )
+        db.add(pr)
+
+    await db.flush()
+    await db.refresh(checkin)
+    return CheckinResponse.model_validate(checkin)
+
+
+@router.post("/api/verify/redeem")
+async def redeem_service(
+    data: RedeemRequest,
+    current_user: User = Depends(require_identity("merchant_owner", "merchant_staff")),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(OrderItem).where(OrderItem.verification_code == data.verification_code)
+    )
+    order_item = result.scalar_one_or_none()
+    if not order_item:
+        raise HTTPException(status_code=404, detail="核销码无效")
+
+    if order_item.used_redeem_count >= order_item.total_redeem_count:
+        raise HTTPException(status_code=400, detail="已全部核销")
+
+    redemption = OrderRedemption(
+        order_item_id=order_item.id,
+        redeemed_by_user_id=current_user.id,
+        store_id=data.store_id,
+    )
+    db.add(redemption)
+
+    order_item.used_redeem_count += 1
+    order_item.updated_at = datetime.utcnow()
+
+    await db.flush()
+    await db.refresh(redemption)
+
+    return RedeemResponse(
+        id=redemption.id,
+        order_item_id=order_item.id,
+        redeemed_by_user_id=current_user.id,
+        store_id=data.store_id,
+        redeemed_at=redemption.redeemed_at,
+        remaining_count=order_item.total_redeem_count - order_item.used_redeem_count,
+    )
+
+
+@router.get("/api/verify/checkin-records")
+async def list_checkin_records(
+    store_id: int = None,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    current_user: User = Depends(require_identity("merchant_owner", "merchant_staff")),
+    db: AsyncSession = Depends(get_db),
+):
+    query = select(CheckinRecord)
+    count_query = select(func.count(CheckinRecord.id))
+
+    if store_id:
+        query = query.where(CheckinRecord.store_id == store_id)
+        count_query = count_query.where(CheckinRecord.store_id == store_id)
+
+    total_result = await db.execute(count_query)
+    total = total_result.scalar() or 0
+
+    result = await db.execute(
+        query.order_by(CheckinRecord.checked_in_at.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+    )
+    records = result.scalars().all()
+
+    items = []
+    for r in records:
+        user_res = await db.execute(select(User).where(User.id == r.user_id))
+        user = user_res.scalar_one_or_none()
+        store_res = await db.execute(select(MerchantStore).where(MerchantStore.id == r.store_id))
+        store = store_res.scalar_one_or_none()
+
+        items.append(CheckinRecordResponse(
+            id=r.id,
+            user_id=r.user_id,
+            store_id=r.store_id,
+            staff_user_id=r.staff_user_id,
+            points_earned=r.points_earned,
+            checked_in_at=r.checked_in_at,
+            user_nickname=user.nickname if user else None,
+            user_phone=user.phone if user else None,
+            store_name=store.store_name if store else None,
+        ))
+
+    return {"items": items, "total": total, "page": page, "page_size": page_size}

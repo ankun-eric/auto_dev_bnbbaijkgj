@@ -51,7 +51,18 @@
     "pages/family-auth/index",
     "pages/family-bindlist/index",
     "pages/messages/index",
-    "pages/invite/index"
+    "pages/invite/index",
+    "pages/products/index",
+    "pages/product-detail/index",
+    "pages/checkout/index",
+    "pages/unified-orders/index",
+    "pages/unified-order-detail/index",
+    "pages/member-card/index",
+    "pages/my-coupons/index",
+    "pages/my-favorites/index",
+    "pages/my-addresses/index",
+    "pages/review/index",
+    "pages/refund/index"
   ],
   "window": {
     "navigationBarTextStyle": "black",

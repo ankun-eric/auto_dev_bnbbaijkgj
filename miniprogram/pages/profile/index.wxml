@@ -37,43 +37,27 @@
       <text class="stat-label">积分</text>
     </view>
     <view class="stat-divider"></view>
-    <view class="stat-item" bindtap="goOrders">
-      <text class="stat-value">{{orderCount}}</text>
-      <text class="stat-label">订单</text>
+    <view class="stat-item" bindtap="goCoupons">
+      <text class="stat-value">{{couponCount}}</text>
+      <text class="stat-label">优惠券</text>
     </view>
     <view class="stat-divider"></view>
-    <view class="stat-item" bindtap="goFamily">
-      <text class="stat-value">{{familyCount}}</text>
-      <text class="stat-label">家人</text>
-    </view>
-    <view class="stat-divider"></view>
-    <view class="stat-item">
-      <text class="stat-value">{{checkDays}}</text>
-      <text class="stat-label">签到天数</text>
+    <view class="stat-item" bindtap="goFavorites">
+      <text class="stat-value">{{favoriteCount}}</text>
+      <text class="stat-label">收藏</text>
     </view>
   </view>
 
   <view class="card">
     <view class="card-header">
       <text class="card-title">我的订单</text>
-      <text class="card-more" bindtap="goOrders">全部订单 ></text>
+      <text class="card-more" bindtap="goUnifiedOrders">全部订单 ></text>
     </view>
     <view class="order-quick">
-      <view class="quick-btn" bindtap="goOrders" data-status="pending">
-        <text class="quick-icon">💰</text>
-        <text class="quick-label">待付款</text>
-      </view>
-      <view class="quick-btn" bindtap="goOrders" data-status="paid">
-        <text class="quick-icon">📦</text>
-        <text class="quick-label">待使用</text>
-      </view>
-      <view class="quick-btn" bindtap="goOrders" data-status="used">
-        <text class="quick-icon">✅</text>
-        <text class="quick-label">已完成</text>
-      </view>
-      <view class="quick-btn" bindtap="goOrders" data-status="refund">
-        <text class="quick-icon">🔄</text>
-        <text class="quick-label">退款</text>
+      <view class="quick-btn" wx:for="{{orderTabs}}" wx:key="status"
+            bindtap="goUnifiedOrders" data-status="{{item.status}}">
+        <text class="quick-icon">{{item.icon}}</text>
+        <text class="quick-label">{{item.label}}</text>
       </view>
     </view>
   </view>

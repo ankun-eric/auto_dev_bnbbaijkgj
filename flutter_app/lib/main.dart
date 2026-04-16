@@ -56,6 +56,19 @@ import 'screens/search/search_result_screen.dart';
 import 'screens/city/city_select_screen.dart';
 import 'screens/digital_human/digital_human_call_screen.dart';
 import 'screens/messages/messages_screen.dart';
+import 'screens/product/product_list_screen.dart';
+import 'screens/product/product_detail_screen.dart';
+import 'screens/product/checkout_screen.dart';
+import 'screens/order/unified_orders_screen.dart';
+import 'screens/order/unified_order_detail_screen.dart';
+import 'screens/order/review_screen.dart';
+import 'screens/order/refund_screen.dart';
+import 'screens/member/member_card_screen.dart';
+import 'screens/coupon/my_coupons_screen.dart';
+import 'screens/coupon/coupon_center_screen.dart';
+import 'screens/favorites/favorites_screen.dart';
+import 'screens/address/address_list_screen.dart';
+import 'screens/address/address_edit_screen.dart';
 import 'services/logo_service.dart';
 
 void main() async {
@@ -230,6 +243,19 @@ class BiniHealthApp extends StatelessWidget {
           '/digital-human-call': (context) => const DigitalHumanCallScreen(),
           '/invite': (context) => const InviteScreen(),
           '/messages': (context) => const MessagesScreen(),
+          '/product-list': (context) => const ProductListScreen(),
+          '/product-detail': (context) => const ProductDetailScreen(),
+          '/checkout': (context) => const CheckoutScreen(),
+          '/unified-orders': (context) => const UnifiedOrdersScreen(),
+          '/unified-order-detail': (context) => const UnifiedOrderDetailScreen(),
+          '/review': (context) => const ReviewScreen(),
+          '/refund': (context) => const RefundScreen(),
+          '/member-card': (context) => const MemberCardScreen(),
+          '/my-coupons': (context) => const MyCouponsScreen(),
+          '/coupon-center': (context) => const CouponCenterScreen(),
+          '/favorites': (context) => const FavoritesScreen(),
+          '/address-list': (context) => const AddressListScreen(),
+          '/address-edit': (context) => const AddressEditScreen(),
         },
       ),
     );

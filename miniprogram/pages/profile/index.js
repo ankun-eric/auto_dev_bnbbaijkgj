@@ -1,4 +1,5 @@
 const { syncTabBar } = require('../../utils/util');
+const { get } = require('../../utils/request');
 
 const app = getApp();
 
@@ -11,18 +12,23 @@ Page({
     currentStore: null,
     canSwitchRole: false,
     points: 0,
+    couponCount: 0,
+    favoriteCount: 0,
     orderCount: 0,
     familyCount: 0,
     checkDays: 0,
+    orderTabs: [
+      { label: '待付款', icon: '💰', status: 'pending_payment' },
+      { label: '待收货', icon: '📦', status: 'pending_receipt' },
+      { label: '待使用', icon: '🎫', status: 'pending_use' },
+      { label: '待评价', icon: '⭐', status: 'pending_review' },
+      { label: '退款', icon: '💔', status: 'refund' }
+    ],
     menuList: [
+      { id: 'member', label: '会员卡', icon: '💳', path: '/pages/member-card/index' },
+      { id: 'addresses', label: '地址管理', icon: '📍', path: '/pages/my-addresses/index' },
       { id: 'health', label: '健康档案', icon: '📋', path: '/pages/health-profile/index' },
-      { id: 'family', label: '家庭成员', icon: '👨‍👩‍👧‍👦', path: '/pages/family/index' },
-      { id: 'family-bindlist', label: '家庭关联', icon: '🔗', path: '/pages/family-bindlist/index' },
-      { id: 'points', label: '积分中心', icon: '🎯', path: '/pages/points/index' },
-      { id: 'mall', label: '积分商城', icon: '🛍️', path: '/pages/points-mall/index' },
       { id: 'plan', label: '健康计划', icon: '📅', path: '/pages/health-plan/index' },
-      { id: 'service', label: '在线客服', icon: '🎧', path: '/pages/customer-service/index' },
-      { id: 'invite', label: '邀请好友', icon: '🎁', path: '/pages/invite/index' },
       { id: 'settings', label: '设置', icon: '⚙️', path: '/pages/settings/index' }
     ],
     merchantMenuList: [
@@ -68,15 +74,38 @@ Page({
 
   async loadUserData() {
     try {
+      const userInfo = app.getUserInfo();
       this.setData({
-        points: 1280,
-        orderCount: 5,
-        familyCount: 3,
-        checkDays: 15
+        points: (userInfo && userInfo.points) || 0
       });
+
+      get('/api/coupons/mine', { tab: 'unused' }, { showLoading: false, suppressErrorToast: true })
+        .then(res => { this.setData({ couponCount: (res.items || []).length || res.total || 0 }); })
+        .catch(() => {});
+
+      get('/api/favorites', {}, { showLoading: false, suppressErrorToast: true })
+        .then(res => { this.setData({ favoriteCount: (res.items || []).length || res.total || 0 }); })
+        .catch(() => {});
     } catch (e) {
       console.log('loadUserData error', e);
     }
+  },
+
+  goMemberCard() {
+    wx.navigateTo({ url: '/pages/member-card/index' });
+  },
+
+  goCoupons() {
+    wx.navigateTo({ url: '/pages/my-coupons/index' });
+  },
+
+  goFavorites() {
+    wx.navigateTo({ url: '/pages/my-favorites/index' });
+  },
+
+  goUnifiedOrders(e) {
+    const status = (e && e.currentTarget.dataset.status) || '';
+    wx.navigateTo({ url: `/pages/unified-orders/index?status=${status}` });
   },
 
   switchRole() {

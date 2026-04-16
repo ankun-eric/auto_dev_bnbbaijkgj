@@ -1,0 +1,116 @@
+<view class="detail-page" wx:if="{{product}}">
+  <!-- 轮播图/视频 -->
+  <swiper class="media-swiper" indicator-dots autoplay circular
+          bindchange="onMediaChange">
+    <block wx:for="{{product.media}}" wx:key="index">
+      <swiper-item wx:if="{{item.type === 'video'}}">
+        <video class="media-video" src="{{item.url}}" controls
+               poster="{{item.poster}}" object-fit="cover" />
+      </swiper-item>
+      <swiper-item wx:else>
+        <image class="media-img" src="{{item.url}}" mode="aspectFill"
+               bindtap="previewImage" data-src="{{item.url}}" />
+      </swiper-item>
+    </block>
+    <swiper-item wx:if="{{!product.media || product.media.length === 0}}">
+      <image class="media-img" src="{{product.cover_image}}" mode="aspectFill" />
+    </swiper-item>
+  </swiper>
+
+  <!-- 价格信息 -->
+  <view class="price-section card">
+    <view class="price-row">
+      <view class="price-main">
+        <text class="price-sym">¥</text>
+        <text class="price-val">{{product.price}}</text>
+        <text class="price-orig" wx:if="{{product.original_price}}">¥{{product.original_price}}</text>
+      </view>
+      <text class="sales-text" wx:if="{{product.sales}}">已售{{product.sales}}</text>
+    </view>
+    <view class="points-row" wx:if="{{product.points_price}}">
+      <text class="points-text">积分兑换：{{product.points_price}}积分</text>
+    </view>
+    <text class="product-title">{{product.name}}</text>
+    <view class="tag-row" wx:if="{{product.fulfillment_type}}">
+      <text class="detail-tag">{{product.fulfillment_type_label || product.fulfillment_type}}</text>
+      <text class="detail-tag" wx:if="{{product.category_name}}">{{product.category_name}}</text>
+    </view>
+  </view>
+
+  <!-- 商品描述 -->
+  <view class="desc-section card" wx:if="{{product.description}}">
+    <text class="section-title">商品详情</text>
+    <rich-text class="desc-content" nodes="{{product.description}}" />
+  </view>
+
+  <!-- FAQ -->
+  <view class="faq-section card" wx:if="{{product.faqs && product.faqs.length > 0}}">
+    <text class="section-title">常见问题</text>
+    <view class="faq-item" wx:for="{{product.faqs}}" wx:key="index">
+      <view class="faq-q" bindtap="toggleFaq" data-index="{{index}}">
+        <text class="faq-q-text">Q: {{item.question}}</text>
+        <text class="faq-arrow {{faqExpanded[index] ? 'up' : ''}}">▼</text>
+      </view>
+      <view class="faq-a" wx:if="{{faqExpanded[index]}}">
+        <text class="faq-a-text">A: {{item.answer}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 门店列表 -->
+  <view class="stores-section card" wx:if="{{stores.length > 0}}">
+    <text class="section-title">适用门店</text>
+    <view class="store-item" wx:for="{{stores}}" wx:key="id">
+      <view class="store-info">
+        <text class="store-name">{{item.name}}</text>
+        <text class="store-addr">{{item.address}}</text>
+      </view>
+      <text class="store-distance" wx:if="{{item.distance}}">{{item.distance}}</text>
+    </view>
+  </view>
+
+  <!-- 评价 -->
+  <view class="reviews-section card" wx:if="{{reviews.length > 0}}">
+    <view class="section-header">
+      <text class="section-title">用户评价</text>
+      <text class="review-count">{{product.review_count || reviews.length}}条</text>
+    </view>
+    <view class="review-item" wx:for="{{reviews}}" wx:key="id">
+      <view class="review-top">
+        <view class="review-user">
+          <view class="review-avatar">
+            <text>{{item.user_name ? item.user_name[0] : '匿'}}</text>
+          </view>
+          <text class="review-name">{{item.user_name || '匿名用户'}}</text>
+        </view>
+        <view class="review-stars">
+          <text wx:for="{{5}}" wx:for-item="star" wx:key="star"
+                class="star {{star < item.rating ? 'filled' : ''}}">★</text>
+        </view>
+      </view>
+      <text class="review-content">{{item.content}}</text>
+      <view class="review-images" wx:if="{{item.images && item.images.length > 0}}">
+        <image class="review-img" wx:for="{{item.images}}" wx:for-item="img" wx:key="img"
+               src="{{img}}" mode="aspectFill" />
+      </view>
+      <text class="review-time">{{item.created_at}}</text>
+    </view>
+  </view>
+
+  <view class="bottom-space"></view>
+
+  <!-- 底部栏 -->
+  <view class="bottom-bar safe-bottom">
+    <view class="bar-fav" bindtap="toggleFavorite">
+      <text class="fav-icon {{isFavorited ? 'fav-active' : ''}}">{{isFavorited ? '❤️' : '🤍'}}</text>
+      <text class="fav-text">收藏</text>
+    </view>
+    <view class="bar-buy" bindtap="goBuy">
+      <text>立即购买</text>
+    </view>
+  </view>
+</view>
+
+<view class="loading-wrap" wx:if="{{loading}}">
+  <text class="loading-text">加载中...</text>
+</view>

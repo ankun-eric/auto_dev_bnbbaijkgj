@@ -875,4 +875,127 @@ class ApiService {
       'message_id': messageId,
     });
   }
+
+  // Products
+  Future<Response> getProductCategories() async {
+    return _dio.get(ApiConfig.productCategories);
+  }
+
+  Future<Response> getProducts({
+    int? categoryId,
+    String? fulfillmentType,
+    bool? pointsExchangeable,
+    String? keyword,
+    int page = 1,
+    int pageSize = 20,
+  }) async {
+    final params = <String, dynamic>{'page': page, 'page_size': pageSize};
+    if (categoryId != null) params['category_id'] = categoryId;
+    if (fulfillmentType != null) params['fulfillment_type'] = fulfillmentType;
+    if (pointsExchangeable != null) params['points_exchangeable'] = pointsExchangeable;
+    if (keyword != null) params['keyword'] = keyword;
+    return _dio.get(ApiConfig.products, queryParameters: params);
+  }
+
+  Future<Response> getProductDetail(int productId) async {
+    return _dio.get('${ApiConfig.products}/$productId');
+  }
+
+  // Unified Orders
+  Future<Response> createUnifiedOrder(Map<String, dynamic> data) async {
+    return _dio.post(ApiConfig.unifiedOrders, data: data);
+  }
+
+  Future<Response> getUnifiedOrders({String? status, int page = 1, int pageSize = 20}) async {
+    final params = <String, dynamic>{'page': page, 'page_size': pageSize};
+    if (status != null) params['status'] = status;
+    return _dio.get(ApiConfig.unifiedOrders, queryParameters: params);
+  }
+
+  Future<Response> getUnifiedOrderDetail(int orderId) async {
+    return _dio.get('${ApiConfig.unifiedOrders}/$orderId');
+  }
+
+  Future<Response> payUnifiedOrder(int orderId, {String paymentMethod = 'wechat'}) async {
+    return _dio.post('${ApiConfig.unifiedOrders}/$orderId/pay', data: {
+      'payment_method': paymentMethod,
+    });
+  }
+
+  Future<Response> confirmReceipt(int orderId) async {
+    return _dio.post('${ApiConfig.unifiedOrders}/$orderId/confirm');
+  }
+
+  Future<Response> cancelUnifiedOrder(int orderId, {String? cancelReason}) async {
+    return _dio.post('${ApiConfig.unifiedOrders}/$orderId/cancel', data: {
+      if (cancelReason != null) 'cancel_reason': cancelReason,
+    });
+  }
+
+  Future<Response> submitReview(int orderId, {required int rating, String? content, List<String>? images}) async {
+    return _dio.post('${ApiConfig.unifiedOrders}/$orderId/review', data: {
+      'rating': rating,
+      if (content != null) 'content': content,
+      if (images != null) 'images': images,
+    });
+  }
+
+  Future<Response> applyRefund(int orderId, {String? reason, double? refundAmount, int? orderItemId}) async {
+    return _dio.post('${ApiConfig.unifiedOrders}/$orderId/refund', data: {
+      if (reason != null) 'reason': reason,
+      if (refundAmount != null) 'refund_amount': refundAmount,
+      if (orderItemId != null) 'order_item_id': orderItemId,
+    });
+  }
+
+  // Member QR Code
+  Future<Response> getMemberQRCode() async {
+    return _dio.get(ApiConfig.memberQrcode);
+  }
+
+  // Favorites
+  Future<Response> toggleFavorite(int contentId, String contentType) async {
+    return _dio.post(ApiConfig.favorites, queryParameters: {
+      'content_id': contentId,
+      'content_type': contentType,
+    });
+  }
+
+  Future<Response> getFavorites({String tab = 'product', int page = 1, int pageSize = 20}) async {
+    return _dio.get(ApiConfig.favorites, queryParameters: {
+      'tab': tab,
+      'page': page,
+      'page_size': pageSize,
+    });
+  }
+
+  // Coupons
+  Future<Response> getAvailableCoupons({int page = 1}) async {
+    return _dio.get(ApiConfig.availableCoupons, queryParameters: {'page': page});
+  }
+
+  Future<Response> claimCoupon(int couponId) async {
+    return _dio.post(ApiConfig.claimCoupon, data: {'coupon_id': couponId});
+  }
+
+  Future<Response> getMyCoupons({String tab = 'unused', int page = 1}) async {
+    return _dio.get(ApiConfig.myCoupons, queryParameters: {'tab': tab, 'page': page});
+  }
+
+  // Addresses
+  Future<Response> getAddresses() async {
+    return _dio.get(ApiConfig.addresses);
+  }
+
+  Future<Response> createAddress(Map<String, dynamic> data) async {
+    return _dio.post(ApiConfig.addresses, data: data);
+  }
+
+  Future<Response> updateAddress(int addressId, Map<String, dynamic> data) async {
+    return _dio.put('${ApiConfig.addresses}/$addressId', data: data);
+  }
+
+  Future<Response> deleteAddress(int addressId) async {
+    return _dio.delete('${ApiConfig.addresses}/$addressId');
+  }
 }

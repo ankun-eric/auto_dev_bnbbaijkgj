@@ -1,0 +1,36 @@
+<view class="favorites-page">
+  <view class="tab-bar">
+    <view class="tab-item {{currentTab === index ? 'active' : ''}}"
+          wx:for="{{tabs}}" wx:key="index"
+          bindtap="switchTab" data-index="{{index}}">
+      <text>{{item.label}}</text>
+    </view>
+  </view>
+
+  <view class="fav-list">
+    <view class="fav-card card" wx:for="{{favorites}}" wx:key="id">
+      <view class="fav-content" bindtap="goDetail" data-item="{{item}}">
+        <image class="fav-img" src="{{item.detail.images[0] || item.detail.cover_image}}" mode="aspectFill" wx:if="{{item.detail && (item.detail.images[0] || item.detail.cover_image)}}" />
+        <view class="fav-info">
+          <text class="fav-name ellipsis-2">{{item.detail.name || item.detail.title || '已删除的内容'}}</text>
+          <text class="fav-price" wx:if="{{item.detail.sale_price}}">¥{{item.detail.sale_price}}</text>
+          <text class="fav-desc ellipsis" wx:elif="{{item.detail.summary}}">{{item.detail.summary}}</text>
+        </view>
+      </view>
+      <view class="fav-remove" catchtap="removeFavorite" data-item="{{item}}">
+        <text class="remove-text">取消收藏</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="loading-more" wx:if="{{loading}}">
+    <text class="loading-text">加载中...</text>
+  </view>
+  <view class="load-end" wx:if="{{!loading && noMore && favorites.length > 0}}">
+    <text class="load-end-text">— 没有更多了 —</text>
+  </view>
+  <view class="empty-state" wx:if="{{!loading && favorites.length === 0}}">
+    <text class="empty-icon">❤️</text>
+    <text class="empty-text">暂无收藏</text>
+  </view>
+</view>

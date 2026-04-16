@@ -1,0 +1,170 @@
+<view class="checkout-page" wx:if="{{product}}">
+  <!-- 地址/门店选择 -->
+  <view class="address-card card" bindtap="chooseAddress"
+        wx:if="{{fulfillmentType === 'express' || fulfillmentType === 'home'}}">
+    <view wx:if="{{address}}">
+      <view class="addr-top">
+        <text class="addr-name">{{address.name}}</text>
+        <text class="addr-phone">{{address.phone}}</text>
+      </view>
+      <text class="addr-detail">{{address.province}}{{address.city}}{{address.district}}{{address.detail}}</text>
+    </view>
+    <view class="addr-empty" wx:else>
+      <text>请选择收货地址</text>
+    </view>
+    <text class="arrow">›</text>
+  </view>
+
+  <view class="address-card card" bindtap="chooseStore"
+        wx:if="{{fulfillmentType === 'store'}}">
+    <view wx:if="{{store}}">
+      <text class="store-name-text">{{store.store_name || store.name}}</text>
+      <text class="addr-detail">{{store.address}}</text>
+    </view>
+    <view class="addr-empty" wx:else>
+      <text>请选择服务门店</text>
+    </view>
+    <text class="arrow">›</text>
+  </view>
+
+  <!-- 商品信息 -->
+  <view class="product-card card">
+    <image class="ck-product-img" src="{{product.cover_image}}" mode="aspectFill" />
+    <view class="ck-product-info">
+      <text class="ck-product-name ellipsis-2">{{product.name}}</text>
+      <view class="ck-product-bottom">
+        <text class="ck-price">¥{{product.price}}</text>
+        <view class="quantity-ctrl">
+          <view class="qty-btn" bindtap="onQuantityMinus">−</view>
+          <text class="qty-num">{{quantity}}</text>
+          <view class="qty-btn" bindtap="onQuantityPlus">+</view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 预约表单 -->
+  <view class="form-card card" wx:if="{{fulfillmentType === 'store' || fulfillmentType === 'home'}}">
+    <text class="form-title">预约信息</text>
+    <view class="form-item">
+      <text class="form-label">预约日期</text>
+      <picker mode="date" value="{{appointmentDate}}" start="{{minDate}}" bindchange="onDateChange">
+        <text class="form-value {{appointmentDate ? '' : 'placeholder'}}">
+          {{appointmentDate || '请选择日期'}}
+        </text>
+      </picker>
+    </view>
+    <view class="form-item">
+      <text class="form-label">预约时间</text>
+      <picker range="{{timeSlots}}" bindchange="onTimeChange">
+        <text class="form-value {{appointmentTime ? '' : 'placeholder'}}">
+          {{appointmentTime || '请选择时间'}}
+        </text>
+      </picker>
+    </view>
+    <view class="form-item">
+      <text class="form-label">备注</text>
+      <input class="form-input" placeholder="请输入备注信息"
+             value="{{appointmentNote}}" bindinput="onNoteInput" />
+    </view>
+  </view>
+
+  <!-- 优惠券 -->
+  <view class="coupon-card card">
+    <view class="form-item" bindtap="toggleCouponPicker">
+      <text class="form-label">优惠券</text>
+      <view class="form-right">
+        <text class="coupon-selected" wx:if="{{selectedCoupon}}">-¥{{selectedCoupon.value}}</text>
+        <text class="form-value placeholder" wx:else>
+          {{coupons.length > 0 ? coupons.length + '张可用' : '暂无可用'}}
+        </text>
+        <text class="arrow-sm">›</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 优惠券选择弹窗 -->
+  <view class="coupon-mask" wx:if="{{showCouponPicker}}" bindtap="toggleCouponPicker">
+    <view class="coupon-popup" catchtap="">
+      <view class="popup-header">
+        <text class="popup-title">选择优惠券</text>
+        <text class="popup-close" bindtap="toggleCouponPicker">×</text>
+      </view>
+      <scroll-view class="coupon-list" scroll-y>
+        <view class="coupon-option" wx:for="{{coupons}}" wx:key="id"
+              bindtap="selectCoupon" data-item="{{item}}">
+          <view class="coupon-val">
+            <text class="coupon-sym">¥</text>
+            <text class="coupon-amount">{{item.value}}</text>
+          </view>
+          <view class="coupon-desc">
+            <text class="coupon-name-text">{{item.name}}</text>
+            <text class="coupon-cond">{{item.condition || '无门槛'}}</text>
+          </view>
+        </view>
+        <view class="coupon-option" bindtap="clearCoupon">
+          <text class="coupon-none">不使用优惠券</text>
+        </view>
+      </scroll-view>
+    </view>
+  </view>
+
+  <!-- 积分抵扣 -->
+  <view class="points-card card">
+    <view class="form-item" bindtap="togglePoints">
+      <text class="form-label">积分抵扣</text>
+      <view class="form-right">
+        <text class="points-info">可用{{availablePoints}}积分</text>
+        <view class="switch-box {{usePoints ? 'on' : ''}}">
+          <view class="switch-dot"></view>
+        </view>
+      </view>
+    </view>
+    <text class="points-hint" wx:if="{{usePoints}}">使用积分抵扣 ¥{{pointsDeduction}}</text>
+  </view>
+
+  <!-- 支付方式 -->
+  <view class="pay-card card">
+    <text class="form-title">支付方式</text>
+    <view class="pay-option active">
+      <text class="pay-icon">💚</text>
+      <text class="pay-label">微信支付</text>
+      <view class="radio-dot checked"></view>
+    </view>
+  </view>
+
+  <!-- 价格汇总 -->
+  <view class="summary-card card">
+    <view class="summary-row">
+      <text class="summary-label">商品金额</text>
+      <text class="summary-value">¥{{totalPrice}}</text>
+    </view>
+    <view class="summary-row" wx:if="{{discountPrice > 0}}">
+      <text class="summary-label">优惠券</text>
+      <text class="summary-value discount">-¥{{discountPrice}}</text>
+    </view>
+    <view class="summary-row" wx:if="{{pointsDeduction > 0}}">
+      <text class="summary-label">积分抵扣</text>
+      <text class="summary-value discount">-¥{{pointsDeduction}}</text>
+    </view>
+    <view class="summary-divider"></view>
+    <view class="summary-row total">
+      <text class="summary-label">实付金额</text>
+      <text class="summary-value final">¥{{finalPrice}}</text>
+    </view>
+  </view>
+
+  <view class="bottom-space"></view>
+
+  <!-- 底部提交 -->
+  <view class="submit-bar safe-bottom">
+    <view class="submit-price">
+      <text class="submit-label">合计：</text>
+      <text class="submit-sym">¥</text>
+      <text class="submit-amount">{{finalPrice}}</text>
+    </view>
+    <view class="submit-btn {{submitting ? 'disabled' : ''}}" bindtap="submitOrder">
+      <text>{{submitting ? '提交中...' : '提交订单'}}</text>
+    </view>
+  </view>
+</view>

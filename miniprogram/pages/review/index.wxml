@@ -1,0 +1,46 @@
+<view class="review-page">
+  <!-- 星级评分 -->
+  <view class="rating-section card">
+    <text class="section-label">服务评分</text>
+    <view class="star-row">
+      <text class="star {{index < rating ? 'filled' : ''}}"
+            wx:for="{{5}}" wx:key="index"
+            bindtap="setRating" data-star="{{index + 1}}">★</text>
+    </view>
+    <text class="rating-text">{{rating === 5 ? '非常满意' : rating === 4 ? '满意' : rating === 3 ? '一般' : rating === 2 ? '不满意' : '非常不满意'}}</text>
+  </view>
+
+  <!-- 评价内容 -->
+  <view class="content-section card">
+    <text class="section-label">评价内容</text>
+    <textarea class="review-textarea" placeholder="请分享您的使用体验..."
+              value="{{content}}" bindinput="onContentInput"
+              maxlength="500" auto-height />
+    <text class="char-count">{{content.length}}/500</text>
+  </view>
+
+  <!-- 图片上传 -->
+  <view class="image-section card">
+    <text class="section-label">上传图片（最多{{maxImages}}张）</text>
+    <view class="image-grid">
+      <view class="image-item" wx:for="{{images}}" wx:key="index">
+        <image class="upload-img" src="{{item}}" mode="aspectFill"
+               bindtap="previewImage" data-src="{{item}}" />
+        <view class="remove-btn" catchtap="removeImage" data-index="{{index}}">
+          <text>×</text>
+        </view>
+      </view>
+      <view class="image-add" bindtap="chooseImage" wx:if="{{images.length < maxImages}}">
+        <text class="add-icon">+</text>
+        <text class="add-text">添加图片</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 提交 -->
+  <view class="submit-wrap">
+    <view class="submit-btn {{submitting ? 'disabled' : ''}}" bindtap="submitReview">
+      <text>{{submitting ? '提交中...' : '提交评价'}}</text>
+    </view>
+  </view>
+</view>

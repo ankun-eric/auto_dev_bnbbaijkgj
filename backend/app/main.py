@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.api import (
+    addresses,
     admin,
     admin_health_plan,
     admin_merchant,
@@ -20,6 +21,7 @@ from app.api import (
     city,
     content,
     cos,
+    coupons,
     customer_service,
     drug,
     drug_identify_share,
@@ -27,12 +29,14 @@ from app.api import (
     expert,
     family,
     family_management,
+    favorites,
     font_setting,
     function_button,
     health_plan_v2,
     health_profile,
     home_config,
     knowledge,
+    member_qr,
     messages,
     notice,
     notification,
@@ -42,6 +46,8 @@ from app.api import (
     plan,
     points,
     merchant,
+    product_admin,
+    products,
     prompt_templates,
     referral,
     report,
@@ -51,6 +57,7 @@ from app.api import (
     sms,
     tcm,
     tts,
+    unified_orders,
     upload,
     wechat_push,
 )
@@ -194,6 +201,13 @@ app.include_router(tts.router)
 app.include_router(tts.admin_router)
 app.include_router(chat_share.router)
 app.include_router(chat_share.admin_router)
+app.include_router(products.router)
+app.include_router(unified_orders.router)
+app.include_router(member_qr.router)
+app.include_router(favorites.router)
+app.include_router(coupons.router)
+app.include_router(addresses.router)
+app.include_router(product_admin.router)
 
 os.makedirs("uploads", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")

@@ -32,6 +32,11 @@ import {
   TeamOutlined,
   SoundOutlined,
   ShareAltOutlined,
+  AppstoreOutlined,
+  TagsOutlined,
+  ScanOutlined,
+  IdcardOutlined,
+  PieChartOutlined,
 } from '@ant-design/icons';
 import { useRouter, usePathname } from 'next/navigation';
 import type { MenuProps } from 'antd';
@@ -128,6 +133,20 @@ const menuItems: MenuItem[] = [
   },
   { key: '/orders', icon: <ShoppingCartOutlined />, label: '订单管理' },
   {
+    key: 'product-system',
+    icon: <AppstoreOutlined />,
+    label: '商品体系',
+    children: [
+      { key: '/product-system/categories', icon: <TagsOutlined />, label: '商品分类' },
+      { key: '/product-system/products', icon: <ShopOutlined />, label: '商品管理' },
+      { key: '/product-system/orders', icon: <ShoppingCartOutlined />, label: '统一订单' },
+      { key: '/product-system/coupons', icon: <GiftOutlined />, label: '优惠券管理' },
+      { key: '/product-system/redemptions', icon: <ScanOutlined />, label: '核销管理' },
+      { key: '/product-system/visits', icon: <IdcardOutlined />, label: '进店记录' },
+      { key: '/product-system/statistics', icon: <PieChartOutlined />, label: '数据统计' },
+    ],
+  },
+  {
     key: 'content',
     icon: <FileTextOutlined />,
     label: '内容管理',
@@ -205,6 +224,7 @@ function getOpenKeys(pathname: string): string[] {
   if (pathname.startsWith('/sms') || pathname.startsWith('/settings') || pathname.startsWith('/wechat-push') || pathname.startsWith('/email-notify') || pathname.startsWith('/cos-config')) return ['system'];
   if (pathname.startsWith('/health-plan')) return ['health-plan'];
   if (pathname.startsWith('/health-records') || pathname.startsWith('/relation-types') || pathname.startsWith('/disease-presets') || pathname.startsWith('/family-management')) return ['health'];
+  if (pathname.startsWith('/product-system')) return ['product-system'];
   return [];
 }
 

@@ -184,4 +184,25 @@ class ApiConfig {
   static const String messages = '/api/messages';
   static const String messagesUnreadCount = '/api/messages/unread-count';
   static const String messagesReadAll = '/api/messages/read-all';
+
+  // Products
+  static const String productCategories = '/api/products/categories';
+  static const String products = '/api/products';
+
+  // Unified Orders
+  static const String unifiedOrders = '/api/orders/unified';
+
+  // Coupons
+  static const String availableCoupons = '/api/coupons/available';
+  static const String claimCoupon = '/api/coupons/claim';
+  static const String myCoupons = '/api/coupons/mine';
+
+  // Favorites
+  static const String favorites = '/api/favorites';
+
+  // Addresses
+  static const String addresses = '/api/addresses';
+
+  // Member QR Code
+  static const String memberQrcode = '/api/member/qrcode';
 }

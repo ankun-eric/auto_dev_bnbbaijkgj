@@ -102,6 +102,10 @@ class ProfileScreen extends StatelessWidget {
                           ),
                         ),
                         IconButton(
+                          icon: const Icon(Icons.qr_code, color: Colors.white),
+                          onPressed: () => Navigator.pushNamed(context, '/member-card'),
+                        ),
+                        IconButton(
                           icon: const Icon(Icons.notifications_outlined, color: Colors.white),
                           onPressed: () => Navigator.pushNamed(context, '/notifications'),
                         ),
@@ -119,6 +123,7 @@ class ProfileScreen extends StatelessWidget {
           SliverToBoxAdapter(
             child: Column(
               children: [
+                // Stats bar: Points / Coupons / Favorites
                 Container(
                   margin: const EdgeInsets.fromLTRB(16, 0, 16, 0),
                   transform: Matrix4.translationValues(0, -20, 0),
@@ -139,12 +144,58 @@ class ProfileScreen extends StatelessWidget {
                     children: [
                       _buildStatItem('${user?.points ?? 0}', '积分', () => Navigator.pushNamed(context, '/points')),
                       Container(width: 1, height: 30, color: Colors.grey[200]),
-                      _buildStatItem('0', '优惠券', () {}),
+                      _buildStatItem('--', '优惠券', () => Navigator.pushNamed(context, '/my-coupons')),
                       Container(width: 1, height: 30, color: Colors.grey[200]),
-                      _buildStatItem('0', '收藏', () {}),
+                      _buildStatItem('--', '收藏', () => Navigator.pushNamed(context, '/favorites')),
                     ],
                   ),
                 ),
+
+                // My Orders section with quick icons
+                Container(
+                  margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 14, 8, 6),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text('我的订单', style: TextStyle(fontSize: 13, color: Colors.grey[500], fontWeight: FontWeight.w500)),
+                            TextButton(
+                              onPressed: () => Navigator.pushNamed(context, '/unified-orders', arguments: 0),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text('全部订单', style: TextStyle(fontSize: 13, color: Colors.grey[500])),
+                                  Icon(Icons.chevron_right, size: 18, color: Colors.grey[400]),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(0, 0, 0, 16),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          children: [
+                            _buildOrderIcon(context, Icons.payment, '待支付', 1),
+                            _buildOrderIcon(context, Icons.qr_code, '待使用', 2),
+                            _buildOrderIcon(context, Icons.local_shipping_outlined, '待发货', 3),
+                            _buildOrderIcon(context, Icons.rate_review_outlined, '待评价', 4),
+                            _buildOrderIcon(context, Icons.replay, '退款', null, route: '/unified-orders'),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
                 _buildMenuSection('健康管理', [
                   _MenuItem(Icons.folder_outlined, '健康档案', () => Navigator.pushNamed(context, '/health-profile')),
                   _MenuItem(Icons.family_restroom, '家庭成员', () => Navigator.pushNamed(context, '/family')),
@@ -152,11 +203,15 @@ class ProfileScreen extends StatelessWidget {
                   _MenuItem(Icons.calendar_today, '健康计划', () => Navigator.pushNamed(context, '/health-plan')),
                   _MenuItem(Icons.assignment, '体检报告', () => Navigator.pushNamed(context, '/checkup')),
                 ]),
-                _buildMenuSection('订单服务', [
-                  _MenuItem(Icons.receipt_long, '我的订单', () => Navigator.pushNamed(context, '/orders')),
-                  _MenuItem(Icons.star_outline, '我的收藏', () {}),
-                  _MenuItem(Icons.history, '浏览历史', () {}),
+
+                _buildMenuSection('商品服务', [
+                  _MenuItem(Icons.shopping_bag_outlined, '健康商品', () => Navigator.pushNamed(context, '/product-list')),
+                  _MenuItem(Icons.credit_card, '会员卡', () => Navigator.pushNamed(context, '/member-card')),
+                  _MenuItem(Icons.local_offer_outlined, '领券中心', () => Navigator.pushNamed(context, '/coupon-center')),
+                  _MenuItem(Icons.location_on_outlined, '收货地址', () => Navigator.pushNamed(context, '/address-list')),
+                  _MenuItem(Icons.favorite_border, '我的收藏', () => Navigator.pushNamed(context, '/favorites')),
                 ]),
+
                 _buildMenuSection('其他', [
                   _MenuItem(Icons.card_giftcard, '邀请好友', () => Navigator.pushNamed(context, '/invite')),
                   _MenuItem(Icons.headset_mic, '联系客服', () => Navigator.pushNamed(context, '/customer-service')),
@@ -168,6 +223,27 @@ class ProfileScreen extends StatelessWidget {
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOrderIcon(BuildContext context, IconData icon, String label, int? tabIndex, {String? route}) {
+    return GestureDetector(
+      onTap: () => Navigator.pushNamed(context, route ?? '/unified-orders', arguments: tabIndex),
+      child: Column(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF0F9EB),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: const Color(0xFF52C41A), size: 22),
+          ),
+          const SizedBox(height: 6),
+          Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[700])),
         ],
       ),
     );

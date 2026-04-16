@@ -3,7 +3,7 @@ version: '3.8'
 services:
   db:
     image: mysql:8.0
-    container_name: bini-health-db
+    container_name: 6b099ed3-7175-4a78-91f4-44570c84ed27-db
     restart: always
     environment:
       MYSQL_ROOT_PASSWORD: bini_health_2026
@@ -15,21 +15,19 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
       - ./backend/init.sql:/docker-entrypoint-initdb.d/init.sql
-    ports:
-      - "3306:3306"
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
-      - bini-network
+      - 6b099ed3-7175-4a78-91f4-44570c84ed27-network
 
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: bini-health-backend
+    container_name: 6b099ed3-7175-4a78-91f4-44570c84ed27-backend
     restart: always
     environment:
       DATABASE_URL: mysql+aiomysql://root:bini_health_2026@db:3306/bini_health
@@ -49,7 +47,7 @@ services:
       db:
         condition: service_healthy
     networks:
-      - bini-network
+      - 6b099ed3-7175-4a78-91f4-44570c84ed27-network
 
   admin-web:
     build:
@@ -58,7 +56,7 @@ services:
       args:
         - NEXT_PUBLIC_API_URL=/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api
         - NEXT_PUBLIC_BASE_PATH=/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin
-    container_name: bini-health-admin
+    container_name: 6b099ed3-7175-4a78-91f4-44570c84ed27-admin
     restart: always
     environment:
       NEXT_PUBLIC_API_URL: /autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api
@@ -67,7 +65,7 @@ services:
     depends_on:
       - backend
     networks:
-      - bini-network
+      - 6b099ed3-7175-4a78-91f4-44570c84ed27-network
 
   h5-web:
     build:
@@ -76,7 +74,7 @@ services:
       args:
         - NEXT_PUBLIC_API_URL=/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api
         - NEXT_PUBLIC_BASE_PATH=/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27
-    container_name: bini-health-h5
+    container_name: 6b099ed3-7175-4a78-91f4-44570c84ed27-frontend
     restart: always
     environment:
       NEXT_PUBLIC_API_URL: /autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api
@@ -85,12 +83,12 @@ services:
     depends_on:
       - backend
     networks:
-      - bini-network
+      - 6b099ed3-7175-4a78-91f4-44570c84ed27-network
 
 volumes:
   mysql_data:
   uploads_data:
 
 networks:
-  bini-network:
+  6b099ed3-7175-4a78-91f4-44570c84ed27-network:
     driver: bridge

@@ -1,0 +1,149 @@
+.coupons-page {
+  padding-bottom: 24rpx;
+}
+
+.tab-bar {
+  display: flex;
+  background: #fff;
+  padding: 0;
+}
+
+.tab-item {
+  flex: 1;
+  text-align: center;
+  padding: 24rpx 0;
+  font-size: 28rpx;
+  color: #666;
+  position: relative;
+}
+
+.tab-item.active {
+  color: #52c41a;
+  font-weight: bold;
+}
+
+.tab-item.active::after {
+  content: '';
+  position: absolute;
+  bottom: 4rpx;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 40rpx;
+  height: 4rpx;
+  background: #52c41a;
+  border-radius: 2rpx;
+}
+
+.coupon-list {
+  padding: 24rpx;
+}
+
+.coupon-card {
+  display: flex;
+  align-items: stretch;
+  background: #fff;
+  border-radius: 16rpx;
+  margin-bottom: 20rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+}
+
+.coupon-card.disabled {
+  opacity: 0.5;
+}
+
+.coupon-left {
+  width: 200rpx;
+  background: linear-gradient(135deg, #52c41a, #13c2c2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24rpx 16rpx;
+  flex-shrink: 0;
+}
+
+.coupon-card.disabled .coupon-left {
+  background: linear-gradient(135deg, #bbb, #ccc);
+}
+
+.coupon-sym {
+  font-size: 24rpx;
+  color: #fff;
+}
+
+.coupon-amount {
+  font-size: 56rpx;
+  font-weight: bold;
+  color: #fff;
+  line-height: 1;
+}
+
+.coupon-condition {
+  font-size: 20rpx;
+  color: rgba(255, 255, 255, 0.8);
+  margin-top: 8rpx;
+}
+
+.coupon-divider {
+  width: 1rpx;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 8rpx,
+    #e8e8e8 8rpx,
+    #e8e8e8 16rpx
+  );
+}
+
+.coupon-right {
+  flex: 1;
+  padding: 24rpx;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.coupon-name {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 8rpx;
+}
+
+.coupon-scope {
+  font-size: 22rpx;
+  color: #999;
+  margin-bottom: 4rpx;
+}
+
+.coupon-expire {
+  font-size: 22rpx;
+  color: #ccc;
+  margin-bottom: 12rpx;
+}
+
+.coupon-use-btn {
+  align-self: flex-end;
+  background: linear-gradient(135deg, #52c41a, #13c2c2);
+  color: #fff;
+  font-size: 24rpx;
+  padding: 8rpx 28rpx;
+  border-radius: 999rpx;
+}
+
+.coupon-status-text {
+  font-size: 24rpx;
+  color: #ccc;
+  align-self: flex-end;
+}
+
+.loading-more {
+  text-align: center;
+  padding: 40rpx 0;
+}
+
+.loading-text {
+  font-size: 24rpx;
+  color: #999;
+}

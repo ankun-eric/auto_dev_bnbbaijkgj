@@ -127,6 +127,106 @@ class ContentTypeEnum(str, enum.Enum):
     video = "video"
 
 
+class FulfillmentType(str, enum.Enum):
+    in_store = "in_store"
+    delivery = "delivery"
+
+
+class ProductStatus(str, enum.Enum):
+    active = "active"
+    inactive = "inactive"
+    draft = "draft"
+
+
+class CategoryStatus(str, enum.Enum):
+    active = "active"
+    inactive = "inactive"
+
+
+class AppointmentMode(str, enum.Enum):
+    none = "none"
+    schedule = "schedule"
+    free_time = "free_time"
+    walk_in = "walk_in"
+
+
+class PurchaseAppointmentMode(str, enum.Enum):
+    must_appoint = "must_appoint"
+    appoint_later = "appoint_later"
+
+
+class FormFieldType(str, enum.Enum):
+    text = "text"
+    textarea = "textarea"
+    radio = "radio"
+    checkbox = "checkbox"
+    date = "date"
+    time = "time"
+    image = "image"
+    phone = "phone"
+    id_card = "id_card"
+    address = "address"
+
+
+class UnifiedOrderStatus(str, enum.Enum):
+    pending_payment = "pending_payment"
+    pending_shipment = "pending_shipment"
+    pending_receipt = "pending_receipt"
+    pending_use = "pending_use"
+    pending_review = "pending_review"
+    completed = "completed"
+    cancelled = "cancelled"
+
+
+class RefundStatusEnum(str, enum.Enum):
+    none = "none"
+    applied = "applied"
+    reviewing = "reviewing"
+    approved = "approved"
+    rejected = "rejected"
+    returning = "returning"
+    refund_success = "refund_success"
+
+
+class UnifiedPaymentMethod(str, enum.Enum):
+    wechat = "wechat"
+    alipay = "alipay"
+    points = "points"
+
+
+class CouponType(str, enum.Enum):
+    full_reduction = "full_reduction"
+    discount = "discount"
+    voucher = "voucher"
+    free_trial = "free_trial"
+
+
+class CouponScope(str, enum.Enum):
+    all = "all"
+    category = "category"
+    product = "product"
+
+
+class CouponStatus(str, enum.Enum):
+    active = "active"
+    inactive = "inactive"
+
+
+class UserCouponStatus(str, enum.Enum):
+    unused = "unused"
+    used = "used"
+    expired = "expired"
+
+
+class RefundRequestStatus(str, enum.Enum):
+    pending = "pending"
+    reviewing = "reviewing"
+    approved = "approved"
+    rejected = "rejected"
+    returning = "returning"
+    completed = "completed"
+
+
 class PointsMallItemType(str, enum.Enum):
     virtual = "virtual"
     physical = "physical"
@@ -2079,3 +2179,316 @@ class SystemMessage(Base):
 
     recipient = relationship("User", foreign_keys=[recipient_user_id])
     sender = relationship("User", foreign_keys=[sender_user_id])
+
+
+# ──────────────── 商品体系 ────────────────
+
+
+class ProductCategory(Base):
+    __tablename__ = "product_categories"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name = mapped_column(String(100), nullable=False)
+    parent_id = mapped_column(Integer, ForeignKey("product_categories.id"), nullable=True, index=True)
+    icon = mapped_column(String(500), nullable=True)
+    description = mapped_column(Text, nullable=True)
+    sort_order = mapped_column(Integer, default=0)
+    status = mapped_column(Enum(CategoryStatus), default=CategoryStatus.active)
+    level = mapped_column(Integer, default=1)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    parent = relationship("ProductCategory", remote_side="ProductCategory.id", backref="children")
+
+
+class AppointmentForm(Base):
+    __tablename__ = "appointment_forms"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name = mapped_column(String(200), nullable=False)
+    description = mapped_column(Text, nullable=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    fields = relationship("AppointmentFormField", back_populates="form", order_by="AppointmentFormField.sort_order")
+
+
+class AppointmentFormField(Base):
+    __tablename__ = "appointment_form_fields"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    form_id = mapped_column(Integer, ForeignKey("appointment_forms.id"), nullable=False, index=True)
+    field_type = mapped_column(Enum(FormFieldType), nullable=False)
+    label = mapped_column(String(200), nullable=False)
+    placeholder = mapped_column(String(200), nullable=True)
+    required = mapped_column(Boolean, default=False)
+    options = mapped_column(JSON, nullable=True)
+    sort_order = mapped_column(Integer, default=0)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    form = relationship("AppointmentForm", back_populates="fields")
+
+
+class Product(Base):
+    __tablename__ = "products"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name = mapped_column(String(200), nullable=False)
+    category_id = mapped_column(Integer, ForeignKey("product_categories.id"), nullable=False, index=True)
+    fulfillment_type = mapped_column(Enum(FulfillmentType), nullable=False)
+    original_price = mapped_column(Numeric(10, 2), nullable=False)
+    sale_price = mapped_column(Numeric(10, 2), nullable=False)
+    images = mapped_column(JSON, nullable=True)
+    video_url = mapped_column(String(500), nullable=True)
+    description = mapped_column(Text, nullable=True)
+    symptom_tags = mapped_column(JSON, nullable=True)
+    stock = mapped_column(Integer, default=0)
+    valid_start_date = mapped_column(Date, nullable=True)
+    valid_end_date = mapped_column(Date, nullable=True)
+    points_exchangeable = mapped_column(Boolean, default=False)
+    points_price = mapped_column(Integer, default=0)
+    points_deductible = mapped_column(Boolean, default=False)
+    redeem_count = mapped_column(Integer, default=1)
+    appointment_mode = mapped_column(Enum(AppointmentMode), default=AppointmentMode.none)
+    purchase_appointment_mode = mapped_column(Enum(PurchaseAppointmentMode), nullable=True)
+    custom_form_id = mapped_column(Integer, ForeignKey("appointment_forms.id"), nullable=True)
+    faq = mapped_column(JSON, nullable=True)
+    recommend_weight = mapped_column(Integer, default=0)
+    sales_count = mapped_column(Integer, default=0)
+    status = mapped_column(Enum(ProductStatus), default=ProductStatus.draft)
+    sort_order = mapped_column(Integer, default=0)
+    payment_timeout_minutes = mapped_column(Integer, default=15)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    category = relationship("ProductCategory")
+    custom_form = relationship("AppointmentForm")
+    stores = relationship("ProductStore", back_populates="product")
+
+
+class ProductStore(Base):
+    __tablename__ = "product_stores"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    product_id = mapped_column(Integer, ForeignKey("products.id"), nullable=False, index=True)
+    store_id = mapped_column(Integer, ForeignKey("merchant_stores.id"), nullable=False, index=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (UniqueConstraint("product_id", "store_id", name="uq_product_store"),)
+
+    product = relationship("Product", back_populates="stores")
+    store = relationship("MerchantStore")
+
+
+# ──────────────── 收货地址 ────────────────
+
+
+class UserAddress(Base):
+    __tablename__ = "user_addresses"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    name = mapped_column(String(100), nullable=False)
+    phone = mapped_column(String(20), nullable=False)
+    province = mapped_column(String(50), nullable=False)
+    city = mapped_column(String(50), nullable=False)
+    district = mapped_column(String(50), nullable=False)
+    street = mapped_column(String(255), nullable=False)
+    is_default = mapped_column(Boolean, default=False)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    user = relationship("User")
+
+
+# ──────────────── 优惠券 ────────────────
+
+
+class Coupon(Base):
+    __tablename__ = "coupons"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name = mapped_column(String(200), nullable=False)
+    type = mapped_column(Enum(CouponType), nullable=False)
+    condition_amount = mapped_column(Numeric(10, 2), default=0)
+    discount_value = mapped_column(Numeric(10, 2), default=0)
+    discount_rate = mapped_column(Float, default=1.0)
+    scope = mapped_column(Enum(CouponScope), default=CouponScope.all)
+    scope_ids = mapped_column(JSON, nullable=True)
+    total_count = mapped_column(Integer, default=0)
+    claimed_count = mapped_column(Integer, default=0)
+    used_count = mapped_column(Integer, default=0)
+    valid_start = mapped_column(DateTime, nullable=True)
+    valid_end = mapped_column(DateTime, nullable=True)
+    status = mapped_column(Enum(CouponStatus), default=CouponStatus.active)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class UserCoupon(Base):
+    __tablename__ = "user_coupons"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    coupon_id = mapped_column(Integer, ForeignKey("coupons.id"), nullable=False, index=True)
+    status = mapped_column(Enum(UserCouponStatus), default=UserCouponStatus.unused)
+    used_at = mapped_column(DateTime, nullable=True)
+    order_id = mapped_column(Integer, nullable=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User")
+    coupon = relationship("Coupon")
+
+
+# ──────────────── 统一订单 ────────────────
+
+
+class UnifiedOrder(Base):
+    __tablename__ = "unified_orders"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    order_no = mapped_column(String(50), unique=True, nullable=False, index=True)
+    user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    total_amount = mapped_column(Numeric(10, 2), nullable=False)
+    paid_amount = mapped_column(Numeric(10, 2), default=0)
+    points_deduction = mapped_column(Integer, default=0)
+    payment_method = mapped_column(Enum(UnifiedPaymentMethod), nullable=True)
+    coupon_id = mapped_column(Integer, ForeignKey("coupons.id"), nullable=True)
+    coupon_discount = mapped_column(Numeric(10, 2), default=0)
+    status = mapped_column(Enum(UnifiedOrderStatus), default=UnifiedOrderStatus.pending_payment)
+    refund_status = mapped_column(Enum(RefundStatusEnum), default=RefundStatusEnum.none)
+    shipping_address_id = mapped_column(Integer, ForeignKey("user_addresses.id"), nullable=True)
+    shipping_info = mapped_column(JSON, nullable=True)
+    tracking_number = mapped_column(String(100), nullable=True)
+    tracking_company = mapped_column(String(100), nullable=True)
+    notes = mapped_column(Text, nullable=True)
+    payment_timeout_minutes = mapped_column(Integer, default=15)
+    paid_at = mapped_column(DateTime, nullable=True)
+    shipped_at = mapped_column(DateTime, nullable=True)
+    received_at = mapped_column(DateTime, nullable=True)
+    completed_at = mapped_column(DateTime, nullable=True)
+    cancelled_at = mapped_column(DateTime, nullable=True)
+    cancel_reason = mapped_column(Text, nullable=True)
+    auto_confirm_days = mapped_column(Integer, default=7)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    user = relationship("User")
+    coupon = relationship("Coupon")
+    shipping_address = relationship("UserAddress")
+    items = relationship("OrderItem", back_populates="order")
+
+
+class OrderItem(Base):
+    __tablename__ = "order_items"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    order_id = mapped_column(Integer, ForeignKey("unified_orders.id"), nullable=False, index=True)
+    product_id = mapped_column(Integer, ForeignKey("products.id"), nullable=False, index=True)
+    product_name = mapped_column(String(200), nullable=False)
+    product_image = mapped_column(String(500), nullable=True)
+    product_price = mapped_column(Numeric(10, 2), nullable=False)
+    quantity = mapped_column(Integer, default=1)
+    subtotal = mapped_column(Numeric(10, 2), nullable=False)
+    fulfillment_type = mapped_column(Enum(FulfillmentType), nullable=False)
+    verification_code = mapped_column(String(20), nullable=True)
+    verification_qrcode_token = mapped_column(String(100), nullable=True)
+    total_redeem_count = mapped_column(Integer, default=1)
+    used_redeem_count = mapped_column(Integer, default=0)
+    appointment_data = mapped_column(JSON, nullable=True)
+    appointment_time = mapped_column(DateTime, nullable=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    order = relationship("UnifiedOrder", back_populates="items")
+    product = relationship("Product")
+
+
+class OrderRedemption(Base):
+    __tablename__ = "order_redemptions"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    order_item_id = mapped_column(Integer, ForeignKey("order_items.id"), nullable=False, index=True)
+    redeemed_by_user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
+    store_id = mapped_column(Integer, ForeignKey("merchant_stores.id"), nullable=True)
+    redeemed_at = mapped_column(DateTime, default=datetime.utcnow)
+    notes = mapped_column(Text, nullable=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+
+    order_item = relationship("OrderItem")
+    redeemed_by = relationship("User")
+    store = relationship("MerchantStore")
+
+
+# ──────────────── 会员码与签到 ────────────────
+
+
+class MemberQRToken(Base):
+    __tablename__ = "member_qr_tokens"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    token = mapped_column(String(100), unique=True, nullable=False)
+    expires_at = mapped_column(DateTime, nullable=False)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User")
+
+
+class CheckinRecord(Base):
+    __tablename__ = "checkin_records"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    store_id = mapped_column(Integer, ForeignKey("merchant_stores.id"), nullable=False, index=True)
+    staff_user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
+    points_earned = mapped_column(Integer, default=0)
+    checked_in_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User", foreign_keys=[user_id])
+    store = relationship("MerchantStore")
+    staff = relationship("User", foreign_keys=[staff_user_id])
+
+
+class StoreVisitRecord(Base):
+    __tablename__ = "store_visit_records"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    store_id = mapped_column(Integer, ForeignKey("merchant_stores.id"), nullable=False, index=True)
+    staff_user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
+    visited_at = mapped_column(DateTime, default=datetime.utcnow)
+    consumption_amount = mapped_column(Numeric(10, 2), default=0)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User", foreign_keys=[user_id])
+    store = relationship("MerchantStore")
+    staff = relationship("User", foreign_keys=[staff_user_id])
+
+
+# ──────────────── 退款 ────────────────
+
+
+class RefundRequest(Base):
+    __tablename__ = "refund_requests"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    order_id = mapped_column(Integer, ForeignKey("unified_orders.id"), nullable=False, index=True)
+    order_item_id = mapped_column(Integer, ForeignKey("order_items.id"), nullable=True, index=True)
+    user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    reason = mapped_column(Text, nullable=True)
+    refund_amount = mapped_column(Numeric(10, 2), nullable=False)
+    status = mapped_column(Enum(RefundRequestStatus), default=RefundRequestStatus.pending)
+    admin_user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
+    admin_notes = mapped_column(Text, nullable=True)
+    return_tracking_number = mapped_column(String(100), nullable=True)
+    return_tracking_company = mapped_column(String(100), nullable=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    order = relationship("UnifiedOrder")
+    order_item = relationship("OrderItem")
+    user = relationship("User", foreign_keys=[user_id])
+    admin = relationship("User", foreign_keys=[admin_user_id])
