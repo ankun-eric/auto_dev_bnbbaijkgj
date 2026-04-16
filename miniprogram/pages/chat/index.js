@@ -46,7 +46,26 @@ Page({
     functionButtons: [],
     isSymptomLocked: false,
     uploadPercent: -1,
-    showUploadProgress: false
+    showUploadProgress: false,
+
+    // Module 5: Drug recognize quick button
+    showDrugCard: false,
+    drugCardData: null,
+    drugCardExpanded: false,
+    drugImageUploading: false,
+
+    // Module 6: SSE streaming
+    streamingMsgId: '',
+    streamingText: '',
+    showCursor: false,
+    isStreaming: false,
+
+    // Module 7: Action buttons on latest AI reply
+    latestAiMsgId: '',
+
+    // Module 8: TTS
+    isTtsPlaying: false,
+    ttsMsgId: ''
   },
 
   _recognizeManager: null,
@@ -55,6 +74,9 @@ Page({
   _touchStartTime: 0,
   _discardNextResult: false,
   _btnCacheExpire: 0,
+  _audioContext: null,
+  _cursorTimer: null,
+  _sseRequestTask: null,
 
   onLoad(options) {
     const { type = 'health_qa', chatId, question, member } = options;
@@ -101,6 +123,394 @@ Page({
     }
   },
 
+  onUnload() {
+    if (this._recordTimer) {
+      clearInterval(this._recordTimer);
+      this._recordTimer = null;
+    }
+    this._recognizeManager = null;
+    this._stopTts();
+    if (this._cursorTimer) {
+      clearInterval(this._cursorTimer);
+      this._cursorTimer = null;
+    }
+    if (this._sseRequestTask) {
+      this._sseRequestTask.abort();
+      this._sseRequestTask = null;
+    }
+  },
+
+  // ========================
+  // Module 9: Share
+  // ========================
+  onShareAppMessage() {
+    const chatId = this.data.chatId;
+    return {
+      title: '宾尼小康AI健康咨询',
+      path: `/pages/chat/index?chatId=${chatId}&type=${this.data.chatType}`
+    };
+  },
+
+  async shareToFriend() {
+    const msgId = this.data.latestAiMsgId;
+    if (!msgId) {
+      wx.showToast({ title: '暂无可分享的AI回复', icon: 'none' });
+      return;
+    }
+    try {
+      const res = await post('/api/chat/share', {
+        session_id: this.data.chatId,
+        message_id: msgId
+      }, { showLoading: true, suppressErrorToast: false });
+
+      const shareUrl = res.share_url || res.url || '';
+      if (shareUrl) {
+        wx.setClipboardData({
+          data: shareUrl,
+          success: () => wx.showToast({ title: '分享链接已复制', icon: 'success' })
+        });
+      } else {
+        wx.showToast({ title: '分享成功', icon: 'success' });
+      }
+    } catch (e) {
+      wx.showToast({ title: '生成分享链接失败', icon: 'none' });
+    }
+  },
+
+  async generateShareImage() {
+    wx.showLoading({ title: '生成图片中...', mask: true });
+    try {
+      const query = wx.createSelectorQuery();
+      query.select('#share-canvas').fields({ node: true, size: true }).exec((res) => {
+        if (!res || !res[0]) {
+          wx.hideLoading();
+          wx.showToast({ title: '生成失败', icon: 'none' });
+          return;
+        }
+        const canvas = res[0].node;
+        const ctx = canvas.getContext('2d');
+        const width = 600;
+        const height = 800;
+        canvas.width = width;
+        canvas.height = height;
+
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, width, height);
+
+        ctx.fillStyle = '#52c41a';
+        ctx.fillRect(0, 0, width, 80);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 32px sans-serif';
+        ctx.fillText('宾尼小康 AI健康咨询', 30, 52);
+
+        ctx.fillStyle = '#333333';
+        ctx.font = '24px sans-serif';
+        const msgs = this.data.messages.filter(m => m.role !== 'loading').slice(-5);
+        let y = 120;
+        msgs.forEach(msg => {
+          const prefix = msg.role === 'user' ? '我: ' : 'AI: ';
+          const text = prefix + (msg.content || '').substring(0, 80);
+          ctx.fillText(text, 30, y);
+          y += 40;
+        });
+
+        ctx.fillStyle = '#999999';
+        ctx.font = '20px sans-serif';
+        ctx.fillText('长按识别小程序码查看完整对话', 30, height - 40);
+
+        wx.canvasToTempFilePath({
+          canvas,
+          success: (imgRes) => {
+            wx.hideLoading();
+            wx.previewImage({ urls: [imgRes.tempFilePath] });
+          },
+          fail: () => {
+            wx.hideLoading();
+            wx.showToast({ title: '生成失败', icon: 'none' });
+          }
+        });
+      });
+    } catch (e) {
+      wx.hideLoading();
+      wx.showToast({ title: '生成失败', icon: 'none' });
+    }
+  },
+
+  // ========================
+  // Module 7: Copy / TTS / Share buttons
+  // ========================
+  copyMessage(e) {
+    const msgId = e.currentTarget.dataset.msgid;
+    const msg = this.data.messages.find(m => m.id === msgId);
+    if (!msg) return;
+    const text = msg.mainContent || msg.content || '';
+    wx.setClipboardData({
+      data: text,
+      success: () => wx.showToast({ title: '已复制', icon: 'success' })
+    });
+  },
+
+  // ========================
+  // Module 8: TTS
+  // ========================
+  toggleTts(e) {
+    const msgId = e.currentTarget.dataset.msgid;
+    if (this.data.isTtsPlaying && this.data.ttsMsgId === msgId) {
+      this._stopTts();
+      return;
+    }
+    const msg = this.data.messages.find(m => m.id === msgId);
+    if (!msg) return;
+    const text = msg.mainContent || msg.content || '';
+    this._playTts(text, msgId);
+  },
+
+  async _playTts(text, msgId) {
+    this._stopTts();
+
+    if (!this._audioContext) {
+      this._audioContext = wx.createInnerAudioContext();
+      this._audioContext.onEnded(() => {
+        this.setData({ isTtsPlaying: false, ttsMsgId: '' });
+      });
+      this._audioContext.onError(() => {
+        this.setData({ isTtsPlaying: false, ttsMsgId: '' });
+        wx.showToast({ title: '播报失败', icon: 'none' });
+      });
+    }
+
+    this.setData({ isTtsPlaying: true, ttsMsgId: msgId });
+
+    try {
+      const res = await post('/api/tts/synthesize', {
+        text: text.substring(0, 500)
+      }, { showLoading: false, suppressErrorToast: true });
+      const audioUrl = res && res.audio_url;
+      if (!audioUrl) {
+        this.setData({ isTtsPlaying: false, ttsMsgId: '' });
+        wx.showToast({ title: '语音合成失败', icon: 'none' });
+        return;
+      }
+      const app = getApp();
+      this._audioContext.src = `${app.globalData.baseUrl}${audioUrl}`;
+      this._audioContext.play();
+    } catch (e) {
+      this.setData({ isTtsPlaying: false, ttsMsgId: '' });
+      wx.showToast({ title: '播报失败', icon: 'none' });
+    }
+  },
+
+  _stopTts() {
+    if (this._audioContext) {
+      this._audioContext.stop();
+    }
+    this.setData({ isTtsPlaying: false, ttsMsgId: '' });
+  },
+
+  // ========================
+  // Module 5: Drug recognize quick button
+  // ========================
+  onDrugRecognizeTap() {
+    wx.showActionSheet({
+      itemList: ['拍照', '从相册选择'],
+      success: (res) => {
+        const sourceType = res.tapIndex === 0 ? ['camera'] : ['album'];
+        wx.chooseMedia({
+          count: 1,
+          mediaType: ['image'],
+          sourceType,
+          success: (mediaRes) => {
+            const filePath = mediaRes.tempFiles[0].tempFilePath;
+            this._uploadDrugImage(filePath);
+          }
+        });
+      }
+    });
+  },
+
+  async _uploadDrugImage(filePath) {
+    const sizeCheck = await checkFileSize(filePath, 'drug_identify');
+    if (!sizeCheck.ok) {
+      wx.showToast({ title: `文件大小超过限制（最大 ${sizeCheck.maxMb} MB）`, icon: 'none', duration: 2500 });
+      return;
+    }
+
+    const id = generateId();
+    const now = new Date();
+    const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+    const messages = [...this.data.messages, { id, role: 'user', content: '', image: filePath, time }];
+    this.setData({ messages, scrollToId: `msg-${id}`, drugImageUploading: true });
+
+    const loadingId = this.addMessage('loading', '');
+
+    try {
+      const res = await uploadWithProgress('/api/ocr/recognize', filePath, {
+        formData: { scene_name: '拍照识药' },
+        onProgress: (percent) => this.setData({ uploadPercent: percent, showUploadProgress: true })
+      });
+
+      this.setData({ showUploadProgress: false, uploadPercent: -1, drugImageUploading: false });
+      this.removeMessage(loadingId);
+
+      const drugData = res.drugs || res.drug_info || null;
+      if (drugData) {
+        this.setData({ showDrugCard: true, drugCardData: drugData, drugCardExpanded: false });
+      }
+
+      const reply = (res && res.ai_reply) || (res && res.content) || '已收到药品图片，正在识别中...';
+      this.addMessage('assistant', reply);
+    } catch (e) {
+      this.setData({ showUploadProgress: false, uploadPercent: -1, drugImageUploading: false });
+      this.removeMessage(loadingId);
+      this.addMessage('assistant', '药品识别失败，请重试。');
+    }
+  },
+
+  toggleDrugCard() {
+    this.setData({ drugCardExpanded: !this.data.drugCardExpanded });
+  },
+
+  // ========================
+  // Module 6: SSE Streaming
+  // ========================
+  _startSseStream(sessionId, content) {
+    const app = getApp();
+    const url = `${app.globalData.baseUrl}/api/chat/sessions/${sessionId}/stream`;
+    const token = app.globalData.token;
+
+    const msgId = generateId();
+    const now = new Date();
+    const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+
+    const messages = [...this.data.messages, { id: msgId, role: 'assistant', content: '', time, isStreaming: true }];
+    this.setData({
+      messages,
+      scrollToId: `msg-${msgId}`,
+      streamingMsgId: msgId,
+      streamingText: '',
+      isStreaming: true,
+      showCursor: true,
+      latestAiMsgId: ''
+    });
+
+    this._startCursorBlink();
+
+    let fullText = '';
+
+    this._sseRequestTask = wx.request({
+      url,
+      method: 'POST',
+      data: { content, session_type: this.data.chatType },
+      header: {
+        'Content-Type': 'application/json',
+        'Accept': 'text/event-stream',
+        'Authorization': token ? `Bearer ${token}` : ''
+      },
+      enableChunked: true,
+      responseType: 'text',
+      success: () => {},
+      fail: (err) => {
+        if (err.errMsg && err.errMsg.indexOf('abort') >= 0) return;
+        this._finishStreaming(msgId, fullText || '抱歉，网络出现了问题，请稍后重试。');
+      }
+    });
+
+    if (this._sseRequestTask) {
+      this._sseRequestTask.onChunkReceived((resp) => {
+        try {
+          const text = this._decodeChunk(resp.data);
+          const lines = text.split('\n');
+          for (const line of lines) {
+            if (line.startsWith('data:')) {
+              const dataStr = line.substring(5).trim();
+              if (dataStr === '[DONE]') {
+                this._finishStreaming(msgId, fullText);
+                return;
+              }
+              try {
+                const parsed = JSON.parse(dataStr);
+                const delta = parsed.delta || parsed.content || parsed.text || '';
+                if (delta) {
+                  fullText += delta;
+                  this._updateStreamingMessage(msgId, fullText);
+                }
+              } catch (pe) {
+                fullText += dataStr;
+                this._updateStreamingMessage(msgId, fullText);
+              }
+            }
+          }
+        } catch (e) {
+          console.log('SSE chunk parse error', e);
+        }
+      });
+    }
+  },
+
+  _decodeChunk(arrayBuffer) {
+    if (typeof arrayBuffer === 'string') return arrayBuffer;
+    try {
+      const uint8 = new Uint8Array(arrayBuffer);
+      let str = '';
+      for (let i = 0; i < uint8.length; i++) {
+        str += String.fromCharCode(uint8[i]);
+      }
+      return decodeURIComponent(escape(str));
+    } catch (e) {
+      return '';
+    }
+  },
+
+  _updateStreamingMessage(msgId, text) {
+    const idx = this.data.messages.findIndex(m => m.id === msgId);
+    if (idx < 0) return;
+    this.setData({
+      [`messages[${idx}].content`]: text,
+      streamingText: text,
+      scrollToId: `msg-${msgId}`
+    });
+  },
+
+  _finishStreaming(msgId, text) {
+    if (this._cursorTimer) {
+      clearInterval(this._cursorTimer);
+      this._cursorTimer = null;
+    }
+
+    const idx = this.data.messages.findIndex(m => m.id === msgId);
+    if (idx >= 0) {
+      let parsed = {};
+      if (text && text.includes('---disclaimer---')) {
+        const parts = text.split('---disclaimer---');
+        parsed.mainContent = parts[0].trim();
+        parsed.disclaimer = parts[1] ? parts[1].trim() : '';
+      }
+      this.setData({
+        [`messages[${idx}].content`]: text,
+        [`messages[${idx}].isStreaming`]: false,
+        [`messages[${idx}].mainContent`]: parsed.mainContent || '',
+        [`messages[${idx}].disclaimer`]: parsed.disclaimer || '',
+        streamingMsgId: '',
+        streamingText: '',
+        isStreaming: false,
+        showCursor: false,
+        latestAiMsgId: msgId
+      });
+    }
+
+    this._sseRequestTask = null;
+  },
+
+  _startCursorBlink() {
+    if (this._cursorTimer) clearInterval(this._cursorTimer);
+    this._cursorTimer = setInterval(() => {
+      this.setData({ showCursor: !this.data.showCursor });
+    }, 500);
+  },
+
+  // ========================
+  // Font settings
+  // ========================
   async loadFontSetting() {
     try {
       const res = await get('/api/user/font-setting', {}, { showLoading: false, suppressErrorToast: true });
@@ -146,14 +556,9 @@ Page({
     }
   },
 
-  onShareAppMessage() {
-    const chatId = this.data.chatId;
-    return {
-      title: '宾尼小康AI健康咨询',
-      path: `/pages/chat/index?chatId=${chatId}&type=${this.data.chatType}`
-    };
-  },
-
+  // ========================
+  // Chat history & sessions
+  // ========================
   async loadChatHistory(chatId) {
     try {
       // const res = await get(`/api/chat/${chatId}/messages`);
@@ -196,7 +601,8 @@ Page({
     this.setData({
       chatId: session.id,
       chatType: type,
-      messages: []
+      messages: [],
+      latestAiMsgId: ''
     });
     wx.setNavigationBarTitle({ title: typeNames[type] || 'AI健康咨询' });
     this.addMessage('assistant', `您好！我是宾尼小康AI健康助手，很高兴为您提供${typeNames[type] || '健康'}咨询服务。\n\n请描述您的症状或健康问题，我会为您提供专业的分析和建议。`);
@@ -215,7 +621,8 @@ Page({
     this.setData({
       chatId: generateId(),
       chatType: type,
-      messages: []
+      messages: [],
+      latestAiMsgId: ''
     });
     wx.setNavigationBarTitle({ title: typeNames[type] });
     this.addMessage('assistant', `您好！我是宾尼小康AI健康助手，很高兴为您提供${typeNames[type]}咨询服务。\n\n请描述您的症状或健康问题，我会为您提供专业的分析和建议。`);
@@ -233,6 +640,9 @@ Page({
     });
   },
 
+  // ========================
+  // Family members
+  // ========================
   async loadFamilyMembers() {
     try {
       const res = await get('/api/family/members', {}, { showLoading: false, suppressErrorToast: true });
@@ -379,6 +789,9 @@ Page({
     }
   },
 
+  // ========================
+  // Consult target
+  // ========================
   toggleTargetPicker() {
     if (this.data.isSymptomLocked) {
       wx.showToast({
@@ -417,14 +830,9 @@ Page({
     });
   },
 
-  onUnload() {
-    if (this._recordTimer) {
-      clearInterval(this._recordTimer);
-      this._recordTimer = null;
-    }
-    this._recognizeManager = null;
-  },
-
+  // ========================
+  // Voice input
+  // ========================
   _initRecognizeManager() {
     const manager = plugin.getRecordRecognitionManager();
 
@@ -594,6 +1002,9 @@ Page({
 
   preventTouchMove() {},
 
+  // ========================
+  // Message handling
+  // ========================
   onInput(e) {
     this.setData({ inputValue: e.detail.value });
   },
@@ -602,24 +1013,28 @@ Page({
     const content = this.data.inputValue.trim();
     if (!content) return;
 
+    // Stop TTS when user sends new message
+    this._stopTts();
+
     this.addMessage('user', content);
-    this.setData({ inputValue: '' });
+    this.setData({ inputValue: '', latestAiMsgId: '' });
 
-    const loadingId = this.addMessage('loading', '');
-
+    // Try SSE streaming first, fallback to normal request
     try {
-      // const res = await post(`/api/chat/sessions/${sessionId}/messages`, {
-      //   chatId: this.data.chatId,
-      //   type: this.data.chatType,
-      //   message: content
-      // });
-      await this.mockDelay(1000 + Math.random() * 1500);
-      this.removeMessage(loadingId);
-      const { reply, knowledgeHits } = this.getMockReply(content);
-      this.addMessage('assistant', reply, knowledgeHits && knowledgeHits.length ? { knowledgeHits } : {});
+      this._startSseStream(this.data.chatId, content);
     } catch (e) {
-      this.removeMessage(loadingId);
-      this.addMessage('assistant', '抱歉，网络出现了问题，请稍后重试。');
+      // Fallback: normal request
+      const loadingId = this.addMessage('loading', '');
+      try {
+        await this.mockDelay(1000 + Math.random() * 1500);
+        this.removeMessage(loadingId);
+        const { reply, knowledgeHits } = this.getMockReply(content);
+        const msgId = this.addMessage('assistant', reply, knowledgeHits && knowledgeHits.length ? { knowledgeHits } : {});
+        this.setData({ latestAiMsgId: msgId });
+      } catch (err) {
+        this.removeMessage(loadingId);
+        this.addMessage('assistant', '抱歉，网络出现了问题，请稍后重试。');
+      }
     }
   },
 
@@ -640,6 +1055,9 @@ Page({
       const parsed = this._parseMessage(content);
       msgData.mainContent = parsed.mainContent;
       msgData.disclaimer = parsed.disclaimer;
+    }
+    if (role === 'assistant' && content) {
+      this.setData({ latestAiMsgId: id });
     }
     const messages = [...this.data.messages, msgData];
     this.setData({ messages, scrollToId: `msg-${id}` });

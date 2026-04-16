@@ -39,22 +39,42 @@
         <view class="msg-avatar ai-avatar">
           <text class="avatar-emoji">🤖</text>
         </view>
-        <view class="msg-bubble ai-bubble">
-          <text class="msg-text" style="font-size:{{msgFontSize}};">{{item.mainContent || item.content}}</text>
-          <view wx:if="{{item.disclaimer}}" class="disclaimer">
-            <text class="disclaimer-text">{{item.disclaimer}}</text>
+        <view class="msg-content-wrap">
+          <view class="msg-bubble ai-bubble">
+            <text class="msg-text" style="font-size:{{msgFontSize}};">{{item.mainContent || item.content}}</text>
+            <!-- SSE 闪烁光标 -->
+            <text class="streaming-cursor" wx:if="{{item.isStreaming && showCursor}}">|</text>
+            <view wx:if="{{item.disclaimer}}" class="disclaimer">
+              <text class="disclaimer-text">{{item.disclaimer}}</text>
+            </view>
+            <block wx:if="{{item.knowledgeHits && item.knowledgeHits.length}}">
+              <knowledge-card
+                wx:for="{{item.knowledgeHits}}"
+                wx:for-item="kh"
+                wx:key="entry_id"
+                hit="{{kh}}"
+                hit-log-id="{{kh.hit_log_id}}"
+                bind:submitted="onKnowledgeFeedback"
+              />
+            </block>
+            <text class="msg-time">{{item.time}}</text>
           </view>
-          <block wx:if="{{item.knowledgeHits && item.knowledgeHits.length}}">
-            <knowledge-card
-              wx:for="{{item.knowledgeHits}}"
-              wx:for-item="kh"
-              wx:key="entry_id"
-              hit="{{kh}}"
-              hit-log-id="{{kh.hit_log_id}}"
-              bind:submitted="onKnowledgeFeedback"
-            />
-          </block>
-          <text class="msg-time">{{item.time}}</text>
+
+          <!-- Module 7: Action buttons (only on latest non-streaming AI message) -->
+          <view class="msg-action-bar" wx:if="{{item.id === latestAiMsgId && !item.isStreaming && item.content}}">
+            <view class="action-btn" catchtap="copyMessage" data-msgid="{{item.id}}">
+              <text class="action-icon">📋</text>
+              <text class="action-label">复制</text>
+            </view>
+            <view class="action-btn" catchtap="toggleTts" data-msgid="{{item.id}}">
+              <text class="action-icon">{{isTtsPlaying && ttsMsgId === item.id ? '⏹️' : '🔊'}}</text>
+              <text class="action-label">{{isTtsPlaying && ttsMsgId === item.id ? '停止' : '播报'}}</text>
+            </view>
+            <view class="action-btn" catchtap="shareToFriend">
+              <text class="action-icon">📤</text>
+              <text class="action-label">分享</text>
+            </view>
+          </view>
         </view>
       </view>
 
@@ -82,6 +102,40 @@
             <view class="dot"></view>
           </view>
         </view>
+      </view>
+    </view>
+
+    <!-- 药品识别卡片 (Module 5) -->
+    <view class="drug-card-inline" wx:if="{{showDrugCard && drugCardData}}" id="drug-card">
+      <view class="drug-card-header" bindtap="toggleDrugCard">
+        <text class="drug-card-title">💊 药品识别结果</text>
+        <text class="drug-card-toggle">{{drugCardExpanded ? '收起 ▲' : '展开 ▼'}}</text>
+      </view>
+      <view class="drug-card-body" wx:if="{{drugCardExpanded}}">
+        <block wx:if="{{drugCardData.name}}">
+          <view class="drug-info-item">
+            <text class="drug-info-key">药品名称</text>
+            <text class="drug-info-val">{{drugCardData.name}}</text>
+          </view>
+        </block>
+        <block wx:if="{{drugCardData.ingredients}}">
+          <view class="drug-info-item">
+            <text class="drug-info-key">成分</text>
+            <text class="drug-info-val">{{drugCardData.ingredients}}</text>
+          </view>
+        </block>
+        <block wx:if="{{drugCardData.indications}}">
+          <view class="drug-info-item">
+            <text class="drug-info-key">适应症</text>
+            <text class="drug-info-val">{{drugCardData.indications}}</text>
+          </view>
+        </block>
+        <block wx:if="{{drugCardData.dosage}}">
+          <view class="drug-info-item">
+            <text class="drug-info-key">用法用量</text>
+            <text class="drug-info-val">{{drugCardData.dosage}}</text>
+          </view>
+        </block>
       </view>
     </view>
 
@@ -113,6 +167,14 @@
       </view>
     </view>
   </scroll-view>
+
+  <!-- Module 5: 拍照识药快捷按钮 -->
+  <view class="drug-quick-bar">
+    <view class="drug-quick-btn" bindtap="onDrugRecognizeTap">
+      <text class="drug-quick-icon">💊</text>
+      <text class="drug-quick-text">拍照识药</text>
+    </view>
+  </view>
 
   <!-- 输入区域 -->
   <view class="input-area safe-bottom">
@@ -187,4 +249,7 @@
     bind:refresh="onDrawerRefresh"
     bind:share="onDrawerShare"
   />
+
+  <!-- Module 9: Share canvas (hidden) -->
+  <canvas type="2d" id="share-canvas" style="position: fixed; left: -9999px; top: -9999px; width: 600px; height: 800px;"></canvas>
 </view>

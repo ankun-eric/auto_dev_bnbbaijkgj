@@ -4,59 +4,236 @@
   background: #f5f5f5;
 }
 
-/* 家庭成员选择 */
-.member-section {
+/* 步骤指示器 */
+.steps-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32rpx 48rpx;
   background: #fff;
-  padding: 24rpx 24rpx 20rpx;
-  border-bottom: 1rpx solid #f0f0f0;
 }
 
-.member-section-title {
-  font-size: 26rpx;
-  color: #666;
+.step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.step-dot {
+  width: 48rpx;
+  height: 48rpx;
+  border-radius: 50%;
+  background: #e8e8e8;
+  color: #999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24rpx;
+  font-weight: bold;
+  margin-bottom: 8rpx;
+}
+
+.step-active .step-dot {
+  background: #52c41a;
+  color: #fff;
+}
+
+.step-label {
+  font-size: 22rpx;
+  color: #999;
+}
+
+.step-active .step-label {
+  color: #52c41a;
+}
+
+.step-line {
+  width: 80rpx;
+  height: 4rpx;
+  background: #e8e8e8;
+  margin: 0 16rpx;
+  margin-bottom: 28rpx;
+}
+
+.line-active {
+  background: #52c41a;
+}
+
+/* 内容 */
+.step-content {
+  padding: 24rpx;
+}
+
+.content-title {
+  font-size: 30rpx;
+  font-weight: bold;
+  color: #333;
+  display: block;
+  margin-bottom: 24rpx;
+}
+
+.symptom-section-title {
+  margin-top: 32rpx;
+}
+
+.content-subtitle {
+  font-size: 28rpx;
+  font-weight: bold;
+  color: #333;
   display: block;
   margin-bottom: 16rpx;
 }
 
-.member-scroll {
-  white-space: nowrap;
+.content-hint {
+  font-size: 24rpx;
+  color: #999;
+  display: block;
+  margin-bottom: 24rpx;
 }
 
-.member-list {
+/* 身体部位 */
+.body-parts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20rpx;
+}
+
+.part-item {
+  width: calc(33.33% - 14rpx);
+  background: #fff;
+  border: 2rpx solid #eee;
+  border-radius: 16rpx;
+  padding: 24rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.part-selected {
+  border-color: #52c41a;
+  background: #f6ffed;
+}
+
+.part-icon {
+  font-size: 44rpx;
+  margin-bottom: 8rpx;
+}
+
+.part-name {
+  font-size: 24rpx;
+  color: #333;
+}
+
+/* 症状选择 */
+.symptom-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+}
+
+.symptom-tag {
+  padding: 14rpx 28rpx;
+  background: #fff;
+  border: 2rpx solid #eee;
+  border-radius: 32rpx;
+  font-size: 26rpx;
+  color: #666;
+}
+
+.symptom-selected {
+  border-color: #52c41a;
+  background: #f6ffed;
+  color: #52c41a;
+}
+
+.extra-section {
+  margin-top: 32rpx;
+}
+
+.duration-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+}
+
+.duration-item {
+  padding: 12rpx 24rpx;
+  background: #fff;
+  border: 2rpx solid #eee;
+  border-radius: 8rpx;
+  font-size: 24rpx;
+  color: #666;
+}
+
+.duration-selected {
+  border-color: #52c41a;
+  background: #f6ffed;
+  color: #52c41a;
+}
+
+.desc-input {
+  width: 100%;
+  height: 160rpx;
+  background: #fff;
+  border: 2rpx solid #eee;
+  border-radius: 12rpx;
+  padding: 16rpx;
+  font-size: 26rpx;
+  box-sizing: border-box;
+}
+
+/* ========== 咨询人选择 (与checkup一致) ========== */
+.ck-member-scroll {
+  white-space: nowrap;
+  margin: 24rpx 0;
+}
+
+.ck-member-list {
   display: inline-flex;
   gap: 20rpx;
   padding-bottom: 4rpx;
 }
 
-.member-item {
+.ck-member-item {
   display: inline-flex;
   flex-direction: column;
   align-items: center;
-  padding: 16rpx 20rpx;
+  padding: 20rpx 24rpx;
   background: #f5f5f5;
   border: 2rpx solid transparent;
   border-radius: 16rpx;
-  min-width: 100rpx;
+  min-width: 120rpx;
+  transition: all 0.2s;
 }
 
-.member-selected {
+.ck-member-item:active {
+  transform: scale(0.96);
+}
+
+.ck-member-selected {
   border-color: #52c41a;
   background: #f6ffed;
 }
 
-.member-emoji {
-  font-size: 44rpx;
-  line-height: 1;
-  margin-bottom: 6rpx;
+.ck-member-add {
+  border-style: dashed;
+  border-color: #d9d9d9;
+  background: #fafafa;
 }
 
-.member-relation {
+.ck-member-emoji {
+  font-size: 44rpx;
+  line-height: 1;
+  margin-bottom: 8rpx;
+}
+
+.ck-member-relation {
   font-size: 22rpx;
   color: #999;
   margin-bottom: 2rpx;
 }
 
-.member-name {
+.ck-member-name {
   font-size: 24rpx;
   color: #333;
   font-weight: 500;
@@ -66,8 +243,8 @@
   white-space: nowrap;
 }
 
-.member-selected .member-relation,
-.member-selected .member-name {
+.ck-member-selected .ck-member-relation,
+.ck-member-selected .ck-member-name {
   color: #52c41a;
 }
 
@@ -192,7 +369,7 @@
   color: #d48806;
 }
 
-.delete-btn {
+.health-delete-btn {
   margin-left: 6rpx;
   font-size: 26rpx;
   color: #d48806;
@@ -292,173 +469,6 @@
   font-size: 24rpx;
   color: #ff4d4f;
   margin-top: 4rpx;
-}
-
-/* 步骤指示器 */
-.steps-bar {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 32rpx 48rpx;
-  background: #fff;
-}
-
-.step {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.step-dot {
-  width: 48rpx;
-  height: 48rpx;
-  border-radius: 50%;
-  background: #e8e8e8;
-  color: #999;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 24rpx;
-  font-weight: bold;
-  margin-bottom: 8rpx;
-}
-
-.step-active .step-dot {
-  background: #52c41a;
-  color: #fff;
-}
-
-.step-label {
-  font-size: 22rpx;
-  color: #999;
-}
-
-.step-active .step-label {
-  color: #52c41a;
-}
-
-.step-line {
-  width: 80rpx;
-  height: 4rpx;
-  background: #e8e8e8;
-  margin: 0 16rpx;
-  margin-bottom: 28rpx;
-}
-
-.line-active {
-  background: #52c41a;
-}
-
-/* 内容 */
-.step-content {
-  padding: 24rpx;
-}
-
-.content-title {
-  font-size: 30rpx;
-  font-weight: bold;
-  color: #333;
-  display: block;
-  margin-bottom: 24rpx;
-}
-
-.content-subtitle {
-  font-size: 28rpx;
-  font-weight: bold;
-  color: #333;
-  display: block;
-  margin-bottom: 16rpx;
-}
-
-/* 身体部位 */
-.body-parts {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 20rpx;
-}
-
-.part-item {
-  width: calc(33.33% - 14rpx);
-  background: #fff;
-  border: 2rpx solid #eee;
-  border-radius: 16rpx;
-  padding: 24rpx;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.part-selected {
-  border-color: #52c41a;
-  background: #f6ffed;
-}
-
-.part-icon {
-  font-size: 44rpx;
-  margin-bottom: 8rpx;
-}
-
-.part-name {
-  font-size: 24rpx;
-  color: #333;
-}
-
-/* 症状选择 */
-.symptom-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16rpx;
-}
-
-.symptom-tag {
-  padding: 14rpx 28rpx;
-  background: #fff;
-  border: 2rpx solid #eee;
-  border-radius: 32rpx;
-  font-size: 26rpx;
-  color: #666;
-}
-
-.symptom-selected {
-  border-color: #52c41a;
-  background: #f6ffed;
-  color: #52c41a;
-}
-
-.extra-section {
-  margin-top: 32rpx;
-}
-
-.duration-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16rpx;
-}
-
-.duration-item {
-  padding: 12rpx 24rpx;
-  background: #fff;
-  border: 2rpx solid #eee;
-  border-radius: 8rpx;
-  font-size: 24rpx;
-  color: #666;
-}
-
-.duration-selected {
-  border-color: #52c41a;
-  background: #f6ffed;
-  color: #52c41a;
-}
-
-.desc-input {
-  width: 100%;
-  height: 160rpx;
-  background: #fff;
-  border: 2rpx solid #eee;
-  border-radius: 12rpx;
-  padding: 16rpx;
-  font-size: 26rpx;
-  box-sizing: border-box;
 }
 
 /* 分析结果 */
@@ -571,6 +581,50 @@
   display: flex;
   flex-direction: column;
   gap: 20rpx;
+}
+
+/* 通用卡片 */
+.card {
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 24rpx;
+  margin-bottom: 16rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04);
+}
+
+/* 通用按钮 */
+.btn-primary {
+  width: 100%;
+  height: 88rpx;
+  line-height: 88rpx;
+  background: linear-gradient(135deg, #52c41a, #3dbb08);
+  color: #fff;
+  font-size: 32rpx;
+  font-weight: 500;
+  border-radius: 44rpx;
+  border: none;
+  text-align: center;
+}
+
+.btn-primary::after {
+  border: none;
+}
+
+.btn-outline {
+  width: 100%;
+  height: 88rpx;
+  line-height: 86rpx;
+  background: #fff;
+  color: #52c41a;
+  font-size: 32rpx;
+  font-weight: 500;
+  border-radius: 44rpx;
+  border: 2rpx solid #52c41a;
+  text-align: center;
+}
+
+.btn-outline::after {
+  border: none;
 }
 
 /* 底部按钮 */

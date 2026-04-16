@@ -2,12 +2,69 @@
 
 import { useState, useRef, useEffect, useCallback, Suspense } from 'react';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
-import { NavBar, Input, SpinLoading, Toast, Popup, Tag, DatePicker, Dialog } from 'antd-mobile';
+import { NavBar, Input, SpinLoading, Toast, Popup, Tag, DatePicker, Dialog, ActionSheet } from 'antd-mobile';
 import api from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { checkFileSize, uploadWithProgress } from '@/lib/upload-utils';
 import ChatSidebar from '@/components/ChatSidebar';
 import KnowledgeCard, { type KnowledgeHit } from '@/components/KnowledgeCard';
+
+interface DrugInfoCardData {
+  drug_name?: string;
+  name?: string;
+  indications?: string;
+  dosage?: string;
+  adverse_reactions?: string;
+  precautions?: string;
+  storage_conditions?: string;
+  drug_category?: string;
+  image_url?: string;
+}
+
+function DrugInfoCard({ drug }: { drug: DrugInfoCardData }) {
+  const [expanded, setExpanded] = useState(false);
+  const drugName = drug.drug_name || drug.name || '未知药品';
+  return (
+    <div className="rounded-xl bg-white overflow-hidden mt-2" style={{ border: '1px solid #f0f0f0', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+      <div
+        className="flex items-center gap-3 px-3 py-3 cursor-pointer"
+        onClick={() => setExpanded(!expanded)}
+      >
+        {drug.image_url && (
+          <img src={drug.image_url} alt={drugName} className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
+        )}
+        <div className="flex-1 min-w-0">
+          <div className="font-bold text-sm text-gray-800 truncate">{drugName}</div>
+          {drug.indications && <div className="text-xs text-gray-500 mt-0.5 truncate">功能主治：{drug.indications}</div>}
+          {drug.dosage && <div className="text-xs text-gray-500 mt-0.5 truncate">用法用量：{drug.dosage}</div>}
+        </div>
+        <span className="text-xs flex-shrink-0" style={{ color: '#52c41a' }}>{expanded ? '收起' : '查看详情'}</span>
+      </div>
+      <div
+        style={{
+          maxHeight: expanded ? 500 : 0,
+          overflow: 'hidden',
+          transition: 'max-height 0.3s ease-in-out',
+        }}
+      >
+        <div className="px-3 pb-3 space-y-2 border-t" style={{ borderColor: '#f0f0f0' }}>
+          {drug.adverse_reactions && (
+            <div className="pt-2"><span className="text-xs font-medium" style={{ color: '#FF4D4F' }}>不良反应</span><span className="text-xs text-gray-600 ml-1">{drug.adverse_reactions}</span></div>
+          )}
+          {drug.precautions && (
+            <div><span className="text-xs font-medium" style={{ color: '#fa8c16' }}>注意事项</span><span className="text-xs text-gray-600 ml-1">{drug.precautions}</span></div>
+          )}
+          {drug.storage_conditions && (
+            <div><span className="text-xs font-medium" style={{ color: '#1890ff' }}>存储条件</span><span className="text-xs text-gray-600 ml-1">{drug.storage_conditions}</span></div>
+          )}
+          {drug.drug_category && (
+            <div><span className="text-xs font-medium" style={{ color: '#722ed1' }}>药品分类</span><span className="text-xs text-gray-600 ml-1">{drug.drug_category}</span></div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 interface FunctionButton {
   id: string;
@@ -241,6 +298,32 @@ function ChatPageInner() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
   const [uploadPercent, setUploadPercent] = useState(-1);
+
+  // Module 5: Drug identify from chat
+  const [drugActionSheetVisible, setDrugActionSheetVisible] = useState(false);
+  const drugCameraRef = useRef<HTMLInputElement>(null);
+  const drugAlbumRef = useRef<HTMLInputElement>(null);
+  const [drugRecognizing, setDrugRecognizing] = useState(false);
+
+  // Module 6: SSE streaming
+  const [streamingContent, setStreamingContent] = useState('');
+  const [isStreaming, setIsStreaming] = useState(false);
+  const streamAbortRef = useRef<AbortController | null>(null);
+
+  // Module 7: AI reply action buttons
+  const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null);
+
+  // Module 8: TTS
+  const [ttsPlaying, setTtsPlaying] = useState(false);
+  const [ttsPlayingMsgId, setTtsPlayingMsgId] = useState<string | null>(null);
+  const ttsAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Module 9: Share
+  const [sharePopupVisible, setSharePopupVisible] = useState(false);
+  const [shareMsgId, setShareMsgId] = useState<string | null>(null);
+  const [shareLoading, setShareLoading] = useState(false);
+  const [posterUrl, setPosterUrl] = useState('');
+  const [posterPreviewVisible, setPosterPreviewVisible] = useState(false);
 
   useEffect(() => {
     if (_btnCache && Date.now() - _btnCache.ts < BTN_CACHE_TTL) {
@@ -652,7 +735,7 @@ function ChatPageInner() {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, streamingContent]);
 
   const scrollToBottom = () => {
     if (listRef.current) {
@@ -670,8 +753,23 @@ function ChatPageInner() {
     }
   };
 
+  // Stop TTS when user sends new message
+  const stopTts = useCallback(() => {
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
+    if (ttsAudioRef.current) {
+      ttsAudioRef.current.pause();
+      ttsAudioRef.current = null;
+    }
+    setTtsPlaying(false);
+    setTtsPlayingMsgId(null);
+  }, []);
+
   const sendMessageText = async (text: string) => {
     if (!text || loading) return;
+
+    stopTts();
 
     const userMsg: Message = {
       id: `user-${Date.now()}`,
@@ -688,40 +786,300 @@ function ChatPageInner() {
     setInputVal('');
     setLoading(true);
 
+    // Try SSE streaming first
     try {
-      const res: any = await api.post(`/api/chat/sessions/${sessionId}/messages`, {
-        content: text,
-        message_type: 'text',
+      const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const abortController = new AbortController();
+      streamAbortRef.current = abortController;
+
+      const response = await fetch(`${basePath}/api/chat/sessions/${sessionId}/stream`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ content: text, message_type: 'text' }),
+        signal: abortController.signal,
       });
-      const resData = res.data || res;
+
+      if (!response.ok || !response.body) {
+        throw new Error('SSE not available');
+      }
+
+      setIsStreaming(true);
+      setStreamingContent('');
+      setLoading(false);
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let accumulated = '';
+      let messageId = '';
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('event: ')) {
+            const eventType = line.slice(7).trim();
+            if (eventType === 'done') {
+              // next data line has message_id
+            }
+          } else if (line.startsWith('data: ')) {
+            const dataStr = line.slice(6);
+            try {
+              const data = JSON.parse(dataStr);
+              if (data.content || data.delta) {
+                accumulated += (data.delta || data.content || '');
+                setStreamingContent(accumulated);
+              }
+              if (data.message_id) {
+                messageId = String(data.message_id);
+              }
+              if (data.done) {
+                messageId = data.message_id ? String(data.message_id) : messageId;
+              }
+            } catch {
+              accumulated += dataStr;
+              setStreamingContent(accumulated);
+            }
+          }
+        }
+      }
+
       const aiMsg: Message = {
-        id: resData.id != null ? String(resData.id) : `ai-${Date.now()}`,
+        id: messageId || `ai-${Date.now()}`,
         role: 'assistant',
-        content: resData.content || '抱歉，我暂时无法回答这个问题。请稍后重试。',
+        content: accumulated || '抱歉，我暂时无法回答这个问题。请稍后重试。',
         time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
-        knowledge_hits: Array.isArray(resData.knowledge_hits) ? resData.knowledge_hits : undefined,
       };
       setMessages((prev) => [...prev, aiMsg]);
-    } catch (err: any) {
-      let errorContent = '网络连接异常，请检查网络后重试。';
-      const status = err?.response?.status;
-      if (status === 401) {
-        errorContent = '登录已过期，请重新登录。';
-      } else if (status === 404) {
-        errorContent = '会话不存在，请返回重新创建对话。';
-      } else if (status === 422) {
-        errorContent = '请求参数异常，请返回重新创建对话。';
+      setIsStreaming(false);
+      setStreamingContent('');
+      streamAbortRef.current = null;
+    } catch (streamErr: any) {
+      // Fallback to non-streaming API
+      setIsStreaming(false);
+      setStreamingContent('');
+      streamAbortRef.current = null;
+
+      if (streamErr?.name === 'AbortError') {
+        setLoading(false);
+        return;
       }
-      const fallbackMsg: Message = {
-        id: `ai-${Date.now()}`,
-        role: 'assistant',
-        content: errorContent,
-        time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
-      };
-      setMessages((prev) => [...prev, fallbackMsg]);
+
+      try {
+        const res: any = await api.post(`/api/chat/sessions/${sessionId}/messages`, {
+          content: text,
+          message_type: 'text',
+        });
+        const resData = res.data || res;
+        const aiMsg: Message = {
+          id: resData.id != null ? String(resData.id) : `ai-${Date.now()}`,
+          role: 'assistant',
+          content: resData.content || '抱歉，我暂时无法回答这个问题。请稍后重试。',
+          time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+          knowledge_hits: Array.isArray(resData.knowledge_hits) ? resData.knowledge_hits : undefined,
+        };
+        setMessages((prev) => [...prev, aiMsg]);
+      } catch (err: any) {
+        let errorContent = '网络连接异常，请检查网络后重试。';
+        const status = err?.response?.status;
+        if (status === 401) errorContent = '登录已过期，请重新登录。';
+        else if (status === 404) errorContent = '会话不存在，请返回重新创建对话。';
+        else if (status === 422) errorContent = '请求参数异常，请返回重新创建对话。';
+
+        const fallbackMsg: Message = {
+          id: `ai-${Date.now()}`,
+          role: 'assistant',
+          content: errorContent,
+          time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+        };
+        setMessages((prev) => [...prev, fallbackMsg]);
+      }
     }
     setLoading(false);
   };
+
+  // Module 5: Drug recognize from chat
+  const handleDrugRecognize = async (file: File) => {
+    if (!file || drugRecognizing) return;
+    const sizeCheck = await checkFileSize(file, 'drug_identify');
+    if (!sizeCheck.ok) {
+      Toast.show({ content: `文件大小超过限制（最大 ${sizeCheck.maxMb} MB）`, icon: 'fail' });
+      return;
+    }
+    setDrugRecognizing(true);
+
+    const loadingMsg: Message = {
+      id: `drug-loading-${Date.now()}`,
+      role: 'assistant',
+      content: '正在识别药品...',
+      time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+    };
+    setMessages((prev) => [...prev, loadingMsg]);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('scene_name', '拍照识药');
+      const ocrData: any = await uploadWithProgress('/api/ocr/recognize', formData, undefined, { timeout: 120000 });
+
+      setMessages((prev) => prev.filter((m) => m.id !== loadingMsg.id));
+
+      const drugInfo: DrugInfoCardData = {
+        drug_name: ocrData.drug_name || ocrData.result?.drug_name,
+        indications: ocrData.indications || ocrData.result?.indications,
+        dosage: ocrData.dosage || ocrData.result?.dosage,
+        adverse_reactions: ocrData.adverse_reactions || ocrData.result?.adverse_reactions,
+        precautions: ocrData.precautions || ocrData.result?.precautions,
+        storage_conditions: ocrData.storage_conditions || ocrData.result?.storage_conditions,
+        drug_category: ocrData.drug_category || ocrData.result?.drug_category,
+        image_url: ocrData.image_url || ocrData.result?.image_url,
+      };
+
+      const drugName = drugInfo.drug_name || '药品';
+      const aiMsg: Message = {
+        id: `drug-result-${Date.now()}`,
+        role: 'assistant',
+        content: `__DRUG_CARD__${JSON.stringify(drugInfo)}`,
+        time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+      };
+      setMessages((prev) => [...prev, aiMsg]);
+
+      // Auto-ask about the drug in the session
+      const followUp = `我刚识别了一种药品：${drugName}，请帮我分析这个药品的用药建议。`;
+      sendMessageText(followUp);
+    } catch {
+      setMessages((prev) => prev.filter((m) => m.id !== loadingMsg.id));
+      const errorMsg: Message = {
+        id: `drug-error-${Date.now()}`,
+        role: 'assistant',
+        content: '药品识别失败，请确认图片清晰后重试。',
+        time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+      };
+      setMessages((prev) => [...prev, errorMsg]);
+    } finally {
+      setDrugRecognizing(false);
+      if (drugCameraRef.current) drugCameraRef.current.value = '';
+      if (drugAlbumRef.current) drugAlbumRef.current.value = '';
+    }
+  };
+
+  // Module 8: TTS
+  const handleTts = useCallback(async (msgId: string, text: string) => {
+    if (ttsPlaying && ttsPlayingMsgId === msgId) {
+      stopTts();
+      return;
+    }
+    stopTts();
+
+    const plainText = text.replace(/\*\*(.*?)\*\*/g, '$1').replace(/---disclaimer---[\s\S]*/g, '').trim();
+    if (!plainText) return;
+
+    setTtsPlaying(true);
+    setTtsPlayingMsgId(msgId);
+
+    try {
+      const configRes: any = await api.get('/api/settings/tts-config', { params: { platform: 'h5' } }).catch(() => null);
+      const config = configRes?.data || configRes;
+      const useCloudTts = config?.tts_provider === 'cloud' || config?.use_cloud_tts;
+
+      if (useCloudTts) {
+        const ttsRes: any = await api.post('/api/tts/synthesize', { text: plainText });
+        const data = ttsRes.data || ttsRes;
+        if (data.audio_url) {
+          const audio = new Audio(data.audio_url);
+          ttsAudioRef.current = audio;
+          audio.onended = () => { setTtsPlaying(false); setTtsPlayingMsgId(null); };
+          audio.onerror = () => { setTtsPlaying(false); setTtsPlayingMsgId(null); };
+          audio.play();
+          return;
+        }
+      }
+    } catch { /* fallback to Web Speech */ }
+
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      const utterance = new SpeechSynthesisUtterance(plainText);
+      utterance.lang = 'zh-CN';
+      utterance.rate = 1.0;
+      utterance.onend = () => { setTtsPlaying(false); setTtsPlayingMsgId(null); };
+      utterance.onerror = () => { setTtsPlaying(false); setTtsPlayingMsgId(null); };
+      window.speechSynthesis.speak(utterance);
+    } else {
+      Toast.show({ content: '当前浏览器不支持语音播报' });
+      setTtsPlaying(false);
+      setTtsPlayingMsgId(null);
+    }
+  }, [ttsPlaying, ttsPlayingMsgId, stopTts]);
+
+  // Module 7: Copy
+  const handleCopyMsg = useCallback(async (msgId: string, text: string) => {
+    const plainText = text.replace(/\*\*(.*?)\*\*/g, '$1').replace(/---disclaimer---/g, '\n').trim();
+    try {
+      await navigator.clipboard.writeText(plainText);
+      setCopiedMsgId(msgId);
+      setTimeout(() => setCopiedMsgId(null), 1500);
+    } catch {
+      Toast.show({ content: '复制失败', icon: 'fail' });
+    }
+  }, []);
+
+  // Module 9: Share
+  const handleShareMsg = useCallback((msgId: string) => {
+    setShareMsgId(msgId);
+    setSharePopupVisible(true);
+  }, []);
+
+  const handleShareToWechat = useCallback(async () => {
+    if (!shareMsgId) return;
+    setShareLoading(true);
+    try {
+      const res: any = await api.post('/api/chat/share', { session_id: sessionId, message_id: shareMsgId });
+      const data = res.data || res;
+      const shareToken = data.share_token || data.token;
+      if (shareToken) {
+        const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+        const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+        const shareUrl = `${baseUrl}${basePath}/shared/chat/${shareToken}`;
+        try {
+          await navigator.clipboard.writeText(shareUrl);
+          Toast.show({ content: '分享链接已复制到剪贴板', icon: 'success' });
+        } catch {
+          Toast.show({ content: shareUrl, duration: 5000 });
+        }
+      }
+    } catch {
+      Toast.show({ content: '生成分享链接失败', icon: 'fail' });
+    }
+    setShareLoading(false);
+    setSharePopupVisible(false);
+  }, [shareMsgId, sessionId]);
+
+  const handleSharePoster = useCallback(async () => {
+    if (!shareMsgId) return;
+    setShareLoading(true);
+    try {
+      const res: any = await api.post('/api/chat/share/poster', { session_id: sessionId, message_id: shareMsgId });
+      const data = res.data || res;
+      if (data.poster_url || data.image_url) {
+        setPosterUrl(data.poster_url || data.image_url);
+        setPosterPreviewVisible(true);
+      } else {
+        Toast.show({ content: '生成海报失败', icon: 'fail' });
+      }
+    } catch {
+      Toast.show({ content: '生成海报失败', icon: 'fail' });
+    }
+    setShareLoading(false);
+    setSharePopupVisible(false);
+  }, [shareMsgId, sessionId]);
 
   const sendMessage = async () => {
     const text = inputVal.trim();
@@ -1019,84 +1377,138 @@ function ChatPageInner() {
         </div>
       )}
 
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes cursor-blink {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0; }
+        }
+        .streaming-cursor::after {
+          content: '▌';
+          color: #52c41a;
+          animation: cursor-blink 1s ease-in-out infinite;
+          margin-left: 1px;
+        }
+      `}} />
+
       <div ref={listRef} className="flex-1 overflow-y-auto px-4 py-3">
-        {messages.map((msg) => (
-          <div
-            key={msg.id}
-            className={`flex mb-4 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-          >
-            {msg.role === 'assistant' && (
-              <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center mr-2"
-                style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}>
-                <span className="text-white text-xs">AI</span>
-              </div>
-            )}
-            <div className="max-w-[75%]">
-              {msg.role === 'user' && isFirstUserMsg(msg) ? (
-                <div
-                  className="rounded-2xl rounded-tr-sm px-4 py-3 leading-relaxed cursor-pointer"
-                  style={{ background: '#f6ffed', border: '1.5px solid #52c41a', fontSize: chatFontSize }}
-                  onClick={() => setFirstCardExpanded((v) => !v)}
-                >
-                  <div className="flex items-center gap-1 mb-2">
-                    <span style={{ color: '#52c41a', fontSize: 14 }}>✚</span>
-                    <span className="font-semibold text-xs" style={{ color: '#52c41a' }}>健康自查摘要</span>
-                    <span className="ml-auto text-xs" style={{ color: '#52c41a' }}>
-                      {firstCardExpanded ? '▲' : '▼'}
-                    </span>
-                  </div>
-                  <div
-                    style={{
-                      color: '#444',
-                      overflow: 'hidden',
-                      maxHeight: firstCardExpanded ? 'none' : '1.6em',
-                      whiteSpace: firstCardExpanded ? 'normal' : 'nowrap',
-                      textOverflow: firstCardExpanded ? 'unset' : 'ellipsis',
-                    }}
-                  >
-                    {msg.content}
-                  </div>
-                </div>
-              ) : (
-                <div
-                  className={`rounded-2xl px-4 py-3 leading-relaxed ${
-                    msg.role === 'user'
-                      ? 'bg-primary text-white rounded-tr-sm'
-                      : 'bg-white text-gray-700 rounded-tl-sm shadow-sm'
-                  }`}
-                  style={{ fontSize: chatFontSize }}
-                >
-                  {msg.role === 'assistant' ? renderMarkdown(msg.content) : msg.content}
+        {messages.map((msg, msgIdx) => {
+          const isDrugCard = msg.role === 'assistant' && msg.content.startsWith('__DRUG_CARD__');
+          const isLatestAiReply = msg.role === 'assistant' && msg.id !== 'welcome' && !isStreaming &&
+            msgIdx === messages.length - 1 - [...messages].reverse().findIndex((m) => m.role === 'assistant' && m.id !== 'welcome');
+          const showActionButtons = isLatestAiReply && !isDrugCard && !loading;
+
+          return (
+            <div
+              key={msg.id}
+              className={`flex mb-4 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+            >
+              {msg.role === 'assistant' && (
+                <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center mr-2"
+                  style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}>
+                  <span className="text-white text-xs">AI</span>
                 </div>
               )}
-              {msg.role === 'assistant' && msg.knowledge_hits && msg.knowledge_hits.length > 0 ? (
-                <div className="mt-2 space-y-2 w-full">
-                  {msg.knowledge_hits.map((hit, idx) => (
-                    <KnowledgeCard
-                      key={`${msg.id}-kb-${idx}`}
-                      hit={hit}
-                      hitLogId={hit.hit_log_id}
-                      onFeedback={handleKnowledgeFeedback}
-                    />
-                  ))}
+              <div className="max-w-[75%]">
+                {msg.role === 'user' && isFirstUserMsg(msg) ? (
+                  <div
+                    className="rounded-2xl rounded-tr-sm px-4 py-3 leading-relaxed cursor-pointer"
+                    style={{ background: '#f6ffed', border: '1.5px solid #52c41a', fontSize: chatFontSize }}
+                    onClick={() => setFirstCardExpanded((v) => !v)}
+                  >
+                    <div className="flex items-center gap-1 mb-2">
+                      <span style={{ color: '#52c41a', fontSize: 14 }}>✚</span>
+                      <span className="font-semibold text-xs" style={{ color: '#52c41a' }}>健康自查摘要</span>
+                      <span className="ml-auto text-xs" style={{ color: '#52c41a' }}>{firstCardExpanded ? '▲' : '▼'}</span>
+                    </div>
+                    <div style={{ color: '#444', overflow: 'hidden', maxHeight: firstCardExpanded ? 'none' : '1.6em', whiteSpace: firstCardExpanded ? 'normal' : 'nowrap', textOverflow: firstCardExpanded ? 'unset' : 'ellipsis' }}>
+                      {msg.content}
+                    </div>
+                  </div>
+                ) : isDrugCard ? (
+                  (() => {
+                    try {
+                      const drugData: DrugInfoCardData = JSON.parse(msg.content.replace('__DRUG_CARD__', ''));
+                      return <DrugInfoCard drug={drugData} />;
+                    } catch { return <div className="text-xs text-gray-400">药品信息解析失败</div>; }
+                  })()
+                ) : (
+                  <div
+                    className={`rounded-2xl px-4 py-3 leading-relaxed ${
+                      msg.role === 'user'
+                        ? 'bg-primary text-white rounded-tr-sm'
+                        : 'bg-white text-gray-700 rounded-tl-sm shadow-sm'
+                    }`}
+                    style={{ fontSize: chatFontSize }}
+                  >
+                    {msg.role === 'assistant' ? renderMarkdown(msg.content) : msg.content}
+                  </div>
+                )}
+                {msg.role === 'assistant' && msg.knowledge_hits && msg.knowledge_hits.length > 0 && (
+                  <div className="mt-2 space-y-2 w-full">
+                    {msg.knowledge_hits.map((hit, idx) => (
+                      <KnowledgeCard key={`${msg.id}-kb-${idx}`} hit={hit} hitLogId={hit.hit_log_id} onFeedback={handleKnowledgeFeedback} />
+                    ))}
+                  </div>
+                )}
+                <div className={`text-xs text-gray-300 mt-1 ${msg.role === 'user' ? 'text-right' : 'text-left'}`}>
+                  {msg.time}
                 </div>
-              ) : null}
-              <div
-                className={`text-xs text-gray-300 mt-1 ${
-                  msg.role === 'user' ? 'text-right' : 'text-left'
-                }`}
-              >
-                {msg.time}
+                {/* Module 7: Action buttons on latest AI reply */}
+                {showActionButtons && (
+                  <div className="flex items-center gap-3 mt-2">
+                    <button
+                      className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs"
+                      style={{ background: '#f5f5f5', color: copiedMsgId === msg.id ? '#52c41a' : '#666', border: '1px solid #e8e8e8' }}
+                      onClick={() => handleCopyMsg(msg.id, msg.content)}
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                      {copiedMsgId === msg.id ? '已复制' : '复制'}
+                    </button>
+                    <button
+                      className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs"
+                      style={{ background: '#f5f5f5', color: ttsPlayingMsgId === msg.id ? '#52c41a' : '#666', border: '1px solid #e8e8e8' }}
+                      onClick={() => handleTts(msg.id, msg.content)}
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+                      {ttsPlayingMsgId === msg.id ? '停止播报' : '播报'}
+                    </button>
+                    <button
+                      className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs"
+                      style={{ background: '#f5f5f5', color: '#666', border: '1px solid #e8e8e8' }}
+                      onClick={() => handleShareMsg(msg.id)}
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+                      分享
+                    </button>
+                  </div>
+                )}
+              </div>
+              {msg.role === 'user' && (
+                <div className="w-8 h-8 rounded-full bg-primary flex-shrink-0 flex items-center justify-center ml-2">
+                  <span className="text-white text-xs">我</span>
+                </div>
+              )}
+            </div>
+          );
+        })}
+
+        {/* Streaming message */}
+        {isStreaming && streamingContent && (
+          <div className="flex mb-4 justify-start">
+            <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center mr-2"
+              style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}>
+              <span className="text-white text-xs">AI</span>
+            </div>
+            <div className="max-w-[75%]">
+              <div className="rounded-2xl px-4 py-3 leading-relaxed bg-white text-gray-700 rounded-tl-sm shadow-sm streaming-cursor"
+                style={{ fontSize: chatFontSize }}>
+                {renderMarkdown(streamingContent)}
               </div>
             </div>
-            {msg.role === 'user' && (
-              <div className="w-8 h-8 rounded-full bg-primary flex-shrink-0 flex items-center justify-center ml-2">
-                <span className="text-white text-xs">我</span>
-              </div>
-            )}
           </div>
-        ))}
-        {loading && (
+        )}
+
+        {loading && !isStreaming && (
           <div className="flex items-center mb-4">
             <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center mr-2"
               style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}>
@@ -1187,7 +1599,44 @@ function ChatPageInner() {
         </div>
       )}
 
-      <div className="bg-white border-t border-gray-100 px-3 py-3 flex items-end gap-2 safe-area-bottom">
+      {/* Hidden drug identify file inputs */}
+      <input ref={drugCameraRef} type="file" accept="image/*" capture="environment" className="hidden"
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleDrugRecognize(f); e.target.value = ''; }} />
+      <input ref={drugAlbumRef} type="file" accept="image/*" className="hidden"
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleDrugRecognize(f); e.target.value = ''; }} />
+
+      {/* Photo drug identify shortcut above input bar */}
+      <div className="bg-white border-t border-gray-100 px-3 pt-2 pb-0">
+        <button
+          onClick={() => setDrugActionSheetVisible(true)}
+          disabled={drugRecognizing || loading}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all active:scale-95"
+          style={{
+            background: 'linear-gradient(135deg, #f6ffed, #e6fffb)',
+            border: '1px solid #b7eb8f',
+            color: '#52c41a',
+            opacity: drugRecognizing || loading ? 0.6 : 1,
+          }}
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#52c41a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+            <circle cx="12" cy="13" r="4" />
+          </svg>
+          <span>{drugRecognizing ? '识别中...' : '拍照识药'}</span>
+        </button>
+      </div>
+
+      <ActionSheet
+        visible={drugActionSheetVisible}
+        actions={[
+          { text: '拍照', key: 'camera', onClick: () => { setDrugActionSheetVisible(false); drugCameraRef.current?.click(); } },
+          { text: '从相册选择', key: 'album', onClick: () => { setDrugActionSheetVisible(false); drugAlbumRef.current?.click(); } },
+        ]}
+        cancelText="取消"
+        onClose={() => setDrugActionSheetVisible(false)}
+      />
+
+      <div className="bg-white px-3 py-3 flex items-end gap-2 safe-area-bottom">
         <button
           onClick={openMemberPopup}
           className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-full"
@@ -1197,6 +1646,32 @@ function ChatPageInner() {
           <span style={{ color: '#fff', fontSize: 11, fontWeight: 600, lineHeight: 1.1, textAlign: 'center' }}>
             {currentRelationLabel.length > 2 ? currentRelationLabel.slice(0, 2) : currentRelationLabel}
           </span>
+        </button>
+
+        <button
+          onClick={handleMicToggle}
+          className="w-10 h-10 flex-shrink-0 flex items-center justify-center"
+          aria-label={voiceMode ? '切换键盘' : '语音输入'}
+        >
+          {voiceMode ? (
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#52c41a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="2" y="4" width="20" height="16" rx="3" ry="3" />
+              <line x1="6" y1="8" x2="6" y2="8" />
+              <line x1="10" y1="8" x2="10" y2="8" />
+              <line x1="14" y1="8" x2="14" y2="8" />
+              <line x1="18" y1="8" x2="18" y2="8" />
+              <line x1="6" y1="12" x2="6" y2="12" />
+              <line x1="18" y1="12" x2="18" y2="12" />
+              <line x1="8" y1="16" x2="16" y2="16" />
+            </svg>
+          ) : (
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#52c41a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+              <line x1="12" y1="19" x2="12" y2="23" />
+              <line x1="8" y1="23" x2="16" y2="23" />
+            </svg>
+          )}
         </button>
 
         {voiceMode ? (
@@ -1228,51 +1703,25 @@ function ChatPageInner() {
               onEnterPress={sendMessage}
               style={{ '--font-size': '14px', flex: 1 }}
             />
-            <button
-              onClick={sendMessage}
-              disabled={!inputVal.trim() || loading}
-              className="flex-shrink-0 flex items-center justify-center"
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: '50%',
-                border: 'none',
-                background: inputVal.trim() ? 'linear-gradient(135deg, #52c41a, #13c2c2)' : '#e8e8e8',
-                color: inputVal.trim() ? '#fff' : '#999',
-                marginLeft: 4,
-                cursor: inputVal.trim() ? 'pointer' : 'default',
-                fontSize: 14,
-              }}
-            >
-              ➤
-            </button>
           </div>
         )}
 
         <button
-          onClick={handleMicToggle}
-          className="w-10 h-10 flex-shrink-0 flex items-center justify-center"
-          aria-label={voiceMode ? '切换键盘' : '语音输入'}
+          onClick={sendMessage}
+          disabled={!inputVal.trim() || loading}
+          className="flex-shrink-0 flex items-center justify-center"
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: '50%',
+            border: 'none',
+            background: inputVal.trim() ? 'linear-gradient(135deg, #52c41a, #13c2c2)' : '#e8e8e8',
+            color: inputVal.trim() ? '#fff' : '#999',
+            cursor: inputVal.trim() ? 'pointer' : 'default',
+            fontSize: 14,
+          }}
         >
-          {voiceMode ? (
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#52c41a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="2" y="4" width="20" height="16" rx="3" ry="3" />
-              <line x1="6" y1="8" x2="6" y2="8" />
-              <line x1="10" y1="8" x2="10" y2="8" />
-              <line x1="14" y1="8" x2="14" y2="8" />
-              <line x1="18" y1="8" x2="18" y2="8" />
-              <line x1="6" y1="12" x2="6" y2="12" />
-              <line x1="18" y1="12" x2="18" y2="12" />
-              <line x1="8" y1="16" x2="16" y2="16" />
-            </svg>
-          ) : (
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#52c41a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-              <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-              <line x1="12" y1="19" x2="12" y2="23" />
-              <line x1="8" y1="23" x2="16" y2="23" />
-            </svg>
-          )}
+          ➤
         </button>
       </div>
 
@@ -1616,6 +2065,73 @@ function ChatPageInner() {
           setNewBirthdayPickerVisible(false);
         }}
       />
+
+      {/* Module 9: Share popup */}
+      <Popup
+        visible={sharePopupVisible}
+        onMaskClick={() => setSharePopupVisible(false)}
+        position="bottom"
+        bodyStyle={{ borderRadius: '16px 16px 0 0' }}
+      >
+        <div className="px-4 pb-6">
+          <div className="flex items-center justify-between py-4 border-b border-gray-100">
+            <span className="text-base font-semibold">将1轮对话分享至</span>
+            <button onClick={() => setSharePopupVisible(false)} className="text-gray-400 text-xl leading-none">×</button>
+          </div>
+          <div className="flex gap-4 mt-4 justify-center">
+            <button
+              className="flex flex-col items-center gap-2 px-6 py-4 rounded-xl active:bg-gray-50"
+              style={{ background: '#f9f9f9' }}
+              onClick={handleShareToWechat}
+              disabled={shareLoading}
+            >
+              <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: '#07c160' }}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="#fff"><path d="M8.691 2.188C3.891 2.188 0 5.476 0 9.53c0 2.212 1.17 4.203 3.002 5.55a.59.59 0 0 1 .213.665l-.39 1.48c-.019.07-.048.141-.048.213 0 .163.13.295.29.295a.326.326 0 0 0 .167-.054l1.903-1.114a.864.864 0 0 1 .717-.098 10.16 10.16 0 0 0 2.837.403c.276 0 .543-.027.811-.05-.857-2.578.157-4.972 1.932-6.446 1.703-1.415 3.882-1.98 5.853-1.838-.576-3.583-4.196-6.348-8.596-6.348zM5.785 5.991c.642 0 1.162.529 1.162 1.18a1.17 1.17 0 0 1-1.162 1.178A1.17 1.17 0 0 1 4.623 7.17c0-.651.52-1.18 1.162-1.18zm5.813 0c.642 0 1.162.529 1.162 1.18a1.17 1.17 0 0 1-1.162 1.178 1.17 1.17 0 0 1-1.162-1.178c0-.651.52-1.18 1.162-1.18zm3.297 2.594c-3.232 0-7.455 2.174-7.455 5.906 0 3.07 3.073 5.906 7.455 5.906.652 0 1.297-.082 1.848-.253a.73.73 0 0 1 .56.065l1.428.825a.27.27 0 0 0 .134.044c.11 0 .218-.1.218-.222 0-.055-.02-.108-.033-.16l-.3-1.123a.49.49 0 0 1 .167-.519c1.327-1.071 2.48-2.679 2.48-4.563-.003-3.732-3.27-5.906-6.502-5.906zm-1.896 2.857c.502 0 .91.414.91.923a.917.917 0 0 1-.91.923.917.917 0 0 1-.909-.923c0-.51.408-.923.91-.923zm3.995 0c.502 0 .91.414.91.923a.917.917 0 0 1-.91.923.917.917 0 0 1-.91-.923c0-.51.408-.923.91-.923z"/></svg>
+              </div>
+              <span className="text-xs text-gray-600">微信好友</span>
+            </button>
+            <button
+              className="flex flex-col items-center gap-2 px-6 py-4 rounded-xl active:bg-gray-50"
+              style={{ background: '#f9f9f9' }}
+              onClick={handleSharePoster}
+              disabled={shareLoading}
+            >
+              <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                  <circle cx="8.5" cy="8.5" r="1.5" />
+                  <polyline points="21 15 16 10 5 21" />
+                </svg>
+              </div>
+              <span className="text-xs text-gray-600">生成图片</span>
+            </button>
+          </div>
+          {shareLoading && (
+            <div className="flex items-center justify-center mt-4 gap-2">
+              <SpinLoading style={{ '--size': '18px', '--color': '#52c41a' }} />
+              <span className="text-sm text-gray-400">生成中...</span>
+            </div>
+          )}
+        </div>
+      </Popup>
+
+      {/* Poster preview */}
+      {posterPreviewVisible && posterUrl && (
+        <div
+          className="fixed inset-0 z-50 bg-black/70 flex flex-col items-center justify-center px-6"
+          onClick={() => setPosterPreviewVisible(false)}
+        >
+          <img src={posterUrl} alt="分享海报" className="max-w-full max-h-[70vh] rounded-xl shadow-lg" />
+          <p className="text-white text-sm mt-4">长按图片保存到相册</p>
+          <button
+            className="mt-3 px-6 py-2 rounded-full text-sm font-medium text-white"
+            style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}
+            onClick={(e) => { e.stopPropagation(); setPosterPreviewVisible(false); }}
+          >
+            关闭
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,16 +1,87 @@
 .drug-page {
   min-height: 100vh;
   background: #f5f5f5;
+  padding: 24rpx;
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
-/* 拍照操作区域 */
+/* ========== 步骤条 (与checkup一致) ========== */
+.ck-steps-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 28rpx 48rpx;
+  background: #fff;
+  border-radius: 16rpx;
+  margin-bottom: 24rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04);
+}
+
+.ck-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.ck-step-dot {
+  width: 48rpx;
+  height: 48rpx;
+  border-radius: 50%;
+  background: #e8e8e8;
+  color: #999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24rpx;
+  font-weight: bold;
+  margin-bottom: 8rpx;
+}
+
+.ck-step-active .ck-step-dot {
+  background: #52c41a;
+  color: #fff;
+}
+
+.ck-step-label {
+  font-size: 22rpx;
+  color: #999;
+}
+
+.ck-step-active .ck-step-label {
+  color: #52c41a;
+}
+
+.ck-step-line {
+  width: 80rpx;
+  height: 4rpx;
+  background: #e8e8e8;
+  margin: 0 16rpx;
+  margin-bottom: 28rpx;
+}
+
+.ck-line-active {
+  background: #52c41a;
+}
+
+/* ========== 通用卡片 ========== */
+.card {
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 24rpx;
+  margin-bottom: 24rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04);
+}
+
+/* ========== 拍照操作区域 ========== */
 .camera-section {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 60rpx 48rpx 48rpx;
+  padding: 48rpx 32rpx;
   background: #fff;
-  margin-bottom: 20rpx;
+  border-radius: 16rpx;
+  margin-bottom: 24rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04);
 }
 
 .camera-icon-wrap {
@@ -83,157 +154,7 @@
   border: none;
 }
 
-/* 历史记录区域 */
-.history-section {
-  background: #fff;
-  padding: 28rpx 0;
-}
-
-.section-header {
-  padding: 0 32rpx 20rpx;
-  border-bottom: 1rpx solid #f0f0f0;
-}
-
-.section-title {
-  font-size: 30rpx;
-  font-weight: bold;
-  color: #333;
-}
-
-/* 加载中 */
-.loading-wrap {
-  display: flex;
-  justify-content: center;
-  padding: 60rpx 0;
-}
-
-.loading-text {
-  font-size: 26rpx;
-  color: #999;
-}
-
-/* 空状态 */
-.empty-wrap {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 60rpx 0;
-}
-
-.empty-icon {
-  font-size: 72rpx;
-  margin-bottom: 20rpx;
-}
-
-.empty-text {
-  font-size: 28rpx;
-  color: #999;
-  margin-bottom: 8rpx;
-}
-
-.empty-hint {
-  font-size: 24rpx;
-  color: #ccc;
-}
-
-/* 历史列表 */
-.history-list {
-  padding: 0;
-}
-
-.history-item {
-  display: flex;
-  align-items: center;
-  padding: 24rpx 32rpx;
-  border-bottom: 1rpx solid #f5f5f5;
-}
-
-.history-item:last-child {
-  border-bottom: none;
-}
-
-.history-thumb {
-  width: 88rpx;
-  height: 88rpx;
-  border-radius: 12rpx;
-  flex-shrink: 0;
-  background: #f5f5f5;
-}
-
-.history-thumb-placeholder {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.thumb-icon {
-  font-size: 40rpx;
-}
-
-.history-info {
-  flex: 1;
-  margin-left: 20rpx;
-  overflow: hidden;
-}
-
-.history-name {
-  font-size: 28rpx;
-  color: #333;
-  font-weight: 500;
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  margin-bottom: 6rpx;
-}
-
-.history-time {
-  font-size: 24rpx;
-  color: #999;
-  display: block;
-}
-
-.history-status {
-  padding: 4rpx 16rpx;
-  border-radius: 8rpx;
-  margin-right: 12rpx;
-  flex-shrink: 0;
-}
-
-.status-completed {
-  background: rgba(82, 196, 26, 0.1);
-}
-
-.status-completed .status-text {
-  color: #52c41a;
-  font-size: 22rpx;
-}
-
-.status-pending {
-  background: rgba(250, 173, 20, 0.1);
-}
-
-.status-pending .status-text {
-  color: #faad14;
-  font-size: 22rpx;
-}
-
-.status-failed {
-  background: rgba(245, 34, 45, 0.1);
-}
-
-.status-failed .status-text {
-  color: #f5222d;
-  font-size: 22rpx;
-}
-
-.history-arrow {
-  font-size: 32rpx;
-  color: #ccc;
-  flex-shrink: 0;
-}
-
-/* 已选图片预览区域 */
+/* ========== 已选图片预览区域 ========== */
 .selected-images {
   width: 100%;
   margin-top: 28rpx;
@@ -285,13 +206,6 @@
   z-index: 10;
 }
 
-.progress-text {
-  font-size: 24rpx;
-  color: #52c41a;
-  text-align: center;
-  margin-bottom: 12rpx;
-}
-
 .btn-start {
   width: 100%;
   height: 88rpx;
@@ -303,6 +217,7 @@
   border-radius: 44rpx;
   border: none;
   text-align: center;
+  margin-top: 8rpx;
 }
 
 .btn-start::after {
@@ -311,6 +226,123 @@
 
 .btn-start[disabled] {
   opacity: 0.7;
+}
+
+/* ========== 家庭成员选择 (与checkup一致) ========== */
+.family-select-section {
+  padding-bottom: 32rpx;
+}
+
+.section-title {
+  font-size: 30rpx;
+  font-weight: bold;
+  color: #333;
+  display: block;
+  margin-bottom: 8rpx;
+}
+
+.upload-tip {
+  font-size: 24rpx;
+  color: #999;
+  display: block;
+  margin-bottom: 28rpx;
+}
+
+.ck-member-scroll {
+  white-space: nowrap;
+  margin: 24rpx 0;
+}
+
+.ck-member-list {
+  display: inline-flex;
+  gap: 20rpx;
+  padding-bottom: 4rpx;
+}
+
+.ck-member-item {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20rpx 24rpx;
+  background: #f5f5f5;
+  border: 2rpx solid transparent;
+  border-radius: 16rpx;
+  min-width: 120rpx;
+  transition: all 0.2s;
+}
+
+.ck-member-item:active {
+  transform: scale(0.96);
+}
+
+.ck-member-selected {
+  border-color: #52c41a;
+  background: #f6ffed;
+}
+
+.ck-member-add {
+  border-style: dashed;
+  border-color: #d9d9d9;
+  background: #fafafa;
+}
+
+.ck-member-emoji {
+  font-size: 44rpx;
+  line-height: 1;
+  margin-bottom: 8rpx;
+}
+
+.ck-member-relation {
+  font-size: 22rpx;
+  color: #999;
+  margin-bottom: 2rpx;
+}
+
+.ck-member-name {
+  font-size: 24rpx;
+  color: #333;
+  font-weight: 500;
+  max-width: 120rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ck-member-selected .ck-member-relation,
+.ck-member-selected .ck-member-name {
+  color: #52c41a;
+}
+
+.family-select-actions {
+  display: flex;
+  gap: 20rpx;
+  margin-top: 28rpx;
+}
+
+.family-action-btn {
+  flex: 1;
+  height: 88rpx;
+  line-height: 88rpx;
+  border-radius: 44rpx;
+  font-size: 30rpx;
+  text-align: center;
+}
+
+.family-action-btn::after {
+  border: none;
+}
+
+/* ========== 上传进度区域 ========== */
+.upload-progress-section {
+  text-align: center;
+  padding: 40rpx 24rpx;
+}
+
+.progress-text {
+  font-size: 24rpx;
+  color: #52c41a;
+  text-align: center;
+  margin-bottom: 12rpx;
 }
 
 .upload-progress-wrap {
@@ -340,4 +372,177 @@
   color: #999;
   width: 80rpx;
   text-align: right;
+}
+
+/* ========== 历史记录区域 ========== */
+.history-section {
+  margin-top: 12rpx;
+}
+
+.section-header {
+  padding: 0 24rpx;
+  margin-bottom: 16rpx;
+}
+
+.section-title-hist {
+  font-size: 30rpx;
+  font-weight: bold;
+  color: #333;
+}
+
+/* 加载中 */
+.loading-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 60rpx 0;
+}
+
+.loading-text {
+  font-size: 26rpx;
+  color: #999;
+}
+
+/* 空状态 */
+.empty-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 60rpx 0;
+}
+
+.empty-icon {
+  font-size: 72rpx;
+  margin-bottom: 20rpx;
+}
+
+.empty-text {
+  font-size: 28rpx;
+  color: #999;
+  margin-bottom: 8rpx;
+}
+
+.empty-hint {
+  font-size: 24rpx;
+  color: #ccc;
+}
+
+/* ========== 历史列表 (卡片风格与checkup一致) ========== */
+.history-list {
+  margin-top: 0;
+}
+
+.history-item {
+  padding: 20rpx 24rpx;
+  margin-bottom: 16rpx;
+}
+
+.history-item-content {
+  display: flex;
+  align-items: center;
+}
+
+.history-thumb {
+  width: 100rpx;
+  height: 100rpx;
+  border-radius: 12rpx;
+  margin-right: 20rpx;
+  flex-shrink: 0;
+  background: #f5f5f5;
+}
+
+.history-thumb-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.thumb-icon {
+  font-size: 48rpx;
+}
+
+.history-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.history-header-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8rpx;
+}
+
+.history-name {
+  font-size: 28rpx;
+  font-weight: bold;
+  color: #333;
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-meta-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10rpx;
+}
+
+.history-time {
+  font-size: 24rpx;
+  color: #999;
+}
+
+.history-status {
+  padding: 2rpx 14rpx;
+  border-radius: 8rpx;
+  flex-shrink: 0;
+}
+
+.status-completed {
+  background: rgba(82, 196, 26, 0.1);
+}
+
+.status-completed .status-text {
+  color: #52c41a;
+  font-size: 22rpx;
+}
+
+.status-pending {
+  background: rgba(250, 173, 20, 0.1);
+}
+
+.status-pending .status-text {
+  color: #faad14;
+  font-size: 22rpx;
+}
+
+.status-failed {
+  background: rgba(245, 34, 45, 0.1);
+}
+
+.status-failed .status-text {
+  color: #f5222d;
+  font-size: 22rpx;
+}
+
+/* 咨询对象标签 */
+.member-tag {
+  display: inline-block;
+  padding: 2rpx 14rpx;
+  border-radius: 8rpx;
+  font-size: 20rpx;
+  font-weight: 500;
+  flex-shrink: 0;
+  line-height: 1.6;
+}
+
+.history-arrow {
+  flex-shrink: 0;
+  margin-left: 12rpx;
+}
+
+.arrow-icon {
+  font-size: 36rpx;
+  color: #ccc;
 }

@@ -4,6 +4,7 @@ from datetime import date
 from typing import Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
+from fastapi.responses import StreamingResponse
 from jose import JWTError, jwt
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -25,7 +26,7 @@ from app.models.models import (
     User,
 )
 from app.schemas.chat import ChatMessageCreate, ChatMessageResponse, ChatSessionCreate, ChatSessionResponse
-from app.services.ai_service import call_ai_model, symptom_analysis
+from app.services.ai_service import call_ai_model, call_ai_model_stream, symptom_analysis
 from app.services.knowledge_search import search_knowledge
 
 router = APIRouter(prefix="/api/chat", tags=["AI对话"])
@@ -344,6 +345,135 @@ async def send_message(
     if knowledge_hits:
         resp["knowledge_hits"] = knowledge_hits
     return resp
+
+
+@router.post("/sessions/{session_id}/stream")
+async def stream_message(
+    session_id: int,
+    data: ChatMessageCreate,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(ChatSession).where(ChatSession.id == session_id, ChatSession.user_id == current_user.id)
+    )
+    session = result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(status_code=404, detail="会话不存在")
+
+    user_msg = ChatMessage(
+        session_id=session_id,
+        role=MessageRole.user,
+        content=data.content,
+        message_type=data.message_type,
+        file_url=data.file_url,
+    )
+    db.add(user_msg)
+    await db.flush()
+    await db.refresh(user_msg)
+
+    if not session.device_info:
+        session.device_info = request.headers.get("User-Agent", "")[:500]
+    if not session.ip_address:
+        session.ip_address = (
+            request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
+            or request.client.host if request.client else None
+        )
+
+    history_result = await db.execute(
+        select(ChatMessage)
+        .where(ChatMessage.session_id == session_id)
+        .order_by(ChatMessage.created_at.desc())
+        .limit(20)
+    )
+    history_msgs = list(reversed(history_result.scalars().all()))
+    messages = [{"role": m.role.value if hasattr(m.role, "value") else m.role, "content": m.content} for m in history_msgs]
+
+    session_type_val = session.session_type.value if hasattr(session.session_type, "value") else session.session_type
+    system_prompt = await _get_system_prompt(session_type_val, db)
+
+    health_context = await _build_health_context(session, db)
+    if health_context:
+        system_prompt += health_context
+
+    try:
+        kb_result = await search_knowledge(
+            data.content, session_type_val, db,
+            session_id=session_id, message_id=None,
+        )
+        knowledge_hits = kb_result.get("hits", [])
+        if knowledge_hits:
+            kb_context_parts = []
+            for hit in knowledge_hits:
+                if hit.get("question"):
+                    kb_context_parts.append(f"Q: {hit['question']}")
+                if hit.get("content_json"):
+                    content_val = hit["content_json"]
+                    if isinstance(content_val, dict):
+                        kb_context_parts.append(f"A: {json.dumps(content_val, ensure_ascii=False)}")
+                    elif isinstance(content_val, str):
+                        kb_context_parts.append(f"A: {content_val}")
+                elif hit.get("title"):
+                    kb_context_parts.append(f"A: {hit['title']}")
+            if kb_context_parts:
+                kb_context = "\n".join(kb_context_parts)
+                system_prompt += f"\n\n以下是知识库中匹配到的参考信息，请优先参考这些内容回答用户问题：\n{kb_context}"
+    except Exception:
+        pass
+
+    captured_db = db
+    captured_session = session
+    captured_session_id = session_id
+    captured_session_type_val = session_type_val
+    captured_data = data
+    captured_history_msgs = history_msgs
+
+    start_time = time.time()
+
+    async def event_generator():
+        full_content = ""
+        async for chunk in call_ai_model_stream(messages, system_prompt, captured_db):
+            if chunk["type"] == "delta":
+                full_content = chunk.get("_full", full_content)
+                sse_data = json.dumps({"content": chunk["content"]}, ensure_ascii=False)
+                yield f"event: delta\ndata: {sse_data}\n\n"
+            elif chunk["type"] == "done":
+                full_content = chunk["content"]
+                elapsed_ms = int((time.time() - start_time) * 1000)
+
+                ai_content = await _filter_sensitive_words(full_content, captured_db)
+                ai_content = await _append_disclaimer(ai_content, captured_session_type_val, captured_db)
+
+                ai_msg = ChatMessage(
+                    session_id=captured_session_id,
+                    role=MessageRole.assistant,
+                    content=ai_content,
+                    message_type=MessageType.text,
+                    response_time_ms=elapsed_ms,
+                )
+                captured_db.add(ai_msg)
+                captured_session.message_count = (captured_session.message_count or 0) + 1
+                if captured_session.title == "新对话" and len(captured_history_msgs) <= 2:
+                    captured_session.title = captured_data.content[:50]
+                await captured_db.flush()
+                await captured_db.refresh(ai_msg)
+
+                done_data = json.dumps({
+                    "message_id": ai_msg.id,
+                    "full_content": ai_content,
+                }, ensure_ascii=False)
+                yield f"event: done\ndata: {done_data}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @router.post("/sessions/{session_id}/switch-member")

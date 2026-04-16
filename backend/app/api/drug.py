@@ -1,8 +1,8 @@
 import os
 import uuid
-from typing import List
+from typing import List, Optional
 
-from fastapi import APIRouter, Depends, File, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -52,6 +52,7 @@ async def check_interaction(
 @router.post("/identify")
 async def identify_drug(
     file: UploadFile = File(...),
+    family_member_id: Optional[int] = Form(None),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):

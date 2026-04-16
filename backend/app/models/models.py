@@ -1490,10 +1490,33 @@ class DrugIdentifyDetail(Base):
     ai_structured_result = mapped_column(JSON, nullable=True)
     ocr_call_record_id = mapped_column(Integer, ForeignKey("ocr_call_records.id"), nullable=True)
     session_id = mapped_column(Integer, ForeignKey("chat_sessions.id"), nullable=True)
+    family_member_id = mapped_column(Integer, ForeignKey("family_members.id"), nullable=True)
     status = mapped_column(String(20), default="success")
     created_at = mapped_column(DateTime, default=datetime.utcnow)
 
     session = relationship("ChatSession")
+    family_member = relationship("FamilyMember")
+
+
+# ──────────────── 聊天分享 ────────────────
+
+
+class ChatShareRecord(Base):
+    __tablename__ = "chat_share_records"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    share_token = mapped_column(String(64), unique=True, nullable=False, index=True)
+    session_id = mapped_column(Integer, ForeignKey("chat_sessions.id"), nullable=False)
+    user_message_id = mapped_column(Integer, ForeignKey("chat_messages.id"), nullable=False)
+    ai_message_id = mapped_column(Integer, ForeignKey("chat_messages.id"), nullable=False)
+    user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
+    view_count = mapped_column(Integer, default=0)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+
+    session = relationship("ChatSession")
+    user_message = relationship("ChatMessage", foreign_keys=[user_message_id])
+    ai_message = relationship("ChatMessage", foreign_keys=[ai_message_id])
+    user = relationship("User")
 
 
 # ──────────────── Prompt 模板管理 ────────────────

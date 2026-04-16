@@ -577,7 +577,7 @@ async def recognize(
     elif scene_name == "拍照识药":
         if ai_result:
             try:
-                drug_session_id = await _write_drug_detail(db, current_user, provider_used, record, ocr_text, ai_result, original_image_url)
+                drug_session_id = await _write_drug_detail(db, current_user, provider_used, record, ocr_text, ai_result, original_image_url, family_member_id=family_member_id)
             except Exception as e:
                 logger.warning("Failed to write drug detail: %s", e)
         else:
@@ -591,6 +591,7 @@ async def recognize(
                     original_image_url=original_image_url,
                     ocr_raw_text=ocr_text,
                     ocr_call_record_id=record.id,
+                    family_member_id=family_member_id,
                     status="failed",
                 )
                 db.add(failed_detail)
@@ -909,7 +910,7 @@ async def _write_checkup_detail(db, user, provider, record, ocr_text, ai_result,
     return checkup_report
 
 
-async def _write_drug_detail(db, user, provider, record, ocr_text, ai_result, image_url):
+async def _write_drug_detail(db, user, provider, record, ocr_text, ai_result, image_url, *, family_member_id=None):
     from app.models.models import (
         ChatMessage,
         ChatSession,
@@ -924,10 +925,24 @@ async def _write_drug_detail(db, user, provider, record, ocr_text, ai_result, im
     precautions = None
 
     if isinstance(ai_result, dict):
-        drug_name = ai_result.get("drug_name") or ai_result.get("drugName") or ai_result.get("药品名称")
-        drug_category = ai_result.get("drug_category") or ai_result.get("drugCategory") or ai_result.get("药品分类")
-        dosage = ai_result.get("dosage") or ai_result.get("用法用量")
-        precautions = ai_result.get("precautions") or ai_result.get("注意事项") or ai_result.get("禁忌")
+        drug_name = (
+            ai_result.get("drug_name")
+            or ai_result.get("drugName")
+            or ai_result.get("药品名称")
+            or ai_result.get("name")
+            or ai_result.get("药品通用名")
+            or ai_result.get("通用名")
+            or ai_result.get("商品名")
+        )
+        if not drug_name and "drugs" in ai_result and isinstance(ai_result["drugs"], list) and ai_result["drugs"]:
+            first_drug = ai_result["drugs"][0]
+            if isinstance(first_drug, dict):
+                drug_name = first_drug.get("drug_name") or first_drug.get("name") or first_drug.get("药品名称")
+        if not drug_name and "result" in ai_result and isinstance(ai_result["result"], dict):
+            drug_name = ai_result["result"].get("drug_name") or ai_result["result"].get("name") or ai_result["result"].get("药品名称")
+        drug_category = ai_result.get("drug_category") or ai_result.get("drugCategory") or ai_result.get("药品分类") or ai_result.get("category")
+        dosage = ai_result.get("dosage") or ai_result.get("用法用量") or ai_result.get("usage")
+        precautions = ai_result.get("precautions") or ai_result.get("注意事项") or ai_result.get("禁忌") or ai_result.get("warnings")
 
     session_id = None
     if user:
@@ -972,6 +987,7 @@ async def _write_drug_detail(db, user, provider, record, ocr_text, ai_result, im
         ai_structured_result=ai_result,
         ocr_call_record_id=record.id,
         session_id=session_id,
+        family_member_id=family_member_id,
         status="success",
     )
     db.add(detail)

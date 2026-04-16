@@ -53,6 +53,7 @@ class DrugIdentifyDetailResponse(BaseModel):
     ai_structured_result: Optional[Dict[str, Any]] = None
     ocr_call_record_id: Optional[int] = None
     session_id: Optional[int] = None
+    family_member_id: Optional[int] = None
     status: Optional[str] = None
     created_at: Optional[datetime] = None
 
@@ -73,6 +74,14 @@ class DrugIdentifyStatisticsResponse(BaseModel):
     month_count: int
 
 
+class FamilyMemberBrief(BaseModel):
+    id: int
+    nickname: Optional[str] = None
+    relationship_type: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class DrugIdentifyHistoryItem(BaseModel):
     id: int
     image_url: Optional[str] = None
@@ -80,6 +89,8 @@ class DrugIdentifyHistoryItem(BaseModel):
     status: Optional[str] = None
     created_at: Optional[datetime] = None
     session_id: Optional[int] = None
+    family_member_id: Optional[int] = None
+    family_member: Optional[FamilyMemberBrief] = None
 
     model_config = ConfigDict(from_attributes=True)
 

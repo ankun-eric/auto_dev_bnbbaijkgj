@@ -857,4 +857,22 @@ class ApiService {
     }
     return [];
   }
+
+  Future<Response> streamChatMessage(String sessionId, String content, {String type = 'text'}) async {
+    return _dio.post(
+      '${ApiConfig.chatSessions}/$sessionId/stream',
+      data: {'content': content, 'message_type': type},
+      options: Options(
+        responseType: ResponseType.stream,
+        headers: {'Accept': 'text/event-stream'},
+      ),
+    );
+  }
+
+  Future<Response> generateSharePoster(String sessionId, String messageId) async {
+    return _dio.post('/api/chat/share/poster', data: {
+      'session_id': sessionId,
+      'message_id': messageId,
+    });
+  }
 }

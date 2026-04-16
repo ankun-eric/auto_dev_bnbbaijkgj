@@ -1,17 +1,87 @@
 <wxs src="./helpers.wxs" module="h" />
 
 <view class="symptom-page">
-  <!-- 为谁咨询 -->
-  <view class="member-section" wx:if="{{membersLoaded && members.length > 0}}">
-    <text class="member-section-title">为谁咨询</text>
-    <scroll-view class="member-scroll" scroll-x>
-      <view class="member-list">
-        <view class="member-item {{selectedMemberId === item.id ? 'member-selected' : ''}}"
+
+  <!-- 步骤指示器 -->
+  <view class="steps-bar">
+    <view class="step {{currentStep >= 0 ? 'step-active' : ''}}">
+      <view class="step-dot">1</view>
+      <text class="step-label">描述症状</text>
+    </view>
+    <view class="step-line {{currentStep >= 1 ? 'line-active' : ''}}"></view>
+    <view class="step {{currentStep >= 1 ? 'step-active' : ''}}">
+      <view class="step-dot">2</view>
+      <text class="step-label">选择对象</text>
+    </view>
+    <view class="step-line {{currentStep >= 2 ? 'line-active' : ''}}"></view>
+    <view class="step {{currentStep >= 2 ? 'step-active' : ''}}">
+      <view class="step-dot">3</view>
+      <text class="step-label">AI分析</text>
+    </view>
+  </view>
+
+  <!-- 步骤1: 选择部位 + 描述症状 + 持续时间 (合并为一页) -->
+  <view class="step-content" wx:if="{{currentStep === 0}}">
+    <!-- 选择身体部位 -->
+    <text class="content-title">请选择不适的身体部位</text>
+    <view class="body-parts">
+      <view class="part-item {{selectedPart === item.id ? 'part-selected' : ''}}"
+            wx:for="{{bodyParts}}" wx:key="id"
+            bindtap="selectPart" data-part="{{item}}">
+        <text class="part-icon">{{item.icon}}</text>
+        <text class="part-name">{{item.name}}</text>
+      </view>
+    </view>
+
+    <!-- 选择症状 (部位选中后展示) -->
+    <block wx:if="{{selectedPart && symptoms.length > 0}}">
+      <text class="content-title symptom-section-title">请选择您的症状（可多选）</text>
+      <view class="symptom-list">
+        <view class="symptom-tag {{item.selected ? 'symptom-selected' : ''}}"
+              wx:for="{{symptoms}}" wx:key="id"
+              bindtap="toggleSymptom" data-index="{{index}}">
+          <text>{{item.name}}</text>
+        </view>
+      </view>
+
+      <!-- 持续时间 -->
+      <view class="extra-section">
+        <text class="content-subtitle">持续时间</text>
+        <view class="duration-list">
+          <view class="duration-item {{selectedDuration === item ? 'duration-selected' : ''}}"
+                wx:for="{{durations}}" wx:key="*this"
+                bindtap="selectDuration" data-duration="{{item}}">
+            <text>{{item}}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 补充描述 -->
+      <view class="extra-section">
+        <text class="content-subtitle">补充描述</text>
+        <textarea class="desc-input" placeholder="请描述其他症状或情况..." value="{{extraDesc}}" bindinput="onDescInput" maxlength="500" />
+      </view>
+    </block>
+  </view>
+
+  <!-- 步骤2: 选择咨询人 (横向滚动，与checkup一致) -->
+  <view class="step-content" wx:if="{{currentStep === 1}}">
+    <text class="content-title">选择咨询对象</text>
+    <text class="content-hint">请选择此次症状自查是为谁进行</text>
+
+    <scroll-view class="ck-member-scroll" scroll-x>
+      <view class="ck-member-list">
+        <view class="ck-member-item {{selectedMemberId === item.id ? 'ck-member-selected' : ''}}"
               wx:for="{{members}}" wx:key="id"
               bindtap="selectMember" data-member="{{item}}">
-          <text class="member-emoji">{{item.emoji}}</text>
-          <text class="member-relation">{{item.relationship_type}}</text>
-          <text class="member-name">{{item.nickname}}</text>
+          <text class="ck-member-emoji">{{item.emoji}}</text>
+          <text class="ck-member-relation">{{item.relationship_type}}</text>
+          <text class="ck-member-name">{{item.nickname}}</text>
+        </view>
+        <view class="ck-member-item ck-member-add" bindtap="goAddFamilyMember">
+          <text class="ck-member-emoji">➕</text>
+          <text class="ck-member-relation">添加</text>
+          <text class="ck-member-name">家庭成员</text>
         </view>
       </view>
     </scroll-view>
@@ -76,7 +146,7 @@
         </view>
         <view class="custom-tags" wx:if="{{chronicCustomItems.length > 0}}">
           <view wx:for="{{chronicCustomItems}}" wx:key="value" class="custom-tag">
-            {{item.value}} <text class="delete-btn" bindtap="removeChronicCustom" data-value="{{item.value}}">✕</text>
+            {{item.value}} <text class="health-delete-btn" bindtap="removeChronicCustom" data-value="{{item.value}}">✕</text>
           </view>
         </view>
       </view>
@@ -102,7 +172,7 @@
         </view>
         <view class="custom-tags" wx:if="{{allergyCustomItems.length > 0}}">
           <view wx:for="{{allergyCustomItems}}" wx:key="value" class="custom-tag">
-            {{item.value}} <text class="delete-btn" bindtap="removeAllergyCustom" data-value="{{item.value}}">✕</text>
+            {{item.value}} <text class="health-delete-btn" bindtap="removeAllergyCustom" data-value="{{item.value}}">✕</text>
           </view>
         </view>
       </view>
@@ -128,71 +198,12 @@
         </view>
         <view class="custom-tags" wx:if="{{geneticCustomItems.length > 0}}">
           <view wx:for="{{geneticCustomItems}}" wx:key="value" class="custom-tag">
-            {{item.value}} <text class="delete-btn" bindtap="removeGeneticCustom" data-value="{{item.value}}">✕</text>
+            {{item.value}} <text class="health-delete-btn" bindtap="removeGeneticCustom" data-value="{{item.value}}">✕</text>
           </view>
         </view>
       </view>
 
       <button class="health-save-btn" bindtap="saveHealthInfo">保存健康信息</button>
-    </view>
-  </view>
-
-  <!-- 步骤指示器 -->
-  <view class="steps-bar">
-    <view class="step {{currentStep >= 0 ? 'step-active' : ''}}">
-      <view class="step-dot">1</view>
-      <text class="step-label">选择部位</text>
-    </view>
-    <view class="step-line {{currentStep >= 1 ? 'line-active' : ''}}"></view>
-    <view class="step {{currentStep >= 1 ? 'step-active' : ''}}">
-      <view class="step-dot">2</view>
-      <text class="step-label">选择症状</text>
-    </view>
-    <view class="step-line {{currentStep >= 2 ? 'line-active' : ''}}"></view>
-    <view class="step {{currentStep >= 2 ? 'step-active' : ''}}">
-      <view class="step-dot">3</view>
-      <text class="step-label">AI分析</text>
-    </view>
-  </view>
-
-  <!-- 步骤1: 选择身体部位 -->
-  <view class="step-content" wx:if="{{currentStep === 0}}">
-    <text class="content-title">请选择不适的身体部位</text>
-    <view class="body-parts">
-      <view class="part-item {{selectedPart === item.id ? 'part-selected' : ''}}"
-            wx:for="{{bodyParts}}" wx:key="id"
-            bindtap="selectPart" data-part="{{item}}">
-        <text class="part-icon">{{item.icon}}</text>
-        <text class="part-name">{{item.name}}</text>
-      </view>
-    </view>
-  </view>
-
-  <!-- 步骤2: 选择具体症状 -->
-  <view class="step-content" wx:if="{{currentStep === 1}}">
-    <text class="content-title">请选择您的症状（可多选）</text>
-    <view class="symptom-list">
-      <view class="symptom-tag {{item.selected ? 'symptom-selected' : ''}}"
-            wx:for="{{symptoms}}" wx:key="id"
-            bindtap="toggleSymptom" data-index="{{index}}">
-        <text>{{item.name}}</text>
-      </view>
-    </view>
-
-    <view class="extra-section">
-      <text class="content-subtitle">持续时间</text>
-      <view class="duration-list">
-        <view class="duration-item {{selectedDuration === item ? 'duration-selected' : ''}}"
-              wx:for="{{durations}}" wx:key="*this"
-              bindtap="selectDuration" data-duration="{{item}}">
-          <text>{{item}}</text>
-        </view>
-      </view>
-    </view>
-
-    <view class="extra-section">
-      <text class="content-subtitle">补充描述</text>
-      <textarea class="desc-input" placeholder="请描述其他症状或情况..." value="{{extraDesc}}" bindinput="onDescInput" maxlength="500" />
     </view>
   </view>
 

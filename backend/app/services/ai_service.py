@@ -122,6 +122,65 @@ async def call_ai_model(
     raise Exception(error_msg)
 
 
+async def call_ai_model_stream(
+    messages: List[Dict[str, str]],
+    system_prompt: str = "",
+    db: Optional[AsyncSession] = None,
+):
+    """Yield SSE-compatible delta chunks from the AI model via streaming."""
+    config = await _get_active_model_config(db)
+    if not config["base_url"] or not config["model"]:
+        yield {"type": "delta", "content": "AI服务未配置，请联系管理员配置AI模型。"}
+        yield {"type": "done", "content": "AI服务未配置，请联系管理员配置AI模型。"}
+        return
+
+    all_messages = []
+    if system_prompt:
+        all_messages.append({"role": "system", "content": system_prompt})
+    all_messages.extend(messages)
+
+    url = config["base_url"].rstrip("/") + "/chat/completions"
+    headers = {"Content-Type": "application/json"}
+    if config["api_key"]:
+        headers["Authorization"] = f"Bearer {config['api_key']}"
+
+    payload = {
+        "model": config["model"],
+        "messages": all_messages,
+        "temperature": float(config.get("temperature", 0.7)),
+        "max_tokens": int(config.get("max_tokens", 4096)),
+        "stream": True,
+    }
+
+    full_content = ""
+    try:
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            async with client.stream("POST", url, json=payload, headers=headers) as resp:
+                resp.raise_for_status()
+                async for line in resp.aiter_lines():
+                    if not line.startswith("data: "):
+                        continue
+                    data_str = line[6:].strip()
+                    if data_str == "[DONE]":
+                        break
+                    try:
+                        chunk = json.loads(data_str)
+                        delta = chunk.get("choices", [{}])[0].get("delta", {})
+                        content_piece = delta.get("content", "")
+                        if content_piece:
+                            full_content += content_piece
+                            yield {"type": "delta", "content": content_piece}
+                    except (json.JSONDecodeError, IndexError, KeyError):
+                        continue
+        yield {"type": "done", "content": full_content}
+    except Exception as e:
+        logger.error("AI stream call failed: %s", e)
+        error_msg = f"AI服务调用失败: {str(e)}"
+        if not full_content:
+            yield {"type": "delta", "content": error_msg}
+        yield {"type": "done", "content": full_content or error_msg}
+
+
 async def analyze_checkup_report(ocr_text: str, user_profile: Optional[Dict] = None, db: Optional[AsyncSession] = None) -> str:
     system_prompt = (
         "你是一位专业的健康顾问AI，擅长解读体检报告。请根据提供的体检报告OCR文本，"

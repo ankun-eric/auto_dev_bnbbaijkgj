@@ -10,11 +10,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.security import get_current_user, require_role
+from sqlalchemy.orm import selectinload
+
 from app.models.models import (
     AllergyRecord,
     ChatMessage,
     CheckupReportDetail,
     DrugIdentifyDetail,
+    FamilyMember,
     HealthProfile,
     MedicalHistory,
     MedicationRecord,
@@ -31,6 +34,7 @@ from app.schemas.ocr_details import (
     DrugIdentifyHistoryItem,
     DrugIdentifyHistoryResponse,
     DrugIdentifyStatisticsResponse,
+    FamilyMemberBrief,
 )
 from app.services.ai_service import call_ai_model
 
@@ -317,6 +321,43 @@ async def get_drug_detail_conversation(
     return ConversationResponse(messages=messages)
 
 
+# ──────────────── 数据修复：回填 drug_name ────────────────
+
+
+@router.post("/drug-details/repair-drug-names")
+async def repair_drug_names(
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(require_role("admin")),
+):
+    result = await db.execute(
+        select(DrugIdentifyDetail).where(
+            DrugIdentifyDetail.drug_name.is_(None),
+            DrugIdentifyDetail.ai_structured_result.isnot(None),
+        )
+    )
+    records = result.scalars().all()
+    repaired = 0
+    for record in records:
+        ai = record.ai_structured_result
+        if not isinstance(ai, dict):
+            continue
+        name = (
+            ai.get("drug_name") or ai.get("drugName") or ai.get("药品名称")
+            or ai.get("name") or ai.get("药品通用名") or ai.get("通用名") or ai.get("商品名")
+        )
+        if not name and "drugs" in ai and isinstance(ai["drugs"], list) and ai["drugs"]:
+            first = ai["drugs"][0]
+            if isinstance(first, dict):
+                name = first.get("drug_name") or first.get("name") or first.get("药品名称")
+        if not name and "result" in ai and isinstance(ai["result"], dict):
+            name = ai["result"].get("drug_name") or ai["result"].get("name") or ai["result"].get("药品名称")
+        if name:
+            record.drug_name = name
+            repaired += 1
+    await db.flush()
+    return {"message": f"已修复 {repaired} 条记录", "repaired": repaired, "total_checked": len(records)}
+
+
 # ──────────────── 用户端：识别历史 ────────────────
 
 
@@ -335,6 +376,7 @@ async def drug_identify_history(
 
     query = (
         select(DrugIdentifyDetail)
+        .options(selectinload(DrugIdentifyDetail.family_member))
         .where(DrugIdentifyDetail.user_id == current_user.id)
         .order_by(DrugIdentifyDetail.created_at.desc())
         .offset((page - 1) * page_size)
@@ -342,17 +384,27 @@ async def drug_identify_history(
     )
     result = await db.execute(query)
 
-    items = [
-        DrugIdentifyHistoryItem(
-            id=row.id,
-            image_url=row.original_image_url,
-            drug_name=row.drug_name,
-            status=row.status,
-            created_at=row.created_at,
-            session_id=row.session_id,
+    items = []
+    for row in result.scalars().all():
+        fm_brief = None
+        if row.family_member:
+            fm_brief = FamilyMemberBrief(
+                id=row.family_member.id,
+                nickname=row.family_member.nickname,
+                relationship_type=row.family_member.relationship_type,
+            )
+        items.append(
+            DrugIdentifyHistoryItem(
+                id=row.id,
+                image_url=row.original_image_url,
+                drug_name=row.drug_name,
+                status=row.status,
+                created_at=row.created_at,
+                session_id=row.session_id,
+                family_member_id=row.family_member_id,
+                family_member=fm_brief,
+            )
         )
-        for row in result.scalars().all()
-    ]
 
     return DrugIdentifyHistoryResponse(items=items, total=total)
 

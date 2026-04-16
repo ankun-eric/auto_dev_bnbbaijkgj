@@ -643,6 +643,51 @@ async def _sync_cos_config_fields(conn: AsyncConnection) -> None:
         await conn.execute(text("ALTER TABLE cos_configs DROP COLUMN path_prefix"))
 
 
+async def _sync_drug_identify_family_member(conn: AsyncConnection) -> None:
+    def _load(sync_conn):
+        inspector = inspect(sync_conn)
+        tables = set(inspector.get_table_names())
+        if "drug_identify_details" not in tables:
+            return None
+        return {col["name"] for col in inspector.get_columns("drug_identify_details")}
+
+    columns = await conn.run_sync(_load)
+    if columns is None:
+        return
+    if "family_member_id" not in columns:
+        await conn.execute(text(
+            "ALTER TABLE drug_identify_details ADD COLUMN family_member_id INT NULL, "
+            "ADD INDEX ix_drug_identify_details_family_member_id (family_member_id), "
+            "ADD CONSTRAINT fk_drug_identify_details_family_member FOREIGN KEY (family_member_id) REFERENCES family_members(id)"
+        ))
+
+
+async def _sync_chat_share_records_table(conn: AsyncConnection) -> None:
+    def _load(sync_conn):
+        inspector = inspect(sync_conn)
+        return "chat_share_records" in set(inspector.get_table_names())
+
+    exists = await conn.run_sync(_load)
+    if not exists:
+        await conn.execute(text(
+            "CREATE TABLE chat_share_records ("
+            "id INT AUTO_INCREMENT PRIMARY KEY, "
+            "share_token VARCHAR(64) NOT NULL UNIQUE, "
+            "session_id INT NOT NULL, "
+            "user_message_id INT NOT NULL, "
+            "ai_message_id INT NOT NULL, "
+            "user_id INT NOT NULL, "
+            "view_count INT DEFAULT 0, "
+            "created_at DATETIME DEFAULT CURRENT_TIMESTAMP, "
+            "INDEX ix_chat_share_records_share_token (share_token), "
+            "CONSTRAINT fk_chat_share_session FOREIGN KEY (session_id) REFERENCES chat_sessions(id), "
+            "CONSTRAINT fk_chat_share_user_msg FOREIGN KEY (user_message_id) REFERENCES chat_messages(id), "
+            "CONSTRAINT fk_chat_share_ai_msg FOREIGN KEY (ai_message_id) REFERENCES chat_messages(id), "
+            "CONSTRAINT fk_chat_share_user FOREIGN KEY (user_id) REFERENCES users(id)"
+            ")"
+        ))
+
+
 async def sync_register_schema(conn: AsyncConnection) -> None:
     def load_user_schema(sync_conn):
         inspector = inspect(sync_conn)
@@ -675,6 +720,8 @@ async def sync_register_schema(conn: AsyncConnection) -> None:
     await _sync_notice_table(conn)
     await _sync_bottom_nav_table(conn)
     await _sync_cos_config_fields(conn)
+    await _sync_drug_identify_family_member(conn)
+    await _sync_chat_share_records_table(conn)
     await run_all_migrations(conn)
 
     columns, indexes, unique_constraints = await conn.run_sync(load_user_schema)

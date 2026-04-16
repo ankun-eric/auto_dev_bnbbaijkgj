@@ -123,6 +123,15 @@ class ChatProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void addMessageExternally(ChatMessage message) {
+    _messages.add(message);
+    notifyListeners();
+  }
+
+  void refreshUI() {
+    notifyListeners();
+  }
+
   void clearMessages() {
     _messages = [];
     _currentSession = null;

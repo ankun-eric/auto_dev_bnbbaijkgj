@@ -288,6 +288,10 @@ export default function DrugChatPage() {
   const cameraRef = useRef<HTMLInputElement>(null);
   const albumRef = useRef<HTMLInputElement>(null);
 
+  // SSE streaming state
+  const [streamingContent, setStreamingContent] = useState('');
+  const [isStreaming, setIsStreaming] = useState(false);
+
   const scrollToBottom = useCallback(() => {
     requestAnimationFrame(() => {
       if (listRef.current) {
@@ -352,7 +356,7 @@ export default function DrugChatPage() {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, scrollToBottom]);
+  }, [messages, scrollToBottom, streamingContent]);
 
   const sendMessage = async () => {
     const text = inputVal.trim();
@@ -369,35 +373,97 @@ export default function DrugChatPage() {
     setInputVal('');
     setLoading(true);
 
+    // Try SSE streaming first
     try {
-      const res: any = await api.post(`/api/chat/sessions/${sessionId}/messages`, {
-        content: text,
-        message_type: 'text',
+      const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+
+      const response = await fetch(`${basePath}/api/chat/sessions/${sessionId}/stream`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ content: text, message_type: 'text' }),
       });
-      const resData = res.data || res;
+
+      if (!response.ok || !response.body) throw new Error('SSE not available');
+
+      setIsStreaming(true);
+      setStreamingContent('');
+      setLoading(false);
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let accumulated = '';
+      let messageId = '';
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const dataStr = line.slice(6);
+            try {
+              const data = JSON.parse(dataStr);
+              if (data.content || data.delta) {
+                accumulated += (data.delta || data.content || '');
+                setStreamingContent(accumulated);
+              }
+              if (data.message_id) messageId = String(data.message_id);
+              if (data.done) messageId = data.message_id ? String(data.message_id) : messageId;
+            } catch {
+              accumulated += dataStr;
+              setStreamingContent(accumulated);
+            }
+          }
+        }
+      }
+
       const aiMsg: Message = {
-        id: resData.id != null ? String(resData.id) : `ai-${Date.now()}`,
+        id: messageId || `ai-${Date.now()}`,
         role: 'assistant',
-        content: resData.content || '抱歉，我暂时无法回答这个问题。请稍后重试。',
+        content: accumulated || '抱歉，我暂时无法回答这个问题。',
         time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
       };
       setMessages((prev) => [...prev, aiMsg]);
-    } catch (err: any) {
-      let errorContent = '网络连接异常，请检查网络后重试。';
-      const status = err?.response?.status;
-      if (status === 401) errorContent = '登录已过期，请重新登录。';
-      else if (status === 404) errorContent = '会话不存在，请返回重新创建对话。';
-      else if (status === 422) errorContent = '请求参数异常，请返回重新创建对话。';
+      setIsStreaming(false);
+      setStreamingContent('');
+    } catch {
+      // Fallback to non-streaming
+      setIsStreaming(false);
+      setStreamingContent('');
 
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `ai-${Date.now()}`,
+      try {
+        const res: any = await api.post(`/api/chat/sessions/${sessionId}/messages`, {
+          content: text,
+          message_type: 'text',
+        });
+        const resData = res.data || res;
+        const aiMsg: Message = {
+          id: resData.id != null ? String(resData.id) : `ai-${Date.now()}`,
           role: 'assistant',
-          content: errorContent,
+          content: resData.content || '抱歉，我暂时无法回答这个问题。请稍后重试。',
           time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
-        },
-      ]);
+        };
+        setMessages((prev) => [...prev, aiMsg]);
+      } catch (err: any) {
+        let errorContent = '网络连接异常，请检查网络后重试。';
+        const status = err?.response?.status;
+        if (status === 401) errorContent = '登录已过期，请重新登录。';
+        else if (status === 404) errorContent = '会话不存在，请返回重新创建对话。';
+        else if (status === 422) errorContent = '请求参数异常，请返回重新创建对话。';
+
+        setMessages((prev) => [...prev, {
+          id: `ai-${Date.now()}`, role: 'assistant', content: errorContent,
+          time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+        }]);
+      }
     }
     setLoading(false);
   };
@@ -629,6 +695,19 @@ export default function DrugChatPage() {
         </div>
       )}
 
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes cursor-blink {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0; }
+        }
+        .streaming-cursor::after {
+          content: '▌';
+          color: #52c41a;
+          animation: cursor-blink 1s ease-in-out infinite;
+          margin-left: 1px;
+        }
+      `}} />
+
       {/* Messages */}
       <div ref={listRef} className="flex-1 overflow-y-auto px-4 py-3">
         {messages.map((msg) => (
@@ -648,37 +727,20 @@ export default function DrugChatPage() {
               {msg.image_urls && msg.image_urls.length > 0 && (
                 <div className="flex flex-wrap gap-2 mb-2">
                   {msg.image_urls.map((url, idx) => (
-                    <img
-                      key={idx}
-                      src={url}
-                      alt="药品图片"
-                      className="w-20 h-20 rounded-lg object-cover cursor-pointer"
-                      onClick={() => openImageViewer(msg.image_urls!)}
-                    />
+                    <img key={idx} src={url} alt="药品图片" className="w-20 h-20 rounded-lg object-cover cursor-pointer"
+                      onClick={() => openImageViewer(msg.image_urls!)} />
                   ))}
                 </div>
               )}
-
               <div
                 className={`rounded-2xl px-4 py-3 text-sm leading-relaxed ${
-                  msg.role === 'user'
-                    ? 'text-white rounded-tr-sm'
-                    : 'bg-[#f5f5f5] text-gray-700 rounded-tl-sm'
+                  msg.role === 'user' ? 'text-white rounded-tr-sm' : 'bg-[#f5f5f5] text-gray-700 rounded-tl-sm'
                 }`}
-                style={
-                  msg.role === 'user'
-                    ? { background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }
-                    : undefined
-                }
+                style={msg.role === 'user' ? { background: 'linear-gradient(135deg, #52c41a, #13c2c2)' } : undefined}
               >
                 {msg.role === 'assistant' ? renderMarkdown(msg.content) : msg.content}
               </div>
-
-              <div
-                className={`text-xs text-gray-300 mt-1 ${
-                  msg.role === 'user' ? 'text-right' : 'text-left'
-                }`}
-              >
+              <div className={`text-xs text-gray-300 mt-1 ${msg.role === 'user' ? 'text-right' : 'text-left'}`}>
                 {msg.time}
               </div>
             </div>
@@ -690,12 +752,25 @@ export default function DrugChatPage() {
           </div>
         ))}
 
-        {loading && (
+        {/* Streaming message */}
+        {isStreaming && streamingContent && (
+          <div className="flex mb-4 justify-start">
+            <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center mr-2"
+              style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}>
+              <span className="text-white text-xs">AI</span>
+            </div>
+            <div className="max-w-[80%]">
+              <div className="rounded-2xl px-4 py-3 text-sm leading-relaxed bg-[#f5f5f5] text-gray-700 rounded-tl-sm streaming-cursor">
+                {renderMarkdown(streamingContent)}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {loading && !isStreaming && (
           <div className="flex items-center mb-4">
-            <div
-              className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center mr-2"
-              style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}
-            >
+            <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center mr-2"
+              style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}>
               <span className="text-white text-xs">AI</span>
             </div>
             <div className="bg-[#f5f5f5] rounded-2xl rounded-tl-sm px-4 py-3">

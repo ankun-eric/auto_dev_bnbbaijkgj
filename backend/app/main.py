@@ -16,6 +16,7 @@ from app.api import (
     bottom_nav,
     chat,
     chat_history,
+    chat_share,
     city,
     content,
     cos,
@@ -49,6 +50,7 @@ from app.api import (
     service,
     sms,
     tcm,
+    tts,
     upload,
     wechat_push,
 )
@@ -188,6 +190,10 @@ app.include_router(messages.router)
 app.include_router(admin_messages.router)
 app.include_router(referral.router)
 app.include_router(scan.router)
+app.include_router(tts.router)
+app.include_router(tts.admin_router)
+app.include_router(chat_share.router)
+app.include_router(chat_share.admin_router)
 
 os.makedirs("uploads", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")

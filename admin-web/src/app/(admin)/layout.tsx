@@ -30,6 +30,8 @@ import {
   EnvironmentOutlined,
   PhoneOutlined,
   TeamOutlined,
+  SoundOutlined,
+  ShareAltOutlined,
 } from '@ant-design/icons';
 import { useRouter, usePathname } from 'next/navigation';
 import type { MenuProps } from 'antd';
@@ -87,6 +89,8 @@ const menuItems: MenuItem[] = [
       { key: '/function-buttons', label: '功能按钮管理' },
       { key: '/digital-humans', label: '数字人形象管理' },
       { key: '/voice-service', label: '语音服务配置' },
+      { key: '/tts-config', icon: <SoundOutlined />, label: 'TTS语音配置' },
+      { key: '/share-config', icon: <ShareAltOutlined />, label: '分享海报配置' },
     ],
   },
   {
@@ -194,7 +198,7 @@ function getOpenKeys(pathname: string): string[] {
   if (pathname.startsWith('/points')) return ['points'];
   if (pathname.startsWith('/ai-config') || pathname.startsWith('/chat-records') || pathname.startsWith('/knowledge') || pathname.startsWith('/search-config') || pathname.startsWith('/fallback-config') || pathname.startsWith('/ocr-config') || pathname.startsWith('/ocr-global-config') || pathname.startsWith('/checkup-details') || pathname.startsWith('/drug-details')) return ['ai'];
   if (pathname.startsWith('/ai-center') || pathname.startsWith('/prompt-templates')) return ['ai-center'];
-  if (pathname.startsWith('/function-buttons') || pathname.startsWith('/digital-humans') || pathname.startsWith('/voice-service')) return ['ai-consult-config'];
+  if (pathname.startsWith('/function-buttons') || pathname.startsWith('/digital-humans') || pathname.startsWith('/voice-service') || pathname.startsWith('/tts-config') || pathname.startsWith('/share-config')) return ['ai-consult-config'];
   if (pathname.startsWith('/home-settings') || pathname.startsWith('/home-menus') || pathname.startsWith('/home-banners') || pathname.startsWith('/notices') || pathname.startsWith('/bottom-nav')) return ['home-config'];
   if (pathname.startsWith('/search')) return ['search-manage'];
   if (pathname.startsWith('/system-messages')) return ['messages'];

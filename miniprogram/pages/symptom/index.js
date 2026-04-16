@@ -1,22 +1,12 @@
 const { get, post, put } = require('../../utils/request');
 
 const RELATION_EMOJI = {
-  '本人': '👤',
-  '爸爸': '👨',
-  '妈妈': '👩',
-  '老公': '💑',
-  '老婆': '💑',
-  '儿子': '👦',
-  '女儿': '👧',
-  '哥哥': '👱‍♂️',
-  '弟弟': '🧑',
-  '姐姐': '👱‍♀️',
-  '妹妹': '👧',
-  '爷爷': '👴',
-  '奶奶': '👵',
-  '外公': '👴',
-  '外婆': '👵',
-  '其他': '🧑',
+  '本人': '👤', '爸爸': '👨', '妈妈': '👩', '父亲': '👨', '母亲': '👩',
+  '老公': '💑', '老婆': '💑', '配偶': '💑',
+  '儿子': '👦', '女儿': '👧', '子女': '👶',
+  '哥哥': '👱‍♂️', '弟弟': '🧑', '姐姐': '👱‍♀️', '妹妹': '👧',
+  '爷爷': '👴', '奶奶': '👵', '外公': '👴', '外婆': '👵',
+  '其他': '🧑'
 };
 
 function getMemberEmoji(name) {
@@ -30,6 +20,8 @@ function getCustomItems(items) {
 Page({
   data: {
     currentStep: 0,
+
+    // Family members
     members: [],
     selectedMemberId: null,
     selectedMemberName: '',
@@ -53,6 +45,7 @@ Page({
     allergyOtherInput: '',
     geneticOtherInput: '',
 
+    // Step 1: Body parts + Symptoms + Duration (merged)
     bodyParts: [
       { id: 'head', name: '头部', icon: '🧠' },
       { id: 'eye', name: '眼睛', icon: '👁️' },
@@ -69,6 +62,8 @@ Page({
     durations: ['今天开始', '2-3天', '一周内', '一个月内', '一个月以上'],
     selectedDuration: '',
     extraDesc: '',
+
+    // Step 3: Analysis
     analyzing: false,
     analysisResult: null,
 
@@ -183,6 +178,10 @@ Page({
       selfErrors: {}
     });
     this.loadMemberHealth(member);
+  },
+
+  goAddFamilyMember() {
+    wx.navigateTo({ url: '/pages/family/add' });
   },
 
   toggleHealthEdit() {
@@ -341,7 +340,7 @@ Page({
     }
   },
 
-  // ── Symptom flow (unchanged) ──
+  // ── Step 1: Symptom collection (body part + symptoms + duration merged) ──
   selectPart(e) {
     const part = e.currentTarget.dataset.part;
     this.setData({ selectedPart: part.id });
@@ -397,8 +396,6 @@ Page({
         wx.showToast({ title: '请选择身体部位', icon: 'none' });
         return;
       }
-      this.setData({ currentStep: 1 });
-    } else if (currentStep === 1) {
       const selected = symptoms.filter(s => s.selected);
       if (selected.length === 0) {
         wx.showToast({ title: '请至少选择一个症状', icon: 'none' });
@@ -408,27 +405,47 @@ Page({
         wx.showToast({ title: '请选择症状持续时间', icon: 'none' });
         return;
       }
-      const selectedMember = this.data.members.find(m => m.id === this.data.selectedMemberId);
-      if (selectedMember) {
-        const errors = {};
-        if (!this.data.selfNickname.trim()) errors.nickname = '请输入姓名';
-        if (!this.data.selfGender) errors.gender = '请选择性别';
-        if (!this.data.selfBirthday) errors.birthday = '请选择出生日期';
-        if (Object.keys(errors).length > 0) {
-          this.setData({ selfErrors: errors });
-          wx.showToast({ title: '请填写完整的必填信息', icon: 'none' });
-          return;
-        }
-        this.setData({ selfErrors: {} });
+      this.setData({ currentStep: 1 });
+    } else if (currentStep === 1) {
+      if (!this.data.selectedMemberId) {
+        wx.showToast({ title: '请选择咨询对象', icon: 'none' });
+        return;
       }
       this.setData({ currentStep: 2, analyzing: true });
       await this.analyze();
     }
   },
 
+  confirmFamilyMemberAndAnalyze() {
+    if (!this.data.selectedMemberId) {
+      wx.showToast({ title: '请选择咨询对象', icon: 'none' });
+      return;
+    }
+    this.nextStep();
+  },
+
   async analyze() {
     try {
       const selected = this.data.symptoms.filter(s => s.selected).map(s => s.name);
+      const bodyPart = this.data.bodyParts.find(p => p.id === this.data.selectedPart);
+
+      try {
+        const res = await post('/api/symptom/analyze', {
+          body_part: this.data.selectedPart,
+          symptoms: selected,
+          duration: this.data.selectedDuration,
+          extra_description: this.data.extraDesc,
+          family_member_id: this.data.selectedMemberId
+        }, { showLoading: false, suppressErrorToast: true });
+
+        if (res && res.possibilities) {
+          this.setData({ analyzing: false, analysisResult: res });
+          return;
+        }
+      } catch (e) {
+        // fallback to mock
+      }
+
       await new Promise(resolve => setTimeout(resolve, 2500));
 
       this.setData({

@@ -6,6 +6,25 @@ import '../../providers/health_provider.dart';
 import '../../services/api_service.dart';
 import '../../widgets/custom_app_bar.dart';
 
+const _kPrimaryPink = Color(0xFFEB2F96);
+const _kPrimaryPurple = Color(0xFF722ED1);
+const _kPrimaryGreen = Color(0xFF52C41A);
+
+const _kRelationColors = <String, Color>{
+  '本人': Color(0xFF1677FF),
+  '爸爸': Color(0xFFFA8C16),
+  '父亲': Color(0xFFFA8C16),
+  '妈妈': Color(0xFFEB2F96),
+  '母亲': Color(0xFFEB2F96),
+  '配偶': Color(0xFF722ED1),
+  '子女': Color(0xFF13C2C2),
+};
+
+Color _getMemberTagColor(String? relation) {
+  if (relation == null || relation.isEmpty) return const Color(0xFF1677FF);
+  return _kRelationColors[relation] ?? const Color(0xFF8C8C8C);
+}
+
 class DrugScreen extends StatefulWidget {
   const DrugScreen({super.key});
 
@@ -22,6 +41,14 @@ class _DrugScreenState extends State<DrugScreen> {
   bool _isRecognizing = false;
   String _progressText = '';
 
+  // 3-step flow: 0=拍照, 1=选择咨询人, 2=AI识别中
+  int _uploadStep = 0;
+
+  // Family member selection
+  List<Map<String, dynamic>> _familyMembers = [];
+  int? _selectedFamilyMemberId;
+  bool _membersLoading = true;
+
   List<Map<String, dynamic>> _historyList = [];
   bool _isLoadingHistory = true;
 
@@ -29,6 +56,38 @@ class _DrugScreenState extends State<DrugScreen> {
   void initState() {
     super.initState();
     _loadHistory();
+    _loadFamilyMembers();
+  }
+
+  Future<void> _loadFamilyMembers() async {
+    try {
+      final response = await _api.getFamilyMembers();
+      if (response.statusCode == 200 && mounted) {
+        final items = response.data['items'] as List? ?? [];
+        setState(() {
+          _familyMembers = items.map((e) {
+            final m = Map<String, dynamic>.from(e as Map);
+            return {
+              'id': m['id'],
+              'nickname': m['nickname'] ?? m['name'] ?? '',
+              'relationship_type': m['relation_type_name'] ?? m['relationship_type'] ?? '本人',
+              'is_self': m['is_self'] ?? false,
+              'gender': (m['gender'] ?? '').toString(),
+            };
+          }).toList();
+          if (_familyMembers.isNotEmpty) {
+            final selfMember = _familyMembers.firstWhere(
+              (m) => m['is_self'] == true,
+              orElse: () => _familyMembers.first,
+            );
+            _selectedFamilyMemberId = selfMember['is_self'] == true ? null : selfMember['id'];
+          }
+          _membersLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _membersLoading = false);
+    }
   }
 
   Future<void> _loadHistory() async {
@@ -80,12 +139,18 @@ class _DrugScreenState extends State<DrugScreen> {
     });
   }
 
-  Future<void> _startRecognize() async {
+  void _goToSelectMember() {
+    if (_selectedImages.isEmpty) return;
+    setState(() => _uploadStep = 1);
+  }
+
+  Future<void> _confirmAndRecognize() async {
     if (_selectedImages.isEmpty || !mounted) return;
 
     setState(() {
       _isRecognizing = true;
       _progressText = '正在识别 1/${_selectedImages.length} 张...';
+      _uploadStep = 2;
     });
 
     final provider = Provider.of<HealthProvider>(context, listen: false);
@@ -106,6 +171,7 @@ class _DrugScreenState extends State<DrugScreen> {
     setState(() {
       _isRecognizing = false;
       _progressText = '';
+      _uploadStep = 0;
     });
 
     if (result != null) {
@@ -147,64 +213,334 @@ class _DrugScreenState extends State<DrugScreen> {
     }
   }
 
-  Widget _buildStatusTag(String? status) {
-    Color bgColor;
-    Color textColor;
-    String label;
-    switch (status) {
-      case 'completed':
-        bgColor = const Color(0xFF52C41A).withOpacity(0.1);
-        textColor = const Color(0xFF52C41A);
-        label = '已完成';
-        break;
-      case 'processing':
-        bgColor = const Color(0xFF1890FF).withOpacity(0.1);
-        textColor = const Color(0xFF1890FF);
-        label = '处理中';
-        break;
-      case 'failed':
-        bgColor = Colors.red.withOpacity(0.1);
-        textColor = Colors.red;
-        label = '失败';
-        break;
-      default:
-        bgColor = const Color(0xFFFA8C16).withOpacity(0.1);
-        textColor = const Color(0xFFFA8C16);
-        label = status ?? '未知';
-    }
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Text(label, style: TextStyle(fontSize: 11, color: textColor, fontWeight: FontWeight.w500)),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
+    if (_uploadStep == 1) {
+      return _buildMemberSelectionPage();
+    }
+
     return Scaffold(
       appBar: const CustomAppBar(title: '拍照识药'),
       body: Stack(
         children: [
           RefreshIndicator(
-            color: const Color(0xFF52C41A),
+            color: _kPrimaryPink,
             onRefresh: _loadHistory,
+            child: CustomScrollView(
+              slivers: [
+                if (_selectedImages.isNotEmpty)
+                  SliverToBoxAdapter(child: _buildStepIndicator()),
+                SliverToBoxAdapter(child: _buildCameraSection()),
+                if (_selectedImages.isNotEmpty)
+                  SliverToBoxAdapter(child: _buildSelectedImagesSection()),
+                SliverToBoxAdapter(child: _buildHistoryHeader()),
+                if (_isLoadingHistory)
+                  const SliverFillRemaining(
+                    child: Center(child: CircularProgressIndicator(color: _kPrimaryPink)),
+                  )
+                else if (_historyList.isEmpty)
+                  SliverFillRemaining(
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.medication_outlined, size: 60, color: Colors.grey[300]),
+                          const SizedBox(height: 12),
+                          Text('暂无识别记录', style: TextStyle(color: Colors.grey[500], fontSize: 15)),
+                          const SizedBox(height: 6),
+                          Text('拍照识别药品后记录将显示在这里', style: TextStyle(color: Colors.grey[400], fontSize: 13)),
+                        ],
+                      ),
+                    ),
+                  )
+                else
+                  SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) => _buildHistoryCard(_historyList[index]),
+                      childCount: _historyList.length,
+                    ),
+                  ),
+                const SliverToBoxAdapter(child: SizedBox(height: 80)),
+              ],
+            ),
+          ),
+          if (_isRecognizing) _buildLoadingOverlay(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStepIndicator() {
+    const steps = ['拍照/选图', '选择咨询人', 'AI识别'];
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      color: Colors.white,
+      child: Row(
+        children: List.generate(steps.length * 2 - 1, (index) {
+          if (index.isOdd) {
+            final stepIdx = index ~/ 2;
+            return Expanded(
+              child: Container(
+                height: 2,
+                color: _uploadStep > stepIdx ? _kPrimaryPink : Colors.grey[300],
+              ),
+            );
+          }
+          final stepIdx = index ~/ 2;
+          final isActive = _uploadStep >= stepIdx;
+          final isDone = _uploadStep > stepIdx;
+          return GestureDetector(
+            onTap: stepIdx < _uploadStep ? () => setState(() => _uploadStep = stepIdx) : null,
+            child: Column(
+              children: [
+                Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: isActive ? _kPrimaryPink : Colors.grey[300],
+                  ),
+                  child: Center(
+                    child: isDone
+                        ? const Icon(Icons.check, size: 16, color: Colors.white)
+                        : Text(
+                            '${stepIdx + 1}',
+                            style: TextStyle(
+                              color: isActive ? Colors.white : Colors.grey[600],
+                              fontSize: 13,
+                            ),
+                          ),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  steps[stepIdx],
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: isActive ? _kPrimaryPink : Colors.grey[500],
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
+      ),
+    );
+  }
+
+  Widget _buildMemberSelectionPage() {
+    return Scaffold(
+      appBar: CustomAppBar(
+        title: '选择咨询对象',
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => setState(() => _uploadStep = 0),
+        ),
+      ),
+      body: Column(
+        children: [
+          _buildStepIndicator(),
+          Expanded(
             child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildCameraSection(),
-                  if (_selectedImages.isNotEmpty) _buildSelectedImagesSection(),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Row(
+                          children: [
+                            Icon(Icons.people, color: _kPrimaryPink, size: 20),
+                            SizedBox(width: 8),
+                            Text(
+                              '为谁识别药品？',
+                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          '选择后将为该成员提供个性化用药建议',
+                          style: TextStyle(fontSize: 13, color: Colors.grey[500]),
+                        ),
+                        const SizedBox(height: 16),
+                        if (_membersLoading)
+                          const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(20),
+                              child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2)),
+                            ),
+                          )
+                        else
+                          Wrap(
+                            spacing: 12,
+                            runSpacing: 12,
+                            children: [
+                              ..._familyMembers.map((member) {
+                                final isSelf = member['is_self'] == true;
+                                final id = isSelf ? null : member['id'] as int?;
+                                final isSelected = _selectedFamilyMemberId == id;
+                                final relation = member['relationship_type']?.toString() ?? '本人';
+                                final nickname = member['nickname']?.toString() ?? '';
+                                final displayName = nickname.isNotEmpty ? nickname : relation;
+                                final tagColor = _getMemberTagColor(relation);
+
+                                return GestureDetector(
+                                  onTap: () => setState(() => _selectedFamilyMemberId = id),
+                                  child: Container(
+                                    width: 80,
+                                    padding: const EdgeInsets.symmetric(vertical: 14),
+                                    decoration: BoxDecoration(
+                                      color: isSelected
+                                          ? _kPrimaryPink.withOpacity(0.08)
+                                          : const Color(0xFFF5F5F5),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: isSelected ? _kPrimaryPink : Colors.transparent,
+                                        width: 2,
+                                      ),
+                                    ),
+                                    child: Column(
+                                      children: [
+                                        Container(
+                                          width: 40,
+                                          height: 40,
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            color: isSelected ? tagColor : const Color(0xFFE8E8E8),
+                                          ),
+                                          alignment: Alignment.center,
+                                          child: Text(
+                                            relation.length > 2 ? relation.substring(0, 2) : relation,
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w600,
+                                              color: isSelected ? Colors.white : const Color(0xFF666666),
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          displayName,
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: isSelected ? _kPrimaryPink : const Color(0xFF666666),
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              }),
+                              GestureDetector(
+                                onTap: () => Navigator.pushNamed(context, '/family').then((_) => _loadFamilyMembers()),
+                                child: Container(
+                                  width: 80,
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF5F5F5),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: Colors.grey[300]!),
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      Container(
+                                        width: 40,
+                                        height: 40,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          border: Border.all(color: Colors.grey[400]!, width: 1.5),
+                                        ),
+                                        child: Icon(Icons.add, color: Colors.grey[500], size: 22),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Text('添加成员', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                      ],
+                    ),
+                  ),
                   const SizedBox(height: 16),
-                  _buildHistorySection(),
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF0F6),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: _kPrimaryPink.withOpacity(0.2)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.info_outline, size: 18, color: _kPrimaryPink),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            '已选择 ${_selectedImages.length} 张图片，确认对象后将开始AI识别',
+                            style: TextStyle(fontSize: 13, color: Colors.grey[700]),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
           ),
-          if (_isRecognizing) _buildLoadingOverlay(),
+          Container(
+            padding: EdgeInsets.only(
+              left: 16, right: 16, top: 12,
+              bottom: MediaQuery.of(context).padding.bottom + 12,
+            ),
+            color: Colors.white,
+            child: Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => setState(() => _uploadStep = 0),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      side: const BorderSide(color: _kPrimaryPink),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text('上一步', style: TextStyle(color: _kPrimaryPink)),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  flex: 2,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(colors: [_kPrimaryPink, _kPrimaryPurple]),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: ElevatedButton.icon(
+                      onPressed: _confirmAndRecognize,
+                      icon: const Icon(Icons.auto_awesome, size: 18),
+                      label: const Text('确认并开始识别'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.transparent,
+                        shadowColor: Colors.transparent,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -218,11 +554,7 @@ class _DrugScreenState extends State<DrugScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
+          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 12, offset: const Offset(0, 4)),
         ],
       ),
       child: Column(
@@ -231,15 +563,10 @@ class _DrugScreenState extends State<DrugScreen> {
             width: 80,
             height: 80,
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  const Color(0xFFEB2F96).withOpacity(0.15),
-                  const Color(0xFF722ED1).withOpacity(0.15),
-                ],
-              ),
+              gradient: LinearGradient(colors: [_kPrimaryPink.withOpacity(0.15), _kPrimaryPurple.withOpacity(0.15)]),
               borderRadius: BorderRadius.circular(20),
             ),
-            child: const Icon(Icons.camera_alt, size: 64, color: Color(0xFFEB2F96)),
+            child: const Icon(Icons.camera_alt, size: 64, color: _kPrimaryPink),
           ),
           const SizedBox(height: 16),
           const Text(
@@ -253,9 +580,7 @@ class _DrugScreenState extends State<DrugScreen> {
               Expanded(
                 child: Container(
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFFEB2F96), Color(0xFF722ED1)],
-                    ),
+                    gradient: const LinearGradient(colors: [_kPrimaryPink, _kPrimaryPurple]),
                     borderRadius: BorderRadius.circular(24),
                   ),
                   child: ElevatedButton.icon(
@@ -279,8 +604,8 @@ class _DrugScreenState extends State<DrugScreen> {
                   icon: const Icon(Icons.photo_library, size: 18),
                   label: const Text('从相册选择'),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFFEB2F96),
-                    side: const BorderSide(color: Color(0xFFEB2F96)),
+                    foregroundColor: _kPrimaryPink,
+                    side: const BorderSide(color: _kPrimaryPink),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
                   ),
@@ -294,20 +619,8 @@ class _DrugScreenState extends State<DrugScreen> {
   }
 
   Widget _buildSelectedImagesSection() {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -315,51 +628,39 @@ class _DrugScreenState extends State<DrugScreen> {
             children: [
               Text(
                 '已选 ${_selectedImages.length}/$_maxImages 张',
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF333333),
-                ),
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF333333)),
               ),
               const Spacer(),
               GestureDetector(
                 onTap: () => setState(() => _selectedImages.clear()),
-                child: Text(
-                  '清空',
-                  style: TextStyle(fontSize: 13, color: Colors.grey[500]),
-                ),
+                child: Text('清空', style: TextStyle(fontSize: 13, color: Colors.grey[500])),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           Wrap(
             spacing: 10,
             runSpacing: 10,
-            children: [
-              for (int i = 0; i < _selectedImages.length; i++)
-                _buildImageThumb(i),
-            ],
+            children: [for (int i = 0; i < _selectedImages.length; i++) _buildImageThumb(i)],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
           SizedBox(
             width: double.infinity,
             child: Container(
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFFEB2F96), Color(0xFF722ED1)],
-                ),
-                borderRadius: BorderRadius.circular(24),
+                gradient: const LinearGradient(colors: [_kPrimaryPink, _kPrimaryPurple]),
+                borderRadius: BorderRadius.circular(12),
               ),
               child: ElevatedButton.icon(
-                onPressed: _startRecognize,
-                icon: const Icon(Icons.auto_awesome, size: 18),
-                label: const Text('开始识别'),
+                onPressed: _goToSelectMember,
+                icon: const Icon(Icons.arrow_forward, size: 18),
+                label: const Text('下一步：选择咨询人'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.transparent,
                   shadowColor: Colors.transparent,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
               ),
             ),
@@ -375,12 +676,7 @@ class _DrugScreenState extends State<DrugScreen> {
       children: [
         ClipRRect(
           borderRadius: BorderRadius.circular(10),
-          child: Image.file(
-            File(_selectedImages[index].path),
-            width: 80,
-            height: 80,
-            fit: BoxFit.cover,
-          ),
+          child: Image.file(File(_selectedImages[index].path), width: 80, height: 80, fit: BoxFit.cover),
         ),
         Positioned(
           top: -6,
@@ -390,10 +686,7 @@ class _DrugScreenState extends State<DrugScreen> {
             child: Container(
               width: 22,
               height: 22,
-              decoration: const BoxDecoration(
-                color: Color(0xFFFF4D4F),
-                shape: BoxShape.circle,
-              ),
+              decoration: const BoxDecoration(color: Color(0xFFFF4D4F), shape: BoxShape.circle),
               child: const Icon(Icons.close, color: Colors.white, size: 14),
             ),
           ),
@@ -402,64 +695,30 @@ class _DrugScreenState extends State<DrugScreen> {
     );
   }
 
-  Widget _buildHistorySection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                '识别记录',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF333333)),
-              ),
-              if (_historyList.isNotEmpty)
-                GestureDetector(
-                  onTap: _loadHistory,
-                  child: Row(
-                    children: [
-                      Icon(Icons.refresh, size: 16, color: Colors.grey[500]),
-                      const SizedBox(width: 4),
-                      Text('刷新', style: TextStyle(fontSize: 13, color: Colors.grey[500])),
-                    ],
-                  ),
-                ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 8),
-        if (_isLoadingHistory)
-          const Padding(
-            padding: EdgeInsets.all(40),
-            child: Center(child: CircularProgressIndicator(color: Color(0xFF52C41A))),
-          )
-        else if (_historyList.isEmpty)
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 60),
-              child: Column(
+  Widget _buildHistoryHeader() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+      child: Row(
+        children: [
+          const Text('识别记录', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+          const Spacer(),
+          if (_historyList.isNotEmpty)
+            GestureDetector(
+              onTap: _loadHistory,
+              child: Row(
                 children: [
-                  Icon(Icons.medication_outlined, size: 60, color: Colors.grey[300]),
-                  const SizedBox(height: 12),
-                  Text('暂无识别记录', style: TextStyle(color: Colors.grey[500], fontSize: 15)),
-                  const SizedBox(height: 6),
-                  Text('拍照识别药品后记录将显示在这里', style: TextStyle(color: Colors.grey[400], fontSize: 13)),
+                  Icon(Icons.refresh, size: 16, color: Colors.grey[500]),
+                  const SizedBox(width: 4),
+                  Text('刷新', style: TextStyle(fontSize: 13, color: Colors.grey[500])),
                 ],
               ),
             ),
-          )
-        else
-          ListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: _historyList.length,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemBuilder: (context, index) => _buildHistoryCard(_historyList[index]),
-          ),
-        const SizedBox(height: 20),
-      ],
+          if (_historyList.isNotEmpty) ...[
+            const SizedBox(width: 12),
+            Text('共${_historyList.length}条', style: TextStyle(fontSize: 13, color: Colors.grey[500])),
+          ],
+        ],
+      ),
     );
   }
 
@@ -469,6 +728,13 @@ class _DrugScreenState extends State<DrugScreen> {
     final createdAt = item['created_at']?.toString() ?? item['time']?.toString();
     final status = item['status']?.toString();
     final sessionId = item['session_id']?.toString() ?? '';
+
+    final statusMap = {
+      'completed': {'label': '已完成', 'color': _kPrimaryGreen},
+      'processing': {'label': '处理中', 'color': const Color(0xFF1890FF)},
+      'failed': {'label': '失败', 'color': const Color(0xFFFF4D4F)},
+    };
+    final statusInfo = statusMap[status] ?? {'label': status ?? '未知', 'color': const Color(0xFFFA8C16)};
 
     return GestureDetector(
       onTap: () {
@@ -480,56 +746,70 @@ class _DrugScreenState extends State<DrugScreen> {
         }
       },
       child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.all(12),
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.03),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
-            ),
+            BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 8, offset: const Offset(0, 2)),
           ],
         ),
         child: Row(
           children: [
             ClipRRect(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(12),
               child: thumbUrl != null && thumbUrl.isNotEmpty
                   ? Image.network(
                       thumbUrl,
-                      width: 56,
-                      height: 56,
+                      width: 50,
+                      height: 50,
                       fit: BoxFit.cover,
                       errorBuilder: (_, __, ___) => _buildPlaceholderThumb(),
                     )
                   : _buildPlaceholderThumb(),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     drugName,
-                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF333333)),
+                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _formatTime(createdAt),
-                    style: TextStyle(fontSize: 12, color: Colors.grey[400]),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: (statusInfo['color'] as Color).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          statusInfo['label'] as String,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: statusInfo['color'] as Color,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        _formatTime(createdAt),
+                        style: TextStyle(fontSize: 12, color: Colors.grey[400]),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
             const SizedBox(width: 8),
-            if (status != null) _buildStatusTag(status),
-            const SizedBox(width: 4),
-            Icon(Icons.chevron_right, color: Colors.grey[400], size: 20),
+            const Icon(Icons.chevron_right, color: Colors.grey, size: 22),
           ],
         ),
       ),
@@ -538,13 +818,13 @@ class _DrugScreenState extends State<DrugScreen> {
 
   Widget _buildPlaceholderThumb() {
     return Container(
-      width: 56,
-      height: 56,
+      width: 50,
+      height: 50,
       decoration: BoxDecoration(
-        color: const Color(0xFFEB2F96).withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
+        color: _kPrimaryPink.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
       ),
-      child: const Icon(Icons.medication, color: Color(0xFFEB2F96), size: 28),
+      child: const Icon(Icons.medication, color: _kPrimaryPink, size: 26),
     );
   }
 
@@ -561,7 +841,7 @@ class _DrugScreenState extends State<DrugScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const CircularProgressIndicator(color: Color(0xFFEB2F96)),
+              const CircularProgressIndicator(color: _kPrimaryPink),
               const SizedBox(height: 16),
               const Text('正在识别药品...', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
               const SizedBox(height: 6),
