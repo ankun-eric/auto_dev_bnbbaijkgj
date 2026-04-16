@@ -133,11 +133,11 @@ class _InviteScreenState extends State<InviteScreen> {
                                       version: QrVersions.auto,
                                       size: 200,
                                       eyeStyle: const QrEyeStyle(
-                                        eyeShape: QrEyeShape.roundedOuter,
+                                        eyeShape: QrEyeShape.square,
                                         color: Color(0xFF333333),
                                       ),
                                       dataModuleStyle: const QrDataModuleStyle(
-                                        dataModuleShape: QrDataModuleShape.roundedOutsideCorners,
+                                        dataModuleShape: QrDataModuleShape.square,
                                         color: Color(0xFF333333),
                                       ),
                                     )
