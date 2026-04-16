@@ -382,8 +382,8 @@ function ProgressiveLoading({
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-      <div className="text-center px-8 w-full max-w-xs">
-        <div className="relative mx-auto mb-6">
+      <div className="px-8 w-full max-w-xs">
+        <div className="relative mx-auto mb-6 text-center">
           <svg width="80" height="80" viewBox="0 0 80 80">
             <circle cx="40" cy="40" r="34" fill="none" stroke="#f0f0f0" strokeWidth="6" />
             <circle
@@ -404,7 +404,7 @@ function ProgressiveLoading({
             {Math.round(progress)}%
           </span>
         </div>
-        <div className="space-y-2">
+        <div className="space-y-2 text-left">
           {ANALYSIS_PHASES.map((phase, i) => (
             <p
               key={i}

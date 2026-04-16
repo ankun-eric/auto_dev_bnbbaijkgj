@@ -33,7 +33,24 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 体检报告解读Bug修复+选择咨询对象+报告列表标签 (2026-04-16)
+## Latest Update: 体检报告识别功能优化——选择咨询人改造+等待页文案左对齐 (2026-04-16)
+
+### 概要
+体检报告识别第二步"选择咨询对象"从简单列表弹窗改造为与健康自查模块完全一致的交互体验（展示/编辑完整健康档案、添加新家庭成员、必填校验、保存档案到数据库）；AI分析等待页面4行阶段提示文字从居中改为左对齐。仅H5前端改动，后端接口全部复用现有接口。
+
+### H5 变更
+
+| 文件 | 变更 |
+| --- | --- |
+| `h5-web/src/app/checkup/page.tsx` | 第二步弹窗从简单成员列表改造为完整健康档案编辑面板（对齐symptom页面）；新增DiseaseTagSelector组件引用；新增profileEdits/addMember等20+state；新增loadProfileFromMember/handleAddMemberConfirm等方法；支持页内添加家庭成员；必填字段校验（姓名/性别/出生日期）；确认时先保存档案再上传识别 |
+| `h5-web/src/app/checkup/result/[id]/page.tsx` | ProgressiveLoading组件：外层容器移除text-center；进度圈单独添加text-center保持居中；阶段提示文字容器添加text-left实现左对齐 |
+
+### 用户手册
+- `user_docs/体检报告识别优化.md`
+
+---
+
+## Previous Update: 体检报告解读Bug修复+选择咨询对象+报告列表标签 (2026-04-16)
 
 ### 概要
 修复体检报告AI解读进度动画与后端接口不同步导致页面"卡住"的Bug（改为渐近百分比模式+超时保护+错误兜底）；新增上传报告时选择咨询对象（家庭成员）功能；报告列表新增咨询对象彩色标签。四端同步开发（后端/H5/小程序/Flutter）。
