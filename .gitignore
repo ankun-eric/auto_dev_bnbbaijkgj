@@ -52,3 +52,6 @@ _deploy_tmp/deploy.tar
 
 # Temporary SSH scripts
 ssh_*.py
+
+deploy/project.tar.gz
+_deploy_tmp/
