@@ -33,7 +33,172 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 拍照识药优化+健康自查改造+SSE流式输出+AI回复交互增强 (2026-04-16)
+## Latest Update: 健康服务商品体系整合 (2026-04-17)
+
+### 概要
+将原有独立的"服务模块"(ServiceCategory+ServiceItem)和"积分商城"(PointsMallItem)合并为统一的「健康服务」体系。新增16个数据模型、7个API模块（42+端点）、管理后台7个页面、H5端13个页面、小程序11个页面、Flutter端13个页面。实现了统一商品体系、统一订单体系（混合下单+自动拆分履约）、到店核销（二维码+数字码+套餐多次核销）、会员卡动态二维码、优惠券体系、收藏功能、地址管理、评价体系、退款/售后、自定义预约表单、数据统计报表等完整功能闭环。五端同步开发（后端/H5/小程序/Flutter/Admin）。
+
+### Backend 变更
+
+| 文件 | 变更 |
+| --- | --- |
+| `backend/app/models/models.py` | 新增16个模型: ProductCategory, Product, ProductStore, AppointmentForm, AppointmentFormField, UserAddress, Coupon, UserCoupon, UnifiedOrder, OrderItem, OrderRedemption, MemberQRToken, CheckinRecord, StoreVisitRecord, RefundRequest; 新增14个Enum |
+| `backend/app/api/products.py` | 商品API: 分类列表、商品列表(分页+筛选)、商品详情 |
+| `backend/app/api/unified_orders.py` | 统一订单API: 创建/列表/详情/支付/确认收货/取消/评价/退款 (8端点) |
+| `backend/app/api/member_qr.py` | 会员码API: 获取动态码/验证/签到/核销/进店记录 (5端点) |
+| `backend/app/api/favorites.py` | 收藏API: 收藏切换/收藏列表 (2端点) |
+| `backend/app/api/coupons.py` | 优惠券API: 可领列表/领取/我的优惠券 (3端点) |
+| `backend/app/api/addresses.py` | 地址API: 列表/新增/修改/删除 (4端点) |
+| `backend/app/api/product_admin.py` | 管理后台API: 分类CRUD/商品CRUD/表单配置/订单管理/优惠券管理/统计/签到配置 (18+端点) |
+| `backend/app/schemas/products.py` | 商品相关Pydantic Schema |
+| `backend/app/schemas/unified_orders.py` | 订单相关Schema |
+| `backend/app/schemas/coupons.py` | 优惠券Schema |
+| `backend/app/schemas/addresses.py` | 地址Schema |
+| `backend/app/schemas/member_qr.py` | 会员码Schema |
+| `backend/app/services/schema_sync.py` | 新增所有新表的自动同步逻辑 |
+| `backend/app/main.py` | 注册7个新路由模块 |
+| `backend/tests/test_product_system.py` | 36个测试用例覆盖所有新增API |
+
+### Admin 变更
+
+| 文件 | 变更 |
+| --- | --- |
+| `admin-web/src/app/(admin)/layout.tsx` | 侧边栏新增"商品体系"顶级菜单(7个子菜单) |
+| `admin-web/src/app/(admin)/product-system/categories/page.tsx` | 商品分类管理(两级树形表格) |
+| `admin-web/src/app/(admin)/product-system/products/page.tsx` | 商品管理(全属性CRUD+预约表单配置) |
+| `admin-web/src/app/(admin)/product-system/orders/page.tsx` | 统一订单管理(Tab状态筛选+发货+退款审核) |
+| `admin-web/src/app/(admin)/product-system/coupons/page.tsx` | 优惠券管理(4种类型+发放) |
+| `admin-web/src/app/(admin)/product-system/redemptions/page.tsx` | 核销管理(记录查看+统计) |
+| `admin-web/src/app/(admin)/product-system/visits/page.tsx` | 进店记录(列表+签到积分配置) |
+| `admin-web/src/app/(admin)/product-system/statistics/page.tsx` | 数据统计(销量/销售额/分类占比图表) |
+
+### H5 变更
+
+| 文件 | 变更 |
+| --- | --- |
+| `h5-web/src/app/products/page.tsx` | 商品列表页(分类筛选+多维筛选+无限滚动) |
+| `h5-web/src/app/product/[id]/page.tsx` | 商品详情页(轮播图+价格+FAQ+门店+评价+收藏+购买) |
+| `h5-web/src/app/checkout/page.tsx` | 下单页(地址/门店选择+预约+优惠券+积分+支付) |
+| `h5-web/src/app/unified-orders/page.tsx` | 统一订单列表(7Tab状态切换) |
+| `h5-web/src/app/unified-order/[id]/page.tsx` | 订单详情(核销码+物流+操作) |
+| `h5-web/src/app/(tabs)/profile/page.tsx` | "我的"页面重构(统计栏+订单快捷入口+菜单调整) |
+| `h5-web/src/app/member-card/page.tsx` | 会员卡(动态二维码60秒刷新) |
+| `h5-web/src/app/my-coupons/page.tsx` | 我的优惠券(三Tab) |
+| `h5-web/src/app/coupon-center/page.tsx` | 领券中心 |
+| `h5-web/src/app/my-favorites/page.tsx` | 收藏列表(商品+知识双Tab) |
+| `h5-web/src/app/my-addresses/page.tsx` | 地址管理(CRUD+10个上限) |
+| `h5-web/src/app/review/[orderId]/page.tsx` | 评价页(评分+文字+图片) |
+| `h5-web/src/app/refund/[orderId]/page.tsx` | 退款申请 |
+
+### 小程序变更
+
+| 文件 | 变更 |
+| --- | --- |
+| `miniprogram/app.json` | 注册11个新页面 |
+| `miniprogram/pages/products/` | 商品列表页 |
+| `miniprogram/pages/product-detail/` | 商品详情页 |
+| `miniprogram/pages/checkout/` | 下单页 |
+| `miniprogram/pages/unified-orders/` | 统一订单列表 |
+| `miniprogram/pages/unified-order-detail/` | 订单详情(核销码) |
+| `miniprogram/pages/member-card/` | 会员卡(动态二维码) |
+| `miniprogram/pages/my-coupons/` | 优惠券列表 |
+| `miniprogram/pages/my-favorites/` | 收藏列表 |
+| `miniprogram/pages/my-addresses/` | 地址管理 |
+| `miniprogram/pages/review/` | 评价页 |
+| `miniprogram/pages/refund/` | 退款申请 |
+| `miniprogram/pages/profile/` | "我的"页面优化 |
+
+### Flutter 变更
+
+| 文件 | 变更 |
+| --- | --- |
+| `flutter_app/lib/models/product.dart` | Product/ProductCategory模型 |
+| `flutter_app/lib/models/unified_order.dart` | UnifiedOrder/OrderItem模型 |
+| `flutter_app/lib/models/coupon.dart` | Coupon/UserCoupon模型 |
+| `flutter_app/lib/models/address.dart` | UserAddress模型 |
+| `flutter_app/lib/services/api_service.dart` | 新增20个API方法 |
+| `flutter_app/lib/config/api_config.dart` | 新增7个端点分组 |
+| `flutter_app/lib/main.dart` | 注册14个新路由 |
+| `flutter_app/lib/screens/product/` | 商品列表/详情/下单 |
+| `flutter_app/lib/screens/order/unified_*` | 统一订单列表/详情/评价/退款 |
+| `flutter_app/lib/screens/member/member_card_screen.dart` | 会员卡 |
+| `flutter_app/lib/screens/coupon/` | 优惠券/领券中心 |
+| `flutter_app/lib/screens/favorites/` | 收藏列表 |
+| `flutter_app/lib/screens/address/` | 地址管理 |
+| `flutter_app/lib/screens/profile/profile_screen.dart` | "我的"页面优化 |
+
+### 新增数据库模型
+
+| 模型 | 说明 |
+| --- | --- |
+| ProductCategory | 两级商品分类(自关联parent_id) |
+| Product | 统一商品(价格/库存/预约/积分/核销等完整属性) |
+| ProductStore | 商品-门店关联(M:N) |
+| AppointmentForm | 预约表单 |
+| AppointmentFormField | 预约表单字段(10种字段类型) |
+| UserAddress | 收货地址 |
+| Coupon | 优惠券(4种类型+3种适用范围) |
+| UserCoupon | 用户优惠券 |
+| UnifiedOrder | 统一订单(7种状态+退款子状态) |
+| OrderItem | 订单商品项(核销码+预约信息) |
+| OrderRedemption | 核销记录 |
+| MemberQRToken | 会员码动态Token |
+| CheckinRecord | 到店签到记录 |
+| StoreVisitRecord | 进店记录 |
+| RefundRequest | 退款申请(6种状态) |
+
+### 新增 API 端点
+
+| 方法 | 路径 | 权限 | 说明 |
+| --- | --- | --- | --- |
+| GET | `/api/products/categories` | 公开 | 商品分类列表 |
+| GET | `/api/products` | 公开 | 商品列表(分页+筛选) |
+| GET | `/api/products/{id}` | 公开 | 商品详情 |
+| POST | `/api/orders/unified` | 已登录 | 创建统一订单 |
+| GET | `/api/orders/unified` | 已登录 | 订单列表 |
+| GET | `/api/orders/unified/{id}` | 已登录 | 订单详情 |
+| POST | `/api/orders/unified/{id}/pay` | 已登录 | 支付订单 |
+| POST | `/api/orders/unified/{id}/confirm` | 已登录 | 确认收货 |
+| POST | `/api/orders/unified/{id}/cancel` | 已登录 | 取消订单 |
+| POST | `/api/orders/unified/{id}/review` | 已登录 | 提交评价 |
+| POST | `/api/orders/unified/{id}/refund` | 已登录 | 申请退款 |
+| GET | `/api/member/qrcode` | 已登录 | 获取动态会员码 |
+| POST | `/api/verify/member-qrcode` | 商家 | 验证会员码 |
+| POST | `/api/verify/checkin` | 商家 | 确认进店+签到 |
+| POST | `/api/verify/redeem` | 商家 | 核销服务 |
+| GET | `/api/verify/checkin-records` | 商家 | 进店记录 |
+| POST | `/api/favorites` | 已登录 | 收藏/取消收藏 |
+| GET | `/api/favorites` | 已登录 | 收藏列表 |
+| GET | `/api/coupons/available` | 已登录 | 可领优惠券 |
+| POST | `/api/coupons/claim` | 已登录 | 领取优惠券 |
+| GET | `/api/coupons/mine` | 已登录 | 我的优惠券 |
+| GET | `/api/addresses` | 已登录 | 地址列表 |
+| POST | `/api/addresses` | 已登录 | 新增地址 |
+| PUT | `/api/addresses/{id}` | 已登录 | 修改地址 |
+| DELETE | `/api/addresses/{id}` | 已登录 | 删除地址 |
+| CRUD | `/api/admin/products/categories` | 管理员 | 分类管理 |
+| CRUD | `/api/admin/products` | 管理员 | 商品管理 |
+| CRUD | `/api/admin/products/{id}/form-fields` | 管理员 | 预约表单配置 |
+| GET | `/api/admin/orders/unified` | 管理员 | 订单管理 |
+| POST | `/api/admin/orders/unified/{id}/ship` | 管理员 | 发货 |
+| POST | `/api/admin/orders/unified/{id}/refund/approve` | 管理员 | 审核退款 |
+| POST | `/api/admin/orders/unified/{id}/refund/reject` | 管理员 | 拒绝退款 |
+| CRUD | `/api/admin/coupons` | 管理员 | 优惠券管理 |
+| POST | `/api/admin/coupons/{id}/distribute` | 管理员 | 发放优惠券 |
+| GET | `/api/admin/statistics/sales` | 管理员 | 销量统计 |
+| GET | `/api/admin/checkin-records` | 管理员 | 进店记录 |
+| POST | `/api/admin/checkin-config` | 管理员 | 签到积分配置 |
+
+### 客户端包更新
+- 小程序: `miniprogram_20260417_025129_51bf.zip`
+- 安卓APK: `app_20260417_025231_1547.apk`
+
+### 用户手册
+- `user_docs/健康服务商品体系整合.md`
+
+---
+
+## Previous Update: 拍照识药优化+健康自查改造+SSE流式输出+AI回复交互增强 (2026-04-16)
 
 ### 概要
 本次更新包含9大功能模块：拍照识药3步流程改造(新增family_member_id关联)、列表样式优化(对齐体检报告)、drug_name写入Bug修复、健康自查3步流程改造(合并步骤+关联咨询人)、对话页拍照识药快捷按钮(ActionSheet+药品卡片)、全场景SSE流式输出(打字机效果)、AI回复底部按钮(复制/播报/分享)、TTS语音播报(免费+云端双方案)、分享功能(微信链接+海报图片)。五端同步开发（后端/H5/小程序/Flutter/Admin）。
