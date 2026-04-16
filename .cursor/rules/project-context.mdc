@@ -33,7 +33,101 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: AI健康咨询对话页输入栏改造+拍照识药快捷入口 (2026-04-16)
+## Latest Update: 拍照识药优化+健康自查改造+SSE流式输出+AI回复交互增强 (2026-04-16)
+
+### 概要
+本次更新包含9大功能模块：拍照识药3步流程改造(新增family_member_id关联)、列表样式优化(对齐体检报告)、drug_name写入Bug修复、健康自查3步流程改造(合并步骤+关联咨询人)、对话页拍照识药快捷按钮(ActionSheet+药品卡片)、全场景SSE流式输出(打字机效果)、AI回复底部按钮(复制/播报/分享)、TTS语音播报(免费+云端双方案)、分享功能(微信链接+海报图片)。五端同步开发（后端/H5/小程序/Flutter/Admin）。
+
+### Backend 变更
+
+| 文件 | 变更 |
+| --- | --- |
+| `backend/app/models/models.py` | DrugIdentifyDetail 新增 `family_member_id`(FK→family_members.id) 和 `family_member` relationship；新增 `ChatShareRecord` 模型(share_token/session_id/user_message_id/ai_message_id/view_count) |
+| `backend/app/api/drug.py` | identify 接口新增 family_member_id 参数 |
+| `backend/app/api/ocr.py` | _write_drug_detail 增强 drug_name 提取逻辑(支持多种AI返回格式)；recognize/batch-recognize 传递 family_member_id |
+| `backend/app/api/ocr_details.py` | history 接口返回 family_member 关联信息；新增 drug_name 数据修复接口 |
+| `backend/app/api/chat.py` | 新增 POST /api/chat/sessions/{session_id}/stream SSE流式输出接口 |
+| `backend/app/api/tts.py` | 新增 TTS 配置管理和语音合成接口(4个端点) |
+| `backend/app/api/chat_share.py` | 新增对话分享+海报生成+分享配置接口(5个端点) |
+| `backend/app/schemas/tts.py` | TTS 相关 Pydantic Schema |
+| `backend/app/schemas/share.py` | 分享相关 Pydantic Schema |
+| `backend/app/schemas/ocr_details.py` | 新增 FamilyMemberBrief；DrugIdentifyHistoryItem 新增 family_member |
+| `backend/app/services/ai_service.py` | 新增 call_ai_model_stream() 流式AI调用 |
+| `backend/app/services/schema_sync.py` | 新增 drug_identify_details.family_member_id 列同步 + chat_share_records 表同步 |
+| `backend/app/main.py` | 注册 tts 和 chat_share 路由 |
+| `backend/tests/test_new_features.py` | 39个测试用例覆盖所有新增接口 |
+
+### H5 变更
+
+| 文件 | 变更 |
+| --- | --- |
+| `h5-web/src/app/drug/page.tsx` | 改造为3步流程(拍照→选择咨询人→AI识别)；列表样式对齐体检报告；步骤条组件 |
+| `h5-web/src/app/symptom/page.tsx` | 改造为3步(描述症状→选择咨询人→AI分析)；合并部位+症状+持续时间为一页 |
+| `h5-web/src/app/chat/[sessionId]/page.tsx` | 拍照识药ActionSheet+药品卡片；SSE流式输出+打字机效果；底部按钮(复制/播报/分享)；TTS播报；分享功能 |
+| `h5-web/src/app/drug/chat/[sessionId]/page.tsx` | SSE流式输出改造 |
+| `h5-web/src/app/shared/chat/[token]/page.tsx` | 分享页面改造(匹配后端API) |
+
+### 小程序变更
+
+| 文件 | 变更 |
+| --- | --- |
+| `miniprogram/pages/drug/index.js/wxml/wxss` | 3步流程+列表优化+咨询人选择 |
+| `miniprogram/pages/symptom/index.js/wxml/wxss` | 3步流程改造 |
+| `miniprogram/pages/chat/index.js/wxml/wxss` | 拍照识药快捷入口+SSE流式+底部按钮+TTS+分享 |
+
+### Flutter 变更
+
+| 文件 | 变更 |
+| --- | --- |
+| `flutter_app/lib/screens/health/drug_screen.dart` | 3步流程+列表优化 |
+| `flutter_app/lib/screens/health/symptom_screen.dart` | 3步流程改造 |
+| `flutter_app/lib/screens/ai/chat_screen.dart` | 拍照识药+SSE流式+底部按钮+TTS+分享 |
+| `flutter_app/lib/services/sse_service.dart` | SSE流式服务(新建) |
+| `flutter_app/lib/services/tts_service.dart` | TTS播报服务(新建) |
+| `flutter_app/lib/services/api_service.dart` | 新增 streamChatMessage 和 generateSharePoster |
+| `flutter_app/lib/providers/chat_provider.dart` | 新增 addMessageExternally 和 refreshUI |
+| `flutter_app/pubspec.yaml` | 新增 flutter_tts 依赖 |
+
+### Admin 变更
+
+| 文件 | 变更 |
+| --- | --- |
+| `admin-web/src/app/(admin)/tts-config/page.tsx` | TTS语音播报配置页(10项配置) |
+| `admin-web/src/app/(admin)/share-config/page.tsx` | 分享海报配置页(6项配置+预览) |
+| `admin-web/src/app/(admin)/layout.tsx` | 侧边栏新增TTS语音配置和分享海报配置菜单 |
+
+### 新增数据库字段/表
+
+| 表 | 字段/说明 | 模块 |
+| --- | --- | --- |
+| drug_identify_details | 新增 `family_member_id`(INTEGER NULLABLE FK) | 拍照识药关联咨询人 |
+| chat_share_records(新表) | share_token/session_id/user_message_id/ai_message_id/user_id/view_count | 对话分享记录 |
+
+### 新增 API 端点
+
+| 方法 | 路径 | 权限 | 说明 |
+| --- | --- | --- | --- |
+| POST | `/api/chat/sessions/{session_id}/stream` | 已登录 | SSE 流式对话 |
+| GET | `/api/settings/tts-config` | 公开 | 获取 TTS 配置 |
+| GET | `/api/admin/settings/tts-config` | 管理员 | 获取完整 TTS 配置 |
+| PUT | `/api/admin/settings/tts-config` | 管理员 | 更新 TTS 配置 |
+| POST | `/api/tts/synthesize` | 已登录 | 云端 TTS 语音合成 |
+| POST | `/api/chat/share` | 已登录 | 创建分享链接 |
+| GET | `/api/share/{share_token}` | 公开 | 查看分享内容 |
+| POST | `/api/chat/share/poster` | 已登录 | 生成海报图片 |
+| GET | `/api/admin/settings/share-config` | 管理员 | 获取分享海报配置 |
+| PUT | `/api/admin/settings/share-config` | 管理员 | 更新分享海报配置 |
+
+### 客户端包更新
+- 小程序: `miniprogram_20260416_234525_4ad7.zip`
+- 安卓APK: `bini_health.apk`
+
+### 用户手册
+- `user_docs/拍照识药优化与健康自查改造与流式输出与AI回复交互增强.md`
+
+---
+
+## Previous Update: AI健康咨询对话页输入栏改造+拍照识药快捷入口 (2026-04-16)
 
 ### 概要
 AI健康咨询对话页（/chat/[sessionId]）输入栏布局改造为与健康自查页一致的顺序：「咨询人头像 → 语音/键盘切换 → 输入框 → 发送」；在输入栏上方新增「拍照识药」快捷按钮（相机图标+文字，点击跳转/drug页面）。仅H5前端改动。
