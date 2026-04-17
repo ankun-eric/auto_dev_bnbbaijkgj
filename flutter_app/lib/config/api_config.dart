@@ -66,6 +66,9 @@ class ApiConfig {
   // TCM
   static const String tcmDiagnose = '/api/tcm/diagnose';
   static const String tcmConstitution = '/api/tcm/constitution';
+  static const String tcmConfig = '/api/tcm/config';
+  static const String tcmConstitutionTest = '/api/tcm/constitution-test';
+  static const String tcmDiagnosisList = '/api/tcm/diagnosis';
 
   // Drug
   static const String drugSearch = '/api/drugs/query';

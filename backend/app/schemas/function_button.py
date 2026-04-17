@@ -14,6 +14,9 @@ class ChatFunctionButtonCreate(BaseModel):
     sort_weight: int = 0
     is_enabled: bool = True
     params: Optional[dict] = None
+    ai_reply_mode: Optional[str] = None
+    photo_tip_text: Optional[str] = None
+    max_photo_count: Optional[int] = None
 
 
 class ChatFunctionButtonUpdate(BaseModel):
@@ -23,6 +26,9 @@ class ChatFunctionButtonUpdate(BaseModel):
     sort_weight: Optional[int] = None
     is_enabled: Optional[bool] = None
     params: Optional[dict] = None
+    ai_reply_mode: Optional[str] = None
+    photo_tip_text: Optional[str] = None
+    max_photo_count: Optional[int] = None
 
 
 class ChatFunctionButtonResponse(BaseModel):
@@ -33,6 +39,9 @@ class ChatFunctionButtonResponse(BaseModel):
     sort_weight: int
     is_enabled: bool
     params: Optional[dict] = None
+    ai_reply_mode: Optional[str] = None
+    photo_tip_text: Optional[str] = None
+    max_photo_count: Optional[int] = None
     created_at: datetime
     updated_at: datetime
 

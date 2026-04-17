@@ -1,11 +1,29 @@
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.security import get_current_user
-from app.models.models import ConstitutionAnswer, ConstitutionQuestion, HealthProfile, TCMDiagnosis, User
-from app.schemas.tcm import ConstitutionQuestionResponse, TCMDiagnosisCreate, TCMDiagnosisResponse, ConstitutionTestRequest
+from app.models.models import (
+    ChatMessage,
+    ChatSession,
+    ConstitutionAnswer,
+    ConstitutionQuestion,
+    HealthProfile,
+    MessageRole,
+    SessionType,
+    TCMDiagnosis,
+    User,
+)
+from app.schemas.tcm import (
+    ConstitutionQuestionResponse,
+    ConstitutionTestRequest,
+    TCMDiagnosisCreate,
+    TCMDiagnosisListResponse,
+    TCMDiagnosisResponse,
+)
 from app.services.ai_service import tcm_analysis
 
 router = APIRouter(prefix="/api/tcm", tags=["中医辨证"])
@@ -35,6 +53,9 @@ async def create_diagnosis(
         face_analysis=ai_result.get("face_analysis", ""),
         syndrome_analysis=ai_result.get("syndrome_analysis", ""),
         health_plan=ai_result.get("health_plan", ""),
+        family_member_id=data.family_member_id,
+        constitution_description=ai_result.get("constitution_type", ""),
+        advice_summary=ai_result.get("health_plan", "")[:1000] if ai_result.get("health_plan") else None,
     )
     db.add(diagnosis)
     await db.flush()
@@ -59,22 +80,30 @@ async def get_diagnosis(
 
 @router.get("/diagnosis")
 async def list_diagnoses(
+    constitution_type: Optional[str] = None,
+    family_member_id: Optional[int] = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    total_result = await db.execute(select(func.count(TCMDiagnosis.id)).where(TCMDiagnosis.user_id == current_user.id))
+    base_filter = [TCMDiagnosis.user_id == current_user.id]
+    if constitution_type:
+        base_filter.append(TCMDiagnosis.constitution_type == constitution_type)
+    if family_member_id is not None:
+        base_filter.append(TCMDiagnosis.family_member_id == family_member_id)
+
+    total_result = await db.execute(select(func.count(TCMDiagnosis.id)).where(*base_filter))
     total = total_result.scalar() or 0
 
     result = await db.execute(
         select(TCMDiagnosis)
-        .where(TCMDiagnosis.user_id == current_user.id)
+        .where(*base_filter)
         .order_by(TCMDiagnosis.created_at.desc())
         .offset((page - 1) * page_size)
         .limit(page_size)
     )
-    items = [TCMDiagnosisResponse.model_validate(d) for d in result.scalars().all()]
+    items = [TCMDiagnosisListResponse.model_validate(d) for d in result.scalars().all()]
     return {"items": items, "total": total, "page": page, "page_size": page_size}
 
 
@@ -107,11 +136,17 @@ async def constitution_test(
 
     ai_result = await tcm_analysis(None, None, constitution_data, db)
 
+    constitution_desc = ai_result.get("syndrome_analysis", "")
+    advice = ai_result.get("health_plan", "")
+
     diagnosis = TCMDiagnosis(
         user_id=current_user.id,
         constitution_type=ai_result.get("constitution_type", ""),
-        syndrome_analysis=ai_result.get("syndrome_analysis", ""),
-        health_plan=ai_result.get("health_plan", ""),
+        syndrome_analysis=constitution_desc,
+        health_plan=advice,
+        family_member_id=data.family_member_id,
+        constitution_description=ai_result.get("constitution_type", ""),
+        advice_summary=advice[:1000] if advice else None,
     )
     db.add(diagnosis)
     await db.flush()
@@ -123,6 +158,31 @@ async def constitution_test(
             answer_value=ans.answer_value,
         )
         db.add(ca)
+
+    session = ChatSession(
+        user_id=current_user.id,
+        session_type=SessionType.constitution_test,
+        title=f"体质测评 - {ai_result.get('constitution_type', '未知')}",
+        family_member_id=data.family_member_id,
+    )
+    db.add(session)
+    await db.flush()
+    await db.refresh(session)
+
+    user_msg = ChatMessage(
+        session_id=session.id,
+        role=MessageRole.user,
+        content=f"体质测评问卷回答:\n{constitution_data}",
+    )
+    db.add(user_msg)
+
+    ai_content = f"体质类型: {ai_result.get('constitution_type', '')}\n\n辨证分析: {constitution_desc}\n\n调理建议: {advice}"
+    ai_msg = ChatMessage(
+        session_id=session.id,
+        role=MessageRole.assistant,
+        content=ai_content,
+    )
+    db.add(ai_msg)
 
     await db.flush()
     await db.refresh(diagnosis)

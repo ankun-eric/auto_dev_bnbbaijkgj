@@ -56,6 +56,7 @@ from app.api import (
     service,
     sms,
     tcm,
+    tcm_config,
     tts,
     unified_orders,
     upload,
@@ -210,6 +211,8 @@ app.include_router(tts.admin_router)
 app.include_router(chat_share.router)
 app.include_router(chat_share.admin_router)
 app.include_router(products.router)
+app.include_router(tcm_config.router)
+app.include_router(tcm_config.admin_router)
 app.include_router(unified_orders.router)
 app.include_router(member_qr.router)
 app.include_router(favorites.router)

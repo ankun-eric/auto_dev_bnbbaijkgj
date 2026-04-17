@@ -62,7 +62,8 @@
     "pages/my-favorites/index",
     "pages/my-addresses/index",
     "pages/review/index",
-    "pages/refund/index"
+    "pages/refund/index",
+    "pages/tcm-diagnosis-detail/index"
   ],
   "window": {
     "navigationBarTextStyle": "black",

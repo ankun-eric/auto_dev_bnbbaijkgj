@@ -51,6 +51,8 @@ class SessionType(str, enum.Enum):
     tcm = "tcm"
     drug_query = "drug_query"
     customer_service = "customer_service"
+    drug_identify = "drug_identify"
+    constitution_test = "constitution_test"
 
 
 class MessageRole(str, enum.Enum):
@@ -649,12 +651,24 @@ class ChatMessage(Base):
     completion_tokens = mapped_column(Integer, nullable=True)
     image_urls = mapped_column(JSON, nullable=True)
     file_urls = mapped_column(JSON, nullable=True)
+    message_metadata = mapped_column(JSON, nullable=True)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
 
     session = relationship("ChatSession", back_populates="messages")
 
 
 # ──────────────── 中医辨证 ────────────────
+
+
+class TCMConfig(Base):
+    __tablename__ = "tcm_configs"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    tongue_diagnosis_enabled = mapped_column(Boolean, default=False)
+    face_diagnosis_enabled = mapped_column(Boolean, default=False)
+    constitution_test_enabled = mapped_column(Boolean, default=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
 class TCMDiagnosis(Base):
@@ -669,9 +683,13 @@ class TCMDiagnosis(Base):
     face_analysis = mapped_column(Text, nullable=True)
     syndrome_analysis = mapped_column(Text, nullable=True)
     health_plan = mapped_column(Text, nullable=True)
+    family_member_id = mapped_column(Integer, ForeignKey("family_members.id"), nullable=True, index=True)
+    constitution_description = mapped_column(String(500), nullable=True)
+    advice_summary = mapped_column(String(1000), nullable=True)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
 
     user = relationship("User")
+    family_member = relationship("FamilyMember")
     answers = relationship("ConstitutionAnswer", back_populates="diagnosis")
 
 
@@ -2047,6 +2065,9 @@ class ChatFunctionButton(Base):
     sort_weight = mapped_column(Integer, default=0)
     is_enabled = mapped_column(Boolean, default=True)
     params = mapped_column(JSON, nullable=True)
+    ai_reply_mode = mapped_column(String(50), nullable=True, default="complete_analysis")
+    photo_tip_text = mapped_column(String(500), nullable=True, default="请确保药品名称、品牌、规格完整，拍摄清晰")
+    max_photo_count = mapped_column(Integer, nullable=True, default=5)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

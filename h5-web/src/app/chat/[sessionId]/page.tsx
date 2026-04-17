@@ -69,7 +69,7 @@ function DrugInfoCard({ drug }: { drug: DrugInfoCardData }) {
 interface FunctionButton {
   id: string;
   name: string;
-  button_type: 'digital_human_call' | 'photo_upload' | 'file_upload' | 'ai_dialog_trigger' | 'external_link';
+  button_type: 'digital_human_call' | 'photo_upload' | 'file_upload' | 'ai_dialog_trigger' | 'external_link' | 'drug_identify';
   params: Record<string, any>;
 }
 
@@ -78,6 +78,7 @@ const BUTTON_EMOJI: Record<string, string> = {
   photo_upload: '📷',
   file_upload: '📄',
   external_link: '🔗',
+  drug_identify: '💊',
 };
 
 const AI_TRIGGER_EMOJI: Record<string, string> = {
@@ -200,6 +201,8 @@ function ChatPageInner() {
   const urlMsg = searchParams.get('msg') || '';
   const urlMember = searchParams.get('member') || '';
   const isSymptom = urlType === 'symptom';
+  const isDrugIdentify = urlType === 'drug_identify';
+  const isConstitution = urlType === 'constitution';
 
   const [messages, setMessages] = useState<Message[]>([welcomeMessage]);
   const [inputVal, setInputVal] = useState('');
@@ -262,6 +265,14 @@ function ChatPageInner() {
   const autoSentRef = useRef(false);
   const firstUserMsgIdRef = useRef<string | null>(null);
 
+  // Drug identify / constitution banner
+  const [drugIdentifyBannerVisible, setDrugIdentifyBannerVisible] = useState(isDrugIdentify);
+  const [drugIdentifyDrugNames, setDrugIdentifyDrugNames] = useState('');
+  const [drugIdentifyMember, setDrugIdentifyMember] = useState('');
+  const [constitutionBannerVisible, setConstitutionBannerVisible] = useState(isConstitution);
+  const [constitutionType, setConstitutionType] = useState('');
+  const [constitutionMember, setConstitutionMember] = useState('');
+
   // Switch member popup
   const [memberPopupVisible, setMemberPopupVisible] = useState(false);
   const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([]);
@@ -273,7 +284,7 @@ function ChatPageInner() {
     }
     return '本人';
   });
-  const [isSymptomLocked, setIsSymptomLocked] = useState(isSymptom);
+  const [isSymptomLocked, setIsSymptomLocked] = useState(isSymptom || isDrugIdentify || isConstitution);
 
   // Add member popup state (two-step)
   const [addMemberPopupVisible, setAddMemberPopupVisible] = useState(false);
@@ -301,6 +312,8 @@ function ChatPageInner() {
 
   // Module 5: Drug identify from chat
   const [drugActionSheetVisible, setDrugActionSheetVisible] = useState(false);
+  const [drugIdentifyTip, setDrugIdentifyTip] = useState('');
+  const [drugIdentifyMaxPhotos, setDrugIdentifyMaxPhotos] = useState(5);
   const drugCameraRef = useRef<HTMLInputElement>(null);
   const drugAlbumRef = useRef<HTMLInputElement>(null);
   const [drugRecognizing, setDrugRecognizing] = useState(false);
@@ -372,6 +385,11 @@ function ChatPageInner() {
       }
       case 'external_link':
         if (btn.params.url) window.open(btn.params.url, '_blank');
+        break;
+      case 'drug_identify':
+        setDrugIdentifyTip(btn.params.photo_tip_text || '请拍摄或选择药品包装照片');
+        setDrugIdentifyMaxPhotos(btn.params.max_photo_count || 5);
+        setDrugActionSheetVisible(true);
         break;
     }
   };
@@ -702,6 +720,41 @@ function ChatPageInner() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSymptom, urlMsg]);
 
+  // Load session info for drug_identify / constitution banners
+  useEffect(() => {
+    if (!isDrugIdentify && !isConstitution) return;
+    const loadSessionInfo = async () => {
+      try {
+        const res: any = await api.get(`/api/chat-sessions/${sessionId}`);
+        const data = res.data || res;
+        if (isDrugIdentify) {
+          setDrugIdentifyDrugNames(data.drug_names || data.title || '');
+          const memberInfo = data.family_member_relation || data.family_member?.nickname || '';
+          setDrugIdentifyMember(memberInfo);
+          if (data.family_member_relation) setCurrentRelationLabel(data.family_member_relation);
+        }
+        if (isConstitution) {
+          setConstitutionType(data.constitution_type || data.title || '');
+          const memberInfo = data.family_member_relation || data.family_member?.nickname || '';
+          setConstitutionMember(memberInfo);
+          if (data.family_member_relation) setCurrentRelationLabel(data.family_member_relation);
+        }
+      } catch { /* ignore */ }
+    };
+    loadSessionInfo();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId, isDrugIdentify, isConstitution]);
+
+  // Auto-collapse drug_identify/constitution banner after first AI reply
+  useEffect(() => {
+    if (!isDrugIdentify && !isConstitution) return;
+    const aiReplies = messages.filter((m) => m.role === 'assistant' && m.id !== 'welcome');
+    if (aiReplies.length > 0) {
+      if (isDrugIdentify) setDrugIdentifyBannerVisible(false);
+      if (isConstitution) setConstitutionBannerVisible(false);
+    }
+  }, [messages, isDrugIdentify, isConstitution]);
+
   useEffect(() => {
     if (isSymptom) return;
     const restoreSessionMember = async () => {
@@ -709,7 +762,9 @@ function ChatPageInner() {
         const res = await api.get(`/api/chat-sessions/${sessionId}`);
         if (res) {
           const sessionType = (res as any).session_type;
-          if (sessionType === 'symptom_check' || sessionType === 'symptom') {
+          if (sessionType === 'symptom_check' || sessionType === 'symptom'
+              || sessionType === 'drug_query' || sessionType === 'drug_identify'
+              || sessionType === 'constitution') {
             setIsSymptomLocked(true);
             const relation = (res as any).family_member_relation;
             if (relation) {
@@ -907,55 +962,98 @@ function ChatPageInner() {
     setLoading(false);
   };
 
-  // Module 5: Drug recognize from chat
-  const handleDrugRecognize = async (file: File) => {
-    if (!file || drugRecognizing) return;
-    const sizeCheck = await checkFileSize(file, 'drug_identify');
-    if (!sizeCheck.ok) {
-      Toast.show({ content: `文件大小超过限制（最大 ${sizeCheck.maxMb} MB）`, icon: 'fail' });
-      return;
+  // Module 5: Drug recognize from chat (multi-image batch)
+  const handleDrugRecognize = async (files: File[]) => {
+    if (!files.length || drugRecognizing) return;
+    const validFiles: File[] = [];
+    for (const file of files) {
+      const sizeCheck = await checkFileSize(file, 'drug_identify');
+      if (!sizeCheck.ok) {
+        Toast.show({ content: `文件 ${file.name} 超过限制（最大 ${sizeCheck.maxMb} MB），已跳过` });
+        continue;
+      }
+      validFiles.push(file);
     }
+    if (validFiles.length === 0) return;
+
     setDrugRecognizing(true);
 
     const loadingMsg: Message = {
       id: `drug-loading-${Date.now()}`,
       role: 'assistant',
-      content: '正在识别药品...',
+      content: `正在识别药品（${validFiles.length}张图片）...`,
       time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
     };
     setMessages((prev) => [...prev, loadingMsg]);
 
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('scene_name', '拍照识药');
-      const ocrData: any = await uploadWithProgress('/api/ocr/recognize', formData, undefined, { timeout: 120000 });
+      const ocrTexts: string[] = [];
+      const drugCards: DrugInfoCardData[] = [];
+      let failCount = 0;
+
+      for (const file of validFiles) {
+        try {
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('scene_name', '拍照识药');
+          const ocrData: any = await uploadWithProgress('/api/ocr/batch-recognize', formData, undefined, { timeout: 120000 });
+
+          const text = ocrData.ocr_text || ocrData.text || ocrData.result?.ocr_text || '';
+          if (text) ocrTexts.push(text);
+
+          const drugInfo: DrugInfoCardData = {
+            drug_name: ocrData.drug_name || ocrData.result?.drug_name,
+            indications: ocrData.indications || ocrData.result?.indications,
+            dosage: ocrData.dosage || ocrData.result?.dosage,
+            adverse_reactions: ocrData.adverse_reactions || ocrData.result?.adverse_reactions,
+            precautions: ocrData.precautions || ocrData.result?.precautions,
+            storage_conditions: ocrData.storage_conditions || ocrData.result?.storage_conditions,
+            drug_category: ocrData.drug_category || ocrData.result?.drug_category,
+            image_url: ocrData.image_url || ocrData.result?.image_url,
+          };
+          if (drugInfo.drug_name) drugCards.push(drugInfo);
+        } catch {
+          failCount++;
+        }
+      }
 
       setMessages((prev) => prev.filter((m) => m.id !== loadingMsg.id));
 
-      const drugInfo: DrugInfoCardData = {
-        drug_name: ocrData.drug_name || ocrData.result?.drug_name,
-        indications: ocrData.indications || ocrData.result?.indications,
-        dosage: ocrData.dosage || ocrData.result?.dosage,
-        adverse_reactions: ocrData.adverse_reactions || ocrData.result?.adverse_reactions,
-        precautions: ocrData.precautions || ocrData.result?.precautions,
-        storage_conditions: ocrData.storage_conditions || ocrData.result?.storage_conditions,
-        drug_category: ocrData.drug_category || ocrData.result?.drug_category,
-        image_url: ocrData.image_url || ocrData.result?.image_url,
-      };
+      if (failCount > 0 && failCount < validFiles.length) {
+        Toast.show({ content: `${failCount}张图片识别失败，已跳过`, duration: 2000 });
+      }
 
-      const drugName = drugInfo.drug_name || '药品';
-      const aiMsg: Message = {
-        id: `drug-result-${Date.now()}`,
-        role: 'assistant',
-        content: `__DRUG_CARD__${JSON.stringify(drugInfo)}`,
-        time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
-      };
-      setMessages((prev) => [...prev, aiMsg]);
+      if (drugCards.length === 0 && ocrTexts.length === 0) {
+        const errorMsg: Message = {
+          id: `drug-error-${Date.now()}`,
+          role: 'assistant',
+          content: '药品识别失败，请确认图片清晰后重试。',
+          time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+        };
+        setMessages((prev) => [...prev, errorMsg]);
+        return;
+      }
 
-      // Auto-ask about the drug in the session
-      const followUp = `我刚识别了一种药品：${drugName}，请帮我分析这个药品的用药建议。`;
-      sendMessageText(followUp);
+      for (const card of drugCards) {
+        const cardMsg: Message = {
+          id: `drug-result-${Date.now()}-${Math.random()}`,
+          role: 'assistant',
+          content: `__DRUG_CARD__${JSON.stringify(card)}`,
+          time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+        };
+        setMessages((prev) => [...prev, cardMsg]);
+      }
+
+      const drugNames = drugCards.map((c) => c.drug_name || '药品').filter(Boolean);
+      let followUp = '';
+      if (drugNames.length === 1) {
+        followUp = `我刚识别了一种药品：${drugNames[0]}，请帮我分析这个药品的用药建议。`;
+      } else if (drugNames.length > 1) {
+        followUp = `我刚识别了以下药品：${drugNames.join('、')}，请帮我分析这些药品的用药建议及药物相互作用。`;
+      }
+      if (followUp) {
+        await sendMessageText(followUp);
+      }
     } catch {
       setMessages((prev) => prev.filter((m) => m.id !== loadingMsg.id));
       const errorMsg: Message = {
@@ -1140,10 +1238,12 @@ function ChatPageInner() {
 
   const openMemberPopup = async () => {
     if (isSymptomLocked) {
-      Toast.show({
-        content: '当前为健康自查专属咨询，咨询对象已锁定，如需为其他人咨询请返回重新发起',
-        duration: 2500,
-      });
+      const lockMsg = isDrugIdentify
+        ? '当前为用药识别专属咨询，咨询对象已锁定'
+        : isConstitution
+        ? '当前为体质分析专属咨询，咨询对象已锁定'
+        : '当前为健康自查专属咨询，咨询对象已锁定，如需为其他人咨询请返回重新发起';
+      Toast.show({ content: lockMsg, duration: 2500 });
       return;
     }
     await fetchMemberList();
@@ -1377,6 +1477,52 @@ function ChatPageInner() {
         </div>
       )}
 
+      {/* Drug identify banner */}
+      {isDrugIdentify && drugIdentifyBannerVisible && (
+        <div
+          className="mx-3 mt-2 rounded-xl px-3 py-2 flex items-start gap-2"
+          style={{ background: '#fff7e6', border: '1px solid #ffd591' }}
+        >
+          <span style={{ color: '#fa8c16', fontSize: 15, flexShrink: 0, marginTop: 1 }}>💊</span>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between gap-1">
+              <span className="text-xs font-medium" style={{ color: '#fa8c16' }}>用药识别</span>
+              {drugIdentifyMember && (
+                <span className="text-xs" style={{ color: '#fa8c16' }}>咨询对象：{drugIdentifyMember}</span>
+              )}
+            </div>
+            {drugIdentifyDrugNames && (
+              <div className="text-xs mt-1" style={{ color: '#555' }}>
+                {drugIdentifyDrugNames}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Constitution banner */}
+      {isConstitution && constitutionBannerVisible && (
+        <div
+          className="mx-3 mt-2 rounded-xl px-3 py-2 flex items-start gap-2"
+          style={{ background: '#f9f0ff', border: '1px solid #d3adf7' }}
+        >
+          <span style={{ color: '#722ed1', fontSize: 15, flexShrink: 0, marginTop: 1 }}>🌿</span>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between gap-1">
+              <span className="text-xs font-medium" style={{ color: '#722ed1' }}>体质分析</span>
+              {constitutionMember && (
+                <span className="text-xs" style={{ color: '#722ed1' }}>咨询对象：{constitutionMember}</span>
+              )}
+            </div>
+            {constitutionType && (
+              <div className="text-xs mt-1" style={{ color: '#555' }}>
+                体质类型：{constitutionType}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       <style dangerouslySetInnerHTML={{ __html: `
         @keyframes cursor-blink {
           0%, 100% { opacity: 1; }
@@ -1569,22 +1715,28 @@ function ChatPageInner() {
             className="flex items-center gap-2 overflow-x-auto px-3 py-1 no-scrollbar"
             style={{ scrollBehavior: 'smooth', WebkitOverflowScrolling: 'touch', height: 44 }}
           >
-            {funcButtons.map((btn) => (
+            {funcButtons.map((btn) => {
+              const isDrugBtn = btn.button_type === 'drug_identify';
+              const isDisabled = isDrugBtn && drugRecognizing;
+              return (
               <button
                 key={btn.id}
-                onClick={() => handleFuncBtnClick(btn)}
+                onClick={() => !isDisabled && handleFuncBtnClick(btn)}
+                disabled={isDisabled}
                 className="flex items-center gap-1 flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all active:scale-95"
                 style={{
                   background: '#f5f5f5',
                   border: '1px solid #e8e8e8',
                   color: '#333',
                   whiteSpace: 'nowrap',
+                  opacity: isDisabled ? 0.5 : 1,
                 }}
               >
                 <span style={{ fontSize: 13 }}>{getFuncBtnEmoji(btn)}</span>
-                <span>{btn.name}</span>
+                <span>{isDrugBtn && drugRecognizing ? '识别中...' : btn.name}</span>
               </button>
-            ))}
+              );
+            })}
           </div>
           <div style={{
             position: 'absolute', right: 0, top: 0, bottom: 0, width: 32,
@@ -1601,36 +1753,24 @@ function ChatPageInner() {
 
       {/* Hidden drug identify file inputs */}
       <input ref={drugCameraRef} type="file" accept="image/*" capture="environment" className="hidden"
-        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleDrugRecognize(f); e.target.value = ''; }} />
-      <input ref={drugAlbumRef} type="file" accept="image/*" className="hidden"
-        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleDrugRecognize(f); e.target.value = ''; }} />
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleDrugRecognize([f]); e.target.value = ''; }} />
+      <input ref={drugAlbumRef} type="file" accept="image/*" multiple className="hidden"
+        onChange={(e) => {
+          const fileList = e.target.files;
+          if (fileList && fileList.length > 0) {
+            const files = Array.from(fileList).slice(0, drugIdentifyMaxPhotos);
+            handleDrugRecognize(files);
+          }
+          e.target.value = '';
+        }} />
 
-      {/* Photo drug identify shortcut above input bar */}
-      <div className="bg-white border-t border-gray-100 px-3 pt-2 pb-0">
-        <button
-          onClick={() => setDrugActionSheetVisible(true)}
-          disabled={drugRecognizing || loading}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all active:scale-95"
-          style={{
-            background: 'linear-gradient(135deg, #f6ffed, #e6fffb)',
-            border: '1px solid #b7eb8f',
-            color: '#52c41a',
-            opacity: drugRecognizing || loading ? 0.6 : 1,
-          }}
-        >
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#52c41a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-            <circle cx="12" cy="13" r="4" />
-          </svg>
-          <span>{drugRecognizing ? '识别中...' : '拍照识药'}</span>
-        </button>
-      </div>
-
+      {/* Drug identify ActionSheet */}
       <ActionSheet
         visible={drugActionSheetVisible}
+        extra={drugIdentifyTip ? <div className="text-center text-xs text-gray-500 py-2 px-4">{drugIdentifyTip}</div> : undefined}
         actions={[
-          { text: '拍照', key: 'camera', onClick: () => { setDrugActionSheetVisible(false); drugCameraRef.current?.click(); } },
-          { text: '从相册选择', key: 'album', onClick: () => { setDrugActionSheetVisible(false); drugAlbumRef.current?.click(); } },
+          { text: '拍照', key: 'camera', disabled: drugRecognizing, onClick: () => { setDrugActionSheetVisible(false); drugCameraRef.current?.click(); } },
+          { text: '从相册选择', key: 'album', disabled: drugRecognizing, onClick: () => { setDrugActionSheetVisible(false); drugAlbumRef.current?.click(); } },
         ]}
         cancelText="取消"
         onClose={() => setDrugActionSheetVisible(false)}

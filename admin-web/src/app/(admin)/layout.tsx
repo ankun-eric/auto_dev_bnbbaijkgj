@@ -84,6 +84,7 @@ const menuItems: MenuItem[] = [
       { key: '/ai-center/prompts', label: '提示词配置' },
       { key: '/prompt-templates', icon: <FormOutlined />, label: 'Prompt 模板配置' },
       { key: '/ai-center/disclaimers', label: '免责提示配置' },
+      { key: '/tcm-config', icon: <MedicineBoxOutlined />, label: '中医养生配置' },
     ],
   },
   {
@@ -205,7 +206,7 @@ function getOpenKeys(pathname: string): string[] {
   if (pathname.startsWith('/content')) return ['content'];
   if (pathname.startsWith('/points')) return ['points'];
   if (pathname.startsWith('/ai-config') || pathname.startsWith('/chat-records') || pathname.startsWith('/knowledge') || pathname.startsWith('/search-config') || pathname.startsWith('/fallback-config') || pathname.startsWith('/ocr-config') || pathname.startsWith('/ocr-global-config') || pathname.startsWith('/checkup-details') || pathname.startsWith('/drug-details')) return ['ai'];
-  if (pathname.startsWith('/ai-center') || pathname.startsWith('/prompt-templates')) return ['ai-center'];
+  if (pathname.startsWith('/ai-center') || pathname.startsWith('/prompt-templates') || pathname.startsWith('/tcm-config')) return ['ai-center'];
   if (pathname.startsWith('/function-buttons') || pathname.startsWith('/digital-humans') || pathname.startsWith('/voice-service') || pathname.startsWith('/tts-config') || pathname.startsWith('/share-config')) return ['ai-consult-config'];
   if (pathname.startsWith('/home-settings') || pathname.startsWith('/home-menus') || pathname.startsWith('/home-banners') || pathname.startsWith('/notices') || pathname.startsWith('/bottom-nav')) return ['home-config'];
   if (pathname.startsWith('/search')) return ['search-manage'];

@@ -37,6 +37,8 @@ DEFAULT_SYSTEM_PROMPTS = {
     "tcm": "你是一位中医AI养生助手，精通中医养生理论。请根据用户描述，从中医养生角度提供调理建议。所有中医养生建议仅供参考，个人体质不同，建议在专业中医师指导下调理。",
     "drug_query": "你是一位药学AI用药参考助手，请提供药品的基本信息供用户参考，包括常见用法、注意事项、相互作用等。所有用药信息仅供参考，具体用药请严格遵医嘱，切勿自行用药。",
     "customer_service": "你是「宾尼小康」平台的AI客服助手，请热情友好地解答用户关于平台服务的问题。",
+    "drug_identify": "你是一位专业的药品识别AI助手。用户通过拍照识别药品，请根据药品图片识别结果提供药品详细信息，包括名称、分类、用法用量、注意事项等。如用户上传多张图片，请综合分析所有图片信息。所有用药信息仅供参考，具体用药请严格遵医嘱。",
+    "constitution_test": "你是一位资深的中医AI体质辨识专家。请根据用户的体质测评问卷结果进行综合辨识分析，判断体质类型，并给出调理建议。所有中医养生建议仅供参考，建议在专业中医师指导下调理。",
 }
 
 
@@ -247,12 +249,17 @@ async def send_message(
     if not session:
         raise HTTPException(status_code=404, detail="会话不存在")
 
+    msg_metadata = None
+    if data.silent:
+        msg_metadata = {"silent": True}
+
     user_msg = ChatMessage(
         session_id=session_id,
         role=MessageRole.user,
         content=data.content,
         message_type=data.message_type,
         file_url=data.file_url,
+        message_metadata=msg_metadata,
     )
     db.add(user_msg)
     await db.flush()
@@ -362,12 +369,17 @@ async def stream_message(
     if not session:
         raise HTTPException(status_code=404, detail="会话不存在")
 
+    stream_msg_metadata = None
+    if data.silent:
+        stream_msg_metadata = {"silent": True}
+
     user_msg = ChatMessage(
         session_id=session_id,
         role=MessageRole.user,
         content=data.content,
         message_type=data.message_type,
         file_url=data.file_url,
+        message_metadata=stream_msg_metadata,
     )
     db.add(user_msg)
     await db.flush()

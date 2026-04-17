@@ -53,6 +53,12 @@ Page({
     drugCardData: null,
     drugCardExpanded: false,
     drugImageUploading: false,
+    drugIdentifyDisabled: false,
+
+    // Type-lock & summary bar
+    isTypeLocked: false,
+    summaryBarText: '',
+    lockedFamilyMemberId: null,
 
     // Module 6: SSE streaming
     streamingMsgId: '',
@@ -79,7 +85,7 @@ Page({
   _sseRequestTask: null,
 
   onLoad(options) {
-    const { type = 'health_qa', chatId, question, member } = options;
+    const { type = 'health_qa', chatId, question, member, family_member_id, constitution_type, summary } = options;
     this.setData({ chatType: type, chatId: chatId || generateId() });
 
     const isSymptom = type === 'symptom' || type === 'symptom_check';
@@ -91,13 +97,25 @@ Page({
       });
     }
 
+    if (type === 'drug_identify' || type === 'constitution') {
+      this.setData({ isTypeLocked: true });
+      if (family_member_id) {
+        this.setData({ lockedFamilyMemberId: family_member_id });
+      }
+      if (summary) {
+        this.setData({ summaryBarText: decodeURIComponent(summary) });
+      }
+    }
+
     wx.showShareMenu({ withShareTicket: true, menus: ['shareAppMessage', 'shareTimeline'] });
 
     const typeNames = {
       health_qa: '健康问答', general: '健康问答',
       symptom_check: '健康自查', symptom: '健康自查',
       tcm: '中医养生',
-      drug_query: '用药参考', nutrition: '用药参考'
+      drug_query: '用药参考', nutrition: '用药参考',
+      drug_identify: '用药识别',
+      constitution: '体质调理'
     };
     wx.setNavigationBarTitle({ title: typeNames[type] || 'AI健康咨询' });
 
@@ -106,6 +124,10 @@ Page({
     this.loadFontSetting();
     this.loadFamilyMembers();
     this.loadFunctionButtons();
+
+    if (type === 'drug_identify' || type === 'constitution') {
+      this._lockConsultTargetByMemberId(family_member_id);
+    }
 
     if (question) {
       setTimeout(() => {
@@ -311,6 +333,10 @@ Page({
   // Module 5: Drug recognize quick button
   // ========================
   onDrugRecognizeTap() {
+    if (this.data.drugIdentifyDisabled) {
+      wx.showToast({ title: '正在识别中，请稍候', icon: 'none' });
+      return;
+    }
     wx.showActionSheet({
       itemList: ['拍照', '从相册选择'],
       success: (res) => {
@@ -718,6 +744,10 @@ Page({
         break;
       }
 
+      case 'drug_identify':
+        this._handleDrugIdentifyButton(btn);
+        break;
+
       case 'external_link':
         if (params.url) {
           if (params.url.startsWith('/pages/')) {
@@ -730,6 +760,135 @@ Page({
 
       default:
         wx.showToast({ title: '暂不支持该功能', icon: 'none' });
+    }
+  },
+
+  _handleDrugIdentifyButton(btn) {
+    if (this.data.drugIdentifyDisabled) {
+      wx.showToast({ title: '正在识别中，请稍候', icon: 'none' });
+      return;
+    }
+    const params = btn.params || {};
+    const tipText = params.photo_tip_text || '请拍摄药品包装、说明书等清晰照片';
+    const maxCount = params.max_photo_count || 5;
+
+    wx.showModal({
+      title: '拍照识药',
+      content: tipText,
+      showCancel: false,
+      confirmText: '我知道了',
+      success: () => {
+        wx.showActionSheet({
+          itemList: ['拍照', '从相册选择'],
+          success: (res) => {
+            if (res.tapIndex === 0) {
+              wx.chooseMedia({
+                count: 1,
+                mediaType: ['image'],
+                sourceType: ['camera'],
+                success: (mediaRes) => {
+                  this._processDrugIdentifyImages(mediaRes.tempFiles.map(f => f.tempFilePath));
+                }
+              });
+            } else {
+              wx.chooseMedia({
+                count: maxCount,
+                mediaType: ['image'],
+                sourceType: ['album'],
+                success: (mediaRes) => {
+                  this._processDrugIdentifyImages(mediaRes.tempFiles.map(f => f.tempFilePath));
+                }
+              });
+            }
+          }
+        });
+      }
+    });
+  },
+
+  async _processDrugIdentifyImages(filePaths) {
+    if (!filePaths || !filePaths.length) return;
+    this.setData({ drugIdentifyDisabled: true });
+
+    const id = generateId();
+    const now = new Date();
+    const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+    const messages = [...this.data.messages, { id, role: 'user', content: `[拍照识药] 共${filePaths.length}张`, image: filePaths[0], time }];
+    this.setData({ messages, scrollToId: `msg-${id}` });
+
+    const loadingId = this.addMessage('loading', '');
+    let allOcrText = '';
+
+    try {
+      for (let i = 0; i < filePaths.length; i++) {
+        const sizeCheck = await checkFileSize(filePaths[i], 'drug_identify');
+        if (!sizeCheck.ok) {
+          wx.showToast({ title: `第${i + 1}张图片超过限制（最大 ${sizeCheck.maxMb} MB）`, icon: 'none', duration: 2500 });
+          continue;
+        }
+        const ocrRes = await uploadWithProgress('/api/ocr/recognize', filePaths[i], {
+          formData: { scene_name: '拍照识药' },
+          onProgress: (percent) => {
+            const overall = Math.round(((i + percent / 100) / filePaths.length) * 100);
+            this.setData({ uploadPercent: overall, showUploadProgress: true });
+          }
+        });
+        const text = (ocrRes && (ocrRes.text || ocrRes.ocr_text || ocrRes.content)) || '';
+        if (text) allOcrText += (allOcrText ? '\n' : '') + text;
+      }
+      this.setData({ showUploadProgress: false, uploadPercent: -1 });
+
+      if (!allOcrText) {
+        this.removeMessage(loadingId);
+        this.addMessage('assistant', '未能识别到药品文字信息，请拍摄更清晰的照片重试。');
+        this.setData({ drugIdentifyDisabled: false });
+        return;
+      }
+
+      this.removeMessage(loadingId);
+
+      const analyzeLoadingId = this.addMessage('loading', '');
+      const analyzeRes = await post('/api/drug-identify/analyze', {
+        ocr_text: allOcrText,
+        session_id: this.data.chatId,
+        family_member_id: this.data.lockedFamilyMemberId || undefined
+      }, { showLoading: false, suppressErrorToast: true });
+
+      this.removeMessage(analyzeLoadingId);
+
+      const drugData = analyzeRes && (analyzeRes.drugs || analyzeRes.drug_info);
+      if (drugData) {
+        this.setData({ showDrugCard: true, drugCardData: drugData, drugCardExpanded: false });
+      }
+
+      const reply = (analyzeRes && (analyzeRes.ai_reply || analyzeRes.content)) || '药品信息已识别，请查看上方药品卡片。';
+      this.addMessage('assistant', reply);
+
+      if (analyzeRes && analyzeRes.follow_up_question) {
+        setTimeout(() => {
+          this.setData({ inputValue: analyzeRes.follow_up_question });
+          this.sendMessage();
+        }, 1000);
+      }
+    } catch (e) {
+      this.setData({ showUploadProgress: false, uploadPercent: -1 });
+      this.removeMessage(loadingId);
+      this.addMessage('assistant', '药品识别失败，请重试。');
+    } finally {
+      this.setData({ drugIdentifyDisabled: false });
+    }
+  },
+
+  async _lockConsultTargetByMemberId(memberId) {
+    if (!memberId) return;
+    await this.loadFamilyMembers();
+    const member = this.data.familyMembers.find(m => String(m.id) === String(memberId));
+    if (member) {
+      this.setData({
+        consultTarget: { name: member.name, color: member.color },
+        isTypeLocked: true,
+        lockedFamilyMemberId: memberId
+      });
     }
   },
 
@@ -793,9 +952,9 @@ Page({
   // Consult target
   // ========================
   toggleTargetPicker() {
-    if (this.data.isSymptomLocked) {
+    if (this.data.isSymptomLocked || this.data.isTypeLocked) {
       wx.showToast({
-        title: '当前为健康自查专属咨询，咨询对象已锁定，如需为其他人咨询请返回重新发起',
+        title: '当前咨询对象已锁定，如需为其他人咨询请返回重新发起',
         icon: 'none',
         duration: 2500
       });

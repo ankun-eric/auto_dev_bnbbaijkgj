@@ -1,7 +1,7 @@
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, select
+from sqlalchemy import cast, func, select, String
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -53,6 +53,7 @@ async def list_products(
     fulfillment_type: Optional[str] = None,
     points_exchangeable: Optional[bool] = None,
     keyword: Optional[str] = None,
+    constitution_type: Optional[str] = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
@@ -73,6 +74,11 @@ async def list_products(
         kw = f"%{keyword}%"
         query = query.where(Product.name.like(kw))
         count_query = count_query.where(Product.name.like(kw))
+    if constitution_type:
+        ct_pattern = f"%{constitution_type}%"
+        filter_cond = cast(Product.symptom_tags, String).like(ct_pattern)
+        query = query.where(filter_cond)
+        count_query = count_query.where(filter_cond)
 
     total_result = await db.execute(count_query)
     total = total_result.scalar() or 0

@@ -299,9 +299,11 @@ class _DrugScreenState extends State<DrugScreen> {
       final drugName = result['drug_name']?.toString() ?? '药品识别';
       if (sessionId.isNotEmpty) {
         setState(() => _selectedImages.clear());
-        Navigator.pushNamed(context, '/drug-chat', arguments: {
-          'sessionId': sessionId,
-          'drugName': drugName,
+        Navigator.pushNamed(context, '/chat', arguments: {
+          'type': 'drug_identify',
+          'family_member_id': _selectedFamilyMemberId,
+          'summary': '用药识别: $drugName',
+          'initial_message': '识别药品: $drugName',
         });
         _loadHistory();
       } else {
@@ -932,9 +934,9 @@ class _DrugScreenState extends State<DrugScreen> {
     return GestureDetector(
       onTap: () {
         if (sessionId.isNotEmpty) {
-          Navigator.pushNamed(context, '/drug-chat', arguments: {
-            'sessionId': sessionId,
-            'drugName': drugName,
+          Navigator.pushNamed(context, '/chat', arguments: {
+            'type': 'drug_identify',
+            'summary': '用药识别: $drugName',
           });
         }
       },

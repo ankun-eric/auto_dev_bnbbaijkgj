@@ -317,6 +317,21 @@ class ApiService {
     return _dio.post(ApiConfig.tcmConstitution, data: answers);
   }
 
+  Future<Response> getTcmConfig() async {
+    return _dio.get(ApiConfig.tcmConfig);
+  }
+
+  Future<Response> postConstitutionTest(Map<String, dynamic> answers) async {
+    return _dio.post(ApiConfig.tcmConstitutionTest, data: answers);
+  }
+
+  Future<Response> getTcmDiagnosisList({int page = 1, int pageSize = 20}) async {
+    return _dio.get(ApiConfig.tcmDiagnosisList, queryParameters: {
+      'page': page,
+      'page_size': pageSize,
+    });
+  }
+
   // Drug
   Future<Response> searchDrug(String keyword) async {
     return _dio.get(ApiConfig.drugSearch, queryParameters: {'keyword': keyword});

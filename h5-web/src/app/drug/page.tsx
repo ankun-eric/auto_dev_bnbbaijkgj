@@ -454,7 +454,7 @@ export default function DrugPage() {
       if (data.session_id) {
         selectedFiles.forEach((sf) => URL.revokeObjectURL(sf.previewUrl));
         setSelectedFiles([]);
-        router.push(`/drug/chat/${data.session_id}`);
+        router.push(`/chat/${data.session_id}?type=drug_identify`);
       } else {
         setError('识别返回异常，请重试');
         setCurrentStep(0);
@@ -650,7 +650,7 @@ export default function DrugPage() {
                 <div
                   key={item.id}
                   className="bg-white rounded-xl p-3 shadow-sm active:bg-gray-50 transition-colors"
-                  onClick={() => router.push(`/drug/chat/${item.session_id}`)}
+                  onClick={() => router.push(`/chat/${item.session_id}?type=drug_identify`)}
                 >
                   <div className="flex gap-3">
                     <div className="w-14 h-14 rounded-lg flex-shrink-0 bg-gray-100 overflow-hidden relative">

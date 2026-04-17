@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   Table, Button, Space, Modal, Form, Input, InputNumber, Select, Switch, Upload, message,
-  Typography, Tag, Popconfirm, Row, Col, DatePicker, Tabs, Divider,
+  Typography, Tag, Popconfirm, Row, Col, DatePicker, Tabs, Divider, Checkbox,
 } from 'antd';
 import {
   PlusOutlined, EditOutlined, DeleteOutlined, UploadOutlined,
@@ -145,6 +145,11 @@ const fulfillmentMap: Record<string, string> = {
   virtual: '虚拟商品',
 };
 
+const CONSTITUTION_TYPES = [
+  '气虚质', '阳虚质', '阴虚质', '痰湿质', '湿热质',
+  '血瘀质', '气郁质', '特禀质', '平和质',
+];
+
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
@@ -251,6 +256,8 @@ export default function ProductsPage() {
 
   const handleEdit = (record: Product) => {
     setEditingRecord(record);
+    const existingConstitutions = (record.symptom_tags || []).filter(t => CONSTITUTION_TYPES.includes(t));
+    const otherTags = (record.symptom_tags || []).filter(t => !CONSTITUTION_TYPES.includes(t));
     form.setFieldsValue({
       name: record.name,
       category_id: record.category_id,
@@ -258,7 +265,8 @@ export default function ProductsPage() {
       original_price: record.original_price,
       sale_price: record.sale_price,
       description: record.description,
-      symptom_tags: record.symptom_tags,
+      symptom_tags: otherTags,
+      constitution_types: existingConstitutions,
       stock: record.stock,
       valid_start_date: record.valid_start_date ? dayjs(record.valid_start_date) : null,
       valid_end_date: record.valid_end_date ? dayjs(record.valid_end_date) : null,
@@ -332,7 +340,7 @@ export default function ProductsPage() {
         images: imageUrls,
         video_url: values.video_url || '',
         description: values.description || '',
-        symptom_tags: values.symptom_tags || [],
+        symptom_tags: [...(values.symptom_tags || []), ...(values.constitution_types || [])],
         stock: values.stock ?? 0,
         valid_start_date: values.valid_start_date ? values.valid_start_date.format('YYYY-MM-DD') : null,
         valid_end_date: values.valid_end_date ? values.valid_end_date.format('YYYY-MM-DD') : null,
@@ -652,6 +660,11 @@ export default function ProductsPage() {
               mode="tags"
               placeholder="输入或选择症状标签"
               options={symptomTags.map(t => ({ label: `${t.tag} (${t.count})`, value: t.tag }))}
+            />
+          </Form.Item>
+          <Form.Item label="适用体质" name="constitution_types">
+            <Checkbox.Group
+              options={CONSTITUTION_TYPES.map(t => ({ label: t, value: t }))}
             />
           </Form.Item>
 

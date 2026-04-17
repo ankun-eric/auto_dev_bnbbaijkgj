@@ -28,6 +28,7 @@ class ChatMessageCreate(BaseModel):
     content: str
     message_type: str = "text"
     file_url: Optional[str] = None
+    silent: Optional[bool] = False
 
 
 class ChatMessageResponse(BaseModel):

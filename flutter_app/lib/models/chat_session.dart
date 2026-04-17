@@ -38,7 +38,11 @@ class ChatSession {
       case 'gynecology':
         return '中医养生';
       case 'drug_query':
+      case 'drug':
+      case 'drug_identify':
         return '用药参考';
+      case 'constitution':
+        return '体质分析';
       default:
         return 'AI健康咨询';
     }

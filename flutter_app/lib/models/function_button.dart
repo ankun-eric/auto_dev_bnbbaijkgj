@@ -41,6 +41,8 @@ class FunctionButton {
         return Icons.attach_file;
       case 'ai_dialog_trigger':
         return Icons.auto_awesome;
+      case 'drug_identify':
+        return Icons.medication_outlined;
       case 'external_link':
         return Icons.open_in_new;
       default:

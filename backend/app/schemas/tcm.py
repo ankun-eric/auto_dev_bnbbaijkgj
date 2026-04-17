@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict
 class TCMDiagnosisCreate(BaseModel):
     tongue_image_url: Optional[str] = None
     face_image_url: Optional[str] = None
+    family_member_id: Optional[int] = None
 
 
 class TCMDiagnosisResponse(BaseModel):
@@ -19,6 +20,20 @@ class TCMDiagnosisResponse(BaseModel):
     face_analysis: Optional[str] = None
     syndrome_analysis: Optional[str] = None
     health_plan: Optional[str] = None
+    family_member_id: Optional[int] = None
+    constitution_description: Optional[str] = None
+    advice_summary: Optional[str] = None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class TCMDiagnosisListResponse(BaseModel):
+    id: int
+    user_id: int
+    constitution_type: Optional[str] = None
+    constitution_description: Optional[str] = None
+    family_member_id: Optional[int] = None
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
@@ -41,3 +56,4 @@ class ConstitutionAnswerCreate(BaseModel):
 
 class ConstitutionTestRequest(BaseModel):
     answers: List[ConstitutionAnswerCreate]
+    family_member_id: Optional[int] = None

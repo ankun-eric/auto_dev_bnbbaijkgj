@@ -1,0 +1,73 @@
+<view class="detail-page">
+  <!-- Loading -->
+  <view class="loading-wrap" wx:if="{{loading}}">
+    <text class="loading-text">加载中...</text>
+  </view>
+
+  <block wx:elif="{{detail}}">
+    <!-- 上半部分：体质信息 -->
+    <view class="card detail-header-card">
+      <view class="detail-header">
+        <view class="detail-icon-wrap">
+          <text class="detail-icon">🌿</text>
+        </view>
+        <text class="detail-type">{{detail.constitution_type}}</text>
+        <text class="detail-member-tag" wx:if="{{detail.family_member_name}}">咨询对象：{{detail.family_member_name}}</text>
+        <text class="detail-date">{{detail.created_at}}</text>
+      </view>
+    </view>
+
+    <view class="card" wx:if="{{detail.description}}">
+      <text class="section-title">体质描述</text>
+      <text class="detail-desc">{{detail.description}}</text>
+    </view>
+
+    <view class="card" wx:if="{{detail.traits.length > 0}}">
+      <text class="section-title">体质特征</text>
+      <view class="trait-list">
+        <view class="trait-item" wx:for="{{detail.traits}}" wx:key="index">
+          <text class="trait-dot">•</text>
+          <text class="trait-text">{{item}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="card" wx:if="{{detail.advices.length > 0}}">
+      <text class="section-title">调理建议</text>
+      <view class="advice-grid">
+        <view class="advice-block" wx:for="{{detail.advices}}" wx:key="title">
+          <text class="advice-title">{{item.title}}</text>
+          <text class="advice-content">{{item.content}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 下半部分：推荐商品 -->
+    <view class="card" wx:if="{{products.length > 0}}">
+      <view class="products-header">
+        <text class="section-title">推荐商品</text>
+        <text class="view-more" bindtap="goViewAllProducts">查看更多 ></text>
+      </view>
+      <view class="products-grid">
+        <view class="product-item" wx:for="{{products}}" wx:key="id" bindtap="goProductDetail" data-id="{{item.id}}">
+          <image class="product-image" src="{{item.image_url || item.thumbnail}}" mode="aspectFill" wx:if="{{item.image_url || item.thumbnail}}" />
+          <view class="product-image product-placeholder" wx:else>
+            <text class="product-placeholder-icon">🌿</text>
+          </view>
+          <text class="product-name">{{item.name || item.title}}</text>
+          <text class="product-price" wx:if="{{item.price}}">¥{{item.price}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 底部按钮 -->
+    <view class="bottom-action">
+      <button class="btn-primary consult-btn" bindtap="goAiConsult">咨询 AI 调理方案</button>
+    </view>
+  </block>
+
+  <view class="empty-wrap" wx:else>
+    <text class="empty-icon">📋</text>
+    <text class="empty-text">未找到该诊断记录</text>
+  </view>
+</view>

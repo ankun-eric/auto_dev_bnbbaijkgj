@@ -438,8 +438,10 @@ Page({
         wx.showToast({ title: '识别失败，请重试', icon: 'none' });
         return;
       }
+      const memberId = this.data.selectedFamilyMemberId || '';
+      const memberName = this.data.selectedFamilyMemberName || '本人';
       wx.navigateTo({
-        url: '/pages/drug-chat/index?sessionId=' + firstSessionId
+        url: `/pages/chat/index?type=drug_identify&chatId=${firstSessionId}&family_member_id=${memberId}&summary=${encodeURIComponent('用药识别 · ' + memberName)}`
       });
     } catch (e) {
       this.setData({ uploading: false, uploadProgressText: '', uploadPercent: -1, uploadStep: 1 });
@@ -451,7 +453,7 @@ Page({
     const sessionId = e.currentTarget.dataset.sessionid;
     if (!sessionId) return;
     wx.navigateTo({
-      url: '/pages/drug-chat/index?sessionId=' + sessionId
+      url: `/pages/chat/index?type=drug_identify&chatId=${sessionId}`
     });
   }
 });

@@ -26,6 +26,11 @@
     </view>
   </view>
 
+  <!-- 顶部摘要条 -->
+  <view class="summary-bar" wx:if="{{summaryBarText}}">
+    <text class="summary-bar-text">{{summaryBarText}}</text>
+  </view>
+
   <!-- 消息列表 -->
   <scroll-view class="msg-list" scroll-y scroll-into-view="{{scrollToId}}" scroll-with-animation>
     <!-- 提示信息 -->
@@ -170,9 +175,9 @@
 
   <!-- Module 5: 拍照识药快捷按钮 -->
   <view class="drug-quick-bar">
-    <view class="drug-quick-btn" bindtap="onDrugRecognizeTap">
+    <view class="drug-quick-btn {{drugIdentifyDisabled ? 'drug-quick-btn-disabled' : ''}}" bindtap="onDrugRecognizeTap">
       <text class="drug-quick-icon">💊</text>
-      <text class="drug-quick-text">拍照识药</text>
+      <text class="drug-quick-text">{{drugIdentifyDisabled ? '识别中...' : '拍照识药'}}</text>
     </view>
   </view>
 

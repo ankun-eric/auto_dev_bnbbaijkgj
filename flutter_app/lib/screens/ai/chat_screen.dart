@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -51,6 +52,13 @@ class _ChatScreenState extends State<ChatScreen> {
   String _currentConsultTarget = '本人';
   bool _isSymptomLocked = false;
   List<Map<String, dynamic>> _familyMembers = [];
+  
+  // Route arguments for drug_identify / constitution flows
+  String? _initialType;
+  int? _initialFamilyMemberId;
+  String? _summaryText;
+  bool _argsProcessed = false;
+  
   DateTime? _recordStartTime;
   Timer? _recordTimer;
   Timer? _amplitudeTimer;
@@ -104,7 +112,52 @@ class _ChatScreenState extends State<ChatScreen> {
     _ttsService.onStateChanged = () {
       if (mounted) setState(() {});
     };
-    WidgetsBinding.instance.addPostFrameCallback((_) => _initConsultTarget());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _processRouteArguments();
+      _initConsultTarget();
+    });
+  }
+
+  void _processRouteArguments() {
+    if (_argsProcessed) return;
+    _argsProcessed = true;
+
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is Map<String, dynamic>) {
+      _initialType = args['type']?.toString();
+      _initialFamilyMemberId = args['family_member_id'] is int
+          ? args['family_member_id'] as int
+          : int.tryParse(args['family_member_id']?.toString() ?? '');
+      _summaryText = args['summary']?.toString();
+
+      if (_initialType == 'drug_identify' || _initialType == 'constitution') {
+        setState(() => _isSymptomLocked = true);
+
+        if (_initialFamilyMemberId != null) {
+          final member = _familyMembers.firstWhere(
+            (m) => m['id'] == _initialFamilyMemberId,
+            orElse: () => <String, dynamic>{},
+          );
+          if (member.isNotEmpty) {
+            setState(() {
+              _currentConsultTarget = (member['relation_type_name'] ?? member['nickname'] ?? '家人').toString();
+            });
+          }
+        }
+
+        final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+        if (chatProvider.currentSession == null) {
+          chatProvider.createSession(_initialType!).then((session) {
+            if (session != null && mounted) {
+              final initialMsg = args['initial_message']?.toString();
+              if (initialMsg != null && initialMsg.isNotEmpty) {
+                _sendMessageWithSSE(initialMsg);
+              }
+            }
+          });
+        }
+      }
+    }
   }
 
   Future<void> _loadFamilyMembers() async {
@@ -190,12 +243,123 @@ class _ChatScreenState extends State<ChatScreen> {
         final triggerMsg = btn.params?['trigger_message']?.toString() ?? btn.name;
         _sendMessageWithSSE(triggerMsg);
         break;
+      case 'drug_identify':
+        _handleDrugIdentifyButton(btn);
+        break;
       case 'external_link':
         final url = btn.params?['url']?.toString();
         if (url != null && url.isNotEmpty) {
           launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
         }
         break;
+    }
+  }
+
+  bool _isDrugIdentifying = false;
+
+  void _handleDrugIdentifyButton(FunctionButton btn) {
+    if (_isDrugIdentifying) return;
+    final tipText = btn.params?['photo_tip_text']?.toString() ?? '请拍摄药品包装正面，确保文字清晰可见';
+    final maxCount = btn.params?['max_photo_count'] ?? 5;
+
+    showCupertinoModalPopup(
+      context: context,
+      builder: (ctx) => CupertinoActionSheet(
+        title: Text(tipText),
+        actions: [
+          CupertinoActionSheetAction(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _drugIdentifyFromCamera();
+            },
+            child: const Text('拍照识药'),
+          ),
+          CupertinoActionSheetAction(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _drugIdentifyFromGallery(maxCount is int ? maxCount : 5);
+            },
+            child: const Text('从相册选择'),
+          ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          isDestructiveAction: true,
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('取消'),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _drugIdentifyFromCamera() async {
+    final image = await _picker.pickImage(source: ImageSource.camera);
+    if (image == null || !mounted) return;
+    await _processDrugIdentifyImages([image.path]);
+  }
+
+  Future<void> _drugIdentifyFromGallery(int maxCount) async {
+    final images = await _picker.pickMultiImage();
+    if (images.isEmpty || !mounted) return;
+    final paths = images.take(maxCount).map((e) => e.path).toList();
+    await _processDrugIdentifyImages(paths);
+  }
+
+  Future<void> _processDrugIdentifyImages(List<String> imagePaths) async {
+    if (_isDrugIdentifying || !mounted) return;
+
+    setState(() {
+      _isDrugIdentifying = true;
+      _isStreaming = true;
+      _streamingContent = '正在识别药品...';
+    });
+    _startCursorBlink();
+
+    try {
+      final response = await _apiService.ocrBatchRecognize(imagePaths, sceneName: '拍照识药');
+      if (!mounted) return;
+
+      if (response.statusCode == 200) {
+        final data = response.data is Map ? response.data as Map<String, dynamic> : <String, dynamic>{};
+        final ocrTexts = <String>[];
+        final items = data['items'] as List? ?? data['results'] as List? ?? [];
+        for (final item in items) {
+          final text = (item is Map ? (item['ocr_text'] ?? item['text'] ?? item['drug_name'] ?? '') : '').toString();
+          if (text.isNotEmpty) ocrTexts.add(text);
+        }
+        final mergedText = data['merged_text']?.toString() ?? data['ocr_text']?.toString() ?? ocrTexts.join('\n');
+
+        setState(() {
+          _isStreaming = false;
+          _streamingContent = '';
+        });
+        _stopCursorBlink();
+
+        if (mergedText.isNotEmpty) {
+          _sendMessageWithSSE('识别药品: $mergedText');
+          Future.delayed(const Duration(seconds: 1), () {
+            if (mounted && !_isStreaming) {
+              _sendMessageWithSSE('请根据以上药品信息，提供详细的用药指导和注意事项');
+            }
+          });
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('未能识别药品，请重试')),
+          );
+        }
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _isStreaming = false;
+          _streamingContent = '';
+        });
+        _stopCursorBlink();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('识别失败，请重试')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isDrugIdentifying = false);
     }
   }
 
@@ -824,6 +988,47 @@ class _ChatScreenState extends State<ChatScreen> {
               ],
             ),
           ),
+          if (_summaryText != null && _summaryText!.isNotEmpty)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: BoxDecoration(
+                color: _initialType == 'constitution'
+                    ? const Color(0xFFF9F0FF)
+                    : const Color(0xFFFFF0F6),
+                border: Border(
+                  bottom: BorderSide(
+                    color: _initialType == 'constitution'
+                        ? const Color(0xFF722ED1).withOpacity(0.2)
+                        : const Color(0xFFEB2F96).withOpacity(0.2),
+                  ),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    _initialType == 'constitution' ? Icons.spa : Icons.medication,
+                    size: 16,
+                    color: _initialType == 'constitution'
+                        ? const Color(0xFF722ED1)
+                        : const Color(0xFFEB2F96),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _summaryText!,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: _initialType == 'constitution'
+                            ? const Color(0xFF722ED1)
+                            : const Color(0xFFEB2F96),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           Expanded(
             child: Consumer<ChatProvider>(
               builder: (context, chatProvider, child) {

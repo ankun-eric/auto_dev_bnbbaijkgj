@@ -735,6 +735,7 @@ async def batch_recognize(
                 session_id = await _write_drug_detail(
                     db, current_user, last_provider_used,
                     merged_record, merged_ocr_text, merged_ai_result, None,
+                    family_member_id=family_member_id,
                 )
             except Exception as e:
                 logger.warning("Failed to write drug detail: %s", e)
@@ -782,6 +783,13 @@ async def _call_ai_with_scene(
         tpl = tpl_result.scalar_one_or_none()
         if tpl:
             system_prompt = tpl.content
+        system_prompt += (
+            "\n\n## 多图识别说明\n"
+            "如果用户上传了多张药品图片，OCR文字内容可能包含多段（用---分隔），"
+            "请综合分析所有图片的文字信息，识别出完整的药品信息。"
+            "同一药品的不同角度拍照（如正面、背面、说明书）应合并分析，"
+            "不同药品应分别列出。"
+        )
 
     messages = [{"role": "user", "content": f"以下是OCR识别的文字内容:\n\n{ocr_text}"}]
 
@@ -950,6 +958,7 @@ async def _write_drug_detail(db, user, provider, record, ocr_text, ai_result, im
             user_id=user.id,
             session_type=SessionType.drug_query,
             title=drug_name or "拍照识药",
+            family_member_id=family_member_id,
         )
         db.add(session)
         await db.flush()

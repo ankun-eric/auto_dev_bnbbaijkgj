@@ -1,17 +1,17 @@
 <view class="tcm-page">
   <!-- 功能入口 -->
   <view class="feature-grid">
-    <view class="feature-card card" bindtap="startTongue">
+    <view class="feature-card card" bindtap="startTongue" wx:if="{{showTongue}}">
       <text class="feature-icon">👅</text>
       <text class="feature-name">舌诊拍照</text>
       <text class="feature-desc">AI分析舌象，辨别体质</text>
     </view>
-    <view class="feature-card card" bindtap="startFace">
+    <view class="feature-card card" bindtap="startFace" wx:if="{{showFace}}">
       <text class="feature-icon">😊</text>
       <text class="feature-name">面诊拍照</text>
       <text class="feature-desc">面部气色分析</text>
     </view>
-    <view class="feature-card card" bindtap="startConstitution">
+    <view class="feature-card card" bindtap="startConstitution" wx:if="{{showConstitution}}">
       <text class="feature-icon">📝</text>
       <text class="feature-name">体质测评</text>
       <text class="feature-desc">九种体质自测</text>
@@ -74,5 +74,63 @@
     </view>
 
     <button class="btn-primary" style="margin: 24rpx;" bindtap="resetAll">重新测评</button>
+  </view>
+
+  <!-- 历史记录列表 -->
+  <view class="history-section" wx:if="{{!showQuiz && !showResult}}">
+    <view class="section-header">
+      <text class="section-title-hist">历史记录</text>
+    </view>
+
+    <view wx:if="{{historyLoading && historyList.length === 0}}" class="loading-wrap">
+      <text class="loading-text">加载中...</text>
+    </view>
+
+    <view wx:elif="{{historyList.length === 0}}" class="empty-wrap">
+      <text class="empty-icon">📋</text>
+      <text class="empty-text">暂无诊断记录</text>
+      <text class="empty-hint">完成体质测评后，记录将显示在这里</text>
+    </view>
+
+    <view wx:else class="history-list">
+      <view class="history-item card" wx:for="{{historyList}}" wx:key="id" bindtap="goHistoryDetail" data-item="{{item}}">
+        <view class="history-item-content">
+          <view class="history-icon-circle">
+            <text class="history-icon-text">{{item.icon}}</text>
+          </view>
+          <view class="history-info">
+            <view class="history-header-row">
+              <text class="history-name">{{item.constitution_type}}</text>
+              <text class="history-member-tag" wx:if="{{item.family_member_name}}">{{item.family_member_name}}</text>
+            </view>
+            <text class="history-desc" wx:if="{{item.description}}">{{item.description}}</text>
+            <text class="history-time">{{item.created_at}}</text>
+          </view>
+          <view class="history-arrow">
+            <text class="arrow-icon">›</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 咨询对象选择弹窗 -->
+  <view class="member-picker-mask" wx:if="{{showMemberPicker}}" catchtap="onCancelMemberPicker"></view>
+  <view class="member-picker-popup" wx:if="{{showMemberPicker}}">
+    <view class="member-picker-header">
+      <text class="member-picker-title">为谁咨询？</text>
+      <text class="member-picker-close" catchtap="onCancelMemberPicker">✕</text>
+    </view>
+    <view class="member-picker-list">
+      <view class="member-picker-item {{selectedMemberId === item.id ? 'member-picker-selected' : ''}}"
+            wx:for="{{familyMembers}}" wx:key="id"
+            bindtap="onSelectMember" data-member="{{item}}">
+        <view class="member-picker-avatar" style="background: {{item.color}};">
+          <text class="member-picker-avatar-text">{{item.name}}</text>
+        </view>
+        <text class="member-picker-check" wx:if="{{selectedMemberId === item.id}}">✓</text>
+      </view>
+    </view>
+    <button class="btn-primary member-picker-confirm" bindtap="onConfirmMember">确认并咨询</button>
   </view>
 </view>

@@ -39,7 +39,9 @@ class _ChatHistoryDrawerState extends State<ChatHistoryDrawer> {
       case 'gynecology':
         return '养生';
       case 'drug_query':
-        return '用药';
+      case 'drug':
+      case 'drug_identify':
+        return '用药参考';
       default:
         return 'AI';
     }
@@ -57,7 +59,11 @@ class _ChatHistoryDrawerState extends State<ChatHistoryDrawer> {
       case 'gynecology':
         return const Color(0xFFEB2F96);
       case 'drug_query':
+      case 'drug':
+      case 'drug_identify':
         return const Color(0xFF722ED1);
+      case 'constitution':
+        return const Color(0xFFEB2F96);
       default:
         return const Color(0xFF52C41A);
     }

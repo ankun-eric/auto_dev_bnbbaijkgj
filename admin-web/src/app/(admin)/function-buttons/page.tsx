@@ -17,6 +17,7 @@ const BUTTON_TYPE_OPTIONS = [
   { value: 'file_upload', label: '文件上传' },
   { value: 'ai_dialog_trigger', label: 'AI对话触发' },
   { value: 'external_link', label: '外部链接' },
+  { value: 'drug_identify', label: '拍照识药' },
 ];
 
 const BUTTON_TYPE_MAP: Record<string, { label: string; color: string }> = {
@@ -25,7 +26,14 @@ const BUTTON_TYPE_MAP: Record<string, { label: string; color: string }> = {
   file_upload: { label: '文件上传', color: 'orange' },
   ai_dialog_trigger: { label: 'AI对话触发', color: 'purple' },
   external_link: { label: '外部链接', color: 'default' },
+  drug_identify: { label: '拍照识药', color: 'cyan' },
 };
+
+const AI_REPLY_MODE_OPTIONS = [
+  { value: 'complete_analysis', label: '完整分析（含药物相互作用）' },
+  { value: 'basic_advice', label: '仅用药建议' },
+  { value: 'ai_auto', label: 'AI 自动判断' },
+];
 
 interface FunctionButton {
   id: number;
@@ -49,6 +57,7 @@ export default function FunctionButtonsPage() {
   const [pageSize, setPageSize] = useState(20);
   const [total, setTotal] = useState(0);
   const [form] = Form.useForm();
+  const watchedButtonType = Form.useWatch('button_type', form);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -76,7 +85,11 @@ export default function FunctionButtonsPage() {
     setEditingItem(record || null);
     form.resetFields();
     if (record) {
-      form.setFieldsValue({
+      const parsedParams = typeof record.params === 'string'
+        ? (() => { try { return JSON.parse(record.params); } catch { return null; } })()
+        : record.params;
+
+      const formValues: Record<string, any> = {
         name: record.name,
         icon_url: record.icon_url,
         button_type: record.button_type,
@@ -85,9 +98,23 @@ export default function FunctionButtonsPage() {
         params: record.params
           ? (typeof record.params === 'string' ? record.params : JSON.stringify(record.params, null, 2))
           : '',
-      });
+      };
+
+      if (record.button_type === 'drug_identify' && parsedParams) {
+        formValues.ai_reply_mode = parsedParams.ai_reply_mode || 'ai_auto';
+        formValues.photo_tip_text = parsedParams.photo_tip_text || '请确保药品名称、品牌、规格完整，拍摄清晰';
+        formValues.max_photo_count = parsedParams.max_photo_count ?? 5;
+      }
+
+      form.setFieldsValue(formValues);
     } else {
-      form.setFieldsValue({ is_enabled: true, sort_weight: 0 });
+      form.setFieldsValue({
+        is_enabled: true,
+        sort_weight: 0,
+        ai_reply_mode: 'ai_auto',
+        photo_tip_text: '请确保药品名称、品牌、规格完整，拍摄清晰',
+        max_photo_count: 5,
+      });
     }
     setModalOpen(true);
   };
@@ -106,13 +133,24 @@ export default function FunctionButtonsPage() {
         }
       }
 
+      let finalParams = parsedParams || null;
+      if (values.button_type === 'drug_identify') {
+        const base = (typeof finalParams === 'object' && finalParams) ? finalParams : {};
+        finalParams = {
+          ...base,
+          ai_reply_mode: values.ai_reply_mode || 'ai_auto',
+          photo_tip_text: values.photo_tip_text || '请确保药品名称、品牌、规格完整，拍摄清晰',
+          max_photo_count: values.max_photo_count ?? 5,
+        };
+      }
+
       const payload = {
         name: values.name,
         icon_url: values.icon_url,
         button_type: values.button_type,
         sort_weight: values.sort_weight ?? 0,
         is_enabled: values.is_enabled,
-        params: parsedParams || null,
+        params: finalParams,
       };
 
       if (editingItem) {
@@ -281,6 +319,19 @@ export default function FunctionButtonsPage() {
           >
             <Select placeholder="请选择按钮类型" options={BUTTON_TYPE_OPTIONS} />
           </Form.Item>
+          {watchedButtonType === 'drug_identify' && (
+            <>
+              <Form.Item label="AI 回复模式" name="ai_reply_mode" rules={[{ required: true, message: '请选择AI回复模式' }]}>
+                <Select placeholder="请选择AI回复模式" options={AI_REPLY_MODE_OPTIONS} />
+              </Form.Item>
+              <Form.Item label="拍照提示语" name="photo_tip_text">
+                <Input placeholder="请确保药品名称、品牌、规格完整，拍摄清晰" />
+              </Form.Item>
+              <Form.Item label="最大图片数" name="max_photo_count">
+                <InputNumber min={1} max={10} style={{ width: '100%' }} placeholder="默认5张" />
+              </Form.Item>
+            </>
+          )}
           <Form.Item label="排序权重" name="sort_weight">
             <InputNumber min={0} max={9999} style={{ width: '100%' }} placeholder="数值越大越靠前" />
           </Form.Item>

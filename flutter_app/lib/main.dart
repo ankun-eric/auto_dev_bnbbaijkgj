@@ -19,6 +19,7 @@ import 'screens/health/symptom_screen.dart';
 import 'screens/health/tcm_screen.dart';
 import 'screens/health/drug_screen.dart';
 import 'screens/health/drug_chat_screen.dart';
+import 'screens/health/tcm_diagnosis_detail_screen.dart';
 import 'screens/health/health_profile_screen.dart';
 import 'screens/health/health_guide_screen.dart';
 import 'screens/family/family_screen.dart';
@@ -197,6 +198,7 @@ class BiniHealthApp extends StatelessWidget {
           '/tcm': (context) => const TcmScreen(),
           '/drug': (context) => const DrugScreen(),
           '/drug-chat': (context) => const DrugChatScreen(),
+          '/tcm-diagnosis-detail': (context) => const TcmDiagnosisDetailScreen(),
           '/health-profile': (context) => const HealthProfileScreen(),
           '/health-guide': (context) {
             final memberId = ModalRoute.of(context)?.settings.arguments as int?;

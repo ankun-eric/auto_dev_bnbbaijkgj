@@ -688,6 +688,95 @@ async def _sync_chat_share_records_table(conn: AsyncConnection) -> None:
         ))
 
 
+async def _sync_tcm_configs_table(conn: AsyncConnection) -> None:
+    def _load(sync_conn):
+        inspector = inspect(sync_conn)
+        return "tcm_configs" in set(inspector.get_table_names())
+
+    exists = await conn.run_sync(_load)
+    if not exists:
+        await conn.execute(text(
+            "CREATE TABLE tcm_configs ("
+            "id INT AUTO_INCREMENT PRIMARY KEY, "
+            "tongue_diagnosis_enabled BOOLEAN DEFAULT FALSE, "
+            "face_diagnosis_enabled BOOLEAN DEFAULT FALSE, "
+            "constitution_test_enabled BOOLEAN DEFAULT TRUE, "
+            "created_at DATETIME DEFAULT CURRENT_TIMESTAMP, "
+            "updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
+            ")"
+        ))
+
+
+async def _sync_chat_function_button_fields(conn: AsyncConnection) -> None:
+    def _load(sync_conn):
+        inspector = inspect(sync_conn)
+        tables = set(inspector.get_table_names())
+        if "chat_function_buttons" not in tables:
+            return None
+        return {col["name"] for col in inspector.get_columns("chat_function_buttons")}
+
+    columns = await conn.run_sync(_load)
+    if columns is None:
+        return
+    if "ai_reply_mode" not in columns:
+        await conn.execute(text(
+            "ALTER TABLE chat_function_buttons ADD COLUMN ai_reply_mode VARCHAR(50) NULL DEFAULT 'complete_analysis'"
+        ))
+    if "photo_tip_text" not in columns:
+        await conn.execute(text(
+            "ALTER TABLE chat_function_buttons ADD COLUMN photo_tip_text VARCHAR(500) NULL "
+            "DEFAULT '请确保药品名称、品牌、规格完整，拍摄清晰'"
+        ))
+    if "max_photo_count" not in columns:
+        await conn.execute(text(
+            "ALTER TABLE chat_function_buttons ADD COLUMN max_photo_count INT NULL DEFAULT 5"
+        ))
+
+
+async def _sync_tcm_diagnosis_fields(conn: AsyncConnection) -> None:
+    def _load(sync_conn):
+        inspector = inspect(sync_conn)
+        tables = set(inspector.get_table_names())
+        if "tcm_diagnoses" not in tables:
+            return None
+        return {col["name"] for col in inspector.get_columns("tcm_diagnoses")}
+
+    columns = await conn.run_sync(_load)
+    if columns is None:
+        return
+    if "family_member_id" not in columns:
+        await conn.execute(text(
+            "ALTER TABLE tcm_diagnoses ADD COLUMN family_member_id INT NULL, "
+            "ADD INDEX ix_tcm_diagnoses_family_member_id (family_member_id), "
+            "ADD CONSTRAINT fk_tcm_diagnoses_family_member FOREIGN KEY (family_member_id) REFERENCES family_members(id)"
+        ))
+    if "constitution_description" not in columns:
+        await conn.execute(text(
+            "ALTER TABLE tcm_diagnoses ADD COLUMN constitution_description VARCHAR(500) NULL"
+        ))
+    if "advice_summary" not in columns:
+        await conn.execute(text(
+            "ALTER TABLE tcm_diagnoses ADD COLUMN advice_summary VARCHAR(1000) NULL"
+        ))
+
+
+async def _sync_chat_message_metadata(conn: AsyncConnection) -> None:
+    def _load(sync_conn):
+        inspector = inspect(sync_conn)
+        tables = set(inspector.get_table_names())
+        if "chat_messages" not in tables:
+            return None
+        return {col["name"] for col in inspector.get_columns("chat_messages")}
+
+    columns = await conn.run_sync(_load)
+    if columns is None:
+        return
+    if "message_metadata" not in columns:
+        await conn.execute(text(
+            "ALTER TABLE chat_messages ADD COLUMN message_metadata JSON NULL"
+        ))
+
+
 async def _sync_product_system_tables(conn: AsyncConnection) -> None:
     """Sync new product/order/coupon system tables (add missing columns to existing tables)."""
     def _load(sync_conn):
@@ -808,6 +897,10 @@ async def sync_register_schema(conn: AsyncConnection) -> None:
     await _sync_chat_share_records_table(conn)
     await _sync_product_system_tables(conn)
     await _migrate_service_to_product_categories(conn)
+    await _sync_tcm_configs_table(conn)
+    await _sync_chat_function_button_fields(conn)
+    await _sync_tcm_diagnosis_fields(conn)
+    await _sync_chat_message_metadata(conn)
     await run_all_migrations(conn)
 
     columns, indexes, unique_constraints = await conn.run_sync(load_user_schema)

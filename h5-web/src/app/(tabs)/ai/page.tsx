@@ -51,8 +51,8 @@ const typeLabel: Record<string, { text: string; color: string }> = {
   symptom_check: { text: '健康自查', color: '#1890ff' },
   symptom: { text: '健康自查', color: '#1890ff' },
   tcm: { text: '养生', color: '#eb2f96' },
-  drug_query: { text: '参考', color: '#fa8c16' },
-  drug: { text: '参考', color: '#fa8c16' },
+  drug_query: { text: '用药参考', color: '#fa8c16' },
+  drug: { text: '用药参考', color: '#fa8c16' },
 };
 
 export default function AIPage() {
