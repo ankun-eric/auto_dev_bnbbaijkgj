@@ -33,7 +33,43 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 健康服务商品体系整合 (2026-04-17)
+## Latest Update: 咨询人信息收起/展开改造 (2026-04-17)
+
+### 概要
+优化 AI报告解读、用药参考、健康自查 三个功能中"选择咨询人"步骤的信息展示。默认仅展示姓名/出生日期/性别三项核心信息，其余字段（身高/体重/病史等）收起在可展开区域。底部分隔线按钮显示档案完善度（已完善/待完善），支持平滑展开/收起动画。三端（H5/小程序/Flutter）同步改造。
+
+### H5 变更
+
+| 文件 | 变更 |
+| --- | --- |
+| `h5-web/src/components/HealthProfileEditor.tsx` | 新增公共组件：可收起/展开的健康档案编辑器，含完善度判断、动画过渡、日期选择 |
+| `h5-web/src/app/symptom/page.tsx` | 替换内联健康档案表单为 HealthProfileEditor 组件 |
+| `h5-web/src/app/checkup/page.tsx` | 替换内联健康档案表单为 HealthProfileEditor 组件 |
+| `h5-web/src/app/drug/page.tsx` | 替换内联健康档案表单为 HealthProfileEditor 组件 |
+
+### 小程序变更
+
+| 文件 | 变更 |
+| --- | --- |
+| `miniprogram/pages/symptom/index.wxml` | 重构健康信息展示区，核心信息始终可见，详细信息可展开 |
+| `miniprogram/pages/symptom/index.js` | 新增身高/体重字段处理、展开/收起逻辑、切换咨询人重置 |
+| `miniprogram/pages/symptom/index.wxss` | 新增展开/收起动画样式和分隔线按钮样式 |
+| `miniprogram/pages/symptom/helpers.wxs` | 新增 isProfileComplete 完善度判断函数 |
+| `miniprogram/pages/checkup/index.*` | 同 symptom 页面改造 |
+| `miniprogram/pages/drug/index.*` | 同 symptom 页面改造 |
+
+### Flutter 变更
+
+| 文件 | 变更 |
+| --- | --- |
+| `flutter_app/lib/widgets/health_profile_editor.dart` | 新增 HealthProfileEditor Widget：AnimatedSize 动画、完善度判断、展开/收起切换 |
+| `flutter_app/lib/screens/health/symptom_screen.dart` | 替换内联表单为 HealthProfileEditor Widget |
+| `flutter_app/lib/screens/health/checkup_screen.dart` | 替换内联表单为 HealthProfileEditor Widget |
+| `flutter_app/lib/screens/health/drug_screen.dart` | 替换内联表单为 HealthProfileEditor Widget |
+
+---
+
+## Previous Update: 健康服务商品体系整合 (2026-04-17)
 
 ### 概要
 将原有独立的"服务模块"(ServiceCategory+ServiceItem)和"积分商城"(PointsMallItem)合并为统一的「健康服务」体系。新增16个数据模型、7个API模块（42+端点）、管理后台7个页面、H5端13个页面、小程序11个页面、Flutter端13个页面。实现了统一商品体系、统一订单体系（混合下单+自动拆分履约）、到店核销（二维码+数字码+套餐多次核销）、会员卡动态二维码、优惠券体系、收藏功能、地址管理、评价体系、退款/售后、自定义预约表单、数据统计报表等完整功能闭环。五端同步开发（后端/H5/小程序/Flutter/Admin）。
