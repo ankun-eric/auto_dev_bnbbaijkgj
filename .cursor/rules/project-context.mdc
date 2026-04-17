@@ -33,7 +33,94 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 「我的」页面与订单体系优化 (2026-04-17)
+## Latest Update: 拍照识药统一化与中医养生功能优化 (2026-04-18)
+
+### 概要
+对拍照识药功能进行统一化改造（移除旧胶囊按钮、支持后台配置按钮类型、多图识别、自动追问），首页用药识别跳转改造（统一到chat页面、修复family_member_id），对话列表文案修复，中医养生功能优化（体质测评对接AI、历史记录、详情页+推荐商品），后台新增中医养生配置和商品体质关联。五端（后端/H5/Admin/小程序/Flutter）同步开发。
+
+### Backend 变更
+
+| 文件 | 变更 |
+| --- | --- |
+| `backend/app/models/models.py` | SessionType 新增 drug_identify、constitution_test；ChatFunctionButton 新增 ai_reply_mode、photo_tip_text、max_photo_count；新增 TCMConfig 模型；TCMDiagnosis 新增 family_member_id、constitution_description、advice_summary；ChatMessage 新增 message_metadata |
+| `backend/app/api/tcm_config.py` | 新增中医养生配置API: GET /api/tcm/config、GET/PUT /api/admin/tcm/config |
+| `backend/app/api/tcm.py` | 体质测评支持 family_member_id、创建 ChatSession；诊断列表支持筛选 |
+| `backend/app/api/ocr.py` | _write_drug_detail 修复 family_member_id 传入；drug_general 提示词增加多图识别指令 |
+| `backend/app/api/products.py` | GET /api/products 新增 constitution_type 查询参数 |
+| `backend/app/api/chat.py` | 支持 silent 消息参数；新增 drug_identify、constitution_test 默认提示词 |
+| `backend/app/schemas/tcm_config.py` | 新增 TCMConfigResponse、TCMConfigUpdate |
+| `backend/app/schemas/tcm.py` | 新增 TCMDiagnosisListResponse；扩展 family_member_id |
+| `backend/app/schemas/function_button.py` | 新增 ai_reply_mode、photo_tip_text、max_photo_count |
+| `backend/app/schemas/chat.py` | ChatMessageCreate 新增 silent 字段 |
+| `backend/app/services/schema_sync.py` | 新增 tcm_configs 表同步、新字段同步 |
+| `backend/app/main.py` | 注册 tcm_config 路由 |
+
+### H5 变更
+
+| 文件 | 变更 |
+| --- | --- |
+| `h5-web/src/app/(tabs)/ai/page.tsx` | typeLabel drug_query/drug 改为"用药参考" |
+| `h5-web/src/components/ChatSidebar.tsx` | typeLabel drug_query/drug 改为"用药参考" |
+| `h5-web/src/app/chat/[sessionId]/page.tsx` | 移除绿色胶囊按钮；新增 drug_identify 功能按钮处理（多图OCR+自动追问+按钮置灰）；支持 type=drug_identify/constitution 锁定咨询对象+摘要条 |
+| `h5-web/src/app/drug/page.tsx` | 跳转改为 /chat/{sessionId}?type=drug_identify |
+| `h5-web/src/app/tcm/page.tsx` | 动态配置显隐；体质测评调用AI接口；咨询人选择弹窗；历史记录列表 |
+| `h5-web/src/app/tcm/diagnosis/[id]/page.tsx` | 新增体质分析详情页（结果+推荐商品+AI入口） |
+
+### Admin 变更
+
+| 文件 | 变更 |
+| --- | --- |
+| `admin-web/src/app/(admin)/tcm-config/page.tsx` | 新增中医养生配置页面（舌诊/面诊/体质测评开关） |
+| `admin-web/src/app/(admin)/product-system/products/page.tsx` | 商品编辑新增"适用体质"多选勾选框 |
+| `admin-web/src/app/(admin)/function-buttons/page.tsx` | 按钮类型新增 drug_identify；条件显示 AI 回复模式/提示语/最大图片数 |
+| `admin-web/src/app/(admin)/layout.tsx` | 侧边栏新增"中医养生配置"菜单 |
+
+### 小程序变更
+
+| 文件 | 变更 |
+| --- | --- |
+| `miniprogram/pages/chat/index.js/wxml/wxss` | 新增 drug_identify 按钮处理；type锁定；摘要条 |
+| `miniprogram/pages/drug/index.js` | 跳转改为 chat 页面 type=drug_identify |
+| `miniprogram/pages/tcm/index.js/wxml/wxss` | 动态配置显隐；体质测评调用AI；咨询人选择；历史记录 |
+| `miniprogram/pages/tcm-diagnosis-detail/` | 新增体质分析详情页（4个文件） |
+| `miniprogram/app.json` | 注册 tcm-diagnosis-detail 页面 |
+
+### Flutter 变更
+
+| 文件 | 变更 |
+| --- | --- |
+| `flutter_app/lib/models/chat_session.dart` | typeLabel 新增 drug/drug_identify/constitution 映射 |
+| `flutter_app/lib/widgets/chat_history_drawer.dart` | _getTypeLabel/_getTypeColor 新增映射 |
+| `flutter_app/lib/screens/ai/chat_screen.dart` | 支持 type 参数；drug_identify 按钮处理；锁定咨询对象；摘要条 |
+| `flutter_app/lib/screens/health/drug_screen.dart` | 跳转改为 chat_screen type=drug_identify |
+| `flutter_app/lib/screens/health/tcm_screen.dart` | 动态配置显隐；体质测评调用AI；咨询人选择；历史记录 |
+| `flutter_app/lib/screens/health/tcm_diagnosis_detail_screen.dart` | 新增体质分析详情页 |
+| `flutter_app/lib/config/api_config.dart` | 新增 TCM 相关 API 端点 |
+| `flutter_app/lib/services/api_service.dart` | 新增 getTcmConfig/postConstitutionTest/getTcmDiagnosisList |
+| `flutter_app/lib/main.dart` | 注册 tcm-diagnosis-detail 路由 |
+
+### 新增 API 端点
+
+| 方法 | 路径 | 权限 | 说明 |
+| --- | --- | --- | --- |
+| GET | `/api/tcm/config` | 已登录 | 获取中医养生配置 |
+| GET | `/api/admin/tcm/config` | 管理员 | 管理后台获取中医养生配置 |
+| PUT | `/api/admin/tcm/config` | 管理员 | 管理后台更新中医养生配置 |
+| GET | `/api/products?constitution_type={type}` | 已登录 | 按体质类型筛选推荐商品 |
+
+### 数据模型变更
+
+| 模型 | 变更 |
+| --- | --- |
+| SessionType | 新增 drug_identify、constitution_test |
+| ChatFunctionButton | 新增 ai_reply_mode、photo_tip_text、max_photo_count |
+| TCMConfig | 新增模型（tongue_diagnosis_enabled、face_diagnosis_enabled、constitution_test_enabled） |
+| TCMDiagnosis | 新增 family_member_id、constitution_description、advice_summary |
+| ChatMessage | 新增 message_metadata JSON 字段 |
+
+---
+
+## Previous Update: 「我的」页面与订单体系优化 (2026-04-17)
 
 ### 概要
 对H5端「我的」页面进行全面优化，涉及个人信息展示与编辑、会员码入口、订单状态体系重构、统计数据修复；同时对管理后台进行菜单精简、订单页面改造和数据统计增强。
