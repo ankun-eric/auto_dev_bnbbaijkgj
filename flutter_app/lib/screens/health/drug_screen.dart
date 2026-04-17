@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../providers/health_provider.dart';
 import '../../services/api_service.dart';
 import '../../widgets/custom_app_bar.dart';
+import '../../widgets/health_profile_editor.dart';
 
 const _kPrimaryPink = Color(0xFFEB2F96);
 const _kPrimaryPurple = Color(0xFF722ED1);
@@ -35,6 +36,7 @@ class DrugScreen extends StatefulWidget {
 class _DrugScreenState extends State<DrugScreen> {
   final ImagePicker _picker = ImagePicker();
   final ApiService _api = ApiService();
+  final GlobalKey<HealthProfileEditorState> _profileEditorKey = GlobalKey();
 
   List<XFile> _selectedImages = [];
   final int _maxImages = 5;
@@ -49,6 +51,21 @@ class _DrugScreenState extends State<DrugScreen> {
   int? _selectedFamilyMemberId;
   bool _membersLoading = true;
 
+  // Health profile fields
+  String _selfNickname = '';
+  String _selfGender = '';
+  String _selfBirthday = '';
+  String _selfHeight = '';
+  String _selfWeight = '';
+  Map<String, String> _selfErrors = {};
+  List<String> _chronicPresets = [];
+  List<String> _allergyPresets = [];
+  List<String> _geneticPresets = [];
+  bool _presetsLoading = true;
+  List<dynamic> _chronicDiseases = [];
+  List<dynamic> _allergies = [];
+  List<dynamic> _geneticDiseases = [];
+
   List<Map<String, dynamic>> _historyList = [];
   bool _isLoadingHistory = true;
 
@@ -57,6 +74,8 @@ class _DrugScreenState extends State<DrugScreen> {
     super.initState();
     _loadHistory();
     _loadFamilyMembers();
+    _loadPresets();
+    _loadSelfProfile();
   }
 
   Future<void> _loadFamilyMembers() async {
@@ -88,6 +107,107 @@ class _DrugScreenState extends State<DrugScreen> {
     } catch (_) {
       if (mounted) setState(() => _membersLoading = false);
     }
+  }
+
+  Future<void> _loadPresets() async {
+    setState(() => _presetsLoading = true);
+    try {
+      final results = await Future.wait([
+        _api.getDiseasePresets('chronic'),
+        _api.getDiseasePresets('allergy'),
+        _api.getDiseasePresets('genetic'),
+      ]);
+      if (mounted) {
+        setState(() {
+          _chronicPresets = _parsePresets(results[0].data);
+          _allergyPresets = _parsePresets(results[1].data);
+          _geneticPresets = _parsePresets(results[2].data);
+        });
+      }
+    } catch (_) {}
+    if (mounted) setState(() => _presetsLoading = false);
+  }
+
+  List<String> _parsePresets(dynamic data) {
+    if (data is List) {
+      return data.map((e) => e is Map ? (e['name'] ?? '').toString() : e.toString()).toList();
+    }
+    if (data is Map) {
+      final items = data['items'] ?? data['data'] ?? data['presets'];
+      if (items is List) {
+        return items.map((e) => e is Map ? (e['name'] ?? '').toString() : e.toString()).toList();
+      }
+    }
+    return [];
+  }
+
+  Future<void> _loadSelfProfile() async {
+    try {
+      final response = await _api.getHealthProfile();
+      if (response.statusCode == 200 && mounted) {
+        final data = response.data is Map ? response.data as Map : {};
+        setState(() {
+          _selfNickname = (data['nickname'] ?? '').toString();
+          _selfGender = (data['gender'] ?? '').toString();
+          _selfBirthday = (data['birthday'] ?? '').toString();
+          _selfHeight = (data['height'] ?? '').toString();
+          _selfWeight = (data['weight'] ?? '').toString();
+          if (_selfHeight == '0' || _selfHeight == '0.0') _selfHeight = '';
+          if (_selfWeight == '0' || _selfWeight == '0.0') _selfWeight = '';
+          _chronicDiseases = List<dynamic>.from(data['chronic_diseases'] ?? []);
+          _allergies = List<dynamic>.from(data['allergies'] ?? []);
+          _geneticDiseases = List<dynamic>.from(data['genetic_diseases'] ?? []);
+          _selfErrors = {};
+        });
+      }
+    } catch (_) {}
+  }
+
+  bool _validateSelfInfo() {
+    final errors = <String, String>{};
+    if (_selfNickname.trim().isEmpty) errors['nickname'] = '请输入姓名';
+    if (_selfGender.isEmpty) errors['gender'] = '请选择性别';
+    if (_selfBirthday.isEmpty) errors['birthday'] = '请选择出生日期';
+    setState(() => _selfErrors = errors);
+    if (errors.isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('请填写完整的必填信息'), duration: Duration(seconds: 2)),
+      );
+      return false;
+    }
+    return true;
+  }
+
+  Future<void> _saveHealthProfile() async {
+    final data = <String, dynamic>{
+      'chronic_diseases': _chronicDiseases,
+      'allergies': _allergies,
+      'genetic_diseases': _geneticDiseases,
+      'nickname': _selfNickname.trim(),
+      'gender': _selfGender,
+      'birthday': _selfBirthday,
+    };
+    if (_selfHeight.trim().isNotEmpty) {
+      data['height'] = double.tryParse(_selfHeight.trim());
+    }
+    if (_selfWeight.trim().isNotEmpty) {
+      data['weight'] = double.tryParse(_selfWeight.trim());
+    }
+    try {
+      if (_selectedFamilyMemberId != null) {
+        await _api.updateMemberHealthProfile(_selectedFamilyMemberId!, data);
+      } else {
+        await _api.updateHealthProfile(data);
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('健康档案信息已同步更新'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (_) {}
   }
 
   Future<void> _loadHistory() async {
@@ -393,7 +513,27 @@ class _DrugScreenState extends State<DrugScreen> {
                                 final tagColor = _getMemberTagColor(relation);
 
                                 return GestureDetector(
-                                  onTap: () => setState(() => _selectedFamilyMemberId = id),
+                                  onTap: () {
+                                    setState(() {
+                                      _selectedFamilyMemberId = id;
+                                      _selfErrors = {};
+                                    });
+                                    _profileEditorKey.currentState?.resetExpanded();
+                                    if (isSelf || id == null) {
+                                      _loadSelfProfile();
+                                    } else {
+                                      setState(() {
+                                        _selfNickname = nickname;
+                                        _selfGender = (member['gender'] ?? '').toString();
+                                        _selfBirthday = '';
+                                        _selfHeight = '';
+                                        _selfWeight = '';
+                                        _chronicDiseases = [];
+                                        _allergies = [];
+                                        _geneticDiseases = [];
+                                      });
+                                    }
+                                  },
                                   child: Container(
                                     width: 80,
                                     padding: const EdgeInsets.symmetric(vertical: 14),
@@ -473,6 +613,55 @@ class _DrugScreenState extends State<DrugScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
+                  if (!_presetsLoading)
+                    HealthProfileEditor(
+                      key: _profileEditorKey,
+                      nickname: _selfNickname,
+                      birthday: _selfBirthday,
+                      gender: _selfGender,
+                      height: _selfHeight,
+                      weight: _selfWeight,
+                      chronicDiseases: _chronicDiseases,
+                      allergies: _allergies,
+                      geneticDiseases: _geneticDiseases,
+                      chronicPresets: _chronicPresets,
+                      allergyPresets: _allergyPresets,
+                      geneticPresets: _geneticPresets,
+                      memberName: _selectedFamilyMemberId == null ? '本人' : '',
+                      errors: _selfErrors.map((k, v) => MapEntry(k, v)),
+                      onChanged: (changes) {
+                        setState(() {
+                          if (changes.containsKey('nickname')) {
+                            _selfNickname = changes['nickname'];
+                            _selfErrors.remove('nickname');
+                          }
+                          if (changes.containsKey('gender')) {
+                            _selfGender = changes['gender'];
+                            _selfErrors.remove('gender');
+                          }
+                          if (changes.containsKey('birthday')) {
+                            _selfBirthday = changes['birthday'];
+                            _selfErrors.remove('birthday');
+                          }
+                          if (changes.containsKey('height')) {
+                            _selfHeight = changes['height'];
+                          }
+                          if (changes.containsKey('weight')) {
+                            _selfWeight = changes['weight'];
+                          }
+                          if (changes.containsKey('chronic_diseases')) {
+                            _chronicDiseases = changes['chronic_diseases'];
+                          }
+                          if (changes.containsKey('allergies')) {
+                            _allergies = changes['allergies'];
+                          }
+                          if (changes.containsKey('genetic_diseases')) {
+                            _geneticDiseases = changes['genetic_diseases'];
+                          }
+                        });
+                      },
+                    ),
+                  const SizedBox(height: 16),
                   Container(
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
@@ -525,7 +714,11 @@ class _DrugScreenState extends State<DrugScreen> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: ElevatedButton.icon(
-                      onPressed: _confirmAndRecognize,
+                      onPressed: () {
+                        if (!_validateSelfInfo()) return;
+                        _saveHealthProfile();
+                        _confirmAndRecognize();
+                      },
                       icon: const Icon(Icons.auto_awesome, size: 18),
                       label: const Text('确认并开始识别'),
                       style: ElevatedButton.styleFrom(

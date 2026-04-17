@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
 import '../../widgets/custom_app_bar.dart';
-import '../../widgets/disease_tag_selector.dart';
+import '../../widgets/health_profile_editor.dart';
 
 const _kPrimaryGreen = Color(0xFF52C41A);
 
@@ -29,6 +29,7 @@ class SymptomScreen extends StatefulWidget {
 
 class _SymptomScreenState extends State<SymptomScreen> {
   final ApiService _apiService = ApiService();
+  final GlobalKey<HealthProfileEditorState> _profileEditorKey = GlobalKey();
 
   // 3-step flow: 0=选择部位+症状+持续时间, 1=选择咨询人, 2=AI分析
   int _currentStep = 0;
@@ -50,7 +51,8 @@ class _SymptomScreenState extends State<SymptomScreen> {
   String _selfNickname = '';
   String _selfGender = '';
   String _selfBirthday = '';
-  final TextEditingController _nicknameController = TextEditingController();
+  String _selfHeight = '';
+  String _selfWeight = '';
   Map<String, String> _selfErrors = {};
 
   // Health profile
@@ -85,7 +87,6 @@ class _SymptomScreenState extends State<SymptomScreen> {
 
   @override
   void dispose() {
-    _nicknameController.dispose();
     super.dispose();
   }
 
@@ -155,7 +156,13 @@ class _SymptomScreenState extends State<SymptomScreen> {
           _selfNickname = (data['nickname'] ?? '').toString();
           _selfGender = (data['gender'] ?? '').toString();
           _selfBirthday = (data['birthday'] ?? '').toString();
-          _nicknameController.text = _selfNickname;
+          _selfHeight = (data['height'] ?? '').toString();
+          _selfWeight = (data['weight'] ?? '').toString();
+          if (_selfHeight == '0' || _selfHeight == '0.0') _selfHeight = '';
+          if (_selfWeight == '0' || _selfWeight == '0.0') _selfWeight = '';
+          _chronicDiseases = List<dynamic>.from(data['chronic_diseases'] ?? []);
+          _allergies = List<dynamic>.from(data['allergies'] ?? []);
+          _geneticDiseases = List<dynamic>.from(data['genetic_diseases'] ?? []);
           _selfErrors = {};
         });
       }
@@ -177,29 +184,6 @@ class _SymptomScreenState extends State<SymptomScreen> {
     return true;
   }
 
-  Future<void> _pickBirthday() async {
-    final initial = _selfBirthday.isNotEmpty
-        ? (DateTime.tryParse(_selfBirthday) ?? DateTime(2000))
-        : DateTime(2000);
-    final date = await showDatePicker(
-      context: context,
-      initialDate: initial,
-      firstDate: DateTime(1900),
-      lastDate: DateTime.now(),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(colorScheme: const ColorScheme.light(primary: _kPrimaryGreen)),
-          child: child!,
-        );
-      },
-    );
-    if (date != null) {
-      setState(() {
-        _selfBirthday = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-      });
-    }
-  }
-
   Future<void> _saveHealthProfile() async {
     final data = <String, dynamic>{
       'chronic_diseases': _chronicDiseases,
@@ -209,11 +193,25 @@ class _SymptomScreenState extends State<SymptomScreen> {
       'gender': _selfGender,
       'birthday': _selfBirthday,
     };
+    if (_selfHeight.trim().isNotEmpty) {
+      data['height'] = double.tryParse(_selfHeight.trim());
+    }
+    if (_selfWeight.trim().isNotEmpty) {
+      data['weight'] = double.tryParse(_selfWeight.trim());
+    }
     try {
       if (_selectedMemberId != null) {
         await _apiService.updateMemberHealthProfile(_selectedMemberId!, data);
       } else {
         await _apiService.updateHealthProfile(data);
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('健康档案信息已同步更新'),
+            duration: Duration(seconds: 2),
+          ),
+        );
       }
     } catch (_) {}
   }
@@ -528,6 +526,7 @@ class _SymptomScreenState extends State<SymptomScreen> {
                                       _selectedMemberName = relation;
                                       _selfErrors = {};
                                     });
+                                    _profileEditorKey.currentState?.resetExpanded();
                                     if (isSelf || id == null) {
                                       _loadSelfProfile();
                                     } else {
@@ -535,7 +534,11 @@ class _SymptomScreenState extends State<SymptomScreen> {
                                         _selfNickname = (member['name'] ?? '').toString();
                                         _selfGender = (member['gender'] ?? '').toString();
                                         _selfBirthday = (member['birthday'] ?? '').toString();
-                                        _nicknameController.text = _selfNickname;
+                                        _selfHeight = '';
+                                        _selfWeight = '';
+                                        _chronicDiseases = [];
+                                        _allergies = [];
+                                        _geneticDiseases = [];
                                       });
                                     }
                                   },
@@ -580,22 +583,54 @@ class _SymptomScreenState extends State<SymptomScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  _buildSelfBasicInfoForm(),
-                  const SizedBox(height: 16),
-                  if (!_presetsLoading) ...[
-                    DiseaseTagSelector(
-                      title: '既往病史', presets: _chronicPresets, selectedItems: _chronicDiseases,
-                      onChanged: (items) => setState(() => _chronicDiseases = items), color: const Color(0xFFFA8C16),
+                  if (!_presetsLoading)
+                    HealthProfileEditor(
+                      key: _profileEditorKey,
+                      nickname: _selfNickname,
+                      birthday: _selfBirthday,
+                      gender: _selfGender,
+                      height: _selfHeight,
+                      weight: _selfWeight,
+                      chronicDiseases: _chronicDiseases,
+                      allergies: _allergies,
+                      geneticDiseases: _geneticDiseases,
+                      chronicPresets: _chronicPresets,
+                      allergyPresets: _allergyPresets,
+                      geneticPresets: _geneticPresets,
+                      memberName: _selectedMemberName,
+                      errors: _selfErrors.map((k, v) => MapEntry(k, v)),
+                      onChanged: (changes) {
+                        setState(() {
+                          if (changes.containsKey('nickname')) {
+                            _selfNickname = changes['nickname'];
+                            _selfErrors.remove('nickname');
+                          }
+                          if (changes.containsKey('gender')) {
+                            _selfGender = changes['gender'];
+                            _selfErrors.remove('gender');
+                          }
+                          if (changes.containsKey('birthday')) {
+                            _selfBirthday = changes['birthday'];
+                            _selfErrors.remove('birthday');
+                          }
+                          if (changes.containsKey('height')) {
+                            _selfHeight = changes['height'];
+                          }
+                          if (changes.containsKey('weight')) {
+                            _selfWeight = changes['weight'];
+                          }
+                          if (changes.containsKey('chronic_diseases')) {
+                            _chronicDiseases = changes['chronic_diseases'];
+                          }
+                          if (changes.containsKey('allergies')) {
+                            _allergies = changes['allergies'];
+                          }
+                          if (changes.containsKey('genetic_diseases')) {
+                            _geneticDiseases = changes['genetic_diseases'];
+                          }
+                        });
+                      },
                     ),
-                    DiseaseTagSelector(
-                      title: '过敏史', presets: _allergyPresets, selectedItems: _allergies,
-                      onChanged: (items) => setState(() => _allergies = items), color: const Color(0xFFEB2F96),
-                    ),
-                    DiseaseTagSelector(
-                      title: '家族遗传病史', presets: _geneticPresets, selectedItems: _geneticDiseases,
-                      onChanged: (items) => setState(() => _geneticDiseases = items), color: const Color(0xFF1890FF),
-                    ),
-                  ],
                   const SizedBox(height: 16),
                   Container(
                     padding: const EdgeInsets.all(14),
@@ -666,134 +701,6 @@ class _SymptomScreenState extends State<SymptomScreen> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildSelfBasicInfoForm() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Row(
-            children: [
-              Icon(Icons.person, color: _kPrimaryGreen, size: 20),
-              SizedBox(width: 8),
-              Text('基本信息', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-            ],
-          ),
-          const SizedBox(height: 16),
-          _buildFormLabel('姓名', true),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _nicknameController,
-            onChanged: (v) => setState(() {
-              _selfNickname = v;
-              _selfErrors.remove('nickname');
-            }),
-            decoration: InputDecoration(
-              hintText: '请输入姓名',
-              hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-              filled: true, fillColor: const Color(0xFFF5F5F5),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: _selfErrors.containsKey('nickname')
-                    ? const BorderSide(color: Color(0xFFFF4D4F)) : BorderSide.none,
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: _kPrimaryGreen),
-              ),
-            ),
-          ),
-          if (_selfErrors.containsKey('nickname')) _buildErrorText(_selfErrors['nickname']!),
-          const SizedBox(height: 16),
-          _buildFormLabel('性别', true),
-          const SizedBox(height: 8),
-          Row(
-            children: ['male', 'female'].map((g) {
-              final isSelected = _selfGender == g;
-              return Expanded(
-                child: GestureDetector(
-                  onTap: () => setState(() { _selfGender = g; _selfErrors.remove('gender'); }),
-                  child: Container(
-                    margin: EdgeInsets.only(right: g == 'male' ? 6 : 0, left: g == 'female' ? 6 : 0),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    decoration: BoxDecoration(
-                      color: isSelected ? const Color(0xFFF0F9EB) : const Color(0xFFF5F5F5),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: isSelected ? _kPrimaryGreen : _selfErrors.containsKey('gender') ? const Color(0xFFFF4D4F) : Colors.transparent,
-                        width: isSelected ? 2 : 1,
-                      ),
-                    ),
-                    alignment: Alignment.center,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(g == 'male' ? Icons.male : Icons.female, size: 18, color: isSelected ? _kPrimaryGreen : Colors.grey[600]),
-                        const SizedBox(width: 4),
-                        Text(g == 'male' ? '男' : '女', style: TextStyle(
-                          fontSize: 14, fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                          color: isSelected ? _kPrimaryGreen : Colors.grey[800],
-                        )),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-          if (_selfErrors.containsKey('gender')) _buildErrorText(_selfErrors['gender']!),
-          const SizedBox(height: 16),
-          _buildFormLabel('出生日期', true),
-          const SizedBox(height: 8),
-          GestureDetector(
-            onTap: _pickBirthday,
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF5F5F5),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: _selfErrors.containsKey('birthday') ? const Color(0xFFFF4D4F) : Colors.transparent),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      _selfBirthday.isNotEmpty ? _selfBirthday : '请选择出生日期',
-                      style: TextStyle(fontSize: 14, color: _selfBirthday.isNotEmpty ? Colors.black87 : Colors.grey[400]),
-                    ),
-                  ),
-                  Icon(Icons.calendar_today, size: 18, color: Colors.grey[400]),
-                ],
-              ),
-            ),
-          ),
-          if (_selfErrors.containsKey('birthday')) _buildErrorText(_selfErrors['birthday']!),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFormLabel(String text, bool required) {
-    return RichText(
-      text: TextSpan(
-        text: text,
-        style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-        children: required ? const [TextSpan(text: ' *', style: TextStyle(color: Color(0xFFFF4D4F)))] : null,
-      ),
-    );
-  }
-
-  Widget _buildErrorText(String text) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 4),
-      child: Text(text, style: const TextStyle(fontSize: 12, color: Color(0xFFFF4D4F))),
     );
   }
 

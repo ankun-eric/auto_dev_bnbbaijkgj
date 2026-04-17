@@ -86,124 +86,144 @@
       </view>
     </scroll-view>
 
-    <!-- 健康信息编辑入口 -->
-    <view class="health-edit-toggle" bindtap="toggleHealthEdit">
-      <text class="health-edit-label">📋 健康信息</text>
-      <text class="health-edit-arrow">{{showHealthEdit ? '收起 ▲' : '展开 ▼'}}</text>
+    <!-- 咨询人基本信息（始终显示） -->
+    <view class="self-basic-info" wx:if="{{selectedMemberId}}">
+      <view class="basic-info-title">👤 基本信息</view>
+
+      <view class="form-item">
+        <view class="form-label">姓名 <text class="required">*</text></view>
+        <input class="form-input" placeholder="请输入姓名" value="{{selfNickname}}" bindinput="onSelfNicknameInput" />
+        <view class="form-error" wx:if="{{selfErrors.nickname}}">{{selfErrors.nickname}}</view>
+      </view>
+
+      <view class="form-item">
+        <view class="form-label">出生日期 <text class="required">*</text></view>
+        <picker mode="date" value="{{selfBirthday}}" start="1900-01-01" end="{{today}}" bindchange="onSelfBirthdayChange">
+          <view class="form-input date-input">
+            <text class="{{selfBirthday ? '' : 'placeholder'}}">{{selfBirthday || '请选择出生日期'}}</text>
+            <text class="date-icon">📅</text>
+          </view>
+        </picker>
+        <view class="form-error" wx:if="{{selfErrors.birthday}}">{{selfErrors.birthday}}</view>
+      </view>
+
+      <view class="form-item">
+        <view class="form-label">性别 <text class="required">*</text></view>
+        <view class="gender-select">
+          <view class="gender-btn {{selfGender === 'male' ? 'gender-active' : ''}}" bindtap="onSelfGenderSelect" data-gender="male">男</view>
+          <view class="gender-btn {{selfGender === 'female' ? 'gender-active' : ''}}" bindtap="onSelfGenderSelect" data-gender="female">女</view>
+        </view>
+        <view class="form-error" wx:if="{{selfErrors.gender}}">{{selfErrors.gender}}</view>
+      </view>
     </view>
 
-    <!-- 健康信息编辑区域 -->
-    <view class="health-edit-panel" wx:if="{{showHealthEdit}}">
-      <!-- 咨询人基本信息 -->
-      <view class="self-basic-info" wx:if="{{selectedMemberId}}">
-        <view class="basic-info-title">👤 基本信息</view>
+    <!-- 展开/收起按钮 -->
+    <view class="expand-toggle" bindtap="toggleHealthEdit" wx:if="{{selectedMemberId}}">
+      <view class="line"></view>
+      <view class="text">
+        <text wx:if="{{!showHealthEdit}}">更多信息（</text>
+        <text wx:else>收起信息（</text>
+        <text class="{{h.isProfileComplete(selfNickname, selfGender, selfBirthday, selfHeight, selfWeight) ? 'status-complete' : 'status-incomplete'}}">{{h.isProfileComplete(selfNickname, selfGender, selfBirthday, selfHeight, selfWeight) ? '已完善' : '待完善'}}</text>
+        <text>）{{showHealthEdit ? '▲' : '▼'}}</text>
+      </view>
+      <view class="line"></view>
+    </view>
 
-        <view class="form-item">
-          <view class="form-label">姓名 <text class="required">*</text></view>
-          <input class="form-input" placeholder="请输入姓名" value="{{selfNickname}}" bindinput="onSelfNicknameInput" />
-          <view class="form-error" wx:if="{{selfErrors.nickname}}">{{selfErrors.nickname}}</view>
-        </view>
-
-        <view class="form-item">
-          <view class="form-label">性别 <text class="required">*</text></view>
-          <view class="gender-select">
-            <view class="gender-btn {{selfGender === 'male' ? 'gender-active' : ''}}" bindtap="onSelfGenderSelect" data-gender="male">男</view>
-            <view class="gender-btn {{selfGender === 'female' ? 'gender-active' : ''}}" bindtap="onSelfGenderSelect" data-gender="female">女</view>
+    <!-- 展开区域（身高、体重、病史类） -->
+    <view class="expand-content {{showHealthEdit ? 'expanded' : ''}}" wx:if="{{selectedMemberId}}">
+      <view class="health-edit-panel">
+        <!-- 身高体重 -->
+        <view class="self-basic-info">
+          <view class="form-item">
+            <view class="form-label">身高（cm）</view>
+            <input class="form-input" type="digit" placeholder="请输入身高" value="{{selfHeight}}" bindinput="onSelfHeightInput" />
           </view>
-          <view class="form-error" wx:if="{{selfErrors.gender}}">{{selfErrors.gender}}</view>
+          <view class="form-item">
+            <view class="form-label">体重（kg）</view>
+            <input class="form-input" type="digit" placeholder="请输入体重" value="{{selfWeight}}" bindinput="onSelfWeightInput" />
+          </view>
         </view>
 
-        <view class="form-item">
-          <view class="form-label">出生日期 <text class="required">*</text></view>
-          <picker mode="date" value="{{selfBirthday}}" start="1900-01-01" end="{{today}}" bindchange="onSelfBirthdayChange">
-            <view class="form-input date-input">
-              <text class="{{selfBirthday ? '' : 'placeholder'}}">{{selfBirthday || '请选择出生日期'}}</text>
-              <text class="date-icon">📅</text>
+        <!-- 既往病史 -->
+        <view class="health-section">
+          <view class="health-section-title">🏥 既往病史</view>
+          <view class="tags-wrap">
+            <view wx:for="{{chronicPresets}}" wx:key="id"
+              class="preset-tag {{h.isPresetSelected(chronic_diseases, item.name) ? 'preset-tag-selected' : ''}}"
+              bindtap="toggleChronicPreset" data-name="{{item.name}}">
+              {{item.name}}
             </view>
-          </picker>
-          <view class="form-error" wx:if="{{selfErrors.birthday}}">{{selfErrors.birthday}}</view>
+            <view class="preset-tag preset-tag-other {{showChronicOther ? 'preset-tag-selected' : ''}}"
+              bindtap="toggleChronicOther">
+              其它 ✚
+            </view>
+          </view>
+          <view wx:if="{{showChronicOther}}" class="custom-input-wrap">
+            <input class="custom-input" placeholder="请输入其它病史…"
+              value="{{chronicOtherInput}}" bindinput="onChronicOtherInput" maxlength="100"/>
+            <button class="confirm-btn" bindtap="confirmChronicOther">确认</button>
+          </view>
+          <view class="custom-tags" wx:if="{{chronicCustomItems.length > 0}}">
+            <view wx:for="{{chronicCustomItems}}" wx:key="value" class="custom-tag">
+              {{item.value}} <text class="health-delete-btn" bindtap="removeChronicCustom" data-value="{{item.value}}">✕</text>
+            </view>
+          </view>
         </view>
-      </view>
 
-      <!-- 既往病史 -->
-      <view class="health-section">
-        <view class="health-section-title">🏥 既往病史</view>
-        <view class="tags-wrap">
-          <view wx:for="{{chronicPresets}}" wx:key="id"
-            class="preset-tag {{h.isPresetSelected(chronic_diseases, item.name) ? 'preset-tag-selected' : ''}}"
-            bindtap="toggleChronicPreset" data-name="{{item.name}}">
-            {{item.name}}
+        <!-- 过敏史 -->
+        <view class="health-section">
+          <view class="health-section-title">⚠️ 过敏史</view>
+          <view class="tags-wrap">
+            <view wx:for="{{allergyPresets}}" wx:key="id"
+              class="preset-tag {{h.isPresetSelected(allergies, item.name) ? 'preset-tag-selected' : ''}}"
+              bindtap="toggleAllergyPreset" data-name="{{item.name}}">
+              {{item.name}}
+            </view>
+            <view class="preset-tag preset-tag-other {{showAllergyOther ? 'preset-tag-selected' : ''}}"
+              bindtap="toggleAllergyOther">
+              其它 ✚
+            </view>
           </view>
-          <view class="preset-tag preset-tag-other {{showChronicOther ? 'preset-tag-selected' : ''}}"
-            bindtap="toggleChronicOther">
-            其它 ✚
+          <view wx:if="{{showAllergyOther}}" class="custom-input-wrap">
+            <input class="custom-input" placeholder="请输入其它过敏源…"
+              value="{{allergyOtherInput}}" bindinput="onAllergyOtherInput" maxlength="100"/>
+            <button class="confirm-btn" bindtap="confirmAllergyOther">确认</button>
+          </view>
+          <view class="custom-tags" wx:if="{{allergyCustomItems.length > 0}}">
+            <view wx:for="{{allergyCustomItems}}" wx:key="value" class="custom-tag">
+              {{item.value}} <text class="health-delete-btn" bindtap="removeAllergyCustom" data-value="{{item.value}}">✕</text>
+            </view>
           </view>
         </view>
-        <view wx:if="{{showChronicOther}}" class="custom-input-wrap">
-          <input class="custom-input" placeholder="请输入其它病史…"
-            value="{{chronicOtherInput}}" bindinput="onChronicOtherInput" maxlength="100"/>
-          <button class="confirm-btn" bindtap="confirmChronicOther">确认</button>
-        </view>
-        <view class="custom-tags" wx:if="{{chronicCustomItems.length > 0}}">
-          <view wx:for="{{chronicCustomItems}}" wx:key="value" class="custom-tag">
-            {{item.value}} <text class="health-delete-btn" bindtap="removeChronicCustom" data-value="{{item.value}}">✕</text>
-          </view>
-        </view>
-      </view>
 
-      <!-- 过敏史 -->
-      <view class="health-section">
-        <view class="health-section-title">⚠️ 过敏史</view>
-        <view class="tags-wrap">
-          <view wx:for="{{allergyPresets}}" wx:key="id"
-            class="preset-tag {{h.isPresetSelected(allergies, item.name) ? 'preset-tag-selected' : ''}}"
-            bindtap="toggleAllergyPreset" data-name="{{item.name}}">
-            {{item.name}}
+        <!-- 家族遗传病史 -->
+        <view class="health-section">
+          <view class="health-section-title">🧬 家族遗传病史</view>
+          <view class="tags-wrap">
+            <view wx:for="{{geneticPresets}}" wx:key="id"
+              class="preset-tag {{h.isPresetSelected(genetic_diseases, item.name) ? 'preset-tag-selected' : ''}}"
+              bindtap="toggleGeneticPreset" data-name="{{item.name}}">
+              {{item.name}}
+            </view>
+            <view class="preset-tag preset-tag-other {{showGeneticOther ? 'preset-tag-selected' : ''}}"
+              bindtap="toggleGeneticOther">
+              其它 ✚
+            </view>
           </view>
-          <view class="preset-tag preset-tag-other {{showAllergyOther ? 'preset-tag-selected' : ''}}"
-            bindtap="toggleAllergyOther">
-            其它 ✚
+          <view wx:if="{{showGeneticOther}}" class="custom-input-wrap">
+            <input class="custom-input" placeholder="请输入其它遗传病…"
+              value="{{geneticOtherInput}}" bindinput="onGeneticOtherInput" maxlength="100"/>
+            <button class="confirm-btn" bindtap="confirmGeneticOther">确认</button>
+          </view>
+          <view class="custom-tags" wx:if="{{geneticCustomItems.length > 0}}">
+            <view wx:for="{{geneticCustomItems}}" wx:key="value" class="custom-tag">
+              {{item.value}} <text class="health-delete-btn" bindtap="removeGeneticCustom" data-value="{{item.value}}">✕</text>
+            </view>
           </view>
         </view>
-        <view wx:if="{{showAllergyOther}}" class="custom-input-wrap">
-          <input class="custom-input" placeholder="请输入其它过敏源…"
-            value="{{allergyOtherInput}}" bindinput="onAllergyOtherInput" maxlength="100"/>
-          <button class="confirm-btn" bindtap="confirmAllergyOther">确认</button>
-        </view>
-        <view class="custom-tags" wx:if="{{allergyCustomItems.length > 0}}">
-          <view wx:for="{{allergyCustomItems}}" wx:key="value" class="custom-tag">
-            {{item.value}} <text class="health-delete-btn" bindtap="removeAllergyCustom" data-value="{{item.value}}">✕</text>
-          </view>
-        </view>
-      </view>
 
-      <!-- 家族遗传病史 -->
-      <view class="health-section">
-        <view class="health-section-title">🧬 家族遗传病史</view>
-        <view class="tags-wrap">
-          <view wx:for="{{geneticPresets}}" wx:key="id"
-            class="preset-tag {{h.isPresetSelected(genetic_diseases, item.name) ? 'preset-tag-selected' : ''}}"
-            bindtap="toggleGeneticPreset" data-name="{{item.name}}">
-            {{item.name}}
-          </view>
-          <view class="preset-tag preset-tag-other {{showGeneticOther ? 'preset-tag-selected' : ''}}"
-            bindtap="toggleGeneticOther">
-            其它 ✚
-          </view>
-        </view>
-        <view wx:if="{{showGeneticOther}}" class="custom-input-wrap">
-          <input class="custom-input" placeholder="请输入其它遗传病…"
-            value="{{geneticOtherInput}}" bindinput="onGeneticOtherInput" maxlength="100"/>
-          <button class="confirm-btn" bindtap="confirmGeneticOther">确认</button>
-        </view>
-        <view class="custom-tags" wx:if="{{geneticCustomItems.length > 0}}">
-          <view wx:for="{{geneticCustomItems}}" wx:key="value" class="custom-tag">
-            {{item.value}} <text class="health-delete-btn" bindtap="removeGeneticCustom" data-value="{{item.value}}">✕</text>
-          </view>
-        </view>
+        <button class="health-save-btn" bindtap="saveHealthInfo">保存健康信息</button>
       </view>
-
-      <button class="health-save-btn" bindtap="saveHealthInfo">保存健康信息</button>
     </view>
   </view>
 

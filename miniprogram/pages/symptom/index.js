@@ -72,6 +72,8 @@ Page({
     selfNickname: '',
     selfGender: '',
     selfBirthday: '',
+    selfHeight: '',
+    selfWeight: '',
     selfErrors: {},
     today: ''
   },
@@ -157,6 +159,8 @@ Page({
           selfNickname: profile.nickname || member.nickname || '',
           selfGender: profile.gender || '',
           selfBirthday: profile.birthday || '',
+          selfHeight: profile.height || '',
+          selfWeight: profile.weight || '',
           selfErrors: {}
         };
         this.setData(updates);
@@ -175,6 +179,7 @@ Page({
       selectedMemberId: member.id,
       selectedMemberName: member.label,
       isSelfSelected: !!member.is_self,
+      showHealthEdit: false,
       selfErrors: {}
     });
     this.loadMemberHealth(member);
@@ -198,6 +203,14 @@ Page({
 
   onSelfBirthdayChange(e) {
     this.setData({ selfBirthday: e.detail.value });
+  },
+
+  onSelfHeightInput(e) {
+    this.setData({ selfHeight: e.detail.value });
+  },
+
+  onSelfWeightInput(e) {
+    this.setData({ selfWeight: e.detail.value });
   },
 
   // ── Chronic disease handlers ──
@@ -324,7 +337,9 @@ Page({
       genetic_diseases: this.data.genetic_diseases,
       nickname: this.data.selfNickname,
       gender: this.data.selfGender,
-      birthday: this.data.selfBirthday
+      birthday: this.data.selfBirthday,
+      height: this.data.selfHeight,
+      weight: this.data.selfWeight
     };
 
     try {
@@ -333,7 +348,7 @@ Page({
       } else {
         await put(`/api/health/profile/member/${member.id}`, payload);
       }
-      wx.showToast({ title: '健康信息已保存', icon: 'success' });
+      wx.showToast({ title: '健康档案信息已同步更新', icon: 'success' });
       this.setData({ showHealthEdit: false });
     } catch (e) {
       wx.showToast({ title: '保存失败', icon: 'none' });
@@ -405,7 +420,7 @@ Page({
         wx.showToast({ title: '请选择症状持续时间', icon: 'none' });
         return;
       }
-      this.setData({ currentStep: 1 });
+      this.setData({ currentStep: 1, showHealthEdit: false });
     } else if (currentStep === 1) {
       if (!this.data.selectedMemberId) {
         wx.showToast({ title: '请选择咨询对象', icon: 'none' });

@@ -7,6 +7,11 @@ function isPresetSelected(items, name) {
   return false;
 }
 
+function isProfileComplete(nickname, gender, birthday, height, weight) {
+  return !!(nickname && gender && birthday && height && weight);
+}
+
 module.exports = {
-  isPresetSelected: isPresetSelected
+  isPresetSelected: isPresetSelected,
+  isProfileComplete: isProfileComplete
 };

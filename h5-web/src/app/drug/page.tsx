@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { NavBar, Toast, Empty, SpinLoading, Tag, Button, Popup, Radio, Input, DatePicker } from 'antd-mobile';
+import { NavBar, Toast, Empty, SpinLoading, Tag, Button, Popup, Radio, DatePicker } from 'antd-mobile';
 import api from '@/lib/api';
 import { checkFileSize, uploadWithProgress } from '@/lib/upload-utils';
 import DiseaseTagSelector, { type DiseaseItem } from '@/components/DiseaseTagSelector';
+import HealthProfileEditor, { type HealthProfileEditorRef } from '@/components/HealthProfileEditor';
 
 const MAX_IMAGES = 5;
 const MAX_SIZE = 20 * 1024 * 1024;
@@ -172,9 +173,9 @@ export default function DrugPage() {
   const [familyMembers, setFamilyMembers] = useState<FamilyMemberInfo[]>([]);
   const [selectedMemberId, setSelectedMemberId] = useState<number | null>(null);
   const [profileEdits, setProfileEdits] = useState<HealthProfile>(emptyProfile());
-  const [birthdayPickerVisible, setBirthdayPickerVisible] = useState(false);
   const [profileErrors, setProfileErrors] = useState<{nickname?: string; gender?: string; birthday?: string}>({});
   const [confirmLoading, setConfirmLoading] = useState(false);
+  const profileEditorRef = useRef<HealthProfileEditorRef>(null);
 
   // Disease presets
   const [chronicPresets, setChronicPresets] = useState<DiseasePreset[]>([]);
@@ -304,6 +305,7 @@ export default function DrugPage() {
   const handleSelectMember = (id: number) => {
     setSelectedMemberId(id);
     setProfileErrors({});
+    profileEditorRef.current?.resetExpanded();
     loadProfileFromMember(familyMembers, id);
   };
 
@@ -328,6 +330,7 @@ export default function DrugPage() {
     }
     setCurrentStep(1);
     setMemberPopupVisible(true);
+    profileEditorRef.current?.resetExpanded();
   };
 
   const openAddMemberPopup = async () => {
@@ -411,6 +414,7 @@ export default function DrugPage() {
         updatePayload.allergies = profileEdits.allergies;
         updatePayload.genetic_diseases = profileEdits.genetic_diseases;
         await api.put(`/api/health/profile/member/${memberId}`, updatePayload).catch(() => null);
+        Toast.show({ content: '健康档案信息已同步更新' });
       }
     } catch { /* ignore */ }
 
@@ -759,67 +763,17 @@ export default function DrugPage() {
             </div>
           </div>
 
-          {/* Health profile editor */}
-          <div className="mt-4 p-4 rounded-xl" style={{ background: '#f9f9f9', border: '1px solid #e8e8e8' }}>
-            <div className="text-sm font-semibold mb-3 text-gray-600">
-              {selectedMember?.is_self ? '我的' : (selectedMember ? `${selectedMember.nickname}的` : '')}健康档案
-              <span className="text-xs text-gray-400 ml-2 font-normal">（可修改，点击确认后保存）</span>
-            </div>
-            <div className="space-y-3">
-              <div>
-                <div className="text-xs text-gray-500 mb-1">姓名 <span style={{color:'#ff4d4f'}}>*</span></div>
-                <Input
-                  placeholder="请输入姓名"
-                  value={profileEdits.nickname}
-                  onChange={(v) => { setProfileEdits((p) => ({ ...p, nickname: v })); if (v.trim()) setProfileErrors((e) => ({ ...e, nickname: undefined })); }}
-                  style={{ '--font-size': '14px', background: '#fff', borderRadius: 8, padding: '6px 12px', border: '1px solid #d9d9d9' }}
-                />
-                {profileErrors.nickname && <div style={{ color: '#ff4d4f', fontSize: 12, marginTop: 4 }}>{profileErrors.nickname}</div>}
-              </div>
-              <div>
-                <div className="text-xs text-gray-500 mb-1">出生日期 <span style={{color:'#ff4d4f'}}>*</span></div>
-                <div className="bg-white rounded-lg px-3 py-2 text-sm cursor-pointer flex items-center justify-between" style={{ border: '1px solid #d9d9d9' }} onClick={() => setBirthdayPickerVisible(true)}>
-                  <span style={{ color: profileEdits.birthday ? '#333' : '#bbb' }}>{profileEdits.birthday || '请选择出生日期'}</span>
-                  <span className="text-gray-300">📅</span>
-                </div>
-                {profileErrors.birthday && <div style={{ color: '#ff4d4f', fontSize: 12, marginTop: 4 }}>{profileErrors.birthday}</div>}
-              </div>
-              <div>
-                <div className="text-xs text-gray-500 mb-1">性别 <span style={{color:'#ff4d4f'}}>*</span></div>
-                <div className="flex gap-3">
-                  {['male', 'female'].map((g) => (
-                    <div key={g} className="flex-1 text-center py-2 rounded-lg text-sm cursor-pointer"
-                      style={{ background: profileEdits.gender === g ? '#52c41a' : '#fff', color: profileEdits.gender === g ? '#fff' : '#666', border: `1px solid ${profileEdits.gender === g ? '#52c41a' : '#d9d9d9'}` }}
-                      onClick={() => { setProfileEdits((p) => ({ ...p, gender: g })); setProfileErrors((e) => ({ ...e, gender: undefined })); }}
-                    >{g === 'male' ? '男' : '女'}</div>
-                  ))}
-                </div>
-                {profileErrors.gender && <div style={{ color: '#ff4d4f', fontSize: 12, marginTop: 4 }}>{profileErrors.gender}</div>}
-              </div>
-              <div className="flex gap-3">
-                <div className="flex-1">
-                  <div className="text-xs text-gray-500 mb-1">身高 (cm)</div>
-                  <Input type="number" placeholder="如：170" value={profileEdits.height} onChange={(v) => setProfileEdits((p) => ({ ...p, height: v }))} style={{ '--font-size': '14px', background: '#fff', borderRadius: 8, padding: '6px 12px', border: '1px solid #d9d9d9' }} />
-                </div>
-                <div className="flex-1">
-                  <div className="text-xs text-gray-500 mb-1">体重 (kg)</div>
-                  <Input type="number" placeholder="如：65" value={profileEdits.weight} onChange={(v) => setProfileEdits((p) => ({ ...p, weight: v }))} style={{ '--font-size': '14px', background: '#fff', borderRadius: 8, padding: '6px 12px', border: '1px solid #d9d9d9' }} />
-                </div>
-              </div>
-              <div>
-                <div className="text-xs text-gray-500 mb-1">既往病史（慢性病史）</div>
-                <DiseaseTagSelector items={profileEdits.chronic_diseases} presets={chronicPresets} onChange={(items) => setProfileEdits((p) => ({ ...p, chronic_diseases: items }))} activeColor="linear-gradient(135deg, #fa8c16, #faad14)" categoryLabel="慢性病史" />
-              </div>
-              <div>
-                <div className="text-xs text-gray-500 mb-1">过敏史</div>
-                <DiseaseTagSelector items={profileEdits.allergies} presets={allergyPresets} onChange={(items) => setProfileEdits((p) => ({ ...p, allergies: items }))} activeColor="linear-gradient(135deg, #f5222d, #fa541c)" categoryLabel="过敏史" />
-              </div>
-              <div>
-                <div className="text-xs text-gray-500 mb-1">家族遗传病史</div>
-                <DiseaseTagSelector items={profileEdits.genetic_diseases} presets={geneticPresets} onChange={(items) => setProfileEdits((p) => ({ ...p, genetic_diseases: items }))} activeColor="linear-gradient(135deg, #722ed1, #1890ff)" categoryLabel="遗传病史" />
-              </div>
-            </div>
-          </div>
+          <HealthProfileEditor
+            ref={profileEditorRef}
+            profileEdits={profileEdits}
+            onChange={setProfileEdits}
+            profileErrors={profileErrors}
+            onErrorsChange={setProfileErrors}
+            chronicPresets={chronicPresets}
+            allergyPresets={allergyPresets}
+            geneticPresets={geneticPresets}
+            selectedMemberName={selectedMember?.is_self ? '我的' : (selectedMember ? `${selectedMember.nickname}的` : '')}
+          />
 
           <Button
             block loading={confirmLoading} onClick={handleMemberConfirm}
@@ -917,19 +871,6 @@ export default function DrugPage() {
         </div>
       </Popup>
 
-      <DatePicker
-        visible={birthdayPickerVisible}
-        onClose={() => setBirthdayPickerVisible(false)}
-        precision="day" max={new Date()} min={new Date('1900-01-01')}
-        onConfirm={(val) => {
-          const d = val as Date;
-          const str = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-          setProfileEdits((p) => ({ ...p, birthday: str }));
-          setProfileErrors((e) => ({ ...e, birthday: undefined }));
-          setBirthdayPickerVisible(false);
-        }}
-        title="选择出生日期"
-      />
       <DatePicker
         visible={newBirthdayPickerVisible}
         onClose={() => setNewBirthdayPickerVisible(false)}

@@ -248,25 +248,45 @@
   color: #52c41a;
 }
 
-/* 健康信息编辑入口 */
-.health-edit-toggle {
+/* 展开/收起按钮 */
+.expand-toggle {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-top: 16rpx;
-  padding: 16rpx 0;
-  border-top: 1rpx solid #f0f0f0;
+  padding: 24rpx 0;
 }
 
-.health-edit-label {
-  font-size: 26rpx;
-  color: #333;
-  font-weight: 500;
+.expand-toggle .line {
+  flex: 1;
+  height: 1rpx;
+  background: #e8e8e8;
 }
 
-.health-edit-arrow {
+.expand-toggle .text {
+  padding: 0 16rpx;
   font-size: 24rpx;
+  color: #999;
+  white-space: nowrap;
+}
+
+.expand-toggle .status-complete {
   color: #52c41a;
+}
+
+.expand-toggle .status-incomplete {
+  color: #fa8c16;
+}
+
+/* 展开/收起动画 */
+.expand-content {
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  transition: max-height 250ms ease-in-out, opacity 200ms ease-in-out;
+}
+
+.expand-content.expanded {
+  max-height: 2000rpx;
+  opacity: 1;
 }
 
 /* 健康信息编辑面板 */
