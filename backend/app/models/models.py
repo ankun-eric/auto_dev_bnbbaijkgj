@@ -2371,6 +2371,7 @@ class UnifiedOrder(Base):
     cancelled_at = mapped_column(DateTime, nullable=True)
     cancel_reason = mapped_column(Text, nullable=True)
     auto_confirm_days = mapped_column(Integer, default=7)
+    has_reviewed = mapped_column(Boolean, default=False)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

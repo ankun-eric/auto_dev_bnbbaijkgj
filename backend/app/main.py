@@ -59,6 +59,7 @@ from app.api import (
     tts,
     unified_orders,
     upload,
+    users,
     wechat_push,
 )
 from app.core.database import Base, engine
@@ -133,7 +134,14 @@ async def lifespan(app: FastAPI):
     shutdown_scheduler()
 
 
-app = FastAPI(title="宾尼小康 AI健康管家", version="1.0.0", lifespan=lifespan)
+app = FastAPI(
+    title="宾尼小康 AI健康管家",
+    version="1.0.0",
+    lifespan=lifespan,
+    docs_url="/api/docs",
+    redoc_url="/api/redoc",
+    openapi_url="/api/openapi.json",
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -208,6 +216,7 @@ app.include_router(favorites.router)
 app.include_router(coupons.router)
 app.include_router(addresses.router)
 app.include_router(product_admin.router)
+app.include_router(users.router)
 
 os.makedirs("uploads", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")

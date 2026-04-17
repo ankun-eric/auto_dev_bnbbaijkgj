@@ -3,17 +3,20 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   Table, Button, Space, Modal, Form, Input, Tabs, Tag, message,
-  Typography, Descriptions, Drawer, Popconfirm, Row, Col,
+  Typography, Descriptions, Drawer, Row, Col, Card, Statistic,
+  DatePicker, Select, InputNumber,
 } from 'antd';
 import {
   EyeOutlined, SearchOutlined, SendOutlined,
-  CheckOutlined, CloseOutlined,
+  CheckOutlined, CloseOutlined, ShoppingCartOutlined,
+  DollarOutlined, UndoOutlined,
 } from '@ant-design/icons';
 import { get, post } from '@/lib/api';
 import dayjs from 'dayjs';
 
 const { Title } = Typography;
 const { TextArea } = Input;
+const { RangePicker } = DatePicker;
 
 interface OrderItem {
   id: number;
@@ -55,6 +58,15 @@ interface UnifiedOrder {
   updated_at: string;
 }
 
+interface SalesStats {
+  today_orders: number;
+  today_revenue: number;
+  today_refund_amount: number;
+  month_orders: number;
+  month_revenue: number;
+  month_refund_amount: number;
+}
+
 const orderStatusMap: Record<string, { color: string; text: string }> = {
   pending_payment: { color: 'orange', text: '待付款' },
   pending_shipment: { color: 'blue', text: '待发货' },
@@ -70,6 +82,7 @@ const refundStatusMap: Record<string, { color: string; text: string }> = {
   applied: { color: 'orange', text: '退款申请中' },
   approved: { color: 'green', text: '退款已批准' },
   rejected: { color: 'red', text: '退款已拒绝' },
+  refund_success: { color: 'green', text: '退款成功' },
 };
 
 const fulfillmentMap: Record<string, string> = {
@@ -84,6 +97,34 @@ const payMethodMap: Record<string, string> = {
   balance: '余额支付',
   points: '积分兑换',
 };
+
+const statusOptions = [
+  { value: '', label: '全部状态' },
+  { value: 'pending_payment', label: '待付款' },
+  { value: 'pending_shipment', label: '待发货' },
+  { value: 'pending_receipt', label: '待收货' },
+  { value: 'pending_use', label: '待使用' },
+  { value: 'completed', label: '已完成' },
+  { value: 'pending_review', label: '待评价' },
+  { value: 'cancelled', label: '已取消' },
+];
+
+const payMethodOptions = [
+  { value: '', label: '全部支付方式' },
+  { value: 'wechat', label: '微信支付' },
+  { value: 'alipay', label: '支付宝' },
+  { value: 'balance', label: '余额支付' },
+  { value: 'points', label: '积分兑换' },
+];
+
+const refundStatusOptions = [
+  { value: '', label: '全部退款状态' },
+  { value: 'none', label: '无退款' },
+  { value: 'applied', label: '退款申请中' },
+  { value: 'approved', label: '退款已批准' },
+  { value: 'rejected', label: '退款已拒绝' },
+  { value: 'refund_success', label: '退款成功' },
+];
 
 function mapOrder(raw: Record<string, unknown>): UnifiedOrder {
   const items = Array.isArray(raw.items)
@@ -136,6 +177,20 @@ export default function UnifiedOrdersPage() {
   const [searchText, setSearchText] = useState('');
   const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
 
+  const [dateRange, setDateRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null] | null>(null);
+  const [filterStatus, setFilterStatus] = useState('');
+  const [filterPayMethod, setFilterPayMethod] = useState('');
+  const [filterRefundStatus, setFilterRefundStatus] = useState('');
+  const [filterCategory, setFilterCategory] = useState<string>('');
+  const [amountMin, setAmountMin] = useState<number | null>(null);
+  const [amountMax, setAmountMax] = useState<number | null>(null);
+  const [categories, setCategories] = useState<{ id: number; name: string }[]>([]);
+
+  const [statsData, setStatsData] = useState<SalesStats>({
+    today_orders: 0, today_revenue: 0, today_refund_amount: 0,
+    month_orders: 0, month_revenue: 0, month_refund_amount: 0,
+  });
+
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [currentOrder, setCurrentOrder] = useState<UnifiedOrder | null>(null);
 
@@ -149,15 +204,53 @@ export default function UnifiedOrdersPage() {
   const activeTabRef = useRef(activeTab);
   activeTabRef.current = activeTab;
 
+  const fetchCategories = useCallback(async () => {
+    try {
+      const res = await get('/api/admin/product-system/categories');
+      if (res) {
+        const items = res.items || res.list || res;
+        if (Array.isArray(items)) {
+          setCategories(items.map((c: any) => ({ id: Number(c.id), name: String(c.name) })));
+        }
+      }
+    } catch {}
+  }, []);
+
+  const fetchStats = useCallback(async () => {
+    try {
+      const res = await get('/api/admin/statistics/sales');
+      if (res) {
+        setStatsData({
+          today_orders: Number(res.today_orders ?? 0),
+          today_revenue: Number(res.today_revenue ?? 0),
+          today_refund_amount: Number(res.today_refund_amount ?? 0),
+          month_orders: Number(res.month_orders ?? 0),
+          month_revenue: Number(res.month_revenue ?? 0),
+          month_refund_amount: Number(res.month_refund_amount ?? 0),
+        });
+      }
+    } catch {}
+  }, []);
+
   const fetchData = useCallback(async (page = 1, pageSize = 10) => {
     setLoading(true);
     try {
       const params: Record<string, unknown> = { page, page_size: pageSize };
       if (searchText) params.keyword = searchText;
+      if (dateRange?.[0]) params.start_date = dateRange[0].format('YYYY-MM-DD');
+      if (dateRange?.[1]) params.end_date = dateRange[1].format('YYYY-MM-DD');
+      if (filterStatus) params.status = filterStatus;
+      if (filterPayMethod) params.payment_method = filterPayMethod;
+      if (filterRefundStatus) params.refund_status = filterRefundStatus;
+      if (filterCategory) params.category_id = filterCategory;
+      if (amountMin !== null) params.amount_min = amountMin;
+      if (amountMax !== null) params.amount_max = amountMax;
 
       const tab = activeTabRef.current;
       if (tab === 'refund') {
         params.refund_status = 'applied';
+      } else if (tab === 'pending_review') {
+        params.status = 'pending_review';
       } else if (tab !== 'all') {
         params.status = tab;
       }
@@ -176,11 +269,20 @@ export default function UnifiedOrdersPage() {
     } finally {
       setLoading(false);
     }
-  }, [searchText]);
+  }, [searchText, dateRange, filterStatus, filterPayMethod, filterRefundStatus, filterCategory, amountMin, amountMax]);
+
+  useEffect(() => {
+    fetchCategories();
+    fetchStats();
+  }, []);
 
   useEffect(() => {
     fetchData(1, pagination.pageSize);
   }, [activeTab]);
+
+  const handleSearch = () => {
+    fetchData(1, pagination.pageSize);
+  };
 
   const handleShip = async () => {
     if (!currentOrder) return;
@@ -241,9 +343,18 @@ export default function UnifiedOrdersPage() {
     { key: 'pending_receipt', label: '待收货' },
     { key: 'pending_use', label: '待使用' },
     { key: 'completed', label: '已完成' },
+    { key: 'pending_review', label: '待评价' },
     { key: 'cancelled', label: '已取消' },
     { key: 'refund', label: '退款申请' },
   ];
+
+  const renderStatusTag = (record: UnifiedOrder) => {
+    if (record.status === 'cancelled' && record.refund_status === 'refund_success') {
+      return <Tag color="default">已取消（已退款）</Tag>;
+    }
+    const s = orderStatusMap[record.status] || { color: 'default', text: record.status };
+    return <Tag color={s.color}>{s.text}</Tag>;
+  };
 
   const columns = [
     { title: '订单号', dataIndex: 'order_no', key: 'order_no', width: 200 },
@@ -262,11 +373,8 @@ export default function UnifiedOrdersPage() {
       render: (v: number) => <span>¥{(v ?? 0).toFixed(2)}</span>,
     },
     {
-      title: '订单状态', key: 'status', width: 100,
-      render: (_: unknown, record: UnifiedOrder) => {
-        const s = orderStatusMap[record.status] || { color: 'default', text: record.status };
-        return <Tag color={s.color}>{s.text}</Tag>;
-      },
+      title: '订单状态', key: 'status', width: 130,
+      render: (_: unknown, record: UnifiedOrder) => renderStatusTag(record),
     },
     {
       title: '退款状态', dataIndex: 'refund_status', key: 'refund_status', width: 110,
@@ -310,20 +418,130 @@ export default function UnifiedOrdersPage() {
 
   return (
     <div>
-      <Title level={4} style={{ marginBottom: 16 }}>统一订单管理</Title>
+      <Title level={4} style={{ marginBottom: 16 }}>订单明细</Title>
 
-      <Space style={{ marginBottom: 16 }} wrap>
-        <Input
-          placeholder="搜索订单号"
-          prefix={<SearchOutlined />}
-          value={searchText}
-          onChange={e => setSearchText(e.target.value)}
-          onPressEnter={() => fetchData(1, pagination.pageSize)}
-          style={{ width: 280 }}
-          allowClear
-        />
-        <Button type="primary" onClick={() => fetchData(1, pagination.pageSize)}>搜索</Button>
-      </Space>
+      {/* 统计卡片 */}
+      <Row gutter={16} style={{ marginBottom: 12 }}>
+        <Col span={8}>
+          <Card size="small">
+            <Statistic title="今日订单数" value={statsData.today_orders} prefix={<ShoppingCartOutlined />} />
+          </Card>
+        </Col>
+        <Col span={8}>
+          <Card size="small">
+            <Statistic title="今日成交金额" value={statsData.today_revenue} precision={2} prefix="¥" valueStyle={{ color: '#52c41a' }} />
+          </Card>
+        </Col>
+        <Col span={8}>
+          <Card size="small">
+            <Statistic title="今日退款金额" value={statsData.today_refund_amount} precision={2} prefix="¥" valueStyle={{ color: '#f5222d' }} />
+          </Card>
+        </Col>
+      </Row>
+      <Row gutter={16} style={{ marginBottom: 24 }}>
+        <Col span={8}>
+          <Card size="small">
+            <Statistic title="本月订单数" value={statsData.month_orders} prefix={<ShoppingCartOutlined />} />
+          </Card>
+        </Col>
+        <Col span={8}>
+          <Card size="small">
+            <Statistic title="本月成交金额" value={statsData.month_revenue} precision={2} prefix="¥" valueStyle={{ color: '#52c41a' }} />
+          </Card>
+        </Col>
+        <Col span={8}>
+          <Card size="small">
+            <Statistic title="本月退款金额" value={statsData.month_refund_amount} precision={2} prefix="¥" valueStyle={{ color: '#f5222d' }} />
+          </Card>
+        </Col>
+      </Row>
+
+      {/* 查询条件 */}
+      <Card size="small" style={{ marginBottom: 16 }}>
+        <Row gutter={[16, 12]}>
+          <Col span={6}>
+            <Input
+              placeholder="订单号 / 用户昵称 / 手机号"
+              prefix={<SearchOutlined />}
+              value={searchText}
+              onChange={e => setSearchText(e.target.value)}
+              onPressEnter={handleSearch}
+              allowClear
+            />
+          </Col>
+          <Col span={6}>
+            <RangePicker
+              style={{ width: '100%' }}
+              placeholder={['下单开始时间', '下单结束时间']}
+              value={dateRange as any}
+              onChange={vals => setDateRange(vals as any)}
+            />
+          </Col>
+          <Col span={4}>
+            <Select
+              style={{ width: '100%' }}
+              value={filterStatus}
+              onChange={v => setFilterStatus(v)}
+              options={statusOptions}
+              placeholder="订单状态"
+            />
+          </Col>
+          <Col span={4}>
+            <Select
+              style={{ width: '100%' }}
+              value={filterPayMethod}
+              onChange={v => setFilterPayMethod(v)}
+              options={payMethodOptions}
+              placeholder="支付方式"
+            />
+          </Col>
+          <Col span={4}>
+            <Select
+              style={{ width: '100%' }}
+              value={filterRefundStatus}
+              onChange={v => setFilterRefundStatus(v)}
+              options={refundStatusOptions}
+              placeholder="退款状态"
+            />
+          </Col>
+          <Col span={4}>
+            <Select
+              style={{ width: '100%' }}
+              value={filterCategory}
+              onChange={v => setFilterCategory(v)}
+              placeholder="商品分类"
+              allowClear
+              onClear={() => setFilterCategory('')}
+            >
+              <Select.Option value="">全部分类</Select.Option>
+              {categories.map(c => (
+                <Select.Option key={c.id} value={String(c.id)}>{c.name}</Select.Option>
+              ))}
+            </Select>
+          </Col>
+          <Col span={4}>
+            <Space.Compact style={{ width: '100%' }}>
+              <InputNumber
+                style={{ width: '50%' }}
+                placeholder="最低金额"
+                min={0}
+                value={amountMin}
+                onChange={v => setAmountMin(v)}
+              />
+              <InputNumber
+                style={{ width: '50%' }}
+                placeholder="最高金额"
+                min={0}
+                value={amountMax}
+                onChange={v => setAmountMax(v)}
+              />
+            </Space.Compact>
+          </Col>
+          <Col span={4}>
+            <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>搜索</Button>
+          </Col>
+        </Row>
+      </Card>
 
       <Tabs
         activeKey={activeTab}
@@ -363,7 +581,7 @@ export default function UnifiedOrdersPage() {
               <Descriptions.Item label="优惠券抵扣">¥{(currentOrder.coupon_discount ?? 0).toFixed(2)}</Descriptions.Item>
               <Descriptions.Item label="支付方式">{currentOrder.payment_method ? (payMethodMap[currentOrder.payment_method] || currentOrder.payment_method) : '-'}</Descriptions.Item>
               <Descriptions.Item label="订单状态">
-                {(() => { const s = orderStatusMap[currentOrder.status] || { color: 'default', text: currentOrder.status }; return <Tag color={s.color}>{s.text}</Tag>; })()}
+                {renderStatusTag(currentOrder)}
               </Descriptions.Item>
               <Descriptions.Item label="退款状态">
                 {(() => { const s = refundStatusMap[currentOrder.refund_status] || { color: 'default', text: currentOrder.refund_status }; return <Tag color={s.color}>{s.text}</Tag>; })()}

@@ -724,6 +724,8 @@ async def _sync_product_system_tables(conn: AsyncConnection) -> None:
             await conn.execute(text("ALTER TABLE unified_orders ADD COLUMN auto_confirm_days INT DEFAULT 7"))
         if "payment_timeout_minutes" not in cols:
             await conn.execute(text("ALTER TABLE unified_orders ADD COLUMN payment_timeout_minutes INT DEFAULT 15"))
+        if "has_reviewed" not in cols:
+            await conn.execute(text("ALTER TABLE unified_orders ADD COLUMN has_reviewed BOOLEAN DEFAULT FALSE"))
 
     if "order_items" in table_cols:
         cols = table_cols["order_items"]
@@ -740,6 +742,34 @@ async def _sync_product_system_tables(conn: AsyncConnection) -> None:
             await conn.execute(text("ALTER TABLE refund_requests ADD COLUMN return_tracking_number VARCHAR(100) NULL"))
         if "return_tracking_company" not in cols:
             await conn.execute(text("ALTER TABLE refund_requests ADD COLUMN return_tracking_company VARCHAR(100) NULL"))
+
+
+async def _migrate_service_to_product_categories(conn: AsyncConnection) -> None:
+    def _load(sync_conn):
+        inspector = inspect(sync_conn)
+        tables = set(inspector.get_table_names())
+        return "service_categories" in tables and "product_categories" in tables
+
+    both_exist = await conn.run_sync(_load)
+    if not both_exist:
+        return
+
+    rows = await conn.execute(text("SELECT name FROM service_categories"))
+    service_names = [r[0] for r in rows.fetchall()]
+
+    for name in service_names:
+        existing = await conn.execute(
+            text("SELECT id FROM product_categories WHERE name = :n AND parent_id IS NULL"),
+            {"n": name},
+        )
+        if existing.fetchone() is None:
+            await conn.execute(
+                text(
+                    "INSERT INTO product_categories (name, parent_id, level, sort_order, status, created_at, updated_at) "
+                    "VALUES (:n, NULL, 1, 0, 'active', NOW(), NOW())"
+                ),
+                {"n": name},
+            )
 
 
 async def sync_register_schema(conn: AsyncConnection) -> None:
@@ -777,6 +807,7 @@ async def sync_register_schema(conn: AsyncConnection) -> None:
     await _sync_drug_identify_family_member(conn)
     await _sync_chat_share_records_table(conn)
     await _sync_product_system_tables(conn)
+    await _migrate_service_to_product_categories(conn)
     await run_all_migrations(conn)
 
     columns, indexes, unique_constraints = await conn.run_sync(load_user_schema)

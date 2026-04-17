@@ -42,11 +42,10 @@ interface Order {
 const STATUS_TABS: Record<string, string> = {
   all: '全部',
   pending_payment: '待付款',
-  pending_shipment: '待发货',
-  pending_receipt: '待收货',
-  pending_use: '待使用',
+  pending_receipt_use: '待收货/待使用',
+  completed: '已完成',
   pending_review: '待评价',
-  refund: '退款售后',
+  cancelled: '已取消',
 };
 
 const STATUS_TEXT: Record<string, string> = {
@@ -54,6 +53,7 @@ const STATUS_TEXT: Record<string, string> = {
   pending_shipment: '待发货',
   pending_receipt: '待收货',
   pending_use: '待使用',
+  pending_receipt_use: '待收货/待使用',
   pending_review: '待评价',
   completed: '已完成',
   cancelled: '已取消',
@@ -64,6 +64,7 @@ const STATUS_COLOR: Record<string, string> = {
   pending_shipment: '#1890ff',
   pending_receipt: '#722ed1',
   pending_use: '#13c2c2',
+  pending_receipt_use: '#722ed1',
   pending_review: '#eb2f96',
   completed: '#52c41a',
   cancelled: '#8c8c8c',
@@ -90,7 +91,11 @@ function UnifiedOrdersPage() {
   const fetchOrders = useCallback(async (pageNum: number, reset = false) => {
     try {
       const params: Record<string, any> = { page: pageNum, page_size: 20 };
-      if (activeTab !== 'all') params.status = activeTab;
+      if (activeTab === 'pending_receipt_use') {
+        params.status = 'pending_receipt,pending_use';
+      } else if (activeTab !== 'all') {
+        params.status = activeTab;
+      }
       const res: any = await api.get('/api/orders/unified', { params });
       const data = res.data || res;
       const items = data.items || [];
@@ -151,6 +156,9 @@ function UnifiedOrdersPage() {
   };
 
   const getStatusDisplay = (order: Order) => {
+    if (order.status === 'cancelled' && order.refund_status === 'refund_success') {
+      return { text: '已取消（已退款）', color: '#8c8c8c' };
+    }
     if (order.refund_status && order.refund_status !== 'none') {
       return { text: '退款中', color: '#f5222d' };
     }

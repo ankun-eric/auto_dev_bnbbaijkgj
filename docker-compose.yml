@@ -74,7 +74,7 @@ services:
       args:
         - NEXT_PUBLIC_API_URL=/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api
         - NEXT_PUBLIC_BASE_PATH=/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27
-    container_name: 6b099ed3-7175-4a78-91f4-44570c84ed27-frontend
+    container_name: 6b099ed3-7175-4a78-91f4-44570c84ed27-h5
     restart: always
     environment:
       NEXT_PUBLIC_API_URL: /autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api

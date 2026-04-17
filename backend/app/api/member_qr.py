@@ -17,6 +17,8 @@ from app.models.models import (
     PointsType,
     StoreVisitRecord,
     SystemConfig,
+    UnifiedOrder,
+    UnifiedOrderStatus,
     User,
 )
 from app.schemas.member_qr import (
@@ -169,6 +171,25 @@ async def redeem_service(
 
     order_item.used_redeem_count += 1
     order_item.updated_at = datetime.utcnow()
+
+    all_items_result = await db.execute(
+        select(OrderItem).where(OrderItem.order_id == order_item.order_id)
+    )
+    all_items = all_items_result.scalars().all()
+    all_redeemed = all(it.used_redeem_count >= it.total_redeem_count for it in all_items)
+    if all_redeemed:
+        order_result = await db.execute(
+            select(UnifiedOrder).where(UnifiedOrder.id == order_item.order_id)
+        )
+        order = order_result.scalar_one_or_none()
+        if order:
+            status_val = order.status
+            if hasattr(status_val, "value"):
+                status_val = status_val.value
+            if status_val == "pending_use":
+                order.status = UnifiedOrderStatus.completed
+                order.completed_at = datetime.utcnow()
+                order.updated_at = datetime.utcnow()
 
     await db.flush()
     await db.refresh(redemption)

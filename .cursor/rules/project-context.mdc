@@ -33,7 +33,65 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 咨询人信息收起/展开改造 (2026-04-17)
+## Latest Update: 「我的」页面与订单体系优化 (2026-04-17)
+
+### 概要
+对H5端「我的」页面进行全面优化，涉及个人信息展示与编辑、会员码入口、订单状态体系重构、统计数据修复；同时对管理后台进行菜单精简、订单页面改造和数据统计增强。
+
+### Backend 变更
+
+| 文件 | 变更 |
+| --- | --- |
+| `backend/app/models/models.py` | UnifiedOrder新增has_reviewed字段；状态流转调整 |
+| `backend/app/api/unified_orders.py` | 确认收货→completed(跳过pending_review)；待评价从completed筛选未评价；支持pending_receipt_use合并查询；新增/counts统计端点 |
+| `backend/app/api/product_admin.py` | 退款成功→cancelled；统计接口增加退款维度/今日/本月；新增trends和refund-reasons端点；管理端订单列表增加多维筛选 |
+| `backend/app/api/member_qr.py` | 核销完成后订单状态改为completed |
+| `backend/app/api/users.py` | 新增GET/PUT /api/users/me用户信息接口 |
+| `backend/app/schemas/unified_orders.py` | 新增has_reviewed/status_display字段；扩展统计响应；新增TrendItem/RefundReasonItem |
+| `backend/app/services/schema_sync.py` | has_reviewed列同步；服务分类→商品分类数据迁移 |
+| `backend/app/main.py` | 注册users路由模块 |
+
+### H5 变更
+
+| 文件 | 变更 |
+| --- | --- |
+| `h5-web/src/app/(tabs)/profile/page.tsx` | 头像可点击编辑；昵称旁编辑图标；显示会员卡号；会员码图标替换；统计空值改0；快捷入口角标+文字修改 |
+| `h5-web/src/app/unified-orders/page.tsx` | Tab从7改为6：全部/待付款/待收货·待使用/已完成/待评价/已取消；已取消(已退款)标签 |
+| `h5-web/src/app/settings/page.tsx` | 移除「个人信息」List块 |
+| `h5-web/src/app/profile/edit/page.tsx` | 新增修改个人信息页(头像+昵称可改，手机号只读) |
+| `h5-web/src/app/refund-list/page.tsx` | 新增退款/售后独立列表页 |
+
+### Admin 变更
+
+| 文件 | 变更 |
+| --- | --- |
+| `admin-web/src/app/(admin)/layout.tsx` | 删除「订单管理」一级菜单；删除「服务管理」菜单组；统一订单→订单明细；数据统计→订单统计 |
+| `admin-web/src/app/(admin)/product-system/orders/page.tsx` | Tab扩展为9个(含待评价)；新增6张统计卡片；完整查询条件(搜索/日期/状态/支付方式/退款/分类/金额) |
+| `admin-web/src/app/(admin)/product-system/statistics/page.tsx` | 统计卡片扩展为12张(含退款维度)；图表扩展为6张(含退款趋势+退款原因+商品分类占比) |
+| `admin-web/src/app/(admin)/services/` | 删除服务管理页面目录 |
+
+### 新增 API 端点
+
+| 方法 | 路径 | 权限 | 说明 |
+| --- | --- | --- | --- |
+| GET | `/api/users/me` | 已登录 | 获取当前用户信息 |
+| PUT | `/api/users/me` | 已登录 | 更新头像和昵称 |
+| GET | `/api/orders/unified/counts` | 已登录 | 各状态订单数量(角标) |
+| GET | `/api/admin/statistics/trends` | 管理员 | 订单/金额/退款趋势数据 |
+| GET | `/api/admin/statistics/refund-reasons` | 管理员 | 退款原因分布数据 |
+
+### 订单状态流转变更
+
+| 场景 | 旧流程 | 新流程 |
+| --- | --- | --- |
+| 确认收货 | → pending_review | → completed |
+| 核销完成 | → pending_review | → completed |
+| 待评价查询 | 查询status=pending_review | 从completed筛选has_reviewed=false |
+| 退款成功 | 仅更新refund_status | 同时设置status=cancelled |
+
+---
+
+## Previous Update: 咨询人信息收起/展开改造 (2026-04-17)
 
 ### 概要
 优化 AI报告解读、用药参考、健康自查 三个功能中"选择咨询人"步骤的信息展示。默认仅展示姓名/出生日期/性别三项核心信息，其余字段（身高/体重/病史等）收起在可展开区域。底部分隔线按钮显示档案完善度（已完善/待完善），支持平滑展开/收起动画。三端（H5/小程序/Flutter）同步改造。

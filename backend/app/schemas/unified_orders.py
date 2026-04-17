@@ -66,6 +66,8 @@ class UnifiedOrderResponse(BaseModel):
     cancelled_at: Optional[datetime] = None
     cancel_reason: Optional[str] = None
     auto_confirm_days: int = 7
+    has_reviewed: bool = False
+    status_display: Optional[str] = None
     items: list[OrderItemResponse] = []
     created_at: datetime
     updated_at: datetime
@@ -134,5 +136,27 @@ class SalesStatisticsResponse(BaseModel):
     total_orders: int = 0
     total_revenue: float = 0
     total_products_sold: int = 0
+    total_refund_count: int = 0
+    total_refund_amount: float = 0
+    today_orders: int = 0
+    today_revenue: float = 0
+    today_refund_count: int = 0
+    today_refund_amount: float = 0
+    month_orders: int = 0
+    month_revenue: float = 0
+    month_refund_count: int = 0
+    month_refund_amount: float = 0
     period_start: Optional[datetime] = None
     period_end: Optional[datetime] = None
+
+
+class TrendItem(BaseModel):
+    date: str
+    order_count: int = 0
+    revenue: float = 0
+    refund_amount: float = 0
+
+
+class RefundReasonItem(BaseModel):
+    reason: str
+    count: int = 0

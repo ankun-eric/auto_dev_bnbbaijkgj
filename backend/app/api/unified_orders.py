@@ -43,6 +43,19 @@ from app.schemas.unified_orders import (
 router = APIRouter(prefix="/api/orders/unified", tags=["统一订单"])
 
 
+def _build_order_response(order) -> UnifiedOrderResponse:
+    resp = UnifiedOrderResponse.model_validate(order)
+    s = order.status
+    if hasattr(s, "value"):
+        s = s.value
+    rs = order.refund_status
+    if hasattr(rs, "value"):
+        rs = rs.value
+    if s == "cancelled" and rs == "refund_success":
+        resp.status_display = "已取消（已退款）"
+    return resp
+
+
 def _generate_order_no() -> str:
     ts = datetime.utcnow().strftime("%Y%m%d%H%M%S")
     rand = "".join(random.choices(string.digits, k=6))
@@ -227,7 +240,7 @@ async def create_unified_order(
         .where(UnifiedOrder.id == order.id)
     )
     order = result.scalar_one()
-    return UnifiedOrderResponse.model_validate(order)
+    return _build_order_response(order)
 
 
 @router.get("")
@@ -245,6 +258,28 @@ async def list_unified_orders(
         if status == "refund":
             query = query.where(UnifiedOrder.refund_status != "none")
             count_query = count_query.where(UnifiedOrder.refund_status != "none")
+        elif status == "pending_review":
+            query = query.where(
+                UnifiedOrder.status == UnifiedOrderStatus.completed,
+                UnifiedOrder.has_reviewed == False,
+            )
+            count_query = count_query.where(
+                UnifiedOrder.status == UnifiedOrderStatus.completed,
+                UnifiedOrder.has_reviewed == False,
+            )
+        elif status == "pending_receipt_use":
+            query = query.where(
+                UnifiedOrder.status.in_([
+                    UnifiedOrderStatus.pending_receipt,
+                    UnifiedOrderStatus.pending_use,
+                ])
+            )
+            count_query = count_query.where(
+                UnifiedOrder.status.in_([
+                    UnifiedOrderStatus.pending_receipt,
+                    UnifiedOrderStatus.pending_use,
+                ])
+            )
         else:
             query = query.where(UnifiedOrder.status == status)
             count_query = count_query.where(UnifiedOrder.status == status)
@@ -258,8 +293,46 @@ async def list_unified_orders(
         .offset((page - 1) * page_size)
         .limit(page_size)
     )
-    items = [UnifiedOrderResponse.model_validate(o) for o in result.scalars().all()]
+    items = [_build_order_response(o) for o in result.scalars().all()]
     return {"items": items, "total": total, "page": page, "page_size": page_size}
+
+
+@router.get("/counts")
+async def get_order_counts(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    base = UnifiedOrder.user_id == current_user.id
+
+    pending_payment_q = select(func.count(UnifiedOrder.id)).where(
+        base, UnifiedOrder.status == UnifiedOrderStatus.pending_payment
+    )
+    pending_receipt_q = select(func.count(UnifiedOrder.id)).where(
+        base, UnifiedOrder.status == UnifiedOrderStatus.pending_receipt
+    )
+    pending_use_q = select(func.count(UnifiedOrder.id)).where(
+        base, UnifiedOrder.status == UnifiedOrderStatus.pending_use
+    )
+    pending_review_q = select(func.count(UnifiedOrder.id)).where(
+        base, UnifiedOrder.status == UnifiedOrderStatus.completed, UnifiedOrder.has_reviewed == False
+    )
+    refund_q = select(func.count(UnifiedOrder.id)).where(
+        base, UnifiedOrder.refund_status == RefundStatusEnum.applied
+    )
+
+    pp = (await db.execute(pending_payment_q)).scalar() or 0
+    pr = (await db.execute(pending_receipt_q)).scalar() or 0
+    pu = (await db.execute(pending_use_q)).scalar() or 0
+    prv = (await db.execute(pending_review_q)).scalar() or 0
+    rf = (await db.execute(refund_q)).scalar() or 0
+
+    return {
+        "pending_payment": pp,
+        "pending_receipt": pr,
+        "pending_use": pu,
+        "pending_review": prv,
+        "refund": rf,
+    }
 
 
 @router.get("/{order_id}")
@@ -276,7 +349,7 @@ async def get_unified_order(
     order = result.scalar_one_or_none()
     if not order:
         raise HTTPException(status_code=404, detail="订单不存在")
-    return UnifiedOrderResponse.model_validate(order)
+    return _build_order_response(order)
 
 
 @router.post("/{order_id}/pay")
@@ -346,8 +419,9 @@ async def confirm_receipt(
     if status_val not in ("pending_receipt", "pending_shipment"):
         raise HTTPException(status_code=400, detail="该订单无法确认收货")
 
-    order.status = UnifiedOrderStatus.pending_review
+    order.status = UnifiedOrderStatus.completed
     order.received_at = datetime.utcnow()
+    order.completed_at = datetime.utcnow()
     order.updated_at = datetime.utcnow()
 
     pr = PointsRecord(
@@ -441,7 +515,7 @@ async def review_unified_order(
     status_val = order.status
     if hasattr(status_val, "value"):
         status_val = status_val.value
-    if status_val not in ("pending_review", "pending_use", "completed"):
+    if status_val != "completed":
         raise HTTPException(status_code=400, detail="该订单无法评价")
 
     existing = await db.execute(select(OrderReview).where(OrderReview.order_id == order_id))
@@ -457,8 +531,7 @@ async def review_unified_order(
     )
     db.add(review)
 
-    order.status = UnifiedOrderStatus.completed
-    order.completed_at = datetime.utcnow()
+    order.has_reviewed = True
     order.updated_at = datetime.utcnow()
 
     pr = PointsRecord(

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { NavBar, List, Switch, Dialog, Toast, Avatar, Input, Button } from 'antd-mobile';
+import { NavBar, List, Switch, Dialog, Toast, Button } from 'antd-mobile';
 import { logout, useAuth } from '@/lib/auth';
 import { useFontSize } from '@/lib/useFontSize';
 import FontSettingPopup from '@/components/FontSettingPopup';
@@ -12,8 +12,6 @@ export default function SettingsPage() {
   const router = useRouter();
   const { user } = useAuth();
   const [pushEnabled, setPushEnabled] = useState(true);
-  const [editingNickname, setEditingNickname] = useState(false);
-  const [nickname, setNickname] = useState(user?.nickname || '用户');
   const [fontPopupVisible, setFontPopupVisible] = useState(false);
   const [fontConfig, setFontConfig] = useState<{
     font_switch_enabled: boolean;
@@ -79,53 +77,6 @@ export default function SettingsPage() {
       </NavBar>
 
       <div className="pt-2">
-        <List header="个人信息" style={{ '--border-top': 'none' }}>
-          <List.Item
-            prefix={
-              <Avatar
-                src=""
-                style={{
-                  '--size': '40px',
-                  '--border-radius': '50%',
-                  background: 'linear-gradient(135deg, #52c41a40, #13c2c240)',
-                }}
-              />
-            }
-            extra="更换头像"
-            arrow
-          >
-            头像
-          </List.Item>
-          <List.Item
-            extra={
-              editingNickname ? (
-                <div className="flex items-center gap-2">
-                  <Input
-                    value={nickname}
-                    onChange={setNickname}
-                    style={{ '--text-align': 'right', '--font-size': '14px' }}
-                  />
-                  <span className="text-primary text-xs" onClick={() => {
-                    setEditingNickname(false);
-                    Toast.show({ content: '已保存' });
-                  }}>
-                    保存
-                  </span>
-                </div>
-              ) : (
-                nickname
-              )
-            }
-            arrow={!editingNickname}
-            onClick={() => !editingNickname && setEditingNickname(true)}
-          >
-            昵称
-          </List.Item>
-          <List.Item extra={user?.phone || '未绑定'} arrow>
-            手机号
-          </List.Item>
-        </List>
-
         <List header="通知设置" style={{ '--border-top': 'none' }}>
           <List.Item extra={<Switch checked={pushEnabled} onChange={setPushEnabled}
             style={{ '--checked-color': '#52c41a' }} />}>

@@ -123,27 +123,17 @@ const menuItems: MenuItem[] = [
     ],
   },
   {
-    key: 'services',
-    icon: <ShopOutlined />,
-    label: '服务管理',
-    children: [
-      { key: '/services/categories', label: '服务分类' },
-      { key: '/services/items', label: '服务项目' },
-    ],
-  },
-  { key: '/orders', icon: <ShoppingCartOutlined />, label: '订单管理' },
-  {
     key: 'product-system',
     icon: <AppstoreOutlined />,
     label: '商品体系',
     children: [
       { key: '/product-system/categories', icon: <TagsOutlined />, label: '商品分类' },
       { key: '/product-system/products', icon: <ShopOutlined />, label: '商品管理' },
-      { key: '/product-system/orders', icon: <ShoppingCartOutlined />, label: '统一订单' },
+      { key: '/product-system/orders', icon: <ShoppingCartOutlined />, label: '订单明细' },
       { key: '/product-system/coupons', icon: <GiftOutlined />, label: '优惠券管理' },
       { key: '/product-system/redemptions', icon: <ScanOutlined />, label: '核销管理' },
       { key: '/product-system/visits', icon: <IdcardOutlined />, label: '进店记录' },
-      { key: '/product-system/statistics', icon: <PieChartOutlined />, label: '数据统计' },
+      { key: '/product-system/statistics', icon: <PieChartOutlined />, label: '订单统计' },
     ],
   },
   {
@@ -211,7 +201,6 @@ const menuItems: MenuItem[] = [
 ];
 
 function getOpenKeys(pathname: string): string[] {
-  if (pathname.startsWith('/services')) return ['services'];
   if (pathname.startsWith('/merchant')) return ['merchant'];
   if (pathname.startsWith('/content')) return ['content'];
   if (pathname.startsWith('/points')) return ['points'];
