@@ -148,6 +148,8 @@ async def test_admin_categories_reorder(client: AsyncClient, admin_headers):
 
     list_resp = await client.get("/api/products/categories")
     assert list_resp.status_code == 200
-    items = list_resp.json()["items"]
-    ids_in_order = [c["id"] for c in items if c["id"] in {cat_a, cat_b, cat_c}]
+    body = list_resp.json()
+    # 顶级 items 是树；同时提供 flat 列表
+    flat = body.get("flat") or body.get("items") or []
+    ids_in_order = [c["id"] for c in flat if c["id"] in {cat_a, cat_b, cat_c}]
     assert ids_in_order == [cat_c, cat_a, cat_b]

@@ -32,19 +32,37 @@ async def list_categories(db: AsyncSession = Depends(get_db)):
     )
     all_cats = result.scalars().all()
 
-    top_level = []
+    def to_dict(cat: ProductCategory) -> dict:
+        return {
+            "id": cat.id,
+            "name": cat.name,
+            "parent_id": cat.parent_id,
+            "icon": cat.icon,
+            "description": cat.description,
+            "sort_order": cat.sort_order,
+            "status": cat.status,
+            "level": cat.level,
+            "created_at": cat.created_at,
+            "children": [],
+        }
+
+    top_level: list[dict] = []
     children_map: dict[int, list] = {}
+    items_by_id: dict[int, dict] = {}
     for cat in all_cats:
-        cat_data = ProductCategoryTreeResponse.model_validate(cat)
+        d = to_dict(cat)
+        items_by_id[cat.id] = d
         if cat.parent_id is None:
-            top_level.append(cat_data)
+            top_level.append(d)
         else:
-            children_map.setdefault(cat.parent_id, []).append(cat_data)
+            children_map.setdefault(cat.parent_id, []).append(d)
 
-    for cat in top_level:
-        cat.children = children_map.get(cat.id, [])
+    for cid, children in children_map.items():
+        if cid in items_by_id:
+            items_by_id[cid]["children"] = children
 
-    return {"items": top_level}
+    flat = [to_dict(c) for c in all_cats]
+    return {"items": top_level, "flat": flat}
 
 
 @router.get("")
