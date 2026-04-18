@@ -437,7 +437,7 @@ function SearchResultContent() {
         router.push(`/article/${item.id}`);
         break;
       case 'service':
-        router.push(`/service/${item.id}`);
+        router.push(`/product/${item.id}`);
         break;
       case 'points_mall':
         router.push('/points/mall');

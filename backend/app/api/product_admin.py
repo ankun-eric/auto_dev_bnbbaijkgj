@@ -151,6 +151,43 @@ async def admin_delete_category(
     return {"message": "分类已删除"}
 
 
+@router.post("/products/categories/reorder")
+async def admin_reorder_categories(
+    payload: dict,
+    current_user=Depends(require_role("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    """同级拖拽排序：在指定 parent_id 范围内，按 ordered_ids 顺序写入 sort_order = 0,1,2,…"""
+    parent_id = payload.get("parent_id")
+    ordered_ids = payload.get("ordered_ids") or []
+    if not isinstance(ordered_ids, list):
+        raise HTTPException(status_code=400, detail="ordered_ids 必须为数组")
+    if not ordered_ids:
+        return {"message": "排序已更新"}
+
+    where_clause = (
+        ProductCategory.parent_id.is_(None)
+        if parent_id in (None, 0)
+        else ProductCategory.parent_id == parent_id
+    )
+    result = await db.execute(
+        select(ProductCategory).where(
+            ProductCategory.id.in_(ordered_ids),
+            where_clause,
+        )
+    )
+    cats = result.scalars().all()
+    cat_map = {c.id: c for c in cats}
+
+    for index, cat_id in enumerate(ordered_ids):
+        cat = cat_map.get(int(cat_id))
+        if cat is not None:
+            cat.sort_order = index
+
+    await db.flush()
+    return {"message": "排序已更新", "updated_count": len(cat_map)}
+
+
 # ─────────── 商品管理 ───────────
 
 

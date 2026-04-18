@@ -1,8 +1,8 @@
 <view class="services-page" wx:if="{{pageMode === 'user'}}">
-  <scroll-view class="tab-scroll" scroll-x enable-flex>
+  <scroll-view class="tab-scroll" scroll-x enable-flex wx:if="{{tabs.length > 0}}">
     <view class="tab-list">
-      <view class="tab-item {{currentTab === index ? 'tab-active' : ''}}" 
-            wx:for="{{tabs}}" wx:key="index" 
+      <view class="tab-item {{currentTab === index ? 'tab-active' : ''}}"
+            wx:for="{{tabs}}" wx:key="index"
             bindtap="switchTab" data-index="{{index}}">
         <text>{{item}}</text>
       </view>
@@ -11,42 +11,36 @@
 
   <view class="service-list">
     <view class="service-card card" wx:for="{{services}}" wx:key="id" bindtap="goServiceDetail" data-id="{{item.id}}">
-      <view class="service-icon-wrap" style="background: {{item.bgColor}};">
+      <image class="service-cover" src="{{item.cover}}" mode="aspectFill" wx:if="{{item.cover}}"></image>
+      <view class="service-icon-wrap" style="background: {{item.bgColor}};" wx:else>
         <text class="service-icon">{{item.icon}}</text>
       </view>
       <view class="service-info">
         <text class="service-name">{{item.name}}</text>
         <text class="service-desc ellipsis-2">{{item.desc}}</text>
         <view class="service-footer">
-          <view class="service-price" wx:if="{{item.price}}">
+          <view class="service-price">
             <text class="price-symbol">¥</text>
             <text class="price-value">{{item.price}}</text>
-            <text class="price-unit">/次</text>
           </view>
-          <text class="service-free" wx:else>免费</text>
-          <text class="service-sales">{{item.sales}}人已使用</text>
+          <text class="service-sales">已售{{item.sales}}</text>
         </view>
       </view>
     </view>
   </view>
 
-  <view class="section-header">
-    <text class="section-title">推荐专家</text>
-    <text class="section-more" bindtap="goExperts">更多 ></text>
+  <view class="empty-state" wx:if="{{!loading && services.length === 0}}">
+    <text class="empty-icon">📦</text>
+    <text class="empty-text">暂无相关服务</text>
   </view>
 
-  <scroll-view class="expert-scroll" scroll-x enable-flex>
-    <view class="expert-list">
-      <view class="expert-card" wx:for="{{experts}}" wx:key="id" bindtap="goExpertDetail" data-id="{{item.id}}">
-        <view class="expert-avatar">
-          <text class="avatar-placeholder">{{item.name[0]}}</text>
-        </view>
-        <text class="expert-name">{{item.name}}</text>
-        <text class="expert-title">{{item.title}}</text>
-        <text class="expert-dept">{{item.department}}</text>
-      </view>
-    </view>
-  </scroll-view>
+  <view class="loading-more" wx:if="{{loading}}">
+    <text class="loading-text">加载中...</text>
+  </view>
+
+  <view class="load-end" wx:if="{{!loading && !hasMore && services.length > 0}}">
+    <text class="load-end-text">— 没有更多了 —</text>
+  </view>
 </view>
 
 <view class="container records-page" wx:else>

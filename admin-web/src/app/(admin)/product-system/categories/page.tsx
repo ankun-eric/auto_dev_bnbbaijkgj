@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Table, Button, Space, Modal, Form, Input, InputNumber, Switch, message,
   Typography, Popconfirm, Tag, Select,
 } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, MenuOutlined } from '@ant-design/icons';
 import { get, post, put, del } from '@/lib/api';
 
 const { Title } = Typography;
@@ -156,7 +156,96 @@ export default function ProductCategoriesPage() {
     }
   };
 
+  const handleReorder = async (parentId: number | null, orderedIds: number[]) => {
+    try {
+      await post('/api/admin/products/categories/reorder', {
+        parent_id: parentId,
+        ordered_ids: orderedIds,
+      });
+      message.success('排序已更新');
+      fetchData();
+    } catch (err: any) {
+      message.error(err?.response?.data?.detail || '排序更新失败');
+    }
+  };
+
+  const onDragRow = (
+    sourceId: number,
+    targetId: number,
+    parentId: number | null,
+    siblings: Category[]
+  ) => {
+    if (sourceId === targetId) return;
+    const ids = siblings.map(s => s.id);
+    const sIdx = ids.indexOf(sourceId);
+    const tIdx = ids.indexOf(targetId);
+    if (sIdx === -1 || tIdx === -1) return;
+    const next = [...ids];
+    next.splice(sIdx, 1);
+    next.splice(tIdx, 0, sourceId);
+    handleReorder(parentId, next);
+  };
+
+  // 拖拽行组件
+  const dragRowProps = (record: Category, siblings: Category[]) => ({
+    draggable: true,
+    onDragStart: (e: React.DragEvent) => {
+      e.dataTransfer.setData('text/plain', JSON.stringify({
+        id: record.id,
+        parentId: record.parent_id,
+      }));
+    },
+    onDragOver: (e: React.DragEvent) => {
+      e.preventDefault();
+    },
+    onDrop: (e: React.DragEvent) => {
+      e.preventDefault();
+      try {
+        const raw = e.dataTransfer.getData('text/plain');
+        if (!raw) return;
+        const { id: srcId, parentId: srcParent } = JSON.parse(raw);
+        if (srcParent !== record.parent_id) {
+          message.warning('仅支持同级分类间拖拽排序，跨级请使用「编辑」修改上级分类');
+          return;
+        }
+        onDragRow(srcId, record.id, record.parent_id, siblings);
+      } catch {}
+    },
+    style: { cursor: 'move' as const },
+  });
+
+  const getSiblings = (record: Category): Category[] => {
+    if (record.parent_id == null) {
+      return categories.filter(c => c.parent_id == null);
+    }
+    const parent = flatCategories.find(c => c.id === record.parent_id);
+    if (!parent) return [];
+    return flatCategories
+      .filter(c => c.parent_id === record.parent_id)
+      .sort((a, b) => a.sort_order - b.sort_order);
+  };
+
+  const components = {
+    body: {
+      row: (props: any) => {
+        const record: Category | undefined = props['data-row-key'] != null
+          ? flatCategories.find(c => c.id === Number(props['data-row-key']))
+          : undefined;
+        if (!record) return <tr {...props} />;
+        const siblings = getSiblings(record);
+        const dp = dragRowProps(record, siblings);
+        return <tr {...props} {...dp} />;
+      },
+    },
+  };
+
   const columns = [
+    {
+      title: '',
+      key: 'drag',
+      width: 36,
+      render: () => <MenuOutlined style={{ color: '#999', cursor: 'move' }} />,
+    },
     { title: 'ID', dataIndex: 'id', key: 'id', width: 70 },
     {
       title: '图标',
@@ -211,6 +300,9 @@ export default function ProductCategoriesPage() {
         <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>新增分类</Button>
       </div>
 
+      <div style={{ marginBottom: 8, color: '#999', fontSize: 12 }}>
+        💡 提示：拖拽行可调整同级分类顺序；跨级移动请使用「编辑」修改上级分类。
+      </div>
       <Table
         columns={columns}
         dataSource={categories}
@@ -218,6 +310,7 @@ export default function ProductCategoriesPage() {
         loading={loading}
         pagination={false}
         expandable={{ childrenColumnName: 'children' }}
+        components={components}
       />
 
       <Modal

@@ -1,28 +1,21 @@
 const { get } = require('../../utils/request');
 const { ensureMerchantEntry, syncTabBar } = require('../../utils/util');
 
+const PAGE_SIZE = 10;
+
 Page({
   data: {
     pageMode: 'user',
     currentTab: 0,
-    tabs: ['全部', '在线问诊', '体检套餐', '健康管理', '中医服务', '上门服务'],
-    services: [
-      { id: '1', name: '在线图文问诊', desc: '与专业医生在线文字交流，获取健康建议', icon: '💬', bgColor: 'rgba(82,196,26,0.12)', price: 29, sales: 12580 },
-      { id: '2', name: '视频问诊', desc: '面对面视频沟通，更直观了解病情', icon: '📹', bgColor: 'rgba(19,194,194,0.12)', price: 99, sales: 5680 },
-      { id: '3', name: 'AI健康评估', desc: '全面AI健康风险评估报告', icon: '🤖', bgColor: 'rgba(24,144,255,0.12)', price: 0, sales: 32100 },
-      { id: '4', name: '体检报告解读', desc: '专业医生为您解读体检报告', icon: '📋', bgColor: 'rgba(250,173,20,0.12)', price: 49, sales: 8920 },
-      { id: '5', name: '中医体质辨识', desc: '九种体质辨识，个性化调理方案', icon: '🌿', bgColor: 'rgba(114,46,209,0.12)', price: 19, sales: 6430 }
-    ],
-    experts: [
-      { id: '1', name: '张明华', title: '主任医师', department: '内科' },
-      { id: '2', name: '李芳', title: '副主任医师', department: '中医科' },
-      { id: '3', name: '王建国', title: '主治医师', department: '全科' },
-      { id: '4', name: '陈晓燕', title: '主任医师', department: '营养科' }
-    ],
-    records: [],
-    loading: false,
-    noMore: false,
+    tabs: [],
+    categories: [],
+    services: [],
     page: 1,
+    hasMore: false,
+    loading: false,
+    // 商家模式数据
+    records: [],
+    noMore: false,
     pageSize: 20,
     totalCount: 0,
     startDate: '',
@@ -45,7 +38,11 @@ Page({
       this.loadRecords();
       return;
     }
-    this.loadServices();
+    if (this.data.categories.length === 0) {
+      this.loadCategories();
+    } else {
+      this.loadServices(true);
+    }
   },
 
   onPullDownRefresh() {
@@ -54,43 +51,95 @@ Page({
       this.loadRecords().finally(() => wx.stopPullDownRefresh());
       return;
     }
-    this.loadServices().finally(() => wx.stopPullDownRefresh());
+    this.loadCategories().finally(() => wx.stopPullDownRefresh());
   },
 
   onReachBottom() {
-    if (this.data.pageMode === 'merchant' && !this.data.noMore && !this.data.loading) {
-      this.loadRecords();
+    if (this.data.pageMode === 'merchant') {
+      if (!this.data.noMore && !this.data.loading) {
+        this.loadRecords();
+      }
+      return;
+    }
+    if (this.data.hasMore && !this.data.loading) {
+      const next = this.data.page + 1;
+      this.setData({ page: next });
+      this.loadServices(false);
+    }
+  },
+
+  async loadCategories() {
+    try {
+      const res = await get('/api/products/categories', {}, { showLoading: false, suppressErrorToast: true });
+      const items = (res.items || []).filter(c => !c.parent_id);
+      const tabs = items.map(c => c.name);
+      this.setData({
+        categories: items,
+        tabs,
+        currentTab: 0,
+        page: 1,
+        services: []
+      });
+      if (items.length > 0) {
+        await this.loadServices(true);
+      }
+    } catch (e) {
+      console.log('loadCategories error', e);
     }
   },
 
   switchTab(e) {
     const index = e.currentTarget.dataset.index;
-    this.setData({ currentTab: index });
-    this.loadServices();
+    if (index === this.data.currentTab) return;
+    this.setData({
+      currentTab: index,
+      services: [],
+      page: 1,
+      hasMore: false
+    });
+    this.loadServices(true);
   },
 
-  async loadServices() {
+  async loadServices(reset) {
+    const cat = this.data.categories[this.data.currentTab];
+    if (!cat) return Promise.resolve();
+    if (this.data.loading) return Promise.resolve();
+    this.setData({ loading: true });
     try {
-      // const res = await get('/api/services/items', { category: this.data.tabs[this.data.currentTab] });
-      // this.setData({ services: res.data });
+      const res = await get('/api/products', {
+        category_id: cat.id,
+        page: this.data.page,
+        page_size: PAGE_SIZE
+      }, { showLoading: false, suppressErrorToast: true });
+      const items = res.items || [];
+      const list = (items || []).map(p => ({
+        id: p.id,
+        name: p.name,
+        desc: p.description || '',
+        icon: cat.icon || '🏥',
+        cover: p.cover_image || (p.images && p.images[0]) || '',
+        bgColor: 'rgba(82,196,26,0.12)',
+        price: p.sale_price,
+        marketPrice: p.market_price,
+        sales: p.sales_count || 0
+      }));
+      const newServices = reset ? list : this.data.services.concat(list);
+      const total = Number(res.total || 0);
+      this.setData({
+        services: newServices,
+        hasMore: this.data.page * PAGE_SIZE < total
+      });
     } catch (e) {
       console.log('loadServices error', e);
+    } finally {
+      this.setData({ loading: false });
     }
     return Promise.resolve();
   },
 
   goServiceDetail(e) {
     const id = e.currentTarget.dataset.id;
-    wx.navigateTo({ url: `/pages/service-detail/index?id=${id}` });
-  },
-
-  goExperts() {
-    wx.navigateTo({ url: '/pages/experts/index' });
-  },
-
-  goExpertDetail(e) {
-    const id = e.currentTarget.dataset.id;
-    wx.navigateTo({ url: `/pages/expert-detail/index?id=${id}` });
+    wx.navigateTo({ url: `/pages/product-detail/index?id=${id}` });
   },
 
   initDates() {

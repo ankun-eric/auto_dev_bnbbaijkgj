@@ -22,10 +22,30 @@ const orderQuickTabs = [
   { icon: '↩️', title: '退款/售后', key: 'refund', path: '/refund-list' },
 ];
 
+interface MyStats {
+  points: number;
+  coupon_count: number;
+  favorite_count: number;
+}
+
 export default function ProfilePage() {
   const router = useRouter();
   const { user } = useAuth();
   const [orderCounts, setOrderCounts] = useState<Record<string, number>>({});
+  const [stats, setStats] = useState<MyStats>({ points: 0, coupon_count: 0, favorite_count: 0 });
+
+  const loadStats = () => {
+    api.get('/api/users/me/stats')
+      .then((res: any) => {
+        const data = res.data || res;
+        setStats({
+          points: Number(data.points || 0),
+          coupon_count: Number(data.coupon_count || 0),
+          favorite_count: Number(data.favorite_count || 0),
+        });
+      })
+      .catch(() => {});
+  };
 
   useEffect(() => {
     api.get('/api/orders/unified/counts')
@@ -34,6 +54,12 @@ export default function ProfilePage() {
         setOrderCounts(data);
       })
       .catch(() => {});
+    loadStats();
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') loadStats();
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
   }, []);
 
   const menuItems = [
@@ -122,19 +148,19 @@ export default function ProfilePage() {
           <Grid columns={3} gap={0}>
             <Grid.Item onClick={() => router.push('/points')}>
               <div className="text-center py-2">
-                <div className="text-lg font-bold" style={{ color: '#52c41a' }}>{user?.points || 0}</div>
+                <div className="text-lg font-bold" style={{ color: '#52c41a' }}>{stats.points}</div>
                 <div className="text-xs text-gray-500 mt-1">积分</div>
               </div>
             </Grid.Item>
             <Grid.Item onClick={() => router.push('/my-coupons')}>
               <div className="text-center py-2">
-                <div className="text-lg font-bold" style={{ color: '#fa8c16' }}>0</div>
+                <div className="text-lg font-bold" style={{ color: '#fa8c16' }}>{stats.coupon_count}</div>
                 <div className="text-xs text-gray-500 mt-1">优惠券</div>
               </div>
             </Grid.Item>
             <Grid.Item onClick={() => router.push('/my-favorites')}>
               <div className="text-center py-2">
-                <div className="text-lg font-bold" style={{ color: '#f5222d' }}>0</div>
+                <div className="text-lg font-bold" style={{ color: '#f5222d' }}>{stats.favorite_count}</div>
                 <div className="text-xs text-gray-500 mt-1">收藏</div>
               </div>
             </Grid.Item>

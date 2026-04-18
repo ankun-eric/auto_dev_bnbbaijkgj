@@ -2,9 +2,52 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../services/api_service.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserver {
+  int _points = 0;
+  int _couponCount = 0;
+  int _favoriteCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _loadStats();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _loadStats();
+    }
+  }
+
+  Future<void> _loadStats() async {
+    try {
+      final res = await ApiService().getMyStats();
+      final data = res.data is Map ? res.data as Map : {};
+      if (!mounted) return;
+      setState(() {
+        _points = (data['points'] is int) ? data['points'] as int : int.tryParse('${data['points'] ?? 0}') ?? 0;
+        _couponCount = (data['coupon_count'] is int) ? data['coupon_count'] as int : int.tryParse('${data['coupon_count'] ?? 0}') ?? 0;
+        _favoriteCount = (data['favorite_count'] is int) ? data['favorite_count'] as int : int.tryParse('${data['favorite_count'] ?? 0}') ?? 0;
+      });
+    } catch (_) {}
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -12,7 +55,9 @@ class ProfileScreen extends StatelessWidget {
     final user = authProvider.user;
 
     return Scaffold(
-      body: CustomScrollView(
+      body: RefreshIndicator(
+        onRefresh: _loadStats,
+        child: CustomScrollView(
         slivers: [
           SliverAppBar(
             expandedHeight: 200,
@@ -142,11 +187,20 @@ class ProfileScreen extends StatelessWidget {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      _buildStatItem('${user?.points ?? 0}', '积分', () => Navigator.pushNamed(context, '/points')),
+                      _buildStatItem('$_points', '积分', () async {
+                        await Navigator.pushNamed(context, '/points');
+                        _loadStats();
+                      }),
                       Container(width: 1, height: 30, color: Colors.grey[200]),
-                      _buildStatItem('--', '优惠券', () => Navigator.pushNamed(context, '/my-coupons')),
+                      _buildStatItem('$_couponCount', '优惠券', () async {
+                        await Navigator.pushNamed(context, '/my-coupons');
+                        _loadStats();
+                      }),
                       Container(width: 1, height: 30, color: Colors.grey[200]),
-                      _buildStatItem('--', '收藏', () => Navigator.pushNamed(context, '/favorites')),
+                      _buildStatItem('$_favoriteCount', '收藏', () async {
+                        await Navigator.pushNamed(context, '/favorites');
+                        _loadStats();
+                      }),
                     ],
                   ),
                 ),
@@ -224,6 +278,7 @@ class ProfileScreen extends StatelessWidget {
             ),
           ),
         ],
+        ),
       ),
     );
   }

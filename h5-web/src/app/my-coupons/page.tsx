@@ -42,7 +42,8 @@ export default function MyCouponsPage() {
 
   const fetchCoupons = useCallback(async (pageNum: number, reset = false) => {
     try {
-      const res: any = await api.get(`/api/coupons/mine?tab=${activeTab}&page=${pageNum}&page_size=20`);
+      const excludeExpired = activeTab === 'unused' ? '&exclude_expired=true' : '';
+      const res: any = await api.get(`/api/coupons/mine?tab=${activeTab}&page=${pageNum}&page_size=20${excludeExpired}`);
       const data = res.data || res;
       const items = data.items || data || [];
       if (reset) {

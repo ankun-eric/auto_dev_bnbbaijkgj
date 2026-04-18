@@ -97,6 +97,7 @@ async def list_my_coupons(
     tab: Optional[str] = "unused",
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
+    exclude_expired: bool = False,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -106,6 +107,15 @@ async def list_my_coupons(
     if tab and tab != "all":
         query = query.where(UserCoupon.status == tab)
         count_query = count_query.where(UserCoupon.status == tab)
+
+    if exclude_expired:
+        now = datetime.utcnow()
+        query = query.join(Coupon, Coupon.id == UserCoupon.coupon_id).where(Coupon.valid_end >= now)
+        count_query = (
+            count_query.select_from(UserCoupon)
+            .join(Coupon, Coupon.id == UserCoupon.coupon_id)
+            .where(Coupon.valid_end >= now)
+        )
 
     total_result = await db.execute(count_query)
     total = total_result.scalar() or 0

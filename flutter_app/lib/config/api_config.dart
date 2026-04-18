@@ -17,6 +17,7 @@ class ApiConfig {
   static const String shareLink = '/api/users/share-link';
   static const String updateProfile = '/api/auth/me';
   static const String uploadAvatar = '/api/upload/image';
+  static const String myStats = '/api/users/me/stats';
 
   // Health Profile
   static const String healthProfile = '/api/health/profile';

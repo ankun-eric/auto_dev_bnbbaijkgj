@@ -80,12 +80,14 @@ Page({
         points: (userInfo && userInfo.points) || 0
       });
 
-      get('/api/coupons/mine', { tab: 'unused' }, { showLoading: false, suppressErrorToast: true })
-        .then(res => { this.setData({ couponCount: (res.items || []).length || res.total || 0 }); })
-        .catch(() => {});
-
-      get('/api/favorites', {}, { showLoading: false, suppressErrorToast: true })
-        .then(res => { this.setData({ favoriteCount: (res.items || []).length || res.total || 0 }); })
+      get('/api/users/me/stats', {}, { showLoading: false, suppressErrorToast: true })
+        .then(res => {
+          this.setData({
+            points: Number(res.points || 0),
+            couponCount: Number(res.coupon_count || 0),
+            favoriteCount: Number(res.favorite_count || 0)
+          });
+        })
         .catch(() => {});
     } catch (e) {
       console.log('loadUserData error', e);

@@ -1,6 +1,49 @@
 import 'package:flutter/material.dart';
-import '../../models/service_item.dart';
-import '../../widgets/service_card.dart';
+import '../../services/api_service.dart';
+
+class _Category {
+  final int id;
+  final String name;
+  final String? icon;
+  final int? parentId;
+  _Category({required this.id, required this.name, this.icon, this.parentId});
+}
+
+class _Product {
+  final int id;
+  final String name;
+  final String? description;
+  final double salePrice;
+  final double? marketPrice;
+  final String? coverImage;
+  final List<String> images;
+  final int salesCount;
+  _Product({
+    required this.id,
+    required this.name,
+    this.description,
+    required this.salePrice,
+    this.marketPrice,
+    this.coverImage,
+    this.images = const [],
+    this.salesCount = 0,
+  });
+
+  factory _Product.fromJson(Map<String, dynamic> json) {
+    return _Product(
+      id: json['id'] is int ? json['id'] : int.tryParse('${json['id']}') ?? 0,
+      name: json['name']?.toString() ?? '',
+      description: json['description']?.toString(),
+      salePrice: double.tryParse('${json['sale_price'] ?? 0}') ?? 0.0,
+      marketPrice: json['market_price'] != null ? double.tryParse('${json['market_price']}') : null,
+      coverImage: json['cover_image']?.toString(),
+      images: (json['images'] is List)
+          ? (json['images'] as List).map((e) => e.toString()).toList()
+          : <String>[],
+      salesCount: json['sales_count'] is int ? json['sales_count'] : (int.tryParse('${json['sales_count'] ?? 0}') ?? 0),
+    );
+  }
+}
 
 class ServicesScreen extends StatefulWidget {
   const ServicesScreen({super.key});
@@ -9,34 +52,144 @@ class ServicesScreen extends StatefulWidget {
   State<ServicesScreen> createState() => _ServicesScreenState();
 }
 
-class _ServicesScreenState extends State<ServicesScreen> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _ServicesScreenState extends State<ServicesScreen> with TickerProviderStateMixin {
+  TabController? _tabController;
+  List<_Category> _categories = [];
+  final Map<int, List<_Product>> _productsByCat = {};
+  final Map<int, int> _pageByCat = {};
+  final Map<int, bool> _hasMoreByCat = {};
+  final Map<int, bool> _loadingByCat = {};
+  bool _initialLoading = true;
 
-  final List<String> _categories = ['全部', '体检套餐', '专家咨询', '中医理疗', '心理咨询', '营养指导'];
-
-  final List<ServiceItem> _services = [
-    ServiceItem(id: '1', name: '全面体检套餐', description: '涵盖血液、影像等多项检查', price: 599, salesCount: 1280, categoryName: '体检套餐'),
-    ServiceItem(id: '2', name: '专家在线咨询', description: '三甲医院主任医师一对一', price: 199, salesCount: 860, categoryName: '专家咨询'),
-    ServiceItem(id: '3', name: '中医推拿理疗', description: '传统中医手法，缓解疲劳', price: 298, salesCount: 520, categoryName: '中医理疗'),
-    ServiceItem(id: '4', name: '心理健康咨询', description: '专业心理咨询师在线服务', price: 159, salesCount: 380, categoryName: '心理咨询'),
-    ServiceItem(id: '5', name: '个性化营养方案', description: '根据体质定制专属营养方案', price: 99, salesCount: 720, categoryName: '营养指导'),
-    ServiceItem(id: '6', name: '深度体检尊享套餐', description: '全面深度检查，VIP服务', price: 1299, originalPrice: 1599, salesCount: 320, categoryName: '体检套餐'),
-  ];
+  static const int pageSize = 10;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: _categories.length, vsync: this);
+    _loadCategories();
+  }
+
+  Future<void> _loadCategories() async {
+    try {
+      final res = await ApiService().getProductCategories();
+      final data = res.data is Map ? res.data as Map : {};
+      final items = (data['items'] as List? ?? [])
+          .where((c) => (c['parent_id'] == null))
+          .map((c) => _Category(
+                id: c['id'] is int ? c['id'] : int.tryParse('${c['id']}') ?? 0,
+                name: c['name']?.toString() ?? '',
+                icon: c['icon']?.toString(),
+                parentId: c['parent_id'] is int ? c['parent_id'] : null,
+              ))
+          .toList();
+      if (!mounted) return;
+      setState(() {
+        _categories = items;
+        _tabController?.dispose();
+        _tabController = TabController(length: items.length, vsync: this);
+        _tabController!.addListener(_onTabChanged);
+        _initialLoading = false;
+      });
+      if (items.isNotEmpty) {
+        await _loadProducts(items.first.id, reset: true);
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _categories = [];
+        _initialLoading = false;
+      });
+    }
+  }
+
+  void _onTabChanged() {
+    if (_tabController == null || _tabController!.indexIsChanging) return;
+    final cat = _categories[_tabController!.index];
+    if (!_productsByCat.containsKey(cat.id)) {
+      _loadProducts(cat.id, reset: true);
+    }
+  }
+
+  Future<void> _loadProducts(int categoryId, {bool reset = false}) async {
+    if (_loadingByCat[categoryId] == true) return;
+    _loadingByCat[categoryId] = true;
+    final page = reset ? 1 : (_pageByCat[categoryId] ?? 1);
+    try {
+      final res = await ApiService().getProducts(categoryId: categoryId, page: page, pageSize: pageSize);
+      final data = res.data is Map ? res.data as Map : {};
+      final List items = data['items'] as List? ?? [];
+      final list = items.map((e) => _Product.fromJson(Map<String, dynamic>.from(e as Map))).toList();
+      final total = (data['total'] is int) ? data['total'] as int : int.tryParse('${data['total'] ?? 0}') ?? 0;
+      if (!mounted) return;
+      setState(() {
+        if (reset) {
+          _productsByCat[categoryId] = list;
+        } else {
+          _productsByCat[categoryId] = [...(_productsByCat[categoryId] ?? []), ...list];
+        }
+        _pageByCat[categoryId] = page + 1;
+        _hasMoreByCat[categoryId] = page * pageSize < total;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      if (reset) {
+        setState(() {
+          _productsByCat[categoryId] = [];
+          _hasMoreByCat[categoryId] = false;
+        });
+      }
+    } finally {
+      _loadingByCat[categoryId] = false;
+    }
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
+    _tabController?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_initialLoading) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('健康服务'),
+          backgroundColor: const Color(0xFF52C41A),
+          centerTitle: true,
+          automaticallyImplyLeading: false,
+        ),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_categories.isEmpty || _tabController == null) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('健康服务'),
+          backgroundColor: const Color(0xFF52C41A),
+          centerTitle: true,
+          automaticallyImplyLeading: false,
+        ),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.search_off, size: 60, color: Colors.grey[300]),
+              const SizedBox(height: 12),
+              Text('暂无分类', style: TextStyle(color: Colors.grey[500])),
+            ],
+          ),
+        ),
+        floatingActionButton: FloatingActionButton.extended(
+          onPressed: () => Navigator.pushNamed(context, '/experts'),
+          backgroundColor: const Color(0xFF52C41A),
+          icon: const Icon(Icons.person_search),
+          label: const Text('找专家'),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('健康服务'),
@@ -46,7 +199,7 @@ class _ServicesScreenState extends State<ServicesScreen> with SingleTickerProvid
         actions: [
           IconButton(
             icon: const Icon(Icons.search),
-            onPressed: () {},
+            onPressed: () => Navigator.pushNamed(context, '/search'),
           ),
         ],
         bottom: TabBar(
@@ -56,40 +209,64 @@ class _ServicesScreenState extends State<ServicesScreen> with SingleTickerProvid
           indicatorWeight: 3,
           labelStyle: const TextStyle(fontWeight: FontWeight.w600),
           unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal),
-          tabs: _categories.map((c) => Tab(text: c)).toList(),
+          tabs: _categories.map((c) => Tab(text: c.name)).toList(),
         ),
       ),
       body: TabBarView(
         controller: _tabController,
-        children: _categories.map((category) {
-          final filtered = category == '全部'
-              ? _services
-              : _services.where((s) => s.categoryName == category).toList();
-          return filtered.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.search_off, size: 60, color: Colors.grey[300]),
-                      const SizedBox(height: 12),
-                      Text('暂无相关服务', style: TextStyle(color: Colors.grey[500])),
-                    ],
+        children: _categories.map((cat) {
+          final products = _productsByCat[cat.id] ?? [];
+          final hasMore = _hasMoreByCat[cat.id] ?? false;
+          if (products.isEmpty && _loadingByCat[cat.id] == true) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (products.isEmpty) {
+            return RefreshIndicator(
+              onRefresh: () => _loadProducts(cat.id, reset: true),
+              child: ListView(
+                children: [
+                  SizedBox(height: MediaQuery.of(context).size.height / 4),
+                  Center(
+                    child: Column(
+                      children: [
+                        Icon(Icons.inventory_2_outlined, size: 60, color: Colors.grey[300]),
+                        const SizedBox(height: 12),
+                        Text('暂无相关服务', style: TextStyle(color: Colors.grey[500])),
+                      ],
+                    ),
                   ),
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  itemCount: filtered.length,
-                  itemBuilder: (context, index) {
-                    return ServiceCard(
-                      service: filtered[index],
-                      onTap: () => Navigator.pushNamed(
-                        context,
-                        '/service-detail',
-                        arguments: filtered[index].id,
-                      ),
+                ],
+              ),
+            );
+          }
+          return RefreshIndicator(
+            onRefresh: () => _loadProducts(cat.id, reset: true),
+            child: NotificationListener<ScrollNotification>(
+              onNotification: (n) {
+                if (n is ScrollEndNotification &&
+                    n.metrics.pixels >= n.metrics.maxScrollExtent - 80 &&
+                    hasMore &&
+                    _loadingByCat[cat.id] != true) {
+                  _loadProducts(cat.id);
+                }
+                return false;
+              },
+              child: ListView.builder(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                itemCount: products.length + (hasMore ? 1 : 0),
+                itemBuilder: (context, index) {
+                  if (index >= products.length) {
+                    return const Padding(
+                      padding: EdgeInsets.all(12),
+                      child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
                     );
-                  },
-                );
+                  }
+                  final p = products[index];
+                  return _buildProductCard(p, cat.icon);
+                },
+              ),
+            ),
+          );
         }).toList(),
       ),
       floatingActionButton: FloatingActionButton.extended(
@@ -97,6 +274,107 @@ class _ServicesScreenState extends State<ServicesScreen> with SingleTickerProvid
         backgroundColor: const Color(0xFF52C41A),
         icon: const Icon(Icons.person_search),
         label: const Text('找专家'),
+      ),
+    );
+  }
+
+  Widget _buildProductCard(_Product p, String? catIcon) {
+    final cover = p.coverImage ?? (p.images.isNotEmpty ? p.images.first : null);
+    return GestureDetector(
+      onTap: () => Navigator.pushNamed(context, '/product-detail', arguments: p.id),
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            ClipRRect(
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(12),
+                bottomLeft: Radius.circular(12),
+              ),
+              child: Container(
+                width: 120,
+                height: 100,
+                color: const Color(0xFFE8F5E9),
+                child: cover != null
+                    ? Image.network(cover, fit: BoxFit.cover, errorBuilder: (_, __, ___) {
+                        return Center(child: Text(catIcon ?? '🏥', style: const TextStyle(fontSize: 32)));
+                      })
+                    : Center(child: Text(catIcon ?? '🏥', style: const TextStyle(fontSize: 32))),
+              ),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      p.name,
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    if (p.description != null && p.description!.isNotEmpty)
+                      Text(
+                        p.description!,
+                        style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.baseline,
+                          textBaseline: TextBaseline.alphabetic,
+                          children: [
+                            Text(
+                              '¥${p.salePrice.toStringAsFixed(0)}',
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFFFF6B35),
+                              ),
+                            ),
+                            if (p.marketPrice != null && p.marketPrice! > p.salePrice)
+                              Padding(
+                                padding: const EdgeInsets.only(left: 4),
+                                child: Text(
+                                  '¥${p.marketPrice!.toStringAsFixed(0)}',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey[400],
+                                    decoration: TextDecoration.lineThrough,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                        Text(
+                          '已售${p.salesCount}',
+                          style: TextStyle(fontSize: 12, color: Colors.grey[400]),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
