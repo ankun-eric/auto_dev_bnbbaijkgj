@@ -47,11 +47,23 @@ mysql_data/
 *.apk
 *.ipa
 *.zip
+!user_docs/**/*.zip
 _deploy_tmp/deploy.tar.gz
 _deploy_tmp/deploy.tar
 
 # Temporary SSH scripts
 ssh_*.py
+
+# Temporary deploy / check scripts at repo root
+.deploy_remote.py
+.check_urls.py
+.check_e2e.py
+.commit_msg.txt
+.changed_files.txt
+.deploy.sh
+.tmp_deploy.sh
+.check_pages.sh
+src_update.tar.gz
 
 deploy/project.tar.gz
 _deploy_tmp/

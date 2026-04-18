@@ -33,7 +33,37 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: BUG 修复批次 v2 · 六合一终版 (2026-04-19)
+## Latest Update: 「我的」统计 & 「服务」Tab 接入后台 (2026-04-19)
+
+### 概要
+个人中心数据真实化 + 服务页全平台后台化 + 管理后台分类拖拽排序，覆盖 后端 / H5 / 小程序 / Flutter / Admin 全端：
+1. 「我的」页统计：新增聚合接口 `GET /api/users/me/stats` 返回 `{points, coupon_count, favorite_count}`，三端「我的」页改用此接口实时拉取；coupon_count 仅计入 unused 且未过期券。
+2. 「我的优惠券」过滤：`GET /api/coupons/mine` 新增 `exclude_expired` 参数，H5 在 unused tab 启用，与「我的」页统计口径一致。
+3. 「服务」Tab 全平台改造：H5 / 小程序 / Flutter App 服务页废弃硬编码，全部改为后台 `GET /api/products/categories`（顶级分类作 Tab）+ `GET /api/products?category_id=...` 分页商品列表，支持下拉刷新与上拉加载。
+4. H5 路由统一：废弃 `/service/[id]` 旧详情页，搜索结果与服务卡片统一跳到 `/product/[id]`。
+5. 管理后台分类拖拽：商品分类列表表格支持 HTML5 拖拽行调整同级顺序，仅同级互拖；新增 `POST /api/admin/products/categories/reorder` 接口落库 sort_order。
+6. Bug 修复：`/api/products/categories` 之前在 async 上下文中通过 `model_validate(orm)` 触发 children 关系 lazy load 报 MissingGreenlet 500，改为手动构造 dict + 预填空 children 数组；同时新增 `flat` 字段供需要扁平列表的消费方。
+
+### 关键文件
+- 后端：`backend/app/api/users.py`、`backend/app/api/coupons.py`、`backend/app/api/products.py`、`backend/app/api/product_admin.py`
+- 测试：`backend/tests/test_my_stats_and_reorder.py`
+- H5：`h5-web/src/app/(tabs)/profile/page.tsx`、`h5-web/src/app/(tabs)/services/page.tsx`、`h5-web/src/app/my-coupons/page.tsx`、`h5-web/src/app/search/result/page.tsx`、删除 `h5-web/src/app/service/[id]/page.tsx`
+- 小程序：`miniprogram/pages/profile/index.js`、`miniprogram/pages/services/{index.js,index.wxml,index.wxss}`
+- Flutter：`flutter_app/lib/config/api_config.dart`、`flutter_app/lib/services/api_service.dart`、`flutter_app/lib/screens/profile/profile_screen.dart`、`flutter_app/lib/screens/services/services_screen.dart`
+- Admin：`admin-web/src/app/(admin)/product-system/categories/page.tsx`
+
+### 用户手册
+- `user_docs/我的统计与服务Tab接入后台.md`
+- 小程序源码包：`user_docs/miniprogram_20260419012842.zip`
+- 安卓 APK：GitHub Release tag `android-v20260419012905`
+
+### 部署验证
+- 后端 / h5 / admin 三个容器全部通过 `docker compose up -d --build` 重建并 Up
+- 关键链接 200 / 401（未登录正常）：`/`、`/admin/`、`/api/health`、`/api/products/categories`、`/api/products`、`/api/users/me/stats`、`/api/coupons/mine?exclude_expired=true`
+
+---
+
+## Previous Update: BUG 修复批次 v2 · 六合一终版 (2026-04-19)
 
 ### 概要
 六大类 BUG / 体验优化批次修复，覆盖 后端 / H5 / 小程序 / Flutter / Admin 全端：
