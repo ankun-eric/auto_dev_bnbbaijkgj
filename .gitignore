@@ -55,3 +55,4 @@ ssh_*.py
 
 deploy/project.tar.gz
 _deploy_tmp/
+*.tmp
