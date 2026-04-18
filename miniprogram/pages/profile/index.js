@@ -29,6 +29,7 @@ Page({
       { id: 'addresses', label: '地址管理', icon: '📍', path: '/pages/my-addresses/index' },
       { id: 'health', label: '健康档案', icon: '📋', path: '/pages/health-profile/index' },
       { id: 'plan', label: '健康计划', icon: '📅', path: '/pages/health-plan/index' },
+      { id: 'invite', label: '邀请好友', icon: '🎁', path: '/pages/invite/index' },
       { id: 'settings', label: '设置', icon: '⚙️', path: '/pages/settings/index' }
     ],
     merchantMenuList: [

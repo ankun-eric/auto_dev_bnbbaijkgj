@@ -1464,7 +1464,8 @@ async def get_points_rules(
                                            "dailySignIn", "consecutiveSignIn7", "consecutiveSignIn30",
                                            "shareArticle", "inviteFriend", "firstOrder", "orderPerYuan",
                                            "reviewService", "exchangeRate", "maxDeductionRate",
-                                           "minPointsToUse", "pointsExpireDays", "enableExpire"]))
+                                           "minPointsToUse", "pointsExpireDays", "enableExpire",
+                                           "storeCheckIn", "storeCheckInDailyTimes", "storeCheckInDailyLimit"]))
         )
     )
     configs = result.scalars().all()
@@ -1482,6 +1483,9 @@ async def get_points_rules(
             "checkin_points_daily_limit": "50",
         }
     rules.setdefault("healthCheckInDailyLimit", "0")
+    rules.setdefault("storeCheckIn", rules.get("checkin_points_per_visit", "5"))
+    rules.setdefault("storeCheckInDailyTimes", "0")
+    rules.setdefault("storeCheckInDailyLimit", "0")
     return {"rules": rules}
 
 
@@ -1500,6 +1504,13 @@ async def update_points_rules(
         else:
             config = SystemConfig(config_key=key, config_value=str(value), config_type="points")
             db.add(config)
+    if "storeCheckIn" in rules:
+        result = await db.execute(select(SystemConfig).where(SystemConfig.config_key == "checkin_points_per_visit"))
+        old_cfg = result.scalar_one_or_none()
+        if old_cfg:
+            old_cfg.config_value = str(rules["storeCheckIn"])
+            old_cfg.updated_at = datetime.utcnow()
+    await db.commit()
     return {"message": "积分规则更新成功"}
 
 
@@ -1920,6 +1931,14 @@ async def update_points_rules_post(
         else:
             config = SystemConfig(config_key=key, config_value=str(value), config_type="points")
             db.add(config)
+    # storeCheckIn 修改时同步更新旧键 checkin_points_per_visit，便于过渡
+    if "storeCheckIn" in rules:
+        result = await db.execute(select(SystemConfig).where(SystemConfig.config_key == "checkin_points_per_visit"))
+        old_cfg = result.scalar_one_or_none()
+        if old_cfg:
+            old_cfg.config_value = str(rules["storeCheckIn"])
+            old_cfg.updated_at = datetime.utcnow()
+    await db.commit()
     return {"message": "积分规则更新成功"}
 
 

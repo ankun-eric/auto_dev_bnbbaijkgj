@@ -131,6 +131,6 @@
         <text class="member-picker-check" wx:if="{{selectedMemberId === item.id}}">✓</text>
       </view>
     </view>
-    <button class="btn-primary member-picker-confirm" bindtap="onConfirmMember">确认并咨询</button>
+    <button class="btn-primary member-picker-confirm" disabled="{{selectedMemberId === null}}" bindtap="onConfirmMember">{{result ? '确认并咨询' : '确认咨询人并提交测评'}}</button>
   </view>
 </view>

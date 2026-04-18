@@ -66,7 +66,7 @@ Page({
       let imageUrls = [];
       for (const img of this.data.images) {
         try {
-          const res = await uploadFile('/api/upload', img, 'file', {}, { showLoading: false });
+          const res = await uploadFile('/api/upload/image', img, 'file', {}, { showLoading: false });
           imageUrls.push(res.url || res.data?.url || '');
         } catch (e) {
           console.log('upload image error', e);

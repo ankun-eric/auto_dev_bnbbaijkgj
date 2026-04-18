@@ -42,7 +42,8 @@ interface Order {
 const STATUS_TABS: Record<string, string> = {
   all: '全部',
   pending_payment: '待付款',
-  pending_receipt_use: '待收货/待使用',
+  pending_receipt: '待收货',
+  pending_use: '待使用',
   completed: '已完成',
   pending_review: '待评价',
   cancelled: '已取消',
@@ -91,9 +92,7 @@ function UnifiedOrdersPage() {
   const fetchOrders = useCallback(async (pageNum: number, reset = false) => {
     try {
       const params: Record<string, any> = { page: pageNum, page_size: 20 };
-      if (activeTab === 'pending_receipt_use') {
-        params.status = 'pending_receipt,pending_use';
-      } else if (activeTab !== 'all') {
+      if (activeTab !== 'all') {
         params.status = activeTab;
       }
       const res: any = await api.get('/api/orders/unified', { params });
@@ -180,6 +179,7 @@ function UnifiedOrdersPage() {
         style={{
           '--active-line-color': '#52c41a',
           '--active-title-color': '#52c41a',
+          '--title-font-size': '14px',
           background: '#fff',
         }}
       >

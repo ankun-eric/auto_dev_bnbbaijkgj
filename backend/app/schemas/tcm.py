@@ -1,7 +1,7 @@
 from datetime import datetime
-from typing import Any, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
 
 
 class TCMDiagnosisCreate(BaseModel):
@@ -57,3 +57,19 @@ class ConstitutionAnswerCreate(BaseModel):
 class ConstitutionTestRequest(BaseModel):
     answers: List[ConstitutionAnswerCreate]
     family_member_id: Optional[int] = None
+
+    @field_validator("answers", mode="before")
+    @classmethod
+    def _normalize_answers(cls, v: Any):
+        """兼容前端可能传入的多种 answers 格式：
+
+        1. List[ConstitutionAnswerCreate] —— 标准格式
+        2. Dict[str|int, str] —— 旧版前端格式 {"1": "从不", "2": "偶尔"}
+        3. List[Dict[Any, Any]] —— 已经是字典数组，保持不变
+        """
+        if isinstance(v, dict):
+            return [
+                {"question_id": int(k), "answer_value": str(val)}
+                for k, val in v.items()
+            ]
+        return v

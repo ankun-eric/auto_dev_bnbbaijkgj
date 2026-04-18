@@ -1,0 +1,17 @@
+<view class="records-page">
+  <view class="records-list">
+    <view class="record-item" wx:for="{{records}}" wx:key="id">
+      <view class="record-info">
+        <text class="record-title">{{item.description || item.type_label}}</text>
+        <text class="record-tag">{{item.type_label}}</text>
+        <text class="record-time">{{item.time}}</text>
+      </view>
+      <text class="record-points {{item.points >= 0 ? 'add' : 'sub'}}">
+        {{item.points >= 0 ? '+' : ''}}{{item.points}}
+      </text>
+    </view>
+  </view>
+  <view wx:if="{{records.length === 0 && !loading}}" class="empty">暂无积分记录</view>
+  <view wx:if="{{loading}}" class="footer">加载中...</view>
+  <view wx:if="{{noMore && records.length > 0}}" class="footer">— 没有更多了 —</view>
+</view>

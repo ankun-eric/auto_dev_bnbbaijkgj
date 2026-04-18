@@ -595,6 +595,18 @@ class ApiService {
     return _dio.post(ApiConfig.pointsCheckin);
   }
 
+  Future<Response> getPointsSummary() async {
+    return _dio.get('/api/points/summary');
+  }
+
+  Future<Response> getPointsTasks() async {
+    return _dio.get('/api/points/tasks');
+  }
+
+  Future<Response> getInviteStats({int page = 1, int pageSize = 50}) async {
+    return _dio.get('/api/users/invite-stats', queryParameters: {'page': page, 'page_size': pageSize});
+  }
+
   Future<Response> getPointsMall({int page = 1}) async {
     return _dio.get(ApiConfig.pointsMall, queryParameters: {'page': page});
   }

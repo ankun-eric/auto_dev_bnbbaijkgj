@@ -77,6 +77,14 @@
   padding-top: 40rpx;
 }
 
+.referrer-hint {
+  display: block;
+  font-size: 24rpx;
+  color: #52c41a;
+  line-height: 1.5;
+  margin-top: 8rpx;
+}
+
 .register-hint {
   display: block;
   font-size: 24rpx;

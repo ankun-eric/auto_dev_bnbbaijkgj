@@ -22,7 +22,10 @@ from app.models.models import (
     IdentityType,
     MerchantProfile,
     MerchantStoreMembership,
+    PointsRecord,
+    PointsType,
     RelationType,
+    SystemConfig,
     User,
     UserRole,
     VerificationCode,
@@ -123,6 +126,65 @@ async def ensure_identity(db: AsyncSession, user_id: int, identity_type: Identit
         identity.updated_at = datetime.utcnow()
         return
     db.add(AccountIdentity(user_id=user_id, identity_type=identity_type))
+
+
+async def award_invite_points(db: AsyncSession, new_user: User) -> None:
+    """新用户首次注册成功后，给邀请人发放邀请积分。
+
+    幂等规则：
+    - 仅当 new_user.referrer_no 存在且能对应到一个有效的邀请人
+    - 邀请人不是新用户自己
+    - 邀请人尚未因 "邀请该新用户(new_user.id)" 发过积分
+    """
+    if not new_user or not new_user.referrer_no:
+        return
+    if new_user.referrer_no == new_user.user_no:
+        return
+    try:
+        ref_res = await db.execute(select(User).where(User.user_no == new_user.referrer_no))
+        referrer = ref_res.scalar_one_or_none()
+        if not referrer:
+            return
+
+        marker = f"invite:user_id={new_user.id}"
+        existed = await db.execute(
+            select(PointsRecord).where(
+                PointsRecord.user_id == referrer.id,
+                PointsRecord.type == PointsType.invite,
+                PointsRecord.description.like(f"%{marker}%"),
+            )
+        )
+        if existed.scalar_one_or_none():
+            return
+
+        cfg_res = await db.execute(
+            select(SystemConfig).where(SystemConfig.config_key == "inviteFriend")
+        )
+        cfg = cfg_res.scalar_one_or_none()
+        points_value = 100
+        if cfg and cfg.config_value:
+            try:
+                points_value = int(cfg.config_value)
+            except (ValueError, TypeError):
+                pass
+        if points_value <= 0:
+            return
+
+        referrer.points = (referrer.points or 0) + points_value
+        nickname = new_user.nickname or new_user.phone or f"用户{new_user.id}"
+        db.add(PointsRecord(
+            user_id=referrer.id,
+            points=points_value,
+            type=PointsType.invite,
+            description=f"邀请新用户 {nickname} 注册 [{marker}]",
+        ))
+        await db.flush()
+        logger.info(
+            "Invite reward awarded: referrer_id=%s new_user_id=%s points=%s",
+            referrer.id, new_user.id, points_value,
+        )
+    except Exception as e:
+        logger.error("Award invite points failed: %s", e)
 
 
 async def ensure_default_identity_for_legacy_user(db: AsyncSession, user: User) -> None:
@@ -236,6 +298,8 @@ async def register(data: UserCreate, db: AsyncSession = Depends(get_db)):
 
     result_user = await db.execute(select(User).where(User.id == user.id))
     user = result_user.scalar_one()
+
+    await award_invite_points(db, user)
 
     needs_profile_completion = (
         register_settings["show_profile_completion_prompt"]
@@ -393,6 +457,7 @@ async def sms_login(data: SMSLoginRequest, db: AsyncSession = Depends(get_db)):
         result_user = await db.execute(select(User).where(User.id == user.id))
         user = result_user.scalar_one()
         is_new_user = True
+        await award_invite_points(db, user)
 
     if user.status != "active":
         raise HTTPException(status_code=403, detail="账号已被禁用")

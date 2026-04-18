@@ -286,7 +286,7 @@ class _TcmScreenState extends State<TcmScreen> {
                     onPressed: answers.length == questions.length
                         ? () {
                             Navigator.pop(context);
-                            _submitConstitutionTest(answers);
+                            _showConsultMemberPickerBeforeSubmit(answers);
                           }
                         : null,
                     style: ElevatedButton.styleFrom(
@@ -296,7 +296,7 @@ class _TcmScreenState extends State<TcmScreen> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                     child: Text(
-                      answers.length == questions.length ? '提交测评' : '请回答所有问题 (${answers.length}/${questions.length})',
+                      answers.length == questions.length ? '下一步：选择咨询人' : '请回答所有问题 (${answers.length}/${questions.length})',
                       style: const TextStyle(color: Colors.white),
                     ),
                   ),
@@ -309,7 +309,78 @@ class _TcmScreenState extends State<TcmScreen> {
     );
   }
 
-  Future<void> _submitConstitutionTest(Map<int, int> answers) async {
+  void _showConsultMemberPickerBeforeSubmit(Map<int, int> answers) async {
+    int? selectedMemberId;
+    List<dynamic> members = [];
+    try {
+      final res = await _api.getFamilyMembers();
+      if (res.statusCode == 200) {
+        final data = res.data;
+        members = (data is Map ? (data['items'] ?? data['data'] ?? data) : data) as List;
+      }
+    } catch (_) {}
+    if (members.isEmpty) {
+      members = [{'id': 0, 'relation_type_name': '本人', 'is_self': true}];
+    }
+    if (!mounted) return;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) => Padding(
+          padding: EdgeInsets.only(left: 24, right: 24, top: 20, bottom: MediaQuery.of(ctx).viewInsets.bottom + 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('选择本次测评的咨询人', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              const Text('选定后立即提交测评', style: TextStyle(color: Colors.grey, fontSize: 12)),
+              const SizedBox(height: 16),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 280),
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: members.length,
+                  itemBuilder: (_, idx) {
+                    final m = members[idx] as Map;
+                    final id = m['id'] as int?;
+                    final name = (m['relation_type_name'] ?? m['nickname'] ?? '本人').toString();
+                    final selected = selectedMemberId == id;
+                    return ListTile(
+                      title: Text(name),
+                      trailing: selected ? const Icon(Icons.check_circle, color: _kPrimaryPurple) : const Icon(Icons.radio_button_unchecked, color: Colors.grey),
+                      onTap: () => setSheetState(() => selectedMemberId = id),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: selectedMemberId == null ? null : () {
+                    Navigator.pop(ctx);
+                    _submitConstitutionTest(answers, familyMemberId: selectedMemberId);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _kPrimaryPurple,
+                    disabledBackgroundColor: Colors.grey[300],
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: const Text('确认咨询人并提交测评', style: TextStyle(color: Colors.white)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _submitConstitutionTest(Map<int, int> answers, {int? familyMemberId}) async {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -331,9 +402,17 @@ class _TcmScreenState extends State<TcmScreen> {
     );
 
     try {
-      final response = await _api.postConstitutionTest({
-        'answers': answers.map((k, v) => MapEntry(k.toString(), v)),
-      });
+      final answersList = answers.entries.map((e) => {
+        'question_id': e.key,
+        'answer_value': e.value.toString(),
+      }).toList();
+      final payload = <String, dynamic>{
+        'answers': answersList,
+      };
+      if (familyMemberId != null && familyMemberId != 0) {
+        payload['family_member_id'] = familyMemberId;
+      }
+      final response = await _api.postConstitutionTest(payload);
 
       if (!mounted) return;
       Navigator.of(context).pop();

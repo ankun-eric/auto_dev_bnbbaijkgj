@@ -11,18 +11,12 @@ class PointsScreen extends StatefulWidget {
 
 class _PointsScreenState extends State<PointsScreen> {
   final ApiService _apiService = ApiService();
-  bool _isCheckedIn = false;
   bool _loading = true;
-  int _points = 0;
-  List<Map<String, dynamic>> _records = [];
-
-  static const _typeConfig = <String, Map<String, dynamic>>{
-    'signin': {'icon': Icons.check_circle_outline, 'label': '每日签到', 'color': Color(0xFF52C41A)},
-    'checkin': {'icon': Icons.fitness_center_rounded, 'label': '健康打卡', 'color': Color(0xFF1890FF)},
-    'consultation': {'icon': Icons.smart_toy, 'label': '健康咨询', 'color': Color(0xFF722ED1)},
-    'share': {'icon': Icons.share, 'label': '分享', 'color': Color(0xFF13C2C2)},
-    'redeem': {'icon': Icons.card_giftcard, 'label': '积分兑换', 'color': Color(0xFFFA541C)},
-  };
+  bool _signing = false;
+  int _totalPoints = 0;
+  int _todayEarned = 0;
+  bool _signedToday = false;
+  List<Map<String, dynamic>> _tasks = [];
 
   @override
   void initState() {
@@ -32,15 +26,19 @@ class _PointsScreenState extends State<PointsScreen> {
 
   Future<void> _loadData() async {
     try {
-      final balanceRes = await _apiService.getPointsBalance();
-      final recordsRes = await _apiService.getPointsRecords();
+      final results = await Future.wait([
+        _apiService.getPointsSummary(),
+        _apiService.getPointsTasks(),
+      ]);
       if (!mounted) return;
-      final balanceData = balanceRes.data is Map ? balanceRes.data as Map<String, dynamic> : <String, dynamic>{};
-      final recordsData = recordsRes.data is Map ? recordsRes.data as Map<String, dynamic> : <String, dynamic>{};
-      final items = recordsData['items'];
+      final summary = results[0].data is Map ? results[0].data as Map<String, dynamic> : <String, dynamic>{};
+      final tasksData = results[1].data is Map ? results[1].data as Map<String, dynamic> : <String, dynamic>{};
+      final items = tasksData['items'];
       setState(() {
-        _points = balanceData['points'] ?? 0;
-        _records = (items is List)
+        _totalPoints = summary['total_points'] ?? 0;
+        _todayEarned = summary['today_earned_points'] ?? 0;
+        _signedToday = summary['signed_today'] == true;
+        _tasks = (items is List)
             ? items.map((e) => Map<String, dynamic>.from(e as Map)).toList()
             : [];
         _loading = false;
@@ -51,9 +49,17 @@ class _PointsScreenState extends State<PointsScreen> {
   }
 
   Future<void> _doSignIn() async {
+    if (_signedToday || _signing) return;
+    setState(() => _signing = true);
     try {
-      await _apiService.pointsCheckin();
-      setState(() => _isCheckedIn = true);
+      final res = await _apiService.pointsCheckin();
+      final data = res.data is Map ? res.data as Map : {};
+      final earned = data['points_earned'] ?? 0;
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(earned > 0 ? '签到成功 +$earned' : '签到成功'), backgroundColor: const Color(0xFF52C41A)),
+        );
+      }
       _loadData();
     } catch (_) {
       if (mounted) {
@@ -61,18 +67,46 @@ class _PointsScreenState extends State<PointsScreen> {
           const SnackBar(content: Text('签到失败或今日已签到'), backgroundColor: Colors.red),
         );
       }
+    } finally {
+      if (mounted) setState(() => _signing = false);
     }
+  }
+
+  void _handleTask(Map<String, dynamic> task) {
+    final actionType = task['action_type']?.toString();
+    if (actionType == 'sign_in') {
+      _doSignIn();
+      return;
+    }
+    final completed = task['completed'] == true;
+    final category = task['category']?.toString();
+    if (completed && category == 'once') return;
+    final route = task['route']?.toString();
+    if (route == null || route.isEmpty) return;
+
+    // 路由映射
+    const routeMap = {
+      '/profile/edit': '/health-profile',
+      '/health-plan': '/health-plan',
+      '/orders?tab=pending_review': '/orders',
+      '/invite': '/invite',
+      '/products': '/products',
+      '/mall': '/products',
+    };
+    final target = routeMap[route] ?? route;
+    Navigator.pushNamed(context, target);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF5F5F5),
       appBar: CustomAppBar(
         title: '积分中心',
         actions: [
           TextButton(
-            onPressed: () => Navigator.pushNamed(context, '/points-mall'),
-            child: const Text('积分商城', style: TextStyle(color: Colors.white)),
+            onPressed: () => Navigator.pushNamed(context, '/points-records'),
+            child: const Text('积分详情 ›', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -87,76 +121,62 @@ class _PointsScreenState extends State<PointsScreen> {
                   children: [
                     Container(
                       width: double.infinity,
-                      padding: const EdgeInsets.all(24),
+                      padding: const EdgeInsets.fromLTRB(24, 24, 24, 36),
                       decoration: const BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [Color(0xFF52C41A), Color(0xFF13C2C2)],
-                        ),
+                        gradient: LinearGradient(colors: [Color(0xFF52C41A), Color(0xFF13C2C2)]),
                       ),
                       child: Column(
                         children: [
-                          const Text('当前积分', style: TextStyle(color: Colors.white70, fontSize: 14)),
+                          const Text('我的总积分', style: TextStyle(color: Colors.white70, fontSize: 14)),
+                          const SizedBox(height: 8),
+                          Text('$_totalPoints', style: const TextStyle(color: Colors.white, fontSize: 44, fontWeight: FontWeight.bold)),
                           const SizedBox(height: 8),
                           Text(
-                            '$_points',
-                            style: const TextStyle(color: Colors.white, fontSize: 40, fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(height: 16),
-                          ElevatedButton(
-                            onPressed: _isCheckedIn ? null : _doSignIn,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.white,
-                              foregroundColor: const Color(0xFF52C41A),
-                              disabledBackgroundColor: Colors.white38,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 12),
-                            ),
-                            child: Text(
-                              _isCheckedIn ? '今日已签到 +10' : '立即签到 +10',
-                              style: const TextStyle(fontWeight: FontWeight.w600),
-                            ),
+                            _todayEarned > 0 ? '今天获得积分 +$_todayEarned' : '今天还未获得积分，快去赚取吧',
+                            style: const TextStyle(color: Colors.white, fontSize: 13),
                           ),
                         ],
                       ),
                     ),
-                    Container(
-                      margin: const EdgeInsets.all(16),
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
-                        children: [
-                          _buildEarnItem(Icons.check_circle_outline, '签到', '+10/天'),
-                          _buildEarnItem(Icons.smart_toy, '咨询', '+20/次'),
-                          _buildEarnItem(Icons.share, '分享', '+10/次'),
-                          _buildEarnItem(Icons.fitness_center_rounded, '打卡', '+积分'),
-                        ],
+                    Transform.translate(
+                      offset: const Offset(0, -16),
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 16),
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+                        child: InkWell(
+                          onTap: () => Navigator.pushNamed(context, '/points-mall'),
+                          child: const Row(
+                            children: [
+                              Text('🎁', style: TextStyle(fontSize: 28)),
+                              SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('积分商城', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                                    Text('用积分兑换好礼', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                                  ],
+                                ),
+                              ),
+                              Icon(Icons.chevron_right, color: Colors.grey),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text('积分记录', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
-                          TextButton(
-                            onPressed: () {},
-                            child: const Text('查看全部', style: TextStyle(color: Color(0xFF52C41A), fontSize: 13)),
-                          ),
+                        children: const [
+                          Text('日常任务', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                          Text('完成任务赚积分', style: TextStyle(fontSize: 12, color: Colors.grey)),
                         ],
                       ),
                     ),
-                    if (_records.isEmpty)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 40),
-                        child: Text('暂无积分记录', style: TextStyle(fontSize: 14, color: Colors.grey[400])),
-                      )
-                    else
-                      ...List.generate(_records.length, (index) => _buildRecordCard(_records[index])),
-                    const SizedBox(height: 20),
+                    ..._tasks.map(_buildTaskCard).toList(),
+                    const SizedBox(height: 24),
                   ],
                 ),
               ),
@@ -164,85 +184,72 @@ class _PointsScreenState extends State<PointsScreen> {
     );
   }
 
-  Widget _buildRecordCard(Map<String, dynamic> record) {
-    final type = record['type']?.toString() ?? '';
-    final config = _typeConfig[type];
-    final pts = record['points'] ?? 0;
-    final isIncome = pts > 0;
-    final icon = config?['icon'] as IconData? ?? (isIncome ? Icons.add_circle_outline : Icons.remove_circle_outline);
-    final color = config?['color'] as Color? ?? (isIncome ? const Color(0xFF52C41A) : Colors.red);
-    final title = record['description']?.toString() ?? config?['label']?.toString() ?? type;
-    final dateStr = record['created_at']?.toString().split('T').first ?? '';
-    final pointsStr = isIncome ? '+$pts' : '$pts';
-
-    final isCheckinType = type == 'checkin';
+  Widget _buildTaskCard(Map<String, dynamic> task) {
+    final title = task['title']?.toString() ?? '';
+    final subtitle = task['subtitle']?.toString();
+    final points = task['points'] ?? 0;
+    final completed = task['completed'] == true;
+    final category = task['category']?.toString();
+    final actionType = task['action_type']?.toString();
+    final categoryLabel = category == 'daily' ? '每日' : category == 'once' ? '一次性' : '可重复';
+    final categoryColor = category == 'daily' ? const Color(0xFF52C41A) : category == 'once' ? const Color(0xFFFA8C16) : const Color(0xFF1890FF);
+    final disabled = (completed && category == 'once') || (actionType == 'sign_in' && _signedToday);
+    final btnText = (completed && category == 'once') ? '✅ 已完成'
+        : (actionType == 'sign_in' && _signedToday) ? '已签到'
+        : (completed && category == 'daily') ? '已完成'
+        : (actionType == 'sign_in') ? '去签到'
+        : (task['key'] == 'complete_profile') ? '去完善'
+        : '去完成';
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-      ),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
       child: Row(
         children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, color: color, size: 20),
-          ),
-          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
+                Wrap(
+                  spacing: 8,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    Flexible(
-                      child: Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
-                    ),
-                    if (isCheckinType) ...[
-                      const SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF1890FF).withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: const Text('打卡', style: TextStyle(fontSize: 10, color: Color(0xFF1890FF), fontWeight: FontWeight.w600)),
+                    Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: categoryColor, width: 1),
+                        borderRadius: BorderRadius.circular(4),
                       ),
-                    ],
+                      child: Text(categoryLabel, style: TextStyle(fontSize: 10, color: categoryColor)),
+                    ),
+                    Text('+$points 积分', style: const TextStyle(fontSize: 12, color: Color(0xFFFA8C16))),
                   ],
                 ),
-                Text(dateStr, style: TextStyle(fontSize: 12, color: Colors.grey[400])),
+                if (subtitle != null && subtitle.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Text(subtitle, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                  ),
               ],
             ),
           ),
-          Text(
-            pointsStr,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: isIncome ? const Color(0xFF52C41A) : Colors.red,
+          const SizedBox(width: 12),
+          ElevatedButton(
+            onPressed: disabled ? null : () => _handleTask(task),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF52C41A),
+              disabledBackgroundColor: const Color(0xFFE8E8E8),
+              disabledForegroundColor: Colors.grey[600],
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              minimumSize: const Size(72, 32),
             ),
+            child: Text(btnText, style: const TextStyle(fontSize: 12, color: Colors.white)),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildEarnItem(IconData icon, String label, String value) {
-    return Column(
-      children: [
-        Icon(icon, color: const Color(0xFF52C41A), size: 28),
-        const SizedBox(height: 6),
-        Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
-        Text(value, style: TextStyle(fontSize: 11, color: Colors.grey[500])),
-      ],
     );
   }
 }

@@ -104,6 +104,69 @@
   border: none;
 }
 
+.invite-stats-card {
+  background: #fff;
+  border-radius: 24rpx;
+  padding: 32rpx;
+  margin-top: 24rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.06);
+}
+
+.invite-stats-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #333;
+  display: block;
+  margin-bottom: 24rpx;
+}
+
+.invite-stats-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding-bottom: 24rpx;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+.invite-stats-divider {
+  width: 1rpx;
+  height: 64rpx;
+  background: #f0f0f0;
+}
+
+.invite-stats-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.invite-stats-label { font-size: 24rpx; color: #999; }
+.invite-stats-value { font-size: 40rpx; font-weight: bold; margin-top: 8rpx; }
+.invite-stats-value-green { color: #52c41a; }
+.invite-stats-value-orange { color: #fa8c16; }
+
+.invite-list { margin-top: 16rpx; }
+
+.invite-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16rpx 0;
+  border-bottom: 1rpx solid #f5f5f5;
+}
+
+.invite-list-info { flex: 1; }
+.invite-list-name { font-size: 26rpx; color: #333; display: block; }
+.invite-list-time { font-size: 22rpx; color: #999; display: block; margin-top: 4rpx; }
+.invite-list-points { font-size: 28rpx; color: #52c41a; font-weight: 600; }
+
+.invite-list-empty {
+  text-align: center;
+  font-size: 24rpx;
+  color: #999;
+  padding: 32rpx 0;
+}
+
 .loading-wrap {
   display: flex;
   align-items: center;

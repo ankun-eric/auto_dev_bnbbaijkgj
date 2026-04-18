@@ -6,10 +6,11 @@ Page({
     tabs: [
       { label: '全部', status: '' },
       { label: '待付款', status: 'pending_payment' },
-      { label: '待使用', status: 'paid' },
-      { label: '进行中', status: 'in_progress' },
+      { label: '待收货', status: 'pending_receipt' },
+      { label: '待使用', status: 'pending_use' },
       { label: '已完成', status: 'completed' },
-      { label: '退款', status: 'refunded' }
+      { label: '待评价', status: 'pending_review' },
+      { label: '已取消', status: 'cancelled' }
     ],
     orders: [],
     page: 1,

@@ -13,8 +13,8 @@ class OrdersScreen extends StatefulWidget {
 class _OrdersScreenState extends State<OrdersScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
-  final List<String> _tabs = ['全部', '待支付', '已支付', '已完成', '已取消'];
-  final List<String> _statusFilters = ['all', 'pending', 'paid', 'completed', 'cancelled'];
+  final List<String> _tabs = ['全部', '待付款', '待收货', '待使用', '已完成', '待评价', '已取消'];
+  final List<String> _statusFilters = ['all', 'pending_payment', 'pending_receipt', 'pending_use', 'completed', 'pending_review', 'cancelled'];
 
   final List<Order> _orders = [
     Order(id: '1', orderNo: '2024032700001', serviceName: '全面体检套餐', amount: 599, status: 'paid', createdAt: '2024-03-25 10:30'),

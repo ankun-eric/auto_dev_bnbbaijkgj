@@ -1,42 +1,111 @@
+const { get, post } = require('../../utils/request');
+
 Page({
   data: {
-    totalPoints: 1280,
-    signDays: 5,
+    totalPoints: 0,
+    todayEarned: 0,
     signedToday: false,
-    weekDays: [
-      { day: '一', points: 5, signed: true },
-      { day: '二', points: 5, signed: true },
-      { day: '三', points: 5, signed: true },
-      { day: '四', points: 10, signed: true },
-      { day: '五', points: 10, signed: true },
-      { day: '六', points: 15, signed: false, today: true },
-      { day: '日', points: 20, signed: false }
-    ],
-    records: [
-      { id: 1, title: '每日签到', amount: 10, time: '今天 08:30' },
-      { id: 2, title: '完成健康任务', amount: 20, time: '昨天 15:20' },
-      { id: 3, title: '积分兑换 - 体检优惠券', amount: -200, time: '3天前' },
-      { id: 4, title: '邀请好友注册', amount: 100, time: '5天前' },
-      { id: 5, title: '每日签到', amount: 5, time: '6天前' }
-    ]
+    tasks: [],
+    loading: true,
+    signing: false
   },
 
-  signIn() {
-    if (this.data.signedToday) {
-      wx.showToast({ title: '今日已签到', icon: 'none' });
-      return;
+  onLoad() {
+    this.fetchAll();
+  },
+
+  onShow() {
+    this.fetchAll();
+  },
+
+  onPullDownRefresh() {
+    this.fetchAll().finally(() => wx.stopPullDownRefresh());
+  },
+
+  async fetchAll() {
+    try {
+      const [summary, tasks] = await Promise.allSettled([
+        get('/api/points/summary', {}, { showLoading: false }),
+        get('/api/points/tasks', {}, { showLoading: false })
+      ]);
+      const update = {};
+      if (summary.status === 'fulfilled') {
+        const s = summary.value || {};
+        update.totalPoints = s.total_points || 0;
+        update.todayEarned = s.today_earned_points || 0;
+        update.signedToday = !!s.signed_today;
+      }
+      if (tasks.status === 'fulfilled') {
+        const t = tasks.value || {};
+        const items = (t.items || []).map(i => ({
+          ...i,
+          categoryLabel: i.category === 'daily' ? '每日' : i.category === 'once' ? '一次性' : '可重复',
+          categoryColor: i.category === 'daily' ? '#52c41a' : i.category === 'once' ? '#fa8c16' : '#1890ff',
+          btnText: (i.completed && i.category === 'once') ? '✅ 已完成'
+            : (i.completed && i.category === 'daily') ? '已完成'
+            : (i.action_type === 'sign_in') ? '去签到'
+            : (i.key === 'complete_profile') ? '去完善'
+            : '去完成',
+          btnDisabled: i.completed && i.category === 'once'
+        }));
+        update.tasks = items;
+      }
+      update.loading = false;
+      this.setData(update);
+    } catch (e) {
+      this.setData({ loading: false });
     }
-    const points = this.data.weekDays[5].points;
-    this.setData({
-      signedToday: true,
-      totalPoints: this.data.totalPoints + points,
-      signDays: this.data.signDays + 1,
-      'weekDays[5].signed': true
-    });
-    wx.showToast({ title: `签到成功 +${points}积分`, icon: 'success' });
+  },
+
+  goRecords() {
+    wx.navigateTo({ url: '/pages/points/records/index' });
   },
 
   goMall() {
     wx.navigateTo({ url: '/pages/points-mall/index' });
+  },
+
+  async handleTask(e) {
+    const key = e.currentTarget.dataset.key;
+    const task = this.data.tasks.find(t => t.key === key);
+    if (!task) return;
+    if (task.btnDisabled) return;
+    if (task.action_type === 'sign_in') {
+      return this.handleSignIn();
+    }
+    if (task.completed && task.category === 'once') return;
+    if (task.route) {
+      const route = this.normalizeRoute(task.route);
+      if (route) {
+        wx.navigateTo({ url: route, fail: () => wx.switchTab({ url: route }) });
+      }
+    }
+  },
+
+  normalizeRoute(route) {
+    const map = {
+      '/profile/edit': '/pages/health-profile/index',
+      '/health-plan': '/pages/health-plan/index',
+      '/orders?tab=pending_review': '/pages/unified-orders/index?status=pending_review',
+      '/invite': '/pages/invite/index',
+      '/products': '/pages/products/index',
+      '/mall': '/pages/products/index'
+    };
+    return map[route] || route;
+  },
+
+  async handleSignIn() {
+    if (this.data.signedToday || this.data.signing) return;
+    this.setData({ signing: true });
+    try {
+      const res = await post('/api/points/signin', {}, { showLoading: false });
+      const earned = res.points_earned || 0;
+      wx.showToast({ title: earned ? `签到成功 +${earned}` : '签到成功', icon: 'success' });
+      this.fetchAll();
+    } catch (e) {
+      wx.showToast({ title: (e && e.message) || '签到失败', icon: 'none' });
+    } finally {
+      this.setData({ signing: false });
+    }
   }
 });

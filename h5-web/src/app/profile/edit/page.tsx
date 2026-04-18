@@ -27,7 +27,7 @@ export default function ProfileEditPage() {
     const formData = new FormData();
     formData.append('file', file);
     try {
-      const res: any = await api.post('/api/upload', formData, {
+      const res: any = await api.post('/api/upload/image', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       const data = res.data || res;

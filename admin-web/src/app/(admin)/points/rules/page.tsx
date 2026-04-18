@@ -11,6 +11,9 @@ interface PointRules {
   dailySignIn: number;
   consecutiveSignIn7: number;
   consecutiveSignIn30: number;
+  storeCheckIn: number;
+  storeCheckInDailyTimes: number;
+  storeCheckInDailyLimit: number;
   shareArticle: number;
   completeProfile: number;
   inviteFriend: number;
@@ -30,6 +33,9 @@ const defaultRules: PointRules = {
   dailySignIn: 5,
   consecutiveSignIn7: 50,
   consecutiveSignIn30: 200,
+  storeCheckIn: 5,
+  storeCheckInDailyTimes: 0,
+  storeCheckInDailyLimit: 0,
   shareArticle: 3,
   completeProfile: 100,
   inviteFriend: 200,
@@ -120,6 +126,16 @@ export default function PointRulesPage() {
                 </Form.Item>
                 <Form.Item label="连续签到30天额外奖励" name="consecutiveSignIn30">
                   <InputNumber min={0} style={{ width: '100%' }} addonAfter="积分" />
+                </Form.Item>
+                <Divider style={{ margin: '12px 0' }} orientation="left" plain>到店签到</Divider>
+                <Form.Item label="每次到店签到积分" name="storeCheckIn">
+                  <InputNumber min={0} style={{ width: '100%' }} addonAfter="积分/次" />
+                </Form.Item>
+                <Form.Item label="每日到店签到次数上限" name="storeCheckInDailyTimes" extra="设为0表示不限制次数">
+                  <InputNumber min={0} style={{ width: '100%' }} addonAfter="次" placeholder="0表示不限制" />
+                </Form.Item>
+                <Form.Item label="每日到店签到积分上限" name="storeCheckInDailyLimit" extra="设为0表示不限制每日积分上限">
+                  <InputNumber min={0} style={{ width: '100%' }} addonAfter="积分" placeholder="0表示不限制" />
                 </Form.Item>
               </>
             ))}

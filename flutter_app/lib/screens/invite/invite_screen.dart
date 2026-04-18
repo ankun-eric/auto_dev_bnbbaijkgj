@@ -20,11 +20,15 @@ class _InviteScreenState extends State<InviteScreen> {
   String? _shareLink;
   String? _userNo;
   String? _error;
+  int _totalInvited = 0;
+  int _totalPointsEarned = 0;
+  List<Map<String, dynamic>> _inviteList = [];
 
   @override
   void initState() {
     super.initState();
     _loadShareLink();
+    _loadInviteStats();
   }
 
   Future<void> _loadShareLink() async {
@@ -49,6 +53,23 @@ class _InviteScreenState extends State<InviteScreen> {
         _loading = false;
       });
     }
+  }
+
+  Future<void> _loadInviteStats() async {
+    try {
+      final res = await _apiService.getInviteStats();
+      if (res.statusCode == 200 && res.data is Map) {
+        final data = Map<String, dynamic>.from(res.data as Map);
+        final items = data['items'];
+        setState(() {
+          _totalInvited = data['total_invited'] ?? 0;
+          _totalPointsEarned = data['total_points_earned'] ?? 0;
+          _inviteList = (items is List)
+              ? items.map((e) => Map<String, dynamic>.from(e as Map)).toList()
+              : [];
+        });
+      }
+    } catch (_) {}
   }
 
   void _copyLink() {
@@ -194,9 +215,86 @@ class _InviteScreenState extends State<InviteScreen> {
                           ),
                         ),
                       ),
+                      const SizedBox(height: 24),
+                      _buildInviteStats(),
                     ],
                   ),
                 ),
+    );
+  }
+
+  String _formatTime(String? t) {
+    if (t == null || t.isEmpty) return '';
+    final s = t.replaceAll('T', ' ');
+    return s.length >= 16 ? s.substring(0, 16) : s;
+  }
+
+  Widget _buildInviteStats() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 12, offset: const Offset(0, 2)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('我的邀请战绩', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              Column(
+                children: [
+                  const Text('累计邀请', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                  Text('$_totalInvited', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF52C41A))),
+                ],
+              ),
+              Container(width: 1, height: 32, color: Colors.grey[200]),
+              Column(
+                children: [
+                  const Text('累计获得积分', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                  Text('$_totalPointsEarned', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFFFA8C16))),
+                ],
+              ),
+            ],
+          ),
+          const Divider(height: 24),
+          if (_inviteList.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Text('还没有邀请记录，快去分享吧', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey, fontSize: 12)),
+            )
+          else
+            ..._inviteList.map((it) => Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              (it['nickname'] ?? it['phone'] ?? it['user_no'] ?? '用户${it['user_id']}').toString(),
+                              style: const TextStyle(fontSize: 13),
+                            ),
+                            Text(
+                              _formatTime(it['registered_at']?.toString()),
+                              style: const TextStyle(fontSize: 11, color: Colors.grey),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Text('+${it['points_awarded'] ?? 0}', style: const TextStyle(color: Color(0xFF52C41A), fontWeight: FontWeight.w600)),
+                    ],
+                  ),
+                )),
+        ],
+      ),
     );
   }
 }

@@ -148,17 +148,24 @@ Page({
     if (currentQuestion < questions.length - 1) {
       this.setData({ currentQuestion: currentQuestion + 1 });
     } else {
+      // 9 题答完 -> 先弹咨询人选择，选定后再提交（最后一步必选咨询人）
       this.setData({ showQuiz: false });
-      this._submitConstitutionTest(answers);
+      this._showMemberPickerForConstitution();
     }
   },
 
-  async _submitConstitutionTest(answers) {
+  async _submitConstitutionTest(answers, familyMemberId) {
     wx.showLoading({ title: '分析中...', mask: true });
     try {
-      const res = await post('/api/tcm/constitution-test', {
-        answers
-      }, { showLoading: false, suppressErrorToast: true });
+      const answersArr = (answers || []).map((value, idx) => ({
+        question_id: idx + 1,
+        answer_value: String(value)
+      }));
+      const payload = { answers: answersArr };
+      if (familyMemberId !== undefined && familyMemberId !== null && familyMemberId !== 0) {
+        payload.family_member_id = familyMemberId;
+      }
+      const res = await post('/api/tcm/constitution-test', payload, { showLoading: false, suppressErrorToast: true });
 
       wx.hideLoading();
 
@@ -176,24 +183,12 @@ Page({
             id: res.id || res.diagnosis_id
           }
         });
-
-        this._showMemberPickerForConstitution();
+        this.loadDiagnosisHistory();
       }
     } catch (e) {
       wx.hideLoading();
-      this.setData({
-        showResult: true,
-        result: {
-          type: '气虚质',
-          description: '元气不足，以气息低弱、机体脏腑功能状态低下为主要特征的体质状态',
-          traits: ['容易疲乏，精力不足', '说话声音偏低，不喜多言', '容易感冒，抵抗力较弱'],
-          advices: [
-            { title: '饮食调理', content: '宜食益气健脾食物，如黄芪、党参、山药、大枣。避免生冷寒凉食物。' },
-            { title: '运动建议', content: '适合柔和运动，如太极拳、八段锦、散步。避免剧烈运动和大量出汗。' }
-          ]
-        }
-      });
-      this._showMemberPickerForConstitution();
+      const detail = (e && e.data && e.data.detail) || (e && e.message) || '提交测评失败，请重试';
+      wx.showToast({ title: typeof detail === 'string' ? detail : '提交失败', icon: 'none' });
     }
   },
 
@@ -226,7 +221,7 @@ Page({
     this.setData({ selectedMemberId: member.id });
   },
 
-  onConfirmMember() {
+  async onConfirmMember() {
     const member = this.data.familyMembers.find(m => m.id === this.data.selectedMemberId);
     if (!member) {
       wx.showToast({ title: '请选择咨询对象', icon: 'none' });
@@ -234,6 +229,13 @@ Page({
     }
     this.setData({ showMemberPicker: false });
 
+    // 情形 1: 答完 9 题但还未提交（无 result）→ 提交测评
+    if (!this.data.result) {
+      await this._submitConstitutionTest(this.data.quizAnswers, member.id);
+      return;
+    }
+
+    // 情形 2: 已得到测评结果，跳转 chat 咨询
     const result = this.data.result;
     const constitutionType = result ? result.type : '';
     const memberId = member.id;

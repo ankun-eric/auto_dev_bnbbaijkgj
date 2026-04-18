@@ -221,30 +221,52 @@ export default function TcmPage() {
   };
 
   const answerQuestion = (value: string) => {
-    setAnswers({ ...answers, [constitutionQuestions[currentQ].id]: value });
+    const next = { ...answers, [constitutionQuestions[currentQ].id]: value };
+    setAnswers(next);
     if (currentQ < constitutionQuestions.length - 1) {
       setTimeout(() => setCurrentQ(currentQ + 1), 300);
     } else {
-      setTimeout(() => submitConstitutionTest({ ...answers, [constitutionQuestions[currentQ].id]: value }), 300);
+      // 9 题答完 → 弹出咨询人选择，选定后再提交（最后一步必选咨询人）
+      setTimeout(async () => {
+        await fetchMemberList();
+        setMemberPopupVisible(true);
+      }, 300);
     }
   };
 
-  const submitConstitutionTest = async (finalAnswers: Record<number, string>) => {
+  const submitConstitutionTest = async (
+    finalAnswers: Record<number, string>,
+    memberId: number | null,
+  ) => {
+    const answersArr = Object.entries(finalAnswers).map(([qid, value]) => ({
+      question_id: Number(qid),
+      answer_value: String(value),
+    }));
+    if (answersArr.length === 0) {
+      Toast.show({ content: '请先完成体质测评', icon: 'fail' });
+      return;
+    }
     setSubmittingTest(true);
     try {
-      const res: any = await api.post('/api/tcm/constitution-test', { answers: finalAnswers });
+      const payload: any = { answers: answersArr };
+      if (memberId !== null && memberId !== -1) {
+        payload.family_member_id = memberId;
+      }
+      const res: any = await api.post('/api/tcm/constitution-test', payload);
       const data = res.data || res;
       setConstitutionResult({
         type: data.constitution_type || '未知',
-        description: data.description || '',
-        features: data.features || '',
-        diet: data.diet_suggestion || '',
+        description: data.constitution_description || data.description || '',
+        features: data.syndrome_analysis || data.features || '',
+        diet: data.health_plan || data.diet_suggestion || '',
         exercise: data.exercise_suggestion || '',
         lifestyle: data.lifestyle_suggestion || '',
       });
       setShowResult(true);
-    } catch {
-      Toast.show({ content: '提交测评失败，请重试', icon: 'fail' });
+      fetchHistory();
+    } catch (err: any) {
+      const detail = err?.response?.data?.detail || '提交测评失败，请重试';
+      Toast.show({ content: typeof detail === 'string' ? detail : '提交测评失败，请重试', icon: 'fail' });
     } finally {
       setSubmittingTest(false);
     }
@@ -272,10 +294,16 @@ export default function TcmPage() {
   };
 
   const handleMemberConfirmAndNavigate = async () => {
-    if (!constitutionResult) return;
     setMemberPopupVisible(false);
-
     const memberId = selectedMemberId !== null && selectedMemberId !== -1 ? selectedMemberId : null;
+
+    // 情形 1: 答完 9 题但还未提交（无 constitutionResult）→ 提交测评
+    if (!constitutionResult) {
+      await submitConstitutionTest(answers, memberId);
+      return;
+    }
+
+    // 情形 2: 已得到测评结果，跳转 chat 咨询
     try {
       const res: any = await api.post('/api/chat/sessions', {
         session_type: 'constitution',
@@ -661,10 +689,14 @@ export default function TcmPage() {
 
           <Button
             block
+            disabled={selectedMemberId === null}
+            loading={submittingTest}
             onClick={handleMemberConfirmAndNavigate}
             style={{
               marginTop: 20,
-              background: 'linear-gradient(135deg, #52c41a, #13c2c2)',
+              background: selectedMemberId === null
+                ? '#d9d9d9'
+                : 'linear-gradient(135deg, #52c41a, #13c2c2)',
               color: '#fff',
               border: 'none',
               borderRadius: 24,
@@ -672,7 +704,7 @@ export default function TcmPage() {
               fontSize: 15,
             }}
           >
-            确认并咨询
+            {!constitutionResult ? '确认咨询人并提交测评' : '确认并咨询'}
           </Button>
         </div>
       </Popup>

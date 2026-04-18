@@ -37,7 +37,7 @@
                 catchtap="cancelOrder" data-id="{{item.id}}">取消</view>
           <view class="action-btn primary" wx:if="{{item.status === 'pending_payment'}}"
                 catchtap="payOrder" data-id="{{item.id}}">付款</view>
-          <view class="action-btn primary" wx:if="{{item.status === 'paid' || item.status === 'in_progress'}}"
+          <view class="action-btn primary" wx:if="{{item.status === 'paid' || item.status === 'in_progress' || item.status === 'pending_receipt' || item.status === 'pending_use'}}"
                 catchtap="confirmOrder" data-id="{{item.id}}">确认收货</view>
         </view>
       </view>

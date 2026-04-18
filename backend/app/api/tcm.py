@@ -11,6 +11,7 @@ from app.models.models import (
     ChatSession,
     ConstitutionAnswer,
     ConstitutionQuestion,
+    FamilyMember,
     HealthProfile,
     MessageRole,
     SessionType,
@@ -120,6 +121,19 @@ async def constitution_test(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    if not data.answers:
+        raise HTTPException(status_code=422, detail="答题内容不能为空")
+
+    if data.family_member_id is not None:
+        fm_result = await db.execute(
+            select(FamilyMember).where(
+                FamilyMember.id == data.family_member_id,
+                FamilyMember.user_id == current_user.id,
+            )
+        )
+        if not fm_result.scalar_one_or_none():
+            raise HTTPException(status_code=403, detail="所选咨询人不属于当前用户")
+
     answers_text_parts = []
     for ans in data.answers:
         q_result = await db.execute(select(ConstitutionQuestion).where(ConstitutionQuestion.id == ans.question_id))

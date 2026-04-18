@@ -110,6 +110,23 @@ async def _migrate_points_enums_and_config():
                     db.add(SystemConfig(config_key="healthCheckInDailyLimit", config_value=old_config2.config_value, config_type="points"))
                     _logger.info(f"已迁移 checkin_points_daily_limit -> healthCheckInDailyLimit: {old_config2.config_value}")
 
+            # 到店签到积分键迁移：checkin_points_per_visit -> storeCheckIn（保留旧键）
+            result3 = await db.execute(sa_select(SystemConfig).where(SystemConfig.config_key == "storeCheckIn"))
+            if not result3.scalar_one_or_none():
+                old_result3 = await db.execute(
+                    sa_select(SystemConfig).where(SystemConfig.config_key == "checkin_points_per_visit")
+                )
+                old_cfg3 = old_result3.scalar_one_or_none()
+                if old_cfg3 and old_cfg3.config_value:
+                    db.add(SystemConfig(config_key="storeCheckIn", config_value=old_cfg3.config_value, config_type="points"))
+                    _logger.info(f"已迁移 checkin_points_per_visit -> storeCheckIn: {old_cfg3.config_value}")
+                else:
+                    db.add(SystemConfig(config_key="storeCheckIn", config_value="5", config_type="points"))
+            for k, default in [("storeCheckInDailyTimes", "0"), ("storeCheckInDailyLimit", "0")]:
+                exist = await db.execute(sa_select(SystemConfig).where(SystemConfig.config_key == k))
+                if not exist.scalar_one_or_none():
+                    db.add(SystemConfig(config_key=k, config_value=default, config_type="points"))
+
             await db.commit()
     except Exception as e:
         _logger.error(f"积分枚举/配置迁移异常（不影响启动）: {e}")

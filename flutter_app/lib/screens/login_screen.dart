@@ -206,6 +206,14 @@ class _LoginScreenState extends State<LoginScreen> {
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 14, color: Colors.grey[600], height: 1.4),
                 ),
+                if (widget.referrerNo != null && widget.referrerNo!.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    '🎉 已识别邀请码：${widget.referrerNo}',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 13, color: Color(0xFF52C41A)),
+                  ),
+                ],
               ],
               const SizedBox(height: 48),
               Container(

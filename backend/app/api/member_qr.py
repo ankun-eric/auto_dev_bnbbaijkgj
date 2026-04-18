@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
@@ -108,11 +108,61 @@ async def checkin_at_store(
     if not store:
         raise HTTPException(status_code=404, detail="门店不存在")
 
-    config_result = await db.execute(
-        select(SystemConfig).where(SystemConfig.config_key == "checkin_points_per_visit")
+    # ===== 新版到店签到积分配置（兼容旧键 checkin_points_per_visit）=====
+    cfg_keys = [
+        "storeCheckIn",
+        "storeCheckInDailyTimes",
+        "storeCheckInDailyLimit",
+        "checkin_points_per_visit",  # 旧键回退
+    ]
+    cfg_res = await db.execute(
+        select(SystemConfig).where(SystemConfig.config_key.in_(cfg_keys))
     )
-    config = config_result.scalar_one_or_none()
-    points_earned = int(config.config_value) if config and config.config_value else 5
+    cfg_map = {c.config_key: c.config_value for c in cfg_res.scalars().all()}
+
+    def _to_int(val, default=0):
+        try:
+            return int(val) if val is not None else default
+        except (ValueError, TypeError):
+            return default
+
+    per_visit = _to_int(cfg_map.get("storeCheckIn"), 0)
+    if per_visit <= 0:
+        per_visit = _to_int(cfg_map.get("checkin_points_per_visit"), 5)
+    daily_times = _to_int(cfg_map.get("storeCheckInDailyTimes"), 0)
+    daily_limit = _to_int(cfg_map.get("storeCheckInDailyLimit"), 0)
+
+    today = date.today()
+    today_count_res = await db.execute(
+        select(func.count(CheckinRecord.id)).where(
+            CheckinRecord.user_id == qr_token.user_id,
+            func.date(CheckinRecord.checked_in_at) == today,
+        )
+    )
+    today_count = int(today_count_res.scalar() or 0)
+
+    today_points_res = await db.execute(
+        select(func.coalesce(func.sum(PointsRecord.points), 0)).where(
+            PointsRecord.user_id == qr_token.user_id,
+            PointsRecord.type == PointsType.checkin,
+            PointsRecord.description.like("到店签到%"),
+            func.date(PointsRecord.created_at) == today,
+        )
+    )
+    today_points = int(today_points_res.scalar() or 0)
+
+    points_earned = per_visit
+    limit_reached = False
+    if daily_times > 0 and today_count >= daily_times:
+        points_earned = 0
+        limit_reached = True
+    if daily_limit > 0:
+        remaining = daily_limit - today_points
+        if remaining <= 0:
+            points_earned = 0
+            limit_reached = True
+        else:
+            points_earned = min(points_earned, remaining)
 
     checkin = CheckinRecord(
         user_id=qr_token.user_id,
@@ -137,7 +187,7 @@ async def checkin_at_store(
             user_id=user.id,
             points=points_earned,
             type=PointsType.checkin,
-            description=f"到店签到 {store.store_name}",
+            description=f"到店签到 {store.store_name}{' (达到每日上限)' if limit_reached else ''}",
         )
         db.add(pr)
 

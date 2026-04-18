@@ -271,6 +271,11 @@ function LoginContent() {
 
           <div className="space-y-1 px-1">
             <div className="text-xs text-gray-400">{helperText}</div>
+            {refParam && (
+              <div className="text-xs" style={{ color: '#52c41a' }}>
+                🎉 已识别邀请码：<span className="font-medium">{refParam}</span>
+              </div>
+            )}
           </div>
 
           <Button

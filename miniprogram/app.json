@@ -23,6 +23,7 @@
     "pages/experts/index",
     "pages/expert-detail/index",
     "pages/points/index",
+    "pages/points/records/index",
     "pages/points-mall/index",
     "pages/health-plan/index",
     "pages/health-plan/medications/index",

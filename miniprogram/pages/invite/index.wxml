@@ -21,6 +21,34 @@
     </view>
   </view>
 
+  <!-- 我的邀请战绩 -->
+  <view class="invite-stats-card" wx:if="{{!loading}}">
+    <text class="invite-stats-title">我的邀请战绩</text>
+    <view class="invite-stats-row">
+      <view class="invite-stats-col">
+        <text class="invite-stats-label">累计邀请</text>
+        <text class="invite-stats-value invite-stats-value-green">{{totalInvited}}</text>
+      </view>
+      <view class="invite-stats-divider"></view>
+      <view class="invite-stats-col">
+        <text class="invite-stats-label">累计获得积分</text>
+        <text class="invite-stats-value invite-stats-value-orange">{{totalPointsEarned}}</text>
+      </view>
+    </view>
+    <view class="invite-list" wx:if="{{inviteList.length > 0}}">
+      <view class="invite-list-item" wx:for="{{inviteList}}" wx:key="user_id">
+        <view class="invite-list-info">
+          <text class="invite-list-name">{{item.display_name}}</text>
+          <text class="invite-list-time">{{item.registered_at}}</text>
+        </view>
+        <text class="invite-list-points">+{{item.points_awarded}}</text>
+      </view>
+    </view>
+    <view class="invite-list-empty" wx:else>
+      还没有邀请记录，快去分享吧
+    </view>
+  </view>
+
   <view class="loading-wrap" wx:if="{{loading}}">
     <text class="loading-text">加载中...</text>
   </view>

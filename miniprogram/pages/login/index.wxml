@@ -31,6 +31,7 @@
     </view>
 
     <text class="register-hint" wx:if="{{registerHelperText}}">{{registerHelperText}}</text>
+    <text class="referrer-hint" wx:if="{{referrerNo}}">🎉 已识别邀请码：{{referrerNo}}</text>
 
     <!-- 登录按钮 -->
     <button class="login-btn btn-primary" bindtap="loginByPhone" disabled="{{!phone || !code}}">

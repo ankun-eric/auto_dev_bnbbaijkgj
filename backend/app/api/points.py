@@ -7,12 +7,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.security import get_current_user
 from app.models.models import (
+    HealthProfile,
     MemberLevel,
     PointsExchange,
     PointsMallItem,
     PointsRecord,
     PointsType,
     SignInRecord,
+    SystemConfig,
+    UnifiedOrder,
+    UnifiedOrderStatus,
     User,
 )
 from app.schemas.points import (
@@ -176,6 +180,218 @@ async def get_checkin_today_progress(
     from app.services.checkin_points_service import get_today_progress
     progress = await get_today_progress(db, current_user.id)
     return progress
+
+
+# ---- 兼容前端可能使用的 /sign-in 路由 ----
+@router.post("/sign-in", response_model=SignInResponse)
+async def sign_in_alias(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    return await sign_in(current_user=current_user, db=db)
+
+
+# ---- 积分页所需汇总接口 ----
+async def _get_config_int(db: AsyncSession, key: str, default: int = 0) -> int:
+    res = await db.execute(select(SystemConfig).where(SystemConfig.config_key == key))
+    cfg = res.scalar_one_or_none()
+    if not cfg or cfg.config_value is None:
+        return default
+    try:
+        return int(cfg.config_value)
+    except (ValueError, TypeError):
+        return default
+
+
+@router.get("/summary")
+async def get_points_summary(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """积分页顶部所需数据：总积分 / 今日已获得积分 / 今日是否已签到 / 连续签到天数"""
+    today = date.today()
+
+    today_earned_res = await db.execute(
+        select(func.coalesce(func.sum(PointsRecord.points), 0)).where(
+            PointsRecord.user_id == current_user.id,
+            PointsRecord.points > 0,
+            func.date(PointsRecord.created_at) == today,
+        )
+    )
+    today_earned = int(today_earned_res.scalar() or 0)
+
+    sign_today_res = await db.execute(
+        select(SignInRecord).where(
+            SignInRecord.user_id == current_user.id,
+            SignInRecord.sign_date == today,
+        )
+    )
+    sign_today_record = sign_today_res.scalar_one_or_none()
+
+    last_sign_res = await db.execute(
+        select(SignInRecord)
+        .where(SignInRecord.user_id == current_user.id)
+        .order_by(SignInRecord.sign_date.desc())
+        .limit(1)
+    )
+    last = last_sign_res.scalar_one_or_none()
+    sign_days = 0
+    if last:
+        if last.sign_date == today or last.sign_date == today - timedelta(days=1):
+            sign_days = last.consecutive_days
+
+    return {
+        "total_points": current_user.points or 0,
+        "today_earned_points": today_earned,
+        "signed_today": sign_today_record is not None,
+        "sign_days": sign_days,
+    }
+
+
+@router.get("/tasks")
+async def list_daily_tasks(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """积分页日常任务清单（6 条）。"""
+    today = date.today()
+
+    # 1. 每日签到
+    sign_res = await db.execute(
+        select(SignInRecord).where(
+            SignInRecord.user_id == current_user.id,
+            SignInRecord.sign_date == today,
+        )
+    )
+    sign_today = sign_res.scalar_one_or_none() is not None
+    sign_points = await _get_config_int(db, "dailySignIn", 5)
+
+    # 2. 健康打卡（今日是否已发放过 checkin 类型积分记录）
+    checkin_today_res = await db.execute(
+        select(func.count(PointsRecord.id)).where(
+            PointsRecord.user_id == current_user.id,
+            PointsRecord.type == PointsType.checkin,
+            func.date(PointsRecord.created_at) == today,
+        )
+    )
+    health_checkin_done = (checkin_today_res.scalar() or 0) > 0
+    health_checkin_points = await _get_config_int(db, "healthCheckIn", 2)
+
+    # 3. 完善健康档案（终身一次）
+    profile_res = await db.execute(
+        select(HealthProfile).where(HealthProfile.user_id == current_user.id)
+    )
+    profile = profile_res.scalar_one_or_none()
+    fields_filled = bool(
+        profile
+        and profile.gender is not None
+        and profile.birthday is not None
+        and profile.height is not None
+        and profile.weight is not None
+    )
+    completed_profile_award_res = await db.execute(
+        select(PointsRecord).where(
+            PointsRecord.user_id == current_user.id,
+            PointsRecord.type == PointsType.completeProfile,
+        )
+    )
+    profile_awarded = completed_profile_award_res.scalar_one_or_none() is not None
+    complete_profile_points = await _get_config_int(db, "completeProfile", 100)
+
+    # 4. 首次下单（是否有任意已完成订单）
+    completed_order_res = await db.execute(
+        select(func.count(UnifiedOrder.id)).where(
+            UnifiedOrder.user_id == current_user.id,
+            UnifiedOrder.status == UnifiedOrderStatus.completed,
+        )
+    )
+    first_order_done = (completed_order_res.scalar() or 0) > 0
+    first_order_points = await _get_config_int(db, "firstOrder", 100)
+
+    # 5. 评价订单（有无待评价订单）
+    pending_review_res = await db.execute(
+        select(func.count(UnifiedOrder.id)).where(
+            UnifiedOrder.user_id == current_user.id,
+            UnifiedOrder.status == UnifiedOrderStatus.completed,
+            (UnifiedOrder.has_reviewed.is_(False)) | (UnifiedOrder.has_reviewed.is_(None)),
+        )
+    )
+    pending_review_count = pending_review_res.scalar() or 0
+    review_points = await _get_config_int(db, "reviewService", 10)
+
+    # 6. 邀请好友（累计成功邀请人数）
+    invited_count_res = await db.execute(
+        select(func.count(User.id)).where(User.referrer_no == current_user.user_no)
+    )
+    invited_count = invited_count_res.scalar() or 0
+    invite_points = await _get_config_int(db, "inviteFriend", 100)
+
+    tasks = [
+        {
+            "key": "daily_signin",
+            "title": "每日签到",
+            "subtitle": "每日可获得签到积分",
+            "points": sign_points,
+            "category": "daily",
+            "completed": sign_today,
+            "action_type": "sign_in",
+            "route": "/points",
+        },
+        {
+            "key": "health_checkin",
+            "title": "健康打卡",
+            "subtitle": "完成今日健康打卡",
+            "points": health_checkin_points,
+            "category": "daily",
+            "completed": health_checkin_done,
+            "action_type": "navigate",
+            "route": "/health-plan",
+        },
+        {
+            "key": "complete_profile",
+            "title": "完善健康档案",
+            "subtitle": "需填写：性别、出生日期、身高、体重",
+            "points": complete_profile_points,
+            "category": "once",
+            "completed": profile_awarded,
+            "fields_filled": fields_filled,
+            "action_type": "navigate",
+            "route": "/profile/edit",
+        },
+        {
+            "key": "first_order",
+            "title": "首次下单",
+            "subtitle": "完成首笔订单",
+            "points": first_order_points,
+            "category": "once",
+            "completed": first_order_done,
+            "action_type": "navigate",
+            "route": "/products",
+        },
+        {
+            "key": "review_order",
+            "title": "评价订单",
+            "subtitle": (f"您有 {pending_review_count} 个待评价订单" if pending_review_count else "去评价已完成的订单"),
+            "points": review_points,
+            "category": "repeatable",
+            "completed": False,
+            "pending_count": pending_review_count,
+            "action_type": "navigate",
+            "route": "/unified-orders?tab=pending_review",
+        },
+        {
+            "key": "invite_friend",
+            "title": "邀请好友",
+            "subtitle": (f"已成功邀请 {invited_count} 位好友" if invited_count else "邀请好友注册得积分"),
+            "points": invite_points,
+            "category": "repeatable",
+            "completed": False,
+            "invited_count": invited_count,
+            "action_type": "navigate",
+            "route": "/invite",
+        },
+    ]
+    return {"items": tasks}
 
 
 @router.get("/level")

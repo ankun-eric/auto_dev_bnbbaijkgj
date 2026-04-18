@@ -1,46 +1,47 @@
 <view class="points-page">
-  <!-- 积分头部 -->
+  <!-- 顶部 -->
   <view class="points-header">
-    <text class="points-label">我的积分</text>
+    <view class="header-top">
+      <text class="points-label">我的总积分</text>
+      <view class="records-link" bindtap="goRecords">积分详情 ›</view>
+    </view>
     <text class="points-value">{{totalPoints}}</text>
-    <view class="points-actions">
-      <view class="action-btn" bindtap="goMall">
-        <text class="action-icon">🛍️</text>
-        <text class="action-text">积分兑换</text>
-      </view>
-      <view class="action-btn" bindtap="signIn">
-        <text class="action-icon">📅</text>
-        <text class="action-text">{{signedToday ? '已签到' : '签到'}}</text>
-      </view>
+    <view class="today-tip">
+      <block wx:if="{{todayEarned > 0}}">今天获得积分 +{{todayEarned}}</block>
+      <block wx:else>今天还未获得积分，快去赚取吧</block>
     </view>
   </view>
 
-  <!-- 签到日历 -->
-  <view class="card">
-    <text class="section-title">连续签到 {{signDays}} 天</text>
-    <view class="sign-week">
-      <view class="sign-day {{item.signed ? 'signed' : ''}} {{item.today ? 'today' : ''}}" wx:for="{{weekDays}}" wx:key="day">
-        <text class="day-label">{{item.day}}</text>
-        <text class="day-icon">{{item.signed ? '✓' : item.points}}</text>
-        <text class="day-points">+{{item.points}}</text>
-      </view>
+  <!-- 快捷入口 -->
+  <view class="card quick-card" bindtap="goMall">
+    <view class="quick-icon">🎁</view>
+    <view class="quick-info">
+      <text class="quick-title">积分商城</text>
+      <text class="quick-desc">用积分兑换好礼</text>
     </view>
+    <text class="quick-arrow">›</text>
   </view>
 
-  <!-- 积分记录 -->
-  <view class="section-title" style="padding: 0 24rpx;">积分记录</view>
-  <view class="record-list">
-    <view class="record-item card" wx:for="{{records}}" wx:key="id">
-      <view class="record-info">
-        <view class="record-title-row">
-          <text class="record-title">{{item.title}}</text>
-          <text class="record-tag record-tag-checkin" wx:if="{{item.type === 'checkin'}}">打卡</text>
+  <!-- 日常任务 -->
+  <view class="section-header">
+    <text class="section-title">日常任务</text>
+    <text class="section-desc">完成任务赚积分</text>
+  </view>
+
+  <view wx:if="{{loading}}" class="loading-tip">加载中...</view>
+  <view wx:else class="task-list">
+    <view class="task-card card" wx:for="{{tasks}}" wx:key="key" data-key="{{item.key}}" bindtap="handleTask">
+      <view class="task-info">
+        <view class="task-title-row">
+          <text class="task-title">{{item.title}}</text>
+          <text class="task-tag" style="color:{{item.categoryColor}};border-color:{{item.categoryColor}};">{{item.categoryLabel}}</text>
+          <text class="task-points">+{{item.points}}积分</text>
         </view>
-        <text class="record-time">{{item.time}}</text>
+        <text class="task-subtitle" wx:if="{{item.subtitle}}">{{item.subtitle}}</text>
       </view>
-      <text class="record-points {{item.amount > 0 ? 'points-add' : 'points-sub'}}">
-        {{item.amount > 0 ? '+' : ''}}{{item.amount}}
-      </text>
+      <view class="task-btn {{item.btnDisabled ? 'task-btn-disabled' : ''}}" catchtap="handleTask" data-key="{{item.key}}">
+        {{item.btnText}}
+      </view>
     </view>
   </view>
 </view>
