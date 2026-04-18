@@ -33,7 +33,34 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 拍照识药统一化与中医养生功能优化 (2026-04-18)
+## Latest Update: BUG 修复批次 v2 · 六合一终版 (2026-04-19)
+
+### 概要
+六大类 BUG / 体验优化批次修复，覆盖 后端 / H5 / 小程序 / Flutter / Admin 全端：
+1. 体质测评提交流程：三端 payload 统一为 `{answers: [{question_id, answer_value}], family_member_id}`，最后一步必须选咨询人后才能提交，按钮置灰；后端校验家庭成员归属，schema 兼容 dict→list 格式。
+2. 头像 / 凭证上传路径：H5 + 小程序 refund/review 全部改为 `/api/upload/image`。
+3. 订单 Tab 拆 7 个：`全部 / 待付款 / 待收货 / 待使用 / 已完成 / 待评价 / 已取消`，三端横向滚动。
+4. 积分中心重构：删每日签到栏 / 删"赚取积分"快捷入口；新增"今天获得积分"+"积分详情"入口 + 6 条日常任务（含完善健康档案 4 字段提示，跳转 `/profile/edit`）；后端新增 `GET /api/points/summary`、`GET /api/points/tasks` 接口。
+5. 邀请奖励 + 邀请码 + 邀请战绩：注册成功后自动给邀请人 +100 积分（同手机号首次幂等）；登录页自动识别 `?ref=` 邀请码并显示提示；新增 `GET /api/users/invite-stats`；H5/小程序/Flutter 三端同步"我的-邀请好友"入口；邀请页底部新增"我的邀请战绩"模块。
+6. 到店签到配置：admin-web `/points/rules` 新增 `storeCheckIn`、`storeCheckInDailyTimes`、`storeCheckInDailyLimit` 三字段；启动时自动迁移 `checkin_points_per_visit` → `storeCheckIn`；`member_qr.py` 优先读新键并实现每日次数/积分双上限。
+
+### 关键文件
+- 后端：`backend/app/api/points.py`、`backend/app/api/auth.py`、`backend/app/api/referral.py`、`backend/app/api/tcm.py`、`backend/app/schemas/tcm.py`、`backend/app/api/member_qr.py`、`backend/app/api/admin.py`、`backend/app/main.py`
+- H5：`h5-web/src/app/points/page.tsx`、`h5-web/src/app/points/records/page.tsx`、`h5-web/src/app/invite/page.tsx`、`h5-web/src/app/login/page.tsx`、`h5-web/src/app/profile/edit/page.tsx`、`h5-web/src/app/tcm/page.tsx`、`h5-web/src/app/unified-orders/page.tsx`
+- 小程序：`miniprogram/pages/points/{index,records}`、`miniprogram/pages/invite/`、`miniprogram/pages/login/`、`miniprogram/pages/profile/index.js`、`miniprogram/pages/refund/index.js`、`miniprogram/pages/review/index.js`、`miniprogram/pages/tcm/`、`miniprogram/pages/unified-orders/`、`miniprogram/app.json`
+- Flutter：`flutter_app/lib/screens/points/{points_screen,points_records_screen}.dart`、`flutter_app/lib/screens/invite/invite_screen.dart`、`flutter_app/lib/screens/login_screen.dart`、`flutter_app/lib/screens/order/orders_screen.dart`、`flutter_app/lib/screens/health/tcm_screen.dart`、`flutter_app/lib/services/api_service.dart`、`flutter_app/lib/main.dart`
+- Admin：`admin-web/src/app/(admin)/points/rules/page.tsx`
+
+### 用户手册
+- `user_docs/BUG修复批次v2_六合一.md`
+
+### 部署验证
+- 后端 / h5 / admin 三个容器全部通过 `docker compose up -d --build` 重建并已 Up
+- 关键链接 200 / 401（未登录正常）：`/`、`/admin/`、`/api/health`、`/api/points/{summary,tasks}`、`/api/users/invite-stats`、`/api/users/share-link`
+
+---
+
+## Previous Update: 拍照识药统一化与中医养生功能优化 (2026-04-18)
 
 ### 概要
 对拍照识药功能进行统一化改造（移除旧胶囊按钮、支持后台配置按钮类型、多图识别、自动追问），首页用药识别跳转改造（统一到chat页面、修复family_member_id），对话列表文案修复，中医养生功能优化（体质测评对接AI、历史记录、详情页+推荐商品），后台新增中医养生配置和商品体质关联。五端（后端/H5/Admin/小程序/Flutter）同步开发。
