@@ -33,7 +33,52 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 4 BUG 整体修复批次 (2026-04-19)
+## Latest Update: 优惠券V2 + 审核体系 + 第三方OpenAPI (2026-04-19)
+
+### 概要
+本期 11 项 — 3 BUG + 2 新增功能模块（优惠券管理增强、资金安全审核、第三方合作）：
+
+1. **BUG1 H5 体质测评 `/submit`**：`h5-web/src/app/tcm/page.tsx` 增加 `submittingTest` 幂等锁 + 详细错误透传到 Toast（含状态码、`detail` 字符串/数组、`message` 等字段全覆盖）。
+2. **BUG2 商品收藏状态回显 + 文案统一**：后端 `backend/app/api/favorites.py` 新增 `GET /api/favorites/status?content_type&content_id` + `POST` 成功文案改为 `收藏成功，可在「我的-收藏」中查看`；H5（`h5-web/src/app/product/[id]/page.tsx`）/小程序（`miniprogram/pages/product-detail/index.js`）/Flutter（`flutter_app/lib/screens/product/product_detail_screen.dart` + `api_service.dart` 新增 `getFavoriteStatus`）三端首屏调用 status 接口回显红心。
+3. **BUG3 优惠券有效期重构**：`Coupon` 模型字段 `validity_days`（3/7/15/30/60/90/180/365 之一）取代 `valid_start/valid_end`；`UserCoupon` 新增 `expire_at` + `source` + `grant_id`；`backend/app/main.py` 的 `lifespan` 加入 `_migrate_coupons_v2()` —— 加列 + 一次性 TRUNCATE 旧 `coupons/user_coupons`（受 `coupons_v2_truncated` SystemConfig 控制不重复执行）；H5 我的券页改为按 `uc.expire_at` 显示。
+4. **优惠券发放记录 + 4 种发放方式**：
+   - 新增 `backend/app/api/coupons_admin.py`（独立 router prefix `/api/admin/coupons` + `/api/admin/partners` + `/api/admin/new-user-coupons`）
+   - 新模型：`CouponGrant`、`CouponCodeBatch`、`CouponRedeemCode`、`Partner`
+   - A 自助 / B 定向（用户ID + 手机号 + 标签：等级 + 注册≤N天） / D 新人券（`SystemConfig.NEW_USER_COUPON_KEY` + `auth.py.register` 钩子调用 `_grant_new_user_coupons`）/ F 兑换码（一码通用 + 一次性唯一码 16 位字母数字）
+   - Admin Web：重写 `admin-web/src/app/(admin)/product-system/coupons/page.tsx` 含发放记录抽屉（4 维筛选 + 批量回收 + 导出 CSV）+ 4 种发放方式弹窗 + 兑换码批次弹窗；新增 `new-user-coupons/page.tsx`（Transfer 选择新人券）+ `partners/page.tsx`（合作方 + 对账）。
+   - H5：`my-coupons/page.tsx` 顶部新增"兑换码"入口，`POST /api/coupons/redeem`，含 10 次/分钟限流。
+5. **资金安全审核体系**：
+   - 新增 `backend/app/api/audit.py`（`audit_phone_router` + `audit_router`）+ `backend/app/schemas/audit.py`
+   - 新模型：`AuditPhone`、`AuditRequest`、`AuditCode`、`AuditLockout`
+   - 短信验证码：6 位、5 分钟、3 次错误锁 10 分钟（`_check_lockout`/`_record_fail`/`_clear_fail`）
+   - 风险分级：低（≤10元 且 ≤100张）任一审批 / 高（>50元 或 >1000张 或 >500 唯一码 或 全员发放）联合审批
+   - 审批通过自动执行 `payload`（`coupon_grant`/`coupon_recall`/`redeem_batch`）；退回必填原因；可重新提交
+   - Admin Web：新增 `admin/audit/phones/page.tsx`（手机号 CRUD）+ `admin/audit/center/page.tsx`（列表 + 详情抽屉 + 审批弹窗 + 退回弹窗）；菜单注册到"系统管理"子菜单。
+6. **第三方合作方 + 5 个 OpenAPI**：
+   - 新增 `backend/app/api/third_party_openapi.py`（prefix `/api/openapi`）
+   - `authenticate_partner` 依赖：API Key 查找 + HMAC-SHA256 签名（method+path+timestamp+nonce+body） + 5 分钟时效 + nonce 防重放
+   - 5 个端点：`POST /redeem-codes/batch-fetch` / `mark-sold` / `disable` / `redeem-callback` 与 `GET /redeem-codes/{code}/status`
+   - 一次性唯一码：16 位字母数字（去除 O/0/I/1/L），单批最多 100,000 个，CSV 导出
+
+### 关键文件
+- 后端：`backend/app/models/models.py`（+8 表）、`backend/app/main.py`（注册 router + V2 迁移）、`backend/app/api/{coupons,coupons_admin,audit,third_party_openapi,auth,favorites}.py`、`backend/app/schemas/{coupons,audit}.py`
+- Admin Web：`admin-web/src/app/(admin)/layout.tsx`（菜单）、`product-system/{coupons,new-user-coupons,partners}/page.tsx`、`audit/{phones,center}/page.tsx`
+- H5：`h5-web/src/app/{tcm,product/[id],my-coupons}/page.tsx`
+- 小程序：`miniprogram/pages/product-detail/index.js`
+- Flutter：`flutter_app/lib/screens/product/product_detail_screen.dart`、`flutter_app/lib/services/api_service.dart`
+
+### 用户手册
+- `user_docs/本期需求_优惠券V2_审核体系_第三方OpenAPI_使用手册.md`
+
+### 部署验证
+- 4 容器（mysql/backend/admin/h5）全部 Up，db healthy
+- gateway `conf.d/6b099ed3-7175-4a78-91f4-44570c84ed27.conf` 合并保留原 `/downloads/` `/apk/`，SSL 快照前后一致
+- 全量 727 条链接 100% 可达（174 条 2xx + 315 条 401 + 220 条 405 + 11 条 404+ 7 条 422，无 5xx 无 redirect loop）
+- Git: master @ `9a9c655` 已 push
+
+---
+
+## Previous Update: 4 BUG 整体修复批次 (2026-04-19)
 
 ### 概要
 4 个 BUG 整体修复，覆盖 后端 / H5 / 小程序 / Flutter 全端：
