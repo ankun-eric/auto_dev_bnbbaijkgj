@@ -35,6 +35,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           _loading = false;
         });
       }
+      // 收藏状态回显
+      try {
+        final favRes = await _api.getFavoriteStatus(id, 'product');
+        if (favRes.data is Map && mounted) {
+          setState(() => _isFavorited = favRes.data['is_favorited'] == true);
+        }
+      } catch (_) { /* 未登录或失败时静默 */ }
     } catch (e) {
       setState(() => _loading = false);
       if (mounted) {
@@ -50,8 +57,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       if (res.data is Map) {
         setState(() => _isFavorited = res.data['is_favorited'] == true);
         if (mounted) {
+          final msg = _isFavorited ? '收藏成功，可在「我的-收藏」中查看' : '已取消收藏';
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(_isFavorited ? '已收藏' : '已取消收藏'), duration: const Duration(seconds: 1)),
+            SnackBar(content: Text(msg), duration: const Duration(seconds: 2)),
           );
         }
       }

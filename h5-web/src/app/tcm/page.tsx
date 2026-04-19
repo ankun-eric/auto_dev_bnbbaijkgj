@@ -240,6 +240,10 @@ export default function TcmPage() {
     finalAnswers: Record<number, string>,
     memberId: number | null,
   ) => {
+    // 幂等防重复点击：若正在提交则直接忽略
+    if (submittingTest) {
+      return;
+    }
     const answersArr = Object.entries(finalAnswers).map(([qid, value]) => ({
       question_id: Number(qid),
       answer_value: String(value),
@@ -267,8 +271,27 @@ export default function TcmPage() {
       setShowResult(true);
       fetchHistory();
     } catch (err: any) {
-      const detail = err?.response?.data?.detail || '提交测评失败，请重试';
-      Toast.show({ content: typeof detail === 'string' ? detail : '提交测评失败，请重试', icon: 'fail' });
+      // 真实错误透传到 Toast
+      const resp = err?.response;
+      const data = resp?.data;
+      let detail: string = '提交测评失败，请重试';
+      if (data) {
+        if (typeof data === 'string') {
+          detail = data;
+        } else if (typeof data?.detail === 'string') {
+          detail = data.detail;
+        } else if (Array.isArray(data?.detail)) {
+          detail = data.detail.map((d: any) => d?.msg || JSON.stringify(d)).join('；');
+        } else if (data?.message) {
+          detail = String(data.message);
+        } else {
+          try { detail = JSON.stringify(data); } catch {}
+        }
+      } else if (err?.message) {
+        detail = err.message;
+      }
+      const status = resp?.status ? `[${resp.status}] ` : '';
+      Toast.show({ content: `${status}${detail}`, icon: 'fail', duration: 4000 });
     } finally {
       setSubmittingTest(false);
     }

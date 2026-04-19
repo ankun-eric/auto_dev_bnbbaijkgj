@@ -2342,6 +2342,9 @@ class Coupon(Base):
     total_count = mapped_column(Integer, default=0)
     claimed_count = mapped_column(Integer, default=0)
     used_count = mapped_column(Integer, default=0)
+    # 仅"领取后 N 天"模式 (3/7/15/30/60/90/180/365)
+    validity_days = mapped_column(Integer, default=30, nullable=False)
+    # 兼容字段（已废弃，仅保留供历史数据迁移期读取，业务逻辑不再使用）
     valid_start = mapped_column(DateTime, nullable=True)
     valid_end = mapped_column(DateTime, nullable=True)
     status = mapped_column(Enum(CouponStatus), default=CouponStatus.active)
@@ -2358,10 +2361,182 @@ class UserCoupon(Base):
     status = mapped_column(Enum(UserCouponStatus), default=UserCouponStatus.unused)
     used_at = mapped_column(DateTime, nullable=True)
     order_id = mapped_column(Integer, nullable=True)
+    # 领取时根据 Coupon.validity_days 计算的过期时刻
+    expire_at = mapped_column(DateTime, nullable=True, index=True)
+    # 来源：self / direct / new_user / redeem_code
+    source = mapped_column(String(30), default="self")
+    grant_id = mapped_column(Integer, nullable=True, index=True)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
 
     user = relationship("User")
     coupon = relationship("Coupon")
+
+
+# ──────────────── 优惠券发放 / 兑换码 / 第三方合作方 ────────────────
+
+
+class CouponGrant(Base):
+    """优惠券发放记录"""
+    __tablename__ = "coupon_grants"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    coupon_id = mapped_column(Integer, ForeignKey("coupons.id"), nullable=False, index=True)
+    user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    user_phone = mapped_column(String(20), nullable=True, index=True)
+    # self / direct / new_user / redeem_code
+    method = mapped_column(String(30), nullable=False, index=True)
+    # granted / used / recalled / expired
+    status = mapped_column(String(30), default="granted", index=True)
+    granted_at = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    used_at = mapped_column(DateTime, nullable=True)
+    order_no = mapped_column(String(50), nullable=True)
+    operator_id = mapped_column(Integer, nullable=True)
+    operator_name = mapped_column(String(100), nullable=True)
+    user_coupon_id = mapped_column(Integer, ForeignKey("user_coupons.id"), nullable=True, index=True)
+    # 关联的发放任务 / 兑换码批次
+    batch_id = mapped_column(Integer, nullable=True, index=True)
+    redeem_code = mapped_column(String(64), nullable=True)
+    # 回收原因
+    recall_reason = mapped_column(Text, nullable=True)
+    extra = mapped_column(JSON, nullable=True)
+
+
+class CouponCodeBatch(Base):
+    """兑换码批次（A: 一码通用 / C+: 一次性唯一码）"""
+    __tablename__ = "coupon_code_batches"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    coupon_id = mapped_column(Integer, ForeignKey("coupons.id"), nullable=False, index=True)
+    # universal / unique
+    code_type = mapped_column(String(20), nullable=False, default="universal")
+    name = mapped_column(String(200), nullable=True)
+    # 总码数（unique 模式）
+    total_count = mapped_column(Integer, default=0)
+    # 已使用数
+    used_count = mapped_column(Integer, default=0)
+    # 一码通用模式下的统一码
+    universal_code = mapped_column(String(64), nullable=True, index=True)
+    # 每码 / 每用户 限领次数（universal 模式：每个用户最多兑换次数；unique 模式恒为 1）
+    per_user_limit = mapped_column(Integer, default=1)
+    # 第三方合作方ID（C+ 模式必填）
+    partner_id = mapped_column(Integer, ForeignKey("partners.id"), nullable=True, index=True)
+    # 状态：active / disabled
+    status = mapped_column(String(20), default="active")
+    created_by = mapped_column(Integer, nullable=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class CouponRedeemCode(Base):
+    """兑换码池（仅 unique 模式逐条入库）"""
+    __tablename__ = "coupon_redeem_codes"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    batch_id = mapped_column(Integer, ForeignKey("coupon_code_batches.id"), nullable=False, index=True)
+    coupon_id = mapped_column(Integer, ForeignKey("coupons.id"), nullable=False, index=True)
+    code = mapped_column(String(64), unique=True, nullable=False, index=True)
+    # available / sold / used / disabled
+    status = mapped_column(String(20), default="available", index=True)
+    # 第三方售出状态回传（available -> sold -> used）
+    sold_at = mapped_column(DateTime, nullable=True)
+    sold_to_user_phone = mapped_column(String(50), nullable=True)
+    used_at = mapped_column(DateTime, nullable=True)
+    used_by_user_id = mapped_column(Integer, nullable=True)
+    partner_id = mapped_column(Integer, ForeignKey("partners.id"), nullable=True, index=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class Partner(Base):
+    """第三方合作方"""
+    __tablename__ = "partners"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name = mapped_column(String(200), nullable=False)
+    contact_name = mapped_column(String(100), nullable=True)
+    contact_phone = mapped_column(String(50), nullable=True)
+    # 接入模式：offline_only / api / both
+    mode = mapped_column(String(20), default="api")
+    api_key = mapped_column(String(64), unique=True, nullable=True, index=True)
+    # SHA256 签名密钥（明文存储，仅管理员可见；可以加密但简化）
+    api_secret = mapped_column(String(128), nullable=True)
+    # active / disabled
+    status = mapped_column(String(20), default="active")
+    notes = mapped_column(Text, nullable=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+# ──────────────── 资金安全审核 ────────────────
+
+
+class AuditPhone(Base):
+    """系统管理 → 审核手机号配置"""
+    __tablename__ = "audit_phones"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    phone = mapped_column(String(20), nullable=False, index=True)
+    note = mapped_column(String(200), nullable=True)
+    enabled = mapped_column(Boolean, default=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class AuditRequest(Base):
+    """审核申请单（优惠券发放/批量回收/兑换码批量等）"""
+    __tablename__ = "audit_requests"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    # 业务类型：coupon_grant / coupon_recall / redeem_batch / redeem_disable
+    biz_type = mapped_column(String(40), nullable=False, index=True)
+    # 风险级别：low / high
+    risk_level = mapped_column(String(10), nullable=False, default="low")
+    # 状态：pending / approved / rejected / returned / cancelled
+    status = mapped_column(String(20), default="pending", index=True)
+    # 业务参数（payload，审核通过后回放执行）
+    payload = mapped_column(JSON, nullable=False)
+    # 摘要信息（用于审核列表展示）
+    summary = mapped_column(String(500), nullable=True)
+    # 估算面值与张数（用于风险评级展示）
+    est_amount = mapped_column(Numeric(12, 2), default=0)
+    est_count = mapped_column(Integer, default=0)
+    # 审批模式：any（任一通过）/ joint（联合）
+    approval_mode = mapped_column(String(20), default="any")
+    requester_id = mapped_column(Integer, nullable=True)
+    requester_name = mapped_column(String(100), nullable=True)
+    return_reason = mapped_column(Text, nullable=True)
+    modify_note = mapped_column(Text, nullable=True)
+    approver_id = mapped_column(Integer, nullable=True)
+    approver_name = mapped_column(String(100), nullable=True)
+    approved_at = mapped_column(DateTime, nullable=True)
+    # 已通过的审核人列表（联合模式用）
+    approvals = mapped_column(JSON, nullable=True)
+    # 操作留痕
+    history = mapped_column(JSON, nullable=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class AuditCode(Base):
+    """审核短信验证码记录"""
+    __tablename__ = "audit_codes"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    phone = mapped_column(String(20), nullable=False, index=True)
+    code = mapped_column(String(10), nullable=False)
+    request_id = mapped_column(Integer, nullable=True, index=True)
+    expires_at = mapped_column(DateTime, nullable=False)
+    used = mapped_column(Boolean, default=False)
+    created_at = mapped_column(DateTime, default=datetime.utcnow, index=True)
+
+
+class AuditLockout(Base):
+    """验证码错误锁定记录"""
+    __tablename__ = "audit_lockouts"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    phone = mapped_column(String(20), nullable=False, index=True)
+    fail_count = mapped_column(Integer, default=0)
+    locked_until = mapped_column(DateTime, nullable=True)
+    last_fail_at = mapped_column(DateTime, default=datetime.utcnow)
 
 
 # ──────────────── 统一订单 ────────────────

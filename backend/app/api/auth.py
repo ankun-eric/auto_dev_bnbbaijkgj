@@ -301,6 +301,11 @@ async def register(data: UserCreate, db: AsyncSession = Depends(get_db)):
 
     await award_invite_points(db, user)
 
+    try:
+        await _grant_new_user_coupons(db, user)
+    except Exception as e:
+        logger.error("Failed to grant new user coupons for %s: %s", user.id, e)
+
     needs_profile_completion = (
         register_settings["show_profile_completion_prompt"]
         and not await is_profile_completed(db, user.id)
@@ -314,6 +319,48 @@ async def register(data: UserCreate, db: AsyncSession = Depends(get_db)):
         needs_profile_completion=needs_profile_completion,
         session_context=session_context,
     )
+
+
+async def _grant_new_user_coupons(db: AsyncSession, user: User) -> None:
+    """注册自动发放新人券（D 模式）。每人每券 1 张。"""
+    import json as _json
+    from datetime import timedelta as _td
+    from app.models.models import Coupon as _Coupon, UserCoupon as _UC, CouponGrant as _CG
+
+    cfg = (await db.execute(
+        select(SystemConfig).where(SystemConfig.config_key == "new_user_coupon_ids")
+    )).scalar_one_or_none()
+    if not cfg or not cfg.config_value:
+        return
+    try:
+        ids = _json.loads(cfg.config_value)
+    except Exception:
+        return
+    if not ids:
+        return
+
+    rs = await db.execute(select(_Coupon).where(_Coupon.id.in_(ids)))
+    coupons = rs.scalars().all()
+    now = datetime.utcnow()
+    for c in coupons:
+        try:
+            status_val = c.status.value if hasattr(c.status, "value") else c.status
+            if status_val != "active":
+                continue
+            existing = await db.execute(select(_UC).where(_UC.user_id == user.id, _UC.coupon_id == c.id))
+            if existing.scalar_one_or_none():
+                continue
+            days = c.validity_days or 30
+            uc = _UC(user_id=user.id, coupon_id=c.id,
+                     expire_at=now + _td(days=days), source="new_user")
+            db.add(uc)
+            await db.flush()
+            c.claimed_count = (c.claimed_count or 0) + 1
+            db.add(_CG(coupon_id=c.id, user_id=user.id, user_phone=user.phone,
+                       method="new_user", status="granted", granted_at=now,
+                       user_coupon_id=uc.id))
+        except Exception as e:
+            logger.error("Grant new-user coupon %s failed: %s", c.id, e)
 
 
 @router.post("/login", response_model=TokenResponse)

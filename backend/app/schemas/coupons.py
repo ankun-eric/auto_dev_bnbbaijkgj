@@ -4,6 +4,9 @@ from typing import Any, Optional
 from pydantic import BaseModel, ConfigDict
 
 
+VALIDITY_DAYS_OPTIONS = [3, 7, 15, 30, 60, 90, 180, 365]
+
+
 class CouponCreate(BaseModel):
     name: str
     type: str
@@ -13,8 +16,7 @@ class CouponCreate(BaseModel):
     scope: str = "all"
     scope_ids: Optional[Any] = None
     total_count: int = 0
-    valid_start: Optional[datetime] = None
-    valid_end: Optional[datetime] = None
+    validity_days: int = 30
     status: str = "active"
 
 
@@ -27,8 +29,7 @@ class CouponUpdate(BaseModel):
     scope: Optional[str] = None
     scope_ids: Optional[Any] = None
     total_count: Optional[int] = None
-    valid_start: Optional[datetime] = None
-    valid_end: Optional[datetime] = None
+    validity_days: Optional[int] = None
     status: Optional[str] = None
 
 
@@ -44,8 +45,7 @@ class CouponResponse(BaseModel):
     total_count: int
     claimed_count: int
     used_count: int
-    valid_start: Optional[datetime] = None
-    valid_end: Optional[datetime] = None
+    validity_days: int
     status: str
     created_at: datetime
 
@@ -59,6 +59,8 @@ class UserCouponResponse(BaseModel):
     status: str
     used_at: Optional[datetime] = None
     order_id: Optional[int] = None
+    expire_at: Optional[datetime] = None
+    source: Optional[str] = None
     created_at: datetime
     coupon: Optional[CouponResponse] = None
 
@@ -71,3 +73,97 @@ class CouponClaimRequest(BaseModel):
 
 class CouponDistributeRequest(BaseModel):
     user_ids: list[int]
+
+
+# ─── 4 种发放方式 ───
+
+
+class DirectGrantRequest(BaseModel):
+    """B 定向发放：手动选用户/手机号"""
+    coupon_id: int
+    user_ids: Optional[list[int]] = None
+    phones: Optional[list[str]] = None
+    # 标签筛选条件（用户等级/注册时长/消费行为）
+    filter_tags: Optional[dict] = None
+    note: Optional[str] = None
+
+
+class NewUserCouponRuleRequest(BaseModel):
+    """D 新人券：注册自动发"""
+    coupon_id: int
+    enabled: bool = True
+
+
+class RedeemCodeBatchCreate(BaseModel):
+    """F 兑换码批次创建"""
+    coupon_id: int
+    code_type: str = "universal"  # universal / unique
+    name: Optional[str] = None
+    total_count: Optional[int] = 0
+    universal_code: Optional[str] = None
+    per_user_limit: int = 1
+    partner_id: Optional[int] = None
+
+
+class RedeemCodeRedeemRequest(BaseModel):
+    code: str
+
+
+# ─── 发放记录 ───
+
+
+class CouponGrantResponse(BaseModel):
+    id: int
+    coupon_id: int
+    user_id: Optional[int] = None
+    user_phone: Optional[str] = None
+    method: str
+    status: str
+    granted_at: datetime
+    used_at: Optional[datetime] = None
+    order_no: Optional[str] = None
+    operator_name: Optional[str] = None
+    redeem_code: Optional[str] = None
+    recall_reason: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class GrantRecallRequest(BaseModel):
+    grant_ids: list[int]
+    reason: str
+
+
+# ─── 第三方合作方 ───
+
+
+class PartnerCreate(BaseModel):
+    name: str
+    contact_name: Optional[str] = None
+    contact_phone: Optional[str] = None
+    mode: str = "api"
+    notes: Optional[str] = None
+
+
+class PartnerUpdate(BaseModel):
+    name: Optional[str] = None
+    contact_name: Optional[str] = None
+    contact_phone: Optional[str] = None
+    mode: Optional[str] = None
+    status: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class PartnerResponse(BaseModel):
+    id: int
+    name: str
+    contact_name: Optional[str] = None
+    contact_phone: Optional[str] = None
+    mode: str
+    api_key: Optional[str] = None
+    api_secret: Optional[str] = None
+    status: str
+    notes: Optional[str] = None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)

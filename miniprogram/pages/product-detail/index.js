@@ -28,6 +28,12 @@ Page({
         reviews: product.reviews || [],
         loading: false
       });
+      // 收藏状态回显
+      try {
+        const fav = await get(`/api/favorites/status?content_type=product&content_id=${this.data.id}`);
+        const favData = fav.data || fav;
+        this.setData({ isFavorited: Boolean(favData && favData.is_favorited) });
+      } catch (_) { /* 未登录或失败时静默 */ }
     } catch (e) {
       this.setData({ loading: false });
       console.log('loadProduct error', e);
@@ -53,11 +59,17 @@ Page({
 
   async toggleFavorite() {
     try {
-      await post(`/api/favorites?content_type=product&content_id=${this.data.id}`);
-      const newVal = !this.data.isFavorited;
+      const res = await post(`/api/favorites?content_type=product&content_id=${this.data.id}`);
+      const data = res.data || res || {};
+      const newVal = data.is_favorited != null ? Boolean(data.is_favorited) : !this.data.isFavorited;
       this.setData({ isFavorited: newVal });
-      wx.showToast({ title: newVal ? '已收藏' : '已取消收藏', icon: 'success' });
+      wx.showToast({
+        title: newVal ? '收藏成功，可在「我的-收藏」中查看' : '已取消收藏',
+        icon: 'none',
+        duration: 2000,
+      });
     } catch (e) {
+      wx.showToast({ title: '操作失败', icon: 'none' });
       console.log('toggleFavorite error', e);
     }
   },

@@ -13,6 +13,7 @@ from app.api import (
     admin_messages,
     admin_search,
     ai_center,
+    audit,
     auth,
     bottom_nav,
     chat,
@@ -22,6 +23,7 @@ from app.api import (
     content,
     cos,
     coupons,
+    coupons_admin,
     customer_service,
     drug,
     drug_identify_share,
@@ -57,6 +59,7 @@ from app.api import (
     sms,
     tcm,
     tcm_config,
+    third_party_openapi,
     tts,
     unified_orders,
     upload,
@@ -132,12 +135,76 @@ async def _migrate_points_enums_and_config():
         _logger.error(f"积分枚举/配置迁移异常（不影响启动）: {e}")
 
 
+async def _migrate_coupons_v2():
+    """v2 优惠券有效期重构：增加 validity_days 字段 + TRUNCATE 旧券。"""
+    import logging as _l
+    _logger = _l.getLogger(__name__)
+    from app.core.database import async_session as _async_session
+    try:
+        async with _async_session() as db:
+            from sqlalchemy import text
+            try:
+                await db.execute(text(
+                    "ALTER TABLE coupons ADD COLUMN IF NOT EXISTS validity_days INT NOT NULL DEFAULT 30"
+                ))
+            except Exception:
+                # MySQL 5.7 不支持 IF NOT EXISTS；用 information_schema 检查
+                try:
+                    chk = await db.execute(text(
+                        "SELECT COUNT(*) FROM information_schema.columns "
+                        "WHERE table_schema = DATABASE() AND table_name = 'coupons' AND column_name = 'validity_days'"
+                    ))
+                    if (chk.scalar() or 0) == 0:
+                        await db.execute(text("ALTER TABLE coupons ADD COLUMN validity_days INT NOT NULL DEFAULT 30"))
+                except Exception as e:
+                    _logger.debug("validity_days 列添加跳过: %s", e)
+            try:
+                chk2 = await db.execute(text(
+                    "SELECT COUNT(*) FROM information_schema.columns "
+                    "WHERE table_schema = DATABASE() AND table_name = 'user_coupons' AND column_name = 'expire_at'"
+                ))
+                if (chk2.scalar() or 0) == 0:
+                    await db.execute(text("ALTER TABLE user_coupons ADD COLUMN expire_at DATETIME NULL"))
+                chk3 = await db.execute(text(
+                    "SELECT COUNT(*) FROM information_schema.columns "
+                    "WHERE table_schema = DATABASE() AND table_name = 'user_coupons' AND column_name = 'source'"
+                ))
+                if (chk3.scalar() or 0) == 0:
+                    await db.execute(text("ALTER TABLE user_coupons ADD COLUMN source VARCHAR(30) DEFAULT 'self'"))
+                chk4 = await db.execute(text(
+                    "SELECT COUNT(*) FROM information_schema.columns "
+                    "WHERE table_schema = DATABASE() AND table_name = 'user_coupons' AND column_name = 'grant_id'"
+                ))
+                if (chk4.scalar() or 0) == 0:
+                    await db.execute(text("ALTER TABLE user_coupons ADD COLUMN grant_id INT NULL"))
+            except Exception as e:
+                _logger.debug("user_coupons 字段添加跳过: %s", e)
+
+            # 迁移标记键：仅首次启动 v2 时 TRUNCATE 旧券
+            from app.models.models import SystemConfig as _SC
+            from sqlalchemy import select as _sel
+            mark = (await db.execute(_sel(_SC).where(_SC.config_key == "coupons_v2_truncated"))).scalar_one_or_none()
+            if not mark:
+                try:
+                    await db.execute(text("DELETE FROM user_coupons"))
+                    await db.execute(text("DELETE FROM coupons"))
+                    db.add(_SC(config_key="coupons_v2_truncated", config_value="1", config_type="coupon"))
+                    _logger.info("v2 优惠券：旧券与已领取记录已 TRUNCATE")
+                except Exception as e:
+                    _logger.error("旧优惠券 TRUNCATE 失败: %s", e)
+
+            await db.commit()
+    except Exception as e:
+        _logger.error("优惠券 v2 迁移异常（不影响启动）: %s", e)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
         await sync_register_schema(conn)
     await _migrate_points_enums_and_config()
+    await _migrate_coupons_v2()
     await migrate_existing_users_user_no()
     from app.init_data import init_default_data
     await init_default_data()
@@ -234,6 +301,12 @@ app.include_router(unified_orders.router)
 app.include_router(member_qr.router)
 app.include_router(favorites.router)
 app.include_router(coupons.router)
+app.include_router(coupons_admin.router)
+app.include_router(coupons_admin.partner_router)
+app.include_router(coupons_admin.new_user_router)
+app.include_router(audit.audit_phone_router)
+app.include_router(audit.audit_router)
+app.include_router(third_party_openapi.router)
 app.include_router(addresses.router)
 app.include_router(product_admin.router)
 app.include_router(users.router)

@@ -1010,6 +1010,13 @@ class ApiService {
     });
   }
 
+  Future<Response> getFavoriteStatus(int contentId, String contentType) async {
+    return _dio.get('${ApiConfig.favorites}/status', queryParameters: {
+      'content_id': contentId,
+      'content_type': contentType,
+    });
+  }
+
   // Coupons
   Future<Response> getAvailableCoupons({int page = 1}) async {
     return _dio.get(ApiConfig.availableCoupons, queryParameters: {'page': page});

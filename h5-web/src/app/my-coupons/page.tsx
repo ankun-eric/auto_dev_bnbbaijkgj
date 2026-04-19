@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { NavBar, Tabs, Empty, SpinLoading, Button, Tag, InfiniteScroll } from 'antd-mobile';
+import { NavBar, Tabs, Empty, SpinLoading, Button, Tag, InfiniteScroll, Dialog, Input, Toast } from 'antd-mobile';
 import api from '@/lib/api';
 
 interface CouponInfo {
@@ -12,8 +12,7 @@ interface CouponInfo {
   condition_amount: number;
   discount_value: number;
   discount_rate: number;
-  valid_start: string | null;
-  valid_end: string | null;
+  validity_days?: number;
 }
 
 interface UserCoupon {
@@ -22,6 +21,8 @@ interface UserCoupon {
   coupon_id: number;
   status: string;
   used_at: string | null;
+  expire_at: string | null;
+  source?: string;
   coupon: CouponInfo | null;
   created_at: string;
 }
@@ -83,9 +84,9 @@ export default function MyCouponsPage() {
     return map[type] || type;
   };
 
-  const getCouponExpiryStatus = (validEnd: string | null): 'expiring' | 'long_term' | 'normal' => {
-    if (!validEnd) return 'long_term';
-    const endTime = new Date(validEnd).getTime();
+  const getCouponExpiryStatus = (expireAt: string | null): 'expiring' | 'normal' => {
+    if (!expireAt) return 'normal';
+    const endTime = new Date(expireAt).getTime();
     if (Number.isNaN(endTime)) return 'normal';
     const diffMs = endTime - Date.now();
     const sevenDays = 7 * 24 * 60 * 60 * 1000;
@@ -93,9 +94,45 @@ export default function MyCouponsPage() {
     return 'normal';
   };
 
+  const handleRedeem = async () => {
+    let inputCode = '';
+    const ok = await Dialog.confirm({
+      title: '兑换码兑换',
+      content: (
+        <Input
+          placeholder="请输入兑换码"
+          maxLength={32}
+          onChange={(v) => { inputCode = v.trim(); }}
+          style={{ '--font-size': '16px' } as any}
+        />
+      ),
+      confirmText: '兑换',
+    });
+    if (!ok) return;
+    if (!inputCode) {
+      Toast.show({ content: '请输入兑换码', icon: 'fail' });
+      return;
+    }
+    try {
+      const res: any = await api.post('/api/coupons/redeem', { code: inputCode });
+      const data = res.data || res;
+      Toast.show({ content: data?.message || '兑换成功', icon: 'success' });
+      setLoading(true);
+      setPage(1);
+      fetchCoupons(1, true);
+    } catch (err: any) {
+      const detail = err?.response?.data?.detail || err?.message || '兑换失败';
+      Toast.show({ content: String(detail), icon: 'fail', duration: 3000 });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
-      <NavBar onBack={() => router.back()} style={{ background: '#fff' }}>
+      <NavBar
+        onBack={() => router.back()}
+        style={{ background: '#fff' }}
+        right={<a onClick={handleRedeem} style={{ color: '#52c41a', fontSize: 13 }}>兑换码</a>}
+      >
         我的优惠券
       </NavBar>
 
@@ -134,9 +171,8 @@ export default function MyCouponsPage() {
             const coupon = uc.coupon;
             if (!coupon) return null;
             const isDisabled = activeTab !== 'unused';
-            const expiryStatus = getCouponExpiryStatus(coupon.valid_end);
+            const expiryStatus = getCouponExpiryStatus(uc.expire_at);
             const isExpiring = expiryStatus === 'expiring' && !isDisabled;
-            const isLongTerm = expiryStatus === 'long_term';
             return (
               <div
                 key={uc.id}
@@ -184,26 +220,14 @@ export default function MyCouponsPage() {
                         即将到期
                       </Tag>
                     )}
-                    {isLongTerm && (
-                      <Tag
-                        style={{
-                          '--background-color': '#f6ffed',
-                          '--text-color': '#52c41a',
-                          '--border-color': '#b7eb8f',
-                          fontSize: 10,
-                        }}
-                      >
-                        长期有效
-                      </Tag>
-                    )}
                   </div>
                   <div
                     className="text-xs mt-1"
                     style={{ color: isExpiring ? '#f5222d' : '#999' }}
                   >
-                    {coupon.valid_end
-                      ? `有效期至 ${new Date(coupon.valid_end).toLocaleDateString('zh-CN')}`
-                      : '长期有效'}
+                    {uc.expire_at
+                      ? `有效期至 ${new Date(uc.expire_at).toLocaleDateString('zh-CN')}`
+                      : `领取后 ${coupon.validity_days || 30} 天内有效`}
                   </div>
                   {isDisabled && uc.used_at && (
                     <div className="text-xs text-gray-400 mt-0.5">

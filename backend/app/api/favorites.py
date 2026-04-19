@@ -41,7 +41,25 @@ async def toggle_favorite(
     )
     db.add(fav)
     await db.flush()
-    return {"message": "收藏成功", "is_favorited": True}
+    return {"message": "收藏成功，可在「我的-收藏」中查看", "is_favorited": True}
+
+
+@router.get("/status")
+async def favorite_status(
+    content_type: str,
+    content_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """商品/文章详情页加载时回显收藏状态"""
+    result = await db.execute(
+        select(Favorite).where(
+            Favorite.user_id == current_user.id,
+            Favorite.content_type == content_type,
+            Favorite.content_id == content_id,
+        )
+    )
+    return {"is_favorited": result.scalar_one_or_none() is not None}
 
 
 @router.get("")

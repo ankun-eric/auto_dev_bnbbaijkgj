@@ -62,6 +62,12 @@ export default function ProductDetailPage() {
     }).catch(() => {
       Toast.show({ content: '加载失败' });
     }).finally(() => setLoading(false));
+
+    // 收藏状态回显
+    api.get(`/api/favorites/status?content_type=product&content_id=${productId}`).then((res: any) => {
+      const data = res.data || res;
+      setFavorited(Boolean(data?.is_favorited));
+    }).catch(() => { /* 未登录或失败时静默 */ });
   }, [productId]);
 
   const handleToggleFavorite = async () => {
@@ -69,7 +75,11 @@ export default function ProductDetailPage() {
       const res: any = await api.post(`/api/favorites?content_type=product&content_id=${productId}`);
       const data = res.data || res;
       setFavorited(data.is_favorited);
-      Toast.show({ content: data.message });
+      // 收藏成功统一文案；取消收藏沿用后端默认文案
+      const msg = data.is_favorited
+        ? '收藏成功，可在「我的-收藏」中查看'
+        : (data.message || '已取消收藏');
+      Toast.show({ content: msg });
     } catch {
       Toast.show({ content: '操作失败' });
     }

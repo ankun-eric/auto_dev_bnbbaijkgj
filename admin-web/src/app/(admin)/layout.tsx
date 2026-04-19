@@ -37,6 +37,7 @@ import {
   ScanOutlined,
   IdcardOutlined,
   PieChartOutlined,
+  KeyOutlined,
 } from '@ant-design/icons';
 import { useRouter, usePathname } from 'next/navigation';
 import type { MenuProps } from 'antd';
@@ -132,6 +133,8 @@ const menuItems: MenuItem[] = [
       { key: '/product-system/products', icon: <ShopOutlined />, label: '商品管理' },
       { key: '/product-system/orders', icon: <ShoppingCartOutlined />, label: '订单明细' },
       { key: '/product-system/coupons', icon: <GiftOutlined />, label: '优惠券管理' },
+      { key: '/product-system/new-user-coupons', icon: <GiftOutlined />, label: '新人券池' },
+      { key: '/product-system/partners', icon: <KeyOutlined />, label: '合作方管理' },
       { key: '/product-system/redemptions', icon: <ScanOutlined />, label: '核销管理' },
       { key: '/product-system/visits', icon: <IdcardOutlined />, label: '进店记录' },
       { key: '/product-system/statistics', icon: <PieChartOutlined />, label: '订单统计' },
@@ -197,6 +200,8 @@ const menuItems: MenuItem[] = [
       { key: '/wechat-push', label: '微信推送管理' },
       { key: '/email-notify', label: '邮件通知管理' },
       { key: '/cos-config', label: '存储配置' },
+      { key: '/audit/phones', label: '审核手机号配置' },
+      { key: '/audit/center', label: '审核中心' },
     ],
   },
 ];
