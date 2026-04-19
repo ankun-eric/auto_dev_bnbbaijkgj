@@ -102,6 +102,10 @@ async def _init_admin(db: AsyncSession):
         if not existing_admin.password_hash or not verify_password(default_password, existing_admin.password_hash):
             existing_admin.password_hash = get_password_hash(default_password)
             changed = True
+        # V2.1：默认管理员保证 is_superuser=True，使其可执行优惠券下架
+        if not getattr(existing_admin, "is_superuser", False):
+            existing_admin.is_superuser = True
+            changed = True
         if changed:
             await db.flush()
             logger.info("Reset admin credentials to phone=%s", default_phone)
@@ -113,6 +117,7 @@ async def _init_admin(db: AsyncSession):
         nickname="平台管理员",
         role=UserRole.admin,
         status="active",
+        is_superuser=True,
     )
     db.add(admin)
     await db.flush()

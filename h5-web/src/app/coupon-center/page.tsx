@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { NavBar, Card, Button, Tag, Empty, SpinLoading, Toast } from 'antd-mobile';
+import { NavBar, Button, Tag, Empty, SpinLoading, Toast } from 'antd-mobile';
 import api from '@/lib/api';
 
 interface Coupon {
@@ -17,6 +17,11 @@ interface Coupon {
   valid_start: string | null;
   valid_end: string | null;
   status: string;
+  // V2.1：领券中心置灰新增字段
+  claimed?: boolean;
+  sold_out?: boolean;
+  button_text?: string;
+  button_disabled?: boolean;
 }
 
 export default function CouponCenterPage() {
@@ -25,24 +30,47 @@ export default function CouponCenterPage() {
   const [loading, setLoading] = useState(true);
   const [claimingIds, setClaimingIds] = useState<Set<number>>(new Set());
 
-  useEffect(() => {
+  const fetchCoupons = () => {
+    setLoading(true);
     api.get('/api/coupons/available').then((res: any) => {
       const data = res.data || res;
       setCoupons(data.items || data || []);
     }).catch(() => {}).finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchCoupons();
   }, []);
 
-  const handleClaim = async (couponId: number) => {
-    setClaimingIds((prev) => new Set(prev).add(couponId));
+  const isLoggedIn = (): boolean => {
+    if (typeof window === 'undefined') return false;
+    return !!(localStorage.getItem('access_token') || localStorage.getItem('token'));
+  };
+
+  const handleClaim = async (coupon: Coupon) => {
+    if (coupon.button_disabled) return;
+    if (!isLoggedIn()) {
+      Toast.show({ content: '请先登录后再领取', icon: 'fail' });
+      setTimeout(() => router.push('/login'), 800);
+      return;
+    }
+    setClaimingIds((prev) => new Set(prev).add(coupon.id));
     try {
-      await api.post('/api/coupons/claim', { coupon_id: couponId });
+      await api.post('/api/coupons/claim', { coupon_id: coupon.id });
       Toast.show({ content: '领取成功', icon: 'success' });
+      fetchCoupons();
     } catch (err: any) {
-      Toast.show({ content: err?.response?.data?.detail || '领取失败' });
+      const status = err?.response?.status;
+      if (status === 409) {
+        Toast.show({ content: '您已领取过该券', icon: 'fail' });
+        fetchCoupons();
+      } else {
+        Toast.show({ content: err?.response?.data?.detail || '领取失败', icon: 'fail' });
+      }
     } finally {
       setClaimingIds((prev) => {
         const next = new Set(prev);
-        next.delete(couponId);
+        next.delete(coupon.id);
         return next;
       });
     }
@@ -56,8 +84,20 @@ export default function CouponCenterPage() {
   };
 
   const getCouponTypeLabel = (type: string) => {
-    const map: Record<string, string> = { full_reduction: '满减', discount: '折扣', voucher: '代金券' };
+    const map: Record<string, string> = { full_reduction: '满减', discount: '折扣', voucher: '代金券', free_trial: '免费' };
     return map[type] || type;
+  };
+
+  // V2.1：本地兜底计算（如后端缺字段）
+  const computeButtonState = (coupon: Coupon) => {
+    if (typeof coupon.button_text === 'string' && typeof coupon.button_disabled === 'boolean') {
+      return { text: coupon.button_text, disabled: coupon.button_disabled };
+    }
+    if (coupon.claimed) return { text: '已领取', disabled: true };
+    if (coupon.sold_out || coupon.total_count - coupon.claimed_count <= 0) {
+      return { text: '已抢光', disabled: true };
+    }
+    return { text: '领取', disabled: false };
   };
 
   return (
@@ -66,12 +106,9 @@ export default function CouponCenterPage() {
         领券中心
       </NavBar>
 
-      <div
-        className="px-4 py-4"
-        style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}
-      >
+      <div className="px-4 py-4" style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}>
         <div className="text-white text-lg font-bold">优惠券等你来领</div>
-        <div className="text-white/70 text-xs mt-1">领取优惠券，享受更多折扣</div>
+        <div className="text-white/70 text-xs mt-1">每张券每人限领 1 次</div>
       </div>
 
       <div className="px-4 pt-3">
@@ -84,6 +121,7 @@ export default function CouponCenterPage() {
         ) : (
           coupons.map((coupon) => {
             const remaining = coupon.total_count - coupon.claimed_count;
+            const { text: btnText, disabled: btnDisabled } = computeButtonState(coupon);
             return (
               <div
                 key={coupon.id}
@@ -92,7 +130,11 @@ export default function CouponCenterPage() {
               >
                 <div
                   className="w-24 flex flex-col items-center justify-center text-white flex-shrink-0"
-                  style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}
+                  style={{
+                    background: btnDisabled
+                      ? 'linear-gradient(135deg, #bdbdbd, #9e9e9e)'
+                      : 'linear-gradient(135deg, #52c41a, #13c2c2)',
+                  }}
                 >
                   <div className="text-xl font-bold">{getCouponValue(coupon)}</div>
                   <div className="text-xs mt-0.5">满{coupon.condition_amount}可用</div>
@@ -100,11 +142,13 @@ export default function CouponCenterPage() {
                 <div className="flex-1 p-3 flex items-center justify-between min-w-0">
                   <div className="min-w-0">
                     <div className="flex items-center">
-                      <span className="font-medium text-sm truncate">{coupon.name}</span>
+                      <span className="font-medium text-sm truncate" style={{ color: btnDisabled ? '#999' : '#222' }}>
+                        {coupon.name}
+                      </span>
                       <Tag
                         style={{
-                          '--background-color': '#52c41a15',
-                          '--text-color': '#52c41a',
+                          '--background-color': btnDisabled ? '#eee' : '#52c41a15',
+                          '--text-color': btnDisabled ? '#999' : '#52c41a',
                           '--border-color': 'transparent',
                           fontSize: 10,
                           marginLeft: 6,
@@ -118,23 +162,26 @@ export default function CouponCenterPage() {
                         ? `有效期至 ${new Date(coupon.valid_end).toLocaleDateString('zh-CN')}`
                         : '长期有效'}
                     </div>
-                    <div className="text-xs text-gray-400 mt-0.5">剩余{remaining}张</div>
+                    <div className="text-xs text-gray-400 mt-0.5">剩余{Math.max(0, remaining)}张</div>
                   </div>
                   <Button
                     size="small"
                     loading={claimingIds.has(coupon.id)}
-                    disabled={remaining <= 0}
-                    onClick={() => handleClaim(coupon.id)}
+                    disabled={btnDisabled}
+                    onClick={() => handleClaim(coupon)}
                     style={{
                       borderRadius: 20,
-                      background: remaining > 0 ? 'linear-gradient(135deg, #52c41a, #13c2c2)' : '#e8e8e8',
-                      color: remaining > 0 ? '#fff' : '#999',
+                      background: btnDisabled
+                        ? '#e8e8e8'
+                        : 'linear-gradient(135deg, #52c41a, #13c2c2)',
+                      color: btnDisabled ? '#999' : '#fff',
                       border: 'none',
                       flexShrink: 0,
                       marginLeft: 12,
+                      minWidth: 72,
                     }}
                   >
-                    {remaining > 0 ? '立即领取' : '已领完'}
+                    {btnText}
                   </Button>
                 </div>
               </div>

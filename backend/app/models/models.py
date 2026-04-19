@@ -2348,6 +2348,13 @@ class Coupon(Base):
     valid_start = mapped_column(DateTime, nullable=True)
     valid_end = mapped_column(DateTime, nullable=True)
     status = mapped_column(Enum(CouponStatus), default=CouponStatus.active)
+    # ─── V2.1 新增：下架（禁删除）相关字段 ───
+    is_offline = mapped_column(Boolean, default=False, nullable=False, server_default="0", index=True)
+    offline_reason = mapped_column(String(255), nullable=True)
+    offline_at = mapped_column(DateTime, nullable=True)
+    offline_by = mapped_column(Integer, nullable=True)
+    # ─── V2.1 预留：积分兑换次数上限（None=无限） ───
+    points_exchange_limit = mapped_column(Integer, nullable=True)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -2423,6 +2430,13 @@ class CouponCodeBatch(Base):
     # 状态：active / disabled
     status = mapped_column(String(20), default="active")
     created_by = mapped_column(Integer, nullable=True)
+    # ─── V2.1：批次编号（强确认作废用） + 一码通用领取上限 + 兑换码独立有效期 + 整批作废 ───
+    batch_no = mapped_column(String(64), nullable=True, unique=True, index=True)
+    claim_limit = mapped_column(Integer, nullable=True)  # 一码通用必填；一次性唯一码自动 = total_count
+    expire_at = mapped_column(DateTime, nullable=True)
+    voided_at = mapped_column(DateTime, nullable=True, index=True)
+    voided_by = mapped_column(Integer, nullable=True)
+    void_reason = mapped_column(String(255), nullable=True)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
 
 
@@ -2442,7 +2456,26 @@ class CouponRedeemCode(Base):
     used_at = mapped_column(DateTime, nullable=True)
     used_by_user_id = mapped_column(Integer, nullable=True)
     partner_id = mapped_column(Integer, ForeignKey("partners.id"), nullable=True, index=True)
+    # ─── V2.1：单个作废 ───
+    voided_at = mapped_column(DateTime, nullable=True, index=True)
+    voided_by = mapped_column(Integer, nullable=True)
+    void_reason = mapped_column(String(255), nullable=True)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class CouponOpLog(Base):
+    """V2.1 优惠券操作日志（下架/上架/作废码/作废批次）"""
+    __tablename__ = "coupon_op_logs"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    op_type = mapped_column(String(32), nullable=False, index=True)  # offline/online/void_code/void_batch
+    target_type = mapped_column(String(32), nullable=False)  # coupon/batch/code
+    target_id = mapped_column(Integer, nullable=False, index=True)
+    operator_id = mapped_column(Integer, nullable=False, index=True)
+    operator_name = mapped_column(String(100), nullable=True)
+    reason = mapped_column(String(500), nullable=True)
+    extra = mapped_column(JSON, nullable=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow, index=True)
 
 
 class Partner(Base):

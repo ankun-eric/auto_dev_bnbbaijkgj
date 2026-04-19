@@ -693,19 +693,14 @@ async def admin_update_coupon(
     return CouponResponse.model_validate(coupon)
 
 
+# V2.1：DELETE /api/admin/coupons/{id} 已**移除**。
+# 优惠券一律不可物理删除，请改用 POST /api/admin/coupons/{id}/offline（仅超管）。
 @router.delete("/coupons/{coupon_id}")
-async def admin_delete_coupon(
-    coupon_id: int,
-    current_user=Depends(require_role("admin")),
-    db: AsyncSession = Depends(get_db),
-):
-    result = await db.execute(select(Coupon).where(Coupon.id == coupon_id))
-    coupon = result.scalar_one_or_none()
-    if not coupon:
-        raise HTTPException(status_code=404, detail="优惠券不存在")
-
-    await db.delete(coupon)
-    return {"message": "优惠券已删除"}
+async def admin_delete_coupon_removed(coupon_id: int):
+    raise HTTPException(
+        status_code=405,
+        detail="该接口已下线，请使用 POST /api/admin/coupons/{id}/offline 进行下架（仅超级管理员）",
+    )
 
 
 @router.post("/coupons/{coupon_id}/distribute")

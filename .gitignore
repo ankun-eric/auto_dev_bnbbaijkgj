@@ -54,6 +54,20 @@ _deploy_tmp/deploy.tar
 # Temporary SSH scripts
 ssh_*.py
 
+# Build cache
+*.tsbuildinfo
+
+# Backend test outputs
+backend/test_output.log
+
+# Deploy logs and reports
+deploy/deploy.log
+deploy/link_check_report.json
+
+# Deploy secrets (contains SSH password and Git token)
+deploy/deploy_msg.txt
+deploy/git_msg.txt
+
 # Temporary deploy / check scripts at repo root
 .deploy_remote.py
 .check_urls.py

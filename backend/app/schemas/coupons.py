@@ -18,6 +18,7 @@ class CouponCreate(BaseModel):
     total_count: int = 0
     validity_days: int = 30
     status: str = "active"
+    points_exchange_limit: Optional[int] = None  # V2.1 预留
 
 
 class CouponUpdate(BaseModel):
@@ -31,6 +32,7 @@ class CouponUpdate(BaseModel):
     total_count: Optional[int] = None
     validity_days: Optional[int] = None
     status: Optional[str] = None
+    points_exchange_limit: Optional[int] = None
 
 
 class CouponResponse(BaseModel):
@@ -47,9 +49,35 @@ class CouponResponse(BaseModel):
     used_count: int
     validity_days: int
     status: str
+    is_offline: bool = False
+    offline_reason: Optional[str] = None
+    offline_at: Optional[datetime] = None
+    points_exchange_limit: Optional[int] = None
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+# ─── V2.1 下架请求 ───
+
+OFFLINE_REASON_PRESETS = ["活动结束", "配置错误", "库存调整", "业务调整", "其他"]
+
+
+class CouponOfflineRequest(BaseModel):
+    reason_type: str  # 必填，预设之一
+    reason_detail: Optional[str] = None  # 仅当 reason_type='其他' 时必填，最少 5 字
+
+
+# ─── V2.1 兑换码作废请求 ───
+
+
+class CodeBatchVoidRequest(BaseModel):
+    batch_no_confirm: str  # 必填，必须与 batch.batch_no 完全一致
+    reason: str
+
+
+class CodeVoidRequest(BaseModel):
+    reason: str
 
 
 class UserCouponResponse(BaseModel):
@@ -103,6 +131,9 @@ class RedeemCodeBatchCreate(BaseModel):
     universal_code: Optional[str] = None
     per_user_limit: int = 1
     partner_id: Optional[int] = None
+    # V2.1：一码通用必填，一次性唯一码自动 = total_count
+    claim_limit: Optional[int] = None
+    expire_at: Optional[datetime] = None
 
 
 class RedeemCodeRedeemRequest(BaseModel):

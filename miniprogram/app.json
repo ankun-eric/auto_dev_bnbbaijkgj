@@ -60,6 +60,7 @@
     "pages/unified-order-detail/index",
     "pages/member-card/index",
     "pages/my-coupons/index",
+    "pages/coupon-center/index",
     "pages/my-favorites/index",
     "pages/my-addresses/index",
     "pages/review/index",

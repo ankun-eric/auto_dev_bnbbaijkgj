@@ -1,0 +1,33 @@
+<view class="coupon-center">
+  <view class="banner">
+    <view class="banner-title">优惠券等你来领</view>
+    <view class="banner-sub">每张券每人限领 1 次</view>
+  </view>
+
+  <view class="coupon-list">
+    <view class="coupon-card {{item._btnDisabled ? 'disabled' : ''}}"
+          wx:for="{{coupons}}" wx:key="id">
+      <view class="coupon-left">
+        <text class="coupon-amount">{{item._value}}</text>
+        <text class="coupon-condition">满{{item.condition_amount || 0}}可用</text>
+      </view>
+      <view class="coupon-divider"></view>
+      <view class="coupon-right">
+        <view class="coupon-name">{{item.name}}</view>
+        <view class="coupon-expire">{{item._expire}}</view>
+        <view class="coupon-stock">剩余 {{item._remaining}} 张</view>
+        <button class="coupon-btn {{item._btnDisabled ? 'btn-disabled' : ''}}"
+                disabled="{{item._btnDisabled}}"
+                loading="{{claimingId === item.id}}"
+                size="mini"
+                bindtap="claim" data-id="{{item.id}}">{{item._btnText}}</button>
+      </view>
+    </view>
+  </view>
+
+  <view class="loading-state" wx:if="{{loading}}">加载中...</view>
+  <view class="empty-state" wx:if="{{!loading && coupons.length === 0}}">
+    <text class="empty-icon">🎫</text>
+    <text>暂无可领取的优惠券</text>
+  </view>
+</view>

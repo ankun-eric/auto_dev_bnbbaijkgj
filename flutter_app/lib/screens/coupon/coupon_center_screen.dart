@@ -38,17 +38,41 @@ class _CouponCenterScreenState extends State<CouponCenterScreen> {
   }
 
   Future<void> _claimCoupon(Coupon coupon) async {
+    if (coupon.buttonDisabled || _claimedIds.contains(coupon.id)) return;
     try {
       await _api.claimCoupon(coupon.id);
       setState(() => _claimedIds.add(coupon.id));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('领取成功')));
       }
-    } catch (_) {
+      await _loadCoupons();
+    } catch (e) {
+      if (!mounted) return;
+      String msg = '领取失败';
+      try {
+        final dynamic er = e;
+        if (er.response?.statusCode == 409) {
+          msg = '您已领取过该券';
+          setState(() => _claimedIds.add(coupon.id));
+          await _loadCoupons();
+        } else if (er.response?.statusCode == 401) {
+          msg = '请先登录';
+        } else if (er.response?.data is Map && er.response!.data['detail'] is String) {
+          msg = er.response!.data['detail'];
+        }
+      } catch (_) {}
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('领取失败')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
       }
     }
+  }
+
+  ({String text, bool disabled}) _btnState(Coupon c) {
+    if (_claimedIds.contains(c.id)) return (text: '已领取', disabled: true);
+    if (c.buttonText.isNotEmpty) return (text: c.buttonText, disabled: c.buttonDisabled);
+    if (c.claimed) return (text: '已领取', disabled: true);
+    if (c.soldOut || c.remaining == 0) return (text: '已抢光', disabled: true);
+    return (text: '领取', disabled: false);
   }
 
   @override
@@ -84,7 +108,8 @@ class _CouponCenterScreenState extends State<CouponCenterScreen> {
   }
 
   Widget _buildCouponCard(Coupon coupon) {
-    final claimed = _claimedIds.contains(coupon.id);
+    final btn = _btnState(coupon);
+    final disabled = btn.disabled;
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -97,9 +122,9 @@ class _CouponCenterScreenState extends State<CouponCenterScreen> {
           Container(
             width: 100,
             padding: const EdgeInsets.all(16),
-            decoration: const BoxDecoration(
-              color: Color(0xFFFF4D4F),
-              borderRadius: BorderRadius.only(
+            decoration: BoxDecoration(
+              color: disabled ? Colors.grey[400] : const Color(0xFFFF4D4F),
+              borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(12),
                 bottomLeft: Radius.circular(12),
               ),
@@ -161,23 +186,24 @@ class _CouponCenterScreenState extends State<CouponCenterScreen> {
           ),
           Padding(
             padding: const EdgeInsets.only(right: 12),
-            child: claimed
+            child: disabled
                 ? Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
                       color: Colors.grey[200],
                       borderRadius: BorderRadius.circular(16),
                     ),
-                    child: Text('已领取', style: TextStyle(color: Colors.grey[500], fontSize: 13)),
+                    child: Text(btn.text, style: TextStyle(color: Colors.grey[500], fontSize: 13)),
                   )
                 : ElevatedButton(
                     onPressed: () => _claimCoupon(coupon),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF52C41A),
+                      foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     ),
-                    child: const Text('领取', style: TextStyle(fontSize: 13)),
+                    child: Text(btn.text, style: const TextStyle(fontSize: 13)),
                   ),
           ),
         ],

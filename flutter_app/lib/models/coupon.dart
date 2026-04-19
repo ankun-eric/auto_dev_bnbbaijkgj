@@ -14,6 +14,12 @@ class Coupon {
   final String? validEnd;
   final String status;
   final String? createdAt;
+  // V2.1：领券中心置灰新增字段
+  final bool claimed;
+  final bool soldOut;
+  final String buttonText;
+  final bool buttonDisabled;
+  final bool isOffline;
 
   Coupon({
     required this.id,
@@ -31,6 +37,11 @@ class Coupon {
     this.validEnd,
     this.status = 'active',
     this.createdAt,
+    this.claimed = false,
+    this.soldOut = false,
+    this.buttonText = '领取',
+    this.buttonDisabled = false,
+    this.isOffline = false,
   });
 
   String get typeLabel {
@@ -78,6 +89,11 @@ class Coupon {
       validEnd: json['valid_end']?.toString(),
       status: json['status'] ?? 'active',
       createdAt: json['created_at']?.toString(),
+      claimed: json['claimed'] == true,
+      soldOut: json['sold_out'] == true,
+      buttonText: (json['button_text'] as String?) ?? '领取',
+      buttonDisabled: json['button_disabled'] == true,
+      isOffline: json['is_offline'] == true,
     );
   }
 }

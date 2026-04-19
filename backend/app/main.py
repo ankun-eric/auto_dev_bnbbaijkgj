@@ -198,6 +198,102 @@ async def _migrate_coupons_v2():
         _logger.error("优惠券 v2 迁移异常（不影响启动）: %s", e)
 
 
+async def _migrate_coupons_v2_1():
+    """V2.1 优惠券：禁删除（下架）+ 兑换码批次/明细 + 积分兑换次数预留。
+
+    - coupons: 加列 is_offline / offline_reason / offline_at / offline_by / points_exchange_limit
+    - coupon_code_batches: 加列 batch_no / claim_limit / expire_at / voided_at / voided_by / void_reason
+        + 历史一次性唯一码批次回填 claim_limit = total_count
+        + 历史一码通用批次回填 claim_limit = 9999（兜底）
+        + 历史批次回填 batch_no = BATCH-{yyyymmdd}-{id:04d}
+    - coupon_redeem_codes: 加列 voided_at / voided_by / void_reason
+    - 新建 coupon_op_logs 表（由 metadata.create_all 自动建）
+    - SystemConfig.coupons_v2_1_migrated 控制不重复执行
+    """
+    import logging as _l
+    _logger = _l.getLogger(__name__)
+    from app.core.database import async_session as _async_session
+    try:
+        async with _async_session() as db:
+            from sqlalchemy import text
+            from app.models.models import SystemConfig as _SC
+            from sqlalchemy import select as _sel
+
+            mark = (await db.execute(_sel(_SC).where(_SC.config_key == "coupons_v2_1_migrated"))).scalar_one_or_none()
+            if mark and mark.config_value == "1":
+                return
+
+            async def _add_col(table: str, column: str, ddl: str):
+                try:
+                    chk = await db.execute(text(
+                        "SELECT COUNT(*) FROM information_schema.columns "
+                        "WHERE table_schema = DATABASE() AND table_name = :t AND column_name = :c"
+                    ), {"t": table, "c": column})
+                    if (chk.scalar() or 0) == 0:
+                        await db.execute(text(f"ALTER TABLE {table} ADD COLUMN {ddl}"))
+                except Exception as e:
+                    _logger.debug("加列 %s.%s 跳过: %s", table, column, e)
+
+            # coupons 表
+            await _add_col("coupons", "is_offline", "is_offline TINYINT(1) NOT NULL DEFAULT 0")
+            await _add_col("coupons", "offline_reason", "offline_reason VARCHAR(255) NULL")
+            await _add_col("coupons", "offline_at", "offline_at DATETIME NULL")
+            await _add_col("coupons", "offline_by", "offline_by INT NULL")
+            await _add_col("coupons", "points_exchange_limit", "points_exchange_limit INT NULL")
+            try:
+                await db.execute(text("CREATE INDEX idx_coupons_offline ON coupons(is_offline)"))
+            except Exception:
+                pass
+
+            # coupon_code_batches 表
+            await _add_col("coupon_code_batches", "batch_no", "batch_no VARCHAR(64) NULL")
+            await _add_col("coupon_code_batches", "claim_limit", "claim_limit INT NULL")
+            await _add_col("coupon_code_batches", "expire_at", "expire_at DATETIME NULL")
+            await _add_col("coupon_code_batches", "voided_at", "voided_at DATETIME NULL")
+            await _add_col("coupon_code_batches", "voided_by", "voided_by INT NULL")
+            await _add_col("coupon_code_batches", "void_reason", "void_reason VARCHAR(255) NULL")
+            try:
+                await db.execute(text("CREATE UNIQUE INDEX idx_batch_no ON coupon_code_batches(batch_no)"))
+            except Exception:
+                pass
+
+            # coupon_redeem_codes 表
+            await _add_col("coupon_redeem_codes", "voided_at", "voided_at DATETIME NULL")
+            await _add_col("coupon_redeem_codes", "voided_by", "voided_by INT NULL")
+            await _add_col("coupon_redeem_codes", "void_reason", "void_reason VARCHAR(255) NULL")
+
+            # 历史回填 claim_limit + batch_no
+            try:
+                # 一次性唯一码：claim_limit = total_count
+                await db.execute(text(
+                    "UPDATE coupon_code_batches SET claim_limit = total_count "
+                    "WHERE code_type = 'unique' AND (claim_limit IS NULL OR claim_limit = 0)"
+                ))
+                # 一码通用：兜底 9999
+                await db.execute(text(
+                    "UPDATE coupon_code_batches SET claim_limit = 9999 "
+                    "WHERE code_type = 'universal' AND (claim_limit IS NULL OR claim_limit = 0)"
+                ))
+                # batch_no 回填（历史批次）
+                await db.execute(text(
+                    "UPDATE coupon_code_batches "
+                    "SET batch_no = CONCAT('BATCH-', DATE_FORMAT(created_at, '%Y%m%d'), '-', LPAD(id, 4, '0')) "
+                    "WHERE batch_no IS NULL OR batch_no = ''"
+                ))
+            except Exception as e:
+                _logger.debug("批次历史回填跳过: %s", e)
+
+            # 标记完成
+            if mark:
+                mark.config_value = "1"
+            else:
+                db.add(_SC(config_key="coupons_v2_1_migrated", config_value="1", config_type="coupon"))
+            await db.commit()
+            _logger.info("V2.1 优惠券迁移完成")
+    except Exception as e:
+        _logger.error("V2.1 优惠券迁移异常（不影响启动）: %s", e)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
@@ -205,6 +301,7 @@ async def lifespan(app: FastAPI):
         await sync_register_schema(conn)
     await _migrate_points_enums_and_config()
     await _migrate_coupons_v2()
+    await _migrate_coupons_v2_1()
     await migrate_existing_users_user_no()
     from app.init_data import init_default_data
     await init_default_data()
