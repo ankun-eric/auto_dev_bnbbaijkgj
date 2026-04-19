@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { NavBar, Card, Button, Dialog, Toast, SpinLoading, SwipeAction } from 'antd-mobile';
+import { Card, Button, Dialog, Toast, SpinLoading, SwipeAction } from 'antd-mobile';
 import { AddOutline } from 'antd-mobile-icons';
+import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 import CheckinPointsProgress from '@/components/CheckinPointsProgress';
 import { showCheckinPointsToast } from '@/utils/checkinPointsToast';
@@ -70,7 +71,7 @@ export default function CheckinPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <NavBar onBack={() => router.back()} style={{ background: '#fff' }}>健康打卡</NavBar>
+        <GreenNavBar>健康打卡</GreenNavBar>
         <div className="flex items-center justify-center" style={{ height: 'calc(100vh - 45px)' }}>
           <SpinLoading color="primary" />
         </div>
@@ -80,16 +81,10 @@ export default function CheckinPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
-      <NavBar onBack={() => router.back()} style={{ background: '#fff' }}>健康打卡</NavBar>
+      <GreenNavBar>健康打卡</GreenNavBar>
 
-      <div className="px-4 py-4" style={{ background: 'linear-gradient(135deg, #52c41a, #73d13d)' }}>
-        <div className="text-white text-center">
-          <div className="text-lg font-bold">✅ 健康打卡</div>
-          <div className="text-xs opacity-80 mt-1">养成健康好习惯</div>
-        </div>
-      </div>
-
-      <div className="px-4 -mt-3">
+      {/* v6 方案B：删除原渐变 banner，直接展示打卡进度数据卡片 */}
+      <div className="px-4 pt-3">
         <CheckinPointsProgress refreshKey={pointsRefreshKey} />
         {items.length === 0 ? (
           <Card style={{ borderRadius: 12, textAlign: 'center', padding: '40px 20px' }}>

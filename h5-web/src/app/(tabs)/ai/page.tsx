@@ -124,7 +124,13 @@ export default function AIPage() {
           </button>
           <div className="text-center flex-1">
             <div className="flex items-center justify-center gap-2">
-              {logoUrl && <img src={logoUrl} alt="Logo" className="w-8 h-8 rounded" style={{ objectFit: 'contain' }} />}
+              {/* v6: AI 头像统一为绿青渐变圆 + 白色 "AI" 文字（去 LOGO） */}
+              <span
+                className="ai-avatar-gradient"
+                style={{ width: 32, height: 32, fontSize: 12 }}
+              >
+                AI
+              </span>
               <h1 className="text-xl font-bold">AI健康咨询</h1>
             </div>
             <p className="text-xs opacity-80 mt-1">选择咨询类型，开始健康咨询</p>

@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { NavBar, Button, Tag, Empty, SpinLoading, Toast } from 'antd-mobile';
+import { Button, Tag, Empty, SpinLoading, Toast } from 'antd-mobile';
+import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 
 interface Coupon {
@@ -102,9 +103,9 @@ export default function CouponCenterPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <NavBar onBack={() => router.back()} style={{ background: '#fff' }}>
+      <GreenNavBar>
         领券中心
-      </NavBar>
+      </GreenNavBar>
 
       <div className="px-4 py-4" style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}>
         <div className="text-white text-lg font-bold">优惠券等你来领</div>

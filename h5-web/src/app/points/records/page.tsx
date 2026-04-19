@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { NavBar, List, InfiniteScroll, Empty, Tag } from 'antd-mobile';
+import { List, InfiniteScroll, Empty, Tag } from 'antd-mobile';
+import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 
 interface PointsRecord {
@@ -53,9 +54,9 @@ export default function PointsRecordsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <NavBar onBack={() => router.back()} style={{ background: '#fff' }}>
+      <GreenNavBar>
         积分明细
-      </NavBar>
+      </GreenNavBar>
       {records.length === 0 && !hasMore ? (
         <Empty description="暂无积分记录" style={{ marginTop: 80 }} />
       ) : (

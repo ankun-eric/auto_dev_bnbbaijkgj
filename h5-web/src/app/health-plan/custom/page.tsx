@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { NavBar, Card, SpinLoading, Toast, Tag, SwipeAction, Dialog, Button } from 'antd-mobile';
+import { Card, SpinLoading, Toast, Tag, SwipeAction, Dialog, Button } from 'antd-mobile';
 import { EditSOutline, DeleteOutline } from 'antd-mobile-icons';
+import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 
 interface UserPlan {
@@ -63,7 +64,7 @@ export default function CustomPlanPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <NavBar onBack={() => router.back()} style={{ background: '#fff' }}>自定义计划</NavBar>
+        <GreenNavBar>自定义计划</GreenNavBar>
         <div className="flex items-center justify-center" style={{ height: 'calc(100vh - 45px)' }}>
           <SpinLoading color="primary" />
         </div>
@@ -73,16 +74,10 @@ export default function CustomPlanPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
-      <NavBar onBack={() => router.back()} style={{ background: '#fff' }}>自定义计划</NavBar>
+      <GreenNavBar>自定义计划</GreenNavBar>
 
-      <div className="px-4 py-4" style={{ background: 'linear-gradient(135deg, #1890ff, #40a9ff)' }}>
-        <div className="text-white text-center">
-          <div className="text-lg font-bold">📋 我的计划列表</div>
-          <div className="text-xs opacity-80 mt-1">管理您的个人健康计划</div>
-        </div>
-      </div>
-
-      <div className="px-4 -mt-3">
+      {/* v6 方案A：删除原蓝色 banner，分类列表直接接顶栏 */}
+      <div className="px-4 pt-3">
         {plans.length === 0 ? (
           <Card style={{ borderRadius: 12, textAlign: 'center', padding: '40px 20px' }}>
             <div className="text-4xl mb-3">📋</div>

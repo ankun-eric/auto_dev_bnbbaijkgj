@@ -978,7 +978,7 @@ class _DrugScreenState extends State<DrugScreen> {
 
   Widget _buildHistoryCard(Map<String, dynamic> item) {
     final drugName = item['drug_name']?.toString() ?? item['title']?.toString() ?? '未知药品';
-    final thumbUrl = item['thumbnail']?.toString() ?? item['image_url']?.toString();
+    final thumbUrl = item['original_image_url']?.toString() ?? item['thumbnail']?.toString() ?? item['image_url']?.toString();
     final createdAt = item['created_at']?.toString() ?? item['time']?.toString();
     final status = item['status']?.toString();
     final sessionId = item['session_id']?.toString() ?? '';

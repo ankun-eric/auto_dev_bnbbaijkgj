@@ -2,19 +2,8 @@
 
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import {
-  NavBar,
-  Tabs,
-  Card,
-  Tag,
-  Image,
-  Button,
-  Empty,
-  SpinLoading,
-  InfiniteScroll,
-  Toast,
-  Dialog,
-} from 'antd-mobile';
+import { Tabs, Card, Tag, Image, Button, Empty, SpinLoading, InfiniteScroll, Toast, Dialog } from 'antd-mobile';
+import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 
 interface OrderItem {
@@ -169,19 +158,21 @@ function UnifiedOrdersPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <NavBar onBack={() => router.back()} style={{ background: '#fff' }}>
+      <GreenNavBar>
         我的订单
-      </NavBar>
+      </GreenNavBar>
 
       <Tabs
         activeKey={activeTab}
         onChange={setActiveTab}
+        className="green-bold-tabs"
         style={{
           '--active-line-color': '#52c41a',
           '--active-title-color': '#52c41a',
           '--title-font-size': '14px',
+          '--active-line-height': '2px',
           background: '#fff',
-        }}
+        } as React.CSSProperties}
       >
         {Object.entries(STATUS_TABS).map(([key, title]) => (
           <Tabs.Tab key={key} title={title} />

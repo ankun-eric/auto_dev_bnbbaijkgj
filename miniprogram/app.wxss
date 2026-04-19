@@ -192,6 +192,42 @@ page {
   padding-bottom: env(safe-area-inset-bottom);
 }
 
+/* 「字号偏小」快捷横条 */
+.font-size-shortcut {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(135deg, #f0fff4, #e8f7ee);
+  border-left: 6rpx solid #52c41a;
+  padding: 20rpx 28rpx;
+  margin: 16rpx 24rpx 24rpx;
+  border-radius: 16rpx;
+  font-size: 28rpx;
+  color: #389e0d;
+}
+.font-size-shortcut-text {
+  color: #389e0d;
+  font-weight: 500;
+}
+.font-size-shortcut-arrow {
+  color: #52c41a;
+  font-weight: bold;
+}
+
+/* AI 头像绿青渐变圆 */
+.ai-avatar-gradient {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #52c41a, #13c2c2);
+  color: #fff;
+  font-weight: bold;
+  font-size: 24rpx;
+}
+
 /* Ellipsis */
 .ellipsis {
   overflow: hidden;

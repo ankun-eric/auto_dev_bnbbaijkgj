@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { NavBar, Card, SpinLoading } from 'antd-mobile';
+import { Card, SpinLoading } from 'antd-mobile';
+import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 import CheckinPointsProgress from '@/components/CheckinPointsProgress';
 
@@ -93,7 +94,7 @@ export default function HealthPlanPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <NavBar onBack={() => router.back()} style={{ background: '#fff' }}>健康计划</NavBar>
+        <GreenNavBar>健康计划</GreenNavBar>
         <div className="flex items-center justify-center" style={{ height: 'calc(100vh - 45px)' }}>
           <SpinLoading color="primary" />
         </div>
@@ -103,7 +104,7 @@ export default function HealthPlanPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
-      <NavBar onBack={() => router.back()} style={{ background: '#fff' }}>健康计划</NavBar>
+      <GreenNavBar>健康计划</GreenNavBar>
 
       <div className="px-4 pt-4">
         <CheckinPointsProgress />

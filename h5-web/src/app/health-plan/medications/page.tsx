@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { NavBar, Card, Button, Dialog, Toast, SpinLoading, SwipeAction } from 'antd-mobile';
+import { Card, Button, Dialog, Toast, SpinLoading, SwipeAction } from 'antd-mobile';
 import { AddOutline } from 'antd-mobile-icons';
+import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 import { showCheckinPointsToast } from '@/utils/checkinPointsToast';
 
@@ -111,7 +112,7 @@ export default function MedicationsPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <NavBar onBack={() => router.back()} style={{ background: '#fff' }}>用药提醒</NavBar>
+        <GreenNavBar>用药提醒</GreenNavBar>
         <div className="flex items-center justify-center" style={{ height: 'calc(100vh - 45px)' }}>
           <SpinLoading color="primary" />
         </div>
@@ -121,16 +122,10 @@ export default function MedicationsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
-      <NavBar onBack={() => router.back()} style={{ background: '#fff' }}>用药提醒</NavBar>
+      <GreenNavBar>用药提醒</GreenNavBar>
 
-      <div className="px-4 py-4" style={{ background: 'linear-gradient(135deg, #fa8c16, #f5af19)' }}>
-        <div className="text-white text-center">
-          <div className="text-lg font-bold">💊 用药提醒</div>
-          <div className="text-xs opacity-80 mt-1">按时服药，守护健康</div>
-        </div>
-      </div>
-
-      <div className="px-4 -mt-3">
+      {/* v6 方案A：删除原橙色 banner，列表直接接顶栏 */}
+      <div className="px-4 pt-3">
         {groups.length === 0 ? (
           <Card style={{ borderRadius: 12, textAlign: 'center', padding: '40px 20px' }}>
             <div className="text-4xl mb-3">💊</div>

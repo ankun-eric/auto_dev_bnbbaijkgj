@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { NavBar, Card, Button, ProgressBar, SpinLoading, Toast, Tag } from 'antd-mobile';
+import { Card, Button, ProgressBar, SpinLoading, Toast, Tag } from 'antd-mobile';
+import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 
 interface PlanTask {
@@ -75,7 +76,7 @@ export default function MyPlanExecutionPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <NavBar onBack={() => router.back()} style={{ background: '#fff' }}>加载中...</NavBar>
+        <GreenNavBar>加载中...</GreenNavBar>
         <div className="flex items-center justify-center" style={{ height: 'calc(100vh - 45px)' }}>
           <SpinLoading color="primary" />
         </div>
@@ -86,7 +87,7 @@ export default function MyPlanExecutionPage() {
   if (!plan) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <NavBar onBack={() => router.back()} style={{ background: '#fff' }}>计划详情</NavBar>
+        <GreenNavBar>计划详情</GreenNavBar>
         <div className="flex flex-col items-center justify-center py-20">
           <div className="text-4xl mb-3">😔</div>
           <div className="text-gray-400 text-sm">计划不存在</div>
@@ -100,7 +101,7 @@ export default function MyPlanExecutionPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
-      <NavBar onBack={() => router.back()} style={{ background: '#fff' }}>{plan.name}</NavBar>
+      <GreenNavBar>{plan.name}</GreenNavBar>
 
       <div className="px-4 py-5" style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}>
         <div className="text-white">

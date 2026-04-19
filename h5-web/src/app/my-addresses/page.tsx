@@ -2,20 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-  NavBar,
-  Card,
-  Button,
-  Tag,
-  Empty,
-  SpinLoading,
-  Toast,
-  Dialog,
-  Popup,
-  Form,
-  Input,
-  Switch,
-} from 'antd-mobile';
+import { Card, Button, Tag, Empty, SpinLoading, Toast, Dialog, Popup, Form, Input, Switch } from 'antd-mobile';
+import GreenNavBar from '@/components/GreenNavBar';
 import { AddOutline } from 'antd-mobile-icons';
 import api from '@/lib/api';
 
@@ -117,9 +105,9 @@ export default function MyAddressesPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
-      <NavBar onBack={() => router.back()} style={{ background: '#fff' }}>
+      <GreenNavBar>
         我的地址
-      </NavBar>
+      </GreenNavBar>
 
       <div className="px-4 pt-3">
         {loading ? (

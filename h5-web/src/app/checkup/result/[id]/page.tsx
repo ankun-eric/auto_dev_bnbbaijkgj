@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { NavBar, Toast, Dialog } from 'antd-mobile';
+import { Toast, Dialog } from 'antd-mobile';
+import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 
 /* ───── types ───── */
@@ -547,22 +548,20 @@ export default function ResultPage() {
   return (
     <div className="min-h-screen bg-gray-50 pb-8">
       {/* NavBar */}
-      <NavBar
-        onBack={() => router.back()}
+      <GreenNavBar
         right={
           <button
-            className="text-sm font-medium"
-            style={{ color: '#52c41a' }}
+            type="button"
+            className="text-white text-sm font-medium"
             onClick={handleShare}
             disabled={shareLoading}
           >
             分享
           </button>
         }
-        style={{ background: '#fff' }}
       >
         解读结果
-      </NavBar>
+      </GreenNavBar>
 
       {/* ─── Zone 1: Health Score Gauge ─── */}
       <div

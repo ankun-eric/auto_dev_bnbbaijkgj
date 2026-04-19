@@ -18,7 +18,7 @@ const DEFAULT_MENUS = [
 
 const DEFAULT_CONFIG = {
   search_visible: true,
-  search_placeholder: '搜索健康知识、服务、商品',
+  search_placeholder: '想找什么服务/商品？',
   grid_columns: 3,
   font_switch_enabled: false,
   font_default_level: 'standard',

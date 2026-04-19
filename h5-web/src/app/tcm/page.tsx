@@ -2,10 +2,8 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-  NavBar, Card, Button, Radio, Space, ProgressBar, Toast, Result,
-  SpinLoading, Empty, Popup, ImageUploader, Tag, DatePicker,
-} from 'antd-mobile';
+import { Card, Button, Radio, Space, ProgressBar, Toast, Result, SpinLoading, Empty, Popup, ImageUploader, Tag, DatePicker } from 'antd-mobile';
+import GreenNavBar from '@/components/GreenNavBar';
 import type { ImageUploadItem } from 'antd-mobile/es/components/image-uploader';
 import api from '@/lib/api';
 import { checkFileSize } from '@/lib/upload-utils';
@@ -384,8 +382,8 @@ export default function TcmPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <NavBar
-        onBack={() => {
+      <GreenNavBar
+        back={() => {
           if (activeFeature) {
             setActiveFeature('');
             setShowResult(false);
@@ -396,10 +394,9 @@ export default function TcmPage() {
             router.back();
           }
         }}
-        style={{ background: '#fff' }}
       >
         中医养生
-      </NavBar>
+      </GreenNavBar>
 
       {!activeFeature && (
         <div className="px-4 pt-4 pb-6">
@@ -731,13 +728,7 @@ export default function TcmPage() {
               fontSize: 15,
             }}
           >
-            {pendingFlow === 'tongue'
-              ? '确认并开始舌诊分析'
-              : pendingFlow === 'face'
-              ? '确认并开始面诊分析'
-              : !constitutionResult
-              ? '确认咨询人并提交测评'
-              : '确认并咨询'}
+            AI 开始分析
           </Button>
         </div>
       </Popup>

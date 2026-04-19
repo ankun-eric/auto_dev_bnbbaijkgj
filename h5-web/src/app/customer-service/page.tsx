@@ -2,8 +2,9 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { NavBar, Input, Button, SpinLoading, Toast } from 'antd-mobile';
+import { Input, Button, SpinLoading, Toast } from 'antd-mobile';
 
+import GreenNavBar from '@/components/GreenNavBar';
 interface Message {
   id: string;
   role: 'user' | 'assistant' | 'system';
@@ -86,20 +87,18 @@ export default function CustomerServicePage() {
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">
-      <NavBar
-        onBack={() => router.back()}
+      <GreenNavBar
         right={
-          <span className="text-sm" style={{ color: '#52c41a' }} onClick={transferHuman}>
+          <span
+            className="text-white text-sm font-medium"
+            onClick={transferHuman}
+          >
             转人工
           </span>
         }
-        style={{
-          '--height': '48px',
-          background: '#fff',
-        } as React.CSSProperties}
       >
         在线客服
-      </NavBar>
+      </GreenNavBar>
 
       <div ref={listRef} className="flex-1 overflow-y-auto px-4 py-3">
         {messages.map((msg) => {

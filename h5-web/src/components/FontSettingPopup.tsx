@@ -14,10 +14,16 @@ interface FontSettingPopupProps {
 }
 
 const LEVELS: FontLevel[] = ['standard', 'large', 'xlarge'];
+// v6: 档位文案语义化升级
 const LABELS: Record<FontLevel, string> = {
   standard: '标准',
-  large: '大',
-  xlarge: '超大',
+  large: '大字号 👨‍🦳',
+  xlarge: '超大字号 👴',
+};
+const PREVIEW_HINTS: Record<FontLevel, string> = {
+  standard: '日常阅读舒适',
+  large: '中年人阅读更轻松',
+  xlarge: '长辈/视力不佳者首选',
 };
 
 function levelToValue(level: FontLevel): number {
@@ -60,11 +66,44 @@ export default function FontSettingPopup({
       </div>
 
       <div
-        className="bg-gray-50 rounded-xl p-4 mb-6"
+        className="bg-gray-50 rounded-xl p-4 mb-4"
         style={{ fontSize: currentSize }}
       >
         <p className="mb-2">预览文字效果</p>
         <p className="text-gray-500">宾尼小康，AI健康管家，关爱您的每一天。</p>
+      </div>
+
+      <div className="grid grid-cols-3 gap-2 mb-4">
+        {LEVELS.map((lv) => {
+          const size = getSizeForLevel(lv, standardSize, largeSize, xlargeSize);
+          const active = fontLevel === lv;
+          return (
+            <div
+              key={lv}
+              onClick={() => onFontLevelChange(lv)}
+              style={{
+                border: `1.5px solid ${active ? '#52c41a' : '#e5e7eb'}`,
+                background: active ? '#E8F7EE' : '#fff',
+                borderRadius: 12,
+                padding: '10px 8px',
+                textAlign: 'center',
+                cursor: 'pointer',
+              }}
+            >
+              <div
+                style={{
+                  fontSize: size,
+                  fontWeight: 600,
+                  color: active ? '#389e0d' : '#333',
+                  lineHeight: 1.2,
+                }}
+              >
+                {LABELS[lv]}
+              </div>
+              <div className="text-xs text-gray-400 mt-1">{PREVIEW_HINTS[lv]}</div>
+            </div>
+          );
+        })}
       </div>
 
       <div className="px-2">

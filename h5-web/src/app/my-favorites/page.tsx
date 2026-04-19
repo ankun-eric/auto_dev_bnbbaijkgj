@@ -2,17 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-  NavBar,
-  Tabs,
-  Card,
-  Image,
-  Empty,
-  SpinLoading,
-  InfiniteScroll,
-  SwipeAction,
-  Toast,
-} from 'antd-mobile';
+import { Tabs, Card, Image, Empty, SpinLoading, InfiniteScroll, SwipeAction, Toast } from 'antd-mobile';
+import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 
 interface FavoriteItem {
@@ -90,9 +81,9 @@ export default function MyFavoritesPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <NavBar onBack={() => router.back()} style={{ background: '#fff' }}>
+      <GreenNavBar>
         我的收藏
-      </NavBar>
+      </GreenNavBar>
 
       <Tabs
         activeKey={activeTab}

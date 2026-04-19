@@ -2,7 +2,8 @@
 
 import { Suspense, useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { NavBar, Form, Input, Button, Checkbox, Toast, SpinLoading, TextArea, Picker } from 'antd-mobile';
+import { Form, Input, Button, Checkbox, Toast, SpinLoading, TextArea, Picker } from 'antd-mobile';
+import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 
 const PERIODS = [
@@ -139,9 +140,9 @@ function MedicationAddContent() {
   if (fetching) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <NavBar onBack={() => router.back()} style={{ background: '#fff' }}>
+        <GreenNavBar>
           {isEdit ? '编辑用药提醒' : '添加用药提醒'}
-        </NavBar>
+        </GreenNavBar>
         <div className="flex items-center justify-center" style={{ height: 'calc(100vh - 45px)' }}>
           <SpinLoading color="primary" />
         </div>
@@ -151,9 +152,9 @@ function MedicationAddContent() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
-      <NavBar onBack={() => router.back()} style={{ background: '#fff' }}>
+      <GreenNavBar>
         {isEdit ? '编辑用药提醒' : '添加用药提醒'}
-      </NavBar>
+      </GreenNavBar>
 
       <div className="px-4 pt-4">
         <div className="card">

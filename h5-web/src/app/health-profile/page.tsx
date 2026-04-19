@@ -2,14 +2,8 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-  NavBar,
-  Toast,
-  Popup,
-  Dialog,
-  DatePicker,
-  Button,
-} from 'antd-mobile';
+import { Toast, Popup, Dialog, DatePicker, Button } from 'antd-mobile';
+import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 import DiseaseTagSelector, { type DiseaseItem } from '@/components/DiseaseTagSelector';
 
@@ -468,17 +462,15 @@ export default function HealthProfilePage() {
 
   return (
     <div className="min-h-screen" style={{ background: 'linear-gradient(160deg, #f0faf0 0%, #e8f4ff 100%)' }}>
-      <NavBar
-        onBack={() => router.back()}
-        style={{ background: 'transparent' }}
+      <GreenNavBar
         right={
-          <div className="text-xs font-medium" style={{ color: saveStatus === 'saving' ? '#fa8c16' : saveStatus === 'saved' ? '#52c41a' : 'transparent' }}>
-            {saveStatus === 'saving' ? '保存中…' : saveStatus === 'saved' ? '已保存 ✓' : '.'}
+          <div className="text-white text-sm">
+            {saveStatus === 'saving' ? '保存中…' : saveStatus === 'saved' ? '已保存 ✓' : ''}
           </div>
         }
       >
         健康档案
-      </NavBar>
+      </GreenNavBar>
 
       {/* ── Managed-by banner ──────────────────────────────────────────────── */}
       {managedByList.length > 0 && (

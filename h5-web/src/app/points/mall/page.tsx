@@ -1,8 +1,9 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { NavBar, Card, Grid, Tag, Button, Toast, Dialog } from 'antd-mobile';
+import { Card, Grid, Tag, Button, Toast, Dialog } from 'antd-mobile';
 
+import GreenNavBar from '@/components/GreenNavBar';
 const mockGoods = [
   { id: 1, name: '10元体检优惠券', points: 200, image: '🎫', stock: 50 },
   { id: 2, name: '定制保温杯', points: 500, image: '🥤', stock: 20 },
@@ -33,9 +34,9 @@ export default function PointsMallPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <NavBar onBack={() => router.back()} style={{ background: '#fff' }}>
+      <GreenNavBar>
         积分商城
-      </NavBar>
+      </GreenNavBar>
 
       <div
         className="px-4 py-4 flex items-center justify-between"

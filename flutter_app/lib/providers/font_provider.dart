@@ -7,8 +7,8 @@ class FontProvider extends ChangeNotifier {
   /// 0 = 标准, 1 = 大, 2 = 超大
   int _fontLevel = 0;
 
-  double _standardSize = 14.0;
-  double _largeSize = 18.0;
+  double _standardSize = 16.0;
+  double _largeSize = 19.0;
   double _xlargeSize = 22.0;
 
   int get fontLevel => _fontLevel;
@@ -30,9 +30,9 @@ class FontProvider extends ChangeNotifier {
   String get fontLevelLabel {
     switch (_fontLevel) {
       case 1:
-        return '大';
+        return '大字号 👨‍🦳';
       case 2:
-        return '超大';
+        return '超大字号 👴';
       default:
         return '标准';
     }

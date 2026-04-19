@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { NavBar, SpinLoading, Toast } from 'antd-mobile';
+import { SpinLoading, Toast } from 'antd-mobile';
+import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 
 interface TrendPoint {
@@ -303,9 +304,9 @@ function TrendPageContent() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <NavBar onBack={() => router.back()} style={{ background: '#fff' }}>
+      <GreenNavBar>
         {indicatorName || '指标趋势'}
-      </NavBar>
+      </GreenNavBar>
 
       <div className="px-4 pt-4">
         {/* Chart header */}

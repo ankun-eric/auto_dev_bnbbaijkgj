@@ -2,8 +2,9 @@
 
 import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { NavBar, Tabs, Card, Tag, Button, Empty } from 'antd-mobile';
+import { Tabs, Card, Tag, Button, Empty } from 'antd-mobile';
 
+import GreenNavBar from '@/components/GreenNavBar';
 const tabMap: Record<string, string> = {
   all: '全部',
   pending: '待付款',
@@ -74,18 +75,20 @@ function OrdersPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <NavBar onBack={() => router.back()} style={{ background: '#fff' }}>
+      <GreenNavBar>
         我的订单
-      </NavBar>
+      </GreenNavBar>
 
       <Tabs
         activeKey={activeTab}
         onChange={setActiveTab}
+        className="green-bold-tabs"
         style={{
           '--active-line-color': '#52c41a',
           '--active-title-color': '#52c41a',
+          '--active-line-height': '2px',
           background: '#fff',
-        }}
+        } as React.CSSProperties}
       >
         {Object.entries(tabMap).map(([key, title]) => (
           <Tabs.Tab key={key} title={title} />

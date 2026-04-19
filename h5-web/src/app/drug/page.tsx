@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { NavBar, Toast, Empty, SpinLoading, Tag, Button, Popup, Radio, DatePicker } from 'antd-mobile';
+import { Toast, Empty, SpinLoading, Tag, Button, Popup, Radio, DatePicker } from 'antd-mobile';
+import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 import { checkFileSize, uploadWithProgress } from '@/lib/upload-utils';
 import DiseaseTagSelector, { type DiseaseItem } from '@/components/DiseaseTagSelector';
@@ -517,17 +518,9 @@ export default function DrugPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      <NavBar
-        onBack={() => router.back()}
-        style={{
-          '--height': '48px',
-          background: 'linear-gradient(135deg, #52c41a, #13c2c2)',
-          color: '#fff',
-          '--border-bottom': 'none',
-        } as React.CSSProperties}
-      >
+      <GreenNavBar>
         <span className="text-white font-medium">拍照识药</span>
-      </NavBar>
+      </GreenNavBar>
 
       <input
         ref={cameraInputRef}
@@ -705,7 +698,30 @@ export default function DrugPage() {
                     <div className="w-14 h-14 rounded-lg flex-shrink-0 bg-gray-100 overflow-hidden relative">
                       {imgUrl ? (
                         <>
-                          <img src={imgUrl} alt={item.drug_name} className="w-full h-full object-cover" />
+                          <img
+                            src={imgUrl}
+                            alt={item.drug_name}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              const target = e.currentTarget;
+                              target.style.display = 'none';
+                              const fallback = target.nextElementSibling as HTMLElement | null;
+                              if (fallback && fallback.dataset.fallback === '1') {
+                                fallback.style.display = 'flex';
+                              }
+                            }}
+                          />
+                          <div
+                            data-fallback="1"
+                            className="w-full h-full items-center justify-center absolute inset-0"
+                            style={{ display: 'none' }}
+                          >
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="1.5">
+                              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                              <circle cx="8.5" cy="8.5" r="1.5" />
+                              <polyline points="21 15 16 10 5 21" />
+                            </svg>
+                          </div>
                           {item.image_count && item.image_count > 1 && (
                             <div
                               className="absolute bottom-0 left-0 right-0 text-center text-white text-[9px] py-0.5"
@@ -828,7 +844,7 @@ export default function DrugPage() {
             block loading={confirmLoading} onClick={handleMemberConfirm}
             style={{ marginTop: 20, background: 'linear-gradient(135deg, #52c41a, #13c2c2)', color: '#fff', border: 'none', borderRadius: 24, height: 46, fontSize: 15 }}
           >
-            确认并开始识别
+            AI 开始分析
           </Button>
         </div>
       </Popup>

@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { NavBar, Toast, Dialog, Button } from 'antd-mobile';
+import { Toast, Dialog, Button } from 'antd-mobile';
+import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 
 interface ManagedByItem {
@@ -60,9 +61,9 @@ export default function FamilyBindListPage() {
 
   return (
     <div className="min-h-screen" style={{ background: 'linear-gradient(160deg, #f0faf0 0%, #e8f4ff 100%)' }}>
-      <NavBar onBack={() => router.back()} style={{ background: 'transparent' }}>
+      <GreenNavBar>
         家庭关联
-      </NavBar>
+      </GreenNavBar>
 
       <div className="px-4 pt-2 pb-8">
         {/* Header description */}

@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { NavBar, Toast, SpinLoading } from 'antd-mobile';
+import { Toast, SpinLoading } from 'antd-mobile';
+import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 
 /* ───── types ───── */
@@ -114,9 +115,9 @@ function ComparePageInner() {
   if (!result) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <NavBar onBack={() => router.back()} style={{ background: '#fff' }}>
+        <GreenNavBar>
           报告对比
-        </NavBar>
+        </GreenNavBar>
         <div className="flex items-center justify-center pt-20">
           <p className="text-gray-400">对比分析失败</p>
         </div>
@@ -130,9 +131,9 @@ function ComparePageInner() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-8">
-      <NavBar onBack={() => router.back()} style={{ background: '#fff' }}>
+      <GreenNavBar>
         报告对比
-      </NavBar>
+      </GreenNavBar>
 
       {/* AI Summary */}
       <div className="mx-4 mt-3">

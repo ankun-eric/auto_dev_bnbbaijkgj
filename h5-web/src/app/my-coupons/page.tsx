@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { NavBar, Tabs, Empty, SpinLoading, Button, Tag, InfiniteScroll, Dialog, Input, Toast } from 'antd-mobile';
+import { Tabs, Empty, SpinLoading, Button, Tag, InfiniteScroll, Dialog, Input, Toast } from 'antd-mobile';
+import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 
 interface CouponInfo {
@@ -128,22 +129,29 @@ export default function MyCouponsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <NavBar
-        onBack={() => router.back()}
-        style={{ background: '#fff' }}
-        right={<a onClick={handleRedeem} style={{ color: '#52c41a', fontSize: 13 }}>兑换码</a>}
+      <GreenNavBar
+        right={
+          <a
+            className="text-white text-sm font-medium cursor-pointer"
+            onClick={handleRedeem}
+          >
+            兑换码
+          </a>
+        }
       >
         我的优惠券
-      </NavBar>
+      </GreenNavBar>
 
       <Tabs
         activeKey={activeTab}
         onChange={setActiveTab}
+        className="green-bold-tabs"
         style={{
           '--active-line-color': '#52c41a',
           '--active-title-color': '#52c41a',
+          '--active-line-height': '2px',
           background: '#fff',
-        }}
+        } as React.CSSProperties}
       >
         {Object.entries(STATUS_TABS).map(([key, title]) => (
           <Tabs.Tab key={key} title={title} />

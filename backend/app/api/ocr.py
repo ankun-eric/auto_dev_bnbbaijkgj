@@ -44,6 +44,7 @@ from app.services.ocr_service import (
     ocr_recognize_with_provider,
     smart_ocr_recognize,
 )
+from app.utils.cos_helper import try_cos_upload
 
 logger = logging.getLogger(__name__)
 
@@ -552,6 +553,17 @@ async def recognize(
             ai_result = {"error": str(e), "raw_text": ocr_text}
 
     original_image_url = None
+    try:
+        original_image_url = await try_cos_upload(
+            db,
+            image_data,
+            file.filename or "ocr_image.jpg",
+            file.content_type or "image/jpeg",
+            prefix="ocr/",
+        )
+    except Exception as e:
+        logger.warning("COS upload failed (recognize): %s", e)
+        original_image_url = None
 
     record = OcrCallRecord(
         scene_name=scene_name,
@@ -630,6 +642,7 @@ async def batch_recognize(
     success_count = 0
     fail_count = 0
     successful_ocr_texts: List[str] = []
+    successful_image_urls: List[str] = []
     last_provider_used = "unknown"
 
     scene = None
@@ -673,6 +686,19 @@ async def batch_recognize(
         successful_ocr_texts.append(ocr_text)
 
         original_image_url = None
+        try:
+            original_image_url = await try_cos_upload(
+                db,
+                image_data,
+                f.filename or "ocr_image.jpg",
+                f.content_type or "image/jpeg",
+                prefix="ocr/",
+            )
+        except Exception as e:
+            logger.warning("COS upload failed (batch): %s", e)
+            original_image_url = None
+        if original_image_url:
+            successful_image_urls.append(original_image_url)
 
         record = OcrCallRecord(
             scene_name=scene_name, provider_name=provider_used,
@@ -719,11 +745,13 @@ async def batch_recognize(
         await db.refresh(merged_record)
         merged_record_id = merged_record.id
 
+        first_image_url = successful_image_urls[0] if successful_image_urls else None
+
         if scene_name == "体检报告识别" and merged_ai_result:
             try:
                 checkup_report = await _write_checkup_detail(
                     db, current_user, last_provider_used,
-                    merged_record, merged_ocr_text, merged_ai_result, None,
+                    merged_record, merged_ocr_text, merged_ai_result, first_image_url,
                     family_member_id=family_member_id,
                 )
                 if checkup_report:
@@ -734,7 +762,7 @@ async def batch_recognize(
             try:
                 session_id = await _write_drug_detail(
                     db, current_user, last_provider_used,
-                    merged_record, merged_ocr_text, merged_ai_result, None,
+                    merged_record, merged_ocr_text, merged_ai_result, first_image_url,
                     family_member_id=family_member_id,
                 )
             except Exception as e:

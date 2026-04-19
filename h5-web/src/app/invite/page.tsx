@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { NavBar, Button, Toast, SpinLoading } from 'antd-mobile';
+import { Button, Toast, SpinLoading } from 'antd-mobile';
+import GreenNavBar from '@/components/GreenNavBar';
 import { QRCodeSVG } from 'qrcode.react';
 import api from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -86,9 +87,9 @@ export default function InvitePage() {
 
   return (
     <div className="min-h-screen" style={{ background: 'linear-gradient(180deg, #e8fce8 0%, #ffffff 40%)' }}>
-      <NavBar onBack={() => router.back()} style={{ '--border-bottom': 'none', background: 'transparent' }}>
+      <GreenNavBar>
         邀请好友
-      </NavBar>
+      </GreenNavBar>
 
       <div className="px-6 pt-4 pb-10 flex flex-col items-center">
         <div className="w-20 h-20 rounded-full flex items-center justify-center mb-4"

@@ -33,6 +33,77 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
+## Latest Update: 联合修复包 v7 — 卡片常驻 + 识药图片 + 按钮统一（2026-04-20）
+
+### 概要
+一次性打包修复三件事：① AI 咨询页"💊 用药识别"+"🩺 健康自检"卡片在 AI 回话后被自动收起的常驻 Bug；② 拍照识药"识别记录"图片字段始终为空导致全部破图；③ 4 个入口（拍照识药 / 健康自检 / 报告解读 / 中医养生）× 3 端（H5 / 小程序 / Flutter）的"咨询人选择页"底部按钮文案统一为「AI 开始分析」。
+
+### 关键变更
+- **后端 `backend/app/api/ocr.py`**：`recognize` 与 `batch-recognize` 两个接口接入腾讯云 COS（`app.utils.cos_helper.try_cos_upload`），把图片字节流上传后回写 `original_image_url`；上传失败 try-except 兜底，记日志并写 NULL，不阻断 OCR 主流程。`batch-recognize` 用 `successful_image_urls[0]` 作为合并写入 `_write_checkup_detail` / `_write_drug_detail` 的首图。
+- **H5 `h5-web/src/app/chat/[sessionId]/page.tsx`**：删除 `messages` 变化时把 `drugIdentifyBannerVisible` / `constitutionBannerVisible` 置 false 的 `useEffect`，banner 由 URL `type` 派生为常量。
+- **H5 `h5-web/src/app/drug/page.tsx`**：识别记录列表 `<img>` 增加 `onError` 兜底，加载失败隐藏并展示 SVG 占位（相机图标）；底部按钮文案改 "AI 开始分析"。
+- **H5 其它入口按钮统一**：`h5-web/src/app/symptom/page.tsx`、`checkup/page.tsx`、`tcm/page.tsx` 主行动按钮全部统一为 "AI 开始分析"。
+- **小程序 `miniprogram/pages/chat/index.wxml`**：drug-banner 的 `wx:if` 简化为 `chatType === 'drug_identify'`，常驻显示。
+- **小程序 `miniprogram/pages/drug/index.wxml` + `index.js`**：`historyList` 的 `thumbnail` 优先取 `original_image_url`；`<image>` 增加 `binderror="onHistoryThumbError"`，失败置 `thumbnailFailed: true` 走占位。
+- **Flutter `flutter_app/lib/screens/health/drug_screen.dart`**：识别记录卡片优先取 `item['original_image_url']`，再 fallback `thumbnail` / `image_url`；现有 `errorBuilder` 提供占位。
+- **部署脚本 `deploy/deploy_combo_fix_v7.py`**（新增）：仅打包本次改动文件，上传服务器解包，docker compose 重启 backend + 重建并热更 h5-web，自动跑可达性 curl。
+- **APK 构建脚本 `deploy/sync_flutter_and_build.py` + `deploy/start_apk_bg.py`**（新增）：同步 Flutter 改动后用服务器侧 `flutter-builder:latest` 容器后台构建 APK，产物放到 `static/apk/bini_health.apk`（旧 APK 仍可下载，新 APK 由后台构建覆盖）。
+
+### 部署与产物
+- 后端容器：`6b099ed3-7175-4a78-91f4-44570c84ed27-backend` 已重启；
+- H5 容器：`6b099ed3-7175-4a78-91f4-44570c84ed27-h5` 已重新 build & 热更；
+- 小程序源码包：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/downloads/miniprogram_20260420_010639_4618.zip`（已验证 200 OK，321 KB）；
+- 安卓 APK：稳定下载入口 `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/apk/bini_health.apk`（v7 由后台构建中，构建完毕自动覆盖；构建失败时旧版仍可用）；
+- 用户手册：`user_docs/联合修复包v7_卡片常驻与识药图片与按钮统一.md`。
+
+### 已知策略 / 边界
+- **老识别记录不回填**：本次修复前数据库 `drug_identify_details.original_image_url` 全表 NULL，按既定策略不回填，前端统一占位降级。
+- **COS 上传失败**：仅记日志，字段写 NULL；前端自动占位，业务流程不阻断。
+- **iOS 构建**：环境受限（需 macOS + Xcode），由对应端工程师走 Mac 流水线打包；源码已就绪。
+
+---
+
+## Previous Update: 用户端 UI 视觉一致性优化 v6（2026-04-20）
+
+### 概要
+对宾尼小康用户端进行系统级视觉与体验统一改造，覆盖 H5（重点）+ 小程序 + Flutter 三端，目标"所有页面看起来像同一个产品"，并复用三档字号体系让中老年用户随处可调字号。
+
+### 关键变更
+- **GreenNavBar 通用组件**：H5 新增 `h5-web/src/components/GreenNavBar.tsx`，主品牌绿（`#52c41a`）+ 白色加粗居中标题，22+ 子页面统一改造（NavBar→GreenNavBar）。
+- **三档字号体系**：基准从 14 升到 16，三档 16/19/22。`useFontSize` + `FontSettingPopup` 文案升级为「标准 / 大字号 👨‍🦳 / 超大字号 👴」。后端 `home_font_*` 默认值随之调整。
+- **「我的」页字号快捷横条**：H5 + 小程序 + Flutter 三端均加了浅绿色「字号偏小？点这里调大 →」入口；H5 直开 FontSettingPopup、Flutter 直开 FontSizeSheet、小程序跳到设置页字号区。
+- **健康计划三子页布局**：用药提醒删 banner + 列表直出；健康打卡 banner→`CheckinPointsProgress` 数据卡；自定义计划删 banner + 分类列表直出；H5 三页与主页全部 GreenNavBar。
+- **打卡统计页**：顶栏改 GreenNavBar；月视图替换为 SVG 平滑曲线 + 浅绿渐变填充 + 最高（▲ 绿）/最低（▼ 橙）标注；周视图保留柱状图。
+- **首页搜索栏**：浅绿底 `#E8F7EE` + 主绿放大镜 + 文案「想找什么服务/商品？」。后端 `home_search_placeholder` 默认值 + DB 数据同步。
+- **AI 头像统一化**：H5 AI 页 + 小程序 AI 页头部用绿青渐变圆 + 白色加粗"AI"。
+- **订单/优惠券 Tab 选中态**：H5 `unified-orders` / `orders` / `my-coupons` 加 `green-bold-tabs` className，绿色加粗文字 + 2px 绿色下划线。
+- **首页商品分类字号**：H5 `services` 左侧大类显式 `fontSize: 14`。
+- **「我的」页留白**：`profile/page.tsx` 顶部 paddingTop 减少 ~30%。
+- **后端 plan_rankings Bug 修复**：`/api/health-plan/statistics` 现在聚合 用药提醒（MedicationReminder）+ 健康打卡（HealthCheckInItem）+ 自定义计划（UserPlan），分母按 `(today - start) + 1` 计算，capped 100%。
+- **Flutter 全局 AppBar 主题**：增加 `titleTextStyle`（白色 18px w600）+ `iconTheme`（白色），并保持 `centerTitle: true` + 主绿背景。
+- **小程序 app.json window**：`navigationBarTextStyle: white` + `navigationBarBackgroundColor: #52c41a`（首页保持 custom 模式 + LOGO）。
+
+### 改动文件（高频）
+- 新增：`h5-web/src/components/GreenNavBar.tsx`、`deploy/deploy_v6_ui_consistency.py`、`deploy/update_v6_db_config.py`、`user_docs/用户端UI视觉一致性优化v6.md`
+- H5 修改：`tailwind.config.ts`、`globals.css`、`useFontSize.ts`、`FontSettingPopup.tsx`、22+ 个子页面（health-plan/*、unified-orders、my-coupons、orders、profile、home、services、ai、checkup/*、tcm、symptom、drug、settings、invite、points/*、coupon-center、my-favorites、my-addresses、family-bindlist、health-profile、customer-service、notifications、unified-order/[id]、health-plan/medications/add、checkin/add、custom/create、custom/[categoryId]、custom/plan/[planId]、custom/my-plan/[planId]）
+- 小程序：`app.json`、`app.wxss`、`pages/profile/index.{js,wxml}`、`pages/ai/index.wxml`、`pages/home/index.{js,wxml,wxss}`
+- Flutter：`main.dart`、`providers/font_provider.dart`、`widgets/font_size_sheet.dart`、`screens/profile/profile_screen.dart`
+- 后端：`backend/app/api/home_config.py`、`backend/app/api/health_plan_v2.py`、`backend/app/init_data.py`、`backend/app/schemas/home_config.py`
+
+### 部署与验证（2026-04-20）
+- 部署脚本：`python deploy/deploy_v6_ui_consistency.py` —— h5-web 重建（55s）、backend 热重启
+- DB 默认值同步：`python deploy/update_v6_db_config.py` —— `system_configs.home_*` 字段升级到 v6 值
+- 链接快检：`/`, `/profile`, `/health-plan`, `/health-plan/{medications,checkin,custom,statistics}`, `/unified-orders`, `/my-coupons`, `/settings` 全 200，`/api/home-config` 返回 v6 默认值
+- 用户手册：`user_docs/用户端UI视觉一致性优化v6.md`
+
+### 注意点
+- H5 `tsc` 剩 4 个错误均为预存在（`login/page.tsx --adm-color-primary`, `KnowledgeCard.tsx Set 迭代`, `.next/types/app/service/[id]/page.ts × 2`），与本次改动无关。
+- 小程序 `navigationBarTextStyle` 只支持 `white|black`，无法做渐变；首页保持 custom 模式以展示 LOGO。
+- Flutter `FontSizeSheet` 使用 ModalBottomSheet，不依赖 routes，可在任意 widget tree 中调用。
+- DB 升级使用 base64 SQL 避免引号嵌套问题；脚本 `deploy/update_v6_db_config.py` 可重复执行（`ON DUPLICATE KEY UPDATE`）。
+
+---
+
 ## Latest Update: 药物识别跳转 AI 咨询 — 补齐咨询人参数 v2（顶部卡片，2026-04-19）
 
 ### 概要

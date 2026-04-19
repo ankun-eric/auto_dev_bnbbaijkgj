@@ -144,6 +144,10 @@ Page({
     wx.navigateTo({ url: '/pages/points/index' });
   },
 
+  goFontSetting() {
+    wx.navigateTo({ url: '/pages/settings/index?openFont=1' });
+  },
+
   goOrders(e) {
     const status = e.currentTarget.dataset.status || '';
     wx.navigateTo({ url: `/pages/orders/index?status=${status}` });

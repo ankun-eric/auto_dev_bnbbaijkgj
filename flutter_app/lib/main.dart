@@ -141,6 +141,12 @@ class BiniHealthApp extends StatelessWidget {
             foregroundColor: Colors.white,
             elevation: 0,
             centerTitle: true,
+            titleTextStyle: TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+            ),
+            iconTheme: IconThemeData(color: Colors.white),
           ),
           elevatedButtonTheme: ElevatedButtonThemeData(
             style: ElevatedButton.styleFrom(

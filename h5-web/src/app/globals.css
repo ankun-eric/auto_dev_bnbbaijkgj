@@ -84,3 +84,79 @@ html, body {
 .action-sheet-above-sidebar {
   --z-index: 1100;
 }
+
+/* ========================================
+   v6 视觉一致性优化：GreenNavBar 全局样式
+   ======================================== */
+.green-nav-bar .adm-nav-bar {
+  background: #52c41a !important;
+  color: #fff !important;
+  --height: 46px;
+}
+.green-nav-bar .adm-nav-bar-back-arrow,
+.green-nav-bar .adm-nav-bar-back,
+.green-nav-bar .adm-nav-bar-title,
+.green-nav-bar .adm-nav-bar-right,
+.green-nav-bar .adm-nav-bar-left {
+  color: #fff !important;
+}
+.green-nav-bar .adm-nav-bar-title {
+  font-weight: 600 !important;
+  font-size: 17px !important;
+}
+
+/* 绿青渐变 LOGO 样式（用于 AI 头像、装饰元素） */
+.ai-avatar-gradient {
+  background: linear-gradient(135deg, #52c41a, #13c2c2);
+  color: #fff;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+/* tab 选中态：绿色加粗文字 + 绿色 2px 下划线（订单/优惠券） */
+.green-tab-selected {
+  color: #52c41a !important;
+  font-weight: 600 !important;
+  position: relative;
+}
+.green-tab-selected::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -4px;
+  transform: translateX(-50%);
+  width: 24px;
+  height: 2px;
+  background: #52c41a;
+  border-radius: 2px;
+}
+
+/* 订单/优惠券 tab：选中态绿色加粗 + 绿色 2px 下划线 */
+.green-bold-tabs .adm-tabs-tab-active {
+  font-weight: 600 !important;
+  color: #52c41a !important;
+}
+.green-bold-tabs .adm-tabs-tab-line {
+  background-color: #52c41a !important;
+  height: 2px !important;
+  border-radius: 2px;
+}
+
+/* 「字号偏小」快捷横条 */
+.font-size-shortcut {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 36px;
+  padding: 0 14px;
+  background: #E8F7EE;
+  border-radius: 18px;
+  color: #389e0d;
+  font-size: 13px;
+  cursor: pointer;
+  margin: 8px 0;
+}
+

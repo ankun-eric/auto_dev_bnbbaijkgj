@@ -86,8 +86,8 @@ class HomeConfigResponse(BaseModel):
     grid_columns: int = 3
     font_switch_enabled: bool = True
     font_default_level: str = "standard"
-    font_standard_size: int = 14
-    font_large_size: int = 18
+    font_standard_size: int = 16
+    font_large_size: int = 19
     font_xlarge_size: int = 22
 
 

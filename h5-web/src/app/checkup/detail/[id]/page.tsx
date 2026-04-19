@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { NavBar, Tabs, Tag, Toast, SpinLoading, ActionSheet, Collapse, ImageViewer, Image } from 'antd-mobile';
+import { Tabs, Tag, Toast, SpinLoading, ActionSheet, Collapse, ImageViewer, Image } from 'antd-mobile';
+import GreenNavBar from '@/components/GreenNavBar';
 import { FileOutline } from 'antd-mobile-icons';
 import api from '@/lib/api';
 
@@ -107,9 +108,9 @@ export default function DetailPage() {
   if (!detail) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <NavBar onBack={() => router.back()} style={{ background: '#fff' }}>
+        <GreenNavBar>
           报告详情
-        </NavBar>
+        </GreenNavBar>
         <div className="flex items-center justify-center pt-20">
           <p className="text-gray-400">加载失败</p>
         </div>
@@ -128,20 +129,19 @@ export default function DetailPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <NavBar
-        onBack={() => router.back()}
+      <GreenNavBar
         right={
           <button
-            className="text-sm text-primary"
+            type="button"
+            className="text-white text-sm font-medium"
             onClick={() => setShareVisible(true)}
           >
             分享
           </button>
         }
-        style={{ background: '#fff' }}
       >
         报告详情
-      </NavBar>
+      </GreenNavBar>
 
       {/* File preview */}
       <div className="mx-4 mt-3">

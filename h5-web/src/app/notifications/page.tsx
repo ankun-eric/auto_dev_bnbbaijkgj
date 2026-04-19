@@ -2,8 +2,9 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { NavBar, List, Badge, SwipeAction, Empty, Button, Toast } from 'antd-mobile';
+import { List, Badge, SwipeAction, Empty, Button, Toast } from 'antd-mobile';
 
+import GreenNavBar from '@/components/GreenNavBar';
 interface Notification {
   id: number;
   title: string;
@@ -49,17 +50,15 @@ export default function NotificationsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <NavBar
-        onBack={() => router.back()}
+      <GreenNavBar
         right={
-          unreadCount > 0 ? (
-            <span className="text-xs text-primary" onClick={markAllRead}>全部已读</span>
+          notifications.length > 0 ? (
+            <span className="text-white text-sm" onClick={markAllRead}>全部已读</span>
           ) : undefined
         }
-        style={{ background: '#fff' }}
       >
         消息通知
-      </NavBar>
+      </GreenNavBar>
 
       <div className="px-4 pt-2">
         {notifications.length === 0 ? (

@@ -12,6 +12,8 @@ import {
   EditSOutline,
 } from 'antd-mobile-icons';
 import { useAuth } from '@/lib/auth';
+import { useFontSize } from '@/lib/useFontSize';
+import FontSettingPopup from '@/components/FontSettingPopup';
 import api from '@/lib/api';
 
 const orderQuickTabs = [
@@ -33,6 +35,21 @@ export default function ProfilePage() {
   const { user } = useAuth();
   const [orderCounts, setOrderCounts] = useState<Record<string, number>>({});
   const [stats, setStats] = useState<MyStats>({ points: 0, coupon_count: 0, favorite_count: 0 });
+  const [fontPopupVisible, setFontPopupVisible] = useState(false);
+  const [fontConfig, setFontConfig] = useState<{
+    font_switch_enabled: boolean;
+    font_default_level: 'standard' | 'large' | 'xlarge';
+    font_standard_size: number;
+    font_large_size: number;
+    font_xlarge_size: number;
+  }>({
+    font_switch_enabled: true,
+    font_default_level: 'standard',
+    font_standard_size: 16,
+    font_large_size: 19,
+    font_xlarge_size: 22,
+  });
+  const { fontLevel, setFontLevel } = useFontSize(fontConfig);
 
   const loadStats = () => {
     api.get('/api/users/me/stats')
@@ -55,6 +72,16 @@ export default function ProfilePage() {
       })
       .catch(() => {});
     loadStats();
+    api.get('/api/home-config').then((res: unknown) => {
+      const data = res as Record<string, unknown>;
+      setFontConfig({
+        font_switch_enabled: data.font_switch_enabled !== false,
+        font_default_level: (data.font_default_level as 'standard' | 'large' | 'xlarge') || 'standard',
+        font_standard_size: (data.font_standard_size as number) || 16,
+        font_large_size: (data.font_large_size as number) || 19,
+        font_xlarge_size: (data.font_xlarge_size as number) || 22,
+      });
+    }).catch(() => {});
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') loadStats();
     };
@@ -73,8 +100,11 @@ export default function ProfilePage() {
   return (
     <div className="pb-20">
       <div
-        className="px-4 pt-12 pb-6"
-        style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}
+        className="px-4 pb-4"
+        style={{
+          paddingTop: 32,
+          background: 'linear-gradient(135deg, #52c41a, #13c2c2)',
+        }}
       >
         <div className="flex items-center">
           <div onClick={() => user ? router.push('/profile/edit') : router.push('/login')}>
@@ -144,6 +174,16 @@ export default function ProfilePage() {
       </div>
 
       <div className="px-4 -mt-3">
+        {fontConfig.font_switch_enabled && (
+          <div
+            className="font-size-shortcut"
+            onClick={() => setFontPopupVisible(true)}
+            style={{ marginBottom: 8, marginTop: 0 }}
+          >
+            <span>🔍 字号偏小？点这里调大</span>
+            <RightOutline fontSize={12} />
+          </div>
+        )}
         <div className="card">
           <Grid columns={3} gap={0}>
             <Grid.Item onClick={() => router.push('/points')}>
@@ -213,6 +253,16 @@ export default function ProfilePage() {
           </List>
         </div>
       </div>
+
+      <FontSettingPopup
+        visible={fontPopupVisible}
+        onClose={() => setFontPopupVisible(false)}
+        fontLevel={fontLevel}
+        onFontLevelChange={setFontLevel}
+        standardSize={fontConfig.font_standard_size}
+        largeSize={fontConfig.font_large_size}
+        xlargeSize={fontConfig.font_xlarge_size}
+      />
     </div>
   );
 }

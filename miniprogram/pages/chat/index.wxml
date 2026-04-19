@@ -32,7 +32,7 @@
   </view>
 
   <!-- 用药识别卡片（与 H5/Flutter 对齐） -->
-  <view wx:if="{{chatType === 'drug_identify' && drugIdentifyBannerVisible && (drugIdentifyMember || drugIdentifyDrugNames)}}" class="drug-banner">
+  <view wx:if="{{chatType === 'drug_identify'}}" class="drug-banner">
     <view class="drug-banner__head">
       <text class="drug-banner__icon">💊</text>
       <text class="drug-banner__title">用药识别</text>

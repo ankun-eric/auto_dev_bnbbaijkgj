@@ -18,7 +18,7 @@ class FontSizeSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final fontProvider = Provider.of<FontProvider>(context);
-    final labels = ['标准', '大', '超大'];
+    final labels = ['标准', '大字号 👨‍🦳', '超大字号 👴'];
 
     return SafeArea(
       child: Padding(

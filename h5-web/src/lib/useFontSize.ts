@@ -12,11 +12,12 @@ interface FontConfig {
   font_xlarge_size: number;
 }
 
+// v6: 默认字号体系升级为 16/19/22，开关默认 ON
 const DEFAULT_FONT_CONFIG: FontConfig = {
-  font_switch_enabled: false,
+  font_switch_enabled: true,
   font_default_level: 'standard',
-  font_standard_size: 14,
-  font_large_size: 18,
+  font_standard_size: 16,
+  font_large_size: 19,
   font_xlarge_size: 22,
 };
 

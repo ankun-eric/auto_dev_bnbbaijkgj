@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { NavBar, Card, Tag, Toast, Empty, SpinLoading, InfiniteScroll, Image, Popup, Radio, DatePicker, Button } from 'antd-mobile';
+import { Card, Tag, Toast, Empty, SpinLoading, InfiniteScroll, Image, Popup, Radio, DatePicker, Button } from 'antd-mobile';
+import GreenNavBar from '@/components/GreenNavBar';
 import { PictureOutline, CameraOutline, FileOutline } from 'antd-mobile-icons';
 import api from '@/lib/api';
 import { checkFileSize, uploadWithProgress } from '@/lib/upload-utils';
@@ -593,9 +594,9 @@ export default function CheckupPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <NavBar onBack={() => router.back()} style={{ background: '#fff' }}>
+      <GreenNavBar>
         体检报告
-      </NavBar>
+      </GreenNavBar>
 
       <AlertBanner />
 
@@ -1031,7 +1032,7 @@ export default function CheckupPage() {
               fontSize: 15,
             }}
           >
-            确认并开始识别
+            AI 开始分析
           </Button>
         </div>
       </Popup>

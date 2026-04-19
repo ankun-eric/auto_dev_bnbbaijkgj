@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { NavBar, List, Switch, Dialog, Toast, Button } from 'antd-mobile';
+import { List, Switch, Dialog, Toast, Button } from 'antd-mobile';
+import GreenNavBar from '@/components/GreenNavBar';
 import { logout, useAuth } from '@/lib/auth';
 import { useFontSize } from '@/lib/useFontSize';
 import FontSettingPopup from '@/components/FontSettingPopup';
@@ -72,9 +73,9 @@ export default function SettingsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <NavBar onBack={() => router.back()} style={{ background: '#fff' }}>
+      <GreenNavBar>
         设置
-      </NavBar>
+      </GreenNavBar>
 
       <div className="pt-2">
         <List header="通知设置" style={{ '--border-top': 'none' }}>

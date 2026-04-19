@@ -117,7 +117,8 @@ Page({
         id: item.id,
         sessionId: item.session_id || item.id,
         drugName: item.drug_name || item.title || '未识别药品',
-        thumbnail: item.image_url || item.thumbnail || '',
+        thumbnail: item.original_image_url || item.image_url || item.thumbnail || '',
+        thumbnailFailed: false,
         time: this._formatTime(item.created_at || item.updated_at),
         status: item.status || 'completed',
         statusText: this._getStatusText(item.status),
@@ -129,6 +130,12 @@ Page({
     } finally {
       this.setData({ loading: false });
     }
+  },
+
+  onHistoryThumbError(e) {
+    const id = e.currentTarget.dataset.id;
+    const list = this.data.historyList.map(it => it.id === id ? { ...it, thumbnailFailed: true } : it);
+    this.setData({ historyList: list });
   },
 
   _formatTime(dateStr) {

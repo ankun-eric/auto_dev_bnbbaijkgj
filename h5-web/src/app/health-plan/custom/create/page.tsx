@@ -2,7 +2,8 @@
 
 import { Suspense, useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { NavBar, Form, Input, Button, Toast, TextArea, Stepper, Switch, SpinLoading } from 'antd-mobile';
+import { Form, Input, Button, Toast, TextArea, Stepper, Switch, SpinLoading } from 'antd-mobile';
+import GreenNavBar from '@/components/GreenNavBar';
 import { AddOutline, CloseOutline } from 'antd-mobile-icons';
 import api from '@/lib/api';
 
@@ -124,7 +125,7 @@ function CreateCustomPlanContent() {
   if (fetching) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <NavBar onBack={() => router.back()} style={{ background: '#fff' }}>编辑计划</NavBar>
+        <GreenNavBar>编辑计划</GreenNavBar>
         <div className="flex items-center justify-center" style={{ height: 'calc(100vh - 45px)' }}>
           <SpinLoading color="primary" />
         </div>
@@ -134,7 +135,7 @@ function CreateCustomPlanContent() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
-      <NavBar onBack={() => router.back()} style={{ background: '#fff' }}>{isEdit ? '编辑计划' : '创建计划'}</NavBar>
+      <GreenNavBar>{isEdit ? '编辑计划' : '创建计划'}</GreenNavBar>
 
       <div className="px-4 pt-4">
         <div className="card">

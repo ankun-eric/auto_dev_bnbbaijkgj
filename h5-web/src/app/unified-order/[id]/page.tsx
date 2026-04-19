@@ -2,19 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import {
-  NavBar,
-  Card,
-  Image,
-  Tag,
-  Button,
-  Steps,
-  Divider,
-  Toast,
-  Dialog,
-  SpinLoading,
-  ProgressBar,
-} from 'antd-mobile';
+import { Card, Image, Tag, Button, Steps, Divider, Toast, Dialog, SpinLoading, ProgressBar } from 'antd-mobile';
+import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 
 interface OrderItem {
@@ -150,7 +139,7 @@ export default function UnifiedOrderDetailPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <NavBar onBack={() => router.back()} style={{ background: '#fff' }}>订单详情</NavBar>
+        <GreenNavBar>订单详情</GreenNavBar>
         <div className="flex items-center justify-center py-40"><SpinLoading color="primary" /></div>
       </div>
     );
@@ -159,7 +148,7 @@ export default function UnifiedOrderDetailPage() {
   if (!order) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <NavBar onBack={() => router.back()} style={{ background: '#fff' }}>订单详情</NavBar>
+        <GreenNavBar>订单详情</GreenNavBar>
         <div className="text-center text-gray-400 py-40">订单不存在</div>
       </div>
     );
@@ -170,9 +159,9 @@ export default function UnifiedOrderDetailPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
-      <NavBar onBack={() => router.back()} style={{ background: '#fff' }}>
+      <GreenNavBar>
         订单详情
-      </NavBar>
+      </GreenNavBar>
 
       <div
         className="px-4 py-6 text-center"

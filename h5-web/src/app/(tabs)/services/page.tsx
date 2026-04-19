@@ -371,11 +371,12 @@ export default function ServicesPage() {
                   setActiveTopId(cat.id);
                   setActiveSubId(null);
                 }}
-                className="px-2 py-3 text-center text-xs cursor-pointer relative"
+                className="px-2 py-3 text-center cursor-pointer relative"
                 style={{
                   background: active ? '#fff' : 'transparent',
                   color: active ? '#52c41a' : '#666',
                   fontWeight: active ? 600 : 400,
+                  fontSize: 14,
                 }}
               >
                 {active && (

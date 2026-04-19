@@ -751,15 +751,9 @@ function ChatPageInner() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId, isDrugIdentify, isConstitution]);
 
-  // Auto-collapse drug_identify/constitution banner after first AI reply
-  useEffect(() => {
-    if (!isDrugIdentify && !isConstitution) return;
-    const aiReplies = messages.filter((m) => m.role === 'assistant' && m.id !== 'welcome');
-    if (aiReplies.length > 0) {
-      if (isDrugIdentify) setDrugIdentifyBannerVisible(false);
-      if (isConstitution) setConstitutionBannerVisible(false);
-    }
-  }, [messages, isDrugIdentify, isConstitution]);
+  // Drug identify / constitution banner stays persistent: do NOT collapse after AI replies.
+  // The banner visibility is derived from URL `type` parameter once and never auto-hidden.
+  // (Removed previous auto-collapse useEffect on AI reply to fix banner-disappearing bug.)
 
   useEffect(() => {
     if (isSymptom) return;

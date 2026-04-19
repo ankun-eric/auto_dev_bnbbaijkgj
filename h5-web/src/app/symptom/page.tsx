@@ -2,9 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-  NavBar, Button, TextArea, Tag, Grid, Card, Toast, Popup, Radio, DatePicker,
-} from 'antd-mobile';
+import { Button, TextArea, Tag, Grid, Card, Toast, Popup, Radio, DatePicker } from 'antd-mobile';
+import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 import DiseaseTagSelector, { type DiseaseItem } from '@/components/DiseaseTagSelector';
 import HealthProfileEditor, { type HealthProfileEditorRef } from '@/components/HealthProfileEditor';
@@ -349,9 +348,11 @@ export default function SymptomPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <NavBar onBack={() => (step > 0 && !memberPopupVisible ? setStep(0) : router.back())} style={{ background: '#fff' }}>
+      <GreenNavBar
+        back={() => (step > 0 && !memberPopupVisible ? setStep(0) : router.back())}
+      >
         健康自查
-      </NavBar>
+      </GreenNavBar>
 
       <div className="px-4 pt-2">
         <div className="bg-white rounded-2xl shadow-sm mb-3">
@@ -541,7 +542,7 @@ export default function SymptomPage() {
           <Button block loading={analyzing} onClick={handleConfirm}
             style={{ marginTop: 20, background: 'linear-gradient(135deg, #52c41a, #13c2c2)', color: '#fff', border: 'none', borderRadius: 24, height: 46, fontSize: 15 }}
           >
-            确认并开始分析
+            AI 开始分析
           </Button>
         </div>
       </Popup>

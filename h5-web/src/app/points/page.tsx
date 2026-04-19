@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { NavBar, Card, Button, Toast, Grid, SpinLoading, Tag } from 'antd-mobile';
+import { Card, Button, Toast, Grid, SpinLoading, Tag } from 'antd-mobile';
+import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 
 interface DailyTask {
@@ -87,21 +88,18 @@ export default function PointsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-8">
-      <NavBar
-        onBack={() => router.back()}
+      <GreenNavBar
         right={
           <span
-            className="text-sm cursor-pointer"
-            style={{ color: '#52c41a' }}
+            className="text-white text-sm cursor-pointer"
             onClick={() => router.push('/points/records')}
           >
             积分详情 ›
           </span>
         }
-        style={{ background: '#fff' }}
       >
         积分中心
-      </NavBar>
+      </GreenNavBar>
 
       <div
         className="px-4 pt-6 pb-8 text-center"

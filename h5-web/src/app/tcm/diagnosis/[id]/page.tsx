@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { NavBar, Card, Button, SpinLoading, Toast, Empty, Grid } from 'antd-mobile';
+import { Card, Button, SpinLoading, Toast, Empty, Grid } from 'antd-mobile';
+import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 
 interface DiagnosisDetail {
@@ -125,7 +126,7 @@ export default function DiagnosisDetailPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <NavBar onBack={() => router.back()} style={{ background: '#fff' }}>体质分析详情</NavBar>
+        <GreenNavBar>体质分析详情</GreenNavBar>
         <div className="flex items-center justify-center py-20">
           <SpinLoading style={{ '--size': '32px', '--color': '#52c41a' }} />
         </div>
@@ -136,7 +137,7 @@ export default function DiagnosisDetailPage() {
   if (!detail) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <NavBar onBack={() => router.back()} style={{ background: '#fff' }}>体质分析详情</NavBar>
+        <GreenNavBar>体质分析详情</GreenNavBar>
         <div className="px-4 pt-10">
           <Empty description="记录不存在" />
         </div>
@@ -149,9 +150,9 @@ export default function DiagnosisDetailPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
-      <NavBar onBack={() => router.back()} style={{ background: '#fff' }}>
+      <GreenNavBar>
         体质分析详情
-      </NavBar>
+      </GreenNavBar>
 
       {/* Constitution result card */}
       <div className="px-4 pt-4">

@@ -2,7 +2,8 @@
 
 import { Suspense, useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { NavBar, Form, Input, Button, Toast, SpinLoading, Picker } from 'antd-mobile';
+import { Form, Input, Button, Toast, SpinLoading, Picker } from 'antd-mobile';
+import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 
 const FREQ_OPTIONS = [
@@ -121,9 +122,9 @@ function CheckinAddContent() {
   if (fetching) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <NavBar onBack={() => router.back()} style={{ background: '#fff' }}>
+        <GreenNavBar>
           {isEdit ? '编辑打卡项' : '添加打卡项'}
-        </NavBar>
+        </GreenNavBar>
         <div className="flex items-center justify-center" style={{ height: 'calc(100vh - 45px)' }}>
           <SpinLoading color="primary" />
         </div>
@@ -139,9 +140,9 @@ function CheckinAddContent() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
-      <NavBar onBack={() => router.back()} style={{ background: '#fff' }}>
+      <GreenNavBar>
         {isEdit ? '编辑打卡项' : '添加打卡项'}
-      </NavBar>
+      </GreenNavBar>
 
       <div className="px-4 pt-4">
         <div className="card">

@@ -31,6 +31,11 @@
     </view>
   </view>
 
+  <view class="font-size-shortcut" bindtap="goFontSetting">
+    <text class="font-size-shortcut-text">字号偏小？点这里调大</text>
+    <text class="font-size-shortcut-arrow">→</text>
+  </view>
+
   <view class="stats-bar card">
     <view class="stat-item" bindtap="goPoints">
       <text class="stat-value">{{points}}</text>

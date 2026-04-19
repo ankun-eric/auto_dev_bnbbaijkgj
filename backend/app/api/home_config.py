@@ -27,12 +27,14 @@ admin_dep = require_role("admin")
 
 _HOME_CONFIG_KEYS = {
     "home_search_visible": "true",
-    "home_search_placeholder": "搜索健康知识、服务、商品",
+    # v6: 搜索栏文案统一为「想找什么服务/商品？」
+    "home_search_placeholder": "想找什么服务/商品？",
     "home_grid_columns": "3",
+    # v6 字体方案：开关默认 ON，基准从 14 提到 16，档间距合理
     "home_font_switch_enabled": "true",
     "home_font_default_level": "standard",
-    "home_font_standard_size": "14",
-    "home_font_large_size": "18",
+    "home_font_standard_size": "16",
+    "home_font_large_size": "19",
     "home_font_xlarge_size": "22",
 }
 

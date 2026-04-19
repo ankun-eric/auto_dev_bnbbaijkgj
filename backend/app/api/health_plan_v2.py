@@ -1474,13 +1474,23 @@ async def get_statistics(
         monthly_data.append({"date": d.isoformat(), "count": completed_d})
         monthly_rates.append(round(completed_d / total_d * 100, 1) if total_d > 0 else 0.0)
 
-    # plan_rankings
+    # ──────────── plan_rankings (v6 修复：覆盖三类计划) ────────────
+    # 修复要点：
+    # 1) 关联用户 ID（原已正确）
+    # 2) 覆盖自定义计划（UserPlan）+ 用药提醒（MedicationReminder）+ 健康打卡（HealthCheckInItem）
+    # 3) 修正分母：以"该项目从创建日到今日的总天数 × 项目数"为分母，避免新建即 0%
     plan_rankings: list[PlanRanking] = []
+
+    # —— 自定义计划 ——
     for p in user_plans:
         if not p.tasks:
             continue
         task_ids = [t.id for t in p.tasks]
-        days_active = max((today - p.start_date).days, 1) if p.start_date else 1
+        # 修正分母：以计划开始日到今日（含）的天数，每日所有任务都视为应完成 1 次
+        if p.start_date:
+            days_active = max((today - p.start_date).days + 1, 1)
+        else:
+            days_active = 1
         total_possible = len(task_ids) * days_active
         done_result = await db.execute(
             select(func.count(UserPlanTaskRecord.id)).where(
@@ -1494,10 +1504,86 @@ async def get_statistics(
         plan_rankings.append(PlanRanking(
             plan_id=p.id,
             plan_name=p.plan_name,
-            completion_rate=rate,
+            completion_rate=min(rate, 100.0),
             completed_count=done_count,
             total_count=total_possible,
         ))
+
+    # —— 用药提醒（聚合为「用药提醒」一行） ——
+    med_rem_result = await db.execute(
+        select(MedicationReminder).where(
+            MedicationReminder.user_id == current_user.id,
+            MedicationReminder.status == "active",
+        )
+    )
+    med_reminders = med_rem_result.scalars().all()
+    if med_reminders:
+        total_possible_med = 0
+        for r in med_reminders:
+            start_d = getattr(r, "start_date", None) or getattr(r, "created_at", None)
+            if hasattr(start_d, "date"):
+                start_d = start_d.date()
+            if not start_d:
+                start_d = today
+            days = max((today - start_d).days + 1, 1)
+            total_possible_med += days
+        done_med_result = await db.execute(
+            select(func.count(MedicationCheckIn.id)).where(
+                MedicationCheckIn.user_id == current_user.id,
+            )
+        )
+        done_med = done_med_result.scalar() or 0
+        rate_med = (
+            round(done_med / total_possible_med * 100, 1)
+            if total_possible_med > 0
+            else 0.0
+        )
+        plan_rankings.append(PlanRanking(
+            plan_id=-1,
+            plan_name="用药提醒",
+            completion_rate=min(rate_med, 100.0),
+            completed_count=done_med,
+            total_count=total_possible_med,
+        ))
+
+    # —— 健康打卡（聚合为「健康打卡」一行） ——
+    ci_items_result = await db.execute(
+        select(HealthCheckInItem).where(
+            HealthCheckInItem.user_id == current_user.id,
+            HealthCheckInItem.status == "active",
+        )
+    )
+    ci_items = ci_items_result.scalars().all()
+    if ci_items:
+        total_possible_ci = 0
+        for it in ci_items:
+            start_d = getattr(it, "created_at", None)
+            if hasattr(start_d, "date"):
+                start_d = start_d.date()
+            if not start_d:
+                start_d = today
+            days = max((today - start_d).days + 1, 1)
+            total_possible_ci += days
+        done_ci_result = await db.execute(
+            select(func.count(HealthCheckInRecord.id)).where(
+                HealthCheckInRecord.user_id == current_user.id,
+                HealthCheckInRecord.is_completed == True,
+            )
+        )
+        done_ci = done_ci_result.scalar() or 0
+        rate_ci = (
+            round(done_ci / total_possible_ci * 100, 1)
+            if total_possible_ci > 0
+            else 0.0
+        )
+        plan_rankings.append(PlanRanking(
+            plan_id=-2,
+            plan_name="健康打卡",
+            completion_rate=min(rate_ci, 100.0),
+            completed_count=done_ci,
+            total_count=total_possible_ci,
+        ))
+
     plan_rankings.sort(key=lambda x: x.completion_rate, reverse=True)
 
     return CheckInStatisticsResponse(
