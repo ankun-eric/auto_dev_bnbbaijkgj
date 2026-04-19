@@ -2336,6 +2336,25 @@ ALLOWED_LOGO_TYPES = {"image/png", "image/jpeg"}
 MAX_LOGO_SIZE = 2 * 1024 * 1024
 
 
+def _build_logo_url(storage_path: str) -> str:
+    """BUG ②修复：将后端持久化的相对 `storage_path`（如 `/uploads/logo/xxx.png`）拼成
+    带网关 basePath 的完整路径返回给前端，避免管理后台/H5/小程序各端因 NEXT_PUBLIC_BASE_PATH
+    不同而拼接出 404 的 URL。
+
+    优先级：
+    1. 环境变量 `STATIC_BASE_URL`（如 `https://newbb.test.bangbangvip.com/autodev/<id>`）
+    2. 否则返回原 `storage_path`，由各端自行兜底（保持向下兼容）
+    """
+    if not storage_path:
+        return storage_path
+    if storage_path.startswith("http://") or storage_path.startswith("https://"):
+        return storage_path
+    base = os.environ.get("STATIC_BASE_URL", "").rstrip("/")
+    if base:
+        return f"{base}{storage_path}"
+    return storage_path
+
+
 @router.post("/settings/logo")
 async def upload_logo(
     file: UploadFile = File(...),
@@ -2360,15 +2379,18 @@ async def upload_logo(
     with open(filepath, "wb") as f:
         f.write(content)
 
-    logo_url = f"/uploads/logo/{filename}"
+    # BUG ②修复：返回带 STATIC_BASE_URL 前缀的绝对/网关路径，避免前端因 basePath 不一致拼错 URL
+    storage_path = f"/uploads/logo/{filename}"
+    logo_url = _build_logo_url(storage_path)
 
     result = await db.execute(select(SystemConfig).where(SystemConfig.config_key == "brand_logo_url"))
     config = result.scalar_one_or_none()
     if config:
-        config.config_value = logo_url
+        # 仅持久化 storage_path（相对路径），便于环境迁移；返回时再拼 STATIC_BASE_URL
+        config.config_value = storage_path
         config.updated_at = datetime.utcnow()
     else:
-        db.add(SystemConfig(config_key="brand_logo_url", config_value=logo_url, config_type="brand"))
+        db.add(SystemConfig(config_key="brand_logo_url", config_value=storage_path, config_type="brand"))
 
     return {"code": 0, "data": {"logo_url": logo_url}}
 
@@ -2396,5 +2418,7 @@ async def get_logo(
 ):
     result = await db.execute(select(SystemConfig).where(SystemConfig.config_key == "brand_logo_url"))
     config = result.scalar_one_or_none()
-    logo_url = config.config_value if config else None
+    storage_path = config.config_value if config else None
+    # BUG ②修复：返回带前缀的完整可访问 URL
+    logo_url = _build_logo_url(storage_path) if storage_path else None
     return {"code": 0, "data": {"logo_url": logo_url}}

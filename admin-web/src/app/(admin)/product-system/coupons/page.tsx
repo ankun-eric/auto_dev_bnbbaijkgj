@@ -119,6 +119,56 @@ const grantStatusMap: Record<string, { label: string; color: string }> = {
 
 const OFFLINE_REASON_PRESETS = ['活动结束', '配置错误', '库存调整', '业务调整', '其他'];
 
+/**
+ * BUG ③ 修复：CSV 下载工具
+ * - 旧实现用 `window.open(url)` 跳转，没带 Authorization 头，被 gateway-nginx 兜底返回 "Gateway OK"
+ * - 新实现用 fetch + Blob：携带 token、真实错误透传到 message.error、最后通过临时 <a> 触发下载
+ * - 加入 NEXT_PUBLIC_API_URL / NEXT_PUBLIC_BASE_PATH 前缀拼接，确保经过 gateway 反向代理
+ */
+async function downloadAsCsv(apiPath: string, filename: string): Promise<void> {
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
+  const apiBase = apiUrl ? apiUrl.replace(/\/api\/?$/, '') : '';
+  const url = `${apiBase}${apiPath}`;
+  let token: string | null = null;
+  if (typeof window !== 'undefined') {
+    token = localStorage.getItem('admin_token');
+  }
+  try {
+    const resp = await fetch(url, {
+      method: 'GET',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      credentials: 'include',
+    });
+    if (!resp.ok) {
+      let errMsg = `导出失败：HTTP ${resp.status}`;
+      try {
+        const text = await resp.text();
+        if (text) {
+          try {
+            const j = JSON.parse(text);
+            errMsg = j?.detail || j?.message || text.slice(0, 200);
+          } catch {
+            errMsg = text.slice(0, 200);
+          }
+        }
+      } catch {}
+      message.error(errMsg);
+      return;
+    }
+    const blob = await resp.blob();
+    const objectUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = objectUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(objectUrl);
+  } catch (e: unknown) {
+    message.error(`导出失败：${(e as Error)?.message || '网络异常'}`);
+  }
+}
+
 export default function CouponsPage() {
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [loading, setLoading] = useState(false);
@@ -353,10 +403,13 @@ export default function CouponsPage() {
     }
   };
 
-  const exportGrants = () => {
+  const exportGrants = async () => {
     if (!grantsCoupon) return;
-    const url = `/api/admin/coupons/${grantsCoupon.id}/grants/export`;
-    window.open(url, '_blank');
+    // BUG ③修复：用 fetch+Blob 下载（带 token），避免 window.open 跳转命中 gateway 兜底
+    await downloadAsCsv(
+      `/api/admin/coupons/${grantsCoupon.id}/grants/export`,
+      `coupon_grants_${grantsCoupon.id}.csv`,
+    );
   };
 
   const recallGrants = async () => {
@@ -539,9 +592,12 @@ export default function CouponsPage() {
     }
   };
 
-  const exportBatchCsv = (batch: CodeBatchItem) => {
-    const url = `/api/admin/coupons/redeem-code-batches/${batch.id}/export`;
-    window.open(url, '_blank');
+  const exportBatchCsv = async (batch: CodeBatchItem) => {
+    // BUG ③修复：后端实际路径为 `/codes/export`；改用 fetch+Blob 下载（带 token + 真实错误提示）
+    await downloadAsCsv(
+      `/api/admin/coupons/redeem-code-batches/${batch.id}/codes/export`,
+      `${batch.batch_no || `batch_${batch.id}`}_codes.csv`,
+    );
   };
 
   const openVoidBatch = (batch: CodeBatchItem) => {

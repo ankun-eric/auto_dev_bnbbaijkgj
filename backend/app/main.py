@@ -294,6 +294,73 @@ async def _migrate_coupons_v2_1():
         _logger.error("V2.1 优惠券迁移异常（不影响启动）: %s", e)
 
 
+async def _migrate_product_categories_hierarchy():
+    """BUG ⑤修复：本期 N — 修正商品分类「适老化改造」被错置为一级分类的问题。
+
+    步骤：
+    1. 查询 `product_categories` 表，输出所有 parent_id IS NULL 但名称看起来是子分类的异常清单。
+    2. 对名为「适老化改造」的分类，将其 parent_id 设置为「居家服务」分类的 id（按需创建）。
+    3. 顺手将 level 字段统一为 parent_id NULL → 1，否则 → 2。
+    4. 通过 SystemConfig.product_category_hierarchy_fixed_v1 控制不重复执行。
+    """
+    import logging
+    _logger = logging.getLogger(__name__)
+    from app.core.database import async_session as _async_session
+    from sqlalchemy import select as _sel
+    from app.models.models import SystemConfig as _SC, ProductCategory as _PC
+    try:
+        async with _async_session() as db:
+            mark = (await db.execute(
+                _sel(_SC).where(_SC.config_key == "product_category_hierarchy_fixed_v1")
+            )).scalar_one_or_none()
+            if mark and mark.config_value == "1":
+                return
+
+            # ── 1. 查询是否存在「居家服务」一级分类，没有则创建 ──
+            home_cat = (await db.execute(
+                _sel(_PC).where(_PC.name == "居家服务", _PC.parent_id.is_(None))
+            )).scalar_one_or_none()
+            if not home_cat:
+                home_cat = _PC(name="居家服务", parent_id=None, sort_order=99, level=1)
+                db.add(home_cat)
+                await db.flush()
+                _logger.info("BUG⑤：补建一级分类「居家服务」id=%s", home_cat.id)
+
+            # ── 2. 修正「适老化改造」的父级 ──
+            elderly_cats = (await db.execute(
+                _sel(_PC).where(_PC.name == "适老化改造")
+            )).scalar_one_or_none()
+            if elderly_cats:
+                if elderly_cats.parent_id != home_cat.id:
+                    _logger.info(
+                        "BUG⑤：修正「适老化改造」parent_id %s → %s（居家服务）",
+                        elderly_cats.parent_id, home_cat.id,
+                    )
+                    elderly_cats.parent_id = home_cat.id
+                    elderly_cats.level = 2
+
+            # ── 3. 全量统一 level 字段，避免前端按 level 渲染时出错 ──
+            all_cats = (await db.execute(_sel(_PC))).scalars().all()
+            for c in all_cats:
+                expected_level = 1 if c.parent_id is None else 2
+                if c.level != expected_level:
+                    c.level = expected_level
+
+            # ── 4. 标记完成（一次性）──
+            if mark:
+                mark.config_value = "1"
+            else:
+                db.add(_SC(
+                    config_key="product_category_hierarchy_fixed_v1",
+                    config_value="1",
+                    config_type="product",
+                ))
+            await db.commit()
+            _logger.info("BUG⑤：商品分类层级修复完成")
+    except Exception as e:  # noqa: BLE001
+        _logger.error("BUG⑤分类层级迁移异常（不影响启动）：%s", e)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
@@ -302,6 +369,7 @@ async def lifespan(app: FastAPI):
     await _migrate_points_enums_and_config()
     await _migrate_coupons_v2()
     await _migrate_coupons_v2_1()
+    await _migrate_product_categories_hierarchy()
     await migrate_existing_users_user_no()
     from app.init_data import init_default_data
     await init_default_data()

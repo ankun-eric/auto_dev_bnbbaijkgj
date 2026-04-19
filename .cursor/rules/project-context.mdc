@@ -33,7 +33,59 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 优惠券V2.1 — 领券置灰+兑换码批次明细+禁删除仅下架 (2026-04-19)
+## Latest Update: 第N期 5 BUG 修复 + 服务列表改造 (2026-04-19)
+
+### 概要
+本期修复 5 个高优 Bug 并完成 H5 用户端服务列表页全新形态改造：
+
+| # | 类型 | 标题 | 修复端 |
+|---|---|---|---|
+| ① | Bug P0 | 中医养生·体质检测 提交后报「提交测评失败」 | backend + h5 |
+| ② | Bug P1 | 管理后台 品牌 Logo 上传后无法显示 | backend + admin + gateway |
+| ③ | Bug P1 | 优惠券·兑换码批次 导出 CSV 提示「Gateway OK」 | admin + gateway |
+| ④ | 改造 | 用户端服务列表 → 左侧大类 + 顶部子类 + 常驻搜索 + 履约角标 | backend + h5 |
+| ⑤ | Bug P2 | 商品「适老化改造」二级分类被错显为一级（数据） | backend |
+
+### 关键改动
+- `backend/app/api/tcm.py`：`POST /api/tcm/constitution-test`
+  - 答题为空 → 422
+  - 过滤无效 `question_id` 防外键 500
+  - AI 异常兜底
+  - **关键**：commit 后立即 snapshot diagnosis 字段，避免 chat_session 子流程触发 expire 后 lazy-load 报 `MissingGreenlet`
+- `backend/app/api/admin.py`：新增 `_build_logo_url(storage_path)`，根据 `STATIC_BASE_URL` 环境变量返回带 basePath 的绝对 URL
+- `backend/app/api/products.py`：
+  - `list_products` 新增 `parent_category_id`（自动包含全部子类）+ `q` 别名 + 关键词同时模糊匹配 `name` 与 `symptom_tags`
+  - 新增 `GET /api/products/hot-recommendations`（近 30 天销量 Top N，默认 6）
+- `backend/app/main.py`：新增 `_migrate_product_categories_hierarchy()` 一次性迁移，把「适老化改造」归位到「居家服务」之下，统一 `level`
+- `backend/app/models/models.py`：`FulfillmentType` 新增 `virtual` 枚举（虚拟商品）
+- `admin-web/src/app/(admin)/product-system/coupons/page.tsx`：
+  - `exportGrants` / `exportBatchCsv` 改用 `fetch + Blob`（带 token，避免 Gateway OK）
+  - 修正兑换码批次导出路径为 `/api/admin/coupons/redeem-code-batches/{id}/codes/export`
+- `h5-web/src/app/(tabs)/services/page.tsx`：完整重构为「左侧大类 + 顶部子类 + 商品卡片 + 履约角标 + sticky 搜索 + 热门推荐兜底」
+- `gateway-routes.conf`：API 路由加 `proxy_buffering off`（CSV 导出用），`/uploads/` 加 `expires 30d` + `Cache-Control public`
+- `docker-compose.prod.yml`：backend 注入 `STATIC_BASE_URL=https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27`
+
+### 履约角标色值规范（终稿）
+- 到店服务 `in_store` → 暖橙 `#FF8A3D`
+- 快递配送 `delivery` → 科技蓝 `#3B82F6`
+- 虚拟商品 `virtual` → 尊贵紫 `#8B5CF6`
+
+### 测试
+- `backend/tests/test_period_n_bugfix.py` 覆盖：TCM 异常路径/AI 失败兜底/外键过滤、Logo 绝对 URL、CSV 导出（含 BOM）、分类层级、parent_category_id/q/hot-recommendations/virtual 履约类型
+
+### 在线验证（2026-04-19）
+- TCM 体质测评 → 200，返回完整辨证
+- Logo URL → 绝对路径 + 30 天缓存命中
+- CSV 导出 → 200，BOM 正确，Content-Disposition 正确
+- 「适老化改造」→ 已在「居家服务」之下
+- hot-recommendations / parent_category_id / q 全部 200
+
+### 用户手册
+- `user_docs/第N期5BUG修复与服务列表改造_使用手册.md`
+
+---
+
+## Previous Update: 优惠券V2.1 — 领券置灰+兑换码批次明细+禁删除仅下架 (2026-04-19)
 
 ### 概要
 基于 V2 上线反馈，本次升级聚焦 4 大方向：

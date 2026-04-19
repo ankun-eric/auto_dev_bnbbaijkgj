@@ -44,6 +44,8 @@ services:
       TENCENT_SMS_SIGN_NAME: ${TENCENT_SMS_SIGN_NAME:-呃唉帮帮网络}
       TENCENT_SMS_TEMPLATE_ID: ${TENCENT_SMS_TEMPLATE_ID:-2201340}
       TENCENT_SMS_APP_KEY: ${TENCENT_SMS_APP_KEY:-7e3c8242bf0799cca367fa18fa47a7ea}
+      # BUG ②：上传 URL 拼接的全局基础地址（含 /autodev/<deploy_id> 前缀）
+      STATIC_BASE_URL: ${STATIC_BASE_URL:-https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27}
     volumes:
       - uploads_data:/app/uploads
     expose:

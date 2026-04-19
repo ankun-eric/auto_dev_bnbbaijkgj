@@ -132,8 +132,9 @@ class ContentTypeEnum(str, enum.Enum):
 
 
 class FulfillmentType(str, enum.Enum):
-    in_store = "in_store"
-    delivery = "delivery"
+    in_store = "in_store"  # 到店服务（暖橙角标）
+    delivery = "delivery"  # 快递配送（科技蓝角标）
+    virtual = "virtual"    # 改造④：虚拟商品（尊贵紫角标，如在线问诊咨询券、电子券码等）
 
 
 class ProductStatus(str, enum.Enum):
