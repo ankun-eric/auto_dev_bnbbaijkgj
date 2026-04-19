@@ -33,7 +33,41 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 优惠券V2 + 审核体系 + 第三方OpenAPI (2026-04-19)
+## Latest Update: 优惠券V2.1 — 领券置灰+兑换码批次明细+禁删除仅下架 (2026-04-19)
+
+### 概要
+基于 V2 上线反馈，本次升级聚焦 4 大方向：
+1. **领券中心置灰**：`GET /api/coupons/available` 响应新增 `claimed/sold_out/button_text/button_disabled`（支持匿名访问，未登录 `claimed=false`）；H5/小程序/Flutter 三端同步按 `button_disabled` 渲染灰色按钮 + `button_text` 文案；`POST /api/coupons/claim` 重复领取返回 409。
+2. **F 兑换码批次+明细管理（Admin）**：
+   - `CouponCodeBatch` 加列 `batch_no`（`BATCH-YYYYMMDD-XXX`）/ `claim_limit`（一码通用必填、唯一码自动=total_count）/ `expire_at` / `voided_at` / `voided_by` / `void_reason`；`CouponRedeemCode` 加同名作废三字段。
+   - 新增 5 个管理接口：`GET /redeem-code-batches`、`GET /redeem-code-batches/{id}/codes`（默认脱敏 `ABCD****1234`，`?reveal=true` 解码）、`POST /redeem-code-batches/{id}/void`（强校验：`batch_no_confirm` 必须完全一致）、`POST /codes/{code_id}/void`（单码作废+必填原因）、`GET /offline-reason-options`。
+   - Admin 优惠券页新增「兑换码批次」抽屉 + 批次明细抽屉（一码通用展示统计+兑换记录、唯一码展示 N 行码+复制+单码作废）+ 整批作废强二次确认弹窗。
+   - 作废规则：仅阻止后续 `POST /api/coupons/redeem`，已通过该码领到的 `UserCoupon` 不受影响。
+3. **优惠券「禁删除，仅下架」**：
+   - `Coupon` 加列 `is_offline` / `offline_reason` / `offline_at` / `offline_by` / `points_exchange_limit`（积分兑换预留）；新增 `CouponOpLog` 表（`op_type`/`target_type`/`target_id`/`operator_id`/`reason`）。
+   - 新增 `POST /api/admin/coupons/{id}/offline`（**仅 superuser**，5 个预设原因 + "其他"必填 5 字以上备注，新人券强校验返回 422）+ `POST /api/admin/coupons/{id}/online`（重新上架）。
+   - 物理删除接口下线：`DELETE /api/admin/coupons/{id}` 返回 405（同时清理 `product_admin.py` 中的旧实现）。
+   - Admin 列表移除「删除」改为「下架/重新上架」按钮（普通管理员置灰），新增「上下架筛选」+「已下架」标签 + 顶部权限提示 Alert。
+4. **积分兑换次数预留**：`Coupon.points_exchange_limit` 字段 + Admin 表单字段 + 提示文案"待积分兑换功能上线后启用"，本期不实现兑换接口。
+
+### 关键文件
+- 后端：`backend/app/models/models.py`（+5 列 Coupon、+5 列 CouponCodeBatch、+3 列 CouponRedeemCode、+1 表 CouponOpLog）、`backend/app/main.py`（`_migrate_coupons_v2_1()` 幂等迁移，`SystemConfig.coupons_v2_1_migrated` 标志位）、`backend/app/api/coupons.py`（available 字段扩展+匿名+claim 409+redeem 422）、`backend/app/api/coupons_admin.py`（5 新接口+下架/上架+脱敏+OpLog）、`backend/app/api/product_admin.py`（DELETE 改 405 占位）、`backend/app/init_data.py`（默认管理员 `is_superuser=True`）、`backend/tests/test_coupons_v2_1.py`（36 用例 100% 通过）
+- Admin Web：`admin-web/src/app/(admin)/product-system/coupons/page.tsx`（批次抽屉 + 明细抽屉 + 下架弹窗 + 整批作废强校验弹窗 + 积分兑换字段 + 权限 Alert）
+- H5：`h5-web/src/app/coupon-center/page.tsx`（按 `button_disabled/button_text` 渲染 + 未登录引导 + 409 自动刷新）
+- 小程序：新增 `miniprogram/pages/coupon-center/{index.json,index.js,index.wxml,index.wxss}`，`miniprogram/app.json` 注册新页
+- Flutter：`flutter_app/lib/models/coupon.dart`（+5 字段）、`flutter_app/lib/screens/coupon/coupon_center_screen.dart`（_btnState + 409 处理）
+
+### 用户手册
+- `user_docs/优惠券V2.1_使用手册.md`
+
+### 部署验证
+- 4 容器（mysql/backend/admin/h5）全部 Up，db healthy；gateway `6b099ed3-7175-4a78-91f4-44570c84ed27.conf` SSL 快照前后一致
+- 全量 733 条链接 100% 可达（无 5xx、无 redirect loop）
+- 数据迁移幂等：`coupons_v2_1_migrated` 控制不重复执行；历史数据 `is_offline=false`、唯一码 `claim_limit=total_count`、一码通用 `claim_limit=9999` 兜底
+
+---
+
+## Previous Update: 优惠券V2 + 审核体系 + 第三方OpenAPI (2026-04-19)
 
 ### 概要
 本期 11 项 — 3 BUG + 2 新增功能模块（优惠券管理增强、资金安全审核、第三方合作）：
