@@ -245,7 +245,7 @@ module.exports.isProfileComplete = function(nickname, gender, birthday, height, 
     </view>
 
     <view wx:else class="history-list">
-      <view class="history-item card" wx:for="{{historyList}}" wx:key="id" bindtap="goChat" data-sessionid="{{item.sessionId}}">
+      <view class="history-item card" wx:for="{{historyList}}" wx:key="id" bindtap="goChat" data-sessionid="{{item.sessionId}}" data-item="{{item}}">
         <view class="history-item-content">
           <image class="history-thumb" src="{{item.thumbnail}}" mode="aspectFill" wx:if="{{item.thumbnail}}" />
           <view class="history-thumb history-thumb-placeholder" wx:else>

@@ -33,6 +33,35 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
+## Latest Update: 药物识别跳转 AI 咨询 — 补齐咨询人参数 v2（顶部卡片，2026-04-19）
+
+### 概要
+修复"药物识别 → AI 咨询"跳转后，咨询页缺少咨询对象与药品摘要的问题。v2 用「顶部独立卡片」展示，覆盖 H5、微信小程序、Flutter App 三端。
+
+### 关键规则（三端一致）
+- URL 参数：`member`（如「爸爸·张三」）、`drug_name`（多药用 `,` 拼接，最大 80 字符，超长追加 `…`），均做 URL 编码
+- 数据优先级：URL 参数优先初始展示（0 等待）；若缺失，从会话详情接口（`/api/chat/sessions/{id}` → `family_member_relation` / `drug_names`）兜底
+- 入口覆盖：识别完成跳转、历史记录点击跳转
+- 卡片样式：💊「用药识别」+「咨询对象：xxx」+ 药品摘要；浅橙底 `#fff7e6` + 4px 橙色左边框 `#fa8c16` + 8px 圆角，不可点击
+
+### 改动文件
+- H5：`h5-web/src/app/drug/page.tsx`、`h5-web/src/app/chat/[sessionId]/page.tsx`
+- 小程序：`miniprogram/pages/drug/index.{js,wxml}`、`miniprogram/pages/chat/index.{js,wxml,wxss}`
+- Flutter：`flutter_app/lib/screens/health/drug_screen.dart`、`flutter_app/lib/screens/ai/chat_screen.dart`、`flutter_app/lib/providers/health_provider.dart`（`recognizeMultipleDrugs` 返回值新增 `merged_ai_result`）
+
+### 部署与验证（2026-04-19）
+- 仅 H5 重建（`docker compose -f docker-compose.prod.yml up -d --build h5-web`），其他容器未触碰
+- 全量链接 10 条 0 条 5xx；重点链接：`/drug` 200、`/chat/1` 200
+- 用户手册：`user_docs/药物识别跳转AI咨询_补齐咨询人参数_v2_顶部卡片.md`
+- 小程序包：`dist/miniprogram-drug-fix-v2.zip`
+
+### 注意点
+- Flutter `_processRouteArguments` 中赋值 `_drugIdentifyMember/_drugIdentifyDrugNames` 必须包在 `setState(() {})` 中，否则首帧不渲染卡片（已修复）
+- 小程序 `restoreSessionMember` 已扩展处理 `drug_identify` / `drug_query` 类型会话的兜底
+- H5 `loadSessionInfo` 仅在 URL 参数为空时才用接口数据覆盖
+
+---
+
 ## Latest Update: 第N期 5 BUG 修复 + 服务列表改造 (2026-04-19)
 
 ### 概要

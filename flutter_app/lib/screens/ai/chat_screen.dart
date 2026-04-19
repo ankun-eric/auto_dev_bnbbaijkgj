@@ -58,6 +58,10 @@ class _ChatScreenState extends State<ChatScreen> {
   int? _initialFamilyMemberId;
   String? _summaryText;
   bool _argsProcessed = false;
+
+  // Drug identify card state (与 H5/小程序对齐的顶部卡片)
+  String _drugIdentifyMember = '';
+  String _drugIdentifyDrugNames = '';
   
   DateTime? _recordStartTime;
   Timer? _recordTimer;
@@ -130,6 +134,14 @@ class _ChatScreenState extends State<ChatScreen> {
           : int.tryParse(args['family_member_id']?.toString() ?? '');
       _summaryText = args['summary']?.toString();
 
+      // 用药识别卡片参数（URL 参数优先）
+      if (_initialType == 'drug_identify') {
+        setState(() {
+          _drugIdentifyMember = (args['member'] ?? '').toString();
+          _drugIdentifyDrugNames = (args['drug_name'] ?? '').toString();
+        });
+      }
+
       if (_initialType == 'drug_identify' || _initialType == 'constitution') {
         setState(() => _isSymptomLocked = true);
 
@@ -180,6 +192,9 @@ class _ChatScreenState extends State<ChatScreen> {
       if (sessionType == 'symptom_check' || sessionType == 'symptom') {
         setState(() => _isSymptomLocked = true);
         _restoreSessionMember(session.id);
+      } else if (sessionType == 'drug_identify' || sessionType == 'drug_query') {
+        // 用药识别也需要尝试 backend 兜底卡片信息
+        _restoreSessionMember(session.id);
       }
     }
   }
@@ -196,6 +211,25 @@ class _ChatScreenState extends State<ChatScreen> {
             setState(() {
               _currentConsultTarget = relation;
               _isSymptomLocked = true;
+            });
+          }
+        }
+        // drug_identify 卡片 backend 兜底（仅当 URL 参数为空时填充）
+        if (sessionType == 'drug_identify' || sessionType == 'drug_query') {
+          final updates = <String, String>{};
+          if (_drugIdentifyMember.isEmpty) {
+            final fm = data['family_member'];
+            final memberInfo = (data['family_member_relation'] ?? (fm is Map ? fm['nickname'] : null) ?? '').toString();
+            if (memberInfo.isNotEmpty) updates['member'] = memberInfo;
+          }
+          if (_drugIdentifyDrugNames.isEmpty) {
+            final apiDrugs = (data['drug_names'] ?? data['title'] ?? '').toString();
+            if (apiDrugs.isNotEmpty) updates['drug'] = apiDrugs;
+          }
+          if (updates.isNotEmpty) {
+            setState(() {
+              if (updates.containsKey('member')) _drugIdentifyMember = updates['member']!;
+              if (updates.containsKey('drug')) _drugIdentifyDrugNames = updates['drug']!;
             });
           }
         }
@@ -959,6 +993,50 @@ class _ChatScreenState extends State<ChatScreen> {
     ).then((value) { if (value != null) _switchFontSize(value); });
   }
 
+  Widget _buildDrugIdentifyBanner() {
+    if (_initialType != 'drug_identify') return const SizedBox.shrink();
+    if (_drugIdentifyMember.isEmpty && _drugIdentifyDrugNames.isEmpty) return const SizedBox.shrink();
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF7E6),
+        borderRadius: BorderRadius.circular(8),
+        border: const Border(left: BorderSide(color: Color(0xFFFA8C16), width: 4)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Text('💊', style: TextStyle(fontSize: 14)),
+              const SizedBox(width: 6),
+              const Text(
+                '用药识别',
+                style: TextStyle(color: Color(0xFFFA8C16), fontWeight: FontWeight.w600, fontSize: 13),
+              ),
+              if (_drugIdentifyMember.isNotEmpty) ...[
+                const Spacer(),
+                Text(
+                  '咨询对象：$_drugIdentifyMember',
+                  style: const TextStyle(color: Color(0xFFFA8C16), fontSize: 12),
+                ),
+              ],
+            ],
+          ),
+          if (_drugIdentifyDrugNames.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                _drugIdentifyDrugNames,
+                style: const TextStyle(color: Color(0xFF595959), fontSize: 12, height: 1.4),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -988,6 +1066,7 @@ class _ChatScreenState extends State<ChatScreen> {
               ],
             ),
           ),
+          _buildDrugIdentifyBanner(),
           if (_summaryText != null && _summaryText!.isNotEmpty)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),

@@ -60,6 +60,11 @@ Page({
     summaryBarText: '',
     lockedFamilyMemberId: null,
 
+    // Drug identify card (顶部卡片，与 H5/Flutter 对齐)
+    drugIdentifyMember: '',
+    drugIdentifyDrugNames: '',
+    drugIdentifyBannerVisible: false,
+
     // Module 6: SSE streaming
     streamingMsgId: '',
     streamingText: '',
@@ -85,7 +90,7 @@ Page({
   _sseRequestTask: null,
 
   onLoad(options) {
-    const { type = 'health_qa', chatId, question, member, family_member_id, constitution_type, summary } = options;
+    const { type = 'health_qa', chatId, question, member, family_member_id, constitution_type, summary, drug_name } = options;
     this.setData({ chatType: type, chatId: chatId || generateId() });
 
     const isSymptom = type === 'symptom' || type === 'symptom_check';
@@ -105,6 +110,16 @@ Page({
       if (summary) {
         this.setData({ summaryBarText: decodeURIComponent(summary) });
       }
+    }
+
+    if (type === 'drug_identify') {
+      const memberLabel = member ? decodeURIComponent(member) : '';
+      const drugNamesStr = drug_name ? decodeURIComponent(drug_name) : '';
+      this.setData({
+        drugIdentifyMember: memberLabel,
+        drugIdentifyDrugNames: drugNamesStr,
+        drugIdentifyBannerVisible: !!(memberLabel || drugNamesStr)
+      });
     }
 
     wx.showShareMenu({ withShareTicket: true, menus: ['shareAppMessage', 'shareTimeline'] });
@@ -975,6 +990,22 @@ Page({
           isSymptomLocked: true,
           consultTarget: { name: relation, color: getRelationColor(relation) }
         });
+      }
+      // drug_identify 卡片 backend 兜底（仅当 URL 参数为空时填充）
+      if (res && (res.session_type === 'drug_identify' || res.session_type === 'drug_query')) {
+        const updates = {};
+        if (!this.data.drugIdentifyMember) {
+          const memberInfo = res.family_member_relation || (res.family_member && res.family_member.nickname) || '';
+          if (memberInfo) updates.drugIdentifyMember = memberInfo;
+        }
+        if (!this.data.drugIdentifyDrugNames) {
+          const apiDrugs = res.drug_names || res.title || '';
+          if (apiDrugs) updates.drugIdentifyDrugNames = apiDrugs;
+        }
+        if (Object.keys(updates).length > 0) {
+          updates.drugIdentifyBannerVisible = true;
+          this.setData(updates);
+        }
       }
     } catch (e) {
       console.log('restoreSessionMember error', e);

@@ -26,6 +26,52 @@ Color _getMemberTagColor(String? relation) {
   return _kRelationColors[relation] ?? const Color(0xFF8C8C8C);
 }
 
+const int _kMaxDrugNameLen = 80;
+
+String _truncateDrugNames(String s) {
+  if (s.isEmpty) return '';
+  return s.length <= _kMaxDrugNameLen ? s : '${s.substring(0, _kMaxDrugNameLen)}…';
+}
+
+String _joinDrugNamesFromAI(dynamic aiResult) {
+  if (aiResult is! Map) return '';
+  final List<String> names = [];
+  void addName(dynamic v) {
+    if (v is String && v.isNotEmpty && !names.contains(v)) names.add(v);
+  }
+
+  addName(aiResult['drug_name']);
+  addName(aiResult['drugName']);
+  addName(aiResult['药品名称']);
+  addName(aiResult['name']);
+  addName(aiResult['药品通用名']);
+  addName(aiResult['通用名']);
+  addName(aiResult['商品名']);
+  final drugs = aiResult['drugs'];
+  if (drugs is List) {
+    for (final d in drugs) {
+      if (d is Map) {
+        addName(d['drug_name']);
+        addName(d['name']);
+        addName(d['药品名称']);
+      }
+    }
+  }
+  final result = aiResult['result'];
+  if (result is Map) {
+    addName(result['drug_name']);
+    addName(result['name']);
+    addName(result['药品名称']);
+  }
+  return _truncateDrugNames(names.join(','));
+}
+
+String _getMemberLabelFromMap(Map<String, dynamic>? m) {
+  if (m == null || m.isEmpty) return '本人';
+  if (m['is_self'] == true) return '本人';
+  return (m['nickname'] ?? m['relation_type_name'] ?? m['relationship_type'] ?? '本人').toString();
+}
+
 class DrugScreen extends StatefulWidget {
   const DrugScreen({super.key});
 
@@ -299,11 +345,24 @@ class _DrugScreenState extends State<DrugScreen> {
       final drugName = result['drug_name']?.toString() ?? '药品识别';
       if (sessionId.isNotEmpty) {
         setState(() => _selectedImages.clear());
+        // 优先使用 merged_ai_result 拼接的多药名，回退到单药名
+        String drugNames = _joinDrugNamesFromAI(result['merged_ai_result']);
+        if (drugNames.isEmpty) drugNames = _truncateDrugNames(drugName);
+        // 取选中咨询人 label
+        final selectedMember = _familyMembers.firstWhere(
+          (m) => m['id'] == _selectedFamilyMemberId,
+          orElse: () => <String, dynamic>{},
+        );
+        final memberLabel = selectedMember.isEmpty
+            ? '本人'
+            : _getMemberLabelFromMap(selectedMember);
         Navigator.pushNamed(context, '/chat', arguments: {
           'type': 'drug_identify',
           'family_member_id': _selectedFamilyMemberId,
           'summary': '用药识别: $drugName',
           'initial_message': '识别药品: $drugName',
+          'member': memberLabel,
+          'drug_name': drugNames,
         });
         _loadHistory();
       } else {
@@ -934,9 +993,16 @@ class _DrugScreenState extends State<DrugScreen> {
     return GestureDetector(
       onTap: () {
         if (sessionId.isNotEmpty) {
+          final fm = item['family_member'];
+          final memberLabel = fm is Map
+              ? _getMemberLabelFromMap(Map<String, dynamic>.from(fm))
+              : '本人';
+          final histDrugs = _truncateDrugNames(drugName);
           Navigator.pushNamed(context, '/chat', arguments: {
             'type': 'drug_identify',
             'summary': '用药识别: $drugName',
+            'member': memberLabel,
+            'drug_name': histDrugs,
           });
         }
       },

@@ -200,6 +200,7 @@ function ChatPageInner() {
   const urlType = searchParams.get('type') || '';
   const urlMsg = searchParams.get('msg') || '';
   const urlMember = searchParams.get('member') || '';
+  const urlDrugName = searchParams.get('drug_name') || '';
   const isSymptom = urlType === 'symptom';
   const isDrugIdentify = urlType === 'drug_identify';
   const isConstitution = urlType === 'constitution';
@@ -267,8 +268,8 @@ function ChatPageInner() {
 
   // Drug identify / constitution banner
   const [drugIdentifyBannerVisible, setDrugIdentifyBannerVisible] = useState(isDrugIdentify);
-  const [drugIdentifyDrugNames, setDrugIdentifyDrugNames] = useState('');
-  const [drugIdentifyMember, setDrugIdentifyMember] = useState('');
+  const [drugIdentifyDrugNames, setDrugIdentifyDrugNames] = useState(isDrugIdentify ? urlDrugName : '');
+  const [drugIdentifyMember, setDrugIdentifyMember] = useState(isDrugIdentify ? urlMember : '');
   const [constitutionBannerVisible, setConstitutionBannerVisible] = useState(isConstitution);
   const [constitutionType, setConstitutionType] = useState('');
   const [constitutionMember, setConstitutionMember] = useState('');
@@ -728,9 +729,14 @@ function ChatPageInner() {
         const res: any = await api.get(`/api/chat-sessions/${sessionId}`);
         const data = res.data || res;
         if (isDrugIdentify) {
-          setDrugIdentifyDrugNames(data.drug_names || data.title || '');
-          const memberInfo = data.family_member_relation || data.family_member?.nickname || '';
-          setDrugIdentifyMember(memberInfo);
+          if (!urlDrugName) {
+            const apiDrugs = data.drug_names || data.title || '';
+            if (apiDrugs) setDrugIdentifyDrugNames(apiDrugs);
+          }
+          if (!urlMember) {
+            const memberInfo = data.family_member_relation || data.family_member?.nickname || '';
+            if (memberInfo) setDrugIdentifyMember(memberInfo);
+          }
           if (data.family_member_relation) setCurrentRelationLabel(data.family_member_relation);
         }
         if (isConstitution) {

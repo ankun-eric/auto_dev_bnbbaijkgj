@@ -195,7 +195,11 @@ class HealthProvider extends ChangeNotifier {
                   : null)
               ?.toString() ??
               '药品识别';
-          return {'session_id': sessionId, 'drug_name': drugName};
+          return {
+            'session_id': sessionId,
+            'drug_name': drugName,
+            'merged_ai_result': aiResult,
+          };
         }
       }
     } catch (_) {}

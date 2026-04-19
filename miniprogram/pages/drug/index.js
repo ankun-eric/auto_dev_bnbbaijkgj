@@ -16,6 +16,35 @@ function getMemberEmoji(name) {
   return RELATION_EMOJI[name] || '🧑';
 }
 
+const MAX_DRUG_NAME_LEN = 80;
+
+function joinDrugNamesFromAI(aiResult) {
+  if (!aiResult || typeof aiResult !== 'object') return '';
+  const names = [];
+  const top = aiResult.drug_name || aiResult.drugName || aiResult['药品名称'] || aiResult.name
+    || aiResult['药品通用名'] || aiResult['通用名'] || aiResult['商品名'];
+  if (top && typeof top === 'string') names.push(top);
+  if (Array.isArray(aiResult.drugs)) {
+    aiResult.drugs.forEach(d => {
+      if (d && typeof d === 'object') {
+        const n = d.drug_name || d.name || d['药品名称'];
+        if (n && typeof n === 'string' && names.indexOf(n) < 0) names.push(n);
+      }
+    });
+  }
+  if (aiResult.result && typeof aiResult.result === 'object') {
+    const n = aiResult.result.drug_name || aiResult.result.name || aiResult.result['药品名称'];
+    if (n && typeof n === 'string' && names.indexOf(n) < 0) names.push(n);
+  }
+  const joined = names.filter(Boolean).join(',');
+  return joined.length <= MAX_DRUG_NAME_LEN ? joined : joined.slice(0, MAX_DRUG_NAME_LEN) + '…';
+}
+
+function truncateDrugName(s) {
+  if (!s) return '';
+  return s.length <= MAX_DRUG_NAME_LEN ? s : s.slice(0, MAX_DRUG_NAME_LEN) + '…';
+}
+
 function getCustomItems(items) {
   return (items || []).filter(i => typeof i === 'object' && i.type === 'custom');
 }
@@ -412,6 +441,7 @@ Page({
     this.setData({ uploading: true, uploadProgressText: `正在上传 1/${total} 张...`, uploadPercent: 0 });
 
     let firstSessionId = null;
+    const collectedDrugNames = [];
     try {
       for (let i = 0; i < images.length; i++) {
         this.setData({ uploadProgressText: `正在上传 ${i + 1}/${total} 张...` });
@@ -430,6 +460,13 @@ Page({
         if (sessionId && !firstSessionId) {
           firstSessionId = sessionId;
         }
+        const aiResult = res && (res.ai_result || res.aiResult);
+        const partial = joinDrugNamesFromAI(aiResult);
+        if (partial) {
+          partial.split(',').forEach(n => {
+            if (n && collectedDrugNames.indexOf(n) < 0) collectedDrugNames.push(n);
+          });
+        }
       }
 
       this.setData({ uploading: false, uploadProgressText: '', uploadPercent: -1, selectedImages: [], uploadStep: 1 });
@@ -440,8 +477,13 @@ Page({
       }
       const memberId = this.data.selectedFamilyMemberId || '';
       const memberName = this.data.selectedFamilyMemberName || '本人';
+      const drugNames = truncateDrugName(collectedDrugNames.join(','));
       wx.navigateTo({
-        url: `/pages/chat/index?type=drug_identify&chatId=${firstSessionId}&family_member_id=${memberId}&summary=${encodeURIComponent('用药识别 · ' + memberName)}`
+        url: `/pages/chat/index?type=drug_identify&chatId=${firstSessionId}`
+          + `&family_member_id=${memberId}`
+          + `&summary=${encodeURIComponent('用药识别 · ' + memberName)}`
+          + `&member=${encodeURIComponent(memberName)}`
+          + `&drug_name=${encodeURIComponent(drugNames)}`
       });
     } catch (e) {
       this.setData({ uploading: false, uploadProgressText: '', uploadPercent: -1, uploadStep: 1 });
@@ -452,8 +494,19 @@ Page({
   goChat(e) {
     const sessionId = e.currentTarget.dataset.sessionid;
     if (!sessionId) return;
+    const item = e.currentTarget.dataset.item || {};
+    const fm = item.family_member || null;
+    let memberName = '本人';
+    if (fm) {
+      memberName = fm.is_self
+        ? '本人'
+        : (fm.nickname || fm.relation_type_name || fm.relationship_type || '本人');
+    }
+    const drugName = truncateDrugName(item.drugName || item.drug_name || '');
     wx.navigateTo({
       url: `/pages/chat/index?type=drug_identify&chatId=${sessionId}`
+        + `&member=${encodeURIComponent(memberName)}`
+        + `&drug_name=${encodeURIComponent(drugName)}`
     });
   }
 });

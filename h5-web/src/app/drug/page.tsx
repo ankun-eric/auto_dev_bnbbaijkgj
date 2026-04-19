@@ -10,6 +10,35 @@ import HealthProfileEditor, { type HealthProfileEditorRef } from '@/components/H
 
 const MAX_IMAGES = 5;
 const MAX_SIZE = 20 * 1024 * 1024;
+const MAX_DRUG_NAME_LEN = 80;
+
+function joinDrugNamesFromAI(aiResult: any): string {
+  if (!aiResult || typeof aiResult !== 'object') return '';
+  const names: string[] = [];
+  const top = aiResult.drug_name || aiResult.drugName || aiResult['药品名称'] || aiResult.name || aiResult['药品通用名'] || aiResult['通用名'] || aiResult['商品名'];
+  if (top && typeof top === 'string') names.push(top);
+  if (Array.isArray(aiResult.drugs)) {
+    for (const d of aiResult.drugs) {
+      if (d && typeof d === 'object') {
+        const n = d.drug_name || d.name || d['药品名称'];
+        if (n && typeof n === 'string' && !names.includes(n)) names.push(n);
+      }
+    }
+  }
+  if (aiResult.result && typeof aiResult.result === 'object') {
+    const n = aiResult.result.drug_name || aiResult.result.name || aiResult.result['药品名称'];
+    if (n && typeof n === 'string' && !names.includes(n)) names.push(n);
+  }
+  const joined = names.filter(Boolean).join(',');
+  if (joined.length <= MAX_DRUG_NAME_LEN) return joined;
+  return joined.slice(0, MAX_DRUG_NAME_LEN) + '…';
+}
+
+function truncateDrugName(s: string): string {
+  if (!s) return '';
+  if (s.length <= MAX_DRUG_NAME_LEN) return s;
+  return s.slice(0, MAX_DRUG_NAME_LEN) + '…';
+}
 
 interface HistoryItem {
   id: number;
@@ -454,7 +483,15 @@ export default function DrugPage() {
       if (data.session_id) {
         selectedFiles.forEach((sf) => URL.revokeObjectURL(sf.previewUrl));
         setSelectedFiles([]);
-        router.push(`/chat/${data.session_id}?type=drug_identify`);
+        const memberLabel = profileEdits.nickname?.trim()
+          || (selectedMember && selectedMember.nickname)
+          || '本人';
+        const drugNames = joinDrugNamesFromAI(data.merged_ai_result);
+        const params = new URLSearchParams();
+        params.set('type', 'drug_identify');
+        if (memberLabel) params.set('member', memberLabel);
+        if (drugNames) params.set('drug_name', drugNames);
+        router.push(`/chat/${data.session_id}?${params.toString()}`);
       } else {
         setError('识别返回异常，请重试');
         setCurrentStep(0);
@@ -650,7 +687,19 @@ export default function DrugPage() {
                 <div
                   key={item.id}
                   className="bg-white rounded-xl p-3 shadow-sm active:bg-gray-50 transition-colors"
-                  onClick={() => router.push(`/chat/${item.session_id}?type=drug_identify`)}
+                  onClick={() => {
+                    const histMember = item.family_member
+                      ? (item.family_member.is_self
+                          ? '本人'
+                          : (item.family_member.nickname || item.family_member.relation_type_name || item.family_member.relationship_type || '本人'))
+                      : '本人';
+                    const histDrugs = truncateDrugName(item.drug_name || '');
+                    const params = new URLSearchParams();
+                    params.set('type', 'drug_identify');
+                    if (histMember) params.set('member', histMember);
+                    if (histDrugs) params.set('drug_name', histDrugs);
+                    router.push(`/chat/${item.session_id}?${params.toString()}`);
+                  }}
                 >
                   <div className="flex gap-3">
                     <div className="w-14 h-14 rounded-lg flex-shrink-0 bg-gray-100 overflow-hidden relative">
