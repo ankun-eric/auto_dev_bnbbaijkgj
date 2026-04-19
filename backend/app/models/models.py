@@ -49,6 +49,8 @@ class SessionType(str, enum.Enum):
     health_qa = "health_qa"
     symptom_check = "symptom_check"
     tcm = "tcm"
+    tcm_tongue = "tcm_tongue"
+    tcm_face = "tcm_face"
     drug_query = "drug_query"
     customer_service = "customer_service"
     drug_identify = "drug_identify"

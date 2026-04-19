@@ -83,6 +83,16 @@ export default function MyCouponsPage() {
     return map[type] || type;
   };
 
+  const getCouponExpiryStatus = (validEnd: string | null): 'expiring' | 'long_term' | 'normal' => {
+    if (!validEnd) return 'long_term';
+    const endTime = new Date(validEnd).getTime();
+    if (Number.isNaN(endTime)) return 'normal';
+    const diffMs = endTime - Date.now();
+    const sevenDays = 7 * 24 * 60 * 60 * 1000;
+    if (diffMs > 0 && diffMs <= sevenDays) return 'expiring';
+    return 'normal';
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <NavBar onBack={() => router.back()} style={{ background: '#fff' }}>
@@ -124,6 +134,9 @@ export default function MyCouponsPage() {
             const coupon = uc.coupon;
             if (!coupon) return null;
             const isDisabled = activeTab !== 'unused';
+            const expiryStatus = getCouponExpiryStatus(coupon.valid_end);
+            const isExpiring = expiryStatus === 'expiring' && !isDisabled;
+            const isLongTerm = expiryStatus === 'long_term';
             return (
               <div
                 key={uc.id}
@@ -146,7 +159,7 @@ export default function MyCouponsPage() {
                   <div className="text-xs mt-0.5">满{coupon.condition_amount}可用</div>
                 </div>
                 <div className="flex-1 p-3 min-w-0">
-                  <div className="flex items-center">
+                  <div className="flex items-center flex-wrap gap-1">
                     <span className="font-medium text-sm truncate">{coupon.name}</span>
                     <Tag
                       style={{
@@ -159,8 +172,35 @@ export default function MyCouponsPage() {
                     >
                       {getCouponTypeLabel(coupon.type)}
                     </Tag>
+                    {isExpiring && (
+                      <Tag
+                        style={{
+                          '--background-color': '#fff1f0',
+                          '--text-color': '#f5222d',
+                          '--border-color': '#ffa39e',
+                          fontSize: 10,
+                        }}
+                      >
+                        即将到期
+                      </Tag>
+                    )}
+                    {isLongTerm && (
+                      <Tag
+                        style={{
+                          '--background-color': '#f6ffed',
+                          '--text-color': '#52c41a',
+                          '--border-color': '#b7eb8f',
+                          fontSize: 10,
+                        }}
+                      >
+                        长期有效
+                      </Tag>
+                    )}
                   </div>
-                  <div className="text-xs text-gray-400 mt-1">
+                  <div
+                    className="text-xs mt-1"
+                    style={{ color: isExpiring ? '#f5222d' : '#999' }}
+                  >
                     {coupon.valid_end
                       ? `有效期至 ${new Date(coupon.valid_end).toLocaleDateString('zh-CN')}`
                       : '长期有效'}

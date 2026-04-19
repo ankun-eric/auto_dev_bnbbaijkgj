@@ -1019,8 +1019,12 @@ class ApiService {
     return _dio.post(ApiConfig.claimCoupon, data: {'coupon_id': couponId});
   }
 
-  Future<Response> getMyCoupons({String tab = 'unused', int page = 1}) async {
-    return _dio.get(ApiConfig.myCoupons, queryParameters: {'tab': tab, 'page': page});
+  Future<Response> getMyCoupons({String tab = 'unused', int page = 1, bool? excludeExpired}) async {
+    final params = <String, dynamic>{'tab': tab, 'page': page};
+    if (excludeExpired == true) {
+      params['exclude_expired'] = true;
+    }
+    return _dio.get(ApiConfig.myCoupons, queryParameters: params);
   }
 
   // Addresses

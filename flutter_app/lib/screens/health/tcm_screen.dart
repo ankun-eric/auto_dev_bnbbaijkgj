@@ -154,42 +154,144 @@ class _TcmScreenState extends State<TcmScreen> {
   Future<void> _takeDiagnosePhoto(String type) async {
     final image = await _picker.pickImage(source: ImageSource.camera);
     if (image != null && mounted) {
-      _showDiagnoseResult(type);
+      _showDiagnoseMemberPicker(type);
     }
   }
 
-  void _showDiagnoseResult(String type) {
-    showDialog(
+  void _showDiagnoseMemberPicker(String type) {
+    final isTongue = type == 'tongue';
+    final sessionType = isTongue ? 'tcm_tongue' : 'tcm_face';
+    final title = isTongue ? '舌诊：选择咨询人' : '面诊：选择咨询人';
+    int? selectedMemberId;
+    showModalBottomSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            const Icon(Icons.spa, color: _kPrimaryPurple),
-            const SizedBox(width: 8),
-            Text(type == 'tongue' ? '舌诊分析' : '面诊分析'),
-          ],
-        ),
-        content: const Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('正在上传图片进行AI分析...', style: TextStyle(fontSize: 14)),
-            SizedBox(height: 16),
-            Text(
-              '分析完成后将为您提供：\n• 体质类型判断\n• 健康状态评估\n• 养生调理建议',
-              style: TextStyle(fontSize: 14, height: 1.6, color: Color(0xFF666666)),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('知道了', style: TextStyle(color: Color(0xFF52C41A))),
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) => Padding(
+          padding: EdgeInsets.only(left: 24, right: 24, top: 20, bottom: MediaQuery.of(ctx).viewInsets.bottom + 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              const Text('选定后将创建AI会话并开始分析', style: TextStyle(color: Colors.grey, fontSize: 12)),
+              const SizedBox(height: 16),
+              if (_membersLoading)
+                const Center(child: CircularProgressIndicator(color: _kPrimaryPurple))
+              else
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: _familyMembers.map((member) {
+                    final isSelf = member['is_self'] == true;
+                    final id = isSelf ? null : member['id'] as int?;
+                    final isSelected = selectedMemberId == id;
+                    final relation = member['relationship_type']?.toString() ?? '本人';
+                    final nickname = member['nickname']?.toString() ?? '';
+                    final displayName = nickname.isNotEmpty ? nickname : relation;
+                    final tagColor = _getMemberColor(relation);
+                    return GestureDetector(
+                      onTap: () => setSheetState(() => selectedMemberId = id),
+                      child: Container(
+                        width: 80,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        decoration: BoxDecoration(
+                          color: isSelected ? _kPrimaryPurple.withOpacity(0.08) : const Color(0xFFF5F5F5),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: isSelected ? _kPrimaryPurple : Colors.transparent, width: 2),
+                        ),
+                        child: Column(
+                          children: [
+                            Container(
+                              width: 40, height: 40,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: isSelected ? tagColor : const Color(0xFFE8E8E8),
+                              ),
+                              alignment: Alignment.center,
+                              child: Text(
+                                relation.length > 2 ? relation.substring(0, 2) : relation,
+                                style: TextStyle(
+                                  fontSize: 13, fontWeight: FontWeight.w600,
+                                  color: isSelected ? Colors.white : const Color(0xFF666666),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(displayName, style: TextStyle(fontSize: 12, color: isSelected ? _kPrimaryPurple : const Color(0xFF666666)), overflow: TextOverflow.ellipsis),
+                          ],
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _createDiagnosisSessionAndChat(sessionType, selectedMemberId);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _kPrimaryPurple,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: const Text('确认咨询人并开始分析', style: TextStyle(color: Colors.white)),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
+  }
+
+  Future<void> _createDiagnosisSessionAndChat(String sessionType, int? familyMemberId) async {
+    final isTongue = sessionType == 'tcm_tongue';
+    final initialMessage = isTongue
+        ? '我刚完成了舌诊拍照，请帮我分析舌象并给出调理建议'
+        : '我刚完成了面诊拍照，请帮我分析面色并给出调理建议';
+    String memberName = '本人';
+    if (familyMemberId != null && familyMemberId != 0) {
+      final m = _familyMembers.firstWhere(
+        (e) => e['id'] == familyMemberId,
+        orElse: () => <String, dynamic>{},
+      );
+      final nickname = m['nickname']?.toString() ?? '';
+      final relation = m['relationship_type']?.toString() ?? '';
+      memberName = nickname.isNotEmpty ? nickname : (relation.isNotEmpty ? relation : '本人');
+    }
+    final sessionTitle = '${isTongue ? '舌诊' : '面诊'}咨询 · $memberName';
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator(color: _kPrimaryPurple)),
+    );
+
+    try {
+      final payload = <String, dynamic>{
+        'session_type': sessionType,
+        'title': sessionTitle,
+      };
+      if (familyMemberId != null && familyMemberId != 0) {
+        payload['family_member_id'] = familyMemberId;
+      }
+      await _api.dio.post('/api/chat/sessions', data: payload);
+    } catch (_) {
+      // 即使创建失败，仍然进入 chat 页让用户继续；chat 页可自行处理
+    }
+    if (!mounted) return;
+    Navigator.of(context).pop();
+    Navigator.pushNamed(context, '/chat', arguments: {
+      'type': sessionType,
+      'family_member_id': familyMemberId,
+      'initial_message': initialMessage,
+    });
   }
 
   void _showConstitutionTest() {
@@ -542,10 +644,10 @@ class _TcmScreenState extends State<TcmScreen> {
                     onPressed: () {
                       Navigator.pop(ctx);
                       Navigator.pushNamed(context, '/chat', arguments: {
-                        'type': 'constitution',
+                        'type': 'constitution_test',
                         'family_member_id': selectedMemberId,
                         'summary': '体质分析: $constitutionType - $description',
-                        'initial_message': '我的体质测评结果是$constitutionType，请提供养生调理建议',
+                        'initial_message': '请根据我的体质测评结果详细介绍调理方案',
                       });
                     },
                     style: ElevatedButton.styleFrom(

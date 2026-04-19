@@ -81,7 +81,10 @@ class _CouponTabState extends State<_CouponTab> with AutomaticKeepAliveClientMix
   Future<void> _loadCoupons() async {
     setState(() => _loading = true);
     try {
-      final res = await _api.getMyCoupons(tab: widget.status);
+      final res = await _api.getMyCoupons(
+        tab: widget.status,
+        excludeExpired: widget.status == 'unused',
+      );
       final data = res.data;
       if (data is Map && data['items'] is List) {
         setState(() {
@@ -92,6 +95,17 @@ class _CouponTabState extends State<_CouponTab> with AutomaticKeepAliveClientMix
       }
     } catch (_) {}
     setState(() => _loading = false);
+  }
+
+  bool _isExpiringSoon(String? validEnd) {
+    if (validEnd == null || validEnd.isEmpty) return false;
+    try {
+      final t = DateTime.parse(validEnd);
+      final diff = t.difference(DateTime.now());
+      return !diff.isNegative && diff.inDays <= 7;
+    } catch (_) {
+      return false;
+    }
   }
 
   @override
@@ -127,6 +141,8 @@ class _CouponTabState extends State<_CouponTab> with AutomaticKeepAliveClientMix
     final coupon = uc.coupon;
     if (coupon == null) return const SizedBox.shrink();
     final disabled = widget.status != 'unused';
+    final isLongTerm = coupon.validEnd == null || coupon.validEnd!.isEmpty;
+    final isExpiringSoon = !isLongTerm && widget.status == 'unused' && _isExpiringSoon(coupon.validEnd);
 
     return Opacity(
       opacity: disabled ? 0.5 : 1.0,
@@ -177,14 +193,49 @@ class _CouponTabState extends State<_CouponTab> with AutomaticKeepAliveClientMix
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(coupon.name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Text(coupon.name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+                        if (isLongTerm)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF52C41A).withOpacity(0.12),
+                              border: Border.all(color: const Color(0xFF52C41A).withOpacity(0.5)),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: const Text('长期有效',
+                                style: TextStyle(fontSize: 10, color: Color(0xFF52C41A), fontWeight: FontWeight.w500)),
+                          )
+                        else if (isExpiringSoon)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFF4D4F).withOpacity(0.12),
+                              border: Border.all(color: const Color(0xFFFF4D4F).withOpacity(0.5)),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: const Text('即将到期',
+                                style: TextStyle(fontSize: 10, color: Color(0xFFFF4D4F), fontWeight: FontWeight.w500)),
+                          ),
+                      ],
+                    ),
                     const SizedBox(height: 4),
                     Text(coupon.typeLabel, style: TextStyle(fontSize: 12, color: Colors.grey[500])),
-                    if (coupon.validEnd != null) ...[
-                      const SizedBox(height: 4),
+                    const SizedBox(height: 4),
+                    if (isLongTerm)
+                      const Text('长期有效',
+                          style: TextStyle(fontSize: 11, color: Color(0xFF52C41A)))
+                    else
                       Text('有效期至 ${coupon.validEnd!.split('T').first}',
-                          style: TextStyle(fontSize: 11, color: Colors.grey[400])),
-                    ],
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: isExpiringSoon ? const Color(0xFFFF4D4F) : Colors.grey[400],
+                            fontWeight: isExpiringSoon ? FontWeight.w600 : FontWeight.normal,
+                          )),
                     if (uc.status != 'unused')
                       Padding(
                         padding: const EdgeInsets.only(top: 4),

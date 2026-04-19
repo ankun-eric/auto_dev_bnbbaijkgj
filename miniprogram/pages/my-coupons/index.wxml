@@ -17,9 +17,13 @@
       </view>
       <view class="coupon-divider"></view>
       <view class="coupon-right">
-        <text class="coupon-name">{{item.name}}</text>
+        <view class="coupon-name-row">
+          <text class="coupon-name">{{item.name}}</text>
+          <text wx:if="{{item.isLongTerm}}" class="coupon-tag coupon-tag-longterm">长期有效</text>
+          <text wx:elif="{{item.isExpiringSoon}}" class="coupon-tag coupon-tag-expiring">即将到期</text>
+        </view>
         <text class="coupon-scope">{{item.scope || '全场通用'}}</text>
-        <text class="coupon-expire">{{item.expire_date || item.end_time}}</text>
+        <text class="coupon-expire {{item.isExpiringSoon ? 'coupon-expire-warning' : ''}}">{{item.validEndDisplay}}</text>
         <view class="coupon-use-btn" wx:if="{{currentTab === 0}}" bindtap="useCoupon" data-item="{{item}}">
           <text>去使用</text>
         </view>

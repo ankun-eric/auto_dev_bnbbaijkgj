@@ -35,6 +35,7 @@ Page({
     showMemberPicker: false,
     familyMembers: [],
     selectedMemberId: null,
+    pendingDiagnosisType: null,
 
     historyList: [],
     historyLoading: false
@@ -101,12 +102,8 @@ Page({
       mediaType: ['image'],
       sourceType: ['camera'],
       camera: 'back',
-      success: (res) => {
-        wx.showLoading({ title: 'AI舌诊分析中...' });
-        setTimeout(() => {
-          wx.hideLoading();
-          this.showTcmResult('舌诊分析');
-        }, 2000);
+      success: () => {
+        this._showMemberPickerForDiagnosis('tcm_tongue');
       }
     });
   },
@@ -118,14 +115,70 @@ Page({
       mediaType: ['image'],
       sourceType: ['camera'],
       camera: 'front',
-      success: (res) => {
-        wx.showLoading({ title: 'AI面诊分析中...' });
-        setTimeout(() => {
-          wx.hideLoading();
-          this.showTcmResult('面诊分析');
-        }, 2000);
+      success: () => {
+        this._showMemberPickerForDiagnosis('tcm_face');
       }
     });
+  },
+
+  async _showMemberPickerForDiagnosis(diagnosisType) {
+    this.setData({ pendingDiagnosisType: diagnosisType });
+    try {
+      const res = await get('/api/family/members', {}, { showLoading: false, suppressErrorToast: true });
+      const items = (res && (res.items || res)) || [];
+      const members = items.map(m => ({
+        id: m.id,
+        name: m.relation_type_name || m.nickname || '本人',
+        color: getRelationColor(m.relation_type_name || ''),
+        is_self: m.is_self
+      }));
+      if (!members.some(m => m.is_self)) {
+        members.unshift({ id: 0, name: '本人', color: '#52c41a', is_self: true });
+      }
+      const selfMember = members.find(m => m.is_self) || members[0];
+      this.setData({
+        familyMembers: members,
+        selectedMemberId: selfMember ? selfMember.id : null,
+        showMemberPicker: true
+      });
+    } catch (e) {
+      this.setData({
+        showMemberPicker: true,
+        familyMembers: [{ id: 0, name: '本人', color: '#52c41a', is_self: true }],
+        selectedMemberId: 0
+      });
+    }
+  },
+
+  async _createDiagnosisSessionAndChat(diagnosisType, member) {
+    const memberName = (member && member.name) || '本人';
+    const isTongue = diagnosisType === 'tcm_tongue';
+    const title = `${isTongue ? '舌诊' : '面诊'}咨询 · ${memberName}`;
+    const userMsg = isTongue
+      ? '我刚完成了舌诊拍照，请帮我分析舌象并给出调理建议'
+      : '我刚完成了面诊拍照，请帮我分析面色并给出调理建议';
+    wx.showLoading({ title: '创建会话中...', mask: true });
+    try {
+      const payload = { session_type: diagnosisType, title };
+      if (member && member.id !== undefined && member.id !== null && member.id !== 0) {
+        payload.family_member_id = member.id;
+      }
+      const session = await post('/api/chat/sessions', payload, { showLoading: false, suppressErrorToast: true });
+      wx.hideLoading();
+      const sessionId = session && (session.id || session.session_id);
+      const memberIdParam = (member && member.id) || 0;
+      const msg = encodeURIComponent(userMsg);
+      let url = `/pages/chat/index?type=${diagnosisType}&family_member_id=${memberIdParam}&msg=${msg}`;
+      if (sessionId) url += `&session_id=${sessionId}`;
+      wx.navigateTo({ url });
+    } catch (e) {
+      wx.hideLoading();
+      const memberIdParam = (member && member.id) || 0;
+      const msg = encodeURIComponent(userMsg);
+      wx.navigateTo({
+        url: `/pages/chat/index?type=${diagnosisType}&family_member_id=${memberIdParam}&msg=${msg}`
+      });
+    }
   },
 
   startConstitution() {
@@ -229,6 +282,14 @@ Page({
     }
     this.setData({ showMemberPicker: false });
 
+    // 情形 0: 舌诊 / 面诊 选定咨询人 → 创建会话并跳转 chat
+    if (this.data.pendingDiagnosisType) {
+      const diagnosisType = this.data.pendingDiagnosisType;
+      this.setData({ pendingDiagnosisType: null });
+      await this._createDiagnosisSessionAndChat(diagnosisType, member);
+      return;
+    }
+
     // 情形 1: 答完 9 题但还未提交（无 result）→ 提交测评
     if (!this.data.result) {
       await this._submitConstitutionTest(this.data.quizAnswers, member.id);
@@ -241,14 +302,15 @@ Page({
     const memberId = member.id;
     const memberName = member.name || '本人';
     const summary = encodeURIComponent(`体质测评 · ${constitutionType} · ${memberName}`);
+    const msg = encodeURIComponent('请根据我的体质测评结果详细介绍调理方案');
 
     wx.navigateTo({
-      url: `/pages/chat/index?type=constitution&family_member_id=${memberId}&summary=${summary}`
+      url: `/pages/chat/index?type=constitution_test&family_member_id=${memberId}&summary=${summary}&msg=${msg}`
     });
   },
 
   onCancelMemberPicker() {
-    this.setData({ showMemberPicker: false });
+    this.setData({ showMemberPicker: false, pendingDiagnosisType: null });
   },
 
   showTcmResult(source) {

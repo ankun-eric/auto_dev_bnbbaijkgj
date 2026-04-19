@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -25,14 +25,14 @@ async def list_available_coupons(
         select(Coupon)
         .where(
             Coupon.status == CouponStatus.active,
-            Coupon.valid_end >= now,
+            or_(Coupon.valid_end.is_(None), Coupon.valid_end >= now),
         )
     )
     count_query = (
         select(func.count(Coupon.id))
         .where(
             Coupon.status == CouponStatus.active,
-            Coupon.valid_end >= now,
+            or_(Coupon.valid_end.is_(None), Coupon.valid_end >= now),
         )
     )
 
@@ -110,11 +110,13 @@ async def list_my_coupons(
 
     if exclude_expired:
         now = datetime.utcnow()
-        query = query.join(Coupon, Coupon.id == UserCoupon.coupon_id).where(Coupon.valid_end >= now)
+        query = query.join(Coupon, Coupon.id == UserCoupon.coupon_id).where(
+            or_(Coupon.valid_end.is_(None), Coupon.valid_end >= now)
+        )
         count_query = (
             count_query.select_from(UserCoupon)
             .join(Coupon, Coupon.id == UserCoupon.coupon_id)
-            .where(Coupon.valid_end >= now)
+            .where(or_(Coupon.valid_end.is_(None), Coupon.valid_end >= now))
         )
 
     total_result = await db.execute(count_query)

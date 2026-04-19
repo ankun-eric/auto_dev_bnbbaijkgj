@@ -11,4 +11,4 @@ DEPLOY_ID: 6b099ed3-7175-4a78-91f4-44570c84ed27
 ## Git仓库信息
 Git仓库链接: https://github.com/ankun-eric/auto_dev_bnbbaijkgj
 Git用户名: ankun-eric
-Git访问token: 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
+Git访问token: <REDACTED_GITHUB_PAT>

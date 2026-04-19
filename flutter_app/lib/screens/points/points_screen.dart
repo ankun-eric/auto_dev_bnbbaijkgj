@@ -17,6 +17,8 @@ class _PointsScreenState extends State<PointsScreen> {
   int _todayEarned = 0;
   bool _signedToday = false;
   List<Map<String, dynamic>> _tasks = [];
+  bool _tasksError = false;
+  bool _tasksLoaded = false;
 
   @override
   void initState() {
@@ -25,27 +27,42 @@ class _PointsScreenState extends State<PointsScreen> {
   }
 
   Future<void> _loadData() async {
+    if (mounted && !_loading) setState(() => _loading = true);
+
+    int totalPoints = _totalPoints;
+    int todayEarned = _todayEarned;
+    bool signedToday = _signedToday;
     try {
-      final results = await Future.wait([
-        _apiService.getPointsSummary(),
-        _apiService.getPointsTasks(),
-      ]);
-      if (!mounted) return;
-      final summary = results[0].data is Map ? results[0].data as Map<String, dynamic> : <String, dynamic>{};
-      final tasksData = results[1].data is Map ? results[1].data as Map<String, dynamic> : <String, dynamic>{};
+      final summaryRes = await _apiService.getPointsSummary();
+      final summary = summaryRes.data is Map ? summaryRes.data as Map<String, dynamic> : <String, dynamic>{};
+      totalPoints = summary['total_points'] ?? 0;
+      todayEarned = summary['today_earned_points'] ?? 0;
+      signedToday = summary['signed_today'] == true;
+    } catch (_) {}
+
+    List<Map<String, dynamic>> tasks = [];
+    bool tasksError = false;
+    try {
+      final tasksRes = await _apiService.getPointsTasks();
+      final tasksData = tasksRes.data is Map ? tasksRes.data as Map<String, dynamic> : <String, dynamic>{};
       final items = tasksData['items'];
-      setState(() {
-        _totalPoints = summary['total_points'] ?? 0;
-        _todayEarned = summary['today_earned_points'] ?? 0;
-        _signedToday = summary['signed_today'] == true;
-        _tasks = (items is List)
-            ? items.map((e) => Map<String, dynamic>.from(e as Map)).toList()
-            : [];
-        _loading = false;
-      });
+      tasks = (items is List)
+          ? items.map((e) => Map<String, dynamic>.from(e as Map)).toList()
+          : <Map<String, dynamic>>[];
     } catch (_) {
-      if (mounted) setState(() => _loading = false);
+      tasksError = true;
     }
+
+    if (!mounted) return;
+    setState(() {
+      _totalPoints = totalPoints;
+      _todayEarned = todayEarned;
+      _signedToday = signedToday;
+      _tasks = tasks;
+      _tasksError = tasksError;
+      _tasksLoaded = true;
+      _loading = false;
+    });
   }
 
   Future<void> _doSignIn() async {
@@ -175,12 +192,54 @@ class _PointsScreenState extends State<PointsScreen> {
                         ],
                       ),
                     ),
-                    ..._tasks.map(_buildTaskCard).toList(),
+                    if (_tasksError)
+                      _buildTasksErrorView()
+                    else if (_tasksLoaded && _tasks.isEmpty)
+                      _buildTasksEmptyView()
+                    else
+                      ..._tasks.map(_buildTaskCard).toList(),
                     const SizedBox(height: 24),
                   ],
                 ),
               ),
             ),
+    );
+  }
+
+  Widget _buildTasksErrorView() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 40),
+      child: Column(
+        children: [
+          const Text('⚠️', style: TextStyle(fontSize: 40)),
+          const SizedBox(height: 12),
+          Text('加载失败', style: TextStyle(fontSize: 14, color: Colors.grey[600])),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: _loadData,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF52C41A),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 8),
+            ),
+            child: const Text('点击重试'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTasksEmptyView() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 40),
+      child: Column(
+        children: [
+          const Text('📋', style: TextStyle(fontSize: 40)),
+          const SizedBox(height: 12),
+          Text('暂无任务', style: TextStyle(fontSize: 14, color: Colors.grey[600])),
+        ],
+      ),
     );
   }
 

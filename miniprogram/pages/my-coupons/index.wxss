@@ -104,11 +104,41 @@
   justify-content: center;
 }
 
+.coupon-name-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8rpx;
+  margin-bottom: 8rpx;
+}
+
 .coupon-name {
   font-size: 28rpx;
   font-weight: 600;
   color: #333;
-  margin-bottom: 8rpx;
+}
+
+.coupon-tag {
+  font-size: 18rpx;
+  padding: 2rpx 10rpx;
+  border-radius: 8rpx;
+  line-height: 1.5;
+}
+
+.coupon-tag-longterm {
+  color: #52c41a;
+  background: rgba(82, 196, 26, 0.12);
+  border: 1rpx solid rgba(82, 196, 26, 0.35);
+}
+
+.coupon-tag-expiring {
+  color: #ff4d4f;
+  background: rgba(255, 77, 79, 0.12);
+  border: 1rpx solid rgba(255, 77, 79, 0.35);
+}
+
+.coupon-expire-warning {
+  color: #ff4d4f !important;
 }
 
 .coupon-scope {

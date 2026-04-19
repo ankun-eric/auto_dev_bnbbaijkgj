@@ -143,6 +143,66 @@ async def update_cos_config(
     return {"message": "COS配置更新成功"}
 
 
+@router.post("/admin/cos/test-connection")
+async def test_cos_connection_upload(
+    current_user=Depends(admin_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    """通过实际上传 1KB 测试文件验证 COS 配置可用性（仅超级管理员可用）。"""
+    cfg = await _get_cos_config(db)
+    if not cfg or not cfg.secret_id or not cfg.secret_key_encrypted or not cfg.bucket:
+        return {
+            "success": False,
+            "message": "COS配置不完整，请先完善 SecretId/SecretKey/Bucket",
+            "detail": None,
+        }
+
+    test_content = b"x" * 1024
+    test_filename = f"cos-conn-test-{uuid.uuid4().hex}.txt"
+    try:
+        cos_url = await try_cos_upload(db, test_content, test_filename, "text/plain")
+    except Exception as e:
+        cfg.test_passed = False
+        try:
+            await db.flush()
+        except Exception:
+            await db.rollback()
+        logger.error("COS test-connection 上传异常: %s", e)
+        return {
+            "success": False,
+            "message": f"上传测试失败: {str(e)}",
+            "detail": {"filename": test_filename, "size": len(test_content)},
+        }
+
+    if cos_url:
+        cfg.test_passed = True
+        cfg.updated_at = datetime.utcnow()
+        try:
+            await db.flush()
+        except Exception:
+            await db.rollback()
+        return {
+            "success": True,
+            "message": "COS连接测试成功，1KB 测试文件已上传",
+            "detail": {
+                "filename": test_filename,
+                "size": len(test_content),
+                "url": cos_url,
+            },
+        }
+
+    cfg.test_passed = False
+    try:
+        await db.flush()
+    except Exception:
+        await db.rollback()
+    return {
+        "success": False,
+        "message": "上传返回为空，请检查 SecretKey/Bucket/Region 是否正确",
+        "detail": {"filename": test_filename, "size": len(test_content)},
+    }
+
+
 @router.post("/admin/cos/test")
 async def test_cos_connection(
     current_user=Depends(admin_dep),

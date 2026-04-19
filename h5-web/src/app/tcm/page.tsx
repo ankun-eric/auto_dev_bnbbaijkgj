@@ -125,6 +125,7 @@ export default function TcmPage() {
   const [memberPopupVisible, setMemberPopupVisible] = useState(false);
   const [familyMembers, setFamilyMembers] = useState<FamilyMemberInfo[]>([]);
   const [selectedMemberId, setSelectedMemberId] = useState<number | null>(null);
+  const [pendingFlow, setPendingFlow] = useState<'constitution' | 'tongue' | 'face' | null>(null);
 
   // Add member popup
   const [addMemberPopupVisible, setAddMemberPopupVisible] = useState(false);
@@ -228,6 +229,7 @@ export default function TcmPage() {
     } else {
       // 9 题答完 → 弹出咨询人选择，选定后再提交（最后一步必选咨询人）
       setTimeout(async () => {
+        setPendingFlow('constitution');
         await fetchMemberList();
         setMemberPopupVisible(true);
       }, 300);
@@ -636,14 +638,16 @@ export default function TcmPage() {
       {/* Member selection popup */}
       <Popup
         visible={memberPopupVisible}
-        onMaskClick={() => setMemberPopupVisible(false)}
+        onMaskClick={() => { setMemberPopupVisible(false); setPendingFlow(null); }}
         position="bottom"
         bodyStyle={{ borderRadius: '16px 16px 0 0', maxHeight: '70vh', overflowY: 'auto' }}
       >
         <div className="px-4 pb-6">
           <div className="flex items-center justify-between py-4 border-b border-gray-100">
-            <span className="text-base font-semibold">为谁咨询</span>
-            <button onClick={() => setMemberPopupVisible(false)} className="text-gray-400 text-xl leading-none">×</button>
+            <span className="text-base font-semibold">
+              {pendingFlow === 'tongue' ? '为谁做舌诊' : pendingFlow === 'face' ? '为谁做面诊' : '为谁咨询'}
+            </span>
+            <button onClick={() => { setMemberPopupVisible(false); setPendingFlow(null); }} className="text-gray-400 text-xl leading-none">×</button>
           </div>
 
           <div className="mt-3 space-y-2">
@@ -704,7 +708,13 @@ export default function TcmPage() {
               fontSize: 15,
             }}
           >
-            {!constitutionResult ? '确认咨询人并提交测评' : '确认并咨询'}
+            {pendingFlow === 'tongue'
+              ? '确认并开始舌诊分析'
+              : pendingFlow === 'face'
+              ? '确认并开始面诊分析'
+              : !constitutionResult
+              ? '确认咨询人并提交测评'
+              : '确认并咨询'}
           </Button>
         </div>
       </Popup>
