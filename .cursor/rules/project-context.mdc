@@ -33,7 +33,34 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 「我的」统计 & 「服务」Tab 接入后台 (2026-04-19)
+## Latest Update: 4 BUG 整体修复批次 (2026-04-19)
+
+### 概要
+4 个 BUG 整体修复，覆盖 后端 / H5 / 小程序 / Flutter 全端：
+1. **BUG1（OSS 头像裂图 + 后台存储配置）**：后端新增 `POST /api/admin/cos/test-connection`（admin_dep 守卫，1KB 测试文件验证读写），SecretKey 掩码显示。
+2. **BUG2-A（优惠券长期有效券丢失）**：`backend/app/api/coupons.py` 在 `list_available_coupons` 与 `list_my_coupons(exclude_expired=true)` 两处条件改为 `or_(Coupon.valid_end.is_(None), Coupon.valid_end >= now)`，长期券（valid_end NULL）正常回流。三端 my-coupons 页新增 `getCouponExpiryStatus` 工具：绿色「长期有效」标签 + 红色「即将到期」（7 天内）标签 + 红色到期日。
+3. **BUG2-B（文章收藏看不到）**：`h5-web/src/app/article/[id]/page.tsx` 从 mock 数据切到真实接口，使用 `GET /api/articles/{id}` + `GET /api/favorites?tab=knowledge` 检查状态，`POST /api/favorites?content_type=article&content_id={id}` 持久化收藏，含 Toast 反馈。
+4. **BUG3-B（积分日常任务空白）**：后端 `list_daily_tasks` 整体 + 每个子任务独立 try/except 兜底，新增 `_safe_int_config` helper，永远返回 200；H5 / 小程序 / Flutter 三端任务列表统一加 `loading → 骨架屏 / error → 加载失败带重试 / empty → 暂无任务 / normal → 列表` 四态渲染。
+5. **BUG4（中医养生选完咨询人报错）**：`SessionType` 枚举新增 `tcm_tongue` / `tcm_face`，`DEFAULT_SYSTEM_PROMPTS` 增加对应提示词；H5 / 小程序 / Flutter 三端 TCM 页：体质测评 / 舌诊 / 面诊三入口统一走「先选咨询对象 → 创建 session → 跳转 chat 并带 msg 初始消息」流程，体质 session_type 改为 `constitution_test`；chat 页兼容 `constitution` 与 `constitution_test` 两种类型。
+
+### 关键文件
+- 后端：`backend/app/api/coupons.py`、`backend/app/api/points.py`、`backend/app/api/chat.py`、`backend/app/api/upload.py`、`backend/app/models/models.py`
+- 测试：`backend/tests/test_bug_fix_v3.py`（6 个测试全部通过）
+- H5：`h5-web/src/app/tcm/page.tsx`、`h5-web/src/app/article/[id]/page.tsx`、`h5-web/src/app/points/page.tsx`、`h5-web/src/app/chat/[sessionId]/page.tsx`、`h5-web/src/app/my-coupons/page.tsx`
+- 小程序：`miniprogram/pages/tcm/{index.js,index.wxml,index.wxss}`、`miniprogram/pages/points/{index.js,index.wxml,index.wxss}`、`miniprogram/pages/my-coupons/{index.js,index.wxml,index.wxss}`
+- Flutter：`flutter_app/lib/services/api_service.dart`、`flutter_app/lib/screens/health/tcm_screen.dart`、`flutter_app/lib/screens/points/points_screen.dart`、`flutter_app/lib/screens/coupon/my_coupons_screen.dart`
+
+### 用户手册
+- `user_docs/4BUG整体修复使用手册.md`
+
+### 部署验证
+- backend / h5 / admin 三个容器全部通过 `docker compose -f docker-compose.prod.yml up -d --build` 重建并 Up
+- 全量链接（共 17 条）100% 可达：`/`、`/profile`、`/points`、`/my-coupons`、`/my-favorites`、`/tcm`、`/article/1`、`/admin/`、`/api/health`(200)、`/api/coupons/{available,mine}`(401)、`/api/points/{summary,tasks}`(401)、`/api/tcm/config`(401)、`/api/favorites`(401)、`/api/docs`(200)、`/api/openapi.json`(200)
+- gateway 容器 nginx -t & reload 通过
+
+---
+
+## Previous Update: 「我的」统计 & 「服务」Tab 接入后台 (2026-04-19)
 
 ### 概要
 个人中心数据真实化 + 服务页全平台后台化 + 管理后台分类拖拽排序，覆盖 后端 / H5 / 小程序 / Flutter / Admin 全端：
