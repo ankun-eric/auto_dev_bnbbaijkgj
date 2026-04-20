@@ -37,13 +37,18 @@ Page({
     selectedMemberId: null,
     pendingDiagnosisType: null,
 
-    historyList: [],
-    historyLoading: false
+    // StepBar（PRD v1.0 § 3.2）：0=答题 / 1=选择对象 / 2=AI 分析
+    stepItems: ['答题', '选择对象', 'AI 分析'],
+    currentStep: 0,
+
+    // 测评记录（PRD v1.0：替代原"历史记录"，使用原"我的档案"数据源与样式）
+    archiveList: [],
+    archiveLoading: false
   },
 
   onShow() {
     this.loadTcmConfig();
-    this.loadDiagnosisHistory();
+    this.loadArchiveList();
   },
 
   async loadTcmConfig() {
@@ -61,25 +66,25 @@ Page({
     }
   },
 
-  async loadDiagnosisHistory() {
-    this.setData({ historyLoading: true });
+  async loadArchiveList() {
+    this.setData({ archiveLoading: true });
     try {
-      const res = await get('/api/tcm/diagnosis', {}, { showLoading: false, suppressErrorToast: true });
-      const list = Array.isArray(res) ? res : (res && (res.items || res.data) || []);
-      const historyList = list.map(item => ({
-        id: item.id,
-        constitution_type: item.constitution_type || '未知体质',
-        description: item.description || '',
-        icon: item.icon || '🌿',
-        created_at: this._formatTime(item.created_at),
-        family_member_name: item.family_member_name || item.family_member_relation || '',
-        family_member_id: item.family_member_id
+      const res = await get('/api/constitution/archive', { page: 1, page_size: 50 }, { showLoading: false, suppressErrorToast: true });
+      const list = (res && (res.items || [])) || [];
+      const archiveList = list.map(item => ({
+        diagnosis_id: item.diagnosis_id,
+        constitution_type: item.constitution_type || '未知',
+        persona_emoji: item.persona_emoji || '🌿',
+        persona_color: item.persona_color || '#52c41a',
+        one_line_desc: item.one_line_desc || '',
+        member_label: item.member_label || '本人',
+        created_at_text: this._formatTime(item.created_at),
       }));
-      this.setData({ historyList });
+      this.setData({ archiveList });
     } catch (e) {
-      console.log('loadDiagnosisHistory error', e);
+      console.log('loadArchiveList error', e);
     } finally {
-      this.setData({ historyLoading: false });
+      this.setData({ archiveLoading: false });
     }
   },
 
@@ -183,7 +188,7 @@ Page({
 
   startConstitution() {
     if (!checkLogin()) return;
-    this.setData({ showQuiz: true, showResult: false, currentQuestion: 0, quizAnswers: [] });
+    this.setData({ showQuiz: true, showResult: false, currentQuestion: 0, quizAnswers: [], currentStep: 0 });
   },
 
   goTcmChat() {
@@ -191,9 +196,11 @@ Page({
     wx.navigateTo({ url: '/pages/chat/index?type=tcm' });
   },
 
-  goConstitutionArchive() {
-    if (!checkLogin()) return;
-    wx.navigateTo({ url: '/pages/tcm-constitution-archive/index' });
+  // 测评记录卡片点击 → 统一跳 6 屏结果页（PRD v1.0 § Q18）
+  goArchiveDetail(e) {
+    const diagnosisId = e.currentTarget.dataset.id;
+    if (!diagnosisId) return;
+    wx.navigateTo({ url: `/pages/tcm-constitution-result/index?id=${diagnosisId}` });
   },
 
   selectOption(e) {
@@ -206,13 +213,15 @@ Page({
     if (currentQuestion < questions.length - 1) {
       this.setData({ currentQuestion: currentQuestion + 1 });
     } else {
-      // 9 题答完 -> 先弹咨询人选择，选定后再提交（最后一步必选咨询人）
-      this.setData({ showQuiz: false });
+      // 答完全部题目 → 先弹咨询人选择（StepBar 进入"选择对象"阶段）
+      this.setData({ currentStep: 1 });
       this._showMemberPickerForConstitution();
     }
   },
 
   async _submitConstitutionTest(answers, familyMemberId) {
+    // StepBar 进入"AI 分析"阶段
+    this.setData({ currentStep: 2 });
     wx.showLoading({ title: '分析中...', mask: true });
     try {
       const answersArr = (answers || []).map((value, idx) => ({
@@ -231,9 +240,9 @@ Page({
       const diagnosisId = res && (res.id || res.diagnosis_id);
       if (diagnosisId) {
         // 重置本页状态，避免从结果页返回时回到答题状态
-        this.setData({ showQuiz: false, showResult: false, currentQuestion: 0, quizAnswers: [] });
+        this.setData({ showQuiz: false, showResult: false, currentQuestion: 0, quizAnswers: [], currentStep: 0 });
         wx.navigateTo({ url: `/pages/tcm-constitution-result/index?id=${diagnosisId}` });
-        this.loadDiagnosisHistory();
+        this.loadArchiveList();
         return;
       }
 
@@ -252,7 +261,7 @@ Page({
             id: diagnosisId
           }
         });
-        this.loadDiagnosisHistory();
+        this.loadArchiveList();
       }
     } catch (e) {
       wx.hideLoading();
@@ -326,7 +335,7 @@ Page({
   },
 
   onCancelMemberPicker() {
-    this.setData({ showMemberPicker: false, pendingDiagnosisType: null });
+    this.setData({ showMemberPicker: false, pendingDiagnosisType: null, currentStep: 0 });
   },
 
   showTcmResult(source) {
@@ -352,21 +361,14 @@ Page({
     });
   },
 
-  goHistoryDetail(e) {
-    const item = e.currentTarget.dataset.item;
-    if (!item || !item.id) return;
-    wx.navigateTo({
-      url: `/pages/tcm-diagnosis-detail/index?id=${item.id}`
-    });
-  },
-
   resetAll() {
     this.setData({
       showQuiz: false,
       showResult: false,
       currentQuestion: 0,
       quizAnswers: [],
-      result: null
+      result: null,
+      currentStep: 0
     });
   }
 });

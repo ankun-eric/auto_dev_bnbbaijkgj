@@ -4,6 +4,85 @@ import '../../services/api_service.dart';
 import '../../widgets/custom_app_bar.dart';
 import 'constitution_result_screen.dart';
 
+// ── 测评流程 StepBar（PRD v1.0 § 3.2）──
+const _kTcmStepItems = ['答题', '选择对象', 'AI 分析'];
+
+class _TcmStepBar extends StatelessWidget {
+  final int current;
+  const _TcmStepBar({required this.current});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 6, offset: const Offset(0, 2)),
+        ],
+      ),
+      child: Row(
+        children: List.generate(_kTcmStepItems.length * 2 - 1, (idx) {
+          if (idx.isOdd) {
+            final prevIdx = idx ~/ 2;
+            final active = prevIdx < current;
+            return Container(
+              width: 20,
+              height: 1,
+              margin: const EdgeInsets.symmetric(horizontal: 8),
+              color: active ? const Color(0xFF52C41A) : const Color(0xFFE8E8E8),
+            );
+          }
+          final i = idx ~/ 2;
+          final isDone = i < current;
+          final isActive = i == current;
+          return Expanded(
+            child: Row(
+              children: [
+                Container(
+                  width: 22, height: 22,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: isActive
+                        ? const LinearGradient(colors: [Color(0xFF52C41A), Color(0xFF13C2C2)])
+                        : null,
+                    color: isDone
+                        ? const Color(0xFF52C41A)
+                        : isActive ? null : const Color(0xFFE8E8E8),
+                  ),
+                  child: Text(
+                    isDone ? '✓' : '${i + 1}',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: (isDone || isActive) ? Colors.white : const Color(0xFF999999),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    '${i + 1}. ${_kTcmStepItems[i]}',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: (isDone || isActive) ? const Color(0xFF52C41A) : const Color(0xFF999999),
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
+      ),
+    );
+  }
+}
+
 const _kPrimaryPurple = Color(0xFF722ED1);
 const _kPrimaryPink = Color(0xFFEB2F96);
 
@@ -104,7 +183,7 @@ class _TcmScreenState extends State<TcmScreen> {
 
   Future<void> _loadDiagnosisList() async {
     try {
-      final response = await _api.getTcmDiagnosisList();
+      final response = await _api.getConstitutionArchive();
       if (response.statusCode == 200 && mounted) {
         final data = response.data;
         final rawData = data is Map && data.containsKey('data') ? data['data'] : data;
@@ -330,7 +409,9 @@ class _TcmScreenState extends State<TcmScreen> {
                 const Text('中医体质测评', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
                 Text('回答以下问题，了解您的中医体质类型', style: TextStyle(color: Colors.grey[600])),
-                const SizedBox(height: 24),
+                const SizedBox(height: 16),
+                const _TcmStepBar(current: 0),
+                const SizedBox(height: 8),
                 Expanded(
                   child: ListView.builder(
                     controller: controller,
@@ -440,7 +521,9 @@ class _TcmScreenState extends State<TcmScreen> {
               const Text('选择本次测评的咨询人', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               const Text('选定后立即提交测评', style: TextStyle(color: Colors.grey, fontSize: 12)),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
+              const _TcmStepBar(current: 1),
+              const SizedBox(height: 8),
               ConstrainedBox(
                 constraints: const BoxConstraints(maxHeight: 280),
                 child: ListView.builder(
@@ -487,16 +570,18 @@ class _TcmScreenState extends State<TcmScreen> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => const Center(
+      builder: (_) => Center(
         child: Card(
           child: Padding(
-            padding: EdgeInsets.all(24),
+            padding: const EdgeInsets.all(24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              children: [
+              children: const [
+                SizedBox(width: 260, child: _TcmStepBar(current: 2)),
+                SizedBox(height: 12),
                 CircularProgressIndicator(color: _kPrimaryPurple),
                 SizedBox(height: 16),
-                Text('正在分析体质...'),
+                Text('AI 正在分析体质...'),
               ],
             ),
           ),
@@ -680,11 +765,17 @@ class _TcmScreenState extends State<TcmScreen> {
                   child: OutlinedButton(
                     onPressed: () {
                       Navigator.pop(ctx);
-                      Navigator.pushNamed(context, '/tcm-diagnosis-detail', arguments: {
-                        'id': diagnosisId,
-                        'constitution_type': constitutionType,
-                        'description': description,
-                      });
+                      final id = diagnosisId is int
+                          ? diagnosisId
+                          : int.tryParse(diagnosisId.toString()) ?? 0;
+                      if (id > 0) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ConstitutionResultScreen(diagnosisId: id),
+                          ),
+                        );
+                      }
                     },
                     style: OutlinedButton.styleFrom(
                       foregroundColor: _kPrimaryPurple,
@@ -843,7 +934,7 @@ class _TcmScreenState extends State<TcmScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text('历史记录', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text('测评记录', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             if (_diagnosisList.isNotEmpty)
               Text('共${_diagnosisList.length}条', style: TextStyle(fontSize: 13, color: Colors.grey[500])),
           ],
@@ -862,7 +953,7 @@ class _TcmScreenState extends State<TcmScreen> {
                 children: [
                   Icon(Icons.spa_outlined, size: 48, color: Colors.grey[300]),
                   const SizedBox(height: 12),
-                  Text('暂无诊断记录', style: TextStyle(color: Colors.grey[500])),
+                  Text('暂无测评记录', style: TextStyle(color: Colors.grey[500])),
                   const SizedBox(height: 6),
                   Text('完成体质测评后记录将显示在这里', style: TextStyle(color: Colors.grey[400], fontSize: 13)),
                 ],
@@ -876,11 +967,16 @@ class _TcmScreenState extends State<TcmScreen> {
   }
 
   Widget _buildDiagnosisCard(Map<String, dynamic> item) {
-    final constitutionType = item['constitution_type']?.toString() ?? item['type']?.toString() ?? '未知';
-    final description = item['description']?.toString() ?? item['summary']?.toString() ?? '';
+    final constitutionType = item['constitution_type']?.toString() ?? '未知';
+    final oneLineDesc = item['one_line_desc']?.toString() ??
+        item['description']?.toString() ??
+        item['summary']?.toString() ?? '';
     final createdAt = item['created_at']?.toString() ?? '';
-    final memberName = item['family_member_name']?.toString() ?? item['member_name']?.toString() ?? '本人';
-    final diagnosisId = item['id'];
+    final memberLabel = item['member_label']?.toString() ??
+        item['family_member_name']?.toString() ?? '本人';
+    final diagnosisId = item['diagnosis_id'] ?? item['id'];
+    final emoji = item['persona_emoji']?.toString() ?? '🌿';
+    final personaColorStr = item['persona_color']?.toString();
 
     final typeColors = <String, Color>{
       '平和质': const Color(0xFF52C41A),
@@ -893,15 +989,23 @@ class _TcmScreenState extends State<TcmScreen> {
       '气郁质': const Color(0xFF2F54EB),
       '特禀质': const Color(0xFF8C8C8C),
     };
-    final typeColor = typeColors[constitutionType] ?? _kPrimaryPurple;
+    Color typeColor = typeColors[constitutionType] ?? _kPrimaryPurple;
+    if (personaColorStr != null && personaColorStr.startsWith('#') && personaColorStr.length >= 7) {
+      try {
+        typeColor = Color(int.parse('FF${personaColorStr.substring(1)}', radix: 16));
+      } catch (_) {}
+    }
 
     return GestureDetector(
       onTap: () {
-        Navigator.pushNamed(context, '/tcm-diagnosis-detail', arguments: {
-          'id': diagnosisId,
-          'constitution_type': constitutionType,
-          'description': description,
-        });
+        if (diagnosisId != null) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => ConstitutionResultScreen(diagnosisId: diagnosisId is int ? diagnosisId : int.tryParse(diagnosisId.toString()) ?? 0),
+            ),
+          );
+        }
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
@@ -909,6 +1013,7 @@ class _TcmScreenState extends State<TcmScreen> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
+          border: Border(left: BorderSide(color: typeColor, width: 4)),
           boxShadow: [
             BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 6, offset: const Offset(0, 2)),
           ],
@@ -917,11 +1022,12 @@ class _TcmScreenState extends State<TcmScreen> {
           children: [
             Container(
               width: 48, height: 48,
+              alignment: Alignment.center,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: typeColor.withOpacity(0.1),
               ),
-              child: Icon(Icons.spa, color: typeColor, size: 24),
+              child: Text(emoji, style: const TextStyle(fontSize: 24)),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -930,21 +1036,23 @@ class _TcmScreenState extends State<TcmScreen> {
                 children: [
                   Row(
                     children: [
-                      Text(constitutionType, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: typeColor)),
+                      Flexible(
+                        child: Text(constitutionType, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: typeColor), overflow: TextOverflow.ellipsis),
+                      ),
                       const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
-                          color: _getMemberColor(memberName).withOpacity(0.1),
+                          color: typeColor.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(4),
                         ),
-                        child: Text(memberName, style: TextStyle(fontSize: 10, color: _getMemberColor(memberName), fontWeight: FontWeight.w500)),
+                        child: Text(memberLabel, style: TextStyle(fontSize: 10, color: typeColor, fontWeight: FontWeight.w500)),
                       ),
                     ],
                   ),
-                  if (description.isNotEmpty) ...[
+                  if (oneLineDesc.isNotEmpty) ...[
                     const SizedBox(height: 4),
-                    Text(description, style: TextStyle(fontSize: 13, color: Colors.grey[500]), maxLines: 1, overflow: TextOverflow.ellipsis),
+                    Text(oneLineDesc, style: TextStyle(fontSize: 13, color: Colors.grey[600]), maxLines: 2, overflow: TextOverflow.ellipsis),
                   ],
                   const SizedBox(height: 4),
                   Text(_formatTime(createdAt), style: TextStyle(fontSize: 12, color: Colors.grey[400])),

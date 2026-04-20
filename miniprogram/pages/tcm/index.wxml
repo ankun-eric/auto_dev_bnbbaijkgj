@@ -21,15 +21,25 @@
       <text class="feature-name">中医养生</text>
       <text class="feature-desc">AI中医师在线辨证</text>
     </view>
-    <view class="feature-card card" bindtap="goConstitutionArchive">
-      <text class="feature-icon">📁</text>
-      <text class="feature-name">我的档案</text>
-      <text class="feature-desc">查看历次体质测评</text>
-    </view>
   </view>
 
   <!-- 体质测评问卷 -->
   <view class="quiz-section" wx:if="{{showQuiz}}">
+    <!-- StepBar（PRD v1.0 § 3.2）1.答题 → 2.选择对象 → 3.AI 分析 -->
+    <view class="tcm-stepbar-wrap">
+      <view class="tcm-stepbar">
+        <block wx:for="{{stepItems}}" wx:key="idx" wx:for-index="idx">
+          <view class="tcm-step-item">
+            <view class="tcm-step-circle {{idx < currentStep ? 'done' : (idx === currentStep ? 'active' : 'pending')}}">
+              <text>{{idx < currentStep ? '✓' : (idx + 1)}}</text>
+            </view>
+            <text class="tcm-step-title {{idx <= currentStep ? 'on' : 'off'}}">{{idx + 1}}. {{item}}</text>
+          </view>
+          <view wx:if="{{idx < stepItems.length - 1}}" class="tcm-step-line {{idx < currentStep ? 'on' : 'off'}}"></view>
+        </block>
+      </view>
+    </view>
+
     <view class="card">
       <text class="section-title">体质测评</text>
       <text class="quiz-progress">第 {{currentQuestion + 1}} / {{questions.length}} 题</text>
@@ -81,39 +91,40 @@
     <button class="btn-primary" style="margin: 24rpx;" bindtap="resetAll">重新测评</button>
   </view>
 
-  <!-- 历史记录列表 -->
-  <view class="history-section" wx:if="{{!showQuiz && !showResult}}">
+  <!-- 测评记录（PRD v1.0：复用原"我的档案"卡片样式） -->
+  <view class="archive-section" wx:if="{{!showQuiz && !showResult}}">
     <view class="section-header">
-      <text class="section-title-hist">历史记录</text>
+      <text class="section-title-hist">测评记录</text>
+      <text class="archive-count" wx:if="{{archiveList.length > 0}}">共 {{archiveList.length}} 次</text>
     </view>
 
-    <view wx:if="{{historyLoading && historyList.length === 0}}" class="loading-wrap">
+    <view wx:if="{{archiveLoading && archiveList.length === 0}}" class="loading-wrap">
       <text class="loading-text">加载中...</text>
     </view>
 
-    <view wx:elif="{{historyList.length === 0}}" class="empty-wrap">
+    <view wx:elif="{{archiveList.length === 0}}" class="empty-wrap">
       <text class="empty-icon">📋</text>
-      <text class="empty-text">暂无诊断记录</text>
+      <text class="empty-text">暂无测评记录</text>
       <text class="empty-hint">完成体质测评后，记录将显示在这里</text>
     </view>
 
-    <view wx:else class="history-list">
-      <view class="history-item card" wx:for="{{historyList}}" wx:key="id" bindtap="goHistoryDetail" data-item="{{item}}">
-        <view class="history-item-content">
-          <view class="history-icon-circle">
-            <text class="history-icon-text">{{item.icon}}</text>
+    <view wx:else class="archive-list">
+      <view class="archive-card" wx:for="{{archiveList}}" wx:key="diagnosis_id"
+            bindtap="goArchiveDetail" data-id="{{item.diagnosis_id}}"
+            style="border-left: 8rpx solid {{item.persona_color}};">
+        <view class="archive-emoji" style="background: {{item.persona_color}}15;">
+          <text class="archive-emoji-text">{{item.persona_emoji || '🌿'}}</text>
+        </view>
+        <view class="archive-info">
+          <view class="archive-header-row">
+            <text class="archive-type" style="color: {{item.persona_color}};">{{item.constitution_type}}</text>
+            <text class="archive-member-tag" style="background: {{item.persona_color}}15; color: {{item.persona_color}};">{{item.member_label}}</text>
           </view>
-          <view class="history-info">
-            <view class="history-header-row">
-              <text class="history-name">{{item.constitution_type}}</text>
-              <text class="history-member-tag" wx:if="{{item.family_member_name}}">{{item.family_member_name}}</text>
-            </view>
-            <text class="history-desc" wx:if="{{item.description}}">{{item.description}}</text>
-            <text class="history-time">{{item.created_at}}</text>
-          </view>
-          <view class="history-arrow">
-            <text class="arrow-icon">›</text>
-          </view>
+          <text class="archive-desc" wx:if="{{item.one_line_desc}}">{{item.one_line_desc}}</text>
+          <text class="archive-time">{{item.created_at_text}}</text>
+        </view>
+        <view class="archive-arrow">
+          <text class="arrow-icon">›</text>
         </view>
       </view>
     </view>

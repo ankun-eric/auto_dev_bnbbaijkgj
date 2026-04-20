@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Dict, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
@@ -104,7 +104,38 @@ async def list_diagnoses(
         .offset((page - 1) * page_size)
         .limit(page_size)
     )
-    items = [TCMDiagnosisListResponse.model_validate(d) for d in result.scalars().all()]
+    rows = result.scalars().all()
+
+    # 聚合 family_member 以便构造 member_label（PRD v1.0 § 4.1 规则）
+    fm_ids = list({r.family_member_id for r in rows if r.family_member_id})
+    fm_map: Dict[int, FamilyMember] = {}
+    if fm_ids:
+        fm_rows = (await db.execute(
+            select(FamilyMember).where(FamilyMember.id.in_(fm_ids))
+        )).scalars().all()
+        fm_map = {fm.id: fm for fm in fm_rows}
+
+    def _build_label(fm: Optional[FamilyMember], has_id: bool) -> str:
+        if fm is None:
+            return "未知" if has_id else "本人"
+        name = (fm.nickname or "").strip() or "成员"
+        if getattr(fm, "is_self", False):
+            return f"{name}（本人）"
+        relation = (fm.relationship_type or "").strip() or None
+        if not relation or relation.lower() == "self":
+            return f"{name}（未设置）"
+        return f"{name}（{relation}）"
+
+    items = []
+    for d in rows:
+        base = TCMDiagnosisListResponse.model_validate(d).model_dump()
+        fm = fm_map.get(d.family_member_id) if d.family_member_id else None
+        member_label = _build_label(fm, bool(d.family_member_id))
+        base["member_label"] = member_label
+        # 兼容旧字段（老前端/小程序读取）
+        base["family_member_name"] = member_label
+        items.append(base)
+
     return {"items": items, "total": total, "page": page, "page_size": page_size}
 
 

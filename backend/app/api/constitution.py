@@ -60,6 +60,25 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/constitution", tags=["体质测评优化一期"])
 
 
+def build_member_label(fm: Optional[FamilyMember]) -> str:
+    """根据 PRD v1.0 § 4.1 规则拼装咨询人标签：姓名（关系）。
+
+    - is_self=True         → 姓名（本人）
+    - relation 为空/None    → 姓名（未设置）
+    - 其他                  → 姓名（关系名）
+    - fm 为 None           → "未知"（容错）
+    """
+    if fm is None:
+        return "未知"
+    name = (fm.nickname or "").strip() or "成员"
+    if getattr(fm, "is_self", False):
+        return f"{name}（本人）"
+    relation = (fm.relationship_type or "").strip() or None
+    if not relation or relation.lower() == "self":
+        return f"{name}（未设置）"
+    return f"{name}（{relation}）"
+
+
 # ═══════════════════════════════════════════════════════════════════
 # 常量
 # ═══════════════════════════════════════════════════════════════════
@@ -481,26 +500,31 @@ async def list_archive(
     end = start + page_size
     page_rows = test_rows[start:end]
 
-    # 聚合 member label
+    # 聚合 member label（按 PRD v1.0 规则拼装：姓名（本人/关系/未设置））
     member_ids = list({r.family_member_id for r in page_rows if r.family_member_id})
     member_map: Dict[int, str] = {}
     if member_ids:
         fms = (await db.execute(
             select(FamilyMember).where(FamilyMember.id.in_(member_ids))
         )).scalars().all()
-        member_map = {fm.id: (fm.nickname or fm.relationship_type or "成员") for fm in fms}
+        member_map = {fm.id: build_member_label(fm) for fm in fms}
 
     items = []
     for r in page_rows:
         c_type = normalize_constitution_type(r.constitution_type)
         persona = get_persona(c_type)
+        # 当 family_member_id 为空或对应档案不存在时，默认归为"本人"
+        label = member_map.get(r.family_member_id) if r.family_member_id else None
+        if not label:
+            # 家庭档案已被删除 / 无 family_member_id 的历史记录：兜底"未知"或"本人"
+            label = "本人" if not r.family_member_id else "未知"
         items.append({
             "diagnosis_id": r.id,
             "constitution_type": c_type,
             "persona_emoji": persona.get("emoji"),
             "persona_color": persona.get("color"),
             "one_line_desc": persona.get("one_line"),
-            "member_label": member_map.get(r.family_member_id, "本人"),
+            "member_label": label,
             "created_at": r.created_at.isoformat() if r.created_at else None,
         })
 

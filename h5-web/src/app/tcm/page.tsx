@@ -40,6 +40,16 @@ interface DiagnosisRecord {
   family_member?: { id: number; nickname: string; relationship_type: string; is_self?: boolean; relation_type_name?: string } | null;
 }
 
+interface ArchiveItem {
+  diagnosis_id: number;
+  created_at: string;
+  member_label: string;
+  constitution_type: string;
+  persona_emoji: string;
+  persona_color: string;
+  one_line_desc: string;
+}
+
 interface FamilyMemberInfo {
   id: number;
   nickname: string;
@@ -93,6 +103,53 @@ function getConstitutionColor(type: string): string {
   return CONSTITUTION_COLORS[type] || '#52c41a';
 }
 
+// 体质测评流程 StepBar（对齐健康自查：1.答题 → 2.选择对象 → 3.AI 分析）
+const TCM_STEP_ITEMS = [
+  { title: '答题' },
+  { title: '选择对象' },
+  { title: 'AI 分析' },
+];
+
+function TcmStepBar({ current }: { current: number }) {
+  return (
+    <div className="flex items-center justify-between px-2 py-3">
+      {TCM_STEP_ITEMS.map((item, idx) => {
+        const isActive = idx === current;
+        const isDone = idx < current;
+        return (
+          <div key={idx} className="flex items-center flex-1">
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <div
+                className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold transition-all"
+                style={{
+                  background: isDone ? '#52c41a' : isActive ? 'linear-gradient(135deg, #52c41a, #13c2c2)' : '#e8e8e8',
+                  color: isDone || isActive ? '#fff' : '#999',
+                }}
+              >
+                {isDone ? '✓' : idx + 1}
+              </div>
+              <div className="min-w-0">
+                <div
+                  className="text-xs font-medium truncate"
+                  style={{ color: isActive || isDone ? '#52c41a' : '#999' }}
+                >
+                  {`${idx + 1}. ${item.title}`}
+                </div>
+              </div>
+            </div>
+            {idx < TCM_STEP_ITEMS.length - 1 && (
+              <div
+                className="h-px flex-shrink-0 mx-2"
+                style={{ width: 20, background: idx < current ? '#52c41a' : '#e8e8e8' }}
+              />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function TcmPage() {
   const router = useRouter();
   const [activeFeature, setActiveFeature] = useState('');
@@ -118,6 +175,10 @@ export default function TcmPage() {
   // Diagnosis history
   const [diagnosisHistory, setDiagnosisHistory] = useState<DiagnosisRecord[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
+
+  // 测评记录（PRD v1.0：复用"我的档案"字段与样式）
+  const [archiveList, setArchiveList] = useState<ArchiveItem[]>([]);
+  const [archiveLoading, setArchiveLoading] = useState(true);
 
   // Member selection popup
   const [memberPopupVisible, setMemberPopupVisible] = useState(false);
@@ -166,10 +227,25 @@ export default function TcmPage() {
     }
   }, []);
 
+  // 拉取"测评记录"列表（PRD v1.0）
+  const fetchArchive = useCallback(async () => {
+    setArchiveLoading(true);
+    try {
+      const res: any = await api.get('/api/constitution/archive', { params: { page: 1, page_size: 50 } });
+      const data = res.data || res;
+      setArchiveList(data.items || []);
+    } catch {
+      setArchiveList([]);
+    } finally {
+      setArchiveLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchConfig();
     fetchHistory();
-  }, [fetchConfig, fetchHistory]);
+    fetchArchive();
+  }, [fetchConfig, fetchHistory, fetchArchive]);
 
   const features: FeatureItem[] = [];
   if (tcmConfig) {
@@ -277,6 +353,7 @@ export default function TcmPage() {
       setShowResult(true);
       router.replace('/tcm');
       fetchHistory();
+      fetchArchive();
     } catch (err: any) {
       router.replace('/tcm');
       // 真实错误透传到 Toast
@@ -404,18 +481,8 @@ export default function TcmPage() {
             router.back();
           }
         }}
-        right={
-          !activeFeature ? (
-            <span
-              style={{ color: '#fff', fontSize: 13, cursor: 'pointer' }}
-              onClick={() => router.push('/tcm/archive')}
-            >
-              我的档案
-            </span>
-          ) : null
-        }
       >
-        中医养生
+        {activeFeature === 'constitution' ? '体质测评' : activeFeature === 'tongue' ? '舌诊' : activeFeature === 'face' ? '面诊' : '中医养生'}
       </GreenNavBar>
 
       {!activeFeature && (
@@ -459,60 +526,67 @@ export default function TcmPage() {
             ))
           )}
 
-          {/* History section */}
+          {/* 测评记录（PRD v1.0：复用原"我的档案"卡片样式，按 created_at 倒序） */}
           <div className="mt-6">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-semibold text-gray-700">历史记录</span>
+              <span className="text-sm font-semibold text-gray-700">测评记录</span>
+              {!archiveLoading && archiveList.length > 0 && (
+                <span className="text-[11px] text-gray-400">共 {archiveList.length} 次</span>
+              )}
             </div>
-            {historyLoading ? (
+            {archiveLoading ? (
               <div className="flex items-center justify-center py-8">
                 <SpinLoading style={{ '--size': '24px', '--color': '#52c41a' }} />
               </div>
-            ) : diagnosisHistory.length === 0 ? (
+            ) : archiveList.length === 0 ? (
               <div className="bg-white rounded-2xl py-8 text-center shadow-sm">
                 <Empty
-                  description="暂无诊断记录"
+                  description="暂无测评记录，快去完成一次体质测评吧"
                   style={{ '--description-font-size': '13px' } as React.CSSProperties}
                 />
               </div>
             ) : (
-              <div className="space-y-2">
-                {diagnosisHistory.map((item) => {
-                  const color = getConstitutionColor(item.constitution_type);
-                  const memberLabel = getMemberTagLabel(item.family_member);
-                  return (
-                    <div
-                      key={item.id}
-                      className="bg-white rounded-xl p-3 shadow-sm active:bg-gray-50 transition-colors cursor-pointer"
-                      onClick={() => router.push(`/tcm/diagnosis/${item.id}`)}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div
-                          className="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0"
-                          style={{ background: `${color}15`, border: `1.5px solid ${color}` }}
-                        >
-                          <span className="text-xs font-bold" style={{ color }}>
-                            {item.constitution_type.replace('质', '')}
+              <div className="space-y-3">
+                {archiveList.map((it) => (
+                  <div
+                    key={it.diagnosis_id}
+                    onClick={() => router.push(`/tcm/result/${it.diagnosis_id}`)}
+                    className="bg-white rounded-xl p-4 shadow-sm active:bg-gray-50 cursor-pointer"
+                    style={{ borderLeft: `4px solid ${it.persona_color}` }}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="w-12 h-12 rounded-full flex items-center justify-center text-2xl flex-shrink-0"
+                        style={{ background: `${it.persona_color}15` }}
+                      >
+                        {it.persona_emoji || '🌿'}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-baseline gap-2 flex-wrap">
+                          <span
+                            className="font-bold text-base"
+                            style={{ color: it.persona_color }}
+                          >
+                            {it.constitution_type}
+                          </span>
+                          <span
+                            className="text-[11px] px-1.5 py-0.5 rounded"
+                            style={{ background: `${it.persona_color}15`, color: it.persona_color }}
+                          >
+                            {it.member_label}
                           </span>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium text-sm text-gray-800">{item.constitution_type}</div>
-                          <div className="text-xs text-gray-400 mt-0.5 truncate">{item.description || '点击查看详情'}</div>
-                          <div className="flex items-center gap-2 mt-1">
-                            <span className="text-[11px] text-gray-300">{formatTime(item.created_at)}</span>
-                            <span
-                              className="text-[10px] px-1.5 py-0.5 rounded flex-shrink-0"
-                              style={{ background: `${color}15`, color }}
-                            >
-                              {memberLabel}
-                            </span>
-                          </div>
+                        <div className="text-[12px] text-gray-500 mt-1 truncate">
+                          {it.one_line_desc}
                         </div>
-                        <span className="text-gray-300 text-lg">›</span>
+                        <div className="text-[10px] text-gray-400 mt-1">
+                          {formatTime(it.created_at)}
+                        </div>
                       </div>
+                      <span className="text-gray-300">›</span>
                     </div>
-                  );
-                })}
+                  </div>
+                ))}
               </div>
             )}
           </div>
@@ -590,6 +664,18 @@ export default function TcmPage() {
 
       {activeFeature === 'constitution' && !showResult && (
         <div className="px-4 pt-4">
+          {/* 测评流程 StepBar（PRD v1.0 § 3.2） */}
+          <div className="bg-white rounded-2xl shadow-sm mb-3">
+            <TcmStepBar
+              current={
+                submittingTest
+                  ? 2 // AI 分析中
+                  : memberPopupVisible && pendingFlow === 'constitution'
+                  ? 1 // 选择对象
+                  : 0 // 答题
+              }
+            />
+          </div>
           {submittingTest ? (
             <div className="flex flex-col items-center justify-center py-20">
               <SpinLoading style={{ '--size': '36px', '--color': '#52c41a' }} />
