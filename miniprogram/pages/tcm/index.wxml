@@ -21,6 +21,11 @@
       <text class="feature-name">中医养生</text>
       <text class="feature-desc">AI中医师在线辨证</text>
     </view>
+    <view class="feature-card card" bindtap="goConstitutionArchive">
+      <text class="feature-icon">📁</text>
+      <text class="feature-name">我的档案</text>
+      <text class="feature-desc">查看历次体质测评</text>
+    </view>
   </view>
 
   <!-- 体质测评问卷 -->

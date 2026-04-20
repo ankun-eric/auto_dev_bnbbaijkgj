@@ -1,0 +1,29 @@
+<view class="page">
+  <view wx:if="{{loading}}" class="loading">
+    <view class="spinner"></view>
+  </view>
+
+  <view wx:elif="{{items.length === 0}}" class="empty">
+    <view class="empty-icon">📋</view>
+    <view class="empty-text">暂无测评记录</view>
+    <view class="empty-btn" bindtap="goTest">开始测评</view>
+  </view>
+
+  <view wx:else class="list">
+    <view class="count-tip">共 {{items.length}} 次测评记录</view>
+    <view wx:for="{{items}}" wx:key="diagnosis_id"
+          class="item" bindtap="goDetail" data-id="{{item.diagnosis_id}}"
+          style="border-left: 8rpx solid {{item.persona_color}};">
+      <view class="avatar" style="background: {{item.persona_color}}15;">{{item.persona_emoji || '🌿'}}</view>
+      <view class="main">
+        <view class="row1">
+          <text class="type-name" style="color: {{item.persona_color}};">{{item.constitution_type}}</text>
+          <text class="member">{{item.member_label}}</text>
+        </view>
+        <view class="desc">{{item.one_line_desc}}</view>
+        <view class="time">{{item.created_at_text}}</view>
+      </view>
+      <view class="arrow">›</view>
+    </view>
+  </view>
+</view>

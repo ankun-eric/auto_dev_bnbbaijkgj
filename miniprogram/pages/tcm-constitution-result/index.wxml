@@ -1,0 +1,193 @@
+<!-- 体质分析 6 屏结果页 -->
+<view class="page" wx:if="{{!loading && data}}">
+
+  <!-- 屏 1：体质名片 -->
+  <view class="screen screen-1" style="background: linear-gradient(180deg, {{data.screen1_card.color}}22 0%, #fff 100%);">
+    <view class="card" style="border: 1rpx solid {{data.screen1_card.color}}40;">
+      <view class="emoji">{{data.screen1_card.persona.emoji || '🌿'}}</view>
+      <view class="type-name" style="color: {{data.screen1_card.color}};">{{data.screen1_card.type}}</view>
+      <view class="meta">为「{{data.member_label}}」分析</view>
+      <view class="one-line" style="background: {{data.screen1_card.color}}15; color: {{data.screen1_card.color}};">
+        {{data.screen1_card.one_line_desc}}
+      </view>
+
+      <!-- 雷达图（SVG）-->
+      <view class="radar-wrap">
+        <view class="radar" style="width: {{radarSize}}px; height: {{radarSize}}px;">
+          <canvas type="2d" id="radarCanvas" style="display:none;"></canvas>
+          <view class="radar-svg" style="width: {{radarSize}}px; height: {{radarSize}}px; position: relative;">
+            <!-- 背景环 -->
+            <block wx:for="{{radarBgRings}}" wx:for-item="ring" wx:key="index">
+              <view class="radar-ring-svg" style="--pts: {{ring}};"></view>
+            </block>
+            <!-- 使用原生 svg 标签（小程序支持有限，使用 view 模拟不够好，改用 cover-view 或直接绘制）-->
+            <!-- 简化：改用 CSS 伪雷达：分别画每个维度进度条 -->
+          </view>
+        </view>
+
+        <!-- 由于小程序 svg 支持差异，我们用简洁的条状图展示 9 维得分 -->
+        <view class="radar-bars">
+          <block wx:for="{{data.screen1_card.radar.dimensions}}" wx:for-item="dim" wx:key="index">
+            <view class="radar-bar-row">
+              <view class="radar-bar-label">{{dim}}</view>
+              <view class="radar-bar-bg">
+                <view class="radar-bar-fill" 
+                      style="width: {{data.screen1_card.radar.scores[index]}}%; background: {{data.screen1_card.color}};"></view>
+              </view>
+              <view class="radar-bar-val">{{data.screen1_card.radar.scores[index]}}</view>
+            </view>
+          </block>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 屏 2：深度解读 -->
+  <view class="screen">
+    <view class="sect-card">
+      <view class="sect-title">🔍 深度解读</view>
+      <view class="desc">{{data.screen1_card.short_desc}}</view>
+
+      <view wx:if="{{data.screen2_analysis.features.external}}" class="sub-block">
+        <view class="sub-title" style="color: {{data.screen1_card.color}};">外在表现</view>
+        <view class="tag-list">
+          <view wx:for="{{data.screen2_analysis.features.external}}" wx:key="*this" 
+                class="tag" style="background: {{data.screen1_card.color}}12;">{{item}}</view>
+        </view>
+      </view>
+
+      <view wx:if="{{data.screen2_analysis.features.internal}}" class="sub-block">
+        <view class="sub-title" style="color: {{data.screen1_card.color}};">内在倾向</view>
+        <view wx:for="{{data.screen2_analysis.features.internal}}" wx:key="*this" class="bullet">· {{item}}</view>
+      </view>
+
+      <view wx:if="{{data.screen2_analysis.features.easy_problems}}" class="sub-block">
+        <view class="sub-title" style="color: #fa8c16;">易患倾向</view>
+        <view wx:for="{{data.screen2_analysis.features.easy_problems}}" wx:key="*this" class="bullet">· {{item}}</view>
+      </view>
+
+      <view wx:if="{{data.screen2_analysis.causes.innate || data.screen2_analysis.causes.acquired}}" class="sub-block causes">
+        <view class="sub-title" style="color: {{data.screen1_card.color}};">成因分析</view>
+        <view wx:if="{{data.screen2_analysis.causes.innate}}" class="cause-line">
+          <text class="bold">先天：</text>{{data.screen2_analysis.causes.innate}}
+        </view>
+        <view wx:if="{{data.screen2_analysis.causes.acquired}}" class="cause-line">
+          <text class="bold">后天：</text>{{data.screen2_analysis.causes.acquired}}
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 屏 3：个性化养生方案 -->
+  <view class="screen">
+    <view class="sect-card">
+      <view class="sect-title">🌱 个性化养生方案</view>
+
+      <view class="sub-block">
+        <view class="sub-title" style="color: {{data.screen1_card.color}};">🍲 饮食宜忌</view>
+        <view wx:if="{{data.screen3_plan.diet.good}}" class="diet-line">
+          <text class="diet-ok">✓ 宜食：</text>{{data.screen3_plan.diet.good_text}}
+        </view>
+        <view wx:if="{{data.screen3_plan.diet.avoid}}" class="diet-line">
+          <text class="diet-no">✗ 忌食：</text>{{data.screen3_plan.diet.avoid_text}}
+        </view>
+      </view>
+
+      <view wx:if="{{data.screen3_plan.lifestyle.length}}" class="sub-block">
+        <view class="sub-title" style="color: {{data.screen1_card.color}};">🌙 作息建议</view>
+        <view wx:for="{{data.screen3_plan.lifestyle}}" wx:key="*this" class="bullet">· {{item}}</view>
+      </view>
+
+      <view wx:if="{{data.screen3_plan.exercise.length}}" class="sub-block">
+        <view class="sub-title" style="color: {{data.screen1_card.color}};">🏃 运动建议</view>
+        <view wx:for="{{data.screen3_plan.exercise}}" wx:key="name" 
+              class="exercise-item" style="background: {{data.screen1_card.color}}08;">
+          <text class="ex-name">{{item.name}}</text>
+          <text class="ex-freq">{{item.frequency}}</text>
+        </view>
+      </view>
+
+      <view wx:if="{{data.screen3_plan.emotion.length}}" class="sub-block">
+        <view class="sub-title" style="color: {{data.screen1_card.color}};">🧘 情志调养</view>
+        <view wx:for="{{data.screen3_plan.emotion}}" wx:key="*this" class="bullet">· {{item}}</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 屏 4：套餐推荐 -->
+  <view class="screen" wx:if="{{data.screen4_packages.length}}">
+    <view class="sect-card">
+      <view class="sect-title">🛒 专属膳食套餐推荐</view>
+      <view class="pkg-list">
+        <view wx:for="{{data.screen4_packages}}" wx:key="name" 
+              class="pkg-item" bindtap="goPackageDetail" data-pkg="{{item}}">
+          <view class="pkg-img" style="background: {{item.reason_tag_color}}15;">
+            <image wx:if="{{item.image}}" src="{{item.image}}" mode="aspectFill" class="pkg-img-inner"></image>
+            <text wx:else>🍲</text>
+          </view>
+          <view class="pkg-info">
+            <view class="pkg-name">{{item.name}}</view>
+            <view class="pkg-reason" style="background: {{item.reason_tag_color}}15; color: {{item.reason_tag_color}};">
+              {{item.reason}}
+            </view>
+            <view wx:if="{{item.matched && item.price}}" class="pkg-price">
+              <text class="price-now">¥{{item.price}}</text>
+              <text wx:if="{{item.original_price > item.price}}" class="price-old">¥{{item.original_price}}</text>
+            </view>
+            <view wx:if="{{!item.matched}}" class="pkg-pending">敬请期待</view>
+          </view>
+          <view class="pkg-btn" style="background: {{item.matched ? data.screen1_card.color : '#d9d9d9'}};">
+            {{item.matched ? '下单' : '待上架'}}
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 屏 5：广州门店服务 -->
+  <view class="screen">
+    <view class="sect-card store-card">
+      <view class="sect-title">🏥 广州门店服务 <text class="gz-tag">广州专属</text></view>
+
+      <view class="coupon-row">
+        <view class="coupon-icon">🎟️</view>
+        <view class="coupon-info">
+          <view class="coupon-name">AI 精准检测体验券</view>
+          <view class="coupon-msg">{{data.screen5_store.coupon.message}}</view>
+        </view>
+        <view wx:if="{{data.screen5_store.coupon.status === 'claimable'}}" 
+              class="coupon-btn claim" bindtap="handleClaimCoupon">
+          {{claimingCoupon ? '领取中...' : '立即领取'}}
+        </view>
+        <view wx:elif="{{data.screen5_store.coupon.status === 'claimed'}}" 
+              class="coupon-btn claimed" bindtap="goMyCoupons">查看我的券</view>
+        <view wx:elif="{{data.screen5_store.coupon.status === 'used'}}" class="coupon-used">已核销</view>
+      </view>
+
+      <view class="book-row" bindtap="goBookAppointment">
+        <view class="book-icon">🔥</view>
+        <view class="book-info">
+          <view class="book-title">预约艾灸调理</view>
+          <view class="book-sub">根据您的体质匹配调理方案</view>
+        </view>
+        <text class="arrow">›</text>
+      </view>
+
+      <view class="fallback-text">{{data.screen5_store.non_guangzhou_fallback_text}}</view>
+    </view>
+  </view>
+
+  <!-- 屏 6：分享 -->
+  <view class="screen share-screen">
+    <button class="share-btn" open-type="share" style="background: linear-gradient(135deg, {{data.screen1_card.color}}, #13c2c2);">
+      📤 发给好友，一起测体质
+    </button>
+    <view class="disclaimer">{{data.disclaimer}}</view>
+  </view>
+
+</view>
+
+<view class="loading" wx:if="{{loading}}">
+  <view class="spinner"></view>
+  <view>加载中...</view>
+</view>

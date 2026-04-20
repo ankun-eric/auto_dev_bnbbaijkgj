@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../services/api_service.dart';
 import '../../widgets/custom_app_bar.dart';
+import 'constitution_result_screen.dart';
 
 const _kPrimaryPurple = Color(0xFF722ED1);
 const _kPrimaryPink = Color(0xFFEB2F96);
@@ -522,11 +523,22 @@ class _TcmScreenState extends State<TcmScreen> {
       if (response.statusCode == 200) {
         final data = response.data is Map ? response.data as Map<String, dynamic> : <String, dynamic>{};
         final resultData = data['data'] ?? data;
-        final constitutionType = (resultData is Map ? resultData['constitution_type'] : null)?.toString() ?? '平和质';
-        final description = (resultData is Map ? resultData['description'] : null)?.toString() ?? '';
         final diagnosisId = resultData is Map ? resultData['id'] : null;
 
         _loadDiagnosisList();
+
+        // 新版：直接跳转到 6 屏结果页（融合 M1~M9 模块）
+        if (diagnosisId is int) {
+          if (!mounted) return;
+          Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => ConstitutionResultScreen(diagnosisId: diagnosisId),
+          ));
+          return;
+        }
+
+        // 兜底：未返回 id，沿用旧弹窗（理论上不应走到这里）
+        final constitutionType = (resultData is Map ? resultData['constitution_type'] : null)?.toString() ?? '平和质';
+        final description = (resultData is Map ? resultData['description'] : null)?.toString() ?? '';
         _showConsultMemberPicker(constitutionType, description, diagnosisId);
       } else {
         _showError('分析失败，请重试');

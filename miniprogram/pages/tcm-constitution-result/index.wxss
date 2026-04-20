@@ -1,0 +1,444 @@
+.page {
+  min-height: 100vh;
+  background: #f5f5f5;
+  padding-bottom: 40rpx;
+}
+
+.screen {
+  padding: 16rpx 24rpx;
+}
+
+.screen-1 {
+  padding-top: 30rpx;
+}
+
+.card {
+  background: #fff;
+  border-radius: 24rpx;
+  padding: 40rpx 30rpx;
+  text-align: center;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.04);
+}
+
+.emoji {
+  font-size: 120rpx;
+  line-height: 1.2;
+  margin-bottom: 10rpx;
+}
+
+.type-name {
+  font-size: 44rpx;
+  font-weight: bold;
+  margin-bottom: 8rpx;
+}
+
+.meta {
+  font-size: 22rpx;
+  color: #999;
+  margin-bottom: 16rpx;
+}
+
+.one-line {
+  display: inline-block;
+  padding: 6rpx 24rpx;
+  border-radius: 40rpx;
+  font-size: 24rpx;
+  margin-bottom: 24rpx;
+}
+
+.radar-wrap {
+  margin-top: 20rpx;
+}
+
+.radar-bars {
+  margin-top: 20rpx;
+  padding: 0 20rpx;
+}
+
+.radar-bar-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 14rpx;
+}
+
+.radar-bar-label {
+  width: 110rpx;
+  font-size: 22rpx;
+  color: #555;
+  text-align: left;
+}
+
+.radar-bar-bg {
+  flex: 1;
+  height: 18rpx;
+  background: #f0f0f0;
+  border-radius: 10rpx;
+  overflow: hidden;
+  margin: 0 12rpx;
+}
+
+.radar-bar-fill {
+  height: 100%;
+  border-radius: 10rpx;
+  transition: width 0.8s ease;
+}
+
+.radar-bar-val {
+  width: 50rpx;
+  font-size: 22rpx;
+  color: #999;
+  text-align: right;
+}
+
+/* 通用 sect-card */
+.sect-card {
+  background: #fff;
+  border-radius: 20rpx;
+  padding: 28rpx 26rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.04);
+}
+
+.sect-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 20rpx;
+}
+
+.gz-tag {
+  display: inline-block;
+  padding: 2rpx 10rpx;
+  background: #fff7e6;
+  color: #fa8c16;
+  font-size: 18rpx;
+  border-radius: 20rpx;
+  margin-left: 10rpx;
+  font-weight: normal;
+}
+
+.desc {
+  font-size: 26rpx;
+  color: #666;
+  line-height: 1.6;
+  margin-bottom: 18rpx;
+}
+
+.sub-block {
+  margin-bottom: 20rpx;
+}
+
+.sub-title {
+  font-size: 26rpx;
+  font-weight: 500;
+  margin-bottom: 10rpx;
+}
+
+.tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10rpx;
+}
+
+.tag {
+  padding: 6rpx 18rpx;
+  border-radius: 8rpx;
+  font-size: 22rpx;
+  color: #555;
+}
+
+.bullet {
+  font-size: 24rpx;
+  color: #666;
+  line-height: 1.7;
+}
+
+.causes {
+  border-top: 1rpx solid #f0f0f0;
+  padding-top: 20rpx;
+  margin-top: 14rpx;
+}
+
+.cause-line {
+  font-size: 24rpx;
+  color: #666;
+  line-height: 1.6;
+  margin-bottom: 10rpx;
+}
+
+.bold {
+  font-weight: bold;
+}
+
+.diet-line {
+  font-size: 24rpx;
+  color: #666;
+  margin-bottom: 8rpx;
+}
+
+.diet-ok {
+  color: #52c41a;
+  font-weight: 500;
+}
+
+.diet-no {
+  color: #ff4d4f;
+  font-weight: 500;
+}
+
+.exercise-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 12rpx 20rpx;
+  border-radius: 12rpx;
+  margin-bottom: 8rpx;
+}
+
+.ex-name {
+  font-size: 24rpx;
+  color: #333;
+  font-weight: 500;
+}
+
+.ex-freq {
+  font-size: 22rpx;
+  color: #999;
+}
+
+/* 套餐 */
+.pkg-list {
+  display: flex;
+  flex-direction: column;
+  gap: 18rpx;
+}
+
+.pkg-item {
+  display: flex;
+  align-items: center;
+  background: #fafafa;
+  border-radius: 16rpx;
+  padding: 20rpx;
+}
+
+.pkg-img {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 12rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 56rpx;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.pkg-img-inner {
+  width: 100%;
+  height: 100%;
+}
+
+.pkg-info {
+  flex: 1;
+  margin-left: 20rpx;
+  min-width: 0;
+}
+
+.pkg-name {
+  font-size: 28rpx;
+  font-weight: 500;
+  color: #333;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pkg-reason {
+  display: inline-block;
+  padding: 4rpx 12rpx;
+  border-radius: 6rpx;
+  font-size: 20rpx;
+  margin: 6rpx 0;
+}
+
+.pkg-price {
+  margin-top: 4rpx;
+}
+
+.price-now {
+  color: #ff4d4f;
+  font-size: 28rpx;
+  font-weight: bold;
+}
+
+.price-old {
+  color: #ccc;
+  font-size: 22rpx;
+  text-decoration: line-through;
+  margin-left: 10rpx;
+}
+
+.pkg-pending {
+  color: #999;
+  font-size: 22rpx;
+}
+
+.pkg-btn {
+  padding: 10rpx 22rpx;
+  border-radius: 30rpx;
+  color: #fff;
+  font-size: 22rpx;
+  flex-shrink: 0;
+}
+
+/* 广州门店 */
+.store-card {
+  background: linear-gradient(135deg, #fff7e6, #fffbe6);
+}
+
+.coupon-row {
+  display: flex;
+  align-items: center;
+  background: #fff;
+  border: 2rpx dashed #faad14;
+  border-radius: 16rpx;
+  padding: 20rpx;
+  margin-bottom: 18rpx;
+}
+
+.coupon-icon {
+  font-size: 60rpx;
+  margin-right: 20rpx;
+}
+
+.coupon-info {
+  flex: 1;
+}
+
+.coupon-name {
+  font-size: 26rpx;
+  font-weight: 500;
+  color: #333;
+}
+
+.coupon-msg {
+  font-size: 22rpx;
+  color: #999;
+  margin-top: 6rpx;
+}
+
+.coupon-btn {
+  padding: 10rpx 22rpx;
+  border-radius: 30rpx;
+  font-size: 22rpx;
+}
+
+.coupon-btn.claim {
+  background: linear-gradient(135deg, #fa8c16, #faad14);
+  color: #fff;
+}
+
+.coupon-btn.claimed {
+  background: #f6ffed;
+  color: #52c41a;
+  border: 2rpx solid #52c41a;
+}
+
+.coupon-used {
+  color: #bbb;
+  font-size: 22rpx;
+}
+
+.book-row {
+  display: flex;
+  align-items: center;
+  background: #fff;
+  border: 2rpx solid #ffe7ba;
+  border-radius: 16rpx;
+  padding: 20rpx;
+}
+
+.book-icon {
+  font-size: 60rpx;
+  margin-right: 20rpx;
+}
+
+.book-info {
+  flex: 1;
+}
+
+.book-title {
+  font-size: 26rpx;
+  font-weight: 500;
+  color: #333;
+}
+
+.book-sub {
+  font-size: 22rpx;
+  color: #999;
+  margin-top: 6rpx;
+}
+
+.arrow {
+  color: #ccc;
+  font-size: 32rpx;
+}
+
+.fallback-text {
+  text-align: center;
+  color: #999;
+  font-size: 20rpx;
+  margin-top: 16rpx;
+}
+
+/* 分享 */
+.share-screen {
+  padding: 20rpx 24rpx 40rpx;
+}
+
+.share-btn {
+  width: 100%;
+  height: 88rpx;
+  line-height: 88rpx;
+  color: #fff;
+  border-radius: 44rpx;
+  font-size: 30rpx;
+  font-weight: 600;
+  border: none;
+}
+
+.share-btn::after {
+  border: none;
+}
+
+.disclaimer {
+  text-align: center;
+  color: #bbb;
+  font-size: 20rpx;
+  margin-top: 24rpx;
+  line-height: 1.6;
+  padding: 0 20rpx;
+}
+
+/* 加载状态 */
+.loading {
+  min-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #999;
+  font-size: 26rpx;
+}
+
+.spinner {
+  width: 48rpx;
+  height: 48rpx;
+  border: 4rpx solid #e8e8e8;
+  border-top: 4rpx solid #52c41a;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-bottom: 20rpx;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

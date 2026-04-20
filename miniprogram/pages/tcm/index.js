@@ -191,6 +191,11 @@ Page({
     wx.navigateTo({ url: '/pages/chat/index?type=tcm' });
   },
 
+  goConstitutionArchive() {
+    if (!checkLogin()) return;
+    wx.navigateTo({ url: '/pages/tcm-constitution-archive/index' });
+  },
+
   selectOption(e) {
     const value = e.currentTarget.dataset.value;
     const { currentQuestion, questions, quizAnswers } = this.data;
@@ -222,6 +227,17 @@ Page({
 
       wx.hideLoading();
 
+      // 新版：跳转到 6 屏结果页
+      const diagnosisId = res && (res.id || res.diagnosis_id);
+      if (diagnosisId) {
+        // 重置本页状态，避免从结果页返回时回到答题状态
+        this.setData({ showQuiz: false, showResult: false, currentQuestion: 0, quizAnswers: [] });
+        wx.navigateTo({ url: `/pages/tcm-constitution-result/index?id=${diagnosisId}` });
+        this.loadDiagnosisHistory();
+        return;
+      }
+
+      // 兜底：未返回 id，退回旧版面内展示
       if (res) {
         this.setData({
           showResult: true,
@@ -233,7 +249,7 @@ Page({
               { title: '饮食调理', content: '宜食益气健脾食物，如黄芪、党参、山药、大枣。' },
               { title: '运动建议', content: '适合柔和运动，如太极拳、八段锦、散步。' }
             ],
-            id: res.id || res.diagnosis_id
+            id: diagnosisId
           }
         });
         this.loadDiagnosisHistory();

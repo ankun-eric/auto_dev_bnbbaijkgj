@@ -333,6 +333,21 @@ class ApiService {
     return _dio.post(ApiConfig.tcmConstitutionTest, data: answers);
   }
 
+  /// 获取体质测评 6 屏结果页聚合数据
+  Future<Response> getConstitutionResult(int diagnosisId) async {
+    return _dio.get('/api/constitution/result/$diagnosisId');
+  }
+
+  /// 领取 AI 精准检测体验券
+  Future<Response> claimConstitutionCoupon() async {
+    return _dio.post('/api/constitution/coupon/claim');
+  }
+
+  /// 查询体质档案列表
+  Future<Response> getConstitutionArchive() async {
+    return _dio.get('/api/constitution/archive');
+  }
+
   Future<Response> getTcmDiagnosisList({int page = 1, int pageSize = 20}) async {
     return _dio.get(ApiConfig.tcmDiagnosisList, queryParameters: {
       'page': page,

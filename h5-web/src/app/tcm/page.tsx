@@ -251,6 +251,8 @@ export default function TcmPage() {
       return;
     }
     setSubmittingTest(true);
+    // 先跳转到"AI 分析中"加载页，营造专业仪式感（M9）
+    router.push('/tcm/loading');
     try {
       const payload: any = { answers: answersArr };
       if (memberId !== null && memberId !== -1) {
@@ -258,6 +260,12 @@ export default function TcmPage() {
       }
       const res: any = await api.post('/api/tcm/constitution-test', payload);
       const data = res.data || res;
+      // 新版：跳转到 6 屏结果页（复用后端 /api/constitution/result/{id}）
+      if (data?.id) {
+        router.replace(`/tcm/result/${data.id}`);
+        return;
+      }
+      // 兜底：后端未返回 id，退回老版面内展示
       setConstitutionResult({
         type: data.constitution_type || '未知',
         description: data.constitution_description || data.description || '',
@@ -267,8 +275,10 @@ export default function TcmPage() {
         lifestyle: data.lifestyle_suggestion || '',
       });
       setShowResult(true);
+      router.replace('/tcm');
       fetchHistory();
     } catch (err: any) {
+      router.replace('/tcm');
       // 真实错误透传到 Toast
       const resp = err?.response;
       const data = resp?.data;
@@ -394,6 +404,16 @@ export default function TcmPage() {
             router.back();
           }
         }}
+        right={
+          !activeFeature ? (
+            <span
+              style={{ color: '#fff', fontSize: 13, cursor: 'pointer' }}
+              onClick={() => router.push('/tcm/archive')}
+            >
+              我的档案
+            </span>
+          ) : null
+        }
       >
         中医养生
       </GreenNavBar>

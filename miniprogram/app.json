@@ -65,7 +65,9 @@
     "pages/my-addresses/index",
     "pages/review/index",
     "pages/refund/index",
-    "pages/tcm-diagnosis-detail/index"
+    "pages/tcm-diagnosis-detail/index",
+    "pages/tcm-constitution-result/index",
+    "pages/tcm-constitution-archive/index"
   ],
   "window": {
     "navigationBarTextStyle": "white",

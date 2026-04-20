@@ -20,6 +20,7 @@ from app.api import (
     chat_history,
     chat_share,
     city,
+    constitution,
     content,
     cos,
     coupons,
@@ -447,6 +448,7 @@ app.include_router(health_profile.router)
 app.include_router(chat.router)
 app.include_router(chat_history.router)
 app.include_router(tcm.router)
+app.include_router(constitution.router)
 app.include_router(service.router)
 app.include_router(order.router)
 app.include_router(expert.router)
