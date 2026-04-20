@@ -159,7 +159,7 @@ class BiniHealthApp extends StatelessWidget {
               textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
           ),
-          cardTheme: CardTheme(
+          cardTheme: CardThemeData(
             elevation: 0,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             color: Colors.white,
