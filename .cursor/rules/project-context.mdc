@@ -33,7 +33,56 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 联合修复包 v7 — 卡片常驻 + 识药图片 + 按钮统一（2026-04-20）
+## Latest Update: 7-Bug 修复 — 首页 LOGO/搜索栏 + 我的积分页 + AI 咨询页（2026-04-20）
+
+### 概要
+全栈协同修复 7 个 UI / 数据 / 跳转 Bug，覆盖 H5 + 小程序 + Flutter App 三端 + 后端：
+1. 首页左上角 LOGO 太小且带「宾尼小康」文字 → 放大 36–40px、去文字
+2. 首页搜索栏 placeholder 出现乱码 → 全端统一为「搜索您想要的健康服务」+ 后端启动迁移 DB 旧值
+3. 「我的积分」顶部卡片深色背景与上方深绿标题区颜色冲突 → 卡片背景改为浅绿 `#C8E6C9`，确认积分数值已对接 `/api/points/summary` 真实接口（无写死 680）
+4. 任务「完善健康档案」点击跳转错误 → 修正为健康档案编辑页（H5 `/profile/edit`、小程序 `pages/health-profile/index`、App `/health-profile`）
+5. 任务「首次下单」点击跳转错误 + 完成判定不正确 → 跳转到服务/商品列表（`/services` 或对应端等价页）；任意已支付订单（含到店核销前）即视为完成
+6. 一次性任务（如完善健康档案、首次下单）完成后仍占用列表 → 完成后立即置灰 + ✓ 已完成 + 不可点击；7 天后自动从任务列表过滤
+7. AI 健康咨询页标题栏既显示 LOGO 又显示标题文字 → 移除标题栏 LOGO，仅保留页面标题
+
+### 关键变更
+- **后端 `backend/app/api/points.py`**：新增 `ONCE_TASK_HIDE_AFTER_DAYS = 7`；任务结构新增 `status`（pending/completed）+ `completed_at`；首单完成判定改为「任意已支付订单」（`pending_shipment / pending_receipt / pending_use / pending_review / completed`）；首单 route 由 `/products` 改为 `/services`；`completed_at` 来自 `paid_at / completed_at / received_at` 取最早可用；列表层按 7 天阈值过滤。
+- **后端 `backend/app/api/home_config.py` + `init_data.py`**：默认 `home_search_placeholder` → 「搜索您想要的健康服务」。
+- **后端 `backend/app/main.py`**：lifespan 启动加 `_migrate_v7_search_placeholder()`，用 `placeholder_v7_normalized` 标志位幂等迁移：DB 中无标志则强制把 `home_search_placeholder` 改为新文案并写入标志，解决历史脏 / 乱码占位。
+- **H5 `h5-web/src/app/(tabs)/home/page.tsx`**：LOGO 36×36，去掉「宾尼小康」文字；placeholder fallback 改新文案。
+- **H5 `h5-web/src/app/(tabs)/ai/page.tsx`**：移除残留 `fetchLogo` / `logoUrl` 逻辑（标题栏只保留 AI 渐变头像 + 标题）。
+- **H5 `h5-web/src/app/points/page.tsx`**：卡片背景 `#C8E6C9`，文字深绿色 `#1B5E20 / #2E7D32`；新增 `TASK_ROUTE_OVERRIDES`（`complete_profile → /profile/edit`，`first_order → /services`）覆盖跳转；一次性任务完成后 opacity 0.55 + 灰底 + 标题删除线 + ✓ 已完成 + 禁用 onClick。
+- **小程序 `miniprogram/pages/home/{index.wxml,index.wxss}`**：新增 `.brand-logo-large`（72rpx）；首页 LOGO 用大尺寸渲染，旁文字仅在无 LOGO 时显示；placeholder fallback 改新文案。
+- **小程序 `miniprogram/pages/points/{js,wxml,wxss}`**：卡片背景改 `#C8E6C9`，文字色协调；新增 `task-card-done` / `task-title-done` / `task-tag-done` / `task-points-done` 等样式；`onceDone` 标志驱动渲染；`normalizeRoute` 新增 `/services` 映射。
+- **Flutter `flutter_app/lib/screens/home/home_screen.dart`**：`_searchVisible=false` 时 LOGO 40×40；`_searchPlaceholder` 默认值改新文案；移除冗余 `宾尼小康` 文字。
+- **Flutter `flutter_app/lib/screens/ai/ai_home_screen.dart`**：标题栏移除 LogoService 渲染分支，仅保留 `Text('AI健康咨询')`；移除 `logo_service.dart` import。
+- **Flutter `flutter_app/lib/screens/points/points_screen.dart`**：卡片 `BoxDecoration` 由渐变改纯色 `#C8E6C9`，文字深绿；路由 map 加 `/services → /products`；`onceDone` 时 `Opacity 0.7` + 灰底 + 删除线 + 「✓ 已完成」标签 + 按钮文案/样式禁用。
+- **新增脚本**：
+  - `deploy/deploy_bugfix_7.py`：tar 上传 → docker 重建 backend + h5-web → gateway 检验 → 自检接口（已验证 placeholder 在线为新文案 ✓）。
+  - `deploy/verify_bugfix7.py` / `deploy/link_check_v7.py`：H5 15/15 + API 4/4 全部 200/308 通过 ✓。
+  - `deploy/package_v7.py`：本地打包小程序 zip 上传到 `static/downloads/`，启动远程 docker `flutter-builder` 后台构建 APK 到 `static/apk/`。
+
+### 部署与产物
+- 后端、H5 容器已重建并热更（`6b099ed3-7175-4a78-91f4-44570c84ed27-backend` / `-h5`）。
+- 在线验证：`/api/home-config` 返回 `search_placeholder = "搜索您想要的健康服务"` ✓；H5 关键页 15/15 + API 4/4 全部 OK ✓。
+- 小程序 zip：
+  - 最新（推荐）：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/downloads/miniprogram_latest.zip`
+  - 本期：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/downloads/miniprogram_bugfix7_1776649904.zip`
+- APK：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/apk/bini_health.apk`（远程 flutter-builder 后台构建中，构建完成自动覆盖；构建失败时旧 APK 仍可用）。
+- 用户体验手册：`user_docs/七项Bug修复_首页LOGO_搜索栏_我的积分_AI咨询_用户体验手册.md`。
+
+### 已知策略 / 边界
+- **placeholder 迁移幂等**：依赖 `system_config.placeholder_v7_normalized` 标志，二次部署不会重复刷新；如需强制重置，删除该标志位即可。
+- **一次性任务 7 天阈值**：`ONCE_TASK_HIDE_AFTER_DAYS` 常量集中定义于 `backend/app/api/points.py`，未来调整只需改一处。
+- **首单完成判定**：覆盖 `paid_at` 不为空的所有订单状态（含到店核销前）；旧版只判定 `completed` 严格状态，可能导致用户支付后任务长时间「未完成」，本次放宽。
+- **iOS 构建**：未在本期部署/打包流程中产出（需 macOS + Xcode 流水线），源码已就绪。
+
+### Commit
+- `9a8d544`：`fix(7-bugs): home logo/search placeholder + points page color/tasks + AI logo`
+
+---
+
+## Previous Update: 联合修复包 v7 — 卡片常驻 + 识药图片 + 按钮统一（2026-04-20）
 
 ### 概要
 一次性打包修复三件事：① AI 咨询页"💊 用药识别"+"🩺 健康自检"卡片在 AI 回话后被自动收起的常驻 Bug；② 拍照识药"识别记录"图片字段始终为空导致全部破图；③ 4 个入口（拍照识药 / 健康自检 / 报告解读 / 中医养生）× 3 端（H5 / 小程序 / Flutter）的"咨询人选择页"底部按钮文案统一为「AI 开始分析」。
