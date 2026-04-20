@@ -1,0 +1,96 @@
+{
+  "passed": 10,
+  "failed": 0,
+  "results": [
+    {
+      "name": "H5 root",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/",
+      "status": 200,
+      "verdict": "PASS",
+      "reason": "200",
+      "body_preview": "<!DOCTYPE html><html lang=\"zh-CN\"><head><meta charSet=\"utf-8\"/><meta charSet=\"utf-8\"/><meta name=\"vi",
+      "error": null
+    },
+    {
+      "name": "H5 login",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/login",
+      "status": 200,
+      "verdict": "PASS",
+      "reason": "200",
+      "body_preview": "<!DOCTYPE html><html lang=\"zh-CN\"><head><meta charSet=\"utf-8\"/><meta charSet=\"utf-8\"/><meta name=\"vi",
+      "error": null
+    },
+    {
+      "name": "H5 home tab",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/home",
+      "status": 200,
+      "verdict": "PASS",
+      "reason": "200",
+      "body_preview": "<!DOCTYPE html><html lang=\"zh-CN\"><head><meta charSet=\"utf-8\"/><meta charSet=\"utf-8\"/><meta name=\"vi",
+      "error": null
+    },
+    {
+      "name": "Admin",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin",
+      "status": 200,
+      "verdict": "PASS",
+      "reason": "200",
+      "body_preview": "<!DOCTYPE html><html lang=\"zh-CN\"><head><meta charSet=\"utf-8\"/><meta name=\"viewport\" content=\"width=",
+      "error": null
+    },
+    {
+      "name": "Admin (trailing)",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/",
+      "status": 200,
+      "verdict": "PASS",
+      "reason": "200",
+      "body_preview": "<!DOCTYPE html><html lang=\"zh-CN\"><head><meta charSet=\"utf-8\"/><meta name=\"viewport\" content=\"width=",
+      "error": null
+    },
+    {
+      "name": "API home-config",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/home-config",
+      "status": 200,
+      "verdict": "PASS",
+      "reason": "200",
+      "body_preview": "{\"search_visible\":true,\"search_placeholder\":\"搜索健康服务/商品\",\"grid_columns\":4,\"font_switch_enabled\":true,",
+      "error": null
+    },
+    {
+      "name": "API home-banners",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/home-banners",
+      "status": 200,
+      "verdict": "PASS",
+      "reason": "200",
+      "body_preview": "{\"items\":[]}",
+      "error": null
+    },
+    {
+      "name": "API home-menus",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/home-menus",
+      "status": 200,
+      "verdict": "PASS",
+      "reason": "200",
+      "body_preview": "{\"items\":[{\"id\":1,\"name\":\"AI健康咨询\",\"icon_type\":\"emoji\",\"icon_content\":\"💬\",\"link_type\":\"internal\",\"lin",
+      "error": null
+    },
+    {
+      "name": "API content articles",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/content/articles?page=1&page_size=3",
+      "status": 200,
+      "verdict": "PASS",
+      "reason": "200",
+      "body_preview": "{\"items\":[],\"total\":0,\"page\":1,\"page_size\":3}",
+      "error": null
+    },
+    {
+      "name": "API health",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health",
+      "status": 200,
+      "verdict": "PASS",
+      "reason": "200",
+      "body_preview": "{\"status\":\"ok\",\"service\":\"bini-health-api\"}",
+      "error": null
+    }
+  ]
+}

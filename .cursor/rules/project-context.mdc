@@ -33,7 +33,49 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 九项 Bug 修复 — 优惠券/积分口径 + 会员码规则 + UI 合版（2026-04-21）
+## Latest Update: 首页三 Bug 修复 — Banner 空置不渲染 / 菜单列数动态刷新 / 健康知识接入后端（2026-04-21）
+
+### 概要
+修复首页三个长期存在的问题：Bug-1 后端 Banner 清空时前端仍显示硬编码默认 Banner；Bug-2 后台修改菜单列数等配置后前端不刷新（无下拉刷新、无切回前台刷新）；Bug-3 首页"健康知识"模块一直是硬编码示例，从不调用后端。三端（Flutter App / H5 Web / 小程序）同步修复，最近一次全量链接检查 10/10 通过（H5 首页/登录/tab 首页、Admin、5 个核心 API、健康检查）。
+
+### 关键变更
+
+- **Flutter App**：
+  - `flutter_app/lib/screens/home/home_screen.dart`：`_HomeScreenState with WidgetsBindingObserver` + `didChangeAppLifecycleState`（30s 节流），`CustomScrollView` 外层包 `RefreshIndicator`；去除 `_defaultBanners/_defaultMenus`；新增 `_loadArticles()` 调 `/api/content/articles?page_size=3`；`_banners.isNotEmpty` 控制 Banner 区域渲染；`_articles.isNotEmpty` 控制整段健康知识渲染；`_buildBannerItem` 去除渐变占位，加载失败返回 `SizedBox.shrink()`。
+  - `flutter_app/lib/services/api_service.dart`：`getArticles({category, page=1, pageSize})` 增加 `pageSize` 参数。
+
+- **H5 Web**：
+  - `h5-web/src/lib/useHomeConfig.ts`：删除 `DEFAULT_BANNERS/DEFAULT_MENUS`；`fetchAll({skipCache})` 支持跳缓存；导出 `refetch()`、`clearHomeConfigCache()`。
+  - `h5-web/src/app/(tabs)/home/page.tsx`：引入 `PullToRefresh`；`document.visibilitychange` 30s 节流刷新；`articles` 动态 state + `fetchArticles()`；`banners.filter(b=>b.image_url)` + `img onError` 隐藏失败图；`articles.length>0` 控制整段健康知识渲染。
+
+- **小程序**：
+  - `miniprogram/pages/home/index.js`：删除 `DEFAULT_BANNERS/DEFAULT_MENUS` 及硬编码 `articles`；新增 `REFRESH_THROTTLE_MS=30s`、`_lastRefreshAt`、`loadArticles()`、`_formatArticleTime()`；`loadBanners/loadMenus` 失败时置空；`onShow` 走节流判断；`onPullDownRefresh` 强制刷新。
+  - `miniprogram/pages/home/index.wxml`：Banner `<swiper wx:if="{{banners.length>0}}">` + 内层 `<swiper-item wx:if="{{item.image_url}}">`；健康知识 `<block wx:if="{{articles.length>0}}">` 包裹 section-header + article-list。
+
+### 部署与产物
+
+- 服务器 git commit：`e556fed fix(home-3bugs): 首页3个Bug修复(Banner空置/菜单刷新/健康知识接口)`。
+- H5 容器重建：`docker compose -f docker-compose.prod.yml up -d --build --no-deps h5-web`，其他容器（backend/admin/db）未变更无需重启。
+- 最近一次全量链接可达性：**10/10 通过**（`/api/home-config`、`/api/home-banners`、`/api/home-menus`、`/api/content/articles` 均 200，H5/Admin 所有页面 200/401）。
+- 小程序 zip：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/downloads/miniprogram_latest.zip`（唯一包 `miniprogram_home3bugs_20260421_034031_86c1.zip`，~323 KB）。
+- 安卓 APK：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/apk/bini_health.apk`（由 `deploy/build_apk_home_3bugs.py` 在服务器上用 `flutter-builder:latest` 构建）。
+
+### 关联脚本
+
+- `deploy/deploy_home_3bugs.py`：git pull + 仅重建 h5-web + gateway reload + 7 个关键路径快速探针。
+- `deploy/link_check_home_3bugs.py` + `link_check_home_3bugs_report.json`：19 条链接全量检查（200/401 判可达）。
+- `deploy/package_mp_home_3bugs.py`：打包并上传小程序 zip 到 `static/downloads/`，同时覆盖 `miniprogram_latest.zip`。
+- `deploy/build_apk_home_3bugs.py`：服务器端 docker 构建 Flutter APK，产物拷贝到 `static/apk/bini_health.apk`。
+
+### 回归要点
+
+- 后台清空 Banner 列表 → 三端首页 Banner 区域完全消失；新增后下拉刷新立刻出现。
+- 后台改菜单列数 → 下拉刷新 / 切回前台 30s 后自动生效，无需重装。
+- 后台无文章 → 三端首页"健康知识"整段（标题 + 更多 + 列表）全部不展示。
+
+---
+
+## 上一次更新: 九项 Bug 修复 — 优惠券/积分口径 + 会员码规则 + UI 合版（2026-04-21）
 
 ### 概要
 按《BUG 修复方案 v1.0》批次推进 9 项修复：P0（优惠券合计 / 可用积分口径）、P1（会员码规则全量刷码 / 完善档案跳转 / 首次下单下线）、UI 合版（PC 登录页文案、PC 首页顶部布局方案A、我的首页删除字号入口、积分商城可用积分金色配色）。后端 75/75 测试通过，部署 18/18 链接全通，小程序 zip / 安卓 APK / iOS IPA 三端产物全部打包上传成功。
