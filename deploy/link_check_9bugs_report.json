@@ -1,0 +1,172 @@
+{
+  "deploy_id": "6b099ed3-7175-4a78-91f4-44570c84ed27",
+  "base_url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27",
+  "total": 18,
+  "passed": 18,
+  "failed": 0,
+  "all_passed": true,
+  "results": [
+    {
+      "category": "h5",
+      "path": "/",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/",
+      "status": 200,
+      "reachable": true,
+      "note": "H5 根页（可能重定向）",
+      "error": null
+    },
+    {
+      "category": "h5",
+      "path": "/login",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/login",
+      "status": 200,
+      "reachable": true,
+      "note": "H5 登录页",
+      "error": null
+    },
+    {
+      "category": "h5",
+      "path": "/my-coupons",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/my-coupons",
+      "status": 200,
+      "reachable": true,
+      "note": "我的优惠券(本次修复)",
+      "error": null
+    },
+    {
+      "category": "h5",
+      "path": "/points",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/points",
+      "status": 200,
+      "reachable": true,
+      "note": "我的积分(本次修复)",
+      "error": null
+    },
+    {
+      "category": "h5",
+      "path": "/points/mall",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/points/mall",
+      "status": 200,
+      "reachable": true,
+      "note": "积分商城(本次修复)",
+      "error": null
+    },
+    {
+      "category": "h5",
+      "path": "/profile",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/profile",
+      "status": 200,
+      "reachable": true,
+      "note": "我的首页(本次修复)",
+      "error": null
+    },
+    {
+      "category": "h5",
+      "path": "/health-profile",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/health-profile",
+      "status": 200,
+      "reachable": true,
+      "note": "健康档案",
+      "error": null
+    },
+    {
+      "category": "h5",
+      "path": "/tcm",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/tcm",
+      "status": 200,
+      "reachable": true,
+      "note": "中医养生",
+      "error": null
+    },
+    {
+      "category": "admin",
+      "path": "/admin/",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/",
+      "status": 200,
+      "reachable": true,
+      "note": "admin 首页(本次修复)",
+      "error": null
+    },
+    {
+      "category": "admin",
+      "path": "/admin/login",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/login",
+      "status": 200,
+      "reachable": true,
+      "note": "admin 登录页",
+      "error": null
+    },
+    {
+      "category": "api",
+      "path": "/api/health",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health",
+      "status": 200,
+      "reachable": true,
+      "note": "健康检查",
+      "error": null
+    },
+    {
+      "category": "api",
+      "path": "/api/home-config",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/home-config",
+      "status": 200,
+      "reachable": true,
+      "note": "首页配置",
+      "error": null
+    },
+    {
+      "category": "api",
+      "path": "/api/coupons/mine",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/coupons/mine",
+      "status": 401,
+      "reachable": true,
+      "note": "我的优惠券(401 预期)",
+      "error": null
+    },
+    {
+      "category": "api",
+      "path": "/api/coupons/summary",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/coupons/summary",
+      "status": 401,
+      "reachable": true,
+      "note": "优惠券合计(401 预期)",
+      "error": null
+    },
+    {
+      "category": "api",
+      "path": "/api/points/summary",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/points/summary",
+      "status": 401,
+      "reachable": true,
+      "note": "积分汇总(401 预期)",
+      "error": null
+    },
+    {
+      "category": "api",
+      "path": "/api/points/balance",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/points/balance",
+      "status": 401,
+      "reachable": true,
+      "note": "积分余额(401 预期)",
+      "error": null
+    },
+    {
+      "category": "api",
+      "path": "/api/points/tasks",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/points/tasks",
+      "status": 401,
+      "reachable": true,
+      "note": "积分任务(401 预期)",
+      "error": null
+    },
+    {
+      "category": "api",
+      "path": "/api/constitution/archive",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/constitution/archive",
+      "status": 401,
+      "reachable": true,
+      "note": "健康档案(401 预期)",
+      "error": null
+    }
+  ]
+}

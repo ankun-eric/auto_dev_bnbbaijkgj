@@ -33,7 +33,91 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 中医养生 · 体质测评功能优化（2026-04-20）
+## Latest Update: 九项 Bug 修复 — 优惠券/积分口径 + 会员码规则 + UI 合版（2026-04-21）
+
+### 概要
+按《BUG 修复方案 v1.0》批次推进 9 项修复：P0（优惠券合计 / 可用积分口径）、P1（会员码规则全量刷码 / 完善档案跳转 / 首次下单下线）、UI 合版（PC 登录页文案、PC 首页顶部布局方案A、我的首页删除字号入口、积分商城可用积分金色配色）。后端 75/75 测试通过，部署 18/18 链接全通，小程序 zip / 安卓 APK / iOS IPA 三端产物全部打包上传成功。
+
+### 关键变更
+
+- **后端**：
+  - `backend/app/api/coupons.py`：新增 `_count_user_coupons_available()` 权威口径；新增 `GET /api/coupons/summary` 返回 `{available, available_count, used, used_count, expired, expired_count, total, total_count}`；`GET /api/coupons/mine` 响应追加 `available_count` 字段。
+  - `backend/app/api/points.py`：新增模块级 `compute_available_points(db, user_id)`（可用=获得−消耗−过期−冻结，最低 0）；`balance` / `summary` 接口以流水为准不回写 `user.points`；`complete_profile` 任务 route 统一为 `/health-profile`；`first_order` 标记 `enabled=false` 并在接口层过滤。
+  - `backend/app/services/member_code.py`（新增）：`MEMBER_CODE_CHARSET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"`、`MEMBER_CODE_LENGTH=6`、`allocate_unique_member_code()` 冲突重试 10 次。
+  - `backend/app/services/register_service.py`：`generate_member_card_no` 委托 `allocate_unique_member_code`。
+  - `backend/app/models/models.py`：`User` 新增 `member_card_no_old VARCHAR(64) nullable`（30 天回滚兜底字段）；`backend/app/services/schema_sync.py` 添加 `ALTER TABLE` 兜底。
+  - `backend/scripts/reissue_member_codes.py`（新增）：整表备份（`users_backup_YYYYMMDD AS SELECT * FROM users`）+ 全量刷码 + `--dry-run` 支持。
+  - `backend/scripts/audit_points.py`（新增）：只读对账，扫描用户 `user.points` 与流水差值 → `backend/reports/points_diff_YYYYMMDD.csv`，脚本头部注明严禁任何 UPDATE。
+
+- **admin-web（PC，Next.js）**：
+  - `admin-web/src/app/(admin)/layout.tsx`：Header 重构为方案 A — 左 LOGO + 品牌字｜中 `Input.Search` 大搜索栏（45–50%，圆角 24px，placeholder "搜索健康商品/服务/文章"）｜右 扫码 Tooltip + 消息 Badge-dot Tooltip + 头像菜单。
+  - `admin-web/src/app/globals.css`：追加 `.admin-header-search` 圆角样式。
+  - 登录页（Bug#1）：经搜索确认当前 `admin-web/src/app/login/page.tsx` 本就无"未注册手机号"常驻提示，**自动归零**。
+
+- **H5（Next.js）**：
+  - `h5-web/src/app/my-coupons/page.tsx`：新增"合计可用"卡，Tabs 改为 `可用(N)/已使用(N)/已过期(N)`；合计数与"可用"Tab 同源（优先 `available_count`，兜底 `available → total → items.length`）。
+  - `h5-web/src/app/points/page.tsx`：顶部标题"可用积分"，数据源 `/api/points/summary.available_points`（回退 `total_points`）；`TASK_ROUTE_OVERRIDES.complete_profile` 改为 `/health-profile`；删除 `first_order: '/services'` 硬编码。
+  - `h5-web/src/app/points/mall/page.tsx`：可用积分卡改金色渐变 `#FFF8E1→#FFE7A8` + 暗金数字 `#B8860B` + 文字 `#8C6D1F` + ⭐ 徽章；移除硬编码 680，走 summary 接口。
+  - `h5-web/src/app/(tabs)/profile/page.tsx`：删除"🔍 字号偏小？点这里调大"首页入口区块，保留设置页字号入口与底层字号逻辑。
+
+- **微信小程序**：
+  - `miniprogram/pages/my-coupons/*`：顶部"合计 N 张可用"条 + Tab `可用(N)` 同源。
+  - `miniprogram/pages/points/*`：顶部绑定 `availablePoints`（`available_points ?? available ?? total_points`），文案"我的可用积分"。
+  - `miniprogram/pages/points-mall/*`：硬编码 1280 改为调用 `/api/points/summary`；WXSS 配色金色化。
+  - `miniprogram/pages/points/index.js` `normalizeRoute`：新增 `/health-profile` 映射，删除 `/services` 条目（清理 `first_order` 硬编码）。
+  - `miniprogram/pages/profile/index.wxml`：删除 `.font-size-shortcut` 区块。
+
+- **Flutter App**：
+  - `flutter_app/lib/screens/coupon/my_coupons_screen.dart`：父组件 `_availableCount` + "合计 N 张可用"横条 + Tab `可用($N)`；子 Tab 通过 `onCountChanged` 回传数量。
+  - `flutter_app/lib/screens/points/points_screen.dart`：`_availablePoints` 顶部大数字；`routeMap` 新增 `/health-profile`，删除 `/services`。
+  - `flutter_app/lib/screens/points/points_mall_screen.dart`：改为 `StatefulWidget`，`ApiService.getPointsSummary()` 加载可用积分；UI 配色同 H5。
+  - `flutter_app/lib/screens/profile/profile_screen.dart`：删除"字号偏小快捷横条" `GestureDetector`；下方 Stats bar margin 微调防空白断层。
+  - `flutter_app/lib/screens/member/member_card_screen.dart`：QR token 文本展示追加 `.toUpperCase()`（Bug#6 大写展示）。
+
+- **测试**：
+  - `backend/tests/test_points_coupons_p0.py`（新增）：优惠券口径 + 积分口径 + 非负断言 5 项
+  - `backend/tests/test_member_code.py`（新增）：字符集/长度/唯一性/兜底 4 项
+  - `backend/tests/test_daily_tasks_p1.py`（新增）：`first_order` 过滤 + `complete_profile.route==/health-profile` 1 项
+  - 回归：`test_points.py`、`test_coupons_v2_1.py`、`test_auth.py` 全部通过（合计 **75 passed**）
+
+- **部署脚本**（新增）：
+  - `deploy/deploy_9bugs_v1.py`：paramiko SSH `git reset --hard origin/master` + `docker compose build backend h5-web admin-web` + `up -d --force-recreate`
+  - `deploy/link_check_9bugs.py`：18 条关键链接可达性校验 → `deploy/link_check_9bugs_report.json`
+  - `deploy/package_mp_9bugs.py`：小程序 zip 打包 + SFTP 上传 + 写 `miniprogram_latest.zip`
+  - `deploy/upload_apk_9bugs.py`：APK 本地下载 GH Release + SFTP 上传 + 覆盖 `bini_health.apk`
+
+### 部署与产物（已验证）
+- Commit：`98c10ec fix(9-bugs-v1)...` + `58ebd04 deploy(9-bugs-v1)...`（服务器 `git reset --hard 58ebd04`）
+- 容器状态：`6b099ed3-...-{backend,h5,admin,db}` 全部 Up；backend + h5 + admin 均重 build + recreate
+- 链接可达性：H5 8/8 + Admin 2/2 + API 8/8 = **18/18 全部 OK**（`/api/coupons/summary` 等需认证接口返回 401 为预期）
+- 小程序 zip：
+  - 唯一：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/downloads/miniprogram_9bugs_20260421_004124_041b.zip`（200 OK，330,228 bytes，304 files）
+  - 最新快捷：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/downloads/miniprogram_latest.zip`
+- 安卓 APK：
+  - 唯一：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/apk/bini_health_9bugs_20260421004913_1d69.apk`（200 OK，81,651,411 bytes）
+  - 最新快捷：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/apk/bini_health.apk`
+  - GH Actions run `24678614957`，tag `android-9bugs-v20260421-004119-935c`，耗时 ~6.6 分钟
+- iOS IPA：
+  - Release: `https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-9bugs-v20260421-004139-3c26`
+  - 直链：`https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/download/ios-9bugs-v20260421-004139-3c26/bini_health_ios.ipa`（34,162,375 bytes，未签名）
+  - GH Actions run `24678627219`，耗时 ~6 分钟
+
+### 用户手册
+- `user_docs/九项Bug修复_优惠券积分会员码_用户体验手册.md`（含三端下载链接 + 体验步骤 + 已知边界）
+
+### 已知限制
+1. **刷码脚本未执行**：`reissue_member_codes.py` 仅交付，需运营在凌晨低峰期执行；`member_card_no_old` 兜底字段保留 30 天
+2. **PointsRecord 无 expire/frozen**：积分过期/冻结机制待上线后这两项自动生效；目前 `expired/frozen` 恒为 0
+3. **iOS IPA 未签名**：用户需 AltStore/Sideloadly 侧载
+4. **admin-web C 端卡片**：后台无 C 端"可用积分"卡片入口，Bug#9 配色仅在 H5/小程序/Flutter 生效；admin 的积分商城为管理页不改色
+
+### Commits
+- `98c10ec`：`fix(9-bugs-v1): 优惠券合计/可用积分P0 + 会员码规则/档案链接/首单下线 + UI合版`
+- `58ebd04`：`deploy(9-bugs-v1): 部署脚本 + 全量链接验证脚本`
+
+---
+
+## Previous Update: 中医养生 · 体质测评功能优化（2026-04-20）
 
 ### 概要
 按 PRD v1.0 合并「我的档案」与「历史记录」为单一入口「测评记录」，并在答题流程中引入 StepBar（答题 → 选择对象 → AI 分析），对齐"健康自查"体验；后端 `member_label` 统一为 `姓名（关系）` 格式，各端消费避免自拼字符串。
