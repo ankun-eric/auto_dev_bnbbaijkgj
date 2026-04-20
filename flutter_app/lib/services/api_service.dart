@@ -150,16 +150,6 @@ class ApiService {
     return _dio.get(ApiConfig.myStats);
   }
 
-  Future<Response> getProductCategories() async {
-    return _dio.get(ApiConfig.productCategories);
-  }
-
-  Future<Response> getProducts({int? categoryId, int page = 1, int pageSize = 10}) async {
-    final params = <String, dynamic>{'page': page, 'page_size': pageSize};
-    if (categoryId != null) params['category_id'] = categoryId;
-    return _dio.get(ApiConfig.products, queryParameters: params);
-  }
-
   // Health
   Future<Response> getHealthProfile() async {
     return _dio.get(ApiConfig.healthProfile);
