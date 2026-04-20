@@ -33,7 +33,60 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 健康自查 — 咨询人档案收起与独立保存优化（2026-04-20）
+## Latest Update: 中医养生 — 体质测评一期（6屏结果页 + 套餐推荐 + 优惠券 + 档案）（2026-04-20）
+
+### 概要
+按 PRD《体质测评功能优化（一期 + 二期路线）》一期 2 周 MVP 范围，对体质测评结果页进行了深度重做，将原来的"8 题 + 简单结果"升级为"8 题 → 加载过渡 → 6 屏沉浸结果 + 档案 + 分享卡"的专业体验。目标：提升体质测评从"测完就走"到"测完→看懂→买套餐 / 领券 / 预约 / 分享"的闭环转化。
+
+### 6 屏结果页结构
+1. **体质名片**：体质名称 + 一句人格化标签（如"气虚体质 · 稳健蓄能型"）+ 一句话 slogan + 雷达图（6 维：阳、阴、气、血、阳能、阴能）。
+2. **深度解读**：体质典型特征 + 形成原因 + 健康倾向（易患风险）。
+3. **个性化养生方案**：饮食（宜 / 忌）+ 作息 + 运动 + 情志 四维推荐。
+4. **专属套餐推荐**：自动匹配体质对应的养生套餐卡（M1 气血双补 / M3 滋阴养肺 等 → 走商品库 `Product`，点卡片可直接跳购买）。
+5. **广州门店服务**：AI 精准检测体验券（一键领取，`Coupon/UserCoupon` 表驱动）+ 艾灸 / 针灸预约入口（跳预约页）。
+6. **分享卡 + 免责声明**：中医版 MBTI 风格海报（H5 Canvas 生成 PNG，小程序原生分享 + 朋友圈）+ 医疗合规免责声明。
+
+### 关键变更
+- **后端**（`backend/app/services/constitution_content.py` 新增 + `backend/app/api/constitution.py` 新增 + `main.py` 注册路由）：
+  - `constitution_content.py`：硬编码 9 种体质的人格化名称（`CONSTITUTION_PERSONAS`）、详细内容（特征 / 成因 / 风险 / 饮食宜忌 / 作息 / 运动 / 情志）、体质→套餐映射（`CONSTITUTION_PACKAGE_MAPPING`）、`RADAR_DIMENSIONS`、`compute_radar_scores()`、`DISCLAIMER`。
+  - `constitution.py` 新增 6 个接口：`GET /api/constitution/result/{diagnosis_id}`（聚合 6 屏所需全部数据，含雷达分、套餐卡、优惠券状态）、`POST /api/constitution/coupon/claim`（领取 AI 检测体验券）、`GET /api/constitution/coupon/status`（查询当前券状态）、`GET /api/constitution/archive`（体质档案列表）、`GET /api/constitution/archive/{diagnosis_id}`（单条档案）、`GET /api/constitution/encyclopedia/{type}`（体质百科静态内容）。内含 `_ensure_detection_coupon()` 自动兜底创建默认体验券，`_match_product_by_keywords()` 套餐关键词匹配商品库，`_build_package_card()` 组装套餐卡。
+- **H5**（`h5-web/src/app/tcm/`）：
+  - `page.tsx`：提交测评后先跳 `/tcm/loading`，拿到 `diagnosisId` 后再跳 `/tcm/result/{id}`；顶部 `GreenNavBar` 右侧新增"我的档案"入口跳 `/tcm/archive`。
+  - `loading/page.tsx`（新增）：专属加载页，配动态 Tips + 中医主题动画。
+  - `result/[id]/page.tsx`（新增）：6 屏完整渲染；内置 SVG `RadarChart` 组件、`generateShareCard()` Canvas 海报生成（保存 PNG）、领券 / 购买套餐 / 预约跳转逻辑。
+  - `archive/page.tsx`（新增）：档案列表，点击进入对应结果页。
+- **微信小程序**（`miniprogram/`）：
+  - `app.json`：注册 `pages/tcm-constitution-result/index`、`pages/tcm-constitution-archive/index`。
+  - `pages/tcm/index.{js,wxml}`：测评提交成功后跳新结果页；首页 feature-grid 增加"我的档案"入口。
+  - `pages/tcm-constitution-result/index.{json,js,wxml,wxss}`（新增）：6 屏 + 原生 `onShareAppMessage` / `onShareTimeline` 分享；雷达图受限降级为横向柱状图。
+  - `pages/tcm-constitution-archive/index.{json,js,wxml,wxss}`（新增）：档案列表。
+- **Flutter**（`flutter_app/`）：
+  - `lib/services/api_service.dart`：新增 `getConstitutionResult`、`claimConstitutionCoupon`、`getConstitutionArchive` 三个方法。
+  - `lib/screens/health/constitution_result_screen.dart`（新增）：6 屏渲染 + 自定义 `_RadarPainter`（CustomPainter 绘制雷达图）+ 领券 / 套餐 / 预约跳转。
+  - `lib/screens/health/tcm_screen.dart`：测评提交成功后 `Navigator.push` 到 `ConstitutionResultScreen(diagnosisId:)`。
+- **部署脚本**（`deploy/deploy_constitution_p1.py` 新增）：
+  - `paramiko` SSH 登录服务器，`git fetch + reset --hard origin/master`。
+  - `docker compose build backend h5-web`（重点：容器内用镜像代码而非 bind mount，**必须重 build 才能让后端新路由生效**——这是本次踩过的坑）。
+  - `docker compose up -d --force-recreate backend h5-web`，等待就绪后对 `/tcm`、`/tcm/loading`、`/tcm/archive`、`/tcm/result/1`、`/api/constitution/archive`（401 可达）、`/api/constitution/coupon/status`（401 可达）、`/api/tcm/config` 做 curl 快检，全通过视为部署完成。
+
+### 部署与验证（在线已验证）
+- 已部署容器：`6b099ed3-...-{backend,h5,admin,db}` 均 Up；backend 和 h5-web 已重 build + recreate。
+- 快检结果：H5 新页全部 308（Next basePath 正常重定向）；新增后端接口 `/api/constitution/archive`、`/api/constitution/coupon/status` 均返回 401（未登录，路由已正确注册）。
+- 核心访问入口：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/tcm`。
+
+### 用户手册
+- `user_docs/中医养生-体质测评一期.md`
+
+### 已知限制 / 二期待做
+- **内容静态**：一期 9 种体质的详细内容、人格化标签、套餐映射均在 `constitution_content.py` 里硬编码；二期接入 CMS 或 `ConstitutionContent` 数据表做运营可配置。
+- **雷达分计算**：一期基于答题 JSON 做简化映射（`compute_radar_scores` 中规则），二期按真实中医九体辨证打分算法重构。
+- **小程序雷达图**：一期因原生 canvas 受限降级为横向柱状图，二期接入 `ec-canvas`（echarts for mp）。
+- **分享卡**：H5 使用 Canvas 生成 PNG 并保存到相册，小程序使用原生 `onShareAppMessage` + `onShareTimeline`（需微信接口配置），Flutter 暂时复用截屏+系统分享（二期做专属海报生成）。
+- **套餐匹配**：基于关键词匹配 `Product.name`/`description`，若商品库中无对应关键词则降级为"默认养生套餐卡"+ 提示，二期做运营管理后台人工绑定。
+
+---
+
+## Previous Update: 健康自查 — 咨询人档案收起与独立保存优化（2026-04-20）
 
 ### 概要
 按 PRD v1.0 要求，对"健康自查 - 咨询人"环节的档案编辑进行三端（H5 / 微信小程序 / Flutter App）同步改造：将"档案修改保存"与"AI 开始分析"彻底解耦，已有家庭成员档案默认收起，新增"保存档案"独立按钮与未保存修改拦截弹窗。
