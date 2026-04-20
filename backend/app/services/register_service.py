@@ -1,12 +1,10 @@
 from __future__ import annotations
 
-import random
-import string
-
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.models import HealthProfile, SystemConfig, User
+from app.services.member_code import allocate_unique_member_code
 
 DEFAULT_REGISTER_SETTINGS = {
     "enable_self_registration": True,
@@ -85,21 +83,10 @@ async def save_register_settings(db: AsyncSession, raw_settings: dict) -> dict:
 
 
 async def generate_member_card_no(db: AsyncSession, rule: str) -> str:
-    if rule == "random":
-        while True:
-            candidate = "".join(random.choices(string.digits, k=8))
-            result = await db.execute(
-                select(User.id).where(User.member_card_no == candidate)
-            )
-            if result.scalar_one_or_none() is None:
-                return candidate
-
-    result = await db.execute(select(User.member_card_no).where(User.member_card_no.is_not(None)))
-    max_card_no = 0
-    for member_card_no in result.scalars().all():
-        if member_card_no and str(member_card_no).isdigit():
-            max_card_no = max(max_card_no, int(member_card_no))
-    return str(max_card_no + 1)
+    """Bug #6 修复：统一使用新会员码规则（6 位、去易混淆字符、大写）。
+    ``rule`` 参数仅为向后兼容保留，不再影响新码生成规则。
+    """
+    return await allocate_unique_member_code(db)
 
 
 async def ensure_member_card_no(

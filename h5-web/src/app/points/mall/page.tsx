@@ -1,9 +1,12 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Card, Grid, Tag, Button, Toast, Dialog } from 'antd-mobile';
+import { Card, Grid, Button, Toast, Dialog } from 'antd-mobile';
 
 import GreenNavBar from '@/components/GreenNavBar';
+import api from '@/lib/api';
+
 const mockGoods = [
   { id: 1, name: '10元体检优惠券', points: 200, image: '🎫', stock: 50 },
   { id: 2, name: '定制保温杯', points: 500, image: '🥤', stock: 20 },
@@ -15,7 +18,18 @@ const mockGoods = [
 
 export default function PointsMallPage() {
   const router = useRouter();
-  const userPoints = 680;
+  // Bug#4：可用积分统一走 /api/points/summary，兼容字段 available_points / total_points
+  const [userPoints, setUserPoints] = useState(0);
+
+  useEffect(() => {
+    api.get('/api/points/summary')
+      .then((res: any) => {
+        const data = res?.data || res || {};
+        const pts = data.available_points ?? data.total_points ?? 0;
+        setUserPoints(Number(pts) || 0);
+      })
+      .catch(() => {});
+  }, []);
 
   const handleExchange = (item: typeof mockGoods[0]) => {
     if (userPoints < item.points) {
@@ -40,19 +54,41 @@ export default function PointsMallPage() {
 
       <div
         className="px-4 py-4 flex items-center justify-between"
-        style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}
+        style={{ background: 'linear-gradient(135deg, #FFF8E1 0%, #FFE7A8 100%)' }}
       >
-        <div className="text-white">
-          <div className="text-xs opacity-70">可用积分</div>
-          <div className="text-2xl font-bold">{userPoints}</div>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <div>
+            <div style={{ fontSize: 12, color: '#8C6D1F' }}>可用积分</div>
+            <div
+              style={{
+                fontSize: 26,
+                fontWeight: 'bold',
+                color: '#B8860B',
+                lineHeight: 1.2,
+                marginTop: 2,
+              }}
+            >
+              {userPoints}
+            </div>
+          </div>
+          <span
+            style={{
+              marginLeft: 10,
+              fontSize: 22,
+              filter: 'drop-shadow(0 1px 1px rgba(184,134,11,0.35))',
+            }}
+            aria-label="member-badge"
+          >
+            ⭐
+          </span>
         </div>
         <Button
           size="small"
           onClick={() => router.push('/points')}
           style={{
-            background: 'rgba(255,255,255,0.2)',
-            color: '#fff',
-            border: 'none',
+            background: 'rgba(184,134,11,0.15)',
+            color: '#8C6D1F',
+            border: '1px solid rgba(184,134,11,0.35)',
             borderRadius: 16,
           }}
         >

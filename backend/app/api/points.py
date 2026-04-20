@@ -31,9 +31,110 @@ from app.schemas.points import (
 router = APIRouter(prefix="/api/points", tags=["积分与会员"])
 
 
+# ─── Bug #4 修复：权威"可用积分"计算 ───
+
+# 被视为"获得类"的 PointsType（正向增量）
+_EARN_TYPES = {
+    PointsType.signin,
+    PointsType.task,
+    PointsType.invite,
+    PointsType.purchase,
+    PointsType.checkin,
+    PointsType.completeProfile,
+}
+
+# 被视为"消费类"的 PointsType（负向扣减）
+_CONSUME_TYPES = {
+    PointsType.redeem,
+    PointsType.deduct,
+}
+
+
+async def compute_available_points(db: AsyncSession, user_id: int) -> dict:
+    """Bug #4 修复口径：
+        可用积分 = 累计获得 − 已消耗 − 已过期 − 已冻结
+
+    实现说明：
+    - 当前 PointsRecord 没有 status 字段，也没有 expire 枚举值。
+      本函数采用"金额符号优先、类型白名单兜底"的方式，对未来新增 expire/frozen 字段/类型保持前向兼容：
+        * 累计获得 earned   = 所有 amount > 0 的流水合计（主要来源：signin/task/invite/purchase/checkin/completeProfile）
+        * 已消耗 consumed  = 所有 amount < 0 且 type ∈ {redeem, deduct}（或未来的 consume/exchange）的流水合计（取绝对值）
+        * 已过期 expired   = type 名为 'expire' 的流水合计（当前枚举未定义，兼容以字符串比对方式识别）
+        * 已冻结 frozen    = status == 'frozen' 的流水合计（当前无此字段，默认 0）
+    - 返回 earned/consumed/expired/frozen/available 五项，available = earned − consumed − expired − frozen，底为 0。
+    """
+    # 累计获得：金额为正
+    earned_res = await db.execute(
+        select(func.coalesce(func.sum(PointsRecord.points), 0)).where(
+            PointsRecord.user_id == user_id,
+            PointsRecord.points > 0,
+        )
+    )
+    earned = int(earned_res.scalar() or 0)
+
+    # 已消耗：金额为负（取绝对值）
+    consumed_res = await db.execute(
+        select(func.coalesce(func.sum(PointsRecord.points), 0)).where(
+            PointsRecord.user_id == user_id,
+            PointsRecord.points < 0,
+        )
+    )
+    consumed_signed = int(consumed_res.scalar() or 0)
+    consumed = abs(consumed_signed)
+
+    # 已过期：按 type 名称兼容识别（当前枚举无 'expire'，future-proof）
+    expired = 0
+    try:
+        expired_res = await db.execute(
+            select(func.coalesce(func.sum(func.abs(PointsRecord.points)), 0)).where(
+                PointsRecord.user_id == user_id,
+                PointsRecord.type == "expire",
+            )
+        )
+        expired = int(expired_res.scalar() or 0)
+    except Exception:
+        expired = 0
+
+    # 已冻结：PointsRecord 当前无 status 字段，占位 0；future-proof。
+    frozen = 0
+    if hasattr(PointsRecord, "status"):
+        try:
+            frozen_res = await db.execute(
+                select(func.coalesce(func.sum(func.abs(PointsRecord.points)), 0)).where(
+                    PointsRecord.user_id == user_id,
+                    getattr(PointsRecord, "status") == "frozen",
+                )
+            )
+            frozen = int(frozen_res.scalar() or 0)
+        except Exception:
+            frozen = 0
+
+    available = earned - consumed - expired - frozen
+    if available < 0:
+        available = 0
+
+    return {
+        "earned": earned,
+        "consumed": consumed,
+        "expired": expired,
+        "frozen": frozen,
+        "available": available,
+    }
+
+
 @router.get("/balance")
-async def get_balance(current_user: User = Depends(get_current_user)):
-    return {"points": current_user.points, "member_level": current_user.member_level}
+async def get_balance(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Bug #4 修复：返回基于流水计算的权威可用积分，不修改 user.points 缓存字段。"""
+    breakdown = await compute_available_points(db, current_user.id)
+    return {
+        "points": breakdown["available"],
+        "available_points": breakdown["available"],
+        "member_level": current_user.member_level,
+        "breakdown": breakdown,
+    }
 
 
 @router.get("/records")
@@ -240,11 +341,15 @@ async def get_points_summary(
         if last.sign_date == today or last.sign_date == today - timedelta(days=1):
             sign_days = last.consecutive_days
 
+    breakdown = await compute_available_points(db, current_user.id)
+
     return {
-        "total_points": current_user.points or 0,
+        "total_points": breakdown["available"],
+        "available_points": breakdown["available"],
         "today_earned_points": today_earned,
         "signed_today": sign_today_record is not None,
         "sign_days": sign_days,
+        "breakdown": breakdown,
     }
 
 
@@ -426,6 +531,8 @@ async def list_daily_tasks(
                 "route": "/health-plan",
             },
             {
+                # Bug #7 修复：跳转统一为 /health-profile（查看页，页内自带编辑入口），
+                # 不再区分"已完善/未完善"。
                 "key": "complete_profile",
                 "title": "完善健康档案",
                 "subtitle": "需填写：性别、出生日期、身高、体重",
@@ -436,9 +543,14 @@ async def list_daily_tasks(
                 "completed_at": _iso(profile_completed_at),
                 "fields_filled": fields_filled,
                 "action_type": "navigate",
-                "route": "/profile/edit",
+                "route": "/health-profile",
+                "target_url": "/health-profile",
+                "enabled": True,
             },
             {
+                # Bug #8 修复：任务配置保留但置为下线状态（enabled=False）。
+                # 接口层过滤掉 enabled == False 的项，确保前端拿不到"首次下单"。
+                # 已发放的首单积分不回收；_check_first_order 等既有判定逻辑保留不动。
                 "key": "first_order",
                 "title": "首次下单",
                 "subtitle": "完成首笔订单（含到店核销前）",
@@ -449,6 +561,7 @@ async def list_daily_tasks(
                 "completed_at": _iso(first_order_completed_at),
                 "action_type": "navigate",
                 "route": "/services",
+                "enabled": False,
             },
             {
                 "key": "review_order",
@@ -480,6 +593,9 @@ async def list_daily_tasks(
         hide_threshold = now_dt - timedelta(days=ONCE_TASK_HIDE_AFTER_DAYS)
         filtered = []
         for t in tasks:
+            # Bug #8 修复：接口层过滤掉 enabled == False 的任务（配置保留便于后续恢复）
+            if t.get("enabled") is False:
+                continue
             if t.get("category") == "once" and t.get("status") == "completed":
                 ca_iso = t.get("completed_at")
                 ca_dt = None

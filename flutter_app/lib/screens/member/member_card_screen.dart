@@ -158,7 +158,8 @@ class _MemberCardScreenState extends State<MemberCardScreen> {
                                               const Icon(Icons.qr_code_2, size: 120, color: Color(0xFF333333)),
                                               const SizedBox(height: 8),
                                               Text(
-                                                _qrToken!.substring(0, _qrToken!.length > 16 ? 16 : _qrToken!.length),
+                                                // Bug 6：会员码展示统一大写
+                                                _qrToken!.substring(0, _qrToken!.length > 16 ? 16 : _qrToken!.length).toUpperCase(),
                                                 style: TextStyle(fontSize: 10, color: Colors.grey[400]),
                                               ),
                                             ],

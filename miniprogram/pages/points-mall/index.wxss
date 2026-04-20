@@ -4,12 +4,30 @@
 }
 
 .points-bar {
-  background: linear-gradient(135deg, #52c41a, #13c2c2);
+  background: linear-gradient(135deg, #FFF8E1 0%, #FFE7A8 100%);
   padding: 28rpx 32rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
-.my-points { font-size: 26rpx; color: rgba(255, 255, 255, 0.8); }
-.points-num { font-size: 36rpx; font-weight: bold; color: #fff; }
+.points-bar-left {
+  display: flex;
+  flex-direction: column;
+}
+
+.my-points { font-size: 26rpx; color: #8C6D1F; }
+.points-num {
+  font-size: 44rpx;
+  font-weight: bold;
+  color: #B8860B;
+  margin-top: 4rpx;
+}
+.points-badge {
+  font-size: 44rpx;
+  line-height: 1;
+  text-shadow: 0 2rpx 2rpx rgba(184, 134, 11, 0.35);
+}
 
 .goods-grid {
   display: flex;

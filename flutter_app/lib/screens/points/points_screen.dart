@@ -14,6 +14,7 @@ class _PointsScreenState extends State<PointsScreen> {
   bool _loading = true;
   bool _signing = false;
   int _totalPoints = 0;
+  int _availablePoints = 0;
   int _todayEarned = 0;
   bool _signedToday = false;
   List<Map<String, dynamic>> _tasks = [];
@@ -30,13 +31,21 @@ class _PointsScreenState extends State<PointsScreen> {
     if (mounted && !_loading) setState(() => _loading = true);
 
     int totalPoints = _totalPoints;
+    int availablePoints = _availablePoints;
     int todayEarned = _todayEarned;
     bool signedToday = _signedToday;
     try {
       final summaryRes = await _apiService.getPointsSummary();
       final summary = summaryRes.data is Map ? summaryRes.data as Map<String, dynamic> : <String, dynamic>{};
-      totalPoints = summary['total_points'] ?? 0;
-      todayEarned = summary['today_earned_points'] ?? 0;
+      totalPoints = (summary['total_points'] is int)
+          ? summary['total_points'] as int
+          : int.tryParse('${summary['total_points'] ?? 0}') ?? 0;
+      // Bug #4: 可用积分统一读取后端 available_points / available 字段
+      final avail = summary['available_points'] ?? summary['available'] ?? totalPoints;
+      availablePoints = (avail is int) ? avail : int.tryParse('$avail') ?? totalPoints;
+      todayEarned = (summary['today_earned_points'] is int)
+          ? summary['today_earned_points'] as int
+          : int.tryParse('${summary['today_earned_points'] ?? 0}') ?? 0;
       signedToday = summary['signed_today'] == true;
     } catch (_) {}
 
@@ -56,6 +65,7 @@ class _PointsScreenState extends State<PointsScreen> {
     if (!mounted) return;
     setState(() {
       _totalPoints = totalPoints;
+      _availablePoints = availablePoints;
       _todayEarned = todayEarned;
       _signedToday = signedToday;
       _tasks = tasks;
@@ -102,14 +112,15 @@ class _PointsScreenState extends State<PointsScreen> {
     if (route == null || route.isEmpty) return;
 
     // 路由映射
-    // Bug 4 / Bug 5：完善健康档案 → /health-profile；首次下单 → /products（服务列表）
+    // Bug 7：后端已统一为 /health-profile；/profile/edit 兼容旧值
+    // Bug 8：first_order 已被后端过滤，前端不再硬编码 /services 等映射
     const routeMap = {
+      '/health-profile': '/health-profile',
       '/profile/edit': '/health-profile',
       '/health-plan': '/health-plan',
       '/orders?tab=pending_review': '/orders',
       '/invite': '/invite',
       '/products': '/products',
-      '/services': '/products',
       '/mall': '/products',
     };
     final target = routeMap[route] ?? route;
@@ -146,9 +157,9 @@ class _PointsScreenState extends State<PointsScreen> {
                       ),
                       child: Column(
                         children: [
-                          const Text('我的总积分', style: TextStyle(color: Color(0xFF1B5E20), fontSize: 14)),
+                          const Text('我的可用积分', style: TextStyle(color: Color(0xFF1B5E20), fontSize: 14)),
                           const SizedBox(height: 8),
-                          Text('$_totalPoints', style: const TextStyle(color: Color(0xFF1B5E20), fontSize: 44, fontWeight: FontWeight.bold)),
+                          Text('$_availablePoints', style: const TextStyle(color: Color(0xFF1B5E20), fontSize: 44, fontWeight: FontWeight.bold)),
                           const SizedBox(height: 8),
                           Text(
                             _todayEarned > 0 ? '今天获得积分 +$_todayEarned' : '今天还未获得积分，快去赚取吧',

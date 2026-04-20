@@ -916,6 +916,8 @@ async def sync_register_schema(conn: AsyncConnection) -> None:
         await conn.execute(text("ALTER TABLE users ADD COLUMN apple_id VARCHAR(100) NULL"))
     if "member_card_no" not in columns:
         await conn.execute(text("ALTER TABLE users ADD COLUMN member_card_no VARCHAR(50) NULL"))
+    if "member_card_no_old" not in columns:
+        await conn.execute(text("ALTER TABLE users ADD COLUMN member_card_no_old VARCHAR(64) NULL"))
     if "user_no" not in columns:
         await conn.execute(text("ALTER TABLE users ADD COLUMN user_no VARCHAR(8) NULL"))
     if "referrer_no" not in columns:

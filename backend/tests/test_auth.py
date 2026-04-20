@@ -176,14 +176,20 @@ async def test_register_blocked_when_self_registration_disabled(client: AsyncCli
 
 
 @pytest.mark.asyncio
-async def test_sms_login_creates_member_card_no_incrementally(client: AsyncClient, latest_sms_code):
+async def test_sms_login_creates_member_card_no_new_rule(client: AsyncClient, latest_sms_code):
+    """Bug #6 修复：会员码规则统一为 6 位大写字符（32 位字符集，剔除 0/O/1/I/L）。"""
+    from app.services.member_code import MEMBER_CODE_CHARSET, MEMBER_CODE_LENGTH
+
     first_register = await client.post("/api/auth/register", json={
         "phone": "13800007777",
         "password": "test1234",
         "nickname": "首位会员",
     })
     assert first_register.status_code == 200
-    assert first_register.json()["user"]["member_card_no"] == "1"
+    code1 = first_register.json()["user"]["member_card_no"]
+    assert code1 is not None
+    assert len(code1) == MEMBER_CODE_LENGTH
+    assert all(ch in MEMBER_CODE_CHARSET for ch in code1)
 
     code_resp = await client.post("/api/auth/sms-code", json={
         "phone": "13800008888",
@@ -201,11 +207,18 @@ async def test_sms_login_creates_member_card_no_incrementally(client: AsyncClien
     data = login_resp.json()
     assert data["is_new_user"] is True
     assert data["needs_profile_completion"] is True
-    assert data["user"]["member_card_no"] == "2"
+    code2 = data["user"]["member_card_no"]
+    assert code2 is not None
+    assert len(code2) == MEMBER_CODE_LENGTH
+    assert all(ch in MEMBER_CODE_CHARSET for ch in code2)
+    assert code1 != code2
 
 
 @pytest.mark.asyncio
 async def test_register_settings_member_card_no_rule_random(client: AsyncClient, db_session):
+    """Bug #6 修复：rule=random 不再影响生成规则，统一使用新 6 位会员码规则。"""
+    from app.services.member_code import MEMBER_CODE_CHARSET, MEMBER_CODE_LENGTH
+
     db_session.add(SystemConfig(
         config_key="register_member_card_no_rule",
         config_value="random",
@@ -221,8 +234,8 @@ async def test_register_settings_member_card_no_rule_random(client: AsyncClient,
     assert response.status_code == 200
     member_card_no = response.json()["user"]["member_card_no"]
     assert member_card_no is not None
-    assert len(member_card_no) == 8
-    assert member_card_no.isdigit()
+    assert len(member_card_no) == MEMBER_CODE_LENGTH
+    assert all(ch in MEMBER_CODE_CHARSET for ch in member_card_no)
 
 
 @pytest.mark.asyncio

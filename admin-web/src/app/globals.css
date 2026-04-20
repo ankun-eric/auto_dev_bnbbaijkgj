@@ -48,3 +48,20 @@ body {
   background: linear-gradient(135deg, #e6fffb 0%, #f6ffed 50%, #e6fffb 100%);
   min-height: 100vh;
 }
+
+.admin-header-search .ant-input-affix-wrapper,
+.admin-header-search .ant-input {
+  border-top-left-radius: 24px;
+  border-bottom-left-radius: 24px;
+}
+
+.admin-header-search .ant-input-search-button,
+.admin-header-search .ant-btn {
+  border-top-right-radius: 24px;
+  border-bottom-right-radius: 24px;
+}
+
+.admin-header-search .ant-input-group-addon:last-child .ant-btn {
+  border-top-right-radius: 24px;
+  border-bottom-right-radius: 24px;
+}

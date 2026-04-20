@@ -1,9 +1,15 @@
 <view class="coupons-page">
+  <!-- Bug #3: 顶部合计与下方可用 Tab 数量保持一致 -->
+  <view class="coupon-summary">
+    <text class="coupon-summary-label">合计</text>
+    <text class="coupon-summary-value">{{availableCount}}</text>
+    <text class="coupon-summary-unit">张可用</text>
+  </view>
   <view class="tab-bar">
     <view class="tab-item {{currentTab === index ? 'active' : ''}}"
           wx:for="{{tabs}}" wx:key="index"
           bindtap="switchTab" data-index="{{index}}">
-      <text>{{item.label}}</text>
+      <text>{{item.status === 'unused' ? item.label + '(' + availableCount + ')' : item.label}}</text>
     </view>
   </view>
 

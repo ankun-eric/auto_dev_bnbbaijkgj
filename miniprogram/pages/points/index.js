@@ -3,6 +3,7 @@ const { get, post } = require('../../utils/request');
 Page({
   data: {
     totalPoints: 0,
+    availablePoints: 0,
     todayEarned: 0,
     signedToday: false,
     tasks: [],
@@ -31,7 +32,13 @@ Page({
       const update = {};
       if (summary.status === 'fulfilled') {
         const s = summary.value || {};
-        update.totalPoints = s.total_points || 0;
+        // Bug #4: 可用积分统一读取后端 available_points / available 字段，前端不再自行计算
+        const total = s.total_points != null ? s.total_points : 0;
+        const available = s.available_points != null
+          ? s.available_points
+          : (s.available != null ? s.available : total);
+        update.totalPoints = total;
+        update.availablePoints = Number(available) || 0;
         update.todayEarned = s.today_earned_points || 0;
         update.signedToday = !!s.signed_today;
       }
@@ -87,14 +94,15 @@ Page({
   },
 
   normalizeRoute(route) {
-    // Bug 4 / Bug 5：完善健康档案 → 健康档案页；首次下单 → 服务页（首页商品列表）
+    // Bug 7：后端已统一为 /health-profile；/profile/edit 兼容旧值
+    // Bug 8：first_order 任务已被后端过滤，前端不再硬编码其跳转
     const map = {
+      '/health-profile': '/pages/health-profile/index',
       '/profile/edit': '/pages/health-profile/index',
       '/health-plan': '/pages/health-plan/index',
       '/orders?tab=pending_review': '/pages/unified-orders/index?status=pending_review',
       '/invite': '/pages/invite/index',
       '/products': '/pages/products/index',
-      '/services': '/pages/products/index',
       '/mall': '/pages/products/index'
     };
     return map[route] || route;

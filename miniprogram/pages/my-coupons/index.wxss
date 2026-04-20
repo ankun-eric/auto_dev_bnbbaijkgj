@@ -2,6 +2,32 @@
   padding-bottom: 24rpx;
 }
 
+.coupon-summary {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  padding: 32rpx 24rpx;
+  background: linear-gradient(135deg, #52c41a 0%, #73d13d 100%);
+  color: #fff;
+}
+
+.coupon-summary-label {
+  font-size: 26rpx;
+  opacity: 0.9;
+  margin-right: 12rpx;
+}
+
+.coupon-summary-value {
+  font-size: 56rpx;
+  font-weight: bold;
+  margin-right: 8rpx;
+}
+
+.coupon-summary-unit {
+  font-size: 26rpx;
+  opacity: 0.9;
+}
+
 .tab-bar {
   display: flex;
   background: #fff;

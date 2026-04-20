@@ -11,22 +11,39 @@ class MyCouponsScreen extends StatefulWidget {
 
 class _MyCouponsScreenState extends State<MyCouponsScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  final ApiService _api = ApiService();
   final List<Map<String, String>> _tabs = [
-    {'label': '未使用', 'status': 'unused'},
+    {'label': '可用', 'status': 'unused'},
     {'label': '已使用', 'status': 'used'},
     {'label': '已过期', 'status': 'expired'},
   ];
+  // Bug #3: 顶部合计与下方"可用"Tab 的 count 共享同一个数量（后端 available_count）
+  int _availableCount = 0;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: _tabs.length, vsync: this);
+    _loadAvailableCount();
   }
 
   @override
   void dispose() {
     _tabController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadAvailableCount() async {
+    try {
+      final res = await _api.getMyCoupons(tab: 'unused', excludeExpired: true);
+      final data = res.data;
+      if (data is Map) {
+        final count = data['available_count'] ?? data['available'] ?? data['total'] ??
+            ((data['items'] is List) ? (data['items'] as List).length : 0);
+        final n = (count is int) ? count : int.tryParse('$count') ?? 0;
+        if (mounted) setState(() => _availableCount = n);
+      }
+    } catch (_) {}
   }
 
   @override
@@ -41,16 +58,67 @@ class _MyCouponsScreenState extends State<MyCouponsScreen> with SingleTickerProv
             child: const Text('领券', style: TextStyle(color: Colors.white)),
           ),
         ],
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: Colors.white,
-          indicatorWeight: 3,
-          tabs: _tabs.map((t) => Tab(text: t['label'])).toList(),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(110),
+          child: Column(
+            children: [
+              // Bug #3: 顶部"合计"展示当前可用券总数
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                color: const Color(0xFF52C41A),
+                child: Column(
+                  children: [
+                    const Text('合计', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                    const SizedBox(height: 2),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.baseline,
+                      textBaseline: TextBaseline.alphabetic,
+                      children: [
+                        Text(
+                          '$_availableCount',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        const Text('张可用',
+                            style: TextStyle(color: Colors.white70, fontSize: 13)),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              TabBar(
+                controller: _tabController,
+                indicatorColor: Colors.white,
+                indicatorWeight: 3,
+                tabs: _tabs.map((t) {
+                  final label = t['status'] == 'unused'
+                      ? '${t['label']}($_availableCount)'
+                      : t['label']!;
+                  return Tab(text: label);
+                }).toList(),
+              ),
+            ],
+          ),
         ),
       ),
       body: TabBarView(
         controller: _tabController,
-        children: _tabs.map((t) => _CouponTab(status: t['status']!)).toList(),
+        children: _tabs
+            .map((t) => _CouponTab(
+                  status: t['status']!,
+                  onCountChanged: t['status'] == 'unused'
+                      ? (n) {
+                          if (mounted) setState(() => _availableCount = n);
+                        }
+                      : null,
+                ))
+            .toList(),
       ),
     );
   }
@@ -58,7 +126,8 @@ class _MyCouponsScreenState extends State<MyCouponsScreen> with SingleTickerProv
 
 class _CouponTab extends StatefulWidget {
   final String status;
-  const _CouponTab({required this.status});
+  final ValueChanged<int>? onCountChanged;
+  const _CouponTab({required this.status, this.onCountChanged});
 
   @override
   State<_CouponTab> createState() => _CouponTabState();
@@ -87,14 +156,26 @@ class _CouponTabState extends State<_CouponTab> with AutomaticKeepAliveClientMix
       );
       final data = res.data;
       if (data is Map && data['items'] is List) {
-        setState(() {
-          _coupons = (data['items'] as List)
-              .map((e) => UserCoupon.fromJson(e as Map<String, dynamic>))
-              .toList();
-        });
+        final items = (data['items'] as List)
+            .map((e) => UserCoupon.fromJson(e as Map<String, dynamic>))
+            .toList();
+        if (mounted) {
+          setState(() {
+            _coupons = items;
+          });
+        }
+        // Bug #3: 向父组件回传可用数量（优先用后端 available_count / available）
+        if (widget.status == 'unused' && widget.onCountChanged != null) {
+          final count = data['available_count'] ??
+              data['available'] ??
+              data['total'] ??
+              items.length;
+          final n = (count is int) ? count : int.tryParse('$count') ?? items.length;
+          widget.onCountChanged!(n);
+        }
       }
     } catch (_) {}
-    setState(() => _loading = false);
+    if (mounted) setState(() => _loading = false);
   }
 
   bool _isExpiringSoon(String? validEnd) {

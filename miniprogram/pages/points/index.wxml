@@ -2,10 +2,10 @@
   <!-- 顶部 -->
   <view class="points-header">
     <view class="header-top">
-      <text class="points-label">我的总积分</text>
+      <text class="points-label">我的可用积分</text>
       <view class="records-link" bindtap="goRecords">积分详情 ›</view>
     </view>
-    <text class="points-value">{{totalPoints}}</text>
+    <text class="points-value">{{availablePoints}}</text>
     <view class="today-tip">
       <block wx:if="{{todayEarned > 0}}">今天获得积分 +{{todayEarned}}</block>
       <block wx:else>今天还未获得积分，快去赚取吧</block>

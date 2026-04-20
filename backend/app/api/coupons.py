@@ -206,6 +206,80 @@ async def claim_coupon(
     return {"message": "领取成功", "expire_at": uc.expire_at.isoformat() if uc.expire_at else None}
 
 
+async def _count_user_coupons_available(db: AsyncSession, user_id: int, now: Optional[datetime] = None) -> int:
+    """Bug #3 修复口径：
+    合计（可用） = status == 'unused' AND (expire_at IS NULL OR expire_at > NOW())。
+    已用（status='used'）、已过期（expire_at <= NOW() 或 status='expired'）、未生效均不计入。
+    当前 UserCoupon 模型没有 start_time 字段，领券即刻生效，因此无"未生效"状态；
+    如未来新增生效时间字段，只需在此函数加一条 and 条件。
+    """
+    now = now or datetime.utcnow()
+    stmt = select(func.count(UserCoupon.id)).where(
+        UserCoupon.user_id == user_id,
+        UserCoupon.status == UserCouponStatus.unused,
+        or_(UserCoupon.expire_at.is_(None), UserCoupon.expire_at > now),
+    )
+    rs = await db.execute(stmt)
+    return int(rs.scalar() or 0)
+
+
+@router.get("/summary")
+async def get_coupons_summary(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """我的优惠券 - 统计汇总。
+
+    Bug #3 修复：
+    - available（可用/合计）：status=unused AND (expire_at IS NULL OR expire_at > now)
+    - used（已使用）：status=used
+    - expired（已过期）：status=expired OR (status=unused AND expire_at <= now)
+    - total：该用户持有的全部券数
+    前端"合计(N)"与"可用(N)"共用 available 字段，保证一致。
+    """
+    now = datetime.utcnow()
+    user_id = current_user.id
+
+    available = await _count_user_coupons_available(db, user_id, now)
+
+    used_rs = await db.execute(
+        select(func.count(UserCoupon.id)).where(
+            UserCoupon.user_id == user_id,
+            UserCoupon.status == UserCouponStatus.used,
+        )
+    )
+    used = int(used_rs.scalar() or 0)
+
+    expired_rs = await db.execute(
+        select(func.count(UserCoupon.id)).where(
+            UserCoupon.user_id == user_id,
+            or_(
+                UserCoupon.status == UserCouponStatus.expired,
+                (UserCoupon.status == UserCouponStatus.unused)
+                & (UserCoupon.expire_at.isnot(None))
+                & (UserCoupon.expire_at <= now),
+            ),
+        )
+    )
+    expired = int(expired_rs.scalar() or 0)
+
+    total_rs = await db.execute(
+        select(func.count(UserCoupon.id)).where(UserCoupon.user_id == user_id)
+    )
+    total = int(total_rs.scalar() or 0)
+
+    return {
+        "available": available,
+        "available_count": available,  # 兼容字段（H5/小程序/Flutter 共用）
+        "used": used,
+        "used_count": used,  # 兼容字段：H5 my-coupons 读取 used_count
+        "expired": expired,
+        "expired_count": expired,  # 兼容字段：H5 my-coupons 读取 expired_count
+        "total": total,
+        "total_count": total,  # 兼容字段
+    }
+
+
 @router.get("/mine")
 async def list_my_coupons(
     tab: Optional[str] = "unused",
@@ -215,7 +289,12 @@ async def list_my_coupons(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """我的优惠券（按 expire_at 过滤过期）。V2.1：已下架券依然展示。"""
+    """我的优惠券（按 expire_at 过滤过期）。V2.1：已下架券依然展示。
+
+    Bug #3 修复：响应顶层附加 available_count 字段，与顶部"合计(N)"显示口径一致
+    （status=unused AND (expire_at IS NULL OR expire_at > now)）。
+    """
+    now = datetime.utcnow()
     query = select(UserCoupon).where(UserCoupon.user_id == current_user.id)
     count_query = select(func.count(UserCoupon.id)).where(UserCoupon.user_id == current_user.id)
 
@@ -224,7 +303,6 @@ async def list_my_coupons(
         count_query = count_query.where(UserCoupon.status == tab)
 
     if exclude_expired:
-        now = datetime.utcnow()
         query = query.where(or_(UserCoupon.expire_at.is_(None), UserCoupon.expire_at >= now))
         count_query = count_query.where(or_(UserCoupon.expire_at.is_(None), UserCoupon.expire_at >= now))
 
@@ -247,7 +325,15 @@ async def list_my_coupons(
             uc_data.coupon = CouponResponse.model_validate(coupon)
         items.append(uc_data)
 
-    return {"items": items, "total": total, "page": page, "page_size": page_size}
+    available_count = await _count_user_coupons_available(db, current_user.id, now)
+
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "available_count": available_count,
+    }
 
 
 # ─── F：兑换码核销（用户侧）───

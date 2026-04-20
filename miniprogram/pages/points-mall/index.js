@@ -1,6 +1,9 @@
+const { get } = require('../../utils/request');
+
 Page({
   data: {
-    totalPoints: 1280,
+    // Bug #4: 可用积分统一从 /api/points/summary 的 available_points / available 字段读取
+    totalPoints: 0,
     goods: [
       { id: 1, name: '体检优惠券', desc: '满300减50', icon: '🎫', bgColor: 'rgba(82,196,26,0.12)', points: 200, stock: 50 },
       { id: 2, name: '问诊优惠券', desc: '图文问诊8折', icon: '💬', bgColor: 'rgba(19,194,194,0.12)', points: 150, stock: 100 },
@@ -9,6 +12,27 @@ Page({
       { id: 5, name: '运动手环', desc: '心率监测', icon: '⌚', bgColor: 'rgba(24,144,255,0.12)', points: 2000, stock: 10 },
       { id: 6, name: '会员月卡', desc: '尊享权益', icon: '👑', bgColor: 'rgba(235,47,150,0.12)', points: 1000, stock: 999 }
     ]
+  },
+
+  onLoad() {
+    this.loadAvailablePoints();
+  },
+
+  onShow() {
+    this.loadAvailablePoints();
+  },
+
+  async loadAvailablePoints() {
+    try {
+      const s = await get('/api/points/summary', {}, { showLoading: false }) || {};
+      const total = s.total_points != null ? s.total_points : 0;
+      const available = s.available_points != null
+        ? s.available_points
+        : (s.available != null ? s.available : total);
+      this.setData({ totalPoints: Number(available) || 0 });
+    } catch (e) {
+      console.log('loadAvailablePoints error', e);
+    }
   },
 
   exchangeGoods(e) {

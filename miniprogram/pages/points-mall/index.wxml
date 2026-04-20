@@ -1,6 +1,10 @@
 <view class="mall-page">
   <view class="points-bar">
-    <text class="my-points">我的积分: <text class="points-num">{{totalPoints}}</text></text>
+    <view class="points-bar-left">
+      <text class="my-points">可用积分</text>
+      <text class="points-num">{{totalPoints}}</text>
+    </view>
+    <text class="points-badge">⭐</text>
   </view>
 
   <view class="goods-grid">

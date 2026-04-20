@@ -62,6 +62,28 @@ export default function ProfilePage() {
         });
       })
       .catch(() => {});
+
+    // Bug#3 / Bug#4：入口"积分"与"优惠券"数字与各详情页同源
+    //   积分    → /api/points/summary.available_points（可用积分）
+    //   优惠券  → /api/coupons/summary.available_count（可用券总数）
+    // 后端新字段就绪后覆盖 me/stats 的旧值；未就绪则保持 me/stats
+    api.get('/api/points/summary')
+      .then((res: any) => {
+        const d = res?.data || res || {};
+        const pts = d.available_points ?? d.total_points;
+        if (typeof pts === 'number') {
+          setStats((prev) => ({ ...prev, points: Number(pts) }));
+        }
+      })
+      .catch(() => {});
+    api.get('/api/coupons/summary')
+      .then((res: any) => {
+        const d = res?.data || res || {};
+        if (typeof d.available_count === 'number') {
+          setStats((prev) => ({ ...prev, coupon_count: Number(d.available_count) }));
+        }
+      })
+      .catch(() => {});
   };
 
   useEffect(() => {
@@ -174,16 +196,6 @@ export default function ProfilePage() {
       </div>
 
       <div className="px-4 -mt-3">
-        {fontConfig.font_switch_enabled && (
-          <div
-            className="font-size-shortcut"
-            onClick={() => setFontPopupVisible(true)}
-            style={{ marginBottom: 8, marginTop: 0 }}
-          >
-            <span>🔍 字号偏小？点这里调大</span>
-            <RightOutline fontSize={12} />
-          </div>
-        )}
         <div className="card">
           <Grid columns={3} gap={0}>
             <Grid.Item onClick={() => router.push('/points')}>

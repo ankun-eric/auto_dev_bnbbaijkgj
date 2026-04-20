@@ -29,10 +29,19 @@ interface UserCoupon {
 }
 
 const STATUS_TABS: Record<string, string> = {
-  unused: '未使用',
+  unused: '可用',
   used: '已使用',
   expired: '已过期',
 };
+
+// Bug#3：合计数 与 "可用(N)" Tab 必须同源——均来自"可用券列表"的 total
+// 后端约定字段（新）：available_count / used_count / expired_count / total_count
+// 兼容旧字段：若后端仅返回 total（/coupons/mine?tab=unused&exclude_expired=true），以 total 为准
+interface CouponCounts {
+  available: number;
+  used: number;
+  expired: number;
+}
 
 export default function MyCouponsPage() {
   const router = useRouter();
@@ -41,6 +50,7 @@ export default function MyCouponsPage() {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
+  const [counts, setCounts] = useState<CouponCounts>({ available: 0, used: 0, expired: 0 });
 
   const fetchCoupons = useCallback(async (pageNum: number, reset = false) => {
     try {
@@ -53,7 +63,17 @@ export default function MyCouponsPage() {
       } else {
         setCoupons((prev) => [...prev, ...(Array.isArray(items) ? items : [])]);
       }
-      setHasMore(pageNum * 20 < (data.total || 0));
+      const total = Number(data.total || 0);
+      setHasMore(pageNum * 20 < total);
+      if (reset) {
+        setCounts((prev) => {
+          const next = { ...prev };
+          if (activeTab === 'unused') next.available = total;
+          else if (activeTab === 'used') next.used = total;
+          else if (activeTab === 'expired') next.expired = total;
+          return next;
+        });
+      }
     } catch {
       // ignore
     } finally {
@@ -61,11 +81,44 @@ export default function MyCouponsPage() {
     }
   }, [activeTab]);
 
+  // Bug#3：合计 = 可用券数量（独立于当前 Tab），始终拉取一次 unused 总数
+  const fetchAvailableCount = useCallback(async () => {
+    try {
+      const res: any = await api.get('/api/coupons/summary');
+      const data = res?.data || res || {};
+      if (
+        typeof data.available_count === 'number' ||
+        typeof data.used_count === 'number' ||
+        typeof data.expired_count === 'number'
+      ) {
+        setCounts({
+          available: Number(data.available_count || 0),
+          used: Number(data.used_count || 0),
+          expired: Number(data.expired_count || 0),
+        });
+        return;
+      }
+    } catch {
+      // ignore, fallback below
+    }
+    try {
+      const res: any = await api.get('/api/coupons/mine?tab=unused&page=1&page_size=1&exclude_expired=true');
+      const data = res?.data || res || {};
+      setCounts((prev) => ({ ...prev, available: Number(data.total || 0) }));
+    } catch {
+      // ignore
+    }
+  }, []);
+
   useEffect(() => {
     setLoading(true);
     setPage(1);
     fetchCoupons(1, true);
   }, [fetchCoupons]);
+
+  useEffect(() => {
+    fetchAvailableCount();
+  }, [fetchAvailableCount]);
 
   const loadMore = async () => {
     const next = page + 1;
@@ -142,6 +195,18 @@ export default function MyCouponsPage() {
         我的优惠券
       </GreenNavBar>
 
+      {/* Bug#3：顶部"合计"与下方"可用(N)" Tab 同源（均来自可用券 total） */}
+      <div
+        className="px-4 py-3 flex items-center justify-between"
+        style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)', color: '#fff' }}
+      >
+        <div>
+          <div className="text-xs opacity-80">合计可用</div>
+          <div className="text-2xl font-bold">{counts.available}</div>
+        </div>
+        <div className="text-xs opacity-80">张优惠券</div>
+      </div>
+
       <Tabs
         activeKey={activeTab}
         onChange={setActiveTab}
@@ -153,9 +218,13 @@ export default function MyCouponsPage() {
           background: '#fff',
         } as React.CSSProperties}
       >
-        {Object.entries(STATUS_TABS).map(([key, title]) => (
-          <Tabs.Tab key={key} title={title} />
-        ))}
+        {Object.entries(STATUS_TABS).map(([key, title]) => {
+          const n = key === 'unused' ? counts.available
+            : key === 'used' ? counts.used
+            : key === 'expired' ? counts.expired
+            : 0;
+          return <Tabs.Tab key={key} title={`${title}(${n})`} />;
+        })}
       </Tabs>
 
       <div className="px-4 pt-3">

@@ -173,48 +173,9 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
           SliverToBoxAdapter(
             child: Column(
               children: [
-                // 字号偏小快捷横条
-                GestureDetector(
-                  onTap: () => _showFontSizeSheet(context),
-                  child: Container(
-                    margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                    transform: Matrix4.translationValues(0, -10, 0),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFFF0FFF4), Color(0xFFE8F7EE)],
-                      ),
-                      borderRadius: BorderRadius.circular(12),
-                      border: const Border(
-                        left: BorderSide(color: Color(0xFF52C41A), width: 4),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: const [
-                        Text(
-                          '字号偏小？点这里调大',
-                          style: TextStyle(
-                            color: Color(0xFF389E0D),
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        Text(
-                          '→',
-                          style: TextStyle(
-                            color: Color(0xFF52C41A),
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
                 // Stats bar: Points / Coupons / Favorites
                 Container(
-                  margin: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+                  margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
                   transform: Matrix4.translationValues(0, -20, 0),
                   padding: const EdgeInsets.symmetric(vertical: 20),
                   decoration: BoxDecoration(

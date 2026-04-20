@@ -22,10 +22,10 @@ interface DailyTask {
   route?: string;
 }
 
-// Bug 4 / Bug 5：日常任务点击跳转路径白名单
+// Bug 7：完善健康档案统一跳转 /health-profile
+// Bug 8：移除 first_order 硬编码（后端已过滤，完全由后端 task.route 驱动）
 const TASK_ROUTE_OVERRIDES: Record<string, string> = {
-  complete_profile: '/profile/edit',
-  first_order: '/services',
+  complete_profile: '/health-profile',
 };
 
 const CATEGORY_LABEL: Record<string, { text: string; color: string }> = {
@@ -36,7 +36,8 @@ const CATEGORY_LABEL: Record<string, { text: string; color: string }> = {
 
 export default function PointsPage() {
   const router = useRouter();
-  const [totalPoints, setTotalPoints] = useState(0);
+  // Bug#4：可用积分严禁前端自己累加流水，统一走 /api/points/summary
+  const [availablePoints, setAvailablePoints] = useState(0);
   const [todayEarned, setTodayEarned] = useState(0);
   const [signedToday, setSignedToday] = useState(false);
   const [tasks, setTasks] = useState<DailyTask[]>([]);
@@ -51,7 +52,7 @@ export default function PointsPage() {
       ]);
       if (summaryRes.status === 'fulfilled') {
         const s = summaryRes.value?.data || summaryRes.value;
-        setTotalPoints(s?.total_points ?? 0);
+        setAvailablePoints(Number(s?.available_points ?? s?.total_points ?? 0));
         setTodayEarned(s?.today_earned_points ?? 0);
         setSignedToday(s?.signed_today ?? false);
       }
@@ -115,9 +116,9 @@ export default function PointsPage() {
         className="px-4 pt-6 pb-8 text-center"
         style={{ background: '#C8E6C9' }}
       >
-        <div className="text-sm" style={{ color: '#1B5E20' }}>我的总积分</div>
+        <div className="text-sm" style={{ color: '#1B5E20' }}>可用积分</div>
         <div className="text-4xl font-bold my-2" style={{ color: '#1B5E20' }}>
-          {loading ? '--' : totalPoints}
+          {loading ? '--' : availablePoints}
         </div>
         <div className="text-sm mt-1" style={{ color: '#2E7D32' }}>
           {todayEarned > 0
