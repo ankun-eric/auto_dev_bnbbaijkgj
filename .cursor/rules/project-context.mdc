@@ -33,7 +33,38 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 7-Bug 修复 — 首页 LOGO/搜索栏 + 我的积分页 + AI 咨询页（2026-04-20）
+## Latest Update: 7-Bug 修复 v2 — APK 编译错误补修 + GH Actions 重新打包（2026-04-20）
+
+### 概要
+在前序 commit `9a8d544` / `203e3ae` 完成 7 项业务 Bug 修复并部署后，发现 Flutter APK 重新构建失败（远程 docker flutter-builder 多次失败 + GitHub Actions 失败）。根因定位为 `flutter_app/lib/services/api_service.dart` 中 `getProductCategories` 与 `getProducts` 在 line 153/157 与 line 921/925 各被声明了一次（Dart 编译报 `'X' is already declared in this scope`）。本次删除旧版定义（line 153-161）保留新版（支持 `keyword/fulfillmentType/pointsExchangeable` 参数），重新触发 GH Actions 构建成功，将 APK 通过本地下载 + SFTP 上传方式发布到 `static/apk/bini_health.apk`（81,815,251 字节）。
+
+### 关键变更
+- **`flutter_app/lib/services/api_service.dart`**：删除 line 153-161 的 `getProductCategories()` / `getProducts({int? categoryId, int page=1, int pageSize=10})` 旧版重复声明（保留 line 921+ 的完整版）。修复后 `keyword` 参数也被多个调用方（`tcm_diagnosis_detail_screen.dart` line 92、`product_list_screen.dart` line 66/88）正确解析。
+- **`.github/workflows/android-build.yml`**：复用现有工作流（已存在），通过 `gh workflow run android-build.yml -f version=<tag>` 触发，runner 为 ubuntu-latest，Flutter 3.24.0 + Java 17，约 6 分钟完成；产物自动 release 到 `https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/download/<tag>/bini_health_<tag>.apk`。
+- **新增脚本**：
+  - `deploy/local_dl_upload_apk.py`：本地从 GH Release 下载 APK（国内访问 GitHub 速度更稳）+ SFTP 上传到服务器 `/tmp` + sudo 复制到 `static/apk/`，并同时刷新 `bini_health.apk` 主下载链接。
+  - `deploy/publish_apk_to_server.py`：服务器侧后台 curl 下载方案（国内服务器到 GitHub 速度太慢，最终未采用，保留作为备选）。
+  - `deploy/final_link_check.py`：最终 15 条核心链接全量可达性验证（H5×9 + Admin + API×2 HEAD返回 405 是预期 + APK + MP×2 = 13/15 OK，2 条 API 用 HEAD 返回 405 由于路由只接收 GET，是预期）。
+  - `deploy/kill_docker_build.py` / `deploy/check_assets.py` / `deploy/check_dl.py`：远程 docker / 资源 / 下载状态排查辅助。
+- **保留但失败的远程 docker 构建脚本**（仅作为历史参考）：`deploy/build_apk_v7_sync.py`、`deploy/build_apk_v7_sync2.py`、`deploy/fix_apk_build_v3.py`、`deploy/check_apk_progress.py`。这些脚本在远程 docker `flutter-builder` 容器内构建时遭遇 Gradle daemon lock + git fetch 网络抖动，最终弃用，改走 GitHub Actions。
+
+### 部署与产物（在线已验证）
+- 后端 / H5 / Admin / DB 容器：与上一次发布相同（`6b099ed3-...-{backend,h5,admin,db}`，均 Up）。
+- APK（新）：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/apk/bini_health.apk`（200 OK，81,815,251 bytes，2026-04-20 11:47 上传）；本期固定版本 `apk/bini_health_bugfix7_android-bugfix7-v20260420-112604-05cd.apk`。
+- 小程序 zip：`downloads/miniprogram_latest.zip` & `downloads/miniprogram_bugfix7_1776649904.zip`（200 OK，已包含 7-Bug 修复，未变）。
+- 用户手册：`user_docs/七项Bug修复v2_首页LOGO_搜索栏_我的积分_AI咨询_用户体验手册.md`。
+
+### 已知策略 / 经验
+- **远程 docker Flutter 构建在国内不稳**：`flutter-builder:latest` 在远程服务器 docker 中构建时，受 git/maven 仓库网络抖动影响极大，且 Gradle 8 daemon 容易被前一次失败构建锁住；本次改走 GitHub Actions 后 6 分钟即完成。后续 APK 发布建议优先 GH Actions。
+- **APK 国内下载策略**：服务器侧 curl GitHub Release 速度仅 10-100 KB/s，全量需 1+ 小时；本地下载（中国大陆带 SS/VPN 的开发机）速度 12+ MB/s，再 SFTP 上传到测试服务器仅需约 2 分钟。已沉淀到 `deploy/local_dl_upload_apk.py`。
+- **API 链接 HEAD 返回 405**：`/api/home-config`、`/api/health` 等只注册了 GET，HEAD 请求会被 FastAPI 返回 405，业务侧 GET 正常（已之前验证）。
+
+### Commits（本次新增）
+- `8929203`：`fix(flutter): remove duplicate getProductCategories/getProducts methods causing build failure`
+
+---
+
+## Previous Update: 7-Bug 修复 — 首页 LOGO/搜索栏 + 我的积分页 + AI 咨询页（2026-04-20）
 
 ### 概要
 全栈协同修复 7 个 UI / 数据 / 跳转 Bug，覆盖 H5 + 小程序 + Flutter App 三端 + 后端：
