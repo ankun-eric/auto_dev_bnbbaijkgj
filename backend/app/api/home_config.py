@@ -27,8 +27,8 @@ admin_dep = require_role("admin")
 
 _HOME_CONFIG_KEYS = {
     "home_search_visible": "true",
-    # v6: 搜索栏文案统一为「想找什么服务/商品？」
-    "home_search_placeholder": "想找什么服务/商品？",
+    # v7: 搜索栏文案统一为「搜索您想要的健康服务」
+    "home_search_placeholder": "搜索您想要的健康服务",
     "home_grid_columns": "3",
     # v6 字体方案：开关默认 ON，基准从 14 提到 16，档间距合理
     "home_font_switch_enabled": "true",

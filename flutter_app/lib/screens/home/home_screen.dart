@@ -26,7 +26,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // Config defaults
   bool _searchVisible = true;
-  String _searchPlaceholder = '搜索健康知识、服务、商品';
+  String _searchPlaceholder = '搜索您想要的健康服务';
   int _gridColumns = 3;
   List<Map<String, dynamic>> _banners = [];
   List<Map<String, dynamic>> _menus = [];
@@ -398,20 +398,20 @@ class _HomeScreenState extends State<HomeScreen> {
           : Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (LogoService().logoUrl != null) ...[
+                if (LogoService().logoUrl != null)
                   ClipRRect(
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(8),
                     child: Image.network(
                       LogoService().logoUrl!,
-                      width: 32,
-                      height: 32,
+                      width: 40,
+                      height: 40,
                       fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                      errorBuilder: (_, __, ___) =>
+                          const Text('宾尼小康', style: TextStyle(color: Colors.white, fontSize: 18)),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                ],
-                const Text('宾尼小康', style: TextStyle(color: Colors.white, fontSize: 18)),
+                  )
+                else
+                  const Text('宾尼小康', style: TextStyle(color: Colors.white, fontSize: 18)),
               ],
             ),
       actions: [

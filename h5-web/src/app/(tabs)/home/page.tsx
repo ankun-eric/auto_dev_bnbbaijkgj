@@ -269,13 +269,17 @@ export default function HomePage() {
   return (
     <div className="pb-20">
       <div className="gradient-header">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <div className="flex items-center gap-2">
-              {logoUrl && <img src={logoUrl} alt="Logo" className="w-8 h-8 rounded" style={{ objectFit: 'contain' }} />}
+        <div className="flex items-center justify-between mb-4" style={{ minHeight: 48 }}>
+          <div className="flex items-center" style={{ paddingLeft: 4 }}>
+            {logoUrl ? (
+              <img
+                src={logoUrl}
+                alt="Logo"
+                style={{ height: 36, width: 36, objectFit: 'contain', borderRadius: 8, display: 'block' }}
+              />
+            ) : (
               <h1 className="text-xl font-bold">宾尼小康</h1>
-            </div>
-            <p className="text-xs opacity-80 mt-1">AI健康管家 · 关爱您的每一天</p>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <div
@@ -339,7 +343,7 @@ export default function HomePage() {
                 <circle cx="11" cy="11" r="8" />
                 <line x1="21" y1="21" x2="16.65" y2="16.65" />
               </svg>
-              <span className="ml-2 text-sm" style={{ color: '#86909C' }}>{config.search_placeholder || '想找什么服务/商品？'}</span>
+              <span className="ml-2 text-sm" style={{ color: '#86909C' }}>{config.search_placeholder || '搜索您想要的健康服务'}</span>
             </div>
           </div>
         )}

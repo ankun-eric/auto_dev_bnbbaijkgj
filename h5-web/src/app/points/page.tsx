@@ -13,12 +13,20 @@ interface DailyTask {
   points: number;
   category: 'daily' | 'once' | 'repeatable';
   completed: boolean;
+  status?: 'pending' | 'completed';
+  completed_at?: string | null;
   fields_filled?: boolean;
   pending_count?: number;
   invited_count?: number;
   action_type: 'sign_in' | 'navigate';
   route?: string;
 }
+
+// Bug 4 / Bug 5：日常任务点击跳转路径白名单
+const TASK_ROUTE_OVERRIDES: Record<string, string> = {
+  complete_profile: '/profile/edit',
+  first_order: '/services',
+};
 
 const CATEGORY_LABEL: Record<string, { text: string; color: string }> = {
   daily: { text: '每日', color: '#52c41a' },
@@ -83,7 +91,8 @@ export default function PointsPage() {
       return;
     }
     if (task.completed && task.category === 'once') return;
-    if (task.route) router.push(task.route);
+    const route = TASK_ROUTE_OVERRIDES[task.key] || task.route;
+    if (route) router.push(route);
   };
 
   return (
@@ -101,13 +110,16 @@ export default function PointsPage() {
         积分中心
       </GreenNavBar>
 
+      {/* Bug 3：我的积分卡片背景色统一为 #C8E6C9（浅绿），与上方深绿标题区形成层次 */}
       <div
         className="px-4 pt-6 pb-8 text-center"
-        style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}
+        style={{ background: '#C8E6C9' }}
       >
-        <div className="text-white/80 text-sm">我的总积分</div>
-        <div className="text-white text-4xl font-bold my-2">{totalPoints}</div>
-        <div className="text-white/90 text-sm mt-1">
+        <div className="text-sm" style={{ color: '#1B5E20' }}>我的总积分</div>
+        <div className="text-4xl font-bold my-2" style={{ color: '#1B5E20' }}>
+          {loading ? '--' : totalPoints}
+        </div>
+        <div className="text-sm mt-1" style={{ color: '#2E7D32' }}>
           {todayEarned > 0
             ? `今天获得积分 +${todayEarned}`
             : '今天还未获得积分，快去赚取吧'}
@@ -146,9 +158,11 @@ export default function PointsPage() {
           <div className="space-y-3">
             {tasks.map((t) => {
               const cat = CATEGORY_LABEL[t.category] || CATEGORY_LABEL.daily;
-              const disabled = t.completed && t.category === 'once';
-              const btnText = disabled
-                ? '✅ 已完成'
+              // Bug 6：一次性任务完成后置灰、不可点击；7 天后由后端不再返回
+              const onceDone = t.completed && t.category === 'once';
+              const disabled = onceDone;
+              const btnText = onceDone
+                ? '已完成 ✓'
                 : t.completed && t.category === 'daily'
                 ? '已完成'
                 : t.action_type === 'sign_in'
@@ -159,30 +173,46 @@ export default function PointsPage() {
               return (
                 <Card
                   key={t.key}
-                  style={{ borderRadius: 12 }}
-                  onClick={() => handleTaskClick(t)}
+                  style={{
+                    borderRadius: 12,
+                    opacity: onceDone ? 0.55 : 1,
+                    background: onceDone ? '#f5f5f5' : '#fff',
+                    cursor: onceDone ? 'not-allowed' : 'pointer',
+                  }}
+                  onClick={() => { if (!onceDone) handleTaskClick(t); }}
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1 mr-3">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="font-medium text-sm">{t.title}</span>
+                        <span
+                          className="font-medium text-sm"
+                          style={{
+                            color: onceDone ? '#999' : undefined,
+                            textDecoration: onceDone ? 'line-through' : 'none',
+                          }}
+                        >
+                          {t.title}
+                          {onceDone ? ' ✓ 已完成' : ''}
+                        </span>
                         <Tag
                           fill="outline"
                           style={{
-                            '--background-color': `${cat.color}10`,
-                            '--text-color': cat.color,
-                            '--border-color': cat.color,
+                            '--background-color': onceDone ? '#eeeeee' : `${cat.color}10`,
+                            '--text-color': onceDone ? '#bfbfbf' : cat.color,
+                            '--border-color': onceDone ? '#d9d9d9' : cat.color,
                             fontSize: 10,
                           }}
                         >
                           {cat.text}
                         </Tag>
-                        <span style={{ color: '#fa8c16', fontSize: 12 }}>
+                        <span style={{ color: onceDone ? '#bfbfbf' : '#fa8c16', fontSize: 12 }}>
                           +{t.points} 积分
                         </span>
                       </div>
                       {t.subtitle && (
-                        <div className="text-xs text-gray-400">{t.subtitle}</div>
+                        <div className="text-xs" style={{ color: onceDone ? '#bfbfbf' : '#999' }}>
+                          {t.subtitle}
+                        </div>
                       )}
                     </div>
                     <Button

@@ -33,6 +33,16 @@
   vertical-align: middle;
 }
 
+/* Bug 1：首页 LOGO 放大到顶栏高度 75%（顶栏 44px ≈ 88rpx，75% ≈ 66rpx，向上取 72rpx） */
+.brand-logo-large {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 12rpx;
+  margin-left: 4rpx;
+  vertical-align: middle;
+  display: block;
+}
+
 .custom-nav-title {
   font-size: 34rpx;
   font-weight: 600;

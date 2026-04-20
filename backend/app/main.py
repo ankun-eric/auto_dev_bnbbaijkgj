@@ -361,6 +361,45 @@ async def _migrate_product_categories_hierarchy():
         _logger.error("BUG⑤分类层级迁移异常（不影响启动）：%s", e)
 
 
+async def _migrate_v7_search_placeholder():
+    """v7 修复：将首页搜索栏 placeholder 旧值/可能的乱码统一改为新文案。
+
+    幂等：同一个 SystemConfig.coupons_v2_1_migrated 风格的标志位策略
+    （这里直接使用 placeholder_v7_normalized 标志）。
+    """
+    try:
+        from app.core.database import async_session
+        from app.models.models import SystemConfig
+        from sqlalchemy import select as _select
+
+        async with async_session() as db:
+            flag_res = await db.execute(_select(SystemConfig).where(SystemConfig.config_key == "placeholder_v7_normalized"))
+            if flag_res.scalar_one_or_none():
+                return
+            new_text = "搜索您想要的健康服务"
+            res = await db.execute(_select(SystemConfig).where(SystemConfig.config_key == "home_search_placeholder"))
+            row = res.scalar_one_or_none()
+            if row is None:
+                db.add(SystemConfig(
+                    config_key="home_search_placeholder",
+                    config_value=new_text,
+                    config_type="home",
+                    description="首页搜索栏占位文本",
+                ))
+            else:
+                row.config_value = new_text
+            db.add(SystemConfig(
+                config_key="placeholder_v7_normalized",
+                config_value="1",
+                config_type="system",
+                description="v7 placeholder 文案规范化标记",
+            ))
+            await db.commit()
+            _logger.info("v7：首页搜索栏 placeholder 已规范化")
+    except Exception as e:  # noqa: BLE001
+        _logger.error("v7 placeholder 迁移异常（不影响启动）：%s", e)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
@@ -370,6 +409,7 @@ async def lifespan(app: FastAPI):
     await _migrate_coupons_v2()
     await _migrate_coupons_v2_1()
     await _migrate_product_categories_hierarchy()
+    await _migrate_v7_search_placeholder()
     await migrate_existing_users_user_no()
     from app.init_data import init_default_data
     await init_default_data()

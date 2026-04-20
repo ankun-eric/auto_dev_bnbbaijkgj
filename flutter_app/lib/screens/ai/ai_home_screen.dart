@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/chat_provider.dart';
 import '../../models/chat_session.dart';
-import '../../services/logo_service.dart';
 import '../../widgets/chat_history_drawer.dart';
 
 class AiHomeScreen extends StatefulWidget {
@@ -79,25 +78,8 @@ class _AiHomeScreenState extends State<AiHomeScreen> {
         },
       ),
       appBar: AppBar(
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (LogoService().logoUrl != null) ...[
-              ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: Image.network(
-                  LogoService().logoUrl!,
-                  width: 32,
-                  height: 32,
-                  fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-                ),
-              ),
-              const SizedBox(width: 8),
-            ],
-            const Text('AI健康咨询'),
-          ],
-        ),
+        // Bug 7：AI 健康咨询页标题栏不再显示品牌 LOGO，仅保留页面标题
+        title: const Text('AI健康咨询'),
         backgroundColor: const Color(0xFF52C41A),
         centerTitle: true,
         automaticallyImplyLeading: false,

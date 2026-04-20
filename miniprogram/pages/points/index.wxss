@@ -4,10 +4,11 @@
   padding-bottom: 32rpx;
 }
 
+/* Bug 3：我的积分卡片背景统一为 #C8E6C9（浅绿），与上方深绿标题区形成层次 */
 .points-header {
-  background: linear-gradient(135deg, #52c41a, #13c2c2);
+  background: #C8E6C9;
   padding: 32rpx 32rpx 48rpx;
-  color: #fff;
+  color: #1B5E20;
 }
 
 .header-top {
@@ -16,17 +17,39 @@
   align-items: center;
 }
 
-.points-label { font-size: 26rpx; color: rgba(255, 255, 255, 0.85); }
+.points-label { font-size: 26rpx; color: #1B5E20; }
 .records-link {
   font-size: 24rpx;
-  color: #fff;
-  background: rgba(255, 255, 255, 0.2);
+  color: #1B5E20;
+  background: rgba(27, 94, 32, 0.12);
   padding: 6rpx 18rpx;
   border-radius: 24rpx;
 }
 
-.points-value { font-size: 80rpx; font-weight: bold; color: #fff; margin: 16rpx 0 8rpx; text-align: center; }
-.today-tip { font-size: 26rpx; color: rgba(255, 255, 255, 0.9); text-align: center; }
+.points-value { font-size: 80rpx; font-weight: bold; color: #1B5E20; margin: 16rpx 0 8rpx; text-align: center; }
+.today-tip { font-size: 26rpx; color: #2E7D32; text-align: center; }
+
+/* Bug 6：一次性任务完成后置灰 */
+.task-card-done {
+  opacity: 0.55;
+  background: #f5f5f5;
+}
+.task-title-done {
+  color: #999;
+  text-decoration: line-through;
+}
+.task-points-done { color: #bfbfbf; }
+.task-subtitle-done { color: #bfbfbf; }
+.task-tag-done {
+  border-color: #d9d9d9 !important;
+  color: #bfbfbf !important;
+  background: #eeeeee !important;
+}
+.task-done-mark {
+  font-size: 22rpx;
+  color: #52c41a;
+  margin-left: 8rpx;
+}
 
 .card {
   background: #fff;

@@ -30,14 +30,15 @@
 
   <view wx:if="{{loading}}" class="loading-tip">加载中...</view>
   <view wx:else class="task-list">
-    <view class="task-card card" wx:for="{{tasks}}" wx:key="key" data-key="{{item.key}}" bindtap="handleTask">
+    <view class="task-card card {{item.onceDone ? 'task-card-done' : ''}}" wx:for="{{tasks}}" wx:key="key" data-key="{{item.key}}" bindtap="handleTask">
       <view class="task-info">
         <view class="task-title-row">
-          <text class="task-title">{{item.title}}</text>
-          <text class="task-tag" style="color:{{item.categoryColor}};border-color:{{item.categoryColor}};">{{item.categoryLabel}}</text>
-          <text class="task-points">+{{item.points}}积分</text>
+          <text class="task-title {{item.onceDone ? 'task-title-done' : ''}}">{{item.title}}</text>
+          <text wx:if="{{item.onceDone}}" class="task-done-mark">✓ 已完成</text>
+          <text class="task-tag {{item.onceDone ? 'task-tag-done' : ''}}" style="color:{{item.categoryColor}};border-color:{{item.categoryColor}};">{{item.categoryLabel}}</text>
+          <text class="task-points {{item.onceDone ? 'task-points-done' : ''}}">+{{item.points}}积分</text>
         </view>
-        <text class="task-subtitle" wx:if="{{item.subtitle}}">{{item.subtitle}}</text>
+        <text class="task-subtitle {{item.onceDone ? 'task-subtitle-done' : ''}}" wx:if="{{item.subtitle}}">{{item.subtitle}}</text>
       </view>
       <view class="task-btn {{item.btnDisabled ? 'task-btn-disabled' : ''}}" catchtap="handleTask" data-key="{{item.key}}">
         {{item.btnText}}

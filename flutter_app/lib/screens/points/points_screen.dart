@@ -102,12 +102,14 @@ class _PointsScreenState extends State<PointsScreen> {
     if (route == null || route.isEmpty) return;
 
     // 路由映射
+    // Bug 4 / Bug 5：完善健康档案 → /health-profile；首次下单 → /products（服务列表）
     const routeMap = {
       '/profile/edit': '/health-profile',
       '/health-plan': '/health-plan',
       '/orders?tab=pending_review': '/orders',
       '/invite': '/invite',
       '/products': '/products',
+      '/services': '/products',
       '/mall': '/products',
     };
     final target = routeMap[route] ?? route;
@@ -140,17 +142,17 @@ class _PointsScreenState extends State<PointsScreen> {
                       width: double.infinity,
                       padding: const EdgeInsets.fromLTRB(24, 24, 24, 36),
                       decoration: const BoxDecoration(
-                        gradient: LinearGradient(colors: [Color(0xFF52C41A), Color(0xFF13C2C2)]),
+                        color: Color(0xFFC8E6C9),
                       ),
                       child: Column(
                         children: [
-                          const Text('我的总积分', style: TextStyle(color: Colors.white70, fontSize: 14)),
+                          const Text('我的总积分', style: TextStyle(color: Color(0xFF1B5E20), fontSize: 14)),
                           const SizedBox(height: 8),
-                          Text('$_totalPoints', style: const TextStyle(color: Colors.white, fontSize: 44, fontWeight: FontWeight.bold)),
+                          Text('$_totalPoints', style: const TextStyle(color: Color(0xFF1B5E20), fontSize: 44, fontWeight: FontWeight.bold)),
                           const SizedBox(height: 8),
                           Text(
                             _todayEarned > 0 ? '今天获得积分 +$_todayEarned' : '今天还未获得积分，快去赚取吧',
-                            style: const TextStyle(color: Colors.white, fontSize: 13),
+                            style: const TextStyle(color: Color(0xFF2E7D32), fontSize: 13),
                           ),
                         ],
                       ),
@@ -251,63 +253,85 @@ class _PointsScreenState extends State<PointsScreen> {
     final category = task['category']?.toString();
     final actionType = task['action_type']?.toString();
     final categoryLabel = category == 'daily' ? '每日' : category == 'once' ? '一次性' : '可重复';
-    final categoryColor = category == 'daily' ? const Color(0xFF52C41A) : category == 'once' ? const Color(0xFFFA8C16) : const Color(0xFF1890FF);
-    final disabled = (completed && category == 'once') || (actionType == 'sign_in' && _signedToday);
-    final btnText = (completed && category == 'once') ? '✅ 已完成'
+    final baseCategoryColor = category == 'daily' ? const Color(0xFF52C41A) : category == 'once' ? const Color(0xFFFA8C16) : const Color(0xFF1890FF);
+    final onceDone = completed && category == 'once';
+    final disabled = onceDone || (actionType == 'sign_in' && _signedToday);
+    final btnText = onceDone ? '✓ 已完成'
         : (actionType == 'sign_in' && _signedToday) ? '已签到'
         : (completed && category == 'daily') ? '已完成'
         : (actionType == 'sign_in') ? '去签到'
         : (task['key'] == 'complete_profile') ? '去完善'
         : '去完成';
 
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Wrap(
-                  spacing: 8,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: categoryColor, width: 1),
-                        borderRadius: BorderRadius.circular(4),
+    final categoryColor = onceDone ? const Color(0xFFBFBFBF) : baseCategoryColor;
+    final titleColor = onceDone ? const Color(0xFF999999) : const Color(0xFF333333);
+    final pointsColor = onceDone ? const Color(0xFFBFBFBF) : const Color(0xFFFA8C16);
+    final subtitleColor = onceDone ? const Color(0xFFBFBFBF) : Colors.grey[600];
+
+    return Opacity(
+      opacity: onceDone ? 0.7 : 1.0,
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: onceDone ? const Color(0xFFF5F5F5) : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Wrap(
+                    spacing: 8,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: titleColor,
+                          decoration: onceDone ? TextDecoration.lineThrough : TextDecoration.none,
+                        ),
                       ),
-                      child: Text(categoryLabel, style: TextStyle(fontSize: 10, color: categoryColor)),
-                    ),
-                    Text('+$points 积分', style: const TextStyle(fontSize: 12, color: Color(0xFFFA8C16))),
-                  ],
-                ),
-                if (subtitle != null && subtitle.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 6),
-                    child: Text(subtitle, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                      if (onceDone)
+                        const Text('✓ 已完成', style: TextStyle(fontSize: 11, color: Color(0xFF52C41A))),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: categoryColor, width: 1),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(categoryLabel, style: TextStyle(fontSize: 10, color: categoryColor)),
+                      ),
+                      Text('+$points 积分', style: TextStyle(fontSize: 12, color: pointsColor)),
+                    ],
                   ),
-              ],
+                  if (subtitle != null && subtitle.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Text(subtitle, style: TextStyle(fontSize: 12, color: subtitleColor)),
+                    ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(width: 12),
-          ElevatedButton(
-            onPressed: disabled ? null : () => _handleTask(task),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF52C41A),
-              disabledBackgroundColor: const Color(0xFFE8E8E8),
-              disabledForegroundColor: Colors.grey[600],
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-              minimumSize: const Size(72, 32),
+            const SizedBox(width: 12),
+            ElevatedButton(
+              onPressed: disabled ? null : () => _handleTask(task),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF52C41A),
+                disabledBackgroundColor: const Color(0xFFE8E8E8),
+                disabledForegroundColor: Colors.grey[600],
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                minimumSize: const Size(72, 32),
+              ),
+              child: Text(btnText, style: const TextStyle(fontSize: 12, color: Colors.white)),
             ),
-            child: Text(btnText, style: const TextStyle(fontSize: 12, color: Colors.white)),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

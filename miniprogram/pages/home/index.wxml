@@ -2,8 +2,9 @@
   <view class="custom-nav" style="padding-top:{{statusBarHeight}}px;">
     <view class="custom-nav-content">
       <view class="custom-nav-title-wrap">
-        <image wx:if="{{brandLogoUrl}}" class="brand-logo-small" src="{{brandLogoUrl}}" mode="aspectFit" />
-        <text class="custom-nav-title">宾尼小康</text>
+        <!-- Bug 1：LOGO 放大到顶栏高度 75%，去掉文字品牌名 -->
+        <image wx:if="{{brandLogoUrl}}" class="brand-logo-large" src="{{brandLogoUrl}}" mode="aspectFit" />
+        <text wx:else class="custom-nav-title">宾尼小康</text>
       </view>
       <view class="custom-nav-actions">
         <view class="nav-action-btn" catchtap="onScanTap">
@@ -25,7 +26,7 @@
     <view class="search-divider"></view>
     <view class="search-input" bindtap="onSearchTap">
       <text class="search-icon">🔍</text>
-      <text class="search-placeholder">{{homeConfig.search_placeholder || '想找什么服务/商品？'}}</text>
+      <text class="search-placeholder">{{homeConfig.search_placeholder || '搜索您想要的健康服务'}}</text>
     </view>
     <view class="switch-role-chip" wx:if="{{canSwitchRole}}" catchtap="switchRole">切换角色</view>
     <view class="notification-btn" catchtap="goNotifications">

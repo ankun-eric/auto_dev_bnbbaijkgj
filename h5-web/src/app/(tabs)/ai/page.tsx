@@ -60,8 +60,7 @@ export default function AIPage() {
   const [recentChats, setRecentChats] = useState<SessionItem[]>([]);
   const [creating, setCreating] = useState(false);
   const [sidebarVisible, setSidebarVisible] = useState(false);
-  const [logoUrl, setLogoUrl] = useState<string | null>(null);
-
+  // Bug 7：AI 咨询页标题栏不显示 LOGO（保留 AI 头像渐变圆 + 标题文字即可）
   const fetchSessions = useCallback(async () => {
     try {
       const res: any = await api.get('/api/chat/sessions', { params: { page: 1, page_size: 10 } });
@@ -70,18 +69,6 @@ export default function AIPage() {
     } catch {
       // ignore
     }
-  }, []);
-
-  useEffect(() => {
-    const fetchLogo = async () => {
-      try {
-        const res: any = await api.get('/api/settings/logo');
-        if (res?.data?.logo_url) {
-          setLogoUrl(res.data.logo_url);
-        }
-      } catch {}
-    };
-    fetchLogo();
   }, []);
 
   useEffect(() => {

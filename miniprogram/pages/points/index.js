@@ -37,17 +37,21 @@ Page({
       }
       if (tasks.status === 'fulfilled') {
         const t = tasks.value || {};
-        const items = (t.items || []).map(i => ({
-          ...i,
-          categoryLabel: i.category === 'daily' ? '每日' : i.category === 'once' ? '一次性' : '可重复',
-          categoryColor: i.category === 'daily' ? '#52c41a' : i.category === 'once' ? '#fa8c16' : '#1890ff',
-          btnText: (i.completed && i.category === 'once') ? '✅ 已完成'
-            : (i.completed && i.category === 'daily') ? '已完成'
-            : (i.action_type === 'sign_in') ? '去签到'
-            : (i.key === 'complete_profile') ? '去完善'
-            : '去完成',
-          btnDisabled: i.completed && i.category === 'once'
-        }));
+        const items = (t.items || []).map(i => {
+          const onceDone = !!(i.completed && i.category === 'once');
+          return {
+            ...i,
+            categoryLabel: i.category === 'daily' ? '每日' : i.category === 'once' ? '一次性' : '可重复',
+            categoryColor: i.category === 'daily' ? '#52c41a' : i.category === 'once' ? '#fa8c16' : '#1890ff',
+            onceDone,
+            btnText: onceDone ? '✓ 已完成'
+              : (i.completed && i.category === 'daily') ? '已完成'
+              : (i.action_type === 'sign_in') ? '去签到'
+              : (i.key === 'complete_profile') ? '去完善'
+              : '去完成',
+            btnDisabled: onceDone
+          };
+        });
         update.tasks = items;
       }
       update.loading = false;
@@ -83,12 +87,14 @@ Page({
   },
 
   normalizeRoute(route) {
+    // Bug 4 / Bug 5：完善健康档案 → 健康档案页；首次下单 → 服务页（首页商品列表）
     const map = {
       '/profile/edit': '/pages/health-profile/index',
       '/health-plan': '/pages/health-plan/index',
       '/orders?tab=pending_review': '/pages/unified-orders/index?status=pending_review',
       '/invite': '/pages/invite/index',
       '/products': '/pages/products/index',
+      '/services': '/pages/products/index',
       '/mall': '/pages/products/index'
     };
     return map[route] || route;

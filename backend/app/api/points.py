@@ -248,17 +248,31 @@ async def get_points_summary(
     }
 
 
+ONCE_TASK_HIDE_AFTER_DAYS = 7  # 一次性任务完成 N 天后从列表中过滤掉
+
+
 @router.get("/tasks")
 async def list_daily_tasks(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """积分页日常任务清单（6 条）。
+    """积分页日常任务清单。
+
+    一次性任务（once）：
+      - 完成后追加 status=completed + completed_at（ISO8601 字符串）
+      - 完成超过 ONCE_TASK_HIDE_AFTER_DAYS 天的不再返回（前端列表自动消失）
 
     单条任务的查询失败时降级为 completed=False，整体接口始终返回 200。
     """
     try:
         today = date.today()
+        now_dt = datetime.utcnow()
+
+        def _iso(dt):
+            try:
+                return dt.isoformat() if dt else None
+            except Exception:
+                return None
 
         async def _safe_int_config(key: str, default: int) -> int:
             try:
@@ -298,6 +312,7 @@ async def list_daily_tasks(
         # 3. 完善健康档案（终身一次）
         fields_filled = False
         profile_awarded = False
+        profile_completed_at = None
         try:
             profile_res = await db.execute(
                 select(HealthProfile).where(HealthProfile.user_id == current_user.id)
@@ -311,29 +326,54 @@ async def list_daily_tasks(
                 and profile.weight is not None
             )
             completed_profile_award_res = await db.execute(
-                select(PointsRecord).where(
+                select(PointsRecord)
+                .where(
                     PointsRecord.user_id == current_user.id,
                     PointsRecord.type == PointsType.completeProfile,
                 )
+                .order_by(PointsRecord.created_at.asc())
+                .limit(1)
             )
-            profile_awarded = completed_profile_award_res.scalar_one_or_none() is not None
+            profile_award_row = completed_profile_award_res.scalar_one_or_none()
+            profile_awarded = profile_award_row is not None
+            profile_completed_at = profile_award_row.created_at if profile_award_row else None
         except Exception:
             fields_filled = False
             profile_awarded = False
+            profile_completed_at = None
         complete_profile_points = await _safe_int_config("completeProfile", 100)
 
-        # 4. 首次下单（是否有任意已完成订单）
+        # 4. 首次下单（是否有任意已支付订单 —— 含到店核销前等所有支付后状态）
         first_order_done = False
+        first_order_completed_at = None
         try:
-            completed_order_res = await db.execute(
-                select(func.count(UnifiedOrder.id)).where(
+            paid_statuses = [
+                UnifiedOrderStatus.pending_shipment,
+                UnifiedOrderStatus.pending_receipt,
+                UnifiedOrderStatus.pending_use,
+                UnifiedOrderStatus.pending_review,
+                UnifiedOrderStatus.completed,
+            ]
+            paid_order_res = await db.execute(
+                select(UnifiedOrder)
+                .where(
                     UnifiedOrder.user_id == current_user.id,
-                    UnifiedOrder.status == UnifiedOrderStatus.completed,
+                    UnifiedOrder.status.in_(paid_statuses),
                 )
+                .order_by(UnifiedOrder.id.asc())
+                .limit(1)
             )
-            first_order_done = (completed_order_res.scalar() or 0) > 0
+            paid_order_row = paid_order_res.scalar_one_or_none()
+            first_order_done = paid_order_row is not None
+            if paid_order_row is not None:
+                first_order_completed_at = (
+                    paid_order_row.paid_at
+                    or paid_order_row.completed_at
+                    or paid_order_row.received_at
+                )
         except Exception:
             first_order_done = False
+            first_order_completed_at = None
         first_order_points = await _safe_int_config("firstOrder", 100)
 
         # 5. 评价订单（有无待评价订单）—— UnifiedOrder.has_reviewed 字段在旧库可能不存在
@@ -370,6 +410,7 @@ async def list_daily_tasks(
                 "points": sign_points,
                 "category": "daily",
                 "completed": sign_today,
+                "status": "completed" if sign_today else "pending",
                 "action_type": "sign_in",
                 "route": "/points",
             },
@@ -380,6 +421,7 @@ async def list_daily_tasks(
                 "points": health_checkin_points,
                 "category": "daily",
                 "completed": health_checkin_done,
+                "status": "completed" if health_checkin_done else "pending",
                 "action_type": "navigate",
                 "route": "/health-plan",
             },
@@ -390,6 +432,8 @@ async def list_daily_tasks(
                 "points": complete_profile_points,
                 "category": "once",
                 "completed": profile_awarded,
+                "status": "completed" if profile_awarded else "pending",
+                "completed_at": _iso(profile_completed_at),
                 "fields_filled": fields_filled,
                 "action_type": "navigate",
                 "route": "/profile/edit",
@@ -397,12 +441,14 @@ async def list_daily_tasks(
             {
                 "key": "first_order",
                 "title": "首次下单",
-                "subtitle": "完成首笔订单",
+                "subtitle": "完成首笔订单（含到店核销前）",
                 "points": first_order_points,
                 "category": "once",
                 "completed": first_order_done,
+                "status": "completed" if first_order_done else "pending",
+                "completed_at": _iso(first_order_completed_at),
                 "action_type": "navigate",
-                "route": "/products",
+                "route": "/services",
             },
             {
                 "key": "review_order",
@@ -411,6 +457,7 @@ async def list_daily_tasks(
                 "points": review_points,
                 "category": "repeatable",
                 "completed": False,
+                "status": "pending",
                 "pending_count": pending_review_count,
                 "action_type": "navigate",
                 "route": "/unified-orders?tab=pending_review",
@@ -422,12 +469,29 @@ async def list_daily_tasks(
                 "points": invite_points,
                 "category": "repeatable",
                 "completed": False,
+                "status": "pending",
                 "invited_count": invited_count,
                 "action_type": "navigate",
                 "route": "/invite",
             },
         ]
-        return {"items": tasks}
+
+        # 一次性任务完成超过 N 天则不再返回（前端列表自动消失）
+        hide_threshold = now_dt - timedelta(days=ONCE_TASK_HIDE_AFTER_DAYS)
+        filtered = []
+        for t in tasks:
+            if t.get("category") == "once" and t.get("status") == "completed":
+                ca_iso = t.get("completed_at")
+                ca_dt = None
+                if ca_iso:
+                    try:
+                        ca_dt = datetime.fromisoformat(ca_iso)
+                    except Exception:
+                        ca_dt = None
+                if ca_dt is not None and ca_dt < hide_threshold:
+                    continue
+            filtered.append(t)
+        return {"items": filtered}
     except Exception:
         return {"items": []}
 
