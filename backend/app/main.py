@@ -363,10 +363,11 @@ async def _migrate_product_categories_hierarchy():
 
 
 async def _migrate_v7_search_placeholder():
-    """v7 修复：将首页搜索栏 placeholder 旧值/可能的乱码统一改为新文案。
+    """v7 / v7.2 修复：将首页搜索栏 placeholder 旧值/乱码统一改为新文案。
 
-    幂等：同一个 SystemConfig.coupons_v2_1_migrated 风格的标志位策略
-    （这里直接使用 placeholder_v7_normalized 标志）。
+    升级为 placeholder_v7_2_normalized 标志位——之前虽然已写过一次（旧标志位已存在），
+    但后续运营/脏数据又把值改回"搜索健康服务/商品"等变体，这里再强制覆盖一次。
+    升级后再次部署重启 backend 即可生效，仍然保持幂等（只会修正一次）。
     """
     try:
         from app.core.database import async_session
@@ -374,11 +375,15 @@ async def _migrate_v7_search_placeholder():
         from sqlalchemy import select as _select
 
         async with async_session() as db:
-            flag_res = await db.execute(_select(SystemConfig).where(SystemConfig.config_key == "placeholder_v7_normalized"))
+            flag_res = await db.execute(
+                _select(SystemConfig).where(SystemConfig.config_key == "placeholder_v7_2_normalized")
+            )
             if flag_res.scalar_one_or_none():
                 return
             new_text = "搜索您想要的健康服务"
-            res = await db.execute(_select(SystemConfig).where(SystemConfig.config_key == "home_search_placeholder"))
+            res = await db.execute(
+                _select(SystemConfig).where(SystemConfig.config_key == "home_search_placeholder")
+            )
             row = res.scalar_one_or_none()
             if row is None:
                 db.add(SystemConfig(
@@ -390,15 +395,15 @@ async def _migrate_v7_search_placeholder():
             else:
                 row.config_value = new_text
             db.add(SystemConfig(
-                config_key="placeholder_v7_normalized",
+                config_key="placeholder_v7_2_normalized",
                 config_value="1",
                 config_type="system",
-                description="v7 placeholder 文案规范化标记",
+                description="v7.2 placeholder 文案规范化标记（强制覆盖一次）",
             ))
             await db.commit()
-            _logger.info("v7：首页搜索栏 placeholder 已规范化")
+            _logger.info("v7.2：首页搜索栏 placeholder 已强制规范化")
     except Exception as e:  # noqa: BLE001
-        _logger.error("v7 placeholder 迁移异常（不影响启动）：%s", e)
+        _logger.error("v7.2 placeholder 迁移异常（不影响启动）：%s", e)
 
 
 @asynccontextmanager
