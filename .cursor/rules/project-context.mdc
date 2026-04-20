@@ -33,7 +33,29 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 中医养生 — 体质测评一期（6屏结果页 + 套餐推荐 + 优惠券 + 档案）（2026-04-20）
+## Latest Update: 7-Bug 修复 v7.2 — 搜索栏文案回归强制规范化（2026-04-20）
+
+### 概要
+前序 `9a8d544` + `8929203` 完成的 7-Bug 修复落地后，运营/后台又把 `home_search_placeholder` 改回了 "搜索健康服务/商品"，导致 Bug 2 在线回归。本次通过升级迁移标志位 `placeholder_v7_normalized → placeholder_v7_2_normalized` 强制再写一次 "搜索您想要的健康服务"，维持幂等。
+
+### 关键变更
+- `backend/app/main.py`：`_migrate_v7_search_placeholder` 使用新标志位 `placeholder_v7_2_normalized`，容器重建即生效；若未来再发生回归只需再次升级标志位即可。
+- `deploy/deploy_bugfix_v7_2_placeholder.py`（新增）：paramiko 自动化 `git pull + docker compose build backend + force-recreate`，最后校验 `/api/home-config.search_placeholder` 为新文案。
+
+### 部署与验证
+- 服务器 `newbb.test.bangbangvip.com` 已 `git reset --hard 055ccb9`，backend 容器已 Rebuild + Recreate。
+- `/api/home-config` 返回 `search_placeholder = "搜索您想要的健康服务"` ✓。
+- 链接全量可达性：H5 首页 / 积分页 / AI 咨询 / 档案编辑 / 服务列表 / API / APK / 小程序 zip 共 8/8 OK。
+
+### 用户手册
+- `user_docs/用户端首页与我的积分_7项Bug修复_用户体验手册.md`
+
+### Commit
+- `055ccb9`: `fix(bug2): 强制规范化 home_search_placeholder 为 '搜索您想要的健康服务' (v7.2)`
+
+---
+
+## Previous Update: 中医养生 — 体质测评一期（6屏结果页 + 套餐推荐 + 优惠券 + 档案）（2026-04-20）
 
 ### 概要
 按 PRD《体质测评功能优化（一期 + 二期路线）》一期 2 周 MVP 范围，对体质测评结果页进行了深度重做，将原来的"8 题 + 简单结果"升级为"8 题 → 加载过渡 → 6 屏沉浸结果 + 档案 + 分享卡"的专业体验。目标：提升体质测评从"测完就走"到"测完→看懂→买套餐 / 领券 / 预约 / 分享"的闭环转化。
