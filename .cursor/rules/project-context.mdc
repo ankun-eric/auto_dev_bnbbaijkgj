@@ -33,7 +33,38 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 7-Bug 修复 v7.2 — 搜索栏文案回归强制规范化（2026-04-20）
+## Latest Update: 中医养生 · 体质测评功能优化（2026-04-20）
+
+### 概要
+按 PRD v1.0 合并「我的档案」与「历史记录」为单一入口「测评记录」，并在答题流程中引入 StepBar（答题 → 选择对象 → AI 分析），对齐"健康自查"体验；后端 `member_label` 统一为 `姓名（关系）` 格式，各端消费避免自拼字符串。
+
+### 关键变更
+- **后端**：
+  - `backend/app/api/constitution.py` — `list_archive` 新增 `build_member_label` 统一构造 `member_label`（`姓名（本人/关系/未设置）`）。
+  - `backend/app/api/tcm.py` — `list_diagnoses` 为每条诊断补充 `member_label` 并保留 `family_member_name` 兼容字段。
+- **H5（Next.js）**：
+  - `h5-web/src/app/tcm/page.tsx` — 移除「我的档案」按钮；用 `/api/constitution/archive` 重绘「测评记录」卡片；导航栏标题按 `activeFeature` 动态切换；在答题流程顶部接入 `TcmStepBar`。
+  - `h5-web/src/app/tcm/archive/page.tsx` — 整页改为 301 到 `/tcm`，标注弃用。
+  - `h5-web/src/app/tcm/diagnosis/[id]/page.tsx` — 整页改为 301 到 `/tcm/result/{id}`，标注弃用。
+- **微信小程序**：
+  - `miniprogram/pages/tcm/index.*` — 删除「我的档案」feature card；新增 StepBar + 测评记录卡片；`startConstitution/selectOption/_submitConstitutionTest/resetAll/onCancelMemberPicker` 统一维护 `currentStep`。
+  - 删除 `miniprogram/pages/tcm-constitution-archive/*` 与 `miniprogram/pages/tcm-diagnosis-detail/*`，从 `app.json` 移除对应 pages。
+- **Flutter**：
+  - `flutter_app/lib/screens/health/tcm_screen.dart` — 切换至 `getConstitutionArchive()`；卡片改造为 emoji + member_label + one_line_desc + 左边框色；答题 BottomSheet + 选人 BottomSheet + 提交 Dialog 全部嵌入 `_TcmStepBar`。
+  - `flutter_app/lib/screens/health/tcm_diagnosis_detail_screen.dart` — 改为空壳重定向到 `ConstitutionResultScreen`，保留 `/tcm-diagnosis-detail` 路由兼容。
+
+### 部署与验证
+- 服务器 `newbb.test.bangbangvip.com` 已 `git reset --hard d845e14`，backend 和 h5-web 已 Rebuild + Recreate；db 容器加入 `{DEPLOY_ID}-network`，解决跨网络导致的 backend `Can't connect to MySQL` 问题；gateway 已 `nginx -s reload`。
+- 外部链路验证 14/14 OK（含 `/tcm`、`/tcm/archive→/tcm`、`/tcm/diagnosis/1→/tcm/result/1`、`/api/health`、`/api/constitution/archive`、`/api/tcm/diagnosis` 等）。
+- 小程序 zip（304 files, 329 KB）已上传为 `downloads/miniprogram_latest.zip` + `downloads/miniprogram_tcm_optim_1776682739.zip`。
+- Android APK：GitHub Actions workflow `android-build.yml` 已触发，run ID `24662813797`，version tag `tcm-optim-v1`。
+
+### 用户手册
+- `user_docs/中医养生体质测评功能优化.md`（含全部 H5 / 小程序 / APK 入口链接与体验路径）。
+
+---
+
+## Previous Update: 7-Bug 修复 v7.2 — 搜索栏文案回归强制规范化（2026-04-20）
 
 ### 概要
 前序 `9a8d544` + `8929203` 完成的 7-Bug 修复落地后，运营/后台又把 `home_search_placeholder` 改回了 "搜索健康服务/商品"，导致 Bug 2 在线回归。本次通过升级迁移标志位 `placeholder_v7_normalized → placeholder_v7_2_normalized` 强制再写一次 "搜索您想要的健康服务"，维持幂等。
