@@ -33,7 +33,33 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 7-Bug 修复 v2 — APK 编译错误补修 + GH Actions 重新打包（2026-04-20）
+## Latest Update: 健康自查 — 咨询人档案收起与独立保存优化（2026-04-20）
+
+### 概要
+按 PRD v1.0 要求，对"健康自查 - 咨询人"环节的档案编辑进行三端（H5 / 微信小程序 / Flutter App）同步改造：将"档案修改保存"与"AI 开始分析"彻底解耦，已有家庭成员档案默认收起，新增"保存档案"独立按钮与未保存修改拦截弹窗。
+
+### 交互要点
+- 已有成员：档案默认折叠（只展示头像/emoji + 姓名 + 性别 + 年龄），点击任意位置展开编辑；字段发生修改时出现"保存档案"按钮，保存成功或放弃修改后按钮消失并重新折叠。
+- 新增成员：档案默认展开，无独立"保存档案"按钮，保存在 AI 分析时隐式完成（保持旧体验）。
+- 切换成员 / 点击"AI 开始分析"时若存在未保存修改，弹出三按钮拦截弹窗：保存并继续 / 放弃修改并继续 / 取消。
+- 实时校验：姓名/性别/出生日期在失焦或变更时即时校验，保存/继续前再总校验。
+- 后端约束：`PUT/POST /api/health/profile/member/{id}` 独立保存档案；`POST /api/chat/sessions` 不再有保存档案副作用（后端已符合，无需修改）。
+
+### 关键变更
+- **H5**（`h5-web/src/components/HealthProfileEditor.tsx` 重构）：新增 `mode`/`initialProfile`/`onSaveProfile`/`memberEmoji`/`onDiscardChanges` props；`HealthProfileEditorRef` 暴露 `hasUnsavedChanges`/`saveProfile`/`discardChanges`/`validate`/`expand`/`collapse`/`resetExpanded`；`profilesEqual` 深比较、`calcAge` 计算年龄；DOM 自绘三按钮模态 `showUnsavedChangesModal`。`h5-web/src/app/{symptom,checkup,drug}/page.tsx` 接入新 editor：引入 `initialProfile` 状态、`handleSaveProfile` 回调、切换成员与确认分析前的未保存修改拦截。
+- **微信小程序**（`miniprogram/pages/symptom/index.{js,wxml,wxss}` + `helpers.wxs`）：新增 `profileCollapsed`/`initialProfile`/`profileDirty`/`isNewMember`/`currentMemberEmoji`/`memberSavedErrors` 状态；`_checkDirty`/`_refreshDirty`/`expandProfile`/`collapseProfile`/`_calcAge`/`_showUnsavedModal`（双层 `wx.showModal` 模拟三按钮）/`_discardChanges`/`_validateProfile`；`selectMember` 和 `nextStep('analyze')` 接入未保存修改拦截；`index.wxml` 条件渲染折叠卡片 `profile-collapsed-card` 与展开表单；`helpers.wxs` 补 `calcAge`；`index.wxss` 补 `.profile-collapsed-card`、`.form-input-error` 等样式。
+- **Flutter**（`flutter_app/lib/widgets/health_profile_editor.dart` 扩展 + `screens/health/symptom_screen.dart` 接入 + `services/api_service.dart` 补接口）：新增 `HealthProfileMode` 枚举、`HealthProfileSnapshot` 快照类（含 `_normalizeList` 与 `equalsTo`）、`showUnsavedChangesDialog`；editor state 暴露 `hasUnsavedChanges`/`saveProfile`/`discardChanges`/`validate`/`expand`/`collapse`/`resetExpanded` 供父组件通过 `GlobalKey` 调用；`_buildCollapsedCard`/`_buildExpandedHeader` 承载新 UI。`symptom_screen.dart` 新增 `_initialProfile`/`_snapshotOfCurrent`/`_discardProfileChanges`/`_handleSaveProfileCallback`/`_loadMemberProfile`，在切换成员与"确认并AI分析"前用 `showUnsavedChangesDialog` 拦截。`api_service.dart` 补 `getMemberHealthProfile(int memberId)`。
+
+### 用户手册
+- `user_docs/健康自查档案独立保存优化.md`
+
+### 已知限制
+- 本次仅改造了 `symptom` 场景的 Flutter 端接入；`checkup`/`drug` 场景如后续需要 Flutter 入口，可沿用同套 editor props（`mode/initialProfile/onSaveProfile/memberEmoji/onDiscardChanges`）与 `showUnsavedChangesDialog` 拦截即可。
+- 微信小程序三按钮通过嵌套 `wx.showModal` 实现（原生只支持二选一）：第一层"保存 / 更多选项"，第二层"放弃修改 / 取消"。
+
+---
+
+## Previous Update: 7-Bug 修复 v2 — APK 编译错误补修 + GH Actions 重新打包（2026-04-20）
 
 ### 概要
 在前序 commit `9a8d544` / `203e3ae` 完成 7 项业务 Bug 修复并部署后，发现 Flutter APK 重新构建失败（远程 docker flutter-builder 多次失败 + GitHub Actions 失败）。根因定位为 `flutter_app/lib/services/api_service.dart` 中 `getProductCategories` 与 `getProducts` 在 line 153/157 与 line 921/925 各被声明了一次（Dart 编译报 `'X' is already declared in this scope`）。本次删除旧版定义（line 153-161）保留新版（支持 `keyword/fulfillmentType/pointsExchangeable` 参数），重新触发 GH Actions 构建成功，将 APK 通过本地下载 + SFTP 上传方式发布到 `static/apk/bini_health.apk`（81,815,251 字节）。

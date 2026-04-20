@@ -11,7 +11,25 @@ function isProfileComplete(nickname, gender, birthday, height, weight) {
   return !!(nickname && gender && birthday && height && weight);
 }
 
+function calcAge(birthday) {
+  if (!birthday) return '';
+  var parts = birthday.split('-');
+  if (parts.length < 3) return '';
+  var y = parseInt(parts[0]);
+  var m = parseInt(parts[1]);
+  var d = parseInt(parts[2]);
+  var now = getDate();
+  var ny = now.getFullYear();
+  var nm = now.getMonth() + 1;
+  var nd = now.getDate();
+  var age = ny - y;
+  if (nm < m || (nm === m && nd < d)) age = age - 1;
+  if (age < 0) return '';
+  return age;
+}
+
 module.exports = {
   isPresetSelected: isPresetSelected,
-  isProfileComplete: isProfileComplete
+  isProfileComplete: isProfileComplete,
+  calcAge: calcAge
 };

@@ -163,6 +163,10 @@ class ApiService {
     return _dio.put('${ApiConfig.updateMemberHealthProfile}/$memberId', data: data);
   }
 
+  Future<Response> getMemberHealthProfile(int memberId) async {
+    return _dio.get('${ApiConfig.updateMemberHealthProfile}/$memberId');
+  }
+
   Future<Response> getDiseasePresets(String category) async {
     return _dio.get(ApiConfig.diseasePresets, queryParameters: {'category': category});
   }

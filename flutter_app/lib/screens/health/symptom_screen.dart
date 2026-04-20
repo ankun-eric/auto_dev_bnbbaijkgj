@@ -64,6 +64,9 @@ class _SymptomScreenState extends State<SymptomScreen> {
   List<dynamic> _allergies = [];
   List<dynamic> _geneticDiseases = [];
 
+  /// 初始档案快照（用于 dirty 判定）
+  HealthProfileSnapshot? _initialProfile;
+
   static const List<String> _durationOptions = [
     '刚刚出现', '几小时内', '1-3天', '3-7天', '1-2周', '2周以上', '1个月以上', '3个月以上',
   ];
@@ -164,9 +167,114 @@ class _SymptomScreenState extends State<SymptomScreen> {
           _allergies = List<dynamic>.from(data['allergies'] ?? []);
           _geneticDiseases = List<dynamic>.from(data['genetic_diseases'] ?? []);
           _selfErrors = {};
+          _initialProfile = _snapshotOfCurrent();
         });
       }
     } catch (_) {}
+  }
+
+  Future<void> _loadMemberProfile(int memberId, Map<String, dynamic> member) async {
+    try {
+      final response = await _apiService.getMemberHealthProfile(memberId);
+      if (response.statusCode == 200 && mounted) {
+        final data = response.data is Map ? response.data as Map : {};
+        setState(() {
+          _selfNickname = (data['nickname'] ?? member['name'] ?? '').toString();
+          _selfGender = (data['gender'] ?? member['gender'] ?? '').toString();
+          _selfBirthday = (data['birthday'] ?? member['birthday'] ?? '').toString();
+          _selfHeight = (data['height'] ?? '').toString();
+          _selfWeight = (data['weight'] ?? '').toString();
+          if (_selfHeight == '0' || _selfHeight == '0.0') _selfHeight = '';
+          if (_selfWeight == '0' || _selfWeight == '0.0') _selfWeight = '';
+          _chronicDiseases = List<dynamic>.from(data['chronic_diseases'] ?? []);
+          _allergies = List<dynamic>.from(data['allergies'] ?? []);
+          _geneticDiseases = List<dynamic>.from(data['genetic_diseases'] ?? []);
+          _selfErrors = {};
+          _initialProfile = _snapshotOfCurrent();
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _selfNickname = (member['name'] ?? '').toString();
+          _selfGender = (member['gender'] ?? '').toString();
+          _selfBirthday = (member['birthday'] ?? '').toString();
+          _selfHeight = '';
+          _selfWeight = '';
+          _chronicDiseases = [];
+          _allergies = [];
+          _geneticDiseases = [];
+          _selfErrors = {};
+          _initialProfile = _snapshotOfCurrent();
+        });
+      }
+    }
+  }
+
+  HealthProfileSnapshot _snapshotOfCurrent() => HealthProfileSnapshot(
+        nickname: _selfNickname,
+        birthday: _selfBirthday,
+        gender: _selfGender,
+        height: _selfHeight,
+        weight: _selfWeight,
+        chronicDiseases: List<dynamic>.from(_chronicDiseases),
+        allergies: List<dynamic>.from(_allergies),
+        geneticDiseases: List<dynamic>.from(_geneticDiseases),
+      );
+
+  void _discardProfileChanges() {
+    final init = _initialProfile;
+    if (init == null) return;
+    setState(() {
+      _selfNickname = init.nickname;
+      _selfGender = init.gender;
+      _selfBirthday = init.birthday;
+      _selfHeight = init.height;
+      _selfWeight = init.weight;
+      _chronicDiseases = List<dynamic>.from(init.chronicDiseases);
+      _allergies = List<dynamic>.from(init.allergies);
+      _geneticDiseases = List<dynamic>.from(init.geneticDiseases);
+      _selfErrors = {};
+    });
+  }
+
+  Future<bool> _handleSaveProfileCallback(HealthProfileSnapshot profile) async {
+    if (!_validateSelfInfo()) return false;
+    final data = <String, dynamic>{
+      'chronic_diseases': profile.chronicDiseases,
+      'allergies': profile.allergies,
+      'genetic_diseases': profile.geneticDiseases,
+      'nickname': profile.nickname.trim(),
+      'gender': profile.gender,
+      'birthday': profile.birthday,
+    };
+    if (profile.height.trim().isNotEmpty) {
+      data['height'] = double.tryParse(profile.height.trim());
+    }
+    if (profile.weight.trim().isNotEmpty) {
+      data['weight'] = double.tryParse(profile.weight.trim());
+    }
+    try {
+      if (_selectedMemberId != null) {
+        await _apiService.updateMemberHealthProfile(_selectedMemberId!, data);
+      } else {
+        await _apiService.updateHealthProfile(data);
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('保存成功'), duration: Duration(seconds: 2)),
+        );
+        setState(() => _initialProfile = _snapshotOfCurrent());
+      }
+      return true;
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('保存失败，请稍后重试'), duration: Duration(seconds: 2)),
+        );
+      }
+      return false;
+    }
   }
 
   bool _validateSelfInfo() {
@@ -520,7 +628,20 @@ class _SymptomScreenState extends State<SymptomScreen> {
                                 final tagColor = _getMemberTagColor(relation);
 
                                 return GestureDetector(
-                                  onTap: () {
+                                  onTap: () async {
+                                    // 已选同一个成员直接忽略
+                                    if (_selectedMemberId == id && _selectedMemberName == relation) return;
+                                    // 拦截未保存修改
+                                    if (_profileEditorKey.currentState?.hasUnsavedChanges() ?? false) {
+                                      final choice = await showUnsavedChangesDialog(context, scene: 'switch');
+                                      if (choice == 'cancel') return;
+                                      if (choice == 'save') {
+                                        final ok = await _profileEditorKey.currentState?.saveProfile() ?? false;
+                                        if (!ok) return;
+                                      } else if (choice == 'discard') {
+                                        _discardProfileChanges();
+                                      }
+                                    }
                                     setState(() {
                                       _selectedMemberId = id;
                                       _selectedMemberName = relation;
@@ -530,16 +651,7 @@ class _SymptomScreenState extends State<SymptomScreen> {
                                     if (isSelf || id == null) {
                                       _loadSelfProfile();
                                     } else {
-                                      setState(() {
-                                        _selfNickname = (member['name'] ?? '').toString();
-                                        _selfGender = (member['gender'] ?? '').toString();
-                                        _selfBirthday = (member['birthday'] ?? '').toString();
-                                        _selfHeight = '';
-                                        _selfWeight = '';
-                                        _chronicDiseases = [];
-                                        _allergies = [];
-                                        _geneticDiseases = [];
-                                      });
+                                      _loadMemberProfile(id, member);
                                     }
                                   },
                                   child: Container(
@@ -599,6 +711,11 @@ class _SymptomScreenState extends State<SymptomScreen> {
                       geneticPresets: _geneticPresets,
                       memberName: _selectedMemberName,
                       errors: _selfErrors.map((k, v) => MapEntry(k, v)),
+                      mode: HealthProfileMode.existing,
+                      initialProfile: _initialProfile,
+                      onSaveProfile: _handleSaveProfileCallback,
+                      memberEmoji: _selectedMemberName == '本人' ? '👤' : '👨‍👩‍👧',
+                      onDiscardChanges: _discardProfileChanges,
                       onChanged: (changes) {
                         setState(() {
                           if (changes.containsKey('nickname')) {
@@ -627,6 +744,16 @@ class _SymptomScreenState extends State<SymptomScreen> {
                           }
                           if (changes.containsKey('genetic_diseases')) {
                             _geneticDiseases = changes['genetic_diseases'];
+                          }
+                          // editor 校验触发的错误回传
+                          if (changes.containsKey('__errors')) {
+                            final errs = changes['__errors'] as Map<String, String?>?;
+                            if (errs != null) {
+                              _selfErrors = {
+                                for (final e in errs.entries)
+                                  if (e.value != null) e.key: e.value!,
+                              };
+                            }
                           }
                         });
                       },
@@ -679,14 +806,24 @@ class _SymptomScreenState extends State<SymptomScreen> {
                 Expanded(
                   flex: 2,
                   child: ElevatedButton.icon(
-                    onPressed: () {
+                    onPressed: () async {
+                      // 拦截未保存修改
+                      if (_profileEditorKey.currentState?.hasUnsavedChanges() ?? false) {
+                        final choice = await showUnsavedChangesDialog(context, scene: 'analyze');
+                        if (choice == 'cancel') return;
+                        if (choice == 'save') {
+                          final ok = await _profileEditorKey.currentState?.saveProfile() ?? false;
+                          if (!ok) return;
+                        } else if (choice == 'discard') {
+                          _discardProfileChanges();
+                        }
+                      }
                       if (!_validateSelfInfo()) return;
-                      _saveHealthProfile();
                       setState(() => _currentStep = 2);
                       Navigator.pushNamed(context, '/ai');
                     },
                     icon: const Icon(Icons.auto_awesome, size: 18),
-                    label: const Text('确认并AI分析'),
+                    label: const Text('开始AI分析'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: _kPrimaryGreen,
                       foregroundColor: Colors.white,

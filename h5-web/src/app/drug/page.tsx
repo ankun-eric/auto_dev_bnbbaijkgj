@@ -7,7 +7,7 @@ import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 import { checkFileSize, uploadWithProgress } from '@/lib/upload-utils';
 import DiseaseTagSelector, { type DiseaseItem } from '@/components/DiseaseTagSelector';
-import HealthProfileEditor, { type HealthProfileEditorRef } from '@/components/HealthProfileEditor';
+import HealthProfileEditor, { type HealthProfileEditorRef, showUnsavedChangesModal } from '@/components/HealthProfileEditor';
 
 const MAX_IMAGES = 5;
 const MAX_SIZE = 20 * 1024 * 1024;
@@ -203,6 +203,7 @@ export default function DrugPage() {
   const [familyMembers, setFamilyMembers] = useState<FamilyMemberInfo[]>([]);
   const [selectedMemberId, setSelectedMemberId] = useState<number | null>(null);
   const [profileEdits, setProfileEdits] = useState<HealthProfile>(emptyProfile());
+  const [initialProfile, setInitialProfile] = useState<HealthProfile | null>(null);
   const [profileErrors, setProfileErrors] = useState<{nickname?: string; gender?: string; birthday?: string}>({});
   const [confirmLoading, setConfirmLoading] = useState(false);
   const profileEditorRef = useRef<HealthProfileEditorRef>(null);
@@ -305,11 +306,12 @@ export default function DrugPage() {
 
   const loadProfileFromMember = async (members: FamilyMemberInfo[], id: number | null) => {
     const m = id !== null ? members.find((x) => x.id === id) : undefined;
+    let profile: HealthProfile;
     if (m && m.id !== -1) {
       try {
         const res: any = await api.get(`/api/health/profile/member/${m.id}`);
         const p = res.data || res;
-        setProfileEdits({
+        profile = {
           nickname: p.nickname || m.nickname || '',
           birthday: p.birthday || m.birthday || '',
           gender: p.gender || m.gender || '',
@@ -318,25 +320,66 @@ export default function DrugPage() {
           chronic_diseases: p.chronic_diseases || [],
           allergies: p.allergies || [],
           genetic_diseases: p.genetic_diseases || [],
-        });
+        };
       } catch {
-        setProfileEdits({
+        profile = {
           nickname: m.nickname || '', birthday: m.birthday || '', gender: m.gender || '',
           height: m.height != null ? String(m.height) : '',
           weight: m.weight != null ? String(m.weight) : '',
           chronic_diseases: [], allergies: [], genetic_diseases: [],
-        });
+        };
       }
     } else {
-      setProfileEdits(emptyProfile());
+      profile = emptyProfile();
     }
+    setProfileEdits(profile);
+    setInitialProfile(JSON.parse(JSON.stringify(profile)));
   };
 
-  const handleSelectMember = (id: number) => {
+  const handleSelectMember = async (id: number) => {
+    if (id === selectedMemberId) return;
+    if (profileEditorRef.current?.hasUnsavedChanges()) {
+      const choice = await showUnsavedChangesModal('switch');
+      if (choice === 'cancel') return;
+      if (choice === 'save') {
+        const ok = await profileEditorRef.current?.saveProfile();
+        if (!ok) return;
+      } else if (choice === 'discard') {
+        profileEditorRef.current?.discardChanges();
+      }
+    }
     setSelectedMemberId(id);
     setProfileErrors({});
     profileEditorRef.current?.resetExpanded();
     loadProfileFromMember(familyMembers, id);
+  };
+
+  const handleSaveProfile = async (profile: HealthProfile): Promise<boolean> => {
+    const m = selectedMemberId !== null ? familyMembers.find((x) => x.id === selectedMemberId) : undefined;
+    if (!m) return false;
+    const payload: any = {
+      nickname: profile.nickname.trim(),
+      gender: profile.gender,
+      birthday: profile.birthday,
+      chronic_diseases: profile.chronic_diseases,
+      allergies: profile.allergies,
+      genetic_diseases: profile.genetic_diseases,
+    };
+    if (profile.height) payload.height = Number(profile.height);
+    if (profile.weight) payload.weight = Number(profile.weight);
+    try {
+      if (m.is_self || m.id === -1) {
+        await api.put('/api/health/profile', payload);
+      } else {
+        await api.put(`/api/health/profile/member/${m.id}`, payload);
+      }
+      Toast.show({ content: '保存成功', icon: 'success' });
+      setInitialProfile(JSON.parse(JSON.stringify(profile)));
+      return true;
+    } catch (err: any) {
+      Toast.show({ content: err?.response?.data?.detail || '保存失败，请重试', icon: 'fail' });
+      return false;
+    }
   };
 
   const openMemberPopup = async () => {
@@ -419,6 +462,17 @@ export default function DrugPage() {
   };
 
   const handleMemberConfirm = async () => {
+    if (profileEditorRef.current?.hasUnsavedChanges()) {
+      const choice = await showUnsavedChangesModal('analyze');
+      if (choice === 'cancel') return;
+      if (choice === 'save') {
+        const ok = await profileEditorRef.current?.saveProfile();
+        if (!ok) return;
+      } else if (choice === 'discard') {
+        profileEditorRef.current?.discardChanges();
+      }
+    }
+
     const errors: {nickname?: string; gender?: string; birthday?: string} = {};
     if (!profileEdits.nickname?.trim()) errors.nickname = '请输入姓名';
     if (!profileEdits.gender) errors.gender = '请选择性别';
@@ -431,23 +485,7 @@ export default function DrugPage() {
     setProfileErrors({});
     setConfirmLoading(true);
 
-    try {
-      const memberId = selectedMemberId !== null && selectedMemberId !== -1 ? selectedMemberId : null;
-      if (memberId !== null) {
-        const updatePayload: any = {};
-        if (profileEdits.nickname) updatePayload.nickname = profileEdits.nickname.trim();
-        if (profileEdits.birthday) updatePayload.birthday = profileEdits.birthday;
-        if (profileEdits.gender) updatePayload.gender = profileEdits.gender;
-        if (profileEdits.height) updatePayload.height = Number(profileEdits.height);
-        if (profileEdits.weight) updatePayload.weight = Number(profileEdits.weight);
-        updatePayload.chronic_diseases = profileEdits.chronic_diseases;
-        updatePayload.allergies = profileEdits.allergies;
-        updatePayload.genetic_diseases = profileEdits.genetic_diseases;
-        await api.put(`/api/health/profile/member/${memberId}`, updatePayload).catch(() => null);
-        Toast.show({ content: '健康档案信息已同步更新' });
-      }
-    } catch { /* ignore */ }
-
+    // 档案保存已独立（HealthProfileEditor.onSaveProfile），此处不再重复保存
     setConfirmLoading(false);
     setMemberPopupVisible(false);
     setCurrentStep(2);
@@ -828,17 +866,24 @@ export default function DrugPage() {
             </div>
           </div>
 
-          <HealthProfileEditor
-            ref={profileEditorRef}
-            profileEdits={profileEdits}
-            onChange={setProfileEdits}
-            profileErrors={profileErrors}
-            onErrorsChange={setProfileErrors}
-            chronicPresets={chronicPresets}
-            allergyPresets={allergyPresets}
-            geneticPresets={geneticPresets}
-            selectedMemberName={selectedMember?.is_self ? '我的' : (selectedMember ? `${selectedMember.nickname}的` : '')}
-          />
+          {selectedMember && (
+            <HealthProfileEditor
+              key={selectedMember.id}
+              ref={profileEditorRef}
+              profileEdits={profileEdits}
+              onChange={setProfileEdits}
+              profileErrors={profileErrors}
+              onErrorsChange={setProfileErrors}
+              chronicPresets={chronicPresets}
+              allergyPresets={allergyPresets}
+              geneticPresets={geneticPresets}
+              selectedMemberName={selectedMember.is_self ? '我的' : `${selectedMember.nickname}的`}
+              mode="existing"
+              initialProfile={initialProfile}
+              onSaveProfile={handleSaveProfile}
+              memberEmoji={selectedMember.is_self ? '👤' : getMemberEmoji(selectedMember.relation_type_name || selectedMember.relationship_type)}
+            />
+          )}
 
           <Button
             block loading={confirmLoading} onClick={handleMemberConfirm}

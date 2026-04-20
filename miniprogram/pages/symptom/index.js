@@ -29,6 +29,12 @@ Page({
 
     // Health info editing panel
     showHealthEdit: false,
+    profileCollapsed: true, // 档案整体是否收起（existing 模式默认 true）
+    initialProfile: null, // 初始档案快照，用于判断是否修改
+    profileDirty: false, // 是否有未保存修改
+    isNewMember: false, // 是否新建成员场景（暂未启用——本页不支持新建）
+    currentMemberEmoji: '', // 当前选中成员的 emoji（收起卡片显示）
+    memberSavedErrors: {}, // 保存时兜底校验错误
     chronicPresets: [],
     allergyPresets: [],
     geneticPresets: [],
@@ -126,7 +132,8 @@ Page({
         membersLoaded: true,
         selectedMemberId: selfMember ? selfMember.id : null,
         selectedMemberName: selfMember ? selfMember.label : '',
-        isSelfSelected: selfMember ? !!selfMember.is_self : false
+        isSelfSelected: selfMember ? !!selfMember.is_self : false,
+        currentMemberEmoji: selfMember ? (selfMember.emoji || '👤') : ''
       });
 
       if (selfMember) {
@@ -149,37 +156,201 @@ Page({
         const cd = profile.chronic_diseases || [];
         const al = profile.allergies || [];
         const gd = profile.genetic_diseases || [];
-        const updates = {
+        const snap = {
           chronic_diseases: cd,
           allergies: al,
           genetic_diseases: gd,
-          chronicCustomItems: getCustomItems(cd),
-          allergyCustomItems: getCustomItems(al),
-          geneticCustomItems: getCustomItems(gd),
           selfNickname: profile.nickname || member.nickname || '',
           selfGender: profile.gender || '',
           selfBirthday: profile.birthday || '',
-          selfHeight: profile.height || '',
-          selfWeight: profile.weight || '',
-          selfErrors: {}
+          selfHeight: (profile.height == null ? '' : String(profile.height)),
+          selfWeight: (profile.weight == null ? '' : String(profile.weight)),
+        };
+        const updates = {
+          ...snap,
+          chronicCustomItems: getCustomItems(cd),
+          allergyCustomItems: getCustomItems(al),
+          geneticCustomItems: getCustomItems(gd),
+          selfErrors: {},
+          initialProfile: JSON.parse(JSON.stringify(snap)),
+          profileDirty: false,
+          profileCollapsed: true,
+          showHealthEdit: false,
         };
         this.setData(updates);
       }
     } catch (e) {
-      this.setData({
+      const emptySnap = {
         chronic_diseases: [], allergies: [], genetic_diseases: [],
-        chronicCustomItems: [], allergyCustomItems: [], geneticCustomItems: []
+        selfNickname: member.nickname || '', selfGender: '', selfBirthday: '',
+        selfHeight: '', selfWeight: '',
+      };
+      this.setData({
+        ...emptySnap,
+        chronicCustomItems: [], allergyCustomItems: [], geneticCustomItems: [],
+        initialProfile: JSON.parse(JSON.stringify(emptySnap)),
+        profileDirty: false,
+        profileCollapsed: true,
+        showHealthEdit: false,
       });
     }
   },
 
-  selectMember(e) {
+  /** 深比较判断档案是否脏 */
+  _checkDirty() {
+    const init = this.data.initialProfile;
+    if (!init) return false;
+    const cur = {
+      chronic_diseases: this.data.chronic_diseases || [],
+      allergies: this.data.allergies || [],
+      genetic_diseases: this.data.genetic_diseases || [],
+      selfNickname: this.data.selfNickname || '',
+      selfGender: this.data.selfGender || '',
+      selfBirthday: this.data.selfBirthday || '',
+      selfHeight: String(this.data.selfHeight || ''),
+      selfWeight: String(this.data.selfWeight || ''),
+    };
+    const normStr = (obj) => JSON.stringify(obj);
+    const initNorm = {
+      ...init,
+      selfHeight: String(init.selfHeight || ''),
+      selfWeight: String(init.selfWeight || ''),
+      chronic_diseases: [...(init.chronic_diseases || [])].sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b))),
+      allergies: [...(init.allergies || [])].sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b))),
+      genetic_diseases: [...(init.genetic_diseases || [])].sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b))),
+    };
+    const curNorm = {
+      ...cur,
+      chronic_diseases: [...cur.chronic_diseases].sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b))),
+      allergies: [...cur.allergies].sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b))),
+      genetic_diseases: [...cur.genetic_diseases].sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b))),
+    };
+    return normStr(curNorm) !== normStr(initNorm);
+  },
+
+  _refreshDirty() {
+    const dirty = this._checkDirty();
+    if (dirty !== this.data.profileDirty) {
+      this.setData({ profileDirty: dirty });
+    }
+  },
+
+  /** 展开档案 */
+  expandProfile() {
+    this.setData({ profileCollapsed: false, showHealthEdit: true });
+  },
+
+  /** 收起档案 */
+  collapseProfile() {
+    this.setData({ profileCollapsed: true, showHealthEdit: false });
+  },
+
+  /** 计算年龄 */
+  _calcAge(birthday) {
+    if (!birthday) return '';
+    const m = String(birthday).match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+    if (!m) return '';
+    const bYear = parseInt(m[1], 10);
+    const bMonth = parseInt(m[2], 10);
+    const bDay = parseInt(m[3], 10);
+    const now = new Date();
+    let age = now.getFullYear() - bYear;
+    const passed = (now.getMonth() + 1) > bMonth || ((now.getMonth() + 1) === bMonth && now.getDate() >= bDay);
+    if (!passed) age -= 1;
+    if (age < 0 || age > 150) return '';
+    return age + '岁';
+  },
+
+  /** 弹出未保存修改拦截窗口（返回 Promise<'save'|'discard'|'cancel'>） */
+  _showUnsavedModal(scene) {
+    return new Promise((resolve) => {
+      const primary = scene === 'switch' ? '保存并切换' : '保存并分析';
+      const secondary = scene === 'switch' ? '放弃修改并切换' : '放弃修改并分析';
+      const content = scene === 'switch'
+        ? '您刚才修改的档案信息还未保存，切换成员将丢失未保存的修改。'
+        : '您刚才修改的档案信息还未保存，是否先保存再开始分析？';
+      // 小程序 wx.showModal 仅支持 2 个按钮，需两次弹窗实现三选项
+      wx.showModal({
+        title: '档案有未保存的修改',
+        content,
+        confirmText: primary,
+        cancelText: '更多选项',
+        confirmColor: '#52c41a',
+        success: (r1) => {
+          if (r1.confirm) {
+            resolve('save');
+          } else {
+            wx.showModal({
+              title: '档案有未保存的修改',
+              content: '您是否要放弃修改？',
+              confirmText: secondary,
+              cancelText: '取消',
+              success: (r2) => {
+                if (r2.confirm) resolve('discard');
+                else resolve('cancel');
+              },
+              fail: () => resolve('cancel'),
+            });
+          }
+        },
+        fail: () => resolve('cancel'),
+      });
+    });
+  },
+
+  /** 放弃修改，还原初始值 */
+  _discardChanges() {
+    const init = this.data.initialProfile;
+    if (!init) return;
+    this.setData({
+      chronic_diseases: JSON.parse(JSON.stringify(init.chronic_diseases || [])),
+      allergies: JSON.parse(JSON.stringify(init.allergies || [])),
+      genetic_diseases: JSON.parse(JSON.stringify(init.genetic_diseases || [])),
+      chronicCustomItems: getCustomItems(init.chronic_diseases || []),
+      allergyCustomItems: getCustomItems(init.allergies || []),
+      geneticCustomItems: getCustomItems(init.genetic_diseases || []),
+      selfNickname: init.selfNickname || '',
+      selfGender: init.selfGender || '',
+      selfBirthday: init.selfBirthday || '',
+      selfHeight: init.selfHeight || '',
+      selfWeight: init.selfWeight || '',
+      profileDirty: false,
+      selfErrors: {},
+    });
+  },
+
+  /** 兜底校验 */
+  _validateProfile() {
+    const errors = {};
+    if (!(this.data.selfNickname || '').trim()) errors.nickname = '请输入姓名';
+    if (!this.data.selfGender) errors.gender = '请选择性别';
+    if (!this.data.selfBirthday) errors.birthday = '请选择出生日期';
+    this.setData({ selfErrors: errors });
+    return Object.keys(errors).length === 0;
+  },
+
+  async selectMember(e) {
     const member = e.currentTarget.dataset.member;
+    if (member.id === this.data.selectedMemberId) return;
+    if (this.data.profileDirty) {
+      const choice = await this._showUnsavedModal('switch');
+      if (choice === 'cancel') return;
+      if (choice === 'save') {
+        const ok = await this.saveHealthInfo();
+        if (!ok) return;
+      }
+      if (choice === 'discard') {
+        this._discardChanges();
+      }
+    }
     this.setData({
       selectedMemberId: member.id,
       selectedMemberName: member.label,
       isSelfSelected: !!member.is_self,
+      currentMemberEmoji: member.emoji || (member.is_self ? '👤' : '👨‍👩‍👧'),
       showHealthEdit: false,
+      profileCollapsed: true,
+      isNewMember: false,
       selfErrors: {}
     });
     this.loadMemberHealth(member);
@@ -195,22 +366,35 @@ Page({
 
   onSelfNicknameInput(e) {
     this.setData({ selfNickname: e.detail.value });
+    this._refreshDirty();
   },
 
   onSelfGenderSelect(e) {
-    this.setData({ selfGender: e.currentTarget.dataset.gender });
+    this.setData({ selfGender: e.currentTarget.dataset.gender, 'selfErrors.gender': undefined });
+    this._refreshDirty();
   },
 
   onSelfBirthdayChange(e) {
-    this.setData({ selfBirthday: e.detail.value });
+    this.setData({ selfBirthday: e.detail.value, 'selfErrors.birthday': undefined });
+    this._refreshDirty();
   },
 
   onSelfHeightInput(e) {
     this.setData({ selfHeight: e.detail.value });
+    this._refreshDirty();
   },
 
   onSelfWeightInput(e) {
     this.setData({ selfWeight: e.detail.value });
+    this._refreshDirty();
+  },
+
+  onSelfNicknameBlur(e) {
+    if (!(e.detail.value || '').trim()) {
+      this.setData({ 'selfErrors.nickname': '请输入姓名' });
+    } else {
+      this.setData({ 'selfErrors.nickname': undefined });
+    }
   },
 
   // ── Chronic disease handlers ──
@@ -220,6 +404,7 @@ Page({
     const idx = items.findIndex(i => typeof i === 'string' && i === name);
     if (idx >= 0) { items.splice(idx, 1); } else { items.push(name); }
     this.setData({ chronic_diseases: items });
+    this._refreshDirty();
   },
 
   toggleChronicOther() {
@@ -243,12 +428,14 @@ Page({
     }
     items.push({ type: 'custom', value: val });
     this.setData({ chronic_diseases: items, chronicCustomItems: getCustomItems(items), chronicOtherInput: '' });
+    this._refreshDirty();
   },
 
   removeChronicCustom(e) {
     const val = e.currentTarget.dataset.value;
     const items = this.data.chronic_diseases.filter(i => !(typeof i === 'object' && i.type === 'custom' && i.value === val));
     this.setData({ chronic_diseases: items, chronicCustomItems: getCustomItems(items) });
+    this._refreshDirty();
   },
 
   // ── Allergy handlers ──
@@ -258,6 +445,7 @@ Page({
     const idx = items.findIndex(i => typeof i === 'string' && i === name);
     if (idx >= 0) { items.splice(idx, 1); } else { items.push(name); }
     this.setData({ allergies: items });
+    this._refreshDirty();
   },
 
   toggleAllergyOther() {
@@ -281,12 +469,14 @@ Page({
     }
     items.push({ type: 'custom', value: val });
     this.setData({ allergies: items, allergyCustomItems: getCustomItems(items), allergyOtherInput: '' });
+    this._refreshDirty();
   },
 
   removeAllergyCustom(e) {
     const val = e.currentTarget.dataset.value;
     const items = this.data.allergies.filter(i => !(typeof i === 'object' && i.type === 'custom' && i.value === val));
     this.setData({ allergies: items, allergyCustomItems: getCustomItems(items) });
+    this._refreshDirty();
   },
 
   // ── Genetic disease handlers ──
@@ -296,6 +486,7 @@ Page({
     const idx = items.findIndex(i => typeof i === 'string' && i === name);
     if (idx >= 0) { items.splice(idx, 1); } else { items.push(name); }
     this.setData({ genetic_diseases: items });
+    this._refreshDirty();
   },
 
   toggleGeneticOther() {
@@ -319,27 +510,34 @@ Page({
     }
     items.push({ type: 'custom', value: val });
     this.setData({ genetic_diseases: items, geneticCustomItems: getCustomItems(items), geneticOtherInput: '' });
+    this._refreshDirty();
   },
 
   removeGeneticCustom(e) {
     const val = e.currentTarget.dataset.value;
     const items = this.data.genetic_diseases.filter(i => !(typeof i === 'object' && i.type === 'custom' && i.value === val));
     this.setData({ genetic_diseases: items, geneticCustomItems: getCustomItems(items) });
+    this._refreshDirty();
   },
 
   async saveHealthInfo() {
     const member = this.data.members.find(m => m.id === this.data.selectedMemberId);
-    if (!member) return;
+    if (!member) return false;
+
+    if (!this._validateProfile()) {
+      wx.showToast({ title: '请检查标红字段', icon: 'none' });
+      return false;
+    }
 
     const payload = {
       chronic_diseases: this.data.chronic_diseases,
       allergies: this.data.allergies,
       genetic_diseases: this.data.genetic_diseases,
-      nickname: this.data.selfNickname,
+      nickname: (this.data.selfNickname || '').trim(),
       gender: this.data.selfGender,
       birthday: this.data.selfBirthday,
-      height: this.data.selfHeight,
-      weight: this.data.selfWeight
+      height: this.data.selfHeight ? Number(this.data.selfHeight) : undefined,
+      weight: this.data.selfWeight ? Number(this.data.selfWeight) : undefined,
     };
 
     try {
@@ -348,10 +546,28 @@ Page({
       } else {
         await put(`/api/health/profile/member/${member.id}`, payload);
       }
-      wx.showToast({ title: '健康档案信息已同步更新', icon: 'success' });
-      this.setData({ showHealthEdit: false });
+      wx.showToast({ title: '保存成功', icon: 'success' });
+      const snap = {
+        chronic_diseases: JSON.parse(JSON.stringify(this.data.chronic_diseases || [])),
+        allergies: JSON.parse(JSON.stringify(this.data.allergies || [])),
+        genetic_diseases: JSON.parse(JSON.stringify(this.data.genetic_diseases || [])),
+        selfNickname: this.data.selfNickname || '',
+        selfGender: this.data.selfGender || '',
+        selfBirthday: this.data.selfBirthday || '',
+        selfHeight: this.data.selfHeight || '',
+        selfWeight: this.data.selfWeight || '',
+      };
+      this.setData({
+        initialProfile: snap,
+        profileDirty: false,
+        profileCollapsed: true,
+        showHealthEdit: false,
+      });
+      return true;
     } catch (e) {
-      wx.showToast({ title: '保存失败', icon: 'none' });
+      const msg = (e && e.data && e.data.detail) || (e && e.msg) || '保存失败，请稍后重试';
+      wx.showToast({ title: msg, icon: 'none' });
+      return false;
     }
   },
 
@@ -424,6 +640,23 @@ Page({
     } else if (currentStep === 1) {
       if (!this.data.selectedMemberId) {
         wx.showToast({ title: '请选择咨询对象', icon: 'none' });
+        return;
+      }
+      // 拦截未保存修改
+      if (this.data.profileDirty) {
+        const choice = await this._showUnsavedModal('analyze');
+        if (choice === 'cancel') return;
+        if (choice === 'save') {
+          const ok = await this.saveHealthInfo();
+          if (!ok) return;
+        }
+        if (choice === 'discard') {
+          this._discardChanges();
+        }
+      }
+      // 兜底校验
+      if (!this._validateProfile()) {
+        wx.showToast({ title: '请检查标红字段', icon: 'none' });
         return;
       }
       this.setData({ currentStep: 2, analyzing: true });

@@ -664,3 +664,102 @@
 .bottom-bar .btn-outline {
   flex: 1;
 }
+
+/* ===== 档案收起卡片（已有成员） ===== */
+.profile-collapsed-card {
+  margin: 24rpx 32rpx;
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 24rpx 28rpx;
+  display: flex;
+  align-items: center;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
+  border: 2rpx solid #e8f5e9;
+}
+
+.pcc-left {
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: 50%;
+  background: #f0f9f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 20rpx;
+  flex-shrink: 0;
+}
+
+.pcc-emoji {
+  font-size: 44rpx;
+}
+
+.pcc-mid {
+  flex: 1;
+  min-width: 0;
+}
+
+.pcc-name {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 8rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pcc-meta {
+  font-size: 26rpx;
+  color: #666;
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+}
+
+.pcc-meta-missing {
+  color: #faad14;
+}
+
+.pcc-dot {
+  color: #ccc;
+  margin: 0 4rpx;
+}
+
+.pcc-right {
+  padding-left: 16rpx;
+  flex-shrink: 0;
+}
+
+.pcc-edit {
+  font-size: 26rpx;
+  color: #52c41a;
+}
+
+/* ===== 档案展开头部 ===== */
+.profile-expand-header {
+  margin: 24rpx 32rpx 0;
+  padding: 16rpx 28rpx;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #fff;
+  border-radius: 16rpx 16rpx 0 0;
+  border-bottom: 2rpx solid #f0f0f0;
+}
+
+.profile-expand-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #333;
+}
+
+.profile-expand-collapse {
+  font-size: 26rpx;
+  color: #52c41a;
+  padding: 8rpx 16rpx;
+}
+
+/* ===== 校验错误态的输入框 ===== */
+.form-input-error {
+  border-color: #ff4d4f !important;
+}
