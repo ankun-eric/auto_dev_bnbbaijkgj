@@ -17,7 +17,7 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final PageController _bannerController = PageController();
   final ApiService _apiService = ApiService();
   int _currentBanner = 0;
@@ -45,34 +45,50 @@ class _HomeScreenState extends State<HomeScreen> {
   // Unread messages
   int _unreadCount = 0;
 
-  final List<Article> _articles = [
-    Article(id: '1', title: '春季养生：如何预防过敏性鼻炎', summary: '春季是过敏性鼻炎的高发季节，了解预防措施...', author: '健康专家', viewCount: 2345),
-    Article(id: '2', title: '每天走一万步真的健康吗？', summary: '运动量因人而异，科学运动更重要...', author: '运动医学', viewCount: 1892),
-    Article(id: '3', title: '中医教你看舌象辨健康', summary: '舌诊是中医四诊之一，通过舌象可以了解...', author: '中医养生', viewCount: 3210),
-  ];
+  // Knowledge articles (loaded from backend only)
+  List<Article> _articles = [];
 
-  static const List<Map<String, dynamic>> _defaultBanners = [
-    {'title': 'AI健康咨询', 'subtitle': '足不出户，在线咨询', 'color': Color(0xFF52C41A)},
-    {'title': '中医体质辨识', 'subtitle': '了解体质，养生有方', 'color': Color(0xFF13C2C2)},
-    {'title': '家庭健康管理', 'subtitle': '全家健康，一手掌握', 'color': Color(0xFF1890FF)},
-  ];
-
-  static const List<Map<String, dynamic>> _defaultMenus = [
-    {'icon_type': 'emoji', 'icon_content': '🤖', 'name': 'AI咨询', 'link_type': 'internal', 'link_url': '/ai'},
-    {'icon_type': 'emoji', 'icon_content': '📋', 'name': '体检报告', 'link_type': 'internal', 'link_url': '/checkup'},
-    {'icon_type': 'emoji', 'icon_content': '🔍', 'name': '症状自查', 'link_type': 'internal', 'link_url': '/symptom'},
-    {'icon_type': 'emoji', 'icon_content': '🌿', 'name': '中医辨证', 'link_type': 'internal', 'link_url': '/tcm'},
-    {'icon_type': 'emoji', 'icon_content': '💊', 'name': '用药参考', 'link_type': 'internal', 'link_url': '/drug'},
-    {'icon_type': 'emoji', 'icon_content': '📅', 'name': '健康计划', 'link_type': 'internal', 'link_url': '/health-plan'},
-  ];
+  // Refresh throttling: skip auto-refresh within 30s of last refresh
+  DateTime? _lastRefreshAt;
+  bool _refreshing = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadData();
+    _loadArticles();
     _loadTodayTodos();
     _loadCityInfo();
     _loadUnreadCount();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.resumed) {
+      final now = DateTime.now();
+      if (_lastRefreshAt == null ||
+          now.difference(_lastRefreshAt!).inSeconds >= 30) {
+        _onRefresh();
+      }
+    }
+  }
+
+  Future<void> _onRefresh() async {
+    if (_refreshing) return;
+    _refreshing = true;
+    _lastRefreshAt = DateTime.now();
+    try {
+      await Future.wait([
+        _loadData(),
+        _loadArticles(),
+        _loadTodayTodos(),
+        _loadUnreadCount(),
+      ]);
+    } finally {
+      _refreshing = false;
+    }
   }
 
   Future<void> _loadCityInfo() async {
@@ -127,17 +143,42 @@ class _HomeScreenState extends State<HomeScreen> {
           _searchPlaceholder = config['search_placeholder'] ?? _searchPlaceholder;
           _gridColumns = config['grid_columns'] ?? _gridColumns;
         }
-        _menus = menus.isNotEmpty ? menus : List<Map<String, dynamic>>.from(_defaultMenus);
-        _banners = banners.isNotEmpty ? banners : List<Map<String, dynamic>>.from(_defaultBanners);
+        // Bug-2/Bug-1/Bug-3 策略：真实数据为准，空即为空（无硬编码兜底）
+        _menus = menus;
+        _banners = banners;
         _loading = false;
       });
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        _menus = List<Map<String, dynamic>>.from(_defaultMenus);
-        _banners = List<Map<String, dynamic>>.from(_defaultBanners);
+        _menus = [];
+        _banners = [];
         _loading = false;
       });
+    }
+  }
+
+  Future<void> _loadArticles() async {
+    try {
+      final response = await _apiService.getArticles(pageSize: 3);
+      if (response.statusCode == 200 && mounted) {
+        final data = response.data;
+        List<Article> list = [];
+        if (data is Map && data['items'] is List) {
+          list = (data['items'] as List)
+              .map((e) => Article.fromJson(Map<String, dynamic>.from(e as Map)))
+              .toList();
+        }
+        setState(() {
+          _articles = list;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _articles = [];
+        });
+      }
     }
   }
 
@@ -191,6 +232,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _bannerController.dispose();
     super.dispose();
   }
@@ -292,37 +334,47 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       body: _loading
           ? const Center(child: CircularProgressIndicator(color: Color(0xFF52C41A)))
-          : CustomScrollView(
-              slivers: [
-                _buildAppBar(),
-                SliverToBoxAdapter(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildBanner(),
-                      const SizedBox(height: 20),
-                      _buildFeatureGrid(),
-                      const SizedBox(height: 20),
-                      _buildInviteBanner(),
-                      const SizedBox(height: 20),
-                      _buildTodayTodos(),
-                      const SizedBox(height: 20),
-                      _buildSectionHeader('健康知识', onMore: () => Navigator.pushNamed(context, '/articles')),
-                      const SizedBox(height: 8),
-                    ],
-                  ),
-                ),
-                SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) => ArticleCard(
-                      article: _articles[index],
-                      onTap: () => Navigator.pushNamed(context, '/article-detail', arguments: _articles[index].id),
+          : RefreshIndicator(
+              color: const Color(0xFF52C41A),
+              onRefresh: _onRefresh,
+              child: CustomScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                slivers: [
+                  _buildAppBar(),
+                  SliverToBoxAdapter(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (_hasValidBanners()) ...[
+                          _buildBanner(),
+                          const SizedBox(height: 20),
+                        ],
+                        _buildFeatureGrid(),
+                        const SizedBox(height: 20),
+                        _buildInviteBanner(),
+                        const SizedBox(height: 20),
+                        _buildTodayTodos(),
+                        if (_articles.isNotEmpty) ...[
+                          const SizedBox(height: 20),
+                          _buildSectionHeader('健康知识', onMore: () => Navigator.pushNamed(context, '/articles')),
+                          const SizedBox(height: 8),
+                        ],
+                      ],
                     ),
-                    childCount: _articles.length,
                   ),
-                ),
-                const SliverPadding(padding: EdgeInsets.only(bottom: 20)),
-              ],
+                  if (_articles.isNotEmpty)
+                    SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) => ArticleCard(
+                          article: _articles[index],
+                          onTap: () => Navigator.pushNamed(context, '/article-detail', arguments: _articles[index].id),
+                        ),
+                        childCount: _articles.length,
+                      ),
+                    ),
+                  const SliverPadding(padding: EdgeInsets.only(bottom: 20)),
+                ],
+              ),
             ),
     );
   }
@@ -450,8 +502,23 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  bool _hasValidBanners() {
+    return _banners
+        .any((b) => (b['image_url']?.toString() ?? '').isNotEmpty);
+  }
+
+  List<Map<String, dynamic>> _validBanners() {
+    return _banners
+        .where((b) => (b['image_url']?.toString() ?? '').isNotEmpty)
+        .toList();
+  }
+
   Widget _buildBanner() {
-    final bool isFromApi = _banners.isNotEmpty && _banners.first.containsKey('image_url');
+    // Bug-1 策略 A1：过滤掉没有 image_url 的 banner 项
+    final validBanners = _validBanners();
+    if (validBanners.isEmpty) {
+      return const SizedBox.shrink();
+    }
 
     return Container(
       height: 160,
@@ -462,13 +529,18 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             PageView.builder(
               controller: _bannerController,
-              itemCount: _banners.length,
+              itemCount: validBanners.length,
               onPageChanged: (index) => setState(() => _currentBanner = index),
               itemBuilder: (context, index) {
-                final banner = _banners[index];
+                final banner = validBanners[index];
                 return GestureDetector(
                   onTap: () => _handleBannerTap(banner),
-                  child: _buildBannerItem(banner, isFromApi),
+                  child: Image.network(
+                    banner['image_url'],
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                    errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                  ),
                 );
               },
             ),
@@ -477,7 +549,7 @@ class _HomeScreenState extends State<HomeScreen> {
               right: 16,
               child: Row(
                 children: List.generate(
-                  _banners.length,
+                  validBanners.length,
                   (index) => Container(
                     width: _currentBanner == index ? 18 : 6,
                     height: 6,
@@ -490,53 +562,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBannerItem(Map<String, dynamic> banner, bool isFromApi) {
-    if (isFromApi && banner['image_url'] != null && (banner['image_url'] as String).isNotEmpty) {
-      return Image.network(
-        banner['image_url'],
-        fit: BoxFit.cover,
-        width: double.infinity,
-        errorBuilder: (_, __, ___) => _buildFallbackBanner(banner),
-      );
-    }
-    return _buildFallbackBanner(banner);
-  }
-
-  Widget _buildFallbackBanner(Map<String, dynamic> banner) {
-    final color = banner['color'] is Color
-        ? banner['color'] as Color
-        : const Color(0xFF52C41A);
-    final title = banner['title']?.toString() ?? banner['name']?.toString() ?? '';
-    final subtitle = banner['subtitle']?.toString() ?? '';
-
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [color, color.withOpacity(0.7)],
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              title,
-              style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
-            ),
-            if (subtitle.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Text(subtitle, style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 14)),
-            ],
           ],
         ),
       ),

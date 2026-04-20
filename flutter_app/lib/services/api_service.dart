@@ -650,10 +650,11 @@ class ApiService {
   }
 
   // Content
-  Future<Response> getArticles({String? category, int page = 1}) async {
+  Future<Response> getArticles({String? category, int page = 1, int? pageSize}) async {
     return _dio.get(ApiConfig.articles, queryParameters: {
       if (category != null) 'category': category,
       'page': page,
+      if (pageSize != null) 'page_size': pageSize,
     });
   }
 

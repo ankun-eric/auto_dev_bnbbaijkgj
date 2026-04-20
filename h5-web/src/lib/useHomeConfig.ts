@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import api from './api';
 
 export interface HomeConfig {
@@ -45,20 +45,6 @@ const DEFAULT_CONFIG: HomeConfig = {
   font_xlarge_size: 22,
 };
 
-const DEFAULT_BANNERS: HomeBanner[] = [
-  { id: 1, image_url: '', link_type: 'none', link_url: '', miniprogram_appid: '', sort_order: 1 },
-  { id: 2, image_url: '', link_type: 'none', link_url: '', miniprogram_appid: '', sort_order: 2 },
-];
-
-const DEFAULT_MENUS: HomeMenu[] = [
-  { id: 1, name: 'AI健康咨询', icon_type: 'emoji', icon_content: '💬', link_type: 'internal', link_url: '/ai', miniprogram_appid: '', sort_order: 1 },
-  { id: 2, name: '体检报告', icon_type: 'emoji', icon_content: '📋', link_type: 'internal', link_url: '/checkup', miniprogram_appid: '', sort_order: 2 },
-  { id: 3, name: '健康自查', icon_type: 'emoji', icon_content: '🔍', link_type: 'internal', link_url: '/symptom', miniprogram_appid: '', sort_order: 3 },
-  { id: 4, name: '中医养生', icon_type: 'emoji', icon_content: '🌿', link_type: 'internal', link_url: '/tcm', miniprogram_appid: '', sort_order: 4 },
-  { id: 5, name: '用药参考', icon_type: 'emoji', icon_content: '💊', link_type: 'internal', link_url: '/drug', miniprogram_appid: '', sort_order: 5 },
-  { id: 6, name: '健康计划', icon_type: 'emoji', icon_content: '📅', link_type: 'internal', link_url: '/health-plan', miniprogram_appid: '', sort_order: 6 },
-];
-
 const CACHE_KEY = 'home_data_cache';
 const CACHE_TTL = 60 * 60 * 1000;
 
@@ -90,49 +76,67 @@ function setCache(data: Omit<CachedData, 'timestamp'>) {
   localStorage.setItem(CACHE_KEY, JSON.stringify({ ...data, timestamp: Date.now() }));
 }
 
+function clearCache() {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.removeItem(CACHE_KEY);
+  } catch {}
+}
+
 export function useHomeConfig() {
   const [config, setConfig] = useState<HomeConfig>(DEFAULT_CONFIG);
   const [banners, setBanners] = useState<HomeBanner[]>([]);
   const [menus, setMenus] = useState<HomeMenu[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const cached = getCache();
-    if (cached) {
-      setConfig(cached.config);
-      setBanners(cached.banners);
-      setMenus(cached.menus);
-      setLoading(false);
-      return;
-    }
-
-    async function fetchAll() {
-      try {
-        const [configRes, bannersRes, menusRes] = await Promise.all([
-          api.get('/api/home-config').catch(() => null),
-          api.get('/api/home-banners').catch(() => null),
-          api.get('/api/home-menus').catch(() => null),
-        ]);
-
-        const cfg = (configRes as unknown as HomeConfig) || DEFAULT_CONFIG;
-        const bList = (bannersRes as unknown as { items: HomeBanner[] })?.items || DEFAULT_BANNERS;
-        const mList = (menusRes as unknown as { items: HomeMenu[] })?.items || DEFAULT_MENUS;
-
-        setConfig(cfg);
-        setBanners(bList);
-        setMenus(mList);
-        setCache({ config: cfg, banners: bList, menus: mList });
-      } catch {
-        setConfig(DEFAULT_CONFIG);
-        setBanners(DEFAULT_BANNERS);
-        setMenus(DEFAULT_MENUS);
-      } finally {
+  const fetchAll = useCallback(async (opts?: { skipCache?: boolean }) => {
+    if (!opts?.skipCache) {
+      const cached = getCache();
+      if (cached) {
+        setConfig(cached.config);
+        setBanners(cached.banners);
+        setMenus(cached.menus);
         setLoading(false);
+        return;
       }
     }
 
-    fetchAll();
+    try {
+      const [configRes, bannersRes, menusRes] = await Promise.all([
+        api.get('/api/home-config').catch(() => null),
+        api.get('/api/home-banners').catch(() => null),
+        api.get('/api/home-menus').catch(() => null),
+      ]);
+
+      const cfg = (configRes as unknown as HomeConfig) || DEFAULT_CONFIG;
+      const bList = (bannersRes as unknown as { items: HomeBanner[] })?.items ?? [];
+      const mList = (menusRes as unknown as { items: HomeMenu[] })?.items ?? [];
+
+      setConfig(cfg);
+      setBanners(bList);
+      setMenus(mList);
+      setCache({ config: cfg, banners: bList, menus: mList });
+    } catch {
+      setConfig(DEFAULT_CONFIG);
+      setBanners([]);
+      setMenus([]);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  return { config, banners, menus, loading };
+  const refetch = useCallback(async () => {
+    clearCache();
+    await fetchAll({ skipCache: true });
+  }, [fetchAll]);
+
+  useEffect(() => {
+    fetchAll();
+  }, [fetchAll]);
+
+  return { config, banners, menus, loading, refetch };
+}
+
+export function clearHomeConfigCache() {
+  clearCache();
 }

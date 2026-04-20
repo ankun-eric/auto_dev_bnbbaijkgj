@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Swiper, Grid, List, Tag, Badge, NoticeBar, SpinLoading, Toast, Dialog, Button } from 'antd-mobile';
+import { Swiper, Grid, List, Tag, Badge, NoticeBar, SpinLoading, Toast, Dialog, Button, PullToRefresh } from 'antd-mobile';
 import { useHomeConfig, HomeBanner, HomeMenu } from '@/lib/useHomeConfig';
 import api from '@/lib/api';
 import { getSelectedCity, getLocationCache, requestGeolocation, CityInfo } from '@/lib/cityUtils';
@@ -23,12 +23,12 @@ const FALLBACK_NOTICE = '宾尼小康提醒您：定期体检，关注健康，�
 const CACHE_DURATION = 30 * 60 * 1000;
 let noticeCache: { data: NoticeItem[]; timestamp: number } | null = null;
 
-const articles = [
-  { id: 1, title: '春季养生：这5个习惯让你元气满满', tag: '养生', views: 1230 },
-  { id: 2, title: '高血压患者必知的10个饮食要点', tag: '饮食', views: 890 },
-  { id: 3, title: '失眠怎么办？中医教你调理睡眠', tag: '中医', views: 2100 },
-  { id: 4, title: '每天走路30分钟，身体会有哪些变化', tag: '运动', views: 1560 },
-];
+interface ArticleItem {
+  id: number;
+  title: string;
+  tag: string;
+  views: number;
+}
 
 interface TodoItem {
   id: number;
@@ -94,10 +94,14 @@ export default function HomePage() {
   const [inputValue, setInputValue] = useState('');
   const [unreadCount, setUnreadCount] = useState(0);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [articles, setArticles] = useState<ArticleItem[]>([]);
 
   const [cityDisplay, setCityDisplay] = useState('定位');
   const [cityStatus, setCityStatus] = useState<CityStatus>('idle');
   const cityInitRef = useRef(false);
+
+  // 30s 节流：切回前台时避免频繁刷新
+  const lastRefreshRef = useRef<number>(0);
 
   const fetchTodos = useCallback(async () => {
     try {
@@ -119,6 +123,38 @@ export default function HomePage() {
     } catch { /* ignore */ }
   }, []);
 
+  const fetchArticles = useCallback(async () => {
+    try {
+      const res: any = await api.get('/api/content/articles?page=1&page_size=3');
+      const items: any[] = res?.items ?? res?.data?.items ?? [];
+      const mapped: ArticleItem[] = items.map((a) => ({
+        id: a.id,
+        title: a.title ?? '',
+        tag: a.category ?? '健康',
+        views: a.view_count ?? 0,
+      }));
+      setArticles(mapped);
+    } catch {
+      setArticles([]);
+    }
+  }, []);
+
+  const fetchNotices = useCallback(async (skipCache = false) => {
+    const now = Date.now();
+    if (!skipCache && noticeCache && now - noticeCache.timestamp < CACHE_DURATION) {
+      setNotices(noticeCache.data);
+      return;
+    }
+    try {
+      const json = await api.get('/api/notices/active') as { items?: NoticeItem[] };
+      const data: NoticeItem[] = json.items ?? [];
+      noticeCache = { data, timestamp: Date.now() };
+      setNotices(data);
+    } catch {
+      setNotices(null);
+    }
+  }, []);
+
   useEffect(() => {
     const fetchLogo = async () => {
       try {
@@ -138,24 +174,10 @@ export default function HomePage() {
   }, [fetchUnreadCount]);
 
   useEffect(() => {
-    const fetchNotices = async () => {
-      const now = Date.now();
-      if (noticeCache && now - noticeCache.timestamp < CACHE_DURATION) {
-        setNotices(noticeCache.data);
-        return;
-      }
-      try {
-        const json = await api.get('/api/notices/active') as { items?: NoticeItem[] };
-        const data: NoticeItem[] = json.items ?? [];
-        noticeCache = { data, timestamp: Date.now() };
-        setNotices(data);
-      } catch {
-        setNotices(null);
-      }
-    };
     fetchNotices();
     fetchTodos();
-  }, [fetchTodos]);
+    fetchArticles();
+  }, [fetchTodos, fetchNotices, fetchArticles]);
 
   const refreshCityDisplay = useCallback(() => {
     const selected = getSelectedCity();
@@ -256,7 +278,31 @@ export default function HomePage() {
     }
   };
 
-  const { config, banners, menus, loading } = useHomeConfig();
+  const { config, banners, menus, loading, refetch: refetchHomeConfig } = useHomeConfig();
+
+  const handleRefresh = useCallback(async () => {
+    lastRefreshRef.current = Date.now();
+    // 同步清掉 noticeCache，保证公告栏也能刷新
+    noticeCache = null;
+    await Promise.all([
+      refetchHomeConfig(),
+      fetchNotices(true),
+      fetchTodos(),
+      fetchArticles(),
+      fetchUnreadCount(),
+    ]);
+  }, [refetchHomeConfig, fetchNotices, fetchTodos, fetchArticles, fetchUnreadCount]);
+
+  useEffect(() => {
+    const onVisibilityChange = () => {
+      if (document.visibilityState !== 'visible') return;
+      const now = Date.now();
+      if (now - lastRefreshRef.current < 30 * 1000) return;
+      handleRefresh();
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+  }, [handleRefresh]);
 
   if (loading) {
     return (
@@ -267,6 +313,7 @@ export default function HomePage() {
   }
 
   return (
+    <PullToRefresh onRefresh={handleRefresh}>
     <div className="pb-20">
       <div className="gradient-header">
         <div className="flex items-center justify-between mb-4" style={{ minHeight: 48 }}>
@@ -369,45 +416,35 @@ export default function HomePage() {
           );
         })()}
 
-        {banners.length > 0 && (
-          <Swiper
-            autoplay
-            loop
-            style={{ '--border-radius': '12px', marginBottom: 16 }}
-          >
-            {banners.map((b: HomeBanner, idx: number) => (
-              <Swiper.Item key={b.id}>
-                <div
-                  className="h-36 rounded-xl overflow-hidden cursor-pointer"
-                  onClick={() => handleLink(b.link_type, b.link_url, router)}
-                >
-                  {b.image_url ? (
+        {(() => {
+          const validBanners = banners.filter((b) => !!b.image_url);
+          if (validBanners.length === 0) return null;
+          return (
+            <Swiper
+              autoplay
+              loop
+              style={{ '--border-radius': '12px', marginBottom: 16 }}
+            >
+              {validBanners.map((b: HomeBanner) => (
+                <Swiper.Item key={b.id}>
+                  <div
+                    className="h-36 rounded-xl overflow-hidden cursor-pointer"
+                    onClick={() => handleLink(b.link_type, b.link_url, router)}
+                  >
                     <img
                       src={b.image_url}
                       alt=""
                       className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div
-                      className="h-full flex flex-col justify-center px-6"
-                      style={{
-                        background: `linear-gradient(135deg, ${FALLBACK_COLORS[idx % FALLBACK_COLORS.length]}, ${FALLBACK_COLORS[idx % FALLBACK_COLORS.length]}88)`,
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none';
                       }}
-                    >
-                      <h3 className="text-white text-lg font-bold">宾尼小康</h3>
-                      <p className="text-white/80 text-sm mt-1">AI健康管家</p>
-                      <div className="mt-3">
-                        <span className="bg-white/20 text-white text-xs px-3 py-1 rounded-full">
-                          立即体验 →
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </Swiper.Item>
-            ))}
-          </Swiper>
-        )}
+                    />
+                  </div>
+                </Swiper.Item>
+              ))}
+            </Swiper>
+          );
+        })()}
 
         {menus.length > 0 && (
           <div className="card">
@@ -596,33 +633,35 @@ export default function HomePage() {
           </div>
         </div>
 
-        <div className="mb-4">
-          <div className="flex items-center justify-between mb-3">
-            <span className="section-title mb-0">健康知识</span>
-            <span className="text-xs text-primary" onClick={() => router.push('/articles')}>
-              更多
-            </span>
+        {articles.length > 0 && (
+          <div className="mb-4">
+            <div className="flex items-center justify-between mb-3">
+              <span className="section-title mb-0">健康知识</span>
+              <span className="text-xs text-primary" onClick={() => router.push('/articles')}>
+                更多
+              </span>
+            </div>
+            <List style={{ '--border-top': 'none', '--border-bottom': 'none' }}>
+              {articles.map((a) => (
+                <List.Item
+                  key={a.id}
+                  onClick={() => router.push(`/article/${a.id}`)}
+                  description={
+                    <div className="flex items-center mt-1">
+                      <Tag color="primary" fill="outline" style={{ '--border-radius': '4px', fontSize: 10, '--background-color': '#52c41a15', '--text-color': '#52c41a', '--border-color': '#52c41a30' }}>
+                        {a.tag || '健康'}
+                      </Tag>
+                      <span className="text-xs text-gray-400 ml-2">{a.views ?? 0} 阅读</span>
+                    </div>
+                  }
+                  style={{ paddingLeft: 0 }}
+                >
+                  <span className="text-sm font-medium">{a.title}</span>
+                </List.Item>
+              ))}
+            </List>
           </div>
-          <List style={{ '--border-top': 'none', '--border-bottom': 'none' }}>
-            {articles.map((a) => (
-              <List.Item
-                key={a.id}
-                onClick={() => router.push(`/article/${a.id}`)}
-                description={
-                  <div className="flex items-center mt-1">
-                    <Tag color="primary" fill="outline" style={{ '--border-radius': '4px', fontSize: 10, '--background-color': '#52c41a15', '--text-color': '#52c41a', '--border-color': '#52c41a30' }}>
-                      {a.tag}
-                    </Tag>
-                    <span className="text-xs text-gray-400 ml-2">{a.views} 阅读</span>
-                  </div>
-                }
-                style={{ paddingLeft: 0 }}
-              >
-                <span className="text-sm font-medium">{a.title}</span>
-              </List.Item>
-            ))}
-          </List>
-        </div>
+        )}
       </div>
 
       <div
@@ -633,5 +672,6 @@ export default function HomePage() {
         <span className="text-xl">🎁</span>
       </div>
     </div>
+    </PullToRefresh>
   );
 }

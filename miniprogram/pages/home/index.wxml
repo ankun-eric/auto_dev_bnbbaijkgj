@@ -45,16 +45,14 @@
     </view>
   </view>
 
-  <swiper class="banner-swiper" indicator-dots autoplay circular interval="{{4000}}">
-    <swiper-item wx:for="{{banners}}" wx:key="id">
-      <view class="banner-item" bindtap="onBannerTap" data-item="{{item}}" style="{{item.image_url ? '' : 'background:' + (item.bgColor || 'linear-gradient(135deg, #52c41a, #13c2c2)')}}">
-        <image class="banner-image" wx:if="{{item.image_url}}" src="{{item.image_url}}" mode="aspectFill" />
-        <view class="banner-content" wx:if="{{!item.image_url && item.title}}">
-          <text class="banner-title">{{item.title}}</text>
-          <text class="banner-desc">{{item.desc}}</text>
+  <swiper class="banner-swiper" wx:if="{{banners.length > 0}}" indicator-dots autoplay circular interval="{{4000}}">
+    <block wx:for="{{banners}}" wx:key="id">
+      <swiper-item wx:if="{{item.image_url}}">
+        <view class="banner-item" bindtap="onBannerTap" data-item="{{item}}">
+          <image class="banner-image" src="{{item.image_url}}" mode="aspectFill" />
         </view>
-      </view>
-    </swiper-item>
+      </swiper-item>
+    </block>
   </swiper>
 
   <view class="card">
@@ -154,23 +152,25 @@
     </view>
   </view>
 
-  <view class="section-header">
-    <text class="section-title">健康知识</text>
-    <text class="section-more" bindtap="goArticles">更多 ></text>
-  </view>
-
-  <view class="article-list">
-    <view class="article-card card" wx:for="{{articles}}" wx:key="id" bindtap="goArticleDetail" data-id="{{item.id}}">
-      <view class="article-info">
-        <text class="article-title ellipsis-2">{{item.title}}</text>
-        <view class="article-meta">
-          <text class="tag tag-green" wx:if="{{item.tag}}">{{item.tag}}</text>
-          <text class="article-time">{{item.time}}</text>
-        </view>
-      </view>
-      <image class="article-cover" src="{{item.cover}}" mode="aspectFill" wx:if="{{item.cover}}" />
+  <block wx:if="{{articles.length > 0}}">
+    <view class="section-header">
+      <text class="section-title">健康知识</text>
+      <text class="section-more" bindtap="goArticles">更多 ></text>
     </view>
-  </view>
+
+    <view class="article-list">
+      <view class="article-card card" wx:for="{{articles}}" wx:key="id" bindtap="goArticleDetail" data-id="{{item.id}}">
+        <view class="article-info">
+          <text class="article-title ellipsis-2">{{item.title}}</text>
+          <view class="article-meta">
+            <text class="tag tag-green" wx:if="{{item.tag}}">{{item.tag}}</text>
+            <text class="article-time">{{item.time}}</text>
+          </view>
+        </view>
+        <image class="article-cover" src="{{item.cover}}" mode="aspectFill" wx:if="{{item.cover}}" />
+      </view>
+    </view>
+  </block>
 
 </view>
 

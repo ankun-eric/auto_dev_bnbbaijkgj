@@ -1,21 +1,7 @@
 const { get, post } = require('../../utils/request');
 const { syncTabBar } = require('../../utils/util');
 
-const DEFAULT_BANNERS = [
-  { id: 1, title: 'AI健康咨询', desc: '24小时在线，专业健康咨询', bgColor: 'linear-gradient(135deg, #52c41a, #13c2c2)', image_url: '', link_type: 'none' },
-  { id: 2, title: '体检报告解读', desc: '上传报告，AI秒级分析', bgColor: 'linear-gradient(135deg, #13c2c2, #1890ff)', image_url: '', link_type: 'none' },
-  { id: 3, title: '中医智能辨证', desc: '舌诊面诊，科学辨体质', bgColor: 'linear-gradient(135deg, #722ed1, #eb2f96)', image_url: '', link_type: 'none' }
-];
-
-const DEFAULT_MENUS = [
-  { id: 'ai', name: 'AI健康咨询', icon_type: 'emoji', icon_content: '🤖', link_type: 'internal', link_url: '/pages/chat/index?type=health_qa', sort_order: 0 },
-  { id: 'checkup', name: '体检报告', icon_type: 'emoji', icon_content: '📋', link_type: 'internal', link_url: '/pages/checkup/index', sort_order: 1 },
-  { id: 'symptom', name: '症状自查', icon_type: 'emoji', icon_content: '🩺', link_type: 'internal', link_url: '/pages/symptom/index', sort_order: 2 },
-  { id: 'tcm', name: '中医辨证', icon_type: 'emoji', icon_content: '🌿', link_type: 'internal', link_url: '/pages/tcm/index', sort_order: 3 },
-  { id: 'drug', name: '用药参考', icon_type: 'emoji', icon_content: '💊', link_type: 'internal', link_url: '/pages/drug/index', sort_order: 4 },
-  { id: 'plan', name: '健康计划', icon_type: 'emoji', icon_content: '📅', link_type: 'internal', link_url: '/pages/health-plan/index', sort_order: 5 }
-];
-
+// Bug-1/Bug-3 策略：移除默认 Banner 与硬编码菜单，完全以后端返回为准
 const DEFAULT_CONFIG = {
   search_visible: true,
   search_placeholder: '想找什么服务/商品？',
@@ -27,6 +13,9 @@ const DEFAULT_CONFIG = {
   font_xlarge_size: 40
 };
 
+// 刷新节流（30s），用于 onShow 高频触发时避免重复拉取
+const REFRESH_THROTTLE_MS = 30 * 1000;
+
 Page({
   data: {
     pageMode: 'user',
@@ -35,8 +24,8 @@ Page({
     merchantUserName: '',
     todayCount: 0,
     todayAmount: '0.00',
-    banners: DEFAULT_BANNERS,
-    menuItems: DEFAULT_MENUS,
+    banners: [],
+    menuItems: [],
     homeConfig: DEFAULT_CONFIG,
     gridColumnWidth: '33.33%',
     cityName: '定位',
@@ -58,11 +47,7 @@ Page({
       { id: 1, content: '今日气温变化大，注意添衣保暖' },
       { id: 2, content: '建议每天饮水 2000ml 以上' }
     ],
-    articles: [
-      { id: 1, title: '春季养生：如何预防过敏性鼻炎', tag: '养生', time: '2小时前', cover: '' },
-      { id: 2, title: '高血压患者饮食指南：这些食物要少吃', tag: '饮食', time: '5小时前', cover: '' },
-      { id: 3, title: '运动健身：适合上班族的5分钟锻炼法', tag: '运动', time: '1天前', cover: '' }
-    ],
+    articles: [],
     unreadCount: 0,
     loading: false,
     statusBarHeight: 20,
@@ -75,6 +60,7 @@ Page({
     const statusBarHeight = sysInfo.statusBarHeight || 20;
     const navBarHeight = statusBarHeight + 44;
     this.setData({ statusBarHeight, navBarHeight });
+    this._lastRefreshAt = 0;
     this.tryGPSLocate();
   },
 
@@ -84,7 +70,12 @@ Page({
     const app = getApp();
     this.setData({ brandLogoUrl: app.globalData.brandLogoUrl || '' });
     if (!this.syncRoleState()) return;
-    this.loadCurrentModeData();
+    // Bug-2 策略：onShow 触发刷新，但加 30s 节流避免频繁请求
+    const now = Date.now();
+    if (!this._lastRefreshAt || now - this._lastRefreshAt >= REFRESH_THROTTLE_MS) {
+      this._lastRefreshAt = now;
+      this.loadCurrentModeData();
+    }
   },
 
   onPullDownRefresh() {
@@ -92,6 +83,7 @@ Page({
       wx.stopPullDownRefresh();
       return;
     }
+    this._lastRefreshAt = Date.now();
     this.loadCurrentModeData().finally(() => wx.stopPullDownRefresh());
   },
 
@@ -136,6 +128,7 @@ Page({
         this.loadHomeConfig(),
         this.loadBanners(),
         this.loadMenus(),
+        this.loadArticles(),
         this.loadTodayTodos(),
         this.loadUnreadCount()
       ]);
@@ -158,23 +151,52 @@ Page({
   async loadBanners() {
     try {
       const res = await get('/api/home-banners', {}, { showLoading: false, suppressErrorToast: true });
-      if (res && res.items && res.items.length > 0) {
-        this.setData({ banners: res.items });
-      }
+      const items = (res && Array.isArray(res.items)) ? res.items : [];
+      this.setData({ banners: items });
     } catch (e) {
-      // keep default banners
+      this.setData({ banners: [] });
     }
   },
 
   async loadMenus() {
     try {
       const res = await get('/api/home-menus', {}, { showLoading: false, suppressErrorToast: true });
-      if (res && res.items && res.items.length > 0) {
-        this.setData({ menuItems: res.items });
-      }
+      const items = (res && Array.isArray(res.items)) ? res.items : [];
+      this.setData({ menuItems: items });
     } catch (e) {
-      // keep default menus
+      this.setData({ menuItems: [] });
     }
+  },
+
+  async loadArticles() {
+    try {
+      const res = await get('/api/content/articles', { page: 1, page_size: 3 }, { showLoading: false, suppressErrorToast: true });
+      const items = (res && Array.isArray(res.items)) ? res.items : [];
+      const mapped = items.map((a) => ({
+        id: a.id,
+        title: a.title || '',
+        tag: a.category || '健康',
+        time: this._formatArticleTime(a.created_at),
+        cover: a.cover_image || '',
+        views: a.view_count || 0
+      }));
+      this.setData({ articles: mapped });
+    } catch (e) {
+      this.setData({ articles: [] });
+    }
+  },
+
+  _formatArticleTime(createdAt) {
+    if (!createdAt) return '';
+    const t = new Date(createdAt);
+    if (isNaN(t.getTime())) return '';
+    const diffMs = Date.now() - t.getTime();
+    const diffH = Math.floor(diffMs / (60 * 60 * 1000));
+    if (diffH < 1) return '刚刚';
+    if (diffH < 24) return `${diffH}小时前`;
+    const diffD = Math.floor(diffH / 24);
+    if (diffD < 30) return `${diffD}天前`;
+    return t.toLocaleDateString();
   },
 
   onBannerTap(e) {
