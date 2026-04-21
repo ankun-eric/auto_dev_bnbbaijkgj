@@ -1,0 +1,51 @@
+.page { min-height: 100vh; background: #f5f5f5; padding-bottom: 160rpx; }
+
+.swiper-wrap { background: #fff; }
+.swiper { width: 100%; height: 520rpx; }
+.swiper-img { width: 100%; height: 100%; }
+.swiper-placeholder {
+  width: 100%; height: 520rpx;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 160rpx; background: #f5f5f5;
+}
+
+.section { background: #fff; margin-top: 16rpx; padding: 24rpx; }
+.section-title { display: block; font-size: 28rpx; font-weight: 600; color: #333; margin-bottom: 12rpx; }
+
+.tag-row { display: flex; gap: 10rpx; align-items: center; margin-bottom: 12rpx; }
+.type-tag { color: #fff; font-size: 22rpx; padding: 4rpx 14rpx; border-radius: 4rpx; }
+.offline-tag { color: #999; border: 1rpx solid #ccc; font-size: 22rpx; padding: 2rpx 12rpx; border-radius: 4rpx; }
+
+.name { display: block; font-size: 34rpx; font-weight: 600; color: #222; }
+.points-row { display: flex; align-items: baseline; gap: 10rpx; margin-top: 16rpx; }
+.points-num { color: #2E7D32; font-weight: 700; font-size: 44rpx; }
+.points-unit { color: #2E7D32; font-size: 24rpx; }
+.stock { color: #999; font-size: 22rpx; margin-left: auto; }
+.limit-tip { display: block; margin-top: 10rpx; color: #999; font-size: 22rpx; }
+
+.rich { font-size: 26rpx; color: #333; line-height: 1.7; }
+.desc { display: block; font-size: 26rpx; color: #555; white-space: pre-wrap; line-height: 1.7; }
+
+.service-box { display: flex; gap: 16rpx; align-items: center; }
+.service-img { width: 96rpx; height: 96rpx; border-radius: 12rpx; background: #f0f0f0; }
+.service-info { flex: 1; }
+.service-name { display: block; font-size: 26rpx; color: #333; }
+.service-price { display: block; color: #999; font-size: 22rpx; margin-top: 8rpx; }
+
+.tips { display: flex; flex-direction: column; gap: 6rpx; }
+.tip-item { font-size: 24rpx; color: #666; line-height: 1.8; }
+
+.bottom-placeholder { height: 120rpx; }
+.bottom-bar {
+  position: fixed; left: 0; right: 0; bottom: 0;
+  padding: 16rpx 24rpx;
+  background: #fff; border-top: 1rpx solid #eee;
+}
+.exchange-btn {
+  width: 100%; height: 88rpx; line-height: 88rpx;
+  border-radius: 14rpx; font-size: 30rpx;
+  background: #4CAF50; color: #fff; border: none;
+}
+.btn-disabled { background: #e0e0e0 !important; color: #999 !important; }
+
+.empty { padding: 120rpx 0; text-align: center; color: #999; font-size: 28rpx; }

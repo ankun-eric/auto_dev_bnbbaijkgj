@@ -76,6 +76,11 @@ Page({
     wx.navigateTo({ url: '/pages/points-exchange-records/index' });
   },
 
+  // PRD F3：新合并入口，跳到积分明细聚合页（默认 积分明细 Tab）
+  goDetail() {
+    wx.navigateTo({ url: '/pages/points/detail/index' });
+  },
+
   goMall() {
     wx.navigateTo({ url: '/pages/points-mall/index' });
   },

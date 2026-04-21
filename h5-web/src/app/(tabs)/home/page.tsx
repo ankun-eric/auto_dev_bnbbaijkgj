@@ -397,24 +397,26 @@ export default function HomePage() {
           style={{ height: 48, paddingLeft: 16, paddingRight: 16, gap: 12 }}
         >
           {config.search_visible ? (
+            // PRD F1：搜索栏配色统一 — 白底 + 浅灰描边 + 灰 placeholder/图标
             <div
               className="flex items-center flex-1 cursor-pointer"
               onClick={() => router.push('/search')}
               style={{
                 height: 36,
-                borderRadius: 18,
-                background: 'rgba(255,255,255,0.2)',
+                borderRadius: 20,
+                background: '#FFFFFF',
+                border: '1px solid #E5E5E5',
                 paddingLeft: 12,
                 paddingRight: 12,
               }}
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#999999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="11" cy="11" r="8" />
                 <line x1="21" y1="21" x2="16.65" y2="16.65" />
               </svg>
               <span
                 className="ml-2 text-sm truncate"
-                style={{ color: 'rgba(255,255,255,0.7)', flex: 1 }}
+                style={{ color: '#999999', flex: 1 }}
               >
                 {config.search_placeholder || '搜索健康服务…'}
               </span>

@@ -26,7 +26,6 @@
         <text class="goods-stock" wx:if="{{item.type !== 'service'}}">剩余{{item.stock}}</text>
         <text class="goods-stock" wx:else>服务券</text>
       </view>
-      <view wx:if="{{item.isDev}}" class="dev-mask">开发中</view>
     </view>
   </view>
 </view>

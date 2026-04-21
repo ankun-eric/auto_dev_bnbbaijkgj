@@ -73,13 +73,15 @@
   box-sizing: border-box;
 }
 
+/* PRD F1：搜索栏配色统一 — 白底 + 浅灰描边 + #999 图标/placeholder */
 .compact-search {
   flex: 1;
   display: flex;
   align-items: center;
   height: 72rpx;
-  border-radius: 36rpx;
-  background: rgba(255,255,255,0.2);
+  border-radius: 40rpx;
+  background: #FFFFFF;
+  border: 1rpx solid #E5E5E5;
   padding: 0 24rpx;
 }
 
@@ -89,13 +91,13 @@
 
 .compact-search-icon {
   font-size: 28rpx;
-  color: #fff;
+  color: #999999;
   margin-right: 12rpx;
 }
 
 .compact-search-placeholder {
   font-size: 26rpx;
-  color: rgba(255,255,255,0.75);
+  color: #999999;
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;

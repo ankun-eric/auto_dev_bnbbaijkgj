@@ -72,6 +72,7 @@ from app.api import (
 )
 from app.core.database import Base, engine
 from app.services.bottom_nav_migration import migrate_bottom_nav_order_path
+from app.services.points_mall_v31_migration import migrate_points_mall_v31
 from app.services.schema_sync import sync_register_schema
 from app.services.user_no_migration import migrate_existing_users_user_no
 
@@ -508,6 +509,7 @@ async def lifespan(app: FastAPI):
     await _migrate_v7_search_placeholder()
     await _migrate_v8_content()
     await migrate_bottom_nav_order_path()
+    await migrate_points_mall_v31()
     await migrate_existing_users_user_no()
     from app.init_data import init_default_data
     await init_default_data()

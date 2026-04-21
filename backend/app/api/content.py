@@ -77,6 +77,41 @@ async def get_article(article_id: int, db: AsyncSession = Depends(get_db)):
     return ArticleResponse.model_validate(article)
 
 
+def _fallback_nick(user: Optional[User]) -> str:
+    """无昵称降级（PRD Q6.D）：
+    1) users.nickname 非空 → 直接用
+    2) nickname 空 → "用户"+phone[-4:]
+    3) phone 也空 → "用户"+user_id
+    """
+    if not user:
+        return "匿名用户"
+    nick = (getattr(user, "nickname", None) or "").strip()
+    if nick:
+        return nick
+    phone = (getattr(user, "phone", None) or "").strip()
+    if phone and len(phone) >= 4:
+        return f"用户{phone[-4:]}"
+    return f"用户{user.id}"
+
+
+_DEFAULT_AVATAR = "/static/default_avatar.png"
+
+
+def _comment_to_dict(c: Comment, user: Optional[User]) -> dict:
+    avatar = (getattr(user, "avatar", None) or getattr(user, "avatar_url", None) or "").strip() if user else ""
+    return {
+        "id": c.id,
+        "content_type": str(c.content_type.value if hasattr(c.content_type, "value") else c.content_type),
+        "content_id": c.content_id,
+        "user_id": c.user_id,
+        "parent_id": c.parent_id,
+        "content": c.content,
+        "created_at": c.created_at,
+        "author_avatar": avatar if avatar else _DEFAULT_AVATAR,
+        "author_nick": _fallback_nick(user),
+    }
+
+
 @router.get("/comments")
 async def list_comments(
     content_type: str = Query(...),
@@ -90,14 +125,20 @@ async def list_comments(
     )
     total = total_result.scalar() or 0
 
+    # v3.1: JOIN users 拿实时头像/昵称（Q5.B：新评论 + 老评论都走 JOIN）
     result = await db.execute(
-        select(Comment)
-        .where(Comment.content_type == content_type, Comment.content_id == content_id, Comment.parent_id == None)
+        select(Comment, User)
+        .join(User, User.id == Comment.user_id, isouter=True)
+        .where(
+            Comment.content_type == content_type,
+            Comment.content_id == content_id,
+            Comment.parent_id == None,  # noqa: E711
+        )
         .order_by(Comment.created_at.desc())
         .offset((page - 1) * page_size)
         .limit(page_size)
     )
-    items = [CommentResponse.model_validate(c) for c in result.scalars().all()]
+    items = [_comment_to_dict(c, u) for c, u in result.all()]
     return {"items": items, "total": total, "page": page, "page_size": page_size}
 
 
@@ -117,7 +158,7 @@ async def create_comment(
     db.add(comment)
     await db.flush()
     await db.refresh(comment)
-    return CommentResponse.model_validate(comment)
+    return _comment_to_dict(comment, current_user)
 
 
 @router.post("/favorites")

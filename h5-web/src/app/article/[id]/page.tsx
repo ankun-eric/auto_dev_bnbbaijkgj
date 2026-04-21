@@ -62,10 +62,11 @@ export default function ArticleDetailPage() {
       const items: any[] = res?.items ?? res?.data?.items ?? [];
       setComments(items.map((c) => ({
         id: c.id,
-        user: c.user_name ?? c.user?.name ?? '用户',
+        // PRD F2：优先使用后端 JOIN users 返回的实时字段
+        user: c.author_nick || c.user_name || c.user?.name || '用户',
         content: c.content ?? '',
         time: c.created_at ? new Date(c.created_at).toLocaleDateString('zh-CN') : '',
-        avatar: c.user_avatar ?? c.user?.avatar ?? '',
+        avatar: c.author_avatar || c.user_avatar || c.user?.avatar || '',
       })));
     } catch {
       setComments([]);
@@ -144,18 +145,33 @@ export default function ArticleDetailPage() {
 
   return (
     <div className="min-h-screen bg-white pb-20">
+      {/* PRD F2.1：文章详情页标题栏统一主题绿 + 白字 */}
       <NavBar
         onBack={() => router.back()}
         right={
           <div className="flex items-center gap-4">
             <span onClick={toggleCollect}>
-              {collected ? <StarFill style={{ color: '#fa8c16', fontSize: 20 }} /> : <StarOutline style={{ fontSize: 20, color: '#999' }} />}
+              {collected ? (
+                <StarFill style={{ color: '#fff', fontSize: 20 }} />
+              ) : (
+                <StarOutline style={{ fontSize: 20, color: '#fff' }} />
+              )}
             </span>
           </div>
         }
-        style={{ background: '#fff' }}
+        style={{
+          background: '#4CAF50',
+          '--height': '44px',
+          color: '#fff',
+          ['--border-bottom' as any]: 'none',
+        } as any}
+        backArrow={
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+        }
       >
-        文章详情
+        <span style={{ color: '#fff' }}>文章详情</span>
       </NavBar>
 
       <div className="px-4 pt-4">

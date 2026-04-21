@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Table, Button, Space, Modal, Form, Input, InputNumber, Select, Switch, Upload, Tag, message,
-  Typography, Popconfirm, Tabs, DatePicker, Row, Col, Card, Statistic,
+  Typography, Popconfirm, Tabs, DatePicker, Row, Col,
 } from 'antd';
 import {
   PlusOutlined, EditOutlined, DeleteOutlined, UploadOutlined, GiftOutlined,
@@ -27,6 +27,11 @@ interface MallGoods {
   status: string;
   image: string;
   description: string;
+  detailHtml: string;
+  refCouponId?: number;
+  refServiceId?: number;
+  limitPerUser: number;
+  images: string[];
   createdAt: string;
 }
 
@@ -40,6 +45,15 @@ interface ExchangeRecord {
   createdAt: string;
 }
 
+interface ServiceProductOption {
+  value: number;
+  label: string;
+  name: string;
+  image?: string;
+  category_name?: string;
+  sale_price?: number;
+}
+
 const TYPE_LABELS: Record<string, string> = {
   coupon: '优惠券',
   virtual: '虚拟商品',
@@ -48,7 +62,7 @@ const TYPE_LABELS: Record<string, string> = {
   third_party: '第三方商品',
 };
 
-// v3: 虚拟商品 & 第三方商品 置灰 "开发中"
+// v3.1：保留 coupon，严格不做硬编码 serviceTypeOptions（Bug2 修复）
 const categoryOptions = [
   { label: '优惠券', value: 'coupon' },
   { label: '体验服务', value: 'service' },
@@ -57,17 +71,16 @@ const categoryOptions = [
   { label: '第三方商品（开发中）', value: 'third_party', disabled: true },
 ];
 
-const serviceTypeOptions = [
-  { label: '专家问诊', value: 'expert' },
-  { label: '体检服务', value: 'physical_exam' },
-  { label: 'TCM调理', value: 'tcm' },
-  { label: '健康计划体验', value: 'health_plan' },
-];
-
 function firstImage(images: unknown): string {
   if (Array.isArray(images) && images.length > 0) return String(images[0]);
   if (typeof images === 'string') return images;
   return '';
+}
+
+function allImages(images: unknown): string[] {
+  if (Array.isArray(images)) return images.map((x) => String(x)).filter(Boolean);
+  if (typeof images === 'string' && images) return [images];
+  return [];
 }
 
 function mapMallItemFromApi(raw: Record<string, unknown>): MallGoods {
@@ -80,7 +93,12 @@ function mapMallItemFromApi(raw: Record<string, unknown>): MallGoods {
     exchangeCount: Number(raw.exchange_count ?? 0),
     status: String(raw.status ?? ''),
     image: firstImage(raw.images),
+    images: allImages(raw.images),
     description: String(raw.description ?? ''),
+    detailHtml: String(raw.detail_html ?? ''),
+    refCouponId: raw.ref_coupon_id ? Number(raw.ref_coupon_id) : undefined,
+    refServiceId: raw.ref_service_id ? Number(raw.ref_service_id) : undefined,
+    limitPerUser: Number(raw.limit_per_user ?? 0),
     createdAt: String(raw.created_at ?? ''),
   };
 }
@@ -101,6 +119,18 @@ function isMallOnShelf(status: string) {
   return status === 'active';
 }
 
+/** v3.1: 统一错误提示 —— 尽量暴露后端 detail */
+function extractDetail(err: any, fallback = '操作失败'): string {
+  return (
+    err?.response?.data?.detail
+    || err?.response?.data?.message
+    || err?.data?.detail
+    || err?.detail
+    || err?.message
+    || fallback
+  );
+}
+
 export default function PointsMallPage() {
   const [activeTab, setActiveTab] = useState('goods');
 
@@ -115,10 +145,13 @@ export default function PointsMallPage() {
   const [form] = Form.useForm();
 
   const [availableCoupons, setAvailableCoupons] = useState<{label: string; value: number}[]>([]);
+  const [serviceProducts, setServiceProducts] = useState<ServiceProductOption[]>([]);
+  const serviceSearchTimer = useRef<any>(null);
+
   const [category, setCategory] = useState<string>('coupon');
   const [refCouponId, setRefCouponId] = useState<number | undefined>();
-  const [refServiceType, setRefServiceType] = useState<string | undefined>();
   const [refServiceId, setRefServiceId] = useState<number | undefined>();
+  const [detailHtml, setDetailHtml] = useState<string>('');
 
   const [records, setRecords] = useState<ExchangeRecord[]>([]);
   const [recordsLoading, setRecordsLoading] = useState(false);
@@ -138,10 +171,10 @@ export default function PointsMallPage() {
         setGoods(rawList.map((r: Record<string, unknown>) => mapMallItemFromApi(r)));
         setPagination(prev => ({ ...prev, current: page, total: res.total ?? rawList.length }));
       }
-    } catch {
+    } catch (err: any) {
       setGoods([]);
       setPagination(prev => ({ ...prev, current: page, total: 0 }));
-      message.error('加载商品失败');
+      message.error(extractDetail(err, '加载商品失败'));
     } finally {
       setLoading(false);
     }
@@ -161,9 +194,10 @@ export default function PointsMallPage() {
         setRecords(rawList.map((r: Record<string, unknown>) => mapExchangeRecord(r)));
         setRecordsPagination(prev => ({ ...prev, current: page, total: res.total ?? rawList.length }));
       }
-    } catch {
+    } catch (err: any) {
       setRecords([]);
       setRecordsPagination(prev => ({ ...prev, current: page, total: 0 }));
+      message.error(extractDetail(err, '加载兑换记录失败'));
     } finally {
       setRecordsLoading(false);
     }
@@ -171,7 +205,6 @@ export default function PointsMallPage() {
 
   useEffect(() => { fetchData(); }, []);
 
-  // 加载可选优惠券（仅 active 且未兑完）
   useEffect(() => {
     (async () => {
       try {
@@ -190,6 +223,28 @@ export default function PointsMallPage() {
     })();
   }, []);
 
+  // v3.1 Bug2 修复：动态加载服务类商品（products.fulfillment_type=in_store）
+  const loadServiceProducts = async (keyword = '') => {
+    try {
+      const params: Record<string, unknown> = { page: 1, page_size: 50 };
+      if (keyword) params.keyword = keyword;
+      const res = await get('/api/admin/products/services', params);
+      const items = (res && (res.items || res.list || res)) as any[];
+      const list: ServiceProductOption[] = (Array.isArray(items) ? items : []).map((p: any) => ({
+        value: Number(p.id),
+        label: `${p.name}${p.category_name ? `（${p.category_name}）` : ''}`,
+        name: String(p.name || ''),
+        image: p.image || undefined,
+        category_name: p.category_name || undefined,
+        sale_price: p.sale_price,
+      }));
+      setServiceProducts(list);
+    } catch (err: any) {
+      setServiceProducts([]);
+      message.warning(extractDetail(err, '加载服务商品列表失败'));
+    }
+  };
+
   useEffect(() => {
     if (activeTab === 'records') fetchRecords();
   }, [activeTab]);
@@ -200,52 +255,43 @@ export default function PointsMallPage() {
   const handleAdd = () => {
     setEditingRecord(null);
     form.resetFields();
-    form.setFieldsValue({ status: true, stock: 100, category: 'coupon' });
+    form.setFieldsValue({ status: true, stock: 100, category: 'coupon', limit_per_user: 0 });
     setFileList([]);
     setCategory('coupon');
     setRefCouponId(undefined);
-    setRefServiceType(undefined);
     setRefServiceId(undefined);
+    setDetailHtml('');
     setModalVisible(true);
-  };
-
-  const parseRefFromDescription = (desc: string) => {
-    const out: { refCouponId?: number; refServiceType?: string; refServiceId?: number; display: string } = { display: '' };
-    const parts = String(desc || '').split(';').map((s) => s.trim()).filter(Boolean);
-    const displayParts: string[] = [];
-    for (const seg of parts) {
-      if (seg.startsWith('ref_coupon_id=')) {
-        out.refCouponId = Number(seg.split('=')[1]) || undefined;
-      } else if (seg.startsWith('ref_service_type=')) {
-        out.refServiceType = seg.split('=')[1];
-      } else if (seg.startsWith('ref_service_id=')) {
-        out.refServiceId = Number(seg.split('=')[1]) || undefined;
-      } else {
-        displayParts.push(seg);
-      }
-    }
-    out.display = displayParts.join('; ');
-    return out;
   };
 
   const handleEdit = (record: MallGoods) => {
     setEditingRecord(record);
-    const parsed = parseRefFromDescription(record.description || '');
     const cat = categoryOptions.some(o => o.value === record.category) ? record.category : 'virtual';
     setCategory(cat);
-    setRefCouponId(parsed.refCouponId);
-    setRefServiceType(parsed.refServiceType);
-    setRefServiceId(parsed.refServiceId);
+    setRefCouponId(record.refCouponId);
+    setRefServiceId(record.refServiceId);
+    setDetailHtml(record.detailHtml || '');
     form.setFieldsValue({
       name: record.name,
       category: cat,
       points: record.points,
       stock: record.stock,
       image: record.image,
-      description: parsed.display,
+      description: record.description,
       status: isMallOnShelf(record.status),
+      limit_per_user: record.limitPerUser || 0,
     });
-    setFileList(record.image ? [{ uid: '-1', name: 'cover', status: 'done', url: record.image }] : []);
+    const fl: UploadFile[] = (record.images || []).map((url, idx) => ({
+      uid: `-${idx + 1}`,
+      name: `image_${idx + 1}`,
+      status: 'done',
+      url,
+    } as UploadFile));
+    setFileList(fl);
+    if (cat === 'service') {
+      // 保证当前编辑的服务商品在下拉里可见
+      loadServiceProducts();
+    }
     setModalVisible(true);
   };
 
@@ -255,7 +301,7 @@ export default function PointsMallPage() {
       message.success('删除成功');
       fetchData(pagination.current, pagination.pageSize);
     } catch (err: any) {
-      message.error(err?.response?.data?.detail || '删除失败');
+      message.error(extractDetail(err, '删除失败'));
     }
   };
 
@@ -265,8 +311,8 @@ export default function PointsMallPage() {
       await put(`/api/admin/points/mall/${record.id}`, { status: newStatus });
       message.success(isMallOnShelf(newStatus) ? '已上架' : '已下架');
       fetchData(pagination.current, pagination.pageSize);
-    } catch {
-      message.error('操作失败');
+    } catch (err: any) {
+      message.error(extractDetail(err));
     }
   };
 
@@ -277,8 +323,8 @@ export default function PointsMallPage() {
       message.success(`批量${status === 'active' ? '上架' : '下架'}成功`);
       setSelectedRowKeys([]);
       fetchData(pagination.current, pagination.pageSize);
-    } catch {
-      message.error('批量操作失败');
+    } catch (err: any) {
+      message.error(extractDetail(err, '批量操作失败'));
     }
   };
 
@@ -286,8 +332,8 @@ export default function PointsMallPage() {
     try {
       const res = await uploadFile('/api/admin/upload', file);
       return (res as any)?.url || (res as any)?.data?.url || '';
-    } catch {
-      message.error('图片上传失败');
+    } catch (err: any) {
+      message.error(extractDetail(err, '图片上传失败'));
       return '';
     }
   };
@@ -298,40 +344,36 @@ export default function PointsMallPage() {
       const onShelf = Boolean(values.status);
       const statusStr = onShelf ? 'active' : 'inactive';
 
-      let imageUrl = values.image || '';
-      if (fileList.length > 0 && fileList[0].originFileObj) {
-        imageUrl = await doUpload(fileList[0].originFileObj as RcFile);
-        if (!imageUrl) return;
-      } else if (fileList.length > 0 && fileList[0].url) {
-        imageUrl = fileList[0].url;
+      const imageUrls: string[] = [];
+      for (const f of fileList) {
+        if (f.originFileObj) {
+          const u = await doUpload(f.originFileObj as RcFile);
+          if (u) imageUrls.push(u);
+        } else if (f.url) {
+          imageUrls.push(f.url);
+        }
       }
 
-      // 组装 description：把 ref_* 元信息嵌入（与后端 points_exchange.py 解析规则一致）
-      const descSegs: string[] = [];
-      if (values.category === 'coupon' && refCouponId) {
-        descSegs.push(`ref_coupon_id=${refCouponId}`);
-      }
-      if (values.category === 'service') {
-        if (refServiceType) descSegs.push(`ref_service_type=${refServiceType}`);
-        if (refServiceId) descSegs.push(`ref_service_id=${refServiceId}`);
-      }
-      if (values.description) descSegs.push(String(values.description));
-      const finalDesc = descSegs.join(';');
-
-      // 券类型：库存字段由券的 total_count-claimed_count 决定，前端传 0 占位
       const stockVal = values.category === 'coupon' ? 0
         : values.category === 'service' ? 0
         : Number(values.stock);
 
-      const payload = {
+      const payload: Record<string, unknown> = {
         name: values.name,
         type: values.category,
         price_points: values.points,
         stock: stockVal,
-        description: finalDesc,
+        description: values.description || '',
         status: statusStr,
-        images: imageUrl ? [imageUrl] : [],
+        images: imageUrls,
+        detail_html: detailHtml || '',
+        limit_per_user: Number(values.limit_per_user || 0),
       };
+      if (values.category === 'coupon') {
+        payload.ref_coupon_id = refCouponId || null;
+      } else if (values.category === 'service') {
+        payload.ref_service_id = refServiceId || null;
+      }
 
       if (editingRecord) {
         await put(`/api/admin/points/mall/${editingRecord.id}`, payload);
@@ -344,7 +386,8 @@ export default function PointsMallPage() {
       fetchData(pagination.current, pagination.pageSize);
     } catch (err: any) {
       if (err?.errorFields) return;
-      message.error(err?.response?.data?.detail || '操作失败');
+      // Bug1/Bug2 核心修复：把后端 detail 直接亮出来
+      message.error(extractDetail(err));
     }
   };
 
@@ -400,15 +443,15 @@ export default function PointsMallPage() {
       render: (v: number) => <Tag color={stockColor(v)}>{stockLabel(v)}</Tag>,
     },
     {
-      title: '已兑换', dataIndex: 'exchangeCount', key: 'exchangeCount', width: 80,
-      render: (v: number) => v ?? 0,
+      title: '限兑', dataIndex: 'limitPerUser', key: 'limitPerUser', width: 80,
+      render: (v: number) => (v && v > 0 ? `每人${v}次` : '不限'),
     },
     {
       title: '状态', dataIndex: 'status', key: 'status', width: 80,
       render: (v: string) => <Tag color={isMallOnShelf(v) ? 'green' : 'red'}>{isMallOnShelf(v) ? '上架' : '下架'}</Tag>,
     },
     {
-      title: '操作', key: 'action', width: 200,
+      title: '操作', key: 'action', width: 240,
       render: (_: unknown, record: MallGoods) => (
         <Space size={0}>
           <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>编辑</Button>
@@ -438,6 +481,7 @@ export default function PointsMallPage() {
       render: (v: string) => {
         const map: Record<string, { color: string; text: string }> = {
           pending: { color: 'orange', text: '待处理' },
+          success: { color: 'green', text: '成功' },
           completed: { color: 'green', text: '已完成' },
           shipped: { color: 'blue', text: '已发货' },
           cancelled: { color: 'red', text: '已取消' },
@@ -493,7 +537,7 @@ export default function PointsMallPage() {
           showTotal: total => `共 ${total} 条`,
           onChange: (page, pageSize) => fetchData(page, pageSize),
         }}
-        scroll={{ x: 1000 }}
+        scroll={{ x: 1100 }}
       />
     </div>
   );
@@ -548,7 +592,7 @@ export default function PointsMallPage() {
         open={modalVisible}
         onOk={handleSubmit}
         onCancel={() => setModalVisible(false)}
-        width={600}
+        width={720}
         destroyOnClose
       >
         <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
@@ -559,7 +603,13 @@ export default function PointsMallPage() {
             <Select
               options={categoryOptions}
               placeholder="请选择分类"
-              onChange={(v) => setCategory(String(v))}
+              onChange={(v) => {
+                const c = String(v);
+                setCategory(c);
+                if (c === 'service' && serviceProducts.length === 0) {
+                  loadServiceProducts();
+                }
+              }}
             />
           </Form.Item>
 
@@ -577,25 +627,42 @@ export default function PointsMallPage() {
           )}
 
           {category === 'service' && (
-            <Space style={{ width: '100%' }} size={12}>
-              <Form.Item label="服务类型" required style={{ flex: 1 }}>
-                <Select
-                  value={refServiceType}
-                  onChange={(v) => setRefServiceType(v as string)}
-                  options={serviceTypeOptions}
-                  placeholder="选择服务类型"
-                />
-              </Form.Item>
-              <Form.Item label="关联服务ID" required style={{ flex: 1 }}>
-                <InputNumber
-                  value={refServiceId}
-                  onChange={(v) => setRefServiceId((v as number) ?? undefined)}
-                  min={1}
-                  style={{ width: '100%' }}
-                  placeholder="输入对应服务ID"
-                />
-              </Form.Item>
-            </Space>
+            <Form.Item
+              label="关联服务商品"
+              required
+              help="拉取商品库（products.fulfillment_type=in_store）。兑换后自动生成抵扣券"
+            >
+              <Select
+                value={refServiceId}
+                onChange={(v) => {
+                  const sid = v as number;
+                  setRefServiceId(sid);
+                  const p = serviceProducts.find((x) => x.value === sid);
+                  if (p) {
+                    // 自动带出商品名
+                    const cur = form.getFieldValue('name');
+                    if (!cur) {
+                      form.setFieldsValue({ name: p.name });
+                    }
+                  }
+                }}
+                options={serviceProducts}
+                placeholder="请选择服务商品"
+                showSearch
+                filterOption={(input, option) =>
+                  (option?.label as string)?.toLowerCase().includes(input.toLowerCase())
+                }
+                onSearch={(kw) => {
+                  if (serviceSearchTimer.current) clearTimeout(serviceSearchTimer.current);
+                  serviceSearchTimer.current = setTimeout(() => {
+                    loadServiceProducts(kw);
+                  }, 300);
+                }}
+                onFocus={() => {
+                  if (serviceProducts.length === 0) loadServiceProducts();
+                }}
+              />
+            </Form.Item>
           )}
 
           <Space style={{ width: '100%' }} size={16}>
@@ -611,26 +678,44 @@ export default function PointsMallPage() {
             >
               <InputNumber min={0} style={{ width: '100%' }} disabled={category !== 'physical'} />
             </Form.Item>
+            <Form.Item
+              label="每人限兑次数"
+              name="limit_per_user"
+              style={{ flex: 1 }}
+              help="0 = 不限"
+            >
+              <InputNumber min={0} style={{ width: '100%' }} />
+            </Form.Item>
           </Space>
-          <Form.Item label="商品图片" name="image">
-            <div>
-              <Upload
-                listType="picture-card"
-                maxCount={1}
-                fileList={fileList}
-                beforeUpload={() => false}
-                onChange={({ fileList: fl }) => setFileList(fl)}
-                onRemove={() => { setFileList([]); form.setFieldsValue({ image: '' }); }}
-              >
-                {fileList.length === 0 && (
-                  <div><UploadOutlined /><div style={{ marginTop: 8 }}>上传图片</div></div>
-                )}
-              </Upload>
-            </div>
+
+          <Form.Item label="商品图片（支持多图，首图为封面）" name="image">
+            <Upload
+              listType="picture-card"
+              multiple
+              fileList={fileList}
+              beforeUpload={() => false}
+              onChange={({ fileList: fl }) => setFileList(fl)}
+              onRemove={(file) => { setFileList(prev => prev.filter(x => x.uid !== file.uid)); }}
+            >
+              {fileList.length < 6 && (
+                <div><UploadOutlined /><div style={{ marginTop: 8 }}>上传图片</div></div>
+              )}
+            </Upload>
           </Form.Item>
-          <Form.Item label="商品描述" name="description">
-            <TextArea rows={3} placeholder="请输入商品描述" />
+
+          <Form.Item label="商品简介" name="description">
+            <TextArea rows={2} placeholder="一行简介，用于列表页展示" />
           </Form.Item>
+
+          <Form.Item label="富文本详情 (detail_html)" help="支持 HTML；在商品详情页展示。建议图文混排">
+            <TextArea
+              rows={6}
+              value={detailHtml}
+              onChange={(e) => setDetailHtml(e.target.value)}
+              placeholder='直接粘贴 HTML，例如：<p>适用场景</p><img src="https://..." />'
+            />
+          </Form.Item>
+
           <Form.Item label="上架" name="status" valuePropName="checked">
             <Switch />
           </Form.Item>

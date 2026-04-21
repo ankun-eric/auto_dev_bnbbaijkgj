@@ -166,5 +166,8 @@ class CommentResponse(BaseModel):
     parent_id: Optional[int] = None
     content: str
     created_at: datetime
+    # v3.1 新增：评论区真实用户（JOIN users 后填充）
+    author_avatar: Optional[str] = None
+    author_nick: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)

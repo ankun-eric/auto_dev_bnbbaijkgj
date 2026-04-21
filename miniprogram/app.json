@@ -23,6 +23,8 @@
     "pages/expert-detail/index",
     "pages/points/index",
     "pages/points/records/index",
+    "pages/points/detail/index",
+    "pages/points/product-detail/index",
     "pages/points-mall/index",
     "pages/points-exchange-records/index",
     "pages/health-plan/index",

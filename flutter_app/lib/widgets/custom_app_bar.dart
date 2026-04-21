@@ -36,7 +36,8 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
         ),
       ),
       centerTitle: centerTitle,
-      backgroundColor: backgroundColor ?? const Color(0xFF52C41A),
+      // PRD F2.1：详情页/通用 AppBar 默认主题绿 #4CAF50
+      backgroundColor: backgroundColor ?? const Color(0xFF4CAF50),
       elevation: elevation,
       leading: leading ??
           (showBack

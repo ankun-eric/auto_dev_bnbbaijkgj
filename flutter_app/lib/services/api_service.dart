@@ -93,6 +93,15 @@ class ApiService {
     );
   }
 
+  // 通用 HTTP 便捷方法 — 供新页面（积分商品详情、评论）直接调用任意 URL
+  Future<Response> get(String path, {Map<String, dynamic>? query}) async {
+    return _dio.get(path, queryParameters: query);
+  }
+
+  Future<Response> post(String path, {dynamic data, Map<String, dynamic>? query}) async {
+    return _dio.post(path, data: data, queryParameters: query);
+  }
+
   // Auth
   Future<Response> getRegisterSettings() async {
     return _dio.get(ApiConfig.registerSettings);
@@ -628,6 +637,11 @@ class ApiService {
 
   Future<Response> getPointsMallGoods({int page = 1, int pageSize = 50}) async {
     return _dio.get('/api/points/mall', queryParameters: {'page': page, 'page_size': pageSize});
+  }
+
+  // PRD F4：积分商品详情（含用户已兑次数、按钮状态等）
+  Future<Response> getPointsMallProductDetail(int id) async {
+    return _dio.get('/api/points/mall/items/$id');
   }
 
   Future<Response> exchangePointsGoods({required int goodsId, int quantity = 1}) async {

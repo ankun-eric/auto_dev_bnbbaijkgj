@@ -1,19 +1,23 @@
-"""积分兑换记录 v3 API（优惠券 + 体验服务 + 实物兑换记录合并展示）.
+"""积分兑换记录 v3.1 API（PRD v2 合并发版）.
 
-设计：
-- 券（coupon）与体验服务（service）→ `point_exchange_records` 表
-- 实物（physical）→ `orders` 订单系统（`order_type=points_exchange, payment_method=points`）
-- 兑换记录查询接口做合并（两表 union，按时间倒序）
+设计变更（相对 v3）：
+- 体验服务（service）改为直接关联 ``products.id``（``PointsMallItem.ref_service_id``），
+  老数据兜底从 description 字符串 ``ref_service_id=xx`` 回读（双读兜底）。
+- 兑换体验服务时**自动生成一张"服务抵扣优惠券"**入账到 ``user_coupons``，
+  与 ``applicable_products`` 绑定在 ``ref_service_id`` 指向的服务商品上，用户下次购买该商品可抵扣。
+- 券类（coupon）走 ``PointsMallItem.ref_coupon_id``；老数据兜底。
+- 所有接口的报错统一抛 ``HTTPException(status_code, detail)``，前端读 ``detail`` 展示。
 """
 from __future__ import annotations
 
+import logging
 import random
 import string
 from datetime import datetime, timedelta
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, or_, select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -21,17 +25,21 @@ from app.core.security import get_current_user
 from app.models.models import (
     Coupon,
     CouponStatus,
+    CouponType,
     PointExchangeRecord,
     PointsMallItem,
     PointsMallItemType,
     PointsRecord,
     PointsType,
+    Product,
     User,
     UserCoupon,
     UserCouponStatus,
 )
 
-router = APIRouter(prefix="/api/points", tags=["积分兑换记录v3"])
+_logger = logging.getLogger(__name__)
+
+router = APIRouter(prefix="/api/points", tags=["积分兑换记录v3.1"])
 
 
 def _gen_exchange_order_no() -> str:
@@ -59,19 +67,116 @@ def _goods_type_str(item: PointsMallItem) -> str:
     return str(t) if t else "virtual"
 
 
-# ────────────────────────── 兑换接口（新版 v3）──────────────────────────
+def _parse_legacy_ref(desc: str, key: str) -> Optional[int]:
+    """从老商品 description 里反解 ``<key>=<int>``（双读兜底）."""
+    if not desc or key not in desc:
+        return None
+    for seg in desc.split(";"):
+        s = seg.strip()
+        if s.startswith(f"{key}="):
+            try:
+                return int(s.split("=", 1)[1].strip())
+            except Exception:
+                return None
+    return None
+
+
+def _item_detail_dict(i: PointsMallItem) -> dict:
+    """C 端商品详情页展示用字段."""
+    t = _goods_type_str(i)
+    return {
+        "id": i.id,
+        "name": i.name,
+        "description": i.description or "",
+        "detail_html": getattr(i, "detail_html", None) or "",
+        "images": i.images if isinstance(i.images, list) else ([] if not i.images else [i.images]),
+        "type": t,
+        "price_points": i.price_points,
+        "stock": i.stock,
+        "status": i.status,
+        "ref_coupon_id": getattr(i, "ref_coupon_id", None),
+        "ref_service_id": getattr(i, "ref_service_id", None),
+        "limit_per_user": getattr(i, "limit_per_user", 0) or 0,
+    }
+
+
+# ────────────────────────── 商品详情（v3.1 新增：F4）──────────────────────────
+@router.get("/mall/items/{item_id}")
+async def get_mall_item_detail(
+    item_id: int,
+    current_user: Optional[User] = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """积分商品详情页数据源（F4）.
+
+    返回：商品基础字段 + ``detail_html`` + 按钮 5 态判定 + 用户已兑换次数（用于限兑判断）。
+    """
+    res = await db.execute(select(PointsMallItem).where(PointsMallItem.id == item_id))
+    item = res.scalar_one_or_none()
+    if not item:
+        raise HTTPException(status_code=404, detail="商品不存在")
+
+    data = _item_detail_dict(item)
+
+    # 关联服务商品元数据（如用于详情页展示服务名/图）
+    service_info = None
+    sid = data["ref_service_id"] or _parse_legacy_ref(item.description or "", "ref_service_id")
+    if data["type"] == "service" and sid:
+        pr = (await db.execute(select(Product).where(Product.id == sid))).scalar_one_or_none()
+        if pr:
+            pr_images = pr.images if isinstance(pr.images, list) else []
+            service_info = {
+                "id": pr.id,
+                "name": pr.name,
+                "image": pr_images[0] if pr_images else None,
+                "sale_price": float(pr.sale_price) if pr.sale_price is not None else None,
+            }
+    data["service_info"] = service_info
+
+    # 用户已兑换次数（用于 limit_per_user 判断）
+    user_exchanged = 0
+    if current_user:
+        cnt = await db.execute(
+            select(func.count(PointExchangeRecord.id)).where(
+                PointExchangeRecord.user_id == current_user.id,
+                PointExchangeRecord.goods_id == item.id,
+                PointExchangeRecord.status.in_(["success", "used"]),
+            )
+        )
+        user_exchanged = int(cnt.scalar() or 0)
+    data["user_exchanged"] = user_exchanged
+
+    # 按钮 5 态（前端也可按字段自行判定，这里给出推荐态便于三端统一）
+    btn_state = "normal"
+    btn_text = f"立即兑换（消耗 {item.price_points} 积分）"
+    if (item.status or "active") != "active":
+        btn_state = "offline"
+        btn_text = "已下架"
+    elif _goods_type_str(item) != "coupon" and int(item.stock or 0) == 0:
+        # stock=0 只对非 coupon 类型视为兑完（coupon 的真实库存由 Coupon.total_count 管）
+        btn_state = "sold_out"
+        btn_text = "已兑完"
+    elif data["limit_per_user"] and user_exchanged >= data["limit_per_user"]:
+        btn_state = "limit_reached"
+        btn_text = "已达兑换上限"
+    data["button_state"] = btn_state
+    data["button_text"] = btn_text
+    return data
+
+
+# ────────────────────────── 兑换接口（v3.1 升级版）──────────────────────────
 @router.post("/mall/exchange")
 async def mall_exchange(
     payload: dict,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """v3 版兑换接口：
+    """v3.1 版兑换接口：
     入参 { goods_id, quantity?, address?(实物) }
     根据 goods_type 分流：
-      - coupon   → 扣积分 + 发券 + 写 PointExchangeRecord(success)
-      - service  → 扣积分 + 发服务券(user_coupons, source='points_exchange') + 写记录
-      - physical → 目前本轮限定仅写记录（模拟订单）；生产订单系统对接可后续接入
+      - coupon   → 扣积分 + 发券（ref_coupon_id 优先，description 兜底）
+      - service  → 扣积分 + 自动生成"服务抵扣优惠券"（与 products.ref_service_id 绑定）
+      - physical → 扣积分 + 扣库存 + 写记录
       - virtual / third_party → 置灰，提示开发中
     """
     goods_id = payload.get("goods_id") or payload.get("item_id")
@@ -95,59 +200,83 @@ async def mall_exchange(
 
     total_points = int(item.price_points) * quantity
 
-    # 权威可用积分计算（与 /api/points/summary 对齐）
+    # 限兑次数（PRD F4.3 优先级 3）
+    limit_per_user = int(getattr(item, "limit_per_user", 0) or 0)
+    if limit_per_user > 0:
+        cnt = await db.execute(
+            select(func.count(PointExchangeRecord.id)).where(
+                PointExchangeRecord.user_id == current_user.id,
+                PointExchangeRecord.goods_id == item.id,
+                PointExchangeRecord.status.in_(["success", "used"]),
+            )
+        )
+        used = int(cnt.scalar() or 0)
+        if used + quantity > limit_per_user:
+            raise HTTPException(status_code=400, detail="已达兑换上限")
+
+    # 权威可用积分（与 /api/points/summary 对齐）
     from app.api.points import compute_available_points
     breakdown = await compute_available_points(db, current_user.id)
-    if breakdown["available"] < total_points:
-        raise HTTPException(status_code=400, detail="积分不足")
+    available = int(breakdown.get("available") or 0)
+    if available < total_points:
+        raise HTTPException(status_code=400, detail=f"积分不足（差 {total_points - available} 分）")
 
-    # 库存检查（券类型使用 coupon.total_count-claimed_count；其他用 item.stock）
+    # ───── 按类型处理库存/关联 ─────
     coupon_obj: Optional[Coupon] = None
+    product_obj: Optional[Product] = None
+
     if goods_type == "coupon":
-        # 关联券通过描述或 ref 字段查找：优先使用 images[0] 不是方案，采用 item.description 承载或用同名模糊匹配。
-        # 现有 PointsMallItem 无 ref_coupon_id 字段，这里采用 description 存 JSON 的兼容策略：
-        # 若 description 以 "ref_coupon_id=N" 开头则解析；否则按 name 匹配一个 active 券。
-        ref_coupon_id = None
-        desc = item.description or ""
-        if "ref_coupon_id=" in desc:
-            try:
-                for seg in desc.split(";"):
-                    if seg.strip().startswith("ref_coupon_id="):
-                        ref_coupon_id = int(seg.split("=", 1)[1].strip())
-                        break
-            except Exception:
-                ref_coupon_id = None
+        ref_coupon_id = getattr(item, "ref_coupon_id", None) or _parse_legacy_ref(
+            item.description or "", "ref_coupon_id"
+        )
         if ref_coupon_id:
-            cres = await db.execute(select(Coupon).where(Coupon.id == ref_coupon_id))
-            coupon_obj = cres.scalar_one_or_none()
+            coupon_obj = (
+                await db.execute(select(Coupon).where(Coupon.id == ref_coupon_id))
+            ).scalar_one_or_none()
         if coupon_obj is None:
-            # 退化为 stock 控制
+            # 没关联券 → 只靠 stock 管理
             if int(item.stock or 0) < quantity:
-                raise HTTPException(status_code=400, detail="库存不足")
+                raise HTTPException(status_code=400, detail="已兑完")
         else:
             available_stock = int(coupon_obj.total_count or 0) - int(coupon_obj.claimed_count or 0)
             if available_stock < quantity:
-                raise HTTPException(status_code=400, detail="券已兑完")
+                raise HTTPException(status_code=400, detail="已兑完")
+
     elif goods_type == "service":
-        if int(item.stock or 0) < quantity and int(item.stock or 0) >= 0:
-            # stock=0 视为无限（体验服务由服务本体管控）
-            if item.stock not in (None, 0):
-                raise HTTPException(status_code=400, detail="库存不足")
+        ref_service_id = getattr(item, "ref_service_id", None) or _parse_legacy_ref(
+            item.description or "", "ref_service_id"
+        )
+        if not ref_service_id:
+            raise HTTPException(
+                status_code=400,
+                detail="体验服务类商品未关联服务商品，请联系运营在后台补配",
+            )
+        product_obj = (
+            await db.execute(select(Product).where(Product.id == ref_service_id))
+        ).scalar_one_or_none()
+        if not product_obj:
+            raise HTTPException(
+                status_code=400,
+                detail=f"关联的服务商品（id={ref_service_id}）不存在或已删除",
+            )
+        # 库存：stock=0 视为无限（体验服务由服务本体管控）
+        if int(item.stock or 0) > 0 and int(item.stock or 0) < quantity:
+            raise HTTPException(status_code=400, detail="已兑完")
+
     else:  # physical
         if int(item.stock or 0) < quantity:
-            raise HTTPException(status_code=400, detail="库存不足")
+            raise HTTPException(status_code=400, detail="已兑完")
 
     # ───── 执行扣减与记录写入（单事务）─────
     now = datetime.utcnow()
     user_coupon_id = None
     ref_service_type = None
-    ref_service_id = None
+    ref_service_id_out = None
     expire_at = None
     ref_order_no = None
 
     if goods_type == "coupon":
         if coupon_obj is not None:
-            # 原子扣券库存
             upd = await db.execute(
                 update(Coupon)
                 .where(
@@ -157,8 +286,7 @@ async def mall_exchange(
                 .values(claimed_count=Coupon.claimed_count + quantity)
             )
             if upd.rowcount == 0:
-                raise HTTPException(status_code=400, detail="券已兑完")
-            # 发券到用户
+                raise HTTPException(status_code=400, detail="已兑完")
             validity_days = int(coupon_obj.validity_days or 30)
             uc_expire = now + timedelta(days=validity_days)
             for _ in range(quantity):
@@ -174,34 +302,68 @@ async def mall_exchange(
                 user_coupon_id = uc.id
             expire_at = uc_expire
         else:
-            # 无关联券，仅扣 stock
             if int(item.stock or 0) > 0:
                 item.stock = int(item.stock) - quantity
 
     elif goods_type == "service":
-        # 体验服务：从商品描述解析 ref_service_type 和 ref_service_id
-        desc = item.description or ""
-        for seg in desc.split(";"):
-            s = seg.strip()
-            if s.startswith("ref_service_type="):
-                ref_service_type = s.split("=", 1)[1].strip()
-            elif s.startswith("ref_service_id="):
-                try:
-                    ref_service_id = int(s.split("=", 1)[1].strip())
-                except Exception:
-                    ref_service_id = None
-        # 体验服务券目前复用 user_coupons 表结构不严谨（外键 coupon_id NOT NULL），
-        # 为兼容生产数据库，若无 coupon_id 关联则不写 user_coupons，仅写 point_exchange_records。
+        # PRD Bug-Q6-b.B：自动生成"服务抵扣优惠券"并绑定到该服务商品
+        ref_service_id_out = product_obj.id if product_obj else None
+        ref_service_type = "product_in_store"  # 新口径：统一指向 products 表
         expire_at = now + timedelta(days=30)
 
-    elif goods_type == "physical":
-        # 扣库存
+        from app.models.models import CouponScope
+        coupon_name = (
+            f"服务抵扣券（{product_obj.name}）" if product_obj else f"服务抵扣券（{item.name}）"
+        )
+        discount_amount = (
+            float(product_obj.sale_price)
+            if product_obj and product_obj.sale_price is not None
+            else 0.0
+        )
+        auto_coupon = Coupon(
+            name=coupon_name,
+            type=CouponType.full_reduction,  # 满 discount_amount 减 discount_amount 的全额抵扣券
+            condition_amount=discount_amount,
+            discount_value=discount_amount,
+            scope=CouponScope.product,
+            scope_ids=[product_obj.id] if product_obj else None,
+            total_count=quantity,
+            claimed_count=quantity,
+            validity_days=30,
+            status=CouponStatus.active,
+        )
+        try:
+            db.add(auto_coupon)
+            await db.flush()
+        except Exception as e:  # noqa: BLE001
+            _logger.error("生成服务抵扣券失败：%s", e)
+            raise HTTPException(
+                status_code=500,
+                detail=f"生成服务抵扣券失败：{e}",
+            )
+
+        for _ in range(quantity):
+            uc = UserCoupon(
+                user_id=current_user.id,
+                coupon_id=auto_coupon.id,
+                status=UserCouponStatus.unused,
+                expire_at=expire_at,
+                source="points_exchange",
+            )
+            db.add(uc)
+            await db.flush()
+            user_coupon_id = uc.id
+
+        # 扣库存（积分商品层面，体验服务 stock 允许为 0 不扣）
         if int(item.stock or 0) > 0:
             item.stock = int(item.stock) - quantity
-        # 生产化时对接订单系统（UnifiedOrder）；本次先在记录表标记
+
+    elif goods_type == "physical":
+        if int(item.stock or 0) > 0:
+            item.stock = int(item.stock) - quantity
         ref_order_no = _gen_exchange_order_no()
 
-    # 写兑换记录（券 / 服务 / 实物 统一写一条，实物同时冗余 order_no）
+    # 写兑换记录
     record = PointExchangeRecord(
         order_no=_gen_exchange_order_no(),
         user_id=current_user.id,
@@ -217,12 +379,11 @@ async def mall_exchange(
         ref_coupon_id=coupon_obj.id if coupon_obj else None,
         ref_user_coupon_id=user_coupon_id,
         ref_service_type=ref_service_type,
-        ref_service_id=ref_service_id,
+        ref_service_id=ref_service_id_out,
         ref_order_no=ref_order_no,
     )
     db.add(record)
 
-    # 扣积分：仅写一条 PointsRecord（负数），由权威计算口径统一
     pr = PointsRecord(
         user_id=current_user.id,
         points=-total_points,
@@ -253,11 +414,7 @@ async def list_exchange_records(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """兑换记录列表（合并查询：point_exchange_records + orders.points_exchange）.
-
-    由于实物订单当前在本 feature 首版直接写 PointExchangeRecord（ref_order_no 冗余），
-    此处只查 PointExchangeRecord 即可覆盖全部类型。
-    """
+    """兑换记录列表。"""
     base = select(PointExchangeRecord).where(PointExchangeRecord.user_id == current_user.id)
     count_base = select(func.count(PointExchangeRecord.id)).where(
         PointExchangeRecord.user_id == current_user.id
@@ -324,17 +481,9 @@ async def get_exchange_record(
 
     # 服务券"去预约"路由
     appointment_url = None
-    if r.goods_type == "service" and r.ref_service_type and r.ref_service_id:
-        st = r.ref_service_type
-        sid = r.ref_service_id
-        if st == "expert":
-            appointment_url = f"/expert/{sid}"
-        elif st == "physical_exam":
-            appointment_url = f"/physical-exam/{sid}"
-        elif st == "tcm":
-            appointment_url = f"/tcm/{sid}"
-        elif st == "health_plan":
-            appointment_url = f"/health-plan/{sid}"
+    if r.goods_type == "service" and r.ref_service_id:
+        # v3.1 统一走 products，跳转商品详情让用户下单用券
+        appointment_url = f"/product-detail/{r.ref_service_id}"
 
     return {
         "id": r.id,
@@ -369,7 +518,6 @@ async def admin_list_exchange_records(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    # 简单校验：is_admin
     if not getattr(current_user, "is_admin", False):
         raise HTTPException(status_code=403, detail="无权限")
 

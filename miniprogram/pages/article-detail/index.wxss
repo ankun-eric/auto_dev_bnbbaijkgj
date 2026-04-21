@@ -83,6 +83,15 @@
   flex-shrink: 0;
 }
 
+.comment-avatar-img {
+  width: 60rpx;
+  height: 60rpx;
+  border-radius: 50%;
+  margin-right: 16rpx;
+  flex-shrink: 0;
+  background: #f0f0f0;
+}
+
 .avatar-char { font-size: 24rpx; color: #fff; font-weight: bold; }
 
 .comment-content { flex: 1; }

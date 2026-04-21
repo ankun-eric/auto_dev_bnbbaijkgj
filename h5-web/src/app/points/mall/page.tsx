@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Card, Grid, Button, Toast, Dialog, Tag, SpinLoading } from 'antd-mobile';
+import { Card, Grid, Button, Tag, SpinLoading } from 'antd-mobile';
 
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
@@ -33,7 +33,6 @@ export default function PointsMallPage() {
   const [userPoints, setUserPoints] = useState(0);
   const [goods, setGoods] = useState<MallGoods[]>([]);
   const [loading, setLoading] = useState(true);
-  const [exchanging, setExchanging] = useState<number | null>(null);
 
   const refreshPoints = useCallback(async () => {
     try {
@@ -75,39 +74,9 @@ export default function PointsMallPage() {
     loadGoods();
   }, [refreshPoints, loadGoods]);
 
-  const handleExchange = async (item: MallGoods) => {
-    if (DEV_TYPES.has(item.type)) {
-      Toast.show({ content: '该类型商品正在开发中' });
-      return;
-    }
-    if (userPoints < item.price_points) {
-      Toast.show({ content: '积分不足' });
-      return;
-    }
-    const confirmed = await Dialog.confirm({
-      content: `确认使用 ${item.price_points} 积分兑换「${item.name}」？${item.type === 'service' ? '\n\n⚠️ 兑换后 30 天内有效，过期作废，积分不退。' : ''}`,
-      confirmText: '确认兑换',
-      cancelText: '取消',
-    });
-    if (!confirmed) return;
-
-    setExchanging(item.id);
-    try {
-      await api.post('/api/points/mall/exchange', {
-        goods_id: item.id,
-        quantity: 1,
-      });
-      Toast.show({ content: '兑换成功', icon: 'success' });
-      await refreshPoints();
-      await loadGoods();
-    } catch (err: any) {
-      Toast.show({
-        content: err?.response?.data?.detail || '兑换失败',
-        icon: 'fail',
-      });
-    } finally {
-      setExchanging(null);
-    }
+  // PRD F4：卡片整体可点跳到商品详情页，不再在列表上直接兑换
+  const handleCardClick = (item: MallGoods) => {
+    router.push(`/points/product-detail?id=${item.id}`);
   };
 
   return (
@@ -139,7 +108,7 @@ export default function PointsMallPage() {
         </div>
         <Button
           size="small"
-          onClick={() => router.push('/points/exchange-records')}
+          onClick={() => router.push('/points/detail?tab=exchange')}
           style={{
             background: 'rgba(27, 94, 32, 0.15)',
             color: '#1B5E20',
@@ -162,13 +131,13 @@ export default function PointsMallPage() {
           <Grid columns={2} gap={12}>
             {goods.map((item) => {
               const badge = TYPE_BADGE[item.type] || TYPE_BADGE.virtual;
-              const isDev = DEV_TYPES.has(item.type);
-              const enough = userPoints >= item.price_points;
-              const disabled = isDev || !enough || exchanging === item.id;
               const img = item.images?.[0];
               return (
                 <Grid.Item key={item.id}>
-                  <Card style={{ borderRadius: 12 }}>
+                  <Card
+                    style={{ borderRadius: 12, cursor: 'pointer' }}
+                    onClick={() => handleCardClick(item)}
+                  >
                     <div className="text-center">
                       <div style={{ minHeight: 48 }} className="mb-2">
                         {img ? (
@@ -194,31 +163,13 @@ export default function PointsMallPage() {
                       </div>
                       <div
                         className="font-bold mt-1"
-                        style={{ color: '#B8860B' }}
+                        style={{ color: '#2E7D32' }}
                       >
                         {item.price_points} 积分
                       </div>
                       <div className="text-xs text-gray-400 mt-1">
                         {item.type === 'service' ? '服务券' : `库存 ${item.stock}`}
                       </div>
-                      <Button
-                        size="mini"
-                        onClick={() => handleExchange(item)}
-                        disabled={disabled}
-                        loading={exchanging === item.id}
-                        style={{
-                          marginTop: 8,
-                          borderRadius: 16,
-                          background: disabled
-                            ? '#e8e8e8'
-                            : 'linear-gradient(135deg, #52c41a, #13c2c2)',
-                          color: disabled ? '#999' : '#fff',
-                          border: 'none',
-                          fontSize: 12,
-                        }}
-                      >
-                        {isDev ? '开发中' : enough ? '立即兑换' : '积分不足'}
-                      </Button>
                     </div>
                   </Card>
                 </Grid.Item>

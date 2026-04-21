@@ -238,6 +238,7 @@ class PointsMallItemType(str, enum.Enum):
     physical = "physical"
     service = "service"
     third_party = "third_party"
+    coupon = "coupon"  # v3.1 新增 — 修复 Bug1：后台创建优惠券类商品时 400 报错
 
 
 class CSSessionStatus(str, enum.Enum):
@@ -912,10 +913,16 @@ class PointsMallItem(Base):
     name = mapped_column(String(200), nullable=False)
     description = mapped_column(Text, nullable=True)
     images = mapped_column(JSON, nullable=True)
-    type = mapped_column(Enum(PointsMallItemType), default=PointsMallItemType.virtual)
+    # v3.1: 枚举存储为 VARCHAR（不使用 SQLAlchemy Enum 的强约束），避免追加 coupon 时需要 ALTER
+    type = mapped_column(String(30), default="virtual", nullable=False)
     price_points = mapped_column(Integer, nullable=False)
     stock = mapped_column(Integer, default=0)
     status = mapped_column(String(20), default="active")
+    # v3.1 新增字段（PRD F4 + Bug2 打通）
+    detail_html = mapped_column(Text, nullable=True, comment="富文本详情 HTML")
+    ref_coupon_id = mapped_column(Integer, nullable=True, comment="type=coupon 时关联 coupons.id")
+    ref_service_id = mapped_column(Integer, nullable=True, comment="type=service 时关联 products.id")
+    limit_per_user = mapped_column(Integer, default=0, nullable=False, comment="每人限兑次数 0=不限")
     created_at = mapped_column(DateTime, default=datetime.utcnow)
 
 

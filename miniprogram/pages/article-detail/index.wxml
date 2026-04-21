@@ -37,7 +37,9 @@
   <view class="comments-section">
     <text class="section-title">评论 ({{commentList.length}})</text>
     <view class="comment-item" wx:for="{{commentList}}" wx:key="id">
-      <view class="comment-avatar" style="background: {{item.color}};">
+      <!-- PRD F2：真实头像 + 昵称，空头像用默认灰色剪影 -->
+      <image wx:if="{{item.avatar}}" class="comment-avatar-img" src="{{item.avatar}}" mode="aspectFill"></image>
+      <view wx:else class="comment-avatar" style="background: #E0E0E0;">
         <text class="avatar-char">{{item.user[0]}}</text>
       </view>
       <view class="comment-content">

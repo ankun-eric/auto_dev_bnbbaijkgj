@@ -1,0 +1,49 @@
+<view class="page">
+  <!-- Tab 切换 -->
+  <view class="tabs">
+    <view class="tab-item {{activeTab === 'detail' ? 'active' : ''}}" data-tab="detail" bindtap="switchTab">积分明细</view>
+    <view class="tab-item {{activeTab === 'exchange' ? 'active' : ''}}" data-tab="exchange" bindtap="switchTab">兑换记录</view>
+  </view>
+
+  <!-- Tab 1: 积分明细 -->
+  <view wx:if="{{activeTab === 'detail'}}" class="content">
+    <view wx:if="{{records.length === 0 && noMoreRecords}}" class="empty">暂无积分记录</view>
+    <view wx:else class="list">
+      <view class="record-item" wx:for="{{records}}" wx:key="id">
+        <view class="record-left">
+          <text class="record-title">{{item.description || item.type_label}}</text>
+          <text class="record-time">{{item.time}}</text>
+        </view>
+        <text class="record-points {{item.points >= 0 ? 'positive' : 'negative'}}">{{item.points >= 0 ? '+' : ''}}{{item.points}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- Tab 2: 兑换记录 -->
+  <view wx:if="{{activeTab === 'exchange'}}" class="content">
+    <view wx:if="{{exchanges.length === 0 && !exchangeLoading}}" class="empty">暂无兑换记录</view>
+    <view wx:else class="ex-list">
+      <view class="ex-card" wx:for="{{exchanges}}" wx:key="id">
+        <view class="ex-img-wrap">
+          <image wx:if="{{item.goods_image}}" src="{{item.goods_image}}" mode="aspectFill" class="ex-img" />
+          <text wx:else class="ex-icon">{{item.typeIcon}}</text>
+        </view>
+        <view class="ex-body">
+          <view class="ex-tags">
+            <text class="ex-tag" style="background:{{item.typeColor}}">{{item.typeText}}</text>
+            <text class="ex-status" style="color:{{item.statusColor}};border-color:{{item.statusColor}}">{{item.statusText}}</text>
+          </view>
+          <text class="ex-name">{{item.goods_name}}</text>
+          <text class="ex-time">兑换时间：{{item.exchangeTimeStr}}</text>
+          <text wx:if="{{item.expireAtStr}}" class="ex-expire">有效期至：{{item.expireAtStr}}</text>
+          <view class="ex-footer">
+            <text class="ex-cost">-{{item.points_cost}} 积分</text>
+            <view wx:if="{{item.canAppointment}}" class="ex-btn ex-btn-primary" data-id="{{item.ref_service_id}}" bindtap="goProductDetail">去使用</view>
+            <view wx:if="{{item.canViewCoupon}}" class="ex-btn ex-btn-orange" bindtap="goMyCoupons">查看我的券</view>
+            <view wx:if="{{item.canViewOrder}}" class="ex-btn ex-btn-purple" bindtap="goOrder">查看订单</view>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>

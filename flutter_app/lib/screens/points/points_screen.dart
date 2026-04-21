@@ -134,13 +134,10 @@ class _PointsScreenState extends State<PointsScreen> {
       appBar: CustomAppBar(
         title: '积分中心',
         actions: [
+          // PRD F3：合并"积分详情 + 兑换记录"为单入口"积分明细"
           TextButton(
-            onPressed: () => Navigator.pushNamed(context, '/points-records'),
-            child: const Text('积分详情', style: TextStyle(color: Colors.white)),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pushNamed(context, '/points-exchange-records'),
-            child: const Text('兑换记录 ›', style: TextStyle(color: Colors.white)),
+            onPressed: () => Navigator.pushNamed(context, '/points-detail'),
+            child: const Text('积分明细 ›', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),

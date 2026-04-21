@@ -4,8 +4,7 @@
     <view class="header-top">
       <text class="points-label">我的可用积分</text>
       <view class="records-link-group">
-        <view class="records-link" bindtap="goRecords">积分详情</view>
-        <view class="records-link" bindtap="goExchangeRecords">兑换记录 ›</view>
+        <view class="records-link" bindtap="goDetail">积分明细 ›</view>
       </view>
     </view>
     <text class="points-value">{{availablePoints}}</text>

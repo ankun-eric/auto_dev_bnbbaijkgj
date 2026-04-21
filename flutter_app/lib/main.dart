@@ -36,6 +36,8 @@ import 'screens/points/points_screen.dart';
 import 'screens/points/points_records_screen.dart';
 import 'screens/points/exchange_records_screen.dart';
 import 'screens/points/points_mall_screen.dart';
+import 'screens/points/points_detail_screen.dart';
+import 'screens/points/points_product_detail_screen.dart';
 import 'screens/plan/health_plan_screen.dart';
 import 'screens/plan/medication_list_screen.dart';
 import 'screens/plan/medication_form_screen.dart';
@@ -233,6 +235,9 @@ class BiniHealthApp extends StatelessWidget {
           '/points-mall': (context) => const PointsMallScreen(),
           '/points-records': (context) => const PointsRecordsScreen(),
           '/points-exchange-records': (context) => const PointsExchangeRecordsScreen(),
+          // PRD F3/F4：积分明细聚合页 + 积分商品详情页
+          '/points-detail': (context) => const PointsDetailScreen(),
+          '/points-product-detail': (context) => const PointsProductDetailScreen(),
           '/health-plan': (context) => const HealthPlanScreen(),
           '/hp-medications': (context) => const MedicationListScreen(),
           '/hp-medication-form': (context) => const MedicationFormScreen(),

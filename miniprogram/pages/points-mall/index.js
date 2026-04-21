@@ -76,38 +76,14 @@ Page({
   },
 
   goExchangeRecords() {
-    wx.navigateTo({ url: '/pages/points-exchange-records/index' });
+    // PRD F3：旧按钮跳到新合并页的 兑换记录 Tab
+    wx.navigateTo({ url: '/pages/points/detail/index?tab=exchange' });
   },
 
+  // PRD F4：卡片整体可点 → 商品详情页，不再在列表上直接兑换
   exchangeGoods(e) {
     const item = e.currentTarget.dataset.item;
-    if (item.isDev) {
-      wx.showToast({ title: '该类型商品正在开发中', icon: 'none' });
-      return;
-    }
-    if (this.data.totalPoints < item.points) {
-      wx.showToast({ title: '积分不足', icon: 'none' });
-      return;
-    }
-    const suffix = item.type === 'service' ? '\n\n兑换后30天内有效，过期作废，积分不退' : '';
-    wx.showModal({
-      title: '兑换确认',
-      content: `确定使用 ${item.points} 积分兑换「${item.name}」吗？${suffix}`,
-      success: async (res) => {
-        if (!res.confirm) return;
-        try {
-          await post('/api/points/mall/exchange', {
-            goods_id: item.id,
-            quantity: 1
-          }, { showLoading: true });
-          wx.showToast({ title: '兑换成功', icon: 'success' });
-          this.loadAvailablePoints();
-          this.loadGoods();
-        } catch (err) {
-          const msg = (err && err.data && err.data.detail) || '兑换失败';
-          wx.showToast({ title: msg, icon: 'none' });
-        }
-      }
-    });
-  }
+    if (!item || !item.id) return;
+    wx.navigateTo({ url: `/pages/points/product-detail/index?id=${item.id}` });
+  },
 });

@@ -1,0 +1,81 @@
+<view class="page" wx:if="{{item}}">
+  <!-- 图片轮播 -->
+  <view class="swiper-wrap">
+    <swiper wx:if="{{item.images && item.images.length > 0}}" indicator-dots autoplay circular class="swiper">
+      <block wx:for="{{item.images}}" wx:key="*this">
+        <swiper-item>
+          <image src="{{item}}" mode="aspectFit" class="swiper-img" />
+        </swiper-item>
+      </block>
+    </swiper>
+    <view wx:else class="swiper-placeholder">🎁</view>
+  </view>
+
+  <!-- 基本信息 -->
+  <view class="section">
+    <view class="tag-row">
+      <text class="type-tag" style="background:{{badgeColor}}">{{badgeText}}</text>
+      <text wx:if="{{item.status !== 'active'}}" class="offline-tag">已下架</text>
+    </view>
+    <text class="name">{{item.name}}</text>
+    <view class="points-row">
+      <text class="points-num">{{item.price_points}}</text>
+      <text class="points-unit">积分</text>
+      <text class="stock">
+        {{item.type === 'service' ? '服务券' : (item.stock > 0 ? ('剩余库存 ' + item.stock) : '已兑完')}}
+      </text>
+    </view>
+    <text wx:if="{{item.limit_per_user > 0}}" class="limit-tip">
+      每人限兑 {{item.limit_per_user}} 次（已兑 {{item.user_exchanged_count || 0}} 次）
+    </text>
+  </view>
+
+  <!-- 详情 -->
+  <view class="section">
+    <text class="section-title">商品详情</text>
+    <rich-text wx:if="{{item.detail_html}}" nodes="{{item.detail_html}}" class="rich"></rich-text>
+    <text wx:else class="desc">{{item.description || '暂无详情'}}</text>
+  </view>
+
+  <!-- 关联服务商品 -->
+  <view wx:if="{{item.type === 'service' && item.service_product}}" class="section">
+    <text class="section-title">关联服务商品</text>
+    <view class="service-box">
+      <image wx:if="{{item.service_product.image}}" src="{{item.service_product.image}}" mode="aspectFill" class="service-img" />
+      <view class="service-info">
+        <text class="service-name">{{item.service_product.name}}</text>
+        <text wx:if="{{item.service_product.price}}" class="service-price">原价 ¥{{item.service_product.price}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 使用须知 -->
+  <view class="section">
+    <text class="section-title">使用须知</text>
+    <view class="tips">
+      <text wx:if="{{item.type === 'service'}}" class="tip-item">• 兑换后 30 天内有效，过期作废</text>
+      <text wx:if="{{item.type === 'coupon'}}" class="tip-item">• 券码将发放至"我的卡券"，请在有效期内使用</text>
+      <text wx:if="{{item.type === 'physical'}}" class="tip-item">• 实物商品需填写收货地址，由工作人员安排发货</text>
+      <text class="tip-item">• 兑换后积分即时扣除，一经兑换不予退还</text>
+      <text wx:if="{{item.limit_per_user > 0}}" class="tip-item">• 每人限兑 {{item.limit_per_user}} 次</text>
+    </view>
+  </view>
+
+  <view class="bottom-placeholder"></view>
+
+  <!-- 底部固定按钮 -->
+  <view class="bottom-bar">
+    <button
+      class="exchange-btn {{disabled ? 'btn-disabled' : ''}}"
+      disabled="{{disabled}}"
+      loading="{{exchanging}}"
+      bindtap="handleExchange"
+    >
+      {{buttonText}}
+    </button>
+  </view>
+</view>
+
+<view wx:else class="empty">
+  <text>商品不存在或已下架</text>
+</view>

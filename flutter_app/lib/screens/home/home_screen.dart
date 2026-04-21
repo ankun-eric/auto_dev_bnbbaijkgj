@@ -460,25 +460,27 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               child: Row(
                 children: [
                   Expanded(
+                    // PRD F1：搜索栏配色统一 — 白底 + 浅灰描边 + #999 图标/placeholder
                     child: _searchVisible
                         ? GestureDetector(
                             onTap: () => Navigator.pushNamed(context, '/search'),
                             child: Container(
                               height: 36,
                               decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(18),
+                                color: Colors.white,
+                                border: Border.all(color: const Color(0xFFE5E5E5), width: 1),
+                                borderRadius: BorderRadius.circular(10),
                               ),
                               child: Row(
                                 children: [
                                   const SizedBox(width: 12),
-                                  const Icon(Icons.search, color: Colors.white, size: 16),
+                                  const Icon(Icons.search, color: Color(0xFF999999), size: 16),
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: Text(
                                       _searchPlaceholder,
-                                      style: TextStyle(
-                                        color: Colors.white.withOpacity(0.7),
+                                      style: const TextStyle(
+                                        color: Color(0xFF999999),
                                         fontSize: 14,
                                       ),
                                       overflow: TextOverflow.ellipsis,
