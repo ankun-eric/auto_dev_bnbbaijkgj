@@ -1,0 +1,177 @@
+[
+  {
+    "name": "H5 root",
+    "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/",
+    "status": 200,
+    "ok": true,
+    "body": "<!DOCTYPE html><html lang=\"zh-CN\"><head><meta charSet=\"utf-8\"/><meta charSet=\"utf-8\"/><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalabl"
+  },
+  {
+    "name": "H5 login",
+    "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/login",
+    "status": 200,
+    "ok": true,
+    "body": "<!DOCTYPE html><html lang=\"zh-CN\"><head><meta charSet=\"utf-8\"/><meta charSet=\"utf-8\"/><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalabl"
+  },
+  {
+    "name": "H5 home",
+    "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/home",
+    "status": 200,
+    "ok": true,
+    "body": "<!DOCTYPE html><html lang=\"zh-CN\"><head><meta charSet=\"utf-8\"/><meta charSet=\"utf-8\"/><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalabl"
+  },
+  {
+    "name": "H5 points",
+    "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/points",
+    "status": 200,
+    "ok": true,
+    "body": "<!DOCTYPE html><html lang=\"zh-CN\"><head><meta charSet=\"utf-8\"/><meta charSet=\"utf-8\"/><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalabl"
+  },
+  {
+    "name": "H5 points/detail",
+    "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/points/detail",
+    "status": 200,
+    "ok": true,
+    "body": "<!DOCTYPE html><html lang=\"zh-CN\"><head><meta charSet=\"utf-8\"/><meta charSet=\"utf-8\"/><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalabl"
+  },
+  {
+    "name": "H5 points/detail?tab=exchange",
+    "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/points/detail?tab=exchange",
+    "status": 200,
+    "ok": true,
+    "body": "<!DOCTYPE html><html lang=\"zh-CN\"><head><meta charSet=\"utf-8\"/><meta charSet=\"utf-8\"/><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalabl"
+  },
+  {
+    "name": "H5 points/records (legacy)",
+    "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/points/records",
+    "status": 200,
+    "ok": true,
+    "body": "<!DOCTYPE html><html lang=\"zh-CN\"><head><meta charSet=\"utf-8\"/><meta charSet=\"utf-8\"/><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalabl"
+  },
+  {
+    "name": "H5 points/exchange-records (legacy)",
+    "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/points/exchange-records",
+    "status": 200,
+    "ok": true,
+    "body": "<!DOCTYPE html><html lang=\"zh-CN\"><head><meta charSet=\"utf-8\"/><meta charSet=\"utf-8\"/><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalabl"
+  },
+  {
+    "name": "H5 points/mall",
+    "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/points/mall",
+    "status": 200,
+    "ok": true,
+    "body": "<!DOCTYPE html><html lang=\"zh-CN\"><head><meta charSet=\"utf-8\"/><meta charSet=\"utf-8\"/><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalabl"
+  },
+  {
+    "name": "H5 points/product-detail?id=1",
+    "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/points/product-detail?id=1",
+    "status": 200,
+    "ok": true,
+    "body": "<!DOCTYPE html><html lang=\"zh-CN\"><head><meta charSet=\"utf-8\"/><meta charSet=\"utf-8\"/><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalabl"
+  },
+  {
+    "name": "H5 article/1",
+    "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/article/1",
+    "status": 200,
+    "ok": true,
+    "body": "<!DOCTYPE html><html lang=\"zh-CN\"><head><meta charSet=\"utf-8\"/><meta charSet=\"utf-8\"/><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalabl"
+  },
+  {
+    "name": "H5 news/1",
+    "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/news/1",
+    "status": 200,
+    "ok": true,
+    "body": "<!DOCTYPE html><html lang=\"zh-CN\"><head><meta charSet=\"utf-8\"/><meta charSet=\"utf-8\"/><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalabl"
+  },
+  {
+    "name": "H5 my-coupons",
+    "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/my-coupons",
+    "status": 200,
+    "ok": true,
+    "body": "<!DOCTYPE html><html lang=\"zh-CN\"><head><meta charSet=\"utf-8\"/><meta charSet=\"utf-8\"/><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalabl"
+  },
+  {
+    "name": "Admin root",
+    "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin",
+    "status": 200,
+    "ok": true,
+    "body": "<!DOCTYPE html><html lang=\"zh-CN\"><head><meta charSet=\"utf-8\"/><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/><link rel=\"stylesheet\" href=\"/autodev/6b099ed3-7175-4a78-91f4-44570c"
+  },
+  {
+    "name": "Admin trailing",
+    "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/",
+    "status": 200,
+    "ok": true,
+    "body": "<!DOCTYPE html><html lang=\"zh-CN\"><head><meta charSet=\"utf-8\"/><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/><link rel=\"stylesheet\" href=\"/autodev/6b099ed3-7175-4a78-91f4-44570c"
+  },
+  {
+    "name": "Admin login",
+    "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/login",
+    "status": 200,
+    "ok": true,
+    "body": "<!DOCTYPE html><html lang=\"zh-CN\"><head><meta charSet=\"utf-8\"/><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/><link rel=\"stylesheet\" href=\"/autodev/6b099ed3-7175-4a78-91f4-44570c"
+  },
+  {
+    "name": "API health",
+    "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health",
+    "status": 200,
+    "ok": true,
+    "body": "{\"status\":\"ok\",\"service\":\"bini-health-api\"}"
+  },
+  {
+    "name": "API home-config",
+    "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/home-config",
+    "status": 200,
+    "ok": true,
+    "body": "{\"search_visible\":true,\"search_placeholder\":\"搜索健康服务/商品\",\"grid_columns\":4,\"font_switch_enabled\":true,\"font_default_level\":\"standard\",\"font_standard_size\":16,\"font_large_size\":19,\"font_xlarge_size\":22}"
+  },
+  {
+    "name": "API home-banners",
+    "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/home-banners",
+    "status": 200,
+    "ok": true,
+    "body": "{\"items\":[]}"
+  },
+  {
+    "name": "API home-menus",
+    "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/home-menus",
+    "status": 200,
+    "ok": true,
+    "body": "{\"items\":[{\"id\":1,\"name\":\"AI健康咨询\",\"icon_type\":\"emoji\",\"icon_content\":\"💬\",\"link_type\":\"internal\",\"link_url\":\"/ai\",\"miniprogram_appid\":null,\"sort_order\":0,\"is_visible\":true,\"created_at\":\"2026-04-14T16:2"
+  },
+  {
+    "name": "API content articles",
+    "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/content/articles?page=1&page_size=3",
+    "status": 200,
+    "ok": true,
+    "body": "{\"items\":[{\"id\":6,\"title\":\"办公室久坐的危害及缓解方法\",\"content\":\"办公室久坐的危害及缓解方法\",\"content_html\":\"<p>办公室久坐的危害及缓解方法</p>\",\"cover_image\":\"\",\"author_id\":1,\"author_name\":null,\"category\":\"运动健身\",\"tags\":[\"保健\"],\"summary\":\"\""
+  },
+  {
+    "name": "API content news",
+    "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/content/news?page=1&page_size=3",
+    "status": 200,
+    "ok": true,
+    "body": "{\"items\":[],\"total\":0,\"page\":1,\"page_size\":3}"
+  },
+  {
+    "name": "API points/mall/items",
+    "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/points/mall/items",
+    "status": 404,
+    "ok": true,
+    "body": "{\"detail\":\"Not Found\"}"
+  },
+  {
+    "name": "API points/mall/items/1",
+    "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/points/mall/items/1",
+    "status": 401,
+    "ok": true,
+    "body": "{\"detail\":\"未登录\"}"
+  },
+  {
+    "name": "API admin/products/services",
+    "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/products/services?keyword=&page=1&page_size=20",
+    "status": 401,
+    "ok": true,
+    "body": "{\"detail\":\"未登录\"}"
+  }
+]
