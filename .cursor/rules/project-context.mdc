@@ -33,7 +33,70 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 三端首页顶部紧凑化 — 去 LOGO + 双行头 + 小 Banner（2026-04-21）
+## Latest Update: 积分中心 & 积分商城 v3 — 优惠券 / 体验服务 + 兑换记录（2026-04-21）
+
+### 概要
+按 PRD《积分中心 & 积分商城优化方案 v3（最终版）》完成全栈升级：
+- 统计区统一浅绿 `#C8E6C9` + 深绿文字（`#1B5E20` / `#2E7D32`），去除 ⭐ 图标；三端均新增「兑换记录」入口与独立页面。
+- 新增 `point_exchange_records` 表承载"优惠券 + 体验服务"；实物继续走 `orders` 体系。
+- Admin 商品类型下拉新增「优惠券」并提供「关联优惠券 / 关联服务」联动表单；虚拟商品 / 第三方商品置灰为「开发中」。
+- 新增兑换事务接口与后台兑换记录管理接口。部署 commit `18ea793`，11/11 关键链接外部 HTTPS 全部可达。
+
+### 关键变更
+
+- **backend**：
+  - `app/models/models.py`：新增 `PointExchangeRecord` 模型（`order_no/user_id/goods_id/goods_type/goods_name/goods_image/points_cost/quantity/status/exchange_time/expire_at/used_at/ref_coupon_id/ref_user_coupon_id/ref_service_type/ref_service_id/ref_order_no/remark`）。
+  - `app/api/points_exchange.py`（新增）：`POST /api/points/mall/exchange`（原子扣积分+扣库存+写 `point_exchange_records`+写 `points_records`；优惠券自动发券到 `user_coupons`；服务券 30 天有效期）、`GET /api/points/exchange-records`、`GET /api/points/exchange-records/{id}`（含 `appointment_url`）。
+  - `app/api/points_admin.py`（新增）：`/api/admin/points/mall` 增/改/删/列表 + `batch-status` + `GET /api/admin/points/exchange-records`（关键字/类型/状态/日期筛选）。
+  - `app/main.py`：注册上述两个新 router。
+  - 无需手工 DDL：SQLAlchemy `metadata.create_all` 首次启动自动建表。
+
+- **h5-web**：
+  - `src/app/points/page.tsx`：顶部 NavBar 右侧同时展示「积分详情 ›」「兑换记录 ›」。
+  - `src/app/points/mall/page.tsx`：统计区浅绿、去 ⭐、按钮改为「兑换记录」；商品卡片加类型徽标 + 开发中遮罩；兑换确认弹窗补充服务券有效期警示；接入 `/api/points/mall`、`/api/points/mall/exchange`。
+  - `src/app/points/exchange-records/page.tsx`（新增）：列表 + 下拉刷新 + 状态/类型徽标 + 按类型联动按钮（去预约 / 查看我的券 / 查看订单）。
+
+- **miniprogram**：
+  - `pages/points/index.*`：头部新增 `records-link-group`（两链接并排）。
+  - `pages/points-mall/index.*`：`points-bar` 改浅绿 + 去徽章；新增「兑换记录」按钮；商品卡片类型徽标 + `dev-mask` 遮罩；接入新兑换接口。
+  - `pages/points-exchange-records/index.*`（新增）+ `app.json` 注册页面。
+
+- **flutter_app**：
+  - `lib/screens/points/points_screen.dart`：AppBar actions 新增两个 TextButton。
+  - `lib/screens/points/points_mall_screen.dart`：统计区 `Color(0xFFC8E6C9)`，类型徽标，开发中置灰不可兑换，兑换确认含服务券有效期提示。
+  - `lib/screens/points/exchange_records_screen.dart`（新增）+ `main.dart` 注册 `/points-exchange-records` 路由。
+  - `lib/services/api_service.dart`：`getPointsMallGoods / exchangePointsGoods / getPointsExchangeRecords`。
+
+- **admin-web**：
+  - `src/app/(admin)/points/mall/page.tsx`：`categoryOptions` 新增 `coupon`；`virtual / third_party` 禁用并追加「（开发中）」；表单动态显示「关联优惠券」（自动加载 `/api/admin/coupons`）或「服务类型 + 关联服务ID」；库存字段按类型禁用并给出提示；提交时将 `ref_coupon_id / ref_service_type / ref_service_id` 写入 `description`（与后端解析规则一致）。
+  - 兑换记录 Tab 调用 `/api/admin/points/exchange-records`，支持筛选与导出。
+
+### 数据库
+- 新增表：`point_exchange_records`（`order_no` 唯一索引，`user_id` 索引，`status` 索引）。
+- 实物订单复用既有 `orders` 体系（`order_type='points_exchange'`、`payment_method='points'`，在本期后端以 `ref_order_no` 冗余到 `point_exchange_records`）。
+
+### 接口速查
+
+| 方法 | 路径 |
+|------|------|
+| POST | `/api/points/mall/exchange` |
+| GET | `/api/points/exchange-records` |
+| GET | `/api/points/exchange-records/{id}` |
+| GET/POST/PUT/DELETE | `/api/admin/points/mall[/{id}]` |
+| PUT | `/api/admin/points/mall/batch-status` |
+| GET | `/api/admin/points/exchange-records` |
+
+### 部署与产物
+
+- Commit `18ea793` 已 push 到 master；测试服务器 `git fetch + reset --hard` 到该 hash。
+- 仅重建 `backend / h5-web / admin-web` 镜像；`mysql` 不动；gateway `conf.d/6b099ed3-...-4ed27.conf` 未变。
+- 外部 HTTPS 全量链接验证：`/api/health`、`/api/points/mall`、`/api/points/mall/exchange (GET→405)`、`/api/points/exchange-records`、`/api/admin/points/mall`、`/api/admin/points/exchange-records`、`/`、`/points`、`/points/mall`、`/points/exchange-records`（**新**）、`/admin/points/mall` — 11/11 可达。
+- 用户体验手册：`user_docs/积分商城v3_优惠券体验服务_兑换记录_用户体验手册.md`。
+- 小程序 / Flutter / iOS 端独立打包按需执行（本次 Web 随部署即时生效）。
+
+---
+
+## Previous Update: 三端首页顶部紧凑化 — 去 LOGO + 双行头 + 小 Banner（2026-04-21）
 
 ### 概要
 按 PRD《三端首页顶部紧凑化改造》对 H5 / 小程序 / Flutter App 首页顶部统一重构：移除 LOGO 图片改为"宾尼小康"文字，将原来大块的头部 + 大 Banner（~220px+）压缩成双行紧凑头（40px 品牌/地区 + 48px 搜索/扫码/消息）+ 小 Banner（~100px），总高度 ~188px，首屏直接暴露菜单/公告。纯前端改动，零后端发布。部署 commit `741c409`，18/18 全量链接可达性验证通过。
