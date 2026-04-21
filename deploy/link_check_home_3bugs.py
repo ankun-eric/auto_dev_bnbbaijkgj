@@ -28,7 +28,7 @@ TARGETS = [
     {'cat': 'h5', 'path': '/home', 'note': 'H5 首页 tab'},
     {'cat': 'h5', 'path': '/login', 'note': 'H5 登录页'},
     {'cat': 'h5', 'path': '/profile', 'note': 'H5 我的'},
-    {'cat': 'h5', 'path': '/orders', 'note': 'H5 订单'},
+    {'cat': 'h5', 'path': '/unified-orders', 'note': 'H5 订单'},
     {'cat': 'h5', 'path': '/points', 'note': 'H5 积分'},
     {'cat': 'h5', 'path': '/my-coupons', 'note': 'H5 我的优惠券'},
     {'cat': 'h5', 'path': '/tcm', 'note': 'H5 中医养生'},

@@ -11,7 +11,7 @@ LINKS = [
     ("H5 AI 健康咨询",     f"{BASE}/ai"),
     ("H5 健康档案编辑",    f"{BASE}/profile/edit"),
     ("H5 服务列表",        f"{BASE}/services"),
-    ("H5 我的订单",        f"{BASE}/orders"),
+    ("H5 我的订单",        f"{BASE}/unified-orders"),
     ("H5 健康计划",        f"{BASE}/health-plan"),
     ("Admin 后台",         f"{BASE}/admin/"),
     ("API home-config",    f"{BASE}/api/home-config"),

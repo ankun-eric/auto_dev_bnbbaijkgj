@@ -227,7 +227,7 @@ class BiniHealthApp extends StatelessWidget {
           '/service-detail': (context) => const ServiceDetailScreen(),
           '/experts': (context) => const ExpertListScreen(),
           '/expert-detail': (context) => const ExpertDetailScreen(),
-          '/orders': (context) => const OrdersScreen(),
+          '/unified-orders': (context) => const OrdersScreen(),
           '/order-detail': (context) => const OrderDetailScreen(),
           '/points': (context) => const PointsScreen(),
           '/points-mall': (context) => const PointsMallScreen(),

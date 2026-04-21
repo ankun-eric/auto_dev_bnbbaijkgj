@@ -37,7 +37,7 @@ const ICON_NAME_MAP: Record<string, string> = Object.fromEntries(
 const PAGE_PATH_OPTIONS = [
   { label: 'AI健康咨询 (/ai)', value: '/ai' },
   { label: '服务列表 (/services)', value: '/services' },
-  { label: '我的订单 (/orders)', value: '/orders' },
+  { label: '我的订单 (/unified-orders)', value: '/unified-orders' },
   { label: '健康档案 (/health-profile)', value: '/health-profile' },
   { label: '积分商城 (/points-mall)', value: '/points-mall' },
 ];

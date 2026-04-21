@@ -37,7 +37,7 @@ def main():
         "/h5/profile",
         "/h5/profile/edit",
         "/h5/services",
-        "/h5/orders",
+        "/h5/unified-orders",
         "/h5/messages",
         "/h5/search",
     ]

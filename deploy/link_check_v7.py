@@ -25,7 +25,7 @@ def main():
         "/profile/edit",
         "/health-profile",
         "/services",
-        "/orders",
+        "/unified-orders",
         "/messages",
         "/search",
         "/health-plan",

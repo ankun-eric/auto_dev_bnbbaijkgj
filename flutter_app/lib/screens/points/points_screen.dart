@@ -118,7 +118,7 @@ class _PointsScreenState extends State<PointsScreen> {
       '/health-profile': '/health-profile',
       '/profile/edit': '/health-profile',
       '/health-plan': '/health-plan',
-      '/orders?tab=pending_review': '/orders',
+      '/orders?tab=pending_review': '/unified-orders',
       '/invite': '/invite',
       '/products': '/products',
       '/mall': '/products',

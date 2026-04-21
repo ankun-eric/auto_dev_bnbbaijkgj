@@ -31,7 +31,7 @@ async def _seed_nav(
     name: str = "测试Tab",
     *,
     icon_key: str = "order",
-    path: str = "/orders",
+    path: str = "/unified-orders",
     sort_order: int = 3,
     is_visible: bool = True,
     is_fixed: bool = False,
@@ -128,7 +128,7 @@ async def test_tc003_create_nav_item(client: AsyncClient, admin_headers):
     resp = await client.post(
         "/api/admin/bottom-nav",
         headers=admin_headers,
-        json={"name": "测试Tab", "icon_key": "order", "path": "/orders", "is_visible": True},
+        json={"name": "测试Tab", "icon_key": "order", "path": "/unified-orders", "is_visible": True},
     )
     assert resp.status_code == 200
     data = resp.json()
