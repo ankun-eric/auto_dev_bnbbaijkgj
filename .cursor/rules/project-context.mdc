@@ -33,6 +33,42 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
+## Latest Update: 后台底部导航「订单」路径 404 修复（2026-04-21）
+
+### 概要
+修复管理后台底部导航「订单」默认路径为 `/orders`，导致 H5 / 小程序 / Flutter APP 点击底部「订单」跳 404 的高优 bug。统一三端订单页路由为 `/unified-orders`（小程序为 `pages/unified-orders/index`），数据库存量配置通过后端启动时的幂等迁移脚本无感升级。部署 commit `c212ec7`，DB 中 id=3 的「订单」项已迁移，外部 HTTPS 关键链接（admin/bottom-nav、admin/login、unified-orders、H5 首页）全部 200 可达。
+
+### 关键变更
+
+- **backend**：
+  - `app/services/bottom_nav_migration.py`（新增）：`migrate_bottom_nav_order_path()` 幂等迁移函数，精确匹配 `path='/orders' AND name IN ('订单','我的订单','Orders')`，逐条打印 `id / name / old_path / new_path` 日志，`try/except` 包裹不阻塞启动。
+  - `app/main.py`：lifespan 中 `await migrate_bottom_nav_order_path()`（在 `_migrate_v8_content` 之后，`migrate_existing_users_user_no` 之前）。
+  - `tests/test_bottom_nav.py`：种子数据与创建用例的 path 从 `/orders` 改为 `/unified-orders`。
+  - `tests/test_bottom_nav_migration.py`（新增）：覆盖迁移成功、幂等、无匹配、同名但自定义 path 不误伤等场景。
+
+- **admin-web**：
+  - `src/app/(admin)/bottom-nav/page.tsx`：下拉默认值 `{ label: '我的订单 (/orders)', value: '/orders' }` → `{ label: '我的订单 (/unified-orders)', value: '/unified-orders' }`。
+
+- **flutter_app**：
+  - `lib/main.dart`：路由表 `'/orders' -> OrdersScreen` 直接改名为 `'/unified-orders' -> OrdersScreen`（APP 未上架，不保留老路由）。
+  - `lib/screens/points/points_screen.dart`：映射表 value `'/orders?tab=pending_review': '/orders'` → `'/orders?tab=pending_review': '/unified-orders'`。
+
+- **h5-web / miniprogram**：无改动。H5 本来就是 `/unified-orders`；小程序本来走 `pages/unified-orders/index` 且映射表兼容。
+
+- **deploy**：`link_check_home_3bugs.py` / `final_link_check.py` / `link_check_v7.py` / `verify_bugfix7.py` 中硬编码的 `/orders` 同步改为 `/unified-orders`；新增 `_deploy_bottomnav_orders_fix.py` 和 `_verify_bottomnav_orders_fix.py` 部署与校验脚本。
+
+### 不变部分
+- 后端 API `/api/orders/...`（例如 `/api/h5/orders`）保持原样，与前端页面路由属于不同概念，严禁改动。
+- H5 `/api/h5/bottom-nav`、小程序、后端接口契约全部不变。
+
+### 回滚
+`git revert c212ec7` 即可；DB 可按后端日志记录的 `id` 列表 `UPDATE bottom_nav_config SET path='/orders' WHERE id IN (...)`。
+
+### 用户手册
+`user_docs/后台底部导航订单路径404修复.md`
+
+---
+
 ## Latest Update: 积分中心 & 积分商城 v3 — 优惠券 / 体验服务 + 兑换记录（2026-04-21）
 
 ### 概要
