@@ -1,0 +1,190 @@
+{
+  "base": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27",
+  "commit": "208e390",
+  "total": 11,
+  "pass_count": 11,
+  "fail_count": 0,
+  "results": [
+    {
+      "name": "api-health",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health",
+      "status": 200,
+      "redirects": 0,
+      "final_url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health",
+      "redirect_chain": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health",
+      "expected": [
+        200,
+        201,
+        202,
+        204
+      ],
+      "pass": true,
+      "note": "期望 2xx",
+      "error": null,
+      "body_snippet": ""
+    },
+    {
+      "name": "api-orders-old",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/orders",
+      "status": 404,
+      "redirects": 0,
+      "final_url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/orders",
+      "redirect_chain": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/orders",
+      "expected": [
+        404
+      ],
+      "pass": true,
+      "note": "老接口已下线",
+      "error": null,
+      "body_snippet": ""
+    },
+    {
+      "name": "api-admin-orders-old",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/orders",
+      "status": 404,
+      "redirects": 0,
+      "final_url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/orders",
+      "redirect_chain": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/orders",
+      "expected": [
+        401,
+        404
+      ],
+      "pass": true,
+      "note": "老接口已下线",
+      "error": null,
+      "body_snippet": ""
+    },
+    {
+      "name": "api-unified-counts",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/orders/unified/counts",
+      "status": 401,
+      "redirects": 0,
+      "final_url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/orders/unified/counts",
+      "redirect_chain": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/orders/unified/counts",
+      "expected": [
+        200,
+        401
+      ],
+      "pass": true,
+      "note": "未带 token 401 / 或 200",
+      "error": null,
+      "body_snippet": ""
+    },
+    {
+      "name": "h5-home",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/",
+      "status": 200,
+      "redirects": 0,
+      "final_url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/",
+      "redirect_chain": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/",
+      "expected": [
+        200,
+        301,
+        302,
+        304
+      ],
+      "pass": true,
+      "note": "H5 首页",
+      "error": null,
+      "body_snippet": ""
+    },
+    {
+      "name": "h5-orders-old",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/orders",
+      "status": 404,
+      "redirects": 1,
+      "final_url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/orders/",
+      "redirect_chain": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/orders -> https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/orders/",
+      "expected": [
+        404
+      ],
+      "pass": true,
+      "note": "老 H5 页面已删",
+      "error": null,
+      "body_snippet": ""
+    },
+    {
+      "name": "h5-unified-orders",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/unified-orders",
+      "status": 200,
+      "redirects": 1,
+      "final_url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/unified-orders/",
+      "redirect_chain": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/unified-orders -> https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/unified-orders/",
+      "expected": [
+        200,
+        304
+      ],
+      "pass": true,
+      "note": "统一订单页",
+      "error": null,
+      "body_snippet": ""
+    },
+    {
+      "name": "h5-refund-list",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/refund-list",
+      "status": 200,
+      "redirects": 1,
+      "final_url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/refund-list/",
+      "redirect_chain": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/refund-list -> https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/refund-list/",
+      "expected": [
+        200,
+        304
+      ],
+      "pass": true,
+      "note": "退款列表页",
+      "error": null,
+      "body_snippet": ""
+    },
+    {
+      "name": "admin-home",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/",
+      "status": 200,
+      "redirects": 0,
+      "final_url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/",
+      "redirect_chain": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/",
+      "expected": [
+        200,
+        301,
+        302,
+        304
+      ],
+      "pass": true,
+      "note": "管理后台首页",
+      "error": null,
+      "body_snippet": ""
+    },
+    {
+      "name": "admin-orders-old",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/orders",
+      "status": 404,
+      "redirects": 1,
+      "final_url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/orders/",
+      "redirect_chain": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/orders -> https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/orders/",
+      "expected": [
+        404
+      ],
+      "pass": true,
+      "note": "管理后台老订单页已删",
+      "error": null,
+      "body_snippet": ""
+    },
+    {
+      "name": "admin-product-orders",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/product-system/orders",
+      "status": 200,
+      "redirects": 1,
+      "final_url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/product-system/orders/",
+      "redirect_chain": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/product-system/orders -> https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/product-system/orders/",
+      "expected": [
+        200,
+        301,
+        302,
+        304
+      ],
+      "pass": true,
+      "note": "管理后台新订单页",
+      "error": null,
+      "body_snippet": ""
+    }
+  ]
+}

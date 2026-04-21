@@ -33,6 +33,73 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
+## Latest Update: 订单系统双轨制彻底合并 — 五端 7 Tab 统一 + 独立退款页（2026-04-21）
+
+### 概要
+修复 H5 / 小程序 / Flutter App 三端"我的订单"里待付款等状态无数据（角标 1、列表空）的长期 Bug。根因：老订单页写死 mock 数据与新统一订单页并存形成双轨、Tab 枚举与后端不对齐、H5 退款列表页仅查 applied 漏查 4 种状态、管理后台老版 `/orders` 与新 `/product-system/orders` 双轨。修复策略：一次性全部改完（B1），老表数据忽略（26C）。部署 commit `208e390`，11/11 外部链接验证通过。
+
+### 关键变更
+
+- **backend**：
+  - `backend/app/api/unified_orders.py` `list_unified_orders` 新增 `refund_status` 参数，支持 `all_refund/all`（非 none 全量）、逗号分隔多值（`.in_()`）、单值精确匹配；`get_order_counts` 返回扩展到 8 键（all / pending_payment / pending_receipt / pending_use / completed / pending_review / cancelled / refund），refund 计数改为 `refund_status != 'none'`。
+  - `backend/app/api/product_admin.py`：`/api/admin/orders/unified` 的 `refund_status` 同步支持多值/all_refund。
+  - `backend/app/api/admin.py`：9 个老订单端点（`/orders`、`/orders/statistics`、`/orders/trends`、`/orders/distribution`、`/{id}/confirm`、`/{id}/start-service`、`/{id}/complete`、`/{id}/cancel`、`/{id}/refund`）的 `@router` 装饰器全部注释下线。
+  - `backend/app/main.py`：注释掉 `app.include_router(order.router)`，`/api/orders/*` 老路由全部 404。
+  - `backend/tests/test_order_bugfix_7tab.py`：新增 18 个 pytest-asyncio 用例，全部通过。
+
+- **admin-web**：
+  - 删除 `src/app/(admin)/orders/page.tsx` 及空目录；保留 `/product-system/orders` 唯一订单管理入口，退款审核用 `/api/admin/orders/unified/{id}/refund/approve|reject`。
+
+- **h5-web**：
+  - 删除 `src/app/orders/page.tsx`（老 mock 页）。
+  - `src/app/refund-list/page.tsx`：新增 `REFUND_TABS`（5 个 Tab：全部/申请中/处理中/已退款/已拒绝），Tab 切换时组装 `refund_status` 过滤参数（如 `reviewing,returning`、`refund_success,approved`），修复仅查 `applied` 的漏查 Bug；补齐状态文案/配色映射。
+  - `src/app/expert/[id]/page.tsx`、`src/app/(tabs)/profile/page.tsx`：所有跳 `/orders` 改为 `/unified-orders`；`pending_receipt_use` 异常 tab 拆分为 `pending_receipt` 和 `pending_use`。
+  - `src/app/unified-orders/page.tsx` 经核查已是 7 Tab，无需改动。
+
+- **miniprogram**：
+  - 删除 `pages/orders/` 整个目录（index.js/wxml/wxss/json 4 个文件）。
+  - 新增 `pages/refund-list/`（4 文件，独立退款/售后页，5 Tab，分页 + 下拉刷新，调 `/api/orders/unified?refund_status=...`）。
+  - `pages/profile/index.js`：移除 `goOrders`；新增 `goRefundList`；`goUnifiedOrders` 对 `data-status='refund'` 改走退款页。
+  - `pages/expert-detail/index.js`、`pages/service-detail/index.js`：`/pages/orders/index` → `/pages/unified-orders/index`。
+  - `app.json`：移除 `pages/orders/index`，新增 `pages/refund-list/index`。
+
+- **flutter_app**：
+  - `lib/screens/order/unified_orders_screen.dart`：`_tabs` 由 5 扩为 7（全部/待付款/待收货/待使用/已完成/待评价/已取消）。
+  - 新增 `lib/screens/refund/refund_list_screen.dart`：5 Tab 独立退款列表，调 `api.getUnifiedOrders(refundStatus: ...)`，支持分页/下拉刷新/跳详情。
+  - `lib/screens/profile/profile_screen.dart`：退款快捷入口路由改 `/refund-list`，其它订单入口顺序对齐 7 Tab。
+  - `lib/services/api_service.dart`：`getUnifiedOrders` 新增可选 `refundStatus`，映射为 query 参数 `refund_status`。
+  - `lib/main.dart`：新增 `/refund-list` 路由注册 + 导入。
+
+### 7 Tab 与后端参数对齐
+
+| Tab | 后端 `status` |
+|---|---|
+| 全部 | 不传 |
+| 待付款 | `pending_payment` |
+| 待收货 | `pending_receipt` |
+| 待使用 | `pending_use` |
+| 已完成 | `completed` |
+| 待评价 | `pending_review` |
+| 已取消 | `cancelled` |
+
+### 退款状态 5 Tab 映射
+
+| UI Tab | 后端 `refund_status` 过滤 |
+|---|---|
+| 全部 | `all_refund`（非 none 全量）|
+| 申请中 | `applied` |
+| 处理中 | `reviewing,returning` |
+| 已退款 | `refund_success,approved` |
+| 已拒绝 | `rejected` |
+
+### 部署与验证
+- commit `208e390` 推送 GitHub master。
+- 服务器 `git reset --hard origin/master`，docker compose build backend/admin-web/h5-web 后 up -d；gateway nginx reload。
+- 11 个核心外部链接全部通过：`/api/health` 200、`/api/orders` 404、`/api/admin/orders` 404、`/api/orders/unified/counts` 401、H5 `/` 200、`/orders` 404、`/unified-orders` 200、`/refund-list` 200、`/admin/` 200、`/admin/orders` 404、`/admin/product-system/orders` 200。
+- 详见 `user_docs/订单系统统一升级使用手册.md`、`deploy/_remote_deploy_orderbugfix.py`、`deploy/_link_check_orderbugfix.json`。
+
+---
+
 ## Latest Update: 首页三 Bug 修复 — Banner 空置不渲染 / 菜单列数动态刷新 / 健康知识接入后端（2026-04-21）
 
 ### 概要
