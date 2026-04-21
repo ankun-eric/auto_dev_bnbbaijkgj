@@ -470,8 +470,17 @@ async def admin_list_unified_orders(
         query = query.where(UnifiedOrder.status == status)
         count_query = count_query.where(UnifiedOrder.status == status)
     if refund_status:
-        query = query.where(UnifiedOrder.refund_status == refund_status)
-        count_query = count_query.where(UnifiedOrder.refund_status == refund_status)
+        if refund_status in ("all_refund", "all"):
+            query = query.where(UnifiedOrder.refund_status != "none")
+            count_query = count_query.where(UnifiedOrder.refund_status != "none")
+        elif "," in refund_status:
+            rs_values = [v.strip() for v in refund_status.split(",") if v.strip()]
+            if rs_values:
+                query = query.where(UnifiedOrder.refund_status.in_(rs_values))
+                count_query = count_query.where(UnifiedOrder.refund_status.in_(rs_values))
+        else:
+            query = query.where(UnifiedOrder.refund_status == refund_status)
+            count_query = count_query.where(UnifiedOrder.refund_status == refund_status)
     if keyword:
         kw = f"%{keyword}%"
         user_subq = select(User.id).where(

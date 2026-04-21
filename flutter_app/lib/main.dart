@@ -65,6 +65,7 @@ import 'screens/order/unified_orders_screen.dart';
 import 'screens/order/unified_order_detail_screen.dart';
 import 'screens/order/review_screen.dart';
 import 'screens/order/refund_screen.dart';
+import 'screens/refund/refund_list_screen.dart';
 import 'screens/member/member_card_screen.dart';
 import 'screens/coupon/my_coupons_screen.dart';
 import 'screens/coupon/coupon_center_screen.dart';
@@ -260,6 +261,7 @@ class BiniHealthApp extends StatelessWidget {
           '/unified-order-detail': (context) => const UnifiedOrderDetailScreen(),
           '/review': (context) => const ReviewScreen(),
           '/refund': (context) => const RefundScreen(),
+          '/refund-list': (context) => const RefundListScreen(),
           '/member-card': (context) => const MemberCardScreen(),
           '/my-coupons': (context) => const MyCouponsScreen(),
           '/coupon-center': (context) => const CouponCenterScreen(),

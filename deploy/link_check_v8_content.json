@@ -1,0 +1,79 @@
+{
+  "base_url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27",
+  "total": 12,
+  "failed": 0,
+  "results": [
+    {
+      "kind": "H5",
+      "path": "/",
+      "http_code": "200",
+      "ok": true
+    },
+    {
+      "kind": "H5",
+      "path": "/login",
+      "http_code": "200",
+      "ok": true
+    },
+    {
+      "kind": "H5",
+      "path": "/news",
+      "http_code": "200",
+      "ok": true
+    },
+    {
+      "kind": "H5",
+      "path": "/articles",
+      "http_code": "200",
+      "ok": true
+    },
+    {
+      "kind": "H5",
+      "path": "/my-favorites",
+      "http_code": "200",
+      "ok": true
+    },
+    {
+      "kind": "ADMIN",
+      "path": "/admin",
+      "http_code": "200",
+      "ok": true
+    },
+    {
+      "kind": "ADMIN",
+      "path": "/admin/login",
+      "http_code": "200",
+      "ok": true
+    },
+    {
+      "kind": "API",
+      "path": "/api/health",
+      "http_code": "200",
+      "ok": true
+    },
+    {
+      "kind": "API",
+      "path": "/api/content/articles?page=1&page_size=3",
+      "http_code": "200",
+      "ok": true
+    },
+    {
+      "kind": "API",
+      "path": "/api/content/article-categories",
+      "http_code": "200",
+      "ok": true
+    },
+    {
+      "kind": "API",
+      "path": "/api/content/news?page=1&page_size=5",
+      "http_code": "200",
+      "ok": true
+    },
+    {
+      "kind": "API",
+      "path": "/api/content/news/latest?limit=5",
+      "http_code": "200",
+      "ok": true
+    }
+  ]
+}

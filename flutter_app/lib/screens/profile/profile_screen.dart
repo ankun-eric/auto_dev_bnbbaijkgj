@@ -243,11 +243,11 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceAround,
                           children: [
-                            _buildOrderIcon(context, Icons.payment, '待支付', 1),
-                            _buildOrderIcon(context, Icons.qr_code, '待使用', 2),
-                            _buildOrderIcon(context, Icons.local_shipping_outlined, '待发货', 3),
-                            _buildOrderIcon(context, Icons.rate_review_outlined, '待评价', 4),
-                            _buildOrderIcon(context, Icons.replay, '退款', null, route: '/unified-orders'),
+                            _buildOrderIcon(context, Icons.payment, '待付款', 1),
+                            _buildOrderIcon(context, Icons.local_shipping_outlined, '待收货', 2),
+                            _buildOrderIcon(context, Icons.qr_code, '待使用', 3),
+                            _buildOrderIcon(context, Icons.rate_review_outlined, '待评价', 5),
+                            _buildOrderIcon(context, Icons.replay, '退款', null, route: '/refund-list'),
                           ],
                         ),
                       ),

@@ -52,7 +52,7 @@ Page({
           if (res.confirm) {
             wx.showToast({ title: '购买成功', icon: 'success' });
             setTimeout(() => {
-              wx.navigateTo({ url: '/pages/orders/index' });
+              wx.navigateTo({ url: '/pages/unified-orders/index' });
             }, 1500);
           }
         }

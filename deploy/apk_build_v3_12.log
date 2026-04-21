@@ -1,0 +1,81 @@
+﻿
+>>> grep -n "WidgetsBindingObserver" /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/flutter_app/lib/screens/home/home_screen.dart | head -3 && grep -n "pageSize" /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/flutter_app/lib/services/api_...
+20:class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
+178:  Future<Response> getHealthRecords({int page = 1, int pageSize = 20}) async {
+179:    return _dio.get(ApiConfig.healthRecords, queryParameters: {'page': page, 'page_size': pageSize});
+210:  Future<Response> getChatSessionsList({int page = 1, int pageSize = 100}) async {
+
+
+>>> sed -i "s|services.gradle.org/distributions|mirrors.cloud.tencent.com/gradle|" /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/flutter_app/android/gradle/wrapper/gradle-wrapper.properties 2>/dev/null; head -8 /home/ubuntu/6b099ed3-7175-4a...
+distributionBase=GRADLE_USER_HOME
+
+distributionPath=wrapper/dists
+
+distributionUrl=https\://mirrors.cloud.tencent.com/gradle/gradle-8.6-all.zip
+
+networkTimeout=10000
+
+validateDistributionUrl=true
+
+zipStoreBase=GRADLE_USER_HOME
+
+zipStorePath=wrapper/dists
+
+
+
+>>> mkdir -p /home/ubuntu/.gradle-cache /home/ubuntu/.pub-cache-host
+
+>>> sudo rm -rf /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/flutter_app/build/app/outputs/flutter-apk 2>/dev/null; sudo rm -rf /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/flutter_app/build/app/intermediates/flutter 2>/dev/null; echo...
+clean-ok
+
+
+>>> cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/flutter_app && docker run --rm --name flutter_home3bugs_v3 --network=host -e PUB_HOSTED_URL=https://pub.flutter-io.cn -e FLUTTER_STORAGE_BASE_URL=https://storage.flutter-io.cn -v /home/ub...
+tion" to bypass this check.
+
+Potential fix: Your project's gradle version is typically defined in the gradle wrapper file. By default, this can be found at /app/android/gradle/wrapper/gradle-wrapper.properties. 
+For more information, see https://docs.gradle.org/current/userguide/gradle_wrapper.html.
+
+Warning: Flutter support for your project's Android Gradle Plugin version (Android Gradle Plugin version 8.4.1) will soon be dropped. Please upgrade your Android Gradle Plugin version to a version of at least Android Gradle Plugin version 8.6.0 soon.
+Alternatively, use the flag "--android-skip-build-dependency-validation" to bypass this check.
+
+Potential fix: Your project's AGP version is typically defined in the plugins block of the `settings.gradle` file (/app/android/settings.gradle), by a plugin with the id of com.android.application. 
+If you don't see a plugins block, your project was likely created with an older template version. In this case it is most likely defined in the top-level build.gradle file (/app/android/build.gradle) by the following line in the dependencies block of the buildscript: "classpath 'com.android.tools.build:gradle:<version>'".
+
+Warning: Flutter support for your project's Kotlin version (1.9.24) will soon be dropped. Please upgrade your Kotlin version to a version of at least 2.1.0 soon.
+Alternatively, use the flag "--android-skip-build-dependency-validation" to bypass this check.
+
+Potential fix: Your project's KGP version is typically defined in the plugins block of the `settings.gradle` file (/app/android/settings.gradle), by a plugin with the id of org.jetbrains.kotlin.android. 
+If you don't see a plugins block, your project was likely created with an older template version, in which case it is most likely defined in the top-level build.gradle file (/app/android/build.gradle) by the ext.kotlin_version property.
+
+Checking the license for package NDK (Side by side) 26.1.10909125 in /opt/android-sdk/licenses
+License for package NDK (Side by side) 26.1.10909125 accepted.
+Preparing "Install NDK (Side by side) 26.1.10909125 v.26.1.10909125".
+"Install NDK (Side by side) 26.1.10909125 v.26.1.10909125" ready.
+Installing NDK (Side by side) 26.1.10909125 in /opt/android-sdk/ndk/26.1.10909125
+"Install NDK (Side by side) 26.1.10909125 v.26.1.10909125" complete.
+"Install NDK (Side by side) 26.1.10909125 v.26.1.10909125" finished.
+
+FAILURE: Build failed with an exception.
+
+* Where:
+Build file '/app/android/build.gradle' line: 21
+
+* What went wrong:
+A problem occurred evaluating root project 'android'.
+> Cannot run Project.afterEvaluate(Closure) when the project is already evaluated.
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 1m 43s
+Running Gradle task 'assembleRelease'...                          104.4s
+Gradle task assembleRelease failed with exit code 1
+
+
+>>> ls -lh /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/flutter_app/build/app/outputs/flutter-apk/ 2>&1
+ls: cannot access '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/flutter_app/build/app/outputs/flutter-apk/': No such file or directory
+
+!!! BUILD FAILED, no app-release.apk !!!

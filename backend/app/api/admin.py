@@ -900,7 +900,8 @@ async def admin_delete_item(
 
 # ── 订单管理 ──
 
-@router.get("/orders")
+# [DISABLED 2026-04-21] 老订单接口下线，统一走 /api/admin/orders/unified
+# @router.get("/orders")
 async def admin_list_orders(
     order_status: Optional[str] = None,
     payment_status: Optional[str] = None,
@@ -951,7 +952,8 @@ async def admin_list_orders(
     return {"items": items, "total": total, "page": page, "page_size": page_size}
 
 
-@router.get("/orders/statistics")
+# [DISABLED 2026-04-21] 老订单接口下线
+# @router.get("/orders/statistics")
 async def admin_order_statistics(
     current_user=Depends(admin_dep),
     db: AsyncSession = Depends(get_db),
@@ -1002,7 +1004,8 @@ async def admin_order_statistics(
     }
 
 
-@router.get("/orders/trends")
+# [DISABLED 2026-04-21] 老订单接口下线
+# @router.get("/orders/trends")
 async def admin_order_trends(
     days: int = Query(7, ge=1, le=30),
     current_user=Depends(admin_dep),
@@ -1038,7 +1041,8 @@ async def admin_order_trends(
     return {"trends": results}
 
 
-@router.get("/orders/distribution")
+# [DISABLED 2026-04-21] 老订单接口下线
+# @router.get("/orders/distribution")
 async def admin_order_distribution(
     current_user=Depends(admin_dep),
     db: AsyncSession = Depends(get_db),
@@ -1068,7 +1072,8 @@ async def admin_order_distribution(
     }
 
 
-@router.put("/orders/{order_id}/confirm")
+# [DISABLED 2026-04-21] 老订单接口下线
+# @router.put("/orders/{order_id}/confirm")
 async def admin_confirm_order(
     order_id: int,
     current_user=Depends(admin_dep),
@@ -1087,7 +1092,8 @@ async def admin_confirm_order(
     return OrderResponse.model_validate(order)
 
 
-@router.put("/orders/{order_id}/start-service")
+# [DISABLED 2026-04-21] 老订单接口下线
+# @router.put("/orders/{order_id}/start-service")
 async def admin_start_service(
     order_id: int,
     current_user=Depends(admin_dep),
@@ -1106,7 +1112,8 @@ async def admin_start_service(
     return OrderResponse.model_validate(order)
 
 
-@router.put("/orders/{order_id}/complete")
+# [DISABLED 2026-04-21] 老订单接口下线
+# @router.put("/orders/{order_id}/complete")
 async def admin_complete_order(
     order_id: int,
     current_user=Depends(admin_dep),
@@ -1125,7 +1132,8 @@ async def admin_complete_order(
     return OrderResponse.model_validate(order)
 
 
-@router.put("/orders/{order_id}/cancel")
+# [DISABLED 2026-04-21] 老订单接口下线
+# @router.put("/orders/{order_id}/cancel")
 async def admin_cancel_order(
     order_id: int,
     reason: Optional[str] = Body(None),
@@ -1145,7 +1153,8 @@ async def admin_cancel_order(
     return OrderResponse.model_validate(order)
 
 
-@router.put("/orders/{order_id}/refund")
+# [DISABLED 2026-04-21] 老订单接口下线
+# @router.put("/orders/{order_id}/refund")
 async def admin_refund_order(
     order_id: int,
     reason: Optional[str] = Body(None),

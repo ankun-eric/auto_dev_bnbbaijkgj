@@ -1,0 +1,82 @@
+﻿
+>>> grep -n "WidgetsBindingObserver" /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/flutter_app/lib/screens/home/home_screen.dart | head -3 && grep -n "pageSize" /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/flutter_app/lib/services/api_...
+20:class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
+178:  Future<Response> getHealthRecords({int page = 1, int pageSize = 20}) async {
+179:    return _dio.get(ApiConfig.healthRecords, queryParameters: {'page': page, 'page_size': pageSize});
+210:  Future<Response> getChatSessionsList({int page = 1, int pageSize = 100}) async {
+
+
+>>> sed -i "s|services.gradle.org/distributions|mirrors.cloud.tencent.com/gradle|" /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/flutter_app/android/gradle/wrapper/gradle-wrapper.properties 2>/dev/null; head -8 /home/ubuntu/6b099ed3-7175-4a...
+distributionBase=GRADLE_USER_HOME
+
+distributionPath=wrapper/dists
+
+distributionUrl=https\://mirrors.cloud.tencent.com/gradle/gradle-8.6-all.zip
+
+networkTimeout=10000
+
+validateDistributionUrl=true
+
+zipStoreBase=GRADLE_USER_HOME
+
+zipStorePath=wrapper/dists
+
+
+
+>>> mkdir -p /home/ubuntu/.gradle-cache /home/ubuntu/.pub-cache-host
+
+>>> sudo rm -rf /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/flutter_app/build/app/outputs/flutter-apk 2>/dev/null; sudo rm -rf /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/flutter_app/build/app/intermediates/flutter 2>/dev/null; echo...
+clean-ok
+
+
+>>> cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/flutter_app && docker run --rm --name flutter_home3bugs_v3 --network=host -e PUB_HOSTED_URL=https://pub.flutter-io.cn -e FLUTTER_STORAGE_BASE_URL=https://storage.flutter-io.cn -v /home/ub...
+ix: Your project's KGP version is typically defined in the plugins block of the `settings.gradle` file (/app/android/settings.gradle), by a plugin with the id of org.jetbrains.kotlin.android. 
+If you don't see a plugins block, your project was likely created with an older template version, in which case it is most likely defined in the top-level build.gradle file (/app/android/build.gradle) by the ext.kotlin_version property.
+
+Checking the license for package NDK (Side by side) 26.1.10909125 in /opt/android-sdk/licenses
+License for package NDK (Side by side) 26.1.10909125 accepted.
+Preparing "Install NDK (Side by side) 26.1.10909125 v.26.1.10909125".
+"Install NDK (Side by side) 26.1.10909125 v.26.1.10909125" ready.
+Installing NDK (Side by side) 26.1.10909125 in /opt/android-sdk/ndk/26.1.10909125
+"Install NDK (Side by side) 26.1.10909125 v.26.1.10909125" complete.
+"Install NDK (Side by side) 26.1.10909125 v.26.1.10909125" finished.
+Checking the license for package NDK (Side by side) 28.2.13676358 in /opt/android-sdk/licenses
+License for package NDK (Side by side) 28.2.13676358 accepted.
+Preparing "Install NDK (Side by side) 28.2.13676358 v.28.2.13676358".
+"Install NDK (Side by side) 28.2.13676358 v.28.2.13676358" ready.
+Installing NDK (Side by side) 28.2.13676358 in /opt/android-sdk/ndk/28.2.13676358
+"Install NDK (Side by side) 28.2.13676358 v.28.2.13676358" complete.
+"Install NDK (Side by side) 28.2.13676358 v.28.2.13676358" finished.
+Your project is configured with Android NDK 26.1.10909125, but the following plugin(s) depend on a different Android NDK version:
+- jni requires Android NDK 28.2.13676358
+Fix this issue by using the highest Android NDK version (they are backward compatible).
+Add the following to /app/android/app/build.gradle:
+
+    android {
+        ndkVersion = "28.2.13676358"
+        ...
+    }
+Checking the license for package Android SDK Platform 35 in /opt/android-sdk/licenses
+License for package Android SDK Platform 35 accepted.
+Preparing "Install Android SDK Platform 35 (revision 2)".
+"Install Android SDK Platform 35 (revision 2)" ready.
+Installing Android SDK Platform 35 in /opt/android-sdk/platforms/android-35
+"Install Android SDK Platform 35 (revision 2)" complete.
+"Install Android SDK Platform 35 (revision 2)" finished.
+Flutter assets will be downloaded from https://storage.flutter-io.cn. Make sure you trust this source!
+Generating lint files for backported methods only (compile API B)
+Checking the license for package CMake 3.22.1 in /opt/android-sdk/licenses
+License for package CMake 3.22.1 accepted.
+Preparing "Install CMake 3.22.1 v.3.22.1".
+"Install CMake 3.22.1 v.3.22.1" ready.
+Installing CMake 3.22.1 in /opt/android-sdk/cmake/3.22.1
+"Install CMake 3.22.1 v.3.22.1" complete.
+"Install CMake 3.22.1 v.3.22.1" finished.
+Running Gradle task 'assembleRelease'...                          575.0s
+Gradle build failed to produce an .apk file. It's likely that this file was generated under /app/build, but the tool couldn't find it.
+
+
+>>> ls -lh /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/flutter_app/build/app/outputs/flutter-apk/ 2>&1
+ls: cannot access '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/flutter_app/build/app/outputs/flutter-apk/': No such file or directory
+
+!!! BUILD FAILED, no app-release.apk !!!

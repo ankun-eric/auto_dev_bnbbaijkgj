@@ -45,7 +45,7 @@ export default function ExpertDetailPage() {
       cancelText: '取消',
       onConfirm: () => {
         Toast.show({ content: '预约成功' });
-        router.push('/orders');
+        router.push('/unified-orders');
       },
     });
   };

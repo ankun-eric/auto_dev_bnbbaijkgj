@@ -957,9 +957,15 @@ class ApiService {
     return _dio.post(ApiConfig.unifiedOrders, data: data);
   }
 
-  Future<Response> getUnifiedOrders({String? status, int page = 1, int pageSize = 20}) async {
+  Future<Response> getUnifiedOrders({
+    String? status,
+    String? refundStatus,
+    int page = 1,
+    int pageSize = 20,
+  }) async {
     final params = <String, dynamic>{'page': page, 'page_size': pageSize};
     if (status != null) params['status'] = status;
+    if (refundStatus != null) params['refund_status'] = refundStatus;
     return _dio.get(ApiConfig.unifiedOrders, queryParameters: params);
   }
 

@@ -15,10 +15,12 @@ class _UnifiedOrdersScreenState extends State<UnifiedOrdersScreen> with SingleTi
 
   final List<Map<String, String>> _tabs = [
     {'label': '全部', 'status': 'all'},
-    {'label': '待支付', 'status': 'pending_payment'},
+    {'label': '待付款', 'status': 'pending_payment'},
+    {'label': '待收货', 'status': 'pending_receipt'},
     {'label': '待使用', 'status': 'pending_use'},
-    {'label': '待发货', 'status': 'pending_shipment'},
+    {'label': '已完成', 'status': 'completed'},
     {'label': '待评价', 'status': 'pending_review'},
+    {'label': '已取消', 'status': 'cancelled'},
   ];
 
   @override

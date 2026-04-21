@@ -18,8 +18,8 @@ import api from '@/lib/api';
 
 const orderQuickTabs = [
   { icon: '💳', title: '待付款', key: 'pending_payment', path: '/unified-orders?tab=pending_payment' },
-  { icon: '📦', title: '待收货', key: 'pending_receipt', path: '/unified-orders?tab=pending_receipt_use' },
-  { icon: '🎫', title: '待使用', key: 'pending_use', path: '/unified-orders?tab=pending_receipt_use' },
+  { icon: '📦', title: '待收货', key: 'pending_receipt', path: '/unified-orders?tab=pending_receipt' },
+  { icon: '🎫', title: '待使用', key: 'pending_use', path: '/unified-orders?tab=pending_use' },
   { icon: '⭐', title: '待评价', key: 'pending_review', path: '/unified-orders?tab=pending_review' },
   { icon: '↩️', title: '退款/售后', key: 'refund', path: '/refund-list' },
 ];

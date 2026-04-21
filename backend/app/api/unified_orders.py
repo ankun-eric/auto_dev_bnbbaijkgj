@@ -246,6 +246,7 @@ async def create_unified_order(
 @router.get("")
 async def list_unified_orders(
     status: Optional[str] = None,
+    refund_status: Optional[str] = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     current_user: User = Depends(get_current_user),
@@ -284,6 +285,19 @@ async def list_unified_orders(
             query = query.where(UnifiedOrder.status == status)
             count_query = count_query.where(UnifiedOrder.status == status)
 
+    if refund_status:
+        if refund_status in ("all_refund", "all"):
+            query = query.where(UnifiedOrder.refund_status != "none")
+            count_query = count_query.where(UnifiedOrder.refund_status != "none")
+        elif "," in refund_status:
+            rs_values = [v.strip() for v in refund_status.split(",") if v.strip()]
+            if rs_values:
+                query = query.where(UnifiedOrder.refund_status.in_(rs_values))
+                count_query = count_query.where(UnifiedOrder.refund_status.in_(rs_values))
+        else:
+            query = query.where(UnifiedOrder.refund_status == refund_status)
+            count_query = count_query.where(UnifiedOrder.refund_status == refund_status)
+
     total_result = await db.execute(count_query)
     total = total_result.scalar() or 0
 
@@ -304,6 +318,7 @@ async def get_order_counts(
 ):
     base = UnifiedOrder.user_id == current_user.id
 
+    all_q = select(func.count(UnifiedOrder.id)).where(base)
     pending_payment_q = select(func.count(UnifiedOrder.id)).where(
         base, UnifiedOrder.status == UnifiedOrderStatus.pending_payment
     )
@@ -313,24 +328,36 @@ async def get_order_counts(
     pending_use_q = select(func.count(UnifiedOrder.id)).where(
         base, UnifiedOrder.status == UnifiedOrderStatus.pending_use
     )
+    completed_q = select(func.count(UnifiedOrder.id)).where(
+        base, UnifiedOrder.status == UnifiedOrderStatus.completed
+    )
     pending_review_q = select(func.count(UnifiedOrder.id)).where(
         base, UnifiedOrder.status == UnifiedOrderStatus.completed, UnifiedOrder.has_reviewed == False
     )
+    cancelled_q = select(func.count(UnifiedOrder.id)).where(
+        base, UnifiedOrder.status == UnifiedOrderStatus.cancelled
+    )
     refund_q = select(func.count(UnifiedOrder.id)).where(
-        base, UnifiedOrder.refund_status == RefundStatusEnum.applied
+        base, UnifiedOrder.refund_status != "none"
     )
 
+    total = (await db.execute(all_q)).scalar() or 0
     pp = (await db.execute(pending_payment_q)).scalar() or 0
     pr = (await db.execute(pending_receipt_q)).scalar() or 0
     pu = (await db.execute(pending_use_q)).scalar() or 0
+    cp = (await db.execute(completed_q)).scalar() or 0
     prv = (await db.execute(pending_review_q)).scalar() or 0
+    cc = (await db.execute(cancelled_q)).scalar() or 0
     rf = (await db.execute(refund_q)).scalar() or 0
 
     return {
+        "all": total,
         "pending_payment": pp,
         "pending_receipt": pr,
         "pending_use": pu,
+        "completed": cp,
         "pending_review": prv,
+        "cancelled": cc,
         "refund": rf,
     }
 

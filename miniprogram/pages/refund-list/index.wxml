@@ -1,0 +1,55 @@
+<view class="orders-page">
+  <!-- 顶部Tab -->
+  <scroll-view class="tab-scroll" scroll-x enable-flex>
+    <view class="tab-list">
+      <view class="tab-item {{currentTab === index ? 'tab-active' : ''}}"
+            wx:for="{{tabs}}" wx:key="index"
+            bindtap="switchTab" data-index="{{index}}">
+        <text>{{item.label}}</text>
+      </view>
+    </view>
+  </scroll-view>
+
+  <!-- 订单列表 -->
+  <view class="order-list">
+    <view class="order-card card" wx:for="{{orders}}" wx:key="id"
+          bindtap="goDetail" data-id="{{item.id}}">
+      <view class="order-top">
+        <text class="order-no">订单号：{{item.order_no}}</text>
+        <text class="order-status" style="color: {{item.refund_status_color}}">{{item.refund_status_text}}</text>
+      </view>
+
+      <view class="order-product">
+        <image class="order-img" src="{{item.first_item.product_cover || item.first_item.cover_image || item.product_cover || item.cover_image}}" mode="aspectFill" />
+        <view class="order-info">
+          <text class="order-name ellipsis-2">{{item.first_item.product_name || item.first_item.name || item.product_name || item.name}}</text>
+          <view class="order-meta">
+            <text class="order-price">¥{{item.total_amount || item.price}}</text>
+            <text class="order-qty">×{{item.first_item.quantity || item.quantity || 1}}</text>
+          </view>
+        </view>
+      </view>
+
+      <view class="refund-reason" wx:if="{{item.refund_reason}}">
+        <text class="refund-reason-label">退款原因：</text>
+        <text class="refund-reason-text">{{item.refund_reason}}</text>
+      </view>
+
+      <view class="order-footer">
+        <text class="order-time">{{item.created_at}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 加载状态 -->
+  <view class="loading-more" wx:if="{{loading}}">
+    <text class="loading-text">加载中...</text>
+  </view>
+  <view class="load-end" wx:if="{{!loading && !hasMore && orders.length > 0}}">
+    <text class="load-end-text">— 没有更多了 —</text>
+  </view>
+  <view class="empty-state" wx:if="{{!loading && orders.length === 0}}">
+    <text class="empty-icon">💔</text>
+    <text class="empty-text">暂无退款订单</text>
+  </view>
+</view>

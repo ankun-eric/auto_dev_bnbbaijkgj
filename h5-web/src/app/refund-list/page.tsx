@@ -31,7 +31,10 @@ interface Order {
 const REFUND_STATUS_TEXT: Record<string, string> = {
   applied: '退款申请中',
   processing: '退款处理中',
+  reviewing: '退款处理中',
+  returning: '退款处理中',
   refund_success: '退款成功',
+  approved: '退款成功',
   refund_failed: '退款失败',
   rejected: '退款被拒绝',
 };
@@ -39,10 +42,21 @@ const REFUND_STATUS_TEXT: Record<string, string> = {
 const REFUND_STATUS_COLOR: Record<string, string> = {
   applied: '#fa8c16',
   processing: '#1890ff',
+  reviewing: '#1890ff',
+  returning: '#1890ff',
   refund_success: '#52c41a',
+  approved: '#52c41a',
   refund_failed: '#f5222d',
   rejected: '#8c8c8c',
 };
+
+const REFUND_TABS: { key: string; label: string; filter: string }[] = [
+  { key: 'all', label: '全部', filter: 'all_refund' },
+  { key: 'applied', label: '申请中', filter: 'applied' },
+  { key: 'reviewing', label: '处理中', filter: 'reviewing,returning' },
+  { key: 'refund_success', label: '已退款', filter: 'refund_success,approved' },
+  { key: 'rejected', label: '已拒绝', filter: 'rejected' },
+];
 
 export default function RefundListPage() {
   const router = useRouter();
@@ -50,13 +64,15 @@ export default function RefundListPage() {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
+  const [activeTab, setActiveTab] = useState<string>('all');
 
   const fetchOrders = useCallback(async (pageNum: number, reset = false) => {
     try {
+      const filter = REFUND_TABS.find((t) => t.key === activeTab)?.filter || 'all_refund';
       const params: Record<string, any> = {
         page: pageNum,
         page_size: 20,
-        refund_status: 'applied',
+        refund_status: filter,
       };
       const res: any = await api.get('/api/orders/unified', { params });
       const data = res.data || res;
@@ -72,9 +88,11 @@ export default function RefundListPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [activeTab]);
 
   useEffect(() => {
+    setLoading(true);
+    setPage(1);
     fetchOrders(1, true);
   }, [fetchOrders]);
 
@@ -90,11 +108,52 @@ export default function RefundListPage() {
     await fetchOrders(1, true);
   };
 
+  const handleTabChange = (key: string) => {
+    if (key === activeTab) return;
+    setActiveTab(key);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <NavBar onBack={() => router.back()} style={{ background: '#fff' }}>
         退款/售后
       </NavBar>
+
+      <div
+        className="flex overflow-x-auto no-scrollbar border-b border-gray-100"
+        style={{ background: '#fff' }}
+      >
+        {REFUND_TABS.map((tab) => {
+          const active = tab.key === activeTab;
+          return (
+            <div
+              key={tab.key}
+              onClick={() => handleTabChange(tab.key)}
+              className="flex-shrink-0 px-4 py-3 text-sm cursor-pointer relative"
+              style={{
+                color: active ? '#52c41a' : '#4b5563',
+                fontWeight: active ? 600 : 400,
+              }}
+            >
+              {tab.label}
+              {active && (
+                <span
+                  style={{
+                    position: 'absolute',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    bottom: 4,
+                    width: 20,
+                    height: 2,
+                    background: '#52c41a',
+                    borderRadius: 1,
+                  }}
+                />
+              )}
+            </div>
+          );
+        })}
+      </div>
 
       <PullToRefresh onRefresh={handleRefresh}>
         <div className="px-4 pt-3">

@@ -108,7 +108,15 @@ Page({
 
   goUnifiedOrders(e) {
     const status = (e && e.currentTarget.dataset.status) || '';
+    if (status === 'refund') {
+      this.goRefundList();
+      return;
+    }
     wx.navigateTo({ url: `/pages/unified-orders/index?status=${status}` });
+  },
+
+  goRefundList() {
+    wx.navigateTo({ url: '/pages/refund-list/index' });
   },
 
   switchRole() {
@@ -146,11 +154,6 @@ Page({
 
   goFontSetting() {
     wx.navigateTo({ url: '/pages/settings/index?openFont=1' });
-  },
-
-  goOrders(e) {
-    const status = e.currentTarget.dataset.status || '';
-    wx.navigateTo({ url: `/pages/orders/index?status=${status}` });
   },
 
   goFamily() {

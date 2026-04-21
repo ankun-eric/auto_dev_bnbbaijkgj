@@ -1,0 +1,80 @@
+﻿
+>>> grep -n "WidgetsBindingObserver" /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/flutter_app/lib/screens/home/home_screen.dart | head -3 && grep -n "pageSize" /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/flutter_app/lib/services/api_...
+20:class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
+178:  Future<Response> getHealthRecords({int page = 1, int pageSize = 20}) async {
+179:    return _dio.get(ApiConfig.healthRecords, queryParameters: {'page': page, 'page_size': pageSize});
+210:  Future<Response> getChatSessionsList({int page = 1, int pageSize = 100}) async {
+
+
+>>> sed -i "s|services.gradle.org/distributions|mirrors.cloud.tencent.com/gradle|" /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/flutter_app/android/gradle/wrapper/gradle-wrapper.properties 2>/dev/null; head -8 /home/ubuntu/6b099ed3-7175-4a...
+distributionBase=GRADLE_USER_HOME
+distributionPath=wrapper/dists
+distributionUrl=https\://mirrors.cloud.tencent.com/gradle/gradle-8.6-all.zip
+networkTimeout=10000
+validateDistributionUrl=true
+zipStoreBase=GRADLE_USER_HOME
+zipStorePath=wrapper/dists
+
+
+>>> mkdir -p /home/ubuntu/.gradle-cache /home/ubuntu/.pub-cache-host
+
+>>> rm -rf /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/flutter_app/build; rm -rf /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/flutter_app/.dart_tool; rm -rf /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/flutter_app/android/.gradl...
+STDERR: -91f4-44570c84ed27/flutter_app/.dart_tool/flutter_build/3e79e8612bf780d6ab665368c6256ad2/.filecache': Permission denied
+rm: cannot remove '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/flutter_app/.dart_tool/flutter_build/3e79e8612bf780d6ab665368c6256ad2/dart_build.d': Permission denied
+rm: cannot remove '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/flutter_app/.dart_tool/flutter_build/3e79e8612bf780d6ab665368c6256ad2/gen_dart_plugin_registrant.stamp': Permission denied
+rm: cannot remove '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/flutter_app/.dart_tool/flutter_build/3e79e8612bf780d6ab665368c6256ad2/dart_build_result.json': Permission denied
+rm: cannot remove '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/flutter_app/.dart_tool/flutter_build/3e79e8612bf780d6ab665368c6256ad2/kernel_snapshot_program.d': Permission denied
+rm: cannot remove '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/flutter_app/.dart_tool/flutter_build/3e79e8612bf780d6ab665368c6256ad2/app.dill': Permission denied
+rm: cannot remove '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/flutter_app/.dart_tool/flutter_build/3e79e8612bf780d6ab665368c6256ad2/gen_localizations.stamp': Permission denied
+rm: cannot remove '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/flutter_app/.dart_tool/flutter_build/3e79e8612bf780d6ab665368c6256ad2/native_assets.json': Permission denied
+rm: cannot remove '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/flutter_app/.dart_tool/version': Permission denied
+
+
+>>> cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/flutter_app && docker run --rm --name flutter_home3bugs_v3 --network=host -e PUB_HOSTED_URL=https://pub.flutter-io.cn -e FLUTTER_STORAGE_BASE_URL=https://storage.flutter-io.cn -v /home/ub...
+Flutter assets will be downloaded from https://storage.flutter-io.cn. Make sure you trust this source!
+Resolving dependencies...
+Downloading packages...
+  flutter_markdown 0.7.7+1 (discontinued replaced by flutter_markdown_plus)
+  intl 0.19.0 (0.20.2 available)
+! record_linux 1.3.0 (overridden)
+Got dependencies!
+1 package is discontinued.
+1 package has newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+Flutter assets will be downloaded from https://storage.flutter-io.cn. Make sure you trust this source!
+Running Gradle task 'assembleRelease'...                        
+
+FAILURE: Build failed with an exception.
+
+* Where:
+Settings file '/app/android/settings.gradle' line: 27
+
+* What went wrong:
+Could not compile settings file '/app/android/settings.gradle'.
+> startup failed:
+  settings file '/app/android/settings.gradle': 27: only buildscript {}, pluginManagement {} and other plugins {} script blocks are allowed before plugins {} blocks, no other statements are allowed
+
+  For more information on the plugins {} block, please refer to https://docs.gradle.org/8.6/userguide/plugins.html#sec:plugins_block in the Gradle documentation.
+
+   @ line 27, column 1.
+     plugins {
+     ^
+
+  1 error
+
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 4s
+Running Gradle task 'assembleRelease'...                            4.7s
+Gradle task assembleRelease failed with exit code 1
+
+
+>>> ls -lh /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/flutter_app/build/app/outputs/flutter-apk/ 2>&1
+ls: cannot access '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/flutter_app/build/app/outputs/flutter-apk/': No such file or directory
+
+!!! BUILD FAILED, no app-release.apk !!!

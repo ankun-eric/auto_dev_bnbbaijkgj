@@ -1,0 +1,28 @@
+// Gradle init script - 中国阿里镜像加速
+// 仅通过 beforeSettings 把镜像 repo 注入 settings 级，不再使用 allprojects 以兼容
+// Flutter 3.41+ 引入的 FAIL_ON_PROJECT_REPOS 模式。
+
+def ALIYUN_MIRRORS = [
+    'https://maven.aliyun.com/repository/google',
+    'https://maven.aliyun.com/repository/public',
+    'https://maven.aliyun.com/repository/central',
+    'https://maven.aliyun.com/repository/gradle-plugin'
+]
+
+beforeSettings { settings ->
+    settings.pluginManagement {
+        repositories {
+            ALIYUN_MIRRORS.each { u -> maven { url = uri(u) } }
+            gradlePluginPortal()
+            google()
+            mavenCentral()
+        }
+    }
+    settings.dependencyResolutionManagement {
+        repositories {
+            ALIYUN_MIRRORS.each { u -> maven { url = uri(u) } }
+            google()
+            mavenCentral()
+        }
+    }
+}
