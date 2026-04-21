@@ -10,9 +10,11 @@
  * 路由参数：?tab=exchange 直接激活兑换记录 Tab。
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Tabs, List, InfiniteScroll, Empty, SpinLoading, Card, Tag, Button, Toast } from 'antd-mobile';
+
+export const dynamic = 'force-dynamic';
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 
@@ -241,13 +243,13 @@ function ExchangeRecordsTab() {
   );
 }
 
-export default function PointsDetailPage() {
+function PointsDetailInner() {
   const searchParams = useSearchParams();
-  const initialTab = searchParams.get('tab') === 'exchange' ? 'exchange' : 'detail';
+  const initialTab = searchParams?.get('tab') === 'exchange' ? 'exchange' : 'detail';
   const [activeKey, setActiveKey] = useState<string>(initialTab);
 
   useEffect(() => {
-    const t = searchParams.get('tab');
+    const t = searchParams?.get('tab');
     if (t === 'exchange' || t === 'detail') setActiveKey(t);
   }, [searchParams]);
 
@@ -263,5 +265,13 @@ export default function PointsDetailPage() {
         </Tabs.Tab>
       </Tabs>
     </div>
+  );
+}
+
+export default function PointsDetailPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gray-50" />}>
+      <PointsDetailInner />
+    </Suspense>
   );
 }

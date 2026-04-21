@@ -13,8 +13,10 @@
  *   5. exchangeable     → 立即兑换（消耗 XXX 积分）
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+
+export const dynamic = 'force-dynamic';
 import {
   Button,
   Dialog,
@@ -65,10 +67,10 @@ const TYPE_BADGE: Record<string, { text: string; color: string }> = {
   third_party: { text: '第三方（开发中）', color: '#bfbfbf' },
 };
 
-export default function PointsProductDetailPage() {
+function PointsProductDetailInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const id = searchParams.get('id');
+  const id = searchParams?.get('id');
   const [item, setItem] = useState<ProductDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [exchanging, setExchanging] = useState(false);
@@ -328,5 +330,13 @@ export default function PointsProductDetailPage() {
         </Button>
       </div>
     </div>
+  );
+}
+
+export default function PointsProductDetailPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gray-50" />}>
+      <PointsProductDetailInner />
+    </Suspense>
   );
 }
