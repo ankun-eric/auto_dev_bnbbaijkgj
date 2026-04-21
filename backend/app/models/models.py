@@ -935,6 +935,49 @@ class PointsExchange(Base):
     item = relationship("PointsMallItem")
 
 
+# ──────────────── 积分兑换记录 v3（优惠券 + 体验服务） ────────────────
+class PointExchangeRecord(Base):
+    """v3 新增：积分兑换记录表（承载券 + 体验服务两种商品；实物走 orders 系统）。"""
+    __tablename__ = "point_exchange_records"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    order_no = mapped_column(String(32), nullable=False, unique=True, index=True,
+                             comment="兑换单号 EX+yyyyMMdd+6位流水")
+    user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    goods_id = mapped_column(Integer, nullable=False, comment="PointsMallItem.id")
+    goods_type = mapped_column(String(20), nullable=False,
+                                comment="coupon/service/virtual/physical/third_party")
+    goods_name = mapped_column(String(200), nullable=False)
+    goods_image = mapped_column(String(500), nullable=True)
+    points_cost = mapped_column(Integer, nullable=False)
+    quantity = mapped_column(Integer, default=1, nullable=False)
+
+    status = mapped_column(String(20), default="success", nullable=False, index=True,
+                            comment="pending/success/failed/used/expired/cancelled")
+    exchange_time = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    expire_at = mapped_column(DateTime, nullable=True)
+    used_at = mapped_column(DateTime, nullable=True)
+
+    # 虚拟券 / 服务券关联
+    ref_coupon_id = mapped_column(Integer, nullable=True, comment="关联券模板 ID")
+    ref_user_coupon_id = mapped_column(Integer, nullable=True, comment="关联 user_coupons.id")
+
+    # 体验服务关联
+    ref_service_type = mapped_column(String(30), nullable=True,
+                                      comment="expert/physical_exam/tcm/health_plan")
+    ref_service_id = mapped_column(Integer, nullable=True)
+
+    # 实物（实际走订单系统，此处冗余订单号）
+    ref_order_no = mapped_column(String(32), nullable=True)
+
+    remark = mapped_column(String(500), nullable=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow,
+                                onupdate=datetime.utcnow, nullable=False)
+
+    user = relationship("User")
+
+
 # ──────────────── 健康计划 ────────────────
 
 

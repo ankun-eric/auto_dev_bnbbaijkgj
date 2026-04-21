@@ -72,6 +72,10 @@ Page({
     wx.navigateTo({ url: '/pages/points/records/index' });
   },
 
+  goExchangeRecords() {
+    wx.navigateTo({ url: '/pages/points-exchange-records/index' });
+  },
+
   goMall() {
     wx.navigateTo({ url: '/pages/points-mall/index' });
   },

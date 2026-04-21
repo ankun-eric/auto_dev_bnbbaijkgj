@@ -3,8 +3,9 @@
   padding-bottom: 24rpx;
 }
 
+/* v3: 统计区统一浅绿 #C8E6C9 */
 .points-bar {
-  background: linear-gradient(135deg, #FFF8E1 0%, #FFE7A8 100%);
+  background: #C8E6C9;
   padding: 28rpx 32rpx;
   display: flex;
   align-items: center;
@@ -16,17 +17,23 @@
   flex-direction: column;
 }
 
-.my-points { font-size: 26rpx; color: #8C6D1F; }
+.my-points { font-size: 24rpx; color: #1B5E20; }
 .points-num {
   font-size: 44rpx;
   font-weight: bold;
-  color: #B8860B;
+  color: #1B5E20;
   margin-top: 4rpx;
+  line-height: 1.2;
 }
-.points-badge {
-  font-size: 44rpx;
-  line-height: 1;
-  text-shadow: 0 2rpx 2rpx rgba(184, 134, 11, 0.35);
+.points-tip { font-size: 22rpx; color: #2E7D32; margin-top: 4rpx; }
+
+.exchange-record-btn {
+  padding: 10rpx 24rpx;
+  border: 1rpx solid rgba(27, 94, 32, 0.35);
+  background: rgba(27, 94, 32, 0.12);
+  color: #1B5E20;
+  font-size: 24rpx;
+  border-radius: 30rpx;
 }
 
 .goods-grid {
@@ -43,6 +50,17 @@
   flex-direction: column;
   align-items: center;
   padding: 24rpx;
+  position: relative;
+}
+
+.type-badge {
+  position: absolute;
+  top: 12rpx;
+  left: 12rpx;
+  padding: 2rpx 10rpx;
+  font-size: 18rpx;
+  border-radius: 16rpx;
+  line-height: 1.4;
 }
 
 .goods-icon-wrap {
@@ -56,8 +74,9 @@
 }
 
 .goods-icon { font-size: 48rpx; }
+.goods-img { width: 80rpx; height: 80rpx; }
 .goods-name { font-size: 26rpx; font-weight: bold; color: #333; margin-bottom: 6rpx; }
-.goods-desc { font-size: 22rpx; color: #999; text-align: center; margin-bottom: 12rpx; }
+.goods-desc { font-size: 22rpx; color: #999; text-align: center; margin-bottom: 12rpx; min-height: 28rpx; }
 
 .goods-footer {
   display: flex;
@@ -65,5 +84,17 @@
   gap: 12rpx;
 }
 
-.goods-points { font-size: 26rpx; font-weight: bold; color: #ff4d4f; }
-.goods-stock { font-size: 20rpx; color: #ccc; }
+.goods-points { font-size: 26rpx; font-weight: bold; color: #B8860B; }
+.goods-stock { font-size: 20rpx; color: #bbb; }
+
+.dev-mask {
+  position: absolute;
+  inset: 0;
+  background: rgba(255,255,255,0.75);
+  color: #999;
+  font-size: 28rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16rpx;
+}

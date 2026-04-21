@@ -100,12 +100,20 @@ export default function PointsPage() {
     <div className="min-h-screen bg-gray-50 pb-8">
       <GreenNavBar
         right={
-          <span
-            className="text-white text-sm cursor-pointer"
-            onClick={() => router.push('/points/records')}
-          >
-            积分详情 ›
-          </span>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <span
+              className="text-white text-sm cursor-pointer"
+              onClick={() => router.push('/points/records')}
+            >
+              积分详情
+            </span>
+            <span
+              className="text-white text-sm cursor-pointer"
+              onClick={() => router.push('/points/exchange-records')}
+            >
+              兑换记录 ›
+            </span>
+          </div>
         }
       >
         积分中心

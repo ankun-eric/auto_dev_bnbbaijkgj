@@ -34,6 +34,7 @@ import 'screens/order/orders_screen.dart';
 import 'screens/order/order_detail_screen.dart';
 import 'screens/points/points_screen.dart';
 import 'screens/points/points_records_screen.dart';
+import 'screens/points/exchange_records_screen.dart';
 import 'screens/points/points_mall_screen.dart';
 import 'screens/plan/health_plan_screen.dart';
 import 'screens/plan/medication_list_screen.dart';
@@ -231,6 +232,7 @@ class BiniHealthApp extends StatelessWidget {
           '/points': (context) => const PointsScreen(),
           '/points-mall': (context) => const PointsMallScreen(),
           '/points-records': (context) => const PointsRecordsScreen(),
+          '/points-exchange-records': (context) => const PointsExchangeRecordsScreen(),
           '/health-plan': (context) => const HealthPlanScreen(),
           '/hp-medications': (context) => const MedicationListScreen(),
           '/hp-medication-form': (context) => const MedicationFormScreen(),

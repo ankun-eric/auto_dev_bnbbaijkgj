@@ -626,6 +626,23 @@ class ApiService {
     return _dio.get('/api/points/tasks');
   }
 
+  Future<Response> getPointsMallGoods({int page = 1, int pageSize = 50}) async {
+    return _dio.get('/api/points/mall', queryParameters: {'page': page, 'page_size': pageSize});
+  }
+
+  Future<Response> exchangePointsGoods({required int goodsId, int quantity = 1}) async {
+    return _dio.post('/api/points/mall/exchange', data: {
+      'goods_id': goodsId,
+      'quantity': quantity,
+    });
+  }
+
+  Future<Response> getPointsExchangeRecords({int page = 1, int pageSize = 20, String? goodsType}) async {
+    final qp = <String, dynamic>{'page': page, 'page_size': pageSize};
+    if (goodsType != null && goodsType.isNotEmpty) qp['goods_type'] = goodsType;
+    return _dio.get('/api/points/exchange-records', queryParameters: qp);
+  }
+
   Future<Response> getInviteStats({int page = 1, int pageSize = 50}) async {
     return _dio.get('/api/users/invite-stats', queryParameters: {'page': page, 'page_size': pageSize});
   }

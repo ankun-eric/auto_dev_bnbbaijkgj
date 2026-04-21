@@ -136,7 +136,11 @@ class _PointsScreenState extends State<PointsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pushNamed(context, '/points-records'),
-            child: const Text('积分详情 ›', style: TextStyle(color: Colors.white)),
+            child: const Text('积分详情', style: TextStyle(color: Colors.white)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pushNamed(context, '/points-exchange-records'),
+            child: const Text('兑换记录 ›', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),

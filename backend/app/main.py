@@ -49,6 +49,8 @@ from app.api import (
     order,
     plan,
     points,
+    points_admin,
+    points_exchange,
     merchant,
     product_admin,
     products,
@@ -547,6 +549,8 @@ app.include_router(service.router)
 # app.include_router(order.router)
 app.include_router(expert.router)
 app.include_router(points.router)
+app.include_router(points_admin.router)
+app.include_router(points_exchange.router)
 app.include_router(plan.router)
 app.include_router(family.router)
 app.include_router(family_management.router)

@@ -41,17 +41,27 @@ interface ExchangeRecord {
 }
 
 const TYPE_LABELS: Record<string, string> = {
+  coupon: '优惠券',
   virtual: '虚拟商品',
   physical: '实物商品',
   service: '体验服务',
   third_party: '第三方商品',
 };
 
+// v3: 虚拟商品 & 第三方商品 置灰 "开发中"
 const categoryOptions = [
-  { label: '虚拟商品', value: 'virtual' },
-  { label: '实物商品', value: 'physical' },
+  { label: '优惠券', value: 'coupon' },
   { label: '体验服务', value: 'service' },
-  { label: '第三方商品', value: 'third_party' },
+  { label: '实物商品', value: 'physical' },
+  { label: '虚拟商品（开发中）', value: 'virtual', disabled: true },
+  { label: '第三方商品（开发中）', value: 'third_party', disabled: true },
+];
+
+const serviceTypeOptions = [
+  { label: '专家问诊', value: 'expert' },
+  { label: '体检服务', value: 'physical_exam' },
+  { label: 'TCM调理', value: 'tcm' },
+  { label: '健康计划体验', value: 'health_plan' },
 ];
 
 function firstImage(images: unknown): string {
@@ -104,6 +114,12 @@ export default function PointsMallPage() {
   const [fileList, setFileList] = useState<UploadFile[]>([]);
   const [form] = Form.useForm();
 
+  const [availableCoupons, setAvailableCoupons] = useState<{label: string; value: number}[]>([]);
+  const [category, setCategory] = useState<string>('coupon');
+  const [refCouponId, setRefCouponId] = useState<number | undefined>();
+  const [refServiceType, setRefServiceType] = useState<string | undefined>();
+  const [refServiceId, setRefServiceId] = useState<number | undefined>();
+
   const [records, setRecords] = useState<ExchangeRecord[]>([]);
   const [recordsLoading, setRecordsLoading] = useState(false);
   const [recordsPagination, setRecordsPagination] = useState({ current: 1, pageSize: 10, total: 0 });
@@ -155,6 +171,25 @@ export default function PointsMallPage() {
 
   useEffect(() => { fetchData(); }, []);
 
+  // 加载可选优惠券（仅 active 且未兑完）
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await get('/api/admin/coupons', { page: 1, page_size: 200 });
+        const items = (res && (res.items || res.list || res)) as any[];
+        const list = (Array.isArray(items) ? items : [])
+          .filter((c: any) => String(c.status || '') === 'active' && !c.is_offline)
+          .map((c: any) => ({
+            label: `${c.name}（剩余 ${Number(c.total_count || 0) - Number(c.claimed_count || 0)} 张）`,
+            value: Number(c.id),
+          }));
+        setAvailableCoupons(list);
+      } catch {
+        setAvailableCoupons([]);
+      }
+    })();
+  }, []);
+
   useEffect(() => {
     if (activeTab === 'records') fetchRecords();
   }, [activeTab]);
@@ -165,20 +200,49 @@ export default function PointsMallPage() {
   const handleAdd = () => {
     setEditingRecord(null);
     form.resetFields();
-    form.setFieldsValue({ status: true, stock: 100 });
+    form.setFieldsValue({ status: true, stock: 100, category: 'coupon' });
     setFileList([]);
+    setCategory('coupon');
+    setRefCouponId(undefined);
+    setRefServiceType(undefined);
+    setRefServiceId(undefined);
     setModalVisible(true);
+  };
+
+  const parseRefFromDescription = (desc: string) => {
+    const out: { refCouponId?: number; refServiceType?: string; refServiceId?: number; display: string } = { display: '' };
+    const parts = String(desc || '').split(';').map((s) => s.trim()).filter(Boolean);
+    const displayParts: string[] = [];
+    for (const seg of parts) {
+      if (seg.startsWith('ref_coupon_id=')) {
+        out.refCouponId = Number(seg.split('=')[1]) || undefined;
+      } else if (seg.startsWith('ref_service_type=')) {
+        out.refServiceType = seg.split('=')[1];
+      } else if (seg.startsWith('ref_service_id=')) {
+        out.refServiceId = Number(seg.split('=')[1]) || undefined;
+      } else {
+        displayParts.push(seg);
+      }
+    }
+    out.display = displayParts.join('; ');
+    return out;
   };
 
   const handleEdit = (record: MallGoods) => {
     setEditingRecord(record);
+    const parsed = parseRefFromDescription(record.description || '');
+    const cat = categoryOptions.some(o => o.value === record.category) ? record.category : 'virtual';
+    setCategory(cat);
+    setRefCouponId(parsed.refCouponId);
+    setRefServiceType(parsed.refServiceType);
+    setRefServiceId(parsed.refServiceId);
     form.setFieldsValue({
       name: record.name,
-      category: categoryOptions.some(o => o.value === record.category) ? record.category : 'virtual',
+      category: cat,
       points: record.points,
       stock: record.stock,
       image: record.image,
-      description: record.description,
+      description: parsed.display,
       status: isMallOnShelf(record.status),
     });
     setFileList(record.image ? [{ uid: '-1', name: 'cover', status: 'done', url: record.image }] : []);
@@ -242,12 +306,29 @@ export default function PointsMallPage() {
         imageUrl = fileList[0].url;
       }
 
+      // 组装 description：把 ref_* 元信息嵌入（与后端 points_exchange.py 解析规则一致）
+      const descSegs: string[] = [];
+      if (values.category === 'coupon' && refCouponId) {
+        descSegs.push(`ref_coupon_id=${refCouponId}`);
+      }
+      if (values.category === 'service') {
+        if (refServiceType) descSegs.push(`ref_service_type=${refServiceType}`);
+        if (refServiceId) descSegs.push(`ref_service_id=${refServiceId}`);
+      }
+      if (values.description) descSegs.push(String(values.description));
+      const finalDesc = descSegs.join(';');
+
+      // 券类型：库存字段由券的 total_count-claimed_count 决定，前端传 0 占位
+      const stockVal = values.category === 'coupon' ? 0
+        : values.category === 'service' ? 0
+        : Number(values.stock);
+
       const payload = {
         name: values.name,
         type: values.category,
         price_points: values.points,
-        stock: values.stock,
-        description: values.description || '',
+        stock: stockVal,
+        description: finalDesc,
         status: statusStr,
         images: imageUrl ? [imageUrl] : [],
       };
@@ -475,14 +556,60 @@ export default function PointsMallPage() {
             <Input placeholder="请输入商品名称" />
           </Form.Item>
           <Form.Item label="商品分类" name="category" rules={[{ required: true, message: '请选择分类' }]}>
-            <Select options={categoryOptions} placeholder="请选择分类" />
+            <Select
+              options={categoryOptions}
+              placeholder="请选择分类"
+              onChange={(v) => setCategory(String(v))}
+            />
           </Form.Item>
+
+          {category === 'coupon' && (
+            <Form.Item label="关联优惠券" required help="选择已上架且未兑完的券；库存跟随券本体">
+              <Select
+                value={refCouponId}
+                onChange={(v) => setRefCouponId(v as number)}
+                options={availableCoupons}
+                placeholder="请选择优惠券"
+                showSearch
+                optionFilterProp="label"
+              />
+            </Form.Item>
+          )}
+
+          {category === 'service' && (
+            <Space style={{ width: '100%' }} size={12}>
+              <Form.Item label="服务类型" required style={{ flex: 1 }}>
+                <Select
+                  value={refServiceType}
+                  onChange={(v) => setRefServiceType(v as string)}
+                  options={serviceTypeOptions}
+                  placeholder="选择服务类型"
+                />
+              </Form.Item>
+              <Form.Item label="关联服务ID" required style={{ flex: 1 }}>
+                <InputNumber
+                  value={refServiceId}
+                  onChange={(v) => setRefServiceId((v as number) ?? undefined)}
+                  min={1}
+                  style={{ width: '100%' }}
+                  placeholder="输入对应服务ID"
+                />
+              </Form.Item>
+            </Space>
+          )}
+
           <Space style={{ width: '100%' }} size={16}>
             <Form.Item label="所需积分" name="points" rules={[{ required: true, message: '请输入积分' }]} style={{ flex: 1 }}>
               <InputNumber min={1} style={{ width: '100%' }} />
             </Form.Item>
-            <Form.Item label="库存" name="stock" rules={[{ required: true, message: '请输入库存' }]} style={{ flex: 1 }}>
-              <InputNumber min={0} style={{ width: '100%' }} />
+            <Form.Item
+              label="库存"
+              name="stock"
+              rules={category === 'physical' ? [{ required: true, message: '请输入库存' }] : []}
+              style={{ flex: 1 }}
+              help={category === 'coupon' ? '跟随券本体' : category === 'service' ? '由服务本体管控' : ''}
+            >
+              <InputNumber min={0} style={{ width: '100%' }} disabled={category !== 'physical'} />
             </Form.Item>
           </Space>
           <Form.Item label="商品图片" name="image">
