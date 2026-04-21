@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -7,7 +8,6 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../models/article.dart';
 import '../../providers/font_provider.dart';
 import '../../services/api_service.dart';
-import '../../services/logo_service.dart';
 import '../../widgets/article_card.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -331,7 +331,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Color(0xFF52C41A),
+        statusBarIconBrightness: Brightness.light,
+        statusBarBrightness: Brightness.dark,
+      ),
+      child: Scaffold(
       body: _loading
           ? const Center(child: CircularProgressIndicator(color: Color(0xFF52C41A)))
           : RefreshIndicator(
@@ -347,7 +353,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       children: [
                         if (_hasValidBanners()) ...[
                           _buildBanner(),
-                          const SizedBox(height: 20),
+                          const SizedBox(height: 16),
                         ],
                         _buildFeatureGrid(),
                         const SizedBox(height: 20),
@@ -376,6 +382,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 ],
               ),
             ),
+      ),
     );
   }
 
@@ -386,119 +393,168 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Widget _buildAppBar() {
+    // 紧凑双行顶部：40（品牌+地区）+ 48（搜索+扫+消息）= 88 toolbar height
     return SliverAppBar(
-      expandedHeight: 0,
-      floating: true,
-      pinned: true,
       backgroundColor: const Color(0xFF52C41A),
-      title: _searchVisible
-          ? Row(
-              children: [
-                GestureDetector(
-                  onTap: _onCitySelected,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 72),
-                        child: Text(
-                          _cityDisplayText,
-                          style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500),
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 1,
-                        ),
-                      ),
-                      const Icon(Icons.arrow_drop_down, color: Colors.white, size: 20),
-                    ],
+      pinned: true,
+      floating: true,
+      toolbarHeight: 88,
+      automaticallyImplyLeading: false,
+      systemOverlayStyle: const SystemUiOverlayStyle(
+        statusBarColor: Color(0xFF52C41A),
+        statusBarIconBrightness: Brightness.light,
+        statusBarBrightness: Brightness.dark,
+      ),
+      titleSpacing: 0,
+      title: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // 第一行：品牌 + 地区（左对齐），高 40
+          SizedBox(
+            height: 40,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  const Text(
+                    '宾尼小康',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      height: 1.2,
+                    ),
                   ),
-                ),
-                Container(
-                  width: 1,
-                  height: 18,
-                  margin: const EdgeInsets.symmetric(horizontal: 8),
-                  color: Colors.white.withOpacity(0.3),
-                ),
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () => Navigator.pushNamed(context, '/search'),
-                    child: Container(
-                      height: 34,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(17),
+                  const SizedBox(width: 12),
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: _onCitySelected,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.location_on_outlined, color: Colors.white, size: 15),
+                        const SizedBox(width: 2),
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 80),
+                          child: Text(
+                            _cityDisplayText,
+                            style: const TextStyle(color: Colors.white, fontSize: 14),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          ),
+                        ),
+                        const SizedBox(width: 2),
+                        const Icon(Icons.arrow_drop_down, color: Colors.white, size: 18),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // 第二行：搜索 + 扫 + 消息，高 48
+          SizedBox(
+            height: 48,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _searchVisible
+                        ? GestureDetector(
+                            onTap: () => Navigator.pushNamed(context, '/search'),
+                            child: Container(
+                              height: 36,
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(18),
+                              ),
+                              child: Row(
+                                children: [
+                                  const SizedBox(width: 12),
+                                  const Icon(Icons.search, color: Colors.white, size: 16),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      _searchPlaceholder,
+                                      style: TextStyle(
+                                        color: Colors.white.withOpacity(0.7),
+                                        fontSize: 14,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                ],
+                              ),
+                            ),
+                          )
+                        : const SizedBox.shrink(),
+                  ),
+                  const SizedBox(width: 12),
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: _openScanner,
+                    child: const SizedBox(
+                      width: 32,
+                      height: 32,
+                      child: Icon(
+                        Icons.qr_code_scanner,
+                        color: Colors.white,
+                        size: 24,
                       ),
-                      child: Row(
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: _goToMessages,
+                    child: SizedBox(
+                      width: 32,
+                      height: 32,
+                      child: Stack(
+                        clipBehavior: Clip.none,
                         children: [
-                          const SizedBox(width: 12),
-                          Icon(Icons.search, color: Colors.white.withOpacity(0.8), size: 18),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              _searchPlaceholder,
-                              style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 13),
-                              overflow: TextOverflow.ellipsis,
+                          const Align(
+                            alignment: Alignment.center,
+                            child: Icon(
+                              Icons.notifications_outlined,
+                              color: Colors.white,
+                              size: 24,
                             ),
                           ),
-                          const SizedBox(width: 12),
+                          if (_unreadCount > 0)
+                            Positioned(
+                              right: -4,
+                              top: -2,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFF4D4F),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                                child: Text(
+                                  _unreadCount > 99 ? '99+' : '$_unreadCount',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ),
                         ],
                       ),
                     ),
                   ),
-                ),
-              ],
-            )
-          : Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (LogoService().logoUrl != null)
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.network(
-                      LogoService().logoUrl!,
-                      width: 40,
-                      height: 40,
-                      fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) =>
-                          const Text('宾尼小康', style: TextStyle(color: Colors.white, fontSize: 18)),
-                    ),
-                  )
-                else
-                  const Text('宾尼小康', style: TextStyle(color: Colors.white, fontSize: 18)),
-              ],
-            ),
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.qr_code_scanner, color: Colors.white),
-          onPressed: _openScanner,
-        ),
-        Stack(
-          alignment: Alignment.center,
-          children: [
-            IconButton(
-              icon: const Icon(Icons.notifications_outlined, color: Colors.white),
-              onPressed: _goToMessages,
-            ),
-            if (_unreadCount > 0)
-              Positioned(
-                right: 8,
-                top: 8,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFF4D4F),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
-                  child: Text(
-                    _unreadCount > 99 ? '99+' : '$_unreadCount',
-                    style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
+                ],
               ),
-          ],
-        ),
-      ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -521,10 +577,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
 
     return Container(
-      height: 160,
-      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      height: 100,
+      margin: const EdgeInsets.fromLTRB(12, 8, 12, 0),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(10),
         child: Stack(
           children: [
             PageView.builder(

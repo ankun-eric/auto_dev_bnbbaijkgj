@@ -74,6 +74,13 @@ html, body {
   border-radius: 0 0 20px 20px;
 }
 
+/* 首页紧凑顶部：品牌绿底 + 白前景，双行堆叠 */
+.compact-home-header {
+  background: var(--primary-color);
+  color: #fff;
+  width: 100%;
+}
+
 .section-title {
   font-size: 16px;
   font-weight: 600;

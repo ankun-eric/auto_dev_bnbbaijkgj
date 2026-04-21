@@ -1,46 +1,29 @@
 <view class="home-page" wx:if="{{pageMode === 'user'}}">
-  <view class="custom-nav" style="padding-top:{{statusBarHeight}}px;">
-    <view class="custom-nav-content">
-      <view class="custom-nav-title-wrap">
-        <!-- Bug 1：LOGO 放大到顶栏高度 75%，去掉文字品牌名 -->
-        <image wx:if="{{brandLogoUrl}}" class="brand-logo-large" src="{{brandLogoUrl}}" mode="aspectFit" />
-        <text wx:else class="custom-nav-title">宾尼小康</text>
+  <!-- 紧凑顶部：品牌绿底，沉浸式 statusBar + 双行 -->
+  <view class="compact-header" style="padding-top:{{statusBarHeight}}px;">
+    <!-- 第一行：品牌名 + 地区（左对齐，右侧留白给系统胶囊按钮） -->
+    <view class="compact-row-brand">
+      <text class="compact-brand">宾尼小康</text>
+      <view class="compact-city" bindtap="onCityTap">
+        <text class="compact-city-icon">📍</text>
+        <text class="compact-city-name">{{cityName}}</text>
+        <text class="compact-city-arrow">▾</text>
       </view>
-      <view class="custom-nav-actions">
-        <view class="nav-action-btn" catchtap="onScanTap">
-          <text class="nav-action-icon">📷</text>
-        </view>
-        <view class="nav-action-btn nav-msg-btn" catchtap="goMessages">
-          <text class="nav-action-icon">💬</text>
-          <view class="nav-badge" wx:if="{{unreadCount > 0}}">{{unreadCount > 99 ? '99+' : unreadCount}}</view>
-        </view>
+      <view class="compact-switch-role" wx:if="{{canSwitchRole}}" catchtap="switchRole">切换角色</view>
+    </view>
+    <!-- 第二行：搜索 + 扫一扫 + 消息 -->
+    <view class="compact-row-search">
+      <view class="compact-search" bindtap="onSearchTap" wx:if="{{homeConfig.search_visible !== false}}">
+        <text class="compact-search-icon">🔍</text>
+        <text class="compact-search-placeholder">{{homeConfig.search_placeholder || '搜索健康服务…'}}</text>
       </view>
-    </view>
-  </view>
-
-  <view class="search-bar" style="margin-top:{{navBarHeight}}px;" wx:if="{{homeConfig.search_visible !== false}}">
-    <view class="city-selector" bindtap="onCityTap">
-      <text class="city-name">{{cityName}}</text>
-      <text class="city-arrow">▼</text>
-    </view>
-    <view class="search-divider"></view>
-    <view class="search-input" bindtap="onSearchTap">
-      <text class="search-icon">🔍</text>
-      <text class="search-placeholder">{{homeConfig.search_placeholder || '搜索您想要的健康服务'}}</text>
-    </view>
-    <view class="switch-role-chip" wx:if="{{canSwitchRole}}" catchtap="switchRole">切换角色</view>
-    <view class="notification-btn" catchtap="goNotifications">
-      <text class="bell-icon">🔔</text>
-      <view class="badge" wx:if="{{unreadCount > 0}}">{{unreadCount}}</view>
-    </view>
-  </view>
-
-  <view class="search-bar" style="margin-top:{{navBarHeight}}px;" wx:elif="{{homeConfig.search_visible === false}}">
-    <view class="search-bar-right">
-      <view class="switch-role-chip" wx:if="{{canSwitchRole}}" catchtap="switchRole">切换角色</view>
-      <view class="notification-btn" catchtap="goNotifications">
-        <text class="bell-icon">🔔</text>
-        <view class="badge" wx:if="{{unreadCount > 0}}">{{unreadCount}}</view>
+      <view class="compact-search-spacer" wx:else></view>
+      <view class="compact-action-btn" catchtap="onScanTap">
+        <text class="compact-action-icon">⊡</text>
+      </view>
+      <view class="compact-action-btn compact-msg-btn" catchtap="goMessages">
+        <text class="compact-action-icon">🔔</text>
+        <view class="compact-badge" wx:if="{{unreadCount > 0}}">{{unreadCount > 99 ? '99+' : unreadCount}}</view>
       </view>
     </view>
   </view>

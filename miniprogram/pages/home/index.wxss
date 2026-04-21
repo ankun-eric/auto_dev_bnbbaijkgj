@@ -2,80 +2,129 @@
   padding-bottom: 20rpx;
 }
 
-/* Custom navigation bar */
-.custom-nav {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 100;
-  background: #fff;
+/* 紧凑顶部（品牌绿 + 白色前景，双行） */
+.compact-header {
+  background: #52c41a;
+  color: #fff;
+  width: 100%;
+  box-sizing: border-box;
 }
 
-.custom-nav-content {
+/* 第一行：品牌 + 地区；右侧留白避让系统胶囊按钮（≥200rpx） */
+.compact-row-brand {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  height: 44px;
+  height: 80rpx;
+  padding: 0 32rpx 0 32rpx;
+  padding-right: 200rpx; /* 为胶囊按钮预留空间 */
+  box-sizing: border-box;
+}
+
+.compact-brand {
+  font-size: 36rpx;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1;
+}
+
+.compact-city {
+  display: flex;
+  align-items: center;
+  margin-left: 24rpx;
+  min-height: 64rpx;
+}
+
+.compact-city-icon {
+  font-size: 24rpx;
+  color: #fff;
+  margin-right: 4rpx;
+}
+
+.compact-city-name {
+  font-size: 26rpx;
+  color: #fff;
+  max-width: 140rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.compact-city-arrow {
+  font-size: 20rpx;
+  color: #fff;
+  margin-left: 6rpx;
+}
+
+.compact-switch-role {
+  margin-left: auto;
+  padding: 8rpx 16rpx;
+  border-radius: 999rpx;
+  background: rgba(255,255,255,0.2);
+  color: #fff;
+  font-size: 22rpx;
+}
+
+/* 第二行：搜索 + 扫 + 消息 */
+.compact-row-search {
+  display: flex;
+  align-items: center;
+  height: 96rpx;
+  padding: 0 32rpx;
+  box-sizing: border-box;
+}
+
+.compact-search {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  height: 72rpx;
+  border-radius: 36rpx;
+  background: rgba(255,255,255,0.2);
   padding: 0 24rpx;
 }
 
-.custom-nav-title-wrap {
-  display: flex;
-  align-items: center;
+.compact-search-spacer {
+  flex: 1;
 }
 
-.brand-logo-small {
+.compact-search-icon {
+  font-size: 28rpx;
+  color: #fff;
+  margin-right: 12rpx;
+}
+
+.compact-search-placeholder {
+  font-size: 26rpx;
+  color: rgba(255,255,255,0.75);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.compact-action-btn {
+  position: relative;
   width: 64rpx;
   height: 64rpx;
-  border-radius: 50%;
-  margin-right: 12rpx;
-  vertical-align: middle;
-}
-
-/* Bug 1：首页 LOGO 放大到顶栏高度 75%（顶栏 44px ≈ 88rpx，75% ≈ 66rpx，向上取 72rpx） */
-.brand-logo-large {
-  width: 72rpx;
-  height: 72rpx;
-  border-radius: 12rpx;
-  margin-left: 4rpx;
-  vertical-align: middle;
-  display: block;
-}
-
-.custom-nav-title {
-  font-size: 34rpx;
-  font-weight: 600;
-  color: #333;
-}
-
-.custom-nav-actions {
-  display: flex;
-  align-items: center;
-}
-
-.nav-action-btn {
-  position: relative;
-  width: 68rpx;
-  height: 68rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-left: 8rpx;
+  margin-left: 24rpx;
 }
 
-.nav-action-icon {
+.compact-action-icon {
   font-size: 40rpx;
+  color: #fff;
 }
 
-.nav-msg-btn {
+.compact-msg-btn {
   position: relative;
 }
 
-.nav-badge {
+.compact-badge {
   position: absolute;
-  top: 4rpx;
-  right: 2rpx;
+  top: 0;
+  right: 0;
   min-width: 32rpx;
   height: 32rpx;
   line-height: 32rpx;
@@ -177,9 +226,9 @@
   font-size: 40rpx;
 }
 
-/* Banner */
+/* Banner（紧凑化：~100px ≈ 200rpx） */
 .banner-swiper {
-  height: 280rpx;
+  height: 200rpx;
   margin: 16rpx 24rpx;
   border-radius: 16rpx;
   overflow: hidden;

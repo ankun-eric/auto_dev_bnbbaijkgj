@@ -341,88 +341,121 @@ export default function HomePage() {
   return (
     <PullToRefresh onRefresh={handleRefresh}>
     <div className="pb-20">
-      <div className="gradient-header">
-        <div className="flex items-center justify-between mb-4" style={{ minHeight: 48 }}>
-          <div className="flex items-center" style={{ paddingLeft: 4 }}>
-            {logoUrl ? (
-              <img
-                src={logoUrl}
-                alt="Logo"
-                style={{ height: 36, width: 36, objectFit: 'contain', borderRadius: 8, display: 'block' }}
-              />
-            ) : (
-              <h1 className="text-xl font-bold">宾尼小康</h1>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            <div
-              className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center cursor-pointer"
-              onClick={() => router.push('/scan')}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 7V5a2 2 0 0 1 2-2h2" />
-                <path d="M17 3h2a2 2 0 0 1 2 2v2" />
-                <path d="M21 17v2a2 2 0 0 1-2 2h-2" />
-                <path d="M7 21H5a2 2 0 0 1-2-2v-2" />
-                <line x1="7" y1="12" x2="17" y2="12" />
-              </svg>
-            </div>
-            <Badge content={unreadCount > 0 ? (unreadCount > 99 ? '99+' : unreadCount) : null} style={{ '--right': '-2px', '--top': '2px' }}>
-              <div
-                className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center cursor-pointer"
-                onClick={() => router.push('/messages')}
-              >
-                <span className="text-white text-sm">🔔</span>
-              </div>
-            </Badge>
-          </div>
-        </div>
-        {config.search_visible && (
+      <div className="compact-home-header">
+        {/* 第一行：品牌 + 地区（40px，整体左对齐） */}
+        <div
+          className="flex items-center"
+          style={{ height: 40, paddingLeft: 16, paddingRight: 16 }}
+        >
+          <h1
+            style={{
+              fontSize: 18,
+              fontWeight: 700,
+              color: '#fff',
+              margin: 0,
+              lineHeight: '24px',
+            }}
+          >
+            宾尼小康
+          </h1>
           <div
             className="flex items-center"
             style={{
-              height: 36,
-              borderRadius: 20,
-              background: '#E8F7EE',
+              marginLeft: 12,
+              minHeight: 32,
+              cursor: cityStatus === 'locating' ? 'default' : 'pointer',
+            }}
+            onClick={() => {
+              if (cityStatus === 'locating') return;
+              router.push('/city-select');
             }}
           >
-            <div
-              className="flex items-center shrink-0 pl-3 pr-2"
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+              <circle cx="12" cy="10" r="3" />
+            </svg>
+            <span
+              className="truncate"
               style={{
-                cursor: cityStatus === 'locating' ? 'default' : 'pointer',
-                maxWidth: 90,
-              }}
-              onClick={() => {
-                if (cityStatus === 'locating') return;
-                router.push('/city-select');
+                color: '#fff',
+                fontSize: 14,
+                marginLeft: 4,
+                maxWidth: 80,
+                display: 'inline-block',
               }}
             >
-              <span
-                className="text-sm font-medium truncate"
-                style={{ color: '#389e0d', maxWidth: 64, display: 'inline-block' }}
-              >
-                {cityDisplay.length > 4 ? cityDisplay.slice(0, 4) + '…' : cityDisplay}
-              </span>
-              {cityStatus !== 'locating' && (
-                <span className="text-xs ml-0.5" style={{ color: '#52c41a' }}>▼</span>
-              )}
-            </div>
-            <div style={{ width: 1, height: 16, background: 'rgba(82,196,26,0.25)' }} />
+              {cityDisplay.length > 4 ? cityDisplay.slice(0, 4) + '…' : cityDisplay}
+            </span>
+            {cityStatus !== 'locating' && (
+              <span style={{ color: '#fff', fontSize: 10, marginLeft: 4 }}>▼</span>
+            )}
+          </div>
+        </div>
+        {/* 第二行：搜索 + 扫一扫 + 消息（48px） */}
+        <div
+          className="flex items-center"
+          style={{ height: 48, paddingLeft: 16, paddingRight: 16, gap: 12 }}
+        >
+          {config.search_visible ? (
             <div
-              className="flex-1 flex items-center px-3 cursor-pointer"
+              className="flex items-center flex-1 cursor-pointer"
               onClick={() => router.push('/search')}
+              style={{
+                height: 36,
+                borderRadius: 18,
+                background: 'rgba(255,255,255,0.2)',
+                paddingLeft: 12,
+                paddingRight: 12,
+              }}
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#52c41a" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="11" cy="11" r="8" />
                 <line x1="21" y1="21" x2="16.65" y2="16.65" />
               </svg>
-              <span className="ml-2 text-sm" style={{ color: '#86909C' }}>{config.search_placeholder || '搜索您想要的健康服务'}</span>
+              <span
+                className="ml-2 text-sm truncate"
+                style={{ color: 'rgba(255,255,255,0.7)', flex: 1 }}
+              >
+                {config.search_placeholder || '搜索健康服务…'}
+              </span>
             </div>
+          ) : (
+            <div style={{ flex: 1 }} />
+          )}
+          <div
+            className="flex items-center justify-center cursor-pointer"
+            style={{ width: 32, height: 32 }}
+            onClick={() => router.push('/scan')}
+            aria-label="扫一扫"
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 7V5a2 2 0 0 1 2-2h2" />
+              <path d="M17 3h2a2 2 0 0 1 2 2v2" />
+              <path d="M21 17v2a2 2 0 0 1-2 2h-2" />
+              <path d="M7 21H5a2 2 0 0 1-2-2v-2" />
+              <line x1="7" y1="12" x2="17" y2="12" />
+            </svg>
           </div>
-        )}
+          <Badge
+            content={unreadCount > 0 ? (unreadCount > 99 ? '99+' : unreadCount) : null}
+            style={{ '--right': '-2px', '--top': '2px', '--color': '#FF4D4F' }}
+          >
+            <div
+              className="flex items-center justify-center cursor-pointer"
+              style={{ width: 32, height: 32 }}
+              onClick={() => router.push('/messages')}
+              aria-label="消息"
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+              </svg>
+            </div>
+          </Badge>
+        </div>
       </div>
 
-      <div className="px-4 -mt-2">
+      <div className="px-4 pt-2">
         {(() => {
           if (notices !== null && notices.length === 0) return null;
           const items = notices && notices.length > 0 ? notices : null;
@@ -449,12 +482,13 @@ export default function HomePage() {
             <Swiper
               autoplay
               loop
-              style={{ '--border-radius': '12px', marginBottom: 16 }}
+              style={{ '--border-radius': '10px', marginTop: 8, marginBottom: 12 }}
             >
               {validBanners.map((b: HomeBanner) => (
                 <Swiper.Item key={b.id}>
                   <div
-                    className="h-36 rounded-xl overflow-hidden cursor-pointer"
+                    className="rounded-[10px] overflow-hidden cursor-pointer"
+                    style={{ height: 100 }}
                     onClick={() => handleLink(b.link_type, b.link_url, router)}
                   >
                     <img
