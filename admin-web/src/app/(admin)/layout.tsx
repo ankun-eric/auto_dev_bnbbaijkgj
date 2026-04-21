@@ -147,7 +147,8 @@ const menuItems: MenuItem[] = [
     label: '内容管理',
     children: [
       { key: '/content/articles', label: '文章管理' },
-      { key: '/content/videos', label: '视频管理' },
+      { key: '/content/news', label: '资讯管理' },
+      { key: '/content/categories', label: '分类管理' },
     ],
   },
   { key: '/experts', icon: <MedicineBoxOutlined />, label: '专家管理' },

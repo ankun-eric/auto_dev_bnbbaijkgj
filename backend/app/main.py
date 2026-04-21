@@ -11,6 +11,7 @@ from app.api import (
     admin_health_plan,
     admin_merchant,
     admin_messages,
+    admin_news,
     admin_search,
     ai_center,
     audit,
@@ -406,6 +407,92 @@ async def _migrate_v7_search_placeholder():
         _logger.error("v7.2 placeholder 迁移异常（不影响启动）：%s", e)
 
 
+async def _migrate_v8_content():
+    """v8：文章富文本化 + 资讯模块新增。
+
+    - articles 表加列：content_html / author_name / comment_count / is_top / published_at
+    - UserRole 枚举追加 content_editor
+    - articles MODIFY content → NULL 允许（因为资讯/富文本文章可能只有 content_html）
+    - 首次启动时初始化默认 article_categories
+    """
+    import logging as _l
+    _logger = _l.getLogger(__name__)
+    from app.core.database import async_session as _async_session
+    try:
+        async with _async_session() as db:
+            from sqlalchemy import text
+            from app.models.models import SystemConfig as _SC, ArticleCategory as _AC
+            from sqlalchemy import select as _sel
+
+            async def _add_col(table: str, column: str, ddl: str):
+                try:
+                    chk = await db.execute(text(
+                        "SELECT COUNT(*) FROM information_schema.columns "
+                        "WHERE table_schema = DATABASE() AND table_name = :t AND column_name = :c"
+                    ), {"t": table, "c": column})
+                    if (chk.scalar() or 0) == 0:
+                        await db.execute(text(f"ALTER TABLE {table} ADD COLUMN {ddl}"))
+                except Exception as e:
+                    _logger.debug("加列 %s.%s 跳过: %s", table, column, e)
+
+            # articles 表新增列
+            await _add_col("articles", "content_html", "content_html MEDIUMTEXT NULL")
+            await _add_col("articles", "author_name", "author_name VARCHAR(100) NULL")
+            await _add_col("articles", "comment_count", "comment_count INT NOT NULL DEFAULT 0")
+            await _add_col("articles", "is_top", "is_top TINYINT(1) NOT NULL DEFAULT 0")
+            await _add_col("articles", "published_at", "published_at DATETIME NULL")
+            # 允许 content NULL
+            try:
+                await db.execute(text("ALTER TABLE articles MODIFY content TEXT NULL"))
+            except Exception as e:
+                _logger.debug("articles.content NULL 修改跳过: %s", e)
+
+            # 物理删除视频表与相关互动数据（v8 去除视频管理模块）
+            try:
+                await db.execute(text("DELETE FROM comments WHERE content_type='video'"))
+                await db.execute(text("DELETE FROM favorites WHERE content_type='video'"))
+                await db.execute(text("DROP TABLE IF EXISTS videos"))
+                _logger.info("v8：已清理 videos 表与相关 comments/favorites 记录")
+            except Exception as e:
+                _logger.debug("videos 清理跳过: %s", e)
+
+            # UserRole 枚举增加 content_editor
+            try:
+                await db.execute(text(
+                    "ALTER TABLE users MODIFY COLUMN role "
+                    "ENUM('user','admin','doctor','merchant','content_editor') NOT NULL DEFAULT 'user'"
+                ))
+            except Exception as e:
+                _logger.debug("UserRole enum 迁移跳过: %s", e)
+
+            # 初始化默认分类（仅首次）
+            from sqlalchemy import func as _func
+            mark = (await db.execute(_sel(_SC).where(_SC.config_key == "v8_content_initialized"))).scalar_one_or_none()
+            if not mark:
+                exist_cnt = (await db.execute(_sel(_func.count(_AC.id)))).scalar() or 0
+                if exist_cnt == 0:
+                    default_cats = [
+                        ("健康科普", 1),
+                        ("营养饮食", 2),
+                        ("运动健身", 3),
+                        ("心理健康", 4),
+                        ("中医养生", 5),
+                        ("疾病预防", 6),
+                    ]
+                    for name, order in default_cats:
+                        db.add(_AC(name=name, sort_order=order, is_enabled=True))
+                db.add(_SC(
+                    config_key="v8_content_initialized",
+                    config_value="1",
+                    config_type="content",
+                    description="v8 内容管理初始化标记（文章分类默认数据）",
+                ))
+            await db.commit()
+            _logger.info("v8 内容管理迁移完成")
+    except Exception as e:
+        _l.getLogger(__name__).error("v8 内容管理迁移异常（不影响启动）: %s", e)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
@@ -416,6 +503,7 @@ async def lifespan(app: FastAPI):
     await _migrate_coupons_v2_1()
     await _migrate_product_categories_hierarchy()
     await _migrate_v7_search_placeholder()
+    await _migrate_v8_content()
     await migrate_existing_users_user_no()
     from app.init_data import init_default_data
     await init_default_data()
@@ -469,6 +557,7 @@ app.include_router(upload.router)
 app.include_router(admin.router)
 app.include_router(admin.settings_router)
 app.include_router(admin_merchant.router)
+app.include_router(admin_news.router)
 app.include_router(merchant.router)
 app.include_router(sms.router)
 app.include_router(email_notify.router)

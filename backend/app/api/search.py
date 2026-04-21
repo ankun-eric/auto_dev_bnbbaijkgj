@@ -20,6 +20,7 @@ from app.models.models import (
     AsrConfig,
     ContentStatus,
     DrugSearchKeyword,
+    News,
     PointsMallItem,
     SearchBlockWord,
     SearchHistory,
@@ -28,7 +29,6 @@ from app.models.models import (
     SearchRecommendWord,
     ServiceItem,
     User,
-    Video,
 )
 from app.schemas.search import (
     AsrRecognizeResponse,
@@ -181,7 +181,7 @@ def _compute_score(keyword: str, title: str, summary: Optional[str], tags: Optio
 async def unified_search(
     request: Request,
     q: str = Query(..., min_length=1, max_length=200, description="搜索关键词"),
-    type: str = Query("all", description="搜索类型: all/article/video/service/points_mall"),
+    type: str = Query("all", description="搜索类型: all/article/news/service/points_mall"),
     source: str = Query("text", description="搜索来源: text/voice"),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
@@ -202,7 +202,7 @@ async def unified_search(
         tip = block_word.tip_content if block_word.block_mode == "tip" else None
         empty_response = SearchResponse(
             items=[], total=0,
-            type_counts={"article": 0, "video": 0, "service": 0, "points_mall": 0},
+            type_counts={"article": 0, "news": 0, "service": 0, "points_mall": 0},
             block_tip=tip, page=page, page_size=page_size,
         )
         await _record_search_log(db, current_user, q, 0, {}, request, search_source)
@@ -210,7 +210,7 @@ async def unified_search(
 
     like_pattern = f"%{q}%"
     all_items: list[SearchResultItem] = []
-    type_counts = {"article": 0, "video": 0, "service": 0, "points_mall": 0}
+    type_counts = {"article": 0, "news": 0, "service": 0, "points_mall": 0}
 
     if type in ("all", "article"):
         stmt = select(Article).where(
@@ -233,23 +233,25 @@ async def unified_search(
                 tags=a.tags, score=score,
             ))
 
-    if type in ("all", "video"):
-        stmt = select(Video).where(
-            Video.status == ContentStatus.published,
+    if type in ("all", "news"):
+        stmt = select(News).where(
+            News.status == ContentStatus.published,
             or_(
-                Video.title.like(like_pattern),
-                Video.description.like(like_pattern),
+                News.title.like(like_pattern),
+                News.summary.like(like_pattern),
+                News.tags.like(like_pattern),
             ),
         )
         result = await db.execute(stmt)
-        videos = result.scalars().all()
-        type_counts["video"] = len(videos)
-        for v in videos:
-            score = _compute_score(q, v.title, v.description, None)
+        news_rows = result.scalars().all()
+        type_counts["news"] = len(news_rows)
+        for n in news_rows:
+            tags_list = [t.strip() for t in (n.tags or "").split(",") if t.strip()]
+            score = _compute_score(q, n.title, n.summary, tags_list)
             all_items.append(SearchResultItem(
-                id=v.id, type="video", title=v.title,
-                summary=v.description, cover_image=v.cover_image,
-                score=score,
+                id=n.id, type="news", title=n.title,
+                summary=n.summary, cover_image=n.cover_image,
+                tags=tags_list, score=score,
             ))
 
     if type in ("all", "service"):

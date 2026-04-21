@@ -1,13 +1,28 @@
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.security import get_current_user
-from app.models.models import Article, Comment, ContentStatus, ContentTypeEnum, Favorite, User, Video
-from app.schemas.content import ArticleResponse, CommentCreate, CommentResponse, VideoResponse
+from app.models.models import (
+    Article,
+    ArticleCategory,
+    Comment,
+    ContentStatus,
+    ContentTypeEnum,
+    Favorite,
+    News,
+    User,
+)
+from app.schemas.content import (
+    ArticleCategoryResponse,
+    ArticleResponse,
+    CommentCreate,
+    CommentResponse,
+    NewsResponse,
+)
 
 router = APIRouter(prefix="/api/content", tags=["健康知识"])
 
@@ -34,11 +49,16 @@ async def list_articles(
     total = total_result.scalar() or 0
 
     result = await db.execute(
-        query.order_by(Article.created_at.desc())
+        query.order_by(Article.is_top.desc(), Article.created_at.desc())
         .offset((page - 1) * page_size)
         .limit(page_size)
     )
-    items = [ArticleResponse.model_validate(a) for a in result.scalars().all()]
+    articles = result.scalars().all()
+    # 兼容旧文章：content_html 为空时用 content 回退
+    for a in articles:
+        if not a.content_html and a.content:
+            a.content_html = f"<p>{a.content}</p>"
+    items = [ArticleResponse.model_validate(a) for a in articles]
     return {"items": items, "total": total, "page": page, "page_size": page_size}
 
 
@@ -51,49 +71,10 @@ async def get_article(article_id: int, db: AsyncSession = Depends(get_db)):
 
     article.view_count += 1
     await db.flush()
+    # 兼容：旧文章 content_html 为空时，用 content 包 <p> 回退
+    if not article.content_html and article.content:
+        article.content_html = f"<p>{article.content}</p>"
     return ArticleResponse.model_validate(article)
-
-
-@router.get("/videos")
-async def list_videos(
-    category: Optional[str] = None,
-    keyword: Optional[str] = None,
-    page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
-    db: AsyncSession = Depends(get_db),
-):
-    query = select(Video).where(Video.status == ContentStatus.published)
-    count_query = select(func.count(Video.id)).where(Video.status == ContentStatus.published)
-
-    if category:
-        query = query.where(Video.category == category)
-        count_query = count_query.where(Video.category == category)
-    if keyword:
-        query = query.where(Video.title.contains(keyword))
-        count_query = count_query.where(Video.title.contains(keyword))
-
-    total_result = await db.execute(count_query)
-    total = total_result.scalar() or 0
-
-    result = await db.execute(
-        query.order_by(Video.created_at.desc())
-        .offset((page - 1) * page_size)
-        .limit(page_size)
-    )
-    items = [VideoResponse.model_validate(v) for v in result.scalars().all()]
-    return {"items": items, "total": total, "page": page, "page_size": page_size}
-
-
-@router.get("/videos/{video_id}", response_model=VideoResponse)
-async def get_video(video_id: int, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Video).where(Video.id == video_id))
-    video = result.scalar_one_or_none()
-    if not video:
-        raise HTTPException(status_code=404, detail="视频不存在")
-
-    video.view_count += 1
-    await db.flush()
-    return VideoResponse.model_validate(video)
 
 
 @router.get("/comments")
@@ -162,11 +143,11 @@ async def toggle_favorite(
             article = ar.scalar_one_or_none()
             if article:
                 article.like_count = max(0, article.like_count - 1)
-        elif content_type == "video":
-            vr = await db.execute(select(Video).where(Video.id == content_id))
-            video = vr.scalar_one_or_none()
-            if video:
-                video.like_count = max(0, video.like_count - 1)
+        elif content_type == "news":
+            nr = await db.execute(select(News).where(News.id == content_id))
+            news_item = nr.scalar_one_or_none()
+            if news_item:
+                news_item.like_count = max(0, (news_item.like_count or 0) - 1)
         return {"message": "已取消收藏", "favorited": False}
     else:
         fav = Favorite(user_id=current_user.id, content_type=content_type, content_id=content_id)
@@ -176,12 +157,88 @@ async def toggle_favorite(
             article = ar.scalar_one_or_none()
             if article:
                 article.like_count += 1
-        elif content_type == "video":
-            vr = await db.execute(select(Video).where(Video.id == content_id))
-            video = vr.scalar_one_or_none()
-            if video:
-                video.like_count += 1
+        elif content_type == "news":
+            nr = await db.execute(select(News).where(News.id == content_id))
+            news_item = nr.scalar_one_or_none()
+            if news_item:
+                news_item.like_count = (news_item.like_count or 0) + 1
         return {"message": "已收藏", "favorited": True}
+
+
+# ──────────────── v8 文章分类 ────────────────
+
+
+@router.get("/article-categories")
+async def list_article_categories(db: AsyncSession = Depends(get_db)):
+    result = await db.execute(
+        select(ArticleCategory)
+        .where(ArticleCategory.is_enabled == True)  # noqa: E712
+        .order_by(ArticleCategory.sort_order.asc(), ArticleCategory.id.asc())
+    )
+    items = [ArticleCategoryResponse.model_validate(c) for c in result.scalars().all()]
+    return {"items": items}
+
+
+# ──────────────── v8 资讯 ────────────────
+
+
+@router.get("/news")
+async def list_news(
+    tag: Optional[str] = None,
+    keyword: Optional[str] = None,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+):
+    query = select(News).where(News.status == ContentStatus.published)
+    count_query = select(func.count(News.id)).where(News.status == ContentStatus.published)
+    if tag:
+        query = query.where(News.tags.contains(tag))
+        count_query = count_query.where(News.tags.contains(tag))
+    if keyword:
+        query = query.where(or_(News.title.contains(keyword), News.summary.contains(keyword)))
+        count_query = count_query.where(or_(News.title.contains(keyword), News.summary.contains(keyword)))
+
+    total_result = await db.execute(count_query)
+    total = total_result.scalar() or 0
+
+    # 默认按 is_top DESC, published_at DESC 排序
+    order_col = func.coalesce(News.published_at, News.created_at)
+    result = await db.execute(
+        query.order_by(News.is_top.desc(), order_col.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+    )
+    items = [NewsResponse.from_model(n) for n in result.scalars().all()]
+    return {"items": items, "total": total, "page": page, "page_size": page_size}
+
+
+@router.get("/news/latest")
+async def latest_news(
+    limit: int = Query(3, ge=1, le=10),
+    db: AsyncSession = Depends(get_db),
+):
+    """首页板块专用：取最新 N 条已发布资讯"""
+    order_col = func.coalesce(News.published_at, News.created_at)
+    result = await db.execute(
+        select(News)
+        .where(News.status == ContentStatus.published)
+        .order_by(News.is_top.desc(), order_col.desc())
+        .limit(limit)
+    )
+    items = [NewsResponse.from_model(n) for n in result.scalars().all()]
+    return {"items": items}
+
+
+@router.get("/news/{news_id}")
+async def get_news_detail(news_id: int, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(News).where(News.id == news_id))
+    item = result.scalar_one_or_none()
+    if not item:
+        raise HTTPException(status_code=404, detail="资讯不存在")
+    item.view_count = (item.view_count or 0) + 1
+    await db.flush()
+    return NewsResponse.from_model(item)
 
 
 @router.get("/favorites")

@@ -32,6 +32,7 @@ class UserRole(str, enum.Enum):
     admin = "admin"
     doctor = "doctor"
     merchant = "merchant"
+    content_editor = "content_editor"  # v8: 内容运营角色
 
 
 class IdentityType(str, enum.Enum):
@@ -997,37 +998,65 @@ class Article(Base):
     id = mapped_column(Integer, primary_key=True, autoincrement=True)
     title = mapped_column(String(300), nullable=False)
     content = mapped_column(Text, nullable=False)
+    content_html = mapped_column(Text, nullable=True)  # v8: 富文本 HTML 正文（优先于 content）
     summary = mapped_column(String(500), nullable=True)
     cover_image = mapped_column(String(500), nullable=True)
     author_id = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
+    author_name = mapped_column(String(100), nullable=True)  # v8: 作者/来源文本字段
     category = mapped_column(String(50), nullable=True)
     tags = mapped_column(JSON, nullable=True)
     view_count = mapped_column(Integer, default=0)
     like_count = mapped_column(Integer, default=0)
+    comment_count = mapped_column(Integer, default=0)  # v8
+    is_top = mapped_column(Boolean, default=False)  # v8
+    published_at = mapped_column(DateTime, nullable=True)  # v8: 发布时间
     status = mapped_column(Enum(ContentStatus), default=ContentStatus.draft)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    author = relationship("User", back_populates="articles")
+    author = relationship("User", back_populates="articles", foreign_keys=[author_id])
 
 
-class Video(Base):
-    __tablename__ = "videos"
+class ArticleCategory(Base):
+    """v8 新增：文章分类（替代现有 Article.category 文本字段）"""
+    __tablename__ = "article_categories"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name = mapped_column(String(50), unique=True, nullable=False)
+    sort_order = mapped_column(Integer, default=0)
+    is_enabled = mapped_column(Boolean, default=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class News(Base):
+    """v8 新增：资讯"""
+    __tablename__ = "news"
 
     id = mapped_column(Integer, primary_key=True, autoincrement=True)
     title = mapped_column(String(300), nullable=False)
-    description = mapped_column(Text, nullable=True)
-    video_url = mapped_column(String(500), nullable=False)
     cover_image = mapped_column(String(500), nullable=True)
-    author_id = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
-    category = mapped_column(String(50), nullable=True)
-    duration = mapped_column(Integer, default=0)
+    summary = mapped_column(String(500), nullable=True)
+    content_html = mapped_column(Text, nullable=False)
+    tags = mapped_column(String(500), nullable=True)  # 逗号分隔
+    source = mapped_column(String(100), nullable=True)
+    status = mapped_column(Enum(ContentStatus), default=ContentStatus.draft)
+    is_top = mapped_column(Boolean, default=False)
     view_count = mapped_column(Integer, default=0)
     like_count = mapped_column(Integer, default=0)
-    status = mapped_column(Enum(ContentStatus), default=ContentStatus.draft)
+    comment_count = mapped_column(Integer, default=0)
+    published_at = mapped_column(DateTime, nullable=True)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    author = relationship("User")
+
+class NewsTagHistory(Base):
+    """v8 新增：资讯标签历史（用于联想下拉）"""
+    __tablename__ = "news_tag_history"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    tag = mapped_column(String(50), unique=True, nullable=False)
+    use_count = mapped_column(Integer, default=1)
+    last_used_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
 class Comment(Base):

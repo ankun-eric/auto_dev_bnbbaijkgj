@@ -2,23 +2,23 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { NavBar, Button, TextArea, Avatar, Tag, Toast, Divider, SpinLoading } from 'antd-mobile';
+import { NavBar, Tag, Toast, Divider, SpinLoading, Button, TextArea, Avatar } from 'antd-mobile';
 import { HeartOutline, HeartFill, StarOutline, StarFill } from 'antd-mobile-icons';
 import api from '@/lib/api';
 
-interface ArticleDetail {
+interface NewsDetail {
   id: number;
   title: string;
-  category?: string;
-  author_name?: string;
-  created_at?: string;
-  published_at?: string;
+  summary?: string;
+  cover_image?: string;
+  source?: string;
+  tags?: string[];
+  content_html?: string;
   view_count?: number;
   like_count?: number;
   comment_count?: number;
-  content?: string;
-  content_html?: string;
-  tags?: string[];
+  published_at?: string;
+  created_at?: string;
 }
 
 interface CommentItem {
@@ -29,36 +29,36 @@ interface CommentItem {
   avatar: string;
 }
 
-export default function ArticleDetailPage() {
+export default function NewsDetailPage() {
   const router = useRouter();
   const params = useParams();
-  const articleId = params?.id as string;
+  const newsId = params?.id as string;
 
   const [loading, setLoading] = useState(true);
-  const [article, setArticle] = useState<ArticleDetail | null>(null);
+  const [news, setNews] = useState<NewsDetail | null>(null);
   const [liked, setLiked] = useState(false);
   const [collected, setCollected] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
   const [comment, setComment] = useState('');
   const [comments, setComments] = useState<CommentItem[]>([]);
 
-  const loadArticle = useCallback(async () => {
+  const loadNews = useCallback(async () => {
     try {
       setLoading(true);
-      const res: any = await api.get(`/api/content/articles/${articleId}`);
-      const data: ArticleDetail = res?.data ?? res;
-      setArticle(data);
+      const res: any = await api.get(`/api/content/news/${newsId}`);
+      const data: NewsDetail = res?.data ?? res;
+      setNews(data);
       setLikeCount(data.like_count ?? 0);
     } catch {
       Toast.show({ content: '加载失败' });
     } finally {
       setLoading(false);
     }
-  }, [articleId]);
+  }, [newsId]);
 
   const loadComments = useCallback(async () => {
     try {
-      const res: any = await api.get(`/api/content/comments?content_type=article&content_id=${articleId}`);
+      const res: any = await api.get(`/api/content/comments?content_type=news&content_id=${newsId}`);
       const items: any[] = res?.items ?? res?.data?.items ?? [];
       setComments(items.map((c) => ({
         id: c.id,
@@ -70,18 +70,18 @@ export default function ArticleDetailPage() {
     } catch {
       setComments([]);
     }
-  }, [articleId]);
+  }, [newsId]);
 
   useEffect(() => {
-    if (articleId) {
-      loadArticle();
+    if (newsId) {
+      loadNews();
       loadComments();
     }
-  }, [articleId, loadArticle, loadComments]);
+  }, [newsId, loadNews, loadComments]);
 
   const toggleLike = async () => {
     try {
-      const res: any = await api.post(`/api/content/favorites?content_type=article&content_id=${articleId}`, {});
+      const res: any = await api.post(`/api/content/favorites?content_type=news&content_id=${newsId}`, {});
       const favorited = res?.favorited ?? !liked;
       setLiked(favorited);
       setCollected(favorited);
@@ -93,7 +93,7 @@ export default function ArticleDetailPage() {
 
   const toggleCollect = async () => {
     try {
-      const res: any = await api.post(`/api/content/favorites?content_type=article&content_id=${articleId}`, {});
+      const res: any = await api.post(`/api/content/favorites?content_type=news&content_id=${newsId}`, {});
       const favorited = res?.favorited ?? !collected;
       setCollected(favorited);
       setLiked(favorited);
@@ -107,8 +107,8 @@ export default function ArticleDetailPage() {
     if (!comment.trim()) return;
     try {
       await api.post('/api/content/comments', {
-        content_type: 'article',
-        content_id: Number(articleId),
+        content_type: 'news',
+        content_id: Number(newsId),
         content: comment.trim(),
       });
       setComment('');
@@ -127,74 +127,70 @@ export default function ArticleDetailPage() {
     );
   }
 
-  if (!article) {
+  if (!news) {
     return (
       <div className="min-h-screen bg-white">
-        <NavBar onBack={() => router.back()}>文章详情</NavBar>
-        <div className="text-center text-gray-400 py-20">文章不存在或已下架</div>
+        <NavBar onBack={() => router.back()}>资讯详情</NavBar>
+        <div className="text-center text-gray-400 py-20">资讯不存在或已下架</div>
       </div>
     );
   }
 
-  const contentHtml = article.content_html && article.content_html.trim()
-    ? article.content_html
-    : (article.content || '').split('\n').map((line) => line.trim() ? `<p>${line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}</p>` : '').join('');
-
-  const timeText = article.published_at || article.created_at || '';
+  const contentHtml = news.content_html && news.content_html.trim() ? news.content_html : '<p>（暂无内容）</p>';
+  const timeText = news.published_at || news.created_at || '';
 
   return (
     <div className="min-h-screen bg-white pb-20">
       <NavBar
         onBack={() => router.back()}
         right={
-          <div className="flex items-center gap-4">
-            <span onClick={toggleCollect}>
-              {collected ? <StarFill style={{ color: '#fa8c16', fontSize: 20 }} /> : <StarOutline style={{ fontSize: 20, color: '#999' }} />}
-            </span>
-          </div>
+          <span onClick={toggleCollect}>
+            {collected ? <StarFill style={{ color: '#fa8c16', fontSize: 20 }} /> : <StarOutline style={{ fontSize: 20, color: '#999' }} />}
+          </span>
         }
         style={{ background: '#fff' }}
       >
-        文章详情
+        资讯详情
       </NavBar>
 
       <div className="px-4 pt-4">
-        <h1 className="text-xl font-bold leading-tight">{article.title}</h1>
+        <h1 className="text-xl font-bold leading-tight">{news.title}</h1>
         <div className="flex items-center flex-wrap mt-3 mb-4 gap-2">
-          {article.category && (
-            <Tag
-              style={{
-                '--background-color': '#52c41a15',
-                '--text-color': '#52c41a',
-                '--border-color': 'transparent',
-                fontSize: 10,
-              }}
-            >
-              {article.category}
-            </Tag>
-          )}
-          {article.author_name && <span className="text-xs text-gray-400">{article.author_name}</span>}
+          {news.source && <span className="text-xs text-gray-500">来源：{news.source}</span>}
           {timeText && <span className="text-xs text-gray-300">{new Date(timeText).toLocaleDateString('zh-CN')}</span>}
-          <span className="text-xs text-gray-300">{article.view_count ?? 0}阅读</span>
+          <span className="text-xs text-gray-300">{news.view_count ?? 0}阅读</span>
         </div>
+        {news.tags && news.tags.length > 0 && (
+          <div className="flex flex-wrap gap-1 mb-3">
+            {news.tags.map((t) => (
+              <Tag
+                key={t}
+                style={{
+                  '--background-color': '#52c41a15',
+                  '--text-color': '#52c41a',
+                  '--border-color': 'transparent',
+                  fontSize: 11,
+                }}
+              >
+                {t}
+              </Tag>
+            ))}
+          </div>
+        )}
+
+        {news.cover_image && (
+          <img src={news.cover_image} alt="" className="w-full rounded-lg mb-3" style={{ maxHeight: 220, objectFit: 'cover' }} />
+        )}
 
         <div className="mb-6 rich-text text-sm text-gray-700 leading-relaxed" dangerouslySetInnerHTML={{ __html: contentHtml }} />
 
         <div className="flex items-center justify-center gap-8 py-4 border-y border-gray-100">
           <div className="flex items-center gap-1 cursor-pointer" onClick={toggleLike}>
-            {liked ? (
-              <HeartFill style={{ color: '#f5222d', fontSize: 20 }} />
-            ) : (
-              <HeartOutline style={{ color: '#999', fontSize: 20 }} />
-            )}
+            {liked ? <HeartFill style={{ color: '#f5222d', fontSize: 20 }} /> : <HeartOutline style={{ color: '#999', fontSize: 20 }} />}
             <span className={`text-sm ${liked ? 'text-red-500' : 'text-gray-400'}`}>{likeCount}</span>
           </div>
           <div className="flex items-center gap-1 cursor-pointer" onClick={toggleCollect}>
-            {collected ? (
-              <StarFill style={{ color: '#fa8c16', fontSize: 20 }} />
-            ) : (
-              <StarOutline style={{ color: '#999', fontSize: 20 }} />
-            )}
+            {collected ? <StarFill style={{ color: '#fa8c16', fontSize: 20 }} /> : <StarOutline style={{ color: '#999', fontSize: 20 }} />}
             <span className={`text-sm ${collected ? 'text-orange-400' : 'text-gray-400'}`}>
               {collected ? '已收藏' : '收藏'}
             </span>

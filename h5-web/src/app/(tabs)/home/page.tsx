@@ -30,6 +30,13 @@ interface ArticleItem {
   views: number;
 }
 
+interface NewsHomeItem {
+  id: number;
+  title: string;
+  coverImage: string;
+  publishedAt: string;
+}
+
 interface TodoItem {
   id: number;
   name: string;
@@ -95,6 +102,7 @@ export default function HomePage() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [articles, setArticles] = useState<ArticleItem[]>([]);
+  const [latestNews, setLatestNews] = useState<NewsHomeItem[]>([]);
 
   const [cityDisplay, setCityDisplay] = useState('定位');
   const [cityStatus, setCityStatus] = useState<CityStatus>('idle');
@@ -139,6 +147,22 @@ export default function HomePage() {
     }
   }, []);
 
+  const fetchLatestNews = useCallback(async () => {
+    try {
+      const res: any = await api.get('/api/content/news/latest?limit=5');
+      const items: any[] = res?.items ?? res?.data?.items ?? [];
+      const mapped: NewsHomeItem[] = items.map((n) => ({
+        id: n.id,
+        title: n.title ?? '',
+        coverImage: n.cover_image ?? '',
+        publishedAt: n.published_at ?? n.created_at ?? '',
+      }));
+      setLatestNews(mapped);
+    } catch {
+      setLatestNews([]);
+    }
+  }, []);
+
   const fetchNotices = useCallback(async (skipCache = false) => {
     const now = Date.now();
     if (!skipCache && noticeCache && now - noticeCache.timestamp < CACHE_DURATION) {
@@ -177,7 +201,8 @@ export default function HomePage() {
     fetchNotices();
     fetchTodos();
     fetchArticles();
-  }, [fetchTodos, fetchNotices, fetchArticles]);
+    fetchLatestNews();
+  }, [fetchTodos, fetchNotices, fetchArticles, fetchLatestNews]);
 
   const refreshCityDisplay = useCallback(() => {
     const selected = getSelectedCity();
@@ -289,9 +314,10 @@ export default function HomePage() {
       fetchNotices(true),
       fetchTodos(),
       fetchArticles(),
+      fetchLatestNews(),
       fetchUnreadCount(),
     ]);
-  }, [refetchHomeConfig, fetchNotices, fetchTodos, fetchArticles, fetchUnreadCount]);
+  }, [refetchHomeConfig, fetchNotices, fetchTodos, fetchArticles, fetchLatestNews, fetchUnreadCount]);
 
   useEffect(() => {
     const onVisibilityChange = () => {
@@ -632,6 +658,41 @@ export default function HomePage() {
             </div>
           </div>
         </div>
+
+        {latestNews.length > 0 && (
+          <div className="mb-4">
+            <div className="flex items-center justify-between mb-3">
+              <span className="section-title mb-0">最新资讯</span>
+              <span className="text-xs text-primary" onClick={() => router.push('/news')}>
+                更多
+              </span>
+            </div>
+            <div className="bg-white rounded-lg overflow-hidden" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+              {latestNews.map((n, idx) => (
+                <div
+                  key={n.id}
+                  className="flex items-center p-3"
+                  style={{ borderBottom: idx < latestNews.length - 1 ? '1px solid #f0f0f0' : 'none', cursor: 'pointer' }}
+                  onClick={() => router.push(`/news/${n.id}`)}
+                >
+                  {n.coverImage ? (
+                    <img src={n.coverImage} alt="" className="rounded" style={{ width: 72, height: 54, objectFit: 'cover', marginRight: 10, flexShrink: 0 }} />
+                  ) : (
+                    <div className="rounded" style={{ width: 72, height: 54, background: '#f5f5f5', marginRight: 10, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#bbb', fontSize: 12 }}>资讯</div>
+                  )}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="text-sm font-medium" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                      {n.title}
+                    </div>
+                    {n.publishedAt && (
+                      <div className="text-xs text-gray-400 mt-1">{new Date(n.publishedAt).toLocaleDateString('zh-CN')}</div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {articles.length > 0 && (
           <div className="mb-4">

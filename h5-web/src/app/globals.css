@@ -145,6 +145,21 @@ html, body {
   border-radius: 2px;
 }
 
+/* v8 富文本渲染样式（文章/资讯详情） */
+.rich-text { word-break: break-word; }
+.rich-text img { max-width: 100%; height: auto; border-radius: 6px; margin: 8px 0; display: block; }
+.rich-text video { max-width: 100%; height: auto; border-radius: 6px; margin: 8px 0; display: block; }
+.rich-text p { margin: 8px 0; line-height: 1.75; }
+.rich-text h1, .rich-text h2, .rich-text h3 { margin: 14px 0 8px; font-weight: bold; color: #222; }
+.rich-text h1 { font-size: 18px; }
+.rich-text h2 { font-size: 16px; }
+.rich-text h3 { font-size: 15px; }
+.rich-text ul, .rich-text ol { padding-left: 22px; margin: 8px 0; }
+.rich-text li { margin: 4px 0; line-height: 1.7; }
+.rich-text blockquote { border-left: 3px solid #52c41a; padding: 4px 10px; background: #f6ffed; color: #555; margin: 12px 0; border-radius: 2px; }
+.rich-text a { color: #1890ff; text-decoration: underline; }
+.rich-text strong { color: #333; }
+
 /* 「字号偏小」快捷横条 */
 .font-size-shortcut {
   display: flex;

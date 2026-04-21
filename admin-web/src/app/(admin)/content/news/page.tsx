@@ -1,37 +1,34 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Table, Button, Space, Modal, Form, Input, Select, Switch, Tag, message,
-  Typography, Popconfirm, Upload, Row, Col, DatePicker,
+  Typography, Popconfirm, Upload, Row, Col, AutoComplete, DatePicker,
 } from 'antd';
 import {
   PlusOutlined, EditOutlined, ArrowUpOutlined, ArrowDownOutlined,
-  SearchOutlined, UploadOutlined, PushpinOutlined,
+  SearchOutlined, UploadOutlined, PushpinOutlined, DeleteOutlined,
 } from '@ant-design/icons';
-import { get, post, put, upload as uploadFile } from '@/lib/api';
+import { get, post, put, del, upload as uploadFile } from '@/lib/api';
 import dayjs from 'dayjs';
 import type { RcFile } from 'antd/es/upload/interface';
 
 const { Title } = Typography;
 const { TextArea } = Input;
 
-interface Article {
+interface NewsItem {
   id: number;
   title: string;
-  category: string;
-  tags: string[];
-  authorId: number | null;
-  authorName: string;
-  views: number;
-  likes: number;
-  commentCount: number;
-  status: string;
-  content: string;
-  contentHtml: string;
-  summary: string;
   coverImage: string;
+  summary: string;
+  contentHtml: string;
+  tags: string[];
+  source: string;
+  status: string;
   isTop: boolean;
+  viewCount: number;
+  likeCount: number;
+  commentCount: number;
   publishedAt: string | null;
   createdAt: string;
 }
@@ -42,128 +39,119 @@ const statusConfig: Record<string, { color: string; text: string }> = {
   archived: { color: 'red', text: '已下架' },
 };
 
-function mapArticleFromApi(raw: Record<string, unknown>): Article {
-  let tags: string[] = [];
-  if (Array.isArray(raw.tags)) tags = raw.tags.map(String);
-  else if (typeof raw.tags === 'string' && raw.tags) tags = (raw.tags as string).split(',').map(s => s.trim()).filter(Boolean);
-
+function mapNews(raw: any): NewsItem {
   return {
     id: Number(raw.id),
     title: String(raw.title ?? ''),
-    category: String(raw.category ?? ''),
-    tags,
-    authorId: raw.author_id != null ? Number(raw.author_id) : null,
-    authorName: String(raw.author_name ?? ''),
-    views: Number(raw.view_count ?? 0),
-    likes: Number(raw.like_count ?? 0),
-    commentCount: Number(raw.comment_count ?? 0),
-    status: String(raw.status ?? 'draft'),
-    content: String(raw.content ?? ''),
-    contentHtml: String(raw.content_html ?? ''),
-    summary: String(raw.summary ?? ''),
     coverImage: String(raw.cover_image ?? ''),
-    isTop: Boolean(raw.is_top ?? false),
-    publishedAt: (raw.published_at as string) ?? null,
+    summary: String(raw.summary ?? ''),
+    contentHtml: String(raw.content_html ?? ''),
+    tags: Array.isArray(raw.tags) ? raw.tags.map(String) : [],
+    source: String(raw.source ?? ''),
+    status: String(raw.status ?? 'draft'),
+    isTop: Boolean(raw.is_top),
+    viewCount: Number(raw.view_count ?? 0),
+    likeCount: Number(raw.like_count ?? 0),
+    commentCount: Number(raw.comment_count ?? 0),
+    publishedAt: raw.published_at ?? null,
     createdAt: String(raw.created_at ?? ''),
   };
 }
 
-export default function ArticlesPage() {
-  const [articles, setArticles] = useState<Article[]>([]);
+export default function NewsPage() {
+  const [list, setList] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
-  const [editingRecord, setEditingRecord] = useState<Article | null>(null);
+  const [editingRecord, setEditingRecord] = useState<NewsItem | null>(null);
   const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
-  const [filterCategory, setFilterCategory] = useState<string | undefined>(undefined);
-  const [filterStatus, setFilterStatus] = useState<string | undefined>(undefined);
+  const [filterStatus, setFilterStatus] = useState<string | undefined>();
   const [searchText, setSearchText] = useState('');
   const [previewVisible, setPreviewVisible] = useState(false);
   const [previewContent, setPreviewContent] = useState('');
-  const [categoryOptions, setCategoryOptions] = useState<{ label: string; value: string }[]>([]);
+  const [tagOptions, setTagOptions] = useState<{ value: string; label: string }[]>([]);
   const [form] = Form.useForm();
 
-  const fetchCategories = useCallback(async () => {
-    try {
-      const res: any = await get('/api/admin/article-categories');
-      const items = (res?.items || []).filter((c: any) => c.is_enabled !== false);
-      setCategoryOptions(items.map((c: any) => ({ label: c.name, value: c.name })));
-    } catch {
-      // 兼容：后端尚未升级时使用默认分类
-      setCategoryOptions([
-        { label: '健康科普', value: '健康科普' },
-        { label: '营养饮食', value: '营养饮食' },
-        { label: '运动健身', value: '运动健身' },
-        { label: '心理健康', value: '心理健康' },
-        { label: '中医养生', value: '中医养生' },
-        { label: '疾病预防', value: '疾病预防' },
-      ]);
-    }
-  }, []);
-
-  const fetchData = async (page = 1, pageSize = 10) => {
+  const fetchData = useCallback(async (page = 1, pageSize = 10) => {
     setLoading(true);
     try {
       const params: Record<string, unknown> = { page, page_size: pageSize };
-      if (filterCategory) params.category = filterCategory;
       if (filterStatus) params.status = filterStatus;
       if (searchText) params.keyword = searchText;
-      const res = await get('/api/admin/content/articles', params);
-      if (res) {
-        const items = res.items || res.list || res;
-        const rawList = Array.isArray(items) ? items : [];
-        setArticles(rawList.map((r: Record<string, unknown>) => mapArticleFromApi(r)));
-        setPagination(prev => ({ ...prev, current: page, total: res.total ?? rawList.length }));
-      }
-    } catch (err: any) {
-      setArticles([]);
+      const res: any = await get('/api/admin/news', params);
+      const items = res?.items || [];
+      setList(items.map(mapNews));
+      setPagination(prev => ({ ...prev, current: page, pageSize, total: res?.total ?? items.length }));
+    } catch {
+      setList([]);
       setPagination(prev => ({ ...prev, current: page, total: 0 }));
-      message.error('加载文章失败');
+      message.error('加载资讯失败');
     } finally {
       setLoading(false);
     }
-  };
+  }, [filterStatus, searchText]);
 
-  useEffect(() => { fetchData(); fetchCategories(); }, []);
+  useEffect(() => { fetchData(1, pagination.pageSize); }, []); // 首次加载
+
+  const fetchTagSuggest = useCallback(async (q: string) => {
+    try {
+      const res: any = await get('/api/admin/news/tags/suggest', { q, limit: 20 });
+      const items = res?.items || [];
+      setTagOptions(items.map((i: any) => ({ value: i.tag, label: `${i.tag} (${i.use_count ?? 0})` })));
+    } catch {
+      setTagOptions([]);
+    }
+  }, []);
 
   const handleSearch = () => fetchData(1, pagination.pageSize);
 
   const handleAdd = () => {
     setEditingRecord(null);
     form.resetFields();
-    form.setFieldsValue({ status: 'draft', is_top: false });
+    form.setFieldsValue({ status: 'draft', is_top: false, tags: [] });
+    fetchTagSuggest('');
     setModalVisible(true);
   };
 
-  const handleEdit = (record: Article) => {
+  const handleEdit = (record: NewsItem) => {
     setEditingRecord(record);
     form.setFieldsValue({
       title: record.title,
-      category: record.category,
+      source: record.source,
       tags: record.tags,
       summary: record.summary,
-      content_html: record.contentHtml || (record.content ? `<p>${record.content}</p>` : ''),
+      content_html: record.contentHtml,
       status: record.status,
       cover_image: record.coverImage,
       is_top: record.isTop,
-      author_name: record.authorName,
       published_at: record.publishedAt ? dayjs(record.publishedAt) : null,
     });
+    fetchTagSuggest('');
     setModalVisible(true);
   };
 
-  const handleToggleStatus = async (record: Article, targetStatus: string) => {
+  const handleDelete = async (record: NewsItem) => {
     try {
-      await put(`/api/admin/content/articles/${record.id}`, { status: targetStatus });
-      message.success(targetStatus === 'published' ? '已发布' : '已下架');
+      await del(`/api/admin/news/${record.id}`);
+      message.success('已删除');
+      fetchData(pagination.current, pagination.pageSize);
+    } catch (err: any) {
+      message.error(err?.response?.data?.detail || '删除失败');
+    }
+  };
+
+  const handleTogglePublish = async (record: NewsItem, target: 'published' | 'archived') => {
+    try {
+      await post(`/api/admin/news/${record.id}/publish?target_status=${target}`);
+      message.success(target === 'published' ? '已发布' : '已下架');
       fetchData(pagination.current, pagination.pageSize);
     } catch (err: any) {
       message.error(err?.response?.data?.detail || '操作失败');
     }
   };
 
-  const handleToggleTop = async (record: Article) => {
+  const handleToggleTop = async (record: NewsItem) => {
     try {
-      await put(`/api/admin/content/articles/${record.id}`, { is_top: !record.isTop });
+      await post(`/api/admin/news/${record.id}/top`);
       message.success(record.isTop ? '已取消置顶' : '已置顶');
       fetchData(pagination.current, pagination.pageSize);
     } catch (err: any) {
@@ -176,24 +164,23 @@ export default function ArticlesPage() {
       const values = await form.validateFields();
       const payload: Record<string, unknown> = {
         title: values.title,
-        category: values.category,
-        tags: values.tags || [],
-        content_html: values.content_html || '',
-        summary: values.summary || '',
-        status: values.status || 'draft',
         cover_image: values.cover_image || '',
+        summary: values.summary || '',
+        content_html: values.content_html || '',
+        tags: values.tags || [],
+        source: values.source || '',
+        status: values.status || 'draft',
         is_top: values.is_top || false,
-        author_name: values.author_name || '',
       };
       if (values.published_at) {
         payload.published_at = values.published_at.toISOString();
       }
 
       if (editingRecord) {
-        await put(`/api/admin/content/articles/${editingRecord.id}`, payload);
+        await put(`/api/admin/news/${editingRecord.id}`, payload);
         message.success('编辑成功');
       } else {
-        await post('/api/admin/content/articles', payload);
+        await post('/api/admin/news', payload);
         message.success('新增成功');
       }
       setModalVisible(false);
@@ -206,8 +193,8 @@ export default function ArticlesPage() {
 
   const handleCoverUpload = async (file: RcFile) => {
     try {
-      const res = await uploadFile('/api/admin/upload', file);
-      const url = (res as any)?.url || (res as any)?.data?.url || '';
+      const res: any = await uploadFile('/api/admin/upload', file);
+      const url = res?.url || res?.data?.url || '';
       if (url) {
         form.setFieldsValue({ cover_image: url });
         message.success('封面上传成功');
@@ -219,6 +206,7 @@ export default function ArticlesPage() {
   };
 
   const handleMediaInsert = async (type: 'image' | 'video') => {
+    // 简易：点击按钮选择文件 → 上传 → 插入到 content_html
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = type === 'image' ? 'image/*' : 'video/*';
@@ -247,26 +235,23 @@ export default function ArticlesPage() {
     { title: 'ID', dataIndex: 'id', key: 'id', width: 60 },
     {
       title: '标题', dataIndex: 'title', key: 'title', ellipsis: true,
-      render: (v: string, record: Article) => (
+      render: (v: string, record: NewsItem) => (
         <Space>
           {record.isTop && <span title="置顶">📌</span>}
-          {v}
+          <span>{v}</span>
         </Space>
       ),
     },
     {
-      title: '摘要', dataIndex: 'summary', key: 'summary', width: 200, ellipsis: true,
+      title: '摘要', dataIndex: 'summary', key: 'summary', width: 220, ellipsis: true,
     },
     {
-      title: '分类', dataIndex: 'category', key: 'category', width: 100,
-      render: (v: string) => <Tag color="cyan">{v || '-'}</Tag>,
+      title: '标签', dataIndex: 'tags', key: 'tags', width: 180,
+      render: (tags: string[]) => tags?.length ? tags.slice(0, 3).map(t => <Tag key={t} color="blue">{t}</Tag>) : '-',
     },
-    {
-      title: '标签', dataIndex: 'tags', key: 'tags', width: 150,
-      render: (tags: string[]) => tags?.length ? tags.map(t => <Tag key={t} color="blue">{t}</Tag>) : '-',
-    },
-    { title: '浏览量', dataIndex: 'views', key: 'views', width: 80 },
-    { title: '点赞', dataIndex: 'likes', key: 'likes', width: 70 },
+    { title: '来源', dataIndex: 'source', key: 'source', width: 100 },
+    { title: '浏览', dataIndex: 'viewCount', key: 'viewCount', width: 70 },
+    { title: '点赞', dataIndex: 'likeCount', key: 'likeCount', width: 70 },
     {
       title: '状态', dataIndex: 'status', key: 'status', width: 90,
       render: (v: string) => {
@@ -275,28 +260,31 @@ export default function ArticlesPage() {
       },
     },
     {
-      title: '发布时间', dataIndex: 'createdAt', key: 'createdAt', width: 170,
+      title: '发布时间', dataIndex: 'publishedAt', key: 'publishedAt', width: 150,
       render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm') : '—',
     },
     {
-      title: '操作', key: 'action', width: 260, fixed: 'right' as const,
-      render: (_: unknown, record: Article) => (
+      title: '操作', key: 'action', width: 300, fixed: 'right' as const,
+      render: (_: unknown, record: NewsItem) => (
         <Space size={0} wrap>
           <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>编辑</Button>
           <Button type="link" size="small" icon={<PushpinOutlined />} onClick={() => handleToggleTop(record)}>
             {record.isTop ? '取消置顶' : '置顶'}
           </Button>
           {record.status !== 'published' && (
-            <Popconfirm title="确定发布？" onConfirm={() => handleToggleStatus(record, 'published')}>
+            <Popconfirm title="确定发布？" onConfirm={() => handleTogglePublish(record, 'published')}>
               <Button type="link" size="small" icon={<ArrowUpOutlined />}>发布</Button>
             </Popconfirm>
           )}
           {record.status === 'published' && (
-            <Popconfirm title="确定下架？" onConfirm={() => handleToggleStatus(record, 'archived')}>
+            <Popconfirm title="确定下架？" onConfirm={() => handleTogglePublish(record, 'archived')}>
               <Button type="link" size="small" danger icon={<ArrowDownOutlined />}>下架</Button>
             </Popconfirm>
           )}
-          <Button type="link" size="small" onClick={() => { setPreviewContent(record.contentHtml || (record.content ? `<p>${record.content}</p>` : '')); setPreviewVisible(true); }}>预览</Button>
+          <Button type="link" size="small" onClick={() => { setPreviewContent(record.contentHtml); setPreviewVisible(true); }}>预览</Button>
+          <Popconfirm title="确定删除？" onConfirm={() => handleDelete(record)}>
+            <Button type="link" size="small" danger icon={<DeleteOutlined />}>删除</Button>
+          </Popconfirm>
         </Space>
       ),
     },
@@ -305,22 +293,18 @@ export default function ArticlesPage() {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <Title level={4} style={{ margin: 0 }}>文章管理（富文本）</Title>
-        <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>新增文章</Button>
+        <Title level={4} style={{ margin: 0 }}>资讯管理</Title>
+        <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>新增资讯</Button>
       </div>
 
       <Row gutter={16} style={{ marginBottom: 16 }}>
-        <Col>
-          <Select placeholder="按分类筛选" allowClear style={{ width: 140 }} options={categoryOptions}
-            value={filterCategory} onChange={v => setFilterCategory(v)} />
-        </Col>
         <Col>
           <Select placeholder="按状态筛选" allowClear style={{ width: 120 }}
             options={[{ label: '草稿', value: 'draft' }, { label: '已发布', value: 'published' }, { label: '已下架', value: 'archived' }]}
             value={filterStatus} onChange={v => setFilterStatus(v)} />
         </Col>
         <Col>
-          <Input placeholder="搜索标题" prefix={<SearchOutlined />} value={searchText}
+          <Input placeholder="搜索标题/摘要" prefix={<SearchOutlined />} value={searchText}
             onChange={e => setSearchText(e.target.value)} onPressEnter={handleSearch}
             style={{ width: 220 }} allowClear />
         </Col>
@@ -331,7 +315,7 @@ export default function ArticlesPage() {
 
       <Table
         columns={columns}
-        dataSource={articles}
+        dataSource={list}
         rowKey="id"
         loading={loading}
         pagination={{
@@ -340,11 +324,11 @@ export default function ArticlesPage() {
           showTotal: total => `共 ${total} 条`,
           onChange: (page, pageSize) => fetchData(page, pageSize),
         }}
-        scroll={{ x: 1300 }}
+        scroll={{ x: 1400 }}
       />
 
       <Modal
-        title={editingRecord ? '编辑文章' : '新增文章'}
+        title={editingRecord ? '编辑资讯' : '新增资讯'}
         open={modalVisible}
         onOk={handleSubmit}
         onCancel={() => setModalVisible(false)}
@@ -352,26 +336,16 @@ export default function ArticlesPage() {
         destroyOnClose
       >
         <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
-          <Form.Item label="文章标题" name="title" rules={[{ required: true, message: '请输入文章标题' }]}>
-            <Input placeholder="请输入文章标题" maxLength={200} />
+          <Form.Item label="资讯标题" name="title" rules={[{ required: true, message: '请输入资讯标题' }]}>
+            <Input placeholder="请输入资讯标题" maxLength={200} />
           </Form.Item>
           <Row gutter={16}>
-            <Col span={6}>
-              <Form.Item label="分类" name="category" rules={[{ required: true, message: '请选择分类' }]}>
-                <Select options={categoryOptions} placeholder="请选择分类" />
+            <Col span={8}>
+              <Form.Item label="来源" name="source">
+                <Input placeholder="可填来源或作者" maxLength={100} />
               </Form.Item>
             </Col>
-            <Col span={6}>
-              <Form.Item label="标签" name="tags">
-                <Select mode="tags" placeholder="输入标签后回车" />
-              </Form.Item>
-            </Col>
-            <Col span={6}>
-              <Form.Item label="作者/来源" name="author_name">
-                <Input placeholder="可选" maxLength={100} />
-              </Form.Item>
-            </Col>
-            <Col span={6}>
+            <Col span={8}>
               <Form.Item label="状态" name="status">
                 <Select options={[
                   { label: '草稿', value: 'draft' },
@@ -380,28 +354,37 @@ export default function ArticlesPage() {
                 ]} />
               </Form.Item>
             </Col>
-          </Row>
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item label="封面图" name="cover_image">
-                <Input placeholder="封面图URL" addonAfter={
-                  <Upload showUploadList={false} beforeUpload={handleCoverUpload as any} accept="image/*">
-                    <Button size="small" type="link" icon={<UploadOutlined />}>上传</Button>
-                  </Upload>
-                } />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item label="发布时间（留空发布时用当前时间）" name="published_at">
+            <Col span={8}>
+              <Form.Item label="发布时间" name="published_at" tooltip="未填时发布自动记录当前时间">
                 <DatePicker showTime style={{ width: '100%' }} format="YYYY-MM-DD HH:mm" />
               </Form.Item>
             </Col>
           </Row>
-          <Form.Item label="文章摘要" name="summary">
-            <TextArea rows={2} placeholder="请输入文章摘要" maxLength={500} showCount />
+          <Form.Item label="标签（最多10个，每个≤20字）" name="tags" rules={[{
+            validator: async (_, v) => {
+              const arr: string[] = v || [];
+              if (arr.length > 10) throw new Error('标签最多 10 个');
+              for (const t of arr) { if (t && t.length > 20) throw new Error('每个标签不能超过 20 个字'); }
+            }
+          }]}>
+            <Select mode="tags" placeholder="输入标签后回车；下拉显示历史标签"
+              onSearch={q => fetchTagSuggest(q || '')}
+              options={tagOptions}
+              maxTagCount={10}
+            />
           </Form.Item>
-          <Form.Item label="文章正文（富文本 HTML）" name="content_html" rules={[{ required: true, message: '请输入文章正文' }]}>
-            <TextArea rows={12} placeholder="支持 HTML；可用下方按钮插入图片/视频" />
+          <Form.Item label="封面图" name="cover_image">
+            <Input placeholder="封面图URL" addonAfter={
+              <Upload showUploadList={false} beforeUpload={handleCoverUpload as any} accept="image/*">
+                <Button size="small" type="link" icon={<UploadOutlined />}>上传</Button>
+              </Upload>
+            } />
+          </Form.Item>
+          <Form.Item label="摘要" name="summary">
+            <TextArea rows={2} placeholder="资讯摘要（可选）" maxLength={500} showCount />
+          </Form.Item>
+          <Form.Item label="正文（富文本 HTML）" name="content_html" rules={[{ required: true, message: '请输入正文' }]}>
+            <TextArea rows={10} placeholder="支持 HTML；可用下方按钮插入图片/视频" />
           </Form.Item>
           <Space style={{ marginBottom: 16 }}>
             <Button size="small" onClick={() => handleMediaInsert('image')}>插入图片</Button>

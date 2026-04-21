@@ -65,3 +65,11 @@ body {
   border-top-right-radius: 24px;
   border-bottom-right-radius: 24px;
 }
+
+/* v8 富文本预览容器样式 */
+.rich-text img { max-width: 100%; height: auto; border-radius: 4px; margin: 8px 0; }
+.rich-text video { max-width: 100%; height: auto; border-radius: 4px; margin: 8px 0; }
+.rich-text p { margin: 8px 0; line-height: 1.7; }
+.rich-text h1, .rich-text h2, .rich-text h3 { margin: 16px 0 8px; font-weight: bold; }
+.rich-text ul, .rich-text ol { padding-left: 24px; margin: 8px 0; }
+.rich-text blockquote { border-left: 3px solid #52c41a; padding-left: 12px; color: #666; margin: 12px 0; }

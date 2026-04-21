@@ -33,7 +33,6 @@ from app.models.models import (
     SystemConfig,
     User,
     UserRole,
-    Video,
 )
 from app.schemas.admin import (
     AIModelConfigCreate,
@@ -50,7 +49,7 @@ from app.schemas.admin import (
 )
 from app.schemas.points import PointsMallItemCreate, PointsMallItemUpdate
 from app.schemas.user import RegisterSettingsResponse
-from app.schemas.content import ArticleCreate, ArticleResponse, ArticleUpdate, VideoCreate, VideoResponse, VideoUpdate
+from app.schemas.content import ArticleCreate, ArticleResponse, ArticleUpdate
 from app.schemas.service import ServiceCategoryCreate, ServiceCategoryResponse, ServiceItemCreate, ServiceItemResponse, ServiceItemUpdate
 from app.services.register_service import get_register_settings, save_register_settings
 
@@ -1225,11 +1224,18 @@ async def admin_create_article(
 ):
     article_data = data.model_dump(exclude_unset=True)
     article_status = article_data.pop("status", None) or "published"
+    # 兼容：如未提供 content 则用 content_html 清洗后作为 fallback
+    if not article_data.get("content"):
+        html_val = article_data.get("content_html") or ""
+        import re as _re
+        article_data["content"] = _re.sub(r"<[^>]+>", "", html_val)[:5000]
     article = Article(
         **article_data,
         author_id=current_user.id,
         status=article_status,
     )
+    if article_status == "published" and not article.published_at:
+        article.published_at = datetime.utcnow()
     db.add(article)
     await db.flush()
     await db.refresh(article)
@@ -1248,8 +1254,16 @@ async def admin_update_article(
     if not article:
         raise HTTPException(status_code=404, detail="文章不存在")
 
-    for key, value in data.model_dump(exclude_unset=True).items():
+    payload = data.model_dump(exclude_unset=True)
+    new_status = payload.get("status")
+    for key, value in payload.items():
         setattr(article, key, value)
+    # 如果 content 为空但 content_html 有值，同步文本 fallback
+    if (not article.content) and article.content_html:
+        import re as _re
+        article.content = _re.sub(r"<[^>]+>", "", article.content_html)[:5000]
+    if new_status == "published" and not article.published_at:
+        article.published_at = datetime.utcnow()
     article.updated_at = datetime.utcnow()
     await db.flush()
     await db.refresh(article)
@@ -1267,106 +1281,6 @@ async def admin_delete_article(
     if not article:
         raise HTTPException(status_code=404, detail="文章不存在")
     article.status = ContentStatus.archived
-    return {"message": "删除成功"}
-
-
-@router.get("/content/videos")
-async def admin_list_videos(
-    status: Optional[str] = None,
-    page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
-    current_user=Depends(admin_dep),
-    db: AsyncSession = Depends(get_db),
-):
-    query = select(Video)
-    count_query = select(func.count(Video.id))
-
-    if status:
-        query = query.where(Video.status == status)
-        count_query = count_query.where(Video.status == status)
-
-    total_result = await db.execute(count_query)
-    total = total_result.scalar() or 0
-
-    result = await db.execute(
-        query.order_by(Video.created_at.desc())
-        .offset((page - 1) * page_size)
-        .limit(page_size)
-    )
-    items = [VideoResponse.model_validate(v) for v in result.scalars().all()]
-    return {"items": items, "total": total, "page": page, "page_size": page_size}
-
-
-@router.post("/content/videos", response_model=VideoResponse)
-async def admin_create_video(
-    data: VideoCreate,
-    current_user=Depends(admin_dep),
-    db: AsyncSession = Depends(get_db),
-):
-    video_data = data.model_dump()
-    dur = video_data.get("duration")
-    if dur is not None:
-        if isinstance(dur, str) and ':' in dur:
-            parts = dur.split(':')
-            video_data['duration'] = int(parts[0]) * 60 + int(parts[1])
-        else:
-            try:
-                video_data['duration'] = int(dur)
-            except (ValueError, TypeError):
-                video_data['duration'] = 0
-    video = Video(
-        **video_data,
-        author_id=current_user.id,
-        status=ContentStatus.published,
-    )
-    db.add(video)
-    await db.flush()
-    await db.refresh(video)
-    return VideoResponse.model_validate(video)
-
-
-@router.put("/content/videos/{video_id}", response_model=VideoResponse)
-async def admin_update_video(
-    video_id: int,
-    data: VideoUpdate,
-    current_user=Depends(admin_dep),
-    db: AsyncSession = Depends(get_db),
-):
-    result = await db.execute(select(Video).where(Video.id == video_id))
-    video = result.scalar_one_or_none()
-    if not video:
-        raise HTTPException(status_code=404, detail="视频不存在")
-
-    update_data = data.model_dump(exclude_unset=True)
-    if 'duration' in update_data and update_data['duration'] is not None:
-        dur = update_data['duration']
-        if isinstance(dur, str) and ':' in dur:
-            parts = dur.split(':')
-            update_data['duration'] = int(parts[0]) * 60 + int(parts[1])
-        else:
-            try:
-                update_data['duration'] = int(dur)
-            except (ValueError, TypeError):
-                update_data['duration'] = 0
-    for key, value in update_data.items():
-        if hasattr(video, key):
-            setattr(video, key, value)
-    await db.flush()
-    await db.refresh(video)
-    return VideoResponse.model_validate(video)
-
-
-@router.delete("/content/videos/{video_id}")
-async def admin_delete_video(
-    video_id: int,
-    current_user=Depends(admin_dep),
-    db: AsyncSession = Depends(get_db),
-):
-    result = await db.execute(select(Video).where(Video.id == video_id))
-    video = result.scalar_one_or_none()
-    if not video:
-        raise HTTPException(status_code=404, detail="视频不存在")
-    video.status = ContentStatus.archived
     return {"message": "删除成功"}
 
 
