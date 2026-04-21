@@ -33,6 +33,51 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
+## Latest Update: 三端首页顶部紧凑化 — 去 LOGO + 双行头 + 小 Banner（2026-04-21）
+
+### 概要
+按 PRD《三端首页顶部紧凑化改造》对 H5 / 小程序 / Flutter App 首页顶部统一重构：移除 LOGO 图片改为"宾尼小康"文字，将原来大块的头部 + 大 Banner（~220px+）压缩成双行紧凑头（40px 品牌/地区 + 48px 搜索/扫码/消息）+ 小 Banner（~100px），总高度 ~188px，首屏直接暴露菜单/公告。纯前端改动，零后端发布。部署 commit `741c409`，18/18 全量链接可达性验证通过。
+
+### 关键变更
+
+- **h5-web**：
+  - `src/app/(tabs)/home/page.tsx`：`gradient-header` 整块替换为 `compact-home-header`，内部两行：① 宾尼小康 + 📍地区 ▾（40px）② 🔍 搜索 + 扫码 + 消息红点（48px）；Banner 高度 144 → 100，外容器 margin/radius 同步调整。
+  - `src/app/globals.css`：新增 `.compact-home-header { background: var(--primary-color); color: #fff; }` 样式，品牌绿纯色背景。
+
+- **miniprogram**：
+  - `pages/home/index.wxml`：`custom-nav` + 独立 `search-bar` 替换为 `compact-header`（双行结构），双身份时在品牌行追加 `compact-switch-role`。
+  - `pages/home/index.wxss`：新增 `.compact-header / .compact-row-brand / .compact-row-search / .compact-search / .compact-action-btn / .compact-msg-btn / .compact-badge` 全套样式；第一行 `padding-right: 200rpx` 避让右上角胶囊按钮；`banner-swiper` 高度 280rpx → 200rpx。
+  - `pages/home/index.json`：确认 `navigationStyle: custom`。
+
+- **flutter_app**：
+  - `lib/screens/home/home_screen.dart`：引入 `package:flutter/services.dart`；`Scaffold` 外包一层 `AnnotatedRegion<SystemUiOverlayStyle>`（品牌绿背景 + 白色状态栏图标）实现沉浸式。`SliverAppBar` `toolbarHeight: 88`、`titleSpacing: 0`、`automaticallyImplyLeading: false`，`title` 改为两行 `Column`（高度 40+48），分别放品牌+地区、搜索框+扫码+消息。Banner `Container` 高度 160 → 100，`margin` 12/8/12/0，圆角 10。
+
+### 三端顶部布局（一致）
+
+| 行 | 高度 | 内容 |
+|---|---|---|
+| 第 1 行 | ~40px | 宾尼小康（品牌字，不可点击） + 📍地区 ▾（点击跳 `/city-select`） |
+| 第 2 行 | ~48px | 🔍 搜索健康服务…（点击跳搜索） + 扫码 + 消息红点 |
+| Banner | ~100px | 复用 `image_url_compact`（回退 `image_url`），圆角 10、两侧留白 12 |
+
+### 交互规则（PRD 对齐）
+- 品牌文字不可点击。
+- 地区切换仅改显示文本，不刷新下方 Banner/菜单。
+- 搜索占位文案继续来自 `/api/home-config.search_placeholder`。
+- 消息红点使用现有 `/api/messages/unread-count`，>99 显示 `99+`，=0 隐藏。
+- 首页进入/Tab 切回时触发一次未读数刷新。
+
+### 部署与产物
+
+- 部署脚本：`deploy/deploy_home_compact.py`（内嵌 git fetch 重试循环应对 TLS 抖动）。
+- 链接验证：`deploy/link_check_home_compact.py` + `link_check_home_compact_report.json`（18/18）。
+- 打包脚本：`deploy/package_mp_home_compact.py`（小程序 zip 上传到 `static/downloads/miniprogram_latest.zip`）。
+- APK 构建：`deploy/build_apk_home_compact.py`（服务器 Docker + Flutter，产物发布到 `static/apk/bini_health.apk`）。
+- iOS IPA：通过 `.github/workflows/ios-build.yml` workflow_dispatch 触发（tag `ios-home-compact-20260421`），产物发布到 GitHub Releases。
+- 用户体验手册：`user_docs/三端首页顶部紧凑化_去LOGO_双行布局_小Banner_用户体验手册.md`。
+
+---
+
 ## Latest Update: 订单系统双轨制彻底合并 — 五端 7 Tab 统一 + 独立退款页（2026-04-21）
 
 ### 概要
