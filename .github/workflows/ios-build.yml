@@ -20,7 +20,7 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.0'
+          flutter-version: '3.32.0'
           channel: 'stable'
       
       - name: Get dependencies
@@ -112,6 +112,7 @@ jobs:
       - name: Build iOS (no codesign)
         working-directory: flutter_app
         run: |
+          set -o pipefail
           flutter build ios --release --no-codesign --config-only
           cd ios
           xcodebuild build \
@@ -125,9 +126,19 @@ jobs:
             CODE_SIGN_IDENTITY="" \
             DEVELOPMENT_TEAM="" \
             PROVISIONING_PROFILE_SPECIFIER="" \
-            2>&1 | tail -100 || true
+            2>&1 | tail -200
           echo "=== Build output ==="
           find build/derived -name "*.app" -type d 2>/dev/null || echo "No .app found in derived"
+          APP=$(find build/derived -name "Runner.app" -type d 2>/dev/null | head -1)
+          if [ -z "$APP" ]; then
+            echo "ERROR: Runner.app was not produced"; exit 1
+          fi
+          if [ ! -f "$APP/Runner" ]; then
+            echo "ERROR: Runner.app is missing its Runner binary at $APP/Runner"
+            ls -la "$APP" || true
+            exit 1
+          fi
+          echo "Runner binary size: $(stat -f%z "$APP/Runner") bytes"
 
       - name: Create IPA
         run: |
