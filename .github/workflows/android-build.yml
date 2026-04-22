@@ -26,7 +26,7 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.0'
+          flutter-version: '3.32.0'
           channel: 'stable'
           
       - name: Create local.properties
@@ -60,7 +60,7 @@ jobs:
       - name: Build APK
         working-directory: flutter_app
         run: |
-          flutter build apk --release --no-tree-shake-icons 2>&1 || true
+          flutter build apk --release --no-tree-shake-icons
           echo "=== Build step complete, searching for APK ==="
 
       - name: Find and rename APK
