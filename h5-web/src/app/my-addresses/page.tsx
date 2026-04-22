@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, Button, Tag, Empty, SpinLoading, Toast, Dialog, Popup, Form, Input, Switch } from 'antd-mobile';
 import GreenNavBar from '@/components/GreenNavBar';
-import { AddOutline } from 'antd-mobile-icons';
 import api from '@/lib/api';
 
 interface Address {
@@ -168,6 +167,7 @@ export default function MyAddressesPage() {
         className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full bg-white border-t border-gray-100 px-4 py-3"
         style={{ maxWidth: 750, paddingBottom: 'calc(12px + env(safe-area-inset-bottom))' }}
       >
+        {/* PRD v1.0 2026-04-23：+新增地址（加号与文字无空格，文本水平+垂直居中） */}
         <Button
           block
           onClick={openAddForm}
@@ -177,9 +177,17 @@ export default function MyAddressesPage() {
             background: 'linear-gradient(135deg, #52c41a, #13c2c2)',
             color: '#fff',
             border: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            lineHeight: 1,
+            padding: 0,
+            textAlign: 'center',
           }}
         >
-          <AddOutline /> 新增地址
+          <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>
+            +新增地址
+          </span>
         </Button>
       </div>
 

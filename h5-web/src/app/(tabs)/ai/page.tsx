@@ -110,14 +110,8 @@ export default function AIPage() {
             </svg>
           </button>
           <div className="text-center flex-1">
-            <div className="flex items-center justify-center gap-2">
-              {/* v6: AI 头像统一为绿青渐变圆 + 白色 "AI" 文字（去 LOGO） */}
-              <span
-                className="ai-avatar-gradient"
-                style={{ width: 32, height: 32, fontSize: 12 }}
-              >
-                AI
-              </span>
+            {/* PRD v1.0 2026-04-23：删除左侧渐变圆形 AI 头像，标题文字水平居中 */}
+            <div className="flex items-center justify-center">
               <h1 className="text-xl font-bold">AI健康咨询</h1>
             </div>
             <p className="text-xs opacity-80 mt-1">选择咨询类型，开始健康咨询</p>

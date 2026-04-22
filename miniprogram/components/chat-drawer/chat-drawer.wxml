@@ -4,9 +4,9 @@
   <!-- 顶部操作区 -->
   <view class="drawer-header">
     <view class="drawer-title">对话记录</view>
+    <!-- PRD v1.0 2026-04-23：+新建对话（加号与文字无空格，按钮内水平+垂直居中） -->
     <view class="new-chat-btn" bindtap="onNewChat">
-      <text class="btn-icon">+</text>
-      <text class="btn-text">新建对话</text>
+      <text class="btn-text">+新建对话</text>
     </view>
   </view>
 

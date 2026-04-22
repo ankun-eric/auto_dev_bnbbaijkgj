@@ -425,6 +425,7 @@ class _ChatHistoryDrawerState extends State<ChatHistoryDrawer> {
             '对话历史',
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF333333)),
           ),
+          // PRD v1.0 2026-04-23：+新建对话（加号与文字无空格，按钮内水平+垂直居中）
           GestureDetector(
             onTap: () {
               Navigator.pop(context);
@@ -436,13 +437,12 @@ class _ChatHistoryDrawerState extends State<ChatHistoryDrawer> {
                 color: const Color(0xFF52C41A),
                 borderRadius: BorderRadius.circular(16),
               ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.add, color: Colors.white, size: 16),
-                  SizedBox(width: 4),
-                  Text('新对话', style: TextStyle(color: Colors.white, fontSize: 13)),
-                ],
+              child: const Center(
+                child: Text(
+                  '+新建对话',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.white, fontSize: 13, height: 1.0),
+                ),
               ),
             ),
           ),

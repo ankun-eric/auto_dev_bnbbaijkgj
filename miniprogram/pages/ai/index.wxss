@@ -8,6 +8,7 @@
   align-items: center;
   justify-content: space-between;
   margin-bottom: 20rpx;
+  position: relative;
 }
 
 .history-btn {
@@ -29,9 +30,12 @@
   color: #666;
 }
 
+/* PRD v1.0 2026-04-23：标题容器水平居中 */
 .page-title-wrap {
+  flex: 1;
   display: flex;
   align-items: center;
+  justify-content: center;
 }
 
 .brand-logo-small {
@@ -174,12 +178,19 @@
   border-radius: 48rpx;
   box-shadow: 0 8rpx 24rpx rgba(82, 196, 26, 0.3);
   z-index: 10;
+  /* PRD v1.0 2026-04-23：按钮内文字水平+垂直居中 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
 }
 
 .new-chat-text {
   color: #fff;
   font-size: 30rpx;
   font-weight: bold;
+  text-align: center;
+  line-height: 1;
 }
 
 .merchant-scan-page {

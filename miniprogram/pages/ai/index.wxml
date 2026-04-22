@@ -5,8 +5,8 @@
       <text class="history-icon">☰</text>
       <text class="history-text">历史</text>
     </view>
+    <!-- PRD v1.0 2026-04-23：删除左侧渐变圆形 AI 头像，标题文字水平居中 -->
     <view class="page-title-wrap">
-      <view class="ai-avatar-gradient" style="margin-right:12rpx;">AI</view>
       <text class="page-title">AI健康咨询</text>
     </view>
     <view class="top-bar-placeholder"></view>
@@ -56,8 +56,9 @@
     <text class="empty-text">开始AI健康咨询吧</text>
   </view>
 
+  <!-- PRD v1.0 2026-04-23：+新建对话（加号与文字无空格，按钮内水平+垂直居中） -->
   <view class="new-chat-btn" bindtap="newChat">
-    <text class="new-chat-text">+ 新建对话</text>
+    <text class="new-chat-text">+新建对话</text>
   </view>
 
   <!-- 对话历史抽屉 -->

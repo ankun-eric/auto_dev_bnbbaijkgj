@@ -71,6 +71,7 @@
   box-shadow: 0 -2rpx 12rpx rgba(0, 0, 0, 0.06);
 }
 
+/* PRD v1.0 2026-04-23：按钮内文字水平+垂直居中 */
 .add-btn {
   background: linear-gradient(135deg, #52c41a, #13c2c2);
   color: #fff;
@@ -79,6 +80,10 @@
   text-align: center;
   padding: 24rpx 0;
   border-radius: 44rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
 }
 
 .form-mask {

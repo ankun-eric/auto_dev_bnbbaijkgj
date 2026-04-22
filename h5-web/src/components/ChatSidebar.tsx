@@ -9,7 +9,7 @@ import {
   SpinLoading,
   Button,
 } from 'antd-mobile';
-import { AddOutline, CloseOutline } from 'antd-mobile-icons';
+import { CloseOutline } from 'antd-mobile-icons';
 import api from '@/lib/api';
 
 interface SessionItem {
@@ -293,6 +293,7 @@ export default function ChatSidebar({
 
         {/* New chat button */}
         <div className="px-3 py-3 flex-shrink-0 border-b border-gray-100">
+          {/* PRD v1.0 2026-04-23：+新建对话（加号与文字无空格，文本水平+垂直居中） */}
           <Button
             block
             onClick={handleNewChat}
@@ -305,10 +306,17 @@ export default function ChatSidebar({
               height: 40,
               fontWeight: 500,
               fontSize: 14,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              lineHeight: 1,
+              padding: 0,
+              textAlign: 'center',
             }}
           >
-            <AddOutline style={{ marginRight: 6, fontSize: 14 }} />
-            新建对话
+            <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>
+              +新建对话
+            </span>
           </Button>
         </div>
 
