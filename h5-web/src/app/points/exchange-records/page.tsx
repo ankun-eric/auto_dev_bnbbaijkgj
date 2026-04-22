@@ -24,6 +24,9 @@ interface ExchangeRecord {
   ref_service_type?: string | null;
   ref_service_id?: number | null;
   ref_order_no?: string | null;
+  use_button_state?: string;
+  use_button_text?: string;
+  use_button_target?: string | null;
 }
 
 const TYPE_META: Record<string, { text: string; color: string }> = {
@@ -112,6 +115,27 @@ export default function PointsExchangeRecordsPage() {
     }
   };
 
+  // v1.1 使用按钮：优先走替代款智能跳转；已下架无替代时禁用
+  const handleUseButton = (r: ExchangeRecord) => {
+    const state = r.use_button_state || 'normal';
+    if (state === 'offline') {
+      Toast.show({ content: '该商品已下架' });
+      return;
+    }
+    if (state === 'redirect_replaced' && r.use_button_target) {
+      router.push(r.use_button_target);
+      return;
+    }
+    // 正常：按商品类型分发原流程
+    if (r.goods_type === 'service') {
+      handleAppointment(r);
+    } else if (r.goods_type === 'coupon') {
+      handleViewCoupon();
+    } else if (r.goods_type === 'physical') {
+      handleViewOrder(r);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 pb-8">
       <GreenNavBar>兑换记录</GreenNavBar>
@@ -177,51 +201,56 @@ export default function PointsExchangeRecordsPage() {
                         <span style={{ color: '#B8860B', fontWeight: 600 }}>
                           -{r.points_cost} 积分
                         </span>
-                        {r.goods_type === 'service' && r.status !== 'expired' && (
-                          <Button
-                            size="mini"
-                            onClick={() => handleAppointment(r)}
-                            style={{
-                              borderRadius: 12,
-                              background: 'linear-gradient(135deg, #52c41a, #13c2c2)',
-                              color: '#fff',
-                              border: 'none',
-                              fontSize: 12,
-                            }}
-                          >
-                            去预约
-                          </Button>
-                        )}
-                        {r.goods_type === 'coupon' && (
-                          <Button
-                            size="mini"
-                            onClick={handleViewCoupon}
-                            style={{
-                              borderRadius: 12,
-                              background: 'rgba(250, 140, 22, 0.1)',
-                              color: '#fa8c16',
-                              border: '1px solid #fa8c16',
-                              fontSize: 12,
-                            }}
-                          >
-                            查看我的券
-                          </Button>
-                        )}
-                        {r.goods_type === 'physical' && (
-                          <Button
-                            size="mini"
-                            onClick={() => handleViewOrder(r)}
-                            style={{
-                              borderRadius: 12,
-                              background: 'rgba(114, 46, 209, 0.1)',
-                              color: '#722ed1',
-                              border: '1px solid #722ed1',
-                              fontSize: 12,
-                            }}
-                          >
-                            查看订单
-                          </Button>
-                        )}
+                        {(() => {
+                          const useState = r.use_button_state || 'normal';
+                          const offline = useState === 'offline';
+                          const replaced = useState === 'redirect_replaced';
+                          // 默认"使用按钮"文案按商品类型
+                          let text = r.use_button_text || '';
+                          if (!text || text === '立即使用') {
+                            text = r.goods_type === 'service' ? '去预约' : r.goods_type === 'coupon' ? '查看我的券' : r.goods_type === 'physical' ? '查看订单' : '立即使用';
+                          }
+                          if (replaced) text = r.use_button_text || '去看替代款';
+                          if (offline) text = r.use_button_text || '已下架';
+                          return (
+                            <Button
+                              size="mini"
+                              disabled={offline}
+                              onClick={() => handleUseButton(r)}
+                              style={{
+                                borderRadius: 12,
+                                background: offline
+                                  ? '#f0f0f0'
+                                  : replaced
+                                  ? 'linear-gradient(135deg, #fa8c16, #faad14)'
+                                  : r.goods_type === 'service'
+                                  ? 'linear-gradient(135deg, #52c41a, #13c2c2)'
+                                  : r.goods_type === 'coupon'
+                                  ? 'rgba(250, 140, 22, 0.1)'
+                                  : 'rgba(114, 46, 209, 0.1)',
+                                color: offline
+                                  ? '#bfbfbf'
+                                  : replaced
+                                  ? '#fff'
+                                  : r.goods_type === 'service'
+                                  ? '#fff'
+                                  : r.goods_type === 'coupon'
+                                  ? '#fa8c16'
+                                  : '#722ed1',
+                                border: offline
+                                  ? 'none'
+                                  : replaced || r.goods_type === 'service'
+                                  ? 'none'
+                                  : r.goods_type === 'coupon'
+                                  ? '1px solid #fa8c16'
+                                  : '1px solid #722ed1',
+                                fontSize: 12,
+                              }}
+                            >
+                              {text}
+                            </Button>
+                          );
+                        })()}
                       </div>
                     </div>
                   </div>

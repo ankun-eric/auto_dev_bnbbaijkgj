@@ -923,7 +923,33 @@ class PointsMallItem(Base):
     ref_coupon_id = mapped_column(Integer, nullable=True, comment="type=coupon 时关联 coupons.id")
     ref_service_id = mapped_column(Integer, nullable=True, comment="type=service 时关联 products.id")
     limit_per_user = mapped_column(Integer, default=0, nullable=False, comment="每人限兑次数 0=不限")
+    # v1.1 新增：三态流转 + 无缝替换
+    goods_status = mapped_column(
+        String(16), default="draft", nullable=False,
+        comment="draft/on_sale/off_sale 三态；覆盖旧 status 字段用于精细管控"
+    )
+    replaced_by_goods_id = mapped_column(Integer, nullable=True, comment="被哪个商品替代（复制新建）")
+    copied_from_goods_id = mapped_column(Integer, nullable=True, comment="从哪个商品复制而来")
+    sort_weight = mapped_column(Integer, default=0, nullable=False, comment="排序权重，越大越靠前")
     created_at = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class PointsMallGoodsChangeLog(Base):
+    """v1.1 新增：商品修改历史日志表。
+
+    仅针对锁定清单中"可改，留痕"字段（title、主图、轮播图）记录变更。
+    """
+    __tablename__ = "points_mall_goods_change_log"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    goods_id = mapped_column(Integer, ForeignKey("points_mall_items.id"), nullable=False, index=True)
+    field_key = mapped_column(String(64), nullable=False, comment="字段英文 key（如 title / main_image）")
+    field_name = mapped_column(String(64), nullable=False, comment="字段中文名")
+    old_value = mapped_column(Text, nullable=True)
+    new_value = mapped_column(Text, nullable=True)
+    operator_id = mapped_column(Integer, nullable=True)
+    operator_name = mapped_column(String(64), nullable=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow, nullable=False, index=True)
 
 
 class PointsExchange(Base):

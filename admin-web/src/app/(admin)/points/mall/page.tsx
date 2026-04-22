@@ -3,11 +3,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Table, Button, Space, Modal, Form, Input, InputNumber, Select, Switch, Upload, Tag, message,
-  Typography, Popconfirm, Tabs, DatePicker, Row, Col,
+  Typography, Popconfirm, Tabs, DatePicker, Row, Col, Tooltip, Alert,
 } from 'antd';
 import {
   PlusOutlined, EditOutlined, DeleteOutlined, UploadOutlined, GiftOutlined,
   ArrowUpOutlined, ArrowDownOutlined, SearchOutlined, DownloadOutlined,
+  CopyOutlined, HistoryOutlined, LockOutlined,
 } from '@ant-design/icons';
 import { get, post, put, del, upload as uploadFile } from '@/lib/api';
 import dayjs from 'dayjs';
@@ -25,12 +26,16 @@ interface MallGoods {
   stock: number;
   exchangeCount: number;
   status: string;
+  goodsStatus: string; // draft/on_sale/off_sale
   image: string;
   description: string;
   detailHtml: string;
   refCouponId?: number;
   refServiceId?: number;
   limitPerUser: number;
+  sortWeight: number;
+  replacedByGoodsId?: number;
+  copiedFromGoodsId?: number;
   images: string[];
   createdAt: string;
 }
@@ -45,6 +50,16 @@ interface ExchangeRecord {
   createdAt: string;
 }
 
+interface ChangeLog {
+  id: number;
+  fieldKey: string;
+  fieldName: string;
+  oldValue: string;
+  newValue: string;
+  operatorName: string;
+  createdAt: string;
+}
+
 interface ServiceProductOption {
   value: number;
   label: string;
@@ -52,6 +67,13 @@ interface ServiceProductOption {
   image?: string;
   category_name?: string;
   sale_price?: number;
+}
+
+interface CouponOption {
+  label: string;
+  value: number;
+  totalCount: number;
+  available: number;
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -62,7 +84,12 @@ const TYPE_LABELS: Record<string, string> = {
   third_party: '第三方商品',
 };
 
-// v3.1：保留 coupon，严格不做硬编码 serviceTypeOptions（Bug2 修复）
+const GOODS_STATUS_LABELS: Record<string, { text: string; color: string }> = {
+  draft: { text: '草稿', color: 'default' },
+  on_sale: { text: '在售', color: 'green' },
+  off_sale: { text: '已下架', color: 'red' },
+};
+
 const categoryOptions = [
   { label: '优惠券', value: 'coupon' },
   { label: '体验服务', value: 'service' },
@@ -92,6 +119,7 @@ function mapMallItemFromApi(raw: Record<string, unknown>): MallGoods {
     stock: Number(raw.stock ?? 0),
     exchangeCount: Number(raw.exchange_count ?? 0),
     status: String(raw.status ?? ''),
+    goodsStatus: String(raw.goods_status ?? 'draft'),
     image: firstImage(raw.images),
     images: allImages(raw.images),
     description: String(raw.description ?? ''),
@@ -99,6 +127,9 @@ function mapMallItemFromApi(raw: Record<string, unknown>): MallGoods {
     refCouponId: raw.ref_coupon_id ? Number(raw.ref_coupon_id) : undefined,
     refServiceId: raw.ref_service_id ? Number(raw.ref_service_id) : undefined,
     limitPerUser: Number(raw.limit_per_user ?? 0),
+    sortWeight: Number(raw.sort_weight ?? 0),
+    replacedByGoodsId: raw.replaced_by_goods_id ? Number(raw.replaced_by_goods_id) : undefined,
+    copiedFromGoodsId: raw.copied_from_goods_id ? Number(raw.copied_from_goods_id) : undefined,
     createdAt: String(raw.created_at ?? ''),
   };
 }
@@ -115,11 +146,6 @@ function mapExchangeRecord(raw: Record<string, unknown>): ExchangeRecord {
   };
 }
 
-function isMallOnShelf(status: string) {
-  return status === 'active';
-}
-
-/** v3.1: 统一错误提示 —— 尽量暴露后端 detail */
 function extractDetail(err: any, fallback = '操作失败'): string {
   return (
     err?.response?.data?.detail
@@ -141,10 +167,11 @@ export default function PointsMallPage() {
   const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [searchText, setSearchText] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('not_off_sale'); // 默认隐藏已下架
   const [fileList, setFileList] = useState<UploadFile[]>([]);
   const [form] = Form.useForm();
 
-  const [availableCoupons, setAvailableCoupons] = useState<{label: string; value: number}[]>([]);
+  const [availableCoupons, setAvailableCoupons] = useState<CouponOption[]>([]);
   const [serviceProducts, setServiceProducts] = useState<ServiceProductOption[]>([]);
   const serviceSearchTimer = useRef<any>(null);
 
@@ -152,6 +179,7 @@ export default function PointsMallPage() {
   const [refCouponId, setRefCouponId] = useState<number | undefined>();
   const [refServiceId, setRefServiceId] = useState<number | undefined>();
   const [detailHtml, setDetailHtml] = useState<string>('');
+  const [stockWarn, setStockWarn] = useState<string>('');
 
   const [records, setRecords] = useState<ExchangeRecord[]>([]);
   const [recordsLoading, setRecordsLoading] = useState(false);
@@ -159,11 +187,23 @@ export default function PointsMallPage() {
   const [recordsKeyword, setRecordsKeyword] = useState('');
   const [recordsDateRange, setRecordsDateRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null] | null>(null);
 
+  // 修改历史
+  const [historyVisible, setHistoryVisible] = useState(false);
+  const [historyGoods, setHistoryGoods] = useState<MallGoods | null>(null);
+  const [historyLogs, setHistoryLogs] = useState<ChangeLog[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyFieldFilter, setHistoryFieldFilter] = useState<string>('all');
+
   const fetchData = async (page = 1, pageSize = 10) => {
     setLoading(true);
     try {
       const params: Record<string, unknown> = { page, page_size: pageSize };
       if (searchText) params.keyword = searchText;
+      if (statusFilter === 'draft') params.goods_status = 'draft';
+      else if (statusFilter === 'on_sale') params.goods_status = 'on_sale';
+      else if (statusFilter === 'off_sale') params.goods_status = 'off_sale';
+      else if (statusFilter === 'all') params.goods_status = 'all';
+      // 默认：不传 goods_status，后端默认隐藏 off_sale
       const res = await get('/api/admin/points/mall', params);
       if (res) {
         const items = res.items || res.list || res;
@@ -203,18 +243,20 @@ export default function PointsMallPage() {
     }
   };
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => { fetchData(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [statusFilter]);
 
   useEffect(() => {
     (async () => {
       try {
         const res = await get('/api/admin/coupons', { page: 1, page_size: 200 });
         const items = (res && (res.items || res.list || res)) as any[];
-        const list = (Array.isArray(items) ? items : [])
+        const list: CouponOption[] = (Array.isArray(items) ? items : [])
           .filter((c: any) => String(c.status || '') === 'active' && !c.is_offline)
           .map((c: any) => ({
             label: `${c.name}（剩余 ${Number(c.total_count || 0) - Number(c.claimed_count || 0)} 张）`,
             value: Number(c.id),
+            totalCount: Number(c.total_count || 0),
+            available: Number(c.total_count || 0) - Number(c.claimed_count || 0),
           }));
         setAvailableCoupons(list);
       } catch {
@@ -223,7 +265,6 @@ export default function PointsMallPage() {
     })();
   }, []);
 
-  // v3.1 Bug2 修复：动态加载服务类商品（products.fulfillment_type=in_store）
   const loadServiceProducts = async (keyword = '') => {
     try {
       const params: Record<string, unknown> = { page: 1, page_size: 50 };
@@ -247,7 +288,7 @@ export default function PointsMallPage() {
 
   useEffect(() => {
     if (activeTab === 'records') fetchRecords();
-  }, [activeTab]);
+  }, [activeTab]); // eslint-disable-line
 
   const handleSearchGoods = () => fetchData(1, pagination.pageSize);
   const handleSearchRecords = () => fetchRecords(1, recordsPagination.pageSize);
@@ -255,12 +296,13 @@ export default function PointsMallPage() {
   const handleAdd = () => {
     setEditingRecord(null);
     form.resetFields();
-    form.setFieldsValue({ status: true, stock: 100, category: 'coupon', limit_per_user: 0 });
+    form.setFieldsValue({ status: true, stock: 100, category: 'coupon', limit_per_user: 0, sort_weight: 0 });
     setFileList([]);
     setCategory('coupon');
     setRefCouponId(undefined);
     setRefServiceId(undefined);
     setDetailHtml('');
+    setStockWarn('');
     setModalVisible(true);
   };
 
@@ -271,6 +313,7 @@ export default function PointsMallPage() {
     setRefCouponId(record.refCouponId);
     setRefServiceId(record.refServiceId);
     setDetailHtml(record.detailHtml || '');
+    setStockWarn('');
     form.setFieldsValue({
       name: record.name,
       category: cat,
@@ -278,8 +321,9 @@ export default function PointsMallPage() {
       stock: record.stock,
       image: record.image,
       description: record.description,
-      status: isMallOnShelf(record.status),
+      status: record.goodsStatus === 'on_sale',
       limit_per_user: record.limitPerUser || 0,
+      sort_weight: record.sortWeight || 0,
     });
     const fl: UploadFile[] = (record.images || []).map((url, idx) => ({
       uid: `-${idx + 1}`,
@@ -289,7 +333,6 @@ export default function PointsMallPage() {
     } as UploadFile));
     setFileList(fl);
     if (cat === 'service') {
-      // 保证当前编辑的服务商品在下拉里可见
       loadServiceProducts();
     }
     setModalVisible(true);
@@ -305,14 +348,63 @@ export default function PointsMallPage() {
     }
   };
 
-  const handleToggleStatus = async (record: MallGoods) => {
-    const newStatus = isMallOnShelf(record.status) ? 'inactive' : 'active';
+  const handlePublish = async (record: MallGoods) => {
     try {
-      await put(`/api/admin/points/mall/${record.id}`, { status: newStatus });
-      message.success(isMallOnShelf(newStatus) ? '已上架' : '已下架');
+      await post(`/api/admin/points/mall/${record.id}/publish`, {});
+      message.success('已发布上架');
       fetchData(pagination.current, pagination.pageSize);
     } catch (err: any) {
-      message.error(extractDetail(err));
+      message.error(extractDetail(err, '发布失败'));
+    }
+  };
+
+  const handleOffline = async (record: MallGoods) => {
+    try {
+      await post(`/api/admin/points/mall/${record.id}/offline`, {});
+      message.success('已下架');
+      fetchData(pagination.current, pagination.pageSize);
+    } catch (err: any) {
+      message.error(extractDetail(err, '下架失败'));
+    }
+  };
+
+  const handleDuplicate = async (record: MallGoods) => {
+    try {
+      const res: any = await post(`/api/admin/points/mall/${record.id}/duplicate`, {});
+      message.success('已生成副本草稿');
+      fetchData(pagination.current, pagination.pageSize);
+      // 直接打开新副本编辑
+      if (res?.id) {
+        const copied = mapMallItemFromApi(res);
+        setTimeout(() => handleEdit(copied), 300);
+      }
+    } catch (err: any) {
+      message.error(extractDetail(err, '复制失败'));
+    }
+  };
+
+  const handleShowHistory = async (record: MallGoods) => {
+    setHistoryGoods(record);
+    setHistoryVisible(true);
+    setHistoryLoading(true);
+    setHistoryFieldFilter('all');
+    try {
+      const res: any = await get(`/api/admin/points/mall/${record.id}/change-logs`, { page: 1, page_size: 200 });
+      const items = res?.items || [];
+      setHistoryLogs(items.map((r: any) => ({
+        id: r.id,
+        fieldKey: r.field_key,
+        fieldName: r.field_name,
+        oldValue: r.old_value || '',
+        newValue: r.new_value || '',
+        operatorName: r.operator_name || '未知',
+        createdAt: r.created_at,
+      })));
+    } catch (err: any) {
+      setHistoryLogs([]);
+      message.error(extractDetail(err, '加载修改历史失败'));
+    } finally {
+      setHistoryLoading(false);
     }
   };
 
@@ -338,10 +430,25 @@ export default function PointsMallPage() {
     }
   };
 
+  const checkStockWarn = (stockVal: number) => {
+    if (category !== 'coupon' || !refCouponId) {
+      setStockWarn('');
+      return;
+    }
+    const coupon = availableCoupons.find(c => c.value === refCouponId);
+    if (!coupon) return;
+    if (stockVal > coupon.totalCount) {
+      setStockWarn(`⚠️ 当前填写 ${stockVal}，优惠券总量仅 ${coupon.totalCount}，超出 ${stockVal - coupon.totalCount} 张，兑换时可能因券不足而失败。`);
+    } else {
+      setStockWarn('');
+    }
+  };
+
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
       const onShelf = Boolean(values.status);
+      const goodsStatus = onShelf ? 'on_sale' : (editingRecord ? editingRecord.goodsStatus : 'draft');
       const statusStr = onShelf ? 'active' : 'inactive';
 
       const imageUrls: string[] = [];
@@ -354,9 +461,25 @@ export default function PointsMallPage() {
         }
       }
 
-      const stockVal = values.category === 'coupon' ? 0
-        : values.category === 'service' ? 0
-        : Number(values.stock);
+      const stockVal = Number(values.stock ?? 0);
+
+      // 优惠券库存防呆二次确认
+      if (category === 'coupon' && refCouponId) {
+        const coupon = availableCoupons.find(c => c.value === refCouponId);
+        if (coupon && stockVal > coupon.totalCount) {
+          const confirmed = await new Promise<boolean>((resolve) => {
+            Modal.confirm({
+              title: '库存超过优惠券总量',
+              content: `您填写的库存 ${stockVal} 超过优惠券总量 ${coupon.totalCount}，超出部分在兑换时会失败。确认要超量配置吗？`,
+              okText: '确认超量保存',
+              cancelText: '取消',
+              onOk: () => resolve(true),
+              onCancel: () => resolve(false),
+            });
+          });
+          if (!confirmed) return;
+        }
+      }
 
       const payload: Record<string, unknown> = {
         name: values.name,
@@ -365,9 +488,11 @@ export default function PointsMallPage() {
         stock: stockVal,
         description: values.description || '',
         status: statusStr,
+        goods_status: goodsStatus,
         images: imageUrls,
         detail_html: detailHtml || '',
         limit_per_user: Number(values.limit_per_user || 0),
+        sort_weight: Number(values.sort_weight || 0),
       };
       if (values.category === 'coupon') {
         payload.ref_coupon_id = refCouponId || null;
@@ -386,7 +511,6 @@ export default function PointsMallPage() {
       fetchData(pagination.current, pagination.pageSize);
     } catch (err: any) {
       if (err?.errorFields) return;
-      // Bug1/Bug2 核心修复：把后端 detail 直接亮出来
       message.error(extractDetail(err));
     }
   };
@@ -417,6 +541,8 @@ export default function PointsMallPage() {
     return String(stock);
   };
 
+  const isOnSale = (record: MallGoods) => record.goodsStatus === 'on_sale';
+
   const goodsColumns = [
     { title: 'ID', dataIndex: 'id', key: 'id', width: 60 },
     {
@@ -426,7 +552,15 @@ export default function PointsMallPage() {
           {record.image
             ? <img src={record.image} alt="" style={{ width: 36, height: 36, objectFit: 'cover', borderRadius: 4 }} />
             : <GiftOutlined style={{ fontSize: 20, color: '#52c41a' }} />}
-          {v}
+          <span>
+            {v}
+            {record.replacedByGoodsId && (
+              <Tag color="purple" style={{ marginLeft: 4 }}>已被替代</Tag>
+            )}
+            {record.copiedFromGoodsId && (
+              <Tag color="blue" style={{ marginLeft: 4 }}>副本</Tag>
+            )}
+          </span>
         </Space>
       ),
     },
@@ -447,19 +581,36 @@ export default function PointsMallPage() {
       render: (v: number) => (v && v > 0 ? `每人${v}次` : '不限'),
     },
     {
-      title: '状态', dataIndex: 'status', key: 'status', width: 80,
-      render: (v: string) => <Tag color={isMallOnShelf(v) ? 'green' : 'red'}>{isMallOnShelf(v) ? '上架' : '下架'}</Tag>,
+      title: '状态', dataIndex: 'goodsStatus', key: 'goodsStatus', width: 90,
+      render: (v: string) => {
+        const s = GOODS_STATUS_LABELS[v] || { text: v, color: 'default' };
+        return <Tag color={s.color}>{s.text}</Tag>;
+      },
     },
     {
-      title: '操作', key: 'action', width: 240,
+      title: '操作', key: 'action', width: 360, fixed: 'right' as const,
       render: (_: unknown, record: MallGoods) => (
-        <Space size={0}>
+        <Space size={0} wrap>
           <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>编辑</Button>
-          <Popconfirm title={isMallOnShelf(record.status) ? '确定下架？' : '确定上架？'} onConfirm={() => handleToggleStatus(record)}>
-            <Button type="link" size="small" icon={isMallOnShelf(record.status) ? <ArrowDownOutlined /> : <ArrowUpOutlined />}>
-              {isMallOnShelf(record.status) ? '下架' : '上架'}
-            </Button>
+          {record.goodsStatus === 'draft' && (
+            <Popconfirm title="确定发布上架？" onConfirm={() => handlePublish(record)}>
+              <Button type="link" size="small" icon={<ArrowUpOutlined />}>发布</Button>
+            </Popconfirm>
+          )}
+          {record.goodsStatus === 'on_sale' && (
+            <Popconfirm title="确定下架？下架后用户将不可见" onConfirm={() => handleOffline(record)}>
+              <Button type="link" size="small" icon={<ArrowDownOutlined />}>下架</Button>
+            </Popconfirm>
+          )}
+          {record.goodsStatus === 'off_sale' && (
+            <Popconfirm title="重新上架该商品？" onConfirm={() => handlePublish(record)}>
+              <Button type="link" size="small" icon={<ArrowUpOutlined />}>重新上架</Button>
+            </Popconfirm>
+          )}
+          <Popconfirm title="复制为新草稿？锁定字段可在副本中修改" onConfirm={() => handleDuplicate(record)}>
+            <Button type="link" size="small" icon={<CopyOutlined />}>复制新建</Button>
           </Popconfirm>
+          <Button type="link" size="small" icon={<HistoryOutlined />} onClick={() => handleShowHistory(record)}>历史</Button>
           <Popconfirm title="确定删除该商品？" onConfirm={() => handleDelete(record.id)}>
             <Button type="link" size="small" danger icon={<DeleteOutlined />}>删除</Button>
           </Popconfirm>
@@ -496,6 +647,9 @@ export default function PointsMallPage() {
     },
   ];
 
+  const currentIsOnSale = editingRecord ? isOnSale(editingRecord) : false;
+  const lockTip = '商品在售中，此字段不可修改。如需修改，请先【下架商品】或使用【复制新建】。';
+
   const goodsTab = (
     <div>
       <Row gutter={16} style={{ marginBottom: 16 }}>
@@ -503,6 +657,20 @@ export default function PointsMallPage() {
           <Input placeholder="搜索商品名称" prefix={<SearchOutlined />} value={searchText}
             onChange={e => setSearchText(e.target.value)} onPressEnter={handleSearchGoods}
             style={{ width: 220 }} allowClear />
+        </Col>
+        <Col>
+          <Select
+            value={statusFilter}
+            onChange={setStatusFilter}
+            style={{ width: 160 }}
+            options={[
+              { label: '全部（含已下架）', value: 'all' },
+              { label: '默认（含草稿+在售）', value: 'not_off_sale' },
+              { label: '仅草稿', value: 'draft' },
+              { label: '仅在售', value: 'on_sale' },
+              { label: '仅已下架', value: 'off_sale' },
+            ]}
+          />
         </Col>
         <Col><Button type="primary" onClick={handleSearchGoods}>搜索</Button></Col>
         <Col flex="auto" />
@@ -537,7 +705,7 @@ export default function PointsMallPage() {
           showTotal: total => `共 ${total} 条`,
           onChange: (page, pageSize) => fetchData(page, pageSize),
         }}
-        scroll={{ x: 1100 }}
+        scroll={{ x: 1200 }}
       />
     </div>
   );
@@ -574,6 +742,11 @@ export default function PointsMallPage() {
     </div>
   );
 
+  // 历史筛选
+  const filteredLogs = historyFieldFilter === 'all'
+    ? historyLogs
+    : historyLogs.filter(l => l.fieldKey === historyFieldFilter);
+
   return (
     <div>
       <Title level={4} style={{ marginBottom: 16 }}>积分商城管理</Title>
@@ -588,19 +761,42 @@ export default function PointsMallPage() {
       />
 
       <Modal
-        title={editingRecord ? '编辑商品' : '新增商品'}
+        title={
+          <Space>
+            <span>{editingRecord ? '编辑商品' : '新增商品'}</span>
+            {editingRecord && (
+              <Tag color={GOODS_STATUS_LABELS[editingRecord.goodsStatus]?.color || 'default'}>
+                {GOODS_STATUS_LABELS[editingRecord.goodsStatus]?.text || editingRecord.goodsStatus}
+              </Tag>
+            )}
+          </Space>
+        }
         open={modalVisible}
         onOk={handleSubmit}
         onCancel={() => setModalVisible(false)}
-        width={720}
+        width={760}
         destroyOnClose
       >
+        {currentIsOnSale && (
+          <Alert
+            message="商品在售中，部分关键字段已锁定不可修改"
+            description="如需修改已锁定字段，请先【下架商品】或使用【复制新建】功能。"
+            type="warning"
+            showIcon
+            style={{ marginBottom: 16 }}
+          />
+        )}
         <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
           <Form.Item label="商品名称" name="name" rules={[{ required: true, message: '请输入商品名称' }]}>
             <Input placeholder="请输入商品名称" />
           </Form.Item>
-          <Form.Item label="商品分类" name="category" rules={[{ required: true, message: '请选择分类' }]}>
+          <Form.Item
+            label={<Space>商品分类 {currentIsOnSale && <Tooltip title={lockTip}><LockOutlined style={{ color: '#faad14' }} /></Tooltip>}</Space>}
+            name="category"
+            rules={[{ required: true, message: '请选择分类' }]}
+          >
             <Select
+              disabled={currentIsOnSale}
               options={categoryOptions}
               placeholder="请选择分类"
               onChange={(v) => {
@@ -614,32 +810,56 @@ export default function PointsMallPage() {
           </Form.Item>
 
           {category === 'coupon' && (
-            <Form.Item label="关联优惠券" required help="选择已上架且未兑完的券；库存跟随券本体">
+            <Form.Item
+              label={
+                <Space>
+                  关联优惠券
+                  {currentIsOnSale && <Tooltip title={lockTip}><LockOutlined style={{ color: '#faad14' }} /></Tooltip>}
+                </Space>
+              }
+              required
+              help="选择已上架且未兑完的券"
+            >
               <Select
+                disabled={currentIsOnSale}
                 value={refCouponId}
-                onChange={(v) => setRefCouponId(v as number)}
-                options={availableCoupons}
+                onChange={(v) => {
+                  setRefCouponId(v as number);
+                  const s = form.getFieldValue('stock');
+                  if (s) checkStockWarn(Number(s));
+                }}
+                options={availableCoupons.map(c => ({ label: c.label, value: c.value }))}
                 placeholder="请选择优惠券"
                 showSearch
                 optionFilterProp="label"
               />
+              {refCouponId && (
+                <div style={{ color: '#1890ff', fontSize: 12, marginTop: 4 }}>
+                  📎 当前关联优惠券总量：{availableCoupons.find(c => c.value === refCouponId)?.totalCount || 0} 张（仅供参考，实际库存以下方填写为准）
+                </div>
+              )}
             </Form.Item>
           )}
 
           {category === 'service' && (
             <Form.Item
-              label="关联服务商品"
+              label={
+                <Space>
+                  关联服务商品
+                  {currentIsOnSale && <Tooltip title={lockTip}><LockOutlined style={{ color: '#faad14' }} /></Tooltip>}
+                </Space>
+              }
               required
               help="拉取商品库（products.fulfillment_type=in_store）。兑换后自动生成抵扣券"
             >
               <Select
+                disabled={currentIsOnSale}
                 value={refServiceId}
                 onChange={(v) => {
                   const sid = v as number;
                   setRefServiceId(sid);
                   const p = serviceProducts.find((x) => x.value === sid);
                   if (p) {
-                    // 自动带出商品名
                     const cur = form.getFieldValue('name');
                     if (!cur) {
                       form.setFieldsValue({ name: p.name });
@@ -666,17 +886,25 @@ export default function PointsMallPage() {
           )}
 
           <Space style={{ width: '100%' }} size={16}>
-            <Form.Item label="所需积分" name="points" rules={[{ required: true, message: '请输入积分' }]} style={{ flex: 1 }}>
-              <InputNumber min={1} style={{ width: '100%' }} />
+            <Form.Item
+              label={<Space>所需积分 {currentIsOnSale && <Tooltip title={lockTip}><LockOutlined style={{ color: '#faad14' }} /></Tooltip>}</Space>}
+              name="points"
+              rules={[{ required: true, message: '请输入积分' }]}
+              style={{ flex: 1 }}
+            >
+              <InputNumber disabled={currentIsOnSale} min={1} style={{ width: '100%' }} />
             </Form.Item>
             <Form.Item
               label="库存"
               name="stock"
-              rules={category === 'physical' ? [{ required: true, message: '请输入库存' }] : []}
               style={{ flex: 1 }}
-              help={category === 'coupon' ? '跟随券本体' : category === 'service' ? '由服务本体管控' : ''}
+              help={category === 'coupon' ? '可超量，兑换时若券不足会失败' : category === 'service' ? '0 表示不限' : '只能增加，不能低于已兑换数'}
             >
-              <InputNumber min={0} style={{ width: '100%' }} disabled={category !== 'physical'} />
+              <InputNumber
+                min={0}
+                style={{ width: '100%' }}
+                onChange={(v) => checkStockWarn(Number(v || 0))}
+              />
             </Form.Item>
             <Form.Item
               label="每人限兑次数"
@@ -687,6 +915,13 @@ export default function PointsMallPage() {
               <InputNumber min={0} style={{ width: '100%' }} />
             </Form.Item>
           </Space>
+          {stockWarn && (
+            <div style={{ color: '#faad14', fontSize: 12, marginTop: -12, marginBottom: 12 }}>{stockWarn}</div>
+          )}
+
+          <Form.Item label="排序权重" name="sort_weight" help="越大越靠前，默认 0">
+            <InputNumber min={0} style={{ width: 200 }} />
+          </Form.Item>
 
           <Form.Item label="商品图片（支持多图，首图为封面）" name="image">
             <Upload
@@ -707,19 +942,99 @@ export default function PointsMallPage() {
             <TextArea rows={2} placeholder="一行简介，用于列表页展示" />
           </Form.Item>
 
-          <Form.Item label="富文本详情 (detail_html)" help="支持 HTML；在商品详情页展示。建议图文混排">
+          <Form.Item label="富文本详情 (detail_html)" help="支持 HTML；在商品详情页展示。可直接粘贴图文模板。建议 ≤50KB">
             <TextArea
-              rows={6}
+              rows={8}
               value={detailHtml}
               onChange={(e) => setDetailHtml(e.target.value)}
               placeholder='直接粘贴 HTML，例如：<p>适用场景</p><img src="https://..." />'
+              maxLength={50000}
+              showCount
             />
+            <div style={{ marginTop: 8 }}>
+              <Space wrap>
+                <span style={{ color: '#666', fontSize: 12 }}>模板库（点击插入到末尾）：</span>
+                <Button size="small" onClick={() => setDetailHtml(d => d + `\n<div style="padding:12px;background:#f6ffed;border-left:3px solid #52c41a;margin:8px 0;"><strong>✨ 商品亮点</strong><ul><li>亮点一</li><li>亮点二</li><li>亮点三</li></ul></div>`)}>T1 亮点卡</Button>
+                <Button size="small" onClick={() => setDetailHtml(d => d + `\n<div style="padding:12px;background:#e6f7ff;border-left:3px solid #1890ff;margin:8px 0;"><strong>🧭 使用步骤</strong><ol><li>第 1 步：…</li><li>第 2 步：…</li><li>第 3 步：…</li><li>第 4 步：…</li></ol></div>`)}>T2 使用说明卡</Button>
+                <Button size="small" onClick={() => setDetailHtml(d => d + `\n<div style="padding:12px;background:#fff7e6;border-left:3px solid #fa8c16;margin:8px 0;"><strong>⏰ 有效期</strong><p>自领取后 <b>30</b> 天内有效，请尽快使用。</p></div>`)}>T3 有效期卡</Button>
+                <Button size="small" onClick={() => setDetailHtml(d => d + `\n<div style="padding:12px;background:#fffbe6;border-left:3px solid #faad14;margin:8px 0;"><strong>⚠️ 注意事项</strong><ul><li>请核对姓名与手机号</li><li>不与其他优惠叠加</li><li>最终解释权归商家所有</li></ul></div>`)}>T4 注意事项卡</Button>
+              </Space>
+            </div>
           </Form.Item>
 
-          <Form.Item label="上架" name="status" valuePropName="checked">
+          <Form.Item label="上架（打开=上架/关闭=下架）" name="status" valuePropName="checked">
             <Switch />
           </Form.Item>
         </Form>
+      </Modal>
+
+      {/* 修改历史弹窗 */}
+      <Modal
+        title={<Space><HistoryOutlined /> 修改历史 {historyGoods && `— ${historyGoods.name}`}</Space>}
+        open={historyVisible}
+        onCancel={() => setHistoryVisible(false)}
+        footer={null}
+        width={820}
+      >
+        <div style={{ marginBottom: 12 }}>
+          <Space>
+            <span>按字段筛选：</span>
+            <Select
+              value={historyFieldFilter}
+              onChange={setHistoryFieldFilter}
+              style={{ width: 160 }}
+              options={[
+                { label: '全部', value: 'all' },
+                { label: '商品标题', value: 'name' },
+                { label: '主图/轮播图', value: 'images' },
+                { label: '被替代', value: 'replaced_by' },
+              ]}
+            />
+          </Space>
+        </div>
+        <Table
+          dataSource={filteredLogs}
+          rowKey="id"
+          loading={historyLoading}
+          pagination={{ pageSize: 20 }}
+          columns={[
+            { title: '时间', dataIndex: 'createdAt', width: 160, render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm') : '-' },
+            { title: '操作人', dataIndex: 'operatorName', width: 100 },
+            { title: '字段', dataIndex: 'fieldName', width: 120 },
+            {
+              title: '修改前',
+              dataIndex: 'oldValue',
+              width: 180,
+              render: (v: string, r: ChangeLog) => {
+                if (r.fieldKey === 'images') {
+                  try {
+                    const arr = JSON.parse(v || '[]');
+                    if (Array.isArray(arr) && arr[0]) {
+                      return <img src={arr[0]} alt="" style={{ width: 48, height: 48, objectFit: 'cover' }} />;
+                    }
+                  } catch {}
+                }
+                return <span style={{ wordBreak: 'break-all' }}>{v || '-'}</span>;
+              },
+            },
+            {
+              title: '修改后',
+              dataIndex: 'newValue',
+              width: 180,
+              render: (v: string, r: ChangeLog) => {
+                if (r.fieldKey === 'images') {
+                  try {
+                    const arr = JSON.parse(v || '[]');
+                    if (Array.isArray(arr) && arr[0]) {
+                      return <img src={arr[0]} alt="" style={{ width: 48, height: 48, objectFit: 'cover' }} />;
+                    }
+                  } catch {}
+                }
+                return <span style={{ wordBreak: 'break-all' }}>{v || '-'}</span>;
+              },
+            },
+          ]}
+        />
       </Modal>
     </div>
   );

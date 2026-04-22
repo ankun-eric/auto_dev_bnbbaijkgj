@@ -215,20 +215,117 @@ async def sign_in(
 async def list_mall_items(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
+    tab: str = Query("all", description="all=全部；exchangeable=可兑换（积分够+库存>0）"),
+    current_user: User | None = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    total_result = await db.execute(select(func.count(PointsMallItem.id)).where(PointsMallItem.status == "active"))
-    total = total_result.scalar() or 0
+    """积分商城用户端列表（M5 用户端交互优化）.
 
-    result = await db.execute(
-        select(PointsMallItem)
-        .where(PointsMallItem.status == "active")
-        .order_by(PointsMallItem.created_at.desc())
-        .offset((page - 1) * page_size)
-        .limit(page_size)
+    - Tab：`all` / `exchangeable`
+    - 排序：两级排序
+      * 一级：库存>0 在前，库存=0 沉底
+      * 二级：积分够的排前，不够的排后（仅当用户已登录时生效）
+      * 三级：sort_weight 倒序
+    - "可兑换" Tab 的兜底规则：若结果 < 3 条，自动降级为"仅库存>0 且在售"。
+    """
+    # 仅显示在售商品
+    base_filter = (
+        (PointsMallItem.goods_status == "on_sale")
+        | ((PointsMallItem.goods_status.is_(None)) & (PointsMallItem.status == "active"))
     )
-    items = [PointsMallItemResponse.model_validate(i) for i in result.scalars().all()]
-    return {"items": items, "total": total, "page": page, "page_size": page_size}
+
+    user_points = 0
+    if current_user:
+        breakdown = await compute_available_points(db, current_user.id)
+        user_points = int(breakdown.get("available") or 0)
+
+    # 先取所有在售，再在内存中做排序 + Tab 过滤（商品数量通常不多，性能可控）
+    result = await db.execute(
+        select(PointsMallItem).where(base_filter)
+    )
+    all_items = list(result.scalars().all())
+
+    def _price(i: PointsMallItem) -> int:
+        return int(getattr(i, "price_points", 0) or 0)
+
+    def _stock_for_display(i: PointsMallItem) -> int:
+        """体验服务在 stock=0 时按无限对待。"""
+        t = i.type
+        ts = t.value if hasattr(t, "value") else str(t)
+        s = int(getattr(i, "stock", 0) or 0)
+        if ts == "service" and s == 0:
+            return 9999
+        return s
+
+    def _is_exchangeable(i: PointsMallItem) -> bool:
+        if _stock_for_display(i) <= 0:
+            return False
+        if current_user is None:
+            return True
+        return user_points >= _price(i)
+
+    def _sort_key(i: PointsMallItem):
+        # 一级：库存>0 排前（False=0 排前 → bool 反向）
+        stock_group = 0 if _stock_for_display(i) > 0 else 1
+        # 二级：积分够排前（需要用户登录）
+        if current_user:
+            afford_group = 0 if user_points >= _price(i) else 1
+        else:
+            afford_group = 0
+        # 三级：sort_weight 高在前 → 取负数
+        weight_group = -int(getattr(i, "sort_weight", 0) or 0)
+        # 四级：id 倒序（新的在前）
+        return (stock_group, afford_group, weight_group, -int(i.id))
+
+    sorted_items = sorted(all_items, key=_sort_key)
+
+    # Tab 过滤
+    if tab == "exchangeable":
+        filtered = [i for i in sorted_items if _is_exchangeable(i)]
+        # 兜底：若结果 < 3 条，降级为"库存>0 且在售"
+        if len(filtered) < 3:
+            filtered = [i for i in sorted_items if _stock_for_display(i) > 0]
+        final = filtered
+    else:
+        final = sorted_items
+
+    total = len(final)
+    start = (page - 1) * page_size
+    end = start + page_size
+    page_items = final[start:end]
+
+    items_out = []
+    has_exchangeable = any(_is_exchangeable(i) for i in all_items)
+    for i in page_items:
+        item_d = PointsMallItemResponse.model_validate(i).model_dump()
+        item_d["goods_status"] = getattr(i, "goods_status", None) or ("on_sale" if i.status == "active" else "off_sale")
+        item_d["replaced_by_goods_id"] = getattr(i, "replaced_by_goods_id", None)
+        item_d["sort_weight"] = getattr(i, "sort_weight", 0) or 0
+        # 补充按钮态便于用户端直出
+        t = i.type
+        ts = t.value if hasattr(t, "value") else str(t)
+        stock_disp = _stock_for_display(i)
+        if stock_disp <= 0:
+            item_d["button_state"] = "sold_out"
+            item_d["button_text"] = "已兑完"
+        elif current_user and user_points < _price(i):
+            item_d["button_state"] = "not_enough"
+            item_d["button_text"] = "立即兑换"
+        else:
+            item_d["button_state"] = "normal"
+            item_d["button_text"] = "立即兑换"
+        item_d["is_low_stock"] = 0 < stock_disp <= 10 and ts != "service"
+        items_out.append(item_d)
+
+    return {
+        "items": items_out,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "tab": tab,
+        "has_exchangeable": has_exchangeable,
+        "user_points": user_points,
+    }
 
 
 @router.post("/exchange", response_model=PointsExchangeResponse)

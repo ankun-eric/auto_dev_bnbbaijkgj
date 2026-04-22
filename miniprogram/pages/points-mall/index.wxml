@@ -10,22 +10,38 @@
     </view>
   </view>
 
+  <!-- v1.1 M5：全部/可兑换 Tab -->
+  <view class="tab-bar">
+    <view class="tab-item {{tab === 'all' ? 'tab-active' : ''}}" data-tab="all" bindtap="switchTab">全部</view>
+    <view class="tab-wrap">
+      <view class="tab-item {{tab === 'exchangeable' ? 'tab-active' : ''}}" data-tab="exchangeable" bindtap="switchTab">可兑换</view>
+      <view class="tab-dot" wx:if="{{hasExchangeable}}"></view>
+    </view>
+  </view>
+
   <view class="goods-grid">
-    <view class="goods-card card" wx:for="{{goods}}" wx:key="id" bindtap="exchangeGoods" data-item="{{item}}">
+    <view class="goods-card card" wx:for="{{goods}}" wx:key="id">
       <view class="type-badge" style="background: {{item.badgeBg}}; color: {{item.badgeColor}};">
         {{item.badgeText}}
       </view>
-      <view class="goods-icon-wrap" style="background: {{item.bgColor}};">
-        <image wx:if="{{item.image}}" src="{{item.image}}" class="goods-img" mode="aspectFit"></image>
-        <text wx:else class="goods-icon">{{item.icon}}</text>
+      <view class="goods-top" bindtap="goDetail" data-id="{{item.id}}">
+        <view class="goods-icon-wrap" style="background: {{item.bgColor}};">
+          <image wx:if="{{item.image}}" src="{{item.image}}" class="goods-img" mode="aspectFit"></image>
+          <text wx:else class="goods-icon">{{item.icon}}</text>
+        </view>
+        <text class="goods-name">{{item.name}}</text>
+        <text class="goods-desc">{{item.desc}}</text>
       </view>
-      <text class="goods-name">{{item.name}}</text>
-      <text class="goods-desc">{{item.desc}}</text>
       <view class="goods-footer">
         <text class="goods-points">{{item.points}}积分</text>
-        <text class="goods-stock" wx:if="{{item.type !== 'service'}}">剩余{{item.stock}}</text>
-        <text class="goods-stock" wx:else>服务券</text>
+        <text class="goods-lowstock" wx:if="{{item.isSoldOut}}">已兑完</text>
+        <text class="goods-lowstock" wx:elif="{{item.isLowStock}}">仅剩{{item.stock}}件</text>
+      </view>
+      <!-- 立即兑换按钮 -->
+      <view class="quick-btn {{item.btnClass}}" bindtap="quickExchange" data-item="{{item}}">
+        {{item.btnText}}
       </view>
     </view>
   </view>
+  <view wx:if="{{goods.length === 0}}" class="empty">暂无商品</view>
 </view>

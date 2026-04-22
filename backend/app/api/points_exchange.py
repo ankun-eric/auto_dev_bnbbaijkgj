@@ -433,8 +433,31 @@ async def list_exchange_records(
     )
     rows = res.scalars().all()
 
+    # v1.1：批量拉商品状态，用于"使用按钮"智能跳转
+    goods_ids = list({r.goods_id for r in rows if r.goods_id})
+    goods_map: dict[int, PointsMallItem] = {}
+    if goods_ids:
+        g_res = await db.execute(select(PointsMallItem).where(PointsMallItem.id.in_(goods_ids)))
+        for g in g_res.scalars().all():
+            goods_map[g.id] = g
+
+    def _use_button(r: PointExchangeRecord) -> dict:
+        state = "normal"
+        text = "立即使用"
+        target = None
+        g = goods_map.get(r.goods_id)
+        if g:
+            gs = getattr(g, "goods_status", None) or ("on_sale" if g.status == "active" else "off_sale")
+            if gs == "off_sale":
+                replaced = getattr(g, "replaced_by_goods_id", None)
+                if replaced:
+                    state, text, target = "redirect_replaced", "去看替代款", f"/points/product-detail?id={replaced}"
+                else:
+                    state, text = "offline", "已下架"
+        return {"use_button_state": state, "use_button_text": text, "use_button_target": target}
+
     def _row_to_dict(r: PointExchangeRecord) -> dict:
-        return {
+        d = {
             "id": r.id,
             "order_no": r.order_no,
             "goods_id": r.goods_id,
@@ -453,6 +476,8 @@ async def list_exchange_records(
             "ref_service_id": r.ref_service_id,
             "ref_order_no": r.ref_order_no,
         }
+        d.update(_use_button(r))
+        return d
 
     items = [_row_to_dict(r) for r in rows]
     return {
@@ -482,8 +507,26 @@ async def get_exchange_record(
     # 服务券"去预约"路由
     appointment_url = None
     if r.goods_type == "service" and r.ref_service_id:
-        # v3.1 统一走 products，跳转商品详情让用户下单用券
         appointment_url = f"/product-detail/{r.ref_service_id}"
+
+    # v1.1 新增：使用按钮智能跳转（若原商品已下架且有替代，跳替代商品详情）
+    use_button_state = "normal"
+    use_button_text = "立即使用"
+    use_button_target = None
+    goods = (
+        await db.execute(select(PointsMallItem).where(PointsMallItem.id == r.goods_id))
+    ).scalar_one_or_none()
+    if goods:
+        gs = getattr(goods, "goods_status", None) or ("on_sale" if goods.status == "active" else "off_sale")
+        if gs == "off_sale":
+            replaced = getattr(goods, "replaced_by_goods_id", None)
+            if replaced:
+                use_button_state = "redirect_replaced"
+                use_button_text = "去看替代款"
+                use_button_target = f"/points/product-detail?id={replaced}"
+            else:
+                use_button_state = "offline"
+                use_button_text = "已下架"
 
     return {
         "id": r.id,
@@ -504,6 +547,9 @@ async def get_exchange_record(
         "ref_service_id": r.ref_service_id,
         "ref_order_no": r.ref_order_no,
         "appointment_url": appointment_url,
+        "use_button_state": use_button_state,
+        "use_button_text": use_button_text,
+        "use_button_target": use_button_target,
     }
 
 

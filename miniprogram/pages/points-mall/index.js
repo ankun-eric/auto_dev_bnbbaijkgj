@@ -19,7 +19,9 @@ const ICON_BY_TYPE = {
 Page({
   data: {
     totalPoints: 0,
-    goods: []
+    goods: [],
+    tab: 'all',
+    hasExchangeable: false
   },
 
   onLoad() {
@@ -45,14 +47,30 @@ Page({
     }
   },
 
+  switchTab(e) {
+    const tab = e.currentTarget.dataset.tab || 'all';
+    if (tab === this.data.tab) return;
+    this.setData({ tab }, () => {
+      this.loadGoods();
+    });
+  },
+
   async loadGoods() {
     try {
-      const resp = (await get('/api/points/mall', { page: 1, page_size: 50 }, { showLoading: false })) || {};
+      const resp = (await get('/api/points/mall', { page: 1, page_size: 50, tab: this.data.tab }, { showLoading: false })) || {};
       const items = Array.isArray(resp.items) ? resp.items : [];
       const goods = items.map((it) => {
         const type = typeof it.type === 'string' ? it.type : (it.type && it.type.value) || 'virtual';
         const badge = TYPE_BADGE[type] || TYPE_BADGE.virtual;
         const img = Array.isArray(it.images) ? it.images[0] : (typeof it.images === 'string' ? it.images : null);
+        const stock = Number(it.stock || 0);
+        const btnState = it.button_state || 'normal';
+        const isSoldOut = btnState === 'sold_out';
+        const isLowStock = Boolean(it.is_low_stock);
+        let btnClass = 'primary';
+        if (isSoldOut) btnClass = 'disabled';
+        else if (btnState === 'not_enough') btnClass = 'outline';
+        else if (btnState === 'redirect_replaced') btnClass = 'warn';
         return {
           id: it.id,
           name: it.name,
@@ -64,26 +82,45 @@ Page({
           badgeBg: badge.bg,
           badgeColor: badge.color,
           points: Number(it.price_points || 0),
-          stock: Number(it.stock || 0),
+          stock,
           type,
-          isDev: type === 'virtual' || type === 'third_party'
+          isSoldOut,
+          isLowStock,
+          btnState,
+          btnText: it.button_text || '立即兑换',
+          btnClass
         };
       });
-      this.setData({ goods });
+      this.setData({ goods, hasExchangeable: Boolean(resp.has_exchangeable) });
     } catch (e) {
       console.log('loadGoods error', e);
     }
   },
 
   goExchangeRecords() {
-    // PRD F3：旧按钮跳到新合并页的 兑换记录 Tab
     wx.navigateTo({ url: '/pages/points/detail/index?tab=exchange' });
   },
 
-  // PRD F4：卡片整体可点 → 商品详情页，不再在列表上直接兑换
-  exchangeGoods(e) {
+  goDetail(e) {
+    const id = e.currentTarget.dataset.id;
+    if (!id) return;
+    wx.navigateTo({ url: `/pages/points/product-detail/index?id=${id}` });
+  },
+
+  // v1.1 M5：立即兑换按钮
+  quickExchange(e) {
     const item = e.currentTarget.dataset.item;
     if (!item || !item.id) return;
-    wx.navigateTo({ url: `/pages/points/product-detail/index?id=${item.id}` });
-  },
+    if (item.btnState === 'sold_out') {
+      wx.showToast({ title: '已兑完', icon: 'none' });
+      return;
+    }
+    if (item.btnState === 'not_enough') {
+      const diff = Math.max(0, item.points - this.data.totalPoints);
+      wx.showToast({ title: `积分不足，还差${diff}积分`, icon: 'none' });
+      return;
+    }
+    // 正常：带 quick=1 参数进详情，让详情页直接触发兑换确认
+    wx.navigateTo({ url: `/pages/points/product-detail/index?id=${item.id}&quick=1` });
+  }
 });
