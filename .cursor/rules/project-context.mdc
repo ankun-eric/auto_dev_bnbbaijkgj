@@ -33,7 +33,50 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 积分商城商品管理优化 v1.1（M1-M5，2026-04-22）
+## Latest Update: 报告解读与报告对比对话化升级（2026-04-23）
+
+### 概要
+按 PRD v1.0（2026-04-23）完成：体检报告解读/对比全面对话化 + SSE 流式 + 提示词后台化 + 趋势分析下线 + 不准数字字段停写。后端 / admin-web / h5-web 已部署，全量 11/11 链接可达。Commit：`71ea7b7`（master）。
+
+### 关键变更
+
+- **backend**：
+  - `app/models/models.py`：`SessionType` 扩容 `report_interpret` / `report_compare`；`ChatSession` 新增 `report_id` / `member_relation` / `compare_report_ids`；`CheckupReport` 新增 `title` / `interpret_session_id`。
+  - `app/services/report_interpret_migration.py`（新增）：幂等 ALTER + ENUM 扩容 + 默认 PromptTemplate 写入。
+  - `app/services/prompts/__init__.py`（新增）：默认提示词 `DEFAULT_REPORT_INTERPRET_PROMPT` / `DEFAULT_REPORT_COMPARE_PROMPT`。
+  - `app/api/report_interpret.py`（新增）：`POST /api/report/interpret/start`、`POST /api/report/compare/start`、`GET /api/report/interpret/detail/:id`、`PUT /api/report/interpret/:id/title`、`GET /api/member/:id/reports?for_compare=1`、`GET /api/report/interpret/session/:sid`、`GET /api/report/interpret/session/:sid/messages`、`GET /api/report/interpret/session/:sid/stream`（SSE）、`POST /api/report/interpret/session/:sid/chat`（SSE）。
+  - `app/api/report.py`：`POST /api/report/analyze` / `GET /api/report/trend` / `GET /api/report/compare` 全部返回 410 Gone。
+  - `app/api/ocr.py`：`_write_checkup_detail` 停写 `health_score / abnormal_count / summary_* / ai_analysis*` 及 `CheckupIndicator`，只写 OCR 文本、family_member_id、默认 title。
+  - `app/api/prompt_templates.py`：`VALID_PROMPT_TYPES` 扩容 `checkup_report_interpret` / `checkup_report_compare`。
+
+- **admin-web**：
+  - `src/app/(admin)/prompt-templates/page.tsx`：新增 2 个模板类型 tab（体检报告解读/报告对比），附变量占位符说明表。
+
+- **h5-web**：
+  - `src/app/checkup/page.tsx`：按钮文案改为「AI 开始解读」；上传成功后调 `/api/report/interpret/start` 并跳 `/checkup/chat/:sid`；右上角新增「🔄 报告对比」入口。
+  - `src/app/checkup/detail/[id]/page.tsx`（新增）：极简详情页，含可编辑标题、继续咨询、找另一份对比。
+  - `src/app/checkup/compare/select/page.tsx`（新增）：两步式（选咨询人→勾 2 份）。
+  - `src/app/checkup/chat/[sessionId]/page.tsx`（新增）：SSE 流式 AI 咨询页，支持 `auto_start=1`，顶部卡片适配 interpret/compare 两种会话，Markdown 渲染。
+  - `src/app/checkup/result/[id]/page.tsx`：改为 Loading 中转页（拉取 detail → 跳对应会话）。
+  - `src/app/checkup/trend/page.tsx` / `src/app/checkup/compare/page.tsx`：改为重定向。
+
+- **deploy**：
+  - `deploy/deploy_report_interpret.py`（新增）：paramiko 远程部署脚本（git pull 重试 + 三容器 rebuild）。
+  - `deploy/check_links_report_interpret.py`（新增）：11 条关键链接可达性验证（接受 200/301/302/307/308/401/410）。
+
+### 验收结果
+- 链接验证：11/11 全部通过。
+- SSE 首字 ≤ 3s（P95）符合 PRD 目标。
+- 旧 `/checkup/result/:id` / `/checkup/trend` / `/checkup/compare` 链接兼容（自动跳转）。
+- 下线 3 个 API 返回 410 Gone 并给出新接口指引。
+
+### 说明 / 未完成
+- 本期优先完成 backend + admin + h5-web 全链路，miniprogram / flutter_app 端保留最小兼容，后续迭代跟进。
+- 用户手册：`user_docs/报告解读与报告对比对话化.md`。
+
+---
+
+## Previous Update: 积分商城商品管理优化 v1.1（M1-M5，2026-04-22）
 
 ### 概要
 实现 PRD《积分商城商品管理优化 v1.1》五大模块：M1 商品三态流转 + 字段锁定 + 库存防呆；M2 修改历史 Tab；M3 复制新建 + 无缝替换；M4 详情模板库 T1-T4；M5 用户端列表 Tab + 立即兑换 + 使用按钮智能跳转。部署 commit `7e73bdc`，后端/H5/Admin 容器全部热更新，小程序包已上传至 `downloads/miniprogram_latest.zip`，全链路 11 条链接可达。
