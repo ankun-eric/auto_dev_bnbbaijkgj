@@ -33,7 +33,45 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 报告解读与报告对比对话化升级（2026-04-23）
+## Latest Update: 接口改造清单 v2（Restful 化 / 2026-04-23）
+
+### 概要
+按《接口改造清单（速查版）》对体检报告对话化功能做 Restful 化升级：新增 6 条 `/api/checkup/*` + `/api/chat/sessions/*` 路径、扩展 2 条既有接口、下线 3 条老接口（返回 410 Gone）、OCR 批量识别不再同步 analyze 而是懒加载创建 interpret 会话。老接口保留兼容。远程部署通过 SFTP（GitHub 不可达）完成，全量 18/18 链接验证通过。
+
+### 关键变更
+
+- **backend**：
+  - `app/api/checkup_api_v2.py`（新增）：Restful 入口，复用 `report_interpret` 业务逻辑。提供 `POST /api/checkup/compare/create-session`、`GET /api/checkup/reports/{id}`、`PUT /api/checkup/reports/{id}`、`POST /api/checkup/reports/{id}/ensure-session`。Router prefix=`/api/checkup`。
+  - `app/api/chat.py`：新增 `GET /api/chat/sessions/{id}`（返回 `report_id` / `report_ids` / `family_member` / `reports_brief` 扩展字段）、`GET /api/chat/sessions/{id}/first-message-stream`（SSE）、`POST /api/chat/sessions/{id}/messages-stream`（SSE）。
+  - `app/api/ocr.py`：`batch-recognize` 在"体检报告识别"场景下不再同步 analyze，改为调用 `interpret_start` 懒加载创建会话并把 `session_id` 放入响应。`OcrBatchRecognizeResponse` 新增 `session_id: Optional[int]`。
+  - `app/main.py`：注册 `checkup_api_v2.router`。
+
+- **h5-web**（已切换到新路径）：
+  - `src/app/checkup/detail/[id]/page.tsx`：`GET /api/checkup/reports/${id}` + `PUT /api/checkup/reports/${id}` + `POST /api/checkup/reports/${id}/ensure-session`。
+  - `src/app/checkup/compare/select/page.tsx`：`POST /api/checkup/compare/create-session`。
+  - `src/app/checkup/chat/[sessionId]/page.tsx`：会话详情走 `GET /api/chat/sessions/${sessionId}`，优先读 `reports_brief`；SSE 改为 `/api/chat/sessions/${sid}/first-message-stream` + `/api/chat/sessions/${sid}/messages-stream`。
+  - `src/app/checkup/result/[id]/page.tsx`：切到新详情 + `ensure-session`。
+
+- **tests**：
+  - `tests/test_checkup_api_v2.py`（新增）：契约级断言——新增 6 路由注册、扩展 2 路由注册、下线路由仍在、`VALID_PROMPT_TYPES` 含 `checkup_report_interpret` / `checkup_report_compare`、`OcrBatchRecognizeResponse.session_id` 存在、router prefix 正确。
+
+- **deploy**：
+  - `deploy/deploy_checkup_v2_scp.py`（新增）：paramiko SFTP 上传本地改动文件 + `docker compose build backend h5-web` + `up -d`，绕过远程服务器 GitHub 访问受限。
+  - `deploy/check_links_checkup_v2.py`（新增）：18 条链接可达性验证，覆盖前端页面 + 6 新增 API + 2 扩展 API + 3 下线 API + Admin 提示词管理。
+
+### 验收结果
+- 链接验证：18/18 全部通过。
+- 前端所有主流程已切换到新路径。
+- 老路径 `/api/report/interpret/*` / `/api/report/compare/start` 保留兼容，未迁移的端仍可用。
+- 下线 3 个 API 保留 410 Gone 行为。
+
+### 说明
+- 用户手册：`user_docs/接口改造清单v2.md`。
+- 服务器侧部署目录 `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`，容器名前缀 `6b099ed3-7175-4a78-91f4-44570c84ed27-`。
+
+---
+
+## Previous Update: 报告解读与报告对比对话化升级（2026-04-23）
 
 ### 概要
 按 PRD v1.0（2026-04-23）完成：体检报告解读/对比全面对话化 + SSE 流式 + 提示词后台化 + 趋势分析下线 + 不准数字字段停写。后端 / admin-web / h5-web 已部署，全量 11/11 链接可达。Commit：`71ea7b7`（master）。
