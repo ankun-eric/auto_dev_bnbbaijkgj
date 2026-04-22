@@ -898,6 +898,11 @@ async def _write_checkup_detail(db, user, provider, record, ocr_text, ai_result,
                 if ind.get("riskLevel", 2) >= 3:
                     report_abnormal_count += 1
 
+    # [2026-04-23] 对话化改造：停写 health_score/abnormal_count/summary/CheckupIndicator
+    # 只落 OCR 文本 + 基础信息 + title，AI 解读走新的 interpret/start 路径。
+    from datetime import datetime as _dt
+    report_date_val = _dt.utcnow().date()
+    default_title = f"{report_date_val.strftime('%Y-%m-%d')} 体检报告"
     checkup_report = CheckupReport(
         user_id=user.id,
         report_type=report_type,
@@ -905,43 +910,17 @@ async def _write_checkup_detail(db, user, provider, record, ocr_text, ai_result,
         thumbnail_url=image_url,
         file_type="image",
         ocr_result={"text": ocr_text},
-        ai_analysis_json=ai_result,
-        ai_analysis=summary or "",
-        abnormal_count=report_abnormal_count or abnormal_count,
-        health_score=health_score_val,
         status="completed",
         family_member_id=family_member_id,
+        report_date=report_date_val,
     )
+    try:
+        checkup_report.title = default_title  # type: ignore[attr-defined]
+    except Exception:
+        pass
     db.add(checkup_report)
     await db.flush()
     await db.refresh(checkup_report)
-
-    # Create CheckupIndicator records for the report
-    if isinstance(ai_result, dict):
-        for cat in ai_result.get("categories", []):
-            cat_name = cat.get("name", cat.get("category_name", "其他"))
-            for ind in cat.get("items", cat.get("indicators", [])):
-                risk_level = ind.get("riskLevel", 2)
-                ind_status = _risk_level_to_status(risk_level)
-                advice_text = None
-                detail_raw = ind.get("detail")
-                if isinstance(detail_raw, dict):
-                    advice_text = detail_raw.get("explanation", "")
-                else:
-                    advice_text = ind.get("advice")
-
-                indicator = CheckupIndicator(
-                    report_id=checkup_report.id,
-                    indicator_name=ind.get("name", ""),
-                    value=ind.get("value"),
-                    unit=ind.get("unit"),
-                    reference_range=ind.get("referenceRange", ind.get("reference_range")),
-                    status=ind_status,
-                    category=cat_name,
-                    advice=advice_text,
-                )
-                db.add(indicator)
-        await db.flush()
 
     return checkup_report
 

@@ -22,14 +22,19 @@ VALID_PROMPT_TYPES = {
     "drug_personal",
     "drug_interaction",
     "trend_analysis",
+    # [2026-04-23] 报告解读对话化
+    "checkup_report_interpret",
+    "checkup_report_compare",
 }
 
 TYPE_DISPLAY_NAMES = {
-    "checkup_report": "体检报告解读",
+    "checkup_report": "体检报告解读（旧 · 结构化，已下线）",
     "drug_general": "药物识别通用建议",
     "drug_personal": "药物识别个性化建议",
     "drug_interaction": "药物相互作用分析",
-    "trend_analysis": "趋势解读",
+    "trend_analysis": "趋势解读（已下线）",
+    "checkup_report_interpret": "体检报告解读（对话式）",
+    "checkup_report_compare": "报告对比（对话式）",
 }
 
 

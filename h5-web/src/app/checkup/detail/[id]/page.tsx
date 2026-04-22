@@ -1,406 +1,279 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter, useParams } from 'next/navigation';
-import { Tabs, Tag, Toast, SpinLoading, ActionSheet, Collapse, ImageViewer, Image } from 'antd-mobile';
-import GreenNavBar from '@/components/GreenNavBar';
-import { FileOutline } from 'antd-mobile-icons';
+import { useEffect, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { NavBar, SpinLoading, Toast, Image, ImageViewer, Input, Dialog } from 'antd-mobile';
+import { EditSOutline } from 'antd-mobile-icons';
 import api from '@/lib/api';
-
-interface Indicator {
-  id: number;
-  indicator_name: string;
-  value: string;
-  unit: string;
-  reference_range: string;
-  status: string;
-  category?: string;
-  advice?: string;
-}
 
 interface ReportDetail {
   id: number;
-  file_type: string;
-  file_url?: string;
-  thumbnail_url?: string;
-  ai_analysis?: string;
-  ai_analysis_json?: {
-    overall_assessment?: string;
-    suggestions?: string[];
-    categories?: { category_name: string; indicators: any[] }[];
-  };
-  indicators: Indicator[];
-  abnormal_count: number;
+  title: string;
+  ocr_text: string;
+  images: string[];
+  member_id: number | null;
+  member_name: string | null;
+  member_relation: string | null;
   created_at: string;
-  status: string;
+  interpret_session_id: number | null;
 }
 
-const DISCLAIMER = '⚠️ 免责声明：本解读结果由AI智能分析生成，仅供参考，不构成医疗诊断或治疗建议。如有健康疑问，请及时咨询专业医生。';
-
-export default function DetailPage() {
-  const router = useRouter();
+export default function CheckupDetailPage() {
   const params = useParams();
-  const id = params.id as string;
-  const [detail, setDetail] = useState<ReportDetail | null>(null);
+  const router = useRouter();
+  const id = Number(params?.id);
+
+  const [data, setData] = useState<ReportDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('category');
-  const [shareVisible, setShareVisible] = useState(false);
-  const [previewVisible, setPreviewVisible] = useState(false);
-  const [previewIndex, setPreviewIndex] = useState(0);
+  const [ocrExpanded, setOcrExpanded] = useState(false);
+  const [previewIdx, setPreviewIdx] = useState(-1);
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleInput, setTitleInput] = useState('');
+  const [savingTitle, setSavingTitle] = useState(false);
 
   useEffect(() => {
     if (!id) return;
-    fetchDetail();
+    (async () => {
+      try {
+        const res = await api.get<ReportDetail>(`/api/report/interpret/detail/${id}`);
+        setData(res);
+        setTitleInput(res.title || '');
+      } catch (e: any) {
+        Toast.show({ content: e?.message || '加载失败' });
+      } finally {
+        setLoading(false);
+      }
+    })();
   }, [id]);
 
-  const fetchDetail = async () => {
-    setLoading(true);
+  const handleSaveTitle = async () => {
+    const t = titleInput.trim();
+    if (!t) {
+      Toast.show({ content: '标题不能为空' });
+      return;
+    }
+    if (t.length > 50) {
+      Toast.show({ content: '标题最多 50 字' });
+      return;
+    }
+    setSavingTitle(true);
     try {
-      const res: any = await api.get(`/api/report/detail/${id}`);
-      const data = res.data || res;
-      setDetail(data);
-    } catch {
-      Toast.show({ content: '加载失败，请重试' });
+      await api.put(`/api/report/interpret/${id}/title`, { title: t });
+      setData((prev) => (prev ? { ...prev, title: t } : prev));
+      setEditingTitle(false);
+      Toast.show({ icon: 'success', content: '已保存' });
+    } catch (e: any) {
+      Toast.show({ content: e?.message || '保存失败' });
     } finally {
-      setLoading(false);
+      setSavingTitle(false);
     }
   };
 
-  const groupByCategory = (inds: Indicator[]): Record<string, Indicator[]> => {
-    const groups: Record<string, Indicator[]> = {};
-    inds.forEach((ind) => {
-      const cat = ind.category || '其他';
-      if (!groups[cat]) groups[cat] = [];
-      groups[cat].push(ind);
-    });
-    return groups;
-  };
-
-  const handleShare = async (action: string) => {
-    setShareVisible(false);
-    if (action === 'link') {
-      try {
-        const res: any = await api.post('/api/report/share', { report_id: Number(id) });
-        const data = res.data || res;
-        const shareUrl = `${window.location.origin}/shared/report/${data.token || data.share_token}`;
-        await navigator.clipboard.writeText(shareUrl);
-        Toast.show({ icon: 'success', content: '链接已复制' });
-      } catch {
-        Toast.show({ content: '生成分享链接失败' });
+  const handleContinueChat = async () => {
+    if (!data) return;
+    if (data.interpret_session_id) {
+      router.push(`/checkup/chat/${data.interpret_session_id}?type=report_interpret`);
+      return;
+    }
+    // 没有会话则引导重新发起
+    const ok = await Dialog.confirm({ content: '该报告尚未开启 AI 解读，是否立即开始？' });
+    if (!ok) return;
+    try {
+      const resp: any = await api.post('/api/report/interpret/start', {
+        report_id: data.id,
+        member_id: data.member_id,
+      });
+      const sid = resp?.session_id;
+      if (sid) {
+        router.push(`/checkup/chat/${sid}?auto_start=1&type=report_interpret`);
       }
-    } else if (action === 'image') {
-      Toast.show({ content: '正在生成图片...' });
-      setTimeout(() => Toast.show({ content: '图片已保存' }), 1500);
+    } catch (e: any) {
+      Toast.show({ content: e?.message || '创建失败' });
     }
+  };
+
+  const handleCompareFromHere = () => {
+    if (!data) return;
+    if (!data.member_id) {
+      Toast.show({ content: '该报告未绑定咨询人，无法对比' });
+      return;
+    }
+    router.push(`/checkup/compare/select?member_id=${data.member_id}&preselect=${data.id}`);
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <SpinLoading style={{ '--size': '36px', '--color': '#52c41a' }} />
-          <p className="text-sm text-gray-400 mt-4">加载中...</p>
-        </div>
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <SpinLoading color="primary" />
       </div>
     );
   }
 
-  if (!detail) {
+  if (!data) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <GreenNavBar>
-          报告详情
-        </GreenNavBar>
-        <div className="flex items-center justify-center pt-20">
-          <p className="text-gray-400">加载失败</p>
-        </div>
+      <div>
+        <NavBar onBack={() => router.back()}>报告详情</NavBar>
+        <div style={{ padding: 24, textAlign: 'center', color: '#999' }}>报告不存在或已删除</div>
       </div>
     );
   }
 
-  const indicators = detail.indicators || [];
-  const categories = groupByCategory(indicators);
-  const isAbnormal = (ind: Indicator) => ind.status === 'abnormal' || ind.status === 'critical';
-  const abnormalIndicators = indicators.filter(isAbnormal);
-  const normalIndicators = indicators.filter((i) => !isAbnormal(i));
-  const imageUrls = detail.file_url && detail.file_type !== 'pdf' ? [detail.file_url] : [];
-  const overallAssessment = detail.ai_analysis_json?.overall_assessment || detail.ai_analysis || '';
-  const suggestions = detail.ai_analysis_json?.suggestions || [];
+  const memberLabel = data.member_name ? `${data.member_relation || ''} · ${data.member_name}` : '未设置咨询人';
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <GreenNavBar
-        right={
-          <button
-            type="button"
-            className="text-white text-sm font-medium"
-            onClick={() => setShareVisible(true)}
-          >
-            分享
-          </button>
-        }
-      >
-        报告详情
-      </GreenNavBar>
+    <div style={{ minHeight: '100vh', background: '#f6f7f9', paddingBottom: 100 }}>
+      <NavBar onBack={() => router.back()}>报告详情</NavBar>
 
-      {/* File preview */}
-      <div className="mx-4 mt-3">
-        <div className="card">
-          <div className="section-title">报告原件</div>
-          {detail.file_type === 'pdf' ? (
-            <div className="flex flex-col items-center py-6 bg-gray-50 rounded-xl">
-              <FileOutline fontSize={40} color="#fa8c16" />
-              <span className="text-sm text-gray-500 mt-2">PDF文件</span>
-              {detail.file_url && (
-                <a
-                  href={detail.file_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-3 text-sm px-4 py-1.5 rounded-full"
-                  style={{ background: '#1890ff15', color: '#1890ff' }}
+      <div style={{ padding: 12 }}>
+        <div style={{ background: '#fff', borderRadius: 12, padding: 16, marginBottom: 12 }}>
+          {/* 标题（可编辑） */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+            {editingTitle ? (
+              <>
+                <Input
+                  value={titleInput}
+                  onChange={setTitleInput}
+                  maxLength={50}
+                  style={{ flex: 1, fontSize: 16, fontWeight: 600 }}
+                />
+                <button
+                  onClick={handleSaveTitle}
+                  disabled={savingTitle}
+                  style={{ padding: '4px 10px', background: '#52c41a', color: '#fff', borderRadius: 6, border: 0, fontSize: 13 }}
                 >
-                  查看PDF
-                </a>
-              )}
-            </div>
-          ) : imageUrls.length > 0 ? (
-            <div className="flex gap-2 overflow-x-auto pb-2">
-              {imageUrls.map((url, idx) => (
-                <div
+                  保存
+                </button>
+                <button
+                  onClick={() => { setEditingTitle(false); setTitleInput(data.title); }}
+                  style={{ padding: '4px 10px', background: '#eee', color: '#666', borderRadius: 6, border: 0, fontSize: 13 }}
+                >
+                  取消
+                </button>
+              </>
+            ) : (
+              <>
+                <div style={{ flex: 1, fontSize: 17, fontWeight: 600, color: '#222' }}>{data.title}</div>
+                <button
+                  onClick={() => setEditingTitle(true)}
+                  style={{ padding: 6, background: 'transparent', border: 0, color: '#1890ff', display: 'flex', alignItems: 'center' }}
+                  aria-label="编辑标题"
+                >
+                  <EditSOutline fontSize={18} />
+                </button>
+              </>
+            )}
+          </div>
+
+          <div style={{ fontSize: 13, color: '#666', lineHeight: 1.8 }}>
+            <div>咨询人：{memberLabel}</div>
+            <div>上传时间：{new Date(data.created_at).toLocaleString('zh-CN')}</div>
+          </div>
+        </div>
+
+        {/* 报告图片 */}
+        {data.images.length > 0 && (
+          <div style={{ background: '#fff', borderRadius: 12, padding: 12, marginBottom: 12 }}>
+            <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 8 }}>📄 报告图片</div>
+            <div style={{ display: 'flex', gap: 8, overflowX: 'auto' }}>
+              {data.images.map((url, idx) => (
+                <Image
                   key={idx}
-                  className="flex-shrink-0 rounded-lg overflow-hidden cursor-pointer"
-                  onClick={() => {
-                    setPreviewIndex(idx);
-                    setPreviewVisible(true);
-                  }}
-                >
-                  <Image
-                    src={url}
-                    width={120}
-                    height={120}
-                    fit="cover"
-                    style={{ borderRadius: 8 }}
-                  />
-                </div>
+                  src={url}
+                  width={120}
+                  height={120}
+                  fit="cover"
+                  style={{ borderRadius: 8, flexShrink: 0 }}
+                  onClick={() => setPreviewIdx(idx)}
+                />
               ))}
             </div>
-          ) : (
-            <div className="text-center py-6 text-gray-400 text-sm">暂无原件预览</div>
+          </div>
+        )}
+
+        {/* OCR 原文（折叠） */}
+        <div style={{ background: '#fff', borderRadius: 12, padding: 12 }}>
+          <div
+            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
+            onClick={() => setOcrExpanded(!ocrExpanded)}
+          >
+            <span style={{ fontSize: 14, fontWeight: 500 }}>📝 OCR 原文</span>
+            <span style={{ fontSize: 12, color: '#1890ff' }}>{ocrExpanded ? '收起' : '展开'}</span>
+          </div>
+          {ocrExpanded && (
+            <pre
+              style={{
+                marginTop: 10,
+                fontSize: 13,
+                lineHeight: 1.7,
+                color: '#333',
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-all',
+                maxHeight: 400,
+                overflow: 'auto',
+                background: '#fafafa',
+                borderRadius: 6,
+                padding: 10,
+              }}
+            >
+              {data.ocr_text || '(OCR 文本为空)'}
+            </pre>
           )}
         </div>
       </div>
 
-      {/* AI Summary */}
-      {(overallAssessment || suggestions.length > 0) && (
-        <div className="mx-4 mt-1">
-          <div
-            className="rounded-xl p-4"
-            style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}
-          >
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center">
-                <span className="text-white text-xs font-bold">AI</span>
-              </div>
-              <span className="text-white font-medium text-sm">综合评估</span>
-            </div>
-            <p className="text-white/90 text-sm leading-relaxed">
-              {overallAssessment || '暂无综合评估'}
-            </p>
-            {suggestions.length > 0 && (
-              <div className="mt-3 pt-3 border-t border-white/20">
-                <p className="text-white/80 text-xs font-medium mb-1">综合建议</p>
-                <p className="text-white/90 text-sm leading-relaxed">{suggestions.join('；')}</p>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Tabs */}
-      <div className="mx-4 mt-3">
-        <Tabs
-          activeKey={activeTab}
-          onChange={setActiveTab}
+      {/* 底部按钮 */}
+      <div
+        style={{
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          background: '#fff',
+          padding: '10px 16px',
+          borderTop: '1px solid #eee',
+          display: 'flex',
+          gap: 10,
+          zIndex: 10,
+        }}
+      >
+        <button
+          onClick={handleCompareFromHere}
           style={{
-            '--title-font-size': '14px',
-            '--active-title-color': '#52c41a',
-            '--active-line-color': '#52c41a',
+            flex: 1,
+            padding: '12px',
+            borderRadius: 22,
+            background: '#fff',
+            color: '#1890ff',
+            border: '1px solid #1890ff',
+            fontSize: 14,
+            fontWeight: 500,
           }}
         >
-          <Tabs.Tab title="按分类" key="category" />
-          <Tabs.Tab title="异常优先" key="abnormal" />
-        </Tabs>
-      </div>
-
-      {/* Category view */}
-      {activeTab === 'category' && (
-        <div className="px-4 mt-2 pb-4">
-          {Object.entries(categories).length > 0 ? (
-            <Collapse defaultActiveKey={Object.keys(categories)}>
-              {Object.entries(categories).map(([cat, items]) => {
-                const abnCount = items.filter((i) => i.status === 'abnormal' || i.status === 'critical').length;
-                return (
-                  <Collapse.Panel
-                    key={cat}
-                    title={
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-sm">{cat}</span>
-                        {abnCount > 0 && (
-                          <Tag
-                            style={{
-                              '--background-color': '#f5222d15',
-                              '--text-color': '#f5222d',
-                              '--border-color': 'transparent',
-                              fontSize: 10,
-                            }}
-                          >
-                            {abnCount}项异常
-                          </Tag>
-                        )}
-                      </div>
-                    }
-                  >
-                    <div className="space-y-2">
-                      {items.map((ind, idx) => (
-                        <IndicatorCard key={idx} indicator={ind} router={router} />
-                      ))}
-                    </div>
-                  </Collapse.Panel>
-                );
-              })}
-            </Collapse>
-          ) : (
-            <div className="text-center text-gray-400 py-8 text-sm">暂无指标数据</div>
-          )}
-        </div>
-      )}
-
-      {/* Abnormal first view */}
-      {activeTab === 'abnormal' && (
-        <div className="px-4 mt-2 pb-4">
-          {abnormalIndicators.length > 0 && (
-            <div className="mb-4">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-1 h-4 rounded-full bg-red-500" />
-                <span className="text-sm font-medium text-gray-800">
-                  异常指标 ({abnormalIndicators.length})
-                </span>
-              </div>
-              <div className="space-y-2">
-                {abnormalIndicators.map((ind, idx) => (
-                  <IndicatorCard key={idx} indicator={ind} showDesc router={router} />
-                ))}
-              </div>
-            </div>
-          )}
-          {normalIndicators.length > 0 && (
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-1 h-4 rounded-full bg-green-500" />
-                <span className="text-sm font-medium text-gray-800">
-                  正常指标 ({normalIndicators.length})
-                </span>
-              </div>
-              <div className="space-y-2">
-                {normalIndicators.map((ind, idx) => (
-                  <IndicatorCard key={idx} indicator={ind} router={router} />
-                ))}
-              </div>
-            </div>
-          )}
-          {indicators.length === 0 && (
-            <div className="text-center text-gray-400 py-8 text-sm">暂无指标数据</div>
-          )}
-        </div>
-      )}
-
-      {/* Disclaimer */}
-      <div className="px-4 pb-8">
-        <div className="rounded-xl bg-amber-50 p-3">
-          <p className="text-xs text-amber-700 leading-relaxed">{DISCLAIMER}</p>
-        </div>
-      </div>
-
-      {/* Image viewer */}
-      <ImageViewer.Multi
-        images={imageUrls}
-        visible={previewVisible}
-        defaultIndex={previewIndex}
-        onClose={() => setPreviewVisible(false)}
-      />
-
-      {/* Share action sheet */}
-      <ActionSheet
-        visible={shareVisible}
-        actions={[
-          { text: '生成图片', key: 'image', onClick: () => handleShare('image') },
-          { text: '复制链接', key: 'link', onClick: () => handleShare('link') },
-        ]}
-        cancelText="取消"
-        onClose={() => setShareVisible(false)}
-      />
-    </div>
-  );
-}
-
-function IndicatorCard({
-  indicator,
-  showDesc = false,
-  router,
-}: {
-  indicator: Indicator;
-  showDesc?: boolean;
-  router: ReturnType<typeof useRouter>;
-}) {
-  const abnormal = indicator.status === 'abnormal' || indicator.status === 'critical';
-
-  return (
-    <div
-      className="bg-white rounded-xl p-3"
-      style={{ border: abnormal ? '1px solid #ffccc7' : '1px solid #f0f0f0' }}
-    >
-      <div className="flex items-center justify-between">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <span className={`text-sm font-medium ${abnormal ? 'text-red-600' : 'text-gray-800'}`}>
-              {indicator.indicator_name}
-            </span>
-            {abnormal && (
-              <Tag
-                style={{
-                  '--background-color': '#f5222d15',
-                  '--text-color': '#f5222d',
-                  '--border-color': 'transparent',
-                  fontSize: 10,
-                  padding: '0 4px',
-                }}
-              >
-                {indicator.status === 'critical' ? '危急' : '异常'}
-              </Tag>
-            )}
-          </div>
-          <div className="flex items-center gap-2 mt-1">
-            <span className={`text-base font-bold ${abnormal ? 'text-red-600' : 'text-gray-800'}`}>
-              {indicator.value}
-            </span>
-            <span className="text-xs text-gray-400">{indicator.unit}</span>
-          </div>
-          <div className="text-xs text-gray-400 mt-0.5">参考范围: {indicator.reference_range}</div>
-        </div>
+          🔄 找另一份对比
+        </button>
         <button
-          className="text-xs px-2 py-1 rounded-full bg-gray-50 text-gray-500 flex-shrink-0"
-          onClick={() =>
-            router.push(`/checkup/trend?indicator_name=${encodeURIComponent(indicator.indicator_name)}`)
-          }
+          onClick={handleContinueChat}
+          style={{
+            flex: 1,
+            padding: '12px',
+            borderRadius: 22,
+            background: 'linear-gradient(135deg, #52c41a, #13c2c2)',
+            color: '#fff',
+            border: 0,
+            fontSize: 14,
+            fontWeight: 500,
+          }}
         >
-          查看趋势 ›
+          💬 继续咨询
         </button>
       </div>
-      {showDesc && indicator.advice && (
-        <div className="mt-2 pt-2 border-t border-gray-50">
-          <p className="text-xs text-gray-500 leading-relaxed">{indicator.advice}</p>
-        </div>
-      )}
+
+      <ImageViewer.Multi
+        images={data.images}
+        visible={previewIdx >= 0}
+        defaultIndex={Math.max(0, previewIdx)}
+        onClose={() => setPreviewIdx(-1)}
+      />
     </div>
   );
 }

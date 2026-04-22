@@ -588,13 +588,34 @@ export default function CheckupPage() {
         return;
       }
 
-      Toast.show({ icon: 'success', content: '识别完成' });
+      Toast.show({ icon: 'success', content: 'OCR 识别完成，正在创建 AI 解读会话...' });
       selectedFiles.forEach((sf) => URL.revokeObjectURL(sf.previewUrl));
       setSelectedFiles([]);
-      setUploading(false);
-      setUploadProgress('');
-      setUploadPercent(-1);
-      router.push(`/checkup/result/${reportId}`);
+
+      // [2026-04-23] 对话化改造：调 interpret/start 创建会话 → 跳 AI 咨询页流式输出
+      try {
+        const startResp: any = await api.post('/api/report/interpret/start', {
+          report_id: reportId,
+          member_id: memberId,
+        });
+        const sessionId = startResp?.session_id;
+        const redirectUrl = startResp?.redirect_url || (sessionId ? `/checkup/chat/${sessionId}?auto_start=1&type=report_interpret` : null);
+        setUploading(false);
+        setUploadProgress('');
+        setUploadPercent(-1);
+        if (redirectUrl) {
+          router.push(redirectUrl);
+        } else {
+          Toast.show({ content: '会话创建失败，请重试' });
+          setCurrentStep(0);
+        }
+      } catch (se: any) {
+        setUploading(false);
+        setUploadProgress('');
+        setUploadPercent(-1);
+        Toast.show({ content: se?.message || 'AI 会话创建失败' });
+        setCurrentStep(0);
+      }
     } catch (err: any) {
       const msg = err?.message || '上传失败，请重试';
       if (msg.includes('维护') || msg.includes('OCR') || msg.includes('closed')) {
@@ -738,7 +759,7 @@ export default function CheckupPage() {
               style={{ background: 'linear-gradient(135deg, #1890ff, #096dd9)' }}
               onClick={openMemberPopup}
             >
-              开始识别（{selectedFiles.length}张）
+              AI 开始解读（{selectedFiles.length}张）
             </button>
           )}
         </div>
@@ -772,15 +793,12 @@ export default function CheckupPage() {
             <button
               className="text-xs px-3 py-1 rounded-full"
               style={{
-                background: compareMode ? '#1890ff' : '#f5f5f5',
-                color: compareMode ? '#fff' : '#666',
+                background: '#1890ff',
+                color: '#fff',
               }}
-              onClick={() => {
-                setCompareMode(!compareMode);
-                setSelectedReportIds(new Set());
-              }}
+              onClick={() => router.push('/checkup/compare/select')}
             >
-              {compareMode ? '取消对比' : '对比模式'}
+              🔄 报告对比
             </button>
           )}
         </div>
@@ -1076,7 +1094,7 @@ export default function CheckupPage() {
               fontSize: 15,
             }}
           >
-            AI 开始分析
+            AI 开始解读
           </Button>
         </div>
       </Popup>

@@ -56,6 +56,9 @@ class SessionType(str, enum.Enum):
     customer_service = "customer_service"
     drug_identify = "drug_identify"
     constitution_test = "constitution_test"
+    # [2026-04-23] 报告解读/对比对话化
+    report_interpret = "report_interpret"
+    report_compare = "report_compare"
 
 
 class MessageRole(str, enum.Enum):
@@ -590,6 +593,9 @@ class CheckupReport(Base):
     family_member_id = mapped_column(Integer, ForeignKey("family_members.id"), nullable=True, index=True)
     share_token = mapped_column(String(100), nullable=True, unique=True)
     share_expires_at = mapped_column(DateTime, nullable=True)
+    # [2026-04-23] 报告解读对话化 - 新增字段
+    title = mapped_column(String(100), nullable=True)
+    interpret_session_id = mapped_column(Integer, nullable=True)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
 
     user = relationship("User")
@@ -635,6 +641,10 @@ class ChatSession(Base):
     device_info = mapped_column(String(500), nullable=True)
     ip_address = mapped_column(String(50), nullable=True)
     ip_location = mapped_column(String(100), nullable=True)
+    # [2026-04-23] 报告解读/对比对话化 - 新增字段
+    report_id = mapped_column(Integer, nullable=True)
+    member_relation = mapped_column(String(32), nullable=True)
+    compare_report_ids = mapped_column(String(64), nullable=True)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

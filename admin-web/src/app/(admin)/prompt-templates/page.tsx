@@ -47,21 +47,45 @@ interface PromptTemplateHistoryResponse {
 }
 
 const TEMPLATE_TYPES = [
-  { key: 'checkup_report', label: '体检报告解读' },
+  { key: 'checkup_report_interpret', label: '体检报告解读（对话式）' },
+  { key: 'checkup_report_compare', label: '报告对比（对话式）' },
   { key: 'drug_general', label: '药物识别通用建议' },
   { key: 'drug_personal', label: '药物识别个性化建议' },
   { key: 'drug_interaction', label: '药物相互作用分析' },
-  { key: 'trend_analysis', label: '趋势解读' },
+  { key: 'checkup_report', label: '体检报告解读（旧·已下线）' },
+  { key: 'trend_analysis', label: '趋势解读（已下线）' },
 ];
 
 const DEFAULT_PREVIEW_INPUTS: Record<string, string> = {
   checkup_report:
     '血红蛋白 105g/L（参考120-160），血糖 7.2mmol/L（参考3.9-6.1），总胆固醇 5.8mmol/L（参考<5.2）',
+  checkup_report_interpret:
+    '姓名：张三\n关系：父亲\n年龄：58 岁\n血红蛋白 105g/L（参考120-160），血糖 7.2mmol/L（参考3.9-6.1）',
+  checkup_report_compare:
+    '咨询对象：爸爸 张三 58岁\n报告A（2025-01-15）：血糖 6.8mmol/L\n报告B（2026-04-20）：血糖 7.5mmol/L',
   drug_general: '阿莫西林胶囊 0.25g×24粒 用于呼吸道感染',
   drug_personal: '阿莫西林胶囊 0.25g×24粒 用于呼吸道感染',
   drug_interaction: '阿莫西林、布洛芬、阿司匹林',
   trend_analysis:
     '血糖指标近3次：2024-01: 6.8mmol/L，2024-07: 7.1mmol/L，2025-01: 7.5mmol/L，参考范围3.9-6.1',
+};
+
+const PROMPT_VARIABLES: Record<string, { name: string; desc: string }[]> = {
+  checkup_report_interpret: [
+    { name: '{member_info}', desc: '咨询人档案（姓名、关系、年龄、性别、身高体重、慢病史、过敏史）' },
+    { name: '{report_ocr_text}', desc: '报告 OCR 全文' },
+    { name: '{report_date}', desc: '报告日期（YYYY-MM-DD）' },
+    { name: '{report_title}', desc: '报告标题' },
+  ],
+  checkup_report_compare: [
+    { name: '{member_info}', desc: '咨询人档案' },
+    { name: '{report_a_date}', desc: '报告 A 日期（较早）' },
+    { name: '{report_a_title}', desc: '报告 A 标题' },
+    { name: '{report_a_ocr}', desc: '报告 A OCR 文本' },
+    { name: '{report_b_date}', desc: '报告 B 日期（较晚）' },
+    { name: '{report_b_title}', desc: '报告 B 标题' },
+    { name: '{report_b_ocr}', desc: '报告 B OCR 文本' },
+  ],
 };
 
 export default function PromptTemplatesPage() {
@@ -243,6 +267,20 @@ export default function PromptTemplatesPage() {
                 </Text>
               )}
             </div>
+
+            {/* 变量占位符说明 */}
+            {PROMPT_VARIABLES[activeType] && (
+              <div style={{ marginBottom: 12, background: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: 6, padding: '10px 12px' }}>
+                <Text strong style={{ fontSize: 13, color: '#389e0d' }}>支持的变量占位符（后端自动渲染）：</Text>
+                <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {PROMPT_VARIABLES[activeType].map((v) => (
+                    <Tag key={v.name} color="green" style={{ margin: 0 }}>
+                      <code>{v.name}</code> - {v.desc}
+                    </Tag>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* TextArea */}
             <TextArea

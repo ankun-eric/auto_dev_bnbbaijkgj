@@ -57,6 +57,7 @@ from app.api import (
     prompt_templates,
     referral,
     report,
+    report_interpret,
     scan,
     search,
     service,
@@ -509,6 +510,13 @@ async def lifespan(app: FastAPI):
     await _migrate_product_categories_hierarchy()
     await _migrate_v7_search_placeholder()
     await _migrate_v8_content()
+    # [2026-04-23] 报告解读/对比对话化
+    try:
+        from app.services.report_interpret_migration import migrate_report_interpret
+        await migrate_report_interpret()
+    except Exception as _e:
+        import logging as _l
+        _l.getLogger(__name__).error("report_interpret migration 异常（不影响启动）: %s", _e)
     await migrate_bottom_nav_order_path()
     await migrate_points_mall_v31()
     await migrate_points_mall_v11()
@@ -578,6 +586,7 @@ app.include_router(cos.router)
 app.include_router(ai_center.router)
 app.include_router(report.router)
 app.include_router(report.admin_router)
+app.include_router(report_interpret.router)
 app.include_router(ocr.router)
 app.include_router(ocr.admin_router)
 app.include_router(ocr_details.router)

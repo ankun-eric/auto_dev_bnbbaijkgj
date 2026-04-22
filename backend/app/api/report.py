@@ -218,11 +218,23 @@ def _risk_level_to_status(risk_level: int) -> str:
     return "critical"
 
 
-@router.post("/report/analyze", response_model=EnhancedReportAnalysisResponse)
-async def analyze_report(
-    report_id: int = Body(embed=True),
+@router.post("/report/analyze", deprecated=True)
+async def analyze_report_deprecated(
+    report_id: int = Body(embed=True, default=0),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+):
+    """[2026-04-23] 已下线：结构化体检解读。请改用 POST /api/report/interpret/start。"""
+    raise HTTPException(
+        status_code=410,
+        detail="该接口已下线，请改用 POST /api/report/interpret/start 进入对话式报告解读",
+    )
+
+
+async def _analyze_report_legacy_unused(
+    report_id: int,
+    current_user: User,
+    db: AsyncSession,
 ):
     result = await db.execute(
         select(CheckupReport)
@@ -532,12 +544,25 @@ async def list_reports(
 # ──────────────── Compare ────────────────
 
 
-@router.post("/report/compare", response_model=ReportCompareResponse)
-async def compare_reports(
-    report_id_1: int = Body(...),
-    report_id_2: int = Body(...),
+@router.post("/report/compare", deprecated=True)
+async def compare_reports_deprecated(
+    report_id_1: int = Body(default=0),
+    report_id_2: int = Body(default=0),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+):
+    """[2026-04-23] 已下线：结构化对比。请改用 POST /api/report/compare/start。"""
+    raise HTTPException(
+        status_code=410,
+        detail="该接口已下线，请改用 POST /api/report/compare/start 进入对话式报告对比",
+    )
+
+
+async def _compare_reports_legacy_unused(
+    report_id_1: int,
+    report_id_2: int,
+    current_user: User,
+    db: AsyncSession,
 ):
     r1_result = await db.execute(
         select(CheckupReport)
@@ -653,11 +678,20 @@ async def compare_reports(
 # ──────────────── Trend ────────────────
 
 
-@router.get("/report/trend/{indicator_name}", response_model=TrendDataResponse)
-async def get_indicator_trend(
+@router.get("/report/trend/{indicator_name}", deprecated=True)
+async def get_indicator_trend_deprecated(
     indicator_name: str,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+):
+    """[2026-04-23] 趋势分析已下线。"""
+    raise HTTPException(status_code=410, detail="趋势分析已下线")
+
+
+async def _get_indicator_trend_legacy_unused(
+    indicator_name: str,
+    current_user: User,
+    db: AsyncSession,
 ):
     result = await db.execute(
         select(CheckupIndicator)
@@ -701,11 +735,19 @@ async def get_indicator_trend(
     )
 
 
-@router.post("/report/trend/analysis", response_model=TrendAnalysisResponse)
-async def trend_analysis(
-    body: TrendAnalysisRequest,
+@router.post("/report/trend/analysis", deprecated=True)
+async def trend_analysis_deprecated(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+):
+    """[2026-04-23] 趋势分析已下线。"""
+    raise HTTPException(status_code=410, detail="趋势分析已下线")
+
+
+async def _trend_analysis_legacy_unused(
+    body,
+    current_user: User,
+    db: AsyncSession,
 ):
     result = await db.execute(
         select(CheckupIndicator)
