@@ -1,266 +1,340 @@
-# -*- coding: utf-8 -*-
 """
-iOS IPA build via GitHub Actions.
+iOS IPA 打包子 Agent 脚本
+---------------------------------
+通过 GitHub Actions 远程构建 iOS IPA 并发布到 Release。
 
-- Triggers workflow: .github/workflows/ios-build.yml on ankun-eric/auto_dev_bnbbaijkgj
-- Version tag format: ios-v{YYYYMMDD}-{HHMMSS}-{4-hex}
-- Polls build status every 30s (up to 30 min)
-- On success, reads release info (page URL, IPA asset URL & size)
-- Retries for network instability; on build failure, dumps failing log and retries up to 2 times total
+步骤：
+1. 读取 .github/workflows/ios-build.yml，确认已存在（前置条件）
+2. 生成版本标签 ios-v{YYYYMMDD}-{HHMMSS}-{4hex}
+3. 用 gh workflow run 触发构建（带 3 次重试，10s/20s/40s 间隔）
+4. 每 30 秒轮询 gh run 状态，最长 30 分钟
+5. 成功后 gh release view 获取 asset URL、大小
+6. 失败时 gh run view --log-failed 获取失败日志，最多重试 2 次
 """
+
+from __future__ import annotations
 
 import json
 import os
+import re
 import secrets
 import subprocess
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Optional
 
-REPO = "ankun-eric/auto_dev_bnbbaijkgj"
-WORKFLOW_FILE = "ios-build.yml"
-WORKFLOW_PATH = r"C:\auto_output\bnbbaijkgj\.github\workflows\ios-build.yml"
+# ========= 配置 =========
+REPO_ROOT = Path(r"C:\auto_output\bnbbaijkgj")
+WORKFLOW_FILE = ".github/workflows/ios-build.yml"
+WORKFLOW_NAME = "ios-build.yml"
+RESULT_JSON = REPO_ROOT / "deploy" / "package_ios_ui_polish_result.json"
+LOG_FILE = REPO_ROOT / "deploy" / "package_ios_ui_polish.log"
+
 POLL_INTERVAL_SEC = 30
 MAX_POLL_MINUTES = 30
-MAX_BUILD_ATTEMPTS = 2
-NET_RETRY_DELAYS = [10, 20, 40]
+MAX_BUILD_ATTEMPTS = 2  # 失败时最多再重试 N 次
+GH_RETRY_DELAYS = [10, 20, 40]  # 单条 gh 命令的 3 次重试间隔
+
+# ========= 工具函数 =========
+_log_lines: list[str] = []
 
 
 def log(msg: str) -> None:
-    ts = datetime.now().strftime("%H:%M:%S")
-    print(f"[{ts}] {msg}", flush=True)
+    ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    line = f"[{ts}] {msg}"
+    print(line, flush=True)
+    _log_lines.append(line)
 
 
-def run_gh(args, capture=True, retries=3, timeout=120):
-    """Run `gh` with retry for transient network errors."""
-    last_err = ""
-    for attempt in range(retries):
-        try:
-            proc = subprocess.run(
-                ["gh"] + args,
-                capture_output=capture,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                timeout=timeout,
-            )
-            if proc.returncode == 0:
-                return proc.stdout or ""
-            last_err = f"rc={proc.returncode} stderr={proc.stderr.strip()} stdout={(proc.stdout or '').strip()}"
-        except subprocess.TimeoutExpired as e:
-            last_err = f"timeout after {timeout}s: {e}"
-        except Exception as e:
-            last_err = f"exception: {e!r}"
+def flush_log() -> None:
+    try:
+        LOG_FILE.write_text("\n".join(_log_lines), encoding="utf-8")
+    except Exception as e:
+        print(f"WARN: failed to write log: {e}", flush=True)
 
-        if attempt < retries - 1:
-            delay = NET_RETRY_DELAYS[min(attempt, len(NET_RETRY_DELAYS) - 1)]
-            log(f"gh {args[0]} failed ({last_err}); retry in {delay}s ({attempt+1}/{retries})")
+
+def run(cmd: list[str], *, check: bool = True, timeout: int = 180,
+        cwd: Optional[Path] = None) -> subprocess.CompletedProcess:
+    """Run a command once, return CompletedProcess. No retry here."""
+    log(f"$ {' '.join(cmd)}")
+    result = subprocess.run(
+        cmd,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        cwd=str(cwd or REPO_ROOT),
+        timeout=timeout,
+    )
+    if result.stdout:
+        for ln in result.stdout.rstrip().splitlines()[-30:]:
+            log(f"  | {ln}")
+    if result.stderr and result.returncode != 0:
+        for ln in result.stderr.rstrip().splitlines()[-30:]:
+            log(f"  !! {ln}")
+    if check and result.returncode != 0:
+        raise RuntimeError(
+            f"command failed (rc={result.returncode}): {' '.join(cmd)}\n"
+            f"stderr={result.stderr}"
+        )
+    return result
+
+
+def run_with_retry(cmd: list[str], *, check: bool = True,
+                   timeout: int = 180) -> subprocess.CompletedProcess:
+    """Run a gh/network command with 3 retries (10s/20s/40s)."""
+    last_exc: Optional[Exception] = None
+    for attempt, delay in enumerate([0] + GH_RETRY_DELAYS, start=0):
+        if delay:
+            log(f"retry in {delay}s (attempt {attempt + 1}) ...")
             time.sleep(delay)
-    raise RuntimeError(f"gh command failed after {retries} attempts: gh {' '.join(args)} -> {last_err}")
+        try:
+            result = run(cmd, check=False, timeout=timeout)
+            if result.returncode == 0:
+                return result
+            last_exc = RuntimeError(
+                f"rc={result.returncode}, stderr={result.stderr.strip()[:500]}"
+            )
+        except Exception as e:  # noqa: BLE001
+            last_exc = e
+            log(f"exception: {e}")
+    if check:
+        raise RuntimeError(f"command failed after retries: {' '.join(cmd)}: {last_exc}")
+    # 返回最后一次结果
+    return result  # type: ignore[return-value]
 
+
+# ========= 主流程 =========
 
 def gen_version_tag() -> str:
     now = datetime.now()
-    return f"ios-v{now.strftime('%Y%m%d')}-{now.strftime('%H%M%S')}-{secrets.token_hex(2)}"
+    hex4 = secrets.token_hex(2)
+    return f"ios-v{now.strftime('%Y%m%d')}-{now.strftime('%H%M%S')}-{hex4}"
 
 
-def trigger_workflow(tag: str) -> None:
-    log(f"Triggering workflow {WORKFLOW_FILE} with version={tag}")
-    run_gh([
-        "workflow", "run", WORKFLOW_FILE,
-        "-R", REPO,
-        "-f", f"version={tag}",
-    ])
-    log("Workflow dispatch accepted by GitHub")
+def ensure_workflow_exists() -> None:
+    wf_path = REPO_ROOT / WORKFLOW_FILE
+    if not wf_path.exists():
+        raise RuntimeError(f"workflow missing: {wf_path}")
+    content = wf_path.read_text(encoding="utf-8", errors="replace")
+    if "workflow_dispatch" not in content or "version" not in content:
+        raise RuntimeError("workflow does not support workflow_dispatch with 'version' input")
+    log(f"workflow OK: {WORKFLOW_FILE} ({len(content)} bytes)")
 
 
-def find_run_id(tag: str, since: float) -> str:
-    """Find the run triggered for this tag. We match by workflow name + createdAt > since."""
+def trigger_workflow(version: str) -> None:
+    log(f"trigger workflow with version={version}")
+    run_with_retry(
+        ["gh", "workflow", "run", WORKFLOW_NAME, "-f", f"version={version}"],
+        timeout=60,
+    )
+
+
+def find_latest_run_id(version: str, trigger_time: float) -> str:
+    """Find the run we just triggered. Poll up to 2 min for the run to appear."""
     deadline = time.time() + 120
     while time.time() < deadline:
-        out = run_gh([
-            "run", "list",
-            "-R", REPO,
-            "--workflow", WORKFLOW_FILE,
-            "--limit", "5",
-            "--json", "databaseId,status,conclusion,createdAt,event,displayTitle,name",
-        ])
+        result = run_with_retry(
+            ["gh", "run", "list",
+             "--workflow", WORKFLOW_NAME,
+             "--limit", "5",
+             "--json", "databaseId,status,conclusion,createdAt,displayTitle,name,event"],
+            timeout=60,
+        )
         try:
-            runs = json.loads(out)
+            runs = json.loads(result.stdout or "[]")
         except json.JSONDecodeError:
             runs = []
-        for r in runs:
-            # workflow_dispatch events only
-            if r.get("event") != "workflow_dispatch":
-                continue
-            # Parse createdAt (ISO8601 Z)
-            created = r.get("createdAt", "")
-            try:
-                dt = datetime.strptime(created, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
-                t = dt.timestamp()
-            except ValueError:
-                continue
-            if t + 5 >= since:  # small skew tolerance
-                rid = str(r["databaseId"])
-                log(f"Matched run: id={rid} status={r.get('status')} createdAt={created}")
-                return rid
-        log("Run not yet listed; waiting 5s...")
-        time.sleep(5)
-    raise RuntimeError("Could not locate triggered workflow run within 2 minutes")
+        # 选 createdAt 最新且 event=workflow_dispatch 的一条
+        dispatch_runs = [
+            r for r in runs
+            if r.get("event") == "workflow_dispatch"
+        ]
+        if dispatch_runs:
+            latest = sorted(dispatch_runs, key=lambda r: r.get("createdAt", ""),
+                            reverse=True)[0]
+            created = latest.get("createdAt", "")
+            # createdAt 为 ISO8601，必须晚于 trigger_time - 60s
+            log(f"latest dispatch run: id={latest['databaseId']} created={created} status={latest.get('status')}")
+            return str(latest["databaseId"])
+        log("no dispatch run found yet, waiting 10s ...")
+        time.sleep(10)
+    raise RuntimeError("could not find triggered run within 2 minutes")
 
 
-def poll_run(run_id: str):
-    """Poll until completed; returns (conclusion, status)."""
-    log(f"Polling run {run_id} every {POLL_INTERVAL_SEC}s (max {MAX_POLL_MINUTES} min)")
+def poll_run(run_id: str) -> dict[str, Any]:
     deadline = time.time() + MAX_POLL_MINUTES * 60
-    last_status = ""
     while time.time() < deadline:
-        out = run_gh([
-            "run", "view", run_id,
-            "-R", REPO,
-            "--json", "status,conclusion,url",
-        ])
+        result = run_with_retry(
+            ["gh", "run", "view", run_id,
+             "--json", "status,conclusion,displayTitle,url,jobs,createdAt,updatedAt"],
+            timeout=60,
+        )
         try:
-            data = json.loads(out)
+            info = json.loads(result.stdout or "{}")
         except json.JSONDecodeError:
-            data = {}
-        status = data.get("status", "")
-        conclusion = data.get("conclusion", "")
-        if status != last_status:
-            log(f"Run status: {status} conclusion={conclusion} url={data.get('url','')}")
-            last_status = status
+            info = {}
+        status = info.get("status", "")
+        conclusion = info.get("conclusion", "")
+        jobs = info.get("jobs", []) or []
+        job_summary = ", ".join(
+            f"{j.get('name')}={j.get('status')}/{j.get('conclusion')}" for j in jobs
+        )
+        log(f"run {run_id}: status={status} conclusion={conclusion} jobs=[{job_summary}]")
         if status == "completed":
-            return conclusion, status
+            return info
         time.sleep(POLL_INTERVAL_SEC)
-    raise RuntimeError(f"Run {run_id} did not complete within {MAX_POLL_MINUTES} minutes")
+    raise TimeoutError(f"run {run_id} did not complete within {MAX_POLL_MINUTES} minutes")
 
 
 def get_failed_log(run_id: str) -> str:
+    log(f"fetching failed log for run {run_id}")
+    result = run_with_retry(
+        ["gh", "run", "view", run_id, "--log-failed"],
+        timeout=180,
+        check=False,
+    )
+    text = (result.stdout or "") + "\n" + (result.stderr or "")
+    return text[-8000:]
+
+
+def get_release_assets(version: str) -> dict[str, Any]:
+    result = run_with_retry(
+        ["gh", "release", "view", version,
+         "--json", "tagName,name,url,assets"],
+        timeout=60,
+    )
+    info = json.loads(result.stdout or "{}")
+    return info
+
+
+def _parse_iso(ts: str) -> float:
+    """Parse GitHub ISO8601 timestamp like '2026-04-22T17:46:35Z' to epoch sec."""
     try:
-        out = run_gh([
-            "run", "view", run_id,
-            "-R", REPO,
-            "--log-failed",
-        ], timeout=180)
-        return out
-    except Exception as e:
-        return f"<failed to fetch log: {e}>"
+        return datetime.strptime(ts, "%Y-%m-%dT%H:%M:%SZ").timestamp()
+    except Exception:  # noqa: BLE001
+        return 0.0
 
 
-def get_release_info(tag: str):
-    out = run_gh([
-        "release", "view", tag,
-        "-R", REPO,
-        "--json", "url,name,assets,tagName,publishedAt",
-    ])
-    data = json.loads(out)
-    release_url = data.get("url") or f"https://github.com/{REPO}/releases/tag/{tag}"
-    assets = data.get("assets", [])
-    ipa = None
-    for a in assets:
-        name = a.get("name", "")
-        if name.lower().endswith(".ipa"):
-            ipa = a
-            break
-    return release_url, ipa, data
-
-
-def build_once(tag: str, adopt_run_id: str = None):
-    """Run one build attempt. Returns dict with results or raises on failure."""
-    started = time.time()
-    if adopt_run_id:
-        log(f"Adopting existing run_id={adopt_run_id} (skip dispatch); tag={tag}")
-        run_id = adopt_run_id
+def build_once(version: str) -> dict[str, Any]:
+    """Single build attempt. Returns info dict or raises on failure."""
+    t0 = time.time()
+    trigger_workflow(version)
+    time.sleep(5)
+    run_id = find_latest_run_id(version, t0)
+    info = poll_run(run_id)
+    # Prefer GitHub-provided timestamps for duration (more accurate, TZ-safe)
+    created = _parse_iso(info.get("createdAt", ""))
+    updated = _parse_iso(info.get("updatedAt", ""))
+    if created and updated and updated > created:
+        duration = int(updated - created)
     else:
-        trigger_workflow(tag)
-        time.sleep(8)
-        run_id = find_run_id(tag, since=started - 5)
-    run_url = f"https://github.com/{REPO}/actions/runs/{run_id}"
-    log(f"Run URL: {run_url}")
-    conclusion, _ = poll_run(run_id)
-    duration = int(time.time() - started)
+        duration = int(time.time() - t0)
+    conclusion = info.get("conclusion", "")
     if conclusion != "success":
-        log(f"Build failed with conclusion={conclusion}")
-        fail_log = get_failed_log(run_id)
-        raise RuntimeError(f"Build {run_id} concluded={conclusion}\n---failed log (truncated)---\n{fail_log[-6000:]}")
-    log(f"Build succeeded in {duration}s; fetching release info...")
-    release_url, ipa, raw = get_release_info(tag)
-    if not ipa:
-        raise RuntimeError(f"No .ipa asset found in release {tag}; release raw: {json.dumps(raw)[:800]}")
+        failed_log = get_failed_log(run_id)
+        raise RuntimeError(
+            f"build failed: conclusion={conclusion}\n"
+            f"run_url={info.get('url')}\n"
+            f"--- failed log tail ---\n{failed_log}"
+        )
+    # 成功：拉 release
+    release = get_release_assets(version)
+    assets = release.get("assets", []) or []
+    ipa_asset = next(
+        (a for a in assets if (a.get("name") or "").lower().endswith(".ipa")),
+        None,
+    )
+    if not ipa_asset:
+        raise RuntimeError(f"no .ipa asset in release {version}: {assets}")
+
+    size = ipa_asset.get("size", 0)
+    if size < 100_000:
+        # 过小 → 视作失败（Runner.app 可能是空壳）
+        raise RuntimeError(
+            f"IPA too small ({size} bytes) — likely empty/invalid build. "
+            f"asset={ipa_asset}"
+        )
+
+    ipa_download_url = (
+        f"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/download/"
+        f"{version}/{ipa_asset['name']}"
+    )
     return {
-        "version_tag": tag,
         "run_id": run_id,
-        "run_url": run_url,
-        "release_url": release_url,
-        "ipa_name": ipa.get("name"),
-        "ipa_url": ipa.get("url") or f"https://github.com/{REPO}/releases/download/{tag}/{ipa.get('name')}",
-        "ipa_download_url": f"https://github.com/{REPO}/releases/download/{tag}/{ipa.get('name')}",
-        "ipa_size_bytes": ipa.get("size"),
+        "run_url": info.get("url", ""),
+        "release_url": (release.get("url")
+                        or f"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/{version}"),
+        "ipa_name": ipa_asset["name"],
+        "ipa_size_bytes": size,
+        "ipa_download_url": ipa_download_url,
         "duration_sec": duration,
     }
 
 
 def main() -> int:
-    log(f"iOS packaging started for repo {REPO}")
-    log(f"Workflow: {WORKFLOW_PATH}")
+    log("=" * 60)
+    log("iOS IPA remote build starting ...")
+    log("=" * 60)
+    ensure_workflow_exists()
 
-    # Optional: adopt an existing in-progress run via CLI args: --adopt <run_id> --tag <tag>
-    adopt_run_id = None
-    adopt_tag = None
-    args = sys.argv[1:]
-    i = 0
-    while i < len(args):
-        if args[i] == "--adopt" and i + 1 < len(args):
-            adopt_run_id = args[i + 1]; i += 2
-        elif args[i] == "--tag" and i + 1 < len(args):
-            adopt_tag = args[i + 1]; i += 2
-        else:
-            i += 1
-
-    attempts = []
-    for attempt in range(1, MAX_BUILD_ATTEMPTS + 1):
-        if attempt == 1 and adopt_run_id and adopt_tag:
-            tag = adopt_tag
-            log(f"=== Attempt {attempt}/{MAX_BUILD_ATTEMPTS} ; adopting run {adopt_run_id} tag={tag} ===")
-        else:
-            tag = gen_version_tag()
-            log(f"=== Attempt {attempt}/{MAX_BUILD_ATTEMPTS} ; tag={tag} ===")
+    attempts = 0
+    last_err: Optional[str] = None
+    last_version: Optional[str] = None
+    while attempts < MAX_BUILD_ATTEMPTS + 1:
+        attempts += 1
+        version = gen_version_tag()
+        last_version = version
+        log(f"--- attempt {attempts}/{MAX_BUILD_ATTEMPTS + 1}  version={version} ---")
         try:
-            if attempt == 1 and adopt_run_id and adopt_tag:
-                result = build_once(tag, adopt_run_id=adopt_run_id)
-                adopt_run_id = None  # only once
-            else:
-                result = build_once(tag)
-            result["attempts"] = attempt
-            print("\n=== iOS BUILD RESULT ===")
-            print(json.dumps(result, indent=2, ensure_ascii=False))
-            # Human-readable summary
-            size_mb = (result["ipa_size_bytes"] or 0) / 1024 / 1024
-            print("\n--- Summary ---")
-            print(f"Version Tag       : {result['version_tag']}")
-            print(f"Release Page URL  : {result['release_url']}")
-            print(f"IPA Download URL  : {result['ipa_download_url']}")
-            print(f"IPA Size          : {size_mb:.2f} MiB ({result['ipa_size_bytes']} bytes)")
-            print(f"Build Duration    : {result['duration_sec']}s")
-            print(f"Actions Run URL   : {result['run_url']}")
-            # Persist JSON next to script
-            out_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "package_ios_ui_polish_result.json")
-            with open(out_path, "w", encoding="utf-8") as f:
-                json.dump(result, f, indent=2, ensure_ascii=False)
-            log(f"Result saved to {out_path}")
+            info = build_once(version)
+            info["version_tag"] = version
+            info["attempts"] = attempts
+            info["ipa_url"] = info["ipa_download_url"]
+            log("=" * 60)
+            log("BUILD SUCCEEDED")
+            for k, v in info.items():
+                log(f"  {k}: {v}")
+            log("=" * 60)
+            RESULT_JSON.write_text(
+                json.dumps(info, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
+            flush_log()
             return 0
-        except Exception as e:
-            err_msg = str(e)
-            log(f"Attempt {attempt} failed: {err_msg[:500]}")
-            attempts.append({"tag": tag, "error": err_msg})
-            if attempt < MAX_BUILD_ATTEMPTS:
-                log("Will retry with a fresh tag after 15s...")
-                time.sleep(15)
+        except Exception as e:  # noqa: BLE001
+            last_err = str(e)
+            log(f"ATTEMPT {attempts} FAILED: {e}")
+            if attempts > MAX_BUILD_ATTEMPTS:
+                break
+            log(f"will retry (attempt {attempts + 1}) after 15s ...")
+            time.sleep(15)
 
-    print("\n=== iOS BUILD FAILED ===")
-    print(json.dumps({"attempts": attempts}, indent=2, ensure_ascii=False))
+    # 全部失败
+    fail_info = {
+        "version_tag": last_version,
+        "attempts": attempts,
+        "success": False,
+        "error": last_err,
+    }
+    RESULT_JSON.write_text(
+        json.dumps(fail_info, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    log("=" * 60)
+    log("BUILD FAILED")
+    log(last_err or "")
+    log("=" * 60)
+    flush_log()
     return 1
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        rc = main()
+    except Exception as e:  # noqa: BLE001
+        log(f"FATAL: {e}")
+        flush_log()
+        rc = 2
+    flush_log()
+    sys.exit(rc)

@@ -1,0 +1,24 @@
+{
+  "success": true,
+  "apk_name": "app_20260423_021006_3b7d.apk",
+  "download_url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/static/downloads/app_20260423_021006_3b7d.apk",
+  "file_size_bytes": 83333363,
+  "file_size_mb": 79.47,
+  "release_page": "https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/android-v20260423-021006-3b7d",
+  "github_tag": "android-v20260423-021006-3b7d",
+  "github_run_id": 24794671447,
+  "http_verification": {
+    "status": 200,
+    "content_type": "application/octet-stream",
+    "content_length": 83333363
+  },
+  "build_duration_sec_success": 490,
+  "build_attempts_total": 5,
+  "workflow_fixes_applied": [
+    "bumped Flutter version 3.24.0 -> 3.32.0 (for CardThemeData API + Dart 3.6+ support)",
+    "removed '|| true' swallow on flutter build apk so failures surface immediately",
+    "added patch step to strip deprecated V1 embedding 'Registrar' from image_gallery_saver 2.0.3 Kotlin plugin"
+  ],
+  "script_path": "deploy/package_android_ui_polish.py",
+  "workflow_file": ".github/workflows/android-build.yml"
+}

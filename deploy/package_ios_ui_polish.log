@@ -1,0 +1,368 @@
+[2026-04-23 01:46:34] ============================================================
+[2026-04-23 01:46:34] iOS IPA remote build starting ...
+[2026-04-23 01:46:34] ============================================================
+[2026-04-23 01:46:34] workflow OK: .github/workflows/ios-build.yml (6574 bytes)
+[2026-04-23 01:46:34] --- attempt 1/3  version=ios-v20260423-014634-7df1 ---
+[2026-04-23 01:46:34] trigger workflow with version=ios-v20260423-014634-7df1
+[2026-04-23 01:46:34] $ gh workflow run ios-build.yml -f version=ios-v20260423-014634-7df1
+[2026-04-23 01:46:41] $ gh run list --workflow ios-build.yml --limit 5 --json databaseId,status,conclusion,createdAt,displayTitle,name,event
+[2026-04-23 01:46:41]   | [{"conclusion":"","createdAt":"2026-04-22T17:46:35Z","databaseId":24793583034,"displayTitle":"iOS Build","event":"workflow_dispatch","name":"iOS Build","status":"queued"},{"conclusion":"","createdAt":"2026-04-22T17:43:13Z","databaseId":24793424489,"displayTitle":"iOS Build","event":"workflow_dispatch","name":"iOS Build","status":"in_progress"},{"conclusion":"success","createdAt":"2026-04-22T17:38:25Z","databaseId":24793210600,"displayTitle":"iOS Build","event":"workflow_dispatch","name":"iOS Build","status":"completed"},{"conclusion":"success","createdAt":"2026-04-22T17:35:55Z","databaseId":24793097896,"displayTitle":"iOS Build","event":"workflow_dispatch","name":"iOS Build","status":"completed"},{"conclusion":"success","createdAt":"2026-04-21T08:46:23Z","databaseId":24712997928,"displayTitle":"iOS Build","event":"workflow_dispatch","name":"iOS Build","status":"completed"}]
+[2026-04-23 01:46:41] latest dispatch run: id=24793583034 created=2026-04-22T17:46:35Z status=queued
+[2026-04-23 01:46:41] $ gh run view 24793583034 --json status,conclusion,displayTitle,htmlUrl,jobs
+[2026-04-23 01:46:41]   !! Unknown JSON field: "htmlUrl"
+[2026-04-23 01:46:41]   !! Available fields:
+[2026-04-23 01:46:41]   !!   attempt
+[2026-04-23 01:46:41]   !!   conclusion
+[2026-04-23 01:46:41]   !!   createdAt
+[2026-04-23 01:46:41]   !!   databaseId
+[2026-04-23 01:46:41]   !!   displayTitle
+[2026-04-23 01:46:41]   !!   event
+[2026-04-23 01:46:41]   !!   headBranch
+[2026-04-23 01:46:41]   !!   headSha
+[2026-04-23 01:46:41]   !!   jobs
+[2026-04-23 01:46:41]   !!   name
+[2026-04-23 01:46:41]   !!   number
+[2026-04-23 01:46:41]   !!   startedAt
+[2026-04-23 01:46:41]   !!   status
+[2026-04-23 01:46:41]   !!   updatedAt
+[2026-04-23 01:46:41]   !!   url
+[2026-04-23 01:46:41]   !!   workflowDatabaseId
+[2026-04-23 01:46:41]   !!   workflowName
+[2026-04-23 01:46:41] retry in 10s (attempt 2) ...
+[2026-04-23 01:46:51] $ gh run view 24793583034 --json status,conclusion,displayTitle,htmlUrl,jobs
+[2026-04-23 01:46:51]   !! Unknown JSON field: "htmlUrl"
+[2026-04-23 01:46:51]   !! Available fields:
+[2026-04-23 01:46:51]   !!   attempt
+[2026-04-23 01:46:51]   !!   conclusion
+[2026-04-23 01:46:51]   !!   createdAt
+[2026-04-23 01:46:51]   !!   databaseId
+[2026-04-23 01:46:51]   !!   displayTitle
+[2026-04-23 01:46:51]   !!   event
+[2026-04-23 01:46:51]   !!   headBranch
+[2026-04-23 01:46:51]   !!   headSha
+[2026-04-23 01:46:51]   !!   jobs
+[2026-04-23 01:46:51]   !!   name
+[2026-04-23 01:46:51]   !!   number
+[2026-04-23 01:46:51]   !!   startedAt
+[2026-04-23 01:46:51]   !!   status
+[2026-04-23 01:46:51]   !!   updatedAt
+[2026-04-23 01:46:51]   !!   url
+[2026-04-23 01:46:51]   !!   workflowDatabaseId
+[2026-04-23 01:46:51]   !!   workflowName
+[2026-04-23 01:46:51] retry in 20s (attempt 3) ...
+[2026-04-23 01:47:11] $ gh run view 24793583034 --json status,conclusion,displayTitle,htmlUrl,jobs
+[2026-04-23 01:47:11]   !! Unknown JSON field: "htmlUrl"
+[2026-04-23 01:47:11]   !! Available fields:
+[2026-04-23 01:47:11]   !!   attempt
+[2026-04-23 01:47:11]   !!   conclusion
+[2026-04-23 01:47:11]   !!   createdAt
+[2026-04-23 01:47:11]   !!   databaseId
+[2026-04-23 01:47:11]   !!   displayTitle
+[2026-04-23 01:47:11]   !!   event
+[2026-04-23 01:47:11]   !!   headBranch
+[2026-04-23 01:47:11]   !!   headSha
+[2026-04-23 01:47:11]   !!   jobs
+[2026-04-23 01:47:11]   !!   name
+[2026-04-23 01:47:11]   !!   number
+[2026-04-23 01:47:11]   !!   startedAt
+[2026-04-23 01:47:11]   !!   status
+[2026-04-23 01:47:11]   !!   updatedAt
+[2026-04-23 01:47:11]   !!   url
+[2026-04-23 01:47:11]   !!   workflowDatabaseId
+[2026-04-23 01:47:11]   !!   workflowName
+[2026-04-23 01:47:11] retry in 40s (attempt 4) ...
+[2026-04-23 01:47:51] $ gh run view 24793583034 --json status,conclusion,displayTitle,htmlUrl,jobs
+[2026-04-23 01:47:52]   !! Unknown JSON field: "htmlUrl"
+[2026-04-23 01:47:52]   !! Available fields:
+[2026-04-23 01:47:52]   !!   attempt
+[2026-04-23 01:47:52]   !!   conclusion
+[2026-04-23 01:47:52]   !!   createdAt
+[2026-04-23 01:47:52]   !!   databaseId
+[2026-04-23 01:47:52]   !!   displayTitle
+[2026-04-23 01:47:52]   !!   event
+[2026-04-23 01:47:52]   !!   headBranch
+[2026-04-23 01:47:52]   !!   headSha
+[2026-04-23 01:47:52]   !!   jobs
+[2026-04-23 01:47:52]   !!   name
+[2026-04-23 01:47:52]   !!   number
+[2026-04-23 01:47:52]   !!   startedAt
+[2026-04-23 01:47:52]   !!   status
+[2026-04-23 01:47:52]   !!   updatedAt
+[2026-04-23 01:47:52]   !!   url
+[2026-04-23 01:47:52]   !!   workflowDatabaseId
+[2026-04-23 01:47:52]   !!   workflowName
+[2026-04-23 01:47:52] ATTEMPT 1 FAILED: command failed after retries: gh run view 24793583034 --json status,conclusion,displayTitle,htmlUrl,jobs: rc=1, stderr=Unknown JSON field: "htmlUrl"
+Available fields:
+  attempt
+  conclusion
+  createdAt
+  databaseId
+  displayTitle
+  event
+  headBranch
+  headSha
+  jobs
+  name
+  number
+  startedAt
+  status
+  updatedAt
+  url
+  workflowDatabaseId
+  workflowName
+[2026-04-23 01:47:52] will retry (attempt 2) after 15s ...
+[2026-04-23 01:48:07] --- attempt 2/3  version=ios-v20260423-014807-7570 ---
+[2026-04-23 01:48:07] trigger workflow with version=ios-v20260423-014807-7570
+[2026-04-23 01:48:07] $ gh workflow run ios-build.yml -f version=ios-v20260423-014807-7570
+[2026-04-23 01:48:13] $ gh run list --workflow ios-build.yml --limit 5 --json databaseId,status,conclusion,createdAt,displayTitle,name,event
+[2026-04-23 01:48:14]   | [{"conclusion":"","createdAt":"2026-04-22T17:48:08Z","databaseId":24793653867,"displayTitle":"iOS Build","event":"workflow_dispatch","name":"iOS Build","status":"in_progress"},{"conclusion":"","createdAt":"2026-04-22T17:46:35Z","databaseId":24793583034,"displayTitle":"iOS Build","event":"workflow_dispatch","name":"iOS Build","status":"in_progress"},{"conclusion":"","createdAt":"2026-04-22T17:43:13Z","databaseId":24793424489,"displayTitle":"iOS Build","event":"workflow_dispatch","name":"iOS Build","status":"in_progress"},{"conclusion":"success","createdAt":"2026-04-22T17:38:25Z","databaseId":24793210600,"displayTitle":"iOS Build","event":"workflow_dispatch","name":"iOS Build","status":"completed"},{"conclusion":"success","createdAt":"2026-04-22T17:35:55Z","databaseId":24793097896,"displayTitle":"iOS Build","event":"workflow_dispatch","name":"iOS Build","status":"completed"}]
+[2026-04-23 01:48:14] latest dispatch run: id=24793653867 created=2026-04-22T17:48:08Z status=in_progress
+[2026-04-23 01:48:14] $ gh run view 24793653867 --json status,conclusion,displayTitle,htmlUrl,jobs
+[2026-04-23 01:48:14]   !! Unknown JSON field: "htmlUrl"
+[2026-04-23 01:48:14]   !! Available fields:
+[2026-04-23 01:48:14]   !!   attempt
+[2026-04-23 01:48:14]   !!   conclusion
+[2026-04-23 01:48:14]   !!   createdAt
+[2026-04-23 01:48:14]   !!   databaseId
+[2026-04-23 01:48:14]   !!   displayTitle
+[2026-04-23 01:48:14]   !!   event
+[2026-04-23 01:48:14]   !!   headBranch
+[2026-04-23 01:48:14]   !!   headSha
+[2026-04-23 01:48:14]   !!   jobs
+[2026-04-23 01:48:14]   !!   name
+[2026-04-23 01:48:14]   !!   number
+[2026-04-23 01:48:14]   !!   startedAt
+[2026-04-23 01:48:14]   !!   status
+[2026-04-23 01:48:14]   !!   updatedAt
+[2026-04-23 01:48:14]   !!   url
+[2026-04-23 01:48:14]   !!   workflowDatabaseId
+[2026-04-23 01:48:14]   !!   workflowName
+[2026-04-23 01:48:14] retry in 10s (attempt 2) ...
+[2026-04-23 01:48:24] $ gh run view 24793653867 --json status,conclusion,displayTitle,htmlUrl,jobs
+[2026-04-23 01:48:24]   !! Unknown JSON field: "htmlUrl"
+[2026-04-23 01:48:24]   !! Available fields:
+[2026-04-23 01:48:24]   !!   attempt
+[2026-04-23 01:48:24]   !!   conclusion
+[2026-04-23 01:48:24]   !!   createdAt
+[2026-04-23 01:48:24]   !!   databaseId
+[2026-04-23 01:48:24]   !!   displayTitle
+[2026-04-23 01:48:24]   !!   event
+[2026-04-23 01:48:24]   !!   headBranch
+[2026-04-23 01:48:24]   !!   headSha
+[2026-04-23 01:48:24]   !!   jobs
+[2026-04-23 01:48:24]   !!   name
+[2026-04-23 01:48:24]   !!   number
+[2026-04-23 01:48:24]   !!   startedAt
+[2026-04-23 01:48:24]   !!   status
+[2026-04-23 01:48:24]   !!   updatedAt
+[2026-04-23 01:48:24]   !!   url
+[2026-04-23 01:48:24]   !!   workflowDatabaseId
+[2026-04-23 01:48:24]   !!   workflowName
+[2026-04-23 01:48:24] retry in 20s (attempt 3) ...
+[2026-04-23 01:48:44] $ gh run view 24793653867 --json status,conclusion,displayTitle,htmlUrl,jobs
+[2026-04-23 01:48:44]   !! Unknown JSON field: "htmlUrl"
+[2026-04-23 01:48:44]   !! Available fields:
+[2026-04-23 01:48:44]   !!   attempt
+[2026-04-23 01:48:44]   !!   conclusion
+[2026-04-23 01:48:44]   !!   createdAt
+[2026-04-23 01:48:44]   !!   databaseId
+[2026-04-23 01:48:44]   !!   displayTitle
+[2026-04-23 01:48:44]   !!   event
+[2026-04-23 01:48:44]   !!   headBranch
+[2026-04-23 01:48:44]   !!   headSha
+[2026-04-23 01:48:44]   !!   jobs
+[2026-04-23 01:48:44]   !!   name
+[2026-04-23 01:48:44]   !!   number
+[2026-04-23 01:48:44]   !!   startedAt
+[2026-04-23 01:48:44]   !!   status
+[2026-04-23 01:48:44]   !!   updatedAt
+[2026-04-23 01:48:44]   !!   url
+[2026-04-23 01:48:44]   !!   workflowDatabaseId
+[2026-04-23 01:48:44]   !!   workflowName
+[2026-04-23 01:48:44] retry in 40s (attempt 4) ...
+[2026-04-23 01:49:24] $ gh run view 24793653867 --json status,conclusion,displayTitle,htmlUrl,jobs
+[2026-04-23 01:49:24]   !! Unknown JSON field: "htmlUrl"
+[2026-04-23 01:49:24]   !! Available fields:
+[2026-04-23 01:49:24]   !!   attempt
+[2026-04-23 01:49:24]   !!   conclusion
+[2026-04-23 01:49:24]   !!   createdAt
+[2026-04-23 01:49:24]   !!   databaseId
+[2026-04-23 01:49:24]   !!   displayTitle
+[2026-04-23 01:49:24]   !!   event
+[2026-04-23 01:49:24]   !!   headBranch
+[2026-04-23 01:49:24]   !!   headSha
+[2026-04-23 01:49:24]   !!   jobs
+[2026-04-23 01:49:24]   !!   name
+[2026-04-23 01:49:24]   !!   number
+[2026-04-23 01:49:24]   !!   startedAt
+[2026-04-23 01:49:24]   !!   status
+[2026-04-23 01:49:24]   !!   updatedAt
+[2026-04-23 01:49:24]   !!   url
+[2026-04-23 01:49:24]   !!   workflowDatabaseId
+[2026-04-23 01:49:24]   !!   workflowName
+[2026-04-23 01:49:24] ATTEMPT 2 FAILED: command failed after retries: gh run view 24793653867 --json status,conclusion,displayTitle,htmlUrl,jobs: rc=1, stderr=Unknown JSON field: "htmlUrl"
+Available fields:
+  attempt
+  conclusion
+  createdAt
+  databaseId
+  displayTitle
+  event
+  headBranch
+  headSha
+  jobs
+  name
+  number
+  startedAt
+  status
+  updatedAt
+  url
+  workflowDatabaseId
+  workflowName
+[2026-04-23 01:49:24] will retry (attempt 3) after 15s ...
+[2026-04-23 01:49:39] --- attempt 3/3  version=ios-v20260423-014939-808a ---
+[2026-04-23 01:49:39] trigger workflow with version=ios-v20260423-014939-808a
+[2026-04-23 01:49:39] $ gh workflow run ios-build.yml -f version=ios-v20260423-014939-808a
+[2026-04-23 01:49:46] $ gh run list --workflow ios-build.yml --limit 5 --json databaseId,status,conclusion,createdAt,displayTitle,name,event
+[2026-04-23 01:49:47]   | [{"conclusion":"","createdAt":"2026-04-22T17:49:41Z","databaseId":24793726306,"displayTitle":"iOS Build","event":"workflow_dispatch","name":"iOS Build","status":"queued"},{"conclusion":"","createdAt":"2026-04-22T17:48:08Z","databaseId":24793653867,"displayTitle":"iOS Build","event":"workflow_dispatch","name":"iOS Build","status":"in_progress"},{"conclusion":"","createdAt":"2026-04-22T17:46:35Z","databaseId":24793583034,"displayTitle":"iOS Build","event":"workflow_dispatch","name":"iOS Build","status":"in_progress"},{"conclusion":"success","createdAt":"2026-04-22T17:43:13Z","databaseId":24793424489,"displayTitle":"iOS Build","event":"workflow_dispatch","name":"iOS Build","status":"completed"},{"conclusion":"success","createdAt":"2026-04-22T17:38:25Z","databaseId":24793210600,"displayTitle":"iOS Build","event":"workflow_dispatch","name":"iOS Build","status":"completed"}]
+[2026-04-23 01:49:47] latest dispatch run: id=24793726306 created=2026-04-22T17:49:41Z status=queued
+[2026-04-23 01:49:47] $ gh run view 24793726306 --json status,conclusion,displayTitle,htmlUrl,jobs
+[2026-04-23 01:49:47]   !! Unknown JSON field: "htmlUrl"
+[2026-04-23 01:49:47]   !! Available fields:
+[2026-04-23 01:49:47]   !!   attempt
+[2026-04-23 01:49:47]   !!   conclusion
+[2026-04-23 01:49:47]   !!   createdAt
+[2026-04-23 01:49:47]   !!   databaseId
+[2026-04-23 01:49:47]   !!   displayTitle
+[2026-04-23 01:49:47]   !!   event
+[2026-04-23 01:49:47]   !!   headBranch
+[2026-04-23 01:49:47]   !!   headSha
+[2026-04-23 01:49:47]   !!   jobs
+[2026-04-23 01:49:47]   !!   name
+[2026-04-23 01:49:47]   !!   number
+[2026-04-23 01:49:47]   !!   startedAt
+[2026-04-23 01:49:47]   !!   status
+[2026-04-23 01:49:47]   !!   updatedAt
+[2026-04-23 01:49:47]   !!   url
+[2026-04-23 01:49:47]   !!   workflowDatabaseId
+[2026-04-23 01:49:47]   !!   workflowName
+[2026-04-23 01:49:47] retry in 10s (attempt 2) ...
+[2026-04-23 01:49:57] $ gh run view 24793726306 --json status,conclusion,displayTitle,htmlUrl,jobs
+[2026-04-23 01:49:57]   !! Unknown JSON field: "htmlUrl"
+[2026-04-23 01:49:57]   !! Available fields:
+[2026-04-23 01:49:57]   !!   attempt
+[2026-04-23 01:49:57]   !!   conclusion
+[2026-04-23 01:49:57]   !!   createdAt
+[2026-04-23 01:49:57]   !!   databaseId
+[2026-04-23 01:49:57]   !!   displayTitle
+[2026-04-23 01:49:57]   !!   event
+[2026-04-23 01:49:57]   !!   headBranch
+[2026-04-23 01:49:57]   !!   headSha
+[2026-04-23 01:49:57]   !!   jobs
+[2026-04-23 01:49:57]   !!   name
+[2026-04-23 01:49:57]   !!   number
+[2026-04-23 01:49:57]   !!   startedAt
+[2026-04-23 01:49:57]   !!   status
+[2026-04-23 01:49:57]   !!   updatedAt
+[2026-04-23 01:49:57]   !!   url
+[2026-04-23 01:49:57]   !!   workflowDatabaseId
+[2026-04-23 01:49:57]   !!   workflowName
+[2026-04-23 01:49:57] retry in 20s (attempt 3) ...
+[2026-04-23 01:50:17] $ gh run view 24793726306 --json status,conclusion,displayTitle,htmlUrl,jobs
+[2026-04-23 01:50:17]   !! Unknown JSON field: "htmlUrl"
+[2026-04-23 01:50:17]   !! Available fields:
+[2026-04-23 01:50:17]   !!   attempt
+[2026-04-23 01:50:17]   !!   conclusion
+[2026-04-23 01:50:17]   !!   createdAt
+[2026-04-23 01:50:17]   !!   databaseId
+[2026-04-23 01:50:17]   !!   displayTitle
+[2026-04-23 01:50:17]   !!   event
+[2026-04-23 01:50:17]   !!   headBranch
+[2026-04-23 01:50:17]   !!   headSha
+[2026-04-23 01:50:17]   !!   jobs
+[2026-04-23 01:50:17]   !!   name
+[2026-04-23 01:50:17]   !!   number
+[2026-04-23 01:50:17]   !!   startedAt
+[2026-04-23 01:50:17]   !!   status
+[2026-04-23 01:50:17]   !!   updatedAt
+[2026-04-23 01:50:17]   !!   url
+[2026-04-23 01:50:17]   !!   workflowDatabaseId
+[2026-04-23 01:50:17]   !!   workflowName
+[2026-04-23 01:50:17] retry in 40s (attempt 4) ...
+[2026-04-23 01:50:57] $ gh run view 24793726306 --json status,conclusion,displayTitle,htmlUrl,jobs
+[2026-04-23 01:50:57]   !! Unknown JSON field: "htmlUrl"
+[2026-04-23 01:50:57]   !! Available fields:
+[2026-04-23 01:50:57]   !!   attempt
+[2026-04-23 01:50:57]   !!   conclusion
+[2026-04-23 01:50:57]   !!   createdAt
+[2026-04-23 01:50:57]   !!   databaseId
+[2026-04-23 01:50:57]   !!   displayTitle
+[2026-04-23 01:50:57]   !!   event
+[2026-04-23 01:50:57]   !!   headBranch
+[2026-04-23 01:50:57]   !!   headSha
+[2026-04-23 01:50:57]   !!   jobs
+[2026-04-23 01:50:57]   !!   name
+[2026-04-23 01:50:57]   !!   number
+[2026-04-23 01:50:57]   !!   startedAt
+[2026-04-23 01:50:57]   !!   status
+[2026-04-23 01:50:57]   !!   updatedAt
+[2026-04-23 01:50:57]   !!   url
+[2026-04-23 01:50:57]   !!   workflowDatabaseId
+[2026-04-23 01:50:57]   !!   workflowName
+[2026-04-23 01:50:57] ATTEMPT 3 FAILED: command failed after retries: gh run view 24793726306 --json status,conclusion,displayTitle,htmlUrl,jobs: rc=1, stderr=Unknown JSON field: "htmlUrl"
+Available fields:
+  attempt
+  conclusion
+  createdAt
+  databaseId
+  displayTitle
+  event
+  headBranch
+  headSha
+  jobs
+  name
+  number
+  startedAt
+  status
+  updatedAt
+  url
+  workflowDatabaseId
+  workflowName
+[2026-04-23 01:50:57] ============================================================
+[2026-04-23 01:50:57] BUILD FAILED
+[2026-04-23 01:50:57] command failed after retries: gh run view 24793726306 --json status,conclusion,displayTitle,htmlUrl,jobs: rc=1, stderr=Unknown JSON field: "htmlUrl"
+Available fields:
+  attempt
+  conclusion
+  createdAt
+  databaseId
+  displayTitle
+  event
+  headBranch
+  headSha
+  jobs
+  name
+  number
+  startedAt
+  status
+  updatedAt
+  url
+  workflowDatabaseId
+  workflowName
+[2026-04-23 01:50:57] ============================================================[2026-04-23 01:51:15] status=in_progress conclusion= jobs=[build=in_progress/]
+[2026-04-23 01:51:46] status=in_progress conclusion= jobs=[build=in_progress/]
+[2026-04-23 01:52:17] status=in_progress conclusion= jobs=[build=in_progress/]
+[2026-04-23 01:52:48] status=in_progress conclusion= jobs=[build=in_progress/]
+[2026-04-23 01:53:19] status=completed conclusion=success jobs=[build=completed/success]
+[2026-04-23 01:53:19] === SUCCESS ===
+[2026-04-23 01:53:19]   version_tag: ios-v20260423-014634-7df1
+[2026-04-23 01:53:19]   run_id: 24793583034
+[2026-04-23 01:53:19]   run_url: https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/24793583034
+[2026-04-23 01:53:19]   release_url: https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-v20260423-014634-7df1
+[2026-04-23 01:53:19]   ipa_name: bini_health_ios.ipa
+[2026-04-23 01:53:19]   ipa_size_bytes: 33549242
+[2026-04-23 01:53:19]   ipa_url: https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/download/ios-v20260423-014634-7df1/bini_health_ios.ipa
+[2026-04-23 01:53:19]   ipa_download_url: https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/download/ios-v20260423-014634-7df1/bini_health_ios.ipa
+[2026-04-23 01:53:19]   duration_sec: 31536405
+[2026-04-23 01:53:19]   attempts: 1
+[2026-04-23 01:53:19]   success: True

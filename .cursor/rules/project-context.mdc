@@ -33,7 +33,51 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 接口改造清单 v2（Restful 化 / 2026-04-23）
+## Latest Update: 用户端界面细节优化 v1.0（2026-04-23）
+
+### 概要
+按《用户端界面细节优化 PRD v1.0》完成三端同步 UI 细节优化：
+1) AI 健康咨询主页顶部标题栏移除渐变圆形 "AI" 头像，标题 "AI健康咨询" 水平居中（H5 + 小程序）；Flutter 原本已是 centerTitle=true 无 AI 头像，无需改。
+2) "+新建对话" 按钮：加号与文字间空格去除（紧贴），按钮内水平+垂直居中（H5 ChatSidebar、小程序 ai 页 + chat-drawer 组件、Flutter widgets/chat_history_drawer 的按钮文案由"新对话"统一为"+新建对话"）。
+3) "+新增地址" 按钮：同 2，去空格 + 居中（H5 my-addresses、小程序 my-addresses）。Flutter 地址列表页使用 FAB 图标，不含文案按钮，不在 PRD 范围内，保持原样。
+
+### 关键变更
+- **h5-web**：
+  - `src/app/(tabs)/ai/page.tsx`：标题栏删除 `ai-avatar-gradient` span 及相关 flex gap，只保留居中 `h1`。
+  - `src/components/ChatSidebar.tsx`：`新建对话` Button 改为 `+新建对话`，移除 `AddOutline` 图标，按钮样式加 flex + justifyContent:center + lineHeight:1 + padding:0 + textAlign:center，文本包装在居中 span 中。
+  - `src/app/my-addresses/page.tsx`：`新增地址` Button 同 ChatSidebar 改造。
+- **miniprogram**：
+  - `pages/ai/index.wxml`：删除 `ai-avatar-gradient` view；按钮文案 `+ 新建对话 → +新建对话`。
+  - `pages/ai/index.wxss`：`.page-title-wrap` 改为 flex:1 + justify-content:center；`.new-chat-btn` 加 display:flex + align-items/justify-content:center + line-height:1；`.new-chat-text` 加 text-align:center + line-height:1。
+  - `pages/my-addresses/index.wxml`：`+ 新增地址 → +新增地址`。
+  - `pages/my-addresses/index.wxss`：`.add-btn` 加 display:flex + 水平垂直居中 + line-height:1。
+  - `components/chat-drawer/chat-drawer.wxml`：按钮内两个 text（btn-icon + btn-text）合并为单个 `+新建对话` text。
+  - `components/chat-drawer/chat-drawer.wxss`：`.new-chat-btn` 去掉 gap，加 line-height:1；`.btn-text` 加 text-align:center + line-height:1。
+- **flutter_app**：
+  - `lib/widgets/chat_history_drawer.dart`：原 `Row(Icon(Icons.add) + Text('新对话'))` → `Center(Text('+新建对话'))`，文本严格居中。
+- **deploy**：
+  - `deploy/deploy_ui_polish_20260423.py`（新增）：SFTP 上传改动的 3 个 H5 文件 + docker compose build/up h5-web。
+  - `deploy/check_links_ui_polish_20260423.py`（新增）：9 条关键链接 HTTPS 校验（首页/AI/我的地址/profile/home/admin/api/health/api/docs/api/openapi）。
+  - `deploy/package_mp_ui_polish.py`（新增）：zip 打包 miniprogram 并 SFTP 上传服务器静态下载目录。
+  - `deploy/package_android_ui_polish.py`（新增）：GitHub Actions 安卓构建 + release 下载 + SFTP 上传；修复 android-build.yml 的 Flutter 版本 3.24→3.32 与 image_gallery_saver Kotlin V1 Registrar 兼容补丁。
+  - `deploy/package_ios_ui_polish.py`（新增）：GitHub Actions iOS 构建（macos-latest，--no-codesign，IPA 33.5MB）。
+- **ci**：`.github/workflows/android-build.yml` 升级 Flutter 到 3.32.0，新增 image_gallery_saver V1 Registrar 兼容 patch 步骤。
+
+### 验收结果
+- 链接验证：9/9 全部通过。
+- 小程序 zip：`miniprogram_20260423_014540_e732.zip`（337 KB，316 文件），HTTPS 200 可达。
+- 安卓 APK：`app_20260423_021006_3b7d.apk`（79 MB），HTTPS 200 可达。
+- iOS IPA：`bini_health_ios.ipa`（32 MB），GitHub Release `ios-v20260423-014634-7df1` 可下载（未签名，需侧载）。
+
+### 用户手册
+- `user_docs/用户端界面细节优化.md`
+
+### 说明 / 未做
+- PRD 非目标：未改历史对话列表页/详情页/设置页的标题栏，未改按钮视觉规格/点击态/禁用态/加载态，未改埋点。后端接口无改动。
+
+---
+
+## Previous Update: 接口改造清单 v2（Restful 化 / 2026-04-23）
 
 ### 概要
 按《接口改造清单（速查版）》对体检报告对话化功能做 Restful 化升级：新增 6 条 `/api/checkup/*` + `/api/chat/sessions/*` 路径、扩展 2 条既有接口、下线 3 条老接口（返回 410 Gone）、OCR 批量识别不再同步 analyze 而是懒加载创建 interpret 会话。老接口保留兼容。远程部署通过 SFTP（GitHub 不可达）完成，全量 18/18 链接验证通过。
