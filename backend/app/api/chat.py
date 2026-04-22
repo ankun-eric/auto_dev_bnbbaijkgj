@@ -627,3 +627,157 @@ async def websocket_chat(websocket: WebSocket, session_id: int):
         pass
     except Exception:
         await websocket.close()
+
+
+# ──────────────── [2026-04-23] 对话化 v2：通用会话详情 + SSE 流式接口 ────────────────
+
+
+@router.get("/sessions/{session_id}")
+async def get_session_detail(
+    session_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """会话详情。返回扩展字段：
+    - report_id：对话解读场景绑定的报告 id（report_interpret）
+    - report_ids：对比场景的报告 id 列表（report_compare）
+    - family_member：咨询人简要档案（id / nickname / relationship / gender / age / avatar）
+    - reports_brief：对话涉及的报告概要数组（title / report_date / thumbnail_url / file_url）
+    """
+    from app.models.models import CheckupReport as _CR
+
+    sess = await db.get(ChatSession, session_id)
+    if not sess or sess.user_id != current_user.id or sess.is_deleted:
+        raise HTTPException(status_code=404, detail="会话不存在")
+
+    stype = sess.session_type.value if hasattr(sess.session_type, "value") else str(sess.session_type)
+
+    # 报告 id / ids 解析
+    report_id_val: Optional[int] = getattr(sess, "report_id", None)
+    compare_ids_raw = getattr(sess, "compare_report_ids", None)
+    report_ids_val: list[int] = []
+    if compare_ids_raw:
+        try:
+            report_ids_val = [int(x.strip()) for x in str(compare_ids_raw).split(",") if x.strip()]
+        except Exception:
+            report_ids_val = []
+
+    # family_member 简要
+    family_member_brief = None
+    if sess.family_member_id:
+        fm_r = await db.execute(
+            select(FamilyMember).where(FamilyMember.id == sess.family_member_id)
+        )
+        fm = fm_r.scalar_one_or_none()
+        if fm:
+            age = None
+            if fm.birthday:
+                try:
+                    age = _calc_age(fm.birthday)
+                except Exception:
+                    age = None
+            family_member_brief = {
+                "id": fm.id,
+                "nickname": fm.nickname,
+                "relationship": fm.relationship_type,
+                "gender": fm.gender,
+                "age": age,
+                "avatar": getattr(fm, "avatar_url", None),
+            }
+
+    # reports_brief
+    reports_brief: list[dict] = []
+    rids_to_load: list[int] = []
+    if report_id_val:
+        rids_to_load.append(report_id_val)
+    if report_ids_val:
+        for rid in report_ids_val:
+            if rid not in rids_to_load:
+                rids_to_load.append(rid)
+    for rid in rids_to_load:
+        rep = await db.get(_CR, rid)
+        if rep and rep.user_id == current_user.id:
+            default_title = (
+                (rep.report_date or (rep.created_at.date() if rep.created_at else None))
+            )
+            title = getattr(rep, "title", None) or (
+                f"{default_title.strftime('%Y-%m-%d')} 体检报告" if default_title else "体检报告"
+            )
+            reports_brief.append({
+                "id": rep.id,
+                "title": title,
+                "report_date": rep.report_date.strftime("%Y-%m-%d") if rep.report_date else None,
+                "thumbnail_url": rep.thumbnail_url,
+                "file_url": rep.file_url,
+            })
+
+    return {
+        "id": sess.id,
+        "user_id": sess.user_id,
+        "title": sess.title,
+        "session_type": stype,
+        "family_member_id": sess.family_member_id,
+        "message_count": sess.message_count or 0,
+        "created_at": sess.created_at.isoformat() if sess.created_at else None,
+        "updated_at": sess.updated_at.isoformat() if sess.updated_at else None,
+        "report_id": report_id_val,
+        "report_ids": report_ids_val,
+        "family_member": family_member_brief,
+        "reports_brief": reports_brief,
+    }
+
+
+@router.get("/sessions/{session_id}/first-message-stream")
+async def sessions_first_message_stream(
+    session_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """会话首条消息 SSE 流式输出。
+
+    行为：若会话尚无 assistant 首条回复，调用 AI 流式生成并落库；
+    若已有，则以 done 事件一次性返回已有首条 assistant 内容。
+
+    兼容 `report_interpret` / `report_compare` 会话，以及其他会话类型。
+    内部复用 `report_interpret.interpret_stream` 的实现，`auto_start=1`。
+    """
+    from app.api.report_interpret import interpret_stream as _interpret_stream
+
+    return await _interpret_stream(
+        session_id=session_id,
+        auto_start=1,
+        current_user=current_user,
+        db=db,
+    )
+
+
+from pydantic import BaseModel as _ChatBaseModel  # 延迟导入，避免顶部改动
+
+
+class _MessagesStreamBody(_ChatBaseModel):
+    content: str
+
+
+@router.post("/sessions/{session_id}/messages-stream")
+async def sessions_messages_stream(
+    session_id: int,
+    body: _MessagesStreamBody = Body(...),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """用户追问消息 SSE 流式输出。
+
+    行为：保存 user 消息 → 流式调用 AI 生成 assistant 回复 → 落库。
+    内部复用 `report_interpret.interpret_chat_followup`。
+    """
+    from app.api.report_interpret import (
+        InterpretChatRequest as _IReq,
+        interpret_chat_followup as _interpret_chat,
+    )
+
+    return await _interpret_chat(
+        session_id=session_id,
+        body=_IReq(content=body.content),
+        current_user=current_user,
+        db=db,
+    )

@@ -58,6 +58,7 @@ from app.api import (
     referral,
     report,
     report_interpret,
+    checkup_api_v2,
     scan,
     search,
     service,
@@ -587,6 +588,7 @@ app.include_router(ai_center.router)
 app.include_router(report.router)
 app.include_router(report.admin_router)
 app.include_router(report_interpret.router)
+app.include_router(checkup_api_v2.router)
 app.include_router(ocr.router)
 app.include_router(ocr.admin_router)
 app.include_router(ocr_details.router)

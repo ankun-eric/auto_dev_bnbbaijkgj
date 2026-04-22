@@ -35,7 +35,7 @@ export default function CheckupDetailPage() {
     if (!id) return;
     (async () => {
       try {
-        const res = await api.get<ReportDetail>(`/api/report/interpret/detail/${id}`);
+        const res = await api.get<ReportDetail>(`/api/checkup/reports/${id}`);
         setData(res);
         setTitleInput(res.title || '');
       } catch (e: any) {
@@ -58,7 +58,7 @@ export default function CheckupDetailPage() {
     }
     setSavingTitle(true);
     try {
-      await api.put(`/api/report/interpret/${id}/title`, { title: t });
+      await api.put(`/api/checkup/reports/${id}`, { title: t });
       setData((prev) => (prev ? { ...prev, title: t } : prev));
       setEditingTitle(false);
       Toast.show({ icon: 'success', content: '已保存' });
@@ -79,8 +79,8 @@ export default function CheckupDetailPage() {
     const ok = await Dialog.confirm({ content: '该报告尚未开启 AI 解读，是否立即开始？' });
     if (!ok) return;
     try {
-      const resp: any = await api.post('/api/report/interpret/start', {
-        report_id: data.id,
+      // [2026-04-23] 使用新接口 ensure-session（幂等，老数据懒加载）
+      const resp: any = await api.post(`/api/checkup/reports/${data.id}/ensure-session`, {
         member_id: data.member_id,
       });
       const sid = resp?.session_id;

@@ -92,7 +92,8 @@ function CheckupChatContent() {
     if (!sessionId) return;
     (async () => {
       try {
-        const sess: any = await api.get(`/api/report/interpret/session/${sessionId}`);
+        // [2026-04-23] 切到新的统一 chat 会话详情接口（返回 report_id/report_ids/family_member/reports_brief）
+        const sess: any = await api.get(`/api/chat/sessions/${sessionId}`);
         setSession(sess);
 
         // 历史消息：跳过首条 user prompt（那是我们塞的系统提示词）
@@ -115,26 +116,40 @@ function CheckupChatContent() {
         }
         setMessages(mapped);
 
-        // 拉取报告信息
-        const rids = parseReportIdsFromSession(sess);
-        if (rids.length > 0) {
-          const details = await Promise.all(
-            rids.map((rid) =>
-              api.get<any>(`/api/report/interpret/detail/${rid}`).catch(() => null)
-            )
-          );
-          const rs: ReportMini[] = details
-            .filter(Boolean)
-            .map((d: any) => ({
-              id: d.id,
-              title: d.title,
-              file_url: d.images?.[0] || null,
-              thumbnail_url: d.images?.[0] || null,
-              created_at: d.created_at,
-              member_name: d.member_name,
-              member_relation: d.member_relation,
-            }));
+        // 拉取报告信息。优先使用新接口返回的 reports_brief；为空时再按 report_id/ids 拉详情。
+        let rs: ReportMini[] = [];
+        if (Array.isArray(sess?.reports_brief) && sess.reports_brief.length > 0) {
+          rs = sess.reports_brief.map((d: any) => ({
+            id: d.id,
+            title: d.title,
+            file_url: d.file_url || d.thumbnail_url || null,
+            thumbnail_url: d.thumbnail_url || d.file_url || null,
+            created_at: d.report_date || null,
+            member_name: sess?.family_member?.nickname,
+            member_relation: sess?.family_member?.relationship,
+          }));
           setReports(rs);
+        } else {
+          const rids = parseReportIdsFromSession(sess);
+          if (rids.length > 0) {
+            const details = await Promise.all(
+              rids.map((rid) =>
+                api.get<any>(`/api/checkup/reports/${rid}`).catch(() => null)
+              )
+            );
+            rs = details
+              .filter(Boolean)
+              .map((d: any) => ({
+                id: d.id,
+                title: d.title,
+                file_url: d.images?.[0] || null,
+                thumbnail_url: d.images?.[0] || null,
+                created_at: d.created_at,
+                member_name: d.member_name,
+                member_relation: d.member_relation,
+              }));
+            setReports(rs);
+          }
         }
 
         // 若没有 assistant 消息 && auto_start，则触发流式
@@ -177,7 +192,8 @@ function CheckupChatContent() {
     let body: string | undefined;
 
     if (userContent) {
-      url = `${basePath}/api/report/interpret/session/${sessionId}/chat`;
+      // [2026-04-23] 切换到 /api/chat/sessions/{id}/messages-stream（SSE）
+      url = `${basePath}/api/chat/sessions/${sessionId}/messages-stream`;
       method = 'POST';
       headers['Content-Type'] = 'application/json';
       body = JSON.stringify({ content: userContent });
@@ -187,7 +203,8 @@ function CheckupChatContent() {
         { id: `u-${Date.now()}`, role: 'user', content: userContent },
       ]);
     } else {
-      url = `${basePath}/api/report/interpret/session/${sessionId}/stream?auto_start=1`;
+      // [2026-04-23] 首条消息切换到 /api/chat/sessions/{id}/first-message-stream（SSE）
+      url = `${basePath}/api/chat/sessions/${sessionId}/first-message-stream`;
     }
 
     // UI 占位 assistant 消息

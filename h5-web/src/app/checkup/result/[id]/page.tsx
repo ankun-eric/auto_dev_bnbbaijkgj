@@ -19,13 +19,13 @@ export default function CheckupResultLoadingPage() {
     if (!id) return;
     (async () => {
       try {
-        const detail: any = await api.get(`/api/report/interpret/detail/${id}`);
+        const detail: any = await api.get(`/api/checkup/reports/${id}`);
         if (detail?.interpret_session_id) {
           router.replace(`/checkup/chat/${detail.interpret_session_id}?type=report_interpret`);
           return;
         }
-        const resp: any = await api.post('/api/report/interpret/start', {
-          report_id: id,
+        // [2026-04-23] 老数据懒加载：使用 /api/checkup/reports/{id}/ensure-session
+        const resp: any = await api.post(`/api/checkup/reports/${id}/ensure-session`, {
           member_id: detail?.member_id,
         });
         const sid = resp?.session_id;

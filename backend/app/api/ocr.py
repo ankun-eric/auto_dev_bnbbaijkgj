@@ -756,6 +756,28 @@ async def batch_recognize(
                 )
                 if checkup_report:
                     report_id = checkup_report.id
+                    # [2026-04-23] 接口改造清单：体检报告场景懒加载创建 interpret 会话，
+                    # 前端可以直接拿到 session_id 跳转 SSE 页面。
+                    try:
+                        from app.api.report_interpret import (
+                            InterpretStartRequest as _InterpretStartRequest,
+                            interpret_start as _interpret_start,
+                        )
+
+                        _resp = await _interpret_start(
+                            body=_InterpretStartRequest(
+                                report_id=checkup_report.id,
+                                member_id=family_member_id,
+                            ),
+                            current_user=current_user,
+                            db=db,
+                        )
+                        session_id = _resp.session_id
+                    except Exception as ie:
+                        logger.warning(
+                            "batch-recognize: auto create interpret session failed: %s",
+                            ie,
+                        )
             except Exception as e:
                 logger.warning("Failed to write checkup detail: %s", e)
         elif scene_name == "拍照识药" and merged_ai_result:

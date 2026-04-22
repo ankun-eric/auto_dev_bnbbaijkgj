@@ -105,7 +105,8 @@ function CompareSelectContent() {
     if (!selectedMemberId || selectedIds.size !== 2) return;
     setSubmitting(true);
     try {
-      const resp: any = await api.post('/api/report/compare/start', {
+      // [2026-04-23] 使用新路径 /api/checkup/compare/create-session
+      const resp: any = await api.post('/api/checkup/compare/create-session', {
         member_id: selectedMemberId,
         report_ids: Array.from(selectedIds),
       });
