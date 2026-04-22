@@ -71,7 +71,8 @@ alwaysApply: false
 `git revert 7e73bdc` 即可；新增列与表不会破坏旧数据（旧接口全部向下兼容）。
 
 ### 用户手册
-`user_docs/积分商城商品管理优化v1.1.md`
+- `user_docs/积分商城商品管理优化v1.1.md`（原始版）
+- `user_docs/积分商城商品管理优化v1.1_体验手册.md`（带 Markdown 可点击链接、含微信小程序体验章节的最终版；小程序包版本 `miniprogram_points_v11_20260422_235140_efe8.zip`，已上传到 `/home/ubuntu/{DEPLOY_ID}/static/downloads/`，HTTPS 200 可达）
 
 ---
 
