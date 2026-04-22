@@ -33,6 +33,48 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
+## Latest Update: 积分商城商品管理优化 v1.1（M1-M5，2026-04-22）
+
+### 概要
+实现 PRD《积分商城商品管理优化 v1.1》五大模块：M1 商品三态流转 + 字段锁定 + 库存防呆；M2 修改历史 Tab；M3 复制新建 + 无缝替换；M4 详情模板库 T1-T4；M5 用户端列表 Tab + 立即兑换 + 使用按钮智能跳转。部署 commit `7e73bdc`，后端/H5/Admin 容器全部热更新，小程序包已上传至 `downloads/miniprogram_latest.zip`，全链路 11 条链接可达。
+
+### 关键变更
+
+- **backend**：
+  - `app/models/models.py`：`PointsMallItem` 新增 `goods_status`、`replaced_by_goods_id`、`copied_from_goods_id`、`sort_weight` 字段；新增表 `PointsMallGoodsChangeLog`（字段变更历史日志）。
+  - `app/services/points_mall_v11_migration.py`（新增）：幂等 DDL + 数据回填（`is_on_sale=true → on_sale`）+ 新日志表建表，启动时由 `main.py::lifespan` 调用。
+  - `app/api/points_admin.py`：`MallItemPayload` 扩字段；`admin_create_mall` 默认 draft；`admin_update_mall` 加字段锁定 + 留痕；新增 `POST .../publish`（含无缝替换源商品逻辑）、`POST .../offline`、`POST .../duplicate`、`GET .../change-logs`、`GET /points/coupons/{id}/stock-info`。
+  - `app/api/points.py::list_mall_items`：`?tab=all|exchangeable`（可兑换 Tab，兜底<3 降级）+ 两级排序（库存沉底 + 积分够排前 + sort_weight）；返回 `button_state / button_text / is_low_stock / goods_status / replaced_by_goods_id`。
+  - `app/api/points_exchange.py`：兑换记录列表与详情都返回 `use_button_state / use_button_text / use_button_target`，已下架且有替代商品时给出替代商品详情页跳转目标。
+  - `tests/test_points_mall_v11.py`（新增 6 个用例，全绿）：三态流转、字段锁定、修改历史、复制新建无缝替换、用户端 Tab 与按钮态。
+
+- **admin-web**：
+  - `src/app/(admin)/points/mall/page.tsx`：`MallGoods` 扩字段 + `ChangeLog` 接口；状态筛选 + 彩色状态标签；列表操作新增"发布 / 下架 / 复制新建 / 历史"；编辑弹窗展示状态 tag + 在售锁定字段（置灰 + Tooltip "商品在售中，此字段不可修改..."）+ 库存实时防呆（优惠券类型）+ 保存时二次确认；详情字段改造为 TextArea + 模板库 T1-T4 一键插入按钮（wangEditor v5 过渡方案）；新增"修改历史"弹窗（支持按字段筛选、图片缩略图）。
+
+- **h5-web**：
+  - `src/app/points/mall/page.tsx`：顶部 Tab「全部 / 可兑换」+ Badge 红点；卡片改版（库存紧张红字、立即兑换按钮，支持 `sold_out / not_enough / normal / redirect_replaced` 状态）。
+  - `src/app/points/exchange-records/page.tsx`：按钮按后端 `use_button_state` 统一渲染，`redirect_replaced` 跳转到替代商品详情页，`offline` 置灰禁用。
+
+- **miniprogram**：
+  - `pages/points-mall/index.{js,wxml,wxss}`：Tab 切换、立即兑换按钮、库存紧张提示、`has_exchangeable` 红点，按钮态同 H5。
+
+- **deploy**：
+  - `deploy_points_v11.py`（新增）：git pull → backend/h5/admin 三容器重建重启 → smoke check。
+  - `link_check_points_v11.py`（新增）：11 条链接 HTTPS 全量校验。
+  - `package_mp_points_v11.py`（新增）：打包小程序 zip 并上传至 `downloads/miniprogram_latest.zip`（本次地址：`downloads/miniprogram_points_v11_20260422_153532_c074.zip`）。
+
+### 不变部分
+- 旧 `is_on_sale` 字段保留（读优先 `goods_status`，两个版本兼容期）。
+- 优惠券 / 体验服务履约链路未变。
+
+### 回滚
+`git revert 7e73bdc` 即可；新增列与表不会破坏旧数据（旧接口全部向下兼容）。
+
+### 用户手册
+`user_docs/积分商城商品管理优化v1.1.md`
+
+---
+
 ## Latest Update: 后台底部导航「订单」路径 404 修复（2026-04-21）
 
 ### 概要

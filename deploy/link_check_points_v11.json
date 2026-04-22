@@ -1,0 +1,72 @@
+{
+  "base": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27",
+  "results": [
+    {
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health",
+      "code": 200,
+      "err": null,
+      "ok": true
+    },
+    {
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/points/mall",
+      "code": 200,
+      "err": null,
+      "ok": true
+    },
+    {
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/points/exchange-records",
+      "code": 200,
+      "err": null,
+      "ok": true
+    },
+    {
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/points/detail",
+      "code": 200,
+      "err": null,
+      "ok": true
+    },
+    {
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/points/product-detail?id=1",
+      "code": 200,
+      "err": null,
+      "ok": true
+    },
+    {
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/",
+      "code": 200,
+      "err": null,
+      "ok": true
+    },
+    {
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/login",
+      "code": 200,
+      "err": null,
+      "ok": true
+    },
+    {
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/points/mall?tab=all&page=1&page_size=20",
+      "code": 200,
+      "err": null,
+      "ok": true
+    },
+    {
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/points/mall?tab=exchangeable&page=1&page_size=20",
+      "code": 200,
+      "err": null,
+      "ok": true
+    },
+    {
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/points/mall",
+      "code": 401,
+      "err": null,
+      "ok": true
+    },
+    {
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/points/mall/1/change-logs",
+      "code": 404,
+      "err": null,
+      "ok": true
+    }
+  ],
+  "bad": []
+}
