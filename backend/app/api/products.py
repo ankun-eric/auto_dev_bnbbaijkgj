@@ -84,7 +84,11 @@ async def list_products(
     - 新增 `q`：与 `keyword` 等价的关键词参数（前端搜索框使用）
     - 关键词同时匹配 `name` 与 `symptom_tags`（tags），实现「全分类全关键词搜索」
     """
-    query = select(Product).where(Product.status == "active")
+    query = (
+        select(Product)
+        .options(selectinload(Product.skus))
+        .where(Product.status == "active")
+    )
     count_query = select(func.count(Product.id)).where(Product.status == "active")
 
     if category_id:
@@ -147,6 +151,7 @@ async def hot_recommendations(
 
     base_q = (
         select(Product)
+        .options(selectinload(Product.skus))
         .where(Product.status == "active")
         .order_by(Product.sales_count.desc(), Product.recommend_weight.desc())
         .limit(limit)
