@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>用药参考功能优化 · 交互原型</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: #f0f2f5;
+    color: #222;
+    padding: 32px 24px 80px;
+  }
+  h1.title {
+    text-align: center;
+    font-size: 28px;
+    margin-bottom: 8px;
+    color: #1a7f5a;
+  }
+  .subtitle {
+    text-align: center;
+    color: #666;
+    margin-bottom: 32px;
+    font-size: 14px;
+  }
+  .legend {
+    max-width: 900px;
+    margin: 0 auto 32px;
+    background: #fff;
+    padding: 16px 20px;
+    border-radius: 12px;
+    border-left: 4px solid #1a7f5a;
+    font-size: 14px;
+    line-height: 1.9;
+  }
+  .legend b { color: #1a7f5a; }
+  .screens {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 32px;
+    justify-content: center;
+  }
+  .phone {
+    width: 340px;
+    background: #fff;
+    border-radius: 32px;
+    border: 10px solid #1c1c1e;
+    box-shadow: 0 20px 40px rgba(0,0,0,.12);
+    overflow: hidden;
+    position: relative;
+    flex-shrink: 0;
+  }
+  .phone-label {
+    position: absolute;
+    top: -36px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 600;
+    color: #1a7f5a;
+    background: #fff;
+    padding: 4px 0;
+    border-radius: 6px;
+  }
+  .statusbar {
+    height: 28px;
+    background: #fff;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 16px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .navbar {
+    height: 52px;
+    background: #fff;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    border-bottom: 1px solid #f0f0f0;
+    font-size: 18px;
+    font-weight: 600;
+  }
+  .navbar .back { margin-right: 12px; color: #555; font-size: 22px; cursor: pointer; }
+  .screen-body {
+    background: #f7f8fa;
+    min-height: 560px;
+    padding: 16px;
+  }
+  /* 大按钮·中老年友好 */
+  .big-btn {
+    display: flex; align-items: center; justify-content: center;
+    width: 100%; height: 72px; border-radius: 16px;
+    background: linear-gradient(135deg, #1a7f5a 0%, #2ca97a 100%);
+    color: #fff; font-size: 20px; font-weight: 600;
+    margin-bottom: 16px; box-shadow: 0 6px 16px rgba(26,127,90,.25);
+  }
+  .secondary-btn {
+    display: flex; align-items: center; justify-content: center;
+    width: 100%; height: 56px; border-radius: 14px;
+    border: 2px solid #1a7f5a; color: #1a7f5a;
+    font-size: 17px; font-weight: 600; background: #fff;
+    margin-bottom: 12px;
+  }
+  .hint {
+    font-size: 15px; color: #666; text-align: center;
+    line-height: 1.6; margin-top: 8px;
+  }
+  .record-list { background: #fff; border-radius: 14px; overflow: hidden; }
+  .record-item {
+    display: flex; align-items: center; padding: 14px 14px;
+    border-bottom: 1px solid #f2f2f2;
+  }
+  .record-item:last-child { border-bottom: none; }
+  .thumb {
+    width: 72px; height: 72px; border-radius: 10px;
+    background: #eef2f0; display: flex; align-items: center; justify-content: center;
+    font-size: 28px; flex-shrink: 0; overflow: hidden; position: relative;
+  }
+  .thumb.ok { background: linear-gradient(135deg, #ffe8a3, #ffc97a); }
+  .thumb.loading { background: #f0f0f0; color: #999; animation: pulse 1.5s infinite; }
+  .thumb.failed { background: #fff1f1; color: #c94a4a; font-size: 22px; }
+  .thumb.legacy { background: #f0f5f2; color: #1a7f5a; font-weight: 700; font-size: 18px; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+  .record-meta { flex: 1; margin-left: 14px; }
+  .record-name { font-size: 17px; font-weight: 600; color: #222; margin-bottom: 6px; }
+  .record-sub { font-size: 13px; color: #888; }
+  .tag {
+    display: inline-block; padding: 2px 8px; font-size: 11px;
+    border-radius: 10px; background: #e8f5ee; color: #1a7f5a; margin-left: 6px;
+  }
+  .tag.multi { background: #fff2e0; color: #c87a1a; }
+
+  /* 单选提示 */
+  .picker-tip {
+    background: #fff8e6; border: 1px solid #ffd98a;
+    padding: 12px 14px; border-radius: 10px;
+    font-size: 14px; color: #8a6400; margin-bottom: 14px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .photo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .photo-cell {
+    aspect-ratio: 1; background: linear-gradient(135deg,#cde4d4,#a9d3b7);
+    border-radius: 8px; position: relative;
+  }
+  .photo-cell.selected { border: 3px solid #1a7f5a; }
+  .photo-cell.selected::after {
+    content: "✓"; position: absolute; top: 4px; right: 4px;
+    width: 22px; height: 22px; background: #1a7f5a; color: #fff;
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 700;
+  }
+  .photo-cell.disabled { opacity: .5; }
+
+  /* AI 对话页融合卡片 */
+  .fusion-card {
+    background: #fff; border-radius: 16px; padding: 12px;
+    display: flex; gap: 12px; margin-bottom: 14px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.04);
+  }
+  .carousel {
+    width: 140px; height: 140px; background: linear-gradient(135deg,#ffe8a3,#ffc97a);
+    border-radius: 12px; position: relative; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 48px;
+  }
+  .dots { position: absolute; bottom: 6px; left: 0; right: 0; display: flex; justify-content: center; gap: 4px; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,.6); }
+  .dot.active { background: #fff; width: 14px; border-radius: 3px; }
+  .fusion-info { flex: 1; display: flex; flex-direction: column; justify-content: space-between; }
+  .consult-obj { font-size: 13px; color: #888; }
+  .consult-obj b { color: #1a7f5a; font-size: 15px; }
+  .drug-name { font-size: 17px; font-weight: 700; color: #222; margin-top: 6px; }
+  .drug-brief { font-size: 12px; color: #666; margin-top: 4px; line-height: 1.5; }
+
+  /* AI 消息气泡 */
+  .ai-msg {
+    background: #fff; border-radius: 16px; padding: 14px;
+    margin-bottom: 12px; font-size: 15px; line-height: 1.7;
+    box-shadow: 0 2px 6px rgba(0,0,0,.04);
+  }
+  .ai-msg h4 {
+    font-size: 14px; color: #1a7f5a; margin-bottom: 6px;
+    padding-bottom: 4px; border-bottom: 1px dashed #e0e8e3;
+  }
+  .ai-msg .field { margin: 10px 0; }
+  .ai-msg .field b { color: #333; }
+  .ai-msg .warn { color: #c87a1a; background: #fff7eb; padding: 8px 10px; border-radius: 8px; margin-top: 6px; }
+  .regen {
+    display: inline-flex; align-items: center; gap: 4px;
+    margin-top: 10px; font-size: 13px; color: #1a7f5a;
+    padding: 6px 10px; border: 1px solid #d0e4d9; border-radius: 16px;
+    background: #f5faf7;
+  }
+
+  /* 输入区 */
+  .chat-input {
+    background: #fff; border-radius: 24px;
+    padding: 12px 16px; display: flex; align-items: center;
+    gap: 8px; margin-top: 14px; font-size: 14px; color: #aaa;
+    border: 1px solid #eee;
+  }
+  .input-send { background: #1a7f5a; color: #fff; padding: 6px 14px; border-radius: 16px; font-size: 13px; }
+
+  /* 结果页 */
+  .result-card {
+    background: #fff; border-radius: 14px; padding: 14px;
+    margin-bottom: 12px;
+  }
+  .result-img {
+    width: 100%; height: 150px; border-radius: 10px;
+    background: linear-gradient(135deg,#ffe8a3,#ffc97a);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 52px; margin-bottom: 10px;
+  }
+  .add-compare-btn {
+    display: flex; align-items: center; justify-content: center;
+    width: 100%; height: 56px; border-radius: 14px;
+    border: 2px dashed #1a7f5a; color: #1a7f5a;
+    font-size: 16px; font-weight: 600; background: #f5faf7;
+    margin-top: 8px;
+  }
+
+  /* 多药列表 */
+  .multi-header {
+    background: #fff2e0; border-radius: 12px; padding: 12px 14px;
+    font-size: 14px; color: #c87a1a; margin-bottom: 12px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .done-btn { background: #1a7f5a; color: #fff; padding: 8px 14px; border-radius: 16px; font-size: 13px; font-weight: 600; }
+
+  /* 后台 Prompt 配置 */
+  .admin { width: 720px; background: #fff; border-radius: 14px; padding: 24px; box-shadow: 0 4px 16px rgba(0,0,0,.08); }
+  .admin h2 { font-size: 18px; color: #1a7f5a; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 2px solid #e8f5ee; }
+  .tpl-list { display: flex; flex-direction: column; gap: 10px; }
+  .tpl-row {
+    padding: 12px 14px; background: #f7faf8; border-radius: 10px;
+    display: flex; align-items: center; gap: 12px; font-size: 14px;
+    border-left: 4px solid transparent;
+  }
+  .tpl-row.new { border-left-color: #1a7f5a; background: #f0f9f4; }
+  .tpl-row.modify { border-left-color: #c87a1a; background: #fff8ee; }
+  .tpl-row.keep { border-left-color: #999; }
+  .badge { padding: 2px 8px; font-size: 11px; border-radius: 4px; font-weight: 600; }
+  .badge.new { background: #1a7f5a; color: #fff; }
+  .badge.modify { background: #c87a1a; color: #fff; }
+  .badge.keep { background: #ddd; color: #555; }
+  .tpl-code { font-family: Consolas, monospace; color: #555; font-size: 13px; }
+  .tpl-name { flex: 1; font-weight: 600; }
+
+  .section-title {
+    width: 100%; text-align: center; margin: 48px 0 40px;
+    font-size: 22px; color: #333; position: relative;
+  }
+  .section-title::before, .section-title::after {
+    content: ""; display: inline-block; width: 60px; height: 2px;
+    background: #1a7f5a; vertical-align: middle; margin: 0 16px;
+  }
+
+  .anno {
+    position: absolute; background: #ffef9e; color: #7a5a00;
+    font-size: 11px; padding: 4px 8px; border-radius: 6px;
+    font-weight: 600; white-space: nowrap; box-shadow: 0 2px 6px rgba(0,0,0,.1);
+    z-index: 10;
+  }
+</style>
+</head>
+<body>
+  <h1 class="title">用药参考功能优化 · 交互原型</h1>
+  <p class="subtitle">面向中老年用户 · 大字大按钮 · 单选流程 · 7 屏核心界面</p>
+
+  <div class="legend">
+    <b>图例说明：</b>
+    🟢 新增页面/模块 &nbsp;&nbsp; 🟠 改造页面 &nbsp;&nbsp; ⚪ 保留  <br>
+    <b>适老化标准：</b>主按钮 ≥ 72pt、次按钮 ≥ 56pt、正文字号 ≥ 15sp、摘要 ≥ 17sp、对比度 ≥ AA  <br>
+    <b>关键交互变化：</b>相册/相机统一改为<b style="color:#c87a1a">单选（只能选 1 张）</b>，多药对比通过"结果页追加"累加实现
+  </div>
+
+  <div class="section-title">📱 前端 · 用户端 7 屏</div>
+
+  <div class="screens">
+
+    <!-- 屏 1：用药参考首页 -->
+    <div class="phone">
+      <div class="phone-label">🟠 屏 1 · 用药参考首页</div>
+      <div class="statusbar"><span>9:41</span><span>100%</span></div>
+      <div class="navbar"><span class="back">‹</span>用药参考</div>
+      <div class="screen-body">
+        <div style="text-align:center; padding: 20px 0 16px;">
+          <div style="font-size: 64px;">💊</div>
+          <div style="font-size: 18px; font-weight: 600; margin-top: 8px;">拍一拍药盒，帮您看懂怎么吃</div>
+        </div>
+        <div class="big-btn">📷 拍照识别药品</div>
+        <div class="secondary-btn">🖼️ 从相册选择（单张）</div>
+        <div class="hint">每次选 1 张药品图片<br>识别后可继续添加药品对比</div>
+
+        <div style="margin-top: 24px; font-size: 15px; font-weight: 600; color: #444; margin-bottom: 10px;">最近识别</div>
+        <div class="record-list">
+          <div class="record-item">
+            <div class="thumb ok">💊</div>
+            <div class="record-meta">
+              <div class="record-name">盐酸二甲双胍片</div>
+              <div class="record-sub">2 小时前 · 张妈妈 <span class="tag">单药</span></div>
+            </div>
+          </div>
+          <div class="record-item">
+            <div class="thumb ok">💊</div>
+            <div class="record-meta">
+              <div class="record-name">阿司匹林 + 他汀</div>
+              <div class="record-sub">昨天 · 张妈妈 <span class="tag multi">多药对比·2</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 屏 2：识别记录列表·4状态 -->
+    <div class="phone">
+      <div class="phone-label">🟠 屏 2 · 识别记录·首图4态</div>
+      <div class="statusbar"><span>9:41</span><span>100%</span></div>
+      <div class="navbar"><span class="back">‹</span>我的识别记录</div>
+      <div class="screen-body">
+        <div class="record-list">
+          <div class="record-item">
+            <div class="thumb ok">💊</div>
+            <div class="record-meta">
+              <div class="record-name">正常状态</div>
+              <div class="record-sub">显示第一张原图缩略图 72×72</div>
+            </div>
+          </div>
+          <div class="record-item">
+            <div class="thumb loading">⏳</div>
+            <div class="record-meta">
+              <div class="record-name">上传中状态</div>
+              <div class="record-sub">loading 动画 · 文案"上传中..."</div>
+            </div>
+          </div>
+          <div class="record-item">
+            <div class="thumb failed">⚠</div>
+            <div class="record-meta">
+              <div class="record-name">加载失败状态</div>
+              <div class="record-sub" style="color:#c94a4a;">点击重试 · 红色警示图标</div>
+            </div>
+          </div>
+          <div class="record-item">
+            <div class="thumb legacy">药</div>
+            <div class="record-meta">
+              <div class="record-name">历史老数据（改造前）</div>
+              <div class="record-sub">默认灰底 + 药名首字</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 屏 3：相册单选页 -->
+    <div class="phone">
+      <div class="phone-label">🟢 屏 3 · 相册选图·改为单选</div>
+      <div class="statusbar"><span>9:41</span><span>100%</span></div>
+      <div class="navbar"><span class="back">‹</span>选择药品照片</div>
+      <div class="screen-body">
+        <div class="picker-tip">
+          💡 每次只能选 1 张，识别后可继续添加对比
+        </div>
+        <div class="photo-grid">
+          <div class="photo-cell selected"></div>
+          <div class="photo-cell disabled"></div>
+          <div class="photo-cell disabled"></div>
+          <div class="photo-cell disabled"></div>
+          <div class="photo-cell disabled"></div>
+          <div class="photo-cell disabled"></div>
+          <div class="photo-cell disabled"></div>
+          <div class="photo-cell disabled"></div>
+          <div class="photo-cell disabled"></div>
+        </div>
+        <div style="margin-top:16px;">
+          <div class="big-btn" style="height:56px; font-size:17px;">✓ 确定使用这张</div>
+        </div>
+        <div class="hint" style="font-size:13px; color:#c87a1a;">
+          （对比老版本：原来可以勾选多张，现在只能选 1 张）
+        </div>
+      </div>
+    </div>
+
+    <!-- 屏 4：识别结果页（单药）+ 追加对比入口 -->
+    <div class="phone">
+      <div class="phone-label">🟠 屏 4 · 识别结果·追加对比入口</div>
+      <div class="statusbar"><span>9:41</span><span>100%</span></div>
+      <div class="navbar"><span class="back">‹</span>识别结果</div>
+      <div class="screen-body">
+        <div class="result-card">
+          <div class="result-img">💊</div>
+          <div style="font-size:19px; font-weight:700;">盐酸二甲双胍片</div>
+          <div style="font-size:14px; color:#888; margin-top:4px;">0.5g × 60 片 · 降糖药</div>
+        </div>
+        <div class="big-btn" style="height:64px; font-size:18px;">💬 进入 AI 对话·获取综合建议</div>
+        <div class="add-compare-btn">➕ 再加一个药一起对比</div>
+        <div class="hint" style="margin-top:14px;">点"➕"进入相册，再单选 1 张另一个药的照片</div>
+      </div>
+    </div>
+
+    <!-- 屏 5：多药对比待识别列表 -->
+    <div class="phone">
+      <div class="phone-label">🟢 屏 5 · 多药对比·累加中</div>
+      <div class="statusbar"><span>9:41</span><span>100%</span></div>
+      <div class="navbar"><span class="back">‹</span>多药对比</div>
+      <div class="screen-body">
+        <div class="multi-header">
+          <span>已添加 <b>2</b> 个药品</span>
+          <span class="done-btn">✓ 完成·开始对话</span>
+        </div>
+        <div class="result-card" style="display:flex; gap:12px; align-items:center;">
+          <div style="width:60px; height:60px; background:linear-gradient(135deg,#ffe8a3,#ffc97a); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:28px;">💊</div>
+          <div style="flex:1;">
+            <div style="font-weight:600;">盐酸二甲双胍片</div>
+            <div style="font-size:12px; color:#888;">降糖药</div>
+          </div>
+          <div style="color:#c94a4a; font-size:13px;">✕ 移除</div>
+        </div>
+        <div class="result-card" style="display:flex; gap:12px; align-items:center;">
+          <div style="width:60px; height:60px; background:linear-gradient(135deg,#c4e0ff,#8cb8f0); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:28px;">💊</div>
+          <div style="flex:1;">
+            <div style="font-weight:600;">阿司匹林肠溶片</div>
+            <div style="font-size:12px; color:#888;">抗血小板</div>
+          </div>
+          <div style="color:#c94a4a; font-size:13px;">✕ 移除</div>
+        </div>
+        <div class="add-compare-btn">➕ 继续添加药品</div>
+      </div>
+    </div>
+
+    <!-- 屏 6：AI 对话页·单药（融合卡片+首条建议+重新生成） -->
+    <div class="phone">
+      <div class="phone-label">🟢 屏 6 · AI对话·单药·融合卡片</div>
+      <div class="statusbar"><span>9:41</span><span>100%</span></div>
+      <div class="navbar"><span class="back">‹</span>用药参考 · AI 对话</div>
+      <div class="screen-body" style="padding:12px;">
+        <!-- 融合卡片 -->
+        <div class="fusion-card">
+          <div class="carousel">
+            💊
+            <div class="dots">
+              <div class="dot active"></div>
+              <div class="dot"></div>
+              <div class="dot"></div>
+            </div>
+          </div>
+          <div class="fusion-info">
+            <div>
+              <div class="consult-obj">咨询对象：<b>张妈妈</b></div>
+              <div class="drug-name">盐酸二甲双胍片</div>
+              <div class="drug-brief">0.5g × 60 片<br>降糖药</div>
+            </div>
+            <div style="font-size:11px; color:#1a7f5a;">👆 点图片可放大 · 左右滑查看</div>
+          </div>
+        </div>
+
+        <!-- 首条 AI 自动消息 -->
+        <div class="ai-msg">
+          <h4>🤖 小白 AI · 给您的综合建议</h4>
+          <div class="field"><b>【这个药是什么】</b><br>盐酸二甲双胍，降血糖用的常见药。</div>
+          <div class="field"><b>【您能吃吗】</b><br>✅ 可以吃（结合您糖尿病史 + 无过敏记录）</div>
+          <div class="field"><b>【怎么吃】</b><br>一天 2 次，每次 1 片，饭后吃。</div>
+          <div class="field warn"><b>⚠️ 特别提醒</b><br>您有轻度肾功能不全，建议 3 个月复查一次。</div>
+          <div class="regen">🔄 重新生成这条建议</div>
+        </div>
+
+        <div class="chat-input">
+          <span>💬 想问什么尽管问…</span>
+          <span class="input-send" style="margin-left:auto;">发送</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 屏 7：AI 对话页·多药 -->
+    <div class="phone">
+      <div class="phone-label">🟢 屏 7 · AI对话·多药对比</div>
+      <div class="statusbar"><span>9:41</span><span>100%</span></div>
+      <div class="navbar"><span class="back">‹</span>多药对比 · AI 对话</div>
+      <div class="screen-body" style="padding:12px;">
+        <div class="fusion-card">
+          <div class="carousel" style="background:linear-gradient(135deg,#c4e0ff,#8cb8f0);">
+            💊💊
+            <div class="dots">
+              <div class="dot active"></div>
+              <div class="dot"></div>
+            </div>
+          </div>
+          <div class="fusion-info">
+            <div>
+              <div class="consult-obj">咨询对象：<b>张妈妈</b></div>
+              <div class="drug-name" style="font-size:15px;">二甲双胍 + 阿司匹林</div>
+              <div class="drug-brief">2 种药品对比</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="ai-msg">
+          <h4>🤖 给您的综合建议</h4>
+          <div class="field"><b>💊 药品 1：二甲双胍</b><br>可以吃 · 饭后 2 次/日</div>
+          <div class="field"><b>💊 药品 2：阿司匹林</b><br>可以吃 · 早餐后 1 次</div>
+          <div class="field" style="background:#f0f9f4; padding:10px; border-radius:8px;">
+            <b>🔄 一起吃要注意</b><br>
+            两者无明显相互作用，建议间隔 1 小时服用。
+          </div>
+          <div class="field warn">
+            <b>📝 综合建议</b><br>
+            结合您的糖尿病+高血压病史，这个搭配合理，按时吃、定期复查即可。
+          </div>
+          <div class="regen">🔄 重新生成这条建议</div>
+        </div>
+
+        <div class="chat-input">
+          <span>💬 想问什么尽管问…</span>
+          <span class="input-send" style="margin-left:auto;">发送</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="section-title">⚙️ 后台 · Prompt 配置改造</div>
+
+  <div style="display:flex; justify-content:center;">
+    <div class="admin">
+      <h2>AI 配置中心 → Prompt 模板管理（/prompt-templates）</h2>
+      <div class="tpl-list">
+        <div class="tpl-row keep">
+          <span class="badge keep">保留</span>
+          <span class="tpl-code">drug_general</span>
+          <span class="tpl-name">药物识别·通用建议（结构化 JSON）</span>
+          <span style="color:#999; font-size:12px;">不改</span>
+        </div>
+        <div class="tpl-row keep">
+          <span class="badge keep">保留</span>
+          <span class="tpl-code">drug_personal</span>
+          <span class="tpl-name">药物识别·个性化建议（结构化 JSON）</span>
+          <span style="color:#999; font-size:12px;">结果页用</span>
+        </div>
+        <div class="tpl-row keep">
+          <span class="badge keep">保留</span>
+          <span class="tpl-code">drug_interaction</span>
+          <span class="tpl-name">药物相互作用分析（结构化 JSON）</span>
+          <span style="color:#999; font-size:12px;">多药识别结果用</span>
+        </div>
+        <div class="tpl-row new">
+          <span class="badge new">新增</span>
+          <span class="tpl-code">drug_chat_opening_single</span>
+          <span class="tpl-name">用药对话首条消息·单药（Markdown）</span>
+          <span style="color:#1a7f5a; font-size:12px;">点3首条</span>
+        </div>
+        <div class="tpl-row new">
+          <span class="badge new">新增</span>
+          <span class="tpl-code">drug_chat_opening_multi</span>
+          <span class="tpl-name">用药对话首条消息·多药（Markdown）</span>
+          <span style="color:#1a7f5a; font-size:12px;">点3首条</span>
+        </div>
+        <div class="tpl-row modify">
+          <span class="badge modify">改造</span>
+          <span class="tpl-code">drug_query</span>
+          <span class="tpl-name">用药参考对话（加 {member_info}/{drug_list} 占位符）</span>
+          <span style="color:#c87a1a; font-size:12px;">对话续聊</span>
+        </div>
+      </div>
+
+      <h2 style="margin-top:28px;">每个新增模板的 4 字段结构</h2>
+      <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:12px;">
+        <div style="background:#f7faf8; padding:12px; border-radius:8px;">
+          <div style="font-weight:600; color:#1a7f5a; font-size:13px;">① 角色设定</div>
+          <div style="font-size:13px; color:#555; margin-top:4px;">你是中老年用药助手，用通俗易懂的话回答…</div>
+        </div>
+        <div style="background:#f7faf8; padding:12px; border-radius:8px;">
+          <div style="font-weight:600; color:#1a7f5a; font-size:13px;">② 输出格式</div>
+          <div style="font-size:13px; color:#555; margin-top:4px;">按【这个药是什么/您能吃吗/怎么吃/特别提醒】四段…</div>
+        </div>
+        <div style="background:#f7faf8; padding:12px; border-radius:8px;">
+          <div style="font-weight:600; color:#1a7f5a; font-size:13px;">③ 安全提示</div>
+          <div style="font-size:13px; color:#555; margin-top:4px;">不提供具体诊断；高危药提示就医…</div>
+        </div>
+        <div style="background:#f7faf8; padding:12px; border-radius:8px;">
+          <div style="font-weight:600; color:#1a7f5a; font-size:13px;">④ 免责声明引用</div>
+          <div style="font-size:13px; color:#555; margin-top:4px;">引用 disclaimers 表现有条目（不单独配）</div>
+        </div>
+      </div>
+
+      <h2 style="margin-top:28px;">{member_info} 注入字段（核心 6 项）</h2>
+      <div style="display:flex; flex-wrap:wrap; gap:8px;">
+        <span class="tag" style="font-size:13px; padding:6px 12px;">年龄</span>
+        <span class="tag" style="font-size:13px; padding:6px 12px;">性别</span>
+        <span class="tag" style="font-size:13px; padding:6px 12px;">慢性病史</span>
+        <span class="tag" style="font-size:13px; padding:6px 12px;">过敏史</span>
+        <span class="tag" style="font-size:13px; padding:6px 12px;">正在服用药物</span>
+        <span class="tag" style="font-size:13px; padding:6px 12px;">怀孕哺乳状态</span>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

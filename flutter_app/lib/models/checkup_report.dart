@@ -3,6 +3,9 @@ class CheckupReport {
   final String? reportDate;
   final String? fileUrl;
   final String? thumbnailUrl;
+  // [2026-04-23 多图修复] 多图场景下由后端返回的全量图片/缩略图 URL 列表
+  final List<String>? fileUrls;
+  final List<String>? thumbnailUrls;
   final String? fileType;
   final int abnormalCount;
   final String status;
@@ -19,6 +22,8 @@ class CheckupReport {
     this.reportDate,
     this.fileUrl,
     this.thumbnailUrl,
+    this.fileUrls,
+    this.thumbnailUrls,
     this.fileType,
     this.abnormalCount = 0,
     this.status = 'pending',
@@ -37,6 +42,19 @@ class CheckupReport {
       reportDate: json['report_date'],
       fileUrl: json['file_url'],
       thumbnailUrl: json['thumbnail_url'],
+      // [2026-04-23 多图修复] 解析 file_urls / thumbnail_urls 数组字段
+      fileUrls: (json['file_urls'] is List)
+          ? (json['file_urls'] as List)
+              .map((e) => e?.toString() ?? '')
+              .where((e) => e.isNotEmpty)
+              .toList()
+          : null,
+      thumbnailUrls: (json['thumbnail_urls'] is List)
+          ? (json['thumbnail_urls'] as List)
+              .map((e) => e?.toString() ?? '')
+              .where((e) => e.isNotEmpty)
+              .toList()
+          : null,
       fileType: json['file_type'],
       abnormalCount: json['abnormal_count'] ?? 0,
       status: json['status'] ?? 'pending',
@@ -63,6 +81,9 @@ class CheckupReport {
       'report_date': reportDate,
       'file_url': fileUrl,
       'thumbnail_url': thumbnailUrl,
+      // [2026-04-23 多图修复]
+      'file_urls': fileUrls,
+      'thumbnail_urls': thumbnailUrls,
       'file_type': fileType,
       'abnormal_count': abnormalCount,
       'status': status,
@@ -74,6 +95,19 @@ class CheckupReport {
       'family_member_id': familyMemberId,
       'family_member': familyMember,
     };
+  }
+
+  // [2026-04-23 多图修复] 统一对外提供全量图片 URL 列表，fileUrls 为空时回退 [fileUrl]
+  List<String> get allImageUrls {
+    if (fileUrls != null && fileUrls!.isNotEmpty) return fileUrls!;
+    if (fileUrl != null && fileUrl!.isNotEmpty) return [fileUrl!];
+    return const [];
+  }
+
+  // [2026-04-23 多图修复] 缩略图列表：优先 thumbnail_urls，其次回退到 allImageUrls
+  List<String> get allThumbnailUrls {
+    if (thumbnailUrls != null && thumbnailUrls!.isNotEmpty) return thumbnailUrls!;
+    return allImageUrls;
   }
 }
 

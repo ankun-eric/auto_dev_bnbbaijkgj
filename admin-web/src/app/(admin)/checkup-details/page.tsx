@@ -54,6 +54,8 @@ interface CheckupDetail {
   status: string;
   provider_name: string;
   original_image_url: string;
+  // [2026-04-23 多图九宫格] 新增全量图片列表字段，兼容后端可能返回 string[] 或 JSON 字符串
+  original_image_urls?: string[] | null;
   ocr_raw_text: string;
   ai_structured_result: any;
   abnormal_items: any[];
@@ -76,6 +78,19 @@ interface StatsData {
 function maskPhone(phone: string): string {
   if (!phone || phone.length < 7) return phone || '-';
   return phone.slice(0, 3) + '****' + phone.slice(-4);
+}
+
+// [2026-04-23 多图九宫格] 兼容后端 original_image_urls 可能为数组 / JSON 字符串 / 空，并回退到单值 original_image_url
+function ensureImageList(detail: CheckupDetail): string[] {
+  const raw: any = (detail as any).original_image_urls;
+  if (Array.isArray(raw) && raw.length > 0) return raw.filter(Boolean);
+  if (typeof raw === 'string' && raw) {
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed.filter(Boolean);
+    } catch { /* ignore */ }
+  }
+  return detail.original_image_url ? [detail.original_image_url] : [];
 }
 
 export default function CheckupDetailsPage() {
@@ -374,15 +389,27 @@ export default function CheckupDetailsPage() {
               <Descriptions.Item label="使用厂商">{detail.provider_name || '-'}</Descriptions.Item>
             </Descriptions>
 
-            {detail.original_image_url && (
-              <Card size="small" title="原始图片">
-                <Image
-                  src={detail.original_image_url}
-                  style={{ maxWidth: '100%', maxHeight: 300 }}
-                  fallback="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mN8/+F/PQAJpAN4kNMRdQAAAABJRU5ErkJggg=="
-                />
-              </Card>
-            )}
+            {/* [2026-04-23 多图九宫格] 原始图片改为九宫格 + Image.PreviewGroup，支持点击大图预览与左右切换 */}
+            {(() => {
+              const imgs = ensureImageList(detail);
+              if (imgs.length === 0) return null;
+              return (
+                <Card size="small" title={`原始图片（共 ${imgs.length} 张）`}>
+                  <Image.PreviewGroup>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                      {imgs.map((url, idx) => (
+                        <Image
+                          key={idx}
+                          src={url}
+                          style={{ width: '100%', height: 120, objectFit: 'cover', borderRadius: 4 }}
+                          fallback="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mN8/+F/PQAJpAN4kNMRdQAAAABJRU5ErkJggg=="
+                        />
+                      ))}
+                    </div>
+                  </Image.PreviewGroup>
+                </Card>
+              );
+            })()}
 
             <Card size="small" title="OCR原始文字">
               <pre style={{ whiteSpace: 'pre-wrap', background: '#f5f5f5', padding: 12, borderRadius: 6, maxHeight: 200, overflow: 'auto', margin: 0 }}>

@@ -72,7 +72,8 @@ export default function CheckupDetailPage() {
   const handleContinueChat = async () => {
     if (!data) return;
     if (data.interpret_session_id) {
-      router.push(`/checkup/chat/${data.interpret_session_id}?type=report_interpret`);
+      // [2026-04-23 对话页统一化] 跳转改向公共咨询页
+      router.push(`/chat/${data.interpret_session_id}?type=report_interpret`);
       return;
     }
     // 没有会话则引导重新发起
@@ -85,7 +86,8 @@ export default function CheckupDetailPage() {
       });
       const sid = resp?.session_id;
       if (sid) {
-        router.push(`/checkup/chat/${sid}?auto_start=1&type=report_interpret`);
+        // [2026-04-23 对话页统一化] 跳转改向公共咨询页
+        router.push(`/chat/${sid}?auto_start=1&type=report_interpret`);
       }
     } catch (e: any) {
       Toast.show({ content: e?.message || '创建失败' });

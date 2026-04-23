@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback, Suspense } from 'react';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
-import { NavBar, Input, SpinLoading, Toast, Popup, Tag, DatePicker, Dialog, ActionSheet } from 'antd-mobile';
+import { NavBar, Input, SpinLoading, Toast, Popup, Tag, DatePicker, Dialog, ActionSheet, ImageViewer } from 'antd-mobile';
 import api from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { checkFileSize, uploadWithProgress } from '@/lib/upload-utils';
@@ -128,6 +128,19 @@ interface Message {
   knowledge_hits?: KnowledgeHit[];
 }
 
+// [2026-04-23 公共页报告卡片迁移] 体检报告简要信息
+interface ReportMini {
+  id: number;
+  title: string;
+  file_url?: string | null;
+  thumbnail_url?: string | null;
+  file_urls?: string[] | null;
+  thumbnail_urls?: string[] | null;
+  created_at?: string | null;
+  member_name?: string | null;
+  member_relation?: string | null;
+}
+
 interface FamilyMember {
   id: number;
   nickname: string;
@@ -190,6 +203,111 @@ const welcomeMessage: Message = {
   time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
 };
 
+// [2026-04-23 公共页报告卡片迁移] 顶部报告卡片：解读（单张+九宫格缩略图）/ 对比（双卡 A/B + 时间跨度）
+interface TopReportCardProps {
+  reports: ReportMini[];
+  isCompare: boolean;
+  galleryExpanded: number | null;
+  setGalleryExpanded: (v: number | null) => void;
+  onPreview: (imgs: string[], idx: number) => void;
+}
+
+function TopReportCard({ reports, isCompare, galleryExpanded, setGalleryExpanded, onPreview }: TopReportCardProps) {
+  if (!reports || reports.length === 0) return null;
+  const mem = reports[0]
+    ? `${reports[0].member_relation || ''} · ${reports[0].member_name || ''}`
+    : '';
+
+  if (isCompare && reports.length >= 2) {
+    const a = reports[0];
+    const b = reports[1];
+    const imgsA = (a.file_urls && a.file_urls.length > 0) ? a.file_urls : (a.file_url ? [a.file_url] : []);
+    const imgsB = (b.file_urls && b.file_urls.length > 0) ? b.file_urls : (b.file_url ? [b.file_url] : []);
+    const spanText = (() => {
+      try {
+        const da = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const db = b.created_at ? new Date(b.created_at).getTime() : 0;
+        if (!da || !db) return '';
+        const months = Math.round(Math.abs(db - da) / (1000 * 60 * 60 * 24 * 30));
+        if (months < 1) return '不足 1 个月';
+        if (months < 12) return `${months} 个月`;
+        const years = Math.floor(months / 12);
+        return `${years} 年 ${months % 12} 个月`;
+      } catch { return ''; }
+    })();
+    return (
+      <div style={{ background: 'linear-gradient(135deg, #fffbe6, #fff)', border: '1px solid #ffe58f', borderRadius: 10, padding: 12, margin: 12 }}>
+        <div style={{ fontSize: 15, fontWeight: 600 }}>🔄 报告对比</div>
+        <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>咨询对象：{mem}</div>
+        <div style={{ fontSize: 12, color: '#333', marginTop: 6 }}>
+          报告 A：<span style={{ color: '#1890ff' }}>{a.title}</span>
+          {imgsA.length > 0 && (
+            <button
+              onClick={() => onPreview(imgsA, 0)}
+              style={{ marginLeft: 8, padding: '2px 8px', border: '1px solid #1890ff', color: '#1890ff', background: '#fff', borderRadius: 10, fontSize: 11 }}
+            >
+              查看 {imgsA.length} 张原图
+            </button>
+          )}
+          <br />
+          报告 B：<span style={{ color: '#1890ff' }}>{b.title}</span>
+          {imgsB.length > 0 && (
+            <button
+              onClick={() => onPreview(imgsB, 0)}
+              style={{ marginLeft: 8, padding: '2px 8px', border: '1px solid #1890ff', color: '#1890ff', background: '#fff', borderRadius: 10, fontSize: 11 }}
+            >
+              查看 {imgsB.length} 张原图
+            </button>
+          )}
+        </div>
+        {spanText && <div style={{ fontSize: 12, color: '#999', marginTop: 6 }}>时间跨度：{spanText}</div>}
+      </div>
+    );
+  }
+
+  const r = reports[0];
+  const allImgs = (r.file_urls && r.file_urls.length > 0) ? r.file_urls : (r.file_url ? [r.file_url] : []);
+  const thumbs = (r.thumbnail_urls && r.thumbnail_urls.length > 0) ? r.thumbnail_urls : allImgs;
+  return (
+    <div style={{ background: 'linear-gradient(135deg, #e6f7ff, #fff)', border: '1px solid #91d5ff', borderRadius: 10, padding: 12, margin: 12 }}>
+      <div style={{ fontSize: 15, fontWeight: 600 }}>🩺 报告解读</div>
+      <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>
+        咨询对象：{mem} · {r.title}
+        {allImgs.length > 1 ? <span style={{ marginLeft: 6, color: '#1890ff' }}>（共 {allImgs.length} 张）</span> : null}
+      </div>
+      {allImgs.length > 0 && (
+        <>
+          <div style={{ marginTop: 8, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {thumbs.slice(0, galleryExpanded === 0 ? thumbs.length : Math.min(thumbs.length, 4)).map((t, idx) => (
+              <div
+                key={idx}
+                onClick={() => onPreview(allImgs, idx)}
+                style={{ width: 60, height: 60, borderRadius: 6, overflow: 'hidden', position: 'relative', cursor: 'pointer', flexShrink: 0 }}
+              >
+                <img src={t} alt={`img-${idx}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              </div>
+            ))}
+            {galleryExpanded !== 0 && thumbs.length > 4 && (
+              <button
+                onClick={() => setGalleryExpanded(0)}
+                style={{ width: 60, height: 60, borderRadius: 6, border: '1px dashed #91d5ff', background: '#fafcff', color: '#1890ff', fontSize: 12 }}
+              >
+                +{thumbs.length - 4}
+              </button>
+            )}
+          </div>
+          <button
+            onClick={() => onPreview(allImgs, 0)}
+            style={{ marginTop: 8, padding: '4px 10px', border: '1px solid #1890ff', color: '#1890ff', background: '#fff', borderRadius: 14, fontSize: 12 }}
+          >
+            查看报告原图{allImgs.length > 1 ? `（${allImgs.length} 张）` : ''}
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
 function ChatPageInner() {
   const router = useRouter();
   const params = useParams();
@@ -204,11 +322,23 @@ function ChatPageInner() {
   const isSymptom = urlType === 'symptom';
   const isDrugIdentify = urlType === 'drug_identify';
   const isConstitution = urlType === 'constitution';
+  // [2026-04-23 公共页报告卡片迁移] 体检报告相关类型识别
+  const isReportInterpret = urlType === 'report_interpret';
+  const isReportCompare = urlType === 'report_compare';
+  const isReportType = isReportInterpret || isReportCompare;
+  const urlAutoStart = searchParams.get('auto_start') === '1';
 
   const [messages, setMessages] = useState<Message[]>([welcomeMessage]);
   const [inputVal, setInputVal] = useState('');
   const [loading, setLoading] = useState(false);
   const [sidebarVisible, setSidebarVisible] = useState(false);
+
+  // [2026-04-23 公共页报告卡片迁移] 体检报告相关 state（仅 report_interpret/report_compare 场景使用）
+  const [reportList, setReportList] = useState<ReportMini[]>([]);
+  const [previewImages, setPreviewImages] = useState<string[]>([]);
+  const [previewIndex, setPreviewIndex] = useState<number>(-1);
+  const [galleryExpanded, setGalleryExpanded] = useState<number | null>(null);
+  const reportAutoStartedRef = useRef(false);
 
   // Font size state
   const [fontSizeLevel, setFontSizeLevel] = useState<FontSizeLevel>('standard');
@@ -710,6 +840,53 @@ function ChatPageInner() {
     loadHistory();
   }, [loadHistory]);
 
+  // [2026-04-23 公共页报告卡片迁移] 加载 report 类型会话详情 -> reportList
+  useEffect(() => {
+    if (!isReportType || !sessionId) return;
+    (async () => {
+      try {
+        const sess: any = await api.get(`/api/chat/sessions/${sessionId}`);
+        const brief: any[] = Array.isArray(sess?.reports_brief) ? sess.reports_brief : [];
+        const rs: ReportMini[] = brief.map((d: any) => {
+          const urls: string[] = Array.isArray(d.file_urls) && d.file_urls.length > 0
+            ? d.file_urls.filter(Boolean)
+            : (d.file_url ? [d.file_url] : []);
+          const thumbs: string[] = Array.isArray(d.thumbnail_urls) && d.thumbnail_urls.length > 0
+            ? d.thumbnail_urls.filter(Boolean)
+            : (d.thumbnail_url ? [d.thumbnail_url] : urls);
+          return {
+            id: d.id,
+            title: d.title,
+            file_url: urls[0] || null,
+            thumbnail_url: thumbs[0] || urls[0] || null,
+            file_urls: urls,
+            thumbnail_urls: thumbs,
+            created_at: d.report_date || null,
+            member_name: sess?.family_member?.nickname || null,
+            member_relation: sess?.family_member?.relationship || null,
+          };
+        });
+        setReportList(rs);
+      } catch { /* 忽略 */ }
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isReportType, sessionId]);
+
+  // [2026-04-23 公共页报告卡片迁移] report 类型 + 消息为空 + auto_start=1 自动触发首条消息
+  useEffect(() => {
+    if (!isReportType || !urlAutoStart) return;
+    if (reportAutoStartedRef.current) return;
+    // 仅当当前只剩 welcome 消息（没有历史 assistant/user 记录）时才触发
+    const hasRealMsgs = messages.some((m) => m.id !== 'welcome');
+    if (hasRealMsgs) return;
+    reportAutoStartedRef.current = true;
+    const t = setTimeout(() => {
+      sendMessageText('');
+    }, 300);
+    return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isReportType, urlAutoStart, messages]);
+
   useEffect(() => {
     if (!isSymptom || !urlMsg || autoSentRef.current) return;
     const timer = setTimeout(() => {
@@ -822,10 +999,14 @@ function ChatPageInner() {
   }, []);
 
   const sendMessageText = async (text: string) => {
-    if (!text || loading) return;
+    // [2026-04-23 公共页报告卡片迁移] report 场景 auto_start 时 text 可能为空串，仅 loading 时拒绝
+    if (loading) return;
+    if (!text && !isReportType) return;
 
     stopTts();
 
+    // [2026-04-23 公共页报告卡片迁移] report 场景首条触发无文字；其余场景照旧
+    const shouldPushUserMsg = !!text;
     const userMsg: Message = {
       id: `user-${Date.now()}`,
       role: 'user',
@@ -833,11 +1014,13 @@ function ChatPageInner() {
       time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
     };
 
-    if (firstUserMsgIdRef.current === null) {
+    if (shouldPushUserMsg && firstUserMsgIdRef.current === null) {
       firstUserMsgIdRef.current = userMsg.id;
     }
 
-    setMessages((prev) => [...prev, userMsg]);
+    if (shouldPushUserMsg) {
+      setMessages((prev) => [...prev, userMsg]);
+    }
     setInputVal('');
     setLoading(true);
 
@@ -848,13 +1031,29 @@ function ChatPageInner() {
       const abortController = new AbortController();
       streamAbortRef.current = abortController;
 
-      const response = await fetch(`${basePath}/api/chat/sessions/${sessionId}/stream`, {
+      // [2026-04-23 公共页报告卡片迁移] report 类型按体检专用 SSE 端点；其他类型走通用 /stream
+      let sseUrl: string;
+      let sseBody: string | undefined;
+      if (isReportType) {
+        if (!text) {
+          sseUrl = `${basePath}/api/chat/sessions/${sessionId}/first-message-stream`;
+          sseBody = undefined;
+        } else {
+          sseUrl = `${basePath}/api/chat/sessions/${sessionId}/messages-stream`;
+          sseBody = JSON.stringify({ content: text });
+        }
+      } else {
+        sseUrl = `${basePath}/api/chat/sessions/${sessionId}/stream`;
+        sseBody = JSON.stringify({ content: text, message_type: 'text' });
+      }
+
+      const response = await fetch(sseUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ content: text, message_type: 'text' }),
+        body: sseBody,
         signal: abortController.signal,
       });
 
@@ -886,11 +1085,23 @@ function ChatPageInner() {
             if (eventType === 'done') {
               // next data line has message_id
             }
-          } else if (line.startsWith('data: ')) {
-            const dataStr = line.slice(6);
+          } else if (line.startsWith('data: ') || line.startsWith('data:')) {
+            const dataStr = line.startsWith('data: ') ? line.slice(6) : line.slice(5);
             try {
               const data = JSON.parse(dataStr);
-              if (data.content || data.delta) {
+              // [2026-04-23 公共页报告卡片迁移] 兼容体检 SSE：{type:'delta|done|error', content}
+              if (data.type === 'delta' && data.content) {
+                accumulated += data.content;
+                setStreamingContent(accumulated);
+              } else if (data.type === 'done') {
+                if (data.content) {
+                  accumulated = data.content;
+                  setStreamingContent(accumulated);
+                }
+                if (data.message_id) messageId = String(data.message_id);
+              } else if (data.type === 'error') {
+                Toast.show({ content: data.content || 'AI 服务异常' });
+              } else if (data.content || data.delta) {
                 accumulated += (data.delta || data.content || '');
                 setStreamingContent(accumulated);
               }
@@ -1521,6 +1732,17 @@ function ChatPageInner() {
             )}
           </div>
         </div>
+      )}
+
+      {/* [2026-04-23 公共页报告卡片迁移] 体检报告顶部卡片（解读 / 对比） */}
+      {isReportType && reportList.length > 0 && (
+        <TopReportCard
+          reports={reportList}
+          isCompare={isReportCompare}
+          galleryExpanded={galleryExpanded}
+          setGalleryExpanded={setGalleryExpanded}
+          onPreview={(imgs, idx) => { setPreviewImages(imgs); setPreviewIndex(idx); }}
+        />
       )}
 
       <style dangerouslySetInnerHTML={{ __html: `
@@ -2272,6 +2494,14 @@ function ChatPageInner() {
           </button>
         </div>
       )}
+
+      {/* [2026-04-23 公共页报告卡片迁移] 多图预览器（左右滑动 + 小圆点） */}
+      <ImageViewer.Multi
+        images={previewImages}
+        visible={previewIndex >= 0}
+        defaultIndex={Math.max(0, previewIndex)}
+        onClose={() => { setPreviewIndex(-1); setPreviewImages([]); }}
+      />
     </div>
   );
 }

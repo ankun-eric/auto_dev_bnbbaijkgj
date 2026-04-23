@@ -63,6 +63,9 @@ Page({
     categories: [],
     expandedItems: {},
 
+    // [2026-04-23 多图九宫格] 报告原图列表
+    reportImages: [],
+
     loading: true,
     analyzing: false,
     analyzePercent: 0,
@@ -81,6 +84,32 @@ Page({
     }
     this.setData({ reportId: id });
     this.loadDetail(id);
+    // [2026-04-23 多图九宫格] 单独拉取报告元数据以获取 file_urls
+    this.loadReportImages(id);
+  },
+
+  // [2026-04-23 多图九宫格] 拉取报告原图列表
+  async loadReportImages(id) {
+    try {
+      const detail = await get(`/api/checkup/reports/${id}`, {}, { showLoading: false, suppressErrorToast: true });
+      if (!detail) return;
+      const rawUrls = Array.isArray(detail.file_urls) && detail.file_urls.length > 0
+        ? detail.file_urls.filter(Boolean)
+        : (detail.file_url ? [detail.file_url] : []);
+      this.setData({ reportImages: rawUrls });
+    } catch (e) {
+      console.log('loadReportImages error', e);
+    }
+  },
+
+  // [2026-04-23 多图九宫格] 点击缩略图，原生多图预览（支持左右滑 + 缩放）
+  onImageTap(e) {
+    const { urls, current } = e.currentTarget.dataset;
+    if (!urls || urls.length === 0) return;
+    wx.previewImage({
+      current: current || urls[0],
+      urls
+    });
   },
 
   onUnload() {
@@ -192,6 +221,14 @@ Page({
     try {
       const res = await get(`/api/report/detail/${id}`, {}, { suppressErrorToast: true });
       const report = res.data || res;
+
+      // [2026-04-23 多图九宫格] 若 AI 详情接口也返回了 file_urls/file_url，优先作为兜底
+      if (!this.data.reportImages || this.data.reportImages.length === 0) {
+        const rawUrls = Array.isArray(report.file_urls) && report.file_urls.length > 0
+          ? report.file_urls.filter(Boolean)
+          : (report.file_url ? [report.file_url] : []);
+        if (rawUrls.length > 0) this.setData({ reportImages: rawUrls });
+      }
 
       let aiData = null;
       let aiRawText = '';

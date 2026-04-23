@@ -599,7 +599,8 @@ export default function CheckupPage() {
           member_id: memberId,
         });
         const sessionId = startResp?.session_id;
-        const redirectUrl = startResp?.redirect_url || (sessionId ? `/checkup/chat/${sessionId}?auto_start=1&type=report_interpret` : null);
+        // [2026-04-23 对话页统一化] fallback 跳转改向公共咨询页
+        const redirectUrl = startResp?.redirect_url || (sessionId ? `/chat/${sessionId}?auto_start=1&type=report_interpret` : null);
         setUploading(false);
         setUploadProgress('');
         setUploadPercent(-1);

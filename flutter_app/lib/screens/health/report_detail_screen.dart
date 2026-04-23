@@ -1317,11 +1317,12 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        if (report.fileUrl != null && report.fileType != 'pdf')
+        // [2026-04-23 多图修复] 改为基于 allImageUrls 的判断，支持多图九宫格预览
+        if (report.allImageUrls.isNotEmpty && report.fileType != 'pdf')
           _buildImagePreview(report),
         if (report.fileType == 'pdf')
           _buildPdfPlaceholder(),
-        if (report.fileUrl == null)
+        if (report.allImageUrls.isEmpty && report.fileType != 'pdf')
           Center(
             child: Padding(
               padding: const EdgeInsets.all(40),
@@ -1346,65 +1347,110 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
     );
   }
 
+  // [2026-04-23 多图修复] 单图沿用原 UI，多图切换为九宫格 + 全屏 PageView 预览
   Widget _buildImagePreview(CheckupReport report) {
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => Scaffold(
-              backgroundColor: Colors.black,
-              appBar: AppBar(backgroundColor: Colors.black, iconTheme: const IconThemeData(color: Colors.white), elevation: 0),
-              body: Center(
-                child: InteractiveViewer(
-                  child: Image.network(
-                    report.fileUrl!,
-                    fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => const Icon(Icons.broken_image, color: Colors.white54, size: 64),
+    final imgs = report.allImageUrls;
+    final thumbs = report.allThumbnailUrls;
+    if (imgs.isEmpty) return const SizedBox.shrink();
+
+    if (imgs.length == 1) {
+      final thumb = thumbs.isNotEmpty ? thumbs.first : imgs.first;
+      return GestureDetector(
+        onTap: () => _openFullscreenGallery(context, imgs, 0),
+        child: Container(
+          height: 200,
+          width: double.infinity,
+          margin: const EdgeInsets.only(bottom: 16),
+          decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(12)),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.network(
+                  thumb,
+                  fit: BoxFit.cover,
+                  width: double.infinity,
+                  errorBuilder: (_, __, ___) => const Icon(Icons.image_not_supported_outlined, size: 48, color: Colors.grey),
+                ),
+              ),
+              Positioned(
+                bottom: 8,
+                right: 8,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(12)),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.zoom_in, color: Colors.white, size: 16),
+                      SizedBox(width: 4),
+                      Text('点击查看原图', style: TextStyle(color: Colors.white, fontSize: 12)),
+                    ],
                   ),
                 ),
               ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // [2026-04-23 多图修复] 多图九宫格
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(
+              '报告原图（共 ${imgs.length} 张）',
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: Colors.black87,
+              ),
             ),
           ),
-        );
-      },
-      child: Container(
-        height: 200,
-        width: double.infinity,
-        margin: const EdgeInsets.only(bottom: 16),
-        decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(12)),
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Image.network(
-                report.thumbnailUrl ?? report.fileUrl!,
-                fit: BoxFit.cover,
-                width: double.infinity,
-                errorBuilder: (_, __, ___) => const Icon(Icons.image_not_supported_outlined, size: 48, color: Colors.grey),
-              ),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              crossAxisSpacing: 6,
+              mainAxisSpacing: 6,
+              childAspectRatio: 1,
             ),
-            Positioned(
-              bottom: 8,
-              right: 8,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(12)),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.zoom_in, color: Colors.white, size: 16),
-                    SizedBox(width: 4),
-                    Text('点击查看原图', style: TextStyle(color: Colors.white, fontSize: 12)),
-                  ],
+            itemCount: imgs.length,
+            itemBuilder: (ctx, idx) {
+              final thumb = idx < thumbs.length ? thumbs[idx] : imgs[idx];
+              return GestureDetector(
+                onTap: () => _openFullscreenGallery(context, imgs, idx),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.network(
+                    thumb,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(
+                      color: Colors.grey[200],
+                      child: const Icon(Icons.broken_image, color: Colors.grey),
+                    ),
+                  ),
                 ),
-              ),
-            ),
-          ],
-        ),
+              );
+            },
+          ),
+        ],
       ),
     );
+  }
+
+  // [2026-04-23 多图修复] 全屏画廊：PageView 左右滑 + InteractiveViewer 双指缩放
+  void _openFullscreenGallery(BuildContext context, List<String> images, int initialIndex) {
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => _ReportImageGallery(images: images, initialIndex: initialIndex),
+    ));
   }
 
   Widget _buildPdfPlaceholder() {
@@ -1488,4 +1534,72 @@ class _ProgressPhase {
   final String text;
 
   const _ProgressPhase(this.startValue, this.endValue, this.durationMs, this.text);
+}
+
+// [2026-04-23 多图修复] 报告图片全屏画廊：PageView 左右滑 + InteractiveViewer 缩放
+class _ReportImageGallery extends StatefulWidget {
+  final List<String> images;
+  final int initialIndex;
+
+  const _ReportImageGallery({
+    required this.images,
+    required this.initialIndex,
+  });
+
+  @override
+  State<_ReportImageGallery> createState() => _ReportImageGalleryState();
+}
+
+class _ReportImageGalleryState extends State<_ReportImageGallery> {
+  late PageController _controller;
+  late int _current;
+
+  @override
+  void initState() {
+    super.initState();
+    _current = widget.initialIndex;
+    _controller = PageController(initialPage: widget.initialIndex);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        iconTheme: const IconThemeData(color: Colors.white),
+        elevation: 0,
+        title: Text(
+          '${_current + 1} / ${widget.images.length}',
+          style: const TextStyle(color: Colors.white, fontSize: 16),
+        ),
+      ),
+      body: PageView.builder(
+        controller: _controller,
+        itemCount: widget.images.length,
+        onPageChanged: (i) => setState(() => _current = i),
+        itemBuilder: (_, i) => Center(
+          child: InteractiveViewer(
+            minScale: 1.0,
+            maxScale: 4.0,
+            child: Image.network(
+              widget.images[i],
+              fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => const Icon(
+                Icons.broken_image,
+                color: Colors.white54,
+                size: 64,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

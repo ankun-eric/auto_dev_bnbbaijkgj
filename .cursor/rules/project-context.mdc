@@ -33,7 +33,44 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 商品管理 新建/编辑弹窗优化 v2（2026-04-23）
+## Latest Update: 体检报告多图展示 + 对话页统一化 Phase 2（2026-04-23）
+
+### 概要
+Phase 1（已上线）的后端与 H5 核心多图能力延展到 **Admin / 小程序 / Flutter**，并把体检报告专属对话页 `/h5/checkup/chat/[sessionId]` 迁移并统一到公共 AI 咨询页 `/h5/chat/[sessionId]`（通过 `type=report_interpret|report_compare&auto_start=1`），旧链接 301 永久重定向。历史数据一次性回溯脚本独立交付。
+
+### 关键代码（本次新增/修改）
+- **后端**：
+  - `backend/app/api/chat.py` — `get_session_detail` 返回追加 `type / interpret_session_id / compare_report_ids / auto_start_supported`
+  - **新增** `backend/scripts/migrate_checkup_multi_image.py`（独立 CLI，支持 `--dry-run / --batch-size / --undo`，CSV undo 日志）
+  - **新增** `backend/tests/test_multi_image_session_fields.py`（5 用例全通过）
+- **Admin**：`admin-web/src/app/(admin)/checkup-details/page.tsx` — 单图改九宫格 `Image.PreviewGroup`，新增 `ensureImageList` 兼容函数（支持后端返回数组 / JSON 字符串）
+- **H5**：
+  - `h5-web/src/app/chat/[sessionId]/page.tsx` — 新增 `isReportType / reportList / reportAutoStartedRef` state；顶部报告卡片；SSE 端点对 report 类型走 `first-message-stream / messages-stream`；`ImageViewer.Multi` 多图预览
+  - `h5-web/next.config.js` — 新增 `redirects()` 永久 301：`/checkup/chat/:sid → /chat/:sid?type=report_interpret&auto_start=1`
+  - 7 处跳转全部改向公共页（`checkup/result/[id]`、`checkup/detail/[id]`、`checkup/compare/select`、`checkup/page`）
+  - `h5-web/src/app/checkup/chat/[sessionId]/page.tsx` — 加废弃注释但**保留 7 天**兜底
+- **小程序**：
+  - `miniprogram/pages/checkup-detail/index.{js,wxml,wxss}` — 新增 `reportImages` 数据 + 九宫格 + `wx.previewImage`
+  - `miniprogram/pages/chat/index.{js,wxml,wxss}` — 新增 `report_interpret / report_compare` 分支、`reportList`、顶部报告卡片、`onReportImageTap`、`_loadReportsBrief`
+- **Flutter**：
+  - `flutter_app/lib/models/checkup_report.dart` — 新增 `fileUrls / thumbnailUrls` 及 getter `allImageUrls / allThumbnailUrls`
+  - `flutter_app/lib/screens/health/report_detail_screen.dart` — `_buildImagePreview` 多图九宫格 + `_ReportImageGallery`（`PageView + InteractiveViewer` 全屏左右滑缩放）
+  - `flutter_app/lib/screens/ai/chat_screen.dart` — 新增 `_reportCards / _buildReportTopCard / _ChatReportGallery`；`_processRouteArguments` 支持 report_interpret/compare
+
+### 测试与部署
+- pytest 5/5 通过：`backend/tests/test_multi_image_session_fields.py`
+- 部署脚本：`deploy/deploy_unified_chat_20260423.py`（SFTP 上传 11 文件 + restart backend + rebuild h5-web/admin-web + docker cp 后端文件 + 回溯 dry-run）
+- 链接检查：`deploy/link_check_unified_chat_20260423.py`（13/14 可达，唯一 FAIL 为 `/api/auth/captcha` 本项目无此端点 sanity 误报；核心 `/checkup/chat/1 → /chat/1?type=report_interpret&auto_start=1` 301 链完整生效）
+- 回溯 dry-run：本环境 0 条待更新（Phase 1 migration 已处理）
+- 用户手册：`user_docs/体检报告多图展示与对话页统一化.md`
+
+### 已知/后续
+- 微信小程序 + Android + iOS 改动**未打包发布**，可按需走 `agent-team-dev` 打包流程
+- 旧 `h5-web/src/app/checkup/chat/[sessionId]/page.tsx` 保留 7 天后删除
+
+---
+
+## Previous Update: 商品管理 新建/编辑弹窗优化 v2（2026-04-23）
 
 ### 概要
 管理后台「商品体系 → 商品管理」新建/编辑弹窗重构：左侧 5 Tab 布局（基础信息/标签/积分/预约核销/排序权重）；新增字段**产品条码(≤10)、商品规格(统一/多规格 SKU)、主图视频、商品卖点(≤100)、富文本描述**；商品图片支持**拖拽排序 + 封面角标**；规格被订单引用后锁定部分字段并禁删改停用；保存并上架强校验且自动跳到问题字段 Tab；老数据无感兼容（含纯文本描述转富文本）。

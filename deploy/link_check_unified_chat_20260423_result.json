@@ -1,0 +1,134 @@
+{
+  "base": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27",
+  "total": 14,
+  "ok": 13,
+  "fail": 1,
+  "results": [
+    {
+      "name": "backend_health",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health",
+      "status": 200,
+      "location": "",
+      "error": null,
+      "ok": true,
+      "reason": "200 OK"
+    },
+    {
+      "name": "backend_docs",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/docs",
+      "status": 308,
+      "location": "/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/docs/",
+      "error": null,
+      "ok": true,
+      "reason": "308 redirect -> /autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/docs/"
+    },
+    {
+      "name": "backend_auth_captcha",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/auth/captcha",
+      "status": 404,
+      "location": "",
+      "error": null,
+      "ok": false,
+      "reason": "404 Not Found"
+    },
+    {
+      "name": "backend_chat_session",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/chat/sessions/1",
+      "status": 401,
+      "location": "",
+      "error": null,
+      "ok": true,
+      "reason": "401 (auth required — endpoint exists)"
+    },
+    {
+      "name": "h5_root",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/",
+      "status": 200,
+      "location": "",
+      "error": null,
+      "ok": true,
+      "reason": "200 OK"
+    },
+    {
+      "name": "h5_chat_common",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/chat/1",
+      "status": 308,
+      "location": "/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/chat/1/",
+      "error": null,
+      "ok": true,
+      "reason": "308 redirect -> /autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/chat/1/"
+    },
+    {
+      "name": "h5_checkup_home",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/checkup/",
+      "status": 200,
+      "location": "",
+      "error": null,
+      "ok": true,
+      "reason": "200 OK"
+    },
+    {
+      "name": "h5_checkup_detail",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/checkup/detail/1",
+      "status": 308,
+      "location": "/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/checkup/detail/1/",
+      "error": null,
+      "ok": true,
+      "reason": "308 redirect -> /autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/checkup/detail/1/"
+    },
+    {
+      "name": "h5_checkup_result",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/checkup/result/1",
+      "status": 308,
+      "location": "/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/checkup/result/1/",
+      "error": null,
+      "ok": true,
+      "reason": "308 redirect -> /autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/checkup/result/1/"
+    },
+    {
+      "name": "h5_checkup_compare_select",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/checkup/compare/select",
+      "status": 308,
+      "location": "/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/checkup/compare/select/",
+      "error": null,
+      "ok": true,
+      "reason": "308 redirect -> /autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/checkup/compare/select/"
+    },
+    {
+      "name": "h5_checkup_chat_redirect",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/checkup/chat/1",
+      "status": 308,
+      "location": "/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/checkup/chat/1/",
+      "error": null,
+      "ok": true,
+      "reason": "308 redirect -> /autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/checkup/chat/1/"
+    },
+    {
+      "name": "h5_alias_root",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/h5/",
+      "status": 301,
+      "location": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/",
+      "error": null,
+      "ok": true,
+      "reason": "301 redirect -> https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/"
+    },
+    {
+      "name": "admin_root",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/",
+      "status": 200,
+      "location": "",
+      "error": null,
+      "ok": true,
+      "reason": "200 OK"
+    },
+    {
+      "name": "admin_checkup_details",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/checkup-details",
+      "status": 308,
+      "location": "/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/checkup-details/",
+      "error": null,
+      "ok": true,
+      "reason": "308 redirect -> /autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/checkup-details/"
+    }
+  ]
+}

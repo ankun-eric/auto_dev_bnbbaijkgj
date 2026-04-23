@@ -730,17 +730,35 @@ async def get_session_detail(
                 "thumbnail_urls": thumb_urls_list,
             })
 
+    # [2026-04-23] 多图修复：前端命名兼容字段
+    # - type: 与 session_type 同值，供前端沿用旧命名读取
+    # - interpret_session_id: 解读/对比会话取自身 id，其余为 None
+    # - compare_report_ids: 与 report_ids 同值列表，兼容前端命名习惯
+    # - auto_start_supported: 是否支持自动首条 AI 输出的会话类型
+    auto_start_types = {
+        "report_interpret",
+        "report_compare",
+        "symptom_check",
+        "drug_identify",
+        "constitution_test",
+    }
+    interpret_self_types = {"report_interpret", "report_compare"}
+
     return {
         "id": sess.id,
         "user_id": sess.user_id,
         "title": sess.title,
         "session_type": stype,
+        "type": stype,
         "family_member_id": sess.family_member_id,
         "message_count": sess.message_count or 0,
         "created_at": sess.created_at.isoformat() if sess.created_at else None,
         "updated_at": sess.updated_at.isoformat() if sess.updated_at else None,
         "report_id": report_id_val,
         "report_ids": report_ids_val,
+        "compare_report_ids": report_ids_val,
+        "interpret_session_id": sess.id if stype in interpret_self_types else None,
+        "auto_start_supported": stype in auto_start_types,
         "family_member": family_member_brief,
         "reports_brief": reports_brief,
     }

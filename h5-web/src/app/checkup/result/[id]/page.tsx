@@ -2,7 +2,7 @@
 
 /**
  * [2026-04-23] 旧的结构化解读页下线，保留路由作为 Loading 中转页：
- * - 查询报告 detail -> 如有 interpret_session_id 则跳 /checkup/chat/{sid}
+ * - 查询报告 detail -> 如有 interpret_session_id 则跳 /chat/{sid}（对话页统一化后）
  * - 否则调 /api/report/interpret/start 创建会话再跳
  */
 import { useEffect } from 'react';
@@ -21,7 +21,8 @@ export default function CheckupResultLoadingPage() {
       try {
         const detail: any = await api.get(`/api/checkup/reports/${id}`);
         if (detail?.interpret_session_id) {
-          router.replace(`/checkup/chat/${detail.interpret_session_id}?type=report_interpret`);
+          // [2026-04-23 对话页统一化] 跳转改向公共咨询页
+          router.replace(`/chat/${detail.interpret_session_id}?type=report_interpret`);
           return;
         }
         // [2026-04-23] 老数据懒加载：使用 /api/checkup/reports/{id}/ensure-session
@@ -30,7 +31,8 @@ export default function CheckupResultLoadingPage() {
         });
         const sid = resp?.session_id;
         if (sid) {
-          router.replace(`/checkup/chat/${sid}?auto_start=1&type=report_interpret`);
+          // [2026-04-23 对话页统一化] 跳转改向公共咨询页
+          router.replace(`/chat/${sid}?auto_start=1&type=report_interpret`);
         } else {
           router.replace(`/checkup/detail/${id}`);
         }

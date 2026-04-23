@@ -62,6 +62,13 @@ class _ChatScreenState extends State<ChatScreen> {
   // Drug identify card state (与 H5/小程序对齐的顶部卡片)
   String _drugIdentifyMember = '';
   String _drugIdentifyDrugNames = '';
+
+  // [2026-04-23 报告分支] 体检报告解读/对比 顶部卡片所需状态
+  int? _reportIdForLoad;
+  List<int> _reportIdsForLoad = const [];
+  bool _autoStart = false;
+  // 每个元素含 id/title/file_urls/thumbnail_urls
+  List<Map<String, dynamic>> _reportCards = [];
   
   DateTime? _recordStartTime;
   Timer? _recordTimer;
@@ -169,6 +176,34 @@ class _ChatScreenState extends State<ChatScreen> {
           });
         }
       }
+
+      // [2026-04-23 报告分支] 体检报告解读 / 体检报告对比
+      if (_initialType == 'report_interpret' || _initialType == 'report_compare') {
+        setState(() => _isSymptomLocked = true);
+
+        final rid = args['report_id'];
+        _reportIdForLoad = rid is int ? rid : int.tryParse(rid?.toString() ?? '');
+
+        final rids = args['report_ids'];
+        if (rids is String && rids.isNotEmpty) {
+          _reportIdsForLoad = rids
+              .split(',')
+              .map((e) => int.tryParse(e.trim()) ?? 0)
+              .where((v) => v > 0)
+              .toList();
+        } else if (rids is List) {
+          _reportIdsForLoad = rids
+              .map((e) => e is int ? e : int.tryParse(e.toString()) ?? 0)
+              .where((v) => v > 0)
+              .toList();
+        } else {
+          _reportIdsForLoad = const [];
+        }
+
+        _autoStart = (args['auto_start']?.toString() == '1');
+
+        _loadReportBriefsAndMaybeAutoStart();
+      }
     }
   }
 
@@ -236,6 +271,75 @@ class _ChatScreenState extends State<ChatScreen> {
       }
     } catch (e) {
       debugPrint('restoreSessionMember error: $e');
+    }
+  }
+
+  // [2026-04-23 报告分支] 拉取体检报告 brief 列表；auto_start 暂不触发首条消息，保持与文档一致
+  Future<void> _loadReportBriefsAndMaybeAutoStart() async {
+    try {
+      final List<Map<String, dynamic>> reports = [];
+
+      if (_reportIdForLoad != null) {
+        try {
+          final resp = await _apiService.dio.get('/api/checkup/reports/${_reportIdForLoad}');
+          if (resp.statusCode == 200 && resp.data is Map) {
+            reports.add(Map<String, dynamic>.from(resp.data as Map));
+          }
+        } catch (e) {
+          debugPrint('[report brief] single load failed: $e');
+        }
+      } else if (_reportIdsForLoad.isNotEmpty) {
+        for (final rid in _reportIdsForLoad) {
+          try {
+            final resp = await _apiService.dio.get('/api/checkup/reports/$rid');
+            if (resp.statusCode == 200 && resp.data is Map) {
+              reports.add(Map<String, dynamic>.from(resp.data as Map));
+            }
+          } catch (e) {
+            debugPrint('[report brief] item $rid load failed: $e');
+          }
+        }
+      }
+
+      final normalized = reports.map((r) {
+        List<String> urls;
+        if (r['file_urls'] is List && (r['file_urls'] as List).isNotEmpty) {
+          urls = (r['file_urls'] as List)
+              .map((e) => e?.toString() ?? '')
+              .where((e) => e.isNotEmpty)
+              .toList();
+        } else if (r['file_url'] is String && (r['file_url'] as String).isNotEmpty) {
+          urls = [r['file_url'].toString()];
+        } else {
+          urls = const [];
+        }
+
+        List<String> thumbs;
+        if (r['thumbnail_urls'] is List && (r['thumbnail_urls'] as List).isNotEmpty) {
+          thumbs = (r['thumbnail_urls'] as List)
+              .map((e) => e?.toString() ?? '')
+              .where((e) => e.isNotEmpty)
+              .toList();
+        } else {
+          thumbs = List<String>.from(urls);
+        }
+
+        return <String, dynamic>{
+          'id': r['id'],
+          'title': r['title'] ?? r['report_date'] ?? '体检报告',
+          'file_urls': urls,
+          'thumbnail_urls': thumbs,
+        };
+      }).toList();
+
+      if (mounted) setState(() => _reportCards = normalized);
+
+      // 为稳妥起见，本次迭代暂不基于 _autoStart 触发首条消息；保留字段用于后续迭代。
+      if (_autoStart) {
+        debugPrint('[report brief] auto_start=1 received; deferred until next iteration');
+      }
+    } catch (e) {
+      debugPrint('[report brief] load failed: $e');
     }
   }
 
@@ -993,6 +1097,143 @@ class _ChatScreenState extends State<ChatScreen> {
     ).then((value) { if (value != null) _switchFontSize(value); });
   }
 
+  // [2026-04-23 报告分支] 顶部报告卡片入口：解读单报告 / 对比两份报告
+  Widget _buildReportTopCard() {
+    if (_reportCards.isEmpty) return const SizedBox.shrink();
+    if (_initialType == 'report_compare' && _reportCards.length >= 2) {
+      return _buildCompareCard(_reportCards[0], _reportCards[1]);
+    }
+    return _buildInterpretCard(_reportCards.first);
+  }
+
+  // [2026-04-23 报告分支] 单报告解读卡片：九宫格缩略图 + 点击全屏 PageView 预览
+  Widget _buildInterpretCard(Map<String, dynamic> r) {
+    final urls = List<String>.from((r['file_urls'] as List?) ?? const []);
+    final thumbs = List<String>.from((r['thumbnail_urls'] as List?) ?? urls);
+    final title = r['title']?.toString() ?? '体检报告';
+    final previewThumbs = thumbs.take(4).toList();
+
+    return Container(
+      margin: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(colors: [Color(0xFFE6F7FF), Colors.white]),
+        border: Border.all(color: const Color(0xFF91D5FF)),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '🩺 报告解读：$title',
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+          ),
+          if (urls.length > 1)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                '共 ${urls.length} 张',
+                style: const TextStyle(fontSize: 12, color: Color(0xFF1890FF)),
+              ),
+            ),
+          if (previewThumbs.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (int i = 0; i < previewThumbs.length; i++)
+                  GestureDetector(
+                    onTap: () => _openReportGallery(urls, i),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: Image.network(
+                        previewThumbs[i],
+                        width: 60,
+                        height: 60,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(
+                          width: 60,
+                          height: 60,
+                          color: Colors.grey[200],
+                          child: const Icon(Icons.broken_image, color: Colors.grey, size: 24),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  // [2026-04-23 报告分支] 报告对比卡片：A / B 两行，点击按钮进入全屏画廊
+  Widget _buildCompareCard(Map<String, dynamic> a, Map<String, dynamic> b) {
+    return Container(
+      margin: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(colors: [Color(0xFFFFFBE6), Colors.white]),
+        border: Border.all(color: const Color(0xFFFFE58F)),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('🔄 报告对比', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 4),
+          _buildCompareRow('报告 A', a),
+          _buildCompareRow('报告 B', b),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCompareRow(String label, Map<String, dynamic> r) {
+    final urls = List<String>.from((r['file_urls'] as List?) ?? const []);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        children: [
+          Text('$label：', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+          Expanded(
+            child: Text(
+              r['title']?.toString() ?? '-',
+              style: const TextStyle(fontSize: 12, color: Color(0xFF1890FF)),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          if (urls.isNotEmpty)
+            GestureDetector(
+              onTap: () => _openReportGallery(urls, 0),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  border: Border.all(color: const Color(0xFF1890FF)),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  '查看 ${urls.length} 张',
+                  style: const TextStyle(fontSize: 11, color: Color(0xFF1890FF)),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  // [2026-04-23 报告分支] 复用 PageView + InteractiveViewer 的全屏预览
+  void _openReportGallery(List<String> images, int initialIndex) {
+    if (images.isEmpty) return;
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => _ChatReportGallery(images: images, initialIndex: initialIndex),
+    ));
+  }
+
   Widget _buildDrugIdentifyBanner() {
     if (_initialType != 'drug_identify') return const SizedBox.shrink();
     if (_drugIdentifyMember.isEmpty && _drugIdentifyDrugNames.isEmpty) return const SizedBox.shrink();
@@ -1067,6 +1308,8 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           ),
           _buildDrugIdentifyBanner(),
+          // [2026-04-23 报告分支]
+          _buildReportTopCard(),
           if (_summaryText != null && _summaryText!.isNotEmpty)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -1606,6 +1849,71 @@ class _VoiceRecordOverlay extends StatelessWidget {
             )),
             const Spacer(),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// [2026-04-23 报告分支] AI 聊天页报告顶部卡片的全屏画廊，复用 PageView + InteractiveViewer
+class _ChatReportGallery extends StatefulWidget {
+  final List<String> images;
+  final int initialIndex;
+
+  const _ChatReportGallery({required this.images, required this.initialIndex});
+
+  @override
+  State<_ChatReportGallery> createState() => _ChatReportGalleryState();
+}
+
+class _ChatReportGalleryState extends State<_ChatReportGallery> {
+  late PageController _controller;
+  late int _current;
+
+  @override
+  void initState() {
+    super.initState();
+    _current = widget.initialIndex;
+    _controller = PageController(initialPage: widget.initialIndex);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        iconTheme: const IconThemeData(color: Colors.white),
+        elevation: 0,
+        title: Text(
+          '${_current + 1} / ${widget.images.length}',
+          style: const TextStyle(color: Colors.white, fontSize: 16),
+        ),
+      ),
+      body: PageView.builder(
+        controller: _controller,
+        itemCount: widget.images.length,
+        onPageChanged: (i) => setState(() => _current = i),
+        itemBuilder: (_, i) => Center(
+          child: InteractiveViewer(
+            minScale: 1.0,
+            maxScale: 4.0,
+            child: Image.network(
+              widget.images[i],
+              fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => const Icon(
+                Icons.broken_image,
+                color: Colors.white54,
+                size: 64,
+              ),
+            ),
+          ),
         ),
       ),
     );

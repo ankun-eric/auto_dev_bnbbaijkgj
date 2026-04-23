@@ -112,7 +112,8 @@ function CompareSelectContent() {
       });
       const sid = resp?.session_id;
       if (sid) {
-        router.replace(`/checkup/chat/${sid}?auto_start=1&type=report_compare`);
+        // [2026-04-23 对话页统一化] 跳转改向公共咨询页
+        router.replace(`/chat/${sid}?auto_start=1&type=report_compare`);
       }
     } catch (e: any) {
       Toast.show({ content: e?.message || '创建对比会话失败' });

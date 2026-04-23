@@ -41,6 +41,46 @@
     <view wx:if="{{drugIdentifyDrugNames}}" class="drug-banner__drugs">{{drugIdentifyDrugNames}}</view>
   </view>
 
+  <!-- [2026-04-23 报告分支] 报告解读卡片（单/多报告） -->
+  <block wx:if="{{chatType === 'report_interpret' && reportList && reportList.length > 0}}">
+    <view class="report-card interpret" wx:for="{{reportList}}" wx:key="id">
+      <view class="report-card-title">🩺 {{item.title}}</view>
+      <view class="report-card-count" wx:if="{{item.total > 1}}">共 {{item.total}} 张</view>
+      <view class="report-thumbs" wx:if="{{item.display_thumbs && item.display_thumbs.length > 0}}">
+        <view
+          class="report-thumb"
+          wx:for="{{item.display_thumbs}}"
+          wx:for-item="thumb"
+          wx:for-index="tidx"
+          wx:key="tidx"
+          bindtap="onReportImageTap"
+          data-urls="{{item.file_urls}}"
+          data-current="{{item.file_urls[tidx]}}"
+        >
+          <image src="{{thumb}}" mode="aspectFill" class="report-thumb-img" />
+        </view>
+      </view>
+    </view>
+  </block>
+
+  <!-- [2026-04-23 报告分支] 报告对比卡片（双报告） -->
+  <block wx:if="{{chatType === 'report_compare' && reportList && reportList.length >= 2}}">
+    <view class="report-card compare">
+      <view class="report-card-title">🔄 报告对比</view>
+      <view class="report-compare-item" wx:for="{{reportList}}" wx:key="id" wx:for-item="r">
+        <text class="report-compare-label">{{index === 0 ? '报告 A' : '报告 B'}}：</text>
+        <text class="report-compare-title">{{r.title}}</text>
+        <view
+          wx:if="{{r.total > 0}}"
+          class="report-compare-view"
+          bindtap="onReportImageTap"
+          data-urls="{{r.file_urls}}"
+          data-current="{{r.file_urls[0]}}"
+        >查看 {{r.total}} 张原图</view>
+      </view>
+    </view>
+  </block>
+
   <!-- 消息列表 -->
   <scroll-view class="msg-list" scroll-y scroll-into-view="{{scrollToId}}" scroll-with-animation>
     <!-- 提示信息 -->

@@ -64,6 +64,23 @@
     <text class="score-comment" wx:if="{{healthScoreComment}}">{{healthScoreComment}}</text>
   </view>
 
+  <!-- [2026-04-23 多图九宫格] 报告原图 -->
+  <view class="report-images-section" wx:if="{{reportImages && reportImages.length > 0}}">
+    <view class="report-images-title">报告原图（共 {{reportImages.length}} 张）</view>
+    <view class="report-image-grid">
+      <view
+        class="report-image-item"
+        wx:for="{{reportImages}}"
+        wx:key="*this"
+        bindtap="onImageTap"
+        data-urls="{{reportImages}}"
+        data-current="{{item}}"
+      >
+        <image src="{{item}}" mode="aspectFill" class="report-image-thumb" />
+      </view>
+    </view>
+  </view>
+
   <!-- 区域2：异常指标汇总 -->
   <view class="summary-section" wx:if="{{aiData}}">
     <view class="summary-cards">

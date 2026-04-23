@@ -76,7 +76,10 @@ Page({
 
     // Module 8: TTS
     isTtsPlaying: false,
-    ttsMsgId: ''
+    ttsMsgId: '',
+
+    // [2026-04-23 报告分支] 报告解读/对比场景的顶部报告卡片
+    reportList: []
   },
 
   _recognizeManager: null,
@@ -90,7 +93,9 @@ Page({
   _sseRequestTask: null,
 
   onLoad(options) {
-    const { type = 'health_qa', chatId, question, member, family_member_id, constitution_type, summary, drug_name } = options;
+    // [2026-04-23 报告分支] 新增 report_id / report_ids / auto_start 参数
+    const { type = 'health_qa', chatId, question, member, family_member_id, constitution_type, summary, drug_name,
+            report_id, report_ids, auto_start } = options;
     this.setData({ chatType: type, chatId: chatId || generateId() });
 
     const isSymptom = type === 'symptom' || type === 'symptom_check';
@@ -122,6 +127,15 @@ Page({
       });
     }
 
+    // [2026-04-23 报告分支] 报告解读/对比：锁定类型，加载报告卡片数据
+    if (type === 'report_interpret' || type === 'report_compare') {
+      this.setData({ isTypeLocked: true, chatType: type });
+      this._loadReportsBrief({ chatId, reportId: report_id, reportIds: report_ids });
+      if (auto_start === '1') {
+        this._pendingAutoStart = true;
+      }
+    }
+
     wx.showShareMenu({ withShareTicket: true, menus: ['shareAppMessage', 'shareTimeline'] });
 
     const typeNames = {
@@ -130,7 +144,10 @@ Page({
       tcm: '中医养生',
       drug_query: '用药参考', nutrition: '用药参考',
       drug_identify: '用药识别',
-      constitution: '体质调理'
+      constitution: '体质调理',
+      // [2026-04-23 报告分支]
+      report_interpret: 'AI 报告解读',
+      report_compare: '报告对比'
     };
     wx.setNavigationBarTitle({ title: typeNames[type] || 'AI健康咨询' });
 
@@ -892,6 +909,54 @@ Page({
     } finally {
       this.setData({ drugIdentifyDisabled: false });
     }
+  },
+
+  // [2026-04-23 报告分支] 加载报告简要信息，用于顶部报告卡片
+  async _loadReportsBrief({ chatId, reportId, reportIds }) {
+    try {
+      let reports = [];
+      if (chatId) {
+        const sess = await get(`/api/chat/sessions/${chatId}`, {}, { showLoading: false, suppressErrorToast: true });
+        if (sess && Array.isArray(sess.reports_brief)) {
+          reports = sess.reports_brief;
+        }
+      } else if (reportId) {
+        const rep = await get(`/api/checkup/reports/${reportId}`, {}, { showLoading: false, suppressErrorToast: true });
+        if (rep) reports = [rep];
+      } else if (reportIds) {
+        const ids = String(reportIds).split(',').map(s => parseInt(s, 10)).filter(Boolean);
+        for (const rid of ids) {
+          const rep = await get(`/api/checkup/reports/${rid}`, {}, { showLoading: false, suppressErrorToast: true });
+          if (rep) reports.push(rep);
+        }
+      }
+      const normalized = reports.map(r => {
+        const urls = Array.isArray(r.file_urls) && r.file_urls.length > 0
+          ? r.file_urls.filter(Boolean)
+          : (r.file_url ? [r.file_url] : []);
+        const thumbs = Array.isArray(r.thumbnail_urls) && r.thumbnail_urls.length > 0
+          ? r.thumbnail_urls.filter(Boolean)
+          : urls;
+        return {
+          id: r.id,
+          title: r.title || '体检报告',
+          file_urls: urls,
+          thumbnail_urls: thumbs,
+          display_thumbs: thumbs.slice(0, 4),
+          total: urls.length
+        };
+      });
+      this.setData({ reportList: normalized });
+    } catch (e) {
+      console.warn('[reports_brief] load failed', e);
+    }
+  },
+
+  // [2026-04-23 报告分支] 点击报告卡片缩略图：多图预览
+  onReportImageTap(e) {
+    const { urls, current } = e.currentTarget.dataset;
+    if (!urls || urls.length === 0) return;
+    wx.previewImage({ current: current || urls[0], urls });
   },
 
   async _lockConsultTargetByMemberId(memberId) {

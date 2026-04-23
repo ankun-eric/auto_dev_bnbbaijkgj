@@ -1,5 +1,10 @@
 'use client';
 
+/* [2026-04-23 对话页统一化] 本页面已废弃，所有入口已改跳 /chat/[sessionId]?type=report_interpret&auto_start=1
+ * next.config.js 中已加 301 重定向，外部/历史链接仍可访问。
+ * 本文件保留作为回滚兜底，计划上线 7 天后删除。
+ */
+
 /**
  * [2026-04-23] 报告解读/对比 AI 咨询页（SSE 流式）
  * 路由：/checkup/chat/[sessionId]?auto_start=1&type=report_interpret|report_compare
