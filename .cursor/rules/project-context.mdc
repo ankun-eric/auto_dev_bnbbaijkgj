@@ -33,7 +33,53 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 体检报告多图展示 + 对话页统一化 Phase 2（2026-04-23）
+## Latest Update: 用药参考功能优化 v1.2（2026-04-23）
+
+### 概要
+去除用药对话页顶部的轮播切换，融合卡片改为**平铺展示**；新增 AI 首条综合建议自动推送（单药 4 段式 / 多药双独立卡片 + 综合建议）；识别记录列表首图 4 态（`normal` / `uploading` / `failed` / `legacy`）；首页改为单个"📷 拍照识别药品"大按钮；相册严格单选（`multiple=false` / `count=1` / `image_picker` 单选 API）；多药对比最多 2 个（前端按钮灰化 + 后端校验）；全屏查看原图支持左右滑动切换与双指缩放；历史老数据 `drug_identify_details.original_image_url` 已一次性迁移回填（16/16 成功率 100%）。
+
+### 改动端
+- **后端（FastAPI）**
+  - 新增 `backend/app/api/drug_chat.py`：POST `/api/chat/drug/init`、POST `/api/chat/drug/regenerate_opening`（10s 防抖），`inject_drug_context_to_prompt` 供 `chat.py` 在 `drug_query` 场景下注入 `{member_info}` + `{drug_list}` 占位符
+  - 新增 `backend/scripts/migrate_drug_record_first_image.py`：首图回填迁移脚本（支持 `--dry-run` / `--report`）
+  - 改造：
+    - `backend/app/api/prompt_templates.py`：`VALID_PROMPT_TYPES` 新增 `drug_chat_opening_single`、`drug_chat_opening_multi`；`TYPE_DISPLAY_NAMES` 含占位符提示
+    - `backend/app/api/ocr_details.py` + `schemas/ocr_details.py`：`DrugIdentifyHistoryItem` 新增 `first_image_url`、`image_status` 字段
+    - `backend/app/api/ocr.py` + `schemas/ocr.py`：`batch-recognize` 拍照识药场景硬性只取首张，响应新增 `single_select_notice` + `notice_message`
+    - `backend/app/api/chat.py`：在 `drug_query` 上下文组装后调用 `inject_drug_context_to_prompt`
+    - `backend/app/main.py`：注册 `drug_chat.router`
+- **h5-web（Next.js）**
+  - 新增组件：`h5-web/src/components/drug/DrugMergeCardFlat.tsx`、`DrugImageViewer.tsx`
+  - 改造：`h5-web/src/app/drug/page.tsx`（首页单大按钮 + 72×72 4 态缩略图 + 相册单选）、`h5-web/src/app/drug/chat/[sessionId]/page.tsx`（融合卡片平铺 + init 自动首条 + 重新生成 + ➕再加一个药）
+- **miniprogram（原生）**
+  - 重写 `miniprogram/pages/drug-chat/index.{js,wxml,wxss}`：融合卡片平铺 + `wx.chooseMedia({count:1})` + `wx.previewImage` 全屏 + 首条建议 + 10s 防抖重新生成
+  - 改造 `miniprogram/pages/drug/index.{js,wxml,wxss}`：单大按钮 + 144rpx 4 态缩略图
+- **flutter_app（Flutter）**
+  - 新增 `flutter_app/lib/widgets/drug/drug_merge_card_flat.dart`、`drug_image_viewer.dart`
+  - 改造 `flutter_app/lib/screens/health/drug_screen.dart`、`drug_chat_screen.dart`；`services/api_service.dart` 新增 `drugChatInit` / `drugChatRegenerateOpening` / `ocrAppendSingleDrug`；`providers/health_provider.dart` 透传 `single_select_notice`
+- **admin-web（Next.js）**
+  - 改造 `admin-web/src/app/(admin)/prompt-templates/page.tsx`：`TEMPLATE_TYPES` 下拉新增 3 项 + `PROMPT_VARIABLES` 登记 `{member_info}` / `{drug_list}` + Alert 提示条
+
+### 接口清单
+| 接口 | 状态 | 说明 |
+|---|---|---|
+| `POST /api/chat/drug/init` | 新增 | 首条建议生成 + drug_list + member_info |
+| `POST /api/chat/drug/regenerate_opening` | 新增 | 重新生成，10s 防抖 |
+| `GET /api/drug-identify/history` | 改造 | 新增 `first_image_url` / `image_status` |
+| `POST /api/ocr/batch-recognize` | 增强 | 拍照识药场景单张兜底 |
+| `POST /api/chat/sessions/{id}/messages` | 改造 | `drug_query` 自动注入 `{member_info}` + `{drug_list}` |
+
+### 部署
+- 已部署到：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/`
+- 核心链接验证：`/api/health` 200、`/api/chat/drug/init` 401（鉴权正常）、`/drug` 200、`/admin/` 200
+- 数据迁移：16/16 历史记录首图回填成功
+
+### 用户手册
+`user_docs/用药参考功能优化v1.2.md`
+
+---
+
+## Previous Update: 体检报告多图展示 + 对话页统一化 Phase 2（2026-04-23）
 
 ### 概要
 Phase 1（已上线）的后端与 H5 核心多图能力延展到 **Admin / 小程序 / Flutter**，并把体检报告专属对话页 `/h5/checkup/chat/[sessionId]` 迁移并统一到公共 AI 咨询页 `/h5/chat/[sessionId]`（通过 `type=report_interpret|report_compare&auto_start=1`），旧链接 301 永久重定向。历史数据一次性回溯脚本独立交付。

@@ -24,7 +24,10 @@ sys.path.insert(0, ".")
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import AsyncSessionLocal
+try:
+    from app.core.database import AsyncSessionLocal  # type: ignore
+except ImportError:
+    from app.core.database import async_session as AsyncSessionLocal  # type: ignore
 from app.models.models import DrugIdentifyDetail, OcrCallRecord
 
 
