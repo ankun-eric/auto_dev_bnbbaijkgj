@@ -1,20 +1,35 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   Table, Button, Space, Modal, Form, Input, InputNumber, Select, Switch, Upload, message,
-  Typography, Tag, Popconfirm, Row, Col, DatePicker, Tabs, Divider, Checkbox,
+  Typography, Tag, Popconfirm, Row, Col, DatePicker, Tabs, Divider, Checkbox, Radio,
+  Tooltip, Badge,
 } from 'antd';
 import {
   PlusOutlined, EditOutlined, DeleteOutlined, UploadOutlined,
-  ArrowUpOutlined, ArrowDownOutlined, SearchOutlined,
+  ArrowUpOutlined, ArrowDownOutlined, SearchOutlined, QuestionCircleOutlined,
+  CloseOutlined, MenuOutlined, PlayCircleOutlined,
 } from '@ant-design/icons';
 import { get, post, put, del, upload } from '@/lib/api';
 import dayjs from 'dayjs';
 import type { UploadFile, RcFile } from 'antd/es/upload/interface';
+import SimpleRichEditor from '@/components/SimpleRichEditor';
 
 const { Title } = Typography;
 const { TextArea } = Input;
+
+interface ProductSku {
+  id?: number;
+  spec_name: string;
+  sale_price: number;
+  origin_price?: number | null;
+  stock: number;
+  is_default: boolean;
+  status: number; // 1启用 2停用
+  sort_order: number;
+  has_orders?: boolean;
+}
 
 interface Product {
   id: number;
@@ -43,6 +58,12 @@ interface Product {
   status: string;
   sort_order: number;
   payment_timeout_minutes: number;
+  product_code_list?: string[];
+  spec_mode?: number;
+  main_video_url?: string;
+  selling_point?: string;
+  description_rich?: string;
+  skus?: ProductSku[];
   created_at: string;
   updated_at: string;
 }
@@ -69,7 +90,7 @@ interface SymptomTag {
   count: number;
 }
 
-function mapProduct(raw: Record<string, unknown>): Product {
+function mapProduct(raw: Record<string, any>): Product {
   return {
     id: Number(raw.id),
     name: String(raw.name ?? ''),
@@ -97,6 +118,22 @@ function mapProduct(raw: Record<string, unknown>): Product {
     status: String(raw.status ?? 'draft'),
     sort_order: Number(raw.sort_order ?? 0),
     payment_timeout_minutes: Number(raw.payment_timeout_minutes ?? 15),
+    product_code_list: Array.isArray(raw.product_code_list) ? raw.product_code_list.map(String) : [],
+    spec_mode: Number(raw.spec_mode ?? 1),
+    main_video_url: String(raw.main_video_url ?? raw.video_url ?? ''),
+    selling_point: String(raw.selling_point ?? ''),
+    description_rich: String(raw.description_rich ?? ''),
+    skus: Array.isArray(raw.skus) ? raw.skus.map((s: any) => ({
+      id: s.id,
+      spec_name: String(s.spec_name ?? ''),
+      sale_price: Number(s.sale_price ?? 0),
+      origin_price: s.origin_price != null ? Number(s.origin_price) : null,
+      stock: Number(s.stock ?? 0),
+      is_default: Boolean(s.is_default),
+      status: Number(s.status ?? 1),
+      sort_order: Number(s.sort_order ?? 0),
+      has_orders: Boolean(s.has_orders),
+    })) : [],
     created_at: String(raw.created_at ?? ''),
     updated_at: String(raw.updated_at ?? ''),
   };
@@ -150,6 +187,257 @@ const CONSTITUTION_TYPES = [
   '血瘀质', '气郁质', '特禀质', '平和质',
 ];
 
+type TabKey = 'base' | 'tags' | 'points' | 'appointment' | 'sort';
+
+const TABS: { key: TabKey; label: string }[] = [
+  { key: 'base', label: '基础信息' },
+  { key: 'tags', label: '标签设置' },
+  { key: 'points', label: '积分设置' },
+  { key: 'appointment', label: '预约与核销' },
+  { key: 'sort', label: '排序与权重' },
+];
+
+// 图片缩略图拖拽网格
+function ImageGrid({
+  list, onChange, max = 15,
+}: { list: UploadFile[]; onChange: (l: UploadFile[]) => void; max?: number }) {
+  const dragIndex = useRef<number | null>(null);
+
+  const onDragStart = (idx: number) => { dragIndex.current = idx; };
+  const onDragOver = (e: React.DragEvent) => e.preventDefault();
+  const onDrop = (idx: number) => {
+    const from = dragIndex.current;
+    if (from == null || from === idx) return;
+    const newList = [...list];
+    const [moved] = newList.splice(from, 1);
+    newList.splice(idx, 0, moved);
+    dragIndex.current = null;
+    onChange(newList);
+  };
+  const onRemove = (idx: number) => {
+    const newList = [...list];
+    newList.splice(idx, 1);
+    onChange(newList);
+  };
+
+  const beforeUpload = (file: RcFile) => {
+    const okType = /\.(jpe?g|png|gif|bmp)$/i.test(file.name);
+    if (!okType) { message.error('仅支持 jpg/png/gif/bmp 格式'); return Upload.LIST_IGNORE; }
+    if (file.size > 5 * 1024 * 1024) { message.error('单张图片不能超过 5M'); return Upload.LIST_IGNORE; }
+    return false;
+  };
+
+  const onUploadChange = (info: any) => {
+    const files: UploadFile[] = info.fileList || [];
+    const merged = [...list, ...files.filter((f: UploadFile) => !list.find(l => l.uid === f.uid))];
+    if (merged.length > max) {
+      message.warning(`最多上传 ${max} 张图片`);
+      onChange(merged.slice(0, max));
+    } else {
+      onChange(merged);
+    }
+  };
+
+  return (
+    <div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+        {list.map((f, idx) => {
+          const url = f.url || (f.originFileObj ? URL.createObjectURL(f.originFileObj as Blob) : '');
+          return (
+            <div
+              key={f.uid}
+              draggable
+              onDragStart={() => onDragStart(idx)}
+              onDragOver={onDragOver}
+              onDrop={() => onDrop(idx)}
+              style={{
+                position: 'relative', width: 96, height: 96, border: '1px solid #d9d9d9', borderRadius: 6,
+                overflow: 'hidden', cursor: 'move', background: '#fafafa',
+              }}
+            >
+              {url && <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+              {idx === 0 && (
+                <div style={{
+                  position: 'absolute', left: 0, top: 0, background: '#1677ff', color: '#fff',
+                  fontSize: 12, padding: '2px 6px', borderBottomRightRadius: 4,
+                }}>封面图</div>
+              )}
+              <Button
+                type="primary" danger shape="circle" size="small" icon={<CloseOutlined />}
+                style={{ position: 'absolute', right: 2, top: 2, width: 20, height: 20, minWidth: 20 }}
+                onClick={() => onRemove(idx)}
+              />
+              <MenuOutlined style={{ position: 'absolute', right: 4, bottom: 4, color: '#fff', textShadow: '0 0 2px #000' }} />
+            </div>
+          );
+        })}
+        {list.length < max && (
+          <Upload
+            multiple
+            beforeUpload={beforeUpload}
+            onChange={onUploadChange}
+            showUploadList={false}
+            accept=".jpg,.jpeg,.png,.gif,.bmp"
+          >
+            <div style={{
+              width: 96, height: 96, border: '1px dashed #d9d9d9', borderRadius: 6,
+              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer', background: '#fafafa',
+            }}>
+              <UploadOutlined /><div style={{ fontSize: 12, marginTop: 4 }}>上传图片</div>
+            </div>
+          </Upload>
+        )}
+      </div>
+      <div style={{ fontSize: 12, color: '#999' }}>可拖拽排序，第 1 张自动成为封面图</div>
+    </div>
+  );
+}
+
+// SKU 规格表
+function SkuTable({
+  skus, onChange,
+}: { skus: ProductSku[]; onChange: (s: ProductSku[]) => void }) {
+  const dragIndex = useRef<number | null>(null);
+
+  const setRow = (idx: number, patch: Partial<ProductSku>) => {
+    const next = skus.map((s, i) => i === idx ? { ...s, ...patch } : s);
+    onChange(next);
+  };
+
+  const addRow = () => {
+    onChange([
+      ...skus,
+      { spec_name: '', sale_price: 0, origin_price: null, stock: 0, is_default: skus.length === 0, status: 1, sort_order: skus.length, has_orders: false },
+    ]);
+  };
+
+  const removeRow = (idx: number) => {
+    if (skus.length <= 1) { message.warning('至少保留 1 条规格'); return; }
+    const removed = skus[idx];
+    if (removed.has_orders) { message.warning('该规格已有订单，不可删除，请改为停用'); return; }
+    const next = skus.filter((_, i) => i !== idx);
+    if (removed.is_default && next.length > 0) next[0].is_default = true;
+    onChange(next);
+  };
+
+  const setDefault = (idx: number) => {
+    const next = skus.map((s, i) => ({ ...s, is_default: i === idx }));
+    onChange(next);
+  };
+
+  const onDragStart = (idx: number) => { dragIndex.current = idx; };
+  const onDragOver = (e: React.DragEvent) => e.preventDefault();
+  const onDrop = (idx: number) => {
+    const from = dragIndex.current;
+    if (from == null || from === idx) return;
+    const next = [...skus];
+    const [m] = next.splice(from, 1);
+    next.splice(idx, 0, m);
+    next.forEach((s, i) => { s.sort_order = i; });
+    dragIndex.current = null;
+    onChange(next);
+  };
+
+  const lockedTip = '该规格已有订单，为保护已下单用户权益，此字段不可修改。如需调整请新增规格后停用当前规格';
+
+  return (
+    <div>
+      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <thead>
+          <tr style={{ background: '#fafafa' }}>
+            <th style={{ width: 30, padding: 6, border: '1px solid #f0f0f0' }}></th>
+            <th style={{ padding: 6, border: '1px solid #f0f0f0', textAlign: 'left' }}>规格名称 *</th>
+            <th style={{ padding: 6, border: '1px solid #f0f0f0', width: 110 }}>售价(元) *</th>
+            <th style={{ padding: 6, border: '1px solid #f0f0f0', width: 110 }}>原价(元)</th>
+            <th style={{ padding: 6, border: '1px solid #f0f0f0', width: 100 }}>库存 *</th>
+            <th style={{ padding: 6, border: '1px solid #f0f0f0', width: 70 }}>默认</th>
+            <th style={{ padding: 6, border: '1px solid #f0f0f0', width: 90 }}>启用</th>
+            <th style={{ padding: 6, border: '1px solid #f0f0f0', width: 60 }}>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          {skus.map((s, idx) => {
+            const locked = !!s.has_orders;
+            return (
+              <tr
+                key={idx}
+                draggable
+                onDragStart={() => onDragStart(idx)}
+                onDragOver={onDragOver}
+                onDrop={() => onDrop(idx)}
+              >
+                <td style={{ border: '1px solid #f0f0f0', textAlign: 'center', color: '#aaa', cursor: 'move' }}>
+                  <MenuOutlined />
+                </td>
+                <td style={{ border: '1px solid #f0f0f0', padding: 4 }}>
+                  <Tooltip title={locked ? lockedTip : ''}>
+                    <Input
+                      size="small"
+                      value={s.spec_name}
+                      disabled={locked}
+                      maxLength={20}
+                      placeholder="如：单次 / 5 次套餐"
+                      onChange={e => setRow(idx, { spec_name: e.target.value })}
+                    />
+                  </Tooltip>
+                </td>
+                <td style={{ border: '1px solid #f0f0f0', padding: 4 }}>
+                  <Tooltip title={locked ? lockedTip : ''}>
+                    <InputNumber
+                      size="small" min={0} step={0.01} style={{ width: '100%' }}
+                      value={s.sale_price} disabled={locked}
+                      onChange={v => setRow(idx, { sale_price: Number(v ?? 0) })}
+                    />
+                  </Tooltip>
+                </td>
+                <td style={{ border: '1px solid #f0f0f0', padding: 4 }}>
+                  <InputNumber
+                    size="small" min={0} step={0.01} style={{ width: '100%' }}
+                    value={s.origin_price ?? undefined}
+                    onChange={v => setRow(idx, { origin_price: v == null ? null : Number(v) })}
+                  />
+                </td>
+                <td style={{ border: '1px solid #f0f0f0', padding: 4 }}>
+                  <InputNumber
+                    size="small" min={0} style={{ width: '100%' }}
+                    value={s.stock}
+                    onChange={v => setRow(idx, { stock: Number(v ?? 0) })}
+                  />
+                </td>
+                <td style={{ border: '1px solid #f0f0f0', padding: 4, textAlign: 'center' }}>
+                  <Tooltip title={locked ? lockedTip : ''}>
+                    <Radio checked={s.is_default} disabled={locked} onChange={() => setDefault(idx)} />
+                  </Tooltip>
+                </td>
+                <td style={{ border: '1px solid #f0f0f0', padding: 4, textAlign: 'center' }}>
+                  <Switch
+                    size="small"
+                    checked={s.status === 1}
+                    onChange={v => setRow(idx, { status: v ? 1 : 2 })}
+                    checkedChildren="启用" unCheckedChildren="停用"
+                  />
+                </td>
+                <td style={{ border: '1px solid #f0f0f0', padding: 4, textAlign: 'center' }}>
+                  <Tooltip title={locked ? '该规格已有订单，不可删除，请改为停用' : ''}>
+                    <Button
+                      size="small" danger type="link" disabled={locked}
+                      icon={<DeleteOutlined />} onClick={() => removeRow(idx)}
+                    />
+                  </Tooltip>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      <Button type="dashed" block icon={<PlusOutlined />} onClick={addRow} style={{ marginTop: 8 }}>
+        新增规格
+      </Button>
+    </div>
+  );
+}
+
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
@@ -164,6 +452,21 @@ export default function ProductsPage() {
   const [fileList, setFileList] = useState<UploadFile[]>([]);
   const [symptomTags, setSymptomTags] = useState<SymptomTag[]>([]);
   const [form] = Form.useForm();
+
+  // 新增状态
+  const [activeTab, setActiveTab] = useState<TabKey>('base');
+  const [productCodes, setProductCodes] = useState<string[]>([]);
+  const [codeInput, setCodeInput] = useState('');
+  const [specMode, setSpecMode] = useState<number>(1); // 1统一 2多规格
+  const [skuList, setSkuList] = useState<ProductSku[]>([]);
+  const [skuPanelOpen, setSkuPanelOpen] = useState<boolean>(true);
+  const [descRich, setDescRich] = useState<string>('');
+  const [mainVideoUrl, setMainVideoUrl] = useState<string>('');
+  const [videoUploading, setVideoUploading] = useState<boolean>(false);
+  const [exampleModal, setExampleModal] = useState<{ open: boolean; type: 'code' | 'selling' | null }>({ open: false, type: null });
+
+  // Tab 校验状态
+  const [tabErrors, setTabErrors] = useState<Record<TabKey, boolean>>({ base: false, tags: false, points: false, appointment: false, sort: false });
 
   const [formFieldsVisible, setFormFieldsVisible] = useState(false);
   const [formFieldsProductId, setFormFieldsProductId] = useState<number | null>(null);
@@ -198,9 +501,7 @@ export default function ProductsPage() {
   const fetchSymptomTags = useCallback(async () => {
     try {
       const res = await get('/api/admin/symptom-tags');
-      if (res?.items) {
-        setSymptomTags(res.items);
-      }
+      if (res?.items) setSymptomTags(res.items);
     } catch {}
   }, []);
 
@@ -236,9 +537,23 @@ export default function ProductsPage() {
 
   const handleSearch = () => fetchData(1, pagination.pageSize);
 
+  const resetDialogState = () => {
+    setActiveTab('base');
+    setProductCodes([]);
+    setCodeInput('');
+    setSpecMode(1);
+    setSkuList([]);
+    setSkuPanelOpen(true);
+    setDescRich('');
+    setMainVideoUrl('');
+    setFileList([]);
+    setTabErrors({ base: false, tags: false, points: false, appointment: false, sort: false });
+  };
+
   const handleAdd = () => {
     setEditingRecord(null);
     form.resetFields();
+    resetDialogState();
     form.setFieldsValue({
       status: 'draft',
       stock: 100,
@@ -249,40 +564,63 @@ export default function ProductsPage() {
       payment_timeout_minutes: 15,
       points_exchangeable: false,
       points_deductible: false,
+      spec_mode: 1,
     });
-    setFileList([]);
     setModalVisible(true);
   };
 
-  const handleEdit = (record: Product) => {
+  const handleEdit = async (record: Product) => {
     setEditingRecord(record);
-    const existingConstitutions = (record.symptom_tags || []).filter(t => CONSTITUTION_TYPES.includes(t));
-    const otherTags = (record.symptom_tags || []).filter(t => !CONSTITUTION_TYPES.includes(t));
+    resetDialogState();
+    // 拉取详情获取 SKU 与新字段
+    let detail: Product = record;
+    try {
+      const res = await get(`/api/admin/products/${record.id}/detail`);
+      if (res) detail = mapProduct(res);
+    } catch {}
+
+    const existingConstitutions = (detail.symptom_tags || []).filter(t => CONSTITUTION_TYPES.includes(t));
+    const otherTags = (detail.symptom_tags || []).filter(t => !CONSTITUTION_TYPES.includes(t));
+
     form.setFieldsValue({
-      name: record.name,
-      category_id: record.category_id,
-      fulfillment_type: record.fulfillment_type,
-      original_price: record.original_price,
-      sale_price: record.sale_price,
-      description: record.description,
+      name: detail.name,
+      category_id: detail.category_id,
+      fulfillment_type: detail.fulfillment_type,
+      original_price: detail.original_price,
+      sale_price: detail.sale_price,
+      selling_point: detail.selling_point || '',
       symptom_tags: otherTags,
       constitution_types: existingConstitutions,
-      stock: record.stock,
-      valid_start_date: record.valid_start_date ? dayjs(record.valid_start_date) : null,
-      valid_end_date: record.valid_end_date ? dayjs(record.valid_end_date) : null,
-      points_exchangeable: record.points_exchangeable,
-      points_price: record.points_price,
-      points_deductible: record.points_deductible,
-      redeem_count: record.redeem_count,
-      appointment_mode: record.appointment_mode,
-      recommend_weight: record.recommend_weight,
-      status: record.status,
-      sort_order: record.sort_order,
-      payment_timeout_minutes: record.payment_timeout_minutes,
-      video_url: record.video_url,
+      stock: detail.stock,
+      valid_start_date: detail.valid_start_date ? dayjs(detail.valid_start_date) : null,
+      valid_end_date: detail.valid_end_date ? dayjs(detail.valid_end_date) : null,
+      points_exchangeable: detail.points_exchangeable,
+      points_price: detail.points_price,
+      points_deductible: detail.points_deductible,
+      redeem_count: detail.redeem_count,
+      appointment_mode: detail.appointment_mode,
+      recommend_weight: detail.recommend_weight,
+      status: detail.status,
+      sort_order: detail.sort_order,
+      payment_timeout_minutes: detail.payment_timeout_minutes,
+      spec_mode: detail.spec_mode ?? 1,
     });
+    setProductCodes(detail.product_code_list || []);
+    setSpecMode(detail.spec_mode ?? 1);
+    setSkuList(detail.skus || []);
+    // 老数据：富文本优先，否则把纯文本转 HTML
+    const rich = detail.description_rich;
+    const plain = detail.description;
+    if (rich && rich.trim()) {
+      setDescRich(rich);
+    } else if (plain && plain.trim()) {
+      setDescRich(plain.replace(/\n/g, '<br/>'));
+    } else {
+      setDescRich('');
+    }
+    setMainVideoUrl(detail.main_video_url || detail.video_url || '');
     setFileList(
-      record.images?.map((url, i) => ({ uid: String(-i - 1), name: `img_${i}`, status: 'done' as const, url })) || []
+      detail.images?.map((url, i) => ({ uid: String(-i - 1), name: `img_${i}`, status: 'done' as const, url })) || []
     );
     setModalVisible(true);
   };
@@ -307,76 +645,221 @@ export default function ProductsPage() {
     }
   };
 
-  const doUpload = async (file: RcFile): Promise<string> => {
+  const doUpload = async (file: RcFile | Blob): Promise<string> => {
     try {
-      const res = await upload('/api/upload/image', file);
+      const res = await upload('/api/upload/image', file as File);
       return (res as any)?.url || (res as any)?.data?.url || '';
     } catch {
-      message.error('图片上传失败');
+      message.error('上传失败');
       return '';
     }
   };
 
-  const handleSubmit = async () => {
-    try {
-      const values = await form.validateFields();
+  const addCode = () => {
+    const v = codeInput.trim();
+    if (!v) return;
+    if (v.length > 30) { message.warning('单个条码最多 30 字符'); return; }
+    if (productCodes.length >= 10) { message.warning('最多 10 个条码'); return; }
+    if (productCodes.includes(v)) { message.warning('条码重复'); return; }
+    setProductCodes([...productCodes, v]);
+    setCodeInput('');
+  };
 
-      const imageUrls: string[] = [];
-      for (const f of fileList) {
-        if (f.originFileObj) {
-          const url = await doUpload(f.originFileObj as RcFile);
-          if (url) imageUrls.push(url);
-        } else if (f.url) {
-          imageUrls.push(f.url);
+  const removeCode = (v: string) => setProductCodes(productCodes.filter(c => c !== v));
+
+  const onSpecModeChange = (val: number) => {
+    if (val === 1 && specMode === 2 && skuList.length > 0) {
+      Modal.confirm({
+        title: '切换到统一规格',
+        content: '切换后已录入的规格数据将被清空，是否继续？',
+        onOk: () => {
+          setSkuList([]);
+          setSpecMode(1);
+          form.setFieldValue('spec_mode', 1);
+        },
+      });
+      return;
+    }
+    setSpecMode(val);
+    form.setFieldValue('spec_mode', val);
+    if (val === 2 && skuList.length === 0) {
+      setSkuList([{ spec_name: '', sale_price: 0, origin_price: null, stock: 0, is_default: true, status: 1, sort_order: 0, has_orders: false }]);
+    }
+  };
+
+  const totalSkuStock = skuList.reduce((s, x) => s + Number(x.stock || 0), 0);
+
+  const validateSkus = (strict: boolean): string | null => {
+    if (specMode !== 2) return null;
+    if (skuList.length === 0) return '请至少添加 1 条规格';
+    const names = new Set<string>();
+    for (const s of skuList) {
+      if (!s.spec_name || s.spec_name.trim() === '') return '规格名称不能为空';
+      if (s.spec_name.length > 20) return '规格名称最多 20 字';
+      if (names.has(s.spec_name)) return `规格名称重复：${s.spec_name}`;
+      names.add(s.spec_name);
+      if (s.sale_price == null || isNaN(Number(s.sale_price)) || Number(s.sale_price) < 0) return `规格「${s.spec_name}」售价无效`;
+      if (s.origin_price != null && Number(s.origin_price) < Number(s.sale_price)) return `规格「${s.spec_name}」原价需 ≥ 售价`;
+      if (s.stock == null || Number(s.stock) < 0) return `规格「${s.spec_name}」库存无效`;
+    }
+    const defaults = skuList.filter(s => s.is_default);
+    if (defaults.length !== 1) return '默认规格必须有且仅有 1 条';
+    if (strict) {
+      const anyEnabledWithStock = skuList.some(s => s.status === 1 && Number(s.stock) > 0);
+      if (!anyEnabledWithStock) return '上架时至少需有 1 条启用规格且库存 > 0';
+    }
+    return null;
+  };
+
+  const handleSubmit = async (publish = false) => {
+    // 校验基础必填
+    let hasErrBase = false, hasErrTags = false;
+    try {
+      await form.validateFields();
+    } catch (err: any) {
+      if (err?.errorFields) {
+        const errSet = new Set<string>();
+        (err.errorFields as any[]).forEach(f => { if (Array.isArray(f.name)) errSet.add(String(f.name[0])); });
+        hasErrBase = ['name', 'category_id', 'fulfillment_type', 'sale_price', 'original_price', 'stock', 'selling_point'].some(f => errSet.has(f));
+        hasErrTags = ['symptom_tags', 'constitution_types'].some(f => errSet.has(f));
+        setTabErrors(prev => ({ ...prev, base: hasErrBase, tags: hasErrTags }));
+        if (hasErrBase) setActiveTab('base');
+        else if (hasErrTags) setActiveTab('tags');
+        return;
+      }
+    }
+    const values = form.getFieldsValue();
+
+    // SKU 校验
+    const skuErr = validateSkus(publish);
+    if (skuErr) {
+      message.error(skuErr);
+      setActiveTab('base');
+      setTabErrors(prev => ({ ...prev, base: true }));
+      return;
+    }
+
+    // 原价 ≥ 售价
+    if (specMode === 1 && values.original_price != null && values.sale_price != null && Number(values.original_price) < Number(values.sale_price)) {
+      message.error('原价必须 ≥ 售价');
+      setActiveTab('base');
+      setTabErrors(prev => ({ ...prev, base: true }));
+      return;
+    }
+
+    // 上架强校验
+    if (publish) {
+      if (!fileList || fileList.length === 0) {
+        message.error('上架需至少上传 1 张商品图片');
+        setActiveTab('base');
+        setTabErrors(prev => ({ ...prev, base: true }));
+        return;
+      }
+      if (specMode === 1) {
+        if (!values.stock || Number(values.stock) <= 0) {
+          message.error('上架时库存必须 > 0');
+          setActiveTab('base');
+          setTabErrors(prev => ({ ...prev, base: true }));
+          return;
         }
       }
+    }
 
-      const payload: Record<string, unknown> = {
-        name: values.name,
-        category_id: values.category_id,
-        fulfillment_type: values.fulfillment_type,
-        original_price: values.original_price,
-        sale_price: values.sale_price,
-        images: imageUrls,
-        video_url: values.video_url || '',
-        description: values.description || '',
-        symptom_tags: [...(values.symptom_tags || []), ...(values.constitution_types || [])],
-        stock: values.stock ?? 0,
-        valid_start_date: values.valid_start_date ? values.valid_start_date.format('YYYY-MM-DD') : null,
-        valid_end_date: values.valid_end_date ? values.valid_end_date.format('YYYY-MM-DD') : null,
-        points_exchangeable: values.points_exchangeable || false,
-        points_price: values.points_price ?? 0,
-        points_deductible: values.points_deductible || false,
-        redeem_count: values.redeem_count ?? 1,
-        appointment_mode: values.appointment_mode || 'none',
-        recommend_weight: values.recommend_weight ?? 0,
-        status: values.status || 'draft',
-        sort_order: values.sort_order ?? 0,
-        payment_timeout_minutes: values.payment_timeout_minutes ?? 15,
-      };
+    // 卖点长度
+    if (values.selling_point && String(values.selling_point).length > 100) {
+      message.error('卖点需在 100 字以内');
+      setActiveTab('base');
+      return;
+    }
 
+    // 上传图片
+    const imageUrls: string[] = [];
+    for (const f of fileList) {
+      if (f.originFileObj) {
+        const url = await doUpload(f.originFileObj as RcFile);
+        if (url) imageUrls.push(url);
+      } else if (f.url) {
+        imageUrls.push(f.url);
+      }
+    }
+
+    if (videoUploading) {
+      message.warning('视频正在上传中，请稍候');
+      return;
+    }
+
+    const payload: Record<string, unknown> = {
+      name: values.name,
+      category_id: values.category_id,
+      fulfillment_type: values.fulfillment_type,
+      original_price: specMode === 1 ? (values.original_price ?? 0) : 0,
+      sale_price: specMode === 1 ? (values.sale_price ?? 0) : 0,
+      images: imageUrls,
+      video_url: mainVideoUrl || '',
+      main_video_url: mainVideoUrl || '',
+      description: descRich ? descRich.replace(/<[^>]+>/g, '').slice(0, 5000) : '',
+      description_rich: descRich || '',
+      selling_point: values.selling_point || '',
+      product_code_list: productCodes,
+      spec_mode: specMode,
+      skus: specMode === 2 ? skuList : [],
+      symptom_tags: [...(values.symptom_tags || []), ...(values.constitution_types || [])],
+      stock: specMode === 1 ? (values.stock ?? 0) : totalSkuStock,
+      valid_start_date: values.valid_start_date ? values.valid_start_date.format('YYYY-MM-DD') : null,
+      valid_end_date: values.valid_end_date ? values.valid_end_date.format('YYYY-MM-DD') : null,
+      points_exchangeable: values.points_exchangeable || false,
+      points_price: values.points_price ?? 0,
+      points_deductible: values.points_deductible || false,
+      redeem_count: values.redeem_count ?? 1,
+      appointment_mode: values.appointment_mode || 'none',
+      recommend_weight: values.recommend_weight ?? 0,
+      status: publish ? 'active' : (values.status || 'draft'),
+      sort_order: values.sort_order ?? 0,
+      payment_timeout_minutes: values.payment_timeout_minutes ?? 15,
+    };
+
+    try {
       if (editingRecord) {
         await put(`/api/admin/products/${editingRecord.id}`, payload);
-        message.success('编辑成功');
+        message.success(publish ? '保存并已上架' : '编辑成功');
       } else {
         await post('/api/admin/products', payload);
-        message.success('新增成功');
+        message.success(publish ? '新增并已上架' : '新增成功');
       }
       setModalVisible(false);
       fetchData(pagination.current, pagination.pageSize);
     } catch (err: any) {
-      if (err?.errorFields) return;
       message.error(err?.response?.data?.detail || '操作失败');
     }
   };
 
+  const handleCancelModal = () => {
+    Modal.confirm({
+      title: '关闭确认',
+      content: '未保存的修改将丢失，是否继续？',
+      onOk: () => setModalVisible(false),
+    });
+  };
+
+  const handleVideoUpload = async (file: File) => {
+    if (!/\.(mp4|mov)$/i.test(file.name)) { message.error('仅支持 mp4/mov 格式'); return false; }
+    if (file.size > 100 * 1024 * 1024) { message.error('视频不能超过 100M'); return false; }
+    setVideoUploading(true);
+    try {
+      const url = await doUpload(file);
+      if (url) setMainVideoUrl(url);
+    } finally {
+      setVideoUploading(false);
+    }
+    return false;
+  };
+
+  // 以下为表单字段配置相关（原逻辑保持）
   const fetchFormFields = async (productId: number) => {
     setFormFieldsLoading(true);
     try {
       const res = await get(`/api/admin/products/${productId}/form-fields`);
-      if (res) {
-        setFormFields(Array.isArray(res.items) ? res.items : []);
-      }
+      if (res) setFormFields(Array.isArray(res.items) ? res.items : []);
     } catch {
       setFormFields([]);
     } finally {
@@ -416,9 +899,7 @@ export default function ProductsPage() {
       await del(`/api/admin/products/${formFieldsProductId}/form-fields/${fieldId}`);
       message.success('删除成功');
       fetchFormFields(formFieldsProductId);
-    } catch {
-      message.error('删除失败');
-    }
+    } catch { message.error('删除失败'); }
   };
 
   const handleFieldSubmit = async () => {
@@ -430,27 +911,16 @@ export default function ProductsPage() {
         try { options = JSON.parse(values.options); } catch { options = values.options.split(',').map((s: string) => s.trim()); }
       }
       const payload = {
-        field_type: values.field_type,
-        label: values.label,
-        placeholder: values.placeholder || '',
-        required: values.required || false,
-        options,
-        sort_order: values.sort_order ?? 0,
+        field_type: values.field_type, label: values.label,
+        placeholder: values.placeholder || '', required: values.required || false,
+        options, sort_order: values.sort_order ?? 0,
       };
-
-      if (editingField) {
-        await put(`/api/admin/products/${formFieldsProductId}/form-fields/${editingField.id}`, payload);
-        message.success('编辑成功');
-      } else {
-        await post(`/api/admin/products/${formFieldsProductId}/form-fields`, payload);
-        message.success('新增成功');
-      }
+      if (editingField) await put(`/api/admin/products/${formFieldsProductId}/form-fields/${editingField.id}`, payload);
+      else await post(`/api/admin/products/${formFieldsProductId}/form-fields`, payload);
+      message.success('操作成功');
       setFieldModalVisible(false);
       fetchFormFields(formFieldsProductId);
-    } catch (err: any) {
-      if (err?.errorFields) return;
-      message.error('操作失败');
-    }
+    } catch (err: any) { if (!err?.errorFields) message.error('操作失败'); }
   };
 
   const columns = [
@@ -469,12 +939,14 @@ export default function ProductsPage() {
       render: (v: string) => <Tag>{fulfillmentMap[v] ?? v}</Tag>,
     },
     {
-      title: '售价', dataIndex: 'sale_price', key: 'sale_price', width: 90,
-      render: (v: number) => <span style={{ color: '#f5222d', fontWeight: 600 }}>¥{v}</span>,
+      title: '规格', dataIndex: 'spec_mode', key: 'spec_mode', width: 80,
+      render: (v: number, r: Product) => v === 2 ? <Tag color="purple">多规格({r.skus?.length || 0})</Tag> : <Tag>统一</Tag>,
     },
     {
-      title: '原价', dataIndex: 'original_price', key: 'original_price', width: 90,
-      render: (v: number) => v ? <span style={{ textDecoration: 'line-through', color: '#999' }}>¥{v}</span> : '—',
+      title: '售价', dataIndex: 'sale_price', key: 'sale_price', width: 90,
+      render: (v: number, r: Product) => r.spec_mode === 2 && r.skus && r.skus.length > 0
+        ? <span style={{ color: '#f5222d' }}>¥{Math.min(...r.skus.map(s => s.sale_price))}起</span>
+        : <span style={{ color: '#f5222d', fontWeight: 600 }}>¥{v}</span>,
     },
     { title: '库存', dataIndex: 'stock', key: 'stock', width: 70 },
     { title: '销量', dataIndex: 'sales_count', key: 'sales_count', width: 70 },
@@ -535,6 +1007,238 @@ export default function ProductsPage() {
     },
   ];
 
+  const renderTabContent = () => {
+    if (activeTab === 'base') {
+      return (
+        <>
+          {/* 产品条码 */}
+          <Form.Item
+            label={
+              <Space>
+                <span>产品条码</span>
+                <Tooltip title="用于快速识别商品所标记的唯一编码"><QuestionCircleOutlined style={{ color: '#999' }} /></Tooltip>
+                <Button size="small" type="link" onClick={() => setExampleModal({ open: true, type: 'code' })}>实例</Button>
+              </Space>
+            }
+          >
+            <div style={{ border: '1px solid #d9d9d9', borderRadius: 6, padding: 6, minHeight: 40 }}>
+              {productCodes.map(c => (
+                <Tag key={c} closable onClose={() => removeCode(c)} style={{ marginBottom: 4 }}>{c}</Tag>
+              ))}
+              {productCodes.length < 10 && (
+                <Input
+                  size="small" bordered={false} style={{ width: 180 }}
+                  placeholder="输入后回车添加" maxLength={30}
+                  value={codeInput}
+                  onChange={e => setCodeInput(e.target.value)}
+                  onPressEnter={addCode}
+                  onBlur={addCode}
+                />
+              )}
+              <span style={{ color: '#999', fontSize: 12, marginLeft: 8 }}>{productCodes.length}/10</span>
+            </div>
+          </Form.Item>
+
+          <Form.Item label="商品名称" name="name" rules={[{ required: true, message: '请输入商品名称' }, { max: 50, message: '最多 50 字' }]}>
+            <Input placeholder="请输入商品名称" maxLength={50} showCount />
+          </Form.Item>
+
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item label="商品分类" name="category_id" rules={[{ required: true, message: '请选择分类' }]}>
+                <Select options={categoryOptions} placeholder="请选择分类" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item label="履约类型" name="fulfillment_type" rules={[{ required: true, message: '请选择类型' }]}>
+                <Select options={fulfillmentTypes} placeholder="请选择类型" />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          {/* 规格 */}
+          <Form.Item label="商品规格" required>
+            <Space>
+              <Radio.Group value={specMode} onChange={e => onSpecModeChange(e.target.value)}>
+                <Radio value={1}>统一规格</Radio>
+                <Radio value={2}>多规格</Radio>
+              </Radio.Group>
+              {specMode === 2 && (
+                <Button size="small" onClick={() => setSkuPanelOpen(o => !o)}>
+                  {skuPanelOpen ? '收起规格管理' : '规格管理'}
+                </Button>
+              )}
+            </Space>
+          </Form.Item>
+
+          {specMode === 2 && skuPanelOpen && (
+            <div style={{ marginBottom: 16, background: '#fafafa', padding: 12, borderRadius: 6 }}>
+              <SkuTable skus={skuList} onChange={setSkuList} />
+              <div style={{ marginTop: 8, color: '#666' }}>总库存：<b>{totalSkuStock}</b></div>
+            </div>
+          )}
+
+          {specMode === 1 && (
+            <Row gutter={16}>
+              <Col span={8}>
+                <Form.Item label="售价 (元)" name="sale_price" rules={[{ required: true, message: '请输入售价' }]}>
+                  <InputNumber min={0} step={0.01} style={{ width: '100%' }} placeholder="0.00" />
+                </Form.Item>
+              </Col>
+              <Col span={8}>
+                <Form.Item label="原价 (元)" name="original_price">
+                  <InputNumber min={0} step={0.01} style={{ width: '100%' }} placeholder="0.00" />
+                </Form.Item>
+              </Col>
+              <Col span={8}>
+                <Form.Item label="库存" name="stock" rules={[{ required: true, message: '请输入库存' }]}>
+                  <InputNumber min={0} style={{ width: '100%' }} />
+                </Form.Item>
+              </Col>
+            </Row>
+          )}
+
+          <Form.Item
+            label={
+              <Space>
+                <span>商品图片</span>
+                <Tooltip title="最多上传 15 张，格式：jpg/bmp/png/gif，建议尺寸 750px * 600px">
+                  <QuestionCircleOutlined style={{ color: '#999' }} />
+                </Tooltip>
+                <span style={{ color: '#ff4d4f' }}>*</span>
+              </Space>
+            }
+          >
+            <ImageGrid list={fileList} onChange={setFileList} max={15} />
+          </Form.Item>
+
+          <Form.Item
+            label={
+              <Space>
+                <span>主图视频</span>
+                <Tooltip title="最多可上传 1 个视频；视频不超过 3 分钟，大小不超过 100M，建议视频宽高和产品图片一致">
+                  <QuestionCircleOutlined style={{ color: '#999' }} />
+                </Tooltip>
+              </Space>
+            }
+          >
+            <Space direction="vertical" style={{ width: '100%' }}>
+              {mainVideoUrl && (
+                <div style={{ position: 'relative', display: 'inline-block' }}>
+                  <video src={mainVideoUrl} controls style={{ width: 240, height: 135, background: '#000', borderRadius: 6 }} />
+                  <Button
+                    type="primary" danger size="small" icon={<CloseOutlined />}
+                    style={{ position: 'absolute', right: 4, top: 4 }}
+                    onClick={() => setMainVideoUrl('')}
+                  />
+                </div>
+              )}
+              <Space>
+                <Upload beforeUpload={handleVideoUpload} showUploadList={false} accept=".mp4,.mov">
+                  <Button icon={<UploadOutlined />} loading={videoUploading}>上传视频（mp4/mov）</Button>
+                </Upload>
+                <Input
+                  style={{ width: 360 }} placeholder="或粘贴视频 URL" value={mainVideoUrl}
+                  onChange={e => setMainVideoUrl(e.target.value)}
+                  prefix={<PlayCircleOutlined />}
+                />
+              </Space>
+            </Space>
+          </Form.Item>
+
+          <Form.Item
+            label={
+              <Space>
+                <span>商品卖点</span>
+                <Button size="small" type="link" onClick={() => setExampleModal({ open: true, type: 'selling' })}>实例</Button>
+              </Space>
+            }
+            name="selling_point"
+            rules={[{ max: 100, message: '最多 100 字' }]}
+          >
+            <TextArea rows={2} maxLength={100} showCount placeholder="如：3 场直播口碑爆款 / 医生 1v1 辨证施治 / 无效可退" />
+          </Form.Item>
+
+          <Form.Item label="商品描述">
+            <SimpleRichEditor value={descRich} onChange={setDescRich} />
+          </Form.Item>
+        </>
+      );
+    }
+    if (activeTab === 'tags') {
+      return (
+        <>
+          <Form.Item label="症状标签" name="symptom_tags">
+            <Select
+              mode="tags"
+              placeholder="输入或选择症状标签"
+              options={symptomTags.map(t => ({ label: `${t.tag} (${t.count})`, value: t.tag }))}
+            />
+          </Form.Item>
+          <Form.Item label="适用体质" name="constitution_types">
+            <Checkbox.Group options={CONSTITUTION_TYPES.map(t => ({ label: t, value: t }))} />
+          </Form.Item>
+        </>
+      );
+    }
+    if (activeTab === 'points') {
+      return (
+        <Row gutter={16}>
+          <Col span={8}>
+            <Form.Item label="可积分兑换" name="points_exchangeable" valuePropName="checked"><Switch /></Form.Item>
+          </Col>
+          <Col span={8}>
+            <Form.Item label="积分价格" name="points_price"><InputNumber min={0} style={{ width: '100%' }} /></Form.Item>
+          </Col>
+          <Col span={8}>
+            <Form.Item label="可积分抵扣" name="points_deductible" valuePropName="checked"><Switch /></Form.Item>
+          </Col>
+        </Row>
+      );
+    }
+    if (activeTab === 'appointment') {
+      return (
+        <>
+          <Row gutter={16}>
+            <Col span={8}>
+              <Form.Item label="核销次数" name="redeem_count"><InputNumber min={1} style={{ width: '100%' }} /></Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item label="预约模式" name="appointment_mode"><Select options={appointmentModes} /></Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item label="支付超时(分)" name="payment_timeout_minutes"><InputNumber min={1} style={{ width: '100%' }} /></Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item label="有效开始日期" name="valid_start_date"><DatePicker style={{ width: '100%' }} /></Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item label="有效结束日期" name="valid_end_date"><DatePicker style={{ width: '100%' }} /></Form.Item>
+            </Col>
+          </Row>
+        </>
+      );
+    }
+    if (activeTab === 'sort') {
+      return (
+        <Row gutter={16}>
+          <Col span={8}>
+            <Form.Item label="推荐权重" name="recommend_weight"><InputNumber min={0} style={{ width: '100%' }} /></Form.Item>
+          </Col>
+          <Col span={8}>
+            <Form.Item label="排序值" name="sort_order"><InputNumber min={0} style={{ width: '100%' }} /></Form.Item>
+          </Col>
+          <Col span={8}>
+            <Form.Item label="状态" name="status"><Select options={statusOptions} /></Form.Item>
+          </Col>
+        </Row>
+      );
+    }
+    return null;
+  };
+
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
@@ -544,35 +1248,17 @@ export default function ProductsPage() {
 
       <Row gutter={16} style={{ marginBottom: 16 }}>
         <Col>
-          <Select
-            placeholder="按分类筛选"
-            allowClear
-            style={{ width: 160 }}
-            options={categoryOptions}
-            value={filterCategory}
-            onChange={v => setFilterCategory(v)}
-          />
+          <Select placeholder="按分类筛选" allowClear style={{ width: 160 }}
+            options={categoryOptions} value={filterCategory} onChange={v => setFilterCategory(v)} />
         </Col>
         <Col>
-          <Select
-            placeholder="按状态筛选"
-            allowClear
-            style={{ width: 120 }}
-            options={statusOptions}
-            value={filterStatus}
-            onChange={v => setFilterStatus(v)}
-          />
+          <Select placeholder="按状态筛选" allowClear style={{ width: 120 }}
+            options={statusOptions} value={filterStatus} onChange={v => setFilterStatus(v)} />
         </Col>
         <Col>
-          <Input
-            placeholder="搜索商品名称"
-            prefix={<SearchOutlined />}
-            value={searchText}
-            onChange={e => setSearchText(e.target.value)}
-            onPressEnter={handleSearch}
-            style={{ width: 220 }}
-            allowClear
-          />
+          <Input placeholder="搜索商品名称" prefix={<SearchOutlined />} value={searchText}
+            onChange={e => setSearchText(e.target.value)} onPressEnter={handleSearch}
+            style={{ width: 220 }} allowClear />
         </Col>
         <Col>
           <Button type="primary" onClick={handleSearch}>搜索</Button>
@@ -596,147 +1282,71 @@ export default function ProductsPage() {
       <Modal
         title={editingRecord ? '编辑商品' : '新增商品'}
         open={modalVisible}
-        onOk={handleSubmit}
-        onCancel={() => setModalVisible(false)}
-        width={720}
+        onCancel={handleCancelModal}
+        width={960}
         destroyOnClose
+        maskClosable={false}
+        footer={
+          <Space>
+            <Button onClick={handleCancelModal}>取消</Button>
+            <Button type="primary" onClick={() => handleSubmit(false)}>保存</Button>
+            <Button type="primary" danger onClick={() => handleSubmit(true)}>保存并上架</Button>
+          </Space>
+        }
       >
-        <Form form={form} layout="vertical" style={{ marginTop: 16, maxHeight: '65vh', overflowY: 'auto', paddingRight: 8 }}>
-          <Form.Item label="商品名称" name="name" rules={[{ required: true, message: '请输入商品名称' }]}>
-            <Input placeholder="请输入商品名称" />
-          </Form.Item>
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item label="商品分类" name="category_id" rules={[{ required: true, message: '请选择分类' }]}>
-                <Select options={categoryOptions} placeholder="请选择分类" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item label="履约类型" name="fulfillment_type" rules={[{ required: true, message: '请选择类型' }]}>
-                <Select options={fulfillmentTypes} placeholder="请选择类型" />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={16}>
-            <Col span={8}>
-              <Form.Item label="售价 (元)" name="sale_price" rules={[{ required: true, message: '请输入售价' }]}>
-                <InputNumber min={0} step={0.01} style={{ width: '100%' }} placeholder="0.00" />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item label="原价 (元)" name="original_price" rules={[{ required: true, message: '请输入原价' }]}>
-                <InputNumber min={0} step={0.01} style={{ width: '100%' }} placeholder="0.00" />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item label="库存" name="stock" rules={[{ required: true, message: '请输入库存' }]}>
-                <InputNumber min={0} style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Form.Item label="商品图片" name="_images">
-            <div>
-              <Upload
-                listType="picture-card"
-                maxCount={5}
-                fileList={fileList}
-                beforeUpload={() => false}
-                onChange={({ fileList: fl }) => setFileList(fl)}
+        <div style={{ display: 'flex', gap: 16, marginTop: 8, minHeight: 500 }}>
+          {/* 左侧 Tab */}
+          <div style={{ width: 140, borderRight: '1px solid #f0f0f0', paddingRight: 8 }}>
+            {TABS.map(t => (
+              <div
+                key={t.key}
+                onClick={() => setActiveTab(t.key)}
+                style={{
+                  padding: '10px 12px', borderRadius: 6, cursor: 'pointer', marginBottom: 4,
+                  background: activeTab === t.key ? '#e6f4ff' : 'transparent',
+                  color: activeTab === t.key ? '#1677ff' : '#333',
+                  fontWeight: activeTab === t.key ? 600 : 400,
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                }}
               >
-                {fileList.length < 5 && (
-                  <div><UploadOutlined /><div style={{ marginTop: 8 }}>上传图片</div></div>
-                )}
-              </Upload>
-            </div>
-          </Form.Item>
-          <Form.Item label="视频链接" name="video_url">
-            <Input placeholder="请输入视频URL" />
-          </Form.Item>
-          <Form.Item label="商品描述" name="description">
-            <TextArea rows={4} placeholder="请输入商品描述" />
-          </Form.Item>
-          <Form.Item label="症状标签" name="symptom_tags">
-            <Select
-              mode="tags"
-              placeholder="输入或选择症状标签"
-              options={symptomTags.map(t => ({ label: `${t.tag} (${t.count})`, value: t.tag }))}
-            />
-          </Form.Item>
-          <Form.Item label="适用体质" name="constitution_types">
-            <Checkbox.Group
-              options={CONSTITUTION_TYPES.map(t => ({ label: t, value: t }))}
-            />
-          </Form.Item>
+                <span>{t.label}</span>
+                {tabErrors[t.key] && <Badge color="red" />}
+              </div>
+            ))}
+          </div>
+          {/* 右侧内容 */}
+          <div style={{ flex: 1, maxHeight: '65vh', overflowY: 'auto', paddingRight: 8 }}>
+            <Form form={form} layout="vertical">
+              {renderTabContent()}
+            </Form>
+          </div>
+        </div>
+      </Modal>
 
-          <Divider>积分设置</Divider>
-          <Row gutter={16}>
-            <Col span={8}>
-              <Form.Item label="可积分兑换" name="points_exchangeable" valuePropName="checked">
-                <Switch />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item label="积分价格" name="points_price">
-                <InputNumber min={0} style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item label="可积分抵扣" name="points_deductible" valuePropName="checked">
-                <Switch />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Divider>预约与核销</Divider>
-          <Row gutter={16}>
-            <Col span={8}>
-              <Form.Item label="核销次数" name="redeem_count">
-                <InputNumber min={1} style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item label="预约模式" name="appointment_mode">
-                <Select options={appointmentModes} />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item label="支付超时(分)" name="payment_timeout_minutes">
-                <InputNumber min={1} style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item label="有效开始日期" name="valid_start_date">
-                <DatePicker style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item label="有效结束日期" name="valid_end_date">
-                <DatePicker style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Divider>排序与状态</Divider>
-          <Row gutter={16}>
-            <Col span={8}>
-              <Form.Item label="推荐权重" name="recommend_weight">
-                <InputNumber min={0} style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item label="排序值" name="sort_order">
-                <InputNumber min={0} style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item label="状态" name="status">
-                <Select options={statusOptions} />
-              </Form.Item>
-            </Col>
-          </Row>
-        </Form>
+      {/* 实例弹图 */}
+      <Modal
+        open={exampleModal.open}
+        title={exampleModal.type === 'code' ? '产品条码示例' : '商品卖点示例'}
+        footer={null}
+        onCancel={() => setExampleModal({ open: false, type: null })}
+      >
+        <div style={{ background: '#fff', border: '1px solid #eee', padding: 24, textAlign: 'center', borderRadius: 8 }}>
+          {exampleModal.type === 'code' ? (
+            <>
+              <div style={{ fontFamily: 'monospace', fontSize: 20, marginBottom: 12 }}>
+                6901234567890&nbsp;&nbsp;6905211234567&nbsp;&nbsp;6938765432109
+              </div>
+              <div style={{ color: '#666' }}>每个条码是商品的唯一编码，最多可以输入 10 个条码，每个最多 30 字符。</div>
+            </>
+          ) : (
+            <>
+              <div style={{ fontSize: 16, lineHeight: 2, marginBottom: 12 }}>
+                3 场直播口碑爆款 / 医生 1v1 辨证施治 / 无效可退
+              </div>
+              <div style={{ color: '#666' }}>卖点用简短斜杠分隔的短语，突出商品核心价值，100 字以内。</div>
+            </>
+          )}
+        </div>
       </Modal>
 
       {/* 表单字段管理弹窗 */}
@@ -744,24 +1354,15 @@ export default function ProductsPage() {
         title="预约表单字段配置"
         open={formFieldsVisible}
         onCancel={() => setFormFieldsVisible(false)}
-        footer={null}
-        width={800}
-        destroyOnClose
+        footer={null} width={800} destroyOnClose
       >
         <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'flex-end' }}>
           <Button type="primary" icon={<PlusOutlined />} onClick={handleAddField}>新增字段</Button>
         </div>
-        <Table
-          columns={fieldColumns}
-          dataSource={formFields}
-          rowKey="id"
-          loading={formFieldsLoading}
-          pagination={false}
-          size="small"
-        />
+        <Table columns={fieldColumns} dataSource={formFields} rowKey="id"
+          loading={formFieldsLoading} pagination={false} size="small" />
       </Modal>
 
-      {/* 字段编辑弹窗 */}
       <Modal
         title={editingField ? '编辑字段' : '新增字段'}
         open={fieldModalVisible}
@@ -776,22 +1377,16 @@ export default function ProductsPage() {
           <Form.Item label="标签名称" name="label" rules={[{ required: true, message: '请输入标签' }]}>
             <Input placeholder="请输入字段标签" />
           </Form.Item>
-          <Form.Item label="占位提示" name="placeholder">
-            <Input placeholder="请输入占位提示文本" />
-          </Form.Item>
+          <Form.Item label="占位提示" name="placeholder"><Input placeholder="请输入占位提示文本" /></Form.Item>
           <Form.Item label="选项 (逗号分隔或JSON)" name="options">
             <TextArea rows={2} placeholder='如: 选项1,选项2 或 ["选项1","选项2"]' />
           </Form.Item>
           <Row gutter={16}>
             <Col span={12}>
-              <Form.Item label="是否必填" name="required" valuePropName="checked">
-                <Switch />
-              </Form.Item>
+              <Form.Item label="是否必填" name="required" valuePropName="checked"><Switch /></Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item label="排序值" name="sort_order">
-                <InputNumber min={0} style={{ width: '100%' }} />
-              </Form.Item>
+              <Form.Item label="排序值" name="sort_order"><InputNumber min={0} style={{ width: '100%' }} /></Form.Item>
             </Col>
           </Row>
         </Form>

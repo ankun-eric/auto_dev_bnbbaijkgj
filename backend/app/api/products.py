@@ -11,6 +11,7 @@ from app.models.models import (
     OrderReview,
     Product,
     ProductCategory,
+    ProductSku,
     ProductStore,
     MerchantStore,
 )
@@ -171,7 +172,10 @@ async def hot_recommendations(
 async def get_product(product_id: int, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
         select(Product)
-        .options(selectinload(Product.stores).selectinload(ProductStore.store))
+        .options(
+            selectinload(Product.stores).selectinload(ProductStore.store),
+            selectinload(Product.skus),
+        )
         .where(Product.id == product_id)
     )
     product = result.scalar_one_or_none()

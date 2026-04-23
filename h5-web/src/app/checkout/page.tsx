@@ -73,6 +73,8 @@ function CheckoutPage() {
   const searchParams = useSearchParams();
   const productId = searchParams.get('product_id');
   const initQty = Number(searchParams.get('quantity') || 1);
+  const skuIdParam = searchParams.get('sku_id');
+  const skuId = skuIdParam ? Number(skuIdParam) : null;
 
   const [product, setProduct] = useState<ProductInfo | null>(null);
   const [quantity, setQuantity] = useState(initQty);
@@ -145,7 +147,12 @@ function CheckoutPage() {
     );
   }
 
-  const subtotal = product.sale_price * quantity;
+  const selectedSku = skuId && Array.isArray((product as any).skus)
+    ? (product as any).skus.find((s: any) => s.id === skuId)
+    : null;
+  const unitPrice = selectedSku ? Number(selectedSku.sale_price) : product.sale_price;
+  const skuName = selectedSku ? String(selectedSku.spec_name || '') : '';
+  const subtotal = unitPrice * quantity;
   const couponDiscount = selectedCoupon?.coupon
     ? selectedCoupon.coupon.type === 'discount'
       ? subtotal * (1 - selectedCoupon.coupon.discount_rate)
@@ -165,6 +172,7 @@ function CheckoutPage() {
         items: [{
           product_id: product.id,
           quantity,
+          ...(skuId ? { sku_id: skuId } : {}),
           ...(appointmentTime ? { appointment_time: appointmentTime.toISOString() } : {}),
         }],
         payment_method: paymentMethod,
@@ -246,7 +254,8 @@ function CheckoutPage() {
             </div>
             <div className="flex-1 ml-3">
               <div className="font-medium text-sm">{product.name}</div>
-              <div className="text-sm text-red-500 font-bold mt-1">¥{product.sale_price}</div>
+              {skuName && <div className="text-xs text-gray-500 mt-0.5">规格：{skuName}</div>}
+              <div className="text-sm text-red-500 font-bold mt-1">¥{unitPrice}</div>
               <div className="flex items-center justify-between mt-2">
                 <span className="text-xs text-gray-400">数量</span>
                 <Stepper

@@ -24,6 +24,17 @@ interface Store {
   store_name: string | null;
 }
 
+interface ProductSku {
+  id: number;
+  spec_name: string;
+  sale_price: number;
+  origin_price: number | null;
+  stock: number;
+  is_default: boolean;
+  status: number;
+  sort_order: number;
+}
+
 interface ProductDetail {
   id: number;
   name: string;
@@ -35,6 +46,11 @@ interface ProductDetail {
   images: string[] | null;
   video_url: string | null;
   description: string | null;
+  description_rich?: string | null;
+  selling_point?: string | null;
+  main_video_url?: string | null;
+  spec_mode?: number;
+  skus?: ProductSku[] | null;
   faq: Array<{ question: string; answer: string }> | null;
   sales_count: number;
   points_exchangeable: boolean;
@@ -55,10 +71,19 @@ export default function ProductDetailPage() {
   const [product, setProduct] = useState<ProductDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [favorited, setFavorited] = useState(false);
+  const [mediaTab, setMediaTab] = useState<'image' | 'video'>('image');
+  const [selectedSkuId, setSelectedSkuId] = useState<number | null>(null);
 
   useEffect(() => {
     api.get(`/api/products/${productId}`).then((res: any) => {
-      setProduct(res.data || res);
+      const p = res.data || res;
+      setProduct(p);
+      // 默认选中默认规格
+      if (p && p.spec_mode === 2 && Array.isArray(p.skus) && p.skus.length > 0) {
+        const enabled = p.skus.filter((s: ProductSku) => s.status === 1);
+        const def = enabled.find((s: ProductSku) => s.is_default) || enabled[0];
+        if (def) setSelectedSkuId(def.id);
+      }
     }).catch(() => {
       Toast.show({ content: '加载失败' });
     }).finally(() => setLoading(false));
@@ -86,7 +111,15 @@ export default function ProductDetailPage() {
   };
 
   const handleBuy = () => {
-    router.push(`/checkout?product_id=${productId}&quantity=1`);
+    if (product?.spec_mode === 2) {
+      if (!selectedSkuId) {
+        Toast.show({ content: '请选择规格' });
+        return;
+      }
+      router.push(`/checkout?product_id=${productId}&quantity=1&sku_id=${selectedSkuId}`);
+    } else {
+      router.push(`/checkout?product_id=${productId}&quantity=1`);
+    }
   };
 
   const fulfillmentLabel = (type: string) => {
@@ -112,13 +145,17 @@ export default function ProductDetailPage() {
     );
   }
 
-  const mediaItems: Array<{ type: 'image' | 'video'; src: string }> = [];
-  if (product.video_url) {
-    mediaItems.push({ type: 'video', src: product.video_url });
-  }
-  if (product.images) {
-    product.images.forEach((img) => mediaItems.push({ type: 'image', src: img }));
-  }
+  const videoSrc = product.main_video_url || product.video_url || '';
+  const hasVideo = !!videoSrc;
+  const imageList: string[] = Array.isArray(product.images) ? product.images : [];
+
+  // 规格相关
+  const isMulti = product.spec_mode === 2 && Array.isArray(product.skus) && product.skus.length > 0;
+  const visibleSkus: ProductSku[] = isMulti ? (product.skus as ProductSku[]).filter(s => s.status === 1) : [];
+  const selectedSku = visibleSkus.find(s => s.id === selectedSkuId) || null;
+  const currentSalePrice = selectedSku ? selectedSku.sale_price : product.sale_price;
+  const currentOriginPrice = selectedSku ? selectedSku.origin_price : product.original_price;
+  const currentStock = selectedSku ? selectedSku.stock : product.stock;
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
@@ -126,23 +163,51 @@ export default function ProductDetailPage() {
         商品详情
       </NavBar>
 
-      {mediaItems.length > 0 ? (
-        <Swiper autoplay loop style={{ '--height': '280px' }}>
-          {mediaItems.map((item, i) => (
-            <Swiper.Item key={i}>
-              {item.type === 'video' ? (
-                <video src={item.src} controls className="w-full h-[280px] object-cover bg-black" />
-              ) : (
-                <Image src={item.src} width="100%" height={280} fit="cover" />
-              )}
-            </Swiper.Item>
-          ))}
-        </Swiper>
-      ) : (
-        <div
-          className="h-[280px] flex items-center justify-center"
-          style={{ background: 'linear-gradient(135deg, #52c41a30, #13c2c230)' }}
-        >
+      {/* 媒体 Tab：图片 | 视频 */}
+      {(imageList.length > 0 || hasVideo) && (
+        <div style={{ background: '#fff' }}>
+          {hasVideo && (
+            <div style={{ display: 'flex', borderBottom: '1px solid #f0f0f0' }}>
+              <div
+                onClick={() => setMediaTab('image')}
+                style={{
+                  flex: 1, textAlign: 'center', padding: '8px 0',
+                  borderBottom: mediaTab === 'image' ? '2px solid #52c41a' : '2px solid transparent',
+                  color: mediaTab === 'image' ? '#52c41a' : '#666', fontWeight: 500,
+                }}
+              >图片</div>
+              <div
+                onClick={() => setMediaTab('video')}
+                style={{
+                  flex: 1, textAlign: 'center', padding: '8px 0',
+                  borderBottom: mediaTab === 'video' ? '2px solid #52c41a' : '2px solid transparent',
+                  color: mediaTab === 'video' ? '#52c41a' : '#666', fontWeight: 500,
+                }}
+              >视频</div>
+            </div>
+          )}
+          {mediaTab === 'video' && hasVideo ? (
+            <video src={videoSrc} controls className="w-full" style={{ height: 280, objectFit: 'cover', background: '#000', display: 'block' }} />
+          ) : imageList.length > 0 ? (
+            <Swiper autoplay loop style={{ '--height': '280px' }}>
+              {imageList.map((img, i) => (
+                <Swiper.Item key={i}>
+                  <Image src={img} width="100%" height={280} fit="cover" />
+                </Swiper.Item>
+              ))}
+            </Swiper>
+          ) : (
+            <div className="h-[280px] flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #52c41a30, #13c2c230)' }}>
+              <div className="text-center">
+                <div className="text-5xl mb-2">🛍️</div>
+                <p className="text-sm text-gray-500">商品图片</p>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+      {imageList.length === 0 && !hasVideo && (
+        <div className="h-[280px] flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #52c41a30, #13c2c230)' }}>
           <div className="text-center">
             <div className="text-5xl mb-2">🛍️</div>
             <p className="text-sm text-gray-500">商品图片</p>
@@ -194,23 +259,64 @@ export default function ProductDetailPage() {
             </div>
           </div>
           <div className="mt-3">
-            <span className="text-2xl font-bold text-red-500">¥{product.sale_price}</span>
-            {product.original_price > product.sale_price && (
-              <span className="text-sm text-gray-300 line-through ml-2">¥{product.original_price}</span>
+            <span className="text-2xl font-bold text-red-500">¥{currentSalePrice}</span>
+            {currentOriginPrice && currentOriginPrice > currentSalePrice && (
+              <span className="text-sm text-gray-300 line-through ml-2">¥{currentOriginPrice}</span>
             )}
           </div>
           <div className="flex items-center justify-between mt-2">
             <span className="text-xs text-gray-400">已售{product.sales_count}</span>
-            <span className="text-xs text-gray-400">库存{product.stock}</span>
+            <span className="text-xs text-gray-400">库存{currentStock}</span>
           </div>
+          {product.selling_point && (
+            <div className="mt-2 text-xs" style={{ color: '#fa541c', background: '#fff7e6', padding: '6px 8px', borderRadius: 4 }}>
+              {product.selling_point}
+            </div>
+          )}
         </div>
 
-        {product.description && (
+        {isMulti && (
+          <div className="card">
+            <div className="section-title">选择规格</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {visibleSkus.map(s => {
+                const soldOut = s.stock <= 0;
+                const selected = s.id === selectedSkuId;
+                return (
+                  <div
+                    key={s.id}
+                    onClick={() => { if (!soldOut) setSelectedSkuId(s.id); }}
+                    style={{
+                      position: 'relative',
+                      padding: '6px 14px',
+                      borderRadius: 20,
+                      border: selected ? '1px solid #52c41a' : '1px solid #e5e5e5',
+                      background: selected ? '#f6ffed' : (soldOut ? '#f5f5f5' : '#fff'),
+                      color: soldOut ? '#bbb' : (selected ? '#52c41a' : '#333'),
+                      cursor: soldOut ? 'not-allowed' : 'pointer',
+                      fontSize: 13,
+                    }}
+                  >
+                    {s.spec_name}
+                    {soldOut && (
+                      <span style={{
+                        position: 'absolute', top: -6, right: -6, fontSize: 10,
+                        background: '#bbb', color: '#fff', borderRadius: 8, padding: '0 4px',
+                      }}>已售罄</span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {(product.description_rich || product.description) && (
           <div className="card">
             <div className="section-title">商品详情</div>
             <div
               className="text-sm text-gray-600 leading-relaxed"
-              dangerouslySetInnerHTML={{ __html: product.description }}
+              dangerouslySetInnerHTML={{ __html: (product.description_rich || product.description || '') as string }}
             />
           </div>
         )}
@@ -276,17 +382,17 @@ export default function ProductDetailPage() {
         <Button
           block
           onClick={handleBuy}
-          disabled={product.stock <= 0}
+          disabled={currentStock <= 0}
           style={{
             flex: 1,
             borderRadius: 24,
             height: 44,
-            background: product.stock > 0 ? 'linear-gradient(135deg, #52c41a, #13c2c2)' : '#e8e8e8',
-            color: product.stock > 0 ? '#fff' : '#999',
+            background: currentStock > 0 ? 'linear-gradient(135deg, #52c41a, #13c2c2)' : '#e8e8e8',
+            color: currentStock > 0 ? '#fff' : '#999',
             border: 'none',
           }}
         >
-          {product.stock > 0 ? '立即购买' : '已售罄'}
+          {currentStock > 0 ? '立即购买' : '已售罄'}
         </Button>
       </div>
     </div>

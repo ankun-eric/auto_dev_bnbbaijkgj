@@ -2406,12 +2406,40 @@ class Product(Base):
     status = mapped_column(Enum(ProductStatus), default=ProductStatus.draft)
     sort_order = mapped_column(Integer, default=0)
     payment_timeout_minutes = mapped_column(Integer, default=15)
+    # ── 商品弹窗优化 v2 新增字段 ──
+    product_code_list = mapped_column(JSON, nullable=True)  # 产品条码列表（最多10个）
+    spec_mode = mapped_column(Integer, default=1)  # 1=统一规格 2=多规格
+    main_video_url = mapped_column(String(500), nullable=True)  # 主图视频 URL
+    selling_point = mapped_column(String(200), nullable=True)  # 商品卖点（100 字以内）
+    description_rich = mapped_column(Text, nullable=True)  # 富文本 HTML
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     category = relationship("ProductCategory")
     custom_form = relationship("AppointmentForm")
     stores = relationship("ProductStore", back_populates="product")
+    skus = relationship("ProductSku", back_populates="product", cascade="all, delete-orphan")
+
+
+class ProductSku(Base):
+    """商品规格（SKU）"""
+    __tablename__ = "product_skus"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    product_id = mapped_column(Integer, ForeignKey("products.id"), nullable=False, index=True)
+    spec_name = mapped_column(String(50), nullable=False)  # 规格名称，同商品内不重复
+    sale_price = mapped_column(Numeric(10, 2), nullable=False, default=0)
+    origin_price = mapped_column(Numeric(10, 2), nullable=True)
+    stock = mapped_column(Integer, default=0)
+    is_default = mapped_column(Boolean, default=False)  # 是否默认规格（每商品仅 1 条）
+    status = mapped_column(Integer, default=1)  # 1=启用 2=停用
+    sort_order = mapped_column(Integer, default=0)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    __table_args__ = (UniqueConstraint("product_id", "spec_name", name="uq_product_sku_name"),)
+
+    product = relationship("Product", back_populates="skus")
 
 
 class ProductStore(Base):
@@ -2742,6 +2770,8 @@ class OrderItem(Base):
     id = mapped_column(Integer, primary_key=True, autoincrement=True)
     order_id = mapped_column(Integer, ForeignKey("unified_orders.id"), nullable=False, index=True)
     product_id = mapped_column(Integer, ForeignKey("products.id"), nullable=False, index=True)
+    sku_id = mapped_column(Integer, ForeignKey("product_skus.id"), nullable=True, index=True)
+    sku_name = mapped_column(String(50), nullable=True)
     product_name = mapped_column(String(200), nullable=False)
     product_image = mapped_column(String(500), nullable=True)
     product_price = mapped_column(Numeric(10, 2), nullable=False)

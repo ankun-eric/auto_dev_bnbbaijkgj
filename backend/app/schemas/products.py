@@ -41,6 +41,33 @@ class ProductCategoryTreeResponse(ProductCategoryResponse):
     children: list["ProductCategoryTreeResponse"] = []
 
 
+class ProductSkuCreate(BaseModel):
+    """商品规格创建/更新项（随商品主表一起提交）"""
+    id: Optional[int] = None  # 已有规格的 ID（编辑时传入），新增则为空
+    spec_name: str
+    sale_price: float
+    origin_price: Optional[float] = None
+    stock: int = 0
+    is_default: bool = False
+    status: int = 1  # 1=启用 2=停用
+    sort_order: int = 0
+
+
+class ProductSkuResponse(BaseModel):
+    id: int
+    product_id: int
+    spec_name: str
+    sale_price: float
+    origin_price: Optional[float] = None
+    stock: int
+    is_default: bool
+    status: int
+    sort_order: int
+    has_orders: bool = False  # 是否被订单引用（用于前端锁定交互）
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class ProductCreate(BaseModel):
     name: str
     category_id: int
@@ -67,6 +94,13 @@ class ProductCreate(BaseModel):
     sort_order: int = 0
     payment_timeout_minutes: int = 15
     store_ids: Optional[list[int]] = None
+    # ── v2 新字段 ──
+    product_code_list: Optional[list[str]] = None
+    spec_mode: int = 1  # 1=统一规格 2=多规格
+    main_video_url: Optional[str] = None
+    selling_point: Optional[str] = None
+    description_rich: Optional[str] = None
+    skus: Optional[list[ProductSkuCreate]] = None  # 多规格模式下提交
 
 
 class ProductUpdate(BaseModel):
@@ -95,6 +129,13 @@ class ProductUpdate(BaseModel):
     sort_order: Optional[int] = None
     payment_timeout_minutes: Optional[int] = None
     store_ids: Optional[list[int]] = None
+    # ── v2 新字段 ──
+    product_code_list: Optional[list[str]] = None
+    spec_mode: Optional[int] = None
+    main_video_url: Optional[str] = None
+    selling_point: Optional[str] = None
+    description_rich: Optional[str] = None
+    skus: Optional[list[ProductSkuCreate]] = None
 
 
 class ProductStoreResponse(BaseModel):
@@ -132,6 +173,13 @@ class ProductResponse(BaseModel):
     status: str
     sort_order: int
     payment_timeout_minutes: int
+    # ── v2 新字段 ──
+    product_code_list: Optional[list[str]] = None
+    spec_mode: int = 1
+    main_video_url: Optional[str] = None
+    selling_point: Optional[str] = None
+    description_rich: Optional[str] = None
+    skus: list[ProductSkuResponse] = []
     created_at: datetime
     updated_at: datetime
 

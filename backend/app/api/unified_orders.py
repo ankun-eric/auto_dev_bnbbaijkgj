@@ -79,6 +79,14 @@ async def create_unified_order(
     result = await db.execute(select(Product).where(Product.id.in_(product_ids)))
     products_map = {p.id: p for p in result.scalars().all()}
 
+    # 预加载所有涉及的 SKU
+    sku_ids = [item.sku_id for item in data.items if getattr(item, "sku_id", None)]
+    skus_map: dict[int, "ProductSku"] = {}
+    if sku_ids:
+        from app.models.models import ProductSku as _SKU
+        sku_result = await db.execute(select(_SKU).where(_SKU.id.in_(sku_ids)))
+        skus_map = {s.id: s for s in sku_result.scalars().all()}
+
     total_amount = 0.0
     order_items = []
 
@@ -88,10 +96,26 @@ async def create_unified_order(
             raise HTTPException(status_code=404, detail=f"商品ID {item_data.product_id} 不存在")
         if product.status != "active":
             raise HTTPException(status_code=400, detail=f"商品 {product.name} 暂不可购买")
-        if product.stock < item_data.quantity:
-            raise HTTPException(status_code=400, detail=f"商品 {product.name} 库存不足")
 
-        subtotal = float(product.sale_price) * item_data.quantity
+        # 多规格商品：必须传 sku_id 且 sku 必须属于该商品、状态启用、库存足
+        sku = None
+        item_price = float(product.sale_price)
+        if int(product.spec_mode or 1) == 2:
+            if not item_data.sku_id:
+                raise HTTPException(status_code=400, detail=f"商品 {product.name} 必须选择规格")
+            sku = skus_map.get(item_data.sku_id)
+            if not sku or sku.product_id != product.id:
+                raise HTTPException(status_code=400, detail="所选规格不存在")
+            if int(sku.status or 1) != 1:
+                raise HTTPException(status_code=400, detail=f"规格 {sku.spec_name} 已停用")
+            if (sku.stock or 0) < item_data.quantity:
+                raise HTTPException(status_code=400, detail=f"规格 {sku.spec_name} 库存不足")
+            item_price = float(sku.sale_price)
+        else:
+            if (product.stock or 0) < item_data.quantity:
+                raise HTTPException(status_code=400, detail=f"商品 {product.name} 库存不足")
+
+        subtotal = item_price * item_data.quantity
         total_amount += subtotal
 
         images = product.images
@@ -115,6 +139,8 @@ async def create_unified_order(
             "first_image": first_image,
             "verification_code": verification_code,
             "qr_token": qr_token,
+            "sku": sku,
+            "item_price": item_price,
         })
 
     coupon_discount = 0.0
@@ -179,12 +205,16 @@ async def create_unified_order(
         if hasattr(fulfillment_val, "value"):
             fulfillment_val = fulfillment_val.value
 
+        sku = oi_data.get("sku")
+        item_price = oi_data.get("item_price", float(product.sale_price))
         oi = OrderItem(
             order_id=order.id,
             product_id=product.id,
+            sku_id=sku.id if sku else None,
+            sku_name=sku.spec_name if sku else None,
             product_name=product.name,
             product_image=oi_data["first_image"],
-            product_price=float(product.sale_price),
+            product_price=item_price,
             quantity=item_d.quantity,
             subtotal=oi_data["subtotal"],
             fulfillment_type=fulfillment_val,
@@ -196,7 +226,10 @@ async def create_unified_order(
         )
         db.add(oi)
 
-        product.stock -= item_d.quantity
+        if sku is not None:
+            sku.stock = max(0, (sku.stock or 0) - item_d.quantity)
+        else:
+            product.stock -= item_d.quantity
         product.sales_count += item_d.quantity
 
     if points_deduction > 0:

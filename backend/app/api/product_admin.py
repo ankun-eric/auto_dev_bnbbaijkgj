@@ -18,6 +18,7 @@ from app.models.models import (
     OrderItem,
     Product,
     ProductCategory,
+    ProductSku,
     ProductStore,
     RefundRequest,
     RefundRequestStatus,
@@ -41,6 +42,7 @@ from app.schemas.products import (
     ProductCategoryUpdate,
     ProductCreate,
     ProductResponse,
+    ProductSkuResponse,
     ProductUpdate,
     SymptomTagResponse,
 )
@@ -55,6 +57,199 @@ from app.schemas.unified_orders import (
 )
 
 router = APIRouter(prefix="/api/admin", tags=["商品管理后台"])
+
+
+# ─────────── 内部工具：SKU & Product 序列化 ───────────
+
+async def _get_sku_order_flags(db: AsyncSession, sku_ids: list[int]) -> dict[int, bool]:
+    """批量查询一组 sku_id 是否已被订单引用"""
+    if not sku_ids:
+        return {}
+    result = await db.execute(
+        select(OrderItem.sku_id, func.count(OrderItem.id))
+        .where(OrderItem.sku_id.in_(sku_ids))
+        .group_by(OrderItem.sku_id)
+    )
+    used_ids: dict[int, bool] = {row[0]: (row[1] or 0) > 0 for row in result.all()}
+    return {sid: used_ids.get(sid, False) for sid in sku_ids}
+
+
+async def _build_product_response_dict(db: AsyncSession, product: Product) -> dict:
+    """把 Product ORM 对象 + 其 SKUs 组装成响应 dict（含 has_orders 标记）"""
+    sku_result = await db.execute(
+        select(ProductSku)
+        .where(ProductSku.product_id == product.id)
+        .order_by(ProductSku.sort_order.asc(), ProductSku.id.asc())
+    )
+    skus = list(sku_result.scalars().all())
+    has_orders_map = await _get_sku_order_flags(db, [s.id for s in skus])
+
+    sku_list: list[dict] = []
+    for s in skus:
+        sku_list.append({
+            "id": s.id,
+            "product_id": s.product_id,
+            "spec_name": s.spec_name,
+            "sale_price": float(s.sale_price or 0),
+            "origin_price": float(s.origin_price) if s.origin_price is not None else None,
+            "stock": s.stock or 0,
+            "is_default": bool(s.is_default),
+            "status": int(s.status or 1),
+            "sort_order": s.sort_order or 0,
+            "has_orders": bool(has_orders_map.get(s.id, False)),
+        })
+
+    status_val = product.status
+    if hasattr(status_val, "value"):
+        status_val = status_val.value
+    ft = product.fulfillment_type
+    if hasattr(ft, "value"):
+        ft = ft.value
+    am = product.appointment_mode
+    if hasattr(am, "value"):
+        am = am.value
+    pam = product.purchase_appointment_mode
+    if hasattr(pam, "value"):
+        pam = pam.value
+
+    # 条码反序列化（存储为 JSON）
+    code_list = product.product_code_list
+    if isinstance(code_list, str):
+        import json
+        try:
+            code_list = json.loads(code_list)
+        except Exception:
+            code_list = []
+    if not isinstance(code_list, list):
+        code_list = []
+
+    return {
+        "id": product.id,
+        "name": product.name,
+        "category_id": product.category_id,
+        "fulfillment_type": ft,
+        "original_price": float(product.original_price or 0),
+        "sale_price": float(product.sale_price or 0),
+        "images": product.images or [],
+        "video_url": product.video_url or "",
+        "description": product.description or "",
+        "symptom_tags": product.symptom_tags or [],
+        "stock": product.stock or 0,
+        "valid_start_date": product.valid_start_date.isoformat() if product.valid_start_date else None,
+        "valid_end_date": product.valid_end_date.isoformat() if product.valid_end_date else None,
+        "points_exchangeable": bool(product.points_exchangeable),
+        "points_price": product.points_price or 0,
+        "points_deductible": bool(product.points_deductible),
+        "redeem_count": product.redeem_count or 1,
+        "appointment_mode": am or "none",
+        "purchase_appointment_mode": pam,
+        "custom_form_id": product.custom_form_id,
+        "faq": product.faq,
+        "recommend_weight": product.recommend_weight or 0,
+        "sales_count": product.sales_count or 0,
+        "status": status_val or "draft",
+        "sort_order": product.sort_order or 0,
+        "payment_timeout_minutes": product.payment_timeout_minutes or 15,
+        # v2 新字段
+        "product_code_list": code_list,
+        "spec_mode": int(product.spec_mode or 1),
+        "main_video_url": product.main_video_url or "",
+        "selling_point": product.selling_point or "",
+        "description_rich": product.description_rich or "",
+        "skus": sku_list,
+        "created_at": product.created_at.isoformat() if product.created_at else None,
+        "updated_at": product.updated_at.isoformat() if product.updated_at else None,
+    }
+
+
+async def _sync_skus_for_product(db: AsyncSession, product: Product, sku_items: list) -> None:
+    """根据前端传入的 skus 列表，完成数据库 SKU 的增/删/改。
+    - 有 id 的尝试编辑（若被订单引用则只允许修改 stock/origin_price/status/sort_order）
+    - 无 id 的视为新增
+    - 未出现在列表中的旧 SKU：
+        * 未被订单引用 → 物理删除
+        * 已被订单引用 → 仅将 status 置为 2（停用），不删除
+    - 确保仅 1 条 is_default=True，如全无则自动把第一条置为默认
+    """
+    if sku_items is None:
+        return
+
+    old_result = await db.execute(
+        select(ProductSku).where(ProductSku.product_id == product.id)
+    )
+    old_skus = {s.id: s for s in old_result.scalars().all()}
+
+    used_map = await _get_sku_order_flags(db, list(old_skus.keys()))
+
+    incoming_ids = {int(item.id) for item in sku_items if getattr(item, "id", None)}
+
+    # 1) 处理未在新列表中的旧 SKU
+    for old_id, old_sku in list(old_skus.items()):
+        if old_id not in incoming_ids:
+            if used_map.get(old_id, False):
+                old_sku.status = 2  # 停用
+            else:
+                await db.delete(old_sku)
+
+    # 2) 处理新列表中的每一条
+    default_count = 0
+    new_rows: list[ProductSku] = []
+    for idx, item in enumerate(sku_items):
+        if getattr(item, "id", None) and int(item.id) in old_skus:
+            sku = old_skus[int(item.id)]
+            is_used = used_map.get(sku.id, False)
+            if is_used:
+                # 锁定 spec_name/sale_price/is_default；允许修改 stock/origin_price/status/sort_order
+                sku.stock = int(item.stock or 0)
+                sku.origin_price = item.origin_price
+                sku.status = int(item.status or 1)
+                sku.sort_order = idx
+            else:
+                sku.spec_name = item.spec_name
+                sku.sale_price = item.sale_price
+                sku.origin_price = item.origin_price
+                sku.stock = int(item.stock or 0)
+                sku.is_default = bool(item.is_default)
+                sku.status = int(item.status or 1)
+                sku.sort_order = idx
+            if sku.is_default:
+                default_count += 1
+            new_rows.append(sku)
+        else:
+            sku = ProductSku(
+                product_id=product.id,
+                spec_name=item.spec_name,
+                sale_price=item.sale_price,
+                origin_price=item.origin_price,
+                stock=int(item.stock or 0),
+                is_default=bool(item.is_default),
+                status=int(item.status or 1),
+                sort_order=idx,
+            )
+            db.add(sku)
+            if item.is_default:
+                default_count += 1
+            new_rows.append(sku)
+
+    await db.flush()
+
+    # 3) 处理默认规格：必须有且仅有 1 条
+    if new_rows and default_count != 1:
+        # 全部清空，再把第一条（或第一条启用的）置为默认
+        for s in new_rows:
+            s.is_default = False
+        # 优先选 status=1（启用）的第一条
+        first_enable = next((s for s in new_rows if int(s.status or 1) == 1), new_rows[0])
+        first_enable.is_default = True
+        await db.flush()
+
+
+def _build_product_payload_from_data(data) -> dict:
+    """从 ProductCreate/ProductUpdate 中提取用于写入 Product 表的字段（不含 store_ids/skus）"""
+    d = data.model_dump(exclude_unset=True)
+    d.pop("store_ids", None)
+    d.pop("skus", None)
+    return d
 
 # ─────────── 分类管理 ───────────
 
@@ -223,8 +418,23 @@ async def admin_list_products(
         .offset((page - 1) * page_size)
         .limit(page_size)
     )
-    items = [ProductResponse.model_validate(p) for p in result.scalars().all()]
+    products = list(result.scalars().all())
+    items = [await _build_product_response_dict(db, p) for p in products]
     return {"items": items, "total": total, "page": page, "page_size": page_size}
+
+
+@router.get("/products/{product_id}/detail")
+async def admin_get_product_detail(
+    product_id: int,
+    current_user=Depends(require_role("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    """获取商品详细信息（含 SKU 与订单引用标记），用于编辑弹窗"""
+    result = await db.execute(select(Product).where(Product.id == product_id))
+    product = result.scalar_one_or_none()
+    if not product:
+        raise HTTPException(status_code=404, detail="商品不存在")
+    return await _build_product_response_dict(db, product)
 
 
 @router.post("/products")
@@ -238,6 +448,22 @@ async def admin_create_product(
     )
     if not cat_result.scalar_one_or_none():
         raise HTTPException(status_code=404, detail="分类不存在")
+
+    # 条码限制：最多 10 个，每个 ≤ 30 字符
+    code_list = data.product_code_list or []
+    if len(code_list) > 10:
+        raise HTTPException(status_code=400, detail="产品条码最多 10 个")
+    for c in code_list:
+        if len(str(c)) > 30:
+            raise HTTPException(status_code=400, detail="单个条码长度不可超过 30 字符")
+
+    # 卖点长度限制 100
+    if data.selling_point and len(data.selling_point) > 100:
+        raise HTTPException(status_code=400, detail="商品卖点不能超过 100 字")
+
+    # 保存并上架强校验
+    if data.status == "active":
+        _validate_for_publish(data)
 
     product = Product(
         name=data.name,
@@ -264,6 +490,12 @@ async def admin_create_product(
         status=data.status,
         sort_order=data.sort_order,
         payment_timeout_minutes=data.payment_timeout_minutes,
+        # v2 新字段
+        product_code_list=code_list,
+        spec_mode=int(data.spec_mode or 1),
+        main_video_url=data.main_video_url,
+        selling_point=data.selling_point,
+        description_rich=data.description_rich,
     )
     db.add(product)
     await db.flush()
@@ -274,8 +506,37 @@ async def admin_create_product(
             db.add(ps)
         await db.flush()
 
+    # 多规格模式下：同步 skus
+    if int(data.spec_mode or 1) == 2 and data.skus:
+        await _sync_skus_for_product(db, product, data.skus)
+
     await db.refresh(product)
-    return ProductResponse.model_validate(product)
+    return await _build_product_response_dict(db, product)
+
+
+def _validate_for_publish(data) -> None:
+    """保存并上架强校验：图片 ≥ 1、库存 > 0（统一规格）或 ≥1 条 SKU 库存 > 0、多规格需有默认"""
+    images = data.images or []
+    if not images:
+        raise HTTPException(status_code=400, detail="上架必须至少上传 1 张商品图片")
+
+    spec_mode = int(getattr(data, "spec_mode", 1) or 1)
+    if spec_mode == 1:
+        if (data.stock or 0) <= 0:
+            raise HTTPException(status_code=400, detail="上架必须库存大于 0")
+    else:
+        skus = data.skus or []
+        if not skus:
+            raise HTTPException(status_code=400, detail="多规格商品必须至少 1 条规格")
+        if not any((s.stock or 0) > 0 for s in skus):
+            raise HTTPException(status_code=400, detail="多规格商品必须至少 1 条规格库存大于 0")
+        if not any(s.is_default for s in skus):
+            raise HTTPException(status_code=400, detail="多规格商品必须有 1 条默认规格")
+
+    # 原价必须 ≥ 售价（若填了）
+    if data.original_price is not None and data.sale_price is not None:
+        if data.original_price and data.sale_price and data.original_price < data.sale_price:
+            raise HTTPException(status_code=400, detail="原价必须大于等于售价")
 
 
 @router.put("/products/{product_id}")
@@ -290,8 +551,44 @@ async def admin_update_product(
     if not product:
         raise HTTPException(status_code=404, detail="商品不存在")
 
+    # 条码校验
+    if data.product_code_list is not None:
+        if len(data.product_code_list) > 10:
+            raise HTTPException(status_code=400, detail="产品条码最多 10 个")
+        for c in data.product_code_list:
+            if len(str(c)) > 30:
+                raise HTTPException(status_code=400, detail="单个条码长度不可超过 30 字符")
+    if data.selling_point and len(data.selling_point) > 100:
+        raise HTTPException(status_code=400, detail="商品卖点不能超过 100 字")
+
+    # 组合后的"虚拟数据对象"用于上架强校验
+    if data.status == "active":
+        class _P:
+            pass
+        eff = _P()
+        eff.images = data.images if data.images is not None else product.images
+        eff.stock = data.stock if data.stock is not None else product.stock
+        eff.spec_mode = int(data.spec_mode if data.spec_mode is not None else (product.spec_mode or 1))
+        eff.original_price = data.original_price if data.original_price is not None else float(product.original_price or 0)
+        eff.sale_price = data.sale_price if data.sale_price is not None else float(product.sale_price or 0)
+        if data.skus is not None:
+            eff.skus = data.skus
+        else:
+            # 从数据库读取现有 skus
+            sku_rows = await db.execute(select(ProductSku).where(ProductSku.product_id == product.id))
+            existing_skus = list(sku_rows.scalars().all())
+            eff.skus = [
+                type("S", (), {
+                    "stock": s.stock,
+                    "is_default": s.is_default,
+                })()
+                for s in existing_skus
+            ]
+        _validate_for_publish(eff)
+
     update_data = data.model_dump(exclude_unset=True)
     store_ids = update_data.pop("store_ids", None)
+    skus_input = update_data.pop("skus", None)
 
     for key, value in update_data.items():
         setattr(product, key, value)
@@ -306,9 +603,71 @@ async def admin_update_product(
             ps = ProductStore(product_id=product_id, store_id=store_id)
             db.add(ps)
 
+    # 同步 SKU
+    if skus_input is not None:
+        await _sync_skus_for_product(db, product, data.skus or [])
+
+    # 如果切换回统一规格，清空启用中的规格（未被订单引用的删除，被引用的设置停用）
+    if int(product.spec_mode or 1) == 1 and skus_input is not None and len(skus_input) == 0:
+        pass  # 已在 _sync_skus_for_product 内处理（传空列表时）
+
     await db.flush()
     await db.refresh(product)
-    return ProductResponse.model_validate(product)
+    return await _build_product_response_dict(db, product)
+
+
+# ─────────── 规格管理（独立接口） ───────────
+
+
+@router.get("/products/{product_id}/skus")
+async def admin_list_product_skus(
+    product_id: int,
+    current_user=Depends(require_role("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    """查询商品规格清单（含 has_orders 标记）"""
+    result = await db.execute(select(Product).where(Product.id == product_id))
+    product = result.scalar_one_or_none()
+    if not product:
+        raise HTTPException(status_code=404, detail="商品不存在")
+
+    sku_result = await db.execute(
+        select(ProductSku)
+        .where(ProductSku.product_id == product_id)
+        .order_by(ProductSku.sort_order.asc(), ProductSku.id.asc())
+    )
+    skus = list(sku_result.scalars().all())
+    has_orders_map = await _get_sku_order_flags(db, [s.id for s in skus])
+
+    items = []
+    for s in skus:
+        items.append({
+            "id": s.id,
+            "product_id": s.product_id,
+            "spec_name": s.spec_name,
+            "sale_price": float(s.sale_price or 0),
+            "origin_price": float(s.origin_price) if s.origin_price is not None else None,
+            "stock": s.stock or 0,
+            "is_default": bool(s.is_default),
+            "status": int(s.status or 1),
+            "sort_order": s.sort_order or 0,
+            "has_orders": bool(has_orders_map.get(s.id, False)),
+        })
+    return {"items": items}
+
+
+@router.get("/skus/{sku_id}/used")
+async def admin_check_sku_used(
+    sku_id: int,
+    current_user=Depends(require_role("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    """判断某一规格是否被订单引用"""
+    result = await db.execute(
+        select(func.count(OrderItem.id)).where(OrderItem.sku_id == sku_id)
+    )
+    count = result.scalar() or 0
+    return {"sku_id": sku_id, "has_orders": count > 0, "order_count": count}
 
 
 @router.delete("/products/{product_id}")

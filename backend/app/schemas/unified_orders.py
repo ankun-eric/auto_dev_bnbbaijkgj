@@ -9,6 +9,7 @@ class OrderItemCreate(BaseModel):
     quantity: int = 1
     appointment_data: Optional[Any] = None
     appointment_time: Optional[datetime] = None
+    sku_id: Optional[int] = None  # 多规格商品必填
 
 
 class UnifiedOrderCreate(BaseModel):

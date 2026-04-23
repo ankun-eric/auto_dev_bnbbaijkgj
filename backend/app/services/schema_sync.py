@@ -806,6 +806,44 @@ async def _sync_product_system_tables(conn: AsyncConnection) -> None:
                 "ALTER TABLE products ADD COLUMN purchase_appointment_mode "
                 "ENUM('must_appoint','appoint_later') NULL"
             ))
+        # ── 商品弹窗优化 v2 新增字段 ──
+        if "product_code_list" not in cols:
+            await conn.execute(text("ALTER TABLE products ADD COLUMN product_code_list JSON NULL"))
+        if "spec_mode" not in cols:
+            await conn.execute(text("ALTER TABLE products ADD COLUMN spec_mode TINYINT DEFAULT 1"))
+        if "main_video_url" not in cols:
+            await conn.execute(text("ALTER TABLE products ADD COLUMN main_video_url VARCHAR(500) NULL"))
+        if "selling_point" not in cols:
+            await conn.execute(text("ALTER TABLE products ADD COLUMN selling_point VARCHAR(200) NULL"))
+        if "description_rich" not in cols:
+            await conn.execute(text("ALTER TABLE products ADD COLUMN description_rich TEXT NULL"))
+
+    # 创建 product_skus 表（如果不存在）
+    def _check_sku_table(sync_conn):
+        inspector = inspect(sync_conn)
+        return "product_skus" in set(inspector.get_table_names())
+
+    has_sku_table = await conn.run_sync(_check_sku_table)
+    if not has_sku_table:
+        await conn.execute(text("""
+            CREATE TABLE product_skus (
+                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                product_id INT NOT NULL,
+                spec_name VARCHAR(50) NOT NULL,
+                sale_price DECIMAL(10,2) NOT NULL DEFAULT 0,
+                origin_price DECIMAL(10,2) NULL,
+                stock INT DEFAULT 0,
+                is_default BOOLEAN DEFAULT FALSE,
+                status TINYINT DEFAULT 1,
+                sort_order INT DEFAULT 0,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                INDEX ix_product_skus_product_id (product_id),
+                UNIQUE KEY uq_product_sku_name (product_id, spec_name),
+                CONSTRAINT fk_product_sku_product FOREIGN KEY (product_id) REFERENCES products(id)
+            )
+        """))
+
 
     if "unified_orders" in table_cols:
         cols = table_cols["unified_orders"]
@@ -824,6 +862,14 @@ async def _sync_product_system_tables(conn: AsyncConnection) -> None:
             await conn.execute(text("ALTER TABLE order_items ADD COLUMN total_redeem_count INT DEFAULT 1"))
         if "used_redeem_count" not in cols:
             await conn.execute(text("ALTER TABLE order_items ADD COLUMN used_redeem_count INT DEFAULT 0"))
+        if "sku_id" not in cols:
+            await conn.execute(text("ALTER TABLE order_items ADD COLUMN sku_id BIGINT NULL"))
+            try:
+                await conn.execute(text("CREATE INDEX ix_order_items_sku_id ON order_items (sku_id)"))
+            except Exception:
+                pass
+        if "sku_name" not in cols:
+            await conn.execute(text("ALTER TABLE order_items ADD COLUMN sku_name VARCHAR(50) NULL"))
 
     if "refund_requests" in table_cols:
         cols = table_cols["refund_requests"]
