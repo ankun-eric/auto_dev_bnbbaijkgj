@@ -33,7 +33,30 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 体检报告多图显示修复（2026-04-23）
+## Latest Update: 商品管理 新建/编辑弹窗优化 v2（2026-04-23）
+
+### 概要
+管理后台「商品体系 → 商品管理」新建/编辑弹窗重构：左侧 5 Tab 布局（基础信息/标签/积分/预约核销/排序权重）；新增字段**产品条码(≤10)、商品规格(统一/多规格 SKU)、主图视频、商品卖点(≤100)、富文本描述**；商品图片支持**拖拽排序 + 封面角标**；规格被订单引用后锁定部分字段并禁删改停用；保存并上架强校验且自动跳到问题字段 Tab；老数据无感兼容（含纯文本描述转富文本）。
+
+### 关键代码
+- 后端模型：`backend/app/models/models.py` 新增 `ProductSku`；`Product` 增字段 `product_code_list/spec_mode/main_video_url/selling_point/description_rich`；`OrderItem` 增 `sku_id/sku_name`
+- Schema：`backend/app/schemas/products.py`（新增 `ProductSkuCreate/Response`）；`backend/app/schemas/unified_orders.py`
+- DDL 自动迁移：`backend/app/services/schema_sync.py` 启动时新增列+建表
+- 商品 API：`backend/app/api/product_admin.py`（CRUD+SKU 同步+发布校验+订单引用判断）；`backend/app/api/products.py`（**⚠ list/hot/detail 均需 selectinload(Product.skus) 避免异步懒加载 500**）
+- 订单 API：`backend/app/api/unified_orders.py`（SKU 价格/库存扣减）
+- admin-web：`admin-web/src/app/(admin)/product-system/products/page.tsx`（5 Tab 弹窗 + `ImageGrid` + `SkuTable`）
+- 自研富文本：`admin-web/src/components/SimpleRichEditor.tsx`（`contenteditable + document.execCommand`，零外依赖）
+- h5-web：`h5-web/src/app/product/[id]/page.tsx`（图片/视频 Tab、卖点、SKU 按钮组）；`h5-web/src/app/checkout/page.tsx`（sku_id 透传）
+
+### 测试与部署
+- 后端测试：`backend/tests/test_product_modal_v2.py`（10 用例全通过）
+- 部署脚本：`deploy/deploy_product_modal_v2.py` 等
+- Gateway 兼容：已在 `/home/ubuntu/gateway/conf.d/6b099ed3-....conf` 为 `/h5` `/h5/` 精确加 301 → 项目根
+- 验证链接：`/`、`/admin/product-system/products`、`/api/products?page=1&page_size=5`、`/api/health`、`/h5/` 全部 200
+
+---
+
+## Previous Update: 体检报告多图显示修复（2026-04-23）
 
 ### 概要
 修复"体检报告 AI 解读 / 报告对比"场景中，用户上传多张图片但只显示第一张的 Bug。采用**方案甲（新增 JSON 字段 + 保留旧单值字段）**，全链路补全多图 URL 存储与读取。
