@@ -154,12 +154,16 @@ class CategoryStatus(str, enum.Enum):
 
 class AppointmentMode(str, enum.Enum):
     none = "none"
-    schedule = "schedule"
-    free_time = "free_time"
-    walk_in = "walk_in"
+    date = "date"
+    time_slot = "time_slot"
+    custom_form = "custom_form"
 
 
 class PurchaseAppointmentMode(str, enum.Enum):
+    # 对齐方案：下单即预约 / 先下单后预约
+    # 为了兼容老数据，保留 must_appoint / appoint_later 作为别名值
+    purchase_with_appointment = "purchase_with_appointment"
+    appointment_later = "appointment_later"
     must_appoint = "must_appoint"
     appoint_later = "appoint_later"
 
@@ -2354,6 +2358,8 @@ class AppointmentForm(Base):
     id = mapped_column(Integer, primary_key=True, autoincrement=True)
     name = mapped_column(String(200), nullable=False)
     description = mapped_column(Text, nullable=True)
+    # 状态：active/inactive，默认 active；用于表单库启用/停用（BUG-PRODUCT-APPT-001）
+    status = mapped_column(String(20), default="active", nullable=False)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -2400,6 +2406,10 @@ class Product(Base):
     appointment_mode = mapped_column(Enum(AppointmentMode), default=AppointmentMode.none)
     purchase_appointment_mode = mapped_column(Enum(PurchaseAppointmentMode), nullable=True)
     custom_form_id = mapped_column(Integer, ForeignKey("appointment_forms.id"), nullable=True)
+    # ── 预约联动 UI 新增字段（BUG-PRODUCT-APPT-001）──
+    advance_days = mapped_column(Integer, nullable=True)  # date 模式：提前可预约天数
+    daily_quota = mapped_column(Integer, nullable=True)  # date 模式：单日最大预约人数
+    time_slots = mapped_column(JSON, nullable=True)  # time_slot 模式：时段列表 [{start,end,capacity}]
     faq = mapped_column(JSON, nullable=True)
     recommend_weight = mapped_column(Integer, default=0)
     sales_count = mapped_column(Integer, default=0)

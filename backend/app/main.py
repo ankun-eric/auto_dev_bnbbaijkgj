@@ -1,9 +1,12 @@
+import logging
 import os
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy.exc import IntegrityError
 
 from app.api import (
     addresses,
@@ -14,6 +17,7 @@ from app.api import (
     admin_news,
     admin_search,
     ai_center,
+    appointment_form_admin,
     audit,
     auth,
     bottom_nav,
@@ -634,10 +638,40 @@ app.include_router(audit.audit_router)
 app.include_router(third_party_openapi.router)
 app.include_router(addresses.router)
 app.include_router(product_admin.router)
+app.include_router(appointment_form_admin.router)
 app.include_router(users.router)
 
 os.makedirs("uploads", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+
+
+# ───────────────── 全局异常处理器（BUG-PRODUCT-APPT-001）─────────────────
+# 目的：将底层 SQLAlchemy / Python 异常转成 400 并附明确 detail，
+# 彻底告别前端孤立的"操作失败"。
+_exception_logger = logging.getLogger("app.exception")
+
+
+@app.exception_handler(LookupError)
+async def _lookup_error_handler(request: Request, exc: LookupError):
+    _exception_logger.warning("LookupError at %s: %s", request.url.path, exc)
+    return JSONResponse(
+        status_code=400,
+        content={"detail": f"枚举值不合法：{exc}"},
+    )
+
+
+@app.exception_handler(IntegrityError)
+async def _integrity_error_handler(request: Request, exc: IntegrityError):
+    _exception_logger.warning("IntegrityError at %s: %s", request.url.path, exc)
+    msg = "数据约束冲突，请检查必填字段与唯一性"
+    orig = getattr(exc, "orig", None)
+    if orig is not None:
+        text = str(orig)
+        if "foreign key" in text.lower():
+            msg = "关联数据不存在，请检查所绑定的表单/分类是否有效"
+        elif "duplicate" in text.lower():
+            msg = "数据重复，请检查唯一字段"
+    return JSONResponse(status_code=400, content={"detail": msg})
 
 
 @app.get("/api/health")

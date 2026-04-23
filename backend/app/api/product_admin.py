@@ -144,6 +144,9 @@ async def _build_product_response_dict(db: AsyncSession, product: Product) -> di
         "appointment_mode": am or "none",
         "purchase_appointment_mode": pam,
         "custom_form_id": product.custom_form_id,
+        "advance_days": product.advance_days,
+        "daily_quota": product.daily_quota,
+        "time_slots": product.time_slots or None,
         "faq": product.faq,
         "recommend_weight": product.recommend_weight or 0,
         "sales_count": product.sales_count or 0,
@@ -485,6 +488,9 @@ async def admin_create_product(
         appointment_mode=data.appointment_mode,
         purchase_appointment_mode=data.purchase_appointment_mode,
         custom_form_id=data.custom_form_id,
+        advance_days=data.advance_days,
+        daily_quota=data.daily_quota,
+        time_slots=[s.model_dump() for s in data.time_slots] if data.time_slots else None,
         faq=data.faq,
         recommend_weight=data.recommend_weight,
         status=data.status,
@@ -589,6 +595,7 @@ async def admin_update_product(
     update_data = data.model_dump(exclude_unset=True)
     store_ids = update_data.pop("store_ids", None)
     skus_input = update_data.pop("skus", None)
+    # time_slots 已经在 model_dump 中序列化为 list[dict]；直接赋值即可
 
     for key, value in update_data.items():
         setattr(product, key, value)
@@ -711,12 +718,14 @@ async def admin_list_form_fields(
     if not product:
         raise HTTPException(status_code=404, detail="商品不存在")
 
+    # BUG-PRODUCT-APPT-001：收敛"未绑定自动建表单"的潜规则
+    # 改为：未绑定则直接返回空 + 提示，由前端引导去预约表单库显式创建或选择
     if not product.custom_form_id:
-        form = AppointmentForm(name=f"商品{product.id}预约表单")
-        db.add(form)
-        await db.flush()
-        product.custom_form_id = form.id
-        await db.flush()
+        return {
+            "items": [],
+            "form_id": None,
+            "message": "该商品尚未绑定预约表单，请到「预约表单库」新建或在商品编辑中选择一张表单",
+        }
 
     fields_result = await db.execute(
         select(AppointmentFormField)
@@ -740,11 +749,10 @@ async def admin_create_form_field(
         raise HTTPException(status_code=404, detail="商品不存在")
 
     if not product.custom_form_id:
-        form = AppointmentForm(name=f"商品{product.id}预约表单")
-        db.add(form)
-        await db.flush()
-        product.custom_form_id = form.id
-        await db.flush()
+        raise HTTPException(
+            status_code=400,
+            detail="该商品尚未绑定预约表单，请先在「预约表单库」新建表单并在商品编辑中选择",
+        )
 
     field = AppointmentFormField(
         form_id=product.custom_form_id,

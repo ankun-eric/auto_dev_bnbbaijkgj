@@ -52,6 +52,9 @@ interface Product {
   appointment_mode: string;
   purchase_appointment_mode: string | null;
   custom_form_id: number | null;
+  advance_days: number | null;
+  daily_quota: number | null;
+  time_slots: Array<{ start: string; end: string; capacity: number }> | null;
   faq: any;
   recommend_weight: number;
   sales_count: number;
@@ -112,6 +115,15 @@ function mapProduct(raw: Record<string, any>): Product {
     appointment_mode: String(raw.appointment_mode ?? 'none'),
     purchase_appointment_mode: raw.purchase_appointment_mode ? String(raw.purchase_appointment_mode) : null,
     custom_form_id: raw.custom_form_id ? Number(raw.custom_form_id) : null,
+    advance_days: raw.advance_days != null ? Number(raw.advance_days) : null,
+    daily_quota: raw.daily_quota != null ? Number(raw.daily_quota) : null,
+    time_slots: Array.isArray(raw.time_slots)
+      ? raw.time_slots.map((s: any) => ({
+          start: String(s.start ?? ''),
+          end: String(s.end ?? ''),
+          capacity: Number(s.capacity ?? 0),
+        }))
+      : null,
     faq: raw.faq ?? null,
     recommend_weight: Number(raw.recommend_weight ?? 0),
     sales_count: Number(raw.sales_count ?? 0),
@@ -157,6 +169,19 @@ const appointmentModes = [
   { label: '预约时段', value: 'time_slot' },
   { label: '自定义表单', value: 'custom_form' },
 ];
+
+const purchaseApptModes = [
+  { label: '下单即预约', value: 'purchase_with_appointment' },
+  { label: '先下单后预约', value: 'appointment_later' },
+];
+
+interface AppointmentFormLite {
+  id: number;
+  name: string;
+  status: string;
+  field_count: number;
+  product_count: number;
+}
 
 const fieldTypeOptions = [
   { label: '文本输入', value: 'text' },
@@ -467,6 +492,10 @@ export default function ProductsPage() {
 
   // Tab 校验状态
   const [tabErrors, setTabErrors] = useState<Record<TabKey, boolean>>({ base: false, tags: false, points: false, appointment: false, sort: false });
+  // ── BUG-PRODUCT-APPT-001：预约联动 state ──
+  const [apptMode, setApptMode] = useState<string>('none');
+  const [timeSlots, setTimeSlots] = useState<Array<{ start: string; end: string; capacity: number }>>([]);
+  const [apptForms, setApptForms] = useState<AppointmentFormLite[]>([]);
 
   const [formFieldsVisible, setFormFieldsVisible] = useState(false);
   const [formFieldsProductId, setFormFieldsProductId] = useState<number | null>(null);
@@ -505,6 +534,16 @@ export default function ProductsPage() {
     } catch {}
   }, []);
 
+  const fetchApptForms = useCallback(async () => {
+    try {
+      const res = await get('/api/admin/appointment-forms', { page: 1, page_size: 200 });
+      const items = res?.items || [];
+      setApptForms(Array.isArray(items) ? items : []);
+    } catch {
+      setApptForms([]);
+    }
+  }, []);
+
   const fetchData = useCallback(async (page = 1, pageSize = 10) => {
     setLoading(true);
     try {
@@ -531,6 +570,7 @@ export default function ProductsPage() {
     (async () => {
       await fetchCategories();
       await fetchSymptomTags();
+      await fetchApptForms();
       await fetchData(1, 10);
     })();
   }, []);
@@ -548,6 +588,8 @@ export default function ProductsPage() {
     setMainVideoUrl('');
     setFileList([]);
     setTabErrors({ base: false, tags: false, points: false, appointment: false, sort: false });
+    setApptMode('none');
+    setTimeSlots([]);
   };
 
   const handleAdd = () => {
@@ -599,6 +641,10 @@ export default function ProductsPage() {
       points_deductible: detail.points_deductible,
       redeem_count: detail.redeem_count,
       appointment_mode: detail.appointment_mode,
+      purchase_appointment_mode: detail.purchase_appointment_mode || undefined,
+      advance_days: detail.advance_days ?? undefined,
+      daily_quota: detail.daily_quota ?? undefined,
+      custom_form_id: detail.custom_form_id ?? undefined,
       recommend_weight: detail.recommend_weight,
       status: detail.status,
       sort_order: detail.sort_order,
@@ -622,6 +668,8 @@ export default function ProductsPage() {
     setFileList(
       detail.images?.map((url, i) => ({ uid: String(-i - 1), name: `img_${i}`, status: 'done' as const, url })) || []
     );
+    setApptMode(detail.appointment_mode || 'none');
+    setTimeSlots(detail.time_slots || []);
     setModalVisible(true);
   };
 
@@ -772,6 +820,60 @@ export default function ProductsPage() {
       return;
     }
 
+    // ── BUG-PRODUCT-APPT-001：预约联动前端校验（彻底告别"操作失败"）──
+    const mode = values.appointment_mode || 'none';
+    if (mode !== 'none') {
+      if (!values.purchase_appointment_mode) {
+        message.error('请选择下单预约方式（下单即预约 / 先下单后预约）');
+        setActiveTab('appointment');
+        setTabErrors(prev => ({ ...prev, appointment: true }));
+        return;
+      }
+      if (mode === 'date') {
+        if (!values.advance_days || Number(values.advance_days) <= 0) {
+          message.error('请填写"提前可预约天数"（需大于 0）');
+          setActiveTab('appointment');
+          setTabErrors(prev => ({ ...prev, appointment: true }));
+          return;
+        }
+        if (!values.daily_quota || Number(values.daily_quota) <= 0) {
+          message.error('请填写"单日最大预约人数"（需大于 0）');
+          setActiveTab('appointment');
+          setTabErrors(prev => ({ ...prev, appointment: true }));
+          return;
+        }
+      } else if (mode === 'time_slot') {
+        if (!timeSlots || timeSlots.length === 0) {
+          message.error('请至少配置 1 个预约时段');
+          setActiveTab('appointment');
+          setTabErrors(prev => ({ ...prev, appointment: true }));
+          return;
+        }
+        for (let i = 0; i < timeSlots.length; i++) {
+          const s = timeSlots[i];
+          if (!s.start || !s.end) {
+            message.error(`第 ${i + 1} 个时段的开始/结束时间必填`);
+            setActiveTab('appointment');
+            setTabErrors(prev => ({ ...prev, appointment: true }));
+            return;
+          }
+          if (!s.capacity || Number(s.capacity) <= 0) {
+            message.error(`第 ${i + 1} 个时段的容量必须大于 0`);
+            setActiveTab('appointment');
+            setTabErrors(prev => ({ ...prev, appointment: true }));
+            return;
+          }
+        }
+      } else if (mode === 'custom_form') {
+        if (!values.custom_form_id) {
+          message.error('请选择或新建一张预约表单');
+          setActiveTab('appointment');
+          setTabErrors(prev => ({ ...prev, appointment: true }));
+          return;
+        }
+      }
+    }
+
     // 上传图片
     const imageUrls: string[] = [];
     for (const f of fileList) {
@@ -811,7 +913,12 @@ export default function ProductsPage() {
       points_price: values.points_price ?? 0,
       points_deductible: values.points_deductible || false,
       redeem_count: values.redeem_count ?? 1,
-      appointment_mode: values.appointment_mode || 'none',
+      appointment_mode: mode,
+      purchase_appointment_mode: mode !== 'none' ? values.purchase_appointment_mode : null,
+      advance_days: mode === 'date' ? Number(values.advance_days) : null,
+      daily_quota: mode === 'date' ? Number(values.daily_quota) : null,
+      time_slots: mode === 'time_slot' ? timeSlots : null,
+      custom_form_id: mode === 'custom_form' ? values.custom_form_id : null,
       recommend_weight: values.recommend_weight ?? 0,
       status: publish ? 'active' : (values.status || 'draft'),
       sort_order: values.sort_order ?? 0,
@@ -829,7 +936,20 @@ export default function ProductsPage() {
       setModalVisible(false);
       fetchData(pagination.current, pagination.pageSize);
     } catch (err: any) {
-      message.error(err?.response?.data?.detail || '操作失败');
+      const resp = err?.response?.data;
+      // FastAPI 422 校验错误：detail 是数组
+      if (Array.isArray(resp?.detail)) {
+        const msgs = resp.detail
+          .map((d: any) => {
+            const loc = Array.isArray(d?.loc) ? d.loc.slice(1).join('.') : '';
+            return loc ? `${loc}: ${d?.msg || ''}` : String(d?.msg || '');
+          })
+          .filter(Boolean)
+          .join('；');
+        message.error(msgs || '表单校验失败');
+      } else {
+        message.error(resp?.detail || '操作失败，请稍后重试');
+      }
     }
   };
 
@@ -868,6 +988,24 @@ export default function ProductsPage() {
   };
 
   const openFormFields = (record: Product) => {
+    // BUG-PRODUCT-APPT-001：未绑定表单时，不再偷偷建表单，而是引导用户去表单库
+    if (!record.custom_form_id) {
+      Modal.info({
+        title: '该商品尚未绑定预约表单',
+        content: (
+          <div>
+            请先到「预约表单库」新建一张表单，再回到商品编辑页的「预约与核销」Tab 中选择即可。
+            <br />
+            表单可被多个商品复用，避免重复录入。
+          </div>
+        ),
+        okText: '去预约表单库',
+        onOk: () => {
+          window.open('/product-system/appointment-forms', '_blank');
+        },
+      });
+      return;
+    }
     setFormFieldsProductId(record.id);
     setFormFieldsVisible(true);
     fetchFormFields(record.id);
@@ -1204,12 +1342,167 @@ export default function ProductsPage() {
               <Form.Item label="核销次数" name="redeem_count"><InputNumber min={1} style={{ width: '100%' }} /></Form.Item>
             </Col>
             <Col span={8}>
-              <Form.Item label="预约模式" name="appointment_mode"><Select options={appointmentModes} /></Form.Item>
+              <Form.Item label="预约模式" name="appointment_mode">
+                <Select
+                  options={appointmentModes}
+                  onChange={(val) => {
+                    setApptMode(val);
+                    // 切到 none 时清空购买预约方式；进入需要预约时给默认值
+                    if (val === 'none') {
+                      form.setFieldValue('purchase_appointment_mode', undefined);
+                    } else if (!form.getFieldValue('purchase_appointment_mode')) {
+                      form.setFieldValue('purchase_appointment_mode', 'purchase_with_appointment');
+                    }
+                  }}
+                />
+              </Form.Item>
             </Col>
             <Col span={8}>
               <Form.Item label="支付超时(分)" name="payment_timeout_minutes"><InputNumber min={1} style={{ width: '100%' }} /></Form.Item>
             </Col>
           </Row>
+
+          {/* ── 预约模式联动区（BUG-PRODUCT-APPT-001）── */}
+          {apptMode !== 'none' && (
+            <>
+              <Divider orientation="left" plain style={{ margin: '4px 0 12px' }}>
+                预约设置
+              </Divider>
+              <Form.Item
+                label={<span>下单预约方式 <span style={{ color: '#ff4d4f' }}>*</span></span>}
+                name="purchase_appointment_mode"
+                rules={[{ required: true, message: '请选择下单预约方式' }]}
+              >
+                <Radio.Group options={purchaseApptModes} />
+              </Form.Item>
+            </>
+          )}
+
+          {apptMode === 'date' && (
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item
+                  label={<span>提前可预约天数 <span style={{ color: '#ff4d4f' }}>*</span></span>}
+                  name="advance_days"
+                  rules={[{ required: true, message: '请填写提前可预约天数' }]}
+                >
+                  <InputNumber min={1} max={365} style={{ width: '100%' }} placeholder="例如 7（最多可提前 7 天预约）" />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item
+                  label={<span>单日最大预约人数 <span style={{ color: '#ff4d4f' }}>*</span></span>}
+                  name="daily_quota"
+                  rules={[{ required: true, message: '请填写单日最大预约人数' }]}
+                >
+                  <InputNumber min={1} style={{ width: '100%' }} placeholder="例如 50" />
+                </Form.Item>
+              </Col>
+            </Row>
+          )}
+
+          {apptMode === 'time_slot' && (
+            <Form.Item label={<span>时段列表 <span style={{ color: '#ff4d4f' }}>*</span></span>}>
+              <div style={{ border: '1px dashed #d9d9d9', borderRadius: 6, padding: 12 }}>
+                {timeSlots.length === 0 && (
+                  <div style={{ color: '#999', marginBottom: 8 }}>暂未配置时段，请至少添加 1 条。</div>
+                )}
+                {timeSlots.map((slot, idx) => (
+                  <Row gutter={8} key={idx} style={{ marginBottom: 8 }} align="middle">
+                    <Col span={7}>
+                      <Input
+                        placeholder="开始 HH:MM"
+                        value={slot.start}
+                        onChange={e => {
+                          const next = [...timeSlots];
+                          next[idx] = { ...next[idx], start: e.target.value };
+                          setTimeSlots(next);
+                        }}
+                      />
+                    </Col>
+                    <Col span={7}>
+                      <Input
+                        placeholder="结束 HH:MM"
+                        value={slot.end}
+                        onChange={e => {
+                          const next = [...timeSlots];
+                          next[idx] = { ...next[idx], end: e.target.value };
+                          setTimeSlots(next);
+                        }}
+                      />
+                    </Col>
+                    <Col span={6}>
+                      <InputNumber
+                        min={1}
+                        placeholder="容量"
+                        style={{ width: '100%' }}
+                        value={slot.capacity}
+                        onChange={v => {
+                          const next = [...timeSlots];
+                          next[idx] = { ...next[idx], capacity: Number(v || 0) };
+                          setTimeSlots(next);
+                        }}
+                      />
+                    </Col>
+                    <Col span={4}>
+                      <Button
+                        danger
+                        size="small"
+                        icon={<DeleteOutlined />}
+                        onClick={() => setTimeSlots(timeSlots.filter((_, i) => i !== idx))}
+                      >
+                        删除
+                      </Button>
+                    </Col>
+                  </Row>
+                ))}
+                <Button
+                  type="dashed"
+                  icon={<PlusOutlined />}
+                  onClick={() =>
+                    setTimeSlots([...timeSlots, { start: '09:00', end: '10:00', capacity: 10 }])
+                  }
+                  block
+                >
+                  添加时段
+                </Button>
+              </div>
+            </Form.Item>
+          )}
+
+          {apptMode === 'custom_form' && (
+            <Row gutter={16} align="middle">
+              <Col span={16}>
+                <Form.Item
+                  label={<span>绑定预约表单 <span style={{ color: '#ff4d4f' }}>*</span></span>}
+                  name="custom_form_id"
+                  rules={[{ required: true, message: '请选择或新建一张预约表单' }]}
+                >
+                  <Select
+                    placeholder="请选择已有表单"
+                    showSearch
+                    optionFilterProp="label"
+                    options={apptForms
+                      .filter(f => f.status !== 'inactive')
+                      .map(f => ({ label: `${f.name}（${f.field_count} 个字段）`, value: f.id }))}
+                  />
+                </Form.Item>
+              </Col>
+              <Col span={8}>
+                <Button
+                  type="link"
+                  onClick={() => {
+                    window.open('/product-system/appointment-forms', '_blank');
+                  }}
+                >
+                  去预约表单库新建 →
+                </Button>
+                <Button type="link" onClick={fetchApptForms}>刷新</Button>
+              </Col>
+            </Row>
+          )}
+
+          <Divider plain style={{ margin: '12px 0' }} />
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item label="有效开始日期" name="valid_start_date"><DatePicker style={{ width: '100%' }} /></Form.Item>

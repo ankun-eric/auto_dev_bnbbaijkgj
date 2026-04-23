@@ -132,6 +132,7 @@ const menuItems: MenuItem[] = [
     children: [
       { key: '/product-system/categories', icon: <TagsOutlined />, label: '商品分类' },
       { key: '/product-system/products', icon: <ShopOutlined />, label: '商品管理' },
+      { key: '/product-system/appointment-forms', icon: <FormOutlined />, label: '预约表单库' },
       { key: '/product-system/orders', icon: <ShoppingCartOutlined />, label: '订单明细' },
       { key: '/product-system/coupons', icon: <GiftOutlined />, label: '优惠券管理' },
       { key: '/product-system/new-user-coupons', icon: <GiftOutlined />, label: '新人券池' },

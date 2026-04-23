@@ -804,8 +804,49 @@ async def _sync_product_system_tables(conn: AsyncConnection) -> None:
         if "purchase_appointment_mode" not in cols:
             await conn.execute(text(
                 "ALTER TABLE products ADD COLUMN purchase_appointment_mode "
-                "ENUM('must_appoint','appoint_later') NULL"
+                "ENUM('purchase_with_appointment','appointment_later','must_appoint','appoint_later') NULL"
             ))
+        else:
+            # 枚举扩容：兼容新旧两套值（BUG-PRODUCT-APPT-001）
+            try:
+                await conn.execute(text(
+                    "ALTER TABLE products MODIFY COLUMN purchase_appointment_mode "
+                    "ENUM('purchase_with_appointment','appointment_later','must_appoint','appoint_later') NULL"
+                ))
+            except Exception:
+                pass
+        # ── 预约联动 UI 新增字段（BUG-PRODUCT-APPT-001）──
+        if "advance_days" not in cols:
+            await conn.execute(text("ALTER TABLE products ADD COLUMN advance_days INT NULL"))
+        if "daily_quota" not in cols:
+            await conn.execute(text("ALTER TABLE products ADD COLUMN daily_quota INT NULL"))
+        if "time_slots" not in cols:
+            await conn.execute(text("ALTER TABLE products ADD COLUMN time_slots JSON NULL"))
+        # ── 预约模式枚举对齐：MySQL ENUM 扩容 + 旧值清洗（BUG-PRODUCT-APPT-001）──
+        try:
+            await conn.execute(text(
+                "ALTER TABLE products MODIFY COLUMN appointment_mode "
+                "ENUM('none','date','time_slot','custom_form','schedule','free_time','walk_in') "
+                "NOT NULL DEFAULT 'none'"
+            ))
+        except Exception:
+            pass
+        # 将过期的旧值重写为 none，避免 ORM LookupError
+        try:
+            await conn.execute(text(
+                "UPDATE products SET appointment_mode = 'none' "
+                "WHERE appointment_mode IN ('schedule','free_time','walk_in')"
+            ))
+        except Exception:
+            pass
+        # 最终再次收缩为目标枚举
+        try:
+            await conn.execute(text(
+                "ALTER TABLE products MODIFY COLUMN appointment_mode "
+                "ENUM('none','date','time_slot','custom_form') NOT NULL DEFAULT 'none'"
+            ))
+        except Exception:
+            pass
         # ── 商品弹窗优化 v2 新增字段 ──
         if "product_code_list" not in cols:
             await conn.execute(text("ALTER TABLE products ADD COLUMN product_code_list JSON NULL"))
@@ -817,6 +858,14 @@ async def _sync_product_system_tables(conn: AsyncConnection) -> None:
             await conn.execute(text("ALTER TABLE products ADD COLUMN selling_point VARCHAR(200) NULL"))
         if "description_rich" not in cols:
             await conn.execute(text("ALTER TABLE products ADD COLUMN description_rich TEXT NULL"))
+
+    # ── 预约表单库：为 appointment_forms 增加 status 列（BUG-PRODUCT-APPT-001）──
+    if "appointment_forms" in table_cols:
+        af_cols = table_cols["appointment_forms"]
+        if "status" not in af_cols:
+            await conn.execute(text(
+                "ALTER TABLE appointment_forms ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'active'"
+            ))
 
     # 创建 product_skus 表（如果不存在）
     def _check_sku_table(sync_conn):
