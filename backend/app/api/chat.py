@@ -703,12 +703,31 @@ async def get_session_detail(
             title = getattr(rep, "title", None) or (
                 f"{default_title.strftime('%Y-%m-%d')} 体检报告" if default_title else "体检报告"
             )
+            # [2026-04-23] 多图修复：返回完整 URL 列表，fallback 为 [file_url]
+            def _to_url_list(val, fallback):
+                if isinstance(val, list) and val:
+                    return [u for u in val if u]
+                if isinstance(val, str) and val:
+                    try:
+                        import json as _json
+                        parsed = _json.loads(val)
+                        if isinstance(parsed, list):
+                            return [u for u in parsed if u]
+                    except Exception:
+                        pass
+                return [fallback] if fallback else []
+
+            file_urls_list = _to_url_list(getattr(rep, "file_urls", None), rep.file_url)
+            thumb_urls_list = _to_url_list(getattr(rep, "thumbnail_urls", None), rep.thumbnail_url or rep.file_url)
+
             reports_brief.append({
                 "id": rep.id,
                 "title": title,
                 "report_date": rep.report_date.strftime("%Y-%m-%d") if rep.report_date else None,
                 "thumbnail_url": rep.thumbnail_url,
                 "file_url": rep.file_url,
+                "file_urls": file_urls_list,
+                "thumbnail_urls": thumb_urls_list,
             })
 
     return {

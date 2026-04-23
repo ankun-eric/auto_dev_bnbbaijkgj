@@ -582,6 +582,11 @@ class CheckupReport(Base):
     report_type = mapped_column(String(50), nullable=True)
     file_url = mapped_column(String(500), nullable=True)
     thumbnail_url = mapped_column(String(500), nullable=True)
+    # [2026-04-23] 体检报告多图修复：完整原图与缩略图 URL 列表（JSON）
+    # - file_url / thumbnail_url 保留作封面用，保证老接口兼容
+    # - file_urls / thumbnail_urls 用于多图展示；为 NULL 时由接口层 fallback 为 [file_url]
+    file_urls = mapped_column(JSON, nullable=True)
+    thumbnail_urls = mapped_column(JSON, nullable=True)
     file_type = mapped_column(String(20), default="image")
     ocr_result = mapped_column(JSON, nullable=True)
     ai_analysis = mapped_column(Text, nullable=True)
@@ -1703,6 +1708,8 @@ class CheckupReportDetail(Base):
     status = mapped_column(String(20), default="normal")
     provider_name = mapped_column(String(50), nullable=False)
     original_image_url = mapped_column(String(1000), nullable=True)
+    # [2026-04-23] 体检报告多图修复：Admin 详情多图完整列表
+    original_image_urls = mapped_column(JSON, nullable=True)
     ocr_raw_text = mapped_column(Text, nullable=True)
     ai_structured_result = mapped_column(JSON, nullable=True)
     abnormal_indicators = mapped_column(JSON, nullable=True)

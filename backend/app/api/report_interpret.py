@@ -573,11 +573,25 @@ async def interpret_detail(
     if not rep or rep.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="报告不存在")
 
-    images = []
-    if rep.file_url:
-        images.append(rep.file_url)
-    if rep.thumbnail_url and rep.thumbnail_url != rep.file_url:
-        images.append(rep.thumbnail_url)
+    # [2026-04-23] 多图修复：优先使用完整 URL 列表，fallback 为 [file_url]
+    images: list[str] = []
+    file_urls_val = getattr(rep, "file_urls", None)
+    if isinstance(file_urls_val, list) and file_urls_val:
+        images = [u for u in file_urls_val if u]
+    elif isinstance(file_urls_val, str) and file_urls_val:
+        # 兼容 JSON 字段返回字符串的场景
+        try:
+            import json as _json
+            parsed = _json.loads(file_urls_val)
+            if isinstance(parsed, list):
+                images = [u for u in parsed if u]
+        except Exception:
+            images = []
+    if not images:
+        if rep.file_url:
+            images.append(rep.file_url)
+        if rep.thumbnail_url and rep.thumbnail_url != rep.file_url:
+            images.append(rep.thumbnail_url)
 
     mem_name = None
     mem_relation = None

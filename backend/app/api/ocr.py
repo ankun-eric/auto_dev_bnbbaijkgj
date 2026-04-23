@@ -746,6 +746,8 @@ async def batch_recognize(
         merged_record_id = merged_record.id
 
         first_image_url = successful_image_urls[0] if successful_image_urls else None
+        # [2026-04-23] 多图修复：把完整 URL 列表透传到 _write_checkup_detail / _write_drug_detail
+        all_image_urls = list(successful_image_urls) if successful_image_urls else []
 
         if scene_name == "体检报告识别" and merged_ai_result:
             try:
@@ -753,6 +755,7 @@ async def batch_recognize(
                     db, current_user, last_provider_used,
                     merged_record, merged_ocr_text, merged_ai_result, first_image_url,
                     family_member_id=family_member_id,
+                    all_image_urls=all_image_urls,
                 )
                 if checkup_report:
                     report_id = checkup_report.id
@@ -869,7 +872,12 @@ def _risk_level_to_status(risk_level: int) -> str:
     return "critical"
 
 
-async def _write_checkup_detail(db, user, provider, record, ocr_text, ai_result, image_url, *, family_member_id=None):
+async def _write_checkup_detail(db, user, provider, record, ocr_text, ai_result, image_url, *, family_member_id=None, all_image_urls=None):
+    """[2026-04-23] 多图修复：新增 all_image_urls 参数保存完整 URL 列表。
+
+    - image_url：封面图（保留作兼容）
+    - all_image_urls：完整图片 URL 列表，写入新字段 file_urls / thumbnail_urls / original_image_urls
+    """
     from app.models.models import CheckupReportDetail
 
     report_type = None
@@ -887,6 +895,7 @@ async def _write_checkup_detail(db, user, provider, record, ocr_text, ai_result,
         if abnormal_count > 0:
             status = "abnormal"
 
+    urls_list = list(all_image_urls) if all_image_urls else ([image_url] if image_url else [])
     detail = CheckupReportDetail(
         user_id=user.id if user else None,
         user_phone=getattr(user, "phone", None),
@@ -897,6 +906,7 @@ async def _write_checkup_detail(db, user, provider, record, ocr_text, ai_result,
         status=status,
         provider_name=provider,
         original_image_url=image_url,
+        original_image_urls=urls_list if urls_list else None,
         ocr_raw_text=ocr_text,
         ai_structured_result=ai_result,
         abnormal_indicators=abnormal_indicators,
@@ -930,6 +940,9 @@ async def _write_checkup_detail(db, user, provider, record, ocr_text, ai_result,
         report_type=report_type,
         file_url=image_url,
         thumbnail_url=image_url,
+        # [2026-04-23] 多图修复：同时写入完整 URL 列表
+        file_urls=urls_list if urls_list else None,
+        thumbnail_urls=urls_list if urls_list else None,
         file_type="image",
         ocr_result={"text": ocr_text},
         status="completed",

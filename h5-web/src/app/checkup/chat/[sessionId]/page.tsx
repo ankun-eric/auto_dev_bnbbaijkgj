@@ -6,7 +6,7 @@
  */
 import { useEffect, useMemo, useRef, useState, Suspense } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { NavBar, SpinLoading, Toast, ImageViewer } from 'antd-mobile';
+import { NavBar, SpinLoading, Toast, ImageViewer, Image } from 'antd-mobile';
 import api from '@/lib/api';
 
 interface Message {
@@ -31,6 +31,9 @@ interface ReportMini {
   title: string;
   file_url?: string | null;
   thumbnail_url?: string | null;
+  // [2026-04-23] 多图修复：完整图片 URL 列表
+  file_urls?: string[] | null;
+  thumbnail_urls?: string[] | null;
   created_at: string;
   member_name?: string | null;
   member_relation?: string | null;
@@ -81,6 +84,10 @@ function CheckupChatContent() {
   const [streaming, setStreaming] = useState(false);
   const [input, setInput] = useState('');
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  // [2026-04-23] 多图预览：显示当前报告的全部原图，点击缩略图进入大图预览
+  const [previewImages, setPreviewImages] = useState<string[]>([]);
+  const [previewIndex, setPreviewIndex] = useState<number>(-1);
+  const [galleryExpanded, setGalleryExpanded] = useState<number | null>(null);
   const streamingMsgRef = useRef<string>('');
   const streamedOnceRef = useRef<boolean>(false);
   const listRef = useRef<HTMLDivElement | null>(null);
@@ -119,15 +126,26 @@ function CheckupChatContent() {
         // 拉取报告信息。优先使用新接口返回的 reports_brief；为空时再按 report_id/ids 拉详情。
         let rs: ReportMini[] = [];
         if (Array.isArray(sess?.reports_brief) && sess.reports_brief.length > 0) {
-          rs = sess.reports_brief.map((d: any) => ({
-            id: d.id,
-            title: d.title,
-            file_url: d.file_url || d.thumbnail_url || null,
-            thumbnail_url: d.thumbnail_url || d.file_url || null,
-            created_at: d.report_date || null,
-            member_name: sess?.family_member?.nickname,
-            member_relation: sess?.family_member?.relationship,
-          }));
+          rs = sess.reports_brief.map((d: any) => {
+            // [2026-04-23] 多图修复：优先使用 file_urls 数组
+            const urls: string[] = Array.isArray(d.file_urls) && d.file_urls.length > 0
+              ? d.file_urls.filter(Boolean)
+              : (d.file_url ? [d.file_url] : []);
+            const thumbs: string[] = Array.isArray(d.thumbnail_urls) && d.thumbnail_urls.length > 0
+              ? d.thumbnail_urls.filter(Boolean)
+              : (d.thumbnail_url ? [d.thumbnail_url] : urls);
+            return {
+              id: d.id,
+              title: d.title,
+              file_url: urls[0] || null,
+              thumbnail_url: thumbs[0] || urls[0] || null,
+              file_urls: urls,
+              thumbnail_urls: thumbs,
+              created_at: d.report_date || null,
+              member_name: sess?.family_member?.nickname,
+              member_relation: sess?.family_member?.relationship,
+            };
+          });
           setReports(rs);
         } else {
           const rids = parseReportIdsFromSession(sess);
@@ -139,15 +157,20 @@ function CheckupChatContent() {
             );
             rs = details
               .filter(Boolean)
-              .map((d: any) => ({
-                id: d.id,
-                title: d.title,
-                file_url: d.images?.[0] || null,
-                thumbnail_url: d.images?.[0] || null,
-                created_at: d.created_at,
-                member_name: d.member_name,
-                member_relation: d.member_relation,
-              }));
+              .map((d: any) => {
+                const urls: string[] = Array.isArray(d.images) ? d.images.filter(Boolean) : [];
+                return {
+                  id: d.id,
+                  title: d.title,
+                  file_url: urls[0] || null,
+                  thumbnail_url: urls[0] || null,
+                  file_urls: urls,
+                  thumbnail_urls: urls,
+                  created_at: d.created_at,
+                  member_name: d.member_name,
+                  member_relation: d.member_relation,
+                };
+              });
             setReports(rs);
           }
         }
@@ -278,6 +301,8 @@ function CheckupChatContent() {
     if (isCompare && reports.length === 2) {
       const a = reports[0];
       const b = reports[1];
+      const imgsA = (a.file_urls && a.file_urls.length > 0) ? a.file_urls : (a.file_url ? [a.file_url] : []);
+      const imgsB = (b.file_urls && b.file_urls.length > 0) ? b.file_urls : (b.file_url ? [b.file_url] : []);
       const spanText = (() => {
         try {
           const da = new Date(a.created_at).getTime();
@@ -297,8 +322,24 @@ function CheckupChatContent() {
           <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>咨询对象：{mem}</div>
           <div style={{ fontSize: 12, color: '#333', marginTop: 6 }}>
             报告 A：<span style={{ color: '#1890ff' }}>{a.title}</span>
+            {imgsA.length > 0 && (
+              <button
+                onClick={() => { setPreviewImages(imgsA); setPreviewIndex(0); }}
+                style={{ marginLeft: 8, padding: '2px 8px', border: '1px solid #1890ff', color: '#1890ff', background: '#fff', borderRadius: 10, fontSize: 11 }}
+              >
+                查看 {imgsA.length} 张原图
+              </button>
+            )}
             <br />
             报告 B：<span style={{ color: '#1890ff' }}>{b.title}</span>
+            {imgsB.length > 0 && (
+              <button
+                onClick={() => { setPreviewImages(imgsB); setPreviewIndex(0); }}
+                style={{ marginLeft: 8, padding: '2px 8px', border: '1px solid #1890ff', color: '#1890ff', background: '#fff', borderRadius: 10, fontSize: 11 }}
+              >
+                查看 {imgsB.length} 张原图
+              </button>
+            )}
           </div>
           <div style={{ fontSize: 12, color: '#999', marginTop: 6 }}>时间跨度：{spanText}</div>
         </div>
@@ -306,25 +347,49 @@ function CheckupChatContent() {
     }
     if (reports[0]) {
       const r = reports[0];
+      const allImgs = (r.file_urls && r.file_urls.length > 0) ? r.file_urls : (r.file_url ? [r.file_url] : []);
+      const thumbs = (r.thumbnail_urls && r.thumbnail_urls.length > 0) ? r.thumbnail_urls : allImgs;
       return (
         <div style={{ background: 'linear-gradient(135deg, #e6f7ff, #fff)', border: '1px solid #91d5ff', borderRadius: 10, padding: 12, margin: 12 }}>
           <div style={{ fontSize: 15, fontWeight: 600 }}>🩺 报告解读</div>
           <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>
             咨询对象：{mem} · {r.title}
+            {allImgs.length > 1 ? <span style={{ marginLeft: 6, color: '#1890ff' }}>（共 {allImgs.length} 张）</span> : null}
           </div>
-          {r.file_url && (
-            <button
-              onClick={() => r.file_url && setPreviewUrl(r.file_url)}
-              style={{ marginTop: 6, padding: '4px 10px', border: '1px solid #1890ff', color: '#1890ff', background: '#fff', borderRadius: 14, fontSize: 12 }}
-            >
-              查看报告原图
-            </button>
+          {allImgs.length > 0 && (
+            <>
+              <div style={{ marginTop: 8, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {thumbs.slice(0, galleryExpanded === 0 ? thumbs.length : Math.min(thumbs.length, 4)).map((t, idx) => (
+                  <div
+                    key={idx}
+                    onClick={() => { setPreviewImages(allImgs); setPreviewIndex(idx); }}
+                    style={{ width: 60, height: 60, borderRadius: 6, overflow: 'hidden', position: 'relative', cursor: 'pointer', flexShrink: 0 }}
+                  >
+                    <img src={t} alt={`img-${idx}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  </div>
+                ))}
+                {galleryExpanded !== 0 && thumbs.length > 4 && (
+                  <button
+                    onClick={() => setGalleryExpanded(0)}
+                    style={{ width: 60, height: 60, borderRadius: 6, border: '1px dashed #91d5ff', background: '#fafcff', color: '#1890ff', fontSize: 12 }}
+                  >
+                    +{thumbs.length - 4}
+                  </button>
+                )}
+              </div>
+              <button
+                onClick={() => { setPreviewImages(allImgs); setPreviewIndex(0); }}
+                style={{ marginTop: 8, padding: '4px 10px', border: '1px solid #1890ff', color: '#1890ff', background: '#fff', borderRadius: 14, fontSize: 12 }}
+              >
+                查看报告原图{allImgs.length > 1 ? `（${allImgs.length} 张）` : ''}
+              </button>
+            </>
           )}
         </div>
       );
     }
     return null;
-  }, [session, reports, isCompare]);
+  }, [session, reports, isCompare, galleryExpanded]);
 
   if (loading) {
     return (
@@ -429,6 +494,13 @@ function CheckupChatContent() {
         image={previewUrl || ''}
         visible={!!previewUrl}
         onClose={() => setPreviewUrl(null)}
+      />
+      {/* [2026-04-23] 多图预览器：左右滑动 + 底部小圆点（antd-mobile ImageViewer.Multi 原生支持） */}
+      <ImageViewer.Multi
+        images={previewImages}
+        visible={previewIndex >= 0}
+        defaultIndex={Math.max(0, previewIndex)}
+        onClose={() => { setPreviewIndex(-1); setPreviewImages([]); }}
       />
     </div>
   );

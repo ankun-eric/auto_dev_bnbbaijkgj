@@ -33,7 +33,44 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 用户端界面细节优化 v1.0（2026-04-23）
+## Latest Update: 体检报告多图显示修复（2026-04-23）
+
+### 概要
+修复"体检报告 AI 解读 / 报告对比"场景中，用户上传多张图片但只显示第一张的 Bug。采用**方案甲（新增 JSON 字段 + 保留旧单值字段）**，全链路补全多图 URL 存储与读取。
+
+### 关键变更
+- **数据库（自动迁移，启动时 DDL）**：
+  - `checkup_reports` 新增 `file_urls JSON` / `thumbnail_urls JSON`
+  - `checkup_report_details` 新增 `original_image_urls JSON`
+  - 启动时历史数据回溯：`UPDATE ... FROM ocr_call_records.image_urls` + fallback `[file_url]`
+- **后端**：
+  - `backend/app/models/models.py`：`CheckupReport` / `CheckupReportDetail` 增加上述 JSON 字段
+  - `backend/app/services/report_interpret_migration.py`：追加 DDL + 4 条历史回溯 SQL
+  - `backend/app/api/ocr.py`：`_write_checkup_detail` 新增 `all_image_urls` 参数，`batch_recognize` 透传完整 URL 列表，同时写 `file_url=urls[0]`（封面兼容） + `file_urls=urls`（全量）
+  - `backend/app/api/report_interpret.py`：`interpret_detail` 优先取 `rep.file_urls`，为空时 fallback `[file_url, thumbnail_url]`
+  - `backend/app/api/chat.py`：`reports_brief` 新增 `file_urls` / `thumbnail_urls` 字段，含 JSON 字符串兼容与单值 fallback
+- **H5 前端**：
+  - `h5-web/src/app/checkup/chat/[sessionId]/page.tsx`：
+    - `ReportMini` 增 `file_urls` / `thumbnail_urls`
+    - 顶部解读/对比卡片改为 **九宫格缩略图 + 数量徽标 + 展开按钮**
+    - 点击缩略图或"查看报告原图"按钮触发 `ImageViewer.Multi` 左右滑预览
+    - 底部单图 `ImageViewer` 替换为 `ImageViewer.Multi`
+  - `h5-web/src/app/checkup/detail/[id]/page.tsx`：已经使用 `data.images` 数组 + `ImageViewer.Multi`，无需改动（其后端数据源已扩展）
+- **自动化测试**：
+  - `tests/test_report_multi_image_fix.py`：覆盖模型字段、迁移 DDL、`_write_checkup_detail` 签名、`interpret_detail` 多图优先、`reports_brief` 字段、H5 页面关键代码锚点
+- **部署与验证**：
+  - `deploy/deploy_multi_image_20260423.py`：SFTP 上传 5 个后端文件 + 1 个 H5 文件，`docker compose restart backend` + `build/up h5-web`
+  - `deploy/verify_multi_image_20260423.py`：6 条关键链接全 HTTPS 可达（首页/登录/体检/健康/报告/会话）
+- **用户文档**：
+  - `user_docs/体检报告多图显示修复.md`：用户侧功能介绍 + 4 大使用场景 + 注意事项
+
+### 当前策略（务实交付）
+本次**聚焦多图修复核心链路（后端 + H5）**，以下内容作为 Phase 2 待交付：
+- Admin、小程序、Flutter 的多图九宫格 UI（后端已为其提供 `file_urls` 数据）
+- `/checkup/chat/` 合并到 `/chat/[sessionId]` 的完整对话页统一（当前保留 `/checkup/chat/` 并增强为九宫格预览）
+- `next.config.js` 的 301 redirects
+
+## Previous Update: 用户端界面细节优化 v1.0（2026-04-23）
 
 ### 概要
 按《用户端界面细节优化 PRD v1.0》完成三端同步 UI 细节优化：

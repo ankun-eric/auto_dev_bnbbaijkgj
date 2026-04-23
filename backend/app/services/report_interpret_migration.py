@@ -76,6 +76,21 @@ async def migrate_report_interpret() -> None:
                 db, "checkup_reports", "interpret_session_id",
                 "interpret_session_id BIGINT NULL",
             )
+            # [2026-04-23] 多图修复：新增完整图片 URL 列表字段（JSON）
+            await _add_column_if_missing(
+                db, "checkup_reports", "file_urls",
+                "file_urls JSON NULL",
+            )
+            await _add_column_if_missing(
+                db, "checkup_reports", "thumbnail_urls",
+                "thumbnail_urls JSON NULL",
+            )
+
+            # --- checkup_report_details 字段扩展（Admin 详情多图）---
+            await _add_column_if_missing(
+                db, "checkup_report_details", "original_image_urls",
+                "original_image_urls JSON NULL",
+            )
 
             # --- SessionType ENUM 扩容 ---
             try:
@@ -119,3 +134,69 @@ async def migrate_report_interpret() -> None:
             await db.commit()
     except Exception as e:  # noqa: BLE001
         logger.error("report_interpret_migration 默认提示词插入异常: %s", e)
+
+    # [2026-04-23] 多图回溯：把历史 checkup_reports 的 file_urls 回填为 ocr_call_records.image_urls
+    try:
+        async with _async_session() as db:
+            # 从 ocr_call_records 回填到 checkup_reports：按 ocr_call_record_id 关联 checkup_report_details
+            # 并且 checkup_reports 通过 detail.user_id+created_at 附近能定位到的报告
+            # 实际采用：CheckupReportDetail.ocr_call_record_id 关联 OcrCallRecord，
+            # 再用 detail.user_id + 紧邻 created_at 的 checkup_reports 行做匹配。
+            # 这里使用 SQL 直接处理：
+            # 1) 用 OcrCallRecord.image_urls 回填 checkup_report_details.original_image_urls
+            await db.execute(text(
+                """
+                UPDATE checkup_report_details d
+                JOIN ocr_call_records r ON d.ocr_call_record_id = r.id
+                SET d.original_image_urls = r.image_urls
+                WHERE d.original_image_urls IS NULL
+                  AND r.image_urls IS NOT NULL
+                """
+            ))
+            # 2) 对没有关联记录的，fallback 为 [original_image_url]
+            await db.execute(text(
+                """
+                UPDATE checkup_report_details
+                SET original_image_urls = JSON_ARRAY(original_image_url)
+                WHERE original_image_urls IS NULL AND original_image_url IS NOT NULL
+                """
+            ))
+            # 3) 回填 checkup_reports.file_urls / thumbnail_urls：
+            #    用同一个 user_id + 短时间窗口内的 OCR 记录来匹配
+            await db.execute(text(
+                """
+                UPDATE checkup_reports cr
+                LEFT JOIN (
+                    SELECT d.user_id, r.image_urls,
+                           MAX(d.created_at) AS created_at
+                    FROM checkup_report_details d
+                    JOIN ocr_call_records r ON d.ocr_call_record_id = r.id
+                    WHERE r.image_urls IS NOT NULL
+                    GROUP BY d.user_id, r.id, r.image_urls
+                ) tmp ON tmp.user_id = cr.user_id
+                       AND ABS(TIMESTAMPDIFF(SECOND, tmp.created_at, cr.created_at)) < 60
+                SET cr.file_urls = tmp.image_urls
+                WHERE cr.file_urls IS NULL
+                  AND tmp.image_urls IS NOT NULL
+                """
+            ))
+            # 4) 对没有匹配到 OCR 记录的报告：fallback 为 [file_url]
+            await db.execute(text(
+                """
+                UPDATE checkup_reports
+                SET file_urls = JSON_ARRAY(file_url)
+                WHERE file_urls IS NULL AND file_url IS NOT NULL
+                """
+            ))
+            await db.execute(text(
+                """
+                UPDATE checkup_reports
+                SET thumbnail_urls = JSON_ARRAY(COALESCE(thumbnail_url, file_url))
+                WHERE thumbnail_urls IS NULL
+                  AND (thumbnail_url IS NOT NULL OR file_url IS NOT NULL)
+                """
+            ))
+            await db.commit()
+            logger.info("report_interpret_migration: 多图历史数据回溯完成")
+    except Exception as e:  # noqa: BLE001
+        logger.error("report_interpret_migration 多图回溯异常（不影响启动）: %s", e)
