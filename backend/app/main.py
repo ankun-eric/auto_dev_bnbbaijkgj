@@ -28,6 +28,7 @@ from app.api import (
     coupons_admin,
     customer_service,
     drug,
+    drug_chat,
     drug_identify_share,
     email_notify,
     expert,
@@ -595,6 +596,7 @@ app.include_router(ocr_details.router)
 app.include_router(ocr_details.user_router)
 app.include_router(prompt_templates.router)
 app.include_router(drug_identify_share.router)
+app.include_router(drug_chat.router)  # [2026-04-23 v1.2] 用药对话首条消息 + 重新生成
 app.include_router(home_config.router)
 app.include_router(home_config.admin_router)
 app.include_router(notice.router)

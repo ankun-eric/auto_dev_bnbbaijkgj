@@ -1,115 +1,53 @@
 <view class="chat-page">
 
-  <!-- 药物识别结构化面板（有ai_result时展示） -->
-  <view class="drug-panel" wx:if="{{showDrugPanel && drugs.length > 0}}">
-
-    <!-- 多药物：相互作用警告框 -->
-    <view class="interaction-warning" wx:if="{{drugs.length > 1 && interactions.length > 0}}">
-      <view class="interaction-warning-header">
-        <text class="interaction-icon">⚠️</text>
-        <text class="interaction-title">药物相互作用提示</text>
-      </view>
-      <view class="interaction-item" wx:for="{{interactions}}" wx:key="index">
-        <text class="interaction-drugs">{{item.drugs.join(' + ')}}</text>
-        <text class="interaction-risk">{{item.risk}}</text>
-      </view>
-    </view>
-
-    <!-- 多药物：药物卡片列表（可折叠） -->
-    <view wx:if="{{drugs.length > 1}}">
-      <view class="drug-card-fold" wx:for="{{drugs}}" wx:key="_idx" wx:for-index="dIdx">
-        <view class="drug-card-fold-header" bindtap="toggleDrug" data-idx="{{dIdx}}">
-          <text class="drug-card-fold-name">{{item.name}}</text>
-          <text class="drug-fold-arrow {{expandedDrugs[dIdx] ? 'arrow-up' : 'arrow-down'}}">›</text>
+  <!-- v1.2 融合卡片（平铺，无 swiper） -->
+  <view class="fused-card" wx:if="{{drugCount > 0}}">
+    <view class="fused-card-body">
+      <!-- 左侧 40%：药图 -->
+      <view class="fused-left">
+        <!-- 单药：一张 280×280rpx -->
+        <view wx:if="{{drugCount === 1}}" class="drug-img-wrap drug-img-single"
+              bindtap="previewDrugImage" data-idx="0">
+          <image class="drug-img" src="{{drugList[0].image_url}}" mode="aspectFill" wx:if="{{drugList[0].image_url}}" />
+          <view class="drug-img-fallback" wx:else>
+            <text class="drug-img-fallback-emoji">💊</text>
+          </view>
         </view>
-        <view class="drug-card-fold-body" wx:if="{{expandedDrugs[dIdx]}}">
-          <view class="drug-info-row" wx:if="{{item.ingredients}}">
-            <text class="drug-info-label">成分</text>
-            <text class="drug-info-value">{{item.ingredients}}</text>
+        <!-- 双药：两张 136×280rpx -->
+        <view wx:if="{{drugCount >= 2}}" class="drug-img-dual">
+          <view class="drug-img-wrap drug-img-half" bindtap="previewDrugImage" data-idx="0">
+            <image class="drug-img" src="{{drugList[0].image_url}}" mode="aspectFill" wx:if="{{drugList[0].image_url}}" />
+            <view class="drug-img-fallback" wx:else><text class="drug-img-fallback-emoji">💊</text></view>
           </view>
-          <view class="drug-info-row" wx:if="{{item.specification}}">
-            <text class="drug-info-label">规格</text>
-            <text class="drug-info-value">{{item.specification}}</text>
-          </view>
-          <view class="drug-info-row" wx:if="{{item.indications}}">
-            <text class="drug-info-label">适应症</text>
-            <text class="drug-info-value">{{item.indications}}</text>
-          </view>
-          <view class="drug-info-row" wx:if="{{item.dosage}}">
-            <text class="drug-info-label">用法用量</text>
-            <text class="drug-info-value">{{item.dosage}}</text>
-          </view>
-          <view class="drug-info-row" wx:if="{{item.precautions}}">
-            <text class="drug-info-label">注意事项</text>
-            <text class="drug-info-value">{{item.precautions}}</text>
-          </view>
-          <view class="drug-suggestion-box" wx:if="{{item.ai_suggestion_general}}">
-            <text class="drug-suggestion-label">AI建议</text>
-            <text class="drug-suggestion-text">{{item.ai_suggestion_general}}</text>
+          <view class="drug-img-wrap drug-img-half" bindtap="previewDrugImage" data-idx="1">
+            <image class="drug-img" src="{{drugList[1].image_url}}" mode="aspectFill" wx:if="{{drugList[1].image_url}}" />
+            <view class="drug-img-fallback" wx:else><text class="drug-img-fallback-emoji">💊</text></view>
           </view>
         </view>
       </view>
-    </view>
 
-    <!-- 单药物：详情卡片 + Tab -->
-    <view wx:if="{{drugs.length === 1}}">
-      <view class="drug-single-card">
-        <text class="drug-single-name">{{drugs[0].name}}</text>
-        <view class="drug-info-row" wx:if="{{drugs[0].ingredients}}">
-          <text class="drug-info-label">成分</text>
-          <text class="drug-info-value">{{drugs[0].ingredients}}</text>
-        </view>
-        <view class="drug-info-row" wx:if="{{drugs[0].specification}}">
-          <text class="drug-info-label">规格</text>
-          <text class="drug-info-value">{{drugs[0].specification}}</text>
-        </view>
-        <view class="drug-info-row" wx:if="{{drugs[0].indications}}">
-          <text class="drug-info-label">适应症</text>
-          <text class="drug-info-value">{{drugs[0].indications}}</text>
-        </view>
-        <view class="drug-info-row" wx:if="{{drugs[0].dosage}}">
-          <text class="drug-info-label">用法用量</text>
-          <text class="drug-info-value">{{drugs[0].dosage}}</text>
-        </view>
-        <view class="drug-info-row" wx:if="{{drugs[0].precautions}}">
-          <text class="drug-info-label">注意事项</text>
-          <text class="drug-info-value">{{drugs[0].precautions}}</text>
-        </view>
-      </view>
-
-      <!-- 建议 Tab -->
-      <view class="suggest-tab-bar">
-        <view class="suggest-tab {{activeTab === 'general' ? 'suggest-tab-active' : ''}}" bindtap="switchTab" data-tab="general">
-          <text>通用建议</text>
-        </view>
-        <view class="suggest-tab {{activeTab === 'personal' ? 'suggest-tab-active' : ''}}" bindtap="switchTab" data-tab="personal">
-          <text>个性化建议</text>
-        </view>
-      </view>
-
-      <view class="suggest-tab-content">
-        <!-- 通用建议 -->
-        <view wx:if="{{activeTab === 'general'}}">
-          <text class="suggest-content" wx:if="{{drugs[0].ai_suggestion_general}}">{{drugs[0].ai_suggestion_general}}</text>
-          <text class="suggest-empty" wx:else>暂无通用建议</text>
-        </view>
-        <!-- 个性化建议 -->
-        <view wx:if="{{activeTab === 'personal'}}">
-          <view class="personal-loading" wx:if="{{loadingPersonal}}">
-            <text class="personal-loading-text">加载中...</text>
+      <!-- 右侧 60%：成员信息 + 药名列表 -->
+      <view class="fused-right">
+        <view class="member-row" wx:if="{{memberInfo}}">
+          <view class="member-avatar">
+            <text class="member-avatar-emoji">👤</text>
           </view>
-          <text class="suggest-content" wx:elif="{{personalSuggestion}}">{{personalSuggestion}}</text>
-          <text class="suggest-empty" wx:elif="{{drugs[0].ai_suggestion_personal}}">{{drugs[0].ai_suggestion_personal}}</text>
-          <text class="suggest-empty" wx:else>暂无个性化建议</text>
+          <text class="member-name">{{memberDisplay}}</text>
         </view>
-      </view>
-    </view>
 
-    <!-- 分享按钮 -->
-    <view class="drug-share-row" wx:if="{{recordId}}">
-      <view class="drug-share-btn" bindtap="shareDrug">
-        <text class="drug-share-icon">📤</text>
-        <text class="drug-share-text">复制分享链接</text>
+        <view class="drug-name-list">
+          <view class="drug-name-item" wx:for="{{drugList}}" wx:key="id"
+                bindtap="onDrugNameTap" data-name="{{item.name}}">
+            <text class="drug-name-text">💊 {{item.name}}</text>
+          </view>
+        </view>
+
+        <!-- 再加一个药 -->
+        <view class="add-drug-btn {{canAddMore ? '' : 'add-drug-btn-disabled'}}"
+              bindtap="addMoreDrug">
+          <text class="add-drug-text" wx:if="{{canAddMore}}">➕ 再加一个药</text>
+          <text class="add-drug-text" wx:else>已达上限（最多 2 个）</text>
+        </view>
       </view>
     </view>
   </view>
@@ -127,9 +65,17 @@
           <text class="avatar-emoji">🤖</text>
         </view>
         <view class="msg-bubble ai-bubble">
-          <text class="msg-text">{{item.mainContent || item.content}}</text>
+          <text class="msg-text" user-select="{{true}}" space="nbsp" decode="{{true}}">{{item.mainContent || item.content}}</text>
           <view wx:if="{{item.disclaimer}}" class="disclaimer">
             <text class="disclaimer-text">{{item.disclaimer}}</text>
+          </view>
+          <!-- 首条 AI 建议：重新生成按钮 -->
+          <view wx:if="{{item.isOpening || (openingMessageId && item.id === openingMessageId)}}"
+                class="regenerate-row">
+            <view class="regenerate-btn {{regenerating ? 'regenerate-btn-disabled' : ''}}"
+                  bindtap="regenerateOpening">
+              <text class="regenerate-text">🔄 重新生成这条建议</text>
+            </view>
           </view>
           <text class="msg-time">{{item.time}}</text>
         </view>

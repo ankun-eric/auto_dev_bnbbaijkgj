@@ -13,6 +13,7 @@ import {
   List,
   Space,
   Divider,
+  Alert,
 } from 'antd';
 import {
   SaveOutlined,
@@ -52,6 +53,9 @@ const TEMPLATE_TYPES = [
   { key: 'drug_general', label: '药物识别通用建议' },
   { key: 'drug_personal', label: '药物识别个性化建议' },
   { key: 'drug_interaction', label: '药物相互作用分析' },
+  { key: 'drug_query', label: '用药咨询对话' },
+  { key: 'drug_chat_opening_single', label: '用药对话首条消息（单药 · 4段式）' },
+  { key: 'drug_chat_opening_multi', label: '用药对话首条消息（多药对比 · 最多2个）' },
   { key: 'checkup_report', label: '体检报告解读（旧·已下线）' },
   { key: 'trend_analysis', label: '趋势解读（已下线）' },
 ];
@@ -66,6 +70,12 @@ const DEFAULT_PREVIEW_INPUTS: Record<string, string> = {
   drug_general: '阿莫西林胶囊 0.25g×24粒 用于呼吸道感染',
   drug_personal: '阿莫西林胶囊 0.25g×24粒 用于呼吸道感染',
   drug_interaction: '阿莫西林、布洛芬、阿司匹林',
+  drug_query:
+    '咨询对象：妈妈 李四 62岁，高血压\n药品列表：1. 氨氯地平片 5mg×28片；2. 阿司匹林肠溶片 100mg×30片',
+  drug_chat_opening_single:
+    '咨询对象：妈妈 李四 62岁，高血压\n药品：氨氯地平片 5mg×28片',
+  drug_chat_opening_multi:
+    '咨询对象：妈妈 李四 62岁，高血压\n药品A：氨氯地平片 5mg×28片\n药品B：硝苯地平缓释片 20mg×30片',
   trend_analysis:
     '血糖指标近3次：2024-01: 6.8mmol/L，2024-07: 7.1mmol/L，2025-01: 7.5mmol/L，参考范围3.9-6.1',
 };
@@ -86,6 +96,27 @@ const PROMPT_VARIABLES: Record<string, { name: string; desc: string }[]> = {
     { name: '{report_b_title}', desc: '报告 B 标题' },
     { name: '{report_b_ocr}', desc: '报告 B OCR 文本' },
   ],
+  drug_query: [
+    { name: '{member_info}', desc: '咨询人健康档案（姓名、关系、年龄、慢病史、过敏史等）' },
+    { name: '{drug_list}', desc: '药品列表（名称、规格、用法等）' },
+  ],
+  drug_chat_opening_single: [
+    { name: '{member_info}', desc: '咨询人健康档案' },
+    { name: '{drug_list}', desc: '药品信息（单药）' },
+  ],
+  drug_chat_opening_multi: [
+    { name: '{member_info}', desc: '咨询人健康档案' },
+    { name: '{drug_list}', desc: '药品信息（最多 2 个，用于对比）' },
+  ],
+};
+
+const TYPE_HINTS: Record<string, string> = {
+  drug_query:
+    '支持占位符 {member_info}（健康档案）+ {drug_list}（药品列表），系统会在调用 AI 时自动替换。',
+  drug_chat_opening_single:
+    '用药对话首条消息（单药 · 4段式）。支持占位符 {member_info} + {drug_list}，系统会在调用 AI 时自动替换。',
+  drug_chat_opening_multi:
+    '用药对话首条消息（多药对比 · 最多 2 个）。支持占位符 {member_info} + {drug_list}，系统会在调用 AI 时自动替换。',
 };
 
 export default function PromptTemplatesPage() {
@@ -267,6 +298,16 @@ export default function PromptTemplatesPage() {
                 </Text>
               )}
             </div>
+
+            {/* 类型使用提示 */}
+            {TYPE_HINTS[activeType] && (
+              <Alert
+                type="info"
+                showIcon
+                message={TYPE_HINTS[activeType]}
+                style={{ marginBottom: 12 }}
+              />
+            )}
 
             {/* 变量占位符说明 */}
             {PROMPT_VARIABLES[activeType] && (

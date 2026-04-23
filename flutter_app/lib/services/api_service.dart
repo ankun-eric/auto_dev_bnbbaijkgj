@@ -391,6 +391,37 @@ class ApiService {
     return _dio.get('${ApiConfig.drugIdentifyPersonalSuggestion}/$recordId/personal-suggestion');
   }
 
+  // 用药对话 v1.2
+  Future<Response> drugChatInit(int sessionId, {int? memberId}) async {
+    return _dio.post('/api/chat/drug/init', data: {
+      'session_id': sessionId,
+      if (memberId != null) 'member_id': memberId,
+    });
+  }
+
+  Future<Response> drugChatRegenerateOpening(int sessionId) async {
+    return _dio.post('/api/chat/drug/regenerate_opening', data: {
+      'session_id': sessionId,
+    });
+  }
+
+  /// 单张图片识别追加到已有 session（用于对话页 "再加一个药一起对比"）
+  Future<Response> ocrAppendSingleDrug(
+    String imagePath, {
+    required String sessionId,
+    int? familyMemberId,
+    ProgressCallback? onSendProgress,
+  }) async {
+    final formData = FormData();
+    formData.files.add(MapEntry('files', await MultipartFile.fromFile(imagePath)));
+    formData.fields.addAll([
+      const MapEntry('scene_name', '拍照识药'),
+      MapEntry('session_id', sessionId),
+      if (familyMemberId != null) MapEntry('family_member_id', familyMemberId.toString()),
+    ]);
+    return _dio.post(ApiConfig.ocrBatchRecognize, data: formData, onSendProgress: onSendProgress);
+  }
+
   Future<Response> ocrRecognizeDrug(String imagePath, {ProgressCallback? onSendProgress}) async {
     final formData = FormData.fromMap({
       'file': await MultipartFile.fromFile(imagePath),

@@ -1,5 +1,7 @@
 import 'dart:io';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../providers/health_provider.dart';
@@ -24,52 +26,6 @@ const _kRelationColors = <String, Color>{
 Color _getMemberTagColor(String? relation) {
   if (relation == null || relation.isEmpty) return const Color(0xFF1677FF);
   return _kRelationColors[relation] ?? const Color(0xFF8C8C8C);
-}
-
-const int _kMaxDrugNameLen = 80;
-
-String _truncateDrugNames(String s) {
-  if (s.isEmpty) return '';
-  return s.length <= _kMaxDrugNameLen ? s : '${s.substring(0, _kMaxDrugNameLen)}…';
-}
-
-String _joinDrugNamesFromAI(dynamic aiResult) {
-  if (aiResult is! Map) return '';
-  final List<String> names = [];
-  void addName(dynamic v) {
-    if (v is String && v.isNotEmpty && !names.contains(v)) names.add(v);
-  }
-
-  addName(aiResult['drug_name']);
-  addName(aiResult['drugName']);
-  addName(aiResult['药品名称']);
-  addName(aiResult['name']);
-  addName(aiResult['药品通用名']);
-  addName(aiResult['通用名']);
-  addName(aiResult['商品名']);
-  final drugs = aiResult['drugs'];
-  if (drugs is List) {
-    for (final d in drugs) {
-      if (d is Map) {
-        addName(d['drug_name']);
-        addName(d['name']);
-        addName(d['药品名称']);
-      }
-    }
-  }
-  final result = aiResult['result'];
-  if (result is Map) {
-    addName(result['drug_name']);
-    addName(result['name']);
-    addName(result['药品名称']);
-  }
-  return _truncateDrugNames(names.join(','));
-}
-
-String _getMemberLabelFromMap(Map<String, dynamic>? m) {
-  if (m == null || m.isEmpty) return '本人';
-  if (m['is_self'] == true) return '本人';
-  return (m['nickname'] ?? m['relation_type_name'] ?? m['relationship_type'] ?? '本人').toString();
 }
 
 class DrugScreen extends StatefulWidget {
@@ -275,13 +231,13 @@ class _DrugScreenState extends State<DrugScreen> {
   }
 
   Future<void> _pickFromGallery() async {
-    final images = await _picker.pickMultiImage();
-    if (images.isNotEmpty) {
+    // v1.2 硬性：用药参考相册单选，严禁 pickMultiImage
+    final XFile? pic = await _picker.pickImage(source: ImageSource.gallery);
+    if (pic != null) {
       setState(() {
-        final remaining = _maxImages - _selectedImages.length;
-        if (remaining > 0) {
-          _selectedImages.addAll(images.take(remaining));
-        }
+        _selectedImages
+          ..clear()
+          ..add(pic);
       });
     }
   }
@@ -345,24 +301,17 @@ class _DrugScreenState extends State<DrugScreen> {
       final drugName = result['drug_name']?.toString() ?? '药品识别';
       if (sessionId.isNotEmpty) {
         setState(() => _selectedImages.clear());
-        // 优先使用 merged_ai_result 拼接的多药名，回退到单药名
-        String drugNames = _joinDrugNamesFromAI(result['merged_ai_result']);
-        if (drugNames.isEmpty) drugNames = _truncateDrugNames(drugName);
-        // 取选中咨询人 label
-        final selectedMember = _familyMembers.firstWhere(
-          (m) => m['id'] == _selectedFamilyMemberId,
-          orElse: () => <String, dynamic>{},
-        );
-        final memberLabel = selectedMember.isEmpty
-            ? '本人'
-            : _getMemberLabelFromMap(selectedMember);
-        Navigator.pushNamed(context, '/chat', arguments: {
-          'type': 'drug_identify',
-          'family_member_id': _selectedFamilyMemberId,
-          'summary': '用药识别: $drugName',
-          'initial_message': '识别药品: $drugName',
-          'member': memberLabel,
-          'drug_name': drugNames,
+        // 相册单选提示（后端 single_select_notice=true 时）
+        if (result['single_select_notice'] == true) {
+          final msg = (result['notice_message'] as String?)?.isNotEmpty == true
+              ? result['notice_message'] as String
+              : '已自动选取第一张图片';
+          Fluttertoast.showToast(msg: msg);
+        }
+        Navigator.pushNamed(context, '/drug-chat', arguments: {
+          'sessionId': sessionId,
+          'drugName': drugName,
+          'familyMemberId': _selectedFamilyMemberId,
         });
         _loadHistory();
       } else {
@@ -829,43 +778,43 @@ class _DrugScreenState extends State<DrugScreen> {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 24),
-          Row(
-            children: [
-              Expanded(
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(colors: [_kPrimaryPink, _kPrimaryPurple]),
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                  child: ElevatedButton.icon(
-                    onPressed: _isRecognizing ? null : _pickFromCamera,
-                    icon: const Icon(Icons.camera_alt, size: 18),
-                    label: const Text('拍照识药'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.transparent,
-                      shadowColor: Colors.transparent,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                    ),
-                  ),
+          // v1.2：单个大按钮 "📷 拍照识别药品"
+          SizedBox(
+            width: double.infinity,
+            height: 56,
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(colors: [_kPrimaryPink, _kPrimaryPurple]),
+                borderRadius: BorderRadius.circular(28),
+              ),
+              child: ElevatedButton(
+                onPressed: _isRecognizing ? null : _pickFromCamera,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.transparent,
+                  shadowColor: Colors.transparent,
+                  foregroundColor: Colors.white,
+                  padding: EdgeInsets.zero,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+                ),
+                child: const Text(
+                  '📷 拍照识别药品',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _isRecognizing ? null : _pickFromGallery,
-                  icon: const Icon(Icons.photo_library, size: 18),
-                  label: const Text('从相册选择'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: _kPrimaryPink,
-                    side: const BorderSide(color: _kPrimaryPink),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                  ),
-                ),
-              ),
-            ],
+            ),
+          ),
+          const SizedBox(height: 10),
+          // 下方小字链接按钮 "🖼️ 从相册选择（单张）"
+          TextButton(
+            onPressed: _isRecognizing ? null : _pickFromGallery,
+            style: TextButton.styleFrom(
+              foregroundColor: _kPrimaryPink,
+              minimumSize: const Size(0, 40),
+            ),
+            child: const Text(
+              '🖼️ 从相册选择（单张）',
+              style: TextStyle(fontSize: 14),
+            ),
           ),
         ],
       ),
@@ -978,7 +927,14 @@ class _DrugScreenState extends State<DrugScreen> {
 
   Widget _buildHistoryCard(Map<String, dynamic> item) {
     final drugName = item['drug_name']?.toString() ?? item['title']?.toString() ?? '未知药品';
-    final thumbUrl = item['original_image_url']?.toString() ?? item['thumbnail']?.toString() ?? item['image_url']?.toString();
+    // v1.2：优先 first_image_url，回退 original_image_url
+    final thumbUrl = item['first_image_url']?.toString().isNotEmpty == true
+        ? item['first_image_url']?.toString()
+        : (item['original_image_url']?.toString() ??
+            item['thumbnail']?.toString() ??
+            item['image_url']?.toString());
+    // image_status: normal | uploading | failed | legacy
+    final imageStatus = item['image_status']?.toString() ?? 'normal';
     final createdAt = item['created_at']?.toString() ?? item['time']?.toString();
     final status = item['status']?.toString();
     final sessionId = item['session_id']?.toString() ?? '';
@@ -993,22 +949,18 @@ class _DrugScreenState extends State<DrugScreen> {
     return GestureDetector(
       onTap: () {
         if (sessionId.isNotEmpty) {
-          final fm = item['family_member'];
-          final memberLabel = fm is Map
-              ? _getMemberLabelFromMap(Map<String, dynamic>.from(fm))
-              : '本人';
-          final histDrugs = _truncateDrugNames(drugName);
-          Navigator.pushNamed(context, '/chat', arguments: {
-            'type': 'drug_identify',
-            'summary': '用药识别: $drugName',
-            'member': memberLabel,
-            'drug_name': histDrugs,
+          Navigator.pushNamed(context, '/drug-chat', arguments: {
+            'sessionId': sessionId,
+            'drugName': drugName,
+            'recordId': item['id'] is int
+                ? item['id']
+                : int.tryParse(item['id']?.toString() ?? ''),
           });
         }
       },
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
@@ -1018,30 +970,23 @@ class _DrugScreenState extends State<DrugScreen> {
         ),
         child: Row(
           children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: thumbUrl != null && thumbUrl.isNotEmpty
-                  ? Image.network(
-                      thumbUrl,
-                      width: 50,
-                      height: 50,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => _buildPlaceholderThumb(),
-                    )
-                  : _buildPlaceholderThumb(),
-            ),
-            const SizedBox(width: 14),
+            _buildHistoryThumb(thumbUrl, imageStatus, drugName),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     drugName,
-                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
-                    maxLines: 1,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.grey.shade800,
+                    ),
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 8),
                   Row(
                     children: [
                       Container(
@@ -1069,7 +1014,7 @@ class _DrugScreenState extends State<DrugScreen> {
                 ],
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 4),
             const Icon(Icons.chevron_right, color: Colors.grey, size: 22),
           ],
         ),
@@ -1077,15 +1022,121 @@ class _DrugScreenState extends State<DrugScreen> {
     );
   }
 
-  Widget _buildPlaceholderThumb() {
+  /// v1.2 识别记录缩略图：72×72 圆角 12，支持 4 态
+  Widget _buildHistoryThumb(String? url, String status, String drugName) {
+    const double size = 72;
+    final radius = BorderRadius.circular(12);
+
+    Widget inner;
+    switch (status) {
+      case 'uploading':
+        inner = Container(
+          color: const Color(0xFFF5F5F5),
+          alignment: Alignment.center,
+          child: const SizedBox(
+            width: 24,
+            height: 24,
+            child: CircularProgressIndicator(strokeWidth: 2, color: _kPrimaryPink),
+          ),
+        );
+        break;
+      case 'failed':
+        inner = Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFFFAFAFA),
+            border: Border.all(color: Colors.grey.shade400, width: 1),
+            borderRadius: radius,
+          ),
+          alignment: Alignment.center,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.warning_amber_rounded, color: Colors.grey.shade500, size: 24),
+              const SizedBox(height: 2),
+              Text(
+                '识别失败',
+                style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+              ),
+            ],
+          ),
+        );
+        break;
+      case 'legacy':
+        final firstChar = drugName.isNotEmpty && drugName != '未知药品'
+            ? drugName.characters.first
+            : '💊';
+        inner = Container(
+          color: const Color(0xFFEEEEEE),
+          alignment: Alignment.center,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.medication_outlined, color: Colors.grey.shade500, size: 22),
+              const SizedBox(height: 2),
+              Text(
+                firstChar,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey.shade700,
+                ),
+              ),
+            ],
+          ),
+        );
+        break;
+      case 'normal':
+      default:
+        if (url != null && url.isNotEmpty) {
+          inner = CachedNetworkImage(
+            imageUrl: url,
+            width: size,
+            height: size,
+            fit: BoxFit.cover,
+            placeholder: (_, __) => Container(
+              color: const Color(0xFFF5F5F5),
+              alignment: Alignment.center,
+              child: const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+            errorWidget: (_, __, ___) => _legacyPlaceholder(drugName),
+          );
+        } else {
+          inner = _legacyPlaceholder(drugName);
+        }
+    }
+
+    return ClipRRect(
+      borderRadius: radius,
+      child: SizedBox(width: size, height: size, child: inner),
+    );
+  }
+
+  Widget _legacyPlaceholder(String drugName) {
+    final firstChar = drugName.isNotEmpty && drugName != '未知药品'
+        ? drugName.characters.first
+        : '💊';
     return Container(
-      width: 50,
-      height: 50,
-      decoration: BoxDecoration(
-        color: _kPrimaryPink.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
+      color: const Color(0xFFEEEEEE),
+      alignment: Alignment.center,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.medication_outlined, color: Colors.grey.shade500, size: 22),
+          const SizedBox(height: 2),
+          Text(
+            firstChar,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey.shade700,
+            ),
+          ),
+        ],
       ),
-      child: const Icon(Icons.medication, color: _kPrimaryPink, size: 26),
     );
   }
 

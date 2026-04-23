@@ -21,10 +21,14 @@ VALID_PROMPT_TYPES = {
     "drug_general",
     "drug_personal",
     "drug_interaction",
+    "drug_query",
     "trend_analysis",
     # [2026-04-23] 报告解读对话化
     "checkup_report_interpret",
     "checkup_report_compare",
+    # [2026-04-23] 用药参考功能优化 v1.2：对话首条消息
+    "drug_chat_opening_single",
+    "drug_chat_opening_multi",
 }
 
 TYPE_DISPLAY_NAMES = {
@@ -32,9 +36,12 @@ TYPE_DISPLAY_NAMES = {
     "drug_general": "药物识别通用建议",
     "drug_personal": "药物识别个性化建议",
     "drug_interaction": "药物相互作用分析",
+    "drug_query": "用药咨询对话（支持 {member_info} + {drug_list} 占位符）",
     "trend_analysis": "趋势解读（已下线）",
     "checkup_report_interpret": "体检报告解读（对话式）",
     "checkup_report_compare": "报告对比（对话式）",
+    "drug_chat_opening_single": "用药对话首条消息（单药 · 4段式）",
+    "drug_chat_opening_multi": "用药对话首条消息（多药对比 · 最多2个）",
 }
 
 

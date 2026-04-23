@@ -638,6 +638,13 @@ async def batch_recognize(
     if len(files) > max_batch:
         raise HTTPException(status_code=400, detail=f"批量上传不能超过{max_batch}张")
 
+    # [2026-04-23 v1.2] 用药参考 PRD §7.1：相册改单选，拍照识药场景网关/后端只取第一张
+    # 即便异常传入多张，兜底取首图（前端 toast 已提示"已自动选取第一张图片"）
+    single_select_notice = False
+    if scene_name == "拍照识药" and len(files) > 1:
+        files = files[:1]
+        single_select_notice = True
+
     results = []
     success_count = 0
     fail_count = 0
@@ -803,6 +810,8 @@ async def batch_recognize(
         merged_record_id=merged_record_id,
         report_id=report_id,
         session_id=session_id,
+        single_select_notice=single_select_notice,
+        notice_message="已自动选取第一张图片（用药参考每次只能选 1 张）" if single_select_notice else None,
     )
 
 

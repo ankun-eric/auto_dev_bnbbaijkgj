@@ -5,6 +5,11 @@ import { useRouter, useParams } from 'next/navigation';
 import { NavBar, TextArea, Button, SpinLoading, Toast, ImageViewer, Tabs, Dialog } from 'antd-mobile';
 import api from '@/lib/api';
 import { checkFileSize, uploadWithProgress } from '@/lib/upload-utils';
+import DrugMergeCardFlat, { type DrugListItem, type MemberInfo } from '@/components/drug/DrugMergeCardFlat';
+import DrugImageViewer from '@/components/drug/DrugImageViewer';
+
+const MAX_DRUGS_COMPARE = 2;
+const REGENERATE_COOLDOWN_MS = 10_000;
 
 interface Message {
   id: string;
@@ -284,6 +289,16 @@ export default function DrugChatPage() {
   const [shareLink, setShareLink] = useState('');
   const [shareLinkVisible, setShareLinkVisible] = useState(false);
 
+  // [v1.2] 融合卡片平铺 + 首条建议
+  const [drugList, setDrugList] = useState<DrugListItem[]>([]);
+  const [memberInfo, setMemberInfo] = useState<MemberInfo | null>(null);
+  const [openingMessageId, setOpeningMessageId] = useState<number | null>(null);
+  const [drugViewerVisible, setDrugViewerVisible] = useState(false);
+  const [drugViewerIndex, setDrugViewerIndex] = useState(0);
+  const [regenerating, setRegenerating] = useState(false);
+  const [lastRegenTs, setLastRegenTs] = useState(0);
+  const initCalledRef = useRef(false);
+
   const listRef = useRef<HTMLDivElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
   const albumRef = useRef<HTMLInputElement>(null);
@@ -349,10 +364,126 @@ export default function DrugChatPage() {
     }
   }, [sessionId]);
 
+  // [v1.2] 调用 /api/chat/drug/init 初始化融合卡 + 首条建议
+  const initDrugChat = useCallback(async () => {
+    if (!sessionId) return;
+    const sessionIdNum = Number(sessionId);
+    if (Number.isNaN(sessionIdNum)) return;
+    try {
+      const res: any = await api.post('/api/chat/drug/init', {
+        session_id: sessionIdNum,
+      });
+      const data = res.data || res;
+      const drugs: DrugListItem[] = Array.isArray(data?.drug_list) ? data.drug_list : [];
+      setDrugList(drugs);
+      setMemberInfo(data?.member_info || null);
+
+      const opening = data?.opening_message;
+      if (opening?.content_markdown) {
+        setOpeningMessageId(opening.message_id ?? null);
+        setMessages((prev) => {
+          const hasOpening = prev.some(
+            (m) => m.role === 'assistant' && m.id === String(opening.message_id),
+          );
+          if (hasOpening) return prev;
+          const filtered = prev.filter((m) => m.id !== 'welcome');
+          const openingMsg: Message = {
+            id: opening.message_id != null ? String(opening.message_id) : `opening-${Date.now()}`,
+            role: 'assistant',
+            content: opening.content_markdown,
+            time: formatMsgTime(opening.generated_at) || new Date().toLocaleTimeString('zh-CN', {
+              hour: '2-digit', minute: '2-digit',
+            }),
+            created_at: opening.generated_at,
+          };
+          return [openingMsg, ...filtered];
+        });
+      }
+    } catch {
+      // init 失败保持原有 welcome message 与 UI
+    }
+  }, [sessionId]);
+
   useEffect(() => {
     loadHistory();
     fetchDrugRecord();
   }, [loadHistory, fetchDrugRecord]);
+
+  // 页面进入后 2s 内触发 init（若已有 assistant 消息会复用，不重复生成）
+  useEffect(() => {
+    if (initCalledRef.current) return;
+    initCalledRef.current = true;
+    const t = setTimeout(() => {
+      initDrugChat();
+    }, 300);
+    return () => clearTimeout(t);
+  }, [initDrugChat]);
+
+  const handleRegenerateOpening = useCallback(async () => {
+    const now = Date.now();
+    if (regenerating) return;
+    if (now - lastRegenTs < REGENERATE_COOLDOWN_MS) {
+      Toast.show({ content: '请稍候…' });
+      return;
+    }
+    setRegenerating(true);
+    setLastRegenTs(now);
+    try {
+      const sessionIdNum = Number(sessionId);
+      const res: any = await api.post('/api/chat/drug/regenerate_opening', {
+        session_id: sessionIdNum,
+      });
+      const data = res.data || res;
+      if (data?.content_markdown) {
+        const newId = data.message_id != null ? String(data.message_id) : null;
+        setOpeningMessageId(data.message_id ?? null);
+        setMessages((prev) => {
+          const currentOpeningIdStr = openingMessageId != null ? String(openingMessageId) : null;
+          const idx = prev.findIndex(
+            (m) =>
+              m.role === 'assistant'
+              && (currentOpeningIdStr ? m.id === currentOpeningIdStr : false),
+          );
+          const targetIdx = idx >= 0 ? idx : prev.findIndex((m) => m.role === 'assistant');
+          if (targetIdx < 0) return prev;
+          const next = prev.slice();
+          next[targetIdx] = {
+            ...next[targetIdx],
+            id: newId || next[targetIdx].id,
+            content: data.content_markdown,
+            time: formatMsgTime(data.generated_at) || next[targetIdx].time,
+            created_at: data.generated_at,
+          };
+          return next;
+        });
+        Toast.show({ icon: 'success', content: '已重新生成' });
+      }
+    } catch (err: any) {
+      const status = err?.response?.status;
+      if (status === 429) {
+        Toast.show({ content: '请稍候…' });
+      } else {
+        Toast.show({ content: '重新生成失败' });
+      }
+    } finally {
+      setTimeout(() => setRegenerating(false), REGENERATE_COOLDOWN_MS);
+    }
+  }, [sessionId, regenerating, lastRegenTs, openingMessageId]);
+
+  const handleDrugImageClick = (idx: number) => {
+    const hasImages = drugList.some((d) => !!d.image_url);
+    if (!hasImages) return;
+    setDrugViewerIndex(Math.max(0, Math.min(idx, drugList.length - 1)));
+    setDrugViewerVisible(true);
+  };
+
+  const handleAddAnotherDrug = () => {
+    if (drugList.length >= MAX_DRUGS_COMPARE) {
+      Toast.show({ content: '最多对比 2 个药品' });
+      return;
+    }
+    albumRef.current?.click();
+  };
 
   useEffect(() => {
     scrollToBottom();
@@ -517,6 +648,10 @@ export default function DrugChatPage() {
       setMessages((prev) => [...prev, aiMsg]);
 
       await fetchDrugRecord();
+      // [v1.2] 刷新融合卡片药品列表
+      initCalledRef.current = false;
+      await initDrugChat();
+      initCalledRef.current = true;
     } catch {
       Toast.show({ content: '识别失败，请重试', icon: 'fail' });
     } finally {
@@ -669,6 +804,31 @@ export default function DrugChatPage() {
         </div>
       )}
 
+      {/* [v1.2] 融合卡片平铺（替代轮播） */}
+      {(drugList.length > 0 || memberInfo) && (
+        <div className="px-3 pt-3">
+          <DrugMergeCardFlat
+            drugs={drugList}
+            memberInfo={memberInfo}
+            onImageClick={handleDrugImageClick}
+          />
+          <div className="mt-2 flex justify-end">
+            <button
+              onClick={handleAddAnotherDrug}
+              disabled={drugList.length >= MAX_DRUGS_COMPARE || uploading || loading}
+              className="bg-white border rounded-full px-3 py-1.5 text-[13px]"
+              style={{
+                borderColor: drugList.length >= MAX_DRUGS_COMPARE ? '#d9d9d9' : '#52c41a',
+                color: drugList.length >= MAX_DRUGS_COMPARE ? '#bfbfbf' : '#52c41a',
+                opacity: drugList.length >= MAX_DRUGS_COMPARE ? 0.7 : 1,
+              }}
+            >
+              ➕ 再加一个药一起对比
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Drug result panel (inline, above messages) */}
       {aiResult && drugResultVisible && (
         <div
@@ -733,12 +893,32 @@ export default function DrugChatPage() {
                 </div>
               )}
               <div
-                className={`rounded-2xl px-4 py-3 text-sm leading-relaxed ${
-                  msg.role === 'user' ? 'text-white rounded-tr-sm' : 'bg-[#f5f5f5] text-gray-700 rounded-tl-sm'
+                className={`rounded-2xl px-4 py-3 text-[15px] leading-relaxed ${
+                  msg.role === 'user' ? 'text-white rounded-tr-sm' : 'bg-[#f5f5f5] rounded-tl-sm'
                 }`}
-                style={msg.role === 'user' ? { background: 'linear-gradient(135deg, #52c41a, #13c2c2)' } : undefined}
+                style={msg.role === 'user'
+                  ? { background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }
+                  : { color: '#333' }}
               >
                 {msg.role === 'assistant' ? renderMarkdown(msg.content) : msg.content}
+                {msg.role === 'assistant'
+                  && openingMessageId != null
+                  && msg.id === String(openingMessageId) && (
+                    <div className="mt-2 pt-2 border-t" style={{ borderColor: '#e8e8e8' }}>
+                      <button
+                        onClick={handleRegenerateOpening}
+                        disabled={regenerating}
+                        className="bg-transparent border-0 p-0 text-[13px]"
+                        style={{
+                          color: regenerating ? '#bfbfbf' : '#52c41a',
+                          textDecoration: 'underline',
+                          cursor: regenerating ? 'not-allowed' : 'pointer',
+                        }}
+                      >
+                        🔄 重新生成这条建议
+                      </button>
+                    </div>
+                )}
               </div>
               <div className={`text-xs text-gray-300 mt-1 ${msg.role === 'user' ? 'text-right' : 'text-left'}`}>
                 {msg.time}
@@ -861,6 +1041,14 @@ export default function DrugChatPage() {
         visible={imageViewerVisible}
         defaultIndex={0}
         onClose={() => setImageViewerVisible(false)}
+      />
+
+      {/* [v1.2] 药图全屏查看（支持多药滑动切换） */}
+      <DrugImageViewer
+        visible={drugViewerVisible}
+        images={drugList.map((d) => d.image_url || '').filter((u) => !!u)}
+        defaultIndex={drugViewerIndex}
+        onClose={() => setDrugViewerVisible(false)}
       />
 
       {/* Share link dialog */}

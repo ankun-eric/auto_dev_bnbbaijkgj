@@ -113,17 +113,30 @@ Page({
     try {
       const res = await get('/api/drug-identify/history', {}, { showLoading: false, suppressErrorToast: true });
       const list = Array.isArray(res) ? res : (res.items || res.data || []);
-      const historyList = list.map(item => ({
-        id: item.id,
-        sessionId: item.session_id || item.id,
-        drugName: item.drug_name || item.title || '未识别药品',
-        thumbnail: item.original_image_url || item.image_url || item.thumbnail || '',
-        thumbnailFailed: false,
-        time: this._formatTime(item.created_at || item.updated_at),
-        status: item.status || 'completed',
-        statusText: this._getStatusText(item.status),
-        family_member: item.family_member || null
-      }));
+      const historyList = list.map(item => {
+        const drugName = item.drug_name || item.title || '未识别药品';
+        const firstImage = item.first_image_url || item.original_image_url || item.image_url || item.thumbnail || '';
+        let imageStatus = item.image_status;
+        if (!imageStatus) {
+          if (item.status === 'failed') imageStatus = 'failed';
+          else if (item.status === 'uploading' || item.status === 'pending') imageStatus = 'uploading';
+          else if (!firstImage) imageStatus = 'legacy';
+          else imageStatus = 'normal';
+        }
+        return {
+          id: item.id,
+          sessionId: item.session_id || item.id,
+          drugName,
+          drugInitial: (drugName || '药').trim().charAt(0),
+          thumbnail: firstImage,
+          thumbnailFailed: false,
+          imageStatus,
+          time: this._formatTime(item.created_at || item.updated_at),
+          status: item.status || 'completed',
+          statusText: this._getStatusText(item.status),
+          family_member: item.family_member || null
+        };
+      });
       this.setData({ historyList });
     } catch (e) {
       console.log('loadHistory error', e);
@@ -387,19 +400,14 @@ Page({
 
   chooseAlbum() {
     if (!checkLogin()) return;
-    const remaining = this.data.maxImages - this.data.selectedImages.length;
-    if (remaining <= 0) {
-      wx.showToast({ title: `最多选择${this.data.maxImages}张图片`, icon: 'none' });
-      return;
-    }
     wx.chooseMedia({
-      count: remaining,
+      count: 1,
       mediaType: ['image'],
       sourceType: ['album'],
       success: (res) => {
         const newImages = res.tempFiles.map(f => ({ path: f.tempFilePath }));
         this.setData({
-          selectedImages: [...this.data.selectedImages, ...newImages]
+          selectedImages: [...this.data.selectedImages.slice(0, this.data.maxImages - 1), ...newImages].slice(0, this.data.maxImages)
         });
       }
     });
@@ -448,6 +456,8 @@ Page({
     this.setData({ uploading: true, uploadProgressText: `正在上传 1/${total} 张...`, uploadPercent: 0 });
 
     let firstSessionId = null;
+    let firstRecordId = null;
+    let sawSingleSelectNotice = false;
     const collectedDrugNames = [];
     try {
       for (let i = 0; i < images.length; i++) {
@@ -463,9 +473,16 @@ Page({
             this.setData({ uploadPercent: overallPercent });
           }
         });
+        if (res && res.single_select_notice) {
+          sawSingleSelectNotice = true;
+        }
         const sessionId = res && (res.session_id || res.id || res.sessionId);
         if (sessionId && !firstSessionId) {
           firstSessionId = sessionId;
+        }
+        const recordId = res && (res.record_id || res.recordId);
+        if (recordId && !firstRecordId) {
+          firstRecordId = recordId;
         }
         const aiResult = res && (res.ai_result || res.aiResult);
         const partial = joinDrugNamesFromAI(aiResult);
@@ -476,6 +493,10 @@ Page({
         }
       }
 
+      if (sawSingleSelectNotice) {
+        wx.showToast({ title: '已自动选取第一张', icon: 'none' });
+      }
+
       this.setData({ uploading: false, uploadProgressText: '', uploadPercent: -1, selectedImages: [], uploadStep: 1 });
 
       if (!firstSessionId) {
@@ -483,14 +504,10 @@ Page({
         return;
       }
       const memberId = this.data.selectedFamilyMemberId || '';
-      const memberName = this.data.selectedFamilyMemberName || '本人';
-      const drugNames = truncateDrugName(collectedDrugNames.join(','));
       wx.navigateTo({
-        url: `/pages/chat/index?type=drug_identify&chatId=${firstSessionId}`
-          + `&family_member_id=${memberId}`
-          + `&summary=${encodeURIComponent('用药识别 · ' + memberName)}`
-          + `&member=${encodeURIComponent(memberName)}`
-          + `&drug_name=${encodeURIComponent(drugNames)}`
+        url: `/pages/drug-chat/index?sessionId=${firstSessionId}`
+          + (firstRecordId ? `&record_id=${firstRecordId}` : '')
+          + (memberId ? `&member_id=${memberId}` : '')
       });
     } catch (e) {
       this.setData({ uploading: false, uploadProgressText: '', uploadPercent: -1, uploadStep: 1 });
@@ -502,18 +519,10 @@ Page({
     const sessionId = e.currentTarget.dataset.sessionid;
     if (!sessionId) return;
     const item = e.currentTarget.dataset.item || {};
-    const fm = item.family_member || null;
-    let memberName = '本人';
-    if (fm) {
-      memberName = fm.is_self
-        ? '本人'
-        : (fm.nickname || fm.relation_type_name || fm.relationship_type || '本人');
-    }
-    const drugName = truncateDrugName(item.drugName || item.drug_name || '');
+    const recordId = item.id || '';
     wx.navigateTo({
-      url: `/pages/chat/index?type=drug_identify&chatId=${sessionId}`
-        + `&member=${encodeURIComponent(memberName)}`
-        + `&drug_name=${encodeURIComponent(drugName)}`
+      url: `/pages/drug-chat/index?sessionId=${sessionId}`
+        + (recordId ? `&record_id=${recordId}` : '')
     });
   }
 });

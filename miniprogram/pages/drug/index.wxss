@@ -117,8 +117,38 @@
   width: 100%;
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 20rpx;
 }
+
+/* v1.2: 单大拍照按钮 */
+.btn-camera-big {
+  width: 100%;
+  min-height: 112rpx;
+  line-height: 112rpx;
+  background: linear-gradient(135deg, #52c41a, #13c2c2);
+  color: #fff;
+  font-size: 36rpx;
+  font-weight: 600;
+  border-radius: 56rpx;
+  border: none;
+  text-align: center;
+  box-shadow: 0 8rpx 24rpx rgba(82, 196, 26, 0.25);
+  letter-spacing: 1rpx;
+}
+
+.btn-camera-big::after { border: none; }
+
+.btn-camera-big[disabled] { opacity: 0.7; }
+
+.album-link {
+  font-size: 28rpx;
+  color: #52c41a;
+  padding: 16rpx 24rpx;
+  text-align: center;
+}
+
+.album-link:active { opacity: 0.7; }
 
 .btn-primary {
   width: 100%;
@@ -674,22 +704,77 @@
 }
 
 .history-thumb {
-  width: 100rpx;
-  height: 100rpx;
-  border-radius: 12rpx;
+  width: 144rpx;
+  height: 144rpx;
+  border-radius: 24rpx;
   margin-right: 20rpx;
   flex-shrink: 0;
   background: #f5f5f5;
+  position: relative;
+  overflow: hidden;
 }
 
-.history-thumb-placeholder {
+/* uploading 态：灰底 + 圆圈 loading */
+.history-thumb-uploading {
+  background: #f5f5f5;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.thumb-icon {
+.thumb-loading-ring {
+  width: 48rpx;
+  height: 48rpx;
+  border-radius: 50%;
+  border: 4rpx solid #e8e8e8;
+  border-top-color: #52c41a;
+  animation: thumb-spin 0.9s linear infinite;
+}
+
+@keyframes thumb-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* failed 态：灰框 + ⚠️ + 识别失败 */
+.history-thumb-failed {
+  background: #fafafa;
+  border: 2rpx solid #f0f0f0;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4rpx;
+}
+
+.thumb-fail-icon { font-size: 44rpx; }
+
+.thumb-fail-text {
+  font-size: 20rpx;
+  color: #f5222d;
+}
+
+/* legacy 态：灰色药盒 emoji + 药名首字 */
+.history-thumb-legacy {
+  background: #f0f0f0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2rpx;
+}
+
+.thumb-legacy-emoji {
   font-size: 48rpx;
+  filter: grayscale(0.6);
+  opacity: 0.7;
+}
+
+.thumb-legacy-initial {
+  font-size: 22rpx;
+  color: #666;
+  font-weight: 500;
 }
 
 .history-info {

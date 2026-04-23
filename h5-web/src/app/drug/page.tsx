@@ -47,6 +47,8 @@ interface HistoryItem {
   drug_name: string;
   image_url: string;
   original_image_url?: string;
+  first_image_url?: string | null;
+  image_status?: 'normal' | 'uploading' | 'failed' | 'legacy';
   image_count?: number;
   status: string;
   created_at: string;
@@ -231,11 +233,19 @@ export default function DrugPage() {
   const fetchHistory = useCallback(async () => {
     setHistoryLoading(true);
     try {
-      const res: any = await api.get('/api/drug-identify/history', {
-        params: { page: 1, page_size: 20 },
-      });
-      const data = res.data || res;
-      setHistory(data.items || []);
+      let data: any = null;
+      try {
+        const res: any = await api.get('/api/drug/records', {
+          params: { page: 1, page_size: 20 },
+        });
+        data = res.data || res;
+      } catch {
+        const res: any = await api.get('/api/drug-identify/history', {
+          params: { page: 1, page_size: 20 },
+        });
+        data = res.data || res;
+      }
+      setHistory(data?.items || []);
     } catch {
       // ignore
     } finally {
@@ -519,6 +529,10 @@ export default function DrugPage() {
         { timeout: 120000 },
       );
 
+      if (data?.single_select_notice) {
+        Toast.show({ content: data.notice_message || '已自动选取第一张图片' });
+      }
+
       if (data.session_id) {
         selectedFiles.forEach((sf) => URL.revokeObjectURL(sf.previewUrl));
         setSelectedFiles([]);
@@ -572,7 +586,6 @@ export default function DrugPage() {
         ref={albumInputRef}
         type="file"
         accept="image/*"
-        multiple
         className="hidden"
         onChange={(e) => { addFiles(e.target.files); e.target.value = ''; }}
       />
@@ -611,31 +624,35 @@ export default function DrugPage() {
             </svg>
           </div>
 
-          <div className="flex gap-3 w-full mb-4">
-            <button
-              onClick={() => cameraInputRef.current?.click()}
-              disabled={recognizing || selectedFiles.length >= MAX_IMAGES}
-              className="flex-1 h-11 rounded-full text-white font-medium text-sm border-none"
-              style={{
-                background: 'linear-gradient(135deg, #52c41a, #13c2c2)',
-                opacity: recognizing || selectedFiles.length >= MAX_IMAGES ? 0.6 : 1,
-              }}
-            >
-              拍照识药
-            </button>
-            <button
-              onClick={() => albumInputRef.current?.click()}
-              disabled={recognizing || selectedFiles.length >= MAX_IMAGES}
-              className="flex-1 h-11 rounded-full font-medium text-sm bg-white"
-              style={{
-                border: '1px solid #52c41a',
-                color: '#52c41a',
-                opacity: recognizing || selectedFiles.length >= MAX_IMAGES ? 0.6 : 1,
-              }}
-            >
-              从相册选择
-            </button>
-          </div>
+          <button
+            onClick={() => cameraInputRef.current?.click()}
+            disabled={recognizing || selectedFiles.length >= MAX_IMAGES}
+            className="w-full rounded-full text-white font-semibold border-none"
+            style={{
+              height: 56,
+              fontSize: 18,
+              background: 'linear-gradient(135deg, #52c41a, #13c2c2)',
+              opacity: recognizing || selectedFiles.length >= MAX_IMAGES ? 0.6 : 1,
+              marginBottom: 12,
+            }}
+          >
+            📷 拍照识别药品
+          </button>
+
+          <button
+            onClick={() => albumInputRef.current?.click()}
+            disabled={recognizing || selectedFiles.length >= MAX_IMAGES}
+            className="bg-transparent border-0 p-0"
+            style={{
+              color: '#52c41a',
+              fontSize: 15,
+              marginBottom: 10,
+              textDecoration: 'underline',
+              opacity: recognizing || selectedFiles.length >= MAX_IMAGES ? 0.6 : 1,
+            }}
+          >
+            🖼️ 从相册选择（单张）
+          </button>
 
           <p className="text-xs text-gray-400 text-center">
             拍摄药品包装，AI 帮您解读用药信息，最多{MAX_IMAGES}张
@@ -713,7 +730,11 @@ export default function DrugPage() {
           <div className="space-y-2">
             {history.map((item) => {
               const memberTag = getMemberTagLabel(item.family_member);
-              const imgUrl = item.original_image_url || item.image_url;
+              const imgUrl = item.first_image_url || item.original_image_url || item.image_url;
+              const imgStatus: 'normal' | 'uploading' | 'failed' | 'legacy' =
+                item.image_status
+                || (item.status === 'failed' ? 'failed' : (imgUrl ? 'normal' : 'legacy'));
+              const firstChar = (item.drug_name || '').trim().charAt(0) || '💊';
               return (
                 <div
                   key={item.id}
@@ -733,54 +754,55 @@ export default function DrugPage() {
                   }}
                 >
                   <div className="flex gap-3">
-                    <div className="w-14 h-14 rounded-lg flex-shrink-0 bg-gray-100 overflow-hidden relative">
-                      {imgUrl ? (
-                        <>
-                          <img
-                            src={imgUrl}
-                            alt={item.drug_name}
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              const target = e.currentTarget;
-                              target.style.display = 'none';
-                              const fallback = target.nextElementSibling as HTMLElement | null;
-                              if (fallback && fallback.dataset.fallback === '1') {
-                                fallback.style.display = 'flex';
-                              }
-                            }}
-                          />
-                          <div
-                            data-fallback="1"
-                            className="w-full h-full items-center justify-center absolute inset-0"
-                            style={{ display: 'none' }}
-                          >
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="1.5">
-                              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                              <circle cx="8.5" cy="8.5" r="1.5" />
-                              <polyline points="21 15 16 10 5 21" />
-                            </svg>
-                          </div>
-                          {item.image_count && item.image_count > 1 && (
-                            <div
-                              className="absolute bottom-0 left-0 right-0 text-center text-white text-[9px] py-0.5"
-                              style={{ background: 'rgba(0,0,0,0.45)', borderRadius: '0 0 8px 8px' }}
-                            >
-                              共{item.image_count}张
-                            </div>
-                          )}
-                        </>
-                      ) : (
+                    {/* [v1.2] 72×72 缩略图 4 态 */}
+                    <div
+                      className="flex-shrink-0 relative overflow-hidden"
+                      style={{
+                        width: 72,
+                        height: 72,
+                        borderRadius: 12,
+                        background: '#f5f5f5',
+                        border: imgStatus === 'failed' ? '1px solid #d9d9d9' : '1px solid #f0f0f0',
+                      }}
+                    >
+                      {imgStatus === 'normal' && imgUrl && (
+                        <img
+                          src={imgUrl}
+                          alt={item.drug_name}
+                          className="w-full h-full object-cover"
+                        />
+                      )}
+                      {imgStatus === 'uploading' && (
                         <div className="w-full h-full flex items-center justify-center">
-                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="1.5">
-                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                            <circle cx="8.5" cy="8.5" r="1.5" />
-                            <polyline points="21 15 16 10 5 21" />
+                          <SpinLoading style={{ '--size': '22px', '--color': '#52c41a' }} />
+                        </div>
+                      )}
+                      {imgStatus === 'failed' && (
+                        <div className="w-full h-full flex flex-col items-center justify-center" style={{ color: '#bfbfbf' }}>
+                          <span style={{ fontSize: 20 }}>⚠️</span>
+                          <span style={{ fontSize: 10, marginTop: 2 }}>识别失败</span>
+                        </div>
+                      )}
+                      {imgStatus === 'legacy' && (
+                        <div className="w-full h-full flex flex-col items-center justify-center" style={{ color: '#8c8c8c' }}>
+                          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#bfbfbf" strokeWidth="1.5">
+                            <rect x="3" y="6" width="18" height="12" rx="3" ry="3" />
+                            <line x1="12" y1="6" x2="12" y2="18" />
                           </svg>
+                          <span style={{ fontSize: 14, marginTop: 2, fontWeight: 600 }}>{firstChar}</span>
+                        </div>
+                      )}
+                      {imgStatus === 'normal' && item.image_count && item.image_count > 1 && (
+                        <div
+                          className="absolute bottom-0 left-0 right-0 text-center text-white text-[10px] py-0.5"
+                          style={{ background: 'rgba(0,0,0,0.45)' }}
+                        >
+                          共{item.image_count}张
                         </div>
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="font-medium text-sm text-gray-800 truncate">
+                      <div className="font-medium text-[15px] truncate" style={{ color: '#333' }}>
                         {item.drug_name || '未知药品'}
                       </div>
                       <div className="text-xs text-gray-400 mt-1">{formatTime(item.created_at)}</div>

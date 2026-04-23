@@ -55,10 +55,10 @@ module.exports.isProfileComplete = function(nickname, gender, birthday, height, 
       <text class="camera-big-icon">📷</text>
     </view>
     <text class="camera-title">拍照识别药品</text>
-    <text class="camera-desc">拍摄药品照片或从相册选择，AI 为您智能识别</text>
+    <text class="camera-desc">拍摄药品照片，AI 为您智能识别用药信息</text>
     <view class="camera-actions">
-      <button class="btn-primary" bindtap="takePhoto" disabled="{{uploading}}">拍照识药</button>
-      <button class="btn-outline" bindtap="chooseAlbum" disabled="{{uploading}}">从相册选择</button>
+      <button class="btn-camera-big" bindtap="takePhoto" disabled="{{uploading}}">📷 拍照识别药品</button>
+      <view class="album-link" bindtap="chooseAlbum">🖼️ 从相册选择（单张）</view>
     </view>
 
     <!-- 已选图片预览 -->
@@ -247,16 +247,26 @@ module.exports.isProfileComplete = function(nickname, gender, birthday, height, 
     <view wx:else class="history-list">
       <view class="history-item card" wx:for="{{historyList}}" wx:key="id" bindtap="goChat" data-sessionid="{{item.sessionId}}" data-item="{{item}}">
         <view class="history-item-content">
-          <image
-            class="history-thumb"
-            src="{{item.thumbnail}}"
-            mode="aspectFill"
-            wx:if="{{item.thumbnail && !item.thumbnailFailed}}"
-            binderror="onHistoryThumbError"
-            data-id="{{item.id}}"
-          />
-          <view class="history-thumb history-thumb-placeholder" wx:else>
-            <text class="thumb-icon">💊</text>
+          <!-- 缩略图 4 态：normal / uploading / failed / legacy -->
+          <block wx:if="{{item.imageStatus === 'normal' && item.thumbnail && !item.thumbnailFailed}}">
+            <image
+              class="history-thumb"
+              src="{{item.thumbnail}}"
+              mode="aspectFill"
+              binderror="onHistoryThumbError"
+              data-id="{{item.id}}"
+            />
+          </block>
+          <view wx:elif="{{item.imageStatus === 'uploading'}}" class="history-thumb history-thumb-uploading">
+            <view class="thumb-loading-ring"></view>
+          </view>
+          <view wx:elif="{{item.imageStatus === 'failed' || item.thumbnailFailed}}" class="history-thumb history-thumb-failed">
+            <text class="thumb-fail-icon">⚠️</text>
+            <text class="thumb-fail-text">识别失败</text>
+          </view>
+          <view wx:else class="history-thumb history-thumb-legacy">
+            <text class="thumb-legacy-emoji">💊</text>
+            <text class="thumb-legacy-initial">{{item.drugInitial}}</text>
           </view>
           <view class="history-info">
             <view class="history-header-row">

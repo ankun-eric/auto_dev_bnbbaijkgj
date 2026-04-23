@@ -203,3 +203,6 @@ class OcrBatchRecognizeResponse(BaseModel):
     merged_record_id: Optional[int] = None
     report_id: Optional[int] = None
     session_id: Optional[int] = None
+    # [2026-04-23 v1.2] 用药参考 PRD §7.1：拍照识药场景被裁剪为单张时提示前端 toast
+    single_select_notice: Optional[bool] = False
+    notice_message: Optional[str] = None

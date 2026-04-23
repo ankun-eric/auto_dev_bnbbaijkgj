@@ -28,6 +28,8 @@ from app.models.models import (
 from app.schemas.chat import ChatMessageCreate, ChatMessageResponse, ChatSessionCreate, ChatSessionResponse
 from app.services.ai_service import call_ai_model, call_ai_model_stream, symptom_analysis
 from app.services.knowledge_search import search_knowledge
+# [2026-04-23 v1.2] 用药对话 drug_query 注入 {member_info} + {drug_list}
+from app.api.drug_chat import inject_drug_context_to_prompt
 
 router = APIRouter(prefix="/api/chat", tags=["AI对话"])
 
@@ -291,6 +293,15 @@ async def send_message(
     if health_context:
         system_prompt += health_context
 
+    # [2026-04-23 v1.2] drug_query 场景：注入 {member_info} + {drug_list}
+    if session_type_val == "drug_query":
+        try:
+            system_prompt = await inject_drug_context_to_prompt(
+                db, session, system_prompt, current_user.id
+            )
+        except Exception:
+            pass
+
     knowledge_hits = []
     try:
         kb_result = await search_knowledge(
@@ -410,6 +421,15 @@ async def stream_message(
     health_context = await _build_health_context(session, db)
     if health_context:
         system_prompt += health_context
+
+    # [2026-04-23 v1.2] drug_query 场景：注入 {member_info} + {drug_list}
+    if session_type_val == "drug_query":
+        try:
+            system_prompt = await inject_drug_context_to_prompt(
+                db, session, system_prompt, current_user.id
+            )
+        except Exception:
+            pass
 
     try:
         kb_result = await search_knowledge(

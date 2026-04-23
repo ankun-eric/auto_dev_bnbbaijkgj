@@ -199,6 +199,8 @@ class HealthProvider extends ChangeNotifier {
             'session_id': sessionId,
             'drug_name': drugName,
             'merged_ai_result': aiResult,
+            'single_select_notice': data['single_select_notice'] == true,
+            'notice_message': data['notice_message']?.toString() ?? '',
           };
         }
       }

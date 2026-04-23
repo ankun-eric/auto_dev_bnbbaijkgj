@@ -393,6 +393,17 @@ async def drug_identify_history(
                 nickname=row.family_member.nickname,
                 relationship_type=row.family_member.relationship_type,
             )
+        # [2026-04-23 v1.2] 识别记录列表首图 + 4 态 (normal|uploading|failed|legacy)
+        first_image_url = row.original_image_url
+        if row.status == "failed":
+            image_status = "failed"
+        elif row.status == "uploading":
+            image_status = "uploading"
+        elif not first_image_url:
+            # 老数据无首图 URL，降级为 legacy，前端展示灰色药盒 + 药名首字
+            image_status = "legacy"
+        else:
+            image_status = "normal"
         items.append(
             DrugIdentifyHistoryItem(
                 id=row.id,
@@ -403,6 +414,8 @@ async def drug_identify_history(
                 session_id=row.session_id,
                 family_member_id=row.family_member_id,
                 family_member=fm_brief,
+                first_image_url=first_image_url,
+                image_status=image_status,
             )
         )
 

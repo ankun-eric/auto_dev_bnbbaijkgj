@@ -91,6 +91,9 @@ class DrugIdentifyHistoryItem(BaseModel):
     session_id: Optional[int] = None
     family_member_id: Optional[int] = None
     family_member: Optional[FamilyMemberBrief] = None
+    # [2026-04-23 v1.2] 识别记录列表首图 + 4 态
+    first_image_url: Optional[str] = None
+    image_status: Optional[str] = None  # normal | uploading | failed | legacy
 
     model_config = ConfigDict(from_attributes=True)
 
