@@ -33,7 +33,47 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 用药参考功能优化 v1.2（2026-04-23）
+## Latest Update: 商品·预约与核销 保存失败 & 联动 UI 修复（BUG-PRODUCT-APPT-001，2026-04-23）
+
+### 概要
+修复商品管理"预约与核销"保存失败（原因：前后端枚举不一致；前端无联动 UI；表单隐式 1:1 潜规则）；引入完整联动 UI + 前端必填校验 + 字段级错误提示，并新增"预约表单库"可复用资源。
+
+### 改动端
+- **后端（FastAPI）**
+  - `backend/app/models/models.py`：`AppointmentMode` 枚举对齐为 `none / date / time_slot / custom_form`；`PurchaseAppointmentMode` 扩展为 `purchase_with_appointment / appointment_later`；`Product` 新增列 `advance_days`、`daily_quota`、`time_slots` (JSON)；`AppointmentForm` 新增 `status` 列
+  - `backend/app/schemas/products.py`：新增 `TimeSlotItem`、`_validate_appointment_mode` 条件校验；`ProductCreate/Update` 增加联动字段 + `model_validator`；`AppointmentFormCreate/Update/Response` 扩展 `status` + `field_count` + `product_count`
+  - `backend/app/services/schema_sync.py`：自动迁移 ENUM（扩容 → 回落脏数据 → 收敛）+ 加列；`appointment_forms` 加 `status`
+  - `backend/app/api/product_admin.py`：新字段 CRUD；收敛"潜规则自动建表单"，改为明确拒绝（`admin_list_form_fields` 未绑定时返回空列表 + 提示，`admin_create_form_field` 必须已绑定 `custom_form_id`）
+  - 新增 `backend/app/api/appointment_form_admin.py`：表单库 CRUD + 字段 CRUD
+  - `backend/app/main.py`：注册 `appointment_form_admin.router`；全局异常处理（`LookupError → 400 枚举值不合法`，`IntegrityError → 400 数据约束冲突`）
+  - 新增 `backend/tests/test_product_appointment_bugfix.py`：针对 4 种预约模式 + 表单库 CRUD 的回归测试
+- **admin-web（Next.js）**
+  - `admin-web/src/app/(admin)/product-system/products/page.tsx`：`Product` 接口扩展；`appointmentModes` / `purchaseApptModes` 常量；`apptMode / timeSlots / apptForms` state；`fetchApptForms`；`handleSubmit` 预校验 + 422 字段级错误解析；"预约与核销"Tab 根据 `appointment_mode` 联动渲染；"表单"按钮语义修正
+  - 新增 `admin-web/src/app/(admin)/product-system/appointment-forms/page.tsx`：预约表单库列表 + CRUD + 字段管理
+  - `admin-web/src/app/(admin)/layout.tsx`：菜单新增"商品体系 → 预约表单库"
+- **H5 / miniprogram / flutter_app**：本次无需改动（各端仅做 `appointment_mode !== 'none'` 布尔分支）
+
+### 新增数据库字段（MySQL，线上已自动迁移）
+- `products.advance_days INT NULL`
+- `products.daily_quota INT NULL`
+- `products.time_slots JSON NULL`
+- `products.purchase_appointment_mode ENUM('purchase_with_appointment','appointment_later')`
+- `products.appointment_mode ENUM('none','date','time_slot','custom_form')`（迁移后清洗脏值为 `none`）
+- `appointment_forms.status VARCHAR NOT NULL DEFAULT 'active'`
+
+### 新增后端接口
+- `GET/POST /api/admin/appointment-forms`
+- `PUT/DELETE /api/admin/appointment-forms/{id}`
+- `GET/POST /api/admin/appointment-forms/{id}/fields`
+
+### 部署链接
+- Admin：https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin
+- 预约表单库：https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/product-system/appointment-forms
+- 用户手册：`user_docs/商品预约与核销保存修复_用户手册.md`
+
+---
+
+## Previous Update: 用药参考功能优化 v1.2（2026-04-23）
 
 ### 概要
 去除用药对话页顶部的轮播切换，融合卡片改为**平铺展示**；新增 AI 首条综合建议自动推送（单药 4 段式 / 多药双独立卡片 + 综合建议）；识别记录列表首图 4 态（`normal` / `uploading` / `failed` / `legacy`）；首页改为单个"📷 拍照识别药品"大按钮；相册严格单选（`multiple=false` / `count=1` / `image_picker` 单选 API）；多药对比最多 2 个（前端按钮灰化 + 后端校验）；全屏查看原图支持左右滑动切换与双指缩放；历史老数据 `drug_identify_details.original_image_url` 已一次性迁移回填（16/16 成功率 100%）。
