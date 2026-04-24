@@ -1082,6 +1082,47 @@ async def _sync_merchant_v1_backend(conn: AsyncConnection) -> None:
                 pass
 
 
+async def _sync_settlement_proof_schema(conn: AsyncConnection) -> None:
+    """[2026-04-24] 对账单凭证扩展：新增 voucher_type / voucher_files / remark / updated_at 列；
+    file_url 放宽为可空（以支持新模式只存 voucher_files 而不存单一 file_url）。
+    """
+    def _load(sync_conn):
+        inspector = inspect(sync_conn)
+        tables = set(inspector.get_table_names())
+        if "settlement_payment_proofs" not in tables:
+            return set()
+        return {c["name"] for c in inspector.get_columns("settlement_payment_proofs")}
+
+    cols = await conn.run_sync(_load)
+    if not cols:
+        return
+    try:
+        if "voucher_type" not in cols:
+            await conn.execute(text(
+                "ALTER TABLE settlement_payment_proofs ADD COLUMN voucher_type VARCHAR(16) NULL"
+            ))
+        if "voucher_files" not in cols:
+            await conn.execute(text(
+                "ALTER TABLE settlement_payment_proofs ADD COLUMN voucher_files JSON NULL"
+            ))
+        if "remark" not in cols:
+            await conn.execute(text(
+                "ALTER TABLE settlement_payment_proofs ADD COLUMN remark TEXT NULL"
+            ))
+        if "updated_at" not in cols:
+            await conn.execute(text(
+                "ALTER TABLE settlement_payment_proofs ADD COLUMN updated_at DATETIME NULL"
+            ))
+        try:
+            await conn.execute(text(
+                "ALTER TABLE settlement_payment_proofs MODIFY COLUMN file_url VARCHAR(500) NULL"
+            ))
+        except Exception:
+            pass
+    except Exception:
+        pass
+
+
 async def _migrate_service_to_product_categories(conn: AsyncConnection) -> None:
     def _load(sync_conn):
         inspector = inspect(sync_conn)
@@ -1128,6 +1169,7 @@ async def sync_register_schema(conn: AsyncConnection) -> None:
     await _sync_ai_model_configs(conn)
     await _sync_member_levels(conn)
     await _sync_merchant_v1_backend(conn)
+    await _sync_settlement_proof_schema(conn)
     await _sync_sms_tables(conn)
     await _sync_chat_session_fields(conn)
     await _sync_knowledge_tables(conn)

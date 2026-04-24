@@ -560,17 +560,28 @@ class SettlementStatement(Base):
 
 
 class SettlementPaymentProof(Base):
-    """对账单打款凭证"""
+    """对账单打款凭证
+
+    [2026-04-24] 扩展：
+    - voucher_type: image / pdf，标识凭证类型
+    - voucher_files: JSON 数组，存储图片URL列表（1~5张）或 PDF URL（1份）
+    - remark: 打款备注（多行文本，最长 500 字），取代原 file_name 的用途
+    - file_url / file_name 保留用于兼容历史数据
+    """
     __tablename__ = "settlement_payment_proofs"
 
     id = mapped_column(Integer, primary_key=True, autoincrement=True)
     statement_id = mapped_column(Integer, ForeignKey("settlement_statements.id"), nullable=False, unique=True, index=True)
-    file_url = mapped_column(String(500), nullable=False)
+    file_url = mapped_column(String(500), nullable=True)
     file_name = mapped_column(String(255), nullable=True)
+    voucher_type = mapped_column(String(16), nullable=True)
+    voucher_files = mapped_column(JSON, nullable=True)
+    remark = mapped_column(Text, nullable=True)
     amount = mapped_column(Numeric(12, 2), default=0)
     paid_at = mapped_column(DateTime, nullable=True)
     uploaded_by = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
 class MerchantExportTask(Base):

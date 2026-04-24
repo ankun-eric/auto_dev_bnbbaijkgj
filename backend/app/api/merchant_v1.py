@@ -72,13 +72,20 @@ from app.schemas.merchant_v1 import (
     MerchantWorkbenchMetrics,
     OrderAttachmentCreateRequest,
     OrderAttachmentResponse,
+    MerchantBrief,
     PaymentProofCreateRequest,
+    PaymentProofDetail,
     ReportAnalysisResponse,
     ReportSeriesPoint,
     SettlementConfirmRequest,
+    SettlementDetailLine,
+    SettlementDetailResponse,
     SettlementDisputeRequest,
     SettlementGenerateRequest,
+    SettlementListItem,
+    SettlementListResponse,
     SettlementStatementBrief,
+    StoreBrief,
 )
 
 logger = logging.getLogger(__name__)
@@ -978,32 +985,403 @@ async def admin_generate_monthly_settlements(
 async def admin_upload_payment_proof(
     sid: int,
     data: PaymentProofCreateRequest,
-    _: User = Depends(admin_dep),
+    current_user: User = Depends(admin_dep),
     db: AsyncSession = Depends(get_db),
 ):
+    """[2026-04-24] 上传/修改打款凭证（支持图片多张 或 单份 PDF，互斥）。
+
+    兼容旧请求：若仅提供 file_url，则视为单 PDF/图片并放入 voucher_files。
+    """
     res = await db.execute(select(SettlementStatement).where(SettlementStatement.id == sid))
     stmt = res.scalar_one_or_none()
     if not stmt:
         raise HTTPException(status_code=404, detail="对账单不存在")
+
+    vtype = (data.voucher_type or "").strip().lower() or None
+    vfiles = [f for f in (data.voucher_files or []) if f]
+
+    if not vfiles and data.file_url:
+        vfiles = [data.file_url]
+        if not vtype:
+            vtype = "pdf" if data.file_url.lower().endswith(".pdf") else "image"
+
+    if not vfiles:
+        raise HTTPException(status_code=400, detail="请至少上传 1 张图片或 1 份 PDF 凭证")
+    if vtype not in ("image", "pdf"):
+        raise HTTPException(status_code=400, detail="凭证类型必须是 image 或 pdf")
+    if vtype == "image" and len(vfiles) > 5:
+        raise HTTPException(status_code=400, detail="图片凭证最多 5 张")
+    if vtype == "pdf" and len(vfiles) != 1:
+        raise HTTPException(status_code=400, detail="PDF 凭证必须且只能上传 1 份")
+
+    remark = (data.remark or "").strip() or None
+    if remark and len(remark) > 500:
+        raise HTTPException(status_code=400, detail="打款备注不能超过 500 字")
+
+    paid_at = data.paid_at or datetime.utcnow()
+    if paid_at > datetime.utcnow() + timedelta(minutes=1):
+        raise HTTPException(status_code=400, detail="打款时间不能晚于当前时间")
+
     pp_res = await db.execute(select(SettlementPaymentProof).where(SettlementPaymentProof.statement_id == sid))
     pp = pp_res.scalar_one_or_none()
+    primary_url = vfiles[0]
     if pp:
-        pp.file_url = data.file_url
+        pp.file_url = primary_url
         pp.file_name = data.file_name
+        pp.voucher_type = vtype
+        pp.voucher_files = vfiles
+        pp.remark = remark
         pp.amount = Decimal(str(data.amount or 0))
-        pp.paid_at = data.paid_at or datetime.utcnow()
+        pp.paid_at = paid_at
+        pp.uploaded_by = current_user.id
+        pp.updated_at = datetime.utcnow()
     else:
         db.add(SettlementPaymentProof(
             statement_id=sid,
-            file_url=data.file_url,
+            file_url=primary_url,
             file_name=data.file_name,
+            voucher_type=vtype,
+            voucher_files=vfiles,
+            remark=remark,
             amount=Decimal(str(data.amount or 0)),
-            paid_at=data.paid_at or datetime.utcnow(),
+            paid_at=paid_at,
+            uploaded_by=current_user.id,
         ))
     stmt.status = "settled"
     stmt.settled_at = datetime.utcnow()
     await db.commit()
-    return {"message": "打款凭证已上传"}
+    return {"message": "打款凭证已上传", "settlement_id": sid, "voucher_type": vtype, "voucher_count": len(vfiles)}
+
+
+# ---------- 对账单列表 / 详情 / 下拉（admin） ----------
+
+def _display_name_for_stmt(stmt: SettlementStatement, merchant_name: Optional[str], store_name: Optional[str]) -> str:
+    mn = merchant_name or f"机构#{stmt.merchant_profile_id}"
+    if stmt.dim == "store" and store_name:
+        return f"{mn} - {store_name}"
+    return mn
+
+
+@admin_router.get("/settlements", response_model=SettlementListResponse)
+async def admin_list_settlements(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=200),
+    merchant_profile_id: Optional[int] = None,
+    store_id: Optional[int] = None,
+    period: Optional[str] = None,  # YYYY-MM
+    status: Optional[str] = None,
+    dim: Optional[str] = None,
+    generated_start: Optional[date] = None,
+    generated_end: Optional[date] = None,
+    settled_start: Optional[date] = None,
+    settled_end: Optional[date] = None,
+    amount_min: Optional[float] = None,
+    amount_max: Optional[float] = None,
+    keyword: Optional[str] = None,
+    sort_by: str = Query("created_at"),
+    sort_order: str = Query("desc"),
+    _: User = Depends(admin_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    """平台：分页 + 9 项筛选 + 可排序的对账单列表。"""
+    q = select(SettlementStatement)
+
+    if merchant_profile_id:
+        q = q.where(SettlementStatement.merchant_profile_id == merchant_profile_id)
+    if store_id:
+        q = q.where(SettlementStatement.store_id == store_id)
+    if status and status != "all":
+        q = q.where(SettlementStatement.status == status)
+    if dim and dim != "all":
+        q = q.where(SettlementStatement.dim == dim)
+
+    if period:
+        try:
+            y, m = period.split("-")
+            ys, ms = int(y), int(m)
+            p_start = date(ys, ms, 1)
+            if ms == 12:
+                p_end = date(ys + 1, 1, 1) - timedelta(days=1)
+            else:
+                p_end = date(ys, ms + 1, 1) - timedelta(days=1)
+            q = q.where(and_(
+                SettlementStatement.period_start == p_start,
+                SettlementStatement.period_end == p_end,
+            ))
+        except Exception:
+            raise HTTPException(status_code=400, detail="period 格式应为 YYYY-MM")
+
+    if generated_start:
+        q = q.where(SettlementStatement.created_at >= datetime.combine(generated_start, datetime.min.time()))
+    if generated_end:
+        q = q.where(SettlementStatement.created_at <= datetime.combine(generated_end, datetime.max.time()))
+    if settled_start:
+        q = q.where(SettlementStatement.settled_at >= datetime.combine(settled_start, datetime.min.time()))
+    if settled_end:
+        q = q.where(SettlementStatement.settled_at <= datetime.combine(settled_end, datetime.max.time()))
+    if amount_min is not None:
+        q = q.where(SettlementStatement.settlement_amount >= Decimal(str(amount_min)))
+    if amount_max is not None:
+        q = q.where(SettlementStatement.settlement_amount <= Decimal(str(amount_max)))
+
+    # 关键词匹配：机构名 / 门店名 / statement_no
+    if keyword:
+        kw = f"%{keyword.strip()}%"
+        q = q.where(or_(
+            SettlementStatement.statement_no.like(kw),
+            SettlementStatement.merchant_profile_id.in_(
+                select(MerchantProfile.id).where(MerchantProfile.nickname.like(kw))
+            ),
+            SettlementStatement.store_id.in_(
+                select(MerchantStore.id).where(MerchantStore.store_name.like(kw))
+            ),
+        ))
+
+    # 统计总数
+    count_q = select(func.count()).select_from(q.subquery())
+    total = int((await db.execute(count_q)).scalar() or 0)
+
+    # 排序
+    sort_col_map = {
+        "period_start": SettlementStatement.period_start,
+        "settlement_amount": SettlementStatement.settlement_amount,
+        "created_at": SettlementStatement.created_at,
+        "settled_at": SettlementStatement.settled_at,
+    }
+    col = sort_col_map.get(sort_by, SettlementStatement.created_at)
+    q = q.order_by(col.desc() if sort_order.lower() != "asc" else col.asc(), SettlementStatement.id.desc())
+
+    q = q.offset((page - 1) * page_size).limit(page_size)
+    rows = (await db.execute(q)).scalars().all()
+
+    # 批量拉取机构/门店名称 + 凭证存在性
+    mp_ids = {r.merchant_profile_id for r in rows}
+    store_ids = {r.store_id for r in rows if r.store_id}
+    stmt_ids = [r.id for r in rows]
+
+    mp_name_map: dict = {}
+    if mp_ids:
+        mp_rows = (await db.execute(
+            select(MerchantProfile.id, MerchantProfile.nickname, User.nickname, User.phone)
+            .join(User, User.id == MerchantProfile.user_id, isouter=True)
+            .where(MerchantProfile.id.in_(mp_ids))
+        )).all()
+        for mp_id, mp_nick, u_nick, u_phone in mp_rows:
+            mp_name_map[mp_id] = mp_nick or u_nick or u_phone or f"机构#{mp_id}"
+
+    store_name_map: dict = {}
+    if store_ids:
+        st_rows = (await db.execute(
+            select(MerchantStore.id, MerchantStore.store_name).where(MerchantStore.id.in_(store_ids))
+        )).all()
+        store_name_map = {s_id: s_name for s_id, s_name in st_rows}
+
+    proof_set: set = set()
+    if stmt_ids:
+        pr_rows = (await db.execute(
+            select(SettlementPaymentProof.statement_id).where(SettlementPaymentProof.statement_id.in_(stmt_ids))
+        )).all()
+        proof_set = {r[0] for r in pr_rows}
+
+    items: List[SettlementListItem] = []
+    for r in rows:
+        mn = mp_name_map.get(r.merchant_profile_id)
+        sn = store_name_map.get(r.store_id) if r.store_id else None
+        items.append(SettlementListItem(
+            id=r.id,
+            statement_no=r.statement_no,
+            merchant_profile_id=r.merchant_profile_id,
+            merchant_name=mn,
+            store_id=r.store_id,
+            store_name=sn,
+            display_name=_display_name_for_stmt(r, mn, sn),
+            dim=r.dim,
+            period_start=r.period_start,
+            period_end=r.period_end,
+            order_count=r.order_count or 0,
+            total_amount=float(r.total_amount or 0),
+            settlement_amount=float(r.settlement_amount or 0),
+            status=r.status,
+            generated_at=r.created_at,
+            settled_at=r.settled_at,
+            has_proof=r.id in proof_set,
+        ))
+
+    return SettlementListResponse(total=total, items=items, page=page, page_size=page_size)
+
+
+@admin_router.get("/settlements/merchant-options", response_model=List[MerchantBrief])
+async def admin_list_merchants_for_settlement(
+    _: User = Depends(admin_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    rows = (await db.execute(
+        select(MerchantProfile.id, MerchantProfile.nickname, User.nickname, User.phone)
+        .join(User, User.id == MerchantProfile.user_id, isouter=True)
+        .order_by(MerchantProfile.id.asc())
+    )).all()
+    return [MerchantBrief(id=mp_id, name=(mp_nick or u_nick or u_phone or f"机构#{mp_id}")) for mp_id, mp_nick, u_nick, u_phone in rows]
+
+
+@admin_router.get("/settlements/store-options", response_model=List[StoreBrief])
+async def admin_list_stores_for_settlement(
+    merchant_profile_id: Optional[int] = None,
+    _: User = Depends(admin_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    """返回门店下拉。若提供 merchant_profile_id，则只返回该机构 owner 名下的门店。"""
+    if merchant_profile_id:
+        mp = (await db.execute(
+            select(MerchantProfile).where(MerchantProfile.id == merchant_profile_id)
+        )).scalar_one_or_none()
+        if not mp:
+            return []
+        mu_res = await db.execute(
+            select(MerchantStoreMembership.store_id).where(
+                MerchantStoreMembership.user_id == mp.user_id,
+                MerchantStoreMembership.member_role == MerchantMemberRole.owner,
+            )
+        )
+        s_ids = list({x for x in mu_res.scalars().all() if x})
+        if not s_ids:
+            return []
+        rows = (await db.execute(
+            select(MerchantStore.id, MerchantStore.store_name).where(MerchantStore.id.in_(s_ids)).order_by(MerchantStore.id.asc())
+        )).all()
+        return [StoreBrief(id=s_id, name=s_name, merchant_profile_id=merchant_profile_id) for s_id, s_name in rows]
+    rows = (await db.execute(
+        select(MerchantStore.id, MerchantStore.store_name).order_by(MerchantStore.id.asc())
+    )).all()
+    return [StoreBrief(id=s_id, name=s_name) for s_id, s_name in rows]
+
+
+@admin_router.get("/settlements/{sid}", response_model=SettlementDetailResponse)
+async def admin_settlement_detail(
+    sid: int,
+    _: User = Depends(admin_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    stmt = (await db.execute(
+        select(SettlementStatement).where(SettlementStatement.id == sid)
+    )).scalar_one_or_none()
+    if not stmt:
+        raise HTTPException(status_code=404, detail="对账单不存在")
+
+    mp = (await db.execute(
+        select(MerchantProfile).where(MerchantProfile.id == stmt.merchant_profile_id)
+    )).scalar_one_or_none()
+    merchant_name = None
+    if mp:
+        u = (await db.execute(select(User).where(User.id == mp.user_id))).scalar_one_or_none()
+        merchant_name = mp.nickname or (u.nickname if u else None) or (u.phone if u else None) or f"机构#{mp.id}"
+
+    store_name = None
+    if stmt.store_id:
+        st = (await db.execute(
+            select(MerchantStore).where(MerchantStore.id == stmt.store_id)
+        )).scalar_one_or_none()
+        store_name = st.store_name if st else None
+
+    proof_row = (await db.execute(
+        select(SettlementPaymentProof).where(SettlementPaymentProof.statement_id == sid)
+    )).scalar_one_or_none()
+
+    proof: Optional[PaymentProofDetail] = None
+    if proof_row:
+        vfiles: List[str] = []
+        if proof_row.voucher_files:
+            try:
+                vfiles = [str(x) for x in proof_row.voucher_files if x]
+            except Exception:
+                vfiles = []
+        if not vfiles and proof_row.file_url:
+            vfiles = [proof_row.file_url]
+        uploader_name = None
+        if proof_row.uploaded_by:
+            uu = (await db.execute(select(User).where(User.id == proof_row.uploaded_by))).scalar_one_or_none()
+            if uu:
+                uploader_name = uu.nickname or uu.phone or f"用户#{uu.id}"
+        proof = PaymentProofDetail(
+            voucher_type=proof_row.voucher_type or ("pdf" if (proof_row.file_url or "").lower().endswith(".pdf") else "image"),
+            voucher_files=vfiles,
+            amount=float(proof_row.amount or 0),
+            paid_at=proof_row.paid_at,
+            remark=proof_row.remark,
+            uploaded_by=proof_row.uploaded_by,
+            uploaded_by_name=uploader_name,
+            created_at=proof_row.created_at,
+            updated_at=proof_row.updated_at,
+        )
+
+    # 结算明细（核销记录）
+    ms_start = datetime.combine(stmt.period_start, datetime.min.time())
+    ms_end = datetime.combine(stmt.period_end, datetime.max.time())
+    line_q = (
+        select(
+            OrderRedemption.id,
+            OrderRedemption.redeemed_at,
+            OrderItem.subtotal,
+            OrderItem.product_name,
+            UnifiedOrder.order_no,
+        )
+        .select_from(OrderRedemption)
+        .join(OrderItem, OrderItem.id == OrderRedemption.order_item_id)
+        .join(UnifiedOrder, UnifiedOrder.id == OrderItem.order_id, isouter=True)
+        .where(
+            OrderRedemption.redeemed_at >= ms_start,
+            OrderRedemption.redeemed_at <= ms_end,
+        )
+    )
+    if stmt.dim == "store" and stmt.store_id:
+        line_q = line_q.where(OrderRedemption.store_id == stmt.store_id)
+    elif stmt.dim == "merchant" and mp:
+        mu_res = await db.execute(
+            select(MerchantStoreMembership.store_id).where(
+                MerchantStoreMembership.user_id == mp.user_id,
+                MerchantStoreMembership.member_role == MerchantMemberRole.owner,
+            )
+        )
+        owner_store_ids = [m for m in mu_res.scalars().all() if m]
+        if not owner_store_ids:
+            line_q = line_q.where(OrderRedemption.store_id == -1)
+        else:
+            line_q = line_q.where(OrderRedemption.store_id.in_(owner_store_ids))
+
+    line_q = line_q.order_by(OrderRedemption.redeemed_at.asc()).limit(500)
+    line_rows = (await db.execute(line_q)).all()
+    lines: List[SettlementDetailLine] = []
+    lines_total = 0.0
+    for _id, rdt, sub, pname, ono in line_rows:
+        amt = float(sub or 0)
+        lines_total += amt
+        lines.append(SettlementDetailLine(
+            order_no=ono or f"R#{_id}",
+            biz_type=pname or "核销单",
+            happened_at=rdt,
+            amount=amt,
+            remark=None,
+        ))
+
+    info = SettlementListItem(
+        id=stmt.id,
+        statement_no=stmt.statement_no,
+        merchant_profile_id=stmt.merchant_profile_id,
+        merchant_name=merchant_name,
+        store_id=stmt.store_id,
+        store_name=store_name,
+        display_name=_display_name_for_stmt(stmt, merchant_name, store_name),
+        dim=stmt.dim,
+        period_start=stmt.period_start,
+        period_end=stmt.period_end,
+        order_count=stmt.order_count or 0,
+        total_amount=float(stmt.total_amount or 0),
+        settlement_amount=float(stmt.settlement_amount or 0),
+        status=stmt.status,
+        generated_at=stmt.created_at,
+        settled_at=stmt.settled_at,
+        has_proof=proof is not None,
+    )
+    return SettlementDetailResponse(info=info, lines=lines, lines_total_amount=lines_total, proof=proof)
 
 
 # ========== 10. 发票信息 ==========

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Layout, Menu, Avatar, Dropdown, Typography, Button, theme, Input, Space, Badge, Tooltip } from 'antd';
+import { Layout, Menu, Avatar, Dropdown, Typography, Button, theme, Space } from 'antd';
 import {
   DashboardOutlined,
   UserOutlined,
@@ -38,7 +38,6 @@ import {
   IdcardOutlined,
   PieChartOutlined,
   KeyOutlined,
-  BellOutlined,
 } from '@ant-design/icons';
 import { useRouter, usePathname } from 'next/navigation';
 import type { MenuProps } from 'antd';
@@ -338,60 +337,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+          {/* 左侧：仅保留菜单折叠按钮 */}
+          <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
             <Button
               type="text"
               icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
               onClick={() => setCollapsed(!collapsed)}
               style={{ fontSize: 18, width: 48, height: 48 }}
-            />
-            <div
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: '50%',
-                background: 'linear-gradient(135deg, #52c41a, #13c2c2)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-              }}
-            >
-              <MedicineBoxOutlined style={{ fontSize: 16, color: '#fff' }} />
-            </div>
-            <Text strong style={{ fontSize: 15, color: '#333', whiteSpace: 'nowrap' }}>
-              宾尼小康
-            </Text>
-          </div>
-          <div style={{ flex: '0 1 45%', maxWidth: '50%', minWidth: 260, display: 'flex', justifyContent: 'center' }}>
-            <Input.Search
-              placeholder="搜索健康商品/服务/文章"
-              allowClear
-              size="large"
-              className="admin-header-search"
-              style={{ width: '100%' }}
-              enterButton
+              aria-label={collapsed ? '展开菜单' : '折叠菜单'}
             />
           </div>
+          {/* 右侧：仅保留管理员头像 + 退出登录下拉 */}
           <Space size={16} align="center" style={{ flexShrink: 0 }}>
-            <Tooltip title="扫一扫">
-              <Button
-                type="text"
-                shape="circle"
-                icon={<ScanOutlined style={{ fontSize: 20 }} />}
-                style={{ width: 40, height: 40 }}
-              />
-            </Tooltip>
-            <Tooltip title="消息">
-              <Badge dot offset={[-6, 6]}>
-                <Button
-                  type="text"
-                  shape="circle"
-                  icon={<BellOutlined style={{ fontSize: 20 }} />}
-                  style={{ width: 40, height: 40 }}
-                />
-              </Badge>
-            </Tooltip>
             <Dropdown menu={{ items: dropdownItems }} placement="bottomRight">
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
                 <Avatar

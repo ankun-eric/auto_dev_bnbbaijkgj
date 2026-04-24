@@ -189,10 +189,93 @@ class SettlementGenerateRequest(BaseModel):
 
 
 class PaymentProofCreateRequest(BaseModel):
-    file_url: str
-    file_name: Optional[str] = None
+    """[2026-04-24] 打款凭证上传请求（重构版）
+
+    - voucher_type + voucher_files 为新字段（必填）；图片模式允许 1~5 张，PDF 模式允许 1 份。
+    - remark 取代原 file_name 的自由文本角色（【文件名】字段已删除）。
+    - file_url / file_name 保留兼容旧前端调用（非必填）。
+    """
+    voucher_type: Optional[str] = None
+    voucher_files: Optional[List[str]] = None
     amount: float = 0
     paid_at: Optional[datetime] = None
+    remark: Optional[str] = None
+    file_url: Optional[str] = None
+    file_name: Optional[str] = None
+
+
+class PaymentProofDetail(BaseModel):
+    voucher_type: Optional[str] = None
+    voucher_files: List[str] = Field(default_factory=list)
+    amount: float = 0
+    paid_at: Optional[datetime] = None
+    remark: Optional[str] = None
+    uploaded_by: Optional[int] = None
+    uploaded_by_name: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class SettlementListItem(BaseModel):
+    """对账单列表行"""
+    id: int
+    statement_no: str
+    merchant_profile_id: int
+    merchant_name: Optional[str] = None
+    store_id: Optional[int] = None
+    store_name: Optional[str] = None
+    display_name: Optional[str] = None
+    dim: str
+    period_start: date
+    period_end: date
+    order_count: int = 0
+    total_amount: float = 0
+    settlement_amount: float = 0
+    status: str
+    generated_at: Optional[datetime] = None
+    settled_at: Optional[datetime] = None
+    has_proof: bool = False
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class SettlementListResponse(BaseModel):
+    total: int
+    items: List[SettlementListItem]
+    page: int
+    page_size: int
+
+
+class SettlementDetailLine(BaseModel):
+    order_no: Optional[str] = None
+    biz_type: Optional[str] = None
+    happened_at: Optional[datetime] = None
+    amount: float = 0
+    remark: Optional[str] = None
+
+
+class SettlementDetailResponse(BaseModel):
+    info: SettlementListItem
+    lines: List[SettlementDetailLine] = Field(default_factory=list)
+    lines_total_amount: float = 0
+    proof: Optional[PaymentProofDetail] = None
+
+
+class MerchantBrief(BaseModel):
+    id: int
+    name: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class StoreBrief(BaseModel):
+    id: int
+    name: str
+    merchant_profile_id: Optional[int] = None
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ──────────────── 发票 ────────────────
