@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -11,12 +12,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.database import get_db
 
+logger = logging.getLogger(__name__)
+
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     to_encode = data.copy()
+    # 防御性加固：JWT 规范要求 sub 必须是字符串，这里自动把 int / UUID 等对象 str 化，
+    # 避免任何新加的登录入口因把 sub 写成非字符串而被 python-jose 的 JWTClaimsError
+    # "Subject must be a string" 校验拒绝，从而导致"登录成功但下一个请求立即 401"
+    if "sub" in to_encode and to_encode["sub"] is not None and not isinstance(to_encode["sub"], str):
+        to_encode["sub"] = str(to_encode["sub"])
     expire = datetime.now(timezone.utc) + (expires_delta or timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES))
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
@@ -40,13 +48,21 @@ async def get_current_user(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="未登录")
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-        user_id: Optional[int] = payload.get("sub")
-        if user_id is None:
+        raw_sub = payload.get("sub")
+        if raw_sub is None:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="无效的认证凭证")
-    except JWTError:
+        # 类型兼容：历史 token 可能把 sub 写成整数，这里统一 str(...) 后再 int(...) 解析
+        try:
+            user_id = int(str(raw_sub))
+        except (TypeError, ValueError):
+            logger.warning("JWT sub 无法解析为整数 user_id: %r", raw_sub)
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="无效的认证凭证")
+    except JWTError as exc:
+        # 写入后端日志，便于以后类似问题 1 分钟内定位
+        logger.warning("JWT decode 失败: %s", exc)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="无效的认证凭证")
 
-    result = await db.execute(select(User).where(User.id == int(user_id)))
+    result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if user is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="用户不存在")

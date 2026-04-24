@@ -33,7 +33,38 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 商家端 H5 登录后被踢到用户端登录页 Bug 修复（2026-04-25）
+## Latest Update: 商家 PC 后台登录后被 401 踢回登录页 Bug 修复（2026-04-25）
+
+### 概要
+修复「商家 PC 后台登录后立即被后端 401 `无效的认证凭证` 踢回登录页」的 P0 阻塞型 Bug，该 Bug 导致商家 PC 后台自上线以来 100% 必现、从未真正能进入使用。
+
+### 根因
+`/api/merchant/auth/login` 签发 JWT 时 `sub` 被写成 int（`user.id`），违反 JWT 规范。签发阶段不做 claim 校验能正常返回 token，但下一个鉴权接口（Dashboard）在 `jwt.decode` 时被 `python-jose` 抛 `JWTClaimsError: Subject must be a string`，被 `get_current_user` 统一捕获为 401 `无效的认证凭证`，前端 axios 拦截器踢回登录页。其它登录入口（Admin / C 端密码 / C 端短信 / 注册）都已正确使用 `str(user.id)`，唯独 PC 商家登录手滑写成了 int。
+
+### 核心改动
+- **`backend/app/api/merchant_v1.py`**（PC 登录接口，第 292 行）：`create_access_token({"sub": user.id, ...})` → `create_access_token({"sub": str(user.id), ...})`，与项目其它登录接口对齐。
+- **`backend/app/core/security.py`**：
+  - `create_access_token`：自动 `str(...)` 化 `sub`，防止未来任何新登录入口再踩坑。
+  - `get_current_user`：`sub` 取值后 `int(str(...))` 解析路径，增加类型兼容；`JWTError` 写入后端日志，未来定位同类问题成本从小时级降到分钟级。
+- **`tests/test_merchant_pc_login_jwt.py`**：新增 4 条回归测试用例，覆盖 token 签发→解码链路 + 静态源码断言（防止 `"sub": user.id` 的裸 int 写法再次被引入），本地执行 4/4 通过。
+
+### 验证结果
+- 远程服务器端到端验证：在容器内准备了包含 `AccountIdentity(merchant_owner)` + `MerchantStoreMembership(owner)` + `MerchantStore` 完整链路的测试账号 `13900000425`；
+- 密码登录 `/api/merchant/auth/login` → 200，返回 token `{"sub":"17",...}`（已为字符串）；
+- 立即带 token 调 `/api/merchant/v1/dashboard/metrics` → **200**，返回完整工作台指标（`today_orders / today_verifications / month_gmv / pending_settlement / pending_attachments / unread_messages`），**不再出现 `无效的认证凭证`**。
+- 短信万能码 8888 登录路径同样 200 通过。
+- 用户手册：`user_docs/商家PC后台登录修复.md`。
+
+### 关键文件
+- `backend/app/api/merchant_v1.py`
+- `backend/app/core/security.py`
+- `tests/test_merchant_pc_login_jwt.py`
+- `deploy/deploy_merchant_pc_jwt_fix.py`
+- `deploy/verify_merchant_pc_jwt_fix.py`
+
+---
+
+## Previous Update: 商家端 H5 登录后被踢到用户端登录页 Bug 修复（2026-04-25）
 
 ### 概要
 修复「商家端 H5 登录成功后被自动跳到 C 端用户登录页」的严重体验 Bug，同时统一了三端（C 端 H5 / 商家端 H5+PC / admin 后台）登录态失效的跳转口径。

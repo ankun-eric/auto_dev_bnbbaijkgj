@@ -289,7 +289,7 @@ async def merchant_pc_login(
     if not rows:
         raise HTTPException(status_code=403, detail="您还未被绑定到任何门店，请联系平台客服")
     role = await _max_member_role(db, user.id)
-    token = create_access_token({"sub": user.id, "scope": "merchant_pc"})
+    token = create_access_token({"sub": str(user.id), "scope": "merchant_pc"})
     stores = [
         {
             "id": s.id,
