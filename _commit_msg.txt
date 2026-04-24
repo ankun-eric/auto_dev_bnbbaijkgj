@@ -1,7 +1,0 @@
-docs: 更新 project-context 索引 + 新增门店类别与商家角色权限用户手册
-
-- 在 project-context.mdc 新增 "门店类别字段 + 商家角色权限体系 v1.0" 变更记录
-- 在 user_docs/ 新增《门店类别与商家角色权限体系》用户体验手册
-
-对应代码变更已在上一个 commit 729a164 "feat: 门店类别字段 + 商家角色权限体系 (PRD v1.0)" 中提交并已部署到测试环境，
-DB 迁移（merchant_stores.category_id / merchant_store_memberships.role_code / merchant_role_templates 4 条默认数据）和全量链接验证均已通过。
