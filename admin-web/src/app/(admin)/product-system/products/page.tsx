@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   Table, Button, Space, Modal, Form, Input, InputNumber, Select, Switch, Upload, message,
-  Typography, Tag, Popconfirm, Row, Col, DatePicker, Tabs, Divider, Checkbox, Radio,
+  Typography, Tag, Popconfirm, Row, Col, Tabs, Divider, Checkbox, Radio,
   Tooltip, Badge,
 } from 'antd';
 import {
@@ -12,7 +12,6 @@ import {
   CloseOutlined, MenuOutlined, PlayCircleOutlined,
 } from '@ant-design/icons';
 import { get, post, put, del, upload } from '@/lib/api';
-import dayjs from 'dayjs';
 import type { UploadFile, RcFile } from 'antd/es/upload/interface';
 import SimpleRichEditor from '@/components/SimpleRichEditor';
 
@@ -43,8 +42,6 @@ interface Product {
   description: string;
   symptom_tags: string[];
   stock: number;
-  valid_start_date: string | null;
-  valid_end_date: string | null;
   points_exchangeable: boolean;
   points_price: number;
   points_deductible: boolean;
@@ -66,6 +63,7 @@ interface Product {
   main_video_url?: string;
   selling_point?: string;
   description_rich?: string;
+  marketing_badges?: string[];
   skus?: ProductSku[];
   created_at: string;
   updated_at: string;
@@ -106,8 +104,6 @@ function mapProduct(raw: Record<string, any>): Product {
     description: String(raw.description ?? ''),
     symptom_tags: Array.isArray(raw.symptom_tags) ? raw.symptom_tags.map(String) : [],
     stock: Number(raw.stock ?? 0),
-    valid_start_date: raw.valid_start_date ? String(raw.valid_start_date) : null,
-    valid_end_date: raw.valid_end_date ? String(raw.valid_end_date) : null,
     points_exchangeable: Boolean(raw.points_exchangeable),
     points_price: Number(raw.points_price ?? 0),
     points_deductible: Boolean(raw.points_deductible),
@@ -135,6 +131,9 @@ function mapProduct(raw: Record<string, any>): Product {
     main_video_url: String(raw.main_video_url ?? raw.video_url ?? ''),
     selling_point: String(raw.selling_point ?? ''),
     description_rich: String(raw.description_rich ?? ''),
+    marketing_badges: Array.isArray(raw.marketing_badges)
+      ? raw.marketing_badges.map(String).filter((b: string) => ['limited', 'hot', 'new', 'recommend'].includes(b))
+      : [],
     skus: Array.isArray(raw.skus) ? raw.skus.map((s: any) => ({
       id: s.id,
       spec_name: String(s.spec_name ?? ''),
@@ -168,6 +167,14 @@ const appointmentModes = [
   { label: '预约日期', value: 'date' },
   { label: '预约时段', value: 'time_slot' },
   { label: '自定义表单', value: 'custom_form' },
+];
+
+// 商品功能优化 v1.0：营销角标选项（运营后台可多选）
+const marketingBadgeOptions = [
+  { label: '限时', value: 'limited', color: '#FF4D4F' },
+  { label: '热销', value: 'hot', color: '#FF8C1A' },
+  { label: '新品', value: 'new', color: '#1890FF' },
+  { label: '推荐', value: 'recommend', color: '#52C41A' },
 ];
 
 const purchaseApptModes = [
@@ -634,8 +641,6 @@ export default function ProductsPage() {
       symptom_tags: otherTags,
       constitution_types: existingConstitutions,
       stock: detail.stock,
-      valid_start_date: detail.valid_start_date ? dayjs(detail.valid_start_date) : null,
-      valid_end_date: detail.valid_end_date ? dayjs(detail.valid_end_date) : null,
       points_exchangeable: detail.points_exchangeable,
       points_price: detail.points_price,
       points_deductible: detail.points_deductible,
@@ -650,6 +655,7 @@ export default function ProductsPage() {
       sort_order: detail.sort_order,
       payment_timeout_minutes: detail.payment_timeout_minutes,
       spec_mode: detail.spec_mode ?? 1,
+      marketing_badges: Array.isArray(detail.marketing_badges) ? detail.marketing_badges : [],
     });
     setProductCodes(detail.product_code_list || []);
     setSpecMode(detail.spec_mode ?? 1);
@@ -907,8 +913,6 @@ export default function ProductsPage() {
       skus: specMode === 2 ? skuList : [],
       symptom_tags: [...(values.symptom_tags || []), ...(values.constitution_types || [])],
       stock: specMode === 1 ? (values.stock ?? 0) : totalSkuStock,
-      valid_start_date: values.valid_start_date ? values.valid_start_date.format('YYYY-MM-DD') : null,
-      valid_end_date: values.valid_end_date ? values.valid_end_date.format('YYYY-MM-DD') : null,
       points_exchangeable: values.points_exchangeable || false,
       points_price: values.points_price ?? 0,
       points_deductible: values.points_deductible || false,
@@ -923,6 +927,7 @@ export default function ProductsPage() {
       status: publish ? 'active' : (values.status || 'draft'),
       sort_order: values.sort_order ?? 0,
       payment_timeout_minutes: values.payment_timeout_minutes ?? 15,
+      marketing_badges: Array.isArray(values.marketing_badges) ? values.marketing_badges : [],
     };
 
     try {
@@ -1104,7 +1109,6 @@ export default function ProductsPage() {
       render: (_: unknown, record: Product) => (
         <Space size={0} wrap>
           <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>编辑</Button>
-          <Button type="link" size="small" onClick={() => openFormFields(record)}>表单</Button>
           {record.status !== 'active' ? (
             <Popconfirm title="确定上架？" onConfirm={() => handleToggleStatus(record, 'active')}>
               <Button type="link" size="small" icon={<ArrowUpOutlined />}>上架</Button>
@@ -1295,6 +1299,33 @@ export default function ProductsPage() {
             rules={[{ max: 100, message: '最多 100 字' }]}
           >
             <TextArea rows={2} maxLength={100} showCount placeholder="如：3 场直播口碑爆款 / 医生 1v1 辨证施治 / 无效可退" />
+          </Form.Item>
+
+          <Form.Item
+            label="营销角标"
+            name="marketing_badges"
+            tooltip="多选，图片左上角按「限时>热销>新品>推荐」优先级仅展示 1 个"
+          >
+            <Checkbox.Group
+              options={marketingBadgeOptions.map(opt => ({
+                label: (
+                  <span
+                    style={{
+                      display: 'inline-block',
+                      padding: '2px 8px',
+                      background: opt.color,
+                      color: '#fff',
+                      borderRadius: 2,
+                      fontSize: 12,
+                      lineHeight: '16px',
+                    }}
+                  >
+                    {opt.label}
+                  </span>
+                ),
+                value: opt.value,
+              }))}
+            />
           </Form.Item>
 
           <Form.Item label="商品描述">
@@ -1502,15 +1533,6 @@ export default function ProductsPage() {
             </Row>
           )}
 
-          <Divider plain style={{ margin: '12px 0' }} />
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item label="有效开始日期" name="valid_start_date"><DatePicker style={{ width: '100%' }} /></Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item label="有效结束日期" name="valid_end_date"><DatePicker style={{ width: '100%' }} /></Form.Item>
-            </Col>
-          </Row>
         </>
       );
     }

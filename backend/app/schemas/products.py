@@ -1,10 +1,37 @@
-from datetime import date, datetime
+from datetime import datetime
 from typing import Any, Optional
 
-from pydantic import BaseModel, ConfigDict, model_validator
+from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
 
 ALLOWED_APPOINTMENT_MODES = {"none", "date", "time_slot", "custom_form"}
+
+# 商品功能优化 v1.0：营销角标（运营后台可多选）
+ALLOWED_MARKETING_BADGES = {"limited", "hot", "new", "recommend"}
+# 展示优先级：限时 > 热销 > 新品 > 推荐
+MARKETING_BADGE_PRIORITY = ["limited", "hot", "new", "recommend"]
+
+
+def _clean_marketing_badges(value: Optional[list[str]]) -> Optional[list[str]]:
+    """校验并去重营销角标列表；不合法值直接抛 ValueError。"""
+    if value is None:
+        return None
+    if not isinstance(value, list):
+        raise ValueError("marketing_badges 必须是字符串数组")
+    result: list[str] = []
+    seen = set()
+    for item in value:
+        if not isinstance(item, str):
+            raise ValueError(f"marketing_badges 包含非字符串：{item!r}")
+        if item not in ALLOWED_MARKETING_BADGES:
+            raise ValueError(
+                f"marketing_badges 存在非法值：{item}，允许值：{sorted(ALLOWED_MARKETING_BADGES)}"
+            )
+        if item in seen:
+            continue
+        seen.add(item)
+        result.append(item)
+    return result
 ALLOWED_PURCHASE_APPT_MODES = {
     "purchase_with_appointment",
     "appointment_later",
@@ -156,8 +183,6 @@ class ProductCreate(BaseModel):
     description: Optional[str] = None
     symptom_tags: Optional[Any] = None
     stock: int = 0
-    valid_start_date: Optional[date] = None
-    valid_end_date: Optional[date] = None
     points_exchangeable: bool = False
     points_price: int = 0
     points_deductible: bool = False
@@ -182,6 +207,13 @@ class ProductCreate(BaseModel):
     selling_point: Optional[str] = None
     description_rich: Optional[str] = None
     skus: Optional[list[ProductSkuCreate]] = None  # 多规格模式下提交
+    # ── v1.0 商品功能优化：营销角标 ──
+    marketing_badges: Optional[list[str]] = None
+
+    @field_validator("marketing_badges")
+    @classmethod
+    def _check_badges(cls, v):
+        return _clean_marketing_badges(v)
 
     @model_validator(mode="after")
     def _validate_appointment(self):
@@ -207,8 +239,6 @@ class ProductUpdate(BaseModel):
     description: Optional[str] = None
     symptom_tags: Optional[Any] = None
     stock: Optional[int] = None
-    valid_start_date: Optional[date] = None
-    valid_end_date: Optional[date] = None
     points_exchangeable: Optional[bool] = None
     points_price: Optional[int] = None
     points_deductible: Optional[bool] = None
@@ -232,6 +262,13 @@ class ProductUpdate(BaseModel):
     selling_point: Optional[str] = None
     description_rich: Optional[str] = None
     skus: Optional[list[ProductSkuCreate]] = None
+    # ── v1.0 商品功能优化：营销角标 ──
+    marketing_badges: Optional[list[str]] = None
+
+    @field_validator("marketing_badges")
+    @classmethod
+    def _check_badges(cls, v):
+        return _clean_marketing_badges(v)
 
     @model_validator(mode="after")
     def _validate_appointment(self):
@@ -269,8 +306,6 @@ class ProductResponse(BaseModel):
     description: Optional[str] = None
     symptom_tags: Optional[Any] = None
     stock: int
-    valid_start_date: Optional[date] = None
-    valid_end_date: Optional[date] = None
     points_exchangeable: bool
     points_price: int
     points_deductible: bool
@@ -294,10 +329,22 @@ class ProductResponse(BaseModel):
     selling_point: Optional[str] = None
     description_rich: Optional[str] = None
     skus: list[ProductSkuResponse] = []
+    # ── v1.0 商品功能优化：营销角标 ──
+    marketing_badges: list[str] = []
     created_at: datetime
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+    @field_validator("marketing_badges", mode="before")
+    @classmethod
+    def _coerce_marketing_badges(cls, v):
+        # 商品功能优化 v1.0：DB 中 JSON 字段可能是 None / 非法字符串，统一转为合法 list
+        if v is None:
+            return []
+        if isinstance(v, list):
+            return [str(x) for x in v if isinstance(x, str) and x in ALLOWED_MARKETING_BADGES]
+        return []
 
 
 class ProductDetailResponse(ProductResponse):

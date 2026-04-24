@@ -2397,8 +2397,8 @@ class Product(Base):
     description = mapped_column(Text, nullable=True)
     symptom_tags = mapped_column(JSON, nullable=True)
     stock = mapped_column(Integer, default=0)
-    valid_start_date = mapped_column(Date, nullable=True)
-    valid_end_date = mapped_column(Date, nullable=True)
+    # 商品功能优化 v1.0：valid_start_date / valid_end_date 已废弃并清理
+    # 如果历史业务确有限时活动需求，请改造为独立的 promotion 表
     points_exchangeable = mapped_column(Boolean, default=False)
     points_price = mapped_column(Integer, default=0)
     points_deductible = mapped_column(Boolean, default=False)
@@ -2422,6 +2422,10 @@ class Product(Base):
     main_video_url = mapped_column(String(500), nullable=True)  # 主图视频 URL
     selling_point = mapped_column(String(200), nullable=True)  # 商品卖点（100 字以内）
     description_rich = mapped_column(Text, nullable=True)  # 富文本 HTML
+    # 商品功能优化 v1.0：营销角标（运营勾选）
+    # 取值来自 {'limited','hot','new','recommend'} 中的任意子集
+    # 前端展示时按 limited > hot > new > recommend 优先级仅取 1 个渲染
+    marketing_badges = mapped_column(JSON, nullable=True)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { SearchBar, Empty, SpinLoading, InfiniteScroll, Toast } from 'antd-mobile';
 import api from '@/lib/api';
+import MarketingBadge from '@/components/MarketingBadge';
 
 /**
  * 改造④：用户端首页·服务列表
@@ -52,8 +53,20 @@ interface Product {
   images?: string[] | null;
   sales_count?: number;
   category_id?: number;
+  category_name?: string | null;
   fulfillment_type?: string | null;
   stock?: number;
+  selling_point?: string | null;
+  marketing_badges?: string[] | null;
+}
+
+// 商品功能优化 v1.0：R5 卖点兜底显示分类名
+function getSellingLine(product: Product, categoryMap: Record<number, string>): string {
+  const sp = (product.selling_point || '').trim();
+  if (sp) return sp;
+  if (product.category_name) return product.category_name;
+  if (product.category_id && categoryMap[product.category_id]) return categoryMap[product.category_id];
+  return '';
 }
 
 const PAGE_SIZE = 10;
@@ -91,51 +104,59 @@ function FulfillmentBadge({ type }: { type?: string | null }) {
 function ProductCard({
   product,
   onClick,
+  categoryMap,
 }: {
   product: Product;
   onClick: () => void;
+  categoryMap: Record<number, string>;
 }) {
   const cover = product.cover_image || (product.images && product.images[0]) || null;
+  // 商品功能优化 v1.0：
+  // - R3：删除「销量」
+  // - R4：不再展示「原价」
+  // - R5：商品名下方展示一行卖点（灰 #999 / 12px / 单行省略），兜底分类名
+  // - R6：商品图左上角展示营销角标（按优先级仅取 1 个）
+  const sellingLine = getSellingLine(product, categoryMap);
   return (
     <div
       onClick={onClick}
       className="bg-white rounded-xl p-3 mb-2 active:bg-gray-50 cursor-pointer shadow-sm"
     >
       <div className="flex">
-        {cover ? (
-          <img
-            src={cover}
-            alt={product.name}
-            className="w-20 h-20 rounded-lg object-cover flex-shrink-0"
-          />
-        ) : (
-          <div
-            className="w-20 h-20 rounded-lg flex items-center justify-center text-2xl flex-shrink-0"
-            style={{ background: 'linear-gradient(135deg, #f0fff0, #e8fce8)' }}
-          >
-            🏥
-          </div>
-        )}
+        <div className="relative w-20 h-20 flex-shrink-0">
+          {cover ? (
+            <img
+              src={cover}
+              alt={product.name}
+              className="w-20 h-20 rounded-lg object-cover"
+            />
+          ) : (
+            <div
+              className="w-20 h-20 rounded-lg flex items-center justify-center text-2xl"
+              style={{ background: 'linear-gradient(135deg, #f0fff0, #e8fce8)' }}
+            >
+              🏥
+            </div>
+          )}
+          <MarketingBadge badges={product.marketing_badges} />
+        </div>
         <div className="flex-1 ml-3 min-w-0">
           <div className="flex items-start">
             <span className="font-medium text-sm truncate flex-1">{product.name}</span>
             <FulfillmentBadge type={product.fulfillment_type} />
           </div>
-          {product.description && (
-            <p className="text-xs text-gray-400 mt-1 line-clamp-2">{product.description}</p>
+          {sellingLine && (
+            <p
+              className="mt-1 truncate"
+              style={{ color: '#999', fontSize: 12, lineHeight: '16px' }}
+            >
+              {sellingLine}
+            </p>
           )}
-          <div className="flex items-end justify-between mt-2">
-            <div>
-              <span className="text-base font-bold" style={{ color: '#52c41a' }}>
-                ¥{Number(product.sale_price).toFixed(2)}
-              </span>
-              {product.original_price && Number(product.original_price) > Number(product.sale_price) && (
-                <span className="text-xs text-gray-300 line-through ml-1">
-                  ¥{Number(product.original_price).toFixed(2)}
-                </span>
-              )}
-            </div>
-            <span className="text-xs text-gray-400">已售{product.sales_count || 0}</span>
+          <div className="mt-1">
+            <span className="text-base font-bold" style={{ color: '#52c41a' }}>
+              ¥{Number(product.sale_price).toFixed(2)}
+            </span>
           </div>
         </div>
       </div>
@@ -182,6 +203,21 @@ export default function ServicesPage() {
       })
       .catch(() => {});
   }, []);
+
+  // 商品功能优化 v1.0：分类 ID → 分类名 映射，用于 R5 卖点兜底
+  const categoryMap = useMemo<Record<number, string>>(() => {
+    const map: Record<number, string> = {};
+    allCategories.forEach((c) => {
+      map[c.id] = c.name;
+    });
+    topCategories.forEach((c) => {
+      if (!map[c.id]) map[c.id] = c.name;
+      (c.children || []).forEach((child) => {
+        if (!map[child.id]) map[child.id] = child.name;
+      });
+    });
+    return map;
+  }, [allCategories, topCategories]);
 
   // 当前大类的子类
   const subCategories = useMemo<Category[]>(() => {
@@ -312,7 +348,7 @@ export default function ServicesPage() {
                 共找到 {searchResults.length} 个匹配结果
               </div>
               {searchResults.map((p) => (
-                <ProductCard key={p.id} product={p} onClick={() => onProductClick(p)} />
+                <ProductCard key={p.id} product={p} onClick={() => onProductClick(p)} categoryMap={categoryMap} />
               ))}
             </>
           ) : (
@@ -331,6 +367,7 @@ export default function ServicesPage() {
                       key={p.id}
                       product={p}
                       onClick={() => onProductClick(p)}
+                      categoryMap={categoryMap}
                     />
                   ))}
                 </div>
@@ -444,7 +481,7 @@ export default function ServicesPage() {
             ) : (
               <>
                 {products.map((p) => (
-                  <ProductCard key={p.id} product={p} onClick={() => onProductClick(p)} />
+                  <ProductCard key={p.id} product={p} onClick={() => onProductClick(p)} categoryMap={categoryMap} />
                 ))}
                 <InfiniteScroll loadMore={loadMore} hasMore={hasMore} />
               </>

@@ -17,6 +17,7 @@ import {
 } from 'antd-mobile';
 import { HeartOutline, HeartFill } from 'antd-mobile-icons';
 import api from '@/lib/api';
+import MarketingBadge from '@/components/MarketingBadge';
 
 interface Store {
   id: number;
@@ -62,6 +63,7 @@ interface ProductDetail {
   review_count: number;
   avg_rating: number | null;
   stock: number;
+  marketing_badges?: string[] | null;
 }
 
 export default function ProductDetailPage() {
@@ -189,13 +191,17 @@ export default function ProductDetailPage() {
           {mediaTab === 'video' && hasVideo ? (
             <video src={videoSrc} controls className="w-full" style={{ height: 280, objectFit: 'cover', background: '#000', display: 'block' }} />
           ) : imageList.length > 0 ? (
-            <Swiper autoplay loop style={{ '--height': '280px' }}>
-              {imageList.map((img, i) => (
-                <Swiper.Item key={i}>
-                  <Image src={img} width="100%" height={280} fit="cover" />
-                </Swiper.Item>
-              ))}
-            </Swiper>
+            <div style={{ position: 'relative' }}>
+              <Swiper autoplay loop style={{ '--height': '280px' }}>
+                {imageList.map((img, i) => (
+                  <Swiper.Item key={i}>
+                    <Image src={img} width="100%" height={280} fit="cover" />
+                  </Swiper.Item>
+                ))}
+              </Swiper>
+              {/* 商品功能优化 v1.0：详情页头图左上角角标 */}
+              <MarketingBadge badges={product?.marketing_badges} />
+            </div>
           ) : (
             <div className="h-[280px] flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #52c41a30, #13c2c230)' }}>
               <div className="text-center">

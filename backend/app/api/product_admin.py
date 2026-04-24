@@ -59,6 +59,35 @@ from app.schemas.unified_orders import (
 router = APIRouter(prefix="/api/admin", tags=["商品管理后台"])
 
 
+# ─────────── 营销角标（v1.0 商品功能优化） ───────────
+
+ALLOWED_MARKETING_BADGES = {"limited", "hot", "new", "recommend"}
+
+
+def _normalize_badges(value) -> list[str]:
+    """把数据库里可能是 JSON 字符串 / list / None 的 marketing_badges 归一化为 list[str]。
+
+    非法值自动剔除，保持稳健（DB 中历史脏数据不会导致接口 500）。
+    """
+    import json as _json
+    if value is None or value == "":
+        return []
+    if isinstance(value, str):
+        try:
+            value = _json.loads(value)
+        except Exception:
+            return []
+    if not isinstance(value, list):
+        return []
+    result: list[str] = []
+    seen = set()
+    for item in value:
+        if isinstance(item, str) and item in ALLOWED_MARKETING_BADGES and item not in seen:
+            seen.add(item)
+            result.append(item)
+    return result
+
+
 # ─────────── 内部工具：SKU & Product 序列化 ───────────
 
 async def _get_sku_order_flags(db: AsyncSession, sku_ids: list[int]) -> dict[int, bool]:
@@ -135,8 +164,6 @@ async def _build_product_response_dict(db: AsyncSession, product: Product) -> di
         "description": product.description or "",
         "symptom_tags": product.symptom_tags or [],
         "stock": product.stock or 0,
-        "valid_start_date": product.valid_start_date.isoformat() if product.valid_start_date else None,
-        "valid_end_date": product.valid_end_date.isoformat() if product.valid_end_date else None,
         "points_exchangeable": bool(product.points_exchangeable),
         "points_price": product.points_price or 0,
         "points_deductible": bool(product.points_deductible),
@@ -159,6 +186,7 @@ async def _build_product_response_dict(db: AsyncSession, product: Product) -> di
         "main_video_url": product.main_video_url or "",
         "selling_point": product.selling_point or "",
         "description_rich": product.description_rich or "",
+        "marketing_badges": _normalize_badges(product.marketing_badges),
         "skus": sku_list,
         "created_at": product.created_at.isoformat() if product.created_at else None,
         "updated_at": product.updated_at.isoformat() if product.updated_at else None,
@@ -479,8 +507,6 @@ async def admin_create_product(
         description=data.description,
         symptom_tags=data.symptom_tags,
         stock=data.stock,
-        valid_start_date=data.valid_start_date,
-        valid_end_date=data.valid_end_date,
         points_exchangeable=data.points_exchangeable,
         points_price=data.points_price,
         points_deductible=data.points_deductible,
@@ -502,6 +528,7 @@ async def admin_create_product(
         main_video_url=data.main_video_url,
         selling_point=data.selling_point,
         description_rich=data.description_rich,
+        marketing_badges=data.marketing_badges if data.marketing_badges is not None else [],
     )
     db.add(product)
     await db.flush()

@@ -858,6 +858,21 @@ async def _sync_product_system_tables(conn: AsyncConnection) -> None:
             await conn.execute(text("ALTER TABLE products ADD COLUMN selling_point VARCHAR(200) NULL"))
         if "description_rich" not in cols:
             await conn.execute(text("ALTER TABLE products ADD COLUMN description_rich TEXT NULL"))
+        # ── 商品功能优化 v1.0：营销角标（limited/hot/new/recommend） ──
+        if "marketing_badges" not in cols:
+            await conn.execute(text("ALTER TABLE products ADD COLUMN marketing_badges JSON NULL"))
+        # ── 商品功能优化 v1.0：彻底清理有效日期字段（用户选择 C. 彻底清空） ──
+        # 幂等执行：列存在则 DROP；不存在则跳过。所有异常静默处理（例如 MySQL 不同版本的语法差异）
+        if "valid_start_date" in cols:
+            try:
+                await conn.execute(text("ALTER TABLE products DROP COLUMN valid_start_date"))
+            except Exception:
+                pass
+        if "valid_end_date" in cols:
+            try:
+                await conn.execute(text("ALTER TABLE products DROP COLUMN valid_end_date"))
+            except Exception:
+                pass
 
     # ── 预约表单库：为 appointment_forms 增加 status 列（BUG-PRODUCT-APPT-001）──
     if "appointment_forms" in table_cols:

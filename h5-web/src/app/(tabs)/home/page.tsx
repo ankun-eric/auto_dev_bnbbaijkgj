@@ -6,6 +6,18 @@ import { Swiper, Grid, List, Tag, Badge, NoticeBar, SpinLoading, Toast, Dialog, 
 import { useHomeConfig, HomeBanner, HomeMenu } from '@/lib/useHomeConfig';
 import api from '@/lib/api';
 import { getSelectedCity, getLocationCache, requestGeolocation, CityInfo } from '@/lib/cityUtils';
+import MarketingBadge from '@/components/MarketingBadge';
+
+interface RecommendProduct {
+  id: number;
+  name: string;
+  sale_price: number;
+  cover_image?: string | null;
+  images?: string[] | null;
+  selling_point?: string | null;
+  category_name?: string | null;
+  marketing_badges?: string[] | null;
+}
 
 const UNREAD_POLL_INTERVAL = 60 * 1000;
 
@@ -103,6 +115,7 @@ export default function HomePage() {
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [articles, setArticles] = useState<ArticleItem[]>([]);
   const [latestNews, setLatestNews] = useState<NewsHomeItem[]>([]);
+  const [hotProducts, setHotProducts] = useState<RecommendProduct[]>([]);
 
   const [cityDisplay, setCityDisplay] = useState('定位');
   const [cityStatus, setCityStatus] = useState<CityStatus>('idle');
@@ -144,6 +157,27 @@ export default function HomePage() {
       setArticles(mapped);
     } catch {
       setArticles([]);
+    }
+  }, []);
+
+  // 商品功能优化 v1.0：首页热门推荐商品（带营销角标）
+  const fetchHotProducts = useCallback(async () => {
+    try {
+      const res: any = await api.get('/api/products/hot-recommendations?limit=6');
+      const items: any[] = Array.isArray(res) ? res : (res?.items ?? res?.data?.items ?? res?.data ?? []);
+      const list: RecommendProduct[] = (items || []).map((p) => ({
+        id: Number(p.id),
+        name: String(p.name ?? ''),
+        sale_price: Number(p.sale_price ?? 0),
+        cover_image: p.cover_image ?? (Array.isArray(p.images) ? p.images[0] : null),
+        images: Array.isArray(p.images) ? p.images : null,
+        selling_point: p.selling_point ?? null,
+        category_name: p.category_name ?? null,
+        marketing_badges: Array.isArray(p.marketing_badges) ? p.marketing_badges : [],
+      }));
+      setHotProducts(list);
+    } catch {
+      setHotProducts([]);
     }
   }, []);
 
@@ -202,7 +236,8 @@ export default function HomePage() {
     fetchTodos();
     fetchArticles();
     fetchLatestNews();
-  }, [fetchTodos, fetchNotices, fetchArticles, fetchLatestNews]);
+    fetchHotProducts();
+  }, [fetchTodos, fetchNotices, fetchArticles, fetchLatestNews, fetchHotProducts]);
 
   const refreshCityDisplay = useCallback(() => {
     const selected = getSelectedCity();
@@ -315,6 +350,7 @@ export default function HomePage() {
       fetchTodos(),
       fetchArticles(),
       fetchLatestNews(),
+      fetchHotProducts(),
       fetchUnreadCount(),
     ]);
   }, [refetchHomeConfig, fetchNotices, fetchTodos, fetchArticles, fetchLatestNews, fetchUnreadCount]);
@@ -694,6 +730,89 @@ export default function HomePage() {
             </div>
           </div>
         </div>
+
+        {/* 商品功能优化 v1.0：首页热门推荐（带营销角标） */}
+        {hotProducts.length > 0 && (
+          <div className="mb-4">
+            <div className="flex items-center justify-between mb-3">
+              <span className="section-title mb-0">热门推荐</span>
+              <span className="text-xs text-primary" onClick={() => router.push('/services')}>
+                更多
+              </span>
+            </div>
+            <div
+              className="flex overflow-x-auto"
+              style={{
+                gap: 10,
+                paddingBottom: 4,
+                scrollbarWidth: 'none',
+                WebkitOverflowScrolling: 'touch',
+              }}
+            >
+              {hotProducts.map((p) => {
+                const cover = p.cover_image || (p.images && p.images[0]) || null;
+                const sellingLine = (p.selling_point || '').trim() || p.category_name || '';
+                return (
+                  <div
+                    key={p.id}
+                    onClick={() => router.push(`/product/${p.id}`)}
+                    className="bg-white rounded-lg"
+                    style={{
+                      flex: '0 0 140px',
+                      width: 140,
+                      boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+                      cursor: 'pointer',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    <div style={{ position: 'relative', width: '100%', height: 100 }}>
+                      {cover ? (
+                        <img
+                          src={cover}
+                          alt={p.name}
+                          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                        />
+                      ) : (
+                        <div
+                          style={{
+                            width: '100%', height: '100%',
+                            background: 'linear-gradient(135deg, #f0fff0, #e8fce8)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: 28,
+                          }}
+                        >🏥</div>
+                      )}
+                      <MarketingBadge badges={p.marketing_badges} size="sm" />
+                    </div>
+                    <div style={{ padding: 8 }}>
+                      <div
+                        style={{
+                          fontSize: 13, fontWeight: 500, lineHeight: 1.3,
+                          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {p.name}
+                      </div>
+                      {sellingLine && (
+                        <div
+                          style={{
+                            color: '#999', fontSize: 12, lineHeight: '16px', marginTop: 2,
+                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {sellingLine}
+                        </div>
+                      )}
+                      <div style={{ color: '#52c41a', fontWeight: 700, fontSize: 14, marginTop: 2 }}>
+                        ¥{Number(p.sale_price).toFixed(2)}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {latestNews.length > 0 && (
           <div className="mb-4">
