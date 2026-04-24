@@ -949,6 +949,11 @@ async def _sync_merchant_v1_backend(conn: AsyncConnection) -> None:
     - merchant_profiles 新增 category_id
     - 其他新表由 metadata.create_all 自动创建
     - 初始化默认 merchant_categories
+    [2026-04-24] 扩展：
+    - merchant_stores 新增 category_id
+    - merchant_store_memberships 新增 role_code
+    - 新增 merchant_role_templates 表 + 4 条默认角色
+    - 存量 membership 自动回填 role_code
     """
     def _load(sync_conn):
         inspector = inspect(sync_conn)
@@ -956,9 +961,15 @@ async def _sync_merchant_v1_backend(conn: AsyncConnection) -> None:
         mp_cols = None
         if "merchant_profiles" in tables:
             mp_cols = {c["name"] for c in inspector.get_columns("merchant_profiles")}
-        return tables, mp_cols
+        ms_cols = None
+        if "merchant_stores" in tables:
+            ms_cols = {c["name"] for c in inspector.get_columns("merchant_stores")}
+        mem_cols = None
+        if "merchant_store_memberships" in tables:
+            mem_cols = {c["name"] for c in inspector.get_columns("merchant_store_memberships")}
+        return tables, mp_cols, ms_cols, mem_cols
 
-    tables, mp_cols = await conn.run_sync(_load)
+    tables, mp_cols, ms_cols, mem_cols = await conn.run_sync(_load)
 
     # ENUM 扩展（MySQL：MODIFY COLUMN 为新 ENUM）
     if "merchant_store_memberships" in tables:
@@ -974,6 +985,22 @@ async def _sync_merchant_v1_backend(conn: AsyncConnection) -> None:
         try:
             await conn.execute(text("ALTER TABLE merchant_profiles ADD COLUMN category_id INT NULL"))
             await conn.execute(text("CREATE INDEX ix_mp_category ON merchant_profiles(category_id)"))
+        except Exception:
+            pass
+
+    # [2026-04-24] merchant_stores 新增 category_id
+    if ms_cols is not None and "category_id" not in ms_cols:
+        try:
+            await conn.execute(text("ALTER TABLE merchant_stores ADD COLUMN category_id INT NULL"))
+            await conn.execute(text("CREATE INDEX ix_ms_category ON merchant_stores(category_id)"))
+        except Exception:
+            pass
+
+    # [2026-04-24] merchant_store_memberships 新增 role_code
+    if mem_cols is not None and "role_code" not in mem_cols:
+        try:
+            await conn.execute(text("ALTER TABLE merchant_store_memberships ADD COLUMN role_code VARCHAR(32) NULL"))
+            await conn.execute(text("CREATE INDEX ix_mem_role_code ON merchant_store_memberships(role_code)"))
         except Exception:
             pass
 
@@ -999,6 +1026,58 @@ async def _sync_merchant_v1_backend(conn: AsyncConnection) -> None:
                         {"code": code, "name": name, "icon": icon, "atypes": _json.dumps(atypes),
                          "label": label, "sort": sort},
                     )
+            except Exception:
+                pass
+
+    # [2026-04-24] 默认角色模板（幂等插入 + 回填存量 membership）
+    # 重新读取 tables 以包含新创建的 merchant_role_templates
+    def _tables_only(sync_conn):
+        return set(inspect(sync_conn).get_table_names())
+    tables2 = await conn.run_sync(_tables_only)
+    if "merchant_role_templates" in tables2:
+        import json as _json
+        # 8 模块体系（与 admin_merchant.FULL_MODULE_CODES 保持一致）
+        default_roles = [
+            ("boss", "老板", ["dashboard", "verify", "records", "messages", "profile", "finance", "staff", "settings"], 10),
+            ("manager", "店长", ["dashboard", "verify", "records", "messages", "profile", "finance", "staff", "settings"], 20),
+            ("finance", "财务", ["dashboard", "records", "messages", "profile", "finance"], 30),
+            ("clerk", "店员", ["dashboard", "verify", "records", "messages", "profile"], 40),
+        ]
+        for code, name, modules, sort_order in default_roles:
+            try:
+                rs = await conn.execute(
+                    text("SELECT id, default_modules FROM merchant_role_templates WHERE code=:c"),
+                    {"c": code},
+                )
+                row = rs.fetchone()
+                if row is None:
+                    await conn.execute(
+                        text(
+                            "INSERT INTO merchant_role_templates(code, name, default_modules, is_system, sort_order, created_at, updated_at) "
+                            "VALUES(:code, :name, :modules, 1, :sort, NOW(), NOW())"
+                        ),
+                        {"code": code, "name": name, "modules": _json.dumps(modules), "sort": sort_order},
+                    )
+                else:
+                    # 保证内置角色的 default_modules 与矩阵一致（幂等刷新）
+                    await conn.execute(
+                        text("UPDATE merchant_role_templates SET name=:name, default_modules=:modules, is_system=1, sort_order=:sort, updated_at=NOW() WHERE id=:id"),
+                        {"name": name, "modules": _json.dumps(modules), "sort": sort_order, "id": row[0]},
+                    )
+            except Exception:
+                pass
+
+        # 回填 membership.role_code：owner->boss，其它->clerk（不覆盖已有值）
+        if mem_cols is not None:
+            try:
+                await conn.execute(text(
+                    "UPDATE merchant_store_memberships SET role_code='boss' "
+                    "WHERE member_role='owner' AND (role_code IS NULL OR role_code='')"
+                ))
+                await conn.execute(text(
+                    "UPDATE merchant_store_memberships SET role_code='clerk' "
+                    "WHERE member_role<>'owner' AND (role_code IS NULL OR role_code='')"
+                ))
             except Exception:
                 pass
 

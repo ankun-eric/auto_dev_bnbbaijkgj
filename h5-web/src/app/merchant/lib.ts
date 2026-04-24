@@ -71,16 +71,37 @@ export const roleLabel: Record<string, string> = {
 };
 
 // 按角色决定菜单可见性
+// [2026-04-24] 扩充 8 个模块；新增 finance（财务对账汇总）、保留原 settlement/invoice/staff/store-settings
 export function canAccess(role: string | undefined, page: string): boolean {
   if (!role) return false;
   const matrix: Record<string, string[]> = {
-    owner: ['dashboard', 'orders', 'verifications', 'reports', 'settlement', 'invoice', 'staff', 'store-settings', 'downloads', 'messages'],
-    store_manager: ['dashboard', 'orders', 'verifications', 'reports', 'staff', 'store-settings', 'messages'],
+    // boss 老板：全部
+    owner: ['dashboard', 'orders', 'verifications', 'reports', 'settlement', 'invoice', 'finance', 'staff', 'store-settings', 'downloads', 'messages'],
+    // manager 店长：全部
+    store_manager: ['dashboard', 'orders', 'verifications', 'reports', 'settlement', 'invoice', 'finance', 'staff', 'store-settings', 'downloads', 'messages'],
+    // finance 财务：dashboard/records/messages/profile/finance（不能核销、不能看员工/门店设置）
+    finance: ['dashboard', 'orders', 'verifications', 'reports', 'settlement', 'invoice', 'finance', 'downloads', 'messages'],
+    // clerk 店员 = verifier：dashboard/verify/records/messages/profile
     verifier: ['dashboard', 'orders', 'verifications', 'messages'],
-    finance: ['dashboard', 'orders', 'verifications', 'reports', 'settlement', 'invoice', 'downloads', 'messages'],
+    // 历史兜底：staff 视同 clerk
     staff: ['dashboard', 'orders', 'verifications', 'messages'],
   };
   return (matrix[role] || []).includes(page);
 }
+
+// 角色 code（boss/manager/finance/clerk）到底层 member_role 的映射
+export const roleCodeToMemberRole: Record<string, 'owner' | 'store_manager' | 'finance' | 'verifier'> = {
+  boss: 'owner',
+  manager: 'store_manager',
+  finance: 'finance',
+  clerk: 'verifier',
+};
+
+export const roleCodeLabel: Record<string, string> = {
+  boss: '老板',
+  manager: '店长',
+  finance: '财务',
+  clerk: '店员',
+};
 
 export { api };

@@ -37,6 +37,7 @@ from app.models.models import (
     MerchantNotification,
     MerchantOrderVerification,
     MerchantProfile,
+    MerchantRoleTemplate,
     MerchantStore,
     MerchantStoreMembership,
     MerchantStorePermission,
@@ -62,7 +63,10 @@ from app.schemas.merchant_v1 import (
     MerchantLoginResponse,
     MerchantOrderItem,
     MerchantOrderListResponse,
+    MerchantRoleTemplateBrief,
+    MerchantStaffPermissionUpdateRequest,
     MerchantStaffResponse,
+    MerchantStaffStatusUpdateRequest,
     MerchantStatusResponse,
     MerchantVerificationRecord,
     MerchantWorkbenchMetrics,
@@ -1133,6 +1137,11 @@ async def merchant_list_staff(
         .join(User, User.id == MerchantStoreMembership.user_id)
         .where(MerchantStoreMembership.store_id.in_(my_store_ids))
     )
+    # 预加载角色模板名称
+    tpl_res = await db.execute(select(MerchantRoleTemplate))
+    role_name_map = {t.code: t.name for t in tpl_res.scalars().all()}
+    _DEFAULT_ROLE_NAMES = {"boss": "老板", "manager": "店长", "finance": "财务", "clerk": "店员"}
+
     by_user: dict[int, MerchantStaffResponse] = {}
     for m, u in res.all():
         existing = by_user.get(u.id)
@@ -1140,12 +1149,169 @@ async def merchant_list_staff(
             if m.store_id not in existing.store_ids:
                 existing.store_ids.append(m.store_id)
         else:
+            rc = getattr(m, "role_code", None)
+            if not rc:
+                if m.member_role == MerchantMemberRole.owner:
+                    rc = "boss"
+                else:
+                    rc = "clerk"
             by_user[u.id] = MerchantStaffResponse(
                 user_id=u.id,
                 phone=u.phone or "",
                 nickname=u.nickname,
                 member_role=m.member_role.value,
+                role_code=rc,
+                role_name=role_name_map.get(rc) or _DEFAULT_ROLE_NAMES.get(rc),
                 store_ids=[m.store_id],
                 status=m.status,
             )
     return list(by_user.values())
+
+
+# ========== 13. 角色模板（平台字典，Admin 读取） ==========
+
+@admin_router.get("/merchant-role-templates", response_model=List[MerchantRoleTemplateBrief])
+async def admin_list_merchant_role_templates(
+    _: User = Depends(admin_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    res = await db.execute(
+        select(MerchantRoleTemplate).order_by(
+            MerchantRoleTemplate.sort_order.asc(), MerchantRoleTemplate.id.asc()
+        )
+    )
+    items = []
+    for t in res.scalars().all():
+        mods = t.default_modules if isinstance(t.default_modules, list) else []
+        items.append(MerchantRoleTemplateBrief(code=t.code, name=t.name, default_modules=list(mods)))
+    return items
+
+
+@router.get("/api/merchant/v1/role-templates", response_model=List[MerchantRoleTemplateBrief])
+async def merchant_list_role_templates(
+    current_user: User = Depends(merchant_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    """商家端读取角色模板（用于店长查看权限 / 前端展示角色）"""
+    res = await db.execute(
+        select(MerchantRoleTemplate).order_by(
+            MerchantRoleTemplate.sort_order.asc(), MerchantRoleTemplate.id.asc()
+        )
+    )
+    items = []
+    for t in res.scalars().all():
+        mods = t.default_modules if isinstance(t.default_modules, list) else []
+        items.append(MerchantRoleTemplateBrief(code=t.code, name=t.name, default_modules=list(mods)))
+    return items
+
+
+# ========== 14. 商家端员工管理（店长可改权限/停用，不能新增） ==========
+
+_FULL_MODULE_CODES_V1 = [
+    "dashboard", "verify", "records", "messages", "profile", "finance", "staff", "settings",
+]
+
+
+async def _require_manager_or_owner(db: AsyncSession, user_id: int) -> MerchantMemberRole:
+    role = await _max_member_role(db, user_id)
+    if role not in (MerchantMemberRole.owner, MerchantMemberRole.store_manager):
+        raise HTTPException(status_code=403, detail="无权限操作员工")
+    return role
+
+
+@router.post("/api/merchant/v1/staff")
+async def merchant_staff_create_forbidden(
+    current_user: User = Depends(merchant_dep),
+):
+    """店长/老板通过商家端新增员工——本期统一禁止，需要由 Admin 新建"""
+    raise HTTPException(status_code=403, detail={
+        "code": "E_MANAGER_CANNOT_CREATE",
+        "message": "新增员工请在平台管理后台完成",
+    })
+
+
+@router.put("/api/merchant/v1/staff/{target_user_id}/permissions")
+async def merchant_staff_update_permissions(
+    target_user_id: int,
+    data: MerchantStaffPermissionUpdateRequest,
+    current_user: User = Depends(merchant_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    role = await _require_manager_or_owner(db, current_user.id)
+    my_store_ids = set(await _user_store_ids(db, current_user.id))
+    if data.store_id not in my_store_ids:
+        raise HTTPException(status_code=403, detail="无权限跨店操作")
+
+    target_mem_res = await db.execute(
+        select(MerchantStoreMembership).where(
+            MerchantStoreMembership.user_id == target_user_id,
+            MerchantStoreMembership.store_id == data.store_id,
+        )
+    )
+    target_mem = target_mem_res.scalar_one_or_none()
+    if not target_mem:
+        raise HTTPException(status_code=404, detail="目标员工在该门店不存在")
+
+    target_rc = getattr(target_mem, "role_code", None) or (
+        "boss" if target_mem.member_role == MerchantMemberRole.owner else "clerk"
+    )
+    # 店长不能修改老板/其他店长；老板可修改除老板外的角色
+    if role == MerchantMemberRole.store_manager and target_rc in ("boss", "manager"):
+        raise HTTPException(status_code=403, detail="无权限修改该员工")
+    if target_rc == "boss":
+        raise HTTPException(status_code=403, detail="不能修改老板权限")
+
+    modules = [m for m in (data.module_codes or []) if m in _FULL_MODULE_CODES_V1]
+    perm_res = await db.execute(
+        select(MerchantStorePermission).where(
+            MerchantStorePermission.membership_id == target_mem.id
+        )
+    )
+    existing = perm_res.scalars().all()
+    existing_map = {p.module_code: p for p in existing}
+    keep = set(modules)
+    for p in existing:
+        if p.module_code not in keep:
+            await db.delete(p)
+    for m in modules:
+        if m not in existing_map:
+            db.add(MerchantStorePermission(membership_id=target_mem.id, module_code=m))
+    await db.commit()
+    return {"message": "权限已更新", "module_codes": sorted(keep)}
+
+
+@router.put("/api/merchant/v1/staff/{target_user_id}/status")
+async def merchant_staff_update_status(
+    target_user_id: int,
+    data: MerchantStaffStatusUpdateRequest,
+    current_user: User = Depends(merchant_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    role = await _require_manager_or_owner(db, current_user.id)
+    if data.status not in ("active", "disabled"):
+        raise HTTPException(status_code=400, detail="无效的状态值")
+    my_store_ids = set(await _user_store_ids(db, current_user.id))
+    target_mem_res = await db.execute(
+        select(MerchantStoreMembership).where(
+            MerchantStoreMembership.user_id == target_user_id,
+            MerchantStoreMembership.store_id.in_(my_store_ids),
+        )
+    )
+    memberships = target_mem_res.scalars().all()
+    if not memberships:
+        raise HTTPException(status_code=404, detail="目标员工不在你的授权门店")
+
+    for mem in memberships:
+        target_rc = getattr(mem, "role_code", None) or (
+            "boss" if mem.member_role == MerchantMemberRole.owner else "clerk"
+        )
+        if target_rc == "boss":
+            raise HTTPException(status_code=403, detail="不能停用老板账号")
+        if role == MerchantMemberRole.store_manager and target_rc in ("boss", "manager"):
+            raise HTTPException(status_code=403, detail="无权限操作该员工")
+
+    for mem in memberships:
+        mem.status = data.status
+        mem.updated_at = datetime.utcnow()
+    await db.commit()
+    return {"message": "状态已更新", "status": data.status}

@@ -1,0 +1,16 @@
+feat: 门店类别字段 + 商家角色权限体系 (PRD v1.0)
+
+- 新增 merchant_role_templates 表 + 4 个内置角色 (boss/manager/finance/clerk)
+- merchant_store_memberships 新增 role_code 字段
+- merchant_stores 新增 category_id 字段 (PRD 要求新建门店必选类别)
+- FULL_MODULE_CODES 扩充至 8 个 (新增 finance/staff/settings)
+- admin: 门店表单新增所属类别必选下拉 + 列表筛选
+- admin: 员工表单新增角色下拉 + 按角色自动勾选模块 + 列表角色列/筛选
+- admin: owner 身份显示名改为"老板"
+- h5-web: 新增 /merchant/finance 财务对账汇总页
+- h5-web: staff 页支持店长对本店下属改权限/停用/启用
+- 新增 API: GET /api/admin/merchant-role-templates
+- 新增 API: PUT /api/merchant/v1/staff/{id}/permissions
+- 新增 API: PUT /api/merchant/v1/staff/{id}/status
+- 新增 API: POST /api/merchant/v1/staff (明确拒绝, E_MANAGER_CANNOT_CREATE)
+- schema_sync: 幂等化角色模板种子 + 回填存量 membership.role_code

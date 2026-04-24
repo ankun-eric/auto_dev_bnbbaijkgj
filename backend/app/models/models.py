@@ -399,6 +399,8 @@ class MerchantStore(Base):
     id = mapped_column(Integer, primary_key=True, autoincrement=True)
     store_name = mapped_column(String(100), nullable=False)
     store_code = mapped_column(String(50), nullable=False, unique=True, index=True)
+    # [2026-04-24] 门店所属类别（复用 merchant_categories 字典）
+    category_id = mapped_column(Integer, ForeignKey("merchant_categories.id"), nullable=True, index=True)
     contact_name = mapped_column(String(100), nullable=True)
     contact_phone = mapped_column(String(20), nullable=True)
     address = mapped_column(String(255), nullable=True)
@@ -414,6 +416,8 @@ class MerchantStoreMembership(Base):
     user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     store_id = mapped_column(Integer, ForeignKey("merchant_stores.id"), nullable=False, index=True)
     member_role = mapped_column(Enum(MerchantMemberRole), nullable=False)
+    # [2026-04-24] 角色模板 code（boss/manager/finance/clerk）
+    role_code = mapped_column(String(32), nullable=True, index=True)
     status = mapped_column(String(20), default="active")
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -479,6 +483,20 @@ class MerchantCategory(Base):
     attachment_label = mapped_column(String(64), nullable=True)
     sort = mapped_column(Integer, default=0)
     status = mapped_column(String(16), default="active")
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class MerchantRoleTemplate(Base):
+    """[2026-04-24] 商家端角色模板（平台内置：老板/店长/财务/店员）"""
+    __tablename__ = "merchant_role_templates"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    code = mapped_column(String(32), unique=True, nullable=False, index=True)
+    name = mapped_column(String(32), nullable=False)
+    default_modules = mapped_column(JSON, nullable=False)
+    is_system = mapped_column(Boolean, default=True)
+    sort_order = mapped_column(Integer, default=0)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

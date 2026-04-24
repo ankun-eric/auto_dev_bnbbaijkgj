@@ -37,11 +37,17 @@ class MerchantStoreResponse(BaseModel):
     status: str
     member_role: str
     module_codes: List[str] = Field(default_factory=list)
+    # [2026-04-24] 门店类别字段
+    category_id: Optional[int] = None
+    category_code: Optional[str] = None
+    category_name: Optional[str] = None
 
 
 class MerchantStoreCreate(BaseModel):
     store_name: str
     store_code: str
+    # [2026-04-24] 新建门店必填「所属类别」
+    category_id: Optional[int] = None
     contact_name: Optional[str] = None
     contact_phone: Optional[str] = None
     address: Optional[str] = None
@@ -50,6 +56,8 @@ class MerchantStoreCreate(BaseModel):
 
 class MerchantStoreUpdate(BaseModel):
     store_name: Optional[str] = None
+    # [2026-04-24] 允许修改门店类别
+    category_id: Optional[int] = None
     contact_name: Optional[str] = None
     contact_phone: Optional[str] = None
     address: Optional[str] = None
@@ -68,6 +76,8 @@ class MerchantAccountUpsert(BaseModel):
     user_avatar: Optional[str] = None
     enable_user_identity: bool = False
     merchant_identity_type: str
+    # [2026-04-24] 角色模板 code（boss/manager/finance/clerk）
+    role_code: Optional[str] = None
     merchant_nickname: Optional[str] = None
     merchant_avatar: Optional[str] = None
     status: str = "active"
@@ -82,8 +92,26 @@ class MerchantAccountImportItem(BaseModel):
     enable_user_identity: bool = False
     merchant_nickname: Optional[str] = None
     merchant_identity_type: str = "staff"
+    role_code: Optional[str] = None
     store_permissions: List[MerchantStorePermissionInput] = Field(default_factory=list)
     status: str = "active"
+
+
+class MerchantRoleTemplateResponse(BaseModel):
+    code: str
+    name: str
+    default_modules: List[str] = Field(default_factory=list)
+    is_system: bool = True
+    sort_order: int = 0
+
+
+class MerchantStaffPermissionUpdate(BaseModel):
+    """店长通过商家端修改下属权限"""
+    module_codes: List[str] = Field(default_factory=list)
+
+
+class MerchantStaffStatusUpdate(BaseModel):
+    status: str  # active / disabled
 
 
 class MerchantAccountImportRequest(BaseModel):
@@ -98,6 +126,9 @@ class MerchantAccountSummaryResponse(BaseModel):
     merchant_nickname: Optional[str] = None
     identity_codes: List[str] = Field(default_factory=list)
     merchant_identity_type: Optional[str] = None
+    # [2026-04-24] 角色
+    role_code: Optional[str] = None
+    role_name: Optional[str] = None
     stores: List[MerchantStoreResponse] = Field(default_factory=list)
     created_at: datetime
 

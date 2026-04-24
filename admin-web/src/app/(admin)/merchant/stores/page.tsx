@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Button, Form, Input, Modal, Popconfirm, Space, Table, Tag, Typography, message } from 'antd';
+import { Button, Form, Input, Modal, Popconfirm, Select, Space, Table, Tag, Typography, message } from 'antd';
 import { get, post, put } from '@/lib/api';
 
 const { Title } = Typography;
@@ -14,19 +14,42 @@ interface StoreItem {
   contact_phone?: string;
   address?: string;
   status: string;
+  category_id?: number | null;
+  category_code?: string | null;
+  category_name?: string | null;
+}
+
+interface CategoryItem {
+  id: number;
+  code: string;
+  name: string;
 }
 
 export default function MerchantStoresPage() {
   const [items, setItems] = useState<StoreItem[]>([]);
+  const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [filterCategory, setFilterCategory] = useState<string | undefined>(undefined);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<StoreItem | null>(null);
   const [form] = Form.useForm();
 
-  const fetchData = async () => {
+  const fetchCategories = async () => {
+    try {
+      const res = await get('/api/admin/merchant-categories');
+      setCategories(Array.isArray(res) ? res : (res.items || []));
+    } catch {
+      // 静默
+    }
+  };
+
+  const fetchData = async (categoryCode?: string) => {
     setLoading(true);
     try {
-      const res = await get('/api/admin/merchant/stores');
+      const url = categoryCode
+        ? `/api/admin/merchant/stores?category_code=${encodeURIComponent(categoryCode)}`
+        : '/api/admin/merchant/stores';
+      const res = await get(url);
       setItems(res.items || []);
     } catch (error: any) {
       message.error(error?.response?.data?.detail || '门店列表加载失败');
@@ -36,19 +59,22 @@ export default function MerchantStoresPage() {
   };
 
   useEffect(() => {
+    fetchCategories();
     fetchData();
   }, []);
 
   const openCreate = () => {
     setEditing(null);
     form.resetFields();
-    form.setFieldsValue({ status: 'active' });
+    // 默认选中"自营门店"（如果存在）
+    const defaultCat = categories.find((c) => c.code === 'self_store');
+    form.setFieldsValue({ status: 'active', category_id: defaultCat?.id });
     setOpen(true);
   };
 
   const openEdit = (item: StoreItem) => {
     setEditing(item);
-    form.setFieldsValue(item);
+    form.setFieldsValue({ ...item, category_id: item.category_id ?? undefined });
     setOpen(true);
   };
 
@@ -63,7 +89,7 @@ export default function MerchantStoresPage() {
         message.success('门店创建成功');
       }
       setOpen(false);
-      fetchData();
+      fetchData(filterCategory);
     } catch (error: any) {
       message.error(error?.response?.data?.detail || '保存失败');
     }
@@ -75,17 +101,32 @@ export default function MerchantStoresPage() {
         status: item.status === 'active' ? 'disabled' : 'active',
       });
       message.success('状态已更新');
-      fetchData();
+      fetchData(filterCategory);
     } catch (error: any) {
       message.error(error?.response?.data?.detail || '状态更新失败');
     }
+  };
+
+  const handleFilterChange = (value: string | undefined) => {
+    setFilterCategory(value);
+    fetchData(value);
   };
 
   return (
     <div>
       <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: 24 }}>
         <Title level={4} style={{ margin: 0 }}>门店管理</Title>
-        <Button type="primary" onClick={openCreate}>新建门店</Button>
+        <Space>
+          <Select
+            allowClear
+            placeholder="按类别筛选"
+            style={{ width: 180 }}
+            value={filterCategory}
+            onChange={handleFilterChange}
+            options={categories.map((c) => ({ label: c.name, value: c.code }))}
+          />
+          <Button type="primary" onClick={openCreate}>新建门店</Button>
+        </Space>
       </Space>
 
       <Table
@@ -95,6 +136,16 @@ export default function MerchantStoresPage() {
         columns={[
           { title: '门店名称', dataIndex: 'store_name' },
           { title: '门店编码', dataIndex: 'store_code' },
+          {
+            title: '所属类别',
+            dataIndex: 'category_name',
+            render: (_: any, row: StoreItem) =>
+              row.category_name ? (
+                <Tag color="blue">{row.category_name}</Tag>
+              ) : (
+                <Tag color="default">未分类</Tag>
+              ),
+          },
           { title: '联系人', dataIndex: 'contact_name' },
           { title: '联系电话', dataIndex: 'contact_phone' },
           { title: '地址', dataIndex: 'address', ellipsis: true },
@@ -137,6 +188,16 @@ export default function MerchantStoresPage() {
           </Form.Item>
           <Form.Item name="store_code" label="门店编码" rules={[{ required: true, message: '请输入门店编码' }]}>
             <Input placeholder="请输入唯一门店编码" disabled={!!editing} />
+          </Form.Item>
+          <Form.Item
+            name="category_id"
+            label="所属类别"
+            rules={[{ required: true, message: '请选择所属类别' }]}
+          >
+            <Select
+              placeholder="请选择所属类别"
+              options={categories.map((c) => ({ label: c.name, value: c.id }))}
+            />
           </Form.Item>
           <Form.Item name="contact_name" label="联系人">
             <Input placeholder="请输入联系人" />

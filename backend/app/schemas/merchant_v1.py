@@ -240,8 +240,27 @@ class MerchantStaffResponse(BaseModel):
     phone: str
     nickname: Optional[str] = None
     member_role: str
+    role_code: Optional[str] = None
+    role_name: Optional[str] = None
     store_ids: List[int] = Field(default_factory=list)
     status: str = "active"
+
+
+class MerchantStaffPermissionUpdateRequest(BaseModel):
+    """店长在商家端修改下属员工某门店的模块权限"""
+    store_id: int
+    module_codes: List[str] = Field(default_factory=list)
+
+
+class MerchantStaffStatusUpdateRequest(BaseModel):
+    """店长在商家端停用/启用下属员工（所有授权门店）"""
+    status: str  # active / disabled
+
+
+class MerchantRoleTemplateBrief(BaseModel):
+    code: str
+    name: str
+    default_modules: List[str] = Field(default_factory=list)
 
 
 # ──────────────── 商家身份状态 ────────────────
