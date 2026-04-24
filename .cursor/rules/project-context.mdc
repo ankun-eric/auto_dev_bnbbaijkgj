@@ -33,7 +33,38 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 商家端移动端 H5 适配 v1.0（2026-04-24）
+## Latest Update: admin 管理后台优化（顶部栏精简 + 对账单管理重构）v1.0（2026-04-24）
+
+### 概要
+根据《admin 管理后台优化 PRD v1.0》重构管理后台两处体验问题：
+- **全局 Header 精简**：`admin-web/src/app/(admin)/layout.tsx` 移除 logo、商品搜索框、扫一扫、消息铃铛（`BellOutlined` + `Badge`）；保留左侧菜单折叠按钮 + 右侧管理员头像下拉（退出登录）。
+- **对账单管理页重构**（`admin-web/src/app/(admin)/admin-settlements/page.tsx`）：由原「两张卡片（生成月度/上传凭证）」完全重写为标准后台管理页：
+  - 筛选区 9 项（默认 4 项 + 折叠 5 项）：机构、账单周期、状态、关键词；门店（与机构级联）、维度、生成时间、结清时间、金额区间。
+  - 列表 9 字段 + 表头排序（账单周期/应结金额/生成时间/结清时间）+ 分页（默认 20 条/页）。
+  - 行内操作：「上传凭证」（未结清/争议中可用）+「查看详情」（弹窗）。
+  - 生成对账单弹窗：机构 + 账期月份均可选，省略时对全部机构 + 上一自然月批量幂等生成。
+  - 上传凭证弹窗：**图片模式（1~5 张 JPG/PNG，单张 ≤5MB）与 PDF 模式（1 份，≤10MB）互斥**，切换需确认；新增"打款备注"字段（≤500 字），删除原"文件名"字段；应结≠打款时弹窗二次确认。
+  - 详情弹窗（900px）：基本信息 + 结算明细（核销记录表格 + 合计）+ 打款凭证（图片 PreviewGroup / PDF 链接，已结清只读，未结清/争议可「修改凭证」复用上传弹窗）。
+- **后端扩展**：
+  - `SettlementPaymentProof` 模型新增 `voucher_type`(VARCHAR16) / `voucher_files`(JSON) / `remark`(TEXT) / `updated_at`(DATETIME)；`file_url` 改为可空（向后兼容旧数据）。
+  - `backend/app/services/schema_sync.py` 新增 `_sync_settlement_proof_schema` 幂等迁移。
+  - 新增 API：`GET /api/admin/settlements`（分页+9 项筛选+4 字段排序）、`GET /api/admin/settlements/merchant-options`、`GET /api/admin/settlements/store-options`（级联可按机构过滤）、`GET /api/admin/settlements/{sid}`（详情含 info/lines/proof）。
+  - 扩展 `POST /api/admin/settlements/{sid}/payment-proof` 支持新字段，校验文件数量（图片 1~5、PDF 1）、备注长度（≤500）。
+- **链接验证**：11/11 全部可达；`/autodev/.../admin/admin-settlements/` HTTP 200，所有 admin 对账单 API 未登录状态下 401（符合预期）。
+
+### 关键文件
+- `admin-web/src/app/(admin)/layout.tsx` （Header 精简）
+- `admin-web/src/app/(admin)/admin-settlements/page.tsx` （列表/筛选/弹窗全部重写）
+- `backend/app/models/models.py` （`SettlementPaymentProof` 字段扩展）
+- `backend/app/schemas/merchant_v1.py` （新增 SettlementListItem/DetailResponse/PaymentProofDetail/MerchantBrief/StoreBrief 等 7 类 schema；扩展 PaymentProofCreateRequest）
+- `backend/app/api/merchant_v1.py` （4 个新 admin 端点 + 扩展 proof 上传端点）
+- `backend/app/services/schema_sync.py` （新增 `_sync_settlement_proof_schema` 并在 `sync_register_schema` 中调用）
+- `deploy/deploy_settlement_refactor_v2.py` / `deploy/check_settlement_refactor_links.py` （部署 + 链接检查脚本）
+- `user_docs/admin后台优化-顶部栏精简与对账单管理重构.md`
+
+---
+
+## Previous Update: 商家端移动端 H5 适配 v1.0（2026-04-24）
 
 ### 概要
 根据《商家端移动端 H5 适配 PRD v1.0》（决策 A3+B2+C3+D4+I1+J1+K1+L2+M1）一次性交付 P0+P1 共 8 个页面的手机浏览器专用 H5：

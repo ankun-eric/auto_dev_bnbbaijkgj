@@ -1,0 +1,96 @@
+{
+  "base": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27",
+  "ok_count": 11,
+  "total": 11,
+  "all_ok": true,
+  "results": [
+    {
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/",
+      "kind": "frontend-h5-root",
+      "status": 200,
+      "note": "",
+      "ok_expected": "200,302,301,404,308",
+      "reachable": true
+    },
+    {
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/admin-settlements/",
+      "kind": "frontend-admin",
+      "status": 200,
+      "note": "",
+      "ok_expected": "200,302,301,307,308",
+      "reachable": true
+    },
+    {
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/admin-settlements",
+      "kind": "frontend-admin",
+      "status": 200,
+      "note": "",
+      "ok_expected": "200,302,301,307,308",
+      "reachable": true
+    },
+    {
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/login/",
+      "kind": "frontend-admin",
+      "status": 200,
+      "note": "",
+      "ok_expected": "200,302,301,307,308",
+      "reachable": true
+    },
+    {
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/login",
+      "kind": "frontend-h5",
+      "status": 200,
+      "note": "",
+      "ok_expected": "200,302,301,307,308",
+      "reachable": true
+    },
+    {
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health",
+      "kind": "api",
+      "status": 200,
+      "note": "",
+      "ok_expected": "200,401,404,405,422",
+      "reachable": true
+    },
+    {
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/docs",
+      "kind": "api",
+      "status": 200,
+      "note": "",
+      "ok_expected": "200,401,404,307,308",
+      "reachable": true
+    },
+    {
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/settlements?page=1&page_size=20",
+      "kind": "api",
+      "status": 401,
+      "note": "Unauthorized",
+      "ok_expected": "200,401,403,422",
+      "reachable": true
+    },
+    {
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/settlements/merchant-options",
+      "kind": "api",
+      "status": 401,
+      "note": "Unauthorized",
+      "ok_expected": "200,401,403,422",
+      "reachable": true
+    },
+    {
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/settlements/store-options",
+      "kind": "api",
+      "status": 401,
+      "note": "Unauthorized",
+      "ok_expected": "200,401,403,422",
+      "reachable": true
+    },
+    {
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/settlements/1",
+      "kind": "api",
+      "status": 401,
+      "note": "Unauthorized",
+      "ok_expected": "200,401,403,404,422",
+      "reachable": true
+    }
+  ]
+}
