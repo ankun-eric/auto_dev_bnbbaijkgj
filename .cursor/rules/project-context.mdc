@@ -33,6 +33,51 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
+## Latest Update: 商家端移动端 H5 适配 v1.0（2026-04-24）
+
+### 概要
+根据《商家端移动端 H5 适配 PRD v1.0》（决策 A3+B2+C3+D4+I1+J1+K1+L2+M1）一次性交付 P0+P1 共 8 个页面的手机浏览器专用 H5：
+- 新增独立路由 `/merchant/m/*`，基于 `antd-mobile`（已有依赖）+ `html5-qrcode`（已有依赖），与 PC 端 `/merchant/*` 完全解耦
+- PC 端 `/merchant/layout.tsx` 增加 UA 自动重定向：移动 UA 访问 `/merchant/xxx` 自动跳 `/merchant/m/xxx`（`?desktop=1` 可强制 PC 版）
+- 底部 TabBar 按角色动态显示（owner/store_manager/verifier 显示"核销"，finance 显示"对账"）
+- 核销页支持扫码（HTTPS 下调用 `html5-qrcode`）+ 手动输码兜底，含摄像头权限与 HTTPS 检测
+- 登录页三种方式 Tab：账号密码 / 短信验证码 / 微信授权（仅微信内置浏览器可见）
+- 工作台 60s 轮询 `dashboard/metrics`，下拉刷新；订单列表状态 Tab + 时间筛选 + 无限滚动
+- 报表简化版（汇总卡 + 内联 SVG 图表），复杂明细引导 PC；对账支持确认/争议
+- P2 页面（invoice/downloads/finance/messages）统一渲染 `PcOnlyPage` 引导组件，提供一键复制 PC 链接
+- 全部 15 条 `/merchant/m/*` 路由部署后 HTTP 200 链接验证通过
+
+### 关键文件
+- `h5-web/src/app/merchant/layout.tsx`：增加 UA 自动重定向逻辑（仅移动端且未显式 `?desktop=1` 时跳转 `/merchant/m/*`）
+- `h5-web/src/app/merchant/m/layout.tsx`：移动端独立 Layout（antd-mobile ConfigProvider + TabBar + SafeArea + 鉴权重定向）
+- `h5-web/src/app/merchant/m/mobile-lib.ts`：移动端工具（`isMobileUA`、`isWechatBrowser`、`statusMap`、`getTabsForRole` 按角色动态 TabBar）
+- `h5-web/src/app/merchant/m/login/page.tsx`：三种登录 Tab（账号密码/短信/微信）
+- `h5-web/src/app/merchant/m/select-store/page.tsx`：多门店切换
+- `h5-web/src/app/merchant/m/dashboard/page.tsx`：工作台 4 宫格 + 快捷入口 + 最近订单 + 60s 轮询
+- `h5-web/src/app/merchant/m/orders/page.tsx`：订单列表（状态 Tab + 搜索 + 无限滚动 + 下拉刷新）
+- `h5-web/src/app/merchant/m/orders/[id]/page.tsx`：订单详情 + 去核销 + 退款引导 PC
+- `h5-web/src/app/merchant/m/verify/page.tsx`：核销页（Suspense 包裹 + 扫码 + 输码 Tab + HTTPS 检测 + 摄像头权限）
+- `h5-web/src/app/merchant/m/reports/page.tsx`：简化报表（4 汇总卡 + SVG 折线/饼图）
+- `h5-web/src/app/merchant/m/settlement/page.tsx` + `settlement/[id]/page.tsx`：对账列表与详情（确认/争议）
+- `h5-web/src/app/merchant/m/store-settings/page.tsx`：门店设置（电话/营业时间/公告可编辑）
+- `h5-web/src/app/merchant/m/staff/page.tsx`：员工列表 + 启停切换（新增引导 PC）
+- `h5-web/src/app/merchant/m/me/page.tsx`：我的 Tab（切换门店/消息/修改密码/退出）
+- `h5-web/src/app/merchant/m/_components/PcOnlyPage.tsx`：P2 页面通用引导组件（复制 PC 链接）
+- `h5-web/src/app/merchant/m/{invoice,downloads,finance,messages}/page.tsx`：P2 引导页
+- `deploy/deploy_merchant_m_v2.py`：SFTP 直传 + 远程 `docker compose build/up -d h5-web` 部署脚本
+- `deploy/check_merchant_m_links.py`：15 条移动端路由链接可达性自动化验证脚本
+- `user_docs/商家端移动端H5适配_使用手册.md`：终端用户使用手册
+
+### 路由（均基于项目根 URL）
+- `/merchant/m/login` `/select-store` `/dashboard` `/orders` `/orders/[id]` `/verify`
+- `/merchant/m/reports` `/settlement` `/settlement/[id]` `/store-settings` `/staff` `/me`
+- P2：`/merchant/m/{invoice,downloads,finance,messages}`
+
+### 后端改动
+- 本期无后端新增接口，全量复用现有 `/api/merchant/v1/*`、`/api/verify/*`、`/api/merchant/auth/login`
+
+---
+
 ## Latest Update: 门店类别字段 + 商家角色权限体系 v1.0（2026-04-24）
 
 ### 概要

@@ -1,0 +1,92 @@
+[
+  {
+    "path": "/merchant/m/login",
+    "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/m/login",
+    "status": 200,
+    "ok": true
+  },
+  {
+    "path": "/merchant/m/dashboard",
+    "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/m/dashboard",
+    "status": 200,
+    "ok": true
+  },
+  {
+    "path": "/merchant/m/orders",
+    "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/m/orders",
+    "status": 200,
+    "ok": true
+  },
+  {
+    "path": "/merchant/m/verify",
+    "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/m/verify",
+    "status": 200,
+    "ok": true
+  },
+  {
+    "path": "/merchant/m/reports",
+    "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/m/reports",
+    "status": 200,
+    "ok": true
+  },
+  {
+    "path": "/merchant/m/settlement",
+    "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/m/settlement",
+    "status": 200,
+    "ok": true
+  },
+  {
+    "path": "/merchant/m/store-settings",
+    "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/m/store-settings",
+    "status": 200,
+    "ok": true
+  },
+  {
+    "path": "/merchant/m/staff",
+    "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/m/staff",
+    "status": 200,
+    "ok": true
+  },
+  {
+    "path": "/merchant/m/me",
+    "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/m/me",
+    "status": 200,
+    "ok": true
+  },
+  {
+    "path": "/merchant/m/select-store",
+    "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/m/select-store",
+    "status": 200,
+    "ok": true
+  },
+  {
+    "path": "/merchant/m/invoice",
+    "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/m/invoice",
+    "status": 200,
+    "ok": true
+  },
+  {
+    "path": "/merchant/m/downloads",
+    "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/m/downloads",
+    "status": 200,
+    "ok": true
+  },
+  {
+    "path": "/merchant/m/finance",
+    "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/m/finance",
+    "status": 200,
+    "ok": true
+  },
+  {
+    "path": "/merchant/m/messages",
+    "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/m/messages",
+    "status": 200,
+    "ok": true
+  },
+  {
+    "path": "/merchant/m/",
+    "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/m/",
+    "status": 200,
+    "ok": true
+  }
+]
