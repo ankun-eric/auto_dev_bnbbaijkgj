@@ -1,0 +1,112 @@
+{
+  "results": [
+    {
+      "name": "C 端首页",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/",
+      "chain": [
+        {
+          "status": "200",
+          "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/",
+          "location": ""
+        }
+      ],
+      "final_status": "200",
+      "hops": 1,
+      "loop": false,
+      "ok": true
+    },
+    {
+      "name": "C 端登录页",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/login/",
+      "chain": [
+        {
+          "status": "200",
+          "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/login/",
+          "location": ""
+        }
+      ],
+      "final_status": "200",
+      "hops": 1,
+      "loop": false,
+      "ok": true
+    },
+    {
+      "name": "商家 PC 版登录页",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/login/",
+      "chain": [
+        {
+          "status": "200",
+          "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/login/",
+          "location": ""
+        }
+      ],
+      "final_status": "200",
+      "hops": 1,
+      "loop": false,
+      "ok": true
+    },
+    {
+      "name": "商家 H5 移动版登录页 [核心]",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/m/login/",
+      "chain": [
+        {
+          "status": "200",
+          "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/m/login/",
+          "location": ""
+        }
+      ],
+      "final_status": "200",
+      "hops": 1,
+      "loop": false,
+      "ok": true
+    },
+    {
+      "name": "后端健康检查",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health",
+      "chain": [
+        {
+          "status": "200",
+          "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health",
+          "location": ""
+        }
+      ],
+      "final_status": "200",
+      "hops": 1,
+      "loop": false,
+      "ok": true
+    },
+    {
+      "name": "admin 登录页",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/login/",
+      "chain": [
+        {
+          "status": "200",
+          "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/login/",
+          "location": ""
+        }
+      ],
+      "final_status": "200",
+      "hops": 1,
+      "loop": false,
+      "ok": true
+    }
+  ],
+  "core_mobile_m_login": {
+    "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/m/login/",
+    "chain": [
+      {
+        "status": "200",
+        "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/m/login/",
+        "location": ""
+      }
+    ],
+    "final_status": "200",
+    "final_url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/m/login/",
+    "stays_on_m_login": true,
+    "redirected_to_c": false,
+    "redirected_to_pc": false,
+    "has_merchant_kw": true,
+    "body_len": 13355,
+    "ok": true
+  }
+}

@@ -92,6 +92,30 @@ async def migrate_report_interpret() -> None:
                 "original_image_urls JSON NULL",
             )
 
+            # [2026-04-25] 报告解读异步化 - chat_sessions 新增状态字段
+            await _add_column_if_missing(
+                db, "chat_sessions", "interpret_status",
+                "interpret_status VARCHAR(16) DEFAULT 'done'",
+            )
+            await _add_column_if_missing(
+                db, "chat_sessions", "interpret_error",
+                "interpret_error TEXT NULL",
+            )
+            await _add_column_if_missing(
+                db, "chat_sessions", "interpret_started_at",
+                "interpret_started_at DATETIME NULL",
+            )
+            await _add_column_if_missing(
+                db, "chat_sessions", "interpret_finished_at",
+                "interpret_finished_at DATETIME NULL",
+            )
+
+            # [2026-04-25] chat_messages 新增 is_hidden 字段
+            await _add_column_if_missing(
+                db, "chat_messages", "is_hidden",
+                "is_hidden TINYINT(1) DEFAULT 0",
+            )
+
             # --- SessionType ENUM 扩容 ---
             try:
                 await db.execute(text(
@@ -200,3 +224,27 @@ async def migrate_report_interpret() -> None:
             logger.info("report_interpret_migration: 多图历史数据回溯完成")
     except Exception as e:  # noqa: BLE001
         logger.error("report_interpret_migration 多图回溯异常（不影响启动）: %s", e)
+
+    # [2026-04-25] 历史数据兼容：把老报告解读/对比会话里显示的"默认用户首问"标记为隐藏
+    try:
+        async with _async_session() as db:
+            await db.execute(text(
+                """
+                UPDATE chat_messages
+                SET is_hidden = 1
+                WHERE role = 'user'
+                  AND (
+                    content LIKE '%请帮我解读这份报告%'
+                    OR content LIKE '%请帮我对比这两份报告%'
+                    OR content LIKE '%请帮我解读%'
+                    OR content LIKE '%咨询对象：%'
+                  )
+                  AND session_id IN (
+                    SELECT id FROM chat_sessions WHERE session_type IN ('report_interpret','report_compare')
+                  )
+                """
+            ))
+            await db.commit()
+            logger.info("report_interpret_migration: 历史隐藏首问迁移完成")
+    except Exception as e:  # noqa: BLE001
+        logger.error("report_interpret_migration 历史隐藏首问迁移异常（不影响启动）: %s", e)

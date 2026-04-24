@@ -334,12 +334,107 @@ class _ChatScreenState extends State<ChatScreen> {
 
       if (mounted) setState(() => _reportCards = normalized);
 
-      // 为稳妥起见，本次迭代暂不基于 _autoStart 触发首条消息；保留字段用于后续迭代。
+      // [2026-04-25] 报告解读异步订阅：进入页面即订阅后端 worker 推流，不再本地插入用户气泡
       if (_autoStart) {
-        debugPrint('[report brief] auto_start=1 received; deferred until next iteration');
+        final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+        final session = chatProvider.currentSession;
+        if (session != null) {
+          _subscribeReportInterpret(session.id);
+        }
       }
     } catch (e) {
       debugPrint('[report brief] load failed: $e');
+    }
+  }
+
+  // [2026-04-25] 报告解读异步 SSE 订阅
+  StreamSubscription? _interpretSseSub;
+  bool _interpretFailed = false;
+
+  void _subscribeReportInterpret(String sessionId) {
+    if (_interpretSseSub != null) return;
+    setState(() { _isStreaming = true; _streamingContent = ''; _interpretFailed = false; });
+    _startCursorBlink();
+
+    _interpretSseSub = _sseService
+        .subscribeReportInterpret(sessionId)
+        .listen(
+      (sseMsg) {
+        if (!mounted) return;
+        try {
+          Map<String, dynamic> data = {};
+          if (sseMsg.data.isNotEmpty) {
+            try { data = jsonDecode(sseMsg.data) as Map<String, dynamic>; } catch (_) { data = {'raw': sseMsg.data}; }
+          }
+          final ev = sseMsg.event;
+
+          if (ev == 'message.delta' || data['type'] == 'delta') {
+            final delta = (data['delta'] ?? data['content'] ?? '').toString();
+            if (delta.isNotEmpty) {
+              setState(() => _streamingContent += delta);
+              _scrollToBottom();
+            }
+          } else if (ev == 'message.done' || data['type'] == 'done') {
+            final content = (data['content'] ?? _streamingContent).toString();
+            _finishInterpretStream(sessionId, content);
+          } else if (ev == 'status') {
+            if (data['interpret_status'] == 'failed') {
+              setState(() => _interpretFailed = true);
+              _finishInterpretStream(sessionId, _streamingContent);
+            }
+          } else if (ev == 'error' || data['type'] == 'error') {
+            setState(() => _interpretFailed = true);
+            _finishInterpretStream(sessionId, _streamingContent);
+          } else if (ev == 'done') {
+            if (_isStreaming) {
+              _finishInterpretStream(sessionId, _streamingContent);
+            }
+          }
+        } catch (e) {
+          debugPrint('[report SSE] parse error: $e');
+        }
+      },
+      onDone: () {
+        if (_isStreaming) _finishInterpretStream(sessionId, _streamingContent);
+      },
+      onError: (e) {
+        debugPrint('[report SSE] error: $e');
+        setState(() => _interpretFailed = true);
+        if (_isStreaming) _finishInterpretStream(sessionId, _streamingContent);
+      },
+    );
+  }
+
+  void _finishInterpretStream(String sessionId, String content) {
+    _interpretSseSub?.cancel();
+    _interpretSseSub = null;
+    _stopCursorBlink();
+    if (content.isNotEmpty) {
+      final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+      chatProvider.addMessageExternally(ChatMessage(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        sessionId: sessionId,
+        role: 'assistant',
+        content: content,
+        createdAt: DateTime.now().toIso8601String(),
+      ));
+    }
+    setState(() { _isStreaming = false; _streamingContent = ''; });
+    _scrollToBottom();
+  }
+
+  Future<void> _retryReportInterpret() async {
+    final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+    final session = chatProvider.currentSession;
+    if (session == null) return;
+    try {
+      await _apiService.dio.post('/api/report/interpret/session/${session.id}/retry');
+      setState(() { _interpretFailed = false; });
+      _subscribeReportInterpret(session.id);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('重试失败：$e')),
+      );
     }
   }
 
@@ -875,6 +970,7 @@ class _ChatScreenState extends State<ChatScreen> {
     _audioRecorder.dispose();
     _recordOverlay?.remove();
     _sseSubscription?.cancel();
+    _interpretSseSub?.cancel();
     _cursorTimer?.cancel();
     _ttsService.stop();
     super.dispose();
@@ -1357,7 +1453,8 @@ class _ChatScreenState extends State<ChatScreen> {
                 final messages = chatProvider.messages;
                 if (messages.isEmpty && !_isStreaming) return _buildWelcome();
 
-                final itemCount = messages.length + (_isStreaming ? 1 : 0);
+                final extra = (_isStreaming ? 1 : 0) + (_interpretFailed ? 1 : 0);
+                final itemCount = messages.length + extra;
                 return ListView.builder(
                   controller: _scrollController,
                   padding: const EdgeInsets.symmetric(vertical: 12),
@@ -1365,6 +1462,9 @@ class _ChatScreenState extends State<ChatScreen> {
                   itemBuilder: (context, index) {
                     if (index == messages.length && _isStreaming) {
                       return _buildStreamingBubble();
+                    }
+                    if (index == messages.length + (_isStreaming ? 1 : 0) && _interpretFailed) {
+                      return _buildInterpretFailedBar();
                     }
                     final message = messages[index];
                     final isLastAi = !message.isUser && _findLastAiIndex(messages) == index;
@@ -1386,6 +1486,37 @@ class _ChatScreenState extends State<ChatScreen> {
       if (messages[i].isAssistant && !messages[i].isLoading) return i;
     }
     return -1;
+  }
+
+  // [2026-04-25] 报告解读失败时展示"重新解读"
+  Widget _buildInterpretFailedBar() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFF1F0),
+          border: Border.all(color: const Color(0xFFFFCCC7)),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            const Text('抱歉，本次解读未能完成。', style: TextStyle(color: Color(0xFFCF1322), fontSize: 14)),
+            const SizedBox(height: 10),
+            ElevatedButton(
+              onPressed: _retryReportInterpret,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFFF4D4F),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              ),
+              child: const Text('重新解读'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildStreamingBubble() {
@@ -1706,6 +1837,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Widget _buildInputBar() {
     final targetColor = _relationColor(_currentConsultTarget);
+    // [2026-04-25] 报告解读/对比会话：咨询人按钮只读，不可切换
+    final bool isReportSession = _initialType == 'report_interpret' || _initialType == 'report_compare';
     return Container(
       padding: EdgeInsets.only(left: 8, right: 8, top: 8, bottom: MediaQuery.of(context).padding.bottom + 8),
       decoration: BoxDecoration(
@@ -1714,18 +1847,31 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
       child: Row(
         children: [
-          GestureDetector(
-            onTap: _showConsultTargetPicker,
-            child: Container(
-              width: 36, height: 36,
-              decoration: BoxDecoration(shape: BoxShape.circle, color: targetColor),
-              alignment: Alignment.center,
-              child: Text(
-                _currentConsultTarget.length > 2 ? _currentConsultTarget.substring(0, 2) : _currentConsultTarget,
-                style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
-              ),
-            ),
-          ),
+          isReportSession
+              ? Tooltip(
+                  message: '当前报告所属人：$_currentConsultTarget',
+                  child: Container(
+                    width: 36, height: 36,
+                    decoration: BoxDecoration(shape: BoxShape.circle, color: targetColor),
+                    alignment: Alignment.center,
+                    child: Text(
+                      _currentConsultTarget.length > 2 ? _currentConsultTarget.substring(0, 2) : _currentConsultTarget,
+                      style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                )
+              : GestureDetector(
+                  onTap: _showConsultTargetPicker,
+                  child: Container(
+                    width: 36, height: 36,
+                    decoration: BoxDecoration(shape: BoxShape.circle, color: targetColor),
+                    alignment: Alignment.center,
+                    child: Text(
+                      _currentConsultTarget.length > 2 ? _currentConsultTarget.substring(0, 2) : _currentConsultTarget,
+                      style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ),
           const SizedBox(width: 4),
           IconButton(
             icon: Icon(_isVoiceMode ? Icons.keyboard : Icons.mic, color: const Color(0xFF52C41A), size: 22),

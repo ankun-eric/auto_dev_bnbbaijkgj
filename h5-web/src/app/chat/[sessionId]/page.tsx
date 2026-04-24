@@ -339,6 +339,9 @@ function ChatPageInner() {
   const [previewIndex, setPreviewIndex] = useState<number>(-1);
   const [galleryExpanded, setGalleryExpanded] = useState<number | null>(null);
   const reportAutoStartedRef = useRef(false);
+  // [2026-04-25] 报告解读失败状态 + 重试触发
+  const [interpretFailed, setInterpretFailed] = useState(false);
+  const [streamRetryTick, setStreamRetryTick] = useState(0);
 
   // Font size state
   const [fontSizeLevel, setFontSizeLevel] = useState<FontSizeLevel>('standard');
@@ -872,20 +875,144 @@ function ChatPageInner() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isReportType, sessionId]);
 
-  // [2026-04-23 公共页报告卡片迁移] report 类型 + 消息为空 + auto_start=1 自动触发首条消息
+  // [2026-04-25] 报告解读 SSE 订阅：进入页面即订阅后端 worker 推流（不再本地插入用户气泡，也不再调 /chat）
   useEffect(() => {
-    if (!isReportType || !urlAutoStart) return;
+    if (!isReportType || !sessionId) return;
     if (reportAutoStartedRef.current) return;
-    // 仅当当前只剩 welcome 消息（没有历史 assistant/user 记录）时才触发
-    const hasRealMsgs = messages.some((m) => m.id !== 'welcome');
-    if (hasRealMsgs) return;
+    // 如果已有真正 assistant 消息则无需再订阅（已 done 状态）
     reportAutoStartedRef.current = true;
-    const t = setTimeout(() => {
-      sendMessageText('');
-    }, 300);
-    return () => clearTimeout(t);
+
+    const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    const abortController = new AbortController();
+    streamAbortRef.current = abortController;
+
+    let accumulated = '';
+    let msgId = '';
+    let streaming = false;
+
+    const subscribe = async () => {
+      try {
+        const resp = await fetch(
+          `${basePath}/api/report/interpret/session/${sessionId}/stream?auto_start=1`,
+          {
+            method: 'GET',
+            headers: {
+              'Accept': 'text/event-stream',
+              ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+            },
+            signal: abortController.signal,
+          },
+        );
+        if (!resp.ok || !resp.body) {
+          throw new Error(`stream http ${resp.status}`);
+        }
+
+        setIsStreaming(true);
+        setStreamingContent('');
+        streaming = true;
+
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let currentEvent = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+          for (const line of lines) {
+            if (line.startsWith('event: ')) {
+              currentEvent = line.slice(7).trim();
+              continue;
+            }
+            if (!line.startsWith('data:')) continue;
+            const dataStr = line.startsWith('data: ') ? line.slice(6) : line.slice(5);
+            let data: any = {};
+            try { data = JSON.parse(dataStr); } catch { data = { raw: dataStr }; }
+
+            // 兼容新旧事件
+            if (currentEvent === 'message.delta' || data.type === 'delta') {
+              const d = data.delta || data.content || '';
+              if (d) {
+                accumulated += d;
+                setStreamingContent(accumulated);
+              }
+            } else if (currentEvent === 'message.done' || data.type === 'done') {
+              const final = data.content || accumulated;
+              accumulated = final;
+              if (data.message_id) msgId = String(data.message_id);
+              setStreamingContent(accumulated);
+            } else if (currentEvent === 'status') {
+              if (data.interpret_status === 'failed') {
+                setInterpretFailed(true);
+              } else if (data.interpret_status === 'done') {
+                setInterpretFailed(false);
+              }
+            } else if (currentEvent === 'error' || data.type === 'error') {
+              if (!accumulated) {
+                Toast.show({ content: data.message || data.content || 'AI 解读失败' });
+              }
+              setInterpretFailed(true);
+            } else if (currentEvent === 'done') {
+              // 整体结束
+            } else if (currentEvent === 'ping') {
+              // 心跳
+            }
+            currentEvent = '';
+          }
+        }
+      } catch (e: any) {
+        if (e?.name === 'AbortError') return;
+        // 网络断线 → 简单一次重试
+        console.warn('[report SSE] error', e);
+      } finally {
+        if (streaming) {
+          if (accumulated) {
+            const aiMsg: Message = {
+              id: msgId || `ai-${Date.now()}`,
+              role: 'assistant',
+              content: accumulated,
+              time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+            };
+            setMessages((prev) => {
+              // 避免重复：若最后一条 assistant 消息内容已一致（loadHistory 并发拉取）则不重复追加
+              const hasSame = prev.some((m) => m.role === 'assistant' && m.content === accumulated);
+              return hasSame ? prev : [...prev, aiMsg];
+            });
+          }
+          setIsStreaming(false);
+          setStreamingContent('');
+          streaming = false;
+        }
+      }
+    };
+
+    subscribe();
+
+    return () => {
+      try { abortController.abort(); } catch { /* ignore */ }
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isReportType, urlAutoStart, messages]);
+  }, [isReportType, sessionId, streamRetryTick]);
+
+  // [2026-04-25] 报告解读失败状态 + 重新解读
+  const retryInterpret = useCallback(async () => {
+    if (!sessionId) return;
+    try {
+      await api.post(`/api/report/interpret/session/${sessionId}/retry`, {});
+      setInterpretFailed(false);
+      // 重新触发订阅
+      reportAutoStartedRef.current = false;
+      setMessages((prev) => prev.filter((m) => m.id === 'welcome' || m.role !== 'assistant' || !m.content.includes('AI_FAILED')));
+      // trigger useEffect re-subscribe by toggling a state
+      setStreamRetryTick((t) => t + 1);
+    } catch (e: any) {
+      Toast.show({ content: e?.message || '重新解读失败，请稍后再试' });
+    }
+  }, [sessionId]);
 
   useEffect(() => {
     if (!isSymptom || !urlMsg || autoSentRef.current) return;
@@ -999,9 +1126,9 @@ function ChatPageInner() {
   }, []);
 
   const sendMessageText = async (text: string) => {
-    // [2026-04-23 公共页报告卡片迁移] report 场景 auto_start 时 text 可能为空串，仅 loading 时拒绝
     if (loading) return;
-    if (!text && !isReportType) return;
+    // [2026-04-25] 报告解读 auto_start 已改为独立订阅 SSE，这里不再接受空 text
+    if (!text) return;
 
     stopTts();
 
@@ -1860,6 +1987,42 @@ function ChatPageInner() {
           );
         })}
 
+        {/* [2026-04-25] 报告解读失败：显示重新解读按钮 */}
+        {isReportType && interpretFailed && !isStreaming && (
+          <div className="flex mb-4 justify-start">
+            <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center mr-2"
+              style={{ background: 'linear-gradient(135deg, #ff4d4f, #ff7875)' }}>
+              <span className="text-white text-xs">!</span>
+            </div>
+            <div className="max-w-[75%]">
+              <div className="rounded-2xl px-4 py-3 leading-relaxed bg-white text-red-500 rounded-tl-sm shadow-sm"
+                style={{ fontSize: chatFontSize }}>
+                抱歉，本次解读未能完成。
+                <button
+                  onClick={retryInterpret}
+                  className="ml-2 px-3 py-1 rounded bg-red-500 text-white text-xs"
+                >
+                  重新解读
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* [2026-04-25] 报告解读进行中：首字节到达前显示"AI 正在解读..."骨架态 */}
+        {isReportType && !isStreaming && !interpretFailed && !messages.some((m) => m.role === 'assistant' && m.id !== 'welcome') && (
+          <div className="flex mb-4 justify-start">
+            <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center mr-2"
+              style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}>
+              <span className="text-white text-xs">AI</span>
+            </div>
+            <div className="bg-white rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm flex items-center gap-2">
+              <SpinLoading style={{ '--size': '18px', '--color': '#52c41a' }} />
+              <span className="text-gray-500 text-sm">AI 正在解读您的报告，请稍候…</span>
+            </div>
+          </div>
+        )}
+
         {/* Streaming message */}
         {isStreaming && streamingContent && (
           <div className="flex mb-4 justify-start">
@@ -1999,16 +2162,30 @@ function ChatPageInner() {
       />
 
       <div className="bg-white px-3 py-3 flex items-end gap-2 safe-area-bottom">
-        <button
-          onClick={openMemberPopup}
-          className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-full"
-          style={{ background: getRelationColor(currentRelationLabel), border: 'none' }}
-          aria-label="切换咨询对象"
-        >
-          <span style={{ color: '#fff', fontSize: 11, fontWeight: 600, lineHeight: 1.1, textAlign: 'center' }}>
-            {currentRelationLabel.length > 2 ? currentRelationLabel.slice(0, 2) : currentRelationLabel}
-          </span>
-        </button>
+        {/* [2026-04-25] report_interpret/report_compare 会话：只读咨询人标签，禁止切换 */}
+        {isReportType ? (
+          <div
+            className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-full"
+            style={{ background: getRelationColor(currentRelationLabel), border: 'none' }}
+            title={`当前报告所属人：${currentRelationLabel}`}
+            aria-label={`当前报告所属人：${currentRelationLabel}`}
+          >
+            <span style={{ color: '#fff', fontSize: 11, fontWeight: 600, lineHeight: 1.1, textAlign: 'center' }}>
+              {currentRelationLabel.length > 2 ? currentRelationLabel.slice(0, 2) : currentRelationLabel}
+            </span>
+          </div>
+        ) : (
+          <button
+            onClick={openMemberPopup}
+            className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-full"
+            style={{ background: getRelationColor(currentRelationLabel), border: 'none' }}
+            aria-label="切换咨询对象"
+          >
+            <span style={{ color: '#fff', fontSize: 11, fontWeight: 600, lineHeight: 1.1, textAlign: 'center' }}>
+              {currentRelationLabel.length > 2 ? currentRelationLabel.slice(0, 2) : currentRelationLabel}
+            </span>
+          </button>
+        )}
 
         <button
           onClick={handleMicToggle}

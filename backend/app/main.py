@@ -537,6 +537,13 @@ async def lifespan(app: FastAPI):
         await db.commit()
     from app.services.notification_scheduler import init_scheduler, shutdown_scheduler
     init_scheduler()
+    # [2026-04-25] 启动时恢复孤儿报告解读任务
+    try:
+        from app.api.report_interpret import recover_pending_sessions
+        await recover_pending_sessions()
+    except Exception as _e:  # noqa: BLE001
+        import logging as _l
+        _l.getLogger(__name__).error("recover_pending_sessions 异常（不影响启动）: %s", _e)
     yield
     shutdown_scheduler()
 

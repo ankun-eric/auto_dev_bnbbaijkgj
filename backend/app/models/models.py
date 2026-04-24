@@ -799,6 +799,11 @@ class ChatSession(Base):
     report_id = mapped_column(Integer, nullable=True)
     member_relation = mapped_column(String(32), nullable=True)
     compare_report_ids = mapped_column(String(64), nullable=True)
+    # [2026-04-25] 报告解读异步化 - 新增字段
+    interpret_status = mapped_column(String(16), nullable=True, default="done")
+    interpret_error = mapped_column(Text, nullable=True)
+    interpret_started_at = mapped_column(DateTime, nullable=True)
+    interpret_finished_at = mapped_column(DateTime, nullable=True)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -822,6 +827,8 @@ class ChatMessage(Base):
     image_urls = mapped_column(JSON, nullable=True)
     file_urls = mapped_column(JSON, nullable=True)
     message_metadata = mapped_column(JSON, nullable=True)
+    # [2026-04-25] 隐藏消息字段：1=前端默认不拉取（用于隐式首问 Prompt、系统消息）
+    is_hidden = mapped_column(Boolean, default=False, nullable=True)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
 
     session = relationship("ChatSession", back_populates="messages")

@@ -1,0 +1,9 @@
+fix(report-interpret): async /start + SSE stream + is_hidden + three-bug fix
+
+- backend: /start seconds return, async worker via task_queue, SSE 15s heartbeat, /retry added
+- backend: ChatSession add interpret_status/error/started_at/finished_at; ChatMessage add is_hidden
+- backend: chat.py first-message-stream supports GET and POST
+- H5/Miniprogram/Flutter: remove auto_start local user bubble, subscribe SSE; failed shows retry
+- H5/Miniprogram/Flutter: report session hides member switcher, read-only badge
+- nginx: SSE dedicated location disables buffering + 300s timeout
+- tests: test_report_interpret_fix.py covers fields and task_queue

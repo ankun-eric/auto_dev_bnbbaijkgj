@@ -79,7 +79,11 @@ Page({
     ttsMsgId: '',
 
     // [2026-04-23 报告分支] 报告解读/对比场景的顶部报告卡片
-    reportList: []
+    reportList: [],
+
+    // [2026-04-25] 报告解读异步化：失败状态
+    interpretFailed: false,
+    interpretPending: false
   },
 
   _recognizeManager: null,
@@ -131,8 +135,10 @@ Page({
     if (type === 'report_interpret' || type === 'report_compare') {
       this.setData({ isTypeLocked: true, chatType: type });
       this._loadReportsBrief({ chatId, reportId: report_id, reportIds: report_ids });
-      if (auto_start === '1') {
+      if (auto_start === '1' && chatId) {
+        // [2026-04-25] 报告解读异步订阅：进入页面即订阅后端 worker 推流
         this._pendingAutoStart = true;
+        setTimeout(() => this._startReportInterpretSse(chatId), 300);
       }
     }
 
@@ -908,6 +914,113 @@ Page({
       this.addMessage('assistant', '药品识别失败，请重试。');
     } finally {
       this.setData({ drugIdentifyDisabled: false });
+    }
+  },
+
+  // [2026-04-25] 报告解读异步订阅：进入 report_interpret/report_compare 页面时调用
+  _startReportInterpretSse(sessionId) {
+    const app = getApp();
+    const baseUrl = app.globalData.baseUrl;
+    const token = app.globalData.token;
+    const url = `${baseUrl}/api/report/interpret/session/${sessionId}/stream?auto_start=1`;
+
+    this.setData({ interpretPending: true, interpretFailed: false });
+
+    const msgId = generateId();
+    const now = new Date();
+    const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+    const messages = [...this.data.messages, { id: msgId, role: 'assistant', content: '', time, isStreaming: true }];
+    this.setData({
+      messages,
+      scrollToId: `msg-${msgId}`,
+      streamingMsgId: msgId,
+      streamingText: '',
+      isStreaming: true,
+      showCursor: true
+    });
+    this._startCursorBlink();
+
+    let fullText = '';
+    let currentEvent = '';
+    let leftover = '';
+
+    const task = wx.request({
+      url,
+      method: 'GET',
+      header: {
+        'Accept': 'text/event-stream',
+        'Authorization': token ? `Bearer ${token}` : ''
+      },
+      enableChunked: true,
+      responseType: 'text',
+      success: () => {},
+      fail: (err) => {
+        if (err.errMsg && err.errMsg.indexOf('abort') >= 0) return;
+        this._finishStreaming(msgId, fullText || '网络异常，请稍后重试');
+        this.setData({ interpretPending: false });
+      }
+    });
+
+    this._sseRequestTask = task;
+
+    if (task) {
+      task.onChunkReceived((resp) => {
+        try {
+          const text = leftover + this._decodeChunk(resp.data);
+          const lines = text.split('\n');
+          leftover = lines.pop() || '';
+          for (const line of lines) {
+            if (line.startsWith('event: ')) {
+              currentEvent = line.slice(7).trim();
+              continue;
+            }
+            if (!line.startsWith('data:')) continue;
+            const dataStr = line.startsWith('data: ') ? line.slice(6) : line.slice(5).trim();
+            let data = {};
+            try { data = JSON.parse(dataStr); } catch { data = { raw: dataStr }; }
+
+            if (currentEvent === 'message.delta' || data.type === 'delta') {
+              const d = data.delta || data.content || '';
+              if (d) {
+                fullText += d;
+                this._updateStreamingMessage(msgId, fullText);
+              }
+            } else if (currentEvent === 'message.done' || data.type === 'done') {
+              const final = data.content || fullText;
+              fullText = final;
+              this._updateStreamingMessage(msgId, fullText);
+            } else if (currentEvent === 'status') {
+              if (data.interpret_status === 'failed') {
+                this.setData({ interpretFailed: true, interpretPending: false });
+              } else if (data.interpret_status === 'done') {
+                this.setData({ interpretFailed: false, interpretPending: false });
+              }
+            } else if (currentEvent === 'error' || data.type === 'error') {
+              this.setData({ interpretFailed: true, interpretPending: false });
+            } else if (currentEvent === 'done') {
+              this._finishStreaming(msgId, fullText);
+              this.setData({ interpretPending: false });
+            }
+            currentEvent = '';
+          }
+        } catch (e) {
+          console.log('[report SSE] parse error', e);
+        }
+      });
+    }
+  },
+
+  // [2026-04-25] 用户点"重新解读"按钮
+  async onRetryInterpret() {
+    const sid = this.data.chatId;
+    if (!sid) return;
+    try {
+      await post(`/api/report/interpret/session/${sid}/retry`, {}, { showLoading: true });
+      // 清理失败状态 + 重新订阅
+      this.setData({ interpretFailed: false, messages: this.data.messages.filter(m => !m.isStreaming) });
+      this._startReportInterpretSse(sid);
+    } catch (e) {
+      wx.showToast({ title: e.message || '重试失败，请稍后再试', icon: 'none' });
     }
   },
 

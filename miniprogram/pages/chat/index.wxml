@@ -194,6 +194,12 @@
       </view>
     </view>
 
+    <!-- [2026-04-25] 报告解读失败：重新解读按钮 -->
+    <view wx:if="{{interpretFailed}}" class="interpret-failed-bar">
+      <text class="interpret-failed-text">抱歉，本次解读未能完成。</text>
+      <view class="interpret-failed-btn" bindtap="onRetryInterpret">重新解读</view>
+    </view>
+
     <view id="msg-bottom" style="height: 20rpx;"></view>
   </scroll-view>
 
@@ -234,7 +240,14 @@
   <!-- 输入区域 -->
   <view class="input-area safe-bottom">
     <view class="input-bar">
-      <view class="consult-target-btn" catchtap="toggleTargetPicker" style="background: {{consultTarget.color}};">
+      <!-- [2026-04-25] 报告解读/对比 会话：咨询人标签只读，不可切换 -->
+      <view wx:if="{{chatType === 'report_interpret' || chatType === 'report_compare'}}"
+            class="consult-target-btn"
+            style="background: {{consultTarget.color}};"
+            aria-label="当前报告所属人：{{consultTarget.name}}">
+        <text class="consult-target-text">{{consultTarget.name}}</text>
+      </view>
+      <view wx:else class="consult-target-btn" catchtap="toggleTargetPicker" style="background: {{consultTarget.color}};">
         <text class="consult-target-text">{{consultTarget.name}}</text>
       </view>
       <view class="tool-btn" bindtap="chooseImage">

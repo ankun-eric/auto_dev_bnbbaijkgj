@@ -785,22 +785,40 @@ async def get_session_detail(
 
 
 @router.get("/sessions/{session_id}/first-message-stream")
-async def sessions_first_message_stream(
+async def sessions_first_message_stream_get(
+    request: Request,
     session_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """会话首条消息 SSE 流式输出。
+    """会话首条消息 SSE 流式输出（GET 方法）。
 
-    行为：若会话尚无 assistant 首条回复，调用 AI 流式生成并落库；
-    若已有，则以 done 事件一次性返回已有首条 assistant 内容。
-
-    兼容 `report_interpret` / `report_compare` 会话，以及其他会话类型。
-    内部复用 `report_interpret.interpret_stream` 的实现，`auto_start=1`。
+    行为：订阅后端异步 worker 推送的流式消息；若会话已完成则直接回放。
+    [2026-04-25] 已改为纯订阅模式，不再在此接口里同步触发 AI。
     """
     from app.api.report_interpret import interpret_stream as _interpret_stream
 
     return await _interpret_stream(
+        request=request,
+        session_id=session_id,
+        auto_start=1,
+        current_user=current_user,
+        db=db,
+    )
+
+
+@router.post("/sessions/{session_id}/first-message-stream")
+async def sessions_first_message_stream_post(
+    request: Request,
+    session_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """同 GET，供历史前端兼容（H5 v1.0 用 POST 调用此接口）。"""
+    from app.api.report_interpret import interpret_stream as _interpret_stream
+
+    return await _interpret_stream(
+        request=request,
         session_id=session_id,
         auto_start=1,
         current_user=current_user,
