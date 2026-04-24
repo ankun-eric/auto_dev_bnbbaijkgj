@@ -943,6 +943,66 @@ async def _sync_product_system_tables(conn: AsyncConnection) -> None:
             await conn.execute(text("ALTER TABLE refund_requests ADD COLUMN return_tracking_company VARCHAR(100) NULL"))
 
 
+async def _sync_merchant_v1_backend(conn: AsyncConnection) -> None:
+    """v1 商家后台 + 机构体系：
+    - MerchantMemberRole 扩展 ENUM: owner/staff/store_manager/verifier/finance
+    - merchant_profiles 新增 category_id
+    - 其他新表由 metadata.create_all 自动创建
+    - 初始化默认 merchant_categories
+    """
+    def _load(sync_conn):
+        inspector = inspect(sync_conn)
+        tables = set(inspector.get_table_names())
+        mp_cols = None
+        if "merchant_profiles" in tables:
+            mp_cols = {c["name"] for c in inspector.get_columns("merchant_profiles")}
+        return tables, mp_cols
+
+    tables, mp_cols = await conn.run_sync(_load)
+
+    # ENUM 扩展（MySQL：MODIFY COLUMN 为新 ENUM）
+    if "merchant_store_memberships" in tables:
+        try:
+            await conn.execute(text(
+                "ALTER TABLE merchant_store_memberships MODIFY COLUMN member_role "
+                "ENUM('owner','staff','store_manager','verifier','finance') NOT NULL"
+            ))
+        except Exception:
+            pass
+
+    if mp_cols is not None and "category_id" not in mp_cols:
+        try:
+            await conn.execute(text("ALTER TABLE merchant_profiles ADD COLUMN category_id INT NULL"))
+            await conn.execute(text("CREATE INDEX ix_mp_category ON merchant_profiles(category_id)"))
+        except Exception:
+            pass
+
+    # 默认机构类别（幂等）
+    if "merchant_categories" in tables:
+        default_cats = [
+            ("self_store", "自营门店", "🏪", ["image", "pdf"], "附件", 10),
+            ("medical", "体检机构", "🏥", ["image", "pdf"], "检查报告", 20),
+            ("homeservice", "家政机构", "🧹", ["image", "pdf"], "服务工单", 30),
+            ("other", "其他机构", "🏷️", ["image", "pdf"], "附件", 99),
+        ]
+        for code, name, icon, atypes, label, sort in default_cats:
+            try:
+                rs = await conn.execute(text("SELECT id FROM merchant_categories WHERE code=:c"), {"c": code})
+                if rs.fetchone() is None:
+                    import json as _json
+                    await conn.execute(
+                        text(
+                            "INSERT INTO merchant_categories(code, name, icon, allowed_attachment_types, "
+                            "attachment_label, sort, status, created_at, updated_at) "
+                            "VALUES(:code, :name, :icon, :atypes, :label, :sort, 'active', NOW(), NOW())"
+                        ),
+                        {"code": code, "name": name, "icon": icon, "atypes": _json.dumps(atypes),
+                         "label": label, "sort": sort},
+                    )
+            except Exception:
+                pass
+
+
 async def _migrate_service_to_product_categories(conn: AsyncConnection) -> None:
     def _load(sync_conn):
         inspector = inspect(sync_conn)
@@ -988,6 +1048,7 @@ async def sync_register_schema(conn: AsyncConnection) -> None:
 
     await _sync_ai_model_configs(conn)
     await _sync_member_levels(conn)
+    await _sync_merchant_v1_backend(conn)
     await _sync_sms_tables(conn)
     await _sync_chat_session_fields(conn)
     await _sync_knowledge_tables(conn)

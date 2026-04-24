@@ -63,6 +63,16 @@
   </view>
 
   <view class="menu-card card">
+    <view class="menu-item merchant-entry-item" wx:if="{{showMerchantMenu}}" bindtap="goMerchantManagement">
+      <view class="menu-left">
+        <text class="menu-icon">🏪</text>
+        <text class="menu-label">商家管理</text>
+      </view>
+      <view class="menu-right">
+        <text class="badge" wx:if="{{merchantStoreCount > 1}}">{{merchantStoreCount}}家门店</text>
+        <text class="arrow">›</text>
+      </view>
+    </view>
     <view class="menu-item role-switch-item" wx:if="{{canSwitchRole}}" bindtap="switchRole">
       <view class="menu-left">
         <text class="menu-icon">🔁</text>

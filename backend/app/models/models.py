@@ -44,6 +44,9 @@ class IdentityType(str, enum.Enum):
 class MerchantMemberRole(str, enum.Enum):
     owner = "owner"
     staff = "staff"
+    store_manager = "store_manager"
+    verifier = "verifier"
+    finance = "finance"
 
 
 class SessionType(str, enum.Enum):
@@ -385,6 +388,7 @@ class MerchantProfile(Base):
     user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, unique=True, index=True)
     nickname = mapped_column(String(100), nullable=True)
     avatar = mapped_column(String(500), nullable=True)
+    category_id = mapped_column(Integer, ForeignKey("merchant_categories.id"), nullable=True, index=True)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -457,6 +461,118 @@ class MerchantOrderVerification(Base):
 
     store = relationship("MerchantStore")
     order = relationship("Order")
+
+
+# ──────────────── 商家/机构扩展（v1 商家后台+机构体系） ────────────────
+
+
+class MerchantCategory(Base):
+    """机构类别：自营门店/体检/家政/其他 等，可运营配置"""
+    __tablename__ = "merchant_categories"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    code = mapped_column(String(32), unique=True, nullable=False, index=True)
+    name = mapped_column(String(64), nullable=False)
+    icon = mapped_column(String(255), nullable=True)
+    description = mapped_column(Text, nullable=True)
+    allowed_attachment_types = mapped_column(JSON, nullable=True)
+    attachment_label = mapped_column(String(64), nullable=True)
+    sort = mapped_column(Integer, default=0)
+    status = mapped_column(String(16), default="active")
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class OrderAttachment(Base):
+    """订单附件：图片/PDF，机构上传，用户可下载"""
+    __tablename__ = "order_attachments"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    order_id = mapped_column(Integer, nullable=False, index=True)
+    order_source = mapped_column(String(20), default="unified")
+    store_id = mapped_column(Integer, ForeignKey("merchant_stores.id"), nullable=True, index=True)
+    uploader_user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    file_type = mapped_column(String(16), nullable=False)
+    file_url = mapped_column(String(500), nullable=False)
+    file_name = mapped_column(String(255), nullable=True)
+    file_size = mapped_column(Integer, default=0)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+
+    store = relationship("MerchantStore")
+
+
+class MerchantInvoiceProfile(Base):
+    """商家开票信息"""
+    __tablename__ = "merchant_invoice_profiles"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    merchant_profile_id = mapped_column(Integer, ForeignKey("merchant_profiles.id"), nullable=False, unique=True, index=True)
+    title = mapped_column(String(200), nullable=True)
+    tax_no = mapped_column(String(64), nullable=True)
+    bank_name = mapped_column(String(200), nullable=True)
+    bank_account = mapped_column(String(64), nullable=True)
+    register_address = mapped_column(String(255), nullable=True)
+    register_phone = mapped_column(String(32), nullable=True)
+    receive_address = mapped_column(String(255), nullable=True)
+    receive_email = mapped_column(String(128), nullable=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class SettlementStatement(Base):
+    """对账单主表（机构维度/门店维度）"""
+    __tablename__ = "settlement_statements"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    statement_no = mapped_column(String(64), unique=True, nullable=False, index=True)
+    merchant_profile_id = mapped_column(Integer, ForeignKey("merchant_profiles.id"), nullable=False, index=True)
+    store_id = mapped_column(Integer, ForeignKey("merchant_stores.id"), nullable=True, index=True)
+    dim = mapped_column(String(16), default="merchant")
+    period_start = mapped_column(Date, nullable=False)
+    period_end = mapped_column(Date, nullable=False)
+    order_count = mapped_column(Integer, default=0)
+    total_amount = mapped_column(Numeric(12, 2), default=0)
+    settlement_amount = mapped_column(Numeric(12, 2), default=0)
+    status = mapped_column(String(20), default="pending")
+    confirmed_at = mapped_column(DateTime, nullable=True)
+    settled_at = mapped_column(DateTime, nullable=True)
+    remark = mapped_column(Text, nullable=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class SettlementPaymentProof(Base):
+    """对账单打款凭证"""
+    __tablename__ = "settlement_payment_proofs"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    statement_id = mapped_column(Integer, ForeignKey("settlement_statements.id"), nullable=False, unique=True, index=True)
+    file_url = mapped_column(String(500), nullable=False)
+    file_name = mapped_column(String(255), nullable=True)
+    amount = mapped_column(Numeric(12, 2), default=0)
+    paid_at = mapped_column(DateTime, nullable=True)
+    uploaded_by = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class MerchantExportTask(Base):
+    """异步导出任务（限流：每分钟 1 次 / 单次 ≤1 年）"""
+    __tablename__ = "merchant_export_tasks"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    merchant_profile_id = mapped_column(Integer, ForeignKey("merchant_profiles.id"), nullable=False, index=True)
+    user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    task_name = mapped_column(String(128), nullable=False)
+    task_type = mapped_column(String(32), nullable=False)
+    params = mapped_column(JSON, nullable=True)
+    status = mapped_column(String(20), default="queued")
+    file_url = mapped_column(String(500), nullable=True)
+    error_message = mapped_column(String(500), nullable=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    finished_at = mapped_column(DateTime, nullable=True)
+
+
+# 扩展 MerchantProfile：添加 category_id（通过迁移在 schema_sync 中完成，模型增加 column 不破坏旧数据）
 
 
 # ──────────────── 健康档案 ────────────────

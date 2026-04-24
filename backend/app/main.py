@@ -57,6 +57,7 @@ from app.api import (
     points_admin,
     points_exchange,
     merchant,
+    merchant_v1,
     product_admin,
     products,
     prompt_templates,
@@ -584,6 +585,8 @@ app.include_router(admin.settings_router)
 app.include_router(admin_merchant.router)
 app.include_router(admin_news.router)
 app.include_router(merchant.router)
+app.include_router(merchant_v1.router)
+app.include_router(merchant_v1.admin_router)
 app.include_router(sms.router)
 app.include_router(email_notify.router)
 app.include_router(wechat_push.router)

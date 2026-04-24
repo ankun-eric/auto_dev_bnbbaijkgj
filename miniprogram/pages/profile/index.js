@@ -11,6 +11,8 @@ Page({
     merchantProfile: null,
     currentStore: null,
     canSwitchRole: false,
+    showMerchantMenu: false,
+    merchantStoreCount: 0,
     points: 0,
     couponCount: 0,
     favoriteCount: 0,
@@ -57,20 +59,76 @@ Page({
       return;
     }
 
+    // 读缓存优先显示「商家管理」菜单（E5-c）
+    const cachedMerchant = wx.getStorageSync('is_merchant_cached') === true;
+    const cachedStoreCount = wx.getStorageSync('merchant_store_count_cached') || 0;
+
     this.setData({
       pageMode,
       isLoggedIn: app.globalData.isLoggedIn,
       userInfo,
       merchantProfile,
       currentStore: app.getCurrentStore(),
-      canSwitchRole: app.isDualIdentity()
+      canSwitchRole: app.isDualIdentity(),
+      showMerchantMenu: pageMode === 'user' && app.globalData.isLoggedIn && cachedMerchant,
+      merchantStoreCount: cachedStoreCount
     });
 
     if (pageMode === 'user') {
       if (app.globalData.isLoggedIn) {
         this.loadUserData();
+        this.refreshMerchantStatus();
       }
     }
+  },
+
+  // 异步校验商家身份 - 兜底
+  refreshMerchantStatus() {
+    get('/api/auth/merchant-status', {}, { showLoading: false, suppressErrorToast: true })
+      .then(res => {
+        const isMerchant = !!res.is_merchant;
+        wx.setStorageSync('is_merchant_cached', isMerchant);
+        wx.setStorageSync('merchant_store_count_cached', res.store_count || 0);
+        this.setData({
+          showMerchantMenu: isMerchant && this.data.pageMode === 'user',
+          merchantStoreCount: res.store_count || 0
+        });
+      })
+      .catch(() => {});
+  },
+
+  // 进入商家管理入口
+  goMerchantManagement() {
+    get('/api/auth/merchant-status', {}, { showLoading: true, suppressErrorToast: true })
+      .then(res => {
+        if (!res.is_merchant) {
+          wx.setStorageSync('is_merchant_cached', false);
+          this.setData({ showMerchantMenu: false });
+          wx.showToast({ title: '您当前不是商家账号', icon: 'none' });
+          return;
+        }
+        wx.setStorageSync('is_merchant_cached', true);
+        wx.setStorageSync('merchant_store_count_cached', res.store_count || 0);
+        app.setCurrentRole('merchant');
+        if (!res.store_count) {
+          wx.showModal({
+            title: '暂无门店',
+            content: '您还未被绑定到任何门店，请联系平台客服。',
+            showCancel: false
+          });
+          return;
+        }
+        if (res.store_count === 1) {
+          // 单门店直进工作台
+          app.clearCurrentStore();
+          wx.navigateTo({ url: '/pages/store-select/index?auto=1' });
+        } else {
+          wx.navigateTo({ url: '/pages/store-select/index' });
+        }
+      })
+      .catch(() => {
+        wx.showToast({ title: '网络异常，请稍后重试', icon: 'none' });
+      });
   },
 
   async loadUserData() {

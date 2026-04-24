@@ -59,6 +59,8 @@ const menuItems: MenuItem[] = [
     children: [
       { key: '/merchant/stores', label: '门店管理' },
       { key: '/merchant/accounts', label: '商家账号' },
+      { key: '/merchant-categories', label: '机构类别管理' },
+      { key: '/admin-settlements', label: '对账单管理' },
     ],
   },
   {
@@ -210,7 +212,7 @@ const menuItems: MenuItem[] = [
 ];
 
 function getOpenKeys(pathname: string): string[] {
-  if (pathname.startsWith('/merchant')) return ['merchant'];
+  if (pathname.startsWith('/merchant') || pathname.startsWith('/merchant-categories') || pathname.startsWith('/admin-settlements')) return ['merchant'];
   if (pathname.startsWith('/content')) return ['content'];
   if (pathname.startsWith('/points')) return ['points'];
   if (pathname.startsWith('/ai-config') || pathname.startsWith('/chat-records') || pathname.startsWith('/knowledge') || pathname.startsWith('/search-config') || pathname.startsWith('/fallback-config') || pathname.startsWith('/ocr-config') || pathname.startsWith('/ocr-global-config') || pathname.startsWith('/checkup-details') || pathname.startsWith('/drug-details')) return ['ai'];
