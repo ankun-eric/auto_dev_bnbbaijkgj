@@ -33,6 +33,30 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
+## Latest Update: 商家端 H5 登录后被踢到用户端登录页 Bug 修复（2026-04-25）
+
+### 概要
+修复「商家端 H5 登录成功后被自动跳到 C 端用户登录页」的严重体验 Bug，同时统一了三端（C 端 H5 / 商家端 H5+PC / admin 后台）登录态失效的跳转口径。
+
+### 核心改动
+- **`h5-web/src/lib/api.ts`**：新增 `resolveLoginRedirectPath(pathname, basePath)` 工具函数，401 响应拦截器按当前路径分发跳转目标（`/merchant/m/login` → 手机商家；`/merchant/login` → PC 商家；其它 → `/login`），并按端清 `merchant_token`/`token`、`merchant_profile`、`merchant_current_store`；若已在目标登录页则不再重定向。请求拦截器对 `/merchant/*` 路径优先读取 `merchant_token`。
+- **`h5-web/src/app/merchant/layout.tsx`**：新增 `isMobilePath` 判断，一旦命中 `/merchant/m/` 前缀，PC 版 layout 直接透传 children（仅套 ConfigProvider + AntdApp），由 `/merchant/m/layout.tsx` 自治，不再被 PC 守卫拦截；`isLoginOrSelect` 白名单扩充 `forgot-password`、`register`。
+- **`h5-web/src/app/merchant/m/login/page.tsx`**：登录接口返回后先校验商家角色 (`owner`/`store_manager`/`verifier`/`finance`/`staff`) 或身份 (`merchant_owner`/`merchant_staff`)，非商家账号直接 Toast 报错、不写 token、不跳工作台。
+- **`admin-web/src/lib/api.ts`**：401 跳转 target 锁定为 admin 自身 `${basePath}/login`，清 `admin_token` + `admin_user`，且若已在登录页则不跳转。
+- **单测**：新增 `h5-web/src/lib/__tests__/api.redirect.test.ts` 与 `run_redirect_test.mjs`，8 个场景全部通过。
+
+### 验证结果
+- 外部域名全链路可达性验证（移动 UA 模拟）：C 端首页/登录、`/merchant/login/`、**`/merchant/m/login/`（核心）**、`/api/health`、`/admin/login/` 全部 HTTP 200，无 redirect loop，`/merchant/m/login/` 不再被跳到 PC 或 C 端。
+- 用户手册：`user_docs/商家端H5登录跳转修复_使用手册.md`。
+
+### 关键文件
+- `h5-web/src/lib/api.ts`
+- `h5-web/src/app/merchant/layout.tsx`
+- `h5-web/src/app/merchant/m/login/page.tsx`
+- `admin-web/src/lib/api.ts`
+
+---
+
 ## Latest Update: admin 管理后台优化（顶部栏精简 + 对账单管理重构）v1.0（2026-04-24）
 
 ### 概要
