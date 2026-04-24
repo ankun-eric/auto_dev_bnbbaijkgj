@@ -33,7 +33,43 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 商家/机构后台 + 小程序商家管理入口 v1.0（2026-04-24）
+## Latest Update: 门店类别字段 + 商家角色权限体系 v1.0（2026-04-24）
+
+### 概要
+根据《PRD 门店类别字段 + 商家角色权限体系 v1.0》一次性交付：
+- 板块一：门店新建/编辑加"所属类别"必选下拉；门店列表加"类别"列和按类别过滤
+- 板块二：引入 4 个平台内置角色（boss/manager/finance/clerk）+ 模块从 5 个扩到 8 个（新增 finance/staff/settings）；新建员工选角色后自动按矩阵预填模块
+- Admin "新建商家账号" 文案统一为 "老板"；员工列表加 "角色" 列与过滤
+- 商家端 H5 新增 `/merchant/finance` 聚合页；`/merchant/staff` 允许店长编辑下属权限 + 启停（不可新增）
+- 后端：`merchant_role_templates` 新表 + `merchant_store_memberships.role_code` 新字段；新增 `GET /api/admin/merchant-role-templates` 与 `/api/merchant/v1/role-templates`、`/api/merchant/v1/staff` 下的 permissions/status 更新与 "禁止新增" 403
+
+### 关键文件
+- `backend/app/models/models.py`：`MerchantStore.category_id`、`MerchantStoreMembership.role_code`、新增 `MerchantRoleTemplate`
+- `backend/app/services/schema_sync.py`：迁移 category_id / role_code，初始化 4 个角色模板默认 default_modules，存量 owner→boss、staff→clerk 回填
+- `backend/app/api/admin_merchant.py`：`FULL_MODULE_CODES` 扩至 8，`ROLE_TO_MEMBER_ROLE`、`_load_role_template`、门店 CRUD 带类别、账号上下行 role_code
+- `backend/app/api/merchant_v1.py`：新增 admin role-templates 列表、merchant role-templates 列表、staff permissions/status PUT、staff POST 禁止（返回 403 `E_MANAGER_CANNOT_CREATE`）
+- `backend/app/schemas/merchant.py`、`schemas/merchant_v1.py`：相关 schema 扩展
+- `admin-web/src/app/(admin)/merchant/stores/page.tsx`：加"所属类别"下拉 + 筛选
+- `admin-web/src/app/(admin)/merchant/accounts/page.tsx`：加 "员工角色" 下拉（自动预填模块）+ "角色" 列/筛选 + "商家主账号"→"老板" 文案
+- `h5-web/src/app/merchant/lib.ts`：8 模块 × 角色映射；role_code 映射
+- `h5-web/src/app/merchant/layout.tsx`：新增"财务对账"菜单入口
+- `h5-web/src/app/merchant/finance/page.tsx`：新增聚合页
+- `h5-web/src/app/merchant/staff/page.tsx`：增"编辑权限 / 停用启用"按钮与模态框
+
+### 验收自检
+- 数据库：`merchant_stores.category_id` / `merchant_store_memberships.role_code` 列存在；`merchant_role_templates` 4 条默认角色数据 default_modules 与 PRD §4.4 一致
+- 链接：Admin / H5 / Merchant / Login 页面 200；`/api/admin/merchant-role-templates`、`/api/merchant/v1/role-templates`、`/api/admin/merchant/stores`、`/api/admin/merchant/accounts` 在未登录时 401（符合预期）
+- 部署：通过 SFTP 打包（git archive）→ 上传解压 → `docker compose build backend admin-web h5-web` → up -d，三服务全部 Running
+
+### 访问入口（沿用）
+- 商家老板/店长：`/merchant/login/`
+- 商家财务聚合页：`/merchant/finance/`
+- 管理后台门店：`/admin/merchant/stores/`
+- 管理后台账号：`/admin/merchant/accounts/`
+
+---
+
+## Previous Update: 商家/机构后台 + 小程序商家管理入口 v1.0（2026-04-24）
 
 ### 概要
 根据《商家 / 合作机构后台 + 小程序商家管理入口 PRD v1.0》交付：
