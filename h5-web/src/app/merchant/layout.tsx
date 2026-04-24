@@ -51,6 +51,26 @@ export default function MerchantLayout({ children }: { children: React.ReactNode
     pathname.endsWith('/merchant/select-store') ||
     pathname.endsWith('/merchant/select-store/');
 
+  // [2026-04-24] 移动端 UA 自动重定向到 /merchant/m/*
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    // 已经在 /merchant/m/ 下则不处理
+    if (pathname.includes('/merchant/m/') || pathname.endsWith('/merchant/m')) return;
+    const url = new URL(window.location.href);
+    if (url.searchParams.get('desktop') === '1') return;
+    const ua = navigator.userAgent.toLowerCase();
+    const isMobile = /iphone|ipod|ipad|android|mobile/.test(ua);
+    if (!isMobile) return;
+    // 映射：/merchant/xxx -> /merchant/m/xxx（按 basePath 处理）
+    const basePathEnv = process.env.NEXT_PUBLIC_BASE_PATH || '';
+    // url.pathname 已包含 basePath（如 /autodev/xxx/merchant/login）
+    const merchantIdx = url.pathname.indexOf('/merchant/');
+    if (merchantIdx < 0) return;
+    const tail = url.pathname.substring(merchantIdx + '/merchant/'.length); // e.g. 'login' or 'dashboard/'
+    url.pathname = url.pathname.substring(0, merchantIdx) + '/merchant/m/' + tail;
+    window.location.replace(url.toString());
+  }, [pathname]);
+
   useEffect(() => {
     if (isLoginOrSelect) return;
     if (!isAuthed()) {
