@@ -28,9 +28,24 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       if (typeof window !== 'undefined') {
-        localStorage.removeItem('admin_token');
-        localStorage.removeItem('admin_user');
-        window.location.href = `${basePath}/login`;
+        // 清除本端（admin）对应的 token 和用户信息
+        try {
+          localStorage.removeItem('admin_token');
+          localStorage.removeItem('admin_user');
+        } catch {}
+        // [2026-04-25] Bug 修复：跳转到 admin 端登录页，并避免登录页自循环刷新。
+        // admin-web 自身的登录页路由是 /login（项目内部路径），basePath 已包含 /admin 前缀时
+        // ${basePath}/login 即为 /admin/login；否则即为 /login。统一口径为 "admin 端登录页"。
+        const pathname = window.location.pathname || '';
+        const normalized = pathname.replace(/\/+$/, '');
+        const prefix = (basePath || '').replace(/\/+$/, '');
+        const appPath = prefix && normalized.startsWith(prefix)
+          ? normalized.substring(prefix.length)
+          : normalized;
+        const alreadyOnLogin = appPath === '/login' || appPath.startsWith('/login/');
+        if (!alreadyOnLogin) {
+          window.location.href = `${basePath}/login`;
+        }
       }
     }
     return Promise.reject(error);

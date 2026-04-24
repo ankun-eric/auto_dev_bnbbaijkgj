@@ -45,9 +45,19 @@ export default function MerchantLayout({ children }: { children: React.ReactNode
   const [profile, setProfile] = useState<MerchantLoginProfile | null>(null);
   const [currentStore, setCurrentStore] = useState<number | null>(null);
 
+  // [2026-04-25] Bug 修复：path 一旦命中 /merchant/m/ 就完全由移动版 layout 处理，
+  // PC 版 layout 不介入鉴权/跳转，避免 /merchant/m/login 被 PC 版守卫重定向到 /merchant/login。
+  const isMobilePath =
+    pathname.includes('/merchant/m/') || pathname.endsWith('/merchant/m');
+
+  // [2026-04-25] Bug 修复：PC 版登录/找回密码/选店等页面加入白名单，不要求登录态。
   const isLoginOrSelect =
     pathname.endsWith('/merchant/login') ||
     pathname.endsWith('/merchant/login/') ||
+    pathname.endsWith('/merchant/forgot-password') ||
+    pathname.endsWith('/merchant/forgot-password/') ||
+    pathname.endsWith('/merchant/register') ||
+    pathname.endsWith('/merchant/register/') ||
     pathname.endsWith('/merchant/select-store') ||
     pathname.endsWith('/merchant/select-store/');
 
@@ -55,23 +65,24 @@ export default function MerchantLayout({ children }: { children: React.ReactNode
   useEffect(() => {
     if (typeof window === 'undefined') return;
     // 已经在 /merchant/m/ 下则不处理
-    if (pathname.includes('/merchant/m/') || pathname.endsWith('/merchant/m')) return;
+    if (isMobilePath) return;
     const url = new URL(window.location.href);
     if (url.searchParams.get('desktop') === '1') return;
     const ua = navigator.userAgent.toLowerCase();
     const isMobile = /iphone|ipod|ipad|android|mobile/.test(ua);
     if (!isMobile) return;
     // 映射：/merchant/xxx -> /merchant/m/xxx（按 basePath 处理）
-    const basePathEnv = process.env.NEXT_PUBLIC_BASE_PATH || '';
     // url.pathname 已包含 basePath（如 /autodev/xxx/merchant/login）
     const merchantIdx = url.pathname.indexOf('/merchant/');
     if (merchantIdx < 0) return;
     const tail = url.pathname.substring(merchantIdx + '/merchant/'.length); // e.g. 'login' or 'dashboard/'
     url.pathname = url.pathname.substring(0, merchantIdx) + '/merchant/m/' + tail;
     window.location.replace(url.toString());
-  }, [pathname]);
+  }, [pathname, isMobilePath]);
 
   useEffect(() => {
+    // 移动端路径由 /merchant/m/layout.tsx 处理，PC 版 layout 不介入
+    if (isMobilePath) return;
     if (isLoginOrSelect) return;
     if (!isAuthed()) {
       router.replace('/merchant/login');
@@ -79,7 +90,21 @@ export default function MerchantLayout({ children }: { children: React.ReactNode
     }
     setProfile(getProfile());
     setCurrentStore(getCurrentStoreId());
-  }, [isLoginOrSelect, router]);
+  }, [isLoginOrSelect, isMobilePath, router]);
+
+  // 移动端路径：直接透传子组件，由 /merchant/m/layout.tsx 渲染，PC 版 layout 不添加任何 UI
+  if (isMobilePath) {
+    return (
+      <ConfigProvider
+        locale={zhCN}
+        theme={{
+          token: { colorPrimary: '#52c41a', borderRadius: 8 },
+        }}
+      >
+        <AntdApp>{children}</AntdApp>
+      </ConfigProvider>
+    );
+  }
 
   if (isLoginOrSelect) {
     return (

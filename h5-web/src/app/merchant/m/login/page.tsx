@@ -24,6 +24,25 @@ export default function MerchantMobileLoginPage() {
         password: mode === 'password' ? values.password : undefined,
         sms_code: mode === 'sms' ? values.sms_code : undefined,
       });
+
+      // Bug 修复 [2026-04-25]：登录接口返回后先校验商家身份
+      // 仅当返回的 merchant_role 为合法商家角色（owner/store_manager/verifier/finance/staff）时，
+      // 才写入 token、跳转工作台；否则直接在登录页提示，避免进入工作台后被 401 踢回 C 端。
+      const validRoles = ['owner', 'store_manager', 'verifier', 'finance', 'staff'];
+      const merchantRole = res?.merchant_role;
+      const identities: string[] = Array.isArray(res?.identities) ? res.identities : [];
+      const hasMerchantIdentity =
+        (merchantRole && validRoles.includes(merchantRole)) ||
+        identities.includes('merchant_owner') ||
+        identities.includes('merchant_staff');
+      if (!res?.access_token || !hasMerchantIdentity) {
+        Toast.show({
+          icon: 'fail',
+          content: '该账号不是商家账号，请使用商家账号登录，或联系管理员开通商家身份。',
+        });
+        return;
+      }
+
       saveLogin(res.access_token, {
         merchant_id: res.user_id,
         merchant_name: res.nickname || '商家',
