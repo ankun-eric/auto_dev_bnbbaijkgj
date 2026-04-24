@@ -33,6 +33,40 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
+## Latest Update: 商家/机构后台 + 小程序商家管理入口 v1.0（2026-04-24）
+
+### 概要
+根据《商家 / 合作机构后台 + 小程序商家管理入口 PRD v1.0》交付：
+- 小程序 C 端「我的」新增「商家管理」入口（E5-c 双保险身份判定，缓存 + 异步兜底校验）
+- 新建 PC Web `/merchant` 子路径商家后台（承载在 h5-web Next.js 内），含登录 / 工作台 / 订单 / 核销 / 报表 / 对账 / 发票 / 员工 / 门店设置 / 下载 / 消息 11 个页面
+- 合作机构并入现有 MerchantProfile/MerchantStore 体系，新增可运营配置的 `merchant_categories` 表（4 个默认类别：self_store/medical/homeservice/other）
+- 订单附件 `order_attachments`：图片/PDF，单文件 ≤20MB，单订单 ≤5 个，用户端可见可下载
+- 对账结算：`settlement_statements` + `settlement_payment_proofs`，月结线下打款
+- MerchantMemberRole 扩展四档：owner / store_manager / verifier / finance
+- admin-web 新增「机构类别管理」「对账单管理」两个菜单页
+- 后端新增 `merchant_v1` 模块（42 条路由），`schema_sync._sync_merchant_v1_backend` 完成迁移
+
+### 访问入口
+- 商家登录：`/merchant/login/`
+- 工作台：`/merchant/dashboard/`
+- 平台 Admin 类别管理：`/admin/merchant-categories/`
+- 平台 Admin 对账单管理：`/admin/admin-settlements/`
+
+### 关键文件
+- `backend/app/models/models.py`：新增 MerchantCategory / OrderAttachment / MerchantInvoiceProfile / SettlementStatement / SettlementPaymentProof / MerchantExportTask
+- `backend/app/api/merchant_v1.py`：商家端 + 平台端所有新 API
+- `backend/app/schemas/merchant_v1.py`：全部 Pydantic Schema
+- `backend/app/services/schema_sync.py`：`_sync_merchant_v1_backend` 迁移（MerchantMemberRole enum 扩展、category_id 列、默认类别初始化）
+- `h5-web/src/app/merchant/**`：PC 后台全部页面
+- `admin-web/src/app/(admin)/merchant-categories/page.tsx`、`admin-settlements/page.tsx`
+- `miniprogram/pages/profile/index.js|wxml`：商家管理入口
+
+### 部署验证（2026-04-24）
+- 后端 /api/health、/api/merchant-categories 返回 200
+- `/merchant/*` 全部 11 个页面返回 200
+- `/admin/merchant-categories/`、`/admin/admin-settlements/` 返回 200
+- 数据库 5 张新表 + category_id 列 + 4 条默认类别全部就绪
+
 ## Latest Update: 商品功能优化 v1.0 - 角标/卖点/卡片重构（2026-04-24）
 
 ### 概要
