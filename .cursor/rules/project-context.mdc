@@ -33,7 +33,43 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 商品·预约与核销 保存失败 & 联动 UI 修复（BUG-PRODUCT-APPT-001，2026-04-23）
+## Latest Update: 商品功能优化 v1.0 - 角标/卖点/卡片重构（2026-04-24）
+
+### 概要
+根据《商品功能优化需求 PRD v1.0》完成后台清理 + 用户端卡片重构。
+
+### 变更点
+- **管理后台**：
+  - 商品列表操作列删除「表单」按钮（R1）
+  - 商品编辑弹窗「预约与核销」Tab 移除「有效开始/结束日期」字段（R2）
+  - 商品编辑「基础信息」Tab 新增「营销角标」多选字段（R6.1）
+- **用户端 H5**：
+  - 服务列表卡片删除销量/原价显示，新增灰色小字卖点行（R3/R4/R5）
+  - 卖点兜底：无卖点时使用商品分类名
+  - 服务列表 + 商品详情头图 + 首页新增「热门推荐」位 三处均展示营销角标（R6.4）
+  - 新增公共组件 `h5-web/src/components/MarketingBadge.tsx`，按优先级 `limited > hot > new > recommend` 仅渲染 1 个
+- **后端**：
+  - `Product` model 移除 `valid_start_date`/`valid_end_date`，新增 `marketing_badges` JSON 字段
+  - Schema、admin API、schema_sync 同步清理 + 新增
+  - 响应新增 `marketing_badges: list[str] = []`（带前置校验兜底 None）
+- **数据库**：
+  - 通过 `schema_sync.py` 自动 `ADD COLUMN marketing_badges JSON NULL`
+  - 通过 `schema_sync.py` 自动 `DROP COLUMN valid_start_date / valid_end_date`（彻底清理，Q11=C）
+  - 附 SQL 迁移脚本 `backend/migrations/v1_0_product_optimization.sql` 供手动执行
+
+### 部署说明（2026-04-24）
+- 代码：`master@707328a feat(product): v1.0 商品功能优化`
+- 部署脚本：`deploy/deploy_product_optim_v1.py`
+- 验证脚本：`deploy/verify_product_optim_v1.py`（8/8 链接全部 200，响应含 marketing_badges、不含 valid_*_date）
+- 强制迁移脚本（仅在 schema_sync 未生效时兜底）：`deploy/_force_migrate_products.py`
+- **重要**：backend 改了 ORM Model，需要 `docker compose build backend` 而不是只 restart，否则会产生 `Unknown column 'valid_start_date'` 错误
+
+### 用户手册
+- `user_docs/商品功能优化v1.0_使用手册.md`
+
+---
+
+## Previous Update: 商品·预约与核销 保存失败 & 联动 UI 修复（BUG-PRODUCT-APPT-001，2026-04-23）
 
 ### 概要
 修复商品管理"预约与核销"保存失败（原因：前后端枚举不一致；前端无联动 UI；表单隐式 1:1 潜规则）；引入完整联动 UI + 前端必填校验 + 字段级错误提示，并新增"预约表单库"可复用资源。
