@@ -120,29 +120,52 @@ def test_render_png_size():
     assert len(png) > 500
 
 
-def test_v14_visual_spec_physical_pixels_160x60():
-    """v1.4 视觉规格回退验证：PNG 物理像素必须严格等于 CSS 显示尺寸 160 × 60。"""
+def test_v15_visual_spec_physical_pixels_160x60():
+    """v1.5 视觉规格验证：PNG 物理像素严格等于 CSS 显示尺寸 160 × 60（画布保持不变）。"""
     import io as _io
     from PIL import Image as _Image
 
     png = cs.render_captcha_png("AB23")
     img = _Image.open(_io.BytesIO(png))
-    assert img.size == (160, 60), f"v1.4 物理像素必须为 160x60，实际为 {img.size}"
+    assert img.size == (160, 60), f"v1.5 物理像素必须为 160x60，实际为 {img.size}"
     assert cs.IMG_WIDTH == 160
     assert cs.IMG_HEIGHT == 60
 
 
-def test_v14_font_size_38():
-    """v1.4 视觉规格回退验证：字号必须回归 38px（与 v1.0 一致）。"""
-    assert cs.FONT_SIZE == 38, f"v1.4 字号必须为 38，实际为 {cs.FONT_SIZE}"
+def test_v15_font_size_48():
+    """v1.5 视觉规格验证：字号必须放大到 48px（v1.4 的 38 → v1.5 的 48）。"""
+    assert cs.FONT_SIZE == 48, f"v1.5 字号必须为 48，实际为 {cs.FONT_SIZE}"
 
 
-def test_v14_no_super_sampling_scale():
-    """v1.4 视觉规格回退验证：不得再保留 SCALE / 2x DPI 等放大常量分支。"""
-    assert not hasattr(cs, "SCALE"), "v1.4 应已删除 SCALE 常量（取消 2× DPI）"
+def test_v15_no_super_sampling_scale():
+    """v1.5 视觉规格验证：不保留 SCALE / 2x DPI 等放大常量分支。"""
+    assert not hasattr(cs, "SCALE"), "v1.5 不应有 SCALE 常量（不使用 2× DPI）"
 
 
-def test_v14_png_file_size_le_3kb():
-    """v1.4 视觉规格回退验证：单张 PNG 文件体积 ≤ 3 KB。"""
+def test_v15_png_file_size_reasonable():
+    """v1.5 视觉规格验证：单张 PNG 文件体积合理区间 ≥1500 且 ≤6KB。
+
+    v1.5 由于字号放大、加描边、调色板从 64 升到 128，体积比 v1.4 略增，
+    但仍应保持在合理范围（v1.4 ≤3KB 的硬约束放宽，但不允许异常增长）。
+    """
     sizes = [len(cs.render_captcha_png("AB23")) for _ in range(20)]
-    assert max(sizes) <= 3 * 1024, f"v1.4 PNG 体积必须 ≤3KB，最大值实际为 {max(sizes)}"
+    assert min(sizes) >= 1500, f"v1.5 PNG 体积异常偏小，最小值={min(sizes)}（疑似渲染异常）"
+    assert max(sizes) <= 6 * 1024, f"v1.5 PNG 体积异常偏大，最大值={max(sizes)}"
+
+
+def test_v15_dark_color_helper_in_range():
+    """v1.5：字符颜色生成器必须落在深色范围（HSL 亮度 25%~45%）。"""
+    import colorsys
+    for _ in range(50):
+        r, g, b = cs._random_dark_color()
+        h, l, s = colorsys.rgb_to_hls(r / 255, g / 255, b / 255)
+        assert 0.20 <= l <= 0.50, f"v1.5 字符亮度 {l} 不在 [0.25,0.45] 附近（容差 ±0.05）"
+
+
+def test_v15_light_color_helper_in_range():
+    """v1.5：浅色干扰元素生成器必须落在高亮度范围（HSL 亮度 >= 0.65）。"""
+    import colorsys
+    for _ in range(50):
+        r, g, b = cs._random_light_color(min_lightness=0.70)
+        _, l, _ = colorsys.rgb_to_hls(r / 255, g / 255, b / 255)
+        assert l >= 0.65, f"v1.5 浅色干扰元素亮度 {l} 应 >= 0.65"

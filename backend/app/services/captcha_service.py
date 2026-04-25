@@ -1,12 +1,16 @@
 """图形验证码服务
 
-视觉规格（v1.4 / 2026-04-26 视觉规格回退到 v1.0）：
+视觉规格（v1.5 / 2026-04-26 — 字符放大 + 锁深色 + 加描边 + 浅色干扰）：
 - 4 位字符验证码（数字 2-9 + 大写字母去 OIL）
-- CSS 显示尺寸 = 物理像素 = 160 × 60（取消 v1.3 的 2× 高 DPI 渲染）
-- 字号 38px（与 v1.0 一致；字符高度约占画布高度 60%~65%）
-- 字符随机旋转 -15~15°（v1.0 原值）
-- 2~3 条干扰曲线 + 少量噪点（v1.0 原值）
-- 5 分钟过期、一次性使用、不区分大小写（业务规则不变）
+- CSS 显示尺寸 = 物理像素 = 160 × 60（保持 v1.4 画布尺寸不变，登录表单零侵入）
+- 字号 48px（v1.4 的 38 → 48；字符高度约占画布 65%~70%）
+- 字符颜色锁深色：HSL 亮度 25%~45%、饱和度 40%~80%（v1.4 完全随机 → v1.5 锁深色）
+- 字符加 1px 同色系深色描边（v1.4 无描边 → v1.5 加描边，深色背景下也清晰）
+- 字符随机旋转 -10~10°（v1.4 ±15° → v1.5 ±10°，更可读）
+- 字符均分 + ±2px 抖动间距
+- 1~2 条干扰曲线 + 颜色锁浅色 HSL 亮度 70%+（v1.4 2~3 条 + 颜色随机 → v1.5 1~2 条 + 浅色）
+- 噪点约 20 个 + 颜色锁浅色 HSL 亮度 75%+（v1.4 ~40 个 + 颜色随机 → v1.5 ~20 个 + 浅色）
+- 5 分钟过期、一次性使用、不区分大小写（业务规则完全不变）
 - 同 IP / 同手机号 5 分钟内账密错误 5 次 → 锁定 10 分钟
 - 验证码生成接口 IP 限流：1 秒最多 5 次
 
@@ -15,10 +19,13 @@
 - v1.1~v1.2：曾尝试放大画布，因布局错位被回退（视觉规格未保留）
 - v1.3：保持画布 160×60，但启用 2× 高 DPI（实际 320×120），字号放大到 96px
 - v1.4：彻底回退到 v1.0 视觉规格，取消 2× DPI、字号回归 38、旋转/干扰/噪点全部回退到 v1.0 原值
-        （后续如再调整字号或画布尺寸，请基于本版本起新版 v1.5+，不要直接覆盖 v1.4 视觉规格）
+- v1.5：保持画布 160×60；字号 38 → 48；字符颜色锁深色 + 加 1px 描边；
+        旋转 ±15° → ±10°；干扰曲线 2~3 → 1~2 条且锁浅色；噪点 40 → 20 且锁浅色。
+        业务逻辑完全不变，前端无需任何改动，H5 等比缩放后字符自动跟随放大。
 """
 from __future__ import annotations
 
+import colorsys
 import io
 import logging
 import math
@@ -47,10 +54,10 @@ LOCK_DURATION_SECONDS = 10 * 60    # 锁定 10 分钟
 ISSUE_RATE_WINDOW_SECONDS = 1
 ISSUE_RATE_MAX = 5
 
-# 图片视觉规格（v1.4 = v1.0：CSS 显示尺寸 = 物理像素 = 160 × 60；字号 38；无 2× DPI）
+# 图片视觉规格（v1.5：保持画布 160×60；字号 48；锁深色 + 描边；浅色干扰）
 IMG_WIDTH = 160
 IMG_HEIGHT = 60
-FONT_SIZE = 38
+FONT_SIZE = 48
 
 
 @dataclass
@@ -149,7 +156,7 @@ def generate_captcha_code() -> str:
 
 
 def _load_font() -> ImageFont.FreeTypeFont:
-    """加载 38px 加粗字体；失败则用 PIL 默认。"""
+    """加载 v1.5 的 48px 加粗字体；失败则用 PIL 默认。"""
     candidates = (
         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
         "/usr/share/fonts/dejavu/DejaVuSans-Bold.ttf",
@@ -168,17 +175,46 @@ def _load_font() -> ImageFont.FreeTypeFont:
 _FONT = _load_font()
 
 
+def _hsl_to_rgb(h: float, s: float, l: float) -> tuple[int, int, int]:
+    r, g, b = colorsys.hls_to_rgb(h, l, s)
+    return int(r * 255), int(g * 255), int(b * 255)
+
+
+def _random_dark_color() -> tuple[int, int, int]:
+    """v1.5 字符主色：HSL 亮度 25%~45%、饱和度 40%~80%（深色，肉眼一眼可辨）"""
+    h = random.random()
+    s = random.uniform(0.40, 0.80)
+    l = random.uniform(0.25, 0.45)
+    return _hsl_to_rgb(h, s, l)
+
+
+def _darker_outline(color: tuple[int, int, int]) -> tuple[int, int, int]:
+    """v1.5 字符描边色：基于主色加深 ~15% 亮度，构成同色系深色描边"""
+    r, g, b = (c / 255.0 for c in color)
+    h, l, s = colorsys.rgb_to_hls(r, g, b)
+    l = max(0.0, l - 0.15)
+    return _hsl_to_rgb(h, s, l)
+
+
+def _random_light_color(min_lightness: float) -> tuple[int, int, int]:
+    """v1.5 干扰元素颜色：HSL 高亮度浅色，退到背景层"""
+    h = random.random()
+    s = random.uniform(0.10, 0.35)
+    l = random.uniform(min_lightness, min(min_lightness + 0.20, 0.95))
+    return _hsl_to_rgb(h, s, l)
+
+
 def render_captcha_png(code: str) -> bytes:
-    """渲染 PNG 字节（v1.4 = v1.0 视觉规格）。
+    """渲染 PNG 字节（v1.5 视觉规格）。
 
     规格：
-    - 物理像素 = CSS 显示尺寸 = 160 × 60（不再 2× 高 DPI 渲染）
-    - 字号 38px，字符撑满画布约 60%~65%
-    - 字符随机深色（与背景对比度 ≥ 4.5:1）
-    - 4 字符均匀分布，单字符宽度 ~36px
-    - 每字符随机 -15~15° 轻微旋转
-    - 2~3 条随机曲线
-    - 少量噪点（约 40 个）
+    - 物理像素 = CSS 显示尺寸 = 160 × 60（保持 v1.4 画布不变）
+    - 字号 48px，字符撑满画布约 65%~70%
+    - 字符颜色锁深色 HSL(亮度 25~45%、饱和度 40~80%)，加 1px 同色系深色描边
+    - 4 字符均匀分布 + ±2px 抖动
+    - 每字符随机 -10~10° 轻微旋转
+    - 1~2 条浅色干扰曲线（HSL 亮度 70%+）
+    - 约 20 个浅色噪点（HSL 亮度 75%+）
     - 浅色随机渐变背景
     """
     width, height = IMG_WIDTH, IMG_HEIGHT
@@ -206,35 +242,15 @@ def render_captcha_png(code: str) -> bytes:
 
     draw = ImageDraw.Draw(image)
 
-    # 字符布局：4 个字符均分宽度
-    char_box_w = (width - 16) // CAPTCHA_LENGTH  # ≈ 36
-    for i, ch in enumerate(code):
-        ch_img = Image.new("RGBA", (char_box_w + 12, height), (0, 0, 0, 0))
-        ch_draw = ImageDraw.Draw(ch_img)
-        # 随机深色（确保对比度）
-        color = (
-            random.randint(10, 80),
-            random.randint(10, 80),
-            random.randint(10, 90),
-        )
-        # 文字垂直居中（38px 字号在 60px 高图上居中）
-        text_y = max((height - FONT_SIZE) // 2 - 4, 0)
-        ch_draw.text((4, text_y), ch, font=_FONT, fill=color)
-        angle = random.uniform(-15, 15)
-        rotated = ch_img.rotate(angle, resample=Image.BILINEAR, expand=False)
-        image.paste(rotated, (8 + i * char_box_w, 0), rotated)
+    # ───── 干扰先画到背景层（曲线 + 噪点），让字符叠在最上层最显眼 ─────
 
-    # 2~3 条随机曲线
-    for _ in range(random.randint(2, 3)):
-        amplitude = random.randint(4, 10)
+    # v1.5：1~2 条浅色干扰曲线（颜色锁定 HSL 亮度 70%+）
+    for _ in range(random.randint(1, 2)):
+        amplitude = random.randint(4, 9)
         period = random.uniform(width / 2, width)
         phase = random.uniform(0, math.pi * 2)
         y_base = random.randint(15, height - 15)
-        color = (
-            random.randint(80, 160),
-            random.randint(80, 160),
-            random.randint(80, 160),
-        )
+        color = _random_light_color(min_lightness=0.70)
         last_pt: Optional[tuple[int, int]] = None
         for x in range(0, width, 2):
             y = int(y_base + amplitude * math.sin(2 * math.pi * x / period + phase))
@@ -244,18 +260,55 @@ def render_captcha_png(code: str) -> bytes:
                 draw.line((last_pt, pt), fill=color, width=1)
             last_pt = pt
 
-    # 少量噪点
-    for _ in range(40):
+    # v1.5：约 20 个浅色噪点（颜色锁定 HSL 亮度 75%+）
+    for _ in range(20):
         draw.point(
             (random.randint(0, width - 1), random.randint(0, height - 1)),
-            fill=(random.randint(60, 200), random.randint(60, 200), random.randint(60, 200)),
+            fill=_random_light_color(min_lightness=0.75),
         )
 
-    # 轻度模糊柔和处理
+    # ───── 字符布局：4 个字符均分宽度 + ±2px 抖动 ─────
+    # 上下各留 6px padding（v1.5 规格），48px 字号在 60px 高画布内合适
+    padding_x = 8
+    char_box_w = (width - 2 * padding_x) // CAPTCHA_LENGTH  # ≈ 36
+    # 单字符渲染画布需更大以容纳 48px 字号 + 旋转 + 描边
+    ch_canvas_w = char_box_w + 16
+    ch_canvas_h = height + 16
+
+    for i, ch in enumerate(code):
+        ch_img = Image.new("RGBA", (ch_canvas_w, ch_canvas_h), (0, 0, 0, 0))
+        ch_draw = ImageDraw.Draw(ch_img)
+
+        # v1.5：字符颜色锁深色 + 1px 同色系深色描边
+        color = _random_dark_color()
+        outline = _darker_outline(color)
+
+        # 文字垂直居中（48px 字号在 60+16 高画布上居中，留 6px 上下安全 padding）
+        text_y = (ch_canvas_h - FONT_SIZE) // 2 - 4
+        text_x = (ch_canvas_w - char_box_w) // 2
+
+        # 1px 同色系深色描边：在主字符上下左右各偏移 1px 描一遍
+        for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+            ch_draw.text((text_x + dx, text_y + dy), ch, font=_FONT, fill=outline)
+        # 主字符（深色）
+        ch_draw.text((text_x, text_y), ch, font=_FONT, fill=color)
+
+        # v1.5：±10° 旋转
+        angle = random.uniform(-10, 10)
+        rotated = ch_img.rotate(angle, resample=Image.BILINEAR, expand=False)
+
+        # ±2px 间距抖动
+        jitter_x = random.randint(-2, 2)
+        jitter_y = random.randint(-2, 2)
+        paste_x = padding_x + i * char_box_w - (ch_canvas_w - char_box_w) // 2 + jitter_x
+        paste_y = -8 + jitter_y
+        image.paste(rotated, (paste_x, paste_y), rotated)
+
+    # 轻度模糊柔和处理（不影响字符可读性）
     image = image.filter(ImageFilter.SMOOTH)
-    # 转为 64 色自适应调色板 + 优化输出，压缩 PNG 文件体积到 ≤ 3 KB
-    # （视觉差异肉眼不可见，与 v1.0 老版完全一致）
-    image = image.convert("P", palette=Image.ADAPTIVE, colors=64)
+    # 转为 128 色自适应调色板 + 优化输出
+    # （v1.5 比 v1.4 多了描边和深浅对比，128 色保留更细腻的描边过渡）
+    image = image.convert("P", palette=Image.ADAPTIVE, colors=128)
     buf = io.BytesIO()
     image.save(buf, format="PNG", optimize=True)
     return buf.getvalue()
