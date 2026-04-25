@@ -1,28 +1,42 @@
 'use client';
 
-// [Bug 修复 V1.0 / 2026-04-25] admin 登录页：手机号 + 密码 + 滑块拼图验证码
-// 旧字符验证码已替换为滑块拼图（SliderCaptcha 组件 + captcha_token）。
+// PRD: 后台登录页图形验证码改造（v1.0 / 2026-04-25）
+// 平台管理后台登录：手机号 + 密码 + 4 位字符图形验证码
+// 验证码 160×60，可点击刷新；提交失败后自动刷新并清空输入框，焦点回到验证码输入框
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Form, Input, Button, Card, message, Typography } from 'antd';
-import { UserOutlined, LockOutlined, MedicineBoxOutlined } from '@ant-design/icons';
+import { UserOutlined, LockOutlined, MedicineBoxOutlined, SafetyOutlined } from '@ant-design/icons';
 import { post } from '@/lib/api';
-import { sliderApiClient } from '@/lib/captcha';
 import { useRouter } from 'next/navigation';
-import SliderCaptcha from '@/components/SliderCaptcha';
+import CaptchaImage, { type CaptchaImageRef } from '@/components/CaptchaImage';
 
 const { Title, Text } = Typography;
 
+interface LoginFormValues {
+  phone: string;
+  password: string;
+  captcha_code: string;
+}
+
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
-  const [captchaToken, setCaptchaToken] = useState<string>('');
-  const [captchaResetKey, setCaptchaResetKey] = useState<number>(0);
+  const [captchaId, setCaptchaId] = useState<string>('');
   const router = useRouter();
-  const [form] = Form.useForm();
+  const [form] = Form.useForm<LoginFormValues>();
+  const captchaRef = useRef<CaptchaImageRef>(null);
+  const captchaInputRef = useRef<any>(null);
 
-  const onFinish = async (values: { phone: string; password: string }) => {
-    if (!captchaToken) {
-      message.warning('请先完成滑块验证');
+  const handleCaptchaError = () => {
+    captchaRef.current?.refresh();
+    form.setFieldsValue({ captcha_code: '' });
+    setTimeout(() => captchaInputRef.current?.focus?.(), 50);
+  };
+
+  const onFinish = async (values: LoginFormValues) => {
+    if (!captchaId) {
+      message.warning('验证码加载中，请稍后重试');
+      captchaRef.current?.refresh();
       return;
     }
     setLoading(true);
@@ -30,13 +44,14 @@ export default function LoginPage() {
       const res = await post('/api/admin/login', {
         phone: values.phone,
         password: values.password,
-        captcha_token: captchaToken,
+        captcha_id: captchaId,
+        captcha_code: (values.captcha_code || '').trim().toUpperCase(),
       });
-      if (res.code === 0 || res.token) {
-        localStorage.setItem('admin_token', res.token || res.data?.token);
+      if (res.token || res.access_token) {
+        localStorage.setItem('admin_token', res.token || res.access_token);
         localStorage.setItem(
           'admin_user',
-          JSON.stringify(res.user || res.data?.user || { name: '管理员' })
+          JSON.stringify(res.user || { name: '管理员' })
         );
         message.success('登录成功');
         if (res.must_change_password || res.user?.must_change_password) {
@@ -45,16 +60,20 @@ export default function LoginPage() {
           router.push('/dashboard');
         }
       } else {
-        setCaptchaToken('');
-        setCaptchaResetKey((k) => k + 1);
-        message.error(res.message || '登录失败');
+        handleCaptchaError();
+        message.error(res.message || res.msg || '登录失败');
       }
     } catch (err: any) {
-      setCaptchaToken('');
-      setCaptchaResetKey((k) => k + 1);
-      message.error(
-        err?.response?.data?.detail || err?.response?.data?.message || '账号、密码或验证码错误'
-      );
+      const detail = err?.response?.data?.detail;
+      // 业务码：40101/40102/40103=验证码相关；40121/40122=账号相关；40129=锁定
+      let msgText = '账号或密码错误';
+      if (detail && typeof detail === 'object') {
+        msgText = detail.msg || msgText;
+      } else if (typeof detail === 'string') {
+        msgText = detail;
+      }
+      handleCaptchaError();
+      message.error(msgText);
     } finally {
       setLoading(false);
     }
@@ -89,7 +108,7 @@ export default function LoginPage() {
           <Title level={3} style={{ marginBottom: 4, color: '#333' }}>
             宾尼小康
           </Title>
-          <Text type="secondary">AI健康管家 · 管理后台</Text>
+          <Text type="secondary">AI健康管家 · 平台管理后台</Text>
         </div>
 
         <Form form={form} name="login" onFinish={onFinish} size="large" autoComplete="off">
@@ -105,18 +124,42 @@ export default function LoginPage() {
           <Form.Item name="password" rules={[{ required: true, message: '请输入密码' }]}>
             <Input.Password prefix={<LockOutlined />} placeholder="请输入密码" />
           </Form.Item>
-          <Form.Item required style={{ marginBottom: 16 }}>
-            <div style={{ display: 'flex', justifyContent: 'center' }}>
-              <SliderCaptcha
-                key={captchaResetKey}
-                apiClient={sliderApiClient}
-                mode="pc"
-                onSuccess={(tok) => setCaptchaToken(tok)}
-                onReset={() => setCaptchaToken('')}
-              />
+          <Form.Item style={{ marginBottom: 8 }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'stretch' }}>
+              <Form.Item
+                name="captcha_code"
+                noStyle
+                rules={[
+                  { required: true, message: '请输入验证码' },
+                  { len: 4, message: '验证码 4 位' },
+                ]}
+                normalize={(v) => (v || '').trim().toUpperCase().slice(0, 4)}
+              >
+                <Input
+                  ref={captchaInputRef}
+                  prefix={<SafetyOutlined />}
+                  placeholder="验证码"
+                  maxLength={4}
+                  autoComplete="off"
+                  style={{ flex: 1, textTransform: 'uppercase' }}
+                />
+              </Form.Item>
+              <CaptchaImage ref={captchaRef} onChange={setCaptchaId} />
+            </div>
+            <div style={{ textAlign: 'right', marginTop: 4 }}>
+              <a
+                onClick={(e) => {
+                  e.preventDefault();
+                  captchaRef.current?.refresh();
+                  form.setFieldsValue({ captcha_code: '' });
+                }}
+                style={{ color: '#1890ff', fontSize: 12 }}
+              >
+                看不清？换一张
+              </a>
             </div>
           </Form.Item>
-          <Form.Item style={{ marginBottom: 0 }}>
+          <Form.Item style={{ marginBottom: 0, marginTop: 16 }}>
             <Button
               type="primary"
               htmlType="submit"

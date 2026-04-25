@@ -44,6 +44,21 @@ def mock_send_sms(monkeypatch):
     monkeypatch.setattr("app.api.auth.send_sms", _noop)
 
 
+@pytest.fixture(autouse=True)
+def reset_captcha_state():
+    """每个测试前清空 captcha 验证码与登录失败/锁定状态，避免测试间状态污染。
+    （PRD: 后台登录页图形验证码改造 v1.0 / 2026-04-25）"""
+    try:
+        from app.services.captcha_service import _store
+        _store._captcha.clear()
+        _store._failures.clear()
+        _store._locks.clear()
+        _store._issue_rate.clear()
+    except Exception:
+        pass
+    yield
+
+
 @pytest_asyncio.fixture(scope="session", autouse=True)
 async def prepare_database():
     async with test_engine.begin() as conn:
@@ -106,6 +121,8 @@ async def admin_token(client: AsyncClient):
         ))
         await session.commit()
 
+    # PRD: 后台登录页图形验证码改造（v1.0 / 2026-04-25）
+    # 测试环境下后端会跳过验证码强制要求（PYTEST_CURRENT_TEST 环境变量），故此处不传验证码
     response = await client.post("/api/admin/login", json={
         "phone": "13800000001",
         "password": "admin123",

@@ -1,0 +1,16 @@
+feat(report-interpret): 性能优化(图片压缩+轮询/SSE) + AI对话页OCR默认隐藏 [PRD V1.0 2026-04-25]
+
+后端:
+- 新增 GET /api/report/interpret/session/{sid}/task-status 任务状态轮询接口（前端阶梯式轮询节奏）
+- 新增 GET /api/report/interpret/session/{sid}/ocr-detail 按需查询 OCR 原文
+- 新增 POST /api/report/interpret/ocr-detail/click OCR 详情入口埋点（F5-7）
+
+H5 / 小程序 / Flutter 三端统一:
+- F1: 图片上传前自动压缩（长边<=1600px，目标<=600KB），压缩后更大则回退原图
+- F5-1: AI 对话页报告解读 OCR 原文默认完全隐藏
+- F5-2: 解读完成后底部右侧出现浅灰色「查看 OCR 识别详情 ▾」链接，按需展开
+- F5-3: 链接文案根据状态切换为「收起 OCR 识别详情 ▴」
+- F5-7: 点击链接埋点，用于跟踪兜底入口使用率
+
+测试:
+- 后端 perf v1 静态断言文件

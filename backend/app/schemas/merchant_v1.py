@@ -73,11 +73,10 @@ class MerchantLoginRequest(BaseModel):
     phone: str
     password: Optional[str] = None
     sms_code: Optional[str] = None  # [PRD V1.0] 已废弃，保留以兼容旧客户端，服务端不再处理
+    # PRD: 后台登录页图形验证码改造（v1.0 / 2026-04-25）
+    # 字符集：数字 2-9 + 大写字母去 OIL（共 31 字符），4 位
     captcha_id: Optional[str] = None
     captcha_code: Optional[str] = None
-    # [Bug 修复 V1.0 / 2026-04-25] 滑块验证码：三端登录页改造后传 captcha_token；
-    # 兼容旧字符验证码：captcha_id + captcha_code。优先采用 captcha_token，二者都无则拒绝。
-    captcha_token: Optional[str] = None
 
 
 class MerchantLoginResponse(BaseModel):

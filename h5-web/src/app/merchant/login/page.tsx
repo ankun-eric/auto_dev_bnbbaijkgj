@@ -1,29 +1,43 @@
 'use client';
 
-// [PRD V1.0 §M7 + Bug 修复 V1.0 / 2026-04-25]
-// 商家 PC 登录页：手机号 + 密码 + 滑块拼图验证码
-// 旧字符验证码 captcha_id/captcha_code 已替换为 captcha_token（滑块通过后下发）。
-// 登录成功若返回 must_change_password=true，跳转 /merchant/m/profile/force-change-password。
+// PRD: 后台登录页图形验证码改造（v1.0 / 2026-04-25）
+// 商家 PC 后台登录：手机号 + 密码 + 4 位字符图形验证码
+// 验证码图片 160×60，可点击刷新；提交失败后自动刷新 + 清空输入框 + 焦点回到验证码
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Card, Form, Input, Button, message, Typography } from 'antd';
-import { UserOutlined, LockOutlined } from '@ant-design/icons';
+import { UserOutlined, LockOutlined, SafetyOutlined } from '@ant-design/icons';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
-import SliderCaptcha from '@/components/SliderCaptcha';
+import CaptchaImage, { type CaptchaImageRef } from '@/components/CaptchaImage';
 import { saveLogin } from '../lib';
 
 const { Title, Text } = Typography;
 
+interface LoginFormValues {
+  phone: string;
+  password: string;
+  captcha_code: string;
+}
+
 export default function MerchantLoginPage() {
   const [loading, setLoading] = useState(false);
-  const [captchaToken, setCaptchaToken] = useState<string>('');
-  const [captchaResetKey, setCaptchaResetKey] = useState<number>(0);
+  const [captchaId, setCaptchaId] = useState<string>('');
   const router = useRouter();
+  const [form] = Form.useForm<LoginFormValues>();
+  const captchaRef = useRef<CaptchaImageRef>(null);
+  const captchaInputRef = useRef<any>(null);
 
-  const submit = async (values: { phone: string; password: string }) => {
-    if (!captchaToken) {
-      message.warning('请先完成滑块验证');
+  const handleCaptchaError = () => {
+    captchaRef.current?.refresh();
+    form.setFieldsValue({ captcha_code: '' });
+    setTimeout(() => captchaInputRef.current?.focus?.(), 50);
+  };
+
+  const submit = async (values: LoginFormValues) => {
+    if (!captchaId) {
+      message.warning('验证码加载中，请稍后重试');
+      captchaRef.current?.refresh();
       return;
     }
     setLoading(true);
@@ -31,7 +45,8 @@ export default function MerchantLoginPage() {
       const res: any = await api.post('/api/merchant/auth/login', {
         phone: values.phone,
         password: values.password,
-        captcha_token: captchaToken,
+        captcha_id: captchaId,
+        captcha_code: (values.captcha_code || '').trim().toUpperCase(),
       });
       saveLogin(res.access_token, {
         merchant_id: res.user_id,
@@ -51,11 +66,15 @@ export default function MerchantLoginPage() {
         router.push('/merchant/select-store');
       }
     } catch (e: any) {
-      const detail = e?.response?.data?.detail || e?.message || '登录失败';
-      message.error(detail);
-      // 登录失败 token 已被服务端销毁，前端清空并刷新滑块
-      setCaptchaToken('');
-      setCaptchaResetKey((k) => k + 1);
+      const detail = e?.response?.data?.detail;
+      let msgText = '账号或密码错误';
+      if (detail && typeof detail === 'object') {
+        msgText = detail.msg || msgText;
+      } else if (typeof detail === 'string') {
+        msgText = detail;
+      }
+      message.error(msgText);
+      handleCaptchaError();
     } finally {
       setLoading(false);
     }
@@ -78,7 +97,7 @@ export default function MerchantLoginPage() {
           </Title>
           <Text type="secondary">宾尼小康 · 合作机构/商家登录</Text>
         </div>
-        <Form layout="vertical" onFinish={submit} autoComplete="off">
+        <Form form={form} layout="vertical" onFinish={submit} autoComplete="off">
           <Form.Item
             name="phone"
             label="手机号"
@@ -96,18 +115,43 @@ export default function MerchantLoginPage() {
           >
             <Input.Password prefix={<LockOutlined />} size="large" placeholder="请输入密码" />
           </Form.Item>
-          <Form.Item label="滑块验证" required>
-            <div style={{ display: 'flex', justifyContent: 'center' }}>
-              <SliderCaptcha
-                key={captchaResetKey}
-                apiClient={api as any}
-                mode="pc"
-                onSuccess={(tok) => setCaptchaToken(tok)}
-                onReset={() => setCaptchaToken('')}
-              />
+          <Form.Item label="图形验证码" required style={{ marginBottom: 8 }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'stretch' }}>
+              <Form.Item
+                name="captcha_code"
+                noStyle
+                rules={[
+                  { required: true, message: '请输入验证码' },
+                  { len: 4, message: '验证码 4 位' },
+                ]}
+                normalize={(v) => (v || '').trim().toUpperCase().slice(0, 4)}
+              >
+                <Input
+                  ref={captchaInputRef}
+                  prefix={<SafetyOutlined />}
+                  size="large"
+                  placeholder="验证码"
+                  maxLength={4}
+                  autoComplete="off"
+                  style={{ flex: 1, textTransform: 'uppercase' }}
+                />
+              </Form.Item>
+              <CaptchaImage ref={captchaRef} mode="pc" onChange={setCaptchaId} />
+            </div>
+            <div style={{ textAlign: 'right', marginTop: 4 }}>
+              <a
+                onClick={(e) => {
+                  e.preventDefault();
+                  captchaRef.current?.refresh();
+                  form.setFieldsValue({ captcha_code: '' });
+                }}
+                style={{ color: '#1890ff', fontSize: 12 }}
+              >
+                看不清？换一张
+              </a>
             </div>
           </Form.Item>
-          <Form.Item>
+          <Form.Item style={{ marginTop: 12 }}>
             <Button block size="large" type="primary" htmlType="submit" loading={loading}>
               登录
             </Button>

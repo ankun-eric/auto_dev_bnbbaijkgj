@@ -1,0 +1,10 @@
+fix(merchant): 修复商家 PC 后台登录后被 401 踢回登录页 P0 Bug
+
+- backend/app/api/merchant_v1.py：PC 登录签发 token 的 sub 由 int 改为 str(user.id)，与项目其它登录入口对齐
+- backend/app/core/security.py：create_access_token 自动 str 化 sub 作防御性加固；get_current_user 增加类型兼容与 JWTError 日志
+- tests/test_merchant_pc_login_jwt.py：新增 4 条回归测试（含静态源码断言，防止 sub=int 写法再次引入）
+- deploy/deploy_merchant_pc_jwt_fix.py + verify_merchant_pc_jwt_fix.py：远程部署与端到端验证脚本
+- user_docs/商家PC后台登录修复.md：终端用户体验使用手册
+- .cursor/rules/project-context.mdc：同步项目索引近期变更记录
+
+远程验证：密码登录 + 短信 8888 登录 → 用 token 调 /api/merchant/v1/dashboard/metrics 均返回 200，工作台指标字段齐全，不再出现「无效的认证凭证」。

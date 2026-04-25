@@ -1,19 +1,18 @@
-"""图形验证码服务
+"""图形验证码服务（PRD: 后台登录页滑动验证码改造为图形验证码 v1.0 / 2026-04-25）
 
-PRD §M7：图形验证码 + 登录失败风控
-- 4 位字符（数字 + 大小写字母，避开易混淆字符）
-- 干扰线 + 字符扭曲 + 彩色背景
-- 5 分钟过期
-- captcha_id 与验证码绑定，用后即销毁（防重放）
-- 同 IP / 同手机号 5 次失败即锁 15 分钟
+- 4 位字符验证码（数字 2-9 + 大写字母去 OIL）
+- 图片视觉规格：160×60，字号 38px，字符随机旋转 -15~15°，2~3 条干扰曲线 + 少量噪点
+- 5 分钟过期、一次性使用、不区分大小写
+- 同 IP / 同手机号 5 分钟内账密错误 5 次 → 锁定 10 分钟
+- 验证码生成接口 IP 限流：1 秒最多 5 次
 """
 from __future__ import annotations
 
 import io
 import logging
+import math
 import random
 import secrets
-import string
 import time
 from dataclasses import dataclass
 from threading import Lock
@@ -23,13 +22,24 @@ from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 logger = logging.getLogger(__name__)
 
-# 排除易混淆字符 0/O、1/l/I/i
-SAFE_CHARS = "23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz"
+# 字符集：31 个去歧义字符（数字 2-9 + 大写字母去 O/I/L）
+SAFE_CHARS = "23456789ABCDEFGHJKMNPQRSTUVWXYZ"
 CAPTCHA_LENGTH = 4
 CAPTCHA_TTL_SECONDS = 5 * 60  # 5 分钟
-LOCK_FAIL_THRESHOLD = 5
-LOCK_DURATION_SECONDS = 15 * 60  # 15 分钟
-FAIL_WINDOW_SECONDS = 15 * 60
+
+# 登录失败风控
+LOCK_FAIL_THRESHOLD = 5            # 5 分钟内 5 次失败
+FAIL_WINDOW_SECONDS = 5 * 60       # 滑动窗口 5 分钟
+LOCK_DURATION_SECONDS = 10 * 60    # 锁定 10 分钟
+
+# 验证码生成接口 IP 限流
+ISSUE_RATE_WINDOW_SECONDS = 1
+ISSUE_RATE_MAX = 5
+
+# 图片视觉规格
+IMG_WIDTH = 160
+IMG_HEIGHT = 60
+FONT_SIZE = 38
 
 
 @dataclass
@@ -39,23 +49,17 @@ class _CaptchaEntry:
 
 
 class _MemoryStore:
-    """简单内存存储，带 TTL；多 worker 部署时建议替换为 Redis。
-
-    本项目当前未引入 Redis，使用模块级单例线程安全字典。FastAPI 单 worker
-    模式下足够；多 worker 时同一 captcha_id 可能落到不同 worker，但因为
-    captcha 是登录前的一次性短期 token，可接受最差情况下用户多刷一次的体验
-    成本，避免引入 Redis 部署依赖。
-    """
+    """简单内存存储，带 TTL；多 worker 部署时建议替换为 Redis。"""
 
     def __init__(self) -> None:
         self._captcha: dict[str, _CaptchaEntry] = {}
         self._fail_counter: dict[str, list[float]] = {}
         self._lock_until: dict[str, float] = {}
+        self._issue_rate: dict[str, list[float]] = {}
         self._mutex = Lock()
 
     def _gc(self) -> None:
         now = time.time()
-        # 限制 GC 频率，避免每次都遍历
         if random.random() > 0.05:
             return
         with self._mutex:
@@ -69,6 +73,10 @@ class _MemoryStore:
             for k in list(self._lock_until.keys()):
                 if self._lock_until[k] < now:
                     self._lock_until.pop(k, None)
+            for k in list(self._issue_rate.keys()):
+                self._issue_rate[k] = [t for t in self._issue_rate[k] if now - t < ISSUE_RATE_WINDOW_SECONDS]
+                if not self._issue_rate[k]:
+                    self._issue_rate.pop(k, None)
 
     def put_captcha(self, captcha_id: str, code: str) -> None:
         with self._mutex:
@@ -76,7 +84,7 @@ class _MemoryStore:
         self._gc()
 
     def take_captcha(self, captcha_id: str) -> Optional[str]:
-        """取出并销毁（防重放）"""
+        """取出并销毁（一次性使用）"""
         with self._mutex:
             entry = self._captcha.pop(captcha_id, None)
         if not entry:
@@ -86,7 +94,6 @@ class _MemoryStore:
         return entry.code
 
     def is_locked(self, key: str) -> int:
-        """返回剩余锁定秒数；0 表示未锁定"""
         with self._mutex:
             until = self._lock_until.get(key)
         if not until:
@@ -95,7 +102,6 @@ class _MemoryStore:
         return max(remain, 0)
 
     def record_failure(self, key: str) -> int:
-        """记录一次失败，返回当前累计失败次数。失败 >= 阈值时自动加锁。"""
         now = time.time()
         with self._mutex:
             arr = self._fail_counter.setdefault(key, [])
@@ -112,6 +118,17 @@ class _MemoryStore:
             self._fail_counter.pop(key, None)
             self._lock_until.pop(key, None)
 
+    def acquire_issue_token(self, key: str) -> bool:
+        """验证码生成接口 IP 限流（1 秒 5 次）。返回 True 表示放行。"""
+        now = time.time()
+        with self._mutex:
+            arr = self._issue_rate.setdefault(key, [])
+            arr[:] = [t for t in arr if now - t < ISSUE_RATE_WINDOW_SECONDS]
+            if len(arr) >= ISSUE_RATE_MAX:
+                return False
+            arr.append(now)
+            return True
+
 
 _store = _MemoryStore()
 
@@ -120,68 +137,109 @@ def generate_captcha_code() -> str:
     return "".join(secrets.choice(SAFE_CHARS) for _ in range(CAPTCHA_LENGTH))
 
 
-def render_captcha_png(code: str) -> bytes:
-    """渲染 PNG 字节，干扰线 + 字符扭曲 + 彩色背景"""
-    width, height = 140, 48
-    # 浅色随机背景
-    bg = (
-        random.randint(220, 250),
-        random.randint(220, 250),
-        random.randint(220, 250),
-    )
-    image = Image.new("RGB", (width, height), bg)
-    draw = ImageDraw.Draw(image)
-
-    # 字体：尝试系统字体，失败则用默认
-    font: ImageFont.ImageFont
-    font_size = 30
-    font = None  # type: ignore
-    for fp in (
+def _load_font() -> ImageFont.FreeTypeFont:
+    """加载 38px 加粗字体；失败则用 PIL 默认。"""
+    candidates = (
         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
         "/usr/share/fonts/dejavu/DejaVuSans-Bold.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+        "C:/Windows/Fonts/arialbd.ttf",
         "C:/Windows/Fonts/Arial.ttf",
-        "C:/Windows/Fonts/arial.ttf",
-    ):
+    )
+    for fp in candidates:
         try:
-            font = ImageFont.truetype(fp, font_size)
-            break
+            return ImageFont.truetype(fp, FONT_SIZE)
         except Exception:
             continue
-    if font is None:
-        font = ImageFont.load_default()
+    return ImageFont.load_default()
 
-    # 字符位置 + 旋转 + 颜色
-    char_width = (width - 16) // CAPTCHA_LENGTH
+
+_FONT = _load_font()
+
+
+def render_captcha_png(code: str) -> bytes:
+    """渲染 PNG 字节。
+
+    规格（PRD §F1）：
+    - 160 × 60，字号 38px
+    - 字符随机深色（与背景对比度 ≥ 4.5:1）
+    - 4 字符均匀分布，单字符宽度 ~35px
+    - 每字符随机 -15~15° 轻微旋转
+    - 2~3 条随机曲线
+    - 少量噪点
+    - 浅色随机渐变背景
+    """
+    width, height = IMG_WIDTH, IMG_HEIGHT
+
+    # 浅色随机渐变背景（左上→右下）
+    image = Image.new("RGB", (width, height), (255, 255, 255))
+    bg_top = (
+        random.randint(235, 252),
+        random.randint(235, 252),
+        random.randint(235, 252),
+    )
+    bg_bot = (
+        random.randint(220, 240),
+        random.randint(225, 245),
+        random.randint(228, 248),
+    )
+    pixels = image.load()
+    for y in range(height):
+        ratio = y / max(height - 1, 1)
+        r = int(bg_top[0] * (1 - ratio) + bg_bot[0] * ratio)
+        g = int(bg_top[1] * (1 - ratio) + bg_bot[1] * ratio)
+        b = int(bg_top[2] * (1 - ratio) + bg_bot[2] * ratio)
+        for x in range(width):
+            pixels[x, y] = (r, g, b)
+
+    draw = ImageDraw.Draw(image)
+
+    # 字符布局：4 个字符均分宽度
+    char_box_w = (width - 16) // CAPTCHA_LENGTH  # ≈ 36
     for i, ch in enumerate(code):
-        # 单字符渲染到独立透明图层后旋转，再粘贴
-        ch_img = Image.new("RGBA", (char_width + 8, height), (255, 255, 255, 0))
+        ch_img = Image.new("RGBA", (char_box_w + 12, height), (0, 0, 0, 0))
         ch_draw = ImageDraw.Draw(ch_img)
-        color = (random.randint(20, 130), random.randint(20, 130), random.randint(20, 160))
-        ch_draw.text((4, random.randint(0, 8)), ch, font=font, fill=color)
-        angle = random.uniform(-25, 25)
-        rotated = ch_img.rotate(angle, resample=Image.BILINEAR, expand=False)
-        image.paste(rotated, (8 + i * char_width, 0), rotated)
-
-    # 干扰线
-    for _ in range(random.randint(4, 7)):
-        x1 = random.randint(0, width - 1)
-        y1 = random.randint(0, height - 1)
-        x2 = random.randint(0, width - 1)
-        y2 = random.randint(0, height - 1)
-        draw.line(
-            ((x1, y1), (x2, y2)),
-            fill=(random.randint(100, 200), random.randint(100, 200), random.randint(100, 200)),
-            width=1,
+        # 随机深色（确保对比度）
+        color = (
+            random.randint(10, 80),
+            random.randint(10, 80),
+            random.randint(10, 90),
         )
+        # 文字垂直居中（38px 字号在 60px 高图上居中）
+        text_y = max((height - FONT_SIZE) // 2 - 4, 0)
+        ch_draw.text((4, text_y), ch, font=_FONT, fill=color)
+        angle = random.uniform(-15, 15)
+        rotated = ch_img.rotate(angle, resample=Image.BILINEAR, expand=False)
+        image.paste(rotated, (8 + i * char_box_w, 0), rotated)
 
-    # 干扰点
-    for _ in range(80):
+    # 2~3 条随机曲线
+    for _ in range(random.randint(2, 3)):
+        amplitude = random.randint(4, 10)
+        period = random.uniform(width / 2, width)
+        phase = random.uniform(0, math.pi * 2)
+        y_base = random.randint(15, height - 15)
+        color = (
+            random.randint(80, 160),
+            random.randint(80, 160),
+            random.randint(80, 160),
+        )
+        last_pt: Optional[tuple[int, int]] = None
+        for x in range(0, width, 2):
+            y = int(y_base + amplitude * math.sin(2 * math.pi * x / period + phase))
+            y = max(0, min(height - 1, y))
+            pt = (x, y)
+            if last_pt is not None:
+                draw.line((last_pt, pt), fill=color, width=1)
+            last_pt = pt
+
+    # 少量噪点
+    for _ in range(40):
         draw.point(
             (random.randint(0, width - 1), random.randint(0, height - 1)),
-            fill=(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)),
+            fill=(random.randint(60, 200), random.randint(60, 200), random.randint(60, 200)),
         )
 
-    # 轻度模糊
+    # 轻度模糊柔和处理
     image = image.filter(ImageFilter.SMOOTH)
     buf = io.BytesIO()
     image.save(buf, format="PNG")
@@ -197,14 +255,29 @@ def issue_captcha() -> tuple[str, bytes]:
     return captcha_id, png_bytes
 
 
-def verify_captcha(captcha_id: Optional[str], user_input: Optional[str]) -> bool:
-    """校验图形验证码；校验后立即销毁（不论成功与否）"""
+def acquire_issue_rate(client_ip: str) -> bool:
+    """验证码生成接口 IP 级限流。返回 True 放行；False 表示超出限频。"""
+    return _store.acquire_issue_token(f"issue:{client_ip}")
+
+
+def verify_captcha(captcha_id: Optional[str], user_input: Optional[str]) -> tuple[bool, str]:
+    """校验图形验证码。返回 (ok, error_code)。
+
+    error_code:
+        ""            校验通过
+        "missing"     缺少 captchaId / captchaCode（业务码 40103）
+        "expired"     captchaId 不存在或已过期（业务码 40101）
+        "mismatch"    答案不匹配（业务码 40102）
+    """
     if not captcha_id or not user_input:
-        return False
+        return False, "missing"
     expected = _store.take_captcha(captcha_id)
     if not expected:
-        return False
-    return expected.strip().lower() == user_input.strip().lower()
+        return False, "expired"
+    user_norm = (user_input or "").strip().upper()
+    if expected.strip().upper() != user_norm:
+        return False, "mismatch"
+    return True, ""
 
 
 # ────────────────── 失败次数风控 ──────────────────

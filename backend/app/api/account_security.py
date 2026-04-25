@@ -61,10 +61,11 @@ from app.models.models import (
     UserRole,
 )
 from app.services.captcha_service import (
+    CAPTCHA_TTL_SECONDS,
+    acquire_issue_rate,
     issue_captcha,
     verify_captcha,
 )
-from app.services import slider_captcha_service
 
 logger = logging.getLogger(__name__)
 
@@ -95,38 +96,7 @@ _MERCHANT_ROLE_TO_MEMBER = {
 class CaptchaImageResponse(BaseModel):
     captcha_id: str
     image_base64: str  # data:image/png;base64,...
-
-
-# ─────────── 滑块拼图验证码（Bug 修复 V1.0 / 2026-04-25） ───────────
-# 商家 H5 / 商家 PC / 平台管理后台 三端登录页使用，用户端 H5 仍用旧字符验证码
-class SliderChallengeResponse(BaseModel):
-    challenge_id: str
-    bg_image_base64: str
-    puzzle_image_base64: str
-    puzzle_y: int
-    bg_width: int
-    bg_height: int
-    puzzle_size: int
-
-
-class SliderTrailPoint(BaseModel):
-    x: float
-    y: float = 0
-    t: float = 0
-
-
-class SliderVerifyRequest(BaseModel):
-    challenge_id: str
-    x: float
-    trail: List[SliderTrailPoint] = Field(default_factory=list)
-
-
-class SliderVerifyResponse(BaseModel):
-    ok: bool
-    captcha_token: Optional[str] = None
-    expires_in: Optional[int] = None
-    reason: Optional[str] = None
-    locked_seconds: Optional[int] = None
+    expire_seconds: int = CAPTCHA_TTL_SECONDS
 
 
 class ChangePasswordRequest(BaseModel):
@@ -193,58 +163,35 @@ class AdminResetMerchantPasswordRequest(BaseModel):
 # ════════════════ §M7.2 图形验证码 ════════════════
 
 @router.get("/api/captcha/image", response_model=CaptchaImageResponse)
-async def get_captcha_image() -> CaptchaImageResponse:
+async def get_captcha_image(request: Request, response: Response) -> CaptchaImageResponse:
     """生成 4 位图形验证码（PNG / Base64）。
 
-    前端展示策略：
-    - 点击图片刷新 → 重新调用此接口
-    - 提交登录失败 → 自动调用此接口刷新
-    返回 base64 而非二进制流，便于前端在 React/Next 中无 CORS 困扰直接渲染。
+    PRD 规格：
+    - 4 位字符（数字 2-9 + 大写字母去 OIL，共 31 字符）
+    - 图片 160 × 60，字号 38px，干扰线 2~3 条 + 少量噪点
+    - 5 分钟过期，一次性使用
+    - IP 级限流：1 秒最多 5 次（防刷）
+    - 不缓存
     """
     import base64
 
+    client_ip = (
+        (request.client.host if request.client else None)
+        or request.headers.get("x-forwarded-for")
+        or "unknown"
+    )
+    if not acquire_issue_rate(client_ip):
+        raise HTTPException(status_code=429, detail="验证码请求过于频繁，请稍后再试")
+
     captcha_id, png_bytes = issue_captcha()
     b64 = base64.b64encode(png_bytes).decode("ascii")
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["Pragma"] = "no-cache"
     return CaptchaImageResponse(
         captcha_id=captcha_id,
         image_base64=f"data:image/png;base64,{b64}",
+        expire_seconds=CAPTCHA_TTL_SECONDS,
     )
-
-
-@router.get("/api/captcha/slider/issue", response_model=SliderChallengeResponse)
-async def get_slider_challenge() -> SliderChallengeResponse:
-    """下发一道滑块拼图挑战（Bug 修复 V1.0 / 2026-04-25）
-
-    商家 H5 / 商家 PC / 平台管理后台 三端登录页使用。
-    返回带缺口的背景图 + 缺块拼图，前端定位拼图后通过拖动滑块完成对齐校验。
-    """
-    data = slider_captcha_service.issue_challenge()
-    return SliderChallengeResponse(**data)
-
-
-@router.post("/api/captcha/slider/verify", response_model=SliderVerifyResponse)
-async def verify_slider(
-    data: SliderVerifyRequest,
-    request: Request,
-) -> SliderVerifyResponse:
-    """校验滑块滑动结果（Bug 修复 V1.0 / 2026-04-25）
-
-    校验三层：
-    1. 位置对齐：abs(user_x - gap_x) <= 5 像素
-    2. 轨迹合理性：点数、时长、单调性、抖动、速度
-    3. 失败风控：同 IP 60 秒内失败 ≥3 次 → 锁定 60 秒
-
-    通过后返回一次性 captcha_token（5 分钟有效），登录请求携带后由后端二次校验后销毁。
-    """
-    client_ip = (request.client.host if request.client else None) or request.headers.get("x-forwarded-for") or "unknown"
-    trail_dicts = [p.model_dump() for p in data.trail]
-    result = slider_captcha_service.verify(
-        challenge_id=data.challenge_id,
-        user_x=int(data.x),
-        trail=trail_dicts,
-        client_ip=client_ip,
-    )
-    return SliderVerifyResponse(**result)
 
 
 # ════════════════ §M1 admin 个人信息 / 改密 ════════════════
