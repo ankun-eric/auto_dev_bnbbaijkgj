@@ -1,0 +1,315 @@
+﻿== SSH 杩炴帴 ubuntu@newbb.test.bangbangvip.com:22 ==
+
+$ ls -la /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 | head -3
+total 10292
+drwxrwxr-x 21 ubuntu ubuntu   12288 Apr 25 21:07 .
+drwxr-x--- 35 ubuntu ubuntu    4096 Apr 25 20:59 ..
+
+exit=0
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && git remote set-url origin https://ankun-eric:***REDACTED***@github.com/ankun-eric/auto_dev_bnbbaijkgj.git
+exit=0
+
+$ git config --global http.lowSpeedLimit 1000 && git config --global http.lowSpeedTime 60
+exit=0
+
+--- git fetch attempt 1/3 ---
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && GIT_TERMINAL_PROMPT=0 timeout 300 git fetch --depth=50 origin master
+stderr: From https://github.com/ankun-eric/auto_dev_bnbbaijkgj
+ * branch            master     -> FETCH_HEAD
+   66bc7d9..8718c20  master     -> origin/master
+
+exit=0
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && git log -1 origin/master --oneline 2>&1 || true
+8718c20 feat(merchant): fix profile blank fields + open H5 shop info edit (PRD V1.0)
+
+exit=0
+  鉁?origin/master 宸插寘鍚?8718c20
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && git reset --hard origin/master
+HEAD is now at 8718c20 feat(merchant): fix profile blank fields + open H5 shop info edit (PRD V1.0)
+
+exit=0
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && git clean -fd
+exit=0
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && git log -1 --oneline
+8718c20 feat(merchant): fix profile blank fields + open H5 shop info edit (PRD V1.0)
+
+exit=0
+
+== 閲嶅缓 backend ==
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml build --no-cache backend 2>&1 | tail -50
+11-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (3.8 MB)
+#9 14.82      鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣 3.8/3.8 MB 38.5 MB/s eta 0:00:00
+#9 15.14 Collecting watchfiles>=0.13 (from uvicorn[standard]==0.30.0->-r requirements.txt (line 2))
+#9 15.15   Downloading https://mirrors.cloud.tencent.com/pypi/packages/af/b9/a419292f05e302dea372fa7e6fda5178a92998411f8581b9830d28fb9edb/watchfiles-1.1.1-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (456 kB)
+#9 15.18      鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣 456.1/456.1 kB 13.9 MB/s eta 0:00:00
+#9 15.29 Collecting pycparser (from cffi>=1.12->cryptography==43.0.0->-r requirements.txt (line 18))
+#9 15.30   Downloading https://mirrors.cloud.tencent.com/pypi/packages/0c/c3/44f3fbbfa403ea2a7c779186dc20772604442dde72947e7d01069cbe98e3/pycparser-3.0-py3-none-any.whl (48 kB)
+#9 15.31      鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣 48.2/48.2 kB 10.4 MB/s eta 0:00:00
+#9 15.85 Collecting charset_normalizer<4,>=2 (from requests>=2.16.0->tencentcloud-sdk-python==3.0.1200->-r requirements.txt (line 19))
+#9 15.86   Downloading https://mirrors.cloud.tencent.com/pypi/packages/a1/fa/f74eb381a7d94ded44739e9d94de18dc5edc9c17fb8c11f0a6890696c0a9/charset_normalizer-3.4.7-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (214 kB)
+#9 15.88      鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣 214.1/214.1 kB 11.5 MB/s eta 0:00:00
+#9 15.95 Collecting urllib3<3,>=1.26 (from requests>=2.16.0->tencentcloud-sdk-python==3.0.1200->-r requirements.txt (line 19))
+#9 16.00   Downloading https://mirrors.cloud.tencent.com/pypi/packages/39/08/aaaad47bc4e9dc8c725e68f9d04865dbcb2052843ff09c97b08904852d84/urllib3-2.6.3-py3-none-any.whl (131 kB)
+#9 16.16      鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹?131.6/131.6 kB 777.0 kB/s eta 0:00:00
+#9 16.41 Collecting MarkupSafe>=0.9.2 (from Mako->alembic==1.13.0->-r requirements.txt (line 17))
+#9 16.47   Downloading https://mirrors.cloud.tencent.com/pypi/packages/30/ac/0273f6fcb5f42e314c6d8cd99effae6a5354604d461b8d392b5ec9530a54/markupsafe-3.0.3-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (22 kB)
+#9 16.88 Installing collected packages: pytz, passlib, websockets, uvloop, urllib3, tzlocal, tzdata, typing-extensions, sniffio, six, pyyaml, python-multipart, python-dotenv, pymysql, pycparser, pyasn1, Pillow, MarkupSafe, idna, httptools, h11, greenlet, et-xmlfile, click, charset_normalizer, certifi, bcrypt, annotated-types, aiofiles, uvicorn, sqlalchemy, rsa, requests, pydantic-core, openpyxl, Mako, httpcore, ecdsa, cffi, APScheduler, anyio, aiomysql, watchfiles, tencentcloud-sdk-python, starlette, python-jose, pydantic, httpx, cryptography, alembic, pydantic-settings, fastapi
+#9 34.02 Successfully installed APScheduler-3.10.4 Mako-1.3.11 MarkupSafe-3.0.3 Pillow-12.2.0 aiofiles-24.1.0 aiomysql-0.2.0 alembic-1.13.0 annotated-types-0.7.0 anyio-4.13.0 bcrypt-4.0.1 certifi-2026.4.22 cffi-2.0.0 charset_normalizer-3.4.7 click-8.3.3 cryptography-43.0.0 ecdsa-0.19.2 et-xmlfile-2.0.0 fastapi-0.115.0 greenlet-3.4.0 h11-0.16.0 httpcore-1.0.9 httptools-0.7.1 httpx-0.27.0 idna-3.13 openpyxl-3.1.5 passlib-1.7.4 pyasn1-0.6.3 pycparser-3.0 pydantic-2.9.0 pydantic-core-2.23.2 pydantic-settings-2.5.0 pymysql-1.1.1 python-dotenv-1.0.1 python-jose-3.3.0 python-multipart-0.0.9 pytz-2026.1.post1 pyyaml-6.0.3 requests-2.33.1 rsa-4.9.1 six-1.17.0 sniffio-1.3.1 sqlalchemy-2.0.35 starlette-0.38.6 tencentcloud-sdk-python-3.0.1200 typing-extensions-4.15.0 tzdata-2026.2 tzlocal-5.3.1 urllib3-2.6.3 uvicorn-0.30.0 uvloop-0.22.1 watchfiles-1.1.1 websockets-12.0
+#9 34.02 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv
+#9 34.18 
+#9 34.18 [notice] A new release of pip is available: 24.0 -> 26.0.1
+#9 34.18 [notice] To update, run: pip install --upgrade pip
+#9 DONE 35.1s
+
+#10 [5/6] COPY . .
+#10 DONE 0.2s
+
+#11 [6/6] RUN mkdir -p uploads
+#11 DONE 0.2s
+
+#12 exporting to image
+#12 exporting layers
+#12 exporting layers 9.4s done
+#12 exporting manifest sha256:6d4e2ea4e6589f9ccc63859b3f52d02a4b6b2aece43eb8e80d8db3e7c8971c4b 0.0s done
+#12 exporting config sha256:bb164070f96d52a3da01553327e80ed68c20eb68a83dd611779f14fd7e9fba5a 0.0s done
+#12 exporting attestation manifest sha256:d7f35da0a905e1cdd569ddc6052c3c1fd832ff78c5ea8375ece9b4aeaea4803c 0.0s done
+#12 exporting manifest list sha256:943b16cccde402add5930a5d3cb74b81419b085a73a40514af2882b547f9194f 0.0s done
+#12 naming to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-backend:latest done
+#12 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-backend:latest
+#12 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-backend:latest 2.6s done
+#12 DONE 12.1s
+
+#13 resolving provenance for metadata file
+#13 DONE 0.0s
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Built 
+
+exit=0
+
+== 閲嶅缓 h5-web ==
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml build --no-cache h5-web 2>&1 | tail -60
+#12 78.80 鈹?鈼?/points/product-detail                     6.14 kB         238 kB
+#12 78.80 鈹?鈼?/points/records                            4.64 kB         236 kB
+#12 78.80 鈹?茠 /product/[id]                              5.16 kB         237 kB
+#12 78.80 鈹?鈼?/products                                  2.8 kB          234 kB
+#12 78.80 鈹?鈼?/profile                                   12.2 kB         244 kB
+#12 78.80 鈹?鈼?/profile/edit                              2.13 kB         234 kB
+#12 78.80 鈹?鈼?/refund-list                               2.6 kB          234 kB
+#12 78.80 鈹?茠 /refund/[orderId]                          2.42 kB         234 kB
+#12 78.80 鈹?茠 /review/[orderId]                          2.06 kB         233 kB
+#12 78.80 鈹?鈼?/scan                                      109 kB          319 kB
+#12 78.80 鈹?鈼?/search                                    6.28 kB         238 kB
+#12 78.80 鈹?鈼?/search/result                             6.98 kB         238 kB
+#12 78.80 鈹?鈼?/services                                  3.88 kB         235 kB
+#12 78.80 鈹?鈼?/settings                                  6.01 kB         237 kB
+#12 78.80 鈹?茠 /shared/chat/[token]                       2.07 kB         233 kB
+#12 78.80 鈹?茠 /shared/drug/[token]                       2.46 kB         234 kB
+#12 78.80 鈹?茠 /shared/report/[token]                     2.65 kB         234 kB
+#12 78.80 鈹?鈼?/symptom                                   9.23 kB         246 kB
+#12 78.80 鈹?鈼?/tcm                                       10.9 kB         242 kB
+#12 78.80 鈹?鈼?/tcm/archive                               509 B           211 kB
+#12 78.80 鈹?茠 /tcm/diagnosis/[id]                        550 B           211 kB
+#12 78.80 鈹?鈼?/tcm/loading                               957 B           211 kB
+#12 78.80 鈹?茠 /tcm/result/[id]                           8.71 kB         240 kB
+#12 78.80 鈹?茠 /unified-order/[id]                        6.58 kB         238 kB
+#12 78.80 鈹?鈼?/unified-orders                            5.86 kB         237 kB
+#12 78.80 + First Load JS shared by all                  87.6 kB
+#12 78.80   鈹?chunks/2117-e9348fb0d4d6144c.js            31.9 kB
+#12 78.80   鈹?chunks/fd9d1056-cde8d1c8f42e1127.js        53.6 kB
+#12 78.80   鈹?other shared chunks (total)                2.09 kB
+#12 78.80 
+#12 78.80 
+#12 78.80 鈼? (Static)   prerendered as static content
+#12 78.80 茠  (Dynamic)  server-rendered on demand
+#12 78.80 
+#12 DONE 79.1s
+
+#13 [runner 3/5] COPY --from=builder /app/.next/standalone ./
+#13 DONE 0.4s
+
+#14 [runner 4/5] COPY --from=builder /app/.next/static ./.next/static
+#14 DONE 0.1s
+
+#15 [runner 5/5] COPY --from=builder /app/public ./public
+#15 DONE 0.0s
+
+#16 exporting to image
+#16 exporting layers
+#16 exporting layers 1.0s done
+#16 exporting manifest sha256:56b16aa1b1738f49396a25d300a4c04f957ace6c8f0f880c9db8e83ce22fa5d5 done
+#16 exporting config sha256:2330305c353ae1eb509ec6bd1650e404362341df3a25ac4ffd91ec4b1ce0b8d6 0.0s done
+#16 exporting attestation manifest sha256:dd731885b9c6c054989963e3b122c71343d91819f5342476a916f4d02b56196f 0.0s done
+#16 exporting manifest list sha256:02a83c77c54bc2d5c866b9653ec14b61f38944faa271574a467157dfcb2562cf 0.0s done
+#16 naming to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:latest done
+#16 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:latest
+#16 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:latest 0.5s done
+#16 DONE 1.6s
+
+#17 resolving provenance for metadata file
+#17 DONE 0.0s
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web Built 
+
+exit=0
+
+== 鍚姩 backend + h5-web ==
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml up -d backend h5-web 2>&1 | tail -30
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Recreate 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Recreated 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Recreate 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Recreated 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Waiting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Healthy 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Started 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Started 
+
+exit=0
+
+== 绛夊緟瀹瑰櫒 healthy ==
+
+$ docker ps --format '{{.Names}}|{{.Status}}' | grep 6b099ed3-7175-4a78-91f4-44570c84ed27
+6b099ed3-7175-4a78-91f4-44570c84ed27-h5|Up 5 seconds
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend|Up 5 seconds
+6b099ed3-7175-4a78-91f4-44570c84ed27-admin|Up 2 hours
+6b099ed3-7175-4a78-91f4-44570c84ed27-db|Up 2 hours (healthy)
+
+exit=0
+  [1/24] count=4 bad=0
+
+$ docker ps --format '{{.Names}}|{{.Status}}' | grep 6b099ed3-7175-4a78-91f4-44570c84ed27
+6b099ed3-7175-4a78-91f4-44570c84ed27-h5|Up 11 seconds
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend|Up 11 seconds
+6b099ed3-7175-4a78-91f4-44570c84ed27-admin|Up 2 hours
+6b099ed3-7175-4a78-91f4-44570c84ed27-db|Up 2 hours (healthy)
+
+exit=0
+  [2/24] count=4 bad=0
+
+$ docker ps --format '{{.Names}}|{{.Status}}' | grep 6b099ed3-7175-4a78-91f4-44570c84ed27
+6b099ed3-7175-4a78-91f4-44570c84ed27-h5|Up 16 seconds
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend|Up 16 seconds
+6b099ed3-7175-4a78-91f4-44570c84ed27-admin|Up 2 hours
+6b099ed3-7175-4a78-91f4-44570c84ed27-db|Up 2 hours (healthy)
+
+exit=0
+  [3/24] count=4 bad=0
+
+$ docker ps --format '{{.Names}}|{{.Status}}' | grep 6b099ed3-7175-4a78-91f4-44570c84ed27
+6b099ed3-7175-4a78-91f4-44570c84ed27-h5|Up 22 seconds
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend|Up 22 seconds
+6b099ed3-7175-4a78-91f4-44570c84ed27-admin|Up 2 hours
+6b099ed3-7175-4a78-91f4-44570c84ed27-db|Up 2 hours (healthy)
+
+exit=0
+  [4/24] count=4 bad=0
+
+$ docker ps --format '{{.Names}}|{{.Status}}' | grep 6b099ed3-7175-4a78-91f4-44570c84ed27
+6b099ed3-7175-4a78-91f4-44570c84ed27-h5|Up 27 seconds
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend|Up 27 seconds
+6b099ed3-7175-4a78-91f4-44570c84ed27-admin|Up 2 hours
+6b099ed3-7175-4a78-91f4-44570c84ed27-db|Up 2 hours (healthy)
+
+exit=0
+  [5/24] count=4 bad=0
+
+$ docker ps --format '{{.Names}}|{{.Status}}' | grep 6b099ed3-7175-4a78-91f4-44570c84ed27
+6b099ed3-7175-4a78-91f4-44570c84ed27-h5|Up 33 seconds
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend|Up 33 seconds
+6b099ed3-7175-4a78-91f4-44570c84ed27-admin|Up 2 hours
+6b099ed3-7175-4a78-91f4-44570c84ed27-db|Up 2 hours (healthy)
+
+exit=0
+  [6/24] count=4 bad=0
+
+== gateway 鍔犲叆椤圭洰缃戠粶 + reload ==
+
+$ docker network connect 6b099ed3-7175-4a78-91f4-44570c84ed27-network gateway 2>&1 || true
+Error response from daemon: endpoint with name gateway already exists in network 6b099ed3-7175-4a78-91f4-44570c84ed27-network
+
+exit=0
+
+$ docker network inspect 6b099ed3-7175-4a78-91f4-44570c84ed27-network --format '{{range .Containers}}{{.Name}} {{end}}'
+6b099ed3-7175-4a78-91f4-44570c84ed27-h5 gateway 6b099ed3-7175-4a78-91f4-44570c84ed27-backend 6b099ed3-7175-4a78-91f4-44570c84ed27-admin 6b099ed3-7175-4a78-91f4-44570c84ed27-db 
+
+exit=0
+
+$ docker exec gateway nginx -t 2>&1
+nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+nginx: configuration file /etc/nginx/nginx.conf test is successful
+
+exit=0
+
+$ docker exec gateway nginx -s reload 2>&1
+2026/04/25 14:56:40 [notice] 36#36: signal process started
+
+exit=0
+
+== 鏈嶅姟鍣ㄥ唴閮?curl 鑷 ==
+
+$ curl -sk -o /dev/null -w 'h5_root=%{http_code}\n' https://localhost/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/
+h5_root=200
+
+exit=0
+
+$ curl -sk -o /dev/null -w 'login=%{http_code}\n' https://localhost/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/login
+login=308
+
+exit=0
+
+$ curl -sk -o /dev/null -w 'merchant_pc_login=%{http_code}\n' https://localhost/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/login
+merchant_pc_login=308
+
+exit=0
+
+$ curl -sk -o /dev/null -w 'merchant_pc_profile=%{http_code}\n' https://localhost/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/profile
+merchant_pc_profile=308
+
+exit=0
+
+$ curl -sk -o /dev/null -w 'merchant_pc_store=%{http_code}\n' https://localhost/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/store-settings
+merchant_pc_store=308
+
+exit=0
+
+$ curl -sk -o /dev/null -w 'merchant_h5_profile=%{http_code}\n' https://localhost/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/m/profile
+merchant_h5_profile=308
+
+exit=0
+
+$ curl -sk -o /dev/null -w 'merchant_h5_store=%{http_code}\n' https://localhost/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/m/store-settings
+merchant_h5_store=308
+
+exit=0
+
+$ curl -sk -o /dev/null -w 'merchant_h5_me=%{http_code}\n' https://localhost/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/m/me
+merchant_h5_me=308
+
+exit=0
+
+$ curl -sk -o /dev/null -w 'api_health=%{http_code}\n' https://localhost/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health
+api_health=200
+
+exit=0
+
+$ curl -sk -o /dev/null -w 'api_merchant_profile=%{http_code}\n' https://localhost/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/merchant/profile
+api_merchant_profile=401
+
+exit=0
+
+$ curl -sk -o /dev/null -w 'api_merchant_shop=%{http_code}\n' https://localhost/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/merchant/shop/info
+api_merchant_shop=401
+
+exit=0
+
+== 瀹屾垚 ==
+

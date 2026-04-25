@@ -33,7 +33,41 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: AI 报告解读链路 4 个 Bug 一次性修复（H5 + 小程序 + Flutter 安卓/iOS + 后端）（2026-04-25）
+## Latest Update: 商家个人信息回填修复 + H5 店铺信息编辑能力开放（2026-04-25）
+
+### 概要
+针对生产环境双账号（6399 老板 / 6366 员工）必现的两个紧密相关问题做一次性修复 + 优化（PRD V1.0）：
+- **F1 Bug 修复**：商家"个人信息"页（PC + H5 双端）所有字段框存在但**值全部空白**（姓名、手机号、所属商家、角色等）。后端 `/api/merchant/profile` 接口字段补齐 + 兜底（姓名缺失时回退到脱敏手机号），杜绝任何"应有值却空白"
+- **F2 H5 店铺信息编辑能力开放**：H5 端店铺信息原本只读、无编辑入口，现新增「编辑」按钮和保存流程，字段范围与 PC 端完全一致
+- **F3 + F4 权限收紧 + 越权兜底**：店铺信息编辑**仅老板可改**，员工角色前端完全不渲染「编辑」按钮 + 后端强校验（非老板调用 PUT 直接 403 + `{code:40301,msg:"仅老板可修改店铺信息"}`），双保险防越权
+- **个人信息字段扩展**：新增 `is_owner` / `account_status` / `account_status_text` / `created_at` / `last_login_at` 五个字段；`User` 模型新增 `last_login_at` 列，登录成功时自动写入
+- **MerchantStore 模型扩展**：新增 `logo_url` / `description` / `business_hours` / `license_no` / `legal_person` 五个可编辑/只读字段；通过 `schema_sync._sync_merchant_profile_shop_v2` 在启动时自动 ALTER TABLE，无需手动迁移
+
+### 改造范围
+
+| 模块 | 改动 |
+| --- | --- |
+| `backend/app/api/account_security.py` | `MerchantProfileFullResponse` 扩展字段；`merchant_get_profile` 增加姓名兜底 + 完整字段填充；新增 `GET /api/merchant/shop/info`（所有商家成员可读）和 `PUT /api/merchant/shop/info`（仅老板可写，附带操作日志 `[SHOP_INFO_UPDATE]`） |
+| `backend/app/api/auth.py` | 商家 PC 密码登录、H5 短信登录成功后写入 `User.last_login_at` |
+| `backend/app/models/models.py` | `User` 新增 `last_login_at` 列；`MerchantStore` 新增 `logo_url` / `description` / `business_hours` / `license_no` / `legal_person` 列 |
+| `backend/app/services/schema_sync.py` | 新增 `_sync_merchant_profile_shop_v2` 自动添加上述列；并入 `run_all_migrations` 启动时执行 |
+| `h5-web/src/app/merchant/profile/page.tsx` | PC 个人信息页新增"账号状态/创建时间/最近登录"三行展示；类型扩展 `is_owner`/`account_status` 等 |
+| `h5-web/src/app/merchant/m/profile/page.tsx` | H5 个人信息页同步新增三行字段 |
+| `h5-web/src/app/merchant/store-settings/page.tsx` | PC 店铺信息页改为 `GET/PUT /api/merchant/shop/info`，老板可见「编辑」按钮 + Form 表单；员工只读 + 顶部温馨提示 |
+| `h5-web/src/app/merchant/m/store-settings/page.tsx` | H5 店铺信息页全面重写：默认只读卡片 + Logo 头像；老板右上角「编辑」按钮，编辑态显示底部固定「取消/保存」栏；员工无编辑入口；表单校验与 PC 完全一致 |
+| `h5-web/src/app/merchant/m/me/page.tsx` | "我的"页新增「🏪 店铺信息」入口，跳转到 `/merchant/m/store-settings` |
+
+### 部署与验证
+- 后端 + H5：脚本 `deploy/deploy_merchant_profile_shop_v1.py`（git pull → `docker compose --no-cache build backend h5-web` → up -d → gateway reload）
+- 验证脚本 `deploy/verify_merchant_profile_shop_v1.py`：服务器内部 11 条链接全部可达（前端页面 200、`/api/health` 200、`/api/merchant/profile`/`/api/merchant/shop/info` 401 符合未登录预期）
+- 当前线上 commit：`8718c20`
+
+### 用户体验手册
+`user_docs/商家个人信息回填修复与H5店铺信息编辑.md`
+
+---
+
+## Previous Update: AI 报告解读链路 4 个 Bug 一次性修复（H5 + 小程序 + Flutter 安卓/iOS + 后端）（2026-04-25）
 
 ### 概要
 针对生产环境用户走查"AI 报告解读"链路时连续命中的 4 个 Bug 进行一次性修复，三端 + 后端同步发布：
