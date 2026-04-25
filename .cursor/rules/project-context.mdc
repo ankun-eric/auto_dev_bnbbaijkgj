@@ -33,7 +33,40 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 后台登录图形验证码字号再放大（2026-04-25）
+## Latest Update: admin 商家账号列表角色显示错乱修复 + 员工列表抽屉（2026-04-26）
+
+### 一句话结论
+admin 后台「商家管理 → 商家账号」的角色列由"硬编码老板"修正为按真实 `role_code` 渲染；列表收紧为只展示老板账号；新增员工列表抽屉；同步把 6399（13719036399）由 `store_manager` 修正为 `boss`。
+
+### 改造范围
+
+| 模块 | 改动 |
+| --- | --- |
+| `backend/app/schemas/merchant.py` | `MerchantAccountSummaryResponse` 新增 `staff_count`；新增 `MerchantStaffItemResponse` / `MerchantStaffListResponse` |
+| `backend/app/api/admin_merchant.py` | 扩展 `ROLE_TO_MEMBER_ROLE` / `ROLE_NAME_MAP` / `MEMBER_ROLE_TO_ROLE_CODE`；新增 `_normalize_role_code`；`_build_account_summary` 修正 role 推导并计算 `staff_count`；`GET /api/admin/merchant/accounts` 默认 `role_code='boss'`，传 `role_code=all` 关闭过滤；新增 `GET /api/admin/merchant/accounts/{user_id}/staff` 返回该老板下所有非老板员工 |
+| `admin-web/src/app/(admin)/merchant/accounts/page.tsx` | 删除"硬编码老板"的渲染；按 `role_code` 渲染颜色 Tag（boss/store_manager/finance/verifier/staff）；操作列新增「员工列表 (N)」按钮 + 右侧 `Drawer` 展示 8 个字段 |
+| `deploy/deploy_merchant_account_role_fix_v1.py` | 一次性部署脚本：拉代码 → 重建 backend/admin-web → 重启容器 → reload nginx → 备份并执行 SQL（user 2 升级为 owner、`account_identities` 切换为 `merchant_owner`） → 多端 curl 自检 |
+| `deploy/inspect_user_6399_6366.py`、`deploy/inspect_owner_of_store1.py`、`deploy/verify_merchant_account_role_fix.py` | 部署前/后数据快照与 admin token 端到端实测脚本 |
+| `user_docs/商家账号管理.md` | 用户体验使用手册 |
+
+### 数据修正（仅测试服）
+- `users.id=2` `role` 由 `user` 改为 `merchant`
+- `merchant_store_memberships(id=1, store=1)` 由 `store_manager` 改为 `member_role=owner / role_code=boss`
+- `account_identities` 删除 user 2 旧的 user/merchant_staff 身份，新增 `merchant_owner`
+- 6366（user_id=18）保持 `verifier` 不变
+
+### 验收实测（admin token 端到端，2026-04-26）
+- `GET /api/admin/merchant/accounts` 默认仅返回 boss（id=2、id=17），6366 不出现 ✅
+- `GET /api/admin/merchant/accounts?role_code=all` 6366 出现且 `role_code='verifier'` / `role_name='核销员'` ✅
+- `GET /api/admin/merchant/accounts/2/staff` 返回 6366 一条，角色为核销员 ✅
+- 6399 的 stores[0].module_codes 已包含 `finance / staff / settings` 等老板专属模块 ✅
+
+### 状态
+- 已提交、已部署到测试服、已端到端验证；正式服未同步
+
+---
+
+## Previous Update: 后台登录图形验证码字号再放大（2026-04-25）
 
 ### 概要
 继 4 位字符图形验证码上线后，用户反馈"字符依然偏小、看不清"。本轮在**画布尺寸完全不变**（CSS 160×60、与线上原版一致）的前提下，**仅放大字号**到 96px（基于 2× 高 DPI 物理画布 320×120 → 等价 CSS 字号 48px），字符撑满画布约 80% 高度，肉眼可一眼辨认；旋转范围与干扰强度同步收窄，避免"放大反而更难认"。
