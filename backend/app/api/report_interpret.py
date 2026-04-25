@@ -804,6 +804,131 @@ async def interpret_session_info(
     )
 
 
+class InterpretTaskStatusResponse(BaseModel):
+    """[2026-04-25 PRD F2/F4] 任务状态轮询接口返回结构（前端轮询兜底，不依赖 SSE）。"""
+    session_id: int
+    status: str  # pending | running | done | failed
+    stage: str  # uploaded | ocr | ai | done | failed
+    percent: int  # 0~100
+    error: Optional[str] = None
+    started_at: Optional[str] = None
+    finished_at: Optional[str] = None
+
+
+@router.get("/report/interpret/session/{session_id}/task-status", response_model=InterpretTaskStatusResponse)
+async def interpret_task_status(
+    session_id: int = Path(...),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """[2026-04-25 PRD F2-2/F4-1] 任务状态查询接口（前端轮询用）。
+    返回粗粒度阶段：已上传 → OCR 中 → AI 解读中 → 完成 / 失败。
+    """
+    sess = await db.get(ChatSession, session_id)
+    if not sess or sess.user_id != current_user.id or sess.is_deleted:
+        raise HTTPException(status_code=404, detail="会话不存在")
+    status = getattr(sess, "interpret_status", None) or "done"
+    error = getattr(sess, "interpret_error", None)
+    started_at = getattr(sess, "interpret_started_at", None)
+    finished_at = getattr(sess, "interpret_finished_at", None)
+
+    # status -> stage / percent 的简化映射（大粒度即可，前端只展示阶段）
+    if status == "pending":
+        stage, percent = "uploaded", 10
+    elif status == "running":
+        stage, percent = "ai", 60
+    elif status == "done":
+        stage, percent = "done", 100
+    elif status == "failed":
+        stage, percent = "failed", 0
+    else:
+        stage, percent = status, 0
+
+    return InterpretTaskStatusResponse(
+        session_id=session_id,
+        status=status,
+        stage=stage,
+        percent=percent,
+        error=error,
+        started_at=started_at.isoformat() if started_at else None,
+        finished_at=finished_at.isoformat() if finished_at else None,
+    )
+
+
+class InterpretOcrDetailResponse(BaseModel):
+    """[2026-04-25 PRD F5-2] OCR 原文按需查询接口返回结构。"""
+    session_id: int
+    report_id: Optional[int] = None
+    ocr_text: str = ""
+    has_ocr: bool = False
+
+
+@router.get("/report/interpret/session/{session_id}/ocr-detail", response_model=InterpretOcrDetailResponse)
+async def interpret_ocr_detail(
+    session_id: int = Path(...),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """[2026-04-25 PRD F5-2] OCR 原文按需查询接口。
+    AI 对话页默认完全不展示 OCR 原文，用户点击「查看 OCR 识别详情 ▾」时再调本接口。
+    """
+    sess = await db.get(ChatSession, session_id)
+    if not sess or sess.user_id != current_user.id or sess.is_deleted:
+        raise HTTPException(status_code=404, detail="会话不存在")
+
+    rid = getattr(sess, "report_id", None)
+    if not rid:
+        # report_compare 场景：拼装两份报告 OCR
+        compare_ids = getattr(sess, "compare_report_ids", None)
+        if compare_ids:
+            ids = [int(x) for x in str(compare_ids).split(",") if x.strip().isdigit()]
+            parts = []
+            for cid in ids:
+                r = await db.get(CheckupReport, cid)
+                if r:
+                    t = _report_ocr_text(r)
+                    if t:
+                        parts.append(f"=== 报告 {cid} ===\n{t}")
+            txt = "\n\n".join(parts)
+            return InterpretOcrDetailResponse(session_id=session_id, report_id=None, ocr_text=txt, has_ocr=bool(txt))
+        return InterpretOcrDetailResponse(session_id=session_id, report_id=None, ocr_text="", has_ocr=False)
+
+    rep = await db.get(CheckupReport, rid)
+    if not rep or rep.user_id != current_user.id:
+        return InterpretOcrDetailResponse(session_id=session_id, report_id=rid, ocr_text="", has_ocr=False)
+    txt = _report_ocr_text(rep)
+    return InterpretOcrDetailResponse(
+        session_id=session_id,
+        report_id=rid,
+        ocr_text=txt,
+        has_ocr=bool(txt and txt.strip()),
+    )
+
+
+# [2026-04-25 PRD F5-7] OCR 详情点击埋点（轻量计数，不阻塞主流程）
+class OcrDetailClickRequest(BaseModel):
+    session_id: int
+    action: str = "view"  # view | collapse
+
+
+@router.post("/report/interpret/ocr-detail/click")
+async def interpret_ocr_detail_click(
+    body: OcrDetailClickRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """[2026-04-25 PRD F5-7] OCR 详情入口点击率埋点。
+    采用 logger 记录，避免新增表，便于通过日志聚合统计。"""
+    try:
+        logger.info(
+            "OCR_DETAIL_CLICK user=%s session=%s action=%s ts=%s",
+            current_user.id, body.session_id, body.action, datetime.utcnow().isoformat(),
+        )
+    except Exception:
+        pass
+    return {"success": True}
+
+
 @router.get("/report/interpret/session/{session_id}/messages")
 async def interpret_session_messages(
     session_id: int = Path(...),

@@ -1,6 +1,7 @@
 const { get, put, uploadFile } = require('../../utils/request');
 const { checkLogin } = require('../../utils/util');
 const { checkFileSize, uploadWithProgress } = require('../../utils/upload-utils');
+const { compressImage } = require('../../utils/image-compress');
 
 const RELATION_EMOJI = {
   '本人': '👤', '爸爸': '👨', '妈妈': '👩', '父亲': '👨', '母亲': '👩',
@@ -470,13 +471,20 @@ Page({
       let successCount = 0;
 
       for (let i = 0; i < images.length; i++) {
-        this.setData({ uploadProgressText: `正在上传 ${i + 1}/${total} 张...` });
+        this.setData({ uploadProgressText: `正在准备 ${i + 1}/${total} 张...` });
         try {
+          // [2026-04-25 PRD F1] 上传前自动压缩：长边≤1600px、目标≤600KB；压缩后更大则回退原图
+          let pathToUpload = images[i].path;
+          try {
+            pathToUpload = await compressImage(images[i].path);
+          } catch (_) { pathToUpload = images[i].path; }
+
+          this.setData({ uploadProgressText: `正在上传 ${i + 1}/${total} 张...` });
           const formData = { scene_name: '体检报告识别' };
           if (familyMemberId) {
             formData.family_member_id = String(familyMemberId);
           }
-          const res = await uploadWithProgress('/api/ocr/recognize', images[i].path, {
+          const res = await uploadWithProgress('/api/ocr/recognize', pathToUpload, {
             formData,
             onProgress: (percent) => {
               const overallPercent = Math.round(((i + percent / 100) / total) * 100);
@@ -530,11 +538,17 @@ Page({
       const total = filePaths.length;
       for (let i = 0; i < filePaths.length; i++) {
         try {
+          // [2026-04-25 PRD F1] 上传前压缩（仅图片，PDF 自动跳过）
+          let pathToUpload = filePaths[i];
+          try {
+            pathToUpload = await compressImage(filePaths[i]);
+          } catch (_) { pathToUpload = filePaths[i]; }
+
           const formData = { scene_name: '体检报告识别' };
           if (familyMemberId) {
             formData.family_member_id = String(familyMemberId);
           }
-          const res = await uploadWithProgress('/api/ocr/recognize', filePaths[i], {
+          const res = await uploadWithProgress('/api/ocr/recognize', pathToUpload, {
             formData,
             onProgress: (percent) => {
               const overallPercent = Math.round(((i + percent / 100) / total) * 100);

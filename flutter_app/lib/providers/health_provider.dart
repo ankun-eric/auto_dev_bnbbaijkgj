@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/health_profile.dart';
 import '../models/checkup_report.dart';
 import '../services/api_service.dart';
+import '../utils/image_compress_util.dart';
 
 class HealthProvider extends ChangeNotifier {
   final ApiService _api = ApiService();
@@ -149,9 +150,18 @@ class HealthProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      onProgress?.call(1, filePaths.length);
+      // [2026-04-25 PRD F1] 上传前自动压缩：长边≤1600px、目标≤600KB；压缩失败自动回退原图
+      onProgress?.call(0, filePaths.length);
+      List<String> uploadPaths;
+      try {
+        uploadPaths = await CheckupImageCompressor.compressAll(filePaths);
+      } catch (_) {
+        uploadPaths = filePaths;
+      }
+
+      onProgress?.call(1, uploadPaths.length);
       final response = await _api.ocrBatchRecognize(
-        filePaths,
+        uploadPaths,
         sceneName: '体检报告识别',
         familyMemberId: familyMemberId,
       );

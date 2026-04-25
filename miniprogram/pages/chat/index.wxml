@@ -115,6 +115,19 @@
             <text class="msg-time">{{item.time}}</text>
           </view>
 
+          <!-- [2026-04-25 PRD F5] 报告解读 OCR 详情兜底入口 -->
+          <view
+            wx:if="{{(chatType === 'report_interpret' || chatType === 'report_compare') && item.id === firstAiMsgId && !item.isStreaming && !interpretFailed}}"
+            class="ocr-detail-row"
+          >
+            <text class="ocr-detail-link" catchtap="onToggleOcrDetail">
+              {{ocrDetailLoading ? '加载中…' : (ocrDetailExpanded ? '收起 OCR 识别详情 ▴' : '查看 OCR 识别详情 ▾')}}
+            </text>
+            <view wx:if="{{ocrDetailExpanded}}" class="ocr-detail-box">
+              <text class="ocr-detail-text">{{ocrDetailText || (ocrDetailLoaded ? '（暂无 OCR 文本）' : '加载中…')}}</text>
+            </view>
+          </view>
+
           <!-- Module 7: Action buttons (only on latest non-streaming AI message) -->
           <view class="msg-action-bar" wx:if="{{item.id === latestAiMsgId && !item.isStreaming && item.content}}">
             <view class="action-btn" catchtap="copyMessage" data-msgid="{{item.id}}">

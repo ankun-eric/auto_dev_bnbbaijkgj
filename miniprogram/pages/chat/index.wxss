@@ -899,3 +899,30 @@
   border-radius: 32rpx;
   font-size: 28rpx;
 }
+
+/* [2026-04-25 PRD F5] OCR 详情兜底入口样式（浅灰、低存在感） */
+.ocr-detail-row {
+  margin-top: 8rpx;
+  text-align: right;
+}
+.ocr-detail-link {
+  color: #999;
+  font-size: 22rpx;
+}
+.ocr-detail-box {
+  margin-top: 10rpx;
+  padding: 16rpx 20rpx;
+  background: #fafafa;
+  border: 1rpx solid #f0f0f0;
+  border-radius: 12rpx;
+  text-align: left;
+  max-height: 600rpx;
+  overflow-y: auto;
+}
+.ocr-detail-text {
+  color: #666;
+  font-size: 24rpx;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-all;
+}

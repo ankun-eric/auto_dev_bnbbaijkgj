@@ -102,6 +102,12 @@ class _ChatScreenState extends State<ChatScreen> {
   String _fontSizeLevel = 'standard';
   double _chatFontSize = 14.0;
 
+  // [2026-04-25 PRD F5] 报告解读 OCR 详情默认隐藏 + 兜底入口
+  bool _ocrDetailExpanded = false;
+  bool _ocrDetailLoaded = false;
+  bool _ocrDetailLoading = false;
+  String _ocrDetailText = '';
+
   static Color _relationColor(String relation) {
     if (relation == '本人') return const Color(0xFF52C41A);
     if (relation == '爸爸' || relation == '妈妈' || relation == '父亲' || relation == '母亲') {
@@ -1468,7 +1474,13 @@ class _ChatScreenState extends State<ChatScreen> {
                     }
                     final message = messages[index];
                     final isLastAi = !message.isUser && _findLastAiIndex(messages) == index;
-                    return _buildMessageBubble(message, showActions: isLastAi && !_isStreaming);
+                    final isReportSession = _initialType == 'report_interpret' || _initialType == 'report_compare';
+                    final isFirstAi = isReportSession && !message.isUser && _findFirstAiIndex(messages) == index;
+                    return _buildMessageBubble(
+                      message,
+                      showActions: isLastAi && !_isStreaming,
+                      showOcrDetailEntry: isFirstAi && !_isStreaming && !_interpretFailed,
+                    );
                   },
                 );
               },
@@ -1486,6 +1498,92 @@ class _ChatScreenState extends State<ChatScreen> {
       if (messages[i].isAssistant && !messages[i].isLoading) return i;
     }
     return -1;
+  }
+
+  // [2026-04-25 PRD F5] 找到第一条 AI 消息的索引，用于在底部挂载 OCR 详情入口
+  int _findFirstAiIndex(List<ChatMessage> messages) {
+    for (int i = 0; i < messages.length; i++) {
+      if (messages[i].isAssistant && !messages[i].isLoading) return i;
+    }
+    return -1;
+  }
+
+  // [2026-04-25 PRD F5-3] 切换 OCR 详情展开/收起；首次展开时按需拉取
+  Future<void> _toggleOcrDetail() async {
+    final session = Provider.of<ChatProvider>(context, listen: false).currentSession;
+    final sid = session?.id;
+    if (sid == null) return;
+    final next = !_ocrDetailExpanded;
+    setState(() { _ocrDetailExpanded = next; });
+    // F5-7 埋点（不阻塞）
+    try {
+      _apiService.post('/api/report/interpret/ocr-detail/click', data: {
+        'session_id': sid,
+        'action': next ? 'view' : 'collapse',
+      });
+    } catch (_) { /* ignore */ }
+    if (!next) return;
+    if (_ocrDetailLoaded || _ocrDetailLoading) return;
+    setState(() { _ocrDetailLoading = true; });
+    try {
+      final r = await _apiService.get('/api/report/interpret/session/$sid/ocr-detail');
+      final data = r.data is Map ? r.data : {};
+      setState(() {
+        _ocrDetailText = (data['ocr_text'] ?? '').toString();
+        _ocrDetailLoaded = true;
+      });
+    } catch (_) {
+      setState(() { _ocrDetailText = ''; });
+    } finally {
+      if (mounted) setState(() { _ocrDetailLoading = false; });
+    }
+  }
+
+  Widget _buildOcrDetailEntry() {
+    final fontSize = _chatFontSize - 4 < 10 ? 10.0 : _chatFontSize - 4;
+    return Padding(
+      padding: const EdgeInsets.only(left: 46, right: 16, top: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Align(
+            alignment: Alignment.centerRight,
+            child: GestureDetector(
+              onTap: _ocrDetailLoading ? null : _toggleOcrDetail,
+              child: Text(
+                _ocrDetailLoading
+                    ? '加载中…'
+                    : (_ocrDetailExpanded ? '收起 OCR 识别详情 ▴' : '查看 OCR 识别详情 ▾'),
+                style: TextStyle(color: const Color(0xFF999999), fontSize: fontSize),
+              ),
+            ),
+          ),
+          if (_ocrDetailExpanded)
+            Container(
+              margin: const EdgeInsets.only(top: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              constraints: const BoxConstraints(maxHeight: 320),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFAFAFA),
+                border: Border.all(color: const Color(0xFFF0F0F0)),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: SingleChildScrollView(
+                child: Text(
+                  _ocrDetailText.isNotEmpty
+                      ? _ocrDetailText
+                      : (_ocrDetailLoaded ? '（暂无 OCR 文本）' : '加载中…'),
+                  style: TextStyle(
+                    color: const Color(0xFF666666),
+                    fontSize: fontSize + 1,
+                    height: 1.7,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
   }
 
   // [2026-04-25] 报告解读失败时展示"重新解读"
@@ -1612,7 +1710,7 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  Widget _buildMessageBubble(ChatMessage message, {bool showActions = false}) {
+  Widget _buildMessageBubble(ChatMessage message, {bool showActions = false, bool showOcrDetailEntry = false}) {
     final isUser = message.isUser;
 
     if (message.isLoading) {
@@ -1667,6 +1765,8 @@ class _ChatScreenState extends State<ChatScreen> {
               if (isUser) ...[const SizedBox(width: 10), _buildAvatar(true)],
             ],
           ),
+          // [2026-04-25 PRD F5] OCR 详情兜底入口（仅"报告解读"会话第一条 AI 消息底部展示）
+          if (showOcrDetailEntry && !isUser) _buildOcrDetailEntry(),
           // Module 7: Bottom action buttons for last AI message
           if (showActions && !isUser)
             Padding(

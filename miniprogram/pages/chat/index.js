@@ -83,7 +83,14 @@ Page({
 
     // [2026-04-25] 报告解读异步化：失败状态
     interpretFailed: false,
-    interpretPending: false
+    interpretPending: false,
+
+    // [2026-04-25 PRD F5] OCR 详情默认隐藏 + 兜底入口
+    firstAiMsgId: '',
+    ocrDetailExpanded: false,
+    ocrDetailLoaded: false,
+    ocrDetailLoading: false,
+    ocrDetailText: ''
   },
 
   _recognizeManager: null,
@@ -936,7 +943,14 @@ Page({
       streamingMsgId: msgId,
       streamingText: '',
       isStreaming: true,
-      showCursor: true
+      showCursor: true,
+      // [2026-04-25 PRD F5] 记录第一条 AI 解读消息 id，用于在该条消息底部挂载 OCR 详情入口
+      firstAiMsgId: this.data.firstAiMsgId || msgId,
+      // 重置 OCR 详情状态（新解读未完成前不展示入口）
+      ocrDetailExpanded: false,
+      ocrDetailLoaded: false,
+      ocrDetailLoading: false,
+      ocrDetailText: ''
     });
     this._startCursorBlink();
 
@@ -1007,6 +1021,36 @@ Page({
           console.log('[report SSE] parse error', e);
         }
       });
+    }
+  },
+
+  // [2026-04-25 PRD F5-3] 切换 OCR 详情展开/收起
+  async onToggleOcrDetail() {
+    const sid = this.data.chatId;
+    if (!sid) return;
+    const next = !this.data.ocrDetailExpanded;
+    this.setData({ ocrDetailExpanded: next });
+    // [F5-7] 埋点（不阻塞）
+    try {
+      post('/api/report/interpret/ocr-detail/click', {
+        session_id: Number(sid),
+        action: next ? 'view' : 'collapse'
+      }, { showLoading: false, suppressErrorToast: true });
+    } catch (_) { /* ignore */ }
+    if (!next) return;
+    if (this.data.ocrDetailLoaded || this.data.ocrDetailLoading) return;
+    this.setData({ ocrDetailLoading: true });
+    try {
+      const res = await get(`/api/report/interpret/session/${sid}/ocr-detail`, {}, { showLoading: false, suppressErrorToast: true });
+      const data = (res && (res.data || res)) || {};
+      this.setData({
+        ocrDetailText: String(data.ocr_text || ''),
+        ocrDetailLoaded: true
+      });
+    } catch (_) {
+      this.setData({ ocrDetailText: '' });
+    } finally {
+      this.setData({ ocrDetailLoading: false });
     }
   },
 

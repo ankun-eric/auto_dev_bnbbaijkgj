@@ -7,6 +7,7 @@ import GreenNavBar from '@/components/GreenNavBar';
 import { PictureOutline, CameraOutline, FileOutline } from 'antd-mobile-icons';
 import api from '@/lib/api';
 import { checkFileSize, uploadWithProgress } from '@/lib/upload-utils';
+import { compressImages } from '@/lib/image-compress';
 import AlertBanner from '@/components/AlertBanner';
 import DiseaseTagSelector, { type DiseaseItem } from '@/components/DiseaseTagSelector';
 import HealthProfileEditor, { type HealthProfileEditorRef, showUnsavedChangesModal } from '@/components/HealthProfileEditor';
@@ -538,13 +539,22 @@ export default function CheckupPage() {
   const handleSubmitWithMember = async () => {
     if (selectedFiles.length === 0) return;
     setUploading(true);
-    setUploadProgress(`正在上传 0/${selectedFiles.length} 张...`);
+    setUploadProgress(`正在准备 ${selectedFiles.length} 张图片...`);
     setUploadPercent(0);
 
     try {
+      // [2026-04-25 PRD F1] 上传前自动压缩：长边≤1600px，目标体积≤600KB；若压缩后更大则走原图
+      const originals = selectedFiles.map((sf) => sf.file);
+      let toUpload: File[] = originals;
+      try {
+        toUpload = await compressImages(originals, { maxEdge: 1600, targetBytes: 600 * 1024 });
+      } catch {
+        toUpload = originals;
+      }
+
       const formData = new FormData();
-      selectedFiles.forEach((sf) => {
-        formData.append('files', sf.file);
+      toUpload.forEach((f) => {
+        formData.append('files', f);
       });
       formData.append('scene_name', '体检报告识别');
 

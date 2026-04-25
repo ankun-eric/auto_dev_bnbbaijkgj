@@ -343,6 +343,38 @@ function ChatPageInner() {
   const [interpretFailed, setInterpretFailed] = useState(false);
   const [streamRetryTick, setStreamRetryTick] = useState(0);
 
+  // [2026-04-25 PRD F5] 报告解读 OCR 详情默认隐藏 + 兜底入口（按需加载）
+  const [ocrDetailExpanded, setOcrDetailExpanded] = useState(false);
+  const [ocrDetailText, setOcrDetailText] = useState<string>('');
+  const [ocrDetailLoading, setOcrDetailLoading] = useState(false);
+  const [ocrDetailLoaded, setOcrDetailLoaded] = useState(false);
+
+  // [2026-04-25 PRD F5-3] 切换 OCR 详情展开/收起；首次展开时按需拉取
+  const toggleOcrDetail = async () => {
+    if (!isReportType || !sessionId) return;
+    const next = !ocrDetailExpanded;
+    setOcrDetailExpanded(next);
+    try {
+      api.post('/api/report/interpret/ocr-detail/click', {
+        session_id: Number(sessionId),
+        action: next ? 'view' : 'collapse',
+      }).catch(() => {});
+    } catch { /* ignore */ }
+    if (next && !ocrDetailLoaded && !ocrDetailLoading) {
+      setOcrDetailLoading(true);
+      try {
+        const r: any = await api.get(`/api/report/interpret/session/${sessionId}/ocr-detail`);
+        const data = r.data || r;
+        setOcrDetailText(String(data.ocr_text || ''));
+        setOcrDetailLoaded(true);
+      } catch {
+        setOcrDetailText('');
+      } finally {
+        setOcrDetailLoading(false);
+      }
+    }
+  };
+
   // Font size state
   const [fontSizeLevel, setFontSizeLevel] = useState<FontSizeLevel>('standard');
   const [fontPopoverVisible, setFontPopoverVisible] = useState(false);
@@ -1948,6 +1980,52 @@ function ChatPageInner() {
                 <div className={`text-xs text-gray-300 mt-1 ${msg.role === 'user' ? 'text-right' : 'text-left'}`}>
                   {msg.time}
                 </div>
+                {/* [2026-04-25 PRD F5] 报告解读 OCR 详情兜底入口：只在报告解读会话的第一条 AI 解读消息底部显示 */}
+                {isReportType && msg.role === 'assistant' && !isDrugCard && msg.id !== 'welcome'
+                  && msgIdx === messages.findIndex((m) => m.role === 'assistant' && m.id !== 'welcome')
+                  && !isStreaming && !interpretFailed && (
+                  <div style={{ marginTop: 6, textAlign: 'right' }}>
+                    <button
+                      onClick={toggleOcrDetail}
+                      disabled={ocrDetailLoading}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#999',
+                        fontSize: Math.max(10, chatFontSize - 4),
+                        cursor: 'pointer',
+                        padding: 0,
+                      }}
+                    >
+                      {ocrDetailLoading
+                        ? '加载中…'
+                        : ocrDetailExpanded
+                          ? '收起 OCR 识别详情 ▴'
+                          : '查看 OCR 识别详情 ▾'}
+                    </button>
+                    {ocrDetailExpanded && (
+                      <div
+                        style={{
+                          marginTop: 6,
+                          padding: '10px 12px',
+                          background: '#fafafa',
+                          border: '1px solid #f0f0f0',
+                          borderRadius: 8,
+                          color: '#666',
+                          fontSize: Math.max(11, chatFontSize - 3),
+                          lineHeight: 1.7,
+                          textAlign: 'left',
+                          whiteSpace: 'pre-wrap',
+                          wordBreak: 'break-word',
+                          maxHeight: 360,
+                          overflowY: 'auto',
+                        }}
+                      >
+                        {ocrDetailText || (ocrDetailLoaded ? '（暂无 OCR 文本）' : '加载中…')}
+                      </div>
+                    )}
+                  </div>
+                )}
                 {/* Module 7: Action buttons on latest AI reply */}
                 {showActionButtons && (
                   <div className="flex items-center gap-3 mt-2">
