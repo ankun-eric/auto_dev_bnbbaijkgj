@@ -239,25 +239,45 @@ function TopReportCard({ reports, isCompare, galleryExpanded, setGalleryExpanded
       <div style={{ background: 'linear-gradient(135deg, #fffbe6, #fff)', border: '1px solid #ffe58f', borderRadius: 10, padding: 12, margin: 12 }}>
         <div style={{ fontSize: 15, fontWeight: 600 }}>🔄 报告对比</div>
         <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>咨询对象：{mem}</div>
+        {/* [2026-04-25 Bug-03] 移除两个“查看 N 张原图”按钮，缩略图作为唯一预览入口 */}
         <div style={{ fontSize: 12, color: '#333', marginTop: 6 }}>
-          报告 A：<span style={{ color: '#1890ff' }}>{a.title}</span>
+          <div>
+            报告 A：<span style={{ color: '#1890ff' }}>{a.title}</span>
+            {imgsA.length > 0 && (
+              <span style={{ marginLeft: 6, color: '#999' }}>（{imgsA.length} 张）</span>
+            )}
+          </div>
           {imgsA.length > 0 && (
-            <button
-              onClick={() => onPreview(imgsA, 0)}
-              style={{ marginLeft: 8, padding: '2px 8px', border: '1px solid #1890ff', color: '#1890ff', background: '#fff', borderRadius: 10, fontSize: 11 }}
-            >
-              查看 {imgsA.length} 张原图
-            </button>
+            <div style={{ marginTop: 4, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {imgsA.slice(0, 4).map((t, idx) => (
+                <div
+                  key={`a-${idx}`}
+                  onClick={() => onPreview(imgsA, idx)}
+                  style={{ width: 48, height: 48, borderRadius: 6, overflow: 'hidden', cursor: 'pointer', flexShrink: 0 }}
+                >
+                  <img src={t} alt={`a-${idx}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                </div>
+              ))}
+            </div>
           )}
-          <br />
-          报告 B：<span style={{ color: '#1890ff' }}>{b.title}</span>
+          <div style={{ marginTop: 6 }}>
+            报告 B：<span style={{ color: '#1890ff' }}>{b.title}</span>
+            {imgsB.length > 0 && (
+              <span style={{ marginLeft: 6, color: '#999' }}>（{imgsB.length} 张）</span>
+            )}
+          </div>
           {imgsB.length > 0 && (
-            <button
-              onClick={() => onPreview(imgsB, 0)}
-              style={{ marginLeft: 8, padding: '2px 8px', border: '1px solid #1890ff', color: '#1890ff', background: '#fff', borderRadius: 10, fontSize: 11 }}
-            >
-              查看 {imgsB.length} 张原图
-            </button>
+            <div style={{ marginTop: 4, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {imgsB.slice(0, 4).map((t, idx) => (
+                <div
+                  key={`b-${idx}`}
+                  onClick={() => onPreview(imgsB, idx)}
+                  style={{ width: 48, height: 48, borderRadius: 6, overflow: 'hidden', cursor: 'pointer', flexShrink: 0 }}
+                >
+                  <img src={t} alt={`b-${idx}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                </div>
+              ))}
+            </div>
           )}
         </div>
         {spanText && <div style={{ fontSize: 12, color: '#999', marginTop: 6 }}>时间跨度：{spanText}</div>}
@@ -296,12 +316,7 @@ function TopReportCard({ reports, isCompare, galleryExpanded, setGalleryExpanded
               </button>
             )}
           </div>
-          <button
-            onClick={() => onPreview(allImgs, 0)}
-            style={{ marginTop: 8, padding: '4px 10px', border: '1px solid #1890ff', color: '#1890ff', background: '#fff', borderRadius: 14, fontSize: 12 }}
-          >
-            查看报告原图{allImgs.length > 1 ? `（${allImgs.length} 张）` : ''}
-          </button>
+          {/* [2026-04-25 Bug-03] 移除冗余的“查看报告原图”按钮，缩略图本身即为预览入口 */}
         </>
       )}
     </div>

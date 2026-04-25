@@ -236,6 +236,13 @@ class _ChatScreenState extends State<ChatScreen> {
       } else if (sessionType == 'drug_identify' || sessionType == 'drug_query') {
         // 用药识别也需要尝试 backend 兜底卡片信息
         _restoreSessionMember(session.id);
+      } else if (sessionType == 'report_interpret' || sessionType == 'report_compare') {
+        // [2026-04-25 Bug-04] 报告会话恢复：先本地锁定，再异步从 backend 拉取家庭成员
+        setState(() {
+          _initialType = sessionType;
+          _isSymptomLocked = true;
+        });
+        _restoreSessionMember(session.id);
       }
     }
   }
@@ -254,6 +261,17 @@ class _ChatScreenState extends State<ChatScreen> {
               _isSymptomLocked = true;
             });
           }
+        }
+        // [2026-04-25 Bug-04] 历史会话恢复：报告解读/对比也需锁定咨询人按钮
+        if (sessionType == 'report_interpret' || sessionType == 'report_compare') {
+          final relation = (data['family_member_relation'] as String?) ?? '';
+          setState(() {
+            _initialType = sessionType;
+            _isSymptomLocked = true;
+            if (relation.isNotEmpty) {
+              _currentConsultTarget = relation;
+            }
+          });
         }
         // drug_identify 卡片 backend 兜底（仅当 URL 参数为空时填充）
         if (sessionType == 'drug_identify' || sessionType == 'drug_query') {
@@ -1294,7 +1312,6 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget _buildCompareRow(String label, Map<String, dynamic> r) {
-    final urls = List<String>.from((r['file_urls'] as List?) ?? const []);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
@@ -1308,21 +1325,6 @@ class _ChatScreenState extends State<ChatScreen> {
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          if (urls.isNotEmpty)
-            GestureDetector(
-              onTap: () => _openReportGallery(urls, 0),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  border: Border.all(color: const Color(0xFF1890FF)),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  '查看 ${urls.length} 张',
-                  style: const TextStyle(fontSize: 11, color: Color(0xFF1890FF)),
-                ),
-              ),
-            ),
         ],
       ),
     );
@@ -1938,7 +1940,14 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget _buildInputBar() {
     final targetColor = _relationColor(_currentConsultTarget);
     // [2026-04-25] 报告解读/对比会话：咨询人按钮只读，不可切换
-    final bool isReportSession = _initialType == 'report_interpret' || _initialType == 'report_compare';
+    // [2026-04-25 Bug-04] 兜底：从历史会话恢复时 _initialType 可能为 null，
+    // 此时回落到 chatProvider.currentSession?.type 判定。
+    final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+    final String? sessionType = chatProvider.currentSession?.type;
+    final bool isReportSession = _initialType == 'report_interpret'
+        || _initialType == 'report_compare'
+        || sessionType == 'report_interpret'
+        || sessionType == 'report_compare';
     return Container(
       padding: EdgeInsets.only(left: 8, right: 8, top: 8, bottom: MediaQuery.of(context).padding.bottom + 8),
       decoration: BoxDecoration(

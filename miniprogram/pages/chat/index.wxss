@@ -866,16 +866,6 @@
 .report-compare-title {
   color: #1890ff;
 }
-.report-compare-view {
-  display: inline-block;
-  margin-left: 12rpx;
-  color: #1890ff;
-  font-size: 24rpx;
-  border: 1rpx solid #1890ff;
-  padding: 2rpx 12rpx;
-  border-radius: 4rpx;
-}
-
 /* [2026-04-25] 报告解读失败提示条 */
 .interpret-failed-bar {
   margin: 20rpx 32rpx;

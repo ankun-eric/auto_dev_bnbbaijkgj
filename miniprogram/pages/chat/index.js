@@ -1,6 +1,7 @@
 const { post, get, put, del, uploadFile } = require('../../utils/request');
 const { generateId } = require('../../utils/util');
 const { checkFileSize, uploadWithProgress } = require('../../utils/upload-utils');
+const { compressImage } = require('../../utils/image-compress');
 
 const RELATION_COLORS = {
   '本人': '#52c41a',
@@ -141,6 +142,10 @@ Page({
     // [2026-04-23 报告分支] 报告解读/对比：锁定类型，加载报告卡片数据
     if (type === 'report_interpret' || type === 'report_compare') {
       this.setData({ isTypeLocked: true, chatType: type });
+      // [Bug-04] URL 带 family_member_id 时立即把咨询人锁定为报告所属人
+      if (family_member_id) {
+        this._lockConsultTargetByMemberId(family_member_id);
+      }
       this._loadReportsBrief({ chatId, reportId: report_id, reportIds: report_ids });
       if (auto_start === '1' && chatId) {
         // [2026-04-25] 报告解读异步订阅：进入页面即订阅后端 worker 推流
@@ -400,6 +405,9 @@ Page({
   },
 
   async _uploadDrugImage(filePath) {
+    try {
+      filePath = await compressImage(filePath);
+    } catch (_) { /* 压缩失败回退原图 */ }
     const sizeCheck = await checkFileSize(filePath, 'drug_identify');
     if (!sizeCheck.ok) {
       wx.showToast({ title: `文件大小超过限制（最大 ${sizeCheck.maxMb} MB）`, icon: 'none', duration: 2500 });
@@ -855,6 +863,16 @@ Page({
     if (!filePaths || !filePaths.length) return;
     this.setData({ drugIdentifyDisabled: true });
 
+    const compressed = [];
+    for (const p of filePaths) {
+      try {
+        compressed.push(await compressImage(p));
+      } catch (_) {
+        compressed.push(p);
+      }
+    }
+    filePaths = compressed;
+
     const id = generateId();
     const now = new Date();
     const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
@@ -1104,6 +1122,14 @@ Page({
         };
       });
       this.setData({ reportList: normalized });
+
+      // [Bug-04] 报告加载完成后，若尚未锁定咨询人，则用首份报告的所属人补锁一次
+      if (!this.data.lockedFamilyMemberId && reports && reports.length > 0) {
+        const firstMemberId = reports[0].family_member_id || reports[0].member_id || null;
+        if (firstMemberId) {
+          this._lockConsultTargetByMemberId(firstMemberId);
+        }
+      }
     } catch (e) {
       console.warn('[reports_brief] load failed', e);
     }
@@ -1130,6 +1156,9 @@ Page({
   },
 
   async _uploadAndSendImage(filePath) {
+    try {
+      filePath = await compressImage(filePath);
+    } catch (_) { /* 压缩失败回退原图 */ }
     const sizeCheck = await checkFileSize(filePath, 'chat_image');
     if (!sizeCheck.ok) {
       wx.showToast({ title: `文件大小超过限制（最大 ${sizeCheck.maxMb} MB）`, icon: 'none', duration: 2500 });
@@ -1212,6 +1241,14 @@ Page({
           isSymptomLocked: true,
           consultTarget: { name: relation, color: getRelationColor(relation) }
         });
+      }
+      // [Bug-04] 历史会话恢复：报告解读/对比同步锁定咨询人为报告所属人
+      if (res && (res.session_type === 'report_interpret' || res.session_type === 'report_compare')) {
+        this.setData({ isTypeLocked: true });
+        const memberId = res.family_member_id || (res.family_member && res.family_member.id) || null;
+        if (memberId) {
+          this._lockConsultTargetByMemberId(memberId);
+        }
       }
       // drug_identify 卡片 backend 兜底（仅当 URL 参数为空时填充）
       if (res && (res.session_type === 'drug_identify' || res.session_type === 'drug_query')) {

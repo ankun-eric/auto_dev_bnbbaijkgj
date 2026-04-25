@@ -524,6 +524,11 @@ async def switch_session_member(
     if not session:
         raise HTTPException(status_code=404, detail="会话不存在")
 
+    # [2026-04-25 Bug-04] 报告解读/对比类会话强绑定上传时选择的咨询人，后端禁止切换
+    _stype_val = session.session_type.value if hasattr(session.session_type, "value") else str(session.session_type)
+    if _stype_val in ("report_interpret", "report_compare"):
+        raise HTTPException(status_code=400, detail="报告解读/对比会话不允许切换咨询人")
+
     if family_member_id is not None:
         member_result = await db.execute(
             select(FamilyMember).where(FamilyMember.id == family_member_id, FamilyMember.user_id == current_user.id)

@@ -260,6 +260,10 @@ async def _save_assistant_message(session_id: int, content: str) -> int:
         return int(msg.id)
 
 
+# [2026-04-25 Bug-01] AI 调用失败时对外统一友好文案，避免把后端配置错误透给用户
+_AI_UNAVAILABLE_USER_MSG = "AI 解读服务暂时不可用，请稍后重试。"
+
+
 async def _run_interpret_worker(session_id: int) -> None:
     """后台异步 worker：真正调用 AI，流式推送到 SSE 总线。
     失败自动重试（最多 2 次）。"""
@@ -279,24 +283,27 @@ async def _run_interpret_worker(session_id: int) -> None:
 
             full_text = ""
             stream_msg_id: Optional[int] = None
-            async for chunk in call_ai_model_stream(messages=history, system_prompt="", db=None):
-                ctype = chunk.get("type")
-                content = chunk.get("content", "") or ""
-                if ctype == "delta" and content:
-                    full_text += content
-                    task_queue.broadcast(
-                        session_id, "message.delta",
-                        {"delta": content}
-                    )
-                elif ctype == "done":
-                    final_text = chunk.get("content") or full_text
-                    if not final_text.strip():
-                        raise RuntimeError("AI 返回内容为空")
-                    stream_msg_id = await _save_assistant_message(session_id, final_text)
-                    task_queue.broadcast(
-                        session_id, "message.done",
-                        {"message_id": stream_msg_id, "content": final_text}
-                    )
+            # [2026-04-25 Bug-01] 自建 AsyncSession 传给 call_ai_model_stream，
+            # 避免 db=None 走 settings fallback 命中"AI服务未配置"
+            async with _async_session() as ai_db:
+                async for chunk in call_ai_model_stream(messages=history, system_prompt="", db=ai_db):
+                    ctype = chunk.get("type")
+                    content = chunk.get("content", "") or ""
+                    if ctype == "delta" and content:
+                        full_text += content
+                        task_queue.broadcast(
+                            session_id, "message.delta",
+                            {"delta": content}
+                        )
+                    elif ctype == "done":
+                        final_text = chunk.get("content") or full_text
+                        if not final_text.strip():
+                            raise RuntimeError("AI 返回内容为空")
+                        stream_msg_id = await _save_assistant_message(session_id, final_text)
+                        task_queue.broadcast(
+                            session_id, "message.done",
+                            {"message_id": stream_msg_id, "content": final_text}
+                        )
 
             # 正常完成
             await _set_session_status(session_id, "done", finished=True)
@@ -316,12 +323,16 @@ async def _run_interpret_worker(session_id: int) -> None:
             )
             await asyncio.sleep(backoff)
 
-    # 所有重试耗尽
+    # [2026-04-25 Bug-01] 所有重试耗尽：详细原因写后端日志，SSE 只推统一友好文案
+    logger.error(
+        "interpret worker exhausted retries for session %s, last_error=%s",
+        session_id, last_error,
+    )
     await _set_session_status(session_id, "failed", error=last_error, finished=True)
     task_queue.broadcast(session_id, "status", {"interpret_status": "failed"})
     task_queue.broadcast(
         session_id, "error",
-        {"code": "AI_FAILED", "message": last_error or "AI 调用失败", "retryable": True}
+        {"code": "AI_FAILED", "message": _AI_UNAVAILABLE_USER_MSG, "retryable": True}
     )
 
 

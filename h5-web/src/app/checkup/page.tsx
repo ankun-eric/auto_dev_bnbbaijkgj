@@ -543,14 +543,29 @@ export default function CheckupPage() {
     setUploadPercent(0);
 
     try {
-      // [2026-04-25 PRD F1] 上传前自动压缩：长边≤1600px，目标体积≤600KB；若压缩后更大则走原图
+      // [2026-04-25 PRD F1] 上传前自动压缩：长边≤1920px，目标体积≤1MB（quality 0.8 起步）；若压缩后更大则走原图
       const originals = selectedFiles.map((sf) => sf.file);
+      console.log(
+        '[checkup][compress] originals:',
+        originals.map((f) => ({ name: f.name, type: f.type, size: f.size })),
+      );
       let toUpload: File[] = originals;
       try {
-        toUpload = await compressImages(originals, { maxEdge: 1600, targetBytes: 600 * 1024 });
-      } catch {
+        toUpload = await compressImages(originals, { maxEdge: 1920, targetBytes: 1024 * 1024 });
+      } catch (e) {
+        console.warn('[checkup][compress] compressImages threw, fallback to originals:', e);
         toUpload = originals;
       }
+      console.log(
+        '[checkup][compress] toUpload:',
+        toUpload.map((f, i) => ({
+          name: f.name,
+          type: f.type,
+          size: f.size,
+          origSize: originals[i]?.size,
+          ratio: originals[i] ? +(f.size / originals[i].size).toFixed(2) : null,
+        })),
+      );
 
       const formData = new FormData();
       toUpload.forEach((f) => {

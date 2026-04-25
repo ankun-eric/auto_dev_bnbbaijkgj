@@ -70,13 +70,6 @@
       <view class="report-compare-item" wx:for="{{reportList}}" wx:key="id" wx:for-item="r">
         <text class="report-compare-label">{{index === 0 ? '报告 A' : '报告 B'}}：</text>
         <text class="report-compare-title">{{r.title}}</text>
-        <view
-          wx:if="{{r.total > 0}}"
-          class="report-compare-view"
-          bindtap="onReportImageTap"
-          data-urls="{{r.file_urls}}"
-          data-current="{{r.file_urls[0]}}"
-        >查看 {{r.total}} 张原图</view>
       </view>
     </view>
   </block>

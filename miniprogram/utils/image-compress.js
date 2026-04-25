@@ -1,13 +1,13 @@
 /**
  * [2026-04-25 PRD F1] 微信小程序图片压缩工具
  *
- * 目标：长边 ≤ 1600 px，输出体积 ≤ 600 KB
+ * 目标：长边 ≤ 1920 px，输出体积 ≤ 1 MB（quality 首选 80）
  * 借助 wx.compressImage（>=2.13.0）+ wx.getImageInfo 实现。
  * 若压缩后体积反而更大，则回退到原图。
  */
 
-const TARGET_LONG_EDGE = 1600;
-const TARGET_BYTES = 600 * 1024;
+const TARGET_LONG_EDGE = 1920;
+const TARGET_BYTES = 1024 * 1024;
 
 function getImageInfo(src) {
   return new Promise((resolve, reject) => {
@@ -71,7 +71,7 @@ async function compressImage(srcPath) {
     : 0;
 
   const originalSize = await getFileSize(srcPath);
-  const tries = [85, 75, 65];
+  const tries = [80, 70, 60];
   let bestPath = srcPath;
   let bestSize = originalSize > 0 ? originalSize : Number.MAX_SAFE_INTEGER;
 
