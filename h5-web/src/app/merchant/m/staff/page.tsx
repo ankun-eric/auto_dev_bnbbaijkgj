@@ -15,12 +15,42 @@ import api from '@/lib/api';
 import { getProfile } from '../mobile-lib';
 import { PASSWORD_REGEX, PASSWORD_HINT } from '@/lib/captcha';
 
+// [2026-04-26 PRD v1.0 §R1] 4 角色统一：boss / store_manager / finance / clerk
 const roleCodeLabel: Record<string, string> = {
-  boss: '老板', manager: '店长', finance: '财务', clerk: '店员',
+  boss: '老板',
+  store_manager: '店长',
+  finance: '财务',
+  clerk: '店员',
+  // 历史兼容（过渡期）
+  manager: '店长',
+  verifier: '店员',
+  staff: '店员',
 };
 const memberRoleToCode: Record<string, string> = {
-  owner: 'boss', store_manager: 'manager', finance: 'finance', verifier: 'clerk', staff: 'clerk',
+  owner: 'boss',
+  store_manager: 'store_manager',
+  finance: 'finance',
+  verifier: 'clerk',
+  staff: 'clerk',
 };
+
+// [2026-04-26 PRD v1.0 §R4] 移动端头像直径 36px，按角色着色
+const ROLE_AVATAR_BG: Record<string, string> = {
+  boss: '#F5A623',
+  store_manager: '#4A90E2',
+  finance: '#D0021B',
+  clerk: '#9B9B9B',
+};
+function avatarColorOf(roleCode?: string): string {
+  return ROLE_AVATAR_BG[roleCode || ''] || ROLE_AVATAR_BG.clerk;
+}
+function avatarLetterOf(name?: string | null, phone?: string | null): string {
+  const n = (name || '').trim();
+  if (n) return n[0];
+  const p = (phone || '').trim();
+  if (p) return p[p.length - 1];
+  return '员';
+}
 
 const moduleLabel: Record<string, string> = {
   dashboard: '工作台', verify: '核销', records: '记录', messages: '消息',
@@ -61,7 +91,8 @@ export default function StaffMobilePage() {
   const profile = getProfile();
   const isOwner = profile?.role === 'owner';
   const isManager = profile?.role === 'store_manager';
-  const canToggle = isOwner || isManager;
+  // [2026-04-26 PRD v1.0 §R3] 启停权限收紧：仅老板可见启停开关；店长一律隐藏
+  const canToggle = isOwner;
   const myStores = profile?.stores || [];
   const isSingleStore = myStores.length <= 1;
 
@@ -227,21 +258,26 @@ export default function StaffMobilePage() {
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  {/* [2026-04-26 PRD v1.0 §R4] 头像按角色着色，移动端 36px */}
                   <div
                     style={{
-                      width: 44,
-                      height: 44,
+                      width: 36,
+                      height: 36,
                       borderRadius: '50%',
-                      background: '#52c41a22',
-                      color: '#52c41a',
+                      background: avatarColorOf(rc),
+                      color: '#FFFFFF',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      fontSize: 18,
-                      fontWeight: 600,
+                      fontSize: 16,
+                      fontWeight: 500,
+                      fontFamily: 'PingFang SC, system-ui, sans-serif',
+                      flexShrink: 0,
+                      userSelect: 'none',
                     }}
+                    aria-label={`${roleCodeLabel[rc] || rc} 头像`}
                   >
-                    {(s.nickname || '员')[0]}
+                    {avatarLetterOf(s.nickname, s.phone)}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 15, fontWeight: 600 }}>{s.nickname || '员工'}</div>
@@ -333,7 +369,8 @@ export default function StaffMobilePage() {
               <Selector
                 columns={3}
                 options={[
-                  { label: '店长', value: 'manager' },
+                  // [2026-04-26 PRD v1.0 §R1] 角色 code 统一为 store_manager
+                  { label: '店长', value: 'store_manager' },
                   { label: '财务', value: 'finance' },
                   { label: '店员', value: 'clerk' },
                 ]}

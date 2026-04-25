@@ -42,61 +42,58 @@ FULL_MODULE_CODES = [
     "finance", "staff", "settings",
 ]
 
-# [2026-04-24] 平台内置角色 → (member_role 映射, 默认模块)
-# 角色模板 default_modules 以 DB 为准；此处仅作落库失败时兜底
-# [2026-04-26] role_code 与 DB MerchantMemberRole 枚举对齐：
-#   boss=老板(owner) / store_manager=店长 / finance=财务 / verifier=核销员 / staff=店员
-#   旧别名 manager→store_manager，clerk→verifier 仍兼容（前端历史代码）
+# [2026-04-26 PRD v1.0] 商家角色统一治理 — 全平台仅保留 4 个 role_code：
+#   boss / store_manager / finance / clerk
+# 废除（仅做兼容映射，下个版本删除）：
+#   - verifier 核销员 → 合并入 clerk（核销职责由店员承担）
+#   - staff（与 clerk 重复）→ clerk
+#   - owner（历史别名）→ boss
+#   - manager（历史别名）→ store_manager
+# DB 物理 Enum (MerchantMemberRole) 暂保留 5 值（owner/store_manager/finance/verifier/staff）以避免破坏存量数据，
+# 但业务读写**一律以 role_code 为权威**，display 名称统一从 ROLE_NAME_MAP 取值。
 ROLE_TO_MEMBER_ROLE: dict[str, MerchantMemberRole] = {
     "boss": MerchantMemberRole.owner,
     "store_manager": MerchantMemberRole.store_manager,
-    "manager": MerchantMemberRole.store_manager,  # 历史别名
     "finance": MerchantMemberRole.finance,
-    "verifier": MerchantMemberRole.verifier,
-    "clerk": MerchantMemberRole.verifier,  # 历史别名
-    "staff": MerchantMemberRole.staff,
+    "clerk": MerchantMemberRole.verifier,  # clerk 在 DB 物理上落到 verifier 枚举
 }
 ROLE_NAME_MAP: dict[str, str] = {
     "boss": "老板",
     "store_manager": "店长",
-    "manager": "店长",
     "finance": "财务",
-    "verifier": "核销员",
-    "clerk": "核销员",
-    "staff": "店员",
+    "clerk": "店员",
 }
 ROLE_DEFAULT_FALLBACK: dict[str, list[str]] = {
     "boss": FULL_MODULE_CODES,
     "store_manager": FULL_MODULE_CODES,
-    "manager": FULL_MODULE_CODES,
     "finance": ["dashboard", "records", "messages", "profile", "finance"],
-    "verifier": ["dashboard", "verify", "records", "messages", "profile"],
     "clerk": ["dashboard", "verify", "records", "messages", "profile"],
-    "staff": ["dashboard", "records", "messages", "profile"],
 }
 
-# [2026-04-26] member_role 枚举 → 默认 role_code（用于历史数据兜底反推）
+# [2026-04-26] member_role 物理枚举 → 主 role_code 反推（含 verifier/staff 历史值）
 MEMBER_ROLE_TO_ROLE_CODE: dict[MerchantMemberRole, str] = {
     MerchantMemberRole.owner: "boss",
     MerchantMemberRole.store_manager: "store_manager",
     MerchantMemberRole.finance: "finance",
-    MerchantMemberRole.verifier: "verifier",
-    MerchantMemberRole.staff: "staff",
+    MerchantMemberRole.verifier: "clerk",  # 核销员合并到店员
+    MerchantMemberRole.staff: "clerk",     # 历史 staff 合并到店员
 }
 
-# [2026-04-26] 历史 role_code 归一化（处理可能的大小写、别名差异）
+# [2026-04-26] 历史/别名 role_code 全量归一化为 4 角色之一
+ROLE_LEGACY_MAP: dict[str, str] = {
+    "owner": "boss",
+    "manager": "store_manager",
+    "verifier": "clerk",
+    "staff": "clerk",
+}
+
 def _normalize_role_code(raw: Optional[str]) -> Optional[str]:
     if not raw:
         return None
     code = str(raw).strip().lower()
     if not code:
         return None
-    alias_map = {
-        "manager": "store_manager",
-        "clerk": "verifier",
-        "owner": "boss",
-    }
-    return alias_map.get(code, code)
+    return ROLE_LEGACY_MAP.get(code, code)
 
 
 async def _load_role_template(db: AsyncSession, code: str) -> tuple[str, list[str]]:
@@ -307,14 +304,12 @@ async def _build_account_summary(
         if store_item:
             stores.append(store_item)
     # [2026-04-26] 兜底推断 role_code：优先按 member_role 真实枚举映射，
-    # 而不是简单按 owner/staff 二分；这样店长/核销员/财务/店员历史数据也能正确显示
+    # 然后再归一化历史值，确保最终落在 4 角色之一
     if role_code is None and primary_member_role is not None:
         role_code = MEMBER_ROLE_TO_ROLE_CODE.get(primary_member_role)
     if role_code is None:
-        if merchant_identity_type == "owner":
-            role_code = "boss"
-        elif merchant_identity_type == "staff":
-            role_code = "staff"
+        role_code = "boss" if merchant_identity_type == "owner" else "clerk"
+    role_code = _normalize_role_code(role_code) or role_code
     role_name = ROLE_NAME_MAP.get(role_code) if role_code else None
 
     # [2026-04-26] 计算该商家下"非老板员工"数量，仅当本账号是老板时才有意义
@@ -354,8 +349,8 @@ async def _upsert_merchant_account(
     if data.merchant_identity_type not in {"owner", "staff"}:
         raise HTTPException(status_code=400, detail="商家身份类型无效")
 
-    # [2026-04-24] role_code 校验
-    role_code = (data.role_code or "").strip() or None
+    # [2026-04-26] role_code 校验：先归一化历史别名，再校验是否属于 4 角色
+    role_code = _normalize_role_code((data.role_code or "").strip() or None)
     if role_code is not None and role_code not in ROLE_TO_MEMBER_ROLE:
         raise HTTPException(status_code=400, detail=f"无效的角色 code: {role_code}")
 
@@ -701,7 +696,7 @@ async def list_merchant_staff(
         primary = sorted_ms[0]
         rc = _normalize_role_code(getattr(primary, "role_code", None))
         if not rc:
-            rc = MEMBER_ROLE_TO_ROLE_CODE.get(primary.member_role, "staff")
+            rc = MEMBER_ROLE_TO_ROLE_CODE.get(primary.member_role, "clerk")
         rn = ROLE_NAME_MAP.get(rc, rc)
         store_names = sorted({
             store_name_map.get(m.store_id, "")
@@ -728,8 +723,8 @@ async def list_merchant_staff(
             )
         )
 
-    # 按角色优先级 + 创建时间排序
-    role_sort = {"store_manager": 0, "finance": 1, "verifier": 2, "staff": 3}
+    # 按角色优先级 + 创建时间排序（4 角色统一后无 verifier/staff）
+    role_sort = {"store_manager": 0, "finance": 1, "clerk": 2}
     items.sort(key=lambda it: (role_sort.get(it.role_code or "", 99), -(it.id or 0)))
 
     return MerchantStaffListResponse(

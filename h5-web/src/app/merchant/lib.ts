@@ -62,46 +62,66 @@ export function isAuthed(): boolean {
   return !!localStorage.getItem(TOKEN_KEY);
 }
 
+// [2026-04-26 PRD v1.0 §R1] 角色统一治理：业务上仅 4 角色（boss/store_manager/finance/clerk）
+// 物理 member_role 仍存历史值（owner/store_manager/finance/verifier/staff），
+// roleLabel 同时覆盖两套，确保不同入口点都能正确展示中文。
 export const roleLabel: Record<string, string> = {
+  // 物理 member_role
   owner: '老板',
   store_manager: '店长',
-  verifier: '核销员',
+  verifier: '店员',  // [R1] 核销员合并到店员
   finance: '财务',
-  staff: '员工',
+  staff: '店员',     // [R1] 历史 staff 合并到店员
+  // 业务 role_code（4 角色）
+  boss: '老板',
+  clerk: '店员',
+  manager: '店长',   // 历史别名
 };
 
 // 按角色决定菜单可见性
 // [2026-04-24] 扩充 8 个模块；新增 finance（财务对账汇总）、保留原 settlement/invoice/staff/store-settings
+// [2026-04-26 §R1] 同时支持 role_code（4 角色）与 member_role（5 物理值）输入；
+// 历史/别名分支保留，避免 H5 旧 token 在过渡期内菜单空白。
 export function canAccess(role: string | undefined, page: string): boolean {
   if (!role) return false;
   const matrix: Record<string, string[]> = {
-    // boss 老板：全部
+    // 老板（boss / owner）：全部 8 个模块
     owner: ['dashboard', 'orders', 'verifications', 'reports', 'settlement', 'invoice', 'finance', 'staff', 'store-settings', 'downloads', 'messages'],
-    // manager 店长：全部
-    store_manager: ['dashboard', 'orders', 'verifications', 'reports', 'settlement', 'invoice', 'finance', 'staff', 'store-settings', 'downloads', 'messages'],
-    // finance 财务：dashboard/records/messages/profile/finance（不能核销、不能看员工/门店设置）
+    boss:  ['dashboard', 'orders', 'verifications', 'reports', 'settlement', 'invoice', 'finance', 'staff', 'store-settings', 'downloads', 'messages'],
+    // 店长（store_manager / manager）：除门店设置外，全部
+    store_manager: ['dashboard', 'orders', 'verifications', 'reports', 'settlement', 'invoice', 'finance', 'staff', 'downloads', 'messages'],
+    manager:       ['dashboard', 'orders', 'verifications', 'reports', 'settlement', 'invoice', 'finance', 'staff', 'downloads', 'messages'],
+    // 财务：财务相关
     finance: ['dashboard', 'orders', 'verifications', 'reports', 'settlement', 'invoice', 'finance', 'downloads', 'messages'],
-    // clerk 店员 = verifier：dashboard/verify/records/messages/profile
+    // 店员（clerk / verifier / staff）：核销 & 工作台
     verifier: ['dashboard', 'orders', 'verifications', 'messages'],
-    // 历史兜底：staff 视同 clerk
-    staff: ['dashboard', 'orders', 'verifications', 'messages'],
+    clerk:    ['dashboard', 'orders', 'verifications', 'messages'],
+    staff:    ['dashboard', 'orders', 'verifications', 'messages'],
   };
   return (matrix[role] || []).includes(page);
 }
 
-// 角色 code（boss/manager/finance/clerk）到底层 member_role 的映射
+// 角色 code（4 角色）到底层 member_role 的映射
 export const roleCodeToMemberRole: Record<string, 'owner' | 'store_manager' | 'finance' | 'verifier'> = {
   boss: 'owner',
-  manager: 'store_manager',
+  store_manager: 'store_manager',
   finance: 'finance',
-  clerk: 'verifier',
+  clerk: 'verifier',  // clerk 在 DB 物理上落 verifier 枚举
+  // 历史别名兼容
+  manager: 'store_manager',
 };
 
+// [2026-04-26 §R1] role_code → 中文（仅 4 角色）；历史别名再保留 1 个版本
 export const roleCodeLabel: Record<string, string> = {
   boss: '老板',
-  manager: '店长',
+  store_manager: '店长',
   finance: '财务',
   clerk: '店员',
+  // 历史兼容
+  manager: '店长',
+  verifier: '店员',
+  staff: '店员',
+  owner: '老板',
 };
 
 export { api };

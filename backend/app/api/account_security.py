@@ -76,19 +76,35 @@ _MERCHANT_MODULE_CODES = [
     "dashboard", "verify", "records", "messages", "profile",
     "finance", "staff", "settings",
 ]
+# [2026-04-26 PRD v1.0] 4 角色统一治理：仅保留 boss / store_manager / finance / clerk
 _MERCHANT_ROLE_DEFAULT_MODULES: dict[str, list[str]] = {
     "boss": _MERCHANT_MODULE_CODES,
-    "manager": _MERCHANT_MODULE_CODES,
+    "store_manager": _MERCHANT_MODULE_CODES,
     "finance": ["dashboard", "records", "messages", "profile", "finance"],
     "clerk": ["dashboard", "verify", "records", "messages", "profile"],
 }
-_MERCHANT_ROLE_NAMES = {"boss": "老板", "manager": "店长", "finance": "财务", "clerk": "店员"}
+_MERCHANT_ROLE_NAMES = {"boss": "老板", "store_manager": "店长", "finance": "财务", "clerk": "店员"}
 _MERCHANT_ROLE_TO_MEMBER = {
     "boss": MerchantMemberRole.owner,
-    "manager": MerchantMemberRole.store_manager,
+    "store_manager": MerchantMemberRole.store_manager,
     "finance": MerchantMemberRole.finance,
-    "clerk": MerchantMemberRole.verifier,
+    "clerk": MerchantMemberRole.verifier,  # clerk(店员) 在 DB 物理上落 verifier 枚举
 }
+# 历史别名兼容映射（仅过渡期，下版本删除）
+_MERCHANT_ROLE_LEGACY_MAP = {
+    "owner": "boss",
+    "manager": "store_manager",
+    "verifier": "clerk",
+    "staff": "clerk",
+}
+
+def _normalize_merchant_role_code(raw: Optional[str]) -> Optional[str]:
+    if not raw:
+        return None
+    code = str(raw).strip().lower()
+    if not code:
+        return None
+    return _MERCHANT_ROLE_LEGACY_MAP.get(code, code)
 
 
 # ════════════════ Schemas ════════════════
@@ -266,16 +282,18 @@ async def merchant_get_profile(
             store_names.append(s.store_name)
             store_ids.append(m.store_id)
             seen_store_ids.add(m.store_id)
-        rc = getattr(m, "role_code", None)
+        rc = _normalize_merchant_role_code(getattr(m, "role_code", None))
         if rc:
-            # 优先取 boss > manager > finance > clerk
-            order = {"boss": 4, "manager": 3, "finance": 2, "clerk": 1}
+            # 优先取 boss > store_manager > finance > clerk
+            order = {"boss": 4, "store_manager": 3, "finance": 2, "clerk": 1}
             if role_code is None or order.get(rc, 0) > order.get(role_code, 0):
                 role_code = rc
         elif role_code is None and m.member_role == MerchantMemberRole.owner:
             role_code = "boss"
     if role_code is None:
         role_code = "clerk"
+    # 兜底归一化：杜绝 verifier/staff/manager/owner 漏到前端
+    role_code = _normalize_merchant_role_code(role_code) or role_code
 
     profile = (await db.execute(
         select(MerchantProfile).where(MerchantProfile.user_id == current_user.id)
@@ -432,8 +450,10 @@ async def merchant_staff_create(
     if not is_boss:
         raise HTTPException(status_code=403, detail="仅老板可创建员工")
 
-    role_code = (data.role_code or "").strip().lower()
-    if role_code not in ("manager", "finance", "clerk"):
+    # [2026-04-26] 4 角色统一：员工角色仅能选 store_manager / finance / clerk；
+    # 兼容历史前端可能传入的 manager/verifier/staff，归一化后再校验
+    role_code = _normalize_merchant_role_code((data.role_code or "").strip().lower()) or ""
+    if role_code not in ("store_manager", "finance", "clerk"):
         raise HTTPException(status_code=400, detail="角色必须是店长 / 财务 / 店员")
 
     requested = set(data.store_ids)
@@ -535,7 +555,9 @@ async def merchant_staff_reset_password(
         raise HTTPException(status_code=403, detail="该员工不在您管辖范围内")
     # 不能重置另一个老板
     for m in target_memberships:
-        rc = getattr(m, "role_code", None) or ("boss" if m.member_role == MerchantMemberRole.owner else None)
+        rc = _normalize_merchant_role_code(getattr(m, "role_code", None)) or (
+            "boss" if m.member_role == MerchantMemberRole.owner else None
+        )
         if rc == "boss":
             raise HTTPException(status_code=403, detail="不能重置其他老板的密码")
 
@@ -579,58 +601,44 @@ async def merchant_staff_toggle_status(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """统一封装的"启停"接口，避免不同请求体导致 H5 端 422 回滚。
+    """启停员工状态接口（PRD v1.0 R3：仅老板可启停）。
 
-    Bug 根因：H5 端调用旧 PUT /staff/{id}/status 时，部分网络代理对带 body 的 PUT 请求处理异常，
-    或前后端字段名不一致导致 422 错误，开关被前端"成功后才本地置位"的乐观更新逻辑回滚。
-    本接口接受 POST + JSON 简体字段，且业务校验放宽（老板可以管全部，店长管自己门店的非老板/非店长），
-    成功返回明确的 status，前端据此渲染。
+    [2026-04-26] 权限收紧：
+    - 仅老板（boss）可调用本接口；店长 / 财务 / 店员一律 403 `无权限操作`
+    - 老板亦不能启停自己（不能锁定自身）
+    - 兜底防越权：前端隐藏按钮不能作为唯一防线，本接口必须做服务端校验
     """
     target_user_id = data.target_user_id
     new_status = data.status
     if new_status not in ("active", "disabled"):
         raise HTTPException(status_code=400, detail="status 必须是 active 或 disabled")
 
+    # R3: 仅老板可启停；非老板（含店长/财务/店员）一律 403
     is_boss, owner_store_ids = await _user_is_boss_in_any_store(db, current_user.id)
-    my_active_store_ids = [m.store_id for m in (await db.execute(
-        select(MerchantStoreMembership).where(
-            MerchantStoreMembership.user_id == current_user.id,
-            MerchantStoreMembership.status == "active",
-        )
-    )).scalars().all()]
+    if not is_boss:
+        raise HTTPException(status_code=403, detail="无权限操作")
 
-    # 是否店长
-    is_manager_rows = (await db.execute(
-        select(MerchantStoreMembership).where(
-            MerchantStoreMembership.user_id == current_user.id,
-            MerchantStoreMembership.status == "active",
-            MerchantStoreMembership.member_role == MerchantMemberRole.store_manager,
-        )
-    )).scalars().all()
-    is_manager = len(is_manager_rows) > 0
-    if not (is_boss or is_manager):
-        raise HTTPException(status_code=403, detail="无权限操作员工")
+    # 老板不能启停自己
+    if int(target_user_id) == int(current_user.id):
+        raise HTTPException(status_code=403, detail="无权限操作")
 
-    # 取目标在"当前操作者管辖范围"内的所有 membership
-    scope_store_ids = owner_store_ids if is_boss else [m.store_id for m in is_manager_rows]
+    # 取目标在"当前老板管辖范围（owner 门店）"内的所有 membership
     target_memberships = (await db.execute(
         select(MerchantStoreMembership).where(
             MerchantStoreMembership.user_id == target_user_id,
-            MerchantStoreMembership.store_id.in_(scope_store_ids),
+            MerchantStoreMembership.store_id.in_(owner_store_ids),
         )
     )).scalars().all()
     if not target_memberships:
-        raise HTTPException(status_code=404, detail="员工不在您的管辖范围内")
+        raise HTTPException(status_code=404, detail="员工不存在")
 
-    # 角色校验：老板可启停 manager/finance/clerk；店长仅可启停 finance/clerk
+    # 不能启停其他老板（多老板共商家场景兜底）
     for m in target_memberships:
-        rc = getattr(m, "role_code", None) or (
+        rc = _normalize_merchant_role_code(getattr(m, "role_code", None)) or (
             "boss" if m.member_role == MerchantMemberRole.owner else None
         )
         if rc == "boss":
-            raise HTTPException(status_code=403, detail="不能启停老板账号")
-        if (not is_boss) and rc == "manager":
-            raise HTTPException(status_code=403, detail="店长不能启停其他店长")
+            raise HTTPException(status_code=403, detail="无权限操作")
 
     for m in target_memberships:
         m.status = new_status

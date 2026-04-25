@@ -507,6 +507,95 @@ async def _migrate_v8_content():
         _l.getLogger(__name__).error("v8 内容管理迁移异常（不影响启动）: %s", e)
 
 
+async def _migrate_merchant_role_unify_v1():
+    """[2026-04-26 PRD v1.0 §R1] 商家角色统一治理：
+    将 merchant_store_memberships.role_code 中的历史值归一化为 4 角色之一：
+        verifier -> clerk
+        staff    -> clerk
+        owner    -> boss
+        manager  -> store_manager
+    并对 role_code 为空的行按 member_role 物理枚举回填。
+    幂等可重入。失败不阻塞启动。
+    """
+    import logging as _l
+    log = _l.getLogger(__name__)
+    try:
+        from sqlalchemy import text
+        async with engine.begin() as conn:
+            # 1) 历史别名 → 4 角色
+            mapping = [
+                ("verifier", "clerk"),
+                ("staff", "clerk"),
+                ("owner", "boss"),
+                ("manager", "store_manager"),
+            ]
+            total = 0
+            for old, new in mapping:
+                res = await conn.execute(
+                    text("UPDATE merchant_store_memberships SET role_code=:n WHERE role_code=:o"),
+                    {"n": new, "o": old},
+                )
+                cnt = res.rowcount or 0
+                total += cnt
+                if cnt:
+                    log.info("[R1] role_code %s -> %s : %d 条", old, new, cnt)
+            # 2) role_code 为空 → 按 member_role 回填
+            backfill = [
+                ("owner", "boss"),
+                ("store_manager", "store_manager"),
+                ("finance", "finance"),
+                ("verifier", "clerk"),
+                ("staff", "clerk"),
+            ]
+            for mr, rc in backfill:
+                res = await conn.execute(
+                    text(
+                        "UPDATE merchant_store_memberships "
+                        "SET role_code=:rc "
+                        "WHERE (role_code IS NULL OR role_code='') AND member_role=:mr"
+                    ),
+                    {"rc": rc, "mr": mr},
+                )
+                cnt = res.rowcount or 0
+                total += cnt
+                if cnt:
+                    log.info("[R1] backfill role_code from member_role=%s -> %s : %d 条", mr, rc, cnt)
+            log.info("[R1] 商家角色统一迁移完成，影响 %d 行", total)
+    except Exception as _e:  # noqa: BLE001
+        log.error("[R1] merchant_role_unify_v1 迁移异常（不影响启动）: %s", _e)
+
+
+def _scan_route_conflicts(app: "FastAPI") -> list[dict]:
+    """[2026-04-26 PRD v1.0 §B1] 扫描所有 (path, method) 重复的路由，输出报告。
+    返回列表，每项: {path, method, endpoints: [name, ...]}
+    """
+    import logging as _l
+    log = _l.getLogger(__name__)
+    bucket: dict[tuple[str, str], list[str]] = {}
+    for r in app.routes:
+        path = getattr(r, "path", None)
+        methods = getattr(r, "methods", None) or set()
+        endpoint = getattr(r, "endpoint", None)
+        if not path or endpoint is None:
+            continue
+        ep_name = f"{getattr(endpoint, '__module__', '?')}.{getattr(endpoint, '__name__', '?')}"
+        for m in methods:
+            key = (path, m.upper())
+            bucket.setdefault(key, []).append(ep_name)
+    conflicts = [
+        {"path": p, "method": m, "endpoints": eps}
+        for (p, m), eps in bucket.items()
+        if len(eps) > 1
+    ]
+    if conflicts:
+        log.warning("[B1] 检测到 %d 个路由冲突 (path,method 重复)：", len(conflicts))
+        for c in conflicts:
+            log.warning("[B1] %s %s -> %s", c["method"], c["path"], c["endpoints"])
+    else:
+        log.info("[B1] 路由冲突扫描通过：未发现 (path,method) 重复")
+    return conflicts
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
@@ -529,6 +618,8 @@ async def lifespan(app: FastAPI):
     await migrate_points_mall_v31()
     await migrate_points_mall_v11()
     await migrate_existing_users_user_no()
+    # [2026-04-26 PRD v1.0 §R1] 商家角色统一治理数据迁移
+    await _migrate_merchant_role_unify_v1()
     from app.init_data import init_default_data
     await init_default_data()
     from app.init_cities import init_cities

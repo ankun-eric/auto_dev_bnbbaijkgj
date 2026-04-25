@@ -75,16 +75,18 @@ interface MerchantStaffListResp {
   merchant_name?: string | null;
 }
 
-// [2026-04-26] 角色 → 中文名 + Tag 颜色映射；前端按真实 role_code 渲染，
-// 不再硬编码"老板"。即使列表已收紧到 boss，本映射仍保留多角色，避免后续放开过滤再次踩坑。
+// [2026-04-26 PRD v1.0 §R1] 商家角色统一治理：仅保留 4 角色 boss / store_manager / finance / clerk。
+// verifier(核销员)/staff/manager/owner 均为历史别名，做兼容映射后下版本删除。
 const ROLE_LABEL_MAP: Record<string, { text: string; color: string }> = {
   boss: { text: '老板', color: 'gold' },
   store_manager: { text: '店长', color: 'blue' },
-  manager: { text: '店长', color: 'blue' }, // 历史别名
   finance: { text: '财务', color: 'purple' },
-  verifier: { text: '核销员', color: 'green' },
-  clerk: { text: '核销员', color: 'green' }, // 历史别名
+  clerk: { text: '店员', color: 'default' },
+  // 历史兼容（过渡期，下版本删除）
+  manager: { text: '店长', color: 'blue' },
+  verifier: { text: '店员', color: 'default' },
   staff: { text: '店员', color: 'default' },
+  owner: { text: '老板', color: 'gold' },
 };
 
 function renderRoleTag(roleCode?: string | null, roleName?: string | null) {
@@ -294,7 +296,8 @@ export default function MerchantAccountsPage() {
         <Space>
           <Input.Search
             allowClear
-            placeholder="按姓名/手机号搜索"
+            // [2026-04-26 PRD v1.0 §R2] 搜索框 placeholder 改为"请输入手机号搜索"
+            placeholder="请输入手机号搜索"
             style={{ width: 280 }}
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
@@ -479,7 +482,7 @@ export default function MerchantAccountsPage() {
             pagination={{ pageSize: 20, showSizeChanger: false }}
             dataSource={staffData.items}
             columns={[
-              { title: '账号', dataIndex: 'phone', width: 130 },
+              // [2026-04-26 PRD v1.0 §R2] 移除"账号"列：账号本质就是手机号，与"手机号"列完全重复。
               {
                 title: '姓名',
                 width: 120,

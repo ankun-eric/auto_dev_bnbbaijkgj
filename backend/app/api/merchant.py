@@ -378,16 +378,11 @@ async def mark_merchant_notification_read(
     return {"message": "已标记为已读"}
 
 
-@router.get("/profile", response_model=MerchantProfileResponse)
-async def get_profile(
-    current_user: User = Depends(merchant_dep),
-    db: AsyncSession = Depends(get_db),
-):
-    result = await db.execute(select(MerchantProfile).where(MerchantProfile.user_id == current_user.id))
-    profile = result.scalar_one_or_none()
-    if profile:
-        return MerchantProfileResponse.model_validate(profile)
-    return MerchantProfileResponse(nickname=current_user.nickname, avatar=current_user.avatar)
+# [2026-04-26 PRD v1.0 §B1 修复]
+# 老 GET /api/merchant/profile 接口（仅返回 nickname/avatar）已删除。
+# 与 backend/app/api/account_security.py:merchant_get_profile 路径完全相同时，
+# FastAPI 会按注册顺序覆盖，导致前端拿不到完整 8 字段（root cause）。
+# 现在唯一实现保留在 account_security.py 中，返回完整字段。
 
 
 @router.put("/notifications/read-all")
