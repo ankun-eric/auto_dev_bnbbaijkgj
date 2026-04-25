@@ -33,6 +33,31 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
+## Latest Update: 后台登录图形验证码视觉规格回退 v1.4（2026-04-26）
+
+### 一句话结论
+图形验证码完全回退到 v1.0 视觉规格：物理像素 = CSS 显示尺寸 = 160×60、字号 38px、取消 2× 高 DPI；通过 PIL 自适应调色板将 PNG 体积压缩到 ≤ 3 KB（实测约 1.5 KB）；业务逻辑（4 位字符、不区分大小写、5 分钟、一次性）完全不变。
+
+### 改造范围
+
+| 模块 | 改动 |
+| --- | --- |
+| `backend/app/services/captcha_service.py` | 删除 `SCALE=2` 等 2× DPI 分支；`IMG_WIDTH/HEIGHT=160/60`；`FONT_SIZE=38`；旋转 ±15°、干扰曲线 2~3 条、噪点 40 点（v1.0 原值）；保存时 `convert("P", palette=ADAPTIVE, colors=64)` + `optimize=True` 控体积；文件头注释升级 v1.4 |
+| `admin-web/src/components/CaptchaImage.tsx` | 文件头注释升级 v1.4；`width=160 height=60` 1:1 显示；URL 自动追加 `?v=1.4` 防缓存 |
+| `h5-web/src/components/CaptchaImage.tsx` | 文件头注释升级 v1.4；PC 默认 160×60；H5 移动端宽度 120~220 自适应；不再 2× DPI |
+| `backend/tests/test_image_captcha.py` | 新增 4 个测试：物理像素 160×60、字号 38、无 SCALE 属性、单张 PNG ≤ 3 KB |
+| `deploy/deploy_captcha_v14.py` | 一次性部署脚本：git pull → 仅重建 backend → 等待健康 → reload gateway nginx → 全量链接验证 + 容器内 PNG 物理像素/字号/字节数实测 |
+
+### 服务器实测（2026-04-26）
+- `GET /api/captcha/image` → 200 ✅
+- `/login`、`/merchant/login`、`/merchant/m/login` → 308（正常重定向） ✅
+- 容器内 `render_captcha_png` 输出：`PNG_PHYSICAL=(160, 60)`、`FONT=38`、`AVG_BYTES=1565`、`MAX_BYTES=1730`、`UNDER_3KB=True` ✅
+
+### 用户文档
+- `user_docs/登录图形验证码视觉规格回退v1.4.md`
+
+---
+
 ## Latest Update: admin 商家账号列表角色显示错乱修复 + 员工列表抽屉（2026-04-26）
 
 ### 一句话结论
