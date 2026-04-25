@@ -3,11 +3,13 @@
 /**
  * CaptchaImage - 4 位字符图形验证码组件
  *
- * PRD: 后台登录页图形验证码改造（v1.0 / 2026-04-25）
+ * v1.2 / 2026-04-25 仅字号放大版
  *
- * 同时供：商家 PC 后台（mode='pc'，固定 160×60）
- *       商家 H5 后台（mode='mobile'，按屏宽 40% 自适应，最小字号 24px）
+ * 同时供：商家 PC 后台（mode='pc'，固定 160×60，与线上原版一致）
+ *       商家 H5 后台（mode='mobile'，按屏宽 50% 自适应，宽度上下限 120 ~ 220）
  *
+ * - 后端画布 160×60 / 2× 物理像素 / 字号 96px，字符显示明显大于旧版（38px）
+ * - 本轮只放大字号、不动画布
  * - 可点击刷新；加载失败显示「加载失败，点击重试」占位
  * - 监听 resize / orientationchange 重新计算尺寸（mobile）
  */
@@ -32,10 +34,10 @@ const PC_H = 60;
 const ASPECT = PC_W / PC_H; // 8/3
 
 function calcMobileSize(): { w: number; h: number } {
-  if (typeof window === 'undefined') return { w: 150, h: 56 };
+  if (typeof window === 'undefined') return { w: 160, h: 60 };
   const sw = window.innerWidth || 375;
-  let w = Math.round(sw * 0.4);
-  if (w < 110) w = 110;
+  let w = Math.round(sw * 0.5);
+  if (w < 120) w = 120;
   if (w > 220) w = 220;
   const h = Math.round(w / ASPECT);
   return { w, h };

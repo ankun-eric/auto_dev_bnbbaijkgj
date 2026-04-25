@@ -3,10 +3,11 @@
 /**
  * CaptchaImage - 4 位字符图形验证码组件（PC 端）
  *
- * PRD: 后台登录页图形验证码改造（v1.0 / 2026-04-25）
- * - 160 × 60 PNG，字号 38px，可点击刷新
- * - 自动 5 分钟过期前刷新；onChange 回调向父组件回传 captchaId
- * - 加载失败显示「加载失败，点击重试」占位
+ * v1.2 / 2026-04-25 仅字号放大版
+ * - 显示尺寸 160 × 60 CSS 像素（与线上原版一致，本轮只放大字号、不动画布）
+ * - 后端按 2× 物理像素渲染（320 × 120）+ 字号 96px，浏览器下采样后字符清晰锐利
+ * - 字号在视觉上较旧版（38px）显著加大，便于肉眼识别
+ * - 可点击刷新；加载失败显示「加载失败，点击重试」占位
  */
 import React, { useCallback, useEffect, useImperativeHandle, useState } from 'react';
 import { fetchCaptchaImage } from '@/lib/captcha';
