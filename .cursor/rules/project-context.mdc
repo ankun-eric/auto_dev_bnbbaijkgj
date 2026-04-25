@@ -33,7 +33,50 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 商家 PC 后台登录后被 401 踢回登录页 Bug 修复（2026-04-25）
+## Latest Update: PC 管理后台优化 PRD V1.0（三端账号安全 + 商家账号精简 + 员工管理重构 + 登录加固）（2026-04-25）
+
+### 概要
+一次性补齐 admin/商家 PC/商家 H5 三端的账号安全基础能力，并修复多项历史 Bug，精简 admin 开户流程，统一三端权限规则。
+
+### 涉及模块
+- **M1 admin 个人信息 / 修改密码**：admin 后台右上角下拉新增「个人信息」「修改密码」入口；profile 页全只读；改密页强制踢出 + 重登。
+- **M2 admin 新建商家账号精简**：表单仅保留 姓名 / 手机号 / 登录密码 / 所属商家；移除昵称、身份类型、角色、状态、批量导入。
+- **M3 商家 PC 个人信息 / 修改密码**：PC 后台右上角下拉新增对应入口；规则同 M1。
+- **M4 商家 H5 修改密码**：H5「我的」Tab 内将原"请到 Web 端修改密码"改为可点击入口；新增 H5 改密页 + 强制改密页。
+- **M5 员工管理重构**：「编辑权限」改「查看权限」（只读，修复回显 Bug）；「新增员工」按钮仅老板可见；初始密码 = 手机号后 6 位、首次登录强制改密；启停仅在后端确认成功后更新 UI（修复 H5 弹回原状态 Bug）。
+- **M6 老板重置员工密码**：员工列表新增「重置密码」按钮（仅老板可见），支持默认/自定义两种重置方式，重置后该员工所有登录态被踢出 + 下次登录强制改密；后端落操作日志。
+- **M7 登录安全加固**：admin / 商家 PC / 商家 H5 三端登录页新增图形验证码（4 位字符 + 干扰线 + 5 分钟过期）；同 IP 或同手机号 5 分钟内失败 5 次锁 15 分钟；商家端短信验证码登录通道完全下线；登录失败统一提示「账号、密码或验证码错误」。
+
+### 核心改动
+- **后端**
+  - 新增 `backend/app/services/captcha_service.py`：图形验证码 + IP/账号失败计数（in-memory）。
+  - 新增 `backend/app/core/password_policy.py`：密码强度校验、JWT 黑名单、用户级 token revoke 时间戳、`must_change_password` 标记。
+  - 新增 `backend/app/api/account_security.py`：`/api/captcha/image`、`/api/admin/profile`、`/api/admin/password`、`/api/merchant/profile`、`/api/merchant/password`、`/api/merchant/password/force-change`、`/api/merchant/staff/create`、`/api/merchant/staff/reset-password`、`/api/merchant/staff/toggle-status`、`/api/admin/merchant/accounts/{user_id}/reset-password`。
+  - 修改 `backend/app/api/admin.py`：`admin_login` 接入 captcha + 失败风控 + 返回 `must_change_password`。
+  - 修改 `backend/app/api/merchant_v1.py`：`merchant_pc_login` 接入 captcha + 失败风控 + 拒绝 `sms_code` 通道；`merchant_list_staff` 修复 `module_codes` 回显。
+  - 修改 `backend/app/core/security.py`：`get_current_user` 接入 token 黑名单。
+  - 修改 `backend/app/main.py`：注册 account_security router。
+- **admin-web**
+  - 新增 `src/app/(admin)/profile/page.tsx`、`src/app/(admin)/profile/change-password/page.tsx`（含 Suspense 包裹避免预渲染失败）。
+  - 修改 `src/app/(admin)/layout.tsx`：右上角下拉新增「个人信息」「修改密码」。
+  - 修改 `src/app/login/page.tsx`：登录页接入图形验证码 + must_change_password 跳转。
+  - 修改 `src/app/(admin)/merchant/accounts/page.tsx`：表单/列表精简、移除批量导入、新增「重置密码」操作。
+- **h5-web**
+  - 新增 `src/app/merchant/profile/{page,change-password/page}.tsx`、`src/app/merchant/m/profile/{change-password,force-change-password}/page.tsx`、`src/lib/captcha.ts`。
+  - 修改 `src/app/merchant/{login,m/login}/page.tsx`：移除短信 Tab、接入图形验证码、强制改密跳转。
+  - 修改 `src/app/merchant/{staff,m/staff}/page.tsx`：「查看权限」只读 + 回显修复、老板可见的「新增员工」「重置密码」、启停 Bug 修复。
+  - 修改 `src/app/merchant/m/profile/page.tsx`：将"请到 Web 端修改密码"改为可点击入口。
+
+### 部署
+- 部署脚本：`deploy/deploy_pc_admin_optim_v1.py`（tar 打包 backend/admin-web/h5-web → SCP → 解压 → docker compose 重建三端容器）。
+- 验证脚本：`deploy/verify_prd_v1.py`（16 个核心链接 100% 可达）、`deploy/regress_prd_v1.py`（验证码生成、登录鉴权、短信通道下线、所有受保护端点 401 回归）。
+
+### 用户手册
+- `user_docs/PC管理后台优化V1.0使用手册.md`
+
+---
+
+## Previous Update: 商家 PC 后台登录后被 401 踢回登录页 Bug 修复（2026-04-25）
 
 ### 概要
 修复「商家 PC 后台登录后立即被后端 401 `无效的认证凭证` 踢回登录页」的 P0 阻塞型 Bug，该 Bug 导致商家 PC 后台自上线以来 100% 必现、从未真正能进入使用。

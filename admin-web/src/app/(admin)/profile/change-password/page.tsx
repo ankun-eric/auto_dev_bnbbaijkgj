@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { Suspense, useState, useEffect } from 'react';
 import { Card, Form, Input, Button, message, Typography, Alert } from 'antd';
 import { LockOutlined } from '@ant-design/icons';
 import { put } from '@/lib/api';
@@ -10,7 +10,7 @@ const { Title } = Typography;
 
 const STRONG_REGEX = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
 
-export default function AdminChangePasswordPage() {
+function ChangePasswordInner() {
   const [loading, setLoading] = useState(false);
   const [form] = Form.useForm();
   const router = useRouter();
@@ -105,5 +105,13 @@ export default function AdminChangePasswordPage() {
         </Form>
       </Card>
     </div>
+  );
+}
+
+export default function AdminChangePasswordPage() {
+  return (
+    <Suspense fallback={<div style={{ padding: 24 }}>加载中...</div>}>
+      <ChangePasswordInner />
+    </Suspense>
   );
 }
