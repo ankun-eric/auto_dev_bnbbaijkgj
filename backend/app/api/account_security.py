@@ -123,14 +123,26 @@ class AdminProfileResponse(BaseModel):
 
 
 class MerchantProfileFullResponse(BaseModel):
+    """商家个人信息（PC + H5 共用）
+
+    [2026-04-25 Bug 修复] 字段全部允许 None，但保证：
+    - name 永不为空（nickname 缺失时回退到手机号脱敏值，杜绝"姓名空白"现象）
+    - phone 永不为空（登录态用户必有手机号）
+    - role_code / role_name 永不为空（无角色映射时回退到 clerk）
+    """
     id: int
     name: Optional[str] = None
     phone: Optional[str] = None
     role_code: str
     role_name: str
+    is_owner: bool = False
     merchant_name: Optional[str] = None
     store_names: List[str] = Field(default_factory=list)
     store_ids: List[int] = Field(default_factory=list)
+    account_status: str = "active"
+    account_status_text: str = "正常"
+    created_at: Optional[str] = None
+    last_login_at: Optional[str] = None
     must_change_password: bool = False
 
 
@@ -271,15 +283,51 @@ async def merchant_get_profile(
     merchant_name = profile.nickname if profile and profile.nickname else (
         store_names[0] if store_names else None
     )
+
+    # [2026-04-25 Bug 修复] 字段值不允许为空：
+    # - 姓名缺失时回退到手机号脱敏值，避免商家看到"姓名空白"
+    # - 商家名缺失时回退到第一个门店名 / "我的商家"
+    safe_phone = (current_user.phone or "").strip()
+    safe_name = (current_user.nickname or "").strip()
+    if not safe_name:
+        if safe_phone and len(safe_phone) >= 11:
+            safe_name = f"{safe_phone[:3]}****{safe_phone[-4:]}"
+        elif safe_phone:
+            safe_name = safe_phone
+        else:
+            safe_name = f"商家用户#{current_user.id}"
+
+    if not merchant_name:
+        merchant_name = "我的商家"
+
+    status_value = (current_user.status or "active")
+    status_text_map = {"active": "正常", "disabled": "已禁用", "deleted": "已删除"}
+
+    def _fmt_dt(dt) -> Optional[str]:
+        if not dt:
+            return None
+        try:
+            return dt.strftime("%Y-%m-%d %H:%M:%S")
+        except Exception:
+            return str(dt)
+
     return MerchantProfileFullResponse(
         id=current_user.id,
-        name=current_user.nickname,
-        phone=current_user.phone,
+        name=safe_name,
+        phone=safe_phone or None,
         role_code=role_code,
         role_name=_MERCHANT_ROLE_NAMES.get(role_code, role_code),
+        is_owner=(role_code == "boss"),
         merchant_name=merchant_name,
         store_names=store_names,
         store_ids=store_ids,
+        account_status=status_value,
+        account_status_text=status_text_map.get(status_value, "正常"),
+        created_at=_fmt_dt(getattr(current_user, "created_at", None)),
+        last_login_at=_fmt_dt(
+            getattr(current_user, "last_login_at", None)
+            or getattr(current_user, "updated_at", None)
+        ),
         must_change_password=is_must_change_password(current_user.id),
     )
 
@@ -604,6 +652,186 @@ async def merchant_staff_toggle_status(
 
     await db.commit()
     return {"message": "状态已更新", "status": new_status, "target_user_id": target_user_id}
+
+
+# ════════════════ §H5-Shop §F2/F3/F4 商家店铺信息（H5 + PC 共用） ════════════════
+#
+# 设计要点：
+# - GET 接口对所有登录的商家账号开放（PC + H5 都能读取，员工只读）
+# - PUT 接口在后端强校验"当前操作人是否为该商家的老板"，员工调用一律 403，
+#   不依赖前端隐藏按钮，实现 PRD §4.3 的双保险
+# - "店铺信息"以当前账号绑定的"主门店"（store_ids 列表中的第一个 active 门店）为准
+# - 敏感字段（营业执照号、法人姓名、商家 ID）后端永远只读，
+#   即便 PUT 时前端传入也会被忽略
+
+class ShopInfoResponse(BaseModel):
+    store_id: int
+    merchant_id: int
+    merchant_no: str
+    store_name: str
+    logo_url: Optional[str] = None
+    description: Optional[str] = None
+    address: Optional[str] = None
+    contact_phone: Optional[str] = None
+    business_hours: Optional[str] = None
+    license_no: Optional[str] = None
+    legal_person: Optional[str] = None
+    is_owner: bool = False
+    can_edit: bool = False
+    updated_at: Optional[str] = None
+
+
+class ShopInfoUpdateRequest(BaseModel):
+    store_name: Optional[str] = Field(default=None, max_length=30)
+    logo_url: Optional[str] = Field(default=None, max_length=500)
+    description: Optional[str] = Field(default=None, max_length=200)
+    address: Optional[str] = Field(default=None, max_length=255)
+    contact_phone: Optional[str] = Field(default=None, max_length=20)
+    business_hours: Optional[str] = Field(default=None, max_length=100)
+
+
+def _fmt_dt(dt):
+    if not dt:
+        return None
+    try:
+        return dt.strftime("%Y-%m-%d %H:%M:%S")
+    except Exception:
+        return str(dt)
+
+
+async def _get_primary_store_for_merchant(
+    db: AsyncSession, user_id: int
+) -> tuple[Optional[MerchantStore], bool, list[int]]:
+    """返回 (主门店, 当前用户是否为该商家老板, 当前用户在该商家下覆盖的所有门店 ids)
+
+    "主门店"取当前用户绑定的 active membership 中 store_id 最小的那条。
+    "是否老板"以 role_code='boss' 或 member_role=owner 判定。
+    """
+    rows = (await db.execute(
+        select(MerchantStoreMembership, MerchantStore)
+        .join(MerchantStore, MerchantStore.id == MerchantStoreMembership.store_id)
+        .where(
+            MerchantStoreMembership.user_id == user_id,
+            MerchantStoreMembership.status == "active",
+        )
+        .order_by(MerchantStoreMembership.store_id.asc())
+    )).all()
+    if not rows:
+        return None, False, []
+    is_owner = False
+    store_ids: list[int] = []
+    for m, _s in rows:
+        store_ids.append(m.store_id)
+        rc = getattr(m, "role_code", None) or (
+            "boss" if m.member_role == MerchantMemberRole.owner else None
+        )
+        if rc == "boss":
+            is_owner = True
+    primary_store = rows[0][1]
+    return primary_store, is_owner, store_ids
+
+
+def _serialize_shop(store: MerchantStore, is_owner: bool) -> ShopInfoResponse:
+    return ShopInfoResponse(
+        store_id=store.id,
+        merchant_id=store.id,
+        merchant_no=f"M{store.id:08d}",
+        store_name=store.store_name or "",
+        logo_url=getattr(store, "logo_url", None),
+        description=getattr(store, "description", None),
+        address=store.address,
+        contact_phone=store.contact_phone,
+        business_hours=getattr(store, "business_hours", None),
+        license_no=getattr(store, "license_no", None),
+        legal_person=getattr(store, "legal_person", None),
+        is_owner=is_owner,
+        can_edit=is_owner,
+        updated_at=_fmt_dt(getattr(store, "updated_at", None)),
+    )
+
+
+@router.get("/api/merchant/shop/info", response_model=ShopInfoResponse)
+async def merchant_get_shop_info(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """商家店铺信息读取（H5 + PC 共用，所有商家成员可读）"""
+    await _require_merchant(current_user, db)
+    store, is_owner, _ = await _get_primary_store_for_merchant(db, current_user.id)
+    if not store:
+        raise HTTPException(status_code=404, detail="您还未被绑定到任何门店，请联系平台客服")
+    return _serialize_shop(store, is_owner)
+
+
+@router.put("/api/merchant/shop/info", response_model=ShopInfoResponse)
+async def merchant_update_shop_info(
+    data: ShopInfoUpdateRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """商家店铺信息编辑（仅老板可改）
+
+    PRD §4.3 双保险中的【后端强校验】：
+    - 任何非老板角色（manager / finance / clerk）调用此接口都会被拒
+    - 即便员工通过抓包绕过 H5 隐藏的按钮直接 PUT，也会返回 403
+    """
+    await _require_merchant(current_user, db)
+    store, is_owner, _ = await _get_primary_store_for_merchant(db, current_user.id)
+    if not store:
+        raise HTTPException(status_code=404, detail="您还未被绑定到任何门店，请联系平台客服")
+    if not is_owner:
+        raise HTTPException(
+            status_code=403,
+            detail={"code": 40301, "msg": "仅老板可修改店铺信息"},
+        )
+
+    changed: dict[str, tuple] = {}
+
+    def _maybe_set(field: str, new_val):
+        if new_val is None:
+            return
+        new_v = new_val.strip() if isinstance(new_val, str) else new_val
+        old_v = getattr(store, field, None)
+        if (old_v or "") != (new_v or ""):
+            setattr(store, field, new_v or None)
+            changed[field] = (old_v, new_v)
+
+    if data.store_name is not None:
+        name = (data.store_name or "").strip()
+        if not name:
+            raise HTTPException(status_code=400, detail="店铺名称不可为空")
+        _maybe_set("store_name", name)
+
+    if data.address is not None:
+        addr = (data.address or "").strip()
+        if not addr:
+            raise HTTPException(status_code=400, detail="店铺地址不可为空")
+        _maybe_set("address", addr)
+
+    if data.contact_phone is not None:
+        phone = (data.contact_phone or "").strip()
+        if phone:
+            import re as _re
+            if not _re.match(r"^(1\d{10}|0\d{2,3}-?\d{7,8})$", phone):
+                raise HTTPException(status_code=400, detail="联系电话格式不正确")
+        _maybe_set("contact_phone", phone)
+
+    _maybe_set("logo_url", data.logo_url)
+    _maybe_set("description", data.description)
+    _maybe_set("business_hours", data.business_hours)
+
+    if changed:
+        store.updated_at = datetime.utcnow()
+        await db.commit()
+        await db.refresh(store)
+        # PRD §六.日志：每次修改写操作日志（操作人、时间、修改字段、前后值）
+        logger.info(
+            "[SHOP_INFO_UPDATE] operator=%s store_id=%s changed=%s",
+            current_user.id, store.id,
+            {k: {"old": v[0], "new": v[1]} for k, v in changed.items()},
+        )
+
+    return _serialize_shop(store, True)
 
 
 # ════════════════ §M2 / §M7.5 admin 重置老板密码 ════════════════

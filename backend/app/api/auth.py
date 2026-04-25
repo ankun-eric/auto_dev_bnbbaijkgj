@@ -377,6 +377,13 @@ async def login(data: UserLogin, db: AsyncSession = Depends(get_db)):
     register_settings = await get_register_settings(db)
     await ensure_default_identity_for_legacy_user(db, user)
     await ensure_member_card_no(db, user, register_settings)
+    # [2026-04-25] 商家个人信息回填：登录成功记录最近登录时间，供"个人信息"页展示
+    try:
+        user.last_login_at = datetime.utcnow()
+        await db.commit()
+        await db.refresh(user)
+    except Exception:
+        await db.rollback()
     token = create_access_token({"sub": str(user.id)})
     session_context = await build_session_context(db, user)
     needs_profile_completion = (
@@ -511,6 +518,12 @@ async def sms_login(data: SMSLoginRequest, db: AsyncSession = Depends(get_db)):
 
     await ensure_default_identity_for_legacy_user(db, user)
     await ensure_member_card_no(db, user, register_settings)
+    try:
+        user.last_login_at = datetime.utcnow()
+        await db.commit()
+        await db.refresh(user)
+    except Exception:
+        await db.rollback()
     token = create_access_token({"sub": str(user.id)})
     session_context = await build_session_context(db, user)
     needs_profile_completion = (

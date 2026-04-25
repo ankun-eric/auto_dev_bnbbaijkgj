@@ -586,11 +586,49 @@ async def _sync_notice_table(conn: AsyncConnection) -> None:
         ))
 
 
+async def _sync_merchant_profile_shop_v2(conn: AsyncConnection) -> None:
+    """[2026-04-25] 商家个人信息回填 + H5 店铺信息可编辑
+
+    - users 表新增 last_login_at 字段，用于个人信息页"最近登录"展示
+    - merchant_stores 表新增 logo_url / description / business_hours / license_no / legal_person
+      字段，用于 H5 店铺信息编辑页
+    """
+    def _load(sync_conn):
+        inspector = inspect(sync_conn)
+        tables = set(inspector.get_table_names())
+        users_cols = (
+            {col["name"] for col in inspector.get_columns("users")}
+            if "users" in tables else None
+        )
+        store_cols = (
+            {col["name"] for col in inspector.get_columns("merchant_stores")}
+            if "merchant_stores" in tables else None
+        )
+        return users_cols, store_cols
+
+    users_cols, store_cols = await conn.run_sync(_load)
+    if users_cols is not None and "last_login_at" not in users_cols:
+        await conn.execute(text("ALTER TABLE users ADD COLUMN last_login_at DATETIME NULL"))
+
+    if store_cols is not None:
+        if "logo_url" not in store_cols:
+            await conn.execute(text("ALTER TABLE merchant_stores ADD COLUMN logo_url VARCHAR(500) NULL"))
+        if "description" not in store_cols:
+            await conn.execute(text("ALTER TABLE merchant_stores ADD COLUMN description VARCHAR(500) NULL"))
+        if "business_hours" not in store_cols:
+            await conn.execute(text("ALTER TABLE merchant_stores ADD COLUMN business_hours VARCHAR(100) NULL"))
+        if "license_no" not in store_cols:
+            await conn.execute(text("ALTER TABLE merchant_stores ADD COLUMN license_no VARCHAR(100) NULL"))
+        if "legal_person" not in store_cols:
+            await conn.execute(text("ALTER TABLE merchant_stores ADD COLUMN legal_person VARCHAR(100) NULL"))
+
+
 async def run_all_migrations(conn: AsyncConnection) -> None:
     await _sync_relation_types_table(conn)
     await _sync_disease_presets_table(conn)
     await _sync_family_member_v2_fields(conn)
     await _sync_health_profile_v2_fields(conn)
+    await _sync_merchant_profile_shop_v2(conn)
 
 
 async def _sync_bottom_nav_table(conn: AsyncConnection) -> None:

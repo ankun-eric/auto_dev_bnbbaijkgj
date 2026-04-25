@@ -14,9 +14,14 @@ interface MerchantProfileFull {
   phone?: string;
   role_code: string;
   role_name: string;
+  is_owner?: boolean;
   merchant_name?: string;
   store_names: string[];
   store_ids: number[];
+  account_status?: string;
+  account_status_text?: string;
+  created_at?: string | null;
+  last_login_at?: string | null;
 }
 
 export default function MerchantMobileProfilePage() {
@@ -51,6 +56,17 @@ export default function MerchantMobileProfilePage() {
             所属门店
           </List.Item>
           <List.Item extra={data?.merchant_name || '—'}>所属商家</List.Item>
+          <List.Item
+            extra={
+              <Tag color={data?.account_status === 'active' ? 'success' : 'danger'}>
+                {data?.account_status_text || '正常'}
+              </Tag>
+            }
+          >
+            账号状态
+          </List.Item>
+          <List.Item extra={data?.created_at || '—'}>创建时间</List.Item>
+          <List.Item extra={data?.last_login_at || '—'}>最近登录</List.Item>
         </List>
 
         <div style={{ marginTop: 16 }}>

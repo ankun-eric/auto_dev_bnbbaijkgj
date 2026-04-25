@@ -17,9 +17,14 @@ interface MerchantProfileFull {
   phone?: string;
   role_code: string;
   role_name: string;
+  is_owner?: boolean;
   merchant_name?: string;
   store_names: string[];
   store_ids: number[];
+  account_status?: string;
+  account_status_text?: string;
+  created_at?: string | null;
+  last_login_at?: string | null;
   must_change_password: boolean;
 }
 
@@ -60,6 +65,13 @@ export default function MerchantProfilePage() {
               ) : '—'}
             </Descriptions.Item>
             <Descriptions.Item label="所属商家">{data?.merchant_name || '—'}</Descriptions.Item>
+            <Descriptions.Item label="账号状态">
+              <Tag color={data?.account_status === 'active' ? 'green' : 'red'}>
+                {data?.account_status_text || '正常'}
+              </Tag>
+            </Descriptions.Item>
+            <Descriptions.Item label="创建时间">{data?.created_at || '—'}</Descriptions.Item>
+            <Descriptions.Item label="最近登录">{data?.last_login_at || '—'}</Descriptions.Item>
           </Descriptions>
           <div style={{ marginTop: 16 }}>
             <Button

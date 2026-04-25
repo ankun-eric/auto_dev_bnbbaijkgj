@@ -309,6 +309,8 @@ class User(Base):
     referrer_no = mapped_column(String(8), nullable=True, index=True)
     is_superuser = mapped_column(Boolean, default=False, nullable=False, server_default="0")
     chat_font_size = mapped_column(String(20), default="standard")
+    # [2026-04-25] 商家个人信息回填：记录最近一次登录时间，用于"个人信息"页展示
+    last_login_at = mapped_column(DateTime, nullable=True)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -405,6 +407,12 @@ class MerchantStore(Base):
     contact_phone = mapped_column(String(20), nullable=True)
     address = mapped_column(String(255), nullable=True)
     status = mapped_column(String(20), default="active")
+    # [2026-04-25] H5 店铺信息编辑：扩展可编辑字段（详见 PRD §4.2.3）
+    logo_url = mapped_column(String(500), nullable=True)
+    description = mapped_column(String(500), nullable=True)
+    business_hours = mapped_column(String(100), nullable=True)
+    license_no = mapped_column(String(100), nullable=True)
+    legal_person = mapped_column(String(100), nullable=True)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

@@ -122,6 +122,13 @@ export default function MeMobilePage() {
           个人信息
         </List.Item>
         <List.Item
+          prefix="🏪"
+          onClick={() => router.push('/merchant/m/store-settings')}
+          clickable
+        >
+          店铺信息
+        </List.Item>
+        <List.Item
           prefix="🔐"
           onClick={() => router.push('/merchant/m/profile/change-password')}
           clickable
