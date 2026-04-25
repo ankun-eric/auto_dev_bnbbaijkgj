@@ -131,6 +131,28 @@ class MerchantAccountSummaryResponse(BaseModel):
     role_name: Optional[str] = None
     stores: List[MerchantStoreResponse] = Field(default_factory=list)
     created_at: datetime
+    # [2026-04-26] 该老板下挂的非老板员工数量（用于"员工列表 (N)"按钮徽标）
+    staff_count: int = 0
+
+
+class MerchantStaffItemResponse(BaseModel):
+    """[2026-04-26] 商家"员工列表"抽屉单条数据"""
+    id: int
+    phone: str
+    name: Optional[str] = None
+    role_code: Optional[str] = None
+    role_name: Optional[str] = None
+    status: str
+    status_text: Optional[str] = None
+    created_at: Optional[datetime] = None
+    last_login_at: Optional[datetime] = None
+    store_names: List[str] = Field(default_factory=list)
+
+
+class MerchantStaffListResponse(BaseModel):
+    items: List[MerchantStaffItemResponse] = Field(default_factory=list)
+    total: int = 0
+    merchant_name: Optional[str] = None
 
 
 class MerchantDashboardResponse(BaseModel):

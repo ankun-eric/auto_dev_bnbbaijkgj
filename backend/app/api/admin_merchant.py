@@ -25,6 +25,8 @@ from app.schemas.merchant import (
     MerchantAccountSummaryResponse,
     MerchantAccountUpsert,
     MerchantRoleTemplateResponse,
+    MerchantStaffItemResponse,
+    MerchantStaffListResponse,
     MerchantStoreCreate,
     MerchantStoreResponse,
     MerchantStoreUpdate,
@@ -42,24 +44,59 @@ FULL_MODULE_CODES = [
 
 # [2026-04-24] 平台内置角色 → (member_role 映射, 默认模块)
 # 角色模板 default_modules 以 DB 为准；此处仅作落库失败时兜底
+# [2026-04-26] role_code 与 DB MerchantMemberRole 枚举对齐：
+#   boss=老板(owner) / store_manager=店长 / finance=财务 / verifier=核销员 / staff=店员
+#   旧别名 manager→store_manager，clerk→verifier 仍兼容（前端历史代码）
 ROLE_TO_MEMBER_ROLE: dict[str, MerchantMemberRole] = {
     "boss": MerchantMemberRole.owner,
-    "manager": MerchantMemberRole.store_manager,
+    "store_manager": MerchantMemberRole.store_manager,
+    "manager": MerchantMemberRole.store_manager,  # 历史别名
     "finance": MerchantMemberRole.finance,
-    "clerk": MerchantMemberRole.verifier,
+    "verifier": MerchantMemberRole.verifier,
+    "clerk": MerchantMemberRole.verifier,  # 历史别名
+    "staff": MerchantMemberRole.staff,
 }
 ROLE_NAME_MAP: dict[str, str] = {
     "boss": "老板",
+    "store_manager": "店长",
     "manager": "店长",
     "finance": "财务",
-    "clerk": "店员",
+    "verifier": "核销员",
+    "clerk": "核销员",
+    "staff": "店员",
 }
 ROLE_DEFAULT_FALLBACK: dict[str, list[str]] = {
     "boss": FULL_MODULE_CODES,
+    "store_manager": FULL_MODULE_CODES,
     "manager": FULL_MODULE_CODES,
     "finance": ["dashboard", "records", "messages", "profile", "finance"],
+    "verifier": ["dashboard", "verify", "records", "messages", "profile"],
     "clerk": ["dashboard", "verify", "records", "messages", "profile"],
+    "staff": ["dashboard", "records", "messages", "profile"],
 }
+
+# [2026-04-26] member_role 枚举 → 默认 role_code（用于历史数据兜底反推）
+MEMBER_ROLE_TO_ROLE_CODE: dict[MerchantMemberRole, str] = {
+    MerchantMemberRole.owner: "boss",
+    MerchantMemberRole.store_manager: "store_manager",
+    MerchantMemberRole.finance: "finance",
+    MerchantMemberRole.verifier: "verifier",
+    MerchantMemberRole.staff: "staff",
+}
+
+# [2026-04-26] 历史 role_code 归一化（处理可能的大小写、别名差异）
+def _normalize_role_code(raw: Optional[str]) -> Optional[str]:
+    if not raw:
+        return None
+    code = str(raw).strip().lower()
+    if not code:
+        return None
+    alias_map = {
+        "manager": "store_manager",
+        "clerk": "verifier",
+        "owner": "boss",
+    }
+    return alias_map.get(code, code)
 
 
 async def _load_role_template(db: AsyncSession, code: str) -> tuple[str, list[str]]:
@@ -252,23 +289,47 @@ async def _build_account_summary(
     stores = []
     merchant_identity_type = None
     role_code: Optional[str] = None
+    primary_member_role: Optional[MerchantMemberRole] = None
+    user_id_for_staff_count = user.id
+    boss_store_ids: set[int] = set()
     for membership in memberships_result.scalars().all():
         if membership.member_role == MerchantMemberRole.owner:
             merchant_identity_type = "owner"
+            boss_store_ids.add(membership.store_id)
         elif merchant_identity_type is None:
             merchant_identity_type = "staff"
+        # 主 member_role 取第一条非 None 的记录（owner 优先）
+        if primary_member_role is None or membership.member_role == MerchantMemberRole.owner:
+            primary_member_role = membership.member_role
         if role_code is None and getattr(membership, "role_code", None):
-            role_code = membership.role_code
+            role_code = _normalize_role_code(membership.role_code)
         store_item = await _build_store_response(db, membership)
         if store_item:
             stores.append(store_item)
-    # 兜底推断 role_code：历史数据未写入时根据 member_role 推导
+    # [2026-04-26] 兜底推断 role_code：优先按 member_role 真实枚举映射，
+    # 而不是简单按 owner/staff 二分；这样店长/核销员/财务/店员历史数据也能正确显示
+    if role_code is None and primary_member_role is not None:
+        role_code = MEMBER_ROLE_TO_ROLE_CODE.get(primary_member_role)
     if role_code is None:
         if merchant_identity_type == "owner":
             role_code = "boss"
         elif merchant_identity_type == "staff":
-            role_code = "clerk"
+            role_code = "staff"
     role_name = ROLE_NAME_MAP.get(role_code) if role_code else None
+
+    # [2026-04-26] 计算该商家下"非老板员工"数量，仅当本账号是老板时才有意义
+    staff_count = 0
+    if role_code == "boss" and boss_store_ids:
+        cnt_res = await db.execute(
+            select(func.count(func.distinct(MerchantStoreMembership.user_id))).where(
+                MerchantStoreMembership.store_id.in_(boss_store_ids),
+                MerchantStoreMembership.user_id != user_id_for_staff_count,
+                MerchantStoreMembership.status == "active",
+                MerchantStoreMembership.member_role != MerchantMemberRole.owner,
+            )
+        )
+        staff_count = int(cnt_res.scalar() or 0)
+
     return MerchantAccountSummaryResponse(
         id=user.id,
         phone=user.phone or "",
@@ -281,6 +342,7 @@ async def _build_account_summary(
         role_name=role_name,
         stores=stores,
         created_at=user.created_at,
+        staff_count=staff_count,
     )
 
 
@@ -517,7 +579,7 @@ async def update_store(
 @router.get("/accounts")
 async def list_accounts(
     keyword: str | None = None,
-    role_code: str | None = None,
+    role_code: str | None = "boss",  # [2026-04-26] 默认只展示老板账号；显式传 "all" 可关闭过滤
     current_user=Depends(admin_dep),
     db: AsyncSession = Depends(get_db),
 ):
@@ -538,12 +600,143 @@ async def list_accounts(
         )
     result = await db.execute(query)
     items = [await _build_account_summary(db, user) for user in result.scalars().all()]
-    # [2026-04-24] 支持按角色过滤（基于 _build_account_summary 兜底推断后的 role_code）
-    if role_code:
-        rc = role_code.strip()
-        if rc:
-            items = [it for it in items if (it.role_code or "") == rc]
+    # [2026-04-26] 角色过滤：默认只展示老板（boss）；传 role_code=all 表示不过滤
+    rc = (role_code or "").strip().lower()
+    if rc and rc != "all":
+        normalized = _normalize_role_code(rc) or rc
+        items = [it for it in items if (it.role_code or "") == normalized]
     return {"items": items}
+
+
+@router.get("/accounts/{user_id}/staff", response_model=MerchantStaffListResponse)
+async def list_merchant_staff(
+    user_id: int,
+    current_user=Depends(admin_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    """[2026-04-26] 列出某老板账号所属商家下的所有非老板员工。
+
+    数据范围：
+    - 取该 user 的所有 owner 类型 membership 对应的 store_ids 作为"该商家下属门店集合"
+    - 在这些门店下查找所有 member_role != owner 的成员（store_manager/finance/verifier/staff）
+    - 不包含老板自身
+    """
+    # 校验 user 存在
+    user_res = await db.execute(select(User).where(User.id == user_id))
+    target_user = user_res.scalar_one_or_none()
+    if not target_user:
+        raise HTTPException(status_code=404, detail="账号不存在")
+
+    # 取该 user 名下所有 owner 门店
+    owner_ms_res = await db.execute(
+        select(MerchantStoreMembership).where(
+            MerchantStoreMembership.user_id == user_id,
+            MerchantStoreMembership.member_role == MerchantMemberRole.owner,
+            MerchantStoreMembership.status == "active",
+        )
+    )
+    owner_memberships = owner_ms_res.scalars().all()
+    store_ids = sorted({m.store_id for m in owner_memberships})
+
+    # 取商家名称（取首个 owner 门店名作为标识）
+    merchant_name: Optional[str] = None
+    if store_ids:
+        store_res = await db.execute(
+            select(MerchantStore).where(MerchantStore.id.in_(store_ids))
+        )
+        store_list = store_res.scalars().all()
+        if store_list:
+            merchant_name = store_list[0].store_name
+
+    if not store_ids:
+        return MerchantStaffListResponse(items=[], total=0, merchant_name=merchant_name)
+
+    # 找该商家下所有非老板员工 membership
+    staff_ms_res = await db.execute(
+        select(MerchantStoreMembership).where(
+            MerchantStoreMembership.store_id.in_(store_ids),
+            MerchantStoreMembership.user_id != user_id,
+            MerchantStoreMembership.status == "active",
+            MerchantStoreMembership.member_role != MerchantMemberRole.owner,
+        )
+    )
+    staff_memberships = staff_ms_res.scalars().all()
+
+    # 按 user_id 聚合（同一个员工可能在多个门店有 membership）
+    user_to_memberships: dict[int, list[MerchantStoreMembership]] = {}
+    for m in staff_memberships:
+        user_to_memberships.setdefault(m.user_id, []).append(m)
+
+    if not user_to_memberships:
+        return MerchantStaffListResponse(items=[], total=0, merchant_name=merchant_name)
+
+    # 一次性加载相关用户、门店名称
+    related_user_ids = list(user_to_memberships.keys())
+    users_res = await db.execute(select(User).where(User.id.in_(related_user_ids)))
+    user_map = {u.id: u for u in users_res.scalars().all()}
+
+    store_name_res = await db.execute(
+        select(MerchantStore.id, MerchantStore.store_name).where(
+            MerchantStore.id.in_(store_ids)
+        )
+    )
+    store_name_map = {sid: sname for sid, sname in store_name_res.all()}
+
+    items: list[MerchantStaffItemResponse] = []
+    for uid, ms_list in user_to_memberships.items():
+        u = user_map.get(uid)
+        if not u:
+            continue
+        # 主 role：优先 store_manager > finance > verifier > staff > 取第一条
+        role_priority = {
+            MerchantMemberRole.store_manager: 0,
+            MerchantMemberRole.finance: 1,
+            MerchantMemberRole.verifier: 2,
+            MerchantMemberRole.staff: 3,
+        }
+        sorted_ms = sorted(
+            ms_list,
+            key=lambda x: role_priority.get(x.member_role, 99),
+        )
+        primary = sorted_ms[0]
+        rc = _normalize_role_code(getattr(primary, "role_code", None))
+        if not rc:
+            rc = MEMBER_ROLE_TO_ROLE_CODE.get(primary.member_role, "staff")
+        rn = ROLE_NAME_MAP.get(rc, rc)
+        store_names = sorted({
+            store_name_map.get(m.store_id, "")
+            for m in ms_list
+            if store_name_map.get(m.store_id)
+        })
+        # 名称：优先 user.nickname；否则脱敏手机号
+        display_name = u.nickname
+        if not display_name and u.phone:
+            display_name = u.phone[:3] + "****" + u.phone[-4:] if len(u.phone) >= 7 else u.phone
+
+        items.append(
+            MerchantStaffItemResponse(
+                id=u.id,
+                phone=u.phone or "",
+                name=display_name,
+                role_code=rc,
+                role_name=rn,
+                status=u.status or "active",
+                status_text="正常" if (u.status or "active") == "active" else "禁用",
+                created_at=u.created_at,
+                last_login_at=getattr(u, "last_login_at", None),
+                store_names=list(store_names),
+            )
+        )
+
+    # 按角色优先级 + 创建时间排序
+    role_sort = {"store_manager": 0, "finance": 1, "verifier": 2, "staff": 3}
+    items.sort(key=lambda it: (role_sort.get(it.role_code or "", 99), -(it.id or 0)))
+
+    return MerchantStaffListResponse(
+        items=items,
+        total=len(items),
+        merchant_name=merchant_name,
+    )
 
 
 @router.post("/accounts")

@@ -4,6 +4,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   Button,
   Card,
+  Drawer,
+  Empty,
   Form,
   Input,
   Modal,
@@ -11,8 +13,10 @@ import {
   Radio,
   Select,
   Space,
+  Spin,
   Table,
   Tag,
+  Tooltip,
   Typography,
   message,
 } from 'antd';
@@ -48,6 +52,61 @@ interface MerchantAccount {
   role_code?: string | null;
   role_name?: string | null;
   stores: MerchantStoreItem[];
+  // [2026-04-26] 后端返回每个老板的非老板员工数量
+  staff_count?: number;
+}
+
+interface MerchantStaffItem {
+  id: number;
+  phone: string;
+  name?: string | null;
+  role_code?: string | null;
+  role_name?: string | null;
+  status: string;
+  status_text?: string | null;
+  created_at?: string | null;
+  last_login_at?: string | null;
+  store_names: string[];
+}
+
+interface MerchantStaffListResp {
+  items: MerchantStaffItem[];
+  total: number;
+  merchant_name?: string | null;
+}
+
+// [2026-04-26] 角色 → 中文名 + Tag 颜色映射；前端按真实 role_code 渲染，
+// 不再硬编码"老板"。即使列表已收紧到 boss，本映射仍保留多角色，避免后续放开过滤再次踩坑。
+const ROLE_LABEL_MAP: Record<string, { text: string; color: string }> = {
+  boss: { text: '老板', color: 'gold' },
+  store_manager: { text: '店长', color: 'blue' },
+  manager: { text: '店长', color: 'blue' }, // 历史别名
+  finance: { text: '财务', color: 'purple' },
+  verifier: { text: '核销员', color: 'green' },
+  clerk: { text: '核销员', color: 'green' }, // 历史别名
+  staff: { text: '店员', color: 'default' },
+};
+
+function renderRoleTag(roleCode?: string | null, roleName?: string | null) {
+  const code = (roleCode || '').toLowerCase();
+  const meta = ROLE_LABEL_MAP[code];
+  if (meta) {
+    return <Tag color={meta.color}>{meta.text}</Tag>;
+  }
+  // 未知角色兜底，显示原始 role_name 或 role_code，不再固定"老板"
+  return <Tag>{roleName || roleCode || '-'}</Tag>;
+}
+
+function formatDateTime(value?: string | null): string {
+  if (!value) return '-';
+  try {
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return '-';
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  } catch {
+    return '-';
+  }
 }
 
 export default function MerchantAccountsPage() {
@@ -63,6 +122,12 @@ export default function MerchantAccountsPage() {
   const [resetTarget, setResetTarget] = useState<MerchantAccount | null>(null);
   const [resetForm] = Form.useForm();
   const resetType = Form.useWatch('reset_type', resetForm);
+
+  // [2026-04-26] 员工列表抽屉
+  const [staffDrawerOpen, setStaffDrawerOpen] = useState(false);
+  const [staffLoading, setStaffLoading] = useState(false);
+  const [staffData, setStaffData] = useState<MerchantStaffListResp | null>(null);
+  const [staffOwner, setStaffOwner] = useState<MerchantAccount | null>(null);
 
   const storeOptions = useMemo(
     () => stores.map((item) => ({ label: item.store_name, value: item.id })),
@@ -81,7 +146,8 @@ export default function MerchantAccountsPage() {
   const fetchAccounts = async () => {
     setLoading(true);
     try {
-      const res = await get('/api/admin/merchant/accounts');
+      // [2026-04-26] 后端默认 role_code=boss，列表只返回老板账号；显式声明语义更清晰
+      const res = await get('/api/admin/merchant/accounts?role_code=boss');
       setItems(res.items || []);
     } catch (error: any) {
       message.error(error?.response?.data?.detail || '商家账号加载失败');
@@ -200,6 +266,23 @@ export default function MerchantAccountsPage() {
     }
   };
 
+  // [2026-04-26] 打开员工列表抽屉
+  const openStaffDrawer = async (item: MerchantAccount) => {
+    setStaffOwner(item);
+    setStaffDrawerOpen(true);
+    setStaffData(null);
+    setStaffLoading(true);
+    try {
+      const res = await get(`/api/admin/merchant/accounts/${item.id}/staff`);
+      setStaffData(res || { items: [], total: 0 });
+    } catch (error: any) {
+      message.error(error?.response?.data?.detail || '员工列表加载失败');
+      setStaffData({ items: [], total: 0 });
+    } finally {
+      setStaffLoading(false);
+    }
+  };
+
   return (
     <div>
       <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: 24 }}>
@@ -248,7 +331,8 @@ export default function MerchantAccountsPage() {
           },
           {
             title: '角色',
-            render: () => <Tag color="purple">老板</Tag>,
+            // [2026-04-26] 修复硬编码"老板"问题：按真实 role_code 渲染对应中文 Tag
+            render: (_: any, item: MerchantAccount) => renderRoleTag(item.role_code, item.role_name),
           },
           {
             title: '状态',
@@ -262,7 +346,7 @@ export default function MerchantAccountsPage() {
           {
             title: '操作',
             render: (_: any, item: MerchantAccount) => (
-              <Space>
+              <Space wrap>
                 <Button type="link" onClick={() => openEdit(item)}>编辑</Button>
                 <Popconfirm
                   title={item.status === 'active' ? '确认停用该账号？' : '确认启用该账号？'}
@@ -278,6 +362,10 @@ export default function MerchantAccountsPage() {
                   <Button type="link" danger>删除</Button>
                 </Popconfirm>
                 <Button type="link" onClick={() => openReset(item)}>重置密码</Button>
+                {/* [2026-04-26] 新增：员工列表入口 */}
+                <Button type="link" onClick={() => openStaffDrawer(item)}>
+                  员工列表 ({item.staff_count ?? 0})
+                </Button>
               </Space>
             ),
           },
@@ -352,7 +440,7 @@ export default function MerchantAccountsPage() {
               <Space direction="vertical">
                 <Radio value="default">
                   默认密码（手机号后 6 位
-                  {resetTarget?.phone ? `：${resetTarget.phone.slice(-6)}` : ''}）
+                  {resetTarget?.phone ? `:${resetTarget.phone.slice(-6)}` : ''}）
                 </Radio>
                 <Radio value="custom">自定义密码</Radio>
               </Space>
@@ -369,6 +457,77 @@ export default function MerchantAccountsPage() {
           )}
         </Form>
       </Modal>
+
+      {/* [2026-04-26] 员工列表抽屉 */}
+      <Drawer
+        title={`员工列表${staffData?.merchant_name ? ` - ${staffData.merchant_name}` : (staffOwner ? ` - ${staffOwner.user_nickname || staffOwner.merchant_nickname || staffOwner.phone}` : '')}`}
+        placement="right"
+        width={920}
+        open={staffDrawerOpen}
+        onClose={() => setStaffDrawerOpen(false)}
+        destroyOnClose
+      >
+        {staffLoading ? (
+          <div style={{ textAlign: 'center', padding: '60px 0' }}>
+            <Spin />
+          </div>
+        ) : !staffData || staffData.items.length === 0 ? (
+          <Empty description="该商家暂无员工" style={{ marginTop: 80 }} />
+        ) : (
+          <Table
+            rowKey="id"
+            pagination={{ pageSize: 20, showSizeChanger: false }}
+            dataSource={staffData.items}
+            columns={[
+              { title: '账号', dataIndex: 'phone', width: 130 },
+              {
+                title: '姓名',
+                width: 120,
+                render: (_: any, it: MerchantStaffItem) => it.name || '-',
+              },
+              { title: '手机号', dataIndex: 'phone', width: 130 },
+              {
+                title: '角色',
+                width: 90,
+                render: (_: any, it: MerchantStaffItem) => renderRoleTag(it.role_code, it.role_name),
+              },
+              {
+                title: '状态',
+                width: 80,
+                render: (_: any, it: MerchantStaffItem) => (
+                  <Tag color={it.status === 'active' ? 'green' : 'red'}>
+                    {it.status_text || (it.status === 'active' ? '正常' : '禁用')}
+                  </Tag>
+                ),
+              },
+              {
+                title: '创建时间',
+                width: 160,
+                render: (_: any, it: MerchantStaffItem) => formatDateTime(it.created_at),
+              },
+              {
+                title: '最后登录时间',
+                width: 160,
+                render: (_: any, it: MerchantStaffItem) => formatDateTime(it.last_login_at),
+              },
+              {
+                title: '绑定门店',
+                render: (_: any, it: MerchantStaffItem) => {
+                  if (!it.store_names || it.store_names.length === 0) return '-';
+                  const text = it.store_names.join('、');
+                  return (
+                    <Tooltip title={text}>
+                      <Text style={{ maxWidth: 200, display: 'inline-block' }} ellipsis>
+                        {text}
+                      </Text>
+                    </Tooltip>
+                  );
+                },
+              },
+            ]}
+          />
+        )}
+      </Drawer>
     </div>
   );
 }
