@@ -1,0 +1,38 @@
+[23:58:12] ======================================================================
+[23:58:12] captcha v1.3 部署后置校验
+[23:58:12] 目标: https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27
+[23:58:12] ======================================================================
+[23:58:14] $ docker ps --format '{{.Names}}|{{.Image}}' | grep -Ei 'nginx|gateway|traefik' || true
+[23:58:15] gateway|nginx:alpine
+[23:58:15] # exit=0
+[23:58:15] 候选 gateway 容器: ['gateway']
+[23:58:15] $ docker network connect 6b099ed3-7175-4a78-91f4-44570c84ed27-network gateway 2>&1 || true
+[23:58:16] Error response from daemon: endpoint with name gateway already exists in network 6b099ed3-7175-4a78-91f4-44570c84ed27-network
+[23:58:16] # exit=0
+[23:58:16] $ docker exec gateway nginx -t && docker exec gateway nginx -s reload || true
+[23:58:17] [stderr] nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+nginx: configuration file /etc/nginx/nginx.conf test is successful
+2026/04/25 15:58:17 [notice] 52#52: signal process started
+[23:58:17] # exit=0
+[23:58:17] 等待 backend 接口就绪 ...
+[23:58:17]   /api/health -> 200，后端已就绪
+[23:58:17] 抓取真实验证码 PNG 并校验物理像素 ...
+[23:58:22] GET https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/captcha/image -> 200 (5044 bytes, application/json)
+[23:58:29] GET https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/captcha/image -> 200 (5140 bytes, application/json)
+[23:58:33] GET https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/captcha/image -> 200 (4892 bytes, application/json)
+[23:58:36] GET https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/captcha/image -> 200 (6112 bytes, application/json)
+[23:58:41] GET https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/captcha/image -> 200 (4796 bytes, application/json)
+[23:58:44] ======================================================================
+[23:58:44] 关键页面可达性检查（200/301/302/304/308 视为成功）
+[23:58:44] ======================================================================
+[23:58:47]   ✅ 200  https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/
+[23:58:48]   ✅ 308  https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/login
+[23:58:49]   ✅ 200  https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/login/
+[23:58:50]   ✅ 308  https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/login
+[23:58:51]   ✅ 200  https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/login/
+[23:58:52]   ✅ 200  https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/m/
+[23:59:01]   ✅ 200  https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health
+[23:59:02]   ✅ 200  https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/captcha/image
+[23:59:02] ======================================================================
+[23:59:02] PNG 物理尺寸校验: ❌ 失败 (None)
+[23:59:02] 链接可达性: ✅ 全部通过

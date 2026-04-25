@@ -118,3 +118,31 @@ def test_render_png_size():
     assert png.startswith(b"\x89PNG")
     # PIL 渲染出的 PNG 至少几百字节
     assert len(png) > 500
+
+
+def test_v14_visual_spec_physical_pixels_160x60():
+    """v1.4 视觉规格回退验证：PNG 物理像素必须严格等于 CSS 显示尺寸 160 × 60。"""
+    import io as _io
+    from PIL import Image as _Image
+
+    png = cs.render_captcha_png("AB23")
+    img = _Image.open(_io.BytesIO(png))
+    assert img.size == (160, 60), f"v1.4 物理像素必须为 160x60，实际为 {img.size}"
+    assert cs.IMG_WIDTH == 160
+    assert cs.IMG_HEIGHT == 60
+
+
+def test_v14_font_size_38():
+    """v1.4 视觉规格回退验证：字号必须回归 38px（与 v1.0 一致）。"""
+    assert cs.FONT_SIZE == 38, f"v1.4 字号必须为 38，实际为 {cs.FONT_SIZE}"
+
+
+def test_v14_no_super_sampling_scale():
+    """v1.4 视觉规格回退验证：不得再保留 SCALE / 2x DPI 等放大常量分支。"""
+    assert not hasattr(cs, "SCALE"), "v1.4 应已删除 SCALE 常量（取消 2× DPI）"
+
+
+def test_v14_png_file_size_le_3kb():
+    """v1.4 视觉规格回退验证：单张 PNG 文件体积 ≤ 3 KB。"""
+    sizes = [len(cs.render_captcha_png("AB23")) for _ in range(20)]
+    assert max(sizes) <= 3 * 1024, f"v1.4 PNG 体积必须 ≤3KB，最大值实际为 {max(sizes)}"

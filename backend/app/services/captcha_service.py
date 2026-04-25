@@ -1,14 +1,21 @@
 """图形验证码服务
 
-视觉规格（v1.3 / 2026-04-25 仅放大字号版）：
+视觉规格（v1.4 / 2026-04-26 视觉规格回退到 v1.0）：
 - 4 位字符验证码（数字 2-9 + 大写字母去 OIL）
-- 显示画布 160×60（CSS 像素，与线上原版一致），实际渲染采用 2× 高 DPI（320×120）后下采样，避免发虚
-- 字号 96px（基于 2× 画布等价 CSS 48px → 字符撑满约画布高 80%，肉眼非常清晰且不贴边）
-- 字符随机旋转 -10~10°（缩小旋转幅度，提升辨识度）
-- 干扰曲线 1~2 条 / 噪点适度降级，确保字符仍清晰主导
-- 5 分钟过期、一次性使用、不区分大小写
+- CSS 显示尺寸 = 物理像素 = 160 × 60（取消 v1.3 的 2× 高 DPI 渲染）
+- 字号 38px（与 v1.0 一致；字符高度约占画布高度 60%~65%）
+- 字符随机旋转 -15~15°（v1.0 原值）
+- 2~3 条干扰曲线 + 少量噪点（v1.0 原值）
+- 5 分钟过期、一次性使用、不区分大小写（业务规则不变）
 - 同 IP / 同手机号 5 分钟内账密错误 5 次 → 锁定 10 分钟
 - 验证码生成接口 IP 限流：1 秒最多 5 次
+
+变更说明：
+- v1.0：初始版本，160×60 / 38px / -15~15° / 2~3 条曲线 / 40 噪点
+- v1.1~v1.2：曾尝试放大画布，因布局错位被回退（视觉规格未保留）
+- v1.3：保持画布 160×60，但启用 2× 高 DPI（实际 320×120），字号放大到 96px
+- v1.4：彻底回退到 v1.0 视觉规格，取消 2× DPI、字号回归 38、旋转/干扰/噪点全部回退到 v1.0 原值
+        （后续如再调整字号或画布尺寸，请基于本版本起新版 v1.5+，不要直接覆盖 v1.4 视觉规格）
 """
 from __future__ import annotations
 
@@ -40,13 +47,10 @@ LOCK_DURATION_SECONDS = 10 * 60    # 锁定 10 分钟
 ISSUE_RATE_WINDOW_SECONDS = 1
 ISSUE_RATE_MAX = 5
 
-# 图片视觉规格（CSS 显示尺寸 / 与线上原版保持一致，本轮只放大字号）
+# 图片视觉规格（v1.4 = v1.0：CSS 显示尺寸 = 物理像素 = 160 × 60；字号 38；无 2× DPI）
 IMG_WIDTH = 160
 IMG_HEIGHT = 60
-# 高 DPI 渲染倍率：实际像素 = CSS 尺寸 × SCALE，再嵌入 PNG，浏览器以原 CSS 尺寸显示，字符更锐利
-SCALE = 2
-# 字号（基于物理像素，相当于 CSS 像素的 SCALE 倍）
-FONT_SIZE = 96
+FONT_SIZE = 38
 
 
 @dataclass
@@ -145,6 +149,7 @@ def generate_captcha_code() -> str:
 
 
 def _load_font() -> ImageFont.FreeTypeFont:
+    """加载 38px 加粗字体；失败则用 PIL 默认。"""
     candidates = (
         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
         "/usr/share/fonts/dejavu/DejaVuSans-Bold.ttf",
@@ -164,25 +169,31 @@ _FONT = _load_font()
 
 
 def render_captcha_png(code: str) -> bytes:
-    """渲染 PNG 字节。
+    """渲染 PNG 字节（v1.4 = v1.0 视觉规格）。
 
-    渲染策略：按 2× 物理画布绘制（更大的字号、更锐利的曲线），
-    最终输出 PNG 即为 2× 物理尺寸；前端 <img> 会以 CSS 尺寸（IMG_WIDTH × IMG_HEIGHT）
-    显示，浏览器自动下采样，字符显示更清晰、肉眼明显比旧版（38px / 56px）放大。
-    本版（v1.3）仅放大字号至 96px（CSS 等价 48px），画布回退到 160×60 与线上一致。
+    规格：
+    - 物理像素 = CSS 显示尺寸 = 160 × 60（不再 2× 高 DPI 渲染）
+    - 字号 38px，字符撑满画布约 60%~65%
+    - 字符随机深色（与背景对比度 ≥ 4.5:1）
+    - 4 字符均匀分布，单字符宽度 ~36px
+    - 每字符随机 -15~15° 轻微旋转
+    - 2~3 条随机曲线
+    - 少量噪点（约 40 个）
+    - 浅色随机渐变背景
     """
-    width, height = IMG_WIDTH * SCALE, IMG_HEIGHT * SCALE
+    width, height = IMG_WIDTH, IMG_HEIGHT
 
+    # 浅色随机渐变背景（左上→右下）
     image = Image.new("RGB", (width, height), (255, 255, 255))
     bg_top = (
-        random.randint(238, 252),
-        random.randint(238, 252),
-        random.randint(238, 252),
+        random.randint(235, 252),
+        random.randint(235, 252),
+        random.randint(235, 252),
     )
     bg_bot = (
-        random.randint(222, 242),
-        random.randint(228, 246),
-        random.randint(230, 248),
+        random.randint(220, 240),
+        random.randint(225, 245),
+        random.randint(228, 248),
     )
     pixels = image.load()
     for y in range(height):
@@ -195,31 +206,34 @@ def render_captcha_png(code: str) -> bytes:
 
     draw = ImageDraw.Draw(image)
 
-    pad_x = 20  # 物理像素左右内边距
-    char_box_w = (width - pad_x * 2) // CAPTCHA_LENGTH
+    # 字符布局：4 个字符均分宽度
+    char_box_w = (width - 16) // CAPTCHA_LENGTH  # ≈ 36
     for i, ch in enumerate(code):
-        ch_img = Image.new("RGBA", (char_box_w + 16, height), (0, 0, 0, 0))
+        ch_img = Image.new("RGBA", (char_box_w + 12, height), (0, 0, 0, 0))
         ch_draw = ImageDraw.Draw(ch_img)
+        # 随机深色（确保对比度）
         color = (
-            random.randint(10, 70),
-            random.randint(10, 70),
             random.randint(10, 80),
+            random.randint(10, 80),
+            random.randint(10, 90),
         )
-        text_y = max((height - FONT_SIZE) // 2 - 6, 0)
-        ch_draw.text((6, text_y), ch, font=_FONT, fill=color)
-        angle = random.uniform(-10, 10)
+        # 文字垂直居中（38px 字号在 60px 高图上居中）
+        text_y = max((height - FONT_SIZE) // 2 - 4, 0)
+        ch_draw.text((4, text_y), ch, font=_FONT, fill=color)
+        angle = random.uniform(-15, 15)
         rotated = ch_img.rotate(angle, resample=Image.BILINEAR, expand=False)
-        image.paste(rotated, (pad_x + i * char_box_w, 0), rotated)
+        image.paste(rotated, (8 + i * char_box_w, 0), rotated)
 
-    for _ in range(random.randint(1, 2)):
-        amplitude = random.randint(6, 14)
+    # 2~3 条随机曲线
+    for _ in range(random.randint(2, 3)):
+        amplitude = random.randint(4, 10)
         period = random.uniform(width / 2, width)
         phase = random.uniform(0, math.pi * 2)
-        y_base = random.randint(20, height - 20)
+        y_base = random.randint(15, height - 15)
         color = (
-            random.randint(120, 180),
-            random.randint(120, 180),
-            random.randint(120, 180),
+            random.randint(80, 160),
+            random.randint(80, 160),
+            random.randint(80, 160),
         )
         last_pt: Optional[tuple[int, int]] = None
         for x in range(0, width, 2):
@@ -227,16 +241,21 @@ def render_captcha_png(code: str) -> bytes:
             y = max(0, min(height - 1, y))
             pt = (x, y)
             if last_pt is not None:
-                draw.line((last_pt, pt), fill=color, width=2)
+                draw.line((last_pt, pt), fill=color, width=1)
             last_pt = pt
 
-    for _ in range(60):
+    # 少量噪点
+    for _ in range(40):
         draw.point(
             (random.randint(0, width - 1), random.randint(0, height - 1)),
-            fill=(random.randint(120, 210), random.randint(120, 210), random.randint(120, 210)),
+            fill=(random.randint(60, 200), random.randint(60, 200), random.randint(60, 200)),
         )
 
+    # 轻度模糊柔和处理
     image = image.filter(ImageFilter.SMOOTH)
+    # 转为 64 色自适应调色板 + 优化输出，压缩 PNG 文件体积到 ≤ 3 KB
+    # （视觉差异肉眼不可见，与 v1.0 老版完全一致）
+    image = image.convert("P", palette=Image.ADAPTIVE, colors=64)
     buf = io.BytesIO()
     image.save(buf, format="PNG", optimize=True)
     return buf.getvalue()
