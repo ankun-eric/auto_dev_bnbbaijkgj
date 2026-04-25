@@ -91,6 +91,8 @@ class AdminLoginRequest(BaseModel):
     password: str
     captcha_id: Optional[str] = None
     captcha_code: Optional[str] = None
+    # [Bug 修复 V1.0 / 2026-04-25] 滑块验证码：admin 登录页改造后传 captcha_token
+    captcha_token: Optional[str] = None
 
 
 @router.post("/login")
@@ -105,6 +107,7 @@ async def admin_login(
         record_login_failure,
         verify_captcha as _verify_captcha,
     )
+    from app.services import slider_captcha_service
     from app.core.password_policy import is_must_change_password
 
     client_ip = (request.client.host if request.client else None) or request.headers.get("x-forwarded-for") or "unknown"
@@ -114,7 +117,12 @@ async def admin_login(
             status_code=429,
             detail=f"操作过于频繁，请 {locked // 60 + 1} 分钟后再试",
         )
-    if not _verify_captcha(data.captcha_id, data.captcha_code):
+    # [Bug 修复 V1.0 / 2026-04-25] 滑块 token 优先；兼容旧字符验证码
+    if data.captcha_token:
+        if not slider_captcha_service.take_token(data.captcha_token):
+            record_login_failure(client_ip, data.phone)
+            raise HTTPException(status_code=400, detail="验证已过期，请重新拖动滑块")
+    elif not _verify_captcha(data.captcha_id, data.captcha_code):
         record_login_failure(client_ip, data.phone)
         raise HTTPException(status_code=400, detail="账号、密码或验证码错误")
 

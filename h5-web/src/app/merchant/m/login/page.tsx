@@ -1,46 +1,35 @@
 'use client';
 
-// [PRD V1.0 §M7] 商家 H5 登录页：手机号 + 密码 + 图形验证码
-// 已删除「短信验证码」Tab、「忘记密码」入口和「微信一键登录」入口。
-// 登录成功若返回 must_change_password=true，跳转 /merchant/m/profile/force-change-password。
+// [PRD V1.0 §M7 + Bug 修复 V1.0 / 2026-04-25]
+// 商家 H5 登录页：手机号 + 密码 + 滑块拼图验证码
+// 已用 SliderCaptcha 组件替代旧字符验证码。
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Form, Input, Button, Toast } from 'antd-mobile';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
-import { fetchCaptchaImage } from '@/lib/captcha';
+import SliderCaptcha from '@/components/SliderCaptcha';
 import { saveLogin } from '../mobile-lib';
 
 export default function MerchantMobileLoginPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [captchaId, setCaptchaId] = useState('');
-  const [captchaImg, setCaptchaImg] = useState('');
+  const [captchaToken, setCaptchaToken] = useState<string>('');
+  const [captchaResetKey, setCaptchaResetKey] = useState<number>(0);
   const [form] = Form.useForm();
-
-  const refreshCaptcha = async () => {
-    try {
-      const data = await fetchCaptchaImage();
-      setCaptchaId(data.captcha_id);
-      setCaptchaImg(data.image_base64);
-    } catch {
-      Toast.show({ icon: 'fail', content: '验证码加载失败' });
-    }
-  };
-
-  useEffect(() => {
-    refreshCaptcha();
-  }, []);
 
   const submit = async () => {
     try {
       const values = await form.validateFields();
+      if (!captchaToken) {
+        Toast.show({ icon: 'fail', content: '请先完成滑块验证' });
+        return;
+      }
       setLoading(true);
       const res: any = await api.post('/api/merchant/auth/login', {
         phone: values.phone,
         password: values.password,
-        captcha_id: captchaId,
-        captcha_code: values.captcha_code,
+        captcha_token: captchaToken,
       });
 
       const validRoles = ['owner', 'store_manager', 'verifier', 'finance', 'staff'];
@@ -51,7 +40,8 @@ export default function MerchantMobileLoginPage() {
           icon: 'fail',
           content: '该账号不是商家账号，请使用商家账号登录，或联系管理员开通商家身份。',
         });
-        refreshCaptcha();
+        setCaptchaToken('');
+        setCaptchaResetKey((k) => k + 1);
         return;
       }
 
@@ -76,7 +66,8 @@ export default function MerchantMobileLoginPage() {
       if (e?.errorFields) return;
       const detail = e?.response?.data?.detail || e?.message || '登录失败';
       Toast.show({ icon: 'fail', content: detail });
-      refreshCaptcha();
+      setCaptchaToken('');
+      setCaptchaResetKey((k) => k + 1);
     } finally {
       setLoading(false);
     }
@@ -124,40 +115,16 @@ export default function MerchantMobileLoginPage() {
           >
             <Input placeholder="请输入密码" type="password" clearable />
           </Form.Item>
-          <Form.Item
-            name="captcha_code"
-            label="图形验证码"
-            rules={[{ required: true, message: '请输入图形验证码' }]}
-            extra={
-              <div
-                onClick={refreshCaptcha}
-                style={{
-                  width: 110,
-                  height: 36,
-                  borderRadius: 6,
-                  border: '1px solid #eee',
-                  overflow: 'hidden',
-                  cursor: 'pointer',
-                  background: '#fafafa',
-                  flexShrink: 0,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                {captchaImg ? (
-                  <img
-                    src={captchaImg}
-                    alt="验证码"
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                  />
-                ) : (
-                  <span style={{ fontSize: 12, color: '#999' }}>加载中</span>
-                )}
-              </div>
-            }
-          >
-            <Input placeholder="请输入验证码" clearable maxLength={6} />
+          <Form.Item label="滑块验证">
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <SliderCaptcha
+                key={captchaResetKey}
+                apiClient={api as any}
+                mode="mobile"
+                onSuccess={(tok) => setCaptchaToken(tok)}
+                onReset={() => setCaptchaToken('')}
+              />
+            </div>
           </Form.Item>
         </Form>
 

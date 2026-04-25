@@ -33,7 +33,42 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: PC 管理后台优化 PRD V1.0（三端账号安全 + 商家账号精简 + 员工管理重构 + 登录加固）（2026-04-25）
+## Latest Update: 登录页滑块拼图验证码改造（Bug 修复）（2026-04-25）
+
+### 概要
+将商家 H5 / 商家 PC / 平台管理后台**三端登录页**的旧字符验证码（140×48 小字符，难以辨认）整体替换为**滑块拼图验证码**。用户端 H5 不动，仍使用旧字符验证码。
+
+### 改造范围
+
+| 模块 | 改动 |
+| --- | --- |
+| `backend/app/services/slider_captcha_service.py` | **新增**。Pillow 切缺口图、内存存储 challenge、签发一次性 captcha_token（5min TTL）、轨迹合理性校验 + IP 风控锁定（60s/3次）|
+| `backend/app/api/account_security.py` | 新增 `GET /api/captcha/slider/issue` + `POST /api/captcha/slider/verify` 两个路由，旧 `/api/captcha/image` 保留 |
+| `backend/app/api/merchant_v1.py` | 商家登录 `POST /api/merchant/auth/login` 优先用 captcha_token，回退兼容旧字符验证 |
+| `backend/app/api/admin.py` | admin 登录 `POST /api/admin/login` 同上 |
+| `backend/app/schemas/merchant_v1.py` | `MerchantLoginRequest` 新增可选字段 `captcha_token` |
+| `backend/static/captcha_bg/` | **新增目录**，留作放置预设背景图；空目录时自动用程序生成的渐变背景兜底 |
+| `backend/tests/test_slider_captcha.py` | **新增**。10 条单元测试全部通过（issue 字段、位置/轨迹校验、token 一次性、IP 锁定、过期等）|
+| `h5-web/src/components/SliderCaptcha.tsx` | **新增**。统一 React 组件，响应式适配 PC 320×160 / H5 280×140，含「换一张」+ 锁定倒计时 |
+| `h5-web/src/lib/captcha.ts` | 新增 `fetchSliderChallenge` / `verifySlider`，旧 `fetchCaptchaImage` 保留 |
+| `h5-web/src/app/merchant/login/page.tsx` + `merchant/m/login/page.tsx` | 商家 PC + H5 登录页接入 SliderCaptcha，登录请求携带 `captcha_token` |
+| `admin-web/src/components/SliderCaptcha.tsx` + `lib/captcha.ts` + `app/login/page.tsx` | admin 登录页同步接入 |
+
+### 部署与联调
+- 部署脚本：`deploy/deploy_slider_captcha_20260425.py`（SFTP 上传 + 重建 backend/admin-web/h5-web）
+- 端到端验证脚本：`deploy/verify_slider_captcha_20260425.py`
+- 联调结果（外部 HTTPS 真实域名验证）：
+  - 7 条关键链接全部 200（含新滑块挑战、旧字符验证码、四端登录页、health）
+  - 滑块挑战正常下发（320×160 + 50px 拼图块）
+  - 错位置 → `position_mismatch`；轨迹瞬移 → 走位置校验先返回；无效 challenge → `challenge_expired`
+  - 用错误 captcha_token 走商家/admin 登录均返回 `400 验证已过期，请重新拖动滑块`
+
+### 用户体验手册
+- `user_docs/登录页滑块拼图验证码.md`
+
+---
+
+## Update: PC 管理后台优化 PRD V1.0（三端账号安全 + 商家账号精简 + 员工管理重构 + 登录加固）（2026-04-25）
 
 ### 概要
 一次性补齐 admin/商家 PC/商家 H5 三端的账号安全基础能力，并修复多项历史 Bug，精简 admin 开户流程，统一三端权限规则。

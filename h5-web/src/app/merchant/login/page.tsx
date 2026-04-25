@@ -1,51 +1,37 @@
 'use client';
 
-// [PRD V1.0 §M7] 商家 PC 登录页：手机号 + 密码 + 图形验证码
-// 已删除「短信验证码」Tab 和「忘记密码」入口。
+// [PRD V1.0 §M7 + Bug 修复 V1.0 / 2026-04-25]
+// 商家 PC 登录页：手机号 + 密码 + 滑块拼图验证码
+// 旧字符验证码 captcha_id/captcha_code 已替换为 captcha_token（滑块通过后下发）。
 // 登录成功若返回 must_change_password=true，跳转 /merchant/m/profile/force-change-password。
 
-import React, { useEffect, useState } from 'react';
-import { Card, Form, Input, Button, message, Typography, Row, Col } from 'antd';
-import { UserOutlined, LockOutlined, SafetyCertificateOutlined } from '@ant-design/icons';
+import React, { useState } from 'react';
+import { Card, Form, Input, Button, message, Typography } from 'antd';
+import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
-import { fetchCaptchaImage } from '@/lib/captcha';
+import SliderCaptcha from '@/components/SliderCaptcha';
 import { saveLogin } from '../lib';
 
 const { Title, Text } = Typography;
 
 export default function MerchantLoginPage() {
   const [loading, setLoading] = useState(false);
-  const [captchaId, setCaptchaId] = useState('');
-  const [captchaImg, setCaptchaImg] = useState('');
-  const [captchaLoading, setCaptchaLoading] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string>('');
+  const [captchaResetKey, setCaptchaResetKey] = useState<number>(0);
   const router = useRouter();
 
-  const refreshCaptcha = async () => {
-    setCaptchaLoading(true);
-    try {
-      const data = await fetchCaptchaImage();
-      setCaptchaId(data.captcha_id);
-      setCaptchaImg(data.image_base64);
-    } catch {
-      message.error('图形验证码加载失败，请稍后重试');
-    } finally {
-      setCaptchaLoading(false);
+  const submit = async (values: { phone: string; password: string }) => {
+    if (!captchaToken) {
+      message.warning('请先完成滑块验证');
+      return;
     }
-  };
-
-  useEffect(() => {
-    refreshCaptcha();
-  }, []);
-
-  const submit = async (values: { phone: string; password: string; captcha_code: string }) => {
     setLoading(true);
     try {
       const res: any = await api.post('/api/merchant/auth/login', {
         phone: values.phone,
         password: values.password,
-        captcha_id: captchaId,
-        captcha_code: values.captcha_code,
+        captcha_token: captchaToken,
       });
       saveLogin(res.access_token, {
         merchant_id: res.user_id,
@@ -67,7 +53,9 @@ export default function MerchantLoginPage() {
     } catch (e: any) {
       const detail = e?.response?.data?.detail || e?.message || '登录失败';
       message.error(detail);
-      refreshCaptcha();
+      // 登录失败 token 已被服务端销毁，前端清空并刷新滑块
+      setCaptchaToken('');
+      setCaptchaResetKey((k) => k + 1);
     } finally {
       setLoading(false);
     }
@@ -108,51 +96,16 @@ export default function MerchantLoginPage() {
           >
             <Input.Password prefix={<LockOutlined />} size="large" placeholder="请输入密码" />
           </Form.Item>
-          <Form.Item label="图形验证码" required>
-            <Row gutter={8} align="middle">
-              <Col span={14}>
-                <Form.Item
-                  name="captcha_code"
-                  noStyle
-                  rules={[{ required: true, message: '请输入图形验证码' }]}
-                >
-                  <Input
-                    prefix={<SafetyCertificateOutlined />}
-                    size="large"
-                    placeholder="请输入验证码"
-                    maxLength={6}
-                  />
-                </Form.Item>
-              </Col>
-              <Col span={10}>
-                <div
-                  onClick={refreshCaptcha}
-                  title="点击刷新"
-                  style={{
-                    height: 40,
-                    borderRadius: 6,
-                    border: '1px solid #d9d9d9',
-                    overflow: 'hidden',
-                    cursor: 'pointer',
-                    background: '#fafafa',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    opacity: captchaLoading ? 0.5 : 1,
-                  }}
-                >
-                  {captchaImg ? (
-                    <img
-                      src={captchaImg}
-                      alt="图形验证码"
-                      style={{ height: '100%', width: '100%', objectFit: 'cover' }}
-                    />
-                  ) : (
-                    <Text type="secondary" style={{ fontSize: 12 }}>加载中...</Text>
-                  )}
-                </div>
-              </Col>
-            </Row>
+          <Form.Item label="滑块验证" required>
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <SliderCaptcha
+                key={captchaResetKey}
+                apiClient={api as any}
+                mode="pc"
+                onSuccess={(tok) => setCaptchaToken(tok)}
+                onReset={() => setCaptchaToken('')}
+              />
+            </div>
           </Form.Item>
           <Form.Item>
             <Button block size="large" type="primary" htmlType="submit" loading={loading}>
