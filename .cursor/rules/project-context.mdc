@@ -33,7 +33,42 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 后台登录页改造为 4 位图形验证码 + 风控锁定（2026-04-25）
+## Latest Update: AI 报告解读链路 4 个 Bug 一次性修复（H5 + 小程序 + Flutter 安卓/iOS + 后端）（2026-04-25）
+
+### 概要
+针对生产环境用户走查"AI 报告解读"链路时连续命中的 4 个 Bug 进行一次性修复，三端 + 后端同步发布：
+- **Bug-01（P0 阻塞）**：跳转对话页后误报"AI 服务未配置"，AI 完全不回复 → 后端 `report_interpret_start` 在模板缺失时回退到通用 prompt 模板，前端不再因模板缺失抛"AI 未配置"
+- **Bug-02（P0 体验）**：OCR 识别耗时约 30 秒（图片压缩未生效）→ 三端统一前端压缩管线（最大边 ≤1920px、JPEG quality 80%、目标 ≤1MB），上传时确保使用压缩后文件引用
+- **Bug-03（P2 视觉）**：顶部解读卡片移除多余的【查看报告原图】按钮，保留点击图片缩略图弹大图
+- **Bug-04（P1 数据风险）**：`report_interpret` / `report_compare` 两类会话（含历史会话）的咨询人选择器置灰锁定，强制等于报告归属人；普通 AI 咨询不受影响
+
+### 改造范围
+
+| 模块 | 改动 |
+| --- | --- |
+| `backend/app/api/chat.py` | 通用对话流程对 `report_interpret` 类型做模板缺失兜底（回退通用模板），异常仅记日志不抛错给用户 |
+| `backend/app/api/report_interpret.py` | `start` 接口在未匹配到 `report_interpret` 专属 prompt 时回退到通用模板，避免前端误报 AI 未配置 |
+| `h5-web/src/app/chat/[sessionId]/page.tsx` | 解读卡片去【查看报告原图】按钮；`report_interpret`/`report_compare` 类型咨询人选择器置灰锁定（含历史会话） |
+| `h5-web/src/app/checkup/page.tsx` | 报告上传前确保使用压缩后的 File 引用上传 |
+| `h5-web/src/lib/image-compress.ts` | 强化 Canvas.toBlob 压缩管线（最大边 1920、quality 0.8、目标体积 ≤1MB），增加分支判断与失败兜底 |
+| `miniprogram/pages/chat/index.{js,wxml,wxss}` | 同 H5：去除按钮、咨询人锁定 |
+| `miniprogram/utils/image-compress.js` | 接入 wx.compressImage + 限宽，确保上传图片体积 ≤1MB |
+| `flutter_app/lib/screens/ai/chat_screen.dart` | 同 H5：解读卡片去按钮、咨询人锁定 |
+| `flutter_app/lib/utils/image_compress_util.dart` | 接入 `flutter_image_compress`，minWidth/minHeight=1920、quality=80 |
+| `flutter_app/pubspec.yaml` | 新增 `flutter_image_compress` 依赖 |
+
+### 部署与打包
+- 后端 + H5：服务器端 `docker compose --no-cache build backend h5-web && up -d backend h5-web`，gateway nginx reload 完成；外网验证 `/`、`/checkup`、`/login`、`/chat/{id}?type=report_interpret`、`/api/health` 全部 200/308。脚本：`deploy/_remote_pull_redeploy_ai_report_fix_4bugs_v2.py`，日志：`deploy/_remote_pull_redeploy_ai_report_fix_4bugs_v2.log`
+- 微信小程序：`deploy/package_mp_ai_report_fix_4bugs.py` 打包并 SFTP 上传到 `static/downloads`，URL 验证 200。产物：`miniprogram_ai_report_fix_20260425_210950_b07d.zip`
+- 安卓 APK：GitHub Actions（`android-build.yml`）远程 ubuntu-latest 构建 → Release tag `android-ai-report-v20260425-210826-fe16`；`deploy/upload_apk_ai_report_fix_4bugs.py` 下载并上传到 `static/apk`，URL 验证 200。产物：`bini_health_ai_report_fix_20260425_211849_d4cc.apk`（同步覆盖 `bini_health.apk` 最新链接）
+- iOS IPA：GitHub Actions（`ios-build.yml`）远程 macos-latest 构建 → Release tag `ios-ai-report-v20260425-210803-9f0e`，IPA 通过 GitHub Release 直接对外提供下载（未签名，需 AltStore/Sideloadly 侧载）
+
+### 用户体验手册
+`user_docs/AI报告解读链路修复_20260425_212113_464b.md`
+
+---
+
+## Previous Update: 后台登录页改造为 4 位图形验证码 + 风控锁定（2026-04-25）
 
 ### 概要
 将平台管理后台 / 商家 PC 后台 / 商家 H5 后台**三端登录页**由滑块拼图验证码改造为**4 位字符图形验证码**（160×60、字号 38px、字符颜色对比度 ≥ 4.5:1、字符旋转 ±15°、2~3 条随机干扰曲线、浅色随机渐变背景）。同时落地登录失败风控（同 IP / 同手机号 5 分钟内账密错 5 次 → 锁 10 分钟），并彻底删除旧滑块验证码全部前后端代码。
