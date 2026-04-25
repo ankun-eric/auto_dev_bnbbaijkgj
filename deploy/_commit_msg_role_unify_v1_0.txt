@@ -1,0 +1,23 @@
+feat(role-unify): PRD v1.0 商家角色统一治理 + 启停权限收紧 + 个人信息修复
+
+- R1 后端: account_security/admin_merchant 角色统一为 4 角色
+  (boss/store_manager/finance/clerk), verifier/staff/owner/manager
+  做兼容映射, main.py 启动期自动迁移 role_code
+- R1 admin: 角色 Tag 映射只留 4 角色, verifier 显示"店员"
+- R1 H5: lib.ts/staff 页角色映射表只留 4 角色, 历史值兼容
+- R2 admin: 员工列表抽屉移除"账号"列, 搜索 placeholder 改为
+  "请输入手机号搜索"
+- R3 后端: /api/merchant/staff/toggle-status 收紧为仅老板可调用,
+  非老板一律 403 "无权限操作", 老板亦不能启停自己
+- R3 H5: PC 与移动端 staff 页 canToggle 仅老板可见, Alert 文案同步
+- R4 H5: PC 端 40px / 移动端 36px 圆形头像, 按 4 角色着色
+  (金/蓝/橙红/灰蓝), 内显姓名首字, 无姓名取手机号末位
+- B1 后端: 删除 merchant.py 中重复 GET /api/merchant/profile 老接口,
+  唯一保留 account_security.py 完整 8 字段实现
+- B1: 新增 backend/scripts/scan_route_conflicts.py 路由冲突扫描脚本,
+  main.py lifespan 启动期亦输出 warning
+- 配套: backend/migrations/v1_0_merchant_role_unify.sql + rollback.sql
+- 测试: backend/tests/test_merchant_role_unify_v1.py 覆盖归一化函数,
+  ROLE_NAME_MAP/ROLE_TO_MEMBER_ROLE 仅 4 角色, 真实 app GET
+  /api/merchant/profile 仅 1 个实现
+- 部署: deploy/deploy_role_unify_prd_v1_0_20260426.py

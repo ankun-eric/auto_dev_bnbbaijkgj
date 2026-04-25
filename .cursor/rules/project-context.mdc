@@ -33,6 +33,39 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
+## Latest Update: 商家角色统一治理 + 员工管理体验优化 PRD v1.0（2026-04-26）
+
+### 一句话结论
+商家端历史 5+ 角色（owner/manager/verifier/finance/clerk/staff）统一收敛为 4 个业务角色 `boss / store_manager / finance / clerk`；后端启动时自动归一化 `merchant_store_memberships.role_code`；删除 `merchant.py` 中老的 `/api/merchant/profile` 接口（此接口被新接口覆盖导致"我的"页 8 字段全空白），新接口 `account_security.merchant_get_profile` 成为唯一实现；H5 员工管理列表新增按角色着色头像（金/蓝/橙红/灰蓝），启停员工权限收紧为"仅老板"；admin 员工列表移除"账号"列，搜索 placeholder 改为"请输入手机号搜索"。
+
+### 改造范围
+
+| 模块 | 改动 |
+| --- | --- |
+| `backend/app/api/account_security.py` | `_MERCHANT_ROLE_NAMES` / `_MERCHANT_MODULE_CODES` / `_MERCHANT_ROLE_DEFAULT_MODULES` 收敛为 4 角色；新增 `_MERCHANT_ROLE_LEGACY_MAP` + `_normalize_merchant_role_code()`；`merchant_staff_toggle_status` 收紧为仅 boss 可调用，禁用自启停；profile/staff_create/reset_password 全部走归一化 |
+| `backend/app/api/admin_merchant.py` | `ROLE_TO_MEMBER_ROLE` / `ROLE_NAME_MAP` / `ROLE_DEFAULT_FALLBACK` / `MEMBER_ROLE_TO_ROLE_CODE` 调整为 4 角色 + 物理 ENUM `verifier/staff` 全部映射为业务 `clerk` |
+| `backend/app/api/merchant.py` | **删除**老 `GET /api/merchant/profile` 接口（B1 根因） |
+| `backend/app/main.py` | 新增 `_migrate_merchant_role_unify_v1()` 启动迁移 + `_scan_route_conflicts(app)` 启动期路由冲突告警 |
+| `backend/migrations/v1_0_merchant_role_unify.sql` + `_rollback.sql` | 数据迁移脚本 + 回滚脚本（基于 `member_role` best-effort 反推） |
+| `backend/scripts/scan_route_conflicts.py` + `backend/tests/test_merchant_role_unify_v1.py` | 路由冲突全量扫描脚本 + 单元测试（含 profile 唯一性测试） |
+| `admin-web/src/app/(admin)/merchant/accounts/page.tsx` | `ROLE_LABEL_MAP` 兼容老角色码；员工列表抽屉移除"账号"列；搜索 placeholder 改为"请输入手机号搜索" |
+| `h5-web/src/app/merchant/staff/page.tsx`（PC） | `roleCodeLabel` / `memberRoleToCode` 收敛 4 角色；新增 `ROLE_AVATAR_BG` + `avatarColorOf` + `avatarLetterOf`；表格新增"头像"列（40px 圆形）；`canToggle = isOwner` 收紧；新增员工角色下拉去除 `manager` 改为 `store_manager`；Alert 文案更新 |
+| `h5-web/src/app/merchant/m/staff/page.tsx`（移动） | 同 PC 版改造；头像 36px |
+| `h5-web/src/app/merchant/lib.ts` | `roleLabel` 同时支持物理 `member_role` 和业务 `role_code` 两套映射；`canAccess` 兼容两种入参；`roleCodeToMemberRole` 把 `clerk` 落到物理 `verifier` |
+| `deploy/deploy_role_unify_prd_v1_0_20260426.py` + `verify_role_unify_prd_v1_0.py` | 一次性部署脚本 + 部署后路由冲突/DB 分布/profile 接口验证脚本 |
+
+### 服务器实测（2026-04-26）
+- `/api/merchant/profile` GET 唯一实现 = `app.api.account_security.merchant_get_profile` ✅
+- DB `merchant_store_memberships.role_code` 分布：`boss=2, store_manager=1, clerk=1`（无 `verifier/staff/owner/manager`）✅
+- 物理 ENUM `member_role` 仍保留 5 值不动（不破坏存量），业务上只看 `role_code` ✅
+- `/api/merchant/profile` 未携带 token 返回 401 ✅
+- 路由冲突全量扫描：除本次修复的 1 处 profile 冲突外，发现 8 处与本 PRD 无关的历史冲突（积分商城、优惠券模块），已落盘 `/tmp/route_conflicts.json`，按 PRD §B1 §3.5.3 由 PM 审阅后决定是否扩范围治理
+
+### 用户文档
+- `user_docs/商家角色统一治理与员工管理优化.md`
+
+---
+
 ## Latest Update: 后台登录图形验证码视觉规格回退 v1.4（2026-04-26）
 
 ### 一句话结论

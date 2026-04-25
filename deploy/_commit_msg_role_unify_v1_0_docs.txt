@@ -1,0 +1,7 @@
+docs(role-unify-v1.0): add user manual + project context + verify script
+
+- 新增 user_docs/商家角色统一治理与员工管理优化.md（面向终端用户，含 R1~R4+B1 全流程操作说明、4 角色着色规格、店长越权 toast 文案、原核销员账号迁移说明、常见 FAQ）
+- 更新 .cursor/rules/project-context.mdc：在最新更新区块前加入 PRD v1.0 改造摘要（覆盖范围、服务器实测：profile 唯一实现/role_code 4 值/路由冲突报告 8 处历史遗留）
+- 新增 deploy/verify_role_unify_prd_v1_0.py：部署后验证脚本（容器内 inline python 做路由冲突全扫 + DB role_code 分布 + profile HTTP 自检）
+- 新增 deploy/verify_role_unify_prd_v1_0.log + deploy_role_unify_prd_v1_0.log：服务器实测原始日志
+- 保留 deploy/_commit_msg_role_unify_v1_0.txt：本轮第一次提交时使用的多行消息文件
