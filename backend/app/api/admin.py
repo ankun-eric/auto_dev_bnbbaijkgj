@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Optional
 
 import httpx
-from fastapi import APIRouter, Body, Depends, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Body, Depends, File, HTTPException, Query, Request, UploadFile
 from pydantic import BaseModel
 from sqlalchemy import delete as sa_delete, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -89,24 +89,53 @@ def _order_row_status(order: Order) -> str:
 class AdminLoginRequest(BaseModel):
     phone: str
     password: str
+    captcha_id: Optional[str] = None
+    captcha_code: Optional[str] = None
 
 
 @router.post("/login")
-async def admin_login(data: AdminLoginRequest, db: AsyncSession = Depends(get_db)):
+async def admin_login(
+    data: AdminLoginRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    from app.services.captcha_service import (
+        clear_login_failure,
+        is_login_locked,
+        record_login_failure,
+        verify_captcha as _verify_captcha,
+    )
+    from app.core.password_policy import is_must_change_password
+
+    client_ip = (request.client.host if request.client else None) or request.headers.get("x-forwarded-for") or "unknown"
+    locked = is_login_locked(client_ip, data.phone)
+    if locked > 0:
+        raise HTTPException(
+            status_code=429,
+            detail=f"操作过于频繁，请 {locked // 60 + 1} 分钟后再试",
+        )
+    if not _verify_captcha(data.captcha_id, data.captcha_code):
+        record_login_failure(client_ip, data.phone)
+        raise HTTPException(status_code=400, detail="账号、密码或验证码错误")
+
     result = await db.execute(select(User).where(User.phone == data.phone, User.role == UserRole.admin))
     user = result.scalar_one_or_none()
     if not user or not user.password_hash:
-        raise HTTPException(status_code=400, detail="手机号或密码错误")
+        record_login_failure(client_ip, data.phone)
+        raise HTTPException(status_code=400, detail="账号、密码或验证码错误")
     if not verify_password(data.password, user.password_hash):
-        raise HTTPException(status_code=400, detail="手机号或密码错误")
+        record_login_failure(client_ip, data.phone)
+        raise HTTPException(status_code=400, detail="账号、密码或验证码错误")
     if user.status != "active":
         raise HTTPException(status_code=403, detail="账号已被禁用")
 
+    clear_login_failure(client_ip, data.phone)
     token = create_access_token({"sub": str(user.id)})
     return {
         "access_token": token,
         "token_type": "bearer",
         "token": token,
+        "must_change_password": is_must_change_password(user.id),
         "user": {
             "id": user.id,
             "name": user.nickname or "管理员",
@@ -114,6 +143,7 @@ async def admin_login(data: AdminLoginRequest, db: AsyncSession = Depends(get_db
             "nickname": user.nickname,
             "role": user.role.value if hasattr(user.role, "value") else user.role,
             "is_superuser": user.is_superuser,
+            "must_change_password": is_must_change_password(user.id),
         },
     }
 

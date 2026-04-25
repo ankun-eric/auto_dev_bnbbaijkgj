@@ -9,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy.exc import IntegrityError
 
 from app.api import (
+    account_security,
     addresses,
     admin,
     admin_health_plan,
@@ -594,6 +595,7 @@ app.include_router(admin_news.router)
 app.include_router(merchant.router)
 app.include_router(merchant_v1.router)
 app.include_router(merchant_v1.admin_router)
+app.include_router(account_security.router)  # [PRD V1.0] 账号安全：图形验证码 / 个人信息 / 修改密码 / 员工 / 重置密码
 app.include_router(sms.router)
 app.include_router(email_notify.router)
 app.include_router(wechat_push.router)

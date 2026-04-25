@@ -115,8 +115,15 @@ export default function MeMobilePage() {
           访问 PC 版（复制链接）
         </List.Item>
         <List.Item
+          prefix="👤"
+          onClick={() => router.push('/merchant/m/profile')}
+          clickable
+        >
+          个人信息
+        </List.Item>
+        <List.Item
           prefix="🔐"
-          onClick={() => Dialog.alert({ title: '提示', content: '修改密码请使用电脑 PC 商家端。' })}
+          onClick={() => router.push('/merchant/m/profile/change-password')}
           clickable
         >
           修改密码

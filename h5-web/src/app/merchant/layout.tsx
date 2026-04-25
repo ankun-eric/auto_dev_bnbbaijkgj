@@ -16,6 +16,7 @@ import {
   MessageOutlined,
   LogoutOutlined,
   UserOutlined,
+  LockOutlined,
 } from '@ant-design/icons';
 import { usePathname, useRouter } from 'next/navigation';
 import { getProfile, logoutMerchant, isAuthed, canAccess, roleLabel, setCurrentStoreId, getCurrentStoreId, MerchantLoginProfile } from './lib';
@@ -193,6 +194,19 @@ export default function MerchantLayout({ children }: { children: React.ReactNode
               <Dropdown
                 menu={{
                   items: [
+                    {
+                      key: 'profile',
+                      icon: <UserOutlined />,
+                      label: '个人信息',
+                      onClick: () => router.push('/merchant/profile'),
+                    },
+                    {
+                      key: 'change-password',
+                      icon: <LockOutlined />,
+                      label: '修改密码',
+                      onClick: () => router.push('/merchant/profile/change-password'),
+                    },
+                    { type: 'divider' as const },
                     {
                       key: 'logout',
                       icon: <LogoutOutlined />,

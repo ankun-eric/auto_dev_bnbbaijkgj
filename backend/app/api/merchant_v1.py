@@ -14,7 +14,7 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -262,26 +262,47 @@ async def get_merchant_status(
 @router.post("/api/merchant/auth/login", response_model=MerchantLoginResponse)
 async def merchant_pc_login(
     data: MerchantLoginRequest,
+    request: Request,
     db: AsyncSession = Depends(get_db),
 ):
-    # 手机号查找用户
+    """商家端 PC + H5 后台登录（PRD V1.0 §M7）
+
+    - 仅支持「手机号 + 密码 + 图形验证码」
+    - 短信验证码登录已彻底废弃；旧客户端传 sms_code 时一律返回 400
+    - 同 IP / 同手机号连续 5 次失败即锁 15 分钟
+    """
+    from app.services.captcha_service import (
+        clear_login_failure,
+        is_login_locked,
+        record_login_failure,
+        verify_captcha as _verify_captcha,
+    )
+    from app.core.password_policy import is_must_change_password
+
+    if data.sms_code:
+        raise HTTPException(status_code=400, detail="商家端短信登录已下线，请使用密码 + 图形验证码登录")
+
+    client_ip = (request.client.host if request.client else None) or request.headers.get("x-forwarded-for") or "unknown"
+    locked = is_login_locked(client_ip, data.phone)
+    if locked > 0:
+        raise HTTPException(status_code=429, detail=f"操作过于频繁，请 {locked // 60 + 1} 分钟后再试")
+    if not _verify_captcha(data.captcha_id, data.captcha_code):
+        record_login_failure(client_ip, data.phone)
+        raise HTTPException(status_code=400, detail="账号、密码或验证码错误")
+
     res = await db.execute(select(User).where(User.phone == data.phone))
     user = res.scalar_one_or_none()
     if not user:
-        raise HTTPException(status_code=401, detail="账号不存在或密码错误")
+        record_login_failure(client_ip, data.phone)
+        raise HTTPException(status_code=400, detail="账号、密码或验证码错误")
     if user.status != "active":
         raise HTTPException(status_code=403, detail="账号已被禁用")
-    # 密码或短信验证码（其一）
-    if data.password:
-        if not verify_password(data.password, user.password_hash or ""):
-            raise HTTPException(status_code=401, detail="账号不存在或密码错误")
-    elif data.sms_code:
-        # 简化：校验与 sms 接口一致；此处仅做占位校验（全位 8888 为万能码，实际应接 sms_service）
-        if data.sms_code != "8888":
-            raise HTTPException(status_code=401, detail="验证码错误")
-    else:
-        raise HTTPException(status_code=400, detail="请提供密码或验证码")
-    # 商家身份检查
+    if not data.password:
+        raise HTTPException(status_code=400, detail="请输入密码")
+    if not verify_password(data.password, user.password_hash or ""):
+        record_login_failure(client_ip, data.phone)
+        raise HTTPException(status_code=400, detail="账号、密码或验证码错误")
+
     codes = await get_identity_codes_for_user(db, user.id)
     if not ({"merchant_owner", "merchant_staff"} & codes):
         raise HTTPException(status_code=403, detail="非商家账号，无法登录商家后台")
@@ -289,6 +310,7 @@ async def merchant_pc_login(
     if not rows:
         raise HTTPException(status_code=403, detail="您还未被绑定到任何门店，请联系平台客服")
     role = await _max_member_role(db, user.id)
+    clear_login_failure(client_ip, data.phone)
     token = create_access_token({"sub": str(user.id), "scope": "merchant_pc"})
     stores = [
         {
@@ -307,6 +329,7 @@ async def merchant_pc_login(
         merchant_role=role.value if role else "staff",
         store_count=len(rows),
         stores=stores,
+        must_change_password=is_must_change_password(user.id),
     )
 
 
@@ -1503,10 +1526,10 @@ async def merchant_list_staff(
     current_user: User = Depends(merchant_dep),
     db: AsyncSession = Depends(get_db),
 ):
-    role = await _max_member_role(db, current_user.id)
-    # 仅 owner / store_manager / finance 可查看
-    if role not in (MerchantMemberRole.owner, MerchantMemberRole.store_manager, MerchantMemberRole.finance):
-        raise HTTPException(status_code=403, detail="无权限查看员工")
+    """[PRD V1.0 §M5] 员工列表
+    - 全部已登录的商家成员均可查看（用于「查看权限」入口；只有创建/编辑/删除受限）
+    - 列表项 携带该员工的 module_codes 和 default_modules，便于「查看权限」页面正确回显
+    """
     my_store_ids = await _user_store_ids(db, current_user.id)
     if not my_store_ids:
         return []
@@ -1515,24 +1538,43 @@ async def merchant_list_staff(
         .join(User, User.id == MerchantStoreMembership.user_id)
         .where(MerchantStoreMembership.store_id.in_(my_store_ids))
     )
-    # 预加载角色模板名称
+    rows = res.all()
+    membership_ids = [m.id for m, _ in rows]
+    # 一次性拉取所有 membership 的权限，避免 N+1
+    perms_map: dict[int, list[str]] = {}
+    if membership_ids:
+        perm_rows = (await db.execute(
+            select(MerchantStorePermission.membership_id, MerchantStorePermission.module_code)
+            .where(MerchantStorePermission.membership_id.in_(membership_ids))
+        )).all()
+        for mid, mc in perm_rows:
+            perms_map.setdefault(mid, []).append(mc)
+
     tpl_res = await db.execute(select(MerchantRoleTemplate))
     role_name_map = {t.code: t.name for t in tpl_res.scalars().all()}
     _DEFAULT_ROLE_NAMES = {"boss": "老板", "manager": "店长", "finance": "财务", "clerk": "店员"}
+    _DEFAULT_MODULES = {
+        "boss": ["dashboard", "verify", "records", "messages", "profile", "finance", "staff", "settings"],
+        "manager": ["dashboard", "verify", "records", "messages", "profile", "finance", "staff", "settings"],
+        "finance": ["dashboard", "records", "messages", "profile", "finance"],
+        "clerk": ["dashboard", "verify", "records", "messages", "profile"],
+    }
 
     by_user: dict[int, MerchantStaffResponse] = {}
-    for m, u in res.all():
+    user_module_acc: dict[int, set[str]] = {}
+    for m, u in rows:
         existing = by_user.get(u.id)
+        rc = getattr(m, "role_code", None)
+        if not rc:
+            rc = "boss" if m.member_role == MerchantMemberRole.owner else "clerk"
+        # 该 membership 的实际权限：DB 有则用 DB，没有则按角色默认（修复"全部未勾选"Bug）
+        actual_modules = perms_map.get(m.id) or list(_DEFAULT_MODULES.get(rc, []))
+        user_module_acc.setdefault(u.id, set()).update(actual_modules)
+
         if existing:
             if m.store_id not in existing.store_ids:
                 existing.store_ids.append(m.store_id)
         else:
-            rc = getattr(m, "role_code", None)
-            if not rc:
-                if m.member_role == MerchantMemberRole.owner:
-                    rc = "boss"
-                else:
-                    rc = "clerk"
             by_user[u.id] = MerchantStaffResponse(
                 user_id=u.id,
                 phone=u.phone or "",
@@ -1543,6 +1585,14 @@ async def merchant_list_staff(
                 store_ids=[m.store_id],
                 status=m.status,
             )
+    # 把累计的 module_codes 注入响应
+    for uid, staff in by_user.items():
+        mods = sorted(user_module_acc.get(uid, set()))
+        # 若 schema 支持则直接 setattr，否则忽略
+        try:
+            staff.module_codes = mods  # type: ignore[attr-defined]
+        except Exception:
+            pass
     return list(by_user.values())
 
 

@@ -255,6 +255,19 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const dropdownItems: MenuProps['items'] = [
     {
+      key: 'profile',
+      icon: <IdcardOutlined />,
+      label: '个人信息',
+      onClick: () => router.push('/profile'),
+    },
+    {
+      key: 'change-password',
+      icon: <KeyOutlined />,
+      label: '修改密码',
+      onClick: () => router.push('/profile/change-password'),
+    },
+    { type: 'divider' as const },
+    {
       key: 'logout',
       icon: <LogoutOutlined />,
       label: '退出登录',

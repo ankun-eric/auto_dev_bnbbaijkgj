@@ -43,9 +43,12 @@ async def get_current_user(
     db: AsyncSession = Depends(get_db),
 ):
     from app.models.models import User
+    from app.core.password_policy import is_token_revoked
 
     if token is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="未登录")
+    if is_token_revoked(token):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="登录已失效，请重新登录")
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         raw_sub = payload.get("sub")

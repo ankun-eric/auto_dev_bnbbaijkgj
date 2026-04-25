@@ -1,19 +1,36 @@
 'use client';
 
-// [2026-04-24] 商家端移动端 H5 登录页 - PRD §4.1
-// D4 三种登录方式：账号密码、短信验证码、微信授权（微信内浏览器才显示）
+// [PRD V1.0 §M7] 商家 H5 登录页：手机号 + 密码 + 图形验证码
+// 已删除「短信验证码」Tab、「忘记密码」入口和「微信一键登录」入口。
+// 登录成功若返回 must_change_password=true，跳转 /merchant/m/profile/force-change-password。
 
-import React, { useState } from 'react';
-import { Form, Input, Button, Tabs, Toast, Space } from 'antd-mobile';
+import React, { useEffect, useState } from 'react';
+import { Form, Input, Button, Toast } from 'antd-mobile';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
-import { saveLogin, isWechatBrowser } from '../mobile-lib';
+import { fetchCaptchaImage } from '@/lib/captcha';
+import { saveLogin } from '../mobile-lib';
 
 export default function MerchantMobileLoginPage() {
   const router = useRouter();
-  const [mode, setMode] = useState<'password' | 'sms'>('password');
   const [loading, setLoading] = useState(false);
+  const [captchaId, setCaptchaId] = useState('');
+  const [captchaImg, setCaptchaImg] = useState('');
   const [form] = Form.useForm();
+
+  const refreshCaptcha = async () => {
+    try {
+      const data = await fetchCaptchaImage();
+      setCaptchaId(data.captcha_id);
+      setCaptchaImg(data.image_base64);
+    } catch {
+      Toast.show({ icon: 'fail', content: '验证码加载失败' });
+    }
+  };
+
+  useEffect(() => {
+    refreshCaptcha();
+  }, []);
 
   const submit = async () => {
     try {
@@ -21,25 +38,20 @@ export default function MerchantMobileLoginPage() {
       setLoading(true);
       const res: any = await api.post('/api/merchant/auth/login', {
         phone: values.phone,
-        password: mode === 'password' ? values.password : undefined,
-        sms_code: mode === 'sms' ? values.sms_code : undefined,
+        password: values.password,
+        captcha_id: captchaId,
+        captcha_code: values.captcha_code,
       });
 
-      // Bug 修复 [2026-04-25]：登录接口返回后先校验商家身份
-      // 仅当返回的 merchant_role 为合法商家角色（owner/store_manager/verifier/finance/staff）时，
-      // 才写入 token、跳转工作台；否则直接在登录页提示，避免进入工作台后被 401 踢回 C 端。
       const validRoles = ['owner', 'store_manager', 'verifier', 'finance', 'staff'];
       const merchantRole = res?.merchant_role;
-      const identities: string[] = Array.isArray(res?.identities) ? res.identities : [];
-      const hasMerchantIdentity =
-        (merchantRole && validRoles.includes(merchantRole)) ||
-        identities.includes('merchant_owner') ||
-        identities.includes('merchant_staff');
+      const hasMerchantIdentity = merchantRole && validRoles.includes(merchantRole);
       if (!res?.access_token || !hasMerchantIdentity) {
         Toast.show({
           icon: 'fail',
           content: '该账号不是商家账号，请使用商家账号登录，或联系管理员开通商家身份。',
         });
+        refreshCaptcha();
         return;
       }
 
@@ -51,22 +63,23 @@ export default function MerchantMobileLoginPage() {
         stores: (res.stores || []).map((s: any) => ({ id: s.id, name: s.store_name })),
       });
       Toast.show({ icon: 'success', content: '登录成功' });
+      if (res.must_change_password) {
+        router.push('/merchant/m/profile/force-change-password');
+        return;
+      }
       if ((res.stores || []).length <= 1) {
         router.push('/merchant/m/dashboard');
       } else {
         router.push('/merchant/m/select-store');
       }
     } catch (e: any) {
-      if (e?.errorFields) return; // 表单校验错误
+      if (e?.errorFields) return;
       const detail = e?.response?.data?.detail || e?.message || '登录失败';
       Toast.show({ icon: 'fail', content: detail });
+      refreshCaptcha();
     } finally {
       setLoading(false);
     }
-  };
-
-  const sendSms = async () => {
-    Toast.show({ content: '测试环境：万能验证码 8888' });
   };
 
   return (
@@ -93,21 +106,7 @@ export default function MerchantMobileLoginPage() {
           boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
         }}
       >
-        <Tabs
-          activeKey={mode}
-          onChange={(k) => setMode(k as any)}
-          style={{ marginBottom: 8 }}
-        >
-          <Tabs.Tab title="账号密码" key="password" />
-          <Tabs.Tab title="短信验证码" key="sms" />
-        </Tabs>
-
-        <Form
-          form={form}
-          layout="vertical"
-          mode="card"
-          style={{ background: 'transparent' }}
-        >
+        <Form form={form} layout="vertical" mode="card" style={{ background: 'transparent' }}>
           <Form.Item
             name="phone"
             label="手机号"
@@ -118,28 +117,48 @@ export default function MerchantMobileLoginPage() {
           >
             <Input placeholder="请输入手机号" clearable type="tel" />
           </Form.Item>
-          {mode === 'password' ? (
-            <Form.Item
-              name="password"
-              label="密码"
-              rules={[{ required: true, message: '请输入密码' }]}
-            >
-              <Input placeholder="请输入密码" type="password" clearable />
-            </Form.Item>
-          ) : (
-            <Form.Item
-              name="sms_code"
-              label="验证码"
-              rules={[{ required: true, message: '请输入验证码' }]}
-              extra={
-                <Button size="mini" color="primary" fill="none" onClick={sendSms}>
-                  获取验证码
-                </Button>
-              }
-            >
-              <Input placeholder="测试环境：8888" clearable />
-            </Form.Item>
-          )}
+          <Form.Item
+            name="password"
+            label="密码"
+            rules={[{ required: true, message: '请输入密码' }]}
+          >
+            <Input placeholder="请输入密码" type="password" clearable />
+          </Form.Item>
+          <Form.Item
+            name="captcha_code"
+            label="图形验证码"
+            rules={[{ required: true, message: '请输入图形验证码' }]}
+            extra={
+              <div
+                onClick={refreshCaptcha}
+                style={{
+                  width: 110,
+                  height: 36,
+                  borderRadius: 6,
+                  border: '1px solid #eee',
+                  overflow: 'hidden',
+                  cursor: 'pointer',
+                  background: '#fafafa',
+                  flexShrink: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                {captchaImg ? (
+                  <img
+                    src={captchaImg}
+                    alt="验证码"
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                ) : (
+                  <span style={{ fontSize: 12, color: '#999' }}>加载中</span>
+                )}
+              </div>
+            }
+          >
+            <Input placeholder="请输入验证码" clearable maxLength={6} />
+          </Form.Item>
         </Form>
 
         <Button
@@ -152,19 +171,6 @@ export default function MerchantMobileLoginPage() {
         >
           登录
         </Button>
-
-        {isWechatBrowser() && (
-          <Button
-            block
-            color="success"
-            fill="outline"
-            size="large"
-            style={{ marginTop: 12, height: 48 }}
-            onClick={() => Toast.show({ content: '微信一键登录暂未开放，请使用账号密码或验证码登录' })}
-          >
-            微信一键登录
-          </Button>
-        )}
 
         <div style={{ textAlign: 'center', color: '#999', fontSize: 12, marginTop: 20 }}>
           非商家账号请前往 C 端小程序使用。

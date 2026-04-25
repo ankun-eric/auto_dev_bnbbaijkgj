@@ -72,7 +72,9 @@ class OrderAttachmentCreateRequest(BaseModel):
 class MerchantLoginRequest(BaseModel):
     phone: str
     password: Optional[str] = None
-    sms_code: Optional[str] = None
+    sms_code: Optional[str] = None  # [PRD V1.0] 已废弃，保留以兼容旧客户端，服务端不再处理
+    captcha_id: Optional[str] = None
+    captcha_code: Optional[str] = None
 
 
 class MerchantLoginResponse(BaseModel):
@@ -84,6 +86,7 @@ class MerchantLoginResponse(BaseModel):
     merchant_role: str
     store_count: int
     stores: List[dict] = Field(default_factory=list)
+    must_change_password: bool = False
 
 
 # ──────────────── 工作台 ────────────────
@@ -327,6 +330,8 @@ class MerchantStaffResponse(BaseModel):
     role_name: Optional[str] = None
     store_ids: List[int] = Field(default_factory=list)
     status: str = "active"
+    # [PRD V1.0 §M5.2] 该员工实际拥有的模块权限（前端"查看权限"页直接回显）
+    module_codes: List[str] = Field(default_factory=list)
 
 
 class MerchantStaffPermissionUpdateRequest(BaseModel):
