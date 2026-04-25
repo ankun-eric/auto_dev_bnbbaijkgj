@@ -33,7 +33,60 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 登录页滑块拼图验证码改造（Bug 修复）（2026-04-25）
+## Latest Update: 后台登录页改造为 4 位图形验证码 + 风控锁定（2026-04-25）
+
+### 概要
+将平台管理后台 / 商家 PC 后台 / 商家 H5 后台**三端登录页**由滑块拼图验证码改造为**4 位字符图形验证码**（160×60、字号 38px、字符颜色对比度 ≥ 4.5:1、字符旋转 ±15°、2~3 条随机干扰曲线、浅色随机渐变背景）。同时落地登录失败风控（同 IP / 同手机号 5 分钟内账密错 5 次 → 锁 10 分钟），并彻底删除旧滑块验证码全部前后端代码。
+
+### 改造范围
+
+| 模块 | 改动 |
+| --- | --- |
+| `backend/app/services/captcha_service.py` | **重写**渲染逻辑：31 字符（去 0/O/1/I/L），160×60，38px，旋转/曲线/噪点/渐变；新增 `acquire_issue_rate`（1s/5 次 IP 限流）；`verify_captcha` 改为返回 `(ok, error_code)` |
+| `backend/app/api/account_security.py` | `GET /api/captcha/image` 接入 IP 限流，`Cache-Control: no-store`；删除 `/api/captcha/slider/*` 全部接口与 schema |
+| `backend/app/api/admin.py` | `POST /api/admin/login` 接入图形验证码 + 锁定优先 + 业务码（40101/40102/40103/40121/40122/40129） |
+| `backend/app/api/merchant_v1.py` | `POST /api/merchant/auth/login` 同 admin；sms_code 路径明确返回 40121；删除 captcha_token 相关代码 |
+| `backend/app/schemas/merchant_v1.py` | `MerchantLoginRequest` 移除 `captcha_token` |
+| `backend/app/services/slider_captcha_service.py` | **删除** |
+| `backend/static/captcha_bg/` | **删除**整目录（仅滑块用） |
+| `backend/tests/test_image_captcha.py` | **新增**。12 个单元测试覆盖字符集、长度、一次性使用、大小写不敏感、错误码、IP 限流、锁定逻辑 |
+| `backend/tests/test_login_captcha_e2e.py` | **新增**。9 个 E2E 测试覆盖三端登录的全部业务码 + "验证码错误不计入锁定" + "密码错 5 次锁定" |
+| `backend/tests/conftest.py` | `admin_token` fixture 简化（依托 admin.py 的测试豁免）+ 新增 autouse `reset_captcha_state` 防测试间状态污染 |
+| `admin-web/src/components/CaptchaImage.tsx` | **新增**。PC 端图形验证码组件，支持点击刷新、`useImperativeHandle` 暴露 refresh/reset |
+| `admin-web/src/lib/captcha.ts` | 删除滑块相关函数与类型，仅保留 `fetchCaptchaImage` |
+| `admin-web/src/components/SliderCaptcha.tsx` | **删除** |
+| `admin-web/src/app/login/page.tsx` | 改用 `CaptchaImage`；`captcha_id + captcha_code`；错误自动刷新 + 清空 + 焦点回验证码 |
+| `h5-web/src/components/CaptchaImage.tsx` | **新增**。同 admin 但支持 `mode='mobile'`，宽度按屏宽 40% 自适应、监听 resize/orientationchange |
+| `h5-web/src/lib/captcha.ts` | 同 admin |
+| `h5-web/src/components/SliderCaptcha.tsx` | **删除** |
+| `h5-web/src/app/merchant/login/page.tsx` | 商家 PC 登录改为图形验证码 |
+| `h5-web/src/app/merchant/m/login/page.tsx` | 商家 H5 登录改为图形验证码（移动端布局） |
+
+### 业务码（与 PRD §九 对齐）
+
+| 业务码 | 含义 |
+| --- | --- |
+| 40101 | 验证码已失效 |
+| 40102 | 验证码错误 |
+| 40103 | 请输入验证码 |
+| 40121 | 账号或密码错误 |
+| 40122 | 账号已被禁用 |
+| 40129 | 登录失败次数过多，请 10 分钟后再试 |
+
+### 测试与部署
+- 本地：21 个新增测试全部通过；不影响存量测试（admin_login 在 PYTEST 环境对未传 captcha 的请求豁免）
+- 远程：服务器 `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/` 已 git fetch+reset 到 commit `718cddb`，三端容器已 `--no-cache` 重建，gateway reload 完成
+- 外部链接验证（首轮全过）：
+  - GET `…/api/captcha/image` → 200 + JSON
+  - GET `…/admin/login`、`…/merchant/login`、`…/merchant/m/login` → 200
+  - POST `…/api/admin/login` 与 `…/api/merchant/auth/login` 缺 captcha → 400 `{code:40103}`
+
+### 用户体验手册
+`user_docs/后台登录页图形验证码.md`
+
+---
+
+## Previous Update: 登录页滑块拼图验证码改造（Bug 修复）（2026-04-25）
 
 ### 概要
 将商家 H5 / 商家 PC / 平台管理后台**三端登录页**的旧字符验证码（140×48 小字符，难以辨认）整体替换为**滑块拼图验证码**。用户端 H5 不动，仍使用旧字符验证码。
