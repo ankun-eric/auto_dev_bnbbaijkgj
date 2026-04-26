@@ -33,7 +33,65 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 图形验证码字号升级 v1.6 部署完成（2026-04-26）
+## Latest Update: 删除图形验证码 & 新增登录失败锁定机制 — 开发完成并部署（2026-04-26）
+
+### 一句话结论
+所有登录页（Admin后台、H5商家端PC/移动版）统一移除图形验证码UI；后端登录接口（admin.py、merchant_v1.py、auth.py）取消验证码校验，新增基于"手机号+客户端IP"联合维度的登录失败锁定机制（5次失败锁定10分钟）；前端显示剩余尝试次数和锁定提示；验证码服务代码保留不删。H5用户端为SMS登录无需改动，修改密码页无验证码UI无需改动。
+
+### 改造范围
+
+| 模块 | 改动 |
+| --- | --- |
+| `backend/app/services/captcha_service.py` | 锁定维度从独立phone/ip改为联合`login_fail:{phone}:{ip}`；新增`get_failure_count()`函数 |
+| `backend/app/api/admin.py` | 移除验证码校验；集成`is_login_locked`/`record_login_failure`/`clear_login_failure`；新增`_fail_and_raise`辅助函数返回`remaining_attempts` |
+| `backend/app/api/merchant_v1.py` | 同admin.py，移除验证码校验+集成锁定机制 |
+| `backend/app/api/auth.py` | password login新增Request参数获取IP；集成完整锁定机制 |
+| `admin-web/src/app/login/page.tsx` | 移除CaptchaImage组件/验证码输入框/刷新链接；新增Alert错误提示区域显示剩余次数和锁定信息 |
+| `h5-web/src/app/merchant/login/page.tsx` | 移除验证码UI；新增Alert错误提示 |
+| `h5-web/src/app/merchant/m/login/page.tsx` | 移除验证码UI；新增styled div错误提示 |
+
+### 服务器实测（2026-04-26）
+- H5 首页 `/` → 200 ✅
+- Admin 首页 `/admin/` → 200 ✅
+- API 健康检查 `/api/health` → 200 ✅
+- 商家PC登录 `/merchant/login` → 308→200 ✅
+- 商家移动登录 `/merchant/m/login` → 308→200 ✅
+
+### 用户文档
+- `user_docs/删除图形验证码与登录失败锁定_20260426_201500.md`
+
+### PRD 文档
+- `docs/PRD_删除图形验证码与登录失败锁定_20260426_195959.md`
+
+---
+
+## Previous Update: 用户端讯飞晓医风格改版 — 档案Tab页面设计方案输出（2026-04-26）
+
+### 一句话结论
+延续讯飞晓医风格改版的多轮需求沟通，本轮确认：快捷入口由后台配置（C）、虚拟形象暂用2D插画（D）、一次性全部实现（B）；输出了「档案」Tab 完整页面设计方案，含四子Tab（健康数据/运动睡眠/就医资料/健康信息）的详细线框图、交互说明和配色规范。
+
+### 设计文档
+- `.chat_output/2faf5bb0-3134-40c9-ba56-14e01c007765/档案Tab页面设计方案.md`
+
+### 记忆文件
+- `mem/mem_档案页面改版需求沟通_20260426_201500.md`
+
+---
+
+## Previous Update: 删除图形验证码 & 新增登录失败锁定机制 PRD 输出（2026-04-26）
+
+### 一句话结论
+经多轮需求沟通，确认所有登录页（H5 用户端、H5 商家端、Admin 后台）及修改密码页面统一移除图形验证码；新增登录失败锁定机制（5 次失败锁定 10 分钟，手机号+IP 双重维度）；后端验证码服务代码保留不删；已输出完整 PRD 文档。
+
+### PRD 文档
+- `docs/PRD_删除图形验证码与登录失败锁定_20260426_195959.md`
+
+### 记忆文件
+- `mem/mem_删除验证码需求沟通_20260426_200000.md`
+
+---
+
+## Previous Update: 图形验证码字号升级 v1.6 部署完成（2026-04-26）
 
 ### 一句话结论
 验证码字号从 48px 升级到 192px，采用 4× 高清渲染（640×240 物理画布），前端 CSS 显示尺寸保持 160×60 不变。描边 1→4px，噪点 20→80，调色板 128→192 色。仅重建 backend 容器即完成部署，前端零改动。
