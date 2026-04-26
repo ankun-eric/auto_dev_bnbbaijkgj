@@ -33,7 +33,31 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 商家角色统一治理 + 员工管理体验优化 PRD v1.0（2026-04-26）
+## Latest Update: 图形验证码字号升级 v1.6 部署完成（2026-04-26）
+
+### 一句话结论
+验证码字号从 48px 升级到 192px，采用 4× 高清渲染（640×240 物理画布），前端 CSS 显示尺寸保持 160×60 不变。描边 1→4px，噪点 20→80，调色板 128→192 色。仅重建 backend 容器即完成部署，前端零改动。
+
+### 改造范围
+
+| 模块 | 改动 |
+| --- | --- |
+| `backend/app/services/captcha_service.py` | `IMG_WIDTH=640`、`IMG_HEIGHT=240`、`FONT_SIZE=192`；`stroke_width=4`（Pillow 原生描边）；干扰曲线振幅/噪点数量按 4× 面积等比放大；调色板 192 色；文件头注释升级 v1.6 |
+
+### 服务器实测（2026-04-26）
+- `GET /api/captcha/image` → 200 ✅
+- 验证码图片大小约 5KB（≤15KB 要求）✅
+- H5 首页 `/` → 200 ✅
+- Admin 首页 `/admin/` → 200 ✅
+- 登录页 `/login` → 308 → 200 ✅
+- Admin 登录页 `/admin/login` → 308 → 200 ✅
+
+### 用户文档
+- `user_docs/图形验证码字号升级v1.6_20260426_165200_c3a7.md`
+
+---
+
+## Previous Update: 商家角色统一治理 + 员工管理体验优化 PRD v1.0（2026-04-26）
 
 ### 一句话结论
 商家端历史 5+ 角色（owner/manager/verifier/finance/clerk/staff）统一收敛为 4 个业务角色 `boss / store_manager / finance / clerk`；后端启动时自动归一化 `merchant_store_memberships.role_code`；删除 `merchant.py` 中老的 `/api/merchant/profile` 接口（此接口被新接口覆盖导致"我的"页 8 字段全空白），新接口 `account_security.merchant_get_profile` 成为唯一实现；H5 员工管理列表新增按角色着色头像（金/蓝/橙红/灰蓝），启停员工权限收紧为"仅老板"；admin 员工列表移除"账号"列，搜索 placeholder 改为"请输入手机号搜索"。
@@ -66,7 +90,7 @@ alwaysApply: false
 
 ---
 
-## Latest Update: 图形验证码字号升级 v1.6 PRD 文档输出（2026-04-26）
+## Previous Update: 图形验证码字号升级 v1.6 PRD 文档输出（2026-04-26）
 
 ### 一句话结论
 基于已完成的验证码字号升级（48px→192px，4× 高清画布）开发成果，输出了完整的 PRD 文档，包含需求背景、版本演进、渲染规格、改动范围、测试方案、上线计划等完整章节。
