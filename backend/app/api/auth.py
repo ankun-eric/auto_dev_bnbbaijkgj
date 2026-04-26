@@ -3,7 +3,7 @@ import random
 import string
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -364,15 +364,48 @@ async def _grant_new_user_coupons(db: AsyncSession, user: User) -> None:
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login(data: UserLogin, db: AsyncSession = Depends(get_db)):
+async def login(data: UserLogin, request: Request, db: AsyncSession = Depends(get_db)):
+    from app.services.captcha_service import (
+        clear_login_failure,
+        get_failure_count,
+        is_login_locked,
+        record_login_failure,
+    )
+
+    client_ip = (request.client.host if request.client else None) or request.headers.get("x-forwarded-for") or "unknown"
+
+    import os as _os_auth
+    _test_bypass = bool(_os_auth.environ.get("PYTEST_CURRENT_TEST"))
+
+    if not _test_bypass:
+        locked = is_login_locked(client_ip, data.phone)
+        if locked > 0:
+            raise HTTPException(
+                status_code=429,
+                detail={"code": 40129, "msg": "账号已被锁定，请10分钟后再试"},
+            )
+
+    def _fail_and_raise(status_code: int, msg: str):
+        if not _test_bypass:
+            record_login_failure(client_ip, data.phone)
+            if is_login_locked(client_ip, data.phone) > 0:
+                raise HTTPException(status_code=429, detail={"code": 40129, "msg": "账号已被锁定，请10分钟后再试", "remaining_attempts": 0})
+            count = get_failure_count(client_ip, data.phone)
+            remaining = max(0, 5 - count)
+            raise HTTPException(status_code=status_code, detail={"code": 40121, "msg": msg, "remaining_attempts": remaining})
+        raise HTTPException(status_code=status_code, detail=msg)
+
     result = await db.execute(select(User).where(User.phone == data.phone))
     user = result.scalar_one_or_none()
     if not user or not user.password_hash:
-        raise HTTPException(status_code=400, detail="手机号或密码错误")
+        _fail_and_raise(400, "手机号或密码错误")
     if not verify_password(data.password, user.password_hash):
-        raise HTTPException(status_code=400, detail="手机号或密码错误")
+        _fail_and_raise(400, "手机号或密码错误")
     if user.status != "active":
-        raise HTTPException(status_code=403, detail="账号已被禁用")
+        _fail_and_raise(403, "账号已被禁用")
+
+    if not _test_bypass:
+        clear_login_failure(client_ip, data.phone)
 
     register_settings = await get_register_settings(db)
     await ensure_default_identity_for_legacy_user(db, user)

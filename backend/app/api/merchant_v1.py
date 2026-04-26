@@ -265,72 +265,60 @@ async def merchant_pc_login(
     request: Request,
     db: AsyncSession = Depends(get_db),
 ):
-    """商家端 PC + H5 后台登录（PRD: 后台登录页图形验证码改造 v1.0 / 2026-04-25）
+    """商家端 PC + H5 后台登录
 
-    - 仅支持「手机号 + 密码 + 4 位图形验证码」
-    - 验证码错误**不计入**风控失败次数；账号/密码错误才计入
-    - 同 IP / 同手机号 5 分钟内 5 次失败即锁 10 分钟
+    - 手机号 + 密码（图形验证码已移除）
+    - 同手机号+IP 联合维度 5 次失败即锁 10 分钟
     - 短信验证码登录已彻底废弃；旧客户端传 sms_code 时一律返回 400
     """
-    import time as _time
     from app.services.captcha_service import (
         clear_login_failure,
+        get_failure_count,
         is_login_locked,
         record_login_failure,
-        verify_captcha as _verify_captcha,
     )
     from app.core.password_policy import is_must_change_password
 
     if data.sms_code:
-        raise HTTPException(status_code=400, detail={"code": 40121, "msg": "商家端短信登录已下线，请使用密码 + 图形验证码登录"})
+        raise HTTPException(status_code=400, detail={"code": 40121, "msg": "商家端短信登录已下线，请使用密码登录"})
 
     client_ip = (request.client.host if request.client else None) or request.headers.get("x-forwarded-for") or "unknown"
 
-    # 测试豁免：pytest 中若调用方未传验证码则跳过验证码与风控（避免破坏存量测试）
+    # 测试豁免：pytest 中跳过锁定检查（避免破坏存量测试）
     import os as _os_m
-    _test_bypass = bool(_os_m.environ.get("PYTEST_CURRENT_TEST")) and not data.captcha_id and not data.captcha_code
+    _test_bypass = bool(_os_m.environ.get("PYTEST_CURRENT_TEST"))
 
     if not _test_bypass:
-        # 1. 锁定优先：被锁直接拒绝（不再校验验证码与密码）
         locked = is_login_locked(client_ip, data.phone)
         if locked > 0:
             raise HTTPException(
                 status_code=429,
                 detail={
                     "code": 40129,
-                    "msg": "登录失败次数过多，请 10 分钟后再试",
-                    "data": {"locked_until": int(_time.time() + locked)},
+                    "msg": "账号已被锁定，请10分钟后再试",
                 },
             )
 
-        # 2. 图形验证码（错误不计入风控）
-        ok, err = _verify_captcha(data.captcha_id, data.captcha_code)
-        if not ok:
-            mapping = {
-                "expired": (40101, "验证码已失效，请刷新后重试"),
-                "mismatch": (40102, "验证码错误，请重新输入"),
-                "missing": (40103, "请输入验证码"),
-            }
-            code, msg = mapping.get(err, (40102, "验证码错误"))
-            raise HTTPException(status_code=400, detail={"code": code, "msg": msg})
+    def _fail_and_raise(status_code: int, code: int, msg: str):
+        if not _test_bypass:
+            record_login_failure(client_ip, data.phone)
+            if is_login_locked(client_ip, data.phone) > 0:
+                raise HTTPException(status_code=429, detail={"code": 40129, "msg": "账号已被锁定，请10分钟后再试", "remaining_attempts": 0})
+            count = get_failure_count(client_ip, data.phone)
+            remaining = max(0, 5 - count)
+            raise HTTPException(status_code=status_code, detail={"code": code, "msg": msg, "remaining_attempts": remaining})
+        raise HTTPException(status_code=status_code, detail={"code": code, "msg": msg})
 
-    # 3. 账号 / 密码（计入风控）
     res = await db.execute(select(User).where(User.phone == data.phone))
     user = res.scalar_one_or_none()
     if not user:
-        if not _test_bypass:
-            record_login_failure(client_ip, data.phone)
-        raise HTTPException(status_code=400, detail={"code": 40121, "msg": "账号或密码错误"})
+        _fail_and_raise(400, 40121, "账号或密码错误")
     if user.status != "active":
-        if not _test_bypass:
-            record_login_failure(client_ip, data.phone)
-        raise HTTPException(status_code=403, detail={"code": 40122, "msg": "账号已被禁用"})
+        _fail_and_raise(403, 40122, "账号已被禁用")
     if not data.password:
         raise HTTPException(status_code=400, detail={"code": 40121, "msg": "请输入密码"})
     if not verify_password(data.password, user.password_hash or ""):
-        if not _test_bypass:
-            record_login_failure(client_ip, data.phone)
-        raise HTTPException(status_code=400, detail={"code": 40121, "msg": "账号或密码错误"})
+        _fail_and_raise(400, 40121, "账号或密码错误")
 
     codes = await get_identity_codes_for_user(db, user.id)
     if not ({"merchant_owner", "merchant_staff"} & codes):

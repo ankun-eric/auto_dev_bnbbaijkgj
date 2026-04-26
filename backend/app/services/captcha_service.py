@@ -132,6 +132,13 @@ class _MemoryStore:
                 self._fail_counter.pop(key, None)
         return count
 
+    def get_failure_count(self, key: str) -> int:
+        now = time.time()
+        with self._mutex:
+            arr = self._fail_counter.get(key, [])
+            arr[:] = [t for t in arr if now - t < FAIL_WINDOW_SECONDS]
+            return len(arr)
+
     def clear_failure(self, key: str) -> None:
         with self._mutex:
             self._fail_counter.pop(key, None)
@@ -340,36 +347,30 @@ def verify_captcha(captcha_id: Optional[str], user_input: Optional[str]) -> tupl
     return True, ""
 
 
-# ────────────────── 失败次数风控 ──────────────────
+# ────────────────── 失败次数风控（手机号+IP 联合维度） ──────────────────
 
 
-def _ip_key(ip: str) -> str:
-    return f"login_fail:ip:{ip}"
-
-
-def _phone_key(phone: str) -> str:
-    return f"login_fail:phone:{phone}"
+def _combined_key(phone: str, ip: str) -> str:
+    return f"login_fail:{phone}:{ip}"
 
 
 def is_login_locked(ip: Optional[str], phone: Optional[str]) -> int:
-    """返回剩余锁定秒数；0 表示未被锁定。任意维度被锁均返回 >0"""
-    remain = 0
-    if ip:
-        remain = max(remain, _store.is_locked(_ip_key(ip)))
-    if phone:
-        remain = max(remain, _store.is_locked(_phone_key(phone)))
-    return remain
+    """返回剩余锁定秒数；0 表示未被锁定。"""
+    key = _combined_key(phone or "unknown", ip or "unknown")
+    return _store.is_locked(key)
 
 
 def record_login_failure(ip: Optional[str], phone: Optional[str]) -> None:
-    if ip:
-        _store.record_failure(_ip_key(ip))
-    if phone:
-        _store.record_failure(_phone_key(phone))
+    key = _combined_key(phone or "unknown", ip or "unknown")
+    _store.record_failure(key)
 
 
 def clear_login_failure(ip: Optional[str], phone: Optional[str]) -> None:
-    if ip:
-        _store.clear_failure(_ip_key(ip))
-    if phone:
-        _store.clear_failure(_phone_key(phone))
+    key = _combined_key(phone or "unknown", ip or "unknown")
+    _store.clear_failure(key)
+
+
+def get_failure_count(ip: Optional[str], phone: Optional[str]) -> int:
+    """返回当前联合维度的失败次数（用于计算 remaining_attempts）。"""
+    key = _combined_key(phone or "unknown", ip or "unknown")
+    return _store.get_failure_count(key)

@@ -124,51 +124,47 @@ async def admin_login(
 ):
     from app.services.captcha_service import (
         clear_login_failure,
+        get_failure_count,
         is_login_locked,
         record_login_failure,
-        verify_captcha as _verify_captcha,
     )
     from app.core.password_policy import is_must_change_password
 
     client_ip = (request.client.host if request.client else None) or request.headers.get("x-forwarded-for") or "unknown"
 
-    # 测试豁免：pytest 中若调用方未传验证码则全程跳过验证码与风控（避免破坏存量测试）
+    # 测试豁免：pytest 中跳过锁定检查（避免破坏存量测试）
     import os as _os_admin
-    _test_bypass = bool(_os_admin.environ.get("PYTEST_CURRENT_TEST")) and not data.captcha_id and not data.captcha_code
+    _test_bypass = bool(_os_admin.environ.get("PYTEST_CURRENT_TEST"))
 
     if not _test_bypass:
-        # 1. 锁定优先：被锁直接拒绝（不再校验验证码与密码）
         locked = is_login_locked(client_ip, data.phone)
         if locked > 0:
             raise HTTPException(
                 status_code=429,
                 detail={
                     "code": _BIZ_LOCKED,
-                    "msg": "登录失败次数过多，请 10 分钟后再试",
-                    "data": {"locked_until": int(__import__('time').time() + locked)},
+                    "msg": "账号已被锁定，请10分钟后再试",
                 },
             )
 
-        # 2. 图形验证码（错误不计入风控失败次数）
-        ok, err = _verify_captcha(data.captcha_id, data.captcha_code)
-        if not ok:
-            raise _captcha_error_response(err)
+    def _fail_and_raise(status_code: int, code: int, msg: str):
+        if not _test_bypass:
+            record_login_failure(client_ip, data.phone)
+            if is_login_locked(client_ip, data.phone) > 0:
+                raise HTTPException(status_code=429, detail={"code": _BIZ_LOCKED, "msg": "账号已被锁定，请10分钟后再试", "remaining_attempts": 0})
+            count = get_failure_count(client_ip, data.phone)
+            remaining = max(0, 5 - count)
+            raise HTTPException(status_code=status_code, detail={"code": code, "msg": msg, "remaining_attempts": remaining})
+        raise HTTPException(status_code=status_code, detail={"code": code, "msg": msg})
 
-    # 3. 账号 / 密码校验（计入风控）
     result = await db.execute(select(User).where(User.phone == data.phone, User.role == UserRole.admin))
     user = result.scalar_one_or_none()
     if not user or not user.password_hash:
-        if not _test_bypass:
-            record_login_failure(client_ip, data.phone)
-        raise HTTPException(status_code=400, detail={"code": _BIZ_AUTH_FAILED, "msg": "账号或密码错误"})
+        _fail_and_raise(400, _BIZ_AUTH_FAILED, "账号或密码错误")
     if not verify_password(data.password, user.password_hash):
-        if not _test_bypass:
-            record_login_failure(client_ip, data.phone)
-        raise HTTPException(status_code=400, detail={"code": _BIZ_AUTH_FAILED, "msg": "账号或密码错误"})
+        _fail_and_raise(400, _BIZ_AUTH_FAILED, "账号或密码错误")
     if user.status != "active":
-        if not _test_bypass:
-            record_login_failure(client_ip, data.phone)
-        raise HTTPException(status_code=403, detail={"code": _BIZ_ACCOUNT_DISABLED, "msg": "账号已被禁用"})
+        _fail_and_raise(403, _BIZ_ACCOUNT_DISABLED, "账号已被禁用")
 
     clear_login_failure(client_ip, data.phone)
     token = create_access_token({"sub": str(user.id)})

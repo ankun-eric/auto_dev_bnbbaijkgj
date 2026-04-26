@@ -1,49 +1,30 @@
 'use client';
 
-// PRD: 后台登录页图形验证码改造（v1.0 / 2026-04-25）
-// 商家 H5 后台登录：手机号 + 密码 + 4 位字符图形验证码（移动端自适应：屏宽 40%）
-
-import React, { useRef, useState } from 'react';
+import React, { useState } from 'react';
 import { Form, Input, Button, Toast } from 'antd-mobile';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
-import CaptchaImage, { type CaptchaImageRef } from '@/components/CaptchaImage';
 import { saveLogin } from '../mobile-lib';
 
 interface LoginFormValues {
   phone: string;
   password: string;
-  captcha_code: string;
 }
 
 export default function MerchantMobileLoginPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [captchaId, setCaptchaId] = useState<string>('');
+  const [errorMsg, setErrorMsg] = useState<string>('');
   const [form] = Form.useForm<LoginFormValues>();
-  const captchaRef = useRef<CaptchaImageRef>(null);
-  const captchaInputRef = useRef<any>(null);
-
-  const handleCaptchaError = () => {
-    captchaRef.current?.refresh();
-    form.setFieldValue('captcha_code', '');
-    setTimeout(() => captchaInputRef.current?.focus?.(), 50);
-  };
 
   const submit = async () => {
+    setErrorMsg('');
     try {
       const values = (await form.validateFields()) as LoginFormValues;
-      if (!captchaId) {
-        Toast.show({ icon: 'fail', content: '验证码加载中，请稍后重试' });
-        captchaRef.current?.refresh();
-        return;
-      }
       setLoading(true);
       const res: any = await api.post('/api/merchant/auth/login', {
         phone: values.phone,
         password: values.password,
-        captcha_id: captchaId,
-        captcha_code: (values.captcha_code || '').trim().toUpperCase(),
       });
 
       const validRoles = ['owner', 'store_manager', 'verifier', 'finance', 'staff'];
@@ -54,7 +35,6 @@ export default function MerchantMobileLoginPage() {
           icon: 'fail',
           content: '该账号不是商家账号，请使用商家账号登录，或联系管理员开通商家身份。',
         });
-        handleCaptchaError();
         return;
       }
 
@@ -77,15 +57,26 @@ export default function MerchantMobileLoginPage() {
       }
     } catch (e: any) {
       if (e?.errorFields) return;
+      const status = e?.response?.status;
       const detail = e?.response?.data?.detail;
-      let msgText = '账号或密码错误';
-      if (detail && typeof detail === 'object') {
-        msgText = detail.msg || msgText;
-      } else if (typeof detail === 'string') {
-        msgText = detail;
+      const remainingAttempts =
+        typeof detail === 'object' ? detail?.remaining_attempts : undefined;
+
+      if (status === 429) {
+        setErrorMsg('账号已被锁定，请 10 分钟后再试');
+      } else if (remainingAttempts !== undefined && remainingAttempts <= 0) {
+        setErrorMsg('账号已被锁定，请 10 分钟后再试');
+      } else if (remainingAttempts !== undefined && remainingAttempts > 0) {
+        setErrorMsg(`密码错误，还剩 ${remainingAttempts} 次尝试机会`);
+      } else {
+        let msgText = '账号或密码错误';
+        if (detail && typeof detail === 'object') {
+          msgText = detail.msg || msgText;
+        } else if (typeof detail === 'string') {
+          msgText = detail;
+        }
+        setErrorMsg(msgText);
       }
-      Toast.show({ icon: 'fail', content: msgText });
-      handleCaptchaError();
     } finally {
       setLoading(false);
     }
@@ -133,48 +124,23 @@ export default function MerchantMobileLoginPage() {
           >
             <Input placeholder="请输入密码" type="password" clearable />
           </Form.Item>
-          <Form.Item
-            name="captcha_code"
-            label="图形验证码"
-            rules={[
-              { required: true, message: '请输入验证码' },
-              { len: 4, message: '验证码 4 位' },
-            ]}
-          >
-            <Input
-              ref={captchaInputRef}
-              placeholder="请输入图中字符"
-              clearable
-              maxLength={4}
-              style={{ textTransform: 'uppercase' }}
-              onChange={(v) => {
-                const up = (v || '').trim().toUpperCase().slice(0, 4);
-                if (up !== v) form.setFieldValue('captcha_code', up);
-              }}
-            />
-          </Form.Item>
         </Form>
 
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            margin: '4px 12px 12px',
-          }}
-        >
-          <CaptchaImage ref={captchaRef} mode="mobile" onChange={setCaptchaId} />
-          <a
-            onClick={(e) => {
-              e.preventDefault();
-              captchaRef.current?.refresh();
-              form.setFieldValue('captcha_code', '');
+        {errorMsg && (
+          <div
+            style={{
+              color: '#ff4d4f',
+              fontSize: 13,
+              padding: '8px 12px',
+              margin: '4px 12px 8px',
+              background: '#fff2f0',
+              borderRadius: 6,
+              border: '1px solid #ffccc7',
             }}
-            style={{ color: '#1890ff', fontSize: 14 }}
           >
-            看不清？换一张
-          </a>
-        </div>
+            {errorMsg}
+          </div>
+        )}
 
         <Button
           block
