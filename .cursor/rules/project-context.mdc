@@ -33,7 +33,149 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 删除图形验证码 & 新增登录失败锁定机制 — 开发完成并部署（2026-04-26）
+## Latest Update: 用户端全面改版 — AI对话模式开发完成并部署（2026-04-27）
+
+### 一句话结论
+用户端全面改版已完成开发并部署到服务器。核心变更：取消四Tab底部导航，新增AI对话模式（首屏即AI对话）；新建侧边栏「我的」面板、历史对话管理、档案页四子Tab重组、设置页增强、账号安全、意见反馈等页面；专家详情页「预约」按钮对接商品下单流程；Admin新增视频客服配置页和页面风格配置页；主色调统一蓝紫#5B6CFF。
+
+### 后端改造
+
+| 模块 | 改动 |
+| --- | --- |
+| `backend/app/models/models.py` | 新增 `VideoConsultConfig`、`UserFeedback`、`AppSetting` 模型；Expert 新增 `product_id` 外键；ChatSession 新增 `is_pinned`/`pinned_at` |
+| `backend/app/schemas/video_consult.py` | 新增视频客服配置 Schema |
+| `backend/app/schemas/feedback.py` | 新增用户反馈 Schema |
+| `backend/app/schemas/app_settings.py` | 新增应用设置 Schema |
+| `backend/app/schemas/expert.py` | ExpertResponse 增加 `product_id`/`product_info` |
+| `backend/app/api/video_consult_config.py` | 新增 Admin 视频客服配置 API |
+| `backend/app/api/feedback.py` | 新增用户反馈 CRUD API |
+| `backend/app/api/app_settings.py` | 新增页面风格配置 API |
+| `backend/app/api/chat_history.py` | 新增批量删除/清空全部/置顶排序 |
+| `backend/app/api/expert.py` | 返回关联商品信息 |
+| `backend/app/api/admin.py` | 专家管理支持 product_id |
+
+### H5前端改造
+
+| 模块 | 改动 |
+| --- | --- |
+| `h5-web/src/app/(ai-chat)/` | 新增 AI 对话模式路由组（ai-home/chat-history/health-archive/ai-settings/account-security/feedback） |
+| `h5-web/src/components/ai-chat/` | 新增 Sidebar/MoreMenu/ConsultantPicker/RecommendCards/SharePanel 组件 |
+| `h5-web/src/lib/theme.ts` | 蓝紫色调色彩规范 |
+| `h5-web/src/app/page.tsx` | 入口分流（AI对话模式/菜单模式） |
+| `h5-web/src/app/expert/[id]/page.tsx` | 「预约」按钮跳转商品详情 |
+
+### Admin前端改造
+
+| 模块 | 改动 |
+| --- | --- |
+| `admin-web/src/app/(admin)/ai-config/video-consult/page.tsx` | 新增视频客服配置页 |
+| `admin-web/src/app/(admin)/home-settings/page-style/page.tsx` | 新增页面风格配置页 |
+| `admin-web/src/app/(admin)/experts/page.tsx` | 专家管理新增"关联商品"列 |
+| `admin-web/src/app/(admin)/layout.tsx` | 导航菜单新增入口 |
+
+### 新增 API 端点
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| GET | `/api/admin/video-consult-config` | 获取视频客服配置 |
+| PUT | `/api/admin/video-consult-config` | 更新视频客服配置 |
+| POST | `/api/feedback` | 提交用户反馈 |
+| GET | `/api/feedback` | 获取我的反馈列表 |
+| GET | `/api/admin/feedback` | 获取全部反馈 (Admin) |
+| PUT | `/api/admin/feedback/{id}/status` | 更新反馈状态 |
+| GET | `/api/app-settings/page-style` | 获取页面风格 (公开) |
+| PUT | `/api/admin/app-settings/page-style` | 更新页面风格 |
+| POST | `/api/chat-sessions/batch-delete` | 批量删除对话 |
+| DELETE | `/api/chat-sessions/clear-all` | 清空全部对话 |
+
+### 用户文档
+- `user_docs/用户端全面改版_AI对话模式_20260427_163000_a7b2.md`
+
+---
+
+## Previous Update: PRD更新 — Admin后台管理功能全量复用原则强化（2026-04-27）
+
+### 一句话结论
+用户确认积分管理（积分规则/积分商城/会员等级）完全复用现有Admin后台不做任何改动，要求更新PRD加强复用原则描述。PRD新增"Admin后台管理功能全量复用"核心声明（1.1章节高亮引用块）、复用策略矩阵细化积分/档案/消息独立条目、新增BR-19~BR-21三条复用约束规则、零改造项从20+提升至25+。
+
+### PRD文件
+- `docs/PRD_用户端讯飞晓医风格改版与视频客服_20260427_160000.md`（就地更新）
+
+### 记忆文件
+- `mem/mem_PRD更新Admin全量复用原则_20260427_162100.md`
+
+---
+
+## Previous Update: PRD文档最终确认可出（2026-04-27）
+
+### 一句话结论
+用户最终确认"可以出"，PRD文档（含20个功能模块、复用策略全景图、34场景设计图对应）全部确认完毕，需求沟通阶段结束，下一步用户可在新会话中启动开发实施。
+
+### PRD文件
+- `docs/PRD_用户端讯飞晓医风格改版与视频客服_20260427_160000.md`
+
+### 记忆文件
+- `mem/mem_PRD文档最终确认可出_20260427_161500.md`
+- `mem/mem_PRD文档确认输出_20260427_161300.md`
+
+---
+
+## Previous Update: 用户端全面改版PRD更新版 — 全面补充现有功能复用策略（2026-04-27）
+
+### 一句话结论
+用户再次强调"系统已有功能都可复用"，对PRD进行全面更新：新增第2章「现有系统功能复用全景图」，完整盘点用户端35项+Admin后台57项已有功能，逐项标注复用方式；F16专家预约明确列出20项零改造直接复用的现有模块（商品管理/SKU/结算/支付/订单/退款/评价/优惠券/新人券/核销/积分等）；新增BR-15~BR-18复用约束规则；改造工作量分析：纯新建仅7项、增强5项、入口调整8项、零改造20+项。
+
+### PRD文件
+- `docs/PRD_用户端讯飞晓医风格改版与视频客服_20260427_160000.md`（就地更新）
+
+### 记忆文件
+- `mem/mem_PRD更新版复用策略补充_20260427_160500.md`
+- `mem/mem_用户端改版PRD输出_20260427_160000.md`
+
+---
+
+## Previous Update: 全量设计图v2输出 — 34场景完整替换版（2026-04-27）
+
+### 一句话结论
+用户确认8项补充设计图后的3个追加问题（专家详情预约→商品下单流程、视频客服配置放AI咨询配置菜单下、输出全新完整HTML），输出全量最终设计图v2（34个场景），较v1新增6个场景（历史对话管理模式/长按菜单/删除确认弹窗/账号安全/意见反馈/Admin视频客服配置），更新5个场景（侧边栏/订单列表/设置页/专家详情/历史对话列表）。统一蓝紫色调#5B6CFF。
+
+### 设计图文件
+- `.chat_output/b9896dde-10a3-401a-ba2f-0cfadc346ea2/用户端全量最终设计图_v2.html`
+
+### 记忆文件
+- `mem/mem_全量设计图v2_34场景输出_20260427_153400.md`
+- `mem/mem_全量最终设计图输出_20260427_114200.md`
+- `mem/mem_用户端全量设计图输出_20260427_103200.md`
+- `mem/mem_用户端设计图全部细节确认完成_20260427_102800.md`
+- `mem/mem_用户端设计图细节确认_20260427_101800.md`
+
+---
+
+## Previous Update: 用户端设计图全部细节确认完成 — 可开始出全量设计图（2026-04-27）
+
+### 一句话结论
+用户确认最后两个问题：问题6首页出图范围→A全量场景覆盖；问题7对话页推荐问题卡片→A需要（参考蚂蚁阿福#标签横向滚动）。至此7项设计细节全部确认完毕，可以开始输出用户端全量页面设计图。
+
+### 记忆文件
+- `mem/mem_用户端设计图全部细节确认完成_20260427_102800.md`
+- `mem/mem_用户端设计图细节确认_20260427_101800.md`
+
+---
+
+## Previous Update: AI对话页蓝紫色调设计确认 + 输入栏交互细化（2026-04-26）
+
+### 一句话结论
+用户确认AI对话页面参考蚂蚁阿福交互（输入框聚焦才显示咨询人行）、主色调蓝紫#5B6CFF、右上角···菜单三项（扫一扫/字体大小/立即分享）、输入框右侧动态按钮（无文字→拍照/有文字→发送）、左上角☰+小康、代码需重新规划（新版为未来确定样式）。已输出三场景蓝紫色设计效果图+色板。待确认：旧新版过渡策略、功能清单具体调整内容。
+
+### 效果图
+- `.chat_output/b2b9000c-05f9-45fb-9824-d7ad3896988e/AI对话页面_新设计方案_蓝紫色调.html`
+
+### 记忆文件
+- `mem/mem_AI对话页蓝紫色调设计确认_20260426_214500.md`
+
+---
+
+## Previous Update: 删除图形验证码 & 新增登录失败锁定机制 — 开发完成并部署（2026-04-26）
 
 ### 一句话结论
 所有登录页（Admin后台、H5商家端PC/移动版）统一移除图形验证码UI；后端登录接口（admin.py、merchant_v1.py、auth.py）取消验证码校验，新增基于"手机号+客户端IP"联合维度的登录失败锁定机制（5次失败锁定10分钟）；前端显示剩余尝试次数和锁定提示；验证码服务代码保留不删。H5用户端为SMS登录无需改动，修改密码页无验证码UI无需改动。

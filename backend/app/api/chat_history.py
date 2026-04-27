@@ -1,11 +1,11 @@
 import io
 import uuid
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -252,7 +252,7 @@ async def user_list_sessions(
     query = (
         select(ChatSession)
         .where(ChatSession.user_id == current_user.id, ChatSession.is_deleted == False)
-        .order_by(ChatSession.is_pinned.desc(), ChatSession.updated_at.desc())
+        .order_by(ChatSession.is_pinned.desc(), ChatSession.pinned_at.desc().nullslast(), ChatSession.updated_at.desc())
         .offset((page - 1) * page_size)
         .limit(page_size)
     )
@@ -364,8 +364,48 @@ async def user_pin_session(
         raise HTTPException(status_code=404, detail="对话不存在")
 
     session.is_pinned = data.is_pinned
+    session.pinned_at = datetime.utcnow() if data.is_pinned else None
     await db.flush()
     return {"message": "操作成功", "is_pinned": session.is_pinned}
+
+
+@router.post("/api/chat-sessions/batch-delete")
+async def user_batch_delete_sessions(
+    session_ids: List[int] = Body(..., embed=True),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    if not session_ids:
+        raise HTTPException(status_code=400, detail="请提供需要删除的对话ID列表")
+
+    await db.execute(
+        update(ChatSession)
+        .where(
+            ChatSession.id.in_(session_ids),
+            ChatSession.user_id == current_user.id,
+            ChatSession.is_deleted == False,
+        )
+        .values(is_deleted=True)
+    )
+    await db.flush()
+    return {"message": "批量删除成功"}
+
+
+@router.delete("/api/chat-sessions/clear-all")
+async def user_clear_all_sessions(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    await db.execute(
+        update(ChatSession)
+        .where(
+            ChatSession.user_id == current_user.id,
+            ChatSession.is_deleted == False,
+        )
+        .values(is_deleted=True)
+    )
+    await db.flush()
+    return {"message": "已清空全部对话"}
 
 
 @router.delete("/api/chat-sessions/{session_id}")

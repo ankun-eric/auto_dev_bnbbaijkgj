@@ -8,6 +8,7 @@ from fastapi import APIRouter, Body, Depends, File, HTTPException, Query, Reques
 from pydantic import BaseModel
 from sqlalchemy import delete as sa_delete, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
 from app.core.security import create_access_token, get_current_user, require_role, verify_password
@@ -28,6 +29,7 @@ from app.models.models import (
     PointsMallItem,
     PointsRecord,
     PointsType,
+    Product,
     ServiceCategory,
     ServiceItem,
     SystemConfig,
@@ -1701,6 +1703,7 @@ async def admin_list_experts(
 
     result = await db.execute(
         select(Expert)
+        .options(selectinload(Expert.product))
         .order_by(Expert.created_at.desc())
         .offset((page - 1) * page_size)
         .limit(page_size)
@@ -1718,6 +1721,8 @@ async def admin_list_experts(
             "consultation_fee": float(e.consultation_fee) if e.consultation_fee else 0,
             "rating": e.rating,
             "status": e.status,
+            "product_id": e.product_id,
+            "product_name": e.product.name if e.product else None,
             "created_at": e.created_at.isoformat() if e.created_at else None,
         })
     return {"items": items, "total": total, "page": page, "page_size": page_size}
@@ -1764,7 +1769,7 @@ async def admin_update_expert(
     if not expert:
         raise HTTPException(status_code=404, detail="专家不存在")
 
-    for field in ["name", "title", "hospital", "department", "specialties", "introduction", "avatar", "consultation_fee", "status"]:
+    for field in ["name", "title", "hospital", "department", "specialties", "introduction", "avatar", "consultation_fee", "status", "product_id"]:
         if field in data:
             setattr(expert, field, data[field])
     return {"message": "更新成功"}

@@ -16,6 +16,15 @@ class ExpertCreate(BaseModel):
     consultation_fee: float = 0
 
 
+class ProductBriefInfo(BaseModel):
+    id: int
+    name: str
+    sale_price: float
+    status: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class ExpertResponse(BaseModel):
     id: int
     user_id: Optional[int] = None
@@ -30,6 +39,8 @@ class ExpertResponse(BaseModel):
     rating: float
     review_count: int
     status: str
+    product_id: Optional[int] = None
+    product_info: Optional[ProductBriefInfo] = None
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)

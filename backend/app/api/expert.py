@@ -3,11 +3,12 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
 from app.core.security import get_current_user
-from app.models.models import Appointment, AppointmentStatus, Expert, ExpertSchedule, Notification, NotificationType, User
-from app.schemas.expert import AppointmentCreate, AppointmentResponse, ExpertResponse, ExpertScheduleResponse
+from app.models.models import Appointment, AppointmentStatus, Expert, ExpertSchedule, Notification, NotificationType, Product, User
+from app.schemas.expert import AppointmentCreate, AppointmentResponse, ExpertResponse, ExpertScheduleResponse, ProductBriefInfo
 
 router = APIRouter(prefix="/api/experts", tags=["专家/医生"])
 
@@ -34,21 +35,42 @@ async def list_experts(
     total = total_result.scalar() or 0
 
     result = await db.execute(
-        query.order_by(Expert.rating.desc())
+        query.options(selectinload(Expert.product))
+        .order_by(Expert.rating.desc())
         .offset((page - 1) * page_size)
         .limit(page_size)
     )
-    items = [ExpertResponse.model_validate(e) for e in result.scalars().all()]
+    items = []
+    for e in result.scalars().all():
+        resp = ExpertResponse.model_validate(e)
+        if e.product:
+            resp.product_info = ProductBriefInfo(
+                id=e.product.id,
+                name=e.product.name,
+                sale_price=float(e.product.sale_price),
+                status=e.product.status.value if hasattr(e.product.status, "value") else e.product.status,
+            )
+        items.append(resp)
     return {"items": items, "total": total, "page": page, "page_size": page_size}
 
 
 @router.get("/{expert_id}", response_model=ExpertResponse)
 async def get_expert(expert_id: int, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Expert).where(Expert.id == expert_id))
+    result = await db.execute(
+        select(Expert).options(selectinload(Expert.product)).where(Expert.id == expert_id)
+    )
     expert = result.scalar_one_or_none()
     if not expert:
         raise HTTPException(status_code=404, detail="专家不存在")
-    return ExpertResponse.model_validate(expert)
+    resp = ExpertResponse.model_validate(expert)
+    if expert.product:
+        resp.product_info = ProductBriefInfo(
+            id=expert.product.id,
+            name=expert.product.name,
+            sale_price=float(expert.product.sale_price),
+            status=expert.product.status.value if hasattr(expert.product.status, "value") else expert.product.status,
+        )
+    return resp
 
 
 @router.get("/{expert_id}/schedules")

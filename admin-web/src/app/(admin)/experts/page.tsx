@@ -22,6 +22,13 @@ interface ExpertApiItem {
   status: 'active' | 'deleted';
   created_at: string;
   introduction?: string;
+  product_id?: number | null;
+  product_name?: string | null;
+}
+
+interface ProductItem {
+  id: number;
+  name: string;
 }
 
 /** 表格与表单使用的归一化结构（由 API 映射而来） */
@@ -38,6 +45,8 @@ interface Expert {
   status: 'active' | 'deleted';
   intro: string;
   createdAt: string;
+  product_id?: number | null;
+  product_name?: string | null;
 }
 
 function mapApiItemToExpert(row: ExpertApiItem): Expert {
@@ -54,6 +63,8 @@ function mapApiItemToExpert(row: ExpertApiItem): Expert {
     status: row.status,
     intro: row.introduction ?? '',
     createdAt: row.created_at ?? '',
+    product_id: row.product_id ?? null,
+    product_name: row.product_name ?? null,
   };
 }
 
@@ -85,9 +96,24 @@ export default function ExpertsPage() {
   const [currentExpert, setCurrentExpert] = useState<Expert | null>(null);
   const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
   const [form] = Form.useForm();
+  const [products, setProducts] = useState<ProductItem[]>([]);
+
+  const fetchProducts = async () => {
+    try {
+      const res = await get<{ items?: ProductItem[]; list?: ProductItem[] }>(
+        '/api/admin/products',
+        { page_size: 100 }
+      );
+      const items = res?.items ?? res?.list ?? [];
+      setProducts(Array.isArray(items) ? items : []);
+    } catch {
+      setProducts([]);
+    }
+  };
 
   useEffect(() => {
     fetchData();
+    fetchProducts();
   }, []);
 
   const fetchData = async (page = 1, pageSize = 10) => {
@@ -123,7 +149,7 @@ export default function ExpertsPage() {
 
   const handleEdit = (record: Expert) => {
     setEditingRecord(record);
-    form.setFieldsValue({ ...record, status: record.status === 'active' });
+    form.setFieldsValue({ ...record, status: record.status === 'active', product_id: record.product_id ?? undefined });
     setModalVisible(true);
   };
 
@@ -138,6 +164,7 @@ export default function ExpertsPage() {
       specialties: values.specialty,
       introduction: values.intro,
       status: statusBool ? 'active' : ('deleted' as const),
+      product_id: values.product_id ?? null,
     };
   };
 
@@ -201,6 +228,13 @@ export default function ExpertsPage() {
       render: (v: number) => <Rate disabled defaultValue={v} allowHalf style={{ fontSize: 14 }} />,
     },
     { title: '咨询次数', dataIndex: 'consultCount', key: 'consultCount', width: 90, render: () => '-' },
+    {
+      title: '关联商品',
+      dataIndex: 'product_name',
+      key: 'product_name',
+      width: 120,
+      render: (v: string | null) => v || <Tag>未关联</Tag>,
+    },
     {
       title: '状态',
       dataIndex: 'status',
@@ -277,6 +311,15 @@ export default function ExpertsPage() {
           </Form.Item>
           <Form.Item label="简介" name="intro">
             <TextArea rows={3} placeholder="请输入专家简介" />
+          </Form.Item>
+          <Form.Item label="关联商品" name="product_id">
+            <Select
+              allowClear
+              showSearch
+              placeholder="请选择关联商品"
+              optionFilterProp="label"
+              options={products.map((p) => ({ label: p.name, value: p.id }))}
+            />
           </Form.Item>
           <Form.Item label="在职" name="status" valuePropName="checked">
             <Switch />

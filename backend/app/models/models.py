@@ -797,6 +797,7 @@ class ChatSession(Base):
     model_name = mapped_column(String(100), nullable=True)
     message_count = mapped_column(Integer, default=0)
     is_pinned = mapped_column(Boolean, default=False)
+    pinned_at = mapped_column(DateTime, nullable=True)
     is_deleted = mapped_column(Boolean, default=False)
     symptom_info = mapped_column(JSON, nullable=True)
     share_token = mapped_column(String(100), nullable=True, unique=True)
@@ -1002,8 +1003,11 @@ class Expert(Base):
     status = mapped_column(String(20), default="active")
     created_at = mapped_column(DateTime, default=datetime.utcnow)
 
+    product_id = mapped_column(Integer, ForeignKey("products.id"), nullable=True)
+
     user = relationship("User")
     schedules = relationship("ExpertSchedule", back_populates="expert")
+    product = relationship("Product", backref="experts")
 
 
 class ExpertSchedule(Base):
@@ -3052,3 +3056,55 @@ class RefundRequest(Base):
     order_item = relationship("OrderItem")
     user = relationship("User", foreign_keys=[user_id])
     admin = relationship("User", foreign_keys=[admin_user_id])
+
+
+# ──────────────── 视频客服配置 ────────────────
+
+
+class VideoConsultConfig(Base):
+    __tablename__ = "video_consult_config"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    enabled = mapped_column(Boolean, default=False)
+    seat_url = mapped_column(String(500), nullable=True)
+    service_start_time = mapped_column(String(10), nullable=True)
+    service_end_time = mapped_column(String(10), nullable=True)
+    max_queue = mapped_column(Integer, default=10)
+    welcome_message = mapped_column(Text, nullable=True)
+    wait_message = mapped_column(Text, nullable=True)
+    timeout_seconds = mapped_column(Integer, default=300)
+    offline_message = mapped_column(Text, nullable=True)
+    created_at = mapped_column(DateTime, server_default=func.now())
+    updated_at = mapped_column(DateTime, server_default=func.now(), onupdate=datetime.utcnow)
+
+
+# ──────────────── 用户反馈 ────────────────
+
+
+class UserFeedback(Base):
+    __tablename__ = "user_feedback"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    feedback_type = mapped_column(String(50), nullable=False)
+    description = mapped_column(Text, nullable=False)
+    images = mapped_column(JSON, nullable=True)
+    contact = mapped_column(String(200), nullable=True)
+    status = mapped_column(String(20), default="pending")
+    created_at = mapped_column(DateTime, server_default=func.now())
+    updated_at = mapped_column(DateTime, server_default=func.now(), onupdate=datetime.utcnow)
+
+    user = relationship("User", backref="feedbacks")
+
+
+# ──────────────── 应用设置 ────────────────
+
+
+class AppSetting(Base):
+    __tablename__ = "app_settings"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    key = mapped_column(String(100), unique=True, nullable=False)
+    value = mapped_column(Text, nullable=True)
+    description = mapped_column(String(500), nullable=True)
+    updated_at = mapped_column(DateTime, server_default=func.now(), onupdate=datetime.utcnow)

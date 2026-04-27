@@ -18,6 +18,7 @@ from app.api import (
     admin_news,
     admin_search,
     ai_center,
+    app_settings,
     appointment_form_admin,
     audit,
     auth,
@@ -40,6 +41,7 @@ from app.api import (
     family,
     family_management,
     favorites,
+    feedback,
     font_setting,
     function_button,
     health_plan_v2,
@@ -77,6 +79,7 @@ from app.api import (
     unified_orders,
     upload,
     users,
+    video_consult_config,
     wechat_push,
 )
 from app.core.database import Base, engine
@@ -743,6 +746,9 @@ app.include_router(addresses.router)
 app.include_router(product_admin.router)
 app.include_router(appointment_form_admin.router)
 app.include_router(users.router)
+app.include_router(video_consult_config.router)
+app.include_router(feedback.router)
+app.include_router(app_settings.router)
 
 os.makedirs("uploads", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
