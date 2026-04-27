@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
 
 class _Category {
-  final int id;
+  final String id;
   final String name;
   final String? icon;
   final int? parentId;
-  _Category({required this.id, required this.name, this.icon, this.parentId});
+  final bool isVirtual;
+  _Category({required this.id, required this.name, this.icon, this.parentId, this.isVirtual = false});
 }
 
 class _Product {
@@ -55,10 +56,10 @@ class ServicesScreen extends StatefulWidget {
 class _ServicesScreenState extends State<ServicesScreen> with TickerProviderStateMixin {
   TabController? _tabController;
   List<_Category> _categories = [];
-  final Map<int, List<_Product>> _productsByCat = {};
-  final Map<int, int> _pageByCat = {};
-  final Map<int, bool> _hasMoreByCat = {};
-  final Map<int, bool> _loadingByCat = {};
+  final Map<String, List<_Product>> _productsByCat = {};
+  final Map<String, int> _pageByCat = {};
+  final Map<String, bool> _hasMoreByCat = {};
+  final Map<String, bool> _loadingByCat = {};
   bool _initialLoading = true;
 
   static const int pageSize = 10;
@@ -74,12 +75,12 @@ class _ServicesScreenState extends State<ServicesScreen> with TickerProviderStat
       final res = await ApiService().getProductCategories();
       final data = res.data is Map ? res.data as Map : {};
       final items = (data['items'] as List? ?? [])
-          .where((c) => (c['parent_id'] == null))
           .map((c) => _Category(
-                id: c['id'] is int ? c['id'] : int.tryParse('${c['id']}') ?? 0,
+                id: '${c['id']}',
                 name: c['name']?.toString() ?? '',
                 icon: c['icon']?.toString(),
                 parentId: c['parent_id'] is int ? c['parent_id'] : null,
+                isVirtual: c['is_virtual'] == true,
               ))
           .toList();
       if (!mounted) return;
@@ -110,12 +111,14 @@ class _ServicesScreenState extends State<ServicesScreen> with TickerProviderStat
     }
   }
 
-  Future<void> _loadProducts(int categoryId, {bool reset = false}) async {
+  Future<void> _loadProducts(String categoryId, {bool reset = false}) async {
     if (_loadingByCat[categoryId] == true) return;
     _loadingByCat[categoryId] = true;
     final page = reset ? 1 : (_pageByCat[categoryId] ?? 1);
     try {
-      final res = await ApiService().getProducts(categoryId: categoryId, page: page, pageSize: pageSize);
+      final res = categoryId == 'recommend'
+          ? await ApiService().getProductsByStringCategory(categoryId: categoryId, page: page, pageSize: pageSize)
+          : await ApiService().getProducts(categoryId: int.tryParse(categoryId), page: page, pageSize: pageSize);
       final data = res.data is Map ? res.data as Map : {};
       final List items = data['items'] as List? ?? [];
       final list = items.map((e) => _Product.fromJson(Map<String, dynamic>.from(e as Map))).toList();
@@ -209,7 +212,9 @@ class _ServicesScreenState extends State<ServicesScreen> with TickerProviderStat
           indicatorWeight: 3,
           labelStyle: const TextStyle(fontWeight: FontWeight.w600),
           unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal),
-          tabs: _categories.map((c) => Tab(text: c.name)).toList(),
+          tabs: _categories.map((c) => Tab(
+            text: c.isVirtual ? '${c.icon ?? "🔥"} ${c.name}' : c.name,
+          )).toList(),
         ),
       ),
       body: TabBarView(

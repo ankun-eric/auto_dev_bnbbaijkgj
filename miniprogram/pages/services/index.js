@@ -71,8 +71,8 @@ Page({
   async loadCategories() {
     try {
       const res = await get('/api/products/categories', {}, { showLoading: false, suppressErrorToast: true });
-      const items = (res.items || []).filter(c => !c.parent_id);
-      const tabs = items.map(c => c.name);
+      const items = res.items || [];
+      const tabs = items.map(c => c.is_virtual ? `${c.icon || '🔥'} ${c.name}` : c.name);
       this.setData({
         categories: items,
         tabs,
@@ -106,11 +106,16 @@ Page({
     if (this.data.loading) return Promise.resolve();
     this.setData({ loading: true });
     try {
-      const res = await get('/api/products', {
-        category_id: cat.id,
+      const params = {
         page: this.data.page,
         page_size: PAGE_SIZE
-      }, { showLoading: false, suppressErrorToast: true });
+      };
+      if (cat.id === 'recommend' || cat.is_virtual) {
+        params.category_id = 'recommend';
+      } else {
+        params.category_id = cat.id;
+      }
+      const res = await get('/api/products', params, { showLoading: false, suppressErrorToast: true });
       const items = res.items || [];
       const list = (items || []).map(p => ({
         id: p.id,

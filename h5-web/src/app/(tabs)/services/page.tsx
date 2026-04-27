@@ -34,12 +34,13 @@ import MarketingBadge from '@/components/MarketingBadge';
  */
 
 interface Category {
-  id: number;
+  id: number | string;
   name: string;
   icon?: string | null;
   sort_order?: number;
   parent_id?: number | null;
   children?: Category[];
+  is_virtual?: boolean;
 }
 
 interface Product {
@@ -170,7 +171,7 @@ export default function ServicesPage() {
   // 一级分类（大类）和二级分类（子类）
   const [topCategories, setTopCategories] = useState<Category[]>([]);
   const [allCategories, setAllCategories] = useState<Category[]>([]);
-  const [activeTopId, setActiveTopId] = useState<number | null>(null);
+  const [activeTopId, setActiveTopId] = useState<number | string | null>(null);
   const [activeSubId, setActiveSubId] = useState<number | null>(null); // null = 全部
 
   // 商品列表
@@ -193,7 +194,7 @@ export default function ServicesPage() {
       .get('/api/products/categories')
       .then((res: any) => {
         const data = res.data || res;
-        const tops: Category[] = (data.items || []).filter((c: Category) => !c.parent_id);
+        const tops: Category[] = (data.items || []);
         const flat: Category[] = data.flat || [];
         setTopCategories(tops);
         setAllCategories(flat.length > 0 ? flat : tops);
@@ -222,19 +223,21 @@ export default function ServicesPage() {
   // 当前大类的子类
   const subCategories = useMemo<Category[]>(() => {
     if (!activeTopId) return [];
+    if (activeTopId === 'recommend') return [];
     const top = topCategories.find((c) => c.id === activeTopId);
     if (top?.children && top.children.length > 0) return top.children;
-    // fallback：从 flat 中筛
     return allCategories.filter((c) => c.parent_id === activeTopId);
   }, [activeTopId, topCategories, allCategories]);
 
   // ── 加载商品（按大类 + 子类）──
   const loadProducts = useCallback(
-    async (topId: number | null, subId: number | null, pageNum: number, reset: boolean) => {
-      if (!topId) return;
+    async (topId: number | string | null, subId: number | null, pageNum: number, reset: boolean) => {
+      if (!topId && topId !== 0) return;
       try {
         const params: Record<string, any> = { page: pageNum, page_size: PAGE_SIZE };
-        if (subId) {
+        if (topId === 'recommend') {
+          params.category_id = 'recommend';
+        } else if (subId) {
           params.category_id = subId;
         } else {
           params.parent_category_id = topId;
@@ -403,7 +406,7 @@ export default function ServicesPage() {
             const active = activeTopId === cat.id;
             return (
               <div
-                key={cat.id}
+                key={String(cat.id)}
                 onClick={() => {
                   setActiveTopId(cat.id);
                   setActiveSubId(null);

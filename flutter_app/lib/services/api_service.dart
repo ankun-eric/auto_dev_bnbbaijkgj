@@ -1010,6 +1010,19 @@ class ApiService {
     return _dio.get(ApiConfig.products, queryParameters: params);
   }
 
+  Future<Response> getProductsByStringCategory({
+    required String categoryId,
+    int page = 1,
+    int pageSize = 20,
+  }) async {
+    final params = <String, dynamic>{
+      'page': page,
+      'page_size': pageSize,
+      'category_id': categoryId,
+    };
+    return _dio.get(ApiConfig.products, queryParameters: params);
+  }
+
   Future<Response> getProductDetail(int productId) async {
     return _dio.get('${ApiConfig.products}/$productId');
   }

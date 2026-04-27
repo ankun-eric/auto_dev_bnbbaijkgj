@@ -24,6 +24,17 @@ from app.schemas.products import (
 router = APIRouter(prefix="/api/products", tags=["商品"])
 
 
+async def _has_recommend_products(db: AsyncSession) -> bool:
+    """Check if there are active products with 'recommend' in marketing_badges."""
+    result = await db.execute(
+        select(func.count(Product.id))
+        .where(Product.status == "active")
+        .where(cast(Product.marketing_badges, String).like('%recommend%'))
+    )
+    count = result.scalar() or 0
+    return count > 0
+
+
 @router.get("/categories")
 async def list_categories(db: AsyncSession = Depends(get_db)):
     result = await db.execute(
@@ -62,13 +73,45 @@ async def list_categories(db: AsyncSession = Depends(get_db)):
         if cid in items_by_id:
             items_by_id[cid]["children"] = children
 
+    has_recommend = await _has_recommend_products(db)
+    if has_recommend:
+        recommend_virtual = {
+            "id": "recommend",
+            "name": "推荐",
+            "parent_id": None,
+            "icon": "🔥",
+            "description": "平台精选推荐商品",
+            "sort_order": -1,
+            "status": "active",
+            "level": 1,
+            "created_at": None,
+            "children": [],
+            "is_virtual": True,
+        }
+        top_level.insert(0, recommend_virtual)
+
     flat = [to_dict(c) for c in all_cats]
+    if has_recommend:
+        flat.insert(0, {
+            "id": "recommend",
+            "name": "推荐",
+            "parent_id": None,
+            "icon": "🔥",
+            "description": "平台精选推荐商品",
+            "sort_order": -1,
+            "status": "active",
+            "level": 1,
+            "created_at": None,
+            "children": [],
+            "is_virtual": True,
+        })
+
     return {"items": top_level, "flat": flat}
 
 
 @router.get("")
 async def list_products(
-    category_id: Optional[int] = None,
+    category_id: Optional[str] = None,
     parent_category_id: Optional[int] = None,
     fulfillment_type: Optional[str] = None,
     points_exchangeable: Optional[bool] = None,
@@ -79,11 +122,13 @@ async def list_products(
     page_size: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
 ):
-    """改造④：服务列表接口扩展
-    - 新增 `parent_category_id`：按一级分类（左侧大类）筛选，自动包含其全部子类
-    - 新增 `q`：与 `keyword` 等价的关键词参数（前端搜索框使用）
-    - 关键词同时匹配 `name` 与 `symptom_tags`（tags），实现「全分类全关键词搜索」
+    """服务列表接口
+    - `category_id=recommend`：返回营销角标含 recommend 的推荐商品
+    - `parent_category_id`：按一级分类（左侧大类）筛选，自动包含其全部子类
+    - `q`：与 `keyword` 等价的关键词参数（前端搜索框使用）
     """
+    is_recommend = category_id == "recommend"
+
     query = (
         select(Product)
         .options(selectinload(Product.skus))
@@ -91,9 +136,14 @@ async def list_products(
     )
     count_query = select(func.count(Product.id)).where(Product.status == "active")
 
-    if category_id:
-        query = query.where(Product.category_id == category_id)
-        count_query = count_query.where(Product.category_id == category_id)
+    if is_recommend:
+        recommend_filter = cast(Product.marketing_badges, String).like('%recommend%')
+        query = query.where(recommend_filter)
+        count_query = count_query.where(recommend_filter)
+    elif category_id and category_id.isdigit():
+        cat_id_int = int(category_id)
+        query = query.where(Product.category_id == cat_id_int)
+        count_query = count_query.where(Product.category_id == cat_id_int)
     elif parent_category_id:
         # 改造④：左侧大类（一级分类）→ 取该大类下所有子类 ID 一起查询
         sub_ids_result = await db.execute(
@@ -127,10 +177,21 @@ async def list_products(
     total_result = await db.execute(count_query)
     total = total_result.scalar() or 0
 
+    if is_recommend:
+        order_clause = query.order_by(
+            Product.recommend_weight.desc(),
+            Product.sort_order.asc(),
+            Product.created_at.desc(),
+        )
+    else:
+        order_clause = query.order_by(
+            Product.recommend_weight.desc(),
+            Product.sort_order.asc(),
+            Product.sales_count.desc(),
+        )
+
     result = await db.execute(
-        query.order_by(Product.recommend_weight.desc(), Product.sort_order.asc(), Product.sales_count.desc())
-        .offset((page - 1) * page_size)
-        .limit(page_size)
+        order_clause.offset((page - 1) * page_size).limit(page_size)
     )
     items = [ProductResponse.model_validate(p) for p in result.scalars().all()]
     return {"items": items, "total": total, "page": page, "page_size": page_size}

@@ -33,7 +33,20 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 商品原价为空时显示0的Bug修复 — 已开发部署（2026-04-28）
+## Latest Update: 用户端服务页推荐分类需求PRD（2026-04-28）
+
+### 一句话结论
+用户端「首页→服务」页面新增「推荐」虚拟分类需求PRD已输出。在分类列表最前方增加🔥推荐分类，聚合展示 marketing_badges 包含 recommend 的已上架商品，按推荐权重降序排列。有推荐商品时默认选中，无推荐商品时自动隐藏。商品跨分类聚合展示（同时出现在原分类和推荐分类）。覆盖H5+APP+小程序三端，管理后台无需改动（复用营销角标功能）。
+
+### 记忆文件
+- `mem/mem_用户端服务页推荐分类需求_20260428_003430.md`
+
+### PRD文档
+- `docs/PRD_用户端服务页推荐分类_20260428_003430.md`
+
+---
+
+## Previous Update: 商品原价为空时显示0的Bug修复 — 已开发部署（2026-04-28）
 
 ### 一句话结论
 商品管理中原价不填时数据库存储为0（而非NULL）的Bug已修复并部署。修改涵盖后端（模型nullable=True、Schema改Optional、API返回处理None、历史数据清洗）、Admin Web（提交空值传null、回填null转undefined）、H5 Web（类型定义支持null、展示加null判断）、Flutter（double?可空类型+null安全检查）四端。新增5个回归测试用例全部通过。Android APK和iOS IPA已通过GitHub Actions构建并发布。
