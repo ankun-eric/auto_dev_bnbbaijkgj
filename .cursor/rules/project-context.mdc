@@ -33,7 +33,92 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 用户端全面改版 — AI对话模式开发完成并部署（2026-04-27）
+## Latest Update: AI对话首页功能整合与对话体验升级（2026-04-27）
+
+### 一句话结论
+AI对话首页重大升级，将聊天页核心对话能力整合到首页，实现"对话即入口"的一站式AI健康对话体验。新增SSE流式逐字输出、语音输入（按住说话）、TTS语音朗读、对话持久化、空闲自动新建对话、历史会话侧边栏增强、健康画像静默注入。后端新增UserHealthProfile模型和健康画像API，新增空闲超时配置API。Admin后台新增对话超时配置页面。
+
+### 后端改造
+
+| 模块 | 改动 |
+| --- | --- |
+| `backend/app/models/models.py` | 新增 `UserHealthProfile` 模型（用户健康画像，含基础信息/慢病/过敏/用药/家族史/关注领域） |
+| `backend/app/api/user_health_profile.py` | **新建** — 健康画像 CRUD API + 异步提取接口 |
+| `backend/app/api/app_settings.py` | 新增空闲超时配置 3 个端点（公开获取 + Admin 获取/更新） |
+| `backend/app/api/chat.py` | 流式对话接口注入用户健康画像到 System Prompt |
+| `backend/app/main.py` | 注册 user_health_profile 路由 |
+
+### H5前端改造
+
+| 模块 | 改动 |
+| --- | --- |
+| `h5-web/src/app/(ai-chat)/ai-home/page.tsx` | **重构** — SSE流式对话、语音输入、TTS语音朗读、对话持久化、空闲自动新建对话、页面状态切换（引导态/对话态） |
+| `h5-web/src/components/ai-chat/Sidebar.tsx` | **增强** — 新建对话按钮、会话预览详情、活跃会话高亮、清空全部对话、点击加载历史会话 |
+
+### Admin前端改造
+
+| 模块 | 改动 |
+| --- | --- |
+| `admin-web/src/app/(admin)/ai-config/chat-timeout/page.tsx` | **新建** — 对话空闲超时配置页（30/60分钟可选） |
+| `admin-web/src/app/(admin)/layout.tsx` | 导航菜单AI咨询配置组下新增"对话超时配置"入口 |
+
+### 新增 API 端点
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| GET | `/api/app-settings/chat-idle-timeout` | 获取空闲超时配置（公开） |
+| GET | `/api/admin/app-settings/chat-idle-timeout` | Admin获取超时配置 |
+| PUT | `/api/admin/app-settings/chat-idle-timeout` | Admin更新超时配置 |
+| GET | `/api/user/health-profile` | 获取用户健康画像 |
+| PUT | `/api/user/health-profile` | 更新用户健康画像 |
+| POST | `/api/user/health-profile/extract` | 从对话异步提取健康信息 |
+
+### 新增数据模型
+- `UserHealthProfile`（user_health_profiles 表）：id, user_id, basic_info, chronic_diseases, allergies, medications, family_history, focus_areas, created_at, updated_at
+
+### 用户文档
+- `user_docs/AI对话首页功能整合与对话体验升级_20260427_203500_c8e1.md`
+
+---
+
+## Previous Update: AI对话页圆圈加号菜单改版PRD完成（2026-04-27）
+
+### 一句话结论
+AI对话页右上角菜单改版需求全部确认并输出PRD。核心变更：入口图标"..."改为⊕圆圈加号；菜单项固定四项（扫一扫→会员码→字体大小→立即分享）；菜单样式参考微信但跟随蓝紫主题；新增会员码菜单内弹窗（60秒自动刷新、显示二维码+昵称）；字体大小四档选项列表（小/标准/大/超大，仅影响AI对话页）。
+
+### PRD文档
+- `docs/PRD_AI对话页圆圈加号菜单改版_20260427_200100.md`
+
+### 记忆文件
+- `mem/mem_AI对话页圆圈加号菜单PRD生成_20260427_200100.md`
+- `mem/mem_AI对话页圆圈加号菜单需求细化_20260427_195700.md`
+
+---
+
+## Previous Update: AI对话首页轮播图菜单不显示Bug修复方案V2（2026-04-27）
+
+### 一句话结论
+AI对话版首页的轮播图/健康贴士、功能菜单、底部快捷标签栏全部不显示。根因包括：(1)轮播图API路径多了`h5/`前缀导致404；(2)功能菜单数据源应改用`home-menus`而非`function-buttons`；(3)底部标签API路径缺少`chat/`前缀导致404。修复方案共7项，涵盖API路径修正、数据源切换、UI样式对齐设计稿（蓝色卡片、灰色说明文字、空状态提示）、后端新增description字段。
+
+### Bug修复方案文件
+- `docs/BUG_FIX_AI对话首页轮播图菜单功能不显示_20260427_180900.md`
+
+### 记忆文件
+- `mem/mem_AI对话首页轮播图菜单不显示Bug方案V2_20260427_180900.md`
+
+### 用户确认的关键决策
+- Banner 用蓝色卡片样式展示健康贴士
+- 功能菜单使用 home-menus 数据源（非 function-buttons）
+- 菜单项需新增 description 字段展示灰色说明文字
+- AI对话版与旧版共用同一套后台配置数据
+
+### 历史方案文件
+- `docs/BUG_FIX_AI对话首页轮播图菜单不显示_20260427_175500.md`（初版，已被V2方案取代）
+- `mem/mem_AI对话首页轮播图菜单不显示Bug方案_20260427_175500.md`
+
+---
+
+## Previous Update: 用户端全面改版 — AI对话模式开发完成并部署（2026-04-27）
 
 ### 一句话结论
 用户端全面改版已完成开发并部署到服务器。核心变更：取消四Tab底部导航，新增AI对话模式（首屏即AI对话）；新建侧边栏「我的」面板、历史对话管理、档案页四子Tab重组、设置页增强、账号安全、意见反馈等页面；专家详情页「预约」按钮对接商品下单流程；Admin新增视频客服配置页和页面风格配置页；主色调统一蓝紫#5B6CFF。

@@ -24,6 +24,7 @@ from app.models.models import (
     MessageType,
     SessionType,
     User,
+    UserHealthProfile,
 )
 from app.schemas.chat import ChatMessageCreate, ChatMessageResponse, ChatSessionCreate, ChatSessionResponse
 from app.services.ai_service import call_ai_model, call_ai_model_stream, symptom_analysis
@@ -161,6 +162,57 @@ async def _build_health_context(session: ChatSession, db: AsyncSession) -> str:
         )
 
     return "\n".join(context_parts)
+
+
+async def _build_user_health_profile_context(user_id: int, db: AsyncSession) -> str:
+    """Build context from UserHealthProfile for system_prompt injection."""
+    try:
+        result = await db.execute(
+            select(UserHealthProfile).where(UserHealthProfile.user_id == user_id)
+        )
+        profile = result.scalar_one_or_none()
+        if not profile:
+            return ""
+
+        parts = []
+        basic = profile.basic_info or {}
+        gender_map = {"male": "男性", "female": "女性"}
+        gender = gender_map.get(basic.get("gender", ""), basic.get("gender", ""))
+        age = basic.get("age")
+        bmi = basic.get("bmi")
+
+        if gender:
+            parts.append(gender)
+        if age:
+            parts.append(f"{age}岁")
+        if bmi:
+            parts.append(f"BMI {bmi}")
+
+        chronic = profile.chronic_diseases or []
+        meds = profile.medications or []
+        if chronic:
+            disease_str = "、".join(chronic)
+            if meds:
+                parts.append(f"{disease_str}（服用{'、'.join(meds)}）")
+            else:
+                parts.append(disease_str)
+        elif meds:
+            parts.append(f"服用{'、'.join(meds)}")
+
+        allergies = profile.allergies or []
+        if allergies:
+            parts.append(f"{'、'.join(allergies)}过敏")
+
+        if not parts:
+            return ""
+
+        profile_str = "，".join(parts)
+        return (
+            f"\n\n用户健康画像：{profile_str}。"
+            "请在回答健康问题时参考以上信息，但不要主动提及这些信息，除非与用户当前问题直接相关。"
+        )
+    except Exception:
+        return ""
 
 
 @router.post("/sessions", response_model=ChatSessionResponse)
@@ -421,6 +473,10 @@ async def stream_message(
     health_context = await _build_health_context(session, db)
     if health_context:
         system_prompt += health_context
+
+    user_hp_context = await _build_user_health_profile_context(current_user.id, db)
+    if user_hp_context:
+        system_prompt += user_hp_context
 
     # [2026-04-23 v1.2] drug_query 场景：注入 {member_info} + {drug_list}
     if session_type_val == "drug_query":

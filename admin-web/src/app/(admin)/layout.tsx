@@ -101,6 +101,7 @@ const menuItems: MenuItem[] = [
       { key: '/tts-config', icon: <SoundOutlined />, label: 'TTS语音配置' },
       { key: '/share-config', icon: <ShareAltOutlined />, label: '分享海报配置' },
       { key: '/ai-config/video-consult', label: '视频客服' },
+      { key: '/ai-config/chat-timeout', label: '对话超时配置' },
     ],
   },
   {
@@ -216,7 +217,7 @@ function getOpenKeys(pathname: string): string[] {
   if (pathname.startsWith('/merchant') || pathname.startsWith('/merchant-categories') || pathname.startsWith('/admin-settlements')) return ['merchant'];
   if (pathname.startsWith('/content')) return ['content'];
   if (pathname.startsWith('/points')) return ['points'];
-  if (pathname.startsWith('/ai-config/video-consult')) return ['ai-consult-config'];
+  if (pathname.startsWith('/ai-config/video-consult') || pathname.startsWith('/ai-config/chat-timeout')) return ['ai-consult-config'];
   if (pathname.startsWith('/ai-config') || pathname.startsWith('/chat-records') || pathname.startsWith('/knowledge') || pathname.startsWith('/search-config') || pathname.startsWith('/fallback-config') || pathname.startsWith('/ocr-config') || pathname.startsWith('/ocr-global-config') || pathname.startsWith('/checkup-details') || pathname.startsWith('/drug-details')) return ['ai'];
   if (pathname.startsWith('/ai-center') || pathname.startsWith('/prompt-templates') || pathname.startsWith('/tcm-config')) return ['ai-center'];
   if (pathname.startsWith('/function-buttons') || pathname.startsWith('/digital-humans') || pathname.startsWith('/voice-service') || pathname.startsWith('/tts-config') || pathname.startsWith('/share-config')) return ['ai-consult-config'];

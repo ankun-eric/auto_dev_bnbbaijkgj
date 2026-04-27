@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Avatar, Badge } from 'antd-mobile';
+import { Avatar, Badge, Dialog, Toast } from 'antd-mobile';
 import { THEME } from '@/lib/theme';
 import { useAuth } from '@/lib/auth';
 import api from '@/lib/api';
@@ -12,11 +12,15 @@ interface ChatHistoryItem {
   title: string;
   time: string;
   pinned?: boolean;
+  lastMessage?: string;
 }
 
 interface SidebarProps {
   visible: boolean;
   onClose: () => void;
+  activeSessionId?: string | null;
+  onSelectSession?: (sessionId: string) => void;
+  onNewConversation?: () => void;
 }
 
 interface OrderCounts {
@@ -26,7 +30,17 @@ interface OrderCounts {
   refund: number;
 }
 
-export default function Sidebar({ visible, onClose }: SidebarProps) {
+function formatRelativeTime(iso: string): string {
+  const now = Date.now();
+  const t = new Date(iso).getTime();
+  const diff = now - t;
+  if (diff < 60 * 1000) return '刚刚';
+  if (diff < 60 * 60 * 1000) return `${Math.floor(diff / 60000)}分钟前`;
+  if (diff < 24 * 60 * 60 * 1000) return `${Math.floor(diff / 3600000)}小时前`;
+  return new Date(iso).toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' });
+}
+
+export default function Sidebar({ visible, onClose, activeSessionId, onSelectSession, onNewConversation }: SidebarProps) {
   const router = useRouter();
   const { user } = useAuth();
   const [histories, setHistories] = useState<ChatHistoryItem[]>([]);
@@ -44,6 +58,7 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
         title: s.title || '新对话',
         time: s.updated_at || s.created_at || '',
         pinned: s.is_pinned || false,
+        lastMessage: s.last_message || s.preview || '',
       })));
     }).catch(() => {});
 
@@ -90,6 +105,39 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
     router.push(path);
   };
 
+  const handleSelectSession = (id: string) => {
+    if (onSelectSession) {
+      onSelectSession(id);
+    } else {
+      navigateTo(`/chat/${id}`);
+    }
+  };
+
+  const handleNewConversation = () => {
+    if (onNewConversation) {
+      onNewConversation();
+      onClose();
+    }
+  };
+
+  const handleClearAll = async () => {
+    const confirmed = await Dialog.confirm({
+      content: '确定清空全部对话记录吗？此操作不可撤销。',
+      confirmText: '清空',
+      cancelText: '取消',
+    });
+    if (confirmed) {
+      try {
+        await api.delete('/api/chat/sessions');
+        setHistories([]);
+        if (onNewConversation) onNewConversation();
+        Toast.show({ content: '已清空全部对话', icon: 'success' });
+      } catch {
+        Toast.show({ content: '清空失败，请重试' });
+      }
+    }
+  };
+
   const pinned = histories.filter(h => h.pinned);
   const unpinned = histories.filter(h => !h.pinned);
   const grouped = groupByTime(unpinned);
@@ -130,7 +178,6 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
                 </div>
               </div>
 
-              {/* Quick entries */}
               <div className="flex gap-6 mt-4">
                 <div className="flex items-center gap-1 cursor-pointer" onClick={() => navigateTo('/notifications')}>
                   <Badge content={msgCount > 0 ? msgCount : null}>
@@ -168,6 +215,18 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
               ))}
             </div>
 
+            {/* New conversation button */}
+            <div className="px-3 pt-3">
+              <button
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium active:opacity-80"
+                style={{ background: THEME.primary, color: '#fff' }}
+                onClick={handleNewConversation}
+              >
+                <span>＋</span>
+                <span>新建对话</span>
+              </button>
+            </div>
+
             {/* Chat histories */}
             <div className="flex-1 overflow-y-auto px-3 py-3">
               <div className="flex items-center justify-between mb-2 px-1">
@@ -176,35 +235,69 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
 
               {pinned.length > 0 && (
                 <div className="mb-3">
-                  {pinned.map(item => (
-                    <div
-                      key={item.id}
-                      className="flex items-center gap-2 px-3 py-2.5 rounded-xl mb-1 cursor-pointer"
-                      style={{ background: THEME.primaryLight }}
-                      onClick={() => navigateTo(`/chat/${item.id}`)}
-                    >
-                      <span className="text-xs">📌</span>
-                      <span className="text-sm flex-1 truncate" style={{ color: THEME.textPrimary }}>{item.title}</span>
-                    </div>
-                  ))}
+                  {pinned.map(item => {
+                    const isActive = activeSessionId === item.id;
+                    return (
+                      <div
+                        key={item.id}
+                        className="flex items-center gap-2 px-3 py-2.5 rounded-xl mb-1 cursor-pointer relative overflow-hidden"
+                        style={{ background: isActive ? THEME.primaryLight : THEME.primaryLight }}
+                        onClick={() => handleSelectSession(item.id)}
+                      >
+                        {isActive && (
+                          <div className="absolute left-0 top-1 bottom-1 w-1 rounded-r-full" style={{ background: THEME.primary }} />
+                        )}
+                        <span className="text-xs">📌</span>
+                        <div className="flex-1 min-w-0">
+                          <span className="text-sm truncate block" style={{ color: THEME.textPrimary }}>
+                            {item.title.slice(0, 20)}
+                          </span>
+                          {item.lastMessage && (
+                            <span className="text-xs truncate block mt-0.5" style={{ color: THEME.textSecondary }}>
+                              {item.lastMessage.slice(0, 30)}
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-xs flex-shrink-0 ml-1" style={{ color: THEME.textSecondary }}>
+                          {formatRelativeTime(item.time)}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
 
               {grouped.map(group => (
                 <div key={group.label} className="mb-3">
                   <div className="text-xs px-1 mb-1.5" style={{ color: THEME.textSecondary }}>{group.label}</div>
-                  {group.items.map(item => (
-                    <div
-                      key={item.id}
-                      className="flex items-center justify-between px-3 py-2.5 rounded-xl mb-1 cursor-pointer hover:bg-gray-50"
-                      onClick={() => navigateTo(`/chat/${item.id}`)}
-                    >
-                      <span className="text-sm flex-1 truncate" style={{ color: THEME.textPrimary }}>{item.title}</span>
-                      <span className="text-xs flex-shrink-0 ml-2" style={{ color: THEME.textSecondary }}>
-                        {new Date(item.time).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                    </div>
-                  ))}
+                  {group.items.map(item => {
+                    const isActive = activeSessionId === item.id;
+                    return (
+                      <div
+                        key={item.id}
+                        className="flex items-center justify-between px-3 py-2.5 rounded-xl mb-1 cursor-pointer hover:bg-gray-50 relative overflow-hidden"
+                        style={{ background: isActive ? THEME.primaryLight : 'transparent' }}
+                        onClick={() => handleSelectSession(item.id)}
+                      >
+                        {isActive && (
+                          <div className="absolute left-0 top-1 bottom-1 w-1 rounded-r-full" style={{ background: THEME.primary }} />
+                        )}
+                        <div className="flex-1 min-w-0 pr-2">
+                          <span className="text-sm truncate block" style={{ color: THEME.textPrimary }}>
+                            {item.title.slice(0, 20)}
+                          </span>
+                          {item.lastMessage && (
+                            <span className="text-xs truncate block mt-0.5" style={{ color: THEME.textSecondary }}>
+                              {item.lastMessage.slice(0, 30)}
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-xs flex-shrink-0" style={{ color: THEME.textSecondary }}>
+                          {formatRelativeTime(item.time)}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
               ))}
 
@@ -216,6 +309,17 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
             </div>
 
             {/* Bottom */}
+            <div className="px-3 pb-2">
+              {histories.length > 0 && (
+                <button
+                  className="w-full flex items-center justify-center gap-1 py-2 rounded-xl text-xs mb-2 active:opacity-70"
+                  style={{ background: '#FFF0F0', color: '#FF4D4F' }}
+                  onClick={handleClearAll}
+                >
+                  🗑️ 清空全部对话
+                </button>
+              )}
+            </div>
             <div className="flex items-center justify-between px-4 py-3 border-t" style={{ borderColor: THEME.divider }}>
               <div className="flex items-center gap-1.5 cursor-pointer" onClick={() => navigateTo('/ai-settings')}>
                 <span>⚙️</span>

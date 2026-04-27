@@ -78,6 +78,7 @@ from app.api import (
     tts,
     unified_orders,
     upload,
+    user_health_profile,
     users,
     video_consult_config,
     wechat_push,
@@ -387,6 +388,8 @@ async def _migrate_v7_search_placeholder():
     但后续运营/脏数据又把值改回"搜索健康服务/商品"等变体，这里再强制覆盖一次。
     升级后再次部署重启 backend 即可生效，仍然保持幂等（只会修正一次）。
     """
+    import logging as _l
+    _logger = _l.getLogger(__name__)
     try:
         from app.core.database import async_session
         from app.models.models import SystemConfig
@@ -749,6 +752,7 @@ app.include_router(users.router)
 app.include_router(video_consult_config.router)
 app.include_router(feedback.router)
 app.include_router(app_settings.router)
+app.include_router(user_health_profile.router)
 
 os.makedirs("uploads", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")

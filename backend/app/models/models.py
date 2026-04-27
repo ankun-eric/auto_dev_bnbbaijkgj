@@ -3108,3 +3108,23 @@ class AppSetting(Base):
     value = mapped_column(Text, nullable=True)
     description = mapped_column(String(500), nullable=True)
     updated_at = mapped_column(DateTime, server_default=func.now(), onupdate=datetime.utcnow)
+
+
+# ──────────────── 用户健康画像 ────────────────
+
+
+class UserHealthProfile(Base):
+    __tablename__ = "user_health_profiles"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id = mapped_column(Integer, ForeignKey("users.id"), unique=True, nullable=False, index=True)
+    basic_info = mapped_column(JSON, nullable=True)
+    chronic_diseases = mapped_column(JSON, nullable=True)
+    allergies = mapped_column(JSON, nullable=True)
+    medications = mapped_column(JSON, nullable=True)
+    family_history = mapped_column(JSON, nullable=True)
+    focus_areas = mapped_column(JSON, nullable=True)
+    created_at = mapped_column(DateTime, server_default=func.now())
+    updated_at = mapped_column(DateTime, server_default=func.now(), onupdate=datetime.utcnow)
+
+    user = relationship("User", backref="user_health_profile")
