@@ -423,20 +423,85 @@ export default function AiHomePage() {
     el.style.height = Math.min(el.scrollHeight, 120) + 'px';
   };
 
-  // Voice recording
+  const mimeTypeRef = useRef('');
+  const streamRef = useRef<MediaStream | null>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+
+  const getPreferredMimeType = (): string => {
+    if (typeof MediaRecorder !== 'undefined') {
+      if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) return 'audio/webm;codecs=opus';
+      if (MediaRecorder.isTypeSupported('audio/webm')) return 'audio/webm';
+      if (MediaRecorder.isTypeSupported('audio/mp4')) return 'audio/mp4';
+      if (MediaRecorder.isTypeSupported('audio/mp3')) return 'audio/mp3';
+    }
+    return '';
+  };
+
+  const mimeToFormat = (mime: string): string => {
+    if (!mime) return 'webm';
+    if (mime.includes('webm')) return 'webm';
+    if (mime.includes('mp4')) return 'm4a';
+    if (mime.includes('mp3') || mime.includes('mpeg')) return 'mp3';
+    return 'webm';
+  };
+
+  const checkMicPermission = useCallback(async (): Promise<boolean> => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      Toast.show({ content: '当前浏览器不支持语音输入', icon: 'fail' });
+      return false;
+    }
+    try {
+      if (navigator.permissions) {
+        const permStatus = await navigator.permissions.query({ name: 'microphone' as PermissionName });
+        if (permStatus.state === 'granted') return true;
+        if (permStatus.state === 'denied') {
+          Toast.show({ content: '麦克风权限已被禁止，请在系统设置中开启', icon: 'fail', duration: 2500 });
+          return false;
+        }
+      }
+      const result = await Dialog.confirm({
+        title: '允许访问麦克风',
+        content: '需要使用麦克风进行语音输入，请授权',
+        confirmText: '去授权',
+        cancelText: '取消',
+      });
+      if (!result) return false;
+      const testStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      testStream.getTracks().forEach(t => t.stop());
+      return true;
+    } catch {
+      Toast.show({ content: '请在系统设置中开启麦克风权限', icon: 'fail', duration: 2500 });
+      return false;
+    }
+  }, []);
+
+  const handleMicToggle = useCallback(async () => {
+    if (voiceMode) {
+      setVoiceMode(false);
+      return;
+    }
+    const granted = await checkMicPermission();
+    if (granted) setVoiceMode(true);
+  }, [voiceMode, checkMicPermission]);
+
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = recorder;
-      audioChunksRef.current = [];
+      streamRef.current = stream;
 
       const audioCtx = new AudioContext();
+      audioCtxRef.current = audioCtx;
       const source = audioCtx.createMediaStreamSource(stream);
       const analyser = audioCtx.createAnalyser();
       analyser.fftSize = 256;
       source.connect(analyser);
       analyserRef.current = analyser;
+
+      const mime = getPreferredMimeType();
+      mimeTypeRef.current = mime;
+      const recorder = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+      mediaRecorderRef.current = recorder;
+      audioChunksRef.current = [];
 
       const updateVolume = () => {
         if (!analyserRef.current) return;
@@ -455,15 +520,22 @@ export default function AiHomePage() {
         cancelAnimationFrame(animFrameRef.current);
         analyserRef.current = null;
         setVolumeLevel(0);
-        stream.getTracks().forEach(t => t.stop());
-        audioCtx.close();
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach(t => t.stop());
+          streamRef.current = null;
+        }
+        if (audioCtxRef.current && audioCtxRef.current.state !== 'closed') {
+          try { audioCtxRef.current.close(); } catch {}
+        }
+        audioCtxRef.current = null;
 
         if (recordCancelled) {
           setRecordCancelled(false);
           return;
         }
 
-        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const fmt = mimeToFormat(mimeTypeRef.current);
+        const blob = new Blob(audioChunksRef.current, { type: mimeTypeRef.current || 'audio/webm' });
         if (blob.size < 1000) {
           Toast.show({ content: '录音时间太短' });
           return;
@@ -471,32 +543,32 @@ export default function AiHomePage() {
 
         Toast.show({ content: '语音识别中...', icon: 'loading' });
         try {
-          const formData = new FormData();
-          formData.append('audio', blob, 'voice.webm');
-          const token = localStorage.getItem('token');
-          const resp = await fetch(`${basePath}/api/tts/synthesize`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}` },
-            body: formData,
+          const fd = new FormData();
+          fd.append('audio_file', blob, `recording.${fmt}`);
+          fd.append('format', fmt);
+          fd.append('sample_rate', '16000');
+          const data: any = await api.post('/api/search/asr/recognize', fd, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+            timeout: 30000,
           });
-          const result = await resp.json();
           Toast.clear();
-          if (result.text) {
-            handleSend(result.text);
+          const text = data?.data?.text || data?.text || '';
+          if (text.trim()) {
+            handleSend(text.trim());
           } else {
-            Toast.show({ content: '无法识别语音，请重试' });
+            Toast.show({ content: '未识别到语音内容，请重试' });
           }
         } catch {
           Toast.clear();
-          Toast.show({ content: '语音识别失败' });
+          Toast.show({ content: '语音识别失败，请重试' });
         }
       };
 
-      recorder.start();
+      recorder.start(250);
       setRecording(true);
       setRecordCancelled(false);
     } catch {
-      Toast.show({ content: '无法访问麦克风' });
+      Toast.show({ content: '无法访问麦克风，请检查权限设置' });
     }
   };
 
@@ -535,62 +607,84 @@ export default function AiHomePage() {
     }
   };
 
-  // TTS
-  const handleTTS = async (text: string) => {
+  const stopTts = useCallback(() => {
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
+    if (ttsAudioRef.current) {
+      ttsAudioRef.current.pause();
+      ttsAudioRef.current = null;
+    }
+    setTtsPlaying(false);
+  }, []);
+
+  const handleTTS = useCallback(async (text: string) => {
     if (ttsPlaying) {
-      ttsAudioRef.current?.pause();
-      if (typeof window !== 'undefined' && window.speechSynthesis) {
-        window.speechSynthesis.cancel();
-      }
-      setTtsPlaying(false);
+      stopTts();
       return;
     }
+    stopTts();
+
+    const plainText = text.replace(/\*\*(.*?)\*\*/g, '$1').replace(/---disclaimer---[\s\S]*/g, '').trim();
+    if (!plainText) return;
 
     setTtsPlaying(true);
-    try {
-      const token = localStorage.getItem('token');
-      const resp = await fetch(`${basePath}/api/tts/synthesize`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({ text }),
-      });
 
-      if (resp.ok && resp.headers.get('content-type')?.includes('audio')) {
-        const blob = await resp.blob();
-        const url = URL.createObjectURL(blob);
-        const audio = new Audio(url);
+    try {
+      const configRes: any = await api.get('/api/settings/tts-config', { params: { platform: 'h5' } }).catch(() => null);
+      const config = configRes?.data || configRes;
+      const useCloudTts = config?.tts_provider === 'cloud' || config?.use_cloud_tts;
+
+      if (useCloudTts) {
+        const ttsRes: any = await api.post('/api/tts/synthesize', { text: plainText });
+        const data = ttsRes.data || ttsRes;
+        if (data.audio_url) {
+          const audio = new Audio(data.audio_url);
+          ttsAudioRef.current = audio;
+          audio.onended = () => setTtsPlaying(false);
+          audio.onerror = () => {
+            setTtsPlaying(false);
+            Toast.show({ content: '播放失败，请重试' });
+          };
+          audio.play();
+          return;
+        }
+      }
+    } catch {}
+
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      const utterance = new SpeechSynthesisUtterance(plainText);
+      utterance.lang = 'zh-CN';
+      utterance.rate = 1.0;
+      utterance.onend = () => setTtsPlaying(false);
+      utterance.onerror = () => {
+        setTtsPlaying(false);
+        tryCloudTtsFallback(plainText);
+      };
+      window.speechSynthesis.speak(utterance);
+    } else {
+      tryCloudTtsFallback(plainText);
+    }
+  }, [ttsPlaying, stopTts]);
+
+  const tryCloudTtsFallback = async (text: string) => {
+    try {
+      const ttsRes: any = await api.post('/api/tts/synthesize', { text });
+      const data = ttsRes.data || ttsRes;
+      if (data.audio_url) {
+        const audio = new Audio(data.audio_url);
         ttsAudioRef.current = audio;
-        audio.onended = () => {
-          setTtsPlaying(false);
-          URL.revokeObjectURL(url);
-        };
+        audio.onended = () => setTtsPlaying(false);
         audio.onerror = () => {
           setTtsPlaying(false);
-          fallbackTTS(text);
+          Toast.show({ content: '当前浏览器不支持语音播报' });
         };
         audio.play();
-      } else {
-        fallbackTTS(text);
+        return;
       }
-    } catch {
-      fallbackTTS(text);
-    }
-  };
-
-  const fallbackTTS = (text: string) => {
-    if (typeof window !== 'undefined' && window.speechSynthesis) {
-      const utter = new SpeechSynthesisUtterance(text);
-      utter.lang = 'zh-CN';
-      utter.onend = () => setTtsPlaying(false);
-      utter.onerror = () => setTtsPlaying(false);
-      window.speechSynthesis.speak(utter);
-    } else {
-      setTtsPlaying(false);
-      Toast.show({ content: '当前浏览器不支持语音播报' });
-    }
+    } catch {}
+    setTtsPlaying(false);
+    Toast.show({ content: '当前浏览器不支持语音播报' });
   };
 
   const handleCopy = (text: string) => {
@@ -868,7 +962,7 @@ export default function AiHomePage() {
             <button
               className="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full"
               style={{ background: THEME.primaryLight, color: THEME.primary }}
-              onClick={() => setVoiceMode(false)}
+              onClick={handleMicToggle}
             >
               ⌨️
             </button>
@@ -914,7 +1008,7 @@ export default function AiHomePage() {
               <button
                 className="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full mb-0"
                 style={{ background: THEME.primaryLight, color: THEME.primary }}
-                onClick={() => setVoiceMode(true)}
+                onClick={handleMicToggle}
               >
                 🎤
               </button>
