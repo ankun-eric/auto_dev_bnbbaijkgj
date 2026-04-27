@@ -33,7 +33,76 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: AI对话首页语音输入与TTS播报Bug修复方案（2026-04-27）
+## Latest Update: 商品原价为空时显示0的Bug修复 — 已开发部署（2026-04-28）
+
+### 一句话结论
+商品管理中原价不填时数据库存储为0（而非NULL）的Bug已修复并部署。修改涵盖后端（模型nullable=True、Schema改Optional、API返回处理None、历史数据清洗）、Admin Web（提交空值传null、回填null转undefined）、H5 Web（类型定义支持null、展示加null判断）、Flutter（double?可空类型+null安全检查）四端。新增5个回归测试用例全部通过。Android APK和iOS IPA已通过GitHub Actions构建并发布。
+
+### 修改的文件
+- `backend/app/models/models.py` — Product.original_price 改为 nullable=True
+- `backend/app/schemas/products.py` — ProductCreate/ProductResponse 改为 Optional[float] = None
+- `backend/app/api/product_admin.py` — 两处 `or 0` 改为正确 None 处理
+- `backend/app/main.py` — 新增一次性数据库迁移（ALTER TABLE + UPDATE历史数据）
+- `backend/tests/test_original_price_bugfix.py` — 新增5个测试用例
+- `admin-web/src/app/(admin)/product-system/products/page.tsx` — 类型/提交/回填/映射修复
+- `h5-web/src/app/product/[id]/page.tsx` — 类型改为 number | null
+- `h5-web/src/app/products/page.tsx` — 类型改为 number | null + 展示加null判断
+- `h5-web/src/app/checkout/page.tsx` — 类型改为 number | null
+- `flutter_app/lib/models/product.dart` — originalPrice 改为 double?
+- `flutter_app/lib/screens/product/product_detail_screen.dart` — null安全检查
+- `flutter_app/lib/screens/product/product_list_screen.dart` — null安全检查
+
+### 用户文档
+- `user_docs/商品原价为空显示0修复.md`
+
+### 客户端打包
+- Android APK: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/apk/app_20260428_001254_ap2i.apk`
+- iOS IPA: `https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-v20260428-001301-e814`
+
+---
+
+## Previous Update: 多规格商品价格0补充小程序端 + 商品编辑取消按钮优化（2026-04-28）
+
+### 一句话结论
+1. 多规格商品价格显示为0的Bug补充小程序端：修复范围从H5+APP双端扩展为H5+APP+微信小程序三端，已输出V2版方案文档。
+2. 商品编辑弹窗「取消」按钮优化：当前无论数据是否改动都弹确认框，优化为"无改动直接关闭、有改动才弹确认"，检测范围覆盖全部5个Tab的所有可感知内容（表单字段+图片视频+SKU规格表等），仅适用于商品编辑弹窗。
+
+### 记忆文件
+- `mem/mem_多规格价格0补充小程序及取消按钮优化_20260428_001240.md`
+
+### 方案文档
+- `docs/BUG_FIX_多规格商品价格显示0补充小程序端_20260428_001240.md`（V2版，含小程序端）
+- `docs/BUG_FIX_商品编辑取消按钮无条件弹确认框_20260428_001240.md`
+
+---
+
+## Previous Update: 多规格商品用户端列表页价格显示为0的Bug修复方案（2026-04-28）
+
+### 一句话结论
+多规格商品在H5网页端和Flutter APP端的服务列表页价格显示为¥0.00，管理后台和商品详情页正常。根因：用户端列表页直接读取商品主表sale_price字段（多规格商品为0），未像管理后台那样查询SKU表计算最低价。修复方案：后端API增加min_price字段（取SKU最低售价），前端双端（H5+APP）适配显示「¥最低价起」格式，"起"字用小一号字体。
+
+### 记忆文件
+- `mem/mem_多规格商品价格显示0聊BUG_20260428_000200.md`
+
+### 方案文档
+- `docs/BUG_FIX_多规格商品用户端列表价格显示0_20260428_000200.md`
+
+---
+
+## Previous Update: 商品原价为空时显示0的Bug修复方案（2026-04-27）
+
+### 一句话结论
+商品管理中原价不填时，数据库存储为0（而非NULL），导致管理后台编辑时显示0、用户端数据不准确。根因：后端模型nullable=False + Schema非Optional + 前端提交/回填时null→0兜底。修复方案涉及后端模型/Schema改nullable、Admin前端去除0兜底、H5类型定义更新、历史数据清洗。
+
+### 记忆文件
+- `mem/mem_商品原价为空显示0修复方案_20260427_233500.md`
+
+### 方案文档
+- `docs/BUG_FIX_商品原价为空时显示0_20260427_233500.md`
+
+---
+
+## Previous Update: AI对话首页语音输入与TTS播报Bug修复方案（2026-04-27）
 
 ### 一句话结论
 AI对话首页（ai-home）的语音输入和TTS播报功能存在4个Bug：①语音识别API调错（调了TTS接口而非ASR接口）；②录音格式检测和参数缺失；③麦克风权限拒绝后无友好引导；④TTS播报未先读取配置且响应判断错误。全部问题集中在前端，后端接口正常。已输出完整修复方案文档。
