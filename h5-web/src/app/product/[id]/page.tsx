@@ -42,7 +42,7 @@ interface ProductDetail {
   category_id: number;
   category_name: string | null;
   fulfillment_type: string;
-  original_price: number;
+  original_price: number | null;
   sale_price: number;
   images: string[] | null;
   video_url: string | null;

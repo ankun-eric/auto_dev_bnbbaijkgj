@@ -238,10 +238,10 @@ class _ProductListScreenState extends State<ProductListScreen> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  if (product.originalPrice > product.salePrice) ...[
+                  if (product.originalPrice != null && product.originalPrice! > product.salePrice) ...[
                     const SizedBox(width: 4),
                     Text(
-                      '¥${product.originalPrice.toStringAsFixed(0)}',
+                      '¥${product.originalPrice!.toStringAsFixed(0)}',
                       style: TextStyle(
                         color: Colors.grey[400],
                         fontSize: 11,

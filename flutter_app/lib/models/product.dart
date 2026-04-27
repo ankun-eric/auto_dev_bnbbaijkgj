@@ -47,7 +47,7 @@ class Product {
   final String name;
   final int categoryId;
   final String fulfillmentType;
-  final double originalPrice;
+  final double? originalPrice;
   final double salePrice;
   final List<String> images;
   final String? videoUrl;
@@ -83,7 +83,7 @@ class Product {
     required this.name,
     required this.categoryId,
     required this.fulfillmentType,
-    required this.originalPrice,
+    this.originalPrice,
     required this.salePrice,
     this.images = const [],
     this.videoUrl,
@@ -150,7 +150,7 @@ class Product {
       name: json['name'] ?? '',
       categoryId: json['category_id'] ?? 0,
       fulfillmentType: json['fulfillment_type'] ?? 'in_store',
-      originalPrice: (json['original_price'] ?? 0).toDouble(),
+      originalPrice: json['original_price'] != null ? (json['original_price'] as num).toDouble() : null,
       salePrice: (json['sale_price'] ?? 0).toDouble(),
       images: parseImages(json['images']),
       videoUrl: json['video_url'],

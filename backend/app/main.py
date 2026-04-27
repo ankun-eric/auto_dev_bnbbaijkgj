@@ -571,6 +571,53 @@ async def _migrate_merchant_role_unify_v1():
         log.error("[R1] merchant_role_unify_v1 迁移异常（不影响启动）: %s", _e)
 
 
+async def _migrate_product_original_price_nullable():
+    """[2026-04-27] 修复 original_price 不允许 NULL 的问题：
+    1. ALTER products.original_price 为 NULLABLE
+    2. 将历史 original_price = 0 的记录更新为 NULL
+    """
+    import logging as _l
+    _logger = _l.getLogger(__name__)
+    from app.core.database import async_session as _async_session
+    try:
+        async with _async_session() as db:
+            from sqlalchemy import text
+            from app.models.models import SystemConfig as _SC
+            from sqlalchemy import select as _sel
+
+            mark = (await db.execute(
+                _sel(_SC).where(_SC.config_key == "product_original_price_nullable_v1")
+            )).scalar_one_or_none()
+            if mark and mark.config_value == "1":
+                return
+
+            try:
+                await db.execute(text(
+                    "ALTER TABLE products MODIFY COLUMN original_price DECIMAL(10,2) NULL"
+                ))
+            except Exception as e:
+                _logger.debug("products.original_price nullable 修改跳过: %s", e)
+
+            result = await db.execute(text(
+                "UPDATE products SET original_price = NULL WHERE original_price = 0"
+            ))
+            cleaned = result.rowcount or 0
+
+            if mark:
+                mark.config_value = "1"
+            else:
+                db.add(_SC(
+                    config_key="product_original_price_nullable_v1",
+                    config_value="1",
+                    config_type="product",
+                    description="商品原价字段 nullable 修复 + 历史数据清洗标记",
+                ))
+            await db.commit()
+            _logger.info("商品原价 nullable 迁移完成，清洗了 %d 条 original_price=0 的记录", cleaned)
+    except Exception as e:
+        _logger.error("商品原价 nullable 迁移异常（不影响启动）: %s", e)
+
+
 def _scan_route_conflicts(app: "FastAPI") -> list[dict]:
     """[2026-04-26 PRD v1.0 §B1] 扫描所有 (path, method) 重复的路由，输出报告。
     返回列表，每项: {path, method, endpoints: [name, ...]}
@@ -624,6 +671,8 @@ async def lifespan(app: FastAPI):
     await migrate_points_mall_v31()
     await migrate_points_mall_v11()
     await migrate_existing_users_user_no()
+    # [2026-04-27] 商品原价字段修复：nullable + 历史数据清洗
+    await _migrate_product_original_price_nullable()
     # [2026-04-26 PRD v1.0 §R1] 商家角色统一治理数据迁移
     await _migrate_merchant_role_unify_v1()
     from app.init_data import init_default_data

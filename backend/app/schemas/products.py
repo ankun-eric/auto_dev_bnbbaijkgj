@@ -176,7 +176,7 @@ class ProductCreate(BaseModel):
     name: str
     category_id: int
     fulfillment_type: str
-    original_price: float
+    original_price: Optional[float] = None
     sale_price: float
     images: Optional[Any] = None
     video_url: Optional[str] = None
@@ -299,7 +299,7 @@ class ProductResponse(BaseModel):
     name: str
     category_id: int
     fulfillment_type: str
-    original_price: float
+    original_price: Optional[float] = None
     sale_price: float
     images: Optional[Any] = None
     video_url: Optional[str] = None

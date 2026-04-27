@@ -35,7 +35,7 @@ interface Product {
   name: string;
   category_id: number;
   fulfillment_type: string;
-  original_price: number;
+  original_price: number | null;
   sale_price: number;
   images: string[];
   video_url: string;
@@ -97,7 +97,7 @@ function mapProduct(raw: Record<string, any>): Product {
     name: String(raw.name ?? ''),
     category_id: Number(raw.category_id ?? 0),
     fulfillment_type: String(raw.fulfillment_type ?? 'in_store'),
-    original_price: Number(raw.original_price ?? 0),
+    original_price: raw.original_price != null && raw.original_price !== 0 ? Number(raw.original_price) : null,
     sale_price: Number(raw.sale_price ?? 0),
     images: Array.isArray(raw.images) ? raw.images.map(String) : [],
     video_url: String(raw.video_url ?? ''),
@@ -635,7 +635,7 @@ export default function ProductsPage() {
       name: detail.name,
       category_id: detail.category_id,
       fulfillment_type: detail.fulfillment_type,
-      original_price: detail.original_price,
+      original_price: detail.original_price ?? undefined,
       sale_price: detail.sale_price,
       selling_point: detail.selling_point || '',
       symptom_tags: otherTags,
@@ -900,7 +900,7 @@ export default function ProductsPage() {
       name: values.name,
       category_id: values.category_id,
       fulfillment_type: values.fulfillment_type,
-      original_price: specMode === 1 ? (values.original_price ?? 0) : 0,
+      original_price: specMode === 1 ? (values.original_price || null) : null,
       sale_price: specMode === 1 ? (values.sale_price ?? 0) : 0,
       images: imageUrls,
       video_url: mainVideoUrl || '',

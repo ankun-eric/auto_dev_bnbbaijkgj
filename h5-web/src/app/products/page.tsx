@@ -32,7 +32,7 @@ interface Product {
   name: string;
   category_id: number;
   fulfillment_type: string;
-  original_price: number;
+  original_price: number | null;
   sale_price: number;
   images: string[] | null;
   sales_count: number;
@@ -251,7 +251,7 @@ export default function ProductsPage() {
                   <div className="flex items-end justify-between mt-3">
                     <div>
                       <span className="text-red-500 font-bold">¥{p.sale_price}</span>
-                      {p.original_price > p.sale_price && (
+                      {p.original_price && p.original_price > p.sale_price && (
                         <span className="text-xs text-gray-300 line-through ml-1">¥{p.original_price}</span>
                       )}
                     </div>

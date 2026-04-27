@@ -157,7 +157,7 @@ async def _build_product_response_dict(db: AsyncSession, product: Product) -> di
         "name": product.name,
         "category_id": product.category_id,
         "fulfillment_type": ft,
-        "original_price": float(product.original_price or 0),
+        "original_price": float(product.original_price) if product.original_price is not None else None,
         "sale_price": float(product.sale_price or 0),
         "images": product.images or [],
         "video_url": product.video_url or "",
@@ -602,7 +602,7 @@ async def admin_update_product(
         eff.images = data.images if data.images is not None else product.images
         eff.stock = data.stock if data.stock is not None else product.stock
         eff.spec_mode = int(data.spec_mode if data.spec_mode is not None else (product.spec_mode or 1))
-        eff.original_price = data.original_price if data.original_price is not None else float(product.original_price or 0)
+        eff.original_price = data.original_price if data.original_price is not None else (float(product.original_price) if product.original_price is not None else None)
         eff.sale_price = data.sale_price if data.sale_price is not None else float(product.sale_price or 0)
         if data.skus is not None:
             eff.skus = data.skus

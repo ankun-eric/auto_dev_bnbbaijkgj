@@ -27,7 +27,7 @@ interface ProductInfo {
   id: number;
   name: string;
   sale_price: number;
-  original_price: number;
+  original_price: number | null;
   images: string[] | null;
   fulfillment_type: string;
   points_deductible: boolean;

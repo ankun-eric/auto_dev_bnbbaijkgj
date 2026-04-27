@@ -2554,7 +2554,7 @@ class Product(Base):
     name = mapped_column(String(200), nullable=False)
     category_id = mapped_column(Integer, ForeignKey("product_categories.id"), nullable=False, index=True)
     fulfillment_type = mapped_column(Enum(FulfillmentType), nullable=False)
-    original_price = mapped_column(Numeric(10, 2), nullable=False)
+    original_price = mapped_column(Numeric(10, 2), nullable=True)
     sale_price = mapped_column(Numeric(10, 2), nullable=False)
     images = mapped_column(JSON, nullable=True)
     video_url = mapped_column(String(500), nullable=True)
