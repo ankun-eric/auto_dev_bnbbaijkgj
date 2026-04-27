@@ -33,13 +33,39 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 用户端服务页推荐分类需求PRD（2026-04-28）
+## Latest Update: 用户端服务页推荐分类功能 — 已开发部署（2026-04-28）
 
 ### 一句话结论
-用户端「首页→服务」页面新增「推荐」虚拟分类需求PRD已输出。在分类列表最前方增加🔥推荐分类，聚合展示 marketing_badges 包含 recommend 的已上架商品，按推荐权重降序排列。有推荐商品时默认选中，无推荐商品时自动隐藏。商品跨分类聚合展示（同时出现在原分类和推荐分类）。覆盖H5+APP+小程序三端，管理后台无需改动（复用营销角标功能）。
+用户端「首页→服务」页面新增「🔥 推荐」虚拟分类功能已开发完成并部署。后端分类列表API动态注入推荐虚拟分类（有推荐商品时出现在首位），商品列表API支持category_id=recommend按营销角标筛选推荐商品。H5网页端、Flutter APP端、微信小程序端三端同步适配，默认选中推荐分类，无推荐商品时自动隐藏。管理后台无需改动，复用已有营销角标机制。Android APK和iOS IPA已通过GitHub Actions构建并发布。
 
-### 记忆文件
-- `mem/mem_用户端服务页推荐分类需求_20260428_003430.md`
+### 修改的文件
+- `backend/app/api/products.py` — 分类列表注入推荐虚拟分类 + 商品列表支持 category_id=recommend 筛选
+- `h5-web/src/app/(tabs)/services/page.tsx` — H5服务页支持推荐虚拟分类展示与交互
+- `flutter_app/lib/screens/services/services_screen.dart` — Flutter服务页支持推荐分类Tab
+- `flutter_app/lib/services/api_service.dart` — 新增 getProductsByStringCategory 方法
+- `miniprogram/pages/services/index.js` — 小程序服务页支持推荐分类展示
+- `backend/tests/test_recommend_category.py` — 推荐分类API测试用例
+
+### 新增/变更 API 行为
+| 方法 | 路径 | 变更说明 |
+| --- | --- | --- |
+| GET | `/api/products/categories` | 有推荐商品时在 items 首位注入 `{id:"recommend", name:"推荐", icon:"🔥", is_virtual:true}` |
+| GET | `/api/products?category_id=recommend` | 返回 marketing_badges 包含 recommend 的已上架商品，按 recommend_weight DESC 排序 |
+
+### 用户文档
+- `user_docs/用户端服务页推荐分类.md`
+
+### 客户端打包
+- Android APK: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/apk/app_20260428_010702_622e.apk`
+- iOS IPA: `https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-v1.0.20260428-011441`
+- 小程序 zip: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/miniprogram_20260428_005149_2155.zip`
+
+---
+
+## Previous Update: 用户端服务页推荐分类需求PRD（2026-04-28）
+
+### 一句话结论
+用户端「首页→服务」页面新增「推荐」虚拟分类需求PRD已输出。
 
 ### PRD文档
 - `docs/PRD_用户端服务页推荐分类_20260428_003430.md`
