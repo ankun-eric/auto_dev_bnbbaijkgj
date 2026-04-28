@@ -67,6 +67,10 @@ class _UnifiedOrderDetailScreenState extends State<UnifiedOrderDetailScreen> {
             _buildPriceSection(o),
             const SizedBox(height: 8),
             _buildInfoSection(o),
+            if (o.items.any((i) => i.appointmentTime != null)) ...[
+              const SizedBox(height: 8),
+              _buildAppointmentSection(o),
+            ],
             if (o.items.any((i) => i.verificationCode != null && i.verificationCode!.isNotEmpty)) ...[
               const SizedBox(height: 8),
               _buildVerificationSection(o),
@@ -204,6 +208,44 @@ class _UnifiedOrderDetailScreenState extends State<UnifiedOrderDetailScreen> {
           if (o.paymentMethod != null) _infoRow('支付方式', o.paymentMethod!),
           if (o.paidAt != null) _infoRow('支付时间', _formatTime(o.paidAt)),
           if (o.notes != null && o.notes!.isNotEmpty) _infoRow('备注', o.notes!),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAppointmentSection(UnifiedOrder o) {
+    final appointmentItems = o.items.where((i) => i.appointmentTime != null).toList();
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('预约信息', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 12),
+          ...appointmentItems.map((item) {
+            final apptData = item.appointmentData is Map
+                ? item.appointmentData as Map
+                : null;
+            final timeSlot = apptData?['time_slot']?.toString();
+            final note = apptData?['note']?.toString();
+
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (appointmentItems.length > 1)
+                    Text(item.productName, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13)),
+                  _infoRow('预约日期', _formatTime(item.appointmentTime).split(' ').first),
+                  if (timeSlot != null && timeSlot.isNotEmpty)
+                    _infoRow('预约时段', timeSlot),
+                  if (note != null && note.isNotEmpty)
+                    _infoRow('预约备注', note),
+                ],
+              ),
+            );
+          }),
         ],
       ),
     );

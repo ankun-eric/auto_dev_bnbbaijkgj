@@ -61,6 +61,8 @@ class Product {
   final bool pointsDeductible;
   final int redeemCount;
   final String appointmentMode;
+  final int? advanceDays;
+  final List<Map<String, dynamic>>? timeSlots;
   final String? purchaseAppointmentMode;
   final int? customFormId;
   final dynamic faq;
@@ -97,6 +99,8 @@ class Product {
     this.pointsDeductible = false,
     this.redeemCount = 1,
     this.appointmentMode = 'none',
+    this.advanceDays,
+    this.timeSlots,
     this.purchaseAppointmentMode,
     this.customFormId,
     this.faq,
@@ -164,6 +168,10 @@ class Product {
       pointsDeductible: json['points_deductible'] ?? false,
       redeemCount: json['redeem_count'] ?? 1,
       appointmentMode: json['appointment_mode'] ?? 'none',
+      advanceDays: json['advance_days'],
+      timeSlots: (json['time_slots'] as List<dynamic>?)
+          ?.map((e) => Map<String, dynamic>.from(e as Map))
+          .toList(),
       purchaseAppointmentMode: json['purchase_appointment_mode'],
       customFormId: json['custom_form_id'],
       faq: json['faq'],

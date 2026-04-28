@@ -33,6 +33,9 @@ interface ProductInfo {
   points_deductible: boolean;
   appointment_mode: string;
   redeem_count: number;
+  advance_days?: number;
+  time_slots?: { start: string; end: string; capacity: number }[];
+  purchase_appointment_mode?: string;
 }
 
 interface Address {
@@ -95,8 +98,21 @@ function CheckoutPage() {
 
   const [paymentMethod, setPaymentMethod] = useState('wechat');
   const [notes, setNotes] = useState('');
-  const [appointmentTime, setAppointmentTime] = useState<Date | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
+
+  const formatDateStr = (d: Date) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+
+  const today = new Date();
+  const todayStr = formatDateStr(today);
+
+  const [appointmentDate, setAppointmentDate] = useState<string>(todayStr);
+  const [appointmentTimeSlot, setAppointmentTimeSlot] = useState<string>('');
+  const [maxDate, setMaxDate] = useState<Date | null>(null);
 
   useEffect(() => {
     if (!productId) return;
@@ -128,6 +144,19 @@ function CheckoutPage() {
       }
     }).finally(() => setLoading(false));
   }, [productId]);
+
+  useEffect(() => {
+    if (product && product.advance_days && product.advance_days > 0) {
+      const max = new Date();
+      max.setDate(max.getDate() + product.advance_days - 1);
+      setMaxDate(max);
+    } else {
+      setMaxDate(null);
+    }
+    if (product?.time_slots && product.time_slots.length > 0) {
+      setAppointmentTimeSlot(`${product.time_slots[0].start}-${product.time_slots[0].end}`);
+    }
+  }, [product]);
 
   if (!productId) {
     return (
@@ -167,14 +196,29 @@ function CheckoutPage() {
       Toast.show({ content: '请选择收货地址' });
       return;
     }
+    if (product.appointment_mode !== 'none' && !appointmentDate) {
+      Toast.show({ content: '请选择预约日期' });
+      return;
+    }
     setSubmitting(true);
     try {
+      const needAppointment = product.appointment_mode !== 'none';
+      const appointmentTimeStr = needAppointment
+        ? appointmentTimeSlot
+          ? `${appointmentDate}T${appointmentTimeSlot.split('-')[0]}:00`
+          : `${appointmentDate}T00:00:00`
+        : undefined;
+      const appointmentDataObj = needAppointment
+        ? { date: appointmentDate, time_slot: appointmentTimeSlot, note: notes }
+        : undefined;
+
       const orderData: any = {
         items: [{
           product_id: product.id,
           quantity,
           ...(skuId ? { sku_id: skuId } : {}),
-          ...(appointmentTime ? { appointment_time: appointmentTime.toISOString() } : {}),
+          ...(appointmentTimeStr ? { appointment_time: appointmentTimeStr } : {}),
+          ...(appointmentDataObj ? { appointment_data: appointmentDataObj } : {}),
         }],
         payment_method: paymentMethod,
         points_deduction: usePoints ? pointsDeduction : 0,
@@ -274,12 +318,61 @@ function CheckoutPage() {
         {product.appointment_mode !== 'none' && (
           <Card style={{ borderRadius: 12, marginBottom: 12 }}>
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">预约时间</span>
+              <span className="text-sm font-medium">预约日期</span>
               <div className="flex items-center" onClick={() => setShowDatePicker(true)}>
                 <span className="text-sm text-gray-500">
-                  {appointmentTime ? appointmentTime.toLocaleDateString('zh-CN') : '请选择'}
+                  {appointmentDate || '请选择'}
                 </span>
                 <RightOutline fontSize={12} color="#999" className="ml-1" />
+              </div>
+            </div>
+            {product.advance_days && product.advance_days > 0 && maxDate && (
+              <div className="text-xs text-gray-400 mt-2">
+                最远可预约至 {maxDate.getMonth() + 1}月{maxDate.getDate()}日
+              </div>
+            )}
+
+            <div className="mt-3">
+              <div className="text-sm font-medium mb-2">预约时段</div>
+              <div className="flex flex-wrap gap-2">
+                {product.time_slots && product.time_slots.length > 0
+                  ? product.time_slots.map((slot) => {
+                      const label = `${slot.start}-${slot.end}`;
+                      const selected = appointmentTimeSlot === label;
+                      return (
+                        <div
+                          key={label}
+                          onClick={() => setAppointmentTimeSlot(label)}
+                          className="px-3 py-1.5 rounded-full text-xs cursor-pointer border"
+                          style={{
+                            background: selected ? '#52c41a' : '#fff',
+                            color: selected ? '#fff' : '#333',
+                            borderColor: selected ? '#52c41a' : '#e5e5e5',
+                          }}
+                        >
+                          {label}
+                        </div>
+                      );
+                    })
+                  : ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'].map(
+                      (t) => {
+                        const selected = appointmentTimeSlot === t;
+                        return (
+                          <div
+                            key={t}
+                            onClick={() => setAppointmentTimeSlot(t)}
+                            className="px-3 py-1.5 rounded-full text-xs cursor-pointer border"
+                            style={{
+                              background: selected ? '#52c41a' : '#fff',
+                              color: selected ? '#fff' : '#333',
+                              borderColor: selected ? '#52c41a' : '#e5e5e5',
+                            }}
+                          >
+                            {t}
+                          </div>
+                        );
+                      }
+                    )}
               </div>
             </div>
           </Card>
@@ -476,8 +569,11 @@ function CheckoutPage() {
       <DatePicker
         visible={showDatePicker}
         onClose={() => setShowDatePicker(false)}
-        onConfirm={(val) => setAppointmentTime(val)}
+        onConfirm={(val) => setAppointmentDate(formatDateStr(val))}
+        defaultValue={new Date()}
         min={new Date()}
+        {...(maxDate ? { max: maxDate } : {})}
+        precision="day"
       />
     </div>
   );

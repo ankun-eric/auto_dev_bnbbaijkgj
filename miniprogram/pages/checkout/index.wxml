@@ -46,9 +46,10 @@
   <!-- 预约表单 -->
   <view class="form-card card" wx:if="{{fulfillmentType === 'store' || fulfillmentType === 'home'}}">
     <text class="form-title">预约信息</text>
+    <text class="advance-hint" wx:if="{{advanceDaysHint}}">{{advanceDaysHint}}</text>
     <view class="form-item">
       <text class="form-label">预约日期</text>
-      <picker mode="date" value="{{appointmentDate}}" start="{{minDate}}" bindchange="onDateChange">
+      <picker mode="date" value="{{appointmentDate}}" start="{{minDate}}" end="{{endDate}}" bindchange="onDateChange">
         <text class="form-value {{appointmentDate ? '' : 'placeholder'}}">
           {{appointmentDate || '请选择日期'}}
         </text>

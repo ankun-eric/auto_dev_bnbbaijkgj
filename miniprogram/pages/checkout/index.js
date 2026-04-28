@@ -24,6 +24,8 @@ Page({
     submitting: false,
     showCouponPicker: false,
     minDate: '',
+    endDate: '',
+    advanceDaysHint: '',
     timeSlots: ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00']
   },
 
@@ -50,13 +52,25 @@ Page({
     try {
       const res = await get(`/api/products/${this.data.productId}`);
       const product = res.data || res;
-      this.setData({
+      const today = new Date();
+      const updateData = {
         product,
         fulfillmentType: product.fulfillment_type || 'online',
         totalPrice: product.price || 0,
         finalPrice: product.price || 0,
-        maxPointsDeduction: Math.floor((product.price || 0) * 0.5 * 100)
-      });
+        maxPointsDeduction: Math.floor((product.price || 0) * 0.5 * 100),
+        appointmentDate: this.formatDate(today),
+      };
+
+      const advanceDays = product.advance_days || 0;
+      if (advanceDays > 0) {
+        const maxDate = new Date(today);
+        maxDate.setDate(maxDate.getDate() + advanceDays - 1);
+        updateData.endDate = this.formatDate(maxDate);
+        updateData.advanceDaysHint = `最远可预约至 ${maxDate.getMonth() + 1}月${maxDate.getDate()}日`;
+      }
+
+      this.setData(updateData);
     } catch (e) {
       console.log('loadProduct error', e);
     }
@@ -207,6 +221,10 @@ Page({
       wx.showToast({ title: '请选择门店', icon: 'none' });
       return;
     }
+    if ((ft === 'store' || ft === 'home') && !this.data.appointmentDate) {
+      wx.showToast({ title: '请选择预约日期', icon: 'none' });
+      return;
+    }
 
     this.setData({ submitting: true });
     try {
@@ -217,8 +235,12 @@ Page({
       if (this.data.appointmentTime) {
         itemData.appointment_time = `${this.data.appointmentDate}T${this.data.appointmentTime}:00`;
       }
-      if (this.data.appointmentDate && this.data.appointmentNote) {
-        itemData.appointment_data = { date: this.data.appointmentDate, note: this.data.appointmentNote };
+      if (this.data.appointmentDate) {
+        itemData.appointment_data = {
+          date: this.data.appointmentDate,
+          time_slot: this.data.appointmentTime || '',
+          note: this.data.appointmentNote || '',
+        };
       }
 
       const orderData = {

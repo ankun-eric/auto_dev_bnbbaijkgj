@@ -595,6 +595,33 @@ export default function UnifiedOrdersPage() {
               <Descriptions.Item label="备注" span={2}>{currentOrder.notes || '-'}</Descriptions.Item>
             </Descriptions>
 
+            {currentOrder?.items?.some((item: any) => item.appointment_time) && (
+              <Card size="small" title="预约信息" style={{ marginTop: 16 }}>
+                <Descriptions column={2} size="small">
+                  {currentOrder.items.filter((item: any) => item.appointment_time).map((item: any, idx: number) => (
+                    <React.Fragment key={idx}>
+                      <Descriptions.Item label="预约日期" span={1}>
+                        {item.appointment_time ? new Date(item.appointment_time).toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' }) : '-'}
+                      </Descriptions.Item>
+                      <Descriptions.Item label="预约时段" span={1}>
+                        {item.appointment_data?.time_slot || (item.appointment_time ? new Date(item.appointment_time).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '-')}
+                      </Descriptions.Item>
+                      <Descriptions.Item label="预约状态" span={1}>
+                        <Tag color={currentOrder.status === 'completed' ? 'green' : currentOrder.status === 'cancelled' ? 'red' : 'blue'}>
+                          {currentOrder.status === 'completed' ? '已完成' : currentOrder.status === 'cancelled' ? '已取消' : currentOrder.status === 'paid' ? '待核销' : '待支付'}
+                        </Tag>
+                      </Descriptions.Item>
+                      {item.appointment_data?.note && (
+                        <Descriptions.Item label="预约备注" span={1}>
+                          {item.appointment_data.note}
+                        </Descriptions.Item>
+                      )}
+                    </React.Fragment>
+                  ))}
+                </Descriptions>
+              </Card>
+            )}
+
             <Title level={5} style={{ marginTop: 24, marginBottom: 12 }}>商品明细</Title>
             <Table
               dataSource={currentOrder.items}

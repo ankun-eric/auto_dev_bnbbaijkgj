@@ -1,7 +1,7 @@
 import random
 import string
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta, date
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -207,6 +207,26 @@ async def create_unified_order(
 
         sku = oi_data.get("sku")
         item_price = oi_data.get("item_price", float(product.sale_price))
+
+        appt_mode = getattr(product, "appointment_mode", "none") or "none"
+        if hasattr(appt_mode, "value"):
+            appt_mode = appt_mode.value
+        purchase_appt_mode = getattr(product, "purchase_appointment_mode", None) or ""
+        if hasattr(purchase_appt_mode, "value"):
+            purchase_appt_mode = purchase_appt_mode.value
+        if appt_mode != "none" and purchase_appt_mode == "purchase_with_appointment":
+            if not item_d.appointment_time:
+                raise HTTPException(status_code=400, detail="预约类商品必须选择预约时间")
+            adv = getattr(product, "advance_days", None)
+            if adv and int(adv) > 0:
+                today_start = datetime.combine(date.today(), datetime.min.time())
+                today_end = today_start + timedelta(days=int(adv) - 1, hours=23, minutes=59, seconds=59)
+                appt_time = item_d.appointment_time
+                if isinstance(appt_time, str):
+                    appt_time = datetime.fromisoformat(appt_time)
+                if appt_time < today_start or appt_time > today_end:
+                    raise HTTPException(status_code=400, detail=f"预约日期不能超过{product.advance_days}天内")
+
         oi = OrderItem(
             order_id=order.id,
             product_id=product.id,

@@ -25,6 +25,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   bool _submitting = false;
   final TextEditingController _notesController = TextEditingController();
 
+  DateTime? _selectedDate = DateTime.now();
+  String? _selectedTimeSlot;
+  String _appointmentNote = '';
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -95,21 +99,41 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   bool get _needAddress => _product.fulfillmentType == 'delivery';
 
+  String _formatDate(DateTime d) =>
+      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
   Future<void> _submitOrder() async {
     if (_needAddress && _selectedAddress == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('请选择收货地址')));
       return;
     }
 
+    if (_product.appointmentMode != 'none' && _selectedDate == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('请选择预约日期')));
+      return;
+    }
+
     setState(() => _submitting = true);
     try {
+      final itemData = <String, dynamic>{
+        'product_id': _product.id,
+        'quantity': _quantity,
+      };
+
+      if (_product.appointmentMode != 'none' && _selectedDate != null) {
+        final dateStr = _formatDate(_selectedDate!);
+        itemData['appointment_time'] = _selectedTimeSlot != null
+            ? '${dateStr}T$_selectedTimeSlot:00'
+            : '${dateStr}T00:00:00';
+        itemData['appointment_data'] = {
+          'date': dateStr,
+          'time_slot': _selectedTimeSlot,
+          'note': _appointmentNote,
+        };
+      }
+
       final data = <String, dynamic>{
-        'items': [
-          {
-            'product_id': _product.id,
-            'quantity': _quantity,
-          }
-        ],
+        'items': [itemData],
         'points_deduction': _pointsDeduction,
         'notes': _notesController.text.isNotEmpty ? _notesController.text : null,
       };
@@ -155,6 +179,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             if (_needAddress) _buildAddressSection(),
             const SizedBox(height: 8),
             _buildProductSection(),
+            if (_product.appointmentMode != 'none') ...[
+              const SizedBox(height: 8),
+              _buildAppointmentSection(),
+            ],
             const SizedBox(height: 8),
             _buildCouponSection(),
             const SizedBox(height: 8),
@@ -296,6 +324,117 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 ),
               ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAppointmentSection() {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final hasAdvanceDays = _product.advanceDays != null && _product.advanceDays! > 0;
+    final lastDate = hasAdvanceDays
+        ? today.add(Duration(days: _product.advanceDays! - 1))
+        : today.add(const Duration(days: 365));
+
+    final defaultTimeSlots = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'];
+
+    final hasTimeSlots = _product.timeSlots != null && _product.timeSlots!.isNotEmpty;
+
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('预约信息', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          if (hasAdvanceDays) ...[
+            const SizedBox(height: 8),
+            Text(
+              '最远可预约至 ${lastDate.month}月${lastDate.day}日',
+              style: TextStyle(fontSize: 13, color: Colors.grey[500]),
+            ),
+          ],
+          const SizedBox(height: 12),
+          InkWell(
+            onTap: () async {
+              final picked = await showDatePicker(
+                context: context,
+                firstDate: today,
+                lastDate: lastDate,
+                initialDate: _selectedDate ?? today,
+                locale: const Locale('zh'),
+              );
+              if (picked != null) {
+                setState(() => _selectedDate = picked);
+              }
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey[300]!),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.calendar_today, size: 18, color: Color(0xFF52C41A)),
+                  const SizedBox(width: 8),
+                  Text(
+                    _selectedDate != null
+                        ? '${_selectedDate!.year}-${_selectedDate!.month.toString().padLeft(2, '0')}-${_selectedDate!.day.toString().padLeft(2, '0')}'
+                        : '请选择预约日期',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: _selectedDate != null ? Colors.black87 : Colors.grey[400],
+                    ),
+                  ),
+                  const Spacer(),
+                  Icon(Icons.chevron_right, color: Colors.grey[400], size: 20),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text('选择时段', style: TextStyle(fontSize: 14, color: Colors.grey[700])),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: hasTimeSlots
+                ? _product.timeSlots!.map((slot) {
+                    final label = '${slot['start'] ?? ''}-${slot['end'] ?? ''}';
+                    return ChoiceChip(
+                      label: Text(label),
+                      selected: _selectedTimeSlot == label,
+                      selectedColor: const Color(0xFFD9F7BE),
+                      onSelected: (selected) {
+                        setState(() => _selectedTimeSlot = selected ? label : null);
+                      },
+                    );
+                  }).toList()
+                : defaultTimeSlots.map((slot) {
+                    return ChoiceChip(
+                      label: Text(slot),
+                      selected: _selectedTimeSlot == slot,
+                      selectedColor: const Color(0xFFD9F7BE),
+                      onSelected: (selected) {
+                        setState(() => _selectedTimeSlot = selected ? slot : null);
+                      },
+                    );
+                  }).toList(),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            decoration: const InputDecoration(
+              hintText: '预约备注（选填）',
+              border: OutlineInputBorder(),
+              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              hintStyle: TextStyle(fontSize: 14),
+            ),
+            maxLines: 2,
+            style: const TextStyle(fontSize: 14),
+            onChanged: (v) => _appointmentNote = v,
           ),
         ],
       ),
