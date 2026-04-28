@@ -33,7 +33,42 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 退款与核销互斥业务保护 PRD 输出（2026-04-28 20:44）
+## Latest Update: 预约功能修复与补全 — 已开发部署（2026-04-28 21:10）
+
+### 一句话结论
+预约下单核心功能修复与补全已完成五端（后端+管理后台+H5+小程序+Flutter APP）开发部署。修复问题A：三端日期选择器补advance_days上限限制+置灰不可选+提示文字。修复问题B：H5补时段选择器+appointment_data提交，Flutter补全整个预约功能（日期+时段+备注+提交），管理后台订单详情新增"预约信息"卡片，Flutter订单详情补全预约信息展示。后端新增预约日期必填校验+advance_days范围校验。三端统一日期默认选中今天、预约日期必选、advance_days为0时不限制。
+
+### 修改的文件
+- `backend/app/api/unified_orders.py` — 新增appointment_time必填校验+advance_days日期范围校验
+- `h5-web/src/app/checkout/page.tsx` — ProductInfo补advance_days/time_slots字段，DatePicker补max上限，新增时段选择器，补全appointment_data提交，日期默认今天+必选
+- `miniprogram/pages/checkout/index.js` — 读取advance_days计算endDate，设置默认appointmentDate，submitOrder新增日期必选校验，appointment_data补全time_slot
+- `miniprogram/pages/checkout/index.wxml` — picker补end属性，新增advanceDaysHint提示文字
+- `flutter_app/lib/models/product.dart` — 新增advanceDays和timeSlots字段
+- `flutter_app/lib/screens/product/checkout_screen.dart` — 新增完整预约UI（日期+时段+备注），日期范围限制，补全提交数据
+- `flutter_app/lib/screens/order/unified_order_detail_screen.dart` — 新增预约信息展示区域
+- `admin-web/src/app/(admin)/product-system/orders/page.tsx` — 订单详情Drawer新增"预约信息"卡片（预约日期+时段+状态+备注）
+
+### 用户文档
+- `user_docs/预约功能修复与补全.md`
+
+### 客户端打包
+- Android APK: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/apk/bini_health_android-v20260428-204908-23d0.apk`
+- iOS IPA: `https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-v20260428-204836-2739`
+- 小程序 ZIP: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/miniprogram/miniprogram_20260428_204803_7452.zip`
+
+---
+
+## Previous Update: 商品门店绑定与订单通知机制咨询（2026-04-28 20:54）
+
+### 一句话结论
+用户咨询"商品/服务是否绑定门店，门店如何知道有人预约或下单"。代码检查确认：后端product_stores多对多表及store_ids增删改逻辑完整，但管理后台前端商品编辑弹窗缺失门店选择UI组件。用户选择B+C+D，既要补全前端门店绑定，也要规划完善的多渠道订单/预约通知机制。正在引导细化需求。
+
+### 记忆文件
+- `mem/mem_商品门店绑定与订单通知机制咨询_20260428_205400.md`
+
+---
+
+## Previous Update: 退款与核销互斥业务保护 PRD 输出（2026-04-28 20:44）
 
 ### 一句话结论
 针对"退款申请中订单核销码仍可核销"的业务风险漏洞，经多轮讨论确认8个核心决策点，输出完整PRD文档。核心方案：提交退款即锁定核销码，退款被拒/撤回后自动恢复，已核销订单退款需人工审核，退款成功后核销码标记已退款供历史查询。
