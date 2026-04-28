@@ -69,6 +69,7 @@ class UnifiedOrderResponse(BaseModel):
     auto_confirm_days: int = 7
     has_reviewed: bool = False
     status_display: Optional[str] = None
+    store_name: Optional[str] = None
     items: list[OrderItemResponse] = []
     created_at: datetime
     updated_at: datetime

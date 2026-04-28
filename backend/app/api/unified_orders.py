@@ -56,6 +56,7 @@ def _build_order_response(order) -> UnifiedOrderResponse:
         rs = rs.value
     if s == "cancelled" and rs == "refund_success":
         resp.status_display = "已取消（已退款）"
+    resp.store_name = order.store.store_name if order.store else None
     return resp
 
 
@@ -321,7 +322,7 @@ async def create_unified_order(
 
     result = await db.execute(
         select(UnifiedOrder)
-        .options(selectinload(UnifiedOrder.items))
+        .options(selectinload(UnifiedOrder.items), selectinload(UnifiedOrder.store))
         .where(UnifiedOrder.id == order.id)
     )
     order = result.scalar_one()
@@ -387,7 +388,7 @@ async def list_unified_orders(
     total = total_result.scalar() or 0
 
     result = await db.execute(
-        query.options(selectinload(UnifiedOrder.items))
+        query.options(selectinload(UnifiedOrder.items), selectinload(UnifiedOrder.store))
         .order_by(UnifiedOrder.created_at.desc())
         .offset((page - 1) * page_size)
         .limit(page_size)
@@ -455,7 +456,7 @@ async def get_unified_order(
 ):
     result = await db.execute(
         select(UnifiedOrder)
-        .options(selectinload(UnifiedOrder.items))
+        .options(selectinload(UnifiedOrder.items), selectinload(UnifiedOrder.store))
         .where(UnifiedOrder.id == order_id, UnifiedOrder.user_id == current_user.id)
     )
     order = result.scalar_one_or_none()

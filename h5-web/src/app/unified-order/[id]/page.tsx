@@ -19,6 +19,8 @@ interface OrderItem {
   verification_qrcode_token: string | null;
   total_redeem_count: number;
   used_redeem_count: number;
+  appointment_data: any | null;
+  appointment_time: string | null;
 }
 
 interface OrderDetail {
@@ -43,6 +45,7 @@ interface OrderDetail {
   completed_at: string | null;
   cancelled_at: string | null;
   cancel_reason: string | null;
+  store_name: string | null;
 }
 
 const STATUS_TEXT: Record<string, string> = {
@@ -350,6 +353,34 @@ export default function UnifiedOrderDetailPage() {
             </div>
           </div>
         </Card>
+
+        {order.items.some(item => item.appointment_time) && (
+          <Card style={{ borderRadius: 12, marginBottom: 12 }}>
+            <div className="font-medium text-base mb-3">预约信息</div>
+            {order.items.filter(item => item.appointment_time).map(item => {
+              const apptDate = item.appointment_time ? new Date(item.appointment_time).toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '-') : '';
+              const timeSlot = item.appointment_data?.time_slot || '';
+              return (
+                <div key={`appt-${item.id}`} className="space-y-2">
+                  <div className="flex items-center text-sm">
+                    <span className="mr-2">📅</span>
+                    <span className="text-gray-500 mr-2">预约时间</span>
+                    <span style={{ color: '#1677ff', fontWeight: 500 }}>
+                      {apptDate}{timeSlot ? ` ${timeSlot}` : ''}
+                    </span>
+                  </div>
+                  {order.store_name && (
+                    <div className="flex items-center text-sm">
+                      <span className="mr-2">📍</span>
+                      <span className="text-gray-500 mr-2">预约门店</span>
+                      <span className="text-gray-800">{order.store_name}</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </Card>
+        )}
 
         {hasDelivery && order.tracking_number && (
           <Card style={{ borderRadius: 12, marginBottom: 12 }} title="物流信息">
