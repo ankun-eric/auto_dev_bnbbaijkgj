@@ -2,107 +2,96 @@ import paramiko
 import os
 import stat
 import sys
-import time
+from pathlib import Path
 
-HOSTNAME = "newbb.test.bangbangvip.com"
-USERNAME = "ubuntu"
-PASSWORD = "Newbang888"
-DEPLOY_ID = "6b099ed3-7175-4a78-91f4-44570c84ed27"
-REMOTE_DIR = f"/home/ubuntu/{DEPLOY_ID}"
-LOCAL_DIR = r"C:\auto_output\bnbbaijkgj"
-
-EXCLUDE_DIRS = {
-    "node_modules", ".next", "__pycache__", ".git", ".venv", "venv",
-    ".cursor", ".github", ".tools", ".chat_output", ".consulting_output",
-    "build_artifacts", "deploy", "docs", "mem", "tests", "uploads",
-    "ui_design_outputs", "user_docs", "verify-miniprogram", "apk_download",
-    "dist", ".nuxt", ".output", "coverage", ".pytest_cache", ".mypy_cache",
+EXCLUDES = {
+    'node_modules', '.git', '__pycache__', '.next', '.pytest_cache',
+    'flutter_app', 'miniprogram', 'verify-miniprogram', 'build_artifacts',
+    'dist', 'apk_download', 'uploads', '.tools', '.chat_attachments',
+    '.chat_output', '.chat_prompts', '.consulting_output', 'ui_design_outputs',
+    'mem', 'docs', 'tests', 'user_docs', '.cursor'
 }
 
-EXCLUDE_EXTENSIONS = {
-    ".apk", ".zip", ".tar", ".tar.gz", ".png", ".jpg", ".jpeg", ".gif",
-    ".exe", ".msi", ".dmg",
-}
+EXCLUDE_EXTENSIONS = {'.apk', '.zip'}
 
-SYNC_DIRS = ["backend", "h5-web", "admin-web"]
-SYNC_FILES = ["docker-compose.yml"]
+HOST = 'newbb.test.bangbangvip.com'
+USER = 'ubuntu'
+PASSWORD = 'Newbang888'
+REMOTE_DIR = '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/'
+LOCAL_DIR = r'C:\auto_output\bnbbaijkgj'
 
-def should_exclude(path, name):
-    if name in EXCLUDE_DIRS:
+
+def should_exclude(name, is_dir=False):
+    if name in EXCLUDES:
         return True
-    _, ext = os.path.splitext(name)
-    if ext.lower() in EXCLUDE_EXTENSIONS:
-        return True
+    if not is_dir:
+        _, ext = os.path.splitext(name)
+        if ext.lower() in EXCLUDE_EXTENSIONS:
+            return True
     return False
+
+
+def get_all_files(local_dir):
+    files = []
+    for root, dirs, filenames in os.walk(local_dir):
+        dirs[:] = [d for d in dirs if not should_exclude(d, True)]
+        for f in filenames:
+            if should_exclude(f, False):
+                continue
+            full_path = os.path.join(root, f)
+            rel_path = os.path.relpath(full_path, local_dir).replace('\\', '/')
+            files.append((full_path, rel_path))
+    return files
+
 
 def ensure_remote_dir(sftp, remote_path):
     dirs_to_create = []
-    current = remote_path
-    while True:
+    path = remote_path
+    while path and path != '/':
         try:
-            sftp.stat(current)
+            sftp.stat(path)
             break
         except FileNotFoundError:
-            dirs_to_create.append(current)
-            current = os.path.dirname(current).replace("\\", "/")
-            if current == "/" or current == "":
-                break
+            dirs_to_create.append(path)
+            path = os.path.dirname(path)
     for d in reversed(dirs_to_create):
         try:
             sftp.mkdir(d)
-        except:
+        except Exception:
             pass
 
-def sync_directory(sftp, local_path, remote_path, file_count=0):
-    ensure_remote_dir(sftp, remote_path)
-    for item in os.listdir(local_path):
-        if should_exclude(local_path, item):
-            continue
-        local_item = os.path.join(local_path, item)
-        remote_item = remote_path + "/" + item
-        if os.path.isdir(local_item):
-            file_count = sync_directory(sftp, local_item, remote_item, file_count)
-        elif os.path.isfile(local_item):
-            try:
-                sftp.put(local_item, remote_item)
-                file_count += 1
-                if file_count % 50 == 0:
-                    print(f"  Uploaded {file_count} files...")
-            except Exception as e:
-                print(f"  Error uploading {remote_item}: {e}")
-    return file_count
 
 def main():
-    print("Connecting to server...")
-    client = paramiko.SSHClient()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    client.connect(HOSTNAME, username=USERNAME, password=PASSWORD, timeout=30)
-    sftp = client.open_sftp()
-
-    total_files = 0
-    for sync_dir in SYNC_DIRS:
-        local_path = os.path.join(LOCAL_DIR, sync_dir)
-        remote_path = f"{REMOTE_DIR}/{sync_dir}"
-        if os.path.exists(local_path):
-            print(f"\nSyncing {sync_dir}...")
-            count = sync_directory(sftp, local_path, remote_path)
-            total_files += count
-            print(f"  {sync_dir}: {count} files uploaded")
-        else:
-            print(f"  Skipping {sync_dir} (not found locally)")
-
-    for sync_file in SYNC_FILES:
-        local_file = os.path.join(LOCAL_DIR, sync_file)
-        remote_file = f"{REMOTE_DIR}/{sync_file}"
-        if os.path.exists(local_file):
-            print(f"\nSyncing {sync_file}...")
-            sftp.put(local_file, remote_file)
-            total_files += 1
-            print(f"  {sync_file}: uploaded")
-
+    print(f"Connecting to {HOST}...")
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    ssh.connect(HOST, username=USER, password=PASSWORD, timeout=30)
+    
+    sftp = ssh.open_sftp()
+    
+    files = get_all_files(LOCAL_DIR)
+    print(f"Found {len(files)} files to sync")
+    
+    uploaded = 0
+    errors = 0
+    for full_path, rel_path in files:
+        remote_path = REMOTE_DIR + rel_path
+        remote_dir = os.path.dirname(remote_path).replace('\\', '/')
+        try:
+            ensure_remote_dir(sftp, remote_dir)
+            sftp.put(full_path, remote_path)
+            uploaded += 1
+            if uploaded % 50 == 0:
+                print(f"  Uploaded {uploaded}/{len(files)} files...")
+        except Exception as e:
+            errors += 1
+            if errors <= 5:
+                print(f"  Error uploading {rel_path}: {e}")
+    
+    print(f"\nSync complete: {uploaded} uploaded, {errors} errors")
     sftp.close()
-    client.close()
-    print(f"\nSync complete! Total files uploaded: {total_files}")
+    ssh.close()
 
-if __name__ == "__main__":
+
+if __name__ == '__main__':
     main()

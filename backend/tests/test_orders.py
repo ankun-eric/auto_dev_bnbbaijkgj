@@ -162,3 +162,162 @@ async def test_unauthorized_order(client: AsyncClient):
 
     response = await client.get("/api/orders")
     assert response.status_code == 401
+
+
+# ────────────────────────────────────────────────────────────────────────────
+# 以下为 Bug 修复验证用例：H5 订单预约信息缺失
+# 验证 store_name / appointment_data / appointment_time 正确返回
+# ────────────────────────────────────────────────────────────────────────────
+
+from datetime import datetime, timedelta
+from app.models.models import (
+    MerchantStore, Product, ProductCategory, ProductStore,
+    UnifiedOrder, OrderItem, UnifiedOrderStatus, FulfillmentType,
+    AppointmentMode, PurchaseAppointmentMode,
+)
+
+
+async def _seed_unified_order_with_store(user_id: int, with_store: bool = True, with_appointment: bool = False):
+    """Create a unified order optionally bound to a store and with appointment info."""
+    from tests.conftest import test_session
+
+    async with test_session() as db:
+        store = None
+        if with_store:
+            store = MerchantStore(
+                store_name="测试门店A",
+                store_code=f"STORE_{datetime.utcnow().timestamp()}",
+                status="active",
+            )
+            db.add(store)
+            await db.flush()
+
+        cat = ProductCategory(name="测试分类", sort_order=1, status="active")
+        db.add(cat)
+        await db.flush()
+
+        product = Product(
+            name="预约测试商品",
+            category_id=cat.id,
+            fulfillment_type=FulfillmentType.in_store,
+            sale_price=88.00,
+            stock=100,
+            sales_count=0,
+            status="active",
+            appointment_mode=AppointmentMode.date if with_appointment else AppointmentMode.none,
+            purchase_appointment_mode=(
+                PurchaseAppointmentMode.purchase_with_appointment if with_appointment else None
+            ),
+            redeem_count=1,
+        )
+        db.add(product)
+        await db.flush()
+
+        if with_store:
+            ps = ProductStore(product_id=product.id, store_id=store.id)
+            db.add(ps)
+            await db.flush()
+
+        order = UnifiedOrder(
+            order_no=f"UO_TEST_{datetime.utcnow().strftime('%Y%m%d%H%M%S%f')}",
+            user_id=user_id,
+            total_amount=88.00,
+            paid_amount=88.00,
+            points_deduction=0,
+            status=UnifiedOrderStatus.pending_use,
+            store_id=store.id if store else None,
+        )
+        db.add(order)
+        await db.flush()
+
+        appt_time = datetime.utcnow() + timedelta(days=1) if with_appointment else None
+        appt_data = {"time_slot": "09:00-10:00"} if with_appointment else None
+
+        oi = OrderItem(
+            order_id=order.id,
+            product_id=product.id,
+            product_name=product.name,
+            product_price=88.00,
+            quantity=1,
+            subtotal=88.00,
+            fulfillment_type=FulfillmentType.in_store,
+            total_redeem_count=1,
+            used_redeem_count=0,
+            appointment_data=appt_data,
+            appointment_time=appt_time,
+        )
+        db.add(oi)
+        await db.commit()
+
+        return order.id
+
+
+async def _get_user_id_from_token(token: str) -> int:
+    """Decode user id from JWT token."""
+    from jose import jwt
+    from app.core.config import settings
+    payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+    return int(payload["sub"])
+
+
+@pytest.mark.asyncio
+async def test_unified_order_response_contains_store_name(client: AsyncClient, user_token, auth_headers):
+    """验证订单响应中包含 store_name 字段（绑定门店时返回门店名称）"""
+    user_id = await _get_user_id_from_token(user_token)
+    order_id = await _seed_unified_order_with_store(user_id, with_store=True)
+
+    response = await client.get(f"/api/orders/unified/{order_id}", headers=auth_headers)
+    assert response.status_code == 200
+    data = response.json()
+    assert "store_name" in data
+    assert data["store_name"] == "测试门店A"
+
+
+@pytest.mark.asyncio
+async def test_unified_order_store_name_none_when_no_store(client: AsyncClient, user_token, auth_headers):
+    """验证无门店时 store_name 为 None"""
+    user_id = await _get_user_id_from_token(user_token)
+    order_id = await _seed_unified_order_with_store(user_id, with_store=False)
+
+    response = await client.get(f"/api/orders/unified/{order_id}", headers=auth_headers)
+    assert response.status_code == 200
+    data = response.json()
+    assert "store_name" in data
+    assert data["store_name"] is None
+
+
+@pytest.mark.asyncio
+async def test_unified_order_items_contain_appointment_fields(client: AsyncClient, user_token, auth_headers):
+    """验证订单项中包含 appointment_data 和 appointment_time 字段"""
+    user_id = await _get_user_id_from_token(user_token)
+    order_id = await _seed_unified_order_with_store(user_id, with_store=True, with_appointment=True)
+
+    response = await client.get(f"/api/orders/unified/{order_id}", headers=auth_headers)
+    assert response.status_code == 200
+    data = response.json()
+
+    assert len(data["items"]) > 0
+    item = data["items"][0]
+    assert "appointment_data" in item
+    assert "appointment_time" in item
+    assert item["appointment_data"] is not None
+    assert item["appointment_data"]["time_slot"] == "09:00-10:00"
+    assert item["appointment_time"] is not None
+
+
+@pytest.mark.asyncio
+async def test_unified_order_items_appointment_null_when_not_set(client: AsyncClient, user_token, auth_headers):
+    """验证无预约信息时 appointment_data 和 appointment_time 为 None"""
+    user_id = await _get_user_id_from_token(user_token)
+    order_id = await _seed_unified_order_with_store(user_id, with_store=False, with_appointment=False)
+
+    response = await client.get(f"/api/orders/unified/{order_id}", headers=auth_headers)
+    assert response.status_code == 200
+    data = response.json()
+
+    assert len(data["items"]) > 0
+    item = data["items"][0]
+    assert "appointment_data" in item
+    assert "appointment_time" in item
+    assert item["appointment_data"] is None
+    assert item["appointment_time"] is None

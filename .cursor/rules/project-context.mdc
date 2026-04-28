@@ -33,7 +33,22 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 商品门店绑定与订单通知增强 — 已开发部署（2026-04-28 22:40）
+## Latest Update: H5订单详情页预约信息缺失修复 — 已开发部署（2026-04-28 23:47）
+
+### 一句话结论
+H5 Web客户端订单详情页完全缺失预约信息展示模块已修复。后端UnifiedOrderResponse新增store_name字段并从MerchantStore关系加载；H5前端OrderItem补充appointment_data/appointment_time字段，OrderDetail补充store_name字段，商品信息卡片下方新增预约信息卡片（📅蓝色高亮预约时间+📍门店名称），无预约数据时隐藏。
+
+### 修改的文件
+- `backend/app/schemas/unified_orders.py` — UnifiedOrderResponse新增store_name: Optional[str] = None
+- `backend/app/api/unified_orders.py` — _build_order_response填充store_name从order.store.store_name；create/list/get三处查询增加selectinload(UnifiedOrder.store)
+- `h5-web/src/app/unified-order/[id]/page.tsx` — OrderItem新增appointment_data/appointment_time字段；OrderDetail新增store_name字段；新增预约信息卡片（条件渲染，📅日历图标+蓝色#1677ff时间，📍定位图标+门店名）
+
+### 用户文档
+- `user_docs/H5订单详情预约信息展示.md`
+
+---
+
+## Previous Update: 商品门店绑定与订单通知增强 — 已开发部署（2026-04-28 22:40）
 
 ### 一句话结论
 商品门店绑定与订单通知增强已完成三端（后端+管理后台+门店H5/PC端）全量开发部署。核心改动：①管理后台商品编辑弹窗新增"适用门店"多选+智能推荐UI；②门店编辑新增"经营范围"字段；③系统设置新增订单超时策略配置Tab；④门店端新增预约日历视图（月视图热力图+日视图详情列表）；⑤门店端订单详情增加确认接单/调整预约时间/门店备注功能；⑥新增公众号绑定模块（二维码扫码绑定+轮询状态+解绑）；⑦后端新增通知推送服务和超时定时任务；⑧下单流程增强自动路由到对应门店并生成通知。
