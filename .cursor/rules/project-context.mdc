@@ -33,7 +33,20 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: H5订单详情页预约信息缺失修复 — 已开发部署（2026-04-28 23:47）
+## Latest Update: H5订单详情页预约信息卡片布局顺序修复 — 已开发部署（2026-04-29 00:15）
+
+### 一句话结论
+H5 Web客户端订单详情页预约信息卡片布局顺序已修复。将核销码区域从商品信息卡片上方移至预约信息卡片下方，形成「商品信息 → 预约信息 → 核销码」的自然阅读流，符合主流平台设计惯例。
+
+### 修改的文件
+- `h5-web/src/app/unified-order/[id]/page.tsx` — 调整卡片渲染顺序：商品信息卡片 → 预约信息卡片（📅蓝色高亮预约时间+📍门店名称） → 核销码区域
+
+### 用户文档
+- `user_docs/H5订单详情页预约信息展示修复.md`
+
+---
+
+## Previous Update: H5订单详情页预约信息缺失修复 — 已开发部署（2026-04-28 23:47）
 
 ### 一句话结论
 H5 Web客户端订单详情页完全缺失预约信息展示模块已修复。后端UnifiedOrderResponse新增store_name字段并从MerchantStore关系加载；H5前端OrderItem补充appointment_data/appointment_time字段，OrderDetail补充store_name字段，商品信息卡片下方新增预约信息卡片（📅蓝色高亮预约时间+📍门店名称），无预约数据时隐藏。
