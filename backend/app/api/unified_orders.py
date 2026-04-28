@@ -22,6 +22,7 @@ from app.models.models import (
     PointsType,
     Product,
     RefundRequest,
+    RefundRequestStatus,
     UnifiedOrder,
     UnifiedOrderStatus,
     RefundStatusEnum,
@@ -652,12 +653,15 @@ async def request_refund(
 
     refund_amount = data.refund_amount or float(order.paid_amount)
 
+    has_redemption = any(item.used_redeem_count > 0 for item in order.items)
+
     refund_req = RefundRequest(
         order_id=order.id,
         order_item_id=data.order_item_id,
         user_id=current_user.id,
         reason=data.reason,
         refund_amount=refund_amount,
+        has_redemption=has_redemption,
     )
     db.add(refund_req)
 
@@ -666,4 +670,45 @@ async def request_refund(
 
     await db.flush()
     await db.refresh(refund_req)
-    return {"message": "退款申请已提交", "refund_id": refund_req.id}
+    msg = "退款申请已提交"
+    if has_redemption:
+        msg = "退款申请已提交，该订单存在核销记录，需人工审核"
+    return {"message": msg, "refund_id": refund_req.id, "has_redemption": has_redemption}
+
+
+@router.post("/{order_id}/refund/withdraw")
+async def withdraw_refund(
+    order_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(UnifiedOrder).where(
+            UnifiedOrder.id == order_id, UnifiedOrder.user_id == current_user.id
+        )
+    )
+    order = result.scalar_one_or_none()
+    if not order:
+        raise HTTPException(status_code=404, detail="订单不存在")
+
+    refund_val = order.refund_status
+    if hasattr(refund_val, "value"):
+        refund_val = refund_val.value
+    if refund_val != "applied":
+        raise HTTPException(status_code=400, detail="当前退款状态不允许撤回")
+
+    refund_result = await db.execute(
+        select(RefundRequest)
+        .where(RefundRequest.order_id == order_id, RefundRequest.status == RefundRequestStatus.pending)
+        .order_by(RefundRequest.created_at.desc())
+    )
+    refund_req = refund_result.scalar_one_or_none()
+    if refund_req:
+        refund_req.status = RefundRequestStatus.withdrawn
+        refund_req.updated_at = datetime.utcnow()
+
+    order.refund_status = RefundStatusEnum.none
+    order.updated_at = datetime.utcnow()
+
+    await db.flush()
+    return {"message": "退款申请已撤回"}

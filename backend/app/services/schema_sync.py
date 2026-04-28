@@ -979,6 +979,18 @@ async def _sync_product_system_tables(conn: AsyncConnection) -> None:
             await conn.execute(text("ALTER TABLE refund_requests ADD COLUMN return_tracking_number VARCHAR(100) NULL"))
         if "return_tracking_company" not in cols:
             await conn.execute(text("ALTER TABLE refund_requests ADD COLUMN return_tracking_company VARCHAR(100) NULL"))
+        if "has_redemption" not in cols:
+            await conn.execute(text("ALTER TABLE refund_requests ADD COLUMN has_redemption TINYINT(1) DEFAULT 0"))
+        if "refund_amount_approved" not in cols:
+            await conn.execute(text("ALTER TABLE refund_requests ADD COLUMN refund_amount_approved DECIMAL(10,2) NULL"))
+        try:
+            await conn.execute(text(
+                "ALTER TABLE refund_requests MODIFY COLUMN status "
+                "ENUM('pending','reviewing','approved','rejected','returning','completed','withdrawn') "
+                "NOT NULL DEFAULT 'pending'"
+            ))
+        except Exception:
+            pass
 
 
 async def _sync_merchant_v1_backend(conn: AsyncConnection) -> None:

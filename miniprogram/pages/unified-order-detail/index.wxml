@@ -5,18 +5,53 @@
     <text class="status-desc" wx:if="{{order.status_desc}}">{{order.status_desc}}</text>
   </view>
 
+  <!-- 退款状态提示栏 -->
+  <view class="refund-status-bar refund-bar-{{order.refund_status}}" wx:if="{{order.refund_status && order.refund_status !== 'none'}}">
+    <text class="refund-bar-text" wx:if="{{order.refund_status === 'applied'}}">退款已申请，等待商家审核</text>
+    <text class="refund-bar-text" wx:elif="{{order.refund_status === 'reviewing'}}">退款审核中</text>
+    <text class="refund-bar-text" wx:elif="{{order.refund_status === 'approved'}}">退款已批准，处理中</text>
+    <text class="refund-bar-text" wx:elif="{{order.refund_status === 'returning'}}">退款退货处理中</text>
+    <text class="refund-bar-text" wx:elif="{{order.refund_status === 'rejected'}}">退款申请已被拒绝</text>
+    <text class="refund-bar-text" wx:elif="{{order.refund_status === 'refund_success'}}">退款成功</text>
+  </view>
+
   <!-- 核销码 -->
   <view class="verify-section card" wx:if="{{order.status === 'paid' && (order.verify_code || order.qr_code_url)}}">
-    <text class="section-title">核销码</text>
-    <view class="qr-area" wx:if="{{order.qr_code_url}}">
-      <image class="qr-img" src="{{order.qr_code_url}}" mode="aspectFit"
-             bindtap="previewQrCode" />
-    </view>
-    <view class="verify-code-row" wx:if="{{order.verify_code}}">
-      <text class="verify-code">{{order.verify_code}}</text>
-      <text class="copy-btn" bindtap="copyVerifyCode">复制</text>
-    </view>
-    <text class="verify-hint">请向门店工作人员出示此码进行核销</text>
+    <!-- 正常状态：refund_status 为 none/rejected 或不存在 -->
+    <block wx:if="{{!order.refund_status || order.refund_status === 'none' || order.refund_status === 'rejected'}}">
+      <text class="section-title">核销码</text>
+      <view class="qr-area" wx:if="{{order.qr_code_url}}">
+        <image class="qr-img" src="{{order.qr_code_url}}" mode="aspectFit"
+               bindtap="previewQrCode" />
+      </view>
+      <view class="verify-code-row" wx:if="{{order.verify_code}}">
+        <text class="verify-code">{{order.verify_code}}</text>
+        <text class="copy-btn" bindtap="copyVerifyCode">复制</text>
+      </view>
+      <text class="verify-hint">请向门店工作人员出示此码进行核销</text>
+    </block>
+    <!-- 退款处理中：applied/reviewing/approved/returning -->
+    <block wx:elif="{{order.refund_status === 'applied' || order.refund_status === 'reviewing' || order.refund_status === 'approved' || order.refund_status === 'returning'}}">
+      <text class="section-title">核销码</text>
+      <view class="qr-area" wx:if="{{order.qr_code_url}}">
+        <image class="qr-img qr-img-disabled" src="{{order.qr_code_url}}" mode="aspectFit" />
+      </view>
+      <view class="verify-code-row" wx:if="{{order.verify_code}}">
+        <text class="verify-code verify-code-disabled">{{order.verify_code}}</text>
+      </view>
+      <text class="verify-hint verify-hint-warn">退款处理中，核销码暂时不可用</text>
+    </block>
+    <!-- 已退款：refund_success -->
+    <block wx:elif="{{order.refund_status === 'refund_success'}}">
+      <text class="section-title">核销码</text>
+      <view class="refund-tag-row">
+        <text class="refund-tag">已退款</text>
+      </view>
+      <view class="qr-area" wx:if="{{order.qr_code_url}}">
+        <image class="qr-img qr-img-disabled" src="{{order.qr_code_url}}" mode="aspectFit" />
+      </view>
+      <text class="verify-hint verify-hint-err">该订单已退款，核销码已失效</text>
+    </block>
   </view>
 
   <!-- 商品信息 -->
@@ -132,7 +167,8 @@
   <view class="bottom-bar safe-bottom" wx:if="{{order.status === 'pending_payment' || order.status === 'paid' || order.status === 'completed'}}">
     <view class="bar-actions">
       <view class="bar-btn outline" wx:if="{{order.status === 'pending_payment'}}" bindtap="cancelOrder">取消订单</view>
-      <view class="bar-btn outline" wx:if="{{order.status === 'paid'}}" bindtap="goRefund">申请退款</view>
+      <view class="bar-btn outline" wx:if="{{order.status === 'paid' && (!order.refund_status || order.refund_status === 'none' || order.refund_status === 'rejected')}}" bindtap="goRefund">申请退款</view>
+      <view class="bar-btn outline" wx:if="{{order.status === 'paid' && order.refund_status === 'applied'}}" bindtap="withdrawRefund">撤回退款</view>
       <view class="bar-btn primary" wx:if="{{order.status === 'pending_payment'}}" bindtap="payOrder">立即付款</view>
       <view class="bar-btn primary" wx:if="{{order.status === 'paid'}}" bindtap="confirmOrder">确认收货</view>
       <view class="bar-btn primary" wx:if="{{order.status === 'completed' && !order.is_reviewed}}" bindtap="goReview">评价</view>

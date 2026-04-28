@@ -1092,6 +1092,10 @@ class ApiService {
     });
   }
 
+  Future<Response> withdrawRefund(int orderId) async {
+    return _dio.post('${ApiConfig.unifiedOrders}/$orderId/refund/withdraw');
+  }
+
   // Member QR Code
   Future<Response> getMemberQRCode() async {
     return _dio.get(ApiConfig.memberQrcode);

@@ -35,7 +35,11 @@ Page({
 
     get('/api/orders/verify-code/' + encodeURIComponent(code)).then(function (res) {
       wx.hideLoading()
-      that.setData({ orderInfo: res })
+      var info = res || {}
+      if (!info.refund_status) {
+        info.refund_status = 'none'
+      }
+      that.setData({ orderInfo: info })
     }).catch(function (err) {
       wx.hideLoading()
       wx.showToast({ title: (err && err.detail) || '未找到对应订单', icon: 'none' })
@@ -46,6 +50,16 @@ Page({
     var that = this
     var orderInfo = this.data.orderInfo
     if (!orderInfo || !orderInfo.id) return
+
+    var rs = orderInfo.refund_status || 'none'
+    if (rs === 'applied' || rs === 'reviewing' || rs === 'approved' || rs === 'returning') {
+      wx.showToast({ title: '该订单正在退款处理中，无法核销', icon: 'none' })
+      return
+    }
+    if (rs === 'refund_success') {
+      wx.showToast({ title: '该订单已退款，无法核销', icon: 'none' })
+      return
+    }
 
     wx.showModal({
       title: '确认核销',

@@ -15,6 +15,7 @@ from app.models.models import (
     OrderRedemption,
     PointsRecord,
     PointsType,
+    RefundStatusEnum,
     StoreVisitRecord,
     SystemConfig,
     UnifiedOrder,
@@ -211,6 +212,23 @@ async def redeem_service(
 
     if order_item.used_redeem_count >= order_item.total_redeem_count:
         raise HTTPException(status_code=400, detail="已全部核销")
+
+    order_result = await db.execute(
+        select(UnifiedOrder)
+        .where(UnifiedOrder.id == order_item.order_id)
+        .with_for_update()
+    )
+    order_for_check = order_result.scalar_one_or_none()
+    if not order_for_check:
+        raise HTTPException(status_code=404, detail="关联订单不存在")
+
+    refund_val = order_for_check.refund_status
+    if hasattr(refund_val, "value"):
+        refund_val = refund_val.value
+    if refund_val in ("applied", "reviewing", "approved", "returning"):
+        raise HTTPException(status_code=400, detail="该订单正在退款处理中，暂时无法核销")
+    if refund_val == "refund_success":
+        raise HTTPException(status_code=400, detail="该订单已退款，核销码已失效")
 
     redemption = OrderRedemption(
         order_item_id=order_item.id,

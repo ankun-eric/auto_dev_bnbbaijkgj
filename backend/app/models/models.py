@@ -241,6 +241,7 @@ class RefundRequestStatus(str, enum.Enum):
     rejected = "rejected"
     returning = "returning"
     completed = "completed"
+    withdrawn = "withdrawn"
 
 
 class PointsMallItemType(str, enum.Enum):
@@ -3049,6 +3050,8 @@ class RefundRequest(Base):
     admin_notes = mapped_column(Text, nullable=True)
     return_tracking_number = mapped_column(String(100), nullable=True)
     return_tracking_company = mapped_column(String(100), nullable=True)
+    has_redemption = mapped_column(Boolean, default=False)
+    refund_amount_approved = mapped_column(Numeric(10, 2), nullable=True)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

@@ -103,6 +103,7 @@ class ShipRequest(BaseModel):
 
 class RefundActionRequest(BaseModel):
     admin_notes: Optional[str] = None
+    refund_amount: Optional[float] = None
 
 
 class RefundRequestResponse(BaseModel):
@@ -117,6 +118,8 @@ class RefundRequestResponse(BaseModel):
     admin_notes: Optional[str] = None
     return_tracking_number: Optional[str] = None
     return_tracking_company: Optional[str] = None
+    has_redemption: bool = False
+    refund_amount_approved: Optional[float] = None
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
@@ -156,6 +159,26 @@ class TrendItem(BaseModel):
     order_count: int = 0
     revenue: float = 0
     refund_amount: float = 0
+
+
+class RedemptionDetailItem(BaseModel):
+    id: int
+    order_item_id: int
+    redeemed_at: datetime
+    store_name: Optional[str] = None
+    redeemed_by_name: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class RefundDetailResponse(BaseModel):
+    refund_request: RefundRequestResponse
+    has_redemption: bool = False
+    used_redeem_count: int = 0
+    total_redeem_count: int = 0
+    redemption_ratio: str = "0%"
+    redemptions: list[RedemptionDetailItem] = []
+    paid_amount: float = 0
 
 
 class RefundReasonItem(BaseModel):

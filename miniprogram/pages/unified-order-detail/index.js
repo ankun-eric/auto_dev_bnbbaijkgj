@@ -91,6 +91,23 @@ Page({
     });
   },
 
+  withdrawRefund() {
+    var that = this;
+    wx.showModal({
+      title: '撤回退款',
+      content: '确定要撤回退款申请吗？',
+      success: function (res) {
+        if (!res.confirm) return;
+        post('/api/orders/unified/' + that.data.id + '/refund/withdraw').then(function () {
+          wx.showToast({ title: '已撤回', icon: 'success' });
+          that.loadOrder();
+        }).catch(function (e) {
+          wx.showToast({ title: (e && e.detail) || '撤回失败', icon: 'none' });
+        });
+      }
+    });
+  },
+
   toggleQrCode() {
     this.setData({ showQrCode: !this.data.showQrCode });
   },

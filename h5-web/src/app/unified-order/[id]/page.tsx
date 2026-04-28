@@ -129,6 +129,21 @@ export default function UnifiedOrderDetailPage() {
     Toast.show({ content: '核销码已复制' });
   };
 
+  const handleWithdrawRefund = () => {
+    Dialog.confirm({
+      content: '确认撤回退款申请？',
+      onConfirm: async () => {
+        try {
+          await api.post(`/api/orders/unified/${orderId}/refund/withdraw`);
+          Toast.show({ content: '退款已撤回' });
+          fetchOrder();
+        } catch (err: any) {
+          Toast.show({ content: err?.response?.data?.detail || '撤回失败' });
+        }
+      },
+    });
+  };
+
   const getStepsCurrent = () => {
     const statusOrder = ['pending_payment', 'pending_shipment', 'pending_receipt', 'pending_use', 'pending_review', 'completed'];
     if (!order) return 0;
@@ -175,47 +190,111 @@ export default function UnifiedOrderDetailPage() {
         </div>
       </div>
 
+      {order.refund_status !== 'none' && (
+        <div className="px-4 mt-2 mb-1">
+          {order.refund_status === 'applied' && (
+            <div style={{ background: '#fff7e6', border: '1px solid #ffd591', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#d48806' }}>
+              退款申请已提交，正在处理中...
+            </div>
+          )}
+          {order.refund_status === 'reviewing' && (
+            <div style={{ background: '#e6f7ff', border: '1px solid #91d5ff', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#096dd9' }}>
+              退款审核中...
+            </div>
+          )}
+          {order.refund_status === 'approved' && (
+            <div style={{ background: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#389e0d' }}>
+              退款已批准，退款处理中...
+            </div>
+          )}
+          {order.refund_status === 'returning' && (
+            <div style={{ background: '#fff7e6', border: '1px solid #ffd591', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#d48806' }}>
+              退款处理中，请耐心等待...
+            </div>
+          )}
+          {order.refund_status === 'rejected' && (
+            <div style={{ background: '#fff2f0', border: '1px solid #ffccc7', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#cf1322' }}>
+              退款申请已被拒绝
+            </div>
+          )}
+          {order.refund_status === 'refund_success' && (
+            <div style={{ background: '#fafafa', border: '1px solid #d9d9d9', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#8c8c8c' }}>
+              退款成功
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="px-4 -mt-3">
-        {hasInStore && order.status === 'pending_use' && order.items.filter((i) => i.fulfillment_type === 'in_store').map((item) => (
-          <Card key={item.id} style={{ borderRadius: 12, marginBottom: 12, textAlign: 'center' }}>
-            <div className="text-sm text-gray-500 mb-2">核销码</div>
-            {item.verification_qrcode_token && (
-              <div className="flex justify-center mb-3">
-                <Image
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${item.verification_qrcode_token}`}
-                  width={150}
-                  height={150}
-                  fit="contain"
-                />
+        {hasInStore && order.status === 'pending_use' && order.items.filter((i) => i.fulfillment_type === 'in_store').map((item) => {
+          const isRefundProcessing = ['applied', 'reviewing', 'approved', 'returning'].includes(order.refund_status);
+          const isRefundSuccess = order.refund_status === 'refund_success';
+          const isRefundBlocked = isRefundProcessing || isRefundSuccess;
+
+          return (
+            <Card key={item.id} style={{ borderRadius: 12, marginBottom: 12, textAlign: 'center' }}>
+              <div className="text-sm text-gray-500 mb-2">
+                核销码
+                {isRefundProcessing && (
+                  <Tag color="warning" style={{ marginLeft: 8, verticalAlign: 'middle' }}>退款处理中</Tag>
+                )}
+                {isRefundSuccess && (
+                  <Tag color="default" style={{ marginLeft: 8, verticalAlign: 'middle' }}>已退款</Tag>
+                )}
               </div>
-            )}
-            {item.verification_code && (
-              <>
-                <div className="text-2xl font-bold tracking-widest text-primary mb-2">
+              {item.verification_qrcode_token && (
+                <div className="flex justify-center mb-3" style={isRefundBlocked ? { opacity: 0.3 } : {}}>
+                  <Image
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${item.verification_qrcode_token}`}
+                    width={150}
+                    height={150}
+                    fit="contain"
+                  />
+                </div>
+              )}
+              {item.verification_code && !isRefundBlocked && (
+                <>
+                  <div className="text-2xl font-bold tracking-widest text-primary mb-2">
+                    {item.verification_code}
+                  </div>
+                  <Button
+                    size="small"
+                    onClick={() => copyCode(item.verification_code!)}
+                    style={{ color: '#52c41a', borderColor: '#52c41a', borderRadius: 16, fontSize: 12 }}
+                  >
+                    复制核销码
+                  </Button>
+                </>
+              )}
+              {item.verification_code && isRefundBlocked && (
+                <div className="text-2xl font-bold tracking-widest mb-2" style={{ color: '#ccc' }}>
                   {item.verification_code}
                 </div>
-                <Button
-                  size="small"
-                  onClick={() => copyCode(item.verification_code!)}
-                  style={{ color: '#52c41a', borderColor: '#52c41a', borderRadius: 16, fontSize: 12 }}
-                >
-                  复制核销码
-                </Button>
-              </>
-            )}
-            {item.total_redeem_count > 1 && (
-              <div className="mt-3">
-                <div className="text-xs text-gray-400 mb-1">
-                  使用进度：{item.used_redeem_count}/{item.total_redeem_count}次
+              )}
+              {isRefundProcessing && (
+                <div className="text-xs mt-2" style={{ color: '#faad14' }}>
+                  退款处理中，核销码暂时不可用
                 </div>
-                <ProgressBar
-                  percent={(item.used_redeem_count / item.total_redeem_count) * 100}
-                  style={{ '--fill-color': '#52c41a', '--track-width': '6px' }}
-                />
-              </div>
-            )}
-          </Card>
-        ))}
+              )}
+              {isRefundSuccess && (
+                <div className="text-xs mt-2" style={{ color: '#999' }}>
+                  该订单已退款，核销码已失效
+                </div>
+              )}
+              {item.total_redeem_count > 1 && (
+                <div className="mt-3">
+                  <div className="text-xs text-gray-400 mb-1">
+                    使用进度：{item.used_redeem_count}/{item.total_redeem_count}次
+                  </div>
+                  <ProgressBar
+                    percent={(item.used_redeem_count / item.total_redeem_count) * 100}
+                    style={{ '--fill-color': '#52c41a', '--track-width': '6px' }}
+                  />
+                </div>
+              )}
+            </Card>
+          );
+        })}
 
         <Card style={{ borderRadius: 12, marginBottom: 12 }}>
           {order.items.map((item) => (
@@ -348,12 +427,20 @@ export default function UnifiedOrderDetailPage() {
             去评价
           </Button>
         )}
-        {['pending_shipment', 'pending_receipt', 'pending_use'].includes(order.status) && order.refund_status === 'none' && (
+        {['pending_shipment', 'pending_receipt', 'pending_use'].includes(order.status) && (order.refund_status === 'none' || order.refund_status === 'rejected') && (
           <Button
             onClick={() => router.push(`/refund/${order.id}`)}
             style={{ borderRadius: 20, height: 40, fontSize: 14 }}
           >
             申请退款
+          </Button>
+        )}
+        {['pending_shipment', 'pending_receipt', 'pending_use'].includes(order.status) && order.refund_status === 'applied' && (
+          <Button
+            onClick={handleWithdrawRefund}
+            style={{ borderRadius: 20, height: 40, fontSize: 14, color: '#faad14', borderColor: '#faad14' }}
+          >
+            撤回退款
           </Button>
         )}
       </div>

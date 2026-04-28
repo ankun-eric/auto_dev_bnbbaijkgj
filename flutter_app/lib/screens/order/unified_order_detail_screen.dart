@@ -61,6 +61,9 @@ class _UnifiedOrderDetailScreenState extends State<UnifiedOrderDetailScreen> {
         child: Column(
           children: [
             _buildStatusHeader(o),
+            if (o.refundStatus != 'none') ...[
+              _buildRefundStatusBanner(o),
+            ],
             const SizedBox(height: 8),
             _buildItemsSection(o),
             const SizedBox(height: 8),
@@ -251,37 +254,89 @@ class _UnifiedOrderDetailScreenState extends State<UnifiedOrderDetailScreen> {
     );
   }
 
+  bool get _isRefundBlocking =>
+      const {'applied', 'reviewing', 'approved', 'returning'}
+          .contains(_order?.refundStatus);
+
+  bool get _isRefundSuccess =>
+      _order?.refundStatus == 'refund_success' || _order?.refundStatus == 'refunded';
+
   Widget _buildVerificationSection(UnifiedOrder o) {
+    final bool blocking = _isRefundBlocking;
+    final bool refunded = _isRefundSuccess;
+    final double codeOpacity = (blocking || refunded) ? 0.3 : 1.0;
+
     return Container(
       color: Colors.white,
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('核销码', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 12),
-          ...o.items.where((i) => i.verificationCode != null).map((item) => Container(
-            margin: const EdgeInsets.only(bottom: 10),
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF0F9EB),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.qr_code, color: Color(0xFF52C41A), size: 32),
-                const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(item.productName, style: const TextStyle(fontSize: 13)),
-                    Text(item.verificationCode!, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 2)),
-                    Text('已使用${item.usedRedeemCount}/${item.totalRedeemCount}次', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
-                  ],
+          Row(
+            children: [
+              const Text('核销码', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              if (refunded) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(color: Colors.grey[400], borderRadius: BorderRadius.circular(4)),
+                  child: const Text('已退款', style: TextStyle(color: Colors.white, fontSize: 11)),
                 ),
               ],
+            ],
+          ),
+          if (blocking)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, size: 16, color: Colors.orange[700]),
+                  const SizedBox(width: 4),
+                  Text('退款处理中，核销码暂时不可用',
+                      style: TextStyle(fontSize: 13, color: Colors.orange[700])),
+                ],
+              ),
             ),
-          )),
+          if (refunded)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, size: 16, color: Colors.grey[600]),
+                  const SizedBox(width: 4),
+                  Text('该订单已退款，核销码已失效',
+                      style: TextStyle(fontSize: 13, color: Colors.grey[600])),
+                ],
+              ),
+            ),
+          const SizedBox(height: 12),
+          Opacity(
+            opacity: codeOpacity,
+            child: Column(
+              children: o.items.where((i) => i.verificationCode != null).map((item) => Container(
+                margin: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF0F9EB),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.qr_code, color: Color(0xFF52C41A), size: 32),
+                    const SizedBox(width: 12),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(item.productName, style: const TextStyle(fontSize: 13)),
+                        Text(item.verificationCode!, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 2)),
+                        Text('已使用${item.usedRedeemCount}/${item.totalRedeemCount}次', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+                      ],
+                    ),
+                  ],
+                ),
+              )).toList(),
+            ),
+          ),
         ],
       ),
     );
@@ -305,6 +360,8 @@ class _UnifiedOrderDetailScreenState extends State<UnifiedOrderDetailScreen> {
 
   Widget? _buildBottomActions(UnifiedOrder o) {
     final actions = <Widget>[];
+    final bool canApplyRefund = o.refundStatus == 'none' || o.refundStatus == 'rejected';
+    final bool isRefundApplied = o.refundStatus == 'applied';
 
     switch (o.status) {
       case 'pending_payment':
@@ -313,22 +370,40 @@ class _UnifiedOrderDetailScreenState extends State<UnifiedOrderDetailScreen> {
         actions.add(_actionBtn('去支付', const Color(0xFF52C41A), () => _payOrder(o), filled: true));
         break;
       case 'pending_receipt':
-        actions.add(_actionBtn('确认收货', const Color(0xFF52C41A), () => _confirmReceipt(o), filled: true));
+        if (isRefundApplied) {
+          actions.add(_actionBtn('撤回退款', Colors.orange, () => _withdrawRefund(o)));
+        } else if (canApplyRefund) {
+          actions.add(_actionBtn('申请退款', Colors.grey, () {
+            Navigator.pushNamed(context, '/refund', arguments: o.id);
+          }));
+        }
+        if (canApplyRefund) {
+          actions.add(const SizedBox(width: 12));
+          actions.add(_actionBtn('确认收货', const Color(0xFF52C41A), () => _confirmReceipt(o), filled: true));
+        }
         break;
       case 'pending_review':
-        actions.add(_actionBtn('申请退款', Colors.grey, () {
-          Navigator.pushNamed(context, '/refund', arguments: o.id);
-        }));
-        actions.add(const SizedBox(width: 12));
-        actions.add(_actionBtn('去评价', const Color(0xFFFAAD14), () {
-          Navigator.pushNamed(context, '/review', arguments: o.id);
-        }, filled: true));
+        if (isRefundApplied) {
+          actions.add(_actionBtn('撤回退款', Colors.orange, () => _withdrawRefund(o)));
+        } else if (canApplyRefund) {
+          actions.add(_actionBtn('申请退款', Colors.grey, () {
+            Navigator.pushNamed(context, '/refund', arguments: o.id);
+          }));
+          actions.add(const SizedBox(width: 12));
+          actions.add(_actionBtn('去评价', const Color(0xFFFAAD14), () {
+            Navigator.pushNamed(context, '/review', arguments: o.id);
+          }, filled: true));
+        }
         break;
       case 'pending_use':
       case 'pending_shipment':
-        actions.add(_actionBtn('申请退款', Colors.grey, () {
-          Navigator.pushNamed(context, '/refund', arguments: o.id);
-        }));
+        if (isRefundApplied) {
+          actions.add(_actionBtn('撤回退款', Colors.orange, () => _withdrawRefund(o)));
+        } else if (canApplyRefund) {
+          actions.add(_actionBtn('申请退款', Colors.grey, () {
+            Navigator.pushNamed(context, '/refund', arguments: o.id);
+          }));
+        }
         break;
     }
 
@@ -444,11 +519,16 @@ class _UnifiedOrderDetailScreenState extends State<UnifiedOrderDetailScreen> {
     switch (status) {
       case 'applied':
         return '申请中';
+      case 'reviewing':
+        return '审核中';
       case 'approved':
         return '已同意';
       case 'rejected':
         return '已拒绝';
+      case 'returning':
+        return '退款中';
       case 'refunded':
+      case 'refund_success':
         return '已退款';
       default:
         return status;
@@ -465,6 +545,103 @@ class _UnifiedOrderDetailScreenState extends State<UnifiedOrderDetailScreen> {
         return '虚拟商品';
       default:
         return type;
+    }
+  }
+
+  Widget _buildRefundStatusBanner(UnifiedOrder o) {
+    Color bgColor;
+    Color textColor;
+    IconData icon;
+    String message;
+    bool showReapplyButton = false;
+
+    switch (o.refundStatus) {
+      case 'applied':
+        bgColor = const Color(0xFFFFF7E6);
+        textColor = const Color(0xFFFA8C16);
+        icon = Icons.hourglass_top;
+        message = '退款申请已提交，正在处理中...';
+        break;
+      case 'reviewing':
+        bgColor = const Color(0xFFE6F7FF);
+        textColor = const Color(0xFF1890FF);
+        icon = Icons.policy;
+        message = '退款审核中...';
+        break;
+      case 'approved':
+      case 'returning':
+        bgColor = const Color(0xFFF6FFED);
+        textColor = const Color(0xFF52C41A);
+        icon = Icons.check_circle_outline;
+        message = '退款已批准，退款处理中...';
+        break;
+      case 'rejected':
+        bgColor = const Color(0xFFFFF1F0);
+        textColor = const Color(0xFFFF4D4F);
+        icon = Icons.cancel_outlined;
+        message = '退款申请已被拒绝';
+        showReapplyButton = true;
+        break;
+      case 'refund_success':
+      case 'refunded':
+        bgColor = const Color(0xFFF5F5F5);
+        textColor = Colors.grey[600]!;
+        icon = Icons.monetization_on_outlined;
+        message = '退款成功';
+        break;
+      default:
+        return const SizedBox.shrink();
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      color: bgColor,
+      child: Row(
+        children: [
+          Icon(icon, color: textColor, size: 20),
+          const SizedBox(width: 8),
+          Expanded(child: Text(message, style: TextStyle(color: textColor, fontSize: 14))),
+          if (showReapplyButton)
+            GestureDetector(
+              onTap: () => Navigator.pushNamed(context, '/refund', arguments: o.id),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  border: Border.all(color: textColor),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text('重新申请', style: TextStyle(color: textColor, fontSize: 12)),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _withdrawRefund(UnifiedOrder o) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('撤回退款'),
+        content: const Text('确定要撤回退款申请吗？撤回后可重新申请。'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('确定撤回')),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+    try {
+      await _api.withdrawRefund(o.id);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('退款申请已撤回')));
+        _loadOrder(o.id);
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('撤回失败，请稍后重试')));
+      }
     }
   }
 

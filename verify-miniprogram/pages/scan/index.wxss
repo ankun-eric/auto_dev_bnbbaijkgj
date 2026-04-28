@@ -190,3 +190,42 @@
 .rescan-area .btn-secondary::after {
   border: none;
 }
+
+.refund-alert {
+  margin: 0 0 24rpx;
+  padding: 20rpx 24rpx;
+  border-radius: 12rpx;
+}
+
+.refund-alert-warn {
+  background: #fff7e6;
+  border: 1rpx solid #ffe58f;
+}
+
+.refund-alert-err {
+  background: #fff1f0;
+  border: 1rpx solid #ffa39e;
+}
+
+.refund-alert-info {
+  background: #e6f7ff;
+  border: 1rpx solid #91d5ff;
+}
+
+.refund-alert-text {
+  font-size: 26rpx;
+  display: block;
+  line-height: 1.5;
+}
+
+.refund-alert-warn .refund-alert-text {
+  color: #fa8c16;
+}
+
+.refund-alert-err .refund-alert-text {
+  color: #f5222d;
+}
+
+.refund-alert-info .refund-alert-text {
+  color: #1890ff;
+}

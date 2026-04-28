@@ -4,7 +4,7 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   Table, Button, Space, Modal, Form, Input, Tabs, Tag, message,
   Typography, Descriptions, Drawer, Row, Col, Card, Statistic,
-  DatePicker, Select, InputNumber,
+  DatePicker, Select, InputNumber, Alert, Spin,
 } from 'antd';
 import {
   EyeOutlined, SearchOutlined, SendOutlined,
@@ -80,8 +80,10 @@ const orderStatusMap: Record<string, { color: string; text: string }> = {
 const refundStatusMap: Record<string, { color: string; text: string }> = {
   none: { color: 'default', text: '无' },
   applied: { color: 'orange', text: '退款申请中' },
+  reviewing: { color: 'processing', text: '审核中' },
   approved: { color: 'green', text: '退款已批准' },
   rejected: { color: 'red', text: '退款已拒绝' },
+  returning: { color: 'warning', text: '退回中' },
   refund_success: { color: 'green', text: '退款成功' },
 };
 
@@ -201,6 +203,9 @@ export default function UnifiedOrdersPage() {
   const [refundRejectVisible, setRefundRejectVisible] = useState(false);
   const [refundForm] = Form.useForm();
 
+  const [refundDetail, setRefundDetail] = useState<any>(null);
+  const [refundDetailLoading, setRefundDetailLoading] = useState(false);
+
   const activeTabRef = useRef(activeTab);
   activeTabRef.current = activeTab;
 
@@ -308,6 +313,7 @@ export default function UnifiedOrdersPage() {
       const values = await refundForm.validateFields();
       await post(`/api/admin/orders/unified/${currentOrder.id}/refund/approve`, {
         admin_notes: values.admin_notes || '',
+        refund_amount: values.refund_amount,
       });
       message.success('退款已批准');
       setRefundApproveVisible(false);
@@ -333,6 +339,18 @@ export default function UnifiedOrdersPage() {
     } catch (err: any) {
       if (err?.errorFields) return;
       message.error(err?.response?.data?.detail || '操作失败');
+    }
+  };
+
+  const fetchRefundDetail = async (orderId: number) => {
+    setRefundDetailLoading(true);
+    try {
+      const res = await get(`/api/admin/orders/unified/${orderId}/refund-detail`);
+      setRefundDetail(res);
+    } catch {
+      setRefundDetail(null);
+    } finally {
+      setRefundDetailLoading(false);
     }
   };
 
@@ -402,11 +420,11 @@ export default function UnifiedOrdersPage() {
           {record.refund_status === 'applied' && (
             <>
               <Button type="link" size="small" icon={<CheckOutlined />} style={{ color: '#52c41a' }}
-                onClick={() => { setCurrentOrder(record); refundForm.resetFields(); setRefundApproveVisible(true); }}>
+                onClick={() => { setCurrentOrder(record); refundForm.resetFields(); fetchRefundDetail(record.id); setRefundApproveVisible(true); }}>
                 批准退款
               </Button>
               <Button type="link" size="small" danger icon={<CloseOutlined />}
-                onClick={() => { setCurrentOrder(record); refundForm.resetFields(); setRefundRejectVisible(true); }}>
+                onClick={() => { setCurrentOrder(record); refundForm.resetFields(); fetchRefundDetail(record.id); setRefundRejectVisible(true); }}>
                 拒绝退款
               </Button>
             </>
@@ -683,8 +701,9 @@ export default function UnifiedOrdersPage() {
         title="批准退款"
         open={refundApproveVisible}
         onOk={handleRefundApprove}
-        onCancel={() => setRefundApproveVisible(false)}
+        onCancel={() => { setRefundApproveVisible(false); setRefundDetail(null); }}
         destroyOnClose
+        width={560}
       >
         {currentOrder && (
           <div style={{ marginBottom: 16, padding: '12px 16px', background: '#f6ffed', borderRadius: 8 }}>
@@ -692,7 +711,52 @@ export default function UnifiedOrdersPage() {
             <div>实付: ¥{currentOrder.paid_amount ?? 0}</div>
           </div>
         )}
-        <Form form={refundForm} layout="vertical">
+        {refundDetailLoading ? (
+          <div style={{ textAlign: 'center', padding: '24px 0' }}><Spin tip="加载核销详情..." /></div>
+        ) : refundDetail?.has_redemption ? (
+          <div style={{ marginBottom: 16 }}>
+            <Alert
+              type="warning"
+              showIcon
+              message="核销情况（该订单已发生核销）"
+              description={
+                <div>
+                  <div style={{ marginBottom: 8, fontWeight: 600 }}>
+                    核销进度: {refundDetail.used_count ?? 0} / {refundDetail.total_count ?? 0} 次
+                    {refundDetail.total_count > 0 && (
+                      <span> ({Math.round(((refundDetail.used_count ?? 0) / refundDetail.total_count) * 100)}%)</span>
+                    )}
+                  </div>
+                  {Array.isArray(refundDetail.redemption_records) && refundDetail.redemption_records.length > 0 && (
+                    <div>
+                      <div style={{ fontWeight: 600, marginBottom: 4 }}>核销明细:</div>
+                      {refundDetail.redemption_records.map((r: any, idx: number) => (
+                        <div key={idx} style={{ color: '#595959', lineHeight: '22px' }}>
+                          ⓘ {r.redeemed_at ? dayjs(r.redeemed_at).format('YYYY-MM-DD HH:mm') : '-'}　{r.store_name || '-'}　{r.operator_name || '-'}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              }
+            />
+          </div>
+        ) : null}
+        <Form form={refundForm} layout="vertical" initialValues={{ refund_amount: currentOrder?.paid_amount ?? 0 }}>
+          <Form.Item
+            label="审核退款金额"
+            name="refund_amount"
+            rules={[{ required: true, message: '请输入退款金额' }]}
+          >
+            <InputNumber
+              style={{ width: '100%' }}
+              min={0}
+              max={currentOrder?.paid_amount ?? 0}
+              precision={2}
+              prefix="¥"
+              placeholder="请输入退款金额"
+            />
+          </Form.Item>
           <Form.Item label="审核备注" name="admin_notes">
             <TextArea rows={3} placeholder="请输入审核备注（可选）" />
           </Form.Item>
@@ -704,8 +768,9 @@ export default function UnifiedOrdersPage() {
         title="拒绝退款"
         open={refundRejectVisible}
         onOk={handleRefundReject}
-        onCancel={() => setRefundRejectVisible(false)}
+        onCancel={() => { setRefundRejectVisible(false); setRefundDetail(null); }}
         destroyOnClose
+        width={560}
       >
         {currentOrder && (
           <div style={{ marginBottom: 16, padding: '12px 16px', background: '#fff7e6', borderRadius: 8 }}>
@@ -713,6 +778,37 @@ export default function UnifiedOrdersPage() {
             <div>实付: ¥{currentOrder.paid_amount ?? 0}</div>
           </div>
         )}
+        {refundDetailLoading ? (
+          <div style={{ textAlign: 'center', padding: '24px 0' }}><Spin tip="加载核销详情..." /></div>
+        ) : refundDetail?.has_redemption ? (
+          <div style={{ marginBottom: 16 }}>
+            <Alert
+              type="warning"
+              showIcon
+              message="核销情况（该订单已发生核销）"
+              description={
+                <div>
+                  <div style={{ marginBottom: 8, fontWeight: 600 }}>
+                    核销进度: {refundDetail.used_count ?? 0} / {refundDetail.total_count ?? 0} 次
+                    {refundDetail.total_count > 0 && (
+                      <span> ({Math.round(((refundDetail.used_count ?? 0) / refundDetail.total_count) * 100)}%)</span>
+                    )}
+                  </div>
+                  {Array.isArray(refundDetail.redemption_records) && refundDetail.redemption_records.length > 0 && (
+                    <div>
+                      <div style={{ fontWeight: 600, marginBottom: 4 }}>核销明细:</div>
+                      {refundDetail.redemption_records.map((r: any, idx: number) => (
+                        <div key={idx} style={{ color: '#595959', lineHeight: '22px' }}>
+                          ⓘ {r.redeemed_at ? dayjs(r.redeemed_at).format('YYYY-MM-DD HH:mm') : '-'}　{r.store_name || '-'}　{r.operator_name || '-'}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              }
+            />
+          </div>
+        ) : null}
         <Form form={refundForm} layout="vertical">
           <Form.Item label="拒绝原因" name="admin_notes" rules={[{ required: true, message: '请输入拒绝原因' }]}>
             <TextArea rows={3} placeholder="请输入拒绝原因" />

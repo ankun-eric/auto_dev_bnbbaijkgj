@@ -134,7 +134,11 @@ function VerifyMobilePage() {
       const msg = e?.response?.data?.detail || e?.message || '核销失败';
       Dialog.alert({
         title: '核销失败',
-        content: msg,
+        content: (
+          <div style={{ background: '#fff2f0', border: '1px solid #ffccc7', borderRadius: 8, padding: '12px 16px', color: '#cf1322', fontSize: 14, marginTop: 8 }}>
+            ⚠️ {msg}
+          </div>
+        ),
         onConfirm: async () => {
           await stopScanner();
           startScanner();
@@ -160,7 +164,14 @@ function VerifyMobilePage() {
       setCode('');
     } catch (e: any) {
       const msg = e?.response?.data?.detail || e?.message || '核销失败';
-      Dialog.alert({ title: '核销失败', content: msg });
+      Dialog.alert({
+        title: '核销失败',
+        content: (
+          <div style={{ background: '#fff2f0', border: '1px solid #ffccc7', borderRadius: 8, padding: '12px 16px', color: '#cf1322', fontSize: 14, marginTop: 8 }}>
+            ⚠️ {msg}
+          </div>
+        ),
+      });
     } finally {
       setLoading(false);
     }

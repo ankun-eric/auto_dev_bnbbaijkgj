@@ -313,3 +313,71 @@
   font-size: 28rpx;
   color: #999;
 }
+
+.refund-status-bar {
+  margin: 0 24rpx;
+  padding: 20rpx 24rpx;
+  border-radius: 12rpx;
+  margin-top: -8rpx;
+}
+
+.refund-bar-applied,
+.refund-bar-reviewing,
+.refund-bar-approved,
+.refund-bar-returning {
+  background: #fff7e6;
+}
+
+.refund-bar-rejected {
+  background: #fff1f0;
+}
+
+.refund-bar-refund_success {
+  background: #f0f0f0;
+}
+
+.refund-bar-text {
+  font-size: 26rpx;
+  color: #fa8c16;
+  display: block;
+}
+
+.refund-bar-rejected .refund-bar-text {
+  color: #f5222d;
+}
+
+.refund-bar-refund_success .refund-bar-text {
+  color: #999;
+}
+
+.qr-img-disabled {
+  opacity: 0.3;
+  filter: grayscale(100%);
+}
+
+.verify-code-disabled {
+  color: #ccc;
+}
+
+.verify-hint-warn {
+  color: #fa8c16;
+}
+
+.verify-hint-err {
+  color: #f5222d;
+}
+
+.refund-tag-row {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 16rpx;
+}
+
+.refund-tag {
+  display: inline-block;
+  font-size: 24rpx;
+  color: #999;
+  background: #f0f0f0;
+  padding: 6rpx 24rpx;
+  border-radius: 8rpx;
+}

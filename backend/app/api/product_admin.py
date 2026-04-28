@@ -16,6 +16,7 @@ from app.models.models import (
     CouponStatus,
     MerchantStore,
     OrderItem,
+    OrderRedemption,
     Product,
     ProductCategory,
     ProductSku,
@@ -47,7 +48,9 @@ from app.schemas.products import (
     SymptomTagResponse,
 )
 from app.schemas.unified_orders import (
+    RedemptionDetailItem,
     RefundActionRequest,
+    RefundDetailResponse,
     RefundReasonItem,
     RefundRequestResponse,
     SalesStatisticsResponse,
@@ -977,6 +980,10 @@ async def admin_approve_refund(
     refund_req.status = RefundRequestStatus.approved
     refund_req.admin_user_id = current_user.id
     refund_req.admin_notes = data.admin_notes
+    if data.refund_amount is not None:
+        refund_req.refund_amount_approved = data.refund_amount
+    else:
+        refund_req.refund_amount_approved = refund_req.refund_amount
     refund_req.updated_at = datetime.utcnow()
 
     order_result = await db.execute(select(UnifiedOrder).where(UnifiedOrder.id == order_id))
@@ -987,7 +994,7 @@ async def admin_approve_refund(
         order.cancelled_at = datetime.utcnow()
         order.updated_at = datetime.utcnow()
 
-    return {"message": "退款已批准"}
+    return {"message": "退款已批准", "refund_amount_approved": float(refund_req.refund_amount_approved)}
 
 
 @router.post("/orders/unified/{order_id}/refund/reject")
@@ -1018,6 +1025,66 @@ async def admin_reject_refund(
         order.updated_at = datetime.utcnow()
 
     return {"message": "退款已拒绝"}
+
+
+@router.get("/orders/unified/{order_id}/refund-detail", response_model=RefundDetailResponse)
+async def admin_get_refund_detail(
+    order_id: int,
+    current_user=Depends(require_role("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    refund_result = await db.execute(
+        select(RefundRequest)
+        .where(RefundRequest.order_id == order_id)
+        .order_by(RefundRequest.created_at.desc())
+    )
+    refund_req = refund_result.scalar_one_or_none()
+    if not refund_req:
+        raise HTTPException(status_code=404, detail="退款申请不存在")
+
+    order_result = await db.execute(
+        select(UnifiedOrder)
+        .options(selectinload(UnifiedOrder.items))
+        .where(UnifiedOrder.id == order_id)
+    )
+    order = order_result.scalar_one_or_none()
+    if not order:
+        raise HTTPException(status_code=404, detail="订单不存在")
+
+    item_ids = [item.id for item in order.items]
+    used_redeem_count = sum(item.used_redeem_count for item in order.items)
+    total_redeem_count = sum(item.total_redeem_count for item in order.items)
+
+    redemptions_list = []
+    if item_ids:
+        redemption_result = await db.execute(
+            select(OrderRedemption, User.nickname, MerchantStore.store_name)
+            .outerjoin(User, OrderRedemption.redeemed_by_user_id == User.id)
+            .outerjoin(MerchantStore, OrderRedemption.store_id == MerchantStore.id)
+            .where(OrderRedemption.order_item_id.in_(item_ids))
+            .order_by(OrderRedemption.redeemed_at.asc())
+        )
+        for row in redemption_result.all():
+            redemption, nickname, store_name = row
+            redemptions_list.append(RedemptionDetailItem(
+                id=redemption.id,
+                order_item_id=redemption.order_item_id,
+                redeemed_at=redemption.redeemed_at,
+                store_name=store_name,
+                redeemed_by_name=nickname,
+            ))
+
+    ratio = f"{round(used_redeem_count / total_redeem_count * 100)}%" if total_redeem_count > 0 else "0%"
+
+    return RefundDetailResponse(
+        refund_request=RefundRequestResponse.model_validate(refund_req),
+        has_redemption=refund_req.has_redemption,
+        used_redeem_count=used_redeem_count,
+        total_redeem_count=total_redeem_count,
+        redemption_ratio=ratio,
+        redemptions=redemptions_list,
+        paid_amount=float(order.paid_amount),
+    )
 
 
 # ─────────── 优惠券管理 ───────────

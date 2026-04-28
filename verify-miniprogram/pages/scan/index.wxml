@@ -46,12 +46,23 @@
       </view>
     </view>
 
-    <view class="order-actions" wx:if="{{orderInfo.status !== 'verified'}}">
+    <!-- 退款状态提示 -->
+    <view class="refund-alert refund-alert-warn" wx:if="{{orderInfo.refund_status === 'applied' || orderInfo.refund_status === 'reviewing' || orderInfo.refund_status === 'approved' || orderInfo.refund_status === 'returning'}}">
+      <text class="refund-alert-text">⚠️ 该订单正在退款处理中（{{orderInfo.refund_status}}），暂时无法核销</text>
+    </view>
+    <view class="refund-alert refund-alert-err" wx:elif="{{orderInfo.refund_status === 'refund_success'}}">
+      <text class="refund-alert-text">该订单已退款，核销码已失效</text>
+    </view>
+    <view class="refund-alert refund-alert-info" wx:elif="{{orderInfo.refund_status === 'rejected'}}">
+      <text class="refund-alert-text">退款申请已被拒绝，可正常核销</text>
+    </view>
+
+    <view class="order-actions" wx:if="{{orderInfo.status !== 'verified' && (!orderInfo.refund_status || orderInfo.refund_status === 'none' || orderInfo.refund_status === 'rejected')}}">
       <button class="btn-primary verify-btn" bindtap="handleVerify" loading="{{verifying}}">
         确认核销
       </button>
     </view>
-    <view class="order-actions" wx:else>
+    <view class="order-actions" wx:elif="{{orderInfo.status === 'verified'}}">
       <view class="verified-notice">
         <text class="verified-icon">✅</text>
         <text class="verified-text">该订单已核销完成</text>
