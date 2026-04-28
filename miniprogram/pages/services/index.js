@@ -124,7 +124,8 @@ Page({
         icon: cat.icon || '🏥',
         cover: p.cover_image || (p.images && p.images[0]) || '',
         bgColor: 'rgba(82,196,26,0.12)',
-        price: p.sale_price,
+        price: p.min_price || p.sale_price,
+        hasMultiSpec: p.has_multi_spec || false,
         marketPrice: p.market_price,
         sales: p.sales_count || 0
       }));

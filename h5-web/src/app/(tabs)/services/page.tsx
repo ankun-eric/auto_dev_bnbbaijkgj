@@ -59,6 +59,10 @@ interface Product {
   stock?: number;
   selling_point?: string | null;
   marketing_badges?: string[] | null;
+  min_price?: number;
+  has_multi_spec?: boolean;
+  spec_mode?: number;
+  skus?: any[];
 }
 
 // 商品功能优化 v1.0：R5 卖点兜底显示分类名
@@ -156,7 +160,8 @@ function ProductCard({
           )}
           <div className="mt-1">
             <span className="text-base font-bold" style={{ color: '#52c41a' }}>
-              ¥{product.sale_price}
+              ¥{product.min_price || product.sale_price}
+              {product.has_multi_spec && <span style={{ fontSize: '0.75em', fontWeight: 'normal' }}>起</span>}
             </span>
           </div>
         </div>

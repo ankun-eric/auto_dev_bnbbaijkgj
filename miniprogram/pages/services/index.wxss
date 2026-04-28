@@ -114,6 +114,13 @@
   color: #ff4d4f;
 }
 
+.price-suffix {
+  font-size: 20rpx;
+  font-weight: normal;
+  color: #52c41a;
+  margin-left: 2rpx;
+}
+
 .price-unit {
   font-size: 20rpx;
   color: #999;

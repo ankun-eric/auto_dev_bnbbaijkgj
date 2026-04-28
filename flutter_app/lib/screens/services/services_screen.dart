@@ -19,6 +19,8 @@ class _Product {
   final double? marketPrice;
   final String? coverImage;
   final List<String> images;
+  final double? minPrice;
+  final bool hasMultiSpec;
   final int salesCount;
   _Product({
     required this.id,
@@ -28,6 +30,8 @@ class _Product {
     this.marketPrice,
     this.coverImage,
     this.images = const [],
+    this.minPrice,
+    this.hasMultiSpec = false,
     this.salesCount = 0,
   });
 
@@ -38,6 +42,8 @@ class _Product {
       description: json['description']?.toString(),
       salePrice: double.tryParse('${json['sale_price'] ?? 0}') ?? 0.0,
       marketPrice: json['market_price'] != null ? double.tryParse('${json['market_price']}') : null,
+      minPrice: json['min_price'] != null ? double.tryParse('${json['min_price']}') : null,
+      hasMultiSpec: json['has_multi_spec'] == true,
       coverImage: json['cover_image']?.toString(),
       images: (json['images'] is List)
           ? (json['images'] as List).map((e) => e.toString()).toList()
@@ -348,13 +354,22 @@ class _ServicesScreenState extends State<ServicesScreen> with TickerProviderStat
                           textBaseline: TextBaseline.alphabetic,
                           children: [
                             Text(
-                              '¥${formatPrice(p.salePrice)}',
+                              '¥${formatPrice(p.minPrice ?? p.salePrice)}',
                               style: const TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
                                 color: Color(0xFFFF6B35),
                               ),
                             ),
+                            if (p.hasMultiSpec)
+                              const Text(
+                                '起',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.normal,
+                                  color: Color(0xFFFF6B35),
+                                ),
+                              ),
                             if (p.marketPrice != null && p.marketPrice! > p.salePrice)
                               Padding(
                                 padding: const EdgeInsets.only(left: 4),

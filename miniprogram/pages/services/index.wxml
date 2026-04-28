@@ -22,6 +22,7 @@
           <view class="service-price">
             <text class="price-symbol">¥</text>
             <text class="price-value">{{item.price}}</text>
+            <text wx:if="{{item.hasMultiSpec}}" class="price-suffix">起</text>
           </view>
           <text class="service-sales">已售{{item.sales}}</text>
         </view>

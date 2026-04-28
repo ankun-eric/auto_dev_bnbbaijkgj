@@ -331,6 +331,9 @@ class ProductResponse(BaseModel):
     skus: list[ProductSkuResponse] = []
     # ── v1.0 商品功能优化：营销角标 ──
     marketing_badges: list[str] = []
+    # ── 多规格价格修复：派生字段 ──
+    min_price: Optional[float] = None
+    has_multi_spec: bool = False
     created_at: datetime
     updated_at: datetime
 
@@ -339,12 +342,29 @@ class ProductResponse(BaseModel):
     @field_validator("marketing_badges", mode="before")
     @classmethod
     def _coerce_marketing_badges(cls, v):
-        # 商品功能优化 v1.0：DB 中 JSON 字段可能是 None / 非法字符串，统一转为合法 list
         if v is None:
             return []
         if isinstance(v, list):
             return [str(x) for x in v if isinstance(x, str) and x in ALLOWED_MARKETING_BADGES]
         return []
+
+    @model_validator(mode='after')
+    def _compute_min_price(self):
+        if self.spec_mode == 2 and self.skus:
+            enabled_skus = [s for s in self.skus if getattr(s, 'status', 1) == 1]
+            if enabled_skus:
+                prices = [s.sale_price for s in enabled_skus if s.sale_price > 0]
+                if prices:
+                    self.min_price = min(prices)
+                    self.sale_price = self.min_price
+                    self.has_multi_spec = len(set(prices)) > 1
+                else:
+                    self.min_price = self.sale_price
+            else:
+                self.min_price = self.sale_price
+        else:
+            self.min_price = self.sale_price
+        return self
 
 
 class ProductDetailResponse(ProductResponse):
