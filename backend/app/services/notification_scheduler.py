@@ -1,17 +1,23 @@
 import logging
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import async_session
 from app.models.models import (
     HealthCheckInItem,
     MedicationCheckIn,
     MedicationReminder,
+    MerchantNotification,
     NotificationLog,
     HealthCheckInRecord,
+    OrderItem,
+    SystemConfig,
+    UnifiedOrder,
+    UnifiedOrderStatus,
 )
 
 logger = logging.getLogger(__name__)
@@ -142,6 +148,157 @@ async def check_checkin_reminders():
             logger.exception("Error checking checkin reminders")
 
 
+async def _get_timeout_config(session: AsyncSession) -> dict:
+    keys = ["order_urge_minutes", "order_timeout_minutes", "order_timeout_action"]
+    result = await session.execute(
+        select(SystemConfig).where(SystemConfig.config_key.in_(keys))
+    )
+    cfg = {c.config_key: c.config_value for c in result.scalars().all()}
+    return {
+        "urge_minutes": int(cfg.get("order_urge_minutes", "30")),
+        "timeout_minutes": int(cfg.get("order_timeout_minutes", "60")),
+        "timeout_action": cfg.get("order_timeout_action", "auto_cancel"),
+    }
+
+
+async def check_order_confirm_timeout():
+    """Check for orders that haven't been confirmed by store within timeout policy."""
+    now = datetime.utcnow()
+
+    async with async_session() as session:
+        try:
+            cfg = await _get_timeout_config(session)
+            urge_minutes = cfg["urge_minutes"]
+            timeout_minutes = cfg["timeout_minutes"]
+            timeout_action = cfg["timeout_action"]
+
+            urge_threshold = now - timedelta(minutes=urge_minutes)
+            timeout_threshold = now - timedelta(minutes=timeout_minutes)
+
+            pending_orders = await session.execute(
+                select(UnifiedOrder).where(
+                    UnifiedOrder.store_confirmed == False,
+                    UnifiedOrder.store_id.isnot(None),
+                    UnifiedOrder.status.in_([
+                        UnifiedOrderStatus.pending_use,
+                        UnifiedOrderStatus.pending_shipment,
+                    ]),
+                    UnifiedOrder.paid_at.isnot(None),
+                )
+            )
+
+            for order in pending_orders.scalars().all():
+                paid_at = order.paid_at
+                if not paid_at:
+                    continue
+
+                if paid_at <= timeout_threshold:
+                    if timeout_action == "auto_cancel":
+                        order.status = UnifiedOrderStatus.cancelled
+                        order.cancelled_at = now
+                        order.cancel_reason = "门店超时未确认，系统自动取消"
+                        order.updated_at = now
+                        logger.info("订单 %s 超时未确认，已自动取消", order.order_no)
+
+                    if order.store_id:
+                        session.add(MerchantNotification(
+                            user_id=order.user_id,
+                            store_id=order.store_id,
+                            title="订单超时未确认",
+                            content=f"订单 {order.order_no} 已超时未确认",
+                            notification_type="order",
+                        ))
+
+                elif paid_at <= urge_threshold:
+                    existing = await session.execute(
+                        select(MerchantNotification).where(
+                            MerchantNotification.store_id == order.store_id,
+                            MerchantNotification.title == "订单待确认催促",
+                            MerchantNotification.created_at >= paid_at,
+                        )
+                    )
+                    if not existing.scalar_one_or_none() and order.store_id:
+                        from app.models.models import MerchantStoreMembership
+                        staff_result = await session.execute(
+                            select(MerchantStoreMembership.user_id).where(
+                                MerchantStoreMembership.store_id == order.store_id,
+                                MerchantStoreMembership.status == "active",
+                            )
+                        )
+                        for (uid,) in staff_result.all():
+                            session.add(MerchantNotification(
+                                user_id=uid,
+                                store_id=order.store_id,
+                                title="订单待确认催促",
+                                content=f"订单 {order.order_no} 待确认，请尽快处理",
+                                notification_type="order",
+                            ))
+
+            await session.commit()
+            logger.info("Order confirm timeout check completed")
+        except Exception:
+            await session.rollback()
+            logger.exception("Error checking order confirm timeout")
+
+
+async def check_appointment_reminders():
+    """Send reminders for upcoming appointments based on configured advance hours."""
+    now = datetime.utcnow()
+
+    async with async_session() as session:
+        try:
+            cfg_result = await session.execute(
+                select(SystemConfig).where(
+                    SystemConfig.config_key == "appointment_reminder_advance_hours"
+                )
+            )
+            cfg = cfg_result.scalar_one_or_none()
+            advance_hours = int(cfg.config_value) if cfg else 24
+
+            remind_threshold = now + timedelta(hours=advance_hours)
+
+            upcoming = await session.execute(
+                select(OrderItem, UnifiedOrder)
+                .join(UnifiedOrder, UnifiedOrder.id == OrderItem.order_id)
+                .where(
+                    OrderItem.appointment_time.isnot(None),
+                    OrderItem.appointment_time > now,
+                    OrderItem.appointment_time <= remind_threshold,
+                    UnifiedOrder.status.in_([
+                        UnifiedOrderStatus.pending_use,
+                        UnifiedOrderStatus.pending_shipment,
+                    ]),
+                )
+            )
+
+            from app.models.models import Notification, NotificationType
+
+            for oi, order in upcoming.all():
+                existing = await session.execute(
+                    select(Notification).where(
+                        Notification.user_id == order.user_id,
+                        Notification.title == "预约提醒",
+                        Notification.created_at >= now - timedelta(hours=advance_hours),
+                    )
+                )
+                if existing.scalar_one_or_none():
+                    continue
+
+                appt_time_str = oi.appointment_time.strftime("%Y-%m-%d %H:%M") if oi.appointment_time else ""
+                session.add(Notification(
+                    user_id=order.user_id,
+                    title="预约提醒",
+                    content=f"您的预约 {oi.product_name} 将于 {appt_time_str} 开始，请准时到店。",
+                    type=NotificationType.order,
+                ))
+
+            await session.commit()
+            logger.info("Appointment reminder check completed")
+        except Exception:
+            await session.rollback()
+            logger.exception("Error checking appointment reminders")
+
+
 def init_scheduler():
     """Initialize and start the APScheduler."""
     scheduler.add_job(
@@ -154,6 +311,18 @@ def init_scheduler():
         check_checkin_reminders,
         trigger=IntervalTrigger(minutes=5),
         id="check_checkin_reminders",
+        replace_existing=True,
+    )
+    scheduler.add_job(
+        check_order_confirm_timeout,
+        trigger=IntervalTrigger(minutes=1),
+        id="check_order_confirm_timeout",
+        replace_existing=True,
+    )
+    scheduler.add_job(
+        check_appointment_reminders,
+        trigger=IntervalTrigger(minutes=5),
+        id="check_appointment_reminders",
         replace_existing=True,
     )
     scheduler.start()

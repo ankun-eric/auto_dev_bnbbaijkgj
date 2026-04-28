@@ -85,18 +85,18 @@ export const roleLabel: Record<string, string> = {
 export function canAccess(role: string | undefined, page: string): boolean {
   if (!role) return false;
   const matrix: Record<string, string[]> = {
-    // 老板（boss / owner）：全部 8 个模块
-    owner: ['dashboard', 'orders', 'verifications', 'reports', 'settlement', 'invoice', 'finance', 'staff', 'store-settings', 'downloads', 'messages'],
-    boss:  ['dashboard', 'orders', 'verifications', 'reports', 'settlement', 'invoice', 'finance', 'staff', 'store-settings', 'downloads', 'messages'],
+    // 老板（boss / owner）：全部模块
+    owner: ['dashboard', 'orders', 'calendar', 'verifications', 'reports', 'settlement', 'invoice', 'finance', 'staff', 'store-settings', 'wechat-bindding', 'downloads', 'messages'],
+    boss:  ['dashboard', 'orders', 'calendar', 'verifications', 'reports', 'settlement', 'invoice', 'finance', 'staff', 'store-settings', 'wechat-bindding', 'downloads', 'messages'],
     // 店长（store_manager / manager）：除门店设置外，全部
-    store_manager: ['dashboard', 'orders', 'verifications', 'reports', 'settlement', 'invoice', 'finance', 'staff', 'downloads', 'messages'],
-    manager:       ['dashboard', 'orders', 'verifications', 'reports', 'settlement', 'invoice', 'finance', 'staff', 'downloads', 'messages'],
+    store_manager: ['dashboard', 'orders', 'calendar', 'verifications', 'reports', 'settlement', 'invoice', 'finance', 'staff', 'wechat-bindding', 'downloads', 'messages'],
+    manager:       ['dashboard', 'orders', 'calendar', 'verifications', 'reports', 'settlement', 'invoice', 'finance', 'staff', 'wechat-bindding', 'downloads', 'messages'],
     // 财务：财务相关
-    finance: ['dashboard', 'orders', 'verifications', 'reports', 'settlement', 'invoice', 'finance', 'downloads', 'messages'],
+    finance: ['dashboard', 'orders', 'calendar', 'verifications', 'reports', 'settlement', 'invoice', 'finance', 'wechat-bindding', 'downloads', 'messages'],
     // 店员（clerk / verifier / staff）：核销 & 工作台
-    verifier: ['dashboard', 'orders', 'verifications', 'messages'],
-    clerk:    ['dashboard', 'orders', 'verifications', 'messages'],
-    staff:    ['dashboard', 'orders', 'verifications', 'messages'],
+    verifier: ['dashboard', 'orders', 'calendar', 'verifications', 'wechat-bindding', 'messages'],
+    clerk:    ['dashboard', 'orders', 'calendar', 'verifications', 'wechat-bindding', 'messages'],
+    staff:    ['dashboard', 'orders', 'calendar', 'verifications', 'wechat-bindding', 'messages'],
   };
   return (matrix[role] || []).includes(page);
 }

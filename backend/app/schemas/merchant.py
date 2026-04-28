@@ -160,6 +160,10 @@ class MerchantDashboardResponse(BaseModel):
     selected_store_name: str
     today_count: int = 0
     today_amount: float = 0
+    today_orders: int = 0
+    today_verifications: int = 0
+    pending_verify: int = 0
+    recent_orders: List[dict] = Field(default_factory=list)
 
 
 class MerchantVerifyRequest(BaseModel):
@@ -193,7 +197,74 @@ class MerchantNotificationResponse(BaseModel):
     id: int
     title: str
     content: Optional[str] = None
+    notification_type: Optional[str] = "system"
     is_read: bool
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+# ──────────── 预约日历 ────────────
+
+
+class CalendarDaySummary(BaseModel):
+    date: str
+    count: int = 0
+    morning_count: int = 0
+    afternoon_count: int = 0
+    evening_count: int = 0
+    heat_level_morning: str = "low"
+    heat_level_afternoon: str = "low"
+    heat_level_evening: str = "low"
+
+
+class CalendarMonthlyResponse(BaseModel):
+    days: List[CalendarDaySummary] = Field(default_factory=list)
+
+
+class DailyAppointmentItem(BaseModel):
+    order_id: int
+    order_item_id: int
+    time_slot: Optional[str] = None
+    customer_name: Optional[str] = None
+    product_name: Optional[str] = None
+    status: Optional[str] = None
+
+
+class DailyAppointmentResponse(BaseModel):
+    date: str
+    items: List[DailyAppointmentItem] = Field(default_factory=list)
+
+
+# ──────────── 订单操作 ────────────
+
+
+class OrderConfirmResponse(BaseModel):
+    success: bool
+    message: str
+
+
+class AppointmentTimeAdjustRequest(BaseModel):
+    new_date: str
+    new_time_slot: Optional[str] = None
+
+
+class OrderNoteCreate(BaseModel):
+    content: str
+
+
+class OrderNoteResponse(BaseModel):
+    id: int
+    content: str
+    staff_name: Optional[str] = None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ──────────── 公众号绑定 ────────────
+
+
+class WechatBindQrcodeResponse(BaseModel):
+    qrcode_url: str
+    ticket: str

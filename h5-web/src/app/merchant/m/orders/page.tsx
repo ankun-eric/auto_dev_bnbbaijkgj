@@ -34,7 +34,7 @@ export default function OrdersMobilePage() {
         if (sid) params.store_id = sid;
         if (status) params.status = status;
         if (keyword) params.keyword = keyword;
-        const res: any = await api.get('/api/merchant/v1/orders', { params });
+        const res: any = await api.get('/api/merchant/orders', { params });
         const list = res.items || [];
         setItems((prev) => (reset ? list : [...prev, ...list]));
         setPage(p);

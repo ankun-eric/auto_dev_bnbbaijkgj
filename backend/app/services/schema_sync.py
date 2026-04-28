@@ -1167,6 +1167,112 @@ async def _sync_settlement_proof_schema(conn: AsyncConnection) -> None:
         pass
 
 
+async def _sync_store_bindding_tables(conn: AsyncConnection) -> None:
+    """门店绑定与订单通知增强：新增字段与表。"""
+    def _load(sync_conn):
+        inspector = inspect(sync_conn)
+        tables = set(inspector.get_table_names())
+        result = {}
+        for tbl in [
+            "merchant_stores", "merchant_notifications", "unified_orders",
+            "staff_wechat_bindings", "order_notes", "order_appointment_logs",
+        ]:
+            if tbl in tables:
+                result[tbl] = {col["name"] for col in inspector.get_columns(tbl)}
+            else:
+                result[tbl] = None
+        return result
+
+    table_cols = await conn.run_sync(_load)
+
+    # 1. merchant_stores 新增 business_scope
+    if table_cols.get("merchant_stores") is not None:
+        cols = table_cols["merchant_stores"]
+        if "business_scope" not in cols:
+            await conn.execute(text("ALTER TABLE merchant_stores ADD COLUMN business_scope JSON NULL"))
+
+    # 2. merchant_notifications 新增 notification_type
+    if table_cols.get("merchant_notifications") is not None:
+        cols = table_cols["merchant_notifications"]
+        if "notification_type" not in cols:
+            await conn.execute(text(
+                "ALTER TABLE merchant_notifications ADD COLUMN notification_type VARCHAR(50) DEFAULT 'system'"
+            ))
+
+    # 3. unified_orders 新增 store_confirmed, store_confirmed_at, store_id
+    if table_cols.get("unified_orders") is not None:
+        cols = table_cols["unified_orders"]
+        if "store_confirmed" not in cols:
+            await conn.execute(text(
+                "ALTER TABLE unified_orders ADD COLUMN store_confirmed BOOLEAN DEFAULT FALSE"
+            ))
+        if "store_confirmed_at" not in cols:
+            await conn.execute(text(
+                "ALTER TABLE unified_orders ADD COLUMN store_confirmed_at DATETIME NULL"
+            ))
+        if "store_id" not in cols:
+            await conn.execute(text(
+                "ALTER TABLE unified_orders ADD COLUMN store_id INT NULL"
+            ))
+            try:
+                await conn.execute(text("CREATE INDEX ix_unified_orders_store_id ON unified_orders(store_id)"))
+            except Exception:
+                pass
+
+    # 4. staff_wechat_bindings 表（由 metadata.create_all 处理，此处只加缺失列）
+    if table_cols.get("staff_wechat_bindings") is None:
+        await conn.execute(text(
+            "CREATE TABLE staff_wechat_bindings ("
+            "id INT AUTO_INCREMENT PRIMARY KEY, "
+            "staff_id INT NOT NULL, "
+            "store_id INT NOT NULL, "
+            "openid VARCHAR(128) NOT NULL, "
+            "bound_at DATETIME DEFAULT CURRENT_TIMESTAMP, "
+            "is_active BOOLEAN DEFAULT TRUE, "
+            "created_at DATETIME DEFAULT CURRENT_TIMESTAMP, "
+            "INDEX ix_swb_staff_id (staff_id), "
+            "INDEX ix_swb_store_id (store_id), "
+            "CONSTRAINT fk_swb_staff FOREIGN KEY (staff_id) REFERENCES users(id), "
+            "CONSTRAINT fk_swb_store FOREIGN KEY (store_id) REFERENCES merchant_stores(id)"
+            ")"
+        ))
+
+    # 5. order_notes 表
+    if table_cols.get("order_notes") is None:
+        await conn.execute(text(
+            "CREATE TABLE order_notes ("
+            "id INT AUTO_INCREMENT PRIMARY KEY, "
+            "order_id INT NOT NULL, "
+            "store_id INT NOT NULL, "
+            "staff_user_id INT NOT NULL, "
+            "content TEXT NOT NULL, "
+            "created_at DATETIME DEFAULT CURRENT_TIMESTAMP, "
+            "INDEX ix_on_order_id (order_id), "
+            "INDEX ix_on_store_id (store_id), "
+            "CONSTRAINT fk_on_order FOREIGN KEY (order_id) REFERENCES unified_orders(id), "
+            "CONSTRAINT fk_on_store FOREIGN KEY (store_id) REFERENCES merchant_stores(id), "
+            "CONSTRAINT fk_on_staff FOREIGN KEY (staff_user_id) REFERENCES users(id)"
+            ")"
+        ))
+
+    # 6. order_appointment_logs 表
+    if table_cols.get("order_appointment_logs") is None:
+        await conn.execute(text(
+            "CREATE TABLE order_appointment_logs ("
+            "id INT AUTO_INCREMENT PRIMARY KEY, "
+            "order_item_id INT NOT NULL, "
+            "old_appointment_time VARCHAR(200) NULL, "
+            "new_appointment_time VARCHAR(200) NOT NULL, "
+            "changed_by_user_id INT NOT NULL, "
+            "reason VARCHAR(500) NULL, "
+            "created_at DATETIME DEFAULT CURRENT_TIMESTAMP, "
+            "INDEX ix_oal_order_item_id (order_item_id), "
+            "CONSTRAINT fk_oal_oi FOREIGN KEY (order_item_id) REFERENCES order_items(id), "
+            "CONSTRAINT fk_oal_user FOREIGN KEY (changed_by_user_id) REFERENCES users(id)"
+            ")"
+        ))
+
+
 async def sync_register_schema(conn: AsyncConnection) -> None:
     def load_user_schema(sync_conn):
         inspector = inspect(sync_conn)
@@ -1208,6 +1314,7 @@ async def sync_register_schema(conn: AsyncConnection) -> None:
     await _sync_chat_function_button_fields(conn)
     await _sync_tcm_diagnosis_fields(conn)
     await _sync_chat_message_metadata(conn)
+    await _sync_store_bindding_tables(conn)
     await run_all_migrations(conn)
 
     columns, indexes, unique_constraints = await conn.run_sync(load_user_schema)

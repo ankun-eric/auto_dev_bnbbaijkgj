@@ -102,6 +102,9 @@ export default function MeMobilePage() {
         <List.Item prefix="💬" onClick={() => router.push('/merchant/m/messages')} clickable>
           消息中心
         </List.Item>
+        <List.Item prefix="📢" onClick={() => router.push('/merchant/m/wechat-bindding')} clickable>
+          公众号通知绑定
+        </List.Item>
         <List.Item prefix="🧾" onClick={() => router.push('/merchant/m/invoice')} clickable>
           发票管理
         </List.Item>

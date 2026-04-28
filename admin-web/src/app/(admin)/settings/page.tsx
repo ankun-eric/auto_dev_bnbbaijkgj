@@ -1,17 +1,24 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Tabs, Form, Input, Switch, Button, InputNumber, Card, Space, message, Typography, Divider, Radio, Modal, Tooltip, Upload } from 'antd';
-import { SaveOutlined, SettingOutlined, FileProtectOutlined, UserAddOutlined, QuestionCircleOutlined, UploadOutlined, DeleteOutlined } from '@ant-design/icons';
-import { get, post, del, upload as apiUpload } from '@/lib/api';
+import { Tabs, Form, Input, Switch, Button, InputNumber, Card, Space, message, Typography, Divider, Radio, Modal, Tooltip, Upload, Select } from 'antd';
+import { SaveOutlined, SettingOutlined, FileProtectOutlined, UserAddOutlined, QuestionCircleOutlined, UploadOutlined, DeleteOutlined, ClockCircleOutlined } from '@ant-design/icons';
+import { get, post, put, del, upload as apiUpload } from '@/lib/api';
 
 const { Title, Text, Link } = Typography;
 const { TextArea } = Input;
+
+const timeoutHandlingOptions = [
+  { label: '自动取消订单并退款', value: 'auto_cancel' },
+  { label: '自动确认接单', value: 'auto_confirm' },
+  { label: '升级通知管理员', value: 'escalate' },
+];
 
 export default function SettingsPage() {
   const [basicForm] = Form.useForm();
   const [protocolForm] = Form.useForm();
   const [registerForm] = Form.useForm();
+  const [timeoutForm] = Form.useForm();
   const [saving, setSaving] = useState(false);
   const [exampleModal, setExampleModal] = useState<{ open: boolean; title: string; content: React.ReactNode }>({ open: false, title: '', content: null });
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
@@ -79,6 +86,30 @@ export default function SettingsPage() {
     loadRegisterSettings();
   }, [registerForm]);
 
+  useEffect(() => {
+    const loadTimeoutPolicy = async () => {
+      try {
+        const [policyRes, reminderRes] = await Promise.all([
+          get('/api/admin/settings/timeout-policy'),
+          get('/api/admin/settings/reminder-advance'),
+        ]);
+        const merged: Record<string, any> = {};
+        if (policyRes) {
+          merged.urge_minutes = policyRes.urge_minutes ?? 15;
+          merged.timeout_minutes = policyRes.timeout_minutes ?? 30;
+          merged.timeout_action = policyRes.timeout_action ?? 'auto_cancel';
+        }
+        if (reminderRes) {
+          merged.reminder_advance_hours = reminderRes.reminder_advance_hours ?? 2;
+        }
+        timeoutForm.setFieldsValue(merged);
+      } catch {
+        // use defaults
+      }
+    };
+    loadTimeoutPolicy();
+  }, [timeoutForm]);
+
   const handleSaveBasic = async () => {
     try {
       const values = await basicForm.validateFields();
@@ -115,6 +146,30 @@ export default function SettingsPage() {
       if ((e as { errorFields?: unknown })?.errorFields) return;
       const detail = (e as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail;
       message.error(typeof detail === 'string' ? detail : '注册设置保存失败，请稍后重试');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveTimeoutPolicy = async () => {
+    try {
+      const values = await timeoutForm.validateFields();
+      setSaving(true);
+      await Promise.all([
+        put('/api/admin/settings/timeout-policy', {
+          urge_minutes: values.urge_minutes,
+          timeout_minutes: values.timeout_minutes,
+          timeout_action: values.timeout_action,
+        }),
+        put('/api/admin/settings/reminder-advance', {
+          reminder_advance_hours: values.reminder_advance_hours,
+        }),
+      ]);
+      message.success('超时策略保存成功');
+    } catch (e: unknown) {
+      if ((e as { errorFields?: unknown })?.errorFields) return;
+      const detail = (e as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail;
+      message.error(typeof detail === 'string' ? detail : '超时策略保存失败');
     } finally {
       setSaving(false);
     }
@@ -412,6 +467,77 @@ export default function SettingsPage() {
             </Form.Item>
             <Form.Item>
               <Button type="primary" icon={<SaveOutlined />} onClick={handleSaveProtocol} loading={saving}>保存协议</Button>
+            </Form.Item>
+          </Form>
+        </Card>
+      ),
+    },
+    {
+      key: 'timeout',
+      label: (
+        <Space><ClockCircleOutlined />超时策略</Space>
+      ),
+      children: (
+        <Card style={{ borderRadius: 12 }}>
+          <Form
+            form={timeoutForm}
+            layout="vertical"
+            initialValues={{
+              urge_minutes: 15,
+              timeout_minutes: 30,
+              timeout_action: 'auto_cancel',
+              reminder_advance_hours: 2,
+            }}
+          >
+            <Title level={5}>订单超时策略</Title>
+            <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
+              配置商家未接单时的催促提醒与超时处理规则，以及预约订单的提前提醒时长。
+            </Text>
+
+            <Space style={{ width: '100%' }} size={16}>
+              <Form.Item
+                label="催促提醒时间"
+                name="urge_minutes"
+                rules={[{ required: true, message: '请输入催促提醒时间' }]}
+                tooltip="下单后多少分钟内商家未接单，系统向商家发送催促提醒"
+                style={{ flex: 1 }}
+              >
+                <InputNumber min={1} max={1440} style={{ width: '100%' }} addonAfter="分钟" placeholder="15" />
+              </Form.Item>
+              <Form.Item
+                label="超时时长"
+                name="timeout_minutes"
+                rules={[{ required: true, message: '请输入超时时长' }]}
+                tooltip="下单后多少分钟内商家仍未接单，触发超时处理"
+                style={{ flex: 1 }}
+              >
+                <InputNumber min={1} max={1440} style={{ width: '100%' }} addonAfter="分钟" placeholder="30" />
+              </Form.Item>
+            </Space>
+
+            <Form.Item
+              label="超时处理方式"
+              name="timeout_action"
+              rules={[{ required: true, message: '请选择超时处理方式' }]}
+              tooltip="商家超时未接单后系统自动执行的操作"
+            >
+              <Select options={timeoutHandlingOptions} style={{ width: 300 }} />
+            </Form.Item>
+
+            <Divider style={{ margin: '8px 0 16px' }} />
+
+            <Title level={5}>预约提醒设置</Title>
+            <Form.Item
+              label="预约提前提醒时长"
+              name="reminder_advance_hours"
+              rules={[{ required: true, message: '请输入提前提醒时长' }]}
+              tooltip="在预约时间前多少小时向用户和商家发送提醒"
+            >
+              <InputNumber min={0.5} max={72} step={0.5} style={{ width: 200 }} addonAfter="小时" placeholder="2" />
+            </Form.Item>
+
+            <Form.Item>
+              <Button type="primary" icon={<SaveOutlined />} onClick={handleSaveTimeoutPolicy} loading={saving}>保存超时策略</Button>
             </Form.Item>
           </Form>
         </Card>

@@ -1,4 +1,5 @@
-from datetime import datetime, timedelta
+from calendar import monthrange
+from datetime import datetime, timedelta, date
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -18,14 +19,25 @@ from app.models.models import (
     Notification,
     NotificationType,
     Order,
+    OrderAppointmentLog,
+    OrderItem,
+    OrderNote,
     OrderStatus,
     PaymentStatus,
     PointsRecord,
     PointsType,
+    ProductStore,
     ServiceItem,
+    UnifiedOrder,
+    UnifiedOrderStatus,
     User,
 )
 from app.schemas.merchant import (
+    AppointmentTimeAdjustRequest,
+    CalendarDaySummary,
+    CalendarMonthlyResponse,
+    DailyAppointmentItem,
+    DailyAppointmentResponse,
     MerchantDashboardResponse,
     MerchantNotificationResponse,
     MerchantProfileResponse,
@@ -33,6 +45,9 @@ from app.schemas.merchant import (
     MerchantVerifyRequest,
     MerchantVerificationRecordResponse,
     MerchantStoreResponse,
+    OrderConfirmResponse,
+    OrderNoteCreate,
+    OrderNoteResponse,
 )
 
 router = APIRouter(prefix="/api/merchant", tags=["商家端"])
@@ -150,11 +165,59 @@ async def get_dashboard(
     )
     today_amount = float(amount_result.scalar() or 0)
 
+    product_ids_subq = select(ProductStore.product_id).where(ProductStore.store_id == store_id)
+    order_ids_subq = (
+        select(OrderItem.order_id)
+        .where(OrderItem.product_id.in_(product_ids_subq))
+        .distinct()
+    )
+
+    today_orders_result = await db.execute(
+        select(func.count(UnifiedOrder.id)).where(
+            UnifiedOrder.id.in_(order_ids_subq),
+            UnifiedOrder.created_at >= today_start,
+            UnifiedOrder.created_at < tomorrow,
+        )
+    )
+    today_orders = today_orders_result.scalar() or 0
+
+    pending_verify_result = await db.execute(
+        select(func.count(UnifiedOrder.id)).where(
+            UnifiedOrder.id.in_(order_ids_subq),
+            UnifiedOrder.status == UnifiedOrderStatus.pending_use,
+        )
+    )
+    pending_verify = pending_verify_result.scalar() or 0
+
+    recent_orders_result = await db.execute(
+        select(UnifiedOrder)
+        .where(UnifiedOrder.id.in_(order_ids_subq))
+        .order_by(UnifiedOrder.created_at.desc())
+        .limit(5)
+    )
+    recent_orders = []
+    for uo in recent_orders_result.scalars().all():
+        oi_result = await db.execute(
+            select(OrderItem).where(OrderItem.order_id == uo.id).limit(1)
+        )
+        oi = oi_result.scalar_one_or_none()
+        recent_orders.append({
+            "order_id": uo.id,
+            "product_name": oi.product_name if oi else "",
+            "amount": float(uo.total_amount or 0),
+            "created_at": uo.created_at.isoformat() if uo.created_at else None,
+            "status": uo.status.value if hasattr(uo.status, "value") else str(uo.status),
+        })
+
     return MerchantDashboardResponse(
         selected_store_id=store.id,
         selected_store_name=store.store_name,
         today_count=today_count,
         today_amount=today_amount,
+        today_orders=today_orders,
+        today_verifications=today_count,
+        pending_verify=pending_verify,
+        recent_orders=recent_orders,
     )
 
 
@@ -399,3 +462,433 @@ async def mark_all_merchant_notifications_read(
         .values(is_read=True)
     )
     return {"message": "已全部标记为已读"}
+
+
+# ─────────── 预约日历 ───────────
+
+
+def _heat_level(count: int) -> str:
+    if count == 0:
+        return "low"
+    if count <= 3:
+        return "medium"
+    return "high"
+
+
+@router.get("/calendar/monthly", response_model=CalendarMonthlyResponse)
+async def get_monthly_calendar(
+    month: str = Query(..., description="YYYY-MM"),
+    store_id: int = Query(...),
+    current_user: User = Depends(merchant_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    await _ensure_store_access(db, current_user.id, store_id)
+
+    try:
+        year, mon = map(int, month.split("-"))
+    except (ValueError, AttributeError):
+        raise HTTPException(status_code=400, detail="月份格式: YYYY-MM")
+
+    _, days_in_month = monthrange(year, mon)
+    month_start = datetime(year, mon, 1)
+    month_end = datetime(year, mon, days_in_month, 23, 59, 59)
+
+    product_ids_subq = select(ProductStore.product_id).where(ProductStore.store_id == store_id)
+    order_ids_subq = (
+        select(OrderItem.order_id)
+        .where(OrderItem.product_id.in_(product_ids_subq))
+        .distinct()
+    )
+
+    result = await db.execute(
+        select(OrderItem)
+        .where(
+            OrderItem.order_id.in_(order_ids_subq),
+            OrderItem.appointment_time.isnot(None),
+            OrderItem.appointment_time >= month_start,
+            OrderItem.appointment_time <= month_end,
+        )
+    )
+    items = result.scalars().all()
+
+    day_map: dict[str, dict] = {}
+    for d in range(1, days_in_month + 1):
+        ds = f"{year}-{mon:02d}-{d:02d}"
+        day_map[ds] = {"count": 0, "morning": 0, "afternoon": 0, "evening": 0}
+
+    for item in items:
+        appt = item.appointment_time
+        if not appt:
+            continue
+        ds = appt.strftime("%Y-%m-%d")
+        if ds not in day_map:
+            continue
+        day_map[ds]["count"] += 1
+        hour = appt.hour
+        if hour < 12:
+            day_map[ds]["morning"] += 1
+        elif hour < 18:
+            day_map[ds]["afternoon"] += 1
+        else:
+            day_map[ds]["evening"] += 1
+
+    days = []
+    for ds, info in sorted(day_map.items()):
+        days.append(CalendarDaySummary(
+            date=ds,
+            count=info["count"],
+            morning_count=info["morning"],
+            afternoon_count=info["afternoon"],
+            evening_count=info["evening"],
+            heat_level_morning=_heat_level(info["morning"]),
+            heat_level_afternoon=_heat_level(info["afternoon"]),
+            heat_level_evening=_heat_level(info["evening"]),
+        ))
+
+    return CalendarMonthlyResponse(days=days)
+
+
+@router.get("/calendar/daily", response_model=DailyAppointmentResponse)
+async def get_daily_calendar(
+    date_str: str = Query(..., alias="date", description="YYYY-MM-DD"),
+    store_id: int = Query(...),
+    current_user: User = Depends(merchant_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    await _ensure_store_access(db, current_user.id, store_id)
+
+    try:
+        target_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+    except ValueError:
+        raise HTTPException(status_code=400, detail="日期格式: YYYY-MM-DD")
+
+    day_start = datetime.combine(target_date, datetime.min.time())
+    day_end = day_start + timedelta(days=1)
+
+    product_ids_subq = select(ProductStore.product_id).where(ProductStore.store_id == store_id)
+    order_ids_subq = (
+        select(OrderItem.order_id)
+        .where(OrderItem.product_id.in_(product_ids_subq))
+        .distinct()
+    )
+
+    result = await db.execute(
+        select(OrderItem, UnifiedOrder)
+        .join(UnifiedOrder, UnifiedOrder.id == OrderItem.order_id)
+        .where(
+            OrderItem.order_id.in_(order_ids_subq),
+            OrderItem.appointment_time.isnot(None),
+            OrderItem.appointment_time >= day_start,
+            OrderItem.appointment_time < day_end,
+        )
+        .order_by(OrderItem.appointment_time.asc())
+    )
+
+    items = []
+    for oi, order in result.all():
+        user_result = await db.execute(select(User).where(User.id == order.user_id))
+        user = user_result.scalar_one_or_none()
+        time_slot = oi.appointment_time.strftime("%H:%M") if oi.appointment_time else None
+        status_val = order.status
+        if hasattr(status_val, "value"):
+            status_val = status_val.value
+        items.append(DailyAppointmentItem(
+            order_id=order.id,
+            order_item_id=oi.id,
+            time_slot=time_slot,
+            customer_name=_safe_user_name(user) if user else "用户",
+            product_name=oi.product_name,
+            status=status_val,
+        ))
+
+    return DailyAppointmentResponse(date=date_str, items=items)
+
+
+# ─────────── 订单操作增强 ───────────
+
+
+@router.post("/orders/{order_id}/confirm", response_model=OrderConfirmResponse)
+async def merchant_confirm_order(
+    order_id: int,
+    store_id: int = Query(...),
+    current_user: User = Depends(merchant_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    await _ensure_store_access(db, current_user.id, store_id)
+
+    result = await db.execute(
+        select(UnifiedOrder)
+        .where(UnifiedOrder.id == order_id)
+        .with_for_update()
+    )
+    order = result.scalar_one_or_none()
+    if not order:
+        raise HTTPException(status_code=404, detail="订单不存在")
+
+    if order.store_confirmed:
+        return OrderConfirmResponse(success=False, message="该订单已被确认")
+
+    order.store_confirmed = True
+    order.store_confirmed_at = datetime.utcnow()
+    if not order.store_id:
+        order.store_id = store_id
+    order.updated_at = datetime.utcnow()
+
+    db.add(Notification(
+        user_id=order.user_id,
+        title="门店已确认接单",
+        content=f"您的订单 {order.order_no} 已被门店确认，请按预约时间到店。",
+        type=NotificationType.order,
+    ))
+
+    await db.flush()
+    return OrderConfirmResponse(success=True, message="确认接单成功")
+
+
+@router.put("/orders/{order_id}/appointment-time")
+async def merchant_adjust_appointment_time(
+    order_id: int,
+    data: AppointmentTimeAdjustRequest,
+    store_id: int = Query(...),
+    current_user: User = Depends(merchant_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    await _ensure_store_access(db, current_user.id, store_id)
+
+    oi_result = await db.execute(
+        select(OrderItem).where(OrderItem.order_id == order_id)
+    )
+    order_items = list(oi_result.scalars().all())
+    if not order_items:
+        raise HTTPException(status_code=404, detail="订单项不存在")
+
+    new_time_str = data.new_date
+    if data.new_time_slot:
+        new_time_str = f"{data.new_date} {data.new_time_slot}"
+
+    try:
+        if data.new_time_slot:
+            new_dt = datetime.strptime(new_time_str, "%Y-%m-%d %H:%M")
+        else:
+            new_dt = datetime.strptime(new_time_str, "%Y-%m-%d")
+    except ValueError:
+        raise HTTPException(status_code=400, detail="时间格式不正确")
+
+    for oi in order_items:
+        old_time = oi.appointment_time.isoformat() if oi.appointment_time else None
+
+        db.add(OrderAppointmentLog(
+            order_item_id=oi.id,
+            old_appointment_time=old_time,
+            new_appointment_time=new_time_str,
+            changed_by_user_id=current_user.id,
+        ))
+
+        oi.appointment_time = new_dt
+        appt_data = oi.appointment_data or {}
+        if isinstance(appt_data, dict):
+            appt_data["date"] = data.new_date
+            if data.new_time_slot:
+                appt_data["time_slot"] = data.new_time_slot
+            oi.appointment_data = appt_data
+        oi.updated_at = datetime.utcnow()
+
+    order_result = await db.execute(select(UnifiedOrder).where(UnifiedOrder.id == order_id))
+    order = order_result.scalar_one_or_none()
+    if order:
+        db.add(Notification(
+            user_id=order.user_id,
+            title="预约时间已调整",
+            content=f"您的订单 {order.order_no} 预约时间已调整为 {new_time_str}",
+            type=NotificationType.order,
+        ))
+
+    await db.flush()
+    return {"message": "预约时间已调整"}
+
+
+@router.post("/orders/{order_id}/notes")
+async def merchant_add_order_note(
+    order_id: int,
+    data: OrderNoteCreate,
+    store_id: int = Query(...),
+    current_user: User = Depends(merchant_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    await _ensure_store_access(db, current_user.id, store_id)
+
+    result = await db.execute(select(UnifiedOrder).where(UnifiedOrder.id == order_id))
+    if not result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="订单不存在")
+
+    note = OrderNote(
+        order_id=order_id,
+        store_id=store_id,
+        staff_user_id=current_user.id,
+        content=data.content,
+    )
+    db.add(note)
+    await db.flush()
+    await db.refresh(note)
+
+    return OrderNoteResponse(
+        id=note.id,
+        content=note.content,
+        staff_name=current_user.nickname or current_user.phone or f"用户{current_user.id}",
+        created_at=note.created_at,
+    )
+
+
+@router.get("/orders/{order_id}/notes")
+async def merchant_list_order_notes(
+    order_id: int,
+    store_id: int = Query(...),
+    current_user: User = Depends(merchant_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    await _ensure_store_access(db, current_user.id, store_id)
+
+    result = await db.execute(
+        select(OrderNote, User)
+        .outerjoin(User, User.id == OrderNote.staff_user_id)
+        .where(OrderNote.order_id == order_id, OrderNote.store_id == store_id)
+        .order_by(OrderNote.created_at.desc())
+    )
+
+    items = []
+    for note, user in result.all():
+        items.append(OrderNoteResponse(
+            id=note.id,
+            content=note.content,
+            staff_name=_safe_user_name(user) if user else "未知",
+            created_at=note.created_at,
+        ))
+
+    return {"items": items}
+
+
+# ──────────── 商家订单列表 & 详情 ────────────
+
+
+@router.get("/orders")
+async def merchant_list_orders(
+    store_id: int = Query(...),
+    keyword: Optional[str] = Query(None),
+    status: Optional[str] = Query(None),
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    current_user: User = Depends(merchant_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    await _ensure_store_access(db, current_user.id, store_id)
+
+    product_ids_subq = select(ProductStore.product_id).where(ProductStore.store_id == store_id)
+    base_filters = [
+        UnifiedOrder.id.in_(
+            select(OrderItem.order_id)
+            .where(OrderItem.product_id.in_(product_ids_subq))
+            .distinct()
+        )
+    ]
+    if status:
+        base_filters.append(UnifiedOrder.status == status)
+    if start_date:
+        base_filters.append(UnifiedOrder.created_at >= datetime.fromisoformat(f"{start_date}T00:00:00"))
+    if end_date:
+        base_filters.append(UnifiedOrder.created_at <= datetime.fromisoformat(f"{end_date}T23:59:59"))
+    if keyword:
+        kw = f"%{keyword}%"
+        base_filters.append(
+            or_(
+                UnifiedOrder.order_no.ilike(kw),
+                UnifiedOrder.id.in_(
+                    select(OrderItem.order_id).where(OrderItem.product_name.ilike(kw))
+                ),
+            )
+        )
+
+    total_result = await db.execute(
+        select(func.count(UnifiedOrder.id)).where(and_(*base_filters))
+    )
+    total = total_result.scalar() or 0
+
+    orders_result = await db.execute(
+        select(UnifiedOrder)
+        .where(and_(*base_filters))
+        .order_by(UnifiedOrder.created_at.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+    )
+
+    items = []
+    for uo in orders_result.scalars().all():
+        user_result = await db.execute(select(User).where(User.id == uo.user_id))
+        user = user_result.scalar_one_or_none()
+        oi_result = await db.execute(
+            select(OrderItem).where(OrderItem.order_id == uo.id).limit(1)
+        )
+        oi = oi_result.scalar_one_or_none()
+        store_result = await db.execute(
+            select(MerchantStore).where(MerchantStore.id == store_id)
+        )
+        store = store_result.scalar_one_or_none()
+        items.append({
+            "order_id": uo.id,
+            "order_no": uo.order_no,
+            "user_display": _safe_user_name(user) if user else "用户",
+            "product_name": oi.product_name if oi else "",
+            "created_at": uo.created_at.isoformat() if uo.created_at else None,
+            "appointment_time": oi.appointment_time.isoformat() if oi and oi.appointment_time else None,
+            "store_id": store_id,
+            "store_name": store.store_name if store else "",
+            "status": uo.status.value if hasattr(uo.status, "value") else str(uo.status),
+            "amount": float(uo.total_amount or 0),
+            "attachment_count": 0,
+            "is_appointment": bool(oi and oi.appointment_time),
+        })
+
+    return {"items": items, "total": total, "page": page, "page_size": page_size}
+
+
+@router.get("/orders/{order_id}/detail")
+async def merchant_get_order_detail(
+    order_id: int,
+    store_id: int = Query(...),
+    current_user: User = Depends(merchant_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    await _ensure_store_access(db, current_user.id, store_id)
+
+    uo_result = await db.execute(select(UnifiedOrder).where(UnifiedOrder.id == order_id))
+    uo = uo_result.scalar_one_or_none()
+    if not uo:
+        raise HTTPException(status_code=404, detail="订单不存在")
+
+    user_result = await db.execute(select(User).where(User.id == uo.user_id))
+    user = user_result.scalar_one_or_none()
+    oi_result = await db.execute(
+        select(OrderItem).where(OrderItem.order_id == uo.id).limit(1)
+    )
+    oi = oi_result.scalar_one_or_none()
+    store_result = await db.execute(
+        select(MerchantStore).where(MerchantStore.id == store_id)
+    )
+    store = store_result.scalar_one_or_none()
+
+    return {
+        "order_id": uo.id,
+        "order_no": uo.order_no,
+        "user_display": _safe_user_name(user) if user else "用户",
+        "product_name": oi.product_name if oi else "",
+        "created_at": uo.created_at.isoformat() if uo.created_at else None,
+        "appointment_time": oi.appointment_time.isoformat() if oi and oi.appointment_time else None,
+        "store_id": store_id,
+        "store_name": store.store_name if store else "",
+        "status": uo.status.value if hasattr(uo.status, "value") else str(uo.status),
+        "amount": float(uo.total_amount or 0),
+        "is_appointment": bool(oi and oi.appointment_time),
+        "store_confirmed": getattr(uo, "store_confirmed", False),
+        "store_confirmed_at": uo.store_confirmed_at.isoformat() if getattr(uo, "store_confirmed_at", None) else None,
+    }

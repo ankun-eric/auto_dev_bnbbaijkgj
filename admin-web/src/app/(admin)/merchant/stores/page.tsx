@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Button, Form, Input, Modal, Popconfirm, Select, Space, Table, Tag, Typography, message } from 'antd';
 import { get, post, put } from '@/lib/api';
 
@@ -17,6 +17,7 @@ interface StoreItem {
   category_id?: number | null;
   category_code?: string | null;
   category_name?: string | null;
+  business_scope?: number[];
 }
 
 interface CategoryItem {
@@ -25,9 +26,16 @@ interface CategoryItem {
   name: string;
 }
 
+interface ProductCategoryItem {
+  id: number;
+  name: string;
+  level?: number;
+}
+
 export default function MerchantStoresPage() {
   const [items, setItems] = useState<StoreItem[]>([]);
   const [categories, setCategories] = useState<CategoryItem[]>([]);
+  const [productCategories, setProductCategories] = useState<ProductCategoryItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [filterCategory, setFilterCategory] = useState<string | undefined>(undefined);
   const [open, setOpen] = useState(false);
@@ -42,6 +50,16 @@ export default function MerchantStoresPage() {
       // 静默
     }
   };
+
+  const fetchProductCategories = useCallback(async () => {
+    try {
+      const res = await get('/api/admin/products/categories');
+      const rawList = res?.items || res?.list || res || [];
+      setProductCategories(Array.isArray(rawList) ? rawList : []);
+    } catch {
+      setProductCategories([]);
+    }
+  }, []);
 
   const fetchData = async (categoryCode?: string) => {
     setLoading(true);
@@ -60,6 +78,7 @@ export default function MerchantStoresPage() {
 
   useEffect(() => {
     fetchCategories();
+    fetchProductCategories();
     fetchData();
   }, []);
 
@@ -74,19 +93,34 @@ export default function MerchantStoresPage() {
 
   const openEdit = (item: StoreItem) => {
     setEditing(item);
-    form.setFieldsValue({ ...item, category_id: item.category_id ?? undefined });
+    form.setFieldsValue({
+      ...item,
+      category_id: item.category_id ?? undefined,
+      business_scope: item.business_scope ?? [],
+    });
     setOpen(true);
   };
 
   const submit = async () => {
     const values = await form.validateFields();
+    const { business_scope, ...storeValues } = values;
     try {
+      let storeId: number;
       if (editing) {
-        await put(`/api/admin/merchant/stores/${editing.id}`, values);
+        await put(`/api/admin/merchant/stores/${editing.id}`, storeValues);
+        storeId = editing.id;
         message.success('门店更新成功');
       } else {
-        await post('/api/admin/merchant/stores', values);
+        const res = await post('/api/admin/merchant/stores', storeValues);
+        storeId = res?.id ?? res?.data?.id;
         message.success('门店创建成功');
+      }
+      if (storeId && Array.isArray(business_scope) && business_scope.length > 0) {
+        try {
+          await put(`/api/admin/stores/${storeId}/business-scope`, { business_scope });
+        } catch {
+          message.warning('经营范围保存失败，请重试');
+        }
       }
       setOpen(false);
       fetchData(filterCategory);
@@ -207,6 +241,19 @@ export default function MerchantStoresPage() {
           </Form.Item>
           <Form.Item name="address" label="门店地址">
             <Input.TextArea rows={3} placeholder="请输入门店地址" />
+          </Form.Item>
+          <Form.Item name="business_scope" label="经营范围">
+            <Select
+              mode="multiple"
+              placeholder="请选择经营的商品分类"
+              showSearch
+              optionFilterProp="label"
+              options={productCategories.map(c => ({
+                label: `${c.level === 2 ? '  └ ' : ''}${c.name}`,
+                value: c.id,
+              }))}
+              maxTagCount="responsive"
+            />
           </Form.Item>
         </Form>
       </Modal>

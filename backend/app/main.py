@@ -81,6 +81,7 @@ from app.api import (
     user_health_profile,
     users,
     video_consult_config,
+    wechat_bindding,
     wechat_push,
 )
 from app.core.database import Base, engine
@@ -798,6 +799,7 @@ app.include_router(audit.audit_router)
 app.include_router(third_party_openapi.router)
 app.include_router(addresses.router)
 app.include_router(product_admin.router)
+app.include_router(wechat_bindding.router)
 app.include_router(appointment_form_admin.router)
 app.include_router(users.router)
 app.include_router(video_consult_config.router)

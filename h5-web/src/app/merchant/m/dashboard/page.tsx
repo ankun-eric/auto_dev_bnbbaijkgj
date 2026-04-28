@@ -45,7 +45,7 @@ export default function DashboardMobilePage() {
       const params: any = {};
       const sid = getCurrentStoreId();
       if (sid) params.store_id = sid;
-      const res: any = await api.get('/api/merchant/v1/dashboard/metrics', { params });
+      const res: any = await api.get('/api/merchant/dashboard', { params });
       setMetrics(res || {});
     } catch (e: any) {
       // 轻量提示，避免刷屏
@@ -108,12 +108,16 @@ export default function DashboardMobilePage() {
   const quick: { key: string; title: string; icon: string; path?: string; disabled?: string }[] = [
     { key: 'verify', title: '核销', icon: '✅', path: '/merchant/m/verify' },
     { key: 'orders', title: '订单', icon: '📋', path: '/merchant/m/orders' },
+    { key: 'calendar', title: '预约日历', icon: '📅', path: '/merchant/m/calendar' },
     { key: 'reports', title: '报表', icon: '📊', path: '/merchant/m/reports' },
     { key: 'staff', title: '员工', icon: '👥', path: '/merchant/m/staff' },
     { key: 'settlement', title: '对账', icon: '💰', path: '/merchant/m/settlement' },
     { key: 'store-settings', title: '门店', icon: '🏬', path: '/merchant/m/store-settings' },
   ];
-  const visibleQuick = quick.filter((q) => canAccess(profile?.role, q.key === 'verify' ? 'verifications' : q.key));
+  const visibleQuick = quick.filter((q) => {
+    const accessKey = q.key === 'verify' ? 'verifications' : q.key === 'calendar' ? 'orders' : q.key;
+    return canAccess(profile?.role, accessKey);
+  });
 
   return (
     <PullToRefresh onRefresh={load}>

@@ -13,6 +13,7 @@ from app.core.database import get_db
 from app.core.security import get_current_user
 from app.models.models import (
     Coupon,
+    MerchantNotification,
     Notification,
     NotificationType,
     OrderItem,
@@ -21,6 +22,7 @@ from app.models.models import (
     PointsRecord,
     PointsType,
     Product,
+    ProductStore,
     RefundRequest,
     RefundRequestStatus,
     UnifiedOrder,
@@ -277,6 +279,17 @@ async def create_unified_order(
             uc.used_at = datetime.utcnow()
             uc.order_id = order.id
 
+    # 根据商品绑定门店，自动设置订单的 store_id
+    all_product_ids = list({item.product_id for item in data.items})
+    store_result = await db.execute(
+        select(ProductStore.store_id)
+        .where(ProductStore.product_id.in_(all_product_ids))
+        .distinct()
+    )
+    bound_store_ids = [row[0] for row in store_result.all()]
+    if bound_store_ids:
+        order.store_id = bound_store_ids[0]
+
     notification = Notification(
         user_id=current_user.id,
         title="订单创建成功",
@@ -284,6 +297,24 @@ async def create_unified_order(
         type=NotificationType.order,
     )
     db.add(notification)
+
+    # 通知绑定门店的员工有新订单
+    if order.store_id:
+        from app.models.models import MerchantStoreMembership
+        staff_result = await db.execute(
+            select(MerchantStoreMembership.user_id).where(
+                MerchantStoreMembership.store_id == order.store_id,
+                MerchantStoreMembership.status == "active",
+            )
+        )
+        for (uid,) in staff_result.all():
+            db.add(MerchantNotification(
+                user_id=uid,
+                store_id=order.store_id,
+                title="新订单通知",
+                content=f"新订单 {order.order_no}，请及时确认接单。",
+                notification_type="order",
+            ))
 
     await db.flush()
     await db.refresh(order)

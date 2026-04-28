@@ -47,6 +47,13 @@ from app.schemas.products import (
     ProductUpdate,
     SymptomTagResponse,
 )
+from app.schemas.store_bindding import (
+    BusinessScopeUpdate,
+    ProductStoreBindRequest,
+    ProductStoreResponse,
+    StoreRecommendResponse,
+)
+from app.schemas.timeout_policy import TimeoutPolicyResponse, TimeoutPolicyUpdate
 from app.schemas.unified_orders import (
     RedemptionDetailItem,
     RefundActionRequest,
@@ -1501,3 +1508,213 @@ async def admin_list_symptom_tags(
 
     items = [SymptomTagResponse(tag=k, count=v) for k, v in sorted(all_tags.items(), key=lambda x: -x[1])]
     return {"items": items}
+
+
+# ─────────── 门店推荐与商品绑定 ───────────
+
+
+@router.get("/stores/recommend")
+async def admin_recommend_stores(
+    product_category_id: int = Query(...),
+    current_user=Depends(require_role("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    seen: dict[int, StoreRecommendResponse] = {}
+
+    scope_result = await db.execute(
+        select(MerchantStore).where(MerchantStore.status == "active")
+    )
+    for store in scope_result.scalars().all():
+        bs = store.business_scope
+        if isinstance(bs, list) and product_category_id in bs:
+            seen[store.id] = StoreRecommendResponse(
+                id=store.id,
+                store_name=store.store_name,
+                store_code=store.store_code,
+                address=store.address,
+                match_type="business_scope",
+            )
+
+    sold_subq = (
+        select(ProductStore.store_id)
+        .join(Product, Product.id == ProductStore.product_id)
+        .where(Product.category_id == product_category_id)
+        .distinct()
+    )
+    sold_result = await db.execute(
+        select(MerchantStore).where(
+            MerchantStore.id.in_(sold_subq),
+            MerchantStore.status == "active",
+        )
+    )
+    for store in sold_result.scalars().all():
+        if store.id not in seen:
+            seen[store.id] = StoreRecommendResponse(
+                id=store.id,
+                store_name=store.store_name,
+                store_code=store.store_code,
+                address=store.address,
+                match_type="history_sale",
+            )
+
+    return {"items": list(seen.values())}
+
+
+@router.put("/products/{product_id}/stores")
+async def admin_update_product_stores(
+    product_id: int,
+    data: ProductStoreBindRequest,
+    current_user=Depends(require_role("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(Product).where(Product.id == product_id))
+    if not result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="商品不存在")
+
+    existing = await db.execute(
+        select(ProductStore).where(ProductStore.product_id == product_id)
+    )
+    for ps in existing.scalars().all():
+        await db.delete(ps)
+
+    for store_id in data.store_ids:
+        db.add(ProductStore(product_id=product_id, store_id=store_id))
+
+    await db.flush()
+    return {"message": "门店绑定已更新"}
+
+
+@router.get("/products/{product_id}/stores")
+async def admin_get_product_stores(
+    product_id: int,
+    current_user=Depends(require_role("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(ProductStore, MerchantStore)
+        .join(MerchantStore, MerchantStore.id == ProductStore.store_id)
+        .where(ProductStore.product_id == product_id)
+    )
+    items = []
+    for ps, store in result.all():
+        items.append(ProductStoreResponse(
+            store_id=store.id,
+            store_name=store.store_name,
+            store_code=store.store_code,
+            address=store.address,
+        ))
+    return {"items": items}
+
+
+@router.put("/stores/{store_id}/business-scope")
+async def admin_update_store_business_scope(
+    store_id: int,
+    data: BusinessScopeUpdate,
+    current_user=Depends(require_role("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(MerchantStore).where(MerchantStore.id == store_id))
+    store = result.scalar_one_or_none()
+    if not store:
+        raise HTTPException(status_code=404, detail="门店不存在")
+
+    store.business_scope = data.business_scope
+    await db.flush()
+    return {"message": "经营范围已更新"}
+
+
+# ─────────── 超时策略 ───────────
+
+
+_TIMEOUT_KEYS = {
+    "urge_minutes": ("order_urge_minutes", "30"),
+    "timeout_minutes": ("order_timeout_minutes", "60"),
+    "timeout_action": ("order_timeout_action", "auto_cancel"),
+    "reminder_advance_hours": ("appointment_reminder_advance_hours", "24"),
+}
+
+
+async def _get_timeout_policy(db: AsyncSession) -> TimeoutPolicyResponse:
+    keys = [v[0] for v in _TIMEOUT_KEYS.values()]
+    result = await db.execute(
+        select(SystemConfig).where(SystemConfig.config_key.in_(keys))
+    )
+    cfg = {c.config_key: c.config_value for c in result.scalars().all()}
+    return TimeoutPolicyResponse(
+        urge_minutes=int(cfg.get("order_urge_minutes", "30")),
+        timeout_minutes=int(cfg.get("order_timeout_minutes", "60")),
+        timeout_action=cfg.get("order_timeout_action", "auto_cancel"),
+        reminder_advance_hours=int(cfg.get("appointment_reminder_advance_hours", "24")),
+    )
+
+
+@router.get("/settings/timeout-policy")
+async def admin_get_timeout_policy(
+    current_user=Depends(require_role("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    return await _get_timeout_policy(db)
+
+
+@router.put("/settings/timeout-policy")
+async def admin_update_timeout_policy(
+    data: TimeoutPolicyUpdate,
+    current_user=Depends(require_role("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    updates = data.model_dump(exclude_unset=True)
+    for field_name, (config_key, default_val) in _TIMEOUT_KEYS.items():
+        if field_name in updates and updates[field_name] is not None:
+            val = str(updates[field_name])
+            result = await db.execute(
+                select(SystemConfig).where(SystemConfig.config_key == config_key)
+            )
+            cfg = result.scalar_one_or_none()
+            if cfg:
+                cfg.config_value = val
+            else:
+                db.add(SystemConfig(
+                    config_key=config_key,
+                    config_value=val,
+                    config_type="timeout",
+                    description=config_key,
+                ))
+    await db.flush()
+    return await _get_timeout_policy(db)
+
+
+@router.get("/settings/reminder-advance")
+async def admin_get_reminder_advance(
+    current_user=Depends(require_role("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(SystemConfig).where(SystemConfig.config_key == "appointment_reminder_advance_hours")
+    )
+    cfg = result.scalar_one_or_none()
+    hours = int(cfg.config_value) if cfg else 24
+    return {"reminder_advance_hours": hours}
+
+
+@router.put("/settings/reminder-advance")
+async def admin_update_reminder_advance(
+    data: dict,
+    current_user=Depends(require_role("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    hours = data.get("reminder_advance_hours", 24)
+    result = await db.execute(
+        select(SystemConfig).where(SystemConfig.config_key == "appointment_reminder_advance_hours")
+    )
+    cfg = result.scalar_one_or_none()
+    if cfg:
+        cfg.config_value = str(hours)
+    else:
+        db.add(SystemConfig(
+            config_key="appointment_reminder_advance_hours",
+            config_value=str(hours),
+            config_type="timeout",
+            description="预约提醒提前时长（小时）",
+        ))
+    await db.flush()
+    return {"reminder_advance_hours": hours}

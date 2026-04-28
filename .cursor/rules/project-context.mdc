@@ -33,7 +33,71 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 退款与核销互斥业务保护 — 已开发部署（2026-04-28 21:30）
+## Latest Update: 商品门店绑定与订单通知增强 — 已开发部署（2026-04-28 22:40）
+
+### 一句话结论
+商品门店绑定与订单通知增强已完成三端（后端+管理后台+门店H5/PC端）全量开发部署。核心改动：①管理后台商品编辑弹窗新增"适用门店"多选+智能推荐UI；②门店编辑新增"经营范围"字段；③系统设置新增订单超时策略配置Tab；④门店端新增预约日历视图（月视图热力图+日视图详情列表）；⑤门店端订单详情增加确认接单/调整预约时间/门店备注功能；⑥新增公众号绑定模块（二维码扫码绑定+轮询状态+解绑）；⑦后端新增通知推送服务和超时定时任务；⑧下单流程增强自动路由到对应门店并生成通知。
+
+### 修改的文件
+- `backend/app/models/models.py` — 新增 StaffWechatBinding、OrderNote、OrderAppointmentLog 模型；MerchantStore 新增 business_scope 字段；MerchantNotification 新增 notification_type 字段；UnifiedOrder 新增 store_confirmed/store_confirmed_at/store_id 字段
+- `backend/app/api/product_admin.py` — 新增4个门店绑定API + 4个超时策略配置API
+- `backend/app/api/merchant.py` — 新增预约日历月/日视图API、确认接单API（行级锁）、调整预约时间API、门店备注CRUD API、商户订单列表/详情API
+- `backend/app/api/wechat_bindding.py` — 新建：公众号绑定二维码、微信关注回调、解绑、状态查询
+- `backend/app/api/unified_orders.py` — 下单流程增强：自动设置store_id + 生成MerchantNotification
+- `backend/app/schemas/store_bindding.py` — 新建：商品门店绑定相关Schema
+- `backend/app/schemas/timeout_policy.py` — 新建：超时策略配置Schema
+- `backend/app/schemas/merchant.py` — 新增日历、订单操作、公众号绑定等Schema
+- `backend/app/services/notification_service.py` — 新建：微信模板消息推送服务
+- `backend/app/services/notification_scheduler.py` — 新增超时检查和预约提醒定时任务
+- `backend/app/services/schema_sync.py` — 新增 _sync_store_bindding_tables 迁移函数
+- `backend/app/main.py` — 注册 wechat_bindding 路由
+- `admin-web/src/app/(admin)/product-system/products/page.tsx` — 商品编辑弹窗新增"适用门店"多选+智能推荐
+- `admin-web/src/app/(admin)/merchant/stores/page.tsx` — 门店编辑新增"经营范围"多选字段
+- `admin-web/src/app/(admin)/settings/page.tsx` — 新增"超时策略"配置Tab
+- `h5-web/src/app/merchant/calendar/page.tsx` — 新建：PC端预约日历
+- `h5-web/src/app/merchant/m/calendar/page.tsx` — 新建：H5移动端预约日历
+- `h5-web/src/app/merchant/m/orders/[id]/page.tsx` — 新建：H5订单详情（接单/调整时间/备注）
+- `h5-web/src/app/merchant/orders/page.tsx` — 订单列表增加详情Drawer（接单/调整时间/备注）
+- `h5-web/src/app/merchant/wechat-bindding/page.tsx` — 新建：PC端公众号绑定
+- `h5-web/src/app/merchant/m/wechat-bindding/page.tsx` — 新建：H5端公众号绑定
+- `h5-web/src/app/merchant/m/me/page.tsx` — 个人中心添加"公众号绑定"入口
+- `h5-web/src/app/merchant/m/dashboard/page.tsx` — 工作台添加"预约日历"入口
+- `h5-web/src/app/merchant/layout.tsx` — PC侧边栏添加日历和公众号绑定菜单
+
+### 新增API端点
+- `GET /api/admin/stores/recommend` — 根据商品分类推荐门店
+- `PUT /api/admin/products/{id}/stores` — 更新商品绑定门店
+- `GET /api/admin/products/{id}/stores` — 获取商品绑定门店
+- `PUT /api/admin/stores/{id}/business-scope` — 更新门店经营范围
+- `GET /api/merchant/calendar/monthly` — 月度预约汇总
+- `GET /api/merchant/calendar/daily` — 日预约详情
+- `POST /api/merchant/orders/{id}/confirm` — 门店确认接单
+- `PUT /api/merchant/orders/{id}/appointment-time` — 调整预约时间
+- `POST /api/merchant/orders/{id}/notes` — 添加门店备注
+- `GET /api/merchant/orders/{id}/notes` — 获取门店备注
+- `POST /api/merchant/bindding/wechat/qrcode` — 生成公众号绑定二维码
+- `POST /api/webhook/wechat/bindding` — 公众号关注事件回调
+- `DELETE /api/merchant/bindding/wechat` — 解绑公众号
+- `GET /api/merchant/bindding/wechat/status` — 查询绑定状态
+- `GET /api/admin/settings/timeout-policy` — 获取超时策略
+- `PUT /api/admin/settings/timeout-policy` — 更新超时策略
+- `GET /api/admin/settings/reminder-advance` — 获取提前提醒时长
+- `PUT /api/admin/settings/reminder-advance` — 更新提前提醒时长
+
+### 新增数据模型
+- `staff_wechat_bindings` — 员工公众号绑定表 (staff_id, store_id, openid, is_active)
+- `order_notes` — 订单门店备注表 (order_id, store_id, staff_user_id, content)
+- `order_appointment_logs` — 预约时间调整日志表 (order_item_id, old/new_appointment_time, changed_by)
+- `merchant_stores.business_scope` — 门店经营范围(JSON)
+- `merchant_notifications.notification_type` — 通知类型(order/refund/appointment/system)
+- `unified_orders.store_confirmed/store_confirmed_at/store_id` — 门店接单确认和归属
+
+### 用户文档
+- `user_docs/商品门店绑定与订单通知增强.md`
+
+---
+
+## Previous Update: 退款与核销互斥业务保护 — 已开发部署（2026-04-28 21:30）
 
 ### 一句话结论
 退款与核销互斥业务保护已完成六端（后端+管理后台+H5+小程序+核销小程序+Flutter APP）全量开发部署。核心改动：①核销接口增加退款状态校验（行级锁），退款中/已退款订单禁止核销；②用户提交退款后核销码立即锁定，退款被拒/撤回后自动恢复；③新增撤回退款接口；④已核销订单退款标记为需人工审核；⑤管理后台退款审核弹窗增加核销详情展示和自定义退款金额；⑥三端用户端核销码区域增加退款状态三态展示；⑦核销小程序增加退款状态拦截和友好提示。
@@ -94,6 +158,29 @@ alwaysApply: false
 - Android APK: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/apk/bini_health_android-v20260428-204908-23d0.apk`
 - iOS IPA: `https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-v20260428-204836-2739`
 - 小程序 ZIP: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/miniprogram/miniprogram_20260428_204803_7452.zip`
+
+---
+
+## Previous Update: 预约订单查看位置咨询（2026-04-28 23:11）
+
+### 一句话结论
+用户咨询预约订单在admin后台的查看位置。答复：在「商品系统 → 订单管理」页面，点击订单行的「详情」按钮，右侧弹出详情抽屉面板，其中包含「预约信息」卡片（预约日期、时段、状态、备注）。
+
+### 记忆文件
+- `mem/mem_预约订单查看位置咨询_20260428_231100.md`
+
+---
+
+## Previous Update: H5 订单详情页预约信息缺失 Bug 方案确认（2026-04-28 23:07）
+
+### 一句话结论
+H5 Web 客户端订单详情页完全缺失预约信息展示模块（后端接口已返回预约数据，前端未对接渲染）。经多轮讨论确认：展示预约时间+门店名称，位于商品信息卡片下方、核销码上方，采用带图标的信息行卡片样式（📅日历图标+蓝色高亮时间，📍定位图标+门店名），无预约数据时隐藏。Bug 修复方案文档已输出。
+
+### 修复方案文档
+- `docs/BUG_FIX_H5订单预约信息缺失_20260428_230700.md`
+
+### 记忆文件
+- `mem/mem_H5订单预约信息Bug方案确认_20260428_230700.md`
 
 ---
 

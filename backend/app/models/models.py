@@ -414,6 +414,7 @@ class MerchantStore(Base):
     business_hours = mapped_column(String(100), nullable=True)
     license_no = mapped_column(String(100), nullable=True)
     legal_person = mapped_column(String(100), nullable=True)
+    business_scope = mapped_column(JSON, nullable=True)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -457,6 +458,7 @@ class MerchantNotification(Base):
     store_id = mapped_column(Integer, ForeignKey("merchant_stores.id"), nullable=True, index=True)
     title = mapped_column(String(200), nullable=False)
     content = mapped_column(Text, nullable=True)
+    notification_type = mapped_column(String(50), default='system')
     is_read = mapped_column(Boolean, default=False)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
 
@@ -2934,6 +2936,9 @@ class UnifiedOrder(Base):
     cancel_reason = mapped_column(Text, nullable=True)
     auto_confirm_days = mapped_column(Integer, default=7)
     has_reviewed = mapped_column(Boolean, default=False)
+    store_confirmed = mapped_column(Boolean, default=False)
+    store_confirmed_at = mapped_column(DateTime, nullable=True)
+    store_id = mapped_column(Integer, ForeignKey("merchant_stores.id"), nullable=True)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -2941,6 +2946,7 @@ class UnifiedOrder(Base):
     coupon = relationship("Coupon")
     shipping_address = relationship("UserAddress")
     items = relationship("OrderItem", back_populates="order")
+    store = relationship("MerchantStore")
 
 
 class OrderItem(Base):
@@ -3131,3 +3137,51 @@ class UserHealthProfile(Base):
     updated_at = mapped_column(DateTime, server_default=func.now(), onupdate=datetime.utcnow)
 
     user = relationship("User", backref="user_health_profile")
+
+
+# ──────────────── 门店绑定与订单增强 ────────────────
+
+
+class StaffWechatBinding(Base):
+    __tablename__ = "staff_wechat_bindings"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    staff_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    store_id = mapped_column(Integer, ForeignKey("merchant_stores.id"), nullable=False, index=True)
+    openid = mapped_column(String(128), nullable=False)
+    bound_at = mapped_column(DateTime, default=datetime.utcnow)
+    is_active = mapped_column(Boolean, default=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+
+    staff = relationship("User")
+    store = relationship("MerchantStore")
+
+
+class OrderNote(Base):
+    __tablename__ = "order_notes"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    order_id = mapped_column(Integer, ForeignKey("unified_orders.id"), nullable=False, index=True)
+    store_id = mapped_column(Integer, ForeignKey("merchant_stores.id"), nullable=False, index=True)
+    staff_user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
+    content = mapped_column(Text, nullable=False)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+
+    order = relationship("UnifiedOrder")
+    store = relationship("MerchantStore")
+    staff = relationship("User")
+
+
+class OrderAppointmentLog(Base):
+    __tablename__ = "order_appointment_logs"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    order_item_id = mapped_column(Integer, ForeignKey("order_items.id"), nullable=False, index=True)
+    old_appointment_time = mapped_column(String(200), nullable=True)
+    new_appointment_time = mapped_column(String(200), nullable=False)
+    changed_by_user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
+    reason = mapped_column(String(500), nullable=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+
+    order_item = relationship("OrderItem")
+    changed_by = relationship("User")

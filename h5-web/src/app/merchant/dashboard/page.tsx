@@ -23,7 +23,7 @@ export default function DashboardPage() {
   useEffect(() => {
     const storeId = getCurrentStoreId();
     api
-      .get('/api/merchant/v1/dashboard/metrics', { params: storeId ? { store_id: storeId } : {} })
+      .get('/api/merchant/dashboard', { params: storeId ? { store_id: storeId } : {} })
       .then((d: any) => setData(d))
       .catch(e => setError(e?.response?.data?.detail || '数据加载失败'))
       .finally(() => setLoading(false));

@@ -1,121 +1,301 @@
 'use client';
 
-// [2026-04-24] 移动端 - 订单详情 PRD §4.3
-// 字段：商品信息/金额/用户/下单时间/核销时间/门店/核销人 + 底部操作条
-
-import React, { useEffect, useState } from 'react';
-import { NavBar, Toast, Button, List, Dialog } from 'antd-mobile';
+import React, { useEffect, useState, useCallback } from 'react';
+import { NavBar, Toast, Button, Dialog, TextArea, Empty, DotLoading, Tag } from 'antd-mobile';
 import { useRouter, useParams } from 'next/navigation';
 import api from '@/lib/api';
-import { statusMap } from '../../mobile-lib';
+import { getCurrentStoreId, statusMap } from '../../mobile-lib';
+
+interface OrderDetail {
+  order_id: number;
+  order_no: string;
+  product_name: string;
+  amount: number;
+  status: string;
+  created_at: string;
+  user_display: string;
+  appointment_time?: string;
+  store_name?: string;
+  is_appointment?: boolean;
+}
+
+interface OrderNote {
+  id: number;
+  content: string;
+  created_at: string;
+  staff_name?: string;
+}
+
+const STATUS_CONFIG: Record<string, { text: string; color: string; bg: string }> = {
+  pending_payment: { text: '待支付', color: '#faad14', bg: '#fffbe6' },
+  paid: { text: '待核销', color: '#1677ff', bg: '#e6f4ff' },
+  pending: { text: '待确认', color: '#faad14', bg: '#fffbe6' },
+  confirmed: { text: '已确认', color: '#1677ff', bg: '#e6f4ff' },
+  redeemed: { text: '已核销', color: '#52c41a', bg: '#f6ffed' },
+  completed: { text: '已完成', color: '#52c41a', bg: '#f6ffed' },
+  cancelled: { text: '已取消', color: '#8c8c8c', bg: '#f5f5f5' },
+  refunded: { text: '已退款', color: '#ff4d4f', bg: '#fff2f0' },
+};
 
 export default function OrderDetailMobilePage() {
   const router = useRouter();
-  const params = useParams<{ id: string }>();
-  const orderId = params?.id;
-  const [detail, setDetail] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
+  const params = useParams();
+  const orderId = params?.id as string;
 
-  const load = async () => {
-    if (!orderId) return;
-    setLoading(true);
+  const [order, setOrder] = useState<OrderDetail | null>(null);
+  const [notes, setNotes] = useState<OrderNote[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [noteText, setNoteText] = useState('');
+  const [submittingNote, setSubmittingNote] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+
+  const loadOrder = useCallback(async () => {
     try {
-      // 接口：列表里把单条带出来也可以；这里直接调用列表接口按订单号/ID 筛选
-      const res: any = await api.get('/api/merchant/v1/orders', { params: { page: 1, page_size: 1, keyword: orderId } });
-      const found =
-        (res.items || []).find((x: any) => String(x.order_id || x.id) === String(orderId)) || (res.items || [])[0] || null;
-      setDetail(found);
+      const params: any = {};
+      const sid = getCurrentStoreId();
+      if (sid) params.store_id = sid;
+      const res: any = await api.get(`/api/merchant/orders/${orderId}/detail`, { params });
+      setOrder(res);
     } catch (e: any) {
-      Toast.show({ icon: 'fail', content: e?.response?.data?.detail || '加载失败' });
+      Toast.show({ icon: 'fail', content: '订单加载失败' });
     } finally {
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orderId]);
 
-  const doVerify = () => {
-    router.push(`/merchant/m/verify?order_no=${encodeURIComponent(detail?.order_no || '')}`);
+  const loadNotes = useCallback(async () => {
+    try {
+      const noteSid = getCurrentStoreId();
+      const noteP: any = {};
+      if (noteSid) noteP.store_id = noteSid;
+      const res: any = await api.get(`/api/merchant/orders/${orderId}/notes`, { params: noteP });
+      setNotes(res?.items || res || []);
+    } catch {
+      setNotes([]);
+    }
+  }, [orderId]);
+
+  useEffect(() => {
+    if (orderId) {
+      loadOrder();
+      loadNotes();
+    }
+  }, [orderId, loadOrder, loadNotes]);
+
+  const handleConfirmOrder = async () => {
+    setConfirming(true);
+    try {
+      const sid = getCurrentStoreId();
+      const confirmParams: any = {};
+      if (sid) confirmParams.store_id = sid;
+      await api.post(`/api/merchant/orders/${orderId}/confirm`, null, { params: confirmParams });
+      Toast.show({ icon: 'success', content: '已确认接单' });
+      loadOrder();
+    } catch (e: any) {
+      Toast.show({ icon: 'fail', content: e?.response?.data?.detail || '确认失败' });
+    } finally {
+      setConfirming(false);
+    }
   };
 
-  const doRefund = () => {
-    Dialog.alert({ title: '提示', content: '订单退款请使用电脑 PC 商家端操作。' });
+  const handleAdjustTime = async () => {
+    const dateStr = await new Promise<string | null>((resolve) => {
+      let inputVal = order?.appointment_time?.split('T')[0] || '';
+      Dialog.confirm({
+        title: '调整预约日期',
+        content: (
+          <div style={{ padding: '12px 0' }}>
+            <input
+              type="date"
+              defaultValue={inputVal}
+              onChange={(e) => { inputVal = e.target.value; }}
+              style={{ width: '100%', padding: 8, fontSize: 16, border: '1px solid #ddd', borderRadius: 6 }}
+            />
+          </div>
+        ),
+        onConfirm: () => resolve(inputVal),
+        onCancel: () => resolve(null),
+      });
+    });
+    if (!dateStr) return;
+
+    const slotResult = await Dialog.show({
+      title: '选择时段',
+      closeOnAction: true,
+      actions: [
+        [
+          { key: 'morning', text: '上午 (9:00-12:00)' },
+          { key: 'afternoon', text: '下午 (13:00-17:00)' },
+          { key: 'evening', text: '晚间 (18:00-21:00)' },
+        ],
+        [{ key: 'cancel', text: '取消' }],
+      ],
+    });
+
+    const slot = slotResult as unknown as string;
+    if (!slot || slot === 'cancel') return;
+
+    const slotTimeMap: Record<string, string> = {
+      morning: '09:00',
+      afternoon: '13:00',
+      evening: '18:00',
+    };
+
+    try {
+      const adjustSid = getCurrentStoreId();
+      const adjustParams: any = {};
+      if (adjustSid) adjustParams.store_id = adjustSid;
+      await api.put(`/api/merchant/orders/${orderId}/appointment-time`, {
+        new_date: dateStr,
+        new_time_slot: slotTimeMap[slot] || '09:00',
+      }, { params: adjustParams });
+      Toast.show({ icon: 'success', content: '预约时间已调整' });
+      loadOrder();
+    } catch (e: any) {
+      Toast.show({ icon: 'fail', content: e?.response?.data?.detail || '调整失败' });
+    }
   };
 
-  const st = detail ? statusMap[detail.status] || { text: detail.status, color: '#999' } : null;
+  const handleSubmitNote = async () => {
+    if (!noteText.trim()) {
+      Toast.show({ content: '请输入备注内容' });
+      return;
+    }
+    setSubmittingNote(true);
+    try {
+      const noteSid = getCurrentStoreId();
+      const noteParams: any = {};
+      if (noteSid) noteParams.store_id = noteSid;
+      await api.post(`/api/merchant/orders/${orderId}/notes`, { content: noteText.trim() }, { params: noteParams });
+      Toast.show({ icon: 'success', content: '备注已添加' });
+      setNoteText('');
+      loadNotes();
+    } catch (e: any) {
+      Toast.show({ icon: 'fail', content: e?.response?.data?.detail || '添加备注失败' });
+    } finally {
+      setSubmittingNote(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#f7f8fa' }}>
+        <NavBar onBack={() => router.back()}>订单详情</NavBar>
+        <div style={{ textAlign: 'center', padding: 64 }}><DotLoading color="primary" /></div>
+      </div>
+    );
+  }
+
+  if (!order) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#f7f8fa' }}>
+        <NavBar onBack={() => router.back()}>订单详情</NavBar>
+        <Empty description="订单不存在" style={{ padding: 64 }} />
+      </div>
+    );
+  }
+
+  const st = STATUS_CONFIG[order.status] || { text: order.status, color: '#999', bg: '#f5f5f5' };
+  const canConfirm = order.is_appointment && ['pending', 'paid'].includes(order.status);
+  const canAdjustTime = order.is_appointment && !['cancelled', 'refunded', 'completed'].includes(order.status);
 
   return (
-    <div style={{ minHeight: '100vh', paddingBottom: 72 }}>
+    <div style={{ minHeight: '100vh', background: '#f7f8fa', paddingBottom: 24 }}>
       <NavBar onBack={() => router.back()}>订单详情</NavBar>
 
-      {loading || !detail ? (
-        <div style={{ padding: 24, textAlign: 'center', color: '#999' }}>{loading ? '加载中...' : '未找到订单'}</div>
-      ) : (
-        <>
-          <div style={{ background: '#fff', padding: '16px', margin: '12px', borderRadius: 10 }}>
-            <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 10 }}>{detail.product_name || '—'}</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-              <span
-                style={{
-                  display: 'inline-block',
-                  fontSize: 11,
-                  padding: '2px 8px',
-                  borderRadius: 10,
-                  background: `${st?.color}22`,
-                  color: st?.color,
-                }}
-              >
-                {st?.text}
-              </span>
-              <span style={{ color: '#fa541c', fontSize: 20, fontWeight: 700 }}>¥{detail.amount || 0}</span>
-            </div>
-            <div style={{ fontSize: 12, color: '#999' }}>订单号：{detail.order_no}</div>
+      {/* Order info card */}
+      <div style={{ margin: 12, background: '#fff', borderRadius: 12, padding: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+          <div style={{ flex: 1, marginRight: 12 }}>
+            <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 4 }}>{order.product_name || '—'}</div>
+            <div style={{ fontSize: 12, color: '#999' }}>订单号: {order.order_no}</div>
           </div>
+          <span style={{
+            fontSize: 12, padding: '3px 10px', borderRadius: 12,
+            background: st.bg, color: st.color,
+          }}>
+            {st.text}
+          </span>
+        </div>
 
-          <List header="订单信息" style={{ margin: '12px', borderRadius: 10, overflow: 'hidden' }}>
-            <List.Item extra={detail.user_display || '—'}>用户</List.Item>
-            <List.Item extra={detail.store_name || '—'}>门店</List.Item>
-            <List.Item extra={detail.created_at ? new Date(detail.created_at).toLocaleString('zh-CN') : '—'}>下单时间</List.Item>
-            {detail.appointment_time && (
-              <List.Item extra={new Date(detail.appointment_time).toLocaleString('zh-CN')}>预约时间</List.Item>
-            )}
-            {detail.verified_at && (
-              <List.Item extra={new Date(detail.verified_at).toLocaleString('zh-CN')}>核销时间</List.Item>
-            )}
-            {detail.verifier_name && <List.Item extra={detail.verifier_name}>核销人</List.Item>}
-            <List.Item extra={detail.attachment_count ?? 0}>附件数</List.Item>
-          </List>
-        </>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 16px', fontSize: 13, color: '#666' }}>
+          <div>客户: <span style={{ color: '#333' }}>{order.user_display || '—'}</span></div>
+          <div>金额: <span style={{ color: '#fa541c', fontWeight: 600 }}>¥{order.amount}</span></div>
+          <div>门店: <span style={{ color: '#333' }}>{order.store_name || '—'}</span></div>
+          <div>下单: <span style={{ color: '#333' }}>{order.created_at ? new Date(order.created_at).toLocaleString('zh-CN') : '—'}</span></div>
+          {order.appointment_time && (
+            <div style={{ gridColumn: '1 / -1' }}>
+              预约时间: <span style={{ color: '#1677ff', fontWeight: 500 }}>{new Date(order.appointment_time).toLocaleString('zh-CN')}</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Action buttons */}
+      {(canConfirm || canAdjustTime) && (
+        <div style={{ margin: '0 12px 12px', display: 'flex', gap: 10 }}>
+          {canConfirm && (
+            <Button
+              color="primary"
+              fill="solid"
+              style={{ flex: 1 }}
+              loading={confirming}
+              onClick={handleConfirmOrder}
+            >
+              确认接单
+            </Button>
+          )}
+          {canAdjustTime && (
+            <Button
+              color="primary"
+              fill="outline"
+              style={{ flex: 1 }}
+              onClick={handleAdjustTime}
+            >
+              调整预约时间
+            </Button>
+          )}
+        </div>
       )}
 
-      {/* 底部操作条 */}
-      <div
-        style={{
-          position: 'fixed',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          background: '#fff',
-          padding: 12,
-          borderTop: '1px solid #eee',
-          display: 'flex',
-          gap: 8,
-          maxWidth: 768,
-          margin: '0 auto',
-          zIndex: 50,
-        }}
-      >
-        {detail?.status === 'paid' && (
-          <Button block color="primary" onClick={doVerify}>
-            去核销
+      {/* Store notes */}
+      <div style={{ margin: '0 12px 12px', background: '#fff', borderRadius: 12, padding: 16 }}>
+        <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 12 }}>门店备注</div>
+
+        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+          <TextArea
+            placeholder="输入备注内容..."
+            value={noteText}
+            onChange={setNoteText}
+            rows={2}
+            style={{ flex: 1, '--font-size': '14px' } as any}
+          />
+          <Button
+            color="primary"
+            size="small"
+            style={{ alignSelf: 'flex-end', height: 36 }}
+            loading={submittingNote}
+            onClick={handleSubmitNote}
+          >
+            提交
           </Button>
+        </div>
+
+        {notes.length === 0 ? (
+          <div style={{ textAlign: 'center', color: '#999', fontSize: 13, padding: '12px 0' }}>暂无备注</div>
+        ) : (
+          <div style={{ maxHeight: 300, overflowY: 'auto' }}>
+            {notes.map((n) => (
+              <div key={n.id} style={{ padding: '10px 0', borderTop: '1px solid #f0f0f0' }}>
+                <div style={{ fontSize: 13, color: '#333', lineHeight: 1.5 }}>{n.content}</div>
+                <div style={{ fontSize: 11, color: '#999', marginTop: 4, display: 'flex', justifyContent: 'space-between' }}>
+                  <span>{n.staff_name || ''}</span>
+                  <span>{n.created_at ? new Date(n.created_at).toLocaleString('zh-CN') : ''}</span>
+                </div>
+              </div>
+            ))}
+          </div>
         )}
-        <Button block fill="outline" onClick={doRefund}>
-          申请退款
-        </Button>
       </div>
     </div>
   );

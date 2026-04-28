@@ -17,6 +17,8 @@ import {
   LogoutOutlined,
   UserOutlined,
   LockOutlined,
+  CalendarOutlined,
+  WechatOutlined,
 } from '@ant-design/icons';
 import { usePathname, useRouter } from 'next/navigation';
 import { getProfile, logoutMerchant, isAuthed, canAccess, roleLabel, setCurrentStoreId, getCurrentStoreId, MerchantLoginProfile } from './lib';
@@ -29,6 +31,7 @@ const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
 const allMenu = [
   { key: 'dashboard', path: '/merchant/dashboard', icon: <DashboardOutlined />, label: '工作台' },
   { key: 'orders', path: '/merchant/orders', icon: <ShoppingCartOutlined />, label: '订单管理' },
+  { key: 'calendar', path: '/merchant/calendar', icon: <CalendarOutlined />, label: '预约日历' },
   { key: 'verifications', path: '/merchant/verifications', icon: <ScanOutlined />, label: '核销记录' },
   { key: 'reports', path: '/merchant/reports', icon: <BarChartOutlined />, label: '报表分析' },
   { key: 'settlement', path: '/merchant/settlement', icon: <AccountBookOutlined />, label: '对账结算' },
@@ -36,6 +39,7 @@ const allMenu = [
   { key: 'finance', path: '/merchant/finance', icon: <AccountBookOutlined />, label: '财务对账' },
   { key: 'staff', path: '/merchant/staff', icon: <TeamOutlined />, label: '员工管理' },
   { key: 'store-settings', path: '/merchant/store-settings', icon: <ShopOutlined />, label: '门店设置' },
+  { key: 'wechat-bindding', path: '/merchant/wechat-bindding', icon: <WechatOutlined />, label: '公众号绑定' },
   { key: 'downloads', path: '/merchant/downloads', icon: <DownloadOutlined />, label: '下载中心' },
   { key: 'messages', path: '/merchant/messages', icon: <MessageOutlined />, label: '消息中心' },
 ];
