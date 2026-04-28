@@ -33,7 +33,30 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 多规格商品价格显示0 Bug修复 — 已开发部署（2026-04-28 14:00）
+## Latest Update: 服务页分类栏固定与二级Tab联动优化 — 已开发部署（2026-04-28 14:40）
+
+### 一句话结论
+用户端「首页→服务」页面分类栏固定与二级Tab联动优化已完成三端开发部署。H5网页端、Flutter APP端、微信小程序端统一改造为「左侧一级分类竖列固定+右侧（二级子类横向Tab固定+商品列表）」布局。实现左侧栏固定+独立滚动、二级Tab固定+阴影分界+横向滑动、滚动联动Tab高亮、点击Tab平滑定位、Tab过渡动效、履约角标移至价格行、商品名称完整显示等11项功能点（F1-F11）。Android APK和iOS IPA已通过GitHub Actions构建并发布，小程序zip已打包上传。
+
+### 修改的文件
+- `h5-web/src/app/(tabs)/services/page.tsx` — 服务页布局重构：全屏不滚动容器、左侧分类栏sticky固定+独立滚动、二级Tab固定+阴影+横向滑动、滚动联动高亮（100ms节流）、点击Tab平滑定位（500ms）、商品按子类分组渲染、履约角标移至价格行、名称完整显示
+- `flutter_app/lib/screens/services/services_screen.dart` — 服务页全面重构：移除AppBar TabBar，改为Row左右分栏（左88px+右内容区），新增SubTabController+ScrollController联动，商品按category_id分组渲染，新增fulfillmentType/sellingPoint/categoryName字段
+- `flutter_app/lib/services/api_service.dart` — 新增getProductsByParentCategory()方法
+- `miniprogram/pages/services/index.js` — 服务页逻辑重构：左侧分类栏+右侧Tab联动，商品按子类分组，滚动联动高亮（100ms节流），履约角标数据映射
+- `miniprogram/pages/services/index.wxml` — 服务页模板重构：scroll-view左侧栏+右侧Tab+商品列表三区域，新增fulfillment-badge组件
+- `miniprogram/pages/services/index.wxss` — 服务页样式重写：100vh全屏flex布局，左侧栏/子类Tab/商品列表独立滚动，过渡动效
+
+### 用户文档
+- `user_docs/服务页分类栏固定与二级Tab联动优化.md`
+
+### 客户端打包
+- Android APK: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/apk/bini_health_android-v20260428-143835-94d9.apk`
+- iOS IPA: `https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-v20260428-143818-b06d`
+- 小程序 ZIP: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/miniprogram/miniprogram_20260428_143751_4082.zip`
+
+---
+
+## Previous Update: 多规格商品价格显示0 Bug修复 — 已开发部署（2026-04-28 14:00）
 
 ### 一句话结论
 多规格商品在全部用户端（H5+APP+小程序）的服务列表页和搜索结果页价格显示为¥0的Bug已修复并部署。后端ProductResponse新增model_validator，自动从启用SKU中计算最低价覆盖sale_price，新增min_price和has_multi_spec字段。H5端、Flutter APP端、微信小程序端三端六个页面统一适配「¥最低价起」格式。5个专项测试全部通过。Android APK和iOS IPA已通过GitHub Actions构建并发布，小程序zip已打包上传。
