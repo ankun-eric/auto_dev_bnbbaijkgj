@@ -33,13 +33,28 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 前端价格显示优化需求PRD（2026-04-28）
+## Latest Update: 前端价格显示优化功能开发完成（2026-04-28）
 
 ### 一句话结论
-前端价格显示优化需求PRD已输出。核心需求：全端（H5、Flutter APP、微信小程序、Admin Web）所有价格展示去掉末尾多余的零（19.00→19，19.10→19.1）。技术方案为后端API层统一加全局格式化器，一处修改全端生效；支付/退款/结算等资金流转接口保持精确两位小数；数据库存储不动。优先级紧急。
+前端价格显示优化已全量开发、部署并验证完成。后端新增 `PriceFormattedJSONResponse` 全局格式化器（`backend/app/core/price_formatter.py`），在 FastAPI JSON 序列化层递归去掉所有 float 值末尾零（19.00→19，19.10→19.1）。各前端（H5 18 文件、Admin 3 文件、Flutter 11 文件、小程序 2 文件）移除 `.toFixed(2)` / `.toStringAsFixed(2)` 硬编码，新增 `round2()` / `r2()` / `formatPrice()` 精度保护函数。14 个后端单元测试全部通过。已部署到远程服务器并完成全量链接可达性验证，API 返回已确认价格去零生效。Flutter APK、iOS IPA、小程序 zip 均已打包上传。
 
-### 记忆文件
-- `mem/mem_前端价格显示优化需求PRD_20260428_112300.md`
+### 新增/修改的关键文件
+- `backend/app/core/price_formatter.py`（新增）— 全局价格格式化器
+- `backend/app/main.py`（修改）— 注册 PriceFormattedJSONResponse
+- `backend/tests/test_price_formatter.py`（新增）— 14 个单元测试
+- `flutter_app/lib/utils/price_formatter.dart`（新增）— Flutter 端 formatPrice 工具
+- `h5-web/` 18 个文件 — 移除 .toFixed(2)，新增 round2() 精度保护
+- `admin-web/` 3 个文件 — 移除 .toFixed(2)
+- `miniprogram/` 2 个文件 — 移除 .toFixed(2)，新增 r2() 精度保护
+- `flutter_app/lib/` 11 个文件 — 替换 toStringAsFixed(2) 为 formatPrice()
+
+### 客户端包下载
+- 安卓 APK：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/apk/bini_health_android-v20260428-115109-8972.apk`
+- iOS IPA：`https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-v20260428-115124-13b4`
+- 小程序 ZIP：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/miniprogram/miniprogram_20260428_115055_6eda.zip`
+
+### 用户体验手册
+- `user_docs/前端价格显示优化.md`
 
 ### PRD文档
 - `docs/PRD_前端价格显示优化_20260428_112300.md`
