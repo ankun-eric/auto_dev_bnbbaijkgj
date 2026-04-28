@@ -33,7 +33,37 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 服务页二级Tab固定与联动优化PRD（2026-04-28 13:45）
+## Latest Update: 多规格商品价格显示0 Bug修复 — 已开发部署（2026-04-28 14:00）
+
+### 一句话结论
+多规格商品在全部用户端（H5+APP+小程序）的服务列表页和搜索结果页价格显示为¥0的Bug已修复并部署。后端ProductResponse新增model_validator，自动从启用SKU中计算最低价覆盖sale_price，新增min_price和has_multi_spec字段。H5端、Flutter APP端、微信小程序端三端六个页面统一适配「¥最低价起」格式。5个专项测试全部通过。Android APK和iOS IPA已通过GitHub Actions构建并发布，小程序zip已打包上传。
+
+### 修改的文件
+- `backend/app/schemas/products.py` — ProductResponse新增min_price、has_multi_spec字段和_compute_min_price model_validator
+- `backend/tests/test_multi_spec_price.py` — 5个专项测试用例
+- `h5-web/src/app/(tabs)/services/page.tsx` — Product interface新增字段，价格渲染改为min_price+起字
+- `flutter_app/lib/screens/services/services_screen.dart` — _Product类新增minPrice/hasMultiSpec，价格渲染适配
+- `miniprogram/pages/services/index.js` — 数据映射改为min_price优先
+- `miniprogram/pages/services/index.wxml` — 价格后增加条件"起"字
+- `miniprogram/pages/services/index.wxss` — 新增.price-suffix样式
+
+### 新增/变更 API 行为
+| 方法 | 路径 | 变更说明 |
+| --- | --- | --- |
+| GET | `/api/products` | ProductResponse新增min_price（SKU最低价）和has_multi_spec（是否多规格不同价）字段，多规格商品sale_price自动覆盖为最低价 |
+| GET | `/api/products?q=...` | 同上，搜索结果也包含min_price和has_multi_spec |
+
+### 用户文档
+- `user_docs/多规格商品价格显示修复.md`
+
+### 客户端打包
+- Android APK: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/apk/bini_health_android-v20260428-140406-d7dc.apk`
+- iOS IPA: `https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-v20260428-140414-4ed0`
+- 小程序 ZIP: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/miniprogram/miniprogram_20260428_140353_9aae.zip`
+
+---
+
+## Previous Update: 服务页二级Tab固定与联动优化PRD（2026-04-28 13:45）
 
 ### 一句话结论
 在原有PRD基础上新增二级子类Tab相关需求：①二级Tab固定不随商品列表滚动；②Tab底部加轻微阴影区分固定区与滚动区；③子类多时Tab支持横向滑动一行展示；④滚动商品列表时Tab自动高亮对应子类；⑤点击Tab自动平滑滚动定位到对应子类商品区域；⑥Tab选中指示器平滑过渡动效。合并原有左侧栏固定+商品卡片优化，共11项功能点（F1-F11），H5+APP+小程序三端同步。
