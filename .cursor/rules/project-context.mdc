@@ -33,7 +33,46 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 服务页分类栏固定与二级Tab联动优化 — 已开发部署（2026-04-28 14:40）
+## Latest Update: 商品编辑Tab切换导致售价库存归零Bug修复（2026-04-28 19:55）
+
+### 一句话结论
+管理后台商品编辑弹窗中，切换Tab（如从"基本信息"切到"预约与核销"）后保存，售价和库存被写入0。根因是Tab使用if/else条件渲染，切走后Form.Item被React卸载，getFieldsValue()返回undefined，payload中undefined??0=0写入数据库。修复：①renderTabContent()从条件渲染改为CSS display控制（根治）；②payload构建中sale_price/stock/original_price/selling_point增加fallback到editingRecord原始值（兜底）。已部署验证通过。
+
+### 修改的文件
+- `admin-web/src/app/(admin)/product-system/products/page.tsx` — renderTabContent()从if/else改为CSS display:block/none控制5个Tab显隐；handleSubmit() payload中sale_price/stock/original_price/selling_point增加editingRecord fallback
+
+### 用户文档
+- `user_docs/商品编辑Tab切换价格库存归零Bug修复.md`
+
+---
+
+## Previous Update: 系统发布自动插入旧商品分类Bug修复方案（2026-04-28 19:06）
+
+### 一句话结论
+系统每次发布/重启时，`schema_sync.py` 中的 `_migrate_service_to_product_categories()` 会将 `service_categories` 表的 5 条旧分类（专家咨询、健康食品、口腔服务、体检服务、养老服务）自动同步到 `product_categories` 表，导致运营手动删除的分类"复活"。修复方案：去掉该自动迁移调用，商品分类改为完全由运营人工管理。
+
+### Bug修复方案文档
+- `docs/BUG_FIX_系统发布自动插入旧商品分类_20260428_190600.md`
+
+### 记忆文件
+- `mem/mem_系统发布自动插入旧商品分类Bug方案_20260428_190600.md`
+
+---
+
+## Previous Update: 预约模式切换导致价格库存归零Bug修复方案（2026-04-28 18:49）
+
+### 一句话结论
+商品编辑弹窗中切换预约模式为「预约日期」后保存，再打开编辑发现售价和库存被归零。根因是Tab使用条件渲染（if/else），切走后基本信息区Form.Item被React卸载，getFieldsValue()取不到值返回undefined，payload中undefined??0=0写入数据库。修复方案：①将Tab条件渲染改为CSS display控制（根治）；②payload构建fallback到编辑前原始值（兜底）。已输出完整Bug修复方案文档。
+
+### Bug修复方案文档
+- `docs/BUG_FIX_预约模式切换导致价格库存归零_完整方案_20260428_184900.md`
+
+### 记忆文件
+- `mem/mem_预约模式切换价格归零Bug方案_20260428_184900.md`
+
+---
+
+## Previous Update: 服务页分类栏固定与二级Tab联动优化 — 已开发部署（2026-04-28 14:40）
 
 ### 一句话结论
 用户端「首页→服务」页面分类栏固定与二级Tab联动优化已完成三端开发部署。H5网页端、Flutter APP端、微信小程序端统一改造为「左侧一级分类竖列固定+右侧（二级子类横向Tab固定+商品列表）」布局。实现左侧栏固定+独立滚动、二级Tab固定+阴影分界+横向滑动、滚动联动Tab高亮、点击Tab平滑定位、Tab过渡动效、履约角标移至价格行、商品名称完整显示等11项功能点（F1-F11）。Android APK和iOS IPA已通过GitHub Actions构建并发布，小程序zip已打包上传。

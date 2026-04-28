@@ -900,19 +900,19 @@ export default function ProductsPage() {
       name: values.name,
       category_id: values.category_id,
       fulfillment_type: values.fulfillment_type,
-      original_price: specMode === 1 ? (values.original_price || null) : null,
-      sale_price: specMode === 1 ? (values.sale_price ?? 0) : 0,
+      original_price: specMode === 1 ? (values.original_price ?? editingRecord?.original_price ?? null) : null,
+      sale_price: specMode === 1 ? (values.sale_price ?? editingRecord?.sale_price ?? 0) : 0,
       images: imageUrls,
       video_url: mainVideoUrl || '',
       main_video_url: mainVideoUrl || '',
       description: descRich ? descRich.replace(/<[^>]+>/g, '').slice(0, 5000) : '',
       description_rich: descRich || '',
-      selling_point: values.selling_point || '',
+      selling_point: values.selling_point ?? editingRecord?.selling_point ?? '',
       product_code_list: productCodes,
       spec_mode: specMode,
       skus: specMode === 2 ? skuList : [],
       symptom_tags: [...(values.symptom_tags || []), ...(values.constitution_types || [])],
-      stock: specMode === 1 ? (values.stock ?? 0) : totalSkuStock,
+      stock: specMode === 1 ? (values.stock ?? editingRecord?.stock ?? 0) : totalSkuStock,
       points_exchangeable: values.points_exchangeable || false,
       points_price: values.points_price ?? 0,
       points_deductible: values.points_deductible || false,
@@ -1150,10 +1150,14 @@ export default function ProductsPage() {
   ];
 
   const renderTabContent = () => {
-    if (activeTab === 'base') {
-      return (
-        <>
-          {/* 产品条码 */}
+    const tabStyle = (tab: TabKey): React.CSSProperties => ({
+      display: activeTab === tab ? 'block' : 'none',
+    });
+
+    return (
+      <>
+        {/* ── 基础信息 Tab ── */}
+        <div style={tabStyle('base')}>
           <Form.Item
             label={
               <Space>
@@ -1198,7 +1202,6 @@ export default function ProductsPage() {
             </Col>
           </Row>
 
-          {/* 规格 */}
           <Form.Item label="商品规格" required>
             <Space>
               <Radio.Group value={specMode} onChange={e => onSpecModeChange(e.target.value)}>
@@ -1331,12 +1334,10 @@ export default function ProductsPage() {
           <Form.Item label="商品描述">
             <SimpleRichEditor value={descRich} onChange={setDescRich} />
           </Form.Item>
-        </>
-      );
-    }
-    if (activeTab === 'tags') {
-      return (
-        <>
+        </div>
+
+        {/* ── 标签设置 Tab ── */}
+        <div style={tabStyle('tags')}>
           <Form.Item label="症状标签" name="symptom_tags">
             <Select
               mode="tags"
@@ -1347,27 +1348,25 @@ export default function ProductsPage() {
           <Form.Item label="适用体质" name="constitution_types">
             <Checkbox.Group options={CONSTITUTION_TYPES.map(t => ({ label: t, value: t }))} />
           </Form.Item>
-        </>
-      );
-    }
-    if (activeTab === 'points') {
-      return (
-        <Row gutter={16}>
-          <Col span={8}>
-            <Form.Item label="可积分兑换" name="points_exchangeable" valuePropName="checked"><Switch /></Form.Item>
-          </Col>
-          <Col span={8}>
-            <Form.Item label="积分价格" name="points_price"><InputNumber min={0} style={{ width: '100%' }} /></Form.Item>
-          </Col>
-          <Col span={8}>
-            <Form.Item label="可积分抵扣" name="points_deductible" valuePropName="checked"><Switch /></Form.Item>
-          </Col>
-        </Row>
-      );
-    }
-    if (activeTab === 'appointment') {
-      return (
-        <>
+        </div>
+
+        {/* ── 积分设置 Tab ── */}
+        <div style={tabStyle('points')}>
+          <Row gutter={16}>
+            <Col span={8}>
+              <Form.Item label="可积分兑换" name="points_exchangeable" valuePropName="checked"><Switch /></Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item label="积分价格" name="points_price"><InputNumber min={0} style={{ width: '100%' }} /></Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item label="可积分抵扣" name="points_deductible" valuePropName="checked"><Switch /></Form.Item>
+            </Col>
+          </Row>
+        </div>
+
+        {/* ── 预约与核销 Tab ── */}
+        <div style={tabStyle('appointment')}>
           <Row gutter={16}>
             <Col span={8}>
               <Form.Item label="核销次数" name="redeem_count"><InputNumber min={1} style={{ width: '100%' }} /></Form.Item>
@@ -1378,7 +1377,6 @@ export default function ProductsPage() {
                   options={appointmentModes}
                   onChange={(val) => {
                     setApptMode(val);
-                    // 切到 none 时清空购买预约方式；进入需要预约时给默认值
                     if (val === 'none') {
                       form.setFieldValue('purchase_appointment_mode', undefined);
                     } else if (!form.getFieldValue('purchase_appointment_mode')) {
@@ -1393,7 +1391,6 @@ export default function ProductsPage() {
             </Col>
           </Row>
 
-          {/* ── 预约模式联动区（BUG-PRODUCT-APPT-001）── */}
           {apptMode !== 'none' && (
             <>
               <Divider orientation="left" plain style={{ margin: '4px 0 12px' }}>
@@ -1532,26 +1529,24 @@ export default function ProductsPage() {
               </Col>
             </Row>
           )}
+        </div>
 
-        </>
-      );
-    }
-    if (activeTab === 'sort') {
-      return (
-        <Row gutter={16}>
-          <Col span={8}>
-            <Form.Item label="推荐权重" name="recommend_weight"><InputNumber min={0} style={{ width: '100%' }} /></Form.Item>
-          </Col>
-          <Col span={8}>
-            <Form.Item label="排序值" name="sort_order"><InputNumber min={0} style={{ width: '100%' }} /></Form.Item>
-          </Col>
-          <Col span={8}>
-            <Form.Item label="状态" name="status"><Select options={statusOptions} /></Form.Item>
-          </Col>
-        </Row>
-      );
-    }
-    return null;
+        {/* ── 排序与权重 Tab ── */}
+        <div style={tabStyle('sort')}>
+          <Row gutter={16}>
+            <Col span={8}>
+              <Form.Item label="推荐权重" name="recommend_weight"><InputNumber min={0} style={{ width: '100%' }} /></Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item label="排序值" name="sort_order"><InputNumber min={0} style={{ width: '100%' }} /></Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item label="状态" name="status"><Select options={statusOptions} /></Form.Item>
+            </Col>
+          </Row>
+        </div>
+      </>
+    );
   };
 
   return (
