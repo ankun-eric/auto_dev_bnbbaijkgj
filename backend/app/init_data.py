@@ -95,20 +95,10 @@ async def _init_admin(db: AsyncSession):
     )
     existing_admin = result.scalar_one_or_none()
     if existing_admin:
-        changed = False
-        if existing_admin.phone != default_phone:
-            existing_admin.phone = default_phone
-            changed = True
-        if not existing_admin.password_hash or not verify_password(default_password, existing_admin.password_hash):
-            existing_admin.password_hash = get_password_hash(default_password)
-            changed = True
-        # V2.1：默认管理员保证 is_superuser=True，使其可执行优惠券下架
         if not getattr(existing_admin, "is_superuser", False):
             existing_admin.is_superuser = True
-            changed = True
-        if changed:
             await db.flush()
-            logger.info("Reset admin credentials to phone=%s", default_phone)
+            logger.info("Ensured admin is_superuser=True")
         return
 
     admin = User(
@@ -446,23 +436,6 @@ async def _init_sms_config_and_template(db: AsyncSession):
         ))
         await db.flush()
         logger.info("Created default Tencent Cloud SMS config (AppKey mode)")
-    else:
-        changed = False
-        if existing.sdk_app_id != expected_sdk_app_id:
-            existing.sdk_app_id = expected_sdk_app_id
-            changed = True
-        if existing.app_key != expected_app_key:
-            existing.app_key = expected_app_key
-            changed = True
-        if existing.sign_name != expected_sign_name:
-            existing.sign_name = expected_sign_name
-            changed = True
-        if existing.template_id != expected_template_id:
-            existing.template_id = expected_template_id
-            changed = True
-        if changed:
-            await db.flush()
-            logger.info("Updated Tencent SMS config to match env defaults")
 
     result = await db.execute(
         select(SmsTemplate).where(

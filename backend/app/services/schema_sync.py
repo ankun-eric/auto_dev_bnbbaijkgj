@@ -1096,12 +1096,6 @@ async def _sync_merchant_v1_backend(conn: AsyncConnection) -> None:
                         ),
                         {"code": code, "name": name, "modules": _json.dumps(modules), "sort": sort_order},
                     )
-                else:
-                    # 保证内置角色的 default_modules 与矩阵一致（幂等刷新）
-                    await conn.execute(
-                        text("UPDATE merchant_role_templates SET name=:name, default_modules=:modules, is_system=1, sort_order=:sort, updated_at=NOW() WHERE id=:id"),
-                        {"name": name, "modules": _json.dumps(modules), "sort": sort_order, "id": row[0]},
-                    )
             except Exception:
                 pass
 
@@ -1161,34 +1155,6 @@ async def _sync_settlement_proof_schema(conn: AsyncConnection) -> None:
         pass
 
 
-async def _migrate_service_to_product_categories(conn: AsyncConnection) -> None:
-    def _load(sync_conn):
-        inspector = inspect(sync_conn)
-        tables = set(inspector.get_table_names())
-        return "service_categories" in tables and "product_categories" in tables
-
-    both_exist = await conn.run_sync(_load)
-    if not both_exist:
-        return
-
-    rows = await conn.execute(text("SELECT name FROM service_categories"))
-    service_names = [r[0] for r in rows.fetchall()]
-
-    for name in service_names:
-        existing = await conn.execute(
-            text("SELECT id FROM product_categories WHERE name = :n AND parent_id IS NULL"),
-            {"n": name},
-        )
-        if existing.fetchone() is None:
-            await conn.execute(
-                text(
-                    "INSERT INTO product_categories (name, parent_id, level, sort_order, status, created_at, updated_at) "
-                    "VALUES (:n, NULL, 1, 0, 'active', NOW(), NOW())"
-                ),
-                {"n": name},
-            )
-
-
 async def sync_register_schema(conn: AsyncConnection) -> None:
     def load_user_schema(sync_conn):
         inspector = inspect(sync_conn)
@@ -1226,7 +1192,6 @@ async def sync_register_schema(conn: AsyncConnection) -> None:
     await _sync_drug_identify_family_member(conn)
     await _sync_chat_share_records_table(conn)
     await _sync_product_system_tables(conn)
-    await _migrate_service_to_product_categories(conn)
     await _sync_tcm_configs_table(conn)
     await _sync_chat_function_button_fields(conn)
     await _sync_tcm_diagnosis_fields(conn)
