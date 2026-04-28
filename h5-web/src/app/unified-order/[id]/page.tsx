@@ -229,76 +229,6 @@ export default function UnifiedOrderDetailPage() {
       )}
 
       <div className="px-4 -mt-3">
-        {hasInStore && order.status === 'pending_use' && order.items.filter((i) => i.fulfillment_type === 'in_store').map((item) => {
-          const isRefundProcessing = ['applied', 'reviewing', 'approved', 'returning'].includes(order.refund_status);
-          const isRefundSuccess = order.refund_status === 'refund_success';
-          const isRefundBlocked = isRefundProcessing || isRefundSuccess;
-
-          return (
-            <Card key={item.id} style={{ borderRadius: 12, marginBottom: 12, textAlign: 'center' }}>
-              <div className="text-sm text-gray-500 mb-2">
-                核销码
-                {isRefundProcessing && (
-                  <Tag color="warning" style={{ marginLeft: 8, verticalAlign: 'middle' }}>退款处理中</Tag>
-                )}
-                {isRefundSuccess && (
-                  <Tag color="default" style={{ marginLeft: 8, verticalAlign: 'middle' }}>已退款</Tag>
-                )}
-              </div>
-              {item.verification_qrcode_token && (
-                <div className="flex justify-center mb-3" style={isRefundBlocked ? { opacity: 0.3 } : {}}>
-                  <Image
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${item.verification_qrcode_token}`}
-                    width={150}
-                    height={150}
-                    fit="contain"
-                  />
-                </div>
-              )}
-              {item.verification_code && !isRefundBlocked && (
-                <>
-                  <div className="text-2xl font-bold tracking-widest text-primary mb-2">
-                    {item.verification_code}
-                  </div>
-                  <Button
-                    size="small"
-                    onClick={() => copyCode(item.verification_code!)}
-                    style={{ color: '#52c41a', borderColor: '#52c41a', borderRadius: 16, fontSize: 12 }}
-                  >
-                    复制核销码
-                  </Button>
-                </>
-              )}
-              {item.verification_code && isRefundBlocked && (
-                <div className="text-2xl font-bold tracking-widest mb-2" style={{ color: '#ccc' }}>
-                  {item.verification_code}
-                </div>
-              )}
-              {isRefundProcessing && (
-                <div className="text-xs mt-2" style={{ color: '#faad14' }}>
-                  退款处理中，核销码暂时不可用
-                </div>
-              )}
-              {isRefundSuccess && (
-                <div className="text-xs mt-2" style={{ color: '#999' }}>
-                  该订单已退款，核销码已失效
-                </div>
-              )}
-              {item.total_redeem_count > 1 && (
-                <div className="mt-3">
-                  <div className="text-xs text-gray-400 mb-1">
-                    使用进度：{item.used_redeem_count}/{item.total_redeem_count}次
-                  </div>
-                  <ProgressBar
-                    percent={(item.used_redeem_count / item.total_redeem_count) * 100}
-                    style={{ '--fill-color': '#52c41a', '--track-width': '6px' }}
-                  />
-                </div>
-              )}
-            </Card>
-          );
-        })}
-
         <Card style={{ borderRadius: 12, marginBottom: 12 }}>
           {order.items.map((item) => (
             <div key={item.id} className="flex items-center mb-3">
@@ -381,6 +311,76 @@ export default function UnifiedOrderDetailPage() {
             })}
           </Card>
         )}
+
+        {hasInStore && order.status === 'pending_use' && order.items.filter((i) => i.fulfillment_type === 'in_store').map((item) => {
+          const isRefundProcessing = ['applied', 'reviewing', 'approved', 'returning'].includes(order.refund_status);
+          const isRefundSuccess = order.refund_status === 'refund_success';
+          const isRefundBlocked = isRefundProcessing || isRefundSuccess;
+
+          return (
+            <Card key={item.id} style={{ borderRadius: 12, marginBottom: 12, textAlign: 'center' }}>
+              <div className="text-sm text-gray-500 mb-2">
+                核销码
+                {isRefundProcessing && (
+                  <Tag color="warning" style={{ marginLeft: 8, verticalAlign: 'middle' }}>退款处理中</Tag>
+                )}
+                {isRefundSuccess && (
+                  <Tag color="default" style={{ marginLeft: 8, verticalAlign: 'middle' }}>已退款</Tag>
+                )}
+              </div>
+              {item.verification_qrcode_token && (
+                <div className="flex justify-center mb-3" style={isRefundBlocked ? { opacity: 0.3 } : {}}>
+                  <Image
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${item.verification_qrcode_token}`}
+                    width={150}
+                    height={150}
+                    fit="contain"
+                  />
+                </div>
+              )}
+              {item.verification_code && !isRefundBlocked && (
+                <>
+                  <div className="text-2xl font-bold tracking-widest text-primary mb-2">
+                    {item.verification_code}
+                  </div>
+                  <Button
+                    size="small"
+                    onClick={() => copyCode(item.verification_code!)}
+                    style={{ color: '#52c41a', borderColor: '#52c41a', borderRadius: 16, fontSize: 12 }}
+                  >
+                    复制核销码
+                  </Button>
+                </>
+              )}
+              {item.verification_code && isRefundBlocked && (
+                <div className="text-2xl font-bold tracking-widest mb-2" style={{ color: '#ccc' }}>
+                  {item.verification_code}
+                </div>
+              )}
+              {isRefundProcessing && (
+                <div className="text-xs mt-2" style={{ color: '#faad14' }}>
+                  退款处理中，核销码暂时不可用
+                </div>
+              )}
+              {isRefundSuccess && (
+                <div className="text-xs mt-2" style={{ color: '#999' }}>
+                  该订单已退款，核销码已失效
+                </div>
+              )}
+              {item.total_redeem_count > 1 && (
+                <div className="mt-3">
+                  <div className="text-xs text-gray-400 mb-1">
+                    使用进度：{item.used_redeem_count}/{item.total_redeem_count}次
+                  </div>
+                  <ProgressBar
+                    percent={(item.used_redeem_count / item.total_redeem_count) * 100}
+                    style={{ '--fill-color': '#52c41a', '--track-width': '6px' }}
+                  />
+                </div>
+              )}
+            </Card>
+          );
+        })}
 
         {hasDelivery && order.tracking_number && (
           <Card style={{ borderRadius: 12, marginBottom: 12 }} title="物流信息">
