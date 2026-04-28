@@ -976,11 +976,11 @@ function ChatPageInner() {
               continue;
             }
             if (!line.startsWith('data:')) continue;
+            if (currentEvent === '__compat__') { currentEvent = ''; continue; }
             const dataStr = line.startsWith('data: ') ? line.slice(6) : line.slice(5);
             let data: any = {};
             try { data = JSON.parse(dataStr); } catch { data = { raw: dataStr }; }
 
-            // 兼容新旧事件
             if (currentEvent === 'message.delta' || data.type === 'delta') {
               const d = data.delta || data.content || '';
               if (d) {
@@ -1244,6 +1244,7 @@ function ChatPageInner() {
       let accumulated = '';
       let messageId = '';
       let buffer = '';
+      let currentEvent = '';
 
       while (true) {
         const { done, value } = await reader.read();
@@ -1254,42 +1255,45 @@ function ChatPageInner() {
         buffer = lines.pop() || '';
 
         for (const line of lines) {
-          if (line.startsWith('event: ')) {
-            const eventType = line.slice(7).trim();
-            if (eventType === 'done') {
-              // next data line has message_id
-            }
-          } else if (line.startsWith('data: ') || line.startsWith('data:')) {
-            const dataStr = line.startsWith('data: ') ? line.slice(6) : line.slice(5);
-            try {
-              const data = JSON.parse(dataStr);
-              // [2026-04-23 公共页报告卡片迁移] 兼容体检 SSE：{type:'delta|done|error', content}
-              if (data.type === 'delta' && data.content) {
-                accumulated += data.content;
-                setStreamingContent(accumulated);
-              } else if (data.type === 'done') {
-                if (data.content) {
-                  accumulated = data.content;
-                  setStreamingContent(accumulated);
-                }
-                if (data.message_id) messageId = String(data.message_id);
-              } else if (data.type === 'error') {
-                Toast.show({ content: data.content || 'AI 服务异常' });
-              } else if (data.content || data.delta) {
-                accumulated += (data.delta || data.content || '');
-                setStreamingContent(accumulated);
-              }
-              if (data.message_id) {
-                messageId = String(data.message_id);
-              }
-              if (data.done) {
-                messageId = data.message_id ? String(data.message_id) : messageId;
-              }
-            } catch {
-              accumulated += dataStr;
+          if (line.startsWith('event:')) {
+            currentEvent = line.slice(6).trim();
+            continue;
+          }
+          if (!(line.startsWith('data: ') || line.startsWith('data:'))) continue;
+          const dataStr = line.startsWith('data: ') ? line.slice(6) : line.slice(5);
+
+          if (currentEvent === '__compat__') {
+            currentEvent = '';
+            continue;
+          }
+
+          try {
+            const data = JSON.parse(dataStr);
+            if (currentEvent === 'message.delta') {
+              const d = data.delta || data.content || '';
+              if (d) { accumulated += d; setStreamingContent(accumulated); }
+            } else if (currentEvent === 'message.done' || currentEvent === 'done') {
+              if (data.content) { accumulated = data.content; setStreamingContent(accumulated); }
+              if (data.message_id) messageId = String(data.message_id);
+            } else if (data.type === 'delta' && data.content) {
+              accumulated += data.content;
+              setStreamingContent(accumulated);
+            } else if (data.type === 'done') {
+              if (data.content) { accumulated = data.content; setStreamingContent(accumulated); }
+              if (data.message_id) messageId = String(data.message_id);
+            } else if (data.type === 'error') {
+              Toast.show({ content: data.content || 'AI 服务异常' });
+            } else if (data.content || data.delta) {
+              accumulated += (data.delta || data.content || '');
               setStreamingContent(accumulated);
             }
+            if (data.message_id) messageId = String(data.message_id);
+            if (data.done) messageId = data.message_id ? String(data.message_id) : messageId;
+          } catch {
+            accumulated += dataStr;
+            setStreamingContent(accumulated);
           }
+          currentEvent = '';
         }
       }
 

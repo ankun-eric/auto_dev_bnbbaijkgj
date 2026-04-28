@@ -256,11 +256,36 @@ function CheckupChatContent() {
         while ((idx = buffer.indexOf('\n\n')) >= 0) {
           const chunk = buffer.slice(0, idx);
           buffer = buffer.slice(idx + 2);
-          if (!chunk.startsWith('data:')) continue;
-          const payload = chunk.slice(5).trim();
+
+          let eventType = '';
+          let dataLine = '';
+          for (const line of chunk.split('\n')) {
+            if (line.startsWith('event:')) {
+              eventType = line.slice(6).trim();
+            } else if (line.startsWith('data:')) {
+              dataLine = line.slice(5).trim();
+            }
+          }
+
+          if (!dataLine) continue;
+          if (eventType === '__compat__') continue;
+
           try {
-            const obj = JSON.parse(payload);
-            if (obj.type === 'delta' && obj.content) {
+            const obj = JSON.parse(dataLine);
+            if (eventType === 'message.delta') {
+              const d = obj.delta || obj.content || '';
+              if (d) {
+                streamingMsgRef.current += d;
+                setMessages((prev) =>
+                  prev.map((m) => (m.id === tmpId ? { ...m, content: streamingMsgRef.current } : m))
+                );
+              }
+            } else if (eventType === 'message.done') {
+              const final = obj.content || streamingMsgRef.current;
+              setMessages((prev) =>
+                prev.map((m) => (m.id === tmpId ? { ...m, content: final } : m))
+              );
+            } else if (obj.type === 'delta' && obj.content) {
               streamingMsgRef.current += obj.content;
               setMessages((prev) =>
                 prev.map((m) => (m.id === tmpId ? { ...m, content: streamingMsgRef.current } : m))

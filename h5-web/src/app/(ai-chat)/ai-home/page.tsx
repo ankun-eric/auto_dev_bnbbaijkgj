@@ -90,12 +90,12 @@ function shouldShowTime(prev: string | null, curr: string): boolean {
 
 function renderMarkdown(text: string): string {
   let html = text
+    .replace(/\r\n/g, '\n')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
-  html = html.replace(/^### (.+)$/gm, '<h3 style="font-size:15px;font-weight:700;margin:8px 0 4px">$1</h3>');
-  html = html.replace(/^## (.+)$/gm, '<h2 style="font-size:16px;font-weight:700;margin:8px 0 4px">$1</h2>');
-  html = html.replace(/^# (.+)$/gm, '<h1 style="font-size:17px;font-weight:700;margin:8px 0 4px">$1</h1>');
+  html = html.replace(/^###\s+(.+?)\s*$/gm, '<h3 style="font-size:15px;font-weight:bold;margin-top:10px;margin-bottom:4px">$1</h3>');
+  html = html.replace(/^##\s+(.+?)\s*$/gm, '<h2 style="font-size:16px;font-weight:bold;margin-top:12px;margin-bottom:4px">$1</h2>');
   html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
   html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
   html = html.replace(/`(.+?)`/g, '<code style="background:#E8E8F0;padding:1px 4px;border-radius:3px;font-size:12px">$1</code>');
