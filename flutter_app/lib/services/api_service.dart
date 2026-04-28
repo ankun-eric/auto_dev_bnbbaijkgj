@@ -1023,6 +1023,18 @@ class ApiService {
     return _dio.get(ApiConfig.products, queryParameters: params);
   }
 
+  Future<Response> getProductsByParentCategory({
+    required int parentCategoryId,
+    int page = 1,
+    int pageSize = 100,
+  }) async {
+    return _dio.get(ApiConfig.products, queryParameters: {
+      'parent_category_id': parentCategoryId,
+      'page': page,
+      'page_size': pageSize,
+    });
+  }
+
   Future<Response> getProductDetail(int productId) async {
     return _dio.get('${ApiConfig.products}/$productId');
   }

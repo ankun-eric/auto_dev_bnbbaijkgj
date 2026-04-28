@@ -1,18 +1,23 @@
 const { get } = require('../../utils/request');
 const { ensureMerchantEntry, syncTabBar } = require('../../utils/util');
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 100;
 
 Page({
   data: {
     pageMode: 'user',
-    currentTab: 0,
-    tabs: [],
-    categories: [],
-    services: [],
-    page: 1,
-    hasMore: false,
+    // 左侧一级分类
+    topCategories: [],
+    activeTopIndex: 0,
+    // 右侧二级子类Tab
+    subCategories: [],
+    activeSubIndex: -1,
+    // 按子类分组的商品
+    groupedServices: [],
+    scrollToView: '',
     loading: false,
+    hasMore: false,
+    page: 1,
     // 商家模式数据
     records: [],
     noMore: false,
@@ -22,6 +27,11 @@ Page({
     endDate: '',
     activeQuick: 'today'
   },
+
+  _categoryTree: [],
+  _scrollThrottleTimer: null,
+  _groupOffsets: [],
+  _programmaticScroll: false,
 
   onLoad() {
     this.initDates();
@@ -38,7 +48,7 @@ Page({
       this.loadRecords();
       return;
     }
-    if (this.data.categories.length === 0) {
+    if (this.data.topCategories.length === 0) {
       this.loadCategories();
     } else {
       this.loadServices(true);
@@ -59,12 +69,6 @@ Page({
       if (!this.data.noMore && !this.data.loading) {
         this.loadRecords();
       }
-      return;
-    }
-    if (this.data.hasMore && !this.data.loading) {
-      const next = this.data.page + 1;
-      this.setData({ page: next });
-      this.loadServices(false);
     }
   },
 
@@ -72,52 +76,99 @@ Page({
     try {
       const res = await get('/api/products/categories', {}, { showLoading: false, suppressErrorToast: true });
       const items = res.items || [];
-      const tabs = items.map(c => c.is_virtual ? `${c.icon || '🔥'} ${c.name}` : c.name);
+      this._categoryTree = items;
+
+      const topCategories = items.map(c => ({
+        id: c.id,
+        name: c.name,
+        icon: c.icon || '',
+        is_virtual: c.is_virtual || false,
+        children: c.children || []
+      }));
+
       this.setData({
-        categories: items,
-        tabs,
-        currentTab: 0,
-        page: 1,
-        services: []
+        topCategories,
+        activeTopIndex: 0,
+        activeSubIndex: -1,
+        subCategories: [],
+        groupedServices: [],
+        scrollToView: ''
       });
-      if (items.length > 0) {
-        await this.loadServices(true);
+
+      if (topCategories.length > 0) {
+        this._applyTopCategory(0);
       }
     } catch (e) {
       console.log('loadCategories error', e);
     }
   },
 
-  switchTab(e) {
+  switchTopCategory(e) {
     const index = e.currentTarget.dataset.index;
-    if (index === this.data.currentTab) return;
+    if (index === this.data.activeTopIndex) return;
+    this._applyTopCategory(index);
+  },
+
+  _applyTopCategory(index) {
+    const cat = this.data.topCategories[index];
+    if (!cat) return;
+    const subCategories = (cat.children || []).map(c => ({
+      id: c.id,
+      name: c.name
+    }));
     this.setData({
-      currentTab: index,
-      services: [],
-      page: 1,
-      hasMore: false
+      activeTopIndex: index,
+      subCategories,
+      activeSubIndex: -1,
+      groupedServices: [],
+      scrollToView: '',
+      page: 1
     });
     this.loadServices(true);
   },
 
+  switchSubCategory(e) {
+    const index = parseInt(e.currentTarget.dataset.index, 10);
+    if (index === this.data.activeSubIndex) return;
+
+    this._programmaticScroll = true;
+    if (index === -1) {
+      this.setData({ activeSubIndex: -1, scrollToView: '' });
+      this.loadServices(true);
+    } else {
+      const sub = this.data.subCategories[index];
+      if (!sub) return;
+      this.setData({
+        activeSubIndex: index,
+        scrollToView: 'group-' + sub.id
+      });
+      setTimeout(() => { this._programmaticScroll = false; }, 500);
+    }
+  },
+
   async loadServices(reset) {
-    const cat = this.data.categories[this.data.currentTab];
+    const cat = this.data.topCategories[this.data.activeTopIndex];
     if (!cat) return Promise.resolve();
     if (this.data.loading) return Promise.resolve();
     this.setData({ loading: true });
     try {
-      const params = {
-        page: this.data.page,
-        page_size: PAGE_SIZE
-      };
+      const params = { page: 1, page_size: PAGE_SIZE };
       if (cat.id === 'recommend' || cat.is_virtual) {
         params.category_id = 'recommend';
       } else {
-        params.category_id = cat.id;
+        params.parent_category_id = cat.id;
       }
+
       const res = await get('/api/products', params, { showLoading: false, suppressErrorToast: true });
       const items = res.items || [];
-      const list = (items || []).map(p => ({
+
+      const fulfillmentLabels = {
+        in_store: { text: '到店', color: '#FF8A3D' },
+        delivery: { text: '快递', color: '#3B82F6' },
+        virtual: { text: '虚拟', color: '#8B5CF6' }
+      };
+
+      const list = items.map(p => ({
         id: p.id,
         name: p.name,
         desc: p.description || '',
@@ -127,20 +178,103 @@ Page({
         price: p.min_price || p.sale_price,
         hasMultiSpec: p.has_multi_spec || false,
         marketPrice: p.market_price,
-        sales: p.sales_count || 0
+        sales: p.sales_count || 0,
+        categoryId: p.category_id || '',
+        fulfillmentType: p.fulfillment_type || '',
+        fulfillmentText: (fulfillmentLabels[p.fulfillment_type] || {}).text || '',
+        fulfillmentColor: (fulfillmentLabels[p.fulfillment_type] || {}).color || ''
       }));
-      const newServices = reset ? list : this.data.services.concat(list);
-      const total = Number(res.total || 0);
+
+      const subCats = this.data.subCategories;
+      let groupedServices = [];
+
+      if (subCats.length > 0) {
+        const groupMap = {};
+        subCats.forEach(sc => { groupMap[sc.id] = { categoryId: sc.id, categoryName: sc.name, items: [] }; });
+        const ungrouped = { categoryId: 'other', categoryName: '其他', items: [] };
+
+        list.forEach(item => {
+          if (groupMap[item.categoryId]) {
+            groupMap[item.categoryId].items.push(item);
+          } else {
+            ungrouped.items.push(item);
+          }
+        });
+
+        subCats.forEach(sc => {
+          if (groupMap[sc.id].items.length > 0) {
+            groupedServices.push(groupMap[sc.id]);
+          }
+        });
+        if (ungrouped.items.length > 0) {
+          groupedServices.push(ungrouped);
+        }
+      } else {
+        groupedServices = [{ categoryId: 'all', categoryName: '', items: list }];
+      }
+
       this.setData({
-        services: newServices,
-        hasMore: this.data.page * PAGE_SIZE < total
+        groupedServices,
+        hasMore: false
       });
+
+      if (subCats.length > 0) {
+        this._computeGroupOffsets();
+      }
     } catch (e) {
       console.log('loadServices error', e);
     } finally {
       this.setData({ loading: false });
     }
     return Promise.resolve();
+  },
+
+  _computeGroupOffsets() {
+    setTimeout(() => {
+      const query = wx.createSelectorQuery().in(this);
+      query.selectAll('.product-group').boundingClientRect();
+      query.select('.product-scroll').boundingClientRect();
+      query.exec(res => {
+        if (!res || !res[0] || !res[1]) return;
+        const groups = res[0];
+        const scrollRect = res[1];
+        this._groupOffsets = groups.map(g => ({
+          id: g.id,
+          top: g.top - scrollRect.top
+        }));
+      });
+    }, 300);
+  },
+
+  onProductScroll(e) {
+    if (this._programmaticScroll) return;
+    if (this._scrollThrottleTimer) return;
+    this._scrollThrottleTimer = setTimeout(() => {
+      this._scrollThrottleTimer = null;
+    }, 100);
+
+    const scrollTop = e.detail.scrollTop;
+    const offsets = this._groupOffsets;
+    if (!offsets || offsets.length === 0) return;
+
+    let matchIndex = -1;
+    for (let i = offsets.length - 1; i >= 0; i--) {
+      if (scrollTop >= offsets[i].top - 10) {
+        matchIndex = i;
+        break;
+      }
+    }
+
+    if (matchIndex < 0) matchIndex = 0;
+
+    const groupId = offsets[matchIndex] && offsets[matchIndex].id;
+    if (!groupId) return;
+
+    const catId = groupId.replace('group-', '');
+    const subIndex = this.data.subCategories.findIndex(sc => String(sc.id) === String(catId));
+    if (subIndex !== -1 && subIndex !== this.data.activeSubIndex) {
+      this.setData({ activeSubIndex: subIndex });
+    }
   },
 
   goServiceDetail(e) {

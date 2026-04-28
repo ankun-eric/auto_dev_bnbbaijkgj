@@ -13,14 +13,14 @@ import MarketingBadge from '@/components/MarketingBadge';
  * ┌────────────────────────────────────┐
  * │ [🔍 搜索全部服务/商品]              │ ← 顶部常驻搜索（实时 300ms 防抖）
  * ├──────┬──────────────────────────────┤
- * │ 大类 │ ┌──┬──┬──┬──┐               │ ← 顶部子类横滑
+ * │ 大类 │ ┌──┬──┬──┬──┐               │ ← 顶部子类横滑（固定）
  * │ 理疗 │ │推拿│艾灸│刮痧│拔罐│       │
  * │ 保健 │ └──┴──┴──┴──┘               │
  * │      ├──────────────────────────────┤
- * │ 居家 │ [卡片] 肩颈推拿 60分钟 [到店]│ ← 暖橙角标
- * │ 服务 │ ¥168                          │
+ * │ 居家 │ [卡片] 肩颈推拿 60分钟       │
+ * │ 服务 │ ¥168              [到店]     │ ← 角标在价格行右侧
  * │      │ ─────────────────────────────│
- * │ ...  │ [卡片] 艾草精油 100ml [快递]│ ← 蓝色角标
+ * │ ...  │ [卡片] 艾草精油 100ml        │
  * └──────┴──────────────────────────────┘
  *
  * 角标色值规范（终稿）：
@@ -28,9 +28,13 @@ import MarketingBadge from '@/components/MarketingBadge';
  *   - 快递配送（delivery）→ 科技蓝 #3B82F6
  *   - 虚拟商品（virtual）  → 尊贵紫 #8B5CF6
  *
- * 搜索：
- *   - 顶部常驻、实时 300ms 防抖、全分类全关键词搜索
- *   - 无结果展示空状态图 + 6 个热门推荐
+ * F1/F2: 左侧分类栏固定 + 独立滚动
+ * F3/F4/F5: 二级Tab固定 + 横向滑动 + 底部阴影
+ * F6: 滚动联动Tab高亮（IntersectionObserver + 100ms节流）
+ * F7: 点击Tab平滑滚动定位（300-500ms ease-out）
+ * F8: Tab高亮平滑过渡动效（200-300ms ease-in-out）
+ * F9: 履约角标移至价格行
+ * F10: 商品名称完整显示（移除truncate）
  */
 
 interface Category {
@@ -65,7 +69,6 @@ interface Product {
   skus?: any[];
 }
 
-// 商品功能优化 v1.0：R5 卖点兜底显示分类名
 function getSellingLine(product: Product, categoryMap: Record<number, string>): string {
   const sp = (product.selling_point || '').trim();
   if (sp) return sp;
@@ -76,7 +79,6 @@ function getSellingLine(product: Product, categoryMap: Record<number, string>): 
 
 const PAGE_SIZE = 10;
 
-// 履约类型角标配置（终稿色值）
 const FULFILLMENT_BADGE: Record<string, { label: string; bg: string; color: string }> = {
   in_store: { label: '到店', bg: '#FF8A3D', color: '#FFFFFF' },
   delivery: { label: '快递', bg: '#3B82F6', color: '#FFFFFF' },
@@ -106,6 +108,7 @@ function FulfillmentBadge({ type }: { type?: string | null }) {
   );
 }
 
+/* F9: 角标移至价格行；F10: 名称完整显示 */
 function ProductCard({
   product,
   onClick,
@@ -116,11 +119,6 @@ function ProductCard({
   categoryMap: Record<number, string>;
 }) {
   const cover = product.cover_image || (product.images && product.images[0]) || null;
-  // 商品功能优化 v1.0：
-  // - R3：删除「销量」
-  // - R4：不再展示「原价」
-  // - R5：商品名下方展示一行卖点（灰 #999 / 12px / 单行省略），兜底分类名
-  // - R6：商品图左上角展示营销角标（按优先级仅取 1 个）
   const sellingLine = getSellingLine(product, categoryMap);
   return (
     <div
@@ -146,9 +144,9 @@ function ProductCard({
           <MarketingBadge badges={product.marketing_badges} />
         </div>
         <div className="flex-1 ml-3 min-w-0">
-          <div className="flex items-start">
-            <span className="font-medium text-sm truncate flex-1">{product.name}</span>
-            <FulfillmentBadge type={product.fulfillment_type} />
+          {/* F10: 移除 truncate，名称自然换行完整显示 */}
+          <div className="font-medium text-sm" style={{ lineHeight: '1.4', wordBreak: 'break-word' }}>
+            {product.name}
           </div>
           {sellingLine && (
             <p
@@ -158,11 +156,13 @@ function ProductCard({
               {sellingLine}
             </p>
           )}
-          <div className="mt-1">
+          {/* F9: 价格行 + 履约角标移至此行最右 */}
+          <div className="mt-1 flex items-center justify-between">
             <span className="text-base font-bold" style={{ color: '#52c41a' }}>
               ¥{product.min_price || product.sale_price}
               {product.has_multi_spec && <span style={{ fontSize: '0.75em', fontWeight: 'normal' }}>起</span>}
             </span>
+            <FulfillmentBadge type={product.fulfillment_type} />
           </div>
         </div>
       </div>
@@ -173,25 +173,30 @@ function ProductCard({
 export default function ServicesPage() {
   const router = useRouter();
 
-  // 一级分类（大类）和二级分类（子类）
   const [topCategories, setTopCategories] = useState<Category[]>([]);
   const [allCategories, setAllCategories] = useState<Category[]>([]);
   const [activeTopId, setActiveTopId] = useState<number | string | null>(null);
-  const [activeSubId, setActiveSubId] = useState<number | null>(null); // null = 全部
+  const [activeSubId, setActiveSubId] = useState<number | string | null>(null); // null = 全部
 
-  // 商品列表
   const [products, setProducts] = useState<Product[]>([]);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // 搜索
   const [searchInput, setSearchInput] = useState('');
-  const [searchKeyword, setSearchKeyword] = useState(''); // 防抖后的关键词
+  const [searchKeyword, setSearchKeyword] = useState('');
   const [searching, setSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<Product[]>([]);
   const [hotRecs, setHotRecs] = useState<Product[]>([]);
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // F6/F7 联动相关
+  const productListRef = useRef<HTMLDivElement>(null);
+  const tabBarRef = useRef<HTMLDivElement>(null);
+  const sectionRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const tabRefs = useRef<Map<string, HTMLSpanElement>>(new Map());
+  const isScrollingByClick = useRef(false);
+  const scrollClickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── 加载分类树 ──
   useEffect(() => {
@@ -210,22 +215,20 @@ export default function ServicesPage() {
       .catch(() => {});
   }, []);
 
-  // 商品功能优化 v1.0：分类 ID → 分类名 映射，用于 R5 卖点兜底
   const categoryMap = useMemo<Record<number, string>>(() => {
     const map: Record<number, string> = {};
     allCategories.forEach((c) => {
-      map[c.id] = c.name;
+      map[c.id as number] = c.name;
     });
     topCategories.forEach((c) => {
-      if (!map[c.id]) map[c.id] = c.name;
+      if (!map[c.id as number]) map[c.id as number] = c.name;
       (c.children || []).forEach((child) => {
-        if (!map[child.id]) map[child.id] = child.name;
+        if (!map[child.id as number]) map[child.id as number] = child.name;
       });
     });
     return map;
   }, [allCategories, topCategories]);
 
-  // 当前大类的子类
   const subCategories = useMemo<Category[]>(() => {
     if (!activeTopId) return [];
     if (activeTopId === 'recommend') return [];
@@ -234,14 +237,49 @@ export default function ServicesPage() {
     return allCategories.filter((c) => c.parent_id === activeTopId);
   }, [activeTopId, topCategories, allCategories]);
 
-  // ── 加载商品（按大类 + 子类）──
+  const hasSubCategories = subCategories.length > 0;
+
+  // 按子类分组的商品（用于有子类时的分组渲染）
+  const groupedProducts = useMemo(() => {
+    if (!hasSubCategories) return null;
+    const groups: { category: Category; items: Product[] }[] = [];
+    const catMap = new Map<number | string, Product[]>();
+    for (const p of products) {
+      const cid = p.category_id || 'unknown';
+      if (!catMap.has(cid)) catMap.set(cid, []);
+      catMap.get(cid)!.push(p);
+    }
+    for (const sub of subCategories) {
+      const items = catMap.get(sub.id) || [];
+      if (items.length > 0) {
+        groups.push({ category: sub, items });
+      }
+    }
+    // 未匹配到子类的商品归到末尾
+    const matchedIds = new Set(subCategories.map((s) => s.id));
+    const unmatched: Product[] = [];
+    Array.from(catMap.entries()).forEach(([cid, items]) => {
+      if (!matchedIds.has(cid)) unmatched.push(...items);
+    });
+    if (unmatched.length > 0 && groups.length > 0) {
+      groups[groups.length - 1].items.push(...unmatched);
+    } else if (unmatched.length > 0) {
+      groups.push({ category: { id: 'other', name: '其他' }, items: unmatched });
+    }
+    return groups;
+  }, [hasSubCategories, products, subCategories]);
+
+  // ── 数据加载逻辑变更：有子类时按 parent_category_id 加载所有商品 ──
   const loadProducts = useCallback(
-    async (topId: number | string | null, subId: number | null, pageNum: number, reset: boolean) => {
+    async (topId: number | string | null, subId: number | string | null, pageNum: number, reset: boolean, hasSubs: boolean) => {
       if (!topId && topId !== 0) return;
       try {
         const params: Record<string, any> = { page: pageNum, page_size: PAGE_SIZE };
         if (topId === 'recommend') {
           params.category_id = 'recommend';
+        } else if (hasSubs) {
+          // 有子类时始终按一级分类加载全部商品，前端分组
+          params.parent_category_id = topId;
         } else if (subId) {
           params.category_id = subId;
         } else {
@@ -268,17 +306,18 @@ export default function ServicesPage() {
   );
 
   useEffect(() => {
-    if (searchKeyword) return; // 搜索态不加载普通列表
+    if (searchKeyword) return;
     if (!activeTopId) return;
     setLoading(true);
     setPage(1);
-    loadProducts(activeTopId, activeSubId, 1, true);
-  }, [activeTopId, activeSubId, loadProducts, searchKeyword]);
+    // 有子类时忽略 activeSubId，始终加载全部
+    loadProducts(activeTopId, hasSubCategories ? null : activeSubId, 1, true, hasSubCategories);
+  }, [activeTopId, activeSubId, loadProducts, searchKeyword, hasSubCategories]);
 
   const loadMore = async () => {
     const next = page + 1;
     setPage(next);
-    await loadProducts(activeTopId, activeSubId, next, false);
+    await loadProducts(activeTopId, hasSubCategories ? null : activeSubId, next, false, hasSubCategories);
   };
 
   // ── 搜索：300ms 防抖 ──
@@ -292,7 +331,6 @@ export default function ServicesPage() {
     };
   }, [searchInput]);
 
-  // 执行搜索（全分类）
   useEffect(() => {
     if (!searchKeyword) {
       setSearchResults([]);
@@ -306,7 +344,6 @@ export default function ServicesPage() {
         const data = res.data || res;
         const items: Product[] = data.items || [];
         setSearchResults(items);
-        // 无结果 → 取热门推荐
         if (items.length === 0) {
           try {
             const hotRes: any = await api.get('/api/products/hot-recommendations?limit=6');
@@ -328,14 +365,117 @@ export default function ServicesPage() {
 
   const onProductClick = (p: Product) => router.push(`/product/${p.id}`);
 
+  // ── F6: 滚动联动Tab高亮（100ms节流 + IntersectionObserver） ──
+  useEffect(() => {
+    if (!hasSubCategories || !productListRef.current) return;
+
+    let throttleTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const handleScroll = () => {
+      if (isScrollingByClick.current) return;
+      if (throttleTimer) return;
+      throttleTimer = setTimeout(() => {
+        throttleTimer = null;
+        const container = productListRef.current;
+        if (!container) return;
+        const containerTop = container.getBoundingClientRect().top;
+        let closestId: string | null = null;
+        let closestDist = Infinity;
+
+        sectionRefs.current.forEach((el, id) => {
+          const rect = el.getBoundingClientRect();
+          const dist = Math.abs(rect.top - containerTop);
+          if (rect.top <= containerTop + 60 && dist < closestDist) {
+            closestDist = dist;
+            closestId = id;
+          }
+        });
+
+        // Fallback: if nothing is above threshold, pick the first visible section
+        if (!closestId) {
+          sectionRefs.current.forEach((el, id) => {
+            const rect = el.getBoundingClientRect();
+            const dist = Math.abs(rect.top - containerTop);
+            if (dist < closestDist) {
+              closestDist = dist;
+              closestId = id;
+            }
+          });
+        }
+
+        if (closestId !== null) {
+          setActiveSubId(closestId === 'all' ? null : closestId);
+          scrollTabIntoView(closestId === 'all' ? 'all' : closestId);
+        }
+      }, 100);
+    };
+
+    const container = productListRef.current;
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      container.removeEventListener('scroll', handleScroll);
+      if (throttleTimer) clearTimeout(throttleTimer);
+    };
+  }, [hasSubCategories, subCategories]);
+
+  // F6辅助：将高亮Tab滚动到可视范围
+  const scrollTabIntoView = (id: string | number) => {
+    const tabEl = tabRefs.current.get(String(id));
+    const tabBar = tabBarRef.current;
+    if (!tabEl || !tabBar) return;
+    const tabRect = tabEl.getBoundingClientRect();
+    const barRect = tabBar.getBoundingClientRect();
+    if (tabRect.left < barRect.left || tabRect.right > barRect.right) {
+      tabEl.scrollIntoView({ inline: 'center', behavior: 'smooth', block: 'nearest' });
+    }
+  };
+
+  // ── F7: 点击Tab平滑滚动定位 ──
+  const handleTabClick = (subId: number | string | null) => {
+    if (subId === activeSubId) return;
+    if (!hasSubCategories) {
+      setActiveSubId(subId);
+      return;
+    }
+    setActiveSubId(subId);
+
+    const targetKey = subId === null ? 'all' : String(subId);
+    const sectionEl = sectionRefs.current.get(targetKey);
+    const container = productListRef.current;
+    if (!sectionEl || !container) return;
+
+    // 暂时禁用滚动联动
+    isScrollingByClick.current = true;
+    if (scrollClickTimer.current) clearTimeout(scrollClickTimer.current);
+
+    const containerTop = container.getBoundingClientRect().top;
+    const sectionTop = sectionEl.getBoundingClientRect().top;
+    const scrollOffset = sectionTop - containerTop + container.scrollTop;
+
+    container.scrollTo({
+      top: scrollOffset,
+      behavior: 'smooth',
+    });
+
+    // 动画结束后恢复联动（≈500ms）
+    scrollClickTimer.current = setTimeout(() => {
+      isScrollingByClick.current = false;
+    }, 500);
+  };
+
+  // 切换一级分类时重置联动状态
+  useEffect(() => {
+    sectionRefs.current.clear();
+    if (productListRef.current) {
+      productListRef.current.scrollTop = 0;
+    }
+  }, [activeTopId]);
+
   // ───────── 渲染：搜索态 ─────────
   if (searchKeyword) {
     return (
       <div className="min-h-screen bg-gray-50 pb-20">
-        {/* 顶部常驻搜索 */}
-        <div
-          className="sticky top-0 z-20 px-3 py-2 bg-white shadow-sm"
-        >
+        <div className="sticky top-0 z-20 px-3 py-2 bg-white shadow-sm">
           <SearchBar
             placeholder="搜索全部服务/商品"
             value={searchInput}
@@ -387,11 +527,21 @@ export default function ServicesPage() {
     );
   }
 
-  // ───────── 渲染：常态（左侧大类 + 右侧子类 + 商品列表）─────────
+  // ───────── 渲染：常态（全新布局） ─────────
+  // F1/F2: 全屏容器不滚动，左侧栏固定+独立滚动
+  // F3/F4/F5: 二级Tab固定+横向滑动+底部阴影
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
-      {/* 顶部常驻搜索 */}
-      <div className="sticky top-0 z-20 px-3 py-2 bg-white shadow-sm">
+    <div
+      className="bg-gray-50"
+      style={{
+        height: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+      }}
+    >
+      {/* 顶部搜索栏（固定吸顶） */}
+      <div className="px-3 py-2 bg-white shadow-sm flex-shrink-0" style={{ zIndex: 20 }}>
         <SearchBar
           placeholder="搜索全部服务/商品"
           value={searchInput}
@@ -400,12 +550,18 @@ export default function ServicesPage() {
         />
       </div>
 
-      {/* 左侧大类 + 右侧内容 */}
-      <div className="flex" style={{ minHeight: 'calc(100vh - 110px)' }}>
-        {/* 左侧大类列表 */}
+      {/* 主内容区：左侧分类 + 右侧（Tab + 商品列表） */}
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+        {/* F1/F2: 左侧一级分类栏 —— 固定宽度，独立滚动 */}
         <div
-          className="w-[88px] flex-shrink-0 overflow-y-auto"
-          style={{ background: '#f5f5f5', maxHeight: 'calc(100vh - 110px)' }}
+          className="flex-shrink-0"
+          style={{
+            width: 88,
+            overflowY: 'auto',
+            background: '#f5f5f5',
+            WebkitOverflowScrolling: 'touch',
+            paddingBottom: 80,
+          }}
         >
           {topCategories.map((cat) => {
             const active = activeTopId === cat.id;
@@ -444,32 +600,49 @@ export default function ServicesPage() {
           })}
         </div>
 
-        {/* 右侧内容 */}
-        <div className="flex-1 min-w-0">
-          {/* 顶部子类横滑 */}
-          {subCategories.length > 0 && (
+        {/* 右侧区域 */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
+          {/* F3/F4/F5: 二级Tab栏 —— 固定在商品列表上方，横向可滑动，底部阴影 */}
+          {hasSubCategories && (
             <div
-              className="bg-white px-2 py-2 overflow-x-auto whitespace-nowrap shadow-sm"
-              style={{ borderBottom: '1px solid #f0f0f0' }}
+              ref={tabBarRef}
+              className="bg-white flex-shrink-0"
+              style={{
+                overflowX: 'auto',
+                overflowY: 'hidden',
+                whiteSpace: 'nowrap',
+                WebkitOverflowScrolling: 'touch',
+                boxShadow: '0 2px 6px rgba(0,0,0,0.08)',
+                position: 'relative',
+                zIndex: 10,
+                padding: '8px 8px 10px',
+              }}
             >
+              {/* "全部" Tab */}
               <span
-                onClick={() => setActiveSubId(null)}
+                ref={(el) => { if (el) tabRefs.current.set('all', el); }}
+                onClick={() => handleTabClick(null)}
                 className="inline-block px-3 py-1 mr-2 rounded-full text-xs cursor-pointer"
                 style={{
+                  position: 'relative',
                   background: activeSubId === null ? '#52c41a' : '#f5f5f5',
                   color: activeSubId === null ? '#fff' : '#666',
+                  transition: 'background 250ms ease-in-out, color 250ms ease-in-out',
                 }}
               >
                 全部
               </span>
               {subCategories.map((sub) => (
                 <span
-                  key={sub.id}
-                  onClick={() => setActiveSubId(sub.id)}
+                  key={String(sub.id)}
+                  ref={(el) => { if (el) tabRefs.current.set(String(sub.id), el); }}
+                  onClick={() => handleTabClick(sub.id)}
                   className="inline-block px-3 py-1 mr-2 rounded-full text-xs cursor-pointer"
                   style={{
+                    position: 'relative',
                     background: activeSubId === sub.id ? '#52c41a' : '#f5f5f5',
                     color: activeSubId === sub.id ? '#fff' : '#666',
+                    transition: 'background 250ms ease-in-out, color 250ms ease-in-out',
                   }}
                 >
                   {sub.name}
@@ -478,15 +651,53 @@ export default function ServicesPage() {
             </div>
           )}
 
-          {/* 商品列表 */}
-          <div className="px-3 pt-3">
+          {/* 商品列表 —— 唯一的垂直滚动区域 */}
+          <div
+            ref={productListRef}
+            className="px-3 pt-3"
+            style={{
+              flex: 1,
+              overflowY: 'auto',
+              WebkitOverflowScrolling: 'touch',
+              paddingBottom: 80,
+            }}
+          >
             {loading ? (
               <div className="flex items-center justify-center py-20">
                 <SpinLoading color="primary" />
               </div>
             ) : products.length === 0 ? (
               <Empty description="暂无相关服务" />
+            ) : hasSubCategories && groupedProducts ? (
+              /* 有子类时分组渲染，支持 F6/F7 联动 */
+              <>
+                {groupedProducts.map((group, gi) => (
+                  <div
+                    key={String(group.category.id)}
+                    ref={(el) => {
+                      if (el) sectionRefs.current.set(String(group.category.id), el);
+                    }}
+                    data-section-id={String(group.category.id)}
+                  >
+                    <div
+                      className="text-xs font-medium mb-2"
+                      style={{
+                        color: '#999',
+                        paddingTop: gi === 0 ? 0 : 12,
+                        paddingBottom: 4,
+                      }}
+                    >
+                      {group.category.name}
+                    </div>
+                    {group.items.map((p) => (
+                      <ProductCard key={p.id} product={p} onClick={() => onProductClick(p)} categoryMap={categoryMap} />
+                    ))}
+                  </div>
+                ))}
+                <InfiniteScroll loadMore={loadMore} hasMore={hasMore} />
+              </>
             ) : (
+              /* 无子类 / 推荐分类：平铺渲染 */
               <>
                 {products.map((p) => (
                   <ProductCard key={p.id} product={p} onClick={() => onProductClick(p)} categoryMap={categoryMap} />

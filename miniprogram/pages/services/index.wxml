@@ -1,46 +1,77 @@
 <view class="services-page" wx:if="{{pageMode === 'user'}}">
-  <scroll-view class="tab-scroll" scroll-x enable-flex wx:if="{{tabs.length > 0}}">
-    <view class="tab-list">
-      <view class="tab-item {{currentTab === index ? 'tab-active' : ''}}"
-            wx:for="{{tabs}}" wx:key="index"
-            bindtap="switchTab" data-index="{{index}}">
-        <text>{{item}}</text>
+  <view class="main-content">
+    <!-- 左侧一级分类栏 -->
+    <scroll-view class="left-categories" scroll-y>
+      <view class="cat-item {{activeTopIndex === index ? 'cat-active' : ''}}"
+            wx:for="{{topCategories}}" wx:key="id"
+            bindtap="switchTopCategory" data-index="{{index}}">
+        <view class="cat-indicator" wx:if="{{activeTopIndex === index}}"></view>
+        <text class="cat-icon" wx:if="{{item.icon}}">{{item.icon}}</text>
+        <text class="cat-name">{{item.name}}</text>
       </view>
-    </view>
-  </scroll-view>
+    </scroll-view>
 
-  <view class="service-list">
-    <view class="service-card card" wx:for="{{services}}" wx:key="id" bindtap="goServiceDetail" data-id="{{item.id}}">
-      <image class="service-cover" src="{{item.cover}}" mode="aspectFill" wx:if="{{item.cover}}"></image>
-      <view class="service-icon-wrap" style="background: {{item.bgColor}};" wx:else>
-        <text class="service-icon">{{item.icon}}</text>
-      </view>
-      <view class="service-info">
-        <text class="service-name">{{item.name}}</text>
-        <text class="service-desc ellipsis-2">{{item.desc}}</text>
-        <view class="service-footer">
-          <view class="service-price">
-            <text class="price-symbol">¥</text>
-            <text class="price-value">{{item.price}}</text>
-            <text wx:if="{{item.hasMultiSpec}}" class="price-suffix">起</text>
+    <!-- 右侧内容区 -->
+    <view class="right-content">
+      <!-- 二级子类Tab -->
+      <scroll-view class="sub-tab-scroll" scroll-x enable-flex wx:if="{{subCategories.length > 0}}">
+        <view class="sub-tab-list">
+          <view class="sub-tab-item {{activeSubIndex === -1 ? 'sub-tab-active' : ''}}"
+                bindtap="switchSubCategory" data-index="{{-1}}">全部</view>
+          <view class="sub-tab-item {{activeSubIndex === index ? 'sub-tab-active' : ''}}"
+                wx:for="{{subCategories}}" wx:key="id"
+                bindtap="switchSubCategory" data-index="{{index}}">
+            {{item.name}}
           </view>
-          <text class="service-sales">已售{{item.sales}}</text>
         </view>
-      </view>
+      </scroll-view>
+
+      <!-- 商品列表 -->
+      <scroll-view class="product-scroll" scroll-y
+                    scroll-into-view="{{scrollToView}}"
+                    bindscroll="onProductScroll"
+                    scroll-with-animation>
+        <block wx:for="{{groupedServices}}" wx:key="categoryId" wx:for-item="group">
+          <view id="group-{{group.categoryId}}" class="product-group">
+            <view class="group-title" wx:if="{{group.categoryName}}">{{group.categoryName}}</view>
+            <view class="service-card card" wx:for="{{group.items}}" wx:key="id" wx:for-item="item"
+                  bindtap="goServiceDetail" data-id="{{item.id}}">
+              <image class="service-cover" src="{{item.cover}}" mode="aspectFill" wx:if="{{item.cover}}"></image>
+              <view class="service-icon-wrap" style="background: {{item.bgColor}};" wx:else>
+                <text class="service-icon">{{item.icon}}</text>
+              </view>
+              <view class="service-info">
+                <text class="service-name">{{item.name}}</text>
+                <text class="service-desc ellipsis-2">{{item.desc}}</text>
+                <view class="service-footer">
+                  <view class="service-price-row">
+                    <view class="service-price">
+                      <text class="price-symbol">¥</text>
+                      <text class="price-value">{{item.price}}</text>
+                      <text wx:if="{{item.hasMultiSpec}}" class="price-suffix">起</text>
+                    </view>
+                    <view class="fulfillment-badge" wx:if="{{item.fulfillmentText}}"
+                          style="background: {{item.fulfillmentColor}};">
+                      {{item.fulfillmentText}}
+                    </view>
+                  </view>
+                  <text class="service-sales">已售{{item.sales}}</text>
+                </view>
+              </view>
+            </view>
+          </view>
+        </block>
+
+        <view class="empty-state" wx:if="{{!loading && groupedServices.length === 0}}">
+          <text class="empty-icon">📦</text>
+          <text class="empty-text">暂无相关服务</text>
+        </view>
+
+        <view class="loading-more" wx:if="{{loading}}">
+          <text class="loading-text">加载中...</text>
+        </view>
+      </scroll-view>
     </view>
-  </view>
-
-  <view class="empty-state" wx:if="{{!loading && services.length === 0}}">
-    <text class="empty-icon">📦</text>
-    <text class="empty-text">暂无相关服务</text>
-  </view>
-
-  <view class="loading-more" wx:if="{{loading}}">
-    <text class="loading-text">加载中...</text>
-  </view>
-
-  <view class="load-end" wx:if="{{!loading && !hasMore && services.length > 0}}">
-    <text class="load-end-text">— 没有更多了 —</text>
   </view>
 </view>
 

@@ -1,51 +1,134 @@
+/* ========== 用户模式 - 左右布局 ========== */
 .services-page {
-  padding-bottom: 24rpx;
+  height: 100vh;
+  overflow: hidden;
 }
 
-/* Tab */
-.tab-scroll {
-  background: #fff;
-  white-space: nowrap;
-}
-
-.tab-list {
+.main-content {
   display: flex;
-  padding: 0 12rpx;
+  height: 100%;
 }
 
-.tab-item {
-  padding: 24rpx 28rpx;
-  font-size: 28rpx;
-  color: #666;
-  flex-shrink: 0;
+/* --- 左侧一级分类栏 --- */
+.left-categories {
+  width: 176rpx;
+  min-width: 176rpx;
+  height: 100%;
+  background: #f5f5f5;
+  box-sizing: border-box;
+}
+
+.cat-item {
   position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 28rpx 12rpx;
+  font-size: 24rpx;
+  color: #666;
+  background: #f5f5f5;
+  transition: background 0.25s, color 0.25s;
 }
 
-.tab-active {
+.cat-active {
+  background: #fff;
   color: #52c41a;
   font-weight: bold;
 }
 
-.tab-active::after {
-  content: '';
+.cat-indicator {
   position: absolute;
-  bottom: 4rpx;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 40rpx;
-  height: 4rpx;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 6rpx;
+  height: 36rpx;
+  border-radius: 0 4rpx 4rpx 0;
   background: #52c41a;
-  border-radius: 2rpx;
 }
 
-/* 服务列表 */
-.service-list {
-  padding: 24rpx;
+.cat-icon {
+  font-size: 32rpx;
+  margin-bottom: 4rpx;
 }
 
+.cat-name {
+  font-size: 24rpx;
+  line-height: 1.3;
+  text-align: center;
+  word-break: break-all;
+}
+
+/* --- 右侧内容区 --- */
+.right-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  background: #fff;
+}
+
+/* --- 二级子类Tab --- */
+.sub-tab-scroll {
+  flex-shrink: 0;
+  white-space: nowrap;
+  background: #fff;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.08);
+  position: relative;
+  z-index: 10;
+}
+
+.sub-tab-list {
+  display: flex;
+  padding: 16rpx 16rpx 16rpx 12rpx;
+  gap: 12rpx;
+}
+
+.sub-tab-item {
+  flex-shrink: 0;
+  padding: 10rpx 24rpx;
+  font-size: 24rpx;
+  color: #666;
+  background: #f5f5f5;
+  border-radius: 999rpx;
+  transition: background 0.3s, color 0.3s;
+}
+
+.sub-tab-active {
+  background: #52c41a;
+  color: #fff;
+  font-weight: bold;
+}
+
+/* --- 商品滚动区 --- */
+.product-scroll {
+  flex: 1;
+  height: 0;
+  padding: 0 20rpx 20rpx;
+  box-sizing: border-box;
+}
+
+.product-group {
+  padding-top: 8rpx;
+}
+
+.group-title {
+  font-size: 28rpx;
+  font-weight: bold;
+  color: #333;
+  padding: 20rpx 0 12rpx;
+  border-bottom: 1rpx solid #f0f0f0;
+  margin-bottom: 12rpx;
+}
+
+/* --- 商品卡片 --- */
 .service-card {
   display: flex;
   align-items: flex-start;
+  padding: 20rpx 0;
+  border-bottom: 1rpx solid #f5f5f5;
 }
 
 .service-icon-wrap {
@@ -76,19 +159,21 @@
   flex: 1;
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .service-name {
-  font-size: 30rpx;
+  font-size: 28rpx;
   font-weight: bold;
   color: #333;
-  margin-bottom: 8rpx;
+  margin-bottom: 6rpx;
+  word-break: break-all;
 }
 
 .service-desc {
-  font-size: 24rpx;
+  font-size: 22rpx;
   color: #999;
-  margin-bottom: 12rpx;
+  margin-bottom: 10rpx;
   line-height: 1.5;
 }
 
@@ -96,6 +181,12 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.service-price-row {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
 }
 
 .service-price {
@@ -121,96 +212,51 @@
   margin-left: 2rpx;
 }
 
-.price-unit {
-  font-size: 20rpx;
-  color: #999;
-  margin-left: 4rpx;
-}
-
-.service-free {
-  font-size: 28rpx;
-  color: #52c41a;
-  font-weight: bold;
-}
-
 .service-sales {
   font-size: 22rpx;
   color: #ccc;
+  flex-shrink: 0;
 }
 
-/* Section header */
-.section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0 24rpx;
-  margin: 24rpx 0 16rpx;
+/* --- 履约类型角标 --- */
+.fulfillment-badge {
+  display: inline-block;
+  padding: 2rpx 12rpx;
+  font-size: 20rpx;
+  color: #fff;
+  border-radius: 6rpx;
+  line-height: 1.6;
+  flex-shrink: 0;
 }
 
-.section-more {
+/* --- 空状态 / 加载 --- */
+.empty-state,
+.loading-more,
+.load-end {
+  text-align: center;
+  padding: 60rpx 0;
+}
+
+.empty-icon {
+  display: block;
+  font-size: 56rpx;
+  margin-bottom: 12rpx;
+}
+
+.empty-text {
+  display: block;
+  font-size: 28rpx;
+  color: #333;
+  margin-bottom: 8rpx;
+}
+
+.loading-text,
+.load-end-text {
   font-size: 24rpx;
   color: #999;
 }
 
-/* 专家 */
-.expert-scroll {
-  white-space: nowrap;
-  padding-left: 24rpx;
-}
-
-.expert-list {
-  display: flex;
-  gap: 20rpx;
-  padding-right: 24rpx;
-}
-
-.expert-card {
-  width: 200rpx;
-  background: #fff;
-  border-radius: 16rpx;
-  padding: 28rpx 20rpx;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  flex-shrink: 0;
-  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.04);
-}
-
-.expert-avatar {
-  width: 88rpx;
-  height: 88rpx;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #52c41a, #13c2c2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 12rpx;
-}
-
-.avatar-placeholder {
-  font-size: 36rpx;
-  color: #fff;
-  font-weight: bold;
-}
-
-.expert-name {
-  font-size: 26rpx;
-  font-weight: bold;
-  color: #333;
-  margin-bottom: 6rpx;
-}
-
-.expert-title {
-  font-size: 20rpx;
-  color: #52c41a;
-  margin-bottom: 4rpx;
-}
-
-.expert-dept {
-  font-size: 20rpx;
-  color: #999;
-}
-
+/* ========== 商家模式 — 保持不变 ========== */
 .records-page {
   min-height: 100vh;
   padding: 24rpx;
@@ -328,24 +374,4 @@
 .info-value.price {
   color: #ff4d4f;
   font-weight: 600;
-}
-
-.empty-state,
-.loading-more,
-.load-end {
-  text-align: center;
-  padding: 40rpx 0;
-}
-
-.empty-icon {
-  display: block;
-  font-size: 56rpx;
-  margin-bottom: 12rpx;
-}
-
-.empty-text {
-  display: block;
-  font-size: 28rpx;
-  color: #333;
-  margin-bottom: 8rpx;
 }
