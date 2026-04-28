@@ -33,7 +33,31 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 商品编辑Tab切换导致售价库存归零Bug修复（2026-04-28 19:55）
+## Latest Update: 系统启动时自动覆盖业务数据Bug修复（2026-04-28 19:18）
+
+### 一句话结论
+系统每次发布/重启时存在4处"自动覆盖业务数据"行为：①schema_sync.py中_migrate_service_to_product_categories()每次将服务分类同步到商品分类（运营删除的分类"复活"）；②_sync_merchant_v1_backend()每次覆盖角色模板权限；③init_data.py中_init_admin()每次重置管理员密码为admin123；⑤_init_sms_config_and_template()每次用环境变量覆盖短信配置。修复：①彻底删除服务分类→商品分类同步函数及调用；②③⑤均改为"仅首次插入，已存在则跳过"策略。已部署验证通过。
+
+### 修改的文件
+- `backend/app/services/schema_sync.py` — 删除_migrate_service_to_product_categories()函数及sync_register_schema()中的调用；_sync_merchant_v1_backend()中角色模板移除else UPDATE分支，已存在则跳过
+- `backend/app/init_data.py` — _init_admin()移除手机号和密码强制重置逻辑，仅保留is_superuser保障；_init_sms_config_and_template()移除else分支的环境变量覆盖逻辑
+
+### 用户文档
+- `user_docs/系统启动数据覆盖问题修复.md`
+
+---
+
+## Previous Update: 预约模式逻辑咨询（2026-04-28 19:24）
+
+### 一句话结论
+用户咨询管理后台商品管理中预约模式的预约日期、预约时段逻辑。已梳理回复：预约日期模式按天限流（配置提前可预约天数+单日最大人数），预约时段模式按时段限流（配置开始/结束时间+容量），两者均需选择下单预约方式。
+
+### 记忆文件
+- `mem/mem_预约模式逻辑咨询_20260428_192400.md`
+
+---
+
+## Previous Update: 商品编辑Tab切换导致售价库存归零Bug修复（2026-04-28 19:55）
 
 ### 一句话结论
 管理后台商品编辑弹窗中，切换Tab（如从"基本信息"切到"预约与核销"）后保存，售价和库存被写入0。根因是Tab使用if/else条件渲染，切走后Form.Item被React卸载，getFieldsValue()返回undefined，payload中undefined??0=0写入数据库。修复：①renderTabContent()从条件渲染改为CSS display控制（根治）；②payload构建中sale_price/stock/original_price/selling_point增加fallback到editingRecord原始值（兜底）。已部署验证通过。
