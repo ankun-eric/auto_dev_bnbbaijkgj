@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../models/order.dart';
+import '../../utils/price_formatter.dart';
 import '../../widgets/custom_app_bar.dart';
 import '../../widgets/empty_widget.dart';
 
@@ -149,7 +150,7 @@ class _OrdersScreenState extends State<OrdersScreen> with SingleTickerProviderSt
                   ),
                 ),
                 Text(
-                  '¥${order.amount.toStringAsFixed(0)}',
+                  '¥${formatPrice(order.amount)}',
                   style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFFFF6B35)),
                 ),
               ],

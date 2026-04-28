@@ -33,7 +33,20 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: AI回复标题标记与体检解读流式重复Bug修复方案（2026-04-28）
+## Latest Update: 前端价格显示优化需求PRD（2026-04-28）
+
+### 一句话结论
+前端价格显示优化需求PRD已输出。核心需求：全端（H5、Flutter APP、微信小程序、Admin Web）所有价格展示去掉末尾多余的零（19.00→19，19.10→19.1）。技术方案为后端API层统一加全局格式化器，一处修改全端生效；支付/退款/结算等资金流转接口保持精确两位小数；数据库存储不动。优先级紧急。
+
+### 记忆文件
+- `mem/mem_前端价格显示优化需求PRD_20260428_112300.md`
+
+### PRD文档
+- `docs/PRD_前端价格显示优化_20260428_112300.md`
+
+---
+
+## Previous Update: AI回复标题标记与体检解读流式重复Bug修复方案（2026-04-28）
 
 ### 一句话结论
 菜单模式下两个Bug的修复方案已输出：①AI回复中Markdown标题标记（`##`/`###`）原样显示，根因是renderMarkdown函数HTML转义顺序错误；②体检报告解读SSE流式输出文字重复（如"左左肾肾"），根因是后端__compat__兼容事件被前端重复消费。两个Bug均为前端修复，风险极低。

@@ -118,7 +118,7 @@ function renderDim(dim: string) {
 
 function fmtAmount(n: number | null | undefined): string {
   const v = Number(n || 0);
-  return v.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return String(v);
 }
 
 function fmtDateTime(d?: string | null): string {

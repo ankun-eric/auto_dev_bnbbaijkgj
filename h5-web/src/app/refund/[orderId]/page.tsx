@@ -103,7 +103,7 @@ export default function RefundPage() {
         <Card style={{ borderRadius: 12, marginBottom: 12 }}>
           <div className="flex items-center justify-between">
             <span className="text-sm text-gray-500">退款金额</span>
-            <span className="text-xl font-bold text-red-500">¥{order.paid_amount.toFixed(2)}</span>
+            <span className="text-xl font-bold text-red-500">¥{order.paid_amount}</span>
           </div>
           <div className="text-xs text-gray-400 mt-1">
             订单号：{order.order_no}
@@ -142,7 +142,7 @@ export default function RefundPage() {
                 <div className="text-sm">{item.product_name}</div>
                 <div className="text-xs text-gray-400">x{item.quantity}</div>
               </div>
-              <span className="text-sm">¥{item.subtotal.toFixed(2)}</span>
+              <span className="text-sm">¥{item.subtotal}</span>
             </div>
           ))}
         </Card>

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 
 import '../models/knowledge_hit.dart';
+import '../utils/price_formatter.dart';
 
 typedef KnowledgeFeedbackCallback = Future<bool> Function(int hitLogId, String feedback);
 
@@ -307,7 +308,7 @@ class _KnowledgeCardState extends State<KnowledgeCard> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '¥${p.price.toStringAsFixed(p.price == p.price.roundToDouble() ? 0 : 2)}',
+                  '¥${formatPrice(p.price)}',
                   style: const TextStyle(fontSize: 15, color: Color(0xFFFF4D4F), fontWeight: FontWeight.w600),
                 ),
               ],

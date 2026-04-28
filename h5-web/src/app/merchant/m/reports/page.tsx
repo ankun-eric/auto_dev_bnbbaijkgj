@@ -94,10 +94,10 @@ export default function ReportsMobilePage() {
           }}
         >
           {[
-            { label: '营业额', value: `¥${Number(data.total_amount || 0).toFixed(2)}`, color: '#fa541c' },
+            { label: '营业额', value: `¥${data.total_amount || 0}`, color: '#fa541c' },
             { label: '订单数', value: data.total_orders ?? 0, color: '#1677ff' },
             { label: '核销数', value: data.total_verifications ?? 0, color: '#52c41a' },
-            { label: '客单价', value: `¥${Number(data.avg_price || 0).toFixed(2)}`, color: '#722ed1' },
+            { label: '客单价', value: `¥${data.avg_price || 0}`, color: '#722ed1' },
           ].map((m) => (
             <div key={m.label} style={{ textAlign: 'center', padding: '12px 0' }}>
               <div style={{ fontSize: 20, fontWeight: 700, color: m.color }}>{m.value}</div>

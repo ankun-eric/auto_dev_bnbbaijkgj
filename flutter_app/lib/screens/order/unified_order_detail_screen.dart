@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../models/unified_order.dart';
 import '../../services/api_service.dart';
+import '../../utils/price_formatter.dart';
 
 class UnifiedOrderDetailScreen extends StatefulWidget {
   const UnifiedOrderDetailScreen({super.key});
@@ -150,7 +151,7 @@ class _UnifiedOrderDetailScreenState extends State<UnifiedOrderDetailScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('¥${item.productPrice.toStringAsFixed(2)}',
+                          Text('¥${formatPrice(item.productPrice)}',
                               style: const TextStyle(color: Color(0xFFFF4D4F))),
                           Text('x${item.quantity}', style: TextStyle(color: Colors.grey[500])),
                         ],
@@ -172,15 +173,15 @@ class _UnifiedOrderDetailScreenState extends State<UnifiedOrderDetailScreen> {
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
-          _infoRow('商品总额', '¥${o.totalAmount.toStringAsFixed(2)}'),
-          if (o.couponDiscount > 0) _infoRow('优惠券', '-¥${o.couponDiscount.toStringAsFixed(2)}'),
-          if (o.pointsDeduction > 0) _infoRow('积分抵扣', '-¥${(o.pointsDeduction / 100).toStringAsFixed(2)}'),
+          _infoRow('商品总额', '¥${formatPrice(o.totalAmount)}'),
+          if (o.couponDiscount > 0) _infoRow('优惠券', '-¥${formatPrice(o.couponDiscount)}'),
+          if (o.pointsDeduction > 0) _infoRow('积分抵扣', '-¥${formatPrice(o.pointsDeduction / 100)}'),
           const Divider(height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text('实付金额', style: TextStyle(fontWeight: FontWeight.bold)),
-              Text('¥${o.paidAmount.toStringAsFixed(2)}',
+              Text('¥${formatPrice(o.paidAmount)}',
                   style: const TextStyle(color: Color(0xFFFF4D4F), fontSize: 18, fontWeight: FontWeight.bold)),
             ],
           ),

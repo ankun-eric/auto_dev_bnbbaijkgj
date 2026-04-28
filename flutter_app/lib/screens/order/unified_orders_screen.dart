@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/unified_order.dart';
 import '../../services/api_service.dart';
+import '../../utils/price_formatter.dart';
 
 class UnifiedOrdersScreen extends StatefulWidget {
   const UnifiedOrdersScreen({super.key});
@@ -206,7 +207,7 @@ class _OrderTabState extends State<_OrderTab> with AutomaticKeepAliveClientMixin
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text('¥${item.productPrice.toStringAsFixed(2)}',
+                            Text('¥${formatPrice(item.productPrice)}',
                                 style: const TextStyle(color: Color(0xFFFF4D4F), fontSize: 14)),
                             Text('x${item.quantity}', style: TextStyle(color: Colors.grey[500], fontSize: 13)),
                           ],
@@ -231,7 +232,7 @@ class _OrderTabState extends State<_OrderTab> with AutomaticKeepAliveClientMixin
                     children: [
                       const Text('实付 ', style: TextStyle(fontSize: 13)),
                       Text(
-                        '¥${order.paidAmount.toStringAsFixed(2)}',
+                        '¥${formatPrice(order.paidAmount)}',
                         style: const TextStyle(color: Color(0xFFFF4D4F), fontWeight: FontWeight.bold, fontSize: 15),
                       ),
                     ],

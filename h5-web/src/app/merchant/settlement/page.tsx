@@ -67,7 +67,7 @@ export default function SettlementPage() {
           { title: '维度', dataIndex: 'dim', render: (v: string) => v === 'merchant' ? '机构合并' : '门店' },
           { title: '门店ID', dataIndex: 'store_id' },
           { title: '订单数', dataIndex: 'order_count' },
-          { title: '应结金额', dataIndex: 'settlement_amount', render: (v: number) => `¥${(v || 0).toFixed(2)}` },
+          { title: '应结金额', dataIndex: 'settlement_amount', render: (v: number) => `¥${v || 0}` },
           { title: '状态', dataIndex: 'status', render: (s: string) => <Tag color={statusMap[s]?.color || 'default'}>{statusMap[s]?.text || s}</Tag> },
           { title: '确认时间', dataIndex: 'confirmed_at', render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm') : '-' },
           {

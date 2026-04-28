@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/unified_order.dart';
 import '../../services/api_service.dart';
+import '../../utils/price_formatter.dart';
 
 class RefundListScreen extends StatefulWidget {
   const RefundListScreen({super.key});
@@ -293,7 +294,7 @@ class _RefundTabState extends State<_RefundTab>
                                   MainAxisAlignment.spaceBetween,
                               children: [
                                 Text(
-                                  '¥${item.productPrice.toStringAsFixed(2)}',
+                                  '¥${formatPrice(item.productPrice)}',
                                   style: const TextStyle(
                                       color: Color(0xFFFF4D4F), fontSize: 14),
                                 ),
@@ -324,7 +325,7 @@ class _RefundTabState extends State<_RefundTab>
                     children: [
                       const Text('实付 ', style: TextStyle(fontSize: 13)),
                       Text(
-                        '¥${order.paidAmount.toStringAsFixed(2)}',
+                        '¥${formatPrice(order.paidAmount)}',
                         style: const TextStyle(
                           color: Color(0xFFFF4D4F),
                           fontWeight: FontWeight.bold,

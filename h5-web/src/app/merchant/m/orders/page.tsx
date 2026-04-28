@@ -117,7 +117,7 @@ export default function OrdersMobilePage() {
                     >
                       {o.product_name || '—'}
                     </div>
-                    <div style={{ color: '#fa541c', fontSize: 16, fontWeight: 700 }}>¥{Number(o.amount || 0).toFixed(2)}</div>
+                    <div style={{ color: '#fa541c', fontSize: 16, fontWeight: 700 }}>¥{o.amount || 0}</div>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span

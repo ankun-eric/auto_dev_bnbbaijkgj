@@ -35,8 +35,8 @@ export default function SettlementDetailPage() {
           <Descriptions.Item label="维度">{data.dim === 'merchant' ? '机构合并' : '门店'}</Descriptions.Item>
           <Descriptions.Item label="门店ID">{data.store_id || '-'}</Descriptions.Item>
           <Descriptions.Item label="订单数">{data.order_count}</Descriptions.Item>
-          <Descriptions.Item label="订单总额">¥{(data.total_amount || 0).toFixed(2)}</Descriptions.Item>
-          <Descriptions.Item label="应结金额">¥{(data.settlement_amount || 0).toFixed(2)}</Descriptions.Item>
+          <Descriptions.Item label="订单总额">¥{data.total_amount || 0}</Descriptions.Item>
+          <Descriptions.Item label="应结金额">¥{data.settlement_amount || 0}</Descriptions.Item>
           <Descriptions.Item label="状态"><Tag>{data.status}</Tag></Descriptions.Item>
           <Descriptions.Item label="确认时间">{data.confirmed_at && dayjs(data.confirmed_at).format('YYYY-MM-DD HH:mm')}</Descriptions.Item>
           <Descriptions.Item label="结清时间">{data.settled_at && dayjs(data.settled_at).format('YYYY-MM-DD HH:mm')}</Descriptions.Item>

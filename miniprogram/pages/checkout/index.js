@@ -165,8 +165,9 @@ Page({
   },
 
   calcPrice() {
+    const r2 = n => Math.round(n * 100) / 100;
     const unitPrice = this.data.product ? this.data.product.price : 0;
-    const total = unitPrice * this.data.quantity;
+    const total = r2(unitPrice * this.data.quantity);
     let discount = 0;
 
     if (this.data.selectedCoupon) {
@@ -177,19 +178,20 @@ Page({
         discount += total * (c.value || 0) / 100;
       }
     }
+    discount = r2(discount);
 
     let pointsDed = 0;
     if (this.data.usePoints) {
       const maxPoints = Math.min(this.data.availablePoints, this.data.maxPointsDeduction);
-      pointsDed = maxPoints / 100;
+      pointsDed = r2(maxPoints / 100);
     }
 
-    const finalPrice = Math.max(0, total - discount - pointsDed);
+    const finalPrice = r2(Math.max(0, total - discount - pointsDed));
     this.setData({
-      totalPrice: total.toFixed(2),
-      discountPrice: discount.toFixed(2),
-      pointsDeduction: pointsDed.toFixed(2),
-      finalPrice: finalPrice.toFixed(2)
+      totalPrice: total,
+      discountPrice: discount,
+      pointsDeduction: pointsDed,
+      finalPrice: finalPrice
     });
   },
 

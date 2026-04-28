@@ -51,7 +51,7 @@ export default function ReportsPage() {
             { title: '时间', dataIndex: 'label' },
             { title: '订单数', dataIndex: 'orders' },
             { title: '核销数', dataIndex: 'verifications' },
-            { title: 'GMV', dataIndex: 'gmv', render: (v: number) => `¥${(v || 0).toFixed(2)}` },
+            { title: 'GMV', dataIndex: 'gmv', render: (v: number) => `¥${v || 0}` },
           ]}
         />
       </Card>
@@ -63,7 +63,7 @@ export default function ReportsPage() {
           columns={[
             { title: '商品', dataIndex: 'name' },
             { title: '订单数', dataIndex: 'count' },
-            { title: 'GMV', dataIndex: 'gmv', render: (v: number) => `¥${(v || 0).toFixed(2)}` },
+            { title: 'GMV', dataIndex: 'gmv', render: (v: number) => `¥${v || 0}` },
           ]}
         />
       </Card>

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/service_item.dart';
+import '../utils/price_formatter.dart';
 
 class ServiceCard extends StatelessWidget {
   final ServiceItem service;
@@ -68,7 +69,7 @@ class ServiceCard extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          '¥${service.price.toStringAsFixed(0)}',
+                          '¥${formatPrice(service.price)}',
                           style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,

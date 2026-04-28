@@ -156,7 +156,7 @@ function ProductCard({
           )}
           <div className="mt-1">
             <span className="text-base font-bold" style={{ color: '#52c41a' }}>
-              ¥{Number(product.sale_price).toFixed(2)}
+              ¥{product.sale_price}
             </span>
           </div>
         </div>

@@ -123,7 +123,7 @@ export default function OrdersPage() {
       title: '状态', dataIndex: 'status', key: 'status', width: 100,
       render: (s: string) => <Tag color={statusMap[s]?.color || 'default'}>{statusMap[s]?.text || s}</Tag>,
     },
-    { title: '金额', dataIndex: 'amount', key: 'amount', width: 90, render: (v: number) => `¥${(v || 0).toFixed(2)}` },
+    { title: '金额', dataIndex: 'amount', key: 'amount', width: 90, render: (v: number) => `¥${v || 0}` },
     { title: '附件', dataIndex: 'attachment_count', key: 'attachment_count', width: 70 },
     {
       title: '操作', key: 'ops', width: 140,

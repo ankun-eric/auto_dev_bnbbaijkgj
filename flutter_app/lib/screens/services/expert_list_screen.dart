@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../models/expert.dart';
+import '../../utils/price_formatter.dart';
 import '../../widgets/custom_app_bar.dart';
 
 class ExpertListScreen extends StatefulWidget {
@@ -102,7 +103,7 @@ class _ExpertListScreenState extends State<ExpertListScreen> {
                             Text('接诊${expert.consultCount}次', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
                             const Spacer(),
                             Text(
-                              '¥${expert.price.toStringAsFixed(0)}',
+                              '¥${formatPrice(expert.price)}',
                               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFFFF6B35)),
                             ),
                             Text('/次', style: TextStyle(fontSize: 12, color: Colors.grey[500])),

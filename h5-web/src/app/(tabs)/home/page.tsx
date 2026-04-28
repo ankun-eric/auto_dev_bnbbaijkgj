@@ -804,7 +804,7 @@ export default function HomePage() {
                         </div>
                       )}
                       <div style={{ color: '#52c41a', fontWeight: 700, fontSize: 14, marginTop: 2 }}>
-                        ¥{Number(p.sale_price).toFixed(2)}
+                        ¥{p.sale_price}
                       </div>
                     </div>
                   </div>

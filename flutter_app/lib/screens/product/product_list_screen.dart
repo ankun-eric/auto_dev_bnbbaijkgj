@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/product.dart';
 import '../../services/api_service.dart';
+import '../../utils/price_formatter.dart';
 
 class ProductListScreen extends StatefulWidget {
   const ProductListScreen({super.key});
@@ -231,7 +232,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
               child: Row(
                 children: [
                   Text(
-                    '¥${product.salePrice.toStringAsFixed(2)}',
+                    '¥${formatPrice(product.salePrice)}',
                     style: const TextStyle(
                       color: Color(0xFFFF4D4F),
                       fontSize: 15,
@@ -241,7 +242,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                   if (product.originalPrice != null && product.originalPrice! > product.salePrice) ...[
                     const SizedBox(width: 4),
                     Text(
-                      '¥${product.originalPrice!.toStringAsFixed(0)}',
+                      '¥${formatPrice(product.originalPrice)}',
                       style: TextStyle(
                         color: Colors.grey[400],
                         fontSize: 11,

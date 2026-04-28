@@ -231,7 +231,7 @@ export default function UnifiedOrderDetailPage() {
                 <div className="font-medium text-sm">{item.product_name}</div>
                 <div className="text-xs text-gray-400 mt-1">x{item.quantity}</div>
               </div>
-              <span className="font-bold text-sm">¥{item.subtotal.toFixed(2)}</span>
+              <span className="font-bold text-sm">¥{item.subtotal}</span>
             </div>
           ))}
           <Divider />
@@ -254,20 +254,20 @@ export default function UnifiedOrderDetailPage() {
             )}
             <Divider />
             <div className="flex justify-between">
-              <span>商品总价</span><span>¥{order.total_amount.toFixed(2)}</span>
+              <span>商品总价</span><span>¥{order.total_amount}</span>
             </div>
             {order.coupon_discount > 0 && (
               <div className="flex justify-between">
-                <span>优惠券抵扣</span><span className="text-red-500">-¥{order.coupon_discount.toFixed(2)}</span>
+                <span>优惠券抵扣</span><span className="text-red-500">-¥{order.coupon_discount}</span>
               </div>
             )}
             {order.points_deduction > 0 && (
               <div className="flex justify-between">
-                <span>积分抵扣</span><span className="text-red-500">-¥{(order.points_deduction / 100).toFixed(2)}</span>
+                <span>积分抵扣</span><span className="text-red-500">-¥{order.points_deduction / 100}</span>
               </div>
             )}
             <div className="flex justify-between font-bold text-base text-gray-800">
-              <span>实付金额</span><span className="text-red-500">¥{order.paid_amount.toFixed(2)}</span>
+              <span>实付金额</span><span className="text-red-500">¥{order.paid_amount}</span>
             </div>
           </div>
         </Card>

@@ -84,6 +84,7 @@ from app.api import (
     wechat_push,
 )
 from app.core.database import Base, engine
+from app.core.price_formatter import PriceFormattedJSONResponse
 from app.services.bottom_nav_migration import migrate_bottom_nav_order_path
 from app.services.points_mall_v31_migration import migrate_points_mall_v31
 from app.services.points_mall_v11_migration import migrate_points_mall_v11
@@ -702,6 +703,7 @@ app = FastAPI(
     docs_url="/api/docs",
     redoc_url="/api/redoc",
     openapi_url="/api/openapi.json",
+    default_response_class=PriceFormattedJSONResponse,
 )
 
 app.add_middleware(

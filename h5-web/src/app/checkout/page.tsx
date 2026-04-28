@@ -147,19 +147,20 @@ function CheckoutPage() {
     );
   }
 
+  const round2 = (n: number) => Math.round(n * 100) / 100;
   const selectedSku = skuId && Array.isArray((product as any).skus)
     ? (product as any).skus.find((s: any) => s.id === skuId)
     : null;
   const unitPrice = selectedSku ? Number(selectedSku.sale_price) : product.sale_price;
   const skuName = selectedSku ? String(selectedSku.spec_name || '') : '';
-  const subtotal = unitPrice * quantity;
-  const couponDiscount = selectedCoupon?.coupon
+  const subtotal = round2(unitPrice * quantity);
+  const couponDiscount = round2(selectedCoupon?.coupon
     ? selectedCoupon.coupon.type === 'discount'
       ? subtotal * (1 - selectedCoupon.coupon.discount_rate)
       : selectedCoupon.coupon.discount_value
-    : 0;
-  const pointsValue = usePoints ? pointsDeduction / 100 : 0;
-  const totalAmount = Math.max(0, subtotal - couponDiscount - pointsValue);
+    : 0);
+  const pointsValue = usePoints ? round2(pointsDeduction / 100) : 0;
+  const totalAmount = round2(Math.max(0, subtotal - couponDiscount - pointsValue));
 
   const handleSubmit = async () => {
     if (product.fulfillment_type === 'delivery' && !selectedAddress) {
@@ -292,7 +293,7 @@ function CheckoutPage() {
             <span className="text-sm font-medium">优惠券</span>
             <div className="flex items-center">
               {selectedCoupon ? (
-                <span className="text-sm text-red-500">-¥{couponDiscount.toFixed(2)}</span>
+                <span className="text-sm text-red-500">-¥{couponDiscount}</span>
               ) : (
                 <span className="text-sm text-gray-400">
                   {coupons.length > 0 ? `${coupons.length}张可用` : '暂无可用'}
@@ -324,7 +325,7 @@ function CheckoutPage() {
             </div>
             {usePoints && (
               <div className="mt-2 flex items-center justify-between">
-                <span className="text-xs text-gray-500">使用{pointsDeduction}积分抵扣¥{pointsValue.toFixed(2)}</span>
+                <span className="text-xs text-gray-500">使用{pointsDeduction}积分抵扣¥{pointsValue}</span>
               </div>
             )}
           </Card>
@@ -358,15 +359,15 @@ function CheckoutPage() {
       >
         <div className="flex items-center justify-between mb-2">
           <span className="text-sm text-gray-500">
-            小计 ¥{subtotal.toFixed(2)}
-            {couponDiscount > 0 && <span className="text-red-500 ml-2">-¥{couponDiscount.toFixed(2)}</span>}
-            {pointsValue > 0 && <span className="text-red-500 ml-2">-¥{pointsValue.toFixed(2)}</span>}
+            小计 ¥{subtotal}
+            {couponDiscount > 0 && <span className="text-red-500 ml-2">-¥{couponDiscount}</span>}
+            {pointsValue > 0 && <span className="text-red-500 ml-2">-¥{pointsValue}</span>}
           </span>
         </div>
         <div className="flex items-center gap-3">
           <div className="flex-1">
             <span className="text-sm text-gray-500">合计：</span>
-            <span className="text-xl font-bold text-red-500">¥{totalAmount.toFixed(2)}</span>
+            <span className="text-xl font-bold text-red-500">¥{totalAmount}</span>
           </div>
           <Button
             loading={submitting}

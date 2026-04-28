@@ -366,11 +366,11 @@ export default function UnifiedOrdersPage() {
     },
     {
       title: '总金额', dataIndex: 'total_amount', key: 'total_amount', width: 100,
-      render: (v: number) => <span style={{ color: '#f5222d', fontWeight: 600 }}>¥{(v ?? 0).toFixed(2)}</span>,
+      render: (v: number) => <span style={{ color: '#f5222d', fontWeight: 600 }}>¥{v ?? 0}</span>,
     },
     {
       title: '实付', dataIndex: 'paid_amount', key: 'paid_amount', width: 100,
-      render: (v: number) => <span>¥{(v ?? 0).toFixed(2)}</span>,
+      render: (v: number) => <span>¥{v ?? 0}</span>,
     },
     {
       title: '订单状态', key: 'status', width: 130,
@@ -575,10 +575,10 @@ export default function UnifiedOrdersPage() {
             <Descriptions column={2} bordered size="small">
               <Descriptions.Item label="订单号">{currentOrder.order_no}</Descriptions.Item>
               <Descriptions.Item label="用户ID">{currentOrder.user_id}</Descriptions.Item>
-              <Descriptions.Item label="总金额"><span style={{ color: '#f5222d' }}>¥{(currentOrder.total_amount ?? 0).toFixed(2)}</span></Descriptions.Item>
-              <Descriptions.Item label="实付金额">¥{(currentOrder.paid_amount ?? 0).toFixed(2)}</Descriptions.Item>
+              <Descriptions.Item label="总金额"><span style={{ color: '#f5222d' }}>¥{currentOrder.total_amount ?? 0}</span></Descriptions.Item>
+              <Descriptions.Item label="实付金额">¥{currentOrder.paid_amount ?? 0}</Descriptions.Item>
               <Descriptions.Item label="积分抵扣">{currentOrder.points_deduction}</Descriptions.Item>
-              <Descriptions.Item label="优惠券抵扣">¥{(currentOrder.coupon_discount ?? 0).toFixed(2)}</Descriptions.Item>
+              <Descriptions.Item label="优惠券抵扣">¥{currentOrder.coupon_discount ?? 0}</Descriptions.Item>
               <Descriptions.Item label="支付方式">{currentOrder.payment_method ? (payMethodMap[currentOrder.payment_method] || currentOrder.payment_method) : '-'}</Descriptions.Item>
               <Descriptions.Item label="订单状态">
                 {renderStatusTag(currentOrder)}
@@ -638,7 +638,7 @@ export default function UnifiedOrdersPage() {
         {currentOrder && (
           <div style={{ marginBottom: 16, padding: '12px 16px', background: '#e6f7ff', borderRadius: 8 }}>
             <div>订单号: {currentOrder.order_no}</div>
-            <div>金额: ¥{(currentOrder.paid_amount ?? 0).toFixed(2)}</div>
+            <div>金额: ¥{currentOrder.paid_amount ?? 0}</div>
           </div>
         )}
         <Form form={shipForm} layout="vertical">
@@ -662,7 +662,7 @@ export default function UnifiedOrdersPage() {
         {currentOrder && (
           <div style={{ marginBottom: 16, padding: '12px 16px', background: '#f6ffed', borderRadius: 8 }}>
             <div>订单号: {currentOrder.order_no}</div>
-            <div>实付: ¥{(currentOrder.paid_amount ?? 0).toFixed(2)}</div>
+            <div>实付: ¥{currentOrder.paid_amount ?? 0}</div>
           </div>
         )}
         <Form form={refundForm} layout="vertical">
@@ -683,7 +683,7 @@ export default function UnifiedOrdersPage() {
         {currentOrder && (
           <div style={{ marginBottom: 16, padding: '12px 16px', background: '#fff7e6', borderRadius: 8 }}>
             <div>订单号: {currentOrder.order_no}</div>
-            <div>实付: ¥{(currentOrder.paid_amount ?? 0).toFixed(2)}</div>
+            <div>实付: ¥{currentOrder.paid_amount ?? 0}</div>
           </div>
         )}
         <Form form={refundForm} layout="vertical">

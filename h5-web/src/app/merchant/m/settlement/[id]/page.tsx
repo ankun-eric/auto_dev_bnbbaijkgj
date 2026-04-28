@@ -78,7 +78,7 @@ export default function SettlementDetailMobilePage() {
         <>
           <List header="基本信息" style={{ margin: 12, borderRadius: 10, overflow: 'hidden' }}>
             <List.Item extra={detail.period || detail.cycle || '-'}>对账周期</List.Item>
-            <List.Item extra={`¥${Number(detail.amount || detail.total_amount || 0).toFixed(2)}`}>应结金额</List.Item>
+            <List.Item extra={`¥${detail.amount || detail.total_amount || 0}`}>应结金额</List.Item>
             <List.Item extra={detail.status || '-'}>状态</List.Item>
             <List.Item extra={detail.order_count ?? '-'}>订单数量</List.Item>
           </List>

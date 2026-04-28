@@ -201,7 +201,7 @@ export default function RefundListPage() {
                         <div className="font-medium text-sm truncate">{item.product_name}</div>
                         <div className="text-xs text-gray-400 mt-1">x{item.quantity}</div>
                       </div>
-                      <span className="font-bold text-sm">¥{item.subtotal.toFixed(2)}</span>
+                      <span className="font-bold text-sm">¥{item.subtotal}</span>
                     </div>
                   ))}
                   <div className="flex items-center justify-between pt-2 border-t border-gray-50">
@@ -209,7 +209,7 @@ export default function RefundListPage() {
                       {new Date(order.created_at).toLocaleString('zh-CN')}
                     </span>
                     <span className="text-sm">
-                      退款金额 <span className="font-bold text-red-500">¥{(order.refund_amount ?? order.paid_amount).toFixed(2)}</span>
+                      退款金额 <span className="font-bold text-red-500">¥{order.refund_amount ?? order.paid_amount}</span>
                     </span>
                   </div>
                 </Card>

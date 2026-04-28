@@ -154,7 +154,7 @@ export default function DashboardMobilePage() {
             {[
               { label: '今日订单', value: metrics.today_orders ?? 0, color: '#1677ff' },
               { label: '今日核销', value: metrics.today_verifications ?? 0, color: '#52c41a' },
-              { label: '今日营业额', value: `¥${Number(metrics.today_amount ?? 0).toFixed(0)}`, color: '#fa8c16' },
+              { label: '今日营业额', value: `¥${metrics.today_amount ?? 0}`, color: '#fa8c16' },
               { label: '待核销', value: metrics.pending_verify ?? 0, color: '#ff4d4f' },
             ].map((m) => (
               <div key={m.label} style={{ textAlign: 'center' }}>
@@ -238,7 +238,7 @@ export default function DashboardMobilePage() {
                   </div>
                   <div style={{ textAlign: 'right' }}>
                     <div style={{ color: '#fa541c', fontSize: 15, fontWeight: 600 }}>
-                      ¥{Number(o.amount || 0).toFixed(2)}
+                      ¥{o.amount || 0}
                     </div>
                   </div>
                 </div>

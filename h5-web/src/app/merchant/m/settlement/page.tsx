@@ -66,7 +66,7 @@ export default function SettlementMobilePage() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#666' }}>
                     <span>应结金额</span>
                     <span style={{ color: '#fa541c', fontSize: 15, fontWeight: 600 }}>
-                      ¥{Number(s.amount || s.total_amount || 0).toFixed(2)}
+                      ¥{s.amount || s.total_amount || 0}
                     </span>
                   </div>
                 </div>

@@ -134,7 +134,7 @@ export default function DashboardPage() {
       dataIndex: 'amount',
       key: 'amount',
       width: 100,
-      render: (v: number) => `¥${v.toFixed(2)}`,
+      render: (v: number) => `¥${v}`,
     },
     {
       title: '状态',

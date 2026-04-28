@@ -3,6 +3,7 @@ import '../../models/product.dart';
 import '../../models/address.dart';
 import '../../models/coupon.dart';
 import '../../services/api_service.dart';
+import '../../utils/price_formatter.dart';
 
 class CheckoutScreen extends StatefulWidget {
   const CheckoutScreen({super.key});
@@ -178,7 +179,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               children: [
                 const Text('合计', style: TextStyle(fontSize: 13, color: Colors.grey)),
                 Text(
-                  '¥${_totalAmount.toStringAsFixed(2)}',
+                  '¥${formatPrice(_totalAmount)}',
                   style: const TextStyle(color: Color(0xFFFF4D4F), fontSize: 20, fontWeight: FontWeight.bold),
                 ),
               ],
@@ -288,7 +289,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('¥${_product.salePrice.toStringAsFixed(2)}',
+                    Text('¥${formatPrice(_product.salePrice)}',
                         style: const TextStyle(color: Color(0xFFFF4D4F), fontWeight: FontWeight.bold)),
                     Text('x$_quantity', style: TextStyle(color: Colors.grey[500])),
                   ],
@@ -317,7 +318,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 const Spacer(),
                 Text(
                   _selectedCoupon != null
-                      ? '-¥${_couponDiscount.toStringAsFixed(2)}'
+                      ? '-¥${formatPrice(_couponDiscount)}'
                       : _coupons.isEmpty
                           ? '暂无可用'
                           : '${_coupons.length}张可用',
@@ -358,18 +359,18 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       color: Colors.white,
       child: Column(
         children: [
-          _buildPriceRow('商品金额', '¥${_subtotal.toStringAsFixed(2)}'),
+          _buildPriceRow('商品金额', '¥${formatPrice(_subtotal)}'),
           if (_couponDiscount > 0)
-            _buildPriceRow('优惠券', '-¥${_couponDiscount.toStringAsFixed(2)}', valueColor: const Color(0xFFFF4D4F)),
+            _buildPriceRow('优惠券', '-¥${formatPrice(_couponDiscount)}', valueColor: const Color(0xFFFF4D4F)),
           if (_pointsValue > 0)
-            _buildPriceRow('积分抵扣', '-¥${_pointsValue.toStringAsFixed(2)}', valueColor: const Color(0xFFFF4D4F)),
+            _buildPriceRow('积分抵扣', '-¥${formatPrice(_pointsValue)}', valueColor: const Color(0xFFFF4D4F)),
           const Divider(height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text('实付金额', style: TextStyle(fontWeight: FontWeight.bold)),
               Text(
-                '¥${_totalAmount.toStringAsFixed(2)}',
+                '¥${formatPrice(_totalAmount)}',
                 style: const TextStyle(color: Color(0xFFFF4D4F), fontSize: 18, fontWeight: FontWeight.bold),
               ),
             ],

@@ -70,7 +70,7 @@ export default function OrderDetailMobilePage() {
               >
                 {st?.text}
               </span>
-              <span style={{ color: '#fa541c', fontSize: 20, fontWeight: 700 }}>¥{Number(detail.amount || 0).toFixed(2)}</span>
+              <span style={{ color: '#fa541c', fontSize: 20, fontWeight: 700 }}>¥{detail.amount || 0}</span>
             </div>
             <div style={{ fontSize: 12, color: '#999' }}>订单号：{detail.order_no}</div>
           </div>

@@ -327,7 +327,7 @@ Page({
       const res = await get('/api/merchant/dashboard', { store_id: currentStore.id }, { showLoading: false });
       this.setData({
         todayCount: res.today_count || 0,
-        todayAmount: Number(res.today_amount || 0).toFixed(2)
+        todayAmount: res.today_amount || 0
       });
     } catch (e) {
       wx.showToast({ title: e.detail || '商家数据加载失败', icon: 'none' });

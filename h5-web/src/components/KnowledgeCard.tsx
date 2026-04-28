@@ -277,7 +277,7 @@ export function KnowledgeCard({ hit, hitLogId, onFeedback }: KnowledgeCardProps)
                 <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
                   <div className="text-sm font-medium text-gray-800 line-clamp-2">{p.name}</div>
                   <div className="text-primary font-semibold text-sm mt-1">
-                    ¥{Number(p.price).toFixed(2)}
+                    ¥{p.price}
                   </div>
                   <div className="mt-2">
                     <Button

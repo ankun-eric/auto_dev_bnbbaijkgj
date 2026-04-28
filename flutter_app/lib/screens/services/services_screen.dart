@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
+import '../../utils/price_formatter.dart';
 
 class _Category {
   final String id;
@@ -347,7 +348,7 @@ class _ServicesScreenState extends State<ServicesScreen> with TickerProviderStat
                           textBaseline: TextBaseline.alphabetic,
                           children: [
                             Text(
-                              '¥${p.salePrice.toStringAsFixed(0)}',
+                              '¥${formatPrice(p.salePrice)}',
                               style: const TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
@@ -358,7 +359,7 @@ class _ServicesScreenState extends State<ServicesScreen> with TickerProviderStat
                               Padding(
                                 padding: const EdgeInsets.only(left: 4),
                                 child: Text(
-                                  '¥${p.marketPrice!.toStringAsFixed(0)}',
+                                  '¥${formatPrice(p.marketPrice)}',
                                   style: TextStyle(
                                     fontSize: 12,
                                     color: Colors.grey[400],
