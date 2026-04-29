@@ -33,7 +33,24 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 门店编号自动生成与已停用门店显示控制 — 已开发部署（2026-04-29 17:40）
+## Latest Update: 502 Bad Gateway 故障修复 — 已修复验证（2026-04-29 18:10）
+
+### 一句话结论
+系统 502 Bad Gateway 故障已修复：部署脚本 deploy_remote.py 被意外修改导致容器网络隔离，现已恢复原始部署脚本，所有容器正常运行，全量链接验证通过（20个端点全部可达）。
+
+### 修复内容
+- 恢复 `deploy_remote.py` 为正确的完整部署脚本版本（含代码上传、容器重建、gateway 网络连接）
+- 恢复被删除的 `deploy_ssh.py`
+- 确认所有容器（backend、admin-web、h5-web、db）正常运行
+- 确认 gateway 与所有项目容器在同一 Docker 网络中
+- 全量链接可达性验证通过（20 个端点）
+
+### 用户文档
+- `user_docs/502BadGateway故障修复.md`
+
+---
+
+## Previous Update: 门店编号自动生成与已停用门店显示控制 — 已开发部署（2026-04-29 17:40）
 
 ### 一句话结论
 门店编号改为系统自动生成（MD + 5位递增数字），老门店按创建时间统一重新编号；门店列表右上角新增Toggle开关控制已停用门店显示/隐藏，已停用门店整行置灰展示。已完成开发、测试并部署上线。
