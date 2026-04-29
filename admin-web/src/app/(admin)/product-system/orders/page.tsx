@@ -30,6 +30,8 @@ interface OrderItem {
   verification_code: string | null;
   total_redeem_count: number;
   used_redeem_count: number;
+  appointment_data: any | null;
+  appointment_time: string | null;
 }
 
 interface UnifiedOrder {
@@ -54,6 +56,7 @@ interface UnifiedOrder {
   cancelled_at: string | null;
   cancel_reason: string | null;
   items: OrderItem[];
+  store_name: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -142,6 +145,8 @@ function mapOrder(raw: Record<string, unknown>): UnifiedOrder {
         verification_code: it.verification_code ? String(it.verification_code) : null,
         total_redeem_count: Number(it.total_redeem_count ?? 0),
         used_redeem_count: Number(it.used_redeem_count ?? 0),
+        appointment_data: it.appointment_data ?? null,
+        appointment_time: it.appointment_time ? String(it.appointment_time) : null,
       }))
     : [];
 
@@ -167,6 +172,7 @@ function mapOrder(raw: Record<string, unknown>): UnifiedOrder {
     cancelled_at: raw.cancelled_at ? String(raw.cancelled_at) : null,
     cancel_reason: raw.cancel_reason ? String(raw.cancel_reason) : null,
     items,
+    store_name: raw.store_name ? String(raw.store_name) : null,
     created_at: String(raw.created_at ?? ''),
     updated_at: String(raw.updated_at ?? ''),
   };
@@ -616,6 +622,11 @@ export default function UnifiedOrdersPage() {
             {currentOrder?.items?.some((item: any) => item.appointment_time) && (
               <Card size="small" title="预约信息" style={{ marginTop: 16 }}>
                 <Descriptions column={2} size="small">
+                  {currentOrder.store_name && (
+                    <Descriptions.Item label="关联门店" span={2}>
+                      {currentOrder.store_name}
+                    </Descriptions.Item>
+                  )}
                   {currentOrder.items.filter((item: any) => item.appointment_time).map((item: any, idx: number) => (
                     <React.Fragment key={idx}>
                       <Descriptions.Item label="预约日期" span={1}>
@@ -626,7 +637,7 @@ export default function UnifiedOrdersPage() {
                       </Descriptions.Item>
                       <Descriptions.Item label="预约状态" span={1}>
                         <Tag color={currentOrder.status === 'completed' ? 'green' : currentOrder.status === 'cancelled' ? 'red' : 'blue'}>
-                          {currentOrder.status === 'completed' ? '已完成' : currentOrder.status === 'cancelled' ? '已取消' : currentOrder.status === 'paid' ? '待核销' : '待支付'}
+                          {currentOrder.status === 'completed' ? '已完成' : currentOrder.status === 'cancelled' ? '已取消' : currentOrder.status === 'pending_use' ? '待核销' : '待支付'}
                         </Tag>
                       </Descriptions.Item>
                       {item.appointment_data?.note && (

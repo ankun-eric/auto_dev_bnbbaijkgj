@@ -33,7 +33,20 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: H5订单详情页预约信息卡片布局顺序修复 — 已开发部署（2026-04-29 00:15）
+## Latest Update: Admin管理后台订单详情预约信息不显示Bug — 方案已生成（2026-04-29 10:45）
+
+### 一句话结论
+管理后台订单详情中预约信息不显示的 Bug 已完成分析并生成修复方案文档。根因为前端 `OrderItem` 接口、`UnifiedOrder` 接口和 `mapOrder` 函数缺少 `appointment_data`、`appointment_time`、`store_name` 字段映射，后端无需修改。
+
+### 输出文档
+- `docs/BUG_FIX_订单详情预约信息不显示_20260429_104500.md`
+
+### 记忆文件
+- `mem/mem_订单详情预约信息不显示BUG_20260429_104500.md`
+
+---
+
+## Previous Update: H5订单详情页预约信息卡片布局顺序修复 — 已开发部署（2026-04-29 00:15）
 
 ### 一句话结论
 H5 Web客户端订单详情页预约信息卡片布局顺序已修复。将核销码区域从商品信息卡片上方移至预约信息卡片下方，形成「商品信息 → 预约信息 → 核销码」的自然阅读流，符合主流平台设计惯例。
