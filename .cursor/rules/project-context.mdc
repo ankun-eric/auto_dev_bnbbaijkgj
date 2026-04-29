@@ -33,7 +33,20 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: Admin管理后台订单详情预约信息不显示Bug — 方案已生成（2026-04-29 10:45）
+## Latest Update: Admin管理后台订单详情预约信息不显示Bug修复 — 已开发部署（2026-04-29 11:00）
+
+### 一句话结论
+管理后台订单详情中预约信息不显示的 Bug 已完成修复并部署。根因为前端 `OrderItem` 接口、`UnifiedOrder` 接口和 `mapOrder` 函数缺少 `appointment_data`、`appointment_time`、`store_name` 字段映射。修复后预约信息卡片正确展示关联门店、预约日期、预约时段和预约状态。
+
+### 修改的文件
+- `admin-web/src/app/(admin)/product-system/orders/page.tsx` — OrderItem 接口新增 appointment_data/appointment_time 字段；UnifiedOrder 接口新增 store_name 字段；mapOrder 函数新增三个字段的映射；预约信息卡片新增关联门店展示；预约状态判断从 'paid' 修正为 'pending_use'
+
+### 用户文档
+- `user_docs/Admin订单详情预约信息展示修复.md`
+
+---
+
+## Previous Update: Admin管理后台订单详情预约信息不显示Bug — 方案已生成（2026-04-29 10:45）
 
 ### 一句话结论
 管理后台订单详情中预约信息不显示的 Bug 已完成分析并生成修复方案文档。根因为前端 `OrderItem` 接口、`UnifiedOrder` 接口和 `mapOrder` 函数缺少 `appointment_data`、`appointment_time`、`store_name` 字段映射，后端无需修改。
