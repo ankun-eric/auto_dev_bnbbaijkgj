@@ -33,7 +33,55 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 适用门店独立管理功能 — 已开发部署（2026-04-29 12:30）
+## Latest Update: 门店编号自动生成与已停用门店显示控制 — 已开发部署（2026-04-29 17:40）
+
+### 一句话结论
+门店编号改为系统自动生成（MD + 5位递增数字），老门店按创建时间统一重新编号；门店列表右上角新增Toggle开关控制已停用门店显示/隐藏，已停用门店整行置灰展示。已完成开发、测试并部署上线。
+
+### 修改的文件
+- `backend/app/api/admin_merchant.py` — 新增 `_generate_store_code` 自动编号函数；`create_store` 移除手动 store_code 改为自动生成；`update_store` 禁止修改 store_code；`list_stores` 新增 `include_inactive` 参数，默认仅返回 active 门店，排序 active 在前
+- `backend/app/schemas/merchant.py` — `MerchantStoreCreate.store_code` 改为 `Optional[str] = None`
+- `backend/app/services/schema_sync.py` — 新增 `_migrate_store_codes` 迁移函数，按 created_at 排序统一重新编号为 MD00001 格式
+- `admin-web/src/app/(admin)/merchant/stores/page.tsx` — 新建弹窗移除 store_code 输入框；编辑弹窗 store_code 只读灰底展示；新增 Switch "显示已停用" 开关；已停用门店整行置灰（.store-row-inactive）；已停用门店编辑按钮 disabled；状态列改为"营业中"/"已停用"
+- `backend/tests/test_store_code_auto.py` — 新增5个测试用例（自动编号、递增编号、编号只读、默认active过滤、include_inactive）
+
+### 修改的API端点
+- `GET /api/admin/merchant/stores` — 新增 `include_inactive` 可选参数（默认 false），默认仅返回 active 门店；排序改为 active 在前
+- `POST /api/admin/merchant/stores` — 不再需要传入 store_code，后端自动生成；返回值新增 store_code 字段
+- `PUT /api/admin/merchant/stores/{store_id}` — 禁止修改 store_code（自动忽略）
+
+### 用户文档
+- `user_docs/门店编号自动生成与已停用门店显示控制.md`
+
+---
+
+## Previous Update: 502 Bad Gateway 故障修复方案 — 已生成（2026-04-29 17:50）
+
+### 一句话结论
+后端代码部署更新（新增功能/接口）后导致管理后台和H5客户端同时出现502 Bad Gateway，判断为后端服务启动失败，已输出完整修复方案文档。
+
+### 输出文档
+- `.chat_output/52bea15f-3dde-47b3-92f4-1755a3e135ac/BUG_FIX_502BadGateway_20260429_175000.md`
+
+### 记忆文件
+- `mem/mem_502BadGateway故障修复方案_20260429_175000.md`
+
+---
+
+## Previous Update: 门店编号自动生成与已停用门店显示控制 PRD — 已生成（2026-04-29 17:36）
+
+### 一句话结论
+门店编号改为系统自动生成（MD + 5位递增数字），老门店按创建时间统一重新编号；门店列表右上角新增Toggle开关控制已停用门店显示/隐藏，已停用门店整行置灰展示。
+
+### 输出文档
+- `docs/PRD_门店编号自动生成与已停用门店显示_20260429_173600.md`
+
+### 记忆文件
+- `mem/mem_门店编号自动生成与已停用显示控制PRD_20260429_173600.md`
+
+---
+
+## Previous Update: 适用门店独立管理功能 — 已开发部署（2026-04-29 12:30）
 
 ### 一句话结论
 将商品编辑弹窗中的"适用门店"功能完全独立为商品体系下的独立子菜单，提供商品维度和门店维度的双向管理能力，支持批量绑定/解绑操作和即时保存。商品编辑弹窗中的门店选择组件替换为只读展示+跳转链接。

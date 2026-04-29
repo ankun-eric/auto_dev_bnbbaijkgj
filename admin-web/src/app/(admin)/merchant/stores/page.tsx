@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { Button, Form, Input, Modal, Popconfirm, Select, Space, Table, Tag, Typography, message } from 'antd';
+import { Button, Form, Input, Modal, Popconfirm, Select, Space, Switch, Table, Tag, Typography, message } from 'antd';
 import { get, post, put } from '@/lib/api';
 
 const { Title } = Typography;
@@ -38,6 +38,7 @@ export default function MerchantStoresPage() {
   const [productCategories, setProductCategories] = useState<ProductCategoryItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [filterCategory, setFilterCategory] = useState<string | undefined>(undefined);
+  const [includeInactive, setIncludeInactive] = useState(false);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<StoreItem | null>(null);
   const [form] = Form.useForm();
@@ -61,12 +62,16 @@ export default function MerchantStoresPage() {
     }
   }, []);
 
-  const fetchData = async (categoryCode?: string) => {
+  const fetchData = async (categoryCode?: string, inactive?: boolean) => {
     setLoading(true);
     try {
-      const url = categoryCode
-        ? `/api/admin/merchant/stores?category_code=${encodeURIComponent(categoryCode)}`
-        : '/api/admin/merchant/stores';
+      const params = new URLSearchParams();
+      const showInactive = inactive !== undefined ? inactive : includeInactive;
+      params.set('include_inactive', String(showInactive));
+      if (categoryCode) {
+        params.set('category_code', categoryCode);
+      }
+      const url = `/api/admin/merchant/stores?${params.toString()}`;
       const res = await get(url);
       setItems(res.items || []);
     } catch (error: any) {
@@ -85,7 +90,6 @@ export default function MerchantStoresPage() {
   const openCreate = () => {
     setEditing(null);
     form.resetFields();
-    // 默认选中"自营门店"（如果存在）
     const defaultCat = categories.find((c) => c.code === 'self_store');
     form.setFieldsValue({ status: 'active', category_id: defaultCat?.id });
     setOpen(true);
@@ -146,8 +150,20 @@ export default function MerchantStoresPage() {
     fetchData(value);
   };
 
+  const handleIncludeInactiveChange = (checked: boolean) => {
+    setIncludeInactive(checked);
+    fetchData(filterCategory, checked);
+  };
+
   return (
     <div>
+      <style jsx>{`
+        .store-row-inactive td {
+          color: #BFBFBF !important;
+          background-color: #FAFAFA !important;
+        }
+      `}</style>
+
       <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: 24 }}>
         <Title level={4} style={{ margin: 0 }}>门店管理</Title>
         <Space>
@@ -159,6 +175,10 @@ export default function MerchantStoresPage() {
             onChange={handleFilterChange}
             options={categories.map((c) => ({ label: c.name, value: c.code }))}
           />
+          <Space size={4}>
+            <span style={{ fontSize: 14 }}>显示已停用</span>
+            <Switch checked={includeInactive} onChange={handleIncludeInactiveChange} />
+          </Space>
           <Button type="primary" onClick={openCreate}>新建门店</Button>
         </Space>
       </Space>
@@ -167,6 +187,9 @@ export default function MerchantStoresPage() {
         rowKey="id"
         loading={loading}
         dataSource={items}
+        rowClassName={(record: StoreItem) =>
+          record.status !== 'active' ? 'store-row-inactive' : ''
+        }
         columns={[
           { title: '门店名称', dataIndex: 'store_name' },
           { title: '门店编码', dataIndex: 'store_code' },
@@ -187,8 +210,8 @@ export default function MerchantStoresPage() {
             title: '状态',
             dataIndex: 'status',
             render: (value: string) => (
-              <Tag color={value === 'active' ? 'green' : 'red'}>
-                {value === 'active' ? '启用' : '停用'}
+              <Tag color={value === 'active' ? 'green' : 'default'}>
+                {value === 'active' ? '营业中' : '已停用'}
               </Tag>
             ),
           },
@@ -196,7 +219,13 @@ export default function MerchantStoresPage() {
             title: '操作',
             render: (_: any, item: StoreItem) => (
               <Space>
-                <Button type="link" onClick={() => openEdit(item)}>编辑</Button>
+                <Button
+                  type="link"
+                  disabled={item.status !== 'active'}
+                  onClick={() => openEdit(item)}
+                >
+                  编辑
+                </Button>
                 <Popconfirm
                   title={item.status === 'active' ? '确认停用该门店？' : '确认启用该门店？'}
                   onConfirm={() => toggleStatus(item)}
@@ -220,9 +249,15 @@ export default function MerchantStoresPage() {
           <Form.Item name="store_name" label="门店名称" rules={[{ required: true, message: '请输入门店名称' }]}>
             <Input placeholder="请输入门店名称" />
           </Form.Item>
-          <Form.Item name="store_code" label="门店编码" rules={[{ required: true, message: '请输入门店编码' }]}>
-            <Input placeholder="请输入唯一门店编码" disabled={!!editing} />
-          </Form.Item>
+          {editing && (
+            <Form.Item label="门店编码">
+              <Input
+                value={editing.store_code}
+                disabled
+                style={{ backgroundColor: '#f5f5f5', color: '#595959' }}
+              />
+            </Form.Item>
+          )}
           <Form.Item
             name="category_id"
             label="所属类别"

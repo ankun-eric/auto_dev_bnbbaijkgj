@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Iterable, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -464,15 +464,22 @@ async def _validate_category_id(db: AsyncSession, category_id: Optional[int]) ->
 async def list_stores(
     keyword: str | None = None,
     category_code: str | None = None,
+    include_inactive: bool = False,
     current_user=Depends(admin_dep),
     db: AsyncSession = Depends(get_db),
 ):
-    # 加载全部类别（便于按 code 过滤 + 注入响应）
     cat_res = await db.execute(select(MerchantCategory))
     category_by_id = {c.id: c for c in cat_res.scalars().all()}
     category_by_code = {c.code: c for c in category_by_id.values()}
 
-    query = select(MerchantStore).order_by(MerchantStore.created_at.desc())
+    # [2026-04-29] 排序：active 在前，再按 created_at desc
+    query = select(MerchantStore).order_by(
+        case((MerchantStore.status == "active", 0), else_=1),
+        MerchantStore.created_at.desc(),
+    )
+    # [2026-04-29] 已停用门店显示控制
+    if not include_inactive:
+        query = query.where(MerchantStore.status == "active")
     if keyword:
         query = query.where(
             MerchantStore.store_name.contains(keyword)
@@ -503,23 +510,45 @@ async def list_stores(
     return {"items": items}
 
 
+async def _generate_store_code(db: AsyncSession) -> str:
+    """自动生成门店编号：MD + 5位数字，如 MD00001"""
+    result = await db.execute(
+        select(MerchantStore.store_code).where(
+            MerchantStore.store_code.like("MD%")
+        ).order_by(MerchantStore.store_code.desc()).limit(1)
+    )
+    last_code = result.scalar()
+    if last_code:
+        try:
+            max_num = int(last_code[2:])
+        except (ValueError, IndexError):
+            max_num = 0
+    else:
+        max_num = 0
+    next_num = max_num + 1
+    if next_num > 99999:
+        raise HTTPException(status_code=400, detail="门店编号已达上限(MD99999)，无法继续创建")
+    return f"MD{next_num:05d}"
+
+
 @router.post("/stores")
 async def create_store(
     data: MerchantStoreCreate,
     current_user=Depends(admin_dep),
     db: AsyncSession = Depends(get_db),
 ):
-    existing = await db.execute(select(MerchantStore).where(MerchantStore.store_code == data.store_code))
-    if existing.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="门店编码已存在")
     # [2026-04-24] 新建门店必选类别
     if data.category_id is None:
         raise HTTPException(status_code=400, detail="请选择门店所属类别")
     await _validate_category_id(db, data.category_id)
-    store = MerchantStore(**data.model_dump())
+    # [2026-04-29] 自动生成 store_code
+    store_code = await _generate_store_code(db)
+    store_data = data.model_dump(exclude={"store_code"})
+    store_data["store_code"] = store_code
+    store = MerchantStore(**store_data)
     db.add(store)
     await db.flush()
-    return {"id": store.id, "message": "门店创建成功"}
+    return {"id": store.id, "store_code": store_code, "message": "门店创建成功"}
 
 
 @router.get("/stores/{store_id}")
@@ -563,6 +592,8 @@ async def update_store(
     if not store:
         raise HTTPException(status_code=404, detail="门店不存在")
     payload = data.model_dump(exclude_unset=True)
+    # [2026-04-29] store_code 不可修改
+    payload.pop("store_code", None)
     if "category_id" in payload:
         await _validate_category_id(db, payload["category_id"])
     for key, value in payload.items():

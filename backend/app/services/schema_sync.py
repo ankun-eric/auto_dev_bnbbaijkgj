@@ -1273,6 +1273,45 @@ async def _sync_store_bindding_tables(conn: AsyncConnection) -> None:
         ))
 
 
+async def _migrate_store_codes(conn: AsyncConnection) -> None:
+    """[2026-04-29] 将存量 merchant_stores 的 store_code 统一迁移为 MD00001 格式。
+    按 created_at ASC 顺序依次分配编号。已全部为 MD 格式时跳过。
+    """
+    import re
+
+    def _load(sync_conn):
+        inspector = inspect(sync_conn)
+        tables = set(inspector.get_table_names())
+        if "merchant_stores" not in tables:
+            return False
+        return True
+
+    has_table = await conn.run_sync(_load)
+    if not has_table:
+        return
+
+    # 检查是否已迁移：所有 store_code 都匹配 MD\d{5} 格式则跳过
+    all_codes_res = await conn.execute(text("SELECT store_code FROM merchant_stores"))
+    all_codes = [row[0] for row in all_codes_res.fetchall()]
+    if not all_codes:
+        return
+    md_pattern = re.compile(r"^MD\d{5}$")
+    if all(md_pattern.match(code or "") for code in all_codes):
+        return
+
+    # 按 created_at ASC 排序，依次分配 MD00001, MD00002, ...
+    rows = await conn.execute(
+        text("SELECT id FROM merchant_stores ORDER BY created_at ASC, id ASC")
+    )
+    store_ids = [row[0] for row in rows.fetchall()]
+    for idx, store_id in enumerate(store_ids, start=1):
+        new_code = f"MD{idx:05d}"
+        await conn.execute(
+            text("UPDATE merchant_stores SET store_code = :code WHERE id = :sid"),
+            {"code": new_code, "sid": store_id},
+        )
+
+
 async def sync_register_schema(conn: AsyncConnection) -> None:
     def load_user_schema(sync_conn):
         inspector = inspect(sync_conn)
@@ -1315,6 +1354,7 @@ async def sync_register_schema(conn: AsyncConnection) -> None:
     await _sync_tcm_diagnosis_fields(conn)
     await _sync_chat_message_metadata(conn)
     await _sync_store_bindding_tables(conn)
+    await _migrate_store_codes(conn)
     await run_all_migrations(conn)
 
     columns, indexes, unique_constraints = await conn.run_sync(load_user_schema)

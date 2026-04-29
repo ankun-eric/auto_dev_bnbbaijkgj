@@ -45,7 +45,8 @@ class MerchantStoreResponse(BaseModel):
 
 class MerchantStoreCreate(BaseModel):
     store_name: str
-    store_code: str
+    # [2026-04-29] store_code 改为后端自动生成，前端无需传入
+    store_code: Optional[str] = None
     # [2026-04-24] 新建门店必填「所属类别」
     category_id: Optional[int] = None
     contact_name: Optional[str] = None
