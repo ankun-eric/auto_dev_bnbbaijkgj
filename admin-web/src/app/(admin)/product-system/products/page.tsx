@@ -9,9 +9,10 @@ import {
 import {
   PlusOutlined, EditOutlined, DeleteOutlined, UploadOutlined,
   ArrowUpOutlined, ArrowDownOutlined, SearchOutlined, QuestionCircleOutlined,
-  CloseOutlined, MenuOutlined, PlayCircleOutlined, BulbOutlined, ShopOutlined,
+  CloseOutlined, MenuOutlined, PlayCircleOutlined, ShopOutlined,
 } from '@ant-design/icons';
 import { get, post, put, del, upload } from '@/lib/api';
+import { useRouter } from 'next/navigation';
 import type { UploadFile, RcFile } from 'antd/es/upload/interface';
 import SimpleRichEditor from '@/components/SimpleRichEditor';
 
@@ -182,19 +183,6 @@ const purchaseApptModes = [
   { label: '先下单后预约', value: 'appointment_later' },
 ];
 
-interface StoreOption {
-  id: number;
-  store_name: string;
-  store_code: string;
-  status: string;
-}
-
-interface RecommendedStore {
-  id: number;
-  store_name: string;
-  store_code: string;
-  reason?: string;
-}
 
 interface AppointmentFormLite {
   id: number;
@@ -485,6 +473,7 @@ function SkuTable({
 }
 
 export default function ProductsPage() {
+  const router = useRouter();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
@@ -518,11 +507,7 @@ export default function ProductsPage() {
   const [timeSlots, setTimeSlots] = useState<Array<{ start: string; end: string; capacity: number }>>([]);
   const [apptForms, setApptForms] = useState<AppointmentFormLite[]>([]);
 
-  const [storeOptions, setStoreOptions] = useState<StoreOption[]>([]);
-  const [selectedStoreIds, setSelectedStoreIds] = useState<number[]>([]);
-  const [recommendModalVisible, setRecommendModalVisible] = useState(false);
-  const [recommendedStores, setRecommendedStores] = useState<RecommendedStore[]>([]);
-  const [recommendLoading, setRecommendLoading] = useState(false);
+  const [boundStoreCount, setBoundStoreCount] = useState<number>(0);
 
   const [formFieldsVisible, setFormFieldsVisible] = useState(false);
   const [formFieldsProductId, setFormFieldsProductId] = useState<number | null>(null);
@@ -571,45 +556,12 @@ export default function ProductsPage() {
     }
   }, []);
 
-  const fetchStores = useCallback(async () => {
+  const fetchBoundStoreCount = useCallback(async (productId: number) => {
     try {
-      const res = await get('/api/admin/merchant/stores');
-      const items = res?.items || res || [];
-      setStoreOptions(Array.isArray(items) ? items : []);
+      const res = await get(`/api/admin/store-bindding/products/${productId}/bound-count`);
+      setBoundStoreCount(res?.bound_store_count ?? 0);
     } catch {
-      setStoreOptions([]);
-    }
-  }, []);
-
-  const fetchProductStores = useCallback(async (productId: number) => {
-    try {
-      const res = await get(`/api/admin/products/${productId}/stores`);
-      const ids = Array.isArray(res?.store_ids) ? res.store_ids : (Array.isArray(res) ? res.map((s: any) => s.id || s.store_id) : []);
-      setSelectedStoreIds(ids.map(Number));
-    } catch {
-      setSelectedStoreIds([]);
-    }
-  }, []);
-
-  const fetchRecommendedStores = useCallback(async (categoryId: number) => {
-    setRecommendLoading(true);
-    try {
-      const res = await get('/api/admin/stores/recommend', { product_category_id: categoryId });
-      const items = res?.items || res || [];
-      setRecommendedStores(Array.isArray(items) ? items : []);
-    } catch {
-      setRecommendedStores([]);
-      message.error('获取推荐门店失败');
-    } finally {
-      setRecommendLoading(false);
-    }
-  }, []);
-
-  const saveProductStores = useCallback(async (productId: number, storeIds: number[]) => {
-    try {
-      await put(`/api/admin/products/${productId}/stores`, { store_ids: storeIds });
-    } catch {
-      message.error('保存门店绑定失败');
+      setBoundStoreCount(0);
     }
   }, []);
 
@@ -640,7 +592,6 @@ export default function ProductsPage() {
       await fetchCategories();
       await fetchSymptomTags();
       await fetchApptForms();
-      await fetchStores();
       await fetchData(1, 10);
     })();
   }, []);
@@ -660,7 +611,7 @@ export default function ProductsPage() {
     setTabErrors({ base: false, tags: false, points: false, appointment: false, sort: false });
     setApptMode('none');
     setTimeSlots([]);
-    setSelectedStoreIds([]);
+    setBoundStoreCount(0);
   };
 
   const handleAdd = () => {
@@ -740,7 +691,7 @@ export default function ProductsPage() {
     );
     setApptMode(detail.appointment_mode || 'none');
     setTimeSlots(detail.time_slots || []);
-    await fetchProductStores(detail.id);
+    await fetchBoundStoreCount(detail.id);
     setModalVisible(true);
   };
 
@@ -996,24 +947,27 @@ export default function ProductsPage() {
     };
 
     try {
-      let productId: number;
       if (editingRecord) {
         await put(`/api/admin/products/${editingRecord.id}`, payload);
-        productId = editingRecord.id;
         message.success(publish ? '保存并已上架' : '编辑成功');
       } else {
-        const res = await post('/api/admin/products', payload);
-        productId = res?.id ?? res?.data?.id;
+        await post('/api/admin/products', payload);
         message.success(publish ? '新增并已上架' : '新增成功');
-      }
-      if (productId && selectedStoreIds.length > 0) {
-        await saveProductStores(productId, selectedStoreIds);
+        setModalVisible(false);
+        fetchData(pagination.current, pagination.pageSize);
+        Modal.confirm({
+          title: '商品创建成功！',
+          content: '该商品尚未绑定任何门店，请前往「适用门店」完成门店绑定。',
+          okText: '立即前往',
+          cancelText: '稍后处理',
+          onOk: () => router.push('/product-system/store-bindding'),
+        });
+        return;
       }
       setModalVisible(false);
       fetchData(pagination.current, pagination.pageSize);
     } catch (err: any) {
       const resp = err?.response?.data;
-      // FastAPI 422 校验错误：detail 是数组
       if (Array.isArray(resp?.detail)) {
         const msgs = resp.detail
           .map((d: any) => {
@@ -1281,56 +1235,9 @@ export default function ProductsPage() {
               </Space>
             }
           >
-            <Space direction="vertical" style={{ width: '100%' }}>
-              <Space style={{ width: '100%' }}>
-                <Select
-                  mode="multiple"
-                  placeholder="请选择适用门店"
-                  showSearch
-                  optionFilterProp="label"
-                  style={{ minWidth: 400, flex: 1 }}
-                  value={selectedStoreIds}
-                  onChange={setSelectedStoreIds}
-                  options={storeOptions.map(s => ({
-                    label: `${s.store_name}（${s.store_code}）`,
-                    value: s.id,
-                  }))}
-                  maxTagCount="responsive"
-                />
-                <Button
-                  size="small"
-                  onClick={() => {
-                    if (selectedStoreIds.length === storeOptions.length) {
-                      setSelectedStoreIds([]);
-                    } else {
-                      setSelectedStoreIds(storeOptions.map(s => s.id));
-                    }
-                  }}
-                >
-                  {selectedStoreIds.length === storeOptions.length ? '反选' : '全选'}
-                </Button>
-                <Button
-                  size="small"
-                  type="primary"
-                  icon={<BulbOutlined />}
-                  onClick={() => {
-                    const categoryId = form.getFieldValue('category_id');
-                    if (!categoryId) {
-                      message.warning('请先选择商品分类');
-                      return;
-                    }
-                    fetchRecommendedStores(categoryId);
-                    setRecommendModalVisible(true);
-                  }}
-                >
-                  智能推荐
-                </Button>
-              </Space>
-              {selectedStoreIds.length > 0 && (
-                <span style={{ fontSize: 12, color: '#999' }}>
-                  已选 {selectedStoreIds.length} 家门店
-                </span>
-              )}
+            <Space>
+              <span>已绑定 {boundStoreCount} 个门店</span>
+              <Button type="link" onClick={() => router.push('/product-system/store-bindding')}>去管理 →</Button>
             </Space>
           </Form.Item>
 
@@ -1834,61 +1741,6 @@ export default function ProductsPage() {
         </Form>
       </Modal>
 
-      {/* 智能推荐门店弹窗 */}
-      <Modal
-        title="智能推荐门店"
-        open={recommendModalVisible}
-        onCancel={() => setRecommendModalVisible(false)}
-        footer={
-          <Space>
-            <Button onClick={() => setRecommendModalVisible(false)}>关闭</Button>
-            <Button
-              type="primary"
-              onClick={() => {
-                const newIds = recommendedStores.map(s => s.id);
-                const merged = Array.from(new Set([...selectedStoreIds, ...newIds]));
-                setSelectedStoreIds(merged);
-                setRecommendModalVisible(false);
-                message.success(`已添加 ${merged.length - selectedStoreIds.length} 家推荐门店`);
-              }}
-            >
-              一键全部添加
-            </Button>
-          </Space>
-        }
-        width={600}
-        destroyOnClose
-      >
-        <Table
-          size="small"
-          loading={recommendLoading}
-          dataSource={recommendedStores}
-          rowKey="id"
-          pagination={false}
-          columns={[
-            { title: '门店名称', dataIndex: 'store_name', key: 'store_name' },
-            { title: '门店编码', dataIndex: 'store_code', key: 'store_code', width: 120 },
-            { title: '推荐理由', dataIndex: 'reason', key: 'reason', ellipsis: true },
-            {
-              title: '操作', key: 'action', width: 80,
-              render: (_: unknown, record: RecommendedStore) => {
-                const alreadySelected = selectedStoreIds.includes(record.id);
-                return alreadySelected
-                  ? <Tag color="green">已添加</Tag>
-                  : (
-                    <Button
-                      type="link"
-                      size="small"
-                      onClick={() => setSelectedStoreIds(prev => [...prev, record.id])}
-                    >
-                      添加
-                    </Button>
-                  );
-              },
-            },
-          ]}
-        />
-      </Modal>
     </div>
   );
 }

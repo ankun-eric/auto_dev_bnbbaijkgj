@@ -48,9 +48,17 @@ from app.schemas.products import (
     SymptomTagResponse,
 )
 from app.schemas.store_bindding import (
+    BatchBindRequest,
+    BatchBindResponse,
+    BoundCountResponse,
     BusinessScopeUpdate,
     ProductStoreBindRequest,
+    ProductStoreCheckItem,
     ProductStoreResponse,
+    SingleBindRequest,
+    StoreBinddingProductItem,
+    StoreBinddingStoreItem,
+    StoreProductCheckItem,
     StoreRecommendResponse,
 )
 from app.schemas.timeout_policy import TimeoutPolicyResponse, TimeoutPolicyUpdate
@@ -1718,3 +1726,382 @@ async def admin_update_reminder_advance(
         ))
     await db.flush()
     return {"reminder_advance_hours": hours}
+
+
+# ─────────── 适用门店独立管理 ───────────
+
+
+@router.get("/store-bindding/products")
+async def store_bindding_product_list(
+    search: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    current_user=Depends(require_role("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    bound_count_sub = (
+        select(
+            ProductStore.product_id,
+            func.count(ProductStore.id).label("bound_store_count"),
+        )
+        .group_by(ProductStore.product_id)
+        .subquery()
+    )
+
+    base = (
+        select(
+            Product.id,
+            Product.name,
+            ProductCategory.name.label("category_name"),
+            Product.sale_price,
+            Product.images,
+            Product.status,
+            func.coalesce(bound_count_sub.c.bound_store_count, 0).label("bound_store_count"),
+        )
+        .outerjoin(ProductCategory, Product.category_id == ProductCategory.id)
+        .outerjoin(bound_count_sub, Product.id == bound_count_sub.c.product_id)
+    )
+
+    if search:
+        base = base.where(Product.name.ilike(f"%{search}%"))
+
+    count_q = select(func.count()).select_from(base.subquery())
+    total = (await db.execute(count_q)).scalar() or 0
+
+    rows = (
+        await db.execute(
+            base.order_by(Product.id.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
+    ).all()
+
+    items = [
+        StoreBinddingProductItem(
+            id=r.id,
+            name=r.name,
+            category_name=r.category_name,
+            sale_price=float(r.sale_price),
+            images=r.images,
+            status=r.status.value if hasattr(r.status, "value") else str(r.status),
+            bound_store_count=r.bound_store_count,
+        )
+        for r in rows
+    ]
+    return {"items": items, "total": total, "page": page, "page_size": page_size}
+
+
+@router.get("/store-bindding/stores")
+async def store_bindding_store_list(
+    search: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    current_user=Depends(require_role("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    bound_count_sub = (
+        select(
+            ProductStore.store_id,
+            func.count(ProductStore.id).label("bound_product_count"),
+        )
+        .group_by(ProductStore.store_id)
+        .subquery()
+    )
+
+    base = (
+        select(
+            MerchantStore.id,
+            MerchantStore.store_name,
+            MerchantStore.store_code,
+            MerchantStore.status,
+            func.coalesce(bound_count_sub.c.bound_product_count, 0).label("bound_product_count"),
+        )
+        .outerjoin(bound_count_sub, MerchantStore.id == bound_count_sub.c.store_id)
+    )
+
+    if search:
+        base = base.where(MerchantStore.store_name.ilike(f"%{search}%"))
+
+    count_q = select(func.count()).select_from(base.subquery())
+    total = (await db.execute(count_q)).scalar() or 0
+
+    rows = (
+        await db.execute(
+            base.order_by(MerchantStore.id.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
+    ).all()
+
+    items = [
+        StoreBinddingStoreItem(
+            id=r.id,
+            store_name=r.store_name,
+            store_code=r.store_code,
+            status=r.status if isinstance(r.status, str) else str(r.status),
+            bound_product_count=r.bound_product_count,
+        )
+        for r in rows
+    ]
+    return {"items": items, "total": total, "page": page, "page_size": page_size}
+
+
+@router.get("/store-bindding/products/{product_id}/stores")
+async def store_bindding_product_store_checklist(
+    product_id: int,
+    search: Optional[str] = Query(None),
+    status_filter: Optional[str] = Query("all"),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    current_user=Depends(require_role("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    bound_sub = (
+        select(ProductStore.store_id)
+        .where(ProductStore.product_id == product_id)
+        .subquery()
+    )
+
+    is_bound_expr = bound_sub.c.store_id.isnot(None)
+
+    base = (
+        select(
+            MerchantStore.id.label("store_id"),
+            MerchantStore.store_name,
+            MerchantStore.store_code,
+            MerchantStore.address,
+            MerchantStore.status,
+            is_bound_expr.label("is_bound"),
+        )
+        .outerjoin(bound_sub, MerchantStore.id == bound_sub.c.store_id)
+    )
+
+    if search:
+        base = base.where(MerchantStore.store_name.ilike(f"%{search}%"))
+
+    if status_filter == "bound":
+        base = base.where(bound_sub.c.store_id.isnot(None))
+    elif status_filter == "unbound":
+        base = base.where(bound_sub.c.store_id.is_(None))
+
+    count_q = select(func.count()).select_from(base.subquery())
+    total = (await db.execute(count_q)).scalar() or 0
+
+    rows = (
+        await db.execute(
+            base.order_by(MerchantStore.id)
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
+    ).all()
+
+    items = [
+        ProductStoreCheckItem(
+            store_id=r.store_id,
+            store_name=r.store_name,
+            store_code=r.store_code,
+            address=r.address,
+            status=r.status if isinstance(r.status, str) else str(r.status),
+            is_bound=bool(r.is_bound),
+        )
+        for r in rows
+    ]
+    return {"items": items, "total": total, "page": page, "page_size": page_size}
+
+
+@router.get("/store-bindding/stores/{store_id}/products")
+async def store_bindding_store_product_checklist(
+    store_id: int,
+    search: Optional[str] = Query(None),
+    category_id: Optional[int] = Query(None),
+    status_filter: Optional[str] = Query("all"),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    current_user=Depends(require_role("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    bound_sub = (
+        select(ProductStore.product_id)
+        .where(ProductStore.store_id == store_id)
+        .subquery()
+    )
+
+    is_bound_expr = bound_sub.c.product_id.isnot(None)
+
+    base = (
+        select(
+            Product.id.label("product_id"),
+            Product.name,
+            ProductCategory.name.label("category_name"),
+            Product.sale_price,
+            Product.images,
+            Product.status,
+            is_bound_expr.label("is_bound"),
+        )
+        .outerjoin(ProductCategory, Product.category_id == ProductCategory.id)
+        .outerjoin(bound_sub, Product.id == bound_sub.c.product_id)
+    )
+
+    if search:
+        base = base.where(Product.name.ilike(f"%{search}%"))
+    if category_id is not None:
+        base = base.where(Product.category_id == category_id)
+
+    if status_filter == "bound":
+        base = base.where(bound_sub.c.product_id.isnot(None))
+    elif status_filter == "unbound":
+        base = base.where(bound_sub.c.product_id.is_(None))
+
+    count_q = select(func.count()).select_from(base.subquery())
+    total = (await db.execute(count_q)).scalar() or 0
+
+    rows = (
+        await db.execute(
+            base.order_by(Product.id.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
+    ).all()
+
+    items = [
+        StoreProductCheckItem(
+            product_id=r.product_id,
+            name=r.name,
+            category_name=r.category_name,
+            sale_price=float(r.sale_price),
+            images=r.images,
+            status=r.status.value if hasattr(r.status, "value") else str(r.status),
+            is_bound=bool(r.is_bound),
+        )
+        for r in rows
+    ]
+    return {"items": items, "total": total, "page": page, "page_size": page_size}
+
+
+@router.post("/store-bindding/bind")
+async def store_bindding_bind(
+    data: SingleBindRequest,
+    current_user=Depends(require_role("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    existing = await db.execute(
+        select(ProductStore).where(
+            and_(
+                ProductStore.product_id == data.product_id,
+                ProductStore.store_id == data.store_id,
+            )
+        )
+    )
+    if existing.scalar_one_or_none() is None:
+        db.add(ProductStore(product_id=data.product_id, store_id=data.store_id))
+        await db.flush()
+    return {"message": "绑定成功"}
+
+
+@router.post("/store-bindding/unbind")
+async def store_bindding_unbind(
+    data: SingleBindRequest,
+    current_user=Depends(require_role("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(ProductStore).where(
+            and_(
+                ProductStore.product_id == data.product_id,
+                ProductStore.store_id == data.store_id,
+            )
+        )
+    )
+    record = result.scalar_one_or_none()
+    if record is not None:
+        await db.delete(record)
+        await db.flush()
+    return {"message": "解绑成功"}
+
+
+@router.post("/store-bindding/batch-bind")
+async def store_bindding_batch_bind(
+    data: BatchBindRequest,
+    current_user=Depends(require_role("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    success_count = 0
+    fail_count = 0
+    failures: list[str] = []
+
+    for pid in data.product_ids:
+        try:
+            existing = await db.execute(
+                select(ProductStore).where(
+                    and_(
+                        ProductStore.product_id == pid,
+                        ProductStore.store_id == data.store_id,
+                    )
+                )
+            )
+            if existing.scalar_one_or_none() is None:
+                db.add(ProductStore(product_id=pid, store_id=data.store_id))
+                await db.flush()
+            success_count += 1
+        except Exception as e:
+            fail_count += 1
+            failures.append(f"商品{pid}绑定失败: {str(e)}")
+
+    return BatchBindResponse(
+        message="批量绑定成功",
+        success_count=success_count,
+        fail_count=fail_count,
+        failures=failures,
+    )
+
+
+@router.post("/store-bindding/batch-unbind")
+async def store_bindding_batch_unbind(
+    data: BatchBindRequest,
+    current_user=Depends(require_role("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    success_count = 0
+    fail_count = 0
+    failures: list[str] = []
+
+    for pid in data.product_ids:
+        try:
+            result = await db.execute(
+                select(ProductStore).where(
+                    and_(
+                        ProductStore.product_id == pid,
+                        ProductStore.store_id == data.store_id,
+                    )
+                )
+            )
+            record = result.scalar_one_or_none()
+            if record is not None:
+                await db.delete(record)
+                await db.flush()
+            success_count += 1
+        except Exception as e:
+            fail_count += 1
+            failures.append(f"商品{pid}解绑失败: {str(e)}")
+
+    return BatchBindResponse(
+        message="批量解绑成功",
+        success_count=success_count,
+        fail_count=fail_count,
+        failures=failures,
+    )
+
+
+@router.get("/store-bindding/products/{product_id}/bound-count")
+async def store_bindding_product_bound_count(
+    product_id: int,
+    current_user=Depends(require_role("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(func.count(ProductStore.id)).where(
+            ProductStore.product_id == product_id
+        )
+    )
+    count = result.scalar() or 0
+    return BoundCountResponse(product_id=product_id, bound_store_count=count)
