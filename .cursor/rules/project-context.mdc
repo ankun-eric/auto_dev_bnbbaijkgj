@@ -33,7 +33,20 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 预约时段选择两处缺陷修复 — 已开发部署（2026-04-30 13:30）
+## Latest Update: 502 Bad Gateway 故障修复（网络不匹配） — 已修复验证（2026-05-01 00:20）
+
+### 一句话结论
+系统 502 Bad Gateway 故障再次发生：docker-compose 创建的网络名称带项目目录前缀（`6b099ed3..._6b099ed3...-network`），而 deploy_remote.py 连接 gateway 时使用的是不带前缀的网络名，导致 gateway 与项目容器不在同一网络。已修复网络连接并更新部署脚本，动态检测后端容器所在网络再连接 gateway。
+
+### 修改的文件
+- `deploy_remote.py` — Step 11 网络连接逻辑改为从后端容器动态检测实际网络名称，不再硬编码网络名
+
+### 用户文档
+- `user_docs/502BadGateway修复_20260501.md`
+
+---
+
+## Previous Update: 预约时段选择两处缺陷修复 — 已开发部署（2026-04-30 13:30）
 
 ### 一句话结论
 修复预约时段选择的两处 P0 Bug：1）已过时段未禁用（选"今天"时已结束的时段现在置灰不可选）；2）名额已满仍可下单（已约满时段显示"已约满"标签并禁止点击，后端增加容量校验兜底）。涉及后端 API + H5 + 小程序 + Flutter 四端改动。

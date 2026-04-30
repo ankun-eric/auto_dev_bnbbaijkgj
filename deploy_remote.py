@@ -115,7 +115,20 @@ def main():
     exec_ssh(ssh, f'cd {REMOTE_DIR} && docker compose logs --tail=30 backend')
     
     print("\nStep 11: Gateway network + nginx reload...")
-    exec_ssh(ssh, 'docker network connect 6b099ed3-7175-4a78-91f4-44570c84ed27-network gateway 2>/dev/null; echo "network connected or already connected"')
+    # docker-compose prefixes the network name with the project directory basename,
+    # e.g. "6b099ed3-..._6b099ed3-...-network". Detect it from the backend container.
+    exec_ssh(ssh, (
+        'BACKEND_NET=$(docker inspect 6b099ed3-7175-4a78-91f4-44570c84ed27-backend '
+        '-f \'{{range $k, $v := .NetworkSettings.Networks}}{{println $k}}{{end}}\' '
+        '| grep network | head -1); '
+        'if [ -n "$BACKEND_NET" ]; then '
+        '  docker network connect "$BACKEND_NET" gateway 2>/dev/null || true; '
+        '  echo "Connected gateway to $BACKEND_NET"; '
+        'else '
+        '  docker network connect 6b099ed3-7175-4a78-91f4-44570c84ed27-network gateway 2>/dev/null || true; '
+        '  echo "Fallback: connected to static network name"; '
+        'fi'
+    ))
     exec_ssh(ssh, 'docker exec gateway nginx -t && docker exec gateway nginx -s reload')
     
     print("\nStep 12: Checking gateway config...")
