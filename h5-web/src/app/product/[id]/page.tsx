@@ -14,6 +14,8 @@ import {
   Toast,
   SpinLoading,
   Divider,
+  Popup,
+  List,
 } from 'antd-mobile';
 import { HeartOutline, HeartFill } from 'antd-mobile-icons';
 import api from '@/lib/api';
@@ -23,6 +25,25 @@ interface Store {
   id: number;
   store_id: number;
   store_name: string | null;
+}
+
+interface SlotAvailability {
+  start_time: string;
+  end_time: string;
+  capacity: number;
+  booked: number;
+  available: number;
+}
+
+interface AvailableStore {
+  store_id: number;
+  store_code?: string;
+  name: string;
+  address?: string;
+  lat?: number | null;
+  lng?: number | null;
+  distance_km?: number | null;
+  is_nearest?: boolean;
 }
 
 interface ProductSku {
@@ -59,6 +80,7 @@ interface ProductDetail {
   points_deductible: boolean;
   redeem_count: number;
   appointment_mode: string;
+  time_slots?: { start: string; end: string; capacity: number }[];
   stores: Store[];
   review_count: number;
   avg_rating: number | null;
@@ -75,6 +97,10 @@ export default function ProductDetailPage() {
   const [favorited, setFavorited] = useState(false);
   const [mediaTab, setMediaTab] = useState<'image' | 'video'>('image');
   const [selectedSkuId, setSelectedSkuId] = useState<number | null>(null);
+  const [slotAvailability, setSlotAvailability] = useState<SlotAvailability[]>([]);
+  const [availableStores, setAvailableStores] = useState<AvailableStore[]>([]);
+  const [selectedStoreIdx, setSelectedStoreIdx] = useState<number>(0);
+  const [storeDrawerVisible, setStoreDrawerVisible] = useState<boolean>(false);
 
   useEffect(() => {
     api.get(`/api/products/${productId}`).then((res: any) => {
@@ -96,6 +122,49 @@ export default function ProductDetailPage() {
       setFavorited(Boolean(data?.is_favorited));
     }).catch(() => { /* 未登录或失败时静默 */ });
   }, [productId]);
+
+  // 加载今日时段可用性（用于预览页置灰"已约满"）
+  useEffect(() => {
+    if (!product || !productId) return;
+    if (product.appointment_mode === 'none') return;
+    if (!product.time_slots || product.time_slots.length === 0) return;
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    api.get(`/api/products/${productId}/time-slots/availability?date=${todayStr}`)
+      .then((res: any) => {
+        const data = res.data || res;
+        setSlotAvailability(data?.data?.slots || []);
+      })
+      .catch(() => setSlotAvailability([]));
+  }, [product, productId]);
+
+  // 加载可用门店（按距离排序，定位失败/拒绝则后端按字母兜底）
+  useEffect(() => {
+    if (!product || !productId) return;
+    if (product.fulfillment_type !== 'in_store') return;
+
+    const fetchStores = (lat?: number, lng?: number) => {
+      const params = (lat !== undefined && lng !== undefined) ? `?lat=${lat}&lng=${lng}` : '';
+      api.get(`/api/products/${productId}/available-stores${params}`)
+        .then((res: any) => {
+          const data = res.data || res;
+          const list: AvailableStore[] = data?.data?.stores || [];
+          setAvailableStores(list);
+          setSelectedStoreIdx(0);
+        })
+        .catch(() => setAvailableStores([]));
+    };
+
+    if (typeof navigator !== 'undefined' && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => fetchStores(pos.coords.latitude, pos.coords.longitude),
+        () => fetchStores(),
+        { enableHighAccuracy: false, timeout: 8000, maximumAge: 30 * 60 * 1000 },
+      );
+    } else {
+      fetchStores();
+    }
+  }, [product, productId]);
 
   const handleToggleFavorite = async () => {
     try {
@@ -340,17 +409,74 @@ export default function ProductDetailPage() {
           </div>
         )}
 
-        {product.fulfillment_type === 'in_store' && product.stores.length > 0 && (
+        {product.appointment_mode !== 'none' && product.time_slots && product.time_slots.length > 0 && (
           <div className="card">
-            <div className="section-title">适用门店</div>
-            <div className="space-y-2">
-              {product.stores.map((store) => (
-                <div key={store.id} className="flex items-center text-sm">
-                  <span className="text-primary mr-2">📍</span>
-                  <span className="text-gray-600">{store.store_name || `门店${store.store_id}`}</span>
-                </div>
-              ))}
+            <div className="section-title">可预约时段（今日）</div>
+            <div className="flex flex-wrap gap-2">
+              {product.time_slots.map((slot) => {
+                const label = `${slot.start}-${slot.end}`;
+                const now = new Date();
+                const nowHM = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+                const expired = slot.end <= nowHM;
+                const avail = slotAvailability.find(s => `${s.start_time}-${s.end_time}` === label);
+                const fullyBooked = avail ? avail.available <= 0 : false;
+                const disabled = expired || fullyBooked;
+                const suffix = expired ? ' 已结束' : (fullyBooked ? ' 已约满' : '');
+                return (
+                  <div
+                    key={label}
+                    className="px-3 py-1.5 rounded-full text-xs border"
+                    style={{
+                      background: disabled ? '#f5f5f5' : '#fff',
+                      color: disabled ? '#999' : '#333',
+                      borderColor: '#e5e5e5',
+                      cursor: disabled ? 'not-allowed' : 'default',
+                    }}
+                  >
+                    {label}{suffix}
+                  </div>
+                );
+              })}
             </div>
+          </div>
+        )}
+
+        {product.fulfillment_type === 'in_store' && availableStores.length > 0 && (
+          <div className="card">
+            <div className="section-title">可用门店</div>
+            {(() => {
+              const cur = availableStores[selectedStoreIdx] || availableStores[0];
+              return (
+                <div
+                  onClick={() => setStoreDrawerVisible(true)}
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '12px',
+                    border: '1px solid #f0f0f0',
+                    borderRadius: 8,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 500, fontSize: 14 }}>{cur.name}</div>
+                    {cur.address && <div style={{ color: '#999', fontSize: 12, marginTop: 4 }}>{cur.address}</div>}
+                    {cur.distance_km !== null && cur.distance_km !== undefined && (
+                      <div style={{ color: '#52c41a', fontSize: 12, marginTop: 4 }}>距您 {cur.distance_km} km</div>
+                    )}
+                  </div>
+                  <div style={{ color: '#999', fontSize: 12 }}>
+                    {availableStores.length > 1 ? '切换 ▼' : ''}
+                  </div>
+                </div>
+              );
+            })()}
+            {availableStores.every(s => s.distance_km === null || s.distance_km === undefined) && (
+              <div style={{ fontSize: 12, color: '#bbb', marginTop: 8 }}>
+                暂未获取位置，已按门店名排序
+              </div>
+            )}
           </div>
         )}
 
@@ -401,6 +527,36 @@ export default function ProductDetailPage() {
           {currentStock > 0 ? '立即购买' : '已售罄'}
         </Button>
       </div>
+
+      <Popup
+        visible={storeDrawerVisible}
+        position="bottom"
+        onMaskClick={() => setStoreDrawerVisible(false)}
+        bodyStyle={{ borderTopLeftRadius: 12, borderTopRightRadius: 12, maxHeight: '70vh', overflow: 'auto' }}
+      >
+        <div style={{ padding: '16px 0' }}>
+          <div style={{ textAlign: 'center', fontWeight: 500, padding: '0 16px 12px', borderBottom: '1px solid #f5f5f5' }}>选择门店</div>
+          <List>
+            {availableStores.map((s, idx) => (
+              <List.Item
+                key={s.store_id}
+                onClick={() => { setSelectedStoreIdx(idx); setStoreDrawerVisible(false); }}
+                extra={idx === selectedStoreIdx ? '✓' : ''}
+                description={
+                  <>
+                    {s.address && <div style={{ color: '#999' }}>{s.address}</div>}
+                    {s.distance_km !== null && s.distance_km !== undefined && (
+                      <div style={{ color: '#52c41a', marginTop: 2 }}>距您 {s.distance_km} km</div>
+                    )}
+                  </>
+                }
+              >
+                {s.name}
+              </List.Item>
+            ))}
+          </List>
+        </div>
+      </Popup>
     </div>
   );
 }

@@ -40,5 +40,7 @@
 	<string>需要使用麦克风进行语音健康咨询</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>需要保存健康报告图片到相册</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>用于按距离展示离您最近的可用门店</string>
 </dict>
 </plist>

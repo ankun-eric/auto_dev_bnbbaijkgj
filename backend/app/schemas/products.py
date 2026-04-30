@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any, List, Optional
 
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
@@ -292,6 +292,35 @@ class ProductStoreResponse(BaseModel):
     store_name: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class AvailableStoreItem(BaseModel):
+    store_id: int
+    store_code: Optional[str] = None
+    name: str
+    address: Optional[str] = None
+    lat: Optional[float] = None
+    lng: Optional[float] = None
+    distance_km: Optional[float] = None
+    is_nearest: bool = False
+    model_config = ConfigDict(from_attributes=True)
+
+
+class UserLocationInfo(BaseModel):
+    lat: float
+    lng: float
+    source: str = "gps"
+
+
+class AvailableStoresData(BaseModel):
+    user_location: Optional[UserLocationInfo] = None
+    stores: List[AvailableStoreItem]
+    sort_by: str  # "distance" 或 "name"
+
+
+class AvailableStoresResponse(BaseModel):
+    code: int = 0
+    data: AvailableStoresData
 
 
 class ProductResponse(BaseModel):

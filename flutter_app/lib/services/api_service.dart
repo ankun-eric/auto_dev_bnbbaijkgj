@@ -1039,6 +1039,19 @@ class ApiService {
     return _dio.get('${ApiConfig.products}/$productId');
   }
 
+  Future<Response> getProductTimeSlotsAvailability(int productId, String date) async {
+    return _dio.get('${ApiConfig.products}/$productId/time-slots/availability',
+        queryParameters: {'date': date});
+  }
+
+  Future<Response> getProductAvailableStores(int productId, {double? lat, double? lng}) async {
+    final query = <String, dynamic>{};
+    if (lat != null) query['lat'] = lat;
+    if (lng != null) query['lng'] = lng;
+    return _dio.get('${ApiConfig.products}/$productId/available-stores',
+        queryParameters: query.isEmpty ? null : query);
+  }
+
   // Unified Orders
   Future<Response> createUnifiedOrder(Map<String, dynamic> data) async {
     return _dio.post(ApiConfig.unifiedOrders, data: data);

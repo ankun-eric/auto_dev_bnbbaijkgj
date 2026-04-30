@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from math import asin, cos, radians, sin, sqrt
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -346,3 +347,92 @@ async def get_time_slots_availability(
         })
 
     return {"code": 0, "data": {"date": date_str, "slots": slots_info}}
+
+
+def _haversine_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
+    """计算两点间球面距离 (km)，Haversine 公式。"""
+    R = 6371.0
+    lat1r, lng1r, lat2r, lng2r = map(radians, [lat1, lng1, lat2, lng2])
+    dlat = lat2r - lat1r
+    dlng = lng2r - lng1r
+    a = sin(dlat / 2) ** 2 + cos(lat1r) * cos(lat2r) * sin(dlng / 2) ** 2
+    return 2 * R * asin(sqrt(a))
+
+
+@router.get("/{product_id}/available-stores")
+async def get_available_stores(
+    product_id: int,
+    lat: Optional[float] = Query(None, description="用户当前纬度"),
+    lng: Optional[float] = Query(None, description="用户当前经度"),
+    db: AsyncSession = Depends(get_db),
+):
+    """获取商品/卡项的可用门店列表，按距离或字母排序。
+
+    - 当 lat 与 lng 同时传入时按 Haversine 距离升序排序
+    - 任一为空时按门店名升序排序
+    - 仅返回该商品绑定且 status=active 的门店
+    """
+    result = await db.execute(
+        select(Product)
+        .where(Product.id == product_id)
+        .options(selectinload(Product.stores).selectinload(ProductStore.store))
+    )
+    product = result.scalar_one_or_none()
+    if product is None:
+        raise HTTPException(status_code=404, detail="商品不存在")
+
+    raw_stores = []
+    for ps in (product.stores or []):
+        ms: MerchantStore = ps.store
+        if ms is None or (ms.status or "active") != "active":
+            continue
+        raw_stores.append(ms)
+
+    has_user_loc = lat is not None and lng is not None
+    items = []
+    if has_user_loc:
+        for ms in raw_stores:
+            store_lat = float(ms.lat) if ms.lat is not None else None
+            store_lng = float(ms.lng) if ms.lng is not None else None
+            dist = None
+            if store_lat is not None and store_lng is not None:
+                dist = round(_haversine_km(float(lat), float(lng), store_lat, store_lng), 2)
+            items.append({
+                "store_id": ms.id,
+                "store_code": ms.store_code,
+                "name": ms.store_name,
+                "address": ms.address,
+                "lat": store_lat,
+                "lng": store_lng,
+                "distance_km": dist,
+                "is_nearest": False,
+            })
+        items.sort(key=lambda x: (x["distance_km"] is None, x["distance_km"] if x["distance_km"] is not None else 0))
+        if items and items[0]["distance_km"] is not None:
+            items[0]["is_nearest"] = True
+        sort_by = "distance"
+        user_location = {"lat": float(lat), "lng": float(lng), "source": "gps"}
+    else:
+        for ms in raw_stores:
+            items.append({
+                "store_id": ms.id,
+                "store_code": ms.store_code,
+                "name": ms.store_name,
+                "address": ms.address,
+                "lat": float(ms.lat) if ms.lat is not None else None,
+                "lng": float(ms.lng) if ms.lng is not None else None,
+                "distance_km": None,
+                "is_nearest": False,
+            })
+        items.sort(key=lambda x: (x["name"] or ""))
+        sort_by = "name"
+        user_location = None
+
+    return {
+        "code": 0,
+        "data": {
+            "user_location": user_location,
+            "stores": items,
+            "sort_by": sort_by,
+        },
+    }

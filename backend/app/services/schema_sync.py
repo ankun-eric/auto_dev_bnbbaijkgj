@@ -1190,6 +1190,10 @@ async def _sync_store_bindding_tables(conn: AsyncConnection) -> None:
         cols = table_cols["merchant_stores"]
         if "business_scope" not in cols:
             await conn.execute(text("ALTER TABLE merchant_stores ADD COLUMN business_scope JSON NULL"))
+        if "lat" not in cols:
+            await conn.execute(text("ALTER TABLE merchant_stores ADD COLUMN lat DECIMAL(10,6) NULL"))
+        if "lng" not in cols:
+            await conn.execute(text("ALTER TABLE merchant_stores ADD COLUMN lng DECIMAL(10,6) NULL"))
 
     # 2. merchant_notifications 新增 notification_type
     if table_cols.get("merchant_notifications") is not None:

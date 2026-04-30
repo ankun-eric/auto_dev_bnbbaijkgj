@@ -407,6 +407,8 @@ class MerchantStore(Base):
     contact_name = mapped_column(String(100), nullable=True)
     contact_phone = mapped_column(String(20), nullable=True)
     address = mapped_column(String(255), nullable=True)
+    lat = mapped_column(DECIMAL(10, 6), nullable=True, comment="门店纬度")
+    lng = mapped_column(DECIMAL(10, 6), nullable=True, comment="门店经度")
     status = mapped_column(String(20), default="active")
     # [2026-04-25] H5 店铺信息编辑：扩展可编辑字段（详见 PRD §4.2.3）
     logo_url = mapped_column(String(500), nullable=True)

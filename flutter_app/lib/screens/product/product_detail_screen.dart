@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import '../../models/product.dart';
 import '../../services/api_service.dart';
 import '../../utils/price_formatter.dart';
@@ -17,6 +18,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   bool _isFavorited = false;
   int _quantity = 1;
   int _currentImageIndex = 0;
+
+  List<Map<String, dynamic>> _slotAvailability = [];
+  List<Map<String, dynamic>> _availableStores = [];
+  int _selectedStoreIdx = 0;
+  String _storesSortBy = 'name';
+  bool _loadingStores = false;
 
   @override
   void didChangeDependencies() {
@@ -43,12 +50,160 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           setState(() => _isFavorited = favRes.data['is_favorited'] == true);
         }
       } catch (_) { /* 未登录或失败时静默 */ }
+
+      if (mounted && _product != null) {
+        _loadSlotAvailability();
+        _loadAvailableStores();
+      }
     } catch (e) {
       setState(() => _loading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('加载失败')));
       }
     }
+  }
+
+  String _formatToday() {
+    final now = DateTime.now();
+    return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+  }
+
+  Future<void> _loadSlotAvailability() async {
+    final p = _product;
+    if (p == null) return;
+    if (p.appointmentMode == 'none') return;
+    if (p.timeSlots == null || p.timeSlots!.isEmpty) return;
+    try {
+      final today = _formatToday();
+      final res = await ApiService().getProductTimeSlotsAvailability(p.id, today);
+      if (res.data is Map && res.data['data'] is Map) {
+        final slots = res.data['data']['slots'];
+        if (slots is List) {
+          setState(() {
+            _slotAvailability = slots.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+          });
+        }
+      }
+    } catch (_) {
+      setState(() => _slotAvailability = []);
+    }
+  }
+
+  bool _isSlotExpired(String slotEnd) {
+    final now = DateTime.now();
+    final parts = slotEnd.split(':');
+    if (parts.length < 2) return false;
+    final endH = int.tryParse(parts[0]) ?? 0;
+    final endM = int.tryParse(parts[1]) ?? 0;
+    return (endH * 60 + endM) <= (now.hour * 60 + now.minute);
+  }
+
+  bool _isSlotFullyBooked(String label) {
+    final hit = _slotAvailability.where((s) =>
+      '${s['start_time']}-${s['end_time']}' == label
+    ).toList();
+    if (hit.isEmpty) return false;
+    return ((hit.first['available'] ?? 1) as num) <= 0;
+  }
+
+  Future<void> _loadAvailableStores() async {
+    final p = _product;
+    if (p == null) return;
+    setState(() => _loadingStores = true);
+
+    double? lat;
+    double? lng;
+    try {
+      LocationPermission perm = await Geolocator.checkPermission();
+      if (perm == LocationPermission.denied) {
+        perm = await Geolocator.requestPermission();
+      }
+      if (perm == LocationPermission.always || perm == LocationPermission.whileInUse) {
+        final pos = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.medium,
+          timeLimit: const Duration(seconds: 6),
+        ).timeout(const Duration(seconds: 8), onTimeout: () => throw Exception('timeout'));
+        lat = pos.latitude;
+        lng = pos.longitude;
+      }
+    } catch (_) {
+      // 定位失败：保持 lat/lng 为 null，后端按字母兜底
+    }
+
+    try {
+      final res = await ApiService().getProductAvailableStores(p.id, lat: lat, lng: lng);
+      if (res.data is Map && res.data['data'] is Map) {
+        final data = res.data['data'];
+        final stores = data['stores'];
+        if (stores is List) {
+          setState(() {
+            _availableStores = stores.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+            _selectedStoreIdx = 0;
+            _storesSortBy = (data['sort_by'] ?? 'name').toString();
+          });
+        }
+      }
+    } catch (_) {
+      setState(() => _availableStores = []);
+    } finally {
+      if (mounted) setState(() => _loadingStores = false);
+    }
+  }
+
+  void _showStoreDrawer() {
+    if (_availableStores.length <= 1) return;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Container(
+            constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.7),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 16),
+                  child: Text('选择门店', style: TextStyle(fontWeight: FontWeight.w500, fontSize: 16)),
+                ),
+                const Divider(height: 1),
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: _availableStores.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    itemBuilder: (_, idx) {
+                      final s = _availableStores[idx];
+                      final dist = s['distance_km'];
+                      return ListTile(
+                        title: Text(s['name'] ?? ''),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (s['address'] != null) Text(s['address'].toString(), style: const TextStyle(color: Color(0xFF999999), fontSize: 12)),
+                            if (dist != null) Text('距您 $dist km', style: const TextStyle(color: Color(0xFF52C41A), fontSize: 12)),
+                          ],
+                        ),
+                        trailing: idx == _selectedStoreIdx
+                            ? const Icon(Icons.check, color: Color(0xFF52C41A))
+                            : null,
+                        onTap: () {
+                          setState(() => _selectedStoreIdx = idx);
+                          Navigator.pop(ctx);
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   Future<void> _toggleFavorite() async {
@@ -222,11 +377,109 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                           '评价',
                           '${p.reviewCount}条评价${p.avgRating != null ? '  ${p.avgRating!.toStringAsFixed(1)}分' : ''}',
                         ),
-                      if (p.stores.isNotEmpty)
-                        _buildInfoRow('适用门店', p.stores.map((s) => s.storeName ?? '门店${s.storeId}').join('、')),
                     ],
                   ),
                 ),
+                if (p.appointmentMode != 'none' &&
+                    p.timeSlots != null && p.timeSlots!.isNotEmpty)
+                  Container(
+                    color: Colors.white,
+                    padding: const EdgeInsets.all(16),
+                    margin: const EdgeInsets.only(top: 8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('可预约时段（今日）', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+                        const SizedBox(height: 12),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: p.timeSlots!.map<Widget>((slot) {
+                            final label = '${slot['start'] ?? ''}-${slot['end'] ?? ''}';
+                            final endTime = (slot['end'] ?? '').toString();
+                            final expired = _isSlotExpired(endTime);
+                            final fullyBooked = _isSlotFullyBooked(label);
+                            final disabled = expired || fullyBooked;
+                            final suffix = expired ? ' 已结束' : (fullyBooked ? ' 已约满' : '');
+                            return Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: disabled ? const Color(0xFFF5F5F5) : Colors.white,
+                                border: Border.all(color: const Color(0xFFE5E5E5)),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                '$label$suffix',
+                                style: TextStyle(
+                                  color: disabled ? const Color(0xFF999999) : const Color(0xFF333333),
+                                  fontSize: 12,
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ],
+                    ),
+                  ),
+                if (_availableStores.isNotEmpty)
+                  GestureDetector(
+                    onTap: _showStoreDrawer,
+                    child: Container(
+                      color: Colors.white,
+                      padding: const EdgeInsets.all(16),
+                      margin: const EdgeInsets.only(top: 8),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('可用门店', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+                              if (_storesSortBy == 'name')
+                                const Text('已按门店名排序', style: TextStyle(color: Color(0xFFBBBBBB), fontSize: 11)),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Builder(builder: (_) {
+                            final cur = _availableStores[_selectedStoreIdx.clamp(0, _availableStores.length - 1)];
+                            final dist = cur['distance_km'];
+                            return Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                border: Border.all(color: const Color(0xFFF0F0F0)),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(cur['name']?.toString() ?? '', style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14)),
+                                        if (cur['address'] != null) ...[
+                                          const SizedBox(height: 4),
+                                          Text(cur['address'].toString(), style: const TextStyle(color: Color(0xFF999999), fontSize: 12)),
+                                        ],
+                                        if (dist != null) ...[
+                                          const SizedBox(height: 4),
+                                          Text('距您 $dist km', style: const TextStyle(color: Color(0xFF52C41A), fontSize: 12)),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
+                                  if (_availableStores.length > 1)
+                                    const Padding(
+                                      padding: EdgeInsets.only(left: 8),
+                                      child: Text('切换 ▼', style: TextStyle(color: Color(0xFF999999), fontSize: 12)),
+                                    ),
+                                ],
+                              ),
+                            );
+                          }),
+                        ],
+                      ),
+                    ),
+                  ),
                 if (p.description != null && p.description!.isNotEmpty) ...[
                   const SizedBox(height: 8),
                   Container(
