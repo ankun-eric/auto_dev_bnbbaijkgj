@@ -33,7 +33,46 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: H5 登录页 LOGO 无法显示 Bug 方案沟通 — 已生成修复方案（2026-05-01 00:56）
+## Latest Update: 详情页时段约满置灰 & 卡项可用门店按距离排序抽屉切换 — 已开发部署（2026-05-01 02:30）
+
+### 一句话结论
+修复商品/卡项详情页两处 P1 Bug：1）详情页时段未做"已约满置灰"（与下单页不一致），现复用 4-30 已存在的 time-slots/availability 接口在详情页同样置灰显示"已约满/已结束"；2）卡项详情页"可用门店"未按距离排序、不可切换，新增 `/api/products/{id}/available-stores` 接口（Haversine 距离 + 字母兜底排序），多端实现顶部主卡片+底部抽屉切换，三级回退定位策略（GPS → 默认收货地址 → 字母兜底）。涉及后端 + H5 + 小程序 + Flutter App（Android & iOS）四端改动。
+
+### 修改的文件
+- `backend/app/models/models.py` — `MerchantStore` 模型新增 `lat / lng DECIMAL(10,6)` 字段
+- `backend/app/services/schema_sync.py` — `_sync_store_bindding_tables` 内补 `lat / lng` 的 ALTER TABLE 兜底
+- `backend/app/schemas/products.py` — 新增 `AvailableStoreItem / UserLocationInfo / AvailableStoresData / AvailableStoresResponse` 4 个 Schema
+- `backend/app/api/products.py` — 新增 `_haversine_km` 工具函数 + `GET /api/products/{id}/available-stores` 路由
+- `backend/tests/test_product_available_stores.py` — 新增（5 个用例：带坐标距离排序 / 不传坐标字母排序 / 仅传一个坐标 / 商品无门店绑定 / 商品 404，全通过）
+- `h5-web/src/app/product/[id]/page.tsx` — 详情页新增"可预约时段（今日）"预览区 + "可用门店"主卡片+`Popup` 底部抽屉，使用 `navigator.geolocation` 定位失败兜底
+- `miniprogram/app.json` — 补 `permission.scope.userLocation` 描述 + `requiredPrivateInfos: ["getLocation"]`
+- `miniprogram/pages/product-detail/index.{js,wxml,wxss}` — 同上 H5 改造，使用 `wx.getLocation({type:'gcj02'})`，自定义抽屉
+- `flutter_app/pubspec.yaml` — 新增 `geolocator: ^11.0.0` 依赖
+- `flutter_app/ios/Runner/Info.plist` — 新增 `NSLocationWhenInUseUsageDescription`
+- `flutter_app/android/app/src/main/AndroidManifest.xml` — 新增 `ACCESS_FINE_LOCATION` / `ACCESS_COARSE_LOCATION`
+- `flutter_app/lib/services/api_service.dart` — 新增 `getProductTimeSlotsAvailability` / `getProductAvailableStores`
+- `flutter_app/lib/screens/product/product_detail_screen.dart` — 新增时段预览区、可用门店区 + `showModalBottomSheet` 抽屉，三级回退定位
+
+### 新增的 API 端点
+- `GET /api/products/{product_id}/available-stores?lat=&lng=` — 返回该商品/卡项的可用门店列表，按距离/字母排序
+  - 仅返回 status=active 的门店；lat+lng 同时存在 → Haversine 距离升序，第一项 is_nearest=true，sort_by="distance"；任一为空 → 按 store_name 升序，sort_by="name"，distance_km 全为 null
+  - 响应：`{ code, data: { user_location, stores:[{store_id, store_code, name, address, lat, lng, distance_km, is_nearest}], sort_by } }`
+
+### 数据模型变更
+- `MerchantStore`：新增 `lat DECIMAL(10,6) NULL` / `lng DECIMAL(10,6) NULL` 字段（schema_sync 自动 ALTER TABLE 兜底，无需手动迁移）
+
+### 部署 / 打包
+- 后端 + H5 已重建容器并部署到测试环境（commit `c407875`，8 个关键 URL 全部 200）
+- 微信小程序 zip：`miniprogram_20260501_021722_9267.zip`（357 KB）
+- 安卓 APK：`bini_health_android-v20260430-181829-cb88.apk`（80 MB，GitHub Actions Run `25181978209`）
+- iOS IPA：`bini_health_ios.ipa`（GitHub Release `ios-v20260430-181812-e22e`，未签名）
+
+### 用户文档
+- `user_docs/详情页时段约满置灰与门店距离排序切换.md`
+
+---
+
+## Previous Update: H5 登录页 LOGO 无法显示 Bug 方案沟通 — 已生成修复方案（2026-05-01 00:56）
 
 ### 一句话结论
 H5 登录页 LOGO 无法显示，管理后台重新上传提示成功但仍无法加载。经代码核查锁定 3 个独立但同效果的根因：① 默认 `docker-compose.yml` 后端 `environment` 缺失 `STATIC_BASE_URL`，导致 `_build_logo_url` 返回相对路径，浏览器丢失 `/autodev/<id>/` 前缀触发 404；② 部署中可能执行了 `docker compose down -v` 导致 `uploads_data` volume 被清，历史文件物理丢失；③ 网关与后端网络断链残留风险。已输出一期工程一次性修复的完整方案文档。
