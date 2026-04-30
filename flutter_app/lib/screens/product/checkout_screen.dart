@@ -28,6 +28,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   DateTime? _selectedDate = DateTime.now();
   String? _selectedTimeSlot;
   String _appointmentNote = '';
+  List<Map<String, dynamic>> _slotAvailability = [];
 
   @override
   void didChangeDependencies() {
@@ -37,6 +38,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     _quantity = args['quantity'] as int;
     _loadAddresses();
     _loadCoupons();
+    _loadSlotAvailability();
   }
 
   @override
@@ -70,6 +72,49 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         });
       }
     } catch (_) {}
+  }
+
+  Future<void> _loadSlotAvailability() async {
+    if (_product.appointmentMode == 'none') return;
+    if (_product.timeSlots == null || _product.timeSlots!.isEmpty) return;
+    if (_selectedDate == null) return;
+    try {
+      final dateStr = _formatDate(_selectedDate!);
+      final res = await _api.get('/api/products/${_product.id}/time-slots/availability?date=$dateStr');
+      if (res.data is Map && res.data['data'] is Map) {
+        final slots = res.data['data']['slots'];
+        if (slots is List) {
+          setState(() {
+            _slotAvailability = slots.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+          });
+        }
+      }
+    } catch (_) {
+      setState(() => _slotAvailability = []);
+    }
+  }
+
+  bool _isSlotExpired(String slotEnd) {
+    if (_selectedDate == null) return false;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final selDay = DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day);
+    if (selDay != today) return false;
+    final parts = slotEnd.split(':');
+    if (parts.length < 2) return false;
+    final endHour = int.tryParse(parts[0]) ?? 0;
+    final endMin = int.tryParse(parts[1]) ?? 0;
+    final nowMinutes = now.hour * 60 + now.minute;
+    final endMinutes = endHour * 60 + endMin;
+    return endMinutes <= nowMinutes;
+  }
+
+  bool _isSlotFullyBooked(String label) {
+    final avail = _slotAvailability.where((s) =>
+      '${s['start_time']}-${s['end_time']}' == label
+    ).toList();
+    if (avail.isEmpty) return false;
+    return (avail.first['available'] ?? 1) <= 0;
   }
 
   double get _subtotal => _product.salePrice * _quantity;
@@ -368,6 +413,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               );
               if (picked != null) {
                 setState(() => _selectedDate = picked);
+                _loadSlotAvailability();
               }
             },
             child: Container(
@@ -404,13 +450,26 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             children: hasTimeSlots
                 ? _product.timeSlots!.map((slot) {
                     final label = '${slot['start'] ?? ''}-${slot['end'] ?? ''}';
+                    final endTime = slot['end'] ?? '';
+                    final expired = _isSlotExpired(endTime);
+                    final fullyBooked = _isSlotFullyBooked(label);
+                    final disabled = expired || fullyBooked;
+                    final chipLabel = fullyBooked && !expired ? '$label 已约满' : label;
                     return ChoiceChip(
-                      label: Text(label),
+                      label: Text(
+                        chipLabel,
+                        style: TextStyle(
+                          color: disabled ? const Color(0xFF999999) : null,
+                        ),
+                      ),
                       selected: _selectedTimeSlot == label,
                       selectedColor: const Color(0xFFD9F7BE),
-                      onSelected: (selected) {
-                        setState(() => _selectedTimeSlot = selected ? label : null);
-                      },
+                      disabledColor: const Color(0xFFF5F5F5),
+                      onSelected: disabled
+                          ? null
+                          : (selected) {
+                              setState(() => _selectedTimeSlot = selected ? label : null);
+                            },
                     );
                   }).toList()
                 : defaultTimeSlots.map((slot) {

@@ -231,6 +231,62 @@ async def create_unified_order(
                 if appt_time < today_start or appt_time > today_end:
                     raise HTTPException(status_code=400, detail=f"预约日期不能超过{product.advance_days}天内")
 
+            # Bug1 兜底：已过时段校验
+            appt_data = item_d.appointment_data or {}
+            selected_slot = appt_data.get("time_slot", "") if isinstance(appt_data, dict) else ""
+            selected_date_str = appt_data.get("date", "") if isinstance(appt_data, dict) else ""
+            if selected_slot and selected_date_str:
+                try:
+                    selected_date_obj = date.fromisoformat(selected_date_str)
+                except (ValueError, TypeError):
+                    selected_date_obj = None
+                if selected_date_obj == date.today():
+                    slot_end = selected_slot.split("-")[-1] if "-" in selected_slot else ""
+                    if slot_end:
+                        try:
+                            now_time = datetime.now().time()
+                            end_parts = slot_end.split(":")
+                            from datetime import time as dt_time
+                            end_time_obj = dt_time(int(end_parts[0]), int(end_parts[1]))
+                            if end_time_obj <= now_time:
+                                raise HTTPException(status_code=400, detail="该时段已过，请选择其他时段")
+                        except (ValueError, IndexError):
+                            pass
+
+            # Bug2 兜底：容量校验
+            time_slots_config = getattr(product, "time_slots", None) or []
+            if selected_slot and time_slots_config:
+                slot_config = None
+                for ts in time_slots_config:
+                    ts_key = f"{ts.get('start', '')}-{ts.get('end', '')}"
+                    if ts_key == selected_slot:
+                        slot_config = ts
+                        break
+                if slot_config and selected_date_str:
+                    capacity = slot_config.get("capacity", 0)
+                    if capacity > 0:
+                        try:
+                            q_date = date.fromisoformat(selected_date_str)
+                        except (ValueError, TypeError):
+                            q_date = None
+                        if q_date:
+                            excluded = [UnifiedOrderStatus.cancelled.value]
+                            booked_q = await db.execute(
+                                select(func.count(OrderItem.id))
+                                .join(UnifiedOrder, UnifiedOrder.id == OrderItem.order_id)
+                                .where(
+                                    OrderItem.product_id == product.id,
+                                    func.date(OrderItem.appointment_time) == q_date,
+                                    UnifiedOrder.status.notin_(excluded),
+                                )
+                                .where(
+                                    func.json_extract(OrderItem.appointment_data, "$.time_slot") == selected_slot
+                                )
+                            )
+                            booked_count = booked_q.scalar() or 0
+                            if booked_count >= capacity:
+                                raise HTTPException(status_code=400, detail="该时段名额已满，请选择其他时段")
+
         oi = OrderItem(
             order_id=order.id,
             product_id=product.id,

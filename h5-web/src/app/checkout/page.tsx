@@ -38,6 +38,14 @@ interface ProductInfo {
   purchase_appointment_mode?: string;
 }
 
+interface SlotAvailability {
+  start_time: string;
+  end_time: string;
+  capacity: number;
+  booked: number;
+  available: number;
+}
+
 interface Address {
   id: number;
   name: string;
@@ -113,6 +121,7 @@ function CheckoutPage() {
   const [appointmentDate, setAppointmentDate] = useState<string>(todayStr);
   const [appointmentTimeSlot, setAppointmentTimeSlot] = useState<string>('');
   const [maxDate, setMaxDate] = useState<Date | null>(null);
+  const [slotAvailability, setSlotAvailability] = useState<SlotAvailability[]>([]);
 
   useEffect(() => {
     if (!productId) return;
@@ -157,6 +166,18 @@ function CheckoutPage() {
       setAppointmentTimeSlot(`${product.time_slots[0].start}-${product.time_slots[0].end}`);
     }
   }, [product]);
+
+  useEffect(() => {
+    if (!product || !productId || !appointmentDate) return;
+    if (product.appointment_mode === 'none') return;
+    if (!product.time_slots || product.time_slots.length === 0) return;
+    api.get(`/api/products/${productId}/time-slots/availability?date=${appointmentDate}`)
+      .then((res: any) => {
+        const data = res.data || res;
+        setSlotAvailability(data?.data?.slots || []);
+      })
+      .catch(() => setSlotAvailability([]));
+  }, [product, productId, appointmentDate]);
 
   if (!productId) {
     return (
@@ -339,18 +360,29 @@ function CheckoutPage() {
                   ? product.time_slots.map((slot) => {
                       const label = `${slot.start}-${slot.end}`;
                       const selected = appointmentTimeSlot === label;
+
+                      const isToday = appointmentDate === todayStr;
+                      const nowHM = `${String(new Date().getHours()).padStart(2,'0')}:${String(new Date().getMinutes()).padStart(2,'0')}`;
+                      const expired = isToday && slot.end <= nowHM;
+
+                      const avail = slotAvailability.find(s => `${s.start_time}-${s.end_time}` === label);
+                      const fullyBooked = avail ? avail.available <= 0 : false;
+
+                      const disabled = expired || fullyBooked;
+
                       return (
                         <div
                           key={label}
-                          onClick={() => setAppointmentTimeSlot(label)}
-                          className="px-3 py-1.5 rounded-full text-xs cursor-pointer border"
+                          onClick={() => { if (!disabled) setAppointmentTimeSlot(label); }}
+                          className="px-3 py-1.5 rounded-full text-xs border relative"
                           style={{
-                            background: selected ? '#52c41a' : '#fff',
-                            color: selected ? '#fff' : '#333',
-                            borderColor: selected ? '#52c41a' : '#e5e5e5',
+                            background: disabled ? '#f5f5f5' : selected ? '#52c41a' : '#fff',
+                            color: disabled ? '#999' : selected ? '#fff' : '#333',
+                            borderColor: disabled ? '#e5e5e5' : selected ? '#52c41a' : '#e5e5e5',
+                            cursor: disabled ? 'not-allowed' : 'pointer',
                           }}
                         >
-                          {label}
+                          {label}{fullyBooked && !expired ? ' 已约满' : ''}
                         </div>
                       );
                     })

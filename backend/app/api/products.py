@@ -1,7 +1,8 @@
+from datetime import date, datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import cast, func, select, String
+from sqlalchemy import cast, func, select, String, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -14,6 +15,8 @@ from app.models.models import (
     ProductSku,
     ProductStore,
     MerchantStore,
+    UnifiedOrder,
+    UnifiedOrderStatus,
 )
 from app.schemas.products import (
     ProductCategoryTreeResponse,
@@ -281,3 +284,65 @@ async def get_product(product_id: int, db: AsyncSession = Depends(get_db)):
     data.avg_rating = float(avg_rating) if avg_rating else None
     data.category_name = category_name
     return data
+
+
+@router.get("/{product_id}/time-slots/availability")
+async def get_time_slots_availability(
+    product_id: int,
+    date_str: str = Query(..., alias="date", description="查询日期 YYYY-MM-DD"),
+    db: AsyncSession = Depends(get_db),
+):
+    """查询指定商品在某日各时段的可用名额"""
+    result = await db.execute(select(Product).where(Product.id == product_id))
+    product = result.scalar_one_or_none()
+    if not product:
+        raise HTTPException(status_code=404, detail="商品不存在")
+
+    try:
+        query_date = date.fromisoformat(date_str)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="日期格式错误，请使用 YYYY-MM-DD")
+
+    time_slots = product.time_slots or []
+    if not time_slots:
+        return {"code": 0, "data": {"date": date_str, "slots": []}}
+
+    excluded_statuses = [UnifiedOrderStatus.cancelled.value]
+
+    booked_result = await db.execute(
+        select(OrderItem.appointment_data, func.count(OrderItem.id))
+        .join(UnifiedOrder, UnifiedOrder.id == OrderItem.order_id)
+        .where(
+            OrderItem.product_id == product_id,
+            func.date(OrderItem.appointment_time) == query_date,
+            UnifiedOrder.status.notin_(excluded_statuses),
+        )
+        .group_by(OrderItem.appointment_data)
+    )
+
+    booked_map = {}
+    for row in booked_result.all():
+        appt_data = row[0]
+        count = row[1]
+        if appt_data and isinstance(appt_data, dict):
+            slot_key = appt_data.get("time_slot", "")
+            if slot_key:
+                booked_map[slot_key] = booked_map.get(slot_key, 0) + count
+
+    slots_info = []
+    for slot in time_slots:
+        start = slot.get("start", "")
+        end = slot.get("end", "")
+        capacity = slot.get("capacity", 1)
+        slot_key = f"{start}-{end}"
+        booked = booked_map.get(slot_key, 0)
+        available = max(0, capacity - booked)
+        slots_info.append({
+            "start_time": start,
+            "end_time": end,
+            "capacity": capacity,
+            "booked": booked,
+            "available": available,
+        })
+
+    return {"code": 0, "data": {"date": date_str, "slots": slots_info}}

@@ -26,7 +26,10 @@ Page({
     minDate: '',
     endDate: '',
     advanceDaysHint: '',
-    timeSlots: ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00']
+    timeSlots: ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'],
+    slotAvailability: [],
+    disabledSlots: [],
+    fullyBookedSlots: []
   },
 
   onLoad(options) {
@@ -70,7 +73,14 @@ Page({
         updateData.advanceDaysHint = `最远可预约至 ${maxDate.getMonth() + 1}月${maxDate.getDate()}日`;
       }
 
+      if (product.time_slots && product.time_slots.length > 0) {
+        updateData.timeSlots = product.time_slots.map(s => `${s.start}-${s.end}`);
+      }
+
       this.setData(updateData);
+      if (updateData.appointmentDate) {
+        this.loadSlotAvailability(updateData.appointmentDate);
+      }
     } catch (e) {
       console.log('loadProduct error', e);
     }
@@ -134,6 +144,58 @@ Page({
 
   onDateChange(e) {
     this.setData({ appointmentDate: e.detail.value });
+    this.loadSlotAvailability(e.detail.value);
+  },
+
+  async loadSlotAvailability(dateStr) {
+    if (!dateStr || !this.data.productId) return;
+    const product = this.data.product;
+    if (!product || !product.time_slots || product.time_slots.length === 0) return;
+
+    try {
+      const res = await get(`/api/products/${this.data.productId}/time-slots/availability`, { date: dateStr });
+      const data = (res.data || res)?.data || {};
+      const slots = data.slots || [];
+      this.setData({ slotAvailability: slots });
+      this.updateSlotDisabledState(dateStr, slots);
+    } catch (e) {
+      this.setData({ slotAvailability: [], disabledSlots: [], fullyBookedSlots: [] });
+    }
+  },
+
+  updateSlotDisabledState(dateStr, availSlots) {
+    const product = this.data.product;
+    if (!product || !product.time_slots) return;
+
+    const today = this.formatDate(new Date());
+    const isToday = dateStr === today;
+    const now = new Date();
+    const nowHM = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+    const disabled = [];
+    const fullyBooked = [];
+
+    product.time_slots.forEach(slot => {
+      const label = `${slot.start}-${slot.end}`;
+      const expired = isToday && slot.end <= nowHM;
+      const avail = availSlots.find(s => `${s.start_time}-${s.end_time}` === label);
+      const isFull = avail ? avail.available <= 0 : false;
+
+      if (expired || isFull) {
+        disabled.push(label);
+      }
+      if (isFull && !expired) {
+        fullyBooked.push(label);
+      }
+    });
+
+    this.setData({ disabledSlots: disabled, fullyBookedSlots: fullyBooked });
+  },
+
+  onTimeSlotTap(e) {
+    const label = e.currentTarget.dataset.label;
+    if (this.data.disabledSlots.includes(label)) return;
+    this.setData({ appointmentTime: label });
   },
 
   onTimeChange(e) {
@@ -233,7 +295,8 @@ Page({
         quantity: this.data.quantity,
       };
       if (this.data.appointmentTime) {
-        itemData.appointment_time = `${this.data.appointmentDate}T${this.data.appointmentTime}:00`;
+        const startTime = this.data.appointmentTime.split('-')[0];
+        itemData.appointment_time = `${this.data.appointmentDate}T${startTime}:00`;
       }
       if (this.data.appointmentDate) {
         itemData.appointment_data = {

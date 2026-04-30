@@ -55,13 +55,20 @@
         </text>
       </picker>
     </view>
-    <view class="form-item">
-      <text class="form-label">预约时间</text>
-      <picker range="{{timeSlots}}" bindchange="onTimeChange">
-        <text class="form-value {{appointmentTime ? '' : 'placeholder'}}">
-          {{appointmentTime || '请选择时间'}}
-        </text>
-      </picker>
+    <view class="form-item-slots">
+      <text class="form-label">预约时段</text>
+      <view class="time-slots-wrap">
+        <view
+          wx:for="{{timeSlots}}"
+          wx:key="*this"
+          class="time-slot-btn {{appointmentTime === item ? 'active' : ''}} {{disabledSlots.indexOf(item) >= 0 ? 'disabled' : ''}}"
+          bindtap="onTimeSlotTap"
+          data-label="{{item}}"
+        >
+          <text>{{item}}</text>
+          <text wx:if="{{fullyBookedSlots.indexOf(item) >= 0}}" class="slot-full-tag">已约满</text>
+        </view>
+      </view>
     </view>
     <view class="form-item">
       <text class="form-label">备注</text>

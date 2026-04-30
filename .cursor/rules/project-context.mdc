@@ -33,7 +33,33 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 502 Bad Gateway 故障修复 — 已修复验证（2026-04-29 18:10）
+## Latest Update: 预约时段选择两处缺陷修复 — 已开发部署（2026-04-30 13:30）
+
+### 一句话结论
+修复预约时段选择的两处 P0 Bug：1）已过时段未禁用（选"今天"时已结束的时段现在置灰不可选）；2）名额已满仍可下单（已约满时段显示"已约满"标签并禁止点击，后端增加容量校验兜底）。涉及后端 API + H5 + 小程序 + Flutter 四端改动。
+
+### 修改的文件
+- `backend/app/api/products.py` — 新增 `GET /api/products/{product_id}/time-slots/availability` 接口，查询指定商品在某日各时段的可用名额
+- `backend/app/api/unified_orders.py` — 下单接口新增两段兜底校验：①已过时段校验（今天且 end_time <= now 则拒绝）②容量校验（booked >= capacity 则拒绝）
+- `h5-web/src/app/checkout/page.tsx` — 时段选择器增加 availability 查询、已过时段置灰、已约满时段置灰+标签
+- `miniprogram/pages/checkout/index.js` — 同 H5 逻辑：已过时段禁用 + 已约满禁用 + 自定义时段选择器
+- `miniprogram/pages/checkout/index.wxml` — 时段按钮样式：disabled 态 + "已约满" 文字
+- `miniprogram/pages/checkout/index.wxss` — 新增时段按钮相关样式
+- `flutter_app/lib/screens/product/checkout_screen.dart` — 同 H5 逻辑：已过时段禁用 + 已约满禁用
+- `backend/tests/test_time_slot_availability.py` — 新增时段可用性接口测试
+
+### 新增的API端点
+- `GET /api/products/{product_id}/time-slots/availability?date=YYYY-MM-DD` — 返回该商品在指定日期各时段的 capacity/booked/available 信息
+
+### 修改的API端点
+- `POST /api/orders/unified` — 新增已过时段校验（返回 400 "该时段已过，请选择其他时段"）和容量校验（返回 400 "该时段名额已满，请选择其他时段"）
+
+### 用户文档
+- `user_docs/预约时段选择Bug修复.md`
+
+---
+
+## Previous Update: 502 Bad Gateway 故障修复 — 已修复验证（2026-04-29 18:10）
 
 ### 一句话结论
 系统 502 Bad Gateway 故障已修复：部署脚本 deploy_remote.py 被意外修改导致容器网络隔离，现已恢复原始部署脚本，所有容器正常运行，全量链接验证通过（20个端点全部可达）。
