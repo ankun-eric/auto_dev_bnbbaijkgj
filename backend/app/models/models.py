@@ -407,8 +407,12 @@ class MerchantStore(Base):
     contact_name = mapped_column(String(100), nullable=True)
     contact_phone = mapped_column(String(20), nullable=True)
     address = mapped_column(String(255), nullable=True)
-    lat = mapped_column(DECIMAL(10, 6), nullable=True, comment="门店纬度")
-    lng = mapped_column(DECIMAL(10, 6), nullable=True, comment="门店经度")
+    lat = mapped_column(DECIMAL(10, 6), nullable=True, comment="门店纬度 GCJ-02")
+    lng = mapped_column(DECIMAL(10, 6), nullable=True, comment="门店经度 GCJ-02")
+    # [2026-05-01 门店地图能力 PRD v1.0] 拆分省/市/区（来自地图选点逆地理或 admin 手填）
+    province = mapped_column(String(50), nullable=True, comment="省份")
+    city = mapped_column(String(50), nullable=True, comment="城市")
+    district = mapped_column(String(50), nullable=True, comment="区县")
     status = mapped_column(String(20), default="active")
     # [2026-04-25] H5 店铺信息编辑：扩展可编辑字段（详见 PRD §4.2.3）
     logo_url = mapped_column(String(500), nullable=True)
@@ -3187,3 +3191,46 @@ class OrderAppointmentLog(Base):
 
     order_item = relationship("OrderItem")
     changed_by = relationship("User")
+
+
+# ──────────────── 地图配置 ────────────────
+# [2026-05-01 地图配置 PRD v1.0] 集中管理高德地图所有 Key 与默认参数
+# 单行配置（id=1 唯一一行），不存在则前端读 GET /api/admin/map-config 返回默认空值
+# 一旦保存过一次，全系统优先使用本表配置，环境变量自动停用
+
+
+class MapConfig(Base):
+    __tablename__ = "map_config"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    provider = mapped_column(String(20), nullable=False, default="amap")
+    server_key = mapped_column(String(255), nullable=True, default="")
+    web_js_key = mapped_column(String(255), nullable=True, default="")
+    h5_js_key = mapped_column(String(255), nullable=True, default="")
+    security_js_code = mapped_column(String(255), nullable=True, default="")
+    default_city = mapped_column(String(50), nullable=True, default="北京")
+    default_center_lng = mapped_column(DECIMAL(10, 6), nullable=True, default=116.397428)
+    default_center_lat = mapped_column(DECIMAL(10, 6), nullable=True, default=39.90923)
+    default_zoom = mapped_column(Integer, nullable=True, default=12)
+    updated_by = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class MapTestLog(Base):
+    """[2026-05-01 地图配置 PRD v1.0] 测试连接历史记录，页面底部展示最近 5 条。"""
+    __tablename__ = "map_test_logs"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    operator_id = mapped_column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    operator_name = mapped_column(String(100), nullable=True)
+    server_status = mapped_column(String(10), nullable=False, default="unknown")
+    server_detail = mapped_column(String(500), nullable=True)
+    web_status = mapped_column(String(10), nullable=False, default="unknown")
+    web_detail = mapped_column(String(500), nullable=True)
+    h5_status = mapped_column(String(10), nullable=False, default="unknown")
+    h5_detail = mapped_column(String(500), nullable=True)
+    overall_pass = mapped_column(Boolean, default=False)
+    created_at = mapped_column(DateTime, default=datetime.utcnow, index=True)
+
+    operator = relationship("User")

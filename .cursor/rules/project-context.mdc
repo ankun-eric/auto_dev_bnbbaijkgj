@@ -33,7 +33,112 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 详情页时段约满置灰 & 卡项可用门店按距离排序抽屉切换 — 已开发部署（2026-05-01 02:30）
+## Latest Update: 地图配置（PRD v1.0）— 已开发部署（2026-05-01 21:35）
+
+### 一句话结论
+新增「系统管理 → 地图配置」一级菜单，把高德地图所有 Key（Server / Web JS / H5 JS / SecurityJsCode）+ 默认地图参数（默认城市/中心点经纬度/缩放级别）统一收口到管理后台，超级管理员/系统管理员可自助维护，**保存后全系统即配即生效**（数据库优先、环境变量兜底）。同时提供「测试连接」按钮逐项检测 3 个 Key 并写入测试日志，页面底部展示最近 5 条测试历史。两个 JS Key 输入框配套「复制当前域名」按钮 + 域名白名单提示，引导管理员到高德控制台配置白名单。本期仅涉及后端 + 管理后台（admin-web）改动，用户端 H5 / 小程序 / Flutter App 无需改动（它们已通过 `/api/maps/geo-config` 公开接口动态读取，自动享用新配置）。
+
+### 修改的文件
+- `backend/app/models/models.py` — **新增** `MapConfig` 单行配置表 + `MapTestLog` 测试历史表
+- `backend/app/schemas/map_config.py` — **新增**：`MapConfigBase / Update / Response`、`MapTestSubResult / MapTestResponse / MapTestLogItem / MapTestLogsResponse / CopyDomainResponse`
+- `backend/app/api/maps.py` — **重构**：抽出 `get_effective_keys(db)` 统一 Key 入口（数据库 > 环境变量），所有现有路由（reverse-geocoding / poi-search / geo-config / static-map）改为读 db；新增 5 个 admin 配置路由：
+  - `GET  /api/admin/map-config` — 读取当前配置（无记录返回环境变量回填值）
+  - `PUT  /api/admin/map-config` — 保存配置（即配即生效）
+  - `POST /api/admin/map-config/test` — 逐项测试 3 个 Key（并发 + 单项 10s 超时 + 写入日志）
+  - `GET  /api/admin/map-config/test-logs?limit=5` — 最近 N 次测试记录
+  - `GET  /api/admin/map-config/copy-domain` — 从 Origin/Host 头返回当前域名（复制当前域名辅助）
+- `backend/tests/test_map_config.py` — **新增**：11 个用例（GET/PUT/必填校验/经纬度校验/缩放越界/单行幂等/测试连接+日志/即配即生效/未授权拦截/复制域名/静态地图切换 amap）全通过
+- `admin-web/src/app/(admin)/layout.tsx` — 「系统管理」菜单组下新增 `/map-config` 入口（EnvironmentOutlined 图标）+ `getOpenKeys` 联动
+- `admin-web/src/app/(admin)/map-config/page.tsx` — **新增**：地图配置页面（4 区块布局 + 复制域名按钮 + 测试连接 + 历史表格）
+
+### 新增的 API 端点
+- `GET  /api/admin/map-config` — 读取地图配置（admin 鉴权）
+- `PUT  /api/admin/map-config` — 保存地图配置（admin 鉴权，即配即生效）
+- `POST /api/admin/map-config/test` — 测试连接（admin 鉴权，调用高德地理编码 + 加载 maps.js 并匹配错误码）
+- `GET  /api/admin/map-config/test-logs?limit=5` — 测试历史列表（admin 鉴权）
+- `GET  /api/admin/map-config/copy-domain` — 复制当前域名辅助接口（admin 鉴权）
+
+### 修改的 API 端点
+- `GET  /api/maps/geo-config` — 响应新增 `default_city / default_center_lng / default_center_lat / default_zoom` 字段；Key 来源改为数据库优先（保存后立即生效）
+- `GET  /api/maps/static-map` — Server Key 来源改为数据库优先
+- `POST /api/admin/maps/reverse-geocoding`、`GET /api/admin/maps/poi-search` — Server Key 来源改为数据库优先
+
+### 数据模型变更
+- **新增** `map_config` 表（id / provider / server_key / web_js_key / h5_js_key / security_js_code / default_city / default_center_lng / default_center_lat / default_zoom / updated_by / created_at / updated_at），始终单行（PUT 不存在则新建，存在则更新，多次 PUT 不会插入第二行）
+- **新增** `map_test_logs` 表（id / operator_id / operator_name / server_status / server_detail / web_status / web_detail / h5_status / h5_detail / overall_pass / created_at），存储每次「测试连接」结果
+
+### 关键设计
+- **Key 读取优先级**（统一在 `app.api.maps.get_effective_keys`）：数据库 `map_config` → 环境变量 `AMAP_SERVER_KEY/AMAP_WEB_JS_KEY/AMAP_H5_JS_KEY/AMAP_SECURITY_JS_CODE` → 空（前端走 OSM 兜底）
+- 一旦数据库存在配置 → 全系统使用数据库配置，环境变量自动停用
+- **测试连接**：Server Key 调用高德 `geocode/geo` + Web/H5 JS Key 加载 `webapi.amap.com/maps?key=xxx` 并扫描响应体 `INVALID_USER_KEY / USERKEY_PLAT_NOMATCH / INVALID_USER_DOMAIN / INVALID_USER_SCODE / DAILY_QUERY_OVER_LIMIT / SERVICE_NOT_AVAILABLE` 等错误码
+- **权限**：所有 admin 路由依赖 `require_role("admin")`，普通运营/客服/商家访问返回 403/401
+
+### 部署 / 验证
+- 后端 + admin-web 已重建容器并部署到测试环境（3 个核心 URL 200）
+- 服务器端 12 个端到端用例全部通过（geo-config 公开 / static-map 公开 / 未登录 401 / GET-PUT 往返 / 必填校验 / 即配即生效 / 测试连接 + 写日志 / 测试日志列表 / 复制域名 / static-map 切换 amap）
+- 后端 11 个新增单元测试全部通过
+
+### 用户文档
+- `user_docs/地图配置.md`
+
+---
+
+## Previous Update: 门店地图能力（PRD v1.0）— 已开发部署（2026-05-01 19:55）
+
+### 一句话结论
+为 bini-health 引入完整的「门店地图能力」：管理后台门店编辑页集成嵌入式地图选点（POI 搜索 + 拖拽大头针 + 逆地理编码自动回填省/市/区/详细地址 + 手动经纬度兜底），用户端（H5 / 微信小程序 / 安卓 App / 苹果 App）门店卡片右侧渲染带大头针的静态地图缩略图，点击门店卡片调起本机地图 App 进行路线规划（H5 弹自定义抽屉、小程序用 `wx.openLocation`、Flutter App 用 `url_launcher`）。设计上完全兼容无地图 Key 的环境：高德 Web 服务 Key 配置时走高德、未配置时自动降级到 OpenStreetMap，全链路始终可用。涉及后端 + 管理后台 + H5 + 小程序 + Flutter App（Android & iOS）五端改动。
+
+### 修改的文件
+- `backend/app/models/models.py` — `MerchantStore` 新增 `province / city / district VARCHAR(50)` 字段
+- `backend/app/services/schema_sync.py` — `_sync_store_bindding_tables` 内补 `province / city / district` 的 ALTER TABLE 兜底
+- `backend/app/schemas/merchant.py` — `MerchantStoreResponse / Create / Update` 新增 `lat / lng / longitude / latitude / province / city / district` 字段
+- `backend/app/api/admin_merchant.py` — `_normalize_lat_lng` 工具函数（兼容 lat/lng 与 longitude/latitude 双命名 + 范围校验）；`create_store` 经纬度新建必填校验；`update_store` 调用规范化；`list_stores / get_store / _build_store_response` 返回坐标 + 省市区
+- `backend/app/api/maps.py` — **新增**：4 个地图代理路由（逆地理编码 / POI 搜索 / 静态地图 URL / 地图配置）
+- `backend/app/main.py` — 注册 `maps.router`
+- `backend/app/api/products.py` — `available-stores` 接口响应附带 `static_map_url / province / city / district / longitude / latitude`，自动选高德/OSM 静态地图
+- `backend/app/schemas/products.py` — `AvailableStoreItem` 扩展字段
+- `backend/tests/test_store_map_capability.py` — **新增**（7 个用例：缺坐标 400 / 非法坐标 400 / 合法坐标新建 / longitude/latitude 别名提交 / 编辑老门店仅更新坐标 / geo-config 公开接口 / 静态地图 URL 接口，全通过）
+- `backend/tests/test_store_code_auto.py / test_merchant.py` — 老用例补 `lat / lng` 新建参数
+- `admin-web/src/components/StoreMapPicker.tsx` — **新增**：嵌入式地图选点组件（CDN 动态加载 Leaflet + OSM 瓦片 + POI 搜索 + 拖拽 + 逆地理编码 + 手动经纬度高级设置）
+- `admin-web/src/app/(admin)/merchant/stores/page.tsx` — 门店编辑弹窗集成 `StoreMapPicker` + `onValuesChange` 自动联动省市区/详细地址 + 新建必填校验
+- `h5-web/src/components/MapNavSheet.tsx` — **新增**：H5 地图导航选择抽屉（高德/百度/腾讯/苹果，按平台展示，1.5s 兜底跳 Web 版）
+- `h5-web/src/app/product/[id]/page.tsx` — 商品详情页门店卡片右侧 80×80 静态地图缩略图 + 点击整张卡片唤起 `MapNavSheet`，无经纬度时隐藏缩略图与"距您 X km"
+- `miniprogram/app.json` — `requiredPrivateInfos` 增加 `chooseLocation / openLocation`
+- `miniprogram/pages/product-detail/index.{js,wxml,wxss}` — 详情页门店卡片新增缩略图 + `onStoreCardTap` 调用 `wx.openLocation`（微信原生面板）
+- `flutter_app/lib/utils/map_nav_util.dart` — **新增**：地图导航工具（`canLaunchUrl` 探测 + 4 个候选 + Web 兜底）
+- `flutter_app/ios/Runner/Info.plist` — 新增 `LSApplicationQueriesSchemes`：`iosamap / baidumap / qqmap / comgooglemaps / https`
+- `flutter_app/android/app/src/main/AndroidManifest.xml` — 新增 `<queries>` 节点声明 4 个地图 App package + geo/https intent
+- `flutter_app/lib/screens/product/product_detail_screen.dart` — 详情页门店卡片新增 100×100 静态地图缩略图（`CachedNetworkImage`）+ `MapNavUtil.showMapNavSheet` 调起
+
+### 新增的 API 端点
+- `POST /api/admin/maps/reverse-geocoding` — 逆地理编码代理（坐标 → 省/市/区/格式化地址/adcode），高德 + OSM 双源，单管理员 30 次/分钟限流
+- `GET /api/admin/maps/poi-search?keyword=&city=` — POI 关键字搜索代理，高德 + OSM 双源
+- `GET /api/maps/geo-config` — 公开：返回前端按需的 JS Key（`web_js_key / h5_js_key / has_server_key / provider`）
+- `GET /api/maps/static-map?lat=&lng=&zoom=&width=&height=` — 公开：返回静态地图 URL（自动选高德/OSM）
+
+### 修改的 API 端点
+- `POST/PUT /api/admin/merchant/stores` — 接受 `lat / lng / longitude / latitude / province / city / district`；新建必传经纬度
+- `GET /api/admin/merchant/stores` 列表 / `GET /api/admin/merchant/stores/{id}` 详情 — 响应附带坐标 + 省市区
+- `GET /api/products/{id}/available-stores` — 响应每个 store 附带 `static_map_url / province / city / district / longitude / latitude`
+
+### 数据模型变更
+- `MerchantStore`：新增 `province VARCHAR(50) NULL` / `city VARCHAR(50) NULL` / `district VARCHAR(50) NULL`（schema_sync 自动 ALTER TABLE 兜底）
+
+### 后端环境变量（可选）
+- `AMAP_SERVER_KEY` — 高德 Web 服务 Key（POI 搜索/逆地理编码精度更高），未配置时降级 OSM
+- `AMAP_WEB_JS_KEY` / `AMAP_H5_JS_KEY` — 前端 JS Key，前端可通过 `/api/maps/geo-config` 公开接口按需读取
+
+### 部署 / 打包
+- 后端 + admin-web + h5-web 已重建容器并部署到测试环境（3 个核心 URL 200，5 个新增 maps 路由 200）
+- 5 个新增/修改的 API 端点已通过 OpenAPI 验证可达
+- 7 个新增后端测试全部通过
+
+### 用户文档
+- `user_docs/门店地图能力.md`
+
+---
+
+## Earlier Update: 详情页时段约满置灰 & 卡项可用门店按距离排序抽屉切换 — 已开发部署（2026-05-01 02:30）
 
 ### 一句话结论
 修复商品/卡项详情页两处 P1 Bug：1）详情页时段未做"已约满置灰"（与下单页不一致），现复用 4-30 已存在的 time-slots/availability 接口在详情页同样置灰显示"已约满/已结束"；2）卡项详情页"可用门店"未按距离排序、不可切换，新增 `/api/products/{id}/available-stores` 接口（Haversine 距离 + 字母兜底排序），多端实现顶部主卡片+底部抽屉切换，三级回退定位策略（GPS → 默认收货地址 → 字母兜底）。涉及后端 + H5 + 小程序 + Flutter App（Android & iOS）四端改动。

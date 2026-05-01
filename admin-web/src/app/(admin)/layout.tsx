@@ -209,6 +209,7 @@ const menuItems: MenuItem[] = [
       { key: '/wechat-push', label: '微信推送管理' },
       { key: '/email-notify', label: '邮件通知管理' },
       { key: '/cos-config', label: '存储配置' },
+      { key: '/map-config', icon: <EnvironmentOutlined />, label: '地图配置' },
       { key: '/audit/phones', label: '审核手机号配置' },
       { key: '/audit/center', label: '审核中心' },
     ],
@@ -226,7 +227,7 @@ function getOpenKeys(pathname: string): string[] {
   if (pathname.startsWith('/home-settings') || pathname.startsWith('/home-menus') || pathname.startsWith('/home-banners') || pathname.startsWith('/notices') || pathname.startsWith('/bottom-nav')) return ['home-config'];
   if (pathname.startsWith('/search')) return ['search-manage'];
   if (pathname.startsWith('/system-messages')) return ['messages'];
-  if (pathname.startsWith('/sms') || pathname.startsWith('/settings') || pathname.startsWith('/wechat-push') || pathname.startsWith('/email-notify') || pathname.startsWith('/cos-config')) return ['system'];
+  if (pathname.startsWith('/sms') || pathname.startsWith('/settings') || pathname.startsWith('/wechat-push') || pathname.startsWith('/email-notify') || pathname.startsWith('/cos-config') || pathname.startsWith('/map-config')) return ['system'];
   if (pathname.startsWith('/health-plan')) return ['health-plan'];
   if (pathname.startsWith('/health-records') || pathname.startsWith('/relation-types') || pathname.startsWith('/disease-presets') || pathname.startsWith('/family-management')) return ['health'];
   if (pathname.startsWith('/product-system')) return ['product-system'];
