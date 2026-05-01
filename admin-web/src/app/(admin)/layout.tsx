@@ -23,22 +23,15 @@ import {
   CloudOutlined,
   BarChartOutlined,
   DatabaseOutlined,
-  FormOutlined,
   HomeOutlined,
   HeartOutlined,
   ScheduleOutlined,
   EnvironmentOutlined,
   PhoneOutlined,
   TeamOutlined,
-  SoundOutlined,
-  ShareAltOutlined,
   AppstoreOutlined,
-  TagsOutlined,
-  ScanOutlined,
   IdcardOutlined,
-  PieChartOutlined,
   KeyOutlined,
-  LinkOutlined,
 } from '@ant-design/icons';
 import { useRouter, usePathname } from 'next/navigation';
 import type { MenuProps } from 'antd';
@@ -86,9 +79,9 @@ const menuItems: MenuItem[] = [
     children: [
       { key: '/ai-center/sensitive-words', label: '敏感词管理' },
       { key: '/ai-center/prompts', label: '提示词配置' },
-      { key: '/prompt-templates', icon: <FormOutlined />, label: 'Prompt 模板配置' },
+      { key: '/prompt-templates', label: 'Prompt 模板配置' },
       { key: '/ai-center/disclaimers', label: '免责提示配置' },
-      { key: '/tcm-config', icon: <MedicineBoxOutlined />, label: '中医养生配置' },
+      { key: '/tcm-config', label: '中医养生配置' },
     ],
   },
   {
@@ -99,8 +92,8 @@ const menuItems: MenuItem[] = [
       { key: '/function-buttons', label: '功能按钮管理' },
       { key: '/digital-humans', label: '数字人形象管理' },
       { key: '/voice-service', label: '语音服务配置' },
-      { key: '/tts-config', icon: <SoundOutlined />, label: 'TTS语音配置' },
-      { key: '/share-config', icon: <ShareAltOutlined />, label: '分享海报配置' },
+      { key: '/tts-config', label: 'TTS语音配置' },
+      { key: '/share-config', label: '分享海报配置' },
       { key: '/ai-config/video-consult', label: '视频客服' },
       { key: '/ai-config/chat-timeout', label: '对话超时配置' },
     ],
@@ -135,17 +128,17 @@ const menuItems: MenuItem[] = [
     icon: <AppstoreOutlined />,
     label: '商品体系',
     children: [
-      { key: '/product-system/categories', icon: <TagsOutlined />, label: '商品分类' },
-      { key: '/product-system/products', icon: <ShopOutlined />, label: '商品管理' },
-      { key: '/product-system/store-bindding', icon: <LinkOutlined />, label: '适用门店' },
-      { key: '/product-system/appointment-forms', icon: <FormOutlined />, label: '预约表单库' },
-      { key: '/product-system/orders', icon: <ShoppingCartOutlined />, label: '订单明细' },
-      { key: '/product-system/coupons', icon: <GiftOutlined />, label: '优惠券管理' },
-      { key: '/product-system/new-user-coupons', icon: <GiftOutlined />, label: '新人券池' },
-      { key: '/product-system/partners', icon: <KeyOutlined />, label: '合作方管理' },
-      { key: '/product-system/redemptions', icon: <ScanOutlined />, label: '核销管理' },
-      { key: '/product-system/visits', icon: <IdcardOutlined />, label: '进店记录' },
-      { key: '/product-system/statistics', icon: <PieChartOutlined />, label: '订单统计' },
+      { key: '/product-system/categories', label: '商品分类' },
+      { key: '/product-system/products', label: '商品管理' },
+      { key: '/product-system/store-bindding', label: '适用门店' },
+      { key: '/product-system/appointment-forms', label: '预约表单库' },
+      { key: '/product-system/orders', label: '订单明细' },
+      { key: '/product-system/coupons', label: '优惠券管理' },
+      { key: '/product-system/new-user-coupons', label: '新人券池' },
+      { key: '/product-system/partners', label: '合作方管理' },
+      { key: '/product-system/redemptions', label: '核销管理' },
+      { key: '/product-system/visits', label: '进店记录' },
+      { key: '/product-system/statistics', label: '订单统计' },
     ],
   },
   {
@@ -209,12 +202,44 @@ const menuItems: MenuItem[] = [
       { key: '/wechat-push', label: '微信推送管理' },
       { key: '/email-notify', label: '邮件通知管理' },
       { key: '/cos-config', label: '存储配置' },
-      { key: '/map-config', icon: <EnvironmentOutlined />, label: '地图配置' },
+      { key: '/map-config', label: '地图配置' },
       { key: '/audit/phones', label: '审核手机号配置' },
       { key: '/audit/center', label: '审核中心' },
     ],
   },
 ];
+
+/**
+ * 管理后台侧边栏菜单视觉规范（强约束）：
+ * - 一级菜单**必须**配置图标
+ * - 二级菜单**禁止**配置图标，仅以纯文字呈现
+ * - 折叠态弹出浮层中的二级菜单同样**禁止**配置图标
+ *
+ * 为防止后续维护者无意中给二级菜单配置 icon，这里在渲染前递归清洗：
+ * 凡是 SubMenu 的 children（即二级及以下菜单），统一移除其 icon 字段。
+ * 一级菜单（顶层 items）的 icon 保留不动。
+ */
+function stripChildrenIcons(items: MenuItem[]): MenuItem[] {
+  return items.map((item) => {
+    if (!item) return item;
+    const anyItem = item as any;
+    if (Array.isArray(anyItem.children)) {
+      return {
+        ...anyItem,
+        children: anyItem.children.map((child: any) => {
+          if (!child) return child;
+          const { icon, ...rest } = child;
+          if (Array.isArray(rest.children)) {
+            const sanitized = stripChildrenIcons([rest] as MenuItem[]);
+            return sanitized[0];
+          }
+          return rest;
+        }),
+      } as MenuItem;
+    }
+    return item;
+  });
+}
 
 function getOpenKeys(pathname: string): string[] {
   if (pathname.startsWith('/merchant') || pathname.startsWith('/merchant-categories') || pathname.startsWith('/admin-settlements')) return ['merchant'];
@@ -335,7 +360,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           mode="inline"
           selectedKeys={[pathname]}
           defaultOpenKeys={getOpenKeys(pathname)}
-          items={menuItems}
+          items={stripChildrenIcons(menuItems)}
           onClick={handleMenuClick}
           style={{ border: 'none', padding: '8px 0' }}
         />
