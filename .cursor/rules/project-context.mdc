@@ -33,7 +33,27 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 地图配置（PRD v1.0）— 已开发部署（2026-05-01 21:35）
+## Latest Update: admin 后台二级菜单图标统一（Bug 修复）— 已开发部署（2026-05-01 23:50）
+
+### 一句话结论
+管理后台左侧侧边栏中"零星带图标"的 15 项二级菜单（涉及 AI 配置中心 / AI 咨询配置 / 商品体系 / 系统管理 4 个一级菜单）全部统一为"无图标"的纯文字风格；同时在渲染层增加 `stripChildrenIcons` 工具函数从源头屏蔽所有 SubMenu children 的 icon，并新增 `admin-web/CONVENTIONS.md` 沉淀「一级菜单必须有图标 / 二级菜单禁止有图标」开发规范，避免后续同类 Bug 复发。
+
+### 修改的文件
+- `admin-web/src/app/(admin)/layout.tsx` — 移除 15 个二级菜单项的 `icon` 字段；新增 `stripChildrenIcons(items)` 工具函数（在 `<Menu items={...}/>` 前递归清洗 SubMenu children 的 icon）；清理未再使用的 icon import（`FormOutlined / SoundOutlined / ShareAltOutlined / TagsOutlined / ScanOutlined / PieChartOutlined / LinkOutlined`）
+- `admin-web/CONVENTIONS.md` — **新增**：管理后台开发规范文档，把"一级菜单必须有图标 / 二级菜单禁止有图标 / 折叠态浮层同样禁止"写入长期约束
+
+### 验证
+- 部署到测试环境后从外部 HTTPS 验证 10/10 关键路径全部 200 可达（`/admin/`、`/admin/login`、`/admin/dashboard`、`/admin/users`、`/admin/product-system/products`、`/admin/prompt-templates`、`/admin/tcm-config`、`/admin/tts-config`、`/admin/map-config` 等）
+- 一级菜单图标 + 右上角头像下拉菜单图标完全保留，未受影响
+- 用户体验手册：`user_docs/管理后台二级菜单图标统一.md`
+
+### 影响范围
+- 仅前端视觉调整，0 后端改动、0 数据库改动、0 接口改动、0 客户端（小程序/Flutter/H5）改动
+- admin-web 容器已用 `--no-cache` 重新构建并启动
+
+---
+
+## Previous Update: 地图配置（PRD v1.0）— 已开发部署（2026-05-01 21:35）
 
 ### 一句话结论
 新增「系统管理 → 地图配置」一级菜单，把高德地图所有 Key（Server / Web JS / H5 JS / SecurityJsCode）+ 默认地图参数（默认城市/中心点经纬度/缩放级别）统一收口到管理后台，超级管理员/系统管理员可自助维护，**保存后全系统即配即生效**（数据库优先、环境变量兜底）。同时提供「测试连接」按钮逐项检测 3 个 Key 并写入测试日志，页面底部展示最近 5 条测试历史。两个 JS Key 输入框配套「复制当前域名」按钮 + 域名白名单提示，引导管理员到高德控制台配置白名单。本期仅涉及后端 + 管理后台（admin-web）改动，用户端 H5 / 小程序 / Flutter App 无需改动（它们已通过 `/api/maps/geo-config` 公开接口动态读取，自动享用新配置）。
