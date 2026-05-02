@@ -53,6 +53,7 @@ interface Product {
   advance_days: number | null;
   daily_quota: number | null;
   time_slots: Array<{ start: string; end: string; capacity: number }> | null;
+  include_today: boolean;
   faq: any;
   recommend_weight: number;
   sales_count: number;
@@ -121,6 +122,7 @@ function mapProduct(raw: Record<string, any>): Product {
           capacity: Number(s.capacity ?? 0),
         }))
       : null,
+    include_today: raw.include_today === false ? false : true,
     faq: raw.faq ?? null,
     recommend_weight: Number(raw.recommend_weight ?? 0),
     sales_count: Number(raw.sales_count ?? 0),
@@ -629,6 +631,7 @@ export default function ProductsPage() {
       points_exchangeable: false,
       points_deductible: false,
       spec_mode: 1,
+      include_today: true,
     });
     setModalVisible(true);
   };
@@ -664,6 +667,7 @@ export default function ProductsPage() {
       purchase_appointment_mode: detail.purchase_appointment_mode || undefined,
       advance_days: detail.advance_days ?? undefined,
       daily_quota: detail.daily_quota ?? undefined,
+      include_today: detail.include_today === false ? false : true,
       custom_form_id: detail.custom_form_id ?? undefined,
       recommend_weight: detail.recommend_weight,
       status: detail.status,
@@ -851,13 +855,16 @@ export default function ProductsPage() {
         setTabErrors(prev => ({ ...prev, appointment: true }));
         return;
       }
-      if (mode === 'date') {
+      if (mode === 'date' || mode === 'time_slot') {
+        // BUG-PRODUCT-APPT-002：date / time_slot 共用「提前可预约天数」校验
         if (!values.advance_days || Number(values.advance_days) <= 0) {
           message.error('请填写"提前可预约天数"（需大于 0）');
           setActiveTab('appointment');
           setTabErrors(prev => ({ ...prev, appointment: true }));
           return;
         }
+      }
+      if (mode === 'date') {
         if (!values.daily_quota || Number(values.daily_quota) <= 0) {
           message.error('请填写"单日最大预约人数"（需大于 0）');
           setActiveTab('appointment');
@@ -935,9 +942,13 @@ export default function ProductsPage() {
       redeem_count: values.redeem_count ?? 1,
       appointment_mode: mode,
       purchase_appointment_mode: mode !== 'none' ? values.purchase_appointment_mode : null,
-      advance_days: mode === 'date' ? Number(values.advance_days) : null,
+      // BUG-PRODUCT-APPT-002：date 与 time_slot 共用 advance_days / include_today
+      advance_days: (mode === 'date' || mode === 'time_slot') ? Number(values.advance_days) : null,
       daily_quota: mode === 'date' ? Number(values.daily_quota) : null,
       time_slots: mode === 'time_slot' ? timeSlots : null,
+      include_today: (mode === 'date' || mode === 'time_slot')
+        ? (values.include_today === false ? false : true)
+        : true,
       custom_form_id: mode === 'custom_form' ? values.custom_form_id : null,
       recommend_weight: values.recommend_weight ?? 0,
       status: publish ? 'active' : (values.status || 'draft'),
@@ -1445,7 +1456,8 @@ export default function ProductsPage() {
             </>
           )}
 
-          {apptMode === 'date' && (
+          {/* BUG-PRODUCT-APPT-002：date 与 time_slot 共用「提前可预约天数」与「预约起始日」 */}
+          {(apptMode === 'date' || apptMode === 'time_slot') && (
             <Row gutter={16}>
               <Col span={12}>
                 <Form.Item
@@ -1456,6 +1468,26 @@ export default function ProductsPage() {
                   <InputNumber min={1} max={365} style={{ width: '100%' }} placeholder="例如 7（最多可提前 7 天预约）" />
                 </Form.Item>
               </Col>
+              <Col span={12}>
+                <Form.Item
+                  label={<span>预约起始日 <span style={{ color: '#ff4d4f' }}>*</span></span>}
+                  name="include_today"
+                  initialValue={true}
+                  tooltip="选择「包含今天」，可预约日期 = [今天, 今天 + N - 1 天]；选择「从明天起算」，可预约日期 = [明天, 明天 + N - 1 天]"
+                >
+                  <Radio.Group
+                    options={[
+                      { label: '包含今天', value: true },
+                      { label: '从明天起算', value: false },
+                    ]}
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
+          )}
+
+          {apptMode === 'date' && (
+            <Row gutter={16}>
               <Col span={12}>
                 <Form.Item
                   label={<span>单日最大预约人数 <span style={{ color: '#ff4d4f' }}>*</span></span>}

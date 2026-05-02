@@ -63,6 +63,8 @@ class Product {
   final String appointmentMode;
   final int? advanceDays;
   final List<Map<String, dynamic>>? timeSlots;
+  // BUG-PRODUCT-APPT-002：date / time_slot 共用「预约起始日是否包含今天」，默认 true
+  final bool includeToday;
   final String? purchaseAppointmentMode;
   final int? customFormId;
   final dynamic faq;
@@ -101,6 +103,7 @@ class Product {
     this.appointmentMode = 'none',
     this.advanceDays,
     this.timeSlots,
+    this.includeToday = true,
     this.purchaseAppointmentMode,
     this.customFormId,
     this.faq,
@@ -172,6 +175,7 @@ class Product {
       timeSlots: (json['time_slots'] as List<dynamic>?)
           ?.map((e) => Map<String, dynamic>.from(e as Map))
           .toList(),
+      includeToday: json['include_today'] == false ? false : true,
       purchaseAppointmentMode: json['purchase_appointment_mode'],
       customFormId: json['custom_form_id'],
       faq: json['faq'],

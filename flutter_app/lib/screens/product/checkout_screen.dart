@@ -379,8 +379,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final hasAdvanceDays = _product.advanceDays != null && _product.advanceDays! > 0;
+    // BUG-PRODUCT-APPT-002：可预约日期范围统一公式
+    // include_today=true  → [today, today + N - 1]
+    // include_today=false → [today + 1, today + N]
+    final firstDate = (_product.includeToday)
+        ? today
+        : today.add(const Duration(days: 1));
     final lastDate = hasAdvanceDays
-        ? today.add(Duration(days: _product.advanceDays! - 1))
+        ? firstDate.add(Duration(days: _product.advanceDays! - 1))
         : today.add(const Duration(days: 365));
 
     final defaultTimeSlots = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'];
@@ -397,7 +403,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           if (hasAdvanceDays) ...[
             const SizedBox(height: 8),
             Text(
-              '最远可预约至 ${lastDate.month}月${lastDate.day}日',
+              '可预约：${firstDate.month}月${firstDate.day}日 ~ ${lastDate.month}月${lastDate.day}日'
+              '${_product.includeToday ? '' : '（不含今天）'}',
               style: TextStyle(fontSize: 13, color: Colors.grey[500]),
             ),
           ],
@@ -406,9 +413,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             onTap: () async {
               final picked = await showDatePicker(
                 context: context,
-                firstDate: today,
+                firstDate: firstDate,
                 lastDate: lastDate,
-                initialDate: _selectedDate ?? today,
+                initialDate: _selectedDate ?? firstDate,
                 locale: const Locale('zh'),
               );
               if (picked != null) {

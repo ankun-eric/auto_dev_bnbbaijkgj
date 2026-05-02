@@ -2579,10 +2579,15 @@ class Product(Base):
     appointment_mode = mapped_column(Enum(AppointmentMode), default=AppointmentMode.none)
     purchase_appointment_mode = mapped_column(Enum(PurchaseAppointmentMode), nullable=True)
     custom_form_id = mapped_column(Integer, ForeignKey("appointment_forms.id"), nullable=True)
-    # ── 预约联动 UI 新增字段（BUG-PRODUCT-APPT-001）──
-    advance_days = mapped_column(Integer, nullable=True)  # date 模式：提前可预约天数
-    daily_quota = mapped_column(Integer, nullable=True)  # date 模式：单日最大预约人数
-    time_slots = mapped_column(JSON, nullable=True)  # time_slot 模式：时段列表 [{start,end,capacity}]
+    # ── 预约联动 UI 新增字段（BUG-PRODUCT-APPT-001 / BUG-PRODUCT-APPT-002）──
+    # advance_days：date 与 time_slot 模式共用「提前可预约天数」
+    advance_days = mapped_column(Integer, nullable=True)
+    # daily_quota：date 模式专属「单日最大预约人数」
+    daily_quota = mapped_column(Integer, nullable=True)
+    # time_slots：time_slot 模式专属时段列表 [{start,end,capacity}]
+    time_slots = mapped_column(JSON, nullable=True)
+    # include_today：date 与 time_slot 模式共用「预约起始日是否包含今天」，默认包含
+    include_today = mapped_column(Boolean, nullable=False, default=True, server_default="1")
     faq = mapped_column(JSON, nullable=True)
     recommend_weight = mapped_column(Integer, default=0)
     sales_count = mapped_column(Integer, default=0)

@@ -32,6 +32,7 @@ interface ProductInfo {
   fulfillment_type: string;
   points_deductible: boolean;
   appointment_mode: string;
+  include_today?: boolean;
   redeem_count: number;
   advance_days?: number;
   time_slots?: { start: string; end: string; capacity: number }[];
@@ -120,6 +121,7 @@ function CheckoutPage() {
 
   const [appointmentDate, setAppointmentDate] = useState<string>(todayStr);
   const [appointmentTimeSlot, setAppointmentTimeSlot] = useState<string>('');
+  const [minDate, setMinDate] = useState<Date | null>(null);
   const [maxDate, setMaxDate] = useState<Date | null>(null);
   const [slotAvailability, setSlotAvailability] = useState<SlotAvailability[]>([]);
 
@@ -155,11 +157,22 @@ function CheckoutPage() {
   }, [productId]);
 
   useEffect(() => {
+    // BUG-PRODUCT-APPT-002：可预约日期范围统一公式
+    // include_today=true  → [today, today + N - 1]
+    // include_today=false → [today + 1, today + N]
     if (product && product.advance_days && product.advance_days > 0) {
-      const max = new Date();
-      max.setDate(max.getDate() + product.advance_days - 1);
-      setMaxDate(max);
+      const inc = product.include_today === false ? false : true;
+      const start = new Date();
+      start.setHours(0, 0, 0, 0);
+      if (!inc) start.setDate(start.getDate() + 1);
+      const end = new Date(start);
+      end.setDate(end.getDate() + product.advance_days - 1);
+      setMinDate(start);
+      setMaxDate(end);
+      // 默认选中可预约范围的起点，避免初始 today 越界
+      setAppointmentDate(formatDateStr(start));
     } else {
+      setMinDate(null);
       setMaxDate(null);
     }
     if (product?.time_slots && product.time_slots.length > 0) {
@@ -347,9 +360,10 @@ function CheckoutPage() {
                 <RightOutline fontSize={12} color="#999" className="ml-1" />
               </div>
             </div>
-            {product.advance_days && product.advance_days > 0 && maxDate && (
+            {product.advance_days && product.advance_days > 0 && minDate && maxDate && (
               <div className="text-xs text-gray-400 mt-2">
-                最远可预约至 {maxDate.getMonth() + 1}月{maxDate.getDate()}日
+                可预约：{minDate.getMonth() + 1}月{minDate.getDate()}日 ~ {maxDate.getMonth() + 1}月{maxDate.getDate()}日
+                {product.include_today === false ? '（不含今天）' : ''}
               </div>
             )}
 
@@ -602,8 +616,8 @@ function CheckoutPage() {
         visible={showDatePicker}
         onClose={() => setShowDatePicker(false)}
         onConfirm={(val) => setAppointmentDate(formatDateStr(val))}
-        defaultValue={new Date()}
-        min={new Date()}
+        defaultValue={minDate || new Date()}
+        min={minDate || new Date()}
         {...(maxDate ? { max: maxDate } : {})}
         precision="day"
       />

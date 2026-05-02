@@ -860,6 +860,29 @@ async def _sync_product_system_tables(conn: AsyncConnection) -> None:
             await conn.execute(text("ALTER TABLE products ADD COLUMN daily_quota INT NULL"))
         if "time_slots" not in cols:
             await conn.execute(text("ALTER TABLE products ADD COLUMN time_slots JSON NULL"))
+        # ── BUG-PRODUCT-APPT-002：include_today 字段（date / time_slot 共用，默认 true）──
+        if "include_today" not in cols:
+            await conn.execute(text(
+                "ALTER TABLE products ADD COLUMN include_today TINYINT(1) NOT NULL DEFAULT 1 "
+                "COMMENT '预约起始日是否包含今天，默认 true'"
+            ))
+        # ── 历史数据兜底（幂等）：time_slot 模式 advance_days 为空 → 7 天 ──
+        try:
+            await conn.execute(text(
+                "UPDATE products SET advance_days = 7 "
+                "WHERE appointment_mode = 'time_slot' "
+                "AND (advance_days IS NULL OR advance_days <= 0)"
+            ))
+        except Exception:
+            pass
+        try:
+            await conn.execute(text(
+                "UPDATE products SET advance_days = 7 "
+                "WHERE appointment_mode = 'date' "
+                "AND (advance_days IS NULL OR advance_days <= 0)"
+            ))
+        except Exception:
+            pass
         # ── 预约模式枚举对齐：MySQL ENUM 扩容 + 旧值清洗（BUG-PRODUCT-APPT-001）──
         try:
             await conn.execute(text(
@@ -1194,6 +1217,13 @@ async def _sync_store_bindding_tables(conn: AsyncConnection) -> None:
             await conn.execute(text("ALTER TABLE merchant_stores ADD COLUMN lat DECIMAL(10,6) NULL"))
         if "lng" not in cols:
             await conn.execute(text("ALTER TABLE merchant_stores ADD COLUMN lng DECIMAL(10,6) NULL"))
+        # [2026-05-01 门店地图能力 PRD v1.0] 省/市/区拆分字段
+        if "province" not in cols:
+            await conn.execute(text("ALTER TABLE merchant_stores ADD COLUMN province VARCHAR(50) NULL"))
+        if "city" not in cols:
+            await conn.execute(text("ALTER TABLE merchant_stores ADD COLUMN city VARCHAR(50) NULL"))
+        if "district" not in cols:
+            await conn.execute(text("ALTER TABLE merchant_stores ADD COLUMN district VARCHAR(50) NULL"))
 
     # 2. merchant_notifications 新增 notification_type
     if table_cols.get("merchant_notifications") is not None:

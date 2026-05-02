@@ -65,12 +65,23 @@ Page({
         appointmentDate: this.formatDate(today),
       };
 
+      // BUG-PRODUCT-APPT-002：可预约日期范围统一公式
+      // include_today=true  → [today, today + N - 1]
+      // include_today=false → [today + 1, today + N]
       const advanceDays = product.advance_days || 0;
+      const includeToday = product.include_today === false ? false : true;
       if (advanceDays > 0) {
-        const maxDate = new Date(today);
+        const startDate = new Date(today);
+        if (!includeToday) {
+          startDate.setDate(startDate.getDate() + 1);
+        }
+        const maxDate = new Date(startDate);
         maxDate.setDate(maxDate.getDate() + advanceDays - 1);
+        updateData.minDate = this.formatDate(startDate);
         updateData.endDate = this.formatDate(maxDate);
-        updateData.advanceDaysHint = `最远可预约至 ${maxDate.getMonth() + 1}月${maxDate.getDate()}日`;
+        updateData.appointmentDate = this.formatDate(startDate);
+        const incHint = includeToday ? '' : '（不含今天）';
+        updateData.advanceDaysHint = `可预约：${startDate.getMonth() + 1}月${startDate.getDate()}日 ~ ${maxDate.getMonth() + 1}月${maxDate.getDate()}日${incHint}`;
       }
 
       if (product.time_slots && product.time_slots.length > 0) {

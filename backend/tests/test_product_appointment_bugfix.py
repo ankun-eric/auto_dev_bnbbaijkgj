@@ -113,6 +113,7 @@ async def test_create_product_appointment_time_slot_ok(client: AsyncClient, admi
             "status": "draft",
             "appointment_mode": "time_slot",
             "purchase_appointment_mode": "appointment_later",
+            "advance_days": 7,
             "time_slots": [
                 {"start": "09:00", "end": "10:00", "capacity": 5},
                 {"start": "14:00", "end": "15:00", "capacity": 3},
@@ -124,6 +125,117 @@ async def test_create_product_appointment_time_slot_ok(client: AsyncClient, admi
     body = resp.json()
     assert body["appointment_mode"] == "time_slot"
     assert isinstance(body["time_slots"], list) and len(body["time_slots"]) == 2
+    assert body["advance_days"] == 7
+    # include_today 默认 true
+    assert body.get("include_today") is True
+
+
+# ──────────────── BUG-PRODUCT-APPT-002：time_slot 模式 advance_days 必填 + include_today ────────────────
+
+@pytest.mark.asyncio
+async def test_create_time_slot_missing_advance_days(client: AsyncClient, admin_headers):
+    """time_slot 模式必须提供 advance_days，否则 422。"""
+    cid = await _create_cat(client, admin_headers, "时段缺天数分类")
+    resp = await client.post(
+        "/api/admin/products",
+        json={
+            "name": "时段缺天数商品",
+            "category_id": cid,
+            "fulfillment_type": "in_store",
+            "original_price": 10.0,
+            "sale_price": 9.0,
+            "stock": 1,
+            "status": "draft",
+            "appointment_mode": "time_slot",
+            "purchase_appointment_mode": "appointment_later",
+            # 缺 advance_days
+            "time_slots": [{"start": "09:00", "end": "10:00", "capacity": 5}],
+        },
+        headers=admin_headers,
+    )
+    assert resp.status_code == 422
+    assert "提前可预约天数" in str(resp.json())
+
+
+@pytest.mark.asyncio
+async def test_create_time_slot_advance_days_zero(client: AsyncClient, admin_headers):
+    """time_slot 模式 advance_days=0 应被拒绝。"""
+    cid = await _create_cat(client, admin_headers, "时段0天分类")
+    resp = await client.post(
+        "/api/admin/products",
+        json={
+            "name": "时段0天商品",
+            "category_id": cid,
+            "fulfillment_type": "in_store",
+            "original_price": 10.0,
+            "sale_price": 9.0,
+            "stock": 1,
+            "status": "draft",
+            "appointment_mode": "time_slot",
+            "purchase_appointment_mode": "appointment_later",
+            "advance_days": 0,
+            "time_slots": [{"start": "09:00", "end": "10:00", "capacity": 5}],
+        },
+        headers=admin_headers,
+    )
+    assert resp.status_code == 422
+    assert "提前可预约天数" in str(resp.json())
+
+
+@pytest.mark.asyncio
+async def test_create_time_slot_include_today_false(client: AsyncClient, admin_headers):
+    """time_slot 模式可显式传 include_today=false，详情中应回显 false。"""
+    cid = await _create_cat(client, admin_headers, "时段不含今天分类")
+    resp = await client.post(
+        "/api/admin/products",
+        json={
+            "name": "时段不含今天商品",
+            "category_id": cid,
+            "fulfillment_type": "in_store",
+            "original_price": 10.0,
+            "sale_price": 9.0,
+            "stock": 1,
+            "status": "draft",
+            "appointment_mode": "time_slot",
+            "purchase_appointment_mode": "appointment_later",
+            "advance_days": 5,
+            "include_today": False,
+            "time_slots": [{"start": "09:00", "end": "10:00", "capacity": 5}],
+        },
+        headers=admin_headers,
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["appointment_mode"] == "time_slot"
+    assert body["advance_days"] == 5
+    assert body["include_today"] is False
+
+
+@pytest.mark.asyncio
+async def test_create_date_include_today_default_true(client: AsyncClient, admin_headers):
+    """date 模式不传 include_today，默认 true。"""
+    cid = await _create_cat(client, admin_headers, "日期默认含今天分类")
+    resp = await client.post(
+        "/api/admin/products",
+        json={
+            "name": "日期默认含今天商品",
+            "category_id": cid,
+            "fulfillment_type": "in_store",
+            "original_price": 10.0,
+            "sale_price": 9.0,
+            "stock": 1,
+            "status": "draft",
+            "appointment_mode": "date",
+            "purchase_appointment_mode": "purchase_with_appointment",
+            "advance_days": 7,
+            "daily_quota": 20,
+        },
+        headers=admin_headers,
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["include_today"] is True
+    assert body["advance_days"] == 7
 
 
 @pytest.mark.asyncio
@@ -141,6 +253,8 @@ async def test_create_product_appointment_time_slot_empty(client: AsyncClient, a
             "status": "draft",
             "appointment_mode": "time_slot",
             "purchase_appointment_mode": "purchase_with_appointment",
+            # BUG-PRODUCT-APPT-002：advance_days 必填，先满足，专门验证空 time_slots
+            "advance_days": 7,
             "time_slots": [],
         },
         headers=admin_headers,

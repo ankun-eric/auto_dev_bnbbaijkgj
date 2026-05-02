@@ -92,6 +92,9 @@ def _validate_appointment_mode(
                 raise ValueError("预约日期模式下，单日最大预约人数必填且需大于 0")
     elif appointment_mode == "time_slot":
         if not allow_partial:
+            # BUG-PRODUCT-APPT-002：time_slot 模式同样必须配置 advance_days
+            if not advance_days or advance_days <= 0:
+                raise ValueError("预约时段模式下，提前可预约天数必填且需大于 0")
             if not time_slots or len(time_slots) == 0:
                 raise ValueError("预约时段模式下，至少配置 1 个时段")
         if time_slots:
@@ -194,6 +197,8 @@ class ProductCreate(BaseModel):
     advance_days: Optional[int] = None
     daily_quota: Optional[int] = None
     time_slots: Optional[list[TimeSlotItem]] = None
+    # BUG-PRODUCT-APPT-002：date / time_slot 共用「是否包含今天」，默认 True
+    include_today: bool = True
     faq: Optional[Any] = None
     recommend_weight: int = 0
     status: str = "draft"
@@ -249,6 +254,8 @@ class ProductUpdate(BaseModel):
     advance_days: Optional[int] = None
     daily_quota: Optional[int] = None
     time_slots: Optional[list[TimeSlotItem]] = None
+    # BUG-PRODUCT-APPT-002：date / time_slot 共用「是否包含今天」，PUT 部分更新可不传
+    include_today: Optional[bool] = None
     faq: Optional[Any] = None
     recommend_weight: Optional[int] = None
     status: Optional[str] = None
@@ -299,10 +306,17 @@ class AvailableStoreItem(BaseModel):
     store_code: Optional[str] = None
     name: str
     address: Optional[str] = None
+    # [2026-05-01 门店地图能力 PRD v1.0] 新增字段
+    province: Optional[str] = None
+    city: Optional[str] = None
+    district: Optional[str] = None
     lat: Optional[float] = None
     lng: Optional[float] = None
+    longitude: Optional[float] = None
+    latitude: Optional[float] = None
     distance_km: Optional[float] = None
     is_nearest: bool = False
+    static_map_url: Optional[str] = None
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -345,6 +359,8 @@ class ProductResponse(BaseModel):
     advance_days: Optional[int] = None
     daily_quota: Optional[int] = None
     time_slots: Optional[list[TimeSlotItem]] = None
+    # BUG-PRODUCT-APPT-002：date / time_slot 共用「是否包含今天」
+    include_today: bool = True
     faq: Optional[Any] = None
     recommend_weight: int
     sales_count: int

@@ -223,13 +223,25 @@ async def create_unified_order(
                 raise HTTPException(status_code=400, detail="预约类商品必须选择预约时间")
             adv = getattr(product, "advance_days", None)
             if adv and int(adv) > 0:
-                today_start = datetime.combine(date.today(), datetime.min.time())
-                today_end = today_start + timedelta(days=int(adv) - 1, hours=23, minutes=59, seconds=59)
+                # BUG-PRODUCT-APPT-002：可预约范围统一公式
+                # include_today=True  → [today, today + N - 1]
+                # include_today=False → [today + 1, today + N]
+                inc_today = getattr(product, "include_today", True)
+                if inc_today is None:
+                    inc_today = True
+                if inc_today:
+                    start_date = date.today()
+                    end_date = start_date + timedelta(days=int(adv) - 1)
+                else:
+                    start_date = date.today() + timedelta(days=1)
+                    end_date = start_date + timedelta(days=int(adv) - 1)
+                today_start = datetime.combine(start_date, datetime.min.time())
+                today_end = datetime.combine(end_date, datetime.max.time())
                 appt_time = item_d.appointment_time
                 if isinstance(appt_time, str):
                     appt_time = datetime.fromisoformat(appt_time)
                 if appt_time < today_start or appt_time > today_end:
-                    raise HTTPException(status_code=400, detail=f"预约日期不能超过{product.advance_days}天内")
+                    raise HTTPException(status_code=400, detail="预约日期超出可预约范围")
 
             # Bug1 兜底：已过时段校验
             appt_data = item_d.appointment_data or {}

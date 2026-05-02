@@ -192,6 +192,8 @@ async def _build_product_response_dict(db: AsyncSession, product: Product) -> di
         "advance_days": product.advance_days,
         "daily_quota": product.daily_quota,
         "time_slots": product.time_slots or None,
+        # BUG-PRODUCT-APPT-002：date / time_slot 共用「是否包含今天」
+        "include_today": False if getattr(product, "include_today", True) is False else True,
         "faq": product.faq,
         "recommend_weight": product.recommend_weight or 0,
         "sales_count": product.sales_count or 0,
@@ -535,6 +537,8 @@ async def admin_create_product(
         advance_days=data.advance_days,
         daily_quota=data.daily_quota,
         time_slots=[s.model_dump() for s in data.time_slots] if data.time_slots else None,
+        # BUG-PRODUCT-APPT-002：include_today 默认 true
+        include_today=False if getattr(data, "include_today", True) is False else True,
         faq=data.faq,
         recommend_weight=data.recommend_weight,
         status=data.status,
