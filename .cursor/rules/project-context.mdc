@@ -33,6 +33,40 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
+## Latest Update: 优惠券「适用范围 & 类型说明」UX 优化 PRD v1（已部署 + 0 Bug）（2026-05-02 21:30）
+
+### 一句话结论
+按"优惠券适用范围 & 类型说明优化 PRD v1"实施完成：admin `/product-system/coupons` 编辑/新增表单：①「优惠券类型」字段右侧新增"?"图标，弹窗展示 4 种类型详细说明（满减券/折扣券/满折券/免费试用券）；②「指定分类」从手动输入 ID 升级为 Ant Design TreeSelect 树形多选（含搜索、按 ID 批量回填、缺失分类标记）；③「指定商品」从手动输入 ID 升级为弹窗多选（3 Tab 全部/快递/到店、关键词搜索、分类筛选、跨页保留、上限管控）；④全新「排除商品」能力（覆盖 scope=all / category，写入 coupons.exclude_ids JSON 字段，统一下单时排除商品的小计不计入优惠门槛和折扣）；⑤实时统计条显示当前可用商品数。后端：`coupons` 表新增 `exclude_ids` 列、`system_configs` 注入 `coupon_scope_max_products` / `coupon_exclude_max_products`、`unified_orders` 优惠计算改用 eligible_amount、新增 7 个 GET 接口（type-descriptions/scope-limits/category-tree/categories-by-ids/product-picker/category-product-count/active-product-count）。pytest 22/22 全通过、线上 URL 自检 10/10 全通过（含 7 个新接口 401 鉴权确认 + 3 个公开端点 200/308）。
+
+### 新增文件
+- `admin-web/src/components/coupon/CouponTypeHelpModal.tsx` — "?" 图标弹窗（4 种类型卡片式说明）
+- `admin-web/src/components/coupon/CategoryTreePicker.tsx` — TreeSelect 多选分类（含搜索 / 按 ID 回填）
+- `admin-web/src/components/coupon/ProductPickerModal.tsx` — 商品多选弹窗（3 Tab + 关键词 + 分类筛选 + 跨页保留 + 上限管控）
+- `admin-web/src/components/coupon/ScopeSummaryBar.tsx` — 适用范围实时统计条
+- `backend/tests/test_coupon_scope_v2_2.py` — 22 个 pytest（覆盖全部新接口、校验、优惠计算 with exclude_ids）
+- `deploy/_deploy_coupon_v2_2_20260502.py` — 远程部署 + URL 自检脚本（GIT_TOKEN 走环境变量）
+- `deploy/_force_pull_20260502.py` / `deploy/_check_only_20260502.py` / `deploy/_diag_405_20260502.py` — 部署辅助/诊断脚本
+- `user_docs/优惠券-适用范围与类型说明优化-v1.md` — 用户体验手册
+
+### 修改文件
+- `backend/app/models/models.py` — `Coupon` 模型新增 `exclude_ids = mapped_column(JSON, nullable=True)`
+- `backend/app/schemas/coupons.py` — `CouponCreate/Update/Response` 新增 `exclude_ids: Optional[list[int]]`；新增 `DEFAULT_COUPON_SCOPE_MAX_PRODUCTS=300` / `DEFAULT_COUPON_EXCLUDE_MAX_PRODUCTS=200` / `COUPON_TYPE_DESCRIPTIONS`
+- `backend/app/main.py` — `lifespan` 注册 `_migrate_coupons_scope_v2_2()` 启动迁移（自动加列 + 注入 system_configs 默认值）
+- `backend/app/api/coupons_admin.py` — 新增 7 个静态 GET 端点（**严格在 `@router.put("/{coupon_id}")` 之前**，否则会被 path 通配吃掉返回 405）；`_coupon_to_dict` 同时支持新 JSON 数组与历史逗号字符串；新增 `_validate_scope_payload` 集中校验（空 scope_ids、虚拟商品过滤、上限、scope=all 不允许 scope_ids、category/product 必须有 ID 等）；create/update 接入校验
+- `backend/app/api/unified_orders.py` — 优惠券折扣计算引入 `eligible_amount`：当 `coupon.exclude_ids` 命中行项目时其小计不计入门槛检查与 discount_rate 折算
+- `admin-web/src/app/(admin)/product-system/coupons/page.tsx` — 表单整体重构：Radio.Group 切换 scope（all/category/product）、3 个新组件挂载、ScopeSummaryBar 实时统计、handleEdit 兼容历史逗号字符串 scope_ids、submit 时拼装新数组并提示"免费试用 + scope=all"风险
+
+### 关键约束 & 教训
+- **FastAPI 路由顺序**：所有静态 GET 端点必须声明在 `@router.put("/{coupon_id}")` 之前，否则任何 GET `/api/admin/coupons/<静态名>` 都会被 `/{coupon_id}` 路由匹配（仅注册 PUT），返回 **405**。`coupons_admin.py` 顶部已加显式注释。
+- **Push Protection**：部署脚本严禁硬编码 `ghp_*` token，统一从 `os.environ['GIT_TOKEN']` 读取，否则 GitHub 会以 GH013 拒绝 push。
+- **远程 git fetch 静默失败**：当服务器项目目录由不同用户创建时，`git clean -fd` 会 Permission denied 但 exit=1，自动化脚本里要么忽略失败要么改为 `git reset --hard origin/master` 后跳过 clean。已在 `_force_pull_20260502.py` 中验证。
+
+### 访问入口
+- 优惠券页：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/product-system/coupons`
+- 新接口：`/api/admin/coupons/{type-descriptions, scope-limits, category-tree, categories-by-ids, product-picker, category-product-count, active-product-count}`
+
+---
+
 ## Latest Update: 卡功能 PRD v1.1 第 1 期 —— 后端骨架 + admin/h5 基础页面（已部署）（2026-05-02 20:35）
 
 ### 一句话结论
