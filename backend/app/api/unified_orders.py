@@ -316,12 +316,14 @@ async def create_unified_order(
                             pass
 
                     # 占用数 = 已支付 + 待支付（15 分钟内未取消）
+                    # 已支付 = 非 pending_payment 且 非 cancelled（含 pending_shipment/pending_receipt/pending_use/pending_review/completed）
                     fifteen_min_ago = datetime.utcnow() - timedelta(minutes=15)
                     paid_like = [
-                        UnifiedOrderStatus.paid.value,
-                        UnifiedOrderStatus.shipped.value,
-                        UnifiedOrderStatus.received.value,
-                        UnifiedOrderStatus.completed.value,
+                        UnifiedOrderStatus.pending_shipment,
+                        UnifiedOrderStatus.pending_receipt,
+                        UnifiedOrderStatus.pending_use,
+                        UnifiedOrderStatus.pending_review,
+                        UnifiedOrderStatus.completed,
                     ]
                     booked_q = await db.execute(
                         select(func.count(OrderItem.id))

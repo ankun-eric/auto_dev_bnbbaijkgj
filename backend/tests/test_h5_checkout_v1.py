@@ -275,7 +275,7 @@ async def test_h5_slots_hide_full(
                 user_id=user.id,
                 total_amount=100,
                 paid_amount=100,
-                status=UnifiedOrderStatus.paid,
+                status=UnifiedOrderStatus.pending_use,
                 store_id=sid,
             )
             session.add(order)

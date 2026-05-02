@@ -67,16 +67,18 @@ async def _count_occupied(
 ) -> int:
     """[H5 下单流程优化 PRD v1.0] 占用数 = 已支付 + 待支付（15 分钟内未取消未超时）。
 
-    口径：`UnifiedOrder.status` 为 `paid / completed / shipped / received` 视为已支付；
-    `pending_payment` 且 `created_at > NOW() - 15min` 视为待支付。
+    口径：`UnifiedOrder.status` 为 `pending_shipment / pending_receipt /
+    pending_use / pending_review / completed` 视为已支付；
+    `pending_payment` 且 `created_at > NOW() - 15min` 视为待支付占用。
     """
     fifteen_min_ago = datetime.utcnow() - timedelta(minutes=15)
 
     paid_like = [
-        UnifiedOrderStatus.paid.value,
-        UnifiedOrderStatus.shipped.value,
-        UnifiedOrderStatus.received.value,
-        UnifiedOrderStatus.completed.value,
+        UnifiedOrderStatus.pending_shipment,
+        UnifiedOrderStatus.pending_receipt,
+        UnifiedOrderStatus.pending_use,
+        UnifiedOrderStatus.pending_review,
+        UnifiedOrderStatus.completed,
     ]
 
     q = (

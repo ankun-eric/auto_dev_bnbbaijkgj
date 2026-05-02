@@ -1,120 +1,164 @@
 # -*- coding: utf-8 -*-
-"""[2026-05-02 H5 下单流程优化 PRD v1.0] 远程部署 + URL 健康检查脚本
+"""[2026-05-02 H5 下单流程优化 PRD v1.0] 远程部署 + URL 健康检查
 
-流程：
-1. SSH 到服务器
-2. 进入 /home/ubuntu/auto_dev_bnbbaijkgj（不存在则 git clone）
-3. git fetch + reset 到最新 master
-4. docker compose build / up -d backend admin-web h5-web
-5. 等待启动后 curl 关键 URL，必须全部 200/302
+复用项目现有目录结构 /home/ubuntu/{DEPLOY_ID}，使用 docker-compose.prod.yml。
 """
+from __future__ import annotations
+import os
 import sys
 import time
-import paramiko
+import paramiko  # type: ignore
 
 HOST = "newbb.test.bangbangvip.com"
+PORT = 22
 USER = "ubuntu"
 PASS = "Newbang888"
-PROJECT_ID = "6b099ed3-7175-4a78-91f4-44570c84ed27"
-import os
+DEPLOY_ID = "6b099ed3-7175-4a78-91f4-44570c84ed27"
+PROJECT_DIR = f"/home/ubuntu/{DEPLOY_ID}"
+NETWORK = f"{DEPLOY_ID}-network"
+GATEWAY = "gateway"
+COMPOSE_FILE = "docker-compose.prod.yml"
+BACKEND_CONT = f"{DEPLOY_ID}-backend"
 
-GIT_USER = os.environ.get("GIT_USER", "ankun-eric")
-GIT_TOKEN = os.environ.get("GIT_TOKEN", "")
-REPO_URL = f"https://{GIT_USER}:{GIT_TOKEN}@github.com/ankun-eric/auto_dev_bnbbaijkgj.git"
-PROJECT_DIR = f"/home/ubuntu/projects/{PROJECT_ID}"
-BASE = f"https://{HOST}/autodev/{PROJECT_ID}"
+GIT_TOKEN = os.environ.get("GIT_TOKEN") or os.environ.get("GH_TOKEN", "")
+GIT_URL_TOKEN = (
+    f"https://ankun-eric:{GIT_TOKEN}@github.com/ankun-eric/auto_dev_bnbbaijkgj.git"
+    if GIT_TOKEN
+    else "https://github.com/ankun-eric/auto_dev_bnbbaijkgj.git"
+)
 
 
-def run(client: paramiko.SSHClient, cmd: str, *, timeout: int = 600, get_pty: bool = True) -> tuple[int, str]:
-    print(f"\n>>> {cmd}", flush=True)
-    stdin, stdout, stderr = client.exec_command(cmd, timeout=timeout, get_pty=get_pty)
-    data = []
-    for line in iter(stdout.readline, ""):
-        if not line:
-            break
-        print(line.rstrip(), flush=True)
-        data.append(line)
-    rc = stdout.channel.recv_exit_status()
-    err = stderr.read().decode("utf-8", errors="ignore")
+def ssh() -> paramiko.SSHClient:
+    c = paramiko.SSHClient()
+    c.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    c.connect(HOST, port=PORT, username=USER, password=PASS, timeout=30)
+    t = c.get_transport()
+    if t is not None:
+        t.set_keepalive(30)
+    return c
+
+
+def run(c, cmd: str, timeout: int = 300) -> tuple[int, str, str]:
+    print(f"\n$ {cmd}", flush=True)
+    _i, o, e = c.exec_command(cmd, timeout=timeout)
+    out = o.read().decode("utf-8", errors="replace")
+    err = e.read().decode("utf-8", errors="replace")
+    code = o.channel.recv_exit_status()
+    if out.strip():
+        print(out[-5000:], flush=True)
     if err.strip():
-        print("[stderr]", err, flush=True)
-    return rc, "".join(data) + err
+        print("stderr:", err[-2500:], flush=True)
+    print(f"exit={code}", flush=True)
+    return code, out, err
+
+
+def try_git_pull(c) -> bool:
+    run(c, f"cd {PROJECT_DIR} && git remote set-url origin {GIT_URL_TOKEN}", timeout=15)
+    run(c, "git config --global http.lowSpeedLimit 1000 && git config --global http.lowSpeedTime 60", timeout=10)
+    for attempt in range(1, 4):
+        print(f"\n--- git fetch attempt {attempt}/3 ---", flush=True)
+        run(c, f"cd {PROJECT_DIR} && GIT_TERMINAL_PROMPT=0 timeout 300 git fetch --depth=50 origin master", timeout=360)
+        code, out, _ = run(c, f"cd {PROJECT_DIR} && git log -1 origin/master --oneline 2>&1 || true", timeout=10)
+        if "fatal" not in out.lower() and out.strip():
+            run(c, f"cd {PROJECT_DIR} && git reset --hard origin/master", timeout=30)
+            run(c, f"cd {PROJECT_DIR} && git clean -fd", timeout=20)
+            run(c, f"cd {PROJECT_DIR} && git log -1 --oneline", timeout=10)
+            return True
+        time.sleep(5)
+    return False
 
 
 def main() -> int:
-    cli = paramiko.SSHClient()
-    cli.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    print(f"Connecting {HOST}@{USER} ...", flush=True)
-    cli.connect(HOST, username=USER, password=PASS, timeout=60, banner_timeout=60)
+    print(f"== SSH {USER}@{HOST}:{PORT} ==", flush=True)
+    c = ssh()
+    try:
+        run(c, f"ls -la {PROJECT_DIR} | head -3", timeout=10)
+        if not try_git_pull(c):
+            print("!! git pull 失败，部署终止", flush=True)
+            return 1
 
-    # 1. 克隆/更新代码
-    rc, _ = run(cli, f"test -d {PROJECT_DIR}/.git && echo OK || echo NO", timeout=30)
-    rc, out = run(cli, f"ls {PROJECT_DIR} 2>/dev/null && echo HAS || echo NO", timeout=30)
-    has_git = "OK" in out or " .git" in out
+        print("\n== 重建 backend ==", flush=True)
+        run(c,
+            f"cd {PROJECT_DIR} && docker compose -f {COMPOSE_FILE} build backend 2>&1 | tail -40",
+            timeout=900)
 
-    if not has_git:
-        run(cli, f"mkdir -p $(dirname {PROJECT_DIR})", timeout=30)
-        run(cli, f"rm -rf {PROJECT_DIR}", timeout=60)
-        run(cli, f"git clone {REPO_URL} {PROJECT_DIR}", timeout=600)
-    else:
-        run(cli, f"cd {PROJECT_DIR} && git fetch --all --prune", timeout=300)
-        run(cli, f"cd {PROJECT_DIR} && git reset --hard origin/master", timeout=120)
+        print("\n== 重建 h5-web ==", flush=True)
+        run(c,
+            f"cd {PROJECT_DIR} && docker compose -f {COMPOSE_FILE} build h5-web 2>&1 | tail -40",
+            timeout=1500)
 
-    # 2. 构建 + 启动
-    rc, _ = run(cli,
-        f"cd {PROJECT_DIR} && docker compose build backend admin-web h5-web",
-        timeout=1800)
-    if rc != 0:
-        print("BUILD FAIL", flush=True)
-        return rc
+        print("\n== 重建 admin-web ==", flush=True)
+        run(c,
+            f"cd {PROJECT_DIR} && docker compose -f {COMPOSE_FILE} build admin-web 2>&1 | tail -40",
+            timeout=1500)
 
-    rc, _ = run(cli,
-        f"cd {PROJECT_DIR} && docker compose up -d db backend admin-web h5-web",
-        timeout=600)
-    if rc != 0:
-        print("UP FAIL", flush=True)
-        return rc
+        print("\n== up -d ==", flush=True)
+        run(c,
+            f"cd {PROJECT_DIR} && docker compose -f {COMPOSE_FILE} up -d backend admin-web h5-web 2>&1 | tail -20",
+            timeout=180)
 
-    # 3. 等待 backend 起来
-    print("\nWaiting for backend to be ready...", flush=True)
-    for i in range(60):
-        rc, out = run(
-            cli,
-            f"docker exec {PROJECT_ID}-backend curl -sf -o /dev/null -w '%{{http_code}}' http://localhost:8000/health || echo FAIL",
-            timeout=15,
-        )
-        if "200" in out:
-            print(f"Backend ready at attempt {i+1}", flush=True)
-            break
-        time.sleep(3)
-    else:
-        run(cli, f"docker logs --tail 200 {PROJECT_ID}-backend", timeout=30)
-        return 1
+        print("\n== 等待容器 ==", flush=True)
+        for i in range(30):
+            time.sleep(5)
+            code, out, _ = run(c, f"docker ps --format '{{{{.Names}}}}|{{{{.Status}}}}' | grep {DEPLOY_ID}", timeout=10)
+            lines = [ln for ln in out.splitlines() if ln.strip()]
+            ok = (lines
+                  and any("backend" in ln for ln in lines)
+                  and any("admin" in ln for ln in lines)
+                  and any("h5" in ln for ln in lines)
+                  and not any("starting" in ln.lower() or "unhealthy" in ln.lower() for ln in lines))
+            print(f"  [{i+1}/30] count={len(lines)} ok={ok}", flush=True)
+            if ok and i >= 3:
+                break
 
-    # 4. 关键 URL 检查
-    targets = [
-        f"{BASE}/api/health",
-        f"{BASE}/h5/login",
-        f"{BASE}/admin/login",
-        f"{BASE}/api/products?status=active&page=1&size=5",
-    ]
-    fail = []
-    print("\n=== URL Health Check ===", flush=True)
-    for u in targets:
-        cmd = f"curl -ks -o /dev/null -w '%{{http_code}}' '{u}'"
-        rc, out = run(cli, cmd, timeout=30)
-        code = (out.strip().split()[-1] if out else "000")
-        ok = code in {"200", "204", "301", "302", "307"}
-        print(f"  [{code}] {u}  {'OK' if ok else 'FAIL'}", flush=True)
-        if not ok:
-            fail.append((u, code))
+        print("\n== gateway reload ==", flush=True)
+        run(c, f"docker network connect {NETWORK} {GATEWAY} 2>&1 || true", timeout=15)
+        run(c, f"docker exec {GATEWAY} nginx -t 2>&1", timeout=15)
+        run(c, f"docker exec {GATEWAY} nginx -s reload 2>&1", timeout=15)
 
-    cli.close()
-    if fail:
-        print("\nFAILURES:", fail, flush=True)
-        return 2
-    print("\nALL OK", flush=True)
-    return 0
+        print("\n== 后端启动日志（最近）==", flush=True)
+        run(c, f"docker logs --tail 60 {BACKEND_CONT}", timeout=15)
+
+        print("\n== URL 自检 ==", flush=True)
+        targets = [
+            ("/api/health", "api_health"),
+            ("/api/products?status=active&page=1&size=3", "api_products"),
+            ("/h5/login", "h5_login"),
+            ("/h5/checkout", "h5_checkout"),
+            ("/admin/login", "admin_login"),
+            ("/admin/merchant/stores", "admin_stores"),
+        ]
+        fails = []
+        for path, name in targets:
+            url = f"https://localhost/autodev/{DEPLOY_ID}{path}"
+            code, out, _ = run(c, f"curl -sk -o /dev/null -w '%{{http_code}}' '{url}'", timeout=20)
+            http = (out.strip() or "000").split()[-1]
+            ok = http in {"200", "204", "301", "302", "307", "308"}
+            print(f"  [{http}] {name} {url} {'OK' if ok else 'FAIL'}", flush=True)
+            if not ok:
+                fails.append((name, http))
+
+        print("\n== 新接口冒烟（无token情况下应 401/403, 不应 404/500）==", flush=True)
+        for path, name in [
+            ("/api/h5/checkout/init?productId=1", "h5_checkout_init"),
+            ("/api/h5/slots?storeId=1&date=2026-05-03&productId=1", "h5_slots"),
+        ]:
+            url = f"https://localhost/autodev/{DEPLOY_ID}{path}"
+            code, out, _ = run(c, f"curl -sk -o /dev/null -w '%{{http_code}}' '{url}'", timeout=20)
+            http = (out.strip() or "000").split()[-1]
+            ok = http not in {"000", "404", "500", "502", "503"}
+            print(f"  [{http}] {name} {'OK' if ok else 'FAIL'}", flush=True)
+            if not ok:
+                fails.append((name, http))
+
+        if fails:
+            print(f"\n[FAIL] {len(fails)} 项失败：{fails}", flush=True)
+            return 2
+
+        print("\n== ALL OK ==", flush=True)
+        return 0
+    finally:
+        c.close()
 
 
 if __name__ == "__main__":
