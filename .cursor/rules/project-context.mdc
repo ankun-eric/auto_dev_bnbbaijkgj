@@ -33,7 +33,48 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: admin 后台二级菜单图标统一（Bug 修复）— 已开发部署（2026-05-01 23:50）
+## Latest Update: 预约时段「提前可预约天数」缺失修复 + include_today 增强（Bug 修复）— 已开发部署（2026-05-02 15:30）
+
+### 一句话结论
+修复 `time_slot`（预约时段）模式下 `advance_days`（提前可预约天数）缺失导致顾客可无限远挑选预约日期的 P1 业务 Bug，并配套新增 `include_today`（预约起始日是否包含今天，默认 true）字段：`date` 与 `time_slot` 两种模式**共用**「提前可预约天数」+「预约起始日」，统一公式 `inc=true → [today, today+N-1]` / `inc=false → [today+1, today+N]`，由后端 `unified_orders` 兜底校验越权下单。涉及后端（模型/Schema/API/migration/单元测试）+ admin-web（编辑表单 + 校验）+ H5（下单页日期选择）+ 小程序（下单页日期选择）+ Flutter App（Product 模型 + 下单页 DatePicker）五端改动。
+
+### 修改的文件
+- `backend/app/models/models.py` — `Product` 新增 `include_today BOOLEAN NOT NULL DEFAULT 1`，更新 `advance_days / daily_quota / time_slots` 字段注释明确共用/专属
+- `backend/app/schemas/products.py` — `_validate_appointment_mode` 增加 `time_slot` 模式下 `advance_days` 必填校验；`ProductCreate / ProductResponse` 新增 `include_today: bool = True`；`ProductUpdate` 新增 `include_today: Optional[bool]`
+- `backend/app/services/schema_sync.py` — 自动 `ALTER TABLE products ADD COLUMN include_today TINYINT(1) NOT NULL DEFAULT 1`；幂等回填历史数据：`time_slot / date` 模式 `advance_days` 为空或 ≤0 时统一刷为 7
+- `backend/app/api/unified_orders.py` — 下单兜底校验改为统一公式（`include_today` 二选一），超出区间返回 400「预约日期超出可预约范围」
+- `backend/app/api/product_admin.py` — `_build_product_response_dict` 返回 `include_today`；创建/更新接口接收并保存 `include_today`，默认 True
+- `backend/tests/test_product_appointment_bugfix.py` — 调整 `test_create_product_appointment_time_slot_ok` 断言 `advance_days` + `include_today=true`；新增 4 个用例（time_slot 缺 advance_days 422 / advance_days=0 422 / include_today=false 正确存取 / date 模式 include_today 默认 true）；修复 `test_create_product_appointment_time_slot_empty` 补 advance_days
+- `admin-web/src/app/(admin)/product-system/products/page.tsx` — `Product` 接口加 `include_today: boolean`；新增/编辑表单初始值 `include_today: true`；`date` 与 `time_slot` 共用「提前可预约天数」必填 + 新增「预约起始日」Radio.Group（包含今天 / 从明天起算）；提交时按模式正确组装 `include_today`
+- `h5-web/src/app/checkout/page.tsx` — `Product` 接口加 `include_today?: boolean`；新增 `minDate` state；按统一公式同时计算 `minDate` 与 `maxDate`；DatePicker `min` / `defaultValue` 使用 `minDate`；提示文本同时显示 minDate ~ maxDate 并标注是否「不含今天」
+- `miniprogram/pages/checkout/index.js` — `loadProduct` 按统一公式计算 `minDate / endDate / appointmentDate`；`advanceDaysHint` 文本带「不含今天」标识
+- `flutter_app/lib/models/product.dart` — `Product` 新增 `final bool includeToday`，构造默认 `true`；`fromJson` 兼容解析（仅 `false` 才为 false）
+- `flutter_app/lib/screens/product/checkout_screen.dart` — `_buildAppointmentSection` 按统一公式算 `firstDate / lastDate`；`showDatePicker` `firstDate / lastDate / initialDate` 全部按公式给值；提示文案带「不含今天」
+- `user_docs/预约时段提前可预约天数.md` — **新增**：用户体验手册，含访问/下载链接、商家配置步骤、顾客端选日期说明、历史数据兼容说明
+
+### 修改的 API 端点
+- `POST /api/admin/products` — 接受 `include_today: bool`；`time_slot` 模式 `advance_days` 缺失/非正 → 422
+- `PUT /api/admin/products/{id}` — 同上（partial 允许不传）
+- `GET /api/admin/products / GET /api/admin/products/{id} / GET /api/products/{id}` — 响应附带 `include_today` 字段
+- `POST /api/orders` — 下单兜底统一公式校验，超出区间 400
+
+### 数据模型变更
+- `Product`：新增 `include_today TINYINT(1) NOT NULL DEFAULT 1 COMMENT '预约起始日是否包含今天，默认 true'`
+- 历史数据回填（自动幂等）：`time_slot / date` 模式 `advance_days` 为 NULL 或 ≤0 → 统一刷为 7
+
+### 部署 / 打包
+- 后端 + admin-web + h5-web 已重建容器并部署到测试环境（10/10 关键 URL 200）
+- 后端单元测试 6 个新增/调整用例全通过；非 UI 自动化端到端验证通过
+- 微信小程序 zip：`miniprogram_20260502_153153_4ba6.zip`（358 KB）→ [下载](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/miniprogram_20260502_153153_4ba6.zip)
+- 安卓 APK：`app_20260502_153125_90e6.apk`（79.9 MB）→ [下载](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/apk/app_20260502_153125_90e6.apk)
+- iOS IPA：`bini_health_ios.ipa`（32.4 MB，GitHub Release `ios-v20260502-153136-8ea5`）→ [Release 页面](https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-v20260502-153136-8ea5)
+
+### 用户文档
+- `user_docs/预约时段提前可预约天数.md`
+
+---
+
+## Previous Update: admin 后台二级菜单图标统一（Bug 修复）— 已开发部署（2026-05-01 23:50）
 
 ### 一句话结论
 管理后台左侧侧边栏中"零星带图标"的 15 项二级菜单（涉及 AI 配置中心 / AI 咨询配置 / 商品体系 / 系统管理 4 个一级菜单）全部统一为"无图标"的纯文字风格；同时在渲染层增加 `stripChildrenIcons` 工具函数从源头屏蔽所有 SubMenu children 的 icon，并新增 `admin-web/CONVENTIONS.md` 沉淀「一级菜单必须有图标 / 二级菜单禁止有图标」开发规范，避免后续同类 Bug 复发。
