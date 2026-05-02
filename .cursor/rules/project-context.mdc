@@ -33,7 +33,30 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: H5 下单流程优化 — 支付页统一选择（PRD v1.0）— 已开发部署（2026-05-02 16:30）
+## Latest Update: 卡功能 PRD v1.1 —— 主动暂停记录（2026-05-02 19:55）
+
+### 一句话结论
+本次提交《卡功能 PRD v1.1（最终版）》工程规模显著超出单次会话可承载范围（30+ 跨 5 端功能项 / 6 张新表 / 拆 2 单订单结构改造 / 双确认核销 / 销售看板 / 多端打包等）。本期主动暂停编码，**保留现有代码 0 改动**，生成 `user_docs/error_20260502_195527_b1a2.md` 状态报告并建议拆分为 3~5 期渐进迭代。开发起始 commit 已记录于 `.dev_start_commit.txt`：`5cc8ddd2e6b922eb648baad67586ccfec6766142`。
+
+### 修改的文件
+- `user_docs/error_20260502_195527_b1a2.md` — **新增**：错误状态报告，含未完成原因、推荐拆分策略（5 期）、重新执行建议
+- `.dev_start_commit.txt` — 刷新开发起始 commit 标识
+
+### 未改动的内容（保护现有业务）
+- 后端模型、API、Schema、迁移：0 改动
+- admin-web / h5-web / miniprogram / flutter_app：0 改动
+- 数据库 schema、生产/测试环境：0 影响
+
+### 推荐拆分迭代（详见错误报告）
+1. 第 1 期：后端骨架（6 表 + admin CRUD + C 端查询 + pytest）
+2. 第 2 期：购卡 + 卡包（h5-web + admin-web 主页面）
+3. 第 3 期：双确认核销（60s 码 + 门店扫码 + 退款）
+4. 第 4 期：拆 2 单 + 推荐位 + 续卡
+5. 第 5 期：数据看板 + 营销 + miniprogram + flutter_app + 三端打包
+
+---
+
+## Previous Update: H5 下单流程优化 — 支付页统一选择（PRD v1.0）— 已开发部署（2026-05-02 16:30）
 
 ### 一句话结论
 把"日期 / 时段 / 门店"三个选择从商品详情页**整体下沉**到 H5 支付页，详情页回归纯展示；新增门店级 `slot_capacity / business_start / business_end`，下单容量按门店粒度（已支付 + 待支付 15 分钟内）；H5 支付页新增联系手机号 + 备注、点击门店卡片才请求定位；管理后台门店表单新增三个字段；小程序 + Flutter 同步删除详情页选择区并补齐联系手机号。
