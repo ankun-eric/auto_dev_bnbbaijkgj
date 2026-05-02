@@ -352,76 +352,9 @@ async def get_validity_options(_: User = Depends(admin_dep)):
     return {"options": VALIDITY_DAYS_OPTIONS}
 
 
-@router.post("")
-async def create_coupon(
-    data: CouponCreate,
-    current_user: User = Depends(admin_dep),
-    db: AsyncSession = Depends(get_db),
-):
-    if data.validity_days not in VALIDITY_DAYS_OPTIONS:
-        raise HTTPException(status_code=400, detail=f"有效期天数必须为 {VALIDITY_DAYS_OPTIONS} 之一")
-    # V2.2 适用范围 / 排除商品综合校验
-    scope_ids_list, exclude_ids_list = await _validate_scope_payload(
-        db, data.scope, data.scope_ids, data.exclude_ids, coupon_type=data.type,
-    )
-    c = Coupon(
-        name=data.name,
-        type=data.type,
-        condition_amount=data.condition_amount,
-        discount_value=data.discount_value,
-        discount_rate=data.discount_rate,
-        scope=data.scope,
-        scope_ids=scope_ids_list if scope_ids_list else None,
-        exclude_ids=exclude_ids_list if exclude_ids_list else None,
-        total_count=data.total_count,
-        validity_days=data.validity_days,
-        status=data.status,
-        points_exchange_limit=data.points_exchange_limit,
-    )
-    db.add(c)
-    await db.flush()
-    return _coupon_to_dict(c)
-
-
-@router.put("/{coupon_id}")
-async def update_coupon(
-    coupon_id: int,
-    data: CouponUpdate,
-    current_user: User = Depends(admin_dep),
-    db: AsyncSession = Depends(get_db),
-):
-    c = (await db.execute(select(Coupon).where(Coupon.id == coupon_id))).scalar_one_or_none()
-    if not c:
-        raise HTTPException(status_code=404, detail="优惠券不存在")
-    if data.validity_days is not None and data.validity_days not in VALIDITY_DAYS_OPTIONS:
-        raise HTTPException(status_code=400, detail=f"有效期天数必须为 {VALIDITY_DAYS_OPTIONS} 之一")
-
-    # 计算保存后的 scope / scope_ids / exclude_ids 三元组并统一校验
-    new_scope = data.scope if data.scope is not None else (
-        c.scope.value if hasattr(c.scope, "value") else str(c.scope)
-    )
-    new_scope_ids = data.scope_ids if data.scope_ids is not None else c.scope_ids
-    new_exclude_ids = data.exclude_ids if data.exclude_ids is not None else c.exclude_ids
-    new_type = data.type if data.type is not None else (
-        c.type.value if hasattr(c.type, "value") else str(c.type)
-    )
-    scope_ids_list, exclude_ids_list = await _validate_scope_payload(
-        db, new_scope, new_scope_ids, new_exclude_ids, coupon_type=new_type,
-    )
-
-    for f in ("name", "type", "condition_amount", "discount_value", "discount_rate",
-              "total_count", "validity_days", "status", "points_exchange_limit"):
-        v = getattr(data, f)
-        if v is not None:
-            setattr(c, f, v)
-    # 适用范围相关字段统一覆盖（即使未传也按校验后的结果写回，确保 product↔category 切换时清理 exclude_ids）
-    c.scope = new_scope
-    c.scope_ids = scope_ids_list if scope_ids_list else None
-    c.exclude_ids = exclude_ids_list if exclude_ids_list else None
-    return _coupon_to_dict(c)
-
-
 # ─── V2.2：优惠券类型说明（PRD F1）───
+# 注：此处为静态路径端点，必须声明在 `@router.put("/{coupon_id}")` 之前，
+# 否则会被 path 通配吃掉返回 405。
 
 
 @router.get("/type-descriptions")
@@ -481,7 +414,6 @@ async def coupon_product_picker(
         query = query.where(Product.name.like(like))
         count_query = count_query.where(Product.name.like(like))
     if category_id:
-        # 命中分类本身 + 子分类
         cat_ids = await _expand_category_ids_with_children(db, [category_id])
         query = query.where(Product.category_id.in_(cat_ids))
         count_query = count_query.where(Product.category_id.in_(cat_ids))
@@ -493,7 +425,6 @@ async def coupon_product_picker(
     )
     products = rs.scalars().all()
 
-    # 取分类名称
     cat_ids_to_load = list({p.category_id for p in products if p.category_id})
     cat_map: dict[int, str] = {}
     if cat_ids_to_load:
@@ -519,7 +450,6 @@ async def coupon_product_picker(
 
     items = [_row(p) for p in products]
 
-    # 已选商品详情（用于编辑回显，可能包含已删除/下架，逐条标记状态）
     selected_items: list[dict] = []
     if selected_ids:
         sel_ids = _normalize_int_list(selected_ids)
@@ -676,6 +606,75 @@ async def coupon_active_product_count(
         )
     )).scalar() or 0
     return {"product_count": int(cnt)}
+
+
+@router.post("")
+async def create_coupon(
+    data: CouponCreate,
+    current_user: User = Depends(admin_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    if data.validity_days not in VALIDITY_DAYS_OPTIONS:
+        raise HTTPException(status_code=400, detail=f"有效期天数必须为 {VALIDITY_DAYS_OPTIONS} 之一")
+    # V2.2 适用范围 / 排除商品综合校验
+    scope_ids_list, exclude_ids_list = await _validate_scope_payload(
+        db, data.scope, data.scope_ids, data.exclude_ids, coupon_type=data.type,
+    )
+    c = Coupon(
+        name=data.name,
+        type=data.type,
+        condition_amount=data.condition_amount,
+        discount_value=data.discount_value,
+        discount_rate=data.discount_rate,
+        scope=data.scope,
+        scope_ids=scope_ids_list if scope_ids_list else None,
+        exclude_ids=exclude_ids_list if exclude_ids_list else None,
+        total_count=data.total_count,
+        validity_days=data.validity_days,
+        status=data.status,
+        points_exchange_limit=data.points_exchange_limit,
+    )
+    db.add(c)
+    await db.flush()
+    return _coupon_to_dict(c)
+
+
+@router.put("/{coupon_id}")
+async def update_coupon(
+    coupon_id: int,
+    data: CouponUpdate,
+    current_user: User = Depends(admin_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    c = (await db.execute(select(Coupon).where(Coupon.id == coupon_id))).scalar_one_or_none()
+    if not c:
+        raise HTTPException(status_code=404, detail="优惠券不存在")
+    if data.validity_days is not None and data.validity_days not in VALIDITY_DAYS_OPTIONS:
+        raise HTTPException(status_code=400, detail=f"有效期天数必须为 {VALIDITY_DAYS_OPTIONS} 之一")
+
+    # 计算保存后的 scope / scope_ids / exclude_ids 三元组并统一校验
+    new_scope = data.scope if data.scope is not None else (
+        c.scope.value if hasattr(c.scope, "value") else str(c.scope)
+    )
+    new_scope_ids = data.scope_ids if data.scope_ids is not None else c.scope_ids
+    new_exclude_ids = data.exclude_ids if data.exclude_ids is not None else c.exclude_ids
+    new_type = data.type if data.type is not None else (
+        c.type.value if hasattr(c.type, "value") else str(c.type)
+    )
+    scope_ids_list, exclude_ids_list = await _validate_scope_payload(
+        db, new_scope, new_scope_ids, new_exclude_ids, coupon_type=new_type,
+    )
+
+    for f in ("name", "type", "condition_amount", "discount_value", "discount_rate",
+              "total_count", "validity_days", "status", "points_exchange_limit"):
+        v = getattr(data, f)
+        if v is not None:
+            setattr(c, f, v)
+    # 适用范围相关字段统一覆盖（即使未传也按校验后的结果写回，确保 product↔category 切换时清理 exclude_ids）
+    c.scope = new_scope
+    c.scope_ids = scope_ids_list if scope_ids_list else None
+    c.exclude_ids = exclude_ids_list if exclude_ids_list else None
+    return _coupon_to_dict(c)
 
 
 # ─── V2.1：禁删除，仅下架 ───
