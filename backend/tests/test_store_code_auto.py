@@ -23,7 +23,14 @@ async def test_create_store_auto_code(client: AsyncClient, admin_headers, seed_c
     """新建门店时不传 store_code，后端应自动分配 MD00001"""
     res = await client.post(
         "/api/admin/merchant/stores",
-        json={"store_name": "测试门店A", "category_id": seed_category, "contact_name": "张三"},
+        json={
+            "store_name": "测试门店A",
+            "category_id": seed_category,
+            "contact_name": "张三",
+            # [2026-05-01 门店地图能力 PRD v1.0] 新建必传经纬度
+            "lat": 23.1,
+            "lng": 113.4,
+        },
         headers=admin_headers,
     )
     assert res.status_code == 200
@@ -37,7 +44,13 @@ async def test_create_store_incremental_code(client: AsyncClient, admin_headers,
     for i in range(1, 4):
         res = await client.post(
             "/api/admin/merchant/stores",
-            json={"store_name": f"门店{i}", "category_id": seed_category},
+            json={
+                "store_name": f"门店{i}",
+                "category_id": seed_category,
+                # [2026-05-01 门店地图能力 PRD v1.0] 新建必传经纬度
+                "lat": 23.1 + i * 0.01,
+                "lng": 113.4 + i * 0.01,
+            },
             headers=admin_headers,
         )
         assert res.status_code == 200
@@ -49,7 +62,7 @@ async def test_store_code_readonly_on_update(client: AsyncClient, admin_headers,
     """编辑门店时即使传了 store_code 也不应被修改"""
     create_res = await client.post(
         "/api/admin/merchant/stores",
-        json={"store_name": "原名", "category_id": seed_category},
+        json={"store_name": "原名", "category_id": seed_category, "lat": 23.1, "lng": 113.4},
         headers=admin_headers,
     )
     store_id = create_res.json()["id"]
@@ -70,12 +83,12 @@ async def test_list_stores_default_active_only(client: AsyncClient, admin_header
     """默认只返回营业中门店"""
     await client.post(
         "/api/admin/merchant/stores",
-        json={"store_name": "活跃店", "category_id": seed_category},
+        json={"store_name": "活跃店", "category_id": seed_category, "lat": 23.1, "lng": 113.4},
         headers=admin_headers,
     )
     create2 = await client.post(
         "/api/admin/merchant/stores",
-        json={"store_name": "停用店", "category_id": seed_category},
+        json={"store_name": "停用店", "category_id": seed_category, "lat": 23.2, "lng": 113.5},
         headers=admin_headers,
     )
     store2_id = create2.json()["id"]
@@ -96,12 +109,12 @@ async def test_list_stores_include_inactive(client: AsyncClient, admin_headers, 
     """include_inactive=true 返回全部门店，且 active 排前面"""
     await client.post(
         "/api/admin/merchant/stores",
-        json={"store_name": "活跃店", "category_id": seed_category},
+        json={"store_name": "活跃店", "category_id": seed_category, "lat": 23.1, "lng": 113.4},
         headers=admin_headers,
     )
     create2 = await client.post(
         "/api/admin/merchant/stores",
-        json={"store_name": "停用店", "category_id": seed_category},
+        json={"store_name": "停用店", "category_id": seed_category, "lat": 23.2, "lng": 113.5},
         headers=admin_headers,
     )
     store2_id = create2.json()["id"]

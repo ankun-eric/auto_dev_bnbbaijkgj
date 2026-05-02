@@ -44,10 +44,12 @@ from app.api import (
     feedback,
     font_setting,
     function_button,
+    h5_checkout,
     health_plan_v2,
     health_profile,
     home_config,
     knowledge,
+    maps,
     member_qr,
     messages,
     notice,
@@ -806,6 +808,10 @@ app.include_router(video_consult_config.router)
 app.include_router(feedback.router)
 app.include_router(app_settings.router)
 app.include_router(user_health_profile.router)
+# [2026-05-01 门店地图能力 PRD v1.0] 地图代理（逆地理编码/POI 搜索/静态地图）
+app.include_router(maps.router)
+# [2026-05-02 H5 下单流程优化 PRD v1.0] 支付页统一选择
+app.include_router(h5_checkout.router)
 
 os.makedirs("uploads", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")

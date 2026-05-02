@@ -54,6 +54,12 @@ _deploy_tmp/deploy.tar
 # Temporary SSH scripts
 ssh_*.py
 
+# Cursor prompt files (may contain SSH password / Git token)
+cursor_prompt_*.txt
+.chat_attachments/
+.ios_run_id.txt
+.ios_version.txt
+
 # Build cache
 *.tsbuildinfo
 

@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { Button, Form, Input, Modal, Popconfirm, Select, Space, Switch, Table, Tag, Typography, message } from 'antd';
+import { Button, Form, Input, InputNumber, Modal, Popconfirm, Select, Space, Switch, Table, Tag, Typography, message } from 'antd';
 import { get, post, put } from '@/lib/api';
+import StoreMapPicker, { StoreMapPickerValue } from '@/components/StoreMapPicker';
 
 const { Title } = Typography;
 
@@ -18,6 +19,16 @@ interface StoreItem {
   category_code?: string | null;
   category_name?: string | null;
   business_scope?: number[];
+  // [2026-05-01 门店地图能力 PRD v1.0]
+  lat?: number | null;
+  lng?: number | null;
+  province?: string | null;
+  city?: string | null;
+  district?: string | null;
+  // [2026-05-02 H5 下单流程优化 PRD v1.0]
+  slot_capacity?: number | null;
+  business_start?: string | null;
+  business_end?: string | null;
 }
 
 interface CategoryItem {
@@ -91,7 +102,16 @@ export default function MerchantStoresPage() {
     setEditing(null);
     form.resetFields();
     const defaultCat = categories.find((c) => c.code === 'self_store');
-    form.setFieldsValue({ status: 'active', category_id: defaultCat?.id });
+    form.setFieldsValue({
+      status: 'active',
+      category_id: defaultCat?.id,
+      // [2026-05-01 门店地图能力 PRD v1.0] 地图选点初值
+      map_point: {} as StoreMapPickerValue,
+      // [2026-05-02 H5 下单流程优化 PRD v1.0]
+      slot_capacity: 10,
+      business_start: '09:00',
+      business_end: '22:00',
+    });
     setOpen(true);
   };
 
@@ -101,13 +121,43 @@ export default function MerchantStoresPage() {
       ...item,
       category_id: item.category_id ?? undefined,
       business_scope: item.business_scope ?? [],
+      // [2026-05-02 H5 下单流程优化 PRD v1.0]
+      slot_capacity: item.slot_capacity ?? 10,
+      business_start: item.business_start ?? '',
+      business_end: item.business_end ?? '',
+      // [2026-05-01 门店地图能力 PRD v1.0]
+      map_point: {
+        lat: item.lat ?? undefined,
+        lng: item.lng ?? undefined,
+        province: item.province ?? undefined,
+        city: item.city ?? undefined,
+        district: item.district ?? undefined,
+        address: item.address ?? undefined,
+      } as StoreMapPickerValue,
     });
     setOpen(true);
   };
 
   const submit = async () => {
     const values = await form.validateFields();
-    const { business_scope, ...storeValues } = values;
+    const { business_scope, map_point, ...storeValues } = values;
+    // [2026-05-01 门店地图能力 PRD v1.0] 经纬度必填校验（仅新建强制；编辑可空）
+    const mapPoint: StoreMapPickerValue | undefined = map_point;
+    if (!editing) {
+      if (!mapPoint || mapPoint.lat == null || mapPoint.lng == null) {
+        message.error('请在地图上选择门店位置');
+        return;
+      }
+    }
+    if (mapPoint?.lat != null) storeValues.lat = mapPoint.lat;
+    if (mapPoint?.lng != null) storeValues.lng = mapPoint.lng;
+    if (mapPoint?.province) storeValues.province = mapPoint.province;
+    if (mapPoint?.city) storeValues.city = mapPoint.city;
+    if (mapPoint?.district) storeValues.district = mapPoint.district;
+    // 若 admin 没有手动改过 address，且 map_point 有 address，沿用 map_point 的地址
+    if ((!storeValues.address || storeValues.address.length === 0) && mapPoint?.address) {
+      storeValues.address = mapPoint.address;
+    }
     try {
       let storeId: number;
       if (editing) {
@@ -153,6 +203,23 @@ export default function MerchantStoresPage() {
   const handleIncludeInactiveChange = (checked: boolean) => {
     setIncludeInactive(checked);
     fetchData(filterCategory, checked);
+  };
+
+  // [2026-05-01 门店地图能力 PRD v1.0] map_point 变化时联动写回 province/city/district/address
+  const onValuesChange = (changed: any, allValues: any) => {
+    if (changed && Object.prototype.hasOwnProperty.call(changed, 'map_point')) {
+      const mp: StoreMapPickerValue | undefined = changed.map_point;
+      if (mp) {
+        const next: any = {};
+        if (mp.province) next.province = mp.province;
+        if (mp.city) next.city = mp.city;
+        if (mp.district) next.district = mp.district;
+        if (mp.address) next.address = mp.address;
+        if (Object.keys(next).length > 0) {
+          form.setFieldsValue(next);
+        }
+      }
+    }
   };
 
   return (
@@ -244,8 +311,9 @@ export default function MerchantStoresPage() {
         onCancel={() => setOpen(false)}
         onOk={submit}
         destroyOnClose
+        width={760}
       >
-        <Form form={form} layout="vertical">
+        <Form form={form} layout="vertical" onValuesChange={onValuesChange}>
           <Form.Item name="store_name" label="门店名称" rules={[{ required: true, message: '请输入门店名称' }]}>
             <Input placeholder="请输入门店名称" />
           </Form.Item>
@@ -274,8 +342,57 @@ export default function MerchantStoresPage() {
           <Form.Item name="contact_phone" label="联系电话">
             <Input placeholder="请输入联系电话" />
           </Form.Item>
-          <Form.Item name="address" label="门店地址">
-            <Input.TextArea rows={3} placeholder="请输入门店地址" />
+          {/* [2026-05-01 门店地图能力 PRD v1.0] 地图选点 — 搜索/拖拽/逆地理回填/手动经纬度 */}
+          <Form.Item
+            name="map_point"
+            label="地图选点"
+            tooltip="新建门店必须在地图上选点；选点后会自动回填省/市/区/详细地址"
+            rules={[
+              {
+                validator: async (_, val: StoreMapPickerValue) => {
+                  if (!editing) {
+                    if (!val || val.lat == null || val.lng == null) {
+                      throw new Error('请在地图上选择门店位置');
+                    }
+                  }
+                },
+              },
+            ]}
+          >
+            <StoreMapPicker />
+          </Form.Item>
+          <Form.Item name="province" label="省份">
+            <Input placeholder="（地图选点后自动回填，可手动修改）" />
+          </Form.Item>
+          <Form.Item name="city" label="城市">
+            <Input placeholder="（地图选点后自动回填，可手动修改）" />
+          </Form.Item>
+          <Form.Item name="district" label="区/县">
+            <Input placeholder="（地图选点后自动回填，可手动修改）" />
+          </Form.Item>
+          <Form.Item name="address" label="详细地址">
+            <Input.TextArea rows={3} placeholder="请输入详细地址（地图选点后自动回填，可手动修改）" />
+          </Form.Item>
+          {/* [2026-05-02 H5 下单流程优化 PRD v1.0] 单时段最大接单数 + 营业起止时间 */}
+          <Form.Item
+            name="slot_capacity"
+            label="单时段最大接单数"
+            tooltip="同一日期同一时段允许的最大下单数（共享门店容量池），默认 10"
+            rules={[{ required: true, message: '请填写单时段最大接单数' }]}
+          >
+            <InputNumber min={1} max={9999} style={{ width: 200 }} placeholder="默认 10" />
+          </Form.Item>
+          <Form.Item label="营业时间" tooltip="商品时段必须完全落在门店营业时段内才会出现在用户支付页">
+            <Space>
+              <Form.Item name="business_start" noStyle>
+                <Input placeholder="09:00" maxLength={5} style={{ width: 100 }} />
+              </Form.Item>
+              <span>至</span>
+              <Form.Item name="business_end" noStyle>
+                <Input placeholder="22:00" maxLength={5} style={{ width: 100 }} />
+              </Form.Item>
+              <span style={{ color: '#999', fontSize: 12 }}>格式 HH:MM</span>
+            </Space>
           </Form.Item>
           <Form.Item name="business_scope" label="经营范围">
             <Select

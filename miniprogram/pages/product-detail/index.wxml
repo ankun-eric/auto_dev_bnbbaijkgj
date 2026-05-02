@@ -57,51 +57,9 @@
     </view>
   </view>
 
-  <!-- 可预约时段 -->
-  <view class="time-slots-section card" wx:if="{{timeSlots.length > 0}}">
-    <text class="section-title">可预约时段（{{appointmentDate}}）</text>
-    <view class="time-slots-wrap">
-      <view wx:for="{{timeSlots}}" wx:key="*this"
-            class="time-slot-btn {{disabledSlots.indexOf(item) >= 0 ? 'disabled' : ''}}">
-        <text>{{item}}</text>
-        <text wx:if="{{expiredSlots.indexOf(item) >= 0}}" class="slot-full-tag">已结束</text>
-        <text wx:elif="{{fullyBookedSlots.indexOf(item) >= 0}}" class="slot-full-tag">已约满</text>
-      </view>
-    </view>
-  </view>
-
-  <!-- 可用门店 -->
-  <view class="stores-section card" wx:if="{{availableStores.length > 0}}">
-    <view class="section-title-row">
-      <text class="section-title">可用门店</text>
-      <text wx:if="{{!sortByDistance}}" class="section-subtle">已按门店名排序</text>
-    </view>
-    <view class="store-main" bindtap="onSwitchStore">
-      <view class="store-info">
-        <text class="store-name">{{availableStores[currentStoreIdx].name}}</text>
-        <text class="store-addr">{{availableStores[currentStoreIdx].address}}</text>
-        <text class="store-distance" wx:if="{{availableStores[currentStoreIdx].distance_km !== null && availableStores[currentStoreIdx].distance_km !== undefined}}">距您 {{availableStores[currentStoreIdx].distance_km}} km</text>
-      </view>
-      <text class="store-switch" wx:if="{{availableStores.length > 1}}">切换 ▼</text>
-    </view>
-  </view>
-
-  <!-- 底部抽屉：选择门店 -->
-  <view class="drawer-mask" wx:if="{{storeDrawerVisible}}" bindtap="onCloseDrawer"></view>
-  <view class="store-drawer {{storeDrawerVisible ? 'show' : ''}}" catchtap="">
-    <view class="drawer-title">选择门店</view>
-    <scroll-view scroll-y="true" class="drawer-list">
-      <view wx:for="{{availableStores}}" wx:key="store_id"
-            class="drawer-item" bindtap="onPickStore" data-idx="{{index}}">
-        <view class="drawer-item-info">
-          <text class="store-name">{{item.name}}</text>
-          <text class="store-addr" wx:if="{{item.address}}">{{item.address}}</text>
-          <text class="store-distance" wx:if="{{item.distance_km !== null && item.distance_km !== undefined}}">距您 {{item.distance_km}} km</text>
-        </view>
-        <text class="check-mark" wx:if="{{index === currentStoreIdx}}">✓</text>
-      </view>
-    </scroll-view>
-  </view>
+  <!-- [2026-05-02 H5 下单流程优化 PRD v1.0]
+       详情页删除「可预约时段」「可用门店」选择，
+       选择行为整体下沉到下单页 pages/checkout。 -->
 
   <!-- 评价 -->
   <view class="reviews-section card" wx:if="{{reviews.length > 0}}">

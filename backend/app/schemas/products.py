@@ -317,6 +317,10 @@ class AvailableStoreItem(BaseModel):
     distance_km: Optional[float] = None
     is_nearest: bool = False
     static_map_url: Optional[str] = None
+    # [2026-05-02 H5 下单流程优化 PRD v1.0]
+    slot_capacity: Optional[int] = 10
+    business_start: Optional[str] = None
+    business_end: Optional[str] = None
     model_config = ConfigDict(from_attributes=True)
 
 

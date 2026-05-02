@@ -252,12 +252,24 @@ async def _build_store_response(
         contact_name=store.contact_name,
         contact_phone=store.contact_phone,
         address=store.address,
+        # [2026-05-01 门店地图能力 PRD v1.0] 经纬度 + 省市区
+        lat=float(store.lat) if getattr(store, "lat", None) is not None else None,
+        lng=float(store.lng) if getattr(store, "lng", None) is not None else None,
+        longitude=float(store.lng) if getattr(store, "lng", None) is not None else None,
+        latitude=float(store.lat) if getattr(store, "lat", None) is not None else None,
+        province=getattr(store, "province", None),
+        city=getattr(store, "city", None),
+        district=getattr(store, "district", None),
         status=store.status,
         member_role=membership.member_role.value,
         module_codes=module_codes,
         category_id=getattr(store, "category_id", None),
         category_code=category_code,
         category_name=category_name,
+        # [2026-05-02 H5 下单流程优化 PRD v1.0]
+        slot_capacity=getattr(store, "slot_capacity", 10) or 10,
+        business_start=getattr(store, "business_start", None),
+        business_end=getattr(store, "business_end", None),
     )
 
 
@@ -504,6 +516,14 @@ async def list_stores(
             "contact_name": store.contact_name,
             "contact_phone": store.contact_phone,
             "address": store.address,
+            # [2026-05-01 门店地图能力 PRD v1.0] 经纬度 + 省市区
+            "lat": float(store.lat) if store.lat is not None else None,
+            "lng": float(store.lng) if store.lng is not None else None,
+            "longitude": float(store.lng) if store.lng is not None else None,
+            "latitude": float(store.lat) if store.lat is not None else None,
+            "province": getattr(store, "province", None),
+            "city": getattr(store, "city", None),
+            "district": getattr(store, "district", None),
             "status": store.status,
             "created_at": store.created_at.isoformat() if store.created_at else None,
         })
@@ -531,6 +551,35 @@ async def _generate_store_code(db: AsyncSession) -> str:
     return f"MD{next_num:05d}"
 
 
+def _normalize_lat_lng(payload: dict) -> dict:
+    """[2026-05-01 门店地图能力 PRD v1.0] 兼容 longitude/latitude 与 lat/lng 双命名。
+    任一字段非空即可，统一回写到 lat/lng；同时校验范围合法性。
+    """
+    lat = payload.pop("latitude", None)
+    lng = payload.pop("longitude", None)
+    if lat is not None and payload.get("lat") is None:
+        payload["lat"] = lat
+    if lng is not None and payload.get("lng") is None:
+        payload["lng"] = lng
+    if payload.get("lat") is not None:
+        try:
+            v = float(payload["lat"])
+        except (TypeError, ValueError):
+            raise HTTPException(status_code=400, detail="纬度必须是数字")
+        if v < -90 or v > 90:
+            raise HTTPException(status_code=400, detail="纬度必须在 -90 到 90 之间")
+        payload["lat"] = v
+    if payload.get("lng") is not None:
+        try:
+            v = float(payload["lng"])
+        except (TypeError, ValueError):
+            raise HTTPException(status_code=400, detail="经度必须是数字")
+        if v < -180 or v > 180:
+            raise HTTPException(status_code=400, detail="经度必须在 -180 到 180 之间")
+        payload["lng"] = v
+    return payload
+
+
 @router.post("/stores")
 async def create_store(
     data: MerchantStoreCreate,
@@ -544,6 +593,10 @@ async def create_store(
     # [2026-04-29] 自动生成 store_code
     store_code = await _generate_store_code(db)
     store_data = data.model_dump(exclude={"store_code"})
+    # [2026-05-01 门店地图能力 PRD v1.0] 经纬度新建必填
+    store_data = _normalize_lat_lng(store_data)
+    if store_data.get("lat") is None or store_data.get("lng") is None:
+        raise HTTPException(status_code=400, detail="请在地图上选择门店位置（经纬度必填）")
     store_data["store_code"] = store_code
     store = MerchantStore(**store_data)
     db.add(store)
@@ -576,7 +629,19 @@ async def get_store(
         "contact_name": store.contact_name,
         "contact_phone": store.contact_phone,
         "address": store.address,
+        # [2026-05-01 门店地图能力 PRD v1.0] 经纬度 + 省市区
+        "lat": float(store.lat) if store.lat is not None else None,
+        "lng": float(store.lng) if store.lng is not None else None,
+        "longitude": float(store.lng) if store.lng is not None else None,
+        "latitude": float(store.lat) if store.lat is not None else None,
+        "province": getattr(store, "province", None),
+        "city": getattr(store, "city", None),
+        "district": getattr(store, "district", None),
         "status": store.status,
+        # [2026-05-02 H5 下单流程优化 PRD v1.0]
+        "slot_capacity": getattr(store, "slot_capacity", 10) or 10,
+        "business_start": getattr(store, "business_start", None),
+        "business_end": getattr(store, "business_end", None),
     }
 
 
@@ -596,6 +661,8 @@ async def update_store(
     payload.pop("store_code", None)
     if "category_id" in payload:
         await _validate_category_id(db, payload["category_id"])
+    # [2026-05-01 门店地图能力 PRD v1.0] 经纬度规范化
+    payload = _normalize_lat_lng(payload)
     for key, value in payload.items():
         setattr(store, key, value)
     store.updated_at = datetime.utcnow()

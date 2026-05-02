@@ -1224,6 +1224,22 @@ async def _sync_store_bindding_tables(conn: AsyncConnection) -> None:
             await conn.execute(text("ALTER TABLE merchant_stores ADD COLUMN city VARCHAR(50) NULL"))
         if "district" not in cols:
             await conn.execute(text("ALTER TABLE merchant_stores ADD COLUMN district VARCHAR(50) NULL"))
+        # [2026-05-02 H5 下单流程优化 PRD v1.0] 单时段最大接单数 + 营业起止时间
+        if "slot_capacity" not in cols:
+            await conn.execute(text(
+                "ALTER TABLE merchant_stores ADD COLUMN slot_capacity INT NOT NULL DEFAULT 10 "
+                "COMMENT '单时段最大接单数，默认 10'"
+            ))
+        if "business_start" not in cols:
+            await conn.execute(text(
+                "ALTER TABLE merchant_stores ADD COLUMN business_start VARCHAR(5) NULL "
+                "COMMENT '营业开始 HH:MM'"
+            ))
+        if "business_end" not in cols:
+            await conn.execute(text(
+                "ALTER TABLE merchant_stores ADD COLUMN business_end VARCHAR(5) NULL "
+                "COMMENT '营业结束 HH:MM'"
+            ))
 
     # 2. merchant_notifications 新增 notification_type
     if table_cols.get("merchant_notifications") is not None:

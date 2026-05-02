@@ -24,6 +24,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   int _pointsDeduction = 0;
   bool _submitting = false;
   final TextEditingController _notesController = TextEditingController();
+  // [2026-05-02 H5 下单流程优化 PRD v1.0] 联系手机号
+  final TextEditingController _contactPhoneController = TextEditingController();
+  String? _contactPhoneError;
 
   DateTime? _selectedDate = DateTime.now();
   String? _selectedTimeSlot;
@@ -44,6 +47,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   @override
   void dispose() {
     _notesController.dispose();
+    _contactPhoneController.dispose();
     super.dispose();
   }
 
@@ -167,6 +171,21 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
       if (_product.appointmentMode != 'none' && _selectedDate != null) {
         final dateStr = _formatDate(_selectedDate!);
+        // [2026-05-02 H5 下单流程优化 PRD v1.0] 联系手机号必填校验
+        final phone = _contactPhoneController.text.trim();
+        final phoneRe = RegExp(r'^1[3-9]\d{9}$');
+        if (phone.isEmpty || !phoneRe.hasMatch(phone)) {
+          setState(() {
+            _submitting = false;
+            _contactPhoneError = '请输入正确的手机号';
+          });
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('请输入正确的联系手机号')),
+            );
+          }
+          return;
+        }
         itemData['appointment_time'] = _selectedTimeSlot != null
             ? '${dateStr}T$_selectedTimeSlot:00'
             : '${dateStr}T00:00:00';
@@ -174,6 +193,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           'date': dateStr,
           'time_slot': _selectedTimeSlot,
           'note': _appointmentNote,
+          'contact_phone': phone,
         };
       }
 
@@ -491,14 +511,32 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   }).toList(),
           ),
           const SizedBox(height: 12),
+          // [2026-05-02 H5 下单流程优化 PRD v1.0] 联系手机号
+          TextField(
+            controller: _contactPhoneController,
+            keyboardType: TextInputType.phone,
+            maxLength: 11,
+            decoration: InputDecoration(
+              labelText: '联系手机号',
+              hintText: '请输入联系手机号',
+              errorText: _contactPhoneError,
+              border: const OutlineInputBorder(),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              counterText: '',
+            ),
+            style: const TextStyle(fontSize: 14),
+            onChanged: (_) => setState(() => _contactPhoneError = null),
+          ),
+          const SizedBox(height: 12),
           TextField(
             decoration: const InputDecoration(
-              hintText: '预约备注（选填）',
+              hintText: '预约备注（选填，最多 50 字）',
               border: OutlineInputBorder(),
               contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               hintStyle: TextStyle(fontSize: 14),
             ),
             maxLines: 2,
+            maxLength: 50,
             style: const TextStyle(fontSize: 14),
             onChanged: (v) => _appointmentNote = v,
           ),

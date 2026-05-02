@@ -1,23 +1,44 @@
 import pytest
 from httpx import AsyncClient
 
-from app.models.models import ServiceCategory, ServiceItem
+from app.models.models import MerchantCategory, ServiceCategory, ServiceItem
+from tests.conftest import test_session
+
+
+async def _ensure_default_category() -> int:
+    """[2026-05-01] 确保商家分类存在以满足 create_store 必填要求。"""
+    async with test_session() as db:
+        from sqlalchemy import select
+        res = await db.execute(select(MerchantCategory).where(MerchantCategory.code == "self_store"))
+        cat = res.scalar_one_or_none()
+        if cat:
+            return cat.id
+        cat = MerchantCategory(code="self_store", name="自营门店", sort=0, status="active")
+        db.add(cat)
+        await db.commit()
+        await db.refresh(cat)
+        return cat.id
 
 
 async def _create_store(client: AsyncClient, admin_headers, store_code: str = "STORE001") -> int:
+    # [2026-05-01 门店地图能力 PRD v1.0] 新建必传经纬度 + category_id
+    cat_id = await _ensure_default_category()
     response = await client.post(
         "/api/admin/merchant/stores",
         json={
             "store_name": "测试门店",
             "store_code": store_code,
+            "category_id": cat_id,
             "contact_name": "门店店长",
             "contact_phone": "13800009999",
             "address": "测试地址",
+            "lat": 23.1234567,
+            "lng": 113.4567890,
             "status": "active",
         },
         headers=admin_headers,
     )
-    assert response.status_code == 200
+    assert response.status_code == 200, response.text
     return response.json()["id"]
 
 

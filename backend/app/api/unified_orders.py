@@ -14,6 +14,7 @@ from app.core.security import get_current_user
 from app.models.models import (
     Coupon,
     MerchantNotification,
+    MerchantStore,
     Notification,
     NotificationType,
     OrderItem,
@@ -265,39 +266,86 @@ async def create_unified_order(
                         except (ValueError, IndexError):
                             pass
 
-            # Bug2 兜底：容量校验
-            time_slots_config = getattr(product, "time_slots", None) or []
-            if selected_slot and time_slots_config:
-                slot_config = None
-                for ts in time_slots_config:
-                    ts_key = f"{ts.get('start', '')}-{ts.get('end', '')}"
-                    if ts_key == selected_slot:
-                        slot_config = ts
-                        break
-                if slot_config and selected_date_str:
-                    capacity = slot_config.get("capacity", 0)
-                    if capacity > 0:
+            # [2026-05-02 H5 下单流程优化 PRD v1.0]
+            # 容量校验改为「门店 slot_capacity」粒度（默认 10），口径 = 已支付 + 待支付 15 分钟内。
+            # appointment_data.store_id 优先，缺省时回退商品绑定的第一个门店；
+            # 商品 time_slots[].capacity 字段保留但下单不再读取（PRD §2.1）。
+            target_store_id = None
+            if isinstance(appt_data, dict):
+                try:
+                    sid_raw = appt_data.get("store_id")
+                    if sid_raw is not None and sid_raw != "":
+                        target_store_id = int(sid_raw)
+                except (TypeError, ValueError):
+                    target_store_id = None
+            if target_store_id is None:
+                ps_res = await db.execute(
+                    select(ProductStore.store_id)
+                    .where(ProductStore.product_id == product.id)
+                    .order_by(ProductStore.store_id.asc())
+                    .limit(1)
+                )
+                first_sid = ps_res.scalar_one_or_none()
+                if first_sid is not None:
+                    target_store_id = int(first_sid)
+
+            if selected_slot and selected_date_str and target_store_id:
+                try:
+                    q_date = date.fromisoformat(selected_date_str)
+                except (ValueError, TypeError):
+                    q_date = None
+                if q_date:
+                    store_res = await db.execute(
+                        select(MerchantStore).where(MerchantStore.id == target_store_id)
+                    )
+                    target_store = store_res.scalar_one_or_none()
+                    capacity = int(getattr(target_store, "slot_capacity", 10) or 10) if target_store else 10
+                    biz_start = getattr(target_store, "business_start", None) if target_store else None
+                    biz_end = getattr(target_store, "business_end", None) if target_store else None
+
+                    # 商品时段必须落在门店营业时段之内
+                    if biz_start and biz_end:
                         try:
-                            q_date = date.fromisoformat(selected_date_str)
-                        except (ValueError, TypeError):
-                            q_date = None
-                        if q_date:
-                            excluded = [UnifiedOrderStatus.cancelled.value]
-                            booked_q = await db.execute(
-                                select(func.count(OrderItem.id))
-                                .join(UnifiedOrder, UnifiedOrder.id == OrderItem.order_id)
-                                .where(
-                                    OrderItem.product_id == product.id,
-                                    func.date(OrderItem.appointment_time) == q_date,
-                                    UnifiedOrder.status.notin_(excluded),
+                            slot_start, slot_end = selected_slot.split("-")
+                            if slot_start < biz_start or slot_end > biz_end:
+                                raise HTTPException(
+                                    status_code=400,
+                                    detail="所选时段不在该门店营业时段内，请重新选择",
                                 )
-                                .where(
-                                    func.json_extract(OrderItem.appointment_data, "$.time_slot") == selected_slot
+                        except ValueError:
+                            pass
+
+                    # 占用数 = 已支付 + 待支付（15 分钟内未取消）
+                    fifteen_min_ago = datetime.utcnow() - timedelta(minutes=15)
+                    paid_like = [
+                        UnifiedOrderStatus.paid.value,
+                        UnifiedOrderStatus.shipped.value,
+                        UnifiedOrderStatus.received.value,
+                        UnifiedOrderStatus.completed.value,
+                    ]
+                    booked_q = await db.execute(
+                        select(func.count(OrderItem.id))
+                        .join(UnifiedOrder, UnifiedOrder.id == OrderItem.order_id)
+                        .where(
+                            OrderItem.product_id == product.id,
+                            func.date(OrderItem.appointment_time) == q_date,
+                            func.json_extract(OrderItem.appointment_data, "$.time_slot") == selected_slot,
+                            UnifiedOrder.store_id == target_store_id,
+                            (
+                                (UnifiedOrder.status.in_(paid_like))
+                                | (
+                                    (UnifiedOrder.status == UnifiedOrderStatus.pending_payment)
+                                    & (UnifiedOrder.created_at >= fifteen_min_ago)
                                 )
-                            )
-                            booked_count = booked_q.scalar() or 0
-                            if booked_count >= capacity:
-                                raise HTTPException(status_code=400, detail="该时段名额已满，请选择其他时段")
+                            ),
+                        )
+                    )
+                    booked_count = booked_q.scalar() or 0
+                    if booked_count >= capacity:
+                        raise HTTPException(
+                            status_code=400,
+                            detail="该时段名额已满，请选择其他时段",
+                        )
 
         oi = OrderItem(
             order_id=order.id,
@@ -348,16 +396,32 @@ async def create_unified_order(
             uc.used_at = datetime.utcnow()
             uc.order_id = order.id
 
-    # 根据商品绑定门店，自动设置订单的 store_id
-    all_product_ids = list({item.product_id for item in data.items})
-    store_result = await db.execute(
-        select(ProductStore.store_id)
-        .where(ProductStore.product_id.in_(all_product_ids))
-        .distinct()
-    )
-    bound_store_ids = [row[0] for row in store_result.all()]
-    if bound_store_ids:
-        order.store_id = bound_store_ids[0]
+    # [2026-05-02 H5 下单流程优化 PRD v1.0]
+    # 优先使用 appointment_data.store_id 作为订单 store_id；缺失时回退商品绑定的第一个门店。
+    user_chosen_store_id: Optional[int] = None
+    for item in data.items:
+        appt = getattr(item, "appointment_data", None) or {}
+        if isinstance(appt, dict):
+            sid_raw = appt.get("store_id")
+            try:
+                if sid_raw is not None and sid_raw != "":
+                    user_chosen_store_id = int(sid_raw)
+                    break
+            except (TypeError, ValueError):
+                continue
+
+    if user_chosen_store_id is not None:
+        order.store_id = user_chosen_store_id
+    else:
+        all_product_ids = list({item.product_id for item in data.items})
+        store_result = await db.execute(
+            select(ProductStore.store_id)
+            .where(ProductStore.product_id.in_(all_product_ids))
+            .distinct()
+        )
+        bound_store_ids = [row[0] for row in store_result.all()]
+        if bound_store_ids:
+            order.store_id = bound_store_ids[0]
 
     notification = Notification(
         user_id=current_user.id,

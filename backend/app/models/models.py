@@ -421,6 +421,12 @@ class MerchantStore(Base):
     license_no = mapped_column(String(100), nullable=True)
     legal_person = mapped_column(String(100), nullable=True)
     business_scope = mapped_column(JSON, nullable=True)
+    # [2026-05-02 H5 下单流程优化 PRD v1.0] 单时段最大接单数（共享门店容量池），默认 10
+    slot_capacity = mapped_column(Integer, nullable=False, default=10, server_default="10",
+                                  comment="单时段最大接单数，默认 10")
+    # [2026-05-02 H5 下单流程优化 PRD v1.0] 营业起止时间（用于与商品时段交集计算）
+    business_start = mapped_column(String(5), nullable=True, comment="营业开始时间 HH:MM")
+    business_end = mapped_column(String(5), nullable=True, comment="营业结束时间 HH:MM")
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

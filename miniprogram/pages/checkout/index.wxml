@@ -71,9 +71,16 @@
       </view>
     </view>
     <view class="form-item">
+      <text class="form-label">联系手机号</text>
+      <input class="form-input" type="number" maxlength="11"
+             placeholder="请输入联系手机号"
+             value="{{contactPhone}}" bindinput="onContactPhoneInput" bindblur="onContactPhoneBlur" />
+    </view>
+    <text class="advance-hint" wx:if="{{contactPhoneError}}" style="color: #ff4d4f;">{{contactPhoneError}}</text>
+    <view class="form-item">
       <text class="form-label">备注</text>
-      <input class="form-input" placeholder="请输入备注信息"
-             value="{{appointmentNote}}" bindinput="onNoteInput" />
+      <input class="form-input" placeholder="如有特殊要求请告知门店（选填）"
+             value="{{appointmentNote}}" maxlength="50" bindinput="onNoteInput" />
     </view>
   </view>
 

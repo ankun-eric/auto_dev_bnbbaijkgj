@@ -39,17 +39,9 @@ Page({
         loading: false
       });
 
-      const today = this.formatDate(new Date());
-      const slotLabels = (product.time_slots || []).map(s => `${s.start}-${s.end}`);
-      this.setData({
-        appointmentDate: today,
-        timeSlots: slotLabels
-      });
-      if (slotLabels.length > 0) {
-        this.loadSlotAvailability(today);
-      }
+      // [2026-05-02 H5 下单流程优化 PRD v1.0] 详情页删除日期/时段/门店选择，
+      // 选择行为整体下沉到下单页（pages/checkout）。详情页只保留商品展示。
 
-      this.loadAvailableStores();
       // 收藏状态回显
       try {
         const fav = await get(`/api/favorites/status?content_type=product&content_id=${this.data.id}`);
@@ -171,6 +163,31 @@ Page({
   onSwitchStore() {
     if (this.data.availableStores.length <= 1) return;
     this.setData({ storeDrawerVisible: true });
+  },
+
+  /**
+   * [2026-05-01 门店地图能力 PRD v1.0] 点击门店卡片调起 wx.openLocation
+   * 微信原生面板（腾讯地图底图）会自动提供"导航 / 查看周边"按钮，无需自定义抽屉。
+   * 当门店无经纬度时，回退到切换门店行为。
+   */
+  onStoreCardTap() {
+    const list = this.data.availableStores;
+    if (!list || list.length === 0) return;
+    const cur = list[this.data.currentStoreIdx] || list[0];
+    if (cur.lat == null || cur.lng == null) {
+      // 无经纬度：回退切换
+      this.onSwitchStore();
+      return;
+    }
+    const fullAddr = `${cur.province || ''}${cur.city || ''}${cur.district || ''}${cur.address || ''}`;
+    wx.openLocation({
+      latitude: Number(cur.lat),
+      longitude: Number(cur.lng),
+      name: cur.name,
+      address: fullAddr,
+      scale: 16,
+      fail: () => wx.showToast({ title: '打开地图失败', icon: 'none' }),
+    });
   },
 
   onCloseDrawer() {

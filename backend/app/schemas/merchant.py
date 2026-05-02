@@ -34,6 +34,15 @@ class MerchantStoreResponse(BaseModel):
     contact_name: Optional[str] = None
     contact_phone: Optional[str] = None
     address: Optional[str] = None
+    # [2026-05-01 门店地图能力 PRD v1.0] 经纬度（GCJ-02）
+    lat: Optional[float] = None
+    lng: Optional[float] = None
+    longitude: Optional[float] = None
+    latitude: Optional[float] = None
+    # 拆分的省/市/区（来自地图选点逆地理编码或 admin 手填）
+    province: Optional[str] = None
+    city: Optional[str] = None
+    district: Optional[str] = None
     status: str
     member_role: str
     module_codes: List[str] = Field(default_factory=list)
@@ -41,6 +50,10 @@ class MerchantStoreResponse(BaseModel):
     category_id: Optional[int] = None
     category_code: Optional[str] = None
     category_name: Optional[str] = None
+    # [2026-05-02 H5 下单流程优化 PRD v1.0]
+    slot_capacity: Optional[int] = 10
+    business_start: Optional[str] = None
+    business_end: Optional[str] = None
 
 
 class MerchantStoreCreate(BaseModel):
@@ -52,7 +65,19 @@ class MerchantStoreCreate(BaseModel):
     contact_name: Optional[str] = None
     contact_phone: Optional[str] = None
     address: Optional[str] = None
+    # [2026-05-01 门店地图能力 PRD v1.0] 经纬度（新建必填）
+    lat: Optional[float] = None
+    lng: Optional[float] = None
+    longitude: Optional[float] = None  # 兼容字段，等价 lng
+    latitude: Optional[float] = None   # 兼容字段，等价 lat
+    province: Optional[str] = None
+    city: Optional[str] = None
+    district: Optional[str] = None
     status: str = "active"
+    # [2026-05-02 H5 下单流程优化 PRD v1.0]
+    slot_capacity: Optional[int] = 10
+    business_start: Optional[str] = None
+    business_end: Optional[str] = None
 
 
 class MerchantStoreUpdate(BaseModel):
@@ -62,7 +87,19 @@ class MerchantStoreUpdate(BaseModel):
     contact_name: Optional[str] = None
     contact_phone: Optional[str] = None
     address: Optional[str] = None
+    # [2026-05-01 门店地图能力 PRD v1.0] 经纬度（编辑老门店可空）
+    lat: Optional[float] = None
+    lng: Optional[float] = None
+    longitude: Optional[float] = None
+    latitude: Optional[float] = None
+    province: Optional[str] = None
+    city: Optional[str] = None
+    district: Optional[str] = None
     status: Optional[str] = None
+    # [2026-05-02 H5 下单流程优化 PRD v1.0]
+    slot_capacity: Optional[int] = None
+    business_start: Optional[str] = None
+    business_end: Optional[str] = None
 
 
 class MerchantStorePermissionInput(BaseModel):

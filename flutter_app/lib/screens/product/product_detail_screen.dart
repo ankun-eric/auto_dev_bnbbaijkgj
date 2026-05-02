@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../models/product.dart';
 import '../../services/api_service.dart';
 import '../../utils/price_formatter.dart';
+import '../../utils/map_nav_util.dart';
 
 class ProductDetailScreen extends StatefulWidget {
   const ProductDetailScreen({super.key});
@@ -380,7 +382,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     ],
                   ),
                 ),
-                if (p.appointmentMode != 'none' &&
+                // [2026-05-02 H5 下单流程优化 PRD v1.0]
+                // 详情页删除「可预约时段」「可用门店」选择区，
+                // 选择行为整体下沉到下单页（CheckoutScreen）。
+                if (false &&
+                    p.appointmentMode != 'none' &&
                     p.timeSlots != null && p.timeSlots!.isNotEmpty)
                   Container(
                     color: Colors.white,
@@ -421,29 +427,46 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       ],
                     ),
                   ),
-                if (_availableStores.isNotEmpty)
-                  GestureDetector(
-                    onTap: _showStoreDrawer,
-                    child: Container(
-                      color: Colors.white,
-                      padding: const EdgeInsets.all(16),
-                      margin: const EdgeInsets.only(top: 8),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text('可用门店', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
-                              if (_storesSortBy == 'name')
-                                const Text('已按门店名排序', style: TextStyle(color: Color(0xFFBBBBBB), fontSize: 11)),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          Builder(builder: (_) {
-                            final cur = _availableStores[_selectedStoreIdx.clamp(0, _availableStores.length - 1)];
-                            final dist = cur['distance_km'];
-                            return Container(
+                if (false && _availableStores.isNotEmpty)
+                  Container(
+                    color: Colors.white,
+                    padding: const EdgeInsets.all(16),
+                    margin: const EdgeInsets.only(top: 8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('可用门店', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+                            if (_storesSortBy == 'name')
+                              const Text('已按门店名排序', style: TextStyle(color: Color(0xFFBBBBBB), fontSize: 11)),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Builder(builder: (_) {
+                          final cur = _availableStores[_selectedStoreIdx.clamp(0, _availableStores.length - 1)];
+                          final dist = cur['distance_km'];
+                          final hasGeo = cur['lat'] != null && cur['lng'] != null;
+                          final fullAddr = '${cur['province'] ?? ''}${cur['city'] ?? ''}${cur['district'] ?? ''}${cur['address'] ?? ''}';
+                          final mapUrl = cur['static_map_url']?.toString();
+                          final isNearest = cur['is_nearest'] == true;
+                          return GestureDetector(
+                            // [2026-05-01 门店地图能力 PRD v1.0] 整张卡片可点击 → 唤起地图 App
+                            onTap: () async {
+                              if (hasGeo) {
+                                await MapNavUtil.showMapNavSheet(
+                                  context,
+                                  name: cur['name']?.toString() ?? '',
+                                  address: fullAddr,
+                                  lat: (cur['lat'] as num).toDouble(),
+                                  lng: (cur['lng'] as num).toDouble(),
+                                );
+                              } else if (_availableStores.length > 1) {
+                                _showStoreDrawer();
+                              }
+                            },
+                            child: Container(
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
                                 border: Border.all(color: const Color(0xFFF0F0F0)),
@@ -455,29 +478,87 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        Text(cur['name']?.toString() ?? '', style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14)),
-                                        if (cur['address'] != null) ...[
+                                        Row(
+                                          children: [
+                                            Flexible(
+                                              child: Text(
+                                                cur['name']?.toString() ?? '',
+                                                style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                            if (isNearest)
+                                              Container(
+                                                margin: const EdgeInsets.only(left: 6),
+                                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                                decoration: BoxDecoration(
+                                                  color: const Color(0xFF52C41A),
+                                                  borderRadius: BorderRadius.circular(3),
+                                                ),
+                                                child: const Text('最近', style: TextStyle(color: Colors.white, fontSize: 10)),
+                                              ),
+                                          ],
+                                        ),
+                                        if (fullAddr.isNotEmpty) ...[
                                           const SizedBox(height: 4),
-                                          Text(cur['address'].toString(), style: const TextStyle(color: Color(0xFF999999), fontSize: 12)),
+                                          Text(fullAddr, style: const TextStyle(color: Color(0xFF999999), fontSize: 12), maxLines: 2, overflow: TextOverflow.ellipsis),
                                         ],
-                                        if (dist != null) ...[
+                                        if (dist != null && hasGeo) ...[
                                           const SizedBox(height: 4),
-                                          Text('距您 $dist km', style: const TextStyle(color: Color(0xFF52C41A), fontSize: 12)),
+                                          Text('距您 $dist km · 点击导航', style: const TextStyle(color: Color(0xFF52C41A), fontSize: 12)),
                                         ],
                                       ],
                                     ),
                                   ),
-                                  if (_availableStores.length > 1)
-                                    const Padding(
-                                      padding: EdgeInsets.only(left: 8),
-                                      child: Text('切换 ▼', style: TextStyle(color: Color(0xFF999999), fontSize: 12)),
+                                  // [2026-05-01 门店地图能力 PRD v1.0] 静态地图缩略图（仅 hasGeo & mapUrl）
+                                  if (hasGeo && mapUrl != null && mapUrl.isNotEmpty) ...[
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      width: 100,
+                                      height: 100,
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(6),
+                                        border: Border.all(color: const Color(0xFFF0F0F0)),
+                                      ),
+                                      clipBehavior: Clip.hardEdge,
+                                      child: Stack(
+                                        alignment: Alignment.bottomCenter,
+                                        children: [
+                                          CachedNetworkImage(
+                                            imageUrl: mapUrl,
+                                            fit: BoxFit.cover,
+                                            width: 100,
+                                            height: 100,
+                                            placeholder: (_, __) => Container(color: const Color(0xFFF5F5F5)),
+                                            errorWidget: (_, __, ___) => Container(
+                                              color: const Color(0xFFF5F5F5),
+                                              child: const Center(child: Icon(Icons.map, color: Color(0xFFBBBBBB))),
+                                            ),
+                                          ),
+                                          const Padding(
+                                            padding: EdgeInsets.only(bottom: 4),
+                                            child: Text('📍', style: TextStyle(fontSize: 18)),
+                                          ),
+                                        ],
+                                      ),
                                     ),
+                                  ],
+                                  if (_availableStores.length > 1) ...[
+                                    const SizedBox(width: 6),
+                                    GestureDetector(
+                                      onTap: _showStoreDrawer,
+                                      child: const Padding(
+                                        padding: EdgeInsets.all(4),
+                                        child: Text('切换', style: TextStyle(color: Color(0xFF1677FF), fontSize: 12)),
+                                      ),
+                                    ),
+                                  ],
                                 ],
                               ),
-                            );
-                          }),
-                        ],
-                      ),
+                            ),
+                          );
+                        }),
+                      ],
                     ),
                   ),
                 if (p.description != null && p.description!.isNotEmpty) ...[

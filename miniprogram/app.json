@@ -101,7 +101,7 @@
       "desc": "用于按距离展示可用门店，便于您选择最近的门店"
     }
   },
-  "requiredPrivateInfos": ["getLocation"],
+  "requiredPrivateInfos": ["getLocation", "chooseLocation", "openLocation"],
   "sitemapLocation": "sitemap.json",
   "lazyCodeLoading": "requiredComponents"
 }

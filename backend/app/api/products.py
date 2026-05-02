@@ -389,6 +389,35 @@ async def get_available_stores(
         raw_stores.append(ms)
 
     has_user_loc = lat is not None and lng is not None
+
+    def _build_static_map_url(_lat: Optional[float], _lng: Optional[float]) -> Optional[str]:
+        """[2026-05-01 门店地图能力 PRD v1.0] 静态地图缩略图 URL（带大头针）。"""
+        if _lat is None or _lng is None:
+            return None
+        import os as _os
+        from urllib.parse import quote as _quote
+        amap_key = _os.getenv("AMAP_SERVER_KEY", "").strip()
+        if amap_key:
+            return (
+                "https://restapi.amap.com/v3/staticmap"
+                f"?location={_lng:.6f},{_lat:.6f}&zoom=16&size=200*150"
+                f"&markers=mid,,A:{_lng:.6f},{_lat:.6f}&key={_quote(amap_key)}"
+            )
+        # 兜底：OSM 静态地图（无 Key）
+        return (
+            f"https://staticmap.openstreetmap.de/staticmap.php"
+            f"?center={_lat:.6f},{_lng:.6f}&zoom=16&size=200x150"
+            f"&markers={_lat:.6f},{_lng:.6f},red-pushpin"
+        )
+
+    def _store_extra(ms: MerchantStore) -> dict:
+        """[2026-05-02 H5 下单流程优化 PRD v1.0] 扩展字段统一拼装。"""
+        return {
+            "slot_capacity": getattr(ms, "slot_capacity", 10) or 10,
+            "business_start": getattr(ms, "business_start", None),
+            "business_end": getattr(ms, "business_end", None),
+        }
+
     items = []
     if has_user_loc:
         for ms in raw_stores:
@@ -402,10 +431,17 @@ async def get_available_stores(
                 "store_code": ms.store_code,
                 "name": ms.store_name,
                 "address": ms.address,
+                "province": getattr(ms, "province", None),
+                "city": getattr(ms, "city", None),
+                "district": getattr(ms, "district", None),
                 "lat": store_lat,
                 "lng": store_lng,
+                "longitude": store_lng,
+                "latitude": store_lat,
                 "distance_km": dist,
                 "is_nearest": False,
+                "static_map_url": _build_static_map_url(store_lat, store_lng),
+                **_store_extra(ms),
             })
         items.sort(key=lambda x: (x["distance_km"] is None, x["distance_km"] if x["distance_km"] is not None else 0))
         if items and items[0]["distance_km"] is not None:
@@ -414,15 +450,24 @@ async def get_available_stores(
         user_location = {"lat": float(lat), "lng": float(lng), "source": "gps"}
     else:
         for ms in raw_stores:
+            store_lat = float(ms.lat) if ms.lat is not None else None
+            store_lng = float(ms.lng) if ms.lng is not None else None
             items.append({
                 "store_id": ms.id,
                 "store_code": ms.store_code,
                 "name": ms.store_name,
                 "address": ms.address,
-                "lat": float(ms.lat) if ms.lat is not None else None,
-                "lng": float(ms.lng) if ms.lng is not None else None,
+                "province": getattr(ms, "province", None),
+                "city": getattr(ms, "city", None),
+                "district": getattr(ms, "district", None),
+                "lat": store_lat,
+                "lng": store_lng,
+                "longitude": store_lng,
+                "latitude": store_lat,
                 "distance_km": None,
                 "is_nearest": False,
+                "static_map_url": _build_static_map_url(store_lat, store_lng),
+                **_store_extra(ms),
             })
         items.sort(key=lambda x: (x["name"] or ""))
         sort_by = "name"

@@ -29,7 +29,10 @@ Page({
     timeSlots: ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'],
     slotAvailability: [],
     disabledSlots: [],
-    fullyBookedSlots: []
+    fullyBookedSlots: [],
+    // [2026-05-02 H5 下单流程优化 PRD v1.0]
+    contactPhone: '',
+    contactPhoneError: ''
   },
 
   onLoad(options) {
@@ -214,7 +217,26 @@ Page({
   },
 
   onNoteInput(e) {
-    this.setData({ appointmentNote: e.detail.value });
+    let v = e.detail.value || '';
+    // [2026-05-02 H5 下单流程优化 PRD v1.0] 备注最多 50 字
+    if (v.length > 50) v = v.slice(0, 50);
+    this.setData({ appointmentNote: v });
+  },
+
+  // [2026-05-02 H5 下单流程优化 PRD v1.0] 联系手机号输入
+  onContactPhoneInput(e) {
+    const v = e.detail.value || '';
+    this.setData({ contactPhone: v, contactPhoneError: '' });
+  },
+
+  onContactPhoneBlur() {
+    const v = this.data.contactPhone || '';
+    const re = /^1[3-9]\d{9}$/;
+    if (v && !re.test(v)) {
+      this.setData({ contactPhoneError: '请输入正确的手机号' });
+    } else {
+      this.setData({ contactPhoneError: '' });
+    }
   },
 
   onQuantityMinus() {
@@ -298,6 +320,14 @@ Page({
       wx.showToast({ title: '请选择预约日期', icon: 'none' });
       return;
     }
+    // [2026-05-02 H5 下单流程优化 PRD v1.0] 联系人手机号必填校验
+    const phone = (this.data.contactPhone || '').trim();
+    const phoneRe = /^1[3-9]\d{9}$/;
+    if (!phone || !phoneRe.test(phone)) {
+      this.setData({ contactPhoneError: '请输入正确的手机号' });
+      wx.showToast({ title: '请输入正确的联系手机号', icon: 'none' });
+      return;
+    }
 
     this.setData({ submitting: true });
     try {
@@ -314,6 +344,9 @@ Page({
           date: this.data.appointmentDate,
           time_slot: this.data.appointmentTime || '',
           note: this.data.appointmentNote || '',
+          contact_phone: phone,
+          // [2026-05-02 H5 下单流程优化 PRD v1.0] 带上 store_id 让后端做门店级容量校验
+          store_id: this.data.store ? (this.data.store.id || this.data.store.store_id) : undefined,
         };
       }
 
