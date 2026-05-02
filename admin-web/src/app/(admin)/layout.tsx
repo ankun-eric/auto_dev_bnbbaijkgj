@@ -130,6 +130,7 @@ const menuItems: MenuItem[] = [
     children: [
       { key: '/product-system/categories', label: '商品分类' },
       { key: '/product-system/products', label: '商品管理' },
+      { key: '/product-system/cards', label: '卡管理' },
       { key: '/product-system/store-bindding', label: '适用门店' },
       { key: '/product-system/appointment-forms', label: '预约表单库' },
       { key: '/product-system/orders', label: '订单明细' },

@@ -23,6 +23,8 @@ from app.api import (
     audit,
     auth,
     bottom_nav,
+    cards,
+    cards_admin,
     chat,
     chat_history,
     chat_share,
@@ -812,6 +814,9 @@ app.include_router(user_health_profile.router)
 app.include_router(maps.router)
 # [2026-05-02 H5 下单流程优化 PRD v1.0] 支付页统一选择
 app.include_router(h5_checkout.router)
+# [2026-05-02 卡功能 PRD v1.1 第 1 期] C 端卡 API + Admin 卡管理
+app.include_router(cards.router)
+app.include_router(cards_admin.router)
 
 os.makedirs("uploads", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")

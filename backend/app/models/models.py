@@ -3245,3 +3245,155 @@ class MapTestLog(Base):
     created_at = mapped_column(DateTime, default=datetime.utcnow, index=True)
 
     operator = relationship("User")
+
+
+# ──────────────── 卡功能（PRD v1.1 第 1 期：后端骨架） ────────────────
+
+
+class CardType(str, enum.Enum):
+    """卡的形态：次卡（共享次数池）/ 时卡（按时间段）"""
+
+    times = "times"  # 次卡
+    period = "period"  # 时卡
+
+
+class CardScopeType(str, enum.Enum):
+    """卡的归属范围：商家专属 / 平台通用"""
+
+    merchant = "merchant"
+    platform = "platform"
+
+
+class CardStatus(str, enum.Enum):
+    """卡定义状态"""
+
+    draft = "draft"
+    active = "active"  # 已上架
+    inactive = "inactive"  # 已下架
+
+
+class CardRenewStrategy(str, enum.Enum):
+    """续卡策略：叠加在原卡 / 新发一张独立卡"""
+
+    add_on = "add_on"
+    new_card = "new_card"
+
+
+class UserCardStatus(str, enum.Enum):
+    """用户持卡状态"""
+
+    active = "active"
+    used_up = "used_up"
+    expired = "expired"
+    refunded = "refunded"
+
+
+class CardDefinition(Base):
+    """卡定义（admin 创建/管理）。"""
+
+    __tablename__ = "card_definitions"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name = mapped_column(String(200), nullable=False)
+    cover_image = mapped_column(String(500), nullable=True)
+    description = mapped_column(Text, nullable=True)
+
+    card_type = mapped_column(Enum(CardType), nullable=False)
+    scope_type = mapped_column(Enum(CardScopeType), nullable=False, default=CardScopeType.platform)
+    # 商家专属卡时指向 merchant_profiles.id；平台通用卡为 NULL
+    owner_merchant_id = mapped_column(Integer, ForeignKey("merchant_profiles.id"), nullable=True, index=True)
+
+    price = mapped_column(Numeric(10, 2), nullable=False, default=0)
+    original_price = mapped_column(Numeric(10, 2), nullable=True)
+
+    total_times = mapped_column(Integer, nullable=True)  # 次卡总次数；时卡为 NULL
+    valid_days = mapped_column(Integer, nullable=False, default=30)  # 自购买起算 N 天
+    frequency_limit = mapped_column(JSON, nullable=True)  # 时卡频次 {scope:'day'|'week', times:N}
+
+    store_scope = mapped_column(JSON, nullable=True)  # {type:'all'} 或 {type:'list', store_ids:[...]}
+
+    stock = mapped_column(Integer, nullable=True)  # NULL=无限
+    per_user_limit = mapped_column(Integer, nullable=True)  # NULL=不限
+
+    renew_strategy = mapped_column(Enum(CardRenewStrategy), nullable=False, default=CardRenewStrategy.add_on)
+
+    status = mapped_column(Enum(CardStatus), nullable=False, default=CardStatus.draft, index=True)
+    sales_count = mapped_column(Integer, default=0)  # 已售张数
+    sort_order = mapped_column(Integer, default=0)
+
+    created_by_admin_id = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    items = relationship("CardItem", back_populates="card_definition", cascade="all, delete-orphan")
+    owner_merchant_profile = relationship("MerchantProfile")
+
+
+class CardItem(Base):
+    """卡内绑定的项目（普通商品）。"""
+
+    __tablename__ = "card_items"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    card_definition_id = mapped_column(
+        Integer,
+        ForeignKey("card_definitions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    product_id = mapped_column(Integer, ForeignKey("products.id"), nullable=False, index=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint("card_definition_id", "product_id", name="uq_card_item_card_product"),
+    )
+
+    card_definition = relationship("CardDefinition", back_populates="items")
+    product = relationship("Product")
+
+
+class UserCard(Base):
+    """用户购买后的实卡。"""
+
+    __tablename__ = "user_cards"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    card_definition_id = mapped_column(Integer, ForeignKey("card_definitions.id"), nullable=False, index=True)
+    user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+
+    purchase_order_id = mapped_column(Integer, ForeignKey("unified_orders.id"), nullable=True, index=True)
+
+    bound_items_snapshot = mapped_column(JSON, nullable=True)  # [{product_id, name}] 购买时项目快照
+
+    remaining_times = mapped_column(Integer, nullable=True)  # 次卡剩余次数；时卡 NULL
+
+    valid_from = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    valid_to = mapped_column(DateTime, nullable=False)
+
+    status = mapped_column(Enum(UserCardStatus), nullable=False, default=UserCardStatus.active, index=True)
+
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    card_definition = relationship("CardDefinition")
+    user = relationship("User")
+
+
+class CardUsageLog(Base):
+    """卡核销记录（第 1 期建表，第 3 期才接入业务核销时序）。"""
+
+    __tablename__ = "card_usage_logs"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_card_id = mapped_column(Integer, ForeignKey("user_cards.id"), nullable=False, index=True)
+    product_id = mapped_column(Integer, ForeignKey("products.id"), nullable=False)
+    store_id = mapped_column(Integer, ForeignKey("merchant_stores.id"), nullable=True)
+    technician_id = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
+    verify_order_id = mapped_column(Integer, ForeignKey("unified_orders.id"), nullable=True)
+    used_at = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    notes = mapped_column(Text, nullable=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+
+    user_card = relationship("UserCard")
+    product = relationship("Product")
+    store = relationship("MerchantStore")
