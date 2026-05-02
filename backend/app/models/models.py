@@ -2689,6 +2689,8 @@ class Coupon(Base):
     discount_rate = mapped_column(Float, default=1.0)
     scope = mapped_column(Enum(CouponScope), default=CouponScope.all)
     scope_ids = mapped_column(JSON, nullable=True)
+    # 排除商品 ID 列表（仅 scope=all/category 时生效，最多 50 个）
+    exclude_ids = mapped_column(JSON, nullable=True)
     total_count = mapped_column(Integer, default=0)
     claimed_count = mapped_column(Integer, default=0)
     used_count = mapped_column(Integer, default=0)

@@ -6,6 +6,54 @@ from pydantic import BaseModel, ConfigDict
 
 VALIDITY_DAYS_OPTIONS = [3, 7, 15, 30, 60, 90, 180, 365]
 
+# 适用范围 / 排除商品上限默认值（最终以 system_configs 配置为准，可后台动态调整）
+DEFAULT_COUPON_SCOPE_MAX_PRODUCTS = 100
+DEFAULT_COUPON_EXCLUDE_MAX_PRODUCTS = 50
+
+# 优惠券类型说明文案（前端可直接 GET 拉取 → 渲染说明弹窗，便于运营后续在后端文案中心动态维护）
+COUPON_TYPE_DESCRIPTIONS: list[dict] = [
+    {
+        "key": "full_reduction",
+        "name": "满减券",
+        "icon": "💰",
+        "core_rule": "必须满足门槛金额才能使用，达到门槛后直接减去固定金额",
+        "key_fields": "使用门槛金额（必填且 > 0）、优惠金额",
+        "scenarios": "拉高客单价 / 大促主力券 / 凑单引导",
+        "example": "满 200 减 30 → 用户下单满 200 元才能用，结算时直接减 30",
+        "note": "",
+    },
+    {
+        "key": "discount",
+        "name": "折扣券",
+        "icon": "🏷️",
+        "core_rule": "按折扣率对订单金额打折；门槛金额可选（=0 表示无门槛）",
+        "key_fields": "折扣率（0.01~1，例如 0.8 = 八折）、使用门槛金额",
+        "scenarios": "会员折扣 / 品类折扣 / 新人折扣",
+        "example": "折扣率 0.7 + 门槛 300 → 满 300 享 7 折",
+        "note": "折扣型对客单价较敏感，建议配合门槛金额使用，避免被薅小订单",
+    },
+    {
+        "key": "voucher",
+        "name": "代金券",
+        "icon": "🎫",
+        "core_rule": '相当于"现金抵扣"，可设置门槛或不设门槛（门槛=0 即无门槛）',
+        "key_fields": "优惠金额（必填）、使用门槛金额（可选）",
+        "scenarios": "拉新激活 / 售后补偿 / 异业合作 / 兑换码批次发放",
+        "example": "代金 50 + 门槛 0 → 用户领券后直接抵扣 50 元",
+        "note": '与满减券的区别：代金券强调"现金属性"（可无门槛）；满减券强调"凑单门槛"（满 N 才能用）',
+    },
+    {
+        "key": "free_trial",
+        "name": "免费试用",
+        "icon": "🎁",
+        "core_rule": '本质是"整单 0 元/兑换"，凭券免费领取/试用指定商品',
+        "key_fields": '建议必须搭配"适用范围 = 指定商品"使用',
+        "scenarios": "新品冷启动试用 / 新人首单 0 元 / 服务体验券",
+        "example": "免费试用 + 指定商品「头部按摩 30 分钟」",
+        "note": "风控建议：必须限发指定商品 + 设置发行总量 + 单人限领，避免被刷",
+    },
+]
+
 
 class CouponCreate(BaseModel):
     name: str
@@ -15,6 +63,7 @@ class CouponCreate(BaseModel):
     discount_rate: float = 1.0
     scope: str = "all"
     scope_ids: Optional[Any] = None
+    exclude_ids: Optional[list[int]] = None
     total_count: int = 0
     validity_days: int = 30
     status: str = "active"
@@ -29,6 +78,7 @@ class CouponUpdate(BaseModel):
     discount_rate: Optional[float] = None
     scope: Optional[str] = None
     scope_ids: Optional[Any] = None
+    exclude_ids: Optional[list[int]] = None
     total_count: Optional[int] = None
     validity_days: Optional[int] = None
     status: Optional[str] = None
@@ -44,6 +94,7 @@ class CouponResponse(BaseModel):
     discount_rate: float
     scope: str
     scope_ids: Optional[Any] = None
+    exclude_ids: Optional[list[int]] = None
     total_count: int
     claimed_count: int
     used_count: int

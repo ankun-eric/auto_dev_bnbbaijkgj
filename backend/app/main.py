@@ -320,6 +320,71 @@ async def _migrate_coupons_v2_1():
         _logger.error("V2.1 优惠券迁移异常（不影响启动）: %s", e)
 
 
+async def _migrate_coupons_scope_v2_2():
+    """V2.2 优惠券适用范围 & 类型说明优化（PRD v1）：
+
+    - coupons 表加列 exclude_ids JSON NULL（最多 50 个）
+    - SystemConfig 写入 coupon_scope_max_products=100、coupon_exclude_max_products=50
+      （已存在则不覆盖，保留运营手动调整后的值）
+    - SystemConfig.coupons_v2_2_migrated 标记完成，避免重复执行
+    """
+    import logging as _l
+    _logger = _l.getLogger(__name__)
+    from app.core.database import async_session as _async_session
+    try:
+        async with _async_session() as db:
+            from sqlalchemy import text, select as _sel
+            from app.models.models import SystemConfig as _SC
+
+            mark = (await db.execute(
+                _sel(_SC).where(_SC.config_key == "coupons_v2_2_migrated")
+            )).scalar_one_or_none()
+            if mark and mark.config_value == "1":
+                return
+
+            # exclude_ids 列：MySQL 5.7 兼容（不依赖 IF NOT EXISTS）
+            try:
+                chk = await db.execute(text(
+                    "SELECT COUNT(*) FROM information_schema.columns "
+                    "WHERE table_schema = DATABASE() AND table_name = 'coupons' AND column_name = 'exclude_ids'"
+                ))
+                if (chk.scalar() or 0) == 0:
+                    await db.execute(text(
+                        "ALTER TABLE coupons ADD COLUMN exclude_ids JSON NULL "
+                        "COMMENT '排除商品ID列表（仅 scope=all/category 生效，最多 50 个）'"
+                    ))
+                    _logger.info("V2.2：coupons 表 exclude_ids 列已添加")
+            except Exception as e:
+                _logger.debug("coupons.exclude_ids 加列跳过: %s", e)
+
+            # 系统配置默认值（不覆盖现有值）
+            for key, val in [
+                ("coupon_scope_max_products", "100"),
+                ("coupon_exclude_max_products", "50"),
+            ]:
+                exists = (await db.execute(
+                    _sel(_SC).where(_SC.config_key == key)
+                )).scalar_one_or_none()
+                if not exists:
+                    db.add(_SC(
+                        config_key=key, config_value=val, config_type="coupon",
+                        description="优惠券适用范围/排除商品上限（v2.2）",
+                    ))
+
+            if mark:
+                mark.config_value = "1"
+            else:
+                db.add(_SC(
+                    config_key="coupons_v2_2_migrated",
+                    config_value="1",
+                    config_type="coupon",
+                ))
+            await db.commit()
+            _logger.info("V2.2 优惠券适用范围迁移完成")
+    except Exception as e:
+        _logger.error("V2.2 优惠券适用范围迁移异常（不影响启动）: %s", e)
+
+
 async def _migrate_product_categories_hierarchy():
     """BUG ⑤修复：本期 N — 修正商品分类「适老化改造」被错置为一级分类的问题。
 
@@ -663,6 +728,7 @@ async def lifespan(app: FastAPI):
     await _migrate_points_enums_and_config()
     await _migrate_coupons_v2()
     await _migrate_coupons_v2_1()
+    await _migrate_coupons_scope_v2_2()
     await _migrate_product_categories_hierarchy()
     await _migrate_v7_search_placeholder()
     await _migrate_v8_content()

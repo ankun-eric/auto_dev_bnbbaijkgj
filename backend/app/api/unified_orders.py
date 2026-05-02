@@ -165,16 +165,41 @@ async def create_unified_order(
         coupon_result = await db.execute(select(Coupon).where(Coupon.id == data.coupon_id))
         coupon = coupon_result.scalar_one_or_none()
         if coupon:
-            if total_amount >= float(coupon.condition_amount):
+            # ── V2.2：扣除「被排除商品」金额，再用净额参与门槛 / 折扣计算（PRD F6）──
+            exclude_ids_raw = getattr(coupon, "exclude_ids", None) or []
+            excluded_set: set[int] = set()
+            if isinstance(exclude_ids_raw, list):
+                for x in exclude_ids_raw:
+                    try:
+                        excluded_set.add(int(x))
+                    except (TypeError, ValueError):
+                        continue
+            elif isinstance(exclude_ids_raw, str):
+                for x in exclude_ids_raw.split(","):
+                    try:
+                        excluded_set.add(int(x.strip()))
+                    except (TypeError, ValueError):
+                        continue
+
+            eligible_amount = total_amount
+            if excluded_set:
+                excluded_amount = sum(
+                    oi["subtotal"] for oi in order_items if oi["product"].id in excluded_set
+                )
+                eligible_amount = max(0.0, total_amount - excluded_amount)
+
+            if eligible_amount >= float(coupon.condition_amount):
                 coupon_type = coupon.type
                 if hasattr(coupon_type, "value"):
                     coupon_type = coupon_type.value
                 if coupon_type == "full_reduction":
                     coupon_discount = float(coupon.discount_value)
                 elif coupon_type == "discount":
-                    coupon_discount = total_amount * (1 - coupon.discount_rate)
+                    coupon_discount = eligible_amount * (1 - coupon.discount_rate)
                 elif coupon_type == "voucher":
                     coupon_discount = float(coupon.discount_value)
+                # 折扣不超过可享券金额，避免负数
+                coupon_discount = min(coupon_discount, eligible_amount)
             else:
                 raise HTTPException(status_code=400, detail="订单金额不满足优惠券使用条件")
 

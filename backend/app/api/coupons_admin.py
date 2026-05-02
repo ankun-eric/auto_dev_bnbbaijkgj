@@ -21,6 +21,8 @@ from app.models.models import (
     CouponOpLog,
     CouponRedeemCode,
     Partner,
+    Product,
+    ProductCategory,
     SystemConfig,
     User,
     UserCoupon,
@@ -29,10 +31,13 @@ from app.models.models import (
 from app.schemas.coupons import (
     CodeBatchVoidRequest,
     CodeVoidRequest,
+    COUPON_TYPE_DESCRIPTIONS,
     CouponCreate,
     CouponOfflineRequest,
     CouponResponse,
     CouponUpdate,
+    DEFAULT_COUPON_EXCLUDE_MAX_PRODUCTS,
+    DEFAULT_COUPON_SCOPE_MAX_PRODUCTS,
     DirectGrantRequest,
     GrantRecallRequest,
     OFFLINE_REASON_PRESETS,
@@ -57,6 +62,19 @@ def _calc_expire_at(coupon: Coupon, base: Optional[datetime] = None) -> datetime
 
 
 def _coupon_to_dict(c: Coupon) -> dict:
+    # 兼容历史 scope_ids：如果是字符串 "1,2,3" 自动转数组（PRD F7 兜底）
+    raw_scope_ids = c.scope_ids
+    if isinstance(raw_scope_ids, str):
+        try:
+            raw_scope_ids = [int(x.strip()) for x in raw_scope_ids.split(",") if x.strip()]
+        except Exception:
+            raw_scope_ids = None
+    raw_exclude_ids = getattr(c, "exclude_ids", None)
+    if isinstance(raw_exclude_ids, str):
+        try:
+            raw_exclude_ids = [int(x.strip()) for x in raw_exclude_ids.split(",") if x.strip()]
+        except Exception:
+            raw_exclude_ids = None
     return {
         "id": c.id,
         "name": c.name,
@@ -65,7 +83,8 @@ def _coupon_to_dict(c: Coupon) -> dict:
         "discount_value": float(c.discount_value or 0),
         "discount_rate": float(c.discount_rate or 1.0),
         "scope": c.scope.value if hasattr(c.scope, "value") else str(c.scope),
-        "scope_ids": c.scope_ids,
+        "scope_ids": raw_scope_ids,
+        "exclude_ids": raw_exclude_ids,
         "total_count": c.total_count or 0,
         "claimed_count": c.claimed_count or 0,
         "used_count": c.used_count or 0,
@@ -79,6 +98,172 @@ def _coupon_to_dict(c: Coupon) -> dict:
         "points_exchange_limit": getattr(c, "points_exchange_limit", None),
         "created_at": c.created_at.isoformat() if c.created_at else None,
     }
+
+
+# ─── V2.2 适用范围工具函数 ───
+
+
+async def _get_int_config(db: AsyncSession, key: str, default: int) -> int:
+    cfg = (await db.execute(
+        select(SystemConfig).where(SystemConfig.config_key == key)
+    )).scalar_one_or_none()
+    if not cfg or not cfg.config_value:
+        return default
+    try:
+        return int(cfg.config_value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _normalize_int_list(value: Any) -> list[int]:
+    """把任意输入（list / 字符串 "1,2,3" / None）规范为 list[int]，去重保序。"""
+    if value is None:
+        return []
+    raw_iter: list[Any]
+    if isinstance(value, (list, tuple, set)):
+        raw_iter = list(value)
+    elif isinstance(value, str):
+        raw_iter = [x.strip() for x in value.split(",") if x.strip()]
+    else:
+        raw_iter = [value]
+    out: list[int] = []
+    seen: set[int] = set()
+    for item in raw_iter:
+        try:
+            n = int(item)
+        except (TypeError, ValueError):
+            continue
+        if n in seen:
+            continue
+        seen.add(n)
+        out.append(n)
+    return out
+
+
+def _allowed_fulfillment_filter():
+    """优惠券适用商品仅限：实物快递 + 到店服务（虚拟商品本期不纳入，PRD BR-5）。"""
+    return Product.fulfillment_type.in_(("delivery", "in_store"))
+
+
+async def _validate_scope_payload(
+    db: AsyncSession,
+    scope: str,
+    scope_ids: Any,
+    exclude_ids: Any,
+    *,
+    coupon_type: Optional[str] = None,
+):
+    """V2.2：保存优惠券前的适用范围 / 排除商品综合校验（PRD F9）。
+
+    返回规范化后的 (scope_ids_list, exclude_ids_list)。
+    """
+    scope_ids_list = _normalize_int_list(scope_ids)
+    exclude_ids_list = _normalize_int_list(exclude_ids)
+    scope_max = await _get_int_config(db, "coupon_scope_max_products", DEFAULT_COUPON_SCOPE_MAX_PRODUCTS)
+    exclude_max = await _get_int_config(db, "coupon_exclude_max_products", DEFAULT_COUPON_EXCLUDE_MAX_PRODUCTS)
+
+    if scope == "category":
+        if not scope_ids_list:
+            raise HTTPException(status_code=400, detail="请至少选择 1 个分类")
+        rs = await db.execute(
+            select(ProductCategory.id).where(ProductCategory.id.in_(scope_ids_list))
+        )
+        existing = {r[0] for r in rs.all()}
+        missing = [i for i in scope_ids_list if i not in existing]
+        if missing:
+            raise HTTPException(
+                status_code=400,
+                detail=f"分类 {missing} 不存在或已删除，请重新选择",
+            )
+    elif scope == "product":
+        if not scope_ids_list:
+            raise HTTPException(status_code=400, detail="请至少选择 1 个商品")
+        if len(scope_ids_list) > scope_max:
+            raise HTTPException(
+                status_code=400,
+                detail=f"适用商品最多 {scope_max} 个，建议改用指定分类模式",
+            )
+        rs = await db.execute(
+            select(Product.id, Product.fulfillment_type).where(Product.id.in_(scope_ids_list))
+        )
+        rows = rs.all()
+        existing_ids = {r[0] for r in rows}
+        missing = [i for i in scope_ids_list if i not in existing_ids]
+        if missing:
+            raise HTTPException(
+                status_code=400,
+                detail=f"商品 {missing} 不存在或已删除，请重新选择",
+            )
+        # 虚拟商品过滤：禁止把 virtual 商品加入适用范围
+        bad_virtual = []
+        for pid, ft in rows:
+            ft_val = ft.value if hasattr(ft, "value") else str(ft)
+            if ft_val not in ("delivery", "in_store"):
+                bad_virtual.append(pid)
+        if bad_virtual:
+            raise HTTPException(
+                status_code=400,
+                detail=f"商品 {bad_virtual} 为虚拟商品，本期不支持加入优惠券适用范围",
+            )
+
+    # 排除商品仅在 all/category 时允许；scope=product 时强制清空
+    if scope == "product":
+        exclude_ids_list = []
+
+    if exclude_ids_list:
+        if len(exclude_ids_list) > exclude_max:
+            raise HTTPException(
+                status_code=400,
+                detail=f"排除商品最多 {exclude_max} 个",
+            )
+        rs = await db.execute(
+            select(Product.id, Product.category_id, Product.fulfillment_type)
+            .where(Product.id.in_(exclude_ids_list))
+        )
+        rows = rs.all()
+        existing_ids = {r[0] for r in rows}
+        missing = [i for i in exclude_ids_list if i not in existing_ids]
+        if missing:
+            raise HTTPException(
+                status_code=400,
+                detail=f"排除商品 {missing} 不存在或已删除",
+            )
+        # 排除不能与"指定商品"列表重叠（防御，scope=product 已清空）
+        if scope == "product" and (set(exclude_ids_list) & set(scope_ids_list)):
+            raise HTTPException(
+                status_code=422,
+                detail="排除商品与已选商品冲突",
+            )
+        # category 模式下，排除商品必须实际属于已选分类范围（含一级 + 子分类）
+        if scope == "category":
+            allowed_cats = await _expand_category_ids_with_children(db, scope_ids_list)
+            for pid, cat_id, _ in rows:
+                if cat_id not in allowed_cats:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"排除商品 [ID:{pid}] 不在已选分类范围内，无法排除",
+                    )
+
+    if coupon_type == "free_trial" and scope == "all":
+        # 黄色警告由前端展示二次确认，这里仅在 scope=all + free_trial 时不阻断保存
+        pass
+
+    return scope_ids_list, exclude_ids_list
+
+
+async def _expand_category_ids_with_children(
+    db: AsyncSession, category_ids: list[int]
+) -> set[int]:
+    """把分类 ID 列表扩展为「自身 + 其全部子分类」。本项目分类层级最多 2 级（level=1/2），
+    一次 IN 查询 children 即可覆盖。"""
+    base = set(category_ids)
+    if not base:
+        return base
+    rs = await db.execute(
+        select(ProductCategory.id).where(ProductCategory.parent_id.in_(category_ids))
+    )
+    base.update({r[0] for r in rs.all()})
+    return base
 
 
 def _mask_code(code: str) -> str:
@@ -175,6 +360,10 @@ async def create_coupon(
 ):
     if data.validity_days not in VALIDITY_DAYS_OPTIONS:
         raise HTTPException(status_code=400, detail=f"有效期天数必须为 {VALIDITY_DAYS_OPTIONS} 之一")
+    # V2.2 适用范围 / 排除商品综合校验
+    scope_ids_list, exclude_ids_list = await _validate_scope_payload(
+        db, data.scope, data.scope_ids, data.exclude_ids, coupon_type=data.type,
+    )
     c = Coupon(
         name=data.name,
         type=data.type,
@@ -182,7 +371,8 @@ async def create_coupon(
         discount_value=data.discount_value,
         discount_rate=data.discount_rate,
         scope=data.scope,
-        scope_ids=data.scope_ids,
+        scope_ids=scope_ids_list if scope_ids_list else None,
+        exclude_ids=exclude_ids_list if exclude_ids_list else None,
         total_count=data.total_count,
         validity_days=data.validity_days,
         status=data.status,
@@ -205,13 +395,287 @@ async def update_coupon(
         raise HTTPException(status_code=404, detail="优惠券不存在")
     if data.validity_days is not None and data.validity_days not in VALIDITY_DAYS_OPTIONS:
         raise HTTPException(status_code=400, detail=f"有效期天数必须为 {VALIDITY_DAYS_OPTIONS} 之一")
+
+    # 计算保存后的 scope / scope_ids / exclude_ids 三元组并统一校验
+    new_scope = data.scope if data.scope is not None else (
+        c.scope.value if hasattr(c.scope, "value") else str(c.scope)
+    )
+    new_scope_ids = data.scope_ids if data.scope_ids is not None else c.scope_ids
+    new_exclude_ids = data.exclude_ids if data.exclude_ids is not None else c.exclude_ids
+    new_type = data.type if data.type is not None else (
+        c.type.value if hasattr(c.type, "value") else str(c.type)
+    )
+    scope_ids_list, exclude_ids_list = await _validate_scope_payload(
+        db, new_scope, new_scope_ids, new_exclude_ids, coupon_type=new_type,
+    )
+
     for f in ("name", "type", "condition_amount", "discount_value", "discount_rate",
-              "scope", "scope_ids", "total_count", "validity_days", "status",
-              "points_exchange_limit"):
+              "total_count", "validity_days", "status", "points_exchange_limit"):
         v = getattr(data, f)
         if v is not None:
             setattr(c, f, v)
+    # 适用范围相关字段统一覆盖（即使未传也按校验后的结果写回，确保 product↔category 切换时清理 exclude_ids）
+    c.scope = new_scope
+    c.scope_ids = scope_ids_list if scope_ids_list else None
+    c.exclude_ids = exclude_ids_list if exclude_ids_list else None
     return _coupon_to_dict(c)
+
+
+# ─── V2.2：优惠券类型说明（PRD F1）───
+
+
+@router.get("/type-descriptions")
+async def get_type_descriptions(_: User = Depends(admin_dep)):
+    """优惠券 4 种类型说明（用于"?" 信息图标弹窗）。"""
+    return {"items": COUPON_TYPE_DESCRIPTIONS}
+
+
+# ─── V2.2：适用范围相关上限配置（PRD F5/F6）───
+
+
+@router.get("/scope-limits")
+async def get_scope_limits(
+    _: User = Depends(admin_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    """读取后台动态配置的适用商品 / 排除商品上限。"""
+    scope_max = await _get_int_config(db, "coupon_scope_max_products", DEFAULT_COUPON_SCOPE_MAX_PRODUCTS)
+    exclude_max = await _get_int_config(db, "coupon_exclude_max_products", DEFAULT_COUPON_EXCLUDE_MAX_PRODUCTS)
+    return {
+        "scope_max_products": scope_max,
+        "exclude_max_products": exclude_max,
+    }
+
+
+# ─── V2.2：商品弹窗选择器（PRD F4）───
+
+
+@router.get("/product-picker")
+async def coupon_product_picker(
+    fulfillment_type: str = Query("all"),
+    keyword: Optional[str] = None,
+    category_id: Optional[int] = None,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=200),
+    selected_ids: Optional[str] = Query(None, description="已选商品 ID 数组，逗号分隔（用于批量回显）"),
+    current_user: User = Depends(admin_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    """优惠券适用商品 / 排除商品弹窗选择器数据源。
+
+    强制只查 status=active + fulfillment_type∈{delivery,in_store}（虚拟商品本期不纳入）。
+    selected_ids 仅用于"批量回显已选商品详情"，不影响主列表分页。
+    """
+    base_filter = and_(
+        Product.status == "active",
+        _allowed_fulfillment_filter(),
+    )
+    query = select(Product).where(base_filter)
+    count_query = select(func.count(Product.id)).where(base_filter)
+
+    if fulfillment_type in ("delivery", "in_store"):
+        query = query.where(Product.fulfillment_type == fulfillment_type)
+        count_query = count_query.where(Product.fulfillment_type == fulfillment_type)
+    if keyword:
+        like = f"%{keyword.strip()}%"
+        query = query.where(Product.name.like(like))
+        count_query = count_query.where(Product.name.like(like))
+    if category_id:
+        # 命中分类本身 + 子分类
+        cat_ids = await _expand_category_ids_with_children(db, [category_id])
+        query = query.where(Product.category_id.in_(cat_ids))
+        count_query = count_query.where(Product.category_id.in_(cat_ids))
+
+    total = (await db.execute(count_query)).scalar() or 0
+    rs = await db.execute(
+        query.order_by(Product.id.desc())
+        .offset((page - 1) * page_size).limit(page_size)
+    )
+    products = rs.scalars().all()
+
+    # 取分类名称
+    cat_ids_to_load = list({p.category_id for p in products if p.category_id})
+    cat_map: dict[int, str] = {}
+    if cat_ids_to_load:
+        rs2 = await db.execute(
+            select(ProductCategory.id, ProductCategory.name)
+            .where(ProductCategory.id.in_(cat_ids_to_load))
+        )
+        cat_map = {row[0]: row[1] for row in rs2.all()}
+
+    def _row(p: Product) -> dict:
+        ft = p.fulfillment_type.value if hasattr(p.fulfillment_type, "value") else str(p.fulfillment_type)
+        images = p.images if isinstance(p.images, list) else []
+        return {
+            "id": p.id,
+            "name": p.name,
+            "image": images[0] if images else None,
+            "category_id": p.category_id,
+            "category_name": cat_map.get(p.category_id),
+            "price": float(p.sale_price or 0),
+            "stock": p.stock if ft == "delivery" else None,
+            "fulfillment_type": ft,
+        }
+
+    items = [_row(p) for p in products]
+
+    # 已选商品详情（用于编辑回显，可能包含已删除/下架，逐条标记状态）
+    selected_items: list[dict] = []
+    if selected_ids:
+        sel_ids = _normalize_int_list(selected_ids)
+        if sel_ids:
+            rs3 = await db.execute(select(Product).where(Product.id.in_(sel_ids)))
+            sel_products = {p.id: p for p in rs3.scalars().all()}
+            sel_cat_ids = list({p.category_id for p in sel_products.values() if p.category_id})
+            sel_cat_map: dict[int, str] = {}
+            if sel_cat_ids:
+                rs4 = await db.execute(
+                    select(ProductCategory.id, ProductCategory.name)
+                    .where(ProductCategory.id.in_(sel_cat_ids))
+                )
+                sel_cat_map = {row[0]: row[1] for row in rs4.all()}
+            for sid in sel_ids:
+                p = sel_products.get(sid)
+                if not p:
+                    selected_items.append({
+                        "id": sid,
+                        "name": None,
+                        "missing": True,
+                        "deleted": True,
+                        "off_shelf": False,
+                    })
+                    continue
+                ft = p.fulfillment_type.value if hasattr(p.fulfillment_type, "value") else str(p.fulfillment_type)
+                status_val = p.status.value if hasattr(p.status, "value") else str(p.status)
+                images = p.images if isinstance(p.images, list) else []
+                selected_items.append({
+                    "id": p.id,
+                    "name": p.name,
+                    "image": images[0] if images else None,
+                    "category_id": p.category_id,
+                    "category_name": sel_cat_map.get(p.category_id),
+                    "price": float(p.sale_price or 0),
+                    "stock": p.stock if ft == "delivery" else None,
+                    "fulfillment_type": ft,
+                    "missing": False,
+                    "deleted": False,
+                    "off_shelf": status_val != "active",
+                })
+
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "selected_items": selected_items,
+    }
+
+
+# ─── V2.2：分类树形选择器 + 按 IDs 批量查（PRD F3 / F7）───
+
+
+@router.get("/category-tree")
+async def coupon_category_tree(
+    current_user: User = Depends(admin_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    """优惠券分类树形选择器数据源（仅 active 分类）。"""
+    rs = await db.execute(
+        select(ProductCategory)
+        .where(ProductCategory.status == "active")
+        .order_by(ProductCategory.level.asc(), ProductCategory.sort_order.asc())
+    )
+    cats = rs.scalars().all()
+    nodes: dict[int, dict] = {}
+    roots: list[dict] = []
+    for c in cats:
+        nodes[c.id] = {
+            "id": c.id,
+            "name": c.name,
+            "parent_id": c.parent_id,
+            "level": c.level,
+            "children": [],
+        }
+    for c in cats:
+        node = nodes[c.id]
+        if c.parent_id and c.parent_id in nodes:
+            nodes[c.parent_id]["children"].append(node)
+        else:
+            roots.append(node)
+    return {"items": roots}
+
+
+@router.get("/categories-by-ids")
+async def coupon_categories_by_ids(
+    ids: str = Query(..., description="分类 ID 列表，逗号分隔（用于编辑回填）"),
+    current_user: User = Depends(admin_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    """按 ID 批量查分类详情（编辑历史优惠券回填用）。已删除的分类标记 missing=true。"""
+    id_list = _normalize_int_list(ids)
+    if not id_list:
+        return {"items": []}
+    rs = await db.execute(
+        select(ProductCategory).where(ProductCategory.id.in_(id_list))
+    )
+    found = {c.id: c for c in rs.scalars().all()}
+    items = []
+    for cid in id_list:
+        c = found.get(cid)
+        if not c:
+            items.append({"id": cid, "name": None, "missing": True})
+            continue
+        items.append({
+            "id": c.id,
+            "name": c.name,
+            "parent_id": c.parent_id,
+            "level": c.level,
+            "status": c.status.value if hasattr(c.status, "value") else str(c.status),
+            "missing": False,
+        })
+    return {"items": items}
+
+
+# ─── V2.2：分类下商品数统计（PRD F8 适用范围预览）───
+
+
+@router.get("/category-product-count")
+async def coupon_category_product_count(
+    category_ids: str = Query(..., description="分类 ID 列表，逗号分隔"),
+    current_user: User = Depends(admin_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    """统计「这些分类（含子分类）+ 实物快递/到店服务 + active」对应的商品数。"""
+    id_list = _normalize_int_list(category_ids)
+    if not id_list:
+        return {"category_count": 0, "product_count": 0}
+    expanded = await _expand_category_ids_with_children(db, id_list)
+    cnt = (await db.execute(
+        select(func.count(Product.id)).where(
+            Product.status == "active",
+            _allowed_fulfillment_filter(),
+            Product.category_id.in_(expanded),
+        )
+    )).scalar() or 0
+    return {
+        "category_count": len(id_list),
+        "product_count": int(cnt),
+    }
+
+
+@router.get("/active-product-count")
+async def coupon_active_product_count(
+    current_user: User = Depends(admin_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    """全店在售商品数（用于 scope=all 的预览）。"""
+    cnt = (await db.execute(
+        select(func.count(Product.id)).where(
+            Product.status == "active",
+            _allowed_fulfillment_filter(),
+        )
+    )).scalar() or 0
+    return {"product_count": int(cnt)}
 
 
 # ─── V2.1：禁删除，仅下架 ───

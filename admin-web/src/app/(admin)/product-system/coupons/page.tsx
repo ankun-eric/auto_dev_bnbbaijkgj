@@ -4,16 +4,20 @@ import React, { useEffect, useState, useCallback } from 'react';
 import {
   Table, Button, Space, Modal, Form, Input, InputNumber, Select, Tag, message,
   Typography, Popconfirm, Row, Col, Drawer, DatePicker, Divider, Tooltip,
-  Statistic, Card, Alert,
+  Statistic, Card, Alert, Radio, Image,
 } from 'antd';
 import {
   PlusOutlined, EditOutlined, SendOutlined, SearchOutlined,
   HistoryOutlined, RollbackOutlined, DownloadOutlined,
   StopOutlined, ReloadOutlined, EyeOutlined, EyeInvisibleOutlined,
-  CopyOutlined, FileTextOutlined,
+  CopyOutlined, FileTextOutlined, QuestionCircleOutlined, AppstoreOutlined,
 } from '@ant-design/icons';
 import { get, post, put } from '@/lib/api';
 import dayjs from 'dayjs';
+import CouponTypeHelpModal from '@/components/coupon/CouponTypeHelpModal';
+import CategoryTreePicker from '@/components/coupon/CategoryTreePicker';
+import ProductPickerModal, { PickerProduct } from '@/components/coupon/ProductPickerModal';
+import ScopeSummaryBar from '@/components/coupon/ScopeSummaryBar';
 
 const { Title, Text } = Typography;
 
@@ -28,6 +32,7 @@ interface Coupon {
   discount_rate: number;
   scope: string;
   scope_ids: any;
+  exclude_ids?: number[] | null;
   total_count: number;
   claimed_count: number;
   used_count: number;
@@ -183,6 +188,19 @@ export default function CouponsPage() {
   const [scope, setScope] = useState<string>('all');
   const [isSuperuser, setIsSuperuser] = useState(false);
 
+  // V2.2 适用范围 & 类型说明优化
+  const [typeHelpVisible, setTypeHelpVisible] = useState(false);
+  const [scopeCategoryIds, setScopeCategoryIds] = useState<number[]>([]);
+  const [scopeProductIds, setScopeProductIds] = useState<number[]>([]);
+  const [excludeProductIds, setExcludeProductIds] = useState<number[]>([]);
+  const [productPickerOpen, setProductPickerOpen] = useState(false);
+  const [excludePickerOpen, setExcludePickerOpen] = useState(false);
+  // 已选商品/排除商品的回显详情（图+名）
+  const [productDetailsCache, setProductDetailsCache] = useState<Record<number, PickerProduct & { missing?: boolean; off_shelf?: boolean }>>({});
+  // 上限配置
+  const [scopeMax, setScopeMax] = useState(100);
+  const [excludeMax, setExcludeMax] = useState(50);
+
   // 发放记录抽屉
   const [grantsVisible, setGrantsVisible] = useState(false);
   const [grantsCoupon, setGrantsCoupon] = useState<Coupon | null>(null);
@@ -258,6 +276,32 @@ export default function CouponsPage() {
 
   useEffect(() => { fetchData(); }, []);
   useEffect(() => { get('/api/admin/partners').then((r: any) => setPartners(r?.items || [])).catch(() => {}); }, []);
+  // V2.2：拉适用范围 / 排除商品上限
+  useEffect(() => {
+    get('/api/admin/coupons/scope-limits')
+      .then((r: any) => {
+        if (typeof r?.scope_max_products === 'number') setScopeMax(r.scope_max_products);
+        if (typeof r?.exclude_max_products === 'number') setExcludeMax(r.exclude_max_products);
+      })
+      .catch(() => {});
+  }, []);
+
+  // V2.2：根据 scopeProductIds + excludeProductIds 拉取详情，用于卡片回显
+  const fetchProductDetails = useCallback(async (ids: number[]) => {
+    if (!ids || ids.length === 0) return;
+    const missing = ids.filter(id => !productDetailsCache[id]);
+    if (missing.length === 0) return;
+    try {
+      const res: any = await get(`/api/admin/coupons/product-picker?selected_ids=${missing.join(',')}&page=1&page_size=1`);
+      const next = { ...productDetailsCache };
+      (res?.selected_items || []).forEach((it: any) => {
+        next[it.id] = it;
+      });
+      setProductDetailsCache(next);
+    } catch {}
+  }, [productDetailsCache]);
+
+  useEffect(() => { fetchProductDetails([...scopeProductIds, ...excludeProductIds]); }, [scopeProductIds, excludeProductIds, fetchProductDetails]);
 
   const handleSearch = () => fetchData(1, pagination.pageSize);
 
@@ -272,6 +316,9 @@ export default function CouponsPage() {
     });
     setCouponType('full_reduction');
     setScope('all');
+    setScopeCategoryIds([]);
+    setScopeProductIds([]);
+    setExcludeProductIds([]);
     setModalVisible(true);
   };
 
@@ -279,6 +326,27 @@ export default function CouponsPage() {
     setEditingRecord(record);
     setCouponType(record.type);
     setScope(record.scope);
+    // 历史 scope_ids 兼容（字符串/数组）
+    let scopeIdsArr: number[] = [];
+    const raw = record.scope_ids;
+    if (Array.isArray(raw)) {
+      scopeIdsArr = raw.map((x: any) => Number(x)).filter((n: number) => !isNaN(n));
+    } else if (typeof raw === 'string' && raw) {
+      scopeIdsArr = raw.split(',').map((s: string) => Number(s.trim())).filter((n: number) => !isNaN(n));
+    } else if (typeof raw === 'number') {
+      scopeIdsArr = [raw];
+    }
+    if (record.scope === 'category') {
+      setScopeCategoryIds(scopeIdsArr);
+      setScopeProductIds([]);
+    } else if (record.scope === 'product') {
+      setScopeProductIds(scopeIdsArr);
+      setScopeCategoryIds([]);
+    } else {
+      setScopeCategoryIds([]);
+      setScopeProductIds([]);
+    }
+    setExcludeProductIds(Array.isArray(record.exclude_ids) ? record.exclude_ids : []);
     form.setFieldsValue({
       name: record.name,
       type: record.type,
@@ -286,7 +354,6 @@ export default function CouponsPage() {
       discount_value: record.discount_value,
       discount_rate: record.discount_rate,
       scope: record.scope,
-      scope_ids: record.scope_ids ? (Array.isArray(record.scope_ids) ? record.scope_ids.join(',') : String(record.scope_ids)) : '',
       total_count: record.total_count,
       validity_days: record.validity_days || 30,
       status: record.status,
@@ -337,29 +404,52 @@ export default function CouponsPage() {
     });
   };
 
-  const handleSubmit = async () => {
+  const submitCoupon = async (values: any, allowFreeTrialAll = false) => {
+    let scopeIds: number[] | null = null;
+    if (values.scope === 'category') {
+      if (!scopeCategoryIds.length) {
+        message.error('请至少选择 1 个分类');
+        return;
+      }
+      scopeIds = scopeCategoryIds;
+    } else if (values.scope === 'product') {
+      if (!scopeProductIds.length) {
+        message.error('请至少选择 1 个商品');
+        return;
+      }
+      scopeIds = scopeProductIds;
+    }
+    let excludeIds: number[] | null = null;
+    if (values.scope !== 'product' && excludeProductIds.length > 0) {
+      excludeIds = excludeProductIds;
+    }
+    // 类型 free_trial + scope=all 黄色二次确认
+    if (values.type === 'free_trial' && values.scope === 'all' && !allowFreeTrialAll) {
+      Modal.confirm({
+        title: '免费试用券设为全店生效风险较高，是否继续？',
+        okText: '继续保存',
+        okType: 'warning' as any,
+        onOk: () => submitCoupon(values, true),
+      });
+      return;
+    }
+    const payload: any = {
+      name: values.name,
+      type: values.type,
+      condition_amount: values.condition_amount ?? 0,
+      discount_value: values.discount_value ?? 0,
+      discount_rate: values.discount_rate ?? 1.0,
+      scope: values.scope,
+      scope_ids: scopeIds,
+      exclude_ids: excludeIds,
+      total_count: values.total_count ?? 0,
+      validity_days: values.validity_days ?? 30,
+      status: values.status,
+    };
+    if (values.points_exchange_limit !== undefined && values.points_exchange_limit !== null) {
+      payload.points_exchange_limit = values.points_exchange_limit;
+    }
     try {
-      const values = await form.validateFields();
-      let scopeIds = null;
-      if (values.scope !== 'all' && values.scope_ids) {
-        try { scopeIds = JSON.parse(values.scope_ids); }
-        catch { scopeIds = String(values.scope_ids).split(',').map((s: string) => Number(s.trim())).filter((n: number) => !isNaN(n)); }
-      }
-      const payload: any = {
-        name: values.name,
-        type: values.type,
-        condition_amount: values.condition_amount ?? 0,
-        discount_value: values.discount_value ?? 0,
-        discount_rate: values.discount_rate ?? 1.0,
-        scope: values.scope,
-        scope_ids: scopeIds,
-        total_count: values.total_count ?? 0,
-        validity_days: values.validity_days ?? 30,
-        status: values.status,
-      };
-      if (values.points_exchange_limit !== undefined && values.points_exchange_limit !== null) {
-        payload.points_exchange_limit = values.points_exchange_limit;
-      }
       if (editingRecord) {
         await put(`/api/admin/coupons/${editingRecord.id}`, payload);
         message.success('编辑成功');
@@ -370,10 +460,48 @@ export default function CouponsPage() {
       setModalVisible(false);
       fetchData(pagination.current, pagination.pageSize);
     } catch (err: any) {
+      message.error(err?.response?.data?.detail || '操作失败');
+    }
+  };
+
+  const handleSubmit = async () => {
+    try {
+      const values = await form.validateFields();
+      await submitCoupon(values);
+    } catch (err: any) {
       if (err?.errorFields) return;
       message.error(err?.response?.data?.detail || '操作失败');
     }
   };
+
+  // 渲染已选商品/排除商品的小卡片
+  const renderProductChips = (ids: number[], onRemove: (id: number) => void) => (
+    <Space size={[6, 6]} wrap style={{ marginTop: 8 }}>
+      {ids.map(id => {
+        const d = productDetailsCache[id];
+        const isMissing = d?.missing;
+        const isOff = d?.off_shelf;
+        const color = isMissing ? 'red' : (isOff ? 'orange' : 'default');
+        const tip = isMissing
+          ? `❌ 商品已不存在(ID:${id})`
+          : (isOff ? `⚠️ 商品已下架(${d?.name || id})` : (d?.name || `商品#${id}`));
+        return (
+          <Tag
+            key={id}
+            color={color}
+            closable
+            onClose={(e) => { e.preventDefault(); onRemove(id); }}
+            style={{ padding: '4px 8px', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+          >
+            {d?.image && !isMissing && (
+              <Image src={d.image} width={20} height={20} preview={false} fallback="/no-image.png" />
+            )}
+            <span>{tip}</span>
+          </Tag>
+        );
+      })}
+    </Space>
+  );
 
   // ─── 发放记录 ───
   const openGrants = async (record: Coupon) => {
@@ -767,7 +895,23 @@ export default function CouponsPage() {
           </Form.Item>
           <Row gutter={16}>
             <Col span={12}>
-              <Form.Item label="优惠券类型" name="type" rules={[{ required: true, message: '请选择类型' }]}>
+              <Form.Item
+                label={
+                  <span>
+                    优惠券类型
+                    <Tooltip title="点击查看 4 种类型的完整说明">
+                      <QuestionCircleOutlined
+                        style={{ marginLeft: 6, color: '#999', cursor: 'pointer' }}
+                        onClick={() => setTypeHelpVisible(true)}
+                        onMouseEnter={(e) => (e.currentTarget.style.color = '#52c41a')}
+                        onMouseLeave={(e) => (e.currentTarget.style.color = '#999')}
+                      />
+                    </Tooltip>
+                  </span>
+                }
+                name="type"
+                rules={[{ required: true, message: '请选择类型' }]}
+              >
                 <Select options={couponTypeOptions} onChange={v => setCouponType(v)} />
               </Form.Item>
             </Col>
@@ -800,20 +944,83 @@ export default function CouponsPage() {
             )}
           </Row>
 
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item label="适用范围" name="scope">
-                <Select options={scopeOptions} onChange={v => setScope(v)} />
-              </Form.Item>
-            </Col>
-            {scope !== 'all' && (
-              <Col span={12}>
-                <Form.Item label={scope === 'category' ? '分类ID (逗号分隔)' : '商品ID (逗号分隔)'} name="scope_ids">
-                  <Input placeholder="如: 1,2,3" />
-                </Form.Item>
-              </Col>
-            )}
-          </Row>
+          <Divider plain>适用范围</Divider>
+          <Form.Item name="scope" label="适用范围" rules={[{ required: true }]}>
+            <Radio.Group onChange={(e) => setScope(e.target.value)}>
+              <Space direction="vertical">
+                <Radio value="all">
+                  全部商品
+                  <span style={{ color: '#999', marginLeft: 8, fontSize: 12 }}>适合全场满减、节日券</span>
+                </Radio>
+                <Radio value="category">
+                  指定分类
+                  <span style={{ color: '#999', marginLeft: 8, fontSize: 12 }}>适合品类清仓、分类专享</span>
+                </Radio>
+                <Radio value="product">
+                  指定商品
+                  <span style={{ color: '#999', marginLeft: 8, fontSize: 12 }}>适合爆款促销、新品试用</span>
+                </Radio>
+              </Space>
+            </Radio.Group>
+          </Form.Item>
+
+          {scope === 'all' && (
+            <Alert
+              type="info"
+              showIcon
+              style={{ marginBottom: 12 }}
+              message="该券对全店所有在售商品生效（实物 + 到店服务，虚拟商品本期不纳入）"
+            />
+          )}
+
+          {scope === 'category' && (
+            <Form.Item label="选择分类">
+              <CategoryTreePicker
+                value={scopeCategoryIds}
+                onChange={setScopeCategoryIds}
+              />
+            </Form.Item>
+          )}
+
+          {scope === 'product' && (
+            <Form.Item label={`选择商品（最多 ${scopeMax} 个）`}>
+              <Button icon={<AppstoreOutlined />} onClick={() => setProductPickerOpen(true)}>
+                {scopeProductIds.length > 0 ? `已选 ${scopeProductIds.length} 个，点击修改` : '点击选择商品'}
+              </Button>
+              {scopeProductIds.length > 0 && renderProductChips(
+                scopeProductIds,
+                (id) => setScopeProductIds(prev => prev.filter(x => x !== id)),
+              )}
+            </Form.Item>
+          )}
+
+          {(scope === 'all' || scope === 'category') && (
+            <Form.Item
+              label={
+                <span>
+                  排除商品（可选，最多 {excludeMax} 个）
+                  <Tooltip title="设置后，本券对所选范围生效，但被排除的商品不参与">
+                    <QuestionCircleOutlined style={{ marginLeft: 6, color: '#999' }} />
+                  </Tooltip>
+                </span>
+              }
+            >
+              <Button onClick={() => setExcludePickerOpen(true)}>
+                {excludeProductIds.length > 0 ? `已排除 ${excludeProductIds.length} 个，点击修改` : '+ 选择排除商品'}
+              </Button>
+              {excludeProductIds.length > 0 && renderProductChips(
+                excludeProductIds,
+                (id) => setExcludeProductIds(prev => prev.filter(x => x !== id)),
+              )}
+            </Form.Item>
+          )}
+
+          <ScopeSummaryBar
+            scope={scope}
+            scopeIds={scope === 'category' ? scopeCategoryIds : (scope === 'product' ? scopeProductIds : [])}
+            excludeIds={excludeProductIds}
+          />
+          <Divider plain>其他</Divider>
 
           <Row gutter={16}>
             <Col span={12}>
@@ -839,6 +1046,36 @@ export default function CouponsPage() {
           </Form.Item>
         </Form>
       </Modal>
+
+      {/* V2.2 类型说明弹窗 */}
+      <CouponTypeHelpModal open={typeHelpVisible} onClose={() => setTypeHelpVisible(false)} />
+
+      {/* V2.2 商品弹窗（适用商品） */}
+      <ProductPickerModal
+        open={productPickerOpen}
+        title="选择商品"
+        maxCount={scopeMax}
+        showSwitchToCategory
+        initialSelectedIds={scopeProductIds}
+        onCancel={() => setProductPickerOpen(false)}
+        onConfirm={(ids) => { setScopeProductIds(ids); setProductPickerOpen(false); }}
+        onSwitchToCategory={() => {
+          setScope('category');
+          form.setFieldValue('scope', 'category');
+          setScopeProductIds([]);
+        }}
+      />
+
+      {/* V2.2 商品弹窗（排除商品） */}
+      <ProductPickerModal
+        open={excludePickerOpen}
+        title="选择要排除的商品"
+        maxCount={excludeMax}
+        showSwitchToCategory={false}
+        initialSelectedIds={excludeProductIds}
+        onCancel={() => setExcludePickerOpen(false)}
+        onConfirm={(ids) => { setExcludeProductIds(ids); setExcludePickerOpen(false); }}
+      />
 
       {/* 4 种发放方式 */}
       <Modal title={`发放优惠券：${grantTypeCoupon?.name || ''}`}
