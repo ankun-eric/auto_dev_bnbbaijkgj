@@ -33,7 +33,58 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 预约时段「提前可预约天数」缺失修复 + include_today 增强（Bug 修复）— 已开发部署（2026-05-02 15:30）
+## Latest Update: H5 下单流程优化 — 支付页统一选择（PRD v1.0）— 已开发部署（2026-05-02 16:30）
+
+### 一句话结论
+把"日期 / 时段 / 门店"三个选择从商品详情页**整体下沉**到 H5 支付页，详情页回归纯展示；新增门店级 `slot_capacity / business_start / business_end`，下单容量按门店粒度（已支付 + 待支付 15 分钟内）；H5 支付页新增联系手机号 + 备注、点击门店卡片才请求定位；管理后台门店表单新增三个字段；小程序 + Flutter 同步删除详情页选择区并补齐联系手机号。
+
+### 修改/新增的文件
+- `backend/app/models/models.py` — `MerchantStore` 新增 `slot_capacity INT NOT NULL DEFAULT 10` / `business_start VARCHAR(5)` / `business_end VARCHAR(5)`
+- `backend/app/schemas/merchant.py` — `MerchantStoreResponse / Create / Update` 三个 schema 加上述字段
+- `backend/app/services/schema_sync.py` — 幂等 `ALTER TABLE merchant_stores ADD COLUMN slot_capacity / business_start / business_end`
+- `backend/app/api/admin_merchant.py` — `_build_store_response` / `get_store` / `create_store` / `update_store` 处理新字段
+- `backend/app/schemas/products.py` — `AvailableStoreItem` 新增 `slot_capacity / business_start / business_end`
+- `backend/app/api/products.py` — `get_available_stores` 引入 `_store_extra` 帮助函数返回新字段
+- `backend/app/api/h5_checkout.py` — **新增**，提供 `GET /api/h5/checkout/init`、`GET /api/h5/slots`，含日期范围计算、商品时段∩门店营业时段过滤、按门店容量隐藏满档时段；占用计算口径 = 已支付（pending_shipment / pending_receipt / pending_use / pending_review / completed）+ 15 分钟内待支付（pending_payment）
+- `backend/app/main.py` — 注册 `h5_checkout.router`
+- `backend/app/api/unified_orders.py` — 容量校验改为门店粒度（取 `appointment_data.store_id` → 商品首个绑定门店兜底），使用 `target_store.slot_capacity`，并校验时段是否在 `business_start ~ business_end` 内；`order.store_id` 优先取 `appointment_data.store_id`
+- `backend/tests/test_h5_checkout_v1.py` — **新增** 6 个用例（门店字段往返 / 默认 10 / `/checkout/init` 数据完整 / `/slots` 营业时段过滤 / 满档隐藏 / `/available-stores` 含新字段）
+- `h5-web/src/app/product/[id]/page.tsx` — 删除"可预约时段（今日）"和"可用门店"两块；移除相关 state / useEffect / Popup / MapNavSheet
+- `h5-web/src/app/checkout/page.tsx` — **完全重写**：横向 7 天日期 / 横向时段按钮（智能保留 + 不可用变红）/ 门店卡片（点击后才请求定位、按距离或字母排序）/ 联系手机号（11 位校验，回显账号手机）/ 备注（50 字限制）/ canSubmit 校验 / 通过 `/api/orders/unified` 提交并携带 `appointment_data.store_id` + `contact_phone`
+- `admin-web/src/app/(admin)/merchant/stores/page.tsx` — `StoreItem` 接口加新字段；新建默认 `slot_capacity=10 / business_start=09:00 / business_end=22:00`；编辑表单新增 `InputNumber` + 两个 HH:MM `Input`
+- `admin-web/src/components/StoreMapPicker.tsx` — 配合门店表单的地图选择组件（沿用前期门店地图能力）
+- `miniprogram/pages/product-detail/index.{js,wxml}` — 删除"可预约时段"和"可用门店"区块；客户端不再加载 slotAvailability / availableStores
+- `miniprogram/pages/checkout/index.{js,wxml}` — 新增"联系手机号"输入与校验、备注 50 字限制；提交时携带 `store_id + contact_phone`
+- `flutter_app/lib/screens/product/product_detail_screen.dart` — 用 `if (false && …)` 短路两块选择 UI（最小侵入）
+- `flutter_app/lib/screens/product/checkout_screen.dart` — 新增 `_contactPhoneController` + 校验 + 备注 maxLength=50；`_submitOrder` 携带 `contact_phone`
+- `deploy/_deploy_h5_checkout_v1_20260502.py` — 远程部署 + URL 自检脚本
+- `deploy/_e2e_h5_checkout_v1_20260502.py` — 服务器端 E2E 自动化测试（注册→登录→checkout/init→slots→available-stores 全链路）
+- `deploy/_pkg_upload_mp_20260502.py` — 小程序源码包打包上传（已上传 `miniprogram_20260502_163819_2596.zip`）
+- `deploy/_build_apk_h5_checkout_v1_20260502.py` — 远程 docker `flutter-builder:latest` 打包 APK
+- `user_docs/H5下单流程优化-支付页统一选择.md` — **新增**用户体验手册
+
+### 关键决策
+- **占用判定口径**：已支付 = `pending_shipment / pending_receipt / pending_use / pending_review / completed`（项目里没有 `paid` 枚举值，按下单流转后状态等价为已支付）+ 待支付 = `pending_payment` 且 `created_at > now() - 15min`
+- **商品 `time_slots[].capacity`**：保留字段不动，前端隐藏 + 下单不读取，避免数据迁移风险
+- **定位时机**：H5 仅在用户点击"门店卡片"时调用 `navigator.geolocation`，授权率最高、用户感知最少
+- **门店切换智能保留**：保留所选日期/时段，新门店不可用时标红 + 禁用支付按钮，文案明确指引重选
+
+### 部署 / 验证状态
+- 服务器 commit：`259ebd8 fix(h5-checkout)`
+- E2E（生产域）：`ALL E2E PASSED`
+  - `/api/h5/slots` 200（公开） / `/api/h5/checkout/init` 200（登录）/ `available-stores` 含 `slot_capacity / business_start / business_end`
+- 关键 URL 全 200/308：`/api/health`、`/h5/login`、`/h5/checkout`、`/admin/merchant/stores`
+- APK 在线构建中（约 45 分钟，最新 stable APK 仍指向 `bini_health.apk`）
+
+### 用户访问入口
+- H5 支付页：https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/h5/checkout
+- 管理后台门店：https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/merchant/stores
+- APK：https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/apk/bini_health.apk
+- 小程序源码：https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/miniprogram_20260502_163819_2596.zip
+
+---
+
+## Previous Update: 预约时段「提前可预约天数」缺失修复 + include_today 增强（Bug 修复）— 已开发部署（2026-05-02 15:30）
 
 ### 一句话结论
 修复 `time_slot`（预约时段）模式下 `advance_days`（提前可预约天数）缺失导致顾客可无限远挑选预约日期的 P1 业务 Bug，并配套新增 `include_today`（预约起始日是否包含今天，默认 true）字段：`date` 与 `time_slot` 两种模式**共用**「提前可预约天数」+「预约起始日」，统一公式 `inc=true → [today, today+N-1]` / `inc=false → [today+1, today+N]`，由后端 `unified_orders` 兜底校验越权下单。涉及后端（模型/Schema/API/migration/单元测试）+ admin-web（编辑表单 + 校验）+ H5（下单页日期选择）+ 小程序（下单页日期选择）+ Flutter App（Product 模型 + 下单页 DatePicker）五端改动。
