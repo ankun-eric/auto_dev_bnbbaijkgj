@@ -158,7 +158,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     return amount > 0 ? amount : 0;
   }
 
-  bool get _needAddress => _product.fulfillmentType == 'delivery';
+  bool get _needAddress => _product.fulfillmentType == 'delivery' || _product.fulfillmentType == 'on_site';
 
   String _formatDate(DateTime d) =>
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
@@ -219,7 +219,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         data['coupon_id'] = _selectedCoupon!.couponId;
       }
       if (_selectedAddress != null) {
-        data['shipping_address_id'] = _selectedAddress!.id;
+        if (widget.product.fulfillmentType == 'on_site') {
+          data['service_address_id'] = _selectedAddress!.id;
+        } else {
+          data['shipping_address_id'] = _selectedAddress!.id;
+        }
       }
 
       final res = await _api.createUnifiedOrder(data);

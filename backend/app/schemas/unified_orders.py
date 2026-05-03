@@ -18,6 +18,8 @@ class UnifiedOrderCreate(BaseModel):
     points_deduction: int = 0
     coupon_id: Optional[int] = None
     shipping_address_id: Optional[int] = None
+    # [上门服务履约 PRD v1.0] 上门服务必填地址（fulfillment_type=on_site 时必传）
+    service_address_id: Optional[int] = None
     notes: Optional[str] = None
 
 
@@ -58,6 +60,9 @@ class UnifiedOrderResponse(BaseModel):
     refund_status: str = "none"
     shipping_address_id: Optional[int] = None
     shipping_info: Optional[Any] = None
+    # [上门服务履约 PRD v1.0]
+    service_address_id: Optional[int] = None
+    service_address_snapshot: Optional[Any] = None
     tracking_number: Optional[str] = None
     tracking_company: Optional[str] = None
     notes: Optional[str] = None

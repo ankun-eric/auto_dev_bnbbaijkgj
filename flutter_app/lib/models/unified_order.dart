@@ -71,6 +71,8 @@ class UnifiedOrder {
   final String refundStatus;
   final int? shippingAddressId;
   final dynamic shippingInfo;
+  final int? serviceAddressId;
+  final dynamic serviceAddressSnapshot;
   final String? trackingNumber;
   final String? trackingCompany;
   final String? notes;
@@ -103,6 +105,8 @@ class UnifiedOrder {
     this.refundStatus = 'none',
     this.shippingAddressId,
     this.shippingInfo,
+    this.serviceAddressId,
+    this.serviceAddressSnapshot,
     this.trackingNumber,
     this.trackingCompany,
     this.notes,
@@ -177,6 +181,8 @@ class UnifiedOrder {
       refundStatus: json['refund_status'] ?? 'none',
       shippingAddressId: json['shipping_address_id'],
       shippingInfo: json['shipping_info'],
+      serviceAddressId: json['service_address_id'],
+      serviceAddressSnapshot: json['service_address_snapshot'],
       trackingNumber: json['tracking_number'],
       trackingCompany: json['tracking_company'],
       notes: json['notes'],

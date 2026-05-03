@@ -1793,6 +1793,105 @@ async def _migrate_store_codes(conn: AsyncConnection) -> None:
         )
 
 
+async def _sync_on_site_fulfillment(conn: AsyncConnection) -> None:
+    """[上门服务履约 PRD v1.0] 新增 on_site 履约类型 + 上门地址字段。
+
+    1) products.fulfillment_type ENUM 扩列：增加 'on_site'
+    2) order_items.fulfillment_type ENUM 扩列：增加 'on_site'
+    3) unified_orders 新增：service_address_id、service_address_snapshot
+
+    全部增量、幂等。仅 MySQL 方言下执行 ENUM ALTER（SQLite 无 ENUM）。
+    """
+    def _load(sync_conn):
+        inspector = inspect(sync_conn)
+        tables = set(inspector.get_table_names())
+        result = {
+            "products_cols": None,
+            "order_items_cols": None,
+            "unified_orders_cols": None,
+        }
+        if "products" in tables:
+            result["products_cols"] = {col["name"] for col in inspector.get_columns("products")}
+        if "order_items" in tables:
+            result["order_items_cols"] = {col["name"] for col in inspector.get_columns("order_items")}
+        if "unified_orders" in tables:
+            result["unified_orders_cols"] = {col["name"] for col in inspector.get_columns("unified_orders")}
+        return result
+
+    info = await conn.run_sync(_load)
+    try:
+        dialect_name = conn.dialect.name
+    except Exception:
+        dialect_name = ""
+
+    # 1) products.fulfillment_type 扩 ENUM
+    if info["products_cols"] is not None and dialect_name == "mysql":
+        try:
+            await conn.execute(text(
+                "ALTER TABLE products MODIFY COLUMN fulfillment_type "
+                "ENUM('in_store','delivery','virtual','on_site') NOT NULL"
+            ))
+        except Exception as e:
+            print(f"[schema_sync] _sync_on_site_fulfillment products enum warn: {e}")
+
+    # 2) order_items.fulfillment_type 扩 ENUM
+    if info["order_items_cols"] is not None and dialect_name == "mysql":
+        try:
+            await conn.execute(text(
+                "ALTER TABLE order_items MODIFY COLUMN fulfillment_type "
+                "ENUM('in_store','delivery','virtual','on_site') NOT NULL"
+            ))
+        except Exception as e:
+            print(f"[schema_sync] _sync_on_site_fulfillment order_items enum warn: {e}")
+
+    # 3) unified_orders 新增 service_address_id / service_address_snapshot
+    if info["unified_orders_cols"] is not None:
+        cols = info["unified_orders_cols"]
+        if "service_address_id" not in cols:
+            try:
+                await conn.execute(text(
+                    "ALTER TABLE unified_orders ADD COLUMN service_address_id INT NULL "
+                    "COMMENT '上门服务地址 ID（user_addresses.id）'"
+                ))
+                try:
+                    await conn.execute(text(
+                        "CREATE INDEX ix_unified_orders_service_address_id "
+                        "ON unified_orders(service_address_id)"
+                    ))
+                except Exception:
+                    pass
+            except Exception as e:
+                print(f"[schema_sync] _sync_on_site_fulfillment add service_address_id warn: {e}")
+        if "service_address_snapshot" not in cols:
+            col_type = "JSON" if dialect_name == "mysql" else "TEXT"
+            try:
+                await conn.execute(text(
+                    f"ALTER TABLE unified_orders ADD COLUMN service_address_snapshot {col_type} NULL "
+                    f"COMMENT '上门地址快照（下单时刻冻结）'"
+                ))
+            except Exception as e:
+                print(f"[schema_sync] _sync_on_site_fulfillment add service_address_snapshot warn: {e}")
+
+    # 4) 双层名额校验所需的联合索引（性能）
+    if info["unified_orders_cols"] is not None and dialect_name == "mysql":
+        try:
+            await conn.execute(text(
+                "CREATE INDEX ix_unified_orders_store_status "
+                "ON unified_orders(store_id, status)"
+            ))
+        except Exception:
+            pass
+
+    if info["order_items_cols"] is not None and dialect_name == "mysql":
+        try:
+            await conn.execute(text(
+                "CREATE INDEX ix_order_items_product_appt "
+                "ON order_items(product_id, appointment_time)"
+            ))
+        except Exception:
+            pass
+
+
 async def _migrate_appointed_to_pending_use(conn: AsyncConnection) -> None:
     """[PRD 订单状态机简化方案 v1.0 · 第 5.4 节] 一刀切迁移：
     所有 status='appointed' 的订单刷为 'pending_use'。
@@ -1871,6 +1970,8 @@ async def sync_register_schema(conn: AsyncConnection) -> None:
     await _migrate_store_codes(conn)
     # [PRD 订单状态机简化方案 v1.0] 一刀切迁移所有 appointed → pending_use
     await _migrate_appointed_to_pending_use(conn)
+    # [上门服务履约 PRD v1.0] on_site 履约类型 + 上门地址字段
+    await _sync_on_site_fulfillment(conn)
     await run_all_migrations(conn)
 
     columns, indexes, unique_constraints = await conn.run_sync(load_user_schema)

@@ -142,6 +142,7 @@ class FulfillmentType(str, enum.Enum):
     in_store = "in_store"  # 到店服务（暖橙角标）
     delivery = "delivery"  # 快递配送（科技蓝角标）
     virtual = "virtual"    # 改造④：虚拟商品（尊贵紫角标，如在线问诊咨询券、电子券码等）
+    on_site = "on_site"    # 上门服务（家政/维修/上门按摩等，由师傅/技师上门提供服务）
 
 
 class ProductStatus(str, enum.Enum):
@@ -2965,6 +2966,11 @@ class UnifiedOrder(Base):
     refund_status = mapped_column(Enum(RefundStatusEnum), default=RefundStatusEnum.none)
     shipping_address_id = mapped_column(Integer, ForeignKey("user_addresses.id"), nullable=True)
     shipping_info = mapped_column(JSON, nullable=True)
+    # [上门服务履约 PRD v1.0] 上门服务地址：与发货地址独立，下单时锁定快照
+    service_address_id = mapped_column(Integer, ForeignKey("user_addresses.id"), nullable=True,
+                                       comment="上门服务地址 ID（FulfillmentType.on_site 商品下单必填）")
+    service_address_snapshot = mapped_column(JSON, nullable=True,
+                                             comment="上门地址快照（下单时刻的地址内容，后续地址簿改动不影响该订单）")
     tracking_number = mapped_column(String(100), nullable=True)
     tracking_company = mapped_column(String(100), nullable=True)
     notes = mapped_column(Text, nullable=True)
@@ -3000,7 +3006,8 @@ class UnifiedOrder(Base):
 
     user = relationship("User")
     coupon = relationship("Coupon")
-    shipping_address = relationship("UserAddress")
+    shipping_address = relationship("UserAddress", foreign_keys=[shipping_address_id])
+    service_address = relationship("UserAddress", foreign_keys=[service_address_id])
     items = relationship("OrderItem", back_populates="order")
     store = relationship("MerchantStore")
 

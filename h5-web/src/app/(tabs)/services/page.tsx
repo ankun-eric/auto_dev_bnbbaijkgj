@@ -83,6 +83,7 @@ const FULFILLMENT_BADGE: Record<string, { label: string; bg: string; color: stri
   in_store: { label: '到店', bg: '#FF8A3D', color: '#FFFFFF' },
   delivery: { label: '快递', bg: '#3B82F6', color: '#FFFFFF' },
   virtual: { label: '虚拟', bg: '#8B5CF6', color: '#FFFFFF' },
+  on_site: { label: '上门', bg: '#10B981', color: '#FFFFFF' },
 };
 
 function FulfillmentBadge({ type }: { type?: string | null }) {

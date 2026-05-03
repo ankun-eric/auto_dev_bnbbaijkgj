@@ -452,14 +452,14 @@ export default function MerchantStoresPage() {
           <Form.Item name="address" label="详细地址">
             <Input.TextArea rows={3} placeholder="请输入详细地址（地图选点后自动回填，可手动修改）" />
           </Form.Item>
-          {/* [2026-05-02 H5 下单流程优化 PRD v1.0] 单时段最大接单数 */}
+          {/* [上门服务履约 PRD v1.0 · F3] 门店总接待名额 */}
           <Form.Item
             name="slot_capacity"
-            label="单时段最大接单数"
-            tooltip="同一日期同一时段允许的最大下单数（共享门店容量池），默认 10"
-            rules={[{ required: true, message: '请填写单时段最大接单数' }]}
+            label="门店总接待名额"
+            tooltip="门店在同一日期同一时段可接待的最大订单数（所有商品共享）。与商品级名额取最严，0 表示不限。"
+            rules={[{ required: true, message: '请填写门店总接待名额' }]}
           >
-            <InputNumber min={1} max={9999} style={{ width: 200 }} placeholder="默认 10" />
+            <InputNumber min={0} max={9999} style={{ width: 200 }} placeholder="默认 10，0 表示不限" />
           </Form.Item>
           {/* [2026-05-03 营业时间 Bug 修复] 30 分钟粒度时间选择器 */}
           <Form.Item

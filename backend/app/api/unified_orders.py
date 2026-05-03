@@ -16,6 +16,7 @@ from app.core.database import get_db
 from app.core.security import get_current_user
 from app.models.models import (
     Coupon,
+    FulfillmentType,
     MerchantNotification,
     MerchantStore,
     Notification,
@@ -34,6 +35,7 @@ from app.models.models import (
     RefundStatusEnum,
     UnifiedPaymentMethod,
     User,
+    UserAddress,
     UserCoupon,
     UserCouponStatus,
 )
@@ -95,6 +97,30 @@ def _normalize_status(value) -> str:
     if hasattr(value, "value"):
         return value.value
     return str(value)
+
+
+def _norm_fulfillment(value) -> str:
+    """规范化 fulfillment_type，返回 enum value 字符串。"""
+    if value is None:
+        return ""
+    if hasattr(value, "value"):
+        return value.value
+    return str(value)
+
+
+# [上门服务履约 PRD v1.0 · F4] 双层名额校验：占用名额的订单状态范围
+# 已支付/已预约/待核销/部分核销/待评价/已完成 计入；已取消、已退款不计入
+QUOTA_OCCUPY_STATUSES = [
+    UnifiedOrderStatus.pending_payment,
+    UnifiedOrderStatus.pending_shipment,
+    UnifiedOrderStatus.pending_receipt,
+    UnifiedOrderStatus.pending_appointment,
+    UnifiedOrderStatus.appointed,
+    UnifiedOrderStatus.pending_use,
+    UnifiedOrderStatus.partial_used,
+    UnifiedOrderStatus.pending_review,
+    UnifiedOrderStatus.completed,
+]
 
 
 def _earliest_appt_for_order(order):
@@ -273,6 +299,38 @@ async def create_unified_order(
     result = await db.execute(select(Product).where(Product.id.in_(product_ids)))
     products_map = {p.id: p for p in result.scalars().all()}
 
+    # ── [上门服务履约 PRD v1.0 · F5] 上门服务必填地址 ──
+    # 任一商品 fulfillment_type=on_site 时，service_address_id 必传且必须属于当前用户
+    has_on_site = any(
+        _norm_fulfillment(p.fulfillment_type) == "on_site"
+        for p in products_map.values()
+    )
+    service_address_obj: Optional[UserAddress] = None
+    service_address_snapshot_data: Optional[dict] = None
+    if has_on_site:
+        if not data.service_address_id:
+            raise HTTPException(status_code=400, detail="上门服务订单必须选择上门地址")
+        addr_res = await db.execute(
+            select(UserAddress).where(
+                UserAddress.id == data.service_address_id,
+                UserAddress.user_id == current_user.id,
+            )
+        )
+        service_address_obj = addr_res.scalar_one_or_none()
+        if not service_address_obj:
+            raise HTTPException(status_code=400, detail="所选上门地址不存在或不属于当前用户")
+        service_address_snapshot_data = {
+            "address_id": service_address_obj.id,
+            "name": service_address_obj.name,
+            "phone": service_address_obj.phone,
+            "province": service_address_obj.province,
+            "city": service_address_obj.city,
+            "district": service_address_obj.district,
+            "street": service_address_obj.street,
+            "detail": service_address_obj.street,
+            "snapshot_at": datetime.utcnow().isoformat(),
+        }
+
     # 预加载所有涉及的 SKU
     sku_ids = [item.sku_id for item in data.items if getattr(item, "sku_id", None)]
     skus_map: dict[int, "ProductSku"] = {}
@@ -412,6 +470,9 @@ async def create_unified_order(
         coupon_id=data.coupon_id,
         coupon_discount=coupon_discount,
         shipping_address_id=data.shipping_address_id,
+        # [上门服务履约 PRD v1.0 · F5] 上门地址 + 快照
+        service_address_id=(service_address_obj.id if service_address_obj else None),
+        service_address_snapshot=service_address_snapshot_data,
         notes=data.notes,
     )
     db.add(order)
@@ -494,10 +555,14 @@ async def create_unified_order(
                         except (ValueError, IndexError):
                             pass
 
-            # [2026-05-02 H5 下单流程优化 PRD v1.0]
-            # 容量校验改为「门店 slot_capacity」粒度（默认 10），口径 = 已支付 + 待支付 15 分钟内。
-            # appointment_data.store_id 优先，缺省时回退商品绑定的第一个门店；
-            # 商品 time_slots[].capacity 字段保留但下单不再读取（PRD §2.1）。
+            # ════════════════════════════════════════════════════════════
+            # [上门服务履约 PRD v1.0 · F4] 双层名额校验（商品级 + 门店级）
+            # 1) 商品级：按时段 → product.time_slots[该时段].capacity
+            #            按天   → product.daily_capacity（复用 product.daily_quota）
+            # 2) 门店级：所有商品累计同一时段（或同一天）下单数 < store.slot_capacity
+            # 占用名额状态：QUOTA_OCCUPY_STATUSES（已取消/已退款不计入）
+            # 仅在两层都通过时放行；任一不通过返回友好错误。
+            # ════════════════════════════════════════════════════════════
             target_store_id = None
             if isinstance(appt_data, dict):
                 try:
@@ -527,7 +592,7 @@ async def create_unified_order(
                         select(MerchantStore).where(MerchantStore.id == target_store_id)
                     )
                     target_store = store_res.scalar_one_or_none()
-                    capacity = int(getattr(target_store, "slot_capacity", 10) or 10) if target_store else 10
+                    store_capacity = int(getattr(target_store, "slot_capacity", 0) or 0) if target_store else 0
                     biz_start = getattr(target_store, "business_start", None) if target_store else None
                     biz_end = getattr(target_store, "business_end", None) if target_store else None
 
@@ -543,39 +608,139 @@ async def create_unified_order(
                         except ValueError:
                             pass
 
-                    # 占用数 = 已支付 + 待支付（15 分钟内未取消）
-                    # 已支付 = 非 pending_payment 且 非 cancelled（含 pending_shipment/pending_receipt/pending_use/pending_review/completed）
+                    # ── 商品级名额（按时段：product.time_slots[selected].capacity） ──
+                    product_slot_cap: Optional[int] = None
+                    p_slots = getattr(product, "time_slots", None)
+                    if isinstance(p_slots, list):
+                        for s in p_slots:
+                            if not isinstance(s, dict):
+                                continue
+                            s_start = s.get("start") or ""
+                            s_end = s.get("end") or ""
+                            label = s.get("label") or ""
+                            slot_str = f"{s_start}-{s_end}" if s_start and s_end else label
+                            if slot_str == selected_slot or label == selected_slot:
+                                cap_val = s.get("capacity")
+                                if cap_val is not None:
+                                    try:
+                                        cap_int = int(cap_val)
+                                        if cap_int > 0:
+                                            product_slot_cap = cap_int
+                                    except (TypeError, ValueError):
+                                        pass
+                                break
+
                     fifteen_min_ago = datetime.utcnow() - timedelta(minutes=15)
-                    paid_like = [
-                        UnifiedOrderStatus.pending_shipment,
-                        UnifiedOrderStatus.pending_receipt,
-                        UnifiedOrderStatus.pending_use,
-                        UnifiedOrderStatus.pending_review,
-                        UnifiedOrderStatus.completed,
-                    ]
-                    booked_q = await db.execute(
-                        select(func.count(OrderItem.id))
-                        .join(UnifiedOrder, UnifiedOrder.id == OrderItem.order_id)
-                        .where(
-                            OrderItem.product_id == product.id,
-                            func.date(OrderItem.appointment_time) == q_date,
-                            func.json_extract(OrderItem.appointment_data, "$.time_slot") == selected_slot,
-                            UnifiedOrder.store_id == target_store_id,
-                            (
-                                (UnifiedOrder.status.in_(paid_like))
-                                | (
-                                    (UnifiedOrder.status == UnifiedOrderStatus.pending_payment)
-                                    & (UnifiedOrder.created_at >= fifteen_min_ago)
-                                )
-                            ),
+                    occupy_filter = (
+                        (UnifiedOrder.status.in_(QUOTA_OCCUPY_STATUSES[1:]))  # 排除 pending_payment 在外的所有占用态
+                        | (
+                            (UnifiedOrder.status == UnifiedOrderStatus.pending_payment)
+                            & (UnifiedOrder.created_at >= fifteen_min_ago)
                         )
                     )
-                    booked_count = booked_q.scalar() or 0
-                    if booked_count >= capacity:
-                        raise HTTPException(
-                            status_code=400,
-                            detail="该时段名额已满，请选择其他时段",
+
+                    # 商品级校验
+                    if product_slot_cap is not None and product_slot_cap > 0:
+                        booked_q = await db.execute(
+                            select(func.count(OrderItem.id))
+                            .join(UnifiedOrder, UnifiedOrder.id == OrderItem.order_id)
+                            .where(
+                                OrderItem.product_id == product.id,
+                                func.date(OrderItem.appointment_time) == q_date,
+                                func.json_extract(OrderItem.appointment_data, "$.time_slot") == selected_slot,
+                                occupy_filter,
+                            )
                         )
+                        booked_count = booked_q.scalar() or 0
+                        if booked_count >= product_slot_cap:
+                            raise HTTPException(
+                                status_code=400,
+                                detail="该商品当前时段已约满，请选择其他时段或商品",
+                            )
+
+                    # 门店级校验（跨所有商品在该门店同一时段累计）
+                    if store_capacity > 0:
+                        booked_q = await db.execute(
+                            select(func.count(OrderItem.id))
+                            .join(UnifiedOrder, UnifiedOrder.id == OrderItem.order_id)
+                            .where(
+                                func.date(OrderItem.appointment_time) == q_date,
+                                func.json_extract(OrderItem.appointment_data, "$.time_slot") == selected_slot,
+                                UnifiedOrder.store_id == target_store_id,
+                                occupy_filter,
+                            )
+                        )
+                        booked_count = booked_q.scalar() or 0
+                        if booked_count >= store_capacity:
+                            raise HTTPException(
+                                status_code=400,
+                                detail="该门店当前时段已约满，请选择其他时段",
+                            )
+
+            # ── 按天预约的双层名额校验（appt_mode=date） ──
+            if appt_mode == "date" and selected_date_str and target_store_id:
+                try:
+                    q_date2 = date.fromisoformat(selected_date_str)
+                except (ValueError, TypeError):
+                    q_date2 = None
+                if q_date2:
+                    store_res2 = await db.execute(
+                        select(MerchantStore).where(MerchantStore.id == target_store_id)
+                    )
+                    target_store2 = store_res2.scalar_one_or_none()
+                    store_capacity2 = int(getattr(target_store2, "slot_capacity", 0) or 0) if target_store2 else 0
+                    product_daily_cap: Optional[int] = None
+                    daily_q = getattr(product, "daily_quota", None)
+                    if daily_q is not None:
+                        try:
+                            d_int = int(daily_q)
+                            if d_int > 0:
+                                product_daily_cap = d_int
+                        except (TypeError, ValueError):
+                            pass
+
+                    fifteen_min_ago2 = datetime.utcnow() - timedelta(minutes=15)
+                    occupy_filter2 = (
+                        (UnifiedOrder.status.in_(QUOTA_OCCUPY_STATUSES[1:]))
+                        | (
+                            (UnifiedOrder.status == UnifiedOrderStatus.pending_payment)
+                            & (UnifiedOrder.created_at >= fifteen_min_ago2)
+                        )
+                    )
+
+                    if product_daily_cap is not None and product_daily_cap > 0:
+                        booked_q = await db.execute(
+                            select(func.count(OrderItem.id))
+                            .join(UnifiedOrder, UnifiedOrder.id == OrderItem.order_id)
+                            .where(
+                                OrderItem.product_id == product.id,
+                                func.date(OrderItem.appointment_time) == q_date2,
+                                occupy_filter2,
+                            )
+                        )
+                        booked_count = booked_q.scalar() or 0
+                        if booked_count >= product_daily_cap:
+                            raise HTTPException(
+                                status_code=400,
+                                detail="该商品当日名额已约满，请选择其他日期或商品",
+                            )
+
+                    if store_capacity2 > 0:
+                        booked_q = await db.execute(
+                            select(func.count(OrderItem.id))
+                            .join(UnifiedOrder, UnifiedOrder.id == OrderItem.order_id)
+                            .where(
+                                func.date(OrderItem.appointment_time) == q_date2,
+                                UnifiedOrder.store_id == target_store_id,
+                                occupy_filter2,
+                            )
+                        )
+                        booked_count = booked_q.scalar() or 0
+                        if booked_count >= store_capacity2:
+                            raise HTTPException(
+                                status_code=400,
+                                detail="该门店当日名额已约满，请选择其他日期",
+                            )
 
         oi = OrderItem(
             order_id=order.id,

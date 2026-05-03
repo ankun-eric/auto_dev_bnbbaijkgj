@@ -42,10 +42,14 @@ ALLOWED_PURCHASE_APPT_MODES = {
 
 
 class TimeSlotItem(BaseModel):
-    """时段项：起止时间 + 容量"""
+    """时段项：起止时间 + 容量。
+
+    [上门服务履约 PRD v1.0 · F2] capacity 允许为 None / 0，表示该时段不限量，
+    仅受门店总名额（slot_capacity）约束。
+    """
     start: str  # HH:MM
     end: str  # HH:MM
-    capacity: int = 0
+    capacity: Optional[int] = None
 
 
 def _validate_appointment_mode(
@@ -88,8 +92,8 @@ def _validate_appointment_mode(
         if not allow_partial:
             if not advance_days or advance_days <= 0:
                 raise ValueError("预约日期模式下，提前可预约天数必填且需大于 0")
-            if not daily_quota or daily_quota <= 0:
-                raise ValueError("预约日期模式下，单日最大预约人数必填且需大于 0")
+            # [上门服务履约 PRD v1.0 · F2] daily_quota（也作为商品级 daily_capacity）
+            # 允许为空，表示该商品本身不限量，仅受门店总名额约束。
     elif appointment_mode == "time_slot":
         if not allow_partial:
             # BUG-PRODUCT-APPT-002：time_slot 模式同样必须配置 advance_days
@@ -101,11 +105,19 @@ def _validate_appointment_mode(
             for idx, slot in enumerate(time_slots):
                 start = slot.start if hasattr(slot, "start") else slot.get("start")
                 end = slot.end if hasattr(slot, "end") else slot.get("end")
-                capacity = slot.capacity if hasattr(slot, "capacity") else slot.get("capacity", 0)
+                capacity = slot.capacity if hasattr(slot, "capacity") else slot.get("capacity", None)
                 if not start or not end:
                     raise ValueError(f"第 {idx + 1} 个时段的开始/结束时间必填")
-                if capacity is None or int(capacity) <= 0:
-                    raise ValueError(f"第 {idx + 1} 个时段的容量必须大于 0")
+                # [上门服务履约 PRD v1.0 · F2] capacity 允许为 None / 0，表示该时段不限量
+                if capacity is not None:
+                    try:
+                        cap_int = int(capacity)
+                        if cap_int < 0 or cap_int > 9999:
+                            raise ValueError(
+                                f"第 {idx + 1} 个时段的名额必须在 0 ~ 9999 之间（0 表示不限）"
+                            )
+                    except (TypeError, ValueError) as e:
+                        raise ValueError(f"第 {idx + 1} 个时段的名额格式不合法") from e
     elif appointment_mode == "custom_form":
         if not allow_partial and not custom_form_id:
             raise ValueError("自定义表单模式下，必须绑定一张预约表单")

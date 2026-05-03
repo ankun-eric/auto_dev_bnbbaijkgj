@@ -157,6 +157,7 @@ const fulfillmentTypes = [
   { label: '到店服务', value: 'in_store' },
   { label: '快递配送', value: 'delivery' },
   { label: '虚拟商品', value: 'virtual' },
+  { label: '上门服务', value: 'on_site' },
 ];
 
 const statusOptions = [
@@ -216,6 +217,7 @@ const fulfillmentMap: Record<string, string> = {
   in_store: '到店服务',
   delivery: '快递配送',
   virtual: '虚拟商品',
+  on_site: '上门服务',
 };
 
 const CONSTITUTION_TYPES = [

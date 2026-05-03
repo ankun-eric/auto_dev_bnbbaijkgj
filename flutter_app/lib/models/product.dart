@@ -133,6 +133,8 @@ class Product {
         return '到店消费';
       case 'virtual':
         return '虚拟商品';
+      case 'on_site':
+        return '上门服务';
       default:
         return fulfillmentType;
     }

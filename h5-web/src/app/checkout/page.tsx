@@ -464,6 +464,8 @@ function CheckoutPage() {
 
   const isDelivery = product.fulfillment_type === 'delivery';
   const isInStore = product.fulfillment_type === 'in_store';
+  // [上门服务履约 PRD v1.0 · F5] 上门服务必须选择服务地址
+  const isOnSite = product.fulfillment_type === 'on_site';
   // [先下单后预约 Bug 修复 v1.0]
   // 是否在下单页展示预约时间控件，需要同时满足：
   //   1) 商品 appointment_mode != 'none'（即开启了预约功能）
@@ -485,6 +487,7 @@ function CheckoutPage() {
     }
     if (isInStore && !selectedStore) return false;
     if (isDelivery && !selectedAddress) return false;
+    if (isOnSite && !selectedAddress) return false;
     if (!contactPhone || !PHONE_RE.test(contactPhone)) return false;
     if (notes.length > NOTES_MAX) return false;
     return true;
@@ -497,6 +500,7 @@ function CheckoutPage() {
       else if (slotInvalid) Toast.show({ content: '该门店此时段不可用，请重新选择' });
       else if (isInStore && !selectedStore) Toast.show({ content: '请选择门店' });
       else if (isDelivery && !selectedAddress) Toast.show({ content: '请选择收货地址' });
+      else if (isOnSite && !selectedAddress) Toast.show({ content: '请选择上门服务地址' });
       else if (!PHONE_RE.test(contactPhone)) Toast.show({ content: '请输入正确的手机号' });
       return;
     }
@@ -530,7 +534,13 @@ function CheckoutPage() {
         notes: notes || undefined,
       };
       if (selectedCoupon) orderData.coupon_id = selectedCoupon.coupon_id;
-      if (selectedAddress) orderData.shipping_address_id = selectedAddress.id;
+      if (selectedAddress) {
+        if (isOnSite) {
+          orderData.service_address_id = selectedAddress.id;
+        } else {
+          orderData.shipping_address_id = selectedAddress.id;
+        }
+      }
 
       const res: any = await api.post('/api/orders/unified', orderData);
       const order = res.data || res;
@@ -574,11 +584,14 @@ function CheckoutPage() {
           </div>
         </Card>
 
-        {isDelivery && (
+        {(isDelivery || isOnSite) && (
           <Card style={{ borderRadius: 12, marginBottom: 12 }} onClick={() => setShowAddressPicker(true)}>
             {selectedAddress ? (
               <div className="flex items-center">
                 <div className="flex-1">
+                  <div className="text-xs text-gray-400 mb-1">
+                    {isOnSite ? '上门服务地址' : '收货地址'}
+                  </div>
                   <div className="font-medium text-sm">
                     {selectedAddress.name} <span className="text-gray-400 ml-2">{selectedAddress.phone}</span>
                   </div>
@@ -590,7 +603,9 @@ function CheckoutPage() {
               </div>
             ) : (
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-400">请选择收货地址</span>
+                <span className="text-sm text-gray-400">
+                  {isOnSite ? '请选择上门服务地址' : '请选择收货地址'}
+                </span>
                 <RightOutline fontSize={14} color="#999" />
               </div>
             )}

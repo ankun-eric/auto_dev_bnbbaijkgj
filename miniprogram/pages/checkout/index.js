@@ -371,7 +371,13 @@ Page({
         points_deduction: this.data.usePoints ? Math.min(this.data.availablePoints, this.data.maxPointsDeduction) : 0,
         notes: this.data.appointmentNote || undefined,
       };
-      if (this.data.address) orderData.shipping_address_id = this.data.address.id;
+      if (this.data.address) {
+        if (this.data.fulfillmentType === 'on_site') {
+          orderData.service_address_id = this.data.address.id;
+        } else {
+          orderData.shipping_address_id = this.data.address.id;
+        }
+      }
       if (this.data.selectedCoupon) orderData.coupon_id = this.data.selectedCoupon.id;
 
       const res = await post('/api/orders/unified', orderData);

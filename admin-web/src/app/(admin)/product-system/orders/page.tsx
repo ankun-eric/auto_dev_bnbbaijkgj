@@ -47,6 +47,8 @@ interface UnifiedOrder {
   status: string;
   refund_status: string;
   shipping_info: any;
+  service_address_id: number | null;
+  service_address_snapshot: any;
   tracking_number: string | null;
   tracking_company: string | null;
   notes: string | null;
@@ -189,6 +191,8 @@ function mapOrder(raw: Record<string, unknown>): UnifiedOrder {
     status: String(raw.status ?? ''),
     refund_status: String(raw.refund_status ?? 'none'),
     shipping_info: raw.shipping_info,
+    service_address_id: raw.service_address_id ? Number(raw.service_address_id) : null,
+    service_address_snapshot: raw.service_address_snapshot,
     tracking_number: raw.tracking_number ? String(raw.tracking_number) : null,
     tracking_company: raw.tracking_company ? String(raw.tracking_company) : null,
     notes: raw.notes ? String(raw.notes) : null,
@@ -678,6 +682,27 @@ export default function UnifiedOrdersPage() {
               {currentOrder.cancel_reason && <Descriptions.Item label="取消原因" span={2}>{currentOrder.cancel_reason}</Descriptions.Item>}
               <Descriptions.Item label="备注" span={2}>{currentOrder.notes || '-'}</Descriptions.Item>
             </Descriptions>
+
+            {currentOrder?.service_address_snapshot && (
+              <Card size="small" title="上门服务地址" style={{ marginTop: 16 }}>
+                <Descriptions column={2} size="small">
+                  <Descriptions.Item label="联系人">
+                    {currentOrder.service_address_snapshot?.name || '-'}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="联系电话">
+                    {currentOrder.service_address_snapshot?.phone || '-'}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="完整地址" span={2}>
+                    {[
+                      currentOrder.service_address_snapshot?.province,
+                      currentOrder.service_address_snapshot?.city,
+                      currentOrder.service_address_snapshot?.district,
+                      currentOrder.service_address_snapshot?.street || currentOrder.service_address_snapshot?.detail,
+                    ].filter(Boolean).join(' ') || '-'}
+                  </Descriptions.Item>
+                </Descriptions>
+              </Card>
+            )}
 
             {currentOrder?.items?.some((item: any) => item.appointment_time) && (
               <Card size="small" title="预约信息" style={{ marginTop: 16 }}>
