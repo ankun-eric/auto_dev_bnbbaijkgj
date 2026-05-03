@@ -1,0 +1,455 @@
+﻿=== Coupon v2.2 鍋囬儴缃蹭慨澶?鈥?SSH ubuntu@newbb.test.bangbangvip.com:22 ===
+
+$ ls -la /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 | head -3
+total 1301368
+drwxrwxr-x 28 ubuntu ubuntu    12288 May  2 20:35 .
+drwxr-x--- 39 ubuntu ubuntu     4096 May  3 00:22 ..
+
+exit=0
+
+========== Step 2: git 寮哄埗鍚屾 origin/master ==========
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && git remote set-url origin https://ankun-eric:REDACTED@github.com/ankun-eric/auto_dev_bnbbaijkgj.git
+exit=0
+
+$ git config --global http.lowSpeedLimit 1000 && git config --global http.lowSpeedTime 60
+exit=0
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && (git fetch --unshallow origin master 2>&1 || git fetch origin master) | tail -5
+fatal: --unshallow on a complete repository does not make sense
+
+stderr: fatal: unable to access 'https://github.com/ankun-eric/auto_dev_bnbbaijkgj.git/': GnuTLS recv error (-110): The TLS connection was non-properly terminated.
+
+exit=0
+
+--- git fetch attempt 1/3 ---
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && GIT_TERMINAL_PROMPT=0 timeout 300 git fetch origin master 2>&1
+fatal: unable to access 'https://github.com/ankun-eric/auto_dev_bnbbaijkgj.git/': Failed to connect to github.com port 443 after 136140 ms: Couldn't connect to server
+
+exit=128
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && git log -1 origin/master --oneline 2>&1 || true
+aa6942b fix(coupon-v2.2): move static GET endpoints before /{coupon_id} PUT to avoid 405
+
+exit=0
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && git reset --hard origin/master
+HEAD is now at aa6942b fix(coupon-v2.2): move static GET endpoints before /{coupon_id} PUT to avoid 405
+
+exit=0
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && git clean -fdx
+Removing .check_e2e.py
+Removing .check_urls.py
+Removing .deploy_remote.py
+Removing .env
+Removing .pytest_cache/
+Removing _deploy_tmp/apk_download/
+Removing _deploy_tmp/deploy.tar
+Removing _deploy_tmp/miniprogram_20260415_003643_6966.zip
+Removing _deploy_tmp/miniprogram_20260415_120701_afb3.zip
+Removing _deploy_tmp/miniprogram_20260415_120750_8c38.zip
+Removing _deploy_tmp/miniprogram_20260415_181003_824c.zip
+Removing _deploy_tmp/miniprogram_20260415_182759_27da.zip
+Removing _deploy_tmp/ssh_copy_key.py
+Removing _deploy_tmp/ssh_helper.py
+Removing _deploy_tmp/verify_miniprogram_20260415_003646_7b16.zip
+Removing admin-web/.env.local
+Removing admin-web/tsconfig.tsbuildinfo
+Removing apk/
+Removing apk_download/app_20260417_025231_1547.apk
+Removing apk_download/bini_health_android-v20260406-220450-75mh.apk
+Removing apk_download/bini_health_android-v20260410-142406-uqk2.apk
+Removing apk_download/bini_health_android-v20260410-143948-iy52.apk
+Removing apk_download/bini_health_android-v20260417-025231-1547.apk
+Removing app_20260411_011933_fce6.apk
+Removing app_20260411_160905_3471.apk
+Removing app_20260411_220825_b14a.apk
+Removing app_20260411_232218_f771.apk
+Removing app_20260428_001254_ap2i.apk
+Removing backend/.env
+Removing backend/test.db
+Removing backend/uploads/
+Removing bini_health_android-v20260404-213020-6efe.apk
+Removing bini_health_android-v20260404-235930-6125.apk
+Removing bini_health_android-v20260406-200031-4d73.apk
+Removing bini_health_android-v20260408-114940-zqrf.apk
+Removing bini_health_android-v20260408-174331-b38b.apk
+Removing bini_health_android-v20260408-215849-b85a.apk
+Removing bini_health_android-v20260409-232937-31da.apk
+Removing bini_health_android-v20260410-021906-4267.apk
+Removing bini_health_android-v20260410-111607-c1ad.apk
+Removing bini_health_android-v20260410-123302-2xm7.apk
+Removing bini_health_android-v20260410-182220-1edc.apk
+Removing bini_health_android-v20260411-143502-3f7d.apk
+Removing bini_health_android-v20260411-160905-3471.apk
+Removing bini_health_android-v20260411-182932-743f.apk
+Removing bini_health_android-v20260411-220825-b14a.apk
+Removing bini_health_android-v20260412-014255-3291.apk
+Removing bini_health_android-v20260412-104823-9505.apk
+Removing bini_health_android-v20260412003549-6kkj.apk
+Removing bini_health_android-v20260414-041952-ea9c.apk
+Removing deploy/deploy.log
+Removing deploy/deploy_msg.txt
+Removing deploy/link_check_report.json
+Removing deploy/project.tar.gz
+Removing deploy/ssh_exec.py
+Removing deploy/ssh_helper.py
+Removing dist/
+Removing h5-web/.env.local
+Removing h5-web/public/
+Removing miniprogram/miniprogram_20260428_115055_6eda.zip
+Removing miniprogram/miniprogram_20260428_140353_9aae.zip
+Removing miniprogram/miniprogram_20260428_143751_4082.zip
+Removing miniprogram/miniprogram_20260428_204803_7452.zip
+Removing miniprogram/miniprogram_20260428_212511_89b2.zip
+Removing miniprogram/verify_miniprogram_20260428_212526_2f17.zip
+Removing miniprogram_20260404_235920_73a5.zip
+Removing miniprogram_20260407_133412_aidq.zip
+Removing miniprogram_20260408_114910_809c.zip
+Removing miniprogram_20260408_123603_937b.zip
+Removing miniprogram_20260408_123718_f468.zip
+Removing miniprogram_20260408_174325_f856.zip
+Removing miniprogram_20260409_125527_df56.zip
+Removing miniprogram_20260409_230548_2d04.zip
+Removing miniprogram_20260409_231132_78t0.zip
+Removing miniprogram_20260410_012921_b620.zip
+Removing miniprogram_20260410_021818_9bb8.zip
+Removing miniprogram_20260410_111600_fc1d.zip
+Removing miniprogram_20260410_123240_a5a5.zip
+Removing miniprogram_20260410_141847_d192.zip
+Removing miniprogram_20260410_142407_af2c.zip
+Removing miniprogram_20260410_144018_0b00.zip
+Removing miniprogram_20260411_012037_801f.zip
+Removing miniprogram_20260411_015837_21c0.zip
+Removing miniprogram_20260411_015847_0191.zip
+Removing miniprogram_20260411_020559_a730.zip
+Removing miniprogram_20260411_160525_gpNS.zip
+Removing miniprogram_20260411_182931_a9b6.zip
+Removing miniprogram_20260411_220800_9026.zip
+Removing miniprogram_20260412_014230_ce34.zip
+Removing miniprogram_20260414_041944_0f14.zip
+Removing miniprogram_20260415_225929_26df.zip
+Removing miniprogram_20260428_005149_2155.zip
+Removing miniprogram_20260501_021722_9267.zip
+Removing miniprogram_packages/
+Removing static/
+Removing static_files/
+Removing uploads/
+Removing verify_miniprogram_20260414_041946_72f6.zip
+
+stderr: /out: Permission denied
+warning: failed to remove flutter_app/build/image_gallery_saver/intermediates/compile_library_classes_jar/release/bundleLibCompileToJarRelease/classes.jar: Permission denied
+warning: failed to remove flutter_app/build/image_gallery_saver/intermediates/incremental/mergeReleaseShaders/merger.xml: Permission denied
+warning: failed to remove flutter_app/build/image_gallery_saver/intermediates/incremental/packageReleaseAssets/merger.xml: Permission denied
+warning: failed to remove flutter_app/build/image_gallery_saver/intermediates/incremental/release/packageReleaseResources/merged.dir: Permission denied
+warning: failed to remove flutter_app/build/image_gallery_saver/intermediates/incremental/release/packageReleaseResources/compile-file-map.properties: Permission denied
+warning: failed to remove flutter_app/build/image_gallery_saver/intermediates/incremental/release/packageReleaseResources/merger.xml: Permission denied
+warning: failed to remove flutter_app/build/image_gallery_saver/intermediates/incremental/release/packageReleaseResources/stripped.dir: Permission denied
+warning: failed to remove flutter_app/build/image_gallery_saver/intermediates/aapt_friendly_merged_manifests/release/processReleaseManifest/aapt/output-metadata.json: Permission denied
+warning: failed to remove flutter_app/build/image_gallery_saver/intermediates/aapt_friendly_merged_manifests/release/processReleaseManifest/aapt/AndroidManifest.xml: Permission denied
+warning: failed to remove flutter_app/build/image_gallery_saver/intermediates/packaged_res/release/packageReleaseResources: Permission denied
+warning: failed to remove flutter_app/build/image_gallery_saver/intermediates/compile_symbol_list/release/generateReleaseRFile/R.txt: Permission denied
+warning: failed to remove flutter_app/build/image_gallery_saver/intermediates/annotation_processor_list/release/javaPreCompileRelease/annotationProcessors.json: Permission denied
+warning: failed to remove flutter_app/build/image_gallery_saver/intermediates/merged_manifest/release/processReleaseManifest/AndroidManifest.xml: Permission denied
+warning: failed to remove flutter_app/build/image_gallery_saver/intermediates/symbol_list_with_package_name/release/generateReleaseRFile/package-aware-r.txt: Permission denied
+warning: failed to remove flutter_app/build/image_gallery_saver/intermediates/navigation_json/release/extractDeepLinksRelease/navigation.json: Permission denied
+warning: failed to remove flutter_app/build/image_gallery_saver/intermediates/aar_metadata/release/writeReleaseAarMetadata/aar-metadata.properties: Permission denied
+warning: failed to remove flutter_app/ios/Flutter/Generated.xcconfig: Permission denied
+warning: failed to remove flutter_app/ios/Flutter/flutter_export_environment.sh: Permission denied
+warning: failed to remove flutter_app/ios/Flutter/ephemeral/flutter_lldb_helper.py: Permission denied
+warning: failed to remove flutter_app/ios/Flutter/ephemeral/flutter_lldbinit: Permission denied
+
+exit=1
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && git log -1 --oneline
+aa6942b fix(coupon-v2.2): move static GET endpoints before /{coupon_id} PUT to avoid 405
+
+exit=0
+
+========== Step 3: 楠岃瘉 4 涓柊缁勪欢婧愮爜瀛樺湪 ==========
+
+$ ls -la /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/admin-web/src/components/coupon/ 2>&1
+total 32
+drwxrwxr-x 2 ubuntu ubuntu  4096 May  2 21:28 .
+drwxrwxr-x 3 ubuntu ubuntu  4096 May  2 21:28 ..
+-rw-rw-r-- 1 ubuntu ubuntu  4035 May  2 21:28 CategoryTreePicker.tsx
+-rw-rw-r-- 1 ubuntu ubuntu  2865 May  2 21:28 CouponTypeHelpModal.tsx
+-rw-rw-r-- 1 ubuntu ubuntu 11651 May  2 21:28 ProductPickerModal.tsx
+-rw-rw-r-- 1 ubuntu ubuntu  2599 May  2 21:28 ScopeSummaryBar.tsx
+
+exit=0
+鉁?4 涓柊缁勪欢婧愮爜鍧囧瓨鍦?
+
+$ grep -nE 'CouponTypeHelpModal|CategoryTreePicker|ProductPickerModal|ScopeSummaryBar' /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/admin-web/src/app/\(admin\)/product-system/coupons/page.tsx | head -10
+17:import CouponTypeHelpModal from '@/components/coupon/CouponTypeHelpModal';
+18:import CategoryTreePicker from '@/components/coupon/CategoryTreePicker';
+19:import ProductPickerModal, { PickerProduct } from '@/components/coupon/ProductPickerModal';
+20:import ScopeSummaryBar from '@/components/coupon/ScopeSummaryBar';
+978:              <CategoryTreePicker
+1018:          <ScopeSummaryBar
+1051:      <CouponTypeHelpModal open={typeHelpVisible} onClose={() => setTypeHelpVisible(false)} />
+1054:      <ProductPickerModal
+1070:      <ProductPickerModal
+
+exit=0
+
+========== Step 4: 娓呯悊 admin-web 缂撳瓨 ==========
+
+$ rm -rf /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/admin-web/.next /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/admin-web/node_modules/.cache /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/admin-web/out 2>&1 || true
+exit=0
+
+$ ls -la /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/admin-web/ | grep -E '\.next|node_modules|out' || true
+exit=0
+
+========== Step 5: docker build admin-web --no-cache --pull ==========
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml build --no-cache --pull admin-web 2>&1 | tail -120
+ 鈹?鈼?/function-buttons                        7.2 kB          413 kB
+#12 104.1 鈹?鈼?/health-plan/categories                  6.76 kB         402 kB
+#12 104.1 鈹?鈼?/health-plan/default-tasks               6.36 kB         405 kB
+#12 104.1 鈹?鈼?/health-plan/recommended                 7.22 kB         406 kB
+#12 104.1 鈹?茠 /health-plan/recommended/[planId]/tasks  3.37 kB         403 kB
+#12 104.1 鈹?鈼?/health-plan/statistics                  10.8 kB         419 kB
+#12 104.1 鈹?鈼?/health-records                          12.6 kB         398 kB
+#12 104.1 鈹?鈼?/home-banners                            6.53 kB         434 kB
+#12 104.1 鈹?鈼?/home-menus                              23.1 kB         451 kB
+#12 104.1 鈹?鈼?/home-settings                           5 kB            326 kB
+#12 104.1 鈹?鈼?/home-settings/page-style                5.94 kB         282 kB
+#12 104.1 鈹?鈼?/knowledge                               9.25 kB         399 kB
+#12 104.1 鈹?茠 /knowledge/[id]                          7.46 kB         416 kB
+#12 104.1 鈹?鈼?/knowledge/stats                         10.5 kB         383 kB
+#12 104.1 鈹?鈼?/login                                   5.2 kB          286 kB
+#12 104.1 鈹?鈼?/map-config                              11.3 kB         421 kB
+#12 104.1 鈹?鈼?/merchant-categories                     5.23 kB         401 kB
+#12 104.1 鈹?鈼?/merchant/accounts                       5 kB            415 kB
+#12 104.1 鈹?鈼?/merchant/stores                         13.1 kB         412 kB
+#12 104.1 鈹?鈼?/notices                                 4.18 kB         439 kB
+#12 104.1 鈹?鈼?/ocr-config                              14.9 kB         364 kB
+#12 104.1 鈹?鈼?/ocr-global-config                       11.2 kB         315 kB
+#12 104.1 鈹?鈼?/points/levels                           6.25 kB         402 kB
+#12 104.1 鈹?鈼?/points/mall                             15.5 kB         480 kB
+#12 104.1 鈹?鈼?/points/rules                            10.3 kB         293 kB
+#12 104.1 鈹?鈼?/product-system/appointment-forms        7.18 kB         406 kB
+#12 104.1 鈹?鈼?/product-system/cards                    9.39 kB         405 kB
+#12 104.1 鈹?鈼?/product-system/categories               7.04 kB         406 kB
+#12 104.1 鈹?鈼?/product-system/coupons                  32.8 kB         494 kB
+#12 104.1 鈹?鈼?/product-system/new-user-coupons         14.1 kB         395 kB
+#12 104.1 鈹?鈼?/product-system/orders                   15.2 kB         466 kB
+#12 104.1 鈹?鈼?/product-system/partners                 6.51 kB         419 kB
+#12 104.1 鈹?鈼?/product-system/products                 28.1 kB         467 kB
+#12 104.1 鈹?鈼?/product-system/redemptions              6.93 kB         415 kB
+#12 104.1 鈹?鈼?/product-system/statistics               9.01 kB         783 kB
+#12 104.1 鈹?鈼?/product-system/store-bindding           8.53 kB         408 kB
+#12 104.1 鈹?鈼?/product-system/visits                   7.54 kB         445 kB
+#12 104.1 鈹?鈼?/profile                                 5.04 kB         250 kB
+#12 104.1 鈹?鈼?/profile/change-password                 4.46 kB         285 kB
+#12 104.1 鈹?鈼?/prompt-templates                        10.4 kB         315 kB
+#12 104.1 鈹?鈼?/referral                                7.42 kB         380 kB
+#12 104.1 鈹?鈼?/relation-types                          6.27 kB         405 kB
+#12 104.1 鈹?鈼?/search-config                           7.78 kB         413 kB
+#12 104.1 鈹?鈼?/search/asr-config                       6.96 kB         294 kB
+#12 104.1 鈹?鈼?/search/block-words                      9.47 kB         400 kB
+#12 104.1 鈹?鈼?/search/recommend                        8.95 kB         408 kB
+#12 104.1 鈹?鈼?/search/statistics                       239 kB         1.09 MB
+#12 104.1 鈹?鈼?/settings                                11 kB           365 kB
+#12 104.1 鈹?鈼?/share-config                            6.33 kB         369 kB
+#12 104.1 鈹?鈼?/sms                                     17.6 kB         423 kB
+#12 104.1 鈹?鈼?/system-messages                         8.9 kB          431 kB
+#12 104.1 鈹?鈼?/system-messages/send                    4.88 kB         311 kB
+#12 104.1 鈹?鈼?/tcm-config                              4.02 kB         282 kB
+#12 104.1 鈹?鈼?/tts-config                              5.04 kB         332 kB
+#12 104.1 鈹?鈼?/users                                   12.5 kB         403 kB
+#12 104.1 鈹?鈼?/voice-service                           3.42 kB         343 kB
+#12 104.1 鈹?鈼?/wechat-push                             4.88 kB         288 kB
+#12 104.1 + First Load JS shared by all                87.7 kB
+#12 104.1   鈹?chunks/2117-1ca38137e0e3b541.js          31.9 kB
+#12 104.1   鈹?chunks/fd9d1056-cde8d1c8f42e1127.js      53.6 kB
+#12 104.1   鈹?other shared chunks (total)              2.13 kB
+#12 104.1 
+#12 104.1 
+#12 104.1 鈼? (Static)   prerendered as static content
+#12 104.1 茠  (Dynamic)  server-rendered on demand
+#12 104.1 
+#12 DONE 104.2s
+
+#13 [runner 3/5] COPY --from=builder /app/.next/standalone ./
+#13 DONE 0.4s
+
+#14 [runner 4/5] COPY --from=builder /app/.next/static ./.next/static
+#14 DONE 0.1s
+
+#15 [runner 5/5] COPY --from=builder /app/public ./public
+#15 DONE 0.1s
+
+#16 exporting to image
+#16 exporting layers
+#16 exporting layers 1.2s done
+#16 exporting manifest sha256:585bf99bf6eaacc2cd628db2113a8918587dcf5ec442916c39e5d7f3fac3142c 0.0s done
+#16 exporting config sha256:f2ae11c318857e4420a9dca66c8c8b7a96dfc85dfc4ef8969844dd78b5aae00e 0.0s done
+#16 exporting attestation manifest sha256:0d343a671fb51dc813c776ec34de4913525feb66e9ebb5150335cc2baf25b96b 0.0s done
+#16 exporting manifest list sha256:37785323e3d3119330ff2013587b61c20a17bcbb9856627d39360f8e13bbcea6 0.0s done
+#16 naming to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:latest done
+#16 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:latest
+#16 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:latest 0.5s done
+#16 DONE 1.8s
+
+#17 resolving provenance for metadata file
+#17 DONE 0.0s
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web Built 
+
+exit=0
+
+========== Step 6: up -d --force-recreate admin-web ==========
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml up -d --force-recreate admin-web 2>&1 | tail -20
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Recreate 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Recreated 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Waiting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Healthy 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Started 
+
+exit=0
+
+绛夊緟瀹瑰櫒鍋ュ悍...
+
+$ docker ps --filter name=6b099ed3-7175-4a78-91f4-44570c84ed27-admin --format '{{.Names}}|{{.Status}}'
+6b099ed3-7175-4a78-91f4-44570c84ed27-admin|Up 5 seconds
+
+exit=0
+
+$ docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-admin sh -c "wget -qO- --timeout=2 http://127.0.0.1:3000 2>&1 | head -5 || curl -s http://127.0.0.1:3000 2>&1 | head -5" || true
+wget: can't connect to remote host (127.0.0.1): Connection refused
+
+exit=0
+  [1/40] container Up
+
+========== Step 7: 瀹瑰櫒鍐呴獙璇?4 涓柊缁勪欢 + chunk 鍛戒腑 ==========
+
+$ docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-admin sh -c "ls -la /app/src/components/coupon/ 2>/dev/null || ls -la /app/.next/standalone/src/components/coupon/ 2>/dev/null || find /app -type d -name 'coupon' 2>/dev/null | head -5"
+exit=0
+瀹瑰櫒鍐?coupon 鐩綍鍒楄〃涓婃柟
+
+-- 鍦ㄥ鍣?.next 涓悳绱㈠叧閿粍浠跺悕 --
+
+$ docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-admin sh -c "grep -rl 'CouponTypeHelpModal' /app/.next/ 2>/dev/null | head -5; echo '---'; grep -rl 'CategoryTreePicker' /app/.next/ 2>/dev/null | head -5; echo '---'; grep -rl 'ProductPickerModal' /app/.next/ 2>/dev/null | head -5; echo '---'; grep -rl 'ScopeSummaryBar' /app/.next/ 2>/dev/null | head -5"
+---
+---
+---
+
+exit=0
+!! 鍦?.next/ 涓湭鍛戒腑浠讳綍鏂扮粍浠跺悕锛堣繖鏄?bug 鏍瑰洜锛夛紝浠嶅皾璇曟帹杩?
+
+========== Step 8: gateway nginx -s reload ==========
+
+$ docker network connect 6b099ed3-7175-4a78-91f4-44570c84ed27-network gateway 2>&1 || true
+Error response from daemon: endpoint with name gateway already exists in network 6b099ed3-7175-4a78-91f4-44570c84ed27-network
+
+exit=0
+
+$ docker exec gateway nginx -t 2>&1
+nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+nginx: configuration file /etc/nginx/nginx.conf test is successful
+
+exit=0
+
+$ docker exec gateway nginx -s reload 2>&1
+2026/05/03 04:18:49 [notice] 611#611: signal process started
+
+exit=0
+
+========== Step 9: curl 鍛戒腑鏂?chunk JS 鍏抽敭璇?==========
+
+$ curl -sk 'https://localhost/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/product-system/coupons' | grep -oE '/[^"' \']*\.js' | sort -u | head -100
+stderr: bash: -c: line 1: unexpected EOF while looking for matching `''
+
+exit=2
+
+鍙戠幇寮曠敤鐨?JS chunks 鍏?0 涓紙棣?20锛夛細
+
+-- 瀹瑰櫒鍐?grep .next/static/chunks/ 鍏ㄩ噺 --
+
+$ docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-admin sh -c "grep -rl 'CouponTypeHelpModal' /app/.next/static/ 2>/dev/null | head -3"
+exit=0
+  鉁?CouponTypeHelpModal 鏈懡涓?chunks
+
+$ docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-admin sh -c "grep -rl 'CouponTypeHelpModal' /app/.next/ 2>/dev/null | head -3"
+exit=0
+
+$ docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-admin sh -c "grep -rl 'CategoryTreePicker' /app/.next/static/ 2>/dev/null | head -3"
+exit=0
+  鉁?CategoryTreePicker 鏈懡涓?chunks
+
+$ docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-admin sh -c "grep -rl 'CategoryTreePicker' /app/.next/ 2>/dev/null | head -3"
+exit=0
+
+$ docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-admin sh -c "grep -rl 'ProductPickerModal' /app/.next/static/ 2>/dev/null | head -3"
+exit=0
+  鉁?ProductPickerModal 鏈懡涓?chunks
+
+$ docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-admin sh -c "grep -rl 'ProductPickerModal' /app/.next/ 2>/dev/null | head -3"
+exit=0
+
+$ docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-admin sh -c "grep -rl 'ScopeSummaryBar' /app/.next/static/ 2>/dev/null | head -3"
+exit=0
+  鉁?ScopeSummaryBar 鏈懡涓?chunks
+
+$ docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-admin sh -c "grep -rl 'ScopeSummaryBar' /app/.next/ 2>/dev/null | head -3"
+exit=0
+
+========== Step 10: URL 鍋ュ悍妫€鏌ワ紙鍚?6 涓?v2.2 鎺ュ彛锛?=========
+
+$ curl -sk -o /dev/null -w '%{http_code}' 'https://localhost/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health'
+200
+exit=0
+  [200] api_health OK
+
+$ curl -sk -o /dev/null -w '%{http_code}' 'https://localhost/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/login'
+308
+exit=0
+  [308] admin_login OK
+
+$ curl -sk -o /dev/null -w '%{http_code}' 'https://localhost/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/product-system/coupons'
+308
+exit=0
+  [308] admin_coupons_page OK
+
+-- 鍙椾繚鎶ゆ帴鍙ｆ湡鏈?401/403/405锛堣瘉鏄庤矾鐢卞凡娉ㄥ唽锛?-
+
+$ curl -sk -o /dev/null -w '%{http_code}' 'https://localhost/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/coupons/type-descriptions'
+401
+exit=0
+  [401] v2.2_type_desc OK(璺敱瀛樺湪)
+
+$ curl -sk -o /dev/null -w '%{http_code}' 'https://localhost/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/coupons/scope-limits'
+401
+exit=0
+  [401] v2.2_scope_limits OK(璺敱瀛樺湪)
+
+$ curl -sk -o /dev/null -w '%{http_code}' 'https://localhost/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/coupons/category-tree'
+401
+exit=0
+  [401] v2.2_category_tree OK(璺敱瀛樺湪)
+
+$ curl -sk -o /dev/null -w '%{http_code}' 'https://localhost/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/coupons/product-picker'
+401
+exit=0
+  [401] v2.2_product_picker OK(璺敱瀛樺湪)
+
+$ curl -sk -o /dev/null -w '%{http_code}' 'https://localhost/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/coupons/active-product-count'
+401
+exit=0
+  [401] v2.2_active_count OK(璺敱瀛樺湪)
+
+$ curl -sk -o /dev/null -w '%{http_code}' 'https://localhost/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/coupons/scope-preview'
+405
+exit=0
+  [405] v2.2_scope_preview OK(璺敱瀛樺湪)
+
+========== SUMMARY ==========
+chunk 鍏抽敭璇嶅懡涓? FAIL ['CouponTypeHelpModal', 'CategoryTreePicker', 'ProductPickerModal', 'ScopeSummaryBar']
+URL 鍋ュ悍妫€鏌? PASS
