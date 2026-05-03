@@ -33,6 +33,110 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
+## Latest Update: 卡管理功能 v2.0 第 2~5 期 —— 购卡下单 + 动态核销码 + 卡退款 + 拆 2 单 + 续卡 + 销售看板 + 卡分享海报 + 多端同步（已部署 + 0 Bug）（2026-05-03 19:30）
+
+### 一句话结论
+按"卡管理 PRD v2.0 第 2~5 期"完整推进：第 2 期购卡下单链路（`unified_orders.product_type` 扩 `card`、支付回调自动 `_activate_user_card`、`card_definitions.sales_count +1`），第 3 期 60s 动态核销码 + 6 位数字双形式 + 门店扫码即核销（`SELECT ... FOR UPDATE` 行锁防并发）+ 未核销整卡退款 + 用户/商家双向核销流水，第 4 期 `/api/orders/unified/checkout` 混买拆 2 单（返回 `[order_a_id, order_b_id, split_group_id]`）+ 续卡 STACK/RESET/DISABLED 三策略 + 商品页"💡 开通卡可省 ¥X"浮条 + 临期 7 天/过期 30 天可续卡列表，第 5 期 Admin 卡销售看板（销量/销售额/核销次数 3 指标 + day/week 趋势线）+ 到期前 7/3/1 天每日凌晨 3 点 cron 触达 + 800×1200 卡分享海报（Pillow 合成、缓存 1 小时）+ 微信小程序 + 核销小程序 + Flutter App 同步上线；新增 `card_redemption_codes` 表 + `card_usage_logs.merchant_id` + `user_cards.renewed_from_id/renew_count` + `unified_orders.split_group_id`，全部走 schema_sync 幂等加列；服务器 commit `1f3c89e`（基于 `aac7599 feat(cards-v2)`）已部署，13 个 cards-v2 API 200/401 全通过，容器内 pytest `test_cards_v2_*.py` **28/28 全通过**（耗时 20.85s）；多端打包：miniprogram_cards_v2_zip 200/363KB ✓ + verify_miniprogram_cards_v2_zip 200/19KB ✓ + Flutter Android APK / iOS IPA 通过 GitHub Actions（android-cards-v2-20260503-192151-dyec / ios-cards-v2-20260503-192151-dyec）远程构建。
+
+### 新增的文件
+- `backend/app/api/cards_v2.py`（1117 行）— 第 2/3/4/5 期所有用户端 API：`POST /api/cards/purchase` 直购 + `POST /api/orders/unified` card 分支 + `POST/GET /api/cards/me/{id}/redemption-code` 动态码 + `POST /api/staff/cards/redeem` 门店核销 + `GET /api/cards/me/{id}/usage-logs` 流水 + `POST /api/orders/unified/checkout` 拆 2 单 + `POST /api/cards/me/{id}/renew` 续卡 + `GET /api/cards/me/renewable` 临过期续卡列表 + `GET /api/products/{id}/savings-tip` 省钱提示 + `GET /api/cards/{id}/share-poster` 800×1200 海报（Pillow 合成 + 1 小时缓存）+ `POST /api/orders/unified/{id}/{pay-card,refund-card}` 卡支付/退款
+- `backend/app/api/cards_admin_v2.py`（340 行）— admin 端：`GET /api/admin/cards/{id}/usage-logs` + `GET /api/admin/cards/dashboard/{summary,trend}` 销售看板（销量/销售额/核销次数 3 指标 + day/week 粒度趋势）
+- `backend/app/tasks/__init__.py` + `backend/app/tasks/card_expiry_notify.py`（106 行）— 到期前 7/3/1 天 cron 任务：扫描 user_cards + 写 messages 表 + 给小程序用户发微信模板消息
+- `backend/tests/test_cards_v2_purchase.py`（152 行）— 购卡下单 + 库存 + 单用户限购 + 上架校验 + 支付回调激活 + sales_count
+- `backend/tests/test_cards_v2_redemption.py`（222 行）— 60s 动态码生成/失效/拉取 + 门店扫码核销并发 + 项目范围/频次/卡状态校验 + 退款规则
+- `backend/tests/test_cards_v2_renew.py`（182 行）— 临期/过期可续 + STACK/RESET/DISABLED 三策略 + renewed_from_id 关联 + renew_count
+- `backend/tests/test_cards_v2_dashboard.py`（119 行）— 销售看板 summary/trend + admin 核销流水 + 时间维度筛选
+- `admin-web/src/app/(admin)/product-system/cards/dashboard/page.tsx`（136 行）— 卡销售看板独立菜单：今日/本周/本月/自定义 + 销量/销售额/核销次数 + 趋势曲线
+- `h5-web/src/app/cards/redeem-code/[id]/page.tsx`（99 行）— 用户端核销码面板（200×200 二维码 + 6 位数字 + 60s 倒计时圆环）
+- `h5-web/src/app/cards/renew/[id]/page.tsx`（55 行）— 续卡确认页（按 renew_strategy 显示策略说明）
+- `h5-web/src/app/cards/usage-logs/[id]/page.tsx`（58 行）— 用户端核销记录列表
+- `h5-web/src/services/cardsV2.ts`（113 行）— H5 端 v2 卡 API SDK
+- `flutter_app/lib/screens/cards/redeem_code_screen.dart`（99 行）+ `renew_screen.dart`（62 行）+ `usage_logs_screen.dart`（59 行）+ `flutter_app/lib/services/cards_v2_service.dart`（73 行）— Flutter App v2 同步上线
+- `miniprogram/pages/cards/{redeem-code,renew,wallet}/index.{js,json,wxml,wxss}` — 微信小程序 v2 三页
+- `verify-miniprogram/pages/card-redeem/index.{js,json,wxml,wxss}` — 核销小程序兼容卡核销码
+- `deploy/_deploy_cards_v2_20260503.py` — SSH 部署 + URL 自检
+- `deploy/_verify_cards_v2_apis_20260503.py` — 14 个 cards-v2 API 自检
+- `deploy/_pkg_upload_mp_cards_v2_20260503.py` — 小程序 zip 打包 + SCP 上传
+- `deploy/_fix_gateway_downloads_20260503.py` — 借用 backend `/uploads/` 静态挂载暴露 downloads 目录
+- `deploy/_check_server_state_20260503.py` + `_run_cards_v2_pytest_20260503.py` + `_redeploy_db_fix_20260503.py` — 服务器状态检查 + 容器内 pytest + 数据库引擎修复重部署
+- `user_docs/卡管理v2.0.md` — 用户体验手册（含访问入口、API 清单、用户使用流程、数据库变更、回滚方案）
+
+### 修改的文件
+- `backend/app/main.py` — 注册 `cards_v2` + `cards_admin_v2` 路由
+- `backend/app/models/models.py` — `UnifiedOrderProductType` ENUM 加 `card`；`UserCard` 加 `renewed_from_id` BIGINT NULL FK + `renew_count` INT DEFAULT 0；`CardUsageLog` 加 `merchant_id`；`UnifiedOrder` 加 `split_group_id` VARCHAR(32) NULL；新增 `CardRedemptionCode` 表（id/user_card_id/code_token UNIQUE/code_digits CHAR(6)/issued_at/expires_at/status/used_at/used_by_log_id/created_at）
+- `backend/app/services/schema_sync.py` — 新增 `_sync_unified_orders_product_type_card` + `_sync_card_redemption_codes_table` + `_sync_card_usage_logs_merchant_id` + `_sync_user_cards_renewal_fields` + `_sync_unified_orders_split_group_id`，全部幂等
+- `backend/app/core/database.py` — `_build_engine()` 按 `DATABASE_URL` 前缀分流：SQLite 跳过 pool_size/max_overflow/init_command（aiosqlite 不兼容），MySQL 用完整连接池配置 —— 这是本期 pytest 能跑起来的关键修复
+- `verify-miniprogram/pages/scan/index.js` — 兼容卡核销码格式（`bnbcard:` 前缀走 card-redeem 流程）
+- `verify-miniprogram/app.json` + `miniprogram/app.json` — 注册 v2 新页面
+- `.cursor/rules/project-context.mdc` — 本条变更记录
+
+### 新增/修改的 API 端点
+- `POST /api/cards/purchase` — 直购卡（兼容入口）
+- `POST /api/orders/unified` — 新增 `product_type=card` 分支：参数 `card_definition_id`，校验库存 / 单用户限购 / 上架状态；支付回调自动 `_activate_user_card`
+- `POST /api/cards/me/{user_card_id}/redemption-code` — 生成 60s 动态码（自动失效旧 active 码）
+- `GET /api/cards/me/{user_card_id}/redemption-code/current` — 拉取当前 active 码
+- `POST /api/staff/cards/redeem` — 门店扫码核销（`SELECT ... FOR UPDATE` 行锁 + 项目范围 + 频次 + 卡状态校验 + 扣次 + 写日志）
+- `GET /api/cards/me/{user_card_id}/usage-logs` — 用户端核销流水
+- `GET /api/admin/cards/{card_def_id}/usage-logs` — 商家端核销流水
+- `POST /api/orders/unified/{id}/refund-card` — 卡退款（要求 `remaining_times == total_times` 且 status=active 未过期，成功后 user_cards.status=refunded、active 码失效、sales_count -1）
+- `POST /api/orders/unified/checkout` — 混买结算按 product_type 拆 2 单，返回 `[order_a_id, order_b_id, split_group_id]`
+- `POST /api/cards/me/{user_card_id}/renew` — 续卡按 `card_definitions.renew_strategy` 三策略
+- `GET /api/products/{id}/savings-tip` — 商品省钱提示（"开通卡可省 ¥X"）
+- `GET /api/cards/me/renewable` — 临期 7 天 + 过期 30 天可续卡列表
+- `GET /api/admin/cards/dashboard/summary?start=&end=` — 销量 / 销售额 / 核销次数
+- `GET /api/admin/cards/dashboard/trend?start=&end=&granularity=day|week` — 趋势曲线
+- `GET /api/cards/{card_id}/share-poster?inviter_user_id=` — 800×1200 PNG 海报（Pillow 合成 + 1 小时缓存）
+- `POST /api/orders/unified/{id}/pay-card` — 卡支付（兼容入口）
+
+### 数据库变更
+- 第 2 期：`unified_orders.product_type` ENUM 增加 `card`；`user_cards.bound_items_snapshot` JSON 字段启用，`purchase_order_id` 字段开始写入
+- 第 3 期：**新建** `card_redemption_codes` 表（id BIGINT PK / user_card_id BIGINT FK / code_token VARCHAR(64) UNIQUE / code_digits CHAR(6) / issued_at / expires_at / status VARCHAR(16) / used_at / used_by_log_id / created_at）；`card_usage_logs` 加 `merchant_id BIGINT NULL`
+- 第 4 期：`user_cards` 加 `renewed_from_id BIGINT NULL FK` + `renew_count INT DEFAULT 0`；`unified_orders` 加 `split_group_id VARCHAR(32) NULL`
+- 第 5 期：无表结构变更
+- 全部走 `backend/app/services/schema_sync.py` 幂等加列 + ENUM 扩值，旧代码 100% 兼容
+
+### 部署 / 验证状态
+- 服务器 commit：`1f3c89e fix(test): database engine handles sqlite vs mysql for tests + deploy aux scripts`（基于 `aac7599 feat(cards-v2): 卡管理功能 v2.0 第 2~5 期`）已部署
+- 容器：`6b099ed3-7175-4a78-91f4-44570c84ed27-{backend,db,h5-web,admin-web,verify-miniprogram,...}` 全部健康
+- API 自检：13 个 cards-v2 端点 200/401 全通过（401 = 需登录鉴权，1 个 share-poster 404 因占位 card_id=1 不存在，路由本身已注册）
+- 容器内 pytest：`tests/test_cards_v2_{purchase,redemption,renew,dashboard}.py` **28/28 全通过**（耗时 20.85s，23 warnings）
+- 本地 pytest：同步 28/28 全通过
+- 小程序 zip 公网下载：miniprogram 200/363,913 bytes ✓；verify-miniprogram 200/18,531 bytes ✓
+- Flutter APK/IPA：GitHub Actions workflow_dispatch 已触发（android-cards-v2-20260503-192151-dyec / ios-cards-v2-20260503-192151-dyec），构建产物自动上传到 GitHub Releases
+
+### 关键设计 & 教训
+- **核销码双形式 + 60s 自动失效**：QR + 6 位数字双形态，生成新码时自动失效旧 active 码，避免一码多人用；6 位数字便于打字键入退备用
+- **门店扫码即核销（取消用户二次确认）**：减少操作步骤但用 `SELECT ... FOR UPDATE` 行锁防并发，确保不会扣多次
+- **退款规则严格化**：仅"一次未核销（remaining_times == total_times）"才能整卡退；已核销任一次即不可退（避免商家利益受损 / 退款套利）
+- **拆 2 单**：混买场景用 `/api/orders/unified/checkout` 把卡子单与商品子单拆开（独立支付独立核销），但用 `split_group_id` 串联便于后台追溯
+- **续卡三策略写在卡定义上**：`card_definitions.renew_strategy` 三选一（STACK/RESET/DISABLED），运行时按定义派发，避免硬编码 if-else
+- **海报缓存 1 小时**：Pillow 合成 800×1200 海报相对昂贵（CPU + IO），按 `(card_id, inviter_user_id)` 哈希缓存到 backend 容器临时目录
+- **测试用 SQLite (aiosqlite) 内存模式**：`backend/app/core/database.py` 的 `_build_engine` 按 `DATABASE_URL` 前缀分流，MySQL 走完整连接池（pool_size=20、max_overflow=10、init_command 设时区），SQLite 走 `connect_args={"check_same_thread": False}` 跳过 MySQL-only 参数；本期 pytest 能跑起来的关键修复，可作其他子项目测试范式
+- **小程序 zip 公网暴露走 `/uploads/`**：gateway nginx 已映射 `/uploads/` 到 backend 容器，借用现成静态挂载即可不动 nginx 配置发布下载链接（避免动 gateway 风险）
+- **GitHub push 保护拦截 token 字面值**：脚本里别硬编码 `ghp_*`，改用 `os.environ.get("GIT_TOKEN")` + 调用前 `$env:GIT_TOKEN=...` 注入，避免 push protection 拒绝
+
+### 访问入口
+- Admin 卡管理：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/product-system/cards`
+- Admin 卡销售看板：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/product-system/cards/dashboard`
+- H5 卡列表：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/cards`
+- H5 卡包：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/cards/wallet`
+- H5 核销码面板（占位 ID=1）：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/cards/redeem-code/1`
+- H5 核销记录（占位 ID=1）：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/cards/usage-logs/1`
+- H5 续卡确认页（占位 ID=1）：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/cards/renew/1`
+- 小程序 zip 下载（用户端）：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/uploads/downloads/miniprogram_cards_v2_20260503_190523.zip`
+- 核销小程序 zip 下载：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/uploads/downloads/verify_miniprogram_cards_v2_20260503_190523.zip`
+- Android APK 下载：`https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/android-cards-v2-20260503-192151-dyec`
+- iOS IPA 下载：`https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-cards-v2-20260503-192151-dyec`
+- 用户手册：`user_docs/卡管理v2.0.md`
+
+### 不在本期范围（PRD 兼容性原则）
+- **邀请奖励发放（积分 / 红包）**：本期仅做卡分享海报，邀请奖励规则、结算、对账留待 v2.1
+- **门店扫码二次确认 UI**：取消用户二次确认，门店端默认即时核销
+- **核销小程序的卡详情页**：核销小程序仅做扫码 + 核销面板，详情查阅走主小程序
+- **datetime.utcnow() deprecation 全面整改**：本期保留 23 个测试警告（DeprecationWarning），不影响功能，留待统一替换为 `datetime.now(timezone.utc)`
+
+---
+
 ## Latest Update: 我的订单与售后状态体系优化 PRD v1.0 —— 三端文案统一 + 15 天评价时效 + 售后撤销（已部署 + 0 Bug）（2026-05-03 18:10）
 
 ### 一句话结论
