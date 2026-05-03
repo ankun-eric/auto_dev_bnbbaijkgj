@@ -32,6 +32,7 @@ interface OrderDetail {
   payment_method: string | null;
   coupon_discount: number;
   status: string;
+  display_status?: string;
   refund_status: string;
   shipping_info: any;
   tracking_number: string | null;
@@ -53,10 +54,14 @@ const STATUS_TEXT: Record<string, string> = {
   pending_shipment: '待发货',
   pending_receipt: '待收货',
   pending_appointment: '待预约',
-  appointed: '已预约',
-  pending_use: '待使用',
+  appointed: '待核销',
+  pending_use: '待核销',
+  partial_used: '部分核销',
   pending_review: '待评价',
   completed: '已完成',
+  expired: '已过期',
+  refunding: '退款中',
+  refunded: '已退款',
   cancelled: '已取消',
 };
 
@@ -65,8 +70,8 @@ const STATUS_DESC: Record<string, string> = {
   pending_shipment: '商家正在处理您的订单',
   pending_receipt: '商品已发货，请注意查收',
   pending_appointment: '感谢下单！请选择您方便的服务时间',
-  appointed: '已成功预约，期待您的到店',
-  pending_use: '请凭核销码到店使用',
+  appointed: '请凭核销码到店使用，可随时修改预约时间',
+  pending_use: '请凭核销码到店使用，可随时修改预约时间',
   pending_review: '服务已完成，期待您的评价',
   completed: '感谢您的支持',
   cancelled: '订单已取消',
@@ -259,7 +264,7 @@ export default function UnifiedOrderDetailPage() {
         style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}
       >
         <div className="text-white text-lg font-bold">
-          {order.refund_status !== 'none' ? '退款处理中' : (STATUS_TEXT[order.status] || order.status)}
+          {order.refund_status !== 'none' ? '退款处理中' : (order.display_status || STATUS_TEXT[order.status] || order.status)}
         </div>
         <div className="text-white/70 text-xs mt-1">
           {order.refund_status !== 'none' ? '您的退款申请正在处理中' : (STATUS_DESC[order.status] || '')}
@@ -421,7 +426,7 @@ export default function UnifiedOrderDetailPage() {
           </Card>
         )}
 
-        {hasInStore && order.status === 'pending_use' && order.items.filter((i) => i.fulfillment_type === 'in_store').map((item) => {
+        {hasInStore && (order.status === 'pending_use' || order.status === 'appointed' || order.status === 'partial_used') && order.items.filter((i) => i.fulfillment_type === 'in_store').map((item) => {
           const isRefundProcessing = ['applied', 'reviewing', 'approved', 'returning'].includes(order.refund_status);
           const isRefundSuccess = order.refund_status === 'refund_success';
           const isRefundBlocked = isRefundProcessing || isRefundSuccess;
@@ -576,7 +581,15 @@ export default function UnifiedOrderDetailPage() {
             去评价
           </Button>
         )}
-        {['pending_shipment', 'pending_receipt', 'pending_use'].includes(order.status) && (order.refund_status === 'none' || order.refund_status === 'rejected') && (
+        {(order.status === 'pending_use' || order.status === 'appointed') && order.refund_status === 'none' && (
+          <Button
+            onClick={() => router.push(`/unified-order/${order.id}?action=appointment`)}
+            style={{ borderRadius: 20, height: 40, fontSize: 14 }}
+          >
+            修改预约时间
+          </Button>
+        )}
+        {['pending_shipment', 'pending_receipt', 'pending_use', 'appointed'].includes(order.status) && (order.refund_status === 'none' || order.refund_status === 'rejected') && (
           <Button
             onClick={() => router.push(`/refund/${order.id}`)}
             style={{ borderRadius: 20, height: 40, fontSize: 14 }}
@@ -584,7 +597,7 @@ export default function UnifiedOrderDetailPage() {
             申请退款
           </Button>
         )}
-        {['pending_shipment', 'pending_receipt', 'pending_use'].includes(order.status) && order.refund_status === 'applied' && (
+        {['pending_shipment', 'pending_receipt', 'pending_use', 'appointed'].includes(order.status) && order.refund_status === 'applied' && (
           <Button
             onClick={handleWithdrawRefund}
             style={{ borderRadius: 20, height: 40, fontSize: 14, color: '#faad14', borderColor: '#faad14' }}

@@ -71,7 +71,7 @@ const STATUS_TEXT: Record<string, string> = {
   pending_shipment: '待发货',
   pending_receipt: '待收货',
   pending_appointment: '待预约',
-  appointed: '已预约',
+  appointed: '待核销',
   pending_use: '待核销',
   partial_used: '部分核销',
   pending_review: '待评价',
@@ -265,11 +265,31 @@ function UnifiedOrdersPage() {
     if (btns.includes('show_qrcode')) {
       items.push(
         <Button
-          key="code"
+          key="qr"
           size="mini"
-          onClick={(e) => { e.stopPropagation(); router.push(`/unified-order/${order.id}?action=verify`); }}
+          onClick={(e) => { e.stopPropagation(); router.push(`/unified-order/${order.id}`); }}
           style={{ borderRadius: 16, fontSize: 12, background: '#13c2c2', color: '#fff', border: 'none' }}
-        >核销码</Button>
+        >查看核销码</Button>
+      );
+    }
+    if (btns.includes('modify_appointment')) {
+      items.push(
+        <Button
+          key="modify_appt"
+          size="mini"
+          onClick={(e) => { e.stopPropagation(); router.push(`/unified-order/${order.id}?action=appointment`); }}
+          style={{ borderRadius: 16, fontSize: 12 }}
+        >修改预约</Button>
+      );
+    }
+    if (btns.includes('apply_refund')) {
+      items.push(
+        <Button
+          key="apply_refund"
+          size="mini"
+          onClick={(e) => { e.stopPropagation(); router.push(`/unified-order/${order.id}/refund`); }}
+          style={{ borderRadius: 16, fontSize: 12 }}
+        >申请退款</Button>
       );
     }
     if (btns.includes('review')) {

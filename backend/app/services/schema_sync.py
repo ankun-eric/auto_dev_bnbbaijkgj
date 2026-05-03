@@ -1793,6 +1793,36 @@ async def _migrate_store_codes(conn: AsyncConnection) -> None:
         )
 
 
+async def _migrate_appointed_to_pending_use(conn: AsyncConnection) -> None:
+    """[PRD 订单状态机简化方案 v1.0 · 第 5.4 节] 一刀切迁移：
+    所有 status='appointed' 的订单刷为 'pending_use'。
+
+    幂等：重复执行（无 appointed 订单）时为空操作。
+    """
+    def _check_table(sync_conn):
+        inspector = inspect(sync_conn)
+        return "unified_orders" in set(inspector.get_table_names())
+
+    has_table = await conn.run_sync(_check_table)
+    if not has_table:
+        return
+
+    # 先统计数量（便于日志记录）
+    cnt_res = await conn.execute(
+        text("SELECT COUNT(*) FROM unified_orders WHERE status = 'appointed'")
+    )
+    cnt = cnt_res.scalar() or 0
+    if cnt == 0:
+        return
+
+    # 执行迁移
+    await conn.execute(text(
+        "UPDATE unified_orders "
+        "SET status = 'pending_use', updated_at = NOW() "
+        "WHERE status = 'appointed'"
+    ))
+
+
 async def sync_register_schema(conn: AsyncConnection) -> None:
     def load_user_schema(sync_conn):
         inspector = inspect(sync_conn)
@@ -1839,6 +1869,8 @@ async def sync_register_schema(conn: AsyncConnection) -> None:
     await _sync_orders_status_v2(conn)
     await _sync_cards_v2_fields(conn)
     await _migrate_store_codes(conn)
+    # [PRD 订单状态机简化方案 v1.0] 一刀切迁移所有 appointed → pending_use
+    await _migrate_appointed_to_pending_use(conn)
     await run_all_migrations(conn)
 
     columns, indexes, unique_constraints = await conn.run_sync(load_user_schema)

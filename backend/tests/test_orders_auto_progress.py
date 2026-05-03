@@ -1,12 +1,8 @@
-"""[PRD「订单状态自动推进策略」v1.0] 后端测试
+"""[PRD「订单状态自动推进策略」v1.0 / v2.0 简化] 后端测试
 
-覆盖：
-1. R1 翻转：appointed + 预约日 <= 今天 → pending_use
-2. R1 不动：appointed + 预约日 > 今天 → 保持 appointed
-3. R2 退回：pending_use + 预约日 < 今天 + 未核销 → pending_appointment（清空 appointment_time）
-4. R2 不动：pending_use + 预约日 < 今天 + 部分核销（used_redeem_count>0）→ 保持
-5. lazy_progress_order 懒兜底（订单详情接口侧）：R1 / R2 即时翻转
-6. 订单明细页 categories 接口路径合规性（admin 端 /api/admin/products/categories 可达）
+注意：v2.0「订单状态机简化方案」已下线 R1，新增 T-1 18:00 提醒。
+本文件保留与新逻辑兼容的用例（R2 + 懒兜底兼容 + admin categories Bug 修复回归）。
+全新场景的用例参见 test_orders_status_simplification.py。
 """
 from datetime import datetime, timedelta
 
@@ -23,7 +19,6 @@ from app.models.models import (
     User,
 )
 from app.tasks.order_status_auto_progress import (
-    _do_r1,
     _do_r2,
     lazy_progress_order,
 )
@@ -78,44 +73,9 @@ async def _seed_order_with_appt(
         return order.id
 
 
-# ────────────── R1 测试 ──────────────
-
-
-@pytest.mark.asyncio
-async def test_r1_flips_appointed_to_pending_use_when_due():
-    """R1：appointed + 预约日 <= 今天 → pending_use。"""
-    uid = await _seed_user("13900100001")
-    appt_today = datetime.combine(datetime.utcnow().date(), datetime.min.time()) + timedelta(hours=10)
-    oid = await _seed_order_with_appt(
-        uid, status=UnifiedOrderStatus.appointed, appt=appt_today, order_no="R1_DUE_001"
-    )
-    async with test_session() as db:
-        affected = await _do_r1(db)
-        await db.commit()
-    assert affected == 1
-    async with test_session() as db:
-        order = (await db.execute(select(UnifiedOrder).where(UnifiedOrder.id == oid))).scalar_one()
-        # SQLAlchemy 在 SQLite 下 enum 会返回 string；统一比较 value
-        st = order.status.value if hasattr(order.status, "value") else order.status
-        assert st == "pending_use"
-
-
-@pytest.mark.asyncio
-async def test_r1_keeps_appointed_when_future():
-    """R1：appointed + 预约日 > 今天 → 保持 appointed。"""
-    uid = await _seed_user("13900100002")
-    appt_future = datetime.utcnow() + timedelta(days=2)
-    oid = await _seed_order_with_appt(
-        uid, status=UnifiedOrderStatus.appointed, appt=appt_future, order_no="R1_FUTURE_001"
-    )
-    async with test_session() as db:
-        affected = await _do_r1(db)
-        await db.commit()
-    assert affected == 0
-    async with test_session() as db:
-        order = (await db.execute(select(UnifiedOrder).where(UnifiedOrder.id == oid))).scalar_one()
-        st = order.status.value if hasattr(order.status, "value") else order.status
-        assert st == "appointed"
+# ────────────── R1 已下线（PRD v2.0 简化方案） ──────────────
+# 旧的 R1 测试已迁移到 test_orders_status_simplification.py 中，
+# 此处不再保留 R1 翻转专属用例。
 
 
 # ────────────── R2 测试 ──────────────
@@ -167,9 +127,9 @@ async def test_r2_skips_partially_used_orders():
 
 @pytest.mark.asyncio
 async def test_lazy_progress_r1_when_opening_order_detail():
-    """懒兜底：appointed 且预约日 <= 今天，调用一次即翻 pending_use。"""
+    """[PRD v2.0 兼容] 懒兜底：历史 appointed 订单（任何预约时间）→ 即翻 pending_use。"""
     uid = await _seed_user("13900100005")
-    appt_today = datetime.utcnow() - timedelta(minutes=30)  # 预约时刻已过去
+    appt_today = datetime.utcnow() - timedelta(minutes=30)
     oid = await _seed_order_with_appt(
         uid, status=UnifiedOrderStatus.appointed, appt=appt_today, order_no="LAZY_R1_001"
     )
@@ -184,7 +144,7 @@ async def test_lazy_progress_r1_when_opening_order_detail():
     async with test_session() as db:
         order = (await db.execute(select(UnifiedOrder).where(UnifiedOrder.id == oid))).scalar_one()
         st = order.status.value if hasattr(order.status, "value") else order.status
-        assert st == "pending_use"
+        assert st == "pending_use"  # 兼容老订单：appointed → pending_use
 
 
 @pytest.mark.asyncio
@@ -211,12 +171,12 @@ async def test_lazy_progress_r2_when_opening_overdue_order():
 
 
 @pytest.mark.asyncio
-async def test_lazy_progress_no_change_for_future_appointment():
-    """懒兜底：appointed + 预约日为未来 → 不动。"""
+async def test_lazy_progress_no_change_for_future_pending_use():
+    """[PRD v2.0] 懒兜底：pending_use + 预约日为未来 → 不动。"""
     uid = await _seed_user("13900100007")
     appt_future = datetime.utcnow() + timedelta(days=3)
     oid = await _seed_order_with_appt(
-        uid, status=UnifiedOrderStatus.appointed, appt=appt_future, order_no="LAZY_NOOP_001"
+        uid, status=UnifiedOrderStatus.pending_use, appt=appt_future, order_no="LAZY_NOOP_001"
     )
     async with test_session() as db:
         from sqlalchemy.orm import selectinload

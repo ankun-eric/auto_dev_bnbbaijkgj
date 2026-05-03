@@ -25,10 +25,14 @@ Page({
     this.loadOrder();
   },
 
-  // [先下单后预约 Bug 修复 v1.0]
+  // [先下单后预约 Bug 修复 v1.0] [订单状态机简化方案 v1.0] pending_use / appointed 也允许修改预约时间
   openApptModal() {
     const order = this.data.order;
     if (!order) return;
+    if (['pending_appointment', 'pending_use', 'appointed'].indexOf(order.status) < 0) {
+      wx.showToast({ title: '当前订单状态不可预约', icon: 'none' });
+      return;
+    }
     const items = order.items || [];
     const inStoreItem = items.find(i => i.fulfillment_type === 'in_store') || items[0];
     if (!inStoreItem) {

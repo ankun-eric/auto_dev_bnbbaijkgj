@@ -1,7 +1,7 @@
 <view class="detail-page" wx:if="{{order}}">
   <!-- 订单状态 -->
   <view class="status-header status-bg-{{order.status}}">
-    <text class="status-text">{{order.status_label || order.status}}</text>
+    <text class="status-text">{{order.display_status || order.status_label || order.status}}</text>
     <text class="status-desc" wx:if="{{order.status_desc}}">{{order.status_desc}}</text>
   </view>
 
@@ -22,7 +22,7 @@
   </view>
 
   <!-- 核销码 -->
-  <view class="verify-section card" wx:if="{{order.status === 'paid' && (order.verify_code || order.qr_code_url)}}">
+  <view class="verify-section card" wx:if="{{(order.status === 'pending_use' || order.status === 'appointed' || order.status === 'partial_used') && (order.verify_code || order.qr_code_url)}}">
     <!-- 正常状态：refund_status 为 none/rejected 或不存在 -->
     <block wx:if="{{!order.refund_status || order.refund_status === 'none' || order.refund_status === 'rejected'}}">
       <text class="section-title">核销码</text>
@@ -170,13 +170,14 @@
   <view class="bottom-space"></view>
 
   <!-- 底部操作 -->
-  <view class="bottom-bar safe-bottom" wx:if="{{order.status === 'pending_payment' || order.status === 'paid' || order.status === 'completed' || order.status === 'pending_appointment'}}">
+  <view class="bottom-bar safe-bottom" wx:if="{{order.status === 'pending_payment' || order.status === 'pending_use' || order.status === 'appointed' || order.status === 'partial_used' || order.status === 'pending_receipt' || order.status === 'completed' || order.status === 'pending_appointment'}}">
     <view class="bar-actions">
       <view class="bar-btn outline" wx:if="{{order.status === 'pending_payment'}}" bindtap="cancelOrder">取消订单</view>
-      <view class="bar-btn outline" wx:if="{{order.status === 'paid' && (!order.refund_status || order.refund_status === 'none' || order.refund_status === 'rejected')}}" bindtap="goRefund">申请退款</view>
-      <view class="bar-btn outline" wx:if="{{order.status === 'paid' && order.refund_status === 'applied'}}" bindtap="withdrawRefund">撤回退款</view>
+      <view class="bar-btn outline" wx:if="{{(order.status === 'pending_use' || order.status === 'appointed') && (!order.refund_status || order.refund_status === 'none' || order.refund_status === 'rejected')}}" bindtap="goRefund">申请退款</view>
+      <view class="bar-btn outline" wx:if="{{(order.status === 'pending_use' || order.status === 'appointed') && (!order.refund_status || order.refund_status === 'none')}}" bindtap="openApptModal">修改预约时间</view>
+      <view class="bar-btn outline" wx:if="{{(order.status === 'pending_use' || order.status === 'appointed') && order.refund_status === 'applied'}}" bindtap="withdrawRefund">撤回退款</view>
       <view class="bar-btn primary" wx:if="{{order.status === 'pending_payment'}}" bindtap="payOrder">立即付款</view>
-      <view class="bar-btn primary" wx:if="{{order.status === 'paid'}}" bindtap="confirmOrder">确认收货</view>
+      <view class="bar-btn primary" wx:if="{{order.status === 'pending_receipt'}}" bindtap="confirmOrder">确认收货</view>
       <view class="bar-btn primary" wx:if="{{order.status === 'completed' && !order.is_reviewed}}" bindtap="goReview">评价</view>
       <!-- [先下单后预约 Bug 修复 v1.0] 待预约状态：底部立即预约按钮 -->
       <view class="bar-btn primary" wx:if="{{order.status === 'pending_appointment' && (!order.refund_status || order.refund_status === 'none')}}" bindtap="openApptModal">立即预约</view>

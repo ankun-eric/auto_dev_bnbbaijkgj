@@ -85,6 +85,9 @@ class UnifiedOrder {
   final List<OrderItem> items;
   final String? createdAt;
   final String? updatedAt;
+  final String? displayStatus;
+  final String? displayStatusColor;
+  final List<String> actionButtons;
 
   UnifiedOrder({
     required this.id,
@@ -114,6 +117,9 @@ class UnifiedOrder {
     this.items = const [],
     this.createdAt,
     this.updatedAt,
+    this.displayStatus,
+    this.displayStatusColor,
+    this.actionButtons = const [],
   });
 
   String get statusLabel {
@@ -124,17 +130,36 @@ class UnifiedOrder {
         return '待发货';
       case 'pending_receipt':
         return '待收货';
+      case 'pending_appointment':
+        return '待预约';
+      case 'appointed':
+        return '待核销';
       case 'pending_use':
-        return '待使用';
+        return '待核销';
+      case 'partial_used':
+        return '部分核销';
       case 'pending_review':
         return '待评价';
       case 'completed':
         return '已完成';
+      case 'expired':
+        return '已过期';
+      case 'refunding':
+        return '退款中';
+      case 'refunded':
+        return '已退款';
       case 'cancelled':
         return '已取消';
       default:
-        return '未知';
+        return status;
     }
+  }
+
+  String get displayStatusLabel {
+    if (displayStatus != null && displayStatus!.isNotEmpty) {
+      return displayStatus!;
+    }
+    return statusLabel;
   }
 
   factory UnifiedOrder.fromJson(Map<String, dynamic> json) {
@@ -169,6 +194,12 @@ class UnifiedOrder {
           [],
       createdAt: json['created_at']?.toString(),
       updatedAt: json['updated_at']?.toString(),
+      displayStatus: json['display_status']?.toString(),
+      displayStatusColor: json['display_status_color']?.toString(),
+      actionButtons: (json['action_buttons'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          const [],
     );
   }
 }

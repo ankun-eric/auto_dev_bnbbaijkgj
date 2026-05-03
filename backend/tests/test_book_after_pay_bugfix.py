@@ -155,9 +155,10 @@ async def test_tc3_pay_order_enters_pending_appointment(
 
 
 @pytest.mark.asyncio
-async def test_tc4_set_appointment_transitions_to_appointed(
+async def test_tc4_set_appointment_transitions_to_pending_use(
     client: AsyncClient, admin_headers, auth_headers
 ):
+    """[PRD 订单状态机简化方案 v1.0] 用户首次填预约日：直接跳到 pending_use。"""
     pid = await _create_book_after_pay_product(client, admin_headers)
     resp = await client.post(
         "/api/orders/unified",
@@ -190,7 +191,8 @@ async def test_tc4_set_appointment_transitions_to_appointed(
         headers=auth_headers,
     )
     assert appt_resp.status_code == 200, appt_resp.text
-    assert appt_resp.json().get("status") == "appointed"
+    # 新状态机：首次填预约日直跳 pending_use
+    assert appt_resp.json().get("status") == "pending_use"
 
 
 @pytest.mark.asyncio

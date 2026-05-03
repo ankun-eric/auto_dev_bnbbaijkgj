@@ -97,10 +97,20 @@ def _normalize_status(value) -> str:
     return str(value)
 
 
+def _earliest_appt_for_order(order):
+    """取订单中最早的 appointment_time（用于状态文案与提醒）。"""
+    items = getattr(order, "items", None) or []
+    times = [it.appointment_time for it in items if getattr(it, "appointment_time", None)]
+    return min(times) if times else None
+
+
 def _display_status_for(order) -> tuple[str, str]:
     """V2: 返回 (display_status_text, color)。
     "已完成" Tab 中包含 expired，但卡片状态文字仍区分。
     "待评价" = completed AND has_reviewed=False（动态计算）。
+
+    [PRD 订单状态机简化方案 v1.0]：
+    pending_use / appointed（兼容老订单）显示「待核销（预约 X月X日）」。
     """
     s = _normalize_status(order.status)
     rs = _normalize_status(order.refund_status)
@@ -108,12 +118,23 @@ def _display_status_for(order) -> tuple[str, str]:
         return "已取消（已退款）", _STATUS_COLOR_MAP["cancelled"]
     if s == "completed" and not bool(getattr(order, "has_reviewed", False)):
         return "待评价", _STATUS_COLOR_MAP["pending_review"]
+    if s in ("pending_use", "appointed"):
+        appt = _earliest_appt_for_order(order)
+        if appt is not None:
+            return f"待核销（预约 {appt.month}月{appt.day}日）", _STATUS_COLOR_MAP["pending_use"]
+        return "待核销", _STATUS_COLOR_MAP["pending_use"]
     return _STATUS_DISPLAY_MAP.get(s, s), _STATUS_COLOR_MAP.get(s, "#8c8c8c")
 
 
 def _action_buttons_for(order) -> list[str]:
-    """根据当前状态返回可显示的操作按钮 key 列表（前端按 key 渲染）。"""
+    """根据当前状态返回可显示的操作按钮 key 列表（前端按 key 渲染）。
+
+    [PRD 订单状态机简化方案 v1.0]：
+    - pending_use 阶段必须保留「修改预约 + 取消预约/退款」按钮全程可见
+    - appointed 兼容老订单，与 pending_use 同等处理（合并 Tab 后视为同一态）
+    """
     s = _normalize_status(order.status)
+    rs = _normalize_status(order.refund_status)
     btns: list[str] = []
     if s == "pending_payment":
         btns += ["cancel", "pay"]
@@ -121,10 +142,15 @@ def _action_buttons_for(order) -> list[str]:
         btns += ["confirm_receipt"]
     elif s == "pending_appointment":
         btns += ["set_appointment"]
-    elif s == "appointed":
-        btns += ["view_appointment"]
-    elif s in ("pending_use", "partial_used"):
+    elif s in ("appointed", "pending_use", "partial_used"):
+        # 出码 + 修改预约 + 退款（部分核销不允许改约）
         btns += ["show_qrcode"]
+        if s != "partial_used" and rs in ("none", "rejected", ""):
+            btns += ["modify_appointment"]
+        if rs in ("none", "rejected", ""):
+            btns += ["apply_refund"]
+        elif rs in ("applied",):
+            btns += ["withdraw_refund"]
     elif s == "completed":
         if not bool(getattr(order, "has_reviewed", False)):
             btns += ["review"]
@@ -992,19 +1018,18 @@ async def pay_unified_order(
                 has_appointment_required = True
                 break
 
-    # PRD V2 状态机推进：
+    # [PRD 订单状态机简化方案 v1.0] 状态机推进：
     # 1) 实物 only → pending_shipment
     # 2) 到店 + 需预约且未预约 → pending_appointment
-    # 3) 到店 + 需预约且已预约（未到时间）→ appointed
+    # 3) 到店 + 需预约且已预约 → **pending_use（直接出码，跳过 appointed）**
     # 4) 其它（普通到店）→ pending_use
     if has_delivery and not has_in_store:
         order.status = UnifiedOrderStatus.pending_shipment
     elif has_in_store:
         if has_appointment_required and not has_appointment_set:
             order.status = UnifiedOrderStatus.pending_appointment
-        elif has_appointment_set:
-            order.status = UnifiedOrderStatus.appointed
         else:
+            # 已设预约 或 不需要预约 → 立即 pending_use（出核销码）
             order.status = UnifiedOrderStatus.pending_use
     else:
         order.status = UnifiedOrderStatus.pending_use
@@ -1059,7 +1084,13 @@ async def set_order_appointment(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """PRD V2：用户设置预约时间，订单从 pending_appointment → appointed。"""
+    """[PRD 订单状态机简化方案 v1.0] 用户填写预约时间。
+
+    新策略（2026-05-03 起）：
+    - 首次填预约日：pending_appointment → **pending_use**（直接跳过 appointed，立即出码）
+    - 修改预约日：pending_use 阶段持续允许调整，状态保持不变
+    - 兼容历史 appointed：旧订单仍可调用本接口改预约日，状态翻为 pending_use
+    """
     result = await db.execute(
         select(UnifiedOrder)
         .options(selectinload(UnifiedOrder.items))
@@ -1070,24 +1101,41 @@ async def set_order_appointment(
         raise HTTPException(status_code=404, detail="订单不存在")
 
     cur = _normalize_status(order.status)
-    if cur not in ("pending_appointment", "appointed"):
+    if cur not in ("pending_appointment", "appointed", "pending_use"):
         raise HTTPException(status_code=400, detail="该订单当前状态不允许预约")
+
+    # 退款进行中不允许调整预约日
+    refund_val = order.refund_status
+    if hasattr(refund_val, "value"):
+        refund_val = refund_val.value
+    if refund_val in ("applied", "reviewing", "approved", "returning", "refund_success"):
+        raise HTTPException(status_code=400, detail="该订单退款处理中，暂不允许调整预约时间")
 
     target_items = order.items
     if data.order_item_id:
         target_items = [it for it in order.items if it.id == data.order_item_id]
         if not target_items:
             raise HTTPException(status_code=404, detail="订单项不存在")
+
+    # 已核销过的订单不允许改预约日（保护核销轨迹）
+    any_used = any((it.used_redeem_count or 0) > 0 for it in order.items)
+    if cur == "pending_use" and any_used:
+        raise HTTPException(status_code=400, detail="该订单已部分核销，无法修改预约时间")
+
     for it in target_items:
         it.appointment_time = data.appointment_time
         if data.appointment_data is not None:
             it.appointment_data = data.appointment_data
         it.updated_at = datetime.utcnow()
 
-    order.status = UnifiedOrderStatus.appointed
+    # 关键变化：直接进入 pending_use（立即出码），跳过 appointed
+    order.status = UnifiedOrderStatus.pending_use
     order.updated_at = datetime.utcnow()
-    return {"message": "已预约", "status": "appointed",
-            "appointment_time": data.appointment_time.isoformat()}
+    return {
+        "message": "预约已确认",
+        "status": "pending_use",
+        "appointment_time": data.appointment_time.isoformat(),
+    }
 
 
 @router.post("/{order_id}/cancel")

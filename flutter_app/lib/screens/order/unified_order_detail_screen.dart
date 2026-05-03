@@ -107,7 +107,7 @@ class _UnifiedOrderDetailScreenState extends State<UnifiedOrderDetailScreen> {
         children: [
           Icon(_statusIcon(o.status), color: Colors.white, size: 40),
           const SizedBox(height: 8),
-          Text(o.statusLabel, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+          Text(o.displayStatusLabel, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
           if (o.refundStatus != 'none') ...[
             const SizedBox(height: 4),
             Container(
@@ -400,11 +400,29 @@ class _UnifiedOrderDetailScreenState extends State<UnifiedOrderDetailScreen> {
         }
         break;
       case 'pending_use':
+      case 'appointed':
+      case 'partial_used':
+        if (o.status != 'partial_used' &&
+            (o.refundStatus == 'none' || o.refundStatus.isEmpty)) {
+          actions.add(_actionBtn('修改预约时间', const Color(0xFF722ED1),
+              () => _openAppointmentDialog(o)));
+          actions.add(const SizedBox(width: 12));
+        }
+        if (isRefundApplied) {
+          actions.add(_actionBtn('撤回退款', const Color(0xFFFA8C16),
+              () => _withdrawRefund(o)));
+        } else if (canApplyRefund) {
+          actions.add(_actionBtn('申请退款', const Color(0xFFFA541C), () {
+            Navigator.pushNamed(context, '/refund', arguments: o.id);
+          }));
+        }
+        break;
       case 'pending_shipment':
         if (isRefundApplied) {
-          actions.add(_actionBtn('撤回退款', Colors.orange, () => _withdrawRefund(o)));
+          actions.add(_actionBtn('撤回退款', const Color(0xFFFA8C16),
+              () => _withdrawRefund(o)));
         } else if (canApplyRefund) {
-          actions.add(_actionBtn('申请退款', Colors.grey, () {
+          actions.add(_actionBtn('申请退款', const Color(0xFFFA541C), () {
             Navigator.pushNamed(context, '/refund', arguments: o.id);
           }));
         }
@@ -658,6 +676,8 @@ class _UnifiedOrderDetailScreenState extends State<UnifiedOrderDetailScreen> {
       case 'pending_receipt':
       case 'pending_use':
         return const Color(0xFF1890FF);
+      case 'partial_used':
+        return const Color(0xFF13C2C2);
       case 'pending_review':
         return const Color(0xFFFAAD14);
       case 'completed':

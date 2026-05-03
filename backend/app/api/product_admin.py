@@ -876,6 +876,8 @@ async def admin_list_unified_orders(
     category_id: Optional[int] = None,
     min_amount: Optional[float] = None,
     max_amount: Optional[float] = None,
+    sort_by: Optional[str] = None,        # [PRD 订单状态机简化方案 v1.0] 商家「待核销」Tab 按 appointment_time 升序
+    sort_order: Optional[str] = None,     # asc / desc
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     current_user=Depends(require_role("admin")),
@@ -976,9 +978,32 @@ async def admin_list_unified_orders(
     total_result = await db.execute(count_query)
     total = total_result.scalar() or 0
 
+    # [PRD 订单状态机简化方案 v1.0] sort_by=appointment_time + sort_order=asc
+    # 商家「待核销」Tab 期望按订单中最早的预约日期升序排列，最近的排前面
+    if sort_by == "appointment_time":
+        # 按 OrderItem.appointment_time 最早的一项升序（NULL 排最后）
+        from sqlalchemy import select as _select
+        earliest_appt_subq = (
+            _select(
+                OrderItem.order_id.label("oid"),
+                func.min(OrderItem.appointment_time).label("earliest_appt"),
+            )
+            .group_by(OrderItem.order_id)
+            .subquery()
+        )
+        query = query.outerjoin(
+            earliest_appt_subq, earliest_appt_subq.c.oid == UnifiedOrder.id
+        )
+        order_col = earliest_appt_subq.c.earliest_appt
+        if (sort_order or "asc").lower() == "desc":
+            query = query.order_by(order_col.desc().nulls_last(), UnifiedOrder.created_at.desc())
+        else:
+            query = query.order_by(order_col.asc().nulls_last(), UnifiedOrder.created_at.desc())
+    else:
+        query = query.order_by(UnifiedOrder.created_at.desc())
+
     result = await db.execute(
         query.options(selectinload(UnifiedOrder.items))
-        .order_by(UnifiedOrder.created_at.desc())
         .offset((page - 1) * page_size)
         .limit(page_size)
     )

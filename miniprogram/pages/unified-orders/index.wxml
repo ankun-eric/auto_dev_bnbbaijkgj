@@ -16,7 +16,7 @@
           bindtap="goDetail" data-id="{{item.id}}">
       <view class="order-top">
         <text class="order-no">订单号：{{item.order_no}}</text>
-        <text class="order-status status-{{item.status}}">{{item.status_label || item.status}}</text>
+        <text class="order-status status-{{item.status}}">{{item.display_status || item.status_label || item.status}}</text>
       </view>
 
       <view class="order-product">
@@ -37,7 +37,7 @@
                 catchtap="cancelOrder" data-id="{{item.id}}">取消</view>
           <view class="action-btn primary" wx:if="{{item.status === 'pending_payment'}}"
                 catchtap="payOrder" data-id="{{item.id}}">付款</view>
-          <view class="action-btn primary" wx:if="{{item.status === 'paid' || item.status === 'in_progress' || item.status === 'pending_receipt' || item.status === 'pending_use'}}"
+          <view class="action-btn primary" wx:if="{{item.status === 'pending_receipt'}}"
                 catchtap="confirmOrder" data-id="{{item.id}}">确认收货</view>
         </view>
       </view>

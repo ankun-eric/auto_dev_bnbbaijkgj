@@ -7,7 +7,7 @@ Page({
       { label: '全部', status: '' },
       { label: '待付款', status: 'pending_payment' },
       { label: '待收货', status: 'pending_receipt' },
-      { label: '待使用', status: 'pending_use' },
+      { label: '待核销', status: 'pending_use' },
       { label: '已完成', status: 'completed' },
       { label: '待评价', status: 'pending_review' },
       { label: '已取消', status: 'cancelled' }
@@ -156,11 +156,18 @@ Page({
   getStatusText(status) {
     const map = {
       pending_payment: '待付款',
-      paid: '待使用',
-      in_progress: '进行中',
+      pending_shipment: '待发货',
+      pending_receipt: '待收货',
+      pending_appointment: '待预约',
+      appointed: '待核销',
+      pending_use: '待核销',
+      partial_used: '部分核销',
+      pending_review: '待评价',
       completed: '已完成',
-      cancelled: '已取消',
-      refunded: '已退款'
+      expired: '已过期',
+      refunding: '退款中',
+      refunded: '已退款',
+      cancelled: '已取消'
     };
     return map[status] || status;
   }

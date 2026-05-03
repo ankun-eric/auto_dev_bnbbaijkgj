@@ -18,7 +18,7 @@ class _UnifiedOrdersScreenState extends State<UnifiedOrdersScreen> with SingleTi
     {'label': '全部', 'status': 'all'},
     {'label': '待付款', 'status': 'pending_payment'},
     {'label': '待收货', 'status': 'pending_receipt'},
-    {'label': '待使用', 'status': 'pending_use'},
+    {'label': '待核销', 'status': 'pending_use'},
     {'label': '已完成', 'status': 'completed'},
     {'label': '待评价', 'status': 'pending_review'},
     {'label': '已取消', 'status': 'cancelled'},
@@ -265,10 +265,15 @@ class _OrderTabState extends State<_OrderTab> with AutomaticKeepAliveClientMixin
     switch (status) {
       case 'pending_payment':
         return const Color(0xFFFF4D4F);
+      case 'pending_appointment':
+      case 'appointed':
+        return const Color(0xFF722ED1);
       case 'pending_shipment':
       case 'pending_receipt':
       case 'pending_use':
         return const Color(0xFF1890FF);
+      case 'partial_used':
+        return const Color(0xFF13C2C2);
       case 'pending_review':
         return const Color(0xFFFAAD14);
       case 'completed':
@@ -281,7 +286,20 @@ class _OrderTabState extends State<_OrderTab> with AutomaticKeepAliveClientMixin
   }
 
   bool _hasActions(String status) {
-    return ['pending_payment', 'pending_review', 'pending_receipt'].contains(status);
+    return [
+      'pending_payment',
+      'pending_review',
+      'pending_receipt',
+      'pending_use',
+      'appointed',
+      'partial_used',
+      'pending_appointment',
+    ].contains(status);
+  }
+
+  Future<void> _goDetail(UnifiedOrder order, {String? action}) async {
+    await Navigator.pushNamed(context, '/unified-order-detail', arguments: order.id);
+    _loadOrders();
   }
 
   List<Widget> _buildActions(UnifiedOrder order) {
@@ -299,6 +317,21 @@ class _OrderTabState extends State<_OrderTab> with AutomaticKeepAliveClientMixin
         actions.add(_actionButton('去评价', const Color(0xFFFAAD14), () {
           Navigator.pushNamed(context, '/review', arguments: order.id);
         }, filled: true));
+        break;
+      case 'pending_use':
+      case 'appointed':
+      case 'partial_used':
+        actions.add(_actionButton('查看核销码', const Color(0xFF13C2C2),
+            () => _goDetail(order), filled: true));
+        if (order.status != 'partial_used') {
+          actions.add(const SizedBox(width: 8));
+          actions.add(_actionButton('修改预约', const Color(0xFF722ED1),
+              () => _goDetail(order, action: 'appointment')));
+        }
+        break;
+      case 'pending_appointment':
+        actions.add(_actionButton('立即预约', const Color(0xFF52C41A),
+            () => _goDetail(order, action: 'appointment'), filled: true));
         break;
     }
     return actions;

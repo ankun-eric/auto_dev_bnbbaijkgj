@@ -76,7 +76,7 @@ const orderStatusMap: Record<string, { color: string; text: string }> = {
   pending_shipment: { color: 'blue', text: '待发货' },
   pending_receipt: { color: 'cyan', text: '待收货' },
   pending_appointment: { color: 'purple', text: '待预约' },
-  appointed: { color: 'magenta', text: '已预约' },
+  appointed: { color: 'geekblue', text: '待核销' },
   pending_use: { color: 'geekblue', text: '待核销' },
   partial_used: { color: 'gold', text: '部分核销' },
   pending_review: { color: 'purple', text: '待评价（兼容）' },
@@ -119,7 +119,6 @@ const statusOptions = [
   { value: 'pending_shipment', label: '待发货' },
   { value: 'pending_receipt', label: '待收货' },
   { value: 'pending_appointment', label: '待预约' },
-  { value: 'appointed', label: '已预约' },
   { value: 'pending_use', label: '待核销' },
   { value: 'partial_used', label: '部分核销' },
   { value: 'completed', label: '已完成' },
@@ -294,6 +293,11 @@ export default function UnifiedOrdersPage() {
         params.aftersales_status = 'pending';
       } else if (tab === 'pending_review') {
         params.status = 'pending_review';
+      } else if (tab === 'pending_use') {
+        // [PRD 订单状态机简化方案 v1.0] 合并 appointed + pending_use 同时按预约日升序
+        params.status = 'appointed,pending_use';
+        params.sort_by = 'appointment_time';
+        params.sort_order = 'asc';
       } else if (tab !== 'all') {
         params.status = tab;
       }
@@ -399,7 +403,6 @@ export default function UnifiedOrdersPage() {
     { key: 'pending_shipment', label: '待发货' },
     { key: 'pending_receipt', label: '待收货' },
     { key: 'pending_appointment', label: '待预约' },
-    { key: 'appointed', label: '已预约' },
     { key: 'pending_use', label: '待核销' },
     { key: 'partial_used', label: '部分核销' },
     { key: 'completed', label: '已完成' },
@@ -413,6 +416,16 @@ export default function UnifiedOrdersPage() {
   const renderStatusTag = (record: UnifiedOrder) => {
     if (record.status === 'cancelled' && record.refund_status === 'refund_success') {
       return <Tag color="default">已取消（已退款）</Tag>;
+    }
+    if (record.status === 'appointed' || record.status === 'pending_use') {
+      // [PRD 订单状态机简化方案 v1.0] 待核销 Tag 文案带预约日期
+      const apptItem = record.items?.find(it => it.appointment_time);
+      const apptDate = apptItem?.appointment_time;
+      if (apptDate) {
+        const d = new Date(apptDate);
+        return <Tag color="geekblue">{`待核销（预约 ${d.getMonth() + 1}月${d.getDate()}日）`}</Tag>;
+      }
+      return <Tag color="geekblue">待核销</Tag>;
     }
     const s = orderStatusMap[record.status] || { color: 'default', text: record.status };
     return <Tag color={s.color}>{s.text}</Tag>;
@@ -684,7 +697,11 @@ export default function UnifiedOrdersPage() {
                       </Descriptions.Item>
                       <Descriptions.Item label="预约状态" span={1}>
                         <Tag color={currentOrder.status === 'completed' ? 'green' : currentOrder.status === 'cancelled' ? 'red' : 'blue'}>
-                          {currentOrder.status === 'completed' ? '已完成' : currentOrder.status === 'cancelled' ? '已取消' : currentOrder.status === 'pending_use' ? '待核销' : '待支付'}
+                          {currentOrder.status === 'completed' ? '已完成'
+                            : currentOrder.status === 'cancelled' ? '已取消'
+                            : (currentOrder.status === 'pending_use' || currentOrder.status === 'appointed') ? '待核销'
+                            : currentOrder.status === 'pending_appointment' ? '待预约'
+                            : '待支付'}
                         </Tag>
                       </Descriptions.Item>
                       {item.appointment_data?.note && (

@@ -327,18 +327,12 @@ def init_scheduler():
         replace_existing=True,
     )
 
-    # ───── 订单状态自动推进（PRD「订单状态自动推进策略」v1.0）─────
+    # ───── [PRD 订单状态机简化方案 v1.0] 订单状态推进 + 提醒任务 ─────
+    # R1（appointed → pending_use 翻转）已下线：现在用户首次填预约日就直接 pending_use。
+    # 仅保留 R2（次日 00:00 退回未核销订单到 pending_appointment）+ 提醒任务（含 T-1 18:00 新节点）。
     from app.tasks.order_status_auto_progress import (
         run_appointment_reminders_v2,
-        run_r1_flip_to_pending_use,
         run_r2_flip_back_to_appointment,
-    )
-    # R1：每分钟扫描一次（兜底定时器漏跑）；逻辑上仅在预约日翻转
-    scheduler.add_job(
-        run_r1_flip_to_pending_use,
-        trigger=IntervalTrigger(minutes=1),
-        id="order_r1_flip_to_pending_use",
-        replace_existing=True,
     )
     # R2：每分钟扫描一次；逻辑上仅在次日 00:00+ 退回未核销订单
     scheduler.add_job(
@@ -347,7 +341,8 @@ def init_scheduler():
         id="order_r2_flip_back_to_appointment",
         replace_existing=True,
     )
-    # 5 个提醒节点：每分钟扫一次，节点内部用窗口 + NotificationLog 去重
+    # 提醒节点：每分钟扫一次，节点内部用窗口 + NotificationLog 去重
+    # 含新增「T-1 18:00 到店提醒」+ 老 5 个节点（已自动 join statuses 改为 pending_use）
     scheduler.add_job(
         run_appointment_reminders_v2,
         trigger=IntervalTrigger(minutes=1),

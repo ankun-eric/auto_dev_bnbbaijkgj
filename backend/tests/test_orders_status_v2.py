@@ -154,7 +154,10 @@ async def test_pay_appointment_required_goes_to_pending_appointment(client: Asyn
 
 
 @pytest.mark.asyncio
-async def test_set_appointment_advances_to_appointed(client: AsyncClient, auth_headers):
+async def test_set_appointment_advances_to_pending_use(client: AsyncClient, auth_headers):
+    """[PRD 订单状态机简化方案 v1.0] 用户首次填预约日：
+    pending_appointment → **pending_use**（不再走 appointed 中间态）。
+    """
     cat_id = await _seed_category("appt2 cat")
     pid = await _seed_product(cat_id, fulfillment_type="in_store", appointment_mode="date")
     create_resp = await _create_order(client, auth_headers, pid)
@@ -167,12 +170,12 @@ async def test_set_appointment_advances_to_appointed(client: AsyncClient, auth_h
         headers=auth_headers,
     )
     assert appt_resp.status_code == 200, appt_resp.text
-    assert appt_resp.json()["status"] == "appointed"
+    # 新策略：直接跳到 pending_use（立即出码）
+    assert appt_resp.json()["status"] == "pending_use"
 
-    # 验证返回的订单确实是 appointed
     detail = await client.get(f"/api/orders/unified/{oid}", headers=auth_headers)
     assert detail.status_code == 200
-    assert detail.json()["status"] == "appointed"
+    assert detail.json()["status"] == "pending_use"
 
 
 # ════════════════════════════════════════════
