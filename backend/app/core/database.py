@@ -3,14 +3,27 @@ from sqlalchemy.orm import DeclarativeBase
 
 from app.core.config import settings
 
-engine = create_async_engine(
-    settings.DATABASE_URL,
-    echo=False,
-    pool_pre_ping=True,
-    pool_size=20,
-    max_overflow=10,
-    connect_args={"init_command": "SET time_zone='+00:00'"},
-)
+
+def _build_engine():
+    url = settings.DATABASE_URL
+    if url.startswith("sqlite"):
+        # SQLite (aiosqlite) is used in tests; pool_size/max_overflow/init_command are MySQL-only.
+        return create_async_engine(
+            url,
+            echo=False,
+            connect_args={"check_same_thread": False},
+        )
+    return create_async_engine(
+        url,
+        echo=False,
+        pool_pre_ping=True,
+        pool_size=20,
+        max_overflow=10,
+        connect_args={"init_command": "SET time_zone='+00:00'"},
+    )
+
+
+engine = _build_engine()
 
 async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
