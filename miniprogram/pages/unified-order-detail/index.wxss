@@ -381,3 +381,107 @@
   padding: 6rpx 24rpx;
   border-radius: 8rpx;
 }
+
+/* [先下单后预约 Bug 修复 v1.0] 待预约横幅 + 立即预约弹窗 */
+.appt-banner {
+  margin: 16rpx 24rpx;
+  padding: 24rpx 28rpx;
+  background: linear-gradient(90deg, #fffbe6 0%, #fff7e6 100%);
+  border: 1rpx solid #ffd591;
+  border-radius: 16rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.appt-banner-text {
+  font-size: 26rpx;
+  color: #d48806;
+  flex: 1;
+}
+.appt-banner-btn {
+  background: #52c41a;
+  color: #fff;
+  font-size: 24rpx;
+  padding: 10rpx 24rpx;
+  border-radius: 28rpx;
+  margin-left: 16rpx;
+  flex-shrink: 0;
+}
+.appt-modal-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 1000;
+}
+.appt-modal {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #fff;
+  border-top-left-radius: 24rpx;
+  border-top-right-radius: 24rpx;
+  padding: 32rpx 32rpx 48rpx;
+  z-index: 1001;
+}
+.appt-modal-title {
+  display: block;
+  font-size: 32rpx;
+  font-weight: 600;
+  text-align: center;
+  margin-bottom: 24rpx;
+}
+.appt-row, .appt-slots-row {
+  margin-bottom: 24rpx;
+}
+.appt-label {
+  font-size: 26rpx;
+  color: #666;
+  display: block;
+  margin-bottom: 12rpx;
+}
+.appt-value {
+  font-size: 28rpx;
+  color: #333;
+  padding: 18rpx 24rpx;
+  background: #f7f7f7;
+  border-radius: 12rpx;
+  display: inline-block;
+}
+.appt-slots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+}
+.appt-slot {
+  padding: 14rpx 20rpx;
+  border: 1rpx solid #d9d9d9;
+  border-radius: 8rpx;
+  font-size: 24rpx;
+  color: #333;
+}
+.appt-slot.active {
+  background: #52c41a;
+  color: #fff;
+  border-color: #52c41a;
+}
+.appt-modal-btns {
+  display: flex;
+  gap: 16rpx;
+  margin-top: 16rpx;
+}
+.appt-modal-btn {
+  flex: 1;
+  text-align: center;
+  padding: 22rpx 0;
+  border-radius: 44rpx;
+  font-size: 28rpx;
+}
+.appt-modal-btn.cancel {
+  background: #f5f5f5;
+  color: #666;
+}
+.appt-modal-btn.confirm {
+  background: #52c41a;
+  color: #fff;
+}

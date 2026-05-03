@@ -43,8 +43,8 @@
     </view>
   </view>
 
-  <!-- 预约表单 -->
-  <view class="form-card card" wx:if="{{fulfillmentType === 'store' || fulfillmentType === 'home'}}">
+  <!-- 预约表单（先下单后预约 Bug 修复 v1.0：needAppointment=false 时整块隐藏） -->
+  <view class="form-card card" wx:if="{{needAppointment && (fulfillmentType === 'store' || fulfillmentType === 'home')}}">
     <text class="form-title">预约信息</text>
     <text class="advance-hint" wx:if="{{advanceDaysHint}}">{{advanceDaysHint}}</text>
     <view class="form-item">

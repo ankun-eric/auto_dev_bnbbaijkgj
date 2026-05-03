@@ -32,7 +32,12 @@ Page({
     fullyBookedSlots: [],
     // [2026-05-02 H5 下单流程优化 PRD v1.0]
     contactPhone: '',
-    contactPhoneError: ''
+    contactPhoneError: '',
+    // [先下单后预约 Bug 修复 v1.0]
+    // needAppointment 控制下单页是否展示预约控件：
+    //   true  → 商品 appointment_mode != 'none' 且 purchase_appointment_mode 为下单即预约
+    //   false → 隐藏预约控件（包含「先下单后预约」场景）
+    needAppointment: false
   },
 
   onLoad(options) {
@@ -59,6 +64,14 @@ Page({
       const res = await get(`/api/products/${this.data.productId}`);
       const product = res.data || res;
       const today = new Date();
+      // [先下单后预约 Bug 修复 v1.0]
+      // 下单页是否展示预约控件 = 商品需预约 且 商品配置为「下单即预约」
+      const purchaseMode = product.purchase_appointment_mode || '';
+      const isBookWithOrder =
+        !purchaseMode ||
+        purchaseMode === 'purchase_with_appointment' ||
+        purchaseMode === 'must_appoint';
+      const needAppointment = (product.appointment_mode || 'none') !== 'none' && isBookWithOrder;
       const updateData = {
         product,
         fulfillmentType: product.fulfillment_type || 'online',
@@ -66,6 +79,7 @@ Page({
         finalPrice: product.price || 0,
         maxPointsDeduction: Math.floor((product.price || 0) * 0.5 * 100),
         appointmentDate: this.formatDate(today),
+        needAppointment,
       };
 
       // BUG-PRODUCT-APPT-002：可预约日期范围统一公式
@@ -316,14 +330,15 @@ Page({
       wx.showToast({ title: '请选择门店', icon: 'none' });
       return;
     }
-    if ((ft === 'store' || ft === 'home') && !this.data.appointmentDate) {
+    // [先下单后预约 Bug 修复 v1.0] 仅 needAppointment=true 时强校验预约时间
+    if (this.data.needAppointment && (ft === 'store' || ft === 'home') && !this.data.appointmentDate) {
       wx.showToast({ title: '请选择预约日期', icon: 'none' });
       return;
     }
-    // [2026-05-02 H5 下单流程优化 PRD v1.0] 联系人手机号必填校验
+    // [2026-05-02 H5 下单流程优化 PRD v1.0] 联系人手机号必填校验（仅展示预约表单时）
     const phone = (this.data.contactPhone || '').trim();
     const phoneRe = /^1[3-9]\d{9}$/;
-    if (!phone || !phoneRe.test(phone)) {
+    if (this.data.needAppointment && (!phone || !phoneRe.test(phone))) {
       this.setData({ contactPhoneError: '请输入正确的手机号' });
       wx.showToast({ title: '请输入正确的联系手机号', icon: 'none' });
       return;
@@ -335,17 +350,17 @@ Page({
         product_id: parseInt(this.data.productId),
         quantity: this.data.quantity,
       };
-      if (this.data.appointmentTime) {
+      // [先下单后预约 Bug 修复 v1.0] 仅 needAppointment 时携带预约信息
+      if (this.data.needAppointment && this.data.appointmentTime) {
         const startTime = this.data.appointmentTime.split('-')[0];
         itemData.appointment_time = `${this.data.appointmentDate}T${startTime}:00`;
       }
-      if (this.data.appointmentDate) {
+      if (this.data.needAppointment && this.data.appointmentDate) {
         itemData.appointment_data = {
           date: this.data.appointmentDate,
           time_slot: this.data.appointmentTime || '',
           note: this.data.appointmentNote || '',
           contact_phone: phone,
-          // [2026-05-02 H5 下单流程优化 PRD v1.0] 带上 store_id 让后端做门店级容量校验
           store_id: this.data.store ? (this.data.store.id || this.data.store.store_id) : undefined,
         };
       }

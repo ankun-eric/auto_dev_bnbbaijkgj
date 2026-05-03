@@ -5,6 +5,12 @@
     <text class="status-desc" wx:if="{{order.status_desc}}">{{order.status_desc}}</text>
   </view>
 
+  <!-- [先下单后预约 Bug 修复 v1.0] 待预约横幅 -->
+  <view class="appt-banner" wx:if="{{order.status === 'pending_appointment' && (!order.refund_status || order.refund_status === 'none')}}">
+    <text class="appt-banner-text">🗓️ 您还未预约服务时间，请尽快选择您方便的时间</text>
+    <view class="appt-banner-btn" bindtap="openApptModal">立即预约</view>
+  </view>
+
   <!-- 退款状态提示栏 -->
   <view class="refund-status-bar refund-bar-{{order.refund_status}}" wx:if="{{order.refund_status && order.refund_status !== 'none'}}">
     <text class="refund-bar-text" wx:if="{{order.refund_status === 'applied'}}">退款已申请，等待商家审核</text>
@@ -164,7 +170,7 @@
   <view class="bottom-space"></view>
 
   <!-- 底部操作 -->
-  <view class="bottom-bar safe-bottom" wx:if="{{order.status === 'pending_payment' || order.status === 'paid' || order.status === 'completed'}}">
+  <view class="bottom-bar safe-bottom" wx:if="{{order.status === 'pending_payment' || order.status === 'paid' || order.status === 'completed' || order.status === 'pending_appointment'}}">
     <view class="bar-actions">
       <view class="bar-btn outline" wx:if="{{order.status === 'pending_payment'}}" bindtap="cancelOrder">取消订单</view>
       <view class="bar-btn outline" wx:if="{{order.status === 'paid' && (!order.refund_status || order.refund_status === 'none' || order.refund_status === 'rejected')}}" bindtap="goRefund">申请退款</view>
@@ -172,6 +178,36 @@
       <view class="bar-btn primary" wx:if="{{order.status === 'pending_payment'}}" bindtap="payOrder">立即付款</view>
       <view class="bar-btn primary" wx:if="{{order.status === 'paid'}}" bindtap="confirmOrder">确认收货</view>
       <view class="bar-btn primary" wx:if="{{order.status === 'completed' && !order.is_reviewed}}" bindtap="goReview">评价</view>
+      <!-- [先下单后预约 Bug 修复 v1.0] 待预约状态：底部立即预约按钮 -->
+      <view class="bar-btn primary" wx:if="{{order.status === 'pending_appointment' && (!order.refund_status || order.refund_status === 'none')}}" bindtap="openApptModal">立即预约</view>
+    </view>
+  </view>
+
+  <!-- [先下单后预约 Bug 修复 v1.0] 立即预约弹窗 -->
+  <view class="appt-modal-mask" wx:if="{{showApptModal}}" bindtap="closeApptModal"></view>
+  <view class="appt-modal" wx:if="{{showApptModal}}">
+    <text class="appt-modal-title">选择预约时间</text>
+    <view class="appt-row">
+      <text class="appt-label">预约日期</text>
+      <picker mode="date" value="{{apptDate}}" start="{{apptMinDate}}" end="{{apptMaxDate}}" bindchange="onApptDateChange">
+        <text class="appt-value">{{apptDate || '请选择日期'}}</text>
+      </picker>
+    </view>
+    <view class="appt-slots-row">
+      <text class="appt-label">预约时段</text>
+      <view class="appt-slots">
+        <view
+          class="appt-slot {{apptSlot === item ? 'active' : ''}}"
+          wx:for="{{apptSlotOptions}}"
+          wx:key="*this"
+          data-slot="{{item}}"
+          bindtap="onApptSlotTap"
+        >{{item}}</view>
+      </view>
+    </view>
+    <view class="appt-modal-btns">
+      <view class="appt-modal-btn cancel" bindtap="closeApptModal">取消</view>
+      <view class="appt-modal-btn confirm" bindtap="submitAppt">确认预约</view>
     </view>
   </view>
 </view>

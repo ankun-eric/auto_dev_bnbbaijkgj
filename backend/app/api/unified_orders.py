@@ -1,3 +1,4 @@
+import logging
 import random
 import string
 import uuid
@@ -8,6 +9,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+
+logger = logging.getLogger(__name__)
 
 from app.core.database import get_db
 from app.core.security import get_current_user
@@ -404,6 +407,20 @@ async def create_unified_order(
         purchase_appt_mode = getattr(product, "purchase_appointment_mode", None) or ""
         if hasattr(purchase_appt_mode, "value"):
             purchase_appt_mode = purchase_appt_mode.value
+        # [先下单后预约 Bug 修复 v1.0]
+        # 当商品配置为「先下单后预约」(appointment_later / appoint_later) 时：
+        # 1) 不要求前端必传 appointment_time
+        # 2) 即使前端误传了 appointment_time / appointment_data，后端也主动忽略不写入
+        # 3) 跳过预约时间的全部校验（日期范围、时段冲突、容量等）
+        is_book_after_pay = purchase_appt_mode in ("appointment_later", "appoint_later")
+        if is_book_after_pay and appt_mode != "none":
+            if getattr(item_d, "appointment_time", None) or getattr(item_d, "appointment_data", None):
+                logger.info(
+                    "[book_after_pay] 商品 %s 配置为先下单后预约，已忽略前端误传的 appointment_time/appointment_data",
+                    product.id,
+                )
+            item_d.appointment_time = None
+            item_d.appointment_data = None
         if appt_mode != "none" and purchase_appt_mode == "purchase_with_appointment":
             if not item_d.appointment_time:
                 raise HTTPException(status_code=400, detail="预约类商品必须选择预约时间")

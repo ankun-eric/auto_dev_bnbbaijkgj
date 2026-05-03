@@ -61,6 +61,10 @@ class _UnifiedOrderDetailScreenState extends State<UnifiedOrderDetailScreen> {
         child: Column(
           children: [
             _buildStatusHeader(o),
+            // [先下单后预约 Bug 修复 v1.0] 待预约横幅
+            if (o.status == 'pending_appointment' && o.refundStatus == 'none') ...[
+              _buildBookAfterPayBanner(o),
+            ],
             if (o.refundStatus != 'none') ...[
               _buildRefundStatusBanner(o),
             ],
@@ -405,6 +409,13 @@ class _UnifiedOrderDetailScreenState extends State<UnifiedOrderDetailScreen> {
           }));
         }
         break;
+      case 'pending_appointment':
+        // [先下单后预约 Bug 修复 v1.0] 立即预约入口
+        if (canApplyRefund) {
+          actions.add(_actionBtn('立即预约', const Color(0xFF52C41A),
+              () => _openAppointmentDialog(o), filled: true));
+        }
+        break;
     }
 
     if (actions.isEmpty) return null;
@@ -477,10 +488,172 @@ class _UnifiedOrderDetailScreenState extends State<UnifiedOrderDetailScreen> {
     return time.replaceFirst('T', ' ').split('.').first;
   }
 
+  // [先下单后预约 Bug 修复 v1.0] 待预约横幅
+  Widget _buildBookAfterPayBanner(UnifiedOrder o) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFFFFFBE6), Color(0xFFFFF7E6)],
+        ),
+        border: Border.all(color: const Color(0xFFFFD591)),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          const Expanded(
+            child: Text(
+              '🗓️ 您还未预约服务时间，请尽快选择您方便的时间',
+              style: TextStyle(fontSize: 13, color: Color(0xFFD48806)),
+            ),
+          ),
+          const SizedBox(width: 8),
+          ElevatedButton(
+            onPressed: () => _openAppointmentDialog(o),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF52C41A),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              minimumSize: const Size(0, 32),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            ),
+            child: const Text('立即预约', style: TextStyle(color: Colors.white, fontSize: 12)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // [先下单后预约 Bug 修复 v1.0] 立即预约弹窗
+  static const List<String> _kAppointmentSlots = [
+    '09:00-10:00', '10:00-11:00', '11:00-12:00',
+    '13:00-14:00', '14:00-15:00', '15:00-16:00',
+    '16:00-17:00', '17:00-18:00',
+  ];
+
+  Future<void> _openAppointmentDialog(UnifiedOrder o) async {
+    final inStoreItem = o.items.firstWhere(
+      (i) => i.fulfillmentType == 'in_store',
+      orElse: () => o.items.isNotEmpty ? o.items.first : (throw Exception('订单暂无可预约商品')),
+    );
+    final tomorrow = DateTime.now().add(const Duration(days: 1));
+    DateTime selectedDate = DateTime(tomorrow.year, tomorrow.month, tomorrow.day);
+    String? selectedSlot;
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(builder: (ctx2, setS) {
+          final dateStr =
+              '${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}';
+          return AlertDialog(
+            title: const Text('选择预约时间', textAlign: TextAlign.center),
+            content: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('预约日期', style: TextStyle(color: Colors.grey, fontSize: 13)),
+                  const SizedBox(height: 6),
+                  OutlinedButton(
+                    onPressed: () async {
+                      final picked = await showDatePicker(
+                        context: ctx2,
+                        initialDate: selectedDate,
+                        firstDate: DateTime.now(),
+                        lastDate: DateTime.now().add(const Duration(days: 90)),
+                      );
+                      if (picked != null) setS(() => selectedDate = picked);
+                    },
+                    child: Text(dateStr),
+                  ),
+                  const SizedBox(height: 14),
+                  const Text('预约时段', style: TextStyle(color: Colors.grey, fontSize: 13)),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: _kAppointmentSlots.map((slot) {
+                      final active = slot == selectedSlot;
+                      return GestureDetector(
+                        onTap: () => setS(() => selectedSlot = slot),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: active ? const Color(0xFF52C41A) : Colors.white,
+                            border: Border.all(
+                              color: active ? const Color(0xFF52C41A) : Colors.grey.shade300,
+                            ),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            slot,
+                            style: TextStyle(
+                              color: active ? Colors.white : Colors.black87,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx2, false), child: const Text('取消')),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF52C41A)),
+                onPressed: () async {
+                  if (selectedSlot == null) {
+                    ScaffoldMessenger.of(ctx2).showSnackBar(
+                      const SnackBar(content: Text('请选择预约时段')),
+                    );
+                    return;
+                  }
+                  final start = selectedSlot!.split('-')[0];
+                  try {
+                    await _api.post(
+                      '/api/orders/unified/${o.id}/appointment',
+                      data: {
+                        'item_id': inStoreItem.id,
+                        'appointment_time': '${dateStr}T$start:00',
+                        'appointment_data': {
+                          'date': dateStr,
+                          'time_slot': selectedSlot,
+                        },
+                      },
+                    );
+                    if (ctx2.mounted) Navigator.pop(ctx2, true);
+                  } catch (e) {
+                    if (ctx2.mounted) {
+                      ScaffoldMessenger.of(ctx2).showSnackBar(
+                        const SnackBar(content: Text('预约失败')),
+                      );
+                    }
+                  }
+                },
+                child: const Text('确认预约', style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          );
+        });
+      },
+    );
+
+    if (result == true && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('预约成功')));
+      _loadOrder(o.id);
+    }
+  }
+
   Color _statusColor(String status) {
     switch (status) {
       case 'pending_payment':
         return const Color(0xFFFF4D4F);
+      case 'pending_appointment':
+      case 'appointed':
+        return const Color(0xFF722ED1);
       case 'pending_shipment':
       case 'pending_receipt':
       case 'pending_use':
@@ -498,6 +671,10 @@ class _UnifiedOrderDetailScreenState extends State<UnifiedOrderDetailScreen> {
     switch (status) {
       case 'pending_payment':
         return Icons.payment;
+      case 'pending_appointment':
+        return Icons.event_note;
+      case 'appointed':
+        return Icons.event_available;
       case 'pending_shipment':
         return Icons.local_shipping;
       case 'pending_receipt':

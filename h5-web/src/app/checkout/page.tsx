@@ -464,7 +464,17 @@ function CheckoutPage() {
 
   const isDelivery = product.fulfillment_type === 'delivery';
   const isInStore = product.fulfillment_type === 'in_store';
-  const needAppointment = product.appointment_mode !== 'none';
+  // [先下单后预约 Bug 修复 v1.0]
+  // 是否在下单页展示预约时间控件，需要同时满足：
+  //   1) 商品 appointment_mode != 'none'（即开启了预约功能）
+  //   2) purchase_appointment_mode == 'purchase_with_appointment'（下单即预约）
+  // 当 purchase_appointment_mode 为 appointment_later/appoint_later（先下单后预约）时，
+  // 下单页完全不展示预约控件，由用户付款后在订单详情页再发起预约。
+  const isBookWithOrder =
+    !product.purchase_appointment_mode ||
+    product.purchase_appointment_mode === 'purchase_with_appointment' ||
+    product.purchase_appointment_mode === 'must_appoint';
+  const needAppointment = product.appointment_mode !== 'none' && isBookWithOrder;
 
   // 立即支付按钮启用条件
   const canSubmit = (() => {

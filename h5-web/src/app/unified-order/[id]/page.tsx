@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { Card, Image, Tag, Button, Steps, Divider, Toast, Dialog, SpinLoading, ProgressBar } from 'antd-mobile';
+import { Card, Image, Tag, Button, Steps, Divider, Toast, Dialog, SpinLoading, ProgressBar, Popup, DatePicker, Selector } from 'antd-mobile';
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 
@@ -52,6 +52,8 @@ const STATUS_TEXT: Record<string, string> = {
   pending_payment: '待付款',
   pending_shipment: '待发货',
   pending_receipt: '待收货',
+  pending_appointment: '待预约',
+  appointed: '已预约',
   pending_use: '待使用',
   pending_review: '待评价',
   completed: '已完成',
@@ -62,11 +64,20 @@ const STATUS_DESC: Record<string, string> = {
   pending_payment: '请尽快完成支付',
   pending_shipment: '商家正在处理您的订单',
   pending_receipt: '商品已发货，请注意查收',
+  pending_appointment: '感谢下单！请选择您方便的服务时间',
+  appointed: '已成功预约，期待您的到店',
   pending_use: '请凭核销码到店使用',
   pending_review: '服务已完成，期待您的评价',
   completed: '感谢您的支持',
   cancelled: '订单已取消',
 };
+
+// [先下单后预约 Bug 修复 v1.0] 默认时段（与商品时段一致或商品未配时段时使用）
+const DEFAULT_TIME_SLOTS = [
+  '09:00-10:00', '10:00-11:00', '11:00-12:00',
+  '13:00-14:00', '14:00-15:00', '15:00-16:00',
+  '16:00-17:00', '17:00-18:00',
+];
 
 export default function UnifiedOrderDetailPage() {
   const router = useRouter();
@@ -74,6 +85,13 @@ export default function UnifiedOrderDetailPage() {
   const orderId = params.id as string;
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  // [先下单后预约 Bug 修复 v1.0] 立即预约弹窗状态
+  const [showAppointmentPopup, setShowAppointmentPopup] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [apptDate, setApptDate] = useState<Date | null>(null);
+  const [apptSlot, setApptSlot] = useState<string>('');
+  const [apptItemId, setApptItemId] = useState<number | null>(null);
+  const [apptSubmitting, setApptSubmitting] = useState(false);
 
   const fetchOrder = () => {
     api.get(`/api/orders/unified/${orderId}`).then((res: any) => {
@@ -130,6 +148,61 @@ export default function UnifiedOrderDetailPage() {
       navigator.clipboard.writeText(code);
     }
     Toast.show({ content: '核销码已复制' });
+  };
+
+  // [先下单后预约 Bug 修复 v1.0] 打开"立即预约"弹窗
+  const openAppointmentPopup = () => {
+    if (!order) return;
+    const firstInStoreItem = order.items.find((i) => i.fulfillment_type === 'in_store');
+    if (!firstInStoreItem) {
+      Toast.show({ content: '订单暂无可预约商品' });
+      return;
+    }
+    setApptItemId(firstInStoreItem.id);
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    setApptDate(tomorrow);
+    setApptSlot('');
+    setShowAppointmentPopup(true);
+  };
+
+  // [先下单后预约 Bug 修复 v1.0] 提交预约
+  const submitAppointment = async () => {
+    if (!apptDate) {
+      Toast.show({ content: '请选择预约日期' });
+      return;
+    }
+    if (!apptSlot) {
+      Toast.show({ content: '请选择预约时段' });
+      return;
+    }
+    if (!apptItemId) {
+      Toast.show({ content: '订单异常' });
+      return;
+    }
+    setApptSubmitting(true);
+    try {
+      const y = apptDate.getFullYear();
+      const m = String(apptDate.getMonth() + 1).padStart(2, '0');
+      const d = String(apptDate.getDate()).padStart(2, '0');
+      const dateStr = `${y}-${m}-${d}`;
+      const startTime = apptSlot.split('-')[0];
+      await api.post(`/api/orders/unified/${orderId}/appointment`, {
+        item_id: apptItemId,
+        appointment_time: `${dateStr}T${startTime}:00`,
+        appointment_data: {
+          date: dateStr,
+          time_slot: apptSlot,
+        },
+      });
+      Toast.show({ content: '预约成功' });
+      setShowAppointmentPopup(false);
+      fetchOrder();
+    } catch (err: any) {
+      Toast.show({ content: err?.response?.data?.detail || '预约失败' });
+    } finally {
+      setApptSubmitting(false);
+    }
   };
 
   const handleWithdrawRefund = () => {
@@ -192,6 +265,42 @@ export default function UnifiedOrderDetailPage() {
           {order.refund_status !== 'none' ? '您的退款申请正在处理中' : (STATUS_DESC[order.status] || '')}
         </div>
       </div>
+
+      {/* [先下单后预约 Bug 修复 v1.0] 待预约横幅 */}
+      {order.status === 'pending_appointment' && order.refund_status === 'none' && (
+        <div className="px-4 mt-2 mb-1">
+          <div
+            style={{
+              background: 'linear-gradient(90deg, #fffbe6 0%, #fff7e6 100%)',
+              border: '1px solid #ffd591',
+              borderRadius: 8,
+              padding: '12px 14px',
+              fontSize: 13,
+              color: '#d48806',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
+          >
+            <span>🗓️ 您还未预约服务时间，请尽快选择您方便的时间</span>
+            <Button
+              size="small"
+              onClick={openAppointmentPopup}
+              style={{
+                background: '#52c41a',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 14,
+                fontSize: 12,
+                marginLeft: 8,
+                flexShrink: 0,
+              }}
+            >
+              立即预约
+            </Button>
+          </div>
+        </div>
+      )}
 
       {order.refund_status !== 'none' && (
         <div className="px-4 mt-2 mb-1">
@@ -442,6 +551,15 @@ export default function UnifiedOrderDetailPage() {
             </Button>
           </>
         )}
+        {/* [先下单后预约 Bug 修复 v1.0] 待预约状态：底部立即预约按钮 */}
+        {order.status === 'pending_appointment' && order.refund_status === 'none' && (
+          <Button
+            onClick={openAppointmentPopup}
+            style={{ borderRadius: 20, height: 40, fontSize: 14, background: '#52c41a', color: '#fff', border: 'none' }}
+          >
+            立即预约
+          </Button>
+        )}
         {order.status === 'pending_receipt' && (
           <Button
             onClick={handleConfirmReceipt}
@@ -475,6 +593,56 @@ export default function UnifiedOrderDetailPage() {
           </Button>
         )}
       </div>
+
+      {/* [先下单后预约 Bug 修复 v1.0] 立即预约弹窗 */}
+      <Popup
+        visible={showAppointmentPopup}
+        onMaskClick={() => setShowAppointmentPopup(false)}
+        onClose={() => setShowAppointmentPopup(false)}
+        bodyStyle={{ borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: '20px 16px 24px' }}
+      >
+        <div className="text-base font-bold text-center mb-3">选择预约时间</div>
+        <div className="mb-4">
+          <div className="text-sm text-gray-500 mb-1">预约日期</div>
+          <Button
+            block
+            onClick={() => setShowDatePicker(true)}
+            style={{ height: 44, fontSize: 14, textAlign: 'left', borderRadius: 8 }}
+          >
+            {apptDate
+              ? `${apptDate.getFullYear()}-${String(apptDate.getMonth() + 1).padStart(2, '0')}-${String(apptDate.getDate()).padStart(2, '0')}`
+              : '请选择日期'}
+          </Button>
+        </div>
+        <div className="mb-4">
+          <div className="text-sm text-gray-500 mb-2">预约时段</div>
+          <Selector
+            options={DEFAULT_TIME_SLOTS.map((s) => ({ label: s, value: s }))}
+            value={apptSlot ? [apptSlot] : []}
+            onChange={(arr) => setApptSlot(arr[0] || '')}
+            columns={3}
+            style={{ '--padding': '8px 0', '--border-radius': '6px' }}
+          />
+        </div>
+        <Button
+          block
+          loading={apptSubmitting}
+          onClick={submitAppointment}
+          style={{ background: '#52c41a', color: '#fff', border: 'none', borderRadius: 22, height: 44, fontSize: 15 }}
+        >
+          确认预约
+        </Button>
+      </Popup>
+
+      <DatePicker
+        visible={showDatePicker}
+        onClose={() => setShowDatePicker(false)}
+        min={new Date()}
+        max={(() => { const d = new Date(); d.setDate(d.getDate() + 90); return d; })()}
+        precision="day"
+        value={apptDate || undefined}
+        onConfirm={(d) => { setApptDate(d); setShowDatePicker(false); }}
+      />
     </div>
   );
 }

@@ -78,8 +78,20 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     } catch (_) {}
   }
 
+  // [先下单后预约 Bug 修复 v1.0]
+  // 是否在下单页展示预约时间控件 = 商品需预约 且 商品配置为「下单即预约」
+  bool get _isBookWithOrder {
+    final mode = _product.purchaseAppointmentMode;
+    return mode == null ||
+        mode.isEmpty ||
+        mode == 'purchase_with_appointment' ||
+        mode == 'must_appoint';
+  }
+  bool get _needAppointment =>
+      _product.appointmentMode != 'none' && _isBookWithOrder;
+
   Future<void> _loadSlotAvailability() async {
-    if (_product.appointmentMode == 'none') return;
+    if (!_needAppointment) return;
     if (_product.timeSlots == null || _product.timeSlots!.isEmpty) return;
     if (_selectedDate == null) return;
     try {
@@ -157,7 +169,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       return;
     }
 
-    if (_product.appointmentMode != 'none' && _selectedDate == null) {
+    if (_needAppointment && _selectedDate == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('请选择预约日期')));
       return;
     }
@@ -169,7 +181,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         'quantity': _quantity,
       };
 
-      if (_product.appointmentMode != 'none' && _selectedDate != null) {
+      if (_needAppointment && _selectedDate != null) {
         final dateStr = _formatDate(_selectedDate!);
         // [2026-05-02 H5 下单流程优化 PRD v1.0] 联系手机号必填校验
         final phone = _contactPhoneController.text.trim();
@@ -244,7 +256,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             if (_needAddress) _buildAddressSection(),
             const SizedBox(height: 8),
             _buildProductSection(),
-            if (_product.appointmentMode != 'none') ...[
+            if (_needAppointment) ...[
               const SizedBox(height: 8),
               _buildAppointmentSection(),
             ],
