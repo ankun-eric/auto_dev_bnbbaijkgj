@@ -87,14 +87,16 @@ const orderStatusMap: Record<string, { color: string; text: string }> = {
   cancelled: { color: 'default', text: '已取消' },
 };
 
+// PRD「我的订单与售后状态体系优化」F-09：admin 退款明细列文案与逻辑状态保持一致
+// 底层 refund_status 仍保留为审计字段，但展示对齐 4 个统一文案
 const refundStatusMap: Record<string, { color: string; text: string }> = {
   none: { color: 'default', text: '无' },
-  applied: { color: 'orange', text: '退款申请中' },
-  reviewing: { color: 'processing', text: '审核中' },
-  approved: { color: 'green', text: '退款已批准' },
-  rejected: { color: 'red', text: '退款已拒绝' },
-  returning: { color: 'warning', text: '退回中' },
-  refund_success: { color: 'green', text: '退款成功' },
+  applied: { color: 'orange', text: '待审核' },
+  reviewing: { color: 'orange', text: '待审核' },
+  approved: { color: 'processing', text: '处理中' },
+  returning: { color: 'processing', text: '处理中' },
+  refund_success: { color: 'green', text: '已完成' },
+  rejected: { color: 'red', text: '已驳回' },
 };
 
 const fulfillmentMap: Record<string, string> = {
@@ -145,16 +147,15 @@ const payMethodOptions = [
   { value: 'points', label: '积分兑换' },
 ];
 
-// PRD V2: 退款流程辅助筛选 — 文案统一为审核中/退款中/已退款/已拒绝
+// PRD「我的订单与售后状态体系优化」F-09/F-10：
+// admin 退款流程筛选 — 4 个统一逻辑状态，与客户端、H5 完全一致
+// 待审核 / 处理中 / 已完成 / 已驳回
 const refundStatusOptions = [
-  { value: '', label: '全部退款流程' },
-  { value: 'none', label: '无退款' },
-  { value: 'applied', label: '审核中' },
-  { value: 'reviewing', label: '审核中' },
-  { value: 'approved', label: '已批准' },
-  { value: 'returning', label: '退款中' },
-  { value: 'rejected', label: '已拒绝' },
-  { value: 'refund_success', label: '已退款' },
+  { value: '', label: '全部售后' },
+  { value: 'pending', label: '待审核' },
+  { value: 'processing', label: '处理中' },
+  { value: 'completed', label: '已完成' },
+  { value: 'rejected', label: '已驳回' },
 ];
 
 function mapOrder(raw: Record<string, unknown>): UnifiedOrder {
@@ -280,15 +281,17 @@ export default function UnifiedOrdersPage() {
       if (dateRange?.[1]) params.end_date = dateRange[1].format('YYYY-MM-DD');
       if (filterStatus) params.status = filterStatus;
       if (filterPayMethod) params.payment_method = filterPayMethod;
-      if (filterRefundStatus) params.refund_status = filterRefundStatus;
+      // PRD F-09：4 个统一逻辑值（pending/processing/completed/rejected）走新参数 aftersales_status
+      if (filterRefundStatus) params.aftersales_status = filterRefundStatus;
       if (filterCategory) params.category_id = filterCategory;
       if (filterRedemptionCodeStatus) params.redemption_code_status = filterRedemptionCodeStatus;
       if (amountMin !== null) params.amount_min = amountMin;
       if (amountMax !== null) params.amount_max = amountMax;
 
       const tab = activeTabRef.current;
+      // PRD F-09：admin 退款申请 Tab 改为按"待审核"逻辑筛选
       if (tab === 'refund') {
-        params.refund_status = 'applied';
+        params.aftersales_status = 'pending';
       } else if (tab === 'pending_review') {
         params.status = 'pending_review';
       } else if (tab !== 'all') {

@@ -77,6 +77,14 @@ class UnifiedOrderResponse(BaseModel):
     action_buttons: list[str] = []
     badges: list[str] = []
     store_name: Optional[str] = None
+    # PRD「我的订单与售后状态体系优化」新增字段
+    # aftersales_logical_status：4 值之一 pending / processing / completed / rejected / none
+    aftersales_logical_status: Optional[str] = None
+    aftersales_logical_label: Optional[str] = None
+    # 评价时效：completed_at + 15 天，超期则前端置灰按钮
+    review_deadline_at: Optional[datetime] = None
+    review_expired: bool = False
+    can_withdraw_refund: bool = False
     items: list[OrderItemResponse] = []
     created_at: datetime
     updated_at: datetime
@@ -102,6 +110,11 @@ class UnifiedOrderRefundRequest(BaseModel):
     order_item_id: Optional[int] = None
     reason: Optional[str] = None
     refund_amount: Optional[float] = None
+
+
+class UnifiedOrderRefundCancelRequest(BaseModel):
+    """PRD「我的订单与售后状态体系优化」F-13：用户撤销售后申请。"""
+    cancel_reason: Optional[str] = None
 
 
 class UnifiedOrderSetAppointmentRequest(BaseModel):

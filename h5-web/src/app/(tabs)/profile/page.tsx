@@ -16,11 +16,15 @@ import { useFontSize } from '@/lib/useFontSize';
 import FontSettingPopup from '@/components/FontSettingPopup';
 import api from '@/lib/api';
 
+// PRD「我的订单与售后状态体系优化」F-01/F-02：第 4 个图标改为「已完成」
+// 第 5 个图标文案保持「退款/售后」，跳转目标仍为独立列表页
 const orderQuickTabs = [
   { icon: '💳', title: '待付款', key: 'pending_payment', path: '/unified-orders?tab=pending_payment' },
   { icon: '📦', title: '待收货', key: 'pending_receipt', path: '/unified-orders?tab=pending_receipt' },
   { icon: '🎫', title: '待使用', key: 'pending_use', path: '/unified-orders?tab=pending_use' },
-  { icon: '⭐', title: '待评价', key: 'pending_review', path: '/unified-orders?tab=pending_review' },
+  // F-01：「待评价」 → 「已完成」；红点逻辑改为"未评价的已完成订单数"
+  { icon: '✅', title: '已完成', key: 'completed_pending_review', path: '/unified-orders?tab=completed' },
+  // F-02：保持文案「退款/售后」，跳转独立列表页
   { icon: '↩️', title: '退款/售后', key: 'refund', path: '/refund-list' },
 ];
 
@@ -90,7 +94,12 @@ export default function ProfilePage() {
     api.get('/api/orders/unified/counts')
       .then((res: any) => {
         const data = res.data || res;
-        setOrderCounts(data);
+        // F-01：第 4 个图标的红点 = 未评价的已完成订单数（pending_review）
+        // 兼容老字段：counts.pending_review 即"completed AND has_reviewed=false"
+        setOrderCounts({
+          ...data,
+          completed_pending_review: data.pending_review || 0,
+        });
       })
       .catch(() => {});
     loadStats();

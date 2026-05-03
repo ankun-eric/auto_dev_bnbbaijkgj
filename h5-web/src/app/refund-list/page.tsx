@@ -26,36 +26,35 @@ interface Order {
   refund_amount?: number;
   items: OrderItem[];
   created_at: string;
+  aftersales_logical_status?: string;
+  aftersales_logical_label?: string;
 }
 
-const REFUND_STATUS_TEXT: Record<string, string> = {
-  applied: '退款申请中',
-  processing: '退款处理中',
-  reviewing: '退款处理中',
-  returning: '退款处理中',
-  refund_success: '退款成功',
-  approved: '退款成功',
-  refund_failed: '退款失败',
-  rejected: '退款被拒绝',
+// PRD「我的订单与售后状态体系优化」F-06/F-07：
+// 退款/售后独立列表与「全部订单 - 退货/售后」Tab 数据范围、文案、二级筛选完全一致
+// 4 个统一逻辑状态 + 全部
+const AFTERSALES_LABEL: Record<string, string> = {
+  pending: '待审核',
+  processing: '处理中',
+  completed: '已完成',
+  rejected: '已驳回',
+  none: '无',
 };
 
-const REFUND_STATUS_COLOR: Record<string, string> = {
-  applied: '#fa8c16',
+const AFTERSALES_COLOR: Record<string, string> = {
+  pending: '#fa8c16',
   processing: '#1890ff',
-  reviewing: '#1890ff',
-  returning: '#1890ff',
-  refund_success: '#52c41a',
-  approved: '#52c41a',
-  refund_failed: '#f5222d',
+  completed: '#52c41a',
   rejected: '#8c8c8c',
+  none: '#8c8c8c',
 };
 
-const REFUND_TABS: { key: string; label: string; filter: string }[] = [
-  { key: 'all', label: '全部', filter: 'all_refund' },
-  { key: 'applied', label: '申请中', filter: 'applied' },
-  { key: 'reviewing', label: '处理中', filter: 'reviewing,returning' },
-  { key: 'refund_success', label: '已退款', filter: 'refund_success,approved' },
-  { key: 'rejected', label: '已拒绝', filter: 'rejected' },
+const REFUND_TABS: { key: string; label: string }[] = [
+  { key: 'all', label: '全部' },
+  { key: 'pending', label: '待审核' },
+  { key: 'processing', label: '处理中' },
+  { key: 'completed', label: '已完成' },
+  { key: 'rejected', label: '已驳回' },
 ];
 
 export default function RefundListPage() {
@@ -68,11 +67,13 @@ export default function RefundListPage() {
 
   const fetchOrders = useCallback(async (pageNum: number, reset = false) => {
     try {
-      const filter = REFUND_TABS.find((t) => t.key === activeTab)?.filter || 'all_refund';
+      // PRD F-06/F-07：使用与 unified-orders「退货/售后」Tab 完全相同的接口参数
+      // tab=refund_aftersales + sub_tab=（待审核/处理中/已完成/已驳回）
       const params: Record<string, any> = {
         page: pageNum,
         page_size: 20,
-        refund_status: filter,
+        tab: 'refund_aftersales',
+        sub_tab: activeTab,
       };
       const res: any = await api.get('/api/orders/unified', { params });
       const data = res.data || res;
@@ -165,8 +166,9 @@ export default function RefundListPage() {
             <Empty description="暂无退款/售后订单" style={{ padding: '80px 0' }} />
           ) : (
             orders.map((order) => {
-              const refundText = REFUND_STATUS_TEXT[order.refund_status] || order.refund_status;
-              const refundColor = REFUND_STATUS_COLOR[order.refund_status] || '#8c8c8c';
+              const logicalKey = order.aftersales_logical_status || 'none';
+              const refundText = order.aftersales_logical_label || AFTERSALES_LABEL[logicalKey] || '无';
+              const refundColor = AFTERSALES_COLOR[logicalKey] || '#8c8c8c';
               return (
                 <Card
                   key={order.id}

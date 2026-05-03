@@ -40,10 +40,15 @@ from app.schemas.unified_orders import (
     UnifiedOrderCreate,
     UnifiedOrderPayRequest,
     UnifiedOrderRefundRequest,
+    UnifiedOrderRefundCancelRequest,
     UnifiedOrderReviewCreate,
     UnifiedOrderResponse,
     UnifiedOrderSetAppointmentRequest,
 )
+
+
+# PRD「我的订单与售后状态体系优化」: 评价时效（订单完成后 15 天）
+REVIEW_VALID_DAYS = 15
 
 router = APIRouter(prefix="/api/orders/unified", tags=["统一订单"])
 
@@ -128,6 +133,41 @@ def _action_buttons_for(order) -> list[str]:
     return btns
 
 
+# PRD「我的订单与售后状态体系优化」F-05/F-07：4 个统一逻辑状态
+# 待审核 / 处理中 / 已完成 / 已驳回（适用 H5 退款列表 + 全部订单退货售后 + 后台筛选）
+_AFTERSALES_LABEL = {
+    "pending": "待审核",
+    "processing": "处理中",
+    "completed": "已完成",
+    "rejected": "已驳回",
+    "none": "无",
+}
+
+
+def _aftersales_logical_status(order) -> str:
+    """根据当前订单的 status + refund_status 计算逻辑售后状态：
+    - none      : 未发起售后（refund_status == 'none' 且 status 非 refunding/refunded）
+    - pending   : 待审核（refund_status in {applied, reviewing}）
+    - processing: 处理中（status == refunding 或 refund_status in {approved, returning}）
+    - completed : 已完成（status == refunded 或 refund_status == refund_success）
+    - rejected  : 已驳回（refund_status == rejected）
+    取「最近一次状态归档」语义。
+    """
+    s = _normalize_status(order.status)
+    rs = _normalize_status(order.refund_status)
+    if rs == "rejected":
+        return "rejected"
+    if s == "refunded" or rs == "refund_success":
+        return "completed"
+    # 待审核优先级高于"处理中"——用户刚申请时 status 已被业务设为 refunding，
+    # 但 refund_status 仍为 applied/reviewing，此时应展示"待审核"
+    if rs in ("applied", "reviewing"):
+        return "pending"
+    if s == "refunding" or rs in ("approved", "returning"):
+        return "processing"
+    return "none"
+
+
 def _build_order_response(order) -> UnifiedOrderResponse:
     resp = UnifiedOrderResponse.model_validate(order)
     s = _normalize_status(order.status)
@@ -148,6 +188,36 @@ def _build_order_response(order) -> UnifiedOrderResponse:
         badges.append("已预约")
     resp.badges = badges
     resp.store_name = order.store.store_name if order.store else None
+
+    # PRD「我的订单与售后状态体系优化」: 售后逻辑状态 + 15 天评价时效 + 撤销可见性
+    logical = _aftersales_logical_status(order)
+    resp.aftersales_logical_status = logical
+    resp.aftersales_logical_label = _AFTERSALES_LABEL.get(logical, "无")
+    # F-13：仅当售后处于「待审核」时，用户可撤销
+    resp.can_withdraw_refund = (logical == "pending")
+
+    # F-12：评价时效 = completed_at + 15 天
+    completed_at = getattr(order, "completed_at", None)
+    if s == "completed" and completed_at is not None:
+        deadline = completed_at + timedelta(days=REVIEW_VALID_DAYS)
+        resp.review_deadline_at = deadline
+        resp.review_expired = (
+            datetime.utcnow() > deadline and not bool(getattr(order, "has_reviewed", False))
+        )
+        # 重新计算 action_buttons：超期未评价时去掉 review、添加 review_expired
+        if not bool(getattr(order, "has_reviewed", False)):
+            if resp.review_expired:
+                resp.action_buttons = [
+                    b for b in resp.action_buttons if b != "review"
+                ] + ["review_expired"]
+        else:
+            # 已评价：把 review 替换为 view_review
+            resp.action_buttons = [
+                ("view_review" if b == "review" else b)
+                for b in resp.action_buttons if b != "review"
+            ]
+            if "view_review" not in resp.action_buttons:
+                resp.action_buttons.append("view_review")
     return resp
 
 
@@ -615,28 +685,39 @@ def _apply_v2_tab_filter(query, count_query, tab: str, sub_tab: Optional[str] = 
         return query.where(cond), count_query.where(cond)
 
     if tab == "refund_aftersales":
-        # V2：退货售后 Tab 子筛选：all / reviewing / refunding / refunded / rejected
+        # PRD「我的订单与售后状态体系优化」F-05/F-07：4 个统一逻辑子筛选
+        # 待审核 / 处理中 / 已完成 / 已驳回，与后台、独立退款列表完全一致
+        # 同时兼容旧 key（reviewing/refunding/refunded）作为别名映射
         if sub_tab in (None, "", "all"):
             cond = UnifiedOrder.status.in_([
                 UnifiedOrderStatus.refunding,
                 UnifiedOrderStatus.refunded,
             ]) | (UnifiedOrder.refund_status.in_([
-                "applied", "reviewing", "rejected", "returning", "refund_success"
+                "applied", "reviewing", "approved", "rejected", "returning", "refund_success"
             ]))
             return query.where(cond), count_query.where(cond)
-        if sub_tab == "reviewing":
+        # 待审核 = 用户已申请、客服未处理（applied / reviewing）
+        if sub_tab in ("pending", "reviewing"):
             cond = UnifiedOrder.refund_status.in_(["applied", "reviewing"])
             return query.where(cond), count_query.where(cond)
-        if sub_tab == "refunding":
-            cond = (UnifiedOrder.status == UnifiedOrderStatus.refunding) | (
-                UnifiedOrder.refund_status == "returning"
+        # 处理中 = 客服通过、打款中、退货寄回中（排除"待审核"语义的订单）
+        if sub_tab in ("processing", "refunding"):
+            # 优先显式语义：refund_status in {approved, returning}
+            # 兼容仅有 status=refunding 但 refund_status 已脱离 applied/reviewing 的订单
+            cond = (
+                UnifiedOrder.refund_status.in_(["approved", "returning"])
+            ) | (
+                (UnifiedOrder.status == UnifiedOrderStatus.refunding)
+                & (~UnifiedOrder.refund_status.in_(["applied", "reviewing"]))
             )
             return query.where(cond), count_query.where(cond)
-        if sub_tab == "refunded":
+        # 已完成 = 退款打款完成
+        if sub_tab in ("completed", "refunded"):
             cond = (UnifiedOrder.status == UnifiedOrderStatus.refunded) | (
                 UnifiedOrder.refund_status == "refund_success"
             )
             return query.where(cond), count_query.where(cond)
+        # 已驳回 = 客服驳回
         if sub_tab == "rejected":
             cond = UnifiedOrder.refund_status == "rejected"
             return query.where(cond), count_query.where(cond)
@@ -1067,6 +1148,13 @@ async def review_unified_order(
     if status_val != "completed":
         raise HTTPException(status_code=400, detail="该订单无法评价")
 
+    # PRD F-12：15 天评价时效校验（防绕过前端）
+    completed_at = getattr(order, "completed_at", None)
+    if completed_at is not None:
+        deadline = completed_at + timedelta(days=REVIEW_VALID_DAYS)
+        if datetime.utcnow() > deadline:
+            raise HTTPException(status_code=400, detail="评价已过期")
+
     existing = await db.execute(select(OrderReview).where(OrderReview.order_id == order_id))
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="该订单已评价")
@@ -1148,30 +1236,29 @@ async def request_refund(
     return {"message": msg, "refund_id": refund_req.id, "has_redemption": has_redemption}
 
 
-@router.post("/{order_id}/refund/withdraw")
-async def withdraw_refund(
-    order_id: int,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    result = await db.execute(
-        select(UnifiedOrder).where(
-            UnifiedOrder.id == order_id, UnifiedOrder.user_id == current_user.id
-        )
-    )
-    order = result.scalar_one_or_none()
-    if not order:
-        raise HTTPException(status_code=404, detail="订单不存在")
+async def _do_withdraw_refund(order, db: AsyncSession) -> dict:
+    """共用撤回核心逻辑（给 /refund/withdraw 与 /refund/cancel 别名两个端点共用）。
 
+    PRD「我的订单与售后状态体系优化」F-13：
+    - 仅在售后处于「待审核」（refund_status in {applied, reviewing}）时允许撤销
+    - 撤销后订单 status 回到撤销前的合法态：refunding → pending_use（兜底）
+    - refund_status 写为 none；保留 RefundRequest 行作为审计（status=withdrawn）
+    """
     refund_val = order.refund_status
     if hasattr(refund_val, "value"):
         refund_val = refund_val.value
-    if refund_val != "applied":
-        raise HTTPException(status_code=400, detail="当前退款状态不允许撤回")
+    if refund_val not in ("applied", "reviewing"):
+        raise HTTPException(status_code=400, detail="当前售后状态不允许撤销")
 
     refund_result = await db.execute(
         select(RefundRequest)
-        .where(RefundRequest.order_id == order_id, RefundRequest.status == RefundRequestStatus.pending)
+        .where(
+            RefundRequest.order_id == order.id,
+            RefundRequest.status.in_([
+                RefundRequestStatus.pending,
+                RefundRequestStatus.reviewing,
+            ]),
+        )
         .order_by(RefundRequest.created_at.desc())
     )
     refund_req = refund_result.scalar_one_or_none()
@@ -1187,3 +1274,43 @@ async def withdraw_refund(
 
     await db.flush()
     return {"message": "退款申请已撤回"}
+
+
+@router.post("/{order_id}/refund/withdraw")
+async def withdraw_refund(
+    order_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(UnifiedOrder).where(
+            UnifiedOrder.id == order_id, UnifiedOrder.user_id == current_user.id
+        )
+    )
+    order = result.scalar_one_or_none()
+    if not order:
+        raise HTTPException(status_code=404, detail="订单不存在")
+    return await _do_withdraw_refund(order, db)
+
+
+@router.post("/{order_id}/refund/cancel")
+async def cancel_refund(
+    order_id: int,
+    data: Optional[UnifiedOrderRefundCancelRequest] = None,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """PRD F-13 别名端点：用户撤销售后申请。
+
+    与 /refund/withdraw 等价，仅在售后处于「待审核」时允许；
+    便于前端语义化使用：用户视角是"撤销申请"而非"撤回"。
+    """
+    result = await db.execute(
+        select(UnifiedOrder).where(
+            UnifiedOrder.id == order_id, UnifiedOrder.user_id == current_user.id
+        )
+    )
+    order = result.scalar_one_or_none()
+    if not order:
+        raise HTTPException(status_code=404, detail="订单不存在")
+    return await _do_withdraw_refund(order, db)

@@ -867,6 +867,7 @@ async def admin_delete_form_field(
 async def admin_list_unified_orders(
     status: Optional[str] = None,
     refund_status: Optional[str] = None,
+    aftersales_status: Optional[str] = None,  # PRD「我的订单与售后状态体系优化」F-09：4 个统一逻辑筛选
     redemption_code_status: Optional[str] = None,  # PRD V2 新增：核销码 5 态独立筛选
     keyword: Optional[str] = None,
     start_date: Optional[str] = None,
@@ -916,6 +917,31 @@ async def admin_list_unified_orders(
         else:
             query = query.where(UnifiedOrder.refund_status == refund_status)
             count_query = count_query.where(UnifiedOrder.refund_status == refund_status)
+    # PRD「我的订单与售后状态体系优化」F-09：admin 4 个统一逻辑筛选 — 与客户端、H5 完全一致
+    if aftersales_status:
+        if aftersales_status == "pending":
+            cond = UnifiedOrder.refund_status.in_(["applied", "reviewing"])
+            query = query.where(cond)
+            count_query = count_query.where(cond)
+        elif aftersales_status == "processing":
+            cond = (
+                UnifiedOrder.refund_status.in_(["approved", "returning"])
+            ) | (
+                (UnifiedOrder.status == "refunding")
+                & (~UnifiedOrder.refund_status.in_(["applied", "reviewing"]))
+            )
+            query = query.where(cond)
+            count_query = count_query.where(cond)
+        elif aftersales_status in ("completed", "refund_completed"):
+            cond = (UnifiedOrder.status == "refunded") | (
+                UnifiedOrder.refund_status == "refund_success"
+            )
+            query = query.where(cond)
+            count_query = count_query.where(cond)
+        elif aftersales_status == "rejected":
+            cond = UnifiedOrder.refund_status == "rejected"
+            query = query.where(cond)
+            count_query = count_query.where(cond)
     if keyword:
         kw = f"%{keyword}%"
         user_subq = select(User.id).where(
@@ -1164,6 +1190,19 @@ async def admin_orders_v2_enums(
             {"value": "returning", "label": "退回中"},
             {"value": "refund_success", "label": "退款成功"},
         ],
+        # PRD「我的订单与售后状态体系优化」F-09/F-10：4 个统一逻辑状态
+        # 客户端、H5、后台三端筛选完全一致；refund_completed 别名兼容旧 refund_success
+        "aftersales_logical_status": [
+            {"value": "pending", "label": "待审核"},
+            {"value": "processing", "label": "处理中"},
+            {"value": "completed", "label": "已完成"},
+            {"value": "rejected", "label": "已驳回"},
+        ],
+        # 兼容字段：旧字段 refund_success 现在等价于 refund_completed
+        # （前端如使用 refund_completed 也应能匹配到对应数据）
+        "refund_status_aliases": {
+            "refund_completed": "refund_success",
+        },
     }
 
 

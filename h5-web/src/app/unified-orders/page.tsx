@@ -32,26 +32,37 @@ interface Order {
   badges?: string[];
   items: OrderItem[];
   created_at: string;
+  completed_at?: string | null;
+  // PRD F-12：15 天评价时效
+  review_deadline_at?: string | null;
+  review_expired?: boolean;
+  // PRD F-13：用户撤销售后能力
+  can_withdraw_refund?: boolean;
+  // PRD F-05/F-07：售后逻辑状态
+  aftersales_logical_status?: string;
+  aftersales_logical_label?: string;
 }
 
-// PRD V2「核销订单状态体系优化」：客户端 5 Tab + 全部
-// 顺序：全部 / 待付款 / 待收货 / 待使用 / 已完成 / 退货售后
+// PRD「我的订单与售后状态体系优化」：客户端 5 Tab + 全部
+// 顺序：全部 / 待付款 / 待收货 / 待使用 / 已完成 / 退货/售后
+// F-03：末位 Tab 文案补斜杠 "退货售后" → "退货/售后"
 const TABS: { key: string; label: string }[] = [
   { key: 'all', label: '全部' },
   { key: 'pending_payment', label: '待付款' },
   { key: 'pending_receipt', label: '待收货' },
   { key: 'pending_use', label: '待使用' },
   { key: 'completed', label: '已完成' },
-  { key: 'refund_aftersales', label: '退货售后' },
+  { key: 'refund_aftersales', label: '退货/售后' },
 ];
 
-// PRD V2：退货售后子筛选 — 文案改为审核中/退款中/已退款/已拒绝
+// PRD F-05：退货/售后二级筛选 — 4 个统一逻辑状态
+// 待审核 / 处理中 / 已完成 / 已驳回（与 H5 退款独立列表 / 后台筛选完全一致）
 const REFUND_SUB_TABS: { key: string; label: string }[] = [
   { key: 'all', label: '全部' },
-  { key: 'reviewing', label: '审核中' },
-  { key: 'refunding', label: '退款中' },
-  { key: 'refunded', label: '已退款' },
-  { key: 'rejected', label: '已拒绝' },
+  { key: 'pending', label: '待审核' },
+  { key: 'processing', label: '处理中' },
+  { key: 'completed', label: '已完成' },
+  { key: 'rejected', label: '已驳回' },
 ];
 
 // PRD V2：12 状态显示文案 + 颜色（卡片右上角）
@@ -269,6 +280,57 @@ function UnifiedOrdersPage() {
           onClick={(e) => { e.stopPropagation(); router.push(`/review/${order.id}`); }}
           style={{ borderRadius: 16, fontSize: 12, color: '#52c41a', borderColor: '#52c41a' }}
         >去评价</Button>
+      );
+    }
+    // PRD F-12：超过 15 天评价时效，按钮置灰显示「评价已过期」
+    if (btns.includes('review_expired')) {
+      items.push(
+        <Button
+          key="review_expired"
+          size="mini"
+          disabled
+          onClick={(e) => { e.stopPropagation(); }}
+          style={{ borderRadius: 16, fontSize: 12, color: '#bfbfbf', borderColor: '#d9d9d9', background: '#f5f5f5' }}
+        >评价已过期</Button>
+      );
+    }
+    if (btns.includes('view_review')) {
+      items.push(
+        <Button
+          key="view_review"
+          size="mini"
+          onClick={(e) => { e.stopPropagation(); router.push(`/review/${order.id}?mode=view`); }}
+          style={{ borderRadius: 16, fontSize: 12 }}
+        >查看评价</Button>
+      );
+    }
+    // PRD F-13：售后处于「待审核」时用户可在订单卡上直接撤销
+    if (btns.includes('view_refund') && order.can_withdraw_refund) {
+      items.push(
+        <Button
+          key="withdraw_refund"
+          size="mini"
+          onClick={(e) => {
+            e.stopPropagation();
+            Dialog.confirm({
+              content: '确认撤销本次售后申请？撤销后订单将恢复原状态',
+              confirmText: '确认撤销',
+              cancelText: '再想想',
+              onConfirm: async () => {
+                try {
+                  await api.post(`/api/orders/unified/${order.id}/refund/cancel`, {});
+                  Toast.show({ content: '已撤销' });
+                  setLoading(true);
+                  setPage(1);
+                  fetchOrders(1, true);
+                } catch (err: any) {
+                  Toast.show({ content: err?.response?.data?.detail || '撤销失败' });
+                }
+              },
+            });
+          }}
+          style={{ borderRadius: 16, fontSize: 12, color: '#fa8c16', borderColor: '#fa8c16' }}
+        >撤销申请</Button>
       );
     }
     if (btns.includes('view_refund')) {
