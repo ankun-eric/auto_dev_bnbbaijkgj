@@ -33,6 +33,66 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
+## Latest Update: 卡管理 PRD v1.1 优化 —— 卡面设置 + H5 视觉对齐 + 字段补齐（已部署 + 0 Bug）（2026-05-03 13:50）
+
+### 一句话结论
+按"卡管理 v1.1 优化需求 PRD 修复方案"实施完成：admin 卡管理表单字段全面补齐（F01~F14、有效期默认 365、库存/同款限购旁注明留空规则、F04 商家档案搜索器）+ 新增「卡面设置」配置组（4 风格 ST1~ST4 / 8 色板 BG1~BG8 / 4 显示位 SH1~SH4 / 实时预览所见即所得）+ H5 端三个页面（/cards、/cards/[id]、/cards/wallet）直接复用 admin 卡面渲染保证视觉 100% 一致；后端 4 字段（face_style / face_bg_code / face_show_flags / face_layout）增量加列 + schema_sync 幂等 ALTER + Pydantic 校验 ST1~ST4/BG1~BG8 + cards_admin 新增 lookup/merchants 商家档案搜索接口；服务器 e00c223 已部署，4 个核心 URL 全部 200，pytest 26/26 全通过（含 9 个新增 v1.1 卡面字段测试）。
+
+### 新增的文件
+- `admin-web/src/components/card/CardFacePreview.tsx` — 卡面渲染器（admin 端，4 风格 + 8 色板 + 4 显示位 + ON_CARD 布局 + sm/md/lg 三种尺寸）；导出 `FACE_STYLES / BG_OPTIONS / SHOW_FLAGS / DEFAULT_FACE_SHOW_FLAGS / isShowFlagOn / toggleShowFlag` 工具
+- `h5-web/src/components/card/CardFace.tsx` — 卡面渲染器（H5 端，与 admin 端行为一致，含 remainingTimes/daysToExpire 适配卡包页）
+- `backend/tests/test_cards_v11_face.py` — 9 个 pytest（默认值 / 显式传入 / face_style 非法 422 / face_bg_code 非法 422 / 部分更新 / 列表-详情-卡包 4 接口卡面字段 / lookup 商家档案搜索权限）
+- `deploy/_deploy_card_v11_face_20260503.py` / `_redeploy_card_v11_face_v2.py` / `_test_card_v11_face.py` — 部署 + 修复 git corrupted + 容器内跑测试三件套
+- `user_docs/卡管理v1.1.md` — 用户体验手册（含访问链接、字段表、卡面设置说明、H5 视觉对齐说明、PRD 第 7 节完整对照清单）
+
+### 修改的文件
+- `backend/app/models/models.py` — `CardDefinition` 新增 `face_style(VARCHAR8 DEFAULT ST1)` / `face_bg_code(VARCHAR8 DEFAULT BG1)` / `face_show_flags(INT DEFAULT 7)` / `face_layout(VARCHAR8 DEFAULT ON_CARD)`；`valid_days` default 30 → 365
+- `backend/app/schemas/cards.py` — `CardDefinitionBase` 增加 4 字段及 `_VALID_FACE_STYLES / _VALID_BG_CODES` validator；`CardDefinitionUpdate` 同步 4 个 Optional 字段及独立 validator；`CardDefinitionResponse` / `CardPublicResponse` / `UserCardResponse` 全部追加 4 字段（UserCard 还补齐 price / original_price / description）；`valid_days` 默认 365
+- `backend/app/api/cards_admin.py` — 新增 `GET /_lookup/merchants` 商家档案搜索接口（admin only，返回 `id/label/merchant_nickname/user_nickname/user_phone/user_id`）；`_build_card_response` / `create_card` / `update_card` 全部读写 4 个 face 字段；`update_card` 的字段白名单加入 face_*
+- `backend/app/api/cards.py` — `_build_public_response` / `_build_user_card_response` 都返回 4 个 face 字段（兼容老数据 None 时退化为默认值）
+- `backend/app/services/schema_sync.py` — 新增 `_sync_card_face_fields(conn)`（幂等 ALTER 4 字段）+ 在 `sync_register_schema` 中调用
+- `admin-web/src/app/(admin)/product-system/cards/page.tsx` — 整体重写：1080px 双栏 Modal（左表单右实时预览）、F01 卡名 30 字符 + 计数、F02/F05/F06 联动、F03/F04 商家档案搜索器（调用 `_lookup/merchants`）、F09 默认 365、F10/F11 旁 extra 提示「留空 = 无限/不限」、F13 「全门店通用」Switch + 灰显多选、F14 必填校验 + 限定下拉、卡面设置组（4 风格 Radio / 8 色板 Radio.Button + 色块 / 4 显示位 ShowFlagsCheckbox bitmask）、列表新增"卡面"列（缩小预览）；删除"指定门店列表（第 2 期支持）" disabled 占位
+- `h5-web/src/app/cards/page.tsx` / `[id]/page.tsx` / `wallet/page.tsx` — 三个页面顶部均使用 `<CardFace>` 渲染（列表 md，详情 lg，卡包 sm），删除 GreenNavBar 之下的旧紫色渐变占位；详情页保留卡介绍/可用项目/使用规则/底部购卡按钮 + 已持卡黄色提示
+- `.cursor/rules/project-context.mdc` — 本条变更记录
+
+### 新增/修改的 API 端点
+- `GET /api/admin/cards/_lookup/merchants` — 商家档案搜索（PRD F04），admin only
+- `POST /api/admin/cards` / `PUT /api/admin/cards/{id}` 入参/出参增加 face_style / face_bg_code / face_show_flags / face_layout
+- `GET /api/admin/cards`、`GET /api/admin/cards/{id}` 出参增加上述 4 字段
+- `GET /api/cards`、`GET /api/cards/{id}`、`GET /api/cards/me/wallet`、`GET /api/cards/me/{user_card_id}` 出参增加上述 4 字段（UserCardResponse 还补齐 price/original_price/description）
+
+### 数据库变更
+- `card_definitions` 新增 4 列（face_style / face_bg_code / face_show_flags / face_layout），默认值就是 PRD 规定，老数据自动按默认回填，迁移幂等
+- 不新增独立表
+
+### 部署 / 验证状态
+- 服务器 commit：`e00c223 feat(cards-v1.1)` 已部署；backend / admin-web / h5-web 三个容器 Recreated；db 容器 healthy
+- URL 自检 4/4 全通过：`/api/cards` 200、`/admin` 200、`/cards` 200、`/cards/wallet` 200
+- 容器内代码校验：`grep -c face_style /app/app/schemas/cards.py` 输出 11（确认部署的代码包含本次改动）
+- 后端测试：`pytest test_cards_v1.py test_cards_v11_face.py` **26/26 全通过**（含 17 个回归 + 9 个新增 v1.1 卡面）
+
+### 关键设计 & 教训
+- **卡面颜色无业务逻辑**：8 色板的 HEX 集中在 `CardFacePreview.tsx` / `CardFace.tsx` 两个文件的 `BG_HEX` 常量与 `BG_OPTIONS` 数组，色卡到位后只改这两处即可，数据库/Pydantic/admin 表单均无需调整
+- **face_show_flags 用 bitmask**：bit0=卡名 bit1=服务内容 bit2=价格 bit3=有效期；默认 7=0b0111；通过 `isShowFlagOn / toggleShowFlag` 工具函数读写
+- **F04 商家档案 ID ≠ User ID**：`/api/admin/merchant/accounts` 返回的是 user.id，不能直接作为 `owner_merchant_id`（指向 `merchant_profiles.id`）；为此新增 `_lookup/merchants` 专用接口，避免误用
+- **远程 git fetch corrupted 修复策略**：服务器上 `git fetch --all` 偶发"Could not read OBJECT_ID"，但 `git fetch origin master` 直接成功；脚本兜底通过 `git remote set-url` + 二次 `git fetch origin master` 解决
+- **schemas/cards.py 重复 validator 命名冲突**：CardDefinitionBase 与 CardDefinitionUpdate 都有 face_style/face_bg_code 校验，函数名必须不同（`_check_face_style` vs `_check_face_style_upd`），否则 Pydantic 会用 mro 冲突报错
+- **valid_days 默认 365**：模型默认从 30 改为 365、Pydantic Base 从 `Field(...)` 改为 `Field(default=365)`，两侧统一；测试用例覆盖"不传 valid_days → 返回 365"
+
+### 访问入口
+- Admin 卡管理：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/product-system/cards`
+- H5 卡专区：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/cards`
+- H5 我的卡包：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/cards/wallet`
+
+### 不在本期范围（PRD v1.1 第 1.2 节明确不做）
+- 「店铺装修」入口及"敬请期待"文案 → 项目原本就无此入口，无变更
+- 卡面背景「自定义颜色」→ 不暴露取色器
+- 卡面信息布局「二选一开关」→ 统一固定 ON_CARD
+- 店长侧卡管理入口 → 卡管理仅 admin 后台可见
+- 第 2~5 期业务（购卡下单 / 双确认核销 / 拆 2 单 / 续卡 / 销售看板）→ 不做
+
+---
+
 ## Latest Update: 优惠券「适用范围 & 类型说明」UX 优化 PRD v1（已部署 + 0 Bug）（2026-05-02 21:30）
 
 ### 一句话结论

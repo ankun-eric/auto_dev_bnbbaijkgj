@@ -1,0 +1,146 @@
+﻿
+>>> cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && git remote set-url origin 'https://ankun-eric:<TOKEN_REDACTED>@github.com/ankun-eric/auto_dev_bnbbaijkgj.git'
+<<< exit=0
+
+>>> cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && rm -rf .git/objects/pack/*.tmp 2>/dev/null; git gc --prune=now 2>&1 | tail -5
+error: Could not read e92cee9fe283e3fe35992bb3d4f0b431bab8e43b
+error: Could not read e92cee9fe283e3fe35992bb3d4f0b431bab8e43b
+error: Could not read e92cee9fe283e3fe35992bb3d4f0b431bab8e43b
+fatal: Failed to traverse parents of commit 28e77ca7913e159075074ee49496ab46c3a39c5a
+fatal: failed to run repack
+<<< exit=0
+
+>>> cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && git fetch origin master 2>&1 | tail -10
+From https://github.com/ankun-eric/auto_dev_bnbbaijkgj
+ * branch            master     -> FETCH_HEAD
+   aa6942b..e00c223  master     -> origin/master
+<<< exit=0
+
+>>> cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && git reset --hard origin/master 2>&1 | tail -5
+HEAD is now at e00c223 feat(cards-v1.1): 鍗＄鐞?PRD v1.1 浼樺寲锛堝崱闈㈣缃?+ H5 瑙嗚瀵归綈 + 瀛楁琛ラ綈锛?
+<<< exit=0
+
+>>> cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && git log -1 --format='%H %s'
+e00c2234bf1834f08a99c86ac8ee501d88cb9d97 feat(cards-v1.1): 鍗＄鐞?PRD v1.1 浼樺寲锛堝崱闈㈣缃?+ H5 瑙嗚瀵归綈 + 瀛楁琛ラ綈锛?
+<<< exit=0
+杩滅▼ HEAD: e00c2234bf1834f08a99c86ac8ee501d88cb9d97 feat(cards-v1.1): 鍗＄鐞?PRD v1.1 浼樺寲锛堝崱闈㈣缃?+ H5 瑙嗚瀵归綈 + 瀛楁琛ラ綈锛?
+
+>>> cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose build --no-cache backend 2>&1 | tail -20
+#10 DONE 0.3s
+
+#11 [6/6] RUN mkdir -p uploads
+#11 DONE 0.2s
+
+#12 exporting to image
+#12 exporting layers
+#12 exporting layers 9.3s done
+#12 exporting manifest sha256:fd59a385c0e5e90963a56ddf587ef6b979c66c016c72591f5c63444265d16c0b 0.0s done
+#12 exporting config sha256:6a973b4162916ba421ca4d1f8b117aeae08d161847d805215ce6bae5cb274166 done
+#12 exporting attestation manifest sha256:2bcfc4c974967b51419af22fa7a9d1e90f426e2b24fbc429ec8bd78de7bc5d35 0.0s done
+#12 exporting manifest list sha256:4f58f77d694cee9f675c8e623ce0f4d7c1118d9c10528f4387490c3044294e0b 0.0s done
+#12 naming to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-backend:latest done
+#12 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-backend:latest
+#12 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-backend:latest 2.3s done
+#12 DONE 11.7s
+
+#13 resolving provenance for metadata file
+#13 DONE 0.0s
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Built
+<<< exit=0
+
+>>> cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose build --no-cache admin-web 2>&1 | tail -20
+#14 DONE 0.1s
+
+#15 [runner 5/5] COPY --from=builder /app/public ./public
+#15 DONE 0.0s
+
+#16 exporting to image
+#16 exporting layers
+#16 exporting layers 1.2s done
+#16 exporting manifest sha256:6b1e8fd467f2c4c7fc53f913637777829cb458476f19e8081d3041ba892f219f done
+#16 exporting config sha256:c74bde788b767db5e845390a9752095ffd4a799d7af3e159270a842894653c2b done
+#16 exporting attestation manifest sha256:cadcc1282db42fd1d2744cd3cef4f775c132e98fb9badb6025801ebf7184bd78 0.0s done
+#16 exporting manifest list sha256:6db76e222e139d2ced0030c350895bf19196c305664b74b08ea0c65f3925aa41 done
+#16 naming to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:latest done
+#16 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:latest
+#16 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:latest 0.5s done
+#16 DONE 1.8s
+
+#17 resolving provenance for metadata file
+#17 DONE 0.0s
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web Built
+<<< exit=0
+
+>>> cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose build --no-cache h5-web 2>&1 | tail -20
+#14 DONE 0.1s
+
+#15 [runner 5/5] COPY --from=builder /app/public ./public
+#15 DONE 0.0s
+
+#16 exporting to image
+#16 exporting layers
+#16 exporting layers 1.1s done
+#16 exporting manifest sha256:f0b8187b6b148ab8c0da9d44c6c3df468fd5cf270867cb49488a8f43f46acb27 0.0s done
+#16 exporting config sha256:b4653e3ec7a27d3c8b79d9357271d6ca4017c222751fa7da5728244e2e700167 0.0s done
+#16 exporting attestation manifest sha256:eb2207734b69528720cc5ba1d64d76de4fd2b54941ce36c22dc1799188feba64 0.0s done
+#16 exporting manifest list sha256:cdffc456203b66ea7515de061b1a85954d500efa451120294be1cb31ad4720b9 0.0s done
+#16 naming to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:latest done
+#16 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:latest
+#16 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:latest 0.5s done
+#16 DONE 1.7s
+
+#17 resolving provenance for metadata file
+#17 DONE 0.0s
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web Built
+<<< exit=0
+
+>>> cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose up -d --force-recreate backend admin-web h5-web 2>&1 | tail -15
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Recreate 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Recreated 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Recreate 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Recreate 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Recreated 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Recreated 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Waiting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Healthy 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Started 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Started 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Started
+<<< exit=0
+
+>>> docker ps --filter name=6b099ed3-7175-4a78-91f4-44570c84ed27 --format 'table {{.Names}}	{{.Status}}'
+NAMES                                          STATUS
+6b099ed3-7175-4a78-91f4-44570c84ed27-admin     Up 20 seconds
+6b099ed3-7175-4a78-91f4-44570c84ed27-h5        Up 20 seconds
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend   Up 20 seconds
+6b099ed3-7175-4a78-91f4-44570c84ed27-db        Up 7 minutes (healthy)
+<<< exit=0
+
+>>> curl -ksL -o /dev/null -w 'GET /api/cards -> %{http_code}\n' https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/cards
+GET /api/cards -> 200
+<<< exit=0
+
+>>> curl -ksL -o /dev/null -w 'GET /admin -> %{http_code}\n' https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin
+GET /admin -> 200
+<<< exit=0
+
+>>> curl -ksL -o /dev/null -w 'GET /cards -> %{http_code}\n' https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/cards
+GET /cards -> 200
+<<< exit=0
+
+>>> curl -ksL -o /dev/null -w 'GET /cards/wallet -> %{http_code}\n' https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/cards/wallet
+GET /cards/wallet -> 200
+<<< exit=0
+
+>>> curl -ks https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/cards | head -c 600
+{"total":0,"items":[]}
+<<< exit=0
+
+>>> docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend grep -c face_style /app/app/schemas/cards.py 2>&1 || true
+11
+<<< exit=0
+
