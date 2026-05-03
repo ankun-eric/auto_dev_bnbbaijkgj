@@ -88,3 +88,17 @@ src_update.tar.gz
 deploy/project.tar.gz
 _deploy_tmp/
 *.tmp
+
+# Local APK download workspace (do not commit APK binaries)
+apk_download/
+
+# Local build / deploy / scp transient logs at repo root
+apk_build_log*.txt
+apk_build_remote.txt
+apk_check*.txt
+apk_err*.txt
+apk_status.txt
+scp_log.txt
+test_log.txt
+deploy_order_enh.log
+.dev_start_commit.txt

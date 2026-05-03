@@ -33,7 +33,38 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 订单系统增强 — 订单附件 / 时段切片预约 / 站内消息通知 / 列表附件缩略图列（已部署 + 后端 25/25 测试全过）（2026-05-04 03:00）
+## Latest Update: 订单统计 12+7 状态对齐 & 履约方式中文化 — 安卓 APK 通过 GitHub Actions 重新打包并上传（2026-05-04 01:55）
+
+### 一句话结论
+本次为对历史 commit `5c31611` (`fix: 订单统计页 12+7 状态对齐 & 全端履约方式中文化`) 的**末端补齐**：由于之前本地构建尝试因 Kotlin Gradle Plugin 版本兼容失败（参见 `apk_check5.txt`/`apk_err.txt`），导致 `static/apk/` 目录中本批次修复对应的 APK 缺失。本次通过 GitHub Actions Workflow `android-build.yml` 在 `master` 分支（HEAD `8ffe46b`）上远程构建 `runs-on: ubuntu-latest`，run id `25286180037`，conclusion success，耗时约 12 分钟。从 GitHub Release `android-orderstat-fulfillment-v20260504-014202-3a07` 下载 APK（80 MB）后通过 SFTP 上传到服务器 `/home/ubuntu/6b099ed3.../static/apk/app_orderstat_fulfillment_20260504_014200_3a07.apk`，并通过 nginx 网关 `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/apk/app_orderstat_fulfillment_20260504_014200_3a07.apk` 验证 HTTP 200 + content-type=application/vnd.android.package-archive；用户手册另出 `user_docs/订单统计状态对齐_履约方式中文化_使用手册.md`，包含手册开头/末尾两次访问链接表格 + 安卓体验章节 + 履约方式中文映射表 + 12 状态卡片业务流程顺序 + 7 退款状态卡片清单 + 后端 API 验证示例 + 18/18 自动化测试结论。
+
+### 涉及文件
+- 用户手册：`user_docs/订单统计状态对齐_履约方式中文化_使用手册.md`（新增）
+- APK 构建工具：`.github/workflows/android-build.yml`（已存在，本次未修改）
+- 部署辅助：`deploy/_check_apk_state.py` / `_check_nginx.py` / `_check_route.py` / `_check_apk_route.py` / `_upload_apk_orderstat_v2.py`（本次新增）
+- APK 产物：`/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/static/apk/app_orderstat_fulfillment_20260504_014200_3a07.apk`（远程，80 MB）
+
+### 关键技术点 / 注意事项
+- **本地构建失败原因**：Flutter SDK 升级后某些插件需要 Kotlin 2.x，但项目根 `flutter_app/android/build.gradle` 与 `settings.gradle` 仍是 1.9.24；本地试图升到 2.1.0 导致 KMP class 不兼容 → Build FAILED in 4m 53s。GitHub Actions Workflow 内部通过 `subosito/flutter-action@v2 + flutter-version: 3.32.0` + 插件 build.gradle 自动 patch 步骤规避了这一问题，因此**远程构建是可靠路径**，未来 Flutter APK 重打包优先走 Actions
+- **APK URL 路由**：服务器上有两条规则同时生效——`location /autodev/<DID>/apk/ { alias /data/static/apk/; }`（gateway-routes 容器配置）+ `location ~ ^/autodev/<DID>/([^/]+\.apk)$` 直链。新 APK 文件名 `app_orderstat_fulfillment_*.apk` 命中第一条
+- **构建 → 上传 → 验证三步可重入**：见 `deploy/_upload_apk_orderstat_v2.py`，含 `sha256sum` 前缀打印（`107803b777e90b5d`）便于排查重复上传
+- **APK 内中文字符串隐藏在 ICU/AOT 二进制段**：`strings xxx.apk | grep '上门服务'` 可能返回空，这是正常现象；中文字符串实际编码在 `flutter_assets/AssetManifest.json` 引用的 `.dart_tool/_kernel_blob.bin` 之类的二进制段中
+
+### 部署产物
+- APK 公开地址：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/apk/app_orderstat_fulfillment_20260504_014200_3a07.apk` （HTTP 200, 80 MB）
+- GitHub Release：`https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/android-orderstat-fulfillment-v20260504-014202-3a07`
+- 用户手册：`user_docs/订单统计状态对齐_履约方式中文化_使用手册.md`
+- 后端 / admin-web / h5-web / 小程序 **本次无代码改动**，沿用 commit `5c31611` 部署产物，无需重新部署
+
+### 验证结果
+- GitHub Actions run id `25286180037`：conclusion=success
+- 服务器 `static/apk/` 目录：新增 `app_orderstat_fulfillment_20260504_014200_3a07.apk` 80,019,XXX bytes
+- nginx 端检测：`curl -I` 返回 `200 OK` + `Content-Type: application/vnd.android.package-archive`
+- 远程容器内回归（旧 commit 下已通过的 18 用例）：因本次未触碰后端代码，沿用此前 18/18 PASS 结论
+
+---
+
+## Previous Update: 订单系统增强 — 订单附件 / 时段切片预约 / 站内消息通知 / 列表附件缩略图列（已部署 + 后端 25/25 测试全过）（2026-05-04 03:00）
 
 ### 一句话结论
 按 PRD v1.0 一次性闭环增强订单系统四大模块：① **订单附件**：`OrderAttachment` 表补 `mime_type/thumbnail_url/deleted_at` 列；商家上传单文件大小限制由 20MB 收紧到 5MB（PRD R2）；上传成功后**自动给客户发站内信**（事件 `attachment_added`）；新增 `POST /api/orders/attachment-meta` 用于订单列表批量返回缩略图与附件数量；② **时段切片预约**：新建 `merchant_business_hours` 表（按周 0-6 + `weekday=-1` 日期例外，每天可多段时间窗，`is_closed` 表示该日休息）；`Product` 表新增 `max_concurrent_override`（服务级并发上限，NULL 沿用门店 `slot_capacity`）+ `service_duration_minutes`（用于自动切片）；新增 `GET /api/services/{product_id}/available-slots?date=` 双层并发判定（已占商家时段数 < slot_capacity AND 已占该服务时段数 < override → 时段可选）；管理后台新建 `/merchant/business-config` 页面统一维护营业时间与并发上限；③ **站内信通知**：`Notification` 表新增 `order_id`/`event_type`/`read_at` 列 + `created_at` 索引；服务层 `app/services/order_notification.py` 提供 `notify_order_status_changed/attachment_added/order_upcoming/order_created/order_paid/order_cancelled` 六类触发器；后端调度器新增 `check_order_upcoming_one_hour` 每 5 分钟扫描 55-65 分钟内开始的预约，自动发送"临近服务"提醒（PRD F7/R12）；新增 `GET /api/notifications/unread-count`（按订单维度返回红点）+ `POST /api/notifications/mark-read-by-order`（一键清除该订单未读）；H5 通知中心 `/notifications` 重写对接真实 API + 事件类型 Tag + 跳转回执；④ **客户取消订单规则放宽**（PRD F10/R7）：`cancel_unified_order` 由仅 `pending_payment` 扩展到 `pending_payment/pending_appointment/appointed/pending_use` 状态，**只要服务时段还没到**客户都可以全额取消；已支付订单立即置为 `refunded`；同时触发 `notify_order_cancelled`；⑤ **数据库迁移**：`main.py lifespan` 内新增 `_migrate_order_enhancement_v1` 启动时自动 ALTER TABLE 加列（兼容 MySQL/SQLite，列已存在则跳过）；⑥ **测试**：新增 `backend/tests/test_order_enhancement.py` **25 个** pytest-asyncio 用例（周营业时间 / 例外日期 / 门店并发上限 / 服务并发上限 / 时段生成基础-关闭日-已占用-过期-双层并发 / 红点 0/多/按订单清 / 附件元信息空/有数据/越权 / 订单取消待支付与已预约前后 + 取消触发通知 + 附件常量 5MB/5 张），远程容器内 25/25 PASS；⑦ **部署**：`deploy/_deploy_order_enhancement_20260504.py` 拉 master `53fcb9b` → 重建 backend/admin-web/h5-web → 容器内 pytest 通过 → 外部 5 个 URL 检查（h5/admin/health 200，鉴权接口 401）；⑧ **用户手册** `user_docs/订单系统增强_附件_时段_站内信_使用手册.md`。
