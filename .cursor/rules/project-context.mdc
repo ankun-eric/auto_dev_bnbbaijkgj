@@ -33,6 +33,45 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
+## Latest Update: 订单状态机简化 — 合并 appointed + pending_use 为单一「待核销」状态（已部署 + 0 Bug, 58/58 passed）（2026-05-03 21:30）
+
+### 一句话结论
+按 PRD「订单状态机简化方案 · 终稿」全面落地：1) 后端 `unified_orders.py` 的 `set_order_appointment` 改为 `pending_appointment → pending_use` 直跳（不再经过 `appointed`），并允许 `pending_use` 阶段修改预约（部分核销/退款流程中除外）；`_action_buttons_for` 在 `pending_use/appointed/partial_used` 全程返回 `show_qrcode + modify_appointment + apply/withdraw_refund`；`_display_status_for` 输出"待核销（预约 X月X日）"；2) `order_status_auto_progress.py` 下线 R1（appointed → pending_use 00:00 翻转）改为残余 `appointed` 兜底迁移；新增 T-1 18:00 到店提醒节点（appt_day_before_18，与既有 day_before_21/before_30min/after_30min/after_2h 共 5 个节点统一面向 `pending_use`）；`lazy_progress_order` 在访问详情时把残余 `appointed` 即时迁到 `pending_use`；3) `notification_scheduler.py` 移除 R1 定时任务注册；4) `schema_sync.py` 新增 `_migrate_appointed_to_pending_use` 启动迁移（幂等），全量历史 `appointed` 订单升级为 `pending_use`；5) `product_admin.admin_list_unified_orders` 支持 `sort_by=appointment_time` + `sort_order=asc/desc`，商家端「待核销」Tab 按到店时间升序排序；6) admin-web/h5-web/miniprogram/flutter_app 四端 UI：状态文案统一「待核销（预约 X月X日）」、核销码立即可见、改约/退款按钮在 `pending_use` 全程可见、订单列表合并「已预约」+「待核销」为单一「待核销」Tab；7) 新增 `backend/tests/test_orders_status_simplification.py` 14 个 pytest 用例覆盖直跳/改约/部分核销禁改/懒兜底/T-1 18:00 提醒发送+幂等+实时检查跳过取消订单/scheduler 注册无 R1/数据迁移幂等 等场景；本地 + 服务器（容器内）均 58/58 全通过（含 V2/V3/auto_progress/book_after_pay 全量回归）；服务器三 URL `/`、`/admin/`、`/api/docs` 均 HTTP 200；本次产物：小程序 zip `miniprogram_20260503_212049_9128.zip` (358KB)、Flutter 安卓 APK `app_20260503_213145_bfb0.apk` (80MB)；用户手册 `user_docs/manual_20260503_213715_708d.md`。
+
+### 涉及文件
+- 后端核心：`backend/app/api/unified_orders.py`（`set_order_appointment` / `pay_unified_order` / `_action_buttons_for` / `_display_status_for` 改造）+ `backend/app/api/product_admin.py`（admin_list_unified_orders 加 sort_by/sort_order）
+- 后端定时任务：`backend/app/tasks/order_status_auto_progress.py`（R1 改为兜底迁移、新增 T-1 18:00 节点、`lazy_progress_order` 兜底，新增 `migrate_appointed_to_pending_use`）+ `backend/app/services/notification_scheduler.py`（移除 R1 定时器）
+- 后端启动迁移：`backend/app/services/schema_sync.py`（新增 `_migrate_appointed_to_pending_use` 并在 `sync_register_schema` 中调用）
+- 后端测试：`backend/tests/test_orders_status_simplification.py`（新增 14 用例）+ `backend/tests/test_orders_auto_progress.py`（删 R1 用例 + 改造 lazy_progress 期望）+ `backend/tests/test_orders_status_v2.py`（断言改为 pending_use）+ `backend/tests/test_book_after_pay_bugfix.py`（断言改为 pending_use）
+- Admin-web：`admin-web/src/app/(admin)/product-system/orders/page.tsx`（合并 Tab + 状态映射 + sort_by appointment_time + Drawer 状态文案 + renderStatusTag 显示"待核销（预约 X月X日）"）
+- H5：`h5-web/src/app/unified-order/[id]/page.tsx` + `h5-web/src/app/unified-orders/page.tsx`（状态文案、二维码即时显示、按钮全程可见）
+- 小程序：`miniprogram/pages/unified-order-detail/index.{js,wxml}` + `miniprogram/pages/unified-orders/index.{js,wxml}`（同上）
+- Flutter：`flutter_app/lib/models/unified_order.dart` + `flutter_app/lib/screens/order/unified_order_detail_screen.dart` + `flutter_app/lib/screens/order/unified_orders_screen.dart`（statusLabel/displayStatus/_buildBottomActions/_tabs/_buildActions 改造）
+- 部署辅助：`deploy/_deploy_status_simplification.py`（增量同步 + docker cp + 重启 + admin-web/h5-web 重 build）
+- 用户手册：`user_docs/manual_20260503_213715_708d.md`
+- GitHub Actions：`.github/workflows/android-build.yml`（如已存在则复用，本次 Flutter 安卓 APK 构建版本号 `android-v20260503-212105-c81b`）
+
+### 新增/修改的 API 端点
+- `POST /api/orders/unified/{id}/appointment`：行为变更——`pending_appointment` 直接进入 `pending_use`（不再有 `appointed`）；允许 `pending_use` 状态修改（部分核销 / 退款流程中除外）
+- `GET /api/orders/unified/{id}/qrcode`：放开为允许 `pending_use` 调用，去掉"必须到达预约日 00:00"校验
+- `POST /api/merchant/orders/scan`：放开"必须到达预约日"的检查，支持提前到店核销
+- `GET /api/admin/product-system/orders`：新增可选 query `sort_by`（如 `appointment_time`）+ `sort_order`（`asc`/`desc`），用于「待核销」Tab 按预约时间升序排序
+
+### 通知系统变更
+- 移除：「您的订单可以核销啦」（原 00:00 触发）
+- 新增：「明日到店提醒」 T-1 18:00（key=`appt_day_before_18`）面向 `pending_use` 订单，按订单 + 模板维度去重（NotificationLog）
+
+### 数据迁移
+- 启动迁移：`UPDATE unified_orders SET status='pending_use' WHERE status='appointed'`，幂等可重入；同时通过 `lazy_progress_order` 在每次访问时再做一道兜底，老订单完全兼容
+
+### 验证结果
+- 本地 pytest：`test_orders_status_simplification.py`（14）+ `test_orders_auto_progress.py` + `test_orders_status_v2.py` + `test_orders_aftersales_v3.py` + `test_book_after_pay_bugfix.py` 共 58 通过
+- 服务器容器内 pytest（同上 5 个测试文件）：58 通过
+- 部署链路三 URL 200：`/`、`/admin/`、`/api/docs`
+- 多端打包：小程序 zip 200、Flutter 安卓 APK 200，下载 URL 均验证可达
+
+---
+
 ## Latest Update: 「先下单后预约」商品下单页强制选时间 Bug 修复 — 全端打通待预约流程（已部署 + 0 Bug, 44/44 passed）（2026-05-03 20:35）
 
 ### 一句话结论
