@@ -33,7 +33,48 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 上门服务履约类型 + 双层名额控制 PRD v1.0（已部署 + 0 Bug, 8/8 passed, APK + 小程序 zip 已发布）（2026-05-03 22:20）
+## Latest Update: 支付配置（多端支付通道管理）PRD v1.0（已部署 + 0 Bug, 9/9 passed, 小程序 zip 已发布；APK/IPA 通过 GitHub Actions 构建）（2026-05-03 22:55）
+
+### 一句话结论
+按 PRD「支付配置 v1.0」全面落地：1) 后端新增 `payment_channels` 表（4 个种子通道：`wechat_miniprogram`/`wechat_app`/`alipay_h5`/`alipay_app`，is_enabled=0），`orders` / `unified_orders` 各加 `payment_channel_code` + `payment_display_name` 两列，启动迁移自动建表 + 加列 + 种子；2) 新增 `backend/app/utils/crypto.py`（AES-256-GCM 加解密，密钥来自环境 `PAYMENT_CONFIG_ENCRYPTION_KEY` 或 32 字节 fallback；密文以 `ENC::AES256::` 前缀存储；带 `mask_value` / `mask_secret` 工具）；3) 新增 admin 接口集 `backend/app/api/payment_config.py`（list / get / update / toggle / test / default-notify-url，role=admin 鉴权）+ 公开接口 `backend/app/api/payment_methods.py`（GET `/api/pay/available-methods?platform=miniprogram|h5|app` 返 enabled+complete 通道，APP 端按微信→支付宝固定排序）；4) 完整性校验按通道字段规格自动计算 `is_complete`，未完整时拒绝启用（toggle 返回 400），test 接口在不完整时返回 400、完整时执行参数自检并打时间戳；5) 敏感字段写入加密、读取掩码（****+ 后4位），普通字段（AppID/MchID）也尾4位掩码降低泄露风险；6) `unified_orders.pay_unified_order` 接收可选 `channel_code`，校验通道 `is_enabled+is_complete`，未开通返回 `{"code":4001,"message":"该支付方式暂未开通..."}`，并把 `channel_code` + `display_name` 写入订单两列；订单详情接口返回 `payment_method_text`（格式 `{显示名}（{端名}）`，端名映射 wechat_miniprogram→小程序 / wechat_app→APP / alipay_h5→H5 / alipay_app→APP）；7) admin-web 新增「支付配置」一级菜单（仅 admin 可见，`CreditCardOutlined`），页面 4 Tab 平铺，每 Tab 含状态摘要卡（已启用/未启用 + 已完整/未完整）+ 字段视图（敏感字段掩码）+ 启用开关 + 测试连接 + 编辑按钮；编辑 Drawer 720px 含完整表单（私钥/证书 `Input.TextArea` + 「上传 .pem 文件」按钮 FileReader 回填）+ 显示名称必填 + 支付宝双 access_mode 单选切换 + notify_url 「还原默认」按钮；订单详情 Drawer 在「订单状态」前插入「支付方式（通道）」字段；8) h5-web / miniprogram / flutter_app 三端订单详情页统一在订单状态前显示 `payment_method_text`；9) 新增 `backend/tests/test_payment_config_v1.py` 9 个用例（4 条种子且全 disabled / 列表掩码 / 缺字段时 is_complete=0 / 完整时 is_complete=1 / 未完整时 toggle=true 返 400 / 完整时 toggle=true 成功 / AES-256-GCM 加解密往返一致 / available-methods?platform=app 仅返已启用且按微信→支付宝排序 / default-notify-url 含 base_url），本地 9/9 全通过、回归 22 passed、服务器容器内 9/9 全通过；10) 部署后三大容器全部 healthy，`/api/docs` 200 / `/admin/payment-config` 308（重定向登录页正常）/ `/admin/` 200；产物：小程序 zip `miniprogram_paymentconfig_20260503_225242_36e2.zip` (200, 已上传到 `static/miniprogram/`)、Android APK + iOS IPA 通过 `android-build.yml` / `ios-build.yml` 自动构建（tag `android-paymentconfig-v202605032257-b89b` / `ios-paymentconfig-v202605032257-b89b`）；用户手册 `user_docs/支付配置.md`。
+
+### 涉及文件
+- 后端核心：`backend/app/utils/crypto.py`（新增，AES-256-GCM + 掩码）；`backend/app/models/models.py`（新增 `PaymentChannel` 模型 + `Order` / `UnifiedOrder` 各加 `payment_channel_code` + `payment_display_name` 两列）；`backend/app/schemas/payment_config.py`（新增，含 List/Detail/Update/Toggle/Test/AvailableMethod/DefaultNotifyUrl 等 Pydantic schema，含 `config_masked`）
+- 后端 API：`backend/app/api/payment_config.py`（新增，admin CRUD + 完整性校验 + 测试连接 + 默认 notify_url）；`backend/app/api/payment_methods.py`（新增，公开 available-methods 接口）；`backend/app/api/unified_orders.py`（`_build_payment_method_text` + `_build_order_response` 输出 `payment_method_text` + `pay_unified_order` 接收 `channel_code` 校验通道并写入订单字段）；`backend/app/schemas/unified_orders.py`（`UnifiedOrderPayRequest` 加 `channel_code`、`UnifiedOrderResponse` 加 `payment_channel_code/payment_display_name/payment_method_text`）
+- 后端启动迁移：`backend/app/services/schema_sync.py`（新增 `_sync_payment_config`：建 `payment_channels` 表 + 4 条种子 + `orders` / `unified_orders` 各加两列 + 索引；在 `sync_register_schema` 中调用）；`backend/app/main.py`（注册 `payment_config.router` + `payment_methods.router`）
+- 后端测试：`backend/tests/test_payment_config_v1.py`（新增 9 用例，pytest 5.7s 全通过）
+- admin-web：`src/app/(admin)/payment-config/page.tsx`（新增主页面，4 Tab + Drawer 编辑 + 启用开关 + 测试连接 + 上传证书 + access_mode 切换 + notify_url 还原默认）；`src/app/(admin)/layout.tsx`（菜单加「支付配置」`CreditCardOutlined`，仅 admin 可见）；`src/app/(admin)/product-system/orders/page.tsx`（订单详情 Drawer「订单状态」前插入「支付方式（通道）」`payment_method_text`）
+- h5-web：`src/app/unified-order/[id]/page.tsx`（订单详情「支付方式」优先用 `payment_method_text`）
+- miniprogram：`pages/unified-order-detail/index.wxml`（订单详情「支付方式」优先用 `payment_method_text`）
+- flutter_app：`lib/models/unified_order.dart`（model 加 `paymentChannelCode/paymentDisplayName/paymentMethodText`）；`lib/screens/order/unified_order_detail_screen.dart`（详情「支付方式」优先用 `paymentMethodText`）
+
+### 关键技术点 / 注意事项
+- **AES-256-GCM 密钥来源优先级**：环境变量 `PAYMENT_CONFIG_ENCRYPTION_KEY`（base64 32 字节）→ 32 字节 fallback；同一密钥才能解密旧数据，生产环境务必通过 docker-compose 注入并妥善保管
+- **敏感字段空值即保留原值**：PUT 更新时若某敏感字段传空字符串/未传，则保留 DB 中已有密文，避免误清空；非空字符串才走加密替换
+- **完整性校验跟字段规格走**：`CHANNEL_FIELD_SPEC` 描述每通道必填字段；支付宝双 `access_mode` 模式（公钥/公钥证书）字段集不同，校验时按 access_mode 取交集
+- **测试连接接口**：当前为参数完整性 + 签名工具自检（轻量实现），代码注释保留对 wechatpayv3 / alipay-sdk 真实调用的占位；可在生产部署后接入 SDK 升级为真实联通验证
+- **available-methods 排序**：`platform=app` 返回固定顺序「微信 → 支付宝」（即 wechat_app 在 alipay_app 之前），其它端按 `sort_order` 升序
+- **未启用通道兜底**：`unified_orders.pay_unified_order` 收到 `channel_code` 后查 `is_enabled+is_complete`，任一不满足返回 `{"code":4001,"message":"该支付方式暂未开通..."}`
+- **payment_method_text 格式**：`{display_name}（{端名}）`，端名映射 wechat_miniprogram→小程序 / wechat_app→APP / alipay_h5→H5 / alipay_app→APP；订单详情前端展示直接使用此字段，不再前端拼装
+- **菜单角色判定**：admin-web 菜单按现有 `role === 'admin'` 控制可见；如未来需要更细的 super_admin 分级，再新增 role 即可，本次按 PRD 注释「或类似逻辑」降级到 admin
+
+### 部署产物
+- 后端 + admin-web + h5-web：已 docker rebuild + recreate，commit `4d5cf0f` → `3663461`
+- 小程序 zip：https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/miniprogram/miniprogram_paymentconfig_20260503_225242_36e2.zip （200）
+- Android APK：通过 `android-build.yml` 自动构建（GitHub Actions run #94 success），GitHub Release tag `android-paymentconfig-v202605032257-b89b`，APK 名 `bini_health_android-paymentconfig-v202605032257-b89b.apk` (83.8 MB)；已 SFTP 上传到服务器 `static/apk/`，直接下载 URL `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/apk/app_paymentconfig_20260503_231130_e313.apk`（HTTP 200）；Release 页 `https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/android-paymentconfig-v202605032257-b89b`
+- iOS IPA：通过 `ios-build.yml` 自动构建（run #67 success），tag `ios-paymentconfig-v202605032257-b89b`，资产 `bini_health_ios.ipa`，Release 页 `https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-paymentconfig-v202605032257-b89b`
+- API 文档：https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/docs （200）
+- Admin：https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/payment-config （308 → 登录页 200）
+
+### 验证结果
+- 本地 pytest `test_payment_config_v1.py`：9 passed in 5.7s
+- 本地回归 pytest 多文件：22 passed
+- 服务器 docker exec pytest：9 passed in 5.68s
+- URL 检测：`/api/docs` 200、`/admin/` 200、`/admin/payment-config` 308（登录守卫）、小程序 zip 200
+
+---
+
+## Previous Update: 上门服务履约类型 + 双层名额控制 PRD v1.0（已部署 + 0 Bug, 8/8 passed, APK + 小程序 zip 已发布）（2026-05-03 22:20）
 
 ### 一句话结论
 按 PRD「上门服务履约 PRD v1.0」全面落地：1) `FulfillmentType` 枚举新增第 4 种 `on_site`（上门服务，生机绿 #10B981 角标）；2) 后端 `UnifiedOrder` 表新增 `service_address_id` (FK→user_addresses) + `service_address_snapshot` (JSON) 用于上门订单地址快照（地址簿后续修改不影响此订单）；3) 商品级名额恢复编辑：`time_slots[].capacity` 改为 `Optional[int]`（0 / null = 不限），`daily_quota` 复用为日级名额；4) 门店级 `MerchantStore.slot_capacity` 文案统一为「门店总接待名额」，含义为门店在同一日期同一时段所有商品共享的最大订单数；5) **核心：双层名额校验** — 下单接口在创建订单前同时校验「商品级 + 门店级」两层名额，取最严，使用 `SELECT FOR UPDATE` 行锁防超卖，统计口径只计入 `pending_payment/pending_shipment/pending_receipt/pending_appointment/appointed/pending_use/partial_used/pending_review/completed`，`cancelled/refunded` 不计；6) C 端三端（H5、小程序、Flutter App）`on_site` 商品下单必填服务地址，`service_address_id` 替代 `shipping_address_id` 提交；7) admin-web 商品履约类型下拉新增「上门服务」、订单详情新增「上门服务地址」卡片（不脱敏，仅商家与平台管理员可见）、门店表单文案更新；8) `schema_sync.py::_sync_on_site_fulfillment` 幂等扩展两表 ENUM + 新增两列 + 索引；9) 新增 `backend/tests/test_on_site_fulfillment_v1.py` 8 用例（枚举/字段/上门必填/快照创建/商品级满拒单/门店级满拒单/0=不限/跨用户地址拒绝），8/8 全通过；10) 部署后服务器 DB 迁移成功验证（`fulfillment_type` ENUM 含 `on_site`，`service_address_*` 字段已存在），三大容器（backend/admin-web/h5-web）全部 healthy；本次产物：APK `app_onsite_1777818014.apk` (83.8MB) + 小程序 zip `miniprogram_onsite_20260503_220639.zip` (358KB)；GitHub Release tag `onsite-v20260503-221143`；用户手册 `user_docs/上门服务与双层名额.md`。

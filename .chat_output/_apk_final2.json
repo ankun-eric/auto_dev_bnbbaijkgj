@@ -1,0 +1,16 @@
+{
+  "android": {
+    "tag": "android-paymentconfig-v202605032257-b89b",
+    "release_url": "https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/android-paymentconfig-v202605032257-b89b",
+    "apk_remote_name": "app_paymentconfig_20260503_231130_e313.apk",
+    "apk_url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/app_paymentconfig_20260503_231130_e313.apk",
+    "http_code": "404"
+  },
+  "ios": {
+    "tag": "ios-paymentconfig-v202605032257-b89b",
+    "release_url": "https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-paymentconfig-v202605032257-b89b",
+    "assets": [
+      "bini_health_ios.ipa"
+    ]
+  }
+}

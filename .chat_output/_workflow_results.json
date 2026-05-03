@@ -1,0 +1,14 @@
+{
+  "android": {
+    "done": true,
+    "conclusion": "success",
+    "html_url": "https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25282458910",
+    "tag": "android-paymentconfig-v202605032257-b89b"
+  },
+  "ios": {
+    "done": true,
+    "conclusion": "success",
+    "html_url": "https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25282459219",
+    "tag": "ios-paymentconfig-v202605032257-b89b"
+  }
+}
