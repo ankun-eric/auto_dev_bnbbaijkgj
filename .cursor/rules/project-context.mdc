@@ -33,6 +33,74 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
+## Latest Update: 核销订单状态体系优化 V2 —— 12 状态单轴 + 核销码 5 态 + 三端 Tab 重构（已部署 + 0 Bug）（2026-05-03 15:50）
+
+### 一句话结论
+按 PRD V2「核销订单状态体系优化」实施完成：UnifiedOrderStatus 7→12（新增 pending_appointment / appointed / partial_used / expired / refunding / refunded，保留 pending_review 兼容），新增 RedemptionCodeStatus 5 态独立枚举；schema_sync 幂等加列 + ENUM 扩列 + 一次性数据迁移（pending_review→completed / refund_success→refunded / refunding 融合，用 system_configs 标记版本号防重复）；状态机推进按预约模式分流（实物→pending_shipment / 需预约→pending_appointment / 已预约→appointed / 否则→pending_use），新增 POST /{id}/appointment 推进；GET /api/orders/unified 新增 tab + sub_tab 参数实现客户端 5 Tab 映射，订单响应增加 display_status / display_status_color / action_buttons / badges 4 字段；管理后台筛选下拉扩展为 12 完整枚举 + 新增核销码状态独立筛选 + 退款流程文案改为审核中/退款中/已退款/已拒绝；新增 GET /api/admin/orders/v2/{enums,stats}；H5 unified-orders 5 Tab + 全部，"全部"取消二级筛选改为时间倒序+卡片右上角状态文字，"已完成"含 expired，"退货售后"二级 Tab 文案统一；服务器 commit `97743e0` 已部署，8 个核心 URL 全部 200/401，容器内 pytest test_orders_status_v2.py **16/16 全通过**，本地回归 43/43 全通过。
+
+### 新增的文件
+- `backend/tests/test_orders_status_v2.py` — 16 个 pytest（12 枚举完整性 / 5 核销码态 / 状态机 4 路径 / Tab 映射含 expired 合并 / 退款融合 refunding+撤回 / V2 counts 字段 / 显示字段 display_status+action_buttons / 完成未评价显示待评价 / admin v2 enums + stats / 核销码独立筛选）
+- `deploy/_deploy_orders_status_v2.py` — SSH 部署 + URL 自检脚本（找项目目录 → git fetch reset → docker build/up → 容器健康 → 8 URL 自检）
+- `deploy/_run_v2_pytest_remote.py` — 容器内 pip install pytest pytest-asyncio aiosqlite httpx + 跑 V2 pytest
+- `user_docs/订单状态体系优化V2.md` — 用户体验手册（含访问链接表 / 12 状态枚举表 / 5 核销码态表 / 5 Tab 映射 / 数据迁移规则 / 用户使用说明 / 测试验证结果）
+
+### 修改的文件
+- `backend/app/models/models.py` — `UnifiedOrderStatus` 加入 6 个新值并保留 pending_review；新增 `RedemptionCodeStatus`；`OrderItem` 加 `redemption_code_status VARCHAR(16) DEFAULT 'active'` + `redemption_code_expires_at DATETIME NULL`
+- `backend/app/services/schema_sync.py` — 新增 `_sync_orders_status_v2` 并在 `sync_register_schema` 中调用：order_items 幂等加 2 列 + unified_orders.status MySQL ENUM MODIFY 到 13 值 + 4 条迁移规则 + system_configs 写 `orders_status_v2_migration_version=1`
+- `backend/app/api/unified_orders.py` — 新增 `_normalize_status / _display_status_for / _action_buttons_for / _STATUS_DISPLAY_MAP / _STATUS_COLOR_MAP / _apply_v2_tab_filter`；`pay_unified_order` 按 appointment_mode 分流；新增 `POST /{id}/appointment` 推进 pending_appointment→appointed；`request_refund` 把 status 改为 refunding；`withdraw_refund` 回到 pending_use；GET / 新增 tab + sub_tab 参数；GET /counts 增加 v2_pending_payment / v2_pending_receipt / v2_pending_use / v2_completed / v2_refund_aftersales；`_build_order_response` 注入 4 个新字段
+- `backend/app/api/product_admin.py` — `GET /api/admin/orders/unified` 加 `redemption_code_status` 参数 + status 支持逗号分隔多值；新增 `GET /api/admin/orders/v2/enums` + `GET /api/admin/orders/v2/stats`（GMV / fulfillment_rate / status_breakdown / redemption_code_breakdown）
+- `backend/app/schemas/unified_orders.py` — `OrderItemResponse` 加 `redemption_code_status / redemption_code_expires_at`；`UnifiedOrderResponse` 加 `display_status / display_status_color / action_buttons / badges` 4 字段；新增 `UnifiedOrderSetAppointmentRequest`
+- `admin-web/src/app/(admin)/product-system/orders/page.tsx` — `orderStatusMap` / `statusOptions` 扩展到 12 枚举；`refundStatusOptions` 文案改为审核中/退款中/已退款/已拒绝；新增 `redemptionCodeStatusOptions` 5 选项 + `filterRedemptionCodeStatus` state + Select；`tabItems` 扩到 12 个状态 + 全部 + 退款申请
+- `h5-web/src/app/unified-orders/page.tsx` — 整体重写：5 Tab + 全部（取消"待评价"独立 Tab），"全部"取消二级筛选改为时间倒序+卡片右上角色块状态文字；"退货售后"展开二级 Tab 条（审核中/退款中/已退款/已拒绝）；卡片底部按 action_buttons 渲染按钮组（取消/支付/确认收货/去预约/核销码/去评价/退款详情/再来一单）；增加"可核销"绿色徽章
+- `.cursor/rules/project-context.mdc` — 本条变更记录
+
+### 新增/修改的 API 端点
+- `POST /api/orders/unified/{order_id}/appointment` — 用户设置预约时间，订单 pending_appointment → appointed
+- `GET /api/orders/unified?tab=<all|pending_payment|pending_receipt|pending_use|completed|refund_aftersales>&sub_tab=<all|reviewing|refunding|refunded|rejected>` — 客户端 5 Tab 列表（旧 status 参数完全兼容）
+- `GET /api/orders/unified/counts` — 响应增加 5 个 v2_* 字段
+- `GET /api/orders/unified` 与 `GET /api/orders/unified/{id}` 响应增加 `display_status / display_status_color / action_buttons / badges` 4 字段
+- `GET /api/admin/orders/unified` 增加 `redemption_code_status` 查询参数 + status 支持逗号分隔
+- `GET /api/admin/orders/v2/enums` — 12 状态 + 5 核销码 + 7 退款标签
+- `GET /api/admin/orders/v2/stats` — GMV / refunded_amount / net_revenue / fulfillment_rate / status_breakdown / redemption_code_breakdown
+
+### 数据库变更
+- `unified_orders.status` MySQL ENUM 扩列到 13 值（12 + pending_review 兼容）
+- `order_items` 新增 `redemption_code_status VARCHAR(16) NOT NULL DEFAULT 'active'` + 索引 `ix_order_items_redemption_code_status`
+- `order_items` 新增 `redemption_code_expires_at DATETIME NULL`
+- `system_configs` 写入 `orders_status_v2_migration_version=1`（防重复迁移）
+- 一次性数据迁移：pending_review→completed / refund_success→refunded / applied|reviewing|returning→refunding / pending_use 且 redemption_code_expires_at 已过 → expired
+
+### 部署 / 验证状态
+- 服务器 commit：`97743e0 feat(orders-v2): 核销订单状态体系优化 V2` 已部署；backend / admin / h5 三个容器 Recreated；db 容器 healthy
+- URL 自检 8/8 全通过：`/api/health` 200、`/api/orders/unified` 401（未带 token 正常）、`/api/orders/unified/counts` 401、`/api/admin/orders/v2/enums` 401、`/api/admin/orders/v2/stats` 401、`/admin/` 200、`/unified-orders` 200、`/cards`（既有回归）200
+- 容器内 pytest：`tests/test_orders_status_v2.py` **16/16 全通过**（容器内通过 pip install pytest+pytest-asyncio+aiosqlite+httpx 安装测试依赖再运行）
+- 本地 pytest 回归：`test_orders_status_v2.py + test_order_bugfix_7tab.py + test_cards_v11_face.py` = **43/43 全通过**
+
+### 关键设计 & 教训
+- **保留 pending_review 在 ENUM 中**：直接从 ENUM 删除会导致历史数据 SELECT/UPDATE 报错；保留为兼容值，仅在迁移时用 UPDATE 把存量改成 completed，新代码不再产生 pending_review；客户端按 `completed AND has_reviewed=false` 动态计算"待评价"显示
+- **退款双轴融合策略**：refund_status 字段保留作详细审计（none/applied/reviewing/approved/rejected/returning/refund_success），主 status 直接承载 `refunding / refunded`；前端只看 status 即可一眼分辨"用户视角"，admin 同时可看两轴做精细审批
+- **状态机分流不能 lazy-load product**：在 async session 中 `getattr(item, "product")` 会触发 SQLAlchemy 的同步 lazy-load，导致 `_flush()` 抛错；必须用 `select(Product.id, Product.appointment_mode).where(Product.id.in_([...]))` 批量预查询
+- **AppointmentMode 枚举值是 none/date/time_slot/custom_form**：不是 PRD 所写的 required，所以判断逻辑改为「非 none 即视为需预约」
+- **Tab 参数与旧 status 参数共存**：保留老 H5 / Flutter / 小程序客户端继续传 `status=pending_use`；新 H5 优先传 `tab=pending_use`（包含 4 个细分态聚合）；server 端 if tab 优先生效，否则走旧逻辑
+- **schema_sync 迁移幂等防重**：用 `system_configs.orders_status_v2_migration_version=1` 作为版本号；MySQL 用 `ON DUPLICATE KEY UPDATE`，SQLite 用 `INSERT OR REPLACE` 兜底
+- **container 内 pytest 缺依赖**：生产 Dockerfile 不安装 pytest/pytest-asyncio/aiosqlite/httpx；远程跑测试前需先 `pip install -q` 安装；后续可考虑做一个 dev 镜像或保留这步
+
+### 访问入口
+- H5 我的订单（5 Tab）：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/unified-orders`
+- Admin 订单管理（12 状态完整筛选）：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/product-system/orders`
+- API 健康检查：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health`
+- API 订单枚举元数据（admin）：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/orders/v2/enums`
+- API GMV/履约率统计（admin）：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/orders/v2/stats`
+
+### 不在本期范围（PRD V2 第 0.3 节明确不做）
+- 卡功能购卡下单链路（卡 v1.1 第 2 期范围）
+- 营销/优惠券与订单状态的耦合优化
+- 订单结算/财务报表链路重构
+- 客户端 Flutter App / 微信小程序 / verify-miniprogram 的 UI 改造（继续走老接口与老 status 参数，完全兼容）
+- 灰度方案 / 双写字段 / 回滚预案（项目部署即更新即生效，无需灰度）
+
+---
+
 ## Latest Update: 卡管理 PRD v1.1 优化 —— 卡面设置 + H5 视觉对齐 + 字段补齐（已部署 + 0 Bug）（2026-05-03 13:50）
 
 ### 一句话结论
