@@ -7,6 +7,7 @@ import {
 } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import { get } from '@/lib/api';
+import { fulfillmentLabel } from '@/utils/fulfillmentLabel';
 
 const { Text } = Typography;
 
@@ -242,10 +243,17 @@ export default function ProductPickerModal({
     { title: '库存', dataIndex: 'stock', width: 70,
       render: (v: number | null) => v == null ? <Text type="secondary">-</Text> : v,
     },
-    { title: '履约方式', dataIndex: 'fulfillment_type', width: 90,
-      render: (v: string) => v === 'in_store'
-        ? <Tag color="green">到店</Tag>
-        : <Tag color="blue">快递</Tag>,
+    { title: '履约方式', dataIndex: 'fulfillment_type', width: 96,
+      render: (v: string) => {
+        const colorMap: Record<string, string> = {
+          in_store: 'green',
+          delivery: 'blue',
+          on_site: 'orange',
+          to_store: 'cyan',
+          virtual: 'purple',
+        };
+        return <Tag color={colorMap[v] || 'default'}>{fulfillmentLabel(v)}</Tag>;
+      },
     },
   ];
 

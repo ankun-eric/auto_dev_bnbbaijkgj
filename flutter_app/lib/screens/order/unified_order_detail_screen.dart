@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import '../../models/unified_order.dart';
 import '../../services/api_service.dart';
 import '../../utils/price_formatter.dart';
+import '../../utils/fulfillment_label.dart';
 
 class UnifiedOrderDetailScreen extends StatefulWidget {
   const UnifiedOrderDetailScreen({super.key});
@@ -736,18 +737,7 @@ class _UnifiedOrderDetailScreenState extends State<UnifiedOrderDetailScreen> {
     }
   }
 
-  String _fulfillmentLabel(String type) {
-    switch (type) {
-      case 'delivery':
-        return '快递配送';
-      case 'in_store':
-        return '到店消费';
-      case 'virtual':
-        return '虚拟商品';
-      default:
-        return type;
-    }
-  }
+  String _fulfillmentLabel(String type) => fulfillmentLabel(type);
 
   Widget _buildRefundStatusBanner(UnifiedOrder o) {
     Color bgColor;

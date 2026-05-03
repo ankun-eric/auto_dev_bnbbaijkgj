@@ -708,8 +708,17 @@ class _ServicesScreenState extends State<ServicesScreen> with TickerProviderStat
         label = '虚拟';
         bgColor = const Color(0xFF8B5CF6);
         break;
+      case 'on_site':
+        label = '上门';
+        bgColor = const Color(0xFF10B981);
+        break;
+      case 'to_store':
+        label = '到店';
+        bgColor = const Color(0xFF06B6D4);
+        break;
       default:
-        label = type;
+        // 不再回显英文枚举原文，使用公共字典统一处理
+        label = '其他';
         bgColor = Colors.grey;
     }
     return Container(

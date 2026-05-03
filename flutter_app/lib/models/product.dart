@@ -1,3 +1,5 @@
+import '../utils/fulfillment_label.dart' as ff_label;
+
 class ProductCategory {
   final int id;
   final String name;
@@ -125,20 +127,7 @@ class Product {
     return '';
   }
 
-  String get fulfillmentLabel {
-    switch (fulfillmentType) {
-      case 'delivery':
-        return '快递配送';
-      case 'in_store':
-        return '到店消费';
-      case 'virtual':
-        return '虚拟商品';
-      case 'on_site':
-        return '上门服务';
-      default:
-        return fulfillmentType;
-    }
-  }
+  String get fulfillmentLabel => ff_label.fulfillmentLabel(fulfillmentType);
 
   factory Product.fromJson(Map<String, dynamic> json) {
     List<String> parseImages(dynamic val) {

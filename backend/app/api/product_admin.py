@@ -1607,6 +1607,163 @@ async def admin_refund_reasons(
     return {"items": items}
 
 
+# ─────────── 订单统计：12 订单状态 + 7 退款状态聚合（PRD V2 对齐订单明细页） ───────────
+
+
+# 12 个订单状态对应的中文标签（与订单明细页 /orders/v2/enums 完全一致）
+ORDER_STATUS_LABELS_12 = [
+    ("pending_payment", "待付款"),
+    ("pending_shipment", "待发货"),
+    ("pending_receipt", "待收货"),
+    ("pending_appointment", "待预约"),
+    ("appointed", "已预约"),
+    ("pending_use", "待核销"),
+    ("partial_used", "部分核销"),
+    ("completed", "已完成"),
+    ("expired", "已过期"),
+    ("refunding", "退款中"),
+    ("refunded", "已退款"),
+    ("cancelled", "已取消"),
+]
+
+# 7 个退款状态对应的中文标签（与 RefundStatusEnum 完全一致）
+REFUND_STATUS_LABELS_7 = [
+    ("none", "无退款"),
+    ("applied", "退款申请中"),
+    ("reviewing", "退款审核中"),
+    ("approved", "退款已批准"),
+    ("rejected", "退款已拒绝"),
+    ("returning", "退款处理中"),
+    ("refund_success", "退款成功"),
+]
+
+
+def _parse_dt(val: Optional[str], end_of_day: bool = False) -> Optional[datetime]:
+    """解析 start_at/end_at 参数。支持 YYYY-MM-DD 和 ISO 格式。"""
+    if not val:
+        return None
+    s = str(val).strip()
+    if not s:
+        return None
+    try:
+        if "T" in s or " " in s:
+            return datetime.fromisoformat(s.replace("Z", ""))
+        d = datetime.strptime(s, "%Y-%m-%d")
+        if end_of_day:
+            return d.replace(hour=23, minute=59, second=59)
+        return d
+    except Exception:
+        try:
+            return datetime.fromisoformat(s)
+        except Exception:
+            return None
+
+
+@router.get("/orders/statistics")
+async def admin_orders_statistics(
+    start_at: Optional[str] = None,
+    end_at: Optional[str] = None,
+    current_user=Depends(require_role("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    """订单统计页专用：返回 12 订单状态 + 7 退款状态各自的 count + amount 聚合。
+
+    - 时间筛选维度：UnifiedOrder.created_at
+    - 金额口径：paid_amount（无支付时 0）
+    - status 用 UnifiedOrder.status；refund_status 用 UnifiedOrder.refund_status
+    - 兼容 pending_review 兼容字段（不在 12 卡片中独立展示，但筛选用）
+    """
+    start_dt = _parse_dt(start_at, end_of_day=False)
+    end_dt = _parse_dt(end_at, end_of_day=True)
+
+    base_filters = []
+    if start_dt is not None:
+        base_filters.append(UnifiedOrder.created_at >= start_dt)
+    if end_dt is not None:
+        base_filters.append(UnifiedOrder.created_at <= end_dt)
+
+    # 订单状态分布：count + amount
+    status_q = select(
+        UnifiedOrder.status,
+        func.count(UnifiedOrder.id),
+        func.coalesce(func.sum(UnifiedOrder.paid_amount), 0),
+    )
+    if base_filters:
+        status_q = status_q.where(*base_filters)
+    status_q = status_q.group_by(UnifiedOrder.status)
+    status_rows = (await db.execute(status_q)).all()
+    status_map: dict = {}
+    for s, cnt, amt in status_rows:
+        key = s.value if hasattr(s, "value") else str(s)
+        status_map[key] = {"count": int(cnt or 0), "amount": float(amt or 0)}
+
+    order_status_items = []
+    for code, label in ORDER_STATUS_LABELS_12:
+        rec = status_map.get(code, {"count": 0, "amount": 0.0})
+        order_status_items.append({
+            "status": code,
+            "label": label,
+            "count": rec["count"],
+            "amount": round(float(rec["amount"]), 2),
+        })
+
+    # 退款状态分布：count + amount
+    refund_q = select(
+        UnifiedOrder.refund_status,
+        func.count(UnifiedOrder.id),
+        func.coalesce(func.sum(UnifiedOrder.paid_amount), 0),
+    )
+    if base_filters:
+        refund_q = refund_q.where(*base_filters)
+    refund_q = refund_q.group_by(UnifiedOrder.refund_status)
+    refund_rows = (await db.execute(refund_q)).all()
+    refund_map: dict = {}
+    for s, cnt, amt in refund_rows:
+        key = s.value if hasattr(s, "value") else (str(s) if s is not None else "none")
+        refund_map[key] = {"count": int(cnt or 0), "amount": float(amt or 0)}
+
+    refund_status_items = []
+    for code, label in REFUND_STATUS_LABELS_7:
+        rec = refund_map.get(code, {"count": 0, "amount": 0.0})
+        refund_status_items.append({
+            "status": code,
+            "label": label,
+            "count": rec["count"],
+            "amount": round(float(rec["amount"]), 2),
+        })
+
+    # 总览：本次时间段总订单数、总实付金额（不含 cancelled），总退款单数、总退款金额（refund_success）
+    overall_q = select(
+        func.count(UnifiedOrder.id),
+        func.coalesce(func.sum(UnifiedOrder.paid_amount), 0),
+    )
+    overall_filters = list(base_filters)
+    overall_filters.append(UnifiedOrder.status != "cancelled")
+    overall_q = overall_q.where(*overall_filters)
+    overall_row = (await db.execute(overall_q)).one()
+
+    refund_total_q = select(
+        func.count(UnifiedOrder.id),
+        func.coalesce(func.sum(UnifiedOrder.paid_amount), 0),
+    ).where(UnifiedOrder.refund_status == RefundStatusEnum.refund_success)
+    if base_filters:
+        refund_total_q = refund_total_q.where(*base_filters)
+    refund_total_row = (await db.execute(refund_total_q)).one()
+
+    return {
+        "start_at": start_dt.isoformat() if start_dt else None,
+        "end_at": end_dt.isoformat() if end_dt else None,
+        "summary": {
+            "total_orders": int(overall_row[0] or 0),
+            "total_revenue": round(float(overall_row[1] or 0), 2),
+            "total_refund_count": int(refund_total_row[0] or 0),
+            "total_refund_amount": round(float(refund_total_row[1] or 0), 2),
+        },
+        "order_status_items": order_status_items,
+        "refund_status_items": refund_status_items,
+    }
+
+
 # ─────────── 进店记录 ───────────
 
 

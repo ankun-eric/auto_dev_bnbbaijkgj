@@ -7,6 +7,7 @@ import {
 import { SearchOutlined } from '@ant-design/icons';
 import { get } from '@/lib/api';
 import dayjs from 'dayjs';
+import { fulfillmentLabel } from '@/utils/fulfillmentLabel';
 
 const { Title } = Typography;
 const { RangePicker } = DatePicker;
@@ -30,11 +31,7 @@ interface StoreOption {
   value: number;
 }
 
-const fulfillmentMap: Record<string, string> = {
-  in_store: '到店服务',
-  delivery: '快递配送',
-  virtual: '虚拟商品',
-};
+// 履约方式映射统一改用公共字典 `@/utils/fulfillmentLabel`
 
 export default function RedemptionsPage() {
   const [records, setRecords] = useState<RedemptionRecord[]>([]);
@@ -142,7 +139,7 @@ export default function RedemptionsPage() {
     },
     {
       title: '类型', dataIndex: 'fulfillment_type', key: 'fulfillment_type', width: 90,
-      render: (v: string) => fulfillmentMap[v] || v,
+      render: (v: string) => fulfillmentLabel(v),
     },
     {
       title: '下单时间', dataIndex: 'created_at', key: 'created_at', width: 170,

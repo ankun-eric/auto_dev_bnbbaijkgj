@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { Card, Image, Tag, Button, Steps, Divider, Toast, Dialog, SpinLoading, ProgressBar, Popup, DatePicker, Selector } from 'antd-mobile';
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
+import { fulfillmentLabel } from '@/utils/fulfillmentLabel';
 
 interface OrderItem {
   id: number;
@@ -355,6 +356,7 @@ export default function UnifiedOrderDetailPage() {
               </div>
               <div className="flex-1 ml-3">
                 <div className="font-medium text-sm">{item.product_name}</div>
+                <div className="text-xs text-gray-500 mt-1">{fulfillmentLabel(item.fulfillment_type)}</div>
                 <div className="text-xs text-gray-400 mt-1">x{item.quantity}</div>
               </div>
               <span className="font-bold text-sm">¥{item.subtotal}</span>

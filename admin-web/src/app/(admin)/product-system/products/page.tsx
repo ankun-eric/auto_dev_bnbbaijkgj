@@ -15,6 +15,7 @@ import { get, post, put, del, upload } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import type { UploadFile, RcFile } from 'antd/es/upload/interface';
 import SimpleRichEditor from '@/components/SimpleRichEditor';
+import { fulfillmentLabel, FULFILLMENT_LABEL_MAP } from '@/utils/fulfillmentLabel';
 
 const { Title } = Typography;
 const { TextArea } = Input;
@@ -153,10 +154,13 @@ function mapProduct(raw: Record<string, any>): Product {
   };
 }
 
+// 履约类型下拉：与后端 FulfillmentType 枚举严格一致；
+// 标签统一使用公共字典 fulfillmentLabel，避免与全端口径冲突。
 const fulfillmentTypes = [
-  { label: '到店服务', value: 'in_store' },
-  { label: '快递配送', value: 'delivery' },
-  { label: '虚拟商品', value: 'virtual' },
+  { label: fulfillmentLabel('on_site'), value: 'on_site' },
+  { label: fulfillmentLabel('in_store'), value: 'in_store' },
+  { label: fulfillmentLabel('delivery'), value: 'delivery' },
+  { label: fulfillmentLabel('virtual'), value: 'virtual' },
   { label: '上门服务', value: 'on_site' },
 ];
 
@@ -213,12 +217,8 @@ const statusMap: Record<string, { color: string; text: string }> = {
   inactive: { color: 'red', text: '下架' },
 };
 
-const fulfillmentMap: Record<string, string> = {
-  in_store: '到店服务',
-  delivery: '快递配送',
-  virtual: '虚拟商品',
-  on_site: '上门服务',
-};
+// 履约方式映射统一改用公共字典 `@/utils/fulfillmentLabel`
+const fulfillmentMap: Record<string, string> = FULFILLMENT_LABEL_MAP;
 
 const CONSTITUTION_TYPES = [
   '气虚质', '阳虚质', '阴虚质', '痰湿质', '湿热质',
@@ -1117,7 +1117,7 @@ export default function ProductsPage() {
     },
     {
       title: '类型', dataIndex: 'fulfillment_type', key: 'fulfillment_type', width: 90,
-      render: (v: string) => <Tag>{fulfillmentMap[v] ?? v}</Tag>,
+      render: (v: string) => <Tag>{fulfillmentLabel(v)}</Tag>,
     },
     {
       title: '规格', dataIndex: 'spec_mode', key: 'spec_mode', width: 80,

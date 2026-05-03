@@ -1,3 +1,4 @@
+<wxs src="/utils/fulfillmentLabel.wxs" module="ff" />
 <view class="detail-page" wx:if="{{order}}">
   <!-- 订单状态 -->
   <view class="status-header status-bg-{{order.status}}">
@@ -66,6 +67,7 @@
       <image class="od-product-img" src="{{order.product_cover || order.cover_image}}" mode="aspectFill" />
       <view class="od-product-info">
         <text class="od-product-name ellipsis-2">{{order.product_name || order.name}}</text>
+        <text class="od-fulfillment-label">{{ff.fulfillmentLabel(order.fulfillment_type)}}</text>
         <view class="od-product-meta">
           <text class="od-price">¥{{order.unit_price || order.price}}</text>
           <text class="od-qty">×{{order.quantity || 1}}</text>

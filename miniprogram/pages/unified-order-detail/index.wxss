@@ -117,6 +117,13 @@
   line-height: 1.4;
 }
 
+.od-fulfillment-label {
+  display: block;
+  font-size: 22rpx;
+  color: #999;
+  margin-top: 4rpx;
+}
+
 .od-product-meta {
   display: flex;
   justify-content: space-between;

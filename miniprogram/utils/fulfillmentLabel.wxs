@@ -1,0 +1,20 @@
+// 履约方式中英文映射 wxs 工具（小程序模板内使用）。
+
+var MAP = {
+  on_site: '上门服务',
+  to_store: '到店服务',
+  delivery: '快递配送',
+  in_store: '到店核销',
+  virtual: '线上服务',
+};
+
+function fulfillmentLabel(type) {
+  if (!type) return '其他服务';
+  var label = MAP[type];
+  if (label === undefined || label === null) return '其他服务';
+  return label;
+}
+
+module.exports = {
+  fulfillmentLabel: fulfillmentLabel,
+};

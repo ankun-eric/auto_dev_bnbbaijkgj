@@ -1,3 +1,4 @@
+<wxs src="/utils/fulfillmentLabel.wxs" module="ff" />
 <view class="products-page">
   <!-- 分类横向滚动 -->
   <scroll-view class="category-scroll" scroll-x enable-flex>
@@ -66,7 +67,7 @@
       <view class="product-info">
         <text class="product-name ellipsis-2">{{item.name}}</text>
         <view class="product-tags" wx:if="{{item.fulfillment_type}}">
-          <text class="product-tag">{{item.fulfillment_type_label || item.fulfillment_type}}</text>
+          <text class="product-tag">{{item.fulfillment_type_label || ff.fulfillmentLabel(item.fulfillment_type)}}</text>
         </view>
         <view class="product-bottom">
           <view class="product-price">

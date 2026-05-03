@@ -13,6 +13,7 @@ import {
 } from '@ant-design/icons';
 import { get, post } from '@/lib/api';
 import dayjs from 'dayjs';
+import { fulfillmentLabel } from '@/utils/fulfillmentLabel';
 
 const { Title } = Typography;
 const { TextArea } = Input;
@@ -101,11 +102,7 @@ const refundStatusMap: Record<string, { color: string; text: string }> = {
   rejected: { color: 'red', text: '已驳回' },
 };
 
-const fulfillmentMap: Record<string, string> = {
-  in_store: '到店',
-  delivery: '快递',
-  virtual: '虚拟',
-};
+// 履约方式映射统一改用公共字典 `@/utils/fulfillmentLabel`，确保与其他端口径完全一致。
 
 const payMethodMap: Record<string, string> = {
   wechat: '微信支付',
@@ -763,7 +760,7 @@ export default function UnifiedOrdersPage() {
                 { title: '单价', dataIndex: 'product_price', key: 'product_price', width: 80, render: (v: number) => `¥${v}` },
                 { title: '数量', dataIndex: 'quantity', key: 'quantity', width: 60 },
                 { title: '小计', dataIndex: 'subtotal', key: 'subtotal', width: 80, render: (v: number) => `¥${v}` },
-                { title: '类型', dataIndex: 'fulfillment_type', key: 'fulfillment_type', width: 70, render: (v: string) => fulfillmentMap[v] || v },
+                { title: '类型', dataIndex: 'fulfillment_type', key: 'fulfillment_type', width: 96, render: (v: string) => fulfillmentLabel(v) },
                 {
                   title: '核销', key: 'redeem', width: 100,
                   render: (_: unknown, item: OrderItem) => item.verification_code

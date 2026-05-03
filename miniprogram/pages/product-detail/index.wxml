@@ -1,3 +1,4 @@
+<wxs src="/utils/fulfillmentLabel.wxs" module="ff" />
 <view class="detail-page" wx:if="{{product}}">
   <!-- 轮播图/视频 -->
   <swiper class="media-swiper" indicator-dots autoplay circular
@@ -32,7 +33,7 @@
     </view>
     <text class="product-title">{{product.name}}</text>
     <view class="tag-row" wx:if="{{product.fulfillment_type}}">
-      <text class="detail-tag">{{product.fulfillment_type_label || product.fulfillment_type}}</text>
+      <text class="detail-tag">{{product.fulfillment_type_label || ff.fulfillmentLabel(product.fulfillment_type)}}</text>
       <text class="detail-tag" wx:if="{{product.category_name}}">{{product.category_name}}</text>
     </view>
   </view>

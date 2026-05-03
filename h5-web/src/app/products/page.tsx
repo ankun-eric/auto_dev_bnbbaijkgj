@@ -184,9 +184,10 @@ export default function ProductsPage() {
               >
                 <Space direction="vertical" block>
                   <Radio value="">全部</Radio>
-                  <Radio value="in_store">到店服务</Radio>
-                  <Radio value="delivery">快递配送</Radio>
-                  <Radio value="virtual">虚拟商品</Radio>
+                  <Radio value="on_site">{fulfillmentLabel('on_site')}</Radio>
+                  <Radio value="in_store">{fulfillmentLabel('in_store')}</Radio>
+                  <Radio value="delivery">{fulfillmentLabel('delivery')}</Radio>
+                  <Radio value="virtual">{fulfillmentLabel('virtual')}</Radio>
                 </Space>
               </Radio.Group>
             </div>
