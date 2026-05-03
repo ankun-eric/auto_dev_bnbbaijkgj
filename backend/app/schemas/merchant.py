@@ -54,6 +54,8 @@ class MerchantStoreResponse(BaseModel):
     slot_capacity: Optional[int] = 10
     business_start: Optional[str] = None
     business_end: Optional[str] = None
+    # [2026-05-03 营业时间/营业范围保存 Bug 修复] 经营范围（商品分类 ID 列表）
+    business_scope: Optional[List[int]] = None
 
 
 class MerchantStoreCreate(BaseModel):
@@ -78,6 +80,8 @@ class MerchantStoreCreate(BaseModel):
     slot_capacity: Optional[int] = 10
     business_start: Optional[str] = None
     business_end: Optional[str] = None
+    # [2026-05-03 营业时间/营业范围保存 Bug 修复] 经营范围一并入主表单保存
+    business_scope: Optional[List[int]] = None
 
 
 class MerchantStoreUpdate(BaseModel):
@@ -100,6 +104,8 @@ class MerchantStoreUpdate(BaseModel):
     slot_capacity: Optional[int] = None
     business_start: Optional[str] = None
     business_end: Optional[str] = None
+    # [2026-05-03 营业时间/营业范围保存 Bug 修复] 经营范围一并入主表单保存
+    business_scope: Optional[List[int]] = None
 
 
 class MerchantStorePermissionInput(BaseModel):

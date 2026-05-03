@@ -681,12 +681,18 @@ class ShopInfoResponse(BaseModel):
     description: Optional[str] = None
     address: Optional[str] = None
     contact_phone: Optional[str] = None
-    business_hours: Optional[str] = None
+    business_hours: Optional[str] = None  # 兼容字段，由 start+end 拼接得出
     license_no: Optional[str] = None
     legal_person: Optional[str] = None
     is_owner: bool = False
     can_edit: bool = False
     updated_at: Optional[str] = None
+    # [2026-05-03 营业时间/营业范围保存 Bug 修复] 与管理后台对齐的字段
+    business_start: Optional[str] = None
+    business_end: Optional[str] = None
+    business_scope: Optional[list[int]] = None
+    # 受影响存量预约数（保存接口返回，列表查询为 0）
+    affected_appointments: Optional[int] = 0
 
 
 class ShopInfoUpdateRequest(BaseModel):
@@ -695,7 +701,11 @@ class ShopInfoUpdateRequest(BaseModel):
     description: Optional[str] = Field(default=None, max_length=200)
     address: Optional[str] = Field(default=None, max_length=255)
     contact_phone: Optional[str] = Field(default=None, max_length=20)
-    business_hours: Optional[str] = Field(default=None, max_length=100)
+    business_hours: Optional[str] = Field(default=None, max_length=100)  # 已废弃，仅兼容
+    # [2026-05-03 营业时间/营业范围保存 Bug 修复]
+    business_start: Optional[str] = Field(default=None, max_length=5)
+    business_end: Optional[str] = Field(default=None, max_length=5)
+    business_scope: Optional[list[int]] = None
 
 
 def _fmt_dt(dt):
@@ -739,7 +749,19 @@ async def _get_primary_store_for_merchant(
     return primary_store, is_owner, store_ids
 
 
-def _serialize_shop(store: MerchantStore, is_owner: bool) -> ShopInfoResponse:
+def _serialize_shop(
+    store: MerchantStore,
+    is_owner: bool,
+    *,
+    affected_appointments: int = 0,
+) -> ShopInfoResponse:
+    bs = getattr(store, "business_start", None)
+    be = getattr(store, "business_end", None)
+    # [2026-05-03] business_hours 改为由 start+end 拼接得出（保留兼容显示）
+    business_hours = (
+        f"{bs} - {be}" if bs and be else getattr(store, "business_hours", None)
+    )
+    scope = list(getattr(store, "business_scope", None) or [])
     return ShopInfoResponse(
         store_id=store.id,
         merchant_id=store.id,
@@ -749,12 +771,16 @@ def _serialize_shop(store: MerchantStore, is_owner: bool) -> ShopInfoResponse:
         description=getattr(store, "description", None),
         address=store.address,
         contact_phone=store.contact_phone,
-        business_hours=getattr(store, "business_hours", None),
+        business_hours=business_hours,
         license_no=getattr(store, "license_no", None),
         legal_person=getattr(store, "legal_person", None),
         is_owner=is_owner,
         can_edit=is_owner,
         updated_at=_fmt_dt(getattr(store, "updated_at", None)),
+        business_start=bs,
+        business_end=be,
+        business_scope=scope,
+        affected_appointments=affected_appointments,
     )
 
 
@@ -826,12 +852,43 @@ async def merchant_update_shop_info(
 
     _maybe_set("logo_url", data.logo_url)
     _maybe_set("description", data.description)
-    _maybe_set("business_hours", data.business_hours)
+    # [2026-05-03 营业时间/营业范围保存 Bug 修复]
+    # 商家后台不再使用 business_hours 字符串，改用 business_start / business_end 时间选择器。
+    # 入参 business_hours 仅作为旧版本兼容接收，不再写入。
+    # ── 营业时间（与管理后台同款规则：30 分钟粒度、07:00–22:00、end > start，必填二选都有）──
+    from app.api.admin_merchant import _validate_business_time_range  # 局部导入避免循环
+    if data.business_start is not None or data.business_end is not None:
+        # 任一字段非空即视为「正在设置营业时间」，要求两端必填
+        new_bs = data.business_start if data.business_start is not None else getattr(store, "business_start", None)
+        new_be = data.business_end if data.business_end is not None else getattr(store, "business_end", None)
+        if (new_bs and str(new_bs).strip()) or (new_be and str(new_be).strip()):
+            new_bs, new_be = _validate_business_time_range(new_bs, new_be, require=True)
+            _maybe_set("business_start", new_bs)
+            _maybe_set("business_end", new_be)
+            _maybe_set("business_hours", f"{new_bs} - {new_be}")
 
+    # ── 营业范围（选填，可为空数组表示清空）──
+    if data.business_scope is not None:
+        new_scope = [int(v) for v in data.business_scope]
+        old_scope = list(getattr(store, "business_scope", None) or [])
+        if old_scope != new_scope:
+            store.business_scope = new_scope if new_scope else None
+            changed["business_scope"] = (old_scope, new_scope)
+
+    affected_appointments = 0
     if changed:
         store.updated_at = datetime.utcnow()
         await db.commit()
         await db.refresh(store)
+        # 营业时间发生变更时，扫描存量未核销预约（用于前端提示）
+        if "business_start" in changed or "business_end" in changed:
+            try:
+                from app.api.admin_merchant import _count_affected_appointments
+                affected_appointments = await _count_affected_appointments(
+                    db, store.id, store.business_start, store.business_end
+                )
+            except Exception:
+                affected_appointments = 0
         # PRD §六.日志：每次修改写操作日志（操作人、时间、修改字段、前后值）
         logger.info(
             "[SHOP_INFO_UPDATE] operator=%s store_id=%s changed=%s",
@@ -839,7 +896,7 @@ async def merchant_update_shop_info(
             {k: {"old": v[0], "new": v[1]} for k, v in changed.items()},
         )
 
-    return _serialize_shop(store, True)
+    return _serialize_shop(store, True, affected_appointments=affected_appointments)
 
 
 # ════════════════ §M2 / §M7.5 admin 重置老板密码 ════════════════

@@ -1278,6 +1278,73 @@ async def _sync_store_bindding_tables(conn: AsyncConnection) -> None:
                 "COMMENT '营业结束 HH:MM'"
             ))
 
+        # ════════════════════════════════════════════════════════════
+        # [2026-05-03 营业时间/营业范围保存 Bug 修复] 一次性数据迁移：
+        # 把现网 business_hours 字符串解析回填到 business_start / business_end。
+        # 解析失败的保留原值，business_start/business_end 留空，等商家上线后自行选填。
+        # ════════════════════════════════════════════════════════════
+        try:
+            rows = (await conn.execute(text(
+                "SELECT id, business_hours, business_start, business_end "
+                "FROM merchant_stores "
+                "WHERE business_hours IS NOT NULL "
+                "  AND business_hours <> '' "
+                "  AND (business_start IS NULL OR business_start = '' "
+                "       OR business_end IS NULL OR business_end = '')"
+            ))).fetchall()
+            import re as _re
+            migrated = 0
+            skipped = 0
+            for row in rows:
+                store_id = row[0]
+                hours_str = row[1] or ""
+                # 仅匹配类似 "09:00 - 22:00" / "09:00-22:00" / "9:00~22:00" 等常见 ASCII 数字格式
+                m = _re.match(
+                    r"^\s*(\d{1,2}):(\d{2})\s*[-~至到 ]+\s*(\d{1,2}):(\d{2})\s*$",
+                    hours_str,
+                )
+                if not m:
+                    skipped += 1
+                    continue
+                sh, sm, eh, em = (int(m.group(1)), int(m.group(2)),
+                                  int(m.group(3)), int(m.group(4)))
+                if not (0 <= sh <= 23 and 0 <= eh <= 23 and sm in (0, 30) and em in (0, 30)):
+                    # 非 30 分钟整点的，按"就近 30 分"对齐：mm<15→00, 15≤mm<45→30, mm≥45→下个小时
+                    def _round_30(h, m_):
+                        if m_ < 15:
+                            return h, 0
+                        if m_ < 45:
+                            return h, 30
+                        return min(h + 1, 23), 0
+                    sh, sm = _round_30(sh, sm)
+                    eh, em = _round_30(eh, em)
+                bs_str = f"{sh:02d}:{sm:02d}"
+                be_str = f"{eh:02d}:{em:02d}"
+                # 限定到 07:00–22:00
+                if bs_str < "07:00":
+                    bs_str = "07:00"
+                if be_str > "22:00":
+                    be_str = "22:00"
+                if be_str <= bs_str:
+                    skipped += 1
+                    continue
+                await conn.execute(text(
+                    "UPDATE merchant_stores SET business_start=:s, business_end=:e "
+                    "WHERE id=:id"
+                ), {"s": bs_str, "e": be_str, "id": store_id})
+                migrated += 1
+            if migrated or skipped:
+                import logging as _logging
+                _logging.getLogger(__name__).info(
+                    "[migrate] business_hours -> business_start/end: migrated=%d skipped=%d",
+                    migrated, skipped,
+                )
+        except Exception as _e:
+            import logging as _logging
+            _logging.getLogger(__name__).warning(
+                "[migrate] business_hours migration failed: %s", _e
+            )
+
     # 2. merchant_notifications 新增 notification_type
     if table_cols.get("merchant_notifications") is not None:
         cols = table_cols["merchant_notifications"]

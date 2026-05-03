@@ -162,9 +162,17 @@ async def test_store_capacity_and_business_hours_round_trip(
 async def test_store_default_slot_capacity_is_10(
     client: AsyncClient, admin_headers, cat_id
 ):
+    # [2026-05-03] 营业时间已成必填项，默认值测试需补传 business_start/end
     res = await client.post(
         "/api/admin/merchant/stores",
-        json={"store_name": "默认容量门店", "category_id": cat_id, "lat": 23.0, "lng": 113.0},
+        json={
+            "store_name": "默认容量门店",
+            "category_id": cat_id,
+            "lat": 23.0,
+            "lng": 113.0,
+            "business_start": "09:00",
+            "business_end": "22:00",
+        },
         headers=admin_headers,
     )
     assert res.status_code == 200

@@ -1625,6 +1625,10 @@ async def admin_update_store_business_scope(
     current_user=Depends(require_role("admin")),
     db: AsyncSession = Depends(get_db),
 ):
+    """[2026-05-03 营业时间/营业范围保存 Bug 修复]
+    本接口已合并到「门店主保存接口」(`PUT /api/admin/merchant/stores/{id}`)，
+    现仅作为兼容路由保留 1 个版本周期，写入仍然成功，但建议前端切换到主接口。
+    """
     result = await db.execute(select(MerchantStore).where(MerchantStore.id == store_id))
     store = result.scalar_one_or_none()
     if not store:
@@ -1632,7 +1636,11 @@ async def admin_update_store_business_scope(
 
     store.business_scope = data.business_scope
     await db.flush()
-    return {"message": "经营范围已更新"}
+    return {
+        "message": "经营范围已更新",
+        "deprecated": True,
+        "hint": "该接口已合并到门店主保存接口，下个版本将下线",
+    }
 
 
 # ─────────── 超时策略 ───────────

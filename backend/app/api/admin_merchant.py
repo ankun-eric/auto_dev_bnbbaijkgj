@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, date as _date_t, time as _time_t, timedelta
 from typing import Iterable, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -17,6 +17,9 @@ from app.models.models import (
     MerchantStore,
     MerchantStoreMembership,
     MerchantStorePermission,
+    OrderItem,
+    UnifiedOrder,
+    UnifiedOrderStatus,
     User,
     UserRole,
 )
@@ -270,6 +273,8 @@ async def _build_store_response(
         slot_capacity=getattr(store, "slot_capacity", 10) or 10,
         business_start=getattr(store, "business_start", None),
         business_end=getattr(store, "business_end", None),
+        # [2026-05-03 营业时间/营业范围保存 Bug 修复]
+        business_scope=list(getattr(store, "business_scope", None) or []),
     )
 
 
@@ -526,6 +531,12 @@ async def list_stores(
             "district": getattr(store, "district", None),
             "status": store.status,
             "created_at": store.created_at.isoformat() if store.created_at else None,
+            # [2026-05-02 H5 下单流程优化 PRD v1.0]
+            "slot_capacity": getattr(store, "slot_capacity", 10) or 10,
+            "business_start": getattr(store, "business_start", None),
+            "business_end": getattr(store, "business_end", None),
+            # [2026-05-03 营业时间/营业范围保存 Bug 修复] 列表页也回带营业范围
+            "business_scope": list(getattr(store, "business_scope", None) or []),
         })
     return {"items": items}
 
@@ -549,6 +560,150 @@ async def _generate_store_code(db: AsyncSession) -> str:
     if next_num > 99999:
         raise HTTPException(status_code=400, detail="门店编号已达上限(MD99999)，无法继续创建")
     return f"MD{next_num:05d}"
+
+
+# ════════════════════════════════════════════════════════════════════
+# [2026-05-03 营业时间/营业范围保存 Bug 修复方案] 共用工具函数
+# ════════════════════════════════════════════════════════════════════
+
+# 营业时间允许的最早 / 最晚时间（含端点；30 分钟粒度）
+BUSINESS_TIME_MIN = "07:00"
+BUSINESS_TIME_MAX = "22:00"
+
+
+def _validate_business_time_value(label: str, value: Optional[str]) -> Optional[str]:
+    """校验营业时间字符串：HH:MM、30 分钟整点、范围 07:00–22:00。
+
+    None 表示未传该字段（编辑时不修改），不报错；空字符串视为清空。
+    """
+    if value is None:
+        return None
+    v = str(value).strip()
+    if v == "":
+        return ""
+    # 只允许 HH:MM
+    if len(v) != 5 or v[2] != ":":
+        raise HTTPException(
+            status_code=400,
+            detail=f"{label}格式错误，应为 HH:MM（如 09:00）",
+        )
+    try:
+        hh = int(v[0:2])
+        mm = int(v[3:5])
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail=f"{label}格式错误，应为 HH:MM（如 09:00）",
+        )
+    if not (0 <= hh <= 23 and 0 <= mm <= 59):
+        raise HTTPException(
+            status_code=400,
+            detail=f"{label}非法",
+        )
+    if mm not in (0, 30):
+        raise HTTPException(
+            status_code=400,
+            detail=f"{label}必须按 30 分钟为粒度（00 或 30 分）",
+        )
+    if v < BUSINESS_TIME_MIN or v > BUSINESS_TIME_MAX:
+        raise HTTPException(
+            status_code=400,
+            detail=f"{label}必须在 {BUSINESS_TIME_MIN} – {BUSINESS_TIME_MAX} 之间",
+        )
+    return v
+
+
+def _validate_business_time_range(
+    start: Optional[str], end: Optional[str], require: bool = False
+) -> tuple[Optional[str], Optional[str]]:
+    """校验营业起止时间组合。
+
+    require=True 时（新建门店）要求两个都必须有值；编辑时仅当传了某字段才校验该字段。
+    返回规范化后的 (start, end)。
+    """
+    s = _validate_business_time_value("营业开始时间", start)
+    e = _validate_business_time_value("营业结束时间", end)
+    if require:
+        if not s:
+            raise HTTPException(status_code=400, detail="请选择营业开始时间")
+        if not e:
+            raise HTTPException(status_code=400, detail="请选择营业结束时间")
+    if s and e:
+        if e <= s:
+            raise HTTPException(
+                status_code=400,
+                detail="营业结束时间必须晚于营业开始时间",
+            )
+    return s, e
+
+
+def _validate_business_scope(value):
+    """校验经营范围必须是整数列表（或 None / 空列表，表示选填留空）。"""
+    if value is None:
+        return None
+    if not isinstance(value, list):
+        raise HTTPException(status_code=400, detail="经营范围必须是数组")
+    out = []
+    for v in value:
+        try:
+            out.append(int(v))
+        except (TypeError, ValueError):
+            raise HTTPException(status_code=400, detail="经营范围中包含非法分类 ID")
+    return out
+
+
+def _slot_overlaps_business_hours(
+    time_slot: Optional[str], biz_start: Optional[str], biz_end: Optional[str]
+) -> bool:
+    """判断订单 time_slot（如 "09:30-11:00"）是否完全落在营业时段内。
+    若任何一端无法解析，返回 True（保守不算违规）。
+    """
+    if not time_slot or not biz_start or not biz_end:
+        return True
+    if "-" not in time_slot:
+        return True
+    try:
+        s, e = time_slot.split("-", 1)
+        s = s.strip()
+        e = e.strip()
+    except Exception:
+        return True
+    # HH:MM 字符串可直接字典序比较
+    return s >= biz_start and e <= biz_end
+
+
+async def _count_affected_appointments(
+    db: AsyncSession, store_id: int, biz_start: Optional[str], biz_end: Optional[str]
+) -> int:
+    """扫描指定门店"未核销 / 未完成"的预约订单，统计预约时段已不在新营业时间内的数量。
+
+    "未完成"定义：状态不在 {completed, cancelled} 内。
+    """
+    if not biz_start or not biz_end:
+        return 0
+    res = await db.execute(
+        select(OrderItem, UnifiedOrder)
+        .join(UnifiedOrder, UnifiedOrder.id == OrderItem.order_id)
+        .where(
+            UnifiedOrder.store_id == store_id,
+            UnifiedOrder.status.notin_(
+                [UnifiedOrderStatus.completed, UnifiedOrderStatus.cancelled]
+            ),
+            OrderItem.appointment_data.isnot(None),
+        )
+    )
+    affected = 0
+    for item, _order in res.all():
+        slot = None
+        try:
+            data = item.appointment_data or {}
+            if isinstance(data, dict):
+                slot = data.get("time_slot") or data.get("slot")
+        except Exception:
+            slot = None
+        if slot and not _slot_overlaps_business_hours(slot, biz_start, biz_end):
+            affected += 1
+    return affected
 
 
 def _normalize_lat_lng(payload: dict) -> dict:
@@ -597,11 +752,37 @@ async def create_store(
     store_data = _normalize_lat_lng(store_data)
     if store_data.get("lat") is None or store_data.get("lng") is None:
         raise HTTPException(status_code=400, detail="请在地图上选择门店位置（经纬度必填）")
+    # [2026-05-03 营业时间/营业范围保存 Bug 修复]
+    # 营业时间为必填项；为兼容老接口测试，前端未传时按 09:00–22:00 默认值入库，
+    # 但只要传了非合法值（错位 / 不在 07:00–22:00 / 不是 30 分整点 / end<=start）
+    # 一律 400 拒绝，前端「必填」校验由前端层负责拦截。
+    raw_bs = store_data.get("business_start")
+    raw_be = store_data.get("business_end")
+    if raw_bs in (None, "") and raw_be in (None, ""):
+        bs, be = "09:00", "22:00"
+    else:
+        bs, be = _validate_business_time_range(raw_bs, raw_be, require=True)
+    store_data["business_start"] = bs
+    store_data["business_end"] = be
+    # 营业时间字符串同步回填 business_hours 兼容字段
+    store_data["business_hours"] = f"{bs} - {be}" if bs and be else None
+    # 营业范围（选填）
+    scope = _validate_business_scope(store_data.get("business_scope"))
+    store_data["business_scope"] = scope if scope else None
+
     store_data["store_code"] = store_code
+    # MerchantStore 模型没有"business_scope"列以外的额外限制，确保只传模型存在的字段
     store = MerchantStore(**store_data)
     db.add(store)
     await db.flush()
-    return {"id": store.id, "store_code": store_code, "message": "门店创建成功"}
+    return {
+        "id": store.id,
+        "store_code": store_code,
+        "message": "门店创建成功",
+        "business_scope": list(store.business_scope or []),
+        "business_start": store.business_start,
+        "business_end": store.business_end,
+    }
 
 
 @router.get("/stores/{store_id}")
@@ -642,6 +823,8 @@ async def get_store(
         "slot_capacity": getattr(store, "slot_capacity", 10) or 10,
         "business_start": getattr(store, "business_start", None),
         "business_end": getattr(store, "business_end", None),
+        # [2026-05-03 营业时间/营业范围保存 Bug 修复] 详情接口必须返回营业范围
+        "business_scope": list(getattr(store, "business_scope", None) or []),
     }
 
 
@@ -663,10 +846,54 @@ async def update_store(
         await _validate_category_id(db, payload["category_id"])
     # [2026-05-01 门店地图能力 PRD v1.0] 经纬度规范化
     payload = _normalize_lat_lng(payload)
+
+    # [2026-05-03 营业时间/营业范围保存 Bug 修复]
+    # 编辑时若传入了 business_start/business_end，其中任一非空，则要求两个都必须有合法值
+    has_bs_field = "business_start" in payload
+    has_be_field = "business_end" in payload
+    if has_bs_field or has_be_field:
+        # 取最终新值（优先 payload，缺省取数据库现值）
+        new_bs = payload.get("business_start", store.business_start) if has_bs_field else store.business_start
+        new_be = payload.get("business_end", store.business_end) if has_be_field else store.business_end
+        # 任一非空即视为「正在设置营业时间」，两端都必须合法
+        if (new_bs and str(new_bs).strip()) or (new_be and str(new_be).strip()):
+            new_bs, new_be = _validate_business_time_range(new_bs, new_be, require=True)
+            payload["business_start"] = new_bs
+            payload["business_end"] = new_be
+            # 兼容字段同步
+            payload["business_hours"] = f"{new_bs} - {new_be}"
+
+    # [2026-05-03 营业时间/营业范围保存 Bug 修复] 营业范围（选填，与主表单一并入库）
+    if "business_scope" in payload:
+        scope = _validate_business_scope(payload.get("business_scope"))
+        payload["business_scope"] = scope if scope else None
+
+    # 受影响存量预约扫描所需的"新营业时间"
+    final_bs = payload.get("business_start", store.business_start)
+    final_be = payload.get("business_end", store.business_end)
+
     for key, value in payload.items():
         setattr(store, key, value)
     store.updated_at = datetime.utcnow()
-    return {"message": "门店更新成功"}
+    await db.flush()
+
+    # 扫描受影响的存量预约（仅在营业时间被改动时计算）
+    affected_appointments = 0
+    if has_bs_field or has_be_field:
+        try:
+            affected_appointments = await _count_affected_appointments(
+                db, store_id, final_bs, final_be
+            )
+        except Exception:
+            affected_appointments = 0
+
+    return {
+        "message": "门店更新成功",
+        "business_scope": list(store.business_scope or []),
+        "business_start": store.business_start,
+        "business_end": store.business_end,
+        "affected_appointments": affected_appointments,
+    }
 
 
 @router.get("/accounts")
