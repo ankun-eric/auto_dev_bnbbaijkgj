@@ -128,7 +128,7 @@ export default function StatisticsPage() {
 
   const fetchCategories = useCallback(async () => {
     try {
-      const res = await get('/api/admin/product-system/categories');
+      const res = await get('/api/admin/products/categories');
       if (res) {
         const items = res.items || res.list || res;
         if (Array.isArray(items)) {

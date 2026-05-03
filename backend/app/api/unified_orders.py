@@ -906,6 +906,13 @@ async def get_unified_order(
     order = result.scalar_one_or_none()
     if not order:
         raise HTTPException(status_code=404, detail="订单不存在")
+    # 懒兜底：定时器漏跑时打开详情即时翻 R1/R2
+    try:
+        from app.tasks.order_status_auto_progress import lazy_progress_order
+        if await lazy_progress_order(order, db):
+            await db.commit()
+    except Exception:  # noqa: BLE001
+        pass
     return _build_order_response(order)
 
 

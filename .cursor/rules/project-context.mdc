@@ -33,6 +33,65 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
+## Latest Update: 订单状态自动推进策略 + 订单明细页分类筛选 Bug 修复（已部署 + 0 Bug, 40/40 passed）（2026-05-03 19:45）
+
+### 一句话结论
+完整落地 PRD「订单状态自动推进策略 v1.0」两条核心规则（R1：预约日 00:00 翻 `appointed` → `pending_use`；R2：次日 00:00 把未核销 `pending_use` 退回 `pending_appointment` 并清空 `OrderItem.appointment_time`）+ 5 个智能提醒推送节点（5/9 21:00 / 5/10 09:30 / 10:30 / 12:00 / 5/11 09:00）+ 接口侧懒兜底（`GET /api/orders/unified/{id}` 触发 `lazy_progress_order`）；同时修复管理后台订单明细页 + 商品销售统计页「全部分类」下拉为空 Bug —— 接口路径 `/api/admin/product-system/categories`（不存在）→ `/api/admin/products/categories`（与商品分类管理一致）；服务器 commit 已部署，新增 9 个 pytest 用例 100% 通过 + 历史 V2/V3 状态机回归 31/31 全通过；本次仅改 backend + admin-web，未触及小程序/Flutter/H5，无需重新打包客户端。
+
+### 新增的文件
+- `backend/app/tasks/order_status_auto_progress.py`（约 320 行）— R1/R2 状态翻转 + 5 个提醒节点 + `lazy_progress_order` 懒兜底 + `_send_window` 通用提醒发送函数
+- `backend/tests/test_orders_auto_progress.py`（9 个 pytest 用例）— R1 触发/不触发 / R2 触发/部分核销跳过 / 懒兜底 R1 R2 / 懒兜底未到期不动 / admin /products/categories 可达 / 错误路径 /product-system/categories 应 404
+- `deploy/_deploy_orders_auto_progress_20260503.py` — SSH 增量部署（仅 backend tasks/services/api + admin-web 2 个 page.tsx）+ docker compose restart backend + rebuild admin-web + URL 自检
+- `deploy/_run_tests_remote.py` — 容器内跑 pytest 自检脚本
+- `user_docs/订单状态自动推进与分类筛选修复.md` — 用户体验手册（含访问链接表 / R1/R2 状态流转 / 5 个提醒节点节奏表 / 3 个用户场景操作步骤 / Bug 修复验收方法 / 技术细节）
+
+### 修改的文件
+- `backend/app/tasks/__init__.py` — 由空文件改为显式 import `card_expiry_notify` + `order_status_auto_progress`，确保模块可被 APScheduler 发现
+- `backend/app/services/notification_scheduler.py` — `init_scheduler()` 新增 3 个 IntervalTrigger 任务：`order_r1_flip_to_pending_use` / `order_r2_flip_back_to_appointment` / `order_appointment_reminders_v2`，全部每分钟扫描一次（任务内部用窗口 + NotificationLog 去重保证幂等）
+- `backend/app/api/unified_orders.py` — `get_unified_order` 详情接口注入 `lazy_progress_order` 懒兜底调用，commit 时机 try/except 保护，定时器漏跑也能即时翻状态
+- `admin-web/src/app/(admin)/product-system/orders/page.tsx` — `fetchCategories` 接口路径 `/api/admin/product-system/categories` → `/api/admin/products/categories`
+- `admin-web/src/app/(admin)/product-system/statistics/page.tsx` — 同上修复（避免同样 Bug 再现）
+- `.cursor/rules/project-context.mdc` — 本条变更记录
+
+### 新增/修改的 API 端点
+- 无新增 API。本期仅在 `GET /api/orders/unified/{id}` 详情响应前插入懒兜底翻转逻辑，对外协议不变。
+- `GET /api/admin/products/categories`（已存在）— 订单明细页 + 商品销售统计页接口路径修正后的正确目标地址
+
+### 数据库变更
+- 无表结构变更。本次完全在业务层（task scheduler + 接口侧懒兜底）实现状态推进，复用现有 `unified_orders.status` ENUM 与 `order_items.appointment_time` 字段。
+
+### 部署 / 验证状态
+- 服务器 commit：增量部署，backend 容器 restart 加载 R1/R2 任务，admin-web 容器 force-recreate + build 更新前端
+- 容器：`6b099ed3-7175-4a78-91f4-44570c84ed27-{backend,db,h5,admin}` 全部 Up，db 6h healthy
+- URL 自检：`/api/health` 405（HEAD 不支持 GET 才支持，正常）/ `/admin/` 200 / `/admin/product-system/orders` 308 / `/admin/product-system/categories` 308 / `/admin/product-system/statistics` 308 / `/api/admin/products/categories` 405（HEAD，正常）/ 错误路径 `/api/admin/product-system/categories` 404（验证 Bug 根因路径确实不存在）
+- 容器内 pytest（PYTEST_CURRENT_TEST=1）：
+  - `tests/test_orders_auto_progress.py` **9/9 全部 PASSED**（耗时 2.39s, 20 warnings）
+  - `tests/test_orders_status_v2.py + test_orders_aftersales_v3.py` **31/31 全部 PASSED**（耗时 21.09s）— 历史回归零破坏
+- 总计：**40 个 pytest 全部通过，0 Bug**
+
+### 关键设计 & 教训
+- **每分钟扫描而非按 cron 跑 00:00 一次**：APScheduler 在容器重启 / 漏跑场景下 cron 可能错过整点，每分钟扫描 + 任务内时间窗口判断更鲁棒；R1/R2 内部对 `appointment_time <= 今天/今天-1` 做日期比较，重复扫描幂等
+- **R2 跳过部分核销订单**：`used_redeem_count > 0` 的订单（多次卡 / 套餐多次到店）不能退回，否则丢失中间核销态；只有完全未核销（用户白跑 100%）才退回 `pending_appointment`
+- **NotificationLog 三段去重**：`(user_id, source_type, source_id, created_at >= today_start)` 唯一约束，避免一笔订单一天发多次同节点提醒；扫描周期内只发一次
+- **懒兜底 + 定时器双保险**：定时器是主路径，但接口侧 `lazy_progress_order` 在用户打开订单详情/核销码页面时实时再判断，覆盖容器异常重启 / 任务漏跑场景；commit 失败 try/except 不阻塞响应
+- **Bug 复盘——前端接口路径硬编码散写**：本次 Bug 仅 1 行代码错误，但同样错误在 `orders/page.tsx` 和 `statistics/page.tsx` 两处出现（运营人员只反馈了订单明细页，统计页悄悄也坏了）。未来应把所有 admin 接口路径收口到 `admin-web/src/lib/api/admin.ts` 常量文件，禁止散写字符串
+- **变更检测——仅 backend + admin-web 改动**：`git diff --name-only HEAD` 输出 5 个文件全在 backend/ 或 admin-web/ 下，未触及 `flutter_app/`、`miniprogram/`、`verify-miniprogram/`、`h5-web/`，因此跳过阶段 4 的小程序/APK/IPA/exe 打包
+
+### 访问入口
+- H5 我的订单：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/unified-orders`
+- 后台订单明细（Bug 修复目标）：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/product-system/orders`
+- 后台商品分类管理：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/product-system/categories`
+- 后台商品销售统计：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/product-system/statistics`
+- 用户手册：`user_docs/订单状态自动推进与分类筛选修复.md`
+
+### 不在本期范围（PRD 兼容性原则）
+- 商家临时停业自动通知 + 自动延期 + 三通道触达（短信/微信/电话）—— V2 立项
+- 核销码 5 态独立状态机的细化设计（active/locked/used/expired/refunded）—— 已在历史版本完成
+- 退款 / 转赠 / 商家端订单管理 / 数据报表等模块
+- 微信小程序 / Flutter App 端的 UI 同步（继续走老接口，状态推进透明）
+
+---
+
 ## Latest Update: 卡管理功能 v2.0 第 2~5 期 —— 购卡下单 + 动态核销码 + 卡退款 + 拆 2 单 + 续卡 + 销售看板 + 卡分享海报 + 多端同步（已部署 + 0 Bug）（2026-05-03 19:30）
 
 ### 一句话结论
