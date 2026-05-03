@@ -42,21 +42,111 @@ from app.schemas.unified_orders import (
     UnifiedOrderRefundRequest,
     UnifiedOrderReviewCreate,
     UnifiedOrderResponse,
+    UnifiedOrderSetAppointmentRequest,
 )
 
 router = APIRouter(prefix="/api/orders/unified", tags=["统一订单"])
 
 
+_STATUS_DISPLAY_MAP = {
+    "pending_payment": "待付款",
+    "pending_shipment": "待发货",
+    "pending_receipt": "待收货",
+    "pending_appointment": "待预约",
+    "appointed": "已预约",
+    "pending_use": "待核销",
+    "partial_used": "部分核销",
+    "pending_review": "待评价",
+    "completed": "已完成",
+    "expired": "已过期",
+    "refunding": "退款中",
+    "refunded": "已退款",
+    "cancelled": "已取消",
+}
+
+_STATUS_COLOR_MAP = {
+    "pending_payment": "#fa8c16",
+    "pending_shipment": "#1890ff",
+    "pending_receipt": "#13c2c2",
+    "pending_appointment": "#722ed1",
+    "appointed": "#722ed1",
+    "pending_use": "#13c2c2",
+    "partial_used": "#faad14",
+    "pending_review": "#eb2f96",
+    "completed": "#52c41a",
+    "expired": "#8c8c8c",
+    "refunding": "#f5222d",
+    "refunded": "#8c8c8c",
+    "cancelled": "#8c8c8c",
+}
+
+
+def _normalize_status(value) -> str:
+    if value is None:
+        return ""
+    if hasattr(value, "value"):
+        return value.value
+    return str(value)
+
+
+def _display_status_for(order) -> tuple[str, str]:
+    """V2: 返回 (display_status_text, color)。
+    "已完成" Tab 中包含 expired，但卡片状态文字仍区分。
+    "待评价" = completed AND has_reviewed=False（动态计算）。
+    """
+    s = _normalize_status(order.status)
+    rs = _normalize_status(order.refund_status)
+    if s == "cancelled" and rs == "refund_success":
+        return "已取消（已退款）", _STATUS_COLOR_MAP["cancelled"]
+    if s == "completed" and not bool(getattr(order, "has_reviewed", False)):
+        return "待评价", _STATUS_COLOR_MAP["pending_review"]
+    return _STATUS_DISPLAY_MAP.get(s, s), _STATUS_COLOR_MAP.get(s, "#8c8c8c")
+
+
+def _action_buttons_for(order) -> list[str]:
+    """根据当前状态返回可显示的操作按钮 key 列表（前端按 key 渲染）。"""
+    s = _normalize_status(order.status)
+    btns: list[str] = []
+    if s == "pending_payment":
+        btns += ["cancel", "pay"]
+    elif s == "pending_receipt":
+        btns += ["confirm_receipt"]
+    elif s == "pending_appointment":
+        btns += ["set_appointment"]
+    elif s == "appointed":
+        btns += ["view_appointment"]
+    elif s in ("pending_use", "partial_used"):
+        btns += ["show_qrcode"]
+    elif s == "completed":
+        if not bool(getattr(order, "has_reviewed", False)):
+            btns += ["review"]
+        btns += ["rebuy"]
+    elif s == "expired":
+        btns += ["rebuy"]
+    elif s in ("refunding",):
+        btns += ["view_refund"]
+    return btns
+
+
 def _build_order_response(order) -> UnifiedOrderResponse:
     resp = UnifiedOrderResponse.model_validate(order)
-    s = order.status
-    if hasattr(s, "value"):
-        s = s.value
-    rs = order.refund_status
-    if hasattr(rs, "value"):
-        rs = rs.value
+    s = _normalize_status(order.status)
+    rs = _normalize_status(order.refund_status)
     if s == "cancelled" and rs == "refund_success":
         resp.status_display = "已取消（已退款）"
+    # PRD V2：在响应中追加 display_status / display_status_color / action_buttons / badges
+    text, color = _display_status_for(order)
+    resp.display_status = text
+    resp.display_status_color = color
+    resp.action_buttons = _action_buttons_for(order)
+    badges: list[str] = []
+    if s in ("pending_use", "partial_used"):
+        badges.append("可核销")
+    if s == "partial_used":
+        badges.append("部分已核销")
+    if s == "appointed":
+        badges.append("已预约")
+    resp.badges = badges
     resp.store_name = order.store.store_name if order.store else None
     return resp
 
@@ -488,10 +578,78 @@ async def create_unified_order(
     return _build_order_response(order)
 
 
+def _apply_v2_tab_filter(query, count_query, tab: str, sub_tab: Optional[str] = None):
+    """PRD V2 客户端 5 Tab + 全部 + 退货售后子筛选 → SQL where 子句。"""
+    # 全部 / pending_payment / pending_receipt / pending_use / completed / refund_aftersales
+    if tab in ("all", "", None):
+        return query, count_query
+
+    if tab == "pending_payment":
+        cond = UnifiedOrder.status == UnifiedOrderStatus.pending_payment
+        return query.where(cond), count_query.where(cond)
+
+    if tab == "pending_receipt":
+        # V2：映射 pending_shipment + pending_receipt 两个状态（待收货 Tab）
+        cond = UnifiedOrder.status.in_([
+            UnifiedOrderStatus.pending_shipment,
+            UnifiedOrderStatus.pending_receipt,
+        ])
+        return query.where(cond), count_query.where(cond)
+
+    if tab == "pending_use":
+        # V2：待使用 Tab 包含 pending_appointment / appointed / pending_use / partial_used
+        cond = UnifiedOrder.status.in_([
+            UnifiedOrderStatus.pending_appointment,
+            UnifiedOrderStatus.appointed,
+            UnifiedOrderStatus.pending_use,
+            UnifiedOrderStatus.partial_used,
+        ])
+        return query.where(cond), count_query.where(cond)
+
+    if tab == "completed":
+        # V2：已完成 Tab 包含 completed + expired
+        cond = UnifiedOrder.status.in_([
+            UnifiedOrderStatus.completed,
+            UnifiedOrderStatus.expired,
+        ])
+        return query.where(cond), count_query.where(cond)
+
+    if tab == "refund_aftersales":
+        # V2：退货售后 Tab 子筛选：all / reviewing / refunding / refunded / rejected
+        if sub_tab in (None, "", "all"):
+            cond = UnifiedOrder.status.in_([
+                UnifiedOrderStatus.refunding,
+                UnifiedOrderStatus.refunded,
+            ]) | (UnifiedOrder.refund_status.in_([
+                "applied", "reviewing", "rejected", "returning", "refund_success"
+            ]))
+            return query.where(cond), count_query.where(cond)
+        if sub_tab == "reviewing":
+            cond = UnifiedOrder.refund_status.in_(["applied", "reviewing"])
+            return query.where(cond), count_query.where(cond)
+        if sub_tab == "refunding":
+            cond = (UnifiedOrder.status == UnifiedOrderStatus.refunding) | (
+                UnifiedOrder.refund_status == "returning"
+            )
+            return query.where(cond), count_query.where(cond)
+        if sub_tab == "refunded":
+            cond = (UnifiedOrder.status == UnifiedOrderStatus.refunded) | (
+                UnifiedOrder.refund_status == "refund_success"
+            )
+            return query.where(cond), count_query.where(cond)
+        if sub_tab == "rejected":
+            cond = UnifiedOrder.refund_status == "rejected"
+            return query.where(cond), count_query.where(cond)
+
+    return query, count_query
+
+
 @router.get("")
 async def list_unified_orders(
     status: Optional[str] = None,
     refund_status: Optional[str] = None,
+    tab: Optional[str] = None,
+    sub_tab: Optional[str] = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     current_user: User = Depends(get_current_user),
@@ -500,7 +658,10 @@ async def list_unified_orders(
     query = select(UnifiedOrder).where(UnifiedOrder.user_id == current_user.id)
     count_query = select(func.count(UnifiedOrder.id)).where(UnifiedOrder.user_id == current_user.id)
 
-    if status and status != "all":
+    # PRD V2：优先使用 tab 参数（前端 5 Tab + 全部）
+    if tab:
+        query, count_query = _apply_v2_tab_filter(query, count_query, tab, sub_tab)
+    elif status and status != "all":
         if status == "refund":
             query = query.where(UnifiedOrder.refund_status != "none")
             count_query = count_query.where(UnifiedOrder.refund_status != "none")
@@ -595,7 +756,44 @@ async def get_order_counts(
     cc = (await db.execute(cancelled_q)).scalar() or 0
     rf = (await db.execute(refund_q)).scalar() or 0
 
+    # PRD V2：5 Tab 客户端聚合维度 + 12 状态独立维度
+    pending_use_v2_q = select(func.count(UnifiedOrder.id)).where(
+        base, UnifiedOrder.status.in_([
+            UnifiedOrderStatus.pending_appointment,
+            UnifiedOrderStatus.appointed,
+            UnifiedOrderStatus.pending_use,
+            UnifiedOrderStatus.partial_used,
+        ])
+    )
+    pending_receipt_v2_q = select(func.count(UnifiedOrder.id)).where(
+        base, UnifiedOrder.status.in_([
+            UnifiedOrderStatus.pending_shipment,
+            UnifiedOrderStatus.pending_receipt,
+        ])
+    )
+    completed_v2_q = select(func.count(UnifiedOrder.id)).where(
+        base, UnifiedOrder.status.in_([
+            UnifiedOrderStatus.completed,
+            UnifiedOrderStatus.expired,
+        ])
+    )
+    refund_aftersales_q = select(func.count(UnifiedOrder.id)).where(
+        base,
+        (UnifiedOrder.status.in_([
+            UnifiedOrderStatus.refunding,
+            UnifiedOrderStatus.refunded,
+        ])) | (UnifiedOrder.refund_status.in_(
+            ["applied", "reviewing", "rejected", "returning", "refund_success"]
+        )),
+    )
+
+    pu_v2 = (await db.execute(pending_use_v2_q)).scalar() or 0
+    pr_v2 = (await db.execute(pending_receipt_v2_q)).scalar() or 0
+    cp_v2 = (await db.execute(completed_v2_q)).scalar() or 0
+    rfa = (await db.execute(refund_aftersales_q)).scalar() or 0
+
     return {
+        # 旧字段（兼容现有客户端）
         "all": total,
         "pending_payment": pp,
         "pending_receipt": pr,
@@ -604,6 +802,12 @@ async def get_order_counts(
         "pending_review": prv,
         "cancelled": cc,
         "refund": rf,
+        # PRD V2 新增：5 Tab 聚合维度
+        "v2_pending_payment": pp,
+        "v2_pending_receipt": pr_v2,
+        "v2_pending_use": pu_v2,
+        "v2_completed": cp_v2,
+        "v2_refund_aftersales": rfa,
     }
 
 
@@ -652,6 +856,8 @@ async def pay_unified_order(
 
     has_delivery = False
     has_in_store = False
+    has_appointment_set = False
+    product_ids_for_check = []
     for item in order.items:
         ft = item.fulfillment_type
         if hasattr(ft, "value"):
@@ -660,15 +866,45 @@ async def pay_unified_order(
             has_delivery = True
         else:
             has_in_store = True
+        if getattr(item, "appointment_time", None):
+            has_appointment_set = True
+        product_ids_for_check.append(item.product_id)
 
+    # V2：批量查询商品的 appointment_mode（避免 lazy-load 在 async session 中触发 sync IO）
+    # 模型中 appointment_mode 枚举值为 none/date/time_slot/custom_form；
+    # 任何非 "none" 值都视为"需要预约"。
+    has_appointment_required = False
+    if product_ids_for_check:
+        prod_rows = await db.execute(
+            select(Product.id, Product.appointment_mode).where(
+                Product.id.in_(product_ids_for_check)
+            )
+        )
+        for _pid, appt_mode in prod_rows.all():
+            mode_val = appt_mode.value if hasattr(appt_mode, "value") else appt_mode
+            mode = (mode_val or "").lower()
+            if mode and mode != "none":
+                has_appointment_required = True
+                break
+
+    # PRD V2 状态机推进：
+    # 1) 实物 only → pending_shipment
+    # 2) 到店 + 需预约且未预约 → pending_appointment
+    # 3) 到店 + 需预约且已预约（未到时间）→ appointed
+    # 4) 其它（普通到店）→ pending_use
     if has_delivery and not has_in_store:
         order.status = UnifiedOrderStatus.pending_shipment
-    elif has_in_store and not has_delivery:
-        order.status = UnifiedOrderStatus.pending_use
+    elif has_in_store:
+        if has_appointment_required and not has_appointment_set:
+            order.status = UnifiedOrderStatus.pending_appointment
+        elif has_appointment_set:
+            order.status = UnifiedOrderStatus.appointed
+        else:
+            order.status = UnifiedOrderStatus.pending_use
     else:
         order.status = UnifiedOrderStatus.pending_use
 
-    return {"message": "支付成功", "order_no": order.order_no}
+    return {"message": "支付成功", "order_no": order.order_no, "status": _normalize_status(order.status)}
 
 
 @router.post("/{order_id}/confirm")
@@ -706,6 +942,47 @@ async def confirm_receipt(
     current_user.points += int(float(order.total_amount))
 
     return {"message": "确认收货成功"}
+
+
+# ─────────── PRD V2: 预约相关 ───────────
+
+
+@router.post("/{order_id}/appointment")
+async def set_order_appointment(
+    order_id: int,
+    data: UnifiedOrderSetAppointmentRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """PRD V2：用户设置预约时间，订单从 pending_appointment → appointed。"""
+    result = await db.execute(
+        select(UnifiedOrder)
+        .options(selectinload(UnifiedOrder.items))
+        .where(UnifiedOrder.id == order_id, UnifiedOrder.user_id == current_user.id)
+    )
+    order = result.scalar_one_or_none()
+    if not order:
+        raise HTTPException(status_code=404, detail="订单不存在")
+
+    cur = _normalize_status(order.status)
+    if cur not in ("pending_appointment", "appointed"):
+        raise HTTPException(status_code=400, detail="该订单当前状态不允许预约")
+
+    target_items = order.items
+    if data.order_item_id:
+        target_items = [it for it in order.items if it.id == data.order_item_id]
+        if not target_items:
+            raise HTTPException(status_code=404, detail="订单项不存在")
+    for it in target_items:
+        it.appointment_time = data.appointment_time
+        if data.appointment_data is not None:
+            it.appointment_data = data.appointment_data
+        it.updated_at = datetime.utcnow()
+
+    order.status = UnifiedOrderStatus.appointed
+    order.updated_at = datetime.utcnow()
+    return {"message": "已预约", "status": "appointed",
+            "appointment_time": data.appointment_time.isoformat()}
 
 
 @router.post("/{order_id}/cancel")
@@ -857,6 +1134,10 @@ async def request_refund(
     db.add(refund_req)
 
     order.refund_status = RefundStatusEnum.applied
+    # PRD V2 退款融合：主状态直接进入 refunding（非 cancelled 时）
+    cur = _normalize_status(order.status)
+    if cur != "cancelled":
+        order.status = UnifiedOrderStatus.refunding
     order.updated_at = datetime.utcnow()
 
     await db.flush()
@@ -899,6 +1180,9 @@ async def withdraw_refund(
         refund_req.updated_at = datetime.utcnow()
 
     order.refund_status = RefundStatusEnum.none
+    # PRD V2：退款撤回回到 pending_use（实物订单可由商家手动改为 pending_receipt）
+    if _normalize_status(order.status) == "refunding":
+        order.status = UnifiedOrderStatus.pending_use
     order.updated_at = datetime.utcnow()
 
     await db.flush()

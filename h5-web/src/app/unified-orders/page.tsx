@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Tabs, Card, Tag, Image, Button, Empty, SpinLoading, InfiniteScroll, Toast, Dialog } from 'antd-mobile';
+import { Tabs, Card, Tag, Image, Button, Empty, SpinLoading, InfiniteScroll, Toast, Dialog, Badge } from 'antd-mobile';
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 
@@ -15,6 +15,7 @@ interface OrderItem {
   quantity: number;
   subtotal: number;
   fulfillment_type: string;
+  redemption_code_status?: string;
 }
 
 interface Order {
@@ -24,39 +25,65 @@ interface Order {
   paid_amount: number;
   status: string;
   refund_status: string;
+  has_reviewed?: boolean;
+  display_status?: string;
+  display_status_color?: string;
+  action_buttons?: string[];
+  badges?: string[];
   items: OrderItem[];
   created_at: string;
 }
 
-const STATUS_TABS: Record<string, string> = {
-  all: '全部',
-  pending_payment: '待付款',
-  pending_receipt: '待收货',
-  pending_use: '待使用',
-  completed: '已完成',
-  pending_review: '待评价',
-  cancelled: '已取消',
-};
+// PRD V2「核销订单状态体系优化」：客户端 5 Tab + 全部
+// 顺序：全部 / 待付款 / 待收货 / 待使用 / 已完成 / 退货售后
+const TABS: { key: string; label: string }[] = [
+  { key: 'all', label: '全部' },
+  { key: 'pending_payment', label: '待付款' },
+  { key: 'pending_receipt', label: '待收货' },
+  { key: 'pending_use', label: '待使用' },
+  { key: 'completed', label: '已完成' },
+  { key: 'refund_aftersales', label: '退货售后' },
+];
 
+// PRD V2：退货售后子筛选 — 文案改为审核中/退款中/已退款/已拒绝
+const REFUND_SUB_TABS: { key: string; label: string }[] = [
+  { key: 'all', label: '全部' },
+  { key: 'reviewing', label: '审核中' },
+  { key: 'refunding', label: '退款中' },
+  { key: 'refunded', label: '已退款' },
+  { key: 'rejected', label: '已拒绝' },
+];
+
+// PRD V2：12 状态显示文案 + 颜色（卡片右上角）
 const STATUS_TEXT: Record<string, string> = {
   pending_payment: '待付款',
   pending_shipment: '待发货',
   pending_receipt: '待收货',
-  pending_use: '待使用',
-  pending_receipt_use: '待收货/待使用',
+  pending_appointment: '待预约',
+  appointed: '已预约',
+  pending_use: '待核销',
+  partial_used: '部分核销',
   pending_review: '待评价',
   completed: '已完成',
+  expired: '已过期',
+  refunding: '退款中',
+  refunded: '已退款',
   cancelled: '已取消',
 };
 
 const STATUS_COLOR: Record<string, string> = {
   pending_payment: '#fa8c16',
   pending_shipment: '#1890ff',
-  pending_receipt: '#722ed1',
+  pending_receipt: '#13c2c2',
+  pending_appointment: '#722ed1',
+  appointed: '#722ed1',
   pending_use: '#13c2c2',
-  pending_receipt_use: '#722ed1',
+  partial_used: '#faad14',
   pending_review: '#eb2f96',
   completed: '#52c41a',
+  expired: '#8c8c8c',
+  refunding: '#f5222d',
+  refunded: '#8c8c8c',
   cancelled: '#8c8c8c',
 };
 
@@ -72,7 +99,9 @@ function UnifiedOrdersPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialTab = searchParams.get('tab') || 'all';
+  const initialSub = searchParams.get('sub_tab') || 'all';
   const [activeTab, setActiveTab] = useState(initialTab);
+  const [activeSubTab, setActiveSubTab] = useState(initialSub);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -81,8 +110,10 @@ function UnifiedOrdersPage() {
   const fetchOrders = useCallback(async (pageNum: number, reset = false) => {
     try {
       const params: Record<string, any> = { page: pageNum, page_size: 20 };
-      if (activeTab !== 'all') {
-        params.status = activeTab;
+      // PRD V2：使用 tab 参数，后端自动按映射规则过滤
+      params.tab = activeTab;
+      if (activeTab === 'refund_aftersales') {
+        params.sub_tab = activeSubTab;
       }
       const res: any = await api.get('/api/orders/unified', { params });
       const data = res.data || res;
@@ -98,7 +129,7 @@ function UnifiedOrdersPage() {
     } finally {
       setLoading(false);
     }
-  }, [activeTab]);
+  }, [activeTab, activeSubTab]);
 
   useEffect(() => {
     setLoading(true);
@@ -143,17 +174,129 @@ function UnifiedOrdersPage() {
     });
   };
 
+  const handleConfirmReceipt = async (orderId: number) => {
+    try {
+      await api.post(`/api/orders/unified/${orderId}/confirm`);
+      Toast.show({ content: '已确认收货' });
+      setLoading(true);
+      setPage(1);
+      fetchOrders(1, true);
+    } catch {
+      Toast.show({ content: '操作失败' });
+    }
+  };
+
   const getStatusDisplay = (order: Order) => {
+    // 后端已经返回 display_status / display_status_color，优先用
+    if (order.display_status) {
+      return {
+        text: order.display_status,
+        color: order.display_status_color || STATUS_COLOR[order.status] || '#8c8c8c',
+      };
+    }
     if (order.status === 'cancelled' && order.refund_status === 'refund_success') {
       return { text: '已取消（已退款）', color: '#8c8c8c' };
     }
-    if (order.refund_status && order.refund_status !== 'none') {
-      return { text: '退款中', color: '#f5222d' };
+    // V2: 完成态但未评价 → 显示"待评价"
+    if (order.status === 'completed' && order.has_reviewed === false) {
+      return { text: '待评价', color: STATUS_COLOR.pending_review };
     }
     return {
       text: STATUS_TEXT[order.status] || order.status,
       color: STATUS_COLOR[order.status] || '#8c8c8c',
     };
+  };
+
+  // PRD V2：根据当前订单状态/Tab 渲染按钮组
+  const renderButtons = (order: Order) => {
+    const btns = order.action_buttons || [];
+    const items: React.ReactNode[] = [];
+    if (btns.includes('cancel')) {
+      items.push(
+        <Button
+          key="cancel"
+          size="mini"
+          onClick={(e) => { e.stopPropagation(); handleCancel(order.id); }}
+          style={{ borderRadius: 16, fontSize: 12 }}
+        >取消订单</Button>
+      );
+    }
+    if (btns.includes('pay')) {
+      items.push(
+        <Button
+          key="pay"
+          size="mini"
+          onClick={(e) => { e.stopPropagation(); handlePay(order.id); }}
+          style={{ borderRadius: 16, fontSize: 12, background: '#52c41a', color: '#fff', border: 'none' }}
+        >去支付</Button>
+      );
+    }
+    if (btns.includes('confirm_receipt')) {
+      items.push(
+        <Button
+          key="confirm"
+          size="mini"
+          onClick={(e) => { e.stopPropagation(); handleConfirmReceipt(order.id); }}
+          style={{ borderRadius: 16, fontSize: 12, background: '#52c41a', color: '#fff', border: 'none' }}
+        >确认收货</Button>
+      );
+    }
+    if (btns.includes('set_appointment')) {
+      items.push(
+        <Button
+          key="appt"
+          size="mini"
+          onClick={(e) => { e.stopPropagation(); router.push(`/unified-order/${order.id}?action=appointment`); }}
+          style={{ borderRadius: 16, fontSize: 12, background: '#722ed1', color: '#fff', border: 'none' }}
+        >去预约</Button>
+      );
+    }
+    if (btns.includes('show_qrcode')) {
+      items.push(
+        <Button
+          key="code"
+          size="mini"
+          onClick={(e) => { e.stopPropagation(); router.push(`/unified-order/${order.id}?action=verify`); }}
+          style={{ borderRadius: 16, fontSize: 12, background: '#13c2c2', color: '#fff', border: 'none' }}
+        >核销码</Button>
+      );
+    }
+    if (btns.includes('review')) {
+      items.push(
+        <Button
+          key="review"
+          size="mini"
+          onClick={(e) => { e.stopPropagation(); router.push(`/review/${order.id}`); }}
+          style={{ borderRadius: 16, fontSize: 12, color: '#52c41a', borderColor: '#52c41a' }}
+        >去评价</Button>
+      );
+    }
+    if (btns.includes('view_refund')) {
+      items.push(
+        <Button
+          key="refund"
+          size="mini"
+          onClick={(e) => { e.stopPropagation(); router.push(`/unified-order/${order.id}?action=refund`); }}
+          style={{ borderRadius: 16, fontSize: 12, color: '#f5222d', borderColor: '#f5222d' }}
+        >退款详情</Button>
+      );
+    }
+    if (btns.includes('rebuy')) {
+      items.push(
+        <Button
+          key="rebuy"
+          size="mini"
+          onClick={(e) => { e.stopPropagation(); router.push(`/unified-order/${order.id}?action=rebuy`); }}
+          style={{ borderRadius: 16, fontSize: 12 }}
+        >再来一单</Button>
+      );
+    }
+    if (items.length === 0) return null;
+    return (
+      <div className="flex justify-end gap-2 mt-3 pt-3 border-t border-gray-50">
+        {items}
+      </div>
+    );
   };
 
   return (
@@ -162,9 +305,10 @@ function UnifiedOrdersPage() {
         我的订单
       </GreenNavBar>
 
+      {/* PRD V2: 5 Tab + 全部，取消"待评价"独立 Tab */}
       <Tabs
         activeKey={activeTab}
-        onChange={setActiveTab}
+        onChange={(k) => { setActiveTab(k); setActiveSubTab('all'); }}
         className="green-bold-tabs"
         style={{
           '--active-line-color': '#52c41a',
@@ -174,10 +318,35 @@ function UnifiedOrdersPage() {
           background: '#fff',
         } as React.CSSProperties}
       >
-        {Object.entries(STATUS_TABS).map(([key, title]) => (
-          <Tabs.Tab key={key} title={title} />
-        ))}
+        {TABS.map(t => <Tabs.Tab key={t.key} title={t.label} />)}
       </Tabs>
+
+      {/* PRD V2: "退货售后" 才有二级筛选；"全部" Tab 取消二级筛选 */}
+      {activeTab === 'refund_aftersales' && (
+        <div
+          className="px-4 py-2 flex gap-2 overflow-x-auto"
+          style={{ background: '#fff', borderTop: '1px solid #f0f0f0' }}
+        >
+          {REFUND_SUB_TABS.map(s => (
+            <span
+              key={s.key}
+              onClick={() => setActiveSubTab(s.key)}
+              style={{
+                padding: '4px 12px',
+                borderRadius: 16,
+                fontSize: 12,
+                whiteSpace: 'nowrap',
+                background: activeSubTab === s.key ? '#52c41a15' : '#f5f5f5',
+                color: activeSubTab === s.key ? '#52c41a' : '#666',
+                fontWeight: activeSubTab === s.key ? 600 : 400,
+                cursor: 'pointer',
+              }}
+            >
+              {s.label}
+            </span>
+          ))}
+        </div>
+      )}
 
       <div className="px-4 pt-3">
         {loading ? (
@@ -189,6 +358,8 @@ function UnifiedOrdersPage() {
         ) : (
           orders.map((order) => {
             const statusInfo = getStatusDisplay(order);
+            // PRD V2 待使用徽章 — 待核销/部分核销时高亮
+            const showHotBadge = order.badges && order.badges.includes('可核销');
             return (
               <Card
                 key={order.id}
@@ -197,12 +368,14 @@ function UnifiedOrdersPage() {
               >
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs text-gray-400">订单号：{order.order_no}</span>
+                  {/* 全部 Tab 卡片右上角直接显示状态文字（PRD V2 第 0.2 节） */}
                   <Tag
                     style={{
                       '--background-color': `${statusInfo.color}15`,
                       '--text-color': statusInfo.color,
                       '--border-color': 'transparent',
                       fontSize: 10,
+                      fontWeight: 600,
                     }}
                   >
                     {statusInfo.text}
@@ -227,61 +400,25 @@ function UnifiedOrdersPage() {
                   </div>
                 ))}
                 <div className="flex items-center justify-between pt-2 border-t border-gray-50">
-                  <span className="text-xs text-gray-400">
-                    {new Date(order.created_at).toLocaleString('zh-CN')}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-400">
+                      {new Date(order.created_at).toLocaleString('zh-CN')}
+                    </span>
+                    {showHotBadge && (
+                      <span style={{
+                        background: '#13c2c2',
+                        color: '#fff',
+                        fontSize: 10,
+                        padding: '2px 6px',
+                        borderRadius: 8,
+                      }}>可核销</span>
+                    )}
+                  </div>
                   <span className="text-sm">
                     实付 <span className="font-bold text-red-500">¥{order.paid_amount}</span>
                   </span>
                 </div>
-                {(order.status === 'pending_payment' || order.status === 'pending_receipt' || order.status === 'pending_review') && (
-                  <div className="flex justify-end gap-2 mt-3 pt-3 border-t border-gray-50">
-                    {order.status === 'pending_payment' && (
-                      <>
-                        <Button
-                          size="mini"
-                          onClick={(e) => { e.stopPropagation(); handleCancel(order.id); }}
-                          style={{ borderRadius: 16, fontSize: 12 }}
-                        >
-                          取消订单
-                        </Button>
-                        <Button
-                          size="mini"
-                          onClick={(e) => { e.stopPropagation(); handlePay(order.id); }}
-                          style={{ borderRadius: 16, fontSize: 12, background: '#52c41a', color: '#fff', border: 'none' }}
-                        >
-                          去支付
-                        </Button>
-                      </>
-                    )}
-                    {order.status === 'pending_receipt' && (
-                      <Button
-                        size="mini"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          api.post(`/api/orders/unified/${order.id}/confirm`).then(() => {
-                            Toast.show({ content: '已确认收货' });
-                            setLoading(true);
-                            setPage(1);
-                            fetchOrders(1, true);
-                          }).catch(() => Toast.show({ content: '操作失败' }));
-                        }}
-                        style={{ borderRadius: 16, fontSize: 12, background: '#52c41a', color: '#fff', border: 'none' }}
-                      >
-                        确认收货
-                      </Button>
-                    )}
-                    {order.status === 'pending_review' && (
-                      <Button
-                        size="mini"
-                        onClick={(e) => { e.stopPropagation(); router.push(`/review/${order.id}`); }}
-                        style={{ borderRadius: 16, fontSize: 12, color: '#52c41a', borderColor: '#52c41a' }}
-                      >
-                        去评价
-                      </Button>
-                    )}
-                  </div>
-                )}
+                {renderButtons(order)}
               </Card>
             );
           })

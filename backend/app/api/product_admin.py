@@ -867,6 +867,7 @@ async def admin_delete_form_field(
 async def admin_list_unified_orders(
     status: Optional[str] = None,
     refund_status: Optional[str] = None,
+    redemption_code_status: Optional[str] = None,  # PRD V2 新增：核销码 5 态独立筛选
     keyword: Optional[str] = None,
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
@@ -883,8 +884,26 @@ async def admin_list_unified_orders(
     count_query = select(func.count(UnifiedOrder.id))
 
     if status:
-        query = query.where(UnifiedOrder.status == status)
-        count_query = count_query.where(UnifiedOrder.status == status)
+        # 支持逗号分隔多状态（PRD V2 完整 12 枚举均可传）
+        if "," in status:
+            sts = [s.strip() for s in status.split(",") if s.strip()]
+            if sts:
+                query = query.where(UnifiedOrder.status.in_(sts))
+                count_query = count_query.where(UnifiedOrder.status.in_(sts))
+        else:
+            query = query.where(UnifiedOrder.status == status)
+            count_query = count_query.where(UnifiedOrder.status == status)
+    if redemption_code_status:
+        # PRD V2：核销码独立筛选维度（active/locked/used/expired/refunded）
+        rcs_values = (
+            [v.strip() for v in redemption_code_status.split(",") if v.strip()]
+            if "," in redemption_code_status else [redemption_code_status]
+        )
+        order_ids_subq = select(OrderItem.order_id).where(
+            OrderItem.redemption_code_status.in_(rcs_values)
+        ).distinct().scalar_subquery()
+        query = query.where(UnifiedOrder.id.in_(order_ids_subq))
+        count_query = count_query.where(UnifiedOrder.id.in_(order_ids_subq))
     if refund_status:
         if refund_status in ("all_refund", "all"):
             query = query.where(UnifiedOrder.refund_status != "none")
@@ -1104,6 +1123,121 @@ async def admin_get_refund_detail(
         redemptions=redemptions_list,
         paid_amount=float(order.paid_amount),
     )
+
+
+# ─────────── PRD V2: 订单状态体系优化 — 枚举 / 统计 ───────────
+
+
+@router.get("/orders/v2/enums")
+async def admin_orders_v2_enums(
+    current_user=Depends(require_role("admin")),
+):
+    """PRD V2：返回订单 12 状态 + 核销码 5 态的中文标签，admin 筛选下拉用。"""
+    return {
+        "order_status": [
+            {"value": "pending_payment", "label": "待付款"},
+            {"value": "pending_shipment", "label": "待发货"},
+            {"value": "pending_receipt", "label": "待收货"},
+            {"value": "pending_appointment", "label": "待预约"},
+            {"value": "appointed", "label": "已预约"},
+            {"value": "pending_use", "label": "待核销"},
+            {"value": "partial_used", "label": "部分核销"},
+            {"value": "completed", "label": "已完成"},
+            {"value": "expired", "label": "已过期"},
+            {"value": "refunding", "label": "退款中"},
+            {"value": "refunded", "label": "已退款"},
+            {"value": "cancelled", "label": "已取消"},
+        ],
+        "redemption_code_status": [
+            {"value": "active", "label": "可核销"},
+            {"value": "locked", "label": "已锁定"},
+            {"value": "used", "label": "已核销"},
+            {"value": "expired", "label": "已过期"},
+            {"value": "refunded", "label": "已退款"},
+        ],
+        "refund_status": [
+            {"value": "none", "label": "无"},
+            {"value": "applied", "label": "申请中"},
+            {"value": "reviewing", "label": "审核中"},
+            {"value": "approved", "label": "已批准"},
+            {"value": "rejected", "label": "已拒绝"},
+            {"value": "returning", "label": "退回中"},
+            {"value": "refund_success", "label": "退款成功"},
+        ],
+    }
+
+
+@router.get("/orders/v2/stats")
+async def admin_orders_v2_stats(
+    current_user=Depends(require_role("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    """PRD V2：GMV / 履约率等核心指标（按新口径）。
+    - gmv: 全部完成态 (completed) 的 paid_amount 之和
+    - refunded_amount: 已退款 (refunded) 的 paid_amount 之和
+    - net_revenue: gmv - refunded_amount
+    - fulfillment_rate: completed / (completed + expired + cancelled)
+    - status_breakdown: 12 状态分布
+    - redemption_code_breakdown: 核销码 5 态分布
+    """
+    # GMV
+    gmv_q = select(func.coalesce(func.sum(UnifiedOrder.paid_amount), 0)).where(
+        UnifiedOrder.status == "completed"
+    )
+    gmv = float((await db.execute(gmv_q)).scalar() or 0)
+
+    refunded_q = select(func.coalesce(func.sum(UnifiedOrder.paid_amount), 0)).where(
+        UnifiedOrder.status == "refunded"
+    )
+    refunded_amount = float((await db.execute(refunded_q)).scalar() or 0)
+
+    completed_cnt = (await db.execute(
+        select(func.count(UnifiedOrder.id)).where(UnifiedOrder.status == "completed")
+    )).scalar() or 0
+    expired_cnt = (await db.execute(
+        select(func.count(UnifiedOrder.id)).where(UnifiedOrder.status == "expired")
+    )).scalar() or 0
+    cancelled_cnt = (await db.execute(
+        select(func.count(UnifiedOrder.id)).where(UnifiedOrder.status == "cancelled")
+    )).scalar() or 0
+    denom = completed_cnt + expired_cnt + cancelled_cnt
+    fulfillment_rate = (completed_cnt / denom) if denom > 0 else 0.0
+
+    # 12 状态分布
+    breakdown_rows = (await db.execute(
+        select(UnifiedOrder.status, func.count(UnifiedOrder.id))
+        .group_by(UnifiedOrder.status)
+    )).all()
+    status_breakdown = {}
+    for s, cnt in breakdown_rows:
+        key = s.value if hasattr(s, "value") else str(s)
+        status_breakdown[key] = int(cnt or 0)
+
+    # 核销码 5 态分布（OrderItem 维度）
+    rcs_breakdown = {"active": 0, "locked": 0, "used": 0, "expired": 0, "refunded": 0}
+    try:
+        rcs_rows = (await db.execute(
+            select(OrderItem.redemption_code_status, func.count(OrderItem.id))
+            .group_by(OrderItem.redemption_code_status)
+        )).all()
+        for s, cnt in rcs_rows:
+            key = s.value if hasattr(s, "value") else str(s)
+            if key:
+                rcs_breakdown[key] = int(cnt or 0)
+    except Exception:
+        pass
+
+    return {
+        "gmv": round(gmv, 2),
+        "refunded_amount": round(refunded_amount, 2),
+        "net_revenue": round(gmv - refunded_amount, 2),
+        "fulfillment_rate": round(fulfillment_rate, 4),
+        "completed_count": int(completed_cnt),
+        "expired_count": int(expired_cnt),
+        "cancelled_count": int(cancelled_cnt),
+        "status_breakdown": status_breakdown,
+        "redemption_code_breakdown": rcs_breakdown,
+    }
 
 
 # ─────────── 优惠券管理 ───────────

@@ -185,13 +185,35 @@ class FormFieldType(str, enum.Enum):
 
 
 class UnifiedOrderStatus(str, enum.Enum):
+    """统一订单 12 状态（PRD V2「核销订单状态体系优化」）。
+
+    新增 6 个：pending_appointment / appointed / partial_used / expired /
+              refunding / refunded
+    保留 7 个旧值（含 pending_review）以兼容历史数据；代码新逻辑不再产生
+    pending_review，迁移脚本已把存量 pending_review → completed。
+    """
     pending_payment = "pending_payment"
     pending_shipment = "pending_shipment"
     pending_receipt = "pending_receipt"
+    pending_appointment = "pending_appointment"  # V2 新增 — 已支付但未设预约时间
+    appointed = "appointed"                       # V2 新增 — 已设预约时间
     pending_use = "pending_use"
-    pending_review = "pending_review"
+    partial_used = "partial_used"                 # V2 新增 — 部分核销
+    pending_review = "pending_review"             # 保留兼容；新逻辑不再产生
     completed = "completed"
+    expired = "expired"                           # V2 新增 — 到期未核销
+    refunding = "refunding"                       # V2 新增 — 退款流程进行中
+    refunded = "refunded"                         # V2 新增 — 退款完成
     cancelled = "cancelled"
+
+
+class RedemptionCodeStatus(str, enum.Enum):
+    """核销码 5 态独立状态机（PRD V2 第 1 章 1.2）。"""
+    active = "active"          # 可核销
+    locked = "locked"          # 已锁定（核销中、双确认中）
+    used = "used"              # 已核销
+    expired = "expired"        # 已过期
+    refunded = "refunded"      # 已退款（核销码作废）
 
 
 class RefundStatusEnum(str, enum.Enum):
@@ -2988,6 +3010,9 @@ class OrderItem(Base):
     used_redeem_count = mapped_column(Integer, default=0)
     appointment_data = mapped_column(JSON, nullable=True)
     appointment_time = mapped_column(DateTime, nullable=True)
+    # [PRD V2 核销订单状态体系优化] 核销码 5 态独立状态机（active/locked/used/expired/refunded）
+    redemption_code_status = mapped_column(String(16), default="active", nullable=False)
+    redemption_code_expires_at = mapped_column(DateTime, nullable=True)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

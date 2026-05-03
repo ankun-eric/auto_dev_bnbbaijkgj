@@ -70,13 +70,20 @@ interface SalesStats {
   month_refund_amount: number;
 }
 
+// PRD V2「核销订单状态体系优化」: 12 状态完整枚举 + 中文标签 + Tag 颜色
 const orderStatusMap: Record<string, { color: string; text: string }> = {
   pending_payment: { color: 'orange', text: '待付款' },
   pending_shipment: { color: 'blue', text: '待发货' },
   pending_receipt: { color: 'cyan', text: '待收货' },
-  pending_use: { color: 'geekblue', text: '待使用' },
-  pending_review: { color: 'purple', text: '待评价' },
+  pending_appointment: { color: 'purple', text: '待预约' },
+  appointed: { color: 'magenta', text: '已预约' },
+  pending_use: { color: 'geekblue', text: '待核销' },
+  partial_used: { color: 'gold', text: '部分核销' },
+  pending_review: { color: 'purple', text: '待评价（兼容）' },
   completed: { color: 'green', text: '已完成' },
+  expired: { color: 'default', text: '已过期' },
+  refunding: { color: 'red', text: '退款中' },
+  refunded: { color: 'default', text: '已退款' },
   cancelled: { color: 'default', text: '已取消' },
 };
 
@@ -103,15 +110,31 @@ const payMethodMap: Record<string, string> = {
   points: '积分兑换',
 };
 
+// PRD V2: 12 状态完整筛选下拉
 const statusOptions = [
   { value: '', label: '全部状态' },
   { value: 'pending_payment', label: '待付款' },
   { value: 'pending_shipment', label: '待发货' },
   { value: 'pending_receipt', label: '待收货' },
-  { value: 'pending_use', label: '待使用' },
+  { value: 'pending_appointment', label: '待预约' },
+  { value: 'appointed', label: '已预约' },
+  { value: 'pending_use', label: '待核销' },
+  { value: 'partial_used', label: '部分核销' },
   { value: 'completed', label: '已完成' },
-  { value: 'pending_review', label: '待评价' },
+  { value: 'expired', label: '已过期' },
+  { value: 'refunding', label: '退款中' },
+  { value: 'refunded', label: '已退款' },
   { value: 'cancelled', label: '已取消' },
+];
+
+// PRD V2: 核销码 5 态独立筛选
+const redemptionCodeStatusOptions = [
+  { value: '', label: '全部核销码状态' },
+  { value: 'active', label: '可核销' },
+  { value: 'locked', label: '已锁定' },
+  { value: 'used', label: '已核销' },
+  { value: 'expired', label: '已过期' },
+  { value: 'refunded', label: '已退款' },
 ];
 
 const payMethodOptions = [
@@ -122,13 +145,16 @@ const payMethodOptions = [
   { value: 'points', label: '积分兑换' },
 ];
 
+// PRD V2: 退款流程辅助筛选 — 文案统一为审核中/退款中/已退款/已拒绝
 const refundStatusOptions = [
-  { value: '', label: '全部退款状态' },
+  { value: '', label: '全部退款流程' },
   { value: 'none', label: '无退款' },
-  { value: 'applied', label: '退款申请中' },
-  { value: 'approved', label: '退款已批准' },
-  { value: 'rejected', label: '退款已拒绝' },
-  { value: 'refund_success', label: '退款成功' },
+  { value: 'applied', label: '审核中' },
+  { value: 'reviewing', label: '审核中' },
+  { value: 'approved', label: '已批准' },
+  { value: 'returning', label: '退款中' },
+  { value: 'rejected', label: '已拒绝' },
+  { value: 'refund_success', label: '已退款' },
 ];
 
 function mapOrder(raw: Record<string, unknown>): UnifiedOrder {
@@ -190,6 +216,8 @@ export default function UnifiedOrdersPage() {
   const [filterPayMethod, setFilterPayMethod] = useState('');
   const [filterRefundStatus, setFilterRefundStatus] = useState('');
   const [filterCategory, setFilterCategory] = useState<string>('');
+  // PRD V2: 核销码 5 态独立筛选
+  const [filterRedemptionCodeStatus, setFilterRedemptionCodeStatus] = useState('');
   const [amountMin, setAmountMin] = useState<number | null>(null);
   const [amountMax, setAmountMax] = useState<number | null>(null);
   const [categories, setCategories] = useState<{ id: number; name: string }[]>([]);
@@ -254,6 +282,7 @@ export default function UnifiedOrdersPage() {
       if (filterPayMethod) params.payment_method = filterPayMethod;
       if (filterRefundStatus) params.refund_status = filterRefundStatus;
       if (filterCategory) params.category_id = filterCategory;
+      if (filterRedemptionCodeStatus) params.redemption_code_status = filterRedemptionCodeStatus;
       if (amountMin !== null) params.amount_min = amountMin;
       if (amountMax !== null) params.amount_max = amountMax;
 
@@ -280,7 +309,7 @@ export default function UnifiedOrdersPage() {
     } finally {
       setLoading(false);
     }
-  }, [searchText, dateRange, filterStatus, filterPayMethod, filterRefundStatus, filterCategory, amountMin, amountMax]);
+  }, [searchText, dateRange, filterStatus, filterPayMethod, filterRefundStatus, filterCategory, filterRedemptionCodeStatus, amountMin, amountMax]);
 
   useEffect(() => {
     fetchCategories();
@@ -360,14 +389,20 @@ export default function UnifiedOrdersPage() {
     }
   };
 
+  // PRD V2: admin 端按 12 状态完整展示，外加 "全部" / "退款申请" 工作流入口
   const tabItems = [
     { key: 'all', label: '全部' },
     { key: 'pending_payment', label: '待付款' },
     { key: 'pending_shipment', label: '待发货' },
     { key: 'pending_receipt', label: '待收货' },
-    { key: 'pending_use', label: '待使用' },
+    { key: 'pending_appointment', label: '待预约' },
+    { key: 'appointed', label: '已预约' },
+    { key: 'pending_use', label: '待核销' },
+    { key: 'partial_used', label: '部分核销' },
     { key: 'completed', label: '已完成' },
-    { key: 'pending_review', label: '待评价' },
+    { key: 'expired', label: '已过期' },
+    { key: 'refunding', label: '退款中' },
+    { key: 'refunded', label: '已退款' },
     { key: 'cancelled', label: '已取消' },
     { key: 'refund', label: '退款申请' },
   ];
@@ -525,7 +560,16 @@ export default function UnifiedOrdersPage() {
               value={filterRefundStatus}
               onChange={v => setFilterRefundStatus(v)}
               options={refundStatusOptions}
-              placeholder="退款状态"
+              placeholder="退款流程"
+            />
+          </Col>
+          <Col span={4}>
+            <Select
+              style={{ width: '100%' }}
+              value={filterRedemptionCodeStatus}
+              onChange={v => setFilterRedemptionCodeStatus(v)}
+              options={redemptionCodeStatusOptions}
+              placeholder="核销码状态"
             />
           </Col>
           <Col span={4}>

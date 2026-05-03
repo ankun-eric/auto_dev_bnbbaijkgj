@@ -1227,6 +1227,173 @@ async def _sync_card_face_fields(conn: AsyncConnection) -> None:
         ))
 
 
+async def _sync_orders_status_v2(conn: AsyncConnection) -> None:
+    """[2026-05-03 PRD V2 核销订单状态体系优化]
+    1) order_items 新增 redemption_code_status / redemption_code_expires_at
+    2) unified_orders.status ENUM 扩列到 12 值（保留 pending_review 兼容）
+    3) 一次性数据迁移（用 system_configs 标记版本号，幂等）：
+       - pending_review → completed（V2 取消"待评价"独立状态）
+       - 待核销 + 已过期：pending_use 且 redemption_code_expires_at 已过 → expired
+       - 退款融合：refund_status=refund_success 且 status!=cancelled → refunded
+                  refund_status=applied/reviewing/returning 且 status!=cancelled → refunding
+    所有操作均为 try/except + warn，缺字段时跳过该条规则。
+    """
+    def _load(sync_conn):
+        inspector = inspect(sync_conn)
+        tables = set(inspector.get_table_names())
+        result = {
+            "order_items": None,
+            "unified_orders": None,
+            "system_configs": None,
+        }
+        for tbl in result:
+            if tbl in tables:
+                result[tbl] = {col["name"] for col in inspector.get_columns(tbl)}
+        return result
+
+    table_cols = await conn.run_sync(_load)
+
+    # ── 1) order_items 加列 ──
+    if table_cols.get("order_items") is not None:
+        cols = table_cols["order_items"]
+        if "redemption_code_status" not in cols:
+            await conn.execute(text(
+                "ALTER TABLE order_items ADD COLUMN redemption_code_status "
+                "VARCHAR(16) NOT NULL DEFAULT 'active' "
+                "COMMENT '核销码 5 态：active/locked/used/expired/refunded（PRD V2）'"
+            ))
+            await conn.execute(text(
+                "CREATE INDEX ix_order_items_redemption_code_status "
+                "ON order_items(redemption_code_status)"
+            ))
+        if "redemption_code_expires_at" not in cols:
+            await conn.execute(text(
+                "ALTER TABLE order_items ADD COLUMN redemption_code_expires_at "
+                "DATETIME NULL COMMENT '核销码过期时间（PRD V2）'"
+            ))
+
+    # ── 2) unified_orders.status ENUM 扩列 ──
+    if table_cols.get("unified_orders") is not None:
+        # MySQL：MODIFY ENUM 把所有 12 + 1（pending_review 兼容）枚举值列出
+        # 在 SQLite 下不存在 ENUM 概念，UnifiedOrderStatus 的 String 比较仍能工作；
+        # 为兼容性此处仅在 MySQL 方言下执行。
+        try:
+            dialect_name = conn.dialect.name  # "mysql" / "sqlite" / ...
+        except Exception:
+            dialect_name = ""
+        if dialect_name == "mysql":
+            try:
+                await conn.execute(text(
+                    "ALTER TABLE unified_orders MODIFY COLUMN status ENUM("
+                    "'pending_payment','pending_shipment','pending_receipt',"
+                    "'pending_appointment','appointed','pending_use','partial_used',"
+                    "'pending_review','completed','expired','refunding','refunded',"
+                    "'cancelled') NOT NULL DEFAULT 'pending_payment'"
+                ))
+            except Exception as e:
+                # 即使 ALTER 失败（已经是更宽的枚举），也允许继续
+                print(f"[schema_sync] _sync_orders_status_v2 ALTER status enum warn: {e}")
+
+    # ── 3) 一次性数据迁移：版本号写入 system_configs ──
+    MIGRATION_KEY = "orders_status_v2_migration_version"
+    MIGRATION_VAL = "1"
+
+    has_sysconf = table_cols.get("system_configs") is not None
+    already_migrated = False
+    if has_sysconf:
+        try:
+            row = (await conn.execute(text(
+                "SELECT config_value FROM system_configs WHERE config_key = :k"
+            ), {"k": MIGRATION_KEY})).fetchone()
+            if row and (row[0] == MIGRATION_VAL):
+                already_migrated = True
+        except Exception:
+            # system_configs 列名可能不同；尝试备选
+            try:
+                row = (await conn.execute(text(
+                    "SELECT value FROM system_configs WHERE `key` = :k"
+                ), {"k": MIGRATION_KEY})).fetchone()
+                if row and (row[0] == MIGRATION_VAL):
+                    already_migrated = True
+            except Exception:
+                already_migrated = False
+
+    if already_migrated:
+        return
+
+    # 真正执行迁移
+    if table_cols.get("unified_orders") is None:
+        return  # 没有该表，整体跳过
+
+    uo_cols = table_cols["unified_orders"]
+
+    # 规则 1：pending_review → completed
+    try:
+        r = await conn.execute(text(
+            "UPDATE unified_orders SET status='completed' "
+            "WHERE status='pending_review'"
+        ))
+        print(f"[orders_v2 migrate] pending_review→completed rows={r.rowcount}")
+    except Exception as e:
+        print(f"[orders_v2 migrate] pending_review→completed skip: {e}")
+
+    # 规则 2：refund_status=refund_success 且 status!=cancelled → refunded
+    if "refund_status" in uo_cols:
+        try:
+            r = await conn.execute(text(
+                "UPDATE unified_orders SET status='refunded' "
+                "WHERE refund_status='refund_success' AND status<>'cancelled' "
+                "AND status<>'refunded'"
+            ))
+            print(f"[orders_v2 migrate] refund_success→refunded rows={r.rowcount}")
+        except Exception as e:
+            print(f"[orders_v2 migrate] refund_success→refunded skip: {e}")
+
+        # 规则 3：refund_status in (applied/reviewing/returning) → refunding
+        try:
+            r = await conn.execute(text(
+                "UPDATE unified_orders SET status='refunding' "
+                "WHERE refund_status IN ('applied','reviewing','returning') "
+                "AND status NOT IN ('cancelled','refunded','refunding')"
+            ))
+            print(f"[orders_v2 migrate] refund_in_progress→refunding rows={r.rowcount}")
+        except Exception as e:
+            print(f"[orders_v2 migrate] refund_in_progress→refunding skip: {e}")
+
+    # 规则 4：pending_use + redemption_code_expires_at 过期 → expired
+    if "redemption_code_expires_at" in (table_cols.get("order_items") or set()):
+        try:
+            r = await conn.execute(text(
+                "UPDATE unified_orders uo SET status='expired' "
+                "WHERE uo.status='pending_use' AND EXISTS ("
+                "  SELECT 1 FROM order_items oi WHERE oi.order_id=uo.id "
+                "  AND oi.redemption_code_expires_at IS NOT NULL "
+                "  AND oi.redemption_code_expires_at < NOW()"
+                ")"
+            ))
+            print(f"[orders_v2 migrate] pending_use_expired→expired rows={r.rowcount}")
+        except Exception as e:
+            print(f"[orders_v2 migrate] pending_use_expired→expired skip: {e}")
+
+    # 写入版本号（已迁移）
+    if has_sysconf:
+        try:
+            await conn.execute(text(
+                "INSERT INTO system_configs (config_key, config_value, description, created_at, updated_at) "
+                "VALUES (:k, :v, 'orders_status_v2 migration done', NOW(), NOW()) "
+                "ON DUPLICATE KEY UPDATE config_value=:v, updated_at=NOW()"
+            ), {"k": MIGRATION_KEY, "v": MIGRATION_VAL})
+        except Exception as e:
+            # SQLite 不支持 ON DUPLICATE KEY；做一次普通的 INSERT OR REPLACE
+            try:
+                await conn.execute(text(
+                    "INSERT OR REPLACE INTO system_configs (config_key, config_value) "
+                    "VALUES (:k, :v)"
+                ), {"k": MIGRATION_KEY, "v": MIGRATION_VAL})
+            except Exception as e2:
+                print(f"[orders_v2 migrate] write version flag skip: {e}/{e2}")
+
+
 async def _sync_store_bindding_tables(conn: AsyncConnection) -> None:
     """门店绑定与订单通知增强：新增字段与表。"""
     def _load(sync_conn):
@@ -1509,6 +1676,7 @@ async def sync_register_schema(conn: AsyncConnection) -> None:
     await _sync_chat_message_metadata(conn)
     await _sync_store_bindding_tables(conn)
     await _sync_card_face_fields(conn)
+    await _sync_orders_status_v2(conn)
     await _migrate_store_codes(conn)
     await run_all_migrations(conn)
 

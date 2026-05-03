@@ -37,6 +37,8 @@ class OrderItemResponse(BaseModel):
     used_redeem_count: int
     appointment_data: Optional[Any] = None
     appointment_time: Optional[datetime] = None
+    redemption_code_status: Optional[str] = "active"
+    redemption_code_expires_at: Optional[datetime] = None
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
@@ -69,6 +71,11 @@ class UnifiedOrderResponse(BaseModel):
     auto_confirm_days: int = 7
     has_reviewed: bool = False
     status_display: Optional[str] = None
+    # PRD V2「核销订单状态体系优化」: 客户端展示用字段
+    display_status: Optional[str] = None
+    display_status_color: Optional[str] = None
+    action_buttons: list[str] = []
+    badges: list[str] = []
     store_name: Optional[str] = None
     items: list[OrderItemResponse] = []
     created_at: datetime
@@ -95,6 +102,13 @@ class UnifiedOrderRefundRequest(BaseModel):
     order_item_id: Optional[int] = None
     reason: Optional[str] = None
     refund_amount: Optional[float] = None
+
+
+class UnifiedOrderSetAppointmentRequest(BaseModel):
+    """PRD V2：客户端设置预约时间（pending_appointment → appointed）。"""
+    order_item_id: Optional[int] = None
+    appointment_time: datetime
+    appointment_data: Optional[Any] = None
 
 
 class ShipRequest(BaseModel):
