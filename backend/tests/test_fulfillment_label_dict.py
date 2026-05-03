@@ -11,7 +11,34 @@
 import os
 import re
 
-REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+import pytest
+
+# 本测试需要访问仓库根目录下的多端目录（admin-web/h5-web/miniprogram/flutter_app）。
+# 优先使用环境变量 REPO_ROOT，否则按相对位置推断；若推断后的路径下找不到这些目录
+# （例如运行在仅含后端代码的 Docker 容器中），整个文件会被 skip 而非视为失败。
+REPO_ROOT = os.environ.get("REPO_ROOT") or os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "..", "..")
+)
+
+REQUIRED_DIRS = [
+    os.path.join(REPO_ROOT, "admin-web"),
+    os.path.join(REPO_ROOT, "h5-web"),
+    os.path.join(REPO_ROOT, "miniprogram"),
+    os.path.join(REPO_ROOT, "flutter_app"),
+]
+
+
+def _all_dirs_exist() -> bool:
+    return all(os.path.isdir(p) for p in REQUIRED_DIRS)
+
+
+pytestmark = pytest.mark.skipif(
+    not _all_dirs_exist(),
+    reason=(
+        "前端各端目录在当前运行环境不可见（典型场景：仅含后端代码的 Docker 容器）。"
+        "请在仓库根目录运行此测试，或通过 REPO_ROOT 环境变量指定仓库路径。"
+    ),
+)
 
 
 EXPECTED_LABELS = {
