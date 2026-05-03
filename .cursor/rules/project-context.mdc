@@ -33,7 +33,51 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 积分商城 H5 详情页"立即兑换"按钮置灰 Bug 修复（已部署 + 远程容器内 16/16 自动化测试全通过，仅后端+h5-web 改动，无需重新打包客户端）（2026-05-04 02:10）
+## Latest Update: 用户端"修改预约" Bug 修复 + UI 优化合并发布（三端按钮无响应/文案/3列布局/date模式联动；后端透传 appointment_mode；5/5 专属测试通过；小程序+安卓+iOS 全部重新打包并发布）（2026-05-04 02:35）
+
+### 一句话结论
+合并修复用户端三端（H5 / 微信小程序 / Flutter Android+iOS）订单详情页【修改预约时间】按钮的 4 件事：A=H5 按钮 onClick 只 push URL 不开弹窗（P0 不可用）/ 小程序 bindtap 被父级吞掉 / Flutter `firstWhere(orElse: throw)` 抛异常被 onTap 静默吞噬；B=按钮文案"修改预约时间"→"修改预约"（统一 4 字）；C=预约弹窗时段选择改为每行固定 3 个（grid `repeat(3,1fr)` / GridView crossAxisCount:3）；D=按预约模式联动（`date` 隐藏整块时段、`time_slot` 显示 3 列、`custom_form` 跳转自定义表单页、`none` 不显示按钮）。**前置阻断点**：后端订单详情接口当时未透传 `appointment_mode`，本次同步修复。
+
+### 涉及文件
+- 后端：
+  - `backend/app/schemas/unified_orders.py`（`OrderItemResponse` 新增 `appointment_mode` / `custom_form_id` 字段）
+  - `backend/app/api/unified_orders.py`（订单详情接口 `selectinload(items.product)` 链式预加载；`_build_order_response` 把 `OrderItem.product.appointment_mode` 注入响应 item）
+  - `backend/tests/test_modify_appointment_bugfix.py`（新增 5 个 pytest-asyncio 用例：date / time_slot / custom_form / none 模式透传 + date 模式不带 time_slot 提交 + time_slot 完整提交回填）
+- H5：`h5-web/src/app/unified-order/[id]/page.tsx`
+  - 按钮 `onClick`：`router.push(?action=appointment)` → `openAppointmentPopup`，状态扩展含 `partial_used`，文案改"修改预约"
+  - `useSearchParams` 监听 `?action=appointment` 自动打开弹窗（兼容短信/分享链接）
+  - `openAppointmentPopup` 优先选 `appointment_mode != none` 的 in_store item；`custom_form` 模式跳 `/custom-appointment?orderId=xx&itemId=xx&mode=edit`
+  - `submitAppointment` 按 mode 校验（time_slot 才校验时段；date 模式不传 time_slot）
+  - 弹窗按 mode 联动：`date` 隐藏整块时段块；`time_slot` 用 antd-mobile `Selector columns={3}`
+- 小程序：`miniprogram/pages/unified-order-detail/index.{wxml,js,wxss}`
+  - wxml：`bindtap` → `catchtap`（防父级吞事件）；按钮文案改"修改预约"；状态扩展含 `partial_used`；时段块加 `wx:if="{{apptCurrentMode !== 'date'}}"`
+  - js：`openApptModal` 按 mode 分流（`custom_form` → `wx.navigateTo` 自定义表单页；其他打开本地弹窗）；新增 `apptCurrentMode` data 字段；`submitAppt` 按 mode 校验与构造 payload；新增日志便于现场排查
+  - wxss：`.appt-slots` 由 flex+wrap 改为 grid `repeat(3,1fr)`；`.appt-slot` padding 改 `14rpx 0` + `text-align:center`
+- Flutter：
+  - `flutter_app/lib/models/unified_order.dart`（OrderItem 新增 `appointmentMode` / `customFormId` 字段，fromJson 解析）
+  - `flutter_app/lib/screens/order/unified_order_detail_screen.dart`：
+    - 按钮文案"修改预约时间"→"修改预约"，状态扩展含 `partial_used`
+    - 所有 `_openAppointmentDialog` 调用点的 `onPressed` 包一层 `try-catch` + `debugPrint` + SnackBar，避免异步异常静默吞
+    - `_openAppointmentDialog`：移除 `firstWhere(orElse: throw Exception)`，改用安全循环查找 + `_emptyItemSentinel` 兜底；`custom_form` 模式 `Navigator.pushNamed('/custom-appointment')`；时段块改用 `GridView.count(crossAxisCount:3, childAspectRatio:2.6)`；`date` 模式整块隐藏；提交时 date 模式不传 time_slot
+- 部署辅助：`_deploy_modify_appt.py`（增量部署：SFTP 上传 4 个改动文件 + docker compose build backend h5-web + up -d）
+- 用户手册：`user_docs/修改预约.md`
+
+### 关键技术点 / 注意事项
+- **后端字段透传是整个方案的前置阻断点**：未透传 `appointment_mode` 时三端的 D（按模式联动）就无从触发。本次通过 `selectinload(UnifiedOrder.items).selectinload(OrderItem.product)` 做链式预加载，避免 async session 中 lazy-load 触发 sync IO；`_build_order_response` 中把 `product.appointment_mode`（枚举 → str）回填到 `resp.items[i].appointment_mode`。
+- **Flutter `firstWhere(orElse: throw)` 是高危反模式**：异步上下文里抛出的异常会被 Flutter 全局错误处理器静默吞，UI 不会有任何反馈。本次改为 `_emptyItemSentinel`（id=0 的空哨兵）+ `if (apptItem.id == 0) return SnackBar` 显式提示。
+- **小程序 `bindtap` 在 cell-level 容器中容易被父级吃掉**：本次按钮全部改 `catchtap`，并在 handler 入口加 `console.log`（开发者工具控制台可见）便于一线排查。
+- **共享弹窗组件**：H5 与 Flutter 在三端中都让"立即预约"和"修改预约"复用同一个弹窗组件，按 mode 联动渲染，避免双份维护。
+- **三端打包发布**：本次 `lib/`（Flutter 共享）+ `miniprogram/` 都被改动，按 develop-all 阶段 4 规则触发并行打包：小程序 zip → 服务器、Android APK → GHA Linux Runner → Release → 服务器、iOS IPA → GHA macOS Runner → Release。三端下载链接全部 200 验证通过。
+- **回归测试**：5/5 专属测试通过；预存在的 `test_orders.py` 部分用例 404/KeyError 是旧 `/api/orders` API（service_item_id）的测试，与本次修改的 `/api/orders/unified` 完全无关，不构成新增回归。
+
+### 三端新包下载（本次发布）
+- 小程序：[miniprogram_20260504_023553_87ac.zip](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/miniprogram_20260504_023553_87ac.zip)
+- 安卓：[bini_health_android-v20260504-023553-87ac.apk](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/bini_health_android-v20260504-023553-87ac.apk)
+- iOS：[Release ios-v20260504-023553-87ac](https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-v20260504-023553-87ac)
+
+---
+
+## Previous Update: 积分商城 H5 详情页"立即兑换"按钮置灰 Bug 修复（已部署 + 远程容器内 16/16 自动化测试全通过，仅后端+h5-web 改动，无需重新打包客户端）（2026-05-04 02:10）
 
 ### 一句话结论
 彻底修复 H5 端 `/points/product-detail?id=xxx` 详情页底部「立即兑换」按钮**永远置灰、点击/长按完全无响应**的 P1 体验 Bug。**根因**：后端 `GET /api/points/mall/items/{id}` 的 `button_state` 默认初始值是 `"normal"`，而 H5 详情页（`h5-web/src/app/points/product-detail/page.tsx`）把按钮 `disabled` 严格绑定到 `button_state !== "exchangeable"` —— 后端永远不返回 `"exchangeable"` → 前端 disabled 永远为 true → 按钮永远灰、点击无响应。修复方案：1) **后端** `backend/app/api/points_exchange.py::get_mall_item_detail`：默认 `btn_state="exchangeable"`（不是 `"normal"`），新增 `"insufficient"`（积分不足）判定与文案 `"积分不足，差 X 分"`，新增 `user_available_points`/`user_exchanged_count`/`service_product` 三个响应字段（前端展示与判定兜底），service 类型 stock=0 不再误判 sold_out（与兑换接口实际行为一致）；2) **H5 详情页** `h5-web/src/app/points/product-detail/page.tsx`：`disabled` 改为根据"是否可兑换"动态判定，**兼容后端老/新两种字段值**（`"exchangeable"` ∪ `"normal"`），**灰色按钮保留 onClick** + 弹出 Toast 说明置灰原因（不再让用户摸不着头脑），积分不足时 Toast 文案"积分不足，还差 XX 分"；3) **测试**：新增 `backend/tests/test_points_mall_detail_button_state.py` **10 个 pytest-asyncio 用例**（默认态守护 / 积分够 exchangeable / 积分不足 insufficient / 下架 offline / 库存 0 sold_out / 限兑达上限 limit_reached / 优先级 / service_product 字段 / button_text 文案 / 字段完整性），容器内 10/10 + 列表页回归 6/6 = **16/16 全 PASS**；4) **部署**：`deploy/_deploy_points_mall_detail_button_fix.py` SFTP 上传 .py + .tsx → docker cp 后端文件并 restart backend → docker compose up -d --build h5-web → 容器内 pytest 全过 → 网关 H5 路由 308 + API 路由 401（路由全部可达）；5) **客户端无打包**：本次未触及 miniprogram / flutter_app / admin-web，无需重新发布小程序/APK/IPA/exe；6) **用户手册** `user_docs/积分商城详情页立即兑换按钮置灰修复.md`。
