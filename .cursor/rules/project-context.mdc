@@ -33,6 +33,70 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
+## Latest Update: 我的订单与售后状态体系优化 PRD v1.0 —— 三端文案统一 + 15 天评价时效 + 售后撤销（已部署 + 0 Bug）（2026-05-03 18:10）
+
+### 一句话结论
+在 V2 状态体系基础上做用户视角的二次统一：H5 「我的」第 4 个图标「待评价」改为「已完成」（跳 `unified-orders?tab=completed`，红点取数仍为未评价的已完成订单数）；H5 unified-orders 末位 Tab 文案补斜杠「退货/售后」+ 二级 Tab 4 个新文案「待审核/处理中/已完成/已驳回」（与 admin 后台、H5 退款独立列表三端 100% 一致）；H5「已完成」Tab 卡片右下角按钮 3 态化（去评价/评价已过期/查看评价，时效 15 天后端二次校验）；H5 退款独立列表数据范围与一级 Tab 完全对齐（直接调 `tab=refund_aftersales&sub_tab=...` 同接口）；新增售后撤销别名端点 `POST /api/orders/unified/{id}/refund/cancel`（仅 refund_pending 可撤销，撤销后 status 回到 pending_use、refund_status=none，保留 RefundRequest withdrawn 行作审计）；UnifiedOrderResponse 新增 5 字段（aftersales_logical_status / aftersales_logical_label / review_deadline_at / review_expired / can_withdraw_refund）；admin /orders/v2/enums 新增 aftersales_logical_status 4 值枚举 + admin /orders/unified 新增 `aftersales_status` 参数（pending/processing/completed/rejected）；服务器 commit `efd482c` 已部署，9 个核心 URL 全部 200/401，容器内 pytest **31/31 全通过**（V2 16 + V3 15）。
+
+### 新增的文件
+- `backend/tests/test_orders_aftersales_v3.py` — 15 个 pytest（评价时效 4 用例 / 4 个统一逻辑子筛选 / aftersales_logical_status 字段 / 撤销 2 用例 / admin enums 含 aftersales_logical_status / admin aftersales_status 参数 / 三端筛选 SQL 一致性 / completed Tab 排除已退款）
+- `deploy/_deploy_orders_aftersales_v3.py` — SSH 部署 + 容器内安装 pytest 依赖 + 跑 V2+V3 pytest + URL 自检
+- `user_docs/我的订单与售后状态体系优化.md` — 用户体验手册（含访问链接表 / 5 个图标说明 / 6+5 Tab / 15 天评价时效 3 态按钮 / 撤销操作流程 / 后台管理员视角说明）
+
+### 修改的文件
+- `backend/app/api/unified_orders.py` —
+  - 新增 `_AFTERSALES_LABEL` + `_aftersales_logical_status()`（5 → 4 + none 映射，待审核优先级高于处理中以避免 status=refunding+rs=applied 时被误判）
+  - `_build_order_response` 注入 5 个新字段：aftersales_logical_status/label/can_withdraw_refund/review_deadline_at/review_expired；评价已过期时把 `review` 替换为 `review_expired`；已评价时替换为 `view_review`
+  - `_apply_v2_tab_filter` 新增 4 个统一 sub_tab 别名（pending=applied|reviewing / processing=approved|returning|status=refunding 排除 applied/reviewing / completed=refund_success|status=refunded / rejected）；旧 key 兼容
+  - `review_unified_order` 新增 15 天时效校验（防绕过前端，超期返回 400「评价已过期」）
+  - `withdraw_refund` 抽离 `_do_withdraw_refund` 共用核心；新增别名端点 `POST /{id}/refund/cancel`（接受 `cancel_reason`），允许 refund_status in {applied, reviewing} 时撤销
+- `backend/app/schemas/unified_orders.py` — `UnifiedOrderResponse` 加 5 字段；新增 `UnifiedOrderRefundCancelRequest`
+- `backend/app/api/product_admin.py` —
+  - `/orders/v2/enums` 增加 `aftersales_logical_status` 4 值（pending/processing/completed/rejected）+ `refund_status_aliases`
+  - `/orders/unified` 增加 `aftersales_status` 参数（与上 4 值同义），SQL 与 H5 完全对齐
+- `admin-web/src/app/(admin)/product-system/orders/page.tsx` — `refundStatusOptions` 重构为 4 + 全部售后；`refundStatusMap` 列文案对齐（applied/reviewing→待审核 / approved/returning→处理中 / refund_success→已完成 / rejected→已驳回）；fetchData 把 4 个新值传给 `aftersales_status` 而非 `refund_status`；refund Tab 也走 `aftersales_status=pending`
+- `h5-web/src/app/(tabs)/profile/page.tsx` — 第 4 个图标 `pending_review` → `completed_pending_review`，文案"待评价"→"已完成"，icon ⭐ → ✅，path 改为 `/unified-orders?tab=completed`；红点取数 `data.pending_review` 重命名为 `completed_pending_review`
+- `h5-web/src/app/unified-orders/page.tsx` — 末位 Tab 文案"退货售后"→"退货/售后"；`REFUND_SUB_TABS` 重构为 pending/processing/completed/rejected 4 值；`Order` interface 加 5 个新字段；`renderButtons` 新增 review_expired（disabled 灰色）+ view_review + withdraw_refund（橙色，含二次确认 Dialog 调用 `/refund/cancel`）
+- `h5-web/src/app/refund-list/page.tsx` — `REFUND_TABS` 4 值 + 全部；`AFTERSALES_LABEL/COLOR` 替换 `REFUND_STATUS_TEXT/COLOR`；接口参数从 `refund_status=...` 改为 `tab=refund_aftersales&sub_tab=...`；卡片显示文案优先用 `aftersales_logical_label`
+- `.cursor/rules/project-context.mdc` — 本条变更记录
+
+### 新增/修改的 API 端点
+- `POST /api/orders/unified/{id}/refund/cancel` — 别名端点，撤销售后申请（refund_status in {applied, reviewing} 才允许）
+- `POST /api/orders/unified/{id}/refund/withdraw` — 同步增强允许 refund_status=reviewing 时撤回
+- `POST /api/orders/unified/{id}/review` — 增加 15 天评价时效服务端校验，超期返回 400
+- `GET /api/orders/unified?tab=refund_aftersales&sub_tab=<pending|processing|completed|rejected>` — 4 个新统一逻辑值（兼容旧 reviewing/refunding/refunded）
+- `GET /api/orders/unified` 与 `GET /api/orders/unified/{id}` 响应新增 5 字段
+- `GET /api/admin/orders/v2/enums` — 新增 `aftersales_logical_status` 4 值 + `refund_status_aliases`
+- `GET /api/admin/orders/unified?aftersales_status=<pending|processing|completed|rejected>` — admin 4 个统一逻辑筛选
+
+### 数据库变更
+- 无新表无新列。本次仅在业务层叠加"逻辑状态视图"（既兼容 V2 12 状态枚举与 7 值 refund_status，又给前端提供统一的 4 值入口），无任何 schema_sync 改动
+
+### 部署 / 验证状态
+- 服务器 commit：`efd482c feat(orders-aftersales-v3) ...` 已部署；backend / admin-web / h5-web 三个容器 Recreated；db 容器 healthy
+- URL 自检 9/9 全通过：`/api/health` 200、`/api/orders/unified` 401、`/api/orders/unified/counts` 401、`/api/admin/orders/v2/enums` 401、`/admin/` 200、`/admin/product-system/orders` 200、`/profile` 200、`/unified-orders` 200、`/refund-list` 200
+- 容器内 pytest：`tests/test_orders_status_v2.py + test_orders_aftersales_v3.py` **31/31 全通过**
+
+### 关键设计 & 教训
+- **逻辑状态映射"待审核"必须优先于"处理中"**：用户刚申请退款时业务把 status 设为 `refunding`，但 refund_status 仍是 `applied`，朴素映射会判为"处理中"导致用户视角混乱。修正为先看 refund_status in {applied, reviewing} → pending，再看 status=refunding → processing
+- **admin SQL "处理中" 必须排除"待审核"**：与上点对应，`status=refunding AND refund_status in {applied, reviewing}` 不应出现在"处理中"筛选结果。SQL 用 `(refund_status in {approved, returning}) OR (status=refunding AND NOT refund_status in {applied, reviewing})`
+- **refund/cancel 别名端点而非新接口**：保留 `/refund/withdraw` 兼容老客户端，新增 `/refund/cancel` 给新 H5 用，二者共用 `_do_withdraw_refund` 核心逻辑；语义上撤销 = 撤回，端点选哪个看客户端语义化偏好
+- **"已完成"Tab 故意排除已退款订单**：`tab=completed` SQL 仍是 `status in (completed, expired)`，refunded 不在内；用户体验上"已完成"Tab 仅展示正常完成的订单，"已退款"订单进入"退货/售后 → 已完成"子筛选
+- **15 天时效不写入 DB**：纯运行时计算 `completed_at + 15 days`，避免迁移；后端 `review_unified_order` 二次校验，前端按钮 disabled 仅做交互优化
+
+### 访问入口
+- H5 我的：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/profile`
+- H5 全部订单：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/unified-orders`
+- H5 退款独立列表：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/refund-list`
+- Admin 订单管理：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/product-system/orders`
+
+### 不在本期范围（PRD 兼容性原则）
+- 微信小程序 / verify-miniprogram / Flutter App 三端的 UI 改造（继续走老接口与老 status/refund_status 参数，完全兼容）
+- 后端 status 字段彻底单轴化（PRD 中提到的"refund_pending/refund_processing/refund_completed/refund_rejected" 4 个新枚举值）—— 本期采用"逻辑状态视图"方案在不破坏底层枚举的前提下满足前端三端统一文案需求；如确需把底层枚举也单轴化，可在下一期通过 schema_sync 一次性 ALTER + 数据迁移补齐
+- 历史数据迁移脚本（PRD F-11）—— 本期未涉及，因本期未改底层 status 枚举
+
+---
+
 ## Latest Update: 核销订单状态体系优化 V2 —— 12 状态单轴 + 核销码 5 态 + 三端 Tab 重构（已部署 + 0 Bug）（2026-05-03 15:50）
 
 ### 一句话结论
