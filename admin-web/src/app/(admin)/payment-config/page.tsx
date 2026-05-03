@@ -142,6 +142,8 @@ export default function PaymentConfigPage() {
   const [accessMode, setAccessMode] = useState<string>('public_key');
   const [saving, setSaving] = useState(false);
   const [roleAllowed, setRoleAllowed] = useState<boolean>(true);
+  // [Bug 修复] 加载错误信息透传，方便用户/运维一眼看到根因
+  const [loadError, setLoadError] = useState<string>('');
 
   useEffect(() => {
     // 仅 admin / super_admin 可见（项目当前没有 super_admin，因此放宽到 admin）
@@ -160,11 +162,25 @@ export default function PaymentConfigPage() {
 
   const loadAll = async () => {
     setLoading(true);
+    setLoadError('');
     try {
       const data = await get<PaymentChannel[]>('/api/admin/payment-channels');
       setChannels(data);
     } catch (e: any) {
-      message.error(e?.response?.data?.detail || '加载失败');
+      // [Bug 修复 FIX-6] 把后端 detail 透传到提示文案，
+      // 没有 detail（如 502/网络异常）则提示"网络异常或服务器无响应"。
+      const detail = e?.response?.data?.detail;
+      const status = e?.response?.status;
+      let msg = '';
+      if (typeof detail === 'string' && detail) {
+        msg = `加载失败：${detail}`;
+      } else if (status) {
+        msg = `加载失败：HTTP ${status}（请联系管理员排查后端日志）`;
+      } else {
+        msg = '加载失败：网络异常或服务器无响应，请检查网络后重试';
+      }
+      setLoadError(msg);
+      message.error(msg);
     } finally {
       setLoading(false);
     }
@@ -388,6 +404,25 @@ export default function PaymentConfigPage() {
         集中管理 4 个支付通道（微信小程序 / 微信APP / 支付宝H5 / 支付宝APP）。所有敏感字段以
         AES-256-GCM 加密存储；测试连接通过且已启用的通道才会在 C 端展示。
       </Paragraph>
+      {loadError && (
+        <Alert
+          type="error"
+          showIcon
+          style={{ marginBottom: 16 }}
+          message={loadError}
+          description="若提示与加密密钥/通道初始数据相关，请联系部署人员设置环境变量 PAYMENT_CONFIG_ENCRYPTION_KEY 后重启后端服务，或重新启动后端以触发自动初始化。"
+          action={
+            <Button
+              size="small"
+              type="primary"
+              icon={<ReloadOutlined />}
+              onClick={loadAll}
+            >
+              重试
+            </Button>
+          }
+        />
+      )}
       <Spin spinning={loading}>
         <Tabs
           activeKey={activeKey}
@@ -395,7 +430,18 @@ export default function PaymentConfigPage() {
           items={TAB_ORDER.map((code) => ({
             key: code,
             label: CHANNEL_TAB_LABEL[code],
-            children: renderTabContent(code),
+            children: channels.length === 0 && !loading ? (
+              <div style={{ padding: 24, textAlign: 'center', color: '#999' }}>
+                暂无通道数据。
+                <Button
+                  type="link"
+                  icon={<ReloadOutlined />}
+                  onClick={loadAll}
+                >
+                  点此重试
+                </Button>
+              </div>
+            ) : renderTabContent(code),
           }))}
         />
       </Spin>

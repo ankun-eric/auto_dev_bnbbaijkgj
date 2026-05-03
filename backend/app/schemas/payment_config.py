@@ -27,8 +27,11 @@ class PaymentChannelResponse(PaymentChannelBase):
     last_test_at: Optional[datetime] = None
     last_test_ok: Optional[bool] = None
     last_test_message: Optional[str] = None
-    created_at: datetime
-    updated_at: datetime
+    # [Bug 修复] 历史种子记录可能存在 created_at / updated_at 为 NULL 的情况
+    # （MySQL DEFAULT CURRENT_TIMESTAMP 在某些 sql_mode/时区下未生效），
+    # 此处放宽为 Optional 并由 _serialize_channel 做兜底，避免列表接口直接抛 ValidationError
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
 

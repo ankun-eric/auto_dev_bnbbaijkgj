@@ -12,7 +12,9 @@
 """
 from __future__ import annotations
 
+import logging
 import os
+import traceback
 from datetime import datetime
 from typing import Any, Optional
 
@@ -38,6 +40,8 @@ from app.utils.crypto import (
     mask_secret,
     mask_value,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/admin/payment-channels", tags=["支付配置"])
 
@@ -194,6 +198,24 @@ def _decrypt_for_runtime(channel_code: str, config: dict) -> dict:
 
 
 def _serialize_channel(ch: PaymentChannel) -> PaymentChannelResponse:
+    """构造单条通道响应。
+
+    [Bug 修复] 对 created_at / updated_at 做 None 兜底，避免历史种子数据
+    缺失时间戳直接让接口 500。
+    [Bug 修复] config_masked 单字段失败降级为 ``****``，不让单条字段坏掉
+    整条列表。
+    """
+    now = datetime.utcnow()
+    try:
+        masked = _build_masked_config(ch.channel_code, ch.config_json or {})
+    except Exception as e:  # noqa: BLE001
+        logger.warning(
+            "payment_config build_masked_config failed for %s: %s",
+            ch.channel_code, e,
+        )
+        # 全字段降级
+        spec = CHANNEL_FIELD_SPEC.get(ch.channel_code, [])
+        masked = {f["key"]: "****" for f in spec}
     return PaymentChannelResponse(
         id=ch.id,
         channel_code=ch.channel_code,
@@ -206,13 +228,49 @@ def _serialize_channel(ch: PaymentChannel) -> PaymentChannelResponse:
         notify_url=ch.notify_url,
         return_url=ch.return_url,
         sort_order=ch.sort_order or 0,
-        config_masked=_build_masked_config(ch.channel_code, ch.config_json or {}),
+        config_masked=masked,
         last_test_at=ch.last_test_at,
         last_test_ok=ch.last_test_ok,
         last_test_message=ch.last_test_message,
-        created_at=ch.created_at,
-        updated_at=ch.updated_at,
+        created_at=ch.created_at or now,
+        updated_at=ch.updated_at or now,
     )
+
+
+def _safe_serialize_channel(
+    ch: PaymentChannel,
+) -> Optional[PaymentChannelResponse]:
+    """单条记录序列化失败时返回占位响应（不让列表整体挂掉）。"""
+    try:
+        return _serialize_channel(ch)
+    except Exception as e:  # noqa: BLE001
+        logger.error(
+            "payment_config serialize failed for %s: %s\n%s",
+            getattr(ch, "channel_code", "<unknown>"), e, traceback.format_exc(),
+        )
+        try:
+            now = datetime.utcnow()
+            return PaymentChannelResponse(
+                id=ch.id or 0,
+                channel_code=ch.channel_code or "unknown",
+                channel_name=ch.channel_name or "未知通道",
+                display_name=ch.display_name or "未知通道",
+                platform=ch.platform or "unknown",
+                provider=ch.provider or "unknown",
+                is_enabled=False,
+                is_complete=False,
+                notify_url=None,
+                return_url=None,
+                sort_order=0,
+                config_masked={},
+                last_test_at=None,
+                last_test_ok=False,
+                last_test_message=f"通道数据异常：{e}",
+                created_at=now,
+                updated_at=now,
+            )
+        except Exception:  # noqa: BLE001
+            return None
 
 
 def _build_default_notify_url(request: Request, channel_code: str) -> str:
@@ -233,9 +291,72 @@ async def list_payment_channels(
     db: AsyncSession = Depends(get_db),
     _admin=Depends(admin_dep),
 ):
-    res = await db.execute(select(PaymentChannel).order_by(PaymentChannel.platform, PaymentChannel.sort_order))
-    rows = res.scalars().all()
-    return [_serialize_channel(ch) for ch in rows]
+    """[Bug 修复] 全局异常兜底，返回结构化 detail 方便前端展示。
+
+    单条记录序列化失败时降级为占位记录，不让整条列表挂掉。
+    缺失的初始通道在请求时尝试自动补齐（保证后续启动也能自愈）。
+    """
+    try:
+        # 自愈：缺通道时自动补齐
+        try:
+            await _ensure_default_channels(db)
+        except Exception as e:  # noqa: BLE001
+            logger.warning("payment_config ensure default channels failed: %s", e)
+
+        res = await db.execute(
+            select(PaymentChannel).order_by(
+                PaymentChannel.platform, PaymentChannel.sort_order,
+            )
+        )
+        rows = res.scalars().all()
+        results: list[PaymentChannelResponse] = []
+        for ch in rows:
+            item = _safe_serialize_channel(ch)
+            if item is not None:
+                results.append(item)
+        return results
+    except HTTPException:
+        raise
+    except Exception as e:  # noqa: BLE001
+        logger.error(
+            "payment_config list failed: %s\n%s", e, traceback.format_exc(),
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=f"支付通道列表加载失败：{type(e).__name__}: {e}",
+        )
+
+
+async def _ensure_default_channels(db: AsyncSession) -> int:
+    """[Bug 修复 FIX-1] 在请求时检查 4 条通道是否齐全，缺失则补齐。
+
+    幂等：已存在的不会被覆盖，返回新增条数。
+    """
+    res = await db.execute(select(PaymentChannel.channel_code))
+    existing = {r[0] for r in res.all()}
+    inserted = 0
+    now = datetime.utcnow()
+    for ch in DEFAULT_CHANNELS:
+        if ch["channel_code"] in existing:
+            continue
+        new_ch = PaymentChannel(
+            channel_code=ch["channel_code"],
+            channel_name=ch["channel_name"],
+            display_name=ch["display_name"],
+            platform=ch["platform"],
+            provider=ch["provider"],
+            is_enabled=False,
+            is_complete=False,
+            sort_order=ch["sort_order"],
+            config_json={},
+            created_at=now,
+            updated_at=now,
+        )
+        db.add(new_ch)
+        inserted += 1
+    if inserted:
+        await db.commit()
+    return inserted
 
 
 @router.get("/{channel_code}", response_model=PaymentChannelResponse)

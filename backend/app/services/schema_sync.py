@@ -2036,6 +2036,9 @@ async def _sync_payment_config(conn: AsyncConnection) -> None:
             """))
 
     # ── 2) 4 条种子（按 channel_code 幂等插入）──
+    # [Bug 修复] 显式写入 created_at / updated_at，避免某些 sql_mode/时区下
+    # DEFAULT CURRENT_TIMESTAMP 不生效导致字段为 NULL，进而让接口返回时
+    # Pydantic 校验 created_at: datetime 失败。
     seeds = [
         ("wechat_miniprogram", "微信小程序支付", "微信支付", "miniprogram", "wechat", 10),
         ("wechat_app", "微信APP支付", "微信支付", "app", "wechat", 10),
@@ -2053,14 +2056,31 @@ async def _sync_payment_config(conn: AsyncConnection) -> None:
                     text(
                         "INSERT INTO payment_channels "
                         "(channel_code, channel_name, display_name, platform, provider, "
-                        "is_enabled, is_complete, sort_order) "
-                        "VALUES (:code, :name, :disp, :platform, :provider, 0, 0, :sort)"
+                        "is_enabled, is_complete, sort_order, created_at, updated_at) "
+                        "VALUES (:code, :name, :disp, :platform, :provider, 0, 0, :sort, "
+                        "CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
                     ),
                     {"code": code, "name": name, "disp": disp, "platform": platform,
                      "provider": provider, "sort": sort_order},
                 )
         except Exception as e:
             print(f"[schema_sync] payment_channels seed insert warn: {e}")
+
+    # ── 2.5) [Bug 修复] 回补历史种子的 NULL 时间戳 ──
+    # 某些环境下早期种子 INSERT 没显式带 created_at/updated_at，
+    # 又因 sql_mode/时区问题 DEFAULT CURRENT_TIMESTAMP 没自动填，
+    # 导致 SELECT 出来这两个字段为 NULL，让 Pydantic 校验失败。
+    try:
+        await conn.execute(text(
+            "UPDATE payment_channels SET created_at = CURRENT_TIMESTAMP "
+            "WHERE created_at IS NULL"
+        ))
+        await conn.execute(text(
+            "UPDATE payment_channels SET updated_at = CURRENT_TIMESTAMP "
+            "WHERE updated_at IS NULL"
+        ))
+    except Exception as e:
+        print(f"[schema_sync] payment_channels backfill timestamps warn: {e}")
 
     # ── 3) orders 加列 ──
     if info["orders_cols"] is not None:

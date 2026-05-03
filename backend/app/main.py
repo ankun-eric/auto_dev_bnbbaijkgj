@@ -885,6 +885,30 @@ app.include_router(h5_checkout.router)
 # [2026-05-03 支付配置 PRD v1.0] 多端支付通道管理
 app.include_router(payment_config.router)
 app.include_router(payment_methods.router)
+
+
+# [Bug 修复] 启动期自检：路由挂载 + 加密密钥环境变量
+@app.on_event("startup")
+async def _payment_config_startup_self_check() -> None:
+    _self_check_logger = logging.getLogger("app.payment_config")
+    paths = {r.path for r in app.routes if hasattr(r, "path")}
+    if "/api/admin/payment-channels" not in paths:
+        _self_check_logger.error(
+            "[支付配置] /api/admin/payment-channels 路由未挂载！请检查 main.py。"
+        )
+    else:
+        _self_check_logger.info("[支付配置] /api/admin/payment-channels 路由已正确挂载")
+    enc_key = os.environ.get("PAYMENT_CONFIG_ENCRYPTION_KEY", "").strip()
+    if not enc_key:
+        _self_check_logger.warning(
+            "[支付配置] 环境变量 PAYMENT_CONFIG_ENCRYPTION_KEY 未配置，"
+            "已使用项目内置 fallback 32 字节密钥（仅适用于开发/测试环境）。"
+            "生产环境请通过 docker-compose environment 注入此变量。"
+        )
+    else:
+        _self_check_logger.info(
+            "[支付配置] 检测到 PAYMENT_CONFIG_ENCRYPTION_KEY 环境变量"
+        )
 # [2026-05-03 卡管理 v2.0 第 2~5 期] 购卡下单/动态核销码/退款/续卡/拆单/省钱提示/可续卡列表
 # 先注册 v2 路由（精确路径优先），避免被 cards.router 的 /me/{user_card_id} 拦截 /me/renewable
 from app.api import cards_v2 as _cards_v2  # noqa: E402

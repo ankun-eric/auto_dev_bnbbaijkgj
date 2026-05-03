@@ -41,6 +41,11 @@ services:
       TENCENT_SMS_SIGN_NAME: ${TENCENT_SMS_SIGN_NAME:-呃唉帮帮网络}
       TENCENT_SMS_TEMPLATE_ID: ${TENCENT_SMS_TEMPLATE_ID:-2201340}
       TENCENT_SMS_APP_KEY: ${TENCENT_SMS_APP_KEY:-7e3c8242bf0799cca367fa18fa47a7ea}
+      # [支付配置 PRD v1.0 / Bug 修复] 支付通道敏感字段 AES-256-GCM 加密密钥（base64 32 字节）
+      # 生产环境务必通过 .env 覆盖此默认值，并妥善保管
+      PAYMENT_CONFIG_ENCRYPTION_KEY: ${PAYMENT_CONFIG_ENCRYPTION_KEY:-jzsuHsRKWp/Xy01k+8d4R2lNBvb3KQTGJJkxQXRjW2A=}
+      # [支付配置 PRD v1.0 / Bug 修复] notify_url 默认前缀（不配置则用 request.base_url）
+      PUBLIC_API_BASE_URL: ${PUBLIC_API_BASE_URL:-https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27}
     volumes:
       - uploads_data:/app/uploads
     depends_on:
