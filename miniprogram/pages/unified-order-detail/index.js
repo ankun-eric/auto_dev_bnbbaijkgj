@@ -13,6 +13,9 @@ Page({
     apptMinDate: '',
     apptMaxDate: '',
     apptItemId: null,
+    // [修改预约 Bug 修复 v1.0] 当前正在预约的商品的预约模式（none/date/time_slot/custom_form）
+    // 用于弹窗中按模式联动隐藏整块时段（date 模式）/ 跳转自定义表单页（custom_form 模式）
+    apptCurrentMode: 'time_slot',
     apptSlotOptions: [
       '09:00-10:00', '10:00-11:00', '11:00-12:00',
       '13:00-14:00', '14:00-15:00', '15:00-16:00',
@@ -25,18 +28,36 @@ Page({
     this.loadOrder();
   },
 
-  // [先下单后预约 Bug 修复 v1.0] [订单状态机简化方案 v1.0] pending_use / appointed 也允许修改预约时间
+  // [先下单后预约 Bug 修复 v1.0] [订单状态机简化方案 v1.0]
+  // [修改预约 Bug 修复 v1.0] 增加 partial_used 状态、按 appointment_mode 联动
+  // 同时打印日志便于现场排查（按需求文档要求）
   openApptModal() {
+    console.log('[appt] openApptModal called, order=', this.data.order);
     const order = this.data.order;
     if (!order) return;
-    if (['pending_appointment', 'pending_use', 'appointed'].indexOf(order.status) < 0) {
+    if (['pending_appointment', 'pending_use', 'appointed', 'partial_used'].indexOf(order.status) < 0) {
       wx.showToast({ title: '当前订单状态不可预约', icon: 'none' });
       return;
     }
     const items = order.items || [];
-    const inStoreItem = items.find(i => i.fulfillment_type === 'in_store') || items[0];
-    if (!inStoreItem) {
+    // 优先选择需要预约（appointment_mode != none）且是 in_store 的 item
+    const apptItem =
+      items.find(i => i.fulfillment_type === 'in_store' && i.appointment_mode && i.appointment_mode !== 'none') ||
+      items.find(i => i.fulfillment_type === 'in_store') ||
+      items[0];
+    if (!apptItem) {
       wx.showToast({ title: '订单暂无可预约商品', icon: 'none' });
+      return;
+    }
+    const mode = apptItem.appointment_mode || 'time_slot';
+    // [修改预约 Bug 修复 v1.0] custom_form 模式：跳转到自定义表单页面，不打开普通弹窗
+    if (mode === 'custom_form') {
+      wx.navigateTo({
+        url: `/pages/custom-appointment/index?orderId=${order.id}&itemId=${apptItem.id}&mode=edit`,
+        fail: () => {
+          wx.showToast({ title: '请前往商品详情填写预约表单', icon: 'none' });
+        }
+      });
       return;
     }
     const today = new Date();
@@ -45,11 +66,23 @@ Page({
     const max = new Date(today);
     max.setDate(today.getDate() + 90);
     const fmt = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    // 已存在预约时间则回填
+    let initialDate = fmt(tomorrow);
+    if (apptItem.appointment_time) {
+      try {
+        initialDate = fmt(new Date(apptItem.appointment_time));
+      } catch (e) { /* 保持默认明天 */ }
+    }
+    let initialSlot = '';
+    if (apptItem.appointment_data && apptItem.appointment_data.time_slot) {
+      initialSlot = apptItem.appointment_data.time_slot;
+    }
     this.setData({
       showApptModal: true,
-      apptItemId: inStoreItem.id,
-      apptDate: fmt(tomorrow),
-      apptSlot: '',
+      apptItemId: apptItem.id,
+      apptCurrentMode: mode,
+      apptDate: initialDate,
+      apptSlot: initialSlot,
       apptMinDate: fmt(today),
       apptMaxDate: fmt(max)
     });
@@ -72,23 +105,29 @@ Page({
       wx.showToast({ title: '请选择预约日期', icon: 'none' });
       return;
     }
-    if (!this.data.apptSlot) {
-      wx.showToast({ title: '请选择预约时段', icon: 'none' });
-      return;
-    }
     if (!this.data.apptItemId) {
       wx.showToast({ title: '订单异常', icon: 'none' });
       return;
     }
-    const startTime = this.data.apptSlot.split('-')[0];
+    // [修改预约 Bug 修复 v1.0] 仅 time_slot 模式才校验时段；date 模式不校验且不携带 time_slot
+    const mode = this.data.apptCurrentMode || 'time_slot';
+    if (mode === 'time_slot' && !this.data.apptSlot) {
+      wx.showToast({ title: '请选择预约时段', icon: 'none' });
+      return;
+    }
+    const startTime =
+      mode === 'time_slot' && this.data.apptSlot
+        ? this.data.apptSlot.split('-')[0]
+        : '09:00';
+    const appointmentData = { date: this.data.apptDate };
+    if (mode === 'time_slot' && this.data.apptSlot) {
+      appointmentData.time_slot = this.data.apptSlot;
+    }
     try {
       await post(`/api/orders/unified/${this.data.id}/appointment`, {
         item_id: this.data.apptItemId,
         appointment_time: `${this.data.apptDate}T${startTime}:00`,
-        appointment_data: {
-          date: this.data.apptDate,
-          time_slot: this.data.apptSlot
-        }
+        appointment_data: appointmentData
       });
       wx.showToast({ title: '预约成功', icon: 'success' });
       this.setData({ showApptModal: false });

@@ -407,10 +407,23 @@ class _UnifiedOrderDetailScreenState extends State<UnifiedOrderDetailScreen> {
       case 'pending_use':
       case 'appointed':
       case 'partial_used':
-        if (o.status != 'partial_used' &&
-            (o.refundStatus == 'none' || o.refundStatus.isEmpty)) {
-          actions.add(_actionBtn('修改预约时间', const Color(0xFF722ED1),
-              () => _openAppointmentDialog(o)));
+        // [修改预约 Bug 修复 v1.0]
+        // - 按钮文案：修改预约时间 → 修改预约
+        // - 状态扩展：partial_used 也可显示按钮（与 H5/小程序对齐）
+        // - 包一层 try/catch（在 _openAppointmentDialog 内的 onTap 处也加），防止异步异常被静默吞掉
+        if (o.refundStatus == 'none' || o.refundStatus.isEmpty) {
+          actions.add(_actionBtn('修改预约', const Color(0xFF722ED1), () async {
+            try {
+              await _openAppointmentDialog(o);
+            } catch (e, st) {
+              debugPrint('[appt] open dialog failed: $e\n$st');
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('打开预约失败：$e')),
+                );
+              }
+            }
+          }));
           actions.add(const SizedBox(width: 12));
         }
         if (isRefundApplied) {
@@ -434,9 +447,20 @@ class _UnifiedOrderDetailScreenState extends State<UnifiedOrderDetailScreen> {
         break;
       case 'pending_appointment':
         // [先下单后预约 Bug 修复 v1.0] 立即预约入口
+        // [修改预约 Bug 修复 v1.0] 加 try-catch，防止 _openAppointmentDialog 异步异常被静默吞噬
         if (canApplyRefund) {
-          actions.add(_actionBtn('立即预约', const Color(0xFF52C41A),
-              () => _openAppointmentDialog(o), filled: true));
+          actions.add(_actionBtn('立即预约', const Color(0xFF52C41A), () async {
+            try {
+              await _openAppointmentDialog(o);
+            } catch (e, st) {
+              debugPrint('[appt] open dialog failed: $e\n$st');
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('打开预约失败：$e')),
+                );
+              }
+            }
+          }, filled: true));
         }
         break;
     }
@@ -533,7 +557,19 @@ class _UnifiedOrderDetailScreenState extends State<UnifiedOrderDetailScreen> {
           ),
           const SizedBox(width: 8),
           ElevatedButton(
-            onPressed: () => _openAppointmentDialog(o),
+            // [修改预约 Bug 修复 v1.0] 顶层 try-catch，防止异步异常被全局 handler 静默吞噬
+            onPressed: () async {
+              try {
+                await _openAppointmentDialog(o);
+              } catch (e, st) {
+                debugPrint('[appt] open dialog failed: $e\n$st');
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('打开预约失败：$e')),
+                  );
+                }
+              }
+            },
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF52C41A),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
@@ -555,13 +591,68 @@ class _UnifiedOrderDetailScreenState extends State<UnifiedOrderDetailScreen> {
   ];
 
   Future<void> _openAppointmentDialog(UnifiedOrder o) async {
-    final inStoreItem = o.items.firstWhere(
+    // [修改预约 Bug 修复 v1.0]
+    // - 移除 firstWhere(orElse: throw)，改用安全查找避免异常静默吞噬
+    // - 优先选择 appointment_mode != none 的 in_store 商品
+    // - custom_form 模式跳转到自定义表单页（暂以 SnackBar 提示降级）
+    OrderItem? apptItem;
+    for (final i in o.items) {
+      if (i.fulfillmentType == 'in_store' &&
+          (i.appointmentMode != null && i.appointmentMode != 'none')) {
+        apptItem = i;
+        break;
+      }
+    }
+    apptItem ??= o.items.firstWhere(
       (i) => i.fulfillmentType == 'in_store',
-      orElse: () => o.items.isNotEmpty ? o.items.first : (throw Exception('订单暂无可预约商品')),
+      orElse: () => o.items.isNotEmpty ? o.items.first : _emptyItemSentinel,
     );
-    final tomorrow = DateTime.now().add(const Duration(days: 1));
-    DateTime selectedDate = DateTime(tomorrow.year, tomorrow.month, tomorrow.day);
+    if (apptItem.id == 0) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('该订单暂无可预约商品')),
+        );
+      }
+      return;
+    }
+
+    final mode = apptItem.appointmentMode ?? 'time_slot';
+
+    // custom_form 模式：跳转到自定义预约表单页面
+    if (mode == 'custom_form') {
+      try {
+        await Navigator.of(context).pushNamed(
+          '/custom-appointment',
+          arguments: {
+            'orderId': o.id,
+            'itemId': apptItem.id,
+            'mode': 'edit',
+          },
+        );
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('请前往商品详情页填写预约表单')),
+          );
+        }
+      }
+      return;
+    }
+
+    // 默认日期：已存在则回填，否则明天
+    DateTime initialDate = DateTime.now().add(const Duration(days: 1));
+    if (apptItem.appointmentTime != null && apptItem.appointmentTime!.isNotEmpty) {
+      try {
+        initialDate = DateTime.parse(apptItem.appointmentTime!);
+      } catch (_) { /* 保持默认 */ }
+    }
+    DateTime selectedDate = DateTime(initialDate.year, initialDate.month, initialDate.day);
+    // 已存在时段则回填
     String? selectedSlot;
+    if (apptItem.appointmentData is Map &&
+        (apptItem.appointmentData as Map)['time_slot'] != null) {
+      selectedSlot = (apptItem.appointmentData as Map)['time_slot']?.toString();
+    }
 
     final result = await showDialog<bool>(
       context: context,
@@ -590,36 +681,43 @@ class _UnifiedOrderDetailScreenState extends State<UnifiedOrderDetailScreen> {
                     },
                     child: Text(dateStr),
                   ),
-                  const SizedBox(height: 14),
-                  const Text('预约时段', style: TextStyle(color: Colors.grey, fontSize: 13)),
-                  const SizedBox(height: 6),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: _kAppointmentSlots.map((slot) {
-                      final active = slot == selectedSlot;
-                      return GestureDetector(
-                        onTap: () => setS(() => selectedSlot = slot),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: active ? const Color(0xFF52C41A) : Colors.white,
-                            border: Border.all(
-                              color: active ? const Color(0xFF52C41A) : Colors.grey.shade300,
+                  // [修改预约 Bug 修复 v1.0] date 模式整块时段隐藏；time_slot 模式用 GridView 3 列
+                  if (mode != 'date') ...[
+                    const SizedBox(height: 14),
+                    const Text('预约时段', style: TextStyle(color: Colors.grey, fontSize: 13)),
+                    const SizedBox(height: 6),
+                    GridView.count(
+                      crossAxisCount: 3,
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      mainAxisSpacing: 8,
+                      crossAxisSpacing: 8,
+                      childAspectRatio: 2.6,
+                      children: _kAppointmentSlots.map((slot) {
+                        final active = slot == selectedSlot;
+                        return GestureDetector(
+                          onTap: () => setS(() => selectedSlot = slot),
+                          child: Container(
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: active ? const Color(0xFF52C41A) : Colors.white,
+                              border: Border.all(
+                                color: active ? const Color(0xFF52C41A) : Colors.grey.shade300,
+                              ),
+                              borderRadius: BorderRadius.circular(6),
                             ),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            slot,
-                            style: TextStyle(
-                              color: active ? Colors.white : Colors.black87,
-                              fontSize: 13,
+                            child: Text(
+                              slot,
+                              style: TextStyle(
+                                color: active ? Colors.white : Colors.black87,
+                                fontSize: 13,
+                              ),
                             ),
                           ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
+                        );
+                      }).toList(),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -628,30 +726,34 @@ class _UnifiedOrderDetailScreenState extends State<UnifiedOrderDetailScreen> {
               ElevatedButton(
                 style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF52C41A)),
                 onPressed: () async {
-                  if (selectedSlot == null) {
+                  // [修改预约 Bug 修复 v1.0] date 模式不校验时段，只用日期；提交体不携带 time_slot
+                  if (mode != 'date' && selectedSlot == null) {
                     ScaffoldMessenger.of(ctx2).showSnackBar(
                       const SnackBar(content: Text('请选择预约时段')),
                     );
                     return;
                   }
-                  final start = selectedSlot!.split('-')[0];
+                  final start = (mode != 'date' && selectedSlot != null)
+                      ? selectedSlot!.split('-')[0]
+                      : '09:00';
+                  final Map<String, dynamic> appointmentData = {'date': dateStr};
+                  if (mode != 'date' && selectedSlot != null) {
+                    appointmentData['time_slot'] = selectedSlot;
+                  }
                   try {
                     await _api.post(
                       '/api/orders/unified/${o.id}/appointment',
                       data: {
-                        'item_id': inStoreItem.id,
+                        'item_id': apptItem!.id,
                         'appointment_time': '${dateStr}T$start:00',
-                        'appointment_data': {
-                          'date': dateStr,
-                          'time_slot': selectedSlot,
-                        },
+                        'appointment_data': appointmentData,
                       },
                     );
                     if (ctx2.mounted) Navigator.pop(ctx2, true);
                   } catch (e) {
                     if (ctx2.mounted) {
                       ScaffoldMessenger.of(ctx2).showSnackBar(
-                        const SnackBar(content: Text('预约失败')),
+                        SnackBar(content: Text('预约失败：$e')),
                       );
                     }
                   }
@@ -669,6 +771,18 @@ class _UnifiedOrderDetailScreenState extends State<UnifiedOrderDetailScreen> {
       _loadOrder(o.id);
     }
   }
+
+  // 用于 firstWhere 的兜底空 item，避免抛出异常
+  static final OrderItem _emptyItemSentinel = OrderItem(
+    id: 0,
+    orderId: 0,
+    productId: 0,
+    productName: '',
+    productPrice: 0,
+    quantity: 0,
+    subtotal: 0,
+    fulfillmentType: 'in_store',
+  );
 
   Color _statusColor(String status) {
     switch (status) {

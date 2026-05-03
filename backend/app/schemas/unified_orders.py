@@ -41,6 +41,10 @@ class OrderItemResponse(BaseModel):
     appointment_time: Optional[datetime] = None
     redemption_code_status: Optional[str] = "active"
     redemption_code_expires_at: Optional[datetime] = None
+    # [修改预约 Bug 修复 v1.0] 透传商品的预约模式给前端
+    # 取值 none / date / time_slot / custom_form，前端据此联动隐藏时段块、跳转自定义表单等
+    appointment_mode: Optional[str] = None
+    custom_form_id: Optional[int] = None
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)

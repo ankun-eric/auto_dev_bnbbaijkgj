@@ -249,6 +249,29 @@ def _build_payment_method_text(order) -> Optional[str]:
 
 def _build_order_response(order) -> UnifiedOrderResponse:
     resp = UnifiedOrderResponse.model_validate(order)
+    # [修改预约 Bug 修复 v1.0] 把 OrderItem.product.appointment_mode 透传到响应 item 中
+    # 前端三端（H5 / 小程序 / Flutter）会根据该字段联动：
+    #   - none      → 不显示"修改预约"按钮（保持现状逻辑）
+    #   - date      → 弹窗内仅显示日期选择，隐藏整块时段
+    #   - time_slot → 弹窗显示日期 + 3 列时段
+    #   - custom_form → 跳转/拉起自定义预约表单页面
+    try:
+        items_by_id = {it.id: it for it in (order.items or [])}
+        for resp_item in resp.items:
+            src = items_by_id.get(resp_item.id)
+            if src is None:
+                continue
+            prod = getattr(src, "product", None)
+            if prod is None:
+                continue
+            mode_val = getattr(prod, "appointment_mode", None)
+            if hasattr(mode_val, "value"):
+                mode_val = mode_val.value
+            resp_item.appointment_mode = (mode_val or "none")
+            resp_item.custom_form_id = getattr(prod, "custom_form_id", None)
+    except Exception:  # noqa: BLE001
+        # 透传字段失败不应阻断整个订单详情；保持向后兼容
+        pass
     s = _normalize_status(order.status)
     rs = _normalize_status(order.refund_status)
     if s == "cancelled" and rs == "refund_success":
@@ -1134,7 +1157,11 @@ async def get_unified_order(
 ):
     result = await db.execute(
         select(UnifiedOrder)
-        .options(selectinload(UnifiedOrder.items), selectinload(UnifiedOrder.store))
+        # [修改预约 Bug 修复 v1.0] 链式预加载 items.product，便于响应里透传 appointment_mode
+        .options(
+            selectinload(UnifiedOrder.items).selectinload(OrderItem.product),
+            selectinload(UnifiedOrder.store),
+        )
         .where(UnifiedOrder.id == order_id, UnifiedOrder.user_id == current_user.id)
     )
     order = result.scalar_one_or_none()

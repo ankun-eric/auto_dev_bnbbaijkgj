@@ -177,7 +177,11 @@
     <view class="bar-actions">
       <view class="bar-btn outline" wx:if="{{order.status === 'pending_payment'}}" bindtap="cancelOrder">取消订单</view>
       <view class="bar-btn outline" wx:if="{{(order.status === 'pending_use' || order.status === 'appointed') && (!order.refund_status || order.refund_status === 'none' || order.refund_status === 'rejected')}}" bindtap="goRefund">申请退款</view>
-      <view class="bar-btn outline" wx:if="{{(order.status === 'pending_use' || order.status === 'appointed') && (!order.refund_status || order.refund_status === 'none')}}" bindtap="openApptModal">修改预约时间</view>
+      <!-- [修改预约 Bug 修复 v1.0]
+           - 文案：修改预约时间 → 修改预约
+           - bindtap → catchtap：避免事件被父容器吃掉
+           - 状态扩展：pending_use / appointed / partial_used 三态均显示 -->
+      <view class="bar-btn outline" wx:if="{{(order.status === 'pending_use' || order.status === 'appointed' || order.status === 'partial_used') && (!order.refund_status || order.refund_status === 'none')}}" catchtap="openApptModal">修改预约</view>
       <view class="bar-btn outline" wx:if="{{(order.status === 'pending_use' || order.status === 'appointed') && order.refund_status === 'applied'}}" bindtap="withdrawRefund">撤回退款</view>
       <view class="bar-btn primary" wx:if="{{order.status === 'pending_payment'}}" bindtap="payOrder">立即付款</view>
       <view class="bar-btn primary" wx:if="{{order.status === 'pending_receipt'}}" bindtap="confirmOrder">确认收货</view>
@@ -197,7 +201,8 @@
         <text class="appt-value">{{apptDate || '请选择日期'}}</text>
       </picker>
     </view>
-    <view class="appt-slots-row">
+    <!-- [修改预约 Bug 修复 v1.0] date 模式下整块时段选择隐藏（仅日期） -->
+    <view class="appt-slots-row" wx:if="{{apptCurrentMode !== 'date'}}">
       <text class="appt-label">预约时段</text>
       <view class="appt-slots">
         <view
@@ -205,7 +210,7 @@
           wx:for="{{apptSlotOptions}}"
           wx:key="*this"
           data-slot="{{item}}"
-          bindtap="onApptSlotTap"
+          catchtap="onApptSlotTap"
         >{{item}}</view>
       </view>
     </view>

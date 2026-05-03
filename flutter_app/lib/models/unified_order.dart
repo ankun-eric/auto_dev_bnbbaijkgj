@@ -15,6 +15,9 @@ class OrderItem {
   final dynamic appointmentData;
   final String? appointmentTime;
   final String? createdAt;
+  // [修改预约 Bug 修复 v1.0] 后端透传的预约模式：none / date / time_slot / custom_form
+  final String? appointmentMode;
+  final int? customFormId;
 
   OrderItem({
     required this.id,
@@ -33,6 +36,8 @@ class OrderItem {
     this.appointmentData,
     this.appointmentTime,
     this.createdAt,
+    this.appointmentMode,
+    this.customFormId,
   });
 
   factory OrderItem.fromJson(Map<String, dynamic> json) {
@@ -53,6 +58,12 @@ class OrderItem {
       appointmentData: json['appointment_data'],
       appointmentTime: json['appointment_time']?.toString(),
       createdAt: json['created_at']?.toString(),
+      appointmentMode: json['appointment_mode']?.toString(),
+      customFormId: json['custom_form_id'] is int
+          ? json['custom_form_id'] as int
+          : (json['custom_form_id'] is String
+              ? int.tryParse(json['custom_form_id'] as String)
+              : null),
     );
   }
 }

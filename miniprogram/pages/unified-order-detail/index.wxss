@@ -455,13 +455,15 @@
   border-radius: 12rpx;
   display: inline-block;
 }
+/* [修改预约 Bug 修复 v1.0] 改为每行固定 3 个时段（grid 3 列） */
 .appt-slots {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   gap: 16rpx;
 }
 .appt-slot {
-  padding: 14rpx 20rpx;
+  padding: 14rpx 0;
+  text-align: center;
   border: 1rpx solid #d9d9d9;
   border-radius: 8rpx;
   font-size: 24rpx;

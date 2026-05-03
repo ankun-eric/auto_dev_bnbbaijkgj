@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { Card, Image, Tag, Button, Steps, Divider, Toast, Dialog, SpinLoading, ProgressBar, Popup, DatePicker, Selector } from 'antd-mobile';
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
@@ -22,6 +22,9 @@ interface OrderItem {
   used_redeem_count: number;
   appointment_data: any | null;
   appointment_time: string | null;
+  // [修改预约 Bug 修复 v1.0] 后端透传的预约模式
+  appointment_mode?: 'none' | 'date' | 'time_slot' | 'custom_form' | null;
+  custom_form_id?: number | null;
 }
 
 interface OrderDetail {
@@ -88,6 +91,7 @@ const DEFAULT_TIME_SLOTS = [
 export default function UnifiedOrderDetailPage() {
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const orderId = params.id as string;
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -156,34 +160,68 @@ export default function UnifiedOrderDetailPage() {
     Toast.show({ content: '核销码已复制' });
   };
 
-  // [先下单后预约 Bug 修复 v1.0] 打开"立即预约"弹窗
+  // [先下单后预约 Bug 修复 v1.0 / 修改预约 Bug 修复 v1.0]
+  // 同时承担"立即预约"与"修改预约"两个入口的弹窗打开逻辑
   const openAppointmentPopup = () => {
     if (!order) return;
-    const firstInStoreItem = order.items.find((i) => i.fulfillment_type === 'in_store');
-    if (!firstInStoreItem) {
+    // 优先选择需要预约（appointment_mode != none）且为 in_store 的 item
+    const apptItem =
+      order.items.find(
+        (i) =>
+          i.fulfillment_type === 'in_store' &&
+          i.appointment_mode &&
+          i.appointment_mode !== 'none',
+      ) || order.items.find((i) => i.fulfillment_type === 'in_store');
+    if (!apptItem) {
       Toast.show({ content: '订单暂无可预约商品' });
       return;
     }
-    setApptItemId(firstInStoreItem.id);
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    setApptDate(tomorrow);
-    setApptSlot('');
+    // [修改预约 Bug 修复 v1.0] custom_form 模式：跳转到自定义表单页面，不走普通弹窗
+    if (apptItem.appointment_mode === 'custom_form') {
+      router.push(
+        `/custom-appointment?orderId=${order.id}&itemId=${apptItem.id}&mode=edit`,
+      );
+      return;
+    }
+    setApptItemId(apptItem.id);
+    // 已存在预约时间则回填，否则默认明天
+    if (apptItem.appointment_time) {
+      try {
+        setApptDate(new Date(apptItem.appointment_time));
+      } catch {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        setApptDate(tomorrow);
+      }
+    } else {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      setApptDate(tomorrow);
+    }
+    // 回填已有时段（如有）
+    const existingSlot =
+      apptItem.appointment_data && typeof apptItem.appointment_data === 'object'
+        ? (apptItem.appointment_data as any).time_slot || ''
+        : '';
+    setApptSlot(existingSlot);
     setShowAppointmentPopup(true);
   };
 
-  // [先下单后预约 Bug 修复 v1.0] 提交预约
+  // [先下单后预约 Bug 修复 v1.0 / 修改预约 Bug 修复 v1.0] 提交预约
+  // 当商品 appointment_mode === 'date' 时，整块时段块隐藏，只校验日期；time_slot 时校验时段
   const submitAppointment = async () => {
     if (!apptDate) {
       Toast.show({ content: '请选择预约日期' });
       return;
     }
-    if (!apptSlot) {
-      Toast.show({ content: '请选择预约时段' });
-      return;
-    }
     if (!apptItemId) {
       Toast.show({ content: '订单异常' });
+      return;
+    }
+    const currentItem = order?.items.find((i) => i.id === apptItemId);
+    const mode = currentItem?.appointment_mode || 'time_slot';
+    if (mode === 'time_slot' && !apptSlot) {
+      Toast.show({ content: '请选择预约时段' });
       return;
     }
     setApptSubmitting(true);
@@ -192,14 +230,16 @@ export default function UnifiedOrderDetailPage() {
       const m = String(apptDate.getMonth() + 1).padStart(2, '0');
       const d = String(apptDate.getDate()).padStart(2, '0');
       const dateStr = `${y}-${m}-${d}`;
-      const startTime = apptSlot.split('-')[0];
+      // date 模式：默认 09:00 作为 appointment_time（后端期望 datetime），但 appointment_data 里仅记录日期
+      const startTime = mode === 'time_slot' && apptSlot ? apptSlot.split('-')[0] : '09:00';
+      const appointmentData: Record<string, any> = { date: dateStr };
+      if (mode === 'time_slot' && apptSlot) {
+        appointmentData.time_slot = apptSlot;
+      }
       await api.post(`/api/orders/unified/${orderId}/appointment`, {
         item_id: apptItemId,
         appointment_time: `${dateStr}T${startTime}:00`,
-        appointment_data: {
-          date: dateStr,
-          time_slot: apptSlot,
-        },
+        appointment_data: appointmentData,
       });
       Toast.show({ content: '预约成功' });
       setShowAppointmentPopup(false);
@@ -210,6 +250,24 @@ export default function UnifiedOrderDetailPage() {
       setApptSubmitting(false);
     }
   };
+
+  // [修改预约 Bug 修复 v1.0] 兼容外部链接 ?action=appointment 自动打开弹窗
+  useEffect(() => {
+    if (!order) return;
+    if (searchParams?.get('action') === 'appointment') {
+      // 仅对待核销/已预约状态生效
+      if (
+        (order.status === 'pending_use' ||
+          order.status === 'appointed' ||
+          order.status === 'partial_used' ||
+          order.status === 'pending_appointment') &&
+        order.refund_status === 'none'
+      ) {
+        openAppointmentPopup();
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [order, searchParams]);
 
   const handleWithdrawRefund = () => {
     Dialog.confirm({
@@ -588,12 +646,19 @@ export default function UnifiedOrderDetailPage() {
             去评价
           </Button>
         )}
-        {(order.status === 'pending_use' || order.status === 'appointed') && order.refund_status === 'none' && (
+        {/* [修改预约 Bug 修复 v1.0]
+            - 按钮文案：修改预约时间 → 修改预约
+            - 行为：直接打开本地弹窗（与"立即预约"复用同一弹窗组件），不再 push URL
+            - 适用状态：待核销 / 已预约 / 部分核销，且非退款流程中 */}
+        {(order.status === 'pending_use' ||
+          order.status === 'appointed' ||
+          order.status === 'partial_used') &&
+          order.refund_status === 'none' && (
           <Button
-            onClick={() => router.push(`/unified-order/${order.id}?action=appointment`)}
+            onClick={openAppointmentPopup}
             style={{ borderRadius: 20, height: 40, fontSize: 14 }}
           >
-            修改预约时间
+            修改预约
           </Button>
         )}
         {['pending_shipment', 'pending_receipt', 'pending_use', 'appointed'].includes(order.status) && (order.refund_status === 'none' || order.refund_status === 'rejected') && (
@@ -614,45 +679,58 @@ export default function UnifiedOrderDetailPage() {
         )}
       </div>
 
-      {/* [先下单后预约 Bug 修复 v1.0] 立即预约弹窗 */}
-      <Popup
-        visible={showAppointmentPopup}
-        onMaskClick={() => setShowAppointmentPopup(false)}
-        onClose={() => setShowAppointmentPopup(false)}
-        bodyStyle={{ borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: '20px 16px 24px' }}
-      >
-        <div className="text-base font-bold text-center mb-3">选择预约时间</div>
-        <div className="mb-4">
-          <div className="text-sm text-gray-500 mb-1">预约日期</div>
-          <Button
-            block
-            onClick={() => setShowDatePicker(true)}
-            style={{ height: 44, fontSize: 14, textAlign: 'left', borderRadius: 8 }}
+      {/* [先下单后预约 Bug 修复 v1.0 / 修改预约 Bug 修复 v1.0] 预约弹窗
+          - 立即预约 与 修改预约 共用此弹窗
+          - 当当前 item 的 appointment_mode === 'date' 时，整块时段选择隐藏（仅日期）
+          - time_slot 模式：日期 + 时段（每行 3 个，使用 antd-mobile Selector 的 columns=3） */}
+      {(() => {
+        const currentItem = apptItemId
+          ? order.items.find((i) => i.id === apptItemId)
+          : undefined;
+        const mode = currentItem?.appointment_mode || 'time_slot';
+        return (
+          <Popup
+            visible={showAppointmentPopup}
+            onMaskClick={() => setShowAppointmentPopup(false)}
+            onClose={() => setShowAppointmentPopup(false)}
+            bodyStyle={{ borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: '20px 16px 24px' }}
           >
-            {apptDate
-              ? `${apptDate.getFullYear()}-${String(apptDate.getMonth() + 1).padStart(2, '0')}-${String(apptDate.getDate()).padStart(2, '0')}`
-              : '请选择日期'}
-          </Button>
-        </div>
-        <div className="mb-4">
-          <div className="text-sm text-gray-500 mb-2">预约时段</div>
-          <Selector
-            options={DEFAULT_TIME_SLOTS.map((s) => ({ label: s, value: s }))}
-            value={apptSlot ? [apptSlot] : []}
-            onChange={(arr) => setApptSlot(arr[0] || '')}
-            columns={3}
-            style={{ '--padding': '8px 0', '--border-radius': '6px' }}
-          />
-        </div>
-        <Button
-          block
-          loading={apptSubmitting}
-          onClick={submitAppointment}
-          style={{ background: '#52c41a', color: '#fff', border: 'none', borderRadius: 22, height: 44, fontSize: 15 }}
-        >
-          确认预约
-        </Button>
-      </Popup>
+            <div className="text-base font-bold text-center mb-3">选择预约时间</div>
+            <div className="mb-4">
+              <div className="text-sm text-gray-500 mb-1">预约日期</div>
+              <Button
+                block
+                onClick={() => setShowDatePicker(true)}
+                style={{ height: 44, fontSize: 14, textAlign: 'left', borderRadius: 8 }}
+              >
+                {apptDate
+                  ? `${apptDate.getFullYear()}-${String(apptDate.getMonth() + 1).padStart(2, '0')}-${String(apptDate.getDate()).padStart(2, '0')}`
+                  : '请选择日期'}
+              </Button>
+            </div>
+            {mode === 'time_slot' && (
+              <div className="mb-4">
+                <div className="text-sm text-gray-500 mb-2">预约时段</div>
+                <Selector
+                  options={DEFAULT_TIME_SLOTS.map((s) => ({ label: s, value: s }))}
+                  value={apptSlot ? [apptSlot] : []}
+                  onChange={(arr) => setApptSlot(arr[0] || '')}
+                  columns={3}
+                  style={{ '--padding': '8px 0', '--border-radius': '6px' }}
+                />
+              </div>
+            )}
+            <Button
+              block
+              loading={apptSubmitting}
+              onClick={submitAppointment}
+              style={{ background: '#52c41a', color: '#fff', border: 'none', borderRadius: 22, height: 44, fontSize: 15 }}
+            >
+              确认预约
+            </Button>
+          </Popup>
+        );
+      })()}
 
       <DatePicker
         visible={showDatePicker}
