@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Empty, SpinLoading, Tabs, Tag } from 'antd-mobile';
 import GreenNavBar from '@/components/GreenNavBar';
+import CardFace from '@/components/card/CardFace';
 import api from '@/lib/api';
 
 interface UserCard {
@@ -20,6 +21,13 @@ interface UserCard {
   valid_to: string;
   status: 'active' | 'used_up' | 'expired' | 'refunded';
   days_to_expire?: number | null;
+  face_style?: string;
+  face_bg_code?: string;
+  face_show_flags?: number;
+  face_layout?: string;
+  price?: number | null;
+  original_price?: number | null;
+  description?: string | null;
 }
 
 const TABS = [
@@ -28,6 +36,12 @@ const TABS = [
   { key: 'in_use', title: '使用中' },
   { key: 'expired', title: '已过期' },
 ];
+
+function buildItemsSummary(items: { product_id: number; product_name?: string }[]): string {
+  if (!items || items.length === 0) return '';
+  const names = items.map((i) => i.product_name || `商品#${i.product_id}`);
+  return names.slice(0, 3).join(' / ') + (names.length > 3 ? '…' : '');
+}
 
 export default function CardWalletPage() {
   const router = useRouter();
@@ -99,58 +113,40 @@ export default function CardWalletPage() {
         <Empty description="暂无卡片" style={{ padding: 60 }} />
       ) : (
         <div style={{ padding: 12 }}>
-          {items.map((it) => (
-            <div
-              key={it.id}
-              onClick={() => router.push(`/cards/${it.card_definition_id}`)}
-              style={{
-                background: '#fff', borderRadius: 12, padding: 14, marginBottom: 12,
-                boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-                opacity: it.status === 'expired' || it.status === 'refunded' ? 0.6 : 1,
-              }}
-            >
-              <div style={{ display: 'flex', gap: 12 }}>
-                {it.cover_image ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={it.cover_image} alt={it.card_name}
-                    style={{ width: 90, height: 90, borderRadius: 10, objectFit: 'cover' }} />
-                ) : (
-                  <div style={{
-                    width: 90, height: 90, borderRadius: 10,
-                    background: 'linear-gradient(135deg,#9333ea,#6366f1)',
-                    color: '#fff', display: 'flex', alignItems: 'center',
-                    justifyContent: 'center', fontSize: 28,
-                  }}>卡</div>
-                )}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                    <Tag color="primary" style={{ background: '#f0e6ff', color: '#7c3aed' }}>
-                      {it.card_type === 'times' ? '次卡' : '时卡'}
-                    </Tag>
-                    {it.status === 'expired' ? <Tag color="danger">已过期</Tag>
-                      : it.status === 'used_up' ? <Tag color="default">用完</Tag>
-                      : it.status === 'refunded' ? <Tag color="default">已退款</Tag>
-                      : <Tag color="success">使用中</Tag>}
-                  </div>
-                  <div style={{ fontSize: 16, fontWeight: 600, marginTop: 4, color: '#111' }}>
-                    {it.card_name}
-                  </div>
-                  <div style={{ color: '#666', fontSize: 12, marginTop: 2 }}>
-                    {it.card_type === 'times'
-                      ? `剩余 ${it.remaining_times ?? 0} / ${it.total_times ?? 0} 次`
-                      : '时卡'}
-                    {it.bound_items.length > 0 ? ` · 含 ${it.bound_items.length} 个项目` : ''}
-                  </div>
-                  <div style={{ color: '#999', fontSize: 12, marginTop: 4 }}>
-                    有效期至 {new Date(it.valid_to).toLocaleDateString()}
-                    {it.days_to_expire !== null && it.days_to_expire !== undefined && it.status === 'active'
-                      ? ` · 剩 ${it.days_to_expire} 天`
-                      : ''}
-                  </div>
+          {items.map((it) => {
+            const dimmed = it.status === 'expired' || it.status === 'refunded';
+            return (
+              <div
+                key={it.id}
+                onClick={() => router.push(`/cards/${it.card_definition_id}`)}
+                style={{ marginBottom: 12, opacity: dimmed ? 0.55 : 1 }}
+              >
+                <CardFace
+                  faceStyle={it.face_style || 'ST1'}
+                  faceBgCode={it.face_bg_code || 'BG1'}
+                  faceShowFlags={it.face_show_flags ?? 7}
+                  cardName={it.card_name}
+                  itemsSummary={buildItemsSummary(it.bound_items)}
+                  price={it.price ?? null}
+                  originalPrice={it.original_price ?? null}
+                  validDays={null}
+                  cardType={it.card_type}
+                  totalTimes={it.total_times ?? null}
+                  remainingTimes={it.remaining_times ?? null}
+                  daysToExpire={it.status === 'active' ? (it.days_to_expire ?? null) : null}
+                  scopeType={it.scope_type}
+                  size="sm"
+                />
+                <div style={{ marginTop: 6, paddingLeft: 4, fontSize: 12, color: '#999', display: 'flex', gap: 8 }}>
+                  {it.status === 'expired' ? <Tag color="danger">已过期</Tag>
+                    : it.status === 'used_up' ? <Tag color="default">用完</Tag>
+                    : it.status === 'refunded' ? <Tag color="default">已退款</Tag>
+                    : <Tag color="success">使用中</Tag>}
+                  <span>有效期至 {new Date(it.valid_to).toLocaleDateString()}</span>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

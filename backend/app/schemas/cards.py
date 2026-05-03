@@ -45,6 +45,10 @@ class FrequencyLimit(BaseModel):
         return v
 
 
+_VALID_FACE_STYLES = {"ST1", "ST2", "ST3", "ST4"}
+_VALID_BG_CODES = {"BG1", "BG2", "BG3", "BG4", "BG5", "BG6", "BG7", "BG8"}
+
+
 class CardDefinitionBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=200)
     cover_image: Optional[str] = None
@@ -55,13 +59,32 @@ class CardDefinitionBase(BaseModel):
     price: Decimal = Field(..., ge=0)
     original_price: Optional[Decimal] = Field(default=None, ge=0)
     total_times: Optional[int] = Field(default=None, ge=1)
-    valid_days: int = Field(..., ge=1, le=3650)
+    valid_days: int = Field(default=365, ge=1, le=3650, description="默认 365 天")
     frequency_limit: Optional[FrequencyLimit] = None
     store_scope: Optional[StoreScope] = None
     stock: Optional[int] = Field(default=None, ge=0)
     per_user_limit: Optional[int] = Field(default=None, ge=1)
     renew_strategy: str = Field("add_on", description="add_on | new_card")
     item_product_ids: List[int] = Field(default_factory=list)
+    # [PRD v1.1] 卡面设置
+    face_style: str = Field("ST1", description="ST1~ST4 卡面样式")
+    face_bg_code: str = Field("BG1", description="BG1~BG8 卡面背景")
+    face_show_flags: int = Field(7, ge=0, le=15, description="4 项显示位 bitmask；默认 7=SH1+SH2+SH3")
+    face_layout: str = Field("ON_CARD", description="信息布局，本期固定 ON_CARD")
+
+    @field_validator("face_style")
+    @classmethod
+    def _check_face_style(cls, v: str) -> str:
+        if v not in _VALID_FACE_STYLES:
+            raise ValueError("face_style 必须为 ST1~ST4")
+        return v
+
+    @field_validator("face_bg_code")
+    @classmethod
+    def _check_face_bg_code(cls, v: str) -> str:
+        if v not in _VALID_BG_CODES:
+            raise ValueError("face_bg_code 必须为 BG1~BG8")
+        return v
 
     @field_validator("card_type")
     @classmethod
@@ -118,6 +141,25 @@ class CardDefinitionUpdate(BaseModel):
     renew_strategy: Optional[str] = None
     item_product_ids: Optional[List[int]] = None
     sort_order: Optional[int] = None
+    # [PRD v1.1] 卡面设置（更新可选）
+    face_style: Optional[str] = None
+    face_bg_code: Optional[str] = None
+    face_show_flags: Optional[int] = Field(default=None, ge=0, le=15)
+    face_layout: Optional[str] = None
+
+    @field_validator("face_style")
+    @classmethod
+    def _check_face_style_upd(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and v not in _VALID_FACE_STYLES:
+            raise ValueError("face_style 必须为 ST1~ST4")
+        return v
+
+    @field_validator("face_bg_code")
+    @classmethod
+    def _check_face_bg_code_upd(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and v not in _VALID_BG_CODES:
+            raise ValueError("face_bg_code 必须为 BG1~BG8")
+        return v
 
 
 class CardDefinitionResponse(BaseModel):
@@ -142,6 +184,11 @@ class CardDefinitionResponse(BaseModel):
     sales_count: int
     sort_order: int
     items: List[CardItemRef] = Field(default_factory=list)
+    # [PRD v1.1] 卡面设置
+    face_style: str = "ST1"
+    face_bg_code: str = "BG1"
+    face_show_flags: int = 7
+    face_layout: str = "ON_CARD"
     created_at: datetime
     updated_at: datetime
 
@@ -185,6 +232,11 @@ class CardPublicResponse(BaseModel):
     store_scope: Optional[Dict[str, Any]]
     items: List[CardItemRef] = Field(default_factory=list)
     sales_count: int
+    # [PRD v1.1] 卡面设置（H5 直接复用渲染）
+    face_style: str = "ST1"
+    face_bg_code: str = "BG1"
+    face_show_flags: int = 7
+    face_layout: str = "ON_CARD"
     # 计算字段：用户是否已持有可用卡 + 即将到期天数（用于"卡即将到期，可续卡"提示）
     user_has_active_card: bool = False
     nearest_expiry_days: Optional[int] = None
@@ -216,6 +268,14 @@ class UserCardResponse(BaseModel):
     days_to_expire: Optional[int] = None
     purchase_order_id: Optional[int]
     created_at: datetime
+    # [PRD v1.1] 卡面设置（H5 卡包页缩小卡面渲染）
+    face_style: str = "ST1"
+    face_bg_code: str = "BG1"
+    face_show_flags: int = 7
+    face_layout: str = "ON_CARD"
+    price: Optional[Decimal] = None
+    original_price: Optional[Decimal] = None
+    description: Optional[str] = None
 
     model_config = {"from_attributes": True}
 

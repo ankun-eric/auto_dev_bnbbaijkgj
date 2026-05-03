@@ -109,6 +109,10 @@ async def _build_public_response(
         store_scope=card.store_scope,
         items=items,
         sales_count=card.sales_count or 0,
+        face_style=getattr(card, "face_style", None) or "ST1",
+        face_bg_code=getattr(card, "face_bg_code", None) or "BG1",
+        face_show_flags=int(getattr(card, "face_show_flags", 7) or 7),
+        face_layout=getattr(card, "face_layout", None) or "ON_CARD",
         user_has_active_card=user_active is not None,
         nearest_expiry_days=days_to_expire,
     )
@@ -202,6 +206,13 @@ def _build_user_card_response(
         days_to_expire=days_to_expire,
         purchase_order_id=user_card.purchase_order_id,
         created_at=user_card.created_at,
+        face_style=getattr(card_def, "face_style", None) or "ST1",
+        face_bg_code=getattr(card_def, "face_bg_code", None) or "BG1",
+        face_show_flags=int(getattr(card_def, "face_show_flags", 7) or 7),
+        face_layout=getattr(card_def, "face_layout", None) or "ON_CARD",
+        price=card_def.price,
+        original_price=card_def.original_price,
+        description=card_def.description,
     )
 
 

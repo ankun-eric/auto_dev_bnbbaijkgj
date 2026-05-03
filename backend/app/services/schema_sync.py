@@ -1190,6 +1190,43 @@ async def _sync_settlement_proof_schema(conn: AsyncConnection) -> None:
         pass
 
 
+async def _sync_card_face_fields(conn: AsyncConnection) -> None:
+    """[2026-05-03 卡管理 PRD v1.1] card_definitions 新增卡面设置 4 字段。
+    增量、幂等。老数据按默认值回填。
+    """
+    def _load(sync_conn):
+        inspector = inspect(sync_conn)
+        tables = set(inspector.get_table_names())
+        if "card_definitions" not in tables:
+            return None
+        return {col["name"] for col in inspector.get_columns("card_definitions")}
+
+    columns = await conn.run_sync(_load)
+    if columns is None:
+        return
+
+    if "face_style" not in columns:
+        await conn.execute(text(
+            "ALTER TABLE card_definitions ADD COLUMN face_style VARCHAR(8) NOT NULL DEFAULT 'ST1' "
+            "COMMENT '卡面样式 ST1~ST4'"
+        ))
+    if "face_bg_code" not in columns:
+        await conn.execute(text(
+            "ALTER TABLE card_definitions ADD COLUMN face_bg_code VARCHAR(8) NOT NULL DEFAULT 'BG1' "
+            "COMMENT '卡面背景 BG1~BG8'"
+        ))
+    if "face_show_flags" not in columns:
+        await conn.execute(text(
+            "ALTER TABLE card_definitions ADD COLUMN face_show_flags INT NOT NULL DEFAULT 7 "
+            "COMMENT '4 项显示位 bitmask；默认 7=SH1+SH2+SH3'"
+        ))
+    if "face_layout" not in columns:
+        await conn.execute(text(
+            "ALTER TABLE card_definitions ADD COLUMN face_layout VARCHAR(8) NOT NULL DEFAULT 'ON_CARD' "
+            "COMMENT '信息布局，本期固定 ON_CARD'"
+        ))
+
+
 async def _sync_store_bindding_tables(conn: AsyncConnection) -> None:
     """门店绑定与订单通知增强：新增字段与表。"""
     def _load(sync_conn):
@@ -1404,6 +1441,7 @@ async def sync_register_schema(conn: AsyncConnection) -> None:
     await _sync_tcm_diagnosis_fields(conn)
     await _sync_chat_message_metadata(conn)
     await _sync_store_bindding_tables(conn)
+    await _sync_card_face_fields(conn)
     await _migrate_store_codes(conn)
     await run_all_migrations(conn)
 

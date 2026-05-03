@@ -3309,7 +3309,7 @@ class CardDefinition(Base):
     original_price = mapped_column(Numeric(10, 2), nullable=True)
 
     total_times = mapped_column(Integer, nullable=True)  # 次卡总次数；时卡为 NULL
-    valid_days = mapped_column(Integer, nullable=False, default=30)  # 自购买起算 N 天
+    valid_days = mapped_column(Integer, nullable=False, default=365)  # 自购买起算 N 天，PRD v1.1 默认 365
     frequency_limit = mapped_column(JSON, nullable=True)  # 时卡频次 {scope:'day'|'week', times:N}
 
     store_scope = mapped_column(JSON, nullable=True)  # {type:'all'} 或 {type:'list', store_ids:[...]}
@@ -3318,6 +3318,14 @@ class CardDefinition(Base):
     per_user_limit = mapped_column(Integer, nullable=True)  # NULL=不限
 
     renew_strategy = mapped_column(Enum(CardRenewStrategy), nullable=False, default=CardRenewStrategy.add_on)
+
+    # [PRD v1.1] 卡面设置（4 风格 + 8 色板 + 4 显示项 + 信息布局）
+    face_style = mapped_column(String(8), nullable=False, default="ST1")  # ST1~ST4
+    face_bg_code = mapped_column(String(8), nullable=False, default="BG1")  # BG1~BG8
+    # 4 项显示位 bitmask：bit0=卡名 bit1=服务内容 bit2=价格 bit3=有效期；默认 7 = 0b0111
+    face_show_flags = mapped_column(Integer, nullable=False, default=7)
+    # 信息布局，本期固定 ON_CARD，预留字段以备后扩
+    face_layout = mapped_column(String(8), nullable=False, default="ON_CARD")
 
     status = mapped_column(Enum(CardStatus), nullable=False, default=CardStatus.draft, index=True)
     sales_count = mapped_column(Integer, default=0)  # 已售张数

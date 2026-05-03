@@ -38,6 +38,45 @@ from app.schemas.cards import (
 router = APIRouter(prefix="/api/admin/cards", tags=["卡管理（Admin）"])
 
 
+# ─────────────── 辅助：商家档案搜索（PRD v1.1 F04） ───────────────
+
+
+@router.get("/_lookup/merchants", summary="搜索商家档案（用于卡管理 F04 商家专属卡选择器）")
+async def lookup_merchants(
+    keyword: Optional[str] = Query(default=None, description="按用户昵称/手机号模糊搜索"),
+    limit: int = Query(default=30, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(require_role("admin")),
+):
+    stmt = (
+        select(MerchantProfile, User)
+        .join(User, User.id == MerchantProfile.user_id)
+    )
+    if keyword:
+        like = f"%{keyword.strip()}%"
+        stmt = stmt.where(
+            (User.nickname.like(like))
+            | (User.phone.like(like))
+            | (User.username.like(like))
+        )
+    stmt = stmt.order_by(MerchantProfile.id.desc()).limit(limit)
+    rows = (await db.execute(stmt)).all()
+    items = []
+    for profile, user in rows:
+        m_nick = getattr(profile, "nickname", None)
+        u_nick = user.nickname or user.username or user.phone or f"用户#{user.id}"
+        label = m_nick or u_nick
+        items.append({
+            "id": profile.id,
+            "label": f"{label} (档案#{profile.id})",
+            "merchant_nickname": m_nick,
+            "user_nickname": u_nick,
+            "user_phone": user.phone,
+            "user_id": user.id,
+        })
+    return {"items": items}
+
+
 # ─────────────── 帮助函数 ───────────────
 
 
@@ -100,6 +139,10 @@ async def _build_card_response(db: AsyncSession, card: CardDefinition) -> CardDe
         sales_count=card.sales_count or 0,
         sort_order=card.sort_order or 0,
         items=items,
+        face_style=getattr(card, "face_style", None) or "ST1",
+        face_bg_code=getattr(card, "face_bg_code", None) or "BG1",
+        face_show_flags=int(getattr(card, "face_show_flags", 7) or 7),
+        face_layout=getattr(card, "face_layout", None) or "ON_CARD",
         created_at=card.created_at,
         updated_at=card.updated_at,
     )
@@ -201,6 +244,10 @@ async def create_card(
         renew_strategy=CardRenewStrategy(payload.renew_strategy),
         status=CardStatus.draft,
         created_by_admin_id=user.id,
+        face_style=payload.face_style,
+        face_bg_code=payload.face_bg_code,
+        face_show_flags=payload.face_show_flags,
+        face_layout=payload.face_layout,
     )
     db.add(card)
     await db.flush()
@@ -263,6 +310,11 @@ async def update_card(
         "per_user_limit",
         "owner_merchant_id",
         "sort_order",
+        # [PRD v1.1] 卡面设置
+        "face_style",
+        "face_bg_code",
+        "face_show_flags",
+        "face_layout",
     ):
         if key in data:
             setattr(card, key, data[key])

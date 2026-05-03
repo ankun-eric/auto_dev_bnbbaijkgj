@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Button, Empty, SpinLoading, Tag, Toast } from 'antd-mobile';
 import GreenNavBar from '@/components/GreenNavBar';
+import CardFace from '@/components/card/CardFace';
 import api from '@/lib/api';
 
 interface CardItemRef {
@@ -29,6 +30,16 @@ interface PublicCard {
   sales_count: number;
   user_has_active_card: boolean;
   nearest_expiry_days: number | null;
+  face_style?: string;
+  face_bg_code?: string;
+  face_show_flags?: number;
+  face_layout?: string;
+}
+
+function buildItemsSummary(items: CardItemRef[]): string {
+  if (!items || items.length === 0) return '';
+  const names = items.map((i) => i.product_name || `商品#${i.product_id}`);
+  return names.slice(0, 3).join(' / ') + (names.length > 3 ? '…' : '');
 }
 
 export default function CardDetailPage() {
@@ -83,20 +94,22 @@ export default function CardDetailPage() {
     <div style={{ minHeight: '100vh', background: '#f5f5f7', paddingBottom: 96 }}>
       <GreenNavBar>卡详情</GreenNavBar>
 
-      {/* 头图 */}
-      <div style={{
-        background: card.cover_image
-          ? `url(${card.cover_image}) center/cover`
-          : 'linear-gradient(135deg,#9333ea,#6366f1)',
-        height: 200, position: 'relative',
-      }}>
-        {!card.cover_image && (
-          <div style={{
-            position: 'absolute', inset: 0, display: 'flex',
-            alignItems: 'center', justifyContent: 'center',
-            color: '#fff', fontSize: 48,
-          }}>{card.name}</div>
-        )}
+      {/* 顶部大卡（admin 配置卡面 1:1 还原） */}
+      <div style={{ padding: 12 }}>
+        <CardFace
+          faceStyle={card.face_style || 'ST1'}
+          faceBgCode={card.face_bg_code || 'BG1'}
+          faceShowFlags={card.face_show_flags ?? 7}
+          cardName={card.name}
+          itemsSummary={buildItemsSummary(card.items)}
+          price={card.price}
+          originalPrice={card.original_price ?? null}
+          validDays={card.valid_days}
+          cardType={card.card_type}
+          totalTimes={card.total_times ?? null}
+          scopeType={card.scope_type}
+          size="lg"
+        />
       </div>
 
       {/* 基本信息 */}
