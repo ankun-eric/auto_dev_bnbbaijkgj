@@ -219,7 +219,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         data['coupon_id'] = _selectedCoupon!.couponId;
       }
       if (_selectedAddress != null) {
-        if (widget.product.fulfillmentType == 'on_site') {
+        if (_product.fulfillmentType == 'on_site') {
           data['service_address_id'] = _selectedAddress!.id;
         } else {
           data['shipping_address_id'] = _selectedAddress!.id;
