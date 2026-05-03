@@ -560,9 +560,33 @@ class OrderAttachment(Base):
     file_url = mapped_column(String(500), nullable=False)
     file_name = mapped_column(String(255), nullable=True)
     file_size = mapped_column(Integer, default=0)
+    # [订单系统增强 PRD v1.0] MIME 类型，便于前端按 MIME 类型渲染
+    mime_type = mapped_column(String(64), nullable=True)
+    # [订单系统增强 PRD v1.0] 缩略图 URL（图片附件用）
+    thumbnail_url = mapped_column(String(500), nullable=True)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
+    deleted_at = mapped_column(DateTime, nullable=True)
 
     store = relationship("MerchantStore")
+
+
+class MerchantBusinessHours(Base):
+    """[订单系统增强 PRD v1.0] 商家营业时间窗（按周 + 日期例外）。
+
+    weekday: 0=周一 ... 6=周日；-1=日期例外（必须填 date_exception）
+    时间窗以 (start_time, end_time) 表示，支持每天多段。
+    """
+    __tablename__ = "merchant_business_hours"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    store_id = mapped_column(Integer, ForeignKey("merchant_stores.id"), nullable=False, index=True)
+    weekday = mapped_column(Integer, nullable=False, default=-1, comment="0=周一...6=周日；-1=日期例外")
+    date_exception = mapped_column(Date, nullable=True, comment="weekday=-1 时必填")
+    start_time = mapped_column(String(5), nullable=False, comment="HH:MM")
+    end_time = mapped_column(String(5), nullable=False, comment="HH:MM")
+    is_closed = mapped_column(Boolean, default=False, comment="该日是否休息（仅对 date_exception 有效）")
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
 class MerchantInvoiceProfile(Base):
@@ -1396,12 +1420,18 @@ class Notification(Base):
 
     id = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    # [订单系统增强 PRD v1.0] 关联订单 ID（站内消息按订单粒度聚合红点）
+    order_id = mapped_column(Integer, nullable=True, index=True)
+    # [订单系统增强 PRD v1.0] 事件类型枚举（order_status_changed / order_attachment_added /
+    #   order_upcoming / order_created / order_paid / order_cancelled 等）
+    event_type = mapped_column(String(64), nullable=True, index=True)
     title = mapped_column(String(200), nullable=False)
     content = mapped_column(Text, nullable=True)
     type = mapped_column(Enum(NotificationType), default=NotificationType.system)
     is_read = mapped_column(Boolean, default=False)
     extra_data = mapped_column(JSON, nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    read_at = mapped_column(DateTime, nullable=True)
 
     user = relationship("User", back_populates="notifications")
 
@@ -2677,6 +2707,12 @@ class Product(Base):
     # 取值来自 {'limited','hot','new','recommend'} 中的任意子集
     # 前端展示时按 limited > hot > new > recommend 优先级仅取 1 个渲染
     marketing_badges = mapped_column(JSON, nullable=True)
+    # [订单系统增强 PRD v1.0] 服务级同时段并发上限（NULL 表示继承门店级 slot_capacity）
+    max_concurrent_override = mapped_column(Integer, nullable=True,
+                                            comment="服务级同时段并发上限；NULL=继承门店 slot_capacity")
+    # [订单系统增强 PRD v1.0] 服务时长（分钟），用于时段切片；NULL=兼容历史
+    service_duration_minutes = mapped_column(Integer, nullable=True,
+                                             comment="服务时长（分钟），用于时段自动切片")
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

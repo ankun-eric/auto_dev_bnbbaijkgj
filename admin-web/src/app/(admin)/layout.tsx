@@ -52,6 +52,7 @@ const menuItems: MenuItem[] = [
     label: '商家管理',
     children: [
       { key: '/merchant/stores', label: '门店管理' },
+      { key: '/merchant/business-config', label: '营业时间&并发上限' },
       { key: '/merchant/accounts', label: '商家账号' },
       { key: '/merchant-categories', label: '机构类别管理' },
       { key: '/admin-settlements', label: '对账单管理' },

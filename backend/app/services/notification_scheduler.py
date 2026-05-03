@@ -300,12 +300,76 @@ async def check_appointment_reminders():
             logger.exception("Error checking appointment reminders")
 
 
+async def check_order_upcoming_one_hour():
+    """[订单系统增强 PRD v1.0 F7/R12] 服务时段开始前 1 小时触发站内信，每 5 分钟扫描一次。
+
+    扫描规则：在 [now+55min, now+65min] 区间内开始的预约订单。
+    通过 Notification.event_type='order_upcoming' + order_id 唯一性去重。
+    """
+    now = datetime.utcnow()
+    window_start = now + timedelta(minutes=55)
+    window_end = now + timedelta(minutes=65)
+
+    async with async_session() as session:
+        try:
+            from app.models.models import Notification
+
+            upcoming = await session.execute(
+                select(OrderItem, UnifiedOrder)
+                .join(UnifiedOrder, UnifiedOrder.id == OrderItem.order_id)
+                .where(
+                    OrderItem.appointment_time.isnot(None),
+                    OrderItem.appointment_time >= window_start,
+                    OrderItem.appointment_time <= window_end,
+                    UnifiedOrder.status.in_([
+                        UnifiedOrderStatus.pending_use,
+                        UnifiedOrderStatus.appointed,
+                        UnifiedOrderStatus.partial_used,
+                    ]),
+                )
+            )
+
+            for oi, order in upcoming.all():
+                # 去重：该订单已有 order_upcoming 类型的通知就跳过
+                exists = await session.execute(
+                    select(Notification.id).where(
+                        Notification.user_id == order.user_id,
+                        Notification.order_id == order.id,
+                        Notification.event_type == "order_upcoming",
+                    )
+                )
+                if exists.scalar_one_or_none():
+                    continue
+
+                from app.services.order_notification import notify_order_upcoming
+                await notify_order_upcoming(
+                    session,
+                    user_id=order.user_id,
+                    order_id=order.id,
+                    order_no=order.order_no,
+                    appointment_time=oi.appointment_time,
+                )
+
+            await session.commit()
+            logger.info("Order upcoming-1h check completed")
+        except Exception:
+            await session.rollback()
+            logger.exception("Error checking order upcoming-1h")
+
+
 def init_scheduler():
     """Initialize and start the APScheduler."""
     scheduler.add_job(
         check_medication_reminders,
         trigger=IntervalTrigger(minutes=5),
         id="check_medication_reminders",
+        replace_existing=True,
+    )
+    # [订单系统增强 PRD v1.0 F7/R12] 服务前 1 小时提醒，每 5 分钟扫描一次
+    scheduler.add_job(
+        check_order_upcoming_one_hour,
+        trigger=IntervalTrigger(minutes=5),
+        id="check_order_upcoming_one_hour",
         replace_existing=True,
     )
     scheduler.add_job(

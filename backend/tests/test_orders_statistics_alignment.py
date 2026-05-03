@@ -91,7 +91,7 @@ async def _seed_order(
             product_id=product_id,
             product_name="统计测试商品",
             quantity=1,
-            unit_price=paid_amount,
+            product_price=paid_amount,
             subtotal=paid_amount,
             fulfillment_type="in_store",
             total_redeem_count=1,

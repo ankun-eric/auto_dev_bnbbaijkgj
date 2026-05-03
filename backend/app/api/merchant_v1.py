@@ -99,7 +99,8 @@ merchant_dep = require_identity("merchant_owner", "merchant_staff")
 admin_dep = require_role("admin")
 
 MAX_ATTACHMENTS_PER_ORDER = 5
-MAX_ATTACHMENT_SIZE = 20 * 1024 * 1024  # 20 MB
+# [订单系统增强 PRD v1.0 R2] 单文件 ≤ 5 MB
+MAX_ATTACHMENT_SIZE = 5 * 1024 * 1024  # 5 MB
 
 
 # ========== 公共工具 ==========
@@ -600,7 +601,7 @@ async def upload_order_attachment(
     if data.file_type not in ("image", "pdf"):
         raise HTTPException(status_code=400, detail="仅支持图片或 PDF")
     if data.file_size and data.file_size > MAX_ATTACHMENT_SIZE:
-        raise HTTPException(status_code=400, detail="单文件不可超过 20MB")
+        raise HTTPException(status_code=400, detail="单文件不可超过 5MB")
     cnt_res = await db.execute(
         select(func.count(OrderAttachment.id)).where(
             OrderAttachment.order_id == order_item_id,
@@ -620,6 +621,29 @@ async def upload_order_attachment(
         file_size=data.file_size or 0,
     )
     db.add(att)
+
+    # [订单系统增强 PRD v1.0 F2/F7] 上传成功后自动触发站内信通知客户
+    try:
+        oi_res = await db.execute(
+            select(OrderItem, UnifiedOrder)
+            .join(UnifiedOrder, UnifiedOrder.id == OrderItem.order_id)
+            .where(OrderItem.id == order_item_id)
+        )
+        row = oi_res.first()
+        if row:
+            _, uo = row
+            from app.services.order_notification import notify_attachment_added
+            await notify_attachment_added(
+                db,
+                user_id=uo.user_id,
+                order_id=uo.id,
+                order_no=uo.order_no,
+                attachment_count=1,
+            )
+    except Exception as _e:  # noqa: BLE001
+        import logging as _l
+        _l.getLogger(__name__).warning("notify_attachment_added 失败：%s", _e)
+
     await db.commit()
     await db.refresh(att)
     return att

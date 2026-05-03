@@ -1367,13 +1367,47 @@ async def cancel_unified_order(
     status_val = order.status
     if hasattr(status_val, "value"):
         status_val = status_val.value
-    if status_val not in ("pending_payment",):
+
+    # [订单系统增强 PRD v1.0 F10/R7] 客户在「服务时段开始前任意时间」均可全额取消并退款
+    # - 待付款：直接取消
+    # - 待预约 / 已预约 / 待核销 / 部分核销：若有预约时间且尚未到达，则放行
+    # - 已完成 / 已取消 / 已退款 / 已过期：拒绝
+    cancellable_simple = ("pending_payment", "pending_appointment")
+    cancellable_with_time = ("appointed", "pending_use")
+    rejected_states = (
+        "completed", "cancelled", "refunded", "expired",
+        "refunding", "partial_used", "pending_review",
+    )
+    if status_val in rejected_states:
+        raise HTTPException(status_code=400, detail="该订单当前状态无法取消")
+
+    if status_val in cancellable_with_time:
+        # 校验服务时间未到
+        from datetime import datetime as _dt
+        appt_time = None
+        for it in order.items:
+            if it.appointment_time:
+                appt_time = it.appointment_time
+                break
+        if appt_time is not None and appt_time <= _dt.utcnow():
+            raise HTTPException(status_code=400, detail="服务时段已开始，不能自助取消，请走「申请退款」流程")
+    elif status_val not in cancellable_simple:
         raise HTTPException(status_code=400, detail="该订单无法取消")
+
+    # 已支付订单取消视为「全额退款」：标记 refund_status，金额退回（沿用现有退款链路）
+    refund_back = False
+    if status_val != "pending_payment":
+        refund_back = True
 
     order.status = UnifiedOrderStatus.cancelled
     order.cancelled_at = datetime.utcnow()
     order.cancel_reason = data.cancel_reason
     order.updated_at = datetime.utcnow()
+    if refund_back:
+        try:
+            order.refund_status = RefundStatusEnum.refunded
+        except Exception:  # noqa: BLE001
+            pass
 
     if order.points_deduction > 0:
         current_user.points += order.points_deduction
@@ -1405,6 +1439,16 @@ async def cancel_unified_order(
             uc.status = UserCouponStatus.unused
             uc.used_at = None
             uc.order_id = None
+
+    # [订单系统增强 PRD v1.0 F7] 触发站内信：订单已取消
+    try:
+        from app.services.order_notification import notify_order_cancelled
+        await notify_order_cancelled(
+            db, user_id=current_user.id, order_id=order.id, order_no=order.order_no,
+        )
+    except Exception as _e:  # noqa: BLE001
+        import logging as _l
+        _l.getLogger(__name__).warning("notify_order_cancelled 失败：%s", _e)
 
     return {"message": "订单已取消"}
 

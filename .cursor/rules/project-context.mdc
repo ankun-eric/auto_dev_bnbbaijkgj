@@ -33,7 +33,49 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 支付配置页面加载失败 Bug 修复（已部署 + 0 Bug，本地 16/41 + 远程 4 通道接口 200 验证通过，仅后端 + admin-web 改动，无需打包客户端）（2026-05-03 23:55）
+## Latest Update: 订单统计 12+7 状态对齐 & 全端履约方式中文化（已部署 + 0 Bug，远程 18/18 自动化测试全通过，APK 已重新打包）（2026-05-04 00:30）
+
+### 一句话结论
+一次性闭环修复两条 P1 体验 Bug：① 管理后台「产品系统 → 订单统计」页只展示 7 订单状态/5 退款状态，缺失 V2 新增「待预约/已预约/部分核销/已过期/退款中/退款审核中/退款处理中」等卡片导致经营盲区；② 用户端订单详情/列表「履约方式」直接展示后端英文枚举（`on_site` / `delivery`）而非中文。修复方案：1) **后端**：`backend/app/api/product_admin.py` 新增 `GET /api/admin/orders/statistics?start_at=&end_at=`，输出 `summary{total_orders,total_revenue,total_refund_count,total_refund_amount}` + `order_status_items[12]`（待付款/待发货/待收货/待预约/已预约/待核销/部分核销/已完成/已过期/退款中/已退款/已取消）+ `refund_status_items[7]`（无退款/退款申请中/退款审核中/退款已批准/退款已拒绝/退款处理中/退款成功），与订单明细页 `/orders/v2/enums` 完全一致；时间筛选基于 `UnifiedOrder.created_at`；金额口径 `paid_amount`；2) **admin-web**：`statistics/page.tsx` 完全重构，顶部新增「今日 / 本周 / 本月 / 自定义 RangePicker」单一时间筛选条（默认今日），删除老的「今日/本月/累计」12 张垂直卡片，改为 12 + 7 状态卡片网格 + 总览四块（总订单/总实付/退款单/退款金额），趋势图/分类销售/退款原因复用现有接口、与时间筛选联动；3) **公共字典（5 端各 1 份单一来源）**：新建 `admin-web/src/utils/fulfillmentLabel.ts` / `h5-web/src/utils/fulfillmentLabel.ts` / `miniprogram/utils/fulfillmentLabel.js` + `miniprogram/utils/fulfillmentLabel.wxs`（WXML 模板可用）/ `flutter_app/lib/utils/fulfillment_label.dart`，统一映射 `on_site→上门服务` `to_store→到店服务` `delivery→快递配送` `in_store→到店核销` `virtual→线上服务`，未注册 fallback 「其他服务」并打日志；4) **全端落地**：Flutter `unified_order_detail_screen.dart`/`models/product.dart`/`services_screen.dart`、H5 `unified-order/[id]/page.tsx`/`products/page.tsx`、小程序 `unified-order-detail/index.{wxml,wxss}` + `products/index.wxml` + `product-detail/index.wxml` + `services/index.js`、admin-web `orders/page.tsx`/`products/page.tsx`/`redemptions/page.tsx`/`components/coupon/ProductPickerModal.tsx` 全部改用公共字典；admin-web 历史 fulfillmentMap 直接删除；5) **测试**：新增 `backend/tests/test_orders_statistics_alignment.py` 10 用例（鉴权 / 响应结构 / 12 订单状态全在 / 7 退款状态全在 / 字段 status+label+count+amount / V2 新状态独立校验 / refund 扩展状态独立校验 / 聚合正确性 / 时间筛选 / summary 字段）+ `backend/tests/test_fulfillment_label_dict.py` 8 用例（5 端字典文件存在 + 5 keys 完整 + 中文一致 + Flutter 移除老 switch + admin-web 引用 fulfillmentLabel + h5/小程序入口页引用），远程容器内 **18/18 全部 PASS**（耗时 6.59s）；测试支持 `REPO_ROOT` 指向，本地/容器双兼容；6) **部署**：远程 SSH 拉最新 commit `10be231` → `docker compose build` backend + admin-web + h5-web → restart → 验证服务器三 URL 200 + admin/statistics 308（登录守卫）+ 新接口 401（路由可达）；7) **APK 打包**：`deploy/_build_apk_orderstat_fulfillment_20260504.py` 在远程 flutter-builder docker 镜像内重新构建（履约字典字符串变更需进二进制），产物覆盖 `static/apk/bini_health.apk` + 时间戳别名；iOS 仅文案改动可暂不重建 IPA；小程序为源码部署随仓库交付；8) **用户手册** `user_docs/订单统计状态对齐与全端履约方式中文化.md`。
+
+### 涉及文件
+- 后端：`backend/app/api/product_admin.py`（新增 `_parse_dt` + `ORDER_STATUS_LABELS_12` + `REFUND_STATUS_LABELS_7` + `GET /orders/statistics`）
+- 后端测试：`backend/tests/test_orders_statistics_alignment.py`、`backend/tests/test_fulfillment_label_dict.py`
+- admin-web：`admin-web/src/app/(admin)/product-system/statistics/page.tsx`（完全重构）、`admin-web/src/utils/fulfillmentLabel.ts`（新增）、`admin-web/src/app/(admin)/product-system/{orders,products,redemptions}/page.tsx`、`admin-web/src/components/coupon/ProductPickerModal.tsx`
+- h5-web：`h5-web/src/utils/fulfillmentLabel.ts`（新增）、`h5-web/src/app/unified-order/[id]/page.tsx`、`h5-web/src/app/products/page.tsx`
+- miniprogram：`miniprogram/utils/fulfillmentLabel.js` + `miniprogram/utils/fulfillmentLabel.wxs`（新增）、`miniprogram/pages/unified-order-detail/index.{wxml,wxss}`、`miniprogram/pages/products/index.wxml`、`miniprogram/pages/product-detail/index.wxml`、`miniprogram/pages/services/index.js`
+- flutter_app：`flutter_app/lib/utils/fulfillment_label.dart`（新增）、`flutter_app/lib/screens/order/unified_order_detail_screen.dart`、`flutter_app/lib/models/product.dart`、`flutter_app/lib/screens/services/services_screen.dart`
+- 部署辅助：`deploy/_deploy_orders_stat_fulfillment_20260504.py` / `_run_pytest_remote_20260504.py` / `_pull_and_test_20260504.py` / `_build_apk_orderstat_fulfillment_20260504.py`
+- 用户手册：`user_docs/订单统计状态对齐与全端履约方式中文化.md`
+
+### 关键技术点 / 注意事项
+- **统计接口字段统一**：12 + 7 状态的 `code/label` 必须与订单明细页 `/orders/v2/enums` 完全一致，未来如新增 V3 状态需在 `ORDER_STATUS_LABELS_12` 与 admin orders 接口同时同步，否则统计页与详情页会再次失真
+- **金额口径**：`UnifiedOrder.paid_amount`，未支付订单金额为 0；总实付金额排除 cancelled，退款金额仅统计 `refund_status=refund_success`
+- **时间筛选**：基于 `UnifiedOrder.created_at`，`start_at` 解析为当日 00:00:00，`end_at` 解析为 23:59:59；支持 `YYYY-MM-DD` 与 ISO 8601 双格式
+- **公共字典单一真实来源**：每个端各一份字典文件（admin-web/h5-web/miniprogram/flutter_app/wxs），新增履约方式只需改 5 个文件，避免散落 switch；fallback 「其他服务」+ 控制台 `console.warn` 便于发现遗漏
+- **Flutter `_fulfillmentLabel` 老 switch 已删除**：`unified_order_detail_screen.dart` 与 `models/product.dart` 现在直接调用 `fulfillment_label.dart` 中 `fulfillmentLabel(type)`
+- **admin-web `fulfillmentMap` 全部移除**：4 个页面全部改用 `fulfillmentLabel`；商品表单的下拉选项继续保留后端实际支持的 4 类（in_store/delivery/virtual/on_site），中文显示均经过字典
+- **小程序 WXS 模块**：因 WXML 不能直接调 JS 函数，单独建 `fulfillmentLabel.wxs`，模板中 `<wxs src="../../utils/fulfillmentLabel.wxs" module="ff" />` + `{{ff.fulfillmentLabel(item.fulfillment_type)}}` 使用
+- **测试 `REPO_ROOT` 兼容**：`test_fulfillment_label_dict.py` 通过 `os.environ.get("REPO_ROOT")` 指向工程根，容器内通过 `docker cp` 把 admin-web/h5-web/miniprogram/flutter_app 复制到容器后，`-e REPO_ROOT=/repo` 即可让测试找到字典文件
+- **OrderItem.unit_price 不存在**：测试 seed 时务必使用 `product_price`（数据库列名），首次写测试踩坑后已修正
+- **APK 重打包必要性**：履约方式字符串编入 Dart AOT 二进制，必须重新构建发布；iOS 同理但因签名/审核流程，可在下次发版统一构建
+
+### 部署产物
+- 后端 + admin-web + h5-web：已 docker compose build + recreate（基于服务器 commit `10be231`）
+- 服务器 URL：`/admin/` 200、`/admin/product-system/statistics` 308、`/api/admin/orders/statistics` 401（路由可达）、`/h5/` 200
+- APK：`/static/apk/bini_health.apk` 与 `bini_health_orderstat_<ts>.apk`，可通过 `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/apk/bini_health.apk` 下载
+- 小程序：源码部署随仓库交付
+- iOS：本批次仅 UI 文案改动，未触发 iOS Build workflow，下次合并打包
+
+### 验证结果
+- 远程容器 pytest（`test_orders_statistics_alignment.py` + `test_fulfillment_label_dict.py`）：**18 passed in 6.59s**
+- 12 订单状态卡片 + 7 退款状态卡片 + summary 四块齐全，时间筛选生效
+- 全端订单详情/列表履约方式不再展示英文，未注册类型显示「其他服务」
+- APK 重新构建上传完成（详见 `apk_build_log.txt` 与服务器 `/static/apk/`）
+
+---
+
+## Previous Update: 支付配置页面加载失败 Bug 修复（已部署 + 0 Bug，本地 16/41 + 远程 4 通道接口 200 验证通过，仅后端 + admin-web 改动，无需打包客户端）（2026-05-03 23:55）
 
 ### 一句话结论
 彻底修复管理后台「支付配置」页面**进入即「加载失败」**的 P0 Bug，根因为服务器首次部署后 `payment_channels` 表 4 条种子记录的 `created_at` / `updated_at` 在 MySQL `+00:00` 时区下未触发 `DEFAULT CURRENT_TIMESTAMP` 而留存 NULL，导致 `PaymentChannelResponse` Pydantic v2 严格校验 `created_at: datetime` 直接抛 `ValidationError` → 列表接口 500 → 前端瞬间「加载失败」。一期一次性覆盖原方案 7 项修复（FIX-1~FIX-7）：1) `_serialize_channel` 对 `created_at` / `updated_at` 做 `or datetime.utcnow()` 兜底 + schema 改为 `Optional[datetime]`，2) `_safe_serialize_channel` 单条记录序列化失败降级为占位记录、`_build_masked_config` 加密失败时全字段降级为 `****`，不让单条挂掉整列表；3) 列表接口 `try/except` + `HTTPException(500, detail=f"...{type(e).__name__}: {e}")` 返结构化错误；4) 列表接口请求时调用 `_ensure_default_channels` 自愈，缺通道自动补齐（已存在的 display_name/sort_order 不被覆盖）；5) `schema_sync._sync_payment_config` 种子 INSERT 显式带 `created_at, updated_at = CURRENT_TIMESTAMP` + 启动迁移 `UPDATE payment_channels SET created_at=CURRENT_TIMESTAMP WHERE created_at IS NULL` + updated_at 同步回补；6) `app/main.py` 新增 `_payment_config_startup_self_check` startup 钩子打印路由挂载状态 + 加密密钥环境变量自检；7) `docker-compose.yml` backend.environment 注入 `PAYMENT_CONFIG_ENCRYPTION_KEY=jzsuHsRKWp/Xy01k+8d4R2lNBvb3KQTGJJkxQXRjW2A=` + `PUBLIC_API_BASE_URL=https://newbb.test.bangbangvip.com/autodev/<DID>` + 新增 `.env.example` 部署样例；8) admin-web `payment-config/page.tsx` 把 `加载失败` 文案改为 `加载失败：{detail}`、新增红色 Alert + 重试按钮 + 空数据时 TAB 内的「点此重试」按钮；9) 新增 `backend/tests/test_payment_config_bugfix.py` 7 用例（NULL 时间戳列表 200 / 自愈空表 / 自愈部分表 / 损坏 config 不挂全表 / 401 detail / 路由可达 / 单条详情 NULL 兜底），本地 7/7 通过 + 历史 9 用例 v1 + 25 用例其它回归 = 41/41 全部通过；10) 部署后服务器接口 `GET /api/admin/payment-channels` 用真实 admin token (id=1) 验证 **HTTP 200 返回 4 条通道，每条 created_at='2026-05-03T15:51:56' 不再 NULL**，DB 中 4 条记录时间戳已被回补；网关 `/admin/` 200 / `/api/docs` 200 / `/api/admin/payment-channels` 401（路由可达）。本次仅改后端 + admin-web，**无需打包小程序/APK/IPA/exe**；用户手册 `user_docs/支付配置页面加载失败修复.md`。

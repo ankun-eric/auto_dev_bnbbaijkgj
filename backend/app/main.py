@@ -12,6 +12,7 @@ from app.api import (
     account_security,
     addresses,
     admin,
+    order_enhancement,
     admin_health_plan,
     admin_merchant,
     admin_messages,
@@ -644,6 +645,64 @@ async def _migrate_merchant_role_unify_v1():
         log.error("[R1] merchant_role_unify_v1 迁移异常（不影响启动）: %s", _e)
 
 
+async def _migrate_order_enhancement_v1():
+    """[订单系统增强 PRD v1.0] 数据库迁移：
+
+    1. notifications 表加列：order_id / event_type / read_at；created_at 加索引
+    2. order_attachments 表加列：mime_type / thumbnail_url / deleted_at
+    3. products 表加列：max_concurrent_override / service_duration_minutes
+    """
+    import logging as _l
+    _logger = _l.getLogger(__name__)
+    from app.core.database import async_session as _async_session
+    try:
+        async with _async_session() as db:
+            from sqlalchemy import text
+
+            async def _add_col(table: str, column: str, ddl: str):
+                try:
+                    chk = await db.execute(text(
+                        "SELECT COUNT(*) FROM information_schema.columns "
+                        "WHERE table_schema = DATABASE() AND table_name = :t AND column_name = :c"
+                    ), {"t": table, "c": column})
+                    if (chk.scalar() or 0) == 0:
+                        await db.execute(text(f"ALTER TABLE {table} ADD COLUMN {ddl}"))
+                        _logger.info("[order_enh] %s.%s 列已添加", table, column)
+                except Exception as e:  # noqa: BLE001
+                    _logger.debug("加列 %s.%s 跳过: %s", table, column, e)
+
+            # notifications 表
+            await _add_col("notifications", "order_id", "order_id INT NULL")
+            await _add_col("notifications", "event_type", "event_type VARCHAR(64) NULL")
+            await _add_col("notifications", "read_at", "read_at DATETIME NULL")
+            try:
+                await db.execute(text(
+                    "CREATE INDEX idx_notifications_order_id ON notifications(order_id)"
+                ))
+            except Exception:  # noqa: BLE001
+                pass
+            try:
+                await db.execute(text(
+                    "CREATE INDEX idx_notifications_event_type ON notifications(event_type)"
+                ))
+            except Exception:  # noqa: BLE001
+                pass
+
+            # order_attachments 表
+            await _add_col("order_attachments", "mime_type", "mime_type VARCHAR(64) NULL")
+            await _add_col("order_attachments", "thumbnail_url", "thumbnail_url VARCHAR(500) NULL")
+            await _add_col("order_attachments", "deleted_at", "deleted_at DATETIME NULL")
+
+            # products 表
+            await _add_col("products", "max_concurrent_override", "max_concurrent_override INT NULL")
+            await _add_col("products", "service_duration_minutes", "service_duration_minutes INT NULL")
+
+            await db.commit()
+            _logger.info("[order_enh] 订单系统增强 v1.0 迁移完成")
+    except Exception as e:  # noqa: BLE001
+        _logger.error("[order_enh] 订单系统增强 v1.0 迁移异常（不影响启动）: %s", e)
+
+
 async def _migrate_product_original_price_nullable():
     """[2026-04-27] 修复 original_price 不允许 NULL 的问题：
     1. ALTER products.original_price 为 NULLABLE
@@ -747,6 +806,8 @@ async def lifespan(app: FastAPI):
     await migrate_existing_users_user_no()
     # [2026-04-27] 商品原价字段修复：nullable + 历史数据清洗
     await _migrate_product_original_price_nullable()
+    # [2026-05-04 订单系统增强 PRD v1.0] notifications/order_attachments/products 加列迁移
+    await _migrate_order_enhancement_v1()
     # [2026-04-26 PRD v1.0 §R1] 商家角色统一治理数据迁移
     await _migrate_merchant_role_unify_v1()
     from app.init_data import init_default_data
@@ -885,6 +946,8 @@ app.include_router(h5_checkout.router)
 # [2026-05-03 支付配置 PRD v1.0] 多端支付通道管理
 app.include_router(payment_config.router)
 app.include_router(payment_methods.router)
+# [2026-05-04 订单系统增强 PRD v1.0] 营业时间/并发上限/时段切片/红点/列表附件元信息
+app.include_router(order_enhancement.router)
 
 
 # [Bug 修复] 启动期自检：路由挂载 + 加密密钥环境变量
