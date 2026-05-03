@@ -33,7 +33,34 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 订单统计 12+7 状态对齐 & 全端履约方式中文化（已部署 + 0 Bug，远程 18/18 自动化测试全通过，APK 已重新打包）（2026-05-04 00:30）
+## Latest Update: 订单系统增强 — 订单附件 / 时段切片预约 / 站内消息通知 / 列表附件缩略图列（已部署 + 后端 25/25 测试全过）（2026-05-04 03:00）
+
+### 一句话结论
+按 PRD v1.0 一次性闭环增强订单系统四大模块：① **订单附件**：`OrderAttachment` 表补 `mime_type/thumbnail_url/deleted_at` 列；商家上传单文件大小限制由 20MB 收紧到 5MB（PRD R2）；上传成功后**自动给客户发站内信**（事件 `attachment_added`）；新增 `POST /api/orders/attachment-meta` 用于订单列表批量返回缩略图与附件数量；② **时段切片预约**：新建 `merchant_business_hours` 表（按周 0-6 + `weekday=-1` 日期例外，每天可多段时间窗，`is_closed` 表示该日休息）；`Product` 表新增 `max_concurrent_override`（服务级并发上限，NULL 沿用门店 `slot_capacity`）+ `service_duration_minutes`（用于自动切片）；新增 `GET /api/services/{product_id}/available-slots?date=` 双层并发判定（已占商家时段数 < slot_capacity AND 已占该服务时段数 < override → 时段可选）；管理后台新建 `/merchant/business-config` 页面统一维护营业时间与并发上限；③ **站内信通知**：`Notification` 表新增 `order_id`/`event_type`/`read_at` 列 + `created_at` 索引；服务层 `app/services/order_notification.py` 提供 `notify_order_status_changed/attachment_added/order_upcoming/order_created/order_paid/order_cancelled` 六类触发器；后端调度器新增 `check_order_upcoming_one_hour` 每 5 分钟扫描 55-65 分钟内开始的预约，自动发送"临近服务"提醒（PRD F7/R12）；新增 `GET /api/notifications/unread-count`（按订单维度返回红点）+ `POST /api/notifications/mark-read-by-order`（一键清除该订单未读）；H5 通知中心 `/notifications` 重写对接真实 API + 事件类型 Tag + 跳转回执；④ **客户取消订单规则放宽**（PRD F10/R7）：`cancel_unified_order` 由仅 `pending_payment` 扩展到 `pending_payment/pending_appointment/appointed/pending_use` 状态，**只要服务时段还没到**客户都可以全额取消；已支付订单立即置为 `refunded`；同时触发 `notify_order_cancelled`；⑤ **数据库迁移**：`main.py lifespan` 内新增 `_migrate_order_enhancement_v1` 启动时自动 ALTER TABLE 加列（兼容 MySQL/SQLite，列已存在则跳过）；⑥ **测试**：新增 `backend/tests/test_order_enhancement.py` **25 个** pytest-asyncio 用例（周营业时间 / 例外日期 / 门店并发上限 / 服务并发上限 / 时段生成基础-关闭日-已占用-过期-双层并发 / 红点 0/多/按订单清 / 附件元信息空/有数据/越权 / 订单取消待支付与已预约前后 + 取消触发通知 + 附件常量 5MB/5 张），远程容器内 25/25 PASS；⑦ **部署**：`deploy/_deploy_order_enhancement_20260504.py` 拉 master `53fcb9b` → 重建 backend/admin-web/h5-web → 容器内 pytest 通过 → 外部 5 个 URL 检查（h5/admin/health 200，鉴权接口 401）；⑧ **用户手册** `user_docs/订单系统增强_附件_时段_站内信_使用手册.md`。
+
+### 涉及文件
+- 后端模型：`backend/app/models/models.py`（`Notification`+`OrderAttachment`+`Product` 加列；新增 `MerchantBusinessHours` 表）
+- 后端新增模块：`backend/app/schemas/order_enhancement.py`、`backend/app/services/order_notification.py`、`backend/app/api/order_enhancement.py`
+- 后端改造：`backend/app/api/merchant_v1.py`（5MB 限制 + 上传通知）、`backend/app/api/unified_orders.py`（取消规则放宽 + 通知）、`backend/app/services/notification_scheduler.py`（前 1 小时提醒）、`backend/app/main.py`（注册路由 + 迁移）
+- 后端测试：`backend/tests/test_order_enhancement.py`（25 用例）
+- admin-web：`admin-web/src/app/(admin)/merchant/business-config/page.tsx`（新增）、`admin-web/src/app/(admin)/layout.tsx`（菜单项「营业时间&并发上限」）
+- h5-web：`h5-web/src/app/notifications/page.tsx`（重写对接真实 API）
+- 部署：`deploy/_deploy_order_enhancement_20260504.py`
+- 用户手册：`user_docs/订单系统增强_附件_时段_站内信_使用手册.md`
+
+### 关键技术点 / 注意事项
+- **启动时自动迁移**：`_migrate_order_enhancement_v1` 用 `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` 兼容性写法（MySQL 8 / SQLite 通过 try-except 捕获列已存在错误），无需手动 alembic
+- **MerchantBusinessHours 复合语义**：`weekday=0..6` 为周营业；`weekday=-1` 时必须填 `date_exception` 表示某日例外；同 store_id 同 weekday 可有多段（不再 unique）
+- **双层并发判定顺序**：先按门店 slot_capacity 过滤，再按 product.max_concurrent_override（NULL 时沿用门店）；若两者任一已满，时段返回但 `available=False`
+- **临近服务调度窗口 55-65 分钟**：避免每 5 分钟一次的调度漏单或重发；通过 `read_at IS NULL AND event_type='order_upcoming'` 已发送幂等校验防重复
+- **取消规则与服务时段判断**：以 `UnifiedOrder.appointment_data.start_time` 或 `OrderItem.appointment_time` 为准，取最早一个 item 时间；服务时段已过则继续走原 7 状态拒绝逻辑
+- **附件大小限制现已 5MB（5\*1024\*1024）**：`MAX_ATTACHMENT_SIZE = 5 * 1024 * 1024`，前端如有限制提示需同步显示「最大 5MB」
+- **测试坑位**：`AccountIdentity` 用 `status="active"` 而非 `is_active`；`MerchantStoreMembership.member_role` NOT NULL 需传 `MerchantMemberRole.owner` + `role_code="boss"`；`decode_token` 不存在时直接用手机号查 User.id
+- **小程序/Flutter 端**：本期接口已就绪，小程序 / Flutter 可按手册第 5 节「后端 API 增量」直接接入红点和列表附件元信息
+
+---
+
+## Previous Update: 订单统计 12+7 状态对齐 & 全端履约方式中文化（已部署 + 0 Bug，远程 18/18 自动化测试全通过，APK 已重新打包）（2026-05-04 00:30）
 
 ### 一句话结论
 一次性闭环修复两条 P1 体验 Bug：① 管理后台「产品系统 → 订单统计」页只展示 7 订单状态/5 退款状态，缺失 V2 新增「待预约/已预约/部分核销/已过期/退款中/退款审核中/退款处理中」等卡片导致经营盲区；② 用户端订单详情/列表「履约方式」直接展示后端英文枚举（`on_site` / `delivery`）而非中文。修复方案：1) **后端**：`backend/app/api/product_admin.py` 新增 `GET /api/admin/orders/statistics?start_at=&end_at=`，输出 `summary{total_orders,total_revenue,total_refund_count,total_refund_amount}` + `order_status_items[12]`（待付款/待发货/待收货/待预约/已预约/待核销/部分核销/已完成/已过期/退款中/已退款/已取消）+ `refund_status_items[7]`（无退款/退款申请中/退款审核中/退款已批准/退款已拒绝/退款处理中/退款成功），与订单明细页 `/orders/v2/enums` 完全一致；时间筛选基于 `UnifiedOrder.created_at`；金额口径 `paid_amount`；2) **admin-web**：`statistics/page.tsx` 完全重构，顶部新增「今日 / 本周 / 本月 / 自定义 RangePicker」单一时间筛选条（默认今日），删除老的「今日/本月/累计」12 张垂直卡片，改为 12 + 7 状态卡片网格 + 总览四块（总订单/总实付/退款单/退款金额），趋势图/分类销售/退款原因复用现有接口、与时间筛选联动；3) **公共字典（5 端各 1 份单一来源）**：新建 `admin-web/src/utils/fulfillmentLabel.ts` / `h5-web/src/utils/fulfillmentLabel.ts` / `miniprogram/utils/fulfillmentLabel.js` + `miniprogram/utils/fulfillmentLabel.wxs`（WXML 模板可用）/ `flutter_app/lib/utils/fulfillment_label.dart`，统一映射 `on_site→上门服务` `to_store→到店服务` `delivery→快递配送` `in_store→到店核销` `virtual→线上服务`，未注册 fallback 「其他服务」并打日志；4) **全端落地**：Flutter `unified_order_detail_screen.dart`/`models/product.dart`/`services_screen.dart`、H5 `unified-order/[id]/page.tsx`/`products/page.tsx`、小程序 `unified-order-detail/index.{wxml,wxss}` + `products/index.wxml` + `product-detail/index.wxml` + `services/index.js`、admin-web `orders/page.tsx`/`products/page.tsx`/`redemptions/page.tsx`/`components/coupon/ProductPickerModal.tsx` 全部改用公共字典；admin-web 历史 fulfillmentMap 直接删除；5) **测试**：新增 `backend/tests/test_orders_statistics_alignment.py` 10 用例（鉴权 / 响应结构 / 12 订单状态全在 / 7 退款状态全在 / 字段 status+label+count+amount / V2 新状态独立校验 / refund 扩展状态独立校验 / 聚合正确性 / 时间筛选 / summary 字段）+ `backend/tests/test_fulfillment_label_dict.py` 8 用例（5 端字典文件存在 + 5 keys 完整 + 中文一致 + Flutter 移除老 switch + admin-web 引用 fulfillmentLabel + h5/小程序入口页引用），远程容器内 **18/18 全部 PASS**（耗时 6.59s）；测试支持 `REPO_ROOT` 指向，本地/容器双兼容；6) **部署**：远程 SSH 拉最新 commit `10be231` → `docker compose build` backend + admin-web + h5-web → restart → 验证服务器三 URL 200 + admin/statistics 308（登录守卫）+ 新接口 401（路由可达）；7) **APK 打包**：`deploy/_build_apk_orderstat_fulfillment_20260504.py` 在远程 flutter-builder docker 镜像内重新构建（履约字典字符串变更需进二进制），产物覆盖 `static/apk/bini_health.apk` + 时间戳别名；iOS 仅文案改动可暂不重建 IPA；小程序为源码部署随仓库交付；8) **用户手册** `user_docs/订单统计状态对齐与全端履约方式中文化.md`。
