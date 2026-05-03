@@ -125,8 +125,8 @@ alwaysApply: false
 - H5 续卡确认页（占位 ID=1）：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/cards/renew/1`
 - 小程序 zip 下载（用户端）：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/uploads/downloads/miniprogram_cards_v2_20260503_190523.zip`
 - 核销小程序 zip 下载：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/uploads/downloads/verify_miniprogram_cards_v2_20260503_190523.zip`
-- Android APK 下载：`https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/android-cards-v2-20260503-192151-dyec`
-- iOS IPA 下载：`https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-cards-v2-20260503-192151-dyec`
+- Android APK 下载：`https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/download/android-cards-v2-20260503-192151-dyec/bini_health_android-cards-v2-20260503-192151-dyec.apk`（83.7 MB，构建成功）
+- iOS IPA 下载：`https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/download/ios-cards-v2-20260503-192151-dyec/bini_health_ios.ipa`（34 MB，未签名 / AltStore 安装，构建成功）
 - 用户手册：`user_docs/卡管理v2.0.md`
 
 ### 不在本期范围（PRD 兼容性原则）
