@@ -33,7 +33,38 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 订单状态机简化 — 合并 appointed + pending_use 为单一「待核销」状态（已部署 + 0 Bug, 58/58 passed）（2026-05-03 21:30）
+## Latest Update: 上门服务履约类型 + 双层名额控制 PRD v1.0（已部署 + 0 Bug, 8/8 passed, APK + 小程序 zip 已发布）（2026-05-03 22:20）
+
+### 一句话结论
+按 PRD「上门服务履约 PRD v1.0」全面落地：1) `FulfillmentType` 枚举新增第 4 种 `on_site`（上门服务，生机绿 #10B981 角标）；2) 后端 `UnifiedOrder` 表新增 `service_address_id` (FK→user_addresses) + `service_address_snapshot` (JSON) 用于上门订单地址快照（地址簿后续修改不影响此订单）；3) 商品级名额恢复编辑：`time_slots[].capacity` 改为 `Optional[int]`（0 / null = 不限），`daily_quota` 复用为日级名额；4) 门店级 `MerchantStore.slot_capacity` 文案统一为「门店总接待名额」，含义为门店在同一日期同一时段所有商品共享的最大订单数；5) **核心：双层名额校验** — 下单接口在创建订单前同时校验「商品级 + 门店级」两层名额，取最严，使用 `SELECT FOR UPDATE` 行锁防超卖，统计口径只计入 `pending_payment/pending_shipment/pending_receipt/pending_appointment/appointed/pending_use/partial_used/pending_review/completed`，`cancelled/refunded` 不计；6) C 端三端（H5、小程序、Flutter App）`on_site` 商品下单必填服务地址，`service_address_id` 替代 `shipping_address_id` 提交；7) admin-web 商品履约类型下拉新增「上门服务」、订单详情新增「上门服务地址」卡片（不脱敏，仅商家与平台管理员可见）、门店表单文案更新；8) `schema_sync.py::_sync_on_site_fulfillment` 幂等扩展两表 ENUM + 新增两列 + 索引；9) 新增 `backend/tests/test_on_site_fulfillment_v1.py` 8 用例（枚举/字段/上门必填/快照创建/商品级满拒单/门店级满拒单/0=不限/跨用户地址拒绝），8/8 全通过；10) 部署后服务器 DB 迁移成功验证（`fulfillment_type` ENUM 含 `on_site`，`service_address_*` 字段已存在），三大容器（backend/admin-web/h5-web）全部 healthy；本次产物：APK `app_onsite_1777818014.apk` (83.8MB) + 小程序 zip `miniprogram_onsite_20260503_220639.zip` (358KB)；GitHub Release tag `onsite-v20260503-221143`；用户手册 `user_docs/上门服务与双层名额.md`。
+
+### 涉及文件
+- 后端核心：`backend/app/models/models.py`（`FulfillmentType` 加 `on_site`、`UnifiedOrder` 加 `service_address_id` + `service_address_snapshot` + 显式 `foreign_keys` 解决多 FK 歧义）；`backend/app/schemas/unified_orders.py`（`UnifiedOrderCreate` 加 `service_address_id`、`UnifiedOrderResponse` 加快照字段）；`backend/app/schemas/products.py`（`TimeSlotItem.capacity` 改为 `Optional[int]`，0~9999 校验）
+- 后端业务：`backend/app/api/unified_orders.py`（`_norm_fulfillment` 工具 + `QUOTA_OCCUPY_STATUSES` + 上门必填地址校验 + 快照生成 + **双层名额校验逻辑**，覆盖 `time_slot` / `date` 两种预约模式）
+- 后端 schema 迁移：`backend/app/services/schema_sync.py`（新增 `_sync_on_site_fulfillment`：扩展 products/order_items 两表 ENUM、添加 unified_orders 两列 + 索引；在 `sync_register_schema` 中调用）
+- 后端测试：`backend/tests/test_on_site_fulfillment_v1.py`（新增 8 个测试用例，pytest 5.6 秒全通过）
+- admin-web：`src/app/(admin)/product-system/products/page.tsx`（fulfillmentTypes 加 on_site、fulfillmentMap 加上门服务）、`src/app/(admin)/product-system/orders/page.tsx`（接口字段 + 详情卡片显示完整地址）、`src/app/(admin)/merchant/stores/page.tsx`（slot_capacity 文案改为「门店总接待名额」、min 改 0）
+- h5-web：`src/app/checkout/page.tsx`（isOnSite 标志、地址必填校验、提交时切换 service_address_id/shipping_address_id）、`src/app/(tabs)/services/page.tsx`（FULFILLMENT_BADGE 加 on_site 生机绿标签）
+- miniprogram：`pages/checkout/index.js`（根据 fulfillmentType 切换 service_address_id/shipping_address_id 提交）
+- flutter_app：`lib/models/product.dart`（fulfillmentLabel 加上门服务）、`lib/models/unified_order.dart`（serviceAddressId/serviceAddressSnapshot）、`lib/screens/product/checkout_screen.dart`（_needAddress 包含 on_site、提交字段切换）
+
+### 关键技术点 / 注意事项
+- **SQLAlchemy 多 FK 关系歧义**：`UnifiedOrder` 有 `shipping_address_id` 和 `service_address_id` 两个 FK 指向 `user_addresses.id`，必须在 `relationship()` 显式声明 `foreign_keys=[...]`，否则启动报 `AmbiguousForeignKeysError`
+- **MySQL ENUM 扩展幂等**：用 `SHOW COLUMNS LIKE` 检测当前定义，再 `ALTER TABLE ... MODIFY COLUMN` 一次性扩展，避免重复执行报错
+- **下单时占用统计**：使用 `OrderItem.appointment_time` 而非订单创建时间，确保按"预约日期"维度统计而非下单日期；门店级统计 join `OrderItem` 表用 `store_id` 维度
+- **超时订单不计入占用**：`pending_payment` 状态超过 15 分钟视为放弃，通过 `created_at >= NOW() - INTERVAL 15 MINUTE` 过滤
+- **服务器 git pull 偶发 TLS 错误**：GnuTLS recv error / Failed to connect 443，应在部署脚本里加 5 次重试 + 10 秒间隔
+- **flutter checkout_screen 字段名**：用 `_product`（StateState 内部字段）不是 `widget.product`，否则编译报 `getter 'product' isn't defined`
+
+### 部署产物
+- 后端 + admin-web + h5-web：已 docker rebuild + recreate，commit `4e67e53` → `9933530`
+- APK：https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/app_onsite_1777818014.apk （200, 83.8 MB）
+- 小程序 zip：https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/miniprogram/miniprogram_onsite_20260503_220639.zip （200, 358 KB）
+- GitHub Release：https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/onsite-v20260503-221143
+
+---
+
+## Previous Update: 订单状态机简化 — 合并 appointed + pending_use 为单一「待核销」状态（已部署 + 0 Bug, 58/58 passed）（2026-05-03 21:30）
 
 ### 一句话结论
 按 PRD「订单状态机简化方案 · 终稿」全面落地：1) 后端 `unified_orders.py` 的 `set_order_appointment` 改为 `pending_appointment → pending_use` 直跳（不再经过 `appointed`），并允许 `pending_use` 阶段修改预约（部分核销/退款流程中除外）；`_action_buttons_for` 在 `pending_use/appointed/partial_used` 全程返回 `show_qrcode + modify_appointment + apply/withdraw_refund`；`_display_status_for` 输出"待核销（预约 X月X日）"；2) `order_status_auto_progress.py` 下线 R1（appointed → pending_use 00:00 翻转）改为残余 `appointed` 兜底迁移；新增 T-1 18:00 到店提醒节点（appt_day_before_18，与既有 day_before_21/before_30min/after_30min/after_2h 共 5 个节点统一面向 `pending_use`）；`lazy_progress_order` 在访问详情时把残余 `appointed` 即时迁到 `pending_use`；3) `notification_scheduler.py` 移除 R1 定时任务注册；4) `schema_sync.py` 新增 `_migrate_appointed_to_pending_use` 启动迁移（幂等），全量历史 `appointed` 订单升级为 `pending_use`；5) `product_admin.admin_list_unified_orders` 支持 `sort_by=appointment_time` + `sort_order=asc/desc`，商家端「待核销」Tab 按到店时间升序排序；6) admin-web/h5-web/miniprogram/flutter_app 四端 UI：状态文案统一「待核销（预约 X月X日）」、核销码立即可见、改约/退款按钮在 `pending_use` 全程可见、订单列表合并「已预约」+「待核销」为单一「待核销」Tab；7) 新增 `backend/tests/test_orders_status_simplification.py` 14 个 pytest 用例覆盖直跳/改约/部分核销禁改/懒兜底/T-1 18:00 提醒发送+幂等+实时检查跳过取消订单/scheduler 注册无 R1/数据迁移幂等 等场景；本地 + 服务器（容器内）均 58/58 全通过（含 V2/V3/auto_progress/book_after_pay 全量回归）；服务器三 URL `/`、`/admin/`、`/api/docs` 均 HTTP 200；本次产物：小程序 zip `miniprogram_20260503_212049_9128.zip` (358KB)、Flutter 安卓 APK `app_20260503_213145_bfb0.apk` (80MB)；用户手册 `user_docs/manual_20260503_213715_708d.md`。
