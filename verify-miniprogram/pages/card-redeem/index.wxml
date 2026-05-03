@@ -1,0 +1,16 @@
+<view class="container">
+  <view class="title">卡核销</view>
+  <view class="code-block">
+    <view class="label">{{isToken ? '核销码 token' : '6 位核销码'}}</view>
+    <view class="code-value">{{code}}</view>
+  </view>
+  <view class="form-item">
+    <text class="form-label">项目 ID（必填）</text>
+    <input class="form-input" type="number" placeholder="请填写要核销的项目 ID" bindinput="onProductInput" value="{{productIdInput}}" />
+  </view>
+  <view class="form-item">
+    <text class="form-label">门店 ID（可选）</text>
+    <input class="form-input" type="number" placeholder="不填默认平台" bindinput="onStoreInput" value="{{storeIdInput}}" />
+  </view>
+  <button class="redeem-btn" bindtap="handleRedeem" loading="{{submitting}}" disabled="{{submitting}}">确认核销</button>
+</view>

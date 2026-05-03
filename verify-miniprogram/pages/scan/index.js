@@ -39,9 +39,24 @@ Page({
       if (!info.refund_status) {
         info.refund_status = 'none'
       }
-      that.setData({ orderInfo: info })
+      that.setData({ orderInfo: info, isCardCode: false, cardCode: '' })
     }).catch(function (err) {
       wx.hideLoading()
+      // [卡管理 v2.0 第 3 期] 兜底为卡核销码：跳到选品扫码核销流程
+      // 长 token（>=16 位）或 6 位数字均按卡核销码处理
+      if (typeof code === 'string' && (code.length === 6 || code.length >= 16)) {
+        that.setData({
+          orderInfo: null,
+          isCardCode: true,
+          cardCode: code,
+        })
+        wx.showToast({ title: '识别到卡核销码', icon: 'none' })
+        // 跳到核销码确认页（携带 code，让员工选择项目和门店）
+        wx.navigateTo({
+          url: '/pages/card-redeem/index?code=' + encodeURIComponent(code)
+        })
+        return
+      }
       wx.showToast({ title: (err && err.detail) || '未找到对应订单', icon: 'none' })
     })
   },

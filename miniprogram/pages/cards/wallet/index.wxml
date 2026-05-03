@@ -1,0 +1,14 @@
+<view class="page">
+  <view wx:if="{{loading}}" class="empty">加载中...</view>
+  <view wx:elif="{{cards.length === 0}}" class="empty">暂无卡，去逛逛</view>
+  <view wx:else class="card-list">
+    <view class="card" wx:for="{{cards}}" wx:key="id">
+      <view class="card-name">{{item.card_name || '卡#' + item.id}}</view>
+      <view class="card-meta">剩余 {{item.remaining_times}} 次 · 截止 {{item.valid_to}}</view>
+      <view class="card-actions">
+        <button size="mini" type="primary" data-id="{{item.id}}" bindtap="goRedeem">核销码</button>
+        <button size="mini" data-id="{{item.id}}" bindtap="goRenew">续卡</button>
+      </view>
+    </view>
+  </view>
+</view>

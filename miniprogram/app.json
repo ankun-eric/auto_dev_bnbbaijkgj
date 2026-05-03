@@ -1,6 +1,9 @@
 {
   "pages": [
     "pages/home/index",
+    "pages/cards/wallet/index",
+    "pages/cards/redeem-code/index",
+    "pages/cards/renew/index",
     "pages/ai/index",
     "pages/services/index",
     "pages/profile/index",

@@ -1,0 +1,5 @@
+<view class="page">
+  <view class="title">续卡确认</view>
+  <view class="hint">将基于您当前的卡发起续卡。STACK 叠加 / RESET 重置 / DISABLED 不可续。</view>
+  <button type="primary" bindtap="handleRenew" loading="{{submitting}}" disabled="{{submitting}}">生成续卡订单</button>
+</view>

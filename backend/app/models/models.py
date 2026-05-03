@@ -2980,6 +2980,21 @@ class UnifiedOrder(Base):
     store_confirmed = mapped_column(Boolean, default=False)
     store_confirmed_at = mapped_column(DateTime, nullable=True)
     store_id = mapped_column(Integer, ForeignKey("merchant_stores.id"), nullable=True)
+    # [PRD v2.0 第 2 期] 商品类型，扩展 product_type=card 支持卡商品订单
+    product_type = mapped_column(String(20), nullable=False, default="physical", index=True)
+    # [PRD v2.0 第 2 期] 卡定义 ID（仅 product_type=card 时填充）
+    card_definition_id = mapped_column(Integer, ForeignKey("card_definitions.id"), nullable=True, index=True)
+    # [PRD v2.0 第 2 期] 卡定义快照（购卡瞬间冻结）
+    items_snapshot = mapped_column(JSON, nullable=True)
+    # [PRD v2.0 第 4 期] 拆 2 单时同次提交的多单共用 group_id（UUID）
+    split_group_id = mapped_column(String(32), nullable=True, index=True)
+    # [PRD v2.0 第 4 期] 续卡时来源 user_card.id（仅 product_type=card 时使用）
+    # use_alter=True：避免与 user_cards.purchase_order_id 形成循环 FK，否则 SQLite 测试时 create_all 排序失败
+    renew_from_user_card_id = mapped_column(
+        Integer,
+        ForeignKey("user_cards.id", use_alter=True, name="fk_unified_orders_renew_from_uc"),
+        nullable=True,
+    )
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -3300,10 +3315,17 @@ class CardStatus(str, enum.Enum):
 
 
 class CardRenewStrategy(str, enum.Enum):
-    """续卡策略：叠加在原卡 / 新发一张独立卡"""
+    """续卡策略：叠加在原卡 / 重置成新卡 / 不允许续卡。
+
+    [PRD v2.0 第 4 期] 在原 add_on/new_card 基础上扩展 STACK/RESET/DISABLED 三状态。
+    add_on=STACK（叠加），new_card=RESET（重置）。
+    """
 
     add_on = "add_on"
     new_card = "new_card"
+    STACK = "STACK"
+    RESET = "RESET"
+    DISABLED = "DISABLED"
 
 
 class UserCardStatus(str, enum.Enum):
@@ -3407,6 +3429,10 @@ class UserCard(Base):
 
     status = mapped_column(Enum(UserCardStatus), nullable=False, default=UserCardStatus.active, index=True)
 
+    # [PRD v2.0 第 4 期] 续卡来源 + 续卡次数
+    renewed_from_id = mapped_column(Integer, ForeignKey("user_cards.id"), nullable=True, index=True)
+    renew_count = mapped_column(Integer, nullable=False, default=0)
+
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -3425,6 +3451,8 @@ class CardUsageLog(Base):
     store_id = mapped_column(Integer, ForeignKey("merchant_stores.id"), nullable=True)
     technician_id = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
     verify_order_id = mapped_column(Integer, ForeignKey("unified_orders.id"), nullable=True)
+    # [PRD v2.0 第 3 期] 核销门店所属商家（用于第 5 期看板）
+    merchant_id = mapped_column(Integer, ForeignKey("merchant_profiles.id"), nullable=True, index=True)
     used_at = mapped_column(DateTime, default=datetime.utcnow, index=True)
     notes = mapped_column(Text, nullable=True)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
@@ -3432,3 +3460,42 @@ class CardUsageLog(Base):
     user_card = relationship("UserCard")
     product = relationship("Product")
     store = relationship("MerchantStore")
+
+
+# ──────────────── [PRD v2.0 第 3 期] 卡核销码 ────────────────
+
+
+class CardRedemptionCodeStatus(str, enum.Enum):
+    """卡核销码 3 态：active / used / expired"""
+
+    active = "active"
+    used = "used"
+    expired = "expired"
+
+
+class CardRedemptionCode(Base):
+    """卡核销码（60 秒动态二维码 + 6 位数字）。"""
+
+    __tablename__ = "card_redemption_codes"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_card_id = mapped_column(
+        Integer, ForeignKey("user_cards.id"), nullable=False, index=True
+    )
+    code_token = mapped_column(String(64), unique=True, nullable=False, index=True)
+    code_digits = mapped_column(String(6), nullable=False, index=True)
+    issued_at = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    expires_at = mapped_column(DateTime, nullable=False, index=True)
+    status = mapped_column(
+        Enum(CardRedemptionCodeStatus),
+        nullable=False,
+        default=CardRedemptionCodeStatus.active,
+        index=True,
+    )
+    used_at = mapped_column(DateTime, nullable=True)
+    used_by_log_id = mapped_column(
+        Integer, ForeignKey("card_usage_logs.id"), nullable=True
+    )
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+
+    user_card = relationship("UserCard")

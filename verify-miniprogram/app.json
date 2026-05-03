@@ -3,6 +3,7 @@
     "pages/index/index",
     "pages/login/index",
     "pages/scan/index",
+    "pages/card-redeem/index",
     "pages/records/index",
     "pages/result/index"
   ],

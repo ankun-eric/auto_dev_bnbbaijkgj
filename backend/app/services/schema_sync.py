@@ -1227,6 +1227,166 @@ async def _sync_card_face_fields(conn: AsyncConnection) -> None:
         ))
 
 
+async def _sync_cards_v2_fields(conn: AsyncConnection) -> None:
+    """[2026-05-03 卡管理 v2.0 第 2~5 期]
+    1) unified_orders 新增 product_type / card_definition_id / items_snapshot / split_group_id /
+       renew_from_user_card_id
+    2) user_cards 新增 renewed_from_id / renew_count
+    3) card_usage_logs 新增 merchant_id
+    4) 新建 card_redemption_codes 表（SQLite/MySQL 自动建）
+    全部增量、幂等。
+    """
+    def _load(sync_conn):
+        inspector = inspect(sync_conn)
+        tables = set(inspector.get_table_names())
+        out = {
+            "unified_orders": None,
+            "user_cards": None,
+            "card_usage_logs": None,
+            "card_redemption_codes_exists": "card_redemption_codes" in tables,
+        }
+        if "unified_orders" in tables:
+            out["unified_orders"] = {col["name"] for col in inspector.get_columns("unified_orders")}
+        if "user_cards" in tables:
+            out["user_cards"] = {col["name"] for col in inspector.get_columns("user_cards")}
+        if "card_usage_logs" in tables:
+            out["card_usage_logs"] = {col["name"] for col in inspector.get_columns("card_usage_logs")}
+        return out
+
+    info = await conn.run_sync(_load)
+    try:
+        dialect_name = conn.dialect.name
+    except Exception:
+        dialect_name = ""
+
+    # ── 1) unified_orders 加列 ──
+    uo_cols = info.get("unified_orders")
+    if uo_cols is not None:
+        if "product_type" not in uo_cols:
+            await conn.execute(text(
+                "ALTER TABLE unified_orders ADD COLUMN product_type VARCHAR(20) NOT NULL DEFAULT 'physical'"
+            ))
+            try:
+                await conn.execute(text(
+                    "CREATE INDEX ix_unified_orders_product_type ON unified_orders(product_type)"
+                ))
+            except Exception:
+                pass
+        if "card_definition_id" not in uo_cols:
+            await conn.execute(text(
+                "ALTER TABLE unified_orders ADD COLUMN card_definition_id INT NULL"
+            ))
+            try:
+                await conn.execute(text(
+                    "CREATE INDEX ix_unified_orders_card_definition_id ON unified_orders(card_definition_id)"
+                ))
+            except Exception:
+                pass
+        if "items_snapshot" not in uo_cols:
+            # MySQL: JSON 类型；SQLite: 用 TEXT 兼容
+            col_type = "JSON" if dialect_name == "mysql" else "TEXT"
+            await conn.execute(text(
+                f"ALTER TABLE unified_orders ADD COLUMN items_snapshot {col_type} NULL"
+            ))
+        if "split_group_id" not in uo_cols:
+            await conn.execute(text(
+                "ALTER TABLE unified_orders ADD COLUMN split_group_id VARCHAR(32) NULL"
+            ))
+            try:
+                await conn.execute(text(
+                    "CREATE INDEX ix_unified_orders_split_group_id ON unified_orders(split_group_id)"
+                ))
+            except Exception:
+                pass
+        if "renew_from_user_card_id" not in uo_cols:
+            await conn.execute(text(
+                "ALTER TABLE unified_orders ADD COLUMN renew_from_user_card_id INT NULL"
+            ))
+
+    # ── 2) user_cards 加列 ──
+    uc_cols = info.get("user_cards")
+    if uc_cols is not None:
+        if "renewed_from_id" not in uc_cols:
+            await conn.execute(text(
+                "ALTER TABLE user_cards ADD COLUMN renewed_from_id INT NULL"
+            ))
+            try:
+                await conn.execute(text(
+                    "CREATE INDEX ix_user_cards_renewed_from_id ON user_cards(renewed_from_id)"
+                ))
+            except Exception:
+                pass
+        if "renew_count" not in uc_cols:
+            await conn.execute(text(
+                "ALTER TABLE user_cards ADD COLUMN renew_count INT NOT NULL DEFAULT 0"
+            ))
+
+    # ── 3) card_usage_logs 加列 ──
+    cul_cols = info.get("card_usage_logs")
+    if cul_cols is not None:
+        if "merchant_id" not in cul_cols:
+            await conn.execute(text(
+                "ALTER TABLE card_usage_logs ADD COLUMN merchant_id INT NULL"
+            ))
+            try:
+                await conn.execute(text(
+                    "CREATE INDEX ix_card_usage_logs_merchant_id ON card_usage_logs(merchant_id)"
+                ))
+            except Exception:
+                pass
+
+    # ── 3.5) card_definitions.renew_strategy ENUM 扩值（add_on/new_card → +STACK/RESET/DISABLED）──
+    if dialect_name == "mysql":
+        try:
+            await conn.execute(text(
+                "ALTER TABLE card_definitions MODIFY COLUMN renew_strategy "
+                "ENUM('add_on','new_card','STACK','RESET','DISABLED') NOT NULL DEFAULT 'add_on'"
+            ))
+        except Exception:
+            pass
+
+    # ── 4) card_redemption_codes 表 ──（SQLAlchemy create_all 通常会建，这里兜底）
+    if not info.get("card_redemption_codes_exists"):
+        if dialect_name == "mysql":
+            await conn.execute(text(
+                """
+                CREATE TABLE IF NOT EXISTS card_redemption_codes (
+                    id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                    user_card_id INT NOT NULL,
+                    code_token VARCHAR(64) NOT NULL UNIQUE,
+                    code_digits VARCHAR(6) NOT NULL,
+                    issued_at DATETIME NOT NULL,
+                    expires_at DATETIME NOT NULL,
+                    status VARCHAR(16) NOT NULL DEFAULT 'active',
+                    used_at DATETIME NULL,
+                    used_by_log_id INT NULL,
+                    created_at DATETIME NULL,
+                    INDEX ix_crc_user_card_id (user_card_id),
+                    INDEX ix_crc_status (status),
+                    INDEX ix_crc_expires_at (expires_at)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+                """
+            ))
+        else:
+            # SQLite create_all 兜底（多数情况已建好）
+            await conn.execute(text(
+                """
+                CREATE TABLE IF NOT EXISTS card_redemption_codes (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_card_id INTEGER NOT NULL,
+                    code_token VARCHAR(64) NOT NULL UNIQUE,
+                    code_digits VARCHAR(6) NOT NULL,
+                    issued_at DATETIME NOT NULL,
+                    expires_at DATETIME NOT NULL,
+                    status VARCHAR(16) NOT NULL DEFAULT 'active',
+                    used_at DATETIME,
+                    used_by_log_id INTEGER,
+                    created_at DATETIME
+                )
+                """
+            ))
+
+
 async def _sync_orders_status_v2(conn: AsyncConnection) -> None:
     """[2026-05-03 PRD V2 核销订单状态体系优化]
     1) order_items 新增 redemption_code_status / redemption_code_expires_at
@@ -1677,6 +1837,7 @@ async def sync_register_schema(conn: AsyncConnection) -> None:
     await _sync_store_bindding_tables(conn)
     await _sync_card_face_fields(conn)
     await _sync_orders_status_v2(conn)
+    await _sync_cards_v2_fields(conn)
     await _migrate_store_codes(conn)
     await run_all_migrations(conn)
 

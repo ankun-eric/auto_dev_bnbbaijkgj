@@ -1,0 +1,9 @@
+<view class="page">
+  <view wx:if="{{!code}}" class="empty">生成中...</view>
+  <view wx:else class="panel">
+    <view class="qr-placeholder">{{code.token}}</view>
+    <view class="digits">{{code.digits}}</view>
+    <view class="meta">动态码 · 剩余 {{remaining}} s</view>
+    <button class="refresh" bindtap="issue" type="primary">立即刷新</button>
+  </view>
+</view>

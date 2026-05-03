@@ -880,7 +880,17 @@ app.include_router(user_health_profile.router)
 app.include_router(maps.router)
 # [2026-05-02 H5 下单流程优化 PRD v1.0] 支付页统一选择
 app.include_router(h5_checkout.router)
-# [2026-05-02 卡功能 PRD v1.1 第 1 期] C 端卡 API + Admin 卡管理
+# [2026-05-03 卡管理 v2.0 第 2~5 期] 购卡下单/动态核销码/退款/续卡/拆单/省钱提示/可续卡列表
+# 先注册 v2 路由（精确路径优先），避免被 cards.router 的 /me/{user_card_id} 拦截 /me/renewable
+from app.api import cards_v2 as _cards_v2  # noqa: E402
+from app.api import cards_admin_v2 as _cards_admin_v2  # noqa: E402
+app.include_router(_cards_v2.router)
+app.include_router(_cards_v2.staff_router)
+app.include_router(_cards_v2.order_card_router)
+app.include_router(_cards_v2.product_card_router)
+app.include_router(_cards_admin_v2.router)
+app.include_router(_cards_admin_v2.poster_router)
+# [2026-05-02 卡功能 PRD v1.1 第 1 期] C 端卡 API + Admin 卡管理（含动态路径，需在 v2 之后注册）
 app.include_router(cards.router)
 app.include_router(cards_admin.router)
 
