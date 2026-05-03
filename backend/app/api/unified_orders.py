@@ -223,6 +223,30 @@ def _aftersales_logical_status(order) -> str:
     return "none"
 
 
+def _build_payment_method_text(order) -> Optional[str]:
+    """[支付配置 PRD v1.0] 构造 payment_method_text："{显示名称}（{端名}）"。
+
+    端名映射：wechat_miniprogram→小程序 / wechat_app/alipay_app→APP / alipay_h5→H5。
+    若订单未关联 channel_code，则尝试用 payment_display_name 兜底；都没有则返回 None。
+    """
+    code = getattr(order, "payment_channel_code", None)
+    name = getattr(order, "payment_display_name", None)
+    PLATFORM_LABEL = {
+        "wechat_miniprogram": "小程序",
+        "wechat_app": "APP",
+        "alipay_h5": "H5",
+        "alipay_app": "APP",
+    }
+    if code and name:
+        suffix = PLATFORM_LABEL.get(code)
+        if suffix:
+            return f"{name}（{suffix}）"
+        return name
+    if name:
+        return name
+    return None
+
+
 def _build_order_response(order) -> UnifiedOrderResponse:
     resp = UnifiedOrderResponse.model_validate(order)
     s = _normalize_status(order.status)
@@ -273,6 +297,8 @@ def _build_order_response(order) -> UnifiedOrderResponse:
             ]
             if "view_review" not in resp.action_buttons:
                 resp.action_buttons.append("view_review")
+    # [支付配置 PRD v1.0] payment_method_text
+    resp.payment_method_text = _build_payment_method_text(order)
     return resp
 
 
@@ -1149,6 +1175,25 @@ async def pay_unified_order(
     order.payment_method = data.payment_method
     order.paid_at = datetime.utcnow()
     order.updated_at = datetime.utcnow()
+
+    # [支付配置 PRD v1.0] 可选 channel_code：若传入则校验并落库；
+    # 未启用通道下单时返回 4001 业务码（HTTP 400）。
+    if data.channel_code:
+        from app.models.models import PaymentChannel as _PC
+        ch_res = await db.execute(
+            select(_PC).where(_PC.channel_code == data.channel_code)
+        )
+        ch = ch_res.scalar_one_or_none()
+        if ch is None:
+            raise HTTPException(status_code=400, detail={
+                "code": 4001, "message": "该支付方式暂未开通，请选择其他支付方式"
+            })
+        if not (ch.is_enabled and ch.is_complete):
+            raise HTTPException(status_code=400, detail={
+                "code": 4001, "message": "该支付方式暂未开通，请选择其他支付方式"
+            })
+        order.payment_channel_code = ch.channel_code
+        order.payment_display_name = ch.display_name
 
     has_delivery = False
     has_in_store = False

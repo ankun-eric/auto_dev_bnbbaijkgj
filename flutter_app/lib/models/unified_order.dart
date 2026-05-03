@@ -90,6 +90,10 @@ class UnifiedOrder {
   final String? displayStatus;
   final String? displayStatusColor;
   final List<String> actionButtons;
+  // [支付配置 PRD v1.0] 实际支付通道
+  final String? paymentChannelCode;
+  final String? paymentDisplayName;
+  final String? paymentMethodText; // 形如 "微信支付（小程序）"
 
   UnifiedOrder({
     required this.id,
@@ -124,6 +128,9 @@ class UnifiedOrder {
     this.displayStatus,
     this.displayStatusColor,
     this.actionButtons = const [],
+    this.paymentChannelCode,
+    this.paymentDisplayName,
+    this.paymentMethodText,
   });
 
   String get statusLabel {
@@ -206,6 +213,9 @@ class UnifiedOrder {
               ?.map((e) => e.toString())
               .toList() ??
           const [],
+      paymentChannelCode: json['payment_channel_code']?.toString(),
+      paymentDisplayName: json['payment_display_name']?.toString(),
+      paymentMethodText: json['payment_method_text']?.toString(),
     );
   }
 }

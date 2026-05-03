@@ -997,6 +997,9 @@ class Order(Base):
     shipping_info = mapped_column(JSON, nullable=True)
     address = mapped_column(Text, nullable=True)
     notes = mapped_column(Text, nullable=True)
+    # [支付配置 PRD v1.0] 实际支付通道（wechat_miniprogram / wechat_app / alipay_h5 / alipay_app）
+    payment_channel_code = mapped_column(String(32), nullable=True, index=True)
+    payment_display_name = mapped_column(String(100), nullable=True)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -1414,6 +1417,47 @@ class SystemConfig(Base):
     config_value = mapped_column(Text, nullable=True)
     config_type = mapped_column(String(20), nullable=True)
     description = mapped_column(String(200), nullable=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+# ──────────────── 支付配置 PRD v1.0 ────────────────
+
+
+class PaymentChannel(Base):
+    """支付通道配置（4 通道：微信小程序/微信APP/支付宝H5/支付宝APP）。
+
+    敏感字段（如商户私钥、API V3 密钥、支付宝应用私钥/证书）以 AES-256-GCM 加密
+    后存储于 config_json，前缀 ENC::AES256::。
+    """
+    __tablename__ = "payment_channels"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    channel_code = mapped_column(String(32), unique=True, nullable=False, index=True,
+                                 comment="通道编码：wechat_miniprogram / wechat_app / alipay_h5 / alipay_app")
+    channel_name = mapped_column(String(50), nullable=False,
+                                 comment="平台原始名：微信小程序支付/微信APP支付/支付宝H5支付/支付宝APP支付")
+    display_name = mapped_column(String(100), nullable=False,
+                                 comment="C 端显示名（运营可改），如「微信支付」「支付宝」")
+    platform = mapped_column(String(20), nullable=False, index=True,
+                             comment="目标端：miniprogram / app / h5")
+    provider = mapped_column(String(20), nullable=False,
+                             comment="服务商：wechat / alipay")
+    is_enabled = mapped_column(Boolean, default=False, nullable=False,
+                               comment="是否启用（仅启用且配置完整的通道才在 C 端展示）")
+    is_complete = mapped_column(Boolean, default=False, nullable=False,
+                                comment="配置是否完整（必填字段是否齐全）")
+    config_json = mapped_column(JSON, nullable=True,
+                                comment="通道配置 JSON（敏感字段以 ENC::AES256:: 加密）")
+    notify_url = mapped_column(String(500), nullable=True,
+                               comment="支付结果异步通知地址")
+    return_url = mapped_column(String(500), nullable=True,
+                               comment="支付完成同步跳转地址（仅 H5/APP 需要）")
+    sort_order = mapped_column(Integer, default=0, nullable=False,
+                               comment="排序：APP 端固定 微信(10) → 支付宝(20)")
+    last_test_at = mapped_column(DateTime, nullable=True, comment="最近一次测试连接时间")
+    last_test_ok = mapped_column(Boolean, nullable=True, comment="最近一次测试连接结果")
+    last_test_message = mapped_column(String(500), nullable=True, comment="最近一次测试连接消息")
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -3001,6 +3045,9 @@ class UnifiedOrder(Base):
         ForeignKey("user_cards.id", use_alter=True, name="fk_unified_orders_renew_from_uc"),
         nullable=True,
     )
+    # [支付配置 PRD v1.0] 实际支付通道（wechat_miniprogram / wechat_app / alipay_h5 / alipay_app）
+    payment_channel_code = mapped_column(String(32), nullable=True, index=True)
+    payment_display_name = mapped_column(String(100), nullable=True)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

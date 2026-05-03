@@ -140,9 +140,10 @@
       <text class="info-label">支付时间</text>
       <text class="info-value">{{order.paid_at}}</text>
     </view>
+    <!-- [支付配置 PRD v1.0] 优先展示具体通道文案 payment_method_text -->
     <view class="info-row">
       <text class="info-label">支付方式</text>
-      <text class="info-value">{{order.payment_method_label || '微信支付'}}</text>
+      <text class="info-value">{{order.payment_method_text || order.payment_method_label || '微信支付'}}</text>
     </view>
   </view>
 

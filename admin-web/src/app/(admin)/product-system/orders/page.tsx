@@ -668,6 +668,10 @@ export default function UnifiedOrdersPage() {
               <Descriptions.Item label="积分抵扣">{currentOrder.points_deduction}</Descriptions.Item>
               <Descriptions.Item label="优惠券抵扣">¥{currentOrder.coupon_discount ?? 0}</Descriptions.Item>
               <Descriptions.Item label="支付方式">{currentOrder.payment_method ? (payMethodMap[currentOrder.payment_method] || currentOrder.payment_method) : '-'}</Descriptions.Item>
+              {/* [支付配置 PRD v1.0] 在订单状态前展示具体支付通道（payment_method_text） */}
+              <Descriptions.Item label="支付方式（通道）">
+                {(currentOrder as any).payment_method_text || (currentOrder as any).payment_display_name || '-'}
+              </Descriptions.Item>
               <Descriptions.Item label="订单状态">
                 {renderStatusTag(currentOrder)}
               </Descriptions.Item>

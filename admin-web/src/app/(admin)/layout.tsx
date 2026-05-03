@@ -32,6 +32,7 @@ import {
   AppstoreOutlined,
   IdcardOutlined,
   KeyOutlined,
+  CreditCardOutlined,
 } from '@ant-design/icons';
 import { useRouter, usePathname } from 'next/navigation';
 import type { MenuProps } from 'antd';
@@ -142,6 +143,8 @@ const menuItems: MenuItem[] = [
       { key: '/product-system/statistics', label: '订单统计' },
     ],
   },
+  // [2026-05-03 支付配置 PRD v1.0] 支付通道配置（仅 admin/super_admin 可见）
+  { key: '/payment-config', icon: <CreditCardOutlined />, label: '支付配置' },
   {
     key: 'content',
     icon: <FileTextOutlined />,

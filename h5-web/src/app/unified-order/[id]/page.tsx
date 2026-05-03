@@ -373,11 +373,16 @@ export default function UnifiedOrderDetailPage() {
                 <span>支付时间</span><span>{new Date(order.paid_at).toLocaleString('zh-CN')}</span>
               </div>
             )}
-            {order.payment_method && (
+            {/* [支付配置 PRD v1.0] 优先显示具体支付通道文案 */}
+            {((order as any).payment_method_text) ? (
+              <div className="flex justify-between">
+                <span>支付方式</span><span>{(order as any).payment_method_text}</span>
+              </div>
+            ) : order.payment_method ? (
               <div className="flex justify-between">
                 <span>支付方式</span><span>{order.payment_method === 'wechat' ? '微信支付' : '支付宝'}</span>
               </div>
-            )}
+            ) : null}
             <Divider />
             <div className="flex justify-between">
               <span>商品总价</span><span>¥{order.total_amount}</span>

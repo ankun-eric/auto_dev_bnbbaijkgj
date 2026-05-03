@@ -90,6 +90,10 @@ class UnifiedOrderResponse(BaseModel):
     review_deadline_at: Optional[datetime] = None
     review_expired: bool = False
     can_withdraw_refund: bool = False
+    # [支付配置 PRD v1.0] 实际支付通道
+    payment_channel_code: Optional[str] = None
+    payment_display_name: Optional[str] = None
+    payment_method_text: Optional[str] = None  # 形如 "微信支付（小程序）"
     items: list[OrderItemResponse] = []
     created_at: datetime
     updated_at: datetime
@@ -99,6 +103,8 @@ class UnifiedOrderResponse(BaseModel):
 
 class UnifiedOrderPayRequest(BaseModel):
     payment_method: str = "wechat"
+    # [支付配置 PRD v1.0] 可选 channel_code（4 通道之一）
+    channel_code: Optional[str] = None
 
 
 class UnifiedOrderCancelRequest(BaseModel):

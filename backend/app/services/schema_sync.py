@@ -1922,6 +1922,156 @@ async def _migrate_appointed_to_pending_use(conn: AsyncConnection) -> None:
     ))
 
 
+async def _sync_payment_config(conn: AsyncConnection) -> None:
+    """[支付配置 PRD v1.0] 建表 + 4 条种子记录 + orders/unified_orders 加列。
+
+    幂等：表已存在时只补缺失列；种子记录已存在时按 channel_code 跳过。
+    """
+    def _load(sync_conn):
+        inspector = inspect(sync_conn)
+        tables = set(inspector.get_table_names())
+        return {
+            "payment_channels_exists": "payment_channels" in tables,
+            "orders_cols": (
+                {col["name"] for col in inspector.get_columns("orders")}
+                if "orders" in tables else None
+            ),
+            "uo_cols": (
+                {col["name"] for col in inspector.get_columns("unified_orders")}
+                if "unified_orders" in tables else None
+            ),
+        }
+
+    info = await conn.run_sync(_load)
+    try:
+        dialect_name = conn.dialect.name
+    except Exception:
+        dialect_name = ""
+
+    # ── 1) payment_channels 表 ──
+    if not info["payment_channels_exists"]:
+        if dialect_name == "mysql":
+            await conn.execute(text("""
+                CREATE TABLE payment_channels (
+                    id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                    channel_code VARCHAR(32) NOT NULL UNIQUE,
+                    channel_name VARCHAR(50) NOT NULL,
+                    display_name VARCHAR(100) NOT NULL,
+                    platform VARCHAR(20) NOT NULL,
+                    provider VARCHAR(20) NOT NULL,
+                    is_enabled TINYINT(1) NOT NULL DEFAULT 0,
+                    is_complete TINYINT(1) NOT NULL DEFAULT 0,
+                    config_json JSON NULL,
+                    notify_url VARCHAR(500) NULL,
+                    return_url VARCHAR(500) NULL,
+                    sort_order INT NOT NULL DEFAULT 0,
+                    last_test_at DATETIME NULL,
+                    last_test_ok TINYINT(1) NULL,
+                    last_test_message VARCHAR(500) NULL,
+                    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    INDEX ix_payment_channels_platform (platform)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            """))
+        else:
+            await conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS payment_channels (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    channel_code VARCHAR(32) NOT NULL UNIQUE,
+                    channel_name VARCHAR(50) NOT NULL,
+                    display_name VARCHAR(100) NOT NULL,
+                    platform VARCHAR(20) NOT NULL,
+                    provider VARCHAR(20) NOT NULL,
+                    is_enabled BOOLEAN NOT NULL DEFAULT 0,
+                    is_complete BOOLEAN NOT NULL DEFAULT 0,
+                    config_json TEXT NULL,
+                    notify_url VARCHAR(500),
+                    return_url VARCHAR(500),
+                    sort_order INTEGER NOT NULL DEFAULT 0,
+                    last_test_at DATETIME,
+                    last_test_ok BOOLEAN,
+                    last_test_message VARCHAR(500),
+                    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+                )
+            """))
+
+    # ── 2) 4 条种子（按 channel_code 幂等插入）──
+    seeds = [
+        ("wechat_miniprogram", "微信小程序支付", "微信支付", "miniprogram", "wechat", 10),
+        ("wechat_app", "微信APP支付", "微信支付", "app", "wechat", 10),
+        ("alipay_h5", "支付宝H5支付", "支付宝", "h5", "alipay", 10),
+        ("alipay_app", "支付宝APP支付", "支付宝", "app", "alipay", 20),
+    ]
+    for code, name, disp, platform, provider, sort_order in seeds:
+        try:
+            row = (await conn.execute(
+                text("SELECT id FROM payment_channels WHERE channel_code = :c"),
+                {"c": code},
+            )).fetchone()
+            if row is None:
+                await conn.execute(
+                    text(
+                        "INSERT INTO payment_channels "
+                        "(channel_code, channel_name, display_name, platform, provider, "
+                        "is_enabled, is_complete, sort_order) "
+                        "VALUES (:code, :name, :disp, :platform, :provider, 0, 0, :sort)"
+                    ),
+                    {"code": code, "name": name, "disp": disp, "platform": platform,
+                     "provider": provider, "sort": sort_order},
+                )
+        except Exception as e:
+            print(f"[schema_sync] payment_channels seed insert warn: {e}")
+
+    # ── 3) orders 加列 ──
+    if info["orders_cols"] is not None:
+        cols = info["orders_cols"]
+        if "payment_channel_code" not in cols:
+            try:
+                await conn.execute(text(
+                    "ALTER TABLE orders ADD COLUMN payment_channel_code VARCHAR(32) NULL"
+                ))
+                try:
+                    await conn.execute(text(
+                        "CREATE INDEX ix_orders_payment_channel_code ON orders(payment_channel_code)"
+                    ))
+                except Exception:
+                    pass
+            except Exception as e:
+                print(f"[schema_sync] orders add payment_channel_code warn: {e}")
+        if "payment_display_name" not in cols:
+            try:
+                await conn.execute(text(
+                    "ALTER TABLE orders ADD COLUMN payment_display_name VARCHAR(100) NULL"
+                ))
+            except Exception as e:
+                print(f"[schema_sync] orders add payment_display_name warn: {e}")
+
+    # ── 4) unified_orders 加列 ──
+    if info["uo_cols"] is not None:
+        cols = info["uo_cols"]
+        if "payment_channel_code" not in cols:
+            try:
+                await conn.execute(text(
+                    "ALTER TABLE unified_orders ADD COLUMN payment_channel_code VARCHAR(32) NULL"
+                ))
+                try:
+                    await conn.execute(text(
+                        "CREATE INDEX ix_unified_orders_payment_channel_code ON unified_orders(payment_channel_code)"
+                    ))
+                except Exception:
+                    pass
+            except Exception as e:
+                print(f"[schema_sync] unified_orders add payment_channel_code warn: {e}")
+        if "payment_display_name" not in cols:
+            try:
+                await conn.execute(text(
+                    "ALTER TABLE unified_orders ADD COLUMN payment_display_name VARCHAR(100) NULL"
+                ))
+            except Exception as e:
+                print(f"[schema_sync] unified_orders add payment_display_name warn: {e}")
+
+
 async def sync_register_schema(conn: AsyncConnection) -> None:
     def load_user_schema(sync_conn):
         inspector = inspect(sync_conn)
@@ -1972,6 +2122,8 @@ async def sync_register_schema(conn: AsyncConnection) -> None:
     await _migrate_appointed_to_pending_use(conn)
     # [上门服务履约 PRD v1.0] on_site 履约类型 + 上门地址字段
     await _sync_on_site_fulfillment(conn)
+    # [支付配置 PRD v1.0] payment_channels 表 + 4 条种子 + orders/unified_orders 加列
+    await _sync_payment_config(conn)
     await run_all_migrations(conn)
 
     columns, indexes, unique_constraints = await conn.run_sync(load_user_schema)

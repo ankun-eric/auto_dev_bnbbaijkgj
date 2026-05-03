@@ -59,6 +59,8 @@ from app.api import (
     ocr,
     ocr_details,
     order,
+    payment_config,
+    payment_methods,
     plan,
     points,
     points_admin,
@@ -880,6 +882,9 @@ app.include_router(user_health_profile.router)
 app.include_router(maps.router)
 # [2026-05-02 H5 下单流程优化 PRD v1.0] 支付页统一选择
 app.include_router(h5_checkout.router)
+# [2026-05-03 支付配置 PRD v1.0] 多端支付通道管理
+app.include_router(payment_config.router)
+app.include_router(payment_methods.router)
 # [2026-05-03 卡管理 v2.0 第 2~5 期] 购卡下单/动态核销码/退款/续卡/拆单/省钱提示/可续卡列表
 # 先注册 v2 路由（精确路径优先），避免被 cards.router 的 /me/{user_card_id} 拦截 /me/renewable
 from app.api import cards_v2 as _cards_v2  # noqa: E402

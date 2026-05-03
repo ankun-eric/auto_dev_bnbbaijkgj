@@ -212,7 +212,11 @@ class _UnifiedOrderDetailScreenState extends State<UnifiedOrderDetailScreen> {
           const SizedBox(height: 12),
           _infoRow('订单编号', o.orderNo, copyable: true),
           _infoRow('下单时间', _formatTime(o.createdAt)),
-          if (o.paymentMethod != null) _infoRow('支付方式', o.paymentMethod!),
+          // [支付配置 PRD v1.0] 优先显示具体通道文案
+          if ((o.paymentMethodText ?? '').isNotEmpty)
+            _infoRow('支付方式', o.paymentMethodText!)
+          else if (o.paymentMethod != null)
+            _infoRow('支付方式', o.paymentMethod!),
           if (o.paidAt != null) _infoRow('支付时间', _formatTime(o.paidAt)),
           if (o.notes != null && o.notes!.isNotEmpty) _infoRow('备注', o.notes!),
         ],
