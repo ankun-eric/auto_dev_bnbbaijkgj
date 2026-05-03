@@ -33,6 +33,28 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
+## Latest Update: 「先下单后预约」商品下单页强制选时间 Bug 修复 — 全端打通待预约流程（已部署 + 0 Bug, 44/44 passed）（2026-05-03 20:35）
+
+### 一句话结论
+修复商品 ID=20 类「先下单后预约」(`purchase_appointment_mode = appointment_later`) 商品在 H5/小程序/APP 下单页被强制要求选预约时间的 Bug —— 后端 `unified_orders.py` 在 `appointment_later` 模式下主动忽略前端误传的 `appointment_time/appointment_data`，确保订单付款后自动进入既有 `pending_appointment` 状态；H5 `checkout/page.tsx`、小程序 `pages/checkout/`、Flutter `screens/product/checkout_screen.dart` 三端 `needAppointment` 判定增加 `purchase_appointment_mode` 维度（仅 `purchase_with_appointment / must_appoint` 时展示预约控件）；H5 `unified-order/[id]`、小程序 `pages/unified-order-detail/`、Flutter `screens/order/unified_order_detail_screen.dart` 三端订单详情新增「待预约」紫色横幅 + 立即预约按钮 + 日期/时段选择弹窗，调用既有 `POST /api/orders/unified/{id}/appointment` 流转到 `appointed`；商家后台 `admin-web/.../orders/page.tsx` 已存量支持 `pending_appointment` Tab 与 Tag 无需修改；新增 `backend/tests/test_book_after_pay_bugfix.py` 6 个 pytest 用例（不传时间 OK / 误传时间被忽略 / 付款进入 pending_appointment / 用户预约流转 appointed / 对照组保留必填 / 对照组成功）+ 相关回归 38 用例本地 + 服务器 44/44 全部通过；服务器代码版本 `7c5ead5` 已 docker compose down/build/up 重新部署，nginx 重连 gateway 通过；本次产物：小程序 zip `miniprogram_book_after_pay_20260503_203459_5d02.zip` (366KB)、安卓 APK `bini_health_book_after_pay_20260503_203439_8a32.apk` (83.7MB)、iOS Release `ios-bookafterpay-v20260503-203442-qsum`；用户手册 `user_docs/先下单后预约修复.md`。
+
+### 涉及文件
+- 后端：`backend/app/api/unified_orders.py`（新增 logger + book_after_pay 分支忽略 appointment_time/data）
+- 后端测试：`backend/tests/test_book_after_pay_bugfix.py`（新增 6 用例）
+- H5：`h5-web/src/app/checkout/page.tsx`（needAppointment 判定改造）+ `h5-web/src/app/unified-order/[id]/page.tsx`（横幅 + Popup 弹窗 + DatePicker + Selector）
+- 小程序：`miniprogram/pages/checkout/index.{js,wxml}`（needAppointment 状态 + wxml 条件）+ `miniprogram/pages/unified-order-detail/index.{js,wxml,wxss}`（横幅 + 弹窗 + 立即预约动作）
+- Flutter：`flutter_app/lib/screens/product/checkout_screen.dart`（_needAppointment getter）+ `flutter_app/lib/screens/order/unified_order_detail_screen.dart`（_buildBookAfterPayBanner + _openAppointmentDialog + 状态颜色补齐 pending_appointment/appointed）
+- 部署辅助：`deploy_remote.py`、`_run_remote_tests.py`、`_sftp_upload_test.py`、`deploy/last_deploy_book_after_pay.log`
+- 用户手册：`user_docs/先下单后预约修复.md`
+
+### 验证结果
+- 本地 pytest：`tests/test_book_after_pay_bugfix.py` 6 通过 + 相关回归 38 通过 = 44 通过
+- 服务器容器内 pytest（同上 4 个测试文件）：44 通过
+- 部署链路三 URL 200：`/`、`/admin/`、`/api/docs`
+- 三端打包成功并验证下载链接 200
+
+---
+
 ## Latest Update: 订单状态自动推进策略 + 订单明细页分类筛选 Bug 修复（已部署 + 0 Bug, 40/40 passed）（2026-05-03 19:45）
 
 ### 一句话结论
