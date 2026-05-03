@@ -1,8 +1,10 @@
+import os
+import uuid
 from calendar import monthrange
 from datetime import datetime, timedelta, date
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
 from sqlalchemy import and_, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -20,6 +22,7 @@ from app.models.models import (
     NotificationType,
     Order,
     OrderAppointmentLog,
+    OrderAttachment,
     OrderItem,
     OrderNote,
     OrderStatus,
@@ -823,6 +826,7 @@ async def merchant_list_orders(
     )
 
     items = []
+    # PRD「商家 PC 后台优化 v1.1」F3+F4：补齐手机号 / 支付方式 / 核销码 / 附件数
     for uo in orders_result.scalars().all():
         user_result = await db.execute(select(User).where(User.id == uo.user_id))
         user = user_result.scalar_one_or_none()
@@ -834,10 +838,19 @@ async def merchant_list_orders(
             select(MerchantStore).where(MerchantStore.id == store_id)
         )
         store = store_result.scalar_one_or_none()
+        # 附件数（按 unified_order_id 计数）
+        att_cnt_res = await db.execute(
+            select(func.count(OrderAttachment.id)).where(
+                OrderAttachment.order_id == uo.id,
+                OrderAttachment.order_source == "unified",
+            )
+        )
+        att_cnt = int(att_cnt_res.scalar() or 0)
         items.append({
             "order_id": uo.id,
             "order_no": uo.order_no,
             "user_display": _safe_user_name(user) if user else "用户",
+            "user_phone": (user.phone if user else None),
             "product_name": oi.product_name if oi else "",
             "created_at": uo.created_at.isoformat() if uo.created_at else None,
             "appointment_time": oi.appointment_time.isoformat() if oi and oi.appointment_time else None,
@@ -845,8 +858,12 @@ async def merchant_list_orders(
             "store_name": store.store_name if store else "",
             "status": uo.status.value if hasattr(uo.status, "value") else str(uo.status),
             "amount": float(uo.total_amount or 0),
-            "attachment_count": 0,
+            "attachment_count": att_cnt,
             "is_appointment": bool(oi and oi.appointment_time),
+            "payment_method_text": getattr(uo, "payment_display_name", None) and (
+                f"{uo.payment_display_name}（{(uo.payment_channel_code or '').replace('wechat_miniprogram','小程序').replace('wechat_app','APP').replace('alipay_h5','H5').replace('alipay_app','APP') or '其他'}）"
+            ) or None,
+            "redemption_code": getattr(oi, "verification_code", None) if oi else None,
         })
 
     return {"items": items, "total": total, "page": page, "page_size": page_size}
@@ -892,3 +909,209 @@ async def merchant_get_order_detail(
         "store_confirmed": getattr(uo, "store_confirmed", False),
         "store_confirmed_at": uo.store_confirmed_at.isoformat() if getattr(uo, "store_confirmed_at", None) else None,
     }
+
+
+# ──────────── 商家订单附件（PRD「商家 PC 后台优化 v1.1」F4） ────────────
+# 按 UnifiedOrder.id（统一订单）维度存储附件
+# - GET    /api/merchant/orders/{order_id}/attachments
+# - POST   /api/merchant/orders/{order_id}/attachments/upload  （multipart 上传，jpg/png/pdf, ≤5MB, ≤9 个）
+# - DELETE /api/merchant/orders/{order_id}/attachments/{attachment_id}
+
+ATTACH_MAX_SIZE = 5 * 1024 * 1024  # 5 MB
+ATTACH_MAX_COUNT = 9
+ATTACH_ALLOWED_IMAGE_EXT = {".jpg", ".jpeg", ".png"}
+ATTACH_ALLOWED_PDF_EXT = {".pdf"}
+ATTACH_UPLOAD_DIR = "uploads/order_attachments"
+
+
+async def _ensure_merchant_unified_order(
+    db: AsyncSession, user_id: int, order_id: int
+) -> UnifiedOrder:
+    """校验当前商家用户对该统一订单的访问权限，返回订单实例。
+
+    判定规则：订单的某个 OrderItem 关联的 product 在当前用户所属的某个门店挂载（ProductStore），
+    则视为该商家可访问。
+    """
+    # 当前用户可访问的门店 ID 列表
+    sids_res = await db.execute(
+        select(MerchantStoreMembership.store_id).where(
+            MerchantStoreMembership.user_id == user_id,
+            MerchantStoreMembership.status == "active",
+        )
+    )
+    store_ids = [int(x) for x in sids_res.scalars().all()]
+    if not store_ids:
+        raise HTTPException(status_code=403, detail="当前账号无任何门店权限")
+
+    uo_res = await db.execute(select(UnifiedOrder).where(UnifiedOrder.id == order_id))
+    uo = uo_res.scalar_one_or_none()
+    if not uo:
+        raise HTTPException(status_code=404, detail="订单不存在")
+
+    # 检查订单中至少有一个商品挂载在 store_ids 任一门店下
+    cnt_res = await db.execute(
+        select(func.count(OrderItem.id))
+        .join(ProductStore, ProductStore.product_id == OrderItem.product_id)
+        .where(
+            OrderItem.order_id == order_id,
+            ProductStore.store_id.in_(store_ids),
+        )
+    )
+    if int(cnt_res.scalar() or 0) == 0:
+        raise HTTPException(status_code=403, detail="无该订单权限")
+    return uo
+
+
+@router.get("/orders/{order_id}/attachments")
+async def merchant_list_unified_order_attachments(
+    order_id: int,
+    current_user: User = Depends(merchant_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    """列出商家可访问的统一订单附件。"""
+    await _ensure_merchant_unified_order(db, current_user.id, order_id)
+    res = await db.execute(
+        select(OrderAttachment)
+        .where(
+            OrderAttachment.order_id == order_id,
+            OrderAttachment.order_source == "unified",
+        )
+        .order_by(OrderAttachment.created_at.desc())
+    )
+    items = []
+    for att in res.scalars().all():
+        items.append({
+            "id": att.id,
+            "order_id": att.order_id,
+            "order_source": att.order_source,
+            "store_id": att.store_id,
+            "uploader_user_id": att.uploader_user_id,
+            "file_type": att.file_type,
+            "file_url": att.file_url,
+            "file_name": att.file_name,
+            "file_size": att.file_size or 0,
+            "created_at": att.created_at.isoformat() if att.created_at else None,
+        })
+    return items
+
+
+@router.post("/orders/{order_id}/attachments/upload")
+async def merchant_upload_unified_order_attachment(
+    order_id: int,
+    file: UploadFile = File(...),
+    current_user: User = Depends(merchant_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    """商家上传订单附件（multipart/form-data）。
+
+    校验：
+    - 文件类型仅支持 jpg/png（image）和 pdf
+    - 单文件 ≤ 5MB
+    - 单订单最多 9 个附件
+    """
+    await _ensure_merchant_unified_order(db, current_user.id, order_id)
+
+    # 类型校验
+    filename = file.filename or "upload"
+    ext = os.path.splitext(filename)[1].lower()
+    if ext in ATTACH_ALLOWED_IMAGE_EXT:
+        file_type = "image"
+    elif ext in ATTACH_ALLOWED_PDF_EXT:
+        file_type = "pdf"
+    else:
+        raise HTTPException(status_code=400, detail="仅支持 jpg/png 图片或 pdf 文档")
+
+    # 数量校验
+    cnt_res = await db.execute(
+        select(func.count(OrderAttachment.id)).where(
+            OrderAttachment.order_id == order_id,
+            OrderAttachment.order_source == "unified",
+        )
+    )
+    if int(cnt_res.scalar() or 0) >= ATTACH_MAX_COUNT:
+        raise HTTPException(
+            status_code=400, detail=f"单订单最多 {ATTACH_MAX_COUNT} 个附件"
+        )
+
+    # 读取文件并校验大小（流式分块以防一次读入过大文件）
+    os.makedirs(ATTACH_UPLOAD_DIR, exist_ok=True)
+    safe_name = f"{order_id}_{uuid.uuid4().hex[:12]}{ext}"
+    abs_path = os.path.join(ATTACH_UPLOAD_DIR, safe_name)
+    total = 0
+    chunk = 64 * 1024
+    with open(abs_path, "wb") as fp:
+        while True:
+            data = await file.read(chunk)
+            if not data:
+                break
+            total += len(data)
+            if total > ATTACH_MAX_SIZE:
+                fp.close()
+                try:
+                    os.remove(abs_path)
+                except Exception:
+                    pass
+                raise HTTPException(
+                    status_code=400, detail="单个附件不得超过 5MB"
+                )
+            fp.write(data)
+
+    # 写库
+    file_url = f"/uploads/order_attachments/{safe_name}"
+    att = OrderAttachment(
+        order_id=order_id,
+        order_source="unified",
+        store_id=None,
+        uploader_user_id=current_user.id,
+        file_type=file_type,
+        file_url=file_url,
+        file_name=filename,
+        file_size=total,
+    )
+    db.add(att)
+    await db.commit()
+    await db.refresh(att)
+    return {
+        "id": att.id,
+        "order_id": att.order_id,
+        "order_source": att.order_source,
+        "store_id": att.store_id,
+        "uploader_user_id": att.uploader_user_id,
+        "file_type": att.file_type,
+        "file_url": att.file_url,
+        "file_name": att.file_name,
+        "file_size": att.file_size or 0,
+        "created_at": att.created_at.isoformat() if att.created_at else None,
+    }
+
+
+@router.delete("/orders/{order_id}/attachments/{attachment_id}")
+async def merchant_delete_unified_order_attachment(
+    order_id: int,
+    attachment_id: int,
+    current_user: User = Depends(merchant_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    """删除指定订单的附件。"""
+    await _ensure_merchant_unified_order(db, current_user.id, order_id)
+    res = await db.execute(
+        select(OrderAttachment).where(
+            OrderAttachment.id == attachment_id,
+            OrderAttachment.order_id == order_id,
+            OrderAttachment.order_source == "unified",
+        )
+    )
+    att = res.scalar_one_or_none()
+    if not att:
+        raise HTTPException(status_code=404, detail="附件不存在")
+    # 尝试删除磁盘文件（容错）
+    try:
+        if att.file_url and att.file_url.startswith("/uploads/"):
+            local = att.file_url[len("/"):]  # uploads/...
+            if os.path.exists(local):
+                os.remove(local)
+    except Exception:
+        pass
+    await db.delete(att)
+    await db.commit()
+    return {"message": "已删除"}

@@ -3,11 +3,12 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   Table, Input, Space, Button, DatePicker, Tag, Typography, Modal, Upload, Form, InputNumber, message, Popconfirm, Select,
-  Drawer, Descriptions, Divider, List as AntList,
+  Drawer, Descriptions, Divider, List as AntList, Image as AntImage,
 } from 'antd';
+import type { UploadFile, UploadProps } from 'antd';
 import {
   SearchOutlined, PaperClipOutlined, DownloadOutlined, UploadOutlined,
-  CheckCircleOutlined, ClockCircleOutlined, FormOutlined,
+  CheckCircleOutlined, ClockCircleOutlined, FormOutlined, EyeOutlined, FilePdfOutlined, DeleteOutlined,
 } from '@ant-design/icons';
 import api from '@/lib/api';
 import dayjs from 'dayjs';
@@ -20,6 +21,7 @@ interface OrderRow {
   order_id: number;
   order_no: string;
   user_display: string;
+  user_phone?: string;
   product_name: string;
   created_at: string;
   appointment_time?: string;
@@ -28,16 +30,46 @@ interface OrderRow {
   status: string;
   amount: number;
   attachment_count: number;
+  payment_method_text?: string;
+  redemption_code?: string;
 }
 
+// PRD「商家 PC 后台优化 v1.1」F1+F2：与用户端 unified-orders 完全一致的 14 态映射
+// 历史遗留 redeemed/paid 仅作为防御性降级映射，筛选器不暴露
 const statusMap: Record<string, { text: string; color: string }> = {
-  pending_payment: { text: '待支付', color: 'orange' },
-  paid: { text: '已支付', color: 'blue' },
-  redeemed: { text: '已核销', color: 'green' },
-  cancelled: { text: '已取消', color: 'default' },
-  refunded: { text: '已退款', color: 'red' },
-  completed: { text: '已完成', color: 'green' },
+  pending_payment: { text: '待付款', color: '#fa8c16' },
+  pending_shipment: { text: '待发货', color: '#1890ff' },
+  pending_receipt: { text: '待收货', color: '#13c2c2' },
+  pending_appointment: { text: '待预约', color: '#722ed1' },
+  appointed: { text: '待核销', color: '#13c2c2' },
+  pending_use: { text: '待核销', color: '#13c2c2' },
+  partial_used: { text: '部分核销', color: '#faad14' },
+  pending_review: { text: '待评价', color: '#eb2f96' },
+  completed: { text: '已完成', color: '#52c41a' },
+  expired: { text: '已过期', color: '#8c8c8c' },
+  refunding: { text: '退款中', color: '#f5222d' },
+  refunded: { text: '已退款', color: '#8c8c8c' },
+  cancelled: { text: '已取消', color: '#8c8c8c' },
+  // 历史遗留兼容映射（不在筛选器中暴露）
+  redeemed: { text: '已完成', color: '#52c41a' },
+  paid: { text: '待核销', color: '#1677ff' },
 };
+
+// 筛选器可选项（商家常用 6 个 Tab，不暴露 redeemed/paid）
+const FILTER_STATUS_OPTIONS: { value: string; label: string }[] = [
+  { value: 'pending_payment', label: '待付款' },
+  { value: 'pending_shipment', label: '待发货' },
+  { value: 'pending_use', label: '待核销' },
+  { value: 'completed', label: '已完成' },
+  { value: 'refunded', label: '已退款' },
+  { value: 'cancelled', label: '已取消' },
+];
+
+// PRD F4：附件上传约束
+const ATTACHMENT_MAX_SIZE = 5 * 1024 * 1024; // 5 MB
+const ATTACHMENT_MAX_COUNT = 9;
+const IMAGE_MIME = ['image/jpeg', 'image/jpg', 'image/png'];
+const PDF_MIME = ['application/pdf'];
 
 export default function OrdersPage() {
   const [rows, setRows] = useState<OrderRow[]>([]);
@@ -101,21 +133,44 @@ export default function OrdersPage() {
     } catch { setAttachments([]); }
   };
 
-  const doUpload = async (values: any) => {
+  // PRD F4：Antd Upload 改造，前端拦截 jpg/png/pdf + 5MB + 9 个上限
+  const beforeUpload: UploadProps['beforeUpload'] = (file) => {
+    const isImage = IMAGE_MIME.includes(file.type);
+    const isPdf = PDF_MIME.includes(file.type);
+    if (!isImage && !isPdf) {
+      message.error('仅支持 jpg/png 图片或 pdf 文档');
+      return Upload.LIST_IGNORE;
+    }
+    if (file.size > ATTACHMENT_MAX_SIZE) {
+      message.error('单个附件不得超过 5MB');
+      return Upload.LIST_IGNORE;
+    }
+    if (attachments.length >= ATTACHMENT_MAX_COUNT) {
+      message.error(`单订单最多 ${ATTACHMENT_MAX_COUNT} 个附件`);
+      return Upload.LIST_IGNORE;
+    }
+    return true;
+  };
+
+  const customUpload: UploadProps['customRequest'] = async (options) => {
+    const { file, onSuccess, onError } = options;
     if (!currentOrder) return;
     try {
-      await api.post(`/api/merchant/orders/${currentOrder.order_id}/attachments`, {
-        file_url: values.file_url,
-        file_name: values.file_name,
-        file_type: values.file_type,
-        file_size: values.file_size || 0,
-      });
+      const fd = new FormData();
+      fd.append('file', file as Blob);
+      const res: any = await api.post(
+        `/api/merchant/orders/${currentOrder.order_id}/attachments/upload`,
+        fd,
+        { headers: { 'Content-Type': 'multipart/form-data' } }
+      );
       message.success('附件已上传');
-      uploadForm.resetFields();
+      onSuccess?.(res, new XMLHttpRequest());
       openAttach(currentOrder);
       load(page);
     } catch (e: any) {
-      message.error(e?.response?.data?.detail || '上传失败');
+      const msg = e?.response?.data?.detail || '上传失败';
+      message.error(msg);
+      onError?.(new Error(msg));
     }
   };
 
@@ -125,6 +180,7 @@ export default function OrdersPage() {
       await api.delete(`/api/merchant/orders/${currentOrder.order_id}/attachments/${attId}`);
       message.success('已删除');
       openAttach(currentOrder);
+      load(page);
     } catch (e: any) { message.error(e?.response?.data?.detail || '删除失败'); }
   };
 
@@ -208,24 +264,41 @@ export default function OrdersPage() {
     } finally { setSubmittingNote(false); }
   };
 
+  // PRD「商家 PC 后台优化 v1.1」F3：左右固定 + 中间横滚 + 行高加高
+  // 左固定：订单号、下单时间、商品名称
+  // 中间（横滚）：用户、手机号、金额、支付方式、核销码、门店、附件、预约时间
+  // 右固定：状态、操作
   const columns = [
-    { title: '订单号', dataIndex: 'order_no', key: 'order_no', width: 180 },
-    { title: '用户', dataIndex: 'user_display', key: 'user_display', width: 130 },
-    { title: '商品', dataIndex: 'product_name', key: 'product_name' },
-    { title: '下单时间', dataIndex: 'created_at', key: 'created_at', width: 160, render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm') : '-' },
-    { title: '门店', dataIndex: 'store_name', key: 'store_name', width: 140 },
+    { title: '订单号', dataIndex: 'order_no', key: 'order_no', width: 180, fixed: 'left' as const },
     {
-      title: '状态', dataIndex: 'status', key: 'status', width: 100,
-      render: (s: string) => <Tag color={statusMap[s]?.color || 'default'}>{statusMap[s]?.text || s}</Tag>,
+      title: '下单时间', dataIndex: 'created_at', key: 'created_at', width: 160,
+      fixed: 'left' as const,
+      render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm') : '-',
     },
-    { title: '金额', dataIndex: 'amount', key: 'amount', width: 90, render: (v: number) => `¥${v || 0}` },
-    { title: '附件', dataIndex: 'attachment_count', key: 'attachment_count', width: 70 },
+    { title: '商品名称', dataIndex: 'product_name', key: 'product_name', width: 220, fixed: 'left' as const, ellipsis: true },
+    { title: '用户', dataIndex: 'user_display', key: 'user_display', width: 130 },
+    { title: '手机号', dataIndex: 'user_phone', key: 'user_phone', width: 130, render: (v: string) => v || '-' },
+    { title: '金额', dataIndex: 'amount', key: 'amount', width: 100, render: (v: number) => <span style={{ color: '#fa541c', fontWeight: 600 }}>¥{v || 0}</span> },
+    { title: '支付方式', dataIndex: 'payment_method_text', key: 'payment_method_text', width: 180, render: (v: string) => v || '-' },
+    { title: '核销码', dataIndex: 'redemption_code', key: 'redemption_code', width: 140, render: (v: string) => v ? <code style={{ fontSize: 12 }}>{v}</code> : '-' },
+    { title: '门店', dataIndex: 'store_name', key: 'store_name', width: 140 },
+    { title: '预约时间', dataIndex: 'appointment_time', key: 'appointment_time', width: 160, render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm') : '-' },
+    { title: '附件', dataIndex: 'attachment_count', key: 'attachment_count', width: 70, align: 'center' as const, render: (n: number) => <span>{n || 0}</span> },
     {
-      title: '操作', key: 'ops', width: 200,
+      title: '状态', dataIndex: 'status', key: 'status', width: 110,
+      fixed: 'right' as const,
+      render: (s: string) => {
+        const meta = statusMap[s] || { text: s, color: '#8c8c8c' };
+        return <Tag color={meta.color} style={{ borderColor: 'transparent' }}>{meta.text}</Tag>;
+      },
+    },
+    {
+      title: '操作', key: 'ops', width: 180,
+      fixed: 'right' as const,
       render: (_: any, row: OrderRow) => (
         <Space>
           <Button size="small" type="link" onClick={() => openDetail(row)}>详情</Button>
-          <Button size="small" icon={<PaperClipOutlined />} onClick={() => openAttach(row)}>附件</Button>
+          <Button size="small" type="link" icon={<PaperClipOutlined />} onClick={() => openAttach(row)}>附件</Button>
         </Space>
       ),
     },
@@ -247,9 +320,9 @@ export default function OrdersPage() {
           placeholder="状态"
           value={status}
           onChange={setStatus}
-          style={{ width: 120 }}
+          style={{ width: 140 }}
           allowClear
-          options={Object.entries(statusMap).map(([k, v]) => ({ value: k, label: v.text }))}
+          options={FILTER_STATUS_OPTIONS}
         />
         <RangePicker value={dateRange as any} onChange={v => setDateRange(v as any)} />
         <Button type="primary" onClick={() => load(1)}>查询</Button>
@@ -259,6 +332,9 @@ export default function OrdersPage() {
         loading={loading}
         dataSource={rows}
         columns={columns as any}
+        scroll={{ x: 1700 }}
+        size="middle"
+        rowClassName={() => 'merchant-orders-row'}
         pagination={{
           current: page,
           total,
@@ -267,55 +343,99 @@ export default function OrdersPage() {
           showSizeChanger: false,
         }}
       />
+      <style jsx global>{`
+        /* PRD F3：行高加高 8px，避免字段拥挤 */
+        .merchant-orders-row > td {
+          padding-top: 16px !important;
+          padding-bottom: 16px !important;
+        }
+      `}</style>
 
       <Modal
         title={`订单附件 - ${currentOrder?.order_no || ''}`}
         open={attachOpen}
         onCancel={() => setAttachOpen(false)}
         footer={null}
-        width={720}
+        width={760}
       >
-        <Table
-          size="small"
-          rowKey="id"
+        {/* PRD F4：附件列表 — 图片可预览，PDF 可下载 */}
+        <AntList
           dataSource={attachments}
-          pagination={false}
-          columns={[
-            { title: '文件名', dataIndex: 'file_name' },
-            { title: '类型', dataIndex: 'file_type', width: 80 },
-            { title: '大小', dataIndex: 'file_size', width: 100, render: (v: number) => v ? `${(v / 1024).toFixed(1)}KB` : '-' },
-            { title: '上传时间', dataIndex: 'created_at', width: 160, render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm') : '-' },
-            {
-              title: '操作', width: 160, render: (_: any, att: any) => (
-                <Space>
-                  <a href={att.file_url} target="_blank" rel="noreferrer"><DownloadOutlined /> 下载</a>
-                  <Popconfirm title="确定删除?" onConfirm={() => deleteAttach(att.id)}>
-                    <a>删除</a>
-                  </Popconfirm>
-                </Space>
-              ),
-            },
-          ]}
+          locale={{ emptyText: '暂无附件' }}
+          renderItem={(att: any) => {
+            const isImage = att.file_type === 'image';
+            return (
+              <AntList.Item
+                actions={[
+                  isImage ? (
+                    <a key="preview" href={att.file_url} target="_blank" rel="noreferrer">
+                      <EyeOutlined /> 预览
+                    </a>
+                  ) : (
+                    <a key="download" href={att.file_url} target="_blank" rel="noreferrer" download>
+                      <DownloadOutlined /> 下载
+                    </a>
+                  ),
+                  <Popconfirm key="delete" title="确定删除该附件?" onConfirm={() => deleteAttach(att.id)}>
+                    <a style={{ color: '#ff4d4f' }}><DeleteOutlined /> 删除</a>
+                  </Popconfirm>,
+                ]}
+              >
+                <AntList.Item.Meta
+                  avatar={
+                    isImage ? (
+                      <AntImage
+                        src={att.file_url}
+                        width={56}
+                        height={56}
+                        style={{ objectFit: 'cover', borderRadius: 4 }}
+                        preview={{ mask: <EyeOutlined /> }}
+                      />
+                    ) : (
+                      <div style={{ width: 56, height: 56, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fff1f0', borderRadius: 4 }}>
+                        <FilePdfOutlined style={{ fontSize: 28, color: '#cf1322' }} />
+                      </div>
+                    )
+                  }
+                  title={att.file_name || (isImage ? '图片' : 'PDF文件')}
+                  description={
+                    <Space size={16} style={{ fontSize: 12, color: '#8c8c8c' }}>
+                      <span>{isImage ? '图片' : 'PDF'}</span>
+                      <span>{att.file_size ? `${(att.file_size / 1024).toFixed(1)} KB` : '-'}</span>
+                      <span>{att.created_at ? dayjs(att.created_at).format('YYYY-MM-DD HH:mm') : '-'}</span>
+                    </Space>
+                  }
+                />
+              </AntList.Item>
+            );
+          }}
         />
-        <div style={{ marginTop: 16, padding: 16, background: '#fafafa', borderRadius: 8 }}>
-          <Typography.Text strong>上传附件（单文件≤20MB，最多 5 个）</Typography.Text>
-          <Form form={uploadForm} layout="vertical" onFinish={doUpload} style={{ marginTop: 12 }}>
-            <Form.Item name="file_url" label="文件URL" rules={[{ required: true, message: '请输入文件URL' }]}>
-              <Input placeholder="上传到OSS后粘贴URL，或使用对接的上传组件" />
-            </Form.Item>
-            <Space>
-              <Form.Item name="file_name" label="文件名" rules={[{ required: true }]}>
-                <Input placeholder="report.pdf" />
-              </Form.Item>
-              <Form.Item name="file_type" label="类型" rules={[{ required: true }]} initialValue="pdf">
-                <Select style={{ width: 120 }} options={[{ value: 'image', label: '图片' }, { value: 'pdf', label: 'PDF' }]} />
-              </Form.Item>
-              <Form.Item name="file_size" label="大小(字节)">
-                <InputNumber min={0} max={20 * 1024 * 1024} />
-              </Form.Item>
-            </Space>
-            <Button type="primary" htmlType="submit" icon={<UploadOutlined />}>提交附件</Button>
-          </Form>
+        <Divider />
+        {/* PRD F4：Antd Upload 组件，jpg/png/pdf，单文件 ≤5MB，最多 9 个 */}
+        <div style={{ padding: 16, background: '#fafafa', borderRadius: 8 }}>
+          <Typography.Text strong>上传附件</Typography.Text>
+          <div style={{ fontSize: 12, color: '#8c8c8c', margin: '6px 0 12px' }}>
+            支持 jpg / png 图片、pdf 文档；单个附件不得超过 5MB；单订单最多 {ATTACHMENT_MAX_COUNT} 个附件
+          </div>
+          <Upload
+            accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf"
+            beforeUpload={beforeUpload}
+            customRequest={customUpload}
+            showUploadList={false}
+            multiple={false}
+            disabled={attachments.length >= ATTACHMENT_MAX_COUNT}
+          >
+            <Button
+              type="primary"
+              icon={<UploadOutlined />}
+              disabled={attachments.length >= ATTACHMENT_MAX_COUNT}
+            >
+              选择文件上传
+            </Button>
+          </Upload>
+          <span style={{ marginLeft: 12, fontSize: 12, color: '#1677ff' }}>
+            已上传：{attachments.length} / {ATTACHMENT_MAX_COUNT}
+          </span>
         </div>
       </Modal>
 

@@ -26,15 +26,24 @@ interface OrderNote {
   staff_name?: string;
 }
 
+// PRD「商家 PC 后台优化 v1.1」F1+F2：补齐 14 态映射 + 文案对齐用户端
 const STATUS_CONFIG: Record<string, { text: string; color: string; bg: string }> = {
-  pending_payment: { text: '待支付', color: '#faad14', bg: '#fffbe6' },
-  paid: { text: '待核销', color: '#1677ff', bg: '#e6f4ff' },
-  pending: { text: '待确认', color: '#faad14', bg: '#fffbe6' },
-  confirmed: { text: '已确认', color: '#1677ff', bg: '#e6f4ff' },
-  redeemed: { text: '已核销', color: '#52c41a', bg: '#f6ffed' },
+  pending_payment: { text: '待付款', color: '#fa8c16', bg: '#fff7e6' },
+  pending_shipment: { text: '待发货', color: '#1890ff', bg: '#e6f4ff' },
+  pending_receipt: { text: '待收货', color: '#13c2c2', bg: '#e6fffb' },
+  pending_appointment: { text: '待预约', color: '#722ed1', bg: '#f9f0ff' },
+  appointed: { text: '待核销', color: '#13c2c2', bg: '#e6fffb' },
+  pending_use: { text: '待核销', color: '#13c2c2', bg: '#e6fffb' },
+  partial_used: { text: '部分核销', color: '#faad14', bg: '#fffbe6' },
+  pending_review: { text: '待评价', color: '#eb2f96', bg: '#fff0f6' },
   completed: { text: '已完成', color: '#52c41a', bg: '#f6ffed' },
+  expired: { text: '已过期', color: '#8c8c8c', bg: '#f5f5f5' },
+  refunding: { text: '退款中', color: '#f5222d', bg: '#fff1f0' },
+  refunded: { text: '已退款', color: '#8c8c8c', bg: '#f5f5f5' },
   cancelled: { text: '已取消', color: '#8c8c8c', bg: '#f5f5f5' },
-  refunded: { text: '已退款', color: '#ff4d4f', bg: '#fff2f0' },
+  // 历史遗留兼容（防御性映射，不在筛选器中暴露）
+  redeemed: { text: '已完成', color: '#52c41a', bg: '#f6ffed' },
+  paid: { text: '待核销', color: '#1677ff', bg: '#e6f4ff' },
 };
 
 export default function OrderDetailMobilePage() {
@@ -196,7 +205,7 @@ export default function OrderDetailMobilePage() {
   }
 
   const st = STATUS_CONFIG[order.status] || { text: order.status, color: '#999', bg: '#f5f5f5' };
-  const canConfirm = order.is_appointment && ['pending', 'paid'].includes(order.status);
+  const canConfirm = order.is_appointment && ['pending', 'paid', 'pending_appointment', 'pending_payment'].includes(order.status);
   const canAdjustTime = order.is_appointment && !['cancelled', 'refunded', 'completed'].includes(order.status);
 
   return (

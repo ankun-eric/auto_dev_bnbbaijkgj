@@ -9,12 +9,15 @@ import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { getCurrentStoreId, statusMap } from '../mobile-lib';
 
+// PRD「商家 PC 后台优化 v1.1」F1：移动端商家 Tab 改为 14 态体系常用项
+// 全部 / 待付款 / 待发货 / 待核销 / 已完成 / 已退款（不暴露 redeemed/paid）
 const STATUS_TABS: { key: string; title: string }[] = [
   { key: '', title: '全部' },
-  { key: 'paid', title: '待核销' },
-  { key: 'redeemed', title: '已核销' },
+  { key: 'pending_payment', title: '待付款' },
+  { key: 'pending_shipment', title: '待发货' },
+  { key: 'pending_use', title: '待核销' },
+  { key: 'completed', title: '已完成' },
   { key: 'refunded', title: '已退款' },
-  { key: 'cancelled', title: '已取消' },
 ];
 
 export default function OrdersMobilePage() {

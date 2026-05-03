@@ -33,7 +33,46 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 支付配置（多端支付通道管理）PRD v1.0（已部署 + 0 Bug, 9/9 passed, 小程序 zip 已发布；APK/IPA 通过 GitHub Actions 构建）（2026-05-03 22:55）
+## Latest Update: 商家 PC 后台优化 PRD v1.1（已部署 + 0 Bug, 11/11 + 容器内 34/34 passed，仅后端 + h5-web 改动，无需打包客户端）（2026-05-03 23:35）
+
+### 一句话结论
+按 PRD「商家 PC 后台优化 v1.1」全面落地：1) **F1+F2 状态对齐**：在商家 PC `h5-web/src/app/merchant/orders/page.tsx`、商家手机 `h5-web/src/app/merchant/m/{mobile-lib.ts,orders/page.tsx,orders/[id]/page.tsx,reports/page.tsx}` 全部补齐与用户端 unified-orders 完全一致的 14 态映射（pending_payment/pending_shipment/pending_receipt/pending_appointment/appointed/pending_use/partial_used/pending_review/completed/expired/refunding/refunded/cancelled），文案与颜色 #fa8c16/#1890ff/#13c2c2/#722ed1/#faad14/#eb2f96/#52c41a/#8c8c8c/#f5222d 严格对齐；历史 `redeemed`/`paid` 仅作为防御性降级映射（不在筛选器/Tab 中暴露）；商家 PC 筛选下拉 6 项常用态、商家手机 Tab 6 项常用态；2) **F3 订单列表新布局**：商家 PC 订单列表改造为「左右固定 + 中间横滚」(`scroll={{ x: 1700 }}` + `fixed: 'left'/'right'` + 行高加大 16px padding)，左固定订单号/下单时间/商品名 ，右固定状态/操作，中间横滚展示用户/手机号/金额/支付方式/核销码/门店/预约时间/附件数；3) **F4 附件上传改造**：原 URL 输入框替换为 Antd `Upload` 组件，前端 `beforeUpload` 拦截 jpg/png/pdf 类型 + 5MB 大小 + 9 个上限，`customRequest` 使用 multipart/form-data 调用新增的 `POST /api/merchant/orders/{id}/attachments/upload`；附件列表改为 `AntList` 卡片样式（图片缩略图可预览，PDF 图标可下载，删除带 Popconfirm）；后端 `backend/app/api/merchant.py` 新增 `_ensure_merchant_unified_order` 权限校验 + 3 个端点（GET/POST upload/DELETE），存储到 `uploads/order_attachments/` 静态目录；订单列表响应补齐 `attachment_count/user_phone/payment_method_text/redemption_code`；4) **F5 日历中文化**：`h5-web/src/app/merchant/calendar/page.tsx` 自定义 `headerRender` 渲染「← 上月 / 2026 年 五月 / 下月 →」（去年份选择器 + 中文月份名「一月…十二月」），全局 CSS 把英文星期 Mo/Tu... 替换为「周一…周日」（pseudo-element + display:none），日历单元格文案改为「共 N 个预约」；5) **F6 右侧侧滑面板**：日历下方卡片改为 `Drawer placement="right" width={400}`，内容含预约人/电话/项目/时间/备注/订单号/状态，底部仅一个主按钮「查看订单详情」跳转 `/merchant/orders?highlight=<id>`；当日预约从 Table 改为卡片栅格点击触发面板；支持 ESC、点击 ×、点击 maskClosable 三种关闭方式；6) **F7 一次性数据迁移**：`backend/app/services/schema_sync.py` 新增 `_migrate_redeemed_to_completed`（`UPDATE unified_orders SET status='completed' WHERE status='redeemed'`，幂等可重入），在 `sync_register_schema` 中在 `_migrate_appointed_to_pending_use` 之后调用；启动一次后存量 `redeemed` 全部刷为 `completed`；7) **F8 paid 兼容**：前端映射表保留 `paid → 待核销` 防御性降级，筛选器不暴露；8) **测试**：新增 `backend/tests/test_merchant_pc_optim_v1_1.py` 11 个用例（14 态枚举存在性 / 附件 GET 空列表 / 上传 jpg-pdf-docx 拒绝 / 5MB 拒绝 / 9 个上限 / 删除 / 跨订单权限 / 迁移幂等 / 列表字段完整），本地 11/11 通过，容器内合并支付配置 + 状态简化共 **34/34 全通过**；9) **部署**：仅改后端 + h5-web，docker compose restart backend + h5-web rebuild；服务器三 URL 200，merchant/orders 与 merchant/calendar 308（登录守卫正常）；10) **客户端无需打包**：本次未触及 miniprogram / flutter_app / admin-web，无需重新发布小程序/APK/IPA；用户手册 `user_docs/商家PC后台优化.md`。
+
+### 涉及文件
+- 后端核心：`backend/app/api/merchant.py`（订单列表加 `attachment_count` 实计算 + `user_phone` + `payment_method_text` + `redemption_code`；新增 `_ensure_merchant_unified_order` + 3 个商家附件 API：GET 列表 / POST `/upload` multipart 上传 / DELETE 删除；常量 `ATTACH_MAX_SIZE=5MB / ATTACH_MAX_COUNT=9`）
+- 后端启动迁移：`backend/app/services/schema_sync.py`（新增 `_migrate_redeemed_to_completed` 幂等迁移函数 + 在 `sync_register_schema` 中注册调用）
+- 后端测试：`backend/tests/test_merchant_pc_optim_v1_1.py`（11 个 pytest 用例覆盖 F1/F4/F7）
+- h5-web 商家 PC：`src/app/merchant/orders/page.tsx`（14 态 statusMap + 6 项筛选下拉 + scroll-x 1700 + 左右固定列 + Antd Upload 改造 + 附件 List 卡片样式 + 行高加大 CSS）；`src/app/merchant/calendar/page.tsx`（dayjs 中文 locale + 自定义 headerRender 去年份 + STATUS_CONFIG 14 态化 + 当日卡片栅格 + 右侧 Drawer 400px + ESC 关闭）
+- h5-web 商家手机端：`src/app/merchant/m/mobile-lib.ts`（statusMap 14 态全覆盖 + 历史 redeemed/paid 防御映射）；`src/app/merchant/m/orders/page.tsx`（STATUS_TABS 改为 6 项常用态）；`src/app/merchant/m/orders/[id]/page.tsx`（STATUS_CONFIG 14 态全覆盖）；`src/app/merchant/m/reports/page.tsx`（statusColors/statusLabel 14 态映射）
+- 部署辅助：`deploy/_deploy_merchant_pc_optim_v1_1.py`（增量 SFTP 上传 + docker cp 后端 .py + docker compose restart backend + rebuild h5-web + URL 自检 + 容器内 pytest）
+- 用户手册：`user_docs/商家PC后台优化.md`
+
+### 关键技术点 / 注意事项
+- **状态文案口径权威源**：以 `backend/app/api/unified_orders.py::_STATUS_DISPLAY_MAP` 为后端权威，前端各端文案必须与用户端 `h5-web/src/app/unified-orders/page.tsx::STATUS_TEXT` 一致；新页面新组件不要新增"已支付/已核销"等老文案
+- **历史值兼容映射**：`redeemed → 已完成`、`paid → 待核销` 仅在前端 statusMap 中作为降级映射保留（防止历史缓存数据），筛选下拉/Tab 中**不暴露**；后端启动后所有存量 `redeemed` 已迁移为 `completed`
+- **附件存储位置**：服务器 `uploads/order_attachments/<order_id>_<uuid12>.<ext>`，挂载到宿主机 `uploads/` 目录（main.py 已 `app.mount('/uploads', StaticFiles(directory='uploads'))`），重建容器不丢失
+- **附件权限校验**：`_ensure_merchant_unified_order` 通过 `MerchantStoreMembership(user_id) → store_ids → ProductStore(store_id) → OrderItem(product_id)` 链路判定订单可访问性，避免越权
+- **附件上传流式校验**：`UploadFile.read(64KB)` 分块读入，累计 > 5MB 即立即关闭文件 + 删除磁盘文件 + 抛 400，避免大文件耗尽内存
+- **日历中文星期 hack**：Antd Calendar 在传入 `zhCN` locale 时仍可能保留英文缩写，使用 CSS `thead th::before { content: '周一'; }` + `font-size: 0` 隐藏原文本来强制中文化（兼容更彻底）
+- **日历 headerRender**：自定义后必须 `setCurrentMonth(next) + setSelectedDate(null)` 同步父级状态，否则切月后侧滑面板的日期会与新月份不一致
+- **Drawer ESC 关闭**：Antd Drawer 自带 `keyboard` prop 支持 ESC，但项目里另外加了 `useEffect + window.addEventListener('keydown')` 双保险
+- **redeemed 迁移容错**：MySQL ENUM 列若已不再包含 `redeemed` 值，`SELECT COUNT(*) WHERE status='redeemed'` 会报错，已 try/except 视为"已迁移完成"静默跳过
+
+### 部署产物
+- 后端 + h5-web：已 docker rebuild + recreate
+- 服务器 URL：`/`、`/admin/`、`/api/docs` 均 200；`/merchant/orders`、`/merchant/calendar`、`/merchant/m/orders`、`/merchant/m/login` 308 → 登录页 200
+- 用户手册：`user_docs/商家PC后台优化.md`
+- 本次未触及 miniprogram / flutter_app / admin-web，**无需重新发布小程序/APK/IPA**
+
+### 验证结果
+- 本地 pytest `test_merchant_pc_optim_v1_1.py`：11 passed in 7s
+- 本地回归 pytest（含支付配置 + 状态简化 + 上门服务 + book_after_pay + auto_progress + V2/V3）：75 passed
+- 服务器容器内 pytest（merchant_pc_optim_v1_1 + payment_config + status_simplification）：34 passed in 12s
+- URL 检测：`/api/docs` 200、`/admin/` 200、`/merchant/orders` 308、`/merchant/calendar` 308、`/merchant/m/orders` 308
+
+---
+
+## Previous Update: 支付配置（多端支付通道管理）PRD v1.0（已部署 + 0 Bug, 9/9 passed, 小程序 zip 已发布；APK/IPA 通过 GitHub Actions 构建）（2026-05-03 22:55）
 
 ### 一句话结论
 按 PRD「支付配置 v1.0」全面落地：1) 后端新增 `payment_channels` 表（4 个种子通道：`wechat_miniprogram`/`wechat_app`/`alipay_h5`/`alipay_app`，is_enabled=0），`orders` / `unified_orders` 各加 `payment_channel_code` + `payment_display_name` 两列，启动迁移自动建表 + 加列 + 种子；2) 新增 `backend/app/utils/crypto.py`（AES-256-GCM 加解密，密钥来自环境 `PAYMENT_CONFIG_ENCRYPTION_KEY` 或 32 字节 fallback；密文以 `ENC::AES256::` 前缀存储；带 `mask_value` / `mask_secret` 工具）；3) 新增 admin 接口集 `backend/app/api/payment_config.py`（list / get / update / toggle / test / default-notify-url，role=admin 鉴权）+ 公开接口 `backend/app/api/payment_methods.py`（GET `/api/pay/available-methods?platform=miniprogram|h5|app` 返 enabled+complete 通道，APP 端按微信→支付宝固定排序）；4) 完整性校验按通道字段规格自动计算 `is_complete`，未完整时拒绝启用（toggle 返回 400），test 接口在不完整时返回 400、完整时执行参数自检并打时间戳；5) 敏感字段写入加密、读取掩码（****+ 后4位），普通字段（AppID/MchID）也尾4位掩码降低泄露风险；6) `unified_orders.pay_unified_order` 接收可选 `channel_code`，校验通道 `is_enabled+is_complete`，未开通返回 `{"code":4001,"message":"该支付方式暂未开通..."}`，并把 `channel_code` + `display_name` 写入订单两列；订单详情接口返回 `payment_method_text`（格式 `{显示名}（{端名}）`，端名映射 wechat_miniprogram→小程序 / wechat_app→APP / alipay_h5→H5 / alipay_app→APP）；7) admin-web 新增「支付配置」一级菜单（仅 admin 可见，`CreditCardOutlined`），页面 4 Tab 平铺，每 Tab 含状态摘要卡（已启用/未启用 + 已完整/未完整）+ 字段视图（敏感字段掩码）+ 启用开关 + 测试连接 + 编辑按钮；编辑 Drawer 720px 含完整表单（私钥/证书 `Input.TextArea` + 「上传 .pem 文件」按钮 FileReader 回填）+ 显示名称必填 + 支付宝双 access_mode 单选切换 + notify_url 「还原默认」按钮；订单详情 Drawer 在「订单状态」前插入「支付方式（通道）」字段；8) h5-web / miniprogram / flutter_app 三端订单详情页统一在订单状态前显示 `payment_method_text`；9) 新增 `backend/tests/test_payment_config_v1.py` 9 个用例（4 条种子且全 disabled / 列表掩码 / 缺字段时 is_complete=0 / 完整时 is_complete=1 / 未完整时 toggle=true 返 400 / 完整时 toggle=true 成功 / AES-256-GCM 加解密往返一致 / available-methods?platform=app 仅返已启用且按微信→支付宝排序 / default-notify-url 含 base_url），本地 9/9 全通过、回归 22 passed、服务器容器内 9/9 全通过；10) 部署后三大容器全部 healthy，`/api/docs` 200 / `/admin/payment-config` 308（重定向登录页正常）/ `/admin/` 200；产物：小程序 zip `miniprogram_paymentconfig_20260503_225242_36e2.zip` (200, 已上传到 `static/miniprogram/`)、Android APK + iOS IPA 通过 `android-build.yml` / `ios-build.yml` 自动构建（tag `android-paymentconfig-v202605032257-b89b` / `ios-paymentconfig-v202605032257-b89b`）；用户手册 `user_docs/支付配置.md`。

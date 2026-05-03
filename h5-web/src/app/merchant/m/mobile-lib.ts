@@ -54,14 +54,26 @@ export function isWechatBrowser(): boolean {
   return /micromessenger/i.test(navigator.userAgent);
 }
 
-// 订单状态映射（与 PC 一致）
+// 订单状态映射（与用户端 unified-orders 完全一致，14 态全覆盖）
+// PRD「商家 PC 后台优化 v1.1」F1+F2：补齐 14 态映射 + 文案对齐用户端
+// 历史遗留 `redeemed` / `paid` 仅作为防御性降级映射，筛选器不暴露
 export const statusMap: Record<string, { text: string; color: string }> = {
-  pending_payment: { text: '待支付', color: '#faad14' },
-  paid: { text: '待核销', color: '#1677ff' },
-  redeemed: { text: '已核销', color: '#52c41a' },
-  cancelled: { text: '已取消', color: '#8c8c8c' },
-  refunded: { text: '已退款', color: '#ff4d4f' },
+  pending_payment: { text: '待付款', color: '#fa8c16' },
+  pending_shipment: { text: '待发货', color: '#1890ff' },
+  pending_receipt: { text: '待收货', color: '#13c2c2' },
+  pending_appointment: { text: '待预约', color: '#722ed1' },
+  appointed: { text: '待核销', color: '#13c2c2' },
+  pending_use: { text: '待核销', color: '#13c2c2' },
+  partial_used: { text: '部分核销', color: '#faad14' },
+  pending_review: { text: '待评价', color: '#eb2f96' },
   completed: { text: '已完成', color: '#52c41a' },
+  expired: { text: '已过期', color: '#8c8c8c' },
+  refunding: { text: '退款中', color: '#f5222d' },
+  refunded: { text: '已退款', color: '#8c8c8c' },
+  cancelled: { text: '已取消', color: '#8c8c8c' },
+  // 历史遗留兼容映射（不在筛选器中暴露）
+  redeemed: { text: '已完成', color: '#52c41a' },
+  paid: { text: '待核销', color: '#1677ff' },
 };
 
 // TabBar 项（按角色过滤）

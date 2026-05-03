@@ -49,22 +49,43 @@ export default function ReportsMobilePage() {
   const trend = data.trend || [];
   const maxTrend = Math.max(1, ...trend.map((t) => Number(t.amount) || 0));
 
+  // PRD「商家 PC 后台优化 v1.1」F1+F2：14 态映射
   const statusColors: Record<string, string> = {
-    paid: '#1677ff',
-    redeemed: '#52c41a',
-    cancelled: '#8c8c8c',
-    refunded: '#ff4d4f',
-    pending_payment: '#faad14',
+    pending_payment: '#fa8c16',
+    pending_shipment: '#1890ff',
+    pending_receipt: '#13c2c2',
+    pending_appointment: '#722ed1',
+    appointed: '#13c2c2',
+    pending_use: '#13c2c2',
+    partial_used: '#faad14',
+    pending_review: '#eb2f96',
     completed: '#52c41a',
+    expired: '#8c8c8c',
+    refunding: '#f5222d',
+    refunded: '#8c8c8c',
+    cancelled: '#8c8c8c',
+    // 历史兼容
+    redeemed: '#52c41a',
+    paid: '#1677ff',
   };
 
   const statusLabel: Record<string, string> = {
-    paid: '待核销',
-    redeemed: '已核销',
-    cancelled: '已取消',
-    refunded: '已退款',
-    pending_payment: '待支付',
+    pending_payment: '待付款',
+    pending_shipment: '待发货',
+    pending_receipt: '待收货',
+    pending_appointment: '待预约',
+    appointed: '待核销',
+    pending_use: '待核销',
+    partial_used: '部分核销',
+    pending_review: '待评价',
     completed: '已完成',
+    expired: '已过期',
+    refunding: '退款中',
+    refunded: '已退款',
+    cancelled: '已取消',
+    // 历史兼容
+    redeemed: '已完成',
+    paid: '待核销',
   };
 
   const totalStatus = (data.status_distribution || []).reduce((s, x) => s + (x.count || 0), 0) || 1;

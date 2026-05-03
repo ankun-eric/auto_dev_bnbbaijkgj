@@ -1892,6 +1892,45 @@ async def _sync_on_site_fulfillment(conn: AsyncConnection) -> None:
             pass
 
 
+async def _migrate_redeemed_to_completed(conn: AsyncConnection) -> None:
+    """[PRD 商家 PC 后台优化 v1.1 · F7] 一次性数据迁移：
+    所有 status='redeemed' 的订单刷为 'completed'。
+
+    背景：`redeemed` 是历史遗留状态，新代码不再写入。本迁移把存量
+    的 `redeemed` 订单一次性合并到 `completed`，保证商家端 / 用户端文案
+    一致（均显示「已完成」）。
+
+    幂等：重复执行（无 redeemed 订单）时为空操作。
+    """
+    def _check_table(sync_conn):
+        inspector = inspect(sync_conn)
+        return "unified_orders" in set(inspector.get_table_names())
+
+    has_table = await conn.run_sync(_check_table)
+    if not has_table:
+        return
+
+    # 检查 status 字段是否仍允许 'redeemed' 值（MySQL ENUM 检查）；
+    # 如果数据库中确实存在 redeemed 行，执行 UPDATE。
+    try:
+        cnt_res = await conn.execute(
+            text("SELECT COUNT(*) FROM unified_orders WHERE status = 'redeemed'")
+        )
+        cnt = cnt_res.scalar() or 0
+    except Exception:
+        # 若 MySQL ENUM 已不再包含 'redeemed'，查询会报错，视为已迁移完成
+        return
+
+    if cnt == 0:
+        return
+
+    await conn.execute(text(
+        "UPDATE unified_orders "
+        "SET status = 'completed', updated_at = NOW() "
+        "WHERE status = 'redeemed'"
+    ))
+
+
 async def _migrate_appointed_to_pending_use(conn: AsyncConnection) -> None:
     """[PRD 订单状态机简化方案 v1.0 · 第 5.4 节] 一刀切迁移：
     所有 status='appointed' 的订单刷为 'pending_use'。
@@ -2120,6 +2159,8 @@ async def sync_register_schema(conn: AsyncConnection) -> None:
     await _migrate_store_codes(conn)
     # [PRD 订单状态机简化方案 v1.0] 一刀切迁移所有 appointed → pending_use
     await _migrate_appointed_to_pending_use(conn)
+    # [PRD 商家 PC 后台优化 v1.1 · F7] 一次性数据迁移：redeemed → completed
+    await _migrate_redeemed_to_completed(conn)
     # [上门服务履约 PRD v1.0] on_site 履约类型 + 上门地址字段
     await _sync_on_site_fulfillment(conn)
     # [支付配置 PRD v1.0] payment_channels 表 + 4 条种子 + orders/unified_orders 加列
