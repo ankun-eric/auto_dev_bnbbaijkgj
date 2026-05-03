@@ -120,6 +120,7 @@ async def get_mall_item_detail(
 
     # 关联服务商品元数据（如用于详情页展示服务名/图）
     service_info = None
+    service_product = None
     sid = data["ref_service_id"] or _parse_legacy_ref(item.description or "", "ref_service_id")
     if data["type"] == "service" and sid:
         pr = (await db.execute(select(Product).where(Product.id == sid))).scalar_one_or_none()
@@ -131,10 +132,18 @@ async def get_mall_item_detail(
                 "image": pr_images[0] if pr_images else None,
                 "sale_price": float(pr.sale_price) if pr.sale_price is not None else None,
             }
+            service_product = {
+                "id": pr.id,
+                "name": pr.name,
+                "image": pr_images[0] if pr_images else None,
+                "price": float(pr.sale_price) if pr.sale_price is not None else None,
+            }
     data["service_info"] = service_info
+    data["service_product"] = service_product
 
     # 用户已兑换次数（用于 limit_per_user 判断）
     user_exchanged = 0
+    user_available = 0
     if current_user:
         cnt = await db.execute(
             select(func.count(PointExchangeRecord.id)).where(
@@ -144,21 +153,44 @@ async def get_mall_item_detail(
             )
         )
         user_exchanged = int(cnt.scalar() or 0)
-    data["user_exchanged"] = user_exchanged
+        try:
+            from app.api.points import compute_available_points
 
-    # 按钮 5 态（前端也可按字段自行判定，这里给出推荐态便于三端统一）
-    btn_state = "normal"
-    btn_text = f"立即兑换（消耗 {item.price_points} 积分）"
+            breakdown = await compute_available_points(db, current_user.id)
+            user_available = int(breakdown.get("available") or 0)
+        except Exception:  # noqa: BLE001
+            user_available = 0
+    data["user_exchanged"] = user_exchanged
+    data["user_exchanged_count"] = user_exchanged
+    data["user_available_points"] = user_available
+
+    # Bug Fix(2026-05-04): 按钮态判定逻辑统一
+    # 之前的 bug：默认 btn_state="normal"，但 H5 详情页把按钮 disabled 绑定到
+    # `buttonState !== 'exchangeable'`，导致正常情况按钮永远置灰、点击/长按完全无响应。
+    # 修复：把"可兑换"显式置为 'exchangeable'，并补齐 'insufficient'（积分不足）态，
+    # 与 H5 详情页/列表页/小程序统一。
+    price_points = int(item.price_points or 0)
+    limit_per_user = int(data.get("limit_per_user") or 0)
+    btn_state = "exchangeable"
+    btn_text = "立即兑换"
     if (item.status or "active") != "active":
         btn_state = "offline"
         btn_text = "已下架"
-    elif _goods_type_str(item) != "coupon" and int(item.stock or 0) == 0:
-        # stock=0 只对非 coupon 类型视为兑完（coupon 的真实库存由 Coupon.total_count 管）
+    elif _goods_type_str(item) not in ("coupon", "service") and int(item.stock or 0) == 0:
+        # stock=0 兑完判定：
+        #   - coupon 类型：真实库存由 Coupon.total_count - claimed_count 决定，PointsMallItem.stock 仅作 fallback
+        #   - service 类型：兑换接口 service 分支显式把 stock=0 视为无限（由服务本体管控），
+        #                 因此详情页也应保持一致，不能因为 stock=0 就置灰
+        #   - physical / virtual / third_party：stock=0 即兑完
         btn_state = "sold_out"
         btn_text = "已兑完"
-    elif data["limit_per_user"] and user_exchanged >= data["limit_per_user"]:
+    elif limit_per_user and user_exchanged >= limit_per_user:
         btn_state = "limit_reached"
         btn_text = "已达兑换上限"
+    elif current_user and user_available < price_points:
+        btn_state = "insufficient"
+        diff = max(0, price_points - user_available)
+        btn_text = f"积分不足，差 {diff} 分"
     data["button_state"] = btn_state
     data["button_text"] = btn_text
     return data

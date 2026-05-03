@@ -52,11 +52,27 @@ interface ProductDetail {
   user_exchanged_count?: number;
   button_state?:
     | 'exchangeable'
+    | 'normal'
     | 'offline'
     | 'sold_out'
     | 'limit_reached'
-    | 'insufficient';
+    | 'insufficient'
+    | 'not_enough'
+    | string;
   button_text?: string;
+}
+
+const DISABLED_REASON: Record<string, string> = {
+  offline: '商品已下架',
+  sold_out: '商品已兑完',
+  limit_reached: '已达兑换上限',
+  insufficient: '积分不足',
+  not_enough: '积分不足',
+};
+
+function isExchangeable(state?: string): boolean {
+  if (!state) return true;
+  return state === 'exchangeable' || state === 'normal';
 }
 
 const TYPE_BADGE: Record<string, { text: string; color: string }> = {
@@ -99,7 +115,27 @@ function PointsProductDetailInner() {
 
   const handleExchange = async () => {
     if (!item) return;
-    if (item.button_state !== 'exchangeable') return;
+    if (!isExchangeable(item.button_state)) {
+      // Bug Fix(2026-05-04): 灰色按钮也给反馈，不再"完全无响应"
+      const reason =
+        DISABLED_REASON[item.button_state || ''] ||
+        item.button_text ||
+        '当前不可兑换';
+      let content = reason;
+      if (
+        (item.button_state === 'insufficient' ||
+          item.button_state === 'not_enough') &&
+        typeof item.user_available_points === 'number'
+      ) {
+        const diff = Math.max(
+          0,
+          (item.price_points || 0) - (item.user_available_points || 0),
+        );
+        content = `积分不足，还差 ${diff} 分`;
+      }
+      Toast.show({ content });
+      return;
+    }
 
     const extraWarn =
       item.type === 'service' ? '\n\n⚠️ 兑换后 30 天内有效，过期作废，积分不退。' : '';
@@ -156,7 +192,9 @@ function PointsProductDetailInner() {
   const badge = TYPE_BADGE[item.type] || TYPE_BADGE.virtual;
   const buttonState = item.button_state || 'exchangeable';
   const buttonText = item.button_text || '立即兑换';
-  const disabled = buttonState !== 'exchangeable';
+  // Bug Fix(2026-05-04): 与列表页/小程序统一可兑换判定，兼容后端老的 'normal' 字段；
+  // 同时按钮**保留可点击**（disabled=false）以触发置灰原因 toast，避免"完全无响应"。
+  const exchangeable = isExchangeable(buttonState);
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
@@ -315,14 +353,13 @@ function PointsProductDetailInner() {
         <Button
           block
           loading={exchanging}
-          disabled={disabled}
           onClick={handleExchange}
           style={{
             height: 48,
             borderRadius: 10,
             fontSize: 16,
-            background: disabled ? '#e0e0e0' : '#4CAF50',
-            color: disabled ? '#999' : '#fff',
+            background: exchangeable ? '#4CAF50' : '#e0e0e0',
+            color: exchangeable ? '#fff' : '#999',
             border: 'none',
           }}
         >

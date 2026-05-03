@@ -33,7 +33,42 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 订单统计 12+7 状态对齐 & 履约方式中文化 — 安卓 APK 通过 GitHub Actions 重新打包并上传（2026-05-04 01:55）
+## Latest Update: 积分商城 H5 详情页"立即兑换"按钮置灰 Bug 修复（已部署 + 远程容器内 16/16 自动化测试全通过，仅后端+h5-web 改动，无需重新打包客户端）（2026-05-04 02:10）
+
+### 一句话结论
+彻底修复 H5 端 `/points/product-detail?id=xxx` 详情页底部「立即兑换」按钮**永远置灰、点击/长按完全无响应**的 P1 体验 Bug。**根因**：后端 `GET /api/points/mall/items/{id}` 的 `button_state` 默认初始值是 `"normal"`，而 H5 详情页（`h5-web/src/app/points/product-detail/page.tsx`）把按钮 `disabled` 严格绑定到 `button_state !== "exchangeable"` —— 后端永远不返回 `"exchangeable"` → 前端 disabled 永远为 true → 按钮永远灰、点击无响应。修复方案：1) **后端** `backend/app/api/points_exchange.py::get_mall_item_detail`：默认 `btn_state="exchangeable"`（不是 `"normal"`），新增 `"insufficient"`（积分不足）判定与文案 `"积分不足，差 X 分"`，新增 `user_available_points`/`user_exchanged_count`/`service_product` 三个响应字段（前端展示与判定兜底），service 类型 stock=0 不再误判 sold_out（与兑换接口实际行为一致）；2) **H5 详情页** `h5-web/src/app/points/product-detail/page.tsx`：`disabled` 改为根据"是否可兑换"动态判定，**兼容后端老/新两种字段值**（`"exchangeable"` ∪ `"normal"`），**灰色按钮保留 onClick** + 弹出 Toast 说明置灰原因（不再让用户摸不着头脑），积分不足时 Toast 文案"积分不足，还差 XX 分"；3) **测试**：新增 `backend/tests/test_points_mall_detail_button_state.py` **10 个 pytest-asyncio 用例**（默认态守护 / 积分够 exchangeable / 积分不足 insufficient / 下架 offline / 库存 0 sold_out / 限兑达上限 limit_reached / 优先级 / service_product 字段 / button_text 文案 / 字段完整性），容器内 10/10 + 列表页回归 6/6 = **16/16 全 PASS**；4) **部署**：`deploy/_deploy_points_mall_detail_button_fix.py` SFTP 上传 .py + .tsx → docker cp 后端文件并 restart backend → docker compose up -d --build h5-web → 容器内 pytest 全过 → 网关 H5 路由 308 + API 路由 401（路由全部可达）；5) **客户端无打包**：本次未触及 miniprogram / flutter_app / admin-web，无需重新发布小程序/APK/IPA/exe；6) **用户手册** `user_docs/积分商城详情页立即兑换按钮置灰修复.md`。
+
+### 涉及文件
+- 后端核心：`backend/app/api/points_exchange.py`（detail 接口默认态改为 exchangeable + 新增 insufficient + 补 user_available_points/user_exchanged_count/service_product 字段 + service stock=0 不视为 sold_out）
+- 后端测试：`backend/tests/test_points_mall_detail_button_state.py`（10 个用例守护 5 态 + 用户字段 + 优先级 + service 兜底）
+- h5-web：`h5-web/src/app/points/product-detail/page.tsx`（disabled 兼容双字段 + 灰按钮 onClick + Toast 反馈 + 类型补 'normal' 防御）
+- 部署辅助：`deploy/_deploy_points_mall_detail_button_fix.py` / `deploy/_install_pytest_and_run.py`
+- 用户手册：`user_docs/积分商城详情页立即兑换按钮置灰修复.md`
+
+### 关键技术点 / 注意事项
+- **字段口径必须前后端对齐**：后端默认 `button_state="normal"` + 前端 `disabled = state!=='exchangeable'` 是典型的"两侧各自约定，谁也没错但合在一起就是 bug"。修复采用"后端权威 + 前端兼容"双保险：后端正常情况显式返回 `"exchangeable"`，前端在判定函数 `isExchangeable` 中同时接受 `"exchangeable"` 与 `"normal"`（防御历史缓存或其他端旧实现）
+- **灰按钮必须有反馈**：`disabled=true` 的按钮在 Antd Mobile 中点击不会触发 onClick，本次改为**始终保留 onClick**（按钮始终可点）+ 内部判断 `isExchangeable(state)`，不可兑换时弹 Toast。这避免了"按钮没反应 = 页面坏了"的体验黑洞
+- **service 类型库存语义**：积分商城兑换接口对 service 类型显式 `stock=0 视为无限`（由服务本体管控并发），但详情按钮判定原本写死 `type != 'coupon' and stock == 0 → sold_out`，导致 service stock=0 被误判已兑完。修复后统一为 `type not in ('coupon', 'service') and stock == 0`
+- **pytest 在 backend 容器内默认未装**：生产镜像出于体积考虑只装运行依赖，需通过 `pip install --no-cache-dir pytest pytest-asyncio httpx aiosqlite` 临时装入容器才能跑测试。`deploy/_install_pytest_and_run.py` 封装了"检测 → 安装 → 跑测"三步可重入流程
+- **PointExchangeRecord 字段对齐**：测试 seed 数据时字段名易踩坑——`points_cost`（不是 `points_used`）、`exchange_time`（不是 `created_at`）、`goods_type`/`goods_name` 是 NOT NULL，`order_no` UNIQUE 必须随机
+- **可用积分计算复用**：详情接口通过 `from app.api.points import compute_available_points` 复用与 `/api/points/summary` 完全一致的口径（累计获得 - 已消耗 - 已过期 - 已冻结），保证"详情页显示的可用积分"与"我的积分页"绝对一致
+- **未来扩展**：如新增"前置条件未满足"（未实名 / 未绑定 / 未填地址）等拦截，应在统一的 `isExchangeable` 判定中扩展 reason 类型，并保持详情页和列表页公用一份字典
+
+### 部署产物
+- 后端 + h5-web：已 docker compose build + recreate（基于服务器 commit 6865bb6 + 本次增量）
+- 服务器 URL：`/points/mall` 308（登录守卫）、`/points/product-detail?id=1` 308（登录守卫）、`/api/points/mall/items/1` 401（路由可达，需登录）、`/api/points/mall` 401
+- 用户手册：`user_docs/积分商城详情页立即兑换按钮置灰修复.md`
+- 本次未触及 miniprogram / verify-miniprogram / flutter_app / admin-web，**无需重新发布小程序/APK/IPA/exe**
+
+### 验证结果
+- 本地 pytest（新增 10 用例 + 列表页回归 6 用例）：16 passed in 12.50s
+- 远程容器内 pytest（同一组用例）：**16 passed in 11.26s**
+- 网关四个路由检查：H5 list 308 / H5 detail 308 / API list 401 / API detail 401（全部可达）
+- 修复关键回归用例 `test_detail_default_state_is_exchangeable_not_normal` PASS：守护后端永不再返回 `"normal"` 默认值，防止 bug 再次回退
+
+---
+
+## Previous Update: 订单统计 12+7 状态对齐 & 履约方式中文化 — 安卓 APK 通过 GitHub Actions 重新打包并上传（2026-05-04 01:55）
 
 ### 一句话结论
 本次为对历史 commit `5c31611` (`fix: 订单统计页 12+7 状态对齐 & 全端履约方式中文化`) 的**末端补齐**：由于之前本地构建尝试因 Kotlin Gradle Plugin 版本兼容失败（参见 `apk_check5.txt`/`apk_err.txt`），导致 `static/apk/` 目录中本批次修复对应的 APK 缺失。本次通过 GitHub Actions Workflow `android-build.yml` 在 `master` 分支（HEAD `8ffe46b`）上远程构建 `runs-on: ubuntu-latest`，run id `25286180037`，conclusion success，耗时约 12 分钟。从 GitHub Release `android-orderstat-fulfillment-v20260504-014202-3a07` 下载 APK（80 MB）后通过 SFTP 上传到服务器 `/home/ubuntu/6b099ed3.../static/apk/app_orderstat_fulfillment_20260504_014200_3a07.apk`，并通过 nginx 网关 `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/apk/app_orderstat_fulfillment_20260504_014200_3a07.apk` 验证 HTTP 200 + content-type=application/vnd.android.package-archive；用户手册另出 `user_docs/订单统计状态对齐_履约方式中文化_使用手册.md`，包含手册开头/末尾两次访问链接表格 + 安卓体验章节 + 履约方式中文映射表 + 12 状态卡片业务流程顺序 + 7 退款状态卡片清单 + 后端 API 验证示例 + 18/18 自动化测试结论。
