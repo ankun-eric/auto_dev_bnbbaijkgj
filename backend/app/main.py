@@ -1018,6 +1018,17 @@ app.include_router(payment_methods.router)
 # [2026-05-04 订单系统增强 PRD v1.0] 营业时间/并发上限/时段切片/红点/列表附件元信息
 app.include_router(order_enhancement.router)
 
+# [2026-05-05 SDK 健康看板] 后台 SDK 健康检查接口
+from app.api import admin_sdk_health as _admin_sdk_health  # noqa: E402
+app.include_router(_admin_sdk_health.router)
+
+
+# [2026-05-05 SDK 健康看板] 启动期 SDK 分级自检：核心缺失 → 容器退出；可选缺失 → CRITICAL 告警
+@app.on_event("startup")
+async def _sdk_health_startup_check() -> None:
+    from app.core.sdk_health import run_startup_sdk_check
+    run_startup_sdk_check()
+
 
 # [Bug 修复] 启动期自检：路由挂载 + 加密密钥环境变量
 @app.on_event("startup")

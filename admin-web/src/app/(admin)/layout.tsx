@@ -210,6 +210,8 @@ const menuItems: MenuItem[] = [
       { key: '/map-config', label: '地图配置' },
       { key: '/audit/phones', label: '审核手机号配置' },
       { key: '/audit/center', label: '审核中心' },
+      // [2026-05-05 SDK 健康看板] 环境健康检查（运维侧 SDK 红绿灯）
+      { key: '/system/sdk-health', label: '环境健康检查' },
     ],
   },
 ];

@@ -14,6 +14,7 @@ import {
   UploadOutlined,
 } from '@ant-design/icons';
 import { get, put, patch, post } from '@/lib/api';
+import SdkHealthCard from '@/components/SdkHealthCard';
 
 const { Title, Paragraph, Text } = Typography;
 const { TextArea } = Input;
@@ -430,6 +431,8 @@ export default function PaymentConfigPage() {
       <Title level={4} style={{ marginBottom: 16 }}>
         <CreditCardOutlined /> 支付配置
       </Title>
+      {/* [2026-05-05 SDK 健康看板] 顶部支付 SDK 红绿灯卡片 */}
+      <SdkHealthCard group="payment" title="支付环境自检" scopeLabel="支付" />
       <Paragraph type="secondary">
         集中管理 4 个支付通道（微信小程序 / 微信APP / 支付宝H5 / 支付宝APP）。所有敏感字段以
         AES-256-GCM 加密存储；测试连接通过且已启用的通道才会在 C 端展示。
