@@ -33,7 +33,34 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 订单「联系商家」电话不显示 Bug 修复 v1.0（后端订单响应透传 store_id + 公开门店 contact 接口电话兜底 owner 手机号 + H5 ContactStoreModal storeId 缺失 warn 日志 + 4 用例全绿，远程实测公开门店 contact 接口直接返回真实电话 13719036399）（2026-05-04 24:02）
+## Latest Update: H5 优惠券抵扣 0 元下单 Bug 修复 v1.2 — MultipleResultsFound 容错（推翻 v1.1 R3 判断，定位真因 R4 = scalar_one_or_none + user_coupons 脏数据，改用 .scalars().first() + ORDER BY id ASC，新增 3 用例 + 既有 12 用例全绿 = 15/15 PASS，服务器实测 R4 真实脏数据场景从 500 变为业务 400）（2026-05-05 00:30）
+
+### 一句话结论
+按 `cursor_prompt_320_20260505002153.txt` Bug 修复方案 v1.2 接续 v1.1 部署：**实测推翻 v1.1 的 95% R3 判断**——服务器侧 SHOW COLUMNS 显示 `unified_orders.payment_method` ENUM 列在 v2.2（`cb7d53f`）就已通过 `schema_sync._sync_payment_config` 启动钩子扩容到 `enum('wechat','alipay','points','coupon_deduction','balance')`，**R3 不是问题**。从 backend 容器最新日志中拽到完整 traceback，**真因 R4 = `backend/app/api/unified_orders.py:551 user_coupon = uc_result.scalar_one_or_none()` 在用户对同一张券持有多张 unused 记录时抛 `sqlalchemy.exc.MultipleResultsFound` → 未捕获 → 500**；现场数据：`user_id=2 + coupon_id=3` 在 `user_coupons` 有 3 条 unused（id=4/16/17）。修复：**1) `unified_orders.py:541-580 / 995-1015`** 把两处 `scalar_one_or_none()` 改为 `.scalars().first() + .order_by(UserCoupon.id.asc())`，校验/核销保持同一排序口径（最早领的优先），多条命中时 `logging.warning` 记录脏数据；**2) `coupons.py:176-188`** 同步把领取重复检查改为 `.scalars().first()`，脏数据不再 500，正常返 409 Conflict；**3) MySQL 兼容性踩坑** — 最初想用 `expire_at.asc().nullslast()`，远程实测报 1064 SQL syntax error（NULLS LAST 是 PG 语法），改为仅按 `id ASC`；**4) 新增专项测试** `backend/tests/test_h5_zero_order_dup_coupon_r4_v12.py` 共 3 用例：R4-A 多条 unused 不再 500、R4-B 仅核销最早领的那张其余保持 unused、R4-C 重复领取返 409 不返 500。**远程容器 pytest 实测 R4 新 3/3 + 既有 H5 0 元单 v1.0 5/5 + V2.2 7/7 = 15/15 PASS**。**5) 部署** 上传 + `docker cp` 进容器即时验证修复 → `git push origin master` (`111e2bd..764436c`) → 服务器 `git fetch + reset --hard origin/master + docker compose -f docker-compose.prod.yml build backend + up -d --no-deps backend` 重建镜像，新容器内确认含 v1.2 注释与 `order_by(UserCoupon.id.asc())`。**6) 端到端实测** 用 user_id=2 + coupon_id=3 真实脏数据触发：从修复前的 `500 Internal Server Error + Traceback MultipleResultsFound` 变为 `400 Bad Request {"detail":"预约类商品必须选择预约时间"}`（业务校验，正常），**Exception 彻底消失**。**7) 多端零变更** — 仅 backend 改动，**H5 / 小程序 / Flutter / 后台四端代码本期未动**，已部署的客户端无需重新发版即可受益（修复在服务端容错层）。**8) 用户手册** `user_docs/H5优惠券抵扣零元单失败_R4容错修复_用户体验手册.md`（含访问链接表 / 修复矩阵 / R3 vs R4 现场判断对比 / 用户复测三场景 / MySQL 兼容性踩坑提醒 / 数据脏数据后续清理建议 SQL / 故障回滚预案）。
+
+### 涉及文件
+- 后端 API：`backend/app/api/unified_orders.py`（541-580 校验段 + 995-1015 核销段，两处 `scalar_one_or_none()` → `.scalars().first() + order_by(UserCoupon.id.asc())`，多条命中打 warning）
+- 后端 API：`backend/app/api/coupons.py`（176-188 领取重复检查 `scalar_one_or_none()` → `.scalars().first()`，脏数据返 409 而非 500）
+- 后端测试（新增）：`backend/tests/test_h5_zero_order_dup_coupon_r4_v12.py`（R4-A / R4-B / R4-C 共 3 用例 全绿）
+- 部署辅助（新增，已 .gitignore）：`deploy/_ssh_run.py`、`deploy/_ssh_put.py`、`deploy/_remote_*.sh`（paramiko SFTP/SSH + 远程 enum 验证 + traceback 抓取 + e2e 模拟 + 完整重部署）
+- 用户手册（新增）：`user_docs/H5优惠券抵扣零元单失败_R4容错修复_用户体验手册.md`
+
+### 验收要点
+- ✅ `SHOW COLUMNS unified_orders.payment_method` 显示 ENUM 已含 coupon_deduction/balance（v2.2 起就生效），证明 v1.1 怀疑的 R3 不是问题
+- ✅ 容器 backend 日志 traceback 锁定 R4 = `unified_orders.py:551 scalar_one_or_none()` + `MultipleResultsFound`
+- ✅ DB 实测发现 user_id=2 + coupon_id=3 有 3 条 unused 记录（id=4/16/17），完美复现 R4
+- ✅ 修复后两处查询均改为 `.scalars().first() + order_by(id ASC)`，MySQL 兼容（不用 NULLS LAST）
+- ✅ 多条命中时 `logging.warning("[unified_orders] duplicate user_coupons detected: ...")`，便于后续脏数据清洗
+- ✅ R4-A / R4-B / R4-C 新增 3 用例全 PASS（容器内 pytest 实测）
+- ✅ 既有 H5 0 元单 5 + V2.2 7 = 12 用例全部回归通过，无破坏性
+- ✅ 服务器 `git fetch + reset --hard origin/master + docker compose build backend + up -d --no-deps backend` 完成镜像重建，HEAD=`764436c`
+- ✅ 4 个容器全部 Up（backend / h5 / db healthy / admin），健康检查 200
+- ✅ 真实脏数据 e2e：从 500 变为业务 400「预约类商品必须选择预约时间」，无 Exception
+- ✅ 仅 backend 改动，H5 / 小程序 / Flutter / 后台四端无需重新打包
+
+---
+
+## Previous Update: 订单「联系商家」电话不显示 Bug 修复 v1.0（后端订单响应透传 store_id + 公开门店 contact 接口电话兜底 owner 手机号 + H5 ContactStoreModal storeId 缺失 warn 日志 + 4 用例全绿，远程实测公开门店 contact 接口直接返回真实电话 13719036399）（2026-05-04 24:02）
 
 ### 一句话结论
 按 `cursor_prompt_319_20260504235038.txt` Bug 修复方案 v1.0 一次性修掉「联系商家」弹窗电话恒空 P0 Bug：根因是 `UnifiedOrderResponse` 漏 `store_id` 字段，H5/小程序/Flutter 三端 ContactStoreModal 拿到 storeId=null 直接 return 不发起 `/api/stores/{id}/contact` 请求 — 整个链路在前端就被静默断开了，门店再怎么填手机号都没用。**1) 后端 schema 修复** `backend/app/schemas/unified_orders.py · UnifiedOrderResponse` 新增 `store_id: Optional[int]`；**2) 响应构造器透传** `backend/app/api/unified_orders.py · _build_order_response` 主动写入 `resp.store_id = order.store_id`（订单详情/列表通用）；**3) 公开 contact 接口加电话兜底** `backend/app/api/stores_public.py · GET /api/stores/{store_id}/contact` 当 `store.contact_phone` 为空时，降级查询门店 owner 角色（MerchantStoreMembership.member_role == owner，status='active'）成员的注册手机号，避免历史脏数据/商家忘填场景下完全空白；**4) 前端可观测** `h5-web/src/app/orders/components/ContactStoreModal.tsx` 在 `visible && !storeId` 分支补 `console.warn('[ContactStoreModal] storeId 缺失...')` 日志，方便以后类似"字段透传遗漏"快速定位；**5) 测试** 新增 `backend/tests/test_contact_store_storeid_bugfix.py` 4 用例：订单详情含 store_id / 订单列表每项含 store_id / contact 接口降级 owner 手机号 / 既无电话又无 owner 时优雅返回 null。**远程容器实测 4/4 PASS（2.28s）**。**6) 部署** `_redeploy_and_test.py` SFTP 上传 4 个文件 → docker cp 进 backend 容器 → restart → urllib 健康探活 → docker compose build --no-cache h5-web → up → 网关重连项目网络 → nginx reload；**端到端实测**：API health 200 / orders/unified 401（路由通缺 token 符合预期） / H5 首页 200 / unified-orders 308 / **`/api/stores/1/contact` 直接返回 `{store_id:1, contact_phone:"13719036399"}` 真实门店电话**。**7) 多端联动** — 仅后端 + H5 改动，但因为根因在后端响应模型，**微信小程序 / Flutter App 两端无需改动即自动受益**（它们都是从 `order.store_id`→`/api/stores/{id}/contact` 这条链路取号）。**8) 用户手册** `user_docs/订单联系商家电话不显示Bug修复_用户体验手册_20260504.md`（一句话结论 + 修复内容 + 部署验证 + 用户视角验证步骤 + 变更清单 + 风险与回滚）。
