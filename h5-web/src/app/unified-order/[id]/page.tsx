@@ -7,6 +7,7 @@ import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 import { fulfillmentLabel } from '@/utils/fulfillmentLabel';
 import { redirectToPayUrl } from '@/lib/basePath';
+import ContactStoreModal from '@/app/orders/components/ContactStoreModal';
 
 interface OrderItem {
   id: number;
@@ -52,6 +53,13 @@ interface OrderDetail {
   cancelled_at: string | null;
   cancel_reason: string | null;
   store_name: string | null;
+  // [核销订单过期+改期规则优化 v1.0]
+  reschedule_count?: number;
+  reschedule_limit?: number;
+  allow_reschedule?: boolean;
+  action_buttons?: string[];
+  badges?: string[];
+  store_id?: number | null;
 }
 
 const STATUS_TEXT: Record<string, string> = {
@@ -103,6 +111,8 @@ export default function UnifiedOrderDetailPage() {
   const [apptSlot, setApptSlot] = useState<string>('');
   const [apptItemId, setApptItemId] = useState<number | null>(null);
   const [apptSubmitting, setApptSubmitting] = useState(false);
+  // [核销订单过期+改期规则优化 v1.0]「联系商家」弹窗
+  const [contactVisible, setContactVisible] = useState(false);
 
   const fetchOrder = () => {
     api.get(`/api/orders/unified/${orderId}`).then((res: any) => {
@@ -688,12 +698,29 @@ export default function UnifiedOrderDetailPage() {
           order.status === 'appointed' ||
           order.status === 'partial_used') &&
           order.refund_status === 'none' && (
-          <Button
-            onClick={openAppointmentPopup}
-            style={{ borderRadius: 20, height: 40, fontSize: 14 }}
-          >
-            修改预约
-          </Button>
+          (() => {
+            // [核销订单过期+改期规则优化 v1.0] 已达改期上限：置灰
+            const blocked = (order.reschedule_count ?? 0) >= (order.reschedule_limit ?? 3);
+            if (blocked) {
+              return (
+                <Button
+                  disabled
+                  onClick={() => Toast.show({ content: '本订单已达改期上限' })}
+                  style={{ borderRadius: 20, height: 40, fontSize: 14, color: '#bfbfbf', borderColor: '#d9d9d9' }}
+                >
+                  改约（已无法改期）
+                </Button>
+              );
+            }
+            return (
+              <Button
+                onClick={openAppointmentPopup}
+                style={{ borderRadius: 20, height: 40, fontSize: 14 }}
+              >
+                改约
+              </Button>
+            );
+          })()
         )}
         {['pending_shipment', 'pending_receipt', 'pending_use', 'appointed'].includes(order.status) && (order.refund_status === 'none' || order.refund_status === 'rejected') && (
           <Button
@@ -703,6 +730,13 @@ export default function UnifiedOrderDetailPage() {
             申请退款
           </Button>
         )}
+        {/* [核销订单过期+改期规则优化 v1.0] 联系商家：所有状态均展示 */}
+        <Button
+          onClick={() => setContactVisible(true)}
+          style={{ borderRadius: 20, height: 40, fontSize: 14 }}
+        >
+          联系商家
+        </Button>
         {['pending_shipment', 'pending_receipt', 'pending_use', 'appointed'].includes(order.status) && order.refund_status === 'applied' && (
           <Button
             onClick={handleWithdrawRefund}
@@ -774,6 +808,13 @@ export default function UnifiedOrderDetailPage() {
         precision="day"
         value={apptDate || undefined}
         onConfirm={(d) => { setApptDate(d); setShowDatePicker(false); }}
+      />
+
+      <ContactStoreModal
+        visible={contactVisible}
+        storeId={order?.store_id ?? null}
+        fallbackStoreName={order?.store_name ?? null}
+        onClose={() => setContactVisible(false)}
       />
     </div>
   );

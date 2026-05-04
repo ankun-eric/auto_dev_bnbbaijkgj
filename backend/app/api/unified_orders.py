@@ -189,6 +189,9 @@ def _action_buttons_for(order) -> list[str]:
         btns += ["rebuy"]
     elif s in ("refunding",):
         btns += ["view_refund"]
+    # [核销订单过期+改期规则优化 v1.0] 所有状态下「联系商家」按钮始终展示
+    if "contact_store" not in btns:
+        btns.append("contact_store")
     return btns
 
 
@@ -326,6 +329,27 @@ def _build_order_response(order) -> UnifiedOrderResponse:
                 resp.action_buttons.append("view_review")
     # [支付配置 PRD v1.0] payment_method_text
     resp.payment_method_text = _build_payment_method_text(order)
+
+    # [核销订单过期+改期规则优化 v1.0] reschedule_count/limit + allow_reschedule
+    resp.reschedule_count = int(getattr(order, "reschedule_count", 0) or 0)
+    resp.reschedule_limit = int(getattr(order, "reschedule_limit", 3) or 3)
+    # allow_reschedule 取自关联商品；若任一商品禁止改期，则整单视为不允许
+    try:
+        prods_allow: list[bool] = []
+        for it in (order.items or []):
+            prod = getattr(it, "product", None)
+            if prod is not None:
+                v = getattr(prod, "allow_reschedule", True)
+                prods_allow.append(True if v is None else bool(v))
+        resp.allow_reschedule = (all(prods_allow) if prods_allow else True)
+    except Exception:  # noqa: BLE001
+        resp.allow_reschedule = True
+
+    # [核销订单过期+改期规则优化 v1.0] 已改期 ≥ 上限：把 modify_appointment 按钮改为占位并附 reschedule_block badge
+    if resp.reschedule_count >= resp.reschedule_limit and "modify_appointment" in resp.action_buttons:
+        # 保持按钮位置（前端置灰），但添加一个 badge 让前端识别
+        if "reschedule_blocked" not in resp.badges:
+            resp.badges.append("reschedule_blocked")
     return resp
 
 
@@ -1623,6 +1647,14 @@ async def set_order_appointment(
     if cur not in ("pending_appointment", "appointed", "pending_use"):
         raise HTTPException(status_code=400, detail="该订单当前状态不允许预约")
 
+    # [核销订单过期+改期规则优化 v1.0] 改期上限校验
+    # 仅当订单已经有过预约时间（修改预约 = 改约）才计入。首次填预约日不消耗改期次数。
+    has_existing_appt = any(getattr(it, "appointment_time", None) for it in (order.items or []))
+    rcount = int(getattr(order, "reschedule_count", 0) or 0)
+    rlimit = int(getattr(order, "reschedule_limit", 3) or 3)
+    if has_existing_appt and rcount >= rlimit:
+        raise HTTPException(status_code=400, detail="本订单已达改期上限")
+
     # 退款进行中不允许调整预约日
     refund_val = order.refund_status
     if hasattr(refund_val, "value"):
@@ -1647,6 +1679,10 @@ async def set_order_appointment(
             it.appointment_data = data.appointment_data
         it.updated_at = datetime.utcnow()
 
+    # [核销订单过期+改期规则优化 v1.0] 改约（已有过预约时间） → reschedule_count + 1
+    if has_existing_appt:
+        order.reschedule_count = rcount + 1
+
     # 关键变化：直接进入 pending_use（立即出码），跳过 appointed
     order.status = UnifiedOrderStatus.pending_use
     order.updated_at = datetime.utcnow()
@@ -1654,6 +1690,8 @@ async def set_order_appointment(
         "message": "预约已确认",
         "status": "pending_use",
         "appointment_time": data.appointment_time.isoformat(),
+        "reschedule_count": int(getattr(order, "reschedule_count", 0) or 0),
+        "reschedule_limit": int(getattr(order, "reschedule_limit", 3) or 3),
     }
 
 
@@ -1844,6 +1882,12 @@ async def request_refund(
         status_val = status_val.value
     if status_val in ("cancelled",):
         raise HTTPException(status_code=400, detail="已取消的订单无法申请退款")
+    # [核销订单过期+改期规则优化 v1.0] 已过期订单一律不可退款
+    if status_val == "expired":
+        raise HTTPException(status_code=400, detail="已过期的订单无法申请退款")
+    # 已完成 / 已退款 等终态也不允许重复退款
+    if status_val in ("completed", "refunded"):
+        raise HTTPException(status_code=400, detail="该订单当前状态不允许申请退款")
 
     refund_amount = data.refund_amount or float(order.paid_amount)
 

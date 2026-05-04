@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Tabs, Card, Tag, Image, Button, Empty, SpinLoading, InfiniteScroll, Toast, Dialog, Badge } from 'antd-mobile';
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
+import ContactStoreModal from '@/app/orders/components/ContactStoreModal';
 
 interface OrderItem {
   id: number;
@@ -41,6 +42,12 @@ interface Order {
   // PRD F-05/F-07：售后逻辑状态
   aftersales_logical_status?: string;
   aftersales_logical_label?: string;
+  // [核销订单过期+改期规则优化 v1.0] 改期次数 + 商家联系入口
+  reschedule_count?: number;
+  reschedule_limit?: number;
+  allow_reschedule?: boolean;
+  store_id?: number | null;
+  store_name?: string | null;
 }
 
 // PRD「我的订单与售后状态体系优化」：客户端 5 Tab + 全部
@@ -117,6 +124,8 @@ function UnifiedOrdersPage() {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
+  // [核销订单过期+改期规则优化 v1.0]「联系商家」弹窗
+  const [contactOrder, setContactOrder] = useState<Order | null>(null);
 
   const fetchOrders = useCallback(async (pageNum: number, reset = false) => {
     try {
@@ -273,14 +282,35 @@ function UnifiedOrdersPage() {
       );
     }
     if (btns.includes('modify_appointment')) {
-      items.push(
-        <Button
-          key="modify_appt"
-          size="mini"
-          onClick={(e) => { e.stopPropagation(); router.push(`/unified-order/${order.id}?action=appointment`); }}
-          style={{ borderRadius: 16, fontSize: 12 }}
-        >修改预约</Button>
-      );
+      // [核销订单过期+改期规则优化 v1.0] 已达改期上限：按钮置灰 + Toast 提示
+      const blocked =
+        (order.reschedule_count ?? 0) >= (order.reschedule_limit ?? 3) ||
+        (order.badges || []).includes('reschedule_blocked');
+      if (blocked) {
+        items.push(
+          <Button
+            key="modify_appt_blocked"
+            size="mini"
+            disabled
+            onClick={(e) => {
+              e.stopPropagation();
+              Toast.show({ content: '本订单已达改期上限' });
+            }}
+            style={{ borderRadius: 16, fontSize: 12, color: '#bfbfbf', borderColor: '#d9d9d9' }}
+          >
+            改约（已无法改期）
+          </Button>
+        );
+      } else {
+        items.push(
+          <Button
+            key="modify_appt"
+            size="mini"
+            onClick={(e) => { e.stopPropagation(); router.push(`/unified-order/${order.id}?action=appointment`); }}
+            style={{ borderRadius: 16, fontSize: 12 }}
+          >改约</Button>
+        );
+      }
     }
     if (btns.includes('apply_refund')) {
       items.push(
@@ -371,6 +401,17 @@ function UnifiedOrdersPage() {
           onClick={(e) => { e.stopPropagation(); router.push(`/unified-order/${order.id}?action=rebuy`); }}
           style={{ borderRadius: 16, fontSize: 12 }}
         >再来一单</Button>
+      );
+    }
+    // [核销订单过期+改期规则优化 v1.0] 所有状态下「联系商家」按钮始终展示
+    if (btns.includes('contact_store')) {
+      items.push(
+        <Button
+          key="contact_store"
+          size="mini"
+          onClick={(e) => { e.stopPropagation(); setContactOrder(order); }}
+          style={{ borderRadius: 16, fontSize: 12 }}
+        >联系商家</Button>
       );
     }
     if (items.length === 0) return null;
@@ -509,6 +550,13 @@ function UnifiedOrdersPage() {
           <InfiniteScroll loadMore={loadMore} hasMore={hasMore} />
         )}
       </div>
+
+      <ContactStoreModal
+        visible={!!contactOrder}
+        storeId={contactOrder?.store_id ?? null}
+        fallbackStoreName={contactOrder?.store_name ?? null}
+        onClose={() => setContactOrder(null)}
+      />
     </div>
   );
 }

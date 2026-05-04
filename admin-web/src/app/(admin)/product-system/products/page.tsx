@@ -66,6 +66,8 @@ interface Product {
   selling_point?: string;
   description_rich?: string;
   marketing_badges?: string[];
+  // [核销订单过期+改期规则优化 v1.0] 是否允许用户错过预约后改期（默认 true）
+  allow_reschedule?: boolean;
   skus?: ProductSku[];
   created_at: string;
   updated_at: string;
@@ -136,6 +138,7 @@ function mapProduct(raw: Record<string, any>): Product {
     marketing_badges: Array.isArray(raw.marketing_badges)
       ? raw.marketing_badges.map(String).filter((b: string) => ['limited', 'hot', 'new', 'recommend'].includes(b))
       : [],
+    allow_reschedule: raw.allow_reschedule === false ? false : true,
     skus: Array.isArray(raw.skus) ? raw.skus.map((s: any) => ({
       id: s.id,
       spec_name: String(s.spec_name ?? ''),
@@ -625,6 +628,8 @@ export default function ProductsPage() {
       points_deductible: false,
       spec_mode: 1,
       include_today: true,
+      // [核销订单过期+改期规则优化 v1.0] 默认允许改期
+      allow_reschedule: true,
     });
     setModalVisible(true);
   };
@@ -667,6 +672,7 @@ export default function ProductsPage() {
       sort_order: detail.sort_order,
       spec_mode: detail.spec_mode ?? 1,
       marketing_badges: Array.isArray(detail.marketing_badges) ? detail.marketing_badges : [],
+      allow_reschedule: detail.allow_reschedule === false ? false : true,
     });
     setProductCodes(detail.product_code_list || []);
     setSpecMode(detail.spec_mode ?? 1);
@@ -946,6 +952,8 @@ export default function ProductsPage() {
       status: publish ? 'active' : (values.status || 'draft'),
       sort_order: values.sort_order ?? 0,
       marketing_badges: Array.isArray(values.marketing_badges) ? values.marketing_badges : [],
+      // [核销订单过期+改期规则优化 v1.0] 是否允许改期（默认 true）
+      allow_reschedule: values.allow_reschedule === false ? false : true,
     };
 
     try {
@@ -1408,6 +1416,26 @@ export default function ProductsPage() {
 
         {/* ── 预约与核销 Tab ── */}
         <div style={tabStyle('appointment')}>
+          {/* [核销订单过期+改期规则优化 v1.0] 是否允许改期 */}
+          <Form.Item
+            shouldUpdate={(prev, cur) => prev.allow_reschedule !== cur.allow_reschedule}
+            noStyle
+          >
+            {() => {
+              const allow = form.getFieldValue('allow_reschedule');
+              const allowed = allow === false ? false : true;
+              const helper = allowed
+                ? '用户错过预约时段后，可在 App 内自助改约（最多 3 次），不会立即过期'
+                : '错过预约时段后订单立即过期，不可改约、不可退款（适用于电影票/演出票等定时商品）';
+              return (
+                <Form.Item label="允许用户改期" extra={helper}>
+                  <Form.Item name="allow_reschedule" valuePropName="checked" noStyle>
+                    <Switch />
+                  </Form.Item>
+                </Form.Item>
+              );
+            }}
+          </Form.Item>
           <Row gutter={16}>
             <Col span={8}>
               <Form.Item label="核销次数" name="redeem_count"><InputNumber min={1} style={{ width: '100%' }} /></Form.Item>

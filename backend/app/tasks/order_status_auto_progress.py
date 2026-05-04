@@ -29,6 +29,7 @@ from app.models.models import (
     NotificationLog,
     NotificationType,
     OrderItem,
+    Product,
     UnifiedOrder,
     UnifiedOrderStatus,
 )
@@ -70,10 +71,22 @@ async def run_r2_flip_back_to_appointment(session: Optional[AsyncSession] = None
 
 
 async def _do_r2(session: AsyncSession) -> int:
+    """[核销订单过期+改期规则优化 v1.0] 错过预约时段处理。
+
+    PRD 规则（替代旧的"次日全部退回 pending_appointment"逻辑）：
+      1) 商品 allow_reschedule=false → 转 expired
+      2) 商品 allow_reschedule=true 且 reschedule_count <  reschedule_limit
+         → 保持 pending_use，reschedule_count + 1，清空 appointment_time
+      3) 商品 allow_reschedule=true 且 reschedule_count >= reschedule_limit
+         → 转 expired
+
+    触发条件：status=pending_use 且 任一 OrderItem.appointment_time < 今天 00:00 且 未核销。
+    多商品订单：取所有关联商品 allow_reschedule 的「与」（任一禁止改期则按禁止处理）。
+    """
     today_start = datetime.combine(datetime.utcnow().date(), dtime(0, 0, 0))
     rows = await session.execute(
         select(UnifiedOrder)
-        .options(selectinload(UnifiedOrder.items))
+        .options(selectinload(UnifiedOrder.items).selectinload(OrderItem.product))
         .where(UnifiedOrder.status == UnifiedOrderStatus.pending_use)
     )
     affected = 0
@@ -82,24 +95,79 @@ async def _do_r2(session: AsyncSession) -> int:
         appt = _earliest_appt(order)
         if appt is None:
             continue
-        if appt < today_start:
-            any_used = any((it.used_redeem_count or 0) > 0 for it in order.items)
-            if any_used:
-                continue
-            for it in order.items:
-                it.appointment_time = None
-            order.status = UnifiedOrderStatus.pending_appointment
+        if appt >= today_start:
+            continue
+        any_used = any((it.used_redeem_count or 0) > 0 for it in (order.items or []))
+        if any_used:
+            continue
+        # 计算订单整体是否允许改期
+        allow_reschedule = _order_allow_reschedule(order)
+        rcount = int(getattr(order, "reschedule_count", 0) or 0)
+        rlimit = int(getattr(order, "reschedule_limit", 3) or 3)
+
+        if not allow_reschedule:
+            # 规则 1：直接过期
+            order.status = UnifiedOrderStatus.expired
             order.updated_at = now
             session.add(Notification(
                 user_id=order.user_id,
+                title="订单已过期",
+                content=f"您的订单 {order.order_no} 已错过预约时段，订单已过期。",
+                type=NotificationType.order,
+            ))
+            affected += 1
+            continue
+
+        if rcount < rlimit:
+            # 规则 2：保持 pending_use，count+1，清空预约时间
+            for it in order.items:
+                it.appointment_time = None
+            order.reschedule_count = rcount + 1
+            order.status = UnifiedOrderStatus.pending_use
+            order.updated_at = now
+            remaining = rlimit - (rcount + 1)
+            session.add(Notification(
+                user_id=order.user_id,
                 title="预约已重置，请重新预约",
-                content=f"您的订单 {order.order_no} 昨日未到店核销，已自动退回待预约状态，请重新选择预约时间。",
+                content=(
+                    f"您的订单 {order.order_no} 错过预约时段，已自动重置预约时间，"
+                    f"请重新选择。剩余可改期次数：{remaining} 次。"
+                ),
+                type=NotificationType.order,
+            ))
+            affected += 1
+        else:
+            # 规则 3：达上限，转 expired
+            order.status = UnifiedOrderStatus.expired
+            order.updated_at = now
+            session.add(Notification(
+                user_id=order.user_id,
+                title="订单已过期",
+                content=(
+                    f"您的订单 {order.order_no} 已达改期上限（{rlimit} 次），"
+                    f"订单已过期。"
+                ),
                 type=NotificationType.order,
             ))
             affected += 1
     if affected:
-        logger.info("[R2] 退回 pending_use → pending_appointment: %d 笔", affected)
+        logger.info("[R2 reschedule] 处理错过预约订单: %d 笔", affected)
     return affected
+
+
+def _order_allow_reschedule(order: UnifiedOrder) -> bool:
+    """订单整体是否允许改期：任一关联商品禁止 → 整单禁止。"""
+    items = order.items or []
+    if not items:
+        return True
+    for it in items:
+        prod = getattr(it, "product", None)
+        if prod is None:
+            continue
+        v = getattr(prod, "allow_reschedule", True)
+        if v is False:
+            return False
+    return True
 
 
 # ──────────────── 提醒推送节点 ────────────────
@@ -343,25 +411,36 @@ async def _send_window(
 async def lazy_progress_order(order: UnifiedOrder, session: AsyncSession) -> bool:
     """供 unified_orders 接口侧调用：用户/商家打开订单详情时，根据当前时间补翻转。
 
-    [PRD 订单状态机简化方案 v1.0] 仅保留 R2（pending_use 退回 pending_appointment）。
-    R1（appointed → pending_use）已下线，因为现在首次填预约日就直接 pending_use。
+    [核销订单过期+改期规则优化 v1.0] 应用与 R2 相同的三条规则：
+      1) 商品 allow_reschedule=false 错过 → expired
+      2) allow_reschedule=true 且 count<limit → 保持 pending_use，count+1，清空预约
+      3) allow_reschedule=true 且 count>=limit → expired
 
     Returns:
         True 表示状态有变化（调用方需 commit）。
     """
     appt = _earliest_appt(order)
-    if appt is None:
-        return False
     now = datetime.utcnow()
     today_start = datetime.combine(now.date(), dtime(0, 0, 0))
 
-    # R2: pending_use + 预约日 < 今天 + 未核销
-    if order.status == UnifiedOrderStatus.pending_use and appt < today_start:
+    if appt is not None and order.status == UnifiedOrderStatus.pending_use and appt < today_start:
         any_used = any((it.used_redeem_count or 0) > 0 for it in (order.items or []))
         if not any_used:
-            for it in order.items:
-                it.appointment_time = None
-            order.status = UnifiedOrderStatus.pending_appointment
+            allow = _order_allow_reschedule(order)
+            rcount = int(getattr(order, "reschedule_count", 0) or 0)
+            rlimit = int(getattr(order, "reschedule_limit", 3) or 3)
+            if not allow:
+                order.status = UnifiedOrderStatus.expired
+                order.updated_at = now
+                return True
+            if rcount < rlimit:
+                for it in order.items:
+                    it.appointment_time = None
+                order.reschedule_count = rcount + 1
+                order.status = UnifiedOrderStatus.pending_use
+                order.updated_at = now
+                return True
+            order.status = UnifiedOrderStatus.expired
             order.updated_at = now
             return True
 

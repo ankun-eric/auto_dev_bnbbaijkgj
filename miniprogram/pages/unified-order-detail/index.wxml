@@ -173,21 +173,25 @@
   <view class="bottom-space"></view>
 
   <!-- 底部操作 -->
-  <view class="bottom-bar safe-bottom" wx:if="{{order.status === 'pending_payment' || order.status === 'pending_use' || order.status === 'appointed' || order.status === 'partial_used' || order.status === 'pending_receipt' || order.status === 'completed' || order.status === 'pending_appointment'}}">
+  <view class="bottom-bar safe-bottom">
     <view class="bar-actions">
       <view class="bar-btn outline" wx:if="{{order.status === 'pending_payment'}}" bindtap="cancelOrder">取消订单</view>
       <view class="bar-btn outline" wx:if="{{(order.status === 'pending_use' || order.status === 'appointed') && (!order.refund_status || order.refund_status === 'none' || order.refund_status === 'rejected')}}" bindtap="goRefund">申请退款</view>
-      <!-- [修改预约 Bug 修复 v1.0]
-           - 文案：修改预约时间 → 修改预约
-           - bindtap → catchtap：避免事件被父容器吃掉
-           - 状态扩展：pending_use / appointed / partial_used 三态均显示 -->
-      <view class="bar-btn outline" wx:if="{{(order.status === 'pending_use' || order.status === 'appointed' || order.status === 'partial_used') && (!order.refund_status || order.refund_status === 'none')}}" catchtap="openApptModal">修改预约</view>
+      <!-- [核销订单过期+改期规则优化 v1.0] 改约：达上限置灰 -->
+      <view
+        class="bar-btn outline {{(order.reschedule_count >= order.reschedule_limit) ? 'is-disabled' : ''}}"
+        wx:if="{{(order.status === 'pending_use' || order.status === 'appointed' || order.status === 'partial_used') && (!order.refund_status || order.refund_status === 'none')}}"
+        catchtap="onRescheduleClick">
+        {{(order.reschedule_count >= order.reschedule_limit) ? '改约（已无法改期）' : '改约'}}
+      </view>
       <view class="bar-btn outline" wx:if="{{(order.status === 'pending_use' || order.status === 'appointed') && order.refund_status === 'applied'}}" bindtap="withdrawRefund">撤回退款</view>
       <view class="bar-btn primary" wx:if="{{order.status === 'pending_payment'}}" bindtap="payOrder">立即付款</view>
       <view class="bar-btn primary" wx:if="{{order.status === 'pending_receipt'}}" bindtap="confirmOrder">确认收货</view>
       <view class="bar-btn primary" wx:if="{{order.status === 'completed' && !order.is_reviewed}}" bindtap="goReview">评价</view>
       <!-- [先下单后预约 Bug 修复 v1.0] 待预约状态：底部立即预约按钮 -->
       <view class="bar-btn primary" wx:if="{{order.status === 'pending_appointment' && (!order.refund_status || order.refund_status === 'none')}}" bindtap="openApptModal">立即预约</view>
+      <!-- [核销订单过期+改期规则优化 v1.0] 联系商家：所有状态均展示 -->
+      <view class="bar-btn outline" bindtap="onContactStore">联系商家</view>
     </view>
   </view>
 

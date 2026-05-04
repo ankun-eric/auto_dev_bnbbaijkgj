@@ -2716,6 +2716,12 @@ class Product(Base):
     # [订单系统增强 PRD v1.0] 服务时长（分钟），用于时段切片；NULL=兼容历史
     service_duration_minutes = mapped_column(Integer, nullable=True,
                                              comment="服务时长（分钟），用于时段自动切片")
+    # [核销订单过期+改期规则优化 v1.0] 是否允许用户错过预约后自助改约（默认允许）
+    # true：错过预约不立即过期，可在改期上限前重新预约；false：错过即过期，不可退款
+    allow_reschedule = mapped_column(
+        Boolean, nullable=False, default=True, server_default="1",
+        comment="是否允许错过预约后改期（PRD v1.0 默认 true）",
+    )
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -3088,6 +3094,15 @@ class UnifiedOrder(Base):
     # [支付配置 PRD v1.0] 实际支付通道（wechat_miniprogram / wechat_app / alipay_h5 / alipay_app）
     payment_channel_code = mapped_column(String(32), nullable=True, index=True)
     payment_display_name = mapped_column(String(100), nullable=True)
+    # [核销订单过期+改期规则优化 v1.0] 改期次数累计（订单维度），上限默认 3
+    reschedule_count = mapped_column(
+        Integer, nullable=False, default=0, server_default="0",
+        comment="累计改期次数（按订单维度，错过预约自动+1 / 用户主动改约+1）",
+    )
+    reschedule_limit = mapped_column(
+        Integer, nullable=False, default=3, server_default="3",
+        comment="改期上限（统一为 3）",
+    )
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

@@ -207,6 +207,8 @@ async def _build_product_response_dict(db: AsyncSession, product: Product) -> di
         "selling_point": product.selling_point or "",
         "description_rich": product.description_rich or "",
         "marketing_badges": _normalize_badges(product.marketing_badges),
+        # [核销订单过期+改期规则优化 v1.0] 商品是否允许改期（默认 true）
+        "allow_reschedule": True if getattr(product, "allow_reschedule", True) is None else bool(getattr(product, "allow_reschedule", True)),
         "skus": sku_list,
         "created_at": product.created_at.isoformat() if product.created_at else None,
         "updated_at": product.updated_at.isoformat() if product.updated_at else None,
@@ -551,6 +553,7 @@ async def admin_create_product(
         selling_point=data.selling_point,
         description_rich=data.description_rich,
         marketing_badges=data.marketing_badges if data.marketing_badges is not None else [],
+        allow_reschedule=bool(getattr(data, "allow_reschedule", True)),
     )
     db.add(product)
     await db.flush()

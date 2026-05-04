@@ -2193,6 +2193,74 @@ async def _sync_payment_config(conn: AsyncConnection) -> None:
             print(f"[schema_sync] unified_orders modify payment_method enum warn: {e}")
 
 
+async def _sync_reschedule_columns(conn: AsyncConnection) -> None:
+    """[核销订单过期+改期规则优化 v1.0] 给 products / unified_orders 增量加列。
+
+    新增字段：
+      - products.allow_reschedule          BOOLEAN/TINYINT(1) NOT NULL DEFAULT 1
+      - unified_orders.reschedule_count    INT NOT NULL DEFAULT 0
+      - unified_orders.reschedule_limit    INT NOT NULL DEFAULT 3
+
+    幂等：检查 information_schema.COLUMNS 后再 ALTER；任何失败都仅 print warn 不抛错。
+    """
+    try:
+        dialect_name = conn.dialect.name
+    except Exception:
+        dialect_name = ""
+
+    def _load(sync_conn):
+        inspector = inspect(sync_conn)
+        tables = set(inspector.get_table_names())
+        return {
+            "products_cols": (
+                {col["name"] for col in inspector.get_columns("products")}
+                if "products" in tables else None
+            ),
+            "uo_cols": (
+                {col["name"] for col in inspector.get_columns("unified_orders")}
+                if "unified_orders" in tables else None
+            ),
+        }
+
+    info = await conn.run_sync(_load)
+
+    # ── products.allow_reschedule ──
+    if info["products_cols"] is not None and "allow_reschedule" not in info["products_cols"]:
+        try:
+            if dialect_name == "mysql":
+                await conn.execute(text(
+                    "ALTER TABLE products ADD COLUMN allow_reschedule TINYINT(1) "
+                    "NOT NULL DEFAULT 1"
+                ))
+            else:
+                await conn.execute(text(
+                    "ALTER TABLE products ADD COLUMN allow_reschedule BOOLEAN "
+                    "NOT NULL DEFAULT 1"
+                ))
+        except Exception as e:
+            print(f"[schema_sync] products add allow_reschedule warn: {e}")
+
+    # ── unified_orders.reschedule_count / reschedule_limit ──
+    if info["uo_cols"] is not None:
+        cols = info["uo_cols"]
+        if "reschedule_count" not in cols:
+            try:
+                await conn.execute(text(
+                    "ALTER TABLE unified_orders ADD COLUMN reschedule_count "
+                    "INT NOT NULL DEFAULT 0"
+                ))
+            except Exception as e:
+                print(f"[schema_sync] unified_orders add reschedule_count warn: {e}")
+        if "reschedule_limit" not in cols:
+            try:
+                await conn.execute(text(
+                    "ALTER TABLE unified_orders ADD COLUMN reschedule_limit "
+                    "INT NOT NULL DEFAULT 3"
+                ))
+            except Exception as e:
+                print(f"[schema_sync] unified_orders add reschedule_limit warn: {e}")
+
+
 async def sync_register_schema(conn: AsyncConnection) -> None:
     def load_user_schema(sync_conn):
         inspector = inspect(sync_conn)
@@ -2247,6 +2315,8 @@ async def sync_register_schema(conn: AsyncConnection) -> None:
     await _sync_on_site_fulfillment(conn)
     # [支付配置 PRD v1.0] payment_channels 表 + 4 条种子 + orders/unified_orders 加列
     await _sync_payment_config(conn)
+    # [核销订单过期+改期规则优化 v1.0] products.allow_reschedule + unified_orders.reschedule_*
+    await _sync_reschedule_columns(conn)
     await run_all_migrations(conn)
 
     columns, indexes, unique_constraints = await conn.run_sync(load_user_schema)

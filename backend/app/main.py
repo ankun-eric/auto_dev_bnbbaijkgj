@@ -875,6 +875,9 @@ app.include_router(admin.settings_router)
 app.include_router(admin_merchant.router)
 app.include_router(admin_news.router)
 app.include_router(merchant.router)
+# [核销订单过期+改期规则优化 v1.0] 门店联系信息（供订单卡片「联系商家」弹窗使用）
+from app.api import stores_public  # noqa: E402
+app.include_router(stores_public.router)
 app.include_router(merchant_v1.router)
 app.include_router(merchant_v1.admin_router)
 app.include_router(account_security.router)  # [PRD V1.0] 账号安全：图形验证码 / 个人信息 / 修改密码 / 员工 / 重置密码

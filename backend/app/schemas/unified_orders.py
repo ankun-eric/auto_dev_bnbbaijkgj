@@ -150,6 +150,11 @@ class UnifiedOrderResponse(BaseModel):
     user_nickname: Optional[str] = None
     user_phone: Optional[str] = None
     total_quantity: Optional[int] = None
+    # [核销订单过期+改期规则优化 v1.0] 改期次数与上限（订单维度累计）
+    reschedule_count: int = 0
+    reschedule_limit: int = 3
+    # 来源：订单关联商品的 allow_reschedule（任意商品 false 即整单视为不允许）
+    allow_reschedule: bool = True
     items: list[OrderItemResponse] = []
     created_at: datetime
     updated_at: datetime

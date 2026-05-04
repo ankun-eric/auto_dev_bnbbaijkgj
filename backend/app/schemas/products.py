@@ -227,6 +227,8 @@ class ProductCreate(BaseModel):
     skus: Optional[list[ProductSkuCreate]] = None  # 多规格模式下提交
     # ── v1.0 商品功能优化：营销角标 ──
     marketing_badges: Optional[list[str]] = None
+    # ── [核销订单过期+改期规则优化 v1.0] 是否允许改期 ──
+    allow_reschedule: bool = True
 
     @field_validator("marketing_badges")
     @classmethod
@@ -284,6 +286,8 @@ class ProductUpdate(BaseModel):
     skus: Optional[list[ProductSkuCreate]] = None
     # ── v1.0 商品功能优化：营销角标 ──
     marketing_badges: Optional[list[str]] = None
+    # ── [核销订单过期+改期规则优化 v1.0] 是否允许改期（PUT 部分更新可不传） ──
+    allow_reschedule: Optional[bool] = None
 
     @field_validator("marketing_badges")
     @classmethod
@@ -393,6 +397,8 @@ class ProductResponse(BaseModel):
     skus: list[ProductSkuResponse] = []
     # ── v1.0 商品功能优化：营销角标 ──
     marketing_badges: list[str] = []
+    # ── [核销订单过期+改期规则优化 v1.0] 是否允许改期 ──
+    allow_reschedule: bool = True
     # ── 多规格价格修复：派生字段 ──
     min_price: Optional[float] = None
     has_multi_spec: bool = False

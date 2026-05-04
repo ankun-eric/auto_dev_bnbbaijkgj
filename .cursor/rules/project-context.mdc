@@ -33,7 +33,57 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 优惠券抵扣零元订单 Bug 修复 v2.2（UnifiedPaymentMethod 新增 coupon_deduction + confirm-free 写入 payment_method + schema_sync MySQL ENUM 扩列，远程容器 12/12 全绿，仅 backend 变更无客户端打包）（2026-05-04 21:11）
+## Latest Update: 核销订单"过期 + 改期"规则优化 v1.0（Product.allow_reschedule + UnifiedOrder.reschedule_count/limit 三字段 + 错过预约时段四档分流（false→expired / count<3 保持 pending_use 自动改约 / count=3 转 expired）+ 改约接口超限 400 + 已过期单拒退款 + 新增 GET /api/stores/{id}/contact 联系商家弹窗 + 五端全改：backend / admin-web / h5-web / 小程序 / Flutter APP，远程容器 16/16 一次绿，三端打包齐全）（2026-05-04 22:55）
+
+### 一句话结论
+按 `cursor_prompt_316_20260504220405.txt` PRD「核销订单过期+改期规则优化」一次性根治"错过 1 次预约即作废"用户投诉：**1) 数据模型增量** `backend/app/models/models.py` 在 `Product` 末尾新增 `allow_reschedule = mapped_column(Boolean, server_default="1", default=True)`（默认允许改期，电影票等可关）；`UnifiedOrder` 末尾新增 `reschedule_count = mapped_column(Integer, server_default="0", default=0)` 与 `reschedule_limit = mapped_column(Integer, server_default="3", default=3)`（按订单累计，统一上限 3，预留为未来动态调整）；保留旧的 `redemption_code_expires_at` 字段不动只废弃触发规则。**2) Schema 同步** `backend/app/services/schema_sync.py` 新增 `_sync_reschedule_columns()` 通过 `information_schema.COLUMNS` 幂等检查并 ALTER TABLE 添加 3 个新字段，启动时自动调用，远程库实测三字段已写入（`tinyint(1)/int/int`）。**3) Schema/接口** `backend/app/schemas/products.py:ProductCreate/Update/Response` + `backend/app/schemas/unified_orders.py:UnifiedOrderResponse` 全部增量加 `allow_reschedule/reschedule_count/reschedule_limit` 字段；`backend/app/api/product_admin.py` 商品 CRUD 写入/读取 allow_reschedule；`backend/app/api/unified_orders.py` 订单详情/列表响应填充三字段 + 改约接口超限校验（reschedule_count >= reschedule_limit → 400 "本订单已达改期上限"）+ 改约成功 reschedule_count++ + 申请退款拒过期（status=expired → 400 "已过期的订单无法申请退款"）+ 待核销（含 count=3）允许申请退款进入审核 + 全状态 action_buttons 数组都包含 contact_store。**4) 状态流转重构** `backend/app/tasks/order_status_auto_progress.py` `_do_r2`/`lazy_progress_order` 找到「pending_use + appointment_time < now」订单按 PRD 三档分流：① 商品 allow_reschedule=false → expired ② count < limit → 保持 pending_use + reschedule_count++ + 清空 appointment_time（NULL）等待用户重新预约 ③ count >= limit → expired。**5) 联系商家接口** 新增 `backend/app/api/stores_public.py:GET /api/stores/{store_id}/contact`（公开无需鉴权），响应 `{store_id, store_name, address, contact_phone, lat, lng, business_hours, province, city, district}`；电话来源**严格为 `merchant_stores.contact_phone`，绝不取商家总部电话**（PRD 强约束）；缺字段时前端按规范处理（无电话→"商家未提供联系方式"+隐藏拨打；无地址→隐藏地址行）。`backend/app/main.py` 注册 stores_public 路由。**6) admin-web** `admin-web/src/app/(admin)/product-system/products/page.tsx` 商品编辑页"销售设置"区块新增 `<Switch>` "允许用户改期"，IProduct 类型加 `allow_reschedule?: boolean` + 表单初始值 true + 编辑映射 + 动态副本（开"用户错过预约时段后，可在 App 内自助改约（最多 3 次），不会立即过期"/关"错过预约时段后订单立即过期，不可改约、不可退款（适用于电影票/演出票等定时商品）"）；退款审核中心保持现状不动（合并审核）。**7) h5-web** 新增 `h5-web/src/app/orders/components/ContactStoreModal.tsx` 通用联系商家底部弹窗（拉 `/api/stores/{id}/contact` + 拨打 + 导航 + 异常处理）；改造 `h5-web/src/app/unified-orders/page.tsx` 列表卡片 + `h5-web/src/app/unified-order/[id]/page.tsx` 详情底部按钮区按 PRD 矩阵渲染：待核销+count<3 改约/退款/联系；待核销+count=3 改约置灰"已无法改期"+退款/联系（点击置灰按钮 Toast"本订单已达改期上限"）；已过期 仅"联系商家"。**8) miniprogram** 改造 `miniprogram/pages/unified-orders/index.{js,wxml,wxss}` + `miniprogram/pages/unified-order-detail/index.{js,wxml,wxss}` 同上逻辑，使用 `wx.showActionSheet` 联系商家。**9) flutter_app** 新增 `flutter_app/lib/screens/order/contact_store_sheet.dart` ContactStoreSheet（showModalBottomSheet + url_launcher 拨打/导航 + 异常处理）；改造 `lib/models/unified_order.dart` 新增 `rescheduleCount/Limit/allowReschedule/storeId/storeName` 字段 + `lib/screens/order/{unified_order_detail_screen,unified_orders_screen}.dart` 列表+详情按钮逻辑。**10) 测试** 新增 `backend/tests/test_reschedule_overdue_rules.py` 共 16 用例覆盖 PRD 全部分支：商品默认 allow_reschedule=true / 创建&更新可设 false / 错过时段 4 档分流（count=0/1/2/3 + allow=true）/ allow=false 不论 count 都 expired / 改约 count++ 接口正常 / 改约 count=3 → 400 / 待核销含 count=3 申请退款 200 / 已过期申请退款 400 / schema 字段存在性 / `/api/stores/{id}/contact` 200+404 / 订单详情响应含新字段+contact_store 按钮等。**远程容器 16/16 PASS（首轮即过零修复循环，pytest 15.70s）**。**11) 部署** `_deploy_reschedule_overdue.py` 用 paramiko SFTP 上传 22 个变更文件 + `docker compose build backend admin-web h5-web` + `up -d` + 等 25s + `docker cp tests/conftest.py + 测试文件` 到 backend 容器 + `docker exec pytest` 16/16 PASS + 远程 MySQL 直连验证三字段类型/默认值 + 外部 URL 4 条全部预期（H5 200 / admin 200 / api/health 200 / api/stores/1/contact 200）。**12) 五端全改三端打包** — backend / admin-web / h5-web / miniprogram / flutter_app 全部改动；后端与 web 端经 docker 部署即时生效；**微信小程序 zip / 安卓 APK / iOS IPA 三个新包齐全**：[`miniprogram_reschedule_20260504_223605_6fdd.zip`](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/miniprogram/miniprogram_reschedule_20260504_223605_6fdd.zip)（369KB）、[`bini_health_android_reschedule_20260504_224940_25ec.apk`](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/bini_health_android_reschedule_20260504_224940_25ec.apk)（80MB，GitHub Run 25325150272）、[iOS Build ios-v20260504-223552-8f3a](https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-v20260504-223552-8f3a)（34MB，GitHub Run 25325156596）。**13) 用户手册** `user_docs/核销订单过期改期规则优化.md`（含开头/末尾两处访问链接表 + 一句话结论 + 7 项功能简介 + 5 步使用场景 ABCDE + 小程序/安卓/iOS 三端体验章节 + 10 条注意事项 + 12 项验收要点全部通过 + 服务端测试 16/16 + 数据库迁移现场实测摘录）。
+
+### 涉及文件
+- 后端模型：`backend/app/models/models.py`（Product.allow_reschedule + UnifiedOrder.reschedule_count/limit）
+- 后端 schema：`backend/app/schemas/products.py`、`backend/app/schemas/unified_orders.py`（增量加字段）
+- 后端 schema 同步：`backend/app/services/schema_sync.py`（新增 `_sync_reschedule_columns()`）
+- 后端 API：`backend/app/api/product_admin.py`、`backend/app/api/unified_orders.py`（改约/退款/contact_store 按钮）
+- 后端 API（新增）：`backend/app/api/stores_public.py`（`GET /api/stores/{id}/contact`）
+- 后端入口：`backend/app/main.py`（注册 stores_public 路由）
+- 后端定时任务：`backend/app/tasks/order_status_auto_progress.py`（错过预约三档分流）
+- 后端测试（新增）：`backend/tests/test_reschedule_overdue_rules.py`（16 用例）
+- 管理后台：`admin-web/src/app/(admin)/product-system/products/page.tsx`（"允许用户改期"开关 + 动态副本）
+- H5（新增）：`h5-web/src/app/orders/components/ContactStoreModal.tsx`（通用联系商家底部弹窗）
+- H5：`h5-web/src/app/unified-orders/page.tsx`、`h5-web/src/app/unified-order/[id]/page.tsx`（按钮矩阵 + 改约置灰 + 联系商家）
+- 微信小程序：`miniprogram/pages/unified-orders/index.{js,wxml,wxss}`、`miniprogram/pages/unified-order-detail/index.{js,wxml,wxss}`（6 文件 + ActionSheet）
+- Flutter（新增）：`flutter_app/lib/screens/order/contact_store_sheet.dart`（ContactStoreSheet）
+- Flutter：`flutter_app/lib/models/unified_order.dart`、`flutter_app/lib/screens/order/unified_order_detail_screen.dart`、`flutter_app/lib/screens/order/unified_orders_screen.dart`
+- 部署辅助（新增）：`_deploy_reschedule_overdue.py`（SFTP 上传 + docker compose build/up + 容器内 pytest 16/16 + DB 字段验证 + 外部 URL 验证）
+- 用户手册：`user_docs/核销订单过期改期规则优化.md`
+
+### 验收要点
+- ✅ 商品级 `allow_reschedule` 开关在 admin-web 商品编辑页可见、可保存、动态副本随开关变化
+- ✅ 错过预约时段三档分流：allow=false → expired / allow=true+count<3 → 保持 pending_use 自动改约+count++ + 清空 appointment_time / allow=true+count=3 → expired（PRD §3.1 状态机完整落地）
+- ✅ 改期次数按订单累计（不是按订单项），上限统一 3 次
+- ✅ 改约接口 `reschedule_count >= reschedule_limit` → 400 "本订单已达改期上限"；改约成功 `reschedule_count += 1`
+- ✅ 已过期订单申请退款 → 400 "已过期的订单无法申请退款"
+- ✅ 待核销订单（含 count=3）申请退款 → 200 进入待审核（用户主动 + 平台审核中心统一受理）
+- ✅ 退款审核中心 `/admin/audit/center` 复用现有入口，过期单退款与普通售后合并审核
+- ✅ 新增 `GET /api/stores/{id}/contact` 接口，电话来源严格 `merchant_stores.contact_phone`，绝不取商家总部电话
+- ✅ 联系商家底部弹窗（H5/小程序/Flutter 三端形态一致），所有订单状态都展示"联系商家"按钮作为兜底
+- ✅ 改约置灰：count=3 时按钮置灰 + 旁边小字"已无法改期"，点击 Toast "本订单已达改期上限"
+- ✅ MySQL 自动 ALTER 添加三字段（启动时幂等）：products.allow_reschedule (tinyint(1)) / unified_orders.reschedule_count (int) / unified_orders.reschedule_limit (int)
+- ✅ 灰度策略：存量"已过期"订单不回滚；存量商品默认 allow_reschedule=true（DB server_default）
+- ✅ 远程容器 pytest 16/16 PASS（首轮零 bug 修复循环）
+- ✅ 三端打包齐全（小程序 zip + 安卓 APK + iOS IPA），下载链接 HTTP 200 验证通过
+
+### 体验链接（2026-05-04 22:55）
+- H5 用户端首页：[https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/)
+- H5 订单中心：[https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/unified-orders](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/unified-orders)
+- 商品编辑（含"允许用户改期"开关）：[https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/product-system/products](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/product-system/products)
+- 退款审核中心：[https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/audit/center](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/audit/center)
+- 微信小程序 zip：[miniprogram_reschedule_20260504_223605_6fdd.zip](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/miniprogram/miniprogram_reschedule_20260504_223605_6fdd.zip)
+- 安卓 APK：[bini_health_android_reschedule_20260504_224940_25ec.apk](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/bini_health_android_reschedule_20260504_224940_25ec.apk)
+- iOS Release：[iOS Build ios-v20260504-223552-8f3a](https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-v20260504-223552-8f3a)
+
+---
+
+## Previous Update: 优惠券抵扣零元订单 Bug 修复 v2.2（UnifiedPaymentMethod 新增 coupon_deduction + confirm-free 写入 payment_method + schema_sync MySQL ENUM 扩列，远程容器 12/12 全绿，仅 backend 变更无客户端打包）（2026-05-04 21:11）
 
 ### 一句话结论
 按 `cursor_prompt_315_20260504210815.txt` Bug 修复方案 v2.2，把"优惠券抵扣后实付为 0 时下单失败"剩余的 90% 已修复 → 100% 收口 ：**1) 模型枚举扩展** `backend/app/models/models.py:UnifiedPaymentMethod` 新增 `coupon_deduction = "coupon_deduction"` 枚举值（业内主流命名，对账友好，与 wechat/alipay/points 并列）。**2) confirm-free 接口写入 payment_method** `backend/app/api/unified_orders.py:confirm_free_unified_order` 在 `order.paid_at = datetime.utcnow()` 之后追加 `order.payment_method = UnifiedPaymentMethod.coupon_deduction`，让 0 元单 DB 记录从此与"用户实际没走任何渠道"的事实一致；财务一条 `WHERE payment_method='coupon_deduction'` SQL 即可拿到全部 0 元单，且不会再让"微信支付订单数"被 0 元单虚高。**3) MySQL ENUM 自动扩列** `backend/app/services/schema_sync.py:_sync_payment_config` 末尾追加 ENUM 同步逻辑：启动时通过 `information_schema.COLUMNS` 检查 `unified_orders.payment_method` 列定义，若不含 `coupon_deduction` 则 `ALTER TABLE unified_orders MODIFY COLUMN payment_method ENUM('wechat','alipay','points','coupon_deduction') NULL`，幂等可重入，无需 DBA 介入。**4) 测试** 新增 `backend/tests/test_zero_order_payment_method_v22.py` 共 4 用例覆盖方案 §五全部要点：DB payment_method=coupon_deduction（直读 ORM）/ 接口响应 payment_method 字段值 / 付费订单 /pay 不会被误标 coupon_deduction / 财务对账 SQL count baseline+1。**远程容器 12/12 PASS**（4 新 + 8 旧 `test_h5_pay_link_bugfix.py`）。**5) 部署** `_deploy_zero_order_pm_v22.py` 用 paramiko SFTP 上传 4 个变更文件 + `docker compose build backend` + `up -d` + 等 25s + `docker cp tests/conftest.py + 测试文件` 到 backend 容器 + `docker exec pytest` 12/12 PASS + 直连 MySQL 验证 `unified_orders.payment_method` 列类型 = `enum('wechat','alipay','points','coupon_deduction')` ✅ + 外部 URL 3 条全部 200。**6) 多端零变更** — 仅 backend 改动，**H5 / admin-web / 微信小程序 / 安卓 APP / 苹果 APP / Windows exe 本期零改动无需重新打包**；前端三端的"0 元单旁路分流"逻辑此前已在 H5 支付链路 Bug 修复中完成。**7) 用户手册** `user_docs/优惠券抵扣零元订单修复.md`（开头/末尾两处访问链接表 + 一句话结论 + 4 项功能简介 + 3 步使用场景 ABC + 9 条注意事项 + 8 项验收要点全部通过 + 服务端测试 12/12 + DB ENUM 实测摘录）。

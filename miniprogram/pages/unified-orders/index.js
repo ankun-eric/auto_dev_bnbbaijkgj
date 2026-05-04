@@ -153,6 +153,80 @@ Page({
     });
   },
 
+  // [核销订单过期+改期规则优化 v1.0]「改约」按钮 — 已达上限置灰
+  onReschedule(e) {
+    const order = e.currentTarget.dataset.order || {};
+    const count = Number(order.reschedule_count || 0);
+    const limit = Number(order.reschedule_limit || 3);
+    if (count >= limit) {
+      wx.showToast({ title: '本订单已达改期上限', icon: 'none' });
+      return;
+    }
+    this._needRefresh = true;
+    wx.navigateTo({
+      url: `/pages/unified-order-detail/index?id=${order.id}&action=appointment`,
+    });
+  },
+
+  // [核销订单过期+改期规则优化 v1.0]「联系商家」按钮 — 弹底部 ActionSheet
+  async onContactStore(e) {
+    const order = e.currentTarget.dataset.order || {};
+    const storeId = order.store_id;
+    if (!storeId) {
+      wx.showToast({ title: '商家未提供联系方式', icon: 'none' });
+      return;
+    }
+    let info = null;
+    try {
+      info = await get(`/api/stores/${storeId}/contact`, {}, { showLoading: false });
+    } catch (err) {
+      console.log('store contact error', err);
+    }
+    const name = (info && info.store_name) || order.store_name || '门店';
+    const phone = info && info.contact_phone;
+    const address = info && info.address;
+    const items = [];
+    if (phone) items.push(`拨打 ${phone}`);
+    if (address) items.push(`查看地址：${address}`);
+    items.push('如有疑问可联系商家协商处理');
+    if (items.length === 0) {
+      wx.showToast({ title: '商家未提供联系方式', icon: 'none' });
+      return;
+    }
+    wx.showActionSheet({
+      itemList: items,
+      success: (res) => {
+        if (phone && res.tapIndex === 0) {
+          wx.makePhoneCall({ phoneNumber: phone, fail: () => {} });
+        } else if (address && phone && res.tapIndex === 1) {
+          if (info && info.lat && info.lng) {
+            wx.openLocation({
+              latitude: Number(info.lat),
+              longitude: Number(info.lng),
+              name,
+              address,
+            });
+          }
+        } else if (address && !phone && res.tapIndex === 0) {
+          if (info && info.lat && info.lng) {
+            wx.openLocation({
+              latitude: Number(info.lat),
+              longitude: Number(info.lng),
+              name,
+              address,
+            });
+          }
+        }
+      },
+    });
+  },
+
+  goRefund(e) {
+    const id = e.currentTarget.dataset.id;
+    this._needRefresh = true;
+    wx.navigateTo({ url: `/pages/refund/index?orderId=${id}` });
+  },
+
   getStatusText(status) {
     const map = {
       pending_payment: '待付款',
