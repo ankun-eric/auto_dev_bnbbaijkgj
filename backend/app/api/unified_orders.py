@@ -1438,19 +1438,10 @@ async def _advance_status_after_payment(order: UnifiedOrder, db: AsyncSession) -
 
 
 def _build_sandbox_pay_url(order_no: str, channel_code: str) -> Optional[str]:
-    """[H5 支付链路修复 v1.0 + 2026-05-04 BasePath 修复 v2.0] 构造支付宝 H5 沙盒收银台 URL。
+    """[支付宝 H5 正式接入 v1.0 · 已废弃 deprecated]
 
-    本期为开发自测桩，待真实商户证书接入后替换为支付宝 SDK 生成的真实收银台 URL。
-
-    取值优先级：
-      1) settings.PROJECT_BASE_URL（应包含 H5 的完整域名 + basePath，如
-         `https://newbb.test.bangbangvip.com/autodev/<uuid>`）
-      2) os.environ['PROJECT_BASE_URL']
-      3) os.environ['PUBLIC_API_BASE_URL']（兼容现有部署：值如
-         `https://newbb.test.bangbangvip.com/autodev/<uuid>`，与 H5 basePath 同前缀）
-
-    若三者全空：返回带 H5 basePath 的相对路径 `/sandbox-pay?...`，前端 `redirectToPayUrl`
-    会自动补齐 basePath 前缀（前向兼容根域名/独立子域名场景）。
+    历史沙盒桩，仅在真实支付宝 SDK 装配失败时作为兜底使用，避免 alipay_h5 通道
+    因为依赖缺失而完全不可用。生产链路已切到 _build_alipay_h5_pay_url。
     """
     base = ""
     try:
@@ -1462,6 +1453,71 @@ def _build_sandbox_pay_url(order_no: str, channel_code: str) -> Optional[str]:
         base = os.getenv("PROJECT_BASE_URL", "") or os.getenv("PUBLIC_API_BASE_URL", "")
     base = (base or "").rstrip("/")
     return f"{base}/sandbox-pay?order_no={order_no}&channel={channel_code}"
+
+
+def _project_base_url() -> str:
+    """读取项目对外 base url（含 H5 basePath 前缀），用于拼 return_url / notify_url。"""
+    base = ""
+    try:
+        from app.core.config import settings as _settings
+        base = getattr(_settings, "PROJECT_BASE_URL", "") or ""
+    except Exception:  # noqa: BLE001
+        base = ""
+    if not base:
+        base = os.getenv("PROJECT_BASE_URL", "") or os.getenv("PUBLIC_API_BASE_URL", "")
+    return (base or "").rstrip("/")
+
+
+def _api_base_url() -> str:
+    """notify_url 所用 base：优先 PUBLIC_API_BASE_URL（与 H5 同前缀），用作 /api/...
+    路由的对外可达根。
+    """
+    base = os.getenv("PUBLIC_API_BASE_URL", "") or _project_base_url()
+    return (base or "").rstrip("/")
+
+
+async def _build_alipay_h5_pay_url(order: UnifiedOrder, db: AsyncSession) -> str:
+    """[支付宝 H5 正式接入 v1.0 · 核心改动]
+
+    调用真实 alipay.trade.wap.pay，返回 https://openapi.alipay.com/gateway.do?...
+    形式的真实收银台 URL。
+
+    异常时抛出 RuntimeError，由调用方捕获后兜底回退到沙盒桩并打告警日志。
+    """
+    from app.services.alipay_service import (
+        create_wap_pay_url,
+        get_alipay_client_for_channel,
+    )
+
+    client, _ch = await get_alipay_client_for_channel(db, channel_code="alipay_h5")
+
+    project_base = _project_base_url()
+    api_base = _api_base_url()
+    return_url = f"{project_base}/pay/success?orderId={order.id}&orderNo={order.order_no}"
+    notify_url = f"{api_base}/api/payment/alipay/notify"
+
+    # 订单标题：取首项商品名（截断 256 字节）
+    subject = "订单"
+    try:
+        if order.items:
+            subject = (order.items[0].product_name or "订单")
+    except Exception:  # noqa: BLE001
+        subject = "订单"
+
+    total_amount = float(order.paid_amount or order.total_amount or 0)
+    if total_amount <= 0:
+        raise ValueError("订单金额为 0，不应走支付宝 H5 真实支付")
+
+    pay_url = create_wap_pay_url(
+        client,
+        out_trade_no=order.order_no,
+        total_amount=total_amount,
+        subject=subject,
+        return_url=return_url,
+        notify_url=notify_url,
+        timeout_express="30m",
+    )
+    return pay_url
 
 
 @router.post("/{order_id}/pay")
@@ -1504,7 +1560,9 @@ async def pay_unified_order(
             status_code=400, detail=f"不支持的支付方式：{data.payment_method}"
         )
     order.payment_method = _normalized_pm
-    order.paid_at = datetime.utcnow()
+    # 注意：paid_at 仅在「真正完成支付」时才写。对于 alipay_h5 真实链路，
+    # 等待支付宝异步通知 TRADE_SUCCESS 后再写；其余通道（沙盒桩/微信等）
+    # 沿用原本立即标记的行为，下方分支会按通道类型决定是否回填。
     order.updated_at = datetime.utcnow()
 
     # [支付配置 PRD v1.0] 可选 channel_code：若传入则校验并落库；
@@ -1528,15 +1586,41 @@ async def pay_unified_order(
         order.payment_display_name = ch.display_name
         ch_provider = ch.provider
 
-    await _advance_status_after_payment(order, db)
+    # [支付宝 H5 正式接入 v1.0 · 核心改动]
+    # 当 channel_code=alipay_h5 时不再立即推进订单状态：
+    # 由支付宝异步通知 /api/payment/alipay/notify 收到 TRADE_SUCCESS 后再幂等推进。
+    # 其它通道（wechat_app/alipay_app/wechat_miniprogram）保留原行为。
+    is_alipay_h5_real = (
+        order.payment_channel_code == "alipay_h5" and ch_provider == "alipay"
+    )
 
-    # [H5 支付链路修复 v1.0] 仅为支付宝 H5 通道生成沙盒桩 URL，其它通道前端走原生 SDK。
     pay_url: Optional[str] = None
-    if order.payment_channel_code == "alipay_h5" and ch_provider == "alipay":
-        pay_url = _build_sandbox_pay_url(order.order_no, "alipay_h5")
+    if is_alipay_h5_real:
+        try:
+            pay_url = await _build_alipay_h5_pay_url(order, db)
+        except Exception as e:  # noqa: BLE001
+            # SDK 未装配 / 配置缺失等场景，记录告警并兜底回退到沙盒桩，
+            # 让链路在依赖未就绪时不至于整体不可用。
+            logger.warning(
+                "alipay_h5 real pay_url build failed, fallback to sandbox: %s", e
+            )
+            pay_url = _build_sandbox_pay_url(order.order_no, "alipay_h5")
+            # 兜底场景下：保持原沙盒桩"立即标记已支付"的行为（开发自测）
+            order.paid_at = datetime.utcnow()
+            await _advance_status_after_payment(order, db)
+        else:
+            # 真实支付宝链路：仅记录通道与时间，不立即标记 paid_at；
+            # 由 /api/payment/alipay/notify 收到 TRADE_SUCCESS 后再幂等回填。
+            order.updated_at = datetime.utcnow()
+    else:
+        # 非 alipay_h5 通道沿用原"立即推进 + 立即标记 paid_at"逻辑
+        order.paid_at = datetime.utcnow()
+        await _advance_status_after_payment(order, db)
+
+    await db.commit()
 
     return {
-        "message": "支付成功",
+        "message": "支付成功" if not is_alipay_h5_real else "已生成支付宝收银台 URL，请前往完成支付",
         "order_no": order.order_no,
         "status": _normalize_status(order.status),
         "pay_url": pay_url,

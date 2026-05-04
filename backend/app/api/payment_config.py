@@ -425,6 +425,13 @@ async def update_payment_channel(
     ch.updated_at = datetime.utcnow()
     await db.commit()
     await db.refresh(ch)
+    # [支付宝 H5 正式接入 v1.0] 配置保存后清缓存，下一次调用强制重建客户端
+    if (ch.provider or "").lower() == "alipay":
+        try:
+            from app.services.alipay_service import clear_alipay_client_cache
+            clear_alipay_client_cache(ch.id)
+        except Exception:  # noqa: BLE001
+            pass
     return _serialize_channel(ch)
 
 
@@ -454,6 +461,18 @@ async def test_payment_channel(
     db: AsyncSession = Depends(get_db),
     _admin=Depends(admin_dep),
 ):
+    """[支付宝 H5 正式接入 v1.0 · §4.2.6 测试按钮升级]
+
+    对支付宝通道（alipay_h5 / alipay_app）：
+      - 实装 SDK 客户端 + 调用 alipay.trade.query 查询一个绝不可能存在的订单号
+      - code=10000 / sub_code=ACQ.TRADE_NOT_EXIST → 测试通过
+      - 其它 sub_code → 友好文案
+      - 网络异常 → "网络不通" 文案
+
+    对其它通道（wechat_*）：保留原"参数完整性 + 解密自检"轻量模式（不在本期范围）。
+    """
+    import uuid as _uuid
+
     res = await db.execute(select(PaymentChannel).where(PaymentChannel.channel_code == channel_code))
     ch = res.scalar_one_or_none()
     if not ch:
@@ -464,14 +483,10 @@ async def test_payment_channel(
             status_code=400,
             detail=f"配置不完整：缺少字段 {', '.join(missing)}",
         )
-    # 轻量实现：参数完整性 + 简单签名工具自检通过即视为成功。
-    # 真实环境可在这里替换为 wechatpayv3 / alipay-sdk 的查询订单调用。
-    msg = "参数完整性 + 签名工具自检通过（轻量模式）"
-    detail = {"mode": "lightweight", "channel": channel_code}
-    # 尝试做一次密钥可解密的自检
+
+    # —— 解密自检（公共前置） ——
     try:
         runtime = _decrypt_for_runtime(channel_code, ch.config_json or {})
-        # 检查关键字段非空
         spec = CHANNEL_FIELD_SPEC.get(channel_code, [])
         for f in spec:
             if _is_required(f, runtime):
@@ -485,6 +500,64 @@ async def test_payment_channel(
         await db.commit()
         raise HTTPException(status_code=400, detail=ch.last_test_message)
 
+    # —— 支付宝通道走真实 query 联通性测试 ——
+    if (ch.provider or "").lower() == "alipay":
+        try:
+            from app.services.alipay_service import (
+                _build_client_from_config,
+                interpret_test_query_response,
+                query_trade,
+                clear_alipay_client_cache,
+            )
+        except ImportError as e:  # 依赖未装：明确告知
+            ch.last_test_at = datetime.utcnow()
+            ch.last_test_ok = False
+            ch.last_test_message = f"支付宝 SDK 未安装：{e}"
+            await db.commit()
+            raise HTTPException(status_code=400, detail=ch.last_test_message)
+
+        try:
+            client = _build_client_from_config(channel_code, runtime)
+            test_no = f"__health_test_{_uuid.uuid4().hex[:16]}"
+            resp = query_trade(client, test_no)
+            ok, message, raw_detail = interpret_test_query_response(resp)
+            # 配置变更后清缓存（防止用旧客户端）
+            clear_alipay_client_cache(ch.id)
+        except Exception as e:  # noqa: BLE001
+            err_text = str(e)
+            lower = err_text.lower()
+            if (
+                "timed out" in lower
+                or "timeout" in lower
+                or "name or service not known" in lower
+                or "network is unreachable" in lower
+                or "connection refused" in lower
+                or "failed to establish a new connection" in lower
+            ):
+                friendly = "网络不通：无法连接支付宝网关，请检查出网/防火墙"
+            else:
+                friendly = f"调用支付宝异常：{err_text}"
+            ch.last_test_at = datetime.utcnow()
+            ch.last_test_ok = False
+            ch.last_test_message = friendly
+            await db.commit()
+            raise HTTPException(status_code=400, detail=friendly)
+
+        ch.last_test_at = datetime.utcnow()
+        ch.last_test_ok = bool(ok)
+        ch.last_test_message = message
+        await db.commit()
+        if not ok:
+            raise HTTPException(status_code=400, detail=message)
+        return PaymentTestResult(
+            success=True,
+            message=message,
+            detail={"mode": "alipay_real_query", "channel": channel_code, "raw": raw_detail},
+        )
+
+    # —— 非支付宝通道：保留原轻量模式 ——
+    msg = "参数完整性 + 签名工具自检通过（轻量模式）"
+    detail = {"mode": "lightweight", "channel": channel_code}
     ch.last_test_at = datetime.utcnow()
     ch.last_test_ok = True
     ch.last_test_message = msg

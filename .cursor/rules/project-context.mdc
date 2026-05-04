@@ -33,7 +33,45 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: H5 优惠券抵扣后实付 0 元下单失败 — 全端联动修复 v10（2026-05-04 23:20）
+## Latest Update: 支付宝 H5 正式支付链路接入 v1.0（python-alipay-sdk + alipay.trade.wap.pay 真实收银台 + /api/payment/alipay/notify 异步通知 + 测试按钮升级为真实 query 联通校验 + H5 支付成功页轮询，远程容器本期 9/9 + 回归 38/38 全绿）（2026-05-04 23:55）
+
+### 一句话结论
+按 `cursor_prompt_318_20260504232733.txt` Bug 修复方案 v1.0 一次性把支付宝 H5 通道从"开发期沙盒桩"切换到"正式生产链路"：**1) 引入 SDK** `backend/requirements.txt` 增加 `python-alipay-sdk==3.3.0`；**2) 服务层** 新增 `backend/app/services/alipay_service.py` — 按 channel_id+updated_at 缓存 `AliPay/AliPayCert` 客户端、写死生产网关 `https://openapi.alipay.com/gateway.do`、提供 `create_wap_pay_url / verify_async_notify / query_trade / interpret_test_query_response` 高层方法、自动从「支付配置」表读取 AppID/私钥/公钥（公钥模式）或 app_public_cert + alipay_root_cert + alipay_public_cert 三件套（证书模式）+ `clear_alipay_client_cache`（管理端保存配置后失效）。**3) 异步通知** 新增 `backend/app/api/alipay_notify.py` 实现 `POST /api/payment/alipay/notify`：原始 form 解析 → RSA2 验签 → app_id 校验 → out_trade_no 查单 → total_amount 对账（允许 0.01 误差）→ 仅 TRADE_SUCCESS/TRADE_FINISHED 推进 → 幂等键以 order.status != pending_payment 判定（重复通知直接 success）→ 返回纯文本 `success`（无 BOM）。**4) 核心改造** `backend/app/api/unified_orders.py` 新增 `_build_alipay_h5_pay_url(order, db)` 调真实 wap.pay 接口（return_url=`{PROJECT_BASE_URL}/pay/success?orderId=...&orderNo=...`，notify_url=`{PUBLIC_API_BASE_URL}/api/payment/alipay/notify`，subject 取首项商品名截 256，timeout_express=30m），`/pay` 路径在 `payment_channel_code=alipay_h5 && provider=alipay` 时调用之；**真实链路下不再立即写 paid_at / 推进状态**（由异步通知再翻），仅 alipay_h5 沙盒兜底分支与其它通道（wechat/alipay_app）保留立即推进语义。**5) 测试按钮升级** `backend/app/api/payment_config.py:test_payment_channel` 升级：支付宝通道走真实 `alipay.trade.query` 联通性测试（用 `__health_test_{uuid}` 假订单号），根据 `code/sub_code` 友好映射 — 成功（ACQ.TRADE_NOT_EXIST 或 code=10000）/ 签名错（ISV.INVALID_SIGNATURE）/ 参数错（ACQ.INVALID_PARAMETER）/ 网络不通（ConnectionError/timeout）；非支付宝通道沿用原"参数完整性 + 解密自检"轻量模式。**6) main.py 注册** 末尾追加 `from app.api import alipay_notify; app.include_router(alipay_notify.router)`。**7) H5 支付成功页轮询** `h5-web/src/app/pay/success/page.tsx` 在状态非 PAID_LIKE 时新增 ~10s 轮询（间隔 1.5s、最多 7 次），命中已支付状态则展示成功 UI，超时则跳订单详情提示"支付结果以支付宝为准，请稍后刷新查看"，loading UI 区分 waiting 文案"正在确认支付结果，请稍候…"。**8) 测试** 新增 `backend/tests/test_alipay_h5_real_payment.py` 共 9 用例（T-01~T-09）：T-01 真实链路 pay_url=https://openapi.alipay.com/gateway.do? + 状态保持 pending_payment + paid_at=NULL / T-02 0 元订单不调 SDK / T-03 异步通知 TRADE_SUCCESS 推进状态 / T-04 重复 5 次通知幂等（paid_at 只写一次）/ T-05 total_amount 篡改返 fail 状态不变 / T-06 验签失败返 fail / T-07 测试按钮 ACQ.TRADE_NOT_EXIST 通过 / T-08 ISV.INVALID_SIGNATURE 提示"签名校验失败" / T-09 ConnectionError 提示"网络不通"。**远程容器 9/9 PASS + 回归 38/38 PASS（既有 5 个支付链路文件全绿）**。**9) 部署** `_deploy_alipay_real_payment.py` 用 paramiko SFTP 上传 8 个变更文件 + `docker compose build backend h5-web` + `up -d` + 等 30s + 容器内 pip 安装 pytest/pytest-asyncio/aiosqlite/httpx + docker cp tests/conftest.py + 测试文件 + `docker exec pytest` 容器内运行（`python-alipay-sdk` 通过 requirements.txt 已装入镜像）+ 外部 URL 4 条全部预期（H5 200 / api/health 200 / admin 200 / api/payment/alipay/notify 405 仅允许 POST）。**10) 多端零变更** — 仅 backend + h5-web 改动，**微信小程序 / 安卓 APP / 苹果 APP / Windows exe / macOS / Flutter / CLI 本期零改动无需重新打包**；docker 部署即时生效。**11) 用户手册** `user_docs/支付宝H5正式支付链路接入.md`（开头/末尾两处访问链接表 + 一句话结论 + 6 项功能简介 + 4 步使用场景 ABCD + 11 条注意事项 + 12 项验收要点全部通过 + 服务端测试 47/47 摘录）。
+
+### 涉及文件
+- 后端依赖：`backend/requirements.txt`（新增 `python-alipay-sdk==3.3.0`）
+- 后端入口：`backend/app/main.py`（末尾追加 `app.include_router(alipay_notify.router)`）
+- 后端服务（新增）：`backend/app/services/alipay_service.py`（SDK 客户端工厂 + 高层方法 + 缓存）
+- 后端 API（新增）：`backend/app/api/alipay_notify.py`（`POST /api/payment/alipay/notify`）
+- 后端 API：`backend/app/api/unified_orders.py`（新增 `_build_alipay_h5_pay_url` + `_pay/` 真实链路接入）
+- 后端 API：`backend/app/api/payment_config.py`（test_payment_channel 升级为真实 query + 配置保存清缓存）
+- H5：`h5-web/src/app/pay/success/page.tsx`（异步通知到达前轻量轮询 ~10s + waiting UI 文案）
+- 后端测试（新增）：`backend/tests/test_alipay_h5_real_payment.py`（T-01~T-09 共 9 用例）
+- 部署辅助（新增）：`_deploy_alipay_real_payment.py`、`_redeploy_and_retest.py`（SFTP 上传 + docker build/up + 容器内 pytest + 外部 URL 验证）
+- 用户手册：`user_docs/支付宝H5正式支付链路接入.md`
+
+### 验收要点
+- ✅ `unified_orders.py:/pay` 在 `payment_channel_code=alipay_h5 && provider=alipay` 时调真实 `alipay.trade.wap.pay`，pay_url 形如 `https://openapi.alipay.com/gateway.do?...`
+- ✅ 真实链路下 `/pay` 返回时订单仍为 `pending_payment`、`paid_at=NULL`，等待异步通知翻状态
+- ✅ `POST /api/payment/alipay/notify`：RSA2 验签 + AppID 校验 + 金额对账（0.01 误差）+ 仅 TRADE_SUCCESS/TRADE_FINISHED 推进 + 幂等（重复通知直接 success）+ 返回纯文本 `success`
+- ✅ `alipay_service` 客户端按 channel_id+updated_at 缓存，配置变更自动失效
+- ✅ 「支付配置 → 支付宝 H5」「测试」按钮调用真实 `alipay.trade.query`，根据 `code/sub_code` 给出"测试通过/签名错/参数错/网络不通"友好文案
+- ✅ H5 `/pay/success` 页面新增 ~10s 轮询（间隔 1.5s、最多 7 次），命中已支付即展示成功 UI；超时跳订单详情并提示"支付结果以支付宝为准"
+- ✅ 沙盒桩 `_build_sandbox_pay_url` 仅在 SDK 装配 / 解密失败时兜底，生产链路不再触发
+- ✅ 微信 / 支付宝 APP / 微信小程序 三个通道完全不动，本期仅改 `alipay_h5` 一条链路
+- ✅ 管理后台「支付配置」字段结构零变化（AppID / 接入模式 / 应用私钥 / 支付宝公钥 / 证书三件套 沿用现有 schema）
+- ✅ 远程容器 9 新 + 38 旧 = 47/47 测试全绿，无回归
+- ✅ docker compose build + up -d 已生效（backend / h5 双容器健康），admin 容器未动（沿用旧版本）
+- ✅ 多端零打包（仅 backend + h5-web），小程序 / Android / iOS / Flutter / Windows exe 沿用现有版本
+
+### 体验链接（2026-05-04 23:55）
+- H5 用户端首页：[https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/)
+- H5 结算页：[https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/checkout](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/checkout)
+- 管理后台 — 支付配置：[https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/finance/payment-config](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/finance/payment-config)
+
+---
+
+## Previous Update: H5 优惠券抵扣后实付 0 元下单失败 — 全端联动修复 v10（2026-05-04 23:20）
 
 ### 一句话结论
 按 `cursor_prompt_317_20260504225718.txt` P0 Bug「H5 优惠券抵扣后实付 0 元下单失败 (后端 500)」一次性根治：**前端 H5/小程序/Flutter checkout 实付 0 元时强制把 `payment_method` 改为 `coupon_deduction`（A1/A2/A3）；后端 `unified_orders` 创建路径增加服务端兜底：当 `paid_amount==0` 时无条件把 `_final_payment_method` 覆写为 `UnifiedPaymentMethod.coupon_deduction.value` 并落 `payment_logs.changed_by='server_override'`（B1）；`UnifiedPaymentMethod` 枚举新增 `balance` 占位 + `schema_sync` 把 MySQL ENUM 扩列为 5 项 (`wechat,alipay,coupon_deduction,balance,points`)（B2）；`_build_payment_method_text` 引入 `PAYMENT_METHOD_TEXT_MAP` 兜底中文映射（B3）；admin-web 订单列表 `payMethodMap`/`payMethodOptions` 新增"优惠券全额抵扣"（C1）；H5 三处显示层（订单详情/支付成功/商家订单列表）扩为完整 Map，小程序订单详情兜底字符串 `微信支付` → `'-'`，Flutter `unified_order_detail_screen` 新增 `_localizePaymentMethod` 全枚举映射、demo 旧屏移除硬编码"微信支付"（D1~D6）。**远程 backend 容器 38/38 PASS（zero-order 8 + v22 既有 12 + normalize bugfix 既有 18，pytest 21.06s 一次绿）**；docker compose build backend admin-web h5-web + up -d 已生效；GitHub Actions Android & iOS Build 已重新触发（Run 25327351722 / 25327353026）。变更涉及 14 个文件、+167/-16 行。Commit: `2daffb1`。

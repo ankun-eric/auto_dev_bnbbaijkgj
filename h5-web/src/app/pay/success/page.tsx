@@ -85,42 +85,73 @@ function PaySuccessPage() {
   // 防止 popstate 监听器循环触发
   const popHandlerRef = useRef<((e: PopStateEvent) => void) | null>(null);
 
+  // [支付宝 H5 正式接入 v1.0] 是否仍在等待异步通知翻状态
+  const [waiting, setWaiting] = useState(false);
+
   // ── 拉取订单详情（必须为已支付态才允许停留）──
   useEffect(() => {
     let cancelled = false;
+
+    const fetchDetailOnce = async (): Promise<OrderDetail | null> => {
+      let detail: OrderDetail | null = null;
+      if (orderId) {
+        const res: any = await api.get(`/api/orders/unified/${orderId}`);
+        detail = (res?.data || res) as OrderDetail;
+      } else if (orderNo) {
+        // 兼容仅传 orderNo 的入口（如沙盒回跳）
+        const res: any = await api.get('/api/orders/unified', {
+          params: { keyword: orderNo, page: 1, page_size: 1 },
+        });
+        const data: any = res?.data || res;
+        const items = data?.items || data || [];
+        if (Array.isArray(items) && items.length > 0) {
+          const oid = items[0].id;
+          const detailRes: any = await api.get(`/api/orders/unified/${oid}`);
+          detail = (detailRes?.data || detailRes) as OrderDetail;
+        }
+      }
+      return detail;
+    };
+
     const load = async () => {
-      // 无任何订单参数：直接重定向到订单列表
       if (!orderId && !orderNo) {
         router.replace('/unified-orders');
         return;
       }
       try {
-        let detail: OrderDetail | null = null;
-        if (orderId) {
-          const res: any = await api.get(`/api/orders/unified/${orderId}`);
-          detail = (res?.data || res) as OrderDetail;
-        } else if (orderNo) {
-          // 兼容仅传 orderNo 的入口（如沙盒回跳）
-          const res: any = await api.get('/api/orders/unified', {
-            params: { keyword: orderNo, page: 1, page_size: 1 },
-          });
-          const data: any = res?.data || res;
-          const items = data?.items || data || [];
-          if (Array.isArray(items) && items.length > 0) {
-            const oid = items[0].id;
-            const detailRes: any = await api.get(`/api/orders/unified/${oid}`);
-            detail = (detailRes?.data || detailRes) as OrderDetail;
-          }
-        }
+        let detail = await fetchDetailOnce();
         if (cancelled) return;
         if (!detail) {
           Toast.show({ content: '订单不存在' });
           router.replace('/unified-orders');
           return;
         }
-        // 必须是已支付（含 0 元免支付）态才能停留
+        // [支付宝 H5 正式接入 v1.0] 同步回跳后，状态可能尚未被异步通知翻新；
+        // 这里做最长 ~10 秒的轻量轮询（间隔 1.5s，最多 7 次），等待异步通知到达。
         if (!PAID_LIKE_STATUSES.has(detail.status)) {
-          // 未付款 → 回订单详情而非成功页（避免误导）
+          setWaiting(true);
+          const maxRetries = 7;
+          const intervalMs = 1500;
+          for (let i = 0; i < maxRetries; i++) {
+            await new Promise((r) => setTimeout(r, intervalMs));
+            if (cancelled) return;
+            try {
+              const next = await fetchDetailOnce();
+              if (next && PAID_LIKE_STATUSES.has(next.status)) {
+                detail = next;
+                break;
+              }
+              if (next) detail = next;
+            } catch {
+              // 轮询单次失败忽略，继续重试
+            }
+          }
+          setWaiting(false);
+        }
+        if (cancelled) return;
+        if (!PAID_LIKE_STATUSES.has(detail.status)) {
+          // 轮询超时：提示并跳订单详情让用户自己刷新
+          Toast.show({ content: '支付结果以支付宝为准，请稍后刷新查看' });
           router.replace(`/unified-order/${detail.id}`);
           return;
         }
@@ -167,8 +198,14 @@ function PaySuccessPage() {
 
   if (loading || !order) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: '#F5F6FA' }}>
+      <div
+        className="min-h-screen flex flex-col items-center justify-center"
+        style={{ background: '#F5F6FA', gap: 16 }}
+      >
         <SpinLoading color="primary" />
+        <div style={{ fontSize: 14, color: '#666' }}>
+          {waiting ? '正在确认支付结果，请稍候…' : '加载中…'}
+        </div>
       </div>
     );
   }
