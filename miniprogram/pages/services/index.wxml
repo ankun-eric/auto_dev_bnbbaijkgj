@@ -1,4 +1,12 @@
 <view class="services-page" wx:if="{{pageMode === 'user'}}">
+  <!-- OPT-1 / M3-b：携券进入时显示横幅 -->
+  <view class="coupon-banner" wx:if="{{bannerVisible && couponBanner}}">
+    <view class="coupon-banner-body">
+      <text class="coupon-banner-title">{{couponBanner.title}}</text>
+      <text class="coupon-banner-subtitle" wx:if="{{couponBanner.subtitle}}">{{couponBanner.subtitle}}</text>
+    </view>
+    <text class="coupon-banner-close" catchtap="closeCouponBanner">×</text>
+  </view>
   <view class="main-content">
     <!-- 左侧一级分类栏 -->
     <scroll-view class="left-categories" scroll-y>

@@ -584,6 +584,14 @@ class ApiService {
     return _dio.get(ApiConfig.serviceDetail, queryParameters: {'id': serviceId});
   }
 
+  // OPT-1：携带 coupon_id 拉取服务列表（返回 items + coupon_banner）
+  Future<Response> getServicesWithCoupon(int couponId) async {
+    return _dio.get(
+      ApiConfig.servicesListWithCoupon,
+      queryParameters: {'coupon_id': couponId},
+    );
+  }
+
   // Experts
   Future<Response> getExpertList({String? specialty, int page = 1}) async {
     return _dio.get(ApiConfig.expertList, queryParameters: {

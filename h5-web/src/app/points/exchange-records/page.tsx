@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Card, Tag, Button, Empty, SpinLoading, InfiniteScroll, Toast } from 'antd-mobile';
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
+import { jumpToUseCoupon } from '@/lib/coupon';
 
 interface ExchangeRecord {
   id: number;
@@ -27,6 +28,9 @@ interface ExchangeRecord {
   use_button_state?: string;
   use_button_text?: string;
   use_button_target?: string | null;
+  // [OPT-4] 后端返回的优惠券维度状态（'available' / 'used' / 'expired' 等），用于决定是否展示"去使用"
+  coupon_id?: number | null;
+  coupon_status?: string | null;
 }
 
 const TYPE_META: Record<string, { text: string; color: string }> = {
@@ -53,6 +57,14 @@ function fmt(dt?: string | null) {
   } catch {
     return dt;
   }
+}
+
+// [OPT-2/OPT-3] 用户可见文案中"free_trial / 免费试用" → "免费体验券 / 免费体验"
+function localizeText(text: string | null | undefined): string {
+  if (!text) return '';
+  return String(text)
+    .replace(/free_trial/gi, '免费体验券')
+    .replace(/免费试用/g, '免费体验');
 }
 
 const SERVICE_ROUTE: Record<string, (id: number) => string> = {
@@ -187,7 +199,7 @@ export default function PointsExchangeRecordsPage() {
                         </Tag>
                       </div>
                       <div style={{ fontSize: 14, fontWeight: 500, marginTop: 4 }} className="truncate">
-                        {r.goods_name}
+                        {localizeText(r.goods_name)}
                       </div>
                       <div style={{ fontSize: 12, color: '#999', marginTop: 2 }}>
                         兑换时间：{fmt(r.exchange_time)}
@@ -201,56 +213,105 @@ export default function PointsExchangeRecordsPage() {
                         <span style={{ color: '#B8860B', fontWeight: 600 }}>
                           -{r.points_cost} 积分
                         </span>
-                        {(() => {
-                          const useState = r.use_button_state || 'normal';
-                          const offline = useState === 'offline';
-                          const replaced = useState === 'redirect_replaced';
-                          // 默认"使用按钮"文案按商品类型
-                          let text = r.use_button_text || '';
-                          if (!text || text === '立即使用') {
-                            text = r.goods_type === 'service' ? '去预约' : r.goods_type === 'coupon' ? '查看我的券' : r.goods_type === 'physical' ? '查看订单' : '立即使用';
-                          }
-                          if (replaced) text = r.use_button_text || '去看替代款';
-                          if (offline) text = r.use_button_text || '已下架';
-                          return (
-                            <Button
-                              size="mini"
-                              disabled={offline}
-                              onClick={() => handleUseButton(r)}
-                              style={{
-                                borderRadius: 12,
-                                background: offline
-                                  ? '#f0f0f0'
-                                  : replaced
-                                  ? 'linear-gradient(135deg, #fa8c16, #faad14)'
-                                  : r.goods_type === 'service'
-                                  ? 'linear-gradient(135deg, #52c41a, #13c2c2)'
-                                  : r.goods_type === 'coupon'
-                                  ? 'rgba(250, 140, 22, 0.1)'
-                                  : 'rgba(114, 46, 209, 0.1)',
-                                color: offline
-                                  ? '#bfbfbf'
-                                  : replaced
-                                  ? '#fff'
-                                  : r.goods_type === 'service'
-                                  ? '#fff'
-                                  : r.goods_type === 'coupon'
-                                  ? '#fa8c16'
-                                  : '#722ed1',
-                                border: offline
-                                  ? 'none'
-                                  : replaced || r.goods_type === 'service'
-                                  ? 'none'
-                                  : r.goods_type === 'coupon'
-                                  ? '1px solid #fa8c16'
-                                  : '1px solid #722ed1',
-                                fontSize: 12,
-                              }}
-                            >
-                              {text}
-                            </Button>
-                          );
-                        })()}
+                        {r.goods_type === 'coupon' ? (
+                          // [OPT-4] 优惠券记录：拆为【查看券】（始终）+【去使用】（仅 coupon_status==='available'）
+                          (() => {
+                            const couponId = r.coupon_id || r.ref_coupon_id;
+                            const ucId = r.ref_user_coupon_id;
+                            const canUse = (r.coupon_status === 'available')
+                              || (!r.coupon_status && r.status === 'success');
+                            return (
+                              <div style={{ display: 'flex', gap: 8 }}>
+                                <Button
+                                  size="mini"
+                                  fill="outline"
+                                  onClick={() => {
+                                    if (couponId) {
+                                      router.push(`/my-coupons?tab=available&highlightCouponId=${couponId}`);
+                                    } else {
+                                      router.push('/my-coupons?tab=available');
+                                    }
+                                  }}
+                                  style={{
+                                    borderRadius: 12,
+                                    fontSize: 12,
+                                    color: '#fa8c16',
+                                    border: '1px solid #fa8c16',
+                                    background: '#fff',
+                                  }}
+                                >
+                                  查看券
+                                </Button>
+                                {canUse && (
+                                  <Button
+                                    size="mini"
+                                    fill="solid"
+                                    onClick={() => {
+                                      if (ucId) {
+                                        jumpToUseCoupon(router, ucId);
+                                      } else {
+                                        Toast.show({ content: '券信息缺失，无法跳转' });
+                                      }
+                                    }}
+                                    style={{
+                                      borderRadius: 12,
+                                      fontSize: 12,
+                                      background: 'linear-gradient(135deg, #52c41a, #13c2c2)',
+                                      color: '#fff',
+                                      border: 'none',
+                                    }}
+                                  >
+                                    去使用
+                                  </Button>
+                                )}
+                              </div>
+                            );
+                          })()
+                        ) : (
+                          (() => {
+                            const useState = r.use_button_state || 'normal';
+                            const offline = useState === 'offline';
+                            const replaced = useState === 'redirect_replaced';
+                            let text = r.use_button_text || '';
+                            if (!text || text === '立即使用') {
+                              text = r.goods_type === 'service' ? '去预约' : r.goods_type === 'physical' ? '查看订单' : '立即使用';
+                            }
+                            if (replaced) text = r.use_button_text || '去看替代款';
+                            if (offline) text = r.use_button_text || '已下架';
+                            return (
+                              <Button
+                                size="mini"
+                                disabled={offline}
+                                onClick={() => handleUseButton(r)}
+                                style={{
+                                  borderRadius: 12,
+                                  background: offline
+                                    ? '#f0f0f0'
+                                    : replaced
+                                    ? 'linear-gradient(135deg, #fa8c16, #faad14)'
+                                    : r.goods_type === 'service'
+                                    ? 'linear-gradient(135deg, #52c41a, #13c2c2)'
+                                    : 'rgba(114, 46, 209, 0.1)',
+                                  color: offline
+                                    ? '#bfbfbf'
+                                    : replaced
+                                    ? '#fff'
+                                    : r.goods_type === 'service'
+                                    ? '#fff'
+                                    : '#722ed1',
+                                  border: offline
+                                    ? 'none'
+                                    : replaced || r.goods_type === 'service'
+                                    ? 'none'
+                                    : '1px solid #722ed1',
+                                  fontSize: 12,
+                                }}
+                              >
+                                {text}
+                              </Button>
+                            );
+                          })()
+                        )}
                       </div>
                     </div>
                   </div>

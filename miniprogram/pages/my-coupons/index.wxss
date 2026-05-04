@@ -78,6 +78,25 @@
   opacity: 0.5;
 }
 
+/* OPT-1 / M3-a：从兑换记录跳进来时高亮 1.5s */
+@keyframes coupon-flash {
+  0%, 100% {
+    box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.04);
+    transform: scale(1);
+  }
+  25%, 75% {
+    box-shadow: 0 0 0 4rpx rgba(82, 196, 26, 0.55), 0 4rpx 24rpx rgba(82, 196, 26, 0.35);
+    transform: scale(1.015);
+  }
+  50% {
+    box-shadow: 0 0 0 8rpx rgba(82, 196, 26, 0.35), 0 4rpx 24rpx rgba(82, 196, 26, 0.45);
+    transform: scale(1.02);
+  }
+}
+.coupon-card.flash {
+  animation: coupon-flash 1.5s ease-in-out;
+}
+
 .coupon-left {
   width: 200rpx;
   background: linear-gradient(135deg, #52c41a, #13c2c2);

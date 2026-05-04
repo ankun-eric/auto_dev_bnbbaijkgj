@@ -19,11 +19,17 @@ Page({
     availableStores: [],
     currentStoreIdx: 0,
     storeDrawerVisible: false,
-    sortByDistance: false
+    sortByDistance: false,
+    // OPT-1 / M3-b：从券进入时携带 couponId，下单时透传
+    couponId: ''
   },
 
   onLoad(options) {
-    this.setData({ id: options.id });
+    const opts = options || {};
+    this.setData({
+      id: opts.id,
+      couponId: opts.couponId ? String(opts.couponId) : ''
+    });
     this.loadProduct();
   },
 
@@ -89,8 +95,10 @@ Page({
   },
 
   goBuy() {
+    const cid = this.data.couponId;
+    const suffix = cid ? `&couponId=${cid}` : '';
     wx.navigateTo({
-      url: `/pages/checkout/index?product_id=${this.data.id}`
+      url: `/pages/checkout/index?product_id=${this.data.id}${suffix}`
     });
   },
 

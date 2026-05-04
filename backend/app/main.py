@@ -918,6 +918,8 @@ app.include_router(tts.admin_router)
 app.include_router(chat_share.router)
 app.include_router(chat_share.admin_router)
 app.include_router(products.router)
+from app.api import services_filter as _services_filter  # OPT-1
+app.include_router(_services_filter.router)
 app.include_router(tcm_config.router)
 app.include_router(tcm_config.admin_router)
 app.include_router(unified_orders.router)

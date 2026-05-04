@@ -97,3 +97,9 @@
   color: #722ed1;
   background: rgba(114,46,209,0.08);
 }
+
+/* OPT-4：优惠券双按钮组 */
+.btn-group {
+  display: flex;
+  gap: 12rpx;
+}

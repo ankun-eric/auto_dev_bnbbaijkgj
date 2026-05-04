@@ -6,7 +6,9 @@ import '../../services/api_service.dart';
 import '../../utils/price_formatter.dart';
 
 class CheckoutScreen extends StatefulWidget {
-  const CheckoutScreen({super.key});
+  /// OPT-1：构造参数 initialCouponId — 带券下单时由上游透传
+  final int? initialCouponId;
+  const CheckoutScreen({super.key, this.initialCouponId});
 
   @override
   State<CheckoutScreen> createState() => _CheckoutScreenState();
@@ -21,6 +23,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   UserAddress? _selectedAddress;
   List<UserCoupon> _coupons = [];
   UserCoupon? _selectedCoupon;
+  // OPT-1：带券下单 — 优先级：路由 args > 构造参数
+  int? _initialCouponId;
   int _pointsDeduction = 0;
   bool _submitting = false;
   final TextEditingController _notesController = TextEditingController();
@@ -37,12 +41,24 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   List<Map<String, dynamic>> _paymentMethods = [];
   String? _selectedChannelCode;
 
+  bool _depsParsed = false;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    if (_depsParsed) return;
+    _depsParsed = true;
     final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
     _product = args['product'] as Product;
     _quantity = args['quantity'] as int;
+    // OPT-1：路由 args 中的 initialCouponId 优先于构造参数
+    final routeCid = args['initialCouponId'];
+    if (routeCid is int) {
+      _initialCouponId = routeCid;
+    } else if (routeCid != null) {
+      _initialCouponId = int.tryParse('$routeCid');
+    }
+    _initialCouponId ??= widget.initialCouponId;
     _loadAddresses();
     _loadCoupons();
     _loadSlotAvailability();
@@ -106,6 +122,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           _coupons = (res.data['items'] as List)
               .map((e) => UserCoupon.fromJson(e as Map<String, dynamic>))
               .toList();
+          // OPT-1：若上游带券进入下单页，则默认选中该券（命中 user_coupon_id）
+          if (_selectedCoupon == null && _initialCouponId != null) {
+            for (final uc in _coupons) {
+              if (uc.id == _initialCouponId) {
+                _selectedCoupon = uc;
+                break;
+              }
+            }
+          }
           // 已选的券若不再可用则清空
           if (_selectedCoupon != null &&
               !_coupons.any((uc) => uc.id == _selectedCoupon!.id)) {

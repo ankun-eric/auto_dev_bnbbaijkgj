@@ -9,6 +9,7 @@ from app.core.security import get_current_user
 from app.models.models import (
     HealthProfile,
     MemberLevel,
+    PointExchangeRecord,
     PointsExchange,
     PointsMallItem,
     PointsRecord,
@@ -211,6 +212,28 @@ async def sign_in(
     return SignInResponse.model_validate(record)
 
 
+@router.get("/mall/products")
+async def list_mall_products(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    tab: str = Query("all"),
+    current_user: User | None = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """BUG-2：商城列表别名，路径与 PRD 对齐（/mall/products）。
+
+    内部直接复用 ``list_mall_items``，确保返回结构包含
+    can_redeem / redeem_block_reason / shortage_text 字段。
+    """
+    return await list_mall_items(
+        page=page,
+        page_size=page_size,
+        tab=tab,
+        current_user=current_user,
+        db=db,
+    )
+
+
 @router.get("/mall")
 async def list_mall_items(
     page: int = Query(1, ge=1),
@@ -294,6 +317,62 @@ async def list_mall_items(
     end = start + page_size
     page_items = final[start:end]
 
+    # ── BUG-2 修复：补充列表项 can_redeem / redeem_block_reason / shortage_text ──
+    # 与详情接口 /api/points/mall/items/{id} 的判定优先级保持一致：
+    #   OFF_SHELF > NOT_STARTED > ENDED > SOLD_OUT > LIMIT_REACHED > INSUFFICIENT_POINTS > None
+    # 用户已兑换次数：批量预查（仅当存在 limit_per_user>0 商品 + 已登录时才发起）
+    user_exchanged_map: dict[int, int] = {}
+    if current_user is not None:
+        limited_ids = [
+            i.id for i in page_items if int(getattr(i, "limit_per_user", 0) or 0) > 0
+        ]
+        if limited_ids:
+            cnt_rows = await db.execute(
+                select(
+                    PointExchangeRecord.goods_id,
+                    func.count(PointExchangeRecord.id),
+                )
+                .where(
+                    PointExchangeRecord.user_id == current_user.id,
+                    PointExchangeRecord.goods_id.in_(limited_ids),
+                    PointExchangeRecord.status.in_(["success", "used"]),
+                )
+                .group_by(PointExchangeRecord.goods_id)
+            )
+            for gid, cnt in cnt_rows.all():
+                user_exchanged_map[int(gid)] = int(cnt or 0)
+
+    def _redeem_block(i: PointsMallItem) -> tuple[bool, str | None, str | None]:
+        """返回 (can_redeem, reason_code, shortage_text)。reason_code=None 表示可兑换。"""
+        now = datetime.utcnow()
+        # 1) OFF_SHELF：goods_status=off_sale 或 status != active
+        gs = getattr(i, "goods_status", None)
+        if gs == "off_sale":
+            return False, "OFF_SHELF", None
+        if gs is None and (i.status or "active") != "active":
+            return False, "OFF_SHELF", None
+        # 2) NOT_STARTED / 3) ENDED：当前模型无 start_at/end_at，做未来兼容
+        start_at = getattr(i, "start_at", None)
+        end_at = getattr(i, "end_at", None)
+        if start_at and now < start_at:
+            return False, "NOT_STARTED", None
+        if end_at and now > end_at:
+            return False, "ENDED", None
+        # 4) SOLD_OUT：库存=0（service 类型 stock=0 视为无限，与详情接口一致）
+        if _stock_for_display(i) <= 0:
+            return False, "SOLD_OUT", None
+        # 5) LIMIT_REACHED：达单人兑换次数上限
+        limit_per_user = int(getattr(i, "limit_per_user", 0) or 0)
+        if current_user and limit_per_user > 0:
+            used = user_exchanged_map.get(int(i.id), 0)
+            if used >= limit_per_user:
+                return False, "LIMIT_REACHED", None
+        # 6) INSUFFICIENT_POINTS：当前用户积分不足
+        if current_user and user_points < _price(i):
+            diff = max(0, _price(i) - user_points)
+            return False, "INSUFFICIENT_POINTS", f"还差 {diff} 分"
+        return True, None, None
+
     items_out = []
     has_exchangeable = any(_is_exchangeable(i) for i in all_items)
     for i in page_items:
@@ -315,6 +394,12 @@ async def list_mall_items(
             item_d["button_state"] = "normal"
             item_d["button_text"] = "立即兑换"
         item_d["is_low_stock"] = 0 < stock_disp <= 10 and ts != "service"
+
+        # BUG-2 新增字段：can_redeem / redeem_block_reason / shortage_text
+        can, reason, shortage = _redeem_block(i)
+        item_d["can_redeem"] = can
+        item_d["redeem_block_reason"] = reason
+        item_d["shortage_text"] = shortage
         items_out.append(item_d)
 
     return {

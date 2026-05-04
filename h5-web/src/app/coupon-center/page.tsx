@@ -85,7 +85,7 @@ export default function CouponCenterPage() {
   };
 
   const getCouponTypeLabel = (type: string) => {
-    const map: Record<string, string> = { full_reduction: '满减', discount: '折扣', voucher: '代金券', free_trial: '免费' };
+    const map: Record<string, string> = { full_reduction: '满减', discount: '折扣', voucher: '代金券', free_trial: '免费体验券' };
     return map[type] || type;
   };
 

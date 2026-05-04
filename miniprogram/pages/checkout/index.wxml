@@ -91,7 +91,7 @@
       <text class="form-label">优惠券</text>
       <view class="form-right">
         <text class="coupon-selected" wx:if="{{selectedCoupon}}">
-          {{selectedCoupon.type === 'free_trial' ? '免费试用' : '-¥' + selectedCoupon.value}}
+          {{selectedCoupon.type === 'free_trial' ? '免费体验券' : '-¥' + selectedCoupon.value}}
         </text>
         <text class="form-value placeholder" wx:else>
           {{coupons.length > 0 ? coupons.length + '张可用' : '暂无可用'}}
@@ -125,7 +125,7 @@
           <view class="coupon-desc">
             <text class="coupon-name-text">{{item.name}}</text>
             <text class="coupon-cond">
-              {{item.type === 'free_trial' ? '凭券免费试用' : (item.condition_amount > 0 ? '满' + item.condition_amount + '可用' : '无门槛')}}
+              {{item.type === 'free_trial' ? '凭券免费体验' : (item.condition_amount > 0 ? '满' + item.condition_amount + '可用' : '无门槛')}}
             </text>
           </view>
         </view>

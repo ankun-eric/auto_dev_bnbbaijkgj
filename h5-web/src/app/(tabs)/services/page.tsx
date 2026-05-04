@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useCallback, useMemo, useRef, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { SearchBar, Empty, SpinLoading, InfiniteScroll, Toast } from 'antd-mobile';
+import { CloseOutline } from 'antd-mobile-icons';
 import api from '@/lib/api';
 import MarketingBadge from '@/components/MarketingBadge';
 
@@ -171,8 +172,29 @@ function ProductCard({
   );
 }
 
-export default function ServicesPage() {
+export default function ServicesPageWrapper() {
+  return (
+    <Suspense fallback={<div />}>
+      <ServicesPage />
+    </Suspense>
+  );
+}
+
+interface CouponBanner {
+  title?: string;
+  subtitle?: string;
+}
+
+function ServicesPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  // [OPT-1] 服务列表带券模式：?couponId={user_coupon_id}
+  const couponIdParam = searchParams.get('couponId');
+  const couponId = couponIdParam || null;
+  const [couponBanner, setCouponBanner] = useState<CouponBanner | null>(null);
+  const [bannerHidden, setBannerHidden] = useState(false);
+  const [couponFiltered, setCouponFiltered] = useState<Product[] | null>(null);
+  const [couponMode, setCouponMode] = useState(Boolean(couponIdParam));
 
   const [topCategories, setTopCategories] = useState<Category[]>([]);
   const [allCategories, setAllCategories] = useState<Category[]>([]);
@@ -364,7 +386,45 @@ export default function ServicesPage() {
       .finally(() => setSearching(false));
   }, [searchKeyword]);
 
-  const onProductClick = (p: Product) => router.push(`/product/${p.id}`);
+  // [OPT-1] 进入服务详情时透传 couponId（在带券模式下）
+  const onProductClick = (p: Product) => {
+    if (couponId) {
+      router.push(`/product/${p.id}?couponId=${couponId}`);
+    } else {
+      router.push(`/product/${p.id}`);
+    }
+  };
+
+  // [OPT-1] 带券模式：拉取过滤后的服务列表 + 横幅
+  useEffect(() => {
+    if (!couponId) {
+      setCouponBanner(null);
+      setCouponFiltered(null);
+      setCouponMode(false);
+      return;
+    }
+    setCouponMode(true);
+    setLoading(true);
+    api.get('/api/services/list', { params: { coupon_id: couponId } })
+      .then((res: any) => {
+        const data = res?.data || res;
+        const items: Product[] = Array.isArray(data?.items) ? data.items : [];
+        setCouponFiltered(items);
+        if (data?.coupon_banner) {
+          setCouponBanner({
+            title: data.coupon_banner.title || '',
+            subtitle: data.coupon_banner.subtitle || '',
+          });
+        } else {
+          setCouponBanner({ title: '当前已选优惠券', subtitle: '已为你筛选可使用本券的服务' });
+        }
+      })
+      .catch(() => {
+        setCouponFiltered([]);
+        setCouponBanner({ title: '当前已选优惠券', subtitle: '加载券适用服务失败' });
+      })
+      .finally(() => setLoading(false));
+  }, [couponId]);
 
   // ── F6: 滚动联动Tab高亮（100ms节流 + IntersectionObserver） ──
   useEffect(() => {
@@ -471,6 +531,64 @@ export default function ServicesPage() {
       productListRef.current.scrollTop = 0;
     }
   }, [activeTopId]);
+
+  // ───────── 渲染：带券模式（?couponId=...） ─────────
+  // 顶部横幅 + 过滤后的扁平服务列表；点击商品仍透传 couponId 到详情页
+  if (couponMode) {
+    const list = couponFiltered || [];
+    return (
+      <div className="min-h-screen bg-gray-50 pb-20">
+        {couponBanner && !bannerHidden && (
+          <div
+            className="px-4 py-3 flex items-start"
+            style={{
+              background: 'linear-gradient(135deg, #fff7e6, #ffe7ba)',
+              borderBottom: '1px solid #ffd591',
+              position: 'sticky',
+              top: 0,
+              zIndex: 30,
+            }}
+          >
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 14, fontWeight: 600, color: '#d46b08' }}>
+                {couponBanner.title || '当前已选优惠券'}
+              </div>
+              {couponBanner.subtitle && (
+                <div style={{ fontSize: 12, color: '#ad6800', marginTop: 2 }}>
+                  {couponBanner.subtitle}
+                </div>
+              )}
+            </div>
+            {/* × 按钮：仅隐藏 UI，**不清除 couponId 上下文**，下单仍带券 */}
+            <div
+              onClick={() => setBannerHidden(true)}
+              style={{
+                padding: '4px 6px',
+                cursor: 'pointer',
+                color: '#d46b08',
+                marginLeft: 8,
+              }}
+            >
+              <CloseOutline fontSize={16} />
+            </div>
+          </div>
+        )}
+        <div className="px-3 pt-3">
+          {loading ? (
+            <div className="flex items-center justify-center py-20">
+              <SpinLoading color="primary" />
+            </div>
+          ) : list.length === 0 ? (
+            <Empty description="暂无可使用本券的服务" />
+          ) : (
+            list.map((p) => (
+              <ProductCard key={p.id} product={p} onClick={() => onProductClick(p)} categoryMap={categoryMap} />
+            ))
+          )}
+        </div>
+      </div>
+    );
+  }
 
   // ───────── 渲染：搜索态 ─────────
   if (searchKeyword) {

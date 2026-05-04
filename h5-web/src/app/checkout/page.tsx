@@ -198,6 +198,9 @@ function CheckoutPage() {
   const initQty = Number(searchParams.get('quantity') || 1);
   const skuIdParam = searchParams.get('sku_id');
   const skuId = skuIdParam ? Number(skuIdParam) : null;
+  // [OPT-1] URL 透传的 couponId（user_coupon.id），用于默认勾选
+  const couponIdParam = searchParams.get('couponId');
+  const preselectCouponId = couponIdParam ? Number(couponIdParam) : null;
 
   const [product, setProduct] = useState<ProductInfo | null>(null);
   const [quantity, setQuantity] = useState(initQty);
@@ -318,6 +321,17 @@ function CheckoutPage() {
       })
       .catch(() => setAvailableMethods([]));
   }, []);
+
+  // [OPT-1] 默认勾选 URL 透传的 couponId（仅当该券在可用券列表中且尚未勾选时）
+  useEffect(() => {
+    if (!preselectCouponId) return;
+    if (selectedCoupon) return;
+    if (coupons.length === 0) return;
+    const target = coupons.find((uc) => uc.id === preselectCouponId);
+    if (target) {
+      setSelectedCoupon(target);
+    }
+  }, [preselectCouponId, coupons, selectedCoupon]);
 
   // [优惠券下单页 Bug 修复 v2 · B3] 当商品/规格/数量变化导致 subtotal 改变时，重新向后端拉取「真正可用的券」
   useEffect(() => {
@@ -1034,11 +1048,11 @@ function CheckoutPage() {
           </List.Item>
           {/* [优惠券下单页 Bug 修复 v2 · B3] 这里的 coupons 由后端 /api/coupons/usable-for-order 过滤后下发，全部即可用，不再做前端 disabled */}
           {coupons.map((uc) => {
-            // 兼容 free_trial：description 显示"免费试用"，普通券显示"满 X 可用"
+            // 兼容 free_trial：description 显示"免费体验券"，普通券显示"满 X 可用"
             const c = uc.coupon as any;
             const isFreeTrial = c?.type === 'free_trial';
             const desc = isFreeTrial
-              ? `免费试用 ${c?.valid_end ? `| 有效期至${new Date(c.valid_end).toLocaleDateString('zh-CN')}` : ''}`
+              ? `免费体验券 ${c?.valid_end ? `| 有效期至${new Date(c.valid_end).toLocaleDateString('zh-CN')}` : ''}`
               : (c ? `满${c.condition_amount}可用 ${c.valid_end ? `| 有效期至${new Date(c.valid_end).toLocaleDateString('zh-CN')}` : ''}` : '');
             return (
               <List.Item

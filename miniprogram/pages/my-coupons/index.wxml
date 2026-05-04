@@ -14,7 +14,7 @@
   </view>
 
   <view class="coupon-list">
-    <view class="coupon-card {{currentTab > 0 ? 'disabled' : ''}}"
+    <view class="coupon-card {{currentTab > 0 ? 'disabled' : ''}} {{item.flash ? 'flash' : ''}}"
           wx:for="{{coupons}}" wx:key="id">
       <view class="coupon-left">
         <text class="coupon-sym">¥</text>
@@ -30,7 +30,8 @@
         </view>
         <text class="coupon-scope">{{item.scope || '全场通用'}}</text>
         <text class="coupon-expire {{item.isExpiringSoon ? 'coupon-expire-warning' : ''}}">{{item.validEndDisplay}}</text>
-        <view class="coupon-use-btn" wx:if="{{currentTab === 0}}" bindtap="useCoupon" data-item="{{item}}">
+        <!-- OPT-1：仅"可用"Tab 显示【去使用】按钮，跳服务列表带券 -->
+        <view class="coupon-use-btn" wx:if="{{currentTab === 0}}" catchtap="useCoupon" data-item="{{item}}">
           <text>去使用</text>
         </view>
         <text class="coupon-status-text" wx:elif="{{currentTab === 1}}">已使用</text>

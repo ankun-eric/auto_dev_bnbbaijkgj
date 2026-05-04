@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Tabs, Empty, SpinLoading, Button, Tag, InfiniteScroll, Dialog, Input, Toast } from 'antd-mobile';
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
+import { couponTypeLabel, jumpToUseCoupon } from '@/lib/coupon';
 
 interface CouponInfo {
   id: number;
@@ -43,9 +44,30 @@ interface CouponCounts {
   expired: number;
 }
 
-export default function MyCouponsPage() {
+export default function MyCouponsPageWrapper() {
+  return (
+    <Suspense fallback={<div />}>
+      <MyCouponsPage />
+    </Suspense>
+  );
+}
+
+function MyCouponsPage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState('unused');
+  const searchParams = useSearchParams();
+  // [OPT-1] 支持 ?tab=available&highlightCouponId={id} —— 进入即定位"可用"Tab，并高亮闪烁对应券
+  const initialTab = (() => {
+    const t = searchParams.get('tab');
+    if (t === 'available' || t === 'unused') return 'unused';
+    if (t === 'used' || t === 'expired') return t;
+    return 'unused';
+  })();
+  const highlightCouponIdParam = searchParams.get('highlightCouponId');
+  const highlightCouponId = highlightCouponIdParam ? Number(highlightCouponIdParam) : null;
+  const couponItemRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+  const [highlightedId, setHighlightedId] = useState<number | null>(null);
+  const hasScrolledRef = useRef(false);
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [coupons, setCoupons] = useState<UserCoupon[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -120,6 +142,33 @@ export default function MyCouponsPage() {
     fetchAvailableCount();
   }, [fetchAvailableCount]);
 
+  // [OPT-1] 进入页面后定位高亮目标券：滚动到可视区 + 1.5s 闪烁动画
+  useEffect(() => {
+    if (!highlightCouponId) return;
+    if (hasScrolledRef.current) return;
+    if (activeTab !== 'unused') return;
+    if (loading) return;
+    if (coupons.length === 0) return;
+    // [OPT-4 链路一致性修复] 兑换记录"查看券"按钮传过来的 highlightCouponId
+    // 实际是 UserCoupon.id（与小程序/Flutter 行为一致，后端 _coupon_extras 也按 UserCoupon.id 下发），
+    // 因此优先按 uc.id 匹配；同时保留按 Coupon 模板 id 兜底，兼容历史调用方。
+    const target = coupons.find(
+      (uc) =>
+        uc.id === highlightCouponId ||
+        uc.coupon?.id === highlightCouponId ||
+        uc.coupon_id === highlightCouponId,
+    );
+    if (!target) return;
+    hasScrolledRef.current = true;
+    const el = couponItemRefs.current.get(target.id);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    setHighlightedId(target.id);
+    const timer = setTimeout(() => setHighlightedId(null), 1500);
+    return () => clearTimeout(timer);
+  }, [highlightCouponId, activeTab, loading, coupons]);
+
   const loadMore = async () => {
     const next = page + 1;
     setPage(next);
@@ -133,10 +182,7 @@ export default function MyCouponsPage() {
     return `¥${coupon.discount_value}`;
   };
 
-  const getCouponTypeLabel = (type: string) => {
-    const map: Record<string, string> = { full_reduction: '满减', discount: '折扣', voucher: '代金券' };
-    return map[type] || type;
-  };
+  const getCouponTypeLabel = (type: string) => couponTypeLabel(type);
 
   const getCouponExpiryStatus = (expireAt: string | null): 'expiring' | 'normal' => {
     if (!expireAt) return 'normal';
@@ -182,6 +228,22 @@ export default function MyCouponsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* [OPT-1] 高亮闪烁动画：1.5s 后由组件 setHighlightedId(null) 移除 class */}
+      <style jsx global>{`
+        @keyframes couponFlashHighlight {
+          0%, 100% {
+            box-shadow: 0 0 0 2px #ffd666, 0 1px 4px rgba(0,0,0,0.06);
+            background: #fffbe6 !important;
+          }
+          50% {
+            box-shadow: 0 0 0 4px #faad14, 0 1px 4px rgba(0,0,0,0.06);
+            background: #fff7cc !important;
+          }
+        }
+        .coupon-flash-highlight {
+          animation: couponFlashHighlight 0.5s ease-in-out 3;
+        }
+      `}</style>
       <GreenNavBar
         right={
           <a
@@ -250,10 +312,15 @@ export default function MyCouponsPage() {
             const isDisabled = activeTab !== 'unused';
             const expiryStatus = getCouponExpiryStatus(uc.expire_at);
             const isExpiring = expiryStatus === 'expiring' && !isDisabled;
+            const isHighlighted = highlightedId === uc.id;
             return (
               <div
                 key={uc.id}
-                className="mb-3 rounded-xl overflow-hidden flex"
+                ref={(el) => {
+                  if (el) couponItemRefs.current.set(uc.id, el);
+                  else couponItemRefs.current.delete(uc.id);
+                }}
+                className={`mb-3 rounded-xl overflow-hidden flex${isHighlighted ? ' coupon-flash-highlight' : ''}`}
                 style={{
                   background: '#fff',
                   opacity: isDisabled ? 0.6 : 1,
@@ -271,7 +338,7 @@ export default function MyCouponsPage() {
                   <div className="text-xl font-bold">{getCouponValue(coupon)}</div>
                   <div className="text-xs mt-0.5">满{coupon.condition_amount}可用</div>
                 </div>
-                <div className="flex-1 p-3 min-w-0">
+                <div className="flex-1 p-3 min-w-0 relative">
                   <div className="flex items-center flex-wrap gap-1">
                     <span className="font-medium text-sm truncate">{coupon.name}</span>
                     <Tag
@@ -309,6 +376,26 @@ export default function MyCouponsPage() {
                   {isDisabled && uc.used_at && (
                     <div className="text-xs text-gray-400 mt-0.5">
                       使用于 {new Date(uc.used_at).toLocaleDateString('zh-CN')}
+                    </div>
+                  )}
+                  {/* [OPT-1] 仅"可用"Tab 显示【去使用】主按钮 */}
+                  {activeTab === 'unused' && (
+                    <div className="flex justify-end mt-2">
+                      <Button
+                        size="mini"
+                        fill="solid"
+                        onClick={() => jumpToUseCoupon(router, uc.id)}
+                        style={{
+                          borderRadius: 14,
+                          fontSize: 12,
+                          background: 'linear-gradient(135deg, #52c41a, #13c2c2)',
+                          color: '#fff',
+                          border: 'none',
+                          padding: '0 14px',
+                        }}
+                      >
+                        去使用
+                      </Button>
                     </div>
                   )}
                 </div>

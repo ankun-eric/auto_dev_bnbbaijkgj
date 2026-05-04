@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import {
   NavBar,
   Swiper,
@@ -69,9 +69,20 @@ interface ProductDetail {
   marketing_badges?: string[] | null;
 }
 
-export default function ProductDetailPage() {
+export default function ProductDetailPageWrapper() {
+  return (
+    <Suspense fallback={<div />}>
+      <ProductDetailPage />
+    </Suspense>
+  );
+}
+
+function ProductDetailPage() {
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
+  // [OPT-1] 带券下单上下文：?couponId={user_coupon_id} 透传到结算页
+  const couponIdParam = searchParams.get('couponId');
   const productId = params.id as string;
   const [product, setProduct] = useState<ProductDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -116,14 +127,15 @@ export default function ProductDetailPage() {
   };
 
   const handleBuy = () => {
+    const couponSuffix = couponIdParam ? `&couponId=${couponIdParam}` : '';
     if (product?.spec_mode === 2) {
       if (!selectedSkuId) {
         Toast.show({ content: '请选择规格' });
         return;
       }
-      router.push(`/checkout?product_id=${productId}&quantity=1&sku_id=${selectedSkuId}`);
+      router.push(`/checkout?product_id=${productId}&quantity=1&sku_id=${selectedSkuId}${couponSuffix}`);
     } else {
-      router.push(`/checkout?product_id=${productId}&quantity=1`);
+      router.push(`/checkout?product_id=${productId}&quantity=1${couponSuffix}`);
     }
   };
 

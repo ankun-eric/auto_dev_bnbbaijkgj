@@ -37,8 +37,8 @@
         <text class="goods-lowstock" wx:if="{{item.isSoldOut}}">已兑完</text>
         <text class="goods-lowstock" wx:elif="{{item.isLowStock}}">仅剩{{item.stock}}件</text>
       </view>
-      <!-- 立即兑换按钮 -->
-      <view class="quick-btn {{item.btnClass}}" bindtap="quickExchange" data-item="{{item}}">
+      <!-- BUG-2：按 can_redeem / redeem_block_reason 渲染按钮，不可兑换时置灰但仍可点击 -->
+      <view class="quick-btn {{item.btnClass}}" catchtap="quickExchange" data-item="{{item}}">
         {{item.btnText}}
       </view>
     </view>

@@ -23,9 +23,15 @@
         <text wx:if="{{item.expireAtStr}}" class="expire-row">有效期至：{{item.expireAtStr}}</text>
         <view class="bottom-row">
           <text class="points">-{{item.points_cost}} 积分</text>
-          <view wx:if="{{item.canAppointment}}" class="btn btn-primary" data-item="{{item}}" bindtap="goAppointment">去预约</view>
-          <view wx:elif="{{item.canViewCoupon}}" class="btn btn-outline" bindtap="goMyCoupons">查看我的券</view>
-          <view wx:elif="{{item.canViewOrder}}" class="btn btn-outline purple" bindtap="goOrder">查看订单</view>
+          <!-- OPT-4：优惠券类型拆为"查看券 + 去使用" -->
+          <block wx:if="{{item.canViewCoupon}}">
+            <view class="btn-group">
+              <view class="btn btn-outline" data-item="{{item}}" catchtap="viewCoupon">查看券</view>
+              <view wx:if="{{item.canUseCoupon}}" class="btn btn-primary" data-item="{{item}}" catchtap="jumpToUseCoupon">去使用</view>
+            </view>
+          </block>
+          <view wx:elif="{{item.canAppointment}}" class="btn btn-primary" data-item="{{item}}" catchtap="goAppointment">去预约</view>
+          <view wx:elif="{{item.canViewOrder}}" class="btn btn-outline purple" catchtap="goOrder">查看订单</view>
         </view>
       </view>
     </view>

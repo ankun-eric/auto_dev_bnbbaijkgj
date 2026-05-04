@@ -61,6 +61,10 @@ Page({
       const list = (resp.items || []).map((r) => {
         const meta = TYPE_META[r.goods_type] || TYPE_META.virtual;
         const sm = STATUS_META[r.status] || { text: r.status, color: '#666' };
+        // OPT-4：优惠券类型可拆"查看券 + 去使用"
+        const couponId = r.coupon_id || r.user_coupon_id || (r.coupon && (r.coupon.id || r.coupon.user_coupon_id));
+        const couponStatus = r.coupon_status || (r.coupon && r.coupon.status) || '';
+        const isCoupon = r.goods_type === 'coupon';
         return {
           ...r,
           typeText: meta.text,
@@ -71,7 +75,10 @@ Page({
           exchangeTimeStr: fmt(r.exchange_time),
           expireAtStr: fmt(r.expire_at),
           canAppointment: r.goods_type === 'service' && r.status !== 'expired' && r.ref_service_type && r.ref_service_id,
-          canViewCoupon: r.goods_type === 'coupon',
+          canViewCoupon: isCoupon,
+          couponId: couponId || '',
+          couponStatus,
+          canUseCoupon: isCoupon && couponStatus === 'available' && !!couponId,
           canViewOrder: r.goods_type === 'physical'
         };
       });
@@ -107,9 +114,32 @@ Page({
   },
 
   goMyCoupons() {
-    wx.navigateTo({ url: '/pages/coupons/index', fail: () => {
+    wx.navigateTo({ url: '/pages/my-coupons/index?tab=available', fail: () => {
       wx.showToast({ title: '可到"我的优惠券"查看', icon: 'none' });
     }});
+  },
+
+  // OPT-4：查看券（次按钮）→ 跳到我的券，并高亮该张
+  viewCoupon(e) {
+    const item = e.currentTarget.dataset.item || {};
+    const couponId = item.couponId;
+    const url = couponId
+      ? `/pages/my-coupons/index?tab=available&highlightCouponId=${couponId}`
+      : `/pages/my-coupons/index?tab=available`;
+    wx.navigateTo({ url, fail: () => {
+      wx.showToast({ title: '可到"我的优惠券"查看', icon: 'none' });
+    }});
+  },
+
+  // OPT-4：去使用（主按钮，仅 available 时显示）→ 跳到服务列表带券
+  jumpToUseCoupon(e) {
+    const item = e.currentTarget.dataset.item || {};
+    const couponId = item.couponId;
+    if (!couponId) {
+      wx.showToast({ title: '券信息缺失', icon: 'none' });
+      return;
+    }
+    wx.navigateTo({ url: `/pages/services/index?couponId=${couponId}` });
   },
 
   goOrder() {

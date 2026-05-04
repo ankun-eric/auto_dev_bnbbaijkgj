@@ -20,7 +20,29 @@ interface MallGoods {
   button_state?: string;
   button_text?: string;
   is_low_stock?: boolean;
+  // [BUG-2] 后端可下发的"按原因置灰"字段（兼容老接口：缺失则按原逻辑）
+  can_redeem?: boolean;
+  redeem_block_reason?:
+    | 'OFF_SHELF'
+    | 'NOT_STARTED'
+    | 'ENDED'
+    | 'SOLD_OUT'
+    | 'LIMIT_REACHED'
+    | 'INSUFFICIENT_POINTS'
+    | string
+    | null;
+  shortage_text?: string | null;
 }
+
+// [BUG-2] redeem_block_reason → 按钮文案映射
+const REDEEM_BLOCK_REASON_TEXT: Record<string, string> = {
+  OFF_SHELF: '已下架',
+  NOT_STARTED: '未开始',
+  ENDED: '已结束',
+  SOLD_OUT: '已兑完',
+  LIMIT_REACHED: '已达上限',
+  INSUFFICIENT_POINTS: '积分不足',
+};
 
 const TYPE_BADGE: Record<string, { text: string; color: string }> = {
   coupon: { text: '优惠券', color: '#fa8c16' },
@@ -68,6 +90,9 @@ export default function PointsMallPage() {
         button_state: it.button_state,
         button_text: it.button_text,
         is_low_stock: Boolean(it.is_low_stock),
+        can_redeem: typeof it.can_redeem === 'boolean' ? it.can_redeem : undefined,
+        redeem_block_reason: it.redeem_block_reason ?? null,
+        shortage_text: it.shortage_text ?? null,
       }));
       setGoods(normalized);
       setHasExchangeable(Boolean(data.has_exchangeable));
@@ -89,6 +114,18 @@ export default function PointsMallPage() {
 
   const handleQuickExchange = async (e: React.MouseEvent, item: MallGoods) => {
     e.stopPropagation();
+    // [BUG-2] 优先走新接口的 can_redeem 字段：
+    //  - true  → 直发快速兑换流程
+    //  - false → 跳转详情页，由详情页展示具体不可兑换原因（不在列表 Toast 拦截）
+    //  - undefined（老接口） → 维持原 button_state 的 Toast 拦截逻辑（兼容性）
+    if (typeof item.can_redeem === 'boolean') {
+      if (!item.can_redeem) {
+        router.push(`/points/product-detail?id=${item.id}`);
+        return;
+      }
+      router.push(`/points/product-detail?id=${item.id}&quick=1`);
+      return;
+    }
     if (item.button_state === 'sold_out') {
       Toast.show({ content: '已兑完' });
       return;
@@ -98,7 +135,6 @@ export default function PointsMallPage() {
       Toast.show({ content: `积分不足，还差 ${diff} 积分` });
       return;
     }
-    // 正常兑换：跳转到商品详情并带上 quick_exchange 参数（详情页会自动发起兑换确认）
     router.push(`/points/product-detail?id=${item.id}&quick=1`);
   };
 
@@ -194,7 +230,20 @@ export default function PointsMallPage() {
               const btnState = item.button_state || 'normal';
               const isSoldOut = btnState === 'sold_out';
               const isNotEnough = btnState === 'not_enough';
-              const btnText = item.button_text || '立即兑换';
+              // [BUG-2] 新接口路径：使用 can_redeem + redeem_block_reason 决定按钮形态
+              const hasCanRedeem = typeof item.can_redeem === 'boolean';
+              const isBlocked = hasCanRedeem && item.can_redeem === false;
+              let btnText = item.button_text || '立即兑换';
+              if (isBlocked) {
+                const reason = item.redeem_block_reason || '';
+                if (reason === 'INSUFFICIENT_POINTS') {
+                  btnText = item.shortage_text || '积分不足';
+                } else if (reason && REDEEM_BLOCK_REASON_TEXT[reason]) {
+                  btnText = REDEEM_BLOCK_REASON_TEXT[reason];
+                } else {
+                  btnText = item.button_text || '不可兑换';
+                }
+              }
               return (
                 <Grid.Item key={item.id}>
                   <Card
@@ -238,23 +287,63 @@ export default function PointsMallPage() {
                       ) : (
                         <div style={{ height: 16, marginTop: 4 }} />
                       )}
-                      {/* 立即兑换按钮 */}
-                      <Button
-                        block
-                        size="small"
-                        color={isSoldOut ? 'default' : 'primary'}
-                        disabled={isSoldOut}
-                        fill={isNotEnough ? 'outline' : 'solid'}
-                        onClick={(e) => handleQuickExchange(e as any, item)}
-                        style={{
-                          marginTop: 6,
-                          borderRadius: 16,
-                          fontSize: 12,
-                          ...(isSoldOut ? { background: '#f0f0f0', color: '#bfbfbf' } : {}),
-                        }}
-                      >
-                        {btnText}
-                      </Button>
+                      {/* [BUG-2] 立即兑换按钮：
+                          - can_redeem === true  → 实心高亮 "立即兑换"
+                          - can_redeem === false → 按 reason 文案，**className 置灰但仍可点击**（跳详情查看原因）
+                          - 老接口（can_redeem 缺失） → 维持原 disabled / fill 逻辑（兼容） */}
+                      {hasCanRedeem ? (
+                        isBlocked ? (
+                          <Button
+                            block
+                            size="small"
+                            fill="solid"
+                            className="bg-gray-300 text-gray-500"
+                            onClick={(e) => handleQuickExchange(e as any, item)}
+                            style={{
+                              marginTop: 6,
+                              borderRadius: 16,
+                              fontSize: 12,
+                              background: '#e5e7eb',
+                              color: '#6b7280',
+                              border: 'none',
+                            }}
+                          >
+                            {btnText}
+                          </Button>
+                        ) : (
+                          <Button
+                            block
+                            size="small"
+                            color="primary"
+                            fill="solid"
+                            onClick={(e) => handleQuickExchange(e as any, item)}
+                            style={{
+                              marginTop: 6,
+                              borderRadius: 16,
+                              fontSize: 12,
+                            }}
+                          >
+                            {btnText}
+                          </Button>
+                        )
+                      ) : (
+                        <Button
+                          block
+                          size="small"
+                          color={isSoldOut ? 'default' : 'primary'}
+                          disabled={isSoldOut}
+                          fill={isNotEnough ? 'outline' : 'solid'}
+                          onClick={(e) => handleQuickExchange(e as any, item)}
+                          style={{
+                            marginTop: 6,
+                            borderRadius: 16,
+                            fontSize: 12,
+                            ...(isSoldOut ? { background: '#f0f0f0', color: '#bfbfbf' } : {}),
+                          }}
+                        >
+                          {btnText}
+                        </Button>
+                      )}
                     </div>
                   </Card>
                 </Grid.Item>

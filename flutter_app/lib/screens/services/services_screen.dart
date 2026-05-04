@@ -78,7 +78,9 @@ class _Product {
 }
 
 class ServicesScreen extends StatefulWidget {
-  const ServicesScreen({super.key});
+  /// OPT-1：支持外部传入 couponId（带券进入服务列表）
+  final int? couponId;
+  const ServicesScreen({super.key, this.couponId});
 
   @override
   State<ServicesScreen> createState() => _ServicesScreenState();
@@ -102,11 +104,49 @@ class _ServicesScreenState extends State<ServicesScreen> with TickerProviderStat
   static const Color _themeColor = Color(0xFF52C41A);
   static const Color _priceColor = Color(0xFFFF6B35);
 
+  // OPT-1：带券下单上下文
+  int? _couponId;
+  Map<String, dynamic>? _couponBanner;
+  bool _bannerVisible = true;
+  bool _routeArgsParsed = false;
+
   @override
   void initState() {
     super.initState();
     _productScrollController.addListener(_onProductScroll);
+    _couponId = widget.couponId;
     _loadCategories();
+    if (_couponId != null) _loadCouponBanner();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_routeArgsParsed) return;
+    _routeArgsParsed = true;
+    if (_couponId != null) return;
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is Map) {
+      final cid = args['couponId'];
+      if (cid is int) _couponId = cid;
+      else if (cid != null) _couponId = int.tryParse('$cid');
+      if (_couponId != null) _loadCouponBanner();
+    }
+  }
+
+  Future<void> _loadCouponBanner() async {
+    if (_couponId == null) return;
+    try {
+      final res = await ApiService().getServicesWithCoupon(_couponId!);
+      final data = res.data is Map ? res.data as Map : {};
+      final banner = data['coupon_banner'];
+      if (banner is Map && mounted) {
+        setState(() {
+          _couponBanner = Map<String, dynamic>.from(banner);
+          _bannerVisible = true;
+        });
+      }
+    } catch (_) {}
   }
 
   @override
@@ -448,8 +488,64 @@ class _ServicesScreenState extends State<ServicesScreen> with TickerProviderStat
     return Column(
       children: [
         _buildSubCategoryTabs(),
+        if (_couponBanner != null && _bannerVisible) _buildCouponBanner(),
         Expanded(child: _buildProductList()),
       ],
+    );
+  }
+
+  // OPT-1：带券横幅
+  Widget _buildCouponBanner() {
+    final title = '${_couponBanner?['title'] ?? '已选优惠券'}';
+    final subtitle = '${_couponBanner?['subtitle'] ?? '挑选适用商品下单可直接抵扣'}';
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(8, 6, 8, 0),
+      padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFFFFF7E6), Color(0xFFFFE7BA)],
+        ),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFFFD591)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.local_offer, color: Color(0xFFFA8C16), size: 20),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFFD4380D),
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: const TextStyle(fontSize: 11, color: Color(0xFF8C5A00)),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.close, size: 18, color: Color(0xFF8C5A00)),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+            onPressed: () => setState(() => _bannerVisible = false),
+          ),
+        ],
+      ),
     );
   }
 
@@ -578,7 +674,18 @@ class _ServicesScreenState extends State<ServicesScreen> with TickerProviderStat
   Widget _buildProductCard(_Product p) {
     final cover = p.coverImage ?? (p.images.isNotEmpty ? p.images.first : null);
     return GestureDetector(
-      onTap: () => Navigator.pushNamed(context, '/product-detail', arguments: p.id),
+      onTap: () {
+        // OPT-1：带券进入详情页 → 透传 couponId
+        if (_couponId != null) {
+          Navigator.pushNamed(
+            context,
+            '/product-detail',
+            arguments: {'id': p.id, 'couponId': _couponId},
+          );
+        } else {
+          Navigator.pushNamed(context, '/product-detail', arguments: p.id);
+        }
+      },
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
         decoration: BoxDecoration(

@@ -42,14 +42,18 @@ Page({
     // [预约日期模式 Bug 修复 v1.0] 当前商品的 appointment_mode（none/date/time_slot/custom_form）
     // needTimeSlot 仅在 time_slot 模式才为 true，date 模式下绝不渲染时段块
     appointmentMode: 'none',
-    needTimeSlot: false
+    needTimeSlot: false,
+    // OPT-1 / M3-b：从券进入下单时默认勾选该券
+    preselectCouponId: ''
   },
 
   onLoad(options) {
     const today = this.formatDate(new Date());
+    const opts = options || {};
     this.setData({
-      productId: options.product_id,
-      minDate: today
+      productId: opts.product_id,
+      minDate: today,
+      preselectCouponId: opts.couponId ? String(opts.couponId) : ''
     });
     this.loadProduct();
     this.loadCoupons();
@@ -152,7 +156,19 @@ Page({
         product_id: this.data.productId,
         subtotal,
       }, { showLoading: false });
-      this.setData({ coupons: (res && res.items) || res || [] });
+      const coupons = (res && res.items) || res || [];
+      const update = { coupons };
+      // OPT-1 / M3-b：若从我的券/兑换记录跳进来，默认勾选该券
+      const pre = String(this.data.preselectCouponId || '');
+      if (pre && (!this.data.selectedCoupon || String(this.data.selectedCoupon.id) !== pre)) {
+        const matched = (coupons || []).find(c => String(c.id) === pre);
+        if (matched) {
+          update.selectedCoupon = matched;
+        }
+      }
+      this.setData(update, () => {
+        if (update.selectedCoupon) this.calcPrice();
+      });
     } catch (e) {
       console.log('loadCoupons error', e);
     }

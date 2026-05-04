@@ -2,6 +2,51 @@ import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
 import '../../widgets/custom_app_bar.dart';
 
+/// OPT-4：兑换记录中的优惠券字段（snake_case → camelCase）
+class ExchangeRecord {
+  final int? couponId;
+  final String? couponStatus;
+  final String? couponScope;
+  final Map<String, dynamic> raw;
+
+  ExchangeRecord({
+    this.couponId,
+    this.couponStatus,
+    this.couponScope,
+    required this.raw,
+  });
+
+  factory ExchangeRecord.fromJson(Map<String, dynamic> json) {
+    int? cid;
+    final rawCid = json['coupon_id'];
+    if (rawCid is int) {
+      cid = rawCid;
+    } else if (rawCid != null) {
+      cid = int.tryParse('$rawCid');
+    }
+    return ExchangeRecord(
+      couponId: cid,
+      couponStatus: json['coupon_status']?.toString(),
+      couponScope: json['coupon_scope']?.toString(),
+      raw: json,
+    );
+  }
+}
+
+/// OPT-4：优惠券【去使用】统一跳转工具
+/// 默认：跳服务列表（带 couponId），由服务列表页弹横幅引导用户挑商品下单。
+void jumpToUseCoupon(BuildContext context, int? couponId) {
+  if (couponId == null) {
+    Navigator.pushNamed(context, '/services');
+    return;
+  }
+  Navigator.pushNamed(
+    context,
+    '/services',
+    arguments: {'couponId': couponId},
+  );
+}
+
 class PointsExchangeRecordsScreen extends StatefulWidget {
   const PointsExchangeRecordsScreen({super.key});
 
@@ -197,8 +242,17 @@ class _PointsExchangeRecordsScreenState extends State<PointsExchangeRecordsScree
         child: const Text('去预约', style: TextStyle(fontSize: 12)),
       );
     } else if (type == 'coupon') {
-      actionBtn = OutlinedButton(
-        onPressed: () => Navigator.pushNamed(context, '/coupons'),
+      // OPT-4：优惠券类型 → 拆为「查看券」+「去使用」两个按钮
+      final rec = ExchangeRecord.fromJson(r);
+      final viewBtn = OutlinedButton(
+        onPressed: () => Navigator.pushNamed(
+          context,
+          '/my-coupons',
+          arguments: {
+            'tab': 'available',
+            if (rec.couponId != null) 'highlightCouponId': rec.couponId,
+          },
+        ),
         style: OutlinedButton.styleFrom(
           foregroundColor: const Color(0xFFFA8C16),
           side: const BorderSide(color: Color(0xFFFA8C16)),
@@ -206,7 +260,28 @@ class _PointsExchangeRecordsScreenState extends State<PointsExchangeRecordsScree
           padding: const EdgeInsets.symmetric(horizontal: 10),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         ),
-        child: const Text('查看我的券', style: TextStyle(fontSize: 12)),
+        child: const Text('查看券', style: TextStyle(fontSize: 12)),
+      );
+      final useBtn = ElevatedButton(
+        onPressed: () => jumpToUseCoupon(context, rec.couponId),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFFFA8C16),
+          foregroundColor: Colors.white,
+          minimumSize: const Size(64, 28),
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        ),
+        child: const Text('去使用', style: TextStyle(fontSize: 12)),
+      );
+      actionBtn = Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          viewBtn,
+          if (rec.couponStatus == 'available') ...[
+            const SizedBox(width: 6),
+            useBtn,
+          ],
+        ],
       );
     } else if (type == 'physical') {
       actionBtn = OutlinedButton(

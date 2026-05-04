@@ -1,7 +1,68 @@
-// PRD F4：积分商城列表页 — 卡片整体可点进入详情页，不再直接兑换
+// PRD F4：积分商城列表页 — 卡片整体可点进入详情页，底部"立即兑换"按钮按后端 canRedeem 置灰
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
 import '../../widgets/custom_app_bar.dart';
+
+/// BUG-2：商城列表项 model
+/// 后端返回字段为 snake_case：can_redeem / redeem_block_reason / shortage_text
+/// 这里在 fromJson 中转换为 camelCase。
+class PointsMallItem {
+  final int id;
+  final String name;
+  final String type;
+  final int pricePoints;
+  final int stock;
+  final List<String> images;
+  final bool canRedeem;
+  final String? redeemBlockReason;
+  final String? shortageText;
+  final Map<String, dynamic> raw;
+
+  PointsMallItem({
+    required this.id,
+    required this.name,
+    required this.type,
+    required this.pricePoints,
+    required this.stock,
+    required this.images,
+    required this.canRedeem,
+    this.redeemBlockReason,
+    this.shortageText,
+    required this.raw,
+  });
+
+  factory PointsMallItem.fromJson(Map<String, dynamic> json) {
+    final imgs = <String>[];
+    final rawImgs = json['images'];
+    if (rawImgs is List) {
+      for (final i in rawImgs) {
+        if (i != null) imgs.add('$i');
+      }
+    } else if (rawImgs is String && rawImgs.isNotEmpty) {
+      imgs.add(rawImgs);
+    }
+    final t = json['type'];
+    final type = (t is String)
+        ? t
+        : (t is Map && t['value'] != null ? '${t['value']}' : 'virtual');
+    // 兼容后端未下发 can_redeem 时，按 stock>0 推断（旧数据兜底）
+    final hasFlag = json.containsKey('can_redeem');
+    final stock = int.tryParse('${json['stock'] ?? 0}') ?? 0;
+    final canRedeem = hasFlag ? (json['can_redeem'] == true) : (stock > 0);
+    return PointsMallItem(
+      id: json['id'] is int ? json['id'] as int : int.tryParse('${json['id']}') ?? 0,
+      name: '${json['name'] ?? ''}',
+      type: type,
+      pricePoints: int.tryParse('${json['price_points'] ?? 0}') ?? 0,
+      stock: stock,
+      images: imgs,
+      canRedeem: canRedeem,
+      redeemBlockReason: json['redeem_block_reason']?.toString(),
+      shortageText: json['shortage_text']?.toString(),
+      raw: Map<String, dynamic>.from(json),
+    );
+  }
+}
 
 class PointsMallScreen extends StatefulWidget {
   const PointsMallScreen({super.key});
@@ -14,7 +75,7 @@ class _PointsMallScreenState extends State<PointsMallScreen> {
   final ApiService _apiService = ApiService();
   int _availablePoints = 0;
   bool _loading = true;
-  List<Map<String, dynamic>> _goods = [];
+  List<PointsMallItem> _goods = [];
 
   static const Map<String, Map<String, dynamic>> _typeMeta = {
     'coupon': {'text': '优惠券', 'color': Color(0xFFFA8C16), 'icon': '🎫'},
@@ -54,10 +115,12 @@ class _PointsMallScreenState extends State<PointsMallScreen> {
       final res = await _apiService.getPointsMallGoods(page: 1, pageSize: 50);
       final data = res.data is Map ? res.data as Map<String, dynamic> : <String, dynamic>{};
       final items = data['items'];
-      final list = <Map<String, dynamic>>[];
+      final list = <PointsMallItem>[];
       if (items is List) {
         for (final it in items) {
-          if (it is Map) list.add(Map<String, dynamic>.from(it));
+          if (it is Map) {
+            list.add(PointsMallItem.fromJson(Map<String, dynamic>.from(it)));
+          }
         }
       }
       if (mounted) setState(() => _goods = list);
@@ -66,17 +129,30 @@ class _PointsMallScreenState extends State<PointsMallScreen> {
     }
   }
 
-  String _goodsType(Map<String, dynamic> item) {
-    final t = item['type'];
-    if (t is String) return t;
-    if (t is Map && t['value'] != null) return '${t['value']}';
-    return 'virtual';
+  void _openDetail(PointsMallItem item) {
+    Navigator.pushNamed(context, '/points-product-detail', arguments: item.id);
   }
 
-  void _openDetail(Map<String, dynamic> item) {
-    final id = item['id'];
-    if (id == null) return;
-    Navigator.pushNamed(context, '/points-product-detail', arguments: id);
+  /// BUG-2：根据 redeemBlockReason 取按钮文案
+  String _blockedButtonText(PointsMallItem item) {
+    switch (item.redeemBlockReason) {
+      case 'OFF_SHELF':
+        return '已下架';
+      case 'NOT_STARTED':
+        return '未开始';
+      case 'ENDED':
+        return '已结束';
+      case 'SOLD_OUT':
+        return '已兑完';
+      case 'LIMIT_REACHED':
+        return '已达上限';
+      case 'INSUFFICIENT_POINTS':
+        return (item.shortageText != null && item.shortageText!.isNotEmpty)
+            ? item.shortageText!
+            : '积分不足';
+      default:
+        return '不可兑换';
+    }
   }
 
   @override
@@ -135,120 +211,144 @@ class _PointsMallScreenState extends State<PointsMallScreen> {
                           padding: const EdgeInsets.all(16),
                           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                             crossAxisCount: 2,
-                            childAspectRatio: 0.78,
+                            childAspectRatio: 0.62,
                             crossAxisSpacing: 12,
                             mainAxisSpacing: 12,
                           ),
                           itemCount: _goods.length,
-                          itemBuilder: (context, index) {
-                            final item = _goods[index];
-                            final type = _goodsType(item);
-                            final meta = _typeMeta[type] ?? _typeMeta['virtual']!;
-                            final cost = int.tryParse('${item['price_points'] ?? 0}') ?? 0;
-                            final stock = int.tryParse('${item['stock'] ?? 0}') ?? 0;
-                            final images = item['images'];
-                            String? img;
-                            if (images is List && images.isNotEmpty) {
-                              img = '${images.first}';
-                            } else if (images is String) {
-                              img = images;
-                            }
-                            return InkWell(
-                              onTap: () => _openDetail(item),
-                              borderRadius: BorderRadius.circular(12),
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(12),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.04),
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                                child: Column(
-                                  children: [
-                                    Expanded(
-                                      flex: 3,
-                                      child: Container(
-                                        width: double.infinity,
-                                        decoration: const BoxDecoration(
-                                          color: Color(0xFFF0F9EB),
-                                          borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
-                                        ),
-                                        child: img != null
-                                            ? ClipRRect(
-                                                borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                                                child: Image.network(
-                                                  img,
-                                                  fit: BoxFit.cover,
-                                                  errorBuilder: (_, __, ___) => Center(
-                                                    child: Text('${meta['icon']}', style: const TextStyle(fontSize: 42)),
-                                                  ),
-                                                ),
-                                              )
-                                            : Center(
-                                                child: Text('${meta['icon']}', style: const TextStyle(fontSize: 42)),
-                                              ),
-                                      ),
-                                    ),
-                                    Expanded(
-                                      flex: 3,
-                                      child: Padding(
-                                        padding: const EdgeInsets.all(10),
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                              decoration: BoxDecoration(
-                                                color: (meta['color'] as Color).withOpacity(0.12),
-                                                borderRadius: BorderRadius.circular(8),
-                                              ),
-                                              child: Text(
-                                                '${meta['text']}',
-                                                style: TextStyle(color: meta['color'] as Color, fontSize: 10),
-                                              ),
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              '${item['name'] ?? ''}',
-                                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                                              maxLines: 2,
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                            const Spacer(),
-                                            Row(
-                                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                              children: [
-                                                Text(
-                                                  '$cost积分',
-                                                  style: const TextStyle(
-                                                      fontSize: 14,
-                                                      fontWeight: FontWeight.bold,
-                                                      color: Color(0xFF2E7D32)),
-                                                ),
-                                                Text(
-                                                  type == 'service' ? '服务券' : '库存$stock',
-                                                  style: TextStyle(fontSize: 11, color: Colors.grey[400]),
-                                                ),
-                                              ],
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          },
+                          itemBuilder: (context, index) => _buildCard(_goods[index]),
                         ),
                       ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildCard(PointsMallItem item) {
+    final meta = _typeMeta[item.type] ?? _typeMeta['virtual']!;
+    final img = item.images.isNotEmpty ? item.images.first : null;
+
+    final btnText = item.canRedeem ? '立即兑换' : _blockedButtonText(item);
+    final Widget redeemBtn = SizedBox(
+      width: double.infinity,
+      height: 32,
+      child: item.canRedeem
+          ? ElevatedButton(
+              onPressed: () => _openDetail(item),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF52C41A),
+                foregroundColor: Colors.white,
+                padding: EdgeInsets.zero,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              ),
+              child: Text(btnText, style: const TextStyle(fontSize: 12)),
+            )
+          // BUG-2：灰按钮仍可点击，跳详情页让用户看到完整不可兑换原因
+          : ElevatedButton(
+              onPressed: () => _openDetail(item),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFE0E0E0),
+                foregroundColor: const Color(0xFF999999),
+                padding: EdgeInsets.zero,
+                elevation: 0,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              ),
+              child: Text(btnText, style: const TextStyle(fontSize: 12)),
+            ),
+    );
+
+    return InkWell(
+      onTap: () => _openDetail(item),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            Expanded(
+              flex: 4,
+              child: Container(
+                width: double.infinity,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFF0F9EB),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
+                ),
+                child: img != null
+                    ? ClipRRect(
+                        borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                        child: Image.network(
+                          img,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Center(
+                            child: Text('${meta['icon']}', style: const TextStyle(fontSize: 42)),
+                          ),
+                        ),
+                      )
+                    : Center(
+                        child: Text('${meta['icon']}', style: const TextStyle(fontSize: 42)),
+                      ),
+              ),
+            ),
+            Expanded(
+              flex: 5,
+              child: Padding(
+                padding: const EdgeInsets.all(10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: (meta['color'] as Color).withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        '${meta['text']}',
+                        style: TextStyle(color: meta['color'] as Color, fontSize: 10),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      item.name,
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const Spacer(),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '${item.pricePoints}积分',
+                          style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF2E7D32)),
+                        ),
+                        Text(
+                          item.type == 'service' ? '服务券' : '库存${item.stock}',
+                          style: TextStyle(fontSize: 11, color: Colors.grey[400]),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    redeemBtn,
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -25,7 +25,11 @@ Page({
     totalCount: 0,
     startDate: '',
     endDate: '',
-    activeQuick: 'today'
+    activeQuick: 'today',
+    // OPT-1 / M3-b：携券筛选上下文
+    couponId: '',
+    couponBanner: null,
+    bannerVisible: false
   },
 
   _categoryTree: [],
@@ -33,8 +37,38 @@ Page({
   _groupOffsets: [],
   _programmaticScroll: false,
 
-  onLoad() {
+  onLoad(options) {
     this.initDates();
+    // OPT-1 / M3-b：从券进入时带 couponId
+    const couponId = (options && options.couponId) ? String(options.couponId) : '';
+    if (couponId) {
+      this.setData({ couponId });
+      this.loadCouponBanner(couponId);
+    }
+  },
+
+  // OPT-1 / M3-b：带券筛选时拉取专用列表+横幅
+  async loadCouponBanner(couponId) {
+    try {
+      const res = await get('/api/services/list', { coupon_id: couponId }, { showLoading: false, suppressErrorToast: true });
+      const banner = (res && (res.coupon_banner || res.banner)) || null;
+      if (banner) {
+        this.setData({
+          couponBanner: {
+            title: banner.title || '已选优惠券',
+            subtitle: banner.subtitle || ''
+          },
+          bannerVisible: true
+        });
+      }
+    } catch (e) {
+      console.log('loadCouponBanner error', e);
+    }
+  },
+
+  // OPT-1 / M3-b：关闭横幅但保留 couponId
+  closeCouponBanner() {
+    this.setData({ bannerVisible: false });
   },
 
   onShow() {
@@ -281,7 +315,10 @@ Page({
 
   goServiceDetail(e) {
     const id = e.currentTarget.dataset.id;
-    wx.navigateTo({ url: `/pages/product-detail/index?id=${id}` });
+    // OPT-1 / M3-b：携券筛选时把 couponId 透传到详情→下单
+    const cid = this.data.couponId;
+    const suffix = cid ? `&couponId=${cid}` : '';
+    wx.navigateTo({ url: `/pages/product-detail/index?id=${id}${suffix}` });
   },
 
   initDates() {

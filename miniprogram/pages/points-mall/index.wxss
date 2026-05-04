@@ -146,7 +146,8 @@
   color: #2E7D32;
   border: 1rpx solid #2E7D32;
 }
-.quick-btn.disabled {
+.quick-btn.disabled,
+.quick-btn.btn-disabled {
   background: #f0f0f0;
   color: #bfbfbf;
 }

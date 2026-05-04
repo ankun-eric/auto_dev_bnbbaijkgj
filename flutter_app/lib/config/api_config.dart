@@ -106,6 +106,8 @@ class ApiConfig {
   static const String serviceCategories = '/api/services/categories';
   static const String serviceList = '/api/services/items';
   static const String serviceDetail = '/api/services/items';
+  // OPT-1：服务列表带券（携带 coupon_id 时返回 coupon_banner + 命中/置灰标记）
+  static const String servicesListWithCoupon = '/api/services/list';
 
   // Experts
   static const String expertList = '/api/experts';

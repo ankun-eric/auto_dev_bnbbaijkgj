@@ -26,12 +26,29 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   int _selectedStoreIdx = 0;
   String _storesSortBy = 'name';
   bool _loadingStores = false;
+  // OPT-1：带券进入详情时透传到下单页的 couponId
+  int? _initialCouponId;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (_product == null) {
-      final productId = ModalRoute.of(context)!.settings.arguments as int;
+      final args = ModalRoute.of(context)!.settings.arguments;
+      int productId;
+      if (args is int) {
+        productId = args;
+      } else if (args is Map) {
+        final id = args['id'];
+        productId = id is int ? id : int.tryParse('$id') ?? 0;
+        final cid = args['couponId'];
+        if (cid is int) {
+          _initialCouponId = cid;
+        } else if (cid != null) {
+          _initialCouponId = int.tryParse('$cid');
+        }
+      } else {
+        productId = int.tryParse('$args') ?? 0;
+      }
       _loadProduct(productId);
     }
   }
@@ -229,6 +246,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     Navigator.pushNamed(context, '/checkout', arguments: {
       'product': _product!,
       'quantity': _quantity,
+      // OPT-1：带券下单时透传 couponId，下单页默认选中
+      if (_initialCouponId != null) 'initialCouponId': _initialCouponId,
     });
   }
 

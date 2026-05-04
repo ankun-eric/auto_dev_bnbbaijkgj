@@ -16,6 +16,31 @@ const ICON_BY_TYPE = {
   third_party: '🛍️'
 };
 
+// BUG-2：根据 can_redeem / redeem_block_reason 计算按钮文案
+const REASON_TEXT = {
+  OFF_SHELF: '已下架',
+  NOT_STARTED: '未开始',
+  ENDED: '已结束',
+  SOLD_OUT: '已兑完',
+  LIMIT_REACHED: '已达上限',
+  INSUFFICIENT_POINTS: '积分不足'
+};
+
+function getButtonText(item) {
+  if (item.can_redeem === true) return '立即兑换';
+  if (item.can_redeem === false) {
+    const reason = item.redeem_block_reason;
+    if (reason === 'INSUFFICIENT_POINTS') {
+      return item.shortage_text || REASON_TEXT.INSUFFICIENT_POINTS;
+    }
+    if (reason && REASON_TEXT[reason]) return REASON_TEXT[reason];
+  }
+  // 兼容旧字段 button_state / button_text
+  if (item.button_state === 'sold_out') return '已兑完';
+  if (item.button_state === 'not_enough') return '积分不足';
+  return item.button_text || '立即兑换';
+}
+
 Page({
   data: {
     totalPoints: 0,
@@ -65,12 +90,14 @@ Page({
         const img = Array.isArray(it.images) ? it.images[0] : (typeof it.images === 'string' ? it.images : null);
         const stock = Number(it.stock || 0);
         const btnState = it.button_state || 'normal';
-        const isSoldOut = btnState === 'sold_out';
+        // BUG-2：can_redeem 缺失时回退到旧 button_state
+        const canRedeem = (it.can_redeem != null)
+          ? Boolean(it.can_redeem)
+          : (btnState === 'normal');
+        const isSoldOut = btnState === 'sold_out' || it.redeem_block_reason === 'SOLD_OUT';
         const isLowStock = Boolean(it.is_low_stock);
-        let btnClass = 'primary';
-        if (isSoldOut) btnClass = 'disabled';
-        else if (btnState === 'not_enough') btnClass = 'outline';
-        else if (btnState === 'redirect_replaced') btnClass = 'warn';
+        const btnText = getButtonText(it);
+        const btnClass = canRedeem ? 'primary' : 'btn-disabled';
         return {
           id: it.id,
           name: it.name,
@@ -87,7 +114,9 @@ Page({
           isSoldOut,
           isLowStock,
           btnState,
-          btnText: it.button_text || '立即兑换',
+          canRedeem,
+          redeemBlockReason: it.redeem_block_reason || '',
+          btnText,
           btnClass
         };
       });
@@ -107,20 +136,14 @@ Page({
     wx.navigateTo({ url: `/pages/points/product-detail/index?id=${id}` });
   },
 
-  // v1.1 M5：立即兑换按钮
+  // BUG-2：列表按钮统一跳详情页（置灰也可点击）
   quickExchange(e) {
     const item = e.currentTarget.dataset.item;
     if (!item || !item.id) return;
-    if (item.btnState === 'sold_out') {
-      wx.showToast({ title: '已兑完', icon: 'none' });
-      return;
+    if (item.canRedeem) {
+      wx.navigateTo({ url: `/pages/points/product-detail/index?id=${item.id}&quick=1` });
+    } else {
+      wx.navigateTo({ url: `/pages/points/product-detail/index?id=${item.id}` });
     }
-    if (item.btnState === 'not_enough') {
-      const diff = Math.max(0, item.points - this.data.totalPoints);
-      wx.showToast({ title: `积分不足，还差${diff}积分`, icon: 'none' });
-      return;
-    }
-    // 正常：带 quick=1 参数进详情，让详情页直接触发兑换确认
-    wx.navigateTo({ url: `/pages/points/product-detail/index?id=${item.id}&quick=1` });
   }
 });

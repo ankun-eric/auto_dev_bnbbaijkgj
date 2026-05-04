@@ -83,11 +83,11 @@ const couponTypeOptions = [
   { label: '满减券', value: 'full_reduction' },
   { label: '折扣券', value: 'discount' },
   { label: '代金券', value: 'voucher' },
-  { label: '免费试用', value: 'free_trial' },
+  { label: '免费体验', value: 'free_trial' },
 ];
 
 const couponTypeMap: Record<string, string> = {
-  full_reduction: '满减券', discount: '折扣券', voucher: '代金券', free_trial: '免费试用',
+  full_reduction: '满减券', discount: '折扣券', voucher: '代金券', free_trial: '免费体验',
 };
 
 const couponTypeColorMap: Record<string, string> = {
@@ -426,7 +426,7 @@ export default function CouponsPage() {
     // 类型 free_trial + scope=all 黄色二次确认
     if (values.type === 'free_trial' && values.scope === 'all' && !allowFreeTrialAll) {
       Modal.confirm({
-        title: '免费试用券设为全店生效风险较高，是否继续？',
+        title: '免费体验券设为全店生效风险较高，是否继续？',
         okText: '继续保存',
         okType: 'warning' as any,
         onOk: () => submitCoupon(values, true),
@@ -788,7 +788,7 @@ export default function CouponsPage() {
       case 'full_reduction': return `满${record.condition_amount}减${record.discount_value}`;
       case 'discount': return `${(record.discount_rate * 10).toFixed(1)}折${record.condition_amount > 0 ? ` (满${record.condition_amount})` : ''}`;
       case 'voucher': return `代金券 ¥${record.discount_value}`;
-      case 'free_trial': return `免费试用`;
+      case 'free_trial': return `免费体验`;
       default: return '-';
     }
   };
@@ -924,7 +924,7 @@ export default function CouponsPage() {
             </Col>
           </Row>
 
-          {/* [优惠券下单页 Bug 修复 v2 · B2] 免费试用券：本质是"整单 0 元"，不存在门槛金额 / 优惠金额，全部隐藏。 */}
+          {/* [优惠券下单页 Bug 修复 v2 · B2] 免费体验券：本质是"整单 0 元"，不存在门槛金额 / 优惠金额，全部隐藏。 */}
           {couponType !== 'free_trial' && (
             <Row gutter={16}>
               <Col span={12}>
@@ -953,7 +953,7 @@ export default function CouponsPage() {
               type="info"
               showIcon
               style={{ marginBottom: 12 }}
-              message='免费试用券：凭券免费试用指定商品，整单按 0 元结算，无需设置门槛金额和优惠金额。建议搭配"指定商品"使用并设置发行总量、单人限领，避免被刷。'
+              message='免费体验券：凭券免费体验指定商品，整单按 0 元结算，无需设置门槛金额和优惠金额。建议搭配"指定商品"使用并设置发行总量、单人限领，避免被刷。'
             />
           )}
 

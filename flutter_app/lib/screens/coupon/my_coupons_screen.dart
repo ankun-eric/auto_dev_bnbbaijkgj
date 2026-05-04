@@ -1,9 +1,19 @@
 import 'package:flutter/material.dart';
 import '../../models/coupon.dart';
 import '../../services/api_service.dart';
+import '../points/exchange_records_screen.dart' show jumpToUseCoupon;
 
 class MyCouponsScreen extends StatefulWidget {
-  const MyCouponsScreen({super.key});
+  /// OPT-1：支持外部传入初始 Tab 与高亮券 id
+  /// initialTab: 'available' | 'used' | 'expired'（兼容 'unused'）
+  final String? initialTab;
+  final int? highlightCouponId;
+
+  const MyCouponsScreen({
+    super.key,
+    this.initialTab,
+    this.highlightCouponId,
+  });
 
   @override
   State<MyCouponsScreen> createState() => _MyCouponsScreenState();
@@ -17,14 +27,40 @@ class _MyCouponsScreenState extends State<MyCouponsScreen> with SingleTickerProv
     {'label': '已使用', 'status': 'used'},
     {'label': '已过期', 'status': 'expired'},
   ];
-  // Bug #3: 顶部合计与下方"可用"Tab 的 count 共享同一个数量（后端 available_count）
   int _availableCount = 0;
+
+  String? _routeInitialTab;
+  int? _routeHighlightCouponId;
+  bool _routeArgsParsed = false;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: _tabs.length, vsync: this);
     _loadAvailableCount();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_routeArgsParsed) return;
+    _routeArgsParsed = true;
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is Map) {
+      _routeInitialTab = args['tab']?.toString();
+      final hid = args['highlightCouponId'];
+      if (hid is int) _routeHighlightCouponId = hid;
+      else if (hid != null) _routeHighlightCouponId = int.tryParse('$hid');
+    }
+    final initial = widget.initialTab ?? _routeInitialTab;
+    if (initial != null) {
+      // 'available' 视为 'unused'
+      final norm = initial == 'available' ? 'unused' : initial;
+      final idx = _tabs.indexWhere((t) => t['status'] == norm);
+      if (idx >= 0 && idx != _tabController.index) {
+        _tabController.index = idx;
+      }
+    }
   }
 
   @override
@@ -48,6 +84,7 @@ class _MyCouponsScreenState extends State<MyCouponsScreen> with SingleTickerProv
 
   @override
   Widget build(BuildContext context) {
+    final highlightId = widget.highlightCouponId ?? _routeHighlightCouponId;
     return Scaffold(
       appBar: AppBar(
         title: const Text('我的优惠券'),
@@ -62,7 +99,6 @@ class _MyCouponsScreenState extends State<MyCouponsScreen> with SingleTickerProv
           preferredSize: const Size.fromHeight(110),
           child: Column(
             children: [
-              // Bug #3: 顶部"合计"展示当前可用券总数
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 14),
@@ -112,6 +148,7 @@ class _MyCouponsScreenState extends State<MyCouponsScreen> with SingleTickerProv
         children: _tabs
             .map((t) => _CouponTab(
                   status: t['status']!,
+                  highlightCouponId: t['status'] == 'unused' ? highlightId : null,
                   onCountChanged: t['status'] == 'unused'
                       ? (n) {
                           if (mounted) setState(() => _availableCount = n);
@@ -127,16 +164,23 @@ class _MyCouponsScreenState extends State<MyCouponsScreen> with SingleTickerProv
 class _CouponTab extends StatefulWidget {
   final String status;
   final ValueChanged<int>? onCountChanged;
-  const _CouponTab({required this.status, this.onCountChanged});
+  final int? highlightCouponId;
+  const _CouponTab({
+    required this.status,
+    this.onCountChanged,
+    this.highlightCouponId,
+  });
 
   @override
   State<_CouponTab> createState() => _CouponTabState();
 }
 
-class _CouponTabState extends State<_CouponTab> with AutomaticKeepAliveClientMixin {
+class _CouponTabState extends State<_CouponTab>
+    with AutomaticKeepAliveClientMixin, TickerProviderStateMixin {
   final ApiService _api = ApiService();
   List<UserCoupon> _coupons = [];
   bool _loading = true;
+  AnimationController? _highlightCtrl;
 
   @override
   bool get wantKeepAlive => true;
@@ -144,7 +188,19 @@ class _CouponTabState extends State<_CouponTab> with AutomaticKeepAliveClientMix
   @override
   void initState() {
     super.initState();
+    if (widget.highlightCouponId != null) {
+      _highlightCtrl = AnimationController(
+        vsync: this,
+        duration: const Duration(milliseconds: 1500),
+      );
+    }
     _loadCoupons();
+  }
+
+  @override
+  void dispose() {
+    _highlightCtrl?.dispose();
+    super.dispose();
   }
 
   Future<void> _loadCoupons() async {
@@ -164,7 +220,6 @@ class _CouponTabState extends State<_CouponTab> with AutomaticKeepAliveClientMix
             _coupons = items;
           });
         }
-        // Bug #3: 向父组件回传可用数量（优先用后端 available_count / available）
         if (widget.status == 'unused' && widget.onCountChanged != null) {
           final count = data['available_count'] ??
               data['available'] ??
@@ -172,6 +227,10 @@ class _CouponTabState extends State<_CouponTab> with AutomaticKeepAliveClientMix
               items.length;
           final n = (count is int) ? count : int.tryParse('$count') ?? items.length;
           widget.onCountChanged!(n);
+        }
+        // OPT-1：列表加载完后启动 1.5s 高亮动画
+        if (widget.highlightCouponId != null && _highlightCtrl != null) {
+          _highlightCtrl!.forward(from: 0);
         }
       }
     } catch (_) {}
@@ -224,8 +283,10 @@ class _CouponTabState extends State<_CouponTab> with AutomaticKeepAliveClientMix
     final disabled = widget.status != 'unused';
     final isLongTerm = coupon.validEnd == null || coupon.validEnd!.isEmpty;
     final isExpiringSoon = !isLongTerm && widget.status == 'unused' && _isExpiringSoon(coupon.validEnd);
+    final isHighlightTarget = widget.highlightCouponId != null &&
+        widget.highlightCouponId == uc.id;
 
-    return Opacity(
+    final card = Opacity(
       opacity: disabled ? 0.5 : 1.0,
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
@@ -323,6 +384,34 @@ class _CouponTabState extends State<_CouponTab> with AutomaticKeepAliveClientMix
                         child: Text(uc.statusLabel,
                             style: TextStyle(fontSize: 12, color: Colors.grey[400])),
                       ),
+                    // OPT-1：仅"可用"Tab 显示「去使用」按钮
+                    if (widget.status == 'unused')
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: ElevatedButton(
+                            onPressed: () {
+                              Navigator.pushNamed(
+                                context,
+                                '/services',
+                                arguments: {'couponId': uc.id},
+                              );
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF52C41A),
+                              foregroundColor: Colors.white,
+                              minimumSize: const Size(72, 30),
+                              padding: const EdgeInsets.symmetric(horizontal: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(15),
+                              ),
+                              textStyle: const TextStyle(fontSize: 12),
+                            ),
+                            child: const Text('去使用'),
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -330,6 +419,37 @@ class _CouponTabState extends State<_CouponTab> with AutomaticKeepAliveClientMix
           ],
         ),
       ),
+    );
+
+    if (!isHighlightTarget || _highlightCtrl == null) return card;
+
+    return AnimatedBuilder(
+      animation: _highlightCtrl!,
+      builder: (ctx, child) {
+        // 1.5s 内 0→1 的进度，0.5s 渐入 0.5s 保持 0.5s 渐出
+        final v = _highlightCtrl!.value;
+        double intensity;
+        if (v < 0.33) {
+          intensity = v / 0.33;
+        } else if (v < 0.66) {
+          intensity = 1.0;
+        } else {
+          intensity = (1.0 - v) / 0.34;
+        }
+        final color = Color.lerp(
+          Colors.transparent,
+          const Color(0xFF52C41A).withOpacity(0.18),
+          intensity.clamp(0.0, 1.0),
+        );
+        return Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            color: color,
+          ),
+          child: child,
+        );
+      },
+      child: card,
     );
   }
 }

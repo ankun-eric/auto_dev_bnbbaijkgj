@@ -473,6 +473,67 @@ async def list_exchange_records(
         for g in g_res.scalars().all():
             goods_map[g.id] = g
 
+    # ── OPT-4：批量拉 user_coupon + coupon 模板，给每条记录补 coupon_id / coupon_status / coupon_scope ──
+    user_coupon_ids = list({r.ref_user_coupon_id for r in rows if r.ref_user_coupon_id})
+    user_coupon_map: dict[int, UserCoupon] = {}
+    coupon_map: dict[int, Coupon] = {}
+    if user_coupon_ids:
+        uc_res = await db.execute(
+            select(UserCoupon).where(UserCoupon.id.in_(user_coupon_ids))
+        )
+        for uc in uc_res.scalars().all():
+            user_coupon_map[uc.id] = uc
+        cids = list({uc.coupon_id for uc in user_coupon_map.values()})
+        if cids:
+            c_res = await db.execute(select(Coupon).where(Coupon.id.in_(cids)))
+            for c in c_res.scalars().all():
+                coupon_map[c.id] = c
+
+    def _coupon_extras(r: PointExchangeRecord) -> dict:
+        """OPT-4：返回 coupon_id / coupon_status / coupon_scope 三字段。
+
+        - coupon_id：user_coupon.id（用于「去使用」跳转携带）
+        - coupon_status：available / used / expired / refunded
+        - coupon_scope：product / category / all（前端预拼跳转 URL 用，可能为 None）
+        """
+        if r.goods_type != "coupon":
+            return {"coupon_id": None, "coupon_status": None, "coupon_scope": None}
+        uc_id = r.ref_user_coupon_id
+        if not uc_id:
+            return {"coupon_id": None, "coupon_status": "expired", "coupon_scope": None}
+        uc = user_coupon_map.get(uc_id)
+        if not uc:
+            return {"coupon_id": uc_id, "coupon_status": "expired", "coupon_scope": None}
+        # 推导状态
+        uc_status = uc.status.value if hasattr(uc.status, "value") else str(uc.status)
+        now = datetime.utcnow()
+        if uc_status == "used":
+            status_val = "used"
+        elif uc_status == "refunded":
+            status_val = "refunded"
+        elif uc_status == "expired":
+            status_val = "expired"
+        elif uc_status == "unused":
+            if uc.expire_at is not None and uc.expire_at < now:
+                status_val = "expired"
+            else:
+                status_val = "available"
+        else:
+            status_val = uc_status
+        # 兑换记录所在订单退款 → 标 refunded（兼容字段，目前订单退款不一定回写 user_coupon）
+        if (r.status or "") in ("refunded", "cancelled") and status_val == "available":
+            status_val = "refunded"
+
+        scope_val: str | None = None
+        coupon = coupon_map.get(uc.coupon_id)
+        if coupon is not None:
+            scope_val = coupon.scope.value if hasattr(coupon.scope, "value") else str(coupon.scope)
+        return {
+            "coupon_id": uc.id,
+            "coupon_status": status_val,
+            "coupon_scope": scope_val,
+        }
+
     def _use_button(r: PointExchangeRecord) -> dict:
         state = "normal"
         text = "立即使用"
@@ -509,6 +570,7 @@ async def list_exchange_records(
             "ref_order_no": r.ref_order_no,
         }
         d.update(_use_button(r))
+        d.update(_coupon_extras(r))
         return d
 
     items = [_row_to_dict(r) for r in rows]

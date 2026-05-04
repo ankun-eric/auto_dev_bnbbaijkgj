@@ -53,7 +53,7 @@ class Coupon {
       case 'voucher':
         return '代金券';
       case 'free_trial':
-        return '免费试用';
+        return '免费体验券';
       default:
         return type;
     }
@@ -68,8 +68,9 @@ class Coupon {
       case 'voucher':
         return '¥${discountValue.toInt()}';
       // [优惠券下单页 Bug 修复 v2 · B1] free_trial：整单 0 元抵扣
+      // [OPT-3] "免费试用" → "免费体验" 全局汉化
       case 'free_trial':
-        return '凭券免费试用';
+        return '凭券免费体验';
       default:
         return '';
     }
