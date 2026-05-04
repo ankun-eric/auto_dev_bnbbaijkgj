@@ -149,23 +149,39 @@ Page({
   },
 
   async payOrder() {
+    const order = this.data.order;
+    if (!order) return;
     try {
-      const res = await post(`/api/orders/unified/${this.data.id}/pay`);
-      const data = res.data || res;
-      if (data.payment_params) {
+      const methodsRes = await get('/api/pay/available-methods', { platform: 'miniprogram' }, { showLoading: false });
+      const methods = Array.isArray(methodsRes) ? methodsRes : (Array.isArray(methodsRes && methodsRes.data) ? methodsRes.data : []);
+      const channelCode = (methods[0] && methods[0].channel_code) || null;
+      const paidAmount = Number(order.paid_amount) || 0;
+
+      if (paidAmount === 0) {
+        await post(`/api/orders/unified/${order.id}/confirm-free`, { channel_code: channelCode });
+        wx.showToast({ title: '支付成功', icon: 'success' });
+        this.loadOrder();
+        return;
+      }
+
+      if (!channelCode) {
+        wx.showToast({ title: '暂未开通支付方式', icon: 'none' });
+        return;
+      }
+
+      const payRes = await post(`/api/orders/unified/${order.id}/pay`, { channel_code: channelCode });
+      const paymentParams = payRes && payRes.payment_params;
+      if (channelCode === 'wechat_miniprogram' && paymentParams) {
         wx.requestPayment({
-          ...data.payment_params,
-          success: () => {
-            wx.showToast({ title: '支付成功', icon: 'success' });
-            this.loadOrder();
-          },
-          fail: () => {
-            wx.showToast({ title: '支付取消', icon: 'none' });
-          }
+          ...paymentParams,
+          success: () => this.loadOrder(),
+          fail: () => this.loadOrder(),
         });
+      } else {
+        this.loadOrder();
       }
     } catch (e) {
-      console.log('payOrder error', e);
+      wx.showToast({ title: (e && e.detail) || '支付失败', icon: 'none' });
     }
   },
 

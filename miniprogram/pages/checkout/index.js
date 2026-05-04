@@ -17,7 +17,8 @@ Page({
     availablePoints: 0,
     pointsDeduction: 0,
     maxPointsDeduction: 0,
-    paymentMethod: 'wechat',
+    paymentMethod: '',
+    paymentMethods: [],
     totalPrice: 0,
     discountPrice: 0,
     finalPrice: 0,
@@ -54,6 +55,24 @@ Page({
     this.loadCoupons();
     this.loadAddress();
     this.loadPoints();
+    this.loadPaymentMethods();
+  },
+
+  loadPaymentMethods() {
+    get('/api/pay/available-methods', { platform: 'miniprogram' }, { showLoading: false })
+      .then(res => {
+        const list = Array.isArray(res) ? res : (Array.isArray(res && res.data) ? res.data : []);
+        this.setData({
+          paymentMethods: list,
+          paymentMethod: list.length > 0 ? list[0].channel_code : '',
+        });
+      })
+      .catch(() => this.setData({ paymentMethods: [] }));
+  },
+
+  selectPaymentMethod(e) {
+    const channelCode = e.currentTarget.dataset.code;
+    this.setData({ paymentMethod: channelCode });
   },
 
   formatDate(date) {
@@ -416,18 +435,37 @@ Page({
 
       const res = await post('/api/orders/unified', orderData);
       const order = res.data || res;
+      const paidAmount = Number(order.paid_amount) || 0;
 
-      if (this.data.paymentMethod === 'wechat' && order.payment_params) {
-        wx.requestPayment({
-          ...order.payment_params,
-          success: () => {
-            wx.redirectTo({ url: `/pages/unified-order-detail/index?id=${order.id}` });
-          },
-          fail: () => {
-            wx.redirectTo({ url: `/pages/unified-order-detail/index?id=${order.id}` });
-          }
-        });
-      } else {
+      if (paidAmount === 0) {
+        try {
+          await post(`/api/orders/unified/${order.id}/confirm-free`, { channel_code: this.data.paymentMethod || null });
+          wx.showToast({ title: '支付成功', icon: 'success' });
+          setTimeout(() => wx.redirectTo({ url: `/pages/unified-order-detail/index?id=${order.id}` }), 800);
+        } catch (e) {
+          wx.showToast({ title: '免单确认失败', icon: 'none' });
+        }
+        return;
+      }
+
+      if (!this.data.paymentMethod) {
+        wx.showToast({ title: '请选择支付方式', icon: 'none' });
+        return;
+      }
+
+      try {
+        const payRes = await post(`/api/orders/unified/${order.id}/pay`, { channel_code: this.data.paymentMethod });
+        const paymentParams = (payRes && payRes.payment_params) || order.payment_params;
+        if (this.data.paymentMethod === 'wechat_miniprogram' && paymentParams) {
+          wx.requestPayment({
+            ...paymentParams,
+            success: () => wx.redirectTo({ url: `/pages/unified-order-detail/index?id=${order.id}` }),
+            fail: () => wx.redirectTo({ url: `/pages/unified-order-detail/index?id=${order.id}` }),
+          });
+        } else {
+          wx.redirectTo({ url: `/pages/unified-order-detail/index?id=${order.id}` });
+        }
+      } catch (e) {
         wx.redirectTo({ url: `/pages/unified-order-detail/index?id=${order.id}` });
       }
     } catch (e) {

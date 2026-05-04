@@ -25,6 +25,10 @@ class Settings(BaseSettings):
 
     UPLOAD_DIR: str = "uploads"
 
+    # [H5 支付链路修复 v1.0] 项目对外基础 URL（如 https://example.com/bnbbaijkgj），
+    # 用于构造支付宝 H5 沙盒收银台 pay_url。生产接入真实支付后可移除依赖。
+    PROJECT_BASE_URL: str = ""
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
 

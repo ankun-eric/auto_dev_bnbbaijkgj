@@ -113,11 +113,36 @@ export default function UnifiedOrderDetailPage() {
 
   useEffect(() => { fetchOrder(); }, [orderId]);
 
+  // [2026-05-04 H5 支付链路 Bug 修复] 与 checkout 同步：拉取 H5 可用通道，按 paid_amount 分支
   const handlePay = async () => {
+    if (!order) return;
     try {
-      await api.post(`/api/orders/unified/${orderId}/pay`, { payment_method: 'wechat' });
-      Toast.show({ content: '支付成功' });
-      fetchOrder();
+      const methodsRes: any = await api.get('/api/pay/available-methods', { params: { platform: 'h5' } });
+      const methodsData = methodsRes?.data || methodsRes;
+      const methods = Array.isArray(methodsData)
+        ? methodsData
+        : (Array.isArray(methodsData?.data) ? methodsData.data : []);
+      const channel_code: string | null = methods[0]?.channel_code || null;
+
+      const paidAmount = Number(order.paid_amount) || 0;
+      if (paidAmount === 0) {
+        await api.post(`/api/orders/unified/${order.id}/confirm-free`, { channel_code });
+        Toast.show({ content: '支付成功' });
+        fetchOrder();
+        return;
+      }
+      if (!channel_code) {
+        Toast.show({ content: '暂未开通支付方式，请联系管理员' });
+        return;
+      }
+      const payRes: any = await api.post(`/api/orders/unified/${order.id}/pay`, { channel_code });
+      const payData = payRes?.data || payRes;
+      if (payData?.pay_url) {
+        window.location.href = payData.pay_url;
+      } else {
+        Toast.show({ content: '支付成功' });
+        fetchOrder();
+      }
     } catch (err: any) {
       Toast.show({ content: err?.response?.data?.detail || '支付失败' });
     }
@@ -311,6 +336,10 @@ export default function UnifiedOrderDetailPage() {
 
   const hasInStore = order.items.some((i) => i.fulfillment_type === 'in_store');
   const hasDelivery = order.items.some((i) => i.fulfillment_type === 'delivery');
+  // [2026-05-04 H5 支付链路 Bug 修复] 统一 isPaid 判断（实际项目状态枚举值）
+  const PAID_STATUSES = ['pending_shipment', 'pending_receipt', 'pending_use', 'appointed', 'partial_used', 'pending_review', 'completed'];
+  const isPaid = PAID_STATUSES.includes(order.status) || !!order.paid_at;
+  void isPaid;
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">

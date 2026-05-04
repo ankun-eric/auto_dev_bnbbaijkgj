@@ -334,6 +334,13 @@
   padding: 16rpx 0;
 }
 
+.pay-empty-tip {
+  color: #999;
+  font-size: 26rpx;
+  padding: 20rpx;
+  text-align: center;
+}
+
 .pay-icon {
   font-size: 36rpx;
   margin-right: 16rpx;

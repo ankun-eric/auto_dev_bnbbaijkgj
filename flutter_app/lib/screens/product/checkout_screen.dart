@@ -33,6 +33,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   String _appointmentNote = '';
   List<Map<String, dynamic>> _slotAvailability = [];
 
+  // [H5 支付链路修复 v1.0] 支付方式
+  List<Map<String, dynamic>> _paymentMethods = [];
+  String? _selectedChannelCode;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -42,6 +46,31 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     _loadAddresses();
     _loadCoupons();
     _loadSlotAvailability();
+    _loadPaymentMethods();
+  }
+
+  Future<void> _loadPaymentMethods() async {
+    try {
+      final res = await _api.getAvailablePayMethods(platform: 'app');
+      final raw = res.data;
+      List list = [];
+      if (raw is List) {
+        list = raw;
+      } else if (raw is Map && raw['data'] is List) {
+        list = raw['data'] as List;
+      }
+      setState(() {
+        _paymentMethods = list
+            .map((e) => Map<String, dynamic>.from(e as Map))
+            .toList();
+        if (_paymentMethods.isNotEmpty) {
+          _selectedChannelCode =
+              _paymentMethods.first['channel_code'] as String?;
+        }
+      });
+    } catch (_) {
+      setState(() => _paymentMethods = []);
+    }
   }
 
   @override
@@ -261,14 +290,74 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       }
 
       final res = await _api.createUnifiedOrder(data);
-      if (mounted) {
-        if (res.data is Map && res.data['id'] != null) {
-          Navigator.pushReplacementNamed(
-            context,
-            '/unified-order-detail',
-            arguments: res.data['id'],
+      if (!mounted) return;
+      final orderMap =
+          res.data is Map ? Map<String, dynamic>.from(res.data as Map) : null;
+      if (orderMap == null || orderMap['id'] == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('创建订单失败')),
+        );
+        return;
+      }
+      final orderId = orderMap['id'] as int;
+      final paidAmount = (orderMap['paid_amount'] is num)
+          ? (orderMap['paid_amount'] as num).toDouble()
+          : 0.0;
+
+      if (paidAmount == 0) {
+        try {
+          await _api.confirmFreeUnifiedOrder(
+            orderId,
+            channelCode: _selectedChannelCode,
+          );
+        } catch (_) {
+          // 即便失败也继续跳详情，由详情页继续处理
+        }
+        if (!mounted) return;
+        Navigator.pushReplacementNamed(
+          context,
+          '/unified-order-detail',
+          arguments: orderId,
+        );
+        return;
+      }
+
+      if (_selectedChannelCode == null || _selectedChannelCode!.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('请选择支付方式')),
+        );
+        return;
+      }
+
+      try {
+        final payRes = await _api.payUnifiedOrder(
+          orderId,
+          channelCode: _selectedChannelCode,
+        );
+        final payData = payRes.data is Map ? payRes.data as Map : null;
+        final payUrl = payData?['pay_url'] as String?;
+        if (!mounted) return;
+        if (payUrl != null && payUrl.isNotEmpty) {
+          // 本期简化：先用 SnackBar 引导，后续接入 url_launcher.launchUrl(Uri.parse(payUrl))
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('请在浏览器中完成支付：$payUrl')),
           );
         }
+        Navigator.pushReplacementNamed(
+          context,
+          '/unified-order-detail',
+          arguments: orderId,
+        );
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('支付失败：$e')),
+        );
+        Navigator.pushReplacementNamed(
+          context,
+          '/unified-order-detail',
+          arguments: orderId,
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -277,8 +366,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             : '下单失败';
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
       }
+    } finally {
+      if (mounted) setState(() => _submitting = false);
     }
-    setState(() => _submitting = false);
   }
 
   @override
@@ -302,6 +392,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             _buildCouponSection(),
             const SizedBox(height: 8),
             _buildNotesSection(),
+            const SizedBox(height: 8),
+            _buildPaymentMethodSection(),
             const SizedBox(height: 8),
             _buildPriceSection(),
             const SizedBox(height: 80),
@@ -645,6 +737,44 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         ),
         maxLines: 2,
         style: const TextStyle(fontSize: 14),
+      ),
+    );
+  }
+
+  // [H5 支付链路修复 v1.0] 支付方式选择区块
+  Widget _buildPaymentMethodSection() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      color: Colors.white,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            '支付方式',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          if (_paymentMethods.isEmpty)
+            const Text(
+              '暂未开通支付方式，请联系管理员',
+              style: TextStyle(color: Color(0xFF999999), fontSize: 13),
+            )
+          else
+            ..._paymentMethods.map((m) {
+              final code = m['channel_code'] as String?;
+              final name = m['display_name'] as String? ?? '';
+              return RadioListTile<String>(
+                value: code ?? '',
+                groupValue: _selectedChannelCode ?? '',
+                onChanged: (v) =>
+                    setState(() => _selectedChannelCode = v),
+                title: Text(name),
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+              );
+            }),
+        ],
       ),
     );
   }

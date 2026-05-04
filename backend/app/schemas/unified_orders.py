@@ -111,6 +111,13 @@ class UnifiedOrderPayRequest(BaseModel):
     channel_code: Optional[str] = None
 
 
+class ConfirmFreeRequest(BaseModel):
+    """[H5 支付链路修复 v1.0] 0 元订单确认入参。
+    channel_code 可选；当后台所有支付通道都停用时，允许为 null（前端展示"免支付"）。
+    """
+    channel_code: Optional[str] = None
+
+
 class UnifiedOrderCancelRequest(BaseModel):
     cancel_reason: Optional[str] = None
 

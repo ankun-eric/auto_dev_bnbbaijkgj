@@ -1,4 +1,5 @@
 import logging
+import os
 import random
 import string
 import uuid
@@ -40,6 +41,7 @@ from app.models.models import (
     UserCouponStatus,
 )
 from app.schemas.unified_orders import (
+    ConfirmFreeRequest,
     OrderItemResponse,
     UnifiedOrderCancelRequest,
     UnifiedOrderCreate,
@@ -1226,6 +1228,51 @@ async def get_order_counts(
     }
 
 
+@router.get("/sandbox-confirm")
+async def sandbox_confirm(
+    order_no: str = Query(..., description="订单号"),
+    channel: Optional[str] = Query(None, description="通道编码（仅日志用）"),
+    db: AsyncSession = Depends(get_db),
+):
+    """[H5 支付链路修复 v1.0] 支付宝 H5 沙盒回跳入口。
+
+    本接口**仅用于开发自测**：前端沙盒收银台页提交"模拟支付成功"后调用此接口，
+    将订单按状态机推进为已支付（复用 `_advance_status_after_payment`）。
+    生产环境替换为真实支付回调后此接口可下线。
+
+    不做用户身份校验（沙盒），但会校验：
+      - 订单存在（否则 404）
+      - 订单状态为 pending_payment（否则 400）
+
+    注意：此路由必须注册在 `/{order_id}` 之前，否则会被 path 参数捕获。
+    """
+    result = await db.execute(
+        select(UnifiedOrder)
+        .options(selectinload(UnifiedOrder.items))
+        .where(UnifiedOrder.order_no == order_no)
+    )
+    order = result.scalar_one_or_none()
+    if not order:
+        raise HTTPException(status_code=404, detail="订单不存在")
+
+    status_val = order.status
+    if hasattr(status_val, "value"):
+        status_val = status_val.value
+    if status_val != "pending_payment":
+        raise HTTPException(status_code=400, detail="该订单无法确认支付")
+
+    order.paid_at = datetime.utcnow()
+    await _advance_status_after_payment(order, db)
+    order.updated_at = datetime.utcnow()
+
+    return {
+        "message": "沙盒支付确认成功",
+        "id": order.id,
+        "order_no": order.order_no,
+        "status": _normalize_status(order.status),
+    }
+
+
 @router.get("/{order_id}")
 async def get_unified_order(
     order_id: int,
@@ -1254,55 +1301,22 @@ async def get_unified_order(
     return _build_order_response(order)
 
 
-@router.post("/{order_id}/pay")
-async def pay_unified_order(
-    order_id: int,
-    data: UnifiedOrderPayRequest,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    result = await db.execute(
-        select(UnifiedOrder)
-        .options(selectinload(UnifiedOrder.items))
-        .where(UnifiedOrder.id == order_id, UnifiedOrder.user_id == current_user.id)
-    )
-    order = result.scalar_one_or_none()
-    if not order:
-        raise HTTPException(status_code=404, detail="订单不存在")
+async def _advance_status_after_payment(order: UnifiedOrder, db: AsyncSession) -> None:
+    """[H5 支付链路修复 v1.0] 抽取自 pay_unified_order 的状态推进逻辑。
 
-    status_val = order.status
-    if hasattr(status_val, "value"):
-        status_val = status_val.value
-    if status_val != "pending_payment":
-        raise HTTPException(status_code=400, detail="该订单无法支付")
+    被 `pay_unified_order`、`confirm_free_unified_order`、`sandbox_confirm` 三处复用，
+    避免状态机分裂。需要 order.items 已通过 selectinload 加载好。
 
-    order.payment_method = data.payment_method
-    order.paid_at = datetime.utcnow()
-    order.updated_at = datetime.utcnow()
-
-    # [支付配置 PRD v1.0] 可选 channel_code：若传入则校验并落库；
-    # 未启用通道下单时返回 4001 业务码（HTTP 400）。
-    if data.channel_code:
-        from app.models.models import PaymentChannel as _PC
-        ch_res = await db.execute(
-            select(_PC).where(_PC.channel_code == data.channel_code)
-        )
-        ch = ch_res.scalar_one_or_none()
-        if ch is None:
-            raise HTTPException(status_code=400, detail={
-                "code": 4001, "message": "该支付方式暂未开通，请选择其他支付方式"
-            })
-        if not (ch.is_enabled and ch.is_complete):
-            raise HTTPException(status_code=400, detail={
-                "code": 4001, "message": "该支付方式暂未开通，请选择其他支付方式"
-            })
-        order.payment_channel_code = ch.channel_code
-        order.payment_display_name = ch.display_name
-
+    [PRD 订单状态机简化方案 v1.0] 状态机推进：
+    1) 实物 only → pending_shipment
+    2) 到店 + 需预约且未预约 → pending_appointment
+    3) 到店 + 需预约且已预约 → **pending_use（直接出码，跳过 appointed）**
+    4) 其它（普通到店）→ pending_use
+    """
     has_delivery = False
     has_in_store = False
     has_appointment_set = False
-    product_ids_for_check = []
+    product_ids_for_check: list[int] = []
     for item in order.items:
         ft = item.fulfillment_type
         if hasattr(ft, "value"):
@@ -1332,23 +1346,173 @@ async def pay_unified_order(
                 has_appointment_required = True
                 break
 
-    # [PRD 订单状态机简化方案 v1.0] 状态机推进：
-    # 1) 实物 only → pending_shipment
-    # 2) 到店 + 需预约且未预约 → pending_appointment
-    # 3) 到店 + 需预约且已预约 → **pending_use（直接出码，跳过 appointed）**
-    # 4) 其它（普通到店）→ pending_use
     if has_delivery and not has_in_store:
         order.status = UnifiedOrderStatus.pending_shipment
     elif has_in_store:
         if has_appointment_required and not has_appointment_set:
             order.status = UnifiedOrderStatus.pending_appointment
         else:
-            # 已设预约 或 不需要预约 → 立即 pending_use（出核销码）
             order.status = UnifiedOrderStatus.pending_use
     else:
         order.status = UnifiedOrderStatus.pending_use
 
-    return {"message": "支付成功", "order_no": order.order_no, "status": _normalize_status(order.status)}
+
+def _build_sandbox_pay_url(order_no: str, channel_code: str) -> Optional[str]:
+    """[H5 支付链路修复 v1.0] 构造支付宝 H5 沙盒收银台 URL。
+
+    本期为开发自测桩，待真实商户证书接入后替换为支付宝 SDK 生成的真实收银台 URL。
+    """
+    base = ""
+    try:
+        from app.core.config import settings as _settings
+        base = getattr(_settings, "PROJECT_BASE_URL", "") or ""
+    except Exception:  # noqa: BLE001
+        base = ""
+    if not base:
+        base = os.getenv("PROJECT_BASE_URL", "")
+    return f"{base}/sandbox-pay?order_no={order_no}&channel={channel_code}"
+
+
+@router.post("/{order_id}/pay")
+async def pay_unified_order(
+    order_id: int,
+    data: UnifiedOrderPayRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """统一订单支付（已移除真实支付接入，目前为状态机推进 + 桩 URL）。
+
+    [H5 支付链路修复 v1.0] 返回字段 `pay_url`：
+        当 channel_code=alipay_h5 且 provider=alipay 时，构造一个沙盒收银台 URL
+        指向前端 H5 的 /sandbox-pay 页；其它通道（wechat_app / alipay_app /
+        wechat_miniprogram）pay_url=None，前端走原生 SDK 通道。
+        **此处的 pay_url 是开发自测桩，待真实商户证书接入后替换为支付宝 SDK
+        生成的真实收银台 URL。**
+    """
+    result = await db.execute(
+        select(UnifiedOrder)
+        .options(selectinload(UnifiedOrder.items))
+        .where(UnifiedOrder.id == order_id, UnifiedOrder.user_id == current_user.id)
+    )
+    order = result.scalar_one_or_none()
+    if not order:
+        raise HTTPException(status_code=404, detail="订单不存在")
+
+    status_val = order.status
+    if hasattr(status_val, "value"):
+        status_val = status_val.value
+    if status_val != "pending_payment":
+        raise HTTPException(status_code=400, detail="该订单无法支付")
+
+    order.payment_method = data.payment_method
+    order.paid_at = datetime.utcnow()
+    order.updated_at = datetime.utcnow()
+
+    # [支付配置 PRD v1.0] 可选 channel_code：若传入则校验并落库；
+    # 未启用通道下单时返回 4001 业务码（HTTP 400）。
+    ch_provider: Optional[str] = None
+    if data.channel_code:
+        from app.models.models import PaymentChannel as _PC
+        ch_res = await db.execute(
+            select(_PC).where(_PC.channel_code == data.channel_code)
+        )
+        ch = ch_res.scalar_one_or_none()
+        if ch is None:
+            raise HTTPException(status_code=400, detail={
+                "code": 4001, "message": "该支付方式暂未开通，请选择其他支付方式"
+            })
+        if not (ch.is_enabled and ch.is_complete):
+            raise HTTPException(status_code=400, detail={
+                "code": 4001, "message": "该支付方式暂未开通，请选择其他支付方式"
+            })
+        order.payment_channel_code = ch.channel_code
+        order.payment_display_name = ch.display_name
+        ch_provider = ch.provider
+
+    await _advance_status_after_payment(order, db)
+
+    # [H5 支付链路修复 v1.0] 仅为支付宝 H5 通道生成沙盒桩 URL，其它通道前端走原生 SDK。
+    pay_url: Optional[str] = None
+    if order.payment_channel_code == "alipay_h5" and ch_provider == "alipay":
+        pay_url = _build_sandbox_pay_url(order.order_no, "alipay_h5")
+
+    return {
+        "message": "支付成功",
+        "order_no": order.order_no,
+        "status": _normalize_status(order.status),
+        "pay_url": pay_url,
+        "channel_code": order.payment_channel_code,
+    }
+
+
+@router.post("/{order_id}/confirm-free")
+async def confirm_free_unified_order(
+    order_id: int,
+    data: ConfirmFreeRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """[H5 支付链路修复 v1.0] 0 元订单确认入口（不走支付链路）。
+
+    校验：
+      1) 订单存在（不存在 → 404）
+      2) 订单归属当前用户（否则 → 403 code=forbidden）
+      3) 订单处于 pending_payment（否则 → 400 code=invalid_status）
+      4) `paid_amount == 0`（否则 → 400 code=not_free_order，**防绕过二次校验**）
+
+    动作：复用 `_advance_status_after_payment` 推进订单状态；不写 PaymentTransaction。
+    通道：channel_code 可选；若传入但通道未启用/不完整，**因订单本身已是 0 元**，
+    仍允许提交（按方案 §5.3「通道全关时 0 元订单允许 payment_channel_code 为 null」）。
+    """
+    result = await db.execute(
+        select(UnifiedOrder)
+        .options(
+            selectinload(UnifiedOrder.items).selectinload(OrderItem.product),
+            selectinload(UnifiedOrder.store),
+        )
+        .where(UnifiedOrder.id == order_id)
+    )
+    order = result.scalar_one_or_none()
+    if not order:
+        raise HTTPException(status_code=404, detail="订单不存在")
+    if order.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail={
+            "code": "forbidden", "message": "无权操作他人订单"
+        })
+
+    status_val = order.status
+    if hasattr(status_val, "value"):
+        status_val = status_val.value
+    if status_val != "pending_payment":
+        raise HTTPException(status_code=400, detail={
+            "code": "invalid_status", "message": "该订单当前状态无法确认免支付"
+        })
+
+    if float(order.paid_amount or 0) != 0:
+        raise HTTPException(status_code=400, detail={
+            "code": "not_free_order", "message": "非 0 元订单不能走免支付通道"
+        })
+
+    order.paid_at = datetime.utcnow()
+
+    # 0 元订单允许 channel_code 为 null（"免支付"）；如传入且通道启用完整则落库，
+    # 否则静默忽略（不报错），见方案 §5.3。
+    if data.channel_code:
+        from app.models.models import PaymentChannel as _PC
+        ch_res = await db.execute(
+            select(_PC).where(_PC.channel_code == data.channel_code)
+        )
+        ch = ch_res.scalar_one_or_none()
+        if ch is not None and ch.is_enabled and ch.is_complete:
+            order.payment_channel_code = ch.channel_code
+            order.payment_display_name = ch.display_name
+
+    await _advance_status_after_payment(order, db)
+    order.updated_at = datetime.utcnow()
+
+    return _build_order_response(order)
+
+
 
 
 @router.post("/{order_id}/confirm")

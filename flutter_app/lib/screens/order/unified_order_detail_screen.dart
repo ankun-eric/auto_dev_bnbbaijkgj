@@ -977,9 +977,55 @@ class _UnifiedOrderDetailScreenState extends State<UnifiedOrderDetailScreen> {
 
   Future<void> _payOrder(UnifiedOrder o) async {
     try {
-      await _api.payUnifiedOrder(o.id);
+      // [H5 支付链路修复 v1.0] 拉取可用支付方式
+      String? channelCode;
+      try {
+        final methodsRes = await _api.getAvailablePayMethods(platform: 'app');
+        final raw = methodsRes.data;
+        List list = raw is List
+            ? raw
+            : (raw is Map && raw['data'] is List ? raw['data'] as List : []);
+        if (list.isNotEmpty) {
+          channelCode = (list.first as Map)['channel_code'] as String?;
+        }
+      } catch (_) {
+        // 忽略，channelCode 保持 null
+      }
+
+      final paidAmount = o.paidAmount;
+      if (paidAmount == 0) {
+        await _api.confirmFreeUnifiedOrder(o.id, channelCode: channelCode);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('支付成功')),
+          );
+          _loadOrder(o.id);
+        }
+        return;
+      }
+
+      if (channelCode == null || channelCode.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('暂未开通支付方式')),
+          );
+        }
+        return;
+      }
+
+      final payRes = await _api.payUnifiedOrder(o.id, channelCode: channelCode);
+      final payData = payRes.data is Map ? payRes.data as Map : null;
+      final payUrl = payData?['pay_url'] as String?;
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('支付成功')));
+        if (payUrl != null && payUrl.isNotEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('请在浏览器完成支付：$payUrl')),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('支付成功')),
+          );
+        }
         _loadOrder(o.id);
       }
     } catch (_) {

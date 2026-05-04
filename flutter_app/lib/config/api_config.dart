@@ -196,6 +196,9 @@ class ApiConfig {
   // Unified Orders
   static const String unifiedOrders = '/api/orders/unified';
 
+  // Pay Methods
+  static const String availablePayMethods = '/api/pay/available-methods';
+
   // Coupons
   static const String availableCoupons = '/api/coupons/available';
   static const String claimCoupon = '/api/coupons/claim';

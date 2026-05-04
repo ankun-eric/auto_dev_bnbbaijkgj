@@ -154,11 +154,20 @@
   <!-- 支付方式 -->
   <view class="pay-card card">
     <text class="form-title">支付方式</text>
-    <view class="pay-option active">
-      <text class="pay-icon">💚</text>
-      <text class="pay-label">微信支付</text>
-      <view class="radio-dot checked"></view>
-    </view>
+    <block wx:if="{{paymentMethods.length > 0}}">
+      <view
+        wx:for="{{paymentMethods}}"
+        wx:key="channel_code"
+        class="pay-option {{paymentMethod === item.channel_code ? 'active' : ''}}"
+        bindtap="selectPaymentMethod"
+        data-code="{{item.channel_code}}"
+      >
+        <text class="pay-icon">{{ item.provider === 'alipay' ? '🅰️' : '💚' }}</text>
+        <text class="pay-label">{{item.display_name}}</text>
+        <view class="radio-dot {{paymentMethod === item.channel_code ? 'checked' : ''}}"></view>
+      </view>
+    </block>
+    <view wx:else class="pay-empty-tip">暂未开通支付方式，请联系管理员</view>
   </view>
 
   <!-- 价格汇总 -->

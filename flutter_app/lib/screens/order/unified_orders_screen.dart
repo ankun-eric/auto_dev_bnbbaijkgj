@@ -389,9 +389,37 @@ class _OrderTabState extends State<_OrderTab> with AutomaticKeepAliveClientMixin
 
   Future<void> _payOrder(UnifiedOrder order) async {
     try {
-      await _api.payUnifiedOrder(order.id);
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('支付成功')));
-      _loadOrders();
+      String? channelCode;
+      try {
+        final methodsRes = await _api.getAvailablePayMethods(platform: 'app');
+        final raw = methodsRes.data;
+        List list = raw is List ? raw : (raw is Map && raw['data'] is List ? raw['data'] : []);
+        if (list.isNotEmpty) channelCode = (list.first as Map)['channel_code'] as String?;
+      } catch (_) {/* 忽略，channelCode 保持 null */}
+
+      if (order.paidAmount == 0) {
+        await _api.confirmFreeUnifiedOrder(order.id, channelCode: channelCode);
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('支付成功')));
+        _loadOrders();
+        return;
+      }
+
+      if (channelCode == null || channelCode.isEmpty) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('暂未开通支付方式')));
+        return;
+      }
+
+      final payRes = await _api.payUnifiedOrder(order.id, channelCode: channelCode);
+      final payData = payRes.data is Map ? payRes.data as Map : null;
+      final payUrl = payData?['pay_url'] as String?;
+      if (mounted) {
+        if (payUrl != null && payUrl.isNotEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('请在浏览器完成支付：$payUrl')));
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('支付成功')));
+        }
+        _loadOrders();
+      }
     } catch (_) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('支付失败')));
     }

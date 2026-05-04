@@ -1073,10 +1073,24 @@ class ApiService {
     return _dio.get('${ApiConfig.unifiedOrders}/$orderId');
   }
 
-  Future<Response> payUnifiedOrder(int orderId, {String paymentMethod = 'wechat'}) async {
+  Future<Response> payUnifiedOrder(int orderId, {String? channelCode}) async {
     return _dio.post('${ApiConfig.unifiedOrders}/$orderId/pay', data: {
-      'payment_method': paymentMethod,
+      'channel_code': channelCode,
     });
+  }
+
+  Future<Response> getAvailablePayMethods({String platform = 'app'}) {
+    return _dio.get(
+      ApiConfig.availablePayMethods,
+      queryParameters: {'platform': platform},
+    );
+  }
+
+  Future<Response> confirmFreeUnifiedOrder(int orderId, {String? channelCode}) {
+    return _dio.post(
+      '${ApiConfig.unifiedOrders}/$orderId/confirm-free',
+      data: {'channel_code': channelCode},
+    );
   }
 
   Future<Response> confirmReceipt(int orderId) async {

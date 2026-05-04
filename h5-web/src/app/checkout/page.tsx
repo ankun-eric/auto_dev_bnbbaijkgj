@@ -14,6 +14,10 @@
  *   6. 订单备注（≤ 50 字）
  *   7. 切换门店冲突智能保留：日期/时段不可用时变红边框，立即支付按钮置灰
  *   8. 提交时把 store_id / appointment_date / appointment_slot 全部带入下单接口
+ *
+ * [2026-05-04 H5 支付链路 Bug 修复] 支付方式从 `/api/pay/available-methods?platform=h5` 拉取；
+ *   创单后按 `paid_amount` 分支：0 元走 `confirm-free`，否则走 `/pay`（含 `pay_url` 跳转）。
+ *   订单详情页 `handlePay` 同步改造。
  */
 
 import { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
@@ -213,6 +217,9 @@ function CheckoutPage() {
   const [userPoints, setUserPoints] = useState(0);
 
   const [paymentMethod, setPaymentMethod] = useState('wechat');
+  // [2026-05-04 H5 支付链路 Bug 修复] 动态可用支付方式 + 当前选中通道
+  const [availableMethods, setAvailableMethods] = useState<Array<{ channel_code: string; display_name: string; provider: string }>>([]);
+  const [selectedPayment, setSelectedPayment] = useState<string>('');
 
   // ── 三段式选择 + 联系人 + 备注 ──
   const [dateRange, setDateRange] = useState<DateRange | null>(null);
@@ -297,6 +304,20 @@ function CheckoutPage() {
       }
     }).finally(() => setLoading(false));
   }, [productId]);
+
+  // [2026-05-04 H5 支付链路 Bug 修复] 拉取 H5 平台已启用的支付通道
+  useEffect(() => {
+    api.get('/api/pay/available-methods', { params: { platform: 'h5' } })
+      .then((res: any) => {
+        const data = res?.data || res;
+        const list = Array.isArray(data) ? data : (Array.isArray(data?.data) ? data.data : []);
+        setAvailableMethods(list);
+        if (list.length > 0) {
+          setSelectedPayment((prev) => prev || list[0].channel_code);
+        }
+      })
+      .catch(() => setAvailableMethods([]));
+  }, []);
 
   // [优惠券下单页 Bug 修复 v2 · B3] 当商品/规格/数量变化导致 subtotal 改变时，重新向后端拉取「真正可用的券」
   useEffect(() => {
@@ -539,6 +560,15 @@ function CheckoutPage() {
       else if (!PHONE_RE.test(contactPhone)) Toast.show({ content: '请输入正确的手机号' });
       return;
     }
+    // [2026-05-04 H5 支付链路 Bug 修复] 付费订单需选中支付方式（0 元订单后续会走 confirm-free 兜底）
+    if (totalAmount > 0 && availableMethods.length === 0) {
+      Toast.show({ content: '暂未开通支付方式，请联系管理员' });
+      return;
+    }
+    if (totalAmount > 0 && !selectedPayment) {
+      Toast.show({ content: '请选择支付方式' });
+      return;
+    }
     setSubmitting(true);
     try {
       const appointmentTimeStr = needAppointment && selectedDate
@@ -565,7 +595,8 @@ function CheckoutPage() {
           ...(appointmentTimeStr ? { appointment_time: appointmentTimeStr } : {}),
           ...(appointmentDataObj ? { appointment_data: appointmentDataObj } : {}),
         }],
-        payment_method: paymentMethod,
+        // [2026-05-04 H5 支付链路 Bug 修复] payment_method 改为携带选中的 channel_code
+        payment_method: selectedPayment || paymentMethod,
         points_deduction: usePoints ? pointsDeduction : 0,
         notes: notes || undefined,
       };
@@ -579,11 +610,46 @@ function CheckoutPage() {
       }
 
       const res: any = await api.post('/api/orders/unified', orderData);
-      const order = res.data || res;
+      const order = res?.data || res;
       // 缓存最近一次手机号
       try { window.localStorage.setItem(LAST_CONTACT_PHONE_KEY, contactPhone); } catch {}
-      Toast.show({ content: '下单成功' });
-      router.push(`/unified-order/${order.id}`);
+
+      // [2026-05-04 H5 支付链路 Bug 修复] 根据后端返回的 paid_amount 走分支
+      const paidAmount = Number(order?.paid_amount) || 0;
+      if (paidAmount === 0) {
+        // 0 元订单：直接 confirm-free（不受通道开关限制）
+        try {
+          await api.post(`/api/orders/unified/${order.id}/confirm-free`, {
+            channel_code: selectedPayment || null,
+          });
+        } catch (err: any) {
+          // confirm-free 失败也不阻塞跳转，由订单详情页继续提示/重试
+          Toast.show({ content: err?.response?.data?.detail || '订单确认失败，请稍后重试' });
+          router.push(`/unified-order/${order.id}`);
+          return;
+        }
+        Toast.show({ content: '下单成功' });
+        router.push(`/unified-order/${order.id}`);
+        return;
+      }
+
+      // 付费订单：调用 /pay，按 pay_url 跳转或直接进详情
+      try {
+        const payRes: any = await api.post(`/api/orders/unified/${order.id}/pay`, {
+          channel_code: selectedPayment,
+        });
+        const payData = payRes?.data || payRes;
+        if (payData?.pay_url) {
+          window.location.href = payData.pay_url;
+          return;
+        }
+        // pay_url 为空：后端已直接置为已支付，跳订单详情兜底
+        Toast.show({ content: '下单成功' });
+        router.push(`/unified-order/${order.id}`);
+      } catch (err: any) {
+        Toast.show({ content: err?.response?.data?.detail || '发起支付失败' });
+        router.push(`/unified-order/${order.id}`);
+      }
     } catch (err: any) {
       Toast.show({ content: err?.response?.data?.detail || '下单失败' });
     } finally {
@@ -846,12 +912,16 @@ function CheckoutPage() {
 
         <Card style={{ borderRadius: 12, marginBottom: 12 }}>
           <div className="section-title" style={{ marginBottom: 8 }}>支付方式</div>
-          <Radio.Group value={paymentMethod} onChange={(val) => setPaymentMethod(val as string)}>
+          <Radio.Group value={selectedPayment} onChange={(val) => setSelectedPayment(val as string)}>
             <Space direction="vertical" block>
-              <Radio value="wechat">微信支付</Radio>
-              <Radio value="alipay">支付宝</Radio>
+              {availableMethods.map((m) => (
+                <Radio key={m.channel_code} value={m.channel_code}>{m.display_name}</Radio>
+              ))}
             </Space>
           </Radio.Group>
+          {availableMethods.length === 0 && (
+            <div style={{ color: '#999', fontSize: 12, padding: 8 }}>暂未开通支付方式，请联系管理员</div>
+          )}
         </Card>
       </div>
 
@@ -872,23 +942,36 @@ function CheckoutPage() {
             <span className="text-sm text-gray-500">合计：</span>
             <span className="text-xl font-bold text-red-500">¥{totalAmount}</span>
           </div>
-          <Button
-            loading={submitting}
-            disabled={!canSubmit}
-            onClick={handleSubmit}
-            style={{
-              borderRadius: 24,
-              height: 44,
-              width: 160,
-              background: canSubmit
-                ? 'linear-gradient(135deg, #52c41a, #13c2c2)'
-                : '#e8e8e8',
-              color: canSubmit ? '#fff' : '#999',
-              border: 'none',
-            }}
-          >
-            {slotInvalid ? '请重新选择时段' : '立即支付'}
-          </Button>
+          {(() => {
+            // [2026-05-04 H5 支付链路 Bug 修复] 付费订单 + 无可用支付通道 → 禁用并提示
+            const noPayChannel = totalAmount > 0 && availableMethods.length === 0;
+            const btnDisabled = !canSubmit || noPayChannel;
+            const btnEnabled = !btnDisabled;
+            const label = slotInvalid
+              ? '请重新选择时段'
+              : noPayChannel
+                ? '暂未开通支付方式'
+                : '立即支付';
+            return (
+              <Button
+                loading={submitting}
+                disabled={btnDisabled}
+                onClick={handleSubmit}
+                style={{
+                  borderRadius: 24,
+                  height: 44,
+                  width: 160,
+                  background: btnEnabled
+                    ? 'linear-gradient(135deg, #52c41a, #13c2c2)'
+                    : '#e8e8e8',
+                  color: btnEnabled ? '#fff' : '#999',
+                  border: 'none',
+                }}
+              >
+                {label}
+              </Button>
+            );
+          })()}
         </div>
       </div>
 
