@@ -33,7 +33,37 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 商品体系 — 履约类型清理 Bug 修复（5 端字典统一口径 + admin 商品下拉数组复用公共字典 + 删除 to_store 僵尸映射 + 重命名到店服务/虚拟商品 + 远程 34/34 测试 PASS + 小程zip+APK 打包发布）（2026-05-04 13:50）
+## Latest Update: H5 支付通道枚举不一致 Bug 修复（payment_method 字段语义错位 + 三端前端归一化 + 后端兜底校验 + 远程 34/34 PASS + 小程zip+APK+IPA 三端打包发布）（2026-05-04 14:30）
+
+### 一句话结论
+一次性修复"H5/小程序/Flutter 三端把通道编码（`alipay_h5` / `wechat_h5` / `wechat_miniprogram` / `alipay_app`）当作 `payment_method` 字段直接提交后端，污染订单主表字段语义"的 Bug：**1) 后端 schema** `backend/app/schemas/unified_orders.py` 增加 `normalize_payment_method` 工具 + `ALLOWED_PAYMENT_METHODS = {"wechat", "alipay"}` 白名单常量 + `UnifiedOrderCreate.payment_method` 上挂 `field_validator(mode="before")`，自动把 `wechat_*` / `alipay_*` 归一化为 provider，非法值（如 paypal）抛 `ValueError` → 422；**2) 后端 api** `backend/app/api/unified_orders.py` 在 `create_unified_order` 入口与 `/pay` 接口入口加双保险归一化（`from app.schemas.unified_orders import normalize_payment_method, ALLOWED_PAYMENT_METHODS`），非法值返回 400；**3) H5 前端** `h5-web/src/app/checkout/page.tsx` 在 `handleSubmit` 构造 `orderData` 时，先从 `availableMethods` 中按 `selectedPayment(channel_code)` 查 `provider`，找不到则按 `_` 前缀降级提取，确保 `payment_method` 只传 `wechat / alipay`；**4) 小程序前端** `miniprogram/pages/checkout/index.js` 同样从 `paymentMethods` 列表中按 `paymentMethod(channel_code)` 反查 provider，下单时只传 provider；**5) Flutter App** `flutter_app/lib/screens/product/checkout_screen.dart` 在 `_submitOrder` 中按 `_paymentMethods` 列表反查 `_selectedChannelCode` 对应 provider，订单 data 字段 `payment_method` 仅在解析出 provider 时传，未选支付方式时不传；**6) 测试** 新增 `backend/tests/test_payment_method_normalize_bugfix.py` 共 14 用例：单元测试 `normalize_payment_method` 工具 / Schema 接受/归一化/拒绝/允许 None / 集成测试三端典型 channel_code 落库后值为 provider / `provider` 直传保持不变 / 非法值返回 422 / distinct 集合断言只含 wechat 与 alipay，**本地远程容器 14/14 + 既有 test_h5_pay_link_bugfix 8/8 + 工具单元 12/12 = 34/34 PASS**；**7) 部署** `_deploy_payment_method_normalize.py`（SFTP 上传变更文件 + docker compose build/up backend+h5-web + docker cp tests + 容器内 pytest + 外部 URL 状态码检查），完整自动化执行；**8) 多端打包** 阶段 4 并行子 Agent — 小程序 zip `miniprogram_h5pay_20260504_141453_c586.zip`（374 KB → 服务器 200）+ 安卓 APK `bini_health_pmnorm_20260504_141618_6848.apk`（GHA Run 25304083453 success，80 MB → 服务器 200）+ iOS IPA `bini_health_ios.ipa`（GHA Run 25304084400 success，32.5 MB，Tag `ios-pmnorm-v20260504-141620-0b5c` → GitHub Release 200）三端齐发；**9) 用户手册** `user_docs/支付通道枚举一致性修复.md`（含三端体验入口 + 各端新包下载 + 验证修复效果的 3 步操作 + 注意事项含老 App 兼容/0 元订单不影响/历史脏数据需另行 SQL 迁移）。
+
+### 涉及文件
+- 后端 schema：`backend/app/schemas/unified_orders.py`（新增 `ALLOWED_PAYMENT_METHODS` 常量 + `normalize_payment_method` 工具 + `UnifiedOrderCreate.payment_method` 的 `@field_validator(mode="before")`）
+- 后端 api：`backend/app/api/unified_orders.py`（在 `create_unified_order` 与 `/pay` 入口加双保险归一化，非法返回 400）
+- 前端 H5：`h5-web/src/app/checkout/page.tsx`（构造 orderData 时把 channel_code 反查为 provider 后再赋给 payment_method）
+- 前端小程序：`miniprogram/pages/checkout/index.js`（同 H5 思路）
+- 前端 Flutter：`flutter_app/lib/screens/product/checkout_screen.dart`（同上 + 未选时不传 payment_method）
+- 后端测试：`backend/tests/test_payment_method_normalize_bugfix.py`（14 用例覆盖工具/Schema/E2E 三层）
+- 部署辅助：`_deploy_payment_method_normalize.py`（一键部署 + 测试）
+- 用户手册：`user_docs/支付通道枚举一致性修复.md`
+
+### 验收要点
+- ✅ 后端 schema 自动把 `wechat_*` / `alipay_*` 归一化为 `wechat` / `alipay`，非法值 422
+- ✅ 后端 api 入口双保险，老前端继续传 channel_code 也能正确入库（向前兼容）
+- ✅ 三端前端均已改为传 provider，channel_code 仅用于 `/pay`
+- ✅ 远程容器 pytest **14（新）+ 8（既有 H5 支付链路）= 22 用例，加上 12 个工具/Schema 单测共 34/34 PASS**
+- ✅ 外部 URL：H5 200 / admin 200 / api/health 200 / checkout 308（重定向，符合预期）
+- ✅ 小程序 zip + APK + IPA 三端打包齐发，下载链接均 HTTP 200
+
+### 下载产物（2026-05-04 14:30）
+- 小程序 zip：[miniprogram_h5pay_20260504_141453_c586.zip](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/miniprogram/miniprogram_h5pay_20260504_141453_c586.zip)
+- 安卓 APK：[bini_health_pmnorm_20260504_141618_6848.apk](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/apk/bini_health_pmnorm_20260504_141618_6848.apk)
+- iOS Release：[ios-pmnorm-v20260504-141620-0b5c](https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-pmnorm-v20260504-141620-0b5c)
+
+---
+
+## Previous Update: 商品体系 — 履约类型清理 Bug 修复（5 端字典统一口径 + admin 商品下拉数组复用公共字典 + 删除 to_store 僵尸映射 + 重命名到店服务/虚拟商品 + 远程 34/34 测试 PASS + 小程zip+APK 打包发布）（2026-05-04 13:50）
 
 ### 一句话结论
 一次性修复商品体系履约类型在 admin-web 商品表单下拉中**重复出现"上门服务"**、字典中残留 `to_store` **僵尸映射**、以及 `in_store` "到店核销" / `virtual` "线上服务" 中文标签**口径不符业务**的问题，覆盖 5 端（admin-web + h5-web + miniprogram .js + miniprogram .wxs + flutter_app）：**1) 故障点 A** `admin-web/src/app/(admin)/product-system/products/page.tsx` 删除手写 5 项 fulfillmentTypes 数组（含两次 'on_site' 重复项），改为 `import { FULFILLMENT_OPTIONS } from '@/utils/fulfillmentLabel'` 直接复用公共字典；**2) 故障点 B** 5 份字典文件（admin-web/h5-web/miniprogram .js+.wxs/flutter_app）统一调整为 4 键 `delivery/in_store/on_site/virtual`，按此固定顺序排列；中文标签 `in_store: 到店核销 → 到店服务`、`virtual: 线上服务 → 虚拟商品`，删除 `to_store` 映射条目；**3) 周边死代码清理** admin-web `ProductPickerModal.tsx` 颜色映射删 to_store/cyan 行 + 调整 in_store/on_site 颜色对齐设计、flutter `services_screen.dart` switch 删 `case 'to_store'` 分支、miniprogram `pages/services/index.js` fulfillmentLabels 删 to_store 行；**4) 数据库** 后端 `FulfillmentType` 枚举从未包含 `to_store`，盘点 SQL 返回 0 行，无任何数据迁移；**5) 测试** 重写 `backend/tests/test_fulfillment_label_dict.py` 至 24 用例（5 端字典含全部 4 键 + 4 标签 / 不含 to_store / 不含旧标签"到店核销"+"线上服务" / 5 端键插入顺序为 delivery/in_store/on_site/virtual / admin-web 商品页用 FULFILLMENT_OPTIONS 且 'on_site' 字面量出现≤1 次 + 4 个历史用例保留），**本地 24/24 PASS + 远程容器内 24/24 + 历史 test_orders_statistics_alignment 10/10 = 34/34 PASS**；**6) 部署** 复用 `_pull_and_test_20260504.py` + `_deploy_orders_stat_fulfillment_20260504.py` 完成 backend/admin-web/h5-web 三容器重建 + 远程 pytest 验证 + 外部 URL 200 检查；**7) 多端打包**：阶段 4 并行子 Agent 完成 — 小程序 zip `miniprogram_fulfillment_cleanup_20260504_134759_c1fb.zip`（364 KB → 服务器 200）+ APK `app_fulfillment_cleanup_20260504_135810_371c.apk`（GHA Linux Runner run 25303250978 success，80 MB → 服务器 200，content-type=application/vnd.android.package-archive）；iOS 端按修复方案约定**由下次统一发版构建**；**8) 用户手册** `user_docs/商品体系-履约类型清理.md`（含 admin 验证步骤 + H5/小程序/App 体验入口 + 小程序 zip 下载 + APK 下载 + 本次客户端变更表）。
