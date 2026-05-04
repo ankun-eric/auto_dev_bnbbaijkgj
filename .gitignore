@@ -74,6 +74,12 @@ deploy/link_check_report.json
 deploy/deploy_msg.txt
 deploy/git_msg.txt
 
+# Ad-hoc one-shot SSH helper scripts under deploy/ (contain hardcoded credentials)
+deploy/_ssh_run.py
+deploy/_ssh_put.py
+deploy/_remote_*.sh
+deploy/_deploy_*.log
+
 # Temporary deploy / check scripts at repo root
 .deploy_remote.py
 .check_urls.py
@@ -84,6 +90,11 @@ deploy/git_msg.txt
 .tmp_deploy.sh
 .check_pages.sh
 src_update.tar.gz
+
+# Temporary pytest outputs and ad-hoc check scripts at repo root
+_check_failed_tests.py
+_pytest_output*.txt
+_pytest_regress*.txt
 
 deploy/project.tar.gz
 _deploy_tmp/

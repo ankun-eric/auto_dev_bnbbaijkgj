@@ -173,13 +173,17 @@ async def claim_coupon(
     if coupon.total_count > 0 and coupon.claimed_count >= coupon.total_count:
         raise HTTPException(status_code=400, detail="优惠券已领完")
 
+    # ── [2026-05-05 优惠券领取 R4 容错] ──
+    # 历史脏数据可能出现同一 (user_id, coupon_id) 多条记录，
+    # 原先的 scalar_one_or_none() 会抛 MultipleResultsFound → 500。
+    # 改用 .scalars().first() 同样能命中"已领过"分支，无功能差异。
     existing = await db.execute(
         select(UserCoupon).where(
             UserCoupon.user_id == current_user.id,
             UserCoupon.coupon_id == data.coupon_id,
         )
     )
-    if existing.scalar_one_or_none():
+    if existing.scalars().first():
         # V2.1：重复领取返回 409 Conflict
         raise HTTPException(status_code=409, detail="您已领取过该优惠券")
 

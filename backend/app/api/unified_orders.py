@@ -540,6 +540,12 @@ async def create_unified_order(
 
     coupon_discount = 0.0
     if data.coupon_id:
+        # ── [2026-05-05 H5 优惠券抵扣 0 元下单 Bug 修复 v1.2 · R4] ──
+        # 历史脏数据 / 旧代码并发漏洞导致同一 (user_id, coupon_id, unused) 可能
+        # 出现多条记录，原先的 scalar_one_or_none() 会抛 MultipleResultsFound → 500。
+        # 这里改为按 id ASC 取最早领的那张（对用户最公平的口径），
+        # 既容错脏数据，又不阻塞下单。
+        # 注意：MySQL 不支持 PostgreSQL 的 NULLS LAST 语法，所以仅用 id 排序。
         uc_result = await db.execute(
             select(UserCoupon)
             .where(
@@ -547,8 +553,19 @@ async def create_unified_order(
                 UserCoupon.coupon_id == data.coupon_id,
                 UserCoupon.status == UserCouponStatus.unused,
             )
+            .order_by(UserCoupon.id.asc())
         )
-        user_coupon = uc_result.scalar_one_or_none()
+        _uc_rows = uc_result.scalars().all()
+        if len(_uc_rows) > 1:
+            try:
+                import logging as _log_uc
+                _log_uc.getLogger(__name__).warning(
+                    "[unified_orders] duplicate user_coupons detected: user_id=%s coupon_id=%s count=%s ids=%s",
+                    current_user.id, data.coupon_id, len(_uc_rows), [r.id for r in _uc_rows],
+                )
+            except Exception:
+                pass
+        user_coupon = _uc_rows[0] if _uc_rows else None
         if not user_coupon:
             raise HTTPException(status_code=400, detail="优惠券不可用")
 
@@ -985,14 +1002,18 @@ async def create_unified_order(
         db.add(pr)
 
     if data.coupon_id and coupon_discount > 0:
+        # ── [2026-05-05 H5 优惠券抵扣 0 元下单 Bug 修复 v1.2 · R4] ──
+        # 与上方校验段保持同一排序口径，确保校验/核销命中同一条 user_coupon 记录。
+        # 注意：MySQL 不支持 NULLS LAST，所以仅按 id ASC 排序。
         uc_result2 = await db.execute(
             select(UserCoupon).where(
                 UserCoupon.user_id == current_user.id,
                 UserCoupon.coupon_id == data.coupon_id,
                 UserCoupon.status == UserCouponStatus.unused,
             )
+            .order_by(UserCoupon.id.asc())
         )
-        uc = uc_result2.scalar_one_or_none()
+        uc = uc_result2.scalars().first()
         if uc:
             uc.status = UserCouponStatus.used
             uc.used_at = datetime.utcnow()
