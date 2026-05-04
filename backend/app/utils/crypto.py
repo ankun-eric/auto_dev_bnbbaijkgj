@@ -24,6 +24,16 @@ _FALLBACK_KEY_HEX = "8f3b2e1c4a5d6e7f0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1
 ENC_PREFIX = "ENC::AES256::"
 
 
+class DecryptionError(Exception):
+    """解密失败专用异常。
+
+    用途：区分"密钥不一致 / 密文损坏导致的解密失败" 与 "数据本身就是空"。
+    上层（如测试连接接口）拿到此异常可给用户更精准的报错文案：
+      - 密钥被改：提示运维核对 PAYMENT_CONFIG_ENCRYPTION_KEY
+      - 数据就是空：提示重新填写并保存
+    """
+
+
 def _load_key() -> bytes:
     """读取 32 字节密钥。支持 base64 / hex / 原始 32 字节。"""
     raw = os.environ.get("PAYMENT_CONFIG_ENCRYPTION_KEY", "")
@@ -77,10 +87,17 @@ def encrypt_value(plaintext: Optional[str]) -> Optional[str]:
     return f"{ENC_PREFIX}{blob}"
 
 
-def decrypt_value(ciphertext: Optional[str]) -> Optional[str]:
+def decrypt_value(
+    ciphertext: Optional[str], *, raise_on_error: bool = False
+) -> Optional[str]:
     """将 ENC::AES256::... 解密回明文；非加密格式则原样返回。
 
-    解密失败（如密钥变更、数据损坏）时返回空字符串并打警告，不抛异常。
+    参数：
+        ciphertext: 待解密字符串（可能是 ENC:: 前缀的密文，也可能是明文）。
+        raise_on_error: 解密失败时是否抛 DecryptionError 异常。
+            - False（默认，向后兼容）：失败时返回空字符串并打警告。
+            - True：失败时抛 DecryptionError，便于调用方区分
+              "密钥不一致" 与 "数据本身就是空" 两种错因。
     """
     if ciphertext is None:
         return None
@@ -97,6 +114,8 @@ def decrypt_value(ciphertext: Optional[str]) -> Optional[str]:
     except Exception as e:  # noqa: BLE001
         import logging
         logging.getLogger(__name__).error("payment_config decrypt failed: %s", e)
+        if raise_on_error:
+            raise DecryptionError(str(e)) from e
         return ""
 
 

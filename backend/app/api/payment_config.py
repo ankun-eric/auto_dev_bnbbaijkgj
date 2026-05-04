@@ -34,6 +34,8 @@ from app.schemas.payment_config import (
     PaymentTestResult,
 )
 from app.utils.crypto import (
+    ENC_PREFIX,
+    DecryptionError,
     decrypt_value,
     encrypt_value,
     is_encrypted,
@@ -183,15 +185,22 @@ def _build_masked_config(channel_code: str, config: dict) -> dict:
     return out
 
 
-def _decrypt_for_runtime(channel_code: str, config: dict) -> dict:
-    """运行时使用：把 ENC:: 解密成明文（仅给后端 SDK 用，不直接返回 C 端）。"""
+def _decrypt_for_runtime(
+    channel_code: str, config: dict, *, raise_on_error: bool = False
+) -> dict:
+    """运行时使用：把 ENC:: 解密成明文（仅给后端 SDK 用，不直接返回 C 端）。
+
+    [Bug 修复 2026-05-05] 新增 ``raise_on_error`` 参数：当为 True 时，
+    单字段解密失败会向上抛 ``DecryptionError``，便于"测试连接"接口区分
+    "密钥被改导致解密失败" 与 "字段本身就是空" 这两种错因。
+    """
     cfg = config or {}
     spec = CHANNEL_FIELD_SPEC.get(channel_code, [])
     secret_keys = {f["key"] for f in spec if f.get("is_secret")}
     out: dict[str, Any] = {}
     for k, v in cfg.items():
         if k in secret_keys and isinstance(v, str) and is_encrypted(v):
-            out[k] = decrypt_value(v) or ""
+            out[k] = decrypt_value(v, raise_on_error=raise_on_error) or ""
         else:
             out[k] = v
     return out
@@ -397,22 +406,53 @@ async def update_payment_channel(
         ch.sort_order = int(payload.sort_order)
 
     # config 合并：保留旧值；敏感字段空值时保留旧值，非空值则加密替换
+    # [Bug 修复 2026-05-05] 首次创建场景下，必填敏感字段为空值时强制 422 拒绝，
+    # 避免静默吞掉私钥导致后续测试连接出现"解密后为空"的误导性报错。
     if payload.config is not None:
         spec = CHANNEL_FIELD_SPEC.get(channel_code, [])
         secret_keys = {f["key"] for f in spec if f.get("is_secret")}
+        spec_by_key = {f["key"]: f for f in spec}
         old = dict(ch.config_json or {})
         new_cfg = dict(old)
+        # 用于"该字段当前是否必填"判断的合并视图：旧值 + 本次提交的非敏感字段
+        # （比如 access_mode 切换会影响哪些证书字段是必填）
+        merged_for_required: dict[str, Any] = dict(old)
+        for k, v in (payload.config or {}).items():
+            if k not in secret_keys:
+                merged_for_required[k] = v
         for k, v in (payload.config or {}).items():
             # 非敏感字段直接覆盖（包括空字符串=清空）
             if k not in secret_keys:
                 new_cfg[k] = v
                 continue
-            # 敏感字段：空值 → 保留旧值；非空 → 加密替换
-            if v is None or (isinstance(v, str) and v.strip() == ""):
+
+            is_blank = v is None or (isinstance(v, str) and v.strip() == "")
+            is_mask = isinstance(v, str) and v.startswith("****")
+
+            if is_blank:
+                # 关键判断：DB 中是否已经有该字段的密文？
+                old_val = old.get(k)
+                had_old_value = isinstance(old_val, str) and (
+                    old_val.startswith(ENC_PREFIX) or old_val.strip() != ""
+                )
+                if not had_old_value:
+                    # 首次创建场景：检查该字段是否必填
+                    field_def = spec_by_key.get(k)
+                    if field_def and _is_required(field_def, merged_for_required):
+                        raise HTTPException(
+                            status_code=422,
+                            detail=(
+                                f"敏感字段 {field_def.get('label', k)} "
+                                f"首次创建时不能为空，请填写后再保存"
+                            ),
+                        )
+                # 编辑场景下，留空 = 保留旧值
                 continue
-            # 客户端不应传掩码值；如果传了就忽略
-            if isinstance(v, str) and v.startswith("****"):
+
+            # 客户端不应传掩码值；如果传了就忽略，保留旧值
+            if is_mask:
                 continue
+
             new_cfg[k] = encrypt_value(str(v))
         # 完整性重算
         # 校验完整性时使用"是否填充"（敏感字段填充以 ENC:: 起头亦视作已填）
@@ -485,14 +525,35 @@ async def test_payment_channel(
         )
 
     # —— 解密自检（公共前置） ——
+    # [Bug 修复 2026-05-05] 区分"密钥不一致" 与 "字段未保存"两种错因：
+    #   - DecryptionError → 提示运维核对 PAYMENT_CONFIG_ENCRYPTION_KEY
+    #   - 解密成功但是空 → 提示重新填写并保存（敏感字段在 DB 里根本不存在）
     try:
-        runtime = _decrypt_for_runtime(channel_code, ch.config_json or {})
+        runtime = _decrypt_for_runtime(
+            channel_code, ch.config_json or {}, raise_on_error=True
+        )
         spec = CHANNEL_FIELD_SPEC.get(channel_code, [])
+        cfg_raw = ch.config_json or {}
         for f in spec:
             if _is_required(f, runtime):
-                v = runtime.get(f["key"])
+                key = f["key"]
+                label = f.get("label", key)
+                v = runtime.get(key)
                 if v is None or (isinstance(v, str) and v.strip() == ""):
-                    raise ValueError(f"字段 {f['key']} 解密后为空")
+                    raw_v = cfg_raw.get(key)
+                    if raw_v is None or (isinstance(raw_v, str) and raw_v.strip() == ""):
+                        raise ValueError(
+                            f"字段 {label} 在数据库中不存在或为空，请重新填写并保存"
+                        )
+                    raise ValueError(f"字段 {label} 解密后为空")
+    except DecryptionError as e:
+        ch.last_test_at = datetime.utcnow()
+        ch.last_test_ok = False
+        ch.last_test_message = (
+            f"自检失败：解密失败，可能是 PAYMENT_CONFIG_ENCRYPTION_KEY 被更换过（{e}）"
+        )
+        await db.commit()
+        raise HTTPException(status_code=400, detail=ch.last_test_message)
     except Exception as e:  # noqa: BLE001
         ch.last_test_at = datetime.utcnow()
         ch.last_test_ok = False
@@ -526,6 +587,15 @@ async def test_payment_channel(
         except Exception as e:  # noqa: BLE001
             err_text = str(e)
             lower = err_text.lower()
+            # [Bug 修复 2026-05-05] _build_client_from_config 在 alipay SDK
+            # 未安装时会抛 RuntimeError("未安装 python-alipay-sdk...")，
+            # 这里识别后给出与 ImportError 同样明确的提示。
+            if "python-alipay-sdk" in err_text or "未安装" in err_text:
+                ch.last_test_at = datetime.utcnow()
+                ch.last_test_ok = False
+                ch.last_test_message = f"支付宝 SDK 未安装：{err_text}"
+                await db.commit()
+                raise HTTPException(status_code=400, detail=ch.last_test_message)
             if (
                 "timed out" in lower
                 or "timeout" in lower

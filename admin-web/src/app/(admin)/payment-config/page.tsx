@@ -144,6 +144,10 @@ export default function PaymentConfigPage() {
   const [roleAllowed, setRoleAllowed] = useState<boolean>(true);
   // [Bug 修复] 加载错误信息透传，方便用户/运维一眼看到根因
   const [loadError, setLoadError] = useState<string>('');
+  // [Bug 修复 2026-05-05] 首次创建标志：当前打开的通道是否处于"首次创建"状态。
+  // 首次创建场景下，敏感字段（密钥、证书等）必须填写才能保存；
+  // 编辑场景下，敏感字段留空表示"保留旧值"。
+  const [isFirstTime, setIsFirstTime] = useState<boolean>(false);
 
   useEffect(() => {
     // 仅 admin / super_admin 可见（项目当前没有 super_admin，因此放宽到 admin）
@@ -206,6 +210,13 @@ export default function PaymentConfigPage() {
         access_mode: ch.config_masked?.access_mode || 'public_key',
       });
       setAccessMode(ch.config_masked?.access_mode || 'public_key');
+      // [Bug 修复 2026-05-05] 判断"首次创建"：
+      // 通道未配置完整 (is_complete=false) 且所有敏感字段的掩码都为空（即从未保存过任何敏感字段）
+      const fields = FIELDS_BY_CHANNEL[code] || [];
+      const hasAnySecret = fields.some(
+        (f) => f.isSecret && (ch.config_masked?.[f.key] ?? '') !== ''
+      );
+      setIsFirstTime(!ch.is_complete && !hasAnySecret);
       setDrawerOpen(true);
     } catch (e: any) {
       message.error(e?.response?.data?.detail || '加载失败');
@@ -232,6 +243,25 @@ export default function PaymentConfigPage() {
 
   const onSubmit = async (alsoTest: boolean) => {
     const values = await form.validateFields();
+    // [Bug 修复 2026-05-05] 首次创建场景的二次防御：
+    // 即使 antd rules 已经拦截了空字段，这里再做一次显式检查，
+    // 兼容隐藏字段、条件字段（如 access_mode 切换）等边界情况。
+    if (isFirstTime) {
+      const fields = FIELDS_BY_CHANNEL[drawerCode] || [];
+      const accessModeVal = values.access_mode || 'public_key';
+      const missing = fields
+        .filter((f) => f.isSecret && f.required)
+        .filter((f) => !f.visibleWhen || f.visibleWhen.equals === accessModeVal)
+        .filter((f) => {
+          const v = String(values[f.key] ?? '').trim();
+          return !v;
+        })
+        .map((f) => f.label);
+      if (missing.length > 0) {
+        message.error(`首次创建时以下敏感字段必填：${missing.join('、')}`);
+        return;
+      }
+    }
     setSaving(true);
     try {
       const body = {
@@ -468,8 +498,12 @@ export default function PaymentConfigPage() {
       >
         <Alert
           showIcon
-          type="info"
-          message="敏感字段（密钥、证书等）留空表示不修改原值；填写新值则会以 AES-256-GCM 加密后保存。"
+          type={isFirstTime ? 'warning' : 'info'}
+          message={
+            isFirstTime
+              ? '当前为首次配置：所有标记必填的敏感字段（密钥、证书等）必须完整填写后才能保存。'
+              : '敏感字段（密钥、证书等）留空表示不修改原值；填写新值则会以 AES-256-GCM 加密后保存。'
+          }
           style={{ marginBottom: 16 }}
         />
         <Form
@@ -561,7 +595,22 @@ export default function PaymentConfigPage() {
                   )
                 }
                 name={f.key}
-                rules={(!f.isSecret && f.required) ? [{ required: true, message: `${f.label}必填` }] : []}
+                rules={
+                  // [Bug 修复 2026-05-05] 首次创建场景下，敏感字段也需要 required 校验：
+                  //   - 非敏感字段：required 时一律必填
+                  //   - 敏感字段：仅在"首次创建"时必填（编辑场景留空 = 保留旧值）
+                  f.required
+                    ? [
+                        {
+                          required: !f.isSecret || isFirstTime,
+                          message:
+                            f.isSecret && isFirstTime
+                              ? `${f.label}首次创建时必填，请粘贴完整内容`
+                              : `${f.label}必填`,
+                        },
+                      ]
+                    : []
+                }
               >
                 {f.multiline ? (
                   <TextArea rows={6} placeholder={placeholder} />
