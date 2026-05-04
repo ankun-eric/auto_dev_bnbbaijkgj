@@ -155,6 +155,12 @@ class UnifiedOrderResponse(BaseModel):
     display_status_color: Optional[str] = None
     action_buttons: list[str] = []
     badges: list[str] = []
+    # [2026-05-04 订单「联系商家」电话不显示 Bug 修复 v1.0]
+    # 主因：订单详情/列表响应里此前只塞了 store_name 没塞 store_id，
+    # 导致 H5/小程序/Flutter 三端的 ContactStoreModal 拿不到 storeId，
+    # 直接 return 不发起 /api/stores/{id}/contact 请求，电话恒为空。
+    # 修复：在响应模型中显式声明 store_id，并由 _build_order_response 主动赋值。
+    store_id: Optional[int] = None
     store_name: Optional[str] = None
     # PRD「我的订单与售后状态体系优化」新增字段
     # aftersales_logical_status：4 值之一 pending / processing / completed / rejected / none

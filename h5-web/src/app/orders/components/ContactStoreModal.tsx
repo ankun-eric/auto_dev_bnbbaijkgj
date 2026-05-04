@@ -37,7 +37,17 @@ export default function ContactStoreModal({
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!visible || !storeId) return;
+    if (!visible) return;
+    if (!storeId) {
+      // [2026-05-04 订单「联系商家」电话不显示 Bug 修复 v1.0 · 修复点 3]
+      // storeId 缺失时打日志，便于以后类似"字段透传遗漏"问题的快速定位，
+      // 避免静默失败让 bug 长期被门店名 fallback 完美伪装。
+      console.warn('[ContactStoreModal] storeId 缺失，无法加载门店联系信息', {
+        storeId,
+        fallbackStoreName,
+      });
+      return;
+    }
     let alive = true;
     setLoading(true);
     api

@@ -313,6 +313,10 @@ def _build_order_response(order) -> UnifiedOrderResponse:
     if s == "appointed":
         badges.append("已预约")
     resp.badges = badges
+    # [2026-05-04 订单「联系商家」电话不显示 Bug 修复 v1.0]
+    # 必须把 order.store_id 透传给前端：H5/小程序/Flutter 三端的「联系商家」弹窗
+    # 都依赖 storeId 调用 /api/stores/{id}/contact，缺失时直接 return 不发请求。
+    resp.store_id = order.store_id
     resp.store_name = order.store.store_name if order.store else None
 
     # PRD「我的订单与售后状态体系优化」: 售后逻辑状态 + 15 天评价时效 + 撤销可见性

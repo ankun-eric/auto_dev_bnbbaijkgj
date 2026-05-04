@@ -13,7 +13,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.models.models import MerchantStore
+from app.models.models import (
+    MerchantMemberRole,
+    MerchantStore,
+    MerchantStoreMembership,
+    User,
+)
 
 
 router = APIRouter(prefix="/api/stores", tags=["门店公开信息"])
@@ -36,16 +41,40 @@ class StoreContactResponse(BaseModel):
 
 @router.get("/{store_id}/contact", response_model=StoreContactResponse)
 async def get_store_contact(store_id: int, db: AsyncSession = Depends(get_db)):
-    """获取门店联系信息（用于「联系商家」弹窗）。"""
+    """获取门店联系信息（用于「联系商家」弹窗）。
+
+    [2026-05-04 订单「联系商家」电话不显示 Bug 修复 v1.0 · 修复点 4]
+    PRD 强制：电话取门店「联系电话」（merchant_stores.contact_phone）。
+    若门店未填，则降级取门店 owner 角色成员的注册手机号，
+    避免历史脏数据 / 商家忘填场景下完全空白的尴尬。
+    """
     rs = await db.execute(select(MerchantStore).where(MerchantStore.id == store_id))
     store = rs.scalar_one_or_none()
     if not store:
         raise HTTPException(status_code=404, detail="门店不存在")
+
+    phone_value = store.contact_phone
+    if not phone_value:
+        owner_rs = await db.execute(
+            select(User.phone)
+            .join(
+                MerchantStoreMembership,
+                MerchantStoreMembership.user_id == User.id,
+            )
+            .where(
+                MerchantStoreMembership.store_id == store.id,
+                MerchantStoreMembership.member_role == MerchantMemberRole.owner,
+                MerchantStoreMembership.status == "active",
+            )
+            .limit(1)
+        )
+        phone_value = owner_rs.scalar_one_or_none()
+
     return StoreContactResponse(
         store_id=store.id,
         store_name=store.store_name or "",
         address=store.address,
-        contact_phone=store.contact_phone,
+        contact_phone=phone_value,
         province=getattr(store, "province", None),
         city=getattr(store, "city", None),
         district=getattr(store, "district", None),
