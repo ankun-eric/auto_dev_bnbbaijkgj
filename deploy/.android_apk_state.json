@@ -1,0 +1,14 @@
+{
+  "tag": "android-v20260504-134853-e450",
+  "run_id": 25303250978,
+  "poll_start": 1777873750.40635,
+  "conclusion": "success",
+  "build_duration": 519,
+  "local_apk": "C:\\auto_output\\bnbbaijkgj\\apk_download\\bini_health_android-v20260504-134853-e450.apk",
+  "file_size": 84072279,
+  "remote_name": "app_fulfillment_cleanup_20260504_135810_371c.apk",
+  "verified_http_status": 200,
+  "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/apk/app_fulfillment_cleanup_20260504_135810_371c.apk",
+  "content_type": "application/vnd.android.package-archive",
+  "remote_size": 84072279
+}

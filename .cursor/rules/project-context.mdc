@@ -33,7 +33,38 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 积分商城 / 我的优惠券 7 项 Bug 修复 + 体验优化（5 端联动：BUG-2 列表按原因置灰 / OPT-1 我的优惠券去使用 / OPT-2 free_trial 汉化 / OPT-3 全局改名免费体验券 / OPT-4 兑换记录拆按钮查看券+去使用 / OPT-5 后台文案 / 8 新增 + 32/32 测试 PASS / 三端打包发布）（2026-05-04 13:15）
+## Latest Update: 商品体系 — 履约类型清理 Bug 修复（5 端字典统一口径 + admin 商品下拉数组复用公共字典 + 删除 to_store 僵尸映射 + 重命名到店服务/虚拟商品 + 远程 34/34 测试 PASS + 小程zip+APK 打包发布）（2026-05-04 13:50）
+
+### 一句话结论
+一次性修复商品体系履约类型在 admin-web 商品表单下拉中**重复出现"上门服务"**、字典中残留 `to_store` **僵尸映射**、以及 `in_store` "到店核销" / `virtual` "线上服务" 中文标签**口径不符业务**的问题，覆盖 5 端（admin-web + h5-web + miniprogram .js + miniprogram .wxs + flutter_app）：**1) 故障点 A** `admin-web/src/app/(admin)/product-system/products/page.tsx` 删除手写 5 项 fulfillmentTypes 数组（含两次 'on_site' 重复项），改为 `import { FULFILLMENT_OPTIONS } from '@/utils/fulfillmentLabel'` 直接复用公共字典；**2) 故障点 B** 5 份字典文件（admin-web/h5-web/miniprogram .js+.wxs/flutter_app）统一调整为 4 键 `delivery/in_store/on_site/virtual`，按此固定顺序排列；中文标签 `in_store: 到店核销 → 到店服务`、`virtual: 线上服务 → 虚拟商品`，删除 `to_store` 映射条目；**3) 周边死代码清理** admin-web `ProductPickerModal.tsx` 颜色映射删 to_store/cyan 行 + 调整 in_store/on_site 颜色对齐设计、flutter `services_screen.dart` switch 删 `case 'to_store'` 分支、miniprogram `pages/services/index.js` fulfillmentLabels 删 to_store 行；**4) 数据库** 后端 `FulfillmentType` 枚举从未包含 `to_store`，盘点 SQL 返回 0 行，无任何数据迁移；**5) 测试** 重写 `backend/tests/test_fulfillment_label_dict.py` 至 24 用例（5 端字典含全部 4 键 + 4 标签 / 不含 to_store / 不含旧标签"到店核销"+"线上服务" / 5 端键插入顺序为 delivery/in_store/on_site/virtual / admin-web 商品页用 FULFILLMENT_OPTIONS 且 'on_site' 字面量出现≤1 次 + 4 个历史用例保留），**本地 24/24 PASS + 远程容器内 24/24 + 历史 test_orders_statistics_alignment 10/10 = 34/34 PASS**；**6) 部署** 复用 `_pull_and_test_20260504.py` + `_deploy_orders_stat_fulfillment_20260504.py` 完成 backend/admin-web/h5-web 三容器重建 + 远程 pytest 验证 + 外部 URL 200 检查；**7) 多端打包**：阶段 4 并行子 Agent 完成 — 小程序 zip `miniprogram_fulfillment_cleanup_20260504_134759_c1fb.zip`（364 KB → 服务器 200）+ APK `app_fulfillment_cleanup_20260504_135810_371c.apk`（GHA Linux Runner run 25303250978 success，80 MB → 服务器 200，content-type=application/vnd.android.package-archive）；iOS 端按修复方案约定**由下次统一发版构建**；**8) 用户手册** `user_docs/商品体系-履约类型清理.md`（含 admin 验证步骤 + H5/小程序/App 体验入口 + 小程序 zip 下载 + APK 下载 + 本次客户端变更表）。
+
+### 涉及文件
+- admin-web：`admin-web/src/app/(admin)/product-system/products/page.tsx`（删除 5 项手写 fulfillmentTypes 数组改为 FULFILLMENT_OPTIONS）+ `admin-web/src/utils/fulfillmentLabel.ts`（4 键 + 新标签 + 顺序）+ `admin-web/src/components/coupon/ProductPickerModal.tsx`（colorMap 删 to_store + 调整 in_store/on_site 颜色）
+- h5-web：`h5-web/src/utils/fulfillmentLabel.ts`（4 键 + 新标签 + 顺序 + 新增导出 FULFILLMENT_OPTIONS）
+- miniprogram：`miniprogram/utils/fulfillmentLabel.js`（4 键 + 新标签 + 顺序）+ `miniprogram/utils/fulfillmentLabel.wxs`（4 键 + 新标签 + 顺序）+ `miniprogram/pages/services/index.js`（fulfillmentLabels 删 to_store 行）
+- flutter：`flutter_app/lib/utils/fulfillment_label.dart`（4 键 + 新标签 + 顺序）+ `flutter_app/lib/screens/services/services_screen.dart`（switch 删 to_store 分支）
+- 后端测试：`backend/tests/test_fulfillment_label_dict.py`（重写至 24 用例 — EXPECTED_LABELS 改 4 键新标签 / EXPECTED_ORDER 严格断言 / DEPRECATED_LABELS 旧标签反向断言 / `_extract_dict_block` + `_extract_keys_in_order` 工具 / parametrize 5 文件 / admin-web 商品页 FULFILLMENT_OPTIONS 复用断言）
+- 用户手册：`user_docs/商品体系-履约类型清理.md`
+- 部署辅助（沿用现成）：`deploy/_pull_and_test_20260504.py`（拉代码 + docker cp tests + 装 pytest + 跑 dict 测试）、`deploy/_deploy_orders_stat_fulfillment_20260504.py`（重建 backend/admin/h5 容器 + URL 检查）
+
+### 验收要点
+- ✅ admin-web 「产品系统 → 商品管理 → 新建商品」履约类型下拉只剩 4 项：快递配送 / 到店服务 / 上门服务 / 虚拟商品
+- ✅ 「上门服务」仅出现一次，不再重复
+- ✅ 5 端字典口径完全一致，键顺序 delivery/in_store/on_site/virtual
+- ✅ 全端不再出现"到店核销"/"线上服务"字样（admin-web/h5-web/miniprogram/flutter）
+- ✅ 后端 FulfillmentType 枚举仍为 4 值（未变更），无数据库变更
+- ✅ 远程容器 pytest 34/34 PASS（含历史 test_orders_statistics_alignment 10 用例）
+- ✅ 外部 URL：H5 200 / admin 301 / api/admin/orders/statistics 401 / api/admin/orders/v2/enums 401（鉴权正常）
+- ✅ 小程zip + APK 已上传服务器并 HTTP 200 验证
+
+### 下载产物（2026-05-04）
+- 微信小程序 zip：[miniprogram_fulfillment_cleanup_20260504_134759_c1fb.zip](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/miniprogram_fulfillment_cleanup_20260504_134759_c1fb.zip)
+- 安卓 APK：[app_fulfillment_cleanup_20260504_135810_371c.apk](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/apk/app_fulfillment_cleanup_20260504_135810_371c.apk)
+- iOS：本次未单独构建，按修复方案约定由下次发版统一构建
+
+---
+
+## Previous Update: 积分商城 / 我的优惠券 7 项 Bug 修复 + 体验优化（5 端联动：BUG-2 列表按原因置灰 / OPT-1 我的优惠券去使用 / OPT-2 free_trial 汉化 / OPT-3 全局改名免费体验券 / OPT-4 兑换记录拆按钮查看券+去使用 / OPT-5 后台文案 / 8 新增 + 32/32 测试 PASS / 三端打包发布）（2026-05-04 13:15）
 
 ### 一句话结论
 一次性修复积分商城与我的优惠券模块的 7 项 Bug/优化，覆盖 5 端（后端 + H5 + 小程序 + Flutter Android+iOS + admin-web）：**1) BUG-2** 后端 `GET /api/points/mall` 列表接口补 `can_redeem`/`redeem_block_reason`/`shortage_text` 三字段 + 6 种原因码（OFF_SHELF/NOT_STARTED/ENDED/SOLD_OUT/LIMIT_REACHED/INSUFFICIENT_POINTS，按命中优先级取最高），三端商品卡片【立即兑换】按钮按 `can_redeem` 渲染（true→实心高亮 / false→className 置灰**仍可点击**跳详情，文案按 reason 映射）；**2) OPT-1 + BUG-1** 后端新建 `GET /api/services/list?coupon_id={uc_id}` 服务列表带券过滤接口（按 user_coupon scope/category/expire/offline 全维度校验，鉴权防越权，返回 items + coupon_banner{title,subtitle,scope,type}），三端我的优惠券「可用」Tab 卡片右下加【去使用】主按钮 → 跳服务列表 → 顶部横幅可关闭（×只隐藏 UI 不清除 couponId 上下文）→ 进商品详情透传 couponId → 结算页默认勾选；**3) OPT-4** 后端 `/api/points/exchange-records` 补 `coupon_id`(=user_coupon.id)/`coupon_status`(available/used/expired/refunded)/`coupon_scope` 三字段，三端兑换记录优惠券类型记录把原【查看我的券】拆为【查看券】（次按钮·始终）+【去使用】（主按钮·仅 available 显示），【查看券】跳 `my-coupons?tab=available&highlightCouponId={uc_id}` → 落地页定位"可用"Tab + 滚动到目标券 + 1.5s 闪烁动画（CSS @keyframes / Flutter AnimationController）；**4) OPT-2/OPT-3/OPT-5** 后端 `schemas/coupons.py::COUPON_TYPE_DESCRIPTIONS` 把 `free_trial` 文案"免费试用"改"免费体验券"（**枚举值 free_trial 严禁修改**），h5/小程序/Flutter 共享 `couponTypeLabel` 映射改"免费体验券"（含 `Coupon.discountText` 的"凭券免费试用"也改"凭券免费体验"），admin `coupons/page.tsx::couponTypeMap` 改"免费体验"+ 6 处展示文案同步；**5) 测试**新增 `backend/tests/test_coupon_mall_bugfix.py` 8 个 pytest-asyncio 用例（mall 6 种原因优先级 / services 带券过滤 / services 鉴权 404 / 兑换记录 coupon_status），本地+远程容器内新增 8 + 历史相关 24 = **32/32 全 PASS**；**6) 部署** `_deploy_coupon_mall_bugfix.py` SFTP 15 文件 → docker compose build backend+h5-web+admin-web → up -d → 容器内 pytest 全过 → 外部 H5/admin/api/health 全 200；**7) 三端打包发布**：本次后端+h5-web+admin-web+miniprogram+flutter_app/lib/ 全部改动 → 阶段 4 并行打包（小程序 zip → 服务器、APK → GHA Linux Runner run 25302157758 success → 服务器、iOS IPA → GHA macOS Runner run 25302191149 success → GitHub Release）；**8) 用户手册** `user_docs/积分商城与我的优惠券修复.md`。
