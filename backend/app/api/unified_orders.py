@@ -1533,6 +1533,8 @@ async def confirm_free_unified_order(
         })
 
     order.paid_at = datetime.utcnow()
+    # [零元单 v2.2] 0 元单统一标记为"优惠券全额抵扣"，对账与报表口径友好
+    order.payment_method = UnifiedPaymentMethod.coupon_deduction
 
     # 0 元订单允许 channel_code 为 null（"免支付"）；如传入且通道启用完整则落库，
     # 否则静默忽略（不报错），见方案 §5.3。

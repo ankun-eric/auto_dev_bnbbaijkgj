@@ -33,7 +33,37 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 订单核销码状态与未支付超时治理 v1.0（统一取消出口 + 路径3 替换 + 全局 PAYMENT_TIMEOUT_MINUTES + 三废弃字段下线 + 历史脏数据幂等清洗，远程容器 7/7+回归 64/64 全绿，仅 backend+admin-web 变更无需多端打包）（2026-05-04 19:57）
+## Latest Update: 优惠券抵扣零元订单 Bug 修复 v2.2（UnifiedPaymentMethod 新增 coupon_deduction + confirm-free 写入 payment_method + schema_sync MySQL ENUM 扩列，远程容器 12/12 全绿，仅 backend 变更无客户端打包）（2026-05-04 21:11）
+
+### 一句话结论
+按 `cursor_prompt_315_20260504210815.txt` Bug 修复方案 v2.2，把"优惠券抵扣后实付为 0 时下单失败"剩余的 90% 已修复 → 100% 收口 ：**1) 模型枚举扩展** `backend/app/models/models.py:UnifiedPaymentMethod` 新增 `coupon_deduction = "coupon_deduction"` 枚举值（业内主流命名，对账友好，与 wechat/alipay/points 并列）。**2) confirm-free 接口写入 payment_method** `backend/app/api/unified_orders.py:confirm_free_unified_order` 在 `order.paid_at = datetime.utcnow()` 之后追加 `order.payment_method = UnifiedPaymentMethod.coupon_deduction`，让 0 元单 DB 记录从此与"用户实际没走任何渠道"的事实一致；财务一条 `WHERE payment_method='coupon_deduction'` SQL 即可拿到全部 0 元单，且不会再让"微信支付订单数"被 0 元单虚高。**3) MySQL ENUM 自动扩列** `backend/app/services/schema_sync.py:_sync_payment_config` 末尾追加 ENUM 同步逻辑：启动时通过 `information_schema.COLUMNS` 检查 `unified_orders.payment_method` 列定义，若不含 `coupon_deduction` 则 `ALTER TABLE unified_orders MODIFY COLUMN payment_method ENUM('wechat','alipay','points','coupon_deduction') NULL`，幂等可重入，无需 DBA 介入。**4) 测试** 新增 `backend/tests/test_zero_order_payment_method_v22.py` 共 4 用例覆盖方案 §五全部要点：DB payment_method=coupon_deduction（直读 ORM）/ 接口响应 payment_method 字段值 / 付费订单 /pay 不会被误标 coupon_deduction / 财务对账 SQL count baseline+1。**远程容器 12/12 PASS**（4 新 + 8 旧 `test_h5_pay_link_bugfix.py`）。**5) 部署** `_deploy_zero_order_pm_v22.py` 用 paramiko SFTP 上传 4 个变更文件 + `docker compose build backend` + `up -d` + 等 25s + `docker cp tests/conftest.py + 测试文件` 到 backend 容器 + `docker exec pytest` 12/12 PASS + 直连 MySQL 验证 `unified_orders.payment_method` 列类型 = `enum('wechat','alipay','points','coupon_deduction')` ✅ + 外部 URL 3 条全部 200。**6) 多端零变更** — 仅 backend 改动，**H5 / admin-web / 微信小程序 / 安卓 APP / 苹果 APP / Windows exe 本期零改动无需重新打包**；前端三端的"0 元单旁路分流"逻辑此前已在 H5 支付链路 Bug 修复中完成。**7) 用户手册** `user_docs/优惠券抵扣零元订单修复.md`（开头/末尾两处访问链接表 + 一句话结论 + 4 项功能简介 + 3 步使用场景 ABC + 9 条注意事项 + 8 项验收要点全部通过 + 服务端测试 12/12 + DB ENUM 实测摘录）。
+
+### 涉及文件
+- 后端模型：`backend/app/models/models.py`（`UnifiedPaymentMethod` 枚举末尾新增 `coupon_deduction`）
+- 后端 API：`backend/app/api/unified_orders.py`（`confirm_free_unified_order` 在 `paid_at` 之后写 `payment_method = UnifiedPaymentMethod.coupon_deduction`）
+- 后端 schema 同步：`backend/app/services/schema_sync.py`（`_sync_payment_config` 末尾追加 MySQL ENUM 扩列幂等逻辑）
+- 后端测试（新增）：`backend/tests/test_zero_order_payment_method_v22.py`（4 用例）
+- 部署辅助（新增）：`_deploy_zero_order_pm_v22.py`（SFTP 上传 + docker compose build/up + 容器内 pytest 12/12 + DB ENUM 验证 + 外部 URL 验证）
+- 用户手册：`user_docs/优惠券抵扣零元订单修复.md`
+
+### 验收要点
+- ✅ `UnifiedPaymentMethod` 枚举新增 `coupon_deduction`（4 个值：wechat/alipay/points/coupon_deduction）
+- ✅ `/confirm-free` 接口在写 `paid_at` 之后写 `payment_method = coupon_deduction`
+- ✅ 数据库 `unified_orders.payment_method` 列类型已扩为 `enum('wechat','alipay','points','coupon_deduction')`（schema_sync 启动时自动 MODIFY COLUMN，幂等）
+- ✅ 付费订单 `/pay` 链路 `payment_method` 不会被误标为 `coupon_deduction`
+- ✅ 财务对账 SQL `WHERE payment_method='coupon_deduction'` 命中数随 0 元单提交线性增加
+- ✅ 接口防绕过校验保留：paid_amount > 0 / 非 pending_payment / 非本人订单 → 400/403
+- ✅ 通道全关时 0 元单仍可创建（`payment_channel_code` 为 NULL）
+- ✅ 远程容器 4 新 + 8 旧 = 12/12 测试全绿，无回归
+
+### 体验链接（2026-05-04 21:11）
+- 管理后台：[https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/)
+- H5 用户端：[https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/)
+- 结算页：[https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/checkout](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/checkout)
+
+---
+
+## Previous Update: 订单核销码状态与未支付超时治理 v1.0（统一取消出口 + 路径3 替换 + 全局 PAYMENT_TIMEOUT_MINUTES + 三废弃字段下线 + 历史脏数据幂等清洗，远程容器 7/7+回归 64/64 全绿，仅 backend+admin-web 变更无需多端打包）（2026-05-04 19:57）
 
 ### 一句话结论
 按 `cursor_prompt_314_20260504195716.txt` 一次性把订单取消语义对齐 + 未支付超时治理一揽子落地：**1) 统一取消出口** 新建 `backend/app/services/order_cancel.py::cancel_order_with_items(db, order, *, cancel_reason, cancelled_at=None)`，固定行为 = 设置 `UnifiedOrder.status='cancelled'` + 写 `cancelled_at` / `cancel_reason` + 遍历 `order.items` 把 `redemption_code_status='active'` / `'pending_use'` 全部刷为 `'expired'` + 终态保护（`used` / `redeemed` / `refunded` / `locked` / `expired` 不动）+ 同笔订单重复调用幂等无副作用 + 兼容未预加载 items 自动 `select` 兜底。**2) 三条取消路径全部改走统一出口**：路径1 `POST /api/unified-orders/{id}/cancel`（用户主动取消）/ 路径2 `POST /api/admin/orders/unified/{id}/refund/approve`（管理员批准退款）/ 路径3 新增 `check_unpaid_order_timeout` 定时任务（每 60s 扫一次 `pending_payment` 且 `created_at + PAYMENT_TIMEOUT_MINUTES < now` 的订单）；同时 **完全替换并下线** 旧任务 `check_order_confirm_timeout`（自营业务模式下不存在「门店确认」环节）。**3) 全局支付超时配置 `Settings.PAYMENT_TIMEOUT_MINUTES`**（`backend/app/core/config.py`，默认 15）—— `.env.example` / `docker-compose.yml` / `docker-compose.prod.yml` 后端 environment 段全部透传 —— 三处消费点接入：未支付超时任务窗口 / H5 容量保护 3 处硬编码 `timedelta(minutes=15)` 替换（`_count_occupied / _count_occupied_store / _count_occupied_date`）/ 站内信「请在 X 分钟内完成支付」文案动态读取。**4) 删除 `Product.payment_timeout_minutes`**（ORM `models.py` + Pydantic `ProductCreate/Update/Response` + Admin 编辑页 `IProduct` 类型 / 表单初始值 / 编辑映射 / Form.Item 共 4 处）+ 删除 `UnifiedOrderResponse.payment_timeout_minutes` Pydantic 字段。**5) `schema_sync` 自动迁移**（`backend/app/services/schema_sync.py`）：① `ALTER TABLE ... DROP COLUMN` 删 `products.payment_timeout_minutes` / `unified_orders.payment_timeout_minutes` / `unified_orders.order_timeout_minutes`（如存在）；② 历史脏数据一次性幂等清洗 —— 对 `cancelled` 订单下 `redemption_code_status='active'` 的 `OrderItem` 一次性刷 `expired`（MySQL `UPDATE ... JOIN`，SQLite 走子查询兜底，反复重启不重复改写）。**6) 测试** 新增 `backend/tests/test_order_cancel_redemption_sync.py` 共 7 用例覆盖 PRD 全部要点：统一取消基础 / 统一取消幂等 / 客户端取消 API 走统一路径 / 未支付超时任务取消逾期订单 / 清洗函数转换脏数据 / 配置项默认值 / 下单站内信使用全局超时；同步删 `test_multi_spec_price.py` 里 `payment_timeout_minutes=15` 入参。**本地 7/7 PASS + 远程容器 7/7 PASS + 64 个旧订单关键测试回归全绿**。**7) 部署** `_deploy_order_cancel_redemption_sync.py` 用 paramiko SFTP 上传 14 个变更文件 + `docker compose build backend admin-web` + `up -d` + 等 25s + `docker cp tests/conftest.py + 测试文件` 到 backend 容器 + `docker exec pytest` 7/7 PASS + `_check_dirty_data.py` 直连 MySQL 验证 `DIRTY_LEFT_AFTER_MIGRATION=0`（实测远程库 23 个 cancelled 订单 / 28 个 items 全部干净）+ `_check_schema_changes.py` 验证 4 个字段 DROP 状态（products.payment_timeout_minutes=0 / unified_orders.payment_timeout_minutes=0 / unified_orders.order_timeout_minutes=0 / order_items.redemption_code_status=1 保留）。**8) 多端零变更** — 仅 backend + admin-web 改动，**H5 / 微信小程序 / 安卓 APP / 苹果 APP / Windows exe 本期零改动无需重新打包**。**9) 用户手册** `user_docs/订单核销码状态与未支付超时治理.md`（含开头/末尾两处访问链接表 + 一句话结论 + 7 项功能简介 + 5 步使用场景 ABCDE + 10 条注意事项 + 验收要点全部通过 + 服务端测试 7/7 + 数据库迁移现场实测 摘录）。

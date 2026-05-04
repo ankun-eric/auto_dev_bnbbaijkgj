@@ -2172,6 +2172,26 @@ async def _sync_payment_config(conn: AsyncConnection) -> None:
             except Exception as e:
                 print(f"[schema_sync] unified_orders add payment_display_name warn: {e}")
 
+    # ── 5) [零元单 v2.2] unified_orders.payment_method ENUM 扩列：新增 coupon_deduction ──
+    # MySQL 下 SQLAlchemy 的 Enum(UnifiedPaymentMethod) 会落地为 ENUM('wechat','alipay','points')，
+    # 新增枚举值 'coupon_deduction' 必须在 DB 上 MODIFY COLUMN 同步，否则插入报 1265 Data truncated。
+    if info["uo_cols"] is not None and dialect_name == "mysql":
+        try:
+            row = (await conn.execute(text(
+                "SELECT COLUMN_TYPE FROM information_schema.COLUMNS "
+                "WHERE TABLE_SCHEMA = DATABASE() "
+                "AND TABLE_NAME = 'unified_orders' "
+                "AND COLUMN_NAME = 'payment_method'"
+            ))).fetchone()
+            col_type = (row[0] if row and row[0] else "").lower()
+            if col_type and "coupon_deduction" not in col_type:
+                await conn.execute(text(
+                    "ALTER TABLE unified_orders MODIFY COLUMN payment_method "
+                    "ENUM('wechat','alipay','points','coupon_deduction') NULL"
+                ))
+        except Exception as e:
+            print(f"[schema_sync] unified_orders modify payment_method enum warn: {e}")
+
 
 async def sync_register_schema(conn: AsyncConnection) -> None:
     def load_user_schema(sync_conn):

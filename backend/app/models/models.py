@@ -231,6 +231,7 @@ class UnifiedPaymentMethod(str, enum.Enum):
     wechat = "wechat"
     alipay = "alipay"
     points = "points"
+    coupon_deduction = "coupon_deduction"
 
 
 class CouponType(str, enum.Enum):
