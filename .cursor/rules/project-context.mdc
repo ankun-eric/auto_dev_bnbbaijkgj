@@ -33,7 +33,47 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 优惠券下单页 4 个 Bug 合并修复 v2（B1免费试用0元抵扣 / B2后台门槛字段隐藏 / B3下单页券列表过滤 / B4三端圆圈对齐 + 6/6 新增测试 + 11/11 联动测试通过 + 三端打包发布）（2026-05-04 11:50）
+## Latest Update: H5 支付链路 Bug 修复（含 0 元订单分支 + 沙盒收银台 + 4 端联动 + 8/8 新增测试 + 19/19 远程联动测试通过 + 三端打包发布）（2026-05-04 12:30）
+
+### 一句话结论
+彻底修复 H5 端「假支付成功」致命 Bug，并把「支付方式动态拉取」+「0 元订单免支付」机制铺到 H5 / 微信小程序 / Flutter Android+iOS **四端**：1) **后端**新增 `POST /api/orders/unified/{id}/confirm-free`（0 元订单专用，校验 paid_amount==0 防绕过）+ `pay_unified_order` 增加 `pay_url` 字段（仅 alipay_h5 + provider=alipay 通道返回沙盒桩 URL）+ `GET /api/orders/unified/sandbox-confirm`（沙盒回跳）+ 抽出 `_advance_status_after_payment` 私有函数三处共用 + 新增 `backend/scripts/fix_paid_orders_without_paid_at.py` 历史数据校准脚本（dry-run/apply）；2) **H5** 删除硬编码支付方式 Radio，从 `/api/pay/available-methods?platform=h5` 拉取；创单后按 `paid_amount` 分支：0 元 → confirm-free 跳详情，付费 → /pay 拿 pay_url 跳沙盒收银台；订单详情页 handlePay 同步联动；新增 `h5-web/src/app/sandbox-pay/page.tsx` 沙盒收银台模拟页（确认/取消两键，确认时调 sandbox-confirm 回跳详情）；3) **小程序** checkout 动态渲染支付方式 + 0 元 confirm-free 分支 + `wechat_miniprogram` 通道走 wx.requestPayment + 详情页 payOrder 同步改造；4) **Flutter** ApiService 新增 `getAvailablePayMethods` / `confirmFreeUnifiedOrder` + 调整 `payUnifiedOrder` 签名（paymentMethod → channelCode）；checkout_screen 新增 `_buildPaymentMethodSection` UI 区块 + _submitOrder 按 paid_amount 分支；订单详情/列表两屏 _payOrder 全部迁移到新签名；5) **isPaid 判断修正**：本项目实际枚举 `pending_shipment/pending_receipt/pending_use/appointed/partial_used/pending_review/completed`（**不是** Bug 方案文档里写的 paid/to_verify/to_ship/shipped），全文严禁用 paid_amount > 0 判断已支付；6) **测试**：新增 `backend/tests/test_h5_pay_link_bugfix.py` 8 个 pytest-asyncio 用例（available-methods 启用过滤 / pay 返回 pay_url / pay 通道未开通 4001 / confirm-free happy path / confirm-free 拒绝 paid_amount>0 防绕过 / confirm-free 拒绝他人订单 403 / confirm-free 拒绝已支付订单 / confirm-free 通道全关时允许 channel_code=null），远程容器内新+旧 19/19 全部 PASS（耗时 22.73s）；7) **部署** `_deploy_h5_pay_link_bugfix.py` SFTP 17 文件 → docker compose build backend+h5-web → up -d → 容器内 pip install pytest 后跑测试 → 外部 4 个 URL 检查（H5/admin/health/sandbox-pay 全部 200）；8) **三端打包发布**：本次后端 + h5-web + miniprogram + flutter_app/lib/ 全部改动 → 触发 develop-all 阶段 4 三端并行打包（小程序 zip → 服务器 / Android APK → GHA Linux Runner ubuntu-latest run id 25300990171 success → 服务器 / iOS IPA → GHA macOS Runner run id 25300985911 success → GitHub Release）；9) **用户手册** `user_docs/H5支付链路修复.md`。
+
+### 涉及文件
+- 后端核心：`backend/app/api/unified_orders.py`（新增 `_advance_status_after_payment` / `_build_sandbox_pay_url` 私有函数；`pay_unified_order` 重构复用状态机抽函数 + 返回 `pay_url`/`channel_code`；新增 `POST /{order_id}/confirm-free` 与 `GET /sandbox-confirm` 端点）+ `backend/app/schemas/unified_orders.py`（新增 `ConfirmFreeRequest`）+ `backend/app/core/config.py`（新增 `PROJECT_BASE_URL` 配置）
+- 后端校准脚本：`backend/scripts/fix_paid_orders_without_paid_at.py`（dry-run/apply 双模式，按本项目实际 SETTLED_STATUSES 枚举筛选）
+- 后端测试：`backend/tests/test_h5_pay_link_bugfix.py`（8 用例）
+- H5：`h5-web/src/app/checkout/page.tsx`（删硬编码 Radio + useEffect 拉 available-methods + handleSubmit 按 paid_amount 分支）+ `h5-web/src/app/unified-order/[id]/page.tsx`（handlePay 改造 + isPaid helper 显式定义本项目枚举）+ `h5-web/src/app/sandbox-pay/page.tsx`（**新增**沙盒收银台模拟页，'use client' + Suspense）
+- 小程序：`miniprogram/pages/checkout/index.js`（新增 paymentMethods data + loadPaymentMethods/selectPaymentMethod 方法 + submitOrder 按 paid_amount 分支）+ `miniprogram/pages/checkout/index.wxml`（支付方式块 wx:for 动态渲染 + 空列表 .pay-empty-tip）+ `miniprogram/pages/checkout/index.wxss`（新增 .pay-empty-tip 样式）+ `miniprogram/pages/unified-order-detail/index.js`（payOrder 改造为先拉 available-methods 再分支）
+- Flutter：`flutter_app/lib/config/api_config.dart`（新增 `availablePayMethods` 常量）+ `flutter_app/lib/services/api_service.dart`（新增 `getAvailablePayMethods` / `confirmFreeUnifiedOrder` + 调整 `payUnifiedOrder` 签名）+ `flutter_app/lib/screens/product/checkout_screen.dart`（新增 `_paymentMethods`/`_selectedChannelCode` 字段 + `_loadPaymentMethods` + `_buildPaymentMethodSection` UI + _submitOrder 按 paid_amount 分支）+ `flutter_app/lib/screens/order/unified_order_detail_screen.dart`（_payOrder 改造）+ `flutter_app/lib/screens/order/unified_orders_screen.dart`（_payOrder 改造）
+- 部署辅助：`_deploy_h5_pay_link_bugfix.py`、`_pack_h5pay_mp.py`（新建小程序打包脚本）、`_pack_apk_h5pay.py`（新建 APK 打包脚本）
+- 用户手册：`user_docs/H5支付链路修复.md`
+
+### 关键技术点 / 注意事项
+- **状态机推进抽出私有函数 `_advance_status_after_payment(order, db)` 三处共用**（pay_unified_order / confirm_free_unified_order / sandbox_confirm），从源头杜绝"支付完成后状态推进逻辑分裂"的隐患；将来增加新支付路径只需复用此函数
+- **0 元订单防绕过的关键二次校验**：`confirm-free` 内 `if float(order.paid_amount) != 0: raise 400 not_free_order`，哪怕前端被改 / API 被直调 / 用户篡改 channel_code，订单本身 paid_amount > 0 一律不允许伪造为 0 元免单
+- **`pay_url` 桩 URL** 仅在 `payment_channel_code == "alipay_h5" AND ch_provider == "alipay"` 时构造为 `{PROJECT_BASE_URL}/sandbox-pay?order_no=...&channel=alipay_h5`，其它通道一律 `null`，避免 APP 平台误用沙盒页；docstring 已明确标注「待真实商户证书接入后替换」
+- **`/sandbox-confirm` 路由必须注册在 `/{order_id}` 之前**——FastAPI 路径匹配是顺序敏感，否则 sandbox-confirm 会被吞成 order_id=`sandbox-confirm`，已通过启动验证 sandbox idx=3 < order_id idx=4
+- **isPaid 判断的项目枚举映射**：方案文档写的 `paid/to_verify/to_ship/shipped/completed` 是通用语义，本项目实际枚举是 `pending_shipment/pending_receipt/pending_use/appointed/partial_used/pending_review/completed`——所有端的 isPaid 判断都按本项目实际枚举 + paid_at 双兜底
+- **「通道全关时 0 元订单仍可下单」的实现**：`confirm-free` 内若 `data.channel_code` 校验失败（启用/完整不通过）但订单本身是 0 元，**静默忽略不报错**，让 `payment_channel_code` 留 null（方案 §5.3 「通道全关时 0 元订单允许 payment_channel_code 为 null，后台展示为免支付」）
+- **沙盒收银台页面的 BasePath**：H5 next.config 配置了 `basePath = NEXT_PUBLIC_BASE_PATH`，访问路径自动加前缀；后端构造 pay_url 时使用 `{PROJECT_BASE_URL}/sandbox-pay`，PROJECT_BASE_URL = `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27`，刚好对应 H5 的 BASE_PATH，命中 sandbox-pay/page.tsx
+- **历史数据校准脚本的 SETTLED_STATUSES**：因本项目无 PaymentTransaction 流水表，该脚本仅按"`paid_at IS NULL` AND `paid_amount > 0` AND `status IN settled`"三条件筛选；上线前先 `--dry-run` 看影响订单数，确认后再 `--apply`；回滚后这些订单会回到「待付款」Tab 并触发 15 分钟超时定时任务（`order_status_auto_progress`），建议运营先短信通知用户
+- **Flutter 端 url_launcher 暂未集成**：付费订单的 pay_url 仅用 SnackBar 文本提示，符合本期方案；后续接入 url_launcher 自动跳浏览器或 WebView 内置即可
+- **依赖此前的 PaymentChannel 配置表与 available-methods 接口**：`/api/pay/available-methods` 在 `2026-05-02 H5 下单流程优化 PRD v1.0` 期间已实现并支持 `platform` 过滤（h5/miniprogram/app），本次直接复用零改动
+
+### 三端新包下载（本次发布）
+- 小程序：[miniprogram_h5pay_20260504_122503_d91d.zip](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/miniprogram/miniprogram_h5pay_20260504_122503_d91d.zip)（361 KB）
+- 安卓：[bini_health_h5pay_20260504_122600_e37a.apk](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/apk/bini_health_h5pay_20260504_122600_e37a.apk)（80.1 MB，GHA run 25300990171）
+- iOS：[Release ios-h5pay-v20260504-122550-d68a](https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-h5pay-v20260504-122550-d68a)（32.46 MB，GHA run 25300985911）
+
+### 验证结果
+- 本地 pytest（8 新增）：**8 passed in 10.83s**
+- 远程容器内 pytest（8 新增 + 6 coupon-usable + 5 date-mode）：**19 passed in 22.73s**
+- 外部 URL 验证：H5 / 200，admin / 200，api/health / 200，**sandbox-pay / 200**
+- 三端打包：小程序 zip 上传 200（361 KB）、APK GHA run 25300990171 conclusion=success 上传 200（80.1 MB）、iOS GHA run 25300985911 conclusion=success Release 已发布（32.46 MB）
+
+---
+
+## Previous Update: 优惠券下单页 4 个 Bug 合并修复 v2（B1免费试用0元抵扣 / B2后台门槛字段隐藏 / B3下单页券列表过滤 / B4三端圆圈对齐 + 6/6 新增测试 + 11/11 联动测试通过 + 三端打包发布）（2026-05-04 11:50）
 
 ### 一句话结论
 一次性修复优惠券下单页 4 个 Bug：**B1** 后端 `unified_orders.py::create_unified_order` 优惠券分支补 `free_trial → coupon_discount = eligible_amount`（整单 0 元抵扣）；**B2** admin-web 优惠券表单按 `couponType==='free_trial'` 隐藏「使用门槛金额 / 优惠金额 / 折扣率」三字段并加蓝色风控提示，提交时强制清零；**B3** 后端新增 `GET /api/coupons/usable-for-order` 下单页专用接口（按 user_id+status=unused+未过期+未下架+scope/category 适用+exclude_ids 排除+condition_amount 门槛全维度过滤；free_trial 强制忽略 condition_amount）+ 创单兜底（绕过前端用不适用券返回 422）；H5/小程序/Flutter 三端 checkout **同时切换到新接口并删除前端硬过滤**；**B4** 三端圆圈对齐（H5 prefix 容器加 `align-items: center`；小程序弹窗加 `.radio-dot` + `.coupon-option { align-items: center }`；Flutter 用 `Radio` widget 默认对齐）。新增 `backend/tests/test_coupon_usable_for_order.py` 6 用例（B1+B3+创单兜底）；远程 backend 容器内新+旧 11/11 全部 PASS（耗时 14.01s）；外部 H5/admin/api/health 全部 200；小程序/安卓/iOS 三端**全部重新打包并发布**（小程序 zip → 服务器、APK → GHA Linux Runner ubuntu-latest run id 25299847542 success → 服务器、iOS IPA → GHA macOS Runner run id 25299850060 success → GitHub Release）；用户手册 `user_docs/优惠券下单页修复.md`。
