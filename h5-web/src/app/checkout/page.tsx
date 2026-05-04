@@ -112,6 +112,22 @@ interface SlotItem {
   label: string;
   available: number;
   capacity: number;
+  // [PRD v1.0 2026-05-04] 新增字段：满额置灰展示
+  is_available?: boolean;
+  unavailable_reason?: 'occupied' | 'past' | null;
+}
+
+interface AvailableSlotInfo {
+  start_time: string;
+  end_time: string;
+  is_available: boolean;
+  unavailable_reason: 'occupied' | 'past' | null;
+}
+
+interface AvailableDateInfo {
+  date: string;
+  is_available: boolean;
+  unavailable_reason: 'occupied' | 'past' | null;
 }
 
 interface DateRange {
@@ -228,8 +244,14 @@ function CheckoutPage() {
   const [dateRange, setDateRange] = useState<DateRange | null>(null);
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [selectedSlot, setSelectedSlot] = useState<string>(''); // 形如 "09:00-11:00"
-  const [storeSlots, setStoreSlots] = useState<SlotItem[]>([]); // 门店已选时返回的可用时段（已排除满档）
+  const [storeSlots, setStoreSlots] = useState<SlotItem[]>([]); // 门店已选时返回的全部时段（包含满额带 is_available=false）
   const [productSlots, setProductSlots] = useState<{ start: string; end: string }[]>([]); // 商品配置全部时段
+  // [PRD v1.0 2026-05-04] 用户端下单页时段网格化展示与满额置灰
+  // 通过 /api/h5/checkout/info 拉取的全量满额信息：
+  //   - infoSlots: time_slot 模式下，所有时段的满额状态（含可约/已约满/过期）
+  //   - infoDates: date 模式下，日历各日期的满额状态
+  const [infoSlots, setInfoSlots] = useState<AvailableSlotInfo[]>([]);
+  const [infoDates, setInfoDates] = useState<AvailableDateInfo[]>([]);
   const [stores, setStores] = useState<AvailableStore[]>([]);
   const [selectedStore, setSelectedStore] = useState<AvailableStore | null>(null);
   const [contactPhone, setContactPhone] = useState<string>('');
@@ -249,7 +271,8 @@ function CheckoutPage() {
     setLoading(true);
     Promise.allSettled([
       api.get(`/api/products/${productId}`),
-      api.get(`/api/h5/checkout/init?productId=${productId}`),
+      // [PRD v1.0 2026-05-04 §6.1] 用户端下单页统一拉取接口（带满额标记）
+      api.get(`/api/h5/checkout/info?productId=${productId}`),
       api.get('/api/addresses'),
       // [优惠券下单页 Bug 修复 v2 · B3] 切换为下单页专用券列表接口（仅返回本单可用的券）
       api.get('/api/coupons/usable-for-order', { params: { product_id: productId, subtotal: 0 } }),
@@ -286,6 +309,13 @@ function CheckoutPage() {
             business_start: data.default_store.business_start,
             business_end: data.default_store.business_end,
           });
+        }
+        // [PRD v1.0 2026-05-04] 携带的 available_slots / available_dates 直接缓存
+        if (Array.isArray(data?.available_slots)) {
+          setInfoSlots(data.available_slots as AvailableSlotInfo[]);
+        }
+        if (Array.isArray(data?.available_dates)) {
+          setInfoDates(data.available_dates as AvailableDateInfo[]);
         }
       }
       if (aRes.status === 'fulfilled') {
@@ -357,6 +387,8 @@ function CheckoutPage() {
   }, [productId, product, skuId, quantity]);
 
   // ── 门店已选 + 日期已选 时拉取该门店该日的可用时段 ──
+  // [PRD v1.0 2026-05-04] /api/h5/slots 改造后返回包含 is_available 的全量时段，
+  // storeSlots 直接保留满额项（前端置灰展示，不再过滤）。
   const fetchStoreSlots = useCallback(async (store: AvailableStore | null, date: string) => {
     if (!store || !date || !productId) {
       setStoreSlots([]);
@@ -374,6 +406,26 @@ function CheckoutPage() {
   useEffect(() => {
     fetchStoreSlots(selectedStore, selectedDate);
   }, [selectedStore, selectedDate, fetchStoreSlots]);
+
+  // [PRD v1.0 2026-05-04 §4.3] 切换日期时重新拉取该日期下时段的满额状态（不轮询，仅切日期触发）
+  useEffect(() => {
+    if (!productId || !selectedDate) return;
+    const params = new URLSearchParams();
+    params.set('productId', String(productId));
+    params.set('date', selectedDate);
+    if (selectedStore?.store_id) params.set('storeId', String(selectedStore.store_id));
+    api.get(`/api/h5/checkout/info?${params.toString()}`)
+      .then((res: any) => {
+        const data = res?.data?.data || res?.data || res;
+        if (Array.isArray(data?.available_slots)) {
+          setInfoSlots(data.available_slots as AvailableSlotInfo[]);
+        }
+        if (Array.isArray(data?.available_dates)) {
+          setInfoDates(data.available_dates as AvailableDateInfo[]);
+        }
+      })
+      .catch(() => {/* 静默：保留上次结果 */});
+  }, [productId, selectedDate, selectedStore?.store_id]);
 
   // ── 加载门店列表（仅在用户首次点击门店卡片时被调用） ──
   const loadStores = useCallback(async (lat?: number, lng?: number) => {
@@ -442,10 +494,10 @@ function CheckoutPage() {
       })
       .catch(() => []);
     setStoreSlots(slots as SlotItem[]);
-    // 检查已选时段是否仍可用
+    // 检查已选时段是否仍可用（同时考虑满额）
     if (selectedSlot) {
-      const stillOk = (slots as SlotItem[]).some(it => it.label === selectedSlot);
-      if (!stillOk) {
+      const matched = (slots as SlotItem[]).find(it => it.label === selectedSlot);
+      if (!matched || matched.is_available === false) {
         // 不立即清空，允许界面变红提示用户重选；点击其它时段时切换
       }
     }
@@ -457,7 +509,11 @@ function CheckoutPage() {
 
   const dates = useMemo(() => buildDates(dateRange), [dateRange]);
 
-  // 显示用时段：按 PRD §4.4，未选门店时按"商品配置时段"展示；已选门店时使用 storeSlots（已经排除满档+营业时段过滤）
+  // [PRD v1.0 2026-05-04 §4.1.1 / §4.2]
+  // 显示用时段：每行 3 个固定网格，满额时段同样参与网格（按时间顺序混排），
+  // 不再过滤满档；满额时显示"已约满"角标 + 灰底灰字 + 完全不可点击。
+  //   - 已选门店时：以 storeSlots 为准（包含 is_available 字段）
+  //   - 未选门店时：用 infoSlots（来自 /checkout/info）合并商品全部时段
   const slotsToShow: { label: string; start: string; end: string; disabled: boolean; full: boolean; expired: boolean }[] = useMemo(() => {
     const isToday = selectedDate === formatDateStr(new Date());
     const now = new Date();
@@ -465,29 +521,48 @@ function CheckoutPage() {
     if (selectedStore) {
       return storeSlots.map(s => {
         const expired = isToday && s.end <= nowHM;
+        const full = s.is_available === false && s.unavailable_reason === 'occupied';
         return {
           label: s.label,
           start: s.start,
           end: s.end,
-          disabled: expired,
-          full: false,
+          disabled: expired || full,
+          full,
           expired,
         };
       });
     }
-    // 未选门店：展示商品全部时段
+    // 未选门店：展示商品全部时段，并合并 /checkout/info 返回的满额标记
+    const infoMap = new Map<string, AvailableSlotInfo>();
+    for (const it of infoSlots) {
+      infoMap.set(`${it.start_time}-${it.end_time}`, it);
+    }
     return productSlots.map(s => {
       const label = `${s.start}-${s.end}`;
+      const info = infoMap.get(label);
       const expired = isToday && s.end <= nowHM;
-      return { label, start: s.start, end: s.end, disabled: expired, full: false, expired };
+      const full = info ? info.is_available === false && info.unavailable_reason === 'occupied' : false;
+      return { label, start: s.start, end: s.end, disabled: expired || full, full, expired };
     });
-  }, [productSlots, storeSlots, selectedStore, selectedDate]);
+  }, [productSlots, storeSlots, selectedStore, selectedDate, infoSlots]);
 
-  // 已选时段在切换门店后是否变红（智能保留）
+  // 已选时段在切换门店后是否变红（智能保留）：
+  // 包含两种场景：
+  //   1) 该门店根本没此时段（不在列表）
+  //   2) 该门店此时段已约满（is_available=false）
   const slotInvalid = useMemo(() => {
     if (!selectedSlot || !selectedStore) return false;
-    return !storeSlots.some(it => it.label === selectedSlot);
+    const matched = storeSlots.find(it => it.label === selectedSlot);
+    if (!matched) return true;
+    return matched.is_available === false;
   }, [selectedSlot, storeSlots, selectedStore]);
+
+  // [PRD v1.0 2026-05-04 §4.1.2] date 模式下日期满额映射，用于日历置灰
+  const dateAvailMap = useMemo(() => {
+    const m = new Map<string, AvailableDateInfo>();
+    for (const it of infoDates) m.set(it.date, it);
+    return m;
+  }, [infoDates]);
 
   if (!productId) {
     return (
@@ -750,25 +825,54 @@ function CheckoutPage() {
             <div style={{ display: 'flex', overflowX: 'auto', gap: 8, paddingBottom: 4 }}>
               {dates.map((d) => {
                 const sel = d.date === selectedDate;
+                // [PRD v1.0 2026-05-04 §4.1.2] 日期满额置灰 + 红色"已约满"角标
+                const dateInfo = dateAvailMap.get(d.date);
+                const isFullDate = dateInfo?.is_available === false && dateInfo?.unavailable_reason === 'occupied';
+                const isPastDate = dateInfo?.is_available === false && dateInfo?.unavailable_reason === 'past';
+                const isDisabled = isFullDate || isPastDate;
                 return (
                   <div
                     key={d.date}
-                    onClick={() => { setSelectedDate(d.date); }}
+                    onClick={() => { if (!isDisabled) setSelectedDate(d.date); }}
                     style={{
+                      position: 'relative',
                       flex: '0 0 auto',
                       minWidth: 56,
                       textAlign: 'center',
                       padding: '8px 4px',
                       borderRadius: 8,
-                      background: sel ? '#52c41a' : '#fff',
-                      color: sel ? '#fff' : '#333',
-                      border: sel ? '1px solid #52c41a' : '1px solid #e5e5e5',
-                      cursor: 'pointer',
+                      background: isFullDate
+                        ? '#F5F5F5'
+                        : isPastDate
+                          ? '#fafafa'
+                          : (sel ? '#52c41a' : '#fff'),
+                      color: isDisabled
+                        ? '#999999'
+                        : (sel ? '#fff' : '#333'),
+                      border: sel && !isDisabled ? '1px solid #52c41a' : '1px solid #e5e5e5',
+                      cursor: isDisabled ? 'not-allowed' : 'pointer',
                       fontSize: 12,
                     }}
                   >
                     <div>周{d.weekLabel}</div>
-                    <div style={{ marginTop: 2, fontWeight: sel ? 600 : 400 }}>{d.mmdd}</div>
+                    <div style={{ marginTop: 2, fontWeight: sel && !isDisabled ? 600 : 400 }}>{d.mmdd}</div>
+                    {isFullDate && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: -6,
+                          right: -2,
+                          background: '#FF4D4F',
+                          color: '#fff',
+                          fontSize: 10,
+                          padding: '1px 4px',
+                          borderRadius: 4,
+                          lineHeight: 1.3,
+                        }}
+                      >
+                        已约满
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -788,10 +892,18 @@ function CheckoutPage() {
             {!selectedStore && productSlots.length > 0 && (
               <div className="text-xs text-gray-400 mb-2">时段最终是否可选取决于所选门店</div>
             )}
-            <div style={{ display: 'flex', overflowX: 'auto', gap: 8, paddingBottom: 4 }}>
-              {slotsToShow.length === 0 && (
-                <div className="text-xs text-gray-400 py-2">暂无可用时段</div>
-              )}
+            {slotsToShow.length === 0 && (
+              <div className="text-xs text-gray-400 py-2">暂无可用时段</div>
+            )}
+            {/* [PRD v1.0 2026-05-04 §4.1.1] 时段每行 3 个固定网格，与「订单详情→修改时间」一致 */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, 1fr)',
+                gap: 8,
+                paddingBottom: 4,
+              }}
+            >
               {slotsToShow.map((s) => {
                 const sel = s.label === selectedSlot;
                 const showRed = sel && slotInvalid;
@@ -800,20 +912,50 @@ function CheckoutPage() {
                     key={s.label}
                     onClick={() => { if (!s.disabled) setSelectedSlot(s.label); }}
                     style={{
-                      flex: '0 0 auto',
-                      padding: '6px 12px',
-                      borderRadius: 18,
+                      position: 'relative',
+                      padding: '8px 4px',
+                      borderRadius: 6,
                       fontSize: 12,
-                      background: showRed ? '#fff1f0' : (sel ? '#52c41a' : '#fff'),
-                      color: showRed ? '#ff4d4f' : (s.disabled ? '#bbb' : (sel ? '#fff' : '#333')),
-                      border: showRed
-                        ? '1px solid #ff4d4f'
-                        : (sel ? '1px solid #52c41a' : '1px solid #e5e5e5'),
+                      textAlign: 'center',
+                      background: s.full
+                        ? '#F5F5F5'
+                        : showRed
+                          ? '#fff1f0'
+                          : (sel ? '#52c41a' : '#fff'),
+                      color: s.full
+                        ? '#999999'
+                        : showRed
+                          ? '#ff4d4f'
+                          : (s.disabled ? '#bbb' : (sel ? '#fff' : '#333')),
+                      border: s.full
+                        ? '1px solid #e5e5e5'
+                        : (showRed
+                          ? '1px solid #ff4d4f'
+                          : (sel ? '1px solid #52c41a' : '1px solid #e5e5e5')),
                       cursor: s.disabled ? 'not-allowed' : 'pointer',
                       whiteSpace: 'nowrap',
                     }}
                   >
-                    {s.label}{s.expired ? ' 已结束' : ''}
+                    {s.label}{s.expired && !s.full ? ' 已结束' : ''}
+                    {/* [PRD v1.0 2026-05-04 §4.2] 满额角标：红底白字、绝对定位右上角 */}
+                    {s.full && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: -6,
+                          right: -2,
+                          background: '#FF4D4F',
+                          color: '#fff',
+                          fontSize: 10,
+                          padding: '1px 4px',
+                          borderRadius: 4,
+                          lineHeight: 1.3,
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        已约满
+                      </div>
+                    )}
                   </div>
                 );
               })}

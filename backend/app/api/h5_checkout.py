@@ -1,10 +1,17 @@
 """H5 下单流程优化 PRD v1.0（2026-05-02）：支付页统一选择相关接口。
 
 - GET  /api/h5/checkout/init  返回支付页所需的日期范围、默认门店、联系人手机号等
-- GET  /api/h5/slots          返回某门店某日期下的可用时段（商品时段 ∩ 门店营业时段，且排除已满档）
+- GET  /api/h5/slots          返回某门店某日期下的可用时段（商品时段 ∩ 门店营业时段）
+- GET  /api/h5/checkout/info  [PRD v1.0 2026-05-04]
+        统一返回下单页所需的全部数据，时段/日期均带 `is_available` +
+        `unavailable_reason` 字段，前端可据此置灰展示满额项。
 
-满档判定：`(门店, 日期, 时段)` 当前占用 < 门店 `slot_capacity`（默认 10）。
-占用数 = 已支付 + 待支付（创建后 15 分钟内未取消未超时）。
+满档判定（双层）：
+- 商品级：`product.time_slots[i].capacity` 未填或 = 0 视为不限制；
+- 门店级：`store.slot_capacity` 默认 10，跨商品累计；
+- 占用数 = 已支付（pending_shipment / pending_receipt / pending_use /
+          partial_used / pending_review / completed） +
+          待支付（pending_payment 且 created_at 在 15 分钟内）。
 """
 from datetime import date, datetime, timedelta
 from typing import List, Optional
@@ -58,6 +65,16 @@ def _slot_in_business_hours(
         return True
 
 
+# [PRD v1.0 2026-05-04] 已支付状态集（用于占用判定）
+_PAID_LIKE_STATUSES = [
+    UnifiedOrderStatus.pending_shipment,
+    UnifiedOrderStatus.pending_receipt,
+    UnifiedOrderStatus.pending_use,
+    UnifiedOrderStatus.pending_review,
+    UnifiedOrderStatus.completed,
+]
+
+
 async def _count_occupied(
     db: AsyncSession,
     store_id: int,
@@ -73,14 +90,6 @@ async def _count_occupied(
     """
     fifteen_min_ago = datetime.utcnow() - timedelta(minutes=15)
 
-    paid_like = [
-        UnifiedOrderStatus.pending_shipment,
-        UnifiedOrderStatus.pending_receipt,
-        UnifiedOrderStatus.pending_use,
-        UnifiedOrderStatus.pending_review,
-        UnifiedOrderStatus.completed,
-    ]
-
     q = (
         select(func.count(OrderItem.id))
         .join(UnifiedOrder, UnifiedOrder.id == OrderItem.order_id)
@@ -90,7 +99,7 @@ async def _count_occupied(
             func.json_extract(OrderItem.appointment_data, "$.time_slot") == slot_label,
             UnifiedOrder.store_id == store_id,
             (
-                (UnifiedOrder.status.in_(paid_like))
+                (UnifiedOrder.status.in_(_PAID_LIKE_STATUSES))
                 | (
                     (UnifiedOrder.status == UnifiedOrderStatus.pending_payment)
                     & (UnifiedOrder.created_at >= fifteen_min_ago)
@@ -100,6 +109,83 @@ async def _count_occupied(
     )
     res = await db.execute(q)
     return int(res.scalar() or 0)
+
+
+async def _count_occupied_store(
+    db: AsyncSession,
+    store_id: int,
+    target_date: date,
+    slot_label: str,
+) -> int:
+    """[PRD v1.0 2026-05-04 §5.1] 门店级时段占用数（跨商品累计）。
+
+    与 `_count_occupied` 相同口径，但**不限定商品**——`store.slot_capacity`
+    是「该门店该时段所有商品订单累计上限」。
+    """
+    fifteen_min_ago = datetime.utcnow() - timedelta(minutes=15)
+    q = (
+        select(func.count(OrderItem.id))
+        .join(UnifiedOrder, UnifiedOrder.id == OrderItem.order_id)
+        .where(
+            func.date(OrderItem.appointment_time) == target_date,
+            func.json_extract(OrderItem.appointment_data, "$.time_slot") == slot_label,
+            UnifiedOrder.store_id == store_id,
+            (
+                (UnifiedOrder.status.in_(_PAID_LIKE_STATUSES))
+                | (
+                    (UnifiedOrder.status == UnifiedOrderStatus.pending_payment)
+                    & (UnifiedOrder.created_at >= fifteen_min_ago)
+                )
+            ),
+        )
+    )
+    res = await db.execute(q)
+    return int(res.scalar() or 0)
+
+
+async def _count_occupied_date(
+    db: AsyncSession,
+    store_id: int,
+    product_id: Optional[int],
+    target_date: date,
+) -> int:
+    """[PRD v1.0 2026-05-04 §5.2] 按日期汇总占用数（date 模式用）。
+
+    `product_id is None` → 门店级聚合（跨商品累计）；否则商品级。
+    """
+    fifteen_min_ago = datetime.utcnow() - timedelta(minutes=15)
+    q = (
+        select(func.count(OrderItem.id))
+        .join(UnifiedOrder, UnifiedOrder.id == OrderItem.order_id)
+        .where(
+            func.date(OrderItem.appointment_time) == target_date,
+            UnifiedOrder.store_id == store_id,
+            (
+                (UnifiedOrder.status.in_(_PAID_LIKE_STATUSES))
+                | (
+                    (UnifiedOrder.status == UnifiedOrderStatus.pending_payment)
+                    & (UnifiedOrder.created_at >= fifteen_min_ago)
+                )
+            ),
+        )
+    )
+    if product_id is not None:
+        q = q.where(OrderItem.product_id == product_id)
+    res = await db.execute(q)
+    return int(res.scalar() or 0)
+
+
+def _slot_capacity_for(product, slot_dict: dict) -> int:
+    """[PRD v1.0 2026-05-04 §5.4] 商品级时段容量。
+
+    未填或 = 0 视为「商品级不限制」，返回 0 表示无上限。
+    """
+    cap = slot_dict.get("capacity") if isinstance(slot_dict, dict) else None
+    try:
+        cap = int(cap or 0)
+    except (TypeError, ValueError):
+        cap = 0
+    return max(0, cap)
 
 
 # ---------------- /api/h5/checkout/init ----------------
@@ -220,6 +306,9 @@ async def get_slots(
 
     product_slots: List[dict] = product.time_slots or []
     items: List[dict] = []
+    # [PRD v1.0 2026-05-04 §5.1] 双层判定：商品级 capacity（每个 slot 独立）
+    # + 门店级 slot_capacity（跨商品累计，门店容量为 0 时不限制）。
+    # 满额时段不再过滤，而是返回 is_available=false + reason=occupied，前端置灰展示。
     for slot in product_slots:
         s_start = slot.get("start", "")
         s_end = slot.get("end", "")
@@ -229,19 +318,30 @@ async def get_slots(
         if not _slot_in_business_hours(s_start, s_end, biz_start, biz_end):
             continue
         slot_label = f"{s_start}-{s_end}"
-        # 2) 满档判定（排除已满档）
-        occupied = await _count_occupied(db, storeId, productId, q_date, slot_label)
-        full = occupied >= capacity
-        if full:
-            # 列表中**直接隐藏**已满时段（PRD §4.4）
-            continue
+        product_cap = _slot_capacity_for(product, slot)
+        product_occupied = await _count_occupied(db, storeId, productId, q_date, slot_label)
+        product_full = product_cap > 0 and product_occupied >= product_cap
+
+        store_full = False
+        store_occupied = 0
+        if capacity > 0:
+            store_occupied = await _count_occupied_store(db, storeId, q_date, slot_label)
+            store_full = store_occupied >= capacity
+
+        is_available = not (product_full or store_full)
+        unavailable_reason = None if is_available else "occupied"
+
         items.append({
             "start": s_start,
             "end": s_end,
             "label": slot_label,
-            "occupied": occupied,
+            # 兼容字段：旧前端使用 occupied/available 计算
+            "occupied": product_occupied,
             "capacity": capacity,
-            "available": max(0, capacity - occupied),
+            "available": max(0, capacity - max(product_occupied, store_occupied)) if capacity > 0 else 9999,
+            # [PRD v1.0 2026-05-04 §6.2] 新增字段
+            "is_available": is_available,
+            "unavailable_reason": unavailable_reason,
         })
 
     return {
@@ -253,5 +353,207 @@ async def get_slots(
             "business_start": biz_start,
             "business_end": biz_end,
             "slot_capacity": capacity,
+        },
+    }
+
+
+# ---------------- /api/h5/checkout/info ----------------
+
+
+@router.get("/checkout/info")
+async def checkout_info(
+    productId: int = Query(..., description="商品 ID"),
+    storeId: Optional[int] = Query(None, description="门店 ID，缺省取商品绑定的第一个 active 门店"),
+    date_str: Optional[str] = Query(None, alias="date", description="time_slot 模式查询此日期下的时段（默认 date_range.start）"),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """[PRD v1.0 2026-05-04] 用户端下单页统一信息接口（H5/小程序/Flutter 共用）。
+
+    返回字段在 `init` 基础上扩展：
+      - `available_slots`：每个时段附带 `is_available` + `unavailable_reason`（time_slot 模式）
+      - `available_dates`：日期级满额信息（date 模式）
+    """
+    # 1) 商品基础信息
+    p_res = await db.execute(select(Product).where(Product.id == productId))
+    product = p_res.scalar_one_or_none()
+    if product is None:
+        raise HTTPException(status_code=404, detail="商品不存在")
+
+    appointment_mode = (
+        product.appointment_mode.value
+        if hasattr(product.appointment_mode, "value")
+        else (product.appointment_mode or "none")
+    )
+
+    # 2) 日期范围
+    advance_days = int(getattr(product, "advance_days", 0) or 0)
+    include_today = getattr(product, "include_today", True)
+    if include_today is None:
+        include_today = True
+    if advance_days > 0:
+        d_start, d_end = _compute_date_range(advance_days, bool(include_today))
+        date_range = {
+            "start": d_start.isoformat(),
+            "end": d_end.isoformat(),
+            "include_today": bool(include_today),
+            "advance_days": advance_days,
+        }
+    else:
+        d_start, d_end = None, None
+        date_range = {
+            "start": None,
+            "end": None,
+            "include_today": bool(include_today),
+            "advance_days": 0,
+        }
+
+    # 3) 默认门店（若调用方未指定 storeId）
+    default_store_obj = None
+    if storeId is None:
+        store_q = await db.execute(
+            select(MerchantStore)
+            .join(ProductStore, ProductStore.store_id == MerchantStore.id)
+            .where(ProductStore.product_id == productId, MerchantStore.status == "active")
+            .order_by(MerchantStore.id.asc())
+        )
+        default_store_obj = store_q.scalars().first()
+        if default_store_obj is not None:
+            storeId = default_store_obj.id
+    else:
+        s_res = await db.execute(select(MerchantStore).where(MerchantStore.id == storeId))
+        default_store_obj = s_res.scalar_one_or_none()
+
+    default_store = None
+    if default_store_obj:
+        default_store = {
+            "id": default_store_obj.id,
+            "store_id": default_store_obj.id,
+            "name": default_store_obj.store_name,
+            "address": default_store_obj.address,
+            "lat": float(default_store_obj.lat) if default_store_obj.lat is not None else None,
+            "lng": float(default_store_obj.lng) if default_store_obj.lng is not None else None,
+            "slot_capacity": getattr(default_store_obj, "slot_capacity", 10) or 10,
+            "business_start": getattr(default_store_obj, "business_start", None),
+            "business_end": getattr(default_store_obj, "business_end", None),
+        }
+
+    biz_start = getattr(default_store_obj, "business_start", None) if default_store_obj else None
+    biz_end = getattr(default_store_obj, "business_end", None) if default_store_obj else None
+    store_capacity = int(getattr(default_store_obj, "slot_capacity", 0) or 0) if default_store_obj else 0
+
+    # 4) target_date：时段满额查询所用的日期
+    target_date: Optional[date] = None
+    if date_str:
+        try:
+            target_date = date.fromisoformat(date_str)
+        except (TypeError, ValueError):
+            raise HTTPException(status_code=400, detail="日期格式错误，请使用 YYYY-MM-DD")
+    elif d_start is not None:
+        target_date = d_start
+
+    # 5) available_slots（time_slot 模式带满额）
+    available_slots: List[dict] = []
+    if appointment_mode == "time_slot":
+        product_slots: List[dict] = product.time_slots or []
+        today = date.today()
+        now = datetime.now()
+        now_hm = now.strftime("%H:%M")
+        for slot in product_slots:
+            s_start = slot.get("start", "")
+            s_end = slot.get("end", "")
+            if not s_start or not s_end:
+                continue
+            slot_label = f"{s_start}-{s_end}"
+            # 营业时段过滤（门店不可用 / 不在营业时段：直接 skip 不展示，因为不在该门店候选范围）
+            if default_store_obj and not _slot_in_business_hours(s_start, s_end, biz_start, biz_end):
+                continue
+            is_available = True
+            unavailable_reason: Optional[str] = None
+            # 当天 + 已过期
+            if target_date is not None and target_date == today and s_end <= now_hm:
+                is_available = False
+                unavailable_reason = "past"
+            # 满额判定（双层）
+            if is_available and target_date is not None and storeId is not None:
+                product_cap = _slot_capacity_for(product, slot)
+                product_occupied = 0
+                if product_cap > 0:
+                    product_occupied = await _count_occupied(
+                        db, storeId, productId, target_date, slot_label,
+                    )
+                product_full = product_cap > 0 and product_occupied >= product_cap
+
+                store_full = False
+                if store_capacity > 0:
+                    store_occupied = await _count_occupied_store(
+                        db, storeId, target_date, slot_label,
+                    )
+                    store_full = store_occupied >= store_capacity
+
+                if product_full or store_full:
+                    is_available = False
+                    unavailable_reason = "occupied"
+
+            available_slots.append({
+                "start_time": s_start,
+                "end_time": s_end,
+                # 历史兼容字段
+                "start": s_start,
+                "end": s_end,
+                "label": slot_label,
+                "is_available": is_available,
+                "unavailable_reason": unavailable_reason,
+            })
+
+    # 6) available_dates（date 模式带满额）
+    available_dates: List[dict] = []
+    if appointment_mode == "date" and d_start is not None and d_end is not None:
+        today = date.today()
+        cur = d_start
+        while cur <= d_end:
+            is_available = True
+            unavailable_reason: Optional[str] = None
+            if cur < today:
+                is_available = False
+                unavailable_reason = "past"
+            else:
+                # 商品级 daily_quota
+                daily_quota = int(getattr(product, "daily_quota", 0) or 0)
+                product_full = False
+                if daily_quota > 0 and storeId is not None:
+                    product_date_occupied = await _count_occupied_date(
+                        db, storeId, productId, cur,
+                    )
+                    product_full = product_date_occupied >= daily_quota
+                # 门店级 slot_capacity（用于 date 模式时按"门店日并发"使用）
+                store_full = False
+                if store_capacity > 0 and storeId is not None:
+                    store_date_occupied = await _count_occupied_date(
+                        db, storeId, None, cur,
+                    )
+                    store_full = store_date_occupied >= store_capacity
+                if product_full or store_full:
+                    is_available = False
+                    unavailable_reason = "occupied"
+            available_dates.append({
+                "date": cur.isoformat(),
+                "is_available": is_available,
+                "unavailable_reason": unavailable_reason,
+            })
+            cur = cur + timedelta(days=1)
+
+    contact_phone = getattr(current_user, "phone", None) or ""
+
+    return {
+        "code": 0,
+        "data": {
+            "product_id": productId,
+            "appointment_mode": appointment_mode,
+            "date_range": date_range,
+            "default_store": default_store,
+            "available_slots": available_slots,
+            "available_dates": available_dates,
+            "contact_phone": contact_phone,
         },
     }

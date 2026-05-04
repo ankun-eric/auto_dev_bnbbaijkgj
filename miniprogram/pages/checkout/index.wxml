@@ -52,22 +52,24 @@
       <picker mode="date" value="{{appointmentDate}}" start="{{minDate}}" end="{{endDate}}" bindchange="onDateChange">
         <text class="form-value {{appointmentDate ? '' : 'placeholder'}}">
           {{appointmentDate || '请选择日期'}}
+          <text wx:if="{{appointmentDateFull}}" style="color: #ff4d4f; font-size: 22rpx; margin-left: 12rpx;">（已约满）</text>
         </text>
       </picker>
     </view>
     <!-- [预约日期模式 Bug 修复 v1.0] 仅 time_slot 模式才渲染整块时段；date 模式只按天限流，绝不展示时段 -->
+    <!-- [PRD v1.0 2026-05-04 §4.1.1] 时段每行 3 个固定网格 + 满额时段灰底灰字 + 红色"已约满"角标 -->
     <view class="form-item-slots" wx:if="{{needTimeSlot}}">
       <text class="form-label">预约时段</text>
       <view class="time-slots-wrap">
         <view
-          wx:for="{{timeSlots}}"
-          wx:key="*this"
-          class="time-slot-btn {{appointmentTime === item ? 'active' : ''}} {{disabledSlots.indexOf(item) >= 0 ? 'disabled' : ''}}"
+          wx:for="{{slotItems}}"
+          wx:key="label"
+          class="time-slot-btn {{appointmentTime === item.label ? 'active' : ''}} {{item.full ? 'full' : ''}} {{item.disabled && !item.full ? 'disabled' : ''}}"
           bindtap="onTimeSlotTap"
-          data-label="{{item}}"
+          data-label="{{item.label}}"
         >
-          <text>{{item}}</text>
-          <text wx:if="{{fullyBookedSlots.indexOf(item) >= 0}}" class="slot-full-tag">已约满</text>
+          <text>{{item.label}}{{item.expired && !item.full ? ' 已结束' : ''}}</text>
+          <view wx:if="{{item.full}}" class="slot-full-badge">已约满</view>
         </view>
       </view>
     </view>

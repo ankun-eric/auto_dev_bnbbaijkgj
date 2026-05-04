@@ -35,7 +35,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   DateTime? _selectedDate = DateTime.now();
   String? _selectedTimeSlot;
   String _appointmentNote = '';
+  // [PRD v1.0 2026-05-04 用户端下单页时段网格化展示与满额置灰]
+  // 后端 /api/h5/checkout/info 返回的两组满额信息：
+  //   _slotAvailability：time_slot 模式时段 [{start_time,end_time,is_available,unavailable_reason}]
+  //   _availableDates：date 模式日期 [{date,is_available,unavailable_reason}]
   List<Map<String, dynamic>> _slotAvailability = [];
+  List<Map<String, dynamic>> _availableDates = [];
 
   // [H5 支付链路修复 v1.0] 支付方式
   List<Map<String, dynamic>> _paymentMethods = [];
@@ -161,23 +166,32 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   bool get _needTimeSlot =>
       _needAppointment && _product.appointmentMode == 'time_slot';
 
+  // [PRD v1.0 2026-05-04 §6.1] 改为调用 /api/h5/checkout/info 拉取满额数据。
+  // 进入页面 + 切换日期时调用，无轮询。
   Future<void> _loadSlotAvailability() async {
-    if (!_needTimeSlot) return;
-    if (_product.timeSlots == null || _product.timeSlots!.isEmpty) return;
+    if (!_needAppointment) return;
     if (_selectedDate == null) return;
     try {
       final dateStr = _formatDate(_selectedDate!);
-      final res = await _api.get('/api/products/${_product.id}/time-slots/availability?date=$dateStr');
+      final res = await _api.get('/api/h5/checkout/info?productId=${_product.id}&date=$dateStr');
       if (res.data is Map && res.data['data'] is Map) {
-        final slots = res.data['data']['slots'];
-        if (slots is List) {
-          setState(() {
-            _slotAvailability = slots.map((e) => Map<String, dynamic>.from(e as Map)).toList();
-          });
-        }
+        final data = res.data['data'] as Map;
+        final slots = data['available_slots'];
+        final dates = data['available_dates'];
+        setState(() {
+          _slotAvailability = slots is List
+              ? slots.map((e) => Map<String, dynamic>.from(e as Map)).toList()
+              : [];
+          _availableDates = dates is List
+              ? dates.map((e) => Map<String, dynamic>.from(e as Map)).toList()
+              : [];
+        });
       }
     } catch (_) {
-      setState(() => _slotAvailability = []);
+      setState(() {
+        _slotAvailability = [];
+        _availableDates = [];
+      });
     }
   }
 
@@ -196,12 +210,37 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     return endMinutes <= nowMinutes;
   }
 
+  // [PRD v1.0 2026-05-04 §4.2] 满额判定：基于后端 is_available + unavailable_reason
   bool _isSlotFullyBooked(String label) {
     final avail = _slotAvailability.where((s) =>
       '${s['start_time']}-${s['end_time']}' == label
     ).toList();
     if (avail.isEmpty) return false;
-    return (avail.first['available'] ?? 1) <= 0;
+    final first = avail.first;
+    if (first.containsKey('is_available')) {
+      return first['is_available'] == false && first['unavailable_reason'] == 'occupied';
+    }
+    // 兼容旧返回结构
+    return (first['available'] ?? 1) <= 0;
+  }
+
+  // 当前选中日期是否已约满（date 模式专用）
+  bool get _isSelectedDateFull {
+    if (_selectedDate == null) return false;
+    final dateStr = _formatDate(_selectedDate!);
+    final found = _availableDates.where((d) => d['date'] == dateStr).toList();
+    if (found.isEmpty) return false;
+    return found.first['is_available'] == false &&
+        found.first['unavailable_reason'] == 'occupied';
+  }
+
+  // 指定日期是否已约满（用于 selectableDayPredicate 置灰日历）
+  bool _isDateFull(DateTime d) {
+    final dateStr = _formatDate(d);
+    final found = _availableDates.where((it) => it['date'] == dateStr).toList();
+    if (found.isEmpty) return false;
+    return found.first['is_available'] == false &&
+        found.first['unavailable_reason'] == 'occupied';
   }
 
   double get _subtotal => _product.salePrice * _quantity;
@@ -246,6 +285,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
     if (_needDate && _selectedDate == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('请选择预约日期')));
+      return;
+    }
+    // [PRD v1.0 2026-05-04 §4.1.2] date 模式下选中已约满日期 → 禁止提交（前端兜底，后端会再次校验）
+    if (_needDate && _product.appointmentMode == 'date' && _isSelectedDateFull) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('所选日期已约满，请重新选择')),
+      );
       return;
     }
     // [预约日期模式 Bug 修复 v1.0] time_slot 模式才校验时段
@@ -625,6 +671,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 lastDate: lastDate,
                 initialDate: _selectedDate ?? firstDate,
                 locale: const Locale('zh'),
+                // [PRD v1.0 2026-05-04 §4.1.2] 日历组件：已约满日期置灰且不可选
+                selectableDayPredicate: (d) => !_isDateFull(d),
               );
               if (picked != null) {
                 setState(() => _selectedDate = picked);
@@ -650,6 +698,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       color: _selectedDate != null ? Colors.black87 : Colors.grey[400],
                     ),
                   ),
+                  if (_isSelectedDateFull) ...[
+                    const SizedBox(width: 8),
+                    const Text(
+                      '已约满',
+                      style: TextStyle(color: Color(0xFFFF4D4F), fontSize: 12),
+                    ),
+                  ],
                   const Spacer(),
                   Icon(Icons.chevron_right, color: Colors.grey[400], size: 20),
                 ],
@@ -657,48 +712,92 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             ),
           ),
           // [预约日期模式 Bug 修复 v1.0] 仅 time_slot 模式才渲染整块时段；date 模式按设计只按天限流，不展示时段
+          // [PRD v1.0 2026-05-04 §4.1.1] 时段每行 3 个固定网格（GridView.count(crossAxisCount: 3)），
+          // 与「订单详情→修改时间」一致；满额时段灰底灰字 + 红色"已约满"角标，完全不可点击。
           if (_needTimeSlot) ...[
           const SizedBox(height: 12),
           Text('选择时段', style: TextStyle(fontSize: 14, color: Colors.grey[700])),
           const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: hasTimeSlots
-                ? _product.timeSlots!.map((slot) {
-                    final label = '${slot['start'] ?? ''}-${slot['end'] ?? ''}';
-                    final endTime = slot['end'] ?? '';
-                    final expired = _isSlotExpired(endTime);
-                    final fullyBooked = _isSlotFullyBooked(label);
-                    final disabled = expired || fullyBooked;
-                    final chipLabel = fullyBooked && !expired ? '$label 已约满' : label;
-                    return ChoiceChip(
-                      label: Text(
-                        chipLabel,
+          GridView.count(
+            crossAxisCount: 3,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            mainAxisSpacing: 8,
+            crossAxisSpacing: 8,
+            childAspectRatio: 2.6,
+            children: (hasTimeSlots
+                    ? _product.timeSlots!.map<Map<String, dynamic>>((slot) => {
+                          'label': '${slot['start'] ?? ''}-${slot['end'] ?? ''}',
+                          'end': (slot['end'] ?? '') as String,
+                        }).toList()
+                    : defaultTimeSlots
+                        .map<Map<String, dynamic>>((s) => {'label': s, 'end': s})
+                        .toList())
+                .map((m) {
+              final label = m['label'] as String;
+              final endTime = m['end'] as String;
+              final expired = _isSlotExpired(endTime);
+              final fullyBooked = _isSlotFullyBooked(label);
+              final disabled = expired || fullyBooked;
+              final active = _selectedTimeSlot == label;
+              return GestureDetector(
+                onTap: disabled
+                    ? null
+                    : () => setState(() => _selectedTimeSlot = active ? null : label),
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Container(
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: fullyBooked
+                            ? const Color(0xFFF5F5F5)
+                            : (active ? const Color(0xFF52C41A) : Colors.white),
+                        border: Border.all(
+                          color: fullyBooked
+                              ? const Color(0xFFE5E5E5)
+                              : (active
+                                  ? const Color(0xFF52C41A)
+                                  : Colors.grey.shade300),
+                        ),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        label + (expired && !fullyBooked ? ' 已结束' : ''),
                         style: TextStyle(
-                          color: disabled ? const Color(0xFF999999) : null,
+                          color: fullyBooked
+                              ? const Color(0xFF999999)
+                              : (active
+                                  ? Colors.white
+                                  : (expired ? Colors.grey : Colors.black87)),
+                          fontSize: 13,
                         ),
                       ),
-                      selected: _selectedTimeSlot == label,
-                      selectedColor: const Color(0xFFD9F7BE),
-                      disabledColor: const Color(0xFFF5F5F5),
-                      onSelected: disabled
-                          ? null
-                          : (selected) {
-                              setState(() => _selectedTimeSlot = selected ? label : null);
-                            },
-                    );
-                  }).toList()
-                : defaultTimeSlots.map((slot) {
-                    return ChoiceChip(
-                      label: Text(slot),
-                      selected: _selectedTimeSlot == slot,
-                      selectedColor: const Color(0xFFD9F7BE),
-                      onSelected: (selected) {
-                        setState(() => _selectedTimeSlot = selected ? slot : null);
-                      },
-                    );
-                  }).toList(),
+                    ),
+                    if (fullyBooked)
+                      Positioned(
+                        top: -6,
+                        right: -2,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFF4D4F),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Text(
+                            '已约满',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              height: 1.3,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              );
+            }).toList(),
           ),
           ], // end if (_needTimeSlot)
           const SizedBox(height: 12),

@@ -1,0 +1,345 @@
+﻿
+>>> cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && git fetch origin master && git reset --hard origin/master && git log -1 --oneline
+fatal: unable to access 'https://github.com/ankun-eric/auto_dev_bnbbaijkgj.git/': Operation too slow. Less than 1000 bytes/sec transferred the last 60 seconds
+[exit_code: 128]
+
+>>> docker cp /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/tests 6b099ed3-7175-4a78-91f4-44570c84ed27-backend:/app/
+[exit_code: 0]
+
+>>> docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend mkdir -p /repo
+[exit_code: 0]
+
+>>> docker cp /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/admin-web 6b099ed3-7175-4a78-91f4-44570c84ed27-backend:/repo/
+[exit_code: 0]
+
+>>> docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend mkdir -p /repo
+[exit_code: 0]
+
+>>> docker cp /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web 6b099ed3-7175-4a78-91f4-44570c84ed27-backend:/repo/
+[exit_code: 0]
+
+>>> docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend mkdir -p /repo
+[exit_code: 0]
+
+>>> docker cp /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/miniprogram 6b099ed3-7175-4a78-91f4-44570c84ed27-backend:/repo/
+[exit_code: 0]
+
+>>> docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend mkdir -p /repo
+[exit_code: 0]
+
+>>> docker cp /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/flutter_app 6b099ed3-7175-4a78-91f4-44570c84ed27-backend:/repo/
+[exit_code: 0]
+
+>>> docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend pip install --no-cache-dir pytest pytest-asyncio aiosqlite -i https://mirrors.cloud.tencent.com/pypi/simple --trusted-host mirrors.cloud.tencent.com --timeout 120
+Looking in indexes: https://mirrors.cloud.tencent.com/pypi/simple
+Collecting pytest
+  Downloading https://mirrors.cloud.tencent.com/pypi/packages/d4/24/a372aaf5c9b7208e7112038812994107bc65a84cd00e0354a88c2c77a617/pytest-9.0.3-py3-none-any.whl (375 kB)
+     鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹?375.2/375.2 kB 1.5 MB/s eta 0:00:00
+Collecting pytest-asyncio
+  Downloading https://mirrors.cloud.tencent.com/pypi/packages/e5/35/f8b19922b6a25bc0880171a2f1a003eaeb93657475193ab516fd87cac9da/pytest_asyncio-1.3.0-py3-none-any.whl (15 kB)
+Collecting aiosqlite
+  Downloading https://mirrors.cloud.tencent.com/pypi/packages/00/b7/e3bf5133d697a08128598c8d0abc5e16377b51465a33756de24fa7dee953/aiosqlite-0.22.1-py3-none-any.whl (17 kB)
+Collecting iniconfig>=1.0.1 (from pytest)
+  Downloading https://mirrors.cloud.tencent.com/pypi/packages/cb/b1/3846dd7f199d53cb17f49cba7e651e9ce294d8497c8c150530ed11865bb8/iniconfig-2.3.0-py3-none-any.whl (7.5 kB)
+Collecting packaging>=22 (from pytest)
+  Downloading https://mirrors.cloud.tencent.com/pypi/packages/df/b2/87e62e8c3e2f4b32e5fe99e0b86d576da1312593b39f47d8ceef365e95ed/packaging-26.2-py3-none-any.whl (100 kB)
+     鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹?100.2/100.2 kB 673.6 kB/s eta 0:00:00
+Collecting pluggy<2,>=1.5 (from pytest)
+  Downloading https://mirrors.cloud.tencent.com/pypi/packages/54/20/4d324d65cc6d9205fabedc306948156824eb9f0ee1633355a8f7ec5c66bf/pluggy-1.6.0-py3-none-any.whl (20 kB)
+Collecting pygments>=2.7.2 (from pytest)
+  Downloading https://mirrors.cloud.tencent.com/pypi/packages/f4/7e/a72dd26f3b0f4f2bf1dd8923c85f7ceb43172af56d63c7383eb62b332364/pygments-2.20.0-py3-none-any.whl (1.2 MB)
+     鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣 1.2/1.2 MB 1.7 MB/s eta 0:00:00
+Requirement already satisfied: typing-extensions>=4.12 in /usr/local/lib/python3.11/site-packages (from pytest-asyncio) (4.15.0)
+Installing collected packages: pygments, pluggy, packaging, iniconfig, aiosqlite, pytest, pytest-asyncio
+Successfully installed aiosqlite-0.22.1 iniconfig-2.3.0 packaging-26.2 pluggy-1.6.0 pygments-2.20.0 pytest-9.0.3 pytest-asyncio-1.3.0
+WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv
+
+[notice] A new release of pip is available: 24.0 -> 26.1
+[notice] To update, run: pip install --upgrade pip
+[exit_code: 0]
+
+>>> docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend python -m pytest tests/test_orders_statistics_alignment.py -v --tb=short -p no:cacheprovider 2>&1
+============================= test session starts ==============================
+platform linux -- Python 3.11.15, pytest-9.0.3, pluggy-1.6.0 -- /usr/local/bin/python
+rootdir: /app
+configfile: pytest.ini
+plugins: asyncio-1.3.0, anyio-4.13.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 10 items
+
+tests/test_orders_statistics_alignment.py::test_orders_statistics_requires_admin PASSED [ 10%]
+tests/test_orders_statistics_alignment.py::test_orders_statistics_basic_response_shape PASSED [ 20%]
+tests/test_orders_statistics_alignment.py::test_orders_statistics_returns_12_order_statuses PASSED [ 30%]
+tests/test_orders_statistics_alignment.py::test_orders_statistics_returns_7_refund_statuses PASSED [ 40%]
+tests/test_orders_statistics_alignment.py::test_each_status_card_has_label_count_amount PASSED [ 50%]
+tests/test_orders_statistics_alignment.py::test_v2_new_statuses_exist_in_cards PASSED [ 60%]
+tests/test_orders_statistics_alignment.py::test_refund_extended_statuses_exist_in_cards PASSED [ 70%]
+tests/test_orders_statistics_alignment.py::test_orders_statistics_count_and_amount_aggregation PASSED [ 80%]
+tests/test_orders_statistics_alignment.py::test_orders_statistics_time_filter PASSED [ 90%]
+tests/test_orders_statistics_alignment.py::test_orders_statistics_summary_fields PASSED [100%]
+
+=============================== warnings summary ===============================
+../usr/local/lib/python3.11/site-packages/passlib/utils/__init__.py:854
+  /usr/local/lib/python3.11/site-packages/passlib/utils/__init__.py:854: DeprecationWarning: 'crypt' is deprecated and slated for removal in Python 3.13
+    from crypt import crypt as _crypt
+
+../usr/local/lib/python3.11/site-packages/pydantic/_internal/_fields.py:132
+  /usr/local/lib/python3.11/site-packages/pydantic/_internal/_fields.py:132: UserWarning: Field "model_name" in AIModelConfigCreate has conflict with protected namespace "model_".
+  
+  You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
+    warnings.warn(
+
+../usr/local/lib/python3.11/site-packages/pydantic/_internal/_fields.py:132
+  /usr/local/lib/python3.11/site-packages/pydantic/_internal/_fields.py:132: UserWarning: Field "model_name" in AIModelConfigUpdate has conflict with protected namespace "model_".
+  
+  You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
+    warnings.warn(
+
+../usr/local/lib/python3.11/site-packages/pydantic/_internal/_fields.py:132
+  /usr/local/lib/python3.11/site-packages/pydantic/_internal/_fields.py:132: UserWarning: Field "model_name" in AIModelConfigResponse has conflict with protected namespace "model_".
+  
+  You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
+    warnings.warn(
+
+../usr/local/lib/python3.11/site-packages/pydantic/_internal/_fields.py:132
+  /usr/local/lib/python3.11/site-packages/pydantic/_internal/_fields.py:132: UserWarning: Field "model_name" in AIModelConfigTestRequest has conflict with protected namespace "model_".
+  
+  You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
+    warnings.warn(
+
+../usr/local/lib/python3.11/site-packages/pydantic/_internal/_fields.py:132
+  /usr/local/lib/python3.11/site-packages/pydantic/_internal/_fields.py:132: UserWarning: Field "model_name" in AIModelTemplateCreate has conflict with protected namespace "model_".
+  
+  You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
+    warnings.warn(
+
+../usr/local/lib/python3.11/site-packages/pydantic/_internal/_fields.py:132
+  /usr/local/lib/python3.11/site-packages/pydantic/_internal/_fields.py:132: UserWarning: Field "model_name" in AIModelTemplateUpdate has conflict with protected namespace "model_".
+  
+  You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
+    warnings.warn(
+
+../usr/local/lib/python3.11/site-packages/pydantic/_internal/_fields.py:132
+  /usr/local/lib/python3.11/site-packages/pydantic/_internal/_fields.py:132: UserWarning: Field "model_name" in AIModelTemplateResponse has conflict with protected namespace "model_".
+  
+  You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
+    warnings.warn(
+
+app/api/admin_news.py:322
+  /app/app/api/admin_news.py:322: DeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    target_status: str = Query("published", regex="^(published|archived|draft)$"),
+
+../usr/local/lib/python3.11/site-packages/pydantic/_internal/_fields.py:132
+  /usr/local/lib/python3.11/site-packages/pydantic/_internal/_fields.py:132: UserWarning: Field "model_name" in AdminChatSessionItem has conflict with protected namespace "model_".
+  
+  You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
+    warnings.warn(
+
+../usr/local/lib/python3.11/site-packages/pydantic/_internal/_fields.py:132
+  /usr/local/lib/python3.11/site-packages/pydantic/_internal/_fields.py:132: UserWarning: Field "model_name" in AdminChatSessionDetail has conflict with protected namespace "model_".
+  
+  You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
+    warnings.warn(
+
+app/api/chat_history.py:177
+  /app/app/api/chat_history.py:177: DeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    format: str = Query("xlsx", regex="^(xlsx|csv)$"),
+
+../usr/local/lib/python3.11/site-packages/pydantic/_internal/_config.py:291
+../usr/local/lib/python3.11/site-packages/pydantic/_internal/_config.py:291
+  /usr/local/lib/python3.11/site-packages/pydantic/_internal/_config.py:291: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.9/migration/
+    warnings.warn(DEPRECATION_MESSAGE, DeprecationWarning)
+
+app/api/ocr.py:159
+  /app/app/api/ocr.py:159: DeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    period: str = Query("today", regex="^(today|7d|30d|all)$"),
+
+app/api/merchant_v1.py:756
+  /app/app/api/merchant_v1.py:756: DeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    period: str = Query("day", regex="^(day|week|month)$"),
+
+app/api/merchant_v1.py:757
+  /app/app/api/merchant_v1.py:757: DeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    dim: str = Query("merchant", regex="^(merchant|store)$"),
+
+../usr/local/lib/python3.11/site-packages/pydantic/fields.py:795
+  /usr/local/lib/python3.11/site-packages/pydantic/fields.py:795: PydanticDeprecatedSince20: `min_items` is deprecated and will be removed, use `min_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.9/migration/
+    warn('`min_items` is deprecated and will be removed, use `min_length` instead', DeprecationWarning)
+
+../usr/local/lib/python3.11/site-packages/pydantic/fields.py:801
+  /usr/local/lib/python3.11/site-packages/pydantic/fields.py:801: PydanticDeprecatedSince20: `max_items` is deprecated and will be removed, use `max_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.9/migration/
+    warn('`max_items` is deprecated and will be removed, use `max_length` instead', DeprecationWarning)
+
+app/main.py:956
+  /app/app/main.py:956: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+../usr/local/lib/python3.11/site-packages/fastapi/applications.py:4495
+  /usr/local/lib/python3.11/site-packages/fastapi/applications.py:4495: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    return self.router.on_event(event_type)
+
+../usr/local/lib/python3.11/site-packages/sqlalchemy/ext/asyncio/session.py:1748
+  /usr/local/lib/python3.11/site-packages/sqlalchemy/ext/asyncio/session.py:1748: PytestCollectionWarning: cannot collect 'test_session' because it is not a function.
+    def __call__(self, **local_kw: Any) -> _AS:
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 10 passed, 22 warnings in 6.15s ========================
+[exit_code: 0]
+
+>>> docker exec -e REPO_ROOT=/repo 6b099ed3-7175-4a78-91f4-44570c84ed27-backend python -m pytest tests/test_fulfillment_label_dict.py -v --tb=short -p no:cacheprovider 2>&1
+============================= test session starts ==============================
+platform linux -- Python 3.11.15, pytest-9.0.3, pluggy-1.6.0 -- /usr/local/bin/python
+rootdir: /app
+configfile: pytest.ini
+plugins: asyncio-1.3.0, anyio-4.13.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 24 items
+
+tests/test_fulfillment_label_dict.py::test_admin_web_fulfillment_label_file_exists_and_complete PASSED [  4%]
+tests/test_fulfillment_label_dict.py::test_h5_web_fulfillment_label_file_exists_and_complete PASSED [  8%]
+tests/test_fulfillment_label_dict.py::test_miniprogram_fulfillment_label_file_exists_and_complete PASSED [ 12%]
+tests/test_fulfillment_label_dict.py::test_flutter_fulfillment_label_file_exists_and_complete PASSED [ 16%]
+tests/test_fulfillment_label_dict.py::test_dict_does_not_contain_zombie_to_store[admin-web/src/utils/fulfillmentLabel.ts] PASSED [ 20%]
+tests/test_fulfillment_label_dict.py::test_dict_does_not_contain_zombie_to_store[h5-web/src/utils/fulfillmentLabel.ts] PASSED [ 25%]
+tests/test_fulfillment_label_dict.py::test_dict_does_not_contain_zombie_to_store[miniprogram/utils/fulfillmentLabel.js] PASSED [ 29%]
+tests/test_fulfillment_label_dict.py::test_dict_does_not_contain_zombie_to_store[miniprogram/utils/fulfillmentLabel.wxs] PASSED [ 33%]
+tests/test_fulfillment_label_dict.py::test_dict_does_not_contain_zombie_to_store[flutter_app/lib/utils/fulfillment_label.dart] PASSED [ 37%]
+tests/test_fulfillment_label_dict.py::test_dict_files_no_legacy_chinese_labels[admin-web/src/utils/fulfillmentLabel.ts] PASSED [ 41%]
+tests/test_fulfillment_label_dict.py::test_dict_files_no_legacy_chinese_labels[h5-web/src/utils/fulfillmentLabel.ts] PASSED [ 45%]
+tests/test_fulfillment_label_dict.py::test_dict_files_no_legacy_chinese_labels[miniprogram/utils/fulfillmentLabel.js] PASSED [ 50%]
+tests/test_fulfillment_label_dict.py::test_dict_files_no_legacy_chinese_labels[miniprogram/utils/fulfillmentLabel.wxs] PASSED [ 54%]
+tests/test_fulfillment_label_dict.py::test_dict_files_no_legacy_chinese_labels[flutter_app/lib/utils/fulfillment_label.dart] PASSED [ 58%]
+tests/test_fulfillment_label_dict.py::test_dict_key_order_is_delivery_in_store_on_site_virtual[admin-web/src/utils/fulfillmentLabel.ts] PASSED [ 62%]
+tests/test_fulfillment_label_dict.py::test_dict_key_order_is_delivery_in_store_on_site_virtual[h5-web/src/utils/fulfillmentLabel.ts] PASSED [ 66%]
+tests/test_fulfillment_label_dict.py::test_dict_key_order_is_delivery_in_store_on_site_virtual[miniprogram/utils/fulfillmentLabel.js] PASSED [ 70%]
+tests/test_fulfillment_label_dict.py::test_dict_key_order_is_delivery_in_store_on_site_virtual[miniprogram/utils/fulfillmentLabel.wxs] PASSED [ 75%]
+tests/test_fulfillment_label_dict.py::test_dict_key_order_is_delivery_in_store_on_site_virtual[flutter_app/lib/utils/fulfillment_label.dart] PASSED [ 79%]
+tests/test_fulfillment_label_dict.py::test_admin_web_products_page_reuses_fulfillment_options PASSED [ 83%]
+tests/test_fulfillment_label_dict.py::test_flutter_unified_order_detail_uses_public_label PASSED [ 87%]
+tests/test_fulfillment_label_dict.py::test_admin_orders_page_uses_public_label PASSED [ 91%]
+tests/test_fulfillment_label_dict.py::test_h5_unified_order_uses_public_label PASSED [ 95%]
+tests/test_fulfillment_label_dict.py::test_miniprogram_unified_order_uses_public_label PASSED [100%]
+
+=============================== warnings summary ===============================
+../usr/local/lib/python3.11/site-packages/passlib/utils/__init__.py:854
+  /usr/local/lib/python3.11/site-packages/passlib/utils/__init__.py:854: DeprecationWarning: 'crypt' is deprecated and slated for removal in Python 3.13
+    from crypt import crypt as _crypt
+
+../usr/local/lib/python3.11/site-packages/pydantic/_internal/_fields.py:132
+  /usr/local/lib/python3.11/site-packages/pydantic/_internal/_fields.py:132: UserWarning: Field "model_name" in AIModelConfigCreate has conflict with protected namespace "model_".
+  
+  You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
+    warnings.warn(
+
+../usr/local/lib/python3.11/site-packages/pydantic/_internal/_fields.py:132
+  /usr/local/lib/python3.11/site-packages/pydantic/_internal/_fields.py:132: UserWarning: Field "model_name" in AIModelConfigUpdate has conflict with protected namespace "model_".
+  
+  You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
+    warnings.warn(
+
+../usr/local/lib/python3.11/site-packages/pydantic/_internal/_fields.py:132
+  /usr/local/lib/python3.11/site-packages/pydantic/_internal/_fields.py:132: UserWarning: Field "model_name" in AIModelConfigResponse has conflict with protected namespace "model_".
+  
+  You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
+    warnings.warn(
+
+../usr/local/lib/python3.11/site-packages/pydantic/_internal/_fields.py:132
+  /usr/local/lib/python3.11/site-packages/pydantic/_internal/_fields.py:132: UserWarning: Field "model_name" in AIModelConfigTestRequest has conflict with protected namespace "model_".
+  
+  You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
+    warnings.warn(
+
+../usr/local/lib/python3.11/site-packages/pydantic/_internal/_fields.py:132
+  /usr/local/lib/python3.11/site-packages/pydantic/_internal/_fields.py:132: UserWarning: Field "model_name" in AIModelTemplateCreate has conflict with protected namespace "model_".
+  
+  You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
+    warnings.warn(
+
+../usr/local/lib/python3.11/site-packages/pydantic/_internal/_fields.py:132
+  /usr/local/lib/python3.11/site-packages/pydantic/_internal/_fields.py:132: UserWarning: Field "model_name" in AIModelTemplateUpdate has conflict with protected namespace "model_".
+  
+  You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
+    warnings.warn(
+
+../usr/local/lib/python3.11/site-packages/pydantic/_internal/_fields.py:132
+  /usr/local/lib/python3.11/site-packages/pydantic/_internal/_fields.py:132: UserWarning: Field "model_name" in AIModelTemplateResponse has conflict with protected namespace "model_".
+  
+  You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
+    warnings.warn(
+
+app/api/admin_news.py:322
+  /app/app/api/admin_news.py:322: DeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    target_status: str = Query("published", regex="^(published|archived|draft)$"),
+
+../usr/local/lib/python3.11/site-packages/pydantic/_internal/_fields.py:132
+  /usr/local/lib/python3.11/site-packages/pydantic/_internal/_fields.py:132: UserWarning: Field "model_name" in AdminChatSessionItem has conflict with protected namespace "model_".
+  
+  You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
+    warnings.warn(
+
+../usr/local/lib/python3.11/site-packages/pydantic/_internal/_fields.py:132
+  /usr/local/lib/python3.11/site-packages/pydantic/_internal/_fields.py:132: UserWarning: Field "model_name" in AdminChatSessionDetail has conflict with protected namespace "model_".
+  
+  You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
+    warnings.warn(
+
+app/api/chat_history.py:177
+  /app/app/api/chat_history.py:177: DeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    format: str = Query("xlsx", regex="^(xlsx|csv)$"),
+
+../usr/local/lib/python3.11/site-packages/pydantic/_internal/_config.py:291
+../usr/local/lib/python3.11/site-packages/pydantic/_internal/_config.py:291
+  /usr/local/lib/python3.11/site-packages/pydantic/_internal/_config.py:291: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.9/migration/
+    warnings.warn(DEPRECATION_MESSAGE, DeprecationWarning)
+
+app/api/ocr.py:159
+  /app/app/api/ocr.py:159: DeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    period: str = Query("today", regex="^(today|7d|30d|all)$"),
+
+app/api/merchant_v1.py:756
+  /app/app/api/merchant_v1.py:756: DeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    period: str = Query("day", regex="^(day|week|month)$"),
+
+app/api/merchant_v1.py:757
+  /app/app/api/merchant_v1.py:757: DeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    dim: str = Query("merchant", regex="^(merchant|store)$"),
+
+../usr/local/lib/python3.11/site-packages/pydantic/fields.py:795
+  /usr/local/lib/python3.11/site-packages/pydantic/fields.py:795: PydanticDeprecatedSince20: `min_items` is deprecated and will be removed, use `min_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.9/migration/
+    warn('`min_items` is deprecated and will be removed, use `min_length` instead', DeprecationWarning)
+
+../usr/local/lib/python3.11/site-packages/pydantic/fields.py:801
+  /usr/local/lib/python3.11/site-packages/pydantic/fields.py:801: PydanticDeprecatedSince20: `max_items` is deprecated and will be removed, use `max_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.9/migration/
+    warn('`max_items` is deprecated and will be removed, use `max_length` instead', DeprecationWarning)
+
+app/main.py:956
+  /app/app/main.py:956: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+../usr/local/lib/python3.11/site-packages/fastapi/applications.py:4495
+  /usr/local/lib/python3.11/site-packages/fastapi/applications.py:4495: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    return self.router.on_event(event_type)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 24 passed, 21 warnings in 1.81s ========================
+[exit_code: 0]

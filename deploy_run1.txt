@@ -1,0 +1,580 @@
+﻿
+>>> cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && git fetch origin master && git reset --hard origin/master && git log -1 --oneline
+From https://github.com/ankun-eric/auto_dev_bnbbaijkgj
+ * branch            master     -> FETCH_HEAD
+HEAD is now at 141ef6b fix(fulfillment): 鍟嗗搧浣撶郴灞ョ害绫诲瀷娓呯悊 鈥?鍒犻櫎 to_store 鍍靛案鏄犲皠锛岀粺涓€鏀瑰悕涓?鍒板簵鏈嶅姟'/'铏氭嫙鍟嗗搧'锛屽叏绔?5 浠藉瓧鍏稿彛寰勪竴鑷?
+141ef6b fix(fulfillment): 鍟嗗搧浣撶郴灞ョ害绫诲瀷娓呯悊 鈥?鍒犻櫎 to_store 鍍靛案鏄犲皠锛岀粺涓€鏀瑰悕涓?鍒板簵鏈嶅姟'/'铏氭嫙鍟嗗搧'锛屽叏绔?5 浠藉瓧鍏稿彛寰勪竴鑷?
+[exit_code: 0]
+
+>>> cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose build backend
+time="2026-05-04T13:40:17+08:00" level=warning msg="/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Building 
+#1 [internal] load local bake definitions
+#1 reading from stdin 628B done
+#1 DONE 0.0s
+
+#2 [internal] load build definition from Dockerfile
+#2 transferring dockerfile: 366B done
+#2 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/python:3.11-slim
+#3 DONE 0.6s
+
+#4 [internal] load .dockerignore
+#4 transferring context: 2B done
+#4 DONE 0.0s
+
+#5 [1/6] FROM docker.io/library/python:3.11-slim@sha256:6d85378d88a19cd4d76079817532d62232be95757cb45945a99fec8e8084b9c2
+#5 resolve docker.io/library/python:3.11-slim@sha256:6d85378d88a19cd4d76079817532d62232be95757cb45945a99fec8e8084b9c2 0.0s done
+#5 DONE 0.0s
+
+#6 [internal] load build context
+#6 transferring context: 338.31kB 0.0s done
+#6 DONE 0.0s
+
+#7 [2/6] WORKDIR /app
+#7 CACHED
+
+#8 [3/6] COPY requirements.txt .
+#8 CACHED
+
+#9 [4/6] RUN pip install --no-cache-dir -r requirements.txt -i https://mirrors.cloud.tencent.com/pypi/simple --trusted-host mirrors.cloud.tencent.com --timeout 120
+#9 CACHED
+
+#10 [5/6] COPY . .
+#10 DONE 0.1s
+
+#11 [6/6] RUN mkdir -p uploads
+#11 DONE 0.2s
+
+#12 exporting to image
+#12 exporting layers
+#12 exporting layers 0.3s done
+#12 exporting manifest sha256:6c439e73b1675f3693461d6fb3265c2f74302619a3e7137447186b771aea91b6
+#12 exporting manifest sha256:6c439e73b1675f3693461d6fb3265c2f74302619a3e7137447186b771aea91b6 0.0s done
+#12 exporting config sha256:8e3bb30f0b6f63325c37fcfce073e73391f3cc317e87ed920976e24649e22873 0.0s done
+#12 exporting attestation manifest sha256:ffe94538ef3e9118772f995cce0529d99afad1714cc99b3f2956d67caa7cbb77 0.0s done
+#12 exporting manifest list sha256:4d62197e509768beef7f01e60ed08b05c22af3bdab6fa5245ce4783735f39790 0.0s done
+#12 naming to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-backend:latest done
+#12 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-backend:latest 0.1s done
+#12 DONE 0.6s
+
+#13 resolving provenance for metadata file
+#13 DONE 0.0s
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Built 
+[exit_code: 0]
+
+>>> cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose up -d backend
+time="2026-05-04T13:40:20+08:00" level=warning msg="/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Recreate 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Recreated 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Waiting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Healthy 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Started 
+[exit_code: 0]
+
+>>> cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose build admin-web
+time="2026-05-04T13:40:33+08:00" level=warning msg="/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Building 
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web Building 
+#1 [internal] load local bake definitions
+#1 reading from stdin 1.36kB done
+#1 DONE 0.0s
+
+#2 [internal] load build definition from Dockerfile
+#2 transferring dockerfile: 653B done
+#2 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/node:18-alpine
+#3 DONE 2.9s
+
+#4 [internal] load .dockerignore
+#4 transferring context: 102B done
+#4 DONE 0.0s
+
+#5 [builder 1/7] FROM docker.io/library/node:18-alpine@sha256:8d6421d663b4c28fd3ebc498332f249011d118945588d0a35cb9bc4b8ca09d9e
+#5 resolve docker.io/library/node:18-alpine@sha256:8d6421d663b4c28fd3ebc498332f249011d118945588d0a35cb9bc4b8ca09d9e 0.0s done
+#5 DONE 0.0s
+
+#6 [internal] load build context
+#6 transferring context: 199.12kB 0.0s done
+#6 DONE 0.0s
+
+#7 [builder 2/7] WORKDIR /app
+#7 CACHED
+
+#8 [builder 3/7] COPY package.json ./
+#8 CACHED
+
+#9 [builder 4/7] RUN npm config set registry https://registry.npmmirror.com && npm install --legacy-peer-deps
+#9 CACHED
+
+#10 [builder 5/7] COPY . .
+#10 DONE 0.1s
+
+#11 [builder 6/7] RUN mkdir -p public
+#11 DONE 0.2s
+
+#12 [builder 7/7] RUN npm run build
+#12 0.460 
+#12 0.460 > bini-health-admin@1.0.0 build
+#12 0.460 > next build
+#12 0.460 
+#12 1.324 Attention: Next.js now collects completely anonymous telemetry regarding usage.
+#12 1.324 This information is used to shape Next.js' roadmap and prioritize features.
+#12 1.324 You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+#12 1.325 https://nextjs.org/telemetry
+#12 1.325 
+#12 1.399   鈻?Next.js 14.2.15
+#12 1.399 
+#12 1.513    Creating an optimized production build ...
+#12 79.61  鉁?Compiled successfully
+#12 79.61    Skipping validation of types
+#12 79.61    Linting ...
+#12 79.95    Collecting page data ...
+#12 84.92    Generating static pages (0/88) ...
+#12 90.06    Generating static pages (22/88) 
+
+#12 91.42    Generating static pages (44/88) 
+
+#12 92.54    Generating static pages (66/88) 
+
+#12 94.30  鉁?Generating static pages (88/88)
+#12 95.59    Finalizing page optimization ...
+#12 95.59    Collecting build traces ...
+#12 104.2 
+#12 104.2 Route (app)                                  Size     First Load JS
+#12 104.2 鈹?鈼?/                                        373 B            88 kB
+#12 104.2 鈹?鈼?/_not-found                              880 B          88.5 kB
+#12 104.2 鈹?鈼?/admin-settlements                       16 kB           489 kB
+#12 104.2 鈹?鈼?/ai-center/disclaimers                   6.78 kB         278 kB
+#12 104.2 鈹?鈼?/ai-center/prompts                       6.63 kB         275 kB
+#12 104.2 鈹?鈼?/ai-center/sensitive-words               6.7 kB          391 kB
+#12 104.2 鈹?鈼?/ai-config                               19.7 kB         428 kB
+#12 104.2 鈹?鈼?/ai-config/chat-timeout                  7.55 kB         299 kB
+#12 104.2 鈹?鈼?/ai-config/video-consult                 7.73 kB         343 kB
+#12 104.2 鈹?鈼?/audit/center                            8.44 kB         403 kB
+#12 104.2 鈹?鈼?/audit/phones                            5.47 kB         396 kB
+#12 104.2 鈹?鈼?/bottom-nav                              7.24 kB         398 kB
+#12 104.2 鈹?鈼?/chat-records                            10.1 kB         412 kB
+#12 104.2 鈹?茠 /chat-records/[id]                       16 kB           297 kB
+#12 104.2 鈹?鈼?/checkup-details                         4.83 kB         454 kB
+#12 104.2 鈹?鈼?/city-management                         6.9 kB          382 kB
+#12 104.2 鈹?鈼?/content/articles                        8.7 kB          453 kB
+#12 104.2 鈹?鈼?/content/categories                      5.51 kB         405 kB
+#12 104.2 鈹?鈼?/content/news                            8.62 kB         453 kB
+#12 104.2 鈹?鈼?/cos-config                              17.2 kB         421 kB
+#12 104.2 鈹?鈼?/customer-service                        12.2 kB         288 kB
+#12 104.2 鈹?鈼?/dashboard                               10.3 kB         378 kB
+#12 104.2 鈹?鈼?/digital-humans                          6.75 kB         405 kB
+#12 104.2 鈹?鈼?/disease-presets                         6.18 kB         406 kB
+#12 104.2 鈹?鈼?/drug-details                            5.63 kB         455 kB
+#12 104.2 鈹?鈼?/email-notify                            10.6 kB         414 kB
+#12 104.2 鈹?鈼?/experts                                 13.8 kB         401 kB
+#12 104.2 鈹?鈼?/fallback-config                         4.71 kB         389 kB
+#12 104.2 鈹?鈼?/family-management                       9.44 kB         386 kB
+#12 104.2 鈹?鈼?/function-buttons                        6.99 kB         414 kB
+#12 104.2 鈹?鈼?/health-plan/categories                  6.75 kB         403 kB
+#12 104.2 鈹?鈼?/health-plan/default-tasks               6.36 kB         406 kB
+#12 104.2 鈹?鈼?/health-plan/recommended                 7.01 kB         406 kB
+#12 104.2 鈹?茠 /health-plan/recommended/[planId]/tasks  3.37 kB         403 kB
+#12 104.2 鈹?鈼?/health-plan/statistics                  10.8 kB         420 kB
+#12 104.2 鈹?鈼?/health-records                          12.6 kB         398 kB
+#12 104.2 鈹?鈼?/home-banners                            6.53 kB         435 kB
+#12 104.2 鈹?鈼?/home-menus                              23.1 kB         451 kB
+#12 104.2 鈹?鈼?/home-settings                           5.01 kB         327 kB
+#12 104.2 鈹?鈼?/home-settings/page-style                5.95 kB         283 kB
+#12 104.2 鈹?鈼?/knowledge                               9.25 kB         400 kB
+#12 104.2 鈹?茠 /knowledge/[id]                          7.47 kB         417 kB
+#12 104.2 鈹?鈼?/knowledge/stats                         10.5 kB         384 kB
+#12 104.2 鈹?鈼?/login                                   8.28 kB         286 kB
+#12 104.2 鈹?鈼?/map-config                              11.2 kB         422 kB
+#12 104.2 鈹?鈼?/merchant-categories                     5.23 kB         402 kB
+#12 104.2 鈹?鈼?/merchant/accounts                       5 kB            415 kB
+#12 104.2 鈹?鈼?/merchant/business-config                6.67 kB         441 kB
+#12 104.2 鈹?鈼?/merchant/stores                         13.5 kB         413 kB
+#12 104.2 鈹?鈼?/notices                                 4.18 kB         439 kB
+#12 104.2 鈹?鈼?/ocr-config                              14.9 kB         365 kB
+#12 104.2 鈹?鈼?/ocr-global-config                       11.2 kB         316 kB
+#12 104.2 鈹?鈼?/payment-config                          13.3 kB         363 kB
+#12 104.2 鈹?鈼?/points/levels                           6.25 kB         403 kB
+#12 104.2 鈹?鈼?/points/mall                             18.5 kB         480 kB
+#12 104.2 鈹?鈼?/points/rules                            10.3 kB         294 kB
+#12 104.2 鈹?鈼?/product-system/appointment-forms        6.98 kB         406 kB
+#12 104.2 鈹?鈼?/product-system/cards                    12.4 kB         412 kB
+#12 104.2 鈹?鈼?/product-system/cards/dashboard          5.01 kB         395 kB
+#12 104.2 鈹?鈼?/product-system/categories               6.79 kB         406 kB
+#12 104.2 鈹?鈼?/product-system/coupons                  33.2 kB         495 kB
+#12 104.2 鈹?鈼?/product-system/new-user-coupons         14.1 kB         395 kB
+#12 104.2 鈹?鈼?/product-system/orders                   16.1 kB         467 kB
+#12 104.2 鈹?鈼?/product-system/partners                 9.45 kB         419 kB
+#12 104.2 鈹?鈼?/product-system/products                 28.3 kB         468 kB
+#12 104.2 鈹?鈼?/product-system/redemptions              7.11 kB         416 kB
+#12 104.2 鈹?鈼?/product-system/statistics               8.84 kB         755 kB
+#12 104.2 鈹?鈼?/product-system/store-bindding           8.54 kB         409 kB
+#12 104.2 鈹?鈼?/product-system/visits                   7.55 kB         446 kB
+#12 104.2 鈹?鈼?/profile                                 5.04 kB         251 kB
+#12 104.2 鈹?鈼?/profile/change-password                 7.63 kB         285 kB
+#12 104.2 鈹?鈼?/prompt-templates                        10.4 kB         316 kB
+#12 104.2 鈹?鈼?/referral                                7.43 kB         381 kB
+#12 104.2 鈹?鈼?/relation-types                          6.27 kB         406 kB
+#12 104.2 鈹?鈼?/search-config                           7.52 kB         413 kB
+#12 104.2 鈹?鈼?/search/asr-config                       6.96 kB         295 kB
+#12 104.2 鈹?鈼?/search/block-words                      9.47 kB         400 kB
+#12 104.2 鈹?鈼?/search/recommend                        8.95 kB         408 kB
+#12 104.2 鈹?鈼?/search/statistics                       239 kB         1.09 MB
+#12 104.2 鈹?鈼?/settings                                11 kB           366 kB
+#12 104.2 鈹?鈼?/share-config                            6.33 kB         370 kB
+#12 104.2 鈹?鈼?/sms                                     20.3 kB         423 kB
+#12 104.2 鈹?鈼?/system-messages                         8.91 kB         432 kB
+#12 104.2 鈹?鈼?/system-messages/send                    4.89 kB         312 kB
+#12 104.2 鈹?鈼?/tcm-config                              4.02 kB         282 kB
+#12 104.2 鈹?鈼?/tts-config                              5.04 kB         333 kB
+#12 104.2 鈹?鈼?/users                                   12.5 kB         404 kB
+#12 104.2 鈹?鈼?/voice-service                           3.43 kB         344 kB
+#12 104.2 鈹?鈼?/wechat-push                             4.89 kB         289 kB
+#12 104.2 + First Load JS shared by all                87.7 kB
+#12 104.2   鈹?chunks/2117-1ca38137e0e3b541.js          31.9 kB
+#12 104.2   鈹?chunks/fd9d1056-cde8d1c8f42e1127.js      53.6 kB
+#12 104.2   鈹?other shared chunks (total)              2.13 kB
+#12 104.2 
+#12 104.2 
+#12 104.2 鈼? (Static)   prerendered as static content
+#12 104.2 茠  (Dynamic)  server-rendered on demand
+#12 104.2 
+#12 DONE 104.3s
+
+#7 [builder 2/7] WORKDIR /app
+#7 CACHED
+
+#13 [runner 3/5] COPY --from=builder /app/.next/standalone ./
+#13 DONE 0.4s
+
+#14 [runner 4/5] COPY --from=builder /app/.next/static ./.next/static
+#14 DONE 0.1s
+
+#15 [runner 5/5] COPY --from=builder /app/public ./public
+#15 DONE 0.1s
+
+#16 exporting to image
+#16 exporting layers
+#16 exporting layers 1.2s done
+#16 exporting manifest sha256:d2b95a415009f8342c38ab34db83872b4e81e86e4a12eba48faf27b05d7c005a 0.0s done
+#16 exporting config sha256:351539f0c6baea478b7af37b73706af02aa93766e21250c4626b017cfe7ddc82 done
+#16 exporting attestation manifest sha256:d297a930b2355232f495430cb7bd02cef2e7b0ad06446695fe8427c9be69dccf 0.0s done
+#16 exporting manifest list sha256:2af7faa55bb285f20fe8b4a5274cfa21f6ae708e61162dbab076bd9a5c74df57 0.0s done
+#16 naming to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:latest done
+#16 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:latest
+#16 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:latest 0.5s done
+#16 DONE 1.8s
+
+#17 resolving provenance for metadata file
+#17 DONE 0.0s
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web Built 
+[exit_code: 0]
+
+>>> cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose up -d admin-web
+time="2026-05-04T13:42:25+08:00" level=warning msg="/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Recreate 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Recreated 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Waiting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Healthy 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Started 
+[exit_code: 0]
+
+>>> cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose build h5-web
+time="2026-05-04T13:42:27+08:00" level=warning msg="/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Building 
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web Building 
+#1 [internal] load local bake definitions
+#1 reading from stdin 1.33kB done
+#1 DONE 0.0s
+
+#2 [internal] load build definition from Dockerfile
+#2 transferring dockerfile: 653B done
+#2 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/node:18-alpine
+#3 DONE 0.2s
+
+#4 [internal] load .dockerignore
+#4 transferring context: 102B done
+#4 DONE 0.0s
+
+#5 [builder 1/7] FROM docker.io/library/node:18-alpine@sha256:8d6421d663b4c28fd3ebc498332f249011d118945588d0a35cb9bc4b8ca09d9e
+#5 resolve docker.io/library/node:18-alpine@sha256:8d6421d663b4c28fd3ebc498332f249011d118945588d0a35cb9bc4b8ca09d9e 0.0s done
+#5 DONE 0.0s
+
+#6 [internal] load build context
+#6 transferring context: 84.82MB 0.6s done
+#6 DONE 0.6s
+
+#7 [builder 2/7] WORKDIR /app
+#7 CACHED
+
+#8 [builder 3/7] COPY package.json ./
+#8 CACHED
+
+#9 [builder 4/7] RUN npm config set registry https://registry.npmmirror.com && npm install --legacy-peer-deps
+#9 CACHED
+
+#10 [builder 5/7] COPY . .
+#10 DONE 0.2s
+
+#11 [builder 6/7] RUN mkdir -p public
+#11 DONE 0.2s
+
+#12 [builder 7/7] RUN npm run build
+#12 0.345 
+#12 0.345 > bini-health-h5@1.0.0 build
+#12 0.345 > next build
+#12 0.345 
+#12 1.213 Attention: Next.js now collects completely anonymous telemetry regarding usage.
+#12 1.214 This information is used to shape Next.js' roadmap and prioritize features.
+#12 1.214 You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+#12 1.214 https://nextjs.org/telemetry
+#12 1.214 
+#12 1.287   鈻?Next.js 14.2.15
+#12 1.287 
+#12 1.379    Creating an optimized production build ...
+#12 61.54  鉁?Compiled successfully
+#12 61.55    Skipping validation of types
+#12 61.55    Linting ...
+#12 61.88    Collecting page data ...
+#12 65.91    Generating static pages (0/109) ...
+#12 67.78    Generating static pages (27/109) 
+
+#12 69.17    Generating static pages (54/109) 
+
+#12 70.00    Generating static pages (81/109) 
+
+#12 71.02  鉁?Generating static pages (109/109)
+#12 71.69    Finalizing page optimization ...
+#12 71.69    Collecting build traces ...
+#12 81.68 
+#12 81.69 Route (app)                                    Size     First Load JS
+#12 81.69 鈹?鈼?/                                          745 B          88.4 kB
+#12 81.69 鈹?鈼?/_not-found                                880 B          88.5 kB
+#12 81.69 鈹?鈼?/account-security                          2.94 kB         235 kB
+#12 81.69 鈹?鈼?/ai                                        3.3 kB          239 kB
+#12 81.69 鈹?鈼?/ai-home                                   14.2 kB         246 kB
+#12 81.69 鈹?鈼?/ai-settings                               1.73 kB         212 kB
+#12 81.69 鈹?茠 /article/[id]                              5.12 kB         237 kB
+#12 81.69 鈹?鈼?/articles                                  2.06 kB         234 kB
+#12 81.69 鈹?鈼?/cards                                     1.13 kB         238 kB
+#12 81.69 鈹?茠 /cards/[id]                                2.52 kB         240 kB
+#12 81.69 鈹?茠 /cards/redeem-code/[id]                    1.25 kB         237 kB
+#12 81.69 鈹?茠 /cards/renew/[id]                          1.04 kB         237 kB
+#12 81.69 鈹?茠 /cards/usage-logs/[id]                     821 B           237 kB
+#12 81.69 鈹?鈼?/cards/wallet                              1.65 kB         239 kB
+#12 81.69 鈹?鈼?/chat-history                              3.33 kB         235 kB
+#12 81.69 鈹?茠 /chat/[sessionId]                          22.2 kB         265 kB
+#12 81.69 鈹?鈼?/checkout                                  8 kB            240 kB
+#12 81.69 鈹?鈼?/checkup                                   15 kB           252 kB
+#12 81.69 鈹?茠 /checkup/chat/[sessionId]                  4.55 kB         237 kB
+#12 81.69 鈹?鈼?/checkup/compare                           540 B          88.2 kB
+#12 81.69 鈹?鈼?/checkup/compare/select                    2.96 kB         235 kB
+#12 81.69 鈹?茠 /checkup/detail/[id]                       4.03 kB         236 kB
+#12 81.69 鈹?茠 /checkup/result/[id]                       1.43 kB         234 kB
+#12 81.69 鈹?鈼?/checkup/trend                             525 B          88.1 kB
+#12 81.69 鈹?鈼?/city-select                               3.89 kB         236 kB
+#12 81.69 鈹?鈼?/coupon-center                             5.42 kB         238 kB
+#12 81.69 鈹?鈼?/customer-service                          5.31 kB         215 kB
+#12 81.69 鈹?鈼?/digital-human-call                        4.5 kB          237 kB
+#12 81.69 鈹?鈼?/drug                                      11.3 kB         249 kB
+#12 81.69 鈹?茠 /drug/chat/[sessionId]                     9.64 kB         242 kB
+#12 81.69 鈹?茠 /expert/[id]                               2.98 kB         235 kB
+#12 81.69 鈹?鈼?/experts                                   1.65 kB         211 kB
+#12 81.69 鈹?鈼?/family                                    783 B           211 kB
+#12 81.69 鈹?鈼?/family-auth                               2.9 kB          235 kB
+#12 81.69 鈹?鈼?/family-bindlist                           5.07 kB         237 kB
+#12 81.69 鈹?鈼?/family-invite                             3.04 kB         241 kB
+#12 81.69 鈹?鈼?/feedback                                  2.47 kB         235 kB
+#12 81.69 鈹?鈼?/health-archive                            3.81 kB         236 kB
+#12 81.69 鈹?鈼?/health-guide                              4.62 kB         237 kB
+#12 81.69 鈹?鈼?/health-plan                               1.76 kB         238 kB
+#12 81.69 鈹?鈼?/health-plan/checkin                       1.94 kB         238 kB
+#12 81.69 鈹?鈼?/health-plan/checkin/add                   5.65 kB         238 kB
+#12 81.69 鈹?鈼?/health-plan/custom                        6.93 kB         239 kB
+#12 81.69 鈹?茠 /health-plan/custom/[categoryId]           5.64 kB         238 kB
+#12 81.69 鈹?鈼?/health-plan/custom/create                 5.62 kB         238 kB
+#12 81.69 鈹?茠 /health-plan/custom/my-plan/[planId]       5.29 kB         237 kB
+#12 81.69 鈹?茠 /health-plan/custom/plan/[planId]          5.28 kB         237 kB
+#12 81.69 鈹?鈼?/health-plan/medications                   5.91 kB         238 kB
+#12 81.69 鈹?鈼?/health-plan/medications/add               6 kB            238 kB
+#12 81.69 鈹?鈼?/health-plan/statistics                    6.7 kB          239 kB
+#12 81.69 鈹?鈼?/health-profile                            10.1 kB         242 kB
+#12 81.69 鈹?鈼?/home                                      7.54 kB         240 kB
+#12 81.69 鈹?鈼?/invite                                    5.67 kB         244 kB
+#12 81.69 鈹?鈼?/landing                                   1.72 kB         212 kB
+#12 81.69 鈹?鈼?/login                                     4.34 kB         236 kB
+#12 81.69 鈹?鈼?/member-card                               2.24 kB         234 kB
+#12 81.69 鈹?鈼?/merchant                                  2.28 kB         112 kB
+#12 81.69 鈹?鈼?/merchant/calendar                         12.2 kB         340 kB
+#12 81.69 鈹?鈼?/merchant/dashboard                        11.8 kB         249 kB
+#12 81.69 鈹?鈼?/merchant/downloads                        5 kB            412 kB
+#12 81.69 鈹?鈼?/merchant/finance                          3.68 kB         223 kB
+#12 81.69 鈹?鈼?/merchant/invoice                          2.01 kB         273 kB
+#12 81.69 鈹?鈼?/merchant/login                            6.53 kB         278 kB
+#12 81.69 鈹?鈼?/merchant/m                                2.85 kB         113 kB
+#12 81.69 鈹?鈼?/merchant/m/calendar                       3.85 kB         236 kB
+#12 81.69 鈹?鈼?/merchant/m/dashboard                      3.89 kB         236 kB
+#12 81.69 鈹?鈼?/merchant/m/downloads                      1.06 kB         211 kB
+#12 81.69 鈹?鈼?/merchant/m/finance                        1.08 kB         211 kB
+#12 81.69 鈹?鈼?/merchant/m/invoice                        1.06 kB         211 kB
+#12 81.69 鈹?鈼?/merchant/m/login                          3.5 kB          236 kB
+#12 81.69 鈹?鈼?/merchant/m/me                             3.31 kB         235 kB
+#12 81.69 鈹?鈼?/merchant/m/messages                       1.44 kB         234 kB
+#12 81.69 鈹?鈼?/merchant/m/orders                         3.2 kB          235 kB
+#12 81.69 鈹?茠 /merchant/m/orders/[id]                    4.2 kB          236 kB
+#12 81.69 鈹?鈼?/merchant/m/profile                        1.77 kB         234 kB
+#12 81.69 鈹?鈼?/merchant/m/profile/change-password        1.99 kB         234 kB
+#12 81.69 鈹?鈼?/merchant/m/profile/force-change-password  2.06 kB         234 kB
+#12 81.69 鈹?鈼?/merchant/m/reports                        3.81 kB         236 kB
+#12 81.69 鈹?鈼?/merchant/m/select-store                   2.45 kB         235 kB
+#12 81.69 鈹?鈼?/merchant/m/settlement                     1.77 kB         234 kB
+#12 81.69 鈹?茠 /merchant/m/settlement/[id]                2.13 kB         234 kB
+#12 81.69 鈹?鈼?/merchant/m/staff                          5.42 kB         238 kB
+#12 81.69 鈹?鈼?/merchant/m/store-settings                 3.85 kB         236 kB
+#12 81.69 鈹?鈼?/merchant/m/verify                         4.2 kB          236 kB
+#12 81.69 鈹?鈼?/merchant/m/wechat-bindding                3.17 kB         235 kB
+#12 81.69 鈹?鈼?/merchant/messages                         10.1 kB         271 kB
+#12 81.69 鈹?鈼?/merchant/orders                           39.4 kB         468 kB
+#12 81.69 鈹?鈼?/merchant/profile                          9.29 kB         256 kB
+#12 81.69 鈹?鈼?/merchant/profile/change-password          2.69 kB         274 kB
+#12 81.69 鈹?鈼?/merchant/reports                          3.68 kB         369 kB
+#12 81.69 鈹?鈼?/merchant/select-store                     2.73 kB         293 kB
+#12 81.69 鈹?鈼?/merchant/settlement                       15.9 kB         378 kB
+#12 81.69 鈹?茠 /merchant/settlement/[id]                  8.75 kB         263 kB
+#12 81.69 鈹?鈼?/merchant/staff                            10.3 kB         436 kB
+#12 81.69 鈹?鈼?/merchant/store-settings                   8.37 kB         317 kB
+#12 81.69 鈹?鈼?/merchant/verifications                    3.1 kB          384 kB
+#12 81.69 鈹?鈼?/merchant/wechat-bindding                  17.1 kB         270 kB
+#12 81.69 鈹?鈼?/messages                                  2.7 kB          235 kB
+#12 81.69 鈹?鈼?/my-addresses                              5.61 kB         238 kB
+#12 81.69 鈹?鈼?/my-coupons                                3.27 kB         239 kB
+#12 81.69 鈹?鈼?/my-favorites                              5.18 kB         237 kB
+#12 81.69 鈹?鈼?/news                                      2.2 kB          234 kB
+#12 81.69 鈹?茠 /news/[id]                                 5.17 kB         237 kB
+#12 81.69 鈹?鈼?/notifications                             5.13 kB         237 kB
+#12 81.69 鈹?茠 /order/[id]                                1.7 kB          211 kB
+#12 81.69 鈹?鈼?/points                                    5.69 kB         238 kB
+#12 81.69 鈹?鈼?/points/detail                             6.04 kB         238 kB
+#12 81.69 鈹?鈼?/points/exchange-records                   2.63 kB         239 kB
+#12 81.69 鈹?鈼?/points/mall                               6.07 kB         238 kB
+#12 81.69 鈹?鈼?/points/product-detail                     6.34 kB         238 kB
+#12 81.69 鈹?鈼?/points/records                            4.63 kB         237 kB
+#12 81.69 鈹?茠 /product/[id]                              5.13 kB         237 kB
+#12 81.69 鈹?鈼?/products                                  2.79 kB         235 kB
+#12 81.69 鈹?鈼?/profile                                   12.2 kB         244 kB
+#12 81.69 鈹?鈼?/profile/edit                              2.13 kB         234 kB
+#12 81.69 鈹?鈼?/refund-list                               2.52 kB         235 kB
+#12 81.69 鈹?茠 /refund/[orderId]                          2.41 kB         235 kB
+#12 81.69 鈹?茠 /review/[orderId]                          2.06 kB         234 kB
+#12 81.69 鈹?鈼?/sandbox-pay                               2.06 kB         234 kB
+#12 81.69 鈹?鈼?/scan                                      109 kB          319 kB
+#12 81.69 鈹?鈼?/search                                    6.28 kB         238 kB
+#12 81.69 鈹?鈼?/search/result                             6.98 kB         239 kB
+#12 81.69 鈹?鈼?/services                                  5.47 kB         238 kB
+#12 81.69 鈹?鈼?/settings                                  6 kB            238 kB
+#12 81.69 鈹?茠 /shared/chat/[token]                       2.06 kB         234 kB
+#12 81.69 鈹?茠 /shared/drug/[token]                       2.46 kB         235 kB
+#12 81.69 鈹?茠 /shared/report/[token]                     2.65 kB         235 kB
+#12 81.69 鈹?鈼?/symptom                                   9.23 kB         247 kB
+#12 81.69 鈹?鈼?/tcm                                       10.9 kB         243 kB
+#12 81.69 鈹?鈼?/tcm/archive                               506 B           210 kB
+#12 81.69 鈹?茠 /tcm/diagnosis/[id]                        547 B           210 kB
+#12 81.69 鈹?鈼?/tcm/loading                               954 B           211 kB
+#12 81.69 鈹?茠 /tcm/result/[id]                           8.71 kB         241 kB
+#12 81.69 鈹?茠 /unified-order/[id]                        9.14 kB         241 kB
+#12 81.69 鈹?鈼?/unified-orders                            6.72 kB         239 kB
+#12 81.69 + First Load JS shared by all                  87.6 kB
+#12 81.69   鈹?chunks/2117-e9348fb0d4d6144c.js            31.9 kB
+#12 81.69   鈹?chunks/fd9d1056-cde8d1c8f42e1127.js        53.6 kB
+#12 81.69   鈹?other shared chunks (total)                2.09 kB
+#12 81.69 
+#12 81.69 
+#12 81.69 鈼? (Static)   prerendered as static content
+#12 81.69 茠  (Dynamic)  server-rendered on demand
+#12 81.69 
+#12 DONE 82.0s
+
+#7 [builder 2/7] WORKDIR /app
+#7 CACHED
+
+#13 [runner 3/5] COPY --from=builder /app/.next/standalone ./
+#13 DONE 0.4s
+
+#14 [runner 4/5] COPY --from=builder /app/.next/static ./.next/static
+#14 DONE 0.1s
+
+#15 [runner 5/5] COPY --from=builder /app/public ./public
+#15 DONE 0.1s
+
+#16 exporting to image
+#16 exporting layers
+#16 exporting layers 3.6s done
+#16 exporting manifest sha256:0c22cf5b48e0c276111d7bf14ac7d98bc6b8d7927dc69682e6a21001ee446151
+#16 exporting manifest sha256:0c22cf5b48e0c276111d7bf14ac7d98bc6b8d7927dc69682e6a21001ee446151 0.0s done
+#16 exporting config sha256:e44ff0764187fc1bc3c7e6cf66b6cb6d447be031643ebffc7de088ea7653bfb6 0.0s done
+#16 exporting attestation manifest sha256:4613028b315251fb71a7b91f9bc8f67673ddf3c3ba39479b72fe118e66c8276d 0.0s done
+#16 exporting manifest list sha256:58c3ad5c12ddc296d1ef7a05217a3c2d7f1dee26efe53a36f086bd426990ec1e done
+#16 naming to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:latest done
+#16 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:latest
+#16 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:latest 0.9s done
+#16 DONE 4.6s
+
+#17 resolving provenance for metadata file
+#17 DONE 0.0s
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web Built 
+[exit_code: 0]
+
+>>> cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose up -d h5-web
+time="2026-05-04T13:43:57+08:00" level=warning msg="/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Recreate 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Recreated 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Waiting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Healthy 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Started 
+[exit_code: 0]
+
+绛夊緟鏈嶅姟灏辩华 30s ...
+
+>>> docker ps --filter name=6b099ed3-7175-4a78-91f4-44570c84ed27 --format "{{.Names}} {{.Status}}"
+6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Up 30 seconds
+6b099ed3-7175-4a78-91f4-44570c84ed27-admin Up 2 minutes
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend Up 3 minutes
+6b099ed3-7175-4a78-91f4-44570c84ed27-db Up 17 hours (healthy)
+[exit_code: 0]
+
+=== 杩愯鏂板鐨?pytest 娴嬭瘯 ===
+
+>>> docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend python -m pytest tests/test_orders_statistics_alignment.py tests/test_fulfillment_label_dict.py -v --tb=short 2>&1 | tail -150
+/usr/local/bin/python: No module named pytest
+[exit_code: 0]
+
+=== 澶栭儴 URL 鍙揪鎬ф鏌?===
+
+>>> curl -s -o /dev/null -w "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/ -> %{http_code}\n" "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/"
+https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/ -> 200
+[exit_code: 0]
+
+>>> curl -s -o /dev/null -w "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin -> %{http_code}\n" "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin"
+https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin -> 301
+[exit_code: 0]
+
+>>> curl -s -o /dev/null -w "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/orders/statistics?start_at=2026-05-04&end_at=2026-05-04 -> %{http_code}\n" "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/orders/statistics?start_at=2026-05-04&end_at=2026-05-04"
+https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/orders/statistics?start_at=2026-05-04&end_at=2026-05-04 -> 401
+[exit_code: 0]
+
+>>> curl -s -o /dev/null -w "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/orders/v2/enums -> %{http_code}\n" "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/orders/v2/enums"
+https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/orders/v2/enums -> 401
+[exit_code: 0]

@@ -31,6 +31,12 @@ Page({
     slotAvailability: [],
     disabledSlots: [],
     fullyBookedSlots: [],
+    // [PRD v1.0 2026-05-04 用户端下单页时段网格化展示与满额置灰]
+    // slotItems：渲染用的时段数组 [{ label, full, disabled, expired }]
+    // dateAvailMap：date 模式日历的满额映射 {date_str: {is_available, unavailable_reason}}
+    slotItems: [],
+    availableDates: [],
+    appointmentDateFull: false,
     // [2026-05-02 H5 下单流程优化 PRD v1.0]
     contactPhone: '',
     contactPhoneError: '',
@@ -224,53 +230,85 @@ Page({
     this.loadSlotAvailability(e.detail.value);
   },
 
+  // [PRD v1.0 2026-05-04 §4.3] 切换日期 / 进入页面时拉取该日期下时段满额状态。
+  // 沿用 /api/h5/checkout/info 接口，返回 available_slots 和 available_dates。
   async loadSlotAvailability(dateStr) {
     if (!dateStr || !this.data.productId) return;
     const product = this.data.product;
-    if (!product || !product.time_slots || product.time_slots.length === 0) return;
-
     try {
-      const res = await get(`/api/products/${this.data.productId}/time-slots/availability`, { date: dateStr });
-      const data = (res.data || res)?.data || {};
-      const slots = data.slots || [];
-      this.setData({ slotAvailability: slots });
-      this.updateSlotDisabledState(dateStr, slots);
+      const params = { productId: this.data.productId, date: dateStr };
+      if (this.data.store && (this.data.store.id || this.data.store.store_id)) {
+        params.storeId = this.data.store.id || this.data.store.store_id;
+      }
+      const res = await get('/api/h5/checkout/info', params, { showLoading: false });
+      const data = (res && res.data) || res || {};
+      const availSlots = Array.isArray(data.available_slots) ? data.available_slots : [];
+      const availDates = Array.isArray(data.available_dates) ? data.available_dates : [];
+      this.setData({ slotAvailability: availSlots, availableDates: availDates });
+      this.updateSlotItems(dateStr, availSlots, availDates, product);
     } catch (e) {
-      this.setData({ slotAvailability: [], disabledSlots: [], fullyBookedSlots: [] });
+      this.setData({
+        slotAvailability: [],
+        availableDates: [],
+        slotItems: [],
+        disabledSlots: [],
+        fullyBookedSlots: [],
+        appointmentDateFull: false,
+      });
     }
   },
 
-  updateSlotDisabledState(dateStr, availSlots) {
-    const product = this.data.product;
-    if (!product || !product.time_slots) return;
-
+  // 根据后端返回的 available_slots / available_dates 计算渲染用的 slotItems。
+  updateSlotItems(dateStr, availSlots, availDates, productArg) {
+    const product = productArg || this.data.product;
     const today = this.formatDate(new Date());
     const isToday = dateStr === today;
     const now = new Date();
     const nowHM = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
+    const productSlots = (product && product.time_slots) || [];
+    const slotItems = [];
     const disabled = [];
     const fullyBooked = [];
 
-    product.time_slots.forEach(slot => {
-      const label = `${slot.start}-${slot.end}`;
-      const expired = isToday && slot.end <= nowHM;
-      const avail = availSlots.find(s => `${s.start_time}-${s.end_time}` === label);
-      const isFull = avail ? avail.available <= 0 : false;
-
-      if (expired || isFull) {
-        disabled.push(label);
-      }
-      if (isFull && !expired) {
-        fullyBooked.push(label);
-      }
+    const availMap = {};
+    availSlots.forEach(s => {
+      const k = `${s.start_time}-${s.end_time}`;
+      availMap[k] = s;
     });
 
-    this.setData({ disabledSlots: disabled, fullyBookedSlots: fullyBooked });
+    productSlots.forEach(slot => {
+      const label = `${slot.start}-${slot.end}`;
+      const expired = isToday && slot.end <= nowHM;
+      const info = availMap[label];
+      const full = info && info.is_available === false && info.unavailable_reason === 'occupied';
+      if (expired || full) disabled.push(label);
+      if (full && !expired) fullyBooked.push(label);
+      slotItems.push({
+        label,
+        start: slot.start,
+        end: slot.end,
+        full: !!full,
+        expired: !!expired,
+        disabled: !!(expired || full),
+      });
+    });
+
+    // 当前选中的日期是否已约满（用于在 picker 旁提示）
+    const dateInfo = (availDates || []).find(d => d.date === dateStr);
+    const dateFull = dateInfo && dateInfo.is_available === false && dateInfo.unavailable_reason === 'occupied';
+
+    this.setData({
+      slotItems,
+      disabledSlots: disabled,
+      fullyBookedSlots: fullyBooked,
+      appointmentDateFull: !!dateFull,
+    });
   },
 
   onTimeSlotTap(e) {
     const label = e.currentTarget.dataset.label;
+    // [PRD v1.0 2026-05-04 §4.3] 满额或过期时段完全不响应（不弹 Toast、不变色）
     if (this.data.disabledSlots.includes(label)) return;
     this.setData({ appointmentTime: label });
   },
@@ -396,6 +434,11 @@ Page({
     // [先下单后预约 Bug 修复 v1.0] 仅 needAppointment=true 时强校验预约时间
     if (this.data.needAppointment && (ft === 'store' || ft === 'home') && !this.data.appointmentDate) {
       wx.showToast({ title: '请选择预约日期', icon: 'none' });
+      return;
+    }
+    // [PRD v1.0 2026-05-04 §4.1.2] date 模式下选中已约满日期 → 禁止提交（前端兜底，后端会再次校验）
+    if (this.data.needAppointment && this.data.appointmentMode === 'date' && this.data.appointmentDateFull) {
+      wx.showToast({ title: '所选日期已约满，请重新选择', icon: 'none' });
       return;
     }
     // [2026-05-02 H5 下单流程优化 PRD v1.0] 联系人手机号必填校验（仅展示预约表单时）
