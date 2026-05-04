@@ -333,6 +333,63 @@ def _build_order_response(order) -> UnifiedOrderResponse:
     resp.store_id = order.store_id
     resp.store_name = order.store.store_name if order.store else None
 
+    # [2026-05-05 订单页地址导航按钮 PRD v1.0] 透传门店完整地址 + 经纬度
+    # 用于客户端「订单明细页」给门店地址行展示「导航」按钮，
+    # 经纬度缺失时由客户端走文字地址降级（PRD F-08）。
+    try:
+        if order.store is not None:
+            store_obj = order.store
+            # MerchantStore 模型: address/lat/lng/province/city/district
+            base_addr = (
+                getattr(store_obj, "address", None)
+                or getattr(store_obj, "store_address", None)
+                or ""
+            )
+            province = getattr(store_obj, "province", None) or ""
+            city = getattr(store_obj, "city", None) or ""
+            district = getattr(store_obj, "district", None) or ""
+            full_addr = f"{province}{city}{district}{base_addr}".strip()
+            resp.store_address = full_addr or (base_addr or None)
+            store_lat = getattr(store_obj, "lat", None) or getattr(store_obj, "latitude", None)
+            store_lng = getattr(store_obj, "lng", None) or getattr(store_obj, "longitude", None)
+            resp.store_lat = float(store_lat) if store_lat is not None else None
+            resp.store_lng = float(store_lng) if store_lng is not None else None
+    except Exception:  # noqa: BLE001
+        # 透传失败不阻塞订单主流程
+        pass
+
+    # [2026-05-05 订单页地址导航按钮 PRD v1.0] 收货/上门地址全文（导航按钮文字降级用）
+    try:
+        # 1) 上门地址：优先用 service_address_snapshot 快照
+        snap = getattr(order, "service_address_snapshot", None)
+        if snap and isinstance(snap, dict):
+            province = snap.get("province") or ""
+            city = snap.get("city") or ""
+            district = snap.get("district") or ""
+            street = snap.get("street") or snap.get("detail") or ""
+            text = f"{province}{city}{district}{street}".strip()
+            if text:
+                resp.shipping_address_text = text
+            resp.shipping_address_name = snap.get("name") or None
+            resp.shipping_address_phone = snap.get("phone") or None
+        # 2) 收货地址：从关联表读取（订单创建后地址簿原条目仍可读，无快照表也能拿到当前值）
+        if not resp.shipping_address_text:
+            ship_addr = getattr(order, "shipping_address", None)
+            if ship_addr is not None:
+                province = getattr(ship_addr, "province", "") or ""
+                city = getattr(ship_addr, "city", "") or ""
+                district = getattr(ship_addr, "district", "") or ""
+                street = getattr(ship_addr, "street", "") or ""
+                text = f"{province}{city}{district}{street}".strip()
+                if text:
+                    resp.shipping_address_text = text
+                if not resp.shipping_address_name:
+                    resp.shipping_address_name = getattr(ship_addr, "name", None)
+                if not resp.shipping_address_phone:
+                    resp.shipping_address_phone = getattr(ship_addr, "phone", None)
+    except Exception:  # noqa: BLE001
+        pass
+
     # PRD「我的订单与售后状态体系优化」: 售后逻辑状态 + 15 天评价时效 + 撤销可见性
     logical = _aftersales_logical_status(order)
     resp.aftersales_logical_status = logical

@@ -1,28 +1,40 @@
 <view class="checkout-page" wx:if="{{product}}">
   <!-- 地址/门店选择 -->
-  <view class="address-card card" bindtap="chooseAddress"
+  <!-- [2026-05-05 订单页地址导航按钮 PRD v1.0 · F-02/F-03] 收货/上门地址行带导航按钮 -->
+  <view class="address-card card with-nav"
         wx:if="{{fulfillmentType === 'express' || fulfillmentType === 'home'}}">
-    <view wx:if="{{address}}">
-      <view class="addr-top">
-        <text class="addr-name">{{address.name}}</text>
-        <text class="addr-phone">{{address.phone}}</text>
+    <view class="addr-main" bindtap="chooseAddress">
+      <view wx:if="{{address}}">
+        <view class="addr-top">
+          <text class="addr-name">{{address.name}}</text>
+          <text class="addr-phone">{{address.phone}}</text>
+        </view>
+        <text class="addr-detail">{{address.province}}{{address.city}}{{address.district}}{{address.detail}}</text>
       </view>
-      <text class="addr-detail">{{address.province}}{{address.city}}{{address.district}}{{address.detail}}</text>
+      <view class="addr-empty" wx:else>
+        <text>{{fulfillmentType === 'home' ? '请选择上门服务地址' : '请选择收货地址'}}</text>
+      </view>
     </view>
-    <view class="addr-empty" wx:else>
-      <text>请选择收货地址</text>
+    <view wx:if="{{address}}" class="nav-btn" catchtap="onAddrNavTap">
+      <text class="nav-btn-icon">📍</text><text>导航</text>
     </view>
     <text class="arrow">›</text>
   </view>
 
-  <view class="address-card card" bindtap="chooseStore"
+  <!-- [2026-05-05 订单页地址导航按钮 PRD v1.0 · F-01] 门店行带导航按钮 -->
+  <view class="address-card card with-nav"
         wx:if="{{fulfillmentType === 'store'}}">
-    <view wx:if="{{store}}">
-      <text class="store-name-text">{{store.store_name || store.name}}</text>
-      <text class="addr-detail">{{store.address}}</text>
+    <view class="addr-main" bindtap="chooseStore">
+      <view wx:if="{{store}}">
+        <text class="store-name-text">{{store.store_name || store.name}}</text>
+        <text class="addr-detail">{{store.address}}</text>
+      </view>
+      <view class="addr-empty" wx:else>
+        <text>请选择服务门店</text>
+      </view>
     </view>
-    <view class="addr-empty" wx:else>
-      <text>请选择服务门店</text>
+    <view wx:if="{{store}}" class="nav-btn" catchtap="onStoreNavTap">
+      <text class="nav-btn-icon">📍</text><text>导航</text>
     </view>
     <text class="arrow">›</text>
   </view>

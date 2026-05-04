@@ -77,21 +77,44 @@
   </view>
 
   <!-- 收货/门店信息 -->
-  <view class="address-section card" wx:if="{{order.address || order.store_name}}">
+  <!-- [2026-05-05 订单页地址导航按钮 PRD v1.0 · F-04/F-05/F-06] 在地址行右侧加导航按钮 -->
+  <view class="address-section card" wx:if="{{order.address || order.store_name || order.shipping_address_text}}">
     <text class="section-title">{{order.store_name ? '服务门店' : '收货信息'}}</text>
-    <view wx:if="{{order.store_name}}">
-      <text class="addr-line">{{order.store_name}}</text>
-      <text class="addr-sub">{{order.store_address}}</text>
-      <view class="store-phone" wx:if="{{order.store_phone}}" bindtap="callStore">
-        <text class="phone-text">📞 {{order.store_phone}}</text>
+    <view wx:if="{{order.store_name}}" class="addr-row">
+      <view class="addr-row-main">
+        <text class="addr-line">{{order.store_name}}</text>
+        <text class="addr-sub">{{order.store_address}}</text>
+        <view class="store-phone" wx:if="{{order.store_phone}}" bindtap="callStore">
+          <text class="phone-text">📞 {{order.store_phone}}</text>
+        </view>
+      </view>
+      <view class="nav-btn" bindtap="onStoreNavTap">
+        <text class="nav-btn-icon">📍</text><text>导航</text>
       </view>
     </view>
-    <view wx:elif="{{order.address}}">
-      <view class="addr-top-row">
-        <text class="addr-name-text">{{order.address.name}}</text>
-        <text class="addr-phone-text">{{order.address.phone}}</text>
+    <view wx:elif="{{order.address}}" class="addr-row">
+      <view class="addr-row-main">
+        <view class="addr-top-row">
+          <text class="addr-name-text">{{order.address.name}}</text>
+          <text class="addr-phone-text">{{order.address.phone}}</text>
+        </view>
+        <text class="addr-sub">{{order.address.full_address || (order.address.province + order.address.city + order.address.district + order.address.detail)}}</text>
       </view>
-      <text class="addr-sub">{{order.address.full_address || (order.address.province + order.address.city + order.address.district + order.address.detail)}}</text>
+      <view class="nav-btn" bindtap="onUserAddrNavTap">
+        <text class="nav-btn-icon">📍</text><text>导航</text>
+      </view>
+    </view>
+    <view wx:elif="{{order.shipping_address_text}}" class="addr-row">
+      <view class="addr-row-main">
+        <view class="addr-top-row" wx:if="{{order.shipping_address_name || order.shipping_address_phone}}">
+          <text class="addr-name-text">{{order.shipping_address_name}}</text>
+          <text class="addr-phone-text">{{order.shipping_address_phone}}</text>
+        </view>
+        <text class="addr-sub">{{order.shipping_address_text}}</text>
+      </view>
+      <view class="nav-btn" bindtap="onUserAddrNavTap">
+        <text class="nav-btn-icon">📍</text><text>导航</text>
+      </view>
     </view>
   </view>
 

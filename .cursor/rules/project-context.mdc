@@ -33,6 +33,56 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
+## Latest Update: 订单页地址导航按钮 v1.0（2026-05-05 02:20）
+
+### 一句话结论
+按 `cursor_prompt_325_20260505015415.txt` PRD 执行，在 H5 / 小程序 / Flutter App 三端的「下单页」与「订单详情页」全部地址旁新增统一风格的「📍 导航」按钮，覆盖 F-01~F-06 共 6 个场景（门店地址 + 上门服务地址 + 收货地址 × 下单页 / 订单详情页）。复用既有 `MapNavSheet` / `wx.openLocation` / `MapNavUtil`，**坐标缺失时统一降级到关键字搜索**（小程序无坐标场景兜底为复制地址到剪贴板 + 弹窗引导）。视觉沿用商家详情页绿色按钮（`#52c41a` + 12% 透明背景 + 圆角 16px），三端均带 500ms 防抖。**后端仅做 6 个字段透传**（`store_address / store_lat / store_lng / shipping_address_text / shipping_address_name / shipping_address_phone`），不新增表/接口/外部依赖。
+
+### 涉及文件（共 18 个）
+**后端（最小化字段透传）**：
+- `backend/app/schemas/unified_orders.py`：`UnifiedOrderResponse` 增加 6 个 Optional 字段
+- `backend/app/api/unified_orders.py`：`_build_order_response` 从 `order.store / service_address_snapshot / shipping_address` 拼接 full address 写入新字段
+
+**H5（h5-web）**：
+- `h5-web/src/components/AddressNavButton.tsx`（新增）：通用导航按钮组件，500ms 防抖
+- `h5-web/src/components/MapNavSheet.tsx`：`MapNavTarget.lat/lng` 改为可选；缺坐标时各 URL Scheme 转关键字搜索
+- `h5-web/src/app/checkout/page.tsx`：F-01 门店导航 + F-02/03 地址导航
+- `h5-web/src/app/unified-order/[id]/page.tsx`：新增「订单地址」Card，F-04/05/06 全部接入
+
+**小程序（miniprogram）**：
+- `miniprogram/utils/map-nav.js`（新增）：`navigateToAddress(target)` 工具，坐标 OK 走 `wx.openLocation`，否则复制地址 + showModal
+- `miniprogram/pages/checkout/index.{js,wxml,wxss}`：F-01/02/03
+- `miniprogram/pages/unified-order-detail/index.{js,wxml,wxss}`：F-04/05/06
+
+**Flutter（flutter_app）**：
+- `flutter_app/lib/widgets/address_nav_button.dart`（新增）：复用 `MapNavUtil.showMapNavSheet`，500ms 防抖
+- `flutter_app/lib/utils/map_nav_util.dart`：`lat/lng` 改可选；新增 `buildCandidatesByKeyword`
+- `flutter_app/lib/models/unified_order.dart`：6 个字段反序列化
+- `flutter_app/lib/screens/product/checkout_screen.dart`：F-02/03
+- `flutter_app/lib/screens/order/unified_order_detail_screen.dart`：新增 `_buildAddressSection`，F-04/05/06
+
+**自动化测试**：
+- `tests/test_address_nav_button_v1.py`（新增）：19 个用例覆盖后端 schema/赋值 + H5 组件/引用 + 小程序工具/引用 + Flutter widget/模型/引用 + PRD 合规（颜色/防抖/关键字兜底）
+
+### 验证证据
+- 静态测试：**19/19 PASS**
+- 远程部署：backend + h5 容器 build & restart 成功，无 error/exception 日志
+- 容器内字段加载验证：`UnifiedOrderResponse.model_fields` 包含全部 6 个新字段
+- URL 可达性：`/`、`/api/health`、`/checkout`、`/unified-orders`、`/login` 全部 HTTP 200/308
+- 真实接口调用验证：`GET /api/orders/unified/35`、`GET /api/orders/unified?...` 服务端日志均 200 OK
+
+### 关键约定
+- 三端按钮视觉统一：`#52c41a` 主绿 + 12% 透明背景 + 圆角 16px + 12px / 600 字重
+- 500ms 防抖避免误触
+- **零额外网络请求**，复用既有 `MapNavSheet` / `wx.openLocation` / `MapNavUtil`
+- 隐私安全：不记录用户地址 / 坐标日志，不上报埋点
+- 坐标缺失统一降级关键字搜索（小程序例外，因 `wx.openLocation` 强依赖坐标，故采用剪贴板兜底）
+
+### 用户体验手册
+`user_docs/订单页地址导航按钮_用户体验手册_20260505.md`
+
+---
+
 ## Latest Update: H5 订单详情「支付方式」显示错误 — 优惠券全额抵扣场景 Bug 修复 v1.0（2026-05-05 01:50）
 
 ### 一句话结论

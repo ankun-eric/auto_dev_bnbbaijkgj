@@ -111,6 +111,13 @@ class UnifiedOrder {
   final bool allowReschedule;
   final int? storeId;
   final String? storeName;
+  // [2026-05-05 订单页地址导航按钮 PRD v1.0] 后端透传字段，用于订单详情页地址行的导航按钮
+  final String? storeAddress;
+  final double? storeLat;
+  final double? storeLng;
+  final String? shippingAddressText;
+  final String? shippingAddressName;
+  final String? shippingAddressPhone;
 
   UnifiedOrder({
     required this.id,
@@ -153,6 +160,12 @@ class UnifiedOrder {
     this.allowReschedule = true,
     this.storeId,
     this.storeName,
+    this.storeAddress,
+    this.storeLat,
+    this.storeLng,
+    this.shippingAddressText,
+    this.shippingAddressName,
+    this.shippingAddressPhone,
   });
 
   String get statusLabel {
@@ -249,6 +262,16 @@ class UnifiedOrder {
           ? json['store_id'] as int
           : int.tryParse(json['store_id']?.toString() ?? ''),
       storeName: json['store_name']?.toString(),
+      storeAddress: json['store_address']?.toString(),
+      storeLat: json['store_lat'] is num
+          ? (json['store_lat'] as num).toDouble()
+          : double.tryParse(json['store_lat']?.toString() ?? ''),
+      storeLng: json['store_lng'] is num
+          ? (json['store_lng'] as num).toDouble()
+          : double.tryParse(json['store_lng']?.toString() ?? ''),
+      shippingAddressText: json['shipping_address_text']?.toString(),
+      shippingAddressName: json['shipping_address_name']?.toString(),
+      shippingAddressPhone: json['shipping_address_phone']?.toString(),
     );
   }
 }

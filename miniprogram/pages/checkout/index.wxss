@@ -9,6 +9,30 @@
   justify-content: space-between;
 }
 
+/* [2026-05-05 订单页地址导航按钮 PRD v1.0] 带导航按钮的地址行版式 */
+.address-card.with-nav {
+  gap: 12rpx;
+}
+.address-card.with-nav .addr-main {
+  flex: 1;
+  min-width: 0;
+}
+.nav-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4rpx;
+  background: rgba(82, 196, 26, 0.12);
+  color: #52c41a;
+  padding: 10rpx 20rpx;
+  border-radius: 32rpx;
+  font-size: 24rpx;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.nav-btn-icon {
+  font-size: 24rpx;
+}
+
 .addr-top {
   display: flex;
   align-items: center;

@@ -1,4 +1,6 @@
 const { get, post } = require('../../utils/request');
+// [2026-05-05 订单页地址导航按钮 PRD v1.0]
+const { navigateToAddress } = require('../../utils/map-nav');
 
 Page({
   data: {
@@ -222,6 +224,36 @@ Page({
           this.setData({ store: data });
         }
       }
+    });
+  },
+
+  // [2026-05-05 订单页地址导航按钮 PRD v1.0 · F-01] 门店地址导航
+  onStoreNavTap() {
+    const store = this.data.store;
+    if (!store) return;
+    const province = store.province || '';
+    const city = store.city || '';
+    const district = store.district || '';
+    const baseAddr = store.address || '';
+    const fullAddr = `${province}${city}${district}${baseAddr}`;
+    navigateToAddress({
+      name: store.store_name || store.name || '门店',
+      address: fullAddr || baseAddr,
+      lat: store.lat,
+      lng: store.lng,
+    });
+  },
+
+  // [2026-05-05 订单页地址导航按钮 PRD v1.0 · F-02/F-03] 收货/上门地址导航
+  onAddrNavTap() {
+    const addr = this.data.address;
+    if (!addr) return;
+    const fullAddr = `${addr.province || ''}${addr.city || ''}${addr.district || ''}${addr.detail || addr.street || ''}`;
+    navigateToAddress({
+      name: addr.name || (this.data.fulfillmentType === 'home' ? '上门地址' : '收货地址'),
+      address: fullAddr,
+      lat: addr.lat,
+      lng: addr.lng,
     });
   },
 

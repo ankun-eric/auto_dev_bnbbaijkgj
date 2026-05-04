@@ -9,6 +9,12 @@
  *  - 苹果地图（仅 iOS 展示）
  *
  * 导航起点 = 用户当前定位（由外部地图 App 自行处理）；终点 = 门店全称 + 详细地址 + 经纬度。
+ *
+ * [2026-05-05 订单页地址导航按钮 PRD v1.0]
+ * lat/lng 改为可选；缺失时改用「文字地址作为关键词」方式调起地图：
+ *   - 高德/百度/腾讯：路径规划 URI 仅传目的地名称（不带 latlng），地图 App 内部 POI 搜索定位
+ *   - 苹果地图：仅传 q 关键词
+ *   - Web 兜底：跳转地图 keyword 搜索页
  */
 
 import React from 'react';
@@ -17,8 +23,10 @@ import { Popup, Toast } from 'antd-mobile';
 export interface MapNavTarget {
   name: string;
   address?: string;
-  lat: number;
-  lng: number;
+  // [2026-05-05 订单页地址导航按钮 PRD] lat/lng 改为可选
+  // 没有经纬度时，使用 name + address 文字关键词调起地图
+  lat?: number | null;
+  lng?: number | null;
 }
 
 interface Props {
@@ -67,29 +75,51 @@ export default function MapNavSheet({ visible, target, onClose }: Props) {
     const fullAddress = address ? `${name} ${address}` : name;
     const encName = encodeURIComponent(name);
     const encAddr = encodeURIComponent(fullAddress);
+    // [2026-05-05 订单页地址导航 PRD] 经纬度可用性判断
+    const hasLatLng = lat != null && lng != null && !Number.isNaN(Number(lat)) && !Number.isNaN(Number(lng));
 
     let scheme = '';
     let webFallback = '';
     switch (provider) {
       case 'amap':
-        scheme = `iosamap://navi?sourceApplication=binihealth&poiname=${encName}&lat=${lat}&lon=${lng}&dev=0&style=2`;
-        if (!ios) {
-          // Android intent
-          scheme = `androidamap://navi?sourceApplication=binihealth&poiname=${encName}&lat=${lat}&lon=${lng}&dev=0&style=2`;
+        if (hasLatLng) {
+          scheme = `iosamap://navi?sourceApplication=binihealth&poiname=${encName}&lat=${lat}&lon=${lng}&dev=0&style=2`;
+          if (!ios) {
+            scheme = `androidamap://navi?sourceApplication=binihealth&poiname=${encName}&lat=${lat}&lon=${lng}&dev=0&style=2`;
+          }
+          webFallback = `https://uri.amap.com/marker?position=${lng},${lat}&name=${encName}&src=binihealth&coordinate=gaode`;
+        } else {
+          // 无经纬度：使用关键词搜索路径规划
+          scheme = ios
+            ? `iosamap://path?sourceApplication=binihealth&dname=${encAddr}&dev=0&t=0`
+            : `androidamap://path?sourceApplication=binihealth&dname=${encAddr}&dev=0&t=0`;
+          webFallback = `https://uri.amap.com/search?keyword=${encAddr}&src=binihealth`;
         }
-        webFallback = `https://uri.amap.com/marker?position=${lng},${lat}&name=${encName}&src=binihealth&coordinate=gaode`;
         break;
       case 'baidu':
-        scheme = `baidumap://map/direction?destination=name:${encName}|latlng:${lat},${lng}&coord_type=gcj02&mode=driving`;
-        webFallback = `https://api.map.baidu.com/marker?location=${lat},${lng}&title=${encName}&content=${encAddr}&output=html&coord_type=gcj02&src=binihealth`;
+        if (hasLatLng) {
+          scheme = `baidumap://map/direction?destination=name:${encName}|latlng:${lat},${lng}&coord_type=gcj02&mode=driving`;
+          webFallback = `https://api.map.baidu.com/marker?location=${lat},${lng}&title=${encName}&content=${encAddr}&output=html&coord_type=gcj02&src=binihealth`;
+        } else {
+          scheme = `baidumap://map/direction?destination=${encAddr}&mode=driving`;
+          webFallback = `https://map.baidu.com/search/${encAddr}`;
+        }
         break;
       case 'tencent':
-        scheme = `qqmap://map/routeplan?type=drive&to=${encName}&tocoord=${lat},${lng}&referer=binihealth`;
-        webFallback = `https://apis.map.qq.com/uri/v1/marker?marker=coord:${lat},${lng};title:${encName};addr:${encAddr}&referer=binihealth`;
+        if (hasLatLng) {
+          scheme = `qqmap://map/routeplan?type=drive&to=${encName}&tocoord=${lat},${lng}&referer=binihealth`;
+          webFallback = `https://apis.map.qq.com/uri/v1/marker?marker=coord:${lat},${lng};title:${encName};addr:${encAddr}&referer=binihealth`;
+        } else {
+          scheme = `qqmap://map/routeplan?type=drive&to=${encAddr}&referer=binihealth`;
+          webFallback = `https://apis.map.qq.com/uri/v1/search?keyword=${encAddr}&referer=binihealth`;
+        }
         break;
       case 'apple':
-        // Apple Maps 通用 URL，浏览器自动唤起
-        scheme = `https://maps.apple.com/?q=${encName}&ll=${lat},${lng}`;
+        if (hasLatLng) {
+          scheme = `https://maps.apple.com/?q=${encName}&ll=${lat},${lng}`;
+        } else {
+          scheme = `https://maps.apple.com/?q=${encAddr}`;
+        }
         break;
     }
 

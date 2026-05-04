@@ -9,6 +9,8 @@ import { fulfillmentLabel } from '@/utils/fulfillmentLabel';
 import { redirectToPayUrl } from '@/lib/basePath';
 import ContactStoreModal from '@/app/orders/components/ContactStoreModal';
 import { resolveAssetUrl } from '@/lib/asset-url';
+// [2026-05-05 订单页地址导航按钮 PRD v1.0]
+import AddressNavButton from '@/components/AddressNavButton';
 
 interface OrderItem {
   id: number;
@@ -61,6 +63,14 @@ interface OrderDetail {
   action_buttons?: string[];
   badges?: string[];
   store_id?: number | null;
+  // [2026-05-05 订单页地址导航按钮 PRD v1.0] 后端透传的门店地址 + 经纬度，
+  // 以及收货/上门地址全文，用于"导航"按钮一键调起地图。
+  store_address?: string | null;
+  store_lat?: number | null;
+  store_lng?: number | null;
+  shipping_address_text?: string | null;
+  shipping_address_name?: string | null;
+  shipping_address_phone?: string | null;
 }
 
 const STATUS_TEXT: Record<string, string> = {
@@ -536,7 +546,15 @@ export default function UnifiedOrderDetailPage() {
                     <div className="flex items-center text-sm">
                       <span className="mr-2">📍</span>
                       <span className="text-gray-500 mr-2">预约门店</span>
-                      <span className="text-gray-800">{order.store_name}</span>
+                      <span className="text-gray-800 flex-1 min-w-0" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{order.store_name}</span>
+                      {/* [2026-05-05 订单页地址导航按钮 PRD v1.0 · F-04] 预约门店一键导航 */}
+                      <AddressNavButton
+                        name={order.store_name}
+                        address={order.store_address || order.store_name}
+                        lat={order.store_lat}
+                        lng={order.store_lng}
+                        ariaLabel="导航到门店"
+                      />
                     </div>
                   )}
                 </div>
@@ -544,6 +562,77 @@ export default function UnifiedOrderDetailPage() {
             })}
           </Card>
         )}
+
+        {/* [2026-05-05 订单页地址导航按钮 PRD v1.0 · F-04/F-05/F-06]
+            订单地址独立卡片：门店地址（到店核销） / 收货地址（实物） / 上门地址（on_site）
+            任意状态都展示，每个地址行右侧均带「导航」按钮 */}
+        {(() => {
+          const hasInStoreAddr =
+            order.items.some((i) => i.fulfillment_type === 'in_store') &&
+            (order.store_name || order.store_address);
+          const hasShippingAddr = !!order.shipping_address_text;
+          const hasAnyAddress = hasInStoreAddr || hasShippingAddr;
+          if (!hasAnyAddress) return null;
+
+          // 收货 vs 上门：用商品维度的 fulfillment_type 推断标签
+          const isOnSite = order.items.some((i) => i.fulfillment_type === 'on_site');
+          const isDelivery = order.items.some((i) => i.fulfillment_type === 'delivery');
+
+          return (
+            <Card style={{ borderRadius: 12, marginBottom: 12 }}>
+              <div className="font-medium text-base mb-3">订单地址</div>
+              {hasInStoreAddr && (
+                <div className="flex items-start" style={{ marginBottom: hasShippingAddr ? 12 : 0 }}>
+                  <span className="mr-2" style={{ fontSize: 16 }}>📍</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs text-gray-400 mb-1">门店地址</div>
+                    <div className="text-sm text-gray-800 font-medium" style={{ wordBreak: 'break-all' }}>
+                      {order.store_name}
+                    </div>
+                    {order.store_address && (
+                      <div className="text-xs text-gray-500 mt-1" style={{ wordBreak: 'break-all' }}>
+                        {order.store_address}
+                      </div>
+                    )}
+                  </div>
+                  <AddressNavButton
+                    name={order.store_name || '门店'}
+                    address={order.store_address || order.store_name || ''}
+                    lat={order.store_lat}
+                    lng={order.store_lng}
+                    ariaLabel="导航到门店"
+                  />
+                </div>
+              )}
+              {hasShippingAddr && (
+                <div className="flex items-start">
+                  <span className="mr-2" style={{ fontSize: 16 }}>📍</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs text-gray-400 mb-1">
+                      {isOnSite ? '上门服务地址' : isDelivery ? '收货地址' : '联系地址'}
+                    </div>
+                    {(order.shipping_address_name || order.shipping_address_phone) && (
+                      <div className="text-sm text-gray-800 font-medium">
+                        {order.shipping_address_name || ''}
+                        {order.shipping_address_phone ? (
+                          <span className="text-gray-400 ml-2 font-normal">{order.shipping_address_phone}</span>
+                        ) : null}
+                      </div>
+                    )}
+                    <div className="text-xs text-gray-500 mt-1" style={{ wordBreak: 'break-all' }}>
+                      {order.shipping_address_text}
+                    </div>
+                  </div>
+                  <AddressNavButton
+                    name={order.shipping_address_name || (isOnSite ? '上门地址' : '收货地址')}
+                    address={order.shipping_address_text || ''}
+                    ariaLabel={isOnSite ? '导航到上门地址' : '导航到收货地址'}
+                  />
+                </div>
+              )}
+            </Card>
+          );
+        })()}
 
         {hasInStore && (order.status === 'pending_use' || order.status === 'appointed' || order.status === 'partial_used') && order.items.filter((i) => i.fulfillment_type === 'in_store').map((item) => {
           const isRefundProcessing = ['applied', 'reviewing', 'approved', 'returning'].includes(order.refund_status);

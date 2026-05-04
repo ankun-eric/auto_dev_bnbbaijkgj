@@ -162,6 +162,18 @@ class UnifiedOrderResponse(BaseModel):
     # 修复：在响应模型中显式声明 store_id，并由 _build_order_response 主动赋值。
     store_id: Optional[int] = None
     store_name: Optional[str] = None
+    # [2026-05-05 订单页地址导航按钮 PRD v1.0] 透传门店完整地址 + 经纬度，
+    # 用于 H5/小程序/Flutter 三端在订单详情页给「门店地址」行展示「导航」按钮。
+    # 仅向客户端透传现有字段，不新增表/接口/外部依赖。
+    # 经纬度采用 GCJ-02 高德坐标系（与项目其他位置保持一致）。
+    store_address: Optional[str] = None
+    store_lat: Optional[float] = None
+    store_lng: Optional[float] = None
+    # 收货地址（实物订单）/ 上门地址（on_site）的全文地址，方便订单详情页一键导航。
+    # 订单一旦提交，地址即固化为快照（即使用户后续在地址簿删除该条也不影响）。
+    shipping_address_text: Optional[str] = None
+    shipping_address_name: Optional[str] = None
+    shipping_address_phone: Optional[str] = None
     # PRD「我的订单与售后状态体系优化」新增字段
     # aftersales_logical_status：4 值之一 pending / processing / completed / rejected / none
     aftersales_logical_status: Optional[str] = None

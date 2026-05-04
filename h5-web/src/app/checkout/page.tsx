@@ -44,6 +44,8 @@ import { RightOutline, LeftOutline } from 'antd-mobile-icons';
 import api from '@/lib/api';
 import { redirectToPayUrl } from '@/lib/basePath';
 import { resolveAssetUrl } from '@/lib/asset-url';
+// [2026-05-05 订单页地址导航按钮 PRD v1.0] 通用导航按钮组件
+import AddressNavButton from '@/components/AddressNavButton';
 
 // ───────────── 类型 ─────────────
 
@@ -822,7 +824,7 @@ function CheckoutPage() {
           <Card style={{ borderRadius: 12, marginBottom: 12 }} onClick={() => setShowAddressPicker(true)}>
             {selectedAddress ? (
               <div className="flex items-center">
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <div className="text-xs text-gray-400 mb-1">
                     {isOnSite ? '上门服务地址' : '收货地址'}
                   </div>
@@ -833,6 +835,13 @@ function CheckoutPage() {
                     {selectedAddress.province}{selectedAddress.city}{selectedAddress.district}{selectedAddress.street}
                   </div>
                 </div>
+                {/* [2026-05-05 订单页地址导航按钮 PRD v1.0 · F-02/F-03] 上门/收货地址旁导航按钮 */}
+                <AddressNavButton
+                  name={selectedAddress.name || (isOnSite ? '上门地址' : '收货地址')}
+                  address={`${selectedAddress.province}${selectedAddress.city}${selectedAddress.district}${selectedAddress.street}`}
+                  style={{ marginRight: 8 }}
+                  ariaLabel={isOnSite ? '导航到上门地址' : '导航到收货地址'}
+                />
                 <RightOutline fontSize={14} color="#999" />
               </div>
             ) : (
@@ -1037,6 +1046,17 @@ function CheckoutPage() {
                   </div>
                 )}
               </div>
+              {/* [2026-05-05 订单页地址导航按钮 PRD v1.0 · F-01] 已选门店时展示导航按钮 */}
+              {selectedStore && (
+                <AddressNavButton
+                  name={selectedStore.name}
+                  address={`${selectedStore.province || ''}${selectedStore.city || ''}${selectedStore.district || ''}${selectedStore.address || ''}`}
+                  lat={selectedStore.lat}
+                  lng={selectedStore.lng}
+                  style={{ marginRight: 8 }}
+                  ariaLabel="导航到门店"
+                />
+              )}
               <RightOutline fontSize={14} color="#999" />
             </div>
           </Card>

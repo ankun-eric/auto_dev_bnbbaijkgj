@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../models/product.dart';
 import '../../models/address.dart';
+// [2026-05-05 订单页地址导航按钮 PRD v1.0]
+import '../../widgets/address_nav_button.dart';
 import '../../models/coupon.dart';
 import '../../services/api_service.dart';
 import '../../utils/price_formatter.dart';
@@ -599,6 +601,17 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       ],
                     ),
                   ),
+                  // [2026-05-05 订单页地址导航按钮 PRD v1.0 · F-02/F-03]
+                  AddressNavButton(
+                    name: _selectedAddress!.name.isNotEmpty
+                        ? _selectedAddress!.name
+                        : (_product.fulfillmentType == 'on_site' ? '上门地址' : '收货地址'),
+                    address: _selectedAddress!.fullAddress,
+                    semanticLabel: _product.fulfillmentType == 'on_site'
+                        ? '导航到上门地址'
+                        : '导航到收货地址',
+                  ),
+                  const SizedBox(width: 4),
                   Icon(Icons.chevron_right, color: Colors.grey[400]),
                 ],
               )
@@ -606,7 +619,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 children: [
                   const Icon(Icons.add_location, color: Color(0xFF52C41A)),
                   const SizedBox(width: 12),
-                  const Text('选择收货地址'),
+                  Text(_product.fulfillmentType == 'on_site' ? '选择上门服务地址' : '选择收货地址'),
                   const Spacer(),
                   Icon(Icons.chevron_right, color: Colors.grey[400]),
                 ],

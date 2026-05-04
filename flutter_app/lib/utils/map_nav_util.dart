@@ -101,15 +101,68 @@ class MapNavUtil {
     }
   }
 
+  /// [2026-05-05 订单页地址导航按钮 PRD v1.0]
+  /// 仅有文字地址（无经纬度）时使用关键词搜索路径规划。
+  /// 各地图 App 的关键词搜索 URI 与 buildCandidates 类似，但不携带 latlng。
+  static List<MapAppCandidate> buildCandidatesByKeyword({
+    required String name,
+    required String address,
+  }) {
+    final encName = Uri.encodeComponent(name);
+    final fullAddr = address.isEmpty ? name : address;
+    final encAddr = Uri.encodeComponent(fullAddr);
+
+    final amap = MapAppCandidate(
+      name: '高德地图',
+      scheme: Platform.isIOS ? 'iosamap://' : 'androidamap://',
+      launchUrl: Platform.isIOS
+          ? 'iosamap://path?sourceApplication=binihealth&dname=$encAddr&dev=0&t=0'
+          : 'androidamap://path?sourceApplication=binihealth&dname=$encAddr&dev=0&t=0',
+      fallbackWebUrl: 'https://uri.amap.com/search?keyword=$encAddr&src=binihealth',
+    );
+
+    final baidu = MapAppCandidate(
+      name: '百度地图',
+      scheme: 'baidumap://',
+      launchUrl: 'baidumap://map/direction?destination=$encAddr&mode=driving',
+      fallbackWebUrl: 'https://map.baidu.com/search/$encAddr',
+    );
+
+    final tencent = MapAppCandidate(
+      name: '腾讯地图',
+      scheme: 'qqmap://',
+      launchUrl: 'qqmap://map/routeplan?type=drive&to=$encAddr&referer=binihealth',
+      fallbackWebUrl: 'https://apis.map.qq.com/uri/v1/search?keyword=$encAddr&referer=binihealth',
+    );
+
+    final apple = MapAppCandidate(
+      name: 'Apple 地图',
+      scheme: 'maps://',
+      launchUrl: 'https://maps.apple.com/?q=$encAddr',
+      fallbackWebUrl: 'https://maps.apple.com/?q=$encAddr',
+    );
+
+    if (Platform.isIOS) {
+      return [apple, amap, baidu, tencent];
+    }
+    return [amap, baidu, tencent];
+  }
+
   /// 弹出底部抽屉让用户选择地图 App
+  ///
+  /// [2026-05-05 订单页地址导航按钮 PRD v1.0]
+  /// lat/lng 改为可选；缺失时改用关键词搜索路径规划。
   static Future<void> showMapNavSheet(
     BuildContext context, {
     required String name,
     required String address,
-    required double lat,
-    required double lng,
+    double? lat,
+    double? lng,
   }) async {
-    final candidates = buildCandidates(name: name, address: address, lat: lat, lng: lng);
+    final hasLatLng = lat != null && lng != null;
+    final candidates = hasLatLng
+        ? buildCandidates(name: name, address: address, lat: lat!, lng: lng!)
+        : buildCandidatesByKeyword(name: name, address: address);
     List<MapAppCandidate> installed = await getInstalled(candidates);
     // iOS Apple Maps 始终可用（通过 https:// 兜底），即便 maps:// 不可用也保留
     if (Platform.isIOS && !installed.any((e) => e.name == 'Apple 地图')) {

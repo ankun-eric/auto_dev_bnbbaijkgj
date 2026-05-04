@@ -1,4 +1,6 @@
 const { get, post } = require('../../utils/request');
+// [2026-05-05 订单页地址导航按钮 PRD v1.0]
+const { navigateToAddress } = require('../../utils/map-nav');
 
 Page({
   data: {
@@ -90,6 +92,47 @@ Page({
           }
         }
       },
+    });
+  },
+
+  // [2026-05-05 订单页地址导航按钮 PRD v1.0 · F-04] 订单详情门店地址一键导航
+  onStoreNavTap() {
+    const order = this.data.order || {};
+    if (!order.store_name && !order.store_address) {
+      wx.showToast({ title: '门店地址缺失', icon: 'none' });
+      return;
+    }
+    navigateToAddress({
+      name: order.store_name || '门店',
+      address: order.store_address || order.store_name || '',
+      lat: order.store_lat,
+      lng: order.store_lng,
+    });
+  },
+
+  // [2026-05-05 订单页地址导航按钮 PRD v1.0 · F-05/F-06] 收货/上门地址一键导航
+  onUserAddrNavTap() {
+    const order = this.data.order || {};
+    // 优先用 shipping_address_text（后端透传），其次用 order.address 兼容老结构
+    let name = '';
+    let address = '';
+    if (order.shipping_address_text) {
+      name = order.shipping_address_name || '收货地址';
+      address = order.shipping_address_text;
+    } else if (order.address) {
+      name = order.address.name || '收货地址';
+      address = order.address.full_address ||
+        `${order.address.province || ''}${order.address.city || ''}${order.address.district || ''}${order.address.detail || order.address.street || ''}`;
+    }
+    if (!address && !name) {
+      wx.showToast({ title: '地址信息缺失', icon: 'none' });
+      return;
+    }
+    navigateToAddress({
+      name,
+      address,
+      lat: null, // 用户地址簿无经纬度，走文字关键词降级
+      lng: null,
     });
   },
 
