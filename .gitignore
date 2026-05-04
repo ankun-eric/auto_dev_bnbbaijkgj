@@ -113,3 +113,7 @@ scp_log.txt
 test_log.txt
 deploy_order_enh.log
 .dev_start_commit.txt
+
+# Temp deployment / smoke test helpers
+.tools/
+.dev_start_commit.txt

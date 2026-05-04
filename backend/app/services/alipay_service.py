@@ -92,7 +92,7 @@ def _build_client_from_config(channel_code: str, runtime_cfg: dict) -> Any:
       - cert 模式：app_public_cert / alipay_root_cert / alipay_public_cert
     """
     try:
-        from alipay import AliPay, AliPayCert  # type: ignore
+        from alipay import AliPay  # type: ignore
     except ImportError as e:
         raise RuntimeError(
             "未安装 python-alipay-sdk，无法发起真实支付宝调用；"
@@ -114,7 +114,9 @@ def _build_client_from_config(channel_code: str, runtime_cfg: dict) -> Any:
     )
 
     if access_mode == "cert":
-        # 证书模式：把三个证书写到临时文件
+        # 证书模式：python-alipay-sdk 3.3.0 以及 4.x 都没有独立 AliPayCert 类，
+        # 而是通过 AliPay 类传入 app_alipay_public_cert_string / alipay_root_cert_string
+        # / app_cert_public_key_string 实现。这里按 4.x 命名，3.x 单独 lazy import 兼容类。
         app_public_cert = runtime_cfg.get("app_public_cert") or ""
         alipay_root_cert = runtime_cfg.get("alipay_root_cert") or ""
         alipay_public_cert = runtime_cfg.get("alipay_public_cert") or ""
@@ -123,15 +125,33 @@ def _build_client_from_config(channel_code: str, runtime_cfg: dict) -> Any:
                 "支付宝证书模式配置不完整：app_public_cert / "
                 "alipay_root_cert / alipay_public_cert 三者必须齐全"
             )
-        app_public_cert_path = _write_temp_pem(app_public_cert, ".crt")
-        alipay_root_cert_path = _write_temp_pem(alipay_root_cert, ".crt")
-        alipay_public_cert_path = _write_temp_pem(alipay_public_cert, ".crt")
-        client = AliPayCert(
-            **common_kwargs,
-            app_public_cert_path=app_public_cert_path,
-            alipay_public_cert_path=alipay_public_cert_path,
-            alipay_root_cert_path=alipay_root_cert_path,
-        )
+        # 优先尝试 4.x 风格（直接通过 AliPay 传 cert string）
+        try:
+            client = AliPay(
+                **common_kwargs,
+                app_alipay_public_cert_string=alipay_public_cert,
+                alipay_root_cert_string=alipay_root_cert,
+                app_cert_public_key_string=app_public_cert,
+            )
+        except TypeError:
+            # 3.x 兜底：尝试 lazy import 旧版可能存在的 AliPayCert
+            try:
+                from alipay import AliPayCert  # type: ignore
+            except ImportError as e:
+                raise RuntimeError(
+                    "当前已安装的 python-alipay-sdk 版本不支持证书模式（"
+                    "缺少 AliPayCert 或 cert 相关参数）；请升级到支持证书模式的版本，"
+                    "或将『接入方式』切换为『公钥模式』。"
+                ) from e
+            app_public_cert_path = _write_temp_pem(app_public_cert, ".crt")
+            alipay_root_cert_path = _write_temp_pem(alipay_root_cert, ".crt")
+            alipay_public_cert_path = _write_temp_pem(alipay_public_cert, ".crt")
+            client = AliPayCert(
+                **common_kwargs,
+                app_public_cert_path=app_public_cert_path,
+                alipay_public_cert_path=alipay_public_cert_path,
+                alipay_root_cert_path=alipay_root_cert_path,
+            )
     else:
         # 公钥模式
         alipay_public_key = _ensure_pem_format(runtime_cfg.get("alipay_public_key") or "")

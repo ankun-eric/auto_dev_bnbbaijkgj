@@ -33,7 +33,39 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: H5 优惠券抵扣 0 元下单 Bug 修复 v1.2 — MultipleResultsFound 容错（推翻 v1.1 R3 判断，定位真因 R4 = scalar_one_or_none + user_coupons 脏数据，改用 .scalars().first() + ORDER BY id ASC，新增 3 用例 + 既有 12 用例全绿 = 15/15 PASS，服务器实测 R4 真实脏数据场景从 500 变为业务 400）（2026-05-05 00:30）
+## Latest Update: 支付宝 H5 测试连接 Bug 修复 — 首次创建敏感字段 silent discard + python-alipay-sdk 容器未安装 + AliPayCert 不存在 三连击修复（2026-05-05 01:00）
+
+### 一句话结论
+按 `cursor_prompt_321_20260505004811.txt` 修复方案执行，覆盖 **Bug ① 首次保存私钥被静默丢弃**（前端未标 required + 后端把空值当成"保留旧值"，但首次创建场景下根本没旧值）+ **Bug ② 容器内未装 python-alipay-sdk**（`requirements.txt` 已有但旧镜像缓存）+ **Bug ③（修复过程中新发现）`from alipay import AliPayCert` 在 fzlee/alipay 3.3.0 中不存在导致 ImportError 被错误识别为"SDK 未安装"**。修复方案：**1) `backend/app/utils/crypto.py`** 新增 `DecryptionError` 异常类，`decrypt_value` 增 `raise_on_error: bool=False` 参数，便于区分"密钥被改"与"数据本就空"；**2) `backend/app/api/payment_config.py`** `update_payment_channel` 加首次创建强校验：当 payload 中显式传入敏感字段且为空、且 DB 中无旧值时直接返 422`字段「xxx」是首次创建场景下的必填项`；`test_payment_channel` 解密自检捕获 `DecryptionError` 给精准文案，调支付宝异常分支识别 `python-alipay-sdk` 关键字给"支付宝 SDK 未安装"明确提示；**3) `admin-web/src/app/(admin)/payment-config/page.tsx`** 新增 `isFirstTime` 状态（基于 `is_complete` + 敏感字段是否有 `config_masked`），首次配置时 `Form.Item rules` 中敏感字段 `required: true`，顶部 Alert 文案变黄色警告"首次配置..."，`onSubmit` 加防御性兜底校验；**4) `backend/app/services/alipay_service.py`** 移除对 `AliPayCert` 的硬依赖（fzlee/alipay 3.3.0 中不存在），公钥模式仅 `from alipay import AliPay`；证书模式按 4.x 风格 `app_alipay_public_cert_string` 优先，TypeError 时再 lazy import 旧 `AliPayCert`；**5) 部署** `docker compose build --no-cache backend admin-web` 强制重装 `python-alipay-sdk==3.3.0`，scp 增量传 4 个文件 + `docker cp` 热替换 + `docker restart` 验证；**6) 测试** 新增 `backend/tests/test_payment_config_first_time_secret.py` 共 8 用例（强校验 422、向后兼容、解密错因、cert 模式条件 required、partial payload 不误伤）；服务器内 `test_payment_fix_smoke.py` 8/8 PASS；端到端 API：编辑场景留空保留旧值 200，测试连接从 `未安装 python-alipay-sdk` 变为 `RSA key format is not supported`（真实业务错，证明 SDK 调通了支付宝网关）；**7) 用户手册** `docs/用户体验使用手册_支付宝H5测试连接Bug修复.md` 含访问链接表 / 修复前 vs 修复后报错对照表 / 公钥模式操作步骤 / 回滚方案。
+
+### 涉及文件
+- 后端：`backend/app/utils/crypto.py`（新增 `DecryptionError` + `raise_on_error` 参数）
+- 后端：`backend/app/api/payment_config.py`（首次创建强校验 422、解密错因区分、SDK 未装明确文案）
+- 后端：`backend/app/services/alipay_service.py`（移除 `AliPayCert` 硬依赖、4.x/3.x 双兼容）
+- 前端：`admin-web/src/app/(admin)/payment-config/page.tsx`（`isFirstTime` 状态 + 条件 required + 顶部 Alert 警告）
+- 测试（新增）：`backend/tests/test_payment_config_first_time_secret.py`（8 用例）
+- 部署辅助（新增，已 .gitignore）：`.tools/test_payment_fix_smoke.py`、`.tools/test_payment_e2e.sh`、`.tools/test_alipay_test_connect.sh`
+- 用户手册（新增）：`docs/用户体验使用手册_支付宝H5测试连接Bug修复.md`
+
+### 验收要点
+- ✅ `crypto.DecryptionError` 类已部署到容器；`raise_on_error=True` 时正确抛出；默认 `False` 返 "" 向后兼容
+- ✅ 容器内 `pip show python-alipay-sdk` = 3.3.0，`from alipay import AliPay` 成功
+- ✅ `_build_client_from_config` 不再因 `AliPayCert` 不存在而抛 ImportError
+- ✅ 8 个 in-container smoke 用例全 PASS（DecryptionError、加解密往返、SDK 已装、`app_private_key` 必填等）
+- ✅ E2E 健康检查 200，admin 登录 13800000000/admin123 成功
+- ✅ 编辑场景下空敏感字段保留旧值 200（向后兼容）
+- ✅ 测试连接接口响应不再含 `未安装 python-alipay-sdk`，变为真实支付宝业务错（`RSA key format is not supported`，因 DB 中是历史 silent-discard 残留的假私钥，预期表现）
+- ✅ 仅 backend + admin-web 改动，H5 / 小程序 / Flutter 三端无需重新打包
+
+### 部署信息
+- DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
+- 镜像重建：`docker compose -f docker-compose.prod.yml build --no-cache backend admin-web`
+- 容器：`6b099ed3-7175-4a78-91f4-44570c84ed27-backend` / `-admin-web` 均 Up
+- HEAD（修复前）：`5c4bd60`；待 push 修复 commit
+
+---
+
+## Previous Update: H5 优惠券抵扣 0 元下单 Bug 修复 v1.2 — MultipleResultsFound 容错（推翻 v1.1 R3 判断，定位真因 R4 = scalar_one_or_none + user_coupons 脏数据，改用 .scalars().first() + ORDER BY id ASC，新增 3 用例 + 既有 12 用例全绿 = 15/15 PASS，服务器实测 R4 真实脏数据场景从 500 变为业务 400）（2026-05-05 00:30）
 
 ### 一句话结论
 按 `cursor_prompt_320_20260505002153.txt` Bug 修复方案 v1.2 接续 v1.1 部署：**实测推翻 v1.1 的 95% R3 判断**——服务器侧 SHOW COLUMNS 显示 `unified_orders.payment_method` ENUM 列在 v2.2（`cb7d53f`）就已通过 `schema_sync._sync_payment_config` 启动钩子扩容到 `enum('wechat','alipay','points','coupon_deduction','balance')`，**R3 不是问题**。从 backend 容器最新日志中拽到完整 traceback，**真因 R4 = `backend/app/api/unified_orders.py:551 user_coupon = uc_result.scalar_one_or_none()` 在用户对同一张券持有多张 unused 记录时抛 `sqlalchemy.exc.MultipleResultsFound` → 未捕获 → 500**；现场数据：`user_id=2 + coupon_id=3` 在 `user_coupons` 有 3 条 unused（id=4/16/17）。修复：**1) `unified_orders.py:541-580 / 995-1015`** 把两处 `scalar_one_or_none()` 改为 `.scalars().first() + .order_by(UserCoupon.id.asc())`，校验/核销保持同一排序口径（最早领的优先），多条命中时 `logging.warning` 记录脏数据；**2) `coupons.py:176-188`** 同步把领取重复检查改为 `.scalars().first()`，脏数据不再 500，正常返 409 Conflict；**3) MySQL 兼容性踩坑** — 最初想用 `expire_at.asc().nullslast()`，远程实测报 1064 SQL syntax error（NULLS LAST 是 PG 语法），改为仅按 `id ASC`；**4) 新增专项测试** `backend/tests/test_h5_zero_order_dup_coupon_r4_v12.py` 共 3 用例：R4-A 多条 unused 不再 500、R4-B 仅核销最早领的那张其余保持 unused、R4-C 重复领取返 409 不返 500。**远程容器 pytest 实测 R4 新 3/3 + 既有 H5 0 元单 v1.0 5/5 + V2.2 7/7 = 15/15 PASS**。**5) 部署** 上传 + `docker cp` 进容器即时验证修复 → `git push origin master` (`111e2bd..764436c`) → 服务器 `git fetch + reset --hard origin/master + docker compose -f docker-compose.prod.yml build backend + up -d --no-deps backend` 重建镜像，新容器内确认含 v1.2 注释与 `order_by(UserCoupon.id.asc())`。**6) 端到端实测** 用 user_id=2 + coupon_id=3 真实脏数据触发：从修复前的 `500 Internal Server Error + Traceback MultipleResultsFound` 变为 `400 Bad Request {"detail":"预约类商品必须选择预约时间"}`（业务校验，正常），**Exception 彻底消失**。**7) 多端零变更** — 仅 backend 改动，**H5 / 小程序 / Flutter / 后台四端代码本期未动**，已部署的客户端无需重新发版即可受益（修复在服务端容错层）。**8) 用户手册** `user_docs/H5优惠券抵扣零元单失败_R4容错修复_用户体验手册.md`（含访问链接表 / 修复矩阵 / R3 vs R4 现场判断对比 / 用户复测三场景 / MySQL 兼容性踩坑提醒 / 数据脏数据后续清理建议 SQL / 故障回滚预案）。
