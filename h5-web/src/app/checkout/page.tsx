@@ -601,6 +601,14 @@ function CheckoutPage() {
           }
         : undefined;
 
+      // [2026-05-04 支付通道枚举不一致 Bug 修复 v1.0]
+      // 创建订单的 payment_method 必须为 provider 级别（wechat / alipay），
+      // channel_code 仅用于后续 /pay 调用。从 availableMethods 中查找当前选中
+      // channel_code 对应的 provider，找不到则按 _ 前缀降级提取。
+      const selectedMethodObj = availableMethods.find(m => m.channel_code === selectedPayment);
+      const fallbackProvider = (selectedPayment || paymentMethod || 'wechat').split('_')[0];
+      const providerForOrder = (selectedMethodObj?.provider || fallbackProvider || 'wechat');
+
       const orderData: any = {
         items: [{
           product_id: product.id,
@@ -609,8 +617,8 @@ function CheckoutPage() {
           ...(appointmentTimeStr ? { appointment_time: appointmentTimeStr } : {}),
           ...(appointmentDataObj ? { appointment_data: appointmentDataObj } : {}),
         }],
-        // [2026-05-04 H5 支付链路 Bug 修复] payment_method 改为携带选中的 channel_code
-        payment_method: selectedPayment || paymentMethod,
+        // [2026-05-04 支付通道枚举不一致 Bug 修复 v1.0] 仅传 provider 级别值
+        payment_method: providerForOrder,
         points_deduction: usePoints ? pointsDeduction : 0,
         notes: notes || undefined,
       };

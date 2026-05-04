@@ -434,9 +434,19 @@ Page({
         itemData.appointment_data = apptData;
       }
 
+      // [2026-05-04 支付通道枚举不一致 Bug 修复 v1.0]
+      // 创建订单的 payment_method 必须为 provider 级别（wechat / alipay），
+      // 而 paymentMethod 当前存的是 channel_code（如 wechat_miniprogram）。
+      // 从 paymentMethods 列表中按 channel_code 找到对应的 provider，找不到则按
+      // _ 前缀降级提取，确保后端入库的 payment_method 仅为 wechat / alipay。
+      const _selectedMethodObj = (this.data.paymentMethods || []).find(m => m && m.channel_code === this.data.paymentMethod);
+      const _fallbackProvider = String(this.data.paymentMethod || 'wechat').split('_')[0];
+      const _providerForOrder = (_selectedMethodObj && _selectedMethodObj.provider) || _fallbackProvider || 'wechat';
+
       const orderData = {
         items: [itemData],
-        payment_method: this.data.paymentMethod,
+        // [2026-05-04 支付通道枚举不一致 Bug 修复 v1.0] 仅传 provider 级别值
+        payment_method: _providerForOrder,
         points_deduction: this.data.usePoints ? Math.min(this.data.availablePoints, this.data.maxPointsDeduction) : 0,
         notes: this.data.appointmentNote || undefined,
       };

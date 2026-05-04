@@ -297,8 +297,29 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         itemData['appointment_data'] = apptData;
       }
 
+      // [2026-05-04 支付通道枚举不一致 Bug 修复 v1.0]
+      // 创建订单的 payment_method 必须为 provider 级别（wechat / alipay），
+      // _selectedChannelCode 是通道级别（如 alipay_app / wechat_app），
+      // 从 _paymentMethods 列表中按 channel_code 查找对应 provider，
+      // 找不到则按 _ 前缀降级提取，确保后端入库的 payment_method 仅为 wechat / alipay。
+      String? _providerForOrder;
+      if (_selectedChannelCode != null && _selectedChannelCode!.isNotEmpty) {
+        final matched = _paymentMethods.firstWhere(
+          (m) => (m['channel_code'] as String?) == _selectedChannelCode,
+          orElse: () => <String, dynamic>{},
+        );
+        final p = matched['provider'] as String?;
+        if (p != null && p.isNotEmpty) {
+          _providerForOrder = p;
+        } else {
+          _providerForOrder = _selectedChannelCode!.split('_').first;
+        }
+      }
+
       final data = <String, dynamic>{
         'items': [itemData],
+        // [2026-05-04 支付通道枚举不一致 Bug 修复 v1.0] 仅传 provider 级别值
+        if (_providerForOrder != null) 'payment_method': _providerForOrder,
         'points_deduction': _pointsDeduction,
         'notes': _notesController.text.isNotEmpty ? _notesController.text : null,
       };

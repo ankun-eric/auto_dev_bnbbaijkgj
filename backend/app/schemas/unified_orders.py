@@ -1,7 +1,40 @@
 from datetime import datetime
 from typing import Any, Optional
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
+
+
+# [2026-05-04 支付通道枚举不一致 Bug 修复 v1.0]
+# payment_method 在 unified_orders 主表中代表 provider 粒度（wechat / alipay），
+# 而 channel_code（如 wechat_h5 / alipay_app）属于通道粒度，仅用于支付路由。
+# 历史上前端三端误把 channel_code 当 payment_method 提交，污染了订单字段语义。
+# 在 schema 层做一次「归一化 + 白名单」兜底：
+#   1. wechat_*  → wechat
+#   2. alipay_* → alipay
+#   3. 其余非白名单值 → 抛 ValueError，FastAPI 自动转 422 / 400
+ALLOWED_PAYMENT_METHODS = {"wechat", "alipay"}
+
+
+def normalize_payment_method(value: Optional[str]) -> Optional[str]:
+    """归一化 payment_method 为 provider 级别值（wechat / alipay）。
+
+    - None / 空字符串 → None
+    - 已经是 wechat / alipay → 原样返回
+    - wechat_* / alipay_* → 提取前缀返回 wechat / alipay
+    - 其他值 → 返回 None（由调用方决定是否抛错）
+    """
+    if value is None:
+        return None
+    v = str(value).strip().lower()
+    if not v:
+        return None
+    if v in ALLOWED_PAYMENT_METHODS:
+        return v
+    if "_" in v:
+        prefix = v.split("_", 1)[0]
+        if prefix in ALLOWED_PAYMENT_METHODS:
+            return prefix
+    return None
 
 
 class OrderItemCreate(BaseModel):
@@ -21,6 +54,20 @@ class UnifiedOrderCreate(BaseModel):
     # [上门服务履约 PRD v1.0] 上门服务必填地址（fulfillment_type=on_site 时必传）
     service_address_id: Optional[int] = None
     notes: Optional[str] = None
+
+    # [2026-05-04 支付通道枚举不一致 Bug 修复 v1.0]
+    # 在 schema 层做归一化与白名单校验，向前兼容老版本 App 直接传 channel_code 的情况。
+    @field_validator("payment_method", mode="before")
+    @classmethod
+    def _validate_payment_method(cls, v):
+        if v is None or v == "":
+            return None
+        normalized = normalize_payment_method(v)
+        if normalized is None:
+            raise ValueError(
+                f"不支持的支付方式：{v}（仅允许 wechat / alipay 或可归一化为其的通道编码）"
+            )
+        return normalized
 
 
 class OrderItemResponse(BaseModel):

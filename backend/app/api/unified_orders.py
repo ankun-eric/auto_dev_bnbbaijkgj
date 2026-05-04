@@ -41,6 +41,7 @@ from app.models.models import (
     UserCouponStatus,
 )
 from app.schemas.unified_orders import (
+    ALLOWED_PAYMENT_METHODS,
     ConfirmFreeRequest,
     OrderItemResponse,
     UnifiedOrderCancelRequest,
@@ -48,6 +49,7 @@ from app.schemas.unified_orders import (
     UnifiedOrderPayRequest,
     UnifiedOrderRefundRequest,
     UnifiedOrderRefundCancelRequest,
+    normalize_payment_method,
     UnifiedOrderReviewCreate,
     UnifiedOrderResponse,
     UnifiedOrderSetAppointmentRequest,
@@ -377,6 +379,19 @@ async def create_unified_order(
 ):
     if not data.items:
         raise HTTPException(status_code=400, detail="订单商品不能为空")
+
+    # [2026-05-04 支付通道枚举不一致 Bug 修复 v1.0]
+    # 双保险：schema 已做 field_validator 归一化，这里再兜底校验一次。
+    # 经过 schema 之后 data.payment_method 应当只可能是 wechat / alipay / None。
+    # 若拿到非法值（理论上不会发生，除非走了绕过 schema 的内部调用），直接 400。
+    if data.payment_method is not None and data.payment_method not in ALLOWED_PAYMENT_METHODS:
+        normalized = normalize_payment_method(data.payment_method)
+        if normalized is None:
+            raise HTTPException(
+                status_code=400,
+                detail=f"不支持的支付方式：{data.payment_method}",
+            )
+        data.payment_method = normalized
 
     product_ids = [item.product_id for item in data.items]
     result = await db.execute(select(Product).where(Product.id.in_(product_ids)))
@@ -1404,7 +1419,15 @@ async def pay_unified_order(
     if status_val != "pending_payment":
         raise HTTPException(status_code=400, detail="该订单无法支付")
 
-    order.payment_method = data.payment_method
+    # [2026-05-04 支付通道枚举不一致 Bug 修复 v1.0]
+    # /pay 接口的 payment_method 同样必须是 provider 级别（wechat / alipay），
+    # 老前端可能仍然传通道编码（如 alipay_h5），统一归一化。
+    _normalized_pm = normalize_payment_method(data.payment_method)
+    if _normalized_pm is None:
+        raise HTTPException(
+            status_code=400, detail=f"不支持的支付方式：{data.payment_method}"
+        )
+    order.payment_method = _normalized_pm
     order.paid_at = datetime.utcnow()
     order.updated_at = datetime.utcnow()
 
