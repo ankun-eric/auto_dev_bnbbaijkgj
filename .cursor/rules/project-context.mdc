@@ -33,7 +33,65 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 订单页地址导航按钮 v1.0（2026-05-05 02:20）
+## Latest Update: 用户地址编辑改造 v2.0（2026-05-05 02:41）
+
+### 一句话结论
+按 `cursor_prompt_326_20260505021845.txt` PRD（用户地址编辑改造）执行，三端（H5 / 微信小程序 / Flutter App）「我的地址」编辑页彻底重构：手工输入省市县 → **三级滚轮联动** + **行政区划 JSON 数据库**；新增收货人 / 11 位手机号正则、详细地址（≤80）、地址标签（家 / 公司 / 自定义≤6 汉字）、默认地址自动顶替、单用户上限 10 条、软删除（`is_deleted`）、经纬度（前端直采 + 后端高德 geocoding 兜底）。小程序新增「从微信导入」（`wx.chooseAddress` 失败降级 `wx.chooseLocation` + 后端逆地理编码）；App 新增「使用当前位置」（`geolocator` + 后端逆地理编码）；后端新增 v2 接口（`/api/v2/user/addresses` CRUD + `PATCH .../default` + `/api/v2/regions` + `/api/v2/regions/reverse-geocode` + `/api/v2/app/version-check`）。**v1 接口保留兼容**（不立即下线，避免 `unified_orders.shipping_address_id / service_address_id` 关系断裂），通过版本接口控制老 App 强制升级。
+
+### 涉及文件（共 26 个）
+**后端**：
+- `backend/app/models/models.py`：`UserAddress` 加列 `consignee_name / consignee_phone / province_code / city_code / district_code / detail / longitude / latitude / tag / is_deleted`，旧列 `name / phone / street / province / city / district` 全部放宽 `nullable=True`。
+- `backend/app/schemas/addresses_v2.py`（新增）：`AddressV2Create / AddressV2Update / AddressV2Response / SetDefaultRequest / ReverseGeocodeRequest / ReverseGeocodeResponse / VersionCheckResponse`，含手机号正则、长度上限、默认地址等校验。
+- `backend/app/api/addresses_v2.py`（新增）：v2 路由器，含 CRUD + 设默认 + 行政区划 JSON 接口 + 逆地理编码 + App 版本检查；高德 Key 缺失时不阻断保存仅日志告警。
+- `backend/app/data/regions.json`（新增）：31 省 + 主要地级市 + 主要区县 MVP 数据，直辖市三级展示；带 `version` 字段。
+- `backend/app/main.py`：`lifespan` 启动期调用 `_migrate_user_addresses_v2()` 自动 `ALTER TABLE` 加列 + 放宽旧列 nullable；注册 `addresses_v2.router`。
+- `backend/scripts/migrate_addresses_v2.py`（新增）：一次性老数据迁移脚本，按 `regions.json` 字符串匹配从老地址拆出省市县；编辑时还有懒迁移补齐。
+
+**H5（h5-web）**：
+- `h5-web/src/app/my-addresses/page.tsx`：完全重写，使用 `antd-mobile.CascadePicker` 三级联动 + 新表单字段 + 标签 UI + 列表 Tag + 10 条上限提示；`regions.json` 通过 `resolveAssetUrl` 加载（含 `BASE_PATH` 前缀），后端 `/api/v2/regions` 兜底。
+- `h5-web/public/regions.json`（新增镜像）。
+
+**Flutter（flutter_app）**：
+- `flutter_app/lib/models/address.dart`：升级 v2 字段 + `fromJson/toJson` 同时兼容 v1。
+- `flutter_app/lib/utils/regions_loader.dart`（新增）：`assets/data/regions.json` 加载工具。
+- `flutter_app/lib/widgets/region_picker_sheet.dart`（新增）：3 列 `CupertinoPicker` 底部弹层联动。
+- `flutter_app/lib/screens/address/address_edit_screen.dart`：完全重写，新表单 + RegionPickerSheet + 「使用当前位置」按钮（`geolocator` + 后端逆地理编码）。
+- `flutter_app/lib/screens/address/address_list_screen.dart`：默认 / 自定义 Tag 显示，手机号 11 位脱敏（`138****1234`）。
+- `flutter_app/lib/config/api_config.dart`：新增 `addressesV2 / regionsV2 / reverseGeocodeV2 / versionCheckV2` 常量。
+- `flutter_app/lib/services/api_service.dart`：CRUD 切到 v2，新增 `setDefaultAddress / reverseGeocode / checkAppVersion`。
+- `flutter_app/pubspec.yaml`：注册 `assets/data/`。
+- `flutter_app/assets/data/regions.json`（新增镜像）。
+
+**微信小程序（miniprogram）**：
+- `miniprogram/pages/my-addresses/index.{js,wxml,wxss}`：picker-view 三级 + 标签 UI + 「从微信导入」按钮 + 列表 Tag + 10 条限制 + 手机号脱敏。
+- `miniprogram/utils/request.js`：新增 `patch()` 方法，导出补齐。
+- `miniprogram/data/regions.json`（新增镜像）。
+
+**自动化测试**：
+- `tests/test_addresses_v2.py`（新增）：19 个 pytest 用例（schema 校验 / regions 结构 / 版本号比较 / 模型字段 / 迁移脚本拆分 / API router 注册）— **19/19 PASS**。
+
+### 验证证据
+- 静态测试：**19/19 PASS**
+- 启动期 ALTER TABLE 自动迁移：完成（无报错）
+- 容器内一次性数据迁移：`success: 1, needs_completion: 0, failed: 0`
+- 远程接口连通性（HTTP 200）：`/api/health`、`/api/v2/regions`、`/api/v2/app/version-check?platform=android|ios`、`/api/docs`、`/regions.json`
+- H5 容器：`6b099ed3-7175-4a78-91f4-44570c84ed27-h5` Recreated + Started
+- 小程序 zip：`miniprogram_addressv2_20260505_023951.zip` 391KB 已上传服务器 `miniprogram_releases/`
+- Android workflow `addr-v2-android-20260505-024027`：已 dispatch（in_progress）
+- iOS workflow `addr-v2-ios-20260505-024029`：已 dispatch（in_progress）
+- 用户手册：`user_docs/地址编辑改造_用户体验手册_20260505_024100.md`
+
+### 关键约定
+- v1 接口保留兼容（`unified_orders` 关系不破），老 App 通过版本接口强制升级而非接口下线
+- 行政区划 JSON 在四端一致镜像，后续完整省市县通过版本发布更新
+- 高德 Key 缺失不阻断保存，仅日志告警
+- 删除统一软删除 `is_deleted=1`
+- 单用户上限 10 条，第 11 条服务端拒绝
+- 列表手机号统一脱敏 138****1234
+
+---
+
+## Previous Update: 订单页地址导航按钮 v1.0（2026-05-05 02:20）
 
 ### 一句话结论
 按 `cursor_prompt_325_20260505015415.txt` PRD 执行，在 H5 / 小程序 / Flutter App 三端的「下单页」与「订单详情页」全部地址旁新增统一风格的「📍 导航」按钮，覆盖 F-01~F-06 共 6 个场景（门店地址 + 上门服务地址 + 收货地址 × 下单页 / 订单详情页）。复用既有 `MapNavSheet` / `wx.openLocation` / `MapNavUtil`，**坐标缺失时统一降级到关键字搜索**（小程序无坐标场景兜底为复制地址到剪贴板 + 弹窗引导）。视觉沿用商家详情页绿色按钮（`#52c41a` + 12% 透明背景 + 圆角 16px），三端均带 500ms 防抖。**后端仅做 6 个字段透传**（`store_address / store_lat / store_lng / shipping_address_text / shipping_address_name / shipping_address_phone`），不新增表/接口/外部依赖。
