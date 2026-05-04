@@ -90,8 +90,24 @@ def test_normalize_payment_method(raw, expected):
 
 
 def test_allowed_payment_methods_constant():
-    """ALLOWED_PAYMENT_METHODS 必须仅包含 wechat / alipay 两个 provider。"""
-    assert ALLOWED_PAYMENT_METHODS == {"wechat", "alipay"}
+    """[2026-05-04 H5 优惠券抵扣 0 元下单 Bug 修复 v1.0 · B2 期望值更新]
+
+    本次 v1.0 修复明确要求扩展 ALLOWED_PAYMENT_METHODS 白名单：
+      - 0 元单场景前端三端（H5/小程序/Flutter）会显式传 'coupon_deduction'，
+        schema 层若仍硬限制为 {wechat, alipay}，field_validator 会抛 422 → 创建订单失败。
+      - 'balance' 为占位枚举值（admin payMethodMap 已存在「余额支付」映射），
+        本次同步纳入白名单，未来上线余额支付仅需补业务逻辑。
+
+    更新后白名单 = {wechat, alipay, coupon_deduction, balance}。
+    通道编码（如 alipay_h5、wechat_app）仍由 normalize_payment_method 按前缀降级到
+    wechat/alipay，因此通道编码不需要进入白名单。
+    """
+    assert ALLOWED_PAYMENT_METHODS == {
+        "wechat",
+        "alipay",
+        "coupon_deduction",
+        "balance",
+    }
 
 
 # ---------------------------------------------------------------------------
