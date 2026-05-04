@@ -115,6 +115,10 @@ function del(url, data, options = {}) {
   return request({ url, method: 'DELETE', data, ...options });
 }
 
+function patch(url, data, options = {}) {
+  return request({ url, method: 'PATCH', data, ...options });
+}
+
 function uploadFile(url, filePath, name = 'file', formData = {}, options = {}) {
   const { onProgress, showLoading: showLoad = true } = options;
   const token = app.globalData.token;
@@ -166,4 +170,4 @@ function uploadFile(url, filePath, name = 'file', formData = {}, options = {}) {
   });
 }
 
-module.exports = { request, get, post, put, del, uploadFile };
+module.exports = { request, get, post, put, del, patch, uploadFile };

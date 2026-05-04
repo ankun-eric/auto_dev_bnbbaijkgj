@@ -4,13 +4,16 @@
           bindtap="selectAddress" data-item="{{item}}">
       <view class="addr-main">
         <view class="addr-top">
-          <text class="addr-name">{{item.name}}</text>
-          <text class="addr-phone">{{item.phone}}</text>
           <text class="default-tag" wx:if="{{item.is_default}}">默认</text>
+          <text class="custom-tag" wx:if="{{item.tag}}">{{item.tag}}</text>
+          <text class="addr-name">{{item.consignee_name || item.name}}</text>
+          <text class="addr-phone">{{item.phone_mask}}</text>
         </view>
-        <text class="addr-detail">{{item.province}}{{item.city}}{{item.district}} {{item.detail}}</text>
+        <text class="addr-detail">{{item.province}}{{item.city}}{{item.district}} {{item.detail || item.street}}</text>
+        <text class="region-warn" wx:if="{{item.needs_region_completion}}">⚠ 该地址需要重新选择省市县后才能保存</text>
       </view>
       <view class="addr-actions">
+        <text class="addr-set-default" wx:if="{{!item.is_default && !item.needs_region_completion}}" catchtap="setDefault" data-id="{{item.id}}">设为默认</text>
         <text class="addr-edit" catchtap="showEditForm" data-item="{{item}}">编辑</text>
         <text class="addr-del" catchtap="deleteAddress" data-id="{{item.id}}">删除</text>
       </view>
@@ -19,12 +22,12 @@
 
   <view class="empty-state" wx:if="{{!loading && addresses.length === 0}}">
     <text class="empty-icon">📍</text>
-    <text class="empty-text">暂无收货地址</text>
+    <text class="empty-text">您还没有添加收货地址</text>
   </view>
 
-  <!-- PRD v1.0 2026-04-23：+新增地址（加号与文字无空格，按钮内水平+垂直居中） -->
   <view class="add-btn-wrap safe-bottom">
-    <view class="add-btn" bindtap="showAddForm">
+    <view class="hint" wx:if="{{addresses.length >= addrLimit}}">最多保存 {{addrLimit}} 条地址</view>
+    <view class="add-btn {{canAdd ? '' : 'disabled'}}" bindtap="showAddForm">
       <text>+新增地址</text>
     </view>
   </view>
@@ -38,28 +41,45 @@
       </view>
 
       <view class="form-body">
+        <!-- 微信导入按钮 -->
+        <view class="quick-actions">
+          <view class="quick-btn" bindtap="importFromWx">从微信导入地址</view>
+        </view>
+
         <view class="form-item">
-          <text class="form-label">姓名</text>
+          <text class="form-label">收货人</text>
           <input class="form-input" placeholder="请输入收货人姓名"
-                 value="{{form.name}}" bindinput="onNameInput" />
+                 value="{{form.consignee_name}}" bindinput="onNameInput" maxlength="20" />
         </view>
         <view class="form-item">
           <text class="form-label">手机号</text>
-          <input class="form-input" placeholder="请输入手机号" type="number"
-                 value="{{form.phone}}" bindinput="onPhoneInput" />
+          <input class="form-input" placeholder="请输入 11 位手机号" type="number"
+                 value="{{form.consignee_phone}}" bindinput="onPhoneInput" maxlength="11" />
         </view>
-        <view class="form-item">
-          <text class="form-label">地区</text>
-          <picker mode="region" value="{{regionValue}}" bindchange="onRegionChange">
-            <text class="form-value {{form.province ? '' : 'placeholder'}}">
-              {{form.province ? form.province + ' ' + form.city + ' ' + form.district : '请选择地区'}}
-            </text>
-          </picker>
+        <view class="form-item" bindtap="openRegionPicker">
+          <text class="form-label">所在地区</text>
+          <text class="form-value {{form.province ? '' : 'placeholder'}}">
+            {{form.province ? form.province + ' / ' + form.city + ' / ' + form.district : '请选择 省 / 市 / 区县'}}
+          </text>
+          <text class="form-arrow">›</text>
         </view>
-        <view class="form-item">
+        <view class="form-item form-item-textarea">
           <text class="form-label">详细地址</text>
-          <input class="form-input" placeholder="请输入详细地址"
-                 value="{{form.detail}}" bindinput="onDetailInput" />
+          <textarea class="form-textarea" placeholder="请输入街道、楼栋、门牌号等详细信息"
+                    value="{{form.detail}}" bindinput="onDetailInput" maxlength="{{detailMax}}" />
+        </view>
+        <view class="form-item form-item-tag">
+          <text class="form-label">标签</text>
+          <view class="tag-block">
+            <text wx:for="{{presetTags}}" wx:key="*this"
+                  class="tag-chip {{form.tag === item && !customTagMode ? 'active' : ''}}"
+                  bindtap="selectPresetTag" data-tag="{{item}}">{{item}}</text>
+            <view class="tag-custom" wx:if="{{!customTagMode}}" bindtap="enterCustomTag">+ 自定义</view>
+            <input wx:if="{{customTagMode}}" class="tag-custom-input"
+                   placeholder="≤6 字" maxlength="6"
+                   value="{{customTagValue}}" bindinput="onCustomTagInput" />
+            <text wx:if="{{customTagMode}}" class="tag-custom-cancel" bindtap="exitCustomTag">取消</text>
+          </view>
         </view>
         <view class="form-item" bindtap="toggleDefault">
           <text class="form-label">设为默认</text>
@@ -74,6 +94,28 @@
           <text>保存</text>
         </view>
       </view>
+    </view>
+  </view>
+
+  <!-- 三级滚轮 -->
+  <view class="picker-mask" wx:if="{{showRegionPicker}}" bindtap="cancelRegionPicker">
+    <view class="picker-popup" catchtap="">
+      <view class="picker-header">
+        <text class="picker-cancel" bindtap="cancelRegionPicker">取消</text>
+        <text class="picker-title">选择所在地区</text>
+        <text class="picker-confirm" bindtap="confirmRegionPicker">确定</text>
+      </view>
+      <picker-view value="{{pickerValue}}" bindchange="onPickerChange" indicator-style="height: 70rpx;" style="width: 100%; height: 480rpx;">
+        <picker-view-column>
+          <view wx:for="{{pickerColumns[0]}}" wx:key="*this" class="picker-item">{{item}}</view>
+        </picker-view-column>
+        <picker-view-column>
+          <view wx:for="{{pickerColumns[1]}}" wx:key="*this" class="picker-item">{{item}}</view>
+        </picker-view-column>
+        <picker-view-column>
+          <view wx:for="{{pickerColumns[2]}}" wx:key="*this" class="picker-item">{{item}}</view>
+        </picker-view-column>
+      </picker-view>
     </view>
   </view>
 </view>

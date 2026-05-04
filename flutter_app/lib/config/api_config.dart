@@ -213,6 +213,11 @@ class ApiConfig {
 
   // Addresses
   static const String addresses = '/api/addresses';
+  // [2026-05-05 用户地址改造 PRD v1.0] v2 接口
+  static const String addressesV2 = '/api/v2/user/addresses';
+  static const String regionsV2 = '/api/v2/regions';
+  static const String reverseGeocodeV2 = '/api/v2/regions/reverse-geocode';
+  static const String versionCheckV2 = '/api/v2/app/version-check';
 
   // Member QR Code
   static const String memberQrcode = '/api/member/qrcode';

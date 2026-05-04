@@ -1187,20 +1187,34 @@ class ApiService {
     return _dio.get(ApiConfig.usableCouponsForOrder, queryParameters: params);
   }
 
-  // Addresses
+  // Addresses (v2，PRD 2026-05-05)
   Future<Response> getAddresses() async {
-    return _dio.get(ApiConfig.addresses);
+    return _dio.get(ApiConfig.addressesV2);
   }
 
   Future<Response> createAddress(Map<String, dynamic> data) async {
-    return _dio.post(ApiConfig.addresses, data: data);
+    return _dio.post(ApiConfig.addressesV2, data: data);
   }
 
   Future<Response> updateAddress(int addressId, Map<String, dynamic> data) async {
-    return _dio.put('${ApiConfig.addresses}/$addressId', data: data);
+    return _dio.put('${ApiConfig.addressesV2}/$addressId', data: data);
   }
 
   Future<Response> deleteAddress(int addressId) async {
-    return _dio.delete('${ApiConfig.addresses}/$addressId');
+    return _dio.delete('${ApiConfig.addressesV2}/$addressId');
+  }
+
+  Future<Response> setDefaultAddress(int addressId) async {
+    return _dio.patch('${ApiConfig.addressesV2}/$addressId/default', data: {'is_default': true});
+  }
+
+  Future<Response> reverseGeocode(double lng, double lat) async {
+    return _dio.post(ApiConfig.reverseGeocodeV2, data: {'longitude': lng, 'latitude': lat});
+  }
+
+  Future<Response> checkAppVersion(String platform, String currentVersion) async {
+    return _dio.get(ApiConfig.versionCheckV2, queryParameters: {
+      'platform': platform, 'currentVersion': currentVersion,
+    });
   }
 }

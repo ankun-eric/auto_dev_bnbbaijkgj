@@ -98,6 +98,11 @@ class _AddressListScreenState extends State<AddressListScreen> {
     );
   }
 
+  String _maskPhone(String p) {
+    if (p.length != 11) return p;
+    return '${p.substring(0, 3)}****${p.substring(7)}';
+  }
+
   Widget _buildAddressCard(UserAddress address) {
     return GestureDetector(
       onTap: _selectMode ? () => Navigator.pop(context, address) : null,
@@ -111,23 +116,31 @@ class _AddressListScreenState extends State<AddressListScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                Text(address.name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
-                const SizedBox(width: 12),
-                Text(address.phone, style: TextStyle(color: Colors.grey[600])),
-                if (address.isDefault) ...[
-                  const SizedBox(width: 8),
+                if (address.isDefault)
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF52C41A).withOpacity(0.1),
+                      color: const Color(0xFFFFF1F0),
                       borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: const Color(0xFF52C41A)),
                     ),
-                    child: const Text('默认', style: TextStyle(color: Color(0xFF52C41A), fontSize: 10)),
+                    child: const Text('默认', style: TextStyle(color: Color(0xFFF5222D), fontSize: 10)),
                   ),
-                ],
+                if (address.tag != null && address.tag!.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE6F7FF),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(address.tag!, style: const TextStyle(color: Color(0xFF1890FF), fontSize: 10)),
+                  ),
+                Text(address.consigneeName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+                Text(_maskPhone(address.consigneePhone), style: TextStyle(color: Colors.grey[600])),
               ],
             ),
             const SizedBox(height: 6),

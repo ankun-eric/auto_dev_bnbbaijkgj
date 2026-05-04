@@ -11,6 +11,7 @@ from sqlalchemy.exc import IntegrityError
 from app.api import (
     account_security,
     addresses,
+    addresses_v2,
     admin,
     order_enhancement,
     admin_health_plan,
@@ -645,6 +646,61 @@ async def _migrate_merchant_role_unify_v1():
         log.error("[R1] merchant_role_unify_v1 迁移异常（不影响启动）: %s", _e)
 
 
+async def _migrate_user_addresses_v2():
+    """[2026-05-05 用户地址改造 PRD v1.0] user_addresses 表加列：
+    consignee_name / consignee_phone / province_code / city_code / district_code
+    / detail / longitude / latitude / tag / is_deleted；并放宽旧字段 nullable。
+    """
+    import logging as _l
+    _logger = _l.getLogger(__name__)
+    from app.core.database import async_session as _async_session
+    try:
+        async with _async_session() as db:
+            from sqlalchemy import text
+
+            async def _add_col(column: str, ddl: str):
+                try:
+                    chk = await db.execute(text(
+                        "SELECT COUNT(*) FROM information_schema.columns "
+                        "WHERE table_schema = DATABASE() AND table_name = 'user_addresses' AND column_name = :c"
+                    ), {"c": column})
+                    if (chk.scalar() or 0) == 0:
+                        await db.execute(text(f"ALTER TABLE user_addresses ADD COLUMN {ddl}"))
+                        _logger.info("[address_v2] user_addresses.%s 列已添加", column)
+                except Exception as e:  # noqa: BLE001
+                    _logger.debug("加列 user_addresses.%s 跳过: %s", column, e)
+
+            await _add_col("consignee_name", "consignee_name VARCHAR(20) NULL")
+            await _add_col("consignee_phone", "consignee_phone VARCHAR(11) NULL")
+            await _add_col("province_code", "province_code VARCHAR(6) NULL")
+            await _add_col("city_code", "city_code VARCHAR(6) NULL")
+            await _add_col("district_code", "district_code VARCHAR(6) NULL")
+            await _add_col("detail", "detail VARCHAR(120) NULL")
+            await _add_col("longitude", "longitude DECIMAL(10,7) NULL")
+            await _add_col("latitude", "latitude DECIMAL(10,7) NULL")
+            await _add_col("tag", "tag VARCHAR(12) NULL")
+            await _add_col("is_deleted", "is_deleted TINYINT(1) NOT NULL DEFAULT 0")
+
+            # 放宽旧字段（v1 表里可能 NOT NULL）；忽略错误
+            for ddl in (
+                "ALTER TABLE user_addresses MODIFY COLUMN name VARCHAR(100) NULL",
+                "ALTER TABLE user_addresses MODIFY COLUMN phone VARCHAR(20) NULL",
+                "ALTER TABLE user_addresses MODIFY COLUMN street VARCHAR(255) NULL",
+                "ALTER TABLE user_addresses MODIFY COLUMN province VARCHAR(50) NULL",
+                "ALTER TABLE user_addresses MODIFY COLUMN city VARCHAR(50) NULL",
+                "ALTER TABLE user_addresses MODIFY COLUMN district VARCHAR(50) NULL",
+            ):
+                try:
+                    await db.execute(text(ddl))
+                except Exception as e:  # noqa: BLE001
+                    _logger.debug("放宽 nullable 跳过: %s -- %s", ddl, e)
+
+            await db.commit()
+            _logger.info("[address_v2] user_addresses 迁移完成")
+    except Exception as e:  # noqa: BLE001
+        _logger.error("[address_v2] user_addresses 迁移异常（不影响启动）: %s", e)
+
+
 async def _migrate_order_enhancement_v1():
     """[订单系统增强 PRD v1.0] 数据库迁移：
 
@@ -808,6 +864,8 @@ async def lifespan(app: FastAPI):
     await _migrate_product_original_price_nullable()
     # [2026-05-04 订单系统增强 PRD v1.0] notifications/order_attachments/products 加列迁移
     await _migrate_order_enhancement_v1()
+    # [2026-05-05 用户地址改造 PRD v1.0] user_addresses 加列迁移（v2 接口）
+    await _migrate_user_addresses_v2()
     # [2026-04-26 PRD v1.0 §R1] 商家角色统一治理数据迁移
     await _migrate_merchant_role_unify_v1()
     from app.init_data import init_default_data
@@ -940,6 +998,8 @@ app.include_router(audit.audit_phone_router)
 app.include_router(audit.audit_router)
 app.include_router(third_party_openapi.router)
 app.include_router(addresses.router)
+# [2026-05-05 用户地址改造 PRD v1.0] v2 接口：省市县三级 + 经纬度 + 标签 + 软删除 + 行政区划 + 版本检查
+app.include_router(addresses_v2.router)
 app.include_router(product_admin.router)
 app.include_router(wechat_bindding.router)
 app.include_router(appointment_form_admin.router)
