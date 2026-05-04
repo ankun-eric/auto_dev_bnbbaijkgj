@@ -33,7 +33,43 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 用户端"修改预约" Bug 修复 + UI 优化合并发布（三端按钮无响应/文案/3列布局/date模式联动；后端透传 appointment_mode；5/5 专属测试通过；小程序+安卓+iOS 全部重新打包并发布）（2026-05-04 02:35）
+## Latest Update: 预约日期模式支付页误显示「选择时段」 Bug 修复（5端联动+后端忽略time_slot+5/5自动化测试通过+小程序/安卓/iOS 全部重新打包发布）（2026-05-04 11:00）
+
+### 一句话结论
+彻底修复用户端三端（H5 / 微信小程序 / Flutter Android+iOS）支付页（checkout）在 `appointment_mode = date`（预约日期）模式下**错误渲染「选择时段」一栏**的 P1 体验 Bug，并联动修复 H5 订单详情 / Flutter 订单详情 / 商家后台订单详情抽屉对 date 模式订单也错误展示"预约时段"行的下游问题。**根因**：三端 checkout 把"是否需要预约"和"预约模式细分"用同一个 `needAppointment` 布尔混在一起，导致 date 模式被错误地塞进了「时段选择」UI。**修复方案**（一期工程一次性全量修复，对历史数据零侵入）：1) **C 端三端 checkout** 把 `needAppointment` 拆为 `needDate` / `needTimeSlot` 派生变量（H5/Flutter 用 getter，小程序在 setData 时计算），所有时段相关 UI / 校验 / 提交字段全部改用 `needTimeSlot`，从源头杜绝再次"漏分流"；2) **C 端三端订单详情 + admin-web 订单详情抽屉**「预约时段」行按 `item.appointment_mode === 'time_slot'` 渲染，date 模式无论历史脏数据如何一律不展示；3) **后端** `backend/app/api/unified_orders.py::create_unified_order` 对 `appt_mode == 'date'` 的下单请求**主动从 `appointment_data` 剥离 `time_slot` 字段**（即便前端误传），避免脏值入库；4) **测试** 新增 `backend/tests/test_checkout_date_mode_no_time_slot.py` 5 个 pytest-asyncio 用例（date 模式不传时段 200 OK / date 模式误传时段被剥离 / time_slot 模式完整提交 200 OK 且回传 / none 模式不带预约信息 / 订单详情透传 appointment_mode），远程 backend 容器内 **5/5 全部 PASS**（耗时 6.78s）；5) **部署** `_deploy_date_no_slot_bugfix.py` SFTP 上传 9 文件 → docker compose build backend+admin-web+h5-web → up -d → 容器内 pip install pytest 后跑测试 → 外部 3 个 URL 检查（H5/admin/health 全部 200）；6) **三端打包发布**：本次 `lib/`（Flutter 共享）+ `miniprogram/` 都被改动，按 develop-all 阶段 4 触发并行打包（小程序 zip → 服务器 / Android APK → GHA Linux Runner ubuntu-latest → Release → 服务器 / iOS IPA → GHA macOS Runner → Release）；7) **历史数据零改动**：采用"展示层屏蔽 + 后端忽略"策略，可一键回滚；8) **用户手册** `user_docs/预约日期模式支付页时段隐藏修复.md`。
+
+### 涉及文件
+- 后端核心：`backend/app/api/unified_orders.py`（create_unified_order 中 appt_mode == 'date' 主动从 appointment_data 剥离 time_slot 字段）
+- 后端测试：`backend/tests/test_checkout_date_mode_no_time_slot.py`（5 用例守护 4 模式 × 关键路径）
+- H5：`h5-web/src/app/checkout/page.tsx`（needDate/needTimeSlot 派生变量；时段卡片 needTimeSlot 渲染；提交时 date 模式不传 time_slot）+ `h5-web/src/app/unified-order/[id]/page.tsx`（订单详情时段标签按 isTimeSlotMode 切换）
+- 小程序：`miniprogram/pages/checkout/index.js`（data 加 appointmentMode/needTimeSlot；submitOrder 按 needTimeSlot 决定是否带 time_slot）+ `miniprogram/pages/checkout/index.wxml`（时段块加 `wx:if="{{needTimeSlot}}"`）
+- Flutter：`flutter_app/lib/screens/product/checkout_screen.dart`（_needDate/_needTimeSlot getter；时段 Wrap 包 if (_needTimeSlot)；提交时按 _needTimeSlot 决定是否带 time_slot）+ `flutter_app/lib/screens/order/unified_order_detail_screen.dart`（时段行按 item.appointmentMode == 'time_slot' 渲染）
+- admin-web：`admin-web/src/app/(admin)/product-system/orders/page.tsx`（OrderItem 接口加 appointment_mode 字段；抽屉「预约时段」行按 isTimeSlotMode 条件渲染）
+- 部署辅助：`_deploy_date_no_slot_bugfix.py`
+- 用户手册：`user_docs/预约日期模式支付页时段隐藏修复.md`
+
+### 关键技术点 / 注意事项
+- **派生变量命名长期价值**：把 `needAppointment` 一刀切拆成 `needDate / needTimeSlot / needCustomForm` 三个派生变量后，今后任何"按预约模式分流"的需求（recurring / half_day 等新模式）都可沿用同一套命名，从源头杜绝同类 Bug
+- **后端兜底是历史数据零侵入的关键**：即便用户使用旧版 App / 小程序，提交订单仍误传 `time_slot`，后端 `if appt_mode == 'date': appt_data_in.pop('time_slot', None)` 主动剥离，新订单从此干净；旧版用户不会因此报错
+- **展示层屏蔽 vs 物理清洗**：本次明确采用"数据库不动 + 前端按 appointment_mode 屏蔽"组合方案——可一键回滚、对存量订单零风险、对线上展示零脏数据；如未来观察 30 天确认稳定再考虑跑兜底清洗脚本
+- **本次合修了上次"修改预约"未补齐的 checkout 链路**：项目此前在 2026-05-04 02:35 已经修复过「订单详情页 → 修改预约」弹窗对四种模式的联动（D 选项），但「下单支付页（checkout）」对应联动从未做过，本次正是补齐 checkout 这条遗漏的链路
+- **依赖此前的 appointment_mode 透传**：H5/Flutter/admin-web 订单详情判定 isTimeSlotMode 都依赖后端 OrderItemResponse 的 `appointment_mode` 字段，该字段在 2026-05-04 02:35 已落地（`selectinload(items.product)` + `_build_order_response` 注入），本次直接复用
+- **Flutter `if (_needTimeSlot) ...[ ... ],` 块语法**：在 Column 的 children 中条件渲染整块时段相关 widget，比传统 `(condition ? Widget : SizedBox.shrink())` 更清晰；记得末尾以 `],` 闭合
+- **小程序 wxs 不需要改**：本次时段块隐藏走 wxml `wx:if`，直接读取 setData 注入的 needTimeSlot 布尔，无需 wxs 函数
+
+### 三端新包下载（本次发布）
+- 小程序：[miniprogram_20260504_110335_417c.zip](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/miniprogram/miniprogram_20260504_110335_417c.zip)
+- 安卓：[bini_health_datemode_20260504_105800_cd58.apk](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/apk/bini_health_datemode_20260504_105800_cd58.apk)
+- iOS：[Release ios-datemode-v20260504-110100-0bc4](https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-datemode-v20260504-110100-0bc4)
+
+### 验证结果
+- 远程容器内 pytest（5 新增用例）：**5 passed in 6.78s**
+- 外部 URL 验证：H5 / 200，admin / 200，api/health / 200
+- 三端打包：小程序 zip 上传 200、APK GHA run id 25298883420 conclusion=success 上传 200（80MB）、iOS GHA run id 25298884041 conclusion=success Release 已发布
+
+---
+
+## Previous Update: 用户端"修改预约" Bug 修复 + UI 优化合并发布（三端按钮无响应/文案/3列布局/date模式联动；后端透传 appointment_mode；5/5 专属测试通过；小程序+安卓+iOS 全部重新打包并发布）（2026-05-04 02:35）
 
 ### 一句话结论
 合并修复用户端三端（H5 / 微信小程序 / Flutter Android+iOS）订单详情页【修改预约时间】按钮的 4 件事：A=H5 按钮 onClick 只 push URL 不开弹窗（P0 不可用）/ 小程序 bindtap 被父级吞掉 / Flutter `firstWhere(orElse: throw)` 抛异常被 onTap 静默吞噬；B=按钮文案"修改预约时间"→"修改预约"（统一 4 字）；C=预约弹窗时段选择改为每行固定 3 个（grid `repeat(3,1fr)` / GridView crossAxisCount:3）；D=按预约模式联动（`date` 隐藏整块时段、`time_slot` 显示 3 列、`custom_form` 跳转自定义表单页、`none` 不显示按钮）。**前置阻断点**：后端订单详情接口当时未透传 `appointment_mode`，本次同步修复。
