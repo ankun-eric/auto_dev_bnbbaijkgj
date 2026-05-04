@@ -8,6 +8,7 @@ import api from '@/lib/api';
 import { fulfillmentLabel } from '@/utils/fulfillmentLabel';
 import { redirectToPayUrl } from '@/lib/basePath';
 import ContactStoreModal from '@/app/orders/components/ContactStoreModal';
+import { resolveAssetUrl } from '@/lib/asset-url';
 
 interface OrderItem {
   id: number;
@@ -449,7 +450,7 @@ export default function UnifiedOrderDetailPage() {
             <div key={item.id} className="flex items-center mb-3">
               <div className="w-16 h-16 rounded-lg flex-shrink-0 overflow-hidden">
                 {item.product_image ? (
-                  <Image src={item.product_image} width={64} height={64} fit="cover" style={{ borderRadius: 8 }} />
+                  <Image src={resolveAssetUrl(item.product_image)} width={64} height={64} fit="cover" style={{ borderRadius: 8 }} />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-2xl" style={{ background: '#f6ffed' }}>🛍️</div>
                 )}

@@ -1,4 +1,6 @@
 const { post } = require('../../utils/request');
+// [2026-05-05 全端图片附件 BasePath 治理 v1.0] 把后端裸 /uploads/... 补齐为带 baseUrl 的绝对 URL
+const { resolveAssetUrl } = require('../../utils/asset-url');
 const app = getApp();
 
 Page({
@@ -21,6 +23,14 @@ Page({
   async createInvitation(memberId) {
     try {
       const res = await post('/api/family/invitation', { member_id: parseInt(memberId, 10) });
+      // [2026-05-05 全端图片附件 BasePath 治理 v1.0]
+      // 后端可能返回裸 /uploads/... 形式的 qr_url（二维码图片），直接绑给 <image> 或 wx.downloadFile
+      // 在 /autodev/<uuid>/ 子路径部署下会失效，这里统一补齐为绝对 URL。
+      // 注意：qr_content_url 是二维码内部要编码的文本内容（通常已是完整 URL），同样安全 resolve 一次。
+      if (res && typeof res === 'object') {
+        if (res.qr_url) res.qr_url = resolveAssetUrl(res.qr_url);
+        if (res.qr_content_url) res.qr_content_url = resolveAssetUrl(res.qr_content_url);
+      }
       this.setData({ invitation: res, loading: false });
     } catch (e) {
       this.setData({

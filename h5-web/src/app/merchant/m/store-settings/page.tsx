@@ -20,6 +20,7 @@ import {
 } from 'antd-mobile';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
+import { resolveAssetUrl } from '@/lib/asset-url';
 
 interface ShopInfo {
   store_id: number;
@@ -243,7 +244,7 @@ export default function StoreSettingsMobilePage() {
         <>
           {info?.logo_url && (
             <div style={{ textAlign: 'center', padding: 16, background: '#fff', margin: 12, borderRadius: 10 }}>
-              <Image src={info.logo_url} width={80} height={80} fit="cover" style={{ borderRadius: '50%' }} />
+              <Image src={resolveAssetUrl(info.logo_url)} width={80} height={80} fit="cover" style={{ borderRadius: '50%' }} />
             </div>
           )}
           <List style={{ margin: 12, borderRadius: 10, overflow: 'hidden' }}>

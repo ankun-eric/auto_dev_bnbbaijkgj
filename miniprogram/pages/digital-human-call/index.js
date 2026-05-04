@@ -1,5 +1,7 @@
 const { post, get } = require('../../utils/request');
 const { generateId } = require('../../utils/util');
+// [2026-05-05 全端图片附件 BasePath 治理 v1.0] 数字人静默/说话视频 URL 来自后端，可能是裸 /uploads/...
+const { resolveAssetUrl } = require('../../utils/asset-url');
 
 Page({
   data: {
@@ -119,6 +121,12 @@ Page({
     try {
       const res = await get(`/api/chat/digital-human/${this.data.digitalHumanId}`, {}, { showLoading: false, suppressErrorToast: true });
       if (res) {
+        // [2026-05-05 全端图片附件 BasePath 治理 v1.0]
+        // 把数字人物料（静默/说话视频）的 URL 在数据入口处一次性补齐为绝对 URL，
+        // 后续 _switchToSilentVideo / _switchToSpeakingVideo 都基于 digitalHuman 上的这些字段。
+        if (res.silent_video_url) res.silent_video_url = resolveAssetUrl(res.silent_video_url);
+        if (res.speaking_video_url) res.speaking_video_url = resolveAssetUrl(res.speaking_video_url);
+        if (res.avatar_url) res.avatar_url = resolveAssetUrl(res.avatar_url);
         this.setData({
           digitalHuman: res,
           currentVideoUrl: res.silent_video_url || ''
@@ -260,7 +268,8 @@ Page({
       try { this._audioContext.stop(); this._audioContext.destroy(); } catch (_) {}
     }
     const ctx = wx.createInnerAudioContext();
-    ctx.src = audioUrl;
+    // [2026-05-05 全端图片附件 BasePath 治理 v1.0] 兜底：AI 音频地址也可能是裸 /uploads/...
+    ctx.src = resolveAssetUrl(audioUrl);
     ctx.onEnded(() => {
       this._switchToSilentVideo();
       ctx.destroy();

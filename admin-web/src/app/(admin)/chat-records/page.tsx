@@ -7,6 +7,7 @@ import {
 import { SearchOutlined, ReloadOutlined, EyeOutlined, DownloadOutlined } from '@ant-design/icons';
 import { get } from '@/lib/api';
 import api from '@/lib/api';
+import { resolveAssetUrl } from '@/lib/asset-url';
 import { useRouter } from 'next/navigation';
 import dayjs from 'dayjs';
 
@@ -136,7 +137,7 @@ export default function ChatRecordsPage() {
       width: 160,
       render: (_: any, record: ChatSession) => (
         <Space>
-          <Avatar src={record.user_avatar} size="small">
+          <Avatar src={resolveAssetUrl(record.user_avatar)} size="small">
             {record.user_nickname?.[0] || '?'}
           </Avatar>
           <span>{record.user_nickname || '-'}</span>

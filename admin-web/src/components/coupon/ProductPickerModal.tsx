@@ -7,6 +7,7 @@ import {
 } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import { get } from '@/lib/api';
+import { resolveAssetUrl } from '@/lib/asset-url';
 import { fulfillmentLabel } from '@/utils/fulfillmentLabel';
 
 const { Text } = Typography;
@@ -230,7 +231,7 @@ export default function ProductPickerModal({
     {
       title: '图', dataIndex: 'image', width: 56,
       render: (img: string) => img ? (
-        <Image src={img} width={32} height={32} fallback="/no-image.png" preview={false} />
+        <Image src={resolveAssetUrl(img)} width={32} height={32} fallback="/no-image.png" preview={false} />
       ) : <div style={{ width: 32, height: 32, background: '#f5f5f5' }} />,
     },
     { title: '商品名称', dataIndex: 'name', ellipsis: true },

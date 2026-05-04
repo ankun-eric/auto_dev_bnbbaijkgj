@@ -10,6 +10,7 @@ import {
   UploadOutlined,
 } from '@ant-design/icons';
 import { get, post, put, del, upload } from '@/lib/api';
+import { resolveAssetUrl } from '@/lib/asset-url';
 
 const { Title } = Typography;
 
@@ -190,7 +191,7 @@ export default function HomeBannersPage() {
       key: 'image_url',
       width: 160,
       render: (val: string) =>
-        val ? <Image src={val} width={120} height={60} style={{ objectFit: 'cover', borderRadius: 4 }} /> : '-',
+        val ? <Image src={resolveAssetUrl(val)} width={120} height={60} style={{ objectFit: 'cover', borderRadius: 4 }} /> : '-',
     },
     {
       title: '跳转类型',
@@ -284,7 +285,7 @@ export default function HomeBannersPage() {
           </Form.Item>
           {currentImageUrl && (
             <div style={{ marginBottom: 16 }}>
-              <Image src={currentImageUrl} width={200} style={{ borderRadius: 4 }} />
+              <Image src={resolveAssetUrl(currentImageUrl)} width={200} style={{ borderRadius: 4 }} />
             </div>
           )}
           <Form.Item label="跳转类型" name="link_type" rules={[{ required: true, message: '请选择跳转类型' }]}>

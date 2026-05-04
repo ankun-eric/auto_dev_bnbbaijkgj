@@ -43,6 +43,7 @@ import {
 import { RightOutline, LeftOutline } from 'antd-mobile-icons';
 import api from '@/lib/api';
 import { redirectToPayUrl } from '@/lib/basePath';
+import { resolveAssetUrl } from '@/lib/asset-url';
 
 // ───────────── 类型 ─────────────
 
@@ -800,7 +801,7 @@ function CheckoutPage() {
           <div className="flex">
             <div className="w-20 h-20 rounded-lg flex-shrink-0 overflow-hidden">
               {product.images && product.images.length > 0 ? (
-                <Image src={product.images[0]} width={80} height={80} fit="cover" style={{ borderRadius: 8 }} />
+                <Image src={resolveAssetUrl(product.images[0])} width={80} height={80} fit="cover" style={{ borderRadius: 8 }} />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-2xl" style={{ background: '#f6ffed' }}>🛍️</div>
               )}

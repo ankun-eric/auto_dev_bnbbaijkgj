@@ -18,6 +18,7 @@ export const dynamic = 'force-dynamic';
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 import { jumpToUseCoupon } from '@/lib/coupon';
+import { resolveAssetUrl } from '@/lib/asset-url';
 
 interface PointsRecord {
   id: number;
@@ -188,7 +189,7 @@ function ExchangeRecordsTab() {
               <div style={{ display: 'flex', gap: 12 }}>
                 <div style={{ width: 56, height: 56, background: '#f5f5f5', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   {r.goods_image ? (
-                    <img src={r.goods_image} alt={r.goods_name} style={{ maxWidth: '100%', maxHeight: '100%' }} />
+                    <img src={resolveAssetUrl(r.goods_image)} alt={r.goods_name} style={{ maxWidth: '100%', maxHeight: '100%' }} />
                   ) : (
                     <span style={{ fontSize: 28 }}>
                       {r.goods_type === 'coupon' ? '🎫' : r.goods_type === 'service' ? '💆' : '📦'}

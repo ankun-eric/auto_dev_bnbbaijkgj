@@ -19,6 +19,7 @@ import {
 } from 'antd-mobile';
 import { DownOutline } from 'antd-mobile-icons';
 import api from '@/lib/api';
+import { resolveAssetUrl } from '@/lib/asset-url';
 
 interface Category {
   id: number;
@@ -219,7 +220,7 @@ export default function ProductsPage() {
               <div className="flex">
                 <div className="w-24 h-24 rounded-lg flex-shrink-0 overflow-hidden">
                   {p.images && p.images.length > 0 ? (
-                    <Image src={p.images[0]} width={96} height={96} fit="cover" style={{ borderRadius: 8 }} />
+                    <Image src={resolveAssetUrl(p.images[0])} width={96} height={96} fit="cover" style={{ borderRadius: 8 }} />
                   ) : (
                     <div
                       className="w-full h-full flex items-center justify-center text-3xl"

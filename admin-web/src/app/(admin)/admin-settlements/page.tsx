@@ -36,6 +36,7 @@ import {
   UpOutlined,
 } from '@ant-design/icons';
 import { get, post, upload as apiUpload } from '@/lib/api';
+import { resolveAssetUrl } from '@/lib/asset-url';
 import dayjs, { Dayjs } from 'dayjs';
 
 const { Title, Text, Paragraph } = Typography;
@@ -742,7 +743,7 @@ export default function AdminSettlementsPage() {
                 <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 8 }}>
                   {voucherType === 'image' && voucherFiles.map((url, idx) => (
                     <div key={url + idx} style={{ position: 'relative', width: 104, height: 104, border: '1px solid #eee', borderRadius: 6, overflow: 'hidden' }}>
-                      <AntImage src={url} width={104} height={104} style={{ objectFit: 'cover' }} />
+                      <AntImage src={resolveAssetUrl(url)} width={104} height={104} style={{ objectFit: 'cover' }} />
                       <div style={{ position: 'absolute', top: 2, right: 2, display: 'flex', gap: 2 }}>
                         <Button size="small" onClick={() => moveVoucher(idx, -1)} disabled={idx === 0}>↑</Button>
                         <Button size="small" onClick={() => moveVoucher(idx, 1)} disabled={idx === voucherFiles.length - 1}>↓</Button>

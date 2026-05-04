@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { NavBar, Toast, ImageUploader, type ImageUploadItem, Input, TextArea } from 'antd-mobile';
 import { THEME } from '@/lib/theme';
 import api from '@/lib/api';
+import { resolveAssetUrl } from '@/lib/asset-url';
 
 const FEEDBACK_TYPES = [
   { value: 'feature', label: '功能建议' },
@@ -53,7 +54,7 @@ export default function FeedbackPage() {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
     const data = res.data || res;
-    return { url: data.url || data.file_url || '' };
+    return { url: resolveAssetUrl(data.url || data.file_url || '') };
   };
 
   return (

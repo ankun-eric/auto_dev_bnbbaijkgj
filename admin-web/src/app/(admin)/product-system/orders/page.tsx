@@ -12,6 +12,7 @@ import {
   DollarOutlined, UndoOutlined,
 } from '@ant-design/icons';
 import { get, post } from '@/lib/api';
+import { resolveAssetUrl } from '@/lib/asset-url';
 import dayjs from 'dayjs';
 import { fulfillmentLabel } from '@/utils/fulfillmentLabel';
 
@@ -825,7 +826,7 @@ export default function UnifiedOrdersPage() {
                   title: '商品', key: 'product', width: 200,
                   render: (_: unknown, item: OrderItem) => (
                     <Space>
-                      {item.product_image && <img src={item.product_image} alt="" style={{ width: 32, height: 32, objectFit: 'cover', borderRadius: 4 }} />}
+                      {item.product_image && <img src={resolveAssetUrl(item.product_image)} alt="" style={{ width: 32, height: 32, objectFit: 'cover', borderRadius: 4 }} />}
                       {item.product_name}
                     </Space>
                   ),

@@ -7,6 +7,7 @@ import {
 } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { get, post, put, del } from '@/lib/api';
+import { resolveAssetUrl } from '@/lib/asset-url';
 
 const { Title } = Typography;
 const { TextArea } = Input;
@@ -213,7 +214,7 @@ export default function FunctionButtonsPage() {
       key: 'icon_url',
       width: 80,
       render: (val: string) =>
-        val ? <Image src={val} width={36} height={36} style={{ objectFit: 'contain' }} fallback="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mN8/+F/PQAJpAN42kRfMwAAAABJRU5ErkJggg==" /> : '-',
+        val ? <Image src={resolveAssetUrl(val)} width={36} height={36} style={{ objectFit: 'contain' }} fallback="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mN8/+F/PQAJpAN42kRfMwAAAABJRU5ErkJggg==" /> : '-',
     },
     {
       title: '按钮名称',

@@ -11,6 +11,7 @@ import {
   CopyOutlined, HistoryOutlined, LockOutlined,
 } from '@ant-design/icons';
 import { get, post, put, del, upload as uploadFile } from '@/lib/api';
+import { resolveAssetUrl } from '@/lib/asset-url';
 import dayjs from 'dayjs';
 import type { RcFile, UploadFile } from 'antd/es/upload/interface';
 
@@ -550,7 +551,7 @@ export default function PointsMallPage() {
       render: (v: string, record: MallGoods) => (
         <Space>
           {record.image
-            ? <img src={record.image} alt="" style={{ width: 36, height: 36, objectFit: 'cover', borderRadius: 4 }} />
+            ? <img src={resolveAssetUrl(record.image)} alt="" style={{ width: 36, height: 36, objectFit: 'cover', borderRadius: 4 }} />
             : <GiftOutlined style={{ fontSize: 20, color: '#52c41a' }} />}
           <span>
             {v}
@@ -1010,7 +1011,7 @@ export default function PointsMallPage() {
                   try {
                     const arr = JSON.parse(v || '[]');
                     if (Array.isArray(arr) && arr[0]) {
-                      return <img src={arr[0]} alt="" style={{ width: 48, height: 48, objectFit: 'cover' }} />;
+                      return <img src={resolveAssetUrl(arr[0])} alt="" style={{ width: 48, height: 48, objectFit: 'cover' }} />;
                     }
                   } catch {}
                 }
@@ -1026,7 +1027,7 @@ export default function PointsMallPage() {
                   try {
                     const arr = JSON.parse(v || '[]');
                     if (Array.isArray(arr) && arr[0]) {
-                      return <img src={arr[0]} alt="" style={{ width: 48, height: 48, objectFit: 'cover' }} />;
+                      return <img src={resolveAssetUrl(arr[0])} alt="" style={{ width: 48, height: 48, objectFit: 'cover' }} />;
                     }
                   } catch {}
                 }

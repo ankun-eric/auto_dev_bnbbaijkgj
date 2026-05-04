@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { NavBar, Card, Tag, Image, Empty, SpinLoading, InfiniteScroll, PullToRefresh } from 'antd-mobile';
 import api from '@/lib/api';
+import { resolveAssetUrl } from '@/lib/asset-url';
 
 interface OrderItem {
   id: number;
@@ -192,7 +193,7 @@ export default function RefundListPage() {
                     <div key={item.id} className="flex items-center mb-2">
                       <div className="w-16 h-16 rounded-lg flex-shrink-0 overflow-hidden">
                         {item.product_image ? (
-                          <Image src={item.product_image} width={64} height={64} fit="cover" style={{ borderRadius: 8 }} />
+                          <Image src={resolveAssetUrl(item.product_image)} width={64} height={64} fit="cover" style={{ borderRadius: 8 }} />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-2xl" style={{ background: '#f6ffed' }}>
                             🛍️

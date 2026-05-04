@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { Button, SpinLoading, Toast } from 'antd-mobile';
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
+import { resolveAssetUrl } from '@/lib/asset-url';
 
 /**
  * 体质测评结果页（一期 · 6 屏）。
@@ -797,7 +798,7 @@ export default function TcmResultPage() {
               )}
               {shareImageUrl && (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={shareImageUrl} alt="分享卡" style={{ maxWidth: '100%', maxHeight: '60vh' }} />
+                <img src={resolveAssetUrl(shareImageUrl)} alt="分享卡" style={{ maxWidth: '100%', maxHeight: '60vh' }} />
               )}
             </div>
             <div className="flex gap-2 p-3 border-t">

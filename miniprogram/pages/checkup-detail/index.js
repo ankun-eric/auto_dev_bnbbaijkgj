@@ -1,5 +1,7 @@
 const { get, post } = require('../../utils/request');
 const { checkLogin } = require('../../utils/util');
+// [2026-05-05 全端图片附件 BasePath 治理 v1.0] 把后端裸 /uploads/... 补齐为带 baseUrl 的绝对 URL
+const { resolveAssetUrls } = require('../../utils/asset-url');
 
 const RISK_CONFIG = {
   1: { name: '优秀', color: '#1B8C3D', emoji: '✅', bg: 'rgba(27,140,61,0.08)' },
@@ -96,7 +98,8 @@ Page({
       const rawUrls = Array.isArray(detail.file_urls) && detail.file_urls.length > 0
         ? detail.file_urls.filter(Boolean)
         : (detail.file_url ? [detail.file_url] : []);
-      this.setData({ reportImages: rawUrls });
+      // [2026-05-05 全端图片附件 BasePath 治理 v1.0] resolveAssetUrls 处理裸 /uploads/...
+      this.setData({ reportImages: resolveAssetUrls(rawUrls) });
     } catch (e) {
       console.log('loadReportImages error', e);
     }
@@ -227,7 +230,8 @@ Page({
         const rawUrls = Array.isArray(report.file_urls) && report.file_urls.length > 0
           ? report.file_urls.filter(Boolean)
           : (report.file_url ? [report.file_url] : []);
-        if (rawUrls.length > 0) this.setData({ reportImages: rawUrls });
+        // [2026-05-05 全端图片附件 BasePath 治理 v1.0] resolveAssetUrls 处理裸 /uploads/...
+        if (rawUrls.length > 0) this.setData({ reportImages: resolveAssetUrls(rawUrls) });
       }
 
       let aiData = null;

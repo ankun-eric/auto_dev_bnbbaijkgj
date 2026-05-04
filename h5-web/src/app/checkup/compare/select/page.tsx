@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { NavBar, Toast, SpinLoading, Empty } from 'antd-mobile';
 import api from '@/lib/api';
+import { resolveAssetUrl } from '@/lib/asset-url';
 
 interface MemberItem {
   id: number;
@@ -228,7 +229,7 @@ function CompareSelectContent() {
                   </div>
                   {r.thumbnail_url ? (
                     <img
-                      src={r.thumbnail_url}
+                      src={resolveAssetUrl(r.thumbnail_url)}
                       alt=""
                       style={{ width: 56, height: 56, objectFit: 'cover', borderRadius: 8 }}
                     />

@@ -13,6 +13,7 @@ import {
   CopyOutlined, FileTextOutlined, QuestionCircleOutlined, AppstoreOutlined,
 } from '@ant-design/icons';
 import { get, post, put } from '@/lib/api';
+import { resolveAssetUrl } from '@/lib/asset-url';
 import dayjs from 'dayjs';
 import CouponTypeHelpModal from '@/components/coupon/CouponTypeHelpModal';
 import CategoryTreePicker from '@/components/coupon/CategoryTreePicker';
@@ -496,7 +497,7 @@ export default function CouponsPage() {
             style={{ padding: '4px 8px', display: 'inline-flex', alignItems: 'center', gap: 4 }}
           >
             {d?.image && !isMissing && (
-              <Image src={d.image} width={20} height={20} preview={false} fallback="/no-image.png" />
+              <Image src={resolveAssetUrl(d.image)} width={20} height={20} preview={false} fallback="/no-image.png" />
             )}
             <span>{tip}</span>
           </Tag>

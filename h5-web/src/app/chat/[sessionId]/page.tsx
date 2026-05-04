@@ -8,6 +8,7 @@ import { useAuth } from '@/lib/auth';
 import { checkFileSize, uploadWithProgress } from '@/lib/upload-utils';
 import ChatSidebar from '@/components/ChatSidebar';
 import KnowledgeCard, { type KnowledgeHit } from '@/components/KnowledgeCard';
+import { resolveAssetUrl, resolveAssetUrls } from '@/lib/asset-url';
 
 interface DrugInfoCardData {
   drug_name?: string;
@@ -31,7 +32,7 @@ function DrugInfoCard({ drug }: { drug: DrugInfoCardData }) {
         onClick={() => setExpanded(!expanded)}
       >
         {drug.image_url && (
-          <img src={drug.image_url} alt={drugName} className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
+          <img src={resolveAssetUrl(drug.image_url)} alt={drugName} className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
         )}
         <div className="flex-1 min-w-0">
           <div className="font-bold text-sm text-gray-800 truncate">{drugName}</div>
@@ -255,7 +256,7 @@ function TopReportCard({ reports, isCompare, galleryExpanded, setGalleryExpanded
                   onClick={() => onPreview(imgsA, idx)}
                   style={{ width: 48, height: 48, borderRadius: 6, overflow: 'hidden', cursor: 'pointer', flexShrink: 0 }}
                 >
-                  <img src={t} alt={`a-${idx}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <img src={resolveAssetUrl(t)} alt={`a-${idx}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 </div>
               ))}
             </div>
@@ -274,7 +275,7 @@ function TopReportCard({ reports, isCompare, galleryExpanded, setGalleryExpanded
                   onClick={() => onPreview(imgsB, idx)}
                   style={{ width: 48, height: 48, borderRadius: 6, overflow: 'hidden', cursor: 'pointer', flexShrink: 0 }}
                 >
-                  <img src={t} alt={`b-${idx}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <img src={resolveAssetUrl(t)} alt={`b-${idx}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 </div>
               ))}
             </div>
@@ -304,7 +305,7 @@ function TopReportCard({ reports, isCompare, galleryExpanded, setGalleryExpanded
                 onClick={() => onPreview(allImgs, idx)}
                 style={{ width: 60, height: 60, borderRadius: 6, overflow: 'hidden', position: 'relative', cursor: 'pointer', flexShrink: 0 }}
               >
-                <img src={t} alt={`img-${idx}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                <img src={resolveAssetUrl(t)} alt={`img-${idx}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               </div>
             ))}
             {galleryExpanded !== 0 && thumbs.length > 4 && (
@@ -1919,7 +1920,7 @@ function ChatPageInner() {
           isCompare={isReportCompare}
           galleryExpanded={galleryExpanded}
           setGalleryExpanded={setGalleryExpanded}
-          onPreview={(imgs, idx) => { setPreviewImages(imgs); setPreviewIndex(idx); }}
+          onPreview={(imgs, idx) => { setPreviewImages(resolveAssetUrls(imgs)); setPreviewIndex(idx); }}
         />
       )}
 
@@ -2757,7 +2758,7 @@ function ChatPageInner() {
           className="fixed inset-0 z-50 bg-black/70 flex flex-col items-center justify-center px-6"
           onClick={() => setPosterPreviewVisible(false)}
         >
-          <img src={posterUrl} alt="分享海报" className="max-w-full max-h-[70vh] rounded-xl shadow-lg" />
+          <img src={resolveAssetUrl(posterUrl)} alt="分享海报" className="max-w-full max-h-[70vh] rounded-xl shadow-lg" />
           <p className="text-white text-sm mt-4">长按图片保存到相册</p>
           <button
             className="mt-3 px-6 py-2 rounded-full text-sm font-medium text-white"

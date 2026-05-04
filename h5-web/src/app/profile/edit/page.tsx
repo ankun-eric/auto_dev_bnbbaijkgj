@@ -6,20 +6,21 @@ import { NavBar, List, Input, Button, Toast, ImageUploader, Dialog } from 'antd-
 import type { ImageUploadItem } from 'antd-mobile/es/components/image-uploader';
 import { useAuth } from '@/lib/auth';
 import api from '@/lib/api';
+import { resolveAssetUrl } from '@/lib/asset-url';
 
 export default function ProfileEditPage() {
   const router = useRouter();
   const { user, updateUser } = useAuth();
   const [nickname, setNickname] = useState(user?.nickname || '');
   const [avatar, setAvatar] = useState<ImageUploadItem[]>(
-    user?.avatar ? [{ url: user.avatar }] : []
+    user?.avatar ? [{ url: resolveAssetUrl(user.avatar) }] : []
   );
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (user) {
       setNickname(user.nickname || '');
-      setAvatar(user.avatar ? [{ url: user.avatar }] : []);
+      setAvatar(user.avatar ? [{ url: resolveAssetUrl(user.avatar) }] : []);
     }
   }, [user]);
 
@@ -31,7 +32,7 @@ export default function ProfileEditPage() {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       const data = res.data || res;
-      return { url: data.url || data.file_url || '' };
+      return { url: resolveAssetUrl(data.url || data.file_url || '') };
     } catch {
       Toast.show({ content: '上传失败' });
       throw new Error('upload failed');

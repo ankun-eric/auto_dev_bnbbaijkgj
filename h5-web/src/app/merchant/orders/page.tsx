@@ -13,6 +13,7 @@ import {
 import api from '@/lib/api';
 import dayjs from 'dayjs';
 import { getCurrentStoreId } from '../lib';
+import { resolveAssetUrl } from '@/lib/asset-url';
 
 const { Title } = Typography;
 const { RangePicker } = DatePicker;
@@ -429,15 +430,19 @@ export default function OrdersPage() {
           locale={{ emptyText: '暂无附件' }}
           renderItem={(att: any) => {
             const isImage = att.file_type === 'image';
+            // [2026-05-05 全端图片附件 BasePath 治理] 后端返回裸路径 /uploads/...，
+            // 前端必须经 resolveAssetUrl 拼上当前部署 basePath，否则在
+            // /autodev/<uuid>/ 子路径环境下会被网关返回 "Gateway OK" 导致图片裂开。
+            const fileUrl = resolveAssetUrl(att.file_url);
             return (
               <AntList.Item
                 actions={[
                   isImage ? (
-                    <a key="preview" href={att.file_url} target="_blank" rel="noreferrer">
+                    <a key="preview" href={fileUrl} target="_blank" rel="noreferrer">
                       <EyeOutlined /> 预览
                     </a>
                   ) : (
-                    <a key="download" href={att.file_url} target="_blank" rel="noreferrer" download>
+                    <a key="download" href={fileUrl} target="_blank" rel="noreferrer" download>
                       <DownloadOutlined /> 下载
                     </a>
                   ),
@@ -450,7 +455,7 @@ export default function OrdersPage() {
                   avatar={
                     isImage ? (
                       <AntImage
-                        src={att.file_url}
+                        src={fileUrl}
                         width={56}
                         height={56}
                         style={{ objectFit: 'cover', borderRadius: 4 }}

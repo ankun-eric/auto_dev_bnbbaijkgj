@@ -33,7 +33,57 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 支付宝 H5 测试连接 Bug 修复 — 首次创建敏感字段 silent discard + python-alipay-sdk 容器未安装 + AliPayCert 不存在 三连击修复（2026-05-05 01:00）
+## Latest Update: 全端图片附件 BasePath 治理 — 商家 PC 订单附件图片裂开 "Gateway OK" Bug 修复（2026-05-05 01:40）
+
+### 一句话结论
+按 `cursor_prompt_322_20260505011500.txt` 修复方案执行，根因为 **后端返回的"裸 /uploads/..." 图片路径**在带部署子路径 `/autodev/<uuid>/` 的环境下被浏览器丢到域名根，被 nginx 网关兜底为纯文本 `Gateway OK` 导致图片裂开。修复策略：**前端各端独立封装 `resolveAssetUrl()` 工具函数，统一拼上当前部署 basePath**，后端**完全不动**。本次治理覆盖 H5 / admin-web / 小程序三端，共改动 50 个文件。
+
+### 涉及文件（共 50 个）
+**新增工具与单测**：
+- `h5-web/src/lib/asset-url.ts`（新增）
+- `h5-web/src/lib/__tests__/asset-url.test.ts`（新增）
+- `h5-web/src/lib/__tests__/run_asset_url_test.mjs`（新增 - node 单测运行器，21/21 全过）
+- `admin-web/src/lib/asset-url.ts`（新增）
+- `miniprogram/utils/asset-url.js`（新增）
+- `verify-miniprogram/utils/asset-url.js`（新增）
+
+**H5 业务页面（24 个）**：商家订单附件 `merchant/orders/page.tsx`（核心 Bug 现场）、`merchant/store-settings`（PC + m）、unified-order/orders、checkout、product/products、cards、my-favorites、checkup（含 chat、compare/select）、chat/[sessionId]（含预览图组）、tcm/result、news、login、profile/edit、search/result、refund-list、points/detail、(tabs)/home、(ai-chat)/feedback、components/KnowledgeCard
+
+**Admin-web 业务页面（14 个）**：chat-records [id]、chat-records、checkup-details、drug-details、digital-humans、function-buttons、home-banners、home-menus、admin-settlements、points/mall、product-system 下 orders/products/coupons/store-bindding、components/coupon/ProductPickerModal
+
+**小程序（5 个）**：utils/upload-utils.js（增加 absolute_url/absolute_file_url 兜底字段）、pages/chat/index.js、pages/checkup-detail/index.js、pages/digital-human-call/index.js、pages/family-invite/index.js
+
+**部署与打包脚本**：`_deploy_asset_url_bugfix.py`、`_pack_mp_asset_url.py`
+
+**用户手册**：`user_docs/订单附件图片修复.md`
+
+### 工具函数核心契约
+- 完整 URL（http(s)://、blob:、data:、//）原样返回（透传）
+- 已带 basePath 前缀的路径原样返回（幂等）
+- 裸 / 开头或相对路径 → 拼上当前部署 basePath
+- 空值安全（返回 ''）
+- basePath 为空时退化为透传（根路径部署/本地开发零副作用）
+
+### 验收要点
+- ✅ 21/21 单元测试全过（带 basePath / 根路径 / 末尾斜线容错三种场景）
+- ✅ 远程部署：50 个文件 SFTP 上传 + h5-web/admin-web 镜像重建 + 容器 Up + 6 个外部 URL 全部 200/308
+- ✅ **关键回归**：探针文件通过 `/autodev/<uuid>/uploads/__probe__.txt` 访问返回真实文件内容 `probe-ok`（不再是 "Gateway OK"）
+- ✅ **反向 Negative**：裸 `/uploads/__probe__.txt` 仍返回 "Gateway OK"，确认 Bug 客观存在并验证前端拼 basePath 的方案是必要的
+- ✅ 小程序新包 zip 上传后 HTTP 200 可下载
+
+### 部署产物
+- DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
+- H5 / admin 已重新构建并启动（镜像名 `{DEPLOY_ID}-h5-web` / `-admin-web`）
+- 小程序 zip：`miniprogram_asseturl_20260505_013947_ea96.zip`（[下载](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/miniprogram/miniprogram_asseturl_20260505_013947_ea96.zip)）
+
+### 历史教训与长期治理
+- 后端继续返回裸 `/uploads/...`（保持现状不动），前端各端独立工具函数解耦——避免后端硬编码 basePath
+- 后续新增图片展示位置时，**必须**通过 `resolveAssetUrl` 包装；建议未来在 lint 规则中加自定义检查"禁止 `<img src={变量}>` 直接传字段"
+- 未在本次纳入但需后续关注：检查所有"上传成功后回写到 form 的 URL"是否被存储到数据库——若存了带 basePath 的形态，部署到不同 uuid 时会指向旧地址（资产 URL 工具是幂等的，但不同 uuid 间需做迁移；本次范围保持最小改动）
+
+---
+
+## Previous Update: 支付宝 H5 测试连接 Bug 修复 — 首次创建敏感字段 silent discard + python-alipay-sdk 容器未安装 + AliPayCert 不存在 三连击修复（2026-05-05 01:00）
 
 ### 一句话结论
 按 `cursor_prompt_321_20260505004811.txt` 修复方案执行，覆盖 **Bug ① 首次保存私钥被静默丢弃**（前端未标 required + 后端把空值当成"保留旧值"，但首次创建场景下根本没旧值）+ **Bug ② 容器内未装 python-alipay-sdk**（`requirements.txt` 已有但旧镜像缓存）+ **Bug ③（修复过程中新发现）`from alipay import AliPayCert` 在 fzlee/alipay 3.3.0 中不存在导致 ImportError 被错误识别为"SDK 未安装"**。修复方案：**1) `backend/app/utils/crypto.py`** 新增 `DecryptionError` 异常类，`decrypt_value` 增 `raise_on_error: bool=False` 参数，便于区分"密钥被改"与"数据本就空"；**2) `backend/app/api/payment_config.py`** `update_payment_channel` 加首次创建强校验：当 payload 中显式传入敏感字段且为空、且 DB 中无旧值时直接返 422`字段「xxx」是首次创建场景下的必填项`；`test_payment_channel` 解密自检捕获 `DecryptionError` 给精准文案，调支付宝异常分支识别 `python-alipay-sdk` 关键字给"支付宝 SDK 未安装"明确提示；**3) `admin-web/src/app/(admin)/payment-config/page.tsx`** 新增 `isFirstTime` 状态（基于 `is_complete` + 敏感字段是否有 `config_masked`），首次配置时 `Form.Item rules` 中敏感字段 `required: true`，顶部 Alert 文案变黄色警告"首次配置..."，`onSubmit` 加防御性兜底校验；**4) `backend/app/services/alipay_service.py`** 移除对 `AliPayCert` 的硬依赖（fzlee/alipay 3.3.0 中不存在），公钥模式仅 `from alipay import AliPay`；证书模式按 4.x 风格 `app_alipay_public_cert_string` 优先，TypeError 时再 lazy import 旧 `AliPayCert`；**5) 部署** `docker compose build --no-cache backend admin-web` 强制重装 `python-alipay-sdk==3.3.0`，scp 增量传 4 个文件 + `docker cp` 热替换 + `docker restart` 验证；**6) 测试** 新增 `backend/tests/test_payment_config_first_time_secret.py` 共 8 用例（强校验 422、向后兼容、解密错因、cert 模式条件 required、partial payload 不误伤）；服务器内 `test_payment_fix_smoke.py` 8/8 PASS；端到端 API：编辑场景留空保留旧值 200，测试连接从 `未安装 python-alipay-sdk` 变为 `RSA key format is not supported`（真实业务错，证明 SDK 调通了支付宝网关）；**7) 用户手册** `docs/用户体验使用手册_支付宝H5测试连接Bug修复.md` 含访问链接表 / 修复前 vs 修复后报错对照表 / 公钥模式操作步骤 / 回滚方案。

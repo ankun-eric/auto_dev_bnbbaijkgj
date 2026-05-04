@@ -12,6 +12,7 @@ import {
   CloseOutlined, MenuOutlined, PlayCircleOutlined, ShopOutlined,
 } from '@ant-design/icons';
 import { get, post, put, del, upload } from '@/lib/api';
+import { resolveAssetUrl } from '@/lib/asset-url';
 import { useRouter } from 'next/navigation';
 import type { UploadFile, RcFile } from 'antd/es/upload/interface';
 import SimpleRichEditor from '@/components/SimpleRichEditor';
@@ -288,7 +289,7 @@ function ImageGrid({
                 overflow: 'hidden', cursor: 'move', background: '#fafafa',
               }}
             >
-              {url && <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+              {url && <img src={resolveAssetUrl(url)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
               {idx === 0 && (
                 <div style={{
                   position: 'absolute', left: 0, top: 0, background: '#1677ff', color: '#fff',
@@ -1105,7 +1106,7 @@ export default function ProductsPage() {
     { title: 'ID', dataIndex: 'id', key: 'id', width: 60 },
     {
       title: '封面', dataIndex: 'images', key: 'images', width: 70,
-      render: (v: string[]) => v && v.length > 0 ? <img src={v[0]} alt="" style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 4 }} /> : '-',
+      render: (v: string[]) => v && v.length > 0 ? <img src={resolveAssetUrl(v[0])} alt="" style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 4 }} /> : '-',
     },
     { title: '商品名称', dataIndex: 'name', key: 'name', width: 180, ellipsis: true },
     {

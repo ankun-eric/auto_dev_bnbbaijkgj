@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button, Image, ImageViewer, Tag, Toast } from 'antd-mobile';
 import { DislikeOutlined, LikeOutlined } from '@ant-design/icons';
+import { resolveAssetUrl } from '@/lib/asset-url';
 
 export interface KnowledgeHit {
   entry_id: number;
@@ -269,7 +270,7 @@ export function KnowledgeCard({ hit, hitLogId, onFeedback }: KnowledgeCardProps)
               >
                 <div className="w-[72px] h-[72px] flex-shrink-0 rounded-lg overflow-hidden bg-white">
                   {p.image ? (
-                    <Image src={p.image} fit="cover" className="w-full h-full" lazy />
+                    <Image src={resolveAssetUrl(p.image)} fit="cover" className="w-full h-full" lazy />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-gray-300 text-xs">无图</div>
                   )}

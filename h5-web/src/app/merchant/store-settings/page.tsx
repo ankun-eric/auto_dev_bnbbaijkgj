@@ -21,6 +21,7 @@ import {
 } from 'antd';
 import { EditOutlined } from '@ant-design/icons';
 import api from '@/lib/api';
+import { resolveAssetUrl } from '@/lib/asset-url';
 
 const { Title } = Typography;
 
@@ -350,7 +351,7 @@ export default function StoreSettingsPage() {
             <Descriptions.Item label="店铺名称">{info?.store_name || '—'}</Descriptions.Item>
             <Descriptions.Item label="店铺 Logo">
               {info?.logo_url ? (
-                <img src={info.logo_url} alt="logo" style={{ height: 60, borderRadius: 8 }} />
+                <img src={resolveAssetUrl(info.logo_url)} alt="logo" style={{ height: 60, borderRadius: 8 }} />
               ) : '—'}
             </Descriptions.Item>
             <Descriptions.Item label="店铺简介">{info?.description || '—'}</Descriptions.Item>

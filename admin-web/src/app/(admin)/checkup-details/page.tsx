@@ -10,6 +10,7 @@ import {
   WarningOutlined, CalendarOutlined,
 } from '@ant-design/icons';
 import { get } from '@/lib/api';
+import { resolveAssetUrl } from '@/lib/asset-url';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -368,7 +369,7 @@ export default function CheckupDetailsPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
             <Card size="small" title="用户信息">
               <Space>
-                <Avatar src={detail.user_avatar} size={48}>{detail.user_nickname?.[0]}</Avatar>
+                <Avatar src={resolveAssetUrl(detail.user_avatar)} size={48}>{detail.user_nickname?.[0]}</Avatar>
                 <div>
                   <div><Text strong>{detail.user_nickname || '-'}</Text></div>
                   <div><Text type="secondary">{detail.user_phone || '-'}</Text></div>

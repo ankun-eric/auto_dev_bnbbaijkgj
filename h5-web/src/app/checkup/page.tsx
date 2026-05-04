@@ -11,6 +11,7 @@ import { compressImages } from '@/lib/image-compress';
 import AlertBanner from '@/components/AlertBanner';
 import DiseaseTagSelector, { type DiseaseItem } from '@/components/DiseaseTagSelector';
 import HealthProfileEditor, { type HealthProfileEditorRef, showUnsavedChangesModal } from '@/components/HealthProfileEditor';
+import { resolveAssetUrl } from '@/lib/asset-url';
 
 const MAX_IMAGES = 5;
 const MAX_SIZE = 20 * 1024 * 1024;
@@ -867,7 +868,7 @@ export default function CheckupPage() {
                       </div>
                     ) : report.thumbnail_url ? (
                       <Image
-                        src={report.thumbnail_url}
+                        src={resolveAssetUrl(report.thumbnail_url)}
                         width={56}
                         height={56}
                         fit="cover"

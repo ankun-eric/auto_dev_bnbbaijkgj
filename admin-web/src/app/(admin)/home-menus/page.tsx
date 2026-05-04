@@ -10,6 +10,7 @@ import {
   UploadOutlined, SmileOutlined, CloseCircleOutlined,
 } from '@ant-design/icons';
 import { get, post, put, del, upload } from '@/lib/api';
+import { resolveAssetUrl } from '@/lib/asset-url';
 
 // ─── Emoji Keyword Mapping (40+ groups) ───────────────────────────────────────
 
@@ -1131,7 +1132,7 @@ export default function HomeMenusPage() {
       width: 80,
       render: (val: string, record: HomeMenu) => {
         if (record.icon_type === 'image' && val) {
-          return <Image src={val} width={32} height={32} style={{ objectFit: 'cover', borderRadius: 4 }} preview={false} />;
+          return <Image src={resolveAssetUrl(val)} width={32} height={32} style={{ objectFit: 'cover', borderRadius: 4 }} preview={false} />;
         }
         return <span style={{ fontSize: 24 }}>{val}</span>;
       },

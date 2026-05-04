@@ -6,6 +6,7 @@ import { Tabs, Card, Tag, Image, Button, Empty, SpinLoading, InfiniteScroll, Toa
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 import ContactStoreModal from '@/app/orders/components/ContactStoreModal';
+import { resolveAssetUrl } from '@/lib/asset-url';
 
 interface OrderItem {
   id: number;
@@ -508,7 +509,7 @@ function UnifiedOrdersPage() {
                   <div key={item.id} className="flex items-center mb-2">
                     <div className="w-16 h-16 rounded-lg flex-shrink-0 overflow-hidden">
                       {item.product_image ? (
-                        <Image src={item.product_image} width={64} height={64} fit="cover" style={{ borderRadius: 8 }} />
+                        <Image src={resolveAssetUrl(item.product_image)} width={64} height={64} fit="cover" style={{ borderRadius: 8 }} />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-2xl" style={{ background: '#f6ffed' }}>
                           🛍️

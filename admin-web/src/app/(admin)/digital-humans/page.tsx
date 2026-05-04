@@ -8,6 +8,7 @@ import {
   PlusOutlined, EditOutlined, DeleteOutlined, PlayCircleOutlined,
 } from '@ant-design/icons';
 import { get, post, put, del } from '@/lib/api';
+import { resolveAssetUrl } from '@/lib/asset-url';
 
 const { Title } = Typography;
 const { TextArea } = Input;
@@ -151,7 +152,7 @@ export default function DigitalHumansPage() {
       key: 'thumbnail_url',
       width: 90,
       render: (val: string) =>
-        val ? <Image src={val} width={48} height={48} style={{ objectFit: 'cover', borderRadius: 4 }} fallback="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mN8/+F/PQAJpAN42kRfMwAAAABJRU5ErkJggg==" /> : '-',
+        val ? <Image src={resolveAssetUrl(val)} width={48} height={48} style={{ objectFit: 'cover', borderRadius: 4 }} fallback="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mN8/+F/PQAJpAN42kRfMwAAAABJRU5ErkJggg==" /> : '-',
     },
     {
       title: '形象名称',

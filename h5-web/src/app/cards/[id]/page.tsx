@@ -6,6 +6,7 @@ import { Button, Empty, SpinLoading, Tag, Toast } from 'antd-mobile';
 import GreenNavBar from '@/components/GreenNavBar';
 import CardFace from '@/components/card/CardFace';
 import api from '@/lib/api';
+import { resolveAssetUrl } from '@/lib/asset-url';
 
 interface CardItemRef {
   product_id: number;
@@ -174,7 +175,7 @@ export default function CardDetailPage() {
               >
                 {it.product_image ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={it.product_image} alt={it.product_name}
+                  <img src={resolveAssetUrl(it.product_image)} alt={it.product_name}
                     style={{ width: 48, height: 48, borderRadius: 8, objectFit: 'cover' }} />
                 ) : (
                   <div style={{

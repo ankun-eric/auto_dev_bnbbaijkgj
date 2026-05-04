@@ -10,6 +10,7 @@ import { get } from '@/lib/api';
 import api from '@/lib/api';
 import { useRouter, useParams } from 'next/navigation';
 import dayjs from 'dayjs';
+import { resolveAssetUrl } from '@/lib/asset-url';
 
 const { Title, Text } = Typography;
 
@@ -124,7 +125,7 @@ export default function ChatRecordDetailPage() {
 
       <Card style={{ marginBottom: 24, borderRadius: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
-          <Avatar src={detail.user_avatar} size={48} icon={<UserOutlined />}>
+          <Avatar src={resolveAssetUrl(detail.user_avatar)} size={48} icon={<UserOutlined />}>
             {detail.user_nickname?.[0]}
           </Avatar>
           <div>
@@ -175,7 +176,7 @@ export default function ChatRecordDetailPage() {
               >
                 <Avatar
                   size={36}
-                  src={isUser ? detail.user_avatar : undefined}
+                  src={isUser ? resolveAssetUrl(detail.user_avatar) : undefined}
                   icon={isUser ? <UserOutlined /> : <RobotOutlined />}
                   style={{
                     backgroundColor: isUser ? '#87d068' : '#1677ff',
@@ -204,7 +205,7 @@ export default function ChatRecordDetailPage() {
                         {msg.image_urls.map((url, idx) => (
                           <Image
                             key={idx}
-                            src={url}
+                            src={resolveAssetUrl(url)}
                             width={120}
                             style={{ borderRadius: 8 }}
                             alt={`图片${idx + 1}`}
@@ -218,9 +219,10 @@ export default function ChatRecordDetailPage() {
                     <div style={{ marginTop: 8 }}>
                       {msg.file_urls.map((url, idx) => {
                         const fileName = url.split('/').pop() || `文件${idx + 1}`;
+                        const fileHref = resolveAssetUrl(url);
                         return (
                           <div key={idx} style={{ marginBottom: 4 }}>
-                            <a href={url} target="_blank" rel="noopener noreferrer">
+                            <a href={fileHref} target="_blank" rel="noopener noreferrer">
                               <Space size={4}>
                                 <FileOutlined />
                                 <span>{fileName}</span>

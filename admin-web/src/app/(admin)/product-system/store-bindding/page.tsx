@@ -7,6 +7,7 @@ import {
 } from 'antd';
 import { SearchOutlined, LinkOutlined, DisconnectOutlined } from '@ant-design/icons';
 import { get, post } from '@/lib/api';
+import { resolveAssetUrl } from '@/lib/asset-url';
 
 interface ProductItem {
   id: number;
@@ -342,7 +343,7 @@ export default function StoreBinddingPage() {
     {
       title: '商品图片', dataIndex: 'images', key: 'images', width: 70,
       render: (images: string[]) => images && images.length > 0
-        ? <Image src={images[0]} width={50} height={50} style={{ objectFit: 'cover', borderRadius: 4 }} preview={false} />
+        ? <Image src={resolveAssetUrl(images[0])} width={50} height={50} style={{ objectFit: 'cover', borderRadius: 4 }} preview={false} />
         : <div style={{ width: 50, height: 50, background: '#f5f5f5', borderRadius: 4 }} />,
     },
     { title: '商品名称', dataIndex: 'name', key: 'name', width: 200, ellipsis: true },
@@ -421,7 +422,7 @@ export default function StoreBinddingPage() {
     {
       title: '商品图片', dataIndex: 'images', key: 'images', width: 60,
       render: (images: string[]) => images && images.length > 0
-        ? <Image src={images[0]} width={40} height={40} style={{ objectFit: 'cover', borderRadius: 4 }} preview={false} />
+        ? <Image src={resolveAssetUrl(images[0])} width={40} height={40} style={{ objectFit: 'cover', borderRadius: 4 }} preview={false} />
         : <div style={{ width: 40, height: 40, background: '#f5f5f5', borderRadius: 4 }} />,
     },
     { title: '商品名称', dataIndex: 'name', key: 'name', width: 150, ellipsis: true },
@@ -575,7 +576,7 @@ export default function StoreBinddingPage() {
           drawerProduct ? (
             <Space>
               {drawerProduct.images?.[0] && (
-                <Image src={drawerProduct.images[0]} width={32} height={32} style={{ objectFit: 'cover', borderRadius: 4 }} preview={false} />
+                <Image src={resolveAssetUrl(drawerProduct.images[0])} width={32} height={32} style={{ objectFit: 'cover', borderRadius: 4 }} preview={false} />
               )}
               <span>{drawerProduct.name} - 门店管理</span>
             </Space>

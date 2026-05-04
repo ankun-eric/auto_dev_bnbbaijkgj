@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Tabs, Card, Image, Empty, SpinLoading, InfiniteScroll, SwipeAction, Toast } from 'antd-mobile';
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
+import { resolveAssetUrl } from '@/lib/asset-url';
 
 interface FavoriteItem {
   id: number;
@@ -127,12 +128,12 @@ export default function MyFavoritesPage() {
                   <div className="w-20 h-20 rounded-lg flex-shrink-0 overflow-hidden">
                     {activeTab === 'product' && item.detail ? (
                       item.detail.images && item.detail.images.length > 0 ? (
-                        <Image src={item.detail.images[0]} width={80} height={80} fit="cover" style={{ borderRadius: 8 }} />
+                        <Image src={resolveAssetUrl(item.detail.images[0])} width={80} height={80} fit="cover" style={{ borderRadius: 8 }} />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-2xl" style={{ background: '#f6ffed' }}>🛍️</div>
                       )
                     ) : item.detail?.cover_image ? (
-                      <Image src={item.detail.cover_image} width={80} height={80} fit="cover" style={{ borderRadius: 8 }} />
+                      <Image src={resolveAssetUrl(item.detail.cover_image)} width={80} height={80} fit="cover" style={{ borderRadius: 8 }} />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-2xl" style={{ background: '#f0f5ff' }}>📄</div>
                     )}

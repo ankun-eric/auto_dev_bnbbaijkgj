@@ -7,6 +7,7 @@ import { useHomeConfig, HomeBanner, HomeMenu } from '@/lib/useHomeConfig';
 import api from '@/lib/api';
 import { getSelectedCity, getLocationCache, requestGeolocation, CityInfo } from '@/lib/cityUtils';
 import MarketingBadge from '@/components/MarketingBadge';
+import { resolveAssetUrl } from '@/lib/asset-url';
 
 interface RecommendProduct {
   id: number;
@@ -557,7 +558,7 @@ export default function HomePage() {
                       }}
                     >
                       {m.icon_type === 'image' ? (
-                        <img src={m.icon_content} alt={m.name} className="w-6 h-6" />
+                        <img src={resolveAssetUrl(m.icon_content)} alt={m.name} className="w-6 h-6" />
                       ) : (
                         <span style={{ fontSize: 24 }}>{m.icon_content}</span>
                       )}
@@ -831,7 +832,7 @@ export default function HomePage() {
                   onClick={() => router.push(`/news/${n.id}`)}
                 >
                   {n.coverImage ? (
-                    <img src={n.coverImage} alt="" className="rounded" style={{ width: 72, height: 54, objectFit: 'cover', marginRight: 10, flexShrink: 0 }} />
+                    <img src={resolveAssetUrl(n.coverImage)} alt="" className="rounded" style={{ width: 72, height: 54, objectFit: 'cover', marginRight: 10, flexShrink: 0 }} />
                   ) : (
                     <div className="rounded" style={{ width: 72, height: 54, background: '#f5f5f5', marginRight: 10, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#bbb', fontSize: 12 }}>资讯</div>
                   )}

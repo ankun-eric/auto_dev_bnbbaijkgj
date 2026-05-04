@@ -13,6 +13,7 @@ import { useEffect, useMemo, useRef, useState, Suspense } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { NavBar, SpinLoading, Toast, ImageViewer, Image } from 'antd-mobile';
 import api from '@/lib/api';
+import { resolveAssetUrl, resolveAssetUrls } from '@/lib/asset-url';
 
 interface Message {
   id: string;
@@ -354,7 +355,7 @@ function CheckupChatContent() {
             报告 A：<span style={{ color: '#1890ff' }}>{a.title}</span>
             {imgsA.length > 0 && (
               <button
-                onClick={() => { setPreviewImages(imgsA); setPreviewIndex(0); }}
+                onClick={() => { setPreviewImages(resolveAssetUrls(imgsA)); setPreviewIndex(0); }}
                 style={{ marginLeft: 8, padding: '2px 8px', border: '1px solid #1890ff', color: '#1890ff', background: '#fff', borderRadius: 10, fontSize: 11 }}
               >
                 查看 {imgsA.length} 张原图
@@ -364,7 +365,7 @@ function CheckupChatContent() {
             报告 B：<span style={{ color: '#1890ff' }}>{b.title}</span>
             {imgsB.length > 0 && (
               <button
-                onClick={() => { setPreviewImages(imgsB); setPreviewIndex(0); }}
+                onClick={() => { setPreviewImages(resolveAssetUrls(imgsB)); setPreviewIndex(0); }}
                 style={{ marginLeft: 8, padding: '2px 8px', border: '1px solid #1890ff', color: '#1890ff', background: '#fff', borderRadius: 10, fontSize: 11 }}
               >
                 查看 {imgsB.length} 张原图
@@ -392,10 +393,10 @@ function CheckupChatContent() {
                 {thumbs.slice(0, galleryExpanded === 0 ? thumbs.length : Math.min(thumbs.length, 4)).map((t, idx) => (
                   <div
                     key={idx}
-                    onClick={() => { setPreviewImages(allImgs); setPreviewIndex(idx); }}
+                    onClick={() => { setPreviewImages(resolveAssetUrls(allImgs)); setPreviewIndex(idx); }}
                     style={{ width: 60, height: 60, borderRadius: 6, overflow: 'hidden', position: 'relative', cursor: 'pointer', flexShrink: 0 }}
                   >
-                    <img src={t} alt={`img-${idx}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <img src={resolveAssetUrl(t)} alt={`img-${idx}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   </div>
                 ))}
                 {galleryExpanded !== 0 && thumbs.length > 4 && (
@@ -408,7 +409,7 @@ function CheckupChatContent() {
                 )}
               </div>
               <button
-                onClick={() => { setPreviewImages(allImgs); setPreviewIndex(0); }}
+                onClick={() => { setPreviewImages(resolveAssetUrls(allImgs)); setPreviewIndex(0); }}
                 style={{ marginTop: 8, padding: '4px 10px', border: '1px solid #1890ff', color: '#1890ff', background: '#fff', borderRadius: 14, fontSize: 12 }}
               >
                 查看报告原图{allImgs.length > 1 ? `（${allImgs.length} 张）` : ''}

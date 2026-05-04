@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Button, Input, Toast, Checkbox, Space, Dialog, SpinLoading } from 'antd-mobile';
 import { login } from '@/lib/auth';
 import api from '@/lib/api';
+import { resolveAssetUrl } from '@/lib/asset-url';
 
 interface RegisterSettings {
   enable_self_registration: boolean;
@@ -217,7 +218,7 @@ function LoginContent() {
     >
       <div className={`flex flex-col items-center transition-all duration-500 ease-in-out ${isHorizontal ? 'flex-1 pt-20 px-8 md:flex-none md:justify-center md:px-6 md:w-2/5 md:pt-0' : 'flex-1 pt-20 px-8'}`}>
         {logoUrl ? (
-          <img src={logoUrl} alt="Logo" className="w-20 h-20 rounded-full mb-4" style={{ objectFit: 'contain' }} />
+          <img src={resolveAssetUrl(logoUrl)} alt="Logo" className="w-20 h-20 rounded-full mb-4" style={{ objectFit: 'contain' }} />
         ) : (
           <div className="w-20 h-20 rounded-full flex items-center justify-center mb-4"
             style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}>

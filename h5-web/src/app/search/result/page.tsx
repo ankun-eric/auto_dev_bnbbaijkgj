@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef, useMemo, Suspense } from 'rea
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Tabs, Tag, Toast, SpinLoading, Empty } from 'antd-mobile';
 import api from '@/lib/api';
+import { resolveAssetUrl } from '@/lib/asset-url';
 
 type VoiceOverlayState = 'idle' | 'recording' | 'recognizing' | 'error';
 
@@ -806,7 +807,7 @@ function ResultCard({ item, onClick }: { item: SearchItem; onClick: () => void }
     >
       {item.cover_image && (
         <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 mr-3 bg-gray-100">
-          <img src={item.cover_image} alt="" className="w-full h-full object-cover" />
+          <img src={resolveAssetUrl(item.cover_image)} alt="" className="w-full h-full object-cover" />
         </div>
       )}
       <div className="flex-1 min-w-0">

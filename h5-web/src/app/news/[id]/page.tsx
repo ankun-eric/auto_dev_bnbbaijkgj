@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { NavBar, Tag, Toast, Divider, SpinLoading, Button, TextArea, Avatar } from 'antd-mobile';
 import { HeartOutline, HeartFill, StarOutline, StarFill } from 'antd-mobile-icons';
 import api from '@/lib/api';
+import { resolveAssetUrl } from '@/lib/asset-url';
 
 interface NewsDetail {
   id: number;
@@ -194,7 +195,7 @@ export default function NewsDetailPage() {
         )}
 
         {news.cover_image && (
-          <img src={news.cover_image} alt="" className="w-full rounded-lg mb-3" style={{ maxHeight: 220, objectFit: 'cover' }} />
+          <img src={resolveAssetUrl(news.cover_image)} alt="" className="w-full rounded-lg mb-3" style={{ maxHeight: 220, objectFit: 'cover' }} />
         )}
 
         <div className="mb-6 rich-text text-sm text-gray-700 leading-relaxed" dangerouslySetInnerHTML={{ __html: contentHtml }} />

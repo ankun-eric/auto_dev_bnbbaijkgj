@@ -20,6 +20,7 @@ import {
 import { HeartOutline, HeartFill } from 'antd-mobile-icons';
 import api from '@/lib/api';
 import MarketingBadge from '@/components/MarketingBadge';
+import { resolveAssetUrl } from '@/lib/asset-url';
 
 interface Store {
   id: number;
@@ -210,7 +211,7 @@ function ProductDetailPage() {
               <Swiper autoplay loop style={{ '--height': '280px' }}>
                 {imageList.map((img, i) => (
                   <Swiper.Item key={i}>
-                    <Image src={img} width="100%" height={280} fit="cover" />
+                    <Image src={resolveAssetUrl(img)} width="100%" height={280} fit="cover" />
                   </Swiper.Item>
                 ))}
               </Swiper>

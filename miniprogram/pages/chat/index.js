@@ -2,6 +2,8 @@ const { post, get, put, del, uploadFile } = require('../../utils/request');
 const { generateId } = require('../../utils/util');
 const { checkFileSize, uploadWithProgress } = require('../../utils/upload-utils');
 const { compressImage } = require('../../utils/image-compress');
+// [2026-05-05 全端图片附件 BasePath 治理 v1.0] 把后端"裸 /uploads/..."补齐为带 baseUrl 的绝对 URL
+const { resolveAssetUrl, resolveAssetUrls } = require('../../utils/asset-url');
 
 const RELATION_COLORS = {
   '本人': '#52c41a',
@@ -1106,12 +1108,15 @@ Page({
         }
       }
       const normalized = reports.map(r => {
-        const urls = Array.isArray(r.file_urls) && r.file_urls.length > 0
+        const rawUrls = Array.isArray(r.file_urls) && r.file_urls.length > 0
           ? r.file_urls.filter(Boolean)
           : (r.file_url ? [r.file_url] : []);
-        const thumbs = Array.isArray(r.thumbnail_urls) && r.thumbnail_urls.length > 0
+        const rawThumbs = Array.isArray(r.thumbnail_urls) && r.thumbnail_urls.length > 0
           ? r.thumbnail_urls.filter(Boolean)
-          : urls;
+          : rawUrls;
+        // [2026-05-05 全端图片附件 BasePath 治理 v1.0] 将裸 /uploads/... 补齐为带 baseUrl 的绝对 URL
+        const urls = resolveAssetUrls(rawUrls);
+        const thumbs = resolveAssetUrls(rawThumbs);
         return {
           id: r.id,
           title: r.title || '体检报告',
