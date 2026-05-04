@@ -75,6 +75,11 @@ from app.schemas.merchant import (
     RescheduleResponse,
 )
 
+# [2026-05-05 H5 订单详情"支付方式"显示错误（优惠券全额抵扣场景）Bug 修复 v1.0]
+# 复用 unified_orders 的 _build_payment_method_text，统一文案构造优先级，
+# 避免商家端列表在 coupon_deduction / balance / points 场景下错误地展示预选通道文案。
+from app.api.unified_orders import _build_payment_method_text
+
 router = APIRouter(prefix="/api/merchant", tags=["商家端"])
 
 merchant_dep = require_identity("merchant_owner", "merchant_staff")
@@ -1133,9 +1138,11 @@ async def merchant_list_orders(
             "payment_method": uo.payment_method,
             "attachment_count": att_cnt,
             "is_appointment": bool(oi and oi.appointment_time),
-            "payment_method_text": getattr(uo, "payment_display_name", None) and (
-                f"{uo.payment_display_name}（{(uo.payment_channel_code or '').replace('wechat_miniprogram','小程序').replace('wechat_app','APP').replace('alipay_h5','H5').replace('alipay_app','APP') or '其他'}）"
-            ) or None,
+            # [2026-05-05 H5 订单详情"支付方式"显示错误（优惠券全额抵扣场景）Bug 修复 v1.0]
+            # 商家端订单列表的 payment_method_text 拼装统一改为复用 unified_orders._build_payment_method_text，
+            # 避免商家端独立拼装路径在"非真实通道支付"（coupon_deduction/balance/points）场景下
+            # 错误地展示成"支付宝（H5）"等预选通道文案。
+            "payment_method_text": _build_payment_method_text(uo),
             "redemption_code": getattr(oi, "verification_code", None) if oi else None,
         })
 

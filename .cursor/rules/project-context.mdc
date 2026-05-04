@@ -33,6 +33,40 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
+## Latest Update: H5 订单详情「支付方式」显示错误 — 优惠券全额抵扣场景 Bug 修复 v1.0（2026-05-05 01:50）
+
+### 一句话结论
+按 `cursor_prompt_324_20260505014339.txt` 修复方案执行，根因为后端 `_build_payment_method_text` 在 0 元单（`payment_method=coupon_deduction`）场景下**先判断预选通道字段 `payment_channel_code`+`payment_display_name`**（用户进入收银台时写入的"支付宝/H5"），导致 H5 订单详情错误展示成「支付宝（H5）」而非「优惠券全额抵扣」。同类隐患同步影响 `balance` / `points` 0 元单。修复策略：**调整 `_build_payment_method_text` 的判断顺序为「以实付方式为准、预选通道仅作通道补充」**，第 1 优先级把 `coupon_deduction / balance / points` 直接走中文兜底，第 2 优先级才看 `wechat / alipay + code+name` 拼"显示名（端名）"；商家端 `merchant.py` 第 1136 行的独立拼装路径同步改为复用统一构造器，避免商家端再单独拼装出错。**纯后端修复**，前端各端无任何改动（H5 / 小程序 / Flutter / admin 全部已统一取后端 `payment_method_text`），历史 0 元订单访问详情时也会自动修正文案。
+
+### 涉及文件（共 3 个）
+- `backend/app/api/unified_orders.py`：`_build_payment_method_text` 优先级重排（NON_CHANNEL_PMS 集合先判，再判 wechat/alipay+code+name，再 PAYMENT_METHOD_TEXT_MAP 中文兜底，最后 name 兜底）
+- `backend/app/api/merchant.py`：商家端订单列表 `payment_method_text` 改为 `_build_payment_method_text(uo)`，新增 `from app.api.unified_orders import _build_payment_method_text`
+- `backend/tests/test_payment_method_text_priority_v10.py`（新增）：13 条单元测试覆盖修复方案 §四 的 TC-01 ~ TC-10（含 coupon_deduction / balance / points + alipay_h5 / wechat_miniprogram 各端组合 + 枚举对象兼容 + 未知 channel_code 边界 + merchant 复用一致性保护）
+
+### 验证证据
+- 服务器 backend 容器内 `pytest tests/test_payment_method_text_priority_v10.py -v` ⇒ **13/13 PASS（1.20s）**
+- 服务器在线生产代码 6/6 e2e 用例 PASS（直接对线上重启后的 `_build_payment_method_text` 跑 TC-01~TC-06 全绿）
+- 健康检查 `/api/health` HTTP 200
+
+### 行为对照表
+| 场景 | 修复前 H5 显示 | 修复后 H5 显示 |
+| --- | --- | --- |
+| 优惠券全额抵扣 0 元单（预选 alipay_h5） | 支付宝（H5） ❌ | 优惠券全额抵扣 ✅ |
+| 余额全额支付 0 元单 | 预选通道文案 ❌ | 余额支付 ✅ |
+| 积分兑换 0 元单 | 预选通道文案 ❌ | 积分兑换 ✅ |
+| 真实 alipay_h5 实付 > 0 | 支付宝（H5） ✅ | 支付宝（H5） ✅（保持） |
+| 真实 wechat_miniprogram 实付 > 0 | 微信支付（小程序） ✅ | 微信支付（小程序） ✅（保持） |
+
+### 关键约定
+- 各端订单详情「支付方式」**只信任后端 `payment_method_text` 字段**，禁止前端本地拼装
+- `_build_payment_method_text` 是商家端 / 用户端唯一权威构造器；商家端 merchant.py 已强制复用
+- 后续若新增"非真实通道"枚举（如 `gift_card`、`activity_free`），只需追加到 `NON_CHANNEL_PMS` 集合 + `PAYMENT_METHOD_TEXT_MAP` 中文映射
+
+### 用户体验手册
+`user_docs/H5订单详情支付方式显示修复_优惠券全额抵扣场景.md`
+
+---
+
 ## Latest Update: 全端图片附件 BasePath 治理 — 商家 PC 订单附件图片裂开 "Gateway OK" Bug 修复（2026-05-05 01:40）
 
 ### 一句话结论

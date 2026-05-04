@@ -235,39 +235,53 @@ def _build_payment_method_text(order) -> Optional[str]:
     """[支付配置 PRD v1.0] 构造 payment_method_text："{显示名称}（{端名}）"。
 
     端名映射：wechat_miniprogram→小程序 / wechat_app/alipay_app→APP / alipay_h5→H5。
-    若订单未关联 channel_code，则尝试用 payment_display_name 兜底；都没有则返回 None。
 
-    [2026-05-04 H5 优惠券抵扣 0 元下单 Bug 修复 v1.0 · B3]
-    新增对 coupon_deduction / balance 等非真实支付通道的中文兜底映射，
-    确保 0 元订单（无 payment_channel_code 也无 payment_display_name）能下发统一文案，
-    全端展示一致为「优惠券全额抵扣」/「余额支付」。
+    [2026-05-05 H5 订单详情"支付方式"显示错误（优惠券全额抵扣场景）Bug 修复 v1.0]
+    判断顺序调整为「以实付方式为准，预选通道仅作通道补充」：
+      1. 若 payment_method 属于"非真实通道"（coupon_deduction / balance / points），
+         即使预选通道字段（payment_channel_code/payment_display_name）非空也忽略，
+         直接返回中文兜底文案，避免 0 元单仍显示"支付宝（H5）"。
+      2. 若 payment_method ∈ {wechat, alipay} 且 code+name 齐备，按"显示名（端名）"拼接。
+      3. payment_method 存在但缺 code/name 时，使用中文兜底。
+      4. 兼容历史/异常路径：仅用 name 兜底。
+      5. 全部缺失返回 None。
     """
-    code = getattr(order, "payment_channel_code", None)
-    name = getattr(order, "payment_display_name", None)
     PLATFORM_LABEL = {
         "wechat_miniprogram": "小程序",
         "wechat_app": "APP",
         "alipay_h5": "H5",
         "alipay_app": "APP",
     }
-    if code and name:
+    NON_CHANNEL_PMS = {"coupon_deduction", "balance", "points"}
+
+    pm_val = getattr(order, "payment_method", None)
+    if hasattr(pm_val, "value"):
+        pm_val = pm_val.value
+    pm_val = str(pm_val) if pm_val is not None else None
+
+    # 第 1 优先级：非真实通道支付（0 元单 / 余额 / 积分）
+    if pm_val in NON_CHANNEL_PMS:
+        return PAYMENT_METHOD_TEXT_MAP.get(pm_val)
+
+    code = getattr(order, "payment_channel_code", None)
+    name = getattr(order, "payment_display_name", None)
+
+    # 第 2 优先级：真实通道支付（wechat / alipay），且 code+name 齐备
+    if pm_val in {"wechat", "alipay"} and code and name:
         suffix = PLATFORM_LABEL.get(code)
         if suffix:
             return f"{name}（{suffix}）"
         return name
-    if name:
-        return name
 
-    # [2026-05-04 H5 优惠券抵扣 0 元下单 Bug 修复 v1.0 · B3]
-    # 当订单没有真实支付通道（典型为 0 元订单或余额支付）时，
-    # 直接根据 payment_method 枚举值返回中文兜底文案。
-    pm_val = getattr(order, "payment_method", None)
-    if hasattr(pm_val, "value"):
-        pm_val = pm_val.value
+    # 第 3 优先级：payment_method 存在但 code/name 缺失，按枚举中文兜底
     if pm_val:
-        text = PAYMENT_METHOD_TEXT_MAP.get(str(pm_val))
+        text = PAYMENT_METHOD_TEXT_MAP.get(pm_val)
         if text:
             return text
+
+    # 第 4 优先级：兼容历史/异常路径——仅用 name 兜底
+    if name:
+        return name
     return None
 
 
