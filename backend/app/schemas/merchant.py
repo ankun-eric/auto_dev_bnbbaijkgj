@@ -280,6 +280,53 @@ class DailyAppointmentResponse(BaseModel):
     items: List[DailyAppointmentItem] = Field(default_factory=list)
 
 
+# ──────────── 预约日历当日订单弹窗（PRD「当日订单弹窗」v1.0） ────────────
+
+
+class DailyOrderItem(BaseModel):
+    """当日订单弹窗的单条订单（一条订单项）。
+
+    状态字段统一合并为 5 个枚举：
+    - pending: 待核销（已支付但未核销）
+    - verified: 已核销
+    - cancelled: 已取消
+    - refunded: 已退款
+    - other: 其它（兜底，正常不出现）
+    """
+    order_id: int
+    order_item_id: int
+    order_no: Optional[str] = None
+    time_slot: Optional[str] = Field(default=None, description="预约时段如 14:00-15:00 或 14:00")
+    appointment_time: Optional[datetime] = None
+    customer_nickname: Optional[str] = Field(default=None, description="客户昵称（脱敏，如 张**）")
+    customer_phone: Optional[str] = Field(default=None, description="客户手机号（11 位完整，仅商家可见）")
+    service_name: Optional[str] = None
+    service_location: Optional[str] = Field(default=None, description="服务地点：门店地址或上门地址快照")
+    status: str = Field(description="合并后的状态：pending/verified/cancelled/refunded/other")
+    remark: Optional[str] = None
+    verify_time: Optional[datetime] = Field(default=None, description="核销时间（仅 status=verified 下发）")
+    verify_code: Optional[str] = Field(default=None, description="核销码（仅 status=verified 下发；未核销绝不下发）")
+    cancel_time: Optional[datetime] = Field(default=None, description="取消时间（仅 status=cancelled 时填充）")
+    cancel_reason: Optional[str] = None
+    refund_time: Optional[datetime] = Field(default=None, description="退款时间（仅 status=refunded 时填充）")
+    refund_reason: Optional[str] = None
+
+
+class DailyOrdersByStatus(BaseModel):
+    pending: int = 0
+    verified: int = 0
+    cancelled: int = 0
+    refunded: int = 0
+
+
+class DailyOrdersResponse(BaseModel):
+    """GET /api/merchant/calendar/daily-orders 响应。"""
+    date: str
+    total: int
+    by_status: DailyOrdersByStatus = Field(default_factory=DailyOrdersByStatus)
+    orders: List[DailyOrderItem] = Field(default_factory=list)
+
+
 # ──────────── 订单操作 ────────────
 
 

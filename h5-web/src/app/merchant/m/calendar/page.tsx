@@ -5,6 +5,7 @@ import { NavBar, Toast, Tag, Empty, DotLoading } from 'antd-mobile';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { getCurrentStoreId } from '../mobile-lib';
+import DailyOrdersDrawer from './DailyOrdersDrawer';
 
 interface DaySummary {
   date: string;
@@ -57,6 +58,10 @@ export default function CalendarMobilePage() {
   const [dailyList, setDailyList] = useState<DailyAppointment[]>([]);
   const [loadingMonthly, setLoadingMonthly] = useState(false);
   const [loadingDaily, setLoadingDaily] = useState(false);
+
+  // PRD「当日订单弹窗」v1.0：H5 端底部抽屉
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerDate, setDrawerDate] = useState<string | null>(null);
 
   const monthStr = useMemo(() => {
     return `${year}-${String(month + 1).padStart(2, '0')}`;
@@ -121,6 +126,16 @@ export default function CalendarMobilePage() {
   const handleDayClick = (day: number) => {
     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     setSelectedDate(dateStr);
+    // PRD「当日订单弹窗」v1.0 F-11：仅当当日有订单时弹出底部抽屉
+    const summary = monthlySummary[dateStr];
+    if (summary && summary.count > 0) {
+      setDrawerDate(dateStr);
+      setDrawerOpen(true);
+      try {
+        // eslint-disable-next-line no-console
+        console.info('[track] calendar_daily_popup_open', { date: dateStr, order_count: summary.count, terminal: 'h5' });
+      } catch {}
+    }
   };
 
   const todayStr = useMemo(() => {
@@ -272,6 +287,18 @@ export default function CalendarMobilePage() {
           )}
         </div>
       )}
+
+      {/* PRD「当日订单弹窗」v1.0：H5 端底部抽屉 */}
+      <DailyOrdersDrawer
+        open={drawerOpen}
+        date={drawerDate}
+        storeId={getCurrentStoreId() ?? null}
+        onClose={() => setDrawerOpen(false)}
+        onViewFullOrder={(orderId) => {
+          setDrawerOpen(false);
+          router.push(`/merchant/m/orders/${orderId}`);
+        }}
+      />
     </div>
   );
 }

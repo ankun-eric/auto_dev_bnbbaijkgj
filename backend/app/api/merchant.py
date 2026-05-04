@@ -25,6 +25,7 @@ from app.models.models import (
     OrderAttachment,
     OrderItem,
     OrderNote,
+    OrderRedemption,
     OrderStatus,
     PaymentStatus,
     PointsRecord,
@@ -41,6 +42,9 @@ from app.schemas.merchant import (
     CalendarMonthlyResponse,
     DailyAppointmentItem,
     DailyAppointmentResponse,
+    DailyOrderItem,
+    DailyOrdersByStatus,
+    DailyOrdersResponse,
     MerchantDashboardResponse,
     MerchantNotificationResponse,
     MerchantProfileResponse,
@@ -605,6 +609,244 @@ async def get_daily_calendar(
         ))
 
     return DailyAppointmentResponse(date=date_str, items=items)
+
+
+# ─────────── 预约日历 — 当日订单弹窗（PRD「当日订单弹窗」v1.0） ───────────
+
+
+def _mask_nickname(nickname: Optional[str]) -> str:
+    """脱敏昵称：保留首字符，剩余统一显示 **。"""
+    if not nickname:
+        return "匿名用户"
+    n = str(nickname).strip()
+    if not n:
+        return "匿名用户"
+    if len(n) == 1:
+        return n + "**"
+    return n[0] + "**"
+
+
+def _format_time_slot(appt_time: Optional[datetime], appointment_data: Optional[dict]) -> Optional[str]:
+    """构造预约时段文案，优先使用 appointment_data.time_slot（如 14:00-15:00），否则用 appointment_time 的 HH:MM。"""
+    if appointment_data and isinstance(appointment_data, dict):
+        ts = appointment_data.get("time_slot")
+        if isinstance(ts, str) and ts.strip():
+            return ts.strip()
+    if appt_time:
+        return appt_time.strftime("%H:%M")
+    return None
+
+
+def _resolve_unified_status(order: UnifiedOrder, oi: OrderItem) -> str:
+    """把订单 + 订单项的多种状态合并为弹窗用的 5 状态：pending/verified/cancelled/refunded/other。
+
+    业务规则（按优先级）：
+    1. 订单 status == cancelled → cancelled
+    2. 订单 status == refunded 或 refund_status == refund_success → refunded
+    3. 订单 status == refunding → refunded（按 PRD「已退款」Tab 收纳，UI 文案后续可再细分）
+    4. 订单项 redemption_code_status == used 或订单 status in (completed, partial_used, pending_review) → verified
+    5. 订单项 redemption_code_status == refunded → refunded
+    6. 其它已支付未核销（appointed/pending_use/pending_appointment 等） → pending
+    7. 兜底 → other
+    """
+    o_status = order.status.value if hasattr(order.status, "value") else order.status
+    refund_status = order.refund_status.value if hasattr(order.refund_status, "value") else order.refund_status
+    code_status = (oi.redemption_code_status or "").lower() if oi.redemption_code_status else ""
+
+    if o_status == UnifiedOrderStatus.cancelled.value:
+        return "cancelled"
+    if o_status == UnifiedOrderStatus.refunded.value:
+        return "refunded"
+    if o_status == UnifiedOrderStatus.refunding.value:
+        return "refunded"
+    if refund_status in ("refund_success", "refunded"):
+        return "refunded"
+    if code_status == "refunded":
+        return "refunded"
+    if code_status == "used":
+        return "verified"
+    if o_status in (
+        UnifiedOrderStatus.completed.value,
+        UnifiedOrderStatus.partial_used.value,
+        UnifiedOrderStatus.pending_review.value,
+    ):
+        return "verified"
+    if o_status in (
+        UnifiedOrderStatus.appointed.value,
+        UnifiedOrderStatus.pending_use.value,
+        UnifiedOrderStatus.pending_appointment.value,
+        UnifiedOrderStatus.pending_payment.value,
+        UnifiedOrderStatus.pending_shipment.value,
+        UnifiedOrderStatus.pending_receipt.value,
+    ):
+        # pending_payment 默认不会进入预约日历（无 appointment_time），但兜底归为 pending
+        return "pending"
+    return "other"
+
+
+_SORT_GROUP = {
+    "pending": 1,
+    "cancelled": 2,
+    "refunded": 3,
+    "verified": 4,
+    "other": 5,
+}
+
+
+@router.get("/calendar/daily-orders", response_model=DailyOrdersResponse)
+async def get_daily_orders_popup(
+    date_str: str = Query(..., alias="date", description="YYYY-MM-DD"),
+    store_id: int = Query(...),
+    current_user: User = Depends(merchant_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    """预约日历 — 当日订单弹窗专用接口。
+
+    返回当日全部订单（按 PRD「当日订单弹窗」v1.0 排序规则：待核销→已取消→已退款→已核销，组内按预约时段升序），
+    并带状态分组计数 by_status，前端可以一次拉取后纯前端按 Tab 过滤。
+
+    安全规则：
+    - 仅商家管理员/店员有权限的角色可访问（require_identity merchant_dep + _ensure_store_access）
+    - 核销码（verify_code）严格遵循「未核销订单不下发」的接口层兜底
+    """
+    await _ensure_store_access(db, current_user.id, store_id)
+
+    try:
+        target_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+    except ValueError:
+        raise HTTPException(status_code=400, detail="日期格式: YYYY-MM-DD")
+
+    day_start = datetime.combine(target_date, datetime.min.time())
+    day_end = day_start + timedelta(days=1)
+
+    # 该门店关联的所有商品
+    product_ids_subq = select(ProductStore.product_id).where(ProductStore.store_id == store_id)
+    order_ids_subq = (
+        select(OrderItem.order_id)
+        .where(OrderItem.product_id.in_(product_ids_subq))
+        .distinct()
+    )
+
+    result = await db.execute(
+        select(OrderItem, UnifiedOrder)
+        .join(UnifiedOrder, UnifiedOrder.id == OrderItem.order_id)
+        .where(
+            OrderItem.order_id.in_(order_ids_subq),
+            OrderItem.appointment_time.isnot(None),
+            OrderItem.appointment_time >= day_start,
+            OrderItem.appointment_time < day_end,
+        )
+        .order_by(OrderItem.appointment_time.asc())
+    )
+    rows = result.all()
+
+    # 当前门店地址（fallback 服务地点）
+    store_result = await db.execute(select(MerchantStore).where(MerchantStore.id == store_id))
+    store = store_result.scalar_one_or_none()
+    store_address_default = (store.address if store and store.address else None) or (
+        store.store_name if store else None
+    )
+
+    # 一次性预取核销记录（核销时间）
+    item_ids = [oi.id for oi, _ in rows]
+    redemption_map: dict[int, datetime] = {}
+    if item_ids:
+        redemp_result = await db.execute(
+            select(OrderRedemption.order_item_id, func.min(OrderRedemption.redeemed_at))
+            .where(OrderRedemption.order_item_id.in_(item_ids))
+            .group_by(OrderRedemption.order_item_id)
+        )
+        for oi_id, redeemed_at in redemp_result.all():
+            redemption_map[oi_id] = redeemed_at
+
+    # 一次性预取用户
+    user_ids = list({order.user_id for _, order in rows})
+    user_map: dict[int, User] = {}
+    if user_ids:
+        user_result = await db.execute(select(User).where(User.id.in_(user_ids)))
+        for u in user_result.scalars().all():
+            user_map[u.id] = u
+
+    items_out: list[tuple[int, str, datetime, DailyOrderItem]] = []
+    counters = {"pending": 0, "verified": 0, "cancelled": 0, "refunded": 0}
+
+    for oi, order in rows:
+        # 解析合并状态
+        status = _resolve_unified_status(order, oi)
+        # 该状态计入分桶（other 不计入 4 类，但仍会展示在「全部」Tab）
+        if status in counters:
+            counters[status] += 1
+
+        # 客户信息
+        user = user_map.get(order.user_id)
+        nickname = _safe_user_name(user) if user else None
+        masked_nickname = _mask_nickname(nickname)
+        phone = user.phone if user and user.phone else None  # 完整 11 位手机号
+
+        # 服务地点：上门地址快照 > 门店地址 > 门店名
+        service_location: Optional[str] = None
+        if order.service_address_snapshot and isinstance(order.service_address_snapshot, dict):
+            snap = order.service_address_snapshot
+            parts = [snap.get("province"), snap.get("city"), snap.get("district"), snap.get("address")]
+            service_location = " ".join(p for p in parts if p) or snap.get("detail") or None
+        if not service_location:
+            service_location = store_address_default
+
+        # 时段
+        time_slot_str = _format_time_slot(oi.appointment_time, oi.appointment_data)
+
+        # 取消时间/原因
+        cancel_time = order.cancelled_at if status == "cancelled" else None
+        cancel_reason = order.cancel_reason if status == "cancelled" else None
+
+        # 退款时间
+        # 退款没有专用 finished_at 列，使用 updated_at（已退款状态下的最近一次更新即视为退款完成时间）
+        refund_time = order.updated_at if status == "refunded" else None
+        refund_reason = order.cancel_reason if status == "refunded" else None  # 复用 cancel_reason
+
+        # 核销时间/核销码：严格仅 verified 状态下发
+        verify_time = redemption_map.get(oi.id) if status == "verified" else None
+        verify_code = oi.verification_code if status == "verified" else None
+
+        item_payload = DailyOrderItem(
+            order_id=order.id,
+            order_item_id=oi.id,
+            order_no=order.order_no,
+            time_slot=time_slot_str,
+            appointment_time=oi.appointment_time,
+            customer_nickname=masked_nickname,
+            customer_phone=phone,
+            service_name=oi.product_name,
+            service_location=service_location,
+            status=status,
+            remark=order.notes,
+            verify_time=verify_time,
+            verify_code=verify_code,
+            cancel_time=cancel_time,
+            cancel_reason=cancel_reason,
+            refund_time=refund_time,
+            refund_reason=refund_reason,
+        )
+
+        # 排序键：(状态分组优先级, 预约时段升序时间)
+        group = _SORT_GROUP.get(status, 9)
+        sort_time = oi.appointment_time or day_start
+        items_out.append((group, status, sort_time, item_payload))
+
+    items_out.sort(key=lambda x: (x[0], x[2]))
+    orders_list = [it[3] for it in items_out]
+
+    return DailyOrdersResponse(
+        date=date_str,
+        total=len(orders_list),
+        by_status=DailyOrdersByStatus(
+            pending=counters["pending"],
+            verified=counters["verified"],
+            cancelled=counters["cancelled"],
+            refunded=counters["refunded"],
+        ),
+        orders=orders_list,
+    )
 
 
 # ─────────── 订单操作增强 ───────────

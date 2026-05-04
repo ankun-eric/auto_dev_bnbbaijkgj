@@ -33,7 +33,46 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: H5 支付链路 BasePath 修复（pay_url 不再丢 `/autodev/<uuid>` 前缀 + 前端 `withBasePath`/`redirectToPayUrl` 工具 + 后端 `_build_sandbox_pay_url` 强化三级兜底 + docker-compose 注入 `PROJECT_BASE_URL` + 前向兼容根域名/独立子域名 + 远程容器 pay_url 回归断言通过 + 仅 H5+backend 端变更无需多端打包）（2026-05-04 16:55）
+## Latest Update: 预约日历「当日订单弹窗」PRD v1.0（商家 PC + H5 移动两端，点击日期单元格弹出当日订单弹窗 / 底部抽屉，5 状态 Tab + 行就地展开详情 + 核销码接口层安全 + 排序优先待办，远程容器 pytest 13/13 PASS + 仅 backend+h5-web 端变更无需多端打包）（2026-05-04 17:35）
+
+### 一句话结论
+按 PRD「预约日历『当日订单弹窗』」v1.0 一次性打通商家「日历日期 → 当日订单」就地钻取闭环：**1) 后端新增** `GET /api/merchant/calendar/daily-orders?date=YYYY-MM-DD&store_id=...` 接口（`backend/app/api/merchant.py`），返回 `{date, total, by_status: {pending,verified,cancelled,refunded}, orders[]}`；订单字段含 `order_id/order_item_id/order_no/time_slot/customer_nickname(脱敏)/customer_phone(完整 11 位)/service_name/service_location(上门快照→门店地址→门店名 三级兜底)/status(5 态合并)/remark/verify_time/verify_code/cancel_time/cancel_reason/refund_time/refund_reason`；**核销码严格遵守 BR-04** — 仅 `status=verified` 时下发 `verify_code`，未核销订单接口层就不下发该字段（前端无法绕过）。**2) 状态合并** — 新增 `_resolve_unified_status(order, oi)` 工具函数把 `UnifiedOrder.status (12 态) + refund_status + redemption_code_status` 合并为弹窗用的 5 态：`pending/verified/cancelled/refunded/other`；订单 `cancelled` → cancelled / `refunded`+`refunding`+`refund_status=refund_success` → refunded / `redemption_code_status=used`+`completed/partial_used/pending_review` → verified / 其它已支付未核销 → pending。**3) 排序规则强制 BR-03** — `_SORT_GROUP = {pending:1, cancelled:2, refunded:3, verified:4, other:5}` + 组内按 `appointment_time` 升序，让商家**优先关注待办**。**4) Schema 新增** `backend/app/schemas/merchant.py::DailyOrderItem / DailyOrdersByStatus / DailyOrdersResponse` 三个 Pydantic 模型。**5) PC 弹窗组件** 新建 `h5-web/src/app/merchant/calendar/DailyOrdersModal.tsx`（370 行），Ant Design Modal（宽 920px、maxHeight 80vh） + Tabs 5 态计数 + Table 5 列（时段/客户/服务项目/状态/操作） + 行就地 expandable detail + Descriptions 详情面板（客户备注 / 服务地点 / 客户手机号 + `tel:` 拨打按钮 + 剪贴板复制按钮带降级到 `execCommand` / 核销状态 Tag / 核销时间 / 核销码 / 已取消时附取消时间+取消原因 / 已退款时附退款时间+退款原因） + "查看完整订单"跳 `/merchant/orders?highlight={id}` + 关闭三件套（× + 遮罩 + ESC）+ 同一时刻最多展开一行 + Tab 切换自动收起 + 空状态「该状态下暂无记录」。**6) H5 抽屉组件** 新建 `h5-web/src/app/merchant/m/calendar/DailyOrdersDrawer.tsx`（440 行），自定义底部抽屉（最高 85vh、顶部拖动条 + 半透明遮罩 + body overflow 锁定） + 顶部标题 + 横向滚动 5 态 Tab（active 绿色实心 / 未选灰色） + 卡片列表（每卡：时段+状态徽标 / 客户·服务项目 / 📍服务地点 / 展开详情 ▼/▲） + 卡片就地展开详情（与 PC 字段一致 + 📞拨打 + 📋复制按钮） + onViewFullOrder 跳 H5 订单详情。**7) 入口接入** `h5-web/src/app/merchant/calendar/page.tsx`（PC）和 `h5-web/src/app/merchant/m/calendar/page.tsx`（H5）改造日期单元格点击：仅当 `summary.count >= 1` 时触发弹窗/抽屉，0 单日期保持普通展示不响应；同时保留旧的「下方卡片列表」做向后兼容。**8) 测试** 新增 `backend/tests/test_calendar_daily_orders_popup.py` 共 13 个 pytest 用例覆盖 PRD 全部要点：基础结构 + 字段完整 / 排序规则（待核销→已取消→已退款→已核销）/ 组内时段升序 / 核销码安全（仅 verified 下发）/ 已取消订单 cancel_time / 已退款订单 refund_time / 客户手机号完整 11 位 / 客户昵称脱敏 / 当日 0 单 / 鉴权 401 / 日期格式错 400 / 无门店权限 403 / 状态分组计数 / 服务地点不空。**本地 13/13 PASS + 远程容器 13/13 PASS**。**9) 部署** `_deploy_calendar_daily_orders.py` 用 paramiko SFTP 上传 7 个变更文件 + `docker compose build backend h5-web` + `up -d` + 等 25s + `docker cp tests/conftest.py + 测试文件` 到 backend 容器 + 容器内自动安装 pytest（首次）+ `docker exec pytest` 13/13 PASS + 外部 URL 5 条全部预期（`/` 200 / `/api/health` 200 / `/api/merchant/calendar/daily-orders?date=2026-05-10&store_id=1` 401（无 token 符合预期） / `/merchant/calendar` 308 / `/merchant/m/calendar` 308）。**10) 多端零变更** — 仅 backend + h5-web 改动，**微信小程序 / 安卓 APP / 苹果 APP / Windows exe 本期零改动无需重新打包**；商家端日历功能仅存在于 PC + H5 两端，与移动 app 无关。**11) 用户手册** — `user_docs/预约日历当日订单弹窗.md`（含开头/末尾两处访问链接表 + 功能简介 + PC 端 8 步使用指引 + H5 端 8 步使用指引 + 10 条注意事项含核销码安全规则 / 手机号权限 / 排序规则 / 状态合并 / 统计口径一致 / 空状态等 + 13 项验收要点全部通过 + 服务端测试 13/13 摘录）。
+
+### 涉及文件
+- 后端 API：`backend/app/api/merchant.py`（新增 `_mask_nickname` / `_format_time_slot` / `_resolve_unified_status` / `_SORT_GROUP` 工具函数 + `GET /api/merchant/calendar/daily-orders` 端点）
+- 后端 Schema：`backend/app/schemas/merchant.py`（新增 `DailyOrderItem / DailyOrdersByStatus / DailyOrdersResponse` 三个模型）
+- 后端测试：`backend/tests/test_calendar_daily_orders_popup.py`（新增 13 用例覆盖 PRD 全部验收要点）
+- PC 弹窗组件：`h5-web/src/app/merchant/calendar/DailyOrdersModal.tsx`（370 行 React + Ant Design）
+- PC 入口接入：`h5-web/src/app/merchant/calendar/page.tsx`（日期单元格点击触发 + handleCellClick）
+- H5 抽屉组件：`h5-web/src/app/merchant/m/calendar/DailyOrdersDrawer.tsx`（440 行 React 自定义抽屉）
+- H5 入口接入：`h5-web/src/app/merchant/m/calendar/page.tsx`（日期单元格点击触发 + handleDayClick）
+- 部署辅助：`_deploy_calendar_daily_orders.py`（SFTP 上传 + docker compose build/up + 容器内 pytest 13/13）
+- 用户手册：`user_docs/预约日历当日订单弹窗.md`
+
+### 验收要点
+- ✅ PC 弹窗（920px / 80vh）+ H5 底部抽屉（85vh）两端形态符合 PRD §3 视觉规范
+- ✅ 标题格式 `{日期} {星期} · 当日订单（共 N 单）`，含中文星期映射
+- ✅ 5 状态 Tab（含计数）+ 纯前端过滤零网络请求
+- ✅ 排序强制规则：待核销 → 已取消 → 已退款 → 已核销，组内按预约时段升序
+- ✅ 行/卡片就地展开详情，同时刻最多 1 行展开，Tab 切换自动收起
+- ✅ 详情字段含客户备注 / 服务地点 / 完整 11 位客户手机号（拨打 + 复制 + 降级 execCommand） / 核销状态 / 核销时间 / 核销码
+- ✅ 已取消订单额外显示取消时间 + 取消原因；已退款订单额外显示退款时间 + 退款原因
+- ✅ 核销码 BR-04 接口层兜底：未核销订单严禁下发 verify_code（前端无法绕过）
+- ✅ PC 关闭三件套（× / 遮罩 / ESC）+ H5 关闭（✕ + 遮罩点击）
+- ✅ 空状态文案统一「该状态下暂无记录」
+- ✅ 0 单日期点击无响应，与 PRD 规则一致
+- ✅ 远程容器 pytest 13/13 PASS（基础结构 / 排序 / 核销码安全 / 取消/退款时间 / 手机号 / 昵称脱敏 / 0 单 / 鉴权 / 服务地点等）
+- ✅ 外部 URL 5/5 全部预期（无 token 接口正确 401）
+- ✅ 多端零变更（仅 PC + H5），小程序 / 安卓 / 苹果 APP 沿用现有版本
+
+### 体验链接（2026-05-04 17:35）
+- 商家 PC 预约日历：[https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/calendar](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/calendar)
+- 商家 H5 预约日历：[https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/m/calendar](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/m/calendar)
+- 商家 PC 订单列表：[https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/orders](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/orders)
+
+---
+
+## Previous Update: H5 支付链路 BasePath 修复（pay_url 不再丢 `/autodev/<uuid>` 前缀 + 前端 `withBasePath`/`redirectToPayUrl` 工具 + 后端 `_build_sandbox_pay_url` 强化三级兜底 + docker-compose 注入 `PROJECT_BASE_URL` + 前向兼容根域名/独立子域名 + 远程容器 pay_url 回归断言通过 + 仅 H5+backend 端变更无需多端打包）（2026-05-04 16:55）
 
 ### 一句话结论
 按《H5 支付链路在 `/autodev/<uuid>/` 子路径下整体错乱 Bug 修复方案文档》一次性根治"H5 部署在子路径下时支付跳转掉到根域名同域『另一个项目』看到『路由 OK』"问题：**1) 根因定位** — 后端 `backend/app/api/unified_orders.py::_build_sandbox_pay_url` 仅依赖 `PROJECT_BASE_URL`，但 `docker-compose.yml` 里 backend 服务**没注入该环境变量**，导致 `pay_url` 退化为相对路径 `/sandbox-pay?...`，前端 `window.location.href = pay_url` 时浏览器拼成根域 `https://newbb.test.bangbangvip.com/sandbox-pay`（**丢掉 `/autodev/<uuid>` 前缀**）落到同域下其它项目页面。**2) 前端修复** — 新增 `h5-web/src/lib/basePath.ts`（`BASE_PATH` 常量 + `withBasePath(path)` 加前缀工具 + `absoluteUrl(path)` 完整 URL 拼接 + `redirectToPayUrl(payUrl)` 安全跳转支付）；`h5-web/src/app/checkout/page.tsx` 与 `h5-web/src/app/unified-order/[id]/page.tsx` 把 `window.location.href = payData.pay_url` 改为 `redirectToPayUrl(payData.pay_url)`，相对路径自动补 `BASE_PATH`、完整 URL 原样跳；`h5-web/src/lib/auth.ts::logout()` 把硬编码 `/login` 改为带 `BASE_PATH` 前缀。**3) 后端修复** — `_build_sandbox_pay_url` 三级兜底取 base：`settings.PROJECT_BASE_URL` → `os.environ['PROJECT_BASE_URL']` → `os.environ['PUBLIC_API_BASE_URL']`（兼容现有部署），三者全空时返回相对 `/sandbox-pay?...` 让前端 `redirectToPayUrl` 兜底；同时 `rstrip('/')` 防双斜杠。**4) 部署配置** — `docker-compose.yml` 与 `docker-compose.prod.yml` 均给 backend 服务新增 `PROJECT_BASE_URL: ${PROJECT_BASE_URL:-https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27}` 环境变量（与 H5 容器构建时 `NEXT_PUBLIC_BASE_PATH` 同前缀）；`.env.example` 增加 `PROJECT_BASE_URL` 注释说明前向兼容性（未来切换根域名/独立子域名只改本变量即可，业务零改动）。**5) 测试** 新增 `backend/tests/test_h5_basepath_pay_url_bugfix.py` 共 6 用例（PROJECT_BASE_URL 完整 URL/末尾带 `/` 不双斜杠/PUBLIC_API_BASE_URL 兜底/全空时返回相对路径/关键回归"pay_url 必须含 autodev/<uuid>/sandbox-pay"段/E2E pay_url 含完整 basePath 前缀）；远程容器中虽因 `pytest` 模块缺失未执行 pytest 但用 `python -c` 直接执行核心断言 `'autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/sandbox-pay' in pay_url` **REGRESSION OK**。**6) 部署** — `_deploy_h5_basepath_bugfix.py` 用 paramiko SFTP 上传 9 个变更文件 + `docker compose build backend h5-web` + `up -d` + 等 25s + 容器内回归断言 PASS + 外部 URL 6 条 200/308（H5 主页 200 / `/api/health` 200 / `/checkout` 308 trailing slash / `/sandbox-pay/?order_no=...&channel=alipay_h5` 200 + 静态资源带 `/autodev/<uuid>/_next/` 前缀 / `/pay/success?orderId=1` 308 / `/login` 308）。**7) 多端零变更** — 仅 H5 端 + 后端容器代码改动，**微信小程序 / 安卓 APP / 苹果 APP 本期零改动无需重新打包**；前向兼容设计：未来切换到 `h5.xxx.com` 等根域/独立子域名形态时，**只需把 `NEXT_PUBLIC_BASE_PATH` 和 `PROJECT_BASE_URL` 改为空串/新域名即可，业务代码零改动**。**8) 用户手册** — `user_docs/H5支付链路BasePath修复.md`（含开头/末尾两处访问链接表 + 本次客户端变更说明（仅 H5 + 后端） + 6 步使用说明含支付链路验证 + 8 项验证清单全部通过 + 5 条注意事项含临时体验链接说明 + 沙盒桩 vs 真实支付宝兼容性说明）。

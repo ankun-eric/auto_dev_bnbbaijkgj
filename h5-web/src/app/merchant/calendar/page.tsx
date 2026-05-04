@@ -10,6 +10,7 @@ import dayjs from 'dayjs';
 import 'dayjs/locale/zh-cn';
 import api from '@/lib/api';
 import { getCurrentStoreId } from '../lib';
+import DailyOrdersModal from './DailyOrdersModal';
 
 dayjs.locale('zh-cn');
 
@@ -81,6 +82,10 @@ export default function CalendarPCPage() {
   const [panelOpen, setPanelOpen] = useState(false);
   const [currentAppt, setCurrentAppt] = useState<DailyAppointment | null>(null);
 
+  // PRD「当日订单弹窗」v1.0：点击日期单元格触发的当日订单弹窗
+  const [popupOpen, setPopupOpen] = useState(false);
+  const [popupDate, setPopupDate] = useState<string | null>(null);
+
   const monthStr = useMemo(() => currentMonth.format('YYYY-MM'), [currentMonth]);
 
   const loadMonthly = useCallback(async () => {
@@ -137,8 +142,12 @@ export default function CalendarPCPage() {
     const dateStr = value.format('YYYY-MM-DD');
     const summary = monthlySummary[dateStr];
     if (!summary || summary.count === 0) return null;
+    // PRD「当日订单弹窗」v1.0 F-01：徽标作为可视入口提示
     return (
-      <div>
+      <div
+        title="点击查看当日订单详情"
+        style={{ cursor: 'pointer' }}
+      >
         <div style={{ fontSize: 12, color: '#fa541c', fontWeight: 600 }}>共 {summary.count} 个预约</div>
         <div style={{ display: 'flex', gap: 3, marginTop: 2 }}>
           {[
@@ -161,6 +170,28 @@ export default function CalendarPCPage() {
       </div>
     );
   };
+
+  // PRD「当日订单弹窗」v1.0 F-01：点击日期单元格触发当日订单弹窗
+  // 业务规则：仅当 summary.count ≥ 1 时才打开弹窗；0 单的日期点击无响应
+  const handleCellClick = useCallback((date: Dayjs) => {
+    const dateStr = date.format('YYYY-MM-DD');
+    const summary = monthlySummary[dateStr];
+    if (!summary || summary.count === 0) {
+      // 仍然保留旧行为：选中该日期，但不打开弹窗
+      setSelectedDate(dateStr);
+      setCurrentMonth(date);
+      return;
+    }
+    setPopupDate(dateStr);
+    setPopupOpen(true);
+    // 同时同步选中状态，让旧的卡片列表也跟着更新（向后兼容）
+    setSelectedDate(dateStr);
+    setCurrentMonth(date);
+    try {
+      // eslint-disable-next-line no-console
+      console.info('[track] calendar_daily_popup_open', { date: dateStr, order_count: summary.count, terminal: 'pc' });
+    } catch {}
+  }, [monthlySummary]);
 
   // PRD F6：点击预约打开右侧侧滑面板
   const openPanel = (appt: DailyAppointment) => {
@@ -243,10 +274,7 @@ export default function CalendarPCPage() {
             <Calendar
               value={currentMonth}
               headerRender={headerRender}
-              onSelect={(date) => {
-                setSelectedDate(date.format('YYYY-MM-DD'));
-                setCurrentMonth(date);
-              }}
+              onSelect={(date) => handleCellClick(date as Dayjs)}
               onPanelChange={(date) => {
                 setCurrentMonth(date);
                 setSelectedDate(null);
@@ -357,6 +385,14 @@ export default function CalendarPCPage() {
             </Descriptions>
           )}
         </Drawer>
+
+        {/* PRD「当日订单弹窗」v1.0：日历点击日期触发的当日订单弹窗 */}
+        <DailyOrdersModal
+          open={popupOpen}
+          date={popupDate}
+          storeId={getCurrentStoreId() ?? null}
+          onClose={() => setPopupOpen(false)}
+        />
       </div>
     </ConfigProvider>
   );
