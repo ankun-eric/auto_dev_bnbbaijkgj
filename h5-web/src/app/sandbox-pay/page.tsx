@@ -51,9 +51,12 @@ function SandboxPayPage() {
       });
       const data = res?.data || res;
       const orderId = data?.id || data?.order_id || data?.data?.id;
-      Toast.show({ content: '支付成功' });
+      // [H5 支付 Bug 修复方案 v1.0 · F3] 沙盒回跳后统一跳标准支付成功页
+      // 兼容仅返回 order_no 的旧接口：携带 orderNo 进入成功页二次拉取详情
       if (orderId) {
-        router.replace(`/unified-order/${orderId}`);
+        router.replace(`/pay/success?orderId=${orderId}`);
+      } else if (orderNo) {
+        router.replace(`/pay/success?orderNo=${orderNo}`);
       } else {
         router.replace('/unified-orders');
       }

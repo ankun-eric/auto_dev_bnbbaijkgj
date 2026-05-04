@@ -127,8 +127,8 @@ export default function UnifiedOrderDetailPage() {
       const paidAmount = Number(order.paid_amount) || 0;
       if (paidAmount === 0) {
         await api.post(`/api/orders/unified/${order.id}/confirm-free`, { channel_code });
-        Toast.show({ content: '支付成功' });
-        fetchOrder();
+        // [H5 支付 Bug 修复方案 v1.0 · F3] 0 元订单确认成功 → 标准支付成功页
+        router.replace(`/pay/success?orderId=${order.id}`);
         return;
       }
       if (!channel_code) {
@@ -140,8 +140,8 @@ export default function UnifiedOrderDetailPage() {
       if (payData?.pay_url) {
         window.location.href = payData.pay_url;
       } else {
-        Toast.show({ content: '支付成功' });
-        fetchOrder();
+        // pay_url 为空（极少数后端兜底直接置已支付）→ 标准支付成功页
+        router.replace(`/pay/success?orderId=${order.id}`);
       }
     } catch (err: any) {
       Toast.show({ content: err?.response?.data?.detail || '支付失败' });

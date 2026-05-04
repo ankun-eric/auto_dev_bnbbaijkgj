@@ -711,26 +711,28 @@ function CheckoutPage() {
       // 缓存最近一次手机号
       try { window.localStorage.setItem(LAST_CONTACT_PHONE_KEY, contactPhone); } catch {}
 
-      // [2026-05-04 H5 支付链路 Bug 修复] 根据后端返回的 paid_amount 走分支
+      // [H5 支付 Bug 修复方案 v1.0 · F2-F3] 根据后端返回的 paid_amount 走分支
+      // 0 元订单：直接 confirm-free 后跳标准支付成功页 /pay/success
+      // 付费订单：调用 /pay → 拿 pay_url → window.location.href 跳支付宝沙盒收银台
+      //          沙盒确认成功后由 /sandbox-pay 跳到 /pay/success
       const paidAmount = Number(order?.paid_amount) || 0;
       if (paidAmount === 0) {
-        // 0 元订单：直接 confirm-free（不受通道开关限制）
         try {
           await api.post(`/api/orders/unified/${order.id}/confirm-free`, {
             channel_code: selectedPayment || null,
           });
         } catch (err: any) {
-          // confirm-free 失败也不阻塞跳转，由订单详情页继续提示/重试
+          // confirm-free 失败：透出后端 errMsg 而非通用"下单失败"
           Toast.show({ content: err?.response?.data?.detail || '订单确认失败，请稍后重试' });
-          router.push(`/unified-order/${order.id}`);
+          router.replace(`/unified-order/${order.id}`);
           return;
         }
-        Toast.show({ content: '下单成功' });
-        router.push(`/unified-order/${order.id}`);
+        // 用 replace 防止用户后退回到 checkout 重复提交
+        router.replace(`/pay/success?orderId=${order.id}`);
         return;
       }
 
-      // 付费订单：调用 /pay，按 pay_url 跳转或直接进详情
+      // 付费订单：调用 /pay，按 pay_url 跳转支付宝沙盒收银台
       try {
         const payRes: any = await api.post(`/api/orders/unified/${order.id}/pay`, {
           channel_code: selectedPayment,
@@ -740,12 +742,12 @@ function CheckoutPage() {
           window.location.href = payData.pay_url;
           return;
         }
-        // pay_url 为空：后端已直接置为已支付，跳订单详情兜底
-        Toast.show({ content: '下单成功' });
-        router.push(`/unified-order/${order.id}`);
+        // pay_url 为空：极少数情况后端直接置为已支付，仍走标准成功页
+        router.replace(`/pay/success?orderId=${order.id}`);
       } catch (err: any) {
+        // 透出具体 errMsg（PRD F8）
         Toast.show({ content: err?.response?.data?.detail || '发起支付失败' });
-        router.push(`/unified-order/${order.id}`);
+        router.replace(`/unified-order/${order.id}`);
       }
     } catch (err: any) {
       Toast.show({ content: err?.response?.data?.detail || '下单失败' });
