@@ -49,7 +49,11 @@ class OrderDetailScreen extends StatelessWidget {
                   _buildInfoRow('订单编号', '2024032700001'),
                   _buildInfoRow('下单时间', '2024-03-25 10:30'),
                   _buildInfoRow('支付金额', '¥599.00'),
-                  _buildInfoRow('支付方式', '微信支付'),
+                  // [2026-05-04 H5 优惠券抵扣 0 元下单 Bug 修复 v1.0 · D6]
+                  // 本屏幕仍为旧 demo 入口（mock 数据，未对接后端订单）。
+                  // 不会出现 coupon_deduction 0 元单数据，仅去掉硬编码"微信支付"避免误导，
+                  // 真实订单数据请使用 UnifiedOrderDetailScreen。
+                  _buildInfoRow('支付方式', '-'),
                 ],
               ),
             ),

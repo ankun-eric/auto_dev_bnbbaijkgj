@@ -476,13 +476,22 @@ export default function UnifiedOrderDetailPage() {
               </div>
             )}
             {/* [支付配置 PRD v1.0] 优先显示具体支付通道文案 */}
+            {/* [2026-05-04 H5 优惠券抵扣 0 元下单 Bug 修复 v1.0 · D1]
+                后备映射改为 Map 结构，支持 coupon_deduction / balance / points，
+                避免之前三元表达式把一切非 wechat 的值兜底成「支付宝」。 */}
             {((order as any).payment_method_text) ? (
               <div className="flex justify-between">
                 <span>支付方式</span><span>{(order as any).payment_method_text}</span>
               </div>
             ) : order.payment_method ? (
               <div className="flex justify-between">
-                <span>支付方式</span><span>{order.payment_method === 'wechat' ? '微信支付' : '支付宝'}</span>
+                <span>支付方式</span><span>{({
+                  wechat: '微信支付',
+                  alipay: '支付宝',
+                  coupon_deduction: '优惠券全额抵扣',
+                  balance: '余额支付',
+                  points: '积分兑换',
+                } as Record<string, string>)[order.payment_method] || order.payment_method}</span>
               </div>
             ) : null}
             <Divider />

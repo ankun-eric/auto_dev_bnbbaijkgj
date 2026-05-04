@@ -109,11 +109,15 @@ const refundStatusMap: Record<string, { color: string; text: string }> = {
 
 // 履约方式映射统一改用公共字典 `@/utils/fulfillmentLabel`，确保与其他端口径完全一致。
 
+// [2026-05-04 H5 优惠券抵扣 0 元下单 Bug 修复 v1.0 · C1]
+// 新增 coupon_deduction → "优惠券全额抵扣"，与后端 PAYMENT_METHOD_TEXT_MAP 口径完全一致。
+// balance 已存在，保持原映射「余额支付」，与后端枚举占位值对齐。
 const payMethodMap: Record<string, string> = {
   wechat: '微信支付',
   alipay: '支付宝',
   balance: '余额支付',
   points: '积分兑换',
+  coupon_deduction: '优惠券全额抵扣',
 };
 
 // PRD V2: 12 状态完整筛选下拉
@@ -142,12 +146,14 @@ const redemptionCodeStatusOptions = [
   { value: 'refunded', label: '已退款' },
 ];
 
+// [2026-05-04 H5 优惠券抵扣 0 元下单 Bug 修复 v1.0 · C1] 筛选下拉同步新增「优惠券全额抵扣」
 const payMethodOptions = [
   { value: '', label: '全部支付方式' },
   { value: 'wechat', label: '微信支付' },
   { value: 'alipay', label: '支付宝' },
   { value: 'balance', label: '余额支付' },
   { value: 'points', label: '积分兑换' },
+  { value: 'coupon_deduction', label: '优惠券全额抵扣' },
 ];
 
 // PRD「我的订单与售后状态体系优化」F-09/F-10：

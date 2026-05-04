@@ -143,9 +143,13 @@
       <text class="info-value">{{order.paid_at}}</text>
     </view>
     <!-- [支付配置 PRD v1.0] 优先展示具体通道文案 payment_method_text -->
+    <!-- [2026-05-04 H5 优惠券抵扣 0 元下单 Bug 修复 v1.0 · D4]
+         兜底字符串改为中性占位 '-'，避免在 0 元单（payment_method=coupon_deduction、
+         无 payment_method_text）时被错误展示成"微信支付"。后端 B3 已补全 payment_method_text，
+         此处通常会优先使用。 -->
     <view class="info-row">
       <text class="info-label">支付方式</text>
-      <text class="info-value">{{order.payment_method_text || order.payment_method_label || '微信支付'}}</text>
+      <text class="info-value">{{order.payment_method_text || order.payment_method_label || '-'}}</text>
     </view>
   </view>
 

@@ -273,10 +273,14 @@ export default function OrdersPage() {
   // - 商家 PC 端列顺序：订单号 → 下单时间 → 商品名称 → 用户 → 手机 → 数量 → 金额 → 支付方式
   //   → 商家专属（核销码 / 门店 / 预约时间 / 附件）→ 状态 → 操作
   // - 列宽按 PRD 规范，截断列鼠标悬停 tooltip 显示完整内容
+  // [2026-05-04 H5 优惠券抵扣 0 元下单 Bug 修复 v1.0 · D3]
+  // 商家 PC 端列表新增 coupon_deduction / points 中文映射，
+  // 与 admin payMethodMap、后端 PAYMENT_METHOD_TEXT_MAP 全端口径一致。
   const PAYMENT_METHOD_LABEL: Record<string, string> = {
     wechat: '微信',
     alipay: '支付宝',
     balance: '余额',
+    coupon_deduction: '优惠券全额抵扣',
     points: '积分',
   };
   const columns = [

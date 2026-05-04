@@ -12,14 +12,35 @@ from pydantic import BaseModel, ConfigDict, field_validator
 #   1. wechat_*  → wechat
 #   2. alipay_* → alipay
 #   3. 其余非白名单值 → 抛 ValueError，FastAPI 自动转 422 / 400
-ALLOWED_PAYMENT_METHODS = {"wechat", "alipay"}
+#
+# [2026-05-04 H5 优惠券抵扣 0 元下单 Bug 修复 v1.0 · B2/B3]
+# 0 元单场景前端会显式传 coupon_deduction；老前端可能传 alipay/wechat 但实付为 0，
+# 后端 server-side 兜底再把它们改写为 coupon_deduction。balance 为占位枚举（暂未实现）。
+# 因此 schema 白名单需要同时放行 wechat / alipay / coupon_deduction / balance。
+ALLOWED_PAYMENT_METHODS = {"wechat", "alipay", "coupon_deduction", "balance"}
+
+# [2026-05-04 H5 优惠券抵扣 0 元下单 Bug 修复 v1.0 · B3]
+# 后端响应 payment_method_text 的中文映射（统一文案下发口径）：
+#   - wechat            → 微信支付
+#   - alipay            → 支付宝
+#   - coupon_deduction  → 优惠券全额抵扣
+#   - balance           → 余额支付
+#   - points            → 积分兑换
+# 各端订单详情 / 列表的「支付方式」展示应优先取 payment_method_text，本表为兜底基准。
+PAYMENT_METHOD_TEXT_MAP: dict[str, str] = {
+    "wechat": "微信支付",
+    "alipay": "支付宝",
+    "coupon_deduction": "优惠券全额抵扣",
+    "balance": "余额支付",
+    "points": "积分兑换",
+}
 
 
 def normalize_payment_method(value: Optional[str]) -> Optional[str]:
-    """归一化 payment_method 为 provider 级别值（wechat / alipay）。
+    """归一化 payment_method 为合法落库值。
 
     - None / 空字符串 → None
-    - 已经是 wechat / alipay → 原样返回
+    - 已经是白名单值（wechat / alipay / coupon_deduction / balance） → 原样返回
     - wechat_* / alipay_* → 提取前缀返回 wechat / alipay
     - 其他值 → 返回 None（由调用方决定是否抛错）
     """
@@ -32,7 +53,9 @@ def normalize_payment_method(value: Optional[str]) -> Optional[str]:
         return v
     if "_" in v:
         prefix = v.split("_", 1)[0]
-        if prefix in ALLOWED_PAYMENT_METHODS:
+        # 仅 wechat_* / alipay_* 这类通道编码才允许按前缀降级；
+        # coupon_deduction / balance 已在白名单中精确匹配，不会走到这里。
+        if prefix in {"wechat", "alipay"}:
             return prefix
     return None
 

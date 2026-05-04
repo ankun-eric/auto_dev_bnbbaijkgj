@@ -2172,9 +2172,12 @@ async def _sync_payment_config(conn: AsyncConnection) -> None:
             except Exception as e:
                 print(f"[schema_sync] unified_orders add payment_display_name warn: {e}")
 
-    # ── 5) [零元单 v2.2] unified_orders.payment_method ENUM 扩列：新增 coupon_deduction ──
-    # MySQL 下 SQLAlchemy 的 Enum(UnifiedPaymentMethod) 会落地为 ENUM('wechat','alipay','points')，
-    # 新增枚举值 'coupon_deduction' 必须在 DB 上 MODIFY COLUMN 同步，否则插入报 1265 Data truncated。
+    # ── 5) [零元单 v2.2 + H5 优惠券 0 元下单修复 v1.0 · B2] unified_orders.payment_method ENUM 扩列 ──
+    # 旧 ENUM:           ('wechat','alipay','points')
+    # 零元单 v2.2 增加: + 'coupon_deduction'
+    # 本次（v1.0 · B2）再增加: + 'balance'（占位，与 admin "余额支付" 显示映射对齐，业务尚未实现）
+    # 必须在 DB 上 MODIFY COLUMN 同步全部 5 个值，否则插入报 1265 Data truncated。
+    # 幂等：通过 information_schema 检查列定义，缺哪个补哪个。
     if info["uo_cols"] is not None and dialect_name == "mysql":
         try:
             row = (await conn.execute(text(
@@ -2184,10 +2187,14 @@ async def _sync_payment_config(conn: AsyncConnection) -> None:
                 "AND COLUMN_NAME = 'payment_method'"
             ))).fetchone()
             col_type = (row[0] if row and row[0] else "").lower()
-            if col_type and "coupon_deduction" not in col_type:
+            # 只要任意一个枚举值缺失，就把列定义重写为完整的 5 值版本（幂等）
+            if col_type and (
+                "coupon_deduction" not in col_type
+                or "'balance'" not in col_type
+            ):
                 await conn.execute(text(
                     "ALTER TABLE unified_orders MODIFY COLUMN payment_method "
-                    "ENUM('wechat','alipay','points','coupon_deduction') NULL"
+                    "ENUM('wechat','alipay','points','coupon_deduction','balance') NULL"
                 ))
         except Exception as e:
             print(f"[schema_sync] unified_orders modify payment_method enum warn: {e}")

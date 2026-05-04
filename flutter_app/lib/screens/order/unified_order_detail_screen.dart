@@ -215,10 +215,13 @@ class _UnifiedOrderDetailScreenState extends State<UnifiedOrderDetailScreen> {
           _infoRow('订单编号', o.orderNo, copyable: true),
           _infoRow('下单时间', _formatTime(o.createdAt)),
           // [支付配置 PRD v1.0] 优先显示具体通道文案
+          // [2026-05-04 H5 优惠券抵扣 0 元下单 Bug 修复 v1.0 · D5]
+          // 当 paymentMethodText 为空时，按映射表显示中文，避免直接展示英文枚举（如 coupon_deduction）。
+          // 映射与后端 PAYMENT_METHOD_TEXT_MAP / admin payMethodMap 全端一致。
           if ((o.paymentMethodText ?? '').isNotEmpty)
             _infoRow('支付方式', o.paymentMethodText!)
           else if (o.paymentMethod != null)
-            _infoRow('支付方式', o.paymentMethod!),
+            _infoRow('支付方式', _localizePaymentMethod(o.paymentMethod!)),
           if (o.paidAt != null) _infoRow('支付时间', _formatTime(o.paidAt)),
           if (o.notes != null && o.notes!.isNotEmpty) _infoRow('备注', o.notes!),
         ],
@@ -555,6 +558,26 @@ class _UnifiedOrderDetailScreenState extends State<UnifiedOrderDetailScreen> {
   String _formatTime(String? time) {
     if (time == null) return '';
     return time.replaceFirst('T', ' ').split('.').first;
+  }
+
+  // [2026-05-04 H5 优惠券抵扣 0 元下单 Bug 修复 v1.0 · D5]
+  // 把后端返回的 payment_method 英文枚举值翻译为中文，
+  // 与后端 PAYMENT_METHOD_TEXT_MAP / admin payMethodMap 全端口径一致。
+  String _localizePaymentMethod(String method) {
+    switch (method) {
+      case 'wechat':
+        return '微信支付';
+      case 'alipay':
+        return '支付宝';
+      case 'coupon_deduction':
+        return '优惠券全额抵扣';
+      case 'balance':
+        return '余额支付';
+      case 'points':
+        return '积分兑换';
+      default:
+        return '其他';
+    }
   }
 
   // [先下单后预约 Bug 修复 v1.0] 待预约横幅

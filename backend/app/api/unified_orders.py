@@ -42,6 +42,7 @@ from app.models.models import (
 )
 from app.schemas.unified_orders import (
     ALLOWED_PAYMENT_METHODS,
+    PAYMENT_METHOD_TEXT_MAP,
     ConfirmFreeRequest,
     OrderItemResponse,
     UnifiedOrderCancelRequest,
@@ -235,6 +236,11 @@ def _build_payment_method_text(order) -> Optional[str]:
 
     端名映射：wechat_miniprogram→小程序 / wechat_app/alipay_app→APP / alipay_h5→H5。
     若订单未关联 channel_code，则尝试用 payment_display_name 兜底；都没有则返回 None。
+
+    [2026-05-04 H5 优惠券抵扣 0 元下单 Bug 修复 v1.0 · B3]
+    新增对 coupon_deduction / balance 等非真实支付通道的中文兜底映射，
+    确保 0 元订单（无 payment_channel_code 也无 payment_display_name）能下发统一文案，
+    全端展示一致为「优惠券全额抵扣」/「余额支付」。
     """
     code = getattr(order, "payment_channel_code", None)
     name = getattr(order, "payment_display_name", None)
@@ -251,6 +257,17 @@ def _build_payment_method_text(order) -> Optional[str]:
         return name
     if name:
         return name
+
+    # [2026-05-04 H5 优惠券抵扣 0 元下单 Bug 修复 v1.0 · B3]
+    # 当订单没有真实支付通道（典型为 0 元订单或余额支付）时，
+    # 直接根据 payment_method 枚举值返回中文兜底文案。
+    pm_val = getattr(order, "payment_method", None)
+    if hasattr(pm_val, "value"):
+        pm_val = pm_val.value
+    if pm_val:
+        text = PAYMENT_METHOD_TEXT_MAP.get(str(pm_val))
+        if text:
+            return text
     return None
 
 
@@ -615,13 +632,32 @@ async def create_unified_order(
 
     paid_amount = max(0, total_amount - coupon_discount - points_value)
 
+    # [2026-05-04 H5 优惠券抵扣 0 元下单 Bug 修复 v1.0 · B1]
+    # Server-side 兜底（最后一道防线，独立于前端各端是否已修复）：
+    # 当 paid_amount == 0 时，强制把 payment_method 改写为 coupon_deduction。
+    # 这能覆盖以下场景：
+    #   1) 老客户端尚未升级，仍传 alipay/wechat 但实付为 0
+    #   2) 直接通过 Postman / 第三方脚本绕过前端构造的 0 元请求
+    #   3) 积分抵扣到 0 元（按用户决策口径 A，统一记 coupon_deduction）
+    _final_payment_method = data.payment_method
+    if float(paid_amount) == 0:
+        if _final_payment_method != UnifiedPaymentMethod.coupon_deduction.value:
+            logger.info(
+                "[server-side override] paid_amount=0 → payment_method "
+                "forced to coupon_deduction (user_id=%s, original=%s)",
+                current_user.id,
+                _final_payment_method,
+            )
+        _final_payment_method = UnifiedPaymentMethod.coupon_deduction.value
+
     order = UnifiedOrder(
         order_no=_generate_order_no(),
         user_id=current_user.id,
         total_amount=total_amount,
         paid_amount=paid_amount,
         points_deduction=points_deduction,
-        payment_method=data.payment_method,
+        # [2026-05-04 H5 优惠券抵扣 0 元下单 Bug 修复 v1.0 · B1] 0 元单已在上方被兜底为 coupon_deduction
+        payment_method=_final_payment_method,
         coupon_id=data.coupon_id,
         coupon_discount=coupon_discount,
         shipping_address_id=data.shipping_address_id,

@@ -701,7 +701,15 @@ function CheckoutPage() {
       // channel_code 对应的 provider，找不到则按 _ 前缀降级提取。
       const selectedMethodObj = availableMethods.find(m => m.channel_code === selectedPayment);
       const fallbackProvider = (selectedPayment || paymentMethod || 'wechat').split('_')[0];
-      const providerForOrder = (selectedMethodObj?.provider || fallbackProvider || 'wechat');
+      let providerForOrder = (selectedMethodObj?.provider || fallbackProvider || 'wechat');
+
+      // [2026-05-04 H5 优惠券抵扣 0 元下单 Bug 修复 v1.0 · A1]
+      // 当本次结算预估实付金额为 0（含全额抵扣券、积分抵扣到 0 等场景）时，
+      // 必须将 payment_method 改写为 'coupon_deduction'，否则后端 /api/orders/unified
+      // 会因 0 元订单匹配不到真实支付通道而 500，且 confirm-free 分支根本走不到。
+      if (Number(totalAmount) <= 0) {
+        providerForOrder = 'coupon_deduction';
+      }
 
       const orderData: any = {
         items: [{
@@ -712,6 +720,7 @@ function CheckoutPage() {
           ...(appointmentDataObj ? { appointment_data: appointmentDataObj } : {}),
         }],
         // [2026-05-04 支付通道枚举不一致 Bug 修复 v1.0] 仅传 provider 级别值
+        // [2026-05-04 H5 优惠券抵扣 0 元下单 Bug 修复 v1.0 · A1] 0 元单上面已被改写为 coupon_deduction
         payment_method: providerForOrder,
         points_deduction: usePoints ? pointsDeduction : 0,
         notes: notes || undefined,

@@ -390,9 +390,17 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         }
       }
 
+      // [2026-05-04 H5 优惠券抵扣 0 元下单 Bug 修复 v1.0 · A3]
+      // 与 H5 / 小程序端口径一致：当本次结算预估实付金额为 0（含全额抵扣券、积分抵扣到 0 等场景）时，
+      // 必须将 payment_method 改写为 'coupon_deduction'，否则后端创建订单接口会 500。
+      if (_totalAmount <= 0) {
+        _providerForOrder = 'coupon_deduction';
+      }
+
       final data = <String, dynamic>{
         'items': [itemData],
         // [2026-05-04 支付通道枚举不一致 Bug 修复 v1.0] 仅传 provider 级别值
+        // [2026-05-04 H5 优惠券抵扣 0 元下单 Bug 修复 v1.0 · A3] 0 元单上面已被改写为 coupon_deduction
         if (_providerForOrder != null) 'payment_method': _providerForOrder,
         'points_deduction': _pointsDeduction,
         'notes': _notesController.text.isNotEmpty ? _notesController.text : null,

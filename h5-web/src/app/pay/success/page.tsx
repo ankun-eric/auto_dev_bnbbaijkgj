@@ -227,8 +227,14 @@ function PaySuccessPage() {
       return order.coupon_discount > 0 ? '优惠券全额抵扣' : '0 元免支付';
     }
     if (order.payment_method_text) return order.payment_method_text;
+    // [2026-05-04 H5 优惠券抵扣 0 元下单 Bug 修复 v1.0 · D2]
+    // 增加 coupon_deduction / balance / points 等非真实支付通道的兜底文案，
+    // 与后端 PAYMENT_METHOD_TEXT_MAP 口径一致。
     if (order.payment_method === 'alipay') return '支付宝';
     if (order.payment_method === 'wechat') return '微信支付';
+    if (order.payment_method === 'coupon_deduction') return '优惠券全额抵扣';
+    if (order.payment_method === 'balance') return '余额支付';
+    if (order.payment_method === 'points') return '积分兑换';
     return '已支付';
   })();
 

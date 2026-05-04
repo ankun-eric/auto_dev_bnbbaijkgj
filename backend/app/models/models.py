@@ -232,6 +232,10 @@ class UnifiedPaymentMethod(str, enum.Enum):
     alipay = "alipay"
     points = "points"
     coupon_deduction = "coupon_deduction"
+    # [2026-05-04 H5 优惠券抵扣 0 元下单 Bug 修复 v1.0 · B2]
+    # balance 仅作为占位枚举值（与现有 admin "余额支付" 显示映射对齐），
+    # 本次不实现「余额支付」业务逻辑；后续上线余额支付时只需补业务流，无需再改 schema。
+    balance = "balance"
 
 
 class CouponType(str, enum.Enum):

@@ -502,11 +502,19 @@ Page({
       // _ 前缀降级提取，确保后端入库的 payment_method 仅为 wechat / alipay。
       const _selectedMethodObj = (this.data.paymentMethods || []).find(m => m && m.channel_code === this.data.paymentMethod);
       const _fallbackProvider = String(this.data.paymentMethod || 'wechat').split('_')[0];
-      const _providerForOrder = (_selectedMethodObj && _selectedMethodObj.provider) || _fallbackProvider || 'wechat';
+      let _providerForOrder = (_selectedMethodObj && _selectedMethodObj.provider) || _fallbackProvider || 'wechat';
+
+      // [2026-05-04 H5 优惠券抵扣 0 元下单 Bug 修复 v1.0 · A2]
+      // 与 H5 端口径一致：当本次结算预估实付金额为 0（含全额抵扣券、积分抵扣到 0 等场景）时，
+      // 必须将 payment_method 改写为 'coupon_deduction'，否则后端创建订单接口会 500。
+      if (Number(this.data.finalPrice || 0) <= 0) {
+        _providerForOrder = 'coupon_deduction';
+      }
 
       const orderData = {
         items: [itemData],
         // [2026-05-04 支付通道枚举不一致 Bug 修复 v1.0] 仅传 provider 级别值
+        // [2026-05-04 H5 优惠券抵扣 0 元下单 Bug 修复 v1.0 · A2] 0 元单上面已被改写为 coupon_deduction
         payment_method: _providerForOrder,
         points_deduction: this.data.usePoints ? Math.min(this.data.availablePoints, this.data.maxPointsDeduction) : 0,
         notes: this.data.appointmentNote || undefined,
