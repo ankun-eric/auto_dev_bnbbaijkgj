@@ -55,7 +55,8 @@
         </text>
       </picker>
     </view>
-    <view class="form-item-slots">
+    <!-- [预约日期模式 Bug 修复 v1.0] 仅 time_slot 模式才渲染整块时段；date 模式只按天限流，绝不展示时段 -->
+    <view class="form-item-slots" wx:if="{{needTimeSlot}}">
       <text class="form-label">预约时段</text>
       <view class="time-slots-wrap">
         <view

@@ -33,6 +33,7 @@ interface OrderItem {
   used_redeem_count: number;
   appointment_data: any | null;
   appointment_time: string | null;
+  appointment_mode?: 'none' | 'date' | 'time_slot' | 'custom_form' | null;
 }
 
 interface UnifiedOrder {
@@ -713,14 +714,20 @@ export default function UnifiedOrdersPage() {
                       {currentOrder.store_name}
                     </Descriptions.Item>
                   )}
-                  {currentOrder.items.filter((item: any) => item.appointment_time).map((item: any, idx: number) => (
+                  {currentOrder.items.filter((item: any) => item.appointment_time).map((item: any, idx: number) => {
+                    // [预约日期模式 Bug 修复 v1.0] 仅 time_slot 模式才展示「预约时段」行；
+                    // date 模式按设计只按天限流，无论历史脏数据如何，一律不渲染时段
+                    const isTimeSlotMode = (item.appointment_mode || 'time_slot') === 'time_slot';
+                    return (
                     <React.Fragment key={idx}>
                       <Descriptions.Item label="预约日期" span={1}>
                         {item.appointment_time ? new Date(item.appointment_time).toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' }) : '-'}
                       </Descriptions.Item>
-                      <Descriptions.Item label="预约时段" span={1}>
-                        {item.appointment_data?.time_slot || (item.appointment_time ? new Date(item.appointment_time).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '-')}
-                      </Descriptions.Item>
+                      {isTimeSlotMode && (
+                        <Descriptions.Item label="预约时段" span={1}>
+                          {item.appointment_data?.time_slot || (item.appointment_time ? new Date(item.appointment_time).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '-')}
+                        </Descriptions.Item>
+                      )}
                       <Descriptions.Item label="预约状态" span={1}>
                         <Tag color={currentOrder.status === 'completed' ? 'green' : currentOrder.status === 'cancelled' ? 'red' : 'blue'}>
                           {currentOrder.status === 'completed' ? '已完成'
@@ -736,7 +743,8 @@ export default function UnifiedOrdersPage() {
                         </Descriptions.Item>
                       )}
                     </React.Fragment>
-                  ))}
+                    );
+                  })}
                 </Descriptions>
               </Card>
             )}

@@ -241,6 +241,9 @@ class _UnifiedOrderDetailScreenState extends State<UnifiedOrderDetailScreen> {
                 : null;
             final timeSlot = apptData?['time_slot']?.toString();
             final note = apptData?['note']?.toString();
+            // [预约日期模式 Bug 修复 v1.0] 仅 time_slot 模式才展示「预约时段」行；
+            // date 模式无论历史脏数据如何，一律不渲染时段
+            final isTimeSlotMode = (item.appointmentMode ?? 'time_slot') == 'time_slot';
 
             return Padding(
               padding: const EdgeInsets.only(bottom: 8),
@@ -250,7 +253,7 @@ class _UnifiedOrderDetailScreenState extends State<UnifiedOrderDetailScreen> {
                   if (appointmentItems.length > 1)
                     Text(item.productName, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13)),
                   _infoRow('预约日期', _formatTime(item.appointmentTime).split(' ').first),
-                  if (timeSlot != null && timeSlot.isNotEmpty)
+                  if (isTimeSlotMode && timeSlot != null && timeSlot.isNotEmpty)
                     _infoRow('预约时段', timeSlot),
                   if (note != null && note.isNotEmpty)
                     _infoRow('预约备注', note),

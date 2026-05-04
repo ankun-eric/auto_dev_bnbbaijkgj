@@ -89,9 +89,17 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
   bool get _needAppointment =>
       _product.appointmentMode != 'none' && _isBookWithOrder;
+  // [预约日期模式 Bug 修复 v1.0]
+  // 把 _needAppointment 进一步按预约模式拆分：
+  //   - _needDate     : date / time_slot 两种模式都要选日期
+  //   - _needTimeSlot : 仅 time_slot 模式要选时段；date 模式按设计只按天限流，绝不再渲染时段
+  bool get _needDate =>
+      _needAppointment && (_product.appointmentMode == 'date' || _product.appointmentMode == 'time_slot');
+  bool get _needTimeSlot =>
+      _needAppointment && _product.appointmentMode == 'time_slot';
 
   Future<void> _loadSlotAvailability() async {
-    if (!_needAppointment) return;
+    if (!_needTimeSlot) return;
     if (_product.timeSlots == null || _product.timeSlots!.isEmpty) return;
     if (_selectedDate == null) return;
     try {
@@ -169,8 +177,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       return;
     }
 
-    if (_needAppointment && _selectedDate == null) {
+    if (_needDate && _selectedDate == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('请选择预约日期')));
+      return;
+    }
+    // [预约日期模式 Bug 修复 v1.0] time_slot 模式才校验时段
+    if (_needTimeSlot && (_selectedTimeSlot == null || _selectedTimeSlot!.isEmpty)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('请选择预约时段')));
       return;
     }
 
@@ -198,15 +211,23 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           }
           return;
         }
-        itemData['appointment_time'] = _selectedTimeSlot != null
-            ? '${dateStr}T$_selectedTimeSlot:00'
-            : '${dateStr}T00:00:00';
-        itemData['appointment_data'] = {
+        // [预约日期模式 Bug 修复 v1.0]
+        // time_slot 模式：appointment_time = date+slot.start；appointment_data 携带 time_slot
+        // date     模式：appointment_time = date+00:00:00；appointment_data 不携带 time_slot
+        if (_needTimeSlot && _selectedTimeSlot != null) {
+          itemData['appointment_time'] = '${dateStr}T${_selectedTimeSlot!.split('-').first}:00';
+        } else {
+          itemData['appointment_time'] = '${dateStr}T00:00:00';
+        }
+        final apptData = <String, dynamic>{
           'date': dateStr,
-          'time_slot': _selectedTimeSlot,
           'note': _appointmentNote,
           'contact_phone': phone,
         };
+        if (_needTimeSlot && _selectedTimeSlot != null) {
+          apptData['time_slot'] = _selectedTimeSlot;
+        }
+        itemData['appointment_data'] = apptData;
       }
 
       final data = <String, dynamic>{
@@ -484,6 +505,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               ),
             ),
           ),
+          // [预约日期模式 Bug 修复 v1.0] 仅 time_slot 模式才渲染整块时段；date 模式按设计只按天限流，不展示时段
+          if (_needTimeSlot) ...[
           const SizedBox(height: 12),
           Text('选择时段', style: TextStyle(fontSize: 14, color: Colors.grey[700])),
           const SizedBox(height: 8),
@@ -526,6 +549,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     );
                   }).toList(),
           ),
+          ], // end if (_needTimeSlot)
           const SizedBox(height: 12),
           // [2026-05-02 H5 下单流程优化 PRD v1.0] 联系手机号
           TextField(

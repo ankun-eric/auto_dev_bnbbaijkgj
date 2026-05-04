@@ -468,12 +468,14 @@ export default function UnifiedOrderDetailPage() {
             <div className="font-medium text-base mb-3">预约信息</div>
             {order.items.filter(item => item.appointment_time).map(item => {
               const apptDate = item.appointment_time ? new Date(item.appointment_time).toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '-') : '';
-              const timeSlot = item.appointment_data?.time_slot || '';
+              // [预约日期模式 Bug 修复 v1.0] 仅 time_slot 模式才展示时段；date 模式无论历史脏数据如何，一律不展示时段
+              const isTimeSlotMode = item.appointment_mode === 'time_slot';
+              const timeSlot = isTimeSlotMode ? (item.appointment_data?.time_slot || '') : '';
               return (
                 <div key={`appt-${item.id}`} className="space-y-2">
                   <div className="flex items-center text-sm">
                     <span className="mr-2">📅</span>
-                    <span className="text-gray-500 mr-2">预约时间</span>
+                    <span className="text-gray-500 mr-2">{isTimeSlotMode ? '预约时间' : '预约日期'}</span>
                     <span style={{ color: '#1677ff', fontWeight: 500 }}>
                       {apptDate}{timeSlot ? ` ${timeSlot}` : ''}
                     </span>

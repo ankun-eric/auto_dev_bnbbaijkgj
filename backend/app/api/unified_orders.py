@@ -557,6 +557,18 @@ async def create_unified_order(
                 )
             item_d.appointment_time = None
             item_d.appointment_data = None
+        # ── [预约日期模式 Bug 修复 v1.0] date 模式忽略 time_slot ──
+        # date 模式按设计仅按"天"维度限流，根本不需要时段。
+        # 若前端误传 appointment_data.time_slot，后端主动从字典里删掉，避免脏值入库。
+        if appt_mode == "date":
+            appt_data_in = getattr(item_d, "appointment_data", None)
+            if isinstance(appt_data_in, dict) and "time_slot" in appt_data_in:
+                logger.info(
+                    "[date_mode] 商品 %s 为预约日期模式，已忽略前端误传的 time_slot=%r",
+                    product.id, appt_data_in.get("time_slot"),
+                )
+                appt_data_in.pop("time_slot", None)
+                item_d.appointment_data = appt_data_in
         if appt_mode != "none" and purchase_appt_mode == "purchase_with_appointment":
             if not item_d.appointment_time:
                 raise HTTPException(status_code=400, detail="预约类商品必须选择预约时间")

@@ -477,11 +477,18 @@ function CheckoutPage() {
     product.purchase_appointment_mode === 'purchase_with_appointment' ||
     product.purchase_appointment_mode === 'must_appoint';
   const needAppointment = product.appointment_mode !== 'none' && isBookWithOrder;
+  // [预约日期模式支付页误显示「选择时段」 Bug 修复 v1.0]
+  // 把 needAppointment 进一步按预约模式分流：
+  //   - needDate     : date / time_slot 都需要选日期
+  //   - needTimeSlot : 仅 time_slot 需要选时段（date 模式只按天限流，绝不能再渲染时段）
+  // 命名上一刀切清楚后，UI / 校验 / 提交全部引用 needTimeSlot，杜绝再次"漏分流"。
+  const needDate = needAppointment && (product.appointment_mode === 'date' || product.appointment_mode === 'time_slot');
+  const needTimeSlot = needAppointment && product.appointment_mode === 'time_slot';
 
   // 立即支付按钮启用条件
   const canSubmit = (() => {
-    if (needAppointment) {
-      if (!selectedDate) return false;
+    if (needDate && !selectedDate) return false;
+    if (needTimeSlot) {
       if (!selectedSlot) return false;
       if (slotInvalid) return false;
     }
@@ -495,8 +502,8 @@ function CheckoutPage() {
 
   const handleSubmit = async () => {
     if (!canSubmit) {
-      if (!selectedDate && needAppointment) Toast.show({ content: '请选择预约日期' });
-      else if (!selectedSlot && needAppointment) Toast.show({ content: '请选择时段' });
+      if (!selectedDate && needDate) Toast.show({ content: '请选择预约日期' });
+      else if (!selectedSlot && needTimeSlot) Toast.show({ content: '请选择时段' });
       else if (slotInvalid) Toast.show({ content: '该门店此时段不可用，请重新选择' });
       else if (isInStore && !selectedStore) Toast.show({ content: '请选择门店' });
       else if (isDelivery && !selectedAddress) Toast.show({ content: '请选择收货地址' });
@@ -507,14 +514,15 @@ function CheckoutPage() {
     setSubmitting(true);
     try {
       const appointmentTimeStr = needAppointment && selectedDate
-        ? selectedSlot
+        ? needTimeSlot && selectedSlot
           ? `${selectedDate}T${selectedSlot.split('-')[0]}:00`
           : `${selectedDate}T00:00:00`
         : undefined;
       const appointmentDataObj = needAppointment
         ? {
             date: selectedDate,
-            time_slot: selectedSlot,
+            // [预约日期模式 Bug 修复 v1.0] date 模式不携带 time_slot，仅 time_slot 模式才带
+            ...(needTimeSlot ? { time_slot: selectedSlot } : {}),
             note: notes,
             store_id: selectedStore?.store_id,
             contact_phone: contactPhone,
@@ -613,7 +621,7 @@ function CheckoutPage() {
         )}
 
         {/* ① 选择日期：横向 7 天 */}
-        {needAppointment && dates.length > 0 && (
+        {needDate && dates.length > 0 && (
           <Card style={{ borderRadius: 12, marginBottom: 12 }}>
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium"><span style={{ color: '#ff4d4f' }}>*</span> 选择日期</span>
@@ -652,8 +660,8 @@ function CheckoutPage() {
           </Card>
         )}
 
-        {/* ② 选择时段 */}
-        {needAppointment && (
+        {/* ② 选择时段（仅 time_slot 模式才渲染；date 模式按设计只按天限流，不展示时段） */}
+        {needTimeSlot && (
           <Card style={{ borderRadius: 12, marginBottom: 12 }}>
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium"><span style={{ color: '#ff4d4f' }}>*</span> 选择时段</span>

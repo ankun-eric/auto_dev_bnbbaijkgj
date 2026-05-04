@@ -37,7 +37,11 @@ Page({
     // needAppointment 控制下单页是否展示预约控件：
     //   true  → 商品 appointment_mode != 'none' 且 purchase_appointment_mode 为下单即预约
     //   false → 隐藏预约控件（包含「先下单后预约」场景）
-    needAppointment: false
+    needAppointment: false,
+    // [预约日期模式 Bug 修复 v1.0] 当前商品的 appointment_mode（none/date/time_slot/custom_form）
+    // needTimeSlot 仅在 time_slot 模式才为 true，date 模式下绝不渲染时段块
+    appointmentMode: 'none',
+    needTimeSlot: false
   },
 
   onLoad(options) {
@@ -71,7 +75,10 @@ Page({
         !purchaseMode ||
         purchaseMode === 'purchase_with_appointment' ||
         purchaseMode === 'must_appoint';
-      const needAppointment = (product.appointment_mode || 'none') !== 'none' && isBookWithOrder;
+      const appointmentMode = product.appointment_mode || 'none';
+      const needAppointment = appointmentMode !== 'none' && isBookWithOrder;
+      // [预约日期模式 Bug 修复 v1.0] 仅 time_slot 模式才需要选时段
+      const needTimeSlot = needAppointment && appointmentMode === 'time_slot';
       const updateData = {
         product,
         fulfillmentType: product.fulfillment_type || 'online',
@@ -80,6 +87,8 @@ Page({
         maxPointsDeduction: Math.floor((product.price || 0) * 0.5 * 100),
         appointmentDate: this.formatDate(today),
         needAppointment,
+        appointmentMode,
+        needTimeSlot,
       };
 
       // BUG-PRODUCT-APPT-002：可预约日期范围统一公式
@@ -350,19 +359,25 @@ Page({
         product_id: parseInt(this.data.productId),
         quantity: this.data.quantity,
       };
-      // [先下单后预约 Bug 修复 v1.0] 仅 needAppointment 时携带预约信息
-      if (this.data.needAppointment && this.data.appointmentTime) {
+      // [先下单后预约 + 预约日期模式 Bug 修复 v1.0]
+      // 仅 needAppointment 时携带预约信息；其中 time_slot 模式才传 time_slot，date 模式不传
+      if (this.data.needAppointment && this.data.needTimeSlot && this.data.appointmentTime) {
         const startTime = this.data.appointmentTime.split('-')[0];
         itemData.appointment_time = `${this.data.appointmentDate}T${startTime}:00`;
+      } else if (this.data.needAppointment && this.data.appointmentDate) {
+        itemData.appointment_time = `${this.data.appointmentDate}T00:00:00`;
       }
       if (this.data.needAppointment && this.data.appointmentDate) {
-        itemData.appointment_data = {
+        const apptData = {
           date: this.data.appointmentDate,
-          time_slot: this.data.appointmentTime || '',
           note: this.data.appointmentNote || '',
           contact_phone: phone,
           store_id: this.data.store ? (this.data.store.id || this.data.store.store_id) : undefined,
         };
+        if (this.data.needTimeSlot && this.data.appointmentTime) {
+          apptData.time_slot = this.data.appointmentTime;
+        }
+        itemData.appointment_data = apptData;
       }
 
       const orderData = {
