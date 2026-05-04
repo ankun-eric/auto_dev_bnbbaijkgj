@@ -90,7 +90,9 @@
     <view class="form-item" bindtap="toggleCouponPicker">
       <text class="form-label">优惠券</text>
       <view class="form-right">
-        <text class="coupon-selected" wx:if="{{selectedCoupon}}">-¥{{selectedCoupon.value}}</text>
+        <text class="coupon-selected" wx:if="{{selectedCoupon}}">
+          {{selectedCoupon.type === 'free_trial' ? '免费试用' : '-¥' + selectedCoupon.value}}
+        </text>
         <text class="form-value placeholder" wx:else>
           {{coupons.length > 0 ? coupons.length + '张可用' : '暂无可用'}}
         </text>
@@ -107,18 +109,28 @@
         <text class="popup-close" bindtap="toggleCouponPicker">×</text>
       </view>
       <scroll-view class="coupon-list" scroll-y>
+        <!-- [优惠券下单页 Bug 修复 v2 · B4] 加 radio-dot 圆点指示器；align-items: center 让圆点与文字垂直居中 -->
         <view class="coupon-option" wx:for="{{coupons}}" wx:key="id"
               bindtap="selectCoupon" data-item="{{item}}">
+          <view class="radio-dot {{selectedCoupon.id === item.id ? 'checked' : ''}}"></view>
           <view class="coupon-val">
-            <text class="coupon-sym">¥</text>
-            <text class="coupon-amount">{{item.value}}</text>
+            <block wx:if="{{item.type === 'free_trial'}}">
+              <text class="coupon-amount" style="font-size: 32rpx;">免费</text>
+            </block>
+            <block wx:else>
+              <text class="coupon-sym">¥</text>
+              <text class="coupon-amount">{{item.value}}</text>
+            </block>
           </view>
           <view class="coupon-desc">
             <text class="coupon-name-text">{{item.name}}</text>
-            <text class="coupon-cond">{{item.condition || '无门槛'}}</text>
+            <text class="coupon-cond">
+              {{item.type === 'free_trial' ? '凭券免费试用' : (item.condition_amount > 0 ? '满' + item.condition_amount + '可用' : '无门槛')}}
+            </text>
           </view>
         </view>
         <view class="coupon-option" bindtap="clearCoupon">
+          <view class="radio-dot {{!selectedCoupon ? 'checked' : ''}}"></view>
           <text class="coupon-none">不使用优惠券</text>
         </view>
       </scroll-view>

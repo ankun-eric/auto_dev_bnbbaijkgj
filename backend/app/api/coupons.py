@@ -20,6 +20,7 @@ from app.models.models import (
     CouponGrant,
     CouponRedeemCode,
     CouponStatus,
+    Product,
     User,
     UserCoupon,
     UserCouponStatus,
@@ -278,6 +279,146 @@ async def get_coupons_summary(
         "total": total,
         "total_count": total,  # 兼容字段
     }
+
+
+def _normalize_scope_ids(raw) -> set[int]:
+    """把 Coupon.scope_ids（JSON / list / 逗号分隔字符串 / dict）统一转为 {int} 集合。"""
+    out: set[int] = set()
+    if raw is None:
+        return out
+    if isinstance(raw, list):
+        for x in raw:
+            try:
+                out.add(int(x))
+            except (TypeError, ValueError):
+                continue
+    elif isinstance(raw, str):
+        for x in raw.split(","):
+            x = x.strip()
+            if not x:
+                continue
+            try:
+                out.add(int(x))
+            except (TypeError, ValueError):
+                continue
+    elif isinstance(raw, dict):
+        ids = raw.get("ids")
+        if isinstance(ids, list):
+            for x in ids:
+                try:
+                    out.add(int(x))
+                except (TypeError, ValueError):
+                    continue
+    return out
+
+
+@router.get("/usable-for-order")
+async def list_usable_coupons_for_order(
+    product_id: Optional[int] = Query(None, description="商品ID（单商品下单）"),
+    subtotal: float = Query(0, ge=0, description="商品小计金额"),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """[优惠券下单页 Bug 修复 v2 · B3] 下单页券列表专用接口。
+
+    单一职责：返回「当前用户、当前下单上下文（商品/总额）下，**真正可用**的优惠券列表」。
+
+    筛选规则（必须**全部通过**才进入 items）：
+    - UserCoupon.user_id == 当前用户
+    - UserCoupon.status == 'unused'
+    - UserCoupon.expire_at IS NULL OR expire_at > NOW()
+    - Coupon.is_offline == false
+    - Coupon.status == 'active'
+    - 适用范围匹配：scope=all，或 scope=product 且 product_id 命中，或 scope=category 且商品分类命中
+    - subtotal >= condition_amount（若 type=free_trial，强制忽略此条件）
+    - 排除商品：若该商品在 coupon.exclude_ids 中，则不可用
+    """
+    now = datetime.utcnow()
+
+    # 取该用户全部 unused 且未过期的 user_coupon + 关联 coupon
+    rs = await db.execute(
+        select(UserCoupon, Coupon)
+        .join(Coupon, UserCoupon.coupon_id == Coupon.id)
+        .where(
+            UserCoupon.user_id == current_user.id,
+            UserCoupon.status == UserCouponStatus.unused,
+            or_(UserCoupon.expire_at.is_(None), UserCoupon.expire_at > now),
+            Coupon.is_offline == False,  # noqa: E712
+            Coupon.status == CouponStatus.active,
+        )
+        .order_by(UserCoupon.created_at.desc())
+    )
+    rows = rs.all()
+
+    # 商品分类（用于 scope=category）
+    product_obj: Optional[Product] = None
+    product_category_id: Optional[int] = None
+    if product_id:
+        pr = await db.execute(select(Product).where(Product.id == int(product_id)))
+        product_obj = pr.scalar_one_or_none()
+        if product_obj:
+            product_category_id = getattr(product_obj, "category_id", None)
+
+    items: list[dict] = []
+    for uc, coupon in rows:
+        # 适用范围
+        scope_val = coupon.scope.value if hasattr(coupon.scope, "value") else coupon.scope
+        scope_ids = _normalize_scope_ids(coupon.scope_ids)
+        if scope_val == "product":
+            if not product_id or not scope_ids or int(product_id) not in scope_ids:
+                continue
+        elif scope_val == "category":
+            if product_category_id is None or not scope_ids or int(product_category_id) not in scope_ids:
+                continue
+
+        # 排除商品
+        exclude_ids = _normalize_scope_ids(getattr(coupon, "exclude_ids", None))
+        if product_id and exclude_ids and int(product_id) in exclude_ids:
+            continue
+
+        # 类型 + 门槛
+        coupon_type = coupon.type.value if hasattr(coupon.type, "value") else coupon.type
+        condition_amount = float(coupon.condition_amount or 0)
+        if coupon_type != "free_trial":
+            if float(subtotal or 0) < condition_amount:
+                continue
+
+        # 计算 value 字段（用于前端展示「-¥X」/「免费」）
+        if coupon_type == "free_trial":
+            display_value = float(subtotal or 0)
+        elif coupon_type == "discount":
+            display_value = round(float(subtotal or 0) * (1 - float(coupon.discount_rate or 1.0)), 2)
+        else:
+            display_value = float(coupon.discount_value or 0)
+
+        items.append({
+            "id": uc.id,
+            "user_coupon_id": uc.id,
+            "coupon_id": coupon.id,
+            "name": coupon.name,
+            "type": coupon_type,
+            "value": display_value,
+            "discount_value": float(coupon.discount_value or 0),
+            "discount_rate": float(coupon.discount_rate or 1.0),
+            "condition_amount": condition_amount,
+            "scope": scope_val,
+            "scope_ids": coupon.scope_ids,
+            "expire_at": uc.expire_at.isoformat() if uc.expire_at else None,
+            "valid_end": uc.expire_at.isoformat() if uc.expire_at else None,
+            "applicable": True,
+            # 兼容字段：给 H5 / Flutter 现有的 UserCoupon 类型
+            "coupon": {
+                "id": coupon.id,
+                "name": coupon.name,
+                "type": coupon_type,
+                "condition_amount": condition_amount,
+                "discount_value": float(coupon.discount_value or 0),
+                "discount_rate": float(coupon.discount_rate or 1.0),
+                "valid_end": uc.expire_at.isoformat() if uc.expire_at else None,
+            },
+        })
+
+    return {"items": items, "total": len(items)}
 
 
 @router.get("/mine")

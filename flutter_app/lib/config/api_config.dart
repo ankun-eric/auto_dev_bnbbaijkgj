@@ -200,6 +200,8 @@ class ApiConfig {
   static const String availableCoupons = '/api/coupons/available';
   static const String claimCoupon = '/api/coupons/claim';
   static const String myCoupons = '/api/coupons/mine';
+  // [优惠券下单页 Bug 修复 v2 · B3] 下单页专用接口
+  static const String usableCouponsForOrder = '/api/coupons/usable-for-order';
 
   // Favorites
   static const String favorites = '/api/favorites';

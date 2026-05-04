@@ -331,6 +331,38 @@ def _generate_order_no() -> str:
     return f"UO{ts}{rand}"
 
 
+def _normalize_id_list(raw) -> set[int]:
+    """[优惠券下单页 Bug 修复 v2] 把 coupon.scope_ids（JSON / list / 逗号分隔字符串）统一转为 {int} 集合。"""
+    out: set[int] = set()
+    if raw is None:
+        return out
+    if isinstance(raw, list):
+        for x in raw:
+            try:
+                out.add(int(x))
+            except (TypeError, ValueError):
+                continue
+    elif isinstance(raw, str):
+        for x in raw.split(","):
+            x = x.strip()
+            if not x:
+                continue
+            try:
+                out.add(int(x))
+            except (TypeError, ValueError):
+                continue
+    elif isinstance(raw, dict):
+        # 兼容 {"ids": [...]} 这种历史结构
+        ids = raw.get("ids") if isinstance(raw, dict) else None
+        if isinstance(ids, list):
+            for x in ids:
+                try:
+                    out.add(int(x))
+                except (TypeError, ValueError):
+                    continue
+    return out
+
+
 def _generate_verification_code() -> str:
     return "".join(random.choices(string.digits, k=6))
 
@@ -458,9 +490,37 @@ async def create_unified_order(
         if not user_coupon:
             raise HTTPException(status_code=400, detail="优惠券不可用")
 
+        # ── [优惠券下单页 Bug 修复 v2 · 兜底校验] ──
+        # 防止前端绕过 /api/coupons/usable-for-order 直接传不适用的 coupon_id。
+        # 这里再做一次：过期 / 已下架 / 适用范围（scope=product/category）/ 排除商品 全部校验。
+        now_dt = datetime.utcnow()
+        if user_coupon.expire_at is not None and user_coupon.expire_at <= now_dt:
+            raise HTTPException(status_code=422, detail="优惠券已过期，不适用本单")
+
         coupon_result = await db.execute(select(Coupon).where(Coupon.id == data.coupon_id))
         coupon = coupon_result.scalar_one_or_none()
         if coupon:
+            # 已下架券不允许新下单使用
+            if getattr(coupon, "is_offline", False):
+                raise HTTPException(status_code=422, detail="该优惠券已下架，不适用本单")
+            coupon_status = coupon.status.value if hasattr(coupon.status, "value") else coupon.status
+            if coupon_status != "active":
+                raise HTTPException(status_code=422, detail="该优惠券已停用，不适用本单")
+
+            # 适用范围校验
+            scope_val = coupon.scope.value if hasattr(coupon.scope, "value") else coupon.scope
+            if scope_val == "product":
+                allowed_pids = _normalize_id_list(coupon.scope_ids)
+                order_pids = {oi["product"].id for oi in order_items}
+                if not allowed_pids or not (order_pids & allowed_pids):
+                    raise HTTPException(status_code=422, detail="优惠券不适用本单（指定商品）")
+            elif scope_val == "category":
+                allowed_cids = _normalize_id_list(coupon.scope_ids)
+                order_cids = {getattr(oi["product"], "category_id", None) for oi in order_items}
+                order_cids.discard(None)
+                if not allowed_cids or not (order_cids & allowed_cids):
+                    raise HTTPException(status_code=422, detail="优惠券不适用本单（指定分类）")
+
             # ── V2.2：扣除「被排除商品」金额，再用净额参与门槛 / 折扣计算（PRD F6）──
             exclude_ids_raw = getattr(coupon, "exclude_ids", None) or []
             excluded_set: set[int] = set()
@@ -484,10 +544,15 @@ async def create_unified_order(
                 )
                 eligible_amount = max(0.0, total_amount - excluded_amount)
 
-            if eligible_amount >= float(coupon.condition_amount):
-                coupon_type = coupon.type
-                if hasattr(coupon_type, "value"):
-                    coupon_type = coupon_type.value
+            coupon_type = coupon.type
+            if hasattr(coupon_type, "value"):
+                coupon_type = coupon_type.value
+
+            # ── [B1 修复] 免费试用券：整单 0 元抵扣，不受 condition_amount 影响 ──
+            # free_trial 本质是"凭券免费试用"，必须强制把可享券金额抵扣到 0。
+            if coupon_type == "free_trial":
+                coupon_discount = eligible_amount
+            elif eligible_amount >= float(coupon.condition_amount or 0):
                 if coupon_type == "full_reduction":
                     coupon_discount = float(coupon.discount_value)
                 elif coupon_type == "discount":

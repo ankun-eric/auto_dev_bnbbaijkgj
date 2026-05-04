@@ -66,13 +66,22 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 
   Future<void> _loadCoupons() async {
+    // [优惠券下单页 Bug 修复 v2 · B3] 切换为下单页专用接口（仅返回本单可用的券）
     try {
-      final res = await _api.getMyCoupons(tab: 'unused');
+      final res = await _api.getUsableCouponsForOrder(
+        productId: _product.id,
+        subtotal: _subtotal,
+      );
       if (res.data is Map && res.data['items'] is List) {
         setState(() {
           _coupons = (res.data['items'] as List)
               .map((e) => UserCoupon.fromJson(e as Map<String, dynamic>))
               .toList();
+          // 已选的券若不再可用则清空
+          if (_selectedCoupon != null &&
+              !_coupons.any((uc) => uc.id == _selectedCoupon!.id)) {
+            _selectedCoupon = null;
+          }
         });
       }
     } catch (_) {}
@@ -146,6 +155,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   double get _couponDiscount {
     if (_selectedCoupon?.coupon == null) return 0;
     final c = _selectedCoupon!.coupon!;
+    // [优惠券下单页 Bug 修复 v2 · B1] free_trial：整单 0 元抵扣，不受 condition_amount 限制
+    if (c.type == 'free_trial') {
+      return _subtotal;
+    }
     if (_subtotal < c.conditionAmount) return 0;
     switch (c.type) {
       case 'full_reduction':
@@ -689,9 +702,19 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               padding: EdgeInsets.all(16),
               child: Text('选择优惠券', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             ),
+            // [优惠券下单页 Bug 修复 v2 · B4] 用 Radio 圆点 + Row(crossAxisAlignment.center)
+            // 让圆点与文字（标题/副标题两行）整体垂直居中，三端视觉统一
             ListTile(
+              leading: Radio<int?>(
+                value: -1,
+                groupValue: _selectedCoupon == null ? -1 : _selectedCoupon!.id,
+                onChanged: (_) {
+                  setState(() => _selectedCoupon = null);
+                  Navigator.pop(ctx);
+                },
+                activeColor: const Color(0xFF52C41A),
+              ),
               title: const Text('不使用优惠券'),
-              trailing: _selectedCoupon == null ? const Icon(Icons.check, color: Color(0xFF52C41A)) : null,
               onTap: () {
                 setState(() => _selectedCoupon = null);
                 Navigator.pop(ctx);
@@ -701,9 +724,17 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               final c = uc.coupon;
               if (c == null) return const SizedBox.shrink();
               return ListTile(
+                leading: Radio<int>(
+                  value: uc.id,
+                  groupValue: _selectedCoupon?.id ?? -1,
+                  onChanged: (_) {
+                    setState(() => _selectedCoupon = uc);
+                    Navigator.pop(ctx);
+                  },
+                  activeColor: const Color(0xFF52C41A),
+                ),
                 title: Text(c.name),
                 subtitle: Text(c.discountText),
-                trailing: _selectedCoupon?.id == uc.id ? const Icon(Icons.check, color: Color(0xFF52C41A)) : null,
                 onTap: () {
                   setState(() => _selectedCoupon = uc);
                   Navigator.pop(ctx);

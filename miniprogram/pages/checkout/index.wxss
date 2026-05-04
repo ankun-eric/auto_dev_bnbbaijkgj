@@ -233,11 +233,17 @@
 
 .coupon-option {
   display: flex;
-  align-items: center;
+  align-items: center; /* [B4] 关键：让 radio-dot / 金额 / 文字三者垂直居中 */
   padding: 24rpx;
   border-radius: 12rpx;
   background: #fafafa;
   margin-bottom: 16rpx;
+}
+
+.coupon-option .radio-dot {
+  flex-shrink: 0;
+  align-self: center;
+  margin-right: 16rpx;
 }
 
 .coupon-val {

@@ -241,7 +241,8 @@ function CheckoutPage() {
       api.get(`/api/products/${productId}`),
       api.get(`/api/h5/checkout/init?productId=${productId}`),
       api.get('/api/addresses'),
-      api.get('/api/coupons/mine?tab=unused'),
+      // [优惠券下单页 Bug 修复 v2 · B3] 切换为下单页专用券列表接口（仅返回本单可用的券）
+      api.get('/api/coupons/usable-for-order', { params: { product_id: productId, subtotal: 0 } }),
       api.get('/api/points/summary'),
     ]).then(([pRes, initRes, aRes, cRes, ptRes]) => {
       if (pRes.status === 'fulfilled') {
@@ -287,6 +288,7 @@ function CheckoutPage() {
       }
       if (cRes.status === 'fulfilled') {
         const data = (cRes.value as any).data || cRes.value;
+        // [优惠券下单页 Bug 修复 v2 · B3] 后端已按 subtotal/适用范围过滤，前端无需再做硬过滤
         setCoupons(data.items || data || []);
       }
       if (ptRes.status === 'fulfilled') {
@@ -295,6 +297,29 @@ function CheckoutPage() {
       }
     }).finally(() => setLoading(false));
   }, [productId]);
+
+  // [优惠券下单页 Bug 修复 v2 · B3] 当商品/规格/数量变化导致 subtotal 改变时，重新向后端拉取「真正可用的券」
+  useEffect(() => {
+    if (!productId || !product) return;
+    const sku = skuId && Array.isArray((product as any).skus)
+      ? (product as any).skus.find((s: any) => s.id === skuId)
+      : null;
+    const unit = sku ? Number(sku.sale_price) : Number(product.sale_price || 0);
+    const sub = Math.round(unit * quantity * 100) / 100;
+    api.get('/api/coupons/usable-for-order', { params: { product_id: productId, subtotal: sub } })
+      .then((res) => {
+        const data = (res as any).data || res;
+        setCoupons(data.items || data || []);
+        // 已选的券若不再可用则清空
+        if (selectedCoupon) {
+          const stillOk = (data.items || []).some((it: any) => it.id === selectedCoupon.id);
+          if (!stillOk) setSelectedCoupon(null);
+        }
+      })
+      .catch(() => {/* 静默：保留上一次 coupons */});
+    // selectedCoupon 不能放进依赖，否则清空后又会回拉一次造成抖动
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [productId, product, skuId, quantity]);
 
   // ── 门店已选 + 日期已选 时拉取该门店该日的可用时段 ──
   const fetchStoreSlots = useCallback(async (store: AvailableStore | null, date: string) => {
@@ -454,11 +479,14 @@ function CheckoutPage() {
   const unitPrice = selectedSku ? Number(selectedSku.sale_price) : product.sale_price;
   const skuName = selectedSku ? String(selectedSku.spec_name || '') : '';
   const subtotal = round2(unitPrice * quantity);
-  const couponDiscount = round2(selectedCoupon?.coupon
-    ? selectedCoupon.coupon.type === 'discount'
-      ? subtotal * (1 - selectedCoupon.coupon.discount_rate)
-      : selectedCoupon.coupon.discount_value
-    : 0);
+  // [优惠券下单页 Bug 修复 v2 · B1] free_trial 整单 0 元抵扣
+  const couponDiscount = round2((() => {
+    const c = selectedCoupon?.coupon as any;
+    if (!c) return 0;
+    if (c.type === 'free_trial') return subtotal;
+    if (c.type === 'discount') return subtotal * (1 - c.discount_rate);
+    return c.discount_value || 0;
+  })());
   const pointsValue = usePoints ? round2(pointsDeduction / 100) : 0;
   const totalAmount = round2(Math.max(0, subtotal - couponDiscount - pointsValue));
 
@@ -913,27 +941,38 @@ function CheckoutPage() {
           <div className="font-medium mb-3">选择优惠券</div>
           <List.Item
             onClick={() => { setSelectedCoupon(null); setShowCouponPicker(false); }}
-            prefix={<Radio checked={!selectedCoupon} style={{ '--icon-size': '18px' }} />}
+            prefix={
+              <div style={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+                <Radio checked={!selectedCoupon} style={{ '--icon-size': '18px' }} />
+              </div>
+            }
           >
             不使用优惠券
           </List.Item>
-          {coupons.map((uc) => (
-            <List.Item
-              key={uc.id}
-              onClick={() => {
-                if (uc.coupon && subtotal >= uc.coupon.condition_amount) {
-                  setSelectedCoupon(uc);
-                  setShowCouponPicker(false);
-                } else {
-                  Toast.show({ content: '不满足使用条件' });
+          {/* [优惠券下单页 Bug 修复 v2 · B3] 这里的 coupons 由后端 /api/coupons/usable-for-order 过滤后下发，全部即可用，不再做前端 disabled */}
+          {coupons.map((uc) => {
+            // 兼容 free_trial：description 显示"免费试用"，普通券显示"满 X 可用"
+            const c = uc.coupon as any;
+            const isFreeTrial = c?.type === 'free_trial';
+            const desc = isFreeTrial
+              ? `免费试用 ${c?.valid_end ? `| 有效期至${new Date(c.valid_end).toLocaleDateString('zh-CN')}` : ''}`
+              : (c ? `满${c.condition_amount}可用 ${c.valid_end ? `| 有效期至${new Date(c.valid_end).toLocaleDateString('zh-CN')}` : ''}` : '');
+            return (
+              <List.Item
+                key={uc.id}
+                onClick={() => { setSelectedCoupon(uc); setShowCouponPicker(false); }}
+                prefix={
+                  // [优惠券下单页 Bug 修复 v2 · B4] 圆圈与文字垂直居中
+                  <div style={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+                    <Radio checked={selectedCoupon?.id === uc.id} style={{ '--icon-size': '18px' }} />
+                  </div>
                 }
-              }}
-              prefix={<Radio checked={selectedCoupon?.id === uc.id} disabled={!uc.coupon || subtotal < uc.coupon.condition_amount} style={{ '--icon-size': '18px' }} />}
-              description={uc.coupon ? `满${uc.coupon.condition_amount}可用 ${uc.coupon.valid_end ? `| 有效期至${new Date(uc.coupon.valid_end).toLocaleDateString('zh-CN')}` : ''}` : ''}
-            >
-              <span className="text-sm">{uc.coupon?.name || '优惠券'}</span>
-            </List.Item>
-          ))}
+                description={desc}
+              >
+                <span className="text-sm">{c?.name || '优惠券'}</span>
+              </List.Item>
+            );
+          })}
         </div>
       </Popup>
 

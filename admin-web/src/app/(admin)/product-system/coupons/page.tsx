@@ -433,12 +433,14 @@ export default function CouponsPage() {
       });
       return;
     }
+    // [优惠券下单页 Bug 修复 v2 · B2] free_trial 强制清零，避免 UI 隐藏后历史值仍被提交
+    const isFreeTrial = values.type === 'free_trial';
     const payload: any = {
       name: values.name,
       type: values.type,
-      condition_amount: values.condition_amount ?? 0,
-      discount_value: values.discount_value ?? 0,
-      discount_rate: values.discount_rate ?? 1.0,
+      condition_amount: isFreeTrial ? 0 : (values.condition_amount ?? 0),
+      discount_value: isFreeTrial ? 0 : (values.discount_value ?? 0),
+      discount_rate: isFreeTrial ? 1.0 : (values.discount_rate ?? 1.0),
       scope: values.scope,
       scope_ids: scopeIds,
       exclude_ids: excludeIds,
@@ -922,27 +924,38 @@ export default function CouponsPage() {
             </Col>
           </Row>
 
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item label="使用门槛金额" name="condition_amount">
-                <InputNumber min={0} step={0.01} style={{ width: '100%' }} placeholder="0 表示无门槛" />
-              </Form.Item>
-            </Col>
-            {(couponType === 'full_reduction' || couponType === 'voucher') && (
+          {/* [优惠券下单页 Bug 修复 v2 · B2] 免费试用券：本质是"整单 0 元"，不存在门槛金额 / 优惠金额，全部隐藏。 */}
+          {couponType !== 'free_trial' && (
+            <Row gutter={16}>
               <Col span={12}>
-                <Form.Item label="优惠金额" name="discount_value">
-                  <InputNumber min={0} step={0.01} style={{ width: '100%' }} placeholder="0.00" />
+                <Form.Item label="使用门槛金额" name="condition_amount">
+                  <InputNumber min={0} step={0.01} style={{ width: '100%' }} placeholder="0 表示无门槛" />
                 </Form.Item>
               </Col>
-            )}
-            {couponType === 'discount' && (
-              <Col span={12}>
-                <Form.Item label="折扣率" name="discount_rate" extra="如 0.8 表示八折">
-                  <InputNumber min={0.01} max={1} step={0.01} style={{ width: '100%' }} placeholder="0.80" />
-                </Form.Item>
-              </Col>
-            )}
-          </Row>
+              {(couponType === 'full_reduction' || couponType === 'voucher') && (
+                <Col span={12}>
+                  <Form.Item label="优惠金额" name="discount_value">
+                    <InputNumber min={0} step={0.01} style={{ width: '100%' }} placeholder="0.00" />
+                  </Form.Item>
+                </Col>
+              )}
+              {couponType === 'discount' && (
+                <Col span={12}>
+                  <Form.Item label="折扣率" name="discount_rate" extra="如 0.8 表示八折">
+                    <InputNumber min={0.01} max={1} step={0.01} style={{ width: '100%' }} placeholder="0.80" />
+                  </Form.Item>
+                </Col>
+              )}
+            </Row>
+          )}
+          {couponType === 'free_trial' && (
+            <Alert
+              type="info"
+              showIcon
+              style={{ marginBottom: 12 }}
+              message='免费试用券：凭券免费试用指定商品，整单按 0 元结算，无需设置门槛金额和优惠金额。建议搭配"指定商品"使用并设置发行总量、单人限领，避免被刷。'
+            />
+          )}
 
           <Divider plain>适用范围</Divider>
           <Form.Item name="scope" label="适用范围" rules={[{ required: true }]}>

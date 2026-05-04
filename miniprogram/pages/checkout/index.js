@@ -118,17 +118,22 @@ Page({
       if (updateData.appointmentDate) {
         this.loadSlotAvailability(updateData.appointmentDate);
       }
+      // [优惠券下单页 Bug 修复 v2 · B3] product 加载完后用真实 subtotal 重新拉一次"本单可用券"
+      this.loadCoupons();
     } catch (e) {
       console.log('loadProduct error', e);
     }
   },
 
   async loadCoupons() {
+    // [优惠券下单页 Bug 修复 v2 · B3] 切换为下单页专用接口（仅返回本单可用的券）
     try {
-      const res = await get('/api/coupons/available', {
-        product_id: this.data.productId
+      const subtotal = this.data.totalPrice || 0;
+      const res = await get('/api/coupons/usable-for-order', {
+        product_id: this.data.productId,
+        subtotal,
       }, { showLoading: false });
-      this.setData({ coupons: res.items || res || [] });
+      this.setData({ coupons: (res && res.items) || res || [] });
     } catch (e) {
       console.log('loadCoupons error', e);
     }
@@ -266,11 +271,14 @@ Page({
     if (this.data.quantity <= 1) return;
     this.setData({ quantity: this.data.quantity - 1 });
     this.calcPrice();
+    // [优惠券下单页 Bug 修复 v2 · B3] 数量变化后 subtotal 改变，重新拉"本单可用券"
+    this.loadCoupons();
   },
 
   onQuantityPlus() {
     this.setData({ quantity: this.data.quantity + 1 });
     this.calcPrice();
+    this.loadCoupons();
   },
 
   toggleCouponPicker() {
@@ -302,15 +310,26 @@ Page({
     const total = r2(unitPrice * this.data.quantity);
     let discount = 0;
 
+    // [优惠券下单页 Bug 修复 v2 · B1] 适配后端 /usable-for-order 返回的数据结构
+    // 新接口 item 字段：{ id, type: 'full_reduction|discount|voucher|free_trial', discount_value, discount_rate, condition_amount, ... }
     if (this.data.selectedCoupon) {
       const c = this.data.selectedCoupon;
-      if (c.type === 'fixed') {
-        discount += c.value || 0;
-      } else if (c.type === 'percent') {
-        discount += total * (c.value || 0) / 100;
+      const t = c.type;
+      if (t === 'free_trial') {
+        // 整单 0 元
+        discount = total;
+      } else if (t === 'discount') {
+        discount = total * (1 - (c.discount_rate || 1));
+      } else if (t === 'full_reduction' || t === 'voucher') {
+        discount = c.discount_value || 0;
+      } else if (t === 'fixed') {
+        // 兼容老结构
+        discount = c.value || 0;
+      } else if (t === 'percent') {
+        discount = total * (c.value || 0) / 100;
       }
     }
-    discount = r2(discount);
+    discount = r2(Math.min(discount, total));
 
     let pointsDed = 0;
     if (this.data.usePoints) {

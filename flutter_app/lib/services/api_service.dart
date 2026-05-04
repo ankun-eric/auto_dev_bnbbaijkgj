@@ -1154,6 +1154,13 @@ class ApiService {
     return _dio.get(ApiConfig.myCoupons, queryParameters: params);
   }
 
+  // [优惠券下单页 Bug 修复 v2 · B3] 下单页专用：获取本单真正可用的券
+  Future<Response> getUsableCouponsForOrder({int? productId, double subtotal = 0}) async {
+    final params = <String, dynamic>{'subtotal': subtotal};
+    if (productId != null) params['product_id'] = productId;
+    return _dio.get(ApiConfig.usableCouponsForOrder, queryParameters: params);
+  }
+
   // Addresses
   Future<Response> getAddresses() async {
     return _dio.get(ApiConfig.addresses);
