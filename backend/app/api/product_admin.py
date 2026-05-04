@@ -1008,6 +1008,18 @@ async def admin_list_unified_orders(
         .limit(page_size)
     )
     orders = result.scalars().all()
+
+    # [PRD「订单列表固定列与列宽优化 v1.0」]
+    # 一次性批量加载用户昵称/手机号，避免 N+1 查询
+    user_ids = list({o.user_id for o in orders if o.user_id})
+    user_map: dict[int, tuple[Optional[str], Optional[str]]] = {}
+    if user_ids:
+        u_rows = await db.execute(
+            select(User.id, User.nickname, User.phone).where(User.id.in_(user_ids))
+        )
+        for uid, nickname, phone in u_rows.all():
+            user_map[uid] = (nickname, phone)
+
     items = []
     for o in orders:
         resp = UnifiedOrderResponse.model_validate(o)
@@ -1019,6 +1031,14 @@ async def admin_list_unified_orders(
             rs = rs.value
         if s == "cancelled" and rs == "refund_success":
             resp.status_display = "已取消（已退款）"
+        # 填充用户昵称、手机号、总数量（admin 列表展示用）
+        nickname, phone = user_map.get(o.user_id, (None, None))
+        resp.user_nickname = nickname
+        resp.user_phone = phone
+        try:
+            resp.total_quantity = sum(int(it.quantity or 0) for it in (o.items or []))
+        except Exception:
+            resp.total_quantity = 0
         items.append(resp)
     return {"items": items, "total": total, "page": page, "page_size": page_size}
 

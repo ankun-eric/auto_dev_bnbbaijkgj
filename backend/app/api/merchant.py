@@ -1069,13 +1069,22 @@ async def merchant_list_orders(
 
     items = []
     # PRD「商家 PC 后台优化 v1.1」F3+F4：补齐手机号 / 支付方式 / 核销码 / 附件数
+    # PRD「订单列表固定列与列宽优化 v1.0」：补齐 user_nickname / total_quantity
     for uo in orders_result.scalars().all():
         user_result = await db.execute(select(User).where(User.id == uo.user_id))
         user = user_result.scalar_one_or_none()
+        # 取首条 OrderItem 用于回显商品名 / 核销码 / 预约时间
         oi_result = await db.execute(
             select(OrderItem).where(OrderItem.order_id == uo.id).limit(1)
         )
         oi = oi_result.scalar_one_or_none()
+        # 计算订单总数量（所有商品 quantity 之和）
+        qty_res = await db.execute(
+            select(func.coalesce(func.sum(OrderItem.quantity), 0)).where(
+                OrderItem.order_id == uo.id
+            )
+        )
+        total_qty = int(qty_res.scalar() or 0)
         store_result = await db.execute(
             select(MerchantStore).where(MerchantStore.id == store_id)
         )
@@ -1088,18 +1097,22 @@ async def merchant_list_orders(
             )
         )
         att_cnt = int(att_cnt_res.scalar() or 0)
+        nickname = getattr(user, "nickname", None) if user else None
         items.append({
             "order_id": uo.id,
             "order_no": uo.order_no,
             "user_display": _safe_user_name(user) if user else "用户",
+            "user_nickname": nickname,
             "user_phone": (user.phone if user else None),
             "product_name": oi.product_name if oi else "",
+            "total_quantity": total_qty,
             "created_at": uo.created_at.isoformat() if uo.created_at else None,
             "appointment_time": oi.appointment_time.isoformat() if oi and oi.appointment_time else None,
             "store_id": store_id,
             "store_name": store.store_name if store else "",
             "status": uo.status.value if hasattr(uo.status, "value") else str(uo.status),
             "amount": float(uo.total_amount or 0),
+            "payment_method": uo.payment_method,
             "attachment_count": att_cnt,
             "is_appointment": bool(oi and oi.appointment_time),
             "payment_method_text": getattr(uo, "payment_display_name", None) and (

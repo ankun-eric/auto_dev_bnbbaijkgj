@@ -63,6 +63,10 @@ interface UnifiedOrder {
   store_name: string | null;
   created_at: string;
   updated_at: string;
+  // PRD「订单列表固定列与列宽优化 v1.0」：admin 列表新增展示字段
+  user_nickname: string | null;
+  user_phone: string | null;
+  total_quantity: number;
 }
 
 interface SalesStats {
@@ -203,6 +207,12 @@ function mapOrder(raw: Record<string, unknown>): UnifiedOrder {
     store_name: raw.store_name ? String(raw.store_name) : null,
     created_at: String(raw.created_at ?? ''),
     updated_at: String(raw.updated_at ?? ''),
+    user_nickname: raw.user_nickname ? String(raw.user_nickname) : null,
+    user_phone: raw.user_phone ? String(raw.user_phone) : null,
+    total_quantity:
+      raw.total_quantity !== undefined && raw.total_quantity !== null
+        ? Number(raw.total_quantity)
+        : items.reduce((acc, it) => acc + (Number(it.quantity) || 0), 0),
   };
 }
 
@@ -433,25 +443,74 @@ export default function UnifiedOrdersPage() {
     return <Tag color={s.color}>{s.text}</Tag>;
   };
 
+  // PRD「订单列表固定列与列宽优化 v1.0」：
+  // - 左侧 3 列（订单号 / 下单时间 / 商品名称）取消固定，全部跟随横滚
+  // - 右侧仅固定 "状态" + "操作"
+  // - 列顺序：订单号 → 下单时间 → 商品名称 → 用户 → 手机 → 数量 → 金额 → 支付方式 → (admin 原有) 退款状态 → 状态 → 操作
   const columns = [
-    { title: '订单号', dataIndex: 'order_no', key: 'order_no', width: 200 },
-    { title: '用户ID', dataIndex: 'user_id', key: 'user_id', width: 80 },
     {
-      title: '商品', key: 'products', width: 200, ellipsis: true,
-      render: (_: unknown, record: UnifiedOrder) =>
-        record.items.map(it => it.product_name).join(', ') || '-',
+      title: '订单号', dataIndex: 'order_no', key: 'order_no', width: 160, ellipsis: true,
+      render: (v: string) => (
+        <Typography.Text
+          ellipsis={{ tooltip: v }}
+          copyable={{ text: v, tooltips: ['复制订单号', '已复制'] }}
+          style={{ maxWidth: 130 }}
+        >
+          {v}
+        </Typography.Text>
+      ),
     },
     {
-      title: '总金额', dataIndex: 'total_amount', key: 'total_amount', width: 100,
-      render: (v: number) => <span style={{ color: '#f5222d', fontWeight: 600 }}>¥{v ?? 0}</span>,
+      title: '下单时间', dataIndex: 'created_at', key: 'created_at', width: 140,
+      render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm') : '-',
     },
     {
-      title: '实付', dataIndex: 'paid_amount', key: 'paid_amount', width: 100,
-      render: (v: number) => <span>¥{v ?? 0}</span>,
+      title: '商品名称', key: 'products', width: 220,
+      render: (_: unknown, record: UnifiedOrder) => {
+        const text = record.items.map(it => it.product_name).join('、') || '-';
+        return (
+          <Typography.Paragraph
+            ellipsis={{ rows: 2, tooltip: text }}
+            style={{ marginBottom: 0 }}
+          >
+            {text}
+          </Typography.Paragraph>
+        );
+      },
     },
     {
-      title: '订单状态', key: 'status', width: 130,
-      render: (_: unknown, record: UnifiedOrder) => renderStatusTag(record),
+      title: '用户', key: 'user_display', width: 140,
+      render: (_: unknown, record: UnifiedOrder) => {
+        const nickname = record.user_nickname || `#${record.user_id}`;
+        const phone = record.user_phone || '';
+        const tail = phone ? phone.slice(-4) : '';
+        const display = tail ? `${nickname}(${tail})` : nickname;
+        return (
+          <Typography.Text ellipsis={{ tooltip: display }} style={{ maxWidth: 120 }}>
+            {display}
+          </Typography.Text>
+        );
+      },
+    },
+    {
+      title: '手机', dataIndex: 'user_phone', key: 'user_phone', width: 120,
+      render: (v: string | null) => v || '-',
+    },
+    {
+      title: '数量', dataIndex: 'total_quantity', key: 'total_quantity', width: 60,
+      align: 'right' as const,
+      render: (v: number) => <span>{v ?? 0}</span>,
+    },
+    {
+      title: '金额', dataIndex: 'paid_amount', key: 'paid_amount', width: 100,
+      align: 'right' as const,
+      render: (v: number) => (
+        <span style={{ color: '#f5222d', fontWeight: 600 }}>¥{Number(v ?? 0).toFixed(2)}</span>
+      ),
+    },
+    {
+      title: '支付方式', dataIndex: 'payment_method', key: 'payment_method', width: 110,
+      render: (v: string | null) => (v ? (payMethodMap[v] || v) : '-'),
     },
     {
       title: '退款状态', dataIndex: 'refund_status', key: 'refund_status', width: 110,
@@ -462,11 +521,11 @@ export default function UnifiedOrdersPage() {
       },
     },
     {
-      title: '下单时间', dataIndex: 'created_at', key: 'created_at', width: 170,
-      render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm') : '-',
+      title: '状态', key: 'status', width: 100, fixed: 'right' as const,
+      render: (_: unknown, record: UnifiedOrder) => renderStatusTag(record),
     },
     {
-      title: '操作', key: 'action', width: 260, fixed: 'right' as const,
+      title: '操作', key: 'action', width: 160, fixed: 'right' as const,
       render: (_: unknown, record: UnifiedOrder) => (
         <Space size={0} wrap>
           <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => { setCurrentOrder(record); setDrawerVisible(true); }}>详情</Button>
@@ -480,11 +539,11 @@ export default function UnifiedOrdersPage() {
             <>
               <Button type="link" size="small" icon={<CheckOutlined />} style={{ color: '#52c41a' }}
                 onClick={() => { setCurrentOrder(record); refundForm.resetFields(); fetchRefundDetail(record.id); setRefundApproveVisible(true); }}>
-                批准退款
+                批准
               </Button>
               <Button type="link" size="small" danger icon={<CloseOutlined />}
                 onClick={() => { setCurrentOrder(record); refundForm.resetFields(); fetchRefundDetail(record.id); setRefundRejectVisible(true); }}>
-                拒绝退款
+                拒绝
               </Button>
             </>
           )}
@@ -646,7 +705,7 @@ export default function UnifiedOrdersPage() {
           showTotal: total => `共 ${total} 条`,
           onChange: (page, pageSize) => fetchData(page, pageSize),
         }}
-        scroll={{ x: 1400 }}
+        scroll={{ x: 1500 }}
       />
 
       {/* 订单详情 Drawer */}

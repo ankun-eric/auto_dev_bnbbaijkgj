@@ -145,6 +145,11 @@ class UnifiedOrderResponse(BaseModel):
     payment_channel_code: Optional[str] = None
     payment_display_name: Optional[str] = None
     payment_method_text: Optional[str] = None  # 形如 "微信支付（小程序）"
+    # [PRD「订单列表固定列与列宽优化 v1.0」] admin / 商家 PC 端展示用：
+    # 用户昵称、手机号（仅 admin 列表接口填充），以及订单总数量（所有商品 quantity 之和）
+    user_nickname: Optional[str] = None
+    user_phone: Optional[str] = None
+    total_quantity: Optional[int] = None
     items: list[OrderItemResponse] = []
     created_at: datetime
     updated_at: datetime

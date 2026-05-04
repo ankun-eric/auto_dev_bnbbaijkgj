@@ -21,14 +21,17 @@ interface OrderRow {
   order_id: number;
   order_no: string;
   user_display: string;
+  user_nickname?: string;
   user_phone?: string;
   product_name: string;
+  total_quantity?: number;
   created_at: string;
   appointment_time?: string;
   store_id?: number;
   store_name?: string;
   status: string;
   amount: number;
+  payment_method?: string;
   attachment_count: number;
   payment_method_text?: string;
   redemption_code?: string;
@@ -264,28 +267,86 @@ export default function OrdersPage() {
     } finally { setSubmittingNote(false); }
   };
 
-  // PRD「商家 PC 后台优化 v1.1」F3：左右固定 + 中间横滚 + 行高加高
-  // 左固定：订单号、下单时间、商品名称
-  // 中间（横滚）：用户、手机号、金额、支付方式、核销码、门店、附件、预约时间
-  // 右固定：状态、操作
+  // PRD「订单列表固定列与列宽优化 v1.0」：
+  // - 左侧 3 列（订单号 / 下单时间 / 商品名称）取消固定，全部跟随横滚
+  // - 右侧仅固定 "状态" + "操作"
+  // - 商家 PC 端列顺序：订单号 → 下单时间 → 商品名称 → 用户 → 手机 → 数量 → 金额 → 支付方式
+  //   → 商家专属（核销码 / 门店 / 预约时间 / 附件）→ 状态 → 操作
+  // - 列宽按 PRD 规范，截断列鼠标悬停 tooltip 显示完整内容
+  const PAYMENT_METHOD_LABEL: Record<string, string> = {
+    wechat: '微信',
+    alipay: '支付宝',
+    balance: '余额',
+    points: '积分',
+  };
   const columns = [
-    { title: '订单号', dataIndex: 'order_no', key: 'order_no', width: 180, fixed: 'left' as const },
     {
-      title: '下单时间', dataIndex: 'created_at', key: 'created_at', width: 160,
-      fixed: 'left' as const,
+      title: '订单号', dataIndex: 'order_no', key: 'order_no', width: 160, ellipsis: true,
+      render: (v: string) => (
+        <Typography.Text
+          ellipsis={{ tooltip: v }}
+          copyable={{ text: v, tooltips: ['复制订单号', '已复制'] }}
+          style={{ maxWidth: 130 }}
+        >
+          {v}
+        </Typography.Text>
+      ),
+    },
+    {
+      title: '下单时间', dataIndex: 'created_at', key: 'created_at', width: 140,
       render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm') : '-',
     },
-    { title: '商品名称', dataIndex: 'product_name', key: 'product_name', width: 220, fixed: 'left' as const, ellipsis: true },
-    { title: '用户', dataIndex: 'user_display', key: 'user_display', width: 130 },
-    { title: '手机号', dataIndex: 'user_phone', key: 'user_phone', width: 130, render: (v: string) => v || '-' },
-    { title: '金额', dataIndex: 'amount', key: 'amount', width: 100, render: (v: number) => <span style={{ color: '#fa541c', fontWeight: 600 }}>¥{v || 0}</span> },
-    { title: '支付方式', dataIndex: 'payment_method_text', key: 'payment_method_text', width: 180, render: (v: string) => v || '-' },
+    {
+      title: '商品名称', dataIndex: 'product_name', key: 'product_name', width: 220,
+      render: (v: string) => (
+        <Typography.Paragraph ellipsis={{ rows: 2, tooltip: v }} style={{ marginBottom: 0 }}>
+          {v || '-'}
+        </Typography.Paragraph>
+      ),
+    },
+    {
+      title: '用户', key: 'user_display', width: 140,
+      render: (_: any, row: OrderRow) => {
+        const nickname = row.user_nickname || row.user_display || '用户';
+        const tail = row.user_phone ? row.user_phone.slice(-4) : '';
+        const display = tail ? `${nickname}(${tail})` : nickname;
+        return (
+          <Typography.Text ellipsis={{ tooltip: display }} style={{ maxWidth: 120 }}>
+            {display}
+          </Typography.Text>
+        );
+      },
+    },
+    {
+      title: '手机', dataIndex: 'user_phone', key: 'user_phone', width: 120,
+      render: (v: string) => v || '-',
+    },
+    {
+      title: '数量', dataIndex: 'total_quantity', key: 'total_quantity', width: 60,
+      align: 'right' as const,
+      render: (v: number) => <span>{v ?? 0}</span>,
+    },
+    {
+      title: '金额', dataIndex: 'amount', key: 'amount', width: 100,
+      align: 'right' as const,
+      render: (v: number) => (
+        <span style={{ color: '#fa541c', fontWeight: 600 }}>¥{Number(v || 0).toFixed(2)}</span>
+      ),
+    },
+    {
+      title: '支付方式', key: 'payment_method', width: 110,
+      render: (_: any, row: OrderRow) => {
+        if (row.payment_method) return PAYMENT_METHOD_LABEL[row.payment_method] || row.payment_method;
+        return row.payment_method_text || '-';
+      },
+    },
+    // ── 以下为商家 PC 端专属字段，本次保留现有顺序与宽度，仅取消左固定 ──
     { title: '核销码', dataIndex: 'redemption_code', key: 'redemption_code', width: 140, render: (v: string) => v ? <code style={{ fontSize: 12 }}>{v}</code> : '-' },
-    { title: '门店', dataIndex: 'store_name', key: 'store_name', width: 140 },
+    { title: '门店', dataIndex: 'store_name', key: 'store_name', width: 140, ellipsis: true },
     { title: '预约时间', dataIndex: 'appointment_time', key: 'appointment_time', width: 160, render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm') : '-' },
     { title: '附件', dataIndex: 'attachment_count', key: 'attachment_count', width: 70, align: 'center' as const, render: (n: number) => <span>{n || 0}</span> },
     {
-      title: '状态', dataIndex: 'status', key: 'status', width: 110,
+      title: '状态', dataIndex: 'status', key: 'status', width: 100,
       fixed: 'right' as const,
       render: (s: string) => {
         const meta = statusMap[s] || { text: s, color: '#8c8c8c' };
@@ -293,10 +354,10 @@ export default function OrdersPage() {
       },
     },
     {
-      title: '操作', key: 'ops', width: 180,
+      title: '操作', key: 'ops', width: 160,
       fixed: 'right' as const,
       render: (_: any, row: OrderRow) => (
-        <Space>
+        <Space size={0} wrap>
           <Button size="small" type="link" onClick={() => openDetail(row)}>详情</Button>
           <Button size="small" type="link" icon={<PaperClipOutlined />} onClick={() => openAttach(row)}>附件</Button>
         </Space>
@@ -332,7 +393,7 @@ export default function OrdersPage() {
         loading={loading}
         dataSource={rows}
         columns={columns as any}
-        scroll={{ x: 1700 }}
+        scroll={{ x: 1820 }}
         size="middle"
         rowClassName={() => 'merchant-orders-row'}
         pagination={{
