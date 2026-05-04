@@ -1,11 +1,18 @@
 // 履约方式中英文映射 wxs 工具（小程序模板内使用）。
+//
+// 后端枚举值 → 中文标签（与 FulfillmentType 枚举严格 1:1 对应）：
+//   delivery  → 快递配送
+//   in_store  → 到店服务
+//   on_site   → 上门服务
+//   virtual   → 虚拟商品
+//
+// 历史 to_store 映射为僵尸条目（后端从未包含此枚举），已彻底删除。
 
 var MAP = {
-  on_site: '上门服务',
-  to_store: '到店服务',
   delivery: '快递配送',
-  in_store: '到店核销',
-  virtual: '线上服务',
+  in_store: '到店服务',
+  on_site: '上门服务',
+  virtual: '虚拟商品',
 };
 
 function fulfillmentLabel(type) {

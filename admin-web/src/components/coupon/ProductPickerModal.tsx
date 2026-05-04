@@ -246,10 +246,9 @@ export default function ProductPickerModal({
     { title: '履约方式', dataIndex: 'fulfillment_type', width: 96,
       render: (v: string) => {
         const colorMap: Record<string, string> = {
-          in_store: 'green',
           delivery: 'blue',
-          on_site: 'orange',
-          to_store: 'cyan',
+          in_store: 'orange',
+          on_site: 'green',
           virtual: 'purple',
         };
         return <Tag color={colorMap[v] || 'default'}>{fulfillmentLabel(v)}</Tag>;

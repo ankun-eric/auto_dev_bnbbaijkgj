@@ -197,11 +197,10 @@ Page({
       const items = res.items || [];
 
       const fulfillmentLabels = {
-        in_store: { text: '到店', color: '#FF8A3D' },
         delivery: { text: '快递', color: '#3B82F6' },
-        virtual: { text: '虚拟', color: '#8B5CF6' },
+        in_store: { text: '到店', color: '#FF8A3D' },
         on_site: { text: '上门', color: '#10B981' },
-        to_store: { text: '到店', color: '#06B6D4' },
+        virtual: { text: '虚拟', color: '#8B5CF6' },
       };
 
       const list = items.map(p => ({

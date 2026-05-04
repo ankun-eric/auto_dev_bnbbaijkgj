@@ -15,7 +15,7 @@ import { get, post, put, del, upload } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import type { UploadFile, RcFile } from 'antd/es/upload/interface';
 import SimpleRichEditor from '@/components/SimpleRichEditor';
-import { fulfillmentLabel, FULFILLMENT_LABEL_MAP } from '@/utils/fulfillmentLabel';
+import { fulfillmentLabel, FULFILLMENT_LABEL_MAP, FULFILLMENT_OPTIONS } from '@/utils/fulfillmentLabel';
 
 const { Title } = Typography;
 const { TextArea } = Input;
@@ -155,14 +155,8 @@ function mapProduct(raw: Record<string, any>): Product {
 }
 
 // 履约类型下拉：与后端 FulfillmentType 枚举严格一致；
-// 标签统一使用公共字典 fulfillmentLabel，避免与全端口径冲突。
-const fulfillmentTypes = [
-  { label: fulfillmentLabel('on_site'), value: 'on_site' },
-  { label: fulfillmentLabel('in_store'), value: 'in_store' },
-  { label: fulfillmentLabel('delivery'), value: 'delivery' },
-  { label: fulfillmentLabel('virtual'), value: 'virtual' },
-  { label: '上门服务', value: 'on_site' },
-];
+// 全端统一复用公共字典 FULFILLMENT_OPTIONS，禁止再手写本地数组（避免再次散落、再次乱）。
+const fulfillmentTypes = FULFILLMENT_OPTIONS;
 
 const statusOptions = [
   { label: '草稿', value: 'draft' },
