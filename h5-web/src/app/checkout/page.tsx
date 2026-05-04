@@ -42,6 +42,7 @@ import {
 } from 'antd-mobile';
 import { RightOutline, LeftOutline } from 'antd-mobile-icons';
 import api from '@/lib/api';
+import { redirectToPayUrl } from '@/lib/basePath';
 
 // ───────────── 类型 ─────────────
 
@@ -757,7 +758,11 @@ function CheckoutPage() {
         });
         const payData = payRes?.data || payRes;
         if (payData?.pay_url) {
-          window.location.href = payData.pay_url;
+          // [2026-05-04 H5 支付链路 BasePath 修复] 后端返回的 pay_url 可能是
+          // "/sandbox-pay?..." 这种"裸 / 开头的相对路径"。直接 window.location.href = payUrl
+          // 会让浏览器拼成根域名（丢掉 /autodev/<uuid>/ 前缀），落到同域下另一个项目。
+          // 用 redirectToPayUrl 安全跳转：完整 URL 原样跳，相对路径自动补 basePath。
+          redirectToPayUrl(payData.pay_url);
           return;
         }
         // pay_url 为空：极少数情况后端直接置为已支付，仍走标准成功页

@@ -6,6 +6,7 @@ import { Card, Image, Tag, Button, Steps, Divider, Toast, Dialog, SpinLoading, P
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 import { fulfillmentLabel } from '@/utils/fulfillmentLabel';
+import { redirectToPayUrl } from '@/lib/basePath';
 
 interface OrderItem {
   id: number;
@@ -138,7 +139,9 @@ export default function UnifiedOrderDetailPage() {
       const payRes: any = await api.post(`/api/orders/unified/${order.id}/pay`, { channel_code });
       const payData = payRes?.data || payRes;
       if (payData?.pay_url) {
-        window.location.href = payData.pay_url;
+        // [2026-05-04 H5 支付链路 BasePath 修复] 同 checkout 页面，
+        // 用 redirectToPayUrl 安全拼接 basePath 前缀，防止落到根域名。
+        redirectToPayUrl(payData.pay_url);
       } else {
         // pay_url 为空（极少数后端兜底直接置已支付）→ 标准支付成功页
         router.replace(`/pay/success?orderId=${order.id}`);

@@ -1373,9 +1373,19 @@ async def _advance_status_after_payment(order: UnifiedOrder, db: AsyncSession) -
 
 
 def _build_sandbox_pay_url(order_no: str, channel_code: str) -> Optional[str]:
-    """[H5 支付链路修复 v1.0] 构造支付宝 H5 沙盒收银台 URL。
+    """[H5 支付链路修复 v1.0 + 2026-05-04 BasePath 修复 v2.0] 构造支付宝 H5 沙盒收银台 URL。
 
     本期为开发自测桩，待真实商户证书接入后替换为支付宝 SDK 生成的真实收银台 URL。
+
+    取值优先级：
+      1) settings.PROJECT_BASE_URL（应包含 H5 的完整域名 + basePath，如
+         `https://newbb.test.bangbangvip.com/autodev/<uuid>`）
+      2) os.environ['PROJECT_BASE_URL']
+      3) os.environ['PUBLIC_API_BASE_URL']（兼容现有部署：值如
+         `https://newbb.test.bangbangvip.com/autodev/<uuid>`，与 H5 basePath 同前缀）
+
+    若三者全空：返回带 H5 basePath 的相对路径 `/sandbox-pay?...`，前端 `redirectToPayUrl`
+    会自动补齐 basePath 前缀（前向兼容根域名/独立子域名场景）。
     """
     base = ""
     try:
@@ -1384,7 +1394,8 @@ def _build_sandbox_pay_url(order_no: str, channel_code: str) -> Optional[str]:
     except Exception:  # noqa: BLE001
         base = ""
     if not base:
-        base = os.getenv("PROJECT_BASE_URL", "")
+        base = os.getenv("PROJECT_BASE_URL", "") or os.getenv("PUBLIC_API_BASE_URL", "")
+    base = (base or "").rstrip("/")
     return f"{base}/sandbox-pay?order_no={order_no}&channel={channel_code}"
 
 

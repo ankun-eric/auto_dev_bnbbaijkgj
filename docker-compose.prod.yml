@@ -46,6 +46,11 @@ services:
       TENCENT_SMS_APP_KEY: ${TENCENT_SMS_APP_KEY:-7e3c8242bf0799cca367fa18fa47a7ea}
       # BUG ②：上传 URL 拼接的全局基础地址（含 /autodev/<deploy_id> 前缀）
       STATIC_BASE_URL: ${STATIC_BASE_URL:-https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27}
+      # [2026-05-04 H5 支付链路 BasePath 修复 v1.0]
+      # 后端拼支付宝 H5 沙盒收银台 pay_url / return_url 时的 H5 完整基地址。
+      # 必须与 H5 构建时 NEXT_PUBLIC_BASE_PATH 同前缀（域名 + basePath）。
+      PROJECT_BASE_URL: ${PROJECT_BASE_URL:-https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27}
+      PUBLIC_API_BASE_URL: ${PUBLIC_API_BASE_URL:-https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27}
     volumes:
       - uploads_data:/app/uploads
     expose:
