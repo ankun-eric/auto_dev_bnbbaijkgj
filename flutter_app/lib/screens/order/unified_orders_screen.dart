@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../models/unified_order.dart';
 import '../../services/api_service.dart';
 import '../../utils/price_formatter.dart';
+import 'contact_store_sheet.dart';
 
 class UnifiedOrdersScreen extends StatefulWidget {
   const UnifiedOrdersScreen({super.key});
@@ -286,15 +287,8 @@ class _OrderTabState extends State<_OrderTab> with AutomaticKeepAliveClientMixin
   }
 
   bool _hasActions(String status) {
-    return [
-      'pending_payment',
-      'pending_review',
-      'pending_receipt',
-      'pending_use',
-      'appointed',
-      'partial_used',
-      'pending_appointment',
-    ].contains(status);
+    // [核销订单过期+改期规则优化 v1.0] 所有状态都有按钮（至少有「联系商家」）
+    return true;
   }
 
   Future<void> _goDetail(UnifiedOrder order, {String? action}) async {
@@ -325,8 +319,17 @@ class _OrderTabState extends State<_OrderTab> with AutomaticKeepAliveClientMixin
             () => _goDetail(order), filled: true));
         if (order.status != 'partial_used') {
           actions.add(const SizedBox(width: 8));
-          actions.add(_actionButton('修改预约', const Color(0xFF722ED1),
-              () => _goDetail(order, action: 'appointment')));
+          // [核销订单过期+改期规则优化 v1.0] 改约：达上限置灰
+          if (order.rescheduleCount >= order.rescheduleLimit) {
+            actions.add(_actionButton('改约（已无法改期）', Colors.grey, () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('本订单已达改期上限')),
+              );
+            }));
+          } else {
+            actions.add(_actionButton('改约', const Color(0xFF722ED1),
+                () => _goDetail(order, action: 'appointment')));
+          }
         }
         break;
       case 'pending_appointment':
@@ -334,6 +337,17 @@ class _OrderTabState extends State<_OrderTab> with AutomaticKeepAliveClientMixin
             () => _goDetail(order, action: 'appointment'), filled: true));
         break;
     }
+    // [核销订单过期+改期规则优化 v1.0] 联系商家：所有状态均展示
+    if (actions.isNotEmpty) {
+      actions.add(const SizedBox(width: 8));
+    }
+    actions.add(_actionButton('联系商家', const Color(0xFF52C41A), () {
+      ContactStoreSheet.show(
+        context,
+        storeId: order.storeId,
+        fallbackStoreName: order.storeName,
+      );
+    }));
     return actions;
   }
 

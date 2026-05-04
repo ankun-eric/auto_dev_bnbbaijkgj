@@ -4,6 +4,7 @@ import '../../models/unified_order.dart';
 import '../../services/api_service.dart';
 import '../../utils/price_formatter.dart';
 import '../../utils/fulfillment_label.dart';
+import 'contact_store_sheet.dart';
 
 class UnifiedOrderDetailScreen extends StatefulWidget {
   const UnifiedOrderDetailScreen({super.key});
@@ -410,23 +411,29 @@ class _UnifiedOrderDetailScreenState extends State<UnifiedOrderDetailScreen> {
       case 'pending_use':
       case 'appointed':
       case 'partial_used':
-        // [修改预约 Bug 修复 v1.0]
-        // - 按钮文案：修改预约时间 → 修改预约
-        // - 状态扩展：partial_used 也可显示按钮（与 H5/小程序对齐）
-        // - 包一层 try/catch（在 _openAppointmentDialog 内的 onTap 处也加），防止异步异常被静默吞掉
+        // [核销订单过期+改期规则优化 v1.0] 改约：达上限置灰
         if (o.refundStatus == 'none' || o.refundStatus.isEmpty) {
-          actions.add(_actionBtn('修改预约', const Color(0xFF722ED1), () async {
-            try {
-              await _openAppointmentDialog(o);
-            } catch (e, st) {
-              debugPrint('[appt] open dialog failed: $e\n$st');
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('打开预约失败：$e')),
-                );
+          final reachedLimit = o.rescheduleCount >= o.rescheduleLimit;
+          if (reachedLimit) {
+            actions.add(_actionBtn('改约（已无法改期）', Colors.grey, () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('本订单已达改期上限')),
+              );
+            }));
+          } else {
+            actions.add(_actionBtn('改约', const Color(0xFF722ED1), () async {
+              try {
+                await _openAppointmentDialog(o);
+              } catch (e, st) {
+                debugPrint('[appt] open dialog failed: $e\n$st');
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('打开预约失败：$e')),
+                  );
+                }
               }
-            }
-          }));
+            }));
+          }
           actions.add(const SizedBox(width: 12));
         }
         if (isRefundApplied) {
@@ -467,6 +474,18 @@ class _UnifiedOrderDetailScreenState extends State<UnifiedOrderDetailScreen> {
         }
         break;
     }
+
+    // [核销订单过期+改期规则优化 v1.0] 联系商家：所有状态均展示
+    if (actions.isNotEmpty) {
+      actions.add(const SizedBox(width: 12));
+    }
+    actions.add(_actionBtn('联系商家', const Color(0xFF52C41A), () {
+      ContactStoreSheet.show(
+        context,
+        storeId: o.storeId,
+        fallbackStoreName: o.storeName,
+      );
+    }));
 
     if (actions.isEmpty) return null;
 

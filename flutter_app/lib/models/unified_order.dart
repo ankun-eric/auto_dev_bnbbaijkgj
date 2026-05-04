@@ -105,6 +105,12 @@ class UnifiedOrder {
   final String? paymentChannelCode;
   final String? paymentDisplayName;
   final String? paymentMethodText; // 形如 "微信支付（小程序）"
+  // [核销订单过期+改期规则优化 v1.0]
+  final int rescheduleCount;
+  final int rescheduleLimit;
+  final bool allowReschedule;
+  final int? storeId;
+  final String? storeName;
 
   UnifiedOrder({
     required this.id,
@@ -142,6 +148,11 @@ class UnifiedOrder {
     this.paymentChannelCode,
     this.paymentDisplayName,
     this.paymentMethodText,
+    this.rescheduleCount = 0,
+    this.rescheduleLimit = 3,
+    this.allowReschedule = true,
+    this.storeId,
+    this.storeName,
   });
 
   String get statusLabel {
@@ -227,6 +238,17 @@ class UnifiedOrder {
       paymentChannelCode: json['payment_channel_code']?.toString(),
       paymentDisplayName: json['payment_display_name']?.toString(),
       paymentMethodText: json['payment_method_text']?.toString(),
+      rescheduleCount: json['reschedule_count'] is int
+          ? json['reschedule_count'] as int
+          : int.tryParse(json['reschedule_count']?.toString() ?? '0') ?? 0,
+      rescheduleLimit: json['reschedule_limit'] is int
+          ? json['reschedule_limit'] as int
+          : int.tryParse(json['reschedule_limit']?.toString() ?? '3') ?? 3,
+      allowReschedule: json['allow_reschedule'] == false ? false : true,
+      storeId: json['store_id'] is int
+          ? json['store_id'] as int
+          : int.tryParse(json['store_id']?.toString() ?? ''),
+      storeName: json['store_name']?.toString(),
     );
   }
 }
