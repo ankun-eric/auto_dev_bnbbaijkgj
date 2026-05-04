@@ -185,7 +185,7 @@ export default function Sidebar({ visible, onClose, activeSessionId, onSelectSes
                   </Badge>
                   <span className="text-xs" style={{ color: THEME.textSecondary }}>消息</span>
                 </div>
-                <div className="flex items-center gap-1 cursor-pointer" onClick={() => navigateTo('/coupons')}>
+                <div className="flex items-center gap-1 cursor-pointer" onClick={() => navigateTo('/my-coupons')}>
                   <Badge content={couponCount > 0 ? couponCount : null}>
                     <span className="text-lg">🎫</span>
                   </Badge>

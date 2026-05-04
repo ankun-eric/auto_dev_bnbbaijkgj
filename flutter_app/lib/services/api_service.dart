@@ -674,8 +674,12 @@ class ApiService {
     return _dio.get('/api/points/tasks');
   }
 
-  Future<Response> getPointsMallGoods({int page = 1, int pageSize = 50}) async {
-    return _dio.get('/api/points/mall', queryParameters: {'page': page, 'page_size': pageSize});
+  Future<Response> getPointsMallGoods({int page = 1, int pageSize = 50, String? tab}) async {
+    final params = <String, dynamic>{'page': page, 'page_size': pageSize};
+    if (tab != null && tab.isNotEmpty) {
+      params['tab'] = tab;
+    }
+    return _dio.get('/api/points/mall', queryParameters: params);
   }
 
   // PRD F4：积分商品详情（含用户已兑次数、按钮状态等）

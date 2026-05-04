@@ -188,11 +188,11 @@ async def test_user_list_tab_and_button_state(client: AsyncClient, admin_headers
     item_a = next(i for i in data["items"] if i["name"] == "便宜A")
     assert item_a["button_state"] == "normal"
 
-    # tab=exchangeable：便宜A + 便宜B 可见；由于可兑换总数 = 2 < 3，触发兜底 → 展示所有 stock>0 的商品
+    # tab=exchangeable：严格只返回真正可兑换的商品（便宜A + 便宜B），
+    # 不再触发"<3 兜底降级"，贵重C（积分不足）与 空库D（库存=0）均不应出现
     r = await client.get("/api/points/mall", params={"tab": "exchangeable", "page_size": 50}, headers=headers_user)
     assert r.status_code == 200
     names2 = [it["name"] for it in r.json()["items"]]
-    # 兜底后库存>0 的 3 个应该全部出现
-    assert "便宜A" in names2 and "便宜B" in names2 and "贵重C" in names2
-    # 空库D（stock=0）即使在兜底也不应该展示（兜底只放宽积分条件，不放宽库存条件）
+    assert "便宜A" in names2 and "便宜B" in names2
+    assert "贵重C" not in names2
     assert "空库D" not in names2

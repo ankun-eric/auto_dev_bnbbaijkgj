@@ -1,7 +1,6 @@
 // PRD F4：积分商城列表页 — 卡片整体可点进入详情页，底部"立即兑换"按钮按后端 canRedeem 置灰
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
-import '../../widgets/custom_app_bar.dart';
 
 /// BUG-2：商城列表项 model
 /// 后端返回字段为 snake_case：can_redeem / redeem_block_reason / shortage_text
@@ -71,11 +70,14 @@ class PointsMallScreen extends StatefulWidget {
   State<PointsMallScreen> createState() => _PointsMallScreenState();
 }
 
-class _PointsMallScreenState extends State<PointsMallScreen> {
+class _PointsMallScreenState extends State<PointsMallScreen>
+    with SingleTickerProviderStateMixin {
   final ApiService _apiService = ApiService();
   int _availablePoints = 0;
   bool _loading = true;
   List<PointsMallItem> _goods = [];
+  late TabController _tabController;
+  String _currentTab = 'all';
 
   static const Map<String, Map<String, dynamic>> _typeMeta = {
     'coupon': {'text': '优惠券', 'color': Color(0xFFFA8C16), 'icon': '🎫'},
@@ -88,7 +90,25 @@ class _PointsMallScreenState extends State<PointsMallScreen> {
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(_onTabChanged);
     _load();
+  }
+
+  @override
+  void dispose() {
+    _tabController.removeListener(_onTabChanged);
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  void _onTabChanged() {
+    if (_tabController.indexIsChanging) return;
+    final newTab = _tabController.index == 0 ? 'all' : 'exchangeable';
+    if (newTab != _currentTab) {
+      setState(() => _currentTab = newTab);
+      _loadGoods();
+    }
   }
 
   Future<void> _load() async {
@@ -112,7 +132,11 @@ class _PointsMallScreenState extends State<PointsMallScreen> {
 
   Future<void> _loadGoods() async {
     try {
-      final res = await _apiService.getPointsMallGoods(page: 1, pageSize: 50);
+      final res = await _apiService.getPointsMallGoods(
+        page: 1,
+        pageSize: 50,
+        tab: _currentTab,
+      );
       final data = res.data is Map ? res.data as Map<String, dynamic> : <String, dynamic>{};
       final items = data['items'];
       final list = <PointsMallItem>[];
@@ -158,7 +182,31 @@ class _PointsMallScreenState extends State<PointsMallScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const CustomAppBar(title: '积分商城'),
+      appBar: AppBar(
+        title: const Text(
+          '积分商城',
+          style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600),
+        ),
+        centerTitle: true,
+        backgroundColor: const Color(0xFF4CAF50),
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        automaticallyImplyLeading: false,
+        bottom: TabBar(
+          controller: _tabController,
+          indicatorColor: Colors.white,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
+          tabs: const [
+            Tab(text: '全部'),
+            Tab(text: '可兑换'),
+          ],
+        ),
+      ),
       body: Column(
         children: [
           Container(

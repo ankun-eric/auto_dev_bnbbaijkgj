@@ -238,18 +238,19 @@ async def list_mall_products(
 async def list_mall_items(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
-    tab: str = Query("all", description="all=全部；exchangeable=可兑换（积分够+库存>0）"),
+    tab: str = Query("all", description="all=全部；exchangeable=可兑换（上架+有效期+库存+限购+积分 5 条件全满足）"),
     current_user: User | None = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """积分商城用户端列表（M5 用户端交互优化）.
 
     - Tab：`all` / `exchangeable`
-    - 排序：两级排序
+      * `exchangeable` 严格按 5 条件判定（上架/有效期/库存/限购/积分），
+        与详情接口 _redeem_block 口径完全一致；不再做 <3 兜底降级。
+    - 排序：
       * 一级：库存>0 在前，库存=0 沉底
-      * 二级：积分够的排前，不够的排后（仅当用户已登录时生效）
+      * 二级：可兑换的排前，不可兑换的排后（与 exchangeable Tab 同口径）
       * 三级：sort_weight 倒序
-    - "可兑换" Tab 的兜底规则：若结果 < 3 条，自动降级为"仅库存>0 且在售"。
     """
     # 仅显示在售商品
     base_filter = (
@@ -280,51 +281,14 @@ async def list_mall_items(
             return 9999
         return s
 
-    def _is_exchangeable(i: PointsMallItem) -> bool:
-        if _stock_for_display(i) <= 0:
-            return False
-        if current_user is None:
-            return True
-        return user_points >= _price(i)
-
-    def _sort_key(i: PointsMallItem):
-        # 一级：库存>0 排前（False=0 排前 → bool 反向）
-        stock_group = 0 if _stock_for_display(i) > 0 else 1
-        # 二级：积分够排前（需要用户登录）
-        if current_user:
-            afford_group = 0 if user_points >= _price(i) else 1
-        else:
-            afford_group = 0
-        # 三级：sort_weight 高在前 → 取负数
-        weight_group = -int(getattr(i, "sort_weight", 0) or 0)
-        # 四级：id 倒序（新的在前）
-        return (stock_group, afford_group, weight_group, -int(i.id))
-
-    sorted_items = sorted(all_items, key=_sort_key)
-
-    # Tab 过滤
-    if tab == "exchangeable":
-        filtered = [i for i in sorted_items if _is_exchangeable(i)]
-        # 兜底：若结果 < 3 条，降级为"库存>0 且在售"
-        if len(filtered) < 3:
-            filtered = [i for i in sorted_items if _stock_for_display(i) > 0]
-        final = filtered
-    else:
-        final = sorted_items
-
-    total = len(final)
-    start = (page - 1) * page_size
-    end = start + page_size
-    page_items = final[start:end]
-
-    # ── BUG-2 修复：补充列表项 can_redeem / redeem_block_reason / shortage_text ──
-    # 与详情接口 /api/points/mall/items/{id} 的判定优先级保持一致：
-    #   OFF_SHELF > NOT_STARTED > ENDED > SOLD_OUT > LIMIT_REACHED > INSUFFICIENT_POINTS > None
-    # 用户已兑换次数：批量预查（仅当存在 limit_per_user>0 商品 + 已登录时才发起）
+    # ── BUG-B 修复：将 user_exchanged_map 与 _redeem_block 提前到 Tab 过滤之前 ──
+    # 原因：_is_exchangeable 现在复用 _redeem_block 进行严格 5 条件判定，
+    # 而 _redeem_block 需要从 user_exchanged_map 读取限购计数。
+    # 因此 limited_ids 改为基于 all_items（覆盖全集，确保过滤前判定可用）。
     user_exchanged_map: dict[int, int] = {}
     if current_user is not None:
         limited_ids = [
-            i.id for i in page_items if int(getattr(i, "limit_per_user", 0) or 0) > 0
+            i.id for i in all_items if int(getattr(i, "limit_per_user", 0) or 0) > 0
         ]
         if limited_ids:
             cnt_rows = await db.execute(
@@ -345,33 +309,54 @@ async def list_mall_items(
     def _redeem_block(i: PointsMallItem) -> tuple[bool, str | None, str | None]:
         """返回 (can_redeem, reason_code, shortage_text)。reason_code=None 表示可兑换。"""
         now = datetime.utcnow()
-        # 1) OFF_SHELF：goods_status=off_sale 或 status != active
         gs = getattr(i, "goods_status", None)
         if gs == "off_sale":
             return False, "OFF_SHELF", None
         if gs is None and (i.status or "active") != "active":
             return False, "OFF_SHELF", None
-        # 2) NOT_STARTED / 3) ENDED：当前模型无 start_at/end_at，做未来兼容
         start_at = getattr(i, "start_at", None)
         end_at = getattr(i, "end_at", None)
         if start_at and now < start_at:
             return False, "NOT_STARTED", None
         if end_at and now > end_at:
             return False, "ENDED", None
-        # 4) SOLD_OUT：库存=0（service 类型 stock=0 视为无限，与详情接口一致）
         if _stock_for_display(i) <= 0:
             return False, "SOLD_OUT", None
-        # 5) LIMIT_REACHED：达单人兑换次数上限
         limit_per_user = int(getattr(i, "limit_per_user", 0) or 0)
         if current_user and limit_per_user > 0:
             used = user_exchanged_map.get(int(i.id), 0)
             if used >= limit_per_user:
                 return False, "LIMIT_REACHED", None
-        # 6) INSUFFICIENT_POINTS：当前用户积分不足
         if current_user and user_points < _price(i):
             diff = max(0, _price(i) - user_points)
             return False, "INSUFFICIENT_POINTS", f"还差 {diff} 分"
         return True, None, None
+
+    def _is_exchangeable(i: PointsMallItem) -> bool:
+        # BUG-B 修复：直接复用 _redeem_block 的完整 5 条件判定
+        # （上架/有效期/库存/限购/积分），保证 Tab 过滤口径与详情接口一致。
+        can, _reason, _shortage = _redeem_block(i)
+        return can
+
+    def _sort_key(i: PointsMallItem):
+        stock_group = 0 if _stock_for_display(i) > 0 else 1
+        # BUG-B 修复：二级排序口径与 _is_exchangeable 完全一致（True 排前）
+        afford_group = 0 if _is_exchangeable(i) else 1
+        weight_group = -int(getattr(i, "sort_weight", 0) or 0)
+        return (stock_group, afford_group, weight_group, -int(i.id))
+
+    sorted_items = sorted(all_items, key=_sort_key)
+
+    # Tab 过滤（BUG-B 修复：移除 <3 兜底降级，严格按 _is_exchangeable 结果保留）
+    if tab == "exchangeable":
+        final = [i for i in sorted_items if _is_exchangeable(i)]
+    else:
+        final = sorted_items
+
+    total = len(final)
+    start = (page - 1) * page_size
+    end = start + page_size
+    page_items = final[start:end]
 
     items_out = []
     has_exchangeable = any(_is_exchangeable(i) for i in all_items)
@@ -380,7 +365,6 @@ async def list_mall_items(
         item_d["goods_status"] = getattr(i, "goods_status", None) or ("on_sale" if i.status == "active" else "off_sale")
         item_d["replaced_by_goods_id"] = getattr(i, "replaced_by_goods_id", None)
         item_d["sort_weight"] = getattr(i, "sort_weight", 0) or 0
-        # 补充按钮态便于用户端直出
         t = i.type
         ts = t.value if hasattr(t, "value") else str(t)
         stock_disp = _stock_for_display(i)
@@ -395,11 +379,14 @@ async def list_mall_items(
             item_d["button_text"] = "立即兑换"
         item_d["is_low_stock"] = 0 < stock_disp <= 10 and ts != "service"
 
-        # BUG-2 新增字段：can_redeem / redeem_block_reason / shortage_text
         can, reason, shortage = _redeem_block(i)
         item_d["can_redeem"] = can
         item_d["redeem_block_reason"] = reason
         item_d["shortage_text"] = shortage
+        # BUG-B 新增：is_exchangeable / exchangeable_reason
+        # 复用上面的 _redeem_block 结果，避免重复调用
+        item_d["is_exchangeable"] = can
+        item_d["exchangeable_reason"] = reason if not can else None
         items_out.append(item_d)
 
     return {

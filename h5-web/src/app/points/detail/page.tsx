@@ -17,6 +17,7 @@ import { Tabs, List, InfiniteScroll, Empty, SpinLoading, Card, Tag, Button, Toas
 export const dynamic = 'force-dynamic';
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
+import { jumpToUseCoupon } from '@/lib/coupon';
 
 interface PointsRecord {
   id: number;
@@ -41,6 +42,10 @@ interface ExchangeRecord {
   used_at?: string | null;
   ref_service_id?: number | null;
   ref_order_no?: string | null;
+  coupon_id?: number | string | null;
+  ref_coupon_id?: number | string | null;
+  ref_user_coupon_id?: number | string | null;
+  coupon_status?: string | null;
 }
 
 const TYPE_LABEL: Record<string, string> = {
@@ -213,15 +218,58 @@ function ExchangeRecordsTab() {
                         去使用
                       </Button>
                     )}
-                    {r.goods_type === 'coupon' && (
-                      <Button
-                        size="mini"
-                        onClick={() => router.push('/coupons')}
-                        style={{ borderRadius: 12, background: 'rgba(250,140,22,0.1)', color: '#fa8c16', border: '1px solid #fa8c16', fontSize: 12 }}
-                      >
-                        查看我的券
-                      </Button>
-                    )}
+                    {r.goods_type === 'coupon' && (() => {
+                      const couponId = r.coupon_id || r.ref_coupon_id;
+                      const ucId = r.ref_user_coupon_id;
+                      const canUse = (r.coupon_status === 'available')
+                        || (!r.coupon_status && r.status === 'success');
+                      return (
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <Button
+                            size="mini"
+                            fill="outline"
+                            onClick={() => {
+                              if (couponId) {
+                                router.push(`/my-coupons?tab=available&highlightCouponId=${couponId}`);
+                              } else {
+                                router.push('/my-coupons?tab=available');
+                              }
+                            }}
+                            style={{
+                              borderRadius: 12,
+                              fontSize: 12,
+                              color: '#fa8c16',
+                              border: '1px solid #fa8c16',
+                              background: '#fff',
+                            }}
+                          >
+                            查看券
+                          </Button>
+                          {canUse && (
+                            <Button
+                              size="mini"
+                              fill="solid"
+                              onClick={() => {
+                                if (ucId) {
+                                  jumpToUseCoupon(router, ucId);
+                                } else {
+                                  Toast.show({ content: '券信息缺失，无法跳转' });
+                                }
+                              }}
+                              style={{
+                                borderRadius: 12,
+                                fontSize: 12,
+                                background: 'linear-gradient(135deg, #52c41a, #13c2c2)',
+                                color: '#fff',
+                                border: 'none',
+                              }}
+                            >
+                              去使用
+                            </Button>
+                          )}
+                        </div>
+                      );
+                    })()}
                     {r.goods_type === 'physical' && r.ref_order_no && (
                       <Button
                         size="mini"

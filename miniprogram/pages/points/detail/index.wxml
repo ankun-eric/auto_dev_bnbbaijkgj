@@ -39,8 +39,13 @@
           <view class="ex-footer">
             <text class="ex-cost">-{{item.points_cost}} 积分</text>
             <view wx:if="{{item.canAppointment}}" class="ex-btn ex-btn-primary" data-id="{{item.ref_service_id}}" bindtap="goProductDetail">去使用</view>
-            <view wx:if="{{item.canViewCoupon}}" class="ex-btn ex-btn-orange" bindtap="goMyCoupons">查看我的券</view>
-            <view wx:if="{{item.canViewOrder}}" class="ex-btn ex-btn-purple" bindtap="goOrder">查看订单</view>
+            <block wx:elif="{{item.canViewCoupon}}">
+              <view class="ex-btn-group">
+                <view class="ex-btn ex-btn-orange" data-item="{{item}}" catchtap="viewCoupon">查看券</view>
+                <view wx:if="{{item.canUseCoupon}}" class="ex-btn ex-btn-primary" data-item="{{item}}" catchtap="jumpToUseCoupon">去使用</view>
+              </view>
+            </block>
+            <view wx:elif="{{item.canViewOrder}}" class="ex-btn ex-btn-purple" bindtap="goOrder">查看订单</view>
           </view>
         </view>
       </view>

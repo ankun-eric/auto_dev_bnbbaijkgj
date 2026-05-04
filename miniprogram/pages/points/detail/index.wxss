@@ -85,3 +85,8 @@
 .ex-btn-primary { background: #4CAF50; color: #fff; }
 .ex-btn-orange { background: rgba(250,140,22,0.1); color: #fa8c16; border: 1rpx solid #fa8c16; }
 .ex-btn-purple { background: rgba(114,46,209,0.1); color: #722ed1; border: 1rpx solid #722ed1; }
+
+.ex-btn-group {
+  display: flex;
+  gap: 12rpx;
+}

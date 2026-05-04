@@ -3,6 +3,7 @@
 
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
+import 'exchange_records_screen.dart' show ExchangeRecord, jumpToUseCoupon;
 
 class PointsDetailScreen extends StatefulWidget {
   const PointsDetailScreen({super.key});
@@ -352,8 +353,16 @@ class _ExchangeRecordsTabState extends State<_ExchangeRecordsTab> {
         child: const Text('去使用', style: TextStyle(fontSize: 12)),
       );
     } else if (type == 'coupon') {
-      actionBtn = OutlinedButton(
-        onPressed: () => Navigator.pushNamed(context, '/coupons'),
+      final rec = ExchangeRecord.fromJson(r);
+      final viewBtn = OutlinedButton(
+        onPressed: () => Navigator.pushNamed(
+          context,
+          '/my-coupons',
+          arguments: {
+            'tab': 'available',
+            if (rec.couponId != null) 'highlightCouponId': rec.couponId,
+          },
+        ),
         style: OutlinedButton.styleFrom(
           foregroundColor: const Color(0xFFFA8C16),
           side: const BorderSide(color: Color(0xFFFA8C16)),
@@ -361,7 +370,28 @@ class _ExchangeRecordsTabState extends State<_ExchangeRecordsTab> {
           padding: const EdgeInsets.symmetric(horizontal: 10),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         ),
-        child: const Text('查看我的券', style: TextStyle(fontSize: 12)),
+        child: const Text('查看券', style: TextStyle(fontSize: 12)),
+      );
+      final useBtn = ElevatedButton(
+        onPressed: () => jumpToUseCoupon(context, rec.couponId),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFFFA8C16),
+          foregroundColor: Colors.white,
+          minimumSize: const Size(64, 28),
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        ),
+        child: const Text('去使用', style: TextStyle(fontSize: 12)),
+      );
+      actionBtn = Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          viewBtn,
+          if (rec.couponStatus == 'available') ...[
+            const SizedBox(width: 6),
+            useBtn,
+          ],
+        ],
       );
     } else if (type == 'physical') {
       actionBtn = OutlinedButton(

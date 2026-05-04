@@ -37,6 +37,8 @@ class PointsMallItemResponse(BaseModel):
     stock: int
     status: str
     created_at: datetime
+    is_exchangeable: Optional[bool] = None
+    exchangeable_reason: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 

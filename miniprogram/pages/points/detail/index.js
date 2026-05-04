@@ -120,6 +120,9 @@ Page({
       const list = (resp.items || []).map((r) => {
         const meta = TYPE_META[r.goods_type] || TYPE_META.virtual;
         const sm = STATUS_META[r.status] || { text: r.status, color: '#666' };
+        const couponId = r.coupon_id || r.user_coupon_id || (r.coupon && (r.coupon.id || r.coupon.user_coupon_id));
+        const couponStatus = r.coupon_status || (r.coupon && r.coupon.status) || '';
+        const isCoupon = r.goods_type === 'coupon';
         return {
           ...r,
           typeText: meta.text,
@@ -130,7 +133,10 @@ Page({
           exchangeTimeStr: fmt(r.exchange_time),
           expireAtStr: fmt(r.expire_at),
           canAppointment: r.goods_type === 'service' && r.status !== 'expired' && r.ref_service_id,
-          canViewCoupon: r.goods_type === 'coupon',
+          canViewCoupon: isCoupon,
+          couponId: couponId || '',
+          couponStatus,
+          canUseCoupon: isCoupon && couponStatus === 'available' && !!couponId,
           canViewOrder: r.goods_type === 'physical',
         };
       });
@@ -154,8 +160,25 @@ Page({
     wx.navigateTo({ url: `/pages/product-detail/index?id=${id}` });
   },
 
-  goMyCoupons() {
-    wx.navigateTo({ url: '/pages/my-coupons/index' });
+  viewCoupon(e) {
+    const item = e.currentTarget.dataset.item || {};
+    const couponId = item.couponId;
+    const url = couponId
+      ? `/pages/my-coupons/index?tab=available&highlightCouponId=${couponId}`
+      : `/pages/my-coupons/index?tab=available`;
+    wx.navigateTo({ url, fail: () => {
+      wx.showToast({ title: '可到"我的优惠券"查看', icon: 'none' });
+    }});
+  },
+
+  jumpToUseCoupon(e) {
+    const item = e.currentTarget.dataset.item || {};
+    const couponId = item.couponId;
+    if (!couponId) {
+      wx.showToast({ title: '券信息缺失', icon: 'none' });
+      return;
+    }
+    wx.navigateTo({ url: `/pages/services/index?couponId=${couponId}` });
   },
 
   goOrder() {

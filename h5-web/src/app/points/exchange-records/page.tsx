@@ -118,7 +118,7 @@ export default function PointsExchangeRecordsPage() {
   };
 
   const handleViewCoupon = () => {
-    router.push('/coupons');
+    router.push('/my-coupons?tab=available');
   };
 
   const handleViewOrder = (r: ExchangeRecord) => {
