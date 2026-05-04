@@ -60,7 +60,6 @@ interface Product {
   sales_count: number;
   status: string;
   sort_order: number;
-  payment_timeout_minutes: number;
   product_code_list?: string[];
   spec_mode?: number;
   main_video_url?: string;
@@ -129,7 +128,6 @@ function mapProduct(raw: Record<string, any>): Product {
     sales_count: Number(raw.sales_count ?? 0),
     status: String(raw.status ?? 'draft'),
     sort_order: Number(raw.sort_order ?? 0),
-    payment_timeout_minutes: Number(raw.payment_timeout_minutes ?? 15),
     product_code_list: Array.isArray(raw.product_code_list) ? raw.product_code_list.map(String) : [],
     spec_mode: Number(raw.spec_mode ?? 1),
     main_video_url: String(raw.main_video_url ?? raw.video_url ?? ''),
@@ -623,7 +621,6 @@ export default function ProductsPage() {
       sort_order: 0,
       redeem_count: 1,
       appointment_mode: 'none',
-      payment_timeout_minutes: 15,
       points_exchangeable: false,
       points_deductible: false,
       spec_mode: 1,
@@ -668,7 +665,6 @@ export default function ProductsPage() {
       recommend_weight: detail.recommend_weight,
       status: detail.status,
       sort_order: detail.sort_order,
-      payment_timeout_minutes: detail.payment_timeout_minutes,
       spec_mode: detail.spec_mode ?? 1,
       marketing_badges: Array.isArray(detail.marketing_badges) ? detail.marketing_badges : [],
     });
@@ -949,7 +945,6 @@ export default function ProductsPage() {
       recommend_weight: values.recommend_weight ?? 0,
       status: publish ? 'active' : (values.status || 'draft'),
       sort_order: values.sort_order ?? 0,
-      payment_timeout_minutes: values.payment_timeout_minutes ?? 15,
       marketing_badges: Array.isArray(values.marketing_badges) ? values.marketing_badges : [],
     };
 
@@ -1432,9 +1427,8 @@ export default function ProductsPage() {
                 />
               </Form.Item>
             </Col>
-            <Col span={8}>
-              <Form.Item label="支付超时(分)" name="payment_timeout_minutes"><InputNumber min={1} style={{ width: '100%' }} /></Form.Item>
-            </Col>
+            {/* [订单核销码状态与未支付超时治理 v1.0] 已移除"支付超时(分)"字段，
+                改由后端全局环境变量 PAYMENT_TIMEOUT_MINUTES 统一控制（默认 15 分钟） */}
           </Row>
 
           {apptMode !== 'none' && (

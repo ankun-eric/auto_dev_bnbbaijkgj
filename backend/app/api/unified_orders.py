@@ -961,10 +961,15 @@ async def create_unified_order(
         if bound_store_ids:
             order.store_id = bound_store_ids[0]
 
+    # [订单核销码状态与未支付超时治理 v1.0]
+    # 站内信文案中的 X 改为读全局 settings.PAYMENT_TIMEOUT_MINUTES，
+    # 与"未支付超时自动取消"定时任务保持长期一致。
+    from app.core.config import settings as _app_settings
+    _payment_timeout_min = int(getattr(_app_settings, "PAYMENT_TIMEOUT_MINUTES", 15) or 15)
     notification = Notification(
         user_id=current_user.id,
         title="订单创建成功",
-        content=f"您的订单 {order.order_no} 已创建，请在{order.payment_timeout_minutes}分钟内完成支付。",
+        content=f"您的订单 {order.order_no} 已创建，请在{_payment_timeout_min}分钟内完成支付。",
         type=NotificationType.order,
     )
     db.add(notification)
@@ -1701,10 +1706,13 @@ async def cancel_unified_order(
     if status_val != "pending_payment":
         refund_back = True
 
-    order.status = UnifiedOrderStatus.cancelled
-    order.cancelled_at = datetime.utcnow()
-    order.cancel_reason = data.cancel_reason
-    order.updated_at = datetime.utcnow()
+    # [订单核销码状态与未支付超时治理 v1.0] 统一取消出口
+    # 同步把所有 OrderItem.redemption_code_status 置为 expired，避免「订单 cancelled / 核销码 active」脏数据
+    from app.services.order_cancel import cancel_order_with_items
+    await cancel_order_with_items(
+        db, order,
+        cancel_reason=data.cancel_reason or "客户主动取消",
+    )
     if refund_back:
         try:
             order.refund_status = RefundStatusEnum.refunded

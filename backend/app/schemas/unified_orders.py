@@ -117,7 +117,7 @@ class UnifiedOrderResponse(BaseModel):
     tracking_number: Optional[str] = None
     tracking_company: Optional[str] = None
     notes: Optional[str] = None
-    payment_timeout_minutes: int = 15
+    # [订单核销码状态与未支付超时治理 v1.0] 已删除订单维度 payment_timeout_minutes
     paid_at: Optional[datetime] = None
     shipped_at: Optional[datetime] = None
     received_at: Optional[datetime] = None

@@ -51,6 +51,8 @@ services:
       # 必须与 H5 构建时 NEXT_PUBLIC_BASE_PATH 同前缀（域名 + basePath）。
       PROJECT_BASE_URL: ${PROJECT_BASE_URL:-https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27}
       PUBLIC_API_BASE_URL: ${PUBLIC_API_BASE_URL:-https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27}
+      # [订单核销码状态与未支付超时治理 v1.0] 全局支付超时分钟数（默认 15）
+      PAYMENT_TIMEOUT_MINUTES: ${PAYMENT_TIMEOUT_MINUTES:-15}
     volumes:
       - uploads_data:/app/uploads
     expose:

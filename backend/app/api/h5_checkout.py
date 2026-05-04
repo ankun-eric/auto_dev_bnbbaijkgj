@@ -109,13 +109,19 @@ async def _count_occupied(
     target_date: date,
     slot_label: str,
 ) -> int:
-    """[H5 下单流程优化 PRD v1.0] 占用数 = 已支付 + 待支付（15 分钟内未取消未超时）。
+    """[H5 下单流程优化 PRD v1.0] 占用数 = 已支付 + 待支付（PAYMENT_TIMEOUT_MINUTES 内未取消未超时）。
 
     口径：`UnifiedOrder.status` 为 `pending_shipment / pending_receipt /
     pending_use / pending_review / completed` 视为已支付；
-    `pending_payment` 且 `created_at > NOW() - 15min` 视为待支付占用。
+    `pending_payment` 且 `created_at > NOW() - PAYMENT_TIMEOUT_MINUTES` 视为待支付占用。
+
+    [订单核销码状态与未支付超时治理 v1.0] 此处的"15 分钟"硬编码
+    已改为读取全局 `settings.PAYMENT_TIMEOUT_MINUTES`，与"未支付超时
+    自动取消"定时任务的判定阈值长期保持一致。
     """
-    fifteen_min_ago = datetime.utcnow() - timedelta(minutes=15)
+    from app.core.config import settings
+    timeout_minutes = int(getattr(settings, "PAYMENT_TIMEOUT_MINUTES", 15) or 15)
+    pending_threshold = datetime.utcnow() - timedelta(minutes=timeout_minutes)
 
     q = (
         select(func.count(OrderItem.id))
@@ -129,7 +135,7 @@ async def _count_occupied(
                 (UnifiedOrder.status.in_(_PAID_LIKE_STATUSES))
                 | (
                     (UnifiedOrder.status == UnifiedOrderStatus.pending_payment)
-                    & (UnifiedOrder.created_at >= fifteen_min_ago)
+                    & (UnifiedOrder.created_at >= pending_threshold)
                 )
             ),
         )
@@ -148,8 +154,12 @@ async def _count_occupied_store(
 
     与 `_count_occupied` 相同口径，但**不限定商品**——`store.slot_capacity`
     是「该门店该时段所有商品订单累计上限」。
+
+    [订单核销码状态与未支付超时治理 v1.0] 同步改为读全局 PAYMENT_TIMEOUT_MINUTES。
     """
-    fifteen_min_ago = datetime.utcnow() - timedelta(minutes=15)
+    from app.core.config import settings
+    timeout_minutes = int(getattr(settings, "PAYMENT_TIMEOUT_MINUTES", 15) or 15)
+    pending_threshold = datetime.utcnow() - timedelta(minutes=timeout_minutes)
     q = (
         select(func.count(OrderItem.id))
         .join(UnifiedOrder, UnifiedOrder.id == OrderItem.order_id)
@@ -161,7 +171,7 @@ async def _count_occupied_store(
                 (UnifiedOrder.status.in_(_PAID_LIKE_STATUSES))
                 | (
                     (UnifiedOrder.status == UnifiedOrderStatus.pending_payment)
-                    & (UnifiedOrder.created_at >= fifteen_min_ago)
+                    & (UnifiedOrder.created_at >= pending_threshold)
                 )
             ),
         )
@@ -179,8 +189,12 @@ async def _count_occupied_date(
     """[PRD v1.0 2026-05-04 §5.2] 按日期汇总占用数（date 模式用）。
 
     `product_id is None` → 门店级聚合（跨商品累计）；否则商品级。
+
+    [订单核销码状态与未支付超时治理 v1.0] 同步改为读全局 PAYMENT_TIMEOUT_MINUTES。
     """
-    fifteen_min_ago = datetime.utcnow() - timedelta(minutes=15)
+    from app.core.config import settings
+    timeout_minutes = int(getattr(settings, "PAYMENT_TIMEOUT_MINUTES", 15) or 15)
+    pending_threshold = datetime.utcnow() - timedelta(minutes=timeout_minutes)
     q = (
         select(func.count(OrderItem.id))
         .join(UnifiedOrder, UnifiedOrder.id == OrderItem.order_id)
@@ -191,7 +205,7 @@ async def _count_occupied_date(
                 (UnifiedOrder.status.in_(_PAID_LIKE_STATUSES))
                 | (
                     (UnifiedOrder.status == UnifiedOrderStatus.pending_payment)
-                    & (UnifiedOrder.created_at >= fifteen_min_ago)
+                    & (UnifiedOrder.created_at >= pending_threshold)
                 )
             ),
         )

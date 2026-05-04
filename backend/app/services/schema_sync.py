@@ -837,8 +837,13 @@ async def _sync_product_system_tables(conn: AsyncConnection) -> None:
 
     if "products" in table_cols:
         cols = table_cols["products"]
-        if "payment_timeout_minutes" not in cols:
-            await conn.execute(text("ALTER TABLE products ADD COLUMN payment_timeout_minutes INT DEFAULT 15"))
+        # [订单核销码状态与未支付超时治理 v1.0] 删除商品维度 payment_timeout_minutes
+        # 全局支付超时改由 settings.PAYMENT_TIMEOUT_MINUTES 控制（默认 15 分钟）
+        if "payment_timeout_minutes" in cols:
+            try:
+                await conn.execute(text("ALTER TABLE products DROP COLUMN payment_timeout_minutes"))
+            except Exception:
+                pass
         if "purchase_appointment_mode" not in cols:
             await conn.execute(text(
                 "ALTER TABLE products ADD COLUMN purchase_appointment_mode "
@@ -974,10 +979,47 @@ async def _sync_product_system_tables(conn: AsyncConnection) -> None:
         cols = table_cols["unified_orders"]
         if "auto_confirm_days" not in cols:
             await conn.execute(text("ALTER TABLE unified_orders ADD COLUMN auto_confirm_days INT DEFAULT 7"))
-        if "payment_timeout_minutes" not in cols:
-            await conn.execute(text("ALTER TABLE unified_orders ADD COLUMN payment_timeout_minutes INT DEFAULT 15"))
+        # [订单核销码状态与未支付超时治理 v1.0]
+        # 删除订单维度 payment_timeout_minutes（历史快照值丢弃）
+        # 全局支付超时改由 settings.PAYMENT_TIMEOUT_MINUTES 控制
+        if "payment_timeout_minutes" in cols:
+            try:
+                await conn.execute(text("ALTER TABLE unified_orders DROP COLUMN payment_timeout_minutes"))
+            except Exception:
+                pass
+        # 删除 order_timeout_minutes（如果历史数据库中存在），路径 3「门店超时未确认自动取消」已下线
+        if "order_timeout_minutes" in cols:
+            try:
+                await conn.execute(text("ALTER TABLE unified_orders DROP COLUMN order_timeout_minutes"))
+            except Exception:
+                pass
         if "has_reviewed" not in cols:
             await conn.execute(text("ALTER TABLE unified_orders ADD COLUMN has_reviewed BOOLEAN DEFAULT FALSE"))
+
+    # [订单核销码状态与未支付超时治理 v1.0] 历史脏数据一次性清洗：
+    # 找到所有「unified_orders.status = cancelled 且其下任意 order_items.redemption_code_status = active」
+    # 的记录，把核销码全部刷为 expired。
+    # 幂等：重复执行不会改写已为 expired/redeemed/refunded/used/locked 的核销码。
+    if "unified_orders" in table_cols and "order_items" in table_cols:
+        try:
+            await conn.execute(text(
+                "UPDATE order_items oi "
+                "JOIN unified_orders uo ON uo.id = oi.order_id "
+                "SET oi.redemption_code_status = 'expired', oi.updated_at = CURRENT_TIMESTAMP "
+                "WHERE uo.status = 'cancelled' AND oi.redemption_code_status = 'active'"
+            ))
+        except Exception:
+            # 部分数据库（如 SQLite 测试环境）不支持 UPDATE...JOIN 语法，
+            # 改用子查询兜底（生产环境 MySQL 走上面的快路径）
+            try:
+                await conn.execute(text(
+                    "UPDATE order_items SET redemption_code_status = 'expired', "
+                    "updated_at = CURRENT_TIMESTAMP "
+                    "WHERE redemption_code_status = 'active' "
+                    "AND order_id IN (SELECT id FROM unified_orders WHERE status = 'cancelled')"
+                ))
+            except Exception:
+                pass
 
     if "order_items" in table_cols:
         cols = table_cols["order_items"]

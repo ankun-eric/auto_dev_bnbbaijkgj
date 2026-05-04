@@ -2696,7 +2696,9 @@ class Product(Base):
     sales_count = mapped_column(Integer, default=0)
     status = mapped_column(Enum(ProductStatus), default=ProductStatus.draft)
     sort_order = mapped_column(Integer, default=0)
-    payment_timeout_minutes = mapped_column(Integer, default=15)
+    # [订单核销码状态与未支付超时治理 v1.0] 已删除 payment_timeout_minutes（商品维度）
+    # 全局支付超时改由 settings.PAYMENT_TIMEOUT_MINUTES 控制（默认 15 分钟），
+    # 历史快照值在 Alembic/schema_sync 数据迁移时一并丢弃。
     # ── 商品弹窗优化 v2 新增字段 ──
     product_code_list = mapped_column(JSON, nullable=True)  # 产品条码列表（最多10个）
     spec_mode = mapped_column(Integer, default=1)  # 1=统一规格 2=多规格
@@ -3054,7 +3056,8 @@ class UnifiedOrder(Base):
     tracking_number = mapped_column(String(100), nullable=True)
     tracking_company = mapped_column(String(100), nullable=True)
     notes = mapped_column(Text, nullable=True)
-    payment_timeout_minutes = mapped_column(Integer, default=15)
+    # [订单核销码状态与未支付超时治理 v1.0] 已删除 payment_timeout_minutes（订单维度）
+    # 全局支付超时改由 settings.PAYMENT_TIMEOUT_MINUTES 控制（默认 15 分钟）
     paid_at = mapped_column(DateTime, nullable=True)
     shipped_at = mapped_column(DateTime, nullable=True)
     received_at = mapped_column(DateTime, nullable=True)

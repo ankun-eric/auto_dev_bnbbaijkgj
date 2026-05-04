@@ -149,97 +149,63 @@ async def check_checkin_reminders():
             logger.exception("Error checking checkin reminders")
 
 
-async def _get_timeout_config(session: AsyncSession) -> dict:
-    keys = ["order_urge_minutes", "order_timeout_minutes", "order_timeout_action"]
-    result = await session.execute(
-        select(SystemConfig).where(SystemConfig.config_key.in_(keys))
-    )
-    cfg = {c.config_key: c.config_value for c in result.scalars().all()}
-    return {
-        "urge_minutes": int(cfg.get("order_urge_minutes", "30")),
-        "timeout_minutes": int(cfg.get("order_timeout_minutes", "60")),
-        "timeout_action": cfg.get("order_timeout_action", "auto_cancel"),
-    }
+async def check_unpaid_order_timeout():
+    """[订单核销码状态与未支付超时治理 v1.0] 路径 3-NEW
 
+    替换原"门店超时未确认自动取消"逻辑。
 
-async def check_order_confirm_timeout():
-    """Check for orders that haven't been confirmed by store within timeout policy."""
+    业务语义：
+    - 触发前提：订单 status = pending_payment 且 paid_at IS NULL（即客户尚未支付）
+    - 触发时长：全局 settings.PAYMENT_TIMEOUT_MINUTES（默认 15 分钟）
+    - 业务结果：自动取消订单 + 同步把所有 OrderItem.redemption_code_status 置为 expired
+
+    与已下线的"门店超时未确认自动取消"逻辑相比：
+    - 本系统是自营模式（资金进入平台账户而非商家），不存在"商家不接单 → 资金兜底退款"的诉求
+    - 客户已支付订单可走"申请退款 → admin 审批"链路安全拿回资金
+    - 取消未支付订单是为了释放容量、清理订单表脏数据
+    """
+    from app.core.config import settings
+    from app.services.order_cancel import cancel_order_with_items
+
     now = datetime.utcnow()
+    timeout_minutes = int(getattr(settings, "PAYMENT_TIMEOUT_MINUTES", 15) or 15)
+    timeout_threshold = now - timedelta(minutes=timeout_minutes)
 
     async with async_session() as session:
         try:
-            cfg = await _get_timeout_config(session)
-            urge_minutes = cfg["urge_minutes"]
-            timeout_minutes = cfg["timeout_minutes"]
-            timeout_action = cfg["timeout_action"]
-
-            urge_threshold = now - timedelta(minutes=urge_minutes)
-            timeout_threshold = now - timedelta(minutes=timeout_minutes)
+            from sqlalchemy.orm import selectinload
 
             pending_orders = await session.execute(
-                select(UnifiedOrder).where(
-                    UnifiedOrder.store_confirmed == False,
-                    UnifiedOrder.store_id.isnot(None),
-                    UnifiedOrder.status.in_([
-                        UnifiedOrderStatus.pending_use,
-                        UnifiedOrderStatus.pending_shipment,
-                    ]),
-                    UnifiedOrder.paid_at.isnot(None),
+                select(UnifiedOrder)
+                .options(selectinload(UnifiedOrder.items))
+                .where(
+                    UnifiedOrder.status == UnifiedOrderStatus.pending_payment,
+                    UnifiedOrder.paid_at.is_(None),
+                    UnifiedOrder.created_at <= timeout_threshold,
                 )
             )
 
+            cancel_count = 0
             for order in pending_orders.scalars().all():
-                paid_at = order.paid_at
-                if not paid_at:
-                    continue
-
-                if paid_at <= timeout_threshold:
-                    if timeout_action == "auto_cancel":
-                        order.status = UnifiedOrderStatus.cancelled
-                        order.cancelled_at = now
-                        order.cancel_reason = "门店超时未确认，系统自动取消"
-                        order.updated_at = now
-                        logger.info("订单 %s 超时未确认，已自动取消", order.order_no)
-
-                    if order.store_id:
-                        session.add(MerchantNotification(
-                            user_id=order.user_id,
-                            store_id=order.store_id,
-                            title="订单超时未确认",
-                            content=f"订单 {order.order_no} 已超时未确认",
-                            notification_type="order",
-                        ))
-
-                elif paid_at <= urge_threshold:
-                    existing = await session.execute(
-                        select(MerchantNotification).where(
-                            MerchantNotification.store_id == order.store_id,
-                            MerchantNotification.title == "订单待确认催促",
-                            MerchantNotification.created_at >= paid_at,
-                        )
-                    )
-                    if not existing.scalar_one_or_none() and order.store_id:
-                        from app.models.models import MerchantStoreMembership
-                        staff_result = await session.execute(
-                            select(MerchantStoreMembership.user_id).where(
-                                MerchantStoreMembership.store_id == order.store_id,
-                                MerchantStoreMembership.status == "active",
-                            )
-                        )
-                        for (uid,) in staff_result.all():
-                            session.add(MerchantNotification(
-                                user_id=uid,
-                                store_id=order.store_id,
-                                title="订单待确认催促",
-                                content=f"订单 {order.order_no} 待确认，请尽快处理",
-                                notification_type="order",
-                            ))
+                await cancel_order_with_items(
+                    session, order,
+                    cancel_reason="未支付超时自动取消",
+                    cancelled_at=now,
+                )
+                cancel_count += 1
+                logger.info(
+                    "订单 %s 未支付超时（>%d 分钟），已自动取消",
+                    order.order_no, timeout_minutes,
+                )
 
             await session.commit()
-            logger.info("Order confirm timeout check completed")
+            logger.info(
+                "Unpaid order timeout check completed, cancelled=%d, threshold=%d min",
+                cancel_count, timeout_minutes,
+            )
         except Exception:
             await session.rollback()
-            logger.exception("Error checking order confirm timeout")
+            logger.exception("Error checking unpaid order timeout")
 
 
 async def check_appointment_reminders():
@@ -378,10 +344,12 @@ def init_scheduler():
         id="check_checkin_reminders",
         replace_existing=True,
     )
+    # [订单核销码状态与未支付超时治理 v1.0] 路径 3-NEW
+    # 替换原"门店超时未确认自动取消"为"未支付超时自动取消"
     scheduler.add_job(
-        check_order_confirm_timeout,
+        check_unpaid_order_timeout,
         trigger=IntervalTrigger(minutes=1),
-        id="check_order_confirm_timeout",
+        id="check_unpaid_order_timeout",
         replace_existing=True,
     )
     scheduler.add_job(

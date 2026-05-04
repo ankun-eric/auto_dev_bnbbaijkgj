@@ -59,7 +59,6 @@ def _make_product_response(
         sales_count=0,
         status="active",
         sort_order=0,
-        payment_timeout_minutes=15,
         spec_mode=spec_mode,
         skus=skus or [],
         created_at=now,

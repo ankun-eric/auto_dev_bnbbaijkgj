@@ -215,7 +215,8 @@ class ProductCreate(BaseModel):
     recommend_weight: int = 0
     status: str = "draft"
     sort_order: int = 0
-    payment_timeout_minutes: int = 15
+    # [订单核销码状态与未支付超时治理 v1.0] 已删除商品维度 payment_timeout_minutes
+    # 全局支付超时改由 settings.PAYMENT_TIMEOUT_MINUTES 控制
     store_ids: Optional[list[int]] = None
     # ── v2 新字段 ──
     product_code_list: Optional[list[str]] = None
@@ -272,7 +273,7 @@ class ProductUpdate(BaseModel):
     recommend_weight: Optional[int] = None
     status: Optional[str] = None
     sort_order: Optional[int] = None
-    payment_timeout_minutes: Optional[int] = None
+    # [订单核销码状态与未支付超时治理 v1.0] 已删除 payment_timeout_minutes，更新接口接收时静默忽略
     store_ids: Optional[list[int]] = None
     # ── v2 新字段 ──
     product_code_list: Optional[list[str]] = None
@@ -382,7 +383,7 @@ class ProductResponse(BaseModel):
     sales_count: int
     status: str
     sort_order: int
-    payment_timeout_minutes: int
+    # [订单核销码状态与未支付超时治理 v1.0] 已删除 payment_timeout_minutes 字段
     # ── v2 新字段 ──
     product_code_list: Optional[list[str]] = None
     spec_mode: int = 1

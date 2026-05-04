@@ -199,7 +199,7 @@ async def _build_product_response_dict(db: AsyncSession, product: Product) -> di
         "sales_count": product.sales_count or 0,
         "status": status_val or "draft",
         "sort_order": product.sort_order or 0,
-        "payment_timeout_minutes": product.payment_timeout_minutes or 15,
+        # [订单核销码状态与未支付超时治理 v1.0] payment_timeout_minutes 已删除（前端不再展示）
         # v2 新字段
         "product_code_list": code_list,
         "spec_mode": int(product.spec_mode or 1),
@@ -543,7 +543,7 @@ async def admin_create_product(
         recommend_weight=data.recommend_weight,
         status=data.status,
         sort_order=data.sort_order,
-        payment_timeout_minutes=data.payment_timeout_minutes,
+        # [订单核销码状态与未支付超时治理 v1.0] 已删除商品维度 payment_timeout_minutes
         # v2 新字段
         product_code_list=code_list,
         spec_mode=int(data.spec_mode or 1),
@@ -1095,13 +1095,22 @@ async def admin_approve_refund(
         refund_req.refund_amount_approved = refund_req.refund_amount
     refund_req.updated_at = datetime.utcnow()
 
-    order_result = await db.execute(select(UnifiedOrder).where(UnifiedOrder.id == order_id))
+    # [订单核销码状态与未支付超时治理 v1.0] 统一取消出口
+    # 同步把所有 OrderItem.redemption_code_status 置为 expired
+    from sqlalchemy.orm import selectinload
+    from app.services.order_cancel import cancel_order_with_items
+    order_result = await db.execute(
+        select(UnifiedOrder)
+        .options(selectinload(UnifiedOrder.items))
+        .where(UnifiedOrder.id == order_id)
+    )
     order = order_result.scalar_one_or_none()
     if order:
         order.refund_status = RefundStatusEnum.refund_success
-        order.status = UnifiedOrderStatus.cancelled
-        order.cancelled_at = datetime.utcnow()
-        order.updated_at = datetime.utcnow()
+        await cancel_order_with_items(
+            db, order,
+            cancel_reason="admin 批准退款",
+        )
 
     return {"message": "退款已批准", "refund_amount_approved": float(refund_req.refund_amount_approved)}
 

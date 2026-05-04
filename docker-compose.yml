@@ -51,6 +51,8 @@ services:
       # 必须与 H5 容器构建时的 NEXT_PUBLIC_BASE_PATH 保持同一前缀（域名 + basePath）。
       # 未来切换到根域名 / 独立子域名时，将本变量改为 https://h5.xxx.com 即可，业务零改动。
       PROJECT_BASE_URL: ${PROJECT_BASE_URL:-https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27}
+      # [订单核销码状态与未支付超时治理 v1.0] 全局支付超时分钟数（默认 15）
+      PAYMENT_TIMEOUT_MINUTES: ${PAYMENT_TIMEOUT_MINUTES:-15}
     volumes:
       - uploads_data:/app/uploads
     depends_on:
