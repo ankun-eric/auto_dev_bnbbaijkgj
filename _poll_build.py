@@ -5,9 +5,9 @@ import subprocess
 import sys
 import time
 
-RUN_ID = "25298883420"
+RUN_ID = "25299847542"
 REPO = "ankun-eric/auto_dev_bnbbaijkgj"
-MAX_WAIT_SEC = 25 * 60
+MAX_WAIT_SEC = 30 * 60
 INTERVAL = 30
 
 
@@ -46,7 +46,7 @@ def main():
             continue
         status = data.get("status", "?")
         conclusion = data.get("conclusion", "")
-        print(f"[{elapsed}s] status={status} conclusion={conclusion}")
+        print(f"[{elapsed}s] status={status} conclusion={conclusion}", flush=True)
         if status == "completed":
             if conclusion == "success":
                 print("BUILD SUCCESS")

@@ -33,7 +33,43 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 预约日期模式支付页误显示「选择时段」 Bug 修复（5端联动+后端忽略time_slot+5/5自动化测试通过+小程序/安卓/iOS 全部重新打包发布）（2026-05-04 11:00）
+## Latest Update: 优惠券下单页 4 个 Bug 合并修复 v2（B1免费试用0元抵扣 / B2后台门槛字段隐藏 / B3下单页券列表过滤 / B4三端圆圈对齐 + 6/6 新增测试 + 11/11 联动测试通过 + 三端打包发布）（2026-05-04 11:50）
+
+### 一句话结论
+一次性修复优惠券下单页 4 个 Bug：**B1** 后端 `unified_orders.py::create_unified_order` 优惠券分支补 `free_trial → coupon_discount = eligible_amount`（整单 0 元抵扣）；**B2** admin-web 优惠券表单按 `couponType==='free_trial'` 隐藏「使用门槛金额 / 优惠金额 / 折扣率」三字段并加蓝色风控提示，提交时强制清零；**B3** 后端新增 `GET /api/coupons/usable-for-order` 下单页专用接口（按 user_id+status=unused+未过期+未下架+scope/category 适用+exclude_ids 排除+condition_amount 门槛全维度过滤；free_trial 强制忽略 condition_amount）+ 创单兜底（绕过前端用不适用券返回 422）；H5/小程序/Flutter 三端 checkout **同时切换到新接口并删除前端硬过滤**；**B4** 三端圆圈对齐（H5 prefix 容器加 `align-items: center`；小程序弹窗加 `.radio-dot` + `.coupon-option { align-items: center }`；Flutter 用 `Radio` widget 默认对齐）。新增 `backend/tests/test_coupon_usable_for_order.py` 6 用例（B1+B3+创单兜底）；远程 backend 容器内新+旧 11/11 全部 PASS（耗时 14.01s）；外部 H5/admin/api/health 全部 200；小程序/安卓/iOS 三端**全部重新打包并发布**（小程序 zip → 服务器、APK → GHA Linux Runner ubuntu-latest run id 25299847542 success → 服务器、iOS IPA → GHA macOS Runner run id 25299850060 success → GitHub Release）；用户手册 `user_docs/优惠券下单页修复.md`。
+
+### 涉及文件
+- 后端核心：`backend/app/api/coupons.py`（新增 `_normalize_scope_ids` 工具 + `GET /usable-for-order` 接口）+ `backend/app/api/unified_orders.py`（创单分支 free_trial 整单抵扣 + scope/category/expire/offline 兜底返回 422 + 新增 `_normalize_id_list` 工具）
+- 后端测试：`backend/tests/test_coupon_usable_for_order.py`（6 用例：B1 free_trial 0 元、B3 scope=product 过滤、B3 已下架过滤、B3 condition_amount 门槛 + free_trial 忽略、B3 已过期过滤、创单兜底 422）
+- admin-web：`admin-web/src/app/(admin)/product-system/coupons/page.tsx`（`couponType !== 'free_trial'` 包裹 condition/discount 字段；free_trial 时显示蓝色 Alert；`submitCoupon` 中 `isFreeTrial` 标记强制清零）
+- H5：`h5-web/src/app/checkout/page.tsx`（初始 + 监听 product/skuId/quantity 变化两次拉 `/usable-for-order`；删 `disabled`；prefix 加 flex 居中容器；`couponDiscount` 加 free_trial 整单分支）
+- 小程序：`miniprogram/pages/checkout/{index.js,index.wxml,index.wxss}`（loadCoupons 切接口 + 数量变化重拉；calcPrice 适配 `full_reduction/discount/voucher/free_trial` 新结构；wxml 弹窗加 `.radio-dot` + free_trial 显示「免费」；wxss `.coupon-option .radio-dot` margin/居中）
+- Flutter：`flutter_app/lib/config/api_config.dart`（加 `usableCouponsForOrder` 常量）+ `flutter_app/lib/services/api_service.dart`（加 `getUsableCouponsForOrder`）+ `flutter_app/lib/models/coupon.dart`（typeLabel/discountText 加 free_trial 分支）+ `flutter_app/lib/screens/product/checkout_screen.dart`（_loadCoupons 切接口 + 已选券失效自动清空；_couponDiscount 加 free_trial 整单分支；ListTile 加 leading Radio 圆点居中）
+- 部署辅助：`_deploy_coupon_usable_bugfix.py`
+- 用户手册：`user_docs/优惠券下单页修复.md`
+
+### 关键技术点 / 注意事项
+- **新增接口的"单一职责"原则**：`/api/coupons/usable-for-order` 与 `/mine`（钱包视图）/ `/available`（领券中心）三者**严格各司其职**，不再混用——下单页就是要回答「现在这个商品+这个 subtotal，能用哪些券」，必须由后端权威决定，前端只信任 `applicable=true` 的列表
+- **创单兜底是防绕过的关键**：哪怕前端被改、API 被直调、用户篡改 `coupon_id`，`POST /api/orders/unified` 仍会做完整校验（user_coupon.expire_at + coupon.is_offline + coupon.status + scope=product/category 适用 + condition_amount 门槛），不命中一律 422，订单不入库
+- **free_trial 整单抵扣的实现位置**：后端 `_calc_paid_amount` 中 `coupon_discount = eligible_amount`，前端三端的本地金额预览也加了同样分支以保持一致——但**真实应付金额以服务端响应为准**
+- **三端「圆圈对齐」三种实现**：H5 用 antd-mobile prefix 容器加 flex+alignItems:center；小程序弹窗里给 `.coupon-option` 加 align-items:center 并补 `.radio-dot` 圆点；Flutter 因 ListTile 默认 leading 居中，直接换 `Radio` widget 即可——同一视觉问题在三端各自最自然的方式实现
+- **接口返回字段兼容性设计**：`/usable-for-order` 同时返回扁平字段（`id, type, value, condition_amount...`）+ 嵌套 `coupon: {...}`，让 H5/Flutter 现有按 `uc.coupon.condition_amount` 读取的代码无需改动，小程序则按扁平结构读
+- **依赖此前的 admin /coupons/{id}/offline 接口未变更**：本次 B2 只改前端表单字段隐藏，未触及 admin 提交校验逻辑
+
+### 三端新包下载（本次发布）
+- 小程序：[miniprogram_20260504_113934_be3d.zip](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/miniprogram/miniprogram_20260504_113934_be3d.zip)
+- 安卓：[bini_health_coupon_20260504_114911_54f0.apk](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/apk/bini_health_coupon_20260504_114911_54f0.apk)
+- iOS：[Release ios-coupon-v20260504-114006-55e9](https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-coupon-v20260504-114006-55e9)
+
+### 验证结果
+- 本地 pytest（6 新增 + 22 联动）：**28 passed in 24.74s**
+- 远程容器内 pytest（6 新增 + 5 联动）：**11 passed in 14.01s**
+- 外部 URL 验证：H5 / 200，admin / 200，api/health / 200
+- 三端打包：小程序 zip 上传 200（361KB）、APK GHA run id 25299847542 conclusion=success 上传 200（80.1MB）、iOS GHA run id 25299850060 conclusion=success Release 已发布（32.46MB）
+
+---
+
+## Previous Update: 预约日期模式支付页误显示「选择时段」 Bug 修复（5端联动+后端忽略time_slot+5/5自动化测试通过+小程序/安卓/iOS 全部重新打包发布）（2026-05-04 11:00）
 
 ### 一句话结论
 彻底修复用户端三端（H5 / 微信小程序 / Flutter Android+iOS）支付页（checkout）在 `appointment_mode = date`（预约日期）模式下**错误渲染「选择时段」一栏**的 P1 体验 Bug，并联动修复 H5 订单详情 / Flutter 订单详情 / 商家后台订单详情抽屉对 date 模式订单也错误展示"预约时段"行的下游问题。**根因**：三端 checkout 把"是否需要预约"和"预约模式细分"用同一个 `needAppointment` 布尔混在一起，导致 date 模式被错误地塞进了「时段选择」UI。**修复方案**（一期工程一次性全量修复，对历史数据零侵入）：1) **C 端三端 checkout** 把 `needAppointment` 拆为 `needDate` / `needTimeSlot` 派生变量（H5/Flutter 用 getter，小程序在 setData 时计算），所有时段相关 UI / 校验 / 提交字段全部改用 `needTimeSlot`，从源头杜绝再次"漏分流"；2) **C 端三端订单详情 + admin-web 订单详情抽屉**「预约时段」行按 `item.appointment_mode === 'time_slot'` 渲染，date 模式无论历史脏数据如何一律不展示；3) **后端** `backend/app/api/unified_orders.py::create_unified_order` 对 `appt_mode == 'date'` 的下单请求**主动从 `appointment_data` 剥离 `time_slot` 字段**（即便前端误传），避免脏值入库；4) **测试** 新增 `backend/tests/test_checkout_date_mode_no_time_slot.py` 5 个 pytest-asyncio 用例（date 模式不传时段 200 OK / date 模式误传时段被剥离 / time_slot 模式完整提交 200 OK 且回传 / none 模式不带预约信息 / 订单详情透传 appointment_mode），远程 backend 容器内 **5/5 全部 PASS**（耗时 6.78s）；5) **部署** `_deploy_date_no_slot_bugfix.py` SFTP 上传 9 文件 → docker compose build backend+admin-web+h5-web → up -d → 容器内 pip install pytest 后跑测试 → 外部 3 个 URL 检查（H5/admin/health 全部 200）；6) **三端打包发布**：本次 `lib/`（Flutter 共享）+ `miniprogram/` 都被改动，按 develop-all 阶段 4 触发并行打包（小程序 zip → 服务器 / Android APK → GHA Linux Runner ubuntu-latest → Release → 服务器 / iOS IPA → GHA macOS Runner → Release）；7) **历史数据零改动**：采用"展示层屏蔽 + 后端忽略"策略，可一键回滚；8) **用户手册** `user_docs/预约日期模式支付页时段隐藏修复.md`。
