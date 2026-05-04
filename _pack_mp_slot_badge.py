@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """Pack miniprogram/ to zip with slot-badge-tagged filename and SFTP upload."""
 import os
 import sys

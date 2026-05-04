@@ -1,0 +1,13 @@
+feat(checkout): 下单页时段卡片「已满/已结束」角标改造 PRD §5.2（含用户手册与项目索引）
+
+- 本次源码改动已在前两次中间 commit（571cdc4/a402aad）推送上云并触发 GHA 构建
+- 本提交补齐配套产出：
+  - 项目索引：.cursor/rules/project-context.mdc 新增 Latest Update 段落
+  - 用户手册：user_docs/下单页时段卡片角标.md（含开头/末尾两处访问链接、
+    改造前后 ASCII 对比图、6 步使用说明、三端体验分步指引、6 条注意事项）
+  - 打包脚本：_pack_apk_slot_badge.py / _pack_ios_slot_badge.py 及运行日志
+- 三端产物 HTTP 200：
+  - 小程序 zip：miniprogram_slot_badge_20260504_162603_bea2.zip
+  - 安卓 APK：bini_health_slotbadge_20260504_162352_25e8.apk
+  - iOS IPA：bini_health_slotbadge_20260504_162337_0e07.ipa
+- 远程容器 pytest 21/21 PASS（12 新增 badge 用例 + 9 既有 slot_grid 用例）
