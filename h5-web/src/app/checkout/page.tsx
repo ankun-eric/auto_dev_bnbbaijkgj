@@ -122,6 +122,8 @@ interface AvailableSlotInfo {
   end_time: string;
   is_available: boolean;
   unavailable_reason: 'occupied' | 'past' | null;
+  // [PRD 2026-05-04 §5.2 角标改造] 后端新增的状态枚举，用于驱动「已满/已结束」橙色贴边角标
+  status?: 'available' | 'full' | 'ended';
 }
 
 interface AvailableDateInfo {
@@ -509,26 +511,43 @@ function CheckoutPage() {
 
   const dates = useMemo(() => buildDates(dateRange), [dateRange]);
 
-  // [PRD v1.0 2026-05-04 §4.1.1 / §4.2]
-  // 显示用时段：每行 3 个固定网格，满额时段同样参与网格（按时间顺序混排），
-  // 不再过滤满档；满额时显示"已约满"角标 + 灰底灰字 + 完全不可点击。
-  //   - 已选门店时：以 storeSlots 为准（包含 is_available 字段）
-  //   - 未选门店时：用 infoSlots（来自 /checkout/info）合并商品全部时段
-  const slotsToShow: { label: string; start: string; end: string; disabled: boolean; full: boolean; expired: boolean }[] = useMemo(() => {
+  // [PRD 2026-05-04 §5.2 下单页时段卡片「已满/已结束」角标改造]
+  // 显示用时段：每行 3 个固定网格，满额 / 已结束时段同样参与网格（按时间顺序混排）。
+  //   - status: 'available' | 'full' | 'ended'
+  //       · available 可约：默认白底、无角标
+  //       · full      已满：灰底灰字、不可点击、右上角橙色贴边「已满」角标
+  //       · ended     已结束：灰底灰字、不可点击、右上角橙色贴边「已结束」角标
+  //   - 按 PRD §5.1 优先级：同一时段 ended 与 full 同时命中时，优先显示 ended。
+  //     后端 `_derive_slot_status` 已经保证该优先级，前端这里同样兜底一次（因本地时间差导致后端未标 ended 时）。
+  const slotsToShow: { label: string; start: string; end: string; disabled: boolean; status: 'available' | 'full' | 'ended' }[] = useMemo(() => {
     const isToday = selectedDate === formatDateStr(new Date());
     const now = new Date();
     const nowHM = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    const deriveStatus = (info: Pick<AvailableSlotInfo, 'is_available' | 'unavailable_reason'> | null | undefined, endHM: string): 'available' | 'full' | 'ended' => {
+      // 前端本地兜底：当天且已过 end 时间 → 已结束（优先 ended）
+      if (isToday && endHM <= nowHM) return 'ended';
+      // 后端若已标注 status（新字段），优先沿用
+      const backendStatus = (info as any)?.status as string | undefined;
+      if (backendStatus === 'ended' || backendStatus === 'full' || backendStatus === 'available') {
+        return backendStatus;
+      }
+      // 退化：用旧的 is_available + unavailable_reason 派生
+      if (info && info.is_available === false) {
+        if (info.unavailable_reason === 'past') return 'ended';
+        if (info.unavailable_reason === 'occupied') return 'full';
+        return 'full';
+      }
+      return 'available';
+    };
     if (selectedStore) {
       return storeSlots.map(s => {
-        const expired = isToday && s.end <= nowHM;
-        const full = s.is_available === false && s.unavailable_reason === 'occupied';
+        const status = deriveStatus(s as any, s.end);
         return {
           label: s.label,
           start: s.start,
           end: s.end,
-          disabled: expired || full,
-          full,
-          expired,
+          status,
+          disabled: status !== 'available',
         };
       });
     }
@@ -540,9 +559,8 @@ function CheckoutPage() {
     return productSlots.map(s => {
       const label = `${s.start}-${s.end}`;
       const info = infoMap.get(label);
-      const expired = isToday && s.end <= nowHM;
-      const full = info ? info.is_available === false && info.unavailable_reason === 'occupied' : false;
-      return { label, start: s.start, end: s.end, disabled: expired || full, full, expired };
+      const status = deriveStatus(info, s.end);
+      return { label, start: s.start, end: s.end, status, disabled: status !== 'available' };
     });
   }, [productSlots, storeSlots, selectedStore, selectedDate, infoSlots]);
 
@@ -909,28 +927,34 @@ function CheckoutPage() {
               {slotsToShow.map((s) => {
                 const sel = s.label === selectedSlot;
                 const showRed = sel && slotInvalid;
+                const isFull = s.status === 'full';
+                const isEnded = s.status === 'ended';
+                const showBadge = isFull || isEnded;
                 return (
                   <div
                     key={s.label}
                     onClick={() => { if (!s.disabled) setSelectedSlot(s.label); }}
+                    aria-disabled={s.disabled ? true : undefined}
                     style={{
                       position: 'relative',
                       padding: '8px 4px',
                       borderRadius: 6,
                       fontSize: 12,
                       textAlign: 'center',
-                      background: s.full
+                      // [PRD 2026-05-04 §5.2] 角标不超出卡片范围
+                      overflow: 'hidden',
+                      background: showBadge
                         ? '#F5F5F5'
                         : showRed
                           ? '#fff1f0'
                           : (sel ? '#52c41a' : '#fff'),
-                      color: s.full
+                      color: showBadge
                         ? '#999999'
                         : showRed
                           ? '#ff4d4f'
                           : (s.disabled ? '#bbb' : (sel ? '#fff' : '#333')),
-                      border: s.full
-                        ? '1px solid #e5e5e5'
+                      border: showBadge
+                        ? '1px solid #E0E0E0'
                         : (showRed
                           ? '1px solid #ff4d4f'
                           : (sel ? '1px solid #52c41a' : '1px solid #e5e5e5')),
@@ -938,24 +962,27 @@ function CheckoutPage() {
                       whiteSpace: 'nowrap',
                     }}
                   >
-                    {s.label}{s.expired && !s.full ? ' 已结束' : ''}
-                    {/* [PRD v1.0 2026-05-04 §4.2] 满额角标：红底白字、绝对定位右上角 */}
-                    {s.full && (
+                    {/* [PRD 2026-05-04 §5.2] 卡片主体只保留时段文字，不再拼接状态后缀 */}
+                    {s.label}
+                    {/* [PRD 2026-05-04 §5.2 §F5] 橙色贴边小色块角标：直角矩形、紧贴右上边、overflow hidden 保证边界 */}
+                    {showBadge && (
                       <div
+                        aria-label={isEnded ? '已结束' : '已满'}
                         style={{
                           position: 'absolute',
-                          top: -6,
-                          right: -2,
-                          background: '#FF4D4F',
-                          color: '#fff',
+                          top: 0,
+                          right: 0,
+                          background: '#FF9500',
+                          color: '#FFFFFF',
                           fontSize: 10,
-                          padding: '1px 4px',
-                          borderRadius: 4,
-                          lineHeight: 1.3,
+                          padding: '2px 6px',
+                          borderRadius: 0,
+                          lineHeight: 1.2,
                           whiteSpace: 'nowrap',
+                          fontWeight: 400,
                         }}
                       >
-                        已约满
+                        {isEnded ? '已结束' : '已满'}
                       </div>
                     )}
                   </div>

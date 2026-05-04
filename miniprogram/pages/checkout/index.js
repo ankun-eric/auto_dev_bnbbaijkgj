@@ -277,20 +277,38 @@ Page({
       availMap[k] = s;
     });
 
+    // [PRD 2026-05-04 §5.2 角标改造] 派生统一 status：'available' | 'full' | 'ended'
+    // 优先级（§5.1）：已结束 > 已满 > 可约
     productSlots.forEach(slot => {
       const label = `${slot.start}-${slot.end}`;
       const expired = isToday && slot.end <= nowHM;
       const info = availMap[label];
-      const full = info && info.is_available === false && info.unavailable_reason === 'occupied';
-      if (expired || full) disabled.push(label);
-      if (full && !expired) fullyBooked.push(label);
+      // 优先使用后端 status；否则退化到 is_available + unavailable_reason
+      let status = 'available';
+      if (expired) {
+        status = 'ended';
+      } else if (info && typeof info.status === 'string' && ['available', 'full', 'ended'].indexOf(info.status) >= 0) {
+        status = info.status;
+      } else if (info && info.is_available === false) {
+        status = info.unavailable_reason === 'past' ? 'ended' : 'full';
+      }
+      const isEnded = status === 'ended';
+      const isFull = status === 'full';
+      const disabledSlot = isEnded || isFull;
+      if (disabledSlot) disabled.push(label);
+      if (isFull) fullyBooked.push(label);
       slotItems.push({
         label,
         start: slot.start,
         end: slot.end,
-        full: !!full,
-        expired: !!expired,
-        disabled: !!(expired || full),
+        // [PRD 2026-05-04 §5.2] 新字段：status 驱动橙色贴边角标
+        status,
+        isFull,
+        isEnded,
+        // 向后兼容字段
+        full: isFull,
+        expired: isEnded,
+        disabled: disabledSlot,
       });
     });
 

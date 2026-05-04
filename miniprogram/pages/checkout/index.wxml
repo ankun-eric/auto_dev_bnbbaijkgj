@@ -57,19 +57,25 @@
       </picker>
     </view>
     <!-- [预约日期模式 Bug 修复 v1.0] 仅 time_slot 模式才渲染整块时段；date 模式只按天限流，绝不展示时段 -->
-    <!-- [PRD v1.0 2026-05-04 §4.1.1] 时段每行 3 个固定网格 + 满额时段灰底灰字 + 红色"已约满"角标 -->
+    <!-- [PRD 2026-05-04 §5.2 下单页时段卡片「已满/已结束」角标改造]
+         - 卡片主体只保留时段文字（不再拼接『已结束』）
+         - 不可约时段显示右上角橙色 `#FF9500` 贴边直角矩形角标：'已满' / '已结束'
+         - 卡片 overflow:hidden 保证角标贴边不溢出
+    -->
     <view class="form-item-slots" wx:if="{{needTimeSlot}}">
       <text class="form-label">预约时段</text>
       <view class="time-slots-wrap">
         <view
           wx:for="{{slotItems}}"
           wx:key="label"
-          class="time-slot-btn {{appointmentTime === item.label ? 'active' : ''}} {{item.full ? 'full' : ''}} {{item.disabled && !item.full ? 'disabled' : ''}}"
+          class="time-slot-btn {{appointmentTime === item.label ? 'active' : ''}} {{item.disabled ? 'disabled' : ''}} {{item.isFull ? 'full' : ''}} {{item.isEnded ? 'ended' : ''}}"
           bindtap="onTimeSlotTap"
           data-label="{{item.label}}"
+          aria-disabled="{{item.disabled ? 'true' : 'false'}}"
         >
-          <text>{{item.label}}{{item.expired && !item.full ? ' 已结束' : ''}}</text>
-          <view wx:if="{{item.full}}" class="slot-full-badge">已约满</view>
+          <text>{{item.label}}</text>
+          <view wx:if="{{item.isEnded}}" class="slot-badge slot-badge-orange">已结束</view>
+          <view wx:elif="{{item.isFull}}" class="slot-badge slot-badge-orange">已满</view>
         </view>
       </view>
     </view>

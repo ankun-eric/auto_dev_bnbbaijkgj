@@ -12,6 +12,15 @@
 - 占用数 = 已支付（pending_shipment / pending_receipt / pending_use /
           partial_used / pending_review / completed） +
           待支付（pending_payment 且 created_at 在 15 分钟内）。
+
+[PRD 2026-05-04 §5.2 下单页时段卡片「已满/已结束」角标改造]
+- 时段对象新增 `status` 枚举字段，三态：`available` / `full` / `ended`
+- 派生规则：
+    unavailable_reason == 'past'     → status = 'ended'
+    unavailable_reason == 'occupied' → status = 'full'
+    is_available == True             → status = 'available'
+- 前端按 `status` 驱动橙色贴边小色块角标：`full → 已满`、`ended → 已结束`、`available → 不显示角标`
+- 同一时段既 ended 又 full 时，按 PRD §5.1「已结束优先」显示 `ended`（代码中优先判定过期再判满额）。
 """
 from datetime import date, datetime, timedelta
 from typing import List, Optional
@@ -63,6 +72,24 @@ def _slot_in_business_hours(
         return slot_start >= biz_start and slot_end <= biz_end
     except Exception:
         return True
+
+
+# [PRD 2026-05-04 §5.2 角标改造] 时段状态派生工具函数
+def _derive_slot_status(is_available: bool, unavailable_reason: Optional[str]) -> str:
+    """根据 is_available + unavailable_reason 派生出统一的 `status` 枚举。
+
+    三态：`available` / `full` / `ended`。PRD §5.1 规定：同时满足已结束与已满时按
+    「已结束」优先，调用方在上游已按「先判 past 再判 occupied」的顺序组装，
+    因此本函数只做单字段映射。
+    """
+    if is_available:
+        return "available"
+    if unavailable_reason == "past":
+        return "ended"
+    if unavailable_reason == "occupied":
+        return "full"
+    # 其它未知原因降级为 full（保守策略：展示橙色「已满」角标）
+    return "full"
 
 
 # [PRD v1.0 2026-05-04] 已支付状态集（用于占用判定）
@@ -328,8 +355,21 @@ async def get_slots(
             store_occupied = await _count_occupied_store(db, storeId, q_date, slot_label)
             store_full = store_occupied >= capacity
 
-        is_available = not (product_full or store_full)
-        unavailable_reason = None if is_available else "occupied"
+        # [PRD 2026-05-04 §5.1 「已结束」优先] 当天且 slot 结束时间 <= 现在 → 已结束，覆盖 occupied
+        is_ended = False
+        try:
+            if q_date == date.today() and s_end <= datetime.now().strftime("%H:%M"):
+                is_ended = True
+        except Exception:
+            is_ended = False
+
+        is_available = not (product_full or store_full or is_ended)
+        if is_ended:
+            unavailable_reason = "past"
+        elif not is_available:
+            unavailable_reason = "occupied"
+        else:
+            unavailable_reason = None
 
         items.append({
             "start": s_start,
@@ -339,9 +379,11 @@ async def get_slots(
             "occupied": product_occupied,
             "capacity": capacity,
             "available": max(0, capacity - max(product_occupied, store_occupied)) if capacity > 0 else 9999,
-            # [PRD v1.0 2026-05-04 §6.2] 新增字段
+            # [PRD v1.0 2026-05-04 §6.2] 既有字段
             "is_available": is_available,
             "unavailable_reason": unavailable_reason,
+            # [PRD 2026-05-04 §5.2 角标改造] 新增 status 枚举字段
+            "status": _derive_slot_status(is_available, unavailable_reason),
         })
 
     return {
@@ -504,6 +546,8 @@ async def checkout_info(
                 "label": slot_label,
                 "is_available": is_available,
                 "unavailable_reason": unavailable_reason,
+                # [PRD 2026-05-04 §5.2 角标改造] 新增 status 枚举字段
+                "status": _derive_slot_status(is_available, unavailable_reason),
             })
 
     # 6) available_dates（date 模式带满额）
@@ -540,6 +584,8 @@ async def checkout_info(
                 "date": cur.isoformat(),
                 "is_available": is_available,
                 "unavailable_reason": unavailable_reason,
+                # [PRD 2026-05-04 §5.2 角标改造] 日期也派生 status，便于前端统一处理
+                "status": _derive_slot_status(is_available, unavailable_reason),
             })
             cur = cur + timedelta(days=1)
 

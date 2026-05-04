@@ -217,11 +217,39 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     ).toList();
     if (avail.isEmpty) return false;
     final first = avail.first;
+    // [PRD 2026-05-04 §5.2] 优先用后端 status 字段
+    final st = first['status'];
+    if (st is String) return st == 'full';
     if (first.containsKey('is_available')) {
       return first['is_available'] == false && first['unavailable_reason'] == 'occupied';
     }
-    // 兼容旧返回结构
     return (first['available'] ?? 1) <= 0;
+  }
+
+  // [PRD 2026-05-04 §5.2 角标改造] 派生时段状态：'available' | 'full' | 'ended'。
+  // 优先级（§5.1）：已结束 > 已满 > 可约。
+  String _slotStatus(String label, String slotEnd) {
+    // 1) 前端本地过期优先
+    if (_isSlotExpired(slotEnd)) return 'ended';
+    // 2) 查后端字段
+    final avail = _slotAvailability.where((s) =>
+      '${s['start_time']}-${s['end_time']}' == label
+    ).toList();
+    if (avail.isNotEmpty) {
+      final first = avail.first;
+      final st = first['status'];
+      if (st is String &&
+          (st == 'available' || st == 'full' || st == 'ended')) {
+        return st;
+      }
+      if (first['is_available'] == false) {
+        final reason = first['unavailable_reason'];
+        if (reason == 'past') return 'ended';
+        if (reason == 'occupied') return 'full';
+        return 'full';
+      }
+    }
+    return 'available';
   }
 
   // 当前选中日期是否已约满（date 模式专用）
@@ -736,65 +764,72 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 .map((m) {
               final label = m['label'] as String;
               final endTime = m['end'] as String;
-              final expired = _isSlotExpired(endTime);
-              final fullyBooked = _isSlotFullyBooked(label);
-              final disabled = expired || fullyBooked;
+              // [PRD 2026-05-04 §5.2 角标改造]
+              // 派生统一 status，替换原来的 expired / fullyBooked 布尔组合，优先级 ended > full > available
+              final status = _slotStatus(label, endTime);
+              final isEnded = status == 'ended';
+              final isFull = status == 'full';
+              final disabled = isEnded || isFull;
               final active = _selectedTimeSlot == label;
               return GestureDetector(
                 onTap: disabled
                     ? null
                     : () => setState(() => _selectedTimeSlot = active ? null : label),
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    Container(
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: fullyBooked
-                            ? const Color(0xFFF5F5F5)
-                            : (active ? const Color(0xFF52C41A) : Colors.white),
-                        border: Border.all(
-                          color: fullyBooked
-                              ? const Color(0xFFE5E5E5)
-                              : (active
-                                  ? const Color(0xFF52C41A)
-                                  : Colors.grey.shade300),
-                        ),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        label + (expired && !fullyBooked ? ' 已结束' : ''),
-                        style: TextStyle(
-                          color: fullyBooked
-                              ? const Color(0xFF999999)
-                              : (active
-                                  ? Colors.white
-                                  : (expired ? Colors.grey : Colors.black87)),
-                          fontSize: 13,
-                        ),
-                      ),
-                    ),
-                    if (fullyBooked)
-                      Positioned(
-                        top: -6,
-                        right: -2,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFF4D4F),
-                            borderRadius: BorderRadius.circular(4),
+                child: ClipRRect(
+                  // [PRD §5.2 F5] overflow:hidden 保证橙色贴边角标不超出卡片范围
+                  borderRadius: BorderRadius.circular(6),
+                  child: Stack(
+                    clipBehavior: Clip.hardEdge,
+                    children: [
+                      Container(
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: disabled
+                              ? const Color(0xFFF5F5F5)
+                              : (active ? const Color(0xFF52C41A) : Colors.white),
+                          border: Border.all(
+                            color: disabled
+                                ? const Color(0xFFE0E0E0)
+                                : (active
+                                    ? const Color(0xFF52C41A)
+                                    : Colors.grey.shade300),
                           ),
-                          child: const Text(
-                            '已约满',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              height: 1.3,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        // [PRD §5.2] 卡片主体只保留时段文字，不再拼接「已结束」后缀
+                        child: Text(
+                          label,
+                          style: TextStyle(
+                            color: disabled
+                                ? const Color(0xFF999999)
+                                : (active ? Colors.white : Colors.black87),
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                      if (isEnded || isFull)
+                        // [PRD §5.2 F4 / F5] 橙色 #FF9500 实心直角矩形、紧贴右上角两条边、无外边距
+                        Positioned(
+                          top: 0,
+                          right: 0,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFFF9500),
+                            ),
+                            child: Text(
+                              isEnded ? '已结束' : '已满',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                height: 1.2,
+                                fontWeight: FontWeight.w400,
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                  ],
+                    ],
+                  ),
                 ),
               );
             }).toList(),
