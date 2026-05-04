@@ -4,13 +4,15 @@ from calendar import monthrange
 from datetime import datetime, timedelta, date
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, UploadFile, File
 from sqlalchemy import and_, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.security import get_current_user, require_identity
 from app.models.models import (
+    BookingNotificationLog,
+    MerchantCalendarView,
     MerchantMemberRole,
     MerchantNotification,
     MerchantOrderVerification,
@@ -30,6 +32,7 @@ from app.models.models import (
     PaymentStatus,
     PointsRecord,
     PointsType,
+    Product,
     ProductStore,
     ServiceItem,
     UnifiedOrder,
@@ -38,7 +41,14 @@ from app.models.models import (
 )
 from app.schemas.merchant import (
     AppointmentTimeAdjustRequest,
+    CalendarCellInfo,
+    CalendarCellsResponse,
     CalendarDaySummary,
+    CalendarItemCard,
+    CalendarItemsResponse,
+    CalendarKpiResponse,
+    CalendarListItem,
+    CalendarListResponse,
     CalendarMonthlyResponse,
     DailyAppointmentItem,
     DailyAppointmentResponse,
@@ -52,9 +62,17 @@ from app.schemas.merchant import (
     MerchantVerifyRequest,
     MerchantVerificationRecordResponse,
     MerchantStoreResponse,
+    MyViewCreate,
+    MyViewListResponse,
+    MyViewResponse,
+    MyViewUpdate,
+    NotifyRequest,
+    NotifyResponse,
     OrderConfirmResponse,
     OrderNoteCreate,
     OrderNoteResponse,
+    RescheduleRequest,
+    RescheduleResponse,
 )
 
 router = APIRouter(prefix="/api/merchant", tags=["商家端"])
@@ -1370,3 +1388,801 @@ async def merchant_delete_unified_order_attachment(
     await db.delete(att)
     await db.commit()
     return {"message": "已删除"}
+
+
+# ─────────── 预约日历驾驶舱 PRD v1.0 ───────────
+# 顶部 KPI / 5 视图 / 资源视图 / 我的视图 / 改约 / 通知 等接口
+# 所有接口必须：
+#  1) merchant_dep 鉴权
+#  2) 调用 _ensure_store_access(db, current_user.id, store_id) 校验门店权限
+#  3) 商品集合通过 ProductStore 关联获取
+#  4) 状态合并复用 _resolve_unified_status(order, oi)
+#  5) 排序统一使用 _SORT_GROUP + appointment_time 升序
+
+
+# ============ 工具函数 ============
+
+
+def _parse_date_or_400(date_str: str, label: str = "日期") -> date:
+    try:
+        return datetime.strptime(date_str, "%Y-%m-%d").date()
+    except (ValueError, AttributeError, TypeError):
+        raise HTTPException(status_code=400, detail=f"{label}格式: YYYY-MM-DD")
+
+
+def _resolve_source(order: UnifiedOrder) -> Optional[str]:
+    """从 payment_channel_code 推断订单来源。"""
+    code = (order.payment_channel_code or "").lower()
+    if "miniprogram" in code:
+        return "miniprogram"
+    if "h5" in code:
+        return "h5"
+    if "wechat_app" in code or "alipay_app" in code or code == "app":
+        return "h5"
+    if not code:
+        return None
+    return code
+
+
+def _store_default_slot_count(store: Optional[MerchantStore]) -> int:
+    """门店默认可约时段数：尝试根据 business_start/business_end 推导（30 分钟粒度），
+    无配置时返回 22（9:00~20:00）。"""
+    default = 22
+    if not store:
+        return default
+    bs = (store.business_start or "").strip()
+    be = (store.business_end or "").strip()
+    try:
+        if bs and be:
+            sh, sm = bs.split(":")
+            eh, em = be.split(":")
+            mins = (int(eh) * 60 + int(em)) - (int(sh) * 60 + int(sm))
+            if mins > 0:
+                return max(1, mins // 30)
+    except Exception:
+        pass
+    return default
+
+
+async def _send_subscribe_message(
+    db: AsyncSession,
+    order_item_id: int,
+    scene: str,
+    template_id: Optional[str] = None,
+) -> tuple[str, int]:
+    """发送小程序订阅消息桩函数（本期仅记录日志，不真实调用微信 API）。
+
+    返回 (result, log_id)。result: success / fail / no_subscribe
+    后续接入真实订阅消息时只改本函数即可。
+    """
+    log = BookingNotificationLog(
+        order_item_id=order_item_id,
+        scene=scene,
+        template_id=template_id,
+        result="no_subscribe",
+    )
+    db.add(log)
+    await db.flush()
+    return "no_subscribe", log.id
+
+
+async def _build_calendar_query_filters(
+    db: AsyncSession,
+    store_id: int,
+    product_ids: Optional[list[int]] = None,
+    staff_ids: Optional[list[int]] = None,
+    sources: Optional[list[str]] = None,
+    q: Optional[str] = None,
+):
+    """构造预约日历多接口共用的 SQLAlchemy 过滤条件 + 关联用户 ID 集合（顾客搜索用）。
+
+    返回 (order_id_subq, extra_user_ids_for_q)
+    extra_user_ids_for_q 仅在 q 命中顾客手机号/姓名时使用；否则为 None 表示无 q 过滤。
+    """
+    # 该门店关联的所有商品
+    base_pid_sel = select(ProductStore.product_id).where(ProductStore.store_id == store_id)
+    if product_ids:
+        # 二次过滤：限定在前端选定的服务项目
+        base_pid_sel = base_pid_sel.where(ProductStore.product_id.in_(product_ids))
+    order_ids_subq = (
+        select(OrderItem.order_id)
+        .where(OrderItem.product_id.in_(base_pid_sel))
+        .distinct()
+    )
+    user_ids_for_q: Optional[list[int]] = None
+    if q:
+        kw = f"%{q.strip()}%"
+        u_res = await db.execute(
+            select(User.id).where(or_(User.phone.ilike(kw), User.nickname.ilike(kw)))
+        )
+        user_ids_for_q = [int(x) for x in u_res.scalars().all()]
+        if not user_ids_for_q:
+            user_ids_for_q = [-1]  # 兜底：无任何匹配，强制空集
+    return order_ids_subq, user_ids_for_q
+
+
+# ============ A-3-1. KPI ============
+
+
+@router.get("/calendar/kpi", response_model=CalendarKpiResponse)
+async def get_calendar_kpi(
+    store_id: int = Query(...),
+    current_user: User = Depends(merchant_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    """顶部 KPI：今日 / 本周 / 本月预约数（不含已取消/已退款）。"""
+    await _ensure_store_access(db, current_user.id, store_id)
+
+    now = datetime.utcnow()
+    today_start = datetime(now.year, now.month, now.day)
+    tomorrow = today_start + timedelta(days=1)
+    # 本自然周：周一为起点（weekday() Mon=0）
+    week_start = today_start - timedelta(days=today_start.weekday())
+    week_end = week_start + timedelta(days=7)
+    # 本自然月
+    month_start = datetime(now.year, now.month, 1)
+    if now.month == 12:
+        month_end = datetime(now.year + 1, 1, 1)
+    else:
+        month_end = datetime(now.year, now.month + 1, 1)
+
+    product_ids_subq = select(ProductStore.product_id).where(ProductStore.store_id == store_id)
+    order_ids_subq = (
+        select(OrderItem.order_id)
+        .where(OrderItem.product_id.in_(product_ids_subq))
+        .distinct()
+    )
+
+    # 一次性把覆盖月度区间的全部预约取出来，再按 _resolve_unified_status 计数（避免硬编码状态枚举不全）
+    win_start = min(today_start, week_start, month_start)
+    win_end = max(tomorrow, week_end, month_end)
+
+    rows = (await db.execute(
+        select(OrderItem, UnifiedOrder)
+        .join(UnifiedOrder, UnifiedOrder.id == OrderItem.order_id)
+        .where(
+            OrderItem.order_id.in_(order_ids_subq),
+            OrderItem.appointment_time.isnot(None),
+            OrderItem.appointment_time >= win_start,
+            OrderItem.appointment_time < win_end,
+        )
+    )).all()
+
+    today_count = week_count = month_count = 0
+    for oi, order in rows:
+        status = _resolve_unified_status(order, oi)
+        if status not in ("pending", "verified"):
+            continue
+        appt = oi.appointment_time
+        if appt is None:
+            continue
+        if today_start <= appt < tomorrow:
+            today_count += 1
+        if week_start <= appt < week_end:
+            week_count += 1
+        if month_start <= appt < month_end:
+            month_count += 1
+
+    return CalendarKpiResponse(
+        today_count=today_count,
+        week_count=week_count,
+        month_count=month_count,
+    )
+
+
+# ============ A-3-2. cells ============
+
+
+@router.get("/calendar/cells", response_model=CalendarCellsResponse)
+async def get_calendar_cells(
+    store_id: int = Query(...),
+    view: str = Query("month", description="month/week/day"),
+    start_date: str = Query(...),
+    end_date: str = Query(...),
+    product_ids: Optional[list[int]] = Query(None),
+    staff_ids: Optional[list[int]] = Query(None),
+    statuses: Optional[list[str]] = Query(None),
+    sources: Optional[list[str]] = Query(None),
+    q: Optional[str] = Query(None, description="顾客手机号/姓名模糊"),
+    current_user: User = Depends(merchant_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    _, store, _ = await _ensure_store_access(db, current_user.id, store_id)
+    if view not in ("month", "week", "day"):
+        raise HTTPException(status_code=400, detail="view 仅支持 month/week/day")
+
+    sd = _parse_date_or_400(start_date, "start_date")
+    ed = _parse_date_or_400(end_date, "end_date")
+    if ed < sd:
+        raise HTTPException(status_code=400, detail="end_date 不能早于 start_date")
+
+    range_start = datetime.combine(sd, datetime.min.time())
+    range_end = datetime.combine(ed, datetime.min.time()) + timedelta(days=1)
+
+    order_ids_subq, user_ids_for_q = await _build_calendar_query_filters(
+        db, store_id, product_ids=product_ids, sources=sources, q=q
+    )
+
+    rows = (await db.execute(
+        select(OrderItem, UnifiedOrder)
+        .join(UnifiedOrder, UnifiedOrder.id == OrderItem.order_id)
+        .where(
+            OrderItem.order_id.in_(order_ids_subq),
+            OrderItem.appointment_time.isnot(None),
+            OrderItem.appointment_time >= range_start,
+            OrderItem.appointment_time < range_end,
+        )
+    )).all()
+
+    # 顾客过滤
+    if user_ids_for_q is not None:
+        rows = [(oi, o) for (oi, o) in rows if o.user_id in set(user_ids_for_q)]
+
+    # 来源过滤（payment_channel_code 推断）
+    if sources:
+        sources_set = {s.lower() for s in sources}
+        rows = [(oi, o) for (oi, o) in rows if (_resolve_source(o) or "") in sources_set]
+
+    slot_total = _store_default_slot_count(store)
+
+    # 按日聚合
+    day_map: dict[str, dict] = {}
+    cur = sd
+    while cur <= ed:
+        day_map[cur.strftime("%Y-%m-%d")] = {
+            "booking_count": 0,
+            "verified_count": 0,
+            "cancelled_count": 0,
+            "revenue": 0.0,
+        }
+        cur = cur + timedelta(days=1)
+
+    for oi, order in rows:
+        status = _resolve_unified_status(order, oi)
+        if statuses and status not in set(statuses):
+            continue
+        ds = oi.appointment_time.strftime("%Y-%m-%d")
+        bucket = day_map.get(ds)
+        if bucket is None:
+            continue
+        if status in ("pending", "verified"):
+            bucket["booking_count"] += 1
+        if status == "verified":
+            bucket["verified_count"] += 1
+        if status == "cancelled":
+            bucket["cancelled_count"] += 1
+        if status != "refunded":
+            bucket["revenue"] += float(order.paid_amount or 0)
+
+    cells: list[CalendarCellInfo] = []
+    for ds, info in sorted(day_map.items()):
+        booking = info["booking_count"]
+        if slot_total <= 0:
+            occupied = 100 if booking > 0 else 0
+        elif booking >= slot_total:
+            occupied = 100
+        else:
+            occupied = int(booking * 100 // slot_total)
+        cells.append(CalendarCellInfo(
+            date=ds,
+            booking_count=booking,
+            verified_count=info["verified_count"],
+            cancelled_count=info["cancelled_count"],
+            revenue=round(info["revenue"], 2),
+            occupied_rate=occupied,
+        ))
+
+    return CalendarCellsResponse(cells=cells)
+
+
+# ============ A-3-3. items ============
+
+
+@router.get("/calendar/items", response_model=CalendarItemsResponse)
+async def get_calendar_items(
+    store_id: int = Query(...),
+    start_date: str = Query(...),
+    end_date: str = Query(...),
+    group_by: str = Query("service"),
+    product_ids: Optional[list[int]] = Query(None),
+    staff_ids: Optional[list[int]] = Query(None),
+    statuses: Optional[list[str]] = Query(None),
+    sources: Optional[list[str]] = Query(None),
+    q: Optional[str] = Query(None),
+    current_user: User = Depends(merchant_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    await _ensure_store_access(db, current_user.id, store_id)
+
+    sd = _parse_date_or_400(start_date, "start_date")
+    ed = _parse_date_or_400(end_date, "end_date")
+    range_start = datetime.combine(sd, datetime.min.time())
+    range_end = datetime.combine(ed, datetime.min.time()) + timedelta(days=1)
+
+    order_ids_subq, user_ids_for_q = await _build_calendar_query_filters(
+        db, store_id, product_ids=product_ids, sources=sources, q=q
+    )
+
+    rows = (await db.execute(
+        select(OrderItem, UnifiedOrder)
+        .join(UnifiedOrder, UnifiedOrder.id == OrderItem.order_id)
+        .where(
+            OrderItem.order_id.in_(order_ids_subq),
+            OrderItem.appointment_time.isnot(None),
+            OrderItem.appointment_time >= range_start,
+            OrderItem.appointment_time < range_end,
+        )
+        .order_by(OrderItem.appointment_time.asc())
+    )).all()
+
+    if user_ids_for_q is not None:
+        rows = [(oi, o) for (oi, o) in rows if o.user_id in set(user_ids_for_q)]
+
+    if sources:
+        sources_set = {s.lower() for s in sources}
+        rows = [(oi, o) for (oi, o) in rows if (_resolve_source(o) or "") in sources_set]
+
+    user_ids = list({o.user_id for _, o in rows})
+    user_map: dict[int, User] = {}
+    if user_ids:
+        u_res = await db.execute(select(User).where(User.id.in_(user_ids)))
+        for u in u_res.scalars().all():
+            user_map[u.id] = u
+
+    items_out: list[tuple[int, datetime, CalendarItemCard]] = []
+    for oi, order in rows:
+        status = _resolve_unified_status(order, oi)
+        if statuses and status not in set(statuses):
+            continue
+        user = user_map.get(order.user_id)
+        masked = _mask_nickname(_safe_user_name(user) if user else None)
+        time_slot = _format_time_slot(oi.appointment_time, oi.appointment_data)
+        card = CalendarItemCard(
+            order_id=order.id,
+            order_item_id=oi.id,
+            appointment_time=oi.appointment_time,
+            time_slot=time_slot,
+            customer_nickname=masked,
+            product_name=oi.product_name,
+            product_id=oi.product_id,
+            staff_id=None,
+            staff_name=None,
+            status=status,
+            amount=float(order.paid_amount or order.total_amount or 0),
+            source=_resolve_source(order),
+        )
+        sort_time = oi.appointment_time or range_start
+        items_out.append((_SORT_GROUP.get(status, 9), sort_time, card))
+
+    items_out.sort(key=lambda x: (x[0], x[1]))
+    return CalendarItemsResponse(
+        items=[c for _, _, c in items_out],
+        group_by="service",
+    )
+
+
+# ============ A-3-4. list ============
+
+
+@router.get("/calendar/list", response_model=CalendarListResponse)
+async def get_calendar_list(
+    store_id: int = Query(...),
+    start_date: str = Query(...),
+    end_date: str = Query(...),
+    product_ids: Optional[list[int]] = Query(None),
+    staff_ids: Optional[list[int]] = Query(None),
+    statuses: Optional[list[str]] = Query(None),
+    sources: Optional[list[str]] = Query(None),
+    q: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=200),
+    current_user: User = Depends(merchant_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    await _ensure_store_access(db, current_user.id, store_id)
+
+    sd = _parse_date_or_400(start_date, "start_date")
+    ed = _parse_date_or_400(end_date, "end_date")
+    range_start = datetime.combine(sd, datetime.min.time())
+    range_end = datetime.combine(ed, datetime.min.time()) + timedelta(days=1)
+
+    order_ids_subq, user_ids_for_q = await _build_calendar_query_filters(
+        db, store_id, product_ids=product_ids, sources=sources, q=q
+    )
+
+    rows = (await db.execute(
+        select(OrderItem, UnifiedOrder)
+        .join(UnifiedOrder, UnifiedOrder.id == OrderItem.order_id)
+        .where(
+            OrderItem.order_id.in_(order_ids_subq),
+            OrderItem.appointment_time.isnot(None),
+            OrderItem.appointment_time >= range_start,
+            OrderItem.appointment_time < range_end,
+        )
+        .order_by(OrderItem.appointment_time.asc())
+    )).all()
+
+    if user_ids_for_q is not None:
+        rows = [(oi, o) for (oi, o) in rows if o.user_id in set(user_ids_for_q)]
+    if sources:
+        sources_set = {s.lower() for s in sources}
+        rows = [(oi, o) for (oi, o) in rows if (_resolve_source(o) or "") in sources_set]
+
+    # 状态过滤
+    filtered: list[tuple[OrderItem, UnifiedOrder, str]] = []
+    for oi, o in rows:
+        status = _resolve_unified_status(o, oi)
+        if statuses and status not in set(statuses):
+            continue
+        filtered.append((oi, o, status))
+
+    # 排序：_SORT_GROUP + appointment_time
+    filtered.sort(key=lambda t: (_SORT_GROUP.get(t[2], 9), t[0].appointment_time or range_start))
+
+    total = len(filtered)
+    start = (page - 1) * page_size
+    page_rows = filtered[start:start + page_size]
+
+    user_ids = list({o.user_id for _, o, _ in page_rows})
+    user_map: dict[int, User] = {}
+    if user_ids:
+        u_res = await db.execute(select(User).where(User.id.in_(user_ids)))
+        for u in u_res.scalars().all():
+            user_map[u.id] = u
+
+    items: list[CalendarListItem] = []
+    for oi, o, status in page_rows:
+        user = user_map.get(o.user_id)
+        appt = oi.appointment_time
+        items.append(CalendarListItem(
+            order_id=o.id,
+            order_item_id=oi.id,
+            appointment_date=appt.strftime("%Y-%m-%d") if appt else None,
+            appointment_time=_format_time_slot(appt, oi.appointment_data),
+            customer_nickname=_mask_nickname(_safe_user_name(user) if user else None),
+            customer_phone=(user.phone if user else None),
+            product_name=oi.product_name,
+            staff_name=None,
+            status=status,
+            amount=float(o.paid_amount or o.total_amount or 0),
+            source=_resolve_source(o),
+        ))
+
+    return CalendarListResponse(
+        items=items, total=total, page=page, page_size=page_size,
+    )
+
+
+# ============ A-3-5. 我的视图 CRUD ============
+
+
+_MY_VIEW_LIMIT = 10
+
+
+async def _load_my_view(
+    db: AsyncSession, view_id: int, user_id: int, store_id: int
+) -> MerchantCalendarView:
+    res = await db.execute(
+        select(MerchantCalendarView).where(
+            MerchantCalendarView.id == view_id,
+            MerchantCalendarView.user_id == user_id,
+            MerchantCalendarView.store_id == store_id,
+        )
+    )
+    obj = res.scalar_one_or_none()
+    if not obj:
+        raise HTTPException(status_code=404, detail="视图不存在")
+    return obj
+
+
+@router.get("/calendar/views", response_model=MyViewListResponse)
+async def list_my_views(
+    store_id: int = Query(...),
+    current_user: User = Depends(merchant_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    await _ensure_store_access(db, current_user.id, store_id)
+    res = await db.execute(
+        select(MerchantCalendarView)
+        .where(
+            MerchantCalendarView.user_id == current_user.id,
+            MerchantCalendarView.store_id == store_id,
+        )
+        .order_by(MerchantCalendarView.created_at.desc())
+    )
+    items = [MyViewResponse.model_validate(v) for v in res.scalars().all()]
+    return MyViewListResponse(items=items)
+
+
+@router.post("/calendar/views", response_model=MyViewResponse)
+async def create_my_view(
+    payload: MyViewCreate,
+    store_id: int = Query(...),
+    current_user: User = Depends(merchant_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    await _ensure_store_access(db, current_user.id, store_id)
+
+    cnt_res = await db.execute(
+        select(func.count(MerchantCalendarView.id)).where(
+            MerchantCalendarView.user_id == current_user.id,
+            MerchantCalendarView.store_id == store_id,
+        )
+    )
+    if int(cnt_res.scalar() or 0) >= _MY_VIEW_LIMIT:
+        raise HTTPException(status_code=400, detail=f"最多保存 {_MY_VIEW_LIMIT} 个视图")
+
+    if payload.is_default:
+        await db.execute(
+            update(MerchantCalendarView)
+            .where(
+                MerchantCalendarView.user_id == current_user.id,
+                MerchantCalendarView.store_id == store_id,
+                MerchantCalendarView.is_default == True,  # noqa: E712
+            )
+            .values(is_default=False)
+        )
+
+    obj = MerchantCalendarView(
+        user_id=current_user.id,
+        store_id=store_id,
+        name=payload.name.strip(),
+        view_type=payload.view_type or "month",
+        filter_payload=payload.filter_payload,
+        is_default=bool(payload.is_default),
+    )
+    db.add(obj)
+    await db.flush()
+    await db.refresh(obj)
+    return MyViewResponse.model_validate(obj)
+
+
+@router.put("/calendar/views/{view_id}", response_model=MyViewResponse)
+async def update_my_view(
+    view_id: int,
+    payload: MyViewUpdate,
+    store_id: int = Query(...),
+    current_user: User = Depends(merchant_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    await _ensure_store_access(db, current_user.id, store_id)
+    obj = await _load_my_view(db, view_id, current_user.id, store_id)
+
+    if payload.is_default:
+        await db.execute(
+            update(MerchantCalendarView)
+            .where(
+                MerchantCalendarView.user_id == current_user.id,
+                MerchantCalendarView.store_id == store_id,
+                MerchantCalendarView.is_default == True,  # noqa: E712
+                MerchantCalendarView.id != view_id,
+            )
+            .values(is_default=False)
+        )
+    if payload.name is not None:
+        obj.name = payload.name.strip()
+    if payload.view_type is not None:
+        obj.view_type = payload.view_type
+    if payload.filter_payload is not None:
+        obj.filter_payload = payload.filter_payload
+    if payload.is_default is not None:
+        obj.is_default = bool(payload.is_default)
+    obj.updated_at = datetime.utcnow()
+    await db.flush()
+    await db.refresh(obj)
+    return MyViewResponse.model_validate(obj)
+
+
+@router.delete("/calendar/views/{view_id}")
+async def delete_my_view(
+    view_id: int,
+    store_id: int = Query(...),
+    current_user: User = Depends(merchant_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    await _ensure_store_access(db, current_user.id, store_id)
+    obj = await _load_my_view(db, view_id, current_user.id, store_id)
+    await db.delete(obj)
+    await db.flush()
+    return {"success": True}
+
+
+# ============ A-3-6. 改约 ============
+
+
+@router.post("/booking/{order_item_id}/reschedule", response_model=RescheduleResponse)
+async def reschedule_booking(
+    order_item_id: int,
+    payload: RescheduleRequest,
+    store_id: int = Query(...),
+    current_user: User = Depends(merchant_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    """改约：可选改 时间 / 服务项目 / 服务员工。"""
+    await _ensure_store_access(db, current_user.id, store_id)
+
+    oi_res = await db.execute(select(OrderItem).where(OrderItem.id == order_item_id))
+    oi = oi_res.scalar_one_or_none()
+    if not oi:
+        raise HTTPException(status_code=404, detail="订单项不存在")
+
+    # 校验该订单项属于本门店：oi.product_id 必须在 ProductStore(store_id) 中
+    own_res = await db.execute(
+        select(func.count(ProductStore.id)).where(
+            ProductStore.product_id == oi.product_id,
+            ProductStore.store_id == store_id,
+        )
+    )
+    if int(own_res.scalar() or 0) == 0:
+        raise HTTPException(status_code=403, detail="该订单项不属于当前门店")
+
+    if (
+        payload.new_appointment_time is None
+        and payload.new_product_id is None
+        and payload.new_staff_id is None
+    ):
+        raise HTTPException(status_code=400, detail="请提供至少一项改约参数")
+
+    old_appt = oi.appointment_time
+
+    # 服务项目变更：校验新商品归属本门店
+    if payload.new_product_id is not None and payload.new_product_id != oi.product_id:
+        ps_res = await db.execute(
+            select(func.count(ProductStore.id)).where(
+                ProductStore.product_id == payload.new_product_id,
+                ProductStore.store_id == store_id,
+            )
+        )
+        if int(ps_res.scalar() or 0) == 0:
+            raise HTTPException(status_code=400, detail="新服务项目不属于当前门店")
+        prod = (await db.execute(select(Product).where(Product.id == payload.new_product_id))).scalar_one_or_none()
+        if not prod:
+            raise HTTPException(status_code=400, detail="新服务项目不存在")
+        oi.product_id = prod.id
+        oi.product_name = prod.name
+        try:
+            oi.product_price = prod.sale_price
+        except Exception:
+            pass
+
+    # 时间变更
+    if payload.new_appointment_time is not None:
+        oi.appointment_time = payload.new_appointment_time
+        appt_data = oi.appointment_data or {}
+        if isinstance(appt_data, dict):
+            appt_data["date"] = payload.new_appointment_time.strftime("%Y-%m-%d")
+            appt_data["time_slot"] = payload.new_appointment_time.strftime("%H:%M")
+            oi.appointment_data = appt_data
+        # 改约日志（复用 OrderAppointmentLog）
+        try:
+            db.add(OrderAppointmentLog(
+                order_item_id=oi.id,
+                old_appointment_time=old_appt.isoformat() if old_appt else None,
+                new_appointment_time=payload.new_appointment_time.isoformat(),
+                changed_by_user_id=current_user.id,
+                reason="merchant_reschedule",
+            ))
+        except Exception:
+            pass
+
+    # 员工变更：本期项目无 staff 表，仅做空操作（接口可用 + 字段透传）
+    # （未来若 OrderItem 增加 staff_id 字段，此处直接赋值即可）
+
+    oi.updated_at = datetime.utcnow()
+
+    notify_result: Optional[str] = "skipped"
+    if payload.notify_customer:
+        notify_result, _ = await _send_subscribe_message(
+            db, oi.id, scene="rescheduled"
+        )
+
+    await db.flush()
+    return RescheduleResponse(
+        success=True,
+        order_item_id=oi.id,
+        appointment_time=oi.appointment_time,
+        product_id=oi.product_id,
+        staff_id=payload.new_staff_id,
+        notify_result=notify_result,
+    )
+
+
+# ============ A-3-7. 联系顾客 ============
+
+
+@router.post("/booking/{order_item_id}/notify", response_model=NotifyResponse)
+async def notify_booking_customer(
+    order_item_id: int,
+    payload: NotifyRequest,
+    store_id: int = Query(...),
+    current_user: User = Depends(merchant_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    """商家手动触发顾客通知（联系顾客 / 改约 / 取消 等场景）。"""
+    await _ensure_store_access(db, current_user.id, store_id)
+
+    oi_res = await db.execute(select(OrderItem).where(OrderItem.id == order_item_id))
+    oi = oi_res.scalar_one_or_none()
+    if not oi:
+        raise HTTPException(status_code=404, detail="订单项不存在")
+
+    own_res = await db.execute(
+        select(func.count(ProductStore.id)).where(
+            ProductStore.product_id == oi.product_id,
+            ProductStore.store_id == store_id,
+        )
+    )
+    if int(own_res.scalar() or 0) == 0:
+        raise HTTPException(status_code=403, detail="该订单项不属于当前门店")
+
+    result, log_id = await _send_subscribe_message(
+        db, oi.id, scene=payload.scene or "contact_customer"
+    )
+    return NotifyResponse(result=result, template_id=None, log_id=log_id)
+
+
+# ============ A-3-9. 定时扫描（D-1 / H-1） ============
+
+
+async def scan_and_send_pre_appointment_notifications(
+    db: AsyncSession, hours_before: int
+) -> tuple[int, int]:
+    """扫描未来 hours_before ± 5min 内的预约（pending），逐个发送订阅消息。
+
+    返回 (scanned, sent)。同 (order_item_id, template_id) 去重。
+    """
+    now = datetime.utcnow()
+    target = now + timedelta(hours=hours_before)
+    win_start = target - timedelta(minutes=5)
+    win_end = target + timedelta(minutes=5)
+
+    rows = (await db.execute(
+        select(OrderItem, UnifiedOrder)
+        .join(UnifiedOrder, UnifiedOrder.id == OrderItem.order_id)
+        .where(
+            OrderItem.appointment_time.isnot(None),
+            OrderItem.appointment_time >= win_start,
+            OrderItem.appointment_time <= win_end,
+        )
+    )).all()
+
+    scene = "before_1d" if hours_before >= 24 else "before_1h"
+    template_id = f"tmpl_{scene}"
+
+    scanned = 0
+    sent = 0
+    seen: set[tuple[int, str]] = set()
+    for oi, order in rows:
+        scanned += 1
+        if _resolve_unified_status(order, oi) != "pending":
+            continue
+        key = (oi.id, template_id)
+        if key in seen:
+            continue
+        # 已发过同 scene+template 的本日记录则跳过
+        dup_res = await db.execute(
+            select(func.count(BookingNotificationLog.id)).where(
+                BookingNotificationLog.order_item_id == oi.id,
+                BookingNotificationLog.scene == scene,
+                BookingNotificationLog.template_id == template_id,
+                BookingNotificationLog.created_at >= now - timedelta(hours=2),
+            )
+        )
+        if int(dup_res.scalar() or 0) > 0:
+            seen.add(key)
+            continue
+        await _send_subscribe_message(db, oi.id, scene=scene, template_id=template_id)
+        seen.add(key)
+        sent += 1
+    return scanned, sent
+
+
+@router.post("/internal/calendar/notify-scan")
+async def internal_notify_scan(
+    hours_before: int = Query(24, ge=1, le=72),
+    current_user: User = Depends(merchant_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    """内部触发：D-1 / H-1 预约提醒扫描。供 cron 任务调用。"""
+    scanned, sent = await scan_and_send_pre_appointment_notifications(db, hours_before)
+    return {"scanned": scanned, "sent": sent}

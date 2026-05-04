@@ -359,3 +359,133 @@ class OrderNoteResponse(BaseModel):
 class WechatBindQrcodeResponse(BaseModel):
     qrcode_url: str
     ticket: str
+
+
+# ──────────── 预约日历驾驶舱 PRD v1.0 ────────────
+
+
+class CalendarKpiResponse(BaseModel):
+    today_count: int
+    week_count: int
+    month_count: int
+
+
+class CalendarCellInfo(BaseModel):
+    date: str  # YYYY-MM-DD
+    booking_count: int = 0  # 预约（待核销+已核销）
+    verified_count: int = 0  # 已核
+    occupied_rate: int = 0  # 占用百分比 0-100，向下取整
+    revenue: float = 0  # 当日订单实收（已退款不计）
+    cancelled_count: int = 0  # 取消数（tooltip 用）
+
+
+class CalendarCellsResponse(BaseModel):
+    cells: List[CalendarCellInfo] = Field(default_factory=list)
+
+
+class CalendarItemCard(BaseModel):
+    order_id: int
+    order_item_id: int
+    appointment_time: Optional[datetime] = None
+    time_slot: Optional[str] = None
+    customer_nickname: str = "匿名用户"  # 脱敏
+    product_name: Optional[str] = None
+    product_id: Optional[int] = None
+    staff_id: Optional[int] = None
+    staff_name: Optional[str] = None
+    status: str  # pending/verified/cancelled/refunded/other
+    amount: float = 0
+    source: Optional[str] = None  # miniprogram/h5/store/phone/admin
+
+
+class CalendarItemsResponse(BaseModel):
+    items: List[CalendarItemCard] = Field(default_factory=list)
+    group_by: str = "service"
+
+
+class CalendarListItem(BaseModel):
+    order_id: int
+    order_item_id: int
+    appointment_date: Optional[str] = None
+    appointment_time: Optional[str] = None
+    customer_nickname: str = "匿名用户"
+    customer_phone: Optional[str] = None
+    product_name: Optional[str] = None
+    staff_name: Optional[str] = None
+    status: str
+    amount: float = 0
+    source: Optional[str] = None
+
+
+class CalendarListResponse(BaseModel):
+    items: List[CalendarListItem] = Field(default_factory=list)
+    total: int = 0
+    page: int = 1
+    page_size: int = 20
+
+
+# ──────────── 我的视图 ────────────
+
+
+class MyViewCreate(BaseModel):
+    name: str = Field(..., max_length=40)
+    view_type: str = Field("month", description="month/week/day/resource/list")
+    filter_payload: Optional[dict] = None
+    is_default: bool = False
+
+
+class MyViewUpdate(BaseModel):
+    name: Optional[str] = Field(None, max_length=40)
+    view_type: Optional[str] = None
+    filter_payload: Optional[dict] = None
+    is_default: Optional[bool] = None
+
+
+class MyViewResponse(BaseModel):
+    id: int
+    name: str
+    view_type: str
+    filter_payload: Optional[dict] = None
+    is_default: bool
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class MyViewListResponse(BaseModel):
+    items: List[MyViewResponse] = Field(default_factory=list)
+
+
+# ──────────── 改约 ────────────
+
+
+class RescheduleRequest(BaseModel):
+    new_appointment_time: Optional[datetime] = None
+    new_product_id: Optional[int] = None
+    new_staff_id: Optional[int] = None
+    notify_customer: bool = True
+
+
+class RescheduleResponse(BaseModel):
+    success: bool
+    order_item_id: int
+    appointment_time: Optional[datetime] = None
+    product_id: Optional[int] = None
+    staff_id: Optional[int] = None
+    notify_result: Optional[str] = None  # success / fail / no_subscribe / skipped
+
+
+# ──────────── 通知 ────────────
+
+
+class NotifyRequest(BaseModel):
+    scene: str = Field(
+        "contact_customer",
+        description="contact_customer / cancelled / before_1d / before_1h / booked / rescheduled",
+    )
+
+
+class NotifyResponse(BaseModel):
+    result: str  # success / fail / no_subscribe
+    template_id: Optional[str] = None
+    log_id: Optional[int] = None

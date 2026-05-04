@@ -3589,3 +3589,43 @@ class CardRedemptionCode(Base):
     created_at = mapped_column(DateTime, default=datetime.utcnow)
 
     user_card = relationship("UserCard")
+
+
+# ???????????????? ??????? PRD v1.0 ????????????????
+
+
+class MerchantCalendarView(Base):
+    """?? PC ?????"????"????????? 10 ??1 ?????
+
+    PRD??? PC ???????? v1.0?F5??????? + ???? + ?????
+    """
+
+    __tablename__ = "merchant_calendar_views"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    store_id = Column(Integer, ForeignKey("merchant_stores.id"), nullable=False, index=True)
+    name = Column(String(40), nullable=False)
+    view_type = Column(String(20), nullable=False, default="month")  # month/week/day/resource/list
+    filter_payload = Column(JSON, nullable=True)  # ????????
+    is_default = Column(Boolean, nullable=False, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+
+class BookingNotificationLog(Base):
+    """?????????5 ????booked/rescheduled/cancelled/before_1d/before_1h??
+
+    PRD??? PC ???????? v1.0?F8 ???????
+    ????????????? + ?????
+    """
+
+    __tablename__ = "booking_notification_logs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    order_item_id = Column(Integer, ForeignKey("order_items.id"), nullable=False, index=True)
+    scene = Column(String(32), nullable=False)  # booked / rescheduled / cancelled / before_1d / before_1h / contact_customer
+    template_id = Column(String(64), nullable=True)
+    result = Column(String(16), nullable=False)  # success / fail / no_subscribe
+    error_msg = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
