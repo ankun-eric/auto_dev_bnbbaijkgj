@@ -79,19 +79,22 @@ export default function MerchantCategoriesPage() {
         <Title level={4}>机构类别管理</Title>
         <Button type="primary" icon={<PlusOutlined />} onClick={onAdd}>新建</Button>
       </div>
+      {/* [2026-05-05 表格布局 Bug 修复] 全列显式 width + scroll.x 兜底，操作列统一 200px */}
       <Table
         rowKey="id"
         loading={loading}
         dataSource={rows}
         pagination={false}
+        scroll={{ x: 1100 }}
         columns={[
           { title: 'ID', dataIndex: 'id', width: 60 },
           { title: '编码', dataIndex: 'code', width: 120 },
-          { title: '名称', dataIndex: 'name' },
-          { title: '描述', dataIndex: 'description', ellipsis: true },
+          { title: '名称', dataIndex: 'name', width: 160 },
+          { title: '描述', dataIndex: 'description', width: 240, ellipsis: true },
           {
             title: '允许附件',
             dataIndex: 'allowed_attachment_types',
+            width: 160,
             render: (v: string[]) => (v || []).map(t => <Tag key={t}>{t}</Tag>),
           },
           { title: '排序', dataIndex: 'sort', width: 80 },
@@ -100,9 +103,9 @@ export default function MerchantCategoriesPage() {
             render: (v: string) => <Tag color={v === 'active' ? 'green' : 'default'}>{v}</Tag>,
           },
           {
-            title: '操作', width: 160,
+            title: '操作', width: 200,
             render: (_: any, row: Category) => (
-              <Space>
+              <Space size={4}>
                 <a onClick={() => onEdit(row)}>编辑</a>
                 <Popconfirm title="确定删除?" onConfirm={() => onDelete(row.id)}>
                   <a style={{ color: '#ff4d4f' }}>删除</a>

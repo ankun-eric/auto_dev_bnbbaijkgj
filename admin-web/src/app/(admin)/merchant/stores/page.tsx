@@ -326,19 +326,22 @@ export default function MerchantStoresPage() {
         </Space>
       </Space>
 
+      {/* [2026-05-05 表格布局 Bug 修复] 全列显式 width + scroll.x 兜底，避免小屏（1366×768）操作列溢出撑破布局 */}
       <Table
         rowKey="id"
         loading={loading}
         dataSource={items}
+        scroll={{ x: 1400 }}
         rowClassName={(record: StoreItem) =>
           record.status !== 'active' ? 'store-row-inactive' : ''
         }
         columns={[
-          { title: '门店名称', dataIndex: 'store_name' },
-          { title: '门店编码', dataIndex: 'store_code' },
+          { title: '门店名称', dataIndex: 'store_name', width: 180 },
+          { title: '门店编码', dataIndex: 'store_code', width: 140 },
           {
             title: '所属类别',
             dataIndex: 'category_name',
+            width: 120,
             render: (_: any, row: StoreItem) =>
               row.category_name ? (
                 <Tag color="blue">{row.category_name}</Tag>
@@ -346,11 +349,12 @@ export default function MerchantStoresPage() {
                 <Tag color="default">未分类</Tag>
               ),
           },
-          { title: '联系人', dataIndex: 'contact_name' },
-          { title: '联系电话', dataIndex: 'contact_phone' },
-          { title: '地址', dataIndex: 'address', ellipsis: true },
+          { title: '联系人', dataIndex: 'contact_name', width: 100 },
+          { title: '联系电话', dataIndex: 'contact_phone', width: 130 },
+          { title: '地址', dataIndex: 'address', width: 220, ellipsis: true },
           {
             title: '营业时间',
+            width: 160,
             render: (_: any, row: StoreItem) =>
               row.business_start && row.business_end
                 ? `${row.business_start} - ${row.business_end}`
@@ -359,6 +363,7 @@ export default function MerchantStoresPage() {
           {
             title: '状态',
             dataIndex: 'status',
+            width: 100,
             render: (value: string) => (
               <Tag color={value === 'active' ? 'green' : 'default'}>
                 {value === 'active' ? '营业中' : '已停用'}
@@ -367,10 +372,13 @@ export default function MerchantStoresPage() {
           },
           {
             title: '操作',
+            width: 200,
             render: (_: any, item: StoreItem) => (
-              <Space>
+              <Space size={4}>
                 <Button
                   type="link"
+                  size="small"
+                  style={{ padding: '0 4px' }}
                   disabled={item.status !== 'active'}
                   onClick={() => openEdit(item)}
                 >
@@ -379,6 +387,8 @@ export default function MerchantStoresPage() {
                 {/* [2026-05-05 营业管理入口收敛 PRD v1.0 · N-01] 门店列表行新增「营业管理」按钮，自动锁定 storeId */}
                 <Button
                   type="link"
+                  size="small"
+                  style={{ padding: '0 4px' }}
                   disabled={item.status !== 'active'}
                   onClick={() => router.push(`/merchant/stores/${item.id}/business-config`)}
                 >
@@ -388,7 +398,9 @@ export default function MerchantStoresPage() {
                   title={item.status === 'active' ? '确认停用该门店？' : '确认启用该门店？'}
                   onConfirm={() => toggleStatus(item)}
                 >
-                  <Button type="link">{item.status === 'active' ? '停用' : '启用'}</Button>
+                  <Button type="link" size="small" style={{ padding: '0 4px' }}>
+                    {item.status === 'active' ? '停用' : '启用'}
+                  </Button>
                 </Popconfirm>
               </Space>
             ),

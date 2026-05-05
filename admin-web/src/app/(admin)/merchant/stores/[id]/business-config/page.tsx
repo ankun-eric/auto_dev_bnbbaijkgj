@@ -424,10 +424,12 @@ export default function StoreBusinessConfigPage() {
               dataSource={services}
               pagination={false}
               size="small"
+              scroll={{ x: 800 }}
               columns={[
-                { title: '服务名称', dataIndex: 'name' },
+                { title: '服务名称', dataIndex: 'name', width: 200 },
                 {
                   title: '服务级并发上限',
+                  width: 180,
                   render: (_: any, r: ConcurrencyService) => (
                     <InputNumber
                       min={1}
@@ -440,6 +442,7 @@ export default function StoreBusinessConfigPage() {
                 },
                 {
                   title: '服务时长（分钟）',
+                  width: 180,
                   render: (_: any, r: ConcurrencyService) => (
                     <InputNumber
                       min={5}
@@ -452,6 +455,7 @@ export default function StoreBusinessConfigPage() {
                 },
                 {
                   title: '当前生效',
+                  width: 220,
                   render: (_: any, r: ConcurrencyService) => (
                     <Text type="secondary">
                       并发 {r.max_concurrent_override ?? slotCapacity || '不限'} / 时长{' '}

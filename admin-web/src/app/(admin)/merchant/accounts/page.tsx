@@ -306,20 +306,24 @@ export default function MerchantAccountsPage() {
         </Space>
       </Card>
 
+      {/* [2026-05-05 表格布局 Bug 修复] 全列显式 width + scroll.x 兜底，操作列固定 320px 容纳 5 个按钮 */}
       <Table
         rowKey="id"
         loading={loading}
         dataSource={filteredItems}
+        scroll={{ x: 1200 }}
         columns={[
           {
             title: '姓名',
+            width: 140,
             render: (_: any, item: MerchantAccount) => (
               <Text>{item.user_nickname || item.merchant_nickname || '-'}</Text>
             ),
           },
-          { title: '手机号', dataIndex: 'phone' },
+          { title: '手机号', dataIndex: 'phone', width: 130 },
           {
             title: '所属商家',
+            width: 240,
             render: (_: any, item: MerchantAccount) => (
               <Space wrap>
                 {item.stores.length === 0 ? (
@@ -334,12 +338,14 @@ export default function MerchantAccountsPage() {
           },
           {
             title: '角色',
+            width: 90,
             // [2026-04-26] 修复硬编码"老板"问题：按真实 role_code 渲染对应中文 Tag
             render: (_: any, item: MerchantAccount) => renderRoleTag(item.role_code, item.role_name),
           },
           {
             title: '状态',
             dataIndex: 'status',
+            width: 90,
             render: (value: string) => (
               <Tag color={value === 'active' ? 'green' : 'red'}>
                 {value === 'active' ? '启用' : '停用'}
@@ -348,26 +354,29 @@ export default function MerchantAccountsPage() {
           },
           {
             title: '操作',
+            width: 320,
             render: (_: any, item: MerchantAccount) => (
-              <Space wrap>
-                <Button type="link" onClick={() => openEdit(item)}>编辑</Button>
+              <Space size={4} wrap>
+                <Button type="link" size="small" style={{ padding: '0 4px' }} onClick={() => openEdit(item)}>编辑</Button>
                 <Popconfirm
                   title={item.status === 'active' ? '确认停用该账号？' : '确认启用该账号？'}
                   onConfirm={() => toggleStatus(item)}
                 >
-                  <Button type="link">{item.status === 'active' ? '停用' : '启用'}</Button>
+                  <Button type="link" size="small" style={{ padding: '0 4px' }}>
+                    {item.status === 'active' ? '停用' : '启用'}
+                  </Button>
                 </Popconfirm>
                 <Popconfirm
                   title="确认删除该账号？"
                   okType="danger"
                   onConfirm={() => removeAccount(item)}
                 >
-                  <Button type="link" danger>删除</Button>
+                  <Button type="link" size="small" style={{ padding: '0 4px' }} danger>删除</Button>
                 </Popconfirm>
-                <Button type="link" onClick={() => openReset(item)}>重置密码</Button>
+                <Button type="link" size="small" style={{ padding: '0 4px' }} onClick={() => openReset(item)}>重置密码</Button>
                 {/* [2026-04-26] 新增：员工列表入口 */}
-                <Button type="link" onClick={() => openStaffDrawer(item)}>
-                  员工列表 ({item.staff_count ?? 0})
+                <Button type="link" size="small" style={{ padding: '0 4px' }} onClick={() => openStaffDrawer(item)}>
+                  员工({item.staff_count ?? 0})
                 </Button>
               </Space>
             ),
