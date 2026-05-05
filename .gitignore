@@ -103,6 +103,12 @@ _deploy_tmp/
 # Local APK download workspace (do not commit APK binaries)
 apk_download/
 
+# Local miniprogram zip artifacts at repo root (uploaded to server, not for git)
+miniprogram_*.zip
+
+# Local commit message scratch files
+.commit_msg_*.txt
+
 # Local build / deploy / scp transient logs at repo root
 apk_build_log*.txt
 apk_build_remote.txt
