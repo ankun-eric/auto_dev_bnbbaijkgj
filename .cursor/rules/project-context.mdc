@@ -33,7 +33,41 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 营业时间下拉去重 + 改约按钮文案统一（Bugfix 336，2026-05-05 13:42）
+## Latest Update: 支付宝 H5/APP 私钥格式自适应 + 测试连接 RSA 报错友好化（Bugfix 337，2026-05-05 14:00）
+
+### 一句话结论
+修复管理后台「支付配置 → 支付宝 H5 / APP」点击「测试」按钮报 `RSA key format is not supported` 的 Bug。根因是用户从支付宝密钥工具生成的两个私钥文件中误粘了 `应用私钥RSA2048.txt`（PKCS#1）而非 `应用私钥PKCS8.txt`（PKCS#8），底层 `cryptography` 收紧校验后无法加载。**三合一修复**：① 新增 `backend/app/utils/rsa_key.py` 私钥格式自适应工具（`normalize_rsa_private_key` / `validate_rsa_private_key`），支持 PKCS#1 / PKCS#8 × 含/不含 PEM 头四种粘贴姿势，统一输出 PKCS#8 PEM。② `backend/app/api/payment_config.py` 在 `update_payment_channel` 中对 `alipay_h5` / `alipay_app` 通道的 `app_private_key` 字段加保存前校验，乱码直接 422 拒绝，合法值保存前自动归一为 PKCS#8。③ `backend/app/services/alipay_service.py` 的 `_build_client_from_config` 在调 `AliPay()` 前再做一次标准化兜底，兼容历史 PKCS#1 脏数据。④ 测试连接接口 `test_payment_channel` 对底层 `RSA key format is not supported` / `Could not deserialize key data` 关键字识别，自动替换为友好文案「应用私钥格式不被支持。请使用支付宝开放平台『密钥工具』生成的『应用私钥PKCS8.txt』文件中的内容…」。⑤ admin-web 支付配置页对支付宝「应用私钥」输入框补充次要文案提示，避免用户再踩同样的坑。**部署**：通过 paramiko SCP 直传 8 个变更文件（绕开服务器 git pull GitHub 国内网络超时）+ `docker compose build backend admin-web` + `up -d`，4 个核心 URL 全绿（admin/login 308、h5 200、api/health 200、docs 308）。**回归保护**：保留 `_ensure_pem_format`（向后兼容）、`encrypt_value` AES-256-GCM 加密链路不变、`PAYMENT_CONFIG_ENCRYPTION_KEY` 不变、数据库 schema 不变、SDK 版本 `python-alipay-sdk==3.3.0` 不变；编辑场景敏感字段留空 = 保留旧值的兼容逻辑保持原样。
+
+### 涉及文件（8 个）
+
+**Backend — 核心新增 / 改动**：
+- `backend/app/utils/rsa_key.py`（**新增**）：RSA 私钥格式自适应工具。`normalize_rsa_private_key(raw)` 把任意形态私钥统一为 PKCS#8 PEM；`validate_rsa_private_key(raw)` 不抛异常版（返回 `(ok, normalized, reason)`）。识别策略：含 PEM 头先按 `cryptography.serialization.load_pem_private_key` 加载；裸 base64 先尝试 PKCS#8 包装、失败再尝试 PKCS#1 包装；统一序列化为 `PrivateFormat.PKCS8`。失败抛 `InvalidRSAPrivateKeyError(USER_FRIENDLY_ERROR)`，文案明确指向 `应用私钥PKCS8.txt`。
+- `backend/app/api/payment_config.py`：`update_payment_channel` 在敏感字段加密入库前，对 `app_private_key`（仅 `alipay_h5` / `alipay_app`）调用 `validate_rsa_private_key`，失败 422，成功后用归一化的 PKCS#8 PEM 替换原值后再 `encrypt_value`。`test_payment_channel` 对底层 `RSA key format is not supported` / `Could not deserialize key data` / `unsupported...key` 等关键字识别后替换为友好文案。
+- `backend/app/services/alipay_service.py`：`_build_client_from_config` 在拿到 `app_private_key_raw` 后调 `normalize_rsa_private_key` 做运行时兜底；失败抛 `ValueError("数据库中保存的应用私钥格式无法识别…")`，提示用户重存。
+
+**Admin Web — UI 提示**：
+- `admin-web/src/app/(admin)/payment-config/page.tsx`：在「应用私钥」输入框（`alipay_h5` / `alipay_app`）下方加 `Form.Item.extra` 灰色小字提示，告知应粘贴 `应用私钥PKCS8.txt` 内容、强调不是 `应用私钥RSA2048.txt`，并说明系统会自动识别四种格式。
+
+**Backend 回归测试 — 新增 / 调整**：
+- `backend/tests/test_alipay_private_key_format.py`（**新增**）：rsa_key 工具单元测试 11 个用例（含 PKCS#1/PKCS#8 × PEM/裸 base64 四种正例 + 乱码 / 空值 / 假 base64 / `validate_*` 不抛异常版本 / 友好文案文本断言）。
+- `backend/tests/test_payment_config_alipay_save_validation.py`（**新增**）：PUT 接口集成测试 5 个用例（PKCS#1 裸 → PKCS#8 落库、PKCS#1 PEM → PKCS#8 落库、乱码 422 + 文案、PKCS#8 PEM 200、PKCS#8 裸 200）。
+- `backend/tests/test_payment_config_test_connection_error_message.py`（**新增**）：测试连接接口友好文案 2 个用例（mock SDK 抛 `RSA key format is not supported` / `Could not deserialize key data` → 接口返回友好文案，断言不再透传原始异常）。
+- `backend/tests/test_payment_config_first_time_secret.py`：把测试中 `app_private_key` 字段的伪造字符串替换为模块级真实生成的 PKCS#8 PEM（`_gen_pkcs8_pem()`），让原有「编辑场景留空保留旧值」「cert 模式必填校验」等用例不被新增的私钥格式校验误伤。
+
+### 服务器侧验证结果
+- 容器内 9 项行为验证全部通过（PKCS#8 PEM、PKCS#1 PEM→PKCS#8、PKCS#8 裸、PKCS#1 裸→PKCS#8、乱码拒绝、validate ok、validate reject、`alipay_service` 含 `normalize_rsa_private_key`、`payment_config` 含 `validate_rsa_private_key`）。
+- `pytest tests/test_alipay_private_key_format.py -v` 在容器内 `11 passed, 23 warnings in 1.51s`。
+- 4 个核心 URL：`/admin/login` 308、`/` 200、`/api/health` 200、`/docs` 308。
+
+### 涉及模块未变
+- AES-256-GCM 加密链路（`backend/app/utils/crypto.py`）
+- `python-alipay-sdk==3.3.0`、`cryptography` 版本未升级
+- 数据库 schema 未改动
+- 微信支付（`wechat_miniprogram` / `wechat_app`）通道完全不受影响（PUT 接口的格式校验仅作用于 `alipay_h5` / `alipay_app` + `app_private_key` 字段）
+
+---
+
+## Previous Update: 营业时间下拉去重 + 改约按钮文案统一（Bugfix 336，2026-05-05 13:42）
 
 ### 一句话结论
 按 `cursor_prompt_336_20260505132132.txt` 修复方案 v1 落地两个独立模块的 UI/交互层 Bug，**全端一次性修复**：① **Bug 1**：admin 后台「门店管理 → 编辑/新增门店」表单中「营业时间-截止时间」下拉框重复出现两次 `22:00` 选项 — 根因为 `BUSINESS_END_OPTIONS` 在循环 `for h<=22` 已经包含 22:00 后，又额外 `out.push({label:'22:00', value:'22:00'})`，导致 `22:00` 重复；修复 = 删除多余的 push（`admin-web/src/app/(admin)/merchant/stores/page.tsx` + `h5-web/src/app/merchant/store-settings/page.tsx`）。② **Bug 2**：H5/小程序/Flutter 三端订单列表+订单明细底部「改约」按钮，订单达改期上限时文案为 `改约（已无法改期）`，过长撑破布局；修复 = 文案统一精简为 `改约` 两个字，**置灰样式保留**，点击 Toast/SnackBar「本订单已达改期上限」**完整保留**（H5: `unified-orders/page.tsx` + `unified-order/[id]/page.tsx`；小程序: `pages/unified-orders/index.wxml` + `pages/unified-order-detail/index.wxml`；Flutter: `lib/screens/order/unified_orders_screen.dart` + `unified_order_detail_screen.dart`）。**部署**：paramiko SCP 上传 8 个变更文件 + `docker compose build admin-web h5-web` + `up -d`，5 个核心 URL 全绿（api/health 200、admin/login 200、admin/merchant/stores 200、unified-orders 200、merchant/store-settings 200）。**多端打包**：3 个并行子 Agent 同时跑通 — 小程序 zip（391KB / 334 文件，已上传 `/static/miniprogram/`）+ Android APK（GHA 远程构建 8.6 分钟、84.5MB）+ iOS IPA（GHA 远程构建、34MB，未签名需侧载）。**回归保护**：`canReschedule=true` 分支按钮文案/样式/跳转改约流程一切不变；改期规则（上限 3 次、明天起 90 天、商品级 `allow_reschedule` 开关）不变。
