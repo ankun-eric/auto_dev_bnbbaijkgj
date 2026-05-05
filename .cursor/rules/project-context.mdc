@@ -33,7 +33,69 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 支付宝应用私钥校验收窄至「仅中间 Base64」（2026-05-05 16:41）
+## Latest Update: PRD-01 全平台固定时段切片体系 v1.0 落地（2026-05-05 17:10）
+
+### 一句话结论
+按 `cursor_prompt_343_20260505165317.txt` PRD-01「全平台固定时段切片体系 v1.0」一次性落地全平台时段切片底座：把全平台「按时段管理」的入口（看板 / 改期 / 统计 / 客户端时段选择器 / 订单 time_slot）统一为**固定 9 段（每段 2 小时、最早 06:00、最晚 24:00）**，凌晨 00:00-06:00 不开放。**核心改动**：① **后端新增 `app/utils/time_slots.py` 工具模块**（`SLOT_HOURS` / `slot_label` / `appointment_to_slot` / `slot_window` / `slots_config_payload`），把原 `merchant_dashboard.py` 中重复的 9 段定义抽出来，看板模块改为 `from app.utils.time_slots import *` re-export 复用，行为完全保持向后兼容。② **新增公共接口 `/api/common/time-slots`**（`backend/app/api/common.py`），无需鉴权，响应严格遵循 PRD §2.3：`{"slots":[{"slot_no":1,"start":"06:00","end":"08:00"},...,{"slot_no":9,"start":"22:00","end":"24:00"}], "rule":"..."}`，公开供小程序/APP/H5/商家 PC 共用；同时保留既有 `/api/merchant/dashboard/time-slots`（响应字段 `slot_no/label/start_hour/end_hour`）以确保 v1.0 看板兼容。③ **`unified_orders` 表新增 `time_slot INT NULL` 字段** + 索引 `ix_unified_orders_time_slot`（`backend/app/models/models.py` + `backend/app/services/schema_sync.py` 增量幂等 ALTER）。④ **下单与改期路径自动写入 time_slot**：`backend/app/api/unified_orders.py` 在 `create_unified_order`（store_id 处理后、flush 前）取首个有 `appointment_time` 的 item 调用 `_appt_to_slot` 写入 `order.time_slot`；`set_order_appointment` 改期生效后同步重算并写入；跨日订单（22:00-次日 00:00）按起始时间归段（PRD R-01-03）；凌晨段 / 无 appointment_time / 先下单后预约 → time_slot=NULL（PRD R-01-04）。⑤ **历史订单一次性补刀脚本 `backend/scripts/backfill_unified_orders_time_slot.py`**：`--dry-run` 默认只读 + 打印；`--apply` 真实写库；幂等仅扫 `time_slot IS NULL` 的订单。⑥ **三端新增 9 段本地常量兜底工具**：`h5-web/src/lib/timeSlots.ts` / `miniprogram/utils/timeSlots.js` / `flutter_app/lib/utils/time_slots.dart`，含 `FIXED_TIME_SLOTS` / `slotLabel` / `appointmentToSlot` / `fetchTimeSlotsWithFallback`，PRD §4 异常处理：`/api/common/time-slots` 接口失败时使用本地常量兜底确保下单/改期不阻塞。**测试**：新增 `backend/tests/test_time_slots_unified_v1.py` 38 个用例（utils 工具函数 27 case 含每小时映射 22 case + 边界 + 跨日 + slots_config_payload 严格匹配 PRD §2.3 字段；`/api/common/time-slots` 接口公开返回 + 字段 strict + 第 9 段 end="24:00" 5 case；merchant_dashboard re-export 兼容性 1 case），与既有 `test_merchant_dashboard_v1.py`（21 个纯函数 case）+ `test_reschedule_notification_v1.py`（18 case）一起服务器容器内 **66/66 PASS in 1.36s**。**部署**：paramiko SFTP 上传 12 个文件 → `docker compose build backend` → `up -d` → 容器启动 schema_sync 自动 ALTER → 容器内回填脚本 `--apply` 实测扫描 32 单回填 23 单（段 2:11 / 段 3:3 / 段 4:1 / 段 5:3 / 段 6:5；凌晨段 0；无 appt 9）→ 5 个核心 URL（health/admin login/H5/商家 dashboard time-slots/`/api/common/time-slots`）全 200 → `/api/common/time-slots` 响应字段 `slot_no/start/end` 严格匹配 PRD。**多端打包**：3 个并行子 Agent 同时跑通——小程序 zip（391KB / 335 文件，已上传 `/static/miniprogram/`）+ Android APK（GHA 远程构建 ~9 分钟、80.57MB，复用既有 `android-build.yml`）+ iOS IPA（GHA macOS Runner ~6.5 分钟，复用既有 `ios-build.yml`，未签名需侧载）。**回归保护**：商品级 `time_slots`（每商品独立 capacity 配置）/ 改期上限 / 90 天范围 / 凌晨段订单列表可见 / 改期通知三通道 / 状态机 / 核销码 / 退款链路 完全不变。
+
+### 涉及文件（12 个）
+
+**Backend — 核心新增 / 改动**：
+- `backend/app/utils/time_slots.py`（**新增**，~150 行）：全平台 9 段切片底座，含 `SLOT_HOURS` / `SLOT_COUNT=9` / `slot_label` / `slot_start_str` / `slot_end_str` / `appointment_to_slot`（hour<6 → None；hour≥22 → 9；O(1) 纯计算）/ `slot_window`（第 9 段 end=次日 00:00 跨日处理）/ `slots_config_payload`（响应严格匹配 PRD §2.3）。
+- `backend/app/api/common.py`（**新增**）：`/api/common` 路由前缀，提供 `GET /api/common/time-slots` 公开接口；后续公共配置接口可继续在此扩展。
+- `backend/app/api/merchant_dashboard.py`：删除原内嵌的 `SLOT_HOURS` / `slot_label` / `appointment_to_slot` / `slot_window` 定义，改为 `from app.utils.time_slots import *` 复用，看板 5 个接口（day/week/month/slot/month-day/time-slots）行为完全保持。
+- `backend/app/api/unified_orders.py`：① import `from app.utils.time_slots import appointment_to_slot as _appt_to_slot`；② `create_unified_order` 在 store_id 处理后、`db.flush()` 前增加 `_first_appt_time` 收集 + `order.time_slot = _appt_to_slot(_first_appt_time)`；③ `set_order_appointment` 改期生效后同步 `order.time_slot = _appt_to_slot(data.appointment_time)`。
+- `backend/app/main.py`：在 `merchant_dashboard.router` 注册之后增加 `from app.api import common as _common_api; app.include_router(_common_api.router)`。
+- `backend/app/models/models.py`：`UnifiedOrder` 类在 `reschedule_limit` 后新增 `time_slot = mapped_column(Integer, nullable=True, index=True, comment='固定 9 段时段段号（1-9），凌晨段/无预约时间为 NULL')`。
+- `backend/app/services/schema_sync.py`：在 `unified_orders.has_reviewed` ALTER 块之后增加 `if "time_slot" not in cols: ALTER TABLE unified_orders ADD COLUMN time_slot INT NULL COMMENT ...` + `CREATE INDEX ix_unified_orders_time_slot`，幂等。
+- `backend/scripts/backfill_unified_orders_time_slot.py`（**新增**，~140 行）：`--dry-run` / `--apply` 双模式；扫 `time_slot IS NULL` 订单；按首个有 `appointment_time` 的 item 计算段号；凌晨段订单保留 NULL；统计与命中段号分布打印；幂等可重复执行。
+
+**Backend 回归测试 — 新增**：
+- `backend/tests/test_time_slots_unified_v1.py`（**新增**，~210 行 / 38 用例）：A. utils 单元（SLOT_HOURS 9 段 / 连续 / 每段 2h / slot_label 含 24:00 / start/end 字符串 / `appointment_to_slot` 22 个 hour 参数化 + None + 跨日 / `slot_window` 第 9 段跨日 24:00 + 无效段号 ValueError）；B. `/api/common/time-slots` 接口（公开 200 / 9 段 / 字段严格匹配 slot_no/start/end / 第 9 段 end="24:00"）；C. `merchant_dashboard` re-export 兼容性。
+
+**三端 utils — 新增**（PRD §4 兜底常量）：
+- `h5-web/src/lib/timeSlots.ts`（**新增**）：`TimeSlotItem` 接口 / `FIXED_TIME_SLOTS` 常量 9 段 / `slotLabel(slotNo)` / `appointmentToSlot(Date|string)` / `fetchTimeSlotsWithFallback(fetcher)`。
+- `miniprogram/utils/timeSlots.js`（**新增**）：CommonJS 风格，等价 API（`module.exports = { FIXED_TIME_SLOTS, slotLabel, appointmentToSlot, fetchTimeSlotsWithFallback }`）。
+- `flutter_app/lib/utils/time_slots.dart`（**新增**）：`TimeSlotItem` Dart 类 + `kFixedTimeSlots` const List + `slotLabel` / `appointmentToSlot(DateTime?)` / `fetchTimeSlotsWithFallback`。
+
+**部署辅助**：
+- `deploy/_deploy_prd01_time_slots_20260505.py`（新增）：paramiko SFTP 上传 12 文件 + `docker compose build backend` + `up -d` + 容器启动等待 12s + 验证字段 ALTER + 跑测试 + 跑回填 dry-run + 跑回填 apply + 5 URL curl + `/api/common/time-slots` 响应 JSON 字段严格匹配验证。
+- `deploy/_run_pytest_prd01_in_container.py`（新增）：容器内 `pip install pytest pytest-asyncio aiosqlite httpx` + 跑 PRD-01 + 看板 + 改期通知测试。
+- `deploy/_pack_miniprogram_prd01_20260505.py`（新增）：本地 zip 打包 → SCP 上传 → curl 验证。
+- `deploy/_build_apk_prd01_20260505.py`（新增）：`gh workflow run android-build.yml` → 轮询 → 下载 → SCP 上传。
+- `deploy/_build_ios_prd01_20260505.py`（新增）：`gh workflow run ios-build.yml` → 轮询 → 获取 GitHub Release URL（IPA 未签名需侧载）。
+
+**用户手册**：
+- `user_docs/全平台固定时段切片体系.md`（含访问链接×2 / 9 段一览表 / 本次客户端变更 / 接口示例 / 商家看板使用 / 用户下单改期 / time_slot 字段含义 / 历史回填命令 / 三端体验步骤 / 注意事项含 R-01-02~04 兼容性说明）。
+
+### 关键验收（部署后实测）
+- ✅ 容器内 PRD-01 unified_v1 + 既有 dashboard 纯函数 + reschedule_notification = **66/66 PASS in 1.36s**
+- ✅ 远程 5 个核心 URL 全 200（含 `/api/common/time-slots` 200）
+- ✅ `/api/common/time-slots` 响应字段严格 = `slot_no/start/end`，第 9 段 end="24:00"
+- ✅ `unified_orders.time_slot` 字段已 ALTER 上线，索引创建
+- ✅ 历史订单回填 `--apply` 真实生效：32 单扫描 → 23 单回填段号 / 9 单无 appt 保 NULL / 0 凌晨段
+- ✅ 三端打包全部 HTTP 200 可下载（小程序 391KB / APK 80.57MB / iOS Release 页可达）
+
+### 设计要点
+- **不破坏现有看板**：抽出 utils 后 `merchant_dashboard.py` 通过 import re-export 保持向后兼容，所有 5 个看板接口（day/week/month/slot/month-day/既有 time-slots）行为不变；测试 `test_merchant_dashboard_reexports_match_utils` 验证身份相等
+- **PRD §2.3 接口规格严格遵守**：`/api/common/time-slots` 字段为 `slot_no/start/end`（与既有 `/api/merchant/dashboard/time-slots` 的 `slot_no/label/start_hour/end_hour` 不同），分别供不同消费者使用，避免一次大改影响存量
+- **跨日归段（R-01-03）**：22:00-次日 00:00 订单 `appointment_time.hour = 22 / 23` → `time_slot = 9`；slot_window 第 9 段 end 取次日 00:00，确保看板 9 宫格抽屉查询不丢点
+- **凌晨段保留可见（R-01-04）**：客户端时段选择器屏蔽 0-6 点，但历史脏数据仍以 `time_slot=NULL` 形式落库；订单列表 / 改期接口 / 商家看板订单列表都可见，仅 9 宫格不渲染。回填脚本对凌晨段订单**保留 NULL** 不强制归段
+- **接口失败兜底**：三端 `fetchTimeSlotsWithFallback` 在网络异常 / 接口非 200 / 响应非 9 段时回退到本地常量；本地常量与后端配置完全一致（hardcode 同一份切片，避免漂移）
+- **幂等回填**：`backfill_unified_orders_time_slot.py` 仅扫 `time_slot IS NULL`，反复跑不会改写已落地的非 NULL 段号；凌晨段订单每次都被 skip 不会反复落地为同一值
+- **未来扩展**：`/api/common` 路由前缀已就位，后续公共配置接口（如 `/api/common/cities`、`/api/common/payment-channels` 等）可继续在 `backend/app/api/common.py` 中扩展
+
+### 涉及模块未变
+- 商品级 `time_slots`（`product.time_slots[i].capacity` 双层名额验证逻辑）
+- 客户端 UI（H5 checkout / 小程序 checkout / Flutter checkout 时段选择器仍按商品级配置渲染）
+- 改期通知三通道 / 改期上限 3 / 90 天范围 / 商家级 `allow_reschedule` 开关
+- 状态机（pending_payment / pending_appointment / pending_use / ... 12 态）
+- 核销码 5 态独立状态机（active/locked/used/expired/refunded）
+- 退款融合（refund_status → status='refunding'/'refunded'）
+
+---
+
+## Previous Update: 支付宝应用私钥校验收窄至「仅中间 Base64」（2026-05-05 16:41）
 
 ### 一句话结论
 按 `cursor_prompt_342_20260505164125.txt` PRD「支付宝应用私钥校验收窄（仅接受中间 Base64）」对支付宝「应用私钥」格式校验进行**收窄**：从此前同时兼容 PKCS#1/PKCS#8 头尾 + 裸 Base64 + 多种脏字符的「宽容多形态」改为**仅接受**支付宝官方密钥工具实际产出的「中间 Base64」单一形态。**核心改动**：① `backend/app/utils/rsa_key.py` 重写 `normalize_rsa_private_key`：清洗不可见字符（BOM/零宽/全角空格/Tab/换行）→ 检测 `-----BEGIN-----` / `-----END-----` 关键标记，命中则**短路抛错**「请只粘贴中间 Base64 部分（去掉 BEGIN/END 两行）。」→ 否则提取 `[A-Za-z0-9+/=]` 拼装 PKCS#8 PEM → cryptography 解析 + ASN.1 校验 → 失败抛「应用私钥格式不被支持。请粘贴密钥工具生成的中间 Base64 内容。」。**删除**了 PKCS#1 PEM 兜底包装逻辑、PEM 头尾解析分支、字符长度阈值（按 PRD §二决策记录拍板）。新增 `ERROR_HAS_PEM_HEADERS` / `ERROR_INVALID_FORMAT` 两条分支化文案常量；`USER_FRIENDLY_ERROR` 兼容别名指向 `ERROR_INVALID_FORMAT`。② `admin-web/src/app/(admin)/payment-config/page.tsx` 中支付宝 H5 / 支付宝 APP 的「应用私钥」字段：placeholder 改为直白指令型「`粘贴密钥工具生成的中间 Base64 内容，不要包含 BEGIN/END 头尾`」；下方蓝色提示精简为单句「`仅粘贴中间部分。粘了 BEGIN/END 头尾会被判为格式错误。`」（删除原 6 行多形态兼容说明）。③ `backend/tests/test_alipay_private_key_format.py` 完整重写：覆盖 PRD §六 全部 8 个回归用例（T1~T8），新增「含头尾必须报错」用例 4 条（含完整 PKCS#8 PEM / 完整 PKCS#1 PEM / 仅 BEGIN/END 两行 / 公钥 PUBLIC KEY），删除原「兼容头尾」预期改为报错预期，保留脏字符清洗用例 2 条（whitespace/BOM/零宽/全角）。**测试**：本地与服务器容器内均 **19/19 PASS in 0.36s**。**部署**：paramiko SFTP 直传 3 个文件 → `docker compose build backend admin-web` → `up -d` → 容器内 `pip install pytest pytest-asyncio aiosqlite` → `pytest --noconftest` 19 用例全绿，admin/api/health/h5 三入口 200。**回归保护**：入库存储格式仍为标准 PKCS#8 PEM（含头尾，由后端自动包装入库）；签名/验签业务逻辑完全不变；支付宝平台公钥配置流程完全不变；存量数据库中已存的私钥不重新校验。
