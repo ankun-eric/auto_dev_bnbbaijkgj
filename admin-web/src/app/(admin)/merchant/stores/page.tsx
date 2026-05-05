@@ -327,6 +327,9 @@ export default function MerchantStoresPage() {
       </Space>
 
       {/* [2026-05-05 表格布局 Bug 修复] 全列显式 width + scroll.x 兜底，避免小屏（1366×768）操作列溢出撑破布局 */}
+      {/* [2026-05-05 PRD｜门店管理列表 - 固定列优化 v1.0]
+          门店名称 fixed:'left'，状态 + 操作 fixed:'right'，
+          中小屏（≤1366）横向滚动时三列始终可见，AntD 自带阴影提示冻结区。 */}
       <Table
         rowKey="id"
         loading={loading}
@@ -336,7 +339,7 @@ export default function MerchantStoresPage() {
           record.status !== 'active' ? 'store-row-inactive' : ''
         }
         columns={[
-          { title: '门店名称', dataIndex: 'store_name', width: 180 },
+          { title: '门店名称', dataIndex: 'store_name', width: 180, fixed: 'left' as const },
           { title: '门店编码', dataIndex: 'store_code', width: 140 },
           {
             title: '所属类别',
@@ -364,6 +367,7 @@ export default function MerchantStoresPage() {
             title: '状态',
             dataIndex: 'status',
             width: 100,
+            fixed: 'right' as const,
             render: (value: string) => (
               <Tag color={value === 'active' ? 'green' : 'default'}>
                 {value === 'active' ? '营业中' : '已停用'}
@@ -373,6 +377,7 @@ export default function MerchantStoresPage() {
           {
             title: '操作',
             width: 200,
+            fixed: 'right' as const,
             render: (_: any, item: StoreItem) => (
               <Space size={4}>
                 <Button
