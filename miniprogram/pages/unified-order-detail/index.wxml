@@ -78,19 +78,23 @@
 
   <!-- 收货/门店信息 -->
   <!-- [2026-05-05 订单页地址导航按钮 PRD v1.0 · F-04/F-05/F-06] 在地址行右侧加导航按钮 -->
+  <!-- [2026-05-05 预约门店点击行为统一为联系商家 v1.0]
+       门店行整行 bindtap=onContactStore，与底部"联系商家"按钮一致；
+       内部「导航」、「拨打电话」按钮用 catchtap 拦截冒泡，保留各自原有交互。 -->
   <view class="address-section card" wx:if="{{order.address || order.store_name || order.shipping_address_text}}">
     <text class="section-title">{{order.store_name ? '服务门店' : '收货信息'}}</text>
-    <view wx:if="{{order.store_name}}" class="addr-row">
+    <view wx:if="{{order.store_name}}" class="addr-row addr-row-clickable" bindtap="onContactStore" hover-class="addr-row-hover" hover-stay-time="80">
       <view class="addr-row-main">
         <text class="addr-line">{{order.store_name}}</text>
         <text class="addr-sub">{{order.store_address}}</text>
-        <view class="store-phone" wx:if="{{order.store_phone}}" bindtap="callStore">
+        <view class="store-phone" wx:if="{{order.store_phone}}" catchtap="callStore">
           <text class="phone-text">📞 {{order.store_phone}}</text>
         </view>
       </view>
-      <view class="nav-btn" bindtap="onStoreNavTap">
+      <view class="nav-btn" catchtap="onStoreNavTap">
         <text class="nav-btn-icon">📍</text><text>导航</text>
       </view>
+      <text class="addr-arrow">›</text>
     </view>
     <view wx:elif="{{order.address}}" class="addr-row">
       <view class="addr-row-main">

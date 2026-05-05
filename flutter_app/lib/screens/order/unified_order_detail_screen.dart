@@ -263,43 +263,61 @@ class _UnifiedOrderDetailScreenState extends State<UnifiedOrderDetailScreen> {
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
           if (hasInStoreAddr)
+            // [2026-05-05 预约门店点击行为统一为联系商家 v1.0]
+            // 门店地址整行点击 = 联系商家弹层（与底部"联系商家"按钮一致）
+            // AddressNavButton 内部已声明 GestureDetector 接管自身手势，不会触发外层 onTap
             Padding(
               padding: EdgeInsets.only(bottom: hasShippingAddr ? 12 : 0),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Icon(Icons.store_outlined,
-                      size: 18, color: Color(0xFF52C41A)),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('门店地址',
-                            style: TextStyle(
-                                fontSize: 12, color: Color(0xFF999999))),
-                        const SizedBox(height: 4),
-                        if ((o.storeName ?? '').isNotEmpty)
-                          Text(o.storeName!,
-                              style: const TextStyle(
-                                  fontSize: 14, fontWeight: FontWeight.w500)),
-                        if ((o.storeAddress ?? '').isNotEmpty) ...[
-                          const SizedBox(height: 2),
-                          Text(o.storeAddress!,
-                              style: const TextStyle(
-                                  fontSize: 12, color: Color(0xFF666666))),
-                        ],
-                      ],
-                    ),
+              child: InkWell(
+                onTap: () => ContactStoreSheet.show(
+                  context,
+                  storeId: o.storeId,
+                  fallbackStoreName: o.storeName,
+                ),
+                borderRadius: BorderRadius.circular(8),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.store_outlined,
+                          size: 18, color: Color(0xFF52C41A)),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('门店地址',
+                                style: TextStyle(
+                                    fontSize: 12, color: Color(0xFF999999))),
+                            const SizedBox(height: 4),
+                            if ((o.storeName ?? '').isNotEmpty)
+                              Text(o.storeName!,
+                                  style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500)),
+                            if ((o.storeAddress ?? '').isNotEmpty) ...[
+                              const SizedBox(height: 2),
+                              Text(o.storeAddress!,
+                                  style: const TextStyle(
+                                      fontSize: 12,
+                                      color: Color(0xFF666666))),
+                            ],
+                          ],
+                        ),
+                      ),
+                      AddressNavButton(
+                        name: o.storeName ?? '门店',
+                        address: o.storeAddress ?? o.storeName ?? '',
+                        lat: o.storeLat,
+                        lng: o.storeLng,
+                        semanticLabel: '导航到门店',
+                      ),
+                      const Icon(Icons.chevron_right,
+                          size: 18, color: Color(0xFFCCCCCC)),
+                    ],
                   ),
-                  AddressNavButton(
-                    name: o.storeName ?? '门店',
-                    address: o.storeAddress ?? o.storeName ?? '',
-                    lat: o.storeLat,
-                    lng: o.storeLng,
-                    semanticLabel: '导航到门店',
-                  ),
-                ],
+                ),
               ),
             ),
           if (hasShippingAddr)

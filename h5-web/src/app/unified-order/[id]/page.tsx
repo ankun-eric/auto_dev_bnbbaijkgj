@@ -543,7 +543,21 @@ export default function UnifiedOrderDetailPage() {
                     </span>
                   </div>
                   {order.store_name && (
-                    <div className="flex items-center text-sm">
+                    /* [2026-05-05 预约门店点击行为统一为联系商家 v1.0]
+                       预约门店整行点击 = 联系商家弹层（与底部"联系商家"按钮一致）
+                       内部 AddressNavButton 已 stopPropagation，保留导航按钮原行为 */
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      className="flex items-center text-sm cursor-pointer hover:bg-gray-50 rounded -mx-1 px-1 py-1"
+                      onClick={() => setContactVisible(true)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setContactVisible(true);
+                        }
+                      }}
+                    >
                       <span className="mr-2">📍</span>
                       <span className="text-gray-500 mr-2">预约门店</span>
                       <span className="text-gray-800 flex-1 min-w-0" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{order.store_name}</span>
@@ -555,6 +569,7 @@ export default function UnifiedOrderDetailPage() {
                         lng={order.store_lng}
                         ariaLabel="导航到门店"
                       />
+                      <span className="text-gray-300 ml-1" style={{ fontSize: 18, lineHeight: 1 }}>›</span>
                     </div>
                   )}
                 </div>
@@ -582,7 +597,22 @@ export default function UnifiedOrderDetailPage() {
             <Card style={{ borderRadius: 12, marginBottom: 12 }}>
               <div className="font-medium text-base mb-3">订单地址</div>
               {hasInStoreAddr && (
-                <div className="flex items-start" style={{ marginBottom: hasShippingAddr ? 12 : 0 }}>
+                /* [2026-05-05 预约门店点击行为统一为联系商家 v1.0]
+                   门店地址整行点击 = 联系商家弹层（与底部"联系商家"按钮一致）
+                   AddressNavButton 已 stopPropagation，保留导航按钮原行为 */
+                <div
+                  role="button"
+                  tabIndex={0}
+                  className="flex items-start cursor-pointer hover:bg-gray-50 rounded -mx-1 px-1"
+                  style={{ marginBottom: hasShippingAddr ? 12 : 0, paddingTop: 4, paddingBottom: 4 }}
+                  onClick={() => setContactVisible(true)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setContactVisible(true);
+                    }
+                  }}
+                >
                   <span className="mr-2" style={{ fontSize: 16 }}>📍</span>
                   <div className="flex-1 min-w-0">
                     <div className="text-xs text-gray-400 mb-1">门店地址</div>
@@ -602,6 +632,7 @@ export default function UnifiedOrderDetailPage() {
                     lng={order.store_lng}
                     ariaLabel="导航到门店"
                   />
+                  <span className="text-gray-300 ml-1 self-center" style={{ fontSize: 18, lineHeight: 1 }}>›</span>
                 </div>
               )}
               {hasShippingAddr && (

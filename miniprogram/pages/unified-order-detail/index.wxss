@@ -54,6 +54,22 @@
   align-items: flex-start;
   gap: 12rpx;
 }
+/* [2026-05-05 预约门店点击行为统一为联系商家 v1.0] 整行可点击的视觉提示 */
+.addr-row-clickable {
+  position: relative;
+  padding: 4rpx 0;
+}
+.addr-row-hover {
+  background: rgba(82, 196, 26, 0.06);
+  border-radius: 12rpx;
+}
+.addr-arrow {
+  align-self: center;
+  font-size: 36rpx;
+  color: #cccccc;
+  margin-left: 4rpx;
+  line-height: 1;
+}
 .addr-row-main {
   flex: 1;
   min-width: 0;
