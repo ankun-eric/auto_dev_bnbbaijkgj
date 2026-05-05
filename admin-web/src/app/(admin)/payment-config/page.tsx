@@ -564,21 +564,22 @@ export default function PaymentConfigPage() {
               );
             }
 
-            const placeholder = f.isSecret
-              ? '留空表示不修改原值；填写新值则会加密保存'
-              : `请输入${f.label}`;
-
-            // [Bug 修复 2026-05-05] 支付宝「应用私钥」输入框补充格式提示，
-            // 避免用户误粘 PKCS#1（应用私钥RSA2048.txt）导致测试连接报
-            // "RSA key format is not supported"。
+            // [需求 2026-05-05] 支付宝应用私钥校验收窄至「仅中间 Base64」单一形态。
+            // placeholder 与下方提示采用直白指令型文案（PRD §三）：
+            //   placeholder：粘贴密钥工具生成的中间 Base64 内容，不要包含 BEGIN/END 头尾
+            //   下方提示：仅粘贴中间部分。粘了 BEGIN/END 头尾会被判为格式错误。
             const isAlipayPrivateKey =
               f.key === 'app_private_key' &&
               (drawerCode === 'alipay_h5' || drawerCode === 'alipay_app');
+            const placeholder = isAlipayPrivateKey
+              ? '粘贴密钥工具生成的中间 Base64 内容，不要包含 BEGIN/END 头尾'
+              : f.isSecret
+                ? '留空表示不修改原值；填写新值则会加密保存'
+                : `请输入${f.label}`;
+
             const extraHint = isAlipayPrivateKey ? (
               <Text type="secondary" style={{ fontSize: 12 }}>
-                请粘贴支付宝密钥工具生成的「应用私钥PKCS8.txt」文件内容
-                （<Text type="warning">注意不是 应用私钥RSA2048.txt</Text>）。
-                系统会自动识别 PKCS#1/PKCS#8、含/不含 PEM 头四种格式并统一转换。
+                仅粘贴中间部分。粘了 BEGIN/END 头尾会被判为格式错误。
               </Text>
             ) : null;
 

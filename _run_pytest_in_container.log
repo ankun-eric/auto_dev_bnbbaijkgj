@@ -1,0 +1,47 @@
+﻿Connected
+
+>>> docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend pip install --no-cache-dir pytest pytest-asyncio aiosqlite -i https://mirrors.cloud.tencent.com/pypi/simple --trusted-host mirrors.cloud.tencent.com
+Looking in indexes: https://mirrors.cloud.tencent.com/pypi/simple
+Requirement already satisfied: pytest in /usr/local/lib/python3.11/site-packages (9.0.3)
+Requirement already satisfied: pytest-asyncio in /usr/local/lib/python3.11/site-packages (1.3.0)
+Collecting aiosqlite
+  Downloading https://mirrors.cloud.tencent.com/pypi/packages/00/b7/e3bf5133d697a08128598c8d0abc5e16377b51465a33756de24fa7dee953/aiosqlite-0.22.1-py3-none-any.whl (17 kB)
+Requirement already satisfied: iniconfig>=1.0.1 in /usr/local/lib/python3.11/site-packages (from pytest) (2.3.0)
+Requirement already satisfied: packaging>=22 in /usr/local/lib/python3.11/site-packages (from pytest) (26.2)
+Requirement already satisfied: pluggy<2,>=1.5 in /usr/local/lib/python3.11/site-packages (from pytest) (1.6.0)
+Requirement already satisfied: pygments>=2.7.2 in /usr/local/lib/python3.11/site-packages (from pytest) (2.20.0)
+Requirement already satisfied: typing-extensions>=4.12 in /usr/local/lib/python3.11/site-packages (from pytest-asyncio) (4.15.0)
+Installing collected packages: aiosqlite
+Successfully installed aiosqlite-0.22.1
+[STDERR] WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv
+
+[notice] A new release of pip is available: 24.0 -> 26.1.1
+[notice] To update, run: pip install --upgrade pip
+[EXIT 0]
+
+>>> docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend python -m pytest tests/test_alipay_private_key_format.py --noconftest -v --tb=short --no-header -p no:cacheprovider
+============================= test session starts ==============================
+collecting ... collected 19 items
+
+tests/test_alipay_private_key_format.py::test_T1_pure_middle_base64_pass PASSED [  5%]
+tests/test_alipay_private_key_format.py::test_T1_idempotent_normalize PASSED [ 10%]
+tests/test_alipay_private_key_format.py::test_T2_middle_base64_with_whitespace_and_newlines PASSED [ 15%]
+tests/test_alipay_private_key_format.py::test_T3_middle_base64_with_invisible_chars PASSED [ 21%]
+tests/test_alipay_private_key_format.py::test_T4_full_pkcs8_pem_rejected PASSED [ 26%]
+tests/test_alipay_private_key_format.py::test_T5_full_pkcs1_pem_rejected PASSED [ 31%]
+tests/test_alipay_private_key_format.py::test_T6_only_begin_end_lines_rejected PASSED [ 36%]
+tests/test_alipay_private_key_format.py::test_T6_only_begin_line_rejected PASSED [ 42%]
+tests/test_alipay_private_key_format.py::test_T6_only_end_line_rejected PASSED [ 47%]
+tests/test_alipay_private_key_format.py::test_T7_public_key_rejected PASSED [ 52%]
+tests/test_alipay_private_key_format.py::test_T8_garbage_string_rejected PASSED [ 57%]
+tests/test_alipay_private_key_format.py::test_T8_random_base64_not_a_key PASSED [ 63%]
+tests/test_alipay_private_key_format.py::test_T8_empty_input_rejected PASSED [ 68%]
+tests/test_alipay_private_key_format.py::test_validate_returns_ok_true_for_valid_pkcs8_naked PASSED [ 73%]
+tests/test_alipay_private_key_format.py::test_validate_returns_ok_false_with_pem_headers PASSED [ 78%]
+tests/test_alipay_private_key_format.py::test_validate_returns_ok_false_for_garbage PASSED [ 84%]
+tests/test_alipay_private_key_format.py::test_error_pem_header_text_is_concise PASSED [ 89%]
+tests/test_alipay_private_key_format.py::test_error_invalid_format_text_is_concise PASSED [ 94%]
+tests/test_alipay_private_key_format.py::test_user_friendly_error_alias_points_to_invalid_format PASSED [100%]
+
+============================== 19 passed in 0.36s ==============================
+[EXIT 0]

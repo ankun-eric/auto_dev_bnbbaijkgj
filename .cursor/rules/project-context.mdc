@@ -33,6 +33,57 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
+## Latest Update: 支付宝应用私钥校验收窄至「仅中间 Base64」（2026-05-05 16:41）
+
+### 一句话结论
+按 `cursor_prompt_342_20260505164125.txt` PRD「支付宝应用私钥校验收窄（仅接受中间 Base64）」对支付宝「应用私钥」格式校验进行**收窄**：从此前同时兼容 PKCS#1/PKCS#8 头尾 + 裸 Base64 + 多种脏字符的「宽容多形态」改为**仅接受**支付宝官方密钥工具实际产出的「中间 Base64」单一形态。**核心改动**：① `backend/app/utils/rsa_key.py` 重写 `normalize_rsa_private_key`：清洗不可见字符（BOM/零宽/全角空格/Tab/换行）→ 检测 `-----BEGIN-----` / `-----END-----` 关键标记，命中则**短路抛错**「请只粘贴中间 Base64 部分（去掉 BEGIN/END 两行）。」→ 否则提取 `[A-Za-z0-9+/=]` 拼装 PKCS#8 PEM → cryptography 解析 + ASN.1 校验 → 失败抛「应用私钥格式不被支持。请粘贴密钥工具生成的中间 Base64 内容。」。**删除**了 PKCS#1 PEM 兜底包装逻辑、PEM 头尾解析分支、字符长度阈值（按 PRD §二决策记录拍板）。新增 `ERROR_HAS_PEM_HEADERS` / `ERROR_INVALID_FORMAT` 两条分支化文案常量；`USER_FRIENDLY_ERROR` 兼容别名指向 `ERROR_INVALID_FORMAT`。② `admin-web/src/app/(admin)/payment-config/page.tsx` 中支付宝 H5 / 支付宝 APP 的「应用私钥」字段：placeholder 改为直白指令型「`粘贴密钥工具生成的中间 Base64 内容，不要包含 BEGIN/END 头尾`」；下方蓝色提示精简为单句「`仅粘贴中间部分。粘了 BEGIN/END 头尾会被判为格式错误。`」（删除原 6 行多形态兼容说明）。③ `backend/tests/test_alipay_private_key_format.py` 完整重写：覆盖 PRD §六 全部 8 个回归用例（T1~T8），新增「含头尾必须报错」用例 4 条（含完整 PKCS#8 PEM / 完整 PKCS#1 PEM / 仅 BEGIN/END 两行 / 公钥 PUBLIC KEY），删除原「兼容头尾」预期改为报错预期，保留脏字符清洗用例 2 条（whitespace/BOM/零宽/全角）。**测试**：本地与服务器容器内均 **19/19 PASS in 0.36s**。**部署**：paramiko SFTP 直传 3 个文件 → `docker compose build backend admin-web` → `up -d` → 容器内 `pip install pytest pytest-asyncio aiosqlite` → `pytest --noconftest` 19 用例全绿，admin/api/health/h5 三入口 200。**回归保护**：入库存储格式仍为标准 PKCS#8 PEM（含头尾，由后端自动包装入库）；签名/验签业务逻辑完全不变；支付宝平台公钥配置流程完全不变；存量数据库中已存的私钥不重新校验。
+
+### 涉及文件（3 个）
+
+**Backend — 核心改动**：
+- `backend/app/utils/rsa_key.py`（**重写**，~190 行）：① 新增 `_PEM_BEGIN_RE` / `_PEM_END_RE` 头尾检测正则（`-----BEGIN[^-]*-----` / `-----END[^-]*-----`），改为 OR 短路（任一命中即报错）；② `_has_pem_headers` 改为 `BEGIN OR END` 而非原 `BEGIN AND END`，覆盖「仅 BEGIN/END 两行（中间空）」场景；③ 删除 `_wrap_pkcs1_pem` 调用（仅保留 `_wrap_pkcs8_pem`）；④ 删除字符长度阈值（`if len(payload) < 200` 检查），仅保留「`if not payload`」空检查；⑤ 引入 `ERROR_HAS_PEM_HEADERS` / `ERROR_INVALID_FORMAT` 分支化文案；⑥ 保留 `_strip` 不可见字符清洗（BOM `\ufeff` / 零宽 `\u200b-\u200f` / 行段分隔符 `\u2028\u2029` / 全角空格 `\u3000` / 不间断空格 `\u00a0`）；⑦ 保留 `_extract_base64_payload` 仅保留 `[A-Za-z0-9+/=]` 字符的容错提取；⑧ `validate_rsa_private_key` 不抛异常版本保持外部接口签名兼容。
+
+**Admin-Web — 文案改造**：
+- `admin-web/src/app/(admin)/payment-config/page.tsx`：① 删除 `isAlipayPrivateKeyForPlaceholder` 重复判断常量，统一使用单一 `isAlipayPrivateKey`；② placeholder 改为「`粘贴密钥工具生成的中间 Base64 内容，不要包含 BEGIN/END 头尾`」；③ `extraHint` 从原 6 行带 ① ② ③ 形态枚举的多行说明精简为单行「`仅粘贴中间部分。粘了 BEGIN/END 头尾会被判为格式错误。`」（PRD §三 直白指令型 X 风格）；④ 不动其他字段（display_name / notify_url / return_url / sort_order / access_mode 等）以及微信支付字段。
+
+**Backend 回归测试 — 重写**：
+- `backend/tests/test_alipay_private_key_format.py`（**重写**，~250 行 / 19 用例 PASS）：** PRD §六 全部 8 个用例**：
+  - T1 纯中间 Base64 → PASS（标准化为 PKCS#8 PEM 且可重新加载）
+  - T1 衍生 idempotent → 标准化结果（含头尾）二次传入应报头尾错（验证收窄）
+  - T2 中间 Base64 + 多余空格/换行 → PASS（清洗后通过）
+  - T3 中间 Base64 + BOM/零宽/全角空格 → PASS
+  - T4 完整 PKCS#8 PEM → 报错 `ERROR_HAS_PEM_HEADERS`
+  - T5 完整 PKCS#1 PEM → 报错 `ERROR_HAS_PEM_HEADERS`
+  - T6 仅 BEGIN/END 两行（中间空） + T6 衍生（仅 BEGIN / 仅 END）→ 报错 `ERROR_HAS_PEM_HEADERS`
+  - T7 公钥 BEGIN PUBLIC KEY → 报错 `ERROR_HAS_PEM_HEADERS`
+  - T8 乱码 / T8 衍生（合法 base64 但非 RSA / 空 / 仅空白）→ 报错 `ERROR_INVALID_FORMAT`
+  - validate 接口 ok=True/False 用例 3 条
+  - 文案合规检查 3 条（`ERROR_HAS_PEM_HEADERS` / `ERROR_INVALID_FORMAT` / `USER_FRIENDLY_ERROR` 别名 = `ERROR_INVALID_FORMAT`）
+
+**部署辅助**：
+- `_deploy_alipay_narrow.py`（部署脚本，paramiko SFTP + docker compose build + up -d + 容器内 pytest + curl 三端点）
+- `_run_pytest_in_container.py`（容器内 pip install + `--noconftest` 跑 pytest）
+- `_deploy_alipay_narrow.log` / `_run_pytest_in_container.log`（部署日志）
+
+**用户体验手册**：
+- `user_docs/支付宝应用私钥校验收窄.md`（含访问链接×2 / 功能简介 / 本次客户端变更说明 / 报错文案对照表 / 注意事项）
+
+### 关键决策（PRD §二）
+| 决策点 | 用户选择 | 落地动作 |
+|---|---|---|
+| 含 PEM 头尾输入 | A 完全不接受 | 检测到 BEGIN/END 直接抛错，不再尝试加载 |
+| 报错时一键修正提示 | B 不用，简单一句话 | 报错文案保持单句 |
+| Base64 长度阈值 | B 不加 | 删除原 `len(payload) < 200` 检查，仅依赖 ASN.1 解析 |
+| 文案风格 | A 直白指令型（X 风格） | placeholder/提示用命令式短句 |
+
+### 验证结果
+- ✅ 本地 `pytest tests/test_alipay_private_key_format.py` → 19/19 PASS
+- ✅ 服务器容器内 `docker exec backend pytest --noconftest tests/...` → **19/19 PASS in 0.36s**
+- ✅ admin (200) / api/health (200) / h5 (200) 三个核心入口可达
+- ✅ 客户端代码（flutter_app / 微信小程序 / 桌面端）完全未改，无需重新打包
+
+---
+
 ## Latest Update: 门店改期通知三通道 F-11 落地（2026-05-05 14:24）
 
 ### 一句话结论
