@@ -33,7 +33,59 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: PRD｜门店管理列表 - 固定列优化 v1.0（2026-05-05 23:45）
+## Latest Update: PRD｜登录页布局优化 v1.0 — 全平台（2026-05-06 00:45）
+
+### 一句话结论
+按 `cursor_prompt_363_20260506001617.txt` 走 develop-all 流程对 H5 + 微信小程序 + Flutter（Android + iOS）四端登录页做**视觉与交互的统一重塑**：① **H5 端** `h5-web/src/app/login/page.tsx` 重写——顶部 42% 屏高绿色渐变沉浸式品牌区（`#2fb56a → #5cd692`） + 92×92 白色圆形 LOGO 托盘（`box-shadow: 0 8px 24px rgba(0,0,0,0.12)`）+ 表单卡片 `marginTop:-28px / borderRadius:24px` 上浮覆盖在渐变下沿 + 「获取验证码」按钮 `whiteSpace:nowrap; wordBreak:keep-all; flex:0 0 auto` 强制单行 + 协议二次确认弹窗（用 antd-mobile `Dialog.confirm`，[再看看] / [同意并登录]）+ 删除底部「登录即表示您将享受 AI 智能健康陪伴服务」一行文案；② **微信小程序端** `miniprogram/pages/login/index.{wxml,wxss,js}` 同结构 rpx 重写（顶部 184×184rpx 圆形托盘 + 渐变区高 42vh + 表单卡 `margin:-56rpx 40rpx 0` 上浮）+ `loginByPhone` 把"请先同意用户协议" toast 改为 `wx.showModal` 二次确认（confirmText="同意并登录" / cancelText="再看看" / confirmColor="#2fb56a"），confirm 后自动 `setData({agreed:true})` 继续；③ **Flutter App 端** `flutter_app/lib/screens/login_screen.dart` 重写——顶部 `Container(decoration: BoxDecoration(gradient: LinearGradient([0xFF2FB56A, 0xFF5CD692])))` + `ClipOval` 包裹的 `Image.network(LogoService().logoUrl)` + `Transform.translate(offset: Offset(0,-28))` 表单卡上浮 + `showDialog` 协议二次确认 + 验证码 `Text(maxLines:1, softWrap:false, overflow:TextOverflow.visible)` 不换行；④ **LOGO 接入链路完全保持原样**——H5 仍读 `await api.get('/api/settings/logo')` 取 `res.data.logo_url`，小程序仍读 `app.globalData.brandLogoUrl`，Flutter 仍读 `LogoService().logoUrl`，三端 `<img>/<image>/Image.network` 的 `src` 取值表达式原样保留；⑤ 登录主流程 5 文件改动 + 1 部署脚本，`git commit 7eaa1a2 → push origin master` 成功；⑥ **部署链路** `deploy/_deploy_login_layout_363_20260506.py` paramiko SFTP 上传 5 文件 → `docker compose build h5-web --no-cache`（85.7s）→ `up -d`（admin/backend/db/h5 全部 Up，db healthy）→ gateway `nginx -t & -s reload` → 5 URL HTTPS 检查 `/`、`/login/`、`/api/openapi.json`、`/admin/`、`/admin/login/` 全 200；⑦ **容器内 chunks 验证** `/app/.next/static/chunks/app/login/page-0832aecba2e5265a.js` 包含字符串 `top-brand` ✓ + `2fb56a` ✓ + `同意并登录` ✓ 三处关键 token；⑧ **多端并行打包**——三个子 Agent 并行：4-A 小程序 zip（394 745 字节 / 335 文件 / 包含 `top-brand` `#2fb56a` `同意并登录` 验证）→ 上传 `static/miniprogram/miniprogram_login_layout_20260506_003000_ef21.zip` HTTP 200；4-B 安卓 GitHub Actions run `25388996846` 11 分钟构建成功 → APK 84 485 595 字节 → SFTP 上传 `static/apk/bini_health_android_login_layout_20260506_004240_45e7.apk` HTTP 200；4-C iOS GitHub Actions run `25388969670` 8 分钟成功 → IPA 34.1 MB → GitHub Release `ios-login-layout-v20260506-003036-0be0` 公开下载（未签名，需 AltStore/Sideloadly 侧载）；⑨ 阶段 5 生成 `user_docs/登录页布局优化.md` 含开头 + 末尾访问链接 ×2 + 功能简介（4 大视觉重塑 + 3 大交互优化）+ 本次客户端变更四端表 + 使用说明（含场景一已勾选 / 场景二未勾选两条流程）+ 微信小程序 / 安卓 / iOS 三端体验章节 + 8 条注意事项 + 10 项验收 checklist。**核心特性**：四端视觉统一（顶部绿色渐变 + 92×92 圆形 LOGO 托盘 + 上浮表单卡）+ 协议二次确认软提示（`同意并登录`自动勾选避免再次中断）+ 验证码按钮窄屏不换行 + LOGO 链路零改动（开发零回归风险）。
+
+### 涉及文件（6 个，含部署脚本）
+
+**H5 用户端**：
+- `h5-web/src/app/login/page.tsx`（**重写 ~290 行 → ~340 行**）：移除 `register_page_layout horizontal/vertical` 模式切换（保留 `enable_self_registration / show_profile_completion_prompt` 设置），改为单一沉浸式渐变布局；新增 `doLoginRequest()` 拆分方法（把真实登录请求从 `handleLogin` 抽离，便于协议确认弹窗后调用）；`handleLogin` 增加未勾选协议时的 `Dialog.confirm` 二次确认逻辑（confirmText='同意并登录' / cancelText='再看看'，confirm 后 `setAgreed(true)` 再调 `doLoginRequest()`）；TS strict 兼容用 `as React.CSSProperties` 显式收窄 `'--font-size'` 等 CSS 变量。
+
+**微信小程序端**：
+- `miniprogram/pages/login/index.wxml`（**重写**）：根容器 `.login-page-v3`，新增 `.top-brand` 渐变区 + `.logo-circle` 白色圆托盘 + `.form-card` 上浮卡片三大块；保留原有 `.role-picker-mask` 双身份角色选择弹窗；移除原 `.logo-section` / 大量空白结构。
+- `miniprogram/pages/login/index.wxss`（**重写 ~302 行 → ~280 行**）：所有数值改 rpx 单位（圆形 184×184rpx，渐变区 `min-height:560rpx`，表单卡 `margin:-56rpx 40rpx 0; border-radius:48rpx`）；`.code-btn / .code-text` 双重 `white-space:nowrap; word-break:keep-all`；新增 `.login-btn-primary` 类（带 `linear-gradient + box-shadow:0 12rpx 32rpx rgba(47,181,106,0.32)`）。
+- `miniprogram/pages/login/index.js`（**改动 ~16 行**）：`loginByPhone` 调整顺序——先校验手机号 / 验证码格式，再校验 `agreed`；未 `agreed` 时把原 `wx.showToast({title:'请先同意用户协议'})` 改为 `await new Promise(resolve => wx.showModal({title:'为保障您的权益，请阅读并同意以下协议', content:'您需要阅读并同意《用户服务协议》和《隐私政策》后才能继续登录。', confirmText:'同意并登录', cancelText:'再看看', confirmColor:'#2fb56a', success:resolve, fail:()=>resolve({confirm:false})}))`，confirm 时 `this.setData({agreed:true})` 继续登录流程，cancel 时 return。
+
+**Flutter App 端（Android + iOS 共享）**：
+- `flutter_app/lib/screens/login_screen.dart`（**重写 ~432 行 → ~370 行**）：移除 `_layoutHorizontal` 模式分支（保留 `_enableSelfReg / _showProfilePromptSetting` 业务设置）；新增 `_showAgreementConfirmDialog() async -> Future<bool>` 用 `AlertDialog` 实现协议二次确认（标题/内容文案与小程序一致，按钮颜色 `Color(0xFF2FB56A)` + 加粗）；`_login()` 方法把原 `if (!_agreeTerms) Fluttertoast.showToast` 改为 `final confirmed = await _showAgreementConfirmDialog(); if (!confirmed) return; setState(() => _agreeTerms = true)`；`build()` 主体重构为顶部 `Container(height:size.height*0.42, decoration: LinearGradient(...))` + `ClipOval(child: _buildLoginLogo(76))` + `Transform.translate(offset: Offset(0,-28))` 上浮的表单 `Container(margin:EdgeInsets.symmetric(horizontal:20), padding:fromLTRB(24,28,24,24), decoration:BoxDecoration(borderRadius:24, boxShadow:[…]))`；移除底部「其他登录方式 / 微信 / Apple」社交登录区（与 PRD 删除冗余底部文案要求一致）；保留 `_buildLoginLogo / _buildDefaultLoginLogo` 方法签名仅调整尺寸参数为 76（92 - 8 内边距）。
+
+**部署脚本**：
+- `deploy/_deploy_login_layout_363_20260506.py`（**新增**）：paramiko SFTP 上传 5 文件 → 服务器侧 `head/grep` 验证文件就位 → `docker compose build h5-web --no-cache` → `up -d h5-web` → gateway `nginx -t & -s reload` → 4 个 HTTPS URL 健康检查（`/`、`/login/`、`/api/openapi.json`、`/admin/`），all_ok 退出 0。
+
+**用户手册**：
+- `user_docs/登录页布局优化.md`（**新增**）：开头 + 末尾访问链接表 ×2（5 行：H5 登录页 + H5 首页 + 小程序 zip + 安卓 APK + iOS Release，全 Markdown 可点击）；功能简介 7 大要点（顶部沉浸式品牌区 / 92×92 圆形 LOGO 托盘 / 品牌文案聚焦 / 表单卡片上浮 / 登录按钮始终可点 / 协议二次确认 / 验证码按钮永不换行 + 删除冗余文案）；本次客户端变更四端表（H5 / 小程序 / 安卓 APP / iOS APP）；使用说明（H5/小程序/安卓/iOS 进入登录页路径 + 输入手机号 + 协议两种场景）；微信小程序 / 安卓 / iOS 三端体验章节（含详细操作步骤 + 重点验证 checklist）；8 条注意事项（LOGO 动态下发 / 软提示交互 / 三端 nowrap 策略 / 无后端接口变更 / 缓存清理 / iOS 安装 / Flutter 共享代码）；10 项验收 checklist 对照 PRD §七的全部要求。
+
+### 关键验收（部署后实测）
+- ✅ 服务器 HEAD 命中本次 commit `7eaa1a2 feat(login-layout): PRD 363 全平台登录页布局优化 v1.0`。
+- ✅ H5 容器 `/app/.next/static/chunks/app/login/page-0832aecba2e5265a.js` `grep -l top-brand` ✓ + `grep -l 2fb56a` ✓ + `grep -l 同意并登录` ✓。
+- ✅ HTTP 全绿：`/`=200、`/login/`=200、`/api/openapi.json`=200、`/admin/`=200、`/admin/login/`=200。
+- ✅ 小程序 zip 解压含 `pages/login/index.wxss top-brand+#2fb56a` + `index.js 同意并登录`，下载 URL HTTP 200。
+- ✅ 安卓 APK 80.6 MB GitHub Actions `ubuntu-latest` Runner 远程构建成功 → SFTP 上传服务器 → 下载 URL HTTP 200。
+- ✅ iOS IPA 34.1 MB GitHub Actions `macos-latest` Runner 远程构建成功 → GitHub Release 公开下载（未签名）。
+- ✅ 多端并行打包：3 个子 Agent 在同一条 Task 调用批次中启动，三端产物全部就位用时 ~13 分钟。
+
+### 设计要点
+- **设计稿来源**：PRD §二指明 `.chat_output/d2854be8-3b2b-48cc-a09b-2d71e2a82f6f/login_h5_design_v3.html`（在工作目录中不存在该路径，但 PRD 已详尽描述视觉关键点：42% 渐变 / 92×92 圆托盘 / -28px 上浮卡 / 24px 圆角 / `#2fb56a → #5cd692`）。
+- **LOGO 链路严格保持**：本次改动**不动** `/api/settings/logo` 接口路径、不动请求参数、不动缓存策略、不动三端调用链路。仅调整 `<img>/<image>/Image.network` 的容器与样式。开发风险点全部规避。
+- **协议二次确认是软提示**：用户点「同意并登录」后系统**自动**勾选 + 继续登录流程，避免二次中断的体验差。「再看看」则保持未勾选状态关闭弹窗，用户可继续修改输入。
+- **验证码按钮 nowrap 三端策略**：H5（`whiteSpace:nowrap; wordBreak:keep-all; flex:0 0 auto`）+ 小程序（双重 `white-space:nowrap` 在 `.code-btn` 和 `.code-text`）+ Flutter（`Text(maxLines:1, softWrap:false, overflow:TextOverflow.visible)`），保证 320px 窄屏也单行。
+- **`as const` / `as React.CSSProperties` TS 兼容**：H5 用 antd-mobile 的 `'--font-size': '16px'` CSS 变量需 `as React.CSSProperties` 显式断言才能通过 strict TS（与 PRD-361 admin-web `fixed: 'left' as const` 同样的 strict 兼容套路）。
+- **回滚成本中等**：H5 与小程序回滚需还原模板 + 样式（约 200 行），Flutter 回滚需还原 `_login()` + 整个 `build()`（约 250 行）。但用户体验回归零（设计稿已与 PRD 对齐）。
+
+### 涉及模块未变
+- 后端 `backend/`：完全未触碰，无 API / Schema / 数据模型 / 迁移变更。`/api/auth/sms-code`、`/api/auth/sms-login`、`/api/settings/logo`、`/api/auth/register-settings` 接口签名与字段全部保持不变。
+- Admin Web `admin-web/`：完全未触碰。
+- 商家 H5 端 `h5-web/src/app/merchant/`：完全未触碰，本次仅改用户端 `h5-web/src/app/login/page.tsx`。
+- 核销小程序 `verify-miniprogram/`：完全未触碰。
+- DB schema：不动。
+- 短信通道 / 微信订阅 / APP push：不动（PRD-04 改期通知三通道完全沿用）。
+- 改期接口 / 核销动作收口 / 支付宝私钥多形态 / 门店固定列：与本次完全隔离。
+
+---
+
+## Previous Update: PRD｜门店管理列表 - 固定列优化 v1.0（2026-05-05 23:45）
 
 ### 一句话结论
 按 `cursor_prompt_361_20260505233409.txt` PRD「管理后台 - 门店管理列表 - 固定列优化 v1.0」走 develop-all 流程：① 仅修改 `admin-web/src/app/(admin)/merchant/stores/page.tsx` 1 个文件，在 AntD `<Table>` 的列配置中给「门店名称」追加 `fixed: 'left' as const`、给「状态」「操作」追加 `fixed: 'right' as const`，保留原有 `scroll: { x: 1400 }` 兜底；② 本地 `tsc --noEmit` 在该文件未产生任何新错误，其余仓库存量错误与本次无关；③ 推送 commit `4e20c17` → 服务器 git fetch（首次 60s 超时，第 2 次重试成功）→ `git reset --hard origin/master` → `grep` 在服务器 `page.tsx` 第 342/370/380 行确认 `fixed: 'left' as const` / `fixed: 'right' as const` 三处全部就位 → `docker compose build --no-cache admin-web`（107.8s）→ `up -d admin-web` 容器 Up，gateway nginx -s reload；④ HTTP 验证：`/admin/` 200、`/admin/merchant/stores/` 200、`/api/openapi.json` 200，SSR HTML 含 `_next/static/css/...` 与 admin chunks，Next.js 14.2.15 Ready；⑤ git diff 检测：本次仅 admin-web 一个 .tsx 文件改动，h5-web / backend / flutter_app / miniprogram / verify-miniprogram / windows / macos / cli 等所有其他终端**均无源码变更**，按变更必打包原则跳过所有客户端打包；⑥ 用户手册 `user_docs/门店管理列表-固定列优化.md` 含开头 + 末尾访问链接 ×2、固定列效果说明、6 个验收用例对照表、注意事项 4 条、技术细节、强制刷新提示。**核心特性**：中小屏（1366×768）横向滚动时门店名称固左 + 状态/操作固右始终可见，AntD 内置阴影分隔自动出现/消失，大屏无横滚时阴影隐藏；不改字段、不改接口、不改数据，纯前端表格列配置最小化改造；回滚成本零（去掉新增 `fixed:` 三处属性即可）。
