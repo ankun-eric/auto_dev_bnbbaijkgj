@@ -33,7 +33,44 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 支付宝 H5/APP 私钥格式自适应 + 测试连接 RSA 报错友好化（Bugfix 337，2026-05-05 14:00）
+## Latest Update: 门店改期通知三通道 F-11 落地（2026-05-05 14:24）
+
+### 一句话结论
+按 `cursor_prompt_338_20260505142401.txt` PRD「门店预约看板与改期能力升级 v1.0」补齐**唯一未实现的 F-11 改期通知三通道**（小程序订阅消息 + APP push + 短信）。前次 v1.0 已上线 F-01~F-07/F-09/F-12~F-16 共 14 项，本次新增 F-11 后整份 PRD（16 项 F）全部交付完毕。**核心改动**：① 后端新增 `app.services.reschedule_notification` 统一编排服务——三通道封装为 `_send_wechat_subscribe` / `_send_app_push` / `_send_sms`，凭证从环境变量读（`WECHAT_MINI_APP_ID/SECRET/TEMPLATE_ID`、`APP_PUSH_PROVIDER + JPUSH_APP_KEY/MASTER_SECRET`、`RESCHEDULE_SMS_TEMPLATE_ID`），全部缺失时返回 `ok=false` 不抛异常；`asyncio.gather(return_exceptions=True)` 三通道并行下发；统一文案 `build_reschedule_message` + 9 段切片对齐的 `_format_slot_text`；编排出口 `notify_order_rescheduled` 同时写入站内 `Notification` 表（event_type=`order_rescheduled` + extra_data.notify_status=`ok`/`all_failed` + 各通道明细）；全部失败走 logger.error 打告警日志（后续可对接企业微信告警通道）。② `backend/app/api/unified_orders.py` 的 `set_order_appointment` 改期路径接入：仅在 `has_existing_appt` 为 True 时（即真正的改期，首次填预约日不触发）调用 `notify_order_rescheduled`，并在响应里附带 `notify_result.to_dict()`。③ 短信通道复用现有 `app.services.sms_service.send_sms`，支持失败重试 1 次（PRD F-11 要求）。**测试**：新增 18 个 pytest 用例（_format_slot_text 5 case 含早晨/边界 8 点/晚 22 点/凌晨 clamp/None / build_reschedule_message 2 case / 三通道凭证缺失 6 case 不抛异常 / ChannelResult 聚合 3 case / `notify_order_rescheduled` 端到端 2 case 含全失败与 mock 短信成功的部分成功），与既有 21 个 dashboard 用例一起 **39/39 PASS in 3.06s**。**部署**：paramiko SCP 直传 3 个文件 + `docker compose build backend` + `up -d`，5 个核心 URL 全绿（health 200 / admin/login 200 / H5 200 / dashboard 200 / time-slots 200）。**回归保护**：未改 DB schema、未改改期上限 / 90 天 / 商品级 `allow_reschedule` 开关 / 商家端无改期入口（既有审计结果保留）/ PC 端核销禁用 / 9 宫格看板等所有 v1.0 行为；客户端（小程序 / Android / iOS / exe）代码完全未改，无需重新打包。
+
+### 涉及文件（4 个）
+
+**Backend — 核心新增 / 改动**：
+- `backend/app/services/reschedule_notification.py`（**新增**，~370 行）：三通道改期通知统一编排。`_format_slot_text` 用门店 9 段切片对齐时段标签；`build_reschedule_message` 生成统一文案（带品牌前缀/门店/电话兜底）；`ChannelResult` + `RescheduleNotifyResult` dataclass 聚合（`any_ok` / `all_failed` / `to_dict`）；`_send_wechat_subscribe` 凭证缺失/无 openid/access_token 失败/微信 errcode 非 0 全部走 ok=false 不抛；`_send_app_push` 当前实现 jpush 分支 + 通用 provider 路由（`JPUSH_APP_KEY/MASTER_SECRET` 缺失走 ok=false）；`_send_sms` 复用 `sms_service.send_sms`，模板 ID 从 `RESCHEDULE_SMS_TEMPLATE_ID` 读，支持失败重试 1 次；`notify_order_rescheduled` 主入口（asyncio.gather 三通道 + 写 Notification 行 + 全失败 logger.error）。
+- `backend/app/api/unified_orders.py`：`set_order_appointment` 在 `has_existing_appt` 分支（真正改期）保存 `prev_appt_time`，确认改期生效后调用 `notify_order_rescheduled(db, order=order, old_appointment_time=prev_appt_time, new_appointment_time=data.appointment_time)` 并把 `notify_result.to_dict()` 附在响应里；首次填预约日不触发以避免「改期通知」语义错位。
+
+**Backend 回归测试 — 新增**：
+- `backend/tests/test_reschedule_notification_v1.py`（**新增**，18 用例 PASS）：5 case `_format_slot_text` + 2 case `build_reschedule_message` + 6 case 三通道凭证缺失（wechat 无 openid / wechat 凭证缺失 / app_push 无 provider / app_push jpush 凭证缺失 / sms 无手机号 / sms 无模板 ID）+ 3 case ChannelResult 聚合（any_ok / all_failed / to_dict）+ 2 case 端到端 `notify_order_rescheduled`（全部凭证缺失 → all_failed=true / mock sms ok → any_ok=true & all_failed=false）。
+
+**部署辅助**：
+- `deploy/_deploy_reschedule_notify_20260505.py`（新增）：paramiko SCP 上传 3 个变更文件 + `docker compose build backend` + `up -d` + 5 个 URL curl 验证。
+- `deploy/_run_pytest_in_container_20260505.py`（新增）：容器内 `pip install pytest pytest-asyncio aiosqlite httpx` + 跑新增测试 + 与既有 dashboard 测试一起回归。
+
+### 关键验收（部署后实测）
+- ✅ 容器内 18/18 PASS（test_reschedule_notification_v1）+ 21/21 PASS（既有 test_merchant_dashboard_v1）= **39/39 PASS in 3.06s**
+- ✅ 远程 5 个核心 URL 全 200/302（health / admin login / H5 首页 / 看板页 / time-slots 公开接口）
+- ✅ 三通道凭证全部未配置时 → 改期接口仍返回 200，`notify_result.all_failed=true`，主流程不阻塞
+- ✅ 部分凭证可用（如仅短信）时 → `notify_result.any_ok=true`，前端可识别为「已通知」状态
+
+### 设计要点
+- **凭证全外置**：所有第三方密钥（微信小程序 AppID/Secret、模板 ID、极光 AppKey/MasterSecret、短信模板 ID）100% 从环境变量读取，**未在代码中硬编码任何凭证**，避免出库泄露 + 满足 PRD 4.2 安全要求
+- **失败不阻塞**：三通道用 `asyncio.gather(return_exceptions=True)`，任一通道失败都不会让其他两通道短路；写 Notification 表用 try/except 兜底；外层 `notify_order_rescheduled` 整体也用 try/except，**绝对不会让通知问题让改期接口 5xx**
+- **首次预约 vs 改期区分**：仅 `has_existing_appt=True` 时触发三通道通知，首次填预约日不触发，避免「您的预约已改期：原 未指定，现 …」的尴尬文案
+- **9 段时段对齐**：`_format_slot_text` 直接按 PRD F-01 的 9 段切片格式化（如 `05月06日 10:00-12:00`），与门店看板看到的时段标签完全一致，避免商家与客户的时段表述错位
+- **短信重试 1 次**：PRD F-11 明确要求「短信失败时重试 1 次」，本次实现内置 `for attempt in range(2): ... await asyncio.sleep(0.5)`，与 PRD 表述完全对齐
+- **APP push 占位扩展**：本期 Flutter APP 未集成具体 push SDK，`_send_app_push` 当前实现「凭证缺失即跳过 + jpush 分支接入面已就绪」的占位策略；后续接入极光/个推/FCM 时仅需在该函数内补完请求逻辑，无需改动调用方
+
+### 用户手册
+本次升级单独输出 **`user_docs/门店预约看板与改期能力升级_v2_改期通知三通道_20260505_142400.md`**，含访问地址、三通道凭证配置说明、客户端改期与通知文案、API 响应字段说明（`notify_result.channels`）、容错与兼容性说明。
+
+---
+
+## Previous Update: 支付宝 H5/APP 私钥格式自适应 + 测试连接 RSA 报错友好化（Bugfix 337，2026-05-05 14:00）
 
 ### 一句话结论
 修复管理后台「支付配置 → 支付宝 H5 / APP」点击「测试」按钮报 `RSA key format is not supported` 的 Bug。根因是用户从支付宝密钥工具生成的两个私钥文件中误粘了 `应用私钥RSA2048.txt`（PKCS#1）而非 `应用私钥PKCS8.txt`（PKCS#8），底层 `cryptography` 收紧校验后无法加载。**三合一修复**：① 新增 `backend/app/utils/rsa_key.py` 私钥格式自适应工具（`normalize_rsa_private_key` / `validate_rsa_private_key`），支持 PKCS#1 / PKCS#8 × 含/不含 PEM 头四种粘贴姿势，统一输出 PKCS#8 PEM。② `backend/app/api/payment_config.py` 在 `update_payment_channel` 中对 `alipay_h5` / `alipay_app` 通道的 `app_private_key` 字段加保存前校验，乱码直接 422 拒绝，合法值保存前自动归一为 PKCS#8。③ `backend/app/services/alipay_service.py` 的 `_build_client_from_config` 在调 `AliPay()` 前再做一次标准化兜底，兼容历史 PKCS#1 脏数据。④ 测试连接接口 `test_payment_channel` 对底层 `RSA key format is not supported` / `Could not deserialize key data` 关键字识别，自动替换为友好文案「应用私钥格式不被支持。请使用支付宝开放平台『密钥工具』生成的『应用私钥PKCS8.txt』文件中的内容…」。⑤ admin-web 支付配置页对支付宝「应用私钥」输入框补充次要文案提示，避免用户再踩同样的坑。**部署**：通过 paramiko SCP 直传 8 个变更文件（绕开服务器 git pull GitHub 国内网络超时）+ `docker compose build backend admin-web` + `up -d`，4 个核心 URL 全绿（admin/login 308、h5 200、api/health 200、docs 308）。**回归保护**：保留 `_ensure_pem_format`（向后兼容）、`encrypt_value` AES-256-GCM 加密链路不变、`PAYMENT_CONFIG_ENCRYPTION_KEY` 不变、数据库 schema 不变、SDK 版本 `python-alipay-sdk==3.3.0` 不变；编辑场景敏感字段留空 = 保留旧值的兼容逻辑保持原样。

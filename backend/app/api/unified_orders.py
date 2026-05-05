@@ -1961,18 +1961,41 @@ async def set_order_appointment(
         it.updated_at = datetime.utcnow()
 
     # [核销订单过期+改期规则优化 v1.0] 改约（已有过预约时间） → reschedule_count + 1
+    prev_appt_time = None
     if has_existing_appt:
+        for it in (order.items or []):
+            if getattr(it, "appointment_time", None):
+                prev_appt_time = it.appointment_time
+                break
         order.reschedule_count = rcount + 1
 
     # 关键变化：直接进入 pending_use（立即出码），跳过 appointed
     order.status = UnifiedOrderStatus.pending_use
     order.updated_at = datetime.utcnow()
+
+    # [门店预约看板与改期能力升级 v1.0 · F-11] 改期成功后并行下发三通道通知
+    # 仅在「真正的改期」（已存在预约时间）时触发；首次填预约日不触发改期通知
+    notify_result = None
+    if has_existing_appt:
+        try:
+            from app.services.reschedule_notification import notify_order_rescheduled
+            notify_result = await notify_order_rescheduled(
+                db,
+                order=order,
+                old_appointment_time=prev_appt_time,
+                new_appointment_time=data.appointment_time,
+            )
+        except Exception as _e:  # noqa: BLE001
+            import logging as _l
+            _l.getLogger(__name__).warning("notify_order_rescheduled 调度失败: %s", _e)
+
     return {
         "message": "预约已确认",
         "status": "pending_use",
         "appointment_time": data.appointment_time.isoformat(),
         "reschedule_count": int(getattr(order, "reschedule_count", 0) or 0),
         "reschedule_limit": int(getattr(order, "reschedule_limit", 3) or 3),
+        "notify_result": notify_result.to_dict() if notify_result else None,
     }
 
 
