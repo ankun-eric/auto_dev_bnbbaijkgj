@@ -40,6 +40,7 @@ from app.models.models import (
     UserCoupon,
     UserCouponStatus,
 )
+from app.utils.time_slots import appointment_to_slot as _appt_to_slot
 from app.schemas.unified_orders import (
     ALLOWED_PAYMENT_METHODS,
     PAYMENT_METHOD_TEXT_MAP,
@@ -1182,6 +1183,18 @@ async def create_unified_order(
         if bound_store_ids:
             order.store_id = bound_store_ids[0]
 
+    # [PRD-01 全平台固定时段切片体系 v1.0 · F-01-3]
+    # 下单时根据首个有 appointment_time 的 item 计算订单级 time_slot（1-9）。
+    # · 跨日订单（22:00-次日 00:00）按起始时间归段（PRD R-01-03）
+    # · 凌晨段 / 无预约时间订单 / 先下单后预约 → time_slot = NULL（PRD R-01-04）
+    _first_appt_time = None
+    for _it in data.items:
+        _appt = getattr(_it, "appointment_time", None)
+        if _appt:
+            _first_appt_time = _appt
+            break
+    order.time_slot = _appt_to_slot(_first_appt_time) if _first_appt_time else None
+
     # [订单核销码状态与未支付超时治理 v1.0]
     # 站内信文案中的 X 改为读全局 settings.PAYMENT_TIMEOUT_MINUTES，
     # 与"未支付超时自动取消"定时任务保持长期一致。
@@ -1968,6 +1981,10 @@ async def set_order_appointment(
                 prev_appt_time = it.appointment_time
                 break
         order.reschedule_count = rcount + 1
+
+    # [PRD-01 全平台固定时段切片体系 v1.0 · F-01-3]
+    # 改期生效后，订单级 time_slot 同步重算并写入；跨日按起始时间归段。
+    order.time_slot = _appt_to_slot(data.appointment_time)
 
     # 关键变化：直接进入 pending_use（立即出码），跳过 appointed
     order.status = UnifiedOrderStatus.pending_use

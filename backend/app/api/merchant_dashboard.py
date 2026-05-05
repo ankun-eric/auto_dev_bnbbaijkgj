@@ -38,58 +38,17 @@ from app.models.models import (
     User,
     UserRole,
 )
+# [PRD-01 全平台固定时段切片体系] 9 段切片定义统一从 utils 引入
+from app.utils.time_slots import (
+    SLOT_HOURS,
+    appointment_to_slot,
+    slot_label,
+    slot_window,
+)
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/merchant/dashboard", tags=["merchant-dashboard"])
-
-
-# ─────────────── 固定 9 段时段配置 ───────────────
-
-SLOT_HOURS: List[tuple[int, int]] = [
-    (6, 8),   # slot 1
-    (8, 10),  # slot 2
-    (10, 12), # slot 3
-    (12, 14), # slot 4
-    (14, 16), # slot 5
-    (16, 18), # slot 6
-    (18, 20), # slot 7
-    (20, 22), # slot 8
-    (22, 24), # slot 9
-]
-
-
-def slot_label(slot_no: int) -> str:
-    """slot 序号 1-9 → '06:00-08:00' 形式标签"""
-    if not 1 <= slot_no <= 9:
-        return ""
-    h_start, h_end = SLOT_HOURS[slot_no - 1]
-    end_str = "24:00" if h_end == 24 else f"{h_end:02d}:00"
-    return f"{h_start:02d}:00-{end_str}"
-
-
-def appointment_to_slot(dt: Optional[datetime]) -> Optional[int]:
-    """订单 appointment_time → slot 序号 1-9（凌晨段返回 None）"""
-    if not dt:
-        return None
-    h = dt.hour
-    if h < 6:
-        return None  # 凌晨段不归入 9 宫格
-    for idx, (start, end) in enumerate(SLOT_HOURS, start=1):
-        if start <= h < end:
-            return idx
-    return 9  # 22:00 后归入第 9 段
-
-
-def slot_window(target_date: date, slot_no: int) -> tuple[datetime, datetime]:
-    """slot 序号 → 该日的开始/结束 datetime"""
-    h_start, h_end = SLOT_HOURS[slot_no - 1]
-    start_dt = datetime.combine(target_date, time(h_start, 0))
-    if h_end == 24:
-        end_dt = datetime.combine(target_date + timedelta(days=1), time(0, 0))
-    else:
-        end_dt = datetime.combine(target_date, time(h_end, 0))
-    return start_dt, end_dt
 
 
 # ─────────────── 工具：解析 store_id + 鉴权 ───────────────

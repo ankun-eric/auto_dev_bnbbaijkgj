@@ -995,6 +995,18 @@ async def _sync_product_system_tables(conn: AsyncConnection) -> None:
                 pass
         if "has_reviewed" not in cols:
             await conn.execute(text("ALTER TABLE unified_orders ADD COLUMN has_reviewed BOOLEAN DEFAULT FALSE"))
+        # [PRD-01 全平台固定时段切片体系 v1.0 · F-01-3] time_slot 段号 1-9
+        if "time_slot" not in cols:
+            await conn.execute(text(
+                "ALTER TABLE unified_orders ADD COLUMN time_slot INT NULL "
+                "COMMENT '固定 9 段时段段号（1-9），凌晨段/无预约时间为 NULL'"
+            ))
+            try:
+                await conn.execute(text(
+                    "CREATE INDEX ix_unified_orders_time_slot ON unified_orders(time_slot)"
+                ))
+            except Exception:
+                pass
 
     # [订单核销码状态与未支付超时治理 v1.0] 历史脏数据一次性清洗：
     # 找到所有「unified_orders.status = cancelled 且其下任意 order_items.redemption_code_status = active」

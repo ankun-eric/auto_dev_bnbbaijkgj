@@ -1111,6 +1111,10 @@ app.include_router(cards_admin.router)
 from app.api import merchant_dashboard as _merchant_dashboard  # noqa: E402
 app.include_router(_merchant_dashboard.router)
 
+# [PRD-01 全平台固定时段切片体系 v1.0] 全平台公共接口（含 /api/common/time-slots）
+from app.api import common as _common_api  # noqa: E402
+app.include_router(_common_api.router)
+
 os.makedirs("uploads", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 

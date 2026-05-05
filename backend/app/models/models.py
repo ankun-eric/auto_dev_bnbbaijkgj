@@ -3128,6 +3128,14 @@ class UnifiedOrder(Base):
         Integer, nullable=False, default=3, server_default="3",
         comment="改期上限（统一为 3）",
     )
+    # [PRD-01 全平台固定时段切片体系 v1.0 · F-01-3]
+    # 订单所属固定 9 段时段段号（1-9），由 appointment_time 自动映射写入；
+    # 凌晨段（00:00-06:00）/ 无预约时间订单 / 历史脏数据均为 NULL。
+    # 看板 9 宫格、跨门店统计、改期通知等按时段管理能力以本字段为统一口径。
+    time_slot = mapped_column(
+        Integer, nullable=True, index=True,
+        comment="固定 9 段时段段号（1-9），凌晨/无预约时间订单为 NULL",
+    )
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

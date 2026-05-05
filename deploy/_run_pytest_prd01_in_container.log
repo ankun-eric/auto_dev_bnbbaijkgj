@@ -1,0 +1,116 @@
+﻿=== Step 1: 瀹瑰櫒鍐呭畨瑁?pytest锛堝宸茶鍒欑杩囷級 ===
+
+[REMOTE] $ docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend pip install -q pytest pytest-asyncio aiosqlite httpx 2>&1 | tail -5
+WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv
+
+[notice] A new release of pip is available: 24.0 -> 26.1.1
+[notice] To update, run: pip install --upgrade pip
+
+
+=== Step 2: 璺?PRD-01 鍗曞厓娴嬭瘯 + 鏃㈡湁鐪嬫澘/鏀规湡閫氱煡娴嬭瘯鍥炲綊 ===
+
+[REMOTE] $ docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend python -m pytest tests/test_time_slots_unified_v1.py tests/test_merchant_dashboard_v1.py tests/test_reschedule_notification_v1.py -v --noconftest --tb=short 2>&1 | tail -100
+tests/test_reschedule_notification_v1.py::test_app_push_no_provider PASSED [ 90%]
+tests/test_reschedule_notification_v1.py::test_app_push_jpush_no_creds PASSED [ 91%]
+tests/test_reschedule_notification_v1.py::test_sms_no_phone PASSED       [ 92%]
+tests/test_reschedule_notification_v1.py::test_sms_no_template PASSED    [ 93%]
+tests/test_reschedule_notification_v1.py::test_result_aggregate_any_ok PASSED [ 95%]
+tests/test_reschedule_notification_v1.py::test_result_aggregate_all_failed PASSED [ 96%]
+tests/test_reschedule_notification_v1.py::test_result_aggregate_to_dict PASSED [ 97%]
+tests/test_reschedule_notification_v1.py::test_notify_order_rescheduled_all_failed_when_no_creds PASSED [ 98%]
+tests/test_reschedule_notification_v1.py::test_notify_order_rescheduled_partial_success PASSED [100%]
+
+==================================== ERRORS ====================================
+__________________ ERROR at setup of test_time_slots_endpoint __________________
+file /app/tests/test_merchant_dashboard_v1.py, line 106
+  @pytest.mark.asyncio
+  async def test_time_slots_endpoint(client):
+      resp = await client.get("/api/merchant/dashboard/time-slots")
+      assert resp.status_code == 200
+      data = resp.json()
+      assert len(data["slots"]) == 9
+      assert data["slots"][0] == {
+          "slot_no": 1,
+          "label": "06:00-08:00",
+          "start_hour": 6,
+          "end_hour": 8,
+      }
+      assert data["slots"][-1]["label"] == "22:00-24:00"
+E       fixture 'client' not found
+>       available fixtures: _class_scoped_runner, _function_scoped_runner, _module_scoped_runner, _package_scoped_runner, _session_scoped_runner, anyio_backend, anyio_backend_name, anyio_backend_options, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, doctest_namespace, event_loop_policy, free_tcp_port, free_tcp_port_factory, free_udp_port, free_udp_port_factory, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, unused_tcp_port, unused_tcp_port_factory, unused_udp_port, unused_udp_port_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/app/tests/test_merchant_dashboard_v1.py:106
+______________ ERROR at setup of test_dashboard_day_requires_auth ______________
+file /app/tests/test_merchant_dashboard_v1.py, line 123
+  @pytest.mark.asyncio
+  async def test_dashboard_day_requires_auth(client):
+      resp = await client.get("/api/merchant/dashboard/day?date=2026-05-05")
+      assert resp.status_code in (401, 403)
+E       fixture 'client' not found
+>       available fixtures: _class_scoped_runner, _function_scoped_runner, _module_scoped_runner, _package_scoped_runner, _session_scoped_runner, anyio_backend, anyio_backend_name, anyio_backend_options, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, doctest_namespace, event_loop_policy, free_tcp_port, free_tcp_port_factory, free_udp_port, free_udp_port_factory, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, unused_tcp_port, unused_tcp_port_factory, unused_udp_port, unused_udp_port_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/app/tests/test_merchant_dashboard_v1.py:123
+_____________ ERROR at setup of test_dashboard_week_requires_auth ______________
+file /app/tests/test_merchant_dashboard_v1.py, line 129
+  @pytest.mark.asyncio
+  async def test_dashboard_week_requires_auth(client):
+      resp = await client.get("/api/merchant/dashboard/week?date=2026-05-05")
+      assert resp.status_code in (401, 403)
+E       fixture 'client' not found
+>       available fixtures: _class_scoped_runner, _function_scoped_runner, _module_scoped_runner, _package_scoped_runner, _session_scoped_runner, anyio_backend, anyio_backend_name, anyio_backend_options, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, doctest_namespace, event_loop_policy, free_tcp_port, free_tcp_port_factory, free_udp_port, free_udp_port_factory, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, unused_tcp_port, unused_tcp_port_factory, unused_udp_port, unused_udp_port_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/app/tests/test_merchant_dashboard_v1.py:129
+_____________ ERROR at setup of test_dashboard_month_requires_auth _____________
+file /app/tests/test_merchant_dashboard_v1.py, line 135
+  @pytest.mark.asyncio
+  async def test_dashboard_month_requires_auth(client):
+      resp = await client.get("/api/merchant/dashboard/month?year=2026&month=5")
+      assert resp.status_code in (401, 403)
+E       fixture 'client' not found
+>       available fixtures: _class_scoped_runner, _function_scoped_runner, _module_scoped_runner, _package_scoped_runner, _session_scoped_runner, anyio_backend, anyio_backend_name, anyio_backend_options, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, doctest_namespace, event_loop_policy, free_tcp_port, free_tcp_port_factory, free_udp_port, free_udp_port_factory, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, unused_tcp_port, unused_tcp_port_factory, unused_udp_port, unused_udp_port_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/app/tests/test_merchant_dashboard_v1.py:135
+_____________ ERROR at setup of test_dashboard_slot_requires_auth ______________
+file /app/tests/test_merchant_dashboard_v1.py, line 141
+  @pytest.mark.asyncio
+  async def test_dashboard_slot_requires_auth(client):
+      resp = await client.get("/api/merchant/dashboard/slot/2026-05-05/3")
+      assert resp.status_code in (401, 403)
+E       fixture 'client' not found
+>       available fixtures: _class_scoped_runner, _function_scoped_runner, _module_scoped_runner, _package_scoped_runner, _session_scoped_runner, anyio_backend, anyio_backend_name, anyio_backend_options, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, doctest_namespace, event_loop_policy, free_tcp_port, free_tcp_port_factory, free_udp_port, free_udp_port_factory, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, unused_tcp_port, unused_tcp_port_factory, unused_udp_port, unused_udp_port_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/app/tests/test_merchant_dashboard_v1.py:141
+___________ ERROR at setup of test_dashboard_month_day_requires_auth ___________
+file /app/tests/test_merchant_dashboard_v1.py, line 147
+  @pytest.mark.asyncio
+  async def test_dashboard_month_day_requires_auth(client):
+      resp = await client.get("/api/merchant/dashboard/month-day?date=2026-05-05")
+      assert resp.status_code in (401, 403)
+E       fixture 'client' not found
+>       available fixtures: _class_scoped_runner, _function_scoped_runner, _module_scoped_runner, _package_scoped_runner, _session_scoped_runner, anyio_backend, anyio_backend_name, anyio_backend_options, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, doctest_namespace, event_loop_policy, free_tcp_port, free_tcp_port_factory, free_udp_port, free_udp_port_factory, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, unused_tcp_port, unused_tcp_port_factory, unused_udp_port, unused_udp_port_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/app/tests/test_merchant_dashboard_v1.py:147
+=============================== warnings summary ===============================
+../usr/local/lib/python3.11/site-packages/passlib/utils/__init__.py:854
+  /usr/local/lib/python3.11/site-packages/passlib/utils/__init__.py:854: DeprecationWarning: 'crypt' is deprecated and slated for removal in Python 3.13
+    from crypt import crypt as _crypt
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+ERROR tests/test_merchant_dashboard_v1.py::test_time_slots_endpoint
+ERROR tests/test_merchant_dashboard_v1.py::test_dashboard_day_requires_auth
+ERROR tests/test_merchant_dashboard_v1.py::test_dashboard_week_requires_auth
+ERROR tests/test_merchant_dashboard_v1.py::test_dashboard_month_requires_auth
+ERROR tests/test_merchant_dashboard_v1.py::test_dashboard_slot_requires_auth
+ERROR tests/test_merchant_dashboard_v1.py::test_dashboard_month_day_requires_auth
+=================== 77 passed, 1 warning, 6 errors in 1.53s ====================
+
+
+=== Done ===
+  pytest: FAIL
