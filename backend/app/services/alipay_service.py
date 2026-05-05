@@ -101,9 +101,23 @@ def _build_client_from_config(channel_code: str, runtime_cfg: dict) -> Any:
 
     app_id = (runtime_cfg.get("app_id") or "").strip()
     access_mode = (runtime_cfg.get("access_mode") or "public_key").strip()
-    app_private_key = _ensure_pem_format(runtime_cfg.get("app_private_key") or "")
-    if not app_id or not app_private_key:
+    app_private_key_raw = _ensure_pem_format(runtime_cfg.get("app_private_key") or "")
+    if not app_id or not app_private_key_raw:
         raise ValueError("支付宝配置缺失：app_id 或 app_private_key 为空")
+    # [Bug 修复 2026-05-05] 运行时统一标准化为 PKCS#8 PEM，兼容历史脏数据
+    # （PKCS#1 / 裸 base64 / 含 PEM 头的 PKCS#1 等），避免底层 cryptography
+    # 抛 "RSA key format is not supported"。
+    try:
+        from app.utils.rsa_key import (
+            normalize_rsa_private_key,
+            InvalidRSAPrivateKeyError,
+        )
+        app_private_key = normalize_rsa_private_key(app_private_key_raw)
+    except InvalidRSAPrivateKeyError as e:
+        raise ValueError(
+            f"数据库中保存的应用私钥格式无法识别（{e}），"
+            "请到「管理后台 → 支付配置」重新填写 PKCS#8 格式的应用私钥"
+        ) from e
 
     common_kwargs = dict(
         appid=app_id,

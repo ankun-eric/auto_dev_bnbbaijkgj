@@ -568,9 +568,24 @@ export default function PaymentConfigPage() {
               ? '留空表示不修改原值；填写新值则会加密保存'
               : `请输入${f.label}`;
 
+            // [Bug 修复 2026-05-05] 支付宝「应用私钥」输入框补充格式提示，
+            // 避免用户误粘 PKCS#1（应用私钥RSA2048.txt）导致测试连接报
+            // "RSA key format is not supported"。
+            const isAlipayPrivateKey =
+              f.key === 'app_private_key' &&
+              (drawerCode === 'alipay_h5' || drawerCode === 'alipay_app');
+            const extraHint = isAlipayPrivateKey ? (
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                请粘贴支付宝密钥工具生成的「应用私钥PKCS8.txt」文件内容
+                （<Text type="warning">注意不是 应用私钥RSA2048.txt</Text>）。
+                系统会自动识别 PKCS#1/PKCS#8、含/不含 PEM 头四种格式并统一转换。
+              </Text>
+            ) : null;
+
             return (
               <Form.Item
                 key={f.key}
+                extra={extraHint}
                 label={
                   f.uploadable ? (
                     <Space>

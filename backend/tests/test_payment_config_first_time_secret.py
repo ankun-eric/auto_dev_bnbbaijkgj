@@ -25,6 +25,25 @@ from app.utils.crypto import (
     encrypt_value,
     is_encrypted,
 )
+# [Bug 修复 2026-05-05] 后端在 PUT 接口对 alipay_h5 / alipay_app 的
+# app_private_key 字段做格式校验（PKCS#1 / PKCS#8 自适应标准化），
+# 因此本测试模块需要使用一把真实可解析的 RSA 私钥（PEM 形式）。
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa as _rsa
+
+
+def _gen_pkcs8_pem() -> str:
+    key = _rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    return key.private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.PKCS8,
+        encryption_algorithm=serialization.NoEncryption(),
+    ).decode("utf-8")
+
+
+# 模块级单次生成，所有测试共享（避免每个测试都生成 2048 位 RSA，慢）
+_TEST_PKCS8_PEM_FIRST = _gen_pkcs8_pem()
+_TEST_PKCS8_PEM_SECOND = _gen_pkcs8_pem()
 
 
 DEFAULT_SEEDS = [
@@ -135,7 +154,9 @@ async def test_edit_blank_secret_keeps_old_value(
         "config": {
             "app_id": "2021999999999999",
             "access_mode": "public_key",
-            "app_private_key": "-----BEGIN RSA PRIVATE KEY-----\nFIRST_KEY_VALUE\n-----END RSA PRIVATE KEY-----",
+            # 使用真实可解析的 PKCS#8 PEM（满足新增的 RSA 私钥格式校验）
+            "app_private_key": _TEST_PKCS8_PEM_FIRST,
+            # 支付宝公钥目前不做格式校验，保留任意 PEM 字符串
             "alipay_public_key": "-----BEGIN PUBLIC KEY-----\nFIRST_PUB_KEY\n-----END PUBLIC KEY-----",
         }
     }
@@ -223,7 +244,8 @@ async def test_first_time_cert_mode_blank_root_cert_returns_422(
             "config": {
                 "app_id": "2021000000000001",
                 "access_mode": "cert",
-                "app_private_key": "-----BEGIN RSA PRIVATE KEY-----\nfake\n-----END RSA PRIVATE KEY-----",
+                # 使用真实可解析的 PKCS#8 PEM 以通过新增的 RSA 私钥格式校验
+                "app_private_key": _TEST_PKCS8_PEM_SECOND,
                 "app_public_cert": "",  # 关键：空值
                 "alipay_root_cert": "-----BEGIN CERT-----\nroot\n-----END CERT-----",
                 "alipay_public_cert": "-----BEGIN CERT-----\npub\n-----END CERT-----",

@@ -453,6 +453,24 @@ async def update_payment_channel(
             if is_mask:
                 continue
 
+            # [Bug 修复 2026-05-05] 支付宝通道 app_private_key 字段在落库前
+            # 必须先做格式校验 + PKCS#8 标准化，避免静默存入 PKCS#1 私钥
+            # 导致后续测试连接时抛 "RSA key format is not supported"。
+            if (
+                k == "app_private_key"
+                and channel_code in ("alipay_h5", "alipay_app")
+            ):
+                try:
+                    from app.utils.rsa_key import validate_rsa_private_key
+                except Exception:  # noqa: BLE001
+                    validate_rsa_private_key = None  # type: ignore
+                if validate_rsa_private_key is not None:
+                    ok, normalized, reason = validate_rsa_private_key(str(v))
+                    if not ok:
+                        raise HTTPException(status_code=422, detail=reason)
+                    # 用标准化后的 PKCS#8 PEM 入库（同一份私钥，仅格式归一）
+                    v = normalized
+
             new_cfg[k] = encrypt_value(str(v))
         # 完整性重算
         # 校验完整性时使用"是否填充"（敏感字段填充以 ENC:: 起头亦视作已填）
@@ -605,6 +623,19 @@ async def test_payment_channel(
                 or "failed to establish a new connection" in lower
             ):
                 friendly = "网络不通：无法连接支付宝网关，请检查出网/防火墙"
+            elif (
+                "rsa key format is not supported" in lower
+                or "could not deserialize key data" in lower
+                or "unsupported" in lower and "key" in lower
+                or "格式无法识别" in err_text
+                or "格式不被支持" in err_text
+            ):
+                friendly = (
+                    "「应用私钥」格式不被支持。请使用支付宝开放平台「密钥工具」"
+                    "生成的「应用私钥PKCS8.txt」文件中的内容"
+                    "（注意：不是「应用私钥RSA2048.txt」）。"
+                    "点击「保存」后再点「测试」即可。"
+                )
             else:
                 friendly = f"调用支付宝异常：{err_text}"
             ch.last_test_at = datetime.utcnow()
