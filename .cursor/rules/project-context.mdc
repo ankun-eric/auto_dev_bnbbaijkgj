@@ -33,7 +33,58 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 门店预约看板与改期能力升级 v1.0（2026-05-05 13:18）
+## Latest Update: 营业时间下拉去重 + 改约按钮文案统一（Bugfix 336，2026-05-05 13:42）
+
+### 一句话结论
+按 `cursor_prompt_336_20260505132132.txt` 修复方案 v1 落地两个独立模块的 UI/交互层 Bug，**全端一次性修复**：① **Bug 1**：admin 后台「门店管理 → 编辑/新增门店」表单中「营业时间-截止时间」下拉框重复出现两次 `22:00` 选项 — 根因为 `BUSINESS_END_OPTIONS` 在循环 `for h<=22` 已经包含 22:00 后，又额外 `out.push({label:'22:00', value:'22:00'})`，导致 `22:00` 重复；修复 = 删除多余的 push（`admin-web/src/app/(admin)/merchant/stores/page.tsx` + `h5-web/src/app/merchant/store-settings/page.tsx`）。② **Bug 2**：H5/小程序/Flutter 三端订单列表+订单明细底部「改约」按钮，订单达改期上限时文案为 `改约（已无法改期）`，过长撑破布局；修复 = 文案统一精简为 `改约` 两个字，**置灰样式保留**，点击 Toast/SnackBar「本订单已达改期上限」**完整保留**（H5: `unified-orders/page.tsx` + `unified-order/[id]/page.tsx`；小程序: `pages/unified-orders/index.wxml` + `pages/unified-order-detail/index.wxml`；Flutter: `lib/screens/order/unified_orders_screen.dart` + `unified_order_detail_screen.dart`）。**部署**：paramiko SCP 上传 8 个变更文件 + `docker compose build admin-web h5-web` + `up -d`，5 个核心 URL 全绿（api/health 200、admin/login 200、admin/merchant/stores 200、unified-orders 200、merchant/store-settings 200）。**多端打包**：3 个并行子 Agent 同时跑通 — 小程序 zip（391KB / 334 文件，已上传 `/static/miniprogram/`）+ Android APK（GHA 远程构建 8.6 分钟、84.5MB）+ iOS IPA（GHA 远程构建、34MB，未签名需侧载）。**回归保护**：`canReschedule=true` 分支按钮文案/样式/跳转改约流程一切不变；改期规则（上限 3 次、明天起 90 天、商品级 `allow_reschedule` 开关）不变。
+
+### 涉及文件（10 个）
+
+**Admin Web — Bug 1**：
+- `admin-web/src/app/(admin)/merchant/stores/page.tsx`：`BUSINESS_END_OPTIONS` 删除冗余的 `out.push({label:'22:00', value:'22:00'})`，循环本身已经在 `h<=22 + h===22 && m===30 break` 时正确覆盖 22:00，去重后整组结束时间唯一。
+
+**H5 Web — Bug 1 + Bug 2**：
+- `h5-web/src/app/merchant/store-settings/page.tsx`：同上 `BUSINESS_END_OPTIONS` 去重。
+- `h5-web/src/app/unified-orders/page.tsx`：订单列表「改约（已无法改期）」按钮文案改为「改约」。
+- `h5-web/src/app/unified-order/[id]/page.tsx`：订单明细底部按钮同上。
+
+**微信小程序 — Bug 2**：
+- `miniprogram/pages/unified-orders/index.wxml`：把三元 `(reach_limit) ? '改约（已无法改期）' : '改约'` 简化为常量 `改约`（按钮 `is-disabled` class 仍由 `reach_limit` 控制，`onReschedule` 逻辑里达上限走 `wx.showToast({title:'本订单已达改期上限', icon:'none'})`）。
+- `miniprogram/pages/unified-order-detail/index.wxml`：订单详情底部按钮同上。
+
+**Flutter App — Bug 2**：
+- `flutter_app/lib/screens/order/unified_orders_screen.dart`：达上限分支 `_actionButton('改约（已无法改期）', ...)` → `_actionButton('改约', ...)`，置灰 + `SnackBar('本订单已达改期上限')` 不变。
+- `flutter_app/lib/screens/order/unified_order_detail_screen.dart`：底部 `_actionBtn` 同上。
+
+**部署辅助**：
+- `deploy/_deploy_bugfix_336_20260505.py`（新增）：paramiko SCP 上传 8 个文件 + `docker compose build admin-web h5-web` + `up -d` + 服务器端验证（grep 确认无残留 `out.push 22:00` 与 `已无法改期`）+ 5 个 URL curl 200 验证。
+- `deploy/_pack_miniprogram_336_20260505.py`（新增，子 Agent 创建）：本地 zip 打包 → SCP 上传至 `/home/ubuntu/.../static/miniprogram/` → curl 200 验证。
+- `deploy/_build_apk_336_20260505.py`（新增，子 Agent 创建）：`gh workflow run android-build.yml` → 轮询完成 → `gh release download` → SCP 上传至 `/home/ubuntu/.../static/apk/` → curl 200 验证。
+- `deploy/_build_ios_336_20260505.py`（新增，子 Agent 创建）：`gh workflow run ios-build.yml` → 轮询完成 → 获取 GitHub Release & IPA URL（macOS Runner 远程构建，IPA 未签名需 AltStore/Sideloadly 侧载）。
+
+### 关键验收（部署后实测）
+
+- ✅ admin 后台「编辑/新增门店」结束时间下拉，`22:00` 仅 1 项（grep -c 确认服务器端文件中 `out.push({ label: '22:00', ...})` = 0）
+- ✅ H5 + 小程序 + Flutter 三端搜索 `已无法改期` 残留 = 0（grep -rn 验证通过）
+- ✅ 远程 5 个核心 URL 全 200：`/api/health` `/admin/login/` `/admin/merchant/stores/` `/unified-orders/` `/merchant/store-settings/`
+- ✅ 多端打包产物全部上传成功并 HTTP 200：
+  - 小程序 zip：[miniprogram_20260505_133250_6836.zip](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/miniprogram/miniprogram_20260505_133250_6836.zip)
+  - Android APK：[bini_health_android_reschedule_btn_20260505_134055_a3bf.apk](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/apk/bini_health_android_reschedule_btn_20260505_134055_a3bf.apk)
+  - iOS IPA：[Release ios-v20260505-134029-0dd6](https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-v20260505-134029-0dd6)
+
+### 设计要点
+
+- **不改交互、只改文案**：达上限的所有交互（按钮置灰、点击 Toast 提示）完整保留，避免用户误以为按钮可用，也避免静默失败让用户摸不着头脑
+- **删除冗余而非替换**：营业时间下拉删除多余的 `push 22:00`（删除而非改写），因为循环本身已经正确覆盖 22:00，最小变动 + 最低风险
+- **跨平台框架共享代码识别**：Flutter 的 `lib/` 改动视为 Android + iOS 两端都有变更，必须双端打包（不可只打一端）
+- **未影响业务逻辑**：仅 UI 文案问题，不改 API、不改 DB、不改改期规则；后端无任何改动，因此本次只重建 admin-web + h5-web 两个前端容器
+
+### 用户手册
+本次 Bugfix 单独输出 **`user_docs/营业时间下拉去重与改约按钮文案统一_20260505_134200.md`**，含访问地址、验证步骤、三端打包下载链接、自测验收清单。
+
+---
+
+## Previous Update: 门店预约看板与改期能力升级 v1.0（2026-05-05 13:18）
 
 ### 一句话结论
 按 `cursor_prompt_335_20260505130809.txt` PRD v1.0 落地"门店端订单管理从列表升级为时段看板"。**核心改造**：① 后端新增 `app.api.merchant_dashboard` 模块——统一 9 段固定时段切片（每段 2h / 06:00 起 / 22-24 收尾，凌晨段不开放）+ 5 个聚合接口（`/api/merchant/dashboard/{day,week,month,month-day,slot/{date}/{slot_no}}` + 公开接口 `/time-slots`）；② admin-web 新增 `/admin/product-system/orders/dashboard` 看板页——日视图 3×3 九宫格（每格"预约 N / 已核 X / 已核金额 ¥Z" + 当前时段绿色高亮）+ 周视图 7 列卡片（删除占用率%）+ 月视图标准月历（点击日期弹"上午/下午+晚上"左右两栏）+ 9 宫格点击右侧抽屉（订单 5 字段操作型卡片：客户姓/电话/项目/状态 + 操作按钮组「核销-PC置灰 / 详情 / 复制电话」）；③ 旧订单列表页右上角加"切换到预约看板"入口；④ 金额统一不带千分位（`¥1280` 格式）；⑤ "已核金额"仅统计已核销订单。**改期权 100% 归客户端**——商家端 PC/H5 实测无任何"改时间"入口（兜底审计通过）；客户端三端（小程序/APP/H5）改期沿用既有规则（上限 3 次、明天起 90 天、商品级 `allow_reschedule` 开关、宽松校验仅校验门店营业 + 时段在营业内）。**PC 端核销禁用** — 9 宫格抽屉的"核销"按钮在 PC 端置灰，仅手机端 H5 / 核销小程序保留扫码 + 输码。**测试**：新增 21 个 pytest 用例（SLOT_HOURS 配置 / slot_label 标签 / appointment_to_slot 时段归属 + 边界 + 凌晨 / slot_window 起止时间窗 / time-slots 公开 200 / 5 个看板接口未登录 401），**21/21 PASS**。**部署**：paramiko SCP 上传 5 个文件 + `docker compose build backend admin-web` + `up -d` 完成；远程实测 6 个 URL 全绿（health 200 / time-slots 200 / orders 200 / dashboard 200 / day 未登录 401）。

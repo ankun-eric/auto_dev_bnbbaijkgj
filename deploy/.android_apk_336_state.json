@@ -1,0 +1,14 @@
+{
+  "tag": "android-v20260505-133153-5ca8",
+  "run_id": 25359634497,
+  "poll_start": 1777959128.0831618,
+  "conclusion": "success",
+  "build_duration": 520,
+  "local_apk": "C:\\auto_output\\bnbbaijkgj\\apk_download\\bini_health_android-v20260505-133153-5ca8.apk",
+  "file_size": 84485595,
+  "remote_name": "bini_health_android_reschedule_btn_20260505_134055_a3bf.apk",
+  "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/apk/bini_health_android_reschedule_btn_20260505_134055_a3bf.apk",
+  "http_code": 200,
+  "content_type": "application/vnd.android.package-archive",
+  "remote_size": 84485595
+}
