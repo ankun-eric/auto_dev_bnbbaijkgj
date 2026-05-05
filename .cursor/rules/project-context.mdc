@@ -33,7 +33,36 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: PRD｜登录页布局优化 v1.0 — 全平台（2026-05-06 00:45）
+## Latest Update: PRD-09｜商家端商菜单（预约看板）9 宫格改造 v1.0（2026-05-06 01:20）
+
+### 一句话结论
+按 `cursor_prompt_364_20260506005134.txt` 走 develop-all 流程对**商家端 PC 后台**「商菜单」预约管理页面做整体重构，严格对齐 PRD v1.0 §2.2 视觉/交互规范。**核心改动**：① 顶部新增 4 个 Tab 平铺（预约看板默认选中 / 服务分组日视图 / 资源视图 / 列表视图）；② 「预约看板」内 3 个子视图——日视图改为标准 3×3 = 9 宫格（每格显示「客户姓名 + 服务名称 + 具体时间 + 4 色状态色块」），周视图重构为 3 行 × 7 列 = 21 格（上午 06-12 / 下午 12-18 / 晚上 18-24 × 周一~周日，每格仅显示「N 个预约」徽标 + 状态色不显示客户姓名），月视图弹窗改为左右双栏联动（左栏=当天时间轴预约列表，右栏=选中预约详情卡，点击左栏自动切换右栏详情）；③ 顶部日期切换控件按 PRD 规范：`[← 前一天] [今天高亮] {日期文字} [后一天 →] [📅 日期选择器]`；④ 抽屉宽度 480px，4 个操作按钮——「核销」「修改预约时间」PC 端置灰 + 悬浮提示分别为「请到手机端核销」「请到手机端修改时段」，「取消预约」（带二次确认弹窗调 `/api/orders/{id}/cancel`） + 「联系客户」（`tel:` 协议唤起拨号 + clipboard 兜底复制）PC 端可用；⑤ 4 色状态严格采用 Ant Design 5 默认色板——待到店 `#1677FF` / 已到店 `#FA8C16` / 已核销 `#52C41A` / 已取消 `#BFBFBF`，以左侧竖条 + 右上角文字标签呈现；⑥ 旧「按服务项目分组的 9:00–20:00 时间轴大表格」**直接废弃并从代码中移除**，「服务分组日视图」Tab 仅保留按服务横向分组的卡片化展示。**后端契约扩展**——`backend/app/api/merchant_dashboard.py` 新增两个纯函数 `_status_code(status)`（订单状态 → 4 色码 pending/arrived/verified/cancelled）+ `_aggregate_status_code(codes)`（多订单聚合优先级 verified > arrived > pending > cancelled）；`/day` 接口每个 cell 新增 `top_orders[]`（前 3 条预约的 customer_name + product_name + appointment_time_text + status_code）和 `status_code` 字段；`/week` 接口在保留旧 `days[7]` 字段的同时新增 21 项 `cells[]`（含 date/weekday/period/appointment_count/status_code）+ `periods[]` 元数据；`/month` 每天新增 `status_code`；`/month-day` 新增扁平 `orders[]`（按时间排序的统一时间轴列表）+ `_build_order_card` 增加 `appointment_time_text/status_code/notes` 字段。**前端组件**——`admin-web/src/app/(admin)/product-system/orders/dashboard/page.tsx` 整页重写（963 行）：`STATUS_COLOR` 常量 + `statusBadge` Pill / 内置子组件 `ServiceGroupedDailyView` 与 `ResourceDailyView` / `boardTabContent + serviceGroupTabContent + resourceTabContent + listTabContent` 四 Tab 内容 / 月视图弹窗改为 `<Row>` 左右双栏布局（左 10/24 时间轴列表 + 右 14/24 详情卡，左侧条目点击 `setMonthSelectedItemId` 触发联动高亮 + `border:1px solid #1677FF` 选中态）+ 周格点击通过 `Promise.all` 聚合 3 个 slot 的订单合并到单个抽屉。**测试**：新增 `backend/tests/test_merchant_dashboard_grid9.py` 12 用例（`_status_code` 5 case 状态映射 / `_aggregate_status_code` 5 case 优先级 / 周视图 21 格契约 2 case），**容器内 33/33 PASS**（叠加既有 `test_merchant_dashboard_v1.py` 21 case），3 条 HTTPS smoke 全 200（`/api/merchant/dashboard/time-slots` JSON 9 段 / `/admin/product-system/orders/dashboard/` HTML / `/admin/`）。**部署**：因服务器到 GitHub 国内网络受限（5 次 fetch 全部超时），改用 paramiko SFTP 直接上传 3 个文件 → `docker compose build backend && admin-web` → `up -d --force-recreate` → 容器内 `_status_code` 出现 17 次 + chunks 内 `商菜单（预约看板）` 出现 1 次双重验证 → gateway `nginx -s reload`。**收尾**：阶段 4 仅 admin-web + backend 改动，无客户端打包；阶段 5 生成 `user_docs/商菜单预约看板9宫格改造.md`（开头 + 末尾访问链接 ×2 + 8 步使用说明 + 4 色状态识别表 + 14 条 PRD §4 验收 checklist + 7 条注意事项）。
+
+### 改动文件
+- `backend/app/api/merchant_dashboard.py`：① 新增 `_status_code` + `_aggregate_status_code` 两个纯函数；② `/day` 接口每个 cell 新增 `top_orders[]` + `status_code`，rows 改为 join `User` 取昵称/电话；③ `/week` 重构为 21 格响应（cells + periods）保留 `days[7]` 兼容；④ `/month` days 增加 status_code；⑤ `/month-day` 新增扁平 `orders[]`；⑥ `_build_order_card` 加 `appointment_time_text/status_code/notes`。
+- `admin-web/src/app/(admin)/product-system/orders/dashboard/page.tsx`：整页重写，4 顶层 Tab + 9 宫格 + 21 格周视图 + 月历双栏弹窗 + 480px 抽屉 + 4 操作按钮 + 4 色状态 Token 严格对齐 Ant Design 5。
+- `backend/tests/test_merchant_dashboard_grid9.py`（**新增**）：12 用例覆盖 4 色状态码映射与聚合优先级。
+- `_deploy_dashboard_grid9_364.py` / `_redeploy_dashboard_grid9_364.py` / `_scp_deploy_dashboard_grid9_364.py` / `_remote_test_grid9_364.py` / `_remote_test_grid9_364_v2.py`：本次部署与远程测试脚本（git fetch 受限后改 SFTP 直传）。
+
+### 验收对照（PRD §4 全部通过）
+1. ✅ 默认 Tab = 「预约看板」，默认子视图 = 9 宫格日视图；浏览器记忆 `bini_orders_dashboard_top_tab` + `bini_orders_dashboard_view`。
+2. ✅ 顶部 4 Tab 平铺：预约看板 / 服务分组日视图 / 资源视图 / 列表视图。
+3. ✅ 旧「按服务项目分组的 9:00–20:00 时间轴大表格」已从代码中彻底移除（grep 验证）。
+4. ✅ 9 宫格 3×3，每格「客户姓名 + 服务名称 + 时段 + 4 色状态色块」，PRD §2.2 时段切分（06-08 / 08-10 / 10-12 / 12-14 / 14-16 / 16-18 / 18-20 / 20-22 / 22-24）。
+5. ✅ 顶部日期控件：`[← 前一天]` + `[今天]`（当天高亮 primary） + 日期文字 + `[后一天 →]` + 📅 DatePicker + 🔄 刷新。
+6. ✅ 周视图 3×7 = 21 格，每格仅 N 徽标 + 状态色，**不显示客户姓名**。
+7. ✅ 月视图：点击某天 → Row[10/14] 左右双栏弹窗（左=时间轴预约列表 / 右=选中预约详情卡），点击左栏触发联动高亮 + 右栏切换。
+8. ✅ 三视图统一右侧抽屉，宽度 480px。
+9. ✅ 抽屉内 4 个动作按钮，PC 端「核销」「修改预约时间」`disabled + Tooltip`，「取消预约」（红色 + Modal.confirm） + 「联系客户」（tel + clipboard）可用。
+10. ✅ 「核销」悬浮提示文案：「请到手机端核销」。
+11. ✅ 「修改预约时间」悬浮提示文案：「请到手机端修改时段」。
+12. ✅ 4 色严格使用 Ant Design 5 默认色板（`#1677FF` / `#FA8C16` / `#52C41A` / `#BFBFBF`），代码中以 `STATUS_COLOR` 字典统一管理。
+13. ✅ 移动端商家端（小程序 / H5 / App）核销与修改时段功能保持原有可用性，未受 PC 改造影响。
+14. ✅ 资源视图（按资源维度卡片化） + 列表视图（一键跳订单列表页）作为辅助 Tab 保留并能正常使用。
+
+---
+
+## Previous Update: PRD｜登录页布局优化 v1.0 — 全平台（2026-05-06 00:45）
 
 ### 一句话结论
 按 `cursor_prompt_363_20260506001617.txt` 走 develop-all 流程对 H5 + 微信小程序 + Flutter（Android + iOS）四端登录页做**视觉与交互的统一重塑**：① **H5 端** `h5-web/src/app/login/page.tsx` 重写——顶部 42% 屏高绿色渐变沉浸式品牌区（`#2fb56a → #5cd692`） + 92×92 白色圆形 LOGO 托盘（`box-shadow: 0 8px 24px rgba(0,0,0,0.12)`）+ 表单卡片 `marginTop:-28px / borderRadius:24px` 上浮覆盖在渐变下沿 + 「获取验证码」按钮 `whiteSpace:nowrap; wordBreak:keep-all; flex:0 0 auto` 强制单行 + 协议二次确认弹窗（用 antd-mobile `Dialog.confirm`，[再看看] / [同意并登录]）+ 删除底部「登录即表示您将享受 AI 智能健康陪伴服务」一行文案；② **微信小程序端** `miniprogram/pages/login/index.{wxml,wxss,js}` 同结构 rpx 重写（顶部 184×184rpx 圆形托盘 + 渐变区高 42vh + 表单卡 `margin:-56rpx 40rpx 0` 上浮）+ `loginByPhone` 把"请先同意用户协议" toast 改为 `wx.showModal` 二次确认（confirmText="同意并登录" / cancelText="再看看" / confirmColor="#2fb56a"），confirm 后自动 `setData({agreed:true})` 继续；③ **Flutter App 端** `flutter_app/lib/screens/login_screen.dart` 重写——顶部 `Container(decoration: BoxDecoration(gradient: LinearGradient([0xFF2FB56A, 0xFF5CD692])))` + `ClipOval` 包裹的 `Image.network(LogoService().logoUrl)` + `Transform.translate(offset: Offset(0,-28))` 表单卡上浮 + `showDialog` 协议二次确认 + 验证码 `Text(maxLines:1, softWrap:false, overflow:TextOverflow.visible)` 不换行；④ **LOGO 接入链路完全保持原样**——H5 仍读 `await api.get('/api/settings/logo')` 取 `res.data.logo_url`，小程序仍读 `app.globalData.brandLogoUrl`，Flutter 仍读 `LogoService().logoUrl`，三端 `<img>/<image>/Image.network` 的 `src` 取值表达式原样保留；⑤ 登录主流程 5 文件改动 + 1 部署脚本，`git commit 7eaa1a2 → push origin master` 成功；⑥ **部署链路** `deploy/_deploy_login_layout_363_20260506.py` paramiko SFTP 上传 5 文件 → `docker compose build h5-web --no-cache`（85.7s）→ `up -d`（admin/backend/db/h5 全部 Up，db healthy）→ gateway `nginx -t & -s reload` → 5 URL HTTPS 检查 `/`、`/login/`、`/api/openapi.json`、`/admin/`、`/admin/login/` 全 200；⑦ **容器内 chunks 验证** `/app/.next/static/chunks/app/login/page-0832aecba2e5265a.js` 包含字符串 `top-brand` ✓ + `2fb56a` ✓ + `同意并登录` ✓ 三处关键 token；⑧ **多端并行打包**——三个子 Agent 并行：4-A 小程序 zip（394 745 字节 / 335 文件 / 包含 `top-brand` `#2fb56a` `同意并登录` 验证）→ 上传 `static/miniprogram/miniprogram_login_layout_20260506_003000_ef21.zip` HTTP 200；4-B 安卓 GitHub Actions run `25388996846` 11 分钟构建成功 → APK 84 485 595 字节 → SFTP 上传 `static/apk/bini_health_android_login_layout_20260506_004240_45e7.apk` HTTP 200；4-C iOS GitHub Actions run `25388969670` 8 分钟成功 → IPA 34.1 MB → GitHub Release `ios-login-layout-v20260506-003036-0be0` 公开下载（未签名，需 AltStore/Sideloadly 侧载）；⑨ 阶段 5 生成 `user_docs/登录页布局优化.md` 含开头 + 末尾访问链接 ×2 + 功能简介（4 大视觉重塑 + 3 大交互优化）+ 本次客户端变更四端表 + 使用说明（含场景一已勾选 / 场景二未勾选两条流程）+ 微信小程序 / 安卓 / iOS 三端体验章节 + 8 条注意事项 + 10 项验收 checklist。**核心特性**：四端视觉统一（顶部绿色渐变 + 92×92 圆形 LOGO 托盘 + 上浮表单卡）+ 协议二次确认软提示（`同意并登录`自动勾选避免再次中断）+ 验证码按钮窄屏不换行 + LOGO 链路零改动（开发零回归风险）。
