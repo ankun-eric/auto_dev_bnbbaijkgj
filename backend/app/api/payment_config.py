@@ -629,12 +629,15 @@ async def test_payment_channel(
                 or "unsupported" in lower and "key" in lower
                 or "格式无法识别" in err_text
                 or "格式不被支持" in err_text
+                or "无法识别" in err_text
             ):
+                # [Bug 修复 2026-05-05] 后端已支持 PKCS8/PKCS1、含/不含头尾等
+                # 全部合法形态，不再要求用户分辨两个 .txt 文件，去掉旧的
+                # "请用 PKCS8.txt 不是 RSA2048.txt" 二次引导文案。
                 friendly = (
-                    "「应用私钥」格式不被支持。请使用支付宝开放平台「密钥工具」"
-                    "生成的「应用私钥PKCS8.txt」文件中的内容"
-                    "（注意：不是「应用私钥RSA2048.txt」）。"
-                    "点击「保存」后再点「测试」即可。"
+                    "「应用私钥」无法识别。请确认您粘贴的是支付宝密钥工具生成的"
+                    "「应用私钥」内容（PKCS8.txt 或 RSA2048.txt 任一即可），"
+                    "保存后再点「测试」。"
                 )
             else:
                 friendly = f"调用支付宝异常：{err_text}"

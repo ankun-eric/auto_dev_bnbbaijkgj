@@ -33,6 +33,40 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
+## Latest Update: 支付宝 H5 应用私钥多形态兼容修复（2026-05-05 19:30）
+
+### 一句话结论
+按 `cursor_prompt_349_20260505191754.txt` Bug 修复方案文档把支付宝应用私钥校验从「**仅接受 PKCS#8 中间 Base64 单一形态**」**全面放宽**为「**容错地接受任何一种支付宝官方密钥工具/openssl 命令产出的合法 RSA 2048 私钥**」并统一归一化为 PKCS#8 PEM 入库；下游 `alipay_service` 完全无需改动。**支持的输入形态（6 种）**：① PKCS#8 中间 Base64（`应用私钥PKCS8.txt` 直接复制）；② PKCS#8 完整 PEM（含 `-----BEGIN PRIVATE KEY-----` 头尾）；③ **PKCS#1 中间 Base64（`应用私钥RSA2048.txt` 直接复制）—— 本次核心新增**；④ PKCS#1 完整 PEM（含 `-----BEGIN RSA PRIVATE KEY-----` 头尾）—— 本次新增；⑤ 任一以上形态 + 不可见字符（BOM/零宽空格/全角空格/换行/Tab）；⑥ 公钥误粘贴 → 给出针对性「您粘贴的是公钥」报错。**核心算法变化**：`backend/app/utils/rsa_key.py:normalize_rsa_private_key` 移除「检测到 BEGIN/END 即短路抛错」逻辑，改为：① 含头尾 → 直接交给 `cryptography.load_pem_private_key`（自带 PKCS#8/PKCS#1 兼容）+ 兜底用 PKCS#8 / PKCS#1 包装；② 不含头尾 → 提取裸 base64 字符 → 先尝试 PKCS#8 包装加载，失败再 PKCS#1 包装加载；③ 任意路径成功后**统一通过 `private_bytes(format=PKCS8)` 序列化为 PKCS#8 PEM 入库**。**分支化报错**：新增 `ERROR_LOOKS_LIKE_PUBLIC_KEY`（误粘公钥）+ `ERROR_INCOMPLETE_BASE64`（base64 长度近 PKCS#1/PKCS#8 但解析失败）+ `ERROR_INVALID_FORMAT`（通用无法识别，文案改为「PKCS8.txt 或 RSA2048.txt 任一即可」）；保留 `USER_FRIENDLY_ERROR / ERROR_HAS_PEM_HEADERS` 兼容老调用方 import。**前端改造**：`admin-web/src/app/(admin)/payment-config/page.tsx` 把支付宝应用私钥输入框 placeholder 从「粘贴密钥工具生成的中间 Base64 内容，不要包含 BEGIN/END 头尾」改为「把密钥工具生成的「应用私钥」内容直接粘贴进来即可（PKCS8.txt 或 RSA2048.txt 都行）」；下方 extra hint 改为「💡 把支付宝密钥工具生成的「应用私钥」文件内容直接粘贴进来即可：PKCS8.txt 或 RSA2048.txt 都支持，含/不含 BEGIN/END 头尾都行。」；`backend/app/api/payment_config.py:test_payment_channel` 中针对 `RSA key format is not supported / could not deserialize / 格式不被支持 / 无法识别` 错因的 friendly 文案删去带歧义的「请用 PKCS8.txt 不是 RSA2048.txt」二次引导，改为「应用私钥无法识别。请确认您粘贴的是支付宝密钥工具生成的「应用私钥」内容（PKCS8.txt 或 RSA2048.txt 任一即可），保存后再点「测试」」。**测试**：`backend/tests/test_alipay_private_key_format.py` 完全重写，覆盖 6 种合法形态 + 公钥/乱码/截断/空 4 类非法输入，27 case 全 PASS；`backend/tests/test_payment_config_alipay_save_validation.py` + `test_payment_config_test_connection_error_message.py` 中文案断言放宽为「『应用私钥』 OR 『PKCS8』 OR 『RSA2048』 OR 『无法识别』 任一命中」，并修复后者一处错误 patch（payment_config 模块级无 `_build_client_from_config` 属性，因为是 lazy import），最终 34 个相关测试 100% PASS。**部署**：通过 paramiko SFTP 上传 6 文件 → `docker cp` 到 backend 容器 → `docker restart backend` → `docker compose build admin-web` → `docker compose up -d admin-web` → 容器内 `pytest tests/test_alipay_private_key_format.py tests/test_payment_config_alipay_save_validation.py tests/test_payment_config_test_connection_error_message.py` 34/34 PASS → 健康检查 admin/h5 → 200，api → 401（无 token 正常）。**端到端验证**：通过容器内 Python 直接调用归一化函数验证 PKCS#1 naked → PKCS#8 PEM、含污染字符 → PKCS#8 PEM、完整 PKCS#1 PEM → PKCS#8 PEM、公钥 → 友好错误 5 个核心场景全 PASS。**多端打包**：本次仅改后端 Python + admin-web TSX，**无任何客户端（小程序/安卓/iOS/exe/macOS/CLI）代码改动**，跳过打包阶段。
+
+### 涉及文件（6 个）
+
+**Backend — 核心修复**：
+- `backend/app/utils/rsa_key.py`（**重写 ~280 行**）：`normalize_rsa_private_key(raw)` 实现 6 形态归一化算法（详见上方一句话结论中的算法变化）；新增 `_try_load_public_pem` 公钥探测；`_wrap_pkcs1_pem(b64)` 用 `BEGIN RSA PRIVATE KEY` 头包装；`_looks_like_public_key(s)` 通过 `BEGIN [\s\S]* PUBLIC KEY` 正则识别公钥头；保留 `validate_rsa_private_key(raw) -> (ok, normalized, reason)` 不抛异常版本供 PUT 接口调用；保留 `USER_FRIENDLY_ERROR / ERROR_HAS_PEM_HEADERS` 兼容老调用方 import 不至于 ImportError；新增 `ERROR_LOOKS_LIKE_PUBLIC_KEY / ERROR_INCOMPLETE_BASE64`。
+
+**Backend — 测试连接友好文案**：
+- `backend/app/api/payment_config.py:test_payment_channel`：仅修改 friendly 文案分支，删去歧义的「请使用「应用私钥PKCS8.txt」（注意：不是「应用私钥RSA2048.txt」）」二次引导文案；新增「无法识别」关键字到错因匹配规则；其余逻辑（解密自检 / 客户端缓存清理 / 真实 query 联通性测试）完全保持不变。
+
+**Admin Web — UI 文案与提示**：
+- `admin-web/src/app/(admin)/payment-config/page.tsx`：在 `FIELDS_BY_CHANNEL[drawerCode].map` 渲染逻辑中，针对 `f.key === 'app_private_key' && drawerCode in {'alipay_h5','alipay_app'}` 的支付宝应用私钥字段，重写 placeholder 与 extra hint，统一引导「粘哪个文件都行 / 含不含头尾都行」。
+
+**Backend 测试 — 完全重写**：
+- `backend/tests/test_alipay_private_key_format.py`（**重写**）：① fixture 生成 RSA 2048 + 派生 PKCS#8 PEM / PKCS#1 PEM / Public PEM / 三者裸 base64；② 6 形态 PASS 套件（`test_form1_*` ~ `test_form5_*`：PKCS#8 naked / PKCS#8 full / PKCS#1 naked / PKCS#1 full / 含不可见字符的 PKCS#8/PKCS#1 各种组合）；③ 公钥分支化报错套件（`test_public_key_full_pem_rejected` / `test_public_key_naked_base64_rejected`）；④ 非法输入套件（乱码 / 短 base64 / 截断 PKCS#8 / 空 / 仅 BEGIN+END 两行）；⑤ `validate_rsa_private_key` 不抛异常版本套件（PKCS#8/PKCS#1/full PEM/公钥/乱码 5 种入参 ok 与 reason 断言）；⑥ 文案合规检查（`PKCS8.txt` + `RSA2048.txt` + 「任一」必须出现在 `ERROR_INVALID_FORMAT` 中 / 「公钥」+「私钥」必须出现在 `ERROR_LOOKS_LIKE_PUBLIC_KEY` / `USER_FRIENDLY_ERROR == ERROR_INVALID_FORMAT` / `ERROR_HAS_PEM_HEADERS` 仍可 import）。共 27 case 全 PASS。
+
+**Backend 测试 — 文案断言放宽**：
+- `backend/tests/test_payment_config_alipay_save_validation.py:test_put_rejects_garbage_private_key_with_friendly_message`：把原断言 `"应用私钥PKCS8.txt" in detail or "PKCS#8" in detail or "PKCS8" in detail` 改为 `"应用私钥" in detail or "PKCS8" in detail or "RSA2048" in detail or "无法识别" in detail`，匹配新文案语义。
+- `backend/tests/test_payment_config_test_connection_error_message.py`：① 同样放宽两处 friendly 文案断言；② 修复 `test_test_connection_returns_friendly_message_for_rsa_format_error` 中错误的 `patch("app.api.payment_config._build_client_from_config", ...)`——payment_config 模块级别没有该属性（是函数体内 lazy import），导致每次都 AttributeError；改为只 `patch("app.services.alipay_service._build_client_from_config", ...)` 单一来源 patch，与第二个用例对齐。
+
+**用户手册**：
+- `user_docs/支付宝H5私钥多形态兼容修复.md`（**新增**）：含开头/末尾两份访问链接表（admin / h5）+ 功能简介（修复前痛点 + 修复后 6 形态全兼容）+ 3 大使用场景（首次配置 / 密钥轮换 / 误粘公钥）+ 5 条注意事项（私钥安全 / 必须 RSA2048 / 不要切断粘贴 / 真实测试逻辑 / 接入模式选择）+ 4 个 FAQ（向后兼容 / 入库形态 / 含头尾粘贴 / 老报错文案是否保留）。
+
+### 关键验收（部署后实测）
+- ① 容器内 `pytest test_alipay_private_key_format.py test_payment_config_alipay_save_validation.py test_payment_config_test_connection_error_message.py` **34 / 34 PASS**。
+- ② 容器内 Python 端到端验证 5 大场景（PKCS#1 naked → PKCS#8 PEM / 污染字符 / 完整 PKCS#1 PEM / 公钥 / validate ok 路径）全 PASS。
+- ③ 健康检查：admin / h5 入口 200，api `/admin/payment-channels` 401（无 token 正常）。
+- ④ 修复后用户从支付宝密钥工具产出的 `应用私钥PKCS8.txt` 与 `应用私钥RSA2048.txt` 任选一份直接复制粘贴均可一次性通过保存与测试，且管理后台不再要求用户分辨两份 .txt 文件。
+
+---
+
 ## Latest Update: PRD-05 核销动作收口手机端 v1.0 落地（2026-05-05 19:00）
 
 ### 一句话结论

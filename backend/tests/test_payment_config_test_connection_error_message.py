@@ -2,7 +2,11 @@
 
 覆盖 Bug 修复方案文档 §6 用例 8：
   - 当底层抛 RSA key format is not supported 时，
-    test 接口应返回友好文案，明确告知用户使用 应用私钥PKCS8.txt
+    test 接口应返回友好文案。
+
+[Bug 修复 2026-05-05·后续] 后端已支持 PKCS8/PKCS1、含/不含头尾等全部合法形态，
+  友好文案不再要求用户分辨 PKCS8.txt 与 RSA2048.txt，而是统一提示
+  "PKCS8.txt 或 RSA2048.txt 任一即可"。本回归用例的断言也相应放宽。
 """
 from __future__ import annotations
 
@@ -98,27 +102,24 @@ async def test_test_connection_returns_friendly_message_for_rsa_format_error(
     def _raise_rsa_format(*args, **kwargs):
         raise ValueError("RSA key format is not supported")
 
+    # _build_client_from_config 在 payment_config.py 中是 lazy import，
+    # 模块级别没有该属性，因此只 patch 同名 alipay_service 中的函数即可
     with patch(
-        "app.api.payment_config._build_client_from_config",
+        "app.services.alipay_service._build_client_from_config",
         side_effect=_raise_rsa_format,
     ):
-        # _build_client_from_config 在 payment_config.py 中是 lazy import，
-        # 必须 patch 同名 alipay_service 中的函数才能生效
-        with patch(
-            "app.services.alipay_service._build_client_from_config",
-            side_effect=_raise_rsa_format,
-        ):
-            res = await client.post(
-                "/api/admin/payment-channels/alipay_h5/test",
-                headers=admin_headers,
-            )
+        res = await client.post(
+            "/api/admin/payment-channels/alipay_h5/test",
+            headers=admin_headers,
+        )
     assert res.status_code == 400, res.text
     detail = res.json().get("detail", "")
-    # 友好文案必须明确指向 应用私钥PKCS8.txt
+    # 友好文案必须包含「应用私钥」相关引导（PKCS8/RSA2048/无法识别 任一即可）
     assert (
-        "应用私钥PKCS8.txt" in detail
-        or "PKCS#8" in detail
+        "应用私钥" in detail
         or "PKCS8" in detail
+        or "RSA2048" in detail
+        or "无法识别" in detail
     ), detail
     # 不能是裸的「调用支付宝异常：RSA key format is not supported」
     assert "调用支付宝异常：RSA key format is not supported" not in detail
@@ -144,7 +145,8 @@ async def test_test_connection_returns_friendly_message_for_could_not_deserializ
     assert res.status_code == 400, res.text
     detail = res.json().get("detail", "")
     assert (
-        "应用私钥PKCS8.txt" in detail
-        or "PKCS#8" in detail
+        "应用私钥" in detail
         or "PKCS8" in detail
+        or "RSA2048" in detail
+        or "无法识别" in detail
     ), detail

@@ -1,23 +1,75 @@
-"""[需求 2026-05-05] 支付宝应用私钥校验工具（收窄至「仅中间 Base64」单一形态）。
+"""[Bug 修复 2026-05-05] 支付宝应用私钥归一化（兼容多种形态）。
 
-背景：支付宝官方密钥工具实际产出的私钥内容仅为「中间 Base64 部分」（无 PEM 头尾）。
-此前后台同时兼容多种形态（带 PKCS#1 / PKCS#8 头尾、纯 Base64、含脏字符），
-导致报错文案歧义、用户反复踩坑。
+背景与上一版差异
+-----------------
 
-本次需求：**收窄校验范围至「仅中间 Base64」单一形态**，让校验更聚焦、报错更精准。
+上一版（2026-05-05 早些时候）实现把校验范围**收窄**到「仅中间 Base64（PKCS#8）」单一
+形态：检测到 ``-----BEGIN----- / -----END-----`` 即短路报错，也不接受 PKCS#1（即
+``应用私钥RSA2048.txt`` 那种）裸 Base64。结果：
 
-校验流程：
-  ① 清洗不可见字符（BOM、零宽空格、全角空格、Tab、换行、普通空格）
-  ② 检测是否含 -----BEGIN----- / -----END----- 关键标记
-        是 → 抛错："请只粘贴中间 Base64 部分（去掉 BEGIN/END 两行）。"
-        否 → ③ 提取所有合法 Base64 字符（A-Z a-z 0-9 + / =）
-             → ④ Base64 解码 + ASN.1（PKCS#8）解析
-                  成功 → 标准化为 PKCS#8 PEM 入库 ✅
-                  失败 → 抛错："应用私钥格式不被支持。请粘贴密钥工具生成的中间 Base64 内容。"
+    运营人员在 admin-web「支付配置」页面把 ``应用私钥RSA2048.txt`` 内容直接粘贴 →
+    后端报「应用私钥格式不被支持。请使用「应用私钥PKCS8.txt」（不是 RSA2048.txt）」。
 
-对外函数：
-  - normalize_rsa_private_key(raw): 将「中间 Base64」标准化为 PKCS#8 PEM 字符串
-  - validate_rsa_private_key(raw):  仅校验，不抛异常（保存环节使用）
+支付宝官方密钥工具会**同时**生成 ``应用私钥PKCS8.txt``（PKCS#8）和
+``应用私钥RSA2048.txt``（PKCS#1），让运营人员自己分辨两者既不友好也容易出错。
+
+本次修复：**容错地接受任何一种支付宝官方工具/openssl 命令产出的合法 RSA 私钥**，
+统一归一化为 PKCS#8 PEM 字符串入库；下游 ``alipay_service`` 完全不需要改动。
+
+支持的输入形态（PRD §3.2）
+--------------------------
+
+1. PKCS#8 中间 Base64（无头尾）          —— ``应用私钥PKCS8.txt`` 直接复制
+2. PKCS#8 完整 PEM（含 BEGIN PRIVATE KEY）—— 用户复制时一起带上头尾
+3. PKCS#1 中间 Base64（无头尾）          —— ``应用私钥RSA2048.txt`` 直接复制
+4. PKCS#1 完整 PEM（含 BEGIN RSA PRIVATE KEY）—— 部分老工具 / openssl 输出
+5. 任一以上形态 + 不可见字符（BOM / 零宽 / 全角空格 / 换行 / Tab）
+6. 公钥误粘贴 → 给出针对性报错
+
+归一化流程（PRD §4.1）
+----------------------
+
+::
+
+    raw
+     │ ① 不可见字符清洗
+     ▼
+    s
+     │ ② 含 BEGIN/END？ ──是──▶ 直接交给 cryptography.load_pem_private_key
+     │                                  │
+     │ ③ 否                              │ 成功 → ⑥ 序列化为 PKCS#8 PEM ✅
+     ▼                                  │ 失败 → 检测公钥 → 分支化报错
+    payload (合法 base64 字符)           │
+     │
+     │ ④ 包装为 PKCS#8 PEM 加载  成功 ──▶ ⑥
+     │                            失败
+     │ ⑤ 兜底包装为 PKCS#1 PEM    成功 ──▶ ⑥
+     │  (BEGIN RSA PRIVATE KEY)   失败
+     │
+     ▼ 检测公钥 / Base64 长度 → 分支化报错
+
+对外 API
+--------
+
+- ``normalize_rsa_private_key(raw)``：归一化为 PKCS#8 PEM；失败抛
+  ``InvalidRSAPrivateKeyError``
+- ``validate_rsa_private_key(raw)``：仅校验，返回 ``(ok, normalized, reason)``，
+  保存接口直接使用此函数
+
+向后兼容
+--------
+
+为了让既有测试 / 调用方继续可用，保留以下名称（值已按新语义调整）：
+
+- ``USER_FRIENDLY_ERROR``      —— 等于 ``ERROR_INVALID_FORMAT``
+- ``ERROR_HAS_PEM_HEADERS``    —— 兼容老用例：值更新为「我们已支持含头尾的 PEM，
+  当前文案已不再使用」的占位说明；任何含头尾的合法私钥都会被归一化通过。
+- ``ERROR_INVALID_FORMAT``     —— 通用「无法识别」文案
+- ``ERROR_LOOKS_LIKE_PUBLIC_KEY`` —— 「您粘贴的是公钥不是私钥」分支化文案
+- ``ERROR_INCOMPLETE_BASE64``    —— 「内容看起来不完整」分支化文案
+
+日志安全：任何环节**严禁**把私钥原文落到日志，只允许打印「长度 / 是否含 BEGIN
+等元信息」。
 """
 from __future__ import annotations
 
@@ -28,20 +80,30 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 
 
-# ─────────────── 报错文案（收窄后分支化） ───────────────
+# ─────────────── 报错文案（分支化） ───────────────
 
-#: 含 BEGIN/END 头尾时的报错文案（PRD §三）
-ERROR_HAS_PEM_HEADERS = (
-    "请只粘贴中间 Base64 部分（去掉 BEGIN/END 两行）。"
-)
-
-#: 其他无效输入的统一报错文案（PRD §三）
+#: 通用「无法识别」文案
 ERROR_INVALID_FORMAT = (
-    "应用私钥格式不被支持。请粘贴密钥工具生成的中间 Base64 内容。"
+    "应用私钥无法识别。请确认您粘贴的是支付宝密钥工具生成的「应用私钥」内容"
+    "（PKCS8.txt 或 RSA2048.txt 任一即可）。"
 )
 
-#: 兼容老调用方：保留 USER_FRIENDLY_ERROR 常量（指向「其他无效」分支文案）
+#: 「您粘贴的是公钥不是私钥」分支化文案
+ERROR_LOOKS_LIKE_PUBLIC_KEY = (
+    "您粘贴的内容看起来是「公钥」而不是「私钥」。请检查文件是否为应用私钥（PKCS8.txt 或 RSA2048.txt）。"
+)
+
+#: 「内容看起来不完整」分支化文案
+ERROR_INCOMPLETE_BASE64 = (
+    "私钥内容看起来不完整，请重新完整复制粘贴。"
+)
+
+#: 兼容老调用方：保留 USER_FRIENDLY_ERROR 常量（指向通用无效文案）
 USER_FRIENDLY_ERROR = ERROR_INVALID_FORMAT
+
+#: 兼容老调用方：保留 ERROR_HAS_PEM_HEADERS 名称。
+#: 修复后含头尾的 PEM 会被自动接受、不会触发该报错；保留此常量仅为避免 import 失败。
+ERROR_HAS_PEM_HEADERS = ERROR_INVALID_FORMAT
 
 
 class InvalidRSAPrivateKeyError(ValueError):
@@ -53,6 +115,7 @@ class InvalidRSAPrivateKeyError(ValueError):
 
 _PEM_BEGIN_RE = re.compile(r"-----BEGIN[^-]*-----")
 _PEM_END_RE = re.compile(r"-----END[^-]*-----")
+_PEM_PUBLIC_BEGIN_RE = re.compile(r"-----BEGIN[^-]*PUBLIC KEY-----", re.IGNORECASE)
 
 # 常见的不可见 / 易混淆字符（粘贴时极易误带，必须主动清除）
 #   \ufeff           UTF-8 BOM
@@ -77,11 +140,13 @@ def _strip(s: str) -> str:
 
 
 def _has_pem_headers(s: str) -> bool:
-    """检测输入中是否出现 -----BEGIN----- 或 -----END----- 关键标记。
-
-    收窄后只要任一出现即视为「含头尾」，立刻短路抛错。
-    """
+    """检测输入中是否出现 -----BEGIN----- 或 -----END----- 关键标记。"""
     return bool(_PEM_BEGIN_RE.search(s) or _PEM_END_RE.search(s))
+
+
+def _looks_like_public_key(s: str) -> bool:
+    """检测输入是否是 BEGIN PUBLIC KEY / BEGIN RSA PUBLIC KEY 形态的公钥。"""
+    return bool(_PEM_PUBLIC_BEGIN_RE.search(s or ""))
 
 
 def _wrap_base64_lines(b64: str, width: int = 64) -> str:
@@ -103,6 +168,14 @@ def _wrap_pkcs8_pem(b64_body: str) -> str:
     )
 
 
+def _wrap_pkcs1_pem(b64_body: str) -> str:
+    return (
+        "-----BEGIN RSA PRIVATE KEY-----\n"
+        + _wrap_base64_lines(b64_body)
+        + "\n-----END RSA PRIVATE KEY-----\n"
+    )
+
+
 def _try_load_pem(pem: str) -> Optional[rsa.RSAPrivateKey]:
     """尝试用 cryptography 加载 PEM 私钥；失败返回 None。"""
     try:
@@ -114,6 +187,18 @@ def _try_load_pem(pem: str) -> Optional[rsa.RSAPrivateKey]:
         return None
     except Exception:  # noqa: BLE001
         return None
+
+
+def _try_load_public_pem(pem: str) -> bool:
+    """尝试用 cryptography 加载 PEM 公钥；成功返回 True。
+
+    用于把「用户粘了公钥」与「乱码」区分开来，给出针对性报错。
+    """
+    try:
+        serialization.load_pem_public_key(pem.encode("utf-8"))
+        return True
+    except Exception:  # noqa: BLE001
+        return False
 
 
 def _serialize_to_pkcs8_pem(key: rsa.RSAPrivateKey) -> str:
@@ -130,18 +215,12 @@ def _serialize_to_pkcs8_pem(key: rsa.RSAPrivateKey) -> str:
 
 
 def normalize_rsa_private_key(raw: str) -> str:
-    """把「中间 Base64」形态的支付宝应用私钥标准化为 PKCS#8 PEM 字符串。
+    """把支付宝应用私钥的任一合法形态归一化为 PKCS#8 PEM 字符串。
 
-    收窄后的校验流程（PRD §四）：
-      ① 清洗不可见字符（BOM、零宽空格、全角空格、Tab、换行、普通空格）
-      ② 检测 -----BEGIN----- / -----END----- 关键标记
-            是 → 抛错 ERROR_HAS_PEM_HEADERS
-            否 → ③ 提取所有合法 Base64 字符
-                 → ④ Base64 解码 + ASN.1（PKCS#8）解析
-                      成功 → 标准化为 PKCS#8 PEM 入库
-                      失败 → 抛错 ERROR_INVALID_FORMAT
+    支持形态详见模块文档（PKCS#8/PKCS#1，含头尾或不含头尾，含不可见字符）。
 
-    注意：本函数**不再**接受任何含 PEM 头尾的输入；也不再尝试 PKCS#1 兜底包装。
+    成功 → 返回标准 PKCS#8 PEM（``-----BEGIN PRIVATE KEY-----`` 包裹的多行字符串）
+    失败 → 抛 ``InvalidRSAPrivateKeyError``，并附带分支化文案
     """
     if not raw or not raw.strip():
         raise InvalidRSAPrivateKeyError(ERROR_INVALID_FORMAT)
@@ -149,21 +228,69 @@ def normalize_rsa_private_key(raw: str) -> str:
     # ① 不可见字符清洗
     s = _strip(raw)
 
-    # ② 头尾检测短路
+    # ② 若含 BEGIN/END，直接尝试用 cryptography 加载（同时支持 PKCS#1/PKCS#8/openssl）
     if _has_pem_headers(s):
-        raise InvalidRSAPrivateKeyError(ERROR_HAS_PEM_HEADERS)
+        # ②-a 先看是否是公钥误粘贴
+        if _looks_like_public_key(s) and _try_load_public_pem(s):
+            raise InvalidRSAPrivateKeyError(ERROR_LOOKS_LIKE_PUBLIC_KEY)
 
-    # ③ 提取所有合法 Base64 字符
+        # ②-b 直接当作 PEM 加载（cryptography 自带 PKCS#1/PKCS#8 兼容）
+        key = _try_load_pem(s)
+        if key is not None:
+            return _serialize_to_pkcs8_pem(key)
+
+        # ②-c 部分粘贴会丢失 base64 中间换行，导致直接加载失败；
+        #     提取裸 base64 后用 PKCS#8 / PKCS#1 包装兜底
+        payload = _extract_base64_payload(s)
+        if payload:
+            for wrapper in (_wrap_pkcs8_pem, _wrap_pkcs1_pem):
+                key = _try_load_pem(wrapper(payload))
+                if key is not None:
+                    return _serialize_to_pkcs8_pem(key)
+
+        # ②-d 走到这里说明含 PEM 头尾但内容已损坏 / 不是私钥
+        raise InvalidRSAPrivateKeyError(ERROR_INVALID_FORMAT)
+
+    # ③ 不含头尾：提取所有合法 Base64 字符
     payload = _extract_base64_payload(s)
     if not payload:
         raise InvalidRSAPrivateKeyError(ERROR_INVALID_FORMAT)
 
-    # ④ 包装为 PKCS#8 PEM 后用 cryptography 解析（内部完成 Base64 解码 + ASN.1 解析）
-    pkcs8_pem = _wrap_pkcs8_pem(payload)
-    key = _try_load_pem(pkcs8_pem)
+    # 长度太短肯定不是 RSA 2048 的私钥（粗筛，避免误把短串报成「不完整」）
+    # PKCS#8 / PKCS#1 RSA 2048 base64 长度均 > 1000
+    if len(payload) < 200:
+        raise InvalidRSAPrivateKeyError(ERROR_INVALID_FORMAT)
+
+    # ④ 先尝试包装为 PKCS#8 加载
+    key = _try_load_pem(_wrap_pkcs8_pem(payload))
     if key is not None:
         return _serialize_to_pkcs8_pem(key)
 
+    # ⑤ 兜底包装为 PKCS#1 加载
+    key = _try_load_pem(_wrap_pkcs1_pem(payload))
+    if key is not None:
+        return _serialize_to_pkcs8_pem(key)
+
+    # ⑥ 检测：是否是公钥的「中间 Base64」？给出针对性报错
+    #    PKCS#8 公钥（SubjectPublicKeyInfo）也能用 PUBLIC KEY 头加载
+    pub_pem_pkcs8 = (
+        "-----BEGIN PUBLIC KEY-----\n"
+        + _wrap_base64_lines(payload)
+        + "\n-----END PUBLIC KEY-----\n"
+    )
+    pub_pem_pkcs1 = (
+        "-----BEGIN RSA PUBLIC KEY-----\n"
+        + _wrap_base64_lines(payload)
+        + "\n-----END RSA PUBLIC KEY-----\n"
+    )
+    if _try_load_public_pem(pub_pem_pkcs8) or _try_load_public_pem(pub_pem_pkcs1):
+        raise InvalidRSAPrivateKeyError(ERROR_LOOKS_LIKE_PUBLIC_KEY)
+
+    # ⑦ 长度看起来像 PKCS#8 / PKCS#1 但解析失败 → 提示「不完整」
+    if 800 <= len(payload) < 1500:
+        raise InvalidRSAPrivateKeyError(ERROR_INCOMPLETE_BASE64)
+
+    # ⑧ 其他情况：通用无法识别
     raise InvalidRSAPrivateKeyError(ERROR_INVALID_FORMAT)
 
 

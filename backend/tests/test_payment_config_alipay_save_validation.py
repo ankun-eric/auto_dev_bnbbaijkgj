@@ -182,8 +182,14 @@ async def test_put_rejects_garbage_private_key_with_friendly_message(
     )
     assert res.status_code == 422, res.text
     detail = res.json().get("detail", "")
-    # 文案必须明确告知用户使用 应用私钥PKCS8.txt 文件
-    assert "应用私钥PKCS8.txt" in detail or "PKCS#8" in detail or "PKCS8" in detail, detail
+    # [Bug 修复 2026-05-05·后续] 后端已支持 PKCS8/PKCS1、含/不含头尾全部合法形态，
+    # 友好文案统一改为「PKCS8.txt 或 RSA2048.txt 任一即可」，不再强求两选一。
+    assert (
+        "应用私钥" in detail
+        or "PKCS8" in detail
+        or "RSA2048" in detail
+        or "无法识别" in detail
+    ), detail
 
 
 # ────────────────── 用例 7：合法 PKCS#8 → 200，密文解密为 PKCS#8 ──────────────────

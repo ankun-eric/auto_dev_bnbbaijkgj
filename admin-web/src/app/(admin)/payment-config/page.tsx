@@ -564,22 +564,23 @@ export default function PaymentConfigPage() {
               );
             }
 
-            // [需求 2026-05-05] 支付宝应用私钥校验收窄至「仅中间 Base64」单一形态。
-            // placeholder 与下方提示采用直白指令型文案（PRD §三）：
-            //   placeholder：粘贴密钥工具生成的中间 Base64 内容，不要包含 BEGIN/END 头尾
-            //   下方提示：仅粘贴中间部分。粘了 BEGIN/END 头尾会被判为格式错误。
+            // [Bug 修复 2026-05-05] 支付宝应用私钥归一化兼容多种形态：
+            //   - PKCS#8 中间 Base64（应用私钥PKCS8.txt）
+            //   - PKCS#1 中间 Base64（应用私钥RSA2048.txt）
+            //   - 含 BEGIN/END 头尾的完整 PEM（PKCS#8 或 PKCS#1 均可）
+            // 文案改为友好引导，告诉运营人员两种文件都行、含/不含头尾都行。
             const isAlipayPrivateKey =
               f.key === 'app_private_key' &&
               (drawerCode === 'alipay_h5' || drawerCode === 'alipay_app');
             const placeholder = isAlipayPrivateKey
-              ? '粘贴密钥工具生成的中间 Base64 内容，不要包含 BEGIN/END 头尾'
+              ? '把密钥工具生成的「应用私钥」内容直接粘贴进来即可（PKCS8.txt 或 RSA2048.txt 都行）'
               : f.isSecret
                 ? '留空表示不修改原值；填写新值则会加密保存'
                 : `请输入${f.label}`;
 
             const extraHint = isAlipayPrivateKey ? (
               <Text type="secondary" style={{ fontSize: 12 }}>
-                仅粘贴中间部分。粘了 BEGIN/END 头尾会被判为格式错误。
+                💡 把支付宝密钥工具生成的「应用私钥」文件内容直接粘贴进来即可：PKCS8.txt 或 RSA2048.txt 都支持，含/不含 BEGIN/END 头尾都行。
               </Text>
             ) : null;
 
