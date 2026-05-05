@@ -1,88 +1,144 @@
-.login-page {
+/* PRD｜登录页布局优化 v1.0（2026-05-06）
+ * 顶部 42% 屏高绿色渐变品牌区 + 92×92 白色圆形 LOGO 托盘
+ * 表单卡片上浮 -28rpx*2，覆盖在渐变下沿
+ */
+
+.login-page-v3 {
   min-height: 100vh;
-  background: #fff;
+  background: #f7f8fa;
   display: flex;
   flex-direction: column;
-  padding: 0 48rpx;
+  position: relative;
+  overflow: hidden;
 }
 
-.login-page.layout-horizontal .logo-section {
-  flex-direction: row;
+/* === 顶部绿色渐变沉浸式品牌区 === */
+.top-brand {
+  height: 42vh;
+  min-height: 560rpx;
+  background: linear-gradient(180deg, #2fb56a 0%, #5cd692 100%);
+  display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  padding: 0 64rpx 112rpx;
+  position: relative;
+  box-sizing: border-box;
 }
 
-.login-page.layout-horizontal .logo-circle {
-  margin-bottom: 0;
-  margin-right: 28rpx;
-}
-
-.login-page.layout-horizontal .logo-text-block {
-  align-items: flex-start;
-}
-
-/* Logo */
-.logo-section {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 100rpx 0 60rpx;
-}
-
-.logo-text-block {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.brand-logo-large {
-  width: 160rpx;
-  height: 160rpx;
-  border-radius: 50%;
-  margin-bottom: 24rpx;
-}
-
+/* 92×92 白色圆形 LOGO 托盘 */
 .logo-circle {
-  width: 160rpx;
-  height: 160rpx;
-  border-radius: 40rpx;
-  background: linear-gradient(135deg, #52c41a, #13c2c2);
+  width: 184rpx;
+  height: 184rpx;
+  border-radius: 50%;
+  background: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 16rpx 48rpx rgba(0, 0, 0, 0.12);
+  margin-bottom: 40rpx;
+  overflow: hidden;
+}
+
+.brand-logo {
+  width: 152rpx;
+  height: 152rpx;
+  border-radius: 50%;
+}
+
+.logo-fallback {
+  font-size: 80rpx;
+}
+
+.brand-title {
+  display: block;
+  color: #ffffff;
+  font-size: 56rpx;
+  font-weight: 700;
+  letter-spacing: 2rpx;
+  margin-bottom: 16rpx;
+  text-shadow: 0 4rpx 8rpx rgba(0, 0, 0, 0.08);
+}
+
+.brand-subtitle {
+  display: block;
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 28rpx;
+  letter-spacing: 1rpx;
+}
+
+/* === 表单卡片 上浮 -56rpx 覆盖渐变下沿 === */
+.form-card {
+  margin: -56rpx 40rpx 0;
+  background: #ffffff;
+  border-radius: 48rpx;
+  padding: 56rpx 48rpx 48rpx;
+  box-shadow:
+    0 -8rpx 48rpx rgba(0, 0, 0, 0.06),
+    0 16rpx 48rpx rgba(0, 0, 0, 0.04);
+  position: relative;
+  z-index: 2;
+  box-sizing: border-box;
+}
+
+.input-group {
+  display: flex;
+  align-items: center;
+  background: #f5f7fa;
+  border-radius: 24rpx;
+  padding: 20rpx 28rpx;
   margin-bottom: 24rpx;
+  box-sizing: border-box;
 }
 
-.logo-text {
+.input-prefix {
   font-size: 30rpx;
-  color: #fff;
-  font-weight: bold;
+  color: #555;
+  font-weight: 500;
+  margin-right: 16rpx;
 }
 
-.app-name {
-  font-size: 40rpx;
-  font-weight: bold;
-  color: #333;
-  margin-bottom: 12rpx;
+.input-divider {
+  width: 2rpx;
+  height: 36rpx;
+  background: #e0e3e8;
+  margin-right: 20rpx;
 }
 
-.app-desc {
-  font-size: 26rpx;
+.input-field {
+  flex: 1;
+  font-size: 30rpx;
+  height: 64rpx;
+  background: transparent;
+}
+
+/* 「获取验证码」按钮：white-space:nowrap，不换行 */
+.code-btn {
+  flex: 0 0 auto;
+  padding: 12rpx 24rpx;
+  margin-left: 16rpx;
+  white-space: nowrap;
+  word-break: keep-all;
+}
+
+.code-btn-disabled .code-text {
   color: #999;
 }
 
-/* Form */
-.form-section {
-  flex: 1;
-  padding-top: 40rpx;
+.code-text {
+  font-size: 26rpx;
+  color: #2fb56a;
+  font-weight: 500;
+  white-space: nowrap;
+  word-break: keep-all;
 }
 
 .referrer-hint {
   display: block;
   font-size: 24rpx;
-  color: #52c41a;
+  color: #2fb56a;
   line-height: 1.5;
-  margin-top: 8rpx;
+  margin: 8rpx 0 0;
 }
 
 .register-hint {
@@ -90,129 +146,33 @@
   font-size: 24rpx;
   color: #999;
   line-height: 1.5;
-  margin-top: 8rpx;
-  margin-bottom: 8rpx;
+  margin: 8rpx 0;
 }
 
-.settings-loading {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #fff;
-}
-
-.settings-loading-text {
-  font-size: 28rpx;
-  color: #999;
-}
-
-.input-group {
-  display: flex;
-  align-items: center;
-  border-bottom: 2rpx solid #f0f0f0;
-  padding: 20rpx 0;
-  margin-bottom: 20rpx;
-}
-
-.input-prefix {
-  font-size: 30rpx;
-  color: #333;
-  font-weight: bold;
-  margin-right: 20rpx;
-  padding-right: 20rpx;
-  border-right: 2rpx solid #eee;
-}
-
-.input-icon {
-  font-size: 32rpx;
-  margin-right: 16rpx;
-}
-
-.input-field {
-  flex: 1;
-  font-size: 30rpx;
-  height: 72rpx;
-}
-
-.code-btn {
-  padding: 12rpx 24rpx;
-  border: 2rpx solid #52c41a;
-  border-radius: 32rpx;
-  flex-shrink: 0;
-}
-
-.code-btn-disabled {
-  border-color: #d9d9d9;
-}
-
-.code-text {
-  font-size: 24rpx;
-  color: #52c41a;
-}
-
-.code-btn-disabled .code-text {
-  color: #999;
-}
-
-.login-btn {
-  margin-top: 48rpx;
+/* 登录按钮：始终高亮可点 */
+.login-btn-primary {
+  margin-top: 32rpx;
   width: 100%;
-  height: 88rpx;
-  line-height: 88rpx;
+  height: 96rpx;
+  line-height: 96rpx;
+  border-radius: 48rpx;
+  background: linear-gradient(135deg, #2fb56a 0%, #5cd692 100%);
+  color: #ffffff;
   font-size: 32rpx;
-}
-
-/* Divider */
-.divider-line {
-  display: flex;
-  align-items: center;
-  margin: 60rpx 0 40rpx;
-}
-
-.divider-line .line {
-  flex: 1;
-  height: 1rpx;
-  background: #eee;
-}
-
-.divider-text {
-  padding: 0 24rpx;
-  font-size: 24rpx;
-  color: #ccc;
-}
-
-/* WeChat login */
-.wx-login-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #fff;
-  border: 2rpx solid #e8e8e8;
-  border-radius: 44rpx;
-  padding: 20rpx;
-  width: 100%;
-}
-
-.wx-login-btn::after {
+  font-weight: 600;
+  box-shadow: 0 12rpx 32rpx rgba(47, 181, 106, 0.32);
   border: none;
 }
 
-.wx-icon {
-  font-size: 40rpx;
-  margin-right: 12rpx;
+.login-btn-primary::after {
+  border: none;
 }
 
-.wx-text {
-  font-size: 30rpx;
-  color: #333;
-}
-
-/* Agreement */
+/* === 协议勾选行 === */
 .agreement {
   display: flex;
   align-items: flex-start;
-  padding: 40rpx 0 60rpx;
+  margin-top: 28rpx;
 }
 
 .check-wrap {
@@ -230,8 +190,8 @@
 }
 
 .checkbox.checked {
-  background: #52c41a;
-  border-color: #52c41a;
+  background: #2fb56a;
+  border-color: #2fb56a;
 }
 
 .check-mark {
@@ -246,9 +206,70 @@
 }
 
 .link {
-  color: #52c41a;
+  color: #2fb56a;
 }
 
+/* === 分隔线 + 微信一键登录 === */
+.divider-line {
+  display: flex;
+  align-items: center;
+  margin: 48rpx 0 32rpx;
+}
+
+.divider-line .line {
+  flex: 1;
+  height: 1rpx;
+  background: #eee;
+}
+
+.divider-text {
+  padding: 0 24rpx;
+  font-size: 24rpx;
+  color: #ccc;
+}
+
+.wx-login-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+  border: 2rpx solid #e8e8e8;
+  border-radius: 48rpx;
+  padding: 20rpx;
+  width: 100%;
+  font-size: 30rpx;
+  color: #333;
+}
+
+.wx-login-btn::after {
+  border: none;
+}
+
+.wx-icon {
+  font-size: 36rpx;
+  margin-right: 12rpx;
+}
+
+.wx-text {
+  font-size: 30rpx;
+  color: #333;
+}
+
+/* === 加载中 === */
+.settings-loading {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, #2fb56a 0%, #5cd692 100%);
+}
+
+.settings-loading-text {
+  font-size: 28rpx;
+  color: #ffffff;
+}
+
+/* === 角色选择弹窗（保留） === */
 .role-picker-mask {
   position: fixed;
   inset: 0;
@@ -291,7 +312,7 @@
 }
 
 .user-btn {
-  background: #52c41a;
+  background: #2fb56a;
   color: #fff;
 }
 

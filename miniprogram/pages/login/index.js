@@ -143,10 +143,6 @@ Page({
 
   async loginByPhone() {
     const { phone, code, agreed } = this.data;
-    if (!agreed) {
-      wx.showToast({ title: '请先同意用户协议', icon: 'none' });
-      return;
-    }
     if (!phone || phone.length !== 11) {
       wx.showToast({ title: '请输入正确的手机号', icon: 'none' });
       return;
@@ -154,6 +150,24 @@ Page({
     if (!code || code.length < 4) {
       wx.showToast({ title: '请输入验证码', icon: 'none' });
       return;
+    }
+    if (!agreed) {
+      // 未勾选协议时弹出二次确认弹窗：[再看看] / [同意并登录]
+      const confirmRes = await new Promise((resolve) => {
+        wx.showModal({
+          title: '为保障您的权益，请阅读并同意以下协议',
+          content: '您需要阅读并同意《用户服务协议》和《隐私政策》后才能继续登录。',
+          confirmText: '同意并登录',
+          cancelText: '再看看',
+          confirmColor: '#2fb56a',
+          success: (r) => resolve(r),
+          fail: () => resolve({ confirm: false, cancel: true })
+        });
+      });
+      if (!confirmRes || !confirmRes.confirm) {
+        return;
+      }
+      this.setData({ agreed: true });
     }
 
     wx.showLoading({ title: '登录中...', mask: true });

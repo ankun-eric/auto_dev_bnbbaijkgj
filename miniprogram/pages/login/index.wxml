@@ -1,72 +1,70 @@
-<view class="login-page {{layoutClass}}" wx:if="{{!settingsLoading}}">
-  <!-- Logo -->
-  <view class="logo-section">
-    <image wx:if="{{brandLogoUrl}}" class="brand-logo-large" src="{{brandLogoUrl}}" mode="aspectFit" />
-    <view wx:else class="logo-circle">
-      <text class="logo-text">宾尼小康</text>
+<view class="login-page-v3" wx:if="{{!settingsLoading}}">
+  <!-- 顶部 42% 屏高的绿色渐变沉浸式品牌区 -->
+  <view class="top-brand">
+    <view class="logo-circle">
+      <image wx:if="{{brandLogoUrl}}" class="brand-logo" src="{{brandLogoUrl}}" mode="aspectFit" />
+      <text wx:else class="logo-fallback">🌿</text>
     </view>
-    <view class="logo-text-block">
-      <text class="app-name">宾尼小康</text>
-      <text class="app-desc">AI健康管家 · 守护您的健康</text>
-    </view>
+    <text class="brand-title">宾尼小康</text>
+    <text class="brand-subtitle">AI 健康管家 · 您的私人健康助手</text>
   </view>
 
-  <!-- 登录表单 -->
-  <view class="form-section">
+  <!-- 表单卡片：上浮 -28rpx*2，圆角 24rpx*2 -->
+  <view class="form-card">
     <!-- 手机号 -->
     <view class="input-group">
       <text class="input-prefix">+86</text>
+      <view class="input-divider"></view>
       <input class="input-field" type="number" maxlength="11"
              placeholder="请输入手机号" value="{{phone}}" bindinput="onPhoneInput" />
     </view>
 
-    <!-- 验证码 -->
+    <!-- 验证码 + 获取验证码按钮（不换行） -->
     <view class="input-group">
-      <text class="input-icon">🔒</text>
       <input class="input-field" type="number" maxlength="6"
              placeholder="请输入验证码" value="{{code}}" bindinput="onCodeInput" />
       <view class="code-btn {{codeCooldown > 0 ? 'code-btn-disabled' : ''}}" bindtap="sendCode">
-        <text class="code-text">{{codeCooldown > 0 ? codeCooldown + 's后重发' : '获取验证码'}}</text>
+        <text class="code-text">{{codeCooldown > 0 ? codeCooldown + ' s' : '获取验证码'}}</text>
       </view>
     </view>
 
     <text class="register-hint" wx:if="{{registerHelperText}}">{{registerHelperText}}</text>
     <text class="referrer-hint" wx:if="{{referrerNo}}">🎉 已识别邀请码：{{referrerNo}}</text>
 
-    <!-- 登录按钮 -->
-    <button class="login-btn btn-primary" bindtap="loginByPhone" disabled="{{!phone || !code}}">
+    <!-- 登录按钮始终高亮可点 -->
+    <button class="login-btn-primary" bindtap="loginByPhone">
       {{submitButtonText}}
     </button>
 
-    <!-- 分隔线 -->
+    <!-- 协议勾选行 -->
+    <view class="agreement">
+      <view class="check-wrap" bindtap="toggleAgreement">
+        <view class="checkbox {{agreed ? 'checked' : ''}}">
+          <text class="check-mark" wx:if="{{agreed}}">✓</text>
+        </view>
+      </view>
+      <text class="agreement-text">
+        我已阅读并同意
+        <text class="link" bindtap="showAgreement" data-type="user">《用户服务协议》</text>
+        和
+        <text class="link" bindtap="showAgreement" data-type="privacy">《隐私政策》</text>
+      </text>
+    </view>
+
+    <!-- 分隔线 + 微信一键登录（保留入口，但放到表单卡片内） -->
     <view class="divider-line">
       <view class="line"></view>
       <text class="divider-text">其他登录方式</text>
       <view class="line"></view>
     </view>
 
-    <!-- 微信登录 -->
     <button class="wx-login-btn" bindtap="loginByWechat">
       <text class="wx-icon">💚</text>
       <text class="wx-text">微信一键登录</text>
     </button>
   </view>
 
-  <!-- 用户协议 -->
-  <view class="agreement">
-    <view class="check-wrap" bindtap="toggleAgreement">
-      <view class="checkbox {{agreed ? 'checked' : ''}}">
-        <text class="check-mark" wx:if="{{agreed}}">✓</text>
-      </view>
-    </view>
-    <text class="agreement-text">
-      我已阅读并同意
-      <text class="link" bindtap="showAgreement" data-type="user">《用户服务协议》</text>
-      和
-      <text class="link" bindtap="showAgreement" data-type="privacy">《隐私政策》</text>
-    </text>
-  </view>
-
+  <!-- 角色选择弹窗（保留原有逻辑） -->
   <view class="role-picker-mask" wx:if="{{showRolePicker}}">
     <view class="role-picker-card">
       <text class="role-picker-title">请选择本次进入身份</text>
@@ -78,5 +76,5 @@
 </view>
 
 <view class="settings-loading" wx:if="{{settingsLoading}}">
-  <text class="settings-loading-text">正在加载注册设置...</text>
+  <text class="settings-loading-text">正在加载...</text>
 </view>

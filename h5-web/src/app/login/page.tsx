@@ -97,17 +97,14 @@ function LoginContent() {
     }
   };
 
-  const handleLogin = async () => {
+  // 真实执行登录请求（在协议已勾选/同意之后调用）
+  const doLoginRequest = async () => {
     if (!phone || phone.length !== 11) {
       Toast.show({ content: '请输入正确的手机号' });
       return;
     }
     if (!code || code.length < 4) {
       Toast.show({ content: '请输入验证码' });
-      return;
-    }
-    if (!agreed) {
-      Toast.show({ content: '请同意用户协议和隐私政策' });
       return;
     }
     setSubmitting(true);
@@ -156,42 +153,152 @@ function LoginContent() {
     }
   };
 
+  const handleLogin = async () => {
+    if (!phone || phone.length !== 11) {
+      Toast.show({ content: '请输入正确的手机号' });
+      return;
+    }
+    if (!code || code.length < 4) {
+      Toast.show({ content: '请输入验证码' });
+      return;
+    }
+    if (!agreed) {
+      // 未勾选协议时弹出二次确认弹窗
+      const confirmed = await Dialog.confirm({
+        title: '为保障您的权益，请阅读并同意以下协议',
+        content: (
+          <div style={{ fontSize: 14, lineHeight: 1.6, color: '#555' }}>
+            您需要阅读并同意
+            <span style={{ color: '#2fb56a' }}>《用户服务协议》</span>
+            和
+            <span style={{ color: '#2fb56a' }}>《隐私政策》</span>
+            后才能继续登录。
+          </div>
+        ),
+        confirmText: '同意并登录',
+        cancelText: '再看看',
+      });
+      if (!confirmed) {
+        return;
+      }
+      setAgreed(true);
+    }
+    await doLoginRequest();
+  };
+
   if (settingsLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(180deg, #e8fce8 0%, #ffffff 40%)' }}>
-        <div className="flex flex-col items-center gap-3 text-sm text-gray-400">
-          <SpinLoading color="primary" />
-          <span>正在加载注册设置...</span>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(180deg, #2fb56a 0%, #5cd692 100%)' }}>
+        <div className="flex flex-col items-center gap-3 text-sm text-white">
+          <SpinLoading color="white" />
+          <span>正在加载...</span>
         </div>
       </div>
     );
   }
 
-  const isHorizontal = registerSettings.register_page_layout === 'horizontal';
   const submitText = registerSettings.enable_self_registration ? '登录 / 注册' : '登录';
 
   return (
     <div
-      className={`min-h-screen flex flex-col ${isHorizontal ? 'md:flex-row' : ''} transition-all duration-500 ease-in-out`}
-      style={{ background: 'linear-gradient(180deg, #e8fce8 0%, #ffffff 40%)' }}
+      className="login-page-v3"
+      style={{
+        minHeight: '100vh',
+        background: '#f7f8fa',
+        display: 'flex',
+        flexDirection: 'column',
+        position: 'relative',
+        overflow: 'hidden',
+      }}
     >
-      <div className={`flex flex-col items-center transition-all duration-500 ease-in-out ${isHorizontal ? 'flex-1 pt-20 px-8 md:flex-none md:justify-center md:px-6 md:w-2/5 md:pt-0' : 'flex-1 pt-20 px-8'}`}>
-        {logoUrl ? (
-          <img src={resolveAssetUrl(logoUrl)} alt="Logo" className="w-20 h-20 rounded-full mb-4" style={{ objectFit: 'contain' }} />
-        ) : (
-          <div className="w-20 h-20 rounded-full flex items-center justify-center mb-4"
-            style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}>
-            <span className="text-white text-4xl">🌿</span>
-          </div>
-        )}
-        <h1 className="text-2xl font-bold mb-1" style={{ color: '#52c41a' }}>宾尼小康</h1>
-        <p className="text-gray-400 text-sm mb-10">AI健康管家 · 您的私人健康助手</p>
+      {/* 顶部 42% 屏高的绿色渐变沉浸式品牌区 */}
+      <div
+        className="top-brand"
+        style={{
+          height: '42vh',
+          minHeight: '280px',
+          background: 'linear-gradient(180deg, #2fb56a 0%, #5cd692 100%)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '0 32px 56px',
+          position: 'relative',
+        }}
+      >
+        {/* 92×92 白色圆形托盘内嵌项目 LOGO */}
+        <div
+          className="logo-circle"
+          style={{
+            width: '92px',
+            height: '92px',
+            borderRadius: '50%',
+            background: '#ffffff',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+            marginBottom: '20px',
+            overflow: 'hidden',
+          }}
+        >
+          {logoUrl ? (
+            <img
+              src={resolveAssetUrl(logoUrl)}
+              alt="Logo"
+              style={{ width: '76px', height: '76px', objectFit: 'contain', borderRadius: '50%' }}
+            />
+          ) : (
+            <span style={{ fontSize: '40px' }}>🌿</span>
+          )}
+        </div>
+
+        <h1
+          style={{
+            color: '#ffffff',
+            fontSize: '28px',
+            fontWeight: 700,
+            margin: '0 0 8px',
+            letterSpacing: '1px',
+            textShadow: '0 2px 4px rgba(0,0,0,0.08)',
+          }}
+        >
+          宾尼小康
+        </h1>
+        <p
+          style={{
+            color: 'rgba(255,255,255,0.92)',
+            fontSize: '14px',
+            margin: 0,
+            letterSpacing: '0.5px',
+          }}
+        >
+          AI 健康管家 · 您的私人健康助手
+        </p>
       </div>
 
-      <div className={`transition-all duration-500 ease-in-out ${isHorizontal ? 'px-8 pb-10 md:w-3/5 md:flex md:items-center' : 'px-8 pb-10'}`}>
-        <div className="w-full space-y-4 max-w-xl mx-auto">
-          <div className="bg-gray-50 rounded-xl px-4 py-3 flex items-center">
-            <span className="text-gray-400 mr-2">+86</span>
+      {/* 表单卡片上浮 -28px，圆角 24px，覆盖在渐变下沿 */}
+      <div
+        className="form-card"
+        style={{
+          marginTop: '-28px',
+          marginLeft: '20px',
+          marginRight: '20px',
+          background: '#ffffff',
+          borderRadius: '24px',
+          padding: '28px 24px 24px',
+          boxShadow: '0 -4px 24px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.04)',
+          position: 'relative',
+          zIndex: 2,
+        }}
+      >
+        <div className="w-full space-y-4">
+          {/* 手机号输入 */}
+          <div
+            className="bg-gray-50 rounded-xl px-4 py-3 flex items-center"
+            style={{ background: '#f5f7fa', borderRadius: '12px' }}
+          >
+            <span className="text-gray-500 mr-2" style={{ fontSize: '15px' }}>+86</span>
             <div className="w-px h-5 bg-gray-200 mr-3" />
             <Input
               placeholder="请输入手机号"
@@ -199,11 +306,15 @@ function LoginContent() {
               onChange={setPhone}
               type="tel"
               maxLength={11}
-              style={{ '--font-size': '16px' }}
+              style={{ '--font-size': '16px' } as React.CSSProperties}
             />
           </div>
 
-          <div className="bg-gray-50 rounded-xl px-4 py-3 flex items-center">
+          {/* 验证码输入 + 获取验证码按钮 */}
+          <div
+            className="bg-gray-50 rounded-xl px-4 py-3 flex items-center"
+            style={{ background: '#f5f7fa', borderRadius: '12px' }}
+          >
             <Input
               placeholder="请输入验证码"
               value={code}
@@ -211,67 +322,75 @@ function LoginContent() {
               type="number"
               maxLength={6}
               className="flex-1"
-              style={{ '--font-size': '16px' }}
+              style={{ '--font-size': '16px' } as React.CSSProperties}
             />
             <Button
               size="small"
               disabled={countdown > 0 || sending}
               onClick={sendCode}
               style={{
-                color: countdown > 0 ? '#999' : '#52c41a',
+                color: countdown > 0 ? '#999' : '#2fb56a',
                 border: 'none',
                 background: 'transparent',
                 padding: '0 0 0 12px',
                 fontSize: '14px',
+                whiteSpace: 'nowrap',
+                wordBreak: 'keep-all',
+                flex: '0 0 auto',
               }}
             >
-              {countdown > 0 ? `${countdown}s后重发` : '获取验证码'}
+              {countdown > 0 ? `${countdown} s` : '获取验证码'}
             </Button>
           </div>
 
           {refParam && (
-            <div className="px-1 text-xs" style={{ color: '#52c41a' }}>
+            <div className="px-1 text-xs" style={{ color: '#2fb56a' }}>
               🎉 已识别邀请码：<span className="font-medium">{refParam}</span>
             </div>
           )}
 
+          {/* 登录按钮始终高亮可点 */}
           <Button
             block
             loading={submitting}
             onClick={handleLogin}
             style={{
-              background: 'linear-gradient(135deg, #52c41a, #13c2c2)',
+              background: 'linear-gradient(135deg, #2fb56a 0%, #5cd692 100%)',
               color: '#fff',
               border: 'none',
               borderRadius: '24px',
               height: '48px',
               fontSize: '16px',
               fontWeight: 600,
-              marginTop: '24px',
+              marginTop: '20px',
+              boxShadow: '0 6px 16px rgba(47,181,106,0.32)',
             }}
           >
             {submitText}
           </Button>
 
-          <div className="flex items-start mt-4">
+          {/* 协议勾选行 */}
+          <div className="flex items-start" style={{ marginTop: '16px' }}>
             <Checkbox
               checked={agreed}
               onChange={setAgreed}
               style={{
                 '--icon-size': '16px',
-                '--adm-color-primary': '#52c41a',
-              }}
+                '--adm-color-primary': '#2fb56a',
+              } as React.CSSProperties}
             />
-            <span className="text-xs text-gray-400 ml-2 leading-5">
+            <span className="text-xs ml-2 leading-5" style={{ color: '#999' }}>
               我已阅读并同意
-              <span className="text-primary">《用户服务协议》</span>
+              <span style={{ color: '#2fb56a' }}>《用户服务协议》</span>
               和
-              <span className="text-primary">《隐私政策》</span>
+              <span style={{ color: '#2fb56a' }}>《隐私政策》</span>
             </span>
           </div>
         </div>
       </div>
 
+      {/* 底部留白（删除「登录即表示您将享受 AI 智能健康陪伴服务」文案） */}
+      <div style={{ flex: 1, minHeight: '24px' }} />
     </div>
   );
 }
@@ -279,8 +398,8 @@ function LoginContent() {
 export default function LoginPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(180deg, #e8fce8 0%, #ffffff 40%)' }}>
-        <SpinLoading color="primary" />
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(180deg, #2fb56a 0%, #5cd692 100%)' }}>
+        <SpinLoading color="white" />
       </div>
     }>
       <LoginContent />
