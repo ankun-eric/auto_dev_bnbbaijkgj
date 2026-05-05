@@ -73,6 +73,7 @@ const BUSINESS_TIME_OPTIONS: { label: string; value: string }[] = (() => {
   return out;
 })();
 
+// [2026-05-05 Bug 修复] 结束时间下拉去重 22:00：循环已包含 22:00（h<=22 且 m===30 break 仅跳过 22:30），无需再 push
 const BUSINESS_END_OPTIONS: { label: string; value: string }[] = (() => {
   const out: { label: string; value: string }[] = [];
   for (let h = 7; h <= 22; h++) {
@@ -83,7 +84,6 @@ const BUSINESS_END_OPTIONS: { label: string; value: string }[] = (() => {
       out.push({ label: v, value: v });
     }
   }
-  out.push({ label: '22:00', value: '22:00' });
   return out;
 })();
 

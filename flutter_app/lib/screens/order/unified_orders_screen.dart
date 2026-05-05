@@ -321,7 +321,7 @@ class _OrderTabState extends State<_OrderTab> with AutomaticKeepAliveClientMixin
           actions.add(const SizedBox(width: 8));
           // [核销订单过期+改期规则优化 v1.0] 改约：达上限置灰
           if (order.rescheduleCount >= order.rescheduleLimit) {
-            actions.add(_actionButton('改约（已无法改期）', Colors.grey, () {
+            actions.add(_actionButton('改约', Colors.grey, () {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('本订单已达改期上限')),
               );

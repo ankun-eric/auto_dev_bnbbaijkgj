@@ -533,7 +533,7 @@ class _UnifiedOrderDetailScreenState extends State<UnifiedOrderDetailScreen> {
         if (o.refundStatus == 'none' || o.refundStatus.isEmpty) {
           final reachedLimit = o.rescheduleCount >= o.rescheduleLimit;
           if (reachedLimit) {
-            actions.add(_actionBtn('改约（已无法改期）', Colors.grey, () {
+            actions.add(_actionBtn('改约', Colors.grey, () {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('本订单已达改期上限')),
               );

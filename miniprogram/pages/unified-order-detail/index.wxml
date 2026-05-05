@@ -190,7 +190,7 @@
         class="bar-btn outline {{(order.reschedule_count >= order.reschedule_limit) ? 'is-disabled' : ''}}"
         wx:if="{{(order.status === 'pending_use' || order.status === 'appointed' || order.status === 'partial_used') && (!order.refund_status || order.refund_status === 'none')}}"
         catchtap="onRescheduleClick">
-        {{(order.reschedule_count >= order.reschedule_limit) ? '改约（已无法改期）' : '改约'}}
+        改约
       </view>
       <view class="bar-btn outline" wx:if="{{(order.status === 'pending_use' || order.status === 'appointed') && order.refund_status === 'applied'}}" bindtap="withdrawRefund">撤回退款</view>
       <view class="bar-btn primary" wx:if="{{order.status === 'pending_payment'}}" bindtap="payOrder">立即付款</view>

@@ -299,7 +299,7 @@ function UnifiedOrdersPage() {
             }}
             style={{ borderRadius: 16, fontSize: 12, color: '#bfbfbf', borderColor: '#d9d9d9' }}
           >
-            改约（已无法改期）
+            改约
           </Button>
         );
       } else {

@@ -832,7 +832,7 @@ export default function UnifiedOrderDetailPage() {
                   onClick={() => Toast.show({ content: '本订单已达改期上限' })}
                   style={{ borderRadius: 20, height: 40, fontSize: 14, color: '#bfbfbf', borderColor: '#d9d9d9' }}
                 >
-                  改约（已无法改期）
+                  改约
                 </Button>
               );
             }

@@ -44,7 +44,7 @@
             class="action-btn outline {{(item.reschedule_count >= item.reschedule_limit) ? 'is-disabled' : ''}}"
             wx:if="{{item.status === 'pending_use' || item.status === 'appointed' || item.status === 'partial_used'}}"
             catchtap="onReschedule" data-order="{{item}}">
-            {{(item.reschedule_count >= item.reschedule_limit) ? '改约（已无法改期）' : '改约'}}
+            改约
           </view>
           <view class="action-btn outline"
             wx:if="{{(item.status === 'pending_use' || item.status === 'appointed') && item.refund_status === 'none'}}"
