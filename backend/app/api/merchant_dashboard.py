@@ -129,6 +129,42 @@ def _is_active_status(status_val) -> bool:
     return status_val not in ("cancelled", "refund_success", "pending_payment")
 
 
+# [PRD-09 商菜单 9 宫格改造 v1.0] 4 色状态码（Ant Design 5 默认色板）：
+# pending  → 待到店（colorPrimary 蓝 #1677FF）
+# arrived  → 已到店（colorWarning 橙 #FA8C16，目前以 partial_used 作为已到店判定）
+# verified → 已核销（colorSuccess 绿 #52C41A）
+# cancelled→ 已取消/已退款/已过期（colorTextDisabled 灰 #BFBFBF）
+def _status_code(status_val) -> str:
+    """订单状态 → 4 色状态码（pending/arrived/verified/cancelled）"""
+    if hasattr(status_val, "value"):
+        status_val = status_val.value
+    s = str(status_val or "")
+    if s in ("verified", "completed", "pending_receipt"):
+        return "verified"
+    if s in ("partial_used",):
+        return "arrived"
+    if s in ("cancelled", "refunded", "refunding", "refund_success", "expired"):
+        return "cancelled"
+    # 默认 待到店：appointed / pending_use / pending_appointment / pending_shipment 等
+    return "pending"
+
+
+def _aggregate_status_code(status_codes: List[str]) -> str:
+    """聚合多个订单状态码为该格的整体状态色：
+    优先级：verified > arrived > pending > cancelled。
+    若全部为 cancelled 才返回 cancelled。
+    """
+    if not status_codes:
+        return "pending"
+    if any(s == "verified" for s in status_codes):
+        return "verified"
+    if any(s == "arrived" for s in status_codes):
+        return "arrived"
+    if any(s == "pending" for s in status_codes):
+        return "pending"
+    return "cancelled"
+
+
 @router.get("/day")
 async def get_day_dashboard(
     target_date: date = Query(..., alias="date", description="目标日期 YYYY-MM-DD"),
@@ -145,15 +181,18 @@ async def get_day_dashboard(
     day_start = datetime.combine(target_date, time(0, 0))
     day_end = day_start + timedelta(days=1)
 
-    # 查该日所有相关订单项（含订单状态、金额、时段）
+    # 查该日所有相关订单项（含订单状态、金额、时段、客户）
+    # [PRD-09 商菜单 9 宫格改造 v1.0] 同时取出 User 以便每格展示客户姓名
     stmt = (
-        select(OrderItem, UnifiedOrder)
+        select(OrderItem, UnifiedOrder, User)
         .join(UnifiedOrder, OrderItem.order_id == UnifiedOrder.id)
+        .join(User, UnifiedOrder.user_id == User.id)
         .where(
             OrderItem.appointment_time.is_not(None),
             OrderItem.appointment_time >= day_start,
             OrderItem.appointment_time < day_end,
         )
+        .order_by(OrderItem.appointment_time.asc())
     )
     if store_ids:
         stmt = stmt.where(UnifiedOrder.store_id.in_(store_ids))
@@ -168,6 +207,12 @@ async def get_day_dashboard(
             "appointment_count": 0,
             "verified_count": 0,
             "verified_amount": 0.0,
+            # [PRD-09] 每格展示前 3 条预约的客户姓名/服务名/具体时间
+            "top_orders": [],
+            # [PRD-09] 4 色状态码（pending/arrived/verified/cancelled）
+            "status_code": "pending",
+            # 内部累积，最终返回前移除
+            "_status_codes": [],
         }
         for i in range(1, 10)
     }
@@ -177,22 +222,46 @@ async def get_day_dashboard(
     total_verified_amount = 0.0
     overflow_count = 0  # 凌晨脏数据
 
-    for item, order in rows:
+    for item, order, user_obj in rows:
         slot = appointment_to_slot(item.appointment_time)
         if slot is None:
             overflow_count += 1
             continue
         cell = cells[slot]
-        if _is_active_status(order.status):
+        active = _is_active_status(order.status)
+        if active:
             cell["appointment_count"] += 1
             total_appt += 1
         if _is_verified_status(order.status):
             cell["verified_count"] += 1
-            # 按订单金额平摊到每个 item（简化：使用 item.subtotal）
             amt = float(item.subtotal or 0)
             cell["verified_amount"] += amt
             total_verified += 1
             total_verified_amount += amt
+        # [PRD-09] 收集状态码 & 前 N 条订单摘要
+        sc = _status_code(order.status)
+        cell["_status_codes"].append(sc)
+        if len(cell["top_orders"]) < 3:
+            cust_name = (
+                getattr(user_obj, "nickname", None)
+                or getattr(user_obj, "phone", None)
+                or "未知客户"
+            )
+            appt_dt = item.appointment_time
+            time_text = appt_dt.strftime("%H:%M") if appt_dt else ""
+            cell["top_orders"].append({
+                "order_id": int(order.id),
+                "order_item_id": int(item.id),
+                "customer_name": str(cust_name),
+                "product_name": str(item.product_name or ""),
+                "appointment_time_text": time_text,
+                "status_code": sc,
+            })
+
+    # 计算每格整体 status_code 并清理临时字段
+    for i in range(1, 10):
+        cells[i]["status_code"] = _aggregate_status_code(cells[i]["_status_codes"])
+        cells[i].pop("_status_codes", None)
 
     # 当前 slot 高亮（仅当 target_date == today）
     current_slot = None
@@ -223,7 +292,15 @@ async def get_week_dashboard(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> Dict[str, Any]:
-    """周视图 — 返回本周 7 天的聚合数据（预约 / 已核 / 收入）"""
+    """周视图 — 返回本周「3 行 × 7 列 = 21 格」聚合数据。
+
+    [PRD-09 商菜单 9 宫格改造 v1.0]
+    3 行对应 3 个时段段：
+      - morning   06:00-12:00（slot 1-3）
+      - afternoon 12:00-18:00（slot 4-6）
+      - evening   18:00-24:00（slot 7-9）
+    7 列对应周一~周日，每格仅返回「N 个预约」徽标 + 状态色（不返回客户姓名）。
+    """
     store_ids = await _resolve_store_ids_for_user(db, current_user, store_id)
 
     weekday = target_date.weekday()  # 周一 = 0
@@ -244,16 +321,47 @@ async def get_week_dashboard(
 
     rows = (await db.execute(stmt)).all()
 
+    # 兼容旧契约：days[7] 仍按天聚合
     days: Dict[str, Dict[str, Any]] = {}
     for offset in range(7):
         d = (week_start + timedelta(days=offset)).isoformat()
         days[d] = {
             "date": d,
-            "weekday": offset,  # 0 = 周一
+            "weekday": offset,
             "appointment_count": 0,
             "verified_count": 0,
             "verified_amount": 0.0,
         }
+
+    # [PRD-09] 21 格：(period × 7 天)
+    PERIODS = (
+        ("morning", (1, 2, 3)),
+        ("afternoon", (4, 5, 6)),
+        ("evening", (7, 8, 9)),
+    )
+    cells_map: Dict[tuple, Dict[str, Any]] = {}
+    for period_name, _slots in PERIODS:
+        for offset in range(7):
+            d = (week_start + timedelta(days=offset)).isoformat()
+            cells_map[(d, period_name)] = {
+                "date": d,
+                "weekday": offset,
+                "period": period_name,
+                "appointment_count": 0,
+                "_status_codes": [],
+                "status_code": "pending",
+            }
+
+    def _slot_period(slot_no: Optional[int]) -> Optional[str]:
+        if slot_no is None:
+            return None
+        if 1 <= slot_no <= 3:
+            return "morning"
+        if 4 <= slot_no <= 6:
+            return "afternoon"
+        if 7 <= slot_no <= 9:
+            return "evening"
+        return None
 
     total_appt = total_verified = 0
     total_amount = 0.0
@@ -262,22 +370,50 @@ async def get_week_dashboard(
         d = item.appointment_time.date().isoformat()
         if d not in days:
             continue
-        cell = days[d]
-        if _is_active_status(order.status):
-            cell["appointment_count"] += 1
+        day_cell = days[d]
+        active = _is_active_status(order.status)
+        if active:
+            day_cell["appointment_count"] += 1
             total_appt += 1
         if _is_verified_status(order.status):
-            cell["verified_count"] += 1
+            day_cell["verified_count"] += 1
             amt = float(item.subtotal or 0)
-            cell["verified_amount"] += amt
+            day_cell["verified_amount"] += amt
             total_verified += 1
             total_amount += amt
+
+        # 21 格统计
+        slot = appointment_to_slot(item.appointment_time)
+        period = _slot_period(slot)
+        if period is None:
+            continue
+        cell = cells_map[(d, period)]
+        if active:
+            cell["appointment_count"] += 1
+        cell["_status_codes"].append(_status_code(order.status))
+
+    cells_list: List[Dict[str, Any]] = []
+    for period_name, _slots in PERIODS:
+        for offset in range(7):
+            d = (week_start + timedelta(days=offset)).isoformat()
+            c = cells_map[(d, period_name)]
+            c["status_code"] = _aggregate_status_code(c["_status_codes"])
+            c.pop("_status_codes", None)
+            cells_list.append(c)
 
     return {
         "week_start": week_start.isoformat(),
         "week_end": (week_end_excl - timedelta(days=1)).isoformat(),
         "store_ids": store_ids,
+        # 兼容旧字段
         "days": [days[(week_start + timedelta(days=i)).isoformat()] for i in range(7)],
+        # [PRD-09] 21 格新字段
+        "cells": cells_list,
+        "periods": [
+            {"key": "morning", "label": "上午（06:00-12:00）"},
+            {"key": "afternoon", "label": "下午（12:00-18:00）"},
+            {"key": "evening", "label": "晚上（18:00-24:00）"},
+        ],
         "summary": {
             "appointment_count": total_appt,
             "verified_count": total_verified,
@@ -323,24 +459,34 @@ async def get_month_dashboard(
     for item, order in rows:
         d = item.appointment_time.date().isoformat()
         if d not in days_map:
-            days_map[d] = {"date": d, "appointment_count": 0,
-                           "verified_count": 0, "verified_amount": 0.0}
+            days_map[d] = {
+                "date": d, "appointment_count": 0,
+                "verified_count": 0, "verified_amount": 0.0,
+                "_status_codes": [], "status_code": "pending",
+            }
         cell = days_map[d]
         if _is_active_status(order.status):
             cell["appointment_count"] += 1
         if _is_verified_status(order.status):
             cell["verified_count"] += 1
             cell["verified_amount"] += float(item.subtotal or 0)
+        cell["_status_codes"].append(_status_code(order.status))
 
     # 把所有日期补齐
     cur = month_start
     days_list = []
     while cur < next_month_start:
         d = cur.isoformat()
-        days_list.append(days_map.get(d, {
-            "date": d, "appointment_count": 0,
-            "verified_count": 0, "verified_amount": 0.0,
-        }))
+        cell = days_map.get(d)
+        if cell is None:
+            cell = {
+                "date": d, "appointment_count": 0,
+                "verified_count": 0, "verified_amount": 0.0,
+                "_status_codes": [], "status_code": "pending",
+            }
+        cell["status_code"] = _aggregate_status_code(cell["_status_codes"])
+        cell.pop("_status_codes", None)
+        days_list.append(cell)
         cur += timedelta(days=1)
 
     return {
@@ -356,11 +502,14 @@ async def get_month_dashboard(
 def _build_order_card(item: OrderItem, order: UnifiedOrder, user_obj: Optional[User]) -> Dict[str, Any]:
     slot = appointment_to_slot(item.appointment_time)
     status_val = order.status.value if hasattr(order.status, "value") else str(order.status)
+    appt_dt = item.appointment_time
+    appt_time_text = appt_dt.strftime("%H:%M") if appt_dt else ""
     return {
         "order_id": order.id,
         "order_no": order.order_no,
         "order_item_id": item.id,
-        "appointment_time": item.appointment_time.isoformat() if item.appointment_time else None,
+        "appointment_time": appt_dt.isoformat() if appt_dt else None,
+        "appointment_time_text": appt_time_text,
         "slot_no": slot,
         "slot_label": slot_label(slot) if slot else "",
         "customer_name": (user_obj.nickname if user_obj else None) or (user_obj.phone if user_obj else None) or "未知",
@@ -368,6 +517,9 @@ def _build_order_card(item: OrderItem, order: UnifiedOrder, user_obj: Optional[U
         "product_name": item.product_name,
         "amount": float(item.subtotal or 0),
         "status": status_val,
+        # [PRD-09 商菜单 9 宫格改造 v1.0] 4 色状态码
+        "status_code": _status_code(order.status),
+        "notes": getattr(order, "notes", None),
     }
 
 
@@ -402,6 +554,7 @@ async def get_month_day_orders(
 
     morning: List[Dict[str, Any]] = []
     afternoon: List[Dict[str, Any]] = []
+    orders_all: List[Dict[str, Any]] = []  # [PRD-09] 时间轴统一列表
 
     total_appt = total_verified = 0
     total_amount = 0.0
@@ -418,6 +571,7 @@ async def get_month_day_orders(
             morning.append(card)
         else:
             afternoon.append(card)
+        orders_all.append(card)
         total_appt += 1
         if _is_verified_status(order.status):
             total_verified += 1
@@ -426,6 +580,9 @@ async def get_month_day_orders(
     return {
         "date": target_date.isoformat(),
         "store_ids": store_ids,
+        # [PRD-09] 新字段：按时间排序的统一订单列表（左栏时间轴用）
+        "orders": orders_all,
+        # 兼容旧字段
         "morning": morning,
         "afternoon": afternoon,
         "summary": {
