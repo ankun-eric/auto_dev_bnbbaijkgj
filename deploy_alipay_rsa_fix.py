@@ -27,7 +27,7 @@ SSH_USER = "ubuntu"
 SSH_PASS = "Newbang888"
 PROJECT_DIR = "/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27"
 DEPLOY_ID = "6b099ed3-7175-4a78-91f4-44570c84ed27"
-GH_TOKEN = "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"
+GH_TOKEN = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN") or ""
 
 
 def run_ssh(client, cmd, timeout=600, capture=True):

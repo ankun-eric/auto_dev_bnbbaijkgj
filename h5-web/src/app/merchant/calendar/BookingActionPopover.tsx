@@ -2,10 +2,12 @@
 
 // [PRD-03 客户端改期能力收口 v1.0]
 // 商家端 Popover 已移除「改约」按钮，改期权 100% 归客户端。
-// 仅保留：核销 / 联系顾客 / 查看详情 三项操作。
+// [PRD-05 核销动作收口手机端 v1.0]
+// PC 端不允许发起核销，「核销」按钮置灰，悬浮提示「请到手机端核销」。
+// 仅保留：核销（PC 置灰）/ 联系顾客 / 查看详情 三项操作。
 
 import React from 'react';
-import { Popover, Button, Space, message } from 'antd';
+import { Popover, Button, Space, Tooltip, message } from 'antd';
 import {
   CheckCircleOutlined,
   PhoneOutlined,
@@ -31,10 +33,6 @@ export default function BookingActionPopover({
     window.location.href = `/merchant/orders?highlight=${card.order_id}`;
   };
 
-  const handleVerify = () => {
-    window.location.href = `/merchant/verifications?order=${card.order_id}`;
-  };
-
   const handleNotify = async () => {
     if (!storeId) return;
     try {
@@ -57,16 +55,22 @@ export default function BookingActionPopover({
   };
 
   const content = (
-    <Space direction="vertical" size={4} style={{ minWidth: 140 }}>
-      <Button
-        block
-        type="text"
-        icon={<CheckCircleOutlined />}
-        onClick={handleVerify}
-        disabled={card.status !== 'pending'}
-      >
-        核销
-      </Button>
+    <Space direction="vertical" size={4} style={{ minWidth: 160 }}>
+      {/*
+        [PRD-05 核销动作收口手机端 v1.0]
+        PC 端任何位置不允许发起核销：核销按钮强制置灰，
+        鼠标悬浮提示「请到手机端核销」。
+      */}
+      <Tooltip title="PC 端不允许发起核销，请到手机端 H5 / 核销小程序操作">
+        <Button
+          block
+          type="text"
+          icon={<CheckCircleOutlined />}
+          disabled
+        >
+          核销（请到手机端）
+        </Button>
+      </Tooltip>
       {/* [PRD-03 客户端改期能力收口 v1.0] 商家端「改约」按钮已删除 */}
       <Button block type="text" icon={<PhoneOutlined />} onClick={handleNotify}>
         联系顾客

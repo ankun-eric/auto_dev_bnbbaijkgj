@@ -54,17 +54,17 @@ def retry_gh(args, **kw):
 
 
 def ensure_auth():
-    out = run_cmd(["gh", "auth", "status"], retries=2, allow_fail=True)
-    if out is None:
-        if not TOKEN:
-            raise RuntimeError("No GH_TOKEN/GITHUB_TOKEN env var set")
-        print("Logging in with token...", flush=True)
-        proc = subprocess.run(
-            ["gh", "auth", "login", "--with-token"],
-            input=TOKEN, text=True, capture_output=True,
-        )
-        if proc.returncode != 0:
-            raise RuntimeError(f"gh auth login failed: {proc.stderr}")
+    """Verify gh auth is usable. GH_TOKEN env var is used implicitly by gh."""
+    if not TOKEN:
+        out = run_cmd(["gh", "auth", "status"], retries=2, allow_fail=True)
+        if out is None:
+            raise RuntimeError("No GH_TOKEN env var and gh auth not configured")
+        return
+    probe = run_cmd(["gh", "api", "user", "--jq", ".login"], retries=2, allow_fail=True)
+    if probe:
+        print(f"Authenticated as: {probe}", flush=True)
+    else:
+        raise RuntimeError("GH_TOKEN cannot authenticate against api.github.com")
 
 
 def gen_version_tag():

@@ -26,9 +26,10 @@ SSH_USER = "ubuntu"
 SSH_PASS = "Newbang888"
 DEPLOY_ID = "6b099ed3-7175-4a78-91f4-44570c84ed27"
 REMOTE_DIR = f"/home/ubuntu/{DEPLOY_ID}/static/miniprogram"
-# Nginx 把 {baseUrl}/miniprogram/* 直接映射到服务器上 /home/ubuntu/<deployId>/static/miniprogram/*，
-# 因此 URL 路径段中不带 "static/"。
-URL_BASE = f"https://newbb.test.bangbangvip.com/autodev/{DEPLOY_ID}/miniprogram"
+# 任务说明：Nginx 已映射 {baseUrl}/static/miniprogram/* -> /home/ubuntu/<deployId>/static/miniprogram/*。
+# 同时保留无 static/ 的兜底路径以兼容历史 PRD-01 部署习惯。
+URL_BASE = f"https://newbb.test.bangbangvip.com/autodev/{DEPLOY_ID}/static/miniprogram"
+URL_BASE_FALLBACK = f"https://newbb.test.bangbangvip.com/autodev/{DEPLOY_ID}/miniprogram"
 
 EXCLUDE_DIR_NAMES = {"node_modules", ".git", ".idea", ".vscode", "__pycache__", "miniprogram_npm"}
 EXCLUDE_SUFFIXES = (".log", ".DS_Store")
@@ -122,10 +123,26 @@ def main():
         code = (cp.stdout or "").strip()
         print(f"[verify-get] GET {download_url} -> {code}")
 
+    final_url = download_url
+    if code != "200":
+        fallback_url = f"{URL_BASE_FALLBACK}/{zip_name}"
+        fb_code = verify_url(fallback_url)
+        if fb_code != "200":
+            curl_bin = "curl.exe" if os.name == "nt" else "curl"
+            cp = subprocess.run(
+                [curl_bin, "-k", "-s", "-o", os.devnull, "-w", "%{http_code}", fallback_url],
+                capture_output=True, text=True, timeout=60,
+            )
+            fb_code = (cp.stdout or "").strip()
+            print(f"[verify-get] GET {fallback_url} -> {fb_code}")
+        if fb_code == "200":
+            final_url = fallback_url
+            code = fb_code
+
     local_size = os.path.getsize(local_zip)
     print("=" * 60)
     print(f"ZIP_NAME={zip_name}")
-    print(f"DOWNLOAD_URL={download_url}")
+    print(f"DOWNLOAD_URL={final_url}")
     print(f"HTTP_STATUS={code}")
     print(f"LOCAL_SIZE={local_size}")
     print(f"REMOTE_SIZE={remote_size}")

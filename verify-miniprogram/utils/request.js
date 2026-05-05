@@ -5,6 +5,10 @@ function request(options) {
     const token = app.globalData.token || wx.getStorageSync('token')
     const header = {
       'Content-Type': 'application/json',
+      // [PRD-05 核销动作收口手机端 v1.0] 显式声明客户端类型为「核销小程序」，
+      // 后端 require_mobile_verify_client 依赖项据此放行核销动作；缺失时被识别为 unknown 并 403。
+      'Client-Type': 'verify-miniprogram',
+      'X-Client-Type': 'verify-miniprogram',
     }
     if (token) {
       header['Authorization'] = 'Bearer ' + token

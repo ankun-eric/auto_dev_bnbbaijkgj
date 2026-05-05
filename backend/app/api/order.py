@@ -4,12 +4,13 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.security import get_current_user
+from app.utils.client_source import require_mobile_verify_client
 from app.models.models import (
     Notification,
     NotificationType,
@@ -235,10 +236,13 @@ async def create_review(
 @router.post("/{order_id}/verify")
 async def verify_order(
     order_id: int,
+    request: Request,
     code: str = Query(...),
     current_user: User = Depends(get_current_user),
+    _client_type: str = Depends(require_mobile_verify_client),
     db: AsyncSession = Depends(get_db),
 ):
+    # [PRD-05 R-05-04] 即便此旧接口已在 main.py 中注释禁用，依然加上来源校验作为防线。
     result = await db.execute(select(Order).where(Order.id == order_id))
     order = result.scalar_one_or_none()
     if not order:

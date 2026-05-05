@@ -32,11 +32,7 @@ REMOTE_APK_DIR = f"/home/ubuntu/{PROJECT_ID}/static/apk"
 BASE_URL = f"https://{HOST}/autodev/{PROJECT_ID}"
 
 GH_REPO = "ankun-eric/auto_dev_bnbbaijkgj"
-GH_TOKEN = (
-    os.environ.get("GH_TOKEN")
-    or os.environ.get("GITHUB_TOKEN")
-    or "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"
-)
+GH_TOKEN = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN") or ""
 WORKFLOW = "android-build.yml"
 
 POLL_INTERVAL = 30

@@ -138,11 +138,12 @@ export default function ListView({
           menu={{
             items: [
               {
+                // [PRD-05 核销动作收口手机端 v1.0]
+                // PC 端任何位置不允许发起核销，菜单项强制置灰并提示「请到手机端核销」。
                 key: 'verify',
-                label: '核销',
-                disabled: record.status !== 'pending',
-                onClick: () =>
-                  (window.location.href = `/merchant/verifications?order=${record.order_id}`),
+                label: '核销（请到手机端）',
+                disabled: true,
+                title: '请到手机端 H5 / 核销小程序发起核销',
               },
               // [PRD-03 客户端改期能力收口 v1.0] 商家端「改约」菜单项已删除
               {

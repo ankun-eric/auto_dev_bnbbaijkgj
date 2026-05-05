@@ -17,6 +17,10 @@ api.interceptors.request.use(
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
+      // [PRD-05 核销动作收口手机端 v1.0] Admin 平台是 PC 端管理后台，
+      // 显式声明 Client-Type=pc-web，后端核销接口将拒绝此来源的调用。
+      config.headers['Client-Type'] = 'pc-web';
+      config.headers['X-Client-Type'] = 'pc-web';
     }
     return config;
   },

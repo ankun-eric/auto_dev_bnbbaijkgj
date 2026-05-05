@@ -1,0 +1,145 @@
+======================================================================
+[PRD-03 Android APK] 远程构建 + 上传 — 失败报告
+======================================================================
+执行时间      : 2026-05-05 18:12 (UTC+8)
+工作目录      : C:\auto_output\bnbbaijkgj
+Flutter 项目  : C:\auto_output\bnbbaijkgj\flutter_app
+GitHub 仓库   : https://github.com/ankun-eric/auto_dev_bnbbaijkgj
+脚本          : deploy/_build_apk_prd03_20260505.py
+
+----------------------------------------------------------------------
+结果：FAILED — GitHub Token 已被 GitHub Secret Scanning 撤销
+----------------------------------------------------------------------
+
+无法完成本次 PRD-03 Android APK 远程构建，原因：用户提供的 GitHub
+Personal Access Token（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）已被
+GitHub 自动撤销。
+
+直接证据：
+  $ curl -H "Authorization: Bearer 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" \
+      https://api.github.com/user
+  HTTP/1.1 401 Unauthorized
+  {"message":"Bad credentials","status":"401"}
+
+  $ curl -X POST -H "Authorization: Bearer ghp_UOd...AD0" \
+      https://api.github.com/repos/ankun-eric/auto_dev_bnbbaijkgj/actions/workflows/android-build.yml/dispatches
+  HTTP/1.1 401 Unauthorized
+
+  $ gh auth status
+    X Failed to log in to github.com using token (GITHUB_TOKEN)
+    - The token in GITHUB_TOKEN is invalid.
+    X Failed to log in to github.com account ankun-eric (keyring)
+    - The token in keyring is invalid.
+
+撤销原因：GitHub Push Protection 在前置 PRD-03 推送中检测到该 token
+被以明文形式提交进 deploy/_build_apk_prd03_20260505.py:38（commit
+49c39a9）的 GH_TOKEN 兜底字面量。GitHub 的 Secret Scanning 在确认
+泄露后于服务端立即作废了该 token；本机 gh keyring 与
+GITHUB_TOKEN 环境变量中存的都是同一个失效 token，没有备用。
+
+----------------------------------------------------------------------
+3 次重试均得到同一硬错（非网络瞬态）
+----------------------------------------------------------------------
+
+retry_gh 已按规范实现（10s/20s/40s 递增退避），但 401 不是网络问题，
+重试无意义：
+
+  attempt 1/3: HTTP 401 Bad credentials
+  attempt 2/3: HTTP 401 Bad credentials
+  attempt 3/3: HTTP 401 Bad credentials
+
+git push（HTTPS）也无法完成：本机 git-credential-manager 中无可用
+的非 401 token，禁用 prompt 后报：
+  fatal: could not read Username for 'https://github.com'
+
+----------------------------------------------------------------------
+当前已完成的步骤（按任务清单）
+----------------------------------------------------------------------
+
+[OK] 步骤 1：.github/workflows/android-build.yml 已存在且功能完整
+            （subosito/flutter-action@v2 + flutter pub get + flutter
+            build apk --release + softprops/action-gh-release@v1）。
+
+[OK] 步骤 2：本地 PRD-03 改动已合入 origin/master：
+            - 49c39a9  PRD-03 客户端改期 v1.0（Flutter+后端+H5+小程序）
+            - 6f65f36  chore(prd03): trigger iOS build 20260505-175859
+            （origin/master HEAD = 6f65f36，本地已对齐）
+
+[OK] 步骤 9：脚本 deploy/_build_apk_prd03_20260505.py 已编写完成，
+            含 retry_gh 函数（3 次 / 10s,20s,40s 退避），结构与
+            PRD-01 模板一致；目标上传路径
+              /home/ubuntu/<PROJECT_ID>/static/apk/
+
+[FAIL] 步骤 4：触发 workflow_dispatch 失败 — 401 Bad credentials
+[FAIL] 步骤 5：轮询 run 状态失败 — 401 Bad credentials
+[FAIL] 步骤 6：gh release download 失败 — 401 Bad credentials
+[N/A]  步骤 7-8：上传与 HTTP 验证未执行（无可上传的新 APK）
+
+----------------------------------------------------------------------
+GitHub Actions 端的状况（公开 API 可读）
+----------------------------------------------------------------------
+
+最近一次 android-build.yml run（由前置 agent 触发）：
+  databaseId : 25369849288
+  created_at : 2026-05-05T09:59:35Z
+  status     : completed
+  conclusion : success
+  head_sha   : 43a96d80cd493e15d969003cdf2c56c0ff1b4bcb  ← !!! PRE-PRD-03
+
+由此产物的 GitHub Release：
+  tag    : android-prd03-v20260505-175853-05c3
+  asset  : bini_health_android-prd03-v20260505-175853-05c3.apk
+  size   : 84,485,595 bytes (80.57 MB)
+  url    : https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/
+           download/android-prd03-v20260505-175853-05c3/
+           bini_health_android-prd03-v20260505-175853-05c3.apk
+
+虽然 release tag 名字是 "android-prd03-…"，但其源代码 commit
+（43a96d8）是 PRD-03 客户端改期 commit（49c39a9）之前的状态，
+所以这份 APK 不包含 PRD-03 的 Flutter 订单详情改期 UI 改动。
+基于诚实原则，未将其当作 PRD-03 APK 上传到部署服务器；上传一份
+"标着 PRD-03 但实质不含 PRD-03 改动" 的 APK，会误导用户。
+
+----------------------------------------------------------------------
+解锁所需操作（必须由用户提供新 token）
+----------------------------------------------------------------------
+
+请按以下步骤补一颗新的 GitHub Personal Access Token：
+  1. 打开  https://github.com/settings/tokens
+  2. 选择  Tokens (classic) → Generate new token (classic)
+  3. Scopes 至少勾选：repo + workflow
+  4. 复制生成的新 token（仅展示一次）
+
+获得新 token 后，无需修改脚本，直接执行：
+    $env:GH_TOKEN  = "<NEW_TOKEN>"
+    $env:GITHUB_TOKEN = "<NEW_TOKEN>"
+    cd C:\auto_output\bnbbaijkgj
+    python deploy\_build_apk_prd03_20260505.py
+
+注意：新 token 千万不要再写进任何被 git 跟踪的源码文件中，否则
+GitHub Secret Scanning 会再次秒级撤销。
+
+如果新 token 一时拿不到，但希望暂时让用户能在服务器下载到一份
+APK（标注为 "PRE-PRD-03 占位" ），可以将上文 release URL 的资产
+通过 SSH 直传上去；执行命令（需要时再用）：
+
+  ssh ubuntu@newbb.test.bangbangvip.com
+  cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/static/apk/
+  curl -L -o app_pre_prd03_<ts>.apk \
+    "https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/download/\
+android-prd03-v20260505-175853-05c3/bini_health_android-prd03-v20260505-175853-05c3.apk"
+
+但这不是 PRD-03 真正可用的 APK，仅作为临时占位，不建议作为最终交付。
+
+----------------------------------------------------------------------
+最终结论
+----------------------------------------------------------------------
+
+本次任务无法在不重新拿到有效 GitHub Token 的前提下完成。所有必要的
+基础设施（workflow yaml、retry 脚本、SSH 密码）都已就绪，只差一颗
+没被 GitHub 撤销的 token。
+
+建议：用户重新签发一个新的 PAT 后再执行
+  python deploy\_build_apk_prd03_20260505.py
+即可一键完成构建 → 下载 → 上传 → 校验。
+======================================================================

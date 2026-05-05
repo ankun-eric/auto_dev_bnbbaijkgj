@@ -4,12 +4,13 @@ from calendar import monthrange
 from datetime import datetime, timedelta, date
 from typing import Optional
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query, UploadFile, File
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request, UploadFile, File
 from sqlalchemy import and_, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.security import get_current_user, require_identity
+from app.utils.client_source import require_mobile_verify_client
 from app.models.models import (
     BookingNotificationLog,
     MerchantCalendarView,
@@ -291,9 +292,13 @@ async def get_order_by_verify_code(
 async def verify_order(
     order_id: int,
     data: MerchantVerifyRequest,
+    request: Request,
     current_user: User = Depends(merchant_dep),
+    _client_type: str = Depends(require_mobile_verify_client),
     db: AsyncSession = Depends(get_db),
 ):
+    # [PRD-05 R-05-04] 商家端订单核销接口同样仅允许移动端来源；
+    # PC 端浏览器（含 admin-web 和 h5-web 商家 PC）发起调用会被 require_mobile_verify_client 拦下并返回 403。
     _, store, _ = await _ensure_store_access(db, current_user.id, data.store_id, "verify")
 
     result = await db.execute(select(Order).where(Order.id == order_id))

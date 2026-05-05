@@ -75,6 +75,17 @@ api.interceptors.request.use(
       if (token && config.headers) {
         config.headers.Authorization = `Bearer ${token}`;
       }
+      // [PRD-05 核销动作收口手机端 v1.0] 客户端类型 Header
+      // - /merchant/m/*           -> h5-mobile（商家端 H5 移动版，含 /merchant/m/verify 核销页）
+      // - 其他 H5 页面（含 PC 端商家后台 /merchant/*、C 端 /*）-> pc-web
+      // 后端 require_mobile_verify_client 依赖项据此放行/拦截核销动作。
+      if (config.headers) {
+        const clientType = appPath.startsWith('/merchant/m/') || appPath === '/merchant/m'
+          ? 'h5-mobile'
+          : 'pc-web';
+        config.headers['Client-Type'] = clientType;
+        config.headers['X-Client-Type'] = clientType;
+      }
     }
     return config;
   },

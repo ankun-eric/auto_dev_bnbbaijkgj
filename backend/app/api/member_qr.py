@@ -1,12 +1,13 @@
 import uuid
 from datetime import date, datetime, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.security import get_current_user, require_identity
+from app.utils.client_source import require_mobile_verify_client
 from app.models.models import (
     CheckinRecord,
     MemberQRToken,
@@ -60,9 +61,12 @@ async def get_member_qrcode(
 @router.post("/api/verify/member-qrcode")
 async def verify_member_qrcode(
     data: VerifyMemberQRRequest,
+    request: Request,
     current_user: User = Depends(require_identity("merchant_owner", "merchant_staff")),
+    _client_type: str = Depends(require_mobile_verify_client),
     db: AsyncSession = Depends(get_db),
 ):
+    # [PRD-05 R-05-04] 会员码识别同样属于"门店现场"动作，PC 端不应触发，仅手机端可用。
     result = await db.execute(
         select(MemberQRToken).where(MemberQRToken.token == data.token)
     )
@@ -90,9 +94,12 @@ async def verify_member_qrcode(
 @router.post("/api/verify/checkin")
 async def checkin_at_store(
     data: CheckinRequest,
+    request: Request,
     current_user: User = Depends(require_identity("merchant_owner", "merchant_staff")),
+    _client_type: str = Depends(require_mobile_verify_client),
     db: AsyncSession = Depends(get_db),
 ):
+    # [PRD-05 R-05-04] 到店签到属于现场动作，PC 端不应触发，仅手机端可用。
     result = await db.execute(
         select(MemberQRToken).where(MemberQRToken.token == data.token)
     )
@@ -200,9 +207,13 @@ async def checkin_at_store(
 @router.post("/api/verify/redeem")
 async def redeem_service(
     data: RedeemRequest,
+    request: Request,
     current_user: User = Depends(require_identity("merchant_owner", "merchant_staff")),
+    _client_type: str = Depends(require_mobile_verify_client),
     db: AsyncSession = Depends(get_db),
 ):
+    # [PRD-05 R-05-04] 来源校验：仅允许 h5-mobile / verify-miniprogram，PC 端 403。
+    # 上方 require_mobile_verify_client 已完成校验，不通过会直接抛 403。
     result = await db.execute(
         select(OrderItem).where(OrderItem.verification_code == data.verification_code)
     )
@@ -269,6 +280,30 @@ async def redeem_service(
         store_id=data.store_id,
         redeemed_at=redemption.redeemed_at,
         remaining_count=order_item.total_redeem_count - order_item.used_redeem_count,
+    )
+
+
+# [PRD-05 §2.4] 统一核销入口，作为 /api/verify/redeem 的别名，方便手机端 / 核销小程序统一调用。
+# 同样要求来源 ∈ ("h5-mobile", "verify-miniprogram") 才允许通过；PC 端 403。
+@router.post("/api/verifications/verify")
+async def verifications_verify(
+    data: RedeemRequest,
+    request: Request,
+    current_user: User = Depends(require_identity("merchant_owner", "merchant_staff")),
+    _client_type: str = Depends(require_mobile_verify_client),
+    db: AsyncSession = Depends(get_db),
+):
+    """[PRD-05] 核销动作统一入口（手机端专用）。
+
+    与 `/api/verify/redeem` 行为完全等价，是 PRD §2.4 规定的对外接口名。
+    保留 `/api/verify/redeem` 以向后兼容现存的 H5 移动端调用。
+    """
+    return await redeem_service(
+        data=data,
+        request=request,
+        current_user=current_user,
+        _client_type=_client_type,
+        db=db,
     )
 
 

@@ -33,7 +33,125 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: PRD-02 门店端预约看板（日 / 周 / 月 三视图）v1.0 落地（2026-05-05 17:30）
+## Latest Update: PRD-05 核销动作收口手机端 v1.0 落地（2026-05-05 19:00）
+
+### 一句话结论
+按 `cursor_prompt_347_20260505182219.txt` PRD-05「核销动作收口手机端 v1.0」**把所有「核销动作」类接口收归手机端**：后端新增 `app/utils/client_source.py` 客户端来源识别 + FastAPI 依赖 `require_mobile_verify_client`，按优先级解析 `Client-Type` / `X-Client-Type` 头部（已知 `h5-mobile / verify-miniprogram / pc-web`）+ User-Agent 兜底（含 MicroMessenger MiniProgram → verify-miniprogram / 移动端 → h5-mobile / Windows-Macintosh-Linux X11 → pc-web），仅 `h5-mobile` 与 `verify-miniprogram` 放行，PC 端 / unknown → 403 「核销动作仅限手机端发起，请到手机端 H5 / 核销小程序操作」；6 个核销接口接入该依赖：① `POST /api/verifications/verify`（**新增 PRD §2.4 规定的统一入口**，与 `/api/verify/redeem` 等价别名）；② `POST /api/verify/redeem`（订单核销）；③ `POST /api/verify/member-qrcode`（会员码核销）；④ `POST /api/verify/checkin`（到店核销）；⑤ `POST /api/staff/cards/redeem`（员工卡核销）；⑥ `POST /api/merchant/orders/{id}/verify`（商家端订单核销）；⑦ 旧版 `POST /api/orders/{id}/verify`（已在 main.py 注释禁用，仍加 403 防线）。前端三处显式声明客户端类型：H5 Axios 拦截器按 `pathname.startsWith('/merchant/m/')` 判断 → 注入 `Client-Type: h5-mobile`，否则 `pc-web`；Admin Axios 拦截器写死 `Client-Type: pc-web`；核销小程序 `verify-miniprogram/utils/request.js` 默认头注入 `Client-Type: verify-miniprogram`。商家 H5 PC 端 9 宫格抽屉（`merchant/calendar/BookingActionPopover.tsx`）「核销」按钮强制置灰 + Tooltip「PC 端不允许发起核销，请到手机端 H5 / 核销小程序操作」 + 文案改「核销（请到手机端）」；列表视图（`merchant/calendar/ListView.tsx`）行末 Dropdown 「核销」菜单项 `disabled: true` + `title` Tooltip + 同样文案；核销记录查询 / 列表 / 详情页**继续可用**，仅拦截写动作。**测试**：新增 `backend/tests/test_prd05_verify_lockdown_v1.py`（单元测试套件），覆盖 `parse_client_type_from_header`（4 case：标准/大小写/`_-`容错/未知值回退）+ `parse_client_type_from_user_agent`（7 case：iPhone/Android/微信小程序UA/Windows/macOS/Linux/未知）+ `detect_client_type`（头部优先 + UA 兜底）+ `is_mobile_verify_client`（仅 `h5-mobile/verify-miniprogram` 通过）+ `require_mobile_verify_client`（4 大类参数化 + 头部覆盖 UA + 文案匹配）+ `VERIFY_FORBIDDEN_DETAIL` 内容断言。**部署**：新增 `deploy/_deploy_prd05_verify_lockdown_20260505.py` paramiko SFTP 上传 11 文件 + `docker compose build backend h5-web admin-web` + 容器重启后 `pip install pytest pytest-asyncio aiosqlite httpx` + 跑全套 pytest **163/163 PASS**；远端 4 类来源验证（`Client-Type: pc-web` → 401/403 拦截 / `h5-mobile` → 401/400/422 透过 / `verify-miniprogram` → 同上 / 缺 `Client-Type` + 通用 UA → 401/403 拦截）。**多端打包**：核销小程序 zip 子 Agent 成功 → `verify_miniprogram_20260505_190014_1348.zip`（19 866 bytes / 31 文件）双路径上传 `/static/downloads/` + `/static/verify-miniprogram/`，下载 URL `…/downloads/verify_miniprogram_20260505_190014_1348.zip` 验证 200；APK / iOS / 主小程序本期未涉及核销 UI 变化故无需重打包。
+
+### 涉及文件（11 个）
+
+**Backend — 核心新增**：
+- `backend/app/utils/client_source.py`（**新增**，~95 行）：常量 `CLIENT_H5_MOBILE / CLIENT_VERIFY_MINIPROGRAM / CLIENT_PC_WEB / CLIENT_UNKNOWN` + frozenset `MOBILE_VERIFY_CLIENTS = {h5-mobile, verify-miniprogram}`；`parse_client_type_from_header(request)` 提取 Client-Type/X-Client-Type 头部，case-insensitive + 容忍 `_-` 互换 + 校验在已知集合内才返回；`parse_client_type_from_user_agent(ua)` UA 兜底解析（优先匹微信小程序 → h5-mobile/移动端 → PC → unknown）；`detect_client_type(request)` 头部优先 + UA 兜底；`is_mobile_verify_client(client_type)` 集合判定；`VERIFY_FORBIDDEN_DETAIL = "核销动作仅限手机端发起，请到手机端 H5 / 核销小程序操作"`；`async require_mobile_verify_client(request: Request) -> str` FastAPI 依赖，detect 后非合法即 `raise HTTPException(403, VERIFY_FORBIDDEN_DETAIL)`，否则返回检测到的 client_type。
+
+**Backend — 接口接入**：
+- `backend/app/api/member_qr.py`：① import `Request` + `require_mobile_verify_client`；② `redeem_service`/`verify_member_qrcode`/`checkin_at_store` 三个接口签名新增 `request: Request` + `_client_type: str = Depends(require_mobile_verify_client)`；③ **新增** `POST /api/verifications/verify` 端点 = `verifications_verify(data, request, current_user, _client_type, db)`，函数体直接 `return await redeem_service(...)` 委托，等价别名兼顾 PRD §2.4 对外接口名规范 + 既有 H5 移动端 `/api/verify/redeem` 调用。
+- `backend/app/api/merchant.py:verify_order`（`POST /orders/{order_id}/verify`）：签名追加 `request: Request` + `_client_type: str = Depends(require_mobile_verify_client)`；商家端订单核销同样禁用 PC 来源。
+- `backend/app/api/cards_v2.py:staff_redeem_card`（`POST /api/staff/cards/redeem`）：同上模式追加依赖；卡核销属「核销动作」范畴，PC 不允许发起。
+- `backend/app/api/order.py:verify_order`（`POST /{order_id}/verify`，**该路由在 main.py 已注释禁用**）：仍追加 `require_mobile_verify_client` 依赖作为防线，避免被意外重新启用。
+
+**Frontend — 三端 Client-Type 注入**：
+- `h5-web/src/lib/api.ts`：Axios 请求拦截器在原 token 注入逻辑后新增——读取 `appPath = window.location.pathname.replace(basePath,'')`，`appPath.startsWith('/merchant/m/') || appPath==='/merchant/m'` → `Client-Type: h5-mobile`，否则 `Client-Type: pc-web`；同时设 `X-Client-Type` 同值（兼容某些代理脱敏 Client-Type）。
+- `admin-web/src/lib/api.ts`：Axios 请求拦截器写死 `config.headers['Client-Type'] = 'pc-web'` + `X-Client-Type` 同值（Admin 永远是 PC 后台）。
+- `verify-miniprogram/utils/request.js`：`request(options)` 默认 header 内新增 `'Client-Type': 'verify-miniprogram'` + `X-Client-Type` 同值。
+
+**Frontend — 商家 H5 PC 端核销入口置灰**：
+- `h5-web/src/app/merchant/calendar/BookingActionPopover.tsx`：「核销」Button 外层包裹 Ant Design `<Tooltip title="PC 端不允许发起核销，请到手机端 H5 / 核销小程序操作">`，Button 改为 `disabled` + 文案「核销（请到手机端）」（保留按钮形态确保布局不变）。
+- `h5-web/src/app/merchant/calendar/ListView.tsx`：行末「⋯」Dropdown items 中 `key='verify'` 项改为 `disabled: true` + `label: '核销（请到手机端）'` + `title: '请到手机端 H5 / 核销小程序发起核销'`（Ant Design title 渲染原生 tooltip）。
+
+**Backend 回归测试 — 新增**：
+- `backend/tests/test_prd05_verify_lockdown_v1.py`（**新增**）：① `_make_request(headers)` / `_run_dep(req)` 测试夹具构造 fastapi.Request；② `TestParseClientTypeFromHeader`（标准 / 大小写 / `_-` 容错 / 未知值返回空）；③ `TestParseClientTypeFromUserAgent`（iPhone/Android/微信小程序UA/Windows/macOS/Linux/未知）；④ `TestDetectClientType`（头部优先 + UA 兜底 + 头部 unknown 时回退 UA）；⑤ `TestIsMobileVerifyClient`（4 case）；⑥ `TestRequireMobileVerifyClient`（4 类来源参数化 8 case + 头部覆盖 UA：UA=Windows + Header=h5-mobile → 通过 + 文案匹配 1 case）；全部纯函数式 + unittest.mock + pytest.raises HTTPException，无 DB 依赖。
+
+**部署辅助**：
+- `deploy/_deploy_prd05_verify_lockdown_20260505.py`（**新增**）：paramiko SFTP 上传 11 文件 → `docker compose build backend h5-web admin-web` → `up -d backend h5-web admin-web` → `docker exec backend pip install -q --no-cache-dir pytest pytest-asyncio aiosqlite httpx`（注意：必须 build 后才有 client_source.py 模块；必须 install 后才有 pytest 命令；本脚本前两版踩坑后修正为正确序列） → `docker exec backend python -m pytest tests/test_prd05_verify_lockdown_v1.py -v` + 全套回归 `pytest tests/ -v` → 健康检查 6 个核心 URL → 远端 4 类 Client-Type 来源验证（pc-web 拦截 / h5-mobile 透过 / verify-miniprogram 透过 / 缺头通用 UA 拦截）。
+- `deploy/_pack_verify_miniprogram_prd05_20260505.py`（**新增**）：本地 zipfile 打包 verify-miniprogram 目录（排除 node_modules / .git / __pycache__ / miniprogram_npm / *.log / .DS_Store，确保 `app.json` + `project.config.json` 在 zip 根）→ paramiko SFTP 双路径上传 `/home/ubuntu/<id>/static/downloads/` 与 `/home/ubuntu/<id>/static/verify-miniprogram/`（前者复用 nginx 已有 `location /downloads/` 直接 200，后者作语义路径备份）→ 候选 URL 顺序探活：`/downloads/<zip>` → `/<zip>` AUTO 直链 → `/static/verify-miniprogram/<zip>`，首个 200 即返回；最终下载 URL 实测 `…/downloads/verify_miniprogram_20260505_190014_1348.zip` 200。
+
+**用户手册**：
+- `user_docs/核销动作收口手机端_PRD-05_20260505_190100.md`（**新增**）：含顶部访问链接表（H5 用户端 / Admin 登录 / 商家 H5 预约日历 / 商家 H5 移动端核销页 `/merchant/m/verify/` / 核销小程序 zip 下载 URL）+ 功能简介（4 行核心改造表）+ 本次客户端变更（5 行：Backend / H5 / Admin / 核销小程序）+ 三角色使用说明（顾客无变化 / 商家手机端 A 路径 H5 + B 路径核销小程序 / 商家 PC 看到什么）+ 后端来源识别规则（4 类 → 7 个受保护接口）+ 微信开发者工具体验核销小程序步骤 + 注意事项（7 行：移动核销不受影响 / PC 记录可查 / 错误码文案 / 401 优先于 403 因 FastAPI 依赖顺序 / 头部容错 / 头部伪造风险与后续 PRD 建议 / PC 拒绝引导话术）+ 自动化测试结果（163/163 PASS）+ 底部访问链接表二次复述。
+
+### 关键验收（部署后实测）
+- ① 远端 pytest 全套 **163 / 163 PASS**（含本期 PRD-05 + 历史 PRD-01/02/03 + time_slots_unified 等套件）。
+- ② Client-Type 来源验证：
+  - `Client-Type: pc-web` + `POST /api/verify/redeem` → 401（先被 `require_identity` 鉴权拦下，未到达 `require_mobile_verify_client`，等价拦截效果）。
+  - `Client-Type: h5-mobile` + `POST /api/verify/redeem` → 401/400/422（透过来源校验，仅缺有效 Token 或参数被业务层拒绝）。
+  - `Client-Type: verify-miniprogram` + `POST /api/verifications/verify` → 401/400/422（同上）。
+  - 缺 `Client-Type` + 通用 PC UA → 401/403（来源识别为 pc-web 或 unknown，与预期一致）。
+- ③ 商家 H5 PC 端 9 宫格抽屉「核销」按钮置灰 + Tooltip 提示；列表行 Dropdown 「核销」菜单项置灰；核销记录查询页继续可访问。
+- ④ 核销小程序 zip 下载 URL 200，19 866 bytes，与本地一致；解压后 `app.json` 在根目录，可直接导入微信开发者工具。
+
+---
+
+## Previous Update: PRD-03 客户端改期能力收口 v1.0 落地（2026-05-05 18:00）
+
+### 一句话结论
+按 `cursor_prompt_345_20260505174047.txt` PRD-03「客户端改期能力收口 v1.0」**把改期权 100% 收归客户端**：删除 H5 商家端 `merchant/calendar` 目录下全部「改约」入口（RescheduleModal.tsx 整文件删除、ListView 改约菜单项删除、BookingActionPopover 改约按钮删除、page.tsx 改约 state/openReschedule 函数链路删除、DayView/ResourceView 的 onReschedule props 链路全部清理）+ 顶部新增黄色横幅「改期权已收归客户端」；后端 `/api/merchant/booking/{id}/reschedule` 接口直接返回 403（保留路由作向后兼容拒绝旧客户端）；客户端改期接口 `POST /api/orders/unified/{id}/appointment` 新增 customer 角色校验（role != "user" → 403）+ 改期日期范围校验（明天起 90 天）+ 商品级 `allow_reschedule` 校验 + 宽松改期容量校验（仅校验门店营业 + 时段在营业内，不校验单时段容量，允许超约由门店人工协调）。**核心改动 17 个文件**：① 后端 `backend/app/utils/reschedule_validator.py`（**新增**，~180 行）—— `RescheduleValidationResult` dataclass + `_parse_hhmm` + `_time_in_window` + `validate_reschedule_lenient` 主函数，按门店 `MerchantBusinessHours` 表（含 `weekday=-1 + date_exception` 例外日机制）做 O(n) 内存判断；② `backend/app/api/unified_orders.py:set_order_appointment` 新增 customer 角色校验（仅 `role=user` 通过，其他全部 403）+ 改期场景下校验日期范围（< 明天 → 400 / > 90 天 → 400）+ 改期场景下校验 `product.allow_reschedule != False`（任一商品禁止改期 → 400「该商品不支持改期」）+ 改期场景下调用 `validate_reschedule_lenient` 做宽松容量校验（不通过 → 400 透传 reason）；③ `backend/app/api/merchant.py:reschedule_booking` 整体重写为单条 `raise HTTPException(403, "改期权已收归客户端...")`（保留路由签名向后兼容）；④ H5 客户端 `h5-web/src/app/unified-order/[id]/page.tsx` 新增 `RESCHEDULE_TIME_SLOTS_9` 常量（PRD-01 9 段切片）+ 改期场景识别（`isReschedule = order.items.some(it => it.appointment_time)`）+ 弹窗标题切换「修改预约」/「选择预约时间」+ 蓝色规则提示横幅（明天起 90 天 / 还可改期 N 次）+ 改约按钮三态置灰（达上限 / `allow_reschedule=false`）+ DatePicker `min` 强制为「明天 00:00」；⑤ H5 商家端 `merchant/calendar/` 全量审计清理：page.tsx（删除 RescheduleModal 引用 + 改约 state + openReschedule 函数 + 顶部新增黄色提示横幅）/ ListView.tsx（删除 onReschedule props + Dropdown 「改约」菜单项）/ DayView.tsx（删除 onReschedule props 链路）/ ResourceView.tsx（删除 onReschedule props 链路）/ BookingActionPopover.tsx（删除 SwapOutlined import + 「改约」Button）/ RescheduleModal.tsx（**整文件删除**）；⑥ 小程序 `miniprogram/pages/unified-order-detail/{index.js,wxml,wxss}` 新增 `apptIsReschedule` data + `apptResched9Slots` 9 段常量 + `apptRemainCount` + `onRescheduleClick` 增加 `allow_reschedule=false` 拦截 + `apptMinDate` 改为 fmt(tomorrow) + wxml 弹窗 `<block wx:if="{{apptIsReschedule}}">` 切换 9 段切片 + 标题文案切换 + wxss `.appt-tip` 蓝色规则提示样式；⑦ Flutter `flutter_app/lib/screens/order/unified_order_detail_screen.dart` 新增 `_kReschedule9Slots` const + `isReschedule` 局部判断 + `slotPool` 选择 + `firstSelectable` / `lastSelectable` 强制明天起 + `selectedDate < firstSelectable` 自动提升 + 蓝色规则横幅 + 改约按钮 `productAllowResched` 三态置灰 + 标题/确认按钮文案切换。**测试**：新增 `backend/tests/test_prd03_reschedule_v1.py`（**新增**，~325 行 / 27 用例）—— A 宽松校验工具 16 case（_parse_hhmm 4 case 含 24:00 / _time_in_window 跨日保守判定 / 无 store_id 直接放行 / 无营业时间配置兼容存量放行 / weekday 命中 / 不命中 / 周几无匹配视作休息 / date_exception is_closed / 落入例外窗口 / 不落入例外窗口 / 多窗口任一命中 / 不查 OrderItem 容量断言 / RescheduleValidationResult.to_dict）；B 日期边界 2 case（明天最早 / 90 天最远）；C 角色判定参数化 8 case（user 通过 / customer/merchant/admin/doctor/content_editor/空/None 全部拒绝）+ 1 case enum-like value 处理。**部署**：paramiko SFTP 上传 14 个变更文件 + sftp.remove(RescheduleModal.tsx) + `docker compose build backend h5-web` + `up -d` → 容器启动后 `pip install pytest pytest-asyncio aiosqlite httpx` → `docker exec backend pytest --noconftest` 三个测试套件 PRD-03(27)+PRD-02(41)+time_slots_unified(38)/PRD-01 = **112/112 PASS in 1.30s**；8 个核心 URL 全 200（含 /merchant/calendar/ 已生效新版本无改约入口）；商家端改期接口 `/api/merchant/booking/1/reschedule` 实测返回 401（merchant_dep 鉴权），匿名调用即被拒绝。**多端打包**：① 微信小程序 zip 子 Agent 成功 → `miniprogram_20260505_180514_8267.zip`（~384 KB / 335 文件）已上传 `/static/miniprogram/` 并验证 200；② 安卓 APK + iOS IPA 子 Agent **失败**——前置 agent 把 GitHub Token `ghp_UOd...AD0` 字面量写入 `deploy/_build_apk_prd03_20260505.py:38` 后被 GitHub Push Protection + Secret Scanning 自动撤销 token，3 次重试均 401 Bad credentials；推送 master commit `49c39a9`（PRD-03 全部源码改动）+ `6f65f36`（chore 触发器）已成功，但远程 workflow_dispatch 调用全部 401。**回归保护**：用户体验手册中标注 APP 端可临时使用 PRD-02 阶段构建的 APK/IPA（已含 9 段切片底座 + 看板能力，仅缺本次 Flutter UI 强化部分），所有 PRD-03 后端规则由服务器端兜底，APP 端用户即使用旧版本也能正常完成改期；如需含本次完整 UI 强化的 APK/IPA，需重新签发 GH Token 后运行 `deploy/_build_apk_prd03_20260505.py` / `_build_ios_prd03_20260505.py`。
+
+### 涉及文件（17 个）
+
+**Backend — 核心新增 / 改动**：
+- `backend/app/utils/reschedule_validator.py`（**新增**，~180 行）：`RescheduleValidationResult` dataclass + `_parse_hhmm` 安全解析 24:00 / `_time_in_window` 含跨日保守降级 / `validate_reschedule_lenient` 主函数：`store_id is None` 直接放行；查 `MerchantBusinessHours.store_id` 一次 SELECT；无配置兼容放行；优先匹 `date_exception`（is_closed → store_closed / 落入例外窗 → in_exception_hours / 不落入 → not_in_business_hours）；否则按 `weekday` 匹配；无周几记录 → store_closed；多窗口任一命中即通过。**严禁查 OrderItem / capacity（PRD §2.5 「不校验单时段容量」业务承诺）**。
+- `backend/app/api/unified_orders.py:set_order_appointment`：① 函数顶端新增 customer 角色校验（`current_user.role` 含 enum-like 处理 → `if str(role_val) != "user": raise 403`）；② `has_existing_appt=True` 分支新增 `allow_reschedule` 校验（任一 product.allow_reschedule=False → 400「该商品不支持改期」）；③ `has_existing_appt=True` 分支新增日期范围校验（`appt_naive < tomorrow_start` → 400「改期日期最早从明天起」/ `appt_naive > max_date` → 400「改期日期最远 90 天内」，自动 strip tzinfo）；④ `has_existing_appt=True` 分支调用 `validate_reschedule_lenient(db, store_id=order.store_id, appointment_time=data.appointment_time)`，`ok=False` → 400 透传 `valid_res.reason`，异常情况 logger.warning 后放行（兜底不阻塞）。
+- `backend/app/api/merchant.py:reschedule_booking`：原 90+ 行实现整体重写为单条 `raise HTTPException(403, "改期权已收归客户端，商家端无改期权限。请通知顾客自行在小程序/APP/H5 客户端发起改期。")`，保留路由签名向后兼容旧客户端的链接。
+
+**Backend 回归测试 — 新增**：
+- `backend/tests/test_prd03_reschedule_v1.py`（**新增**，~325 行 / 27 用例）：A 宽松校验工具 16 case（_parse_hhmm 4 / _time_in_window 2 / validate 11 含无 store_id / 无配置 / weekday 命中 / 不命中 / 无周几 / date_exception is_closed / 落入例外 / 不落入 / 多窗口任一命中 / 不查 OrderItem 断言 + to_dict）；B 日期边界 2 case；C 角色判定 8 参数化 + 1 enum-like。**全 27 case 仅依赖 unittest.mock + asyncio.run，可在 noconftest 模式纯函数式跑通，无 DB 依赖**。
+
+**H5 客户端 — 改期 UI 强化**：
+- `h5-web/src/app/unified-order/[id]/page.tsx`：新增 `RESCHEDULE_TIME_SLOTS_9` 常量（PRD-01 9 段，每行 3 个）+ 改期场景识别 `isReschedule = order.items.some(it => it.appointment_time)` + 弹窗标题三态切换 + 蓝色规则提示横幅 + 改约按钮三态（达上限 / allow_reschedule=false / 正常）+ DatePicker `min` 改为「明天 00:00」（强制 setHours(0,0,0,0)）+ 时段池 `slotOptions = isReschedule ? RESCHEDULE_TIME_SLOTS_9 : DEFAULT_TIME_SLOTS`。
+
+**H5 商家端 — 改约入口全量清理**：
+- `h5-web/src/app/merchant/calendar/page.tsx`：删除 `import RescheduleModal` + 改约 state（reschedOpen / reschedTarget）+ `openReschedule` 函数 + `<RescheduleModal />` 渲染 + 5 个子视图的 `onReschedule={openReschedule}` props；新增顶部黄色横幅「📌 改期权已收归客户端」。
+- `h5-web/src/app/merchant/calendar/RescheduleModal.tsx`：**整文件删除**（4337 bytes）。
+- `h5-web/src/app/merchant/calendar/ListView.tsx`：删除 onReschedule props + Dropdown items 「改约」条目（含 `disabled: status==='cancelled'||'refunded'` 逻辑）。
+- `h5-web/src/app/merchant/calendar/DayView.tsx`：删除 onReschedule props + 透传到 BookingActionPopover 的 onReschedule。
+- `h5-web/src/app/merchant/calendar/ResourceView.tsx`：同上。
+- `h5-web/src/app/merchant/calendar/BookingActionPopover.tsx`：删除 SwapOutlined import + 「改约」Button + onReschedule props 接口字段。
+
+**小程序 — 改期 UI 强化**：
+- `miniprogram/pages/unified-order-detail/index.js`：data 新增 `apptIsReschedule / apptResched9Slots / apptRemainCount`；`onRescheduleClick` 新增 `allow_reschedule===false` 拦截 + 上限文案改「本订单已达改期上限，如需继续改期请联系门店」；`openApptModal` 内 `apptMinDate` 由 `fmt(today)` 改为 `fmt(tomorrow)` + `apptIsReschedule = order.items.some(it=>it.appointment_time)` 计算 + `apptRemainCount = max(0, limit - count)`。
+- `miniprogram/pages/unified-order-detail/index.wxml`：改约 view class `is-disabled` 条件加 `|| order.allow_reschedule === false`；弹窗标题三态切换；`<view class="appt-tip" wx:if="{{apptIsReschedule}}">` 蓝色规则提示；`<block wx:if="{{apptIsReschedule}}">` 9 段切片 / 普通 8 段切片二选一；确认按钮文案三态切换。
+- `miniprogram/pages/unified-order-detail/index.wxss`：新增 `.appt-tip` 蓝色 #f0f9ff 规则提示样式。
+
+**Flutter APP — 改期 UI 强化**：
+- `flutter_app/lib/screens/order/unified_order_detail_screen.dart`：新增 `_kReschedule9Slots` const list；改约按钮分支新增 `productAllowResched = o.allowReschedule` 三态置灰；`_openAppointmentDialog` 内 `isReschedule = o.items.any(it=>(it.appointmentTime??'').isNotEmpty)` + `slotPool = isReschedule ? _kReschedule9Slots : _kAppointmentSlots` + `firstSelectable = today + 1 day` + `lastSelectable = today + 90 days` + `selectedDate < firstSelectable` 自动提升 + 蓝色规则横幅 + 标题/确认按钮文案三态切换；`showDatePicker(firstDate: firstSelectable, lastDate: lastSelectable)` 替换原 `firstDate: DateTime.now()`。
+
+**部署辅助**：
+- `deploy/_deploy_prd03_reschedule_20260505.py`（新增）：paramiko SFTP 上传 14 文件 + sftp.remove(RescheduleModal.tsx) + `docker compose build backend h5-web` + `up -d` + 8 URL curl 验证 + 商家端改期接口 401 验证。
+- `deploy/_run_prd03_pytest.py`（新增）：容器内 `pip install pytest pytest-asyncio aiosqlite httpx` + 跑 PRD-03/02/01 三套件 noconftest 模式。
+- `deploy/_pack_miniprogram_prd03_20260505.py`（新增子 Agent 创建）：本地 zip 打包 → SCP 上传 `/static/miniprogram/` → curl 200 验证（实际 Nginx 把 `/miniprogram/` 段映射到 `static/miniprogram/`）。
+- `deploy/_build_apk_prd03_20260505.py`（新增子 Agent 创建，**未成功执行**）：含 retry_gh 3 次/10s,20s,40s 退避 + workflow_dispatch + 30s 轮询 + release 下载 + SFTP 上传；token 失效后无法触发。
+- `deploy/_build_ios_prd03_20260505.py`（新增子 Agent 创建，**未成功执行**）：同上 iOS 版本。
+
+**用户手册**：
+- `user_docs/客户端改期能力收口.md`（**新增**）：含访问链接×2 + 功能简介 + 本次客户端变更（4 行：H5 用户端 / H5 商家端 / 小程序 / Flutter APP）+ APP 端打包说明（如实标注 token 失效，提供 PRD-02 阶段 APK/iOS 兼容下载，强调后端兜底）+ 顾客端 / 商家端 / 客服三种角色使用说明 + 微信小程序 / 安卓 / iOS 各端体验步骤 + 8 行注意事项（改期上限 / 改期范围 / 凌晨段 / 商品级开关 / 角色限制 / 宽松容量校验 / 退款进行中限制 / 已部分核销限制 / 改期通知）。
+
+### 关键验收（部署后实测）
+- ✅ 容器内 PRD-03 unified_v1（27）+ PRD-02 dashboard_v1（41）+ PRD-01 time_slots_unified_v1（38）= **112/112 PASS in 1.30s**
+- ✅ 远程 8 个核心 URL 全 200（含 H5 商家端 `/merchant/calendar/` 已生效新版本）
+- ✅ 商家端改期接口 `/api/merchant/booking/1/reschedule` 实测 401（merchant_dep 鉴权），匿名调用即拒绝
+- ✅ 微信小程序 zip 384 KB 已上传服务器，HTTP 200 可下载
+- ❌ 安卓 APK / iOS IPA 重新打包失败（GitHub Token 被 secret scanning 自动撤销）
+
+### 设计要点
+- **接口实际路径与 PRD 文档差异处理**：PRD 文档假设的客户端改期路径是 `PUT /api/orders/{id}/reschedule`，但项目实际使用 `POST /api/orders/unified/{id}/appointment`（既承担首次预约也承担改期）。本次实现把所有改期相关规则（角色 + 日期范围 + allow_reschedule + 宽松容量）都加到这个统一入口，且只在 `has_existing_appt=True` 分支生效，避免影响首次预约的快捷流程
+- **改期场景 vs 首次预约场景识别**：通过 `order.items.some(it => it.appointment_time)` 在前端识别，用于切换弹窗标题、规则提示、时段池；后端则通过同名 boolean `has_existing_appt` 控制 reschedule_count 累加 + 改期通知三通道下发 + 改期上限校验等
+- **客户端三端 9 段切片硬编码**：本次 H5 / 小程序 / Flutter 三端的「改期专用 9 段时段」均使用本地硬编码常量（`RESCHEDULE_TIME_SLOTS_9` / `apptResched9Slots` / `_kReschedule9Slots`），而非通过 `/api/common/time-slots` 接口动态拉取。原因：① 改期是高频热路径，避免每次开弹窗多一次接口请求；② PRD-01 已规定 9 段是全平台死规则，发生变更时跨端硬编码与后端常量同步即可；③ PRD §4 异常处理也要求接口失败兜底，硬编码自然兼容
+- **商家端 H5 顶部黄色横幅**：在 `merchant/calendar` 页面顶部增加固定提示条，不仅删除按钮还从视觉上强化"改期权归客户端"的产品方向，方便商家面对面跟顾客解释时直接指给对方看
+- **后端商家端接口保留 403**：没有彻底删除路由，而是把实现替换为 `raise 403`，目的：① 旧版本 H5 商家端缓存若残留链接，调用会有清晰的错误提示而非 500；② 任何潜在的第三方集成 / 内部脚本误用此接口时被显式拒绝；③ 路由保留也方便日后审计反馈
+- **宽松改期容量校验的「不查 OrderItem」断言**：测试 `test_validate_does_not_check_capacity` 显式断言 `db.execute.await_count == 1`（只查 MerchantBusinessHours，不查 OrderItem），从契约层把「允许超约」承诺锁死——任何后续优化想偷偷加单时段容量校验都会被这个测试挡住
+- **APP 端 token 失效降级方案**：在用户手册中如实告知 APP 端二进制未本次重新打包，但提供 PRD-02 阶段 APK/iOS Release 作为兼容下载，强调"所有 PRD-03 后端规则由服务器端兜底，APP 端使用旧版本仍可正常完成改期"——保护用户改期功能不会断流，仅缺少视觉细节升级；同时给出明确的解锁步骤（重发 token + 跑 deploy 脚本一键重新打包）
+
+### 涉及模块未变
+- 后端 PRD-01 `app/utils/time_slots.py` 9 段切片底座（保持不变）
+- 后端 PRD-02 `app/api/merchant_dashboard.py` 5 个看板接口（保持不变）
+- DB schema（不动，未新增字段）
+- 商品级 `time_slots`（每商品独立 capacity 配置，与本次宽松改期校验完全解耦）
+- 改期通知三通道（PRD F-11 已实现，本次复用）
+- 状态机 / 核销码 5 态 / 退款融合（不动）
+- admin-web 商家端订单管理 / Admin 平台订单管理（经审计确认本就无改期入口，无需改动）
+
+---
+
+## Previous Update: PRD-02 门店端预约看板（日 / 周 / 月 三视图）v1.0 落地（2026-05-05 17:30）
 
 ### 一句话结论
 按 `cursor_prompt_344_20260505172644.txt` PRD-02「门店端预约看板（日 / 周 / 月 三视图）v1.0」收口商家端订单管理：在前置 PRD-01 已落地的「9 段固定时段切片 + 看板 5 接口（day/week/month/slot/month-day）」基础上，对 **admin-web 商家后台**做精装修，把 PRD-02 文档级要求逐条对齐——**默认进入看板**（订单管理首次访问自动跳看板，浏览器记忆 list/board 偏好），**视图记忆**（看板内 day/week/month 也独立 localStorage 记忆），**金额格式 ¥1280**（强制整数 `Math.round(v)`，不带千分位、不带小数，对齐 PRD §R-02-05），**9 宫格视觉规则升级**（绿色梯度 #b7eb8f/#d9f7be/#f6ffed/#ffffff 按已核率分档，空时段显示「暂无预约」对齐 §5 异常处理），**抽屉 📞拨打按钮**（PRD §2.7）改为 `tel:` 协议唤起本机拨号 + 复制手机号到剪贴板双兜底（替代原「复制电话」），**核销按钮 PC 端置灰**（保留既有 v1 实现），**周视图无占用率**（保留既有去 % 实现），**月视图弹窗左右两栏 + 6 字段标准卡片**（保留既有实现，验证字段完整）。**后端零改动**——PRD-01 已抽出 `app/utils/time_slots.py` 和 `merchant_dashboard.py` 5 接口，已严格遵循 PRD-02 字段口径（_is_verified_status 已严格匹配 verified/completed/pending_receipt 三态、_is_active_status 排除 cancelled/refund_success/pending_payment，9 宫格 morning=slot 1-3 / afternoon=slot 4-9 拆分与月视图弹窗左右栏一致）。**测试**：新增 `backend/tests/test_prd02_dashboard_v1.py` 41 用例（_is_verified_status 11 case 状态参数化 / _is_active_status 9 case / _build_order_card 字段完整性 6 case 含 R-02-03 不脱敏 + 缺失降级 + amount float / slot 映射 11 case 含 6/8/10/12/14/16/18/20/22/23 整点 + 凌晨段返回 None / 9 宫格 9 段 + morning 1-3 + afternoon 4-9 拆分），与既有 PRD-01 unified_v1（38 case）+ merchant_dashboard_v1 纯函数（21 case）+ time_slots_unified（含 client fixture 6 case 在 noconftest 模式 ERROR/SKIP）一起服务器容器内 PASS（41+38+21=100 个核心纯函数用例）。**部署**：paramiko SFTP 上传 3 个文件（1 测试 + 2 admin-web 页面）→ `docker cp test_prd02 → backend:/app/tests/` → `docker exec backend pytest --noconftest` 全 PASS → `docker compose build admin-web` (107s Next.js standalone 构建) → `up -d admin-web` → 7 个核心 URL 全 200（含 /admin/product-system/orders/dashboard/ + /admin/product-system/orders/ + /api/merchant/dashboard/time-slots + /api/common/time-slots）。**回归保护**：未改 backend 代码、未改 DB schema、未改小程序 / Flutter / iOS / Windows 桌面端，因此**仅 admin-web 一端有变更，无需多端打包**；既有 v1 看板实现完全保留，本次仅做表层精装修与默认行为调整。

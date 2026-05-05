@@ -22,13 +22,14 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import Optional, List
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Body
+from fastapi import APIRouter, Depends, HTTPException, Query, Body, Request
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
 from app.core.security import get_current_user
+from app.utils.client_source import require_mobile_verify_client
 from app.models.models import (
     CardDefinition,
     CardItem,
@@ -603,9 +604,12 @@ async def _check_frequency(
 @staff_router.post("/redeem", summary="门店扫码核销卡（第 3 期）")
 async def staff_redeem_card(
     data: StaffRedeemRequest,
+    request: Request,
     current_user: User = Depends(get_current_user),
+    _client_type: str = Depends(require_mobile_verify_client),
     db: AsyncSession = Depends(get_db),
 ):
+    # [PRD-05 R-05-04] 卡核销同样属于"核销动作"范畴，PC 端不允许发起。
     if not data.code_token and not data.code_digits:
         raise HTTPException(status_code=400, detail="必须提供 code_token 或 code_digits")
 
