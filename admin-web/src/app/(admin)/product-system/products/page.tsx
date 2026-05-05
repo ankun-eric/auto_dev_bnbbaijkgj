@@ -56,6 +56,8 @@ interface Product {
   daily_quota: number | null;
   time_slots: Array<{ start: string; end: string; capacity: number }> | null;
   include_today: boolean;
+  // [2026-05-05 营业管理入口收敛 PRD v1.0 · N-06] 商品级当日截止 N 分钟
+  booking_cutoff_minutes?: number | null;
   faq: any;
   recommend_weight: number;
   sales_count: number;
@@ -126,6 +128,7 @@ function mapProduct(raw: Record<string, any>): Product {
         }))
       : null,
     include_today: raw.include_today === false ? false : true,
+    booking_cutoff_minutes: raw.booking_cutoff_minutes ?? null,
     faq: raw.faq ?? null,
     recommend_weight: Number(raw.recommend_weight ?? 0),
     sales_count: Number(raw.sales_count ?? 0),
@@ -667,6 +670,8 @@ export default function ProductsPage() {
       advance_days: detail.advance_days ?? undefined,
       daily_quota: detail.daily_quota ?? undefined,
       include_today: detail.include_today === false ? false : true,
+      // [2026-05-05 N-06] 商品级当日截止 N 分钟
+      booking_cutoff_minutes: detail.booking_cutoff_minutes ?? undefined,
       custom_form_id: detail.custom_form_id ?? undefined,
       recommend_weight: detail.recommend_weight,
       status: detail.status,
@@ -948,6 +953,12 @@ export default function ProductsPage() {
       include_today: (mode === 'date' || mode === 'time_slot')
         ? (values.include_today === false ? false : true)
         : true,
+      // [2026-05-05 营业管理入口收敛 PRD v1.0 · N-06] 商品级当日截止 N 分钟（双层兜底，留空 = 继承门店级）
+      booking_cutoff_minutes: (mode === 'date' || mode === 'time_slot')
+        ? (values.booking_cutoff_minutes === undefined || values.booking_cutoff_minutes === null
+            ? null
+            : Number(values.booking_cutoff_minutes))
+        : null,
       custom_form_id: mode === 'custom_form' ? values.custom_form_id : null,
       recommend_weight: values.recommend_weight ?? 0,
       status: publish ? 'active' : (values.status || 'draft'),
@@ -1498,6 +1509,33 @@ export default function ProductsPage() {
                     options={[
                       { label: '包含今天', value: true },
                       { label: '从明天起算', value: false },
+                    ]}
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
+          )}
+
+          {/* [2026-05-05 营业管理入口收敛 PRD v1.0 · N-06] 商品级当日截止 N 分钟（下拉枚举） */}
+          {(apptMode === 'date' || apptMode === 'time_slot') && (
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item
+                  label="当日最晚提前 N 分钟截止"
+                  name="booking_cutoff_minutes"
+                  tooltip="留空 = 继承门店级；门店级也未设置时使用系统默认 30 分钟。选择「不限制」即无截止。"
+                >
+                  <Select
+                    allowClear
+                    placeholder="留空 = 继承门店级"
+                    options={[
+                      { label: '不限制', value: 0 },
+                      { label: '15 分钟', value: 15 },
+                      { label: '30 分钟', value: 30 },
+                      { label: '1 小时', value: 60 },
+                      { label: '2 小时', value: 120 },
+                      { label: '半天（720）', value: 720 },
+                      { label: '1 天（1440）', value: 1440 },
                     ]}
                   />
                 </Form.Item>

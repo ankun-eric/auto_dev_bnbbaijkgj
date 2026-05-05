@@ -33,7 +33,56 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 支付宝 SDK 未安装复发治理 — 启动自检 + 后台 SDK 健康看板（2026-05-05 03:15）
+## Latest Update: 门店「营业管理」入口收敛与字段统一改造 v1.0（2026-05-05 11:30）
+
+### 一句话结论
+按 `cursor_prompt_332_20260505104921.txt` PRD v1.0 落地"入口收敛 + 字段去重 + 职责分离 + 能力补齐"。**入口侧**：下线顶级菜单"商家管理 → 营业时间&并发上限"，旧路由 `/admin/merchant/business-config` 改为提示 + 自动重定向页；门店列表行新增 **「营业管理」** 按钮，跳转 `/admin/merchant/stores/{id}/business-config` 新页（按周营业时间 + 日期例外 + 并发双层 + 预约提前规则四大模块统一保存）。**字段侧**：删除冗余的"门店级（默认值）"并发字段，前后端唯一以 `merchant_stores.slot_capacity` 为准；老接口 `POST /api/merchant/concurrency-limit` 兼容保留 `store_max_concurrent` schema 但**后端忽略**（不再写 `slot_capacity`）。**能力侧**：`merchant_stores` 加列 `advance_days`/`booking_cutoff_minutes`，`products` 加列 `booking_cutoff_minutes`；新增 `GET/PUT /api/merchant/stores/{id}/booking-config`；H5 下单时段计算实现 **商品级 > 门店级 > 系统默认（30 分钟 / 不限制天数）** 双层兜底；空态服务级覆盖表给出"前往商品管理"按钮。**测试**：新增 25 个 pytest 用例 + 同步更新 1 个老用例，**50/50 PASS**（含双层兜底单测、严格小于边界测、枚举校验测）。**部署**：SCP 上传 14 个变更文件 + `docker compose build --no-cache backend admin-web` + `up -d`，启动期 idempotent ALTER TABLE 加列均已落库。**远程实测**：admin/login、merchant/stores、merchant/business-config（已变重定向页）、product-system/products → 均 200；新接口 `/api/merchant/stores/1/booking-config` 未登录返 401（行为正确）。
+
+### 涉及文件（14 个）
+**后端**：
+- `backend/app/models/models.py`：`MerchantStore` 加 `advance_days`/`booking_cutoff_minutes`；`Product` 加 `booking_cutoff_minutes`。
+- `backend/app/main.py`：lifespan 调用 `_migrate_business_config_unify_v1()` 幂等加列。
+- `backend/app/api/order_enhancement.py`：`save_concurrency_limit` 忽略 `store_max_concurrent`；`get_available_slots` 实现 cutoff 双层兜底 + `min_advance_min=0` 不限制；新增 `GET/PUT /api/merchant/stores/{id}/booking-config`。
+- `backend/app/api/h5_checkout.py`：新增 `_resolve_effective_advance_days(product, store)` 商品级优先门店级兜底；`checkout_init` / `unified_checkout_info` 接入。
+- `backend/app/api/product_admin.py`：商品 CRUD 处理 `booking_cutoff_minutes` 枚举校验 + 持久化。
+- `backend/app/schemas/order_enhancement.py`：`ALLOWED_CUTOFF_MINUTES`、`StoreBookingConfigResponse/SaveRequest`、`ConcurrencyLimitSaveRequest.store_max_concurrent` → Optional + 注释"已忽略"。
+- `backend/app/schemas/products.py`：`ProductCreate/Update/Response` 加 `booking_cutoff_minutes`。
+
+**Admin Web**：
+- `admin-web/src/app/(admin)/layout.tsx`：菜单项"营业时间&并发上限"已删除。
+- `admin-web/src/app/(admin)/merchant/business-config/page.tsx`：改造为 `LegacyBusinessConfigRedirect` 提示页（3s 自动跳门店列表）。
+- `admin-web/src/app/(admin)/merchant/stores/page.tsx`：删除编辑表单中的 `slot_capacity` Item；submit 时 `delete storeValues.slot_capacity`；操作列新增「营业管理」按钮（`router.push('/merchant/stores/${id}/business-config')`）。
+- `admin-web/src/app/(admin)/merchant/stores/[id]/business-config/page.tsx`（新增）：四大模块（按周营业时间 / 日期例外 / 同时段并发上限双层 / 预约提前规则门店级）+ 空态服务表 + 「保存全部配置」一键提交三类接口。
+- `admin-web/src/app/(admin)/product-system/products/page.tsx`：编辑商品「预约设置」Tab 新增「当日最晚提前 N 分钟截止」Select（与门店级同枚举集合）。
+
+**测试**：
+- `backend/tests/test_business_config_unify_v1.py`（新增 25 用例）：concurrency-limit 忽略 store_max_concurrent / booking-config GET&PUT&枚举验证 / advance_days 双层兜底 4 case / cutoff 双层兜底 5 case / 严格小于边界 2 case / schema 校验 / 字段持久化。
+- `backend/tests/test_order_enhancement.py`：`test_concurrency_limit_get` 期望值 `3 → 2`（适配 N-03 行为变更）。
+
+**部署辅助**：
+- `deploy/_deploy_business_config_unify_20260505.py`（新增）：SCP 上传 14 文件 + 重建 admin-web/backend + 远程跑 pytest + 健康检查。
+- `deploy/_verify_business_config_unify_20260505.py`（新增）：远程容器内 `python -m pytest` + `curl -k -L https://...` 跟随 SSL 自签证书的链接验证。
+
+### 关键验收（部署后实测）
+- ✅ 容器内 25/25 PASS（test_business_config_unify_v1） + 25/25 PASS（test_order_enhancement，含调整后老用例）= **50/50 PASS**
+- ✅ DB 加列：`merchant_stores.advance_days` / `merchant_stores.booking_cutoff_minutes` / `products.booking_cutoff_minutes` 三列均已存在（exists=1）
+- ✅ HTTPS 路由：`/api/health` 200、`/admin/login/` 200、`/admin/merchant/stores/` 200、`/admin/merchant/business-config/` 200（重定向页）、`/admin/product-system/products/` 200
+- ✅ 新接口 `/api/merchant/stores/1/booking-config` 未登录返 401（路径已注册），登录态可正常 GET/PUT
+- ✅ 旧接口 `POST /api/merchant/concurrency-limit` 中 `store_max_concurrent` 字段被后端忽略，`slot_capacity` 不再被覆盖
+
+### 设计要点
+- **双层兜底通用模型**：所有 store/product 共用配置（advance_days、booking_cutoff_minutes、并发上限）统一遵循"商品级有效值 > 门店级有效值 > 系统默认"，底层用 helper 函数集中实现避免散落
+- **入口收敛 = 路由保留 + 内容变更**：旧 URL 不下线（避免老书签 404），改为友好提示 + 自动重定向，给用户 3 秒了解新位置
+- **schema 兼容老前端**：`store_max_concurrent` 字段保留 Optional 但后端不再读写，避免老 admin-web 包发版前后端报 422
+- **空态指引**：服务级覆盖表为空时，给"前往商品管理"按钮，承担"职责分离"后用户找不到入口的过渡引导
+- **端到端 SSL 验证**：测试服 nginx 强制 http→https，部署脚本里 curl 必须用 `-k -L` 跟随 + 跳过自签证书
+
+### 用户手册
+本次升级单独输出 **`USER_MANUAL_business_config_unify_v1.md`**，含访问地址、操作步骤、生效逻辑、自助验证清单、API 速查。
+
+---
+
+## Previous Update: 支付宝 SDK 未安装复发治理 — 启动自检 + 后台 SDK 健康看板（2026-05-05 03:15）
 
 ### 一句话结论
 按 `cursor_prompt_329_20260505024546.txt` 修复方案 v1.0 落地"终极修复 = L1 标准修复 + L2 启动自检 + L3 后台健康看板"。**根因再确认**：服务器代码版本未带 commit `38045f1`（移除 AliPayCert 硬依赖），旧版 `alipay_service.py` 顶层 `from alipay import AliPay, AliPayCert` 一旦执行即抛 ImportError，被 `payment_config.test_payment_channel` 捕获并误识别为"未安装 python-alipay-sdk"。**修复策略**：① L1 通过 SCP 上传最新代码 + `docker compose build --no-cache backend admin-web` 让 `alipay_service.py` 改造（lazy import AliPayCert）真正落地；② L2 新增 `backend/app/core/sdk_health.py` — 注册 4 类共 10 个依赖（core/payment/sms/storage），启动期分级自检：核心缺失 → CRITICAL 日志 + RuntimeError 容器退出；可选缺失 → CRITICAL 日志但不阻塞启动 + 写入全局快照；③ L3 后端新增 `backend/app/api/admin_sdk_health.py` 提供 `GET /api/admin/health/sdk`（admin 鉴权，缺失核心返 503）+ `POST /api/admin/health/sdk/refresh`（运维「重新检测」按钮）；④ L3 admin 前端 — 新增组件 `SdkHealthCard` 嵌入支付配置页顶部（仅渲染 payment 分组，全绿一行通过、任意红展开 banner + 一键复制安装命令）；新增菜单页 `/system/sdk-health`「环境健康检查」（4 分组卡片：核心/支付/短信/对象存储 + 总览 Statistic + 重新检测按钮 + 缺失项默认展开/正常项默认折叠）。**部署侧关键**：服务器到 GitHub 网络抖动严重导致 `git fetch` 5 次失败（Connection timeout / Operation too slow），改用 SCP 直接上传 10 个变更文件 + `--no-cache` 重建 backend/admin-web，绕过 git 网络问题。**部署后实测**：`pip list | grep alipay` 显示 `python-alipay-sdk 3.3.0`、`from alipay import AliPay` 通过、`get_snapshot()` 返回 `core=0/optional=4`（缺失 wechatpy/aliyunsdkcore/oss2/qcloud_cos 是预期，本项目本来未集成）；E2E 测试管理员登录后访问 `/api/admin/health/sdk` 200 + `/refresh` 200 + 支付宝H5「测试连接」按钮**不再报"未安装 python-alipay-sdk"**，改为真实业务错 `RSA key format is not supported`（DB 中私钥仍是占位值，与 SDK 无关）。

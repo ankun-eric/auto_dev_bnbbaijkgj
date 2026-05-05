@@ -33,7 +33,11 @@ class BusinessHoursResponse(BaseModel):
 
 class ConcurrencyLimitSaveRequest(BaseModel):
     store_id: int
-    store_max_concurrent: int = Field(..., ge=1, le=999, description="门店级同时段最大接单数")
+    # [2026-05-05 营业管理入口收敛 PRD v1.0 · N-03] 兼容老前端：字段可选，传值会被后端忽略；
+    # 门店级唯一字段以 merchant_stores.slot_capacity 为准（在「营业管理」页保存）。
+    store_max_concurrent: Optional[int] = Field(
+        None, ge=1, le=999, description="[已忽略] 兼容字段；服务端不再写入 slot_capacity"
+    )
     service_overrides: Optional[List["ServiceConcurrencyOverride"]] = None
 
 
@@ -47,6 +51,32 @@ class ServiceConcurrencyOverride(BaseModel):
 
 # 解决前向引用
 ConcurrencyLimitSaveRequest.model_rebuild()
+
+
+# ──────────────── 门店「营业管理」聚合 booking-config ────────────────
+# [2026-05-05 营业管理入口收敛 PRD v1.0 · N-02 / N-05 / N-06]
+
+ALLOWED_CUTOFF_MINUTES = {0, 15, 30, 60, 120, 720, 1440}
+
+
+class StoreBookingConfigResponse(BaseModel):
+    """营业管理页：门店级"门店总接待名额 / 提前 N 天 / 当日截止 N 分钟"聚合返回"""
+    store_id: int
+    slot_capacity: int = Field(..., description="门店总接待名额；0 表示不限制")
+    advance_days: Optional[int] = Field(None, description="门店级最早可提前 N 天预约；NULL=不限制")
+    booking_cutoff_minutes: Optional[int] = Field(
+        None,
+        description="门店级当日截止 N 分钟；枚举：null/0(不限制)/15/30/60/120/720/1440；NULL=系统默认 30",
+    )
+
+
+class StoreBookingConfigSaveRequest(BaseModel):
+    """营业管理页 PUT 入参"""
+    slot_capacity: int = Field(..., ge=0, le=9999, description="门店总接待名额；0=不限制")
+    advance_days: Optional[int] = Field(None, ge=0, le=365, description="门店级最早可提前 N 天预约；可为 None")
+    booking_cutoff_minutes: Optional[int] = Field(
+        None, description="枚举：None/0/15/30/60/120/720/1440"
+    )
 
 
 # ──────────────── 时段查询 ────────────────

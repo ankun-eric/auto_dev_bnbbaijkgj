@@ -52,7 +52,7 @@ const menuItems: MenuItem[] = [
     label: '商家管理',
     children: [
       { key: '/merchant/stores', label: '门店管理' },
-      { key: '/merchant/business-config', label: '营业时间&并发上限' },
+      // [2026-05-05 营业管理入口收敛 PRD v1.0 · N-01] 老顶层菜单下线，入口改为门店列表行操作列「营业管理」按钮
       { key: '/merchant/accounts', label: '商家账号' },
       { key: '/merchant-categories', label: '机构类别管理' },
       { key: '/admin-settlements', label: '对账单管理' },

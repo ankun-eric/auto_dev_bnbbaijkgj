@@ -701,6 +701,44 @@ async def _migrate_user_addresses_v2():
         _logger.error("[address_v2] user_addresses 迁移异常（不影响启动）: %s", e)
 
 
+async def _migrate_business_config_unify_v1():
+    """[2026-05-05 营业管理入口收敛 PRD v1.0] DB 迁移：
+
+    1. merchant_stores 加列：advance_days INT NULL、booking_cutoff_minutes INT NULL
+    2. products 加列：booking_cutoff_minutes INT NULL
+    全程幂等。
+    """
+    import logging as _l
+    _logger = _l.getLogger(__name__)
+    from app.core.database import async_session as _async_session
+    try:
+        async with _async_session() as db:
+            from sqlalchemy import text
+
+            async def _add_col(table: str, column: str, ddl: str):
+                try:
+                    chk = await db.execute(text(
+                        "SELECT COUNT(*) FROM information_schema.columns "
+                        "WHERE table_schema = DATABASE() AND table_name = :t AND column_name = :c"
+                    ), {"t": table, "c": column})
+                    if (chk.scalar() or 0) == 0:
+                        await db.execute(text(f"ALTER TABLE {table} ADD COLUMN {ddl}"))
+                        _logger.info("[business_config_unify_v1] %s.%s 列已添加", table, column)
+                except Exception as e:  # noqa: BLE001
+                    _logger.debug("加列 %s.%s 跳过: %s", table, column, e)
+
+            await _add_col("merchant_stores", "advance_days",
+                           "advance_days INT NULL COMMENT '门店级最早可提前 N 天预约'")
+            await _add_col("merchant_stores", "booking_cutoff_minutes",
+                           "booking_cutoff_minutes INT NULL COMMENT '门店级当日最晚提前 N 分钟截止'")
+            await _add_col("products", "booking_cutoff_minutes",
+                           "booking_cutoff_minutes INT NULL COMMENT '商品级当日最晚提前 N 分钟截止；NULL=继承门店级'")
+            await db.commit()
+            _logger.info("[business_config_unify_v1] 营业管理入口收敛 v1.0 迁移完成")
+    except Exception as e:  # noqa: BLE001
+        _logger.error("[business_config_unify_v1] 迁移异常（不影响启动）: %s", e)
+
+
 async def _migrate_order_enhancement_v1():
     """[订单系统增强 PRD v1.0] 数据库迁移：
 
@@ -868,6 +906,9 @@ async def lifespan(app: FastAPI):
     await _migrate_user_addresses_v2()
     # [2026-04-26 PRD v1.0 §R1] 商家角色统一治理数据迁移
     await _migrate_merchant_role_unify_v1()
+    # [2026-05-05 营业管理入口收敛 PRD v1.0] merchant_stores 加列 advance_days/booking_cutoff_minutes；
+    # products 加列 booking_cutoff_minutes
+    await _migrate_business_config_unify_v1()
     from app.init_data import init_default_data
     await init_default_data()
     from app.init_cities import init_cities

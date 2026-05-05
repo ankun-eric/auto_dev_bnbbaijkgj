@@ -34,6 +34,7 @@ from app.models.models import (
     UserRole,
 )
 from app.schemas.order_enhancement import (
+    ALLOWED_CUTOFF_MINUTES,
     AvailableSlotItem,
     AvailableSlotsResponse,
     BusinessHourEntry,
@@ -44,6 +45,8 @@ from app.schemas.order_enhancement import (
     OrderAttachmentMeta,
     OrderListAttachmentMetaRequest,
     OrderListAttachmentMetaResponse,
+    StoreBookingConfigResponse,
+    StoreBookingConfigSaveRequest,
     UnreadCountResponse,
 )
 
@@ -149,7 +152,11 @@ async def save_concurrency_limit(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """保存门店级 slot_capacity + 各服务级 max_concurrent_override。"""
+    """[2026-05-05 营业管理入口收敛 PRD v1.0 · N-03]
+    门店级唯一字段为 `merchant_stores.slot_capacity`（在「营业管理」页另行保存）。
+    本接口的 `store_max_concurrent` 字段不再写库（保留请求字段做双向兼容，避免老前端调用报错），
+    仅处理服务级覆盖。
+    """
     await _ensure_store_permission(db, current_user, data.store_id)
 
     # 门店级
@@ -157,7 +164,8 @@ async def save_concurrency_limit(
     store = store_res.scalar_one_or_none()
     if not store:
         raise HTTPException(status_code=404, detail="门店不存在")
-    store.slot_capacity = data.store_max_concurrent
+    # [2026-05-05 N-03] 忽略 store_max_concurrent（不再覆盖 slot_capacity）
+    # 历史已存在的 slot_capacity 值仅由「营业管理」页面或编辑门店页负责维护
 
     # 服务级
     if data.service_overrides:
@@ -213,6 +221,58 @@ async def get_concurrency_limit(
         "store_max_concurrent": store.slot_capacity or 1,
         "services": services,
     }
+
+
+# ──────────────── 2.5 门店「营业管理」booking-config（slot_capacity / advance_days / booking_cutoff_minutes） ────────────────
+# [2026-05-05 营业管理入口收敛 PRD v1.0 · N-02 / N-05 / N-06]
+
+@router.get(
+    "/api/merchant/stores/{store_id}/booking-config",
+    response_model=StoreBookingConfigResponse,
+)
+async def get_store_booking_config(
+    store_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """营业管理页聚合返回：门店总接待名额 + 门店级 advance_days + 门店级 booking_cutoff_minutes。"""
+    await _ensure_store_permission(db, current_user, store_id)
+    res = await db.execute(select(MerchantStore).where(MerchantStore.id == store_id))
+    store = res.scalar_one_or_none()
+    if not store:
+        raise HTTPException(status_code=404, detail="门店不存在")
+    return StoreBookingConfigResponse(
+        store_id=store.id,
+        slot_capacity=int(store.slot_capacity or 0),
+        advance_days=getattr(store, "advance_days", None),
+        booking_cutoff_minutes=getattr(store, "booking_cutoff_minutes", None),
+    )
+
+
+@router.put("/api/merchant/stores/{store_id}/booking-config")
+async def update_store_booking_config(
+    store_id: int,
+    data: StoreBookingConfigSaveRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """营业管理页保存：门店总接待名额 + 门店级 advance_days + 门店级 booking_cutoff_minutes。"""
+    await _ensure_store_permission(db, current_user, store_id)
+    # 取值校验：booking_cutoff_minutes 必须在枚举中
+    if data.booking_cutoff_minutes is not None and data.booking_cutoff_minutes not in ALLOWED_CUTOFF_MINUTES:
+        raise HTTPException(
+            status_code=400,
+            detail="booking_cutoff_minutes 取值非法，仅允许：null/0/15/30/60/120/720/1440",
+        )
+    res = await db.execute(select(MerchantStore).where(MerchantStore.id == store_id))
+    store = res.scalar_one_or_none()
+    if not store:
+        raise HTTPException(status_code=404, detail="门店不存在")
+    store.slot_capacity = int(data.slot_capacity or 0)
+    store.advance_days = data.advance_days
+    store.booking_cutoff_minutes = data.booking_cutoff_minutes
+    await db.commit()
+    return {"message": "已保存"}
 
 
 # ──────────────── 3. 时段切片查询 ────────────────
@@ -358,7 +418,23 @@ async def get_available_slots(
     windows = await _get_business_windows(db, store_id, target_date)
 
     now = datetime.utcnow() + timedelta(hours=8)  # 转 Asia/Shanghai 简化
-    min_advance_min = 30
+
+    # [2026-05-05 营业管理入口收敛 PRD v1.0 · N-06] 双层「当日截止」兜底：
+    # 商品级 booking_cutoff_minutes 优先 → 门店级 booking_cutoff_minutes 兜底 → 系统默认 30 分钟。
+    # 取值校验：枚举 {None, 0(=不限制), 15, 30, 60, 120, 720, 1440}；其它非法值视为 None 后兜底。
+    _ALLOWED_CUTOFF = {0, 15, 30, 60, 120, 720, 1440}
+    p_cut = getattr(product, "booking_cutoff_minutes", None)
+    s_cut = getattr(store, "booking_cutoff_minutes", None)
+    if p_cut is not None and p_cut not in _ALLOWED_CUTOFF:
+        p_cut = None
+    if s_cut is not None and s_cut not in _ALLOWED_CUTOFF:
+        s_cut = None
+    if p_cut is not None:
+        min_advance_min = int(p_cut)
+    elif s_cut is not None:
+        min_advance_min = int(s_cut)
+    else:
+        min_advance_min = 30
 
     slots: List[AvailableSlotItem] = []
     for (win_start, win_end) in windows:
@@ -371,8 +447,8 @@ async def get_available_slots(
             reason: Optional[str] = None
             available = True
 
-            # 当天最小提前
-            if target_date == now.date():
+            # 当天最小提前（仅当日生效；min_advance_min=0 表示不限制）
+            if target_date == now.date() and min_advance_min > 0:
                 if slot_start_dt - timedelta(minutes=min_advance_min) < now.replace(tzinfo=None):
                     available = False
                     reason = "past"

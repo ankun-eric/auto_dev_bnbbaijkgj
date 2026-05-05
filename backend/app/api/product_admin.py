@@ -194,6 +194,8 @@ async def _build_product_response_dict(db: AsyncSession, product: Product) -> di
         "time_slots": product.time_slots or None,
         # BUG-PRODUCT-APPT-002：date / time_slot 共用「是否包含今天」
         "include_today": False if getattr(product, "include_today", True) is False else True,
+        # [2026-05-05 营业管理入口收敛 PRD v1.0 · N-06] 商品级当日截止 N 分钟
+        "booking_cutoff_minutes": getattr(product, "booking_cutoff_minutes", None),
         "faq": product.faq,
         "recommend_weight": product.recommend_weight or 0,
         "sales_count": product.sales_count or 0,
@@ -514,6 +516,15 @@ async def admin_create_product(
     if data.selling_point and len(data.selling_point) > 100:
         raise HTTPException(status_code=400, detail="商品卖点不能超过 100 字")
 
+    # [2026-05-05 营业管理入口收敛 PRD v1.0 · N-06] 商品级 booking_cutoff_minutes 枚举校验
+    _ALLOWED_CUTOFF = {0, 15, 30, 60, 120, 720, 1440}
+    if getattr(data, "booking_cutoff_minutes", None) is not None:
+        if data.booking_cutoff_minutes not in _ALLOWED_CUTOFF:
+            raise HTTPException(
+                status_code=400,
+                detail="booking_cutoff_minutes 取值非法，仅允许：null/0/15/30/60/120/720/1440",
+            )
+
     # 保存并上架强校验
     if data.status == "active":
         _validate_for_publish(data)
@@ -541,6 +552,8 @@ async def admin_create_product(
         time_slots=[s.model_dump() for s in data.time_slots] if data.time_slots else None,
         # BUG-PRODUCT-APPT-002：include_today 默认 true
         include_today=False if getattr(data, "include_today", True) is False else True,
+        # [2026-05-05 营业管理入口收敛 PRD v1.0 · N-06] 商品级当日截止 N 分钟
+        booking_cutoff_minutes=getattr(data, "booking_cutoff_minutes", None),
         faq=data.faq,
         recommend_weight=data.recommend_weight,
         status=data.status,
@@ -618,6 +631,15 @@ async def admin_update_product(
                 raise HTTPException(status_code=400, detail="单个条码长度不可超过 30 字符")
     if data.selling_point and len(data.selling_point) > 100:
         raise HTTPException(status_code=400, detail="商品卖点不能超过 100 字")
+
+    # [2026-05-05 营业管理入口收敛 PRD v1.0 · N-06] 商品级 booking_cutoff_minutes 枚举校验
+    _ALLOWED_CUTOFF = {0, 15, 30, 60, 120, 720, 1440}
+    if getattr(data, "booking_cutoff_minutes", None) is not None:
+        if data.booking_cutoff_minutes not in _ALLOWED_CUTOFF:
+            raise HTTPException(
+                status_code=400,
+                detail="booking_cutoff_minutes 取值非法，仅允许：null/0/15/30/60/120/720/1440",
+            )
 
     # 组合后的"虚拟数据对象"用于上架强校验
     if data.status == "active":

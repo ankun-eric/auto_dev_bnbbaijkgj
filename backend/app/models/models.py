@@ -455,6 +455,12 @@ class MerchantStore(Base):
     # [2026-05-02 H5 下单流程优化 PRD v1.0] 营业起止时间（用于与商品时段交集计算）
     business_start = mapped_column(String(5), nullable=True, comment="营业开始时间 HH:MM")
     business_end = mapped_column(String(5), nullable=True, comment="营业结束时间 HH:MM")
+    # [2026-05-05 营业管理入口收敛 PRD v1.0] 门店级「最早可提前 N 天预约」（NULL=不限制；商品级优先）
+    advance_days = mapped_column(Integer, nullable=True,
+                                 comment="门店级最早可提前 N 天预约，NULL=不限制；商品级优先")
+    # [2026-05-05 营业管理入口收敛 PRD v1.0] 门店级「当日最晚提前 N 分钟截止」（NULL=不设置 → 系统默认 30 分钟）
+    booking_cutoff_minutes = mapped_column(Integer, nullable=True,
+                                           comment="门店级当日最晚提前 N 分钟截止；NULL=系统默认 30 分钟")
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -2720,6 +2726,9 @@ class Product(Base):
     # [订单系统增强 PRD v1.0] 服务时长（分钟），用于时段切片；NULL=兼容历史
     service_duration_minutes = mapped_column(Integer, nullable=True,
                                              comment="服务时长（分钟），用于时段自动切片")
+    # [2026-05-05 营业管理入口收敛 PRD v1.0] 商品级「当日最晚提前 N 分钟截止」（NULL=继承门店级；门店级 NULL=系统默认 30）
+    booking_cutoff_minutes = mapped_column(Integer, nullable=True,
+                                           comment="商品级当日最晚提前 N 分钟截止；NULL=继承门店级")
     # [核销订单过期+改期规则优化 v1.0] 是否允许用户错过预约后自助改约（默认允许）
     # true：错过预约不立即过期，可在改期上限前重新预约；false：错过即过期，不可退款
     allow_reschedule = mapped_column(

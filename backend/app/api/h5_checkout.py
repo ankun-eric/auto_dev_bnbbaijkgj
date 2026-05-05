@@ -47,6 +47,20 @@ router = APIRouter(prefix="/api/h5", tags=["H5 下单流程"])
 # ---------------- 工具函数 ----------------
 
 
+def _resolve_effective_advance_days(product, store) -> int:
+    """[2026-05-05 营业管理入口收敛 PRD v1.0 · N-05] 双层兜底取值：
+
+    商品级 advance_days（>0）优先 → 门店级 advance_days（>0）兜底 → 0=不限制。
+    """
+    p_val = getattr(product, "advance_days", None)
+    if p_val is not None and int(p_val) > 0:
+        return int(p_val)
+    s_val = getattr(store, "advance_days", None) if store is not None else None
+    if s_val is not None and int(s_val) > 0:
+        return int(s_val)
+    return 0
+
+
 def _compute_date_range(advance_days: int, include_today: bool) -> tuple[date, date]:
     """计算可预约日期区间。
 
@@ -244,11 +258,20 @@ async def checkout_init(
     if product is None:
         raise HTTPException(status_code=404, detail="商品不存在")
 
-    advance_days = int(getattr(product, "advance_days", 0) or 0)
+    # [2026-05-05 N-05] 先确定默认门店，再用「商品级优先、门店级兜底」算 advance_days
+    store_q = await db.execute(
+        select(MerchantStore)
+        .join(ProductStore, ProductStore.store_id == MerchantStore.id)
+        .where(ProductStore.product_id == productId, MerchantStore.status == "active")
+        .order_by(MerchantStore.id.asc())
+    )
+    default_store_obj = store_q.scalars().first()
+
     include_today = getattr(product, "include_today", True)
     if include_today is None:
         include_today = True
 
+    advance_days = _resolve_effective_advance_days(product, default_store_obj)
     if advance_days > 0:
         start, end = _compute_date_range(advance_days, bool(include_today))
         date_range = {
@@ -265,15 +288,6 @@ async def checkout_init(
             "include_today": bool(include_today),
             "advance_days": 0,
         }
-
-    # 默认门店：取商品绑定的第一个 active 门店
-    store_q = await db.execute(
-        select(MerchantStore)
-        .join(ProductStore, ProductStore.store_id == MerchantStore.id)
-        .where(ProductStore.product_id == productId, MerchantStore.status == "active")
-        .order_by(MerchantStore.id.asc())
-    )
-    default_store_obj = store_q.scalars().first()
     default_store = None
     if default_store_obj:
         default_store = {
@@ -442,11 +456,27 @@ async def checkout_info(
         else (product.appointment_mode or "none")
     )
 
-    # 2) 日期范围
-    advance_days = int(getattr(product, "advance_days", 0) or 0)
+    # 3) 默认门店（若调用方未指定 storeId）
+    default_store_obj = None
+    if storeId is None:
+        store_q = await db.execute(
+            select(MerchantStore)
+            .join(ProductStore, ProductStore.store_id == MerchantStore.id)
+            .where(ProductStore.product_id == productId, MerchantStore.status == "active")
+            .order_by(MerchantStore.id.asc())
+        )
+        default_store_obj = store_q.scalars().first()
+        if default_store_obj is not None:
+            storeId = default_store_obj.id
+    else:
+        s_res = await db.execute(select(MerchantStore).where(MerchantStore.id == storeId))
+        default_store_obj = s_res.scalar_one_or_none()
+
+    # 2) 日期范围（先确定门店，再做商品级优先、门店级兜底的 advance_days 取值）
     include_today = getattr(product, "include_today", True)
     if include_today is None:
         include_today = True
+    advance_days = _resolve_effective_advance_days(product, default_store_obj)
     if advance_days > 0:
         d_start, d_end = _compute_date_range(advance_days, bool(include_today))
         date_range = {
@@ -463,22 +493,6 @@ async def checkout_info(
             "include_today": bool(include_today),
             "advance_days": 0,
         }
-
-    # 3) 默认门店（若调用方未指定 storeId）
-    default_store_obj = None
-    if storeId is None:
-        store_q = await db.execute(
-            select(MerchantStore)
-            .join(ProductStore, ProductStore.store_id == MerchantStore.id)
-            .where(ProductStore.product_id == productId, MerchantStore.status == "active")
-            .order_by(MerchantStore.id.asc())
-        )
-        default_store_obj = store_q.scalars().first()
-        if default_store_obj is not None:
-            storeId = default_store_obj.id
-    else:
-        s_res = await db.execute(select(MerchantStore).where(MerchantStore.id == storeId))
-        default_store_obj = s_res.scalar_one_or_none()
 
     default_store = None
     if default_store_obj:

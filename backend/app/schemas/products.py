@@ -211,6 +211,8 @@ class ProductCreate(BaseModel):
     time_slots: Optional[list[TimeSlotItem]] = None
     # BUG-PRODUCT-APPT-002：date / time_slot 共用「是否包含今天」，默认 True
     include_today: bool = True
+    # [2026-05-05 营业管理入口收敛 PRD v1.0 · N-06] 商品级当日截止 N 分钟（双层兜底，商品级优先）
+    booking_cutoff_minutes: Optional[int] = None
     faq: Optional[Any] = None
     recommend_weight: int = 0
     status: str = "draft"
@@ -271,6 +273,8 @@ class ProductUpdate(BaseModel):
     time_slots: Optional[list[TimeSlotItem]] = None
     # BUG-PRODUCT-APPT-002：date / time_slot 共用「是否包含今天」，PUT 部分更新可不传
     include_today: Optional[bool] = None
+    # [2026-05-05 营业管理入口收敛 PRD v1.0 · N-06] 商品级当日截止 N 分钟（PUT 部分更新可不传）
+    booking_cutoff_minutes: Optional[int] = None
     faq: Optional[Any] = None
     recommend_weight: Optional[int] = None
     status: Optional[str] = None
@@ -382,6 +386,8 @@ class ProductResponse(BaseModel):
     time_slots: Optional[list[TimeSlotItem]] = None
     # BUG-PRODUCT-APPT-002：date / time_slot 共用「是否包含今天」
     include_today: bool = True
+    # [2026-05-05 营业管理入口收敛 PRD v1.0 · N-06] 商品级当日截止 N 分钟
+    booking_cutoff_minutes: Optional[int] = None
     faq: Optional[Any] = None
     recommend_weight: int
     sales_count: int

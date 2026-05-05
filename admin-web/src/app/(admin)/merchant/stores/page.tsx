@@ -17,6 +17,7 @@ import {
   message,
 } from 'antd';
 import { get, post, put } from '@/lib/api';
+import { useRouter } from 'next/navigation';
 import StoreMapPicker, { StoreMapPickerValue } from '@/components/StoreMapPicker';
 
 const { Title } = Typography;
@@ -87,6 +88,7 @@ const BUSINESS_END_OPTIONS: { label: string; value: string }[] = (() => {
 })();
 
 export default function MerchantStoresPage() {
+  const router = useRouter();
   const [items, setItems] = useState<StoreItem[]>([]);
   const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [productCategories, setProductCategories] = useState<ProductCategoryItem[]>([]);
@@ -151,8 +153,7 @@ export default function MerchantStoresPage() {
       category_id: defaultCat?.id,
       // [2026-05-01 门店地图能力 PRD v1.0] 地图选点初值
       map_point: {} as StoreMapPickerValue,
-      // [2026-05-02 H5 下单流程优化 PRD v1.0]
-      slot_capacity: 10,
+      // [2026-05-05 营业管理入口收敛 PRD v1.0 · N-02] slot_capacity 不再在编辑门店表单中维护
       business_start: '09:00',
       business_end: '22:00',
       business_scope: [],
@@ -172,7 +173,7 @@ export default function MerchantStoresPage() {
         business_scope: Array.isArray(detail.business_scope)
           ? detail.business_scope
           : (item.business_scope ?? []),
-        slot_capacity: detail.slot_capacity ?? item.slot_capacity ?? 10,
+        // [2026-05-05 N-02] slot_capacity 已搬迁至「营业管理」页，编辑门店页不再展示与维护
         business_start: detail.business_start ?? item.business_start ?? '',
         business_end: detail.business_end ?? item.business_end ?? '',
         map_point: {
@@ -227,6 +228,10 @@ export default function MerchantStoresPage() {
 
     // [2026-05-03 营业时间/营业范围 Bug 修复] 经营范围合并到主表单一并入库
     storeValues.business_scope = Array.isArray(business_scope) ? business_scope : [];
+
+    // [2026-05-05 营业管理入口收敛 PRD v1.0 · N-02] 编辑门店页保存时不再下发 slot_capacity 字段，
+    // 该字段交由「营业管理」页统一维护，避免双入口写同一字段产生冲突。
+    delete storeValues.slot_capacity;
 
     setSubmitting(true);
     try {
@@ -371,6 +376,14 @@ export default function MerchantStoresPage() {
                 >
                   编辑
                 </Button>
+                {/* [2026-05-05 营业管理入口收敛 PRD v1.0 · N-01] 门店列表行新增「营业管理」按钮，自动锁定 storeId */}
+                <Button
+                  type="link"
+                  disabled={item.status !== 'active'}
+                  onClick={() => router.push(`/merchant/stores/${item.id}/business-config`)}
+                >
+                  营业管理
+                </Button>
                 <Popconfirm
                   title={item.status === 'active' ? '确认停用该门店？' : '确认启用该门店？'}
                   onConfirm={() => toggleStatus(item)}
@@ -452,15 +465,7 @@ export default function MerchantStoresPage() {
           <Form.Item name="address" label="详细地址">
             <Input.TextArea rows={3} placeholder="请输入详细地址（地图选点后自动回填，可手动修改）" />
           </Form.Item>
-          {/* [上门服务履约 PRD v1.0 · F3] 门店总接待名额 */}
-          <Form.Item
-            name="slot_capacity"
-            label="门店总接待名额"
-            tooltip="门店在同一日期同一时段可接待的最大订单数（所有商品共享）。与商品级名额取最严，0 表示不限。"
-            rules={[{ required: true, message: '请填写门店总接待名额' }]}
-          >
-            <InputNumber min={0} max={9999} style={{ width: 200 }} placeholder="默认 10，0 表示不限" />
-          </Form.Item>
+          {/* [2026-05-05 营业管理入口收敛 PRD v1.0 · N-02] 「门店总接待名额」字段已搬迁至「营业管理」页 */}
           {/* [2026-05-03 营业时间 Bug 修复] 30 分钟粒度时间选择器 */}
           <Form.Item
             label="营业时间"

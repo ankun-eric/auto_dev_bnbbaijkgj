@@ -243,7 +243,9 @@ async def test_concurrency_limit_save_with_overrides(client, merchant_headers, m
 
 @pytest.mark.asyncio
 async def test_concurrency_limit_get(client, merchant_headers, merchant_setup):
-    """[F6] 读取并发上限"""
+    """[F6 + 2026-05-05 营业管理入口收敛 PRD v1.0 · N-03]
+    concurrency-limit GET 仍返回 store_max_concurrent，但其值取自 merchant_stores.slot_capacity，
+    POST 请求中携带的 store_max_concurrent 不再生效（被忽略）。"""
     await client.post("/api/merchant/concurrency-limit", json={
         "store_id": merchant_setup["store_id"],
         "store_max_concurrent": 3,
@@ -255,7 +257,8 @@ async def test_concurrency_limit_get(client, merchant_headers, merchant_setup):
     )
     assert r.status_code == 200
     data = r.json()
-    assert data["store_max_concurrent"] == 3
+    # [N-03] store_max_concurrent 现读自 slot_capacity（fixture 设为 2），不再被请求覆盖
+    assert data["store_max_concurrent"] == 2
     assert isinstance(data["services"], list)
 
 
