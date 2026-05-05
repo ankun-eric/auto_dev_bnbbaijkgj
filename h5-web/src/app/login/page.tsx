@@ -2,7 +2,7 @@
 
 import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Button, Input, Toast, Checkbox, Space, Dialog, SpinLoading } from 'antd-mobile';
+import { Button, Input, Toast, Checkbox, Dialog, SpinLoading } from 'antd-mobile';
 import { login } from '@/lib/auth';
 import api from '@/lib/api';
 import { resolveAssetUrl } from '@/lib/asset-url';
@@ -156,35 +156,6 @@ function LoginContent() {
     }
   };
 
-  const showChannelHint = async () => {
-    const channelLabel = '微信';
-    const registerMode = registerSettings.wechat_register_mode;
-
-    if (!registerSettings.enable_self_registration) {
-      await Dialog.alert({
-        title: `${channelLabel}注册已关闭`,
-        content: '当前系统未开放自助注册，请联系管理员开通账号后使用手机号验证码登录。',
-        confirmText: '我知道了',
-      });
-      return;
-    }
-
-    if (registerMode === 'authorize_member') {
-      await Dialog.alert({
-        title: `${channelLabel}授权即会员`,
-        content: `当前策略为"授权即会员"。在对应${channelLabel}客户端完成授权后，可直接成为会员；当前 H5 页面仍可使用手机号验证码继续登录。`,
-        confirmText: '知道了',
-      });
-      return;
-    }
-
-    await Dialog.alert({
-      title: `${channelLabel}需填写注册信息`,
-      content: `当前策略为"填写注册信息"。在对应${channelLabel}客户端授权后，还需要补充手机号等注册资料；当前 H5 页面可先通过手机号验证码完成登录。`,
-      confirmText: '去登录',
-    });
-  };
-
   if (settingsLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(180deg, #e8fce8 0%, #ffffff 40%)' }}>
@@ -198,18 +169,6 @@ function LoginContent() {
 
   const isHorizontal = registerSettings.register_page_layout === 'horizontal';
   const submitText = registerSettings.enable_self_registration ? '登录 / 注册' : '登录';
-  const helperText = registerSettings.enable_self_registration
-    ? '未注册手机号验证后将自动创建会员'
-    : '当前未开放自助注册，仅支持已注册账号登录';
-  const channelItems = [
-    {
-      key: 'wechat' as const,
-      icon: '💬',
-      label: '微信',
-      desc: registerSettings.wechat_register_mode === 'authorize_member' ? '授权即会员' : '授权后填写注册信息',
-      bg: '#f6ffed',
-    },
-  ];
 
   return (
     <div
@@ -270,14 +229,11 @@ function LoginContent() {
             </Button>
           </div>
 
-          <div className="space-y-1 px-1">
-            <div className="text-xs text-gray-400">{helperText}</div>
-            {refParam && (
-              <div className="text-xs" style={{ color: '#52c41a' }}>
-                🎉 已识别邀请码：<span className="font-medium">{refParam}</span>
-              </div>
-            )}
-          </div>
+          {refParam && (
+            <div className="px-1 text-xs" style={{ color: '#52c41a' }}>
+              🎉 已识别邀请码：<span className="font-medium">{refParam}</span>
+            </div>
+          )}
 
           <Button
             block
@@ -316,27 +272,6 @@ function LoginContent() {
         </div>
       </div>
 
-      <div className={`text-center py-6 transition-all duration-500 ease-in-out ${isHorizontal ? 'md:absolute md:bottom-0 md:right-0 md:left-0' : ''}`}>
-        <Space direction="vertical" align="center">
-          <span className="text-xs text-gray-300">其他登录方式</span>
-          <div className="flex flex-wrap justify-center gap-3">
-            {channelItems.map((item) => (
-              <div
-                key={item.key}
-                className="rounded-2xl px-4 py-3 min-w-[140px] text-left"
-                style={{ background: item.bg }}
-                onClick={() => showChannelHint()}
-              >
-                <div className="flex items-center justify-center gap-2 text-base">
-                  <span>{item.icon}</span>
-                  <span className="font-medium text-gray-700">{item.label}</span>
-                </div>
-                <div className="mt-1 text-[11px] text-gray-400">{item.desc}</div>
-              </div>
-            ))}
-          </div>
-        </Space>
-      </div>
     </div>
   );
 }
