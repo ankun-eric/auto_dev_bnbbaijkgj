@@ -1,0 +1,21 @@
+﻿Connected.
+Uploaded /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/_verify_rsa.py
+
+>>> docker cp /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/_verify_rsa.py 6b099ed3-7175-4a78-91f4-44570c84ed27-backend:/tmp/_verify_rsa.py
+[EXIT 0]
+
+>>> docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend python /tmp/_verify_rsa.py
+============================================================
+ALL VERIFIED:
+   [1] PKCS#8 PEM ok
+   [2] PKCS#1 PEM -> PKCS#8 ok
+   [3] PKCS#8 naked ok
+   [4] PKCS#1 naked -> PKCS#8 ok
+   [5] garbage rejected ok
+   [6] validate ok
+   [7] validate reject ok
+   [8] alipay_service runtime fallback ok
+   [9] payment_config save validation ok
+============================================================
+USER_FRIENDLY_ERROR = 銆屽簲鐢ㄧ閽ャ€嶆牸寮忎笉琚敮鎸併€傝浣跨敤鏀粯瀹濆紑鏀惧钩鍙般€屽瘑閽ュ伐鍏枫€嶇敓鎴愮殑 銆屽簲鐢ㄧ閽KCS8.txt銆嶆枃浠朵腑鐨勫唴瀹癸紙娉ㄦ剰锛氫笉鏄€屽簲鐢ㄧ閽SA2048.txt銆嶏級銆?
+[EXIT 0]

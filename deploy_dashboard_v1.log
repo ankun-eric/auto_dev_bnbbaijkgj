@@ -1,0 +1,356 @@
+﻿======================================================================
+[deploy] 闂ㄥ簵棰勭害鐪嬫澘涓庢敼鏈熻兘鍔涘崌绾?v1.0 閮ㄧ讲寮€濮?
+======================================================================
+
+>>> mkdir -p "/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/api"
+[exit_code=0]
+[scp] C:\auto_output\bnbbaijkgj\backend\app\api\merchant_dashboard.py -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/api/merchant_dashboard.py
+
+>>> mkdir -p "/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app"
+[exit_code=0]
+[scp] C:\auto_output\bnbbaijkgj\backend\app\main.py -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/main.py
+
+>>> mkdir -p "/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/tests"
+[exit_code=0]
+[scp] C:\auto_output\bnbbaijkgj\backend\tests\test_merchant_dashboard_v1.py -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/tests/test_merchant_dashboard_v1.py
+
+>>> mkdir -p "/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/admin-web/src/app/(admin)/product-system/orders/dashboard"
+[exit_code=0]
+[scp] C:\auto_output\bnbbaijkgj\admin-web\src\app\(admin)\product-system\orders\dashboard\page.tsx -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/admin-web/src/app/(admin)/product-system/orders/dashboard/page.tsx
+
+>>> mkdir -p "/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/admin-web/src/app/(admin)/product-system/orders"
+[exit_code=0]
+[scp] C:\auto_output\bnbbaijkgj\admin-web\src\app\(admin)\product-system\orders\page.tsx -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/admin-web/src/app/(admin)/product-system/orders/page.tsx
+
+>>> grep -c "merchant_dashboard" /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/main.py
+2
+
+[exit_code=0]
+
+>>> grep -c "SLOT_HOURS" /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/api/merchant_dashboard.py
+6
+
+[exit_code=0]
+
+>>> ls -la /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/admin-web/src/app/\(admin\)/product-system/orders/dashboard/page.tsx
+-rw-rw-r-- 1 ubuntu ubuntu 19098 May  5 13:15 /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/admin-web/src/app/(admin)/product-system/orders/dashboard/page.tsx
+
+[exit_code=0]
+
+>>> cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose build backend admin-web
+#1 [internal] load local bake definitions
+#1 reading from stdin 1.38kB done
+#1 DONE 0.0s
+
+#2 [admin-web internal] load build definition from Dockerfile
+#2 transferring dockerfile: 653B done
+#2 DONE 0.0s
+
+#3 [backend internal] load build definition from Dockerfile
+#3 transferring dockerfile: 366B done
+#3 DONE 0.0s
+
+#4 [admin-web internal] load metadata for docker.io/library/node:18-alpine
+#4 DONE 0.2s
+
+#5 [backend internal] load metadata for docker.io/library/python:3.11-slim
+#5 ...
+
+#6 [admin-web internal] load .dockerignore
+#6 transferring context: 102B done
+#6 DONE 0.0s
+
+#7 [admin-web builder 1/7] FROM docker.io/library/node:18-alpine@sha256:8d6421d663b4c28fd3ebc498332f249011d118945588d0a35cb9bc4b8ca09d9e
+#7 resolve docker.io/library/node:18-alpine@sha256:8d6421d663b4c28fd3ebc498332f249011d118945588d0a35cb9bc4b8ca09d9e 0.0s done
+#7 DONE 0.0s
+
+#8 [admin-web internal] load build context
+#8 transferring context: 81.44kB 0.1s done
+#8 DONE 0.1s
+
+#9 [admin-web builder 3/7] COPY package.json ./
+#9 CACHED
+
+#10 [admin-web builder 2/7] WORKDIR /app
+#10 CACHED
+
+#11 [admin-web builder 4/7] RUN npm config set registry https://registry.npmmirror.com && npm install --legacy-peer-deps
+#11 CACHED
+
+#12 [admin-web builder 5/7] COPY . .
+#12 DONE 0.1s
+
+#5 [backend internal] load metadata for docker.io/library/python:3.11-slim
+#5 DONE 0.5s
+
+#13 [admin-web builder 6/7] RUN mkdir -p public
+#13 DONE 0.2s
+
+#14 [backend internal] load .dockerignore
+#14 transferring context: 2B done
+#14 DONE 0.0s
+
+#15 [backend 1/6] FROM docker.io/library/python:3.11-slim@sha256:6d85378d88a19cd4d76079817532d62232be95757cb45945a99fec8e8084b9c2
+#15 resolve docker.io/library/python:3.11-slim@sha256:6d85378d88a19cd4d76079817532d62232be95757cb45945a99fec8e8084b9c2 0.0s done
+#15 DONE 0.0s
+
+#16 [backend internal] load build context
+#16 transferring context: 4.40MB 0.2s done
+#16 DONE 0.2s
+
+#17 [backend 2/6] WORKDIR /app
+#17 CACHED
+
+#18 [backend 3/6] COPY requirements.txt .
+#18 CACHED
+
+#19 [backend 4/6] RUN pip install --no-cache-dir -r requirements.txt -i https://mirrors.cloud.tencent.com/pypi/simple --trusted-host mirrors.cloud.tencent.com --timeout 120
+#19 CACHED
+
+#20 [backend 5/6] COPY . .
+#20 DONE 0.1s
+
+#21 [admin-web builder 7/7] RUN npm run build
+#21 0.476 
+#21 0.476 > bini-health-admin@1.0.0 build
+#21 0.476 > next build
+#21 0.476 
+#21 ...
+
+#22 [backend 6/6] RUN mkdir -p uploads
+#22 DONE 0.3s
+
+#23 [backend] exporting to image
+#23 exporting layers
+#23 exporting layers 0.3s done
+#23 exporting manifest sha256:484bab3bc9b8075258be7930ba2b99028bf7613a9ed0da3109e5a6af8b2507a6 0.1s done
+#23 exporting config sha256:c7c7418c14f53e3027fd1fc77a30ce062ecf366a0415591f61f6140679fbf748
+#23 exporting config sha256:c7c7418c14f53e3027fd1fc77a30ce062ecf366a0415591f61f6140679fbf748 0.0s done
+#23 exporting attestation manifest sha256:8655aadd81b06d4ae18bac23621dd65af98fa7445a96e8cb31f7cf89309d9669 0.0s done
+#23 exporting manifest list sha256:59e7c009198f34fad2348bd652409c272a8a8a4f7571401398b9397b83c69fcf
+#23 exporting manifest list sha256:59e7c009198f34fad2348bd652409c272a8a8a4f7571401398b9397b83c69fcf 0.0s done
+#23 naming to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-backend:latest done
+#23 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-backend:latest 0.1s done
+#23 DONE 0.8s
+
+#21 [admin-web builder 7/7] RUN npm run build
+#21 1.683 Attention: Next.js now collects completely anonymous telemetry regarding usage.
+#21 1.683 This information is used to shape Next.js' roadmap and prioritize features.
+#21 1.683 You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+#21 1.683 https://nextjs.org/telemetry
+#21 1.683 
+#21 ...
+
+#24 [backend] resolving provenance for metadata file
+#24 DONE 0.0s
+
+#21 [admin-web builder 7/7] RUN npm run build
+#21 1.779   鈻?Next.js 14.2.15
+#21 1.780 
+#21 1.899    Creating an optimized production build ...
+#21 82.82  鉁?Compiled successfully
+#21 82.82    Skipping validation of types
+#21 82.82    Linting ...
+#21 83.14    Collecting page data ...
+#21 88.20    Generating static pages (0/90) ...
+#21 93.58    Generating static pages (22/90) 
+
+#21 94.79    Generating static pages (44/90) 
+
+#21 95.96    Generating static pages (67/90) 
+
+#21 97.88  鉁?Generating static pages (90/90)
+#21 99.10    Finalizing page optimization ...
+#21 99.10    Collecting build traces ...
+#21 107.5 
+#21 107.6 Route (app)                                  Size     First Load JS
+#21 107.6 鈹?鈼?/                                        373 B            88 kB
+#21 107.6 鈹?鈼?/_not-found                              880 B          88.5 kB
+#21 107.6 鈹?鈼?/admin-settlements                       18.7 kB         490 kB
+#21 107.6 鈹?鈼?/ai-center/disclaimers                   6.79 kB         279 kB
+#21 107.6 鈹?鈼?/ai-center/prompts                       6.64 kB         276 kB
+#21 107.6 鈹?鈼?/ai-center/sensitive-words               6.71 kB         393 kB
+#21 107.6 鈹?鈼?/ai-config                               22.3 kB         429 kB
+#21 107.6 鈹?鈼?/ai-config/chat-timeout                  7.55 kB         301 kB
+#21 107.6 鈹?鈼?/ai-config/video-consult                 10.5 kB         344 kB
+#21 107.6 鈹?鈼?/audit/center                            11.1 kB         404 kB
+#21 107.6 鈹?鈼?/audit/phones                            8.29 kB         397 kB
+#21 107.6 鈹?鈼?/bottom-nav                              9.81 kB         399 kB
+#21 107.6 鈹?鈼?/chat-records                            5.72 kB         413 kB
+#21 107.6 鈹?茠 /chat-records/[id]                       12.3 kB         300 kB
+#21 107.6 鈹?鈼?/checkup-details                         4.96 kB         455 kB
+#21 107.6 鈹?鈼?/city-management                         10.2 kB         383 kB
+#21 107.6 鈹?鈼?/content/articles                        4.96 kB         454 kB
+#21 107.6 鈹?鈼?/content/categories                      10.7 kB         405 kB
+#21 107.6 鈹?鈼?/content/news                            4.89 kB         454 kB
+#21 107.6 鈹?鈼?/cos-config                              22 kB           421 kB
+#21 107.6 鈹?鈼?/customer-service                        10.8 kB         289 kB
+#21 107.6 鈹?鈼?/dashboard                               10.4 kB         379 kB
+#21 107.6 鈹?鈼?/digital-humans                          6.64 kB         406 kB
+#21 107.6 鈹?鈼?/disease-presets                         11.4 kB         406 kB
+#21 107.6 鈹?鈼?/drug-details                            5.76 kB         455 kB
+#21 107.6 鈹?鈼?/email-notify                            15.5 kB         414 kB
+#21 107.6 鈹?鈼?/experts                                 13.8 kB         403 kB
+#21 107.6 鈹?鈼?/fallback-config                         4.71 kB         391 kB
+#21 107.6 鈹?鈼?/family-management                       15.6 kB         386 kB
+#21 107.6 鈹?鈼?/function-buttons                        9.31 kB         415 kB
+#21 107.6 鈹?鈼?/health-plan/categories                  9.61 kB         404 kB
+#21 107.6 鈹?鈼?/health-plan/default-tasks               11.6 kB         406 kB
+#21 107.6 鈹?鈼?/health-plan/recommended                 12.2 kB         407 kB
+#21 107.6 鈹?茠 /health-plan/recommended/[planId]/tasks  9.56 kB         404 kB
+#21 107.6 鈹?鈼?/health-plan/statistics                  10.8 kB         422 kB
+#21 107.6 鈹?鈼?/health-records                          12.6 kB         400 kB
+#21 107.6 鈹?鈼?/home-banners                            11.9 kB         435 kB
+#21 107.6 鈹?鈼?/home-menus                              28 kB           451 kB
+#21 107.6 鈹?鈼?/home-settings                           5.02 kB         328 kB
+#21 107.6 鈹?鈼?/home-settings/page-style                8.55 kB         284 kB
+#21 107.6 鈹?鈼?/knowledge                               12.3 kB         401 kB
+#21 107.6 鈹?茠 /knowledge/[id]                          13.1 kB         417 kB
+#21 107.6 鈹?鈼?/knowledge/stats                         10.5 kB         385 kB
+#21 107.6 鈹?鈼?/login                                   8.28 kB         288 kB
+#21 107.6 鈹?鈼?/map-config                              13.9 kB         423 kB
+#21 107.6 鈹?鈼?/merchant-categories                     8.03 kB         402 kB
+#21 107.6 鈹?鈼?/merchant/accounts                       11.1 kB         416 kB
+#21 107.6 鈹?鈼?/merchant/business-config                16.3 kB         157 kB
+#21 107.6 鈹?鈼?/merchant/stores                         18.7 kB         413 kB
+#21 107.6 鈹?茠 /merchant/stores/[id]/business-config    13.1 kB         442 kB
+#21 107.6 鈹?鈼?/notices                                 9.74 kB         440 kB
+#21 107.6 鈹?鈼?/ocr-config                              14.9 kB         367 kB
+#21 107.6 鈹?鈼?/ocr-global-config                       14 kB           316 kB
+#21 107.6 鈹?鈼?/payment-config                          14.7 kB         366 kB
+#21 107.6 鈹?鈼?/points/levels                           9.05 kB         403 kB
+#21 107.6 鈹?鈼?/points/mall                             20.7 kB         481 kB
+#21 107.6 鈹?鈼?/points/rules                            10.3 kB         295 kB
+#21 107.6 鈹?鈼?/product-system/appointment-forms        12.2 kB         407 kB
+#21 107.6 鈹?鈼?/product-system/cards                    17.6 kB         412 kB
+#21 107.6 鈹?鈼?/product-system/cards/dashboard          5.01 kB         397 kB
+#21 107.6 鈹?鈼?/product-system/categories               6.2 kB          407 kB
+#21 107.6 鈹?鈼?/product-system/coupons                  36 kB           496 kB
+#21 107.6 鈹?鈼?/product-system/new-user-coupons         14.1 kB         397 kB
+#21 107.6 鈹?鈼?/product-system/orders                   19.6 kB         469 kB
+#21 107.6 鈹?鈼?/product-system/orders/dashboard         11.6 kB         344 kB
+#21 107.6 鈹?鈼?/product-system/partners                 14.6 kB         419 kB
+#21 107.6 鈹?鈼?/product-system/products                 26.6 kB         470 kB
+#21 107.6 鈹?鈼?/product-system/redemptions              7.12 kB         417 kB
+#21 107.6 鈹?鈼?/product-system/statistics               8.84 kB         756 kB
+#21 107.6 鈹?鈼?/product-system/store-bindding           11.8 kB         410 kB
+#21 107.6 鈹?鈼?/product-system/visits                   7.55 kB         448 kB
+#21 107.6 鈹?鈼?/profile                                 5.05 kB         252 kB
+#21 107.6 鈹?鈼?/profile/change-password                 7.64 kB         287 kB
+#21 107.6 鈹?鈼?/prompt-templates                        13.2 kB         316 kB
+#21 107.6 鈹?鈼?/referral                                7.43 kB         382 kB
+#21 107.6 鈹?鈼?/relation-types                          11.5 kB         406 kB
+#21 107.6 鈹?鈼?/search-config                           9.99 kB         414 kB
+#21 107.6 鈹?鈼?/search/asr-config                       6.97 kB         296 kB
+#21 107.6 鈹?鈼?/search/block-words                      12.5 kB         401 kB
+#21 107.6 鈹?鈼?/search/recommend                        14.2 kB         409 kB
+#21 107.6 鈹?鈼?/search/statistics                       239 kB         1.09 MB
+#21 107.6 鈹?鈼?/settings                                11 kB           368 kB
+#21 107.6 鈹?鈼?/share-config                            4.18 kB         371 kB
+#21 107.6 鈹?鈼?/sms                                     25 kB           423 kB
+#21 107.6 鈹?鈼?/system-messages                         11.4 kB         433 kB
+#21 107.6 鈹?鈼?/system-messages/send                    4.89 kB         313 kB
+#21 107.6 鈹?鈼?/system/sdk-health                       17 kB           285 kB
+#21 107.6 鈹?鈼?/tcm-config                              4.03 kB         284 kB
+#21 107.6 鈹?鈼?/tts-config                              5.05 kB         334 kB
+#21 107.6 鈹?鈼?/users                                   15.2 kB         404 kB
+#21 107.6 鈹?鈼?/voice-service                           3.43 kB         345 kB
+#21 107.6 鈹?鈼?/wechat-push                             4.89 kB         290 kB
+#21 107.6 + First Load JS shared by all                87.7 kB
+#21 107.6   鈹?chunks/2117-1ca38137e0e3b541.js          31.9 kB
+#21 107.6   鈹?chunks/fd9d1056-cde8d1c8f42e1127.js      53.6 kB
+#21 107.6   鈹?other shared chunks (total)              2.13 kB
+#21 107.6 
+#21 107.6 
+#21 107.6 鈼? (Static)   prerendered as static content
+#21 107.6 茠  (Dynamic)  server-rendered on demand
+#21 107.6 
+#21 DONE 107.7s
+
+#10 [admin-web builder 2/7] WORKDIR /app
+#10 CACHED
+
+#25 [admin-web runner 3/5] COPY --from=builder /app/.next/standalone ./
+#25 DONE 0.4s
+
+#26 [admin-web runner 4/5] COPY --from=builder /app/.next/static ./.next/static
+#26 DONE 0.1s
+
+#27 [admin-web runner 5/5] COPY --from=builder /app/public ./public
+#27 DONE 0.0s
+
+#28 [admin-web] exporting to image
+#28 exporting layers
+#28 exporting layers 1.2s done
+#28 exporting manifest sha256:d1774c366d8d4fae20f75c36ee4186ed39f14444ca1a2d01058c5d13d32cb605 0.0s done
+#28 exporting config sha256:8c966f3e9c50f6f406378bcd78780b804367542af4109c4d7e859e567f15ebfc 0.0s done
+#28 exporting attestation manifest sha256:af347c562452689d1dd03bdd86da6971c20080acfd4f9847b68f7b7d5fef2ceb 0.0s done
+#28 exporting manifest list sha256:e7824dbeb25af362d4a2c5f66fca818674a204947a2d56ee33b5f99fd4620fb4 0.0s done
+#28 naming to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:latest done
+#28 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:latest
+#28 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:latest 0.5s done
+#28 DONE 1.8s
+
+#29 [admin-web] resolving provenance for metadata file
+#29 DONE 0.1s
+
+STDERR: time="2026-05-05T13:15:24+08:00" level=warning msg="/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Building 
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web Building 
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Built 
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web Built 
+
+[exit_code=0]
+
+>>> cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose up -d backend admin-web
+STDERR: time="2026-05-05T13:17:17+08:00" level=warning msg="/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Recreate 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Recreated 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Recreate 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Recreated 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Waiting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Healthy 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Started 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Started 
+
+[exit_code=0]
+
+[绛夊緟 25 绉掞紝璁?backend 鍚姩绋冲畾]
+
+>>> docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend python -m pytest tests/test_merchant_dashboard_v1.py -v 2>&1 | tail -40
+/usr/local/bin/python: No module named pytest
+
+[exit_code=0]
+[WARN] pytest 杈撳嚭鏈 passed锛岃妫€鏌ヤ笂鏂规棩蹇?
+
+>>> curl -sk -o /dev/null -w 'health: %{http_code}\n' https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health
+health: 200
+
+[exit_code=0]
+
+>>> curl -sk -o /dev/null -w 'time-slots: %{http_code}\n' https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/merchant/dashboard/time-slots
+time-slots: 200
+
+[exit_code=0]
+
+>>> curl -sk -L -o /dev/null -w 'orders: %{http_code}\n' https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/product-system/orders/
+orders: 200
+
+[exit_code=0]
+
+>>> curl -sk -L -o /dev/null -w 'dashboard: %{http_code}\n' https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/product-system/orders/dashboard/
+dashboard: 200
+
+[exit_code=0]
+
+>>> curl -sk -o /dev/null -w 'day_no_auth: %{http_code}\n' https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/merchant/dashboard/day?date=2026-05-05
+day_no_auth: 401
+
+[exit_code=0]
+
+======================================================================
+[deploy] 閮ㄧ讲娴佺▼瀹屾垚
+======================================================================

@@ -1,0 +1,90 @@
+﻿Connected.
+
+=== Container-side integration verification ===
+
+>>> docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend sh -lc "cat > /tmp/_verify_rsa.py <<'PYEOF'
+
+import sys
+sys.path.insert(0, "/app")
+from app.utils.rsa_key import (
+    normalize_rsa_private_key,
+    validate_rsa_private_key,
+    USER_FRIENDLY_ERROR,
+    InvalidRSAPrivateKeyError,
+)
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
+
+key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+pkcs8_pem = key.private_bytes(
+    encoding=serialization.Encoding.PEM,
+    format=serialization.PrivateFormat.PKCS8,
+    encryption_algorithm=serialization.NoEncryption(),
+).decode()
+pkcs1_pem = key.private_bytes(
+    encoding=serialization.Encoding.PEM,
+    format=serialization.PrivateFormat.TraditionalOpenSSL,
+    encryption_algorithm=serialization.NoEncryption(),
+).decode()
+pkcs8_naked = "".join(l for l in pkcs8_pem.strip().splitlines() if not l.startswith("-----"))
+pkcs1_naked = "".join(l for l in pkcs1_pem.strip().splitlines() if not l.startswith("-----"))
+
+results = []
+
+# 1. PKCS#8 PEM
+out = normalize_rsa_private_key(pkcs8_pem)
+assert "-----BEGIN PRIVATE KEY-----" in out
+results.append("PKCS#8 PEM ok")
+
+# 2. PKCS#1 PEM
+out = normalize_rsa_private_key(pkcs1_pem)
+assert "-----BEGIN PRIVATE KEY-----" in out
+assert "RSA PRIVATE KEY" not in out
+results.append("PKCS#1 PEM -> PKCS#8 ok")
+
+# 3. PKCS#8 naked
+out = normalize_rsa_private_key(pkcs8_naked)
+assert "-----BEGIN PRIVATE KEY-----" in out
+results.append("PKCS#8 naked ok")
+
+# 4. PKCS#1 naked
+out = normalize_rsa_private_key(pkcs1_naked)
+assert "-----BEGIN PRIVATE KEY-----" in out
+assert "RSA PRIVATE KEY" not in out
+results.append("PKCS#1 naked -> PKCS#8 ok")
+
+# 5. garbage
+try:
+    normalize_rsa_private_key("not_a_valid_key!!!")
+    results.append("FAIL: should have raised")
+except InvalidRSAPrivateKeyError as e:
+    assert "PKCS8" in str(e) or "PKCS#8" in str(e), str(e)
+    results.append("garbage rejected ok")
+
+# 6. validate function
+ok, n, r = validate_rsa_private_key(pkcs1_naked)
+assert ok and n
+results.append("validate ok")
+ok, n, r = validate_rsa_private_key("garbage")
+assert not ok and r
+results.append("validate reject ok")
+
+print("ALL VERIFIED:", " | ".join(results))
+print("USER_FRIENDLY_ERROR:", USER_FRIENDLY_ERROR)
+
+PYEOF
+"
+[STDERR] bash: line 72: $'.join(results))\nprint(USER_FRIENDLY_ERROR:, USER_FRIENDLY_ERROR)\n\nPYEOF\n': command not found
+[EXIT 127]
+
+>>> docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend python /tmp/_verify_rsa.py
+[STDERR] File "/tmp/_verify_rsa.py", line 3
+    sys.path.insert(0, /app)
+                       ^
+SyntaxError: invalid syntax
+[EXIT 1]
+
+=== HTTP Integration test: PUT alipay_h5 with garbage key ===
+
+>>> docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend sh -lc 'cd /app && grep -r "is_admin\|admin@" app/api/auth.py 2>/dev/null | head -5'
+[EXIT 0]

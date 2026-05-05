@@ -1,0 +1,259 @@
+﻿Connected.
+
+>>> docker compose version
+Docker Compose version v5.1.2
+[EXIT 0]
+
+=== Services list ===
+
+>>> cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml config --services
+db
+backend
+h5-web
+admin-web
+[EXIT 0]
+
+=== Rebuild admin-web ===
+
+>>> cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml build admin-web
+#1 [internal] load local bake definitions
+#1 reading from stdin 1.36kB done
+#1 DONE 0.0s
+
+#2 [internal] load build definition from Dockerfile
+#2 transferring dockerfile: 653B done
+#2 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/node:18-alpine
+#3 DONE 0.6s
+
+#4 [internal] load .dockerignore
+#4 transferring context: 102B done
+#4 DONE 0.0s
+
+#5 [builder 1/7] FROM docker.io/library/node:18-alpine@sha256:8d6421d663b4c28fd3ebc498332f249011d118945588d0a35cb9bc4b8ca09d9e
+#5 resolve docker.io/library/node:18-alpine@sha256:8d6421d663b4c28fd3ebc498332f249011d118945588d0a35cb9bc4b8ca09d9e 0.0s done
+#5 DONE 0.0s
+
+#6 [internal] load build context
+#6 transferring context: 37.05kB 0.0s done
+#6 DONE 0.0s
+
+#7 [builder 2/7] WORKDIR /app
+#7 CACHED
+
+#8 [builder 3/7] COPY package.json ./
+#8 CACHED
+
+#9 [builder 4/7] RUN npm config set registry https://registry.npmmirror.com && npm install --legacy-peer-deps
+#9 CACHED
+
+#10 [builder 5/7] COPY . .
+#10 DONE 0.1s
+
+#11 [builder 6/7] RUN mkdir -p public
+#11 DONE 0.2s
+
+#12 [builder 7/7] RUN npm run build
+#12 0.364 
+#12 0.364 > bini-health-admin@1.0.0 build
+#12 0.364 > next build
+#12 0.364 
+#12 1.103 Attention: Next.js now collects completely anonymous telemetry regarding usage.
+#12 1.103 This information is used to shape Next.js' roadmap and prioritize features.
+#12 1.103 You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+#12 1.103 https://nextjs.org/telemetry
+#12 1.103 
+#12 1.172   鈻?Next.js 14.2.15
+#12 1.172 
+#12 1.269    Creating an optimized production build ...
+#12 82.40  鉁?Compiled successfully
+#12 82.40    Skipping validation of types
+#12 82.41    Linting ...
+#12 82.74    Collecting page data ...
+#12 87.65    Generating static pages (0/90) ...
+#12 92.90    Generating static pages (22/90) 
+
+#12 94.18    Generating static pages (44/90) 
+
+#12 95.15    Generating static pages (67/90) 
+
+#12 97.21  鉁?Generating static pages (90/90)
+#12 98.40    Finalizing page optimization ...
+#12 98.40    Collecting build traces ...
+#12 106.7 
+#12 106.7 Route (app)                                  Size     First Load JS
+#12 106.7 鈹?鈼?/                                        373 B            88 kB
+#12 106.7 鈹?鈼?/_not-found                              880 B          88.5 kB
+#12 106.7 鈹?鈼?/admin-settlements                       18.7 kB         490 kB
+#12 106.7 鈹?鈼?/ai-center/disclaimers                   6.79 kB         279 kB
+#12 106.7 鈹?鈼?/ai-center/prompts                       6.64 kB         276 kB
+#12 106.7 鈹?鈼?/ai-center/sensitive-words               6.71 kB         393 kB
+#12 106.7 鈹?鈼?/ai-config                               22.3 kB         429 kB
+#12 106.7 鈹?鈼?/ai-config/chat-timeout                  7.55 kB         301 kB
+#12 106.7 鈹?鈼?/ai-config/video-consult                 10.5 kB         344 kB
+#12 106.7 鈹?鈼?/audit/center                            11.1 kB         404 kB
+#12 106.7 鈹?鈼?/audit/phones                            8.29 kB         397 kB
+#12 106.7 鈹?鈼?/bottom-nav                              9.81 kB         399 kB
+#12 106.7 鈹?鈼?/chat-records                            5.72 kB         413 kB
+#12 106.7 鈹?茠 /chat-records/[id]                       12.3 kB         300 kB
+#12 106.7 鈹?鈼?/checkup-details                         4.96 kB         455 kB
+#12 106.7 鈹?鈼?/city-management                         10.2 kB         383 kB
+#12 106.7 鈹?鈼?/content/articles                        4.96 kB         454 kB
+#12 106.7 鈹?鈼?/content/categories                      10.7 kB         405 kB
+#12 106.7 鈹?鈼?/content/news                            4.89 kB         454 kB
+#12 106.7 鈹?鈼?/cos-config                              22 kB           421 kB
+#12 106.7 鈹?鈼?/customer-service                        10.8 kB         289 kB
+#12 106.7 鈹?鈼?/dashboard                               10.4 kB         379 kB
+#12 106.7 鈹?鈼?/digital-humans                          6.64 kB         406 kB
+#12 106.7 鈹?鈼?/disease-presets                         11.4 kB         406 kB
+#12 106.7 鈹?鈼?/drug-details                            5.76 kB         455 kB
+#12 106.7 鈹?鈼?/email-notify                            15.5 kB         414 kB
+#12 106.7 鈹?鈼?/experts                                 13.8 kB         403 kB
+#12 106.7 鈹?鈼?/fallback-config                         4.71 kB         391 kB
+#12 106.7 鈹?鈼?/family-management                       15.6 kB         386 kB
+#12 106.7 鈹?鈼?/function-buttons                        9.31 kB         415 kB
+#12 106.7 鈹?鈼?/health-plan/categories                  9.61 kB         404 kB
+#12 106.7 鈹?鈼?/health-plan/default-tasks               11.6 kB         406 kB
+#12 106.7 鈹?鈼?/health-plan/recommended                 12.2 kB         407 kB
+#12 106.7 鈹?茠 /health-plan/recommended/[planId]/tasks  9.56 kB         404 kB
+#12 106.7 鈹?鈼?/health-plan/statistics                  10.8 kB         422 kB
+#12 106.7 鈹?鈼?/health-records                          12.6 kB         400 kB
+#12 106.7 鈹?鈼?/home-banners                            11.9 kB         435 kB
+#12 106.7 鈹?鈼?/home-menus                              28 kB           451 kB
+#12 106.7 鈹?鈼?/home-settings                           5.02 kB         328 kB
+#12 106.7 鈹?鈼?/home-settings/page-style                8.55 kB         284 kB
+#12 106.7 鈹?鈼?/knowledge                               12.3 kB         401 kB
+#12 106.7 鈹?茠 /knowledge/[id]                          13.1 kB         417 kB
+#12 106.7 鈹?鈼?/knowledge/stats                         10.5 kB         385 kB
+#12 106.7 鈹?鈼?/login                                   8.28 kB         288 kB
+#12 106.7 鈹?鈼?/map-config                              13.9 kB         423 kB
+#12 106.7 鈹?鈼?/merchant-categories                     8.03 kB         402 kB
+#12 106.7 鈹?鈼?/merchant/accounts                       11.1 kB         416 kB
+#12 106.7 鈹?鈼?/merchant/business-config                16.3 kB         157 kB
+#12 106.7 鈹?鈼?/merchant/stores                         18.7 kB         413 kB
+#12 106.7 鈹?茠 /mer
+[STDERR] Image 6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web Building 
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Building 
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web Built
+[EXIT 0]
+
+=== Up -d admin-web ===
+
+>>> cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml up -d admin-web
+[STDERR] Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Recreate 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Recreated 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Waiting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Healthy 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Started
+[EXIT 0]
+
+>>> cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml ps
+NAME                                           IMAGE                                            COMMAND                  SERVICE     CREATED          STATUS                   PORTS
+6b099ed3-7175-4a78-91f4-44570c84ed27-admin     6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web   "docker-entrypoint.s鈥?   admin-web   12 seconds ago   Up 10 seconds            3000/tcp
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend   6b099ed3-7175-4a78-91f4-44570c84ed27-backend     "uvicorn app.main:ap鈥?   backend     3 minutes ago    Up 3 minutes             8000/tcp
+6b099ed3-7175-4a78-91f4-44570c84ed27-db        mysql:8.0                                        "docker-entrypoint.s鈥?   db          3 minutes ago    Up 3 minutes (healthy)   3306/tcp, 33060/tcp
+6b099ed3-7175-4a78-91f4-44570c84ed27-h5        6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web      "docker-entrypoint.s鈥?   h5-web      3 minutes ago    Up 3 minutes             3001/tcp
+[EXIT 0]
+
+>>> docker network connect 6b099ed3-7175-4a78-91f4-44570c84ed27-network gateway 2>/dev/null || true
+[EXIT 0]
+
+>>> docker exec gateway nginx -s reload 2>/dev/null || true
+[EXIT 0]
+
+=== Verify admin-web reachability ===
+
+>>> curl -sk -o /dev/null -w 'admin %{http_code}\n' https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/login
+admin 308
+[EXIT 0]
+
+>>> curl -sk -o /dev/null -w 'h5 %{http_code}\n' https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/
+h5 200
+[EXIT 0]
+
+>>> curl -sk -o /dev/null -w 'api %{http_code}\n' https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health
+api 200
+[EXIT 0]
+
+>>> curl -sk -o /dev/null -w 'docs %{http_code}\n' https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/docs
+docs 308
+[EXIT 0]
+
+=== Install pytest & run targeted tests ===
+
+>>> docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend sh -lc 'pip install -q pytest pytest-asyncio httpx aiosqlite -i https://mirrors.cloud.tencent.com/pypi/simple --trusted-host mirrors.cloud.tencent.com'
+[STDERR] WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv
+
+[notice] A new release of pip is available: 24.0 -> 26.1.1
+[notice] To update, run: pip install --upgrade pip
+[EXIT 0]
+
+=== pytest: rsa_key 鍗曞厓娴嬭瘯锛堟棤闇€DB锛?===
+
+>>> docker exec -e PYTHONPATH=/app 6b099ed3-7175-4a78-91f4-44570c84ed27-backend sh -lc 'cd /app && python -m pytest tests/test_alipay_private_key_format.py -v --tb=short 2>&1 | tail -60'
+app/api/chat_history.py:177
+  /app/app/api/chat_history.py:177: DeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    format: str = Query("xlsx", regex="^(xlsx|csv)$"),
+
+../usr/local/lib/python3.11/site-packages/pydantic/_internal/_config.py:291
+../usr/local/lib/python3.11/site-packages/pydantic/_internal/_config.py:291
+  /usr/local/lib/python3.11/site-packages/pydantic/_internal/_config.py:291: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.9/migration/
+    warnings.warn(DEPRECATION_MESSAGE, DeprecationWarning)
+
+app/api/ocr.py:159
+  /app/app/api/ocr.py:159: DeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    period: str = Query("today", regex="^(today|7d|30d|all)$"),
+
+app/api/merchant_v1.py:756
+  /app/app/api/merchant_v1.py:756: DeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    period: str = Query("day", regex="^(day|week|month)$"),
+
+app/api/merchant_v1.py:757
+  /app/app/api/merchant_v1.py:757: DeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    dim: str = Query("merchant", regex="^(merchant|store)$"),
+
+../usr/local/lib/python3.11/site-packages/pydantic/fields.py:795
+  /usr/local/lib/python3.11/site-packages/pydantic/fields.py:795: PydanticDeprecatedSince20: `min_items` is deprecated and will be removed, use `min_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.9/migration/
+    warn('`min_items` is deprecated and will be removed, use `min_length` instead', DeprecationWarning)
+
+../usr/local/lib/python3.11/site-packages/pydantic/fields.py:801
+  /usr/local/lib/python3.11/site-packages/pydantic/fields.py:801: PydanticDeprecatedSince20: `max_items` is deprecated and will be removed, use `max_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.9/migration/
+    warn('`max_items` is deprecated and will be removed, use `max_length` instead', DeprecationWarning)
+
+app/main.py:1068
+  /app/app/main.py:1068: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+../usr/local/lib/python3.11/site-packages/fastapi/applications.py:4495
+../usr/local/lib/python3.11/site-packages/fastapi/applications.py:4495
+  /usr/local/lib/python3.11/site-packages/fastapi/applications.py:4495: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    return self.router.on_event(event_type)
+
+app/main.py:1075
+  /app/app/main.py:1075: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 11 passed, 23 warnings in 1.51s ========================
+[EXIT 0]
+
+=== Done ===

@@ -1,0 +1,202 @@
+﻿Connecting to newbb.test.bangbangvip.com...
+Connected.
+
+=== STEP 1: SCP changed files ===
+
+>>> mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/utils'
+[EXIT 0]
+  uploaded: backend/app/utils/rsa_key.py
+
+>>> mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/api'
+[EXIT 0]
+  uploaded: backend/app/api/payment_config.py
+
+>>> mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/services'
+[EXIT 0]
+  uploaded: backend/app/services/alipay_service.py
+
+>>> mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/tests'
+[EXIT 0]
+  uploaded: backend/tests/test_alipay_private_key_format.py
+
+>>> mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/tests'
+[EXIT 0]
+  uploaded: backend/tests/test_payment_config_alipay_save_validation.py
+
+>>> mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/tests'
+[EXIT 0]
+  uploaded: backend/tests/test_payment_config_test_connection_error_message.py
+
+>>> mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/tests'
+[EXIT 0]
+  uploaded: backend/tests/test_payment_config_first_time_secret.py
+
+>>> mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/admin-web/src/app/(admin)/payment-config'
+[EXIT 0]
+  uploaded: admin-web/src/app/(admin)/payment-config/page.tsx
+
+>>> docker compose version
+Docker Compose version v5.1.2
+[EXIT 0]
+
+=== STEP 2: Inspect backend container layout ===
+
+>>> docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend ls /app/app/utils/ 2>&1 | head -10
+__init__.py
+__pycache__
+cos_helper.py
+crypto.py
+file_helper.py
+user_no_generator.py
+[EXIT 0]
+
+=== STEP 3: Rebuild backend ===
+
+>>> cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml build backend
+#1 [internal] load local bake definitions
+#1 reading from stdin 628B done
+#1 DONE 0.0s
+
+#2 [internal] load build definition from Dockerfile
+#2 transferring dockerfile: 366B done
+#2 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/python:3.11-slim
+#3 DONE 0.6s
+
+#4 [internal] load .dockerignore
+#4 transferring context: 2B done
+#4 DONE 0.0s
+
+#5 [1/6] FROM docker.io/library/python:3.11-slim@sha256:6d85378d88a19cd4d76079817532d62232be95757cb45945a99fec8e8084b9c2
+#5 resolve docker.io/library/python:3.11-slim@sha256:6d85378d88a19cd4d76079817532d62232be95757cb45945a99fec8e8084b9c2 0.0s done
+#5 DONE 0.0s
+
+#6 [internal] load build context
+#6 transferring context: 98.67kB 0.0s done
+#6 DONE 0.0s
+
+#7 [3/6] COPY requirements.txt .
+#7 CACHED
+
+#8 [2/6] WORKDIR /app
+#8 CACHED
+
+#9 [4/6] RUN pip install --no-cache-dir -r requirements.txt -i https://mirrors.cloud.tencent.com/pypi/simple --trusted-host mirrors.cloud.tencent.com --timeout 120
+#9 CACHED
+
+#10 [5/6] COPY . .
+#10 DONE 0.3s
+
+#11 [6/6] RUN mkdir -p uploads
+#11 DONE 0.5s
+
+#12 exporting to image
+#12 exporting layers
+#12 exporting layers 0.3s done
+#12 exporting manifest sha256:2710786919cf6599d9252e0c890489cfc46cc8247595f9a5f013bbc55d2d8c75
+#12 exporting manifest sha256:2710786919cf6599d9252e0c890489cfc46cc8247595f9a5f013bbc55d2d8c75 0.0s done
+#12 exporting config sha256:99db972e8741766525e92d2d90942386bcfea0b6baa556a8544e7429ddd8004f 0.0s done
+#12 exporting attestation manifest sha256:82f337a30a5e6f0afa5634a381e74b0dbbf046d74911462256b9640d7c8ceb0b 0.0s done
+#12 exporting manifest list sha256:01db47478e5f982ad8cd51b9129825efa81b24fef2803da8776aa33ae7373f92 0.0s done
+#12 naming to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-backend:latest done
+#12 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-backend:latest 0.1s done
+#12 DONE 0.6s
+
+#13 resolving provenance for metadata file
+#13 DONE 0.0s
+[STDERR] Image 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Building 
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Built
+[EXIT 0]
+
+=== STEP 4: Rebuild frontend (admin-web) ===
+
+>>> cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml build frontend
+[STDERR] no such service: frontend
+[EXIT 1]
+
+=== STEP 5: docker compose up -d ===
+
+>>> cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml up -d
+[STDERR] Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Recreate 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Recreated 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Recreate 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Recreated 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Recreate 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Recreate 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Recreated 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Recreated 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Started 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Waiting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Healthy 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Started 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Started 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Started
+[EXIT 0]
+
+=== STEP 6: Wait for health ===
+
+>>> cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml ps
+NAME                                           IMAGE                                            COMMAND                  SERVICE     CREATED          STATUS                    PORTS
+6b099ed3-7175-4a78-91f4-44570c84ed27-admin     6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web   "docker-entrypoint.s鈥?   admin-web   12 seconds ago   Up 5 seconds              3000/tcp
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend   6b099ed3-7175-4a78-91f4-44570c84ed27-backend     "uvicorn app.main:ap鈥?   backend     13 seconds ago   Up 5 seconds              8000/tcp
+6b099ed3-7175-4a78-91f4-44570c84ed27-db        mysql:8.0                                        "docker-entrypoint.s鈥?   db          17 seconds ago   Up 11 seconds (healthy)   3306/tcp, 33060/tcp
+6b099ed3-7175-4a78-91f4-44570c84ed27-h5        6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web      "docker-entrypoint.s鈥?   h5-web      12 seconds ago   Up 5 seconds              3001/tcp
+[EXIT 0]
+... waiting 5s
+
+>>> cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml ps
+NAME                                           IMAGE                                            COMMAND                  SERVICE     CREATED          STATUS                    PORTS
+6b099ed3-7175-4a78-91f4-44570c84ed27-admin     6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web   "docker-entrypoint.s鈥?   admin-web   17 seconds ago   Up 11 seconds             3000/tcp
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend   6b099ed3-7175-4a78-91f4-44570c84ed27-backend     "uvicorn app.main:ap鈥?   backend     18 seconds ago   Up 11 seconds             8000/tcp
+6b099ed3-7175-4a78-91f4-44570c84ed27-db        mysql:8.0                                        "docker-entrypoint.s鈥?   db          22 seconds ago   Up 16 seconds (healthy)   3306/tcp, 33060/tcp
+6b099ed3-7175-4a78-91f4-44570c84ed27-h5        6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web      "docker-entrypoint.s鈥?   h5-web      17 seconds ago   Up 11 seconds             3001/tcp
+[EXIT 0]
+... waiting 10s
+
+>>> cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml ps
+NAME                                           IMAGE                                            COMMAND                  SERVICE     CREATED          STATUS                    PORTS
+6b099ed3-7175-4a78-91f4-44570c84ed27-admin     6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web   "docker-entrypoint.s鈥?   admin-web   23 seconds ago   Up 16 seconds             3000/tcp
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend   6b099ed3-7175-4a78-91f4-44570c84ed27-backend     "uvicorn app.main:ap鈥?   backend     24 seconds ago   Up 16 seconds             8000/tcp
+6b099ed3-7175-4a78-91f4-44570c84ed27-db        mysql:8.0                                        "docker-entrypoint.s鈥?   db          28 seconds ago   Up 22 seconds (healthy)   3306/tcp, 33060/tcp
+6b099ed3-7175-4a78-91f4-44570c84ed27-h5        6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web      "docker-entrypoint.s鈥?   h5-web      23 seconds ago   Up 16 seconds             3001/tcp
+[EXIT 0]
+... waiting 15s
+
+>>> cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml ps
+NAME                                           IMAGE                                            COMMAND                  SERVICE     CREATED          STATUS                    PORTS
+6b099ed3-7175-4a78-91f4-44570c84ed27-admin     6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web   "docker-entrypoint.s鈥?   admin-web   28 seconds ago   Up 21 seconds             3000/tcp
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend   6b099ed3-7175-4a78-91f4-44570c84ed27-backend     "uvicorn app.main:ap鈥?   backend     29 seconds ago   Up 22 seconds             8000/tcp
+6b099ed3-7175-4a78-91f4-44570c84ed27-db        mysql:8.0                                        "docker-entrypoint.s鈥?   db          33 seconds ago   Up 27 seconds (healthy)   3306/tcp, 33060/tcp
+6b099ed3-7175-4a78-91f4-44570c84ed27-h5        6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web      "docker-entrypoint.s鈥?   h5-web      28 seconds ago   Up 21 seconds             3001/tcp
+[EXIT 0]
+
+=== STEP 7: gateway reconnect & reload ===
+
+>>> docker network connect 6b099ed3-7175-4a78-91f4-44570c84ed27-network gateway 2>/dev/null || true
+[EXIT 0]
+
+>>> docker exec gateway nginx -s reload 2>/dev/null || true
+[EXIT 0]
+
+=== STEP 8: Verify rsa_key.py inside backend container ===
+
+>>> docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend ls -la /app/app/utils/rsa_key.py
+-rw-rw-r-- 1 root root 6493 May  5 06:04 /app/app/utils/rsa_key.py
+[EXIT 0]
+
+>>> docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend python -c "from app.utils.rsa_key import normalize_rsa_private_key, USER_FRIENDLY_ERROR; print('rsa_key OK:', USER_FRIENDLY_ERROR[:30])"
+rsa_key OK: 銆屽簲鐢ㄧ閽ャ€嶆牸寮忎笉琚敮鎸併€傝浣跨敤鏀粯瀹濆紑鏀惧钩鍙般€屽瘑閽ュ伐鍏枫€嶇敓
+[EXIT 0]
+
+=== STEP 9: Run pytest inside backend container ===
+
+>>> docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend sh -lc 'cd /app && python -m pytest tests/test_alipay_private_key_format.py tests/test_payment_config_alipay_save_validation.py tests/test_payment_config_test_connection_error_message.py tests/test_payment_config_first_time_secret.py --tb=short 2>&1 | tail -80'
+/usr/local/bin/python: No module named pytest
+[EXIT 0]
+
+=== Deployment complete ===
