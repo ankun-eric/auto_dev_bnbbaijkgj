@@ -71,6 +71,20 @@ interface OrderDetail {
   shipping_address_text?: string | null;
   shipping_address_name?: string | null;
   shipping_address_phone?: string | null;
+  // [订单详情页订单地址展示统一 Bug 修复 v1.0]
+  // 后端按订单类型下发的统一地址结构 + 类型字段
+  // - store         → 到店核销订单：用户端不再单独渲染【订单地址】区块
+  //                  （信息已在【预约信息·预约门店】中体现）
+  // - delivery      → 配送/快递订单：保留并使用统一字段渲染
+  // - onsite_service→ 上门服务订单：保留并使用统一字段渲染
+  order_address?: {
+    type?: string;
+    contact_name?: string | null;
+    contact_phone?: string | null;
+    address_text?: string | null;
+    store_id?: number | null;
+  } | null;
+  order_address_type?: 'store' | 'delivery' | 'onsite_service' | null;
 }
 
 const STATUS_TEXT: Record<string, string> = {
@@ -578,89 +592,69 @@ export default function UnifiedOrderDetailPage() {
           </Card>
         )}
 
-        {/* [2026-05-05 订单页地址导航按钮 PRD v1.0 · F-04/F-05/F-06]
-            订单地址独立卡片：门店地址（到店核销） / 收货地址（实物） / 上门地址（on_site）
-            任意状态都展示，每个地址行右侧均带「导航」按钮 */}
+        {/* [订单详情页订单地址展示统一 Bug 修复 v1.0]
+            按订单类型差异化渲染【订单地址】区块：
+            - store         → 到店核销订单：完全隐藏（信息已在【预约信息·预约门店】中体现）
+            - delivery      → 配送/快递订单：保留收件人 + 电话 + 完整收货地址
+            - onsite_service→ 上门服务订单：保留联系人 + 电话 + 完整上门地址
+            优先使用后端下发的 order_address_type；缺失时按 fulfillment_type 兜底，
+            到店类型不再渲染本区块，杜绝与【预约门店】的视觉冗余。 */}
         {(() => {
-          const hasInStoreAddr =
-            order.items.some((i) => i.fulfillment_type === 'in_store') &&
-            (order.store_name || order.store_address);
-          const hasShippingAddr = !!order.shipping_address_text;
-          const hasAnyAddress = hasInStoreAddr || hasShippingAddr;
-          if (!hasAnyAddress) return null;
+          // 1) 优先以后端下发的订单地址类型为准（语义化、与商家端一致）
+          let addrType: 'store' | 'delivery' | 'onsite_service' | null =
+            (order.order_address_type as any) || null;
 
-          // 收货 vs 上门：用商品维度的 fulfillment_type 推断标签
-          const isOnSite = order.items.some((i) => i.fulfillment_type === 'on_site');
-          const isDelivery = order.items.some((i) => i.fulfillment_type === 'delivery');
+          // 2) 历史订单兜底：依据 fulfillment_type 推断
+          if (!addrType) {
+            if (order.items.some((i) => i.fulfillment_type === 'on_site')) {
+              addrType = 'onsite_service';
+            } else if (order.items.some((i) => i.fulfillment_type === 'delivery')) {
+              addrType = 'delivery';
+            } else if (order.items.some((i) => i.fulfillment_type === 'in_store')) {
+              addrType = 'store';
+            }
+          }
 
+          // 3) 到店核销订单：彻底隐藏【订单地址】区块（修复用户反馈的视觉冗余）
+          if (addrType === 'store') return null;
+
+          // 4) 配送 / 上门：必须有地址文本才渲染（避免空卡）
+          const addr = order.order_address || null;
+          const text = addr?.address_text || order.shipping_address_text || '';
+          const name = addr?.contact_name || order.shipping_address_name || '';
+          const phone = addr?.contact_phone || order.shipping_address_phone || '';
+          if (!text && !name && !phone) return null;
+
+          const isOnSite = addrType === 'onsite_service';
           return (
             <Card style={{ borderRadius: 12, marginBottom: 12 }}>
               <div className="font-medium text-base mb-3">订单地址</div>
-              {hasInStoreAddr && (
-                /* [2026-05-05 预约门店点击行为统一为联系商家 v1.0]
-                   门店地址整行点击 = 联系商家弹层（与底部"联系商家"按钮一致）
-                   AddressNavButton 已 stopPropagation，保留导航按钮原行为 */
-                <div
-                  role="button"
-                  tabIndex={0}
-                  className="flex items-start cursor-pointer hover:bg-gray-50 rounded -mx-1 px-1"
-                  style={{ marginBottom: hasShippingAddr ? 12 : 0, paddingTop: 4, paddingBottom: 4 }}
-                  onClick={() => setContactVisible(true)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      setContactVisible(true);
-                    }
-                  }}
-                >
-                  <span className="mr-2" style={{ fontSize: 16 }}>📍</span>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-xs text-gray-400 mb-1">门店地址</div>
-                    <div className="text-sm text-gray-800 font-medium" style={{ wordBreak: 'break-all' }}>
-                      {order.store_name}
-                    </div>
-                    {order.store_address && (
-                      <div className="text-xs text-gray-500 mt-1" style={{ wordBreak: 'break-all' }}>
-                        {order.store_address}
-                      </div>
-                    )}
+              <div className="flex items-start">
+                <span className="mr-2" style={{ fontSize: 16 }}>📍</span>
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs text-gray-400 mb-1">
+                    {isOnSite ? '上门服务地址' : '收货地址'}
                   </div>
-                  <AddressNavButton
-                    name={order.store_name || '门店'}
-                    address={order.store_address || order.store_name || ''}
-                    lat={order.store_lat}
-                    lng={order.store_lng}
-                    ariaLabel="导航到门店"
-                  />
-                  <span className="text-gray-300 ml-1 self-center" style={{ fontSize: 18, lineHeight: 1 }}>›</span>
-                </div>
-              )}
-              {hasShippingAddr && (
-                <div className="flex items-start">
-                  <span className="mr-2" style={{ fontSize: 16 }}>📍</span>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-xs text-gray-400 mb-1">
-                      {isOnSite ? '上门服务地址' : isDelivery ? '收货地址' : '联系地址'}
+                  {(name || phone) && (
+                    <div className="text-sm text-gray-800 font-medium">
+                      {name}
+                      {phone ? (
+                        <span className="text-gray-400 ml-2 font-normal">{phone}</span>
+                      ) : null}
                     </div>
-                    {(order.shipping_address_name || order.shipping_address_phone) && (
-                      <div className="text-sm text-gray-800 font-medium">
-                        {order.shipping_address_name || ''}
-                        {order.shipping_address_phone ? (
-                          <span className="text-gray-400 ml-2 font-normal">{order.shipping_address_phone}</span>
-                        ) : null}
-                      </div>
-                    )}
+                  )}
+                  {text && (
                     <div className="text-xs text-gray-500 mt-1" style={{ wordBreak: 'break-all' }}>
-                      {order.shipping_address_text}
+                      {text}
                     </div>
-                  </div>
-                  <AddressNavButton
-                    name={order.shipping_address_name || (isOnSite ? '上门地址' : '收货地址')}
-                    address={order.shipping_address_text || ''}
-                    ariaLabel={isOnSite ? '导航到上门地址' : '导航到收货地址'}
-                  />
+                  )}
                 </div>
-              )}
+                <AddressNavButton
+                  name={name || (isOnSite ? '上门地址' : '收货地址')}
+                  address={text}
+                  ariaLabel={isOnSite ? '导航到上门地址' : '导航到收货地址'}
+                />
+              </div>
             </Card>
           );
         })()}

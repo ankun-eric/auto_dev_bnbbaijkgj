@@ -237,21 +237,45 @@ class _UnifiedOrderDetailScreenState extends State<UnifiedOrderDetailScreen> {
     );
   }
 
-  // [2026-05-05 订单页地址导航按钮 PRD v1.0]
-  bool _hasAnyAddress(UnifiedOrder o) {
-    final hasInStoreAddr = o.items.any((i) => i.fulfillmentType == 'in_store') &&
-        ((o.storeName ?? '').isNotEmpty || (o.storeAddress ?? '').isNotEmpty);
-    final hasShippingAddr = (o.shippingAddressText ?? '').isNotEmpty;
-    return hasInStoreAddr || hasShippingAddr;
+  // [订单详情页订单地址展示统一 Bug 修复 v1.0]
+  // 计算订单地址类型：
+  //   优先使用后端下发的 orderAddressType（store / delivery / onsite_service）；
+  //   缺失时按 OrderItem.fulfillmentType 兜底。
+  String? _resolveOrderAddressType(UnifiedOrder o) {
+    final fromBackend = o.orderAddressType;
+    if (fromBackend != null && fromBackend.isNotEmpty) {
+      return fromBackend;
+    }
+    if (o.items.any((i) => i.fulfillmentType == 'on_site')) return 'onsite_service';
+    if (o.items.any((i) => i.fulfillmentType == 'delivery')) return 'delivery';
+    if (o.items.any((i) => i.fulfillmentType == 'in_store')) return 'store';
+    return null;
   }
 
-  // [2026-05-05 订单页地址导航按钮 PRD v1.0 · F-04/F-05/F-06]
+  // [订单详情页订单地址展示统一 Bug 修复 v1.0]
+  // 是否需要渲染【订单地址】区块：
+  //   到店核销（store）→ 隐藏，避免与【预约信息·预约门店】重复
+  //   配送 / 上门服务   → 仅当存在地址文本/姓名/电话任一项时渲染
+  bool _hasAnyAddress(UnifiedOrder o) {
+    final t = _resolveOrderAddressType(o);
+    if (t == 'store' || t == null) return false;
+    final addr = o.orderAddress ?? const {};
+    final text = (addr['address_text']?.toString() ?? o.shippingAddressText ?? '');
+    final name = (addr['contact_name']?.toString() ?? o.shippingAddressName ?? '');
+    final phone = (addr['contact_phone']?.toString() ?? o.shippingAddressPhone ?? '');
+    return text.isNotEmpty || name.isNotEmpty || phone.isNotEmpty;
+  }
+
+  // [订单详情页订单地址展示统一 Bug 修复 v1.0]
+  // 配送 / 上门服务订单：渲染统一【订单地址】区块（联系人 + 电话 + 完整地址 + 导航）。
+  // 到店核销订单走 _hasAnyAddress 短路，本方法不会被调用。
   Widget _buildAddressSection(UnifiedOrder o) {
-    final hasInStoreAddr = o.items.any((i) => i.fulfillmentType == 'in_store') &&
-        ((o.storeName ?? '').isNotEmpty || (o.storeAddress ?? '').isNotEmpty);
-    final hasShippingAddr = (o.shippingAddressText ?? '').isNotEmpty;
-    final isOnSite = o.items.any((i) => i.fulfillmentType == 'on_site');
-    final isDelivery = o.items.any((i) => i.fulfillmentType == 'delivery');
+    final t = _resolveOrderAddressType(o);
+    final isOnSite = t == 'onsite_service';
+    final addr = o.orderAddress ?? const {};
+    final text = (addr['address_text']?.toString() ?? o.shippingAddressText ?? '');
+    final name = (addr['contact_name']?.toString() ?? o.shippingAddressName ?? '');
+    final phone = (addr['contact_phone']?.toString() ?? o.shippingAddressPhone ?? '');
 
     return Container(
       color: Colors.white,
@@ -262,118 +286,59 @@ class _UnifiedOrderDetailScreenState extends State<UnifiedOrderDetailScreen> {
           const Text('订单地址',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
-          if (hasInStoreAddr)
-            // [2026-05-05 预约门店点击行为统一为联系商家 v1.0]
-            // 门店地址整行点击 = 联系商家弹层（与底部"联系商家"按钮一致）
-            // AddressNavButton 内部已声明 GestureDetector 接管自身手势，不会触发外层 onTap
-            Padding(
-              padding: EdgeInsets.only(bottom: hasShippingAddr ? 12 : 0),
-              child: InkWell(
-                onTap: () => ContactStoreSheet.show(
-                  context,
-                  storeId: o.storeId,
-                  fallbackStoreName: o.storeName,
-                ),
-                borderRadius: BorderRadius.circular(8),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Icon(Icons.store_outlined,
-                          size: 18, color: Color(0xFF52C41A)),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text('门店地址',
-                                style: TextStyle(
-                                    fontSize: 12, color: Color(0xFF999999))),
-                            const SizedBox(height: 4),
-                            if ((o.storeName ?? '').isNotEmpty)
-                              Text(o.storeName!,
-                                  style: const TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w500)),
-                            if ((o.storeAddress ?? '').isNotEmpty) ...[
-                              const SizedBox(height: 2),
-                              Text(o.storeAddress!,
-                                  style: const TextStyle(
-                                      fontSize: 12,
-                                      color: Color(0xFF666666))),
-                            ],
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.location_on_outlined,
+                  size: 18, color: Color(0xFF52C41A)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      isOnSite ? '上门服务地址' : '收货地址',
+                      style: const TextStyle(
+                          fontSize: 12, color: Color(0xFF999999)),
+                    ),
+                    if (name.isNotEmpty || phone.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          if (name.isNotEmpty)
+                            Text(name,
+                                style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500)),
+                          if (phone.isNotEmpty) ...[
+                            const SizedBox(width: 12),
+                            Text(phone,
+                                style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFF999999))),
                           ],
-                        ),
+                        ],
                       ),
-                      AddressNavButton(
-                        name: o.storeName ?? '门店',
-                        address: o.storeAddress ?? o.storeName ?? '',
-                        lat: o.storeLat,
-                        lng: o.storeLng,
-                        semanticLabel: '导航到门店',
-                      ),
-                      const Icon(Icons.chevron_right,
-                          size: 18, color: Color(0xFFCCCCCC)),
                     ],
-                  ),
-                ),
-              ),
-            ),
-          if (hasShippingAddr)
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Icon(Icons.location_on_outlined,
-                    size: 18, color: Color(0xFF52C41A)),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        isOnSite
-                            ? '上门服务地址'
-                            : (isDelivery ? '收货地址' : '联系地址'),
-                        style: const TextStyle(
-                            fontSize: 12, color: Color(0xFF999999)),
-                      ),
-                      if ((o.shippingAddressName ?? '').isNotEmpty ||
-                          (o.shippingAddressPhone ?? '').isNotEmpty) ...[
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            if ((o.shippingAddressName ?? '').isNotEmpty)
-                              Text(o.shippingAddressName!,
-                                  style: const TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w500)),
-                            if ((o.shippingAddressPhone ?? '').isNotEmpty) ...[
-                              const SizedBox(width: 12),
-                              Text(o.shippingAddressPhone!,
-                                  style: const TextStyle(
-                                      fontSize: 12,
-                                      color: Color(0xFF999999))),
-                            ],
-                          ],
-                        ),
-                      ],
+                    if (text.isNotEmpty) ...[
                       const SizedBox(height: 2),
-                      Text(o.shippingAddressText!,
+                      Text(text,
                           style: const TextStyle(
                               fontSize: 12, color: Color(0xFF666666))),
                     ],
-                  ),
+                  ],
                 ),
-                AddressNavButton(
-                  name: o.shippingAddressName ??
-                      (isOnSite ? '上门地址' : '收货地址'),
-                  address: o.shippingAddressText ?? '',
-                  semanticLabel:
-                      isOnSite ? '导航到上门地址' : '导航到收货地址',
-                ),
-              ],
-            ),
+              ),
+              AddressNavButton(
+                name: name.isNotEmpty
+                    ? name
+                    : (isOnSite ? '上门地址' : '收货地址'),
+                address: text,
+                semanticLabel:
+                    isOnSite ? '导航到上门地址' : '导航到收货地址',
+              ),
+            ],
+          ),
         ],
       ),
     );

@@ -118,6 +118,14 @@ class UnifiedOrder {
   final String? shippingAddressText;
   final String? shippingAddressName;
   final String? shippingAddressPhone;
+  // [订单详情页订单地址展示统一 Bug 修复 v1.0]
+  // 后端按订单类型语义化下发的统一【订单地址】结构 + 类型字段
+  // - store         → 到店核销订单：用户端不再单独渲染【订单地址】区块
+  //                  （信息已在【预约信息·预约门店】中体现）
+  // - delivery      → 配送/快递订单：保留并使用统一字段渲染
+  // - onsite_service→ 上门服务订单：保留并使用统一字段渲染
+  final Map<String, dynamic>? orderAddress;
+  final String? orderAddressType;
 
   UnifiedOrder({
     required this.id,
@@ -166,6 +174,8 @@ class UnifiedOrder {
     this.shippingAddressText,
     this.shippingAddressName,
     this.shippingAddressPhone,
+    this.orderAddress,
+    this.orderAddressType,
   });
 
   String get statusLabel {
@@ -272,6 +282,10 @@ class UnifiedOrder {
       shippingAddressText: json['shipping_address_text']?.toString(),
       shippingAddressName: json['shipping_address_name']?.toString(),
       shippingAddressPhone: json['shipping_address_phone']?.toString(),
+      orderAddress: json['order_address'] is Map<String, dynamic>
+          ? (json['order_address'] as Map<String, dynamic>)
+          : null,
+      orderAddressType: json['order_address_type']?.toString(),
     );
   }
 }

@@ -354,6 +354,11 @@ def _build_order_response(order) -> UnifiedOrderResponse:
             store_lng = getattr(store_obj, "lng", None) or getattr(store_obj, "longitude", None)
             resp.store_lat = float(store_lat) if store_lat is not None else None
             resp.store_lng = float(store_lng) if store_lng is not None else None
+            # [订单详情页订单地址展示统一 Bug 修复 v1.0]
+            # 商家后台「到店核销订单」详情需展示门店联系电话，从 MerchantStore.contact_phone 透传
+            store_phone = getattr(store_obj, "contact_phone", None)
+            if store_phone:
+                resp.store_phone = str(store_phone)
     except Exception:  # noqa: BLE001
         # 透传失败不阻塞订单主流程
         pass
@@ -389,6 +394,66 @@ def _build_order_response(order) -> UnifiedOrderResponse:
                     resp.shipping_address_phone = getattr(ship_addr, "phone", None)
     except Exception:  # noqa: BLE001
         pass
+
+    # ──────────────────────────────────────────────────────────────────
+    # [订单详情页订单地址展示统一 Bug 修复 v1.0]
+    # 按订单类型（fulfillment_type）下发结构化的 order_address 字段：
+    #   - 到店核销 (in_store)：order_address = None（用户端隐藏【订单地址】区块，
+    #     信息已在【预约信息·预约门店】中体现；商家端会用 store_id/store_name/store_address
+    #     单独渲染门店地址区块，本字段保持 None 避免与其重复或矛盾）
+    #   - 配送/快递 (delivery)：收件人 + 电话 + 完整收货地址
+    #   - 上门服务 (on_site / onsite_service)：联系人 + 电话 + 完整上门地址
+    # 多端共用同一接口数据，确保用户端、商家端展示一致。
+    # 注意：本字段「与订单类型一一对应」，由后端按 OrderItem.fulfillment_type 唯一决定，
+    # 避免前端各端各自判断订单类型导致的逻辑分散与口径不一致。
+    # ──────────────────────────────────────────────────────────────────
+    try:
+        ft_set: set[str] = set()
+        for it in (order.items or []):
+            ft_val = getattr(it, "fulfillment_type", None)
+            if hasattr(ft_val, "value"):
+                ft_val = ft_val.value
+            if ft_val:
+                ft_set.add(str(ft_val))
+
+        # 优先级：on_site > delivery > in_store
+        # 真实业务里同一笔订单的多个 item 通常履约类型一致；
+        # 若混合订单出现（极少），按"非到店"优先，确保配送/上门的地址字段不会丢。
+        oa_type: Optional[str] = None
+        if "on_site" in ft_set or "onsite_service" in ft_set:
+            oa_type = "onsite_service"
+        elif "delivery" in ft_set:
+            oa_type = "delivery"
+        elif "in_store" in ft_set:
+            oa_type = "store"
+
+        if oa_type == "delivery" or oa_type == "onsite_service":
+            text = (resp.shipping_address_text or "") if isinstance(resp.shipping_address_text, str) else (resp.shipping_address_text or "")
+            name = resp.shipping_address_name
+            phone = resp.shipping_address_phone
+            # 仅当至少有"地址文字"或"姓名/电话"中一项时才下发，避免空 order_address
+            if text or name or phone:
+                resp.order_address = {
+                    "type": oa_type,
+                    "contact_name": name,
+                    "contact_phone": phone,
+                    "address_text": text,
+                    "store_id": None,
+                    "ext": None,
+                }
+                resp.order_address_type = oa_type
+            else:
+                resp.order_address = None
+                resp.order_address_type = oa_type
+        elif oa_type == "store":
+            # 到店核销：order_address 不下发结构化地址数据；
+            # 商家端通过 store_id/store_name/store_address/store_lat/store_lng 单独渲染。
+            resp.order_address = None
+            resp.order_address_type = "store"
+    except Exception:  # noqa: BLE001
+        # 任何异常都不阻塞订单详情主流程；前端仍可基于旧字段兜底
+        resp.order_address = None
+        resp.order_address_type = None
 
     # PRD「我的订单与售后状态体系优化」: 售后逻辑状态 + 15 天评价时效 + 撤销可见性
     logical = _aftersales_logical_status(order)

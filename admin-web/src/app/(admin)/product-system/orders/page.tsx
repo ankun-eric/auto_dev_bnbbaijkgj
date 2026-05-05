@@ -68,6 +68,21 @@ interface UnifiedOrder {
   user_nickname: string | null;
   user_phone: string | null;
   total_quantity: number;
+  // [订单详情页订单地址展示统一 Bug 修复 v1.0]
+  // 商家端订单详情【订单地址】区块所需的统一字段（与用户端复用同一份后端数据）
+  store_address: string | null;
+  store_phone: string | null;
+  shipping_address_text: string | null;
+  shipping_address_name: string | null;
+  shipping_address_phone: string | null;
+  order_address_type: 'store' | 'delivery' | 'onsite_service' | null;
+  order_address: {
+    type?: string;
+    contact_name?: string | null;
+    contact_phone?: string | null;
+    address_text?: string | null;
+    store_id?: number | null;
+  } | null;
 }
 
 interface SalesStats {
@@ -220,6 +235,17 @@ function mapOrder(raw: Record<string, unknown>): UnifiedOrder {
       raw.total_quantity !== undefined && raw.total_quantity !== null
         ? Number(raw.total_quantity)
         : items.reduce((acc, it) => acc + (Number(it.quantity) || 0), 0),
+    store_address: raw.store_address ? String(raw.store_address) : null,
+    store_phone: raw.store_phone ? String(raw.store_phone) : null,
+    shipping_address_text: raw.shipping_address_text ? String(raw.shipping_address_text) : null,
+    shipping_address_name: raw.shipping_address_name ? String(raw.shipping_address_name) : null,
+    shipping_address_phone: raw.shipping_address_phone ? String(raw.shipping_address_phone) : null,
+    order_address_type: (raw.order_address_type
+      ? String(raw.order_address_type)
+      : null) as UnifiedOrder['order_address_type'],
+    order_address: (raw.order_address && typeof raw.order_address === 'object'
+      ? (raw.order_address as UnifiedOrder['order_address'])
+      : null) as UnifiedOrder['order_address'],
   };
 }
 
@@ -561,7 +587,18 @@ export default function UnifiedOrdersPage() {
 
   return (
     <div>
-      <Title level={4} style={{ marginBottom: 16 }}>订单明细</Title>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <Title level={4} style={{ margin: 0 }}>订单明细</Title>
+        {/* [门店预约看板与改期能力升级 v1.0] 列表 / 看板 切换入口 */}
+        <Button
+          type="primary"
+          ghost
+          icon={<EyeOutlined />}
+          onClick={() => { window.location.href = '/admin/product-system/orders/dashboard'; }}
+        >
+          切换到预约看板
+        </Button>
+      </div>
 
       {/* 统计卡片 */}
       <Row gutter={16} style={{ marginBottom: 12 }}>
@@ -751,7 +788,96 @@ export default function UnifiedOrdersPage() {
               <Descriptions.Item label="备注" span={2}>{currentOrder.notes || '-'}</Descriptions.Item>
             </Descriptions>
 
+            {/* [订单详情页订单地址展示统一 Bug 修复 v1.0]
+                统一【订单地址】Card：按订单类型差异化展示，与用户端字段口径完全一致。
+                  - 到店核销订单 (store)        : 门店名称 + 门店地址 + 门店联系电话
+                  - 配送/快递订单 (delivery)    : 收件人姓名 + 联系电话 + 完整收货地址
+                  - 上门服务订单 (onsite_service): 联系人 + 联系电话 + 完整上门地址
+                历史订单缺少 order_address_type 时，按订单 items.fulfillment_type 兜底推断。 */}
+            {(() => {
+              if (!currentOrder) return null;
+              let addrType: 'store' | 'delivery' | 'onsite_service' | null =
+                (currentOrder.order_address_type as any) || null;
+              if (!addrType) {
+                if (currentOrder.items.some((i: any) => i.fulfillment_type === 'on_site')) {
+                  addrType = 'onsite_service';
+                } else if (currentOrder.items.some((i: any) => i.fulfillment_type === 'delivery')) {
+                  addrType = 'delivery';
+                } else if (currentOrder.items.some((i: any) => i.fulfillment_type === 'in_store')) {
+                  addrType = 'store';
+                }
+              }
+              if (!addrType) return null;
+
+              if (addrType === 'store') {
+                // 到店核销订单：展示门店名称 + 门店地址 + 门店联系电话
+                if (
+                  !currentOrder.store_name &&
+                  !currentOrder.store_address &&
+                  !currentOrder.store_phone
+                ) {
+                  return null;
+                }
+                return (
+                  <Card size="small" title="订单地址（到店核销）" style={{ marginTop: 16 }}>
+                    <Descriptions column={2} size="small">
+                      <Descriptions.Item label="门店名称">
+                        {currentOrder.store_name || '-'}
+                      </Descriptions.Item>
+                      <Descriptions.Item label="门店电话">
+                        {currentOrder.store_phone || '-'}
+                      </Descriptions.Item>
+                      <Descriptions.Item label="门店详细地址" span={2}>
+                        {currentOrder.store_address || '-'}
+                      </Descriptions.Item>
+                    </Descriptions>
+                  </Card>
+                );
+              }
+
+              // 配送 / 上门服务：复用统一 order_address 字段（兜底用 shipping_address_*）
+              const addr = currentOrder.order_address || {};
+              const text =
+                addr.address_text ||
+                currentOrder.shipping_address_text ||
+                '-';
+              const name =
+                addr.contact_name ||
+                currentOrder.shipping_address_name ||
+                '-';
+              const phone =
+                addr.contact_phone ||
+                currentOrder.shipping_address_phone ||
+                '-';
+              const isOnSite = addrType === 'onsite_service';
+              return (
+                <Card
+                  size="small"
+                  title={isOnSite ? '订单地址（上门服务）' : '订单地址（收货地址）'}
+                  style={{ marginTop: 16 }}
+                >
+                  <Descriptions column={2} size="small">
+                    <Descriptions.Item label={isOnSite ? '联系人' : '收件人'}>
+                      {name}
+                    </Descriptions.Item>
+                    <Descriptions.Item label="联系电话">
+                      {phone}
+                    </Descriptions.Item>
+                    <Descriptions.Item
+                      label={isOnSite ? '完整上门地址' : '完整收货地址'}
+                      span={2}
+                    >
+                      {text}
+                    </Descriptions.Item>
+                  </Descriptions>
+                </Card>
+              );
+            })()}
+
             {currentOrder?.service_address_snapshot && (
+              /* [订单详情页订单地址展示统一 Bug 修复 v1.0]
+                 上门服务订单：保留原有【上门服务地址】卡片不变，避免影响已有上门作业流；
+                 同时上方新增的统一【订单地址】Card 也展示同一份地址，确保三类订单展示风格一致。 */
               <Card size="small" title="上门服务地址" style={{ marginTop: 16 }}>
                 <Descriptions column={2} size="small">
                   <Descriptions.Item label="联系人">

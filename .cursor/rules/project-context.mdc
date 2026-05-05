@@ -33,7 +33,49 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: 门店「营业管理」入口收敛与字段统一改造 v1.0（2026-05-05 11:30）
+## Latest Update: 门店预约看板与改期能力升级 v1.0（2026-05-05 13:18）
+
+### 一句话结论
+按 `cursor_prompt_335_20260505130809.txt` PRD v1.0 落地"门店端订单管理从列表升级为时段看板"。**核心改造**：① 后端新增 `app.api.merchant_dashboard` 模块——统一 9 段固定时段切片（每段 2h / 06:00 起 / 22-24 收尾，凌晨段不开放）+ 5 个聚合接口（`/api/merchant/dashboard/{day,week,month,month-day,slot/{date}/{slot_no}}` + 公开接口 `/time-slots`）；② admin-web 新增 `/admin/product-system/orders/dashboard` 看板页——日视图 3×3 九宫格（每格"预约 N / 已核 X / 已核金额 ¥Z" + 当前时段绿色高亮）+ 周视图 7 列卡片（删除占用率%）+ 月视图标准月历（点击日期弹"上午/下午+晚上"左右两栏）+ 9 宫格点击右侧抽屉（订单 5 字段操作型卡片：客户姓/电话/项目/状态 + 操作按钮组「核销-PC置灰 / 详情 / 复制电话」）；③ 旧订单列表页右上角加"切换到预约看板"入口；④ 金额统一不带千分位（`¥1280` 格式）；⑤ "已核金额"仅统计已核销订单。**改期权 100% 归客户端**——商家端 PC/H5 实测无任何"改时间"入口（兜底审计通过）；客户端三端（小程序/APP/H5）改期沿用既有规则（上限 3 次、明天起 90 天、商品级 `allow_reschedule` 开关、宽松校验仅校验门店营业 + 时段在营业内）。**PC 端核销禁用** — 9 宫格抽屉的"核销"按钮在 PC 端置灰，仅手机端 H5 / 核销小程序保留扫码 + 输码。**测试**：新增 21 个 pytest 用例（SLOT_HOURS 配置 / slot_label 标签 / appointment_to_slot 时段归属 + 边界 + 凌晨 / slot_window 起止时间窗 / time-slots 公开 200 / 5 个看板接口未登录 401），**21/21 PASS**。**部署**：paramiko SCP 上传 5 个文件 + `docker compose build backend admin-web` + `up -d` 完成；远程实测 6 个 URL 全绿（health 200 / time-slots 200 / orders 200 / dashboard 200 / day 未登录 401）。
+
+### 涉及文件（5 个）
+**后端**：
+- `backend/app/api/merchant_dashboard.py`（新增）：`SLOT_HOURS` 9 段定义 / `slot_label` / `appointment_to_slot` / `slot_window` / `_resolve_store_ids_for_user` 角色鉴权 / 6 个聚合接口（time-slots 公开 + day + week + month + month-day + slot/{date}/{slot_no}）。
+- `backend/app/main.py`：注册 `merchant_dashboard.router`。
+
+**Admin Web**：
+- `admin-web/src/app/(admin)/product-system/orders/dashboard/page.tsx`（新增）：完整看板视图（Radio 切换日/周/月 + DatePicker + 9 宫格 Card / 周视图 Row 7 列 / 月视图标准月历 Row+Col + 抽屉 Drawer + 月日点击 Modal）。
+- `admin-web/src/app/(admin)/product-system/orders/page.tsx`：标题右侧新增「切换到预约看板」按钮。
+
+**测试**：
+- `backend/tests/test_merchant_dashboard_v1.py`（新增 21 用例 PASS）：SLOT_HOURS 数量/2h/06:00 起/连续性 4 case、slot_label 首/末/非法 3 case、appointment_to_slot 早晨/边界/凌晨/None 6 case、slot_window 首/末跨日 2 case、time-slots 公开 1 case、5 个看板接口未登录 401 5 case。
+
+**部署辅助**：
+- `deploy/_deploy_dashboard_v1_20260505.py`（新增）：paramiko SCP 上传 5 文件 + docker build/up + 容器内 pytest + curl 链接验证。
+
+### 关键验收（部署后实测）
+- ✅ 本地 21/21 PASS（test_merchant_dashboard_v1.py）
+- ✅ 远程 `/api/health` 200
+- ✅ 远程 `/api/merchant/dashboard/time-slots` 200（公开返回 9 段配置 + rule 描述）
+- ✅ 远程 `/admin/product-system/orders/` 200（旧列表保留 + 新切换按钮）
+- ✅ 远程 `/admin/product-system/orders/dashboard/` 200（**本次新增看板页**）
+- ✅ 远程 `/api/merchant/dashboard/day?date=2026-05-05` 未登录返 401（鉴权正确）
+
+### 设计要点
+- **固定 9 段切片唯一来源**：所有"按时段管理"的入口（看板 / 客户端时段选择器）统一调用同一份 `SLOT_HOURS` 配置，废除原"按门店营业时间动态切片"逻辑。前端可通过公开接口 `/api/merchant/dashboard/time-slots` 拉取避免硬编码。
+- **凌晨脏数据保护**：`appointment_to_slot` 对 hour < 6 的订单返回 None，看板不展示但保留在列表视图，并在底部 summary 显示 `overflow_count` 让运营感知
+- **当前时段高亮**：`current_slot` 字段仅在 `target_date == today` 时返回，前端用 2px 绿色边框 + Tag 渲染
+- **绝对值口径**：周视图 / 9 宫格统一删除"占用率%"，改为 `appointment_count / verified_count / verified_amount` 三个绝对值，避免超约时百分比 > 100% 的尴尬数据
+- **金额无千分位**：`formatYuan(v) = '¥' + Math.round(v*100)/100`，保留 2 位小数但不带逗号（`¥1280` `¥588`）
+- **PC 端核销 + 改期均禁用**：抽屉里的"核销"按钮 `disabled + Tooltip`；商家端 PC/H5 全无"改时间"按钮（实测系统本就无此入口）
+- **月视图左右栏**：左 = slot 1-3（06-12）= 上午；右 = slot 4-9（12-24）= 下午+晚上；卡片按 `appointment_time` 升序
+
+### 用户手册
+本次升级单独输出 **`user_docs/门店预约看板与改期能力升级_用户体验手册_20260505_131800.md`**，含访问地址、9 宫格 / 周 / 月视图操作、客户端改期沿用规则、PC 端核销限制、6 个新接口清单。
+
+---
+
+## Previous Update: 门店「营业管理」入口收敛与字段统一改造 v1.0（2026-05-05 11:30）
 
 ### 一句话结论
 按 `cursor_prompt_332_20260505104921.txt` PRD v1.0 落地"入口收敛 + 字段去重 + 职责分离 + 能力补齐"。**入口侧**：下线顶级菜单"商家管理 → 营业时间&并发上限"，旧路由 `/admin/merchant/business-config` 改为提示 + 自动重定向页；门店列表行新增 **「营业管理」** 按钮，跳转 `/admin/merchant/stores/{id}/business-config` 新页（按周营业时间 + 日期例外 + 并发双层 + 预约提前规则四大模块统一保存）。**字段侧**：删除冗余的"门店级（默认值）"并发字段，前后端唯一以 `merchant_stores.slot_capacity` 为准；老接口 `POST /api/merchant/concurrency-limit` 兼容保留 `store_max_concurrent` schema 但**后端忽略**（不再写 `slot_capacity`）。**能力侧**：`merchant_stores` 加列 `advance_days`/`booking_cutoff_minutes`，`products` 加列 `booking_cutoff_minutes`；新增 `GET/PUT /api/merchant/stores/{id}/booking-config`；H5 下单时段计算实现 **商品级 > 门店级 > 系统默认（30 分钟 / 不限制天数）** 双层兜底；空态服务级覆盖表给出"前往商品管理"按钮。**测试**：新增 25 个 pytest 用例 + 同步更新 1 个老用例，**50/50 PASS**（含双层兜底单测、严格小于边界测、枚举校验测）。**部署**：SCP 上传 14 个变更文件 + `docker compose build --no-cache backend admin-web` + `up -d`，启动期 idempotent ALTER TABLE 加列均已落库。**远程实测**：admin/login、merchant/stores、merchant/business-config（已变重定向页）、product-system/products → 均 200；新接口 `/api/merchant/stores/1/booking-config` 未登录返 401（行为正确）。

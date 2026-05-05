@@ -249,11 +249,60 @@ Page({
     try {
       const res = await get(`/api/orders/unified/${this.data.id}`);
       const order = res.data || res;
+      this._normalizeOrderAddress(order);
       this.setData({ order, loading: false });
     } catch (e) {
       this.setData({ loading: false });
       console.log('loadOrder error', e);
     }
+  },
+
+  // [订单详情页订单地址展示统一 Bug 修复 v1.0]
+  // 把后端按订单类型语义化下发的 order_address 透传到模板可直接消费的字段：
+  //   - show_order_address_section：是否渲染【订单地址】区块（到店类型一律不渲染）
+  //   - order_address_display：模板直接读取的 { contact_name, contact_phone, address_text }
+  // 历史订单（无 order_address_type）的兜底逻辑：
+  //   1) 任一 item.fulfillment_type == on_site → 视为上门服务
+  //   2) 任一 item.fulfillment_type == delivery → 视为配送
+  //   3) 否则视为到店（隐藏区块）
+  _normalizeOrderAddress(order) {
+    if (!order) return;
+    let addrType = order.order_address_type || null;
+    if (!addrType) {
+      const items = order.items || [];
+      if (items.some(i => i.fulfillment_type === 'on_site')) {
+        addrType = 'onsite_service';
+      } else if (items.some(i => i.fulfillment_type === 'delivery')) {
+        addrType = 'delivery';
+      } else if (items.some(i => i.fulfillment_type === 'in_store')) {
+        addrType = 'store';
+      }
+    }
+    if (addrType === 'store' || !addrType) {
+      order.show_order_address_section = false;
+      order.order_address_display = null;
+      order.order_address_type = addrType || 'store';
+      return;
+    }
+    const oa = order.order_address || {};
+    const text = oa.address_text || order.shipping_address_text ||
+      (order.address && (order.address.full_address ||
+        `${order.address.province || ''}${order.address.city || ''}${order.address.district || ''}${order.address.detail || order.address.street || ''}`)) || '';
+    const name = oa.contact_name || order.shipping_address_name || (order.address && order.address.name) || '';
+    const phone = oa.contact_phone || order.shipping_address_phone || (order.address && order.address.phone) || '';
+    if (!text && !name && !phone) {
+      order.show_order_address_section = false;
+      order.order_address_display = null;
+      order.order_address_type = addrType;
+      return;
+    }
+    order.show_order_address_section = true;
+    order.order_address_display = {
+      contact_name: name,
+      contact_phone: phone,
+      address_text: text,
+    };
+    order.order_address_type = addrType;
   },
 
   async payOrder() {

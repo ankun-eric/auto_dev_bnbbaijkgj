@@ -1107,6 +1107,10 @@ app.include_router(_cards_admin_v2.poster_router)
 app.include_router(cards.router)
 app.include_router(cards_admin.router)
 
+# [门店预约看板与改期能力升级 v1.0] 门店端 9 宫格看板聚合接口（日/周/月/抽屉）
+from app.api import merchant_dashboard as _merchant_dashboard  # noqa: E402
+app.include_router(_merchant_dashboard.router)
+
 os.makedirs("uploads", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 

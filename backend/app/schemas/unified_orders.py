@@ -169,11 +169,26 @@ class UnifiedOrderResponse(BaseModel):
     store_address: Optional[str] = None
     store_lat: Optional[float] = None
     store_lng: Optional[float] = None
+    # [订单详情页订单地址展示统一 Bug 修复 v1.0]
+    # 商家后台「到店核销订单」详情需展示门店联系电话，由 _build_order_response
+    # 从 MerchantStore.contact_phone 透传。用户端不展示该字段（统一走「联系商家」按钮）。
+    store_phone: Optional[str] = None
     # 收货地址（实物订单）/ 上门地址（on_site）的全文地址，方便订单详情页一键导航。
     # 订单一旦提交，地址即固化为快照（即使用户后续在地址簿删除该条也不影响）。
     shipping_address_text: Optional[str] = None
     shipping_address_name: Optional[str] = None
     shipping_address_phone: Optional[str] = None
+    # [订单详情页订单地址展示统一 Bug 修复 v1.0]
+    # 按订单类型语义化下发的统一「订单地址」结构。多端基于此字段统一渲染【订单地址】区块。
+    # type:
+    #   - store          → 到店核销订单：用户端【订单地址】区块隐藏（信息已在【预约信息·预约门店】中体现）；
+    #                     商家端展示门店名称 + 地址 + 电话
+    #   - delivery       → 配送/快递订单：用户端 + 商家端均展示收件人 + 电话 + 详细收货地址
+    #   - onsite_service → 上门服务订单：用户端 + 商家端均展示联系人 + 电话 + 完整上门地址
+    # 历史订单兼容：若 fulfillment_type 缺失或异常，order_address 保持为 None，前端走原有兜底逻辑。
+    order_address: Optional[Any] = None
+    # 订单地址类型独立字段，便于前端简单判断（无需深入解析 order_address 字典）
+    order_address_type: Optional[str] = None
     # PRD「我的订单与售后状态体系优化」新增字段
     # aftersales_logical_status：4 值之一 pending / processing / completed / rejected / none
     aftersales_logical_status: Optional[str] = None

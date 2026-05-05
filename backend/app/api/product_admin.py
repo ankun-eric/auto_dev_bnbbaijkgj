@@ -1028,7 +1028,13 @@ async def admin_list_unified_orders(
         query = query.order_by(UnifiedOrder.created_at.desc())
 
     result = await db.execute(
-        query.options(selectinload(UnifiedOrder.items))
+        query.options(
+            selectinload(UnifiedOrder.items).selectinload(OrderItem.product),
+            selectinload(UnifiedOrder.store),
+            # [订单详情页订单地址展示统一 Bug 修复 v1.0]
+            # 预加载 shipping_address，让商家后台订单详情可以读取到收货地址信息
+            selectinload(UnifiedOrder.shipping_address),
+        )
         .offset((page - 1) * page_size)
         .limit(page_size)
     )
@@ -1045,17 +1051,16 @@ async def admin_list_unified_orders(
         for uid, nickname, phone in u_rows.all():
             user_map[uid] = (nickname, phone)
 
+    # [订单详情页订单地址展示统一 Bug 修复 v1.0]
+    # 商家端订单详情依赖 _build_order_response 填充的：
+    #   - store_address / store_lat / store_lng（到店订单门店地址）
+    #   - shipping_address_text / name / phone（配送、上门订单地址）
+    #   - order_address / order_address_type（统一结构化地址，前端按类型渲染）
+    # 改用与客户端一致的 _build_order_response 构建器，避免后台漏字段。
+    from app.api.unified_orders import _build_order_response as _build_resp
     items = []
     for o in orders:
-        resp = UnifiedOrderResponse.model_validate(o)
-        s = o.status
-        if hasattr(s, "value"):
-            s = s.value
-        rs = o.refund_status
-        if hasattr(rs, "value"):
-            rs = rs.value
-        if s == "cancelled" and rs == "refund_success":
-            resp.status_display = "已取消（已退款）"
+        resp = _build_resp(o)
         # 填充用户昵称、手机号、总数量（admin 列表展示用）
         nickname, phone = user_map.get(o.user_id, (None, None))
         resp.user_nickname = nickname
