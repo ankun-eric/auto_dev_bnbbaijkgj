@@ -18,11 +18,20 @@ Page({
     // [修改预约 Bug 修复 v1.0] 当前正在预约的商品的预约模式（none/date/time_slot/custom_form）
     // 用于弹窗中按模式联动隐藏整块时段（date 模式）/ 跳转自定义表单页（custom_form 模式）
     apptCurrentMode: 'time_slot',
+    // [PRD-03 客户端改期能力收口 v1.0] 区分「首次预约」与「改期」两种时段池
+    // 改期场景固定使用 PRD-01 的 9 段切片（每段 2 小时，最早 06:00、最晚 24:00）
+    apptIsReschedule: false,
     apptSlotOptions: [
       '09:00-10:00', '10:00-11:00', '11:00-12:00',
       '13:00-14:00', '14:00-15:00', '15:00-16:00',
       '16:00-17:00', '17:00-18:00'
-    ]
+    ],
+    apptResched9Slots: [
+      '06:00-08:00', '08:00-10:00', '10:00-12:00',
+      '12:00-14:00', '14:00-16:00', '16:00-18:00',
+      '18:00-20:00', '20:00-22:00', '22:00-24:00'
+    ],
+    apptRemainCount: 0
   },
 
   onLoad(options) {
@@ -30,13 +39,21 @@ Page({
     this.loadOrder();
   },
 
-  // [核销订单过期+改期规则优化 v1.0] 改约按钮：达到上限弹 Toast
+  // [核销订单过期+改期规则优化 v1.0 / PRD-03 客户端改期能力收口 v1.0]
+  // 改约按钮：① 达到上限弹 Toast；② allow_reschedule=false 弹 Toast
   onRescheduleClick() {
     const order = this.data.order || {};
     const count = Number(order.reschedule_count || 0);
     const limit = Number(order.reschedule_limit || 3);
     if (count >= limit) {
-      wx.showToast({ title: '本订单已达改期上限', icon: 'none' });
+      wx.showToast({
+        title: '本订单已达改期上限，如需继续改期请联系门店',
+        icon: 'none'
+      });
+      return;
+    }
+    if (order.allow_reschedule === false) {
+      wx.showToast({ title: '该商品不支持改期', icon: 'none' });
       return;
     }
     this.openApptModal();
@@ -185,13 +202,21 @@ Page({
     if (apptItem.appointment_data && apptItem.appointment_data.time_slot) {
       initialSlot = apptItem.appointment_data.time_slot;
     }
+    // [PRD-03] 判断「真正改期场景」：order 已有过预约时间
+    const isReschedule = (order.items || []).some(
+      it => !!(it && it.appointment_time)
+    );
+    const remain = Math.max(0, Number(order.reschedule_limit || 3) - Number(order.reschedule_count || 0));
     this.setData({
       showApptModal: true,
       apptItemId: apptItem.id,
       apptCurrentMode: mode,
+      apptIsReschedule: isReschedule,
+      apptRemainCount: remain,
       apptDate: initialDate,
       apptSlot: initialSlot,
-      apptMinDate: fmt(today),
+      // [PRD-03 §F-03-5 / §R-03-03] 改期可选范围：明天起 90 天（不含今天）
+      apptMinDate: fmt(tomorrow),
       apptMaxDate: fmt(max)
     });
   },

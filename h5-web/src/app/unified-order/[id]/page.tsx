@@ -116,10 +116,20 @@ const STATUS_DESC: Record<string, string> = {
 };
 
 // [先下单后预约 Bug 修复 v1.0] 默认时段（与商品时段一致或商品未配时段时使用）
+// [PRD-03 客户端改期能力收口 v1.0 / PRD-01 全平台固定时段切片体系]
+// 改期场景统一使用 9 段固定时段（每段 2 小时，最早 06:00、最晚 24:00）
 const DEFAULT_TIME_SLOTS = [
   '09:00-10:00', '10:00-11:00', '11:00-12:00',
   '13:00-14:00', '14:00-15:00', '15:00-16:00',
   '16:00-17:00', '17:00-18:00',
+];
+
+// [PRD-03 客户端改期能力收口 v1.0]
+// 改期专用 9 段固定时段（来自 PRD-01 §2.3，每行 3 个）
+const RESCHEDULE_TIME_SLOTS_9 = [
+  '06:00-08:00', '08:00-10:00', '10:00-12:00',
+  '12:00-14:00', '14:00-16:00', '16:00-18:00',
+  '18:00-20:00', '20:00-22:00', '22:00-24:00',
 ];
 
 export default function UnifiedOrderDetailPage() {
@@ -824,12 +834,29 @@ export default function UnifiedOrderDetailPage() {
           order.refund_status === 'none' && (
           (() => {
             // [核销订单过期+改期规则优化 v1.0] 已达改期上限：置灰
+            // [PRD-03 客户端改期能力收口 v1.0] 商品级 allow_reschedule=false 时也置灰
             const blocked = (order.reschedule_count ?? 0) >= (order.reschedule_limit ?? 3);
+            const allowResch = order.allow_reschedule !== false;
             if (blocked) {
               return (
                 <Button
                   disabled
-                  onClick={() => Toast.show({ content: '本订单已达改期上限' })}
+                  onClick={() =>
+                    Toast.show({
+                      content: '本订单已达改期上限，如需继续改期请联系门店',
+                    })
+                  }
+                  style={{ borderRadius: 20, height: 40, fontSize: 14, color: '#bfbfbf', borderColor: '#d9d9d9' }}
+                >
+                  改约
+                </Button>
+              );
+            }
+            if (!allowResch) {
+              return (
+                <Button
+                  disabled
+                  onClick={() => Toast.show({ content: '该商品不支持改期' })}
                   style={{ borderRadius: 20, height: 40, fontSize: 14, color: '#bfbfbf', borderColor: '#d9d9d9' }}
                 >
                   改约
@@ -880,6 +907,10 @@ export default function UnifiedOrderDetailPage() {
           ? order.items.find((i) => i.id === apptItemId)
           : undefined;
         const mode = currentItem?.appointment_mode || 'time_slot';
+        // [PRD-03 客户端改期能力收口 v1.0] 判断「真正改期场景」：order 已有过预约时间
+        const isReschedule = !!order.items?.some((it) => it.appointment_time);
+        // [PRD-03] 改期场景使用 PRD-01 的 9 段固定切片；首次预约保留商品原有时段配置
+        const slotOptions = isReschedule ? RESCHEDULE_TIME_SLOTS_9 : DEFAULT_TIME_SLOTS;
         return (
           <Popup
             visible={showAppointmentPopup}
@@ -887,7 +918,25 @@ export default function UnifiedOrderDetailPage() {
             onClose={() => setShowAppointmentPopup(false)}
             bodyStyle={{ borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: '20px 16px 24px' }}
           >
-            <div className="text-base font-bold text-center mb-3">选择预约时间</div>
+            <div className="text-base font-bold text-center mb-3">
+              {isReschedule ? '修改预约' : '选择预约时间'}
+            </div>
+            {isReschedule && (
+              <div
+                style={{
+                  background: '#f0f9ff',
+                  border: '1px solid #bae0ff',
+                  color: '#0958d9',
+                  padding: '6px 10px',
+                  borderRadius: 6,
+                  marginBottom: 12,
+                  fontSize: 12,
+                  lineHeight: 1.5,
+                }}
+              >
+                改期可选范围：明天起 90 天内；本订单还可改期 {Math.max(0, (order.reschedule_limit ?? 3) - (order.reschedule_count ?? 0))} 次
+              </div>
+            )}
             <div className="mb-4">
               <div className="text-sm text-gray-500 mb-1">预约日期</div>
               <Button
@@ -904,7 +953,7 @@ export default function UnifiedOrderDetailPage() {
               <div className="mb-4">
                 <div className="text-sm text-gray-500 mb-2">预约时段</div>
                 <Selector
-                  options={DEFAULT_TIME_SLOTS.map((s) => ({ label: s, value: s }))}
+                  options={slotOptions.map((s) => ({ label: s, value: s }))}
                   value={apptSlot ? [apptSlot] : []}
                   onChange={(arr) => setApptSlot(arr[0] || '')}
                   columns={3}
@@ -918,16 +967,24 @@ export default function UnifiedOrderDetailPage() {
               onClick={submitAppointment}
               style={{ background: '#52c41a', color: '#fff', border: 'none', borderRadius: 22, height: 44, fontSize: 15 }}
             >
-              确认预约
+              {isReschedule ? '确认改期' : '确认预约'}
             </Button>
           </Popup>
         );
       })()}
 
+      {/* [PRD-03 客户端改期能力收口 v1.0]
+          改期可选范围：明天起 90 天（不含今天） */}
       <DatePicker
         visible={showDatePicker}
         onClose={() => setShowDatePicker(false)}
-        min={new Date()}
+        min={(() => {
+          const d = new Date();
+          // 改期/预约一律最早从「明天 00:00」起，不允许选今天
+          d.setDate(d.getDate() + 1);
+          d.setHours(0, 0, 0, 0);
+          return d;
+        })()}
         max={(() => { const d = new Date(); d.setDate(d.getDate() + 90); return d; })()}
         precision="day"
         value={apptDate || undefined}

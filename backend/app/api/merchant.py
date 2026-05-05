@@ -1995,6 +1995,11 @@ async def delete_my_view(
 
 
 # ============ A-3-6. 改约 ============
+# [PRD-03 客户端改期能力收口 v1.0 · §R-03-01 / §2.4]
+# 改期权 100% 归客户端，商家端无任何「改时间」入口。
+# 本接口已被禁用：任何商家/平台调用统一返回 403 Forbidden，
+# 提示客户改期请由顾客自行在客户端（小程序/APP/H5）操作。
+# 历史路由保留以兼容旧客户端的链接，但所有调用都会被拒绝。
 
 
 @router.post("/booking/{order_item_id}/reschedule", response_model=RescheduleResponse)
@@ -2005,92 +2010,17 @@ async def reschedule_booking(
     current_user: User = Depends(merchant_dep),
     db: AsyncSession = Depends(get_db),
 ):
-    """改约：可选改 时间 / 服务项目 / 服务员工。"""
-    await _ensure_store_access(db, current_user.id, store_id)
+    """[PRD-03] 商家端改期接口已下线，改期权归客户端。
 
-    oi_res = await db.execute(select(OrderItem).where(OrderItem.id == order_item_id))
-    oi = oi_res.scalar_one_or_none()
-    if not oi:
-        raise HTTPException(status_code=404, detail="订单项不存在")
-
-    # 校验该订单项属于本门店：oi.product_id 必须在 ProductStore(store_id) 中
-    own_res = await db.execute(
-        select(func.count(ProductStore.id)).where(
-            ProductStore.product_id == oi.product_id,
-            ProductStore.store_id == store_id,
-        )
-    )
-    if int(own_res.scalar() or 0) == 0:
-        raise HTTPException(status_code=403, detail="该订单项不属于当前门店")
-
-    if (
-        payload.new_appointment_time is None
-        and payload.new_product_id is None
-        and payload.new_staff_id is None
-    ):
-        raise HTTPException(status_code=400, detail="请提供至少一项改约参数")
-
-    old_appt = oi.appointment_time
-
-    # 服务项目变更：校验新商品归属本门店
-    if payload.new_product_id is not None and payload.new_product_id != oi.product_id:
-        ps_res = await db.execute(
-            select(func.count(ProductStore.id)).where(
-                ProductStore.product_id == payload.new_product_id,
-                ProductStore.store_id == store_id,
-            )
-        )
-        if int(ps_res.scalar() or 0) == 0:
-            raise HTTPException(status_code=400, detail="新服务项目不属于当前门店")
-        prod = (await db.execute(select(Product).where(Product.id == payload.new_product_id))).scalar_one_or_none()
-        if not prod:
-            raise HTTPException(status_code=400, detail="新服务项目不存在")
-        oi.product_id = prod.id
-        oi.product_name = prod.name
-        try:
-            oi.product_price = prod.sale_price
-        except Exception:
-            pass
-
-    # 时间变更
-    if payload.new_appointment_time is not None:
-        oi.appointment_time = payload.new_appointment_time
-        appt_data = oi.appointment_data or {}
-        if isinstance(appt_data, dict):
-            appt_data["date"] = payload.new_appointment_time.strftime("%Y-%m-%d")
-            appt_data["time_slot"] = payload.new_appointment_time.strftime("%H:%M")
-            oi.appointment_data = appt_data
-        # 改约日志（复用 OrderAppointmentLog）
-        try:
-            db.add(OrderAppointmentLog(
-                order_item_id=oi.id,
-                old_appointment_time=old_appt.isoformat() if old_appt else None,
-                new_appointment_time=payload.new_appointment_time.isoformat(),
-                changed_by_user_id=current_user.id,
-                reason="merchant_reschedule",
-            ))
-        except Exception:
-            pass
-
-    # 员工变更：本期项目无 staff 表，仅做空操作（接口可用 + 字段透传）
-    # （未来若 OrderItem 增加 staff_id 字段，此处直接赋值即可）
-
-    oi.updated_at = datetime.utcnow()
-
-    notify_result: Optional[str] = "skipped"
-    if payload.notify_customer:
-        notify_result, _ = await _send_subscribe_message(
-            db, oi.id, scene="rescheduled"
-        )
-
-    await db.flush()
-    return RescheduleResponse(
-        success=True,
-        order_item_id=oi.id,
-        appointment_time=oi.appointment_time,
-        product_id=oi.product_id,
-        staff_id=payload.new_staff_id,
-        notify_result=notify_result,
+    无论商家是否拥有该订单项，统一返回 403。
+    引导：请通知顾客自行在客户端发起改期。
+    """
+    raise HTTPException(
+        status_code=403,
+        detail=(
+            "改期权已收归客户端，商家端无改期权限。"
+            "请通知顾客自行在小程序/APP/H5 客户端发起改期。"
+        ),
     )
 
 

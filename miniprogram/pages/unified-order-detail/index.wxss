@@ -528,6 +528,19 @@
   gap: 16rpx;
   margin-top: 16rpx;
 }
+
+/* [PRD-03 客户端改期能力收口 v1.0] 改期场景规则提示样式 */
+.appt-tip {
+  display: block;
+  margin: 0 0 16rpx;
+  padding: 12rpx 16rpx;
+  background: #f0f9ff;
+  color: #0958d9;
+  border: 1rpx solid #bae0ff;
+  border-radius: 8rpx;
+  font-size: 24rpx;
+  line-height: 1.5;
+}
 .appt-modal-btn {
   flex: 1;
   text-align: center;

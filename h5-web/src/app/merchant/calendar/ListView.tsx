@@ -8,11 +8,13 @@ import api from '@/lib/api';
 import type { CalendarFilters, ListItem } from './types';
 import { STATUS_CONFIG } from './types';
 
+// [PRD-03 客户端改期能力收口 v1.0]
+// 商家端列表视图的「改约」操作菜单已移除，改期权 100% 归客户端。
+
 interface ListViewProps {
   storeId: number | null;
   currentDate: Dayjs;
   filters: CalendarFilters;
-  onReschedule?: (item: ListItem) => void;
   onChanged?: () => void;
 }
 
@@ -20,7 +22,6 @@ export default function ListView({
   storeId,
   currentDate,
   filters,
-  onReschedule,
   onChanged,
 }: ListViewProps) {
   const [items, setItems] = useState<ListItem[]>([]);
@@ -143,12 +144,7 @@ export default function ListView({
                 onClick: () =>
                   (window.location.href = `/merchant/verifications?order=${record.order_id}`),
               },
-              {
-                key: 'reschedule',
-                label: '改约',
-                disabled: record.status === 'cancelled' || record.status === 'refunded',
-                onClick: () => onReschedule?.(record),
-              },
+              // [PRD-03 客户端改期能力收口 v1.0] 商家端「改约」菜单项已删除
               {
                 key: 'notify',
                 label: '联系顾客',

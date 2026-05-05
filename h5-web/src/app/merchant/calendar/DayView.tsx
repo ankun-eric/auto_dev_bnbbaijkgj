@@ -10,11 +10,11 @@ import BookingActionPopover from './BookingActionPopover';
 
 const { Text } = Typography;
 
+// [PRD-03 客户端改期能力收口 v1.0] 商家端「改约」入口已移除
 interface DayViewProps {
   storeId: number | null;
   currentDate: Dayjs;
   filters: CalendarFilters;
-  onReschedule?: (card: ItemCard) => void;
   onChanged?: () => void;
 }
 
@@ -41,7 +41,6 @@ export default function DayView({
   storeId,
   currentDate,
   filters,
-  onReschedule,
   onChanged,
 }: DayViewProps) {
   const [items, setItems] = useState<ItemCard[]>([]);
@@ -164,7 +163,6 @@ export default function DayView({
                               key={card.order_item_id}
                               storeId={storeId}
                               card={card}
-                              onReschedule={onReschedule}
                               onChanged={onChanged}
                             >
                               <div

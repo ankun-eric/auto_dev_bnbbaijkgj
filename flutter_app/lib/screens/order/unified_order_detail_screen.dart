@@ -529,13 +529,21 @@ class _UnifiedOrderDetailScreenState extends State<UnifiedOrderDetailScreen> {
       case 'pending_use':
       case 'appointed':
       case 'partial_used':
-        // [核销订单过期+改期规则优化 v1.0] 改约：达上限置灰
+        // [核销订单过期+改期规则优化 v1.0 / PRD-03 客户端改期能力收口 v1.0]
+        // 改约：① 达上限置灰；② allow_reschedule=false 置灰
         if (o.refundStatus == 'none' || o.refundStatus.isEmpty) {
           final reachedLimit = o.rescheduleCount >= o.rescheduleLimit;
+          final productAllowResched = o.allowReschedule;
           if (reachedLimit) {
             actions.add(_actionBtn('改约', Colors.grey, () {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('本订单已达改期上限')),
+                const SnackBar(content: Text('本订单已达改期上限，如需继续改期请联系门店')),
+              );
+            }));
+          } else if (!productAllowResched) {
+            actions.add(_actionBtn('改约', Colors.grey, () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('该商品不支持改期')),
               );
             }));
           } else {
@@ -750,6 +758,14 @@ class _UnifiedOrderDetailScreenState extends State<UnifiedOrderDetailScreen> {
     '16:00-17:00', '17:00-18:00',
   ];
 
+  // [PRD-03 客户端改期能力收口 v1.0 / PRD-01 全平台固定时段切片体系]
+  // 改期场景使用 PRD-01 的 9 段固定切片（每段 2 小时，最早 06:00、最晚 24:00）
+  static const List<String> _kReschedule9Slots = [
+    '06:00-08:00', '08:00-10:00', '10:00-12:00',
+    '12:00-14:00', '14:00-16:00', '16:00-18:00',
+    '18:00-20:00', '20:00-22:00', '22:00-24:00',
+  ];
+
   Future<void> _openAppointmentDialog(UnifiedOrder o) async {
     // [修改预约 Bug 修复 v1.0]
     // - 移除 firstWhere(orElse: throw)，改用安全查找避免异常静默吞噬
@@ -814,6 +830,26 @@ class _UnifiedOrderDetailScreenState extends State<UnifiedOrderDetailScreen> {
       selectedSlot = (apptItem.appointmentData as Map)['time_slot']?.toString();
     }
 
+    // [PRD-03 客户端改期能力收口 v1.0]
+    // 判断「真正改期场景」：order 已存在过预约时间
+    final bool isReschedule = o.items.any(
+      (it) => (it.appointmentTime ?? '').isNotEmpty,
+    );
+    // [PRD-03] 改期场景使用 PRD-01 9 段切片；首次预约保留商品原有 8 段
+    final List<String> slotPool =
+        isReschedule ? _kReschedule9Slots : _kAppointmentSlots;
+    final int remainCount =
+        (o.rescheduleLimit - o.rescheduleCount).clamp(0, 999);
+    // [PRD-03 §F-03-5 / §R-03-03] 改期可选范围：明天起 90 天（不含今天）
+    final DateTime now = DateTime.now();
+    final DateTime firstSelectable = DateTime(now.year, now.month, now.day)
+        .add(const Duration(days: 1));
+    final DateTime lastSelectable = DateTime(now.year, now.month, now.day)
+        .add(const Duration(days: 90));
+    // 若 selectedDate 落在「今天」，强制提升到「明天」，避免后端回 400
+    if (selectedDate.isBefore(firstSelectable)) {
+      selectedDate = firstSelectable;
+    }
     final result = await showDialog<bool>(
       context: context,
       builder: (ctx) {
@@ -821,12 +857,33 @@ class _UnifiedOrderDetailScreenState extends State<UnifiedOrderDetailScreen> {
           final dateStr =
               '${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}';
           return AlertDialog(
-            title: const Text('选择预约时间', textAlign: TextAlign.center),
+            title: Text(
+              isReschedule ? '修改预约' : '选择预约时间',
+              textAlign: TextAlign.center,
+            ),
             content: SingleChildScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  if (isReschedule)
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF0F9FF),
+                        border: Border.all(color: const Color(0xFFBAE0FF)),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        '改期可选范围：明天起 90 天内；本订单还可改期 $remainCount 次',
+                        style: const TextStyle(
+                          color: Color(0xFF0958D9),
+                          fontSize: 12,
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
                   const Text('预约日期', style: TextStyle(color: Colors.grey, fontSize: 13)),
                   const SizedBox(height: 6),
                   OutlinedButton(
@@ -834,8 +891,8 @@ class _UnifiedOrderDetailScreenState extends State<UnifiedOrderDetailScreen> {
                       final picked = await showDatePicker(
                         context: ctx2,
                         initialDate: selectedDate,
-                        firstDate: DateTime.now(),
-                        lastDate: DateTime.now().add(const Duration(days: 90)),
+                        firstDate: firstSelectable,
+                        lastDate: lastSelectable,
                       );
                       if (picked != null) setS(() => selectedDate = picked);
                     },
@@ -853,7 +910,7 @@ class _UnifiedOrderDetailScreenState extends State<UnifiedOrderDetailScreen> {
                       mainAxisSpacing: 8,
                       crossAxisSpacing: 8,
                       childAspectRatio: 2.6,
-                      children: _kAppointmentSlots.map((slot) {
+                      children: slotPool.map((slot) {
                         final active = slot == selectedSlot;
                         return GestureDetector(
                           onTap: () => setS(() => selectedSlot = slot),
@@ -918,7 +975,10 @@ class _UnifiedOrderDetailScreenState extends State<UnifiedOrderDetailScreen> {
                     }
                   }
                 },
-                child: const Text('确认预约', style: TextStyle(color: Colors.white)),
+                child: Text(
+                  isReschedule ? '确认改期' : '确认预约',
+                  style: const TextStyle(color: Colors.white),
+                ),
               ),
             ],
           );

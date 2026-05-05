@@ -1921,13 +1921,29 @@ async def set_order_appointment(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """[PRD 订单状态机简化方案 v1.0] 用户填写预约时间。
+    """[PRD 订单状态机简化方案 v1.0 + PRD-03 客户端改期能力收口 v1.0] 用户填写预约时间。
 
     新策略（2026-05-03 起）：
     - 首次填预约日：pending_appointment → **pending_use**（直接跳过 appointed，立即出码）
     - 修改预约日：pending_use 阶段持续允许调整，状态保持不变
     - 兼容历史 appointed：旧订单仍可调用本接口改预约日，状态翻为 pending_use
+
+    PRD-03 角色校验（§2.4 / §R-03-06）：
+    - 改期权 100% 归客户端；本接口仅允许 role=user（C 端客户）调用
+    - role in (merchant / admin / doctor / content_editor) → 403 Forbidden
     """
+    # [PRD-03 §2.4 / §R-03-06] 角色校验：仅允许 customer 角色（即 UserRole.user）调用
+    # 注意：项目中 UserRole 枚举值为 user/admin/doctor/merchant/content_editor，
+    # 其中 "user" 即 PRD 文档所述的 "customer"（C 端客户）
+    role_val = current_user.role
+    if hasattr(role_val, "value"):
+        role_val = role_val.value
+    if str(role_val) != "user":
+        raise HTTPException(
+            status_code=403,
+            detail="无操作权限：改期权仅限客户端，商家/平台无权调用",
+        )
+
     result = await db.execute(
         select(UnifiedOrder)
         .options(selectinload(UnifiedOrder.items))
@@ -1948,6 +1964,76 @@ async def set_order_appointment(
     rlimit = int(getattr(order, "reschedule_limit", 3) or 3)
     if has_existing_appt and rcount >= rlimit:
         raise HTTPException(status_code=400, detail="本订单已达改期上限")
+
+    # [PRD-03 §F-03-6 / §R-03-04] 商品级 allow_reschedule 开关：任一商品禁止改期 → 整单不允许
+    # 仅在「真正的改期」（已有过预约时间）时校验；首次填预约日不卡此项
+    if has_existing_appt:
+        try:
+            for it in (order.items or []):
+                prod = getattr(it, "product", None)
+                if prod is not None:
+                    v = getattr(prod, "allow_reschedule", True)
+                    if v is False:
+                        raise HTTPException(
+                            status_code=400,
+                            detail="该商品不支持改期",
+                        )
+        except HTTPException:
+            raise
+        except Exception:  # noqa: BLE001
+            pass
+
+    # [PRD-03 §F-03-5 / §R-03-03] 改期可选范围：明天起 90 天（仅在改期时校验，首次预约不卡）
+    if has_existing_appt:
+        from datetime import datetime as _dt
+        now_local = _dt.now()
+        # 「明天起」：appointment_time 必须 >= 明天 00:00
+        tomorrow_start = _dt.combine(
+            (now_local.date() + timedelta(days=1)),
+            datetime.min.time(),
+        )
+        max_date = _dt.combine(
+            (now_local.date() + timedelta(days=90)),
+            datetime.max.time(),
+        )
+        # 把 appointment_time 视作 naive datetime 比较（前端通常传本地时间）
+        appt_naive = data.appointment_time
+        if appt_naive.tzinfo is not None:
+            appt_naive = appt_naive.replace(tzinfo=None)
+        if appt_naive < tomorrow_start:
+            raise HTTPException(
+                status_code=400,
+                detail="改期日期最早从明天起",
+            )
+        if appt_naive > max_date:
+            raise HTTPException(
+                status_code=400,
+                detail="改期日期最远 90 天内",
+            )
+
+    # [PRD-03 §2.5 / §R-03-05] 宽松改期容量校验：仅校验门店营业 + 时段在营业内
+    # 不校验单时段容量（允许超约，由门店人工协调）。仅改期时校验。
+    if has_existing_appt:
+        try:
+            from app.utils.reschedule_validator import validate_reschedule_lenient
+            store_id_for_validate = getattr(order, "store_id", None)
+            valid_res = await validate_reschedule_lenient(
+                db,
+                store_id=store_id_for_validate,
+                appointment_time=data.appointment_time,
+            )
+            if not valid_res.ok:
+                raise HTTPException(
+                    status_code=400,
+                    detail=valid_res.reason or "目标时段不可改期",
+                )
+        except HTTPException:
+            raise
+        except Exception as _e:  # noqa: BLE001
+            import logging as _l
+            _l.getLogger(__name__).warning(
+                "[PRD-03] 改期宽松校验异常（已放行）: %s", _e
+            )
 
     # 退款进行中不允许调整预约日
     refund_val = order.refund_status

@@ -1,10 +1,13 @@
 'use client';
 
+// [PRD-03 客户端改期能力收口 v1.0]
+// 商家端 Popover 已移除「改约」按钮，改期权 100% 归客户端。
+// 仅保留：核销 / 联系顾客 / 查看详情 三项操作。
+
 import React from 'react';
 import { Popover, Button, Space, message } from 'antd';
 import {
   CheckCircleOutlined,
-  SwapOutlined,
   PhoneOutlined,
   EyeOutlined,
 } from '@ant-design/icons';
@@ -16,7 +19,6 @@ interface ActionPopoverProps {
   card: ItemCard;
   children: React.ReactNode;
   onChanged?: () => void;
-  onReschedule?: (card: ItemCard) => void;
 }
 
 export default function BookingActionPopover({
@@ -24,7 +26,6 @@ export default function BookingActionPopover({
   card,
   children,
   onChanged,
-  onReschedule,
 }: ActionPopoverProps) {
   const goToDetail = () => {
     window.location.href = `/merchant/orders?highlight=${card.order_id}`;
@@ -66,15 +67,7 @@ export default function BookingActionPopover({
       >
         核销
       </Button>
-      <Button
-        block
-        type="text"
-        icon={<SwapOutlined />}
-        onClick={() => onReschedule?.(card)}
-        disabled={card.status === 'cancelled' || card.status === 'refunded'}
-      >
-        改约
-      </Button>
+      {/* [PRD-03 客户端改期能力收口 v1.0] 商家端「改约」按钮已删除 */}
       <Button block type="text" icon={<PhoneOutlined />} onClick={handleNotify}>
         联系顾客
       </Button>

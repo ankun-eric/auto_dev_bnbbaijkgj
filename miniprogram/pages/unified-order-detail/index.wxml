@@ -185,9 +185,10 @@
     <view class="bar-actions">
       <view class="bar-btn outline" wx:if="{{order.status === 'pending_payment'}}" bindtap="cancelOrder">取消订单</view>
       <view class="bar-btn outline" wx:if="{{(order.status === 'pending_use' || order.status === 'appointed') && (!order.refund_status || order.refund_status === 'none' || order.refund_status === 'rejected')}}" bindtap="goRefund">申请退款</view>
-      <!-- [核销订单过期+改期规则优化 v1.0] 改约：达上限置灰 -->
+      <!-- [核销订单过期+改期规则优化 v1.0 / PRD-03 客户端改期能力收口 v1.0]
+           改约：① 达改期上限置灰；② allow_reschedule=false 置灰 -->
       <view
-        class="bar-btn outline {{(order.reschedule_count >= order.reschedule_limit) ? 'is-disabled' : ''}}"
+        class="bar-btn outline {{(order.reschedule_count >= order.reschedule_limit || order.allow_reschedule === false) ? 'is-disabled' : ''}}"
         wx:if="{{(order.status === 'pending_use' || order.status === 'appointed' || order.status === 'partial_used') && (!order.refund_status || order.refund_status === 'none')}}"
         catchtap="onRescheduleClick">
         改约
@@ -203,32 +204,48 @@
     </view>
   </view>
 
-  <!-- [先下单后预约 Bug 修复 v1.0] 立即预约弹窗 -->
+  <!-- [先下单后预约 Bug 修复 v1.0 / PRD-03 客户端改期能力收口 v1.0] 预约/改期弹窗 -->
   <view class="appt-modal-mask" wx:if="{{showApptModal}}" bindtap="closeApptModal"></view>
   <view class="appt-modal" wx:if="{{showApptModal}}">
-    <text class="appt-modal-title">选择预约时间</text>
+    <text class="appt-modal-title">{{apptIsReschedule ? '修改预约' : '选择预约时间'}}</text>
+    <!-- [PRD-03] 改期场景：顶部规则提示（明天起 90 天 + 剩余次数） -->
+    <view class="appt-tip" wx:if="{{apptIsReschedule}}">
+      改期可选范围：明天起 90 天内；本订单还可改期 {{apptRemainCount}} 次
+    </view>
     <view class="appt-row">
       <text class="appt-label">预约日期</text>
       <picker mode="date" value="{{apptDate}}" start="{{apptMinDate}}" end="{{apptMaxDate}}" bindchange="onApptDateChange">
         <text class="appt-value">{{apptDate || '请选择日期'}}</text>
       </picker>
     </view>
-    <!-- [修改预约 Bug 修复 v1.0] date 模式下整块时段选择隐藏（仅日期） -->
+    <!-- [修改预约 Bug 修复 v1.0] date 模式下整块时段选择隐藏（仅日期）
+         [PRD-03] 改期场景使用 9 段固定切片；首次预约保留商品配置 -->
     <view class="appt-slots-row" wx:if="{{apptCurrentMode !== 'date'}}">
       <text class="appt-label">预约时段</text>
       <view class="appt-slots">
-        <view
-          class="appt-slot {{apptSlot === item ? 'active' : ''}}"
-          wx:for="{{apptSlotOptions}}"
-          wx:key="*this"
-          data-slot="{{item}}"
-          catchtap="onApptSlotTap"
-        >{{item}}</view>
+        <block wx:if="{{apptIsReschedule}}">
+          <view
+            class="appt-slot {{apptSlot === item ? 'active' : ''}}"
+            wx:for="{{apptResched9Slots}}"
+            wx:key="*this"
+            data-slot="{{item}}"
+            catchtap="onApptSlotTap"
+          >{{item}}</view>
+        </block>
+        <block wx:else>
+          <view
+            class="appt-slot {{apptSlot === item ? 'active' : ''}}"
+            wx:for="{{apptSlotOptions}}"
+            wx:key="*this"
+            data-slot="{{item}}"
+            catchtap="onApptSlotTap"
+          >{{item}}</view>
+        </block>
       </view>
     </view>
     <view class="appt-modal-btns">
       <view class="appt-modal-btn cancel" bindtap="closeApptModal">取消</view>
-      <view class="appt-modal-btn confirm" bindtap="submitAppt">确认预约</view>
+      <view class="appt-modal-btn confirm" bindtap="submitAppt">{{apptIsReschedule ? '确认改期' : '确认预约'}}</view>
     </view>
   </view>
 </view>
