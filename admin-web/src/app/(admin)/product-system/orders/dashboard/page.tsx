@@ -113,13 +113,26 @@ function statusTag(s: string) {
 }
 
 function formatYuan(v: number): string {
-  // 不带千分位
-  return `¥${Math.round((v + Number.EPSILON) * 100) / 100}`;
+  // [PRD-02 R-02-05] 金额格式：¥ + 整数（不带千分位、不带小数）
+  return `¥${Math.round(v)}`;
 }
+
+// [PRD-02 R-02-04] 看板"日/周/月"视图记忆 key
+const DASHBOARD_VIEW_KEY = 'bini_orders_dashboard_view';
 
 export default function OrdersDashboardPage() {
   const router = useRouter();
-  const [view, setView] = useState<ViewMode>('day');
+  // [PRD-02 R-02-04] 默认日视图，但浏览器记忆上次选择
+  const [view, setView] = useState<ViewMode>(() => {
+    if (typeof window === 'undefined') return 'day';
+    try {
+      const v = localStorage.getItem(DASHBOARD_VIEW_KEY);
+      if (v === 'day' || v === 'week' || v === 'month') return v;
+    } catch (_) {
+      /* 忽略 */
+    }
+    return 'day';
+  });
   const [pickedDate, setPickedDate] = useState<Dayjs>(dayjs());
   const [loading, setLoading] = useState(false);
   const [dayData, setDayData] = useState<DayResp | null>(null);
@@ -179,6 +192,16 @@ export default function OrdersDashboardPage() {
     else if (view === 'month') loadMonth(pickedDate.year(), pickedDate.month() + 1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view, dateStr]);
+
+  // [PRD-02 R-02-04] 进入看板页时，把"上次选择"刷为 board，
+  // 下次再进 /product-system/orders 时会自动跳回看板
+  useEffect(() => {
+    try {
+      localStorage.setItem('bini_orders_view_preference', 'board');
+    } catch (_) {
+      /* localStorage 不可用时忽略 */
+    }
+  }, []);
 
   const refresh = () => {
     if (view === 'day') loadDay(dateStr);
@@ -246,9 +269,15 @@ export default function OrdersDashboardPage() {
             const verifiedRate = cell.appointment_count
               ? cell.verified_count / cell.appointment_count
               : 0;
-            const bg = cell.appointment_count === 0
-              ? '#fafafa'
-              : verifiedRate > 0.6 ? '#e6f7ff' : '#fff';
+            // [PRD-02 §2.2 视觉规则] 已核率高的格用偏深色块（绿色加深），空闲格用浅灰色块
+            let bg = '#fafafa';
+            if (cell.appointment_count > 0) {
+              if (verifiedRate >= 0.8) bg = '#b7eb8f';
+              else if (verifiedRate >= 0.5) bg = '#d9f7be';
+              else if (verifiedRate >= 0.2) bg = '#f6ffed';
+              else bg = '#ffffff';
+            }
+            const empty = cell.appointment_count === 0;
             return (
               <Col key={cell.slot_no} xs={24} sm={12} md={8}>
                 <Card
@@ -265,13 +294,21 @@ export default function OrdersDashboardPage() {
                     {cell.label}
                     {isCurrent && <Tag color="green" style={{ marginLeft: 8 }}>进行中</Tag>}
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Statistic title="预约" value={cell.appointment_count} valueStyle={{ fontSize: 18 }} />
-                    <Statistic title="已核" value={cell.verified_count} valueStyle={{ fontSize: 18 }} />
-                  </div>
-                  <div style={{ marginTop: 8, color: '#52c41a', fontSize: 14 }}>
-                    已核金额：{formatYuan(cell.verified_amount)}
-                  </div>
+                  {empty ? (
+                    <div style={{ color: '#999', fontSize: 14, padding: '8px 0' }}>
+                      暂无预约
+                    </div>
+                  ) : (
+                    <>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <Statistic title="预约" value={cell.appointment_count} valueStyle={{ fontSize: 18 }} />
+                        <Statistic title="已核" value={cell.verified_count} valueStyle={{ fontSize: 18 }} />
+                      </div>
+                      <div style={{ marginTop: 8, color: '#389e0d', fontSize: 14 }}>
+                        已核金额：{formatYuan(cell.verified_amount)}
+                      </div>
+                    </>
+                  )}
                 </Card>
               </Col>
             );
@@ -410,11 +447,20 @@ export default function OrdersDashboardPage() {
             size="small"
             icon={<PhoneOutlined />}
             onClick={() => {
-              navigator.clipboard?.writeText(o.customer_phone || '');
-              message.success('手机号已复制到剪贴板');
+              // [PRD-02 §2.7] 抽屉订单卡片提供「📞拨打」操作：
+              // 桌面端浏览器没有原生拨号能力，故先尝试用 tel: 协议唤起本机拨号软件，
+              // 再兜底将完整 11 位手机号复制到剪贴板，方便商家直接电话客户。
+              const phone = o.customer_phone || '';
+              try {
+                window.location.href = `tel:${phone}`;
+              } catch (_) {
+                /* tel: 不可用时忽略 */
+              }
+              navigator.clipboard?.writeText(phone).catch(() => {});
+              message.success(`已复制手机号 ${phone}，可直接拨打`);
             }}
           >
-            复制电话
+            📞拨打
           </Button>
         )}
       </Space>
@@ -429,13 +475,37 @@ export default function OrdersDashboardPage() {
 
       <Card style={{ marginBottom: 16 }}>
         <Space size={16} wrap>
-          <Radio.Group value={view} onChange={(e) => setView(e.target.value)}>
+          <Radio.Group
+            value={view}
+            onChange={(e) => {
+              const v = e.target.value as ViewMode;
+              setView(v);
+              try {
+                localStorage.setItem(DASHBOARD_VIEW_KEY, v);
+              } catch (_) {
+                /* 忽略 */
+              }
+            }}
+          >
             <Radio.Button value="day">日视图</Radio.Button>
             <Radio.Button value="week">周视图</Radio.Button>
             <Radio.Button value="month">月视图</Radio.Button>
           </Radio.Group>
           {dateNav}
-          <Button onClick={() => router.push('/product-system/orders')}>切换到列表视图</Button>
+          <Button
+            onClick={() => {
+              // [PRD-02 R-02-04] 用户主动切到列表视图时，写入浏览器记忆为 list，
+              // 下次再进订单管理就停留列表页，不再被自动跳转回看板
+              try {
+                localStorage.setItem('bini_orders_view_preference', 'list');
+              } catch (_) {
+                /* localStorage 不可用时忽略 */
+              }
+              router.push('/product-system/orders');
+            }}
+          >
+            切换到列表视图
+          </Button>
         </Space>
       </Card>
 

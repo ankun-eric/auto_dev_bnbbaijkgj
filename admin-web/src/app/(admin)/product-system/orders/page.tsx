@@ -249,7 +249,33 @@ function mapOrder(raw: Record<string, unknown>): UnifiedOrder {
   };
 }
 
+// [PRD-02 R-02-04] 订单管理视图记忆 key（'board' | 'list'）
+const ORDERS_VIEW_PREFERENCE_KEY = 'bini_orders_view_preference';
+
 export default function UnifiedOrdersPage() {
+  // [PRD-02 R-02-04] 默认进入看板视图，浏览器记忆上次选择：
+  // - 首次访问（无记忆）→ 自动跳转看板
+  // - 上次选择"看板"→ 自动跳转看板
+  // - 上次选择"列表"→ 停留当前列表页
+  // 一旦用户在列表页，再次回到列表页会保留记忆为 list；点击"切换到预约看板"按钮会写为 board
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const pref = localStorage.getItem(ORDERS_VIEW_PREFERENCE_KEY);
+      if (pref !== 'list') {
+        // 默认（无记忆或记忆为 board）→ 跳转看板
+        window.location.replace('/admin/product-system/orders/dashboard');
+        return;
+      }
+      // 上次明确选了列表 → 停在当前页，并刷新为 list 记忆
+      localStorage.setItem(ORDERS_VIEW_PREFERENCE_KEY, 'list');
+    } catch (_) {
+      /* localStorage 不可用时忽略，保持当前页 */
+    }
+    // 仅在首次挂载执行
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const [orders, setOrders] = useState<UnifiedOrder[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('all');
@@ -589,12 +615,19 @@ export default function UnifiedOrdersPage() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <Title level={4} style={{ margin: 0 }}>订单明细</Title>
-        {/* [门店预约看板与改期能力升级 v1.0] 列表 / 看板 切换入口 */}
+        {/* [PRD-02 R-02-04] 列表 / 看板 切换入口；点击「切换到预约看板」时写入浏览器记忆为 board */}
         <Button
           type="primary"
           ghost
           icon={<EyeOutlined />}
-          onClick={() => { window.location.href = '/admin/product-system/orders/dashboard'; }}
+          onClick={() => {
+            try {
+              localStorage.setItem(ORDERS_VIEW_PREFERENCE_KEY, 'board');
+            } catch (_) {
+              /* localStorage 不可用时忽略 */
+            }
+            window.location.href = '/admin/product-system/orders/dashboard';
+          }}
         >
           切换到预约看板
         </Button>

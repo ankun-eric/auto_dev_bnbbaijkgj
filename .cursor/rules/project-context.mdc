@@ -33,7 +33,51 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: PRD-01 全平台固定时段切片体系 v1.0 落地（2026-05-05 17:10）
+## Latest Update: PRD-02 门店端预约看板（日 / 周 / 月 三视图）v1.0 落地（2026-05-05 17:30）
+
+### 一句话结论
+按 `cursor_prompt_344_20260505172644.txt` PRD-02「门店端预约看板（日 / 周 / 月 三视图）v1.0」收口商家端订单管理：在前置 PRD-01 已落地的「9 段固定时段切片 + 看板 5 接口（day/week/month/slot/month-day）」基础上，对 **admin-web 商家后台**做精装修，把 PRD-02 文档级要求逐条对齐——**默认进入看板**（订单管理首次访问自动跳看板，浏览器记忆 list/board 偏好），**视图记忆**（看板内 day/week/month 也独立 localStorage 记忆），**金额格式 ¥1280**（强制整数 `Math.round(v)`，不带千分位、不带小数，对齐 PRD §R-02-05），**9 宫格视觉规则升级**（绿色梯度 #b7eb8f/#d9f7be/#f6ffed/#ffffff 按已核率分档，空时段显示「暂无预约」对齐 §5 异常处理），**抽屉 📞拨打按钮**（PRD §2.7）改为 `tel:` 协议唤起本机拨号 + 复制手机号到剪贴板双兜底（替代原「复制电话」），**核销按钮 PC 端置灰**（保留既有 v1 实现），**周视图无占用率**（保留既有去 % 实现），**月视图弹窗左右两栏 + 6 字段标准卡片**（保留既有实现，验证字段完整）。**后端零改动**——PRD-01 已抽出 `app/utils/time_slots.py` 和 `merchant_dashboard.py` 5 接口，已严格遵循 PRD-02 字段口径（_is_verified_status 已严格匹配 verified/completed/pending_receipt 三态、_is_active_status 排除 cancelled/refund_success/pending_payment，9 宫格 morning=slot 1-3 / afternoon=slot 4-9 拆分与月视图弹窗左右栏一致）。**测试**：新增 `backend/tests/test_prd02_dashboard_v1.py` 41 用例（_is_verified_status 11 case 状态参数化 / _is_active_status 9 case / _build_order_card 字段完整性 6 case 含 R-02-03 不脱敏 + 缺失降级 + amount float / slot 映射 11 case 含 6/8/10/12/14/16/18/20/22/23 整点 + 凌晨段返回 None / 9 宫格 9 段 + morning 1-3 + afternoon 4-9 拆分），与既有 PRD-01 unified_v1（38 case）+ merchant_dashboard_v1 纯函数（21 case）+ time_slots_unified（含 client fixture 6 case 在 noconftest 模式 ERROR/SKIP）一起服务器容器内 PASS（41+38+21=100 个核心纯函数用例）。**部署**：paramiko SFTP 上传 3 个文件（1 测试 + 2 admin-web 页面）→ `docker cp test_prd02 → backend:/app/tests/` → `docker exec backend pytest --noconftest` 全 PASS → `docker compose build admin-web` (107s Next.js standalone 构建) → `up -d admin-web` → 7 个核心 URL 全 200（含 /admin/product-system/orders/dashboard/ + /admin/product-system/orders/ + /api/merchant/dashboard/time-slots + /api/common/time-slots）。**回归保护**：未改 backend 代码、未改 DB schema、未改小程序 / Flutter / iOS / Windows 桌面端，因此**仅 admin-web 一端有变更，无需多端打包**；既有 v1 看板实现完全保留，本次仅做表层精装修与默认行为调整。
+
+### 涉及文件（3 个）
+
+**Backend 回归测试 — 新增**：
+- `backend/tests/test_prd02_dashboard_v1.py`（**新增**，~210 行 / 41 用例）：A. `_is_verified_status` 状态判定 11 case 参数化（含 enum-like 对象与字符串）；B. `_is_active_status` 9 case 参数化（cancelled/refund_success/pending_payment 排除）；C. `_build_order_card` 6 case 字段完整性（5 字段操作型 + 6 字段标准版 + R-02-03 不脱敏 + nickname/user 缺失降级 + amount float 不字符串化 + status enum 提取 .value）；D. 9 宫格段号映射 11 case（每整点 + 凌晨段 None）；E. SLOT_HOURS / morning / afternoon 拆分配置 3 case。
+
+**Admin-Web — 看板页改造**：
+- `admin-web/src/app/(admin)/product-system/orders/dashboard/page.tsx`：① `formatYuan` 改为强制整数 `¥${Math.round(v)}`（PRD §R-02-05 不带千分位、不带小数，与 PRD §2.5/2.7 卡片示例 `¥588` / `¥1280` 对齐）；② 9 宫格背景色按已核率分档 `#b7eb8f`(>=80%) / `#d9f7be`(>=50%) / `#f6ffed`(>=20%) / `#ffffff`(<20%)，空格 `#fafafa`（PRD §2.2 视觉规则 "已核率高的格用偏深色块（如绿色加深）"）；③ 空时段格子显示「暂无预约」文本（PRD §5 异常处理）；④ 抽屉 `[📞拨打]` 按钮改为 `window.location.href = 'tel:${phone}'` 唤起本机拨号 + `navigator.clipboard.writeText` 兜底复制（PRD §2.7）；⑤ 视图（day/week/month）持久化到 localStorage `bini_orders_dashboard_view`（PRD §R-02-04 浏览器记忆）；⑥ 进入看板页时把 `bini_orders_view_preference` 刷为 `board`，下次回订单管理自动跳看板；⑦ 「切换到列表视图」按钮点击时把记忆刷为 `list`，下次回订单管理停留列表页。
+
+**Admin-Web — 订单列表页改造**：
+- `admin-web/src/app/(admin)/product-system/orders/page.tsx`：① 顶部新增 `ORDERS_VIEW_PREFERENCE_KEY = 'bini_orders_view_preference'` 常量；② 在 `UnifiedOrdersPage` 挂载时新增 `useEffect`：读 localStorage，若 `pref !== 'list'` 则 `window.location.replace('/admin/product-system/orders/dashboard')` 自动跳看板（PRD §R-02-04 默认进入看板视图）；若上次明确选 list 则停留列表，并把记忆刷新为 `list`；③ 「切换到预约看板」按钮在跳转前 `localStorage.setItem(ORDERS_VIEW_PREFERENCE_KEY, 'board')`，写入偏好。
+
+**部署辅助**：
+- `deploy/_deploy_prd02_dashboard_20260505.py`（新增，~150 行）：paramiko SFTP 上传 3 个文件 + `docker cp` 把测试文件推进 backend 容器（image 内 tests/ 是只读 COPY 来的，不会自动同步 host 路径）+ `docker exec backend pytest --noconftest` 三个测试套件 + `docker compose build admin-web`（Next.js standalone build ~107s）+ `up -d admin-web` + 7 个核心 URL curl 验证。
+
+### 关键验收（部署后实测）
+- ✅ `test_prd02_dashboard_v1.py` 41/41 PASS（容器内 pytest --noconftest）
+- ✅ `test_time_slots_unified_v1.py` 38/38 PASS
+- ✅ `test_merchant_dashboard_v1.py` 21 个纯函数 case PASS（6 个 client fixture 在 noconftest 模式被 ERROR/SKIP 是预期行为，不算回归）
+- ✅ admin-web Next.js 重建成功（standalone 输出 87.7 kB shared JS + 各 route 独立 chunk）
+- ✅ 7 个核心 URL 全 200：`/api/health` / `/admin/login/` / `/admin/product-system/orders/dashboard/` / `/admin/product-system/orders/` / `/api/merchant/dashboard/time-slots` / `/api/common/time-slots` / `/`
+
+### 设计要点
+- **零后端改动**：PRD-01 已抽好 utils 和 5 个看板接口，PRD-02 仅是 admin-web 的精装修——`_is_verified_status` / `_is_active_status` / `_build_order_card` / morning/afternoon 拆分逻辑都已经严格匹配 PRD-02，本次新增测试用例是**字面对照 PRD 文档**做的契约测试，确保后续任何改动不会破坏 PRD-02 字段口径
+- **默认进看板的两层记忆**：①「列表 vs 看板」用 `bini_orders_view_preference`（任何用户主动切换都会写入），首次访问无记忆 → 默认看板；② 看板内「日/周/月」用 `bini_orders_dashboard_view`，独立记忆，进入看板时不会被前者覆盖。两个 key 独立设计，确保切换列表/看板与切换日/周/月视图互不干扰
+- **金额整数格式**：考虑到健康预约场景的客单价通常为整数（套餐价），PRD §R-02-05 明确要求 `¥1280`（不带千分位也不带小数）。后端依然保持 float 返回（兼容客单价小数场景），前端用 `Math.round(v)` 四舍五入到整数展示。这样既满足 PRD 视觉要求，又不丢失计算精度
+- **9 宫格颜色梯度**：选用 Ant Design 绿色色板（`#b7eb8f` / `#d9f7be` / `#f6ffed`），保持与「核销成功」「营业中」等已有绿色语义对齐，让商家直觉地把「绿 = 旺」与回款挂钩
+- **抽屉拨打按钮**：桌面端浏览器没有原生拨号 SDK，但 macOS 装了 FaceTime / 移动端浏览器原生支持 `tel:` 协议、Windows 装了 Skype 也能唤起，所以用 `tel:` 协议是最普适的方案；同时把手机号复制到剪贴板，作为不支持 `tel:` 时的兜底，所有场景下用户都能拿到手机号去外部 APP 拨打
+- **核销按钮置灰**：与 PRD-05「核销动作收口手机端」打通，文案「请到手机端操作」+ Tooltip 解释，避免商家在 PC 端误操作
+
+### 涉及模块未变
+- 后端 `app/api/merchant_dashboard.py` 5 个接口逻辑（保持 PRD-01 实现，本次仅靠 PRD-02 测试增加契约保护）
+- `app/utils/time_slots.py`（9 段切片底座）
+- `app/api/unified_orders.py`（下单/改期写 time_slot 字段逻辑）
+- DB schema（不动）
+- 微信小程序 / Flutter APP / iOS / Windows 桌面端（不动）
+- H5 用户端（PRD-02 仅商家后台改造，C 端不动）
+
+---
+
+## Previous Update: PRD-01 全平台固定时段切片体系 v1.0 落地（2026-05-05 17:10）
 
 ### 一句话结论
 按 `cursor_prompt_343_20260505165317.txt` PRD-01「全平台固定时段切片体系 v1.0」一次性落地全平台时段切片底座：把全平台「按时段管理」的入口（看板 / 改期 / 统计 / 客户端时段选择器 / 订单 time_slot）统一为**固定 9 段（每段 2 小时、最早 06:00、最晚 24:00）**，凌晨 00:00-06:00 不开放。**核心改动**：① **后端新增 `app/utils/time_slots.py` 工具模块**（`SLOT_HOURS` / `slot_label` / `appointment_to_slot` / `slot_window` / `slots_config_payload`），把原 `merchant_dashboard.py` 中重复的 9 段定义抽出来，看板模块改为 `from app.utils.time_slots import *` re-export 复用，行为完全保持向后兼容。② **新增公共接口 `/api/common/time-slots`**（`backend/app/api/common.py`），无需鉴权，响应严格遵循 PRD §2.3：`{"slots":[{"slot_no":1,"start":"06:00","end":"08:00"},...,{"slot_no":9,"start":"22:00","end":"24:00"}], "rule":"..."}`，公开供小程序/APP/H5/商家 PC 共用；同时保留既有 `/api/merchant/dashboard/time-slots`（响应字段 `slot_no/label/start_hour/end_hour`）以确保 v1.0 看板兼容。③ **`unified_orders` 表新增 `time_slot INT NULL` 字段** + 索引 `ix_unified_orders_time_slot`（`backend/app/models/models.py` + `backend/app/services/schema_sync.py` 增量幂等 ALTER）。④ **下单与改期路径自动写入 time_slot**：`backend/app/api/unified_orders.py` 在 `create_unified_order`（store_id 处理后、flush 前）取首个有 `appointment_time` 的 item 调用 `_appt_to_slot` 写入 `order.time_slot`；`set_order_appointment` 改期生效后同步重算并写入；跨日订单（22:00-次日 00:00）按起始时间归段（PRD R-01-03）；凌晨段 / 无 appointment_time / 先下单后预约 → time_slot=NULL（PRD R-01-04）。⑤ **历史订单一次性补刀脚本 `backend/scripts/backfill_unified_orders_time_slot.py`**：`--dry-run` 默认只读 + 打印；`--apply` 真实写库；幂等仅扫 `time_slot IS NULL` 的订单。⑥ **三端新增 9 段本地常量兜底工具**：`h5-web/src/lib/timeSlots.ts` / `miniprogram/utils/timeSlots.js` / `flutter_app/lib/utils/time_slots.dart`，含 `FIXED_TIME_SLOTS` / `slotLabel` / `appointmentToSlot` / `fetchTimeSlotsWithFallback`，PRD §4 异常处理：`/api/common/time-slots` 接口失败时使用本地常量兜底确保下单/改期不阻塞。**测试**：新增 `backend/tests/test_time_slots_unified_v1.py` 38 个用例（utils 工具函数 27 case 含每小时映射 22 case + 边界 + 跨日 + slots_config_payload 严格匹配 PRD §2.3 字段；`/api/common/time-slots` 接口公开返回 + 字段 strict + 第 9 段 end="24:00" 5 case；merchant_dashboard re-export 兼容性 1 case），与既有 `test_merchant_dashboard_v1.py`（21 个纯函数 case）+ `test_reschedule_notification_v1.py`（18 case）一起服务器容器内 **66/66 PASS in 1.36s**。**部署**：paramiko SFTP 上传 12 个文件 → `docker compose build backend` → `up -d` → 容器启动 schema_sync 自动 ALTER → 容器内回填脚本 `--apply` 实测扫描 32 单回填 23 单（段 2:11 / 段 3:3 / 段 4:1 / 段 5:3 / 段 6:5；凌晨段 0；无 appt 9）→ 5 个核心 URL（health/admin login/H5/商家 dashboard time-slots/`/api/common/time-slots`）全 200 → `/api/common/time-slots` 响应字段 `slot_no/start/end` 严格匹配 PRD。**多端打包**：3 个并行子 Agent 同时跑通——小程序 zip（391KB / 335 文件，已上传 `/static/miniprogram/`）+ Android APK（GHA 远程构建 ~9 分钟、80.57MB，复用既有 `android-build.yml`）+ iOS IPA（GHA macOS Runner ~6.5 分钟，复用既有 `ios-build.yml`，未签名需侧载）。**回归保护**：商品级 `time_slots`（每商品独立 capacity 配置）/ 改期上限 / 90 天范围 / 凌晨段订单列表可见 / 改期通知三通道 / 状态机 / 核销码 / 退款链路 完全不变。
