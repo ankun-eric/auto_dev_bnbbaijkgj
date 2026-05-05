@@ -33,6 +33,50 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
+## Latest Update: PRD-03 客户端改期能力收口最终交付与下载链路修复（2026-05-05 20:13）
+
+### 一句话结论
+按 `cursor_prompt_345_20260505200538.txt` 重新走 develop-all 流程对 PRD-03「客户端改期能力收口 v1.0」做**最终交付**：① 阶段 0~3 服务器侧 pytest **112/112 PASS**（PRD-03 27 case + PRD-02 41 case + PRD-01 time_slots_unified 44 case = 1.32s 全 PASS），后端 commit `49c39a9` 早已部署生效，无需任何代码改动；② 阶段 4 git diff 检测自 `49c39a9` 以后小程序 / 安卓 / iOS / H5 均**无新增源码改动**，跳过重打包；③ **关键修复**——发现 gateway 容器 nginx 配置缺少 `/miniprogram/`、`/apk/`、`/downloads/`、`/ipa/`、`/verify-miniprogram/` 五条静态下载 location（既往 PRD-03 上传到 `/home/ubuntu/<id>/static/` 的产物全部 404），通过 `deploy/_fix_gateway_static_355.py` 在 `/home/ubuntu/gateway/conf.d/<id>.conf` 的 H5 location 之前批量插入 5 条 location（alias 指向容器内 `/data/static/...`，对应宿主机 `/home/ubuntu/<id>/static/`），`docker exec gateway nginx -t` 通过、`nginx -s reload` 完成，PRD-03 小程序 zip + APK + PRD-05 核销小程序 zip 全部本机 + 远端实测 HTTP 200；④ 阶段 5 生成最终交付版用户体验手册 `user_docs/客户端改期能力收口_PRD-03_v1.0_最终交付_20260505_201300.md`，含开头 / 末尾访问链接×2 + 功能简介 + 本次客户端变更（H5 用户端 / H5 商家端 / 微信小程序 / Flutter APP 4 行）+ APP 端打包说明（如实告知 token 失效、强调后端规则兜底）+ 顾客端 / 商家端 / 客服三角色使用说明 + 微信小程序 / 安卓 / iOS 各端体验步骤 + 9 行注意事项 + 自动化测试结果（112/112 PASS）+ 部署链路验证（8 项）；⑤ 阶段 6 同步本索引；⑥ 阶段 7 提交手册 + 索引 + 5 个 nginx / 验证脚本到 git。**核心契约保护**：手册中明确告知 APP 二进制版本未含本次完整 UI 强化，但所有 PRD-03 后端规则（角色 = user only / 明天起 90 天 / 宽松校验 / 改期上限 3 / 商品级 allow_reschedule）由服务器端 `set_order_appointment` 拦截兜底，旧 APK 用户改期功能不缺失。
+
+### 涉及文件（7 个）
+
+**用户手册**：
+- `user_docs/客户端改期能力收口_PRD-03_v1.0_最终交付_20260505_201300.md`（**新增**）：PRD-03 v1.0 最终交付版用户体验使用手册。
+
+**部署修复脚本（1 个，已合并多步排查为单一可幂等执行的修复脚本）**：
+- `deploy/_fix_gateway_static_355.py`（**新增**，**核心修复脚本**）：在 `/home/ubuntu/gateway/conf.d/<id>.conf` 的 `# H5 用户端` 标记前批量插入 5 条 location（`/miniprogram/` / `/apk/` / `/downloads/` / `/ipa/` / `/verify-miniprogram/`，alias 指向 `/data/static/<sub>/`），先备份 `*.bak.before_prd03_redelivery_<timestamp>` → `docker exec gateway nginx -t` → `nginx -s reload` → 实测 3 个核心 URL 200，幂等（通过注释标记 `静态产物下载（PRD-03 重新交付补全）` 检测，已存在不重复插入）。
+
+> 排查阶段使用过 `_probe_static_355.py` / `_probe_nginx_355.py` / `_probe_links_355.py` / `_probe_https_355.py` / `_probe_gateway_355.py` / `_publish_prd03_artifacts_355.py` 共 6 个临时探查脚本，最终结论汇总到 `_fix_gateway_static_355.py`。临时脚本完成排查使命后已清理，不入版本库。
+
+**项目索引同步**：
+- `.cursor/rules/project-context.mdc`：在 Latest Update 顶部新增本次最终交付记录段。
+
+### 关键验收（部署后实测）
+- ✅ 远程容器内 `pytest tests/test_prd03_reschedule_v1.py tests/test_prd02_dashboard_v1.py tests/test_time_slots_unified_v1.py -v --noconftest`：**112 / 112 PASS in 1.32s**。
+- ✅ gateway nginx reload 后 3 个静态 URL HTTPS 200（小程序 zip / APK / 核销小程序 zip）：
+  - `/miniprogram/miniprogram_20260505_180514_8267.zip` → HTTP 200，application/zip
+  - `/apk/bini_health_android_reschedule_btn_20260505_134055_a3bf.apk` → HTTP 200，application/vnd.android.package-archive
+  - `/downloads/verify_miniprogram_20260505_190014_1348.zip` → HTTP 200，application/zip
+- ✅ 4 个核心业务 URL 全 200（H5 / Admin / 商家端 calendar / API health）。
+- ✅ 商家端改期接口 `/api/merchant/booking/<id>/reschedule` 实测 401（merchant_dep 鉴权层先生效），匿名调用即拒绝；带商家 token 时则到达 `reschedule_booking` 函数体被 403 拒绝。
+- ✅ 用户手册中所有链接全部为 Markdown 可点击格式 `[文本](URL)`，访问端口仅使用 80/443（无任何 Docker 内部端口）。
+
+### 设计要点
+- **下载链路 404 根因分析**：项目历史上多次重写过 gateway 配置（备份文件可见 `<id>.conf.bak.miniprogram` / `bak.directzip` / `bak.staticdl` 等多代版本），最近一次（May 5 12:03）保留下来的版本意外漏掉了所有静态下载 location，但小程序 zip / APK 上传脚本仍按"老配置存在"假设把文件放到 `/home/ubuntu/<id>/static/<sub>/`，导致从公网访问 404。本次通过批量补全 5 条 location 一并修复 PRD-03（小程序 zip + APK）+ PRD-05（核销小程序 zip）+ 其他历史产物（IPA / downloads 兜底）。
+- **alias 路径选用 `/data/static/`**：gateway 容器 inspect 显示 mount 是 `bind /home/ubuntu/<id>/static -> /data/static`，因此 nginx 配置中 alias 应使用容器内路径 `/data/static/<sub>/`，与宿主机 `/home/ubuntu/<id>/static/<sub>/` 一一对应。这避免了"在 nginx 配置里用宿主机路径但 nginx 实际跑在容器内访问不到"的常见错误。
+- **幂等性**：`_fix_gateway_static_355.py` 通过 `if "静态产物下载（PRD-03 重新交付补全）" in original` 检测注释标记，已插入则跳过，保证脚本可重复执行不会污染配置。
+- **APP 端打包不阻塞最终交付**：上一阶段（PRD-03 commit `49c39a9`）的 GitHub Token 已被 secret scanning 撤销，本次最终交付如实告知用户该现象，并提供 PRD-02 阶段构建的 APK / iOS Release 作为兼容下载，强调后端规则兜底——保护用户改期功能不会断流。
+
+### 涉及模块未变
+- 后端代码（`backend/app/utils/reschedule_validator.py` / `set_order_appointment` / `merchant.py` 全部沿用 `49c39a9` 提交）。
+- 测试代码（`tests/test_prd03_reschedule_v1.py` 27 case 沿用）。
+- 前端代码（H5 / 小程序 / Flutter 沿用 `49c39a9` 提交）。
+- DB schema（不动）。
+- 状态机 / 核销码 5 态 / 退款融合（不动）。
+- 三通道改期通知（PRD-04 已独立实现，本次复用）。
+
+---
+
 ## Latest Update: 支付宝 H5 应用私钥多形态兼容修复（2026-05-05 19:30）
 
 ### 一句话结论
