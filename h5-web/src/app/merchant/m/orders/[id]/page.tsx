@@ -6,6 +6,20 @@ import { useRouter, useParams } from 'next/navigation';
 import api from '@/lib/api';
 import { getCurrentStoreId, statusMap } from '../../mobile-lib';
 
+// [PRD-04 §F-04-5 / §2.7] 改期通知状态
+interface RescheduleNotifyChannel {
+  name: string;
+  ok: boolean;
+  detail?: string;
+}
+interface RescheduleNotifyDetail {
+  status: 'none' | 'ok' | 'all_failed';
+  display: string;
+  channels: RescheduleNotifyChannel[];
+  created_at?: string | null;
+  wechat_work_alert?: { ok: boolean; detail: string } | null;
+}
+
 interface OrderDetail {
   order_id: number;
   order_no: string;
@@ -17,6 +31,9 @@ interface OrderDetail {
   appointment_time?: string;
   store_name?: string;
   is_appointment?: boolean;
+  // [PRD-04] 改期通知状态（none / ok / all_failed）
+  last_reschedule_notify_status?: 'none' | 'ok' | 'all_failed';
+  last_reschedule_notify?: RescheduleNotifyDetail | null;
 }
 
 interface OrderNote {
@@ -239,6 +256,59 @@ export default function OrderDetailMobilePage() {
           )}
         </div>
       </div>
+
+      {/* [PRD-04 §F-04-5 / §2.7] 改期通知状态卡片：仅在曾下发过改期通知时展示 */}
+      {order.last_reschedule_notify && order.last_reschedule_notify_status !== 'none' && (
+        <div
+          style={{
+            margin: '0 12px 12px',
+            background: order.last_reschedule_notify_status === 'all_failed' ? '#fff1f0' : '#f6ffed',
+            border:
+              order.last_reschedule_notify_status === 'all_failed'
+                ? '1px solid #ffa39e'
+                : '1px solid #b7eb8f',
+            borderRadius: 12,
+            padding: 14,
+          }}
+        >
+          <div
+            style={{
+              fontSize: 14,
+              fontWeight: 600,
+              marginBottom: 6,
+              color: order.last_reschedule_notify_status === 'all_failed' ? '#cf1322' : '#389e0d',
+            }}
+          >
+            改期通知状态：{order.last_reschedule_notify.display}
+          </div>
+          <div style={{ fontSize: 12, color: '#666', lineHeight: 1.7 }}>
+            {(order.last_reschedule_notify.channels || []).map((c) => (
+              <div key={c.name}>
+                <span style={{ display: 'inline-block', minWidth: 110 }}>
+                  {c.name === 'wechat_subscribe' && '微信订阅消息'}
+                  {c.name === 'app_push' && 'APP push'}
+                  {c.name === 'sms' && '短信'}
+                  {!['wechat_subscribe', 'app_push', 'sms'].includes(c.name) && c.name}
+                </span>
+                <span style={{ color: c.ok ? '#52c41a' : '#fa541c', fontWeight: 500 }}>
+                  {c.ok ? '✓ 成功' : '✗ 失败'}
+                </span>
+                {c.detail && <span style={{ marginLeft: 8, color: '#999' }}>（{c.detail}）</span>}
+              </div>
+            ))}
+            {order.last_reschedule_notify.created_at && (
+              <div style={{ marginTop: 4, color: '#999' }}>
+                通知时间：{new Date(order.last_reschedule_notify.created_at).toLocaleString('zh-CN')}
+              </div>
+            )}
+            {order.last_reschedule_notify_status === 'all_failed' && (
+              <div style={{ marginTop: 6, color: '#cf1322' }}>
+                ⚠ 三通道全部失败，运营已收到企业微信告警，请人工电话联系客户兜底。
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Action buttons */}
       {(canConfirm || canAdjustTime) && (

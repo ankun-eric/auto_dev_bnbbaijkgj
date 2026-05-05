@@ -1179,6 +1179,52 @@ async def merchant_get_order_detail(
     )
     store = store_result.scalar_one_or_none()
 
+    # [PRD-04 §F-04-5 / §2.7] 改期通知三通道结果展示
+    # 查询最近一条改期通知（event_type=order_rescheduled），从 extra_data 读三通道结果
+    last_reschedule_notify: Optional[dict] = None
+    last_reschedule_notify_status = "none"  # none / ok / all_failed
+    try:
+        from app.models.models import Notification as _N
+        n_res = await db.execute(
+            select(_N)
+            .where(_N.order_id == uo.id, _N.event_type == "order_rescheduled")
+            .order_by(_N.created_at.desc())
+            .limit(1)
+        )
+        last_n = n_res.scalar_one_or_none()
+        if last_n is not None:
+            extra = last_n.extra_data or {}
+            channels = extra.get("channels") if isinstance(extra, dict) else None
+            notify_status = extra.get("notify_status") if isinstance(extra, dict) else None
+            wechat_work_alert = (
+                extra.get("wechat_work_alert") if isinstance(extra, dict) else None
+            )
+            last_reschedule_notify_status = (
+                "all_failed"
+                if notify_status == "all_failed"
+                else ("ok" if notify_status == "ok" else "none")
+            )
+            # 商家详情页友好展示文案（PRD §2.7）
+            display_text = (
+                "通知发送异常，请联系客户"
+                if last_reschedule_notify_status == "all_failed"
+                else ("已通知" if last_reschedule_notify_status == "ok" else "无改期通知")
+            )
+            last_reschedule_notify = {
+                "status": last_reschedule_notify_status,
+                "display": display_text,
+                "channels": channels or [],
+                "created_at": (
+                    last_n.created_at.isoformat() if last_n.created_at else None
+                ),
+                "wechat_work_alert": wechat_work_alert,
+            }
+    except Exception as _e:  # noqa: BLE001
+        import logging as _l
+        _l.getLogger(__name__).warning(
+            "[PRD-04] 查询改期通知状态失败（已忽略）：%s", _e
+        )
+
     return {
         "order_id": uo.id,
         "order_no": uo.order_no,
@@ -1193,6 +1239,9 @@ async def merchant_get_order_detail(
         "is_appointment": bool(oi and oi.appointment_time),
         "store_confirmed": getattr(uo, "store_confirmed", False),
         "store_confirmed_at": uo.store_confirmed_at.isoformat() if getattr(uo, "store_confirmed_at", None) else None,
+        # [PRD-04 §F-04-5 / §2.7] 改期通知状态
+        "last_reschedule_notify_status": last_reschedule_notify_status,
+        "last_reschedule_notify": last_reschedule_notify,
     }
 
 

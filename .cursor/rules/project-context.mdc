@@ -33,7 +33,55 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: PRD-03 客户端改期能力收口最终交付与下载链路修复（2026-05-05 20:13）
+## Latest Update: PRD-04 改期通知三通道 v1.0 收尾（2026-05-05 20:26）
+
+### 一句话结论
+按 `cursor_prompt_346_20260505201816.txt` PRD-04「改期通知三通道（小程序订阅 + APP push + 短信）v1.0」**对早前已落地的核心三通道并行下发服务做最终收尾**：① 探索阶段确认 `backend/app/services/reschedule_notification.py` 三通道编排器（微信订阅 / APP push / 短信）+ `notify_order_rescheduled` 改期接口接入 + `notify_result` 字段返回 + `Notification` 写入红点 + 短信失败重试 1 次 + 单元测试套件 `test_reschedule_notification_v1.py` (18 case) **早已完成**；② **本次实质增量 = F-04-6 企业微信群机器人告警 + F-04-5 商家订单详情页通知状态展示**：在 `reschedule_notification.py` 新增 `_send_wechat_work_alert(order_no, user_name, user_phone, old_text, new_text, store_name, failure_detail, webhook_url=None)` 函数（`WECHAT_WORK_ALERT_WEBHOOK` 环境变量 / 显式参数二选一 + 手机号中间四位 `***` 脱敏 + httpx POST + errcode==0 → ok=True / 否则带原始 errcode/errmsg），`notify_order_rescheduled` 在 `result.all_failed=True` 分支调用一次告警函数（`asyncio` 中保护性 try/except 不阻塞主流程），`result.alert` 挂载告警结果，`to_dict()` 在 `all_failed=True` 时输出 `wechat_work_alert: {ok, detail}` 字段，`Notification.extra_data` 追加 `wechat_work_alert` 子键便于商家详情页回查；③ `backend/app/api/merchant.py:merchant_get_order_detail` 在返回值末尾追加 `last_reschedule_notify_status: 'none' / 'ok' / 'all_failed'` + `last_reschedule_notify: {status, display, channels[], created_at, wechat_work_alert}`，从 `Notification` 表按 `event_type='order_rescheduled'` 取**最新一条**改期通知的 `extra_data` 解析；④ `h5-web/src/app/merchant/m/orders/[id]/page.tsx` 在订单基本信息卡片下方新增独立通知状态卡片（绿色 ✓「已通知」/ 红色 ⚠️「通知发送异常，请联系客户」+ 三通道逐行 ✓ 成功 / ✗ 失败 + detail 摘要 + 通知时间 + 红色异常时附「运营已收到企微告警」提示）；⑤ 测试 `backend/tests/test_prd04_reschedule_notify_v1.py`（**新增 11 case**）—— `_send_wechat_work_alert` 4 个分支（无 webhook / 显式 webhook 含手机号脱敏 / HTTP 500 / errcode≠0）+ `notify_order_rescheduled` 全失败时**确实调用告警一次**（含 PRD §2.8 全部六个字段断言）+ 任一通道成功**不**触发告警 + 告警自身异常不阻塞主流程 + `to_dict()` 字段输出 + 短/空手机号边界不崩，**`pytest --noconftest` 模式 29/29 PASS in 1.08s**（PRD-04 11 + 历史 18 全 PASS）；⑥ 部署 `deploy/_deploy_prd04_reschedule_notify_20260505.py` paramiko SFTP 上传 4 文件 → `docker compose build backend h5-web` → `up -d` → 容器内 `pip install pytest pytest-asyncio aiosqlite httpx` → `pytest tests/test_prd04_reschedule_notify_v1.py tests/test_reschedule_notification_v1.py -v --noconftest` → 8 URL 健康 200/200/200/200/200/200/401/401。**多端打包**：`git diff --stat -- miniprogram/ flutter_app/ verify-miniprogram/` 全部为空，本期**无任何客户端二进制变更**，仅 backend + h5-web 通过 Docker 部署即生效，跳过小程序 zip / APK / IPA / exe 打包。
+
+### 涉及文件（5 个）
+
+**Backend — 服务层增量**：
+- `backend/app/services/reschedule_notification.py`（**改动**，新增 `_send_wechat_work_alert` ~80 行 + `notify_order_rescheduled` 内联调用 + `to_dict()` 输出 `wechat_work_alert` 字段 + `Notification.extra_data` 追加 `wechat_work_alert` 子键）：① `_send_wechat_work_alert` 优先读 `webhook_url` 显式参数，否则读 `WECHAT_WORK_ALERT_WEBHOOK` 环境变量；缺失即 `ok=False, detail="企业微信告警 webhook 未配置..."`；手机号 ≥7 位时 `phone[:3] + "****" + phone[-4:]` 脱敏；告警内容含 PRD §2.8 全六字段（订单号/客户姓名/客户手机号脱敏/原时段/新时段/门店名）+ 失败明细前 200 字符；timeout=10s；status_code≠200 → 带原始响应文本前 120 字符；errcode≠0 → 带 errcode/errmsg；任何异常 logger.warning 后返回 `ok=False`。② `notify_order_rescheduled` 在 `result.all_failed=True` 分支：调用 `_send_wechat_work_alert` 一次，赋值 `result.alert = alert_res`，把 `alert_dict={ok,detail}` 写入 `Notification.extra_data["wechat_work_alert"]`，外层 try/except 防御性吞异常确保不阻塞主流程；`result.all_failed=False` 分支不调用告警。③ `to_dict()` 检测 `getattr(self, "alert", None)`，存在则在返回字典插入 `wechat_work_alert: {ok, detail}`。④ 调整内部顺序：先告警 → 再写 Notification（这样 `extra_data` 能携带告警结果，供商家详情页回查）。
+
+**Backend — 商家 API 增量**：
+- `backend/app/api/merchant.py:merchant_get_order_detail`（**改动**，在返回值前插入 ~40 行通知状态查询 + 末尾返回字段新增 2 个）：从 `Notification` 表 `event_type='order_rescheduled'` + `order_id=uo.id` 按 `created_at desc limit 1` 取最新一条；解析 `extra_data` 中 `notify_status` / `channels` / `wechat_work_alert`；映射 `last_reschedule_notify_status: 'none' | 'ok' | 'all_failed'`；提供商家友好文案 `display: "通知发送异常，请联系客户" / "已通知" / "无改期通知"`；任何异常 logger.warning 后视作 `none`，不阻塞详情接口。
+
+**H5 商家手机端 — 详情页通知状态卡片**：
+- `h5-web/src/app/merchant/m/orders/[id]/page.tsx`（**改动**，新增 `RescheduleNotifyChannel` / `RescheduleNotifyDetail` interface + `OrderDetail` 追加 2 个可选字段 + 在 Action buttons 之前插入通知状态卡片 ~55 行）：仅当 `last_reschedule_notify` 非空且 `last_reschedule_notify_status !== 'none'` 时渲染；红色背景（`#fff1f0`）/ 绿色背景（`#f6ffed`）二态切换；通道名映射：`wechat_subscribe → 微信订阅消息 / app_push → APP push / sms → 短信`；逐通道 ✓ 成功 / ✗ 失败 + detail 括号备注；展示通知时间；红色异常时附「⚠ 三通道全部失败，运营已收到企业微信告警，请人工电话联系客户兜底」红字提示。
+
+**Backend 测试 — 新增**：
+- `backend/tests/test_prd04_reschedule_notify_v1.py`（**新增**，~330 行 / 11 case）：① `test_wechat_work_alert_no_webhook`（环境变量 + 参数都缺失 → ok=False, "未配置"）② `test_wechat_work_alert_explicit_webhook_phone_masked`（mock httpx.AsyncClient → 验证 url/payload 含订单号、姓名、脱敏手机号、原新时段、门店名；手机号 13987654321 必须变 139****4321）③ `test_wechat_work_alert_http_error_returns_ok_false`（status_code=500 → ok=False, "HTTP 500"）④ `test_wechat_work_alert_errcode_nonzero_returns_ok_false`（errcode=93000 → ok=False, "errcode=93000"）⑤ `test_all_failed_triggers_wechat_work_alert`（**核心**：mock `_send_wechat_work_alert` AsyncMock，删全部凭证环境变量 → 三通道全失败 → 验证 alert.await_count==1 + kwargs 含全六字段 + to_dict 含 wechat_work_alert + Notification.extra_data["wechat_work_alert"]["ok"]==True）⑥ `test_partial_success_does_NOT_trigger_alert`（mock `_send_sms` 返回 ok=True → 任一成功 → 验证 alert.await_count==0 + to_dict 不含 wechat_work_alert）⑦ `test_all_failed_alert_exception_is_swallowed`（mock 告警函数抛异常 → 主流程仍返回 result.all_failed=True）⑧ `test_to_dict_no_alert_when_no_failure` / `test_to_dict_includes_alert_when_attached` ⑨ `test_alert_short_phone_no_mask_crash` / `test_alert_empty_phone_no_crash`（边界数据）。
+
+**部署辅助**：
+- `deploy/_deploy_prd04_reschedule_notify_20260505.py`（**新增**）：paramiko SFTP 上传 4 文件 → `docker compose build backend h5-web` → `up -d` → 容器内 `pip install pytest pytest-asyncio aiosqlite httpx` → `pytest tests/test_prd04_reschedule_notify_v1.py tests/test_reschedule_notification_v1.py -v --noconftest -p no:cacheprovider` → 8 URL 健康检查 curl。
+
+**用户手册**：
+- `user_docs/改期通知三通道_PRD-04_v1.0_20260505_202600.md`（**新增**）：开头 + 末尾访问链接 ×2 + 功能简介（6 大特性）+ 顾客 / 商家 / 运营三角色使用说明 + 通知文案模板 + 接口返回示例（`any_ok` / `all_failed` / `wechat_work_alert`）+ 异常处理矩阵（7 类）+ 自动化测试结果（29/29 PASS）+ 部署 8 URL 健康检查 + 注意事项 10 条 + FAQ 5 个。
+
+### 关键验收（部署后实测）
+- ✅ 容器内 `pytest --noconftest` **29 / 29 PASS in 1.08s**（PRD-04 新增 11 + 历史 reschedule_notification 18 全 PASS）。
+- ✅ 8 个核心 URL 健康检查（H5/Admin/calendar/m/api 全 200，受保护接口 401 鉴权）。
+- ✅ `_send_wechat_work_alert` 单元测试覆盖：未配置 / 显式 webhook + 手机号脱敏 / HTTP 500 / errcode≠0 全分支。
+- ✅ `notify_order_rescheduled` 单元测试覆盖：全失败必触发告警 / 部分成功不触发 / 告警异常不阻塞 / to_dict 字段输出 / 边界手机号不崩。
+- ✅ Notification.extra_data 在 all_failed 时持久化 `wechat_work_alert: {ok, detail}`，供商家详情页 API 回查。
+- ✅ 商家 H5 手机端订单详情页（`/merchant/m/orders/{id}/`）已就位，可在浏览器直接展示通知状态卡片。
+
+### 设计要点
+- **凭证全部从环境变量读，不写死**：`WECHAT_WORK_ALERT_WEBHOOK` / `WECHAT_MINI_APP_ID` / `WECHAT_MINI_APP_SECRET` / `WECHAT_RESCHEDULE_TEMPLATE_ID` / `APP_PUSH_PROVIDER` / `JPUSH_APP_KEY` / `JPUSH_MASTER_SECRET` / `RESCHEDULE_SMS_TEMPLATE_ID` / `NOTIFY_BRAND_NAME`。任一缺失对应通道返回 `ok=False, detail="未配置"`，不抛异常、不阻塞改期主流程。
+- **告警隐私保护**：客户手机号在告警群里中间 4 位用 `****` 替换，避免在群聊里完全暴露隐私（PRD §2.8 隐含要求 + 内部合规）。
+- **告警触发顺序**：先调用告警 → 再写 Notification。这样 `extra_data["wechat_work_alert"]` 能携带告警结果，商家详情页回查时一并展示「告警已发送 / 告警发送失败」状态，供店长决策是否还需要主动电话联系。
+- **保护性 try/except 三层防护**：`_send_wechat_work_alert` 内部全 try → `notify_order_rescheduled` 调用告警的 try/except → `unified_orders.set_order_appointment` 调用 `notify_order_rescheduled` 的 try/except。任一层异常都不会阻塞改期主流程，确保订单时间已写入数据库后接口必然 200 返回。
+- **沿用现有架构**：本期完全沿用 PRD-04 早期阶段已实现的 `reschedule_notification.py` 三通道架构、`notify_order_rescheduled` 编排器、`Notification` 表写入红点、`notify_result` 接口字段，仅新增告警函数 + 商家详情字段，不改动改期接口签名 / 改期校验链路 / 三通道并行 gather 顺序。
+
+### 涉及模块未变
+- 改期接口 `set_order_appointment`（`unified_orders.py`）：完全沿用，仅享受 `notify_order_rescheduled` 返回值的告警结果增量。
+- PRD-03 客户端改期能力（角色 = user only / 明天起 90 天 / 宽松校验 / 改期上限 3 / 商品级 allow_reschedule）：完全沿用。
+- PRD-05 核销动作收口手机端（PC pc-web 拒绝 / 移动端 h5-mobile + verify-miniprogram 放行）：完全沿用。
+- 微信小程序 / Flutter APP / 核销小程序 / Admin Web：本期均无源码改动。
+
+---
+
+## Previous Update: PRD-03 客户端改期能力收口最终交付与下载链路修复（2026-05-05 20:13）
 
 ### 一句话结论
 按 `cursor_prompt_345_20260505200538.txt` 重新走 develop-all 流程对 PRD-03「客户端改期能力收口 v1.0」做**最终交付**：① 阶段 0~3 服务器侧 pytest **112/112 PASS**（PRD-03 27 case + PRD-02 41 case + PRD-01 time_slots_unified 44 case = 1.32s 全 PASS），后端 commit `49c39a9` 早已部署生效，无需任何代码改动；② 阶段 4 git diff 检测自 `49c39a9` 以后小程序 / 安卓 / iOS / H5 均**无新增源码改动**，跳过重打包；③ **关键修复**——发现 gateway 容器 nginx 配置缺少 `/miniprogram/`、`/apk/`、`/downloads/`、`/ipa/`、`/verify-miniprogram/` 五条静态下载 location（既往 PRD-03 上传到 `/home/ubuntu/<id>/static/` 的产物全部 404），通过 `deploy/_fix_gateway_static_355.py` 在 `/home/ubuntu/gateway/conf.d/<id>.conf` 的 H5 location 之前批量插入 5 条 location（alias 指向容器内 `/data/static/...`，对应宿主机 `/home/ubuntu/<id>/static/`），`docker exec gateway nginx -t` 通过、`nginx -s reload` 完成，PRD-03 小程序 zip + APK + PRD-05 核销小程序 zip 全部本机 + 远端实测 HTTP 200；④ 阶段 5 生成最终交付版用户体验手册 `user_docs/客户端改期能力收口_PRD-03_v1.0_最终交付_20260505_201300.md`，含开头 / 末尾访问链接×2 + 功能简介 + 本次客户端变更（H5 用户端 / H5 商家端 / 微信小程序 / Flutter APP 4 行）+ APP 端打包说明（如实告知 token 失效、强调后端规则兜底）+ 顾客端 / 商家端 / 客服三角色使用说明 + 微信小程序 / 安卓 / iOS 各端体验步骤 + 9 行注意事项 + 自动化测试结果（112/112 PASS）+ 部署链路验证（8 项）；⑤ 阶段 6 同步本索引；⑥ 阶段 7 提交手册 + 索引 + 5 个 nginx / 验证脚本到 git。**核心契约保护**：手册中明确告知 APP 二进制版本未含本次完整 UI 强化，但所有 PRD-03 后端规则（角色 = user only / 明天起 90 天 / 宽松校验 / 改期上限 3 / 商品级 allow_reschedule）由服务器端 `set_order_appointment` 拦截兜底，旧 APK 用户改期功能不缺失。

@@ -1,4 +1,4 @@
-"""[门店预约看板与改期能力升级 v1.0 · F-11] 改期通知三通道并行下发服务。
+"""[PRD-04 改期通知三通道 v1.0] 改期通知三通道并行下发 + 企业微信告警。
 
 设计目标
 ========
@@ -8,7 +8,9 @@
    - 短信（复用 app.services.sms_service）
 2. **任一通道失败不阻塞其他通道**（asyncio.gather + return_exceptions=True）
 3. **凭证全部从配置中心读取**（环境变量或 NotificationConfig 表），不写死代码
-4. **三通道全部失败**时，写入 Notification 表的 extra_data.notify_status="all_failed"
+4. **三通道全部失败**时：
+   - 写入 Notification 表的 extra_data.notify_status="all_failed"
+   - **触发企业微信群机器人 webhook 告警**（PRD-04 §F-04-6 / §2.8）
 5. **单元测试友好**：所有外部 IO 都通过 `_send_*` 私有方法封装，方便 monkeypatch
 
 通知文案模板（三通道统一）
@@ -114,13 +116,24 @@ class RescheduleNotifyResult:
         return bool(self.channels) and all(not c.ok for c in self.channels)
 
     def to_dict(self) -> dict:
-        return {
+        d: dict = {
             "channels": [
                 {"name": c.name, "ok": c.ok, "detail": c.detail} for c in self.channels
             ],
             "any_ok": self.any_ok,
             "all_failed": self.all_failed,
         }
+        # PRD-04 §F-04-6：三通道全失败时，挂载企业微信告警结果（其他场景不挂载）
+        alert = getattr(self, "alert", None)
+        if alert is not None:
+            try:
+                d["wechat_work_alert"] = {
+                    "ok": bool(getattr(alert, "ok", False)),
+                    "detail": str(getattr(alert, "detail", "")),
+                }
+            except Exception:  # noqa: BLE001
+                pass
+        return d
 
 
 # ── 通道一：微信小程序订阅消息 ──
@@ -316,6 +329,90 @@ async def _send_sms(
         return ChannelResult(name=name, ok=False, detail=f"异常: {e}")
 
 
+# ─────────── 企业微信告警（PRD-04 §F-04-6 / §2.8） ───────────
+
+
+async def _send_wechat_work_alert(
+    *,
+    order_no: str,
+    user_name: str,
+    user_phone: str,
+    old_text: str,
+    new_text: str,
+    store_name: str,
+    failure_detail: str = "",
+    webhook_url: Optional[str] = None,
+) -> ChannelResult:
+    """三通道全部失败时，发送企业微信群机器人告警。
+
+    凭证读取顺序：
+      1) 显式传入 webhook_url
+      2) 环境变量 WECHAT_WORK_ALERT_WEBHOOK
+    缺失则返回 ok=False, detail=未配置（不抛异常）。
+
+    告警内容（PRD §2.8）：
+      订单号 / 客户姓名 / 客户手机号 / 原时段 / 新时段 / 门店名
+    """
+    name = "wechat_work_alert"
+    try:
+        url = (webhook_url or os.getenv("WECHAT_WORK_ALERT_WEBHOOK", "")).strip()
+        if not url:
+            return ChannelResult(
+                name=name,
+                ok=False,
+                detail="企业微信告警 webhook 未配置（WECHAT_WORK_ALERT_WEBHOOK），跳过",
+            )
+
+        try:
+            import httpx
+        except ImportError:
+            return ChannelResult(name=name, ok=False, detail="httpx 未安装")
+
+        # 隐藏手机号中间四位，避免在群聊里完全暴露
+        phone_masked = user_phone or "无"
+        if user_phone and len(user_phone) >= 7:
+            phone_masked = f"{user_phone[:3]}****{user_phone[-4:]}"
+
+        text_body = (
+            "⚠️ 改期通知三通道全部失败，请人工电话联系客户兜底\n"
+            f"订单号：{order_no or '未知'}\n"
+            f"客户姓名：{user_name or '未知'}\n"
+            f"客户手机号：{phone_masked}\n"
+            f"原预约时段：{old_text}\n"
+            f"新预约时段：{new_text}\n"
+            f"门店：{store_name or '未知'}\n"
+            f"失败明细：{failure_detail[:200] if failure_detail else '见日志'}"
+        )
+
+        payload = {
+            "msgtype": "text",
+            "text": {"content": text_body},
+        }
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.post(url, json=payload)
+            if r.status_code != 200:
+                return ChannelResult(
+                    name=name,
+                    ok=False,
+                    detail=f"企业微信告警 HTTP {r.status_code}: {r.text[:120]}",
+                )
+            try:
+                body = r.json()
+            except Exception:  # noqa: BLE001
+                body = {}
+            errcode = body.get("errcode", -1) if isinstance(body, dict) else -1
+            if errcode == 0:
+                return ChannelResult(name=name, ok=True, detail="企业微信告警已发送")
+            return ChannelResult(
+                name=name,
+                ok=False,
+                detail=f"企业微信告警 errcode={errcode} {body.get('errmsg', '') if isinstance(body, dict) else ''}",
+            )
+    except Exception as e:  # noqa: BLE001
+        logger.warning("wechat work alert failed: %s", e)
+        return ChannelResult(name=name, ok=False, detail=f"异常: {e}")
+
+
 # ─────────── 编排入口 ───────────
 
 
@@ -393,7 +490,53 @@ async def notify_order_rescheduled(
                     ChannelResult(name="unknown", ok=False, detail=f"异常: {item}")
                 )
 
-        # 写入站内 Notification 记录（红点） ────────────────────
+        # 全部失败时触发企业微信群机器人告警（PRD-04 §F-04-6 / §2.8） ──
+        alert_dict: Optional[dict] = None
+        if result.all_failed:
+            logger.error(
+                "[PRD-04] 改期通知三通道全部失败 order_id=%s order_no=%s details=%s",
+                getattr(order, "id", None),
+                getattr(order, "order_no", None),
+                result.to_dict(),
+            )
+            try:
+                user_name = (
+                    getattr(user, "real_name", None)
+                    or getattr(user, "nickname", None)
+                    or getattr(user, "username", None)
+                    or ""
+                ) if user else ""
+                failure_detail = "; ".join(
+                    f"{c.name}={c.detail}" for c in result.channels if not c.ok
+                )
+                alert_res = await _send_wechat_work_alert(
+                    order_no=getattr(order, "order_no", "") or "",
+                    user_name=str(user_name),
+                    user_phone=str(phone or ""),
+                    old_text=old_text,
+                    new_text=new_text,
+                    store_name=store_name,
+                    failure_detail=failure_detail,
+                )
+                # 告警结果挂到 result 上（不计入 channels），便于上层观测
+                result.alert = alert_res  # type: ignore[attr-defined]
+                alert_dict = {"ok": alert_res.ok, "detail": alert_res.detail}
+                logger.warning(
+                    "[PRD-04] 企业微信告警结果 order_id=%s ok=%s detail=%s",
+                    getattr(order, "id", None),
+                    alert_res.ok,
+                    alert_res.detail,
+                )
+            except Exception as _e:  # noqa: BLE001
+                logger.warning("企业微信告警调度异常（已忽略）：%s", _e)
+        else:
+            logger.info(
+                "[PRD-04] 改期通知下发完毕 order_id=%s 结果=%s",
+                getattr(order, "id", None),
+                result.to_dict(),
+            )
+
+        # 写入站内 Notification 记录（红点 + 商家详情页通知状态来源） ────────
         try:
             from app.models.models import Notification, NotificationType
 
@@ -409,6 +552,8 @@ async def notify_order_rescheduled(
                 "notify_status": "all_failed" if result.all_failed else "ok",
                 "channels": result.to_dict()["channels"],
             }
+            if alert_dict is not None:
+                extra["wechat_work_alert"] = alert_dict
             n = Notification(
                 user_id=user_id,
                 order_id=int(getattr(order, "id", 0) or 0),
@@ -423,21 +568,6 @@ async def notify_order_rescheduled(
             await db.flush()
         except Exception as e:  # noqa: BLE001
             logger.warning("notification write failed for order_rescheduled: %s", e)
-
-        # 全部失败时打告警日志（PRD F-11：触发企业微信告警，本期先记日志） ──
-        if result.all_failed:
-            logger.error(
-                "[F-11] 改期通知三通道全部失败 order_id=%s order_no=%s details=%s",
-                getattr(order, "id", None),
-                getattr(order, "order_no", None),
-                result.to_dict(),
-            )
-        else:
-            logger.info(
-                "[F-11] 改期通知下发完毕 order_id=%s 结果=%s",
-                getattr(order, "id", None),
-                result.to_dict(),
-            )
 
     except Exception as e:  # noqa: BLE001
         logger.exception("notify_order_rescheduled fatal: %s", e)
