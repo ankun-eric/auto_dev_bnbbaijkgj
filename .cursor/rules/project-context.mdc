@@ -33,7 +33,37 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: PRD-04 改期通知三通道 v1.0 收尾（2026-05-05 20:26）
+## Latest Update: PRD｜门店管理列表 - 固定列优化 v1.0（2026-05-05 23:45）
+
+### 一句话结论
+按 `cursor_prompt_361_20260505233409.txt` PRD「管理后台 - 门店管理列表 - 固定列优化 v1.0」走 develop-all 流程：① 仅修改 `admin-web/src/app/(admin)/merchant/stores/page.tsx` 1 个文件，在 AntD `<Table>` 的列配置中给「门店名称」追加 `fixed: 'left' as const`、给「状态」「操作」追加 `fixed: 'right' as const`，保留原有 `scroll: { x: 1400 }` 兜底；② 本地 `tsc --noEmit` 在该文件未产生任何新错误，其余仓库存量错误与本次无关；③ 推送 commit `4e20c17` → 服务器 git fetch（首次 60s 超时，第 2 次重试成功）→ `git reset --hard origin/master` → `grep` 在服务器 `page.tsx` 第 342/370/380 行确认 `fixed: 'left' as const` / `fixed: 'right' as const` 三处全部就位 → `docker compose build --no-cache admin-web`（107.8s）→ `up -d admin-web` 容器 Up，gateway nginx -s reload；④ HTTP 验证：`/admin/` 200、`/admin/merchant/stores/` 200、`/api/openapi.json` 200，SSR HTML 含 `_next/static/css/...` 与 admin chunks，Next.js 14.2.15 Ready；⑤ git diff 检测：本次仅 admin-web 一个 .tsx 文件改动，h5-web / backend / flutter_app / miniprogram / verify-miniprogram / windows / macos / cli 等所有其他终端**均无源码变更**，按变更必打包原则跳过所有客户端打包；⑥ 用户手册 `user_docs/门店管理列表-固定列优化.md` 含开头 + 末尾访问链接 ×2、固定列效果说明、6 个验收用例对照表、注意事项 4 条、技术细节、强制刷新提示。**核心特性**：中小屏（1366×768）横向滚动时门店名称固左 + 状态/操作固右始终可见，AntD 内置阴影分隔自动出现/消失，大屏无横滚时阴影隐藏；不改字段、不改接口、不改数据，纯前端表格列配置最小化改造；回滚成本零（去掉新增 `fixed:` 三处属性即可）。
+
+### 涉及文件（1 个）
+- `admin-web/src/app/(admin)/merchant/stores/page.tsx`（**改动**，4 行 / 1 个 .tsx 文件）：① 「门店名称」列追加 `fixed: 'left' as const`；② 「状态」列追加 `fixed: 'right' as const`；③ 「操作」列追加 `fixed: 'right' as const`；④ 表格上方注释新增「[2026-05-05 PRD｜门店管理列表 - 固定列优化 v1.0]」说明块。`as const` 用于规避 strict TS 推断 `'left'/'right'` 为 string 不能赋给 AntD ColumnsType `fixed: 'left'|'right'|boolean` 的问题。
+
+### 关键验收（部署后实测）
+- ✅ 服务器 HEAD 命中本次 commit `4e20c17 feat(admin-web): 门店管理列表固定列优化`。
+- ✅ 服务器 `page.tsx` 包含 `fixed: 'left' as const`（行 342）+ `fixed: 'right' as const` ×2（行 370 / 380）。
+- ✅ admin-web 镜像 `--no-cache` 重建成功（Next.js build 107.8s + image push 1.9s）。
+- ✅ admin 容器 Recreate → Up，Next.js Ready in 111ms，无异常日志。
+- ✅ HTTP 全绿：`/admin/`=200、`/admin/merchant/stores/`=200、`/api/openapi.json`=200。
+- ✅ SSR HTML 正常返回管理后台外壳，由客户端水合后 AntD Table 渲染固定列。
+
+### 设计要点
+- **最小化改造**：本次 PRD 显式要求"仅改造 1 个页面文件 + 仅修改 Table 列配置 + 不新增任何依赖、不新建任何组件、不改任何后端接口"。改动严格遵循 PRD §3.3「文件影响范围」规定。
+- **AntD 内置能力**：阴影分隔、边缘自动隐藏、大屏无副作用全由 `antd@5` Table 组件原生实现，不写 CSS、不挂监听器、不引入第三方依赖。
+- **strict 模式 TS 兼容**：因 admin-web 启用 `strict: true`，inline 字面量 `'left'/'right'` 默认会被推断为 `string` 而非字面量类型，需用 `as const` 显式收窄，否则编译报错。
+- **回滚零成本**：去掉新增的 `fixed: 'left' as const` 与两处 `fixed: 'right' as const` 即可恢复原状，对外不可感知。
+
+### 涉及模块未变
+- 后端 `backend/`：完全未触碰，无 API / Schema / 数据模型 / 迁移变更。
+- H5 用户端 `h5-web/`、商家手机端 `h5-web/src/app/merchant/m/`：完全未触碰。
+- 客户端：`flutter_app/`、`miniprogram/`、`verify-miniprogram/` 均未触碰，**本期无任何客户端二进制变更**，跳过所有客户端打包。
+- 管理后台其他列表页（商家分类 / 商家账号 / 营业配置 / 订单管理 等）：本次完全隔离，未受影响（PRD §4 验收用例 6 范围隔离要求）。
+
+---
+
+## Previous Update: PRD-04 改期通知三通道 v1.0 收尾（2026-05-05 20:26）
 
 ### 一句话结论
 按 `cursor_prompt_346_20260505201816.txt` PRD-04「改期通知三通道（小程序订阅 + APP push + 短信）v1.0」**对早前已落地的核心三通道并行下发服务做最终收尾**：① 探索阶段确认 `backend/app/services/reschedule_notification.py` 三通道编排器（微信订阅 / APP push / 短信）+ `notify_order_rescheduled` 改期接口接入 + `notify_result` 字段返回 + `Notification` 写入红点 + 短信失败重试 1 次 + 单元测试套件 `test_reschedule_notification_v1.py` (18 case) **早已完成**；② **本次实质增量 = F-04-6 企业微信群机器人告警 + F-04-5 商家订单详情页通知状态展示**：在 `reschedule_notification.py` 新增 `_send_wechat_work_alert(order_no, user_name, user_phone, old_text, new_text, store_name, failure_detail, webhook_url=None)` 函数（`WECHAT_WORK_ALERT_WEBHOOK` 环境变量 / 显式参数二选一 + 手机号中间四位 `***` 脱敏 + httpx POST + errcode==0 → ok=True / 否则带原始 errcode/errmsg），`notify_order_rescheduled` 在 `result.all_failed=True` 分支调用一次告警函数（`asyncio` 中保护性 try/except 不阻塞主流程），`result.alert` 挂载告警结果，`to_dict()` 在 `all_failed=True` 时输出 `wechat_work_alert: {ok, detail}` 字段，`Notification.extra_data` 追加 `wechat_work_alert` 子键便于商家详情页回查；③ `backend/app/api/merchant.py:merchant_get_order_detail` 在返回值末尾追加 `last_reschedule_notify_status: 'none' / 'ok' / 'all_failed'` + `last_reschedule_notify: {status, display, channels[], created_at, wechat_work_alert}`，从 `Notification` 表按 `event_type='order_rescheduled'` 取**最新一条**改期通知的 `extra_data` 解析；④ `h5-web/src/app/merchant/m/orders/[id]/page.tsx` 在订单基本信息卡片下方新增独立通知状态卡片（绿色 ✓「已通知」/ 红色 ⚠️「通知发送异常，请联系客户」+ 三通道逐行 ✓ 成功 / ✗ 失败 + detail 摘要 + 通知时间 + 红色异常时附「运营已收到企微告警」提示）；⑤ 测试 `backend/tests/test_prd04_reschedule_notify_v1.py`（**新增 11 case**）—— `_send_wechat_work_alert` 4 个分支（无 webhook / 显式 webhook 含手机号脱敏 / HTTP 500 / errcode≠0）+ `notify_order_rescheduled` 全失败时**确实调用告警一次**（含 PRD §2.8 全部六个字段断言）+ 任一通道成功**不**触发告警 + 告警自身异常不阻塞主流程 + `to_dict()` 字段输出 + 短/空手机号边界不崩，**`pytest --noconftest` 模式 29/29 PASS in 1.08s**（PRD-04 11 + 历史 18 全 PASS）；⑥ 部署 `deploy/_deploy_prd04_reschedule_notify_20260505.py` paramiko SFTP 上传 4 文件 → `docker compose build backend h5-web` → `up -d` → 容器内 `pip install pytest pytest-asyncio aiosqlite httpx` → `pytest tests/test_prd04_reschedule_notify_v1.py tests/test_reschedule_notification_v1.py -v --noconftest` → 8 URL 健康 200/200/200/200/200/200/401/401。**多端打包**：`git diff --stat -- miniprogram/ flutter_app/ verify-miniprogram/` 全部为空，本期**无任何客户端二进制变更**，仅 backend + h5-web 通过 Docker 部署即生效，跳过小程序 zip / APK / IPA / exe 打包。
