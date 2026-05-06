@@ -1610,6 +1610,19 @@ async def _advance_status_after_payment(order: UnifiedOrder, db: AsyncSession) -
     else:
         order.status = UnifiedOrderStatus.pending_use
 
+    # [PRD-365 商家后台「预约看板」替换升级 v1.0]
+    # 订单进入「待核销」状态时（即支付成功的瞬间），向门店下绑定微信的
+    # 商家员工即时推送「新预约提醒」微信模板消息。任何异常吞掉不影响主流程。
+    try:
+        if order.status == UnifiedOrderStatus.pending_use:
+            from app.services.merchant_new_appointment_notify import notify_merchant_new_appointment
+            await notify_merchant_new_appointment(db, order=order)
+    except Exception as _notify_exc:  # noqa: BLE001
+        logger.warning(
+            "notify_merchant_new_appointment failed: order_no=%s err=%s",
+            getattr(order, "order_no", None), _notify_exc,
+        )
+
 
 def _build_sandbox_pay_url(order_no: str, channel_code: str) -> Optional[str]:
     """[支付宝 H5 正式接入 v1.0 · 已废弃 deprecated]
@@ -2091,6 +2104,16 @@ async def set_order_appointment(
         except Exception as _e:  # noqa: BLE001
             import logging as _l
             _l.getLogger(__name__).warning("notify_order_rescheduled 调度失败: %s", _e)
+    else:
+        # [PRD-365 商家后台「预约看板」替换升级 v1.0]
+        # 首次填预约时间（pending_appointment → pending_use）= 真正"新预约"完成，
+        # 推送商家端新预约提醒。改期场景已由上方 reschedule notify 覆盖，避免重复。
+        try:
+            from app.services.merchant_new_appointment_notify import notify_merchant_new_appointment
+            await notify_merchant_new_appointment(db, order=order)
+        except Exception as _e:  # noqa: BLE001
+            import logging as _l
+            _l.getLogger(__name__).warning("notify_merchant_new_appointment 调度失败: %s", _e)
 
     return {
         "message": "预约已确认",

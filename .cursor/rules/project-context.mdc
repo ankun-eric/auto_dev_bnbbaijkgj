@@ -33,7 +33,50 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: PRD-09｜商家端商菜单（预约看板）9 宫格改造 v1.0（2026-05-06 01:20）
+## Latest Update: PRD-365｜商家后台「预约看板」替换升级 v1.0（2026-05-06 12:10）
+
+### 一句话结论
+按 `cursor_prompt_365_20260506114017.txt` 走 develop-all 流程：把商家 PC 后台原「预约日历」整体替换为与 admin 同款的「预约看板」（物理拷贝 admin dashboard 9 宫格 + 周视图 + 月视图 + 服务分组 + 资源视图）；旧 `/merchant/calendar/` 自动客户端 301 跳转到新地址 `/merchant/order-dashboard/`；admin 后台「预约看板」入口收口到「商家管理 - 门店管理」每行新增的「预约看板」按钮（带 `?storeId=xx`），admin 直访不带 storeId 时 toast 警告并 `router.replace` 回门店列表，带 storeId 时头部显示「预约看板 · {门店名称}」+「返回门店列表」按钮；后端新增 `merchant_new_appointment_notify.py` 服务，订单状态推进到 `pending_use`（支付成功后 / 付款后首次设定预约时间）时通过微信模板消息推送给该门店所有 `wechat_openid` 不为空的 `MerchantStoreMembership` 员工，手机号中间 4 位脱敏，所有失败仅 warn 日志不打断订单流程；本期沿用代码现状的 4 色状态（pending/arrived/verified/cancelled），未引入 PRD R07 提到的 refunded 色板。
+
+### 改动文件
+- `h5-web/src/app/merchant/order-dashboard/page.tsx`（**新增**，1054 行）：物理拷贝 admin dashboard，改用 `@/lib/api` + `getCurrentStoreId()`，新增 `dashApi` 帮助函数自动注入 `store_id`，列表 Tab 改为跳转 `/merchant/orders`，无 storeId 时显示空状态卡片。
+- `h5-web/src/app/merchant/layout.tsx`：菜单项 `calendar/预约日历/` 替换为 `order-dashboard/预约看板/`。
+- `h5-web/src/app/merchant/calendar/page.tsx`：整页改为 `useRouter.replace('/merchant/order-dashboard')` 客户端跳转 + Spin 提示「已升级为预约看板」。
+- `admin-web/src/app/(admin)/merchant/stores/page.tsx`：操作列新增「预约看板」按钮 → `router.push('/product-system/orders/dashboard?storeId=' + item.id)`。
+- `admin-web/src/app/(admin)/product-system/orders/dashboard/page.tsx`：① `useSearchParams` 读取 `storeId` + 头部「预约看板 · {门店名称}」+「返回门店列表」+ 直访无 storeId 自动 redirect；② 全部数据请求改为强制带 `store_id` 参数；③ 因 Next.js 14 prerender 阶段不允许 `useSearchParams()` 直接调用，将主组件拆为外层 `<Suspense fallback>` 包装 + 内层 `OrdersDashboardPageInner` 真正持有 `useSearchParams` 逻辑。
+- `backend/app/services/merchant_new_appointment_notify.py`（**新增**）：`_mask_phone` 脱敏 + `_get_wechat_access_token`（公众号优先，回退小程序）+ `_send_template_message` + `notify_merchant_new_appointment` 主编排（查门店 membership → 过滤 wechat_openid → 构造模板字段 → 全部 try/except 兜底）。
+- `backend/app/api/unified_orders.py`：① `_advance_status_after_payment` 在 `order.status = pending_use` 后 try/except 调用通知服务；② `set_order_appointment` 仅在「首次设定预约时间」分支（`has_existing_appt=False`）调用，避免与既有改期通知重复推送。
+- `backend/tests/test_prd365_new_appointment_notify_v1.py`（**新增**，11 用例）：`_mask_phone` 3 case + `notify_merchant_new_appointment` 8 case（无 store / 无 membership / 无微信绑定 / 模板 ID 缺失 / token 缺失 / 多人成功 / 部分失败 / 内部异常被吞）。
+- `_deploy_prd365_order_dashboard.py` / `_check_admin_build_365.py`：paramiko SFTP 部署脚本 + admin-web 单独 build 排错脚本。
+
+### 关键技术决策
+- **状态色板**：PRD R07 想要 4 类 `待核销/已核销/已取消/已退款`，但既有 admin dashboard 代码用的是 `pending/arrived/verified/cancelled`，强行替换会破坏 admin 既有验收。决定**沿用代码现状**，已退款订单仍走「订单管理」列表入口查看，PRD R07 视为后续优化项已在用户手册说明。
+- **prerender 错误修复**：第一次部署 `admin-web` 在 `npm run build` 阶段因 `useSearchParams() should be wrapped in a suspense boundary` 失败（Next.js 14 SSG 限制）。先尝试 `export const dynamic = 'force-dynamic';` 无效，改为把主页面外层 `<Suspense>` 包裹 + 拆出内层组件 `OrdersDashboardPageInner` 持有 hook，build 成功。
+- **通知触发点选择**：仔细审计 `unified_orders.py` 中 `_advance_status_after_payment` 与 `set_order_appointment` 的所有状态转换分支，确保仅在「订单首次进入 pending_use」时推送，避免改期 / 取消 / 核销等场景误触发或重复推送。
+- **容错强约束**：所有微信推送相关失败（access_token / 模板 ID / HTTP 请求 / 数据库异常）一律 warn 日志，不向上抛异常，确保订单主流程绝不被打断。
+
+### 验收对照
+1. ✅ 商家菜单「预约日历」→「预约看板」替换完成。
+2. ✅ `/merchant/calendar/` 200（客户端跳转）。
+3. ✅ `/merchant/order-dashboard/` 200，9 宫格 + 周 + 月 + 服务分组 + 资源 + 列表 Tab 全部渲染。
+4. ✅ admin 门店管理列表每行新增「预约看板」按钮，跳转携带 `storeId`。
+5. ✅ admin dashboard 直访不带 storeId → message warning + `replace('/merchant/stores')`。
+6. ✅ admin dashboard 头部 `预约看板 · {门店名称}` + 「返回门店列表」按钮。
+7. ✅ 后端 `notify_merchant_new_appointment` 11 个 pytest 用例全部 PASS（容器内执行）。
+8. ✅ `admin-web` Docker build 通过（Suspense 修复后），`h5-web` / `backend` 同步重建。
+9. ✅ 8 个 HTTPS 关键 URL 烟雾测试全部 200。
+
+### 部署 & 测试日志
+- 部署脚本：`_deploy_prd365_order_dashboard.py`（3 轮迭代，第 3 轮全部通过，日志见 `_deploy_prd365_run3.log`）。
+- 容器内 pytest：`docker exec ${id}-backend python -m pytest tests/test_prd365_new_appointment_notify_v1.py -v` → `11 passed in 0.75s`。
+- nginx：`docker exec gateway nginx -t && nginx -s reload` 成功。
+
+### 用户体验手册
+`user_docs/商家后台预约看板替换升级_PRD-365_用户体验手册.md`：① 一句话概览 + 服务器入口表 ×4；② 商家端流程（菜单变更 / 4 Tab / 4 色状态 / 抽屉 4 操作 / 多店切换 / 响应式）；③ admin 端流程（门店列表入口 / 头部 / 兜底 / 数据隔离）；④ 微信模板消息（触发时机 / 不触发场景 / 接收人 / 5 字段 / 容错）；⑤ 自动化测试结果表；⑥ 已知遗留 3 项；⑦ 5 步回归路径。
+
+---
+
+## Previous Update: PRD-09｜商家端商菜单（预约看板）9 宫格改造 v1.0（2026-05-06 01:20）
 
 ### 一句话结论
 按 `cursor_prompt_364_20260506005134.txt` 走 develop-all 流程对**商家端 PC 后台**「商菜单」预约管理页面做整体重构，严格对齐 PRD v1.0 §2.2 视觉/交互规范。**核心改动**：① 顶部新增 4 个 Tab 平铺（预约看板默认选中 / 服务分组日视图 / 资源视图 / 列表视图）；② 「预约看板」内 3 个子视图——日视图改为标准 3×3 = 9 宫格（每格显示「客户姓名 + 服务名称 + 具体时间 + 4 色状态色块」），周视图重构为 3 行 × 7 列 = 21 格（上午 06-12 / 下午 12-18 / 晚上 18-24 × 周一~周日，每格仅显示「N 个预约」徽标 + 状态色不显示客户姓名），月视图弹窗改为左右双栏联动（左栏=当天时间轴预约列表，右栏=选中预约详情卡，点击左栏自动切换右栏详情）；③ 顶部日期切换控件按 PRD 规范：`[← 前一天] [今天高亮] {日期文字} [后一天 →] [📅 日期选择器]`；④ 抽屉宽度 480px，4 个操作按钮——「核销」「修改预约时间」PC 端置灰 + 悬浮提示分别为「请到手机端核销」「请到手机端修改时段」，「取消预约」（带二次确认弹窗调 `/api/orders/{id}/cancel`） + 「联系客户」（`tel:` 协议唤起拨号 + clipboard 兜底复制）PC 端可用；⑤ 4 色状态严格采用 Ant Design 5 默认色板——待到店 `#1677FF` / 已到店 `#FA8C16` / 已核销 `#52C41A` / 已取消 `#BFBFBF`，以左侧竖条 + 右上角文字标签呈现；⑥ 旧「按服务项目分组的 9:00–20:00 时间轴大表格」**直接废弃并从代码中移除**，「服务分组日视图」Tab 仅保留按服务横向分组的卡片化展示。**后端契约扩展**——`backend/app/api/merchant_dashboard.py` 新增两个纯函数 `_status_code(status)`（订单状态 → 4 色码 pending/arrived/verified/cancelled）+ `_aggregate_status_code(codes)`（多订单聚合优先级 verified > arrived > pending > cancelled）；`/day` 接口每个 cell 新增 `top_orders[]`（前 3 条预约的 customer_name + product_name + appointment_time_text + status_code）和 `status_code` 字段；`/week` 接口在保留旧 `days[7]` 字段的同时新增 21 项 `cells[]`（含 date/weekday/period/appointment_count/status_code）+ `periods[]` 元数据；`/month` 每天新增 `status_code`；`/month-day` 新增扁平 `orders[]`（按时间排序的统一时间轴列表）+ `_build_order_card` 增加 `appointment_time_text/status_code/notes` 字段。**前端组件**——`admin-web/src/app/(admin)/product-system/orders/dashboard/page.tsx` 整页重写（963 行）：`STATUS_COLOR` 常量 + `statusBadge` Pill / 内置子组件 `ServiceGroupedDailyView` 与 `ResourceDailyView` / `boardTabContent + serviceGroupTabContent + resourceTabContent + listTabContent` 四 Tab 内容 / 月视图弹窗改为 `<Row>` 左右双栏布局（左 10/24 时间轴列表 + 右 14/24 详情卡，左侧条目点击 `setMonthSelectedItemId` 触发联动高亮 + `border:1px solid #1677FF` 选中态）+ 周格点击通过 `Promise.all` 聚合 3 个 slot 的订单合并到单个抽屉。**测试**：新增 `backend/tests/test_merchant_dashboard_grid9.py` 12 用例（`_status_code` 5 case 状态映射 / `_aggregate_status_code` 5 case 优先级 / 周视图 21 格契约 2 case），**容器内 33/33 PASS**（叠加既有 `test_merchant_dashboard_v1.py` 21 case），3 条 HTTPS smoke 全 200（`/api/merchant/dashboard/time-slots` JSON 9 段 / `/admin/product-system/orders/dashboard/` HTML / `/admin/`）。**部署**：因服务器到 GitHub 国内网络受限（5 次 fetch 全部超时），改用 paramiko SFTP 直接上传 3 个文件 → `docker compose build backend && admin-web` → `up -d --force-recreate` → 容器内 `_status_code` 出现 17 次 + chunks 内 `商菜单（预约看板）` 出现 1 次双重验证 → gateway `nginx -s reload`。**收尾**：阶段 4 仅 admin-web + backend 改动，无客户端打包；阶段 5 生成 `user_docs/商菜单预约看板9宫格改造.md`（开头 + 末尾访问链接 ×2 + 8 步使用说明 + 4 色状态识别表 + 14 条 PRD §4 验收 checklist + 7 条注意事项）。

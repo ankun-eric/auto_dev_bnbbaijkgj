@@ -407,6 +407,15 @@ export default function MerchantStoresPage() {
                     {item.status === 'active' ? '停用' : '启用'}
                   </Button>
                 </Popconfirm>
+                {/* [PRD-365 商家后台「预约看板」替换升级 v1.0] 操作列最后追加文字按钮，跳转带 storeId */}
+                <Button
+                  type="link"
+                  size="small"
+                  style={{ padding: '0 4px' }}
+                  onClick={() => router.push(`/product-system/orders/dashboard?storeId=${item.id}`)}
+                >
+                  预约看板
+                </Button>
               </Space>
             ),
           },

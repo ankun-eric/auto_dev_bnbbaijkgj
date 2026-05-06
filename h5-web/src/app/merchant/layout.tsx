@@ -31,7 +31,8 @@ const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
 const allMenu = [
   { key: 'dashboard', path: '/merchant/dashboard', icon: <DashboardOutlined />, label: '工作台' },
   { key: 'orders', path: '/merchant/orders', icon: <ShoppingCartOutlined />, label: '订单管理' },
-  { key: 'calendar', path: '/merchant/calendar', icon: <CalendarOutlined />, label: '预约日历' },
+  // [PRD-365 商家后台「预约看板」替换升级 v1.0] 旧 calendar 菜单替换为新版预约看板
+  { key: 'order-dashboard', path: '/merchant/order-dashboard', icon: <CalendarOutlined />, label: '预约看板' },
   { key: 'verifications', path: '/merchant/verifications', icon: <ScanOutlined />, label: '核销记录' },
   { key: 'reports', path: '/merchant/reports', icon: <BarChartOutlined />, label: '报表分析' },
   { key: 'settlement', path: '/merchant/settlement', icon: <AccountBookOutlined />, label: '对账结算' },

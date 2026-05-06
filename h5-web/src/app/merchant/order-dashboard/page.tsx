@@ -1,38 +1,40 @@
 'use client';
 
 /**
- * [商家端「商菜单（预约看板）」9 宫格改造 v1.0]
+ * [PRD-365 商家后台「预约看板」替换升级 v1.0]
  *
- * 顶部 4 个 Tab 平铺：预约看板（默认）/ 服务分组日视图 / 资源视图 / 列表视图
- * 「预约看板」内 3 个子视图：
- *   - 日视图（默认）：3×3 = 9 宫格，每格显示「客户姓名 + 服务名称 + 时段 + 4 色状态色块」
- *   - 周视图：3 行 × 7 列 = 21 格（上午/下午/晚上 × 周一~周日），仅显示「N 个预约」徽标 + 状态色
- *   - 月视图：标准月历，点击某天弹出「左右双栏弹窗」（左=时间轴预约列表，右=选中预约详情卡，联动高亮）
- * 抽屉宽度 480 px，4 个操作按钮：核销（PC 置灰提示「请到手机端核销」）、修改预约时间（PC 置灰提示「请到手机端修改时段」）、
- *   取消预约（PC 可用，二次确认）、联系客户（PC 可用，tel: 协议 + 复制手机号）
- * 4 色状态严格采用 Ant Design 5 默认色板：
- *   - 待到店 colorPrimary  #1677FF
- *   - 已到店 colorWarning  #FA8C16
- *   - 已核销 colorSuccess  #52C41A
- *   - 已取消 colorTextDisabled #BFBFBF
+ * 路径：/merchant/order-dashboard/
+ * 商家端 PC 版预约看板，物理拷贝自 admin 端 `/admin/product-system/orders/dashboard/`，
+ * 数据按当前登录商家 + localStorage.merchant_current_store 的双重过滤。
+ *
+ * 与 admin 版差异：
+ *   1. 不展示「商菜单（预约看板）」标题与「返回门店列表」按钮
+ *   2. 标题改为「预约看板」并展示当前门店名
+ *   3. 列表视图跳转改为商家端「订单管理」`/merchant/orders/`
+ *   4. 通过 getCurrentStoreId() 注入门店上下文，未选门店则提示
+ *
+ * 视觉规范沿用 PRD-09：4 色状态（待到店 / 已到店 / 已核销 / 已取消）
+ * 时段切片：固定 9 段（06-08 / 08-10 / ... / 22-24）
  */
-import React, { Suspense, useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Card, Row, Col, DatePicker, Drawer, Tag, Empty, Spin,
   Button, Space, Statistic, Modal, Typography, Tooltip, message, Tabs, Badge,
+  ConfigProvider,
 } from 'antd';
+import zhCN from 'antd/locale/zh_CN';
 import {
   LeftOutlined, RightOutlined, ReloadOutlined, PhoneOutlined,
   CalendarOutlined, AppstoreOutlined, CheckCircleOutlined, EditOutlined,
   CloseCircleOutlined,
 } from '@ant-design/icons';
 import dayjs, { Dayjs } from 'dayjs';
-import { get, post } from '@/lib/api';
-import { useRouter, useSearchParams } from 'next/navigation';
+import 'dayjs/locale/zh-cn';
+import api from '@/lib/api';
+import { useRouter } from 'next/navigation';
+import { getCurrentStoreId, getProfile } from '../lib';
 
-// [PRD-365] 因新增 useSearchParams() 读取 storeId，必须强制动态渲染，
-// 否则 Next.js 14 SSG/prerender 阶段会因 client-only hook 调用而报错。
-export const dynamic = 'force-dynamic';
+dayjs.locale('zh-cn');
 
 const { Title, Text } = Typography;
 
@@ -165,9 +167,8 @@ function formatYuan(v: number): string {
   return `¥${Math.round(v)}`;
 }
 
-// [PRD-02 R-02-04] 看板"日/周/月"视图记忆 key
-const DASHBOARD_VIEW_KEY = 'bini_orders_dashboard_view';
-const DASHBOARD_TOP_TAB_KEY = 'bini_orders_dashboard_top_tab';
+const DASHBOARD_VIEW_KEY = 'bini_merchant_dashboard_view';
+const DASHBOARD_TOP_TAB_KEY = 'bini_merchant_dashboard_top_tab';
 
 const TOP_TABS: { key: TopTab; label: string }[] = [
   { key: 'board', label: '预约看板' },
@@ -176,48 +177,29 @@ const TOP_TABS: { key: TopTab; label: string }[] = [
   { key: 'list', label: '列表视图' },
 ];
 
-// ─────────────── 主组件 ───────────────
-// [PRD-365] 由于内部使用了 useSearchParams()，Next.js 14 prerender 阶段必须用
-// <Suspense> 包裹才能通过构建。外层做 Suspense 边界，内层做实际逻辑。
-export default function OrdersDashboardPage() {
-  return (
-    <Suspense fallback={<div style={{ padding: 24 }}><Spin /> 正在加载预约看板…</div>}>
-      <OrdersDashboardPageInner />
-    </Suspense>
-  );
+// ─────────────── helper：调用看板接口（强制注入 store_id） ───────────────
+async function dashApi<T = any>(path: string, params: any = {}): Promise<T> {
+  const sid = getCurrentStoreId();
+  const res = await api.get(path, { params: { ...params, store_id: sid ?? undefined } });
+  return res as unknown as T;
 }
 
-function OrdersDashboardPageInner() {
+// ─────────────── 主组件 ───────────────
+export default function MerchantOrderDashboardPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
 
-  // [PRD-365 商家后台「预约看板」替换升级 v1.0]
-  // admin 直访不带 storeId 时重定向到门店列表 + Toast 提示
-  // 带 storeId 则展示「预约看板 · XX 门店」+ 返回按钮
-  const storeIdQuery = searchParams?.get('storeId');
-  const [adminStoreId, setAdminStoreId] = useState<number | null>(
-    storeIdQuery ? Number(storeIdQuery) : null
-  );
-  const [adminStoreName, setAdminStoreName] = useState<string>('');
+  const [storeId, setStoreId] = useState<number | null>(null);
+  const [storeName, setStoreName] = useState<string>('');
 
   useEffect(() => {
-    if (!storeIdQuery) {
-      message.warning('请先选择门店再进入预约看板');
-      router.replace('/merchant/stores');
-      return;
+    const sid = getCurrentStoreId();
+    setStoreId(sid);
+    const profile = getProfile();
+    if (sid && profile) {
+      const found = profile.stores.find((s) => s.id === sid);
+      if (found) setStoreName(found.name);
     }
-    const sid = Number(storeIdQuery);
-    setAdminStoreId(sid);
-    // 异步获取门店名展示
-    (async () => {
-      try {
-        const list: any = await get('/api/admin/merchant-stores', { include_inactive: 1 });
-        const items = Array.isArray(list) ? list : (list?.items || []);
-        const found = items.find((s: any) => Number(s.id) === sid);
-        if (found) setAdminStoreName(found.store_name || found.name || '');
-      } catch (_) { /* 忽略 */ }
-    })();
-  }, [storeIdQuery, router]);
+  }, []);
 
   // 顶层 Tab：默认 board
   const [topTab, setTopTab] = useState<TopTab>(() => {
@@ -247,7 +229,6 @@ function OrdersDashboardPageInner() {
   // 抽屉状态
   const [slotDrawerOpen, setSlotDrawerOpen] = useState(false);
   const [slotDetail, setSlotDetail] = useState<SlotDetailResp | null>(null);
-  // 周格点击：抽屉数据可能是聚合多个 slot 的订单
   const [weekDrawerTitle, setWeekDrawerTitle] = useState<string>('');
 
   // 月视图日期点击弹窗（左右双栏联动）
@@ -255,16 +236,17 @@ function OrdersDashboardPageInner() {
   const [monthDayDetail, setMonthDayDetail] = useState<MonthDayResp | null>(null);
   const [monthSelectedItemId, setMonthSelectedItemId] = useState<number | null>(null);
 
+  // 精确手机号搜索
+  const [phoneSearch, setPhoneSearch] = useState<string>('');
+
   const dateStr = pickedDate.format('YYYY-MM-DD');
 
-  // ─────────── 数据加载（admin 端携带 storeId） ───────────
-  const adminParams = (extra: any = {}) => ({ ...extra, store_id: adminStoreId ?? undefined });
-
+  // ─────────── 数据加载 ───────────
   const loadDay = async (d: string) => {
-    if (!adminStoreId) return;
+    if (!storeId) return;
     setLoading(true);
     try {
-      const res = await get<DayResp>('/api/merchant/dashboard/day', adminParams({ date: d }));
+      const res = await dashApi<DayResp>('/api/merchant/dashboard/day', { date: d });
       setDayData(res);
     } catch (e: any) {
       message.error(e?.response?.data?.detail || '加载日视图数据失败');
@@ -274,10 +256,10 @@ function OrdersDashboardPageInner() {
   };
 
   const loadWeek = async (d: string) => {
-    if (!adminStoreId) return;
+    if (!storeId) return;
     setLoading(true);
     try {
-      const res = await get<WeekResp>('/api/merchant/dashboard/week', adminParams({ date: d }));
+      const res = await dashApi<WeekResp>('/api/merchant/dashboard/week', { date: d });
       setWeekData(res);
     } catch (e: any) {
       message.error(e?.response?.data?.detail || '加载周视图数据失败');
@@ -287,10 +269,10 @@ function OrdersDashboardPageInner() {
   };
 
   const loadMonth = async (year: number, month: number) => {
-    if (!adminStoreId) return;
+    if (!storeId) return;
     setLoading(true);
     try {
-      const res = await get<MonthResp>('/api/merchant/dashboard/month', adminParams({ year, month }));
+      const res = await dashApi<MonthResp>('/api/merchant/dashboard/month', { year, month });
       setMonthData(res);
     } catch (e: any) {
       message.error(e?.response?.data?.detail || '加载月视图数据失败');
@@ -300,17 +282,13 @@ function OrdersDashboardPageInner() {
   };
 
   useEffect(() => {
+    if (!storeId) return;
     if (topTab !== 'board') return;
     if (view === 'day') loadDay(dateStr);
     else if (view === 'week') loadWeek(dateStr);
     else if (view === 'month') loadMonth(pickedDate.year(), pickedDate.month() + 1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [topTab, view, dateStr]);
-
-  useEffect(() => {
-    try { localStorage.setItem('bini_orders_view_preference', 'board'); }
-    catch (_) { /* 忽略 */ }
-  }, []);
+  }, [storeId, topTab, view, dateStr]);
 
   const refresh = () => {
     if (topTab !== 'board') return;
@@ -325,14 +303,13 @@ function OrdersDashboardPageInner() {
     setSlotDetail(null);
     setWeekDrawerTitle('');
     try {
-      const res = await get<SlotDetailResp>(`/api/merchant/dashboard/slot/${dateStr}/${slot_no}`, adminParams());
+      const res = await dashApi<SlotDetailResp>(`/api/merchant/dashboard/slot/${dateStr}/${slot_no}`);
       setSlotDetail(res);
     } catch (e: any) {
       message.error(e?.response?.data?.detail || '加载时段订单失败');
     }
   };
 
-  // 周格点击：聚合 3 个 slot 的订单展示在抽屉
   const openWeekCellDrawer = async (cell: WeekCell) => {
     setSlotDrawerOpen(true);
     setSlotDetail(null);
@@ -342,7 +319,7 @@ function OrdersDashboardPageInner() {
     setWeekDrawerTitle(`${cell.date}  ${periodLabel}`);
     try {
       const results = await Promise.all(
-        slots.map((s) => get<SlotDetailResp>(`/api/merchant/dashboard/slot/${cell.date}/${s}`, adminParams()))
+        slots.map((s) => dashApi<SlotDetailResp>(`/api/merchant/dashboard/slot/${cell.date}/${s}`))
       );
       const merged: SlotDetailResp = {
         date: cell.date,
@@ -370,8 +347,7 @@ function OrdersDashboardPageInner() {
     setMonthDayDetail(null);
     setMonthSelectedItemId(null);
     try {
-      const res = await get<MonthDayResp>('/api/merchant/dashboard/month-day', adminParams({ date: d }));
-      // 兼容老数据：若 orders 缺失，则用 morning + afternoon 拼出
+      const res = await dashApi<MonthDayResp>('/api/merchant/dashboard/month-day', { date: d });
       if (!res.orders) {
         res.orders = [...(res.morning || []), ...(res.afternoon || [])].sort((a, b) => {
           const at = a.appointment_time || '';
@@ -380,11 +356,57 @@ function OrdersDashboardPageInner() {
         });
       }
       setMonthDayDetail(res);
-      // 默认选中第一条
       if (res.orders && res.orders.length > 0) setMonthSelectedItemId(res.orders[0].order_item_id);
     } catch (e: any) {
       message.error(e?.response?.data?.detail || '加载当日订单失败');
     }
+  };
+
+  // ─────────── 顶部搜索：精确手机号 ───────────
+  const onSearchPhone = () => {
+    const phone = (phoneSearch || '').trim();
+    if (!phone) {
+      message.warning('请输入手机号后再搜索');
+      return;
+    }
+    if (!/^1\d{10}$/.test(phone)) {
+      message.warning('请输入 11 位完整手机号（精确匹配）');
+      return;
+    }
+    if (!dayData) {
+      message.info('请先切到日视图加载数据再搜索');
+      return;
+    }
+    // 在当日全部 top_orders 与 cells 中查找命中
+    const allCells = dayData.cells || [];
+    let hitSlot: number | null = null;
+    for (const c of allCells) {
+      const orders = c.top_orders || [];
+      // top_orders 不含 phone，需通过抽屉拉取详情匹配
+      // 这里先打开第一个含预约的格子提示
+      if (orders.some((o) => o.customer_name)) {
+        // 先按门店今天逐个打开
+      }
+    }
+    // 简化：把匹配交由抽屉页查找——加载所有 9 段订单聚合后筛选
+    (async () => {
+      try {
+        const all = await Promise.all(
+          (dayData.cells || [])
+            .filter((c) => c.appointment_count > 0)
+            .map((c) => dashApi<SlotDetailResp>(`/api/merchant/dashboard/slot/${dateStr}/${c.slot_no}`))
+        );
+        const hit = all.flatMap((r) => r.orders).find((o) => o.customer_phone === phone);
+        if (hit) {
+          message.success(`找到客户 ${hit.customer_name}，时段 ${hit.slot_label}`);
+          if (hit.slot_no) openSlotDrawer(hit.slot_no);
+          return;
+        }
+        message.info('未找到该客户的预约');
+      } catch (e: any) {
+        message.error(e?.response?.data?.detail || '搜索失败');
+      }
+    })();
   };
 
   // ─────────── 日期切换控件 ───────────
@@ -424,6 +446,29 @@ function OrdersDashboardPageInner() {
     </Space>
   );
 
+  // ─────────── 顶部搜索条 ───────────
+  const searchBar = (
+    <Space size={8} style={{ marginLeft: 'auto' }}>
+      <input
+        type="tel"
+        maxLength={11}
+        placeholder="输入 11 位手机号精确搜索"
+        value={phoneSearch}
+        onChange={(e) => setPhoneSearch(e.target.value)}
+        onKeyDown={(e) => { if (e.key === 'Enter') onSearchPhone(); }}
+        style={{
+          width: 220,
+          padding: '4px 11px',
+          height: 32,
+          borderRadius: 6,
+          border: '1px solid #d9d9d9',
+          outline: 'none',
+        }}
+      />
+      <Button onClick={onSearchPhone}>搜索</Button>
+    </Space>
+  );
+
   // ─────────── 日视图：9 宫格 ───────────
   const renderDayGrid = () => {
     if (!dayData) return <Empty />;
@@ -444,6 +489,7 @@ function OrdersDashboardPageInner() {
                   style={{
                     borderLeft: `4px solid ${cfg.color}`,
                     border: isCurrent ? `2px solid ${cfg.color}` : undefined,
+                    background: isCurrent ? '#f6ffed' : undefined,
                     minHeight: 150,
                   }}
                   styles={{ body: { padding: 16 } }}
@@ -454,25 +500,22 @@ function OrdersDashboardPageInner() {
                     {isCurrent && <Tag color="green" style={{ marginLeft: 4 }}>进行中</Tag>}
                   </div>
                   {empty ? (
-                    <div style={{ color: '#999', fontSize: 14, padding: '16px 0', textAlign: 'center' }}>
-                      暂无预约
-                    </div>
+                    <div style={{ height: 80 }} />
                   ) : (
                     <>
-                      <div style={{ marginBottom: 6 }}>
-                        <Text strong>{top[0]?.customer_name || '-'}</Text>
-                        {top[0]?.appointment_time_text && (
-                          <Text type="secondary" style={{ marginLeft: 8 }}>{top[0].appointment_time_text}</Text>
-                        )}
-                      </div>
-                      <div style={{ marginBottom: 6, color: '#555', fontSize: 13 }}>
-                        {top[0]?.product_name || '-'}
-                      </div>
-                      <div style={{ fontSize: 12, color: '#888' }}>
+                      {top.slice(0, 2).map((o, idx) => (
+                        <div key={idx} style={{ marginBottom: 4, fontSize: 13 }}>
+                          <Text strong>{o.customer_name}</Text>
+                          <Text type="secondary" style={{ marginLeft: 6 }}>{o.product_name}</Text>
+                        </div>
+                      ))}
+                      {cell.appointment_count > 2 && (
+                        <div style={{ fontSize: 12, color: '#1677ff', marginTop: 4 }}>
+                          还有 {cell.appointment_count - 2} 条 &gt;
+                        </div>
+                      )}
+                      <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
                         预约 {cell.appointment_count} · 已核 {cell.verified_count}
-                        {cell.appointment_count > 1 && (
-                          <span style={{ marginLeft: 8 }}>(还有 {cell.appointment_count - 1} 条预约)</span>
-                        )}
                       </div>
                     </>
                   )}
@@ -487,11 +530,6 @@ function OrdersDashboardPageInner() {
             <Col span={8}><Statistic title="当日已核销数" value={dayData.summary.verified_count} /></Col>
             <Col span={8}><Statistic title="当日已核金额" value={formatYuan(dayData.summary.verified_amount)} /></Col>
           </Row>
-          {dayData.summary.overflow_count > 0 && (
-            <div style={{ marginTop: 8, color: '#faad14' }}>
-              ⚠️ 凌晨脏数据 {dayData.summary.overflow_count} 条，可在列表视图查看
-            </div>
-          )}
         </Card>
       </>
     );
@@ -511,7 +549,6 @@ function OrdersDashboardPageInner() {
 
     return (
       <>
-        {/* 表头：日期 */}
         <Row gutter={[8, 8]} style={{ marginBottom: 8 }}>
           <Col flex="120px" />
           {Array.from({ length: 7 }).map((_, i) => {
@@ -524,7 +561,6 @@ function OrdersDashboardPageInner() {
             );
           })}
         </Row>
-        {/* 3 行 × 7 列 */}
         {periods.map((p) => (
           <Row key={p.key} gutter={[8, 8]} style={{ marginBottom: 8 }}>
             <Col flex="120px" style={{ display: 'flex', alignItems: 'center', fontWeight: 600 }}>
@@ -586,7 +622,7 @@ function OrdersDashboardPageInner() {
   const renderMonth = () => {
     if (!monthData) return <Empty />;
     const firstDay = dayjs(`${monthData.year}-${String(monthData.month).padStart(2, '0')}-01`);
-    const startWeekday = (firstDay.day() + 6) % 7; // 转为周一为 0
+    const startWeekday = (firstDay.day() + 6) % 7;
     const cells: (MonthDay | null)[] = Array(startWeekday).fill(null);
     monthData.days.forEach((d) => cells.push(d));
     while (cells.length % 7 !== 0) cells.push(null);
@@ -651,11 +687,9 @@ function OrdersDashboardPageInner() {
       cancelText: '不取消',
       async onOk() {
         try {
-          await post(`/api/orders/${o.order_id}/cancel`, { reason: '商家在 PC 端取消该预约' });
+          await api.post(`/api/orders/${o.order_id}/cancel`, { reason: '商家在 PC 端取消该预约' });
           message.success('预约已取消');
-          // 刷新当前数据
           if (slotDetail) {
-            // 从抽屉移除该订单
             setSlotDetail({
               ...slotDetail,
               orders: slotDetail.orders.filter((x) => x.order_item_id !== o.order_item_id),
@@ -684,6 +718,10 @@ function OrdersDashboardPageInner() {
     message.success(`已复制手机号 ${phone}，可直接拨打`);
   };
 
+  const handleGoOrderDetail = (o: OrderCard) => {
+    router.push(`/merchant/orders?highlight=${o.order_id}`);
+  };
+
   // ─────────── 抽屉/详情卡：单条预约渲染 ───────────
   const renderOrderDetailCard = (o: OrderCard, opts: { compact?: boolean } = {}) => {
     const sc = (o.status_code || 'pending') as StatusCode;
@@ -695,7 +733,6 @@ function OrdersDashboardPageInner() {
         style={{ marginBottom: 12, borderLeft: `4px solid ${cfg.color}` }}
         styles={{ body: { padding: opts.compact ? 12 : 16 } }}
       >
-        {/* 头部：客户姓名 + 状态 */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
           <div>
             <Text strong style={{ fontSize: 15 }}>{o.customer_name}</Text>
@@ -705,7 +742,6 @@ function OrdersDashboardPageInner() {
           </div>
           {statusBadge(sc)}
         </div>
-        {/* 信息 */}
         <div style={{ marginBottom: 6 }}>
           <Text type="secondary">服务：</Text>{o.product_name}
         </div>
@@ -714,10 +750,19 @@ function OrdersDashboardPageInner() {
           {o.appointment_time_text || ''}
           {o.slot_label && <Text type="secondary" style={{ marginLeft: 8 }}>（{o.slot_label}）</Text>}
         </div>
+        {o.order_no && (
+          <div style={{ marginBottom: 6 }}>
+            <Text type="secondary">订单号：</Text>{o.order_no}
+          </div>
+        )}
+        {o.notes && (
+          <div style={{ marginBottom: 6, color: '#666', fontSize: 12 }}>
+            <Text type="secondary">备注：</Text>{o.notes}
+          </div>
+        )}
         <div style={{ marginBottom: 12, color: '#52C41A' }}>
           <Text type="secondary" style={{ color: 'inherit' }}>金额：</Text>{formatYuan(o.amount)}
         </div>
-        {/* 操作按钮区：核销 / 修改预约时间 / 取消预约 / 联系客户 */}
         <Space wrap>
           <Tooltip title="请到手机端核销">
             <Button size="small" disabled icon={<CheckCircleOutlined />}>核销</Button>
@@ -737,12 +782,14 @@ function OrdersDashboardPageInner() {
           <Button size="small" icon={<PhoneOutlined />} onClick={() => handleContact(o)}>
             联系客户
           </Button>
+          <Button size="small" type="link" onClick={() => handleGoOrderDetail(o)}>
+            去订单详情
+          </Button>
         </Space>
       </Card>
     );
   };
 
-  // ─────────── 抽屉：9 宫格点击/周格点击 ───────────
   const drawerTitle = useMemo(() => {
     if (weekDrawerTitle) return weekDrawerTitle;
     if (slotDetail) return `${slotDetail.date}  ${slotDetail.slot_label}`;
@@ -768,7 +815,6 @@ function OrdersDashboardPageInner() {
           <div style={{ padding: 32 }}><Empty description="该日暂无预约" /></div>
         ) : (
           <Row style={{ minHeight: 480 }}>
-            {/* 左栏：当天 9:00-20:00 时间轴预约列表 */}
             <Col span={10} style={{ borderRight: '1px solid #f0f0f0', padding: 16, maxHeight: 600, overflow: 'auto' }}>
               <div style={{ marginBottom: 12 }}>
                 <Text strong>时间轴预约列表</Text>
@@ -806,13 +852,11 @@ function OrdersDashboardPageInner() {
                 );
               })}
             </Col>
-            {/* 右栏：选中预约详情卡 */}
             <Col span={14} style={{ padding: 16, maxHeight: 600, overflow: 'auto', background: '#fafafa' }}>
               <div style={{ marginBottom: 12 }}>
                 <Text strong>预约详情</Text>
               </div>
               {selected ? renderOrderDetailCard(selected) : <Empty description="请在左侧选择一条预约" />}
-              {/* 当日统计 */}
               <Card size="small" style={{ marginTop: 12 }}>
                 <Row gutter={16}>
                   <Col span={8}><Statistic title="预约" value={monthDayDetail.summary.appointment_count} valueStyle={{ fontSize: 16 }} /></Col>
@@ -831,7 +875,7 @@ function OrdersDashboardPageInner() {
   const boardTabContent = (
     <>
       <Card style={{ marginBottom: 16 }}>
-        <Space size={16} wrap>
+        <Space size={16} wrap style={{ width: '100%' }}>
           <Tabs
             type="card"
             size="small"
@@ -849,6 +893,7 @@ function OrdersDashboardPageInner() {
             style={{ marginBottom: -16 }}
           />
           {dateNav}
+          {searchBar}
         </Space>
       </Card>
 
@@ -860,14 +905,13 @@ function OrdersDashboardPageInner() {
     </>
   );
 
-  // 服务分组日视图：仅按服务分组，已废弃 9:00-20:00 时间轴大表格
   const serviceGroupTabContent = (
     <Card>
-      <Title level={5} style={{ marginBottom: 8 }}>服务分组日视图（仅按服务项目分组）</Title>
+      <Title level={5} style={{ marginBottom: 8 }}>服务分组日视图</Title>
       <div style={{ color: '#888', marginBottom: 16, fontSize: 13 }}>
-        本视图仅按服务分组展示当日预约。原「9:00–20:00 时间轴大表格」已废弃，时段查看请使用「预约看板 → 日/周/月视图」。
+        本视图按服务分组展示当日预约。
       </div>
-      <ServiceGroupedDailyView dateStr={dateStr} dateNav={dateNav} storeId={adminStoreId} />
+      <ServiceGroupedDailyView storeId={storeId} dateStr={dateStr} dateNav={dateNav} />
     </Card>
   );
 
@@ -877,7 +921,7 @@ function OrdersDashboardPageInner() {
       <div style={{ color: '#888', marginBottom: 16, fontSize: 13 }}>
         按资源（美容师/房间）维度查看当日预约分布。
       </div>
-      <ResourceDailyView dateStr={dateStr} dateNav={dateNav} storeId={adminStoreId} />
+      <ResourceDailyView storeId={storeId} dateStr={dateStr} dateNav={dateNav} />
     </Card>
   );
 
@@ -885,87 +929,94 @@ function OrdersDashboardPageInner() {
     <Card>
       <Title level={5} style={{ marginBottom: 8 }}>列表视图</Title>
       <div style={{ color: '#888', marginBottom: 16, fontSize: 13 }}>
-        平铺所有订单，支持搜索筛选。点击进入完整列表页。
+        平铺所有订单，支持搜索筛选。点击进入完整订单管理页。
       </div>
-      <Button
-        type="primary"
-        onClick={() => {
-          try { localStorage.setItem('bini_orders_view_preference', 'list'); }
-          catch (_) { /* 忽略 */ }
-          router.push('/product-system/orders');
-        }}
-      >
-        打开订单列表视图
+      <Button type="primary" onClick={() => router.push('/merchant/orders')}>
+        打开订单管理列表
       </Button>
     </Card>
   );
 
+  // ─────────── 兜底：无门店上下文 ───────────
+  if (storeId === null) {
+    return (
+      <ConfigProvider locale={zhCN}>
+        <div>
+          <Title level={4}>
+            <AppstoreOutlined style={{ marginRight: 8 }} />
+            预约看板
+          </Title>
+          <div style={{ color: '#8c8c8c', padding: 24 }}>
+            尚未选择门店，请先在右上角切换门店再查看预约看板。
+          </div>
+        </div>
+      </ConfigProvider>
+    );
+  }
+
   return (
-    <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-        <Title level={3} style={{ margin: 0 }}>
-          <AppstoreOutlined /> 预约看板
-          {adminStoreName && (
-            <Text type="secondary" style={{ fontSize: 14, marginLeft: 12 }}>
-              · {adminStoreName}
-            </Text>
+    <ConfigProvider locale={zhCN}>
+      <div>
+        <div style={{ marginBottom: 16, display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+          <Title level={3} style={{ margin: 0 }}>
+            <AppstoreOutlined /> 预约看板
+            {storeName && (
+              <Text type="secondary" style={{ fontSize: 14, marginLeft: 12 }}>
+                · {storeName}
+              </Text>
+            )}
+          </Title>
+        </div>
+
+        <Tabs
+          activeKey={topTab}
+          onChange={(k) => {
+            setTopTab(k as TopTab);
+            try { localStorage.setItem(DASHBOARD_TOP_TAB_KEY, k); } catch (_) { /* 忽略 */ }
+          }}
+          items={TOP_TABS.map((t) => ({
+            key: t.key,
+            label: t.label,
+            children:
+              t.key === 'board' ? boardTabContent
+                : t.key === 'service_group' ? serviceGroupTabContent
+                : t.key === 'resource' ? resourceTabContent
+                : listTabContent,
+          }))}
+        />
+
+        <Drawer
+          title={drawerTitle}
+          open={slotDrawerOpen}
+          onClose={() => { setSlotDrawerOpen(false); setWeekDrawerTitle(''); }}
+          width={480}
+        >
+          {!slotDetail ? (
+            <div style={{ textAlign: 'center', padding: 40 }}><Spin /></div>
+          ) : (
+            <>
+              <Card size="small" style={{ marginBottom: 16 }}>
+                <Row gutter={8}>
+                  <Col span={8}><Statistic title="预约" value={slotDetail.summary.appointment_count} valueStyle={{ fontSize: 18 }} /></Col>
+                  <Col span={8}><Statistic title="已核" value={slotDetail.summary.verified_count} valueStyle={{ fontSize: 18 }} /></Col>
+                  <Col span={8}><Statistic title="金额" value={formatYuan(slotDetail.summary.verified_amount)} valueStyle={{ fontSize: 18 }} /></Col>
+                </Row>
+              </Card>
+              {slotDetail.orders.length === 0
+                ? <Empty description="该时段暂无预约" />
+                : slotDetail.orders.map((o) => renderOrderDetailCard(o))}
+            </>
           )}
-        </Title>
-        <Button onClick={() => router.push('/merchant/stores')}>
-          返回门店列表
-        </Button>
+        </Drawer>
+
+        {renderMonthDayModal()}
       </div>
-
-      <Tabs
-        activeKey={topTab}
-        onChange={(k) => {
-          setTopTab(k as TopTab);
-          try { localStorage.setItem(DASHBOARD_TOP_TAB_KEY, k); } catch (_) { /* 忽略 */ }
-        }}
-        items={TOP_TABS.map((t) => ({
-          key: t.key,
-          label: t.label,
-          children:
-            t.key === 'board' ? boardTabContent
-              : t.key === 'service_group' ? serviceGroupTabContent
-              : t.key === 'resource' ? resourceTabContent
-              : listTabContent,
-        }))}
-      />
-
-      {/* 抽屉：9 宫格 / 周格点击 */}
-      <Drawer
-        title={drawerTitle}
-        open={slotDrawerOpen}
-        onClose={() => { setSlotDrawerOpen(false); setWeekDrawerTitle(''); }}
-        width={480}
-      >
-        {!slotDetail ? (
-          <div style={{ textAlign: 'center', padding: 40 }}><Spin /></div>
-        ) : (
-          <>
-            <Card size="small" style={{ marginBottom: 16 }}>
-              <Row gutter={8}>
-                <Col span={8}><Statistic title="预约" value={slotDetail.summary.appointment_count} valueStyle={{ fontSize: 18 }} /></Col>
-                <Col span={8}><Statistic title="已核" value={slotDetail.summary.verified_count} valueStyle={{ fontSize: 18 }} /></Col>
-                <Col span={8}><Statistic title="金额" value={formatYuan(slotDetail.summary.verified_amount)} valueStyle={{ fontSize: 18 }} /></Col>
-              </Row>
-            </Card>
-            {slotDetail.orders.length === 0
-              ? <Empty description="该时段暂无预约" />
-              : slotDetail.orders.map((o) => renderOrderDetailCard(o))}
-          </>
-        )}
-      </Drawer>
-
-      {/* 月视图日期点击弹窗（左右双栏） */}
-      {renderMonthDayModal()}
-    </div>
+    </ConfigProvider>
   );
 }
 
-// ─────────────── 服务分组日视图（已废弃 9:00-20:00 时间轴大表格） ───────────────
-function ServiceGroupedDailyView({ dateStr, dateNav, storeId }: { dateStr: string; dateNav: React.ReactNode; storeId: number | null }) {
+// ─────────────── 服务分组日视图 ───────────────
+function ServiceGroupedDailyView({ storeId, dateStr, dateNav }: { storeId: number | null; dateStr: string; dateNav: React.ReactNode }) {
   const [orders, setOrders] = useState<OrderCard[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -975,7 +1026,7 @@ function ServiceGroupedDailyView({ dateStr, dateNav, storeId }: { dateStr: strin
     setLoading(true);
     (async () => {
       try {
-        const res = await get<MonthDayResp>('/api/merchant/dashboard/month-day', { date: dateStr, store_id: storeId });
+        const res = await dashApi<MonthDayResp>('/api/merchant/dashboard/month-day', { date: dateStr });
         const all = res.orders || [...(res.morning || []), ...(res.afternoon || [])];
         if (!aborted) setOrders(all);
       } catch (e: any) {
@@ -985,7 +1036,7 @@ function ServiceGroupedDailyView({ dateStr, dateNav, storeId }: { dateStr: strin
       }
     })();
     return () => { aborted = true; };
-  }, [dateStr, storeId]);
+  }, [storeId, dateStr]);
 
   const grouped = useMemo(() => {
     const m: Record<string, OrderCard[]> = {};
@@ -1035,8 +1086,8 @@ function ServiceGroupedDailyView({ dateStr, dateNav, storeId }: { dateStr: strin
   );
 }
 
-// ─────────────── 资源视图（按资源维度展示，简化实现） ───────────────
-function ResourceDailyView({ dateStr, dateNav, storeId }: { dateStr: string; dateNav: React.ReactNode; storeId: number | null }) {
+// ─────────────── 资源视图 ───────────────
+function ResourceDailyView({ storeId, dateStr, dateNav }: { storeId: number | null; dateStr: string; dateNav: React.ReactNode }) {
   const [orders, setOrders] = useState<OrderCard[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -1046,7 +1097,7 @@ function ResourceDailyView({ dateStr, dateNav, storeId }: { dateStr: string; dat
     setLoading(true);
     (async () => {
       try {
-        const res = await get<MonthDayResp>('/api/merchant/dashboard/month-day', { date: dateStr, store_id: storeId });
+        const res = await dashApi<MonthDayResp>('/api/merchant/dashboard/month-day', { date: dateStr });
         const all = res.orders || [...(res.morning || []), ...(res.afternoon || [])];
         if (!aborted) setOrders(all);
       } catch (e: any) {
@@ -1056,7 +1107,7 @@ function ResourceDailyView({ dateStr, dateNav, storeId }: { dateStr: string; dat
       }
     })();
     return () => { aborted = true; };
-  }, [dateStr, storeId]);
+  }, [storeId, dateStr]);
 
   return (
     <Spin spinning={loading}>
