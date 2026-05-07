@@ -50,6 +50,10 @@
             wx:if="{{(item.status === 'pending_use' || item.status === 'appointed') && item.refund_status === 'none'}}"
             catchtap="goRefund" data-id="{{item.id}}">申请退款</view>
           <view class="action-btn outline" catchtap="onContactStore" data-order="{{item}}">联系商家</view>
+          <!-- [BUG-FIX-REBUY-V1 2026-05-07]「再来一单」：仅 completed/expired 状态 -->
+          <view class="action-btn primary"
+                wx:if="{{item.status === 'completed' || item.status === 'expired'}}"
+                catchtap="onRebuy" data-id="{{item.id}}">再来一单</view>
         </view>
       </view>
     </view>

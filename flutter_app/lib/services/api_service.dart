@@ -1130,6 +1130,11 @@ class ApiService {
     });
   }
 
+  // [BUG-FIX-REBUY-V1 2026-05-07]「再来一单」复购入口
+  Future<Response> reorderUnifiedOrder(int orderId) async {
+    return _dio.post('${ApiConfig.unifiedOrders}/$orderId/reorder', data: {});
+  }
+
   Future<Response> submitReview(int orderId, {required int rating, String? content, List<String>? images}) async {
     return _dio.post('${ApiConfig.unifiedOrders}/$orderId/review', data: {
       'rating': rating,

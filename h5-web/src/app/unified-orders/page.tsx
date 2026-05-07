@@ -207,6 +207,41 @@ function UnifiedOrdersPage() {
     }
   };
 
+  // [BUG-FIX-REBUY-V1 2026-05-07]「再来一单」：调后端 reorder 校验商品状态后跳支付页
+  // 不再跳转原订单详情页（旧 ?action=rebuy 参数从未被处理，导致 Bug）。
+  const handleRebuy = async (orderId: number) => {
+    try {
+      const res: any = await api.post(`/api/orders/unified/${orderId}/reorder`, {});
+      const data = res?.data || res;
+      const status = data?.status;
+      const items: any[] = data?.available_items || [];
+      if (status === 'all_unavailable' || items.length === 0) {
+        Toast.show({ content: data?.message || '商品已全部下架，无法再来一单' });
+        return;
+      }
+      if (status === 'partial_filtered') {
+        Toast.show({ content: data?.message || '部分商品已下架，已为您过滤' });
+      }
+      // checkout 页是单品流转：取首品作为复购入口（携带 sku_id/quantity）
+      const first = items[0];
+      const params = new URLSearchParams();
+      params.set('product_id', String(first.product_id));
+      if (first.sku_id) params.set('sku_id', String(first.sku_id));
+      if (first.quantity) params.set('quantity', String(first.quantity));
+      params.set('from_rebuy', '1');
+      router.push(`/checkout?${params.toString()}`);
+    } catch (err: any) {
+      const status = err?.response?.status;
+      if (status === 401 || status === 403) {
+        // 登录态过期：跳登录页（登录成功后用户回到本页面继续点击）
+        Toast.show({ content: '请先登录' });
+        router.push(`/login?redirect=${encodeURIComponent('/unified-orders')}`);
+        return;
+      }
+      Toast.show({ content: err?.response?.data?.detail || '网络异常，请稍后重试' });
+    }
+  };
+
   const getStatusDisplay = (order: Order) => {
     // 后端已经返回 display_status / display_status_color，优先用
     if (order.display_status) {
@@ -399,7 +434,7 @@ function UnifiedOrdersPage() {
         <Button
           key="rebuy"
           size="mini"
-          onClick={(e) => { e.stopPropagation(); router.push(`/unified-order/${order.id}?action=rebuy`); }}
+          onClick={(e) => { e.stopPropagation(); handleRebuy(order.id); }}
           style={{ borderRadius: 16, fontSize: 12 }}
         >再来一单</Button>
       );

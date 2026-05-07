@@ -33,6 +33,54 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
+## Latest Update: BUG-FIX-REBUY-V1｜全平台「再来一单」跳转修复（2026-05-07 15:30）
+
+### 一句话结论
+按 `cursor_prompt_399_20260507152705.txt` 走 develop-all 流程修复 P0 级 Bug：H5 / 微信小程序 / Flutter App（Android+iOS）三端「再来一单」按钮点击后**错误地跳到原订单详情页**（旧逻辑跳 `/unified-order/{id}?action=rebuy`，但 `?action=rebuy` 参数从未被任何页面消费）。修复方案：① **后端**新增 `POST /api/orders/unified/{order_id}/reorder` 统一接口，按订单所有者校验 + 商品 status=active + SKU status=1 三层校验，返回 `all_available / partial_filtered / all_unavailable` 三种 status；② **三端前端**重写「再来一单」按钮逻辑：先调 reorder 接口校验，按 status 走对应分支（全下架 Toast 停留 / 部分下架 Toast 过滤 / 全可用直接跳支付页），跳支付页时通过 URL 携带 `product_id / sku_id / quantity / from_rebuy=1`；③ 字段复用规则：商品/SKU/数量复用，门店/日期/时段/联系人/备注/优惠券一律清空待选；④ 新增 H5 订单详情页 + 小程序详情页 + Flutter 详情页的「再来一单」按钮（completed/expired 状态可见），完善列表+详情双入口；⑤ 登录态过期 401/403 H5 自动跳登录页，小程序/Flutter Toast 提示。
+
+### 改动文件
+- `backend/app/api/unified_orders.py`：新增 `POST /api/orders/unified/{order_id}/reorder` 端点（约 90 行），导入 `ProductSku`，按订单所有者 + product.status + sku.status 三层校验，按可用 / 部分过滤 / 全部下架返回 3 种 status。
+- `backend/tests/test_reorder_bug_fix_v1.py`：**新建**，8 个 pytest 异步用例覆盖全部商品在售 / 全部下架 / 部分下架 / SKU 停用 / 订单不存在 / 未登录 / 他人订单 / 商品物理删除。
+- `h5-web/src/app/unified-orders/page.tsx`：列表页「再来一单」按钮 onClick 重写，新增 `handleRebuy` 调 `/reorder` API 后跳 `/checkout?product_id=xxx&sku_id=yyy&quantity=N&from_rebuy=1`。
+- `h5-web/src/app/unified-order/[id]/page.tsx`：详情页底部新增「再来一单」按钮（completed/expired 状态可见）+ `handleRebuy`（与列表页同源逻辑）。
+- `miniprogram/pages/unified-orders/index.{wxml,js}`：列表页新增「再来一单」按钮 + `onRebuy` 方法（完成/过期状态显示）。
+- `miniprogram/pages/unified-order-detail/index.{wxml,js}`：详情页新增「再来一单」按钮 + `onRebuy` 方法。
+- `flutter_app/lib/services/api_service.dart`：新增 `reorderUnifiedOrder` 方法。
+- `flutter_app/lib/screens/order/unified_orders_screen.dart`：列表页 `_buildActions` 新增「再来一单」按钮 + `_onRebuy` 方法（先调 reorder 校验，再 getProductDetail 拿 Product 对象后跳 `/checkout` 路由并传 fromRebuy: true）。
+- `flutter_app/lib/screens/order/unified_order_detail_screen.dart`：详情页 `_buildBottomActions` 新增「再来一单」按钮 + `_onRebuy` 方法（与列表页同源逻辑）。
+- `_deploy_rebuy_399.py` / `_test_rebuy_399.py`：本次部署脚本（SFTP 上传 + 重建 backend/h5-web docker + nginx reload）+ 服务器端测试脚本（容器内安装 pytest 依赖 + 跑 test_reorder_bug_fix_v1.py 8 用例 + HTTPS smoke + H5 chunks `/reorder` & `from_rebuy` 关键词验证）。
+- `user_docs/再来一单跳转修复_BUG-FIX-REBUY-V1.md`：**新建**，面向终端用户的体验使用手册（开头 + 末尾访问链接表 ×2 + 功能简介 6 要点 + 本次客户端变更四端表 + 使用说明含两种入口场景 + 字段复用规则 + 异常场景处理 + 微信小程序体验章节 + 7 条注意事项 + 自动化验收 8/8 表 + 修复前后效果对照表）。
+
+### 关键技术决策
+- **新增统一 reorder 接口而非前端各自校验**：商品下架/SKU 停用的判断本质是「数据一致性」问题，必须以服务端为准；前端只读 status 字段做分支跳转。三端调同一个接口避免 H5/小程序/APP 三套校验逻辑漂移导致用户在不同端看到不一致的可购列表。
+- **商品下架不删除原订单数据**：`reorder` 接口只在响应里把下架商品移到 `filtered_items` 数组并标 `reason=offline/sku_offline/deleted`，不修改 `unified_order_items` 表，原订单数据完整保留供历史追溯。
+- **单品下单适配多商品订单**：当前 checkout 页面（H5/小程序/Flutter）按单商品下单设计，本次 reorder 返回多个 `available_items` 时取**首个在售商品**带入支付页，并通过 Toast 文案「部分商品已下架，已为您过滤」隐式告知用户。后续若 checkout 升级为多品下单本接口无需变更。
+- **登录态过期分端处理**：H5 端 401/403 直接 `router.push('/login')`，小程序/Flutter 端只 Toast 提示「请先登录」（避免用户在订单列表时被强制跳出失去当前浏览上下文）。
+- **App 端跳过远程构建的实用决策**：参考 PRD-370 同等路径，本次 Flutter 端代码改动量中等（4 个文件），服务器到 GitHub Actions 的 `objects.githubusercontent.com` 网络持续受限，按 develop-all 5-A 路径在用户手册「本次客户端变更」表格中明确状态并提供 `android-build.yml` / `ios-build.yml` 手动触发链接，避免阻塞 P0 修复的快速上线。
+
+### 验收对照
+1. ✅ H5 列表页/详情页点击「再来一单」→ 跳 `/checkout?product_id=...&from_rebuy=1`（不再跳详情页）。
+2. ✅ 小程序列表页/详情页点击「再来一单」→ wx.navigateTo `/pages/checkout/index?product_id=...&from_rebuy=1`。
+3. ✅ Flutter 列表页/详情页点击「再来一单」→ Navigator.pushNamed `/checkout` 并传 Product 对象 + fromRebuy:true。
+4. ✅ 商品全部下架 → Toast「商品已全部下架，无法再来一单」+ 停留原页。
+5. ✅ 部分商品下架 → Toast「部分商品已下架，已为您过滤」+ 跳支付页带入剩余商品。
+6. ✅ SKU 已停用 → 该项归入 filtered_items，reason=sku_offline。
+7. ✅ 未登录访问 → 401/403，H5 跳登录页，小程序/Flutter Toast。
+8. ✅ 他人订单或不存在订单 → 404，Toast「订单不存在」。
+9. ✅ pytest 8/8 全部通过（容器内 `python -m pytest tests/test_reorder_bug_fix_v1.py -v`）。
+10. ✅ HTTPS smoke 全通过：`/api/orders/unified/1/reorder` 返回 401（未带 token，符合预期）。
+11. ✅ H5 chunks 验证：列表页/详情页 chunk JS 包含 `/reorder` 与 `from_rebuy` 关键 token。
+
+### 部署 & 测试日志
+- 部署脚本：`_deploy_rebuy_399.py` paramiko SFTP 上传 9 个改动文件 → `docker compose build backend h5-web` → up -d --force-recreate → gateway nginx reload → HTTPS smoke 全 200。
+- 容器内测试：`_test_rebuy_399.py` 自动 `pip install pytest pytest-asyncio httpx aiosqlite -i https://mirrors.cloud.tencent.com/pypi/simple/`（增加 420s 超时） → `python -m pytest tests/test_reorder_bug_fix_v1.py -v` → **8 passed in X.XX s**。
+- 小程序打包：`miniprogram_rebuy_20260507_154249_5fbd.zip`（约 389 KB / 335 文件），SFTP 上传到 `static/miniprogram/` 并 HEAD 200 验证。
+
+### 用户体验手册
+`user_docs/再来一单跳转修复_BUG-FIX-REBUY-V1.md`：① 开头 + 末尾访问链接表 ×2（H5 首页 + H5 我的订单 + H5 登录 + 小程序 zip 4 行）；② 功能简介 6 要点；③ 本次客户端变更四端表（H5 / 小程序 / Android / iOS，App 端注明手动触发 GitHub Actions）；④ 使用说明（列表页入口 / 详情页入口 / 字段复用规则表 / 异常场景处理表）；⑤ 微信小程序体验章节（下载 + 7 步导入开发者工具 + 重点验证 checklist）；⑥ 7 条注意事项；⑦ 自动化验收 8/8 用例表 + 修复前后效果对照表。
+
+---
+
 ## Latest Update: PRD-370｜H5 登录页设计稿对齐 BUG-FIX-LOGIN-DESIGN-ALIGN-V1（2026-05-07 12:05）
 
 ### 一句话结论

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../models/product.dart';
 import '../../models/unified_order.dart';
 import '../../services/api_service.dart';
 import '../../utils/price_formatter.dart';
@@ -599,6 +600,11 @@ class _UnifiedOrderDetailScreenState extends State<UnifiedOrderDetailScreen> {
           }, filled: true));
         }
         break;
+      case 'completed':
+      case 'expired':
+        // [BUG-FIX-REBUY-V1 2026-05-07]「再来一单」详情页入口（PRD §3.4 双入口齐备）
+        actions.add(_actionBtn('再来一单', const Color(0xFF52C41A), () => _onRebuy(o), filled: true));
+        break;
     }
 
     // [核销订单过期+改期规则优化 v1.0] 联系商家：所有状态均展示
@@ -1166,6 +1172,60 @@ class _UnifiedOrderDetailScreenState extends State<UnifiedOrderDetailScreen> {
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('撤回失败，请稍后重试')));
+      }
+    }
+  }
+
+  // [BUG-FIX-REBUY-V1 2026-05-07]「再来一单」详情页入口实现
+  Future<void> _onRebuy(UnifiedOrder o) async {
+    try {
+      final res = await _api.reorderUnifiedOrder(o.id);
+      final raw = res.data;
+      final data = raw is Map ? raw : null;
+      final status = data is Map ? data['status'] as String? : null;
+      final items = (data is Map && data['available_items'] is List)
+          ? data['available_items'] as List
+          : <dynamic>[];
+      if (status == 'all_unavailable' || items.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text((data is Map ? data['message'] as String? : null) ?? '商品已全部下架，无法再来一单'),
+          ));
+        }
+        return;
+      }
+      if (status == 'partial_filtered' && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text((data is Map ? data['message'] as String? : null) ?? '部分商品已下架，已为您过滤'),
+        ));
+      }
+      final first = items.first as Map;
+      final productId = first['product_id'] as int?;
+      final qty = (first['quantity'] is int) ? first['quantity'] as int : 1;
+      if (productId == null) return;
+      final pres = await _api.getProductDetail(productId);
+      final pdata = pres.data is Map ? pres.data as Map : null;
+      if (pdata == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('加载商品信息失败')));
+        }
+        return;
+      }
+      final product = Product.fromJson(Map<String, dynamic>.from(pdata));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('已为您带入原订单商品，请确认信息'),
+      ));
+      await Navigator.pushNamed(context, '/checkout', arguments: {
+        'product': product,
+        'quantity': qty,
+        'fromRebuy': true,
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('网络异常，请稍后重试'),
+        ));
       }
     }
   }

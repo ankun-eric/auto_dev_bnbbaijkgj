@@ -227,6 +227,44 @@ Page({
     wx.navigateTo({ url: `/pages/refund/index?orderId=${id}` });
   },
 
+  // [BUG-FIX-REBUY-V1 2026-05-07]「再来一单」：调后端 reorder 校验商品状态后跳 checkout
+  async onRebuy(e) {
+    const id = e.currentTarget.dataset.id;
+    try {
+      const res = await post(`/api/orders/unified/${id}/reorder`, {}, { showLoading: true });
+      const data = (res && res.data) ? res.data : res;
+      const status = data && data.status;
+      const items = (data && data.available_items) || [];
+      if (status === 'all_unavailable' || items.length === 0) {
+        wx.showToast({
+          title: (data && data.message) || '商品已全部下架，无法再来一单',
+          icon: 'none', duration: 2500,
+        });
+        return;
+      }
+      if (status === 'partial_filtered') {
+        wx.showToast({
+          title: (data && data.message) || '部分商品已下架，已为您过滤',
+          icon: 'none', duration: 2500,
+        });
+      }
+      const first = items[0];
+      const parts = [`product_id=${first.product_id}`, 'from_rebuy=1'];
+      if (first.sku_id) parts.push(`sku_id=${first.sku_id}`);
+      if (first.quantity) parts.push(`quantity=${first.quantity}`);
+      this._needRefresh = true;
+      wx.navigateTo({ url: `/pages/checkout/index?${parts.join('&')}` });
+    } catch (err) {
+      console.log('onRebuy error', err);
+      const code = err && (err.statusCode || err.status || (err.data && err.data.code));
+      if (code === 401 || code === 403) {
+        wx.showToast({ title: '请先登录', icon: 'none' });
+        return;
+      }
+      wx.showToast({ title: '网络异常，请稍后重试', icon: 'none' });
+    }
+  },
+
   getStatusText(status) {
     const map = {
       pending_payment: '待付款',

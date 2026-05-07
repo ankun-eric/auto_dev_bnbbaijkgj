@@ -357,6 +357,38 @@ export default function UnifiedOrderDetailPage() {
     });
   };
 
+  // [BUG-FIX-REBUY-V1 2026-05-07]「再来一单」入口（PRD §3.4 列表+详情双入口齐备）
+  const handleRebuy = async () => {
+    try {
+      const res: any = await api.post(`/api/orders/unified/${orderId}/reorder`, {});
+      const data = res?.data || res;
+      const status = data?.status;
+      const items: any[] = data?.available_items || [];
+      if (status === 'all_unavailable' || items.length === 0) {
+        Toast.show({ content: data?.message || '商品已全部下架，无法再来一单' });
+        return;
+      }
+      if (status === 'partial_filtered') {
+        Toast.show({ content: data?.message || '部分商品已下架，已为您过滤' });
+      }
+      const first = items[0];
+      const params = new URLSearchParams();
+      params.set('product_id', String(first.product_id));
+      if (first.sku_id) params.set('sku_id', String(first.sku_id));
+      if (first.quantity) params.set('quantity', String(first.quantity));
+      params.set('from_rebuy', '1');
+      router.push(`/checkout?${params.toString()}`);
+    } catch (err: any) {
+      const status = err?.response?.status;
+      if (status === 401 || status === 403) {
+        Toast.show({ content: '请先登录' });
+        router.push(`/login?redirect=${encodeURIComponent(`/unified-order/${orderId}`)}`);
+        return;
+      }
+      Toast.show({ content: err?.response?.data?.detail || '网络异常，请稍后重试' });
+    }
+  };
+
   const getStepsCurrent = () => {
     const statusOrder = ['pending_payment', 'pending_shipment', 'pending_receipt', 'pending_use', 'pending_review', 'completed'];
     if (!order) return 0;
@@ -822,6 +854,15 @@ export default function UnifiedOrderDetailPage() {
             style={{ borderRadius: 20, height: 40, fontSize: 14, color: '#52c41a', borderColor: '#52c41a' }}
           >
             去评价
+          </Button>
+        )}
+        {/* [BUG-FIX-REBUY-V1 2026-05-07]「再来一单」按钮（详情页入口，列表页同步） */}
+        {(order.status === 'completed' || order.status === 'expired') && (
+          <Button
+            onClick={handleRebuy}
+            style={{ borderRadius: 20, height: 40, fontSize: 14, background: '#52c41a', color: '#fff', border: 'none' }}
+          >
+            再来一单
           </Button>
         )}
         {/* [修改预约 Bug 修复 v1.0]

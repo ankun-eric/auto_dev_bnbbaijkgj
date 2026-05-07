@@ -28,6 +28,7 @@ from app.models.models import (
     PointsRecord,
     PointsType,
     Product,
+    ProductSku,
     ProductStore,
     RefundRequest,
     RefundRequestStatus,
@@ -2429,3 +2430,132 @@ async def cancel_refund(
     if not order:
         raise HTTPException(status_code=404, detail="订单不存在")
     return await _do_withdraw_refund(order, db)
+
+
+# [BUG-FIX-REBUY-V1 2026-05-07] 「再来一单」复购入口
+# 目的：把订单中"商品身份"信息（product/sku/quantity）抽取出来交给前端跳支付页快速复购，
+# 同时校验商品/SKU 是否仍在售（status=active），过滤已下架/删除的项。
+# 不复用：门店/日期/时段/联系人/优惠券/备注（用户必须重新选择）。
+@router.post("/{order_id}/reorder")
+async def reorder_unified_order(
+    order_id: int,
+    current_user: User = Depends(get_current_user),
+    client_type: str = Depends(require_customer_client_session),
+    db: AsyncSession = Depends(get_db),
+):
+    """「再来一单」：基于历史订单生成可复购的商品列表。
+
+    返回 status：
+    - all_available: 全部商品仍在售
+    - partial_filtered: 部分商品下架，已过滤，剩余仍可下单
+    - all_unavailable: 商品全部下架，无法再来一单（前端应停留原页 + Toast 提示）
+    """
+    result = await db.execute(
+        select(UnifiedOrder)
+        .options(selectinload(UnifiedOrder.items))
+        .where(UnifiedOrder.id == order_id, UnifiedOrder.user_id == current_user.id)
+    )
+    order = result.scalar_one_or_none()
+    if not order:
+        raise HTTPException(status_code=404, detail="订单不存在")
+
+    items = list(order.items or [])
+    total_count = len(items)
+    if total_count == 0:
+        raise HTTPException(status_code=400, detail="原订单没有商品，无法再来一单")
+
+    product_ids = list({it.product_id for it in items if it.product_id})
+    sku_ids = list({it.sku_id for it in items if it.sku_id})
+
+    products_map: dict = {}
+    if product_ids:
+        pres = await db.execute(select(Product).where(Product.id.in_(product_ids)))
+        for p in pres.scalars().all():
+            products_map[p.id] = p
+
+    skus_map: dict = {}
+    if sku_ids:
+        sres = await db.execute(select(ProductSku).where(ProductSku.id.in_(sku_ids)))
+        for s in sres.scalars().all():
+            skus_map[s.id] = s
+
+    available_items: list[dict] = []
+    filtered_items: list[dict] = []
+
+    for it in items:
+        product = products_map.get(it.product_id)
+        if product is None:
+            filtered_items.append({
+                "product_id": it.product_id,
+                "sku_id": it.sku_id,
+                "product_name": it.product_name,
+                "spec_name": it.sku_name,
+                "quantity": int(it.quantity or 1),
+                "reason": "deleted",
+            })
+            continue
+        prod_status = product.status
+        if hasattr(prod_status, "value"):
+            prod_status = prod_status.value
+        if prod_status != "active":
+            filtered_items.append({
+                "product_id": it.product_id,
+                "sku_id": it.sku_id,
+                "product_name": it.product_name,
+                "spec_name": it.sku_name,
+                "quantity": int(it.quantity or 1),
+                "reason": "offline",
+            })
+            continue
+        sku_obj = None
+        if it.sku_id:
+            sku_obj = skus_map.get(it.sku_id)
+            if sku_obj is None or int(getattr(sku_obj, "status", 1) or 0) != 1:
+                filtered_items.append({
+                    "product_id": it.product_id,
+                    "sku_id": it.sku_id,
+                    "product_name": it.product_name,
+                    "spec_name": it.sku_name,
+                    "quantity": int(it.quantity or 1),
+                    "reason": "sku_offline",
+                })
+                continue
+
+        available_items.append({
+            "product_id": it.product_id,
+            "sku_id": it.sku_id,
+            "product_name": product.name or it.product_name,
+            "spec_name": (sku_obj.spec_name if sku_obj else it.sku_name),
+            "quantity": int(it.quantity or 1),
+            "sale_price": float(product.sale_price or 0),
+        })
+
+    filtered_count = len(filtered_items)
+    if not available_items:
+        return {
+            "status": "all_unavailable",
+            "total_count": total_count,
+            "filtered_count": filtered_count,
+            "available_items": [],
+            "filtered_items": filtered_items,
+            "message": "商品已全部下架，无法再来一单",
+        }
+
+    if filtered_count > 0:
+        return {
+            "status": "partial_filtered",
+            "total_count": total_count,
+            "filtered_count": filtered_count,
+            "available_items": available_items,
+            "filtered_items": filtered_items,
+            "message": "部分商品已下架，已为您过滤",
+        }
+
+    return {
+        "status": "all_available",
+        "total_count": total_count,
+        "filtered_count": 0,
+        "available_items": available_items,
+        "filtered_items": [],
+        "message": "已为您带入原订单商品，请确认信息",
+    }

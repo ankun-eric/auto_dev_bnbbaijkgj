@@ -197,6 +197,8 @@
       <view class="bar-btn primary" wx:if="{{order.status === 'pending_payment'}}" bindtap="payOrder">立即付款</view>
       <view class="bar-btn primary" wx:if="{{order.status === 'pending_receipt'}}" bindtap="confirmOrder">确认收货</view>
       <view class="bar-btn primary" wx:if="{{order.status === 'completed' && !order.is_reviewed}}" bindtap="goReview">评价</view>
+      <!-- [BUG-FIX-REBUY-V1 2026-05-07]「再来一单」详情页入口 -->
+      <view class="bar-btn primary" wx:if="{{order.status === 'completed' || order.status === 'expired'}}" bindtap="onRebuy">再来一单</view>
       <!-- [先下单后预约 Bug 修复 v1.0] 待预约状态：底部立即预约按钮 -->
       <view class="bar-btn primary" wx:if="{{order.status === 'pending_appointment' && (!order.refund_status || order.refund_status === 'none')}}" bindtap="openApptModal">立即预约</view>
       <!-- [核销订单过期+改期规则优化 v1.0] 联系商家：所有状态均展示 -->
