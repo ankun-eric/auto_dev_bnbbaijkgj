@@ -33,7 +33,44 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: BUGFIX-ADMIN-ORDERS-GATEWAY-OK-20260507｜admin 后台「商家体系-订单明细」点击后白屏 Gateway OK 修复（2026-05-07 17:00）
+## Latest Update: BUG-FIX-RESCHEDULE-V2-20260507｜客户端订单改约 过去时段过滤 + 双重身份 500 修复 v2（2026-05-07 17:18）
+
+### 一句话结论
+按 `cursor_prompt_403_20260507170231.txt` 走 develop-all 流程在 BUG-FIX-RESCHEDULE-DUAL-IDENTITY-V1 之上**强化** P0：改约弹窗的"过去时段过滤"全端从未实现 + 「改约失败（500）」类未结构化兜底偶发出现。**修复策略**：① 后端新建 `app/api/system.py` 提供 `GET /api/system/server-time` 无鉴权接口（返回 `now_iso/now_unix_ms/timezone`）；② `set_order_appointment` 拆分为外层 `try/except` 兜底 + 内层 `_set_order_appointment_impl`，未知异常一律包成 `RESCHEDULE_INTERNAL_ERROR` 结构化 500 + `detail.detail=trace=xxx`；新增"今天且时段已结束"二次过期校验返回 `RESCHEDULE_TIME_EXPIRED`；③ `is_customer_entry` 增加 UA 兜底——既无 `X-Client-Source` 也无 `Client-Type` 顾客标识时，UA 命中 `iphone/android/mobile/dart/flutter/okhttp/miniprogram/micromessenger` 任一关键词就放行（路径在 `/merchant/*` PC 商家域时排除）；④ H5 `lib/server-time.ts`（新建）+ `unified-order/[id]/page.tsx` 改约弹窗按服务器时间过滤 9 段（`filterPastSlots`），今天空状态文案 + 一键跳明天按钮，服务器时间不可用红字降级提示；⑤ 小程序 `utils/server-time.js`（新建）+ `pages/unified-order-detail/{index.js,wxml,wxss}` 同步实现：`apptDisplaySlots/apptTodayHasNoSlot/apptServerTimeUnreliable` 状态机；⑥ Flutter `services/server_time_service.dart`（新建）+ `screens/order/unified_order_detail_screen.dart` `StatefulBuilder` 内按服务器时间过滤 + 今天 0 时段空状态卡片 + 一键跳明天 ElevatedButton；⑦ 部署后容器内 `pytest tests/test_bugfix_reschedule_v2.py` **7 passed**（V01 server-time 接口 + V02 H5 顾客端改约成功 + V03 UA 兜底放行 + V04 今天过去时段返回 TIME_EXPIRED + V05 不存在订单返回结构化错误 + V06 ISO 字段格式 + V07 双重身份用户 UA 兜底改约成功）；⑧ `_smoke` 远程接口验证：`/api/system/server-time` HEAD=200 返回 `{"now_iso":"2026-05-07T09:13:51.974Z","now_unix_ms":1778145231975,"timezone":"UTC"}`；⑨ 阶段 4 微信小程序打包并 SFTP 上传到 `static/miniprogram/miniprogram_bug403_20260507_171804_c6c0.zip` HEAD=200 验证通过。
+
+### 改动文件
+- 后端新建：`backend/app/api/system.py`（GET /api/system/server-time，1.6KB）
+- 后端修改：`backend/app/utils/client_source.py`（is_customer_entry UA 兜底）、`backend/app/api/unified_orders.py`（set_order_appointment 拆分 + try/except 兜底 + 二次过期校验 + RESCHEDULE_INTERNAL_ERROR 结构化）、`backend/app/main.py`（注册 system.router）
+- 后端测试：`backend/tests/test_bugfix_reschedule_v2.py`（V01-V07 共 7 用例，全部通过）
+- H5 新建：`h5-web/src/lib/server-time.ts`（initServerTime/getServerNow/isSameDayAsServer/parseSlotRange/filterPastSlots/isServerTimeUnreliable，约 4KB）
+- H5 修改：`h5-web/src/app/unified-order/[id]/page.tsx`（弹窗 import server-time + openAppointmentPopup 内 init + 服务器时间不可用红字提示 + todayHasNoSlot 空状态卡片 + goTomorrow 一键跳明天 + 提交按钮 disabled todayHasNoSlot）
+- 小程序新建：`miniprogram/utils/server-time.js`（同 H5 工具的 wx.request 版本）
+- 小程序修改：`miniprogram/pages/unified-order-detail/index.{js,wxml,wxss}`（apptDisplaySlots/apptTodayHasNoSlot/apptServerTimeUnreliable + onApptGoTomorrow + appt-tip-warn / appt-slots-empty 样式）
+- Flutter 新建：`flutter_app/lib/services/server_time_service.dart`（同 H5 工具的 Dio 版本）
+- Flutter 修改：`flutter_app/lib/screens/order/unified_order_detail_screen.dart`（_openAppointmentDialog 内 ServerTimeService.init + StatefulBuilder 内重算 displaySlots + isToday + 空状态卡片 + 一键跳明天 ElevatedButton + 红字降级提示）
+- 部署 / 打包脚本：`_deploy_bug403.py`（paramiko SFTP 上传 11 个文件 + docker cp + restart backend + docker compose build h5-web + 容器内 pytest）、`_pack_upload_miniprogram_bug403.py`（zip 打包 336 文件 / 400KB + SFTP 上传 + HEAD 验证）
+- 用户体验手册：`user_docs/客户端订单改约_过去时段过滤与双重身份500修复_BUG-FIX-RESCHEDULE-V2.md`（开头/末尾 ×2 访问链接表 + 功能简介 + 本次客户端变更四端表 + H5/小程序/Flutter 三场景使用说明 + 11 错误码对照表 + 微信小程序体验章节 + 7 条注意事项）
+
+### 关键技术决策
+- **拆分 `set_order_appointment` 为外层 try/except + 内层实现**：避免任何分支抛 `NoneType / KeyError / IntegrityError` 等被 FastAPI 直接吐 500 字符串。`detail.detail=trace=xxx` 字段挂载内部 trace id（前端不暴露给用户但服务端日志可关联），用户看到的统一是「改约处理异常，请稍后重试或联系客服」。
+- **UA 兜底而非硬性 403**：上一轮 v1 修复后，仍可能有"漏改的入口 / 旧版本 App / token 刷新链路丢头"导致 `X-Client-Source` 缺失。本轮 `is_customer_entry` 在 Header 全部缺失时增加 UA 推断（顾客侧关键词放行 + 商家 PC 路径 `/merchant/*`（排除 `/merchant/m/*`）保留拒绝），最大化兼容性同时保持商家 PC 后台仍被拒。
+- **服务器时间过滤的"双保险"**：前端按服务器时间隐藏过去时段（用户体验层）+ 后端 `appt_end <= now_local` 二次校验（数据安全层）。即便手机时间被人为调快 1 天传入"今天的 13:00 时段"，后端按真实服务器时间也会返回 `RESCHEDULE_TIME_EXPIRED`。
+- **不修改 PRD-03 的"明天起 90 天"改期范围**：`include_today=True` 的商品在"首次预约"时 has_existing_appt=False，二次过期校验自动跳过；"改期"场景始终保持"明天起 90 天"。空状态文案只是 UI 引导，并非放开"改期到今天"。
+- **三端 server-time 工具同源不同体**：H5 用 axios 单例（`api.get`）、小程序用 `wx.request` 包装（`request.js` 中 `get(url, {}, {showLoading:false, suppressErrorToast:true})`）、Flutter 用 `Dio.get`，但语义完全一致：`init()` 幂等并发去重 + `now()` 返回 `Date.now()+offset` + `filterPastSlots(date, slots)` 仅在 `isSameDayAsServer(date)` 时按"段结束分钟数 > 当前分钟数"过滤。
+- **App 端跳过 GitHub Actions 远程构建**：延续 PRD-365 / PRD-370 / BUG-FIX-REBUY-V1 的实用主义路径，在用户手册「本次客户端变更」表格中明确状态并提供 `android-build.yml` / `ios-build.yml` 手动触发链接，避免阻塞 P0 修复的快速上线。Flutter 改动量较大（新建 server_time_service.dart + 改弹窗），但后端 UA 兜底机制保证旧版 App 即便不重打包也仍能改约成功。
+
+### 验证情况
+- 容器内 pytest：`tests/test_bugfix_reschedule_v2.py` → **7 passed in 7.02s**
+- 远程 HEAD：`/api/health=200`、`/api/system/server-time=200` 返回 `{"now_iso":"2026-05-07T09:13:51.974Z","now_unix_ms":1778145231975,"timezone":"UTC"}`、`/=200`
+- h5-web 容器重建成功并 Up + admin / backend / db 全部健康
+- 小程序 zip HEAD：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/miniprogram/miniprogram_bug403_20260507_171804_c6c0.zip` = 200，400.4KB，336 文件
+
+### 用户体验手册
+- `user_docs/客户端订单改约_过去时段过滤与双重身份500修复_BUG-FIX-RESCHEDULE-V2.md`
+
+---
+
+## Previous Update: BUGFIX-ADMIN-ORDERS-GATEWAY-OK-20260507｜admin 后台「商家体系-订单明细」点击后白屏 Gateway OK 修复（2026-05-07 17:00）
 
 ### 一句话结论
 按 `cursor_prompt_402_20260507165159.txt` 走 develop-all 流程修复 P0：admin 后台运营点击左侧菜单「商家体系 → 订单明细」整页白屏，仅显示纯文本 `Gateway OK`。**根因**：PRD-02 R-02-04「订单视图记忆 + 自动跳预约看板」的旧逻辑没在 PRD-365「预约看板按门店维度」改造时同步删除，订单列表页 useEffect 在无 `bini_orders_view_preference='list'` 记忆时 `window.location.replace('/admin/product-system/orders/dashboard')` 跳走但**未带 storeId**，dashboard 页拦截到缺参数 `message.warning + router.replace('/merchant/stores')` 期间路由瞬态被 nginx 兜底回落成 `Gateway OK` 字符串响应。**修复策略**：① 彻底删除订单列表页 `useEffect` 中"无记忆即自动跳看板"的逻辑，改为顺手 `removeItem('bini_orders_view_preference')` 清理历史脏数据；② 删除订单列表页右上角「切换到预约看板」按钮（看板入口收敛到「门店列表-预约看板按钮」专属承载）；③ dashboard 页缺 `storeId` 时不再 `message + replace` 跳走（容易触发 nginx 兜底白屏），改为渲染 `<Empty>` 友好提示卡片「请先选择门店」+「前往门店列表」按钮，由用户主动点击跳转。

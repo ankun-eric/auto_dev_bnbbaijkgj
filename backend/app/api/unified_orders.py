@@ -2027,7 +2027,49 @@ async def set_order_appointment(
 
     所有失败均返回结构化错误：{"code": "RESCHEDULE_XXX", "message": "...", "detail": "..."}，
     便于前端按 code 做文案映射，避免统一的"预约失败"兜底。
+
+    [BUG-FIX-RESCHEDULE-V2 2026-05-07] 强化：
+    - 函数体外层 try/except 把所有未知异常（NoneType / KeyError / IntegrityError 等）
+      统一转为 RESCHEDULE_INTERNAL_ERROR 结构化响应，避免 FastAPI 兜底 500 字符串
+    - appointment_time 落入"今天且已过去"时返回 RESCHEDULE_TIME_EXPIRED（与前端按服务器时间隐藏过去时段双保险）
     """
+    try:
+        return await _set_order_appointment_impl(
+            order_id=order_id,
+            data=data,
+            request=request,
+            current_user=current_user,
+            db=db,
+        )
+    except HTTPException:
+        # 业务结构化错误：按既定 code/message 直出
+        raise
+    except Exception as exc:  # noqa: BLE001
+        # 任何未结构化异常一律包成 RESCHEDULE_INTERNAL_ERROR，
+        # 避免客户端拿到无法识别的"改约失败（500）"通用文案。
+        import logging as _logging
+        import uuid as _uuid
+        trace_id = _uuid.uuid4().hex[:12]
+        _logging.getLogger(__name__).exception(
+            "[reschedule] set_order_appointment unhandled exception trace=%s order_id=%s err=%s",
+            trace_id, order_id, exc,
+        )
+        raise _reschedule_error(
+            status_code=500,
+            code=RESCHEDULE_INTERNAL_ERROR,
+            message="改约处理异常，请稍后重试或联系客服",
+            detail=f"trace={trace_id}",
+        )
+
+
+async def _set_order_appointment_impl(
+    order_id: int,
+    data: UnifiedOrderSetAppointmentRequest,
+    request: Request,
+    current_user: User,
+    db: AsyncSession,
+):
+    """[BUG-FIX-RESCHEDULE-V2] set_order_appointment 实际实现，由外层 try/except 包裹兜底。"""
     # ─── [双重身份用户 H5 顾客端改约失败 Bug 修复 v1.0] 入口鉴权 ───
     # 优先识别 X-Client-Source（新机制），其次回退到 Client-Type（旧机制），都不识别才拒绝。
     client_source = parse_client_source_from_header(request)
@@ -2104,9 +2146,43 @@ async def set_order_appointment(
             pass
 
     # [PRD-03 §F-03-5 / §R-03-03] 改期可选范围：明天起 90 天（仅在改期时校验，首次预约不卡）
+    # [BUG-FIX-RESCHEDULE-V2 2026-05-07] 在 90 天范围校验之前新增「时段是否已过结束」二次校验，
+    # 与前端按服务器时间隐藏过去时段构成双保险，防止前端时间被绕过
     if has_existing_appt:
         from datetime import datetime as _dt
         now_local = _dt.now()
+        # 时段结束时间（默认按 1 小时窗口推算；如 appointment_data.time_slot 提供则解析其结束点）
+        appt_end = data.appointment_time
+        if appt_end.tzinfo is not None:
+            appt_end = appt_end.replace(tzinfo=None)
+        try:
+            ad = data.appointment_data or {}
+            slot = ad.get("time_slot") if isinstance(ad, dict) else None
+            if isinstance(slot, str) and "-" in slot:
+                # 解析 "14:00-15:00" 这样的字符串，取结束时间
+                end_str = slot.split("-", 1)[1].strip()
+                hh, mm = end_str.split(":")
+                # 跨日 24:00 → 当天 23:59:59
+                hh_int = int(hh)
+                mm_int = int(mm)
+                if hh_int >= 24:
+                    appt_end = appt_end.replace(hour=23, minute=59, second=59, microsecond=0)
+                else:
+                    appt_end = appt_end.replace(
+                        hour=hh_int, minute=mm_int, second=0, microsecond=0
+                    )
+            else:
+                # 没有显式 time_slot：默认认为时段结束 = 起点 + 1 小时
+                appt_end = appt_end + timedelta(hours=1)
+        except Exception:  # noqa: BLE001
+            appt_end = appt_end + timedelta(hours=1)
+        if appt_end <= now_local:
+            raise _reschedule_error(
+                status_code=400,
+                code=RESCHEDULE_TIME_EXPIRED,
+                message="所选时段已过期，请选择未来时间",
+                detail="时段结束时间已早于当前服务器时间",
+            )
         # 「明天起」：appointment_time 必须 >= 明天 00:00
         tomorrow_start = _dt.combine(
             (now_local.date() + timedelta(days=1)),

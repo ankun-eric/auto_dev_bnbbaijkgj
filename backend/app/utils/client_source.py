@@ -241,12 +241,16 @@ def parse_client_source_from_header(request: Request) -> str:
 
 
 def is_customer_entry(request: Request) -> bool:
-    """[双重身份用户 H5 顾客端改约失败 Bug 修复 v1.0]
+    """[双重身份用户 H5 顾客端改约失败 Bug 修复 v1.0
+    + BUG-FIX-RESCHEDULE-V2 2026-05-07 UA 兜底强化]
     判断本次请求是否从「顾客端入口」发起。
 
-    判定来源（满足任一条件即认定为顾客端入口）：
-    1. X-Client-Source Header ∈ {h5-customer, miniprogram-customer, flutter-customer}
+    判定来源（按优先级，满足任一条件即认定为顾客端入口）：
+    1. X-Client-Source Header ∈ {h5-customer, miniprogram-customer, flutter-customer}（最强信号）
     2. Client-Type Header ∈ {h5-user, miniprogram-user, app-user}（向下兼容旧版前端）
+    3. UA 兜底：当上述两个 Header 都缺失，且 path 不在商家管家域（/merchant/* PC 后台）下，
+       UA 命中"移动端 / 微信小程序 / Flutter / Dart" 等关键词时，按顾客侧入口放行
+       （旧版本 App 或漏改的入口不至于硬性 403）
 
     用于 reschedule 等"商家兼顾客"场景敏感的接口：
     - 顾客端入口 → 跳过商家身份校验、按顾客身份处理
@@ -256,7 +260,38 @@ def is_customer_entry(request: Request) -> bool:
         return False
     if parse_client_source_from_header(request):
         return True
-    return is_customer_client(detect_client_type(request))
+    if is_customer_client(detect_client_type(request)):
+        return True
+    # [BUG-FIX-RESCHEDULE-V2] UA 兜底：仅在 Header 全部缺失时才走 UA 推断
+    try:
+        ua = (request.headers.get("user-agent") or request.headers.get("User-Agent") or "").lower()
+        path = (getattr(getattr(request, "url", None), "path", None) or "").lower()
+        # 排除商家 PC 端入口（/merchant/* 但不含 /merchant/m/）
+        is_merchant_pc_path = (
+            "/merchant/" in path and "/merchant/m/" not in path
+        )
+        if is_merchant_pc_path:
+            return False
+        if not ua:
+            return False
+        # 命中以下关键词之一即视为顾客侧入口
+        ua_hints = (
+            "miniprogram",  # 微信小程序
+            "micromessenger",  # 微信内嵌浏览器（顾客 H5 场景）
+            "dart",  # Flutter HTTP 默认 UA 携带 Dart 关键字
+            "flutter",
+            "okhttp",  # Android Dio/OkHttp 客户端
+            "iphone",
+            "ipad",
+            "android",
+            "mobile",
+        )
+        if any(k in ua for k in ua_hints):
+            return True
+    except Exception:  # noqa: BLE001
+        # UA 兜底任何异常都不阻塞主流程
+        return False
+    return False
 
 
 async def get_optional_client_type(request: Request) -> str:

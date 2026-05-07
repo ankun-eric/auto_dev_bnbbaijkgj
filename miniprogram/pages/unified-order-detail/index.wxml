@@ -214,6 +214,10 @@
     <view class="appt-tip" wx:if="{{apptIsReschedule}}">
       改期可选范围：明天起 90 天内；本订单还可改期 {{apptRemainCount}} 次
     </view>
+    <!-- [BUG-FIX-RESCHEDULE-V2 2026-05-07] 服务器时间拉取失败时红字提示 -->
+    <view class="appt-tip-warn" wx:if="{{apptServerTimeUnreliable}}">
+      网络异常，时段以服务器为准；如改约失败请重试
+    </view>
     <view class="appt-row">
       <text class="appt-label">预约日期</text>
       <picker mode="date" value="{{apptDate}}" start="{{apptMinDate}}" end="{{apptMaxDate}}" bindchange="onApptDateChange">
@@ -224,23 +228,27 @@
          [PRD-03] 改期场景使用 9 段固定切片；首次预约保留商品配置 -->
     <view class="appt-slots-row" wx:if="{{apptCurrentMode !== 'date'}}">
       <text class="appt-label">预约时段</text>
-      <view class="appt-slots">
-        <block wx:if="{{apptIsReschedule}}">
+      <!-- [BUG-FIX-RESCHEDULE-V2 2026-05-07] 今天剩余时段已过 → 空状态 + 一键跳明天 -->
+      <view class="appt-slots-empty" wx:if="{{apptTodayHasNoSlot}}">
+        <view class="appt-slots-empty-text">今日剩余时段已过，请选择明天起的日期</view>
+        <view class="appt-slots-empty-btn" catchtap="onApptGoTomorrow">一键切到明天</view>
+      </view>
+      <view class="appt-slots" wx:else>
+        <block>
           <view
             class="appt-slot {{apptSlot === item ? 'active' : ''}}"
-            wx:for="{{apptResched9Slots}}"
+            wx:for="{{apptDisplaySlots}}"
             wx:key="*this"
             data-slot="{{item}}"
             catchtap="onApptSlotTap"
           >{{item}}</view>
         </block>
-        <block wx:else>
+        <block wx:if="{{false}}">
           <view
-            class="appt-slot {{apptSlot === item ? 'active' : ''}}"
+            class="appt-slot"
             wx:for="{{apptSlotOptions}}"
             wx:key="*this"
             data-slot="{{item}}"
-            catchtap="onApptSlotTap"
           >{{item}}</view>
         </block>
       </view>

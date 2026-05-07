@@ -1,6 +1,14 @@
 const { get, post } = require('../../utils/request');
 // [2026-05-05 订单页地址导航按钮 PRD v1.0]
 const { navigateToAddress } = require('../../utils/map-nav');
+// [BUG-FIX-RESCHEDULE-V2 2026-05-07] 服务器时间工具：用于改约弹窗按服务器时间过滤已过去的整段时段
+const {
+  initServerTime,
+  getServerNow,
+  isServerTimeUnreliable,
+  isSameDayAsServer,
+  filterPastSlots,
+} = require('../../utils/server-time');
 
 Page({
   data: {
@@ -31,7 +39,13 @@ Page({
       '12:00-14:00', '14:00-16:00', '16:00-18:00',
       '18:00-20:00', '20:00-22:00', '22:00-24:00'
     ],
-    apptRemainCount: 0
+    apptRemainCount: 0,
+    // [BUG-FIX-RESCHEDULE-V2 2026-05-07] 改约时段池（按服务器时间过滤后）：模板直接消费
+    apptDisplaySlots: [],
+    // 是否处于"今天且无可用时段"状态（弹空状态 + 一键跳明天按钮）
+    apptTodayHasNoSlot: false,
+    // 服务器时间不可用提示（红字）
+    apptServerTimeUnreliable: false
   },
 
   onLoad(options) {
@@ -219,6 +233,43 @@ Page({
       apptMinDate: fmt(tomorrow),
       apptMaxDate: fmt(max)
     });
+    // [BUG-FIX-RESCHEDULE-V2 2026-05-07] 弹窗打开时拉服务器时间 + 重算时段池
+    initServerTime().then(() => {
+      this._recomputeSlotsByServerTime();
+    });
+    this._recomputeSlotsByServerTime();
+  },
+
+  // [BUG-FIX-RESCHEDULE-V2 2026-05-07] 按当前选中日期 + 服务器时间，重算改约弹窗的时段池
+  // 仅在选中日期 == 服务器今天 时才过滤；其它日期保留全部 9 段
+  _recomputeSlotsByServerTime() {
+    const isReschedule = !!this.data.apptIsReschedule;
+    const basePool = isReschedule ? this.data.apptResched9Slots : this.data.apptSlotOptions;
+    const dateStr = this.data.apptDate;
+    const filtered = filterPastSlots(dateStr, basePool);
+    const isToday = isSameDayAsServer(dateStr);
+    const todayHasNoSlot = isToday && filtered.length === 0 && this.data.apptCurrentMode === 'time_slot';
+    // 若过滤后已选 slot 不在新池中，自动清空
+    let nextSlot = this.data.apptSlot;
+    if (nextSlot && filtered.indexOf(nextSlot) < 0) {
+      nextSlot = '';
+    }
+    this.setData({
+      apptDisplaySlots: filtered,
+      apptTodayHasNoSlot: todayHasNoSlot,
+      apptServerTimeUnreliable: isServerTimeUnreliable(),
+      apptSlot: nextSlot
+    });
+  },
+
+  // [BUG-FIX-RESCHEDULE-V2] 一键切到明天
+  onApptGoTomorrow() {
+    const now = getServerNow();
+    const t = new Date(now);
+    t.setDate(t.getDate() + 1);
+    const dateStr = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+    this.setData({ apptDate: dateStr, apptSlot: '' });
+    this._recomputeSlotsByServerTime();
   },
 
   closeApptModal() {
@@ -227,6 +278,8 @@ Page({
 
   onApptDateChange(e) {
     this.setData({ apptDate: e.detail.value });
+    // [BUG-FIX-RESCHEDULE-V2] 切日期后重算时段池
+    this._recomputeSlotsByServerTime();
   },
 
   onApptSlotTap(e) {
@@ -244,6 +297,11 @@ Page({
     }
     // [修改预约 Bug 修复 v1.0] 仅 time_slot 模式才校验时段；date 模式不校验且不携带 time_slot
     const mode = this.data.apptCurrentMode || 'time_slot';
+    // [BUG-FIX-RESCHEDULE-V2] 今日剩余时段已过 → 引导用户先切到明天
+    if (mode === 'time_slot' && this.data.apptTodayHasNoSlot) {
+      wx.showToast({ title: '今日剩余时段已过，请先切到明天', icon: 'none' });
+      return;
+    }
     if (mode === 'time_slot' && !this.data.apptSlot) {
       wx.showToast({ title: '请选择预约时段', icon: 'none' });
       return;

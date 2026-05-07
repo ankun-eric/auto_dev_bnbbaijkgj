@@ -6,6 +6,14 @@ import { Card, Image, Tag, Button, Steps, Divider, Toast, Dialog, SpinLoading, P
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 import { extractRescheduleErrorText } from '@/lib/reschedule-error';
+// [BUG-FIX-RESCHEDULE-V2 2026-05-07] 服务器时间工具：用于改约弹窗按服务器时间过滤已过去的整段时段
+import {
+  initServerTime,
+  getServerNow,
+  isServerTimeUnreliable,
+  isSameDayAsServer,
+  filterPastSlots,
+} from '@/lib/server-time';
 import { fulfillmentLabel } from '@/utils/fulfillmentLabel';
 import { redirectToPayUrl } from '@/lib/basePath';
 import ContactStoreModal from '@/app/orders/components/ContactStoreModal';
@@ -278,6 +286,8 @@ export default function UnifiedOrderDetailPage() {
         ? (apptItem.appointment_data as any).time_slot || ''
         : '';
     setApptSlot(existingSlot);
+    // [BUG-FIX-RESCHEDULE-V2] 弹窗打开时拉一次服务器时间，保证 9 段过滤准确
+    initServerTime().catch(() => {});
     setShowAppointmentPopup(true);
   };
 
@@ -955,7 +965,21 @@ export default function UnifiedOrderDetailPage() {
         // [PRD-03 客户端改期能力收口 v1.0] 判断「真正改期场景」：order 已有过预约时间
         const isReschedule = !!order.items?.some((it) => it.appointment_time);
         // [PRD-03] 改期场景使用 PRD-01 的 9 段固定切片；首次预约保留商品原有时段配置
-        const slotOptions = isReschedule ? RESCHEDULE_TIME_SLOTS_9 : DEFAULT_TIME_SLOTS;
+        const baseSlotOptions = isReschedule ? RESCHEDULE_TIME_SLOTS_9 : DEFAULT_TIME_SLOTS;
+        // [BUG-FIX-RESCHEDULE-V2 2026-05-07] 按服务器时间过滤已过去的整段时段
+        // - 仅当选中日期 == 服务器今天 时过滤；明天及以后不过滤
+        // - 整段从池中移除（不显示、不可选、不置灰）
+        const slotOptions = filterPastSlots(apptDate, baseSlotOptions);
+        const isToday = !!apptDate && isSameDayAsServer(apptDate);
+        const todayHasNoSlot = mode === 'time_slot' && isToday && slotOptions.length === 0;
+        const serverTimeUnreliable = isServerTimeUnreliable();
+        const goTomorrow = () => {
+          const tomorrow = new Date(getServerNow());
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          tomorrow.setHours(0, 0, 0, 0);
+          setApptDate(tomorrow);
+          setApptSlot('');
+        };
         return (
           <Popup
             visible={showAppointmentPopup}
@@ -982,6 +1006,24 @@ export default function UnifiedOrderDetailPage() {
                 改期可选范围：明天起 90 天内；本订单还可改期 {Math.max(0, (order.reschedule_limit ?? 3) - (order.reschedule_count ?? 0))} 次
               </div>
             )}
+            {/* [BUG-FIX-RESCHEDULE-V2 2026-05-07] 服务器时间拉取失败时红字提示，
+                 时段过滤会降级为本地时间，提交时由后端兜底再校验 */}
+            {serverTimeUnreliable && (
+              <div
+                style={{
+                  background: '#fff2f0',
+                  border: '1px solid #ffccc7',
+                  color: '#cf1322',
+                  padding: '6px 10px',
+                  borderRadius: 6,
+                  marginBottom: 12,
+                  fontSize: 12,
+                  lineHeight: 1.5,
+                }}
+              >
+                网络异常，时段以服务器为准；如改约失败请重试
+              </div>
+            )}
             <div className="mb-4">
               <div className="text-sm text-gray-500 mb-1">预约日期</div>
               <Button
@@ -997,20 +1039,41 @@ export default function UnifiedOrderDetailPage() {
             {mode === 'time_slot' && (
               <div className="mb-4">
                 <div className="text-sm text-gray-500 mb-2">预约时段</div>
-                <Selector
-                  options={slotOptions.map((s) => ({ label: s, value: s }))}
-                  value={apptSlot ? [apptSlot] : []}
-                  onChange={(arr) => setApptSlot(arr[0] || '')}
-                  columns={3}
-                  style={{ '--padding': '8px 0', '--border-radius': '6px' }}
-                />
+                {/* [BUG-FIX-RESCHEDULE-V2] 今天剩余时段已过 → 空状态文案 + 一键跳明天 */}
+                {todayHasNoSlot ? (
+                  <div
+                    style={{
+                      background: '#fafafa',
+                      border: '1px dashed #d9d9d9',
+                      borderRadius: 6,
+                      padding: '16px 12px',
+                      textAlign: 'center',
+                      color: '#8c8c8c',
+                      fontSize: 13,
+                    }}
+                  >
+                    <div style={{ marginBottom: 10 }}>今日剩余时段已过，请选择明天起的日期</div>
+                    <Button size="small" color="primary" onClick={goTomorrow}>
+                      一键切到明天
+                    </Button>
+                  </div>
+                ) : (
+                  <Selector
+                    options={slotOptions.map((s) => ({ label: s, value: s }))}
+                    value={apptSlot ? [apptSlot] : []}
+                    onChange={(arr) => setApptSlot(arr[0] || '')}
+                    columns={3}
+                    style={{ '--padding': '8px 0', '--border-radius': '6px' }}
+                  />
+                )}
               </div>
             )}
             <Button
               block
               loading={apptSubmitting}
               onClick={submitAppointment}
-              style={{ background: '#52c41a', color: '#fff', border: 'none', borderRadius: 22, height: 44, fontSize: 15 }}
+              disabled={todayHasNoSlot}
+              style={{ background: todayHasNoSlot ? '#d9d9d9' : '#52c41a', color: '#fff', border: 'none', borderRadius: 22, height: 44, fontSize: 15 }}
             >
               {isReschedule ? '确认改期' : '确认预约'}
             </Button>

@@ -529,6 +529,44 @@
   margin-top: 16rpx;
 }
 
+/* [BUG-FIX-RESCHEDULE-V2 2026-05-07] 服务器时间不可用红字提示 */
+.appt-tip-warn {
+  display: block;
+  margin: 0 0 16rpx;
+  padding: 12rpx 16rpx;
+  background: #fff2f0;
+  color: #cf1322;
+  border: 1rpx solid #ffccc7;
+  border-radius: 8rpx;
+  font-size: 24rpx;
+  line-height: 1.5;
+}
+
+/* [BUG-FIX-RESCHEDULE-V2 2026-05-07] 今日时段全部过去 空状态 */
+.appt-slots-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #fafafa;
+  border: 1rpx dashed #d9d9d9;
+  border-radius: 8rpx;
+  padding: 24rpx 16rpx;
+  margin-top: 8rpx;
+}
+.appt-slots-empty-text {
+  color: #8c8c8c;
+  font-size: 26rpx;
+  margin-bottom: 16rpx;
+}
+.appt-slots-empty-btn {
+  background: #34C759;
+  color: #ffffff;
+  font-size: 26rpx;
+  padding: 10rpx 28rpx;
+  border-radius: 28rpx;
+}
+
 /* [PRD-03 客户端改期能力收口 v1.0] 改期场景规则提示样式 */
 .appt-tip {
   display: block;

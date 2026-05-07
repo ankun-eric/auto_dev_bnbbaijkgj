@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import '../../models/product.dart';
 import '../../models/unified_order.dart';
 import '../../services/api_service.dart';
+// [BUG-FIX-RESCHEDULE-V2 2026-05-07] 服务器时间工具：用于改约弹窗按服务器时间过滤已过去的整段时段
+import '../../services/server_time_service.dart';
 import '../../utils/price_formatter.dart';
 import '../../utils/fulfillment_label.dart';
 // [双重身份用户 H5 顾客端改约失败 Bug 修复 v1.0]
@@ -844,7 +846,7 @@ class _UnifiedOrderDetailScreenState extends State<UnifiedOrderDetailScreen> {
       (it) => (it.appointmentTime ?? '').isNotEmpty,
     );
     // [PRD-03] 改期场景使用 PRD-01 9 段切片；首次预约保留商品原有 8 段
-    final List<String> slotPool =
+    final List<String> baseSlotPool =
         isReschedule ? _kReschedule9Slots : _kAppointmentSlots;
     final int remainCount =
         (o.rescheduleLimit - o.rescheduleCount).clamp(0, 999);
@@ -858,12 +860,35 @@ class _UnifiedOrderDetailScreenState extends State<UnifiedOrderDetailScreen> {
     if (selectedDate.isBefore(firstSelectable)) {
       selectedDate = firstSelectable;
     }
+    // [BUG-FIX-RESCHEDULE-V2 2026-05-07] 拉取服务器时间，用于过滤已过去的整段时段
+    final ServerTimeService stSvc = ServerTimeService();
+    // 异步拉取服务器时间（不阻塞弹窗显示，结果到达后下一次 setS() 自动用到）
+    // ignore: discarded_futures
+    stSvc.init();
     final result = await showDialog<bool>(
       context: context,
       builder: (ctx) {
         return StatefulBuilder(builder: (ctx2, setS) {
           final dateStr =
               '${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}';
+          // [BUG-FIX-RESCHEDULE-V2] 按服务器时间过滤已过去的整段时段（仅当选中日期 == 服务器今天）
+          final List<String> displaySlots =
+              stSvc.filterPastSlots(selectedDate, baseSlotPool);
+          final bool isToday = stSvc.isSameDayAsServer(selectedDate);
+          final bool todayHasNoSlot = mode != 'date' && isToday && displaySlots.isEmpty;
+          // 选中的 slot 若被过滤掉，自动清空
+          if (selectedSlot != null && !displaySlots.contains(selectedSlot)) {
+            selectedSlot = null;
+          }
+          // 一键切到明天
+          void goTomorrow() {
+            final t = stSvc.now();
+            final tomorrow = DateTime(t.year, t.month, t.day).add(const Duration(days: 1));
+            setS(() {
+              selectedDate = tomorrow;
+              selectedSlot = null;
+            });
+          }
           return AlertDialog(
             title: Text(
               isReschedule ? '修改预约' : '选择预约时间',
@@ -892,6 +917,25 @@ class _UnifiedOrderDetailScreenState extends State<UnifiedOrderDetailScreen> {
                         ),
                       ),
                     ),
+                  // [BUG-FIX-RESCHEDULE-V2] 服务器时间不可用时红字提示
+                  if (stSvc.isUnreliable)
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFF2F0),
+                        border: Border.all(color: const Color(0xFFFFCCC7)),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: const Text(
+                        '网络异常，时段以服务器为准；如改约失败请重试',
+                        style: TextStyle(
+                          color: Color(0xFFCF1322),
+                          fontSize: 12,
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
                   const Text('预约日期', style: TextStyle(color: Colors.grey, fontSize: 13)),
                   const SizedBox(height: 6),
                   OutlinedButton(
@@ -911,37 +955,71 @@ class _UnifiedOrderDetailScreenState extends State<UnifiedOrderDetailScreen> {
                     const SizedBox(height: 14),
                     const Text('预约时段', style: TextStyle(color: Colors.grey, fontSize: 13)),
                     const SizedBox(height: 6),
-                    GridView.count(
-                      crossAxisCount: 3,
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      mainAxisSpacing: 8,
-                      crossAxisSpacing: 8,
-                      childAspectRatio: 2.6,
-                      children: slotPool.map((slot) {
-                        final active = slot == selectedSlot;
-                        return GestureDetector(
-                          onTap: () => setS(() => selectedSlot = slot),
-                          child: Container(
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              color: active ? const Color(0xFF52C41A) : Colors.white,
-                              border: Border.all(
-                                color: active ? const Color(0xFF52C41A) : Colors.grey.shade300,
-                              ),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              slot,
-                              style: TextStyle(
-                                color: active ? Colors.white : Colors.black87,
-                                fontSize: 13,
-                              ),
-                            ),
+                    // [BUG-FIX-RESCHEDULE-V2] 今天剩余时段已过 → 空状态 + 一键跳明天
+                    if (todayHasNoSlot)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFAFAFA),
+                          border: Border.all(
+                            color: const Color(0xFFD9D9D9),
+                            style: BorderStyle.solid,
                           ),
-                        );
-                      }).toList(),
-                    ),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Column(
+                          children: [
+                            const Text(
+                              '今日剩余时段已过，请选择明天起的日期',
+                              style: TextStyle(color: Color(0xFF8C8C8C), fontSize: 13),
+                            ),
+                            const SizedBox(height: 10),
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF34C759),
+                                minimumSize: const Size(120, 32),
+                              ),
+                              onPressed: goTomorrow,
+                              child: const Text(
+                                '一键切到明天',
+                                style: TextStyle(color: Colors.white, fontSize: 13),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      GridView.count(
+                        crossAxisCount: 3,
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        mainAxisSpacing: 8,
+                        crossAxisSpacing: 8,
+                        childAspectRatio: 2.6,
+                        children: displaySlots.map((slot) {
+                          final active = slot == selectedSlot;
+                          return GestureDetector(
+                            onTap: () => setS(() => selectedSlot = slot),
+                            child: Container(
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: active ? const Color(0xFF52C41A) : Colors.white,
+                                border: Border.all(
+                                  color: active ? const Color(0xFF52C41A) : Colors.grey.shade300,
+                                ),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                slot,
+                                style: TextStyle(
+                                  color: active ? Colors.white : Colors.black87,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
                   ],
                 ],
               ),
