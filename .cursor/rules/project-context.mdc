@@ -33,7 +33,44 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: BUG-FIX-REBUY-V1｜全平台「再来一单」跳转修复（2026-05-07 15:30）
+## Latest Update: BUG-FIX-RESCHEDULE-DUAL-IDENTITY-V1｜双重身份用户 H5 顾客端改约失败修复（2026-05-07 16:50）
+
+### 一句话结论
+按 `cursor_prompt_400_20260507155319.txt` 走 develop-all 流程修复 P0/P1 复合 Bug：同一手机号既是顾客又是商家的"双重身份用户"在 H5 顾客端 / 微信小程序 / Flutter App 任意顾客侧入口对自己订单点改约时，被错误识别成商家身份而拒绝，且失败一律兜底"预约失败"无法定位。修复方案：① **后端**新增 `X-Client-Source` 请求头协议（`h5-customer / miniprogram-customer / flutter-customer`），改约接口判定来自顾客侧入口时按顾客身份放行；双重身份用户从顾客侧入口操作自己订单时**改约次数不再受 `reschedule_limit` 限制**；改约失败一律返回结构化错误 `{detail: {code, message, detail}}`，错误码 11 个全枚举（`RESCHEDULE_NO_PERMISSION / RESCHEDULE_ORDER_NOT_FOUND / RESCHEDULE_ORDER_STATUS_INVALID / RESCHEDULE_LIMIT_EXCEEDED / RESCHEDULE_NOT_ALLOWED / RESCHEDULE_TIME_EXPIRED / RESCHEDULE_TIME_OUT_OF_RANGE / RESCHEDULE_TIME_CONFLICT / RESCHEDULE_REFUND_IN_PROGRESS / RESCHEDULE_PARTIALLY_USED / RESCHEDULE_INTERNAL_ERROR`）；② **H5 顾客端**Axios 拦截器自动追加 `X-Client-Source: h5-customer`，新增 `lib/reschedule-error.ts` 把后端错误码映射成具体业务文案；③ **微信小程序**`request.js` 全局头追加 + `formatErrorDetail` 优先解析 `detail.code`；④ **Flutter App**Dio `BaseOptions` 全局头 + 新增 `lib/utils/reschedule_error.dart`，覆盖 token 刷新兜底请求；⑤ 兼容性：未发 `X-Client-Source` 时仍按 `Client-Type` 老路径走，旧版前端不受影响。
+
+### 改动文件
+- 后端：`backend/app/utils/client_source.py`、`backend/app/api/unified_orders.py`
+- 后端测试：`backend/tests/test_reschedule_dual_identity.py`（11 个用例，全部通过）
+- H5：`h5-web/src/lib/api.ts`、`h5-web/src/lib/reschedule-error.ts`（新增）、`h5-web/src/app/unified-order/[id]/page.tsx`
+- 小程序：`miniprogram/utils/request.js`、`miniprogram/pages/unified-order-detail/index.js`
+- Flutter：`flutter_app/lib/services/api_service.dart`、`flutter_app/lib/utils/reschedule_error.dart`（新增）、`flutter_app/lib/screens/order/unified_order_detail_screen.dart`
+
+### 关键技术决策
+- 双重身份判定不依赖 DB 二次查询，而是直接看 `current_user.role == merchant` + 是否来自顾客侧入口（`is_customer_entry(request)`）。
+- 顾客侧入口允许"商家本人对自己订单无限改约"，但严格保留 `current_user.id != order.user_id → RESCHEDULE_ORDER_NOT_FOUND` 的越权防护（T08 用例守门）。
+- 错误结构化只覆盖业务校验层；认证层（401/403 未登录、无 token）保持原 string detail，避免污染中间件。
+
+### 验收对照
+- 双重身份用户 H5 顾客端首次改约：✅ 200
+- 双重身份用户连续改约 6 次：✅ 全部 200，不卡 reschedule_limit
+- 纯顾客 reschedule_limit=3：✅ 第 4 次返回 `RESCHEDULE_LIMIT_EXCEEDED`
+- 过去时段 → ✅ `RESCHEDULE_TIME_EXPIRED`，超 90 天 → ✅ `RESCHEDULE_TIME_OUT_OF_RANGE`
+- 顾客改他人订单 → ✅ `RESCHEDULE_ORDER_NOT_FOUND` 不会被修复放行
+- 既无 X-Client-Source 也无顾客 Client-Type → ✅ 403 `RESCHEDULE_NO_PERMISSION`
+- 小程序 / Flutter 入口同样放行 ✅
+- 全部失败响应 detail 是 `{code, message}` 结构 ✅
+- pytest：**11 passed in 14.56s**
+
+### 部署 & 测试日志
+- 远程部署完成，4 容器（h5/backend/db/admin）全部 Up
+- Smoke 路由：h5_root=200、api_health=200、api_docs=200、api_appointment_no_auth=405（GET/POST 校验生效）
+
+### 用户体验手册
+- `user_docs/双重身份用户H5顾客端改约失败修复_BUG-FIX-RESCHEDULE-DUAL-IDENTITY-V1_20260507.md`
+
+---
+
+## Previous Update: BUG-FIX-REBUY-V1｜全平台「再来一单」跳转修复（2026-05-07 15:30）
 
 ### 一句话结论
 按 `cursor_prompt_399_20260507152705.txt` 走 develop-all 流程修复 P0 级 Bug：H5 / 微信小程序 / Flutter App（Android+iOS）三端「再来一单」按钮点击后**错误地跳到原订单详情页**（旧逻辑跳 `/unified-order/{id}?action=rebuy`，但 `?action=rebuy` 参数从未被任何页面消费）。修复方案：① **后端**新增 `POST /api/orders/unified/{order_id}/reorder` 统一接口，按订单所有者校验 + 商品 status=active + SKU status=1 三层校验，返回 `all_available / partial_filtered / all_unavailable` 三种 status；② **三端前端**重写「再来一单」按钮逻辑：先调 reorder 接口校验，按 status 走对应分支（全下架 Toast 停留 / 部分下架 Toast 过滤 / 全可用直接跳支付页），跳支付页时通过 URL 携带 `product_id / sku_id / quantity / from_rebuy=1`；③ 字段复用规则：商品/SKU/数量复用，门店/日期/时段/联系人/备注/优惠券一律清空待选；④ 新增 H5 订单详情页 + 小程序详情页 + Flutter 详情页的「再来一单」按钮（completed/expired 状态可见），完善列表+详情双入口；⑤ 登录态过期 401/403 H5 自动跳登录页，小程序/Flutter Toast 提示。
