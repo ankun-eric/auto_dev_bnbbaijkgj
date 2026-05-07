@@ -33,6 +33,30 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
+## Latest Update: PRD-366｜H5 客户登录页面精简优化 验收闭环（2026-05-07 10:25）
+
+### 一句话结论
+按 `cursor_prompt_366_20260507101853.txt` 走 develop-all 流程：核对发现 PRD-366 要求删除的灰色 helperText 提示行、`showChannelHint` / `channelItems` / 「其他登录方式」整块、`Space` 组件 import、`wechatEnabled` 字段在历史 commit `ca32693 feat(h5-web): 精简登录页 - 删除冗余 helperText 与伪渠道入口` 中已全部清理完毕，且后续 `7eaa1a2 feat(login-layout): PRD 363 全平台登录页布局优化 v1.0` 又对登录页做了进一步布局优化，**当前 `h5-web/src/app/login/page.tsx` 已 100% 满足 PRD-366 第 8 节验收清单**（V-01 ~ V-08）；无需任何业务代码修改，仅新增非UI自动化验收测试脚本 `h5-web/tests/login_page_prd366_verify.py`，对线上 chunk 做反向关键词扫描 + 接口契约可达性检查，16 个用例全部通过。
+
+### 改动文件
+- `h5-web/tests/login_page_prd366_verify.py`（**新增**）：纯 stdlib（`urllib.request`）实现的非UI自动化验收测试。
+  - case_01~03：登录页 HTTPS 可达 + chunk 路径提取 + chunk 下载。
+  - case_04（V-01..V-07，6 个用例）：线上 chunk 中**禁词反向校验**——`未注册手机号验证后将自动创建会员` / `当前未开放自助注册，仅支持已注册账号登录` / `其他登录方式` / `showChannelHint` / `channelItems` / `wechatEnabled` 全部不存在。
+  - case_05（V-05..V-08，5 个用例）：核心元素**正向保留校验**——`已识别邀请码` / `获取验证码` / `登录 / 注册` / `用户服务协议` / `隐私政策` 全部存在。
+  - case_06（E-01）：`/api/auth/register-settings` 接口可达且返回字段含 `enable_self_registration`。
+  - case_07（E-02）：`?ref=PRD366TEST` 邀请码场景登录页正常访问。
+- `user_docs/H5登录页精简优化_PRD-366_20260507.md`（**新增**）：面向终端用户的体验使用手册，包含访问链接、功能简介、本次端变更说明、使用步骤、注意事项、自动化验收结果。
+
+### 关键技术决策
+- **零代码改动决策**：通过 `git log --oneline -- h5-web/src/app/login/page.tsx` + 全仓搜索 `showChannelHint|channelItems|其他登录方式|未注册手机号验证后将自动创建会员|当前未开放自助注册|helperText|wechatEnabled` 双重确认，PRD-366 描述的"现状"实际上指代历史上某个旧版本，当前线上版本早已是优化后状态。本次开发周期严格遵循「不改无需改的代码」原则，避免引入不必要的回归风险。
+- **验收方式选择**：因 H5 是 Next.js CSR，初始 HTML 仅含骨架，文案/逻辑全部打包在 `_next/static/chunks/app/login/page-*.js` chunk 内。验收脚本先抓 HTML 提取 chunk 路径再下载 chunk 做关键词扫描，等价于在源码层面验证 PRD 验收点，不依赖浏览器/Playwright，可在任意 CI 环境一键复跑。
+- **跳过多端打包决策**：`git diff 5385aa21..HEAD` 显示本次开发周期对 `h5-web/src/`、`admin-web/`、`backend/`、`bini_health_app/`、`miniprogram/` 等任何终端产品代码均无改动，仅新增了一个测试脚本和一份手册，按 develop-all 阶段 4「未被改动的终端可以跳过打包」规则，本次跳过小程序 zip / 安卓 APK / iOS IPA / Windows exe 全部多端打包步骤。
+
+### 验收对照
+PRD-366 第 8 节验收清单 V-01 ~ V-08 全部通过，详见 `user_docs/H5登录页精简优化_PRD-366_20260507.md` 第 5 节「自动化验收结果」表格。
+
+---
+
 ## Latest Update: PRD-365｜商家后台「预约看板」替换升级 v1.0（2026-05-06 12:10）
 
 ### 一句话结论
