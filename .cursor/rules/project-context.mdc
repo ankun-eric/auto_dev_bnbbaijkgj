@@ -33,6 +33,40 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
+## Latest Update: BUG_FIX_预约看板_20260507｜商家 PC 端「预约看板」菜单缺失与旧路径重复入口修复（2026-05-07 11:42）
+
+### 一句话结论
+PRD-365 升级时虽然把菜单定义中的旧 key `calendar` 改成了 `order-dashboard`、文案改为「预约看板」，**但权限矩阵 `canAccess` 中所有 9 个角色（owner/boss/store_manager/manager/finance/verifier/clerk/staff）的允许列表里仍是旧 key `'calendar'`**，导致菜单渲染管线 `items.filter(m => canAccess(profile?.role, m.key))` 把 `key === 'order-dashboard'` 全部过滤掉——所有角色都看不到「预约看板」菜单；同时旧前端 `/merchant/calendar/` 仍以 `router.replace('/merchant/order-dashboard')` 形式存活，造成"链接重复"印象。本次一次性把 9 个角色 key 中 `'calendar'` → `'order-dashboard'`，并**彻底删除** `h5-web/src/app/merchant/calendar/`（12 个文件）与 `h5-web/src/app/merchant/m/calendar/`（2 个文件）旧目录，移动端工作台 quick 入口同步去除已失效的「预约日历」项；后端 `/api/merchant/calendar/*` API 路由按 PRD §4.4「内部功能逻辑不做改动」原则原样保留。
+
+### 改动文件
+- `h5-web/src/app/merchant/lib.ts`：`canAccess` 矩阵 9 个角色 key 中 `'calendar'` 全部替换为 `'order-dashboard'`，附 `[BUG_FIX_预约看板_20260507]` 注释说明动机。
+- `h5-web/src/app/merchant/calendar/`（**整目录删除**，14 个文件、2827 行减少）：`page.tsx` / `ListView.tsx` / `ResourceView.tsx` / `DayView.tsx` / `WeekView.tsx` / `MonthView.tsx` / `MyViewsManager.tsx` / `KpiBar.tsx` / `DailyOrdersModal.tsx` / `CalendarToolbar.tsx` / `BookingActionPopover.tsx` / `types.ts`，删除后访问 `/merchant/calendar/` 直接 404。
+- `h5-web/src/app/merchant/m/calendar/`（**整目录删除**）：`page.tsx` / `DailyOrdersDrawer.tsx`。
+- `h5-web/src/app/merchant/m/dashboard/page.tsx`：移除 `quick` 列表中已无目标的 `/merchant/m/calendar` 入口，并清理 `visibleQuick` 中针对 `calendar` 的 access key 兜底分支。
+- `_deploy_bug_369.py`（**新增**）：SFTP 上传 + ssh `rm -rf` 删除目录 + docker build/up h5-web + gateway nginx reload + 7 条 HTTPS smoke。
+- `user_docs/商家PC端预约看板菜单修复_BUG_369.md`（**新增**）：面向终端用户的体验使用手册（含访问链接、功能简介、使用步骤、注意事项、修复点速览、验证清单）。
+
+### 关键技术决策
+- **保守不动后端 API**：PRD §4.4 明确「内部功能逻辑、UI 样式、KPI 计算、视图切换不做改动」，且后端 `/api/merchant/calendar/*` 是 API endpoint 而非商家菜单 URL，新版 `order-dashboard` 页面用的是不同的 `/api/merchant/dashboard/*` 接口集，两套 API 互不影响。本次未触碰后端 `merchant.py` / `merchant_calendar_*.py`，避免破坏既有 18+13 用例的 pytest 集合。
+- **移动端入口先收口**：商家移动端 `/merchant/m/calendar/` 已无对应业务页面（PRD §4.4 注明「移动端预约看板 UX 重设计不在本次范围内」），但 `m/dashboard` 工作台原 quick 列表中还有该入口指向，删除目录后会出现 404。决定本次同步在 `m/dashboard/page.tsx` 中直接删除该 quick 入口，待后续 UX 重设计时再补回。
+- **不再做 301 重定向**：PRD §3.1.1 明确「删除后访问 `/merchant/calendar/` 直接返回 404，不再做自动重定向，避免给用户造成『两个入口』的错觉」。Next.js App Router 删除目录后默认 404，无需额外配置。
+- **部署用 SFTP 而非 git pull**：服务器到 GitHub 网络抓取速度极慢（实测 60s 内不足 1000 字节），用 SFTP 直接上传两个修改文件 + ssh `rm -rf` 删除两个旧目录，再 docker build h5-web，整个部署 144 秒完成。
+
+### 验收对照
+1. ✅ `/merchant/login/` HTTP 200。
+2. ✅ `/merchant/dashboard/` HTTP 200。
+3. ✅ `/merchant/order-dashboard/` HTTP 200（新版预约看板正常渲染）。
+4. ✅ `/merchant/calendar/` HTTP 404（旧路径已彻底下线，不再 replace 跳转）。
+5. ✅ `/merchant/m/calendar/` HTTP 404。
+6. ✅ `/merchant/m/dashboard/` HTTP 200（移动端工作台不受影响）。
+7. ✅ `/api/openapi.json` HTTP 200（后端 API 未受影响）。
+8. ✅ 全仓搜索 `merchant/calendar`：业务代码 0 命中，仅历史 changelog / 历史 PRD 文档 / 后端 API（路径与商家菜单无关）有遗留。
+
+### 跳过多端打包
+本次仅改动 `h5-web/`，未触碰小程序、安卓、iOS、Windows、桌面端等任何客户端代码，按 develop-all 阶段 4「未被改动的终端可以跳过打包」规则跳过全部多端打包。
+
+---
+
 ## Latest Update: PRD-366｜H5 客户登录页面精简优化 验收闭环（2026-05-07 10:25）
 
 ### 一句话结论
