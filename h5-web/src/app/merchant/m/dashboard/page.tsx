@@ -105,17 +105,18 @@ export default function DashboardMobilePage() {
     }
   };
 
+  // [BUG_FIX_预约看板_20260507] 旧 /merchant/m/calendar 路径已随 PRD-365 移除，
+  // 移动端 quick 入口同步去除（移动端预约看板 UX 重设计不在本次范围）。
   const quick: { key: string; title: string; icon: string; path?: string; disabled?: string }[] = [
     { key: 'verify', title: '核销', icon: '✅', path: '/merchant/m/verify' },
     { key: 'orders', title: '订单', icon: '📋', path: '/merchant/m/orders' },
-    { key: 'calendar', title: '预约日历', icon: '📅', path: '/merchant/m/calendar' },
     { key: 'reports', title: '报表', icon: '📊', path: '/merchant/m/reports' },
     { key: 'staff', title: '员工', icon: '👥', path: '/merchant/m/staff' },
     { key: 'settlement', title: '对账', icon: '💰', path: '/merchant/m/settlement' },
     { key: 'store-settings', title: '门店', icon: '🏬', path: '/merchant/m/store-settings' },
   ];
   const visibleQuick = quick.filter((q) => {
-    const accessKey = q.key === 'verify' ? 'verifications' : q.key === 'calendar' ? 'orders' : q.key;
+    const accessKey = q.key === 'verify' ? 'verifications' : q.key;
     return canAccess(profile?.role, accessKey);
   });
 

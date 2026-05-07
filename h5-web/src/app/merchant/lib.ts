@@ -84,19 +84,21 @@ export const roleLabel: Record<string, string> = {
 // 历史/别名分支保留，避免 H5 旧 token 在过渡期内菜单空白。
 export function canAccess(role: string | undefined, page: string): boolean {
   if (!role) return false;
+  // [BUG_FIX_预约看板_20260507] PRD-365 升级后菜单 key 已改为 order-dashboard，
+  // 同步将权限矩阵中的旧 key 'calendar' 全部替换为 'order-dashboard'，否则全部角色看不到该菜单。
   const matrix: Record<string, string[]> = {
     // 老板（boss / owner）：全部模块
-    owner: ['dashboard', 'orders', 'calendar', 'verifications', 'reports', 'settlement', 'invoice', 'finance', 'staff', 'store-settings', 'wechat-bindding', 'downloads', 'messages'],
-    boss:  ['dashboard', 'orders', 'calendar', 'verifications', 'reports', 'settlement', 'invoice', 'finance', 'staff', 'store-settings', 'wechat-bindding', 'downloads', 'messages'],
+    owner: ['dashboard', 'orders', 'order-dashboard', 'verifications', 'reports', 'settlement', 'invoice', 'finance', 'staff', 'store-settings', 'wechat-bindding', 'downloads', 'messages'],
+    boss:  ['dashboard', 'orders', 'order-dashboard', 'verifications', 'reports', 'settlement', 'invoice', 'finance', 'staff', 'store-settings', 'wechat-bindding', 'downloads', 'messages'],
     // 店长（store_manager / manager）：除门店设置外，全部
-    store_manager: ['dashboard', 'orders', 'calendar', 'verifications', 'reports', 'settlement', 'invoice', 'finance', 'staff', 'wechat-bindding', 'downloads', 'messages'],
-    manager:       ['dashboard', 'orders', 'calendar', 'verifications', 'reports', 'settlement', 'invoice', 'finance', 'staff', 'wechat-bindding', 'downloads', 'messages'],
+    store_manager: ['dashboard', 'orders', 'order-dashboard', 'verifications', 'reports', 'settlement', 'invoice', 'finance', 'staff', 'wechat-bindding', 'downloads', 'messages'],
+    manager:       ['dashboard', 'orders', 'order-dashboard', 'verifications', 'reports', 'settlement', 'invoice', 'finance', 'staff', 'wechat-bindding', 'downloads', 'messages'],
     // 财务：财务相关
-    finance: ['dashboard', 'orders', 'calendar', 'verifications', 'reports', 'settlement', 'invoice', 'finance', 'wechat-bindding', 'downloads', 'messages'],
+    finance: ['dashboard', 'orders', 'order-dashboard', 'verifications', 'reports', 'settlement', 'invoice', 'finance', 'wechat-bindding', 'downloads', 'messages'],
     // 店员（clerk / verifier / staff）：核销 & 工作台
-    verifier: ['dashboard', 'orders', 'calendar', 'verifications', 'wechat-bindding', 'messages'],
-    clerk:    ['dashboard', 'orders', 'calendar', 'verifications', 'wechat-bindding', 'messages'],
-    staff:    ['dashboard', 'orders', 'calendar', 'verifications', 'wechat-bindding', 'messages'],
+    verifier: ['dashboard', 'orders', 'order-dashboard', 'verifications', 'wechat-bindding', 'messages'],
+    clerk:    ['dashboard', 'orders', 'order-dashboard', 'verifications', 'wechat-bindding', 'messages'],
+    staff:    ['dashboard', 'orders', 'order-dashboard', 'verifications', 'wechat-bindding', 'messages'],
   };
   return (matrix[role] || []).includes(page);
 }
