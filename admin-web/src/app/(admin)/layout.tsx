@@ -107,6 +107,7 @@ const menuItems: MenuItem[] = [
     children: [
       { key: '/home-settings', label: '首页基础设置' },
       { key: '/home-settings/page-style', label: '页面风格' },
+      { key: '/home-settings/ai-home-config', label: 'AI 对话模式首页配置' },
       { key: '/home-menus', label: '首页菜单管理' },
       { key: '/home-banners', label: '首页Banner管理' },
       { key: '/notices', label: '公告管理' },
@@ -256,7 +257,7 @@ function getOpenKeys(pathname: string): string[] {
   if (pathname.startsWith('/ai-config') || pathname.startsWith('/chat-records') || pathname.startsWith('/knowledge') || pathname.startsWith('/search-config') || pathname.startsWith('/fallback-config') || pathname.startsWith('/ocr-config') || pathname.startsWith('/ocr-global-config') || pathname.startsWith('/checkup-details') || pathname.startsWith('/drug-details')) return ['ai'];
   if (pathname.startsWith('/ai-center') || pathname.startsWith('/prompt-templates') || pathname.startsWith('/tcm-config')) return ['ai-center'];
   if (pathname.startsWith('/function-buttons') || pathname.startsWith('/digital-humans') || pathname.startsWith('/voice-service') || pathname.startsWith('/tts-config') || pathname.startsWith('/share-config')) return ['ai-consult-config'];
-  if (pathname.startsWith('/home-settings') || pathname.startsWith('/home-menus') || pathname.startsWith('/home-banners') || pathname.startsWith('/notices') || pathname.startsWith('/bottom-nav')) return ['home-config'];
+  if (pathname.startsWith('/home-settings') || pathname.startsWith('/home-menus') || pathname.startsWith('/home-banners') || pathname.startsWith('/notices') || pathname.startsWith('/bottom-nav') || pathname.startsWith('/home-settings/ai-home-config')) return ['home-config'];
   if (pathname.startsWith('/search')) return ['search-manage'];
   if (pathname.startsWith('/system-messages')) return ['messages'];
   if (pathname.startsWith('/sms') || pathname.startsWith('/settings') || pathname.startsWith('/wechat-push') || pathname.startsWith('/email-notify') || pathname.startsWith('/cos-config') || pathname.startsWith('/map-config')) return ['system'];

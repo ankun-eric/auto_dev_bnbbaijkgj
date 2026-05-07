@@ -1054,6 +1054,9 @@ app.include_router(login_ui_config.router)
 # [BUG-FIX-RESCHEDULE-V2 2026-05-07] 系统时间接口：供三端改约弹窗按服务器时间过滤过去时段
 from app.api import system as _system  # noqa: E402
 app.include_router(_system.router)
+# [PRD-405 2026-05-07] AI 对话模式首页配置（admin 后台 + 用户端公共读取 + 操作日志）
+from app.api import ai_home_config as _ai_home_config  # noqa: E402
+app.include_router(_ai_home_config.router)
 app.include_router(user_health_profile.router)
 # [2026-05-01 门店地图能力 PRD v1.0] 地图代理（逆地理编码/POI 搜索/静态地图）
 app.include_router(maps.router)

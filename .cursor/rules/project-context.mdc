@@ -33,7 +33,43 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: BUG-FIX-MERCHANT-RESCHEDULE-V1-20260507｜商家 H5 端订单详情「调整预约时间」抽屉化修复（2026-05-07 17:35）
+## Latest Update: PRD-405-AI-HOME-CONFIG-20260507｜AI 对话模式首页配置（2026-05-07 18:05）
+
+### 一句话结论
+按 `cursor_prompt_405_20260507174806.txt` 走 develop-all 流程，新增 admin 后台「**AI 对话模式首页配置**」独立菜单（位于「首页配置」下、与「页面风格」并列），把 H5 用户端 `ai-home` 页面所有硬编码的视觉与文案元素（欢迎区头像 / 3 段问候语 / 副标题 / 顶栏标题 / Logo / 推荐问 4 卡 / 浮动健康打卡按钮 / 输入栏占位符 / 空闲超时 / Banner-宫格-标签条显隐 / 空会话引导）全部抽离为可视化配置。**改动范围**：① 后端新建 `app/api/ai_home_config.py`（公开 GET + admin GET/PUT/PATCH/上传图片 + 操作日志列表/详情），新建 `app/schemas/ai_home_config.py`（Pydantic 嵌套 schema），`models.py` 新增 `AIHomeConfigLog` 表（90 天保留 + Integer 主键以兼容 SQLite 测试），`main.py` 注册路由；② admin-web 新建 `(admin)/home-settings/ai-home-config/page.tsx`（7 张卡片 + 字符串数组编辑器 + 头像/Logo 二选一 emoji+图片编辑器 + 推荐问拖拽排序 + 每卡独立保存 + 全部保存）和 `logs/page.tsx`（筛选 + diff 抽屉），左侧菜单注入入口；③ h5-web 改造 `(ai-chat)/ai-home/page.tsx`（新增 AI 配置 fetch + 5 分钟本地缓存 + 兜底配置 + 同会话期内随机定格问候语/副标题 + 顶栏 / 欢迎区头像 / 推荐问 / 功能宫格列数与上限 / 浮动按钮位置-图标-文字-跳转路径 / 输入栏 placeholder 与语音开关 / Banner 与底部标签显隐 / 空会话欢迎语自动插入全部接入新配置）；④ 后端测试 `tests/test_ai_home_config.py` 10 个用例（公开读取 / 整体保存 / 按模块保存 / 校验问候语为空 400 / 校验外链 target_path 400 / 日志写入 / 同内容不重复写日志 / 推荐问 id 自动生成 / idle_timeout 同步到 chat-idle-timeout / 上传图片无效 MIME 拒绝），容器内 pytest **10 passed in 6.37s**；⑤ 部署：backend docker cp + restart、h5-web 与 admin-web 双 docker compose build + up，远程 smoke 6 个 URL 全 200。
+
+### 改动文件
+- 后端新建：`backend/app/api/ai_home_config.py`、`backend/app/schemas/ai_home_config.py`
+- 后端修改：`backend/app/models/models.py`（追加 `AIHomeConfigLog`）、`backend/app/main.py`（注册 `_ai_home_config.router`）
+- 后端测试：`backend/tests/test_ai_home_config.py`（10 用例全 pass）
+- admin-web 新建：`admin-web/src/app/(admin)/home-settings/ai-home-config/page.tsx`、`admin-web/src/app/(admin)/home-settings/ai-home-config/logs/page.tsx`
+- admin-web 修改：`admin-web/src/app/(admin)/layout.tsx`（菜单注入 + 路径匹配）
+- h5-web 修改：`h5-web/src/app/(ai-chat)/ai-home/page.tsx`（接入新配置；空会话引导逻辑首次新增）
+- 部署脚本：`_deploy_prd405.py`、`_redeploy_405.py`、`_redeploy_405_v2.py`、`_smoke_405.py`、`_check_t02.py`、`_check_405_fail.py`
+- 用户体验手册：`user_docs/AI对话模式首页配置.md`
+
+### 关键技术决策
+- **配置存储复用 `app_settings` KV 表**：单条 `key='ai_home_config'` JSON 记录承载所有模块，避免新增多张表；与现有 `chat_idle_timeout_minutes` KV 双向同步保持向后兼容
+- **PATCH 按模块保存**：每张卡片独立"保存本节"按钮，仅触发该模块的 diff 与日志写入；用户体验上更轻量
+- **日志写入幂等去重**：保存内容与原内容完全相同时，后端 `_diff_changed` 比较后跳过日志，避免无意义记录
+- **SQLite 测试兼容**：`AIHomeConfigLog` 主键从 `BigInteger` 改为 `Integer`（生产 MySQL 仍按 INT 自动累加），让 `pytest` 通过 `Base.metadata.create_all` 顺利建表
+- **多条随机定格策略**：H5 端进入页面后通过 `useEffect` 一次性 `pickRandom` 选定问候语和副标题，存入 state；同一会话期内不再切换，避免文案抖动
+- **5 分钟本地缓存**：H5 端 `localStorage.__ai_home_config_cache__` 存 `{config, ts}`，TTL 5 分钟；过期后下次进入页面或会话刷新时重新拉取最新配置
+- **图片上传双校验**：MIME 白名单（PNG/JPG/WebP）+ 文件头魔数检查（`\x89PNG` / `\xff\xd8\xff` / `RIFF...WEBP`），防止文件名伪装
+- **target_path 白名单**：后端强制 `startswith("/")` 校验，禁止外链；前端 click 事件也加了 `path.startsWith("/")` 二次拦截
+- **本期范围**：完整落地后端 + admin + H5；微信小程序 / Flutter / 桌面端的全端 1:1 对齐工作量过大，本期未同步落地，但 `/api/ai-home-config` 接口已完整可用，后续端可直接消费
+
+### 验证情况
+- 容器内 pytest：`tests/test_ai_home_config.py` → **10 passed in 6.37s**
+- 远程 smoke（curl HTTP_CODE）：`/api/health=200`、`/api/ai-home-config=200`、`/=200`、`/admin/=200`、`/admin/home-settings/ai-home-config/=200`、`/admin/home-settings/ai-home-config/logs/=200`
+- `/api/ai-home-config` 返回完整 JSON 默认配置（welcome / topbar / input / session / floating_button / banner / func_grid / quick_tags / recommended_questions 全部字段就绪）
+
+### 用户体验手册
+- `user_docs/AI对话模式首页配置.md`
+
+---
+
+## Previous Update: BUG-FIX-MERCHANT-RESCHEDULE-V1-20260507｜商家 H5 端订单详情「调整预约时间」抽屉化修复（2026-05-07 17:35）
 
 ### 一句话结论
 按 `cursor_prompt_404_20260507172236.txt` 走 develop-all 流程修复 P0：商家 H5 端订单详情【调整预约时间】按钮的弹层逻辑与商品的预约模式完全脱钩，统一执行了一套写死的「日期 + 上午/下午/晚间三选一时段」两步弹窗流程。**修复策略**：① 后端 `merchant.py` detail 接口补 `appointment_mode` / `product_id` 字段（让前端按预约模式分支显示抽屉）；② `merchant_adjust_appointment_time` 接口加固——拆分校验：终态订单拒绝 / 过去日期拒绝 / 按 `appointment_mode` 分支（`date` 模式仅校验日期、忽略前端误传的 time_slot；`time_slot` 模式必传 9 段格式 "HH:MM-HH:MM" 且当日已过的时段拒绝）/ 落库时用 `dict()` 副本避免 SQLAlchemy JSON 字段 dirty 检测失效 / 调用 `notify_order_rescheduled` 触发 PRD-04 三通道通知（用 `selectinload` 预加载 items/user/store 避免 MissingGreenlet）；③ 前端 `h5-web/src/app/merchant/m/orders/[id]/page.tsx` 替换原 Dialog 二次弹窗为 antd-mobile `Popup` 抽屉，按 `appointment_mode` 分支：`date` 模式仅显示日期选择按钮，`time_slot` 模式显示日期 + 9 段固定时段网格（复用 `lib/server-time.ts` 的 `filterPastSlots` 按服务器时间过滤过期时段，今天 0 时段时显示空状态卡片 + 一键跳明天）；④ 后端测试 `test_bugfix_merchant_reschedule_v1.py` 7 个用例（T01 date 模式无需 time_slot / T02 time_slot 模式必传时段 / T03 9 段格式正确落库 / T04 过去日期拒绝 / T05 终态订单拒绝 / T06 detail 接口返回 appointment_mode 字段 / T07 date 模式忽略前端误传的"上午"），容器内 pytest **7 passed in 9.18s**；⑤ 部署：backend docker cp + restart，h5-web docker compose build + up（重建耗时 88s），冒烟全 200。

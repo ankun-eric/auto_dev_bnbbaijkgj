@@ -66,6 +66,111 @@ const DIALOG_TRIGGERS = new Set(['view_report', 'check_drug']);
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
 
+// ─── PRD-405 AI 对话首页配置 类型与默认值 ───────────────
+interface AIHomeConfig {
+  welcome: {
+    avatar: { type: 'emoji' | 'image'; emoji?: string; image_url?: string };
+    greetings: { morning: string[]; afternoon: string[]; evening: string[] };
+    subtitles: string[];
+    show_nickname: boolean;
+  };
+  topbar: {
+    title: string;
+    logo: { type: 'emoji' | 'image'; emoji?: string; image_url?: string };
+    show_sidebar: boolean;
+    show_more_menu: boolean;
+    show_share: boolean;
+  };
+  input: {
+    placeholder: string;
+    enable_voice: boolean;
+    enable_tts: boolean;
+    tts_provider: 'auto' | 'cloud' | 'browser';
+  };
+  session: {
+    idle_timeout_minutes: number;
+    auto_new_session: boolean;
+    empty_session_welcome: { enabled: boolean; messages: string[] };
+  };
+  floating_button: {
+    enabled: boolean;
+    icon: string;
+    label?: string;
+    show_label: boolean;
+    target_path: string;
+    position: 'right_bottom' | 'left_bottom';
+  };
+  banner: { visible: boolean };
+  func_grid: { visible: boolean; columns: 2 | 3 | 4; max_count: number };
+  quick_tags: { visible: boolean; max_count: number };
+  recommended_questions: Array<{
+    id: string;
+    icon: string;
+    title: string;
+    question: string;
+    enabled: boolean;
+    sort: number;
+  }>;
+}
+
+const FALLBACK_CONFIG: AIHomeConfig = {
+  welcome: {
+    avatar: { type: 'emoji', emoji: '🌿' },
+    greetings: { morning: ['早上好'], afternoon: ['午安'], evening: ['晚上好'] },
+    subtitles: ['我是您的AI健康助手'],
+    show_nickname: true,
+  },
+  topbar: {
+    title: 'AI 健康助手',
+    logo: { type: 'emoji', emoji: '🌿' },
+    show_sidebar: true,
+    show_more_menu: true,
+    show_share: true,
+  },
+  input: {
+    placeholder: '问问健康助手...',
+    enable_voice: true,
+    enable_tts: true,
+    tts_provider: 'auto',
+  },
+  session: {
+    idle_timeout_minutes: 30,
+    auto_new_session: true,
+    empty_session_welcome: { enabled: false, messages: [] },
+  },
+  floating_button: {
+    enabled: true,
+    icon: '✅',
+    label: '健康打卡',
+    show_label: false,
+    target_path: '/health-plan',
+    position: 'right_bottom',
+  },
+  banner: { visible: true },
+  func_grid: { visible: true, columns: 3, max_count: 6 },
+  quick_tags: { visible: true, max_count: 8 },
+  recommended_questions: [
+    { id: 'r1', icon: '💚', title: '健康', question: '最近总是失眠怎么办？', enabled: true, sort: 1 },
+    { id: 'r2', icon: '📋', title: '体检', question: '帮我解读最新体检报告', enabled: true, sort: 2 },
+    { id: 'r3', icon: '💊', title: '用药', question: '感冒了吃什么药比较好？', enabled: true, sort: 3 },
+    { id: 'r4', icon: '🥗', title: '饮食', question: '高血压患者饮食注意什么？', enabled: true, sort: 4 },
+  ],
+};
+
+function pickRandom<T>(arr: T[], fallback: T): T {
+  if (!Array.isArray(arr) || arr.length === 0) return fallback;
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function getGreetingByConfig(cfg: AIHomeConfig): string {
+  const h = new Date().getHours();
+  let pool: string[];
+  if (h >= 5 && h < 12) pool = cfg.welcome.greetings.morning;
+  else if (h >= 12 && h < 18) pool = cfg.welcome.greetings.afternoon;
+  else pool = cfg.welcome.greetings.evening;
+  return pickRandom(pool, '您好');
+}
+
 function getGreeting(): string {
   const h = new Date().getHours();
   if (h < 6) return '夜深了，注意休息';
@@ -141,12 +246,17 @@ export default function AiHomePage() {
   const analyserRef = useRef<AnalyserNode | null>(null);
   const animFrameRef = useRef<number>(0);
 
-  const [recommendQuestions] = useState<{ tag: string; text: string }[]>([
-    { tag: '健康', text: '最近总是失眠怎么办？' },
-    { tag: '体检', text: '帮我解读最新体检报告' },
-    { tag: '用药', text: '感冒了吃什么药比较好？' },
-    { tag: '饮食', text: '高血压患者饮食注意什么？' },
-  ]);
+  // PRD-405：从后端读取 AI 首页配置（带 5 分钟本地缓存 + 内置兜底）
+  const [aiHomeConfig, setAiHomeConfig] = useState<AIHomeConfig>(FALLBACK_CONFIG);
+  // 同一会话期内固定的随机选择
+  const [pickedGreeting, setPickedGreeting] = useState<string>('');
+  const [pickedSubtitle, setPickedSubtitle] = useState<string>('');
+
+  const recommendQuestions = (aiHomeConfig.recommended_questions || [])
+    .filter((q) => q.enabled)
+    .sort((a, b) => (a.sort || 0) - (b.sort || 0))
+    .slice(0, 8)
+    .map((q) => ({ tag: q.title || q.icon, text: q.question }));
 
   useEffect(() => {
     if (typeof window !== 'undefined' && navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function') {
@@ -175,7 +285,82 @@ export default function AiHomePage() {
       if (data.timeout_ms) setIdleTimeout(data.timeout_ms);
       else if (data.timeout_minutes) setIdleTimeout(data.timeout_minutes * 60 * 1000);
     }).catch(() => {});
+
+    // PRD-405：拉取 AI 对话首页配置（带 5 分钟本地缓存 + 内置兜底）
+    (async () => {
+      try {
+        const CACHE_KEY = '__ai_home_config_cache__';
+        const TTL = 5 * 60 * 1000;
+        let cached: { config: AIHomeConfig; ts: number } | null = null;
+        if (typeof window !== 'undefined') {
+          try {
+            const raw = localStorage.getItem(CACHE_KEY);
+            if (raw) cached = JSON.parse(raw);
+          } catch {}
+        }
+        let cfg: AIHomeConfig | null = null;
+        if (cached && Date.now() - cached.ts < TTL && cached.config) {
+          cfg = cached.config;
+        }
+        if (!cfg) {
+          const res: any = await api.get('/api/ai-home-config');
+          const data = res?.data?.config || res?.config || null;
+          if (data) {
+            cfg = { ...FALLBACK_CONFIG, ...data } as AIHomeConfig;
+            try {
+              localStorage.setItem(
+                CACHE_KEY,
+                JSON.stringify({ config: cfg, ts: Date.now() })
+              );
+            } catch {}
+          }
+        }
+        if (cfg) setAiHomeConfig(cfg);
+      } catch {
+        // 接口失败用兜底
+      }
+    })();
   }, []);
+
+  // 同一会话期内随机选定问候语和副标题（仅在配置加载完成后执行一次）
+  useEffect(() => {
+    if (!pickedGreeting) {
+      setPickedGreeting(getGreetingByConfig(aiHomeConfig));
+    }
+    if (!pickedSubtitle) {
+      setPickedSubtitle(pickRandom(aiHomeConfig.welcome.subtitles, '我是您的AI健康助手'));
+    }
+    // 同步空闲超时（如果新配置下发更短/更长）
+    const m = aiHomeConfig.session.idle_timeout_minutes;
+    if (m && m > 0) setIdleTimeout(m * 60 * 1000);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aiHomeConfig]);
+
+  // PRD-405 F-11：空会话引导（不入库，仅 UI 提示）
+  useEffect(() => {
+    const cfg = aiHomeConfig.session.empty_session_welcome;
+    if (
+      cfg &&
+      cfg.enabled &&
+      Array.isArray(cfg.messages) &&
+      cfg.messages.length > 0 &&
+      !sessionId &&
+      messages.length === 0
+    ) {
+      const text = pickRandom(cfg.messages, '');
+      if (text) {
+        setMessages([
+          {
+            id: `welcome-${Date.now()}`,
+            role: 'assistant',
+            content: text,
+            time: new Date().toISOString(),
+          },
+        ]);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aiHomeConfig, sessionId]);
 
   useEffect(() => {
     loadLastSession();
@@ -720,10 +905,25 @@ export default function AiHomePage() {
         style={{ height: 48, background: THEME.cardBg, borderBottom: `1px solid ${THEME.divider}` }}
       >
         <div className="flex items-center gap-3">
-          <button className="text-xl" onClick={() => setSidebarOpen(true)}>☰</button>
-          <span className="font-bold text-base" style={{ color: THEME.textPrimary }}>AI 健康助手</span>
+          {aiHomeConfig.topbar.show_sidebar && (
+            <button className="text-xl" onClick={() => setSidebarOpen(true)}>☰</button>
+          )}
+          {aiHomeConfig.topbar.logo.type === 'image' && aiHomeConfig.topbar.logo.image_url ? (
+            <img
+              src={aiHomeConfig.topbar.logo.image_url}
+              alt="logo"
+              style={{ width: 24, height: 24, borderRadius: 4, objectFit: 'cover' }}
+            />
+          ) : (
+            <span className="text-base">{aiHomeConfig.topbar.logo.emoji || '🌿'}</span>
+          )}
+          <span className="font-bold text-base" style={{ color: THEME.textPrimary }}>
+            {aiHomeConfig.topbar.title || 'AI 健康助手'}
+          </span>
         </div>
-        <button className="text-xl tracking-widest" onClick={() => setMoreMenuOpen(true)}>···</button>
+        {aiHomeConfig.topbar.show_more_menu && (
+          <button className="text-xl tracking-widest" onClick={() => setMoreMenuOpen(true)}>···</button>
+        )}
       </div>
 
       {/* Main Content */}
@@ -731,21 +931,35 @@ export default function AiHomePage() {
         {!hasConversation ? (
           <div className="px-4 py-6">
             <div className="flex flex-col items-center py-6">
-              <div
-                className="flex items-center justify-center rounded-full text-3xl mb-3"
-                style={{ width: 64, height: 64, background: THEME.gradient, color: '#fff' }}
-              >
-                🌿
-              </div>
+              {aiHomeConfig.welcome.avatar.type === 'image' && aiHomeConfig.welcome.avatar.image_url ? (
+                <img
+                  src={aiHomeConfig.welcome.avatar.image_url}
+                  alt="avatar"
+                  className="rounded-full mb-3"
+                  style={{ width: 64, height: 64, objectFit: 'cover' }}
+                  onError={(e) => {
+                    // image 失效时降级 emoji
+                    (e.currentTarget as HTMLImageElement).style.display = 'none';
+                  }}
+                />
+              ) : (
+                <div
+                  className="flex items-center justify-center rounded-full text-3xl mb-3"
+                  style={{ width: 64, height: 64, background: THEME.gradient, color: '#fff' }}
+                >
+                  {aiHomeConfig.welcome.avatar.emoji || '🌿'}
+                </div>
+              )}
               <div className="text-lg font-bold" style={{ color: THEME.textPrimary }}>
-                {getGreeting()}，{user?.nickname || '您好'}
+                {pickedGreeting || getGreeting()}
+                {aiHomeConfig.welcome.show_nickname && user?.nickname ? `，${user.nickname}` : ''}
               </div>
               <div className="text-sm mt-1" style={{ color: THEME.textSecondary }}>
-                我是您的AI健康助手
+                {pickedSubtitle || '我是您的AI健康助手'}
               </div>
             </div>
 
-            {banners.length > 0 && (
+            {aiHomeConfig.banner.visible && banners.length > 0 && (
               <div className="rounded-2xl overflow-hidden mb-5">
                 <Swiper autoplay autoplayInterval={4000} loop>
                   {banners.map(banner => (
@@ -761,8 +975,12 @@ export default function AiHomePage() {
               </div>
             )}
 
-            <div className="grid grid-cols-3 gap-3 mb-5">
-              {funcButtons.slice(0, 6).map(btn => {
+            {aiHomeConfig.func_grid.visible && funcButtons.length > 0 && (
+            <div
+              className={`grid gap-3 mb-5`}
+              style={{ gridTemplateColumns: `repeat(${aiHomeConfig.func_grid.columns || 3}, minmax(0, 1fr))` }}
+            >
+              {funcButtons.slice(0, aiHomeConfig.func_grid.max_count || 6).map(btn => {
                 const key = btn.button_type || btn.id;
                 const icon = btn.icon || FUNCTION_ICONS[key] || '📌';
                 return (
@@ -778,7 +996,9 @@ export default function AiHomePage() {
                 );
               })}
             </div>
+            )}
 
+            {recommendQuestions.length > 0 && (
             <div className="mb-3">
               <div className="text-sm font-semibold mb-2" style={{ color: THEME.textPrimary }}>试着问我</div>
               <div className="space-y-2">
@@ -797,6 +1017,7 @@ export default function AiHomePage() {
                 ))}
               </div>
             </div>
+            )}
           </div>
         ) : (
           <div className="px-4 py-3 space-y-1">
@@ -894,32 +1115,49 @@ export default function AiHomePage() {
       </div>
 
       {/* Floating Check-in Button */}
-      <div
-        className="fixed right-4 cursor-pointer active:scale-95 transition-transform z-30"
-        style={{ bottom: 120 }}
-        onClick={() => router.push('/health-plan')}
-      >
+      {aiHomeConfig.floating_button.enabled && (
         <div
-          className="relative flex items-center justify-center rounded-full shadow-lg text-xl"
-          style={{ width: 48, height: 48, background: THEME.gradient, color: '#fff' }}
+          className={`fixed cursor-pointer active:scale-95 transition-transform z-30 ${
+            aiHomeConfig.floating_button.position === 'left_bottom' ? 'left-4' : 'right-4'
+          }`}
+          style={{ bottom: 120 }}
+          onClick={() => {
+            const path = aiHomeConfig.floating_button.target_path || '/health-plan';
+            if (path.startsWith('/')) router.push(path);
+          }}
         >
-          ✅
-          {hasHealthTask && (
-            <div
-              className="absolute -top-0.5 -right-0.5 rounded-full"
-              style={{ width: 10, height: 10, background: '#FF4D4F', border: '2px solid #fff' }}
-            />
-          )}
+          <div
+            className="relative flex items-center justify-center rounded-full shadow-lg text-xl"
+            style={{
+              minWidth: 48,
+              height: 48,
+              padding: aiHomeConfig.floating_button.show_label ? '0 12px' : 0,
+              width: aiHomeConfig.floating_button.show_label ? 'auto' : 48,
+              background: THEME.gradient,
+              color: '#fff',
+            }}
+          >
+            <span>{aiHomeConfig.floating_button.icon || '✅'}</span>
+            {aiHomeConfig.floating_button.show_label && aiHomeConfig.floating_button.label && (
+              <span className="ml-1 text-sm">{aiHomeConfig.floating_button.label}</span>
+            )}
+            {hasHealthTask && (
+              <div
+                className="absolute -top-0.5 -right-0.5 rounded-full"
+                style={{ width: 10, height: 10, background: '#FF4D4F', border: '2px solid #fff' }}
+              />
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Bottom Quick Tags (only in guide state) */}
-      {!hasConversation && funcButtons.length > 0 && (
+      {!hasConversation && aiHomeConfig.quick_tags.visible && funcButtons.length > 0 && (
         <div
           className="flex-shrink-0 overflow-x-auto px-4 py-2 flex gap-2"
           style={{ borderTop: `1px solid ${THEME.divider}`, background: THEME.cardBg, scrollbarWidth: 'none' }}
         >
-          {funcButtons.slice(0, 8).map(btn => (
+          {funcButtons.slice(0, aiHomeConfig.quick_tags.max_count || 8).map(btn => (
             <div
               key={btn.id}
               className="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium cursor-pointer active:opacity-70"
@@ -1004,7 +1242,7 @@ export default function AiHomePage() {
           </div>
         ) : (
           <div className="flex items-end gap-2">
-            {voiceSupported && (
+            {voiceSupported && aiHomeConfig.input.enable_voice && (
               <button
                 className="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full mb-0"
                 style={{ background: THEME.primaryLight, color: THEME.primary }}
@@ -1020,7 +1258,7 @@ export default function AiHomePage() {
               <textarea
                 ref={textareaRef}
                 className="flex-1 bg-transparent outline-none text-sm resize-none leading-6"
-                placeholder="问问健康助手..."
+                placeholder={aiHomeConfig.input.placeholder || '问问健康助手...'}
                 value={inputValue}
                 onChange={handleTextareaInput}
                 onFocus={() => setInputFocused(true)}

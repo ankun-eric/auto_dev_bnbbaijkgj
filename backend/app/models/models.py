@@ -3681,3 +3681,23 @@ class BookingNotificationLog(Base):
     result = Column(String(16), nullable=False)  # success / fail / no_subscribe
     error_msg = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+
+
+# ──────────────── PRD-405 AI 对话模式首页配置 操作日志 ────────────────
+
+
+class AIHomeConfigLog(Base):
+    """AI 对话模式首页配置变更操作日志（保留 90 天）。"""
+
+    __tablename__ = "ai_home_config_logs"
+
+    # 使用 Integer 主键以兼容 SQLite 测试环境（生产 MySQL 仍按 INT 自动累加，足够 90 天日志使用）
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    operator_id = Column(Integer, nullable=True, index=True)
+    operator_name = Column(String(64), nullable=True)
+    module = Column(String(32), nullable=False, index=True)
+    summary = Column(String(255), nullable=True)
+    before_json = Column(JSON, nullable=True)
+    after_json = Column(JSON, nullable=True)
+    operator_ip = Column(String(64), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
