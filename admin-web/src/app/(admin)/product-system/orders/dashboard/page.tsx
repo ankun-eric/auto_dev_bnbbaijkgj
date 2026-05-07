@@ -191,9 +191,9 @@ function OrdersDashboardPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // [PRD-365 商家后台「预约看板」替换升级 v1.0]
-  // admin 直访不带 storeId 时重定向到门店列表 + Toast 提示
-  // 带 storeId 则展示「预约看板 · XX 门店」+ 返回按钮
+  // [PRD-365 商家后台「预约看板」替换升级 v1.0 + Bug401 Gateway OK 白屏修复]
+  // admin 直访不带 storeId 时不再 message + replace 跳走（容易触发 nginx 兜底白屏），
+  // 改为渲染下方"友好提示页面"，由用户主动点击"前往门店列表"按钮跳转。
   const storeIdQuery = searchParams?.get('storeId');
   const [adminStoreId, setAdminStoreId] = useState<number | null>(
     storeIdQuery ? Number(storeIdQuery) : null
@@ -202,8 +202,7 @@ function OrdersDashboardPageInner() {
 
   useEffect(() => {
     if (!storeIdQuery) {
-      message.warning('请先选择门店再进入预约看板');
-      router.replace('/merchant/stores');
+      // 缺参数时由下方友好提示页接管渲染，这里直接 return 不再做副作用
       return;
     }
     const sid = Number(storeIdQuery);
@@ -899,6 +898,30 @@ function OrdersDashboardPageInner() {
       </Button>
     </Card>
   );
+
+  // [Bug401 Gateway OK 白屏修复]
+  // 缺 storeId 时不再 message + replace 跳走（容易触发 nginx 兜底白屏），
+  // 改为渲染本地"友好提示页面"，由用户主动点击按钮跳转门店列表。
+  if (!storeIdQuery) {
+    return (
+      <div style={{ padding: 48, textAlign: 'center' }}>
+        <Empty
+          description={
+            <div>
+              <Title level={4} style={{ marginBottom: 8 }}>请先选择门店</Title>
+              <Text type="secondary">
+                预约看板按门店维度查看，请到「商家管理 → 门店列表」点击对应门店的「预约看板」按钮进入。
+              </Text>
+            </div>
+          }
+        >
+          <Button type="primary" onClick={() => router.push('/merchant/stores')}>
+            前往门店列表
+          </Button>
+        </Empty>
+      </div>
+    );
+  }
 
   return (
     <div>
