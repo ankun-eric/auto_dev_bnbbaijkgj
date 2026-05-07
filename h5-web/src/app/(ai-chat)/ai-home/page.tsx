@@ -66,13 +66,29 @@ const DIALOG_TRIGGERS = new Set(['view_report', 'check_drug']);
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
 
-// ─── PRD-405 AI 对话首页配置 类型与默认值 ───────────────
+// ─── PRD-405 AI 对话首页配置 类型与默认值（v1.0） ───────────────
+interface FuncGridItemCfg {
+  id?: string;
+  main_text: string;
+  sub_text: string;
+  target_path: string;
+  icon: string;
+  icon_image_url?: string;
+  gradient_start: string;
+  gradient_end: string;
+  badge?: string;
+  enabled: boolean;
+  sort: number;
+}
+
 interface AIHomeConfig {
   welcome: {
     avatar: { type: 'emoji' | 'image'; emoji?: string; image_url?: string };
     greetings: { morning: string[]; afternoon: string[]; evening: string[] };
     subtitles: string[];
     show_nickname: boolean;
+    main_title: string;
+    sub_title: string;
   };
   topbar: {
     title: string;
@@ -80,17 +96,33 @@ interface AIHomeConfig {
     show_sidebar: boolean;
     show_more_menu: boolean;
     show_share: boolean;
+    visible: boolean;
   };
   input: {
     placeholder: string;
     enable_voice: boolean;
     enable_tts: boolean;
     tts_provider: 'auto' | 'cloud' | 'browser';
+    family_consult: {
+      enabled: boolean;
+      template: string;
+      show_archive_link: boolean;
+      archive_path: string;
+    };
   };
   session: {
     idle_timeout_minutes: number;
     auto_new_session: boolean;
     empty_session_welcome: { enabled: boolean; messages: string[] };
+    strategy: {
+      max_answer_chars: number;
+      show_loading: boolean;
+      daily_free_quota: number;
+      answer_style: 'professional' | 'easy' | 'friendly';
+      sensitive_filter: boolean;
+      context_memory_rounds: 3 | 5 | 10 | 20;
+      disclaimer: string;
+    };
   };
   floating_button: {
     enabled: boolean;
@@ -101,24 +133,40 @@ interface AIHomeConfig {
     position: 'right_bottom' | 'left_bottom';
   };
   banner: { visible: boolean };
-  func_grid: { visible: boolean; columns: 2 | 3 | 4; max_count: number };
+  health_tips: { visible: boolean; interval_seconds: number; show_indicator: boolean };
+  func_grid: { visible: boolean; columns: 2 | 3 | 4; max_count: number; items: FuncGridItemCfg[] };
   quick_tags: { visible: boolean; max_count: number };
   recommended_questions: Array<{
     id: string;
     icon: string;
+    icon_image_url?: string;
     title: string;
     question: string;
     enabled: boolean;
     sort: number;
   }>;
+  empty_placeholder: { icon: string; icon_image_url?: string; main_title: string };
+  global_switches: {
+    welcome_visible: boolean;
+    health_tips_visible: boolean;
+    func_grid_visible: boolean;
+    recommended_visible: boolean;
+    empty_placeholder_visible: boolean;
+    family_pill_visible: boolean;
+    archive_link_visible: boolean;
+    voice_input_visible: boolean;
+    floating_button_visible: boolean;
+  };
 }
 
 const FALLBACK_CONFIG: AIHomeConfig = {
   welcome: {
     avatar: { type: 'emoji', emoji: '🌿' },
     greetings: { morning: ['早上好'], afternoon: ['午安'], evening: ['晚上好'] },
-    subtitles: ['我是您的AI健康助手'],
+    subtitles: ['我是您的AI健康顾问小康'],
     show_nickname: true,
+    main_title: '早上好，{昵称}！',
+    sub_title: '我是您的AI健康顾问小康',
   },
   topbar: {
     title: 'AI 健康助手',
@@ -126,35 +174,73 @@ const FALLBACK_CONFIG: AIHomeConfig = {
     show_sidebar: true,
     show_more_menu: true,
     show_share: true,
+    visible: false,
   },
   input: {
-    placeholder: '问问健康助手...',
+    placeholder: '发消息或按住说话...',
     enable_voice: true,
     enable_tts: true,
     tts_provider: 'auto',
+    family_consult: {
+      enabled: true,
+      template: '为({name})咨询',
+      show_archive_link: true,
+      archive_path: '/health-records',
+    },
   },
   session: {
     idle_timeout_minutes: 30,
     auto_new_session: true,
     empty_session_welcome: { enabled: false, messages: [] },
+    strategy: {
+      max_answer_chars: 1000,
+      show_loading: true,
+      daily_free_quota: 50,
+      answer_style: 'friendly',
+      sensitive_filter: true,
+      context_memory_rounds: 5,
+      disclaimer: '以上内容仅供参考，不能替代医生诊疗',
+    },
   },
   floating_button: {
     enabled: true,
     icon: '✅',
     label: '健康打卡',
-    show_label: false,
+    show_label: true,
     target_path: '/health-plan',
     position: 'right_bottom',
   },
   banner: { visible: true },
-  func_grid: { visible: true, columns: 3, max_count: 6 },
+  health_tips: { visible: true, interval_seconds: 4, show_indicator: true },
+  func_grid: {
+    visible: true,
+    columns: 3,
+    max_count: 6,
+    items: [
+      { id: 'g1', main_text: 'AI诊室', sub_text: '智能问诊', target_path: '/ai-doctor', icon: '🩺', gradient_start: '#5B6CFF', gradient_end: '#8B9AFF', badge: '', enabled: true, sort: 1 },
+      { id: 'g2', main_text: '看报告', sub_text: '解读体检报告', target_path: '/checkup', icon: '📋', gradient_start: '#FF7E5F', gradient_end: '#FEB47B', badge: '', enabled: true, sort: 2 },
+      { id: 'g3', main_text: '健康档案', sub_text: '查看个人档案', target_path: '/health-archive', icon: '📁', gradient_start: '#43E97B', gradient_end: '#38F9D7', badge: '', enabled: true, sort: 3 },
+    ],
+  },
   quick_tags: { visible: true, max_count: 8 },
   recommended_questions: [
-    { id: 'r1', icon: '💚', title: '健康', question: '最近总是失眠怎么办？', enabled: true, sort: 1 },
-    { id: 'r2', icon: '📋', title: '体检', question: '帮我解读最新体检报告', enabled: true, sort: 2 },
-    { id: 'r3', icon: '💊', title: '用药', question: '感冒了吃什么药比较好？', enabled: true, sort: 3 },
-    { id: 'r4', icon: '🥗', title: '饮食', question: '高血压患者饮食注意什么？', enabled: true, sort: 4 },
+    { id: 'r1', icon: '📋', title: '体检解读', question: '帮我解读最新体检报告', enabled: true, sort: 1 },
+    { id: 'r2', icon: '💊', title: '用药咨询', question: '感冒了吃什么药比较好？', enabled: true, sort: 2 },
+    { id: 'r3', icon: '🥗', title: '饮食建议', question: '高血压患者饮食注意什么？', enabled: true, sort: 3 },
+    { id: 'r4', icon: '💚', title: '失眠', question: '最近总是失眠怎么办？', enabled: true, sort: 4 },
   ],
+  empty_placeholder: { icon: '💬', main_title: '还没有对话记录' },
+  global_switches: {
+    welcome_visible: true,
+    health_tips_visible: true,
+    func_grid_visible: true,
+    recommended_visible: true,
+    empty_placeholder_visible: true,
+    family_pill_visible: true,
+    archive_link_visible: true,
+    voice_input_visible: true,
+    floating_button_visible: true,
+  },
 };
 
 function pickRandom<T>(arr: T[], fallback: T): T {
@@ -897,76 +983,133 @@ export default function AiHomePage() {
   const hasConversation = messages.length > 0;
   const lastAiMsgIndex = messages.reduce((acc, m, i) => m.role === 'assistant' ? i : acc, -1);
 
+  // v1.0 全局开关取并集
+  const sw = aiHomeConfig.global_switches;
+  const welcomeVisible = sw.welcome_visible;
+  const healthTipsVisible = sw.health_tips_visible && aiHomeConfig.health_tips.visible;
+  const funcGridVisible = sw.func_grid_visible && aiHomeConfig.func_grid.visible;
+  const recommendedVisible = sw.recommended_visible;
+  const emptyPlaceholderVisible = sw.empty_placeholder_visible;
+  const familyPillVisible = sw.family_pill_visible && aiHomeConfig.input.family_consult.enabled;
+  const archiveLinkVisible = sw.archive_link_visible && aiHomeConfig.input.family_consult.show_archive_link;
+  const voiceInputVisible = sw.voice_input_visible && aiHomeConfig.input.enable_voice;
+  const floatingButtonVisible = sw.floating_button_visible && aiHomeConfig.floating_button.enabled;
+
+  // 主标题占位符替换
+  const renderMainTitle = (): string => {
+    const tpl = aiHomeConfig.welcome.main_title || '早上好，{昵称}！';
+    const nick = (aiHomeConfig.welcome.show_nickname && user?.nickname) ? user.nickname : '';
+    return tpl.replace('{昵称}', nick || '朋友');
+  };
+  const renderFamilyPillText = (): string => {
+    const tpl = aiHomeConfig.input.family_consult.template || '为({name})咨询';
+    const name = selectedConsultant?.nickname || '本人';
+    return tpl.replace('{name}', name);
+  };
+
+  // 兜底功能宫格项：优先使用配置中的 items；若为空，使用 FALLBACK 3 项
+  const configuredItems = (aiHomeConfig.func_grid.items && aiHomeConfig.func_grid.items.length > 0)
+    ? aiHomeConfig.func_grid.items
+    : FALLBACK_CONFIG.func_grid.items;
+  const gridItems = configuredItems
+    .filter((g) => g.enabled)
+    .slice(0, aiHomeConfig.func_grid.max_count || 6);
+
   return (
     <div className="flex flex-col h-screen" style={{ background: THEME.background, maxWidth: 750, margin: '0 auto' }}>
-      {/* Top Bar */}
-      <div
-        className="flex items-center justify-between px-4 flex-shrink-0"
-        style={{ height: 48, background: THEME.cardBg, borderBottom: `1px solid ${THEME.divider}` }}
-      >
-        <div className="flex items-center gap-3">
-          {aiHomeConfig.topbar.show_sidebar && (
-            <button className="text-xl" onClick={() => setSidebarOpen(true)}>☰</button>
+      {/* Top Bar (v1.0 设计图无顶栏，由 topbar.visible 控制) */}
+      {aiHomeConfig.topbar.visible && (
+        <div
+          className="flex items-center justify-between px-4 flex-shrink-0"
+          style={{ height: 48, background: THEME.cardBg, borderBottom: `1px solid ${THEME.divider}` }}
+        >
+          <div className="flex items-center gap-3">
+            {aiHomeConfig.topbar.show_sidebar && (
+              <button className="text-xl" onClick={() => setSidebarOpen(true)}>☰</button>
+            )}
+            {aiHomeConfig.topbar.logo.type === 'image' && aiHomeConfig.topbar.logo.image_url ? (
+              <img
+                src={aiHomeConfig.topbar.logo.image_url}
+                alt="logo"
+                style={{ width: 24, height: 24, borderRadius: 4, objectFit: 'cover' }}
+              />
+            ) : (
+              <span className="text-base">{aiHomeConfig.topbar.logo.emoji || '🌿'}</span>
+            )}
+            <span className="font-bold text-base" style={{ color: THEME.textPrimary }}>
+              {aiHomeConfig.topbar.title || 'AI 健康助手'}
+            </span>
+          </div>
+          {aiHomeConfig.topbar.show_more_menu && (
+            <button className="text-xl tracking-widest" onClick={() => setMoreMenuOpen(true)}>···</button>
           )}
-          {aiHomeConfig.topbar.logo.type === 'image' && aiHomeConfig.topbar.logo.image_url ? (
-            <img
-              src={aiHomeConfig.topbar.logo.image_url}
-              alt="logo"
-              style={{ width: 24, height: 24, borderRadius: 4, objectFit: 'cover' }}
-            />
-          ) : (
-            <span className="text-base">{aiHomeConfig.topbar.logo.emoji || '🌿'}</span>
-          )}
-          <span className="font-bold text-base" style={{ color: THEME.textPrimary }}>
-            {aiHomeConfig.topbar.title || 'AI 健康助手'}
-          </span>
         </div>
-        {aiHomeConfig.topbar.show_more_menu && (
-          <button className="text-xl tracking-widest" onClick={() => setMoreMenuOpen(true)}>···</button>
-        )}
-      </div>
+      )}
+      {/* v1.0 设计图无顶栏时仍需提供入口（隐藏在欢迎区右上角的 ··· 按钮） */}
+      {!aiHomeConfig.topbar.visible && (
+        <div className="flex items-center justify-end px-4 pt-2" style={{ height: 32 }}>
+          <button
+            className="text-xl tracking-widest"
+            style={{ color: THEME.textSecondary }}
+            onClick={() => setSidebarOpen(true)}
+            aria-label="历史记录"
+          >
+            ☰
+          </button>
+        </div>
+      )}
 
       {/* Main Content */}
       <div className="flex-1 overflow-y-auto">
         {!hasConversation ? (
-          <div className="px-4 py-6">
-            <div className="flex flex-col items-center py-6">
-              {aiHomeConfig.welcome.avatar.type === 'image' && aiHomeConfig.welcome.avatar.image_url ? (
-                <img
-                  src={aiHomeConfig.welcome.avatar.image_url}
-                  alt="avatar"
-                  className="rounded-full mb-3"
-                  style={{ width: 64, height: 64, objectFit: 'cover' }}
-                  onError={(e) => {
-                    // image 失效时降级 emoji
-                    (e.currentTarget as HTMLImageElement).style.display = 'none';
-                  }}
-                />
-              ) : (
-                <div
-                  className="flex items-center justify-center rounded-full text-3xl mb-3"
-                  style={{ width: 64, height: 64, background: THEME.gradient, color: '#fff' }}
-                >
-                  {aiHomeConfig.welcome.avatar.emoji || '🌿'}
+          <div className="px-4 py-3">
+            {/* v1.0 欢迎区：左头像 + 右文字 横向布局 */}
+            {welcomeVisible && (
+              <div className="flex items-center gap-3 py-4">
+                {aiHomeConfig.welcome.avatar.type === 'image' && aiHomeConfig.welcome.avatar.image_url ? (
+                  <img
+                    src={aiHomeConfig.welcome.avatar.image_url}
+                    alt="avatar"
+                    className="rounded-full flex-shrink-0"
+                    style={{ width: 56, height: 56, objectFit: 'cover' }}
+                  />
+                ) : (
+                  <div
+                    className="flex items-center justify-center rounded-full text-3xl flex-shrink-0"
+                    style={{ width: 56, height: 56, background: THEME.gradient, color: '#fff' }}
+                  >
+                    {aiHomeConfig.welcome.avatar.emoji || '🌿'}
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <div className="text-lg font-bold truncate" style={{ color: THEME.textPrimary }}>
+                    {renderMainTitle()}
+                  </div>
+                  <div className="text-sm mt-0.5 truncate" style={{ color: THEME.textSecondary }}>
+                    {aiHomeConfig.welcome.sub_title || pickedSubtitle || '我是您的AI健康顾问小康'}
+                  </div>
                 </div>
-              )}
-              <div className="text-lg font-bold" style={{ color: THEME.textPrimary }}>
-                {pickedGreeting || getGreeting()}
-                {aiHomeConfig.welcome.show_nickname && user?.nickname ? `，${user.nickname}` : ''}
               </div>
-              <div className="text-sm mt-1" style={{ color: THEME.textSecondary }}>
-                {pickedSubtitle || '我是您的AI健康助手'}
-              </div>
-            </div>
+            )}
 
-            {aiHomeConfig.banner.visible && banners.length > 0 && (
-              <div className="rounded-2xl overflow-hidden mb-5">
-                <Swiper autoplay autoplayInterval={4000} loop>
+            {/* v1.0 紫色今日健康贴士轮播卡（图片做整张卡片背景） */}
+            {healthTipsVisible && banners.length > 0 && (
+              <div className="rounded-2xl overflow-hidden mb-4 shadow-lg" style={{ background: 'linear-gradient(135deg, #5B6CFF 0%, #8B5CF6 100%)' }}>
+                <Swiper
+                  autoplay
+                  autoplayInterval={(aiHomeConfig.health_tips.interval_seconds || 4) * 1000}
+                  loop
+                  indicator={aiHomeConfig.health_tips.show_indicator ? undefined : () => null}
+                >
                   {banners.map(banner => (
                     <Swiper.Item key={banner.id}>
                       <div
-                        className="h-36 bg-cover bg-center rounded-2xl cursor-pointer"
-                        style={{ backgroundImage: `url(${banner.image_url})` }}
+                        className="bg-cover bg-center cursor-pointer"
+                        style={{
+                          height: 130,
+                          backgroundImage: `url(${banner.image_url})`,
+                          backgroundColor: '#5B6CFF',
+                        }}
                         onClick={() => banner.link_url && router.push(banner.link_url)}
                       />
                     </Swiper.Item>
@@ -975,48 +1118,75 @@ export default function AiHomePage() {
               </div>
             )}
 
-            {aiHomeConfig.func_grid.visible && funcButtons.length > 0 && (
-            <div
-              className={`grid gap-3 mb-5`}
-              style={{ gridTemplateColumns: `repeat(${aiHomeConfig.func_grid.columns || 3}, minmax(0, 1fr))` }}
-            >
-              {funcButtons.slice(0, aiHomeConfig.func_grid.max_count || 6).map(btn => {
-                const key = btn.button_type || btn.id;
-                const icon = btn.icon || FUNCTION_ICONS[key] || '📌';
-                return (
+            {/* v1.0 功能宫格 7 字段 */}
+            {funcGridVisible && gridItems.length > 0 && (
+              <div
+                className={`grid gap-3 mb-4`}
+                style={{ gridTemplateColumns: `repeat(${aiHomeConfig.func_grid.columns || 3}, minmax(0, 1fr))` }}
+              >
+                {gridItems.map(it => (
                   <div
-                    key={btn.id}
-                    className="flex flex-col items-center gap-2 py-4 rounded-2xl cursor-pointer active:opacity-70"
-                    style={{ background: THEME.cardBg, boxShadow: '0 2px 8px rgba(91,108,255,0.08)' }}
-                    onClick={() => handleFuncButton(btn)}
+                    key={it.id}
+                    className="relative flex flex-col items-center justify-center gap-1.5 py-4 rounded-2xl cursor-pointer active:opacity-80"
+                    style={{
+                      background: `linear-gradient(135deg, ${it.gradient_start} 0%, ${it.gradient_end} 100%)`,
+                      color: '#fff',
+                      minHeight: 90,
+                    }}
+                    onClick={() => {
+                      const p = it.target_path;
+                      if (p && (p.startsWith('/') || p.startsWith('http'))) {
+                        if (p.startsWith('http')) window.location.href = p;
+                        else router.push(p);
+                      }
+                    }}
                   >
-                    <span className="text-2xl">{icon}</span>
-                    <span className="text-xs font-medium" style={{ color: THEME.textPrimary }}>{btn.name}</span>
-                  </div>
-                );
-              })}
-            </div>
-            )}
-
-            {recommendQuestions.length > 0 && (
-            <div className="mb-3">
-              <div className="text-sm font-semibold mb-2" style={{ color: THEME.textPrimary }}>试着问我</div>
-              <div className="space-y-2">
-                {recommendQuestions.map((q, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center gap-2 px-4 py-3 rounded-xl cursor-pointer active:opacity-70"
-                    style={{ background: THEME.cardBg, border: `1px solid ${THEME.divider}` }}
-                    onClick={() => handleSend(q.text)}
-                  >
-                    <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: THEME.primaryLight, color: THEME.primary }}>
-                      {q.tag}
-                    </span>
-                    <span className="text-sm" style={{ color: THEME.textPrimary }}>{q.text}</span>
+                    <span className="text-2xl">{it.icon || '📌'}</span>
+                    <span className="text-sm font-semibold">{it.main_text}</span>
+                    <span className="text-xs opacity-90 text-center px-1">{it.sub_text}</span>
+                    {it.badge && (
+                      <span
+                        className="absolute top-1 right-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold"
+                        style={{ background: '#FF4D4F', color: '#fff' }}
+                      >
+                        {it.badge}
+                      </span>
+                    )}
                   </div>
                 ))}
               </div>
-            </div>
+            )}
+
+            {/* v1.0 推荐问横向滚动胶囊（位于功能宫格下方、空对话占位上方） */}
+            {recommendedVisible && recommendQuestions.length > 0 && (
+              <div className="mb-4">
+                <div
+                  className="flex gap-2 overflow-x-auto pb-2"
+                  style={{ scrollbarWidth: 'none' as any, msOverflowStyle: 'none' as any }}
+                >
+                  {recommendQuestions.map((q, i) => (
+                    <div
+                      key={i}
+                      className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-full cursor-pointer active:opacity-70"
+                      style={{ background: '#fff', border: `1px solid ${THEME.divider}`, whiteSpace: 'nowrap' }}
+                      onClick={() => handleSend(q.text)}
+                    >
+                      {q.tag && <span className="text-base">{q.tag}</span>}
+                      <span className="text-sm" style={{ color: THEME.textPrimary }}>{q.text.length > 12 ? q.text.slice(0, 12) + '…' : q.text}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* v1.0 空对话占位（大图标 + 主标题 居中） */}
+            {emptyPlaceholderVisible && messages.length === 0 && (
+              <div className="flex flex-col items-center py-8">
+                <div className="text-5xl mb-3 opacity-60">{aiHomeConfig.empty_placeholder.icon || '💬'}</div>
+                <div className="text-base" style={{ color: THEME.textSecondary }}>
+                  {aiHomeConfig.empty_placeholder.main_title || '还没有对话记录'}
+                </div>
+              </div>
             )}
           </div>
         ) : (
@@ -1115,7 +1285,7 @@ export default function AiHomePage() {
       </div>
 
       {/* Floating Check-in Button */}
-      {aiHomeConfig.floating_button.enabled && (
+      {floatingButtonVisible && (
         <div
           className={`fixed cursor-pointer active:scale-95 transition-transform z-30 ${
             aiHomeConfig.floating_button.position === 'left_bottom' ? 'left-4' : 'right-4'
@@ -1151,8 +1321,8 @@ export default function AiHomePage() {
         </div>
       )}
 
-      {/* Bottom Quick Tags (only in guide state) */}
-      {!hasConversation && aiHomeConfig.quick_tags.visible && funcButtons.length > 0 && (
+      {/* Bottom Quick Tags (兼容旧版本，仅在 quick_tags.visible 时显示) */}
+      {false && !hasConversation && aiHomeConfig.quick_tags.visible && funcButtons.length > 0 && (
         <div
           className="flex-shrink-0 overflow-x-auto px-4 py-2 flex gap-2"
           style={{ borderTop: `1px solid ${THEME.divider}`, background: THEME.cardBg, scrollbarWidth: 'none' }}
@@ -1201,6 +1371,7 @@ export default function AiHomePage() {
               className="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full"
               style={{ background: THEME.primaryLight, color: THEME.primary }}
               onClick={handleMicToggle}
+              aria-label="切换为键盘"
             >
               ⌨️
             </button>
@@ -1242,11 +1413,12 @@ export default function AiHomePage() {
           </div>
         ) : (
           <div className="flex items-end gap-2">
-            {voiceSupported && aiHomeConfig.input.enable_voice && (
+            {voiceSupported && voiceInputVisible && (
               <button
                 className="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full mb-0"
                 style={{ background: THEME.primaryLight, color: THEME.primary }}
                 onClick={handleMicToggle}
+                aria-label="语音输入"
               >
                 🎤
               </button>
@@ -1258,7 +1430,7 @@ export default function AiHomePage() {
               <textarea
                 ref={textareaRef}
                 className="flex-1 bg-transparent outline-none text-sm resize-none leading-6"
-                placeholder={aiHomeConfig.input.placeholder || '问问健康助手...'}
+                placeholder={aiHomeConfig.input.placeholder || '发消息或按住说话...'}
                 value={inputValue}
                 onChange={handleTextareaInput}
                 onFocus={() => setInputFocused(true)}
@@ -1273,6 +1445,7 @@ export default function AiHomePage() {
                 style={{ color: THEME.textPrimary, maxHeight: 120, height: 24 }}
               />
             </div>
+            {/* v1.0 丁香派智能隐藏：键盘模式 + 输入框为空 → 灰显；有文字 → 亮起 */}
             <button
               className="flex-shrink-0 flex items-center justify-center rounded-full text-sm font-medium mb-0"
               style={{
@@ -1281,12 +1454,45 @@ export default function AiHomePage() {
                 background: inputValue.trim() ? THEME.primary : THEME.divider,
                 color: '#fff',
                 transition: 'background 0.2s',
+                opacity: inputValue.trim() ? 1 : 0.6,
+                cursor: inputValue.trim() ? 'pointer' : 'not-allowed',
               }}
               onClick={() => handleSend()}
               disabled={!inputValue.trim() || sending}
+              aria-label="发送"
             >
               ➤
             </button>
+          </div>
+        )}
+
+        {/* v1.0 第二层：家庭成员快捷栏（家庭成员咨询胶囊 + 查看档案） */}
+        {!voiceMode && (familyPillVisible || archiveLinkVisible) && (
+          <div className="flex items-center justify-between gap-3 mt-2">
+            {familyPillVisible ? (
+              <button
+                className="flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full"
+                style={{ background: THEME.primaryLight, color: THEME.primary, fontSize: 12 }}
+                onClick={() => setConsultantOpen(true)}
+                aria-label="切换咨询对象"
+              >
+                <span>{renderFamilyPillText()}</span>
+                <span style={{ fontSize: 10 }}>⇆</span>
+              </button>
+            ) : <div />}
+            {archiveLinkVisible && (
+              <button
+                className="flex-shrink-0 text-xs"
+                style={{ color: THEME.textSecondary }}
+                onClick={() => {
+                  const p = aiHomeConfig.input.family_consult.archive_path || '/health-records';
+                  if (p.startsWith('/')) router.push(p);
+                }}
+                aria-label="查看档案"
+              >
+                查看档案 ›
+              </button>
+            )}
           </div>
         )}
       </div>

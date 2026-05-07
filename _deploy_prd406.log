@@ -1,0 +1,267 @@
+﻿
+[涓婁紶] backend/app/api/ai_home_config.py 鈫?/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/api/ai_home_config.py
+
+[涓婁紶] backend/app/schemas/ai_home_config.py 鈫?/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/schemas/ai_home_config.py
+
+[涓婁紶] backend/tests/test_ai_home_config_v1.py 鈫?/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/tests/test_ai_home_config_v1.py
+
+[涓婁紶] admin-web/src/app/(admin)/home-settings/ai-home-config/page.tsx 鈫?/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/admin-web/src/app/(admin)/home-settings/ai-home-config/page.tsx
+
+[涓婁紶] h5-web/src/app/(ai-chat)/ai-home/page.tsx 鈫?/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/(ai-chat)/ai-home/page.tsx
+
+>>> docker cp '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/api/ai_home_config.py' '6b099ed3-7175-4a78-91f4-44570c84ed27-backend:/app/app/api/ai_home_config.py'
+<<< exit=0
+
+>>> docker cp '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/schemas/ai_home_config.py' '6b099ed3-7175-4a78-91f4-44570c84ed27-backend:/app/app/schemas/ai_home_config.py'
+<<< exit=0
+
+>>> docker cp '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/tests/test_ai_home_config_v1.py' '6b099ed3-7175-4a78-91f4-44570c84ed27-backend:/app/tests/test_ai_home_config_v1.py'
+<<< exit=0
+
+>>> docker restart 6b099ed3-7175-4a78-91f4-44570c84ed27-backend
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend
+
+<<< exit=0
+
+绛夊緟 backend 鍚姩...
+
+>>> curl -sf https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health -o /dev/null && echo ok || echo waiting
+waiting
+
+<<< exit=0
+
+[瀹瑰櫒鍐?pytest]
+
+>>> docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend bash -c 'cd /app && pytest tests/test_ai_home_config.py tests/test_ai_home_config_v1.py -x -q --tb=short 2>&1 | tail -80'
+0: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.9/migration/
+    warnings.warn(DEPRECATION_MESSAGE, DeprecationWarning)
+
+app/api/ocr.py:159
+  /app/app/api/ocr.py:159: DeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    period: str = Query("today", regex="^(today|7d|30d|all)$"),
+
+app/api/merchant_v1.py:771
+  /app/app/api/merchant_v1.py:771: DeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    period: str = Query("day", regex="^(day|week|month)$"),
+
+app/api/merchant_v1.py:772
+  /app/app/api/merchant_v1.py:772: DeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    dim: str = Query("merchant", regex="^(merchant|store)$"),
+
+../usr/local/lib/python3.11/site-packages/pydantic/fields.py:795
+  /usr/local/lib/python3.11/site-packages/pydantic/fields.py:795: PydanticDeprecatedSince20: `min_items` is deprecated and will be removed, use `min_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.9/migration/
+    warn('`min_items` is deprecated and will be removed, use `min_length` instead', DeprecationWarning)
+
+../usr/local/lib/python3.11/site-packages/pydantic/fields.py:801
+  /usr/local/lib/python3.11/site-packages/pydantic/fields.py:801: PydanticDeprecatedSince20: `max_items` is deprecated and will be removed, use `max_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.9/migration/
+    warn('`max_items` is deprecated and will be removed, use `max_length` instead', DeprecationWarning)
+
+app/main.py:1077
+  /app/app/main.py:1077: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+../usr/local/lib/python3.11/site-packages/fastapi/applications.py:4495
+../usr/local/lib/python3.11/site-packages/fastapi/applications.py:4495
+  /usr/local/lib/python3.11/site-packages/fastapi/applications.py:4495: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    return self.router.on_event(event_type)
+
+app/main.py:1084
+  /app/app/main.py:1084: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+22 passed, 23 warnings in 13.12s
+
+<<< exit=0
+
+>>> cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose build admin-web && docker compose up -d admin-web
+prompt-templates                        13.2 kB         316 kB
+#12 106.3 鈹?鈼?/referral                                7.46 kB         382 kB
+#12 106.3 鈹?鈼?/relation-types                          11.5 kB         406 kB
+#12 106.3 鈹?鈼?/search-config                           10 kB           414 kB
+#12 106.3 鈹?鈼?/search/asr-config                       6.99 kB         296 kB
+#12 106.3 鈹?鈼?/search/block-words                      12.6 kB         401 kB
+#12 106.3 鈹?鈼?/search/recommend                        14.2 kB         409 kB
+#12 106.3 鈹?鈼?/search/statistics                       239 kB         1.09 MB
+#12 106.3 鈹?鈼?/settings                                11 kB           368 kB
+#12 106.3 鈹?鈼?/share-config                            4.2 kB          371 kB
+#12 106.3 鈹?鈼?/sms                                     25 kB           423 kB
+#12 106.3 鈹?鈼?/system-messages                         11.4 kB         433 kB
+#12 106.3 鈹?鈼?/system-messages/send                    4.92 kB         313 kB
+#12 106.3 鈹?鈼?/system/sdk-health                       17 kB           285 kB
+#12 106.3 鈹?鈼?/tcm-config                              4.05 kB         284 kB
+#12 106.3 鈹?鈼?/tts-config                              5.07 kB         334 kB
+#12 106.3 鈹?鈼?/users                                   15.3 kB         404 kB
+#12 106.3 鈹?鈼?/voice-service                           3.46 kB         345 kB
+#12 106.3 鈹?鈼?/wechat-push                             4.92 kB         290 kB
+#12 106.3 + First Load JS shared by all                87.7 kB
+#12 106.3   鈹?chunks/2117-1ca38137e0e3b541.js          31.9 kB
+#12 106.3   鈹?chunks/fd9d1056-cde8d1c8f42e1127.js      53.6 kB
+#12 106.3   鈹?other shared chunks (total)              2.13 kB
+#12 106.3 
+#12 106.3 
+#12 106.3 鈼? (Static)   prerendered as static content
+#12 106.3 茠  (Dynamic)  server-rendered on demand
+#12 106.3 
+#12 DONE 106.5s
+
+#7 [builder 2/7] WORKDIR /app
+#7 CACHED
+
+#13 [runner 3/5] COPY --from=builder /app/.next/standalone ./
+#13 DONE 0.4s
+
+#14 [runner 4/5] COPY --from=builder /app/.next/static ./.next/static
+#14 DONE 0.1s
+
+#15 [runner 5/5] COPY --from=builder /app/public ./public
+#15 DONE 0.0s
+
+#16 exporting to image
+#16 exporting layers
+#16 exporting layers 1.2s done
+#16 exporting manifest sha256:000ef2287df502a4a81d0ed8a427680c6e4ff37ddde5da3353d7d7c7ba49863e done
+#16 exporting config sha256:702988c7bd92a804d44e34d707ceafd472a6a092dd0ef3b389704e18d15323b3 done
+#16 exporting attestation manifest sha256:6702eb3192f76e53bae3cfb47bf4f24f3691d3d34ca089964fe28239cb160034 0.0s done
+#16 exporting manifest list sha256:28b5b593e1e0d94b8602ca699ac3b0c0e192ce62bfebc6babd59a7172103d7f7 0.0s done
+#16 naming to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:latest done
+#16 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:latest
+#16 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:latest 0.5s done
+#16 DONE 1.9s
+
+#17 resolving provenance for metadata file
+#17 DONE 0.0s
+
+STDERR: time="2026-05-08T01:44:10+08:00" level=warning msg="/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Building 
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web Building 
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web Built 
+time="2026-05-08T01:46:00+08:00" level=warning msg="/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Recreate 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Recreated 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Waiting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Healthy 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Started 
+
+<<< exit=0
+
+>>> cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose build h5-web && docker compose up -d h5-web
+  2.5 kB          235 kB
+#12 84.98 鈹?茠 /review/[orderId]                          2.15 kB         235 kB
+#12 84.98 鈹?鈼?/sandbox-pay                               2.15 kB         235 kB
+#12 84.98 鈹?鈼?/scan                                      109 kB          319 kB
+#12 84.98 鈹?鈼?/search                                    6.36 kB         239 kB
+#12 84.98 鈹?鈼?/search/result                             7.33 kB         240 kB
+#12 84.98 鈹?鈼?/services                                  5.55 kB         238 kB
+#12 84.98 鈹?鈼?/settings                                  6.1 kB          239 kB
+#12 84.98 鈹?茠 /shared/chat/[token]                       2.07 kB         235 kB
+#12 84.98 鈹?茠 /shared/drug/[token]                       2.46 kB         235 kB
+#12 84.98 鈹?茠 /shared/report/[token]                     2.65 kB         235 kB
+#12 84.98 鈹?鈼?/symptom                                   9.23 kB         247 kB
+#12 84.98 鈹?鈼?/tcm                                       11 kB           243 kB
+#12 84.98 鈹?鈼?/tcm/archive                               508 B           211 kB
+#12 84.98 鈹?茠 /tcm/diagnosis/[id]                        549 B           211 kB
+#12 84.98 鈹?鈼?/tcm/loading                               957 B           211 kB
+#12 84.98 鈹?茠 /tcm/result/[id]                           9.04 kB         242 kB
+#12 84.98 鈹?茠 /unified-order/[id]                        9.81 kB         248 kB
+#12 84.98 鈹?鈼?/unified-orders                            3.88 kB         242 kB
+#12 84.98 + First Load JS shared by all                  87.6 kB
+#12 84.98   鈹?chunks/2117-e9348fb0d4d6144c.js            31.9 kB
+#12 84.98   鈹?chunks/fd9d1056-cde8d1c8f42e1127.js        53.6 kB
+#12 84.98   鈹?other shared chunks (total)                2.1 kB
+#12 84.98 
+#12 84.98 
+#12 84.98 鈼? (Static)   prerendered as static content
+#12 84.98 茠  (Dynamic)  server-rendered on demand
+#12 84.98 
+#12 DONE 85.3s
+
+#7 [builder 2/7] WORKDIR /app
+#7 CACHED
+
+#13 [runner 3/5] COPY --from=builder /app/.next/standalone ./
+#13 DONE 0.4s
+
+#14 [runner 4/5] COPY --from=builder /app/.next/static ./.next/static
+#14 DONE 0.1s
+
+#15 [runner 5/5] COPY --from=builder /app/public ./public
+#15 DONE 0.2s
+
+#16 exporting to image
+#16 exporting layers
+#16 exporting layers 3.7s done
+#16 exporting manifest sha256:fb4d99136030d95308959b9af3a9f5eb9e7de6bade284325ef340b35b79ee4d2 0.0s done
+#16 exporting config sha256:6aeaece42b0526f63ca213a39062c2959922f316293d3a69d86a45ce8df6c72d done
+#16 exporting attestation manifest sha256:a553aa8d2da26fded3ad60b109e745a4f5b07ce106a10aec7d23a93d03a54b43 0.0s done
+#16 exporting manifest list sha256:92f2340d24ebbf5d5a6774f5ed811ed8118fe6e22064035d0ee18b788cb84dc9 0.0s done
+#16 naming to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:latest done
+#16 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:latest
+#16 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:latest 0.9s done
+#16 DONE 4.7s
+
+#17 resolving provenance for metadata file
+#17 DONE 0.0s
+
+STDERR: time="2026-05-08T01:46:06+08:00" level=warning msg="/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Building 
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web Building 
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web Built 
+time="2026-05-08T01:47:39+08:00" level=warning msg="/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Recreate 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Recreated 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Waiting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Healthy 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Started 
+
+<<< exit=0
+
+绛夊緟 admin/h5 鍚姩...
+
+[Smoke]
+
+>>> curl -s -o /dev/null -w '/api/health=%{http_code}\n' https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health
+/api/health=200
+
+<<< exit=0
+
+>>> curl -s -o /dev/null -w '/api/ai-home-config=%{http_code}\n' https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/ai-home-config
+/api/ai-home-config=200
+
+<<< exit=0
+
+>>> curl -s -o /dev/null -w '/admin/home-settings/ai-home-config/=%{http_code}\n' https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/home-settings/ai-home-config/
+/admin/home-settings/ai-home-config/=200
+
+<<< exit=0
+
+>>> curl -s -o /dev/null -w '/admin/home-settings/ai-home-config/logs/=%{http_code}\n' https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/home-settings/ai-home-config/logs/
+/admin/home-settings/ai-home-config/logs/=200
+
+<<< exit=0
+
+>>> curl -s -o /dev/null -w '/=%{http_code}\n' https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/
+/=200
+
+<<< exit=0

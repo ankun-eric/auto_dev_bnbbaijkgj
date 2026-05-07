@@ -21,6 +21,11 @@ import {
   Empty,
   Divider,
   Alert,
+  Tabs,
+  Row,
+  Col,
+  ColorPicker,
+  Tooltip,
 } from 'antd';
 import type { UploadProps } from 'antd';
 import {
@@ -42,10 +47,44 @@ type AvatarObj = { type: 'emoji' | 'image'; emoji?: string; image_url?: string }
 type RecommendedQ = {
   id: string;
   icon: string;
+  icon_image_url?: string;
   title: string;
   question: string;
   enabled: boolean;
   sort: number;
+};
+type FuncGridItem = {
+  id?: string;
+  main_text: string;
+  sub_text: string;
+  target_path: string;
+  icon: string;
+  icon_image_url?: string;
+  gradient_start: string;
+  gradient_end: string;
+  badge?: string;
+  enabled: boolean;
+  sort: number;
+};
+type SessionStrategy = {
+  max_answer_chars: number;
+  show_loading: boolean;
+  daily_free_quota: number;
+  answer_style: 'professional' | 'easy' | 'friendly';
+  sensitive_filter: boolean;
+  context_memory_rounds: 3 | 5 | 10 | 20;
+  disclaimer: string;
+};
+type GlobalSwitches = {
+  welcome_visible: boolean;
+  health_tips_visible: boolean;
+  func_grid_visible: boolean;
+  recommended_visible: boolean;
+  empty_placeholder_visible: boolean;
+  family_pill_visible: boolean;
+  archive_link_visible: boolean;
+  voice_input_visible: boolean;
+  floating_button_visible: boolean;
 };
 type Cfg = {
   welcome: {
@@ -53,6 +92,8 @@ type Cfg = {
     greetings: { morning: string[]; afternoon: string[]; evening: string[] };
     subtitles: string[];
     show_nickname: boolean;
+    main_title: string;
+    sub_title: string;
   };
   topbar: {
     title: string;
@@ -60,30 +101,42 @@ type Cfg = {
     show_sidebar: boolean;
     show_more_menu: boolean;
     show_share: boolean;
+    visible: boolean;
   };
   input: {
     placeholder: string;
     enable_voice: boolean;
     enable_tts: boolean;
     tts_provider: 'auto' | 'cloud' | 'browser';
+    family_consult: {
+      enabled: boolean;
+      template: string;
+      show_archive_link: boolean;
+      archive_path: string;
+    };
   };
   session: {
     idle_timeout_minutes: number;
     auto_new_session: boolean;
     empty_session_welcome: { enabled: boolean; messages: string[] };
+    strategy: SessionStrategy;
   };
   floating_button: {
     enabled: boolean;
     icon: string;
+    icon_image_url?: string;
     label?: string;
     show_label: boolean;
     target_path: string;
     position: 'right_bottom' | 'left_bottom';
   };
   banner: { visible: boolean };
-  func_grid: { visible: boolean; columns: 2 | 3 | 4; max_count: number };
+  health_tips: { visible: boolean; interval_seconds: number; show_indicator: boolean };
+  func_grid: { visible: boolean; columns: 2 | 3 | 4; max_count: number; items: FuncGridItem[] };
   quick_tags: { visible: boolean; max_count: number };
   recommended_questions: RecommendedQ[];
+  empty_placeholder: { icon: string; icon_image_url?: string; main_title: string };
+  global_switches: GlobalSwitches;
 };
 
 const DEFAULT_CFG: Cfg = {
@@ -92,6 +145,8 @@ const DEFAULT_CFG: Cfg = {
     greetings: { morning: ['早上好'], afternoon: ['午安'], evening: ['晚上好'] },
     subtitles: ['有什么健康问题想问我?'],
     show_nickname: true,
+    main_title: '早上好，{昵称}！',
+    sub_title: '我是您的AI健康顾问小康',
   },
   topbar: {
     title: 'AI 健康助手',
@@ -99,30 +154,72 @@ const DEFAULT_CFG: Cfg = {
     show_sidebar: true,
     show_more_menu: true,
     show_share: true,
+    visible: false,
   },
   input: {
-    placeholder: '问问健康助手...',
+    placeholder: '发消息或按住说话...',
     enable_voice: true,
     enable_tts: true,
     tts_provider: 'auto',
+    family_consult: {
+      enabled: true,
+      template: '为({name})咨询',
+      show_archive_link: true,
+      archive_path: '/health-records',
+    },
   },
   session: {
     idle_timeout_minutes: 30,
     auto_new_session: true,
     empty_session_welcome: { enabled: false, messages: [] },
+    strategy: {
+      max_answer_chars: 1000,
+      show_loading: true,
+      daily_free_quota: 50,
+      answer_style: 'friendly',
+      sensitive_filter: true,
+      context_memory_rounds: 5,
+      disclaimer: '以上内容仅供参考，不能替代医生诊疗',
+    },
   },
   floating_button: {
     enabled: true,
     icon: '✅',
     label: '健康打卡',
-    show_label: false,
-    target_path: '/health-check-in',
+    show_label: true,
+    target_path: '/health-plan',
     position: 'right_bottom',
   },
   banner: { visible: true },
-  func_grid: { visible: true, columns: 3, max_count: 6 },
+  health_tips: { visible: true, interval_seconds: 4, show_indicator: true },
+  func_grid: {
+    visible: true,
+    columns: 3,
+    max_count: 6,
+    items: [
+      { id: 'g1', main_text: 'AI诊室', sub_text: '智能问诊', target_path: '/ai-doctor', icon: '🩺', gradient_start: '#5B6CFF', gradient_end: '#8B9AFF', badge: '', enabled: true, sort: 1 },
+      { id: 'g2', main_text: '看报告', sub_text: '解读体检报告', target_path: '/checkup', icon: '📋', gradient_start: '#FF7E5F', gradient_end: '#FEB47B', badge: '', enabled: true, sort: 2 },
+      { id: 'g3', main_text: '健康档案', sub_text: '查看个人档案', target_path: '/health-archive', icon: '📁', gradient_start: '#43E97B', gradient_end: '#38F9D7', badge: '', enabled: true, sort: 3 },
+    ],
+  },
   quick_tags: { visible: true, max_count: 8 },
-  recommended_questions: [],
+  recommended_questions: [
+    { id: 'r1', icon: '📋', title: '体检解读', question: '帮我解读最新体检报告', enabled: true, sort: 1 },
+    { id: 'r2', icon: '💊', title: '用药咨询', question: '感冒了吃什么药比较好？', enabled: true, sort: 2 },
+    { id: 'r3', icon: '🥗', title: '饮食建议', question: '高血压患者饮食注意什么？', enabled: true, sort: 3 },
+  ],
+  empty_placeholder: { icon: '💬', main_title: '还没有对话记录' },
+  global_switches: {
+    welcome_visible: true,
+    health_tips_visible: true,
+    func_grid_visible: true,
+    recommended_visible: true,
+    empty_placeholder_visible: true,
+    family_pill_visible: true,
+    archive_link_visible: true,
+    voice_input_visible: true,
+    floating_button_visible: true,
+  },
 };
 
 // ─── 字符串数组编辑器 ─────────────────────────────
@@ -409,9 +506,30 @@ export default function AIHomeConfigPage() {
         message="点击每张卡片右上角『保存本节』可单独保存该模块；底部『全部保存』一次性保存全部配置。配置保存后立即对所有用户端生效。"
       />
 
+      {/* PRD-405 v1.0：6 Tab 导航锚点（点击滚动到对应卡片） */}
+      <Card style={{ marginBottom: 16, position: 'sticky', top: 0, zIndex: 6 }} bodyStyle={{ padding: '8px 16px' }}>
+        <Tabs
+          size="small"
+          defaultActiveKey="welcome"
+          onTabClick={(key) => {
+            const el = document.getElementById(`anchor-${key}`);
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }}
+          items={[
+            { key: 'welcome', label: '1. 欢迎区' },
+            { key: 'first-screen', label: '2. 首屏内容' },
+            { key: 'func-grid', label: '3. 功能宫格' },
+            { key: 'input', label: '4. 输入栏' },
+            { key: 'session-strategy', label: '5. 会话策略' },
+            { key: 'global-switches', label: '6. 全局开关' },
+          ]}
+        />
+      </Card>
+
       {/* 1. 欢迎区 */}
       <Card
-        title="1. 欢迎区配置"
+        id="anchor-welcome"
+        title="Tab 1 · 欢迎区配置"
         style={{ marginBottom: 16 }}
         extra={
           <Space>
@@ -427,6 +545,30 @@ export default function AIHomeConfigPage() {
         }
       >
         <Form layout="vertical">
+          <Tooltip title="支持 {昵称} 占位符，自动替换为用户昵称。如：早上好，{昵称}！">
+            <Form.Item label="主标题（首页大字，≤30字）">
+              <Input
+                value={cfg.welcome.main_title}
+                maxLength={30}
+                showCount
+                onChange={(e) =>
+                  setCfg({ ...cfg, welcome: { ...cfg.welcome, main_title: e.target.value } })
+                }
+                placeholder="早上好，{昵称}！"
+              />
+            </Form.Item>
+          </Tooltip>
+          <Form.Item label="副标题（≤50字）">
+            <Input
+              value={cfg.welcome.sub_title}
+              maxLength={50}
+              showCount
+              onChange={(e) =>
+                setCfg({ ...cfg, welcome: { ...cfg.welcome, sub_title: e.target.value } })
+              }
+              placeholder="我是您的AI健康顾问小康"
+            />
+          </Form.Item>
           <Form.Item label="头像">
             <AvatarEditor
               value={cfg.welcome.avatar}
@@ -436,6 +578,7 @@ export default function AIHomeConfigPage() {
               uploadAction={upload}
             />
           </Form.Item>
+          <Divider plain>多条问候语随机抽 1（兼容旧版本）</Divider>
           <Form.Item label="早上问候语 (05:00-12:00)">
             <StringListEditor
               value={cfg.welcome.greetings.morning}
@@ -501,9 +644,10 @@ export default function AIHomeConfigPage() {
         </Form>
       </Card>
 
-      {/* 2. 顶栏与品牌 */}
+      {/* 2. 顶栏与品牌（设计图无顶栏，本卡片保留兼容旧 H5） */}
       <Card
-        title="2. 顶栏与品牌配置"
+        id="anchor-topbar"
+        title="补充 · 顶栏与品牌配置（设计图无顶栏，仅兼容旧版 H5）"
         style={{ marginBottom: 16 }}
         extra={
           <Space>
@@ -519,6 +663,14 @@ export default function AIHomeConfigPage() {
         }
       >
         <Form layout="vertical">
+          <Form.Item label="是否显示顶栏（v1.0 设计图为关闭）">
+            <Switch
+              checked={cfg.topbar.visible}
+              onChange={(c) =>
+                setCfg({ ...cfg, topbar: { ...cfg.topbar, visible: c } })
+              }
+            />
+          </Form.Item>
           <Form.Item label="标题文案">
             <Input
               value={cfg.topbar.title}
@@ -565,9 +717,77 @@ export default function AIHomeConfigPage() {
         </Form>
       </Card>
 
+      {/* Tab 2 · 首屏内容：健康贴士轮播 + 推荐问 + 空对话占位 */}
+      <Card
+        id="anchor-first-screen"
+        title="Tab 2 · 首屏内容（健康贴士轮播 + 空对话占位）"
+        style={{ marginBottom: 16 }}
+        extra={
+          <Space>
+            <Button
+              type="primary"
+              icon={<SaveOutlined />}
+              onClick={async () => {
+                await saveModule('health_tips', cfg.health_tips);
+                await saveModule('empty_placeholder', cfg.empty_placeholder);
+              }}
+            >
+              保存本节
+            </Button>
+          </Space>
+        }
+      >
+        <Form layout="vertical">
+          <Divider plain>今日健康贴士轮播（紫色卡片，复用「轮播图」模块图片）</Divider>
+          <Form.Item label="是否显示" extra="数据来源固定为后台「轮播图」模块">
+            <Switch
+              checked={cfg.health_tips.visible}
+              onChange={(c) => setCfg({ ...cfg, health_tips: { ...cfg.health_tips, visible: c } })}
+            />
+          </Form.Item>
+          <Form.Item label="轮播间隔（秒，3~5）">
+            <InputNumber
+              min={3}
+              max={5}
+              value={cfg.health_tips.interval_seconds}
+              onChange={(v) =>
+                setCfg({ ...cfg, health_tips: { ...cfg.health_tips, interval_seconds: Number(v) || 4 } })
+              }
+            />
+          </Form.Item>
+          <Form.Item label="是否显示底部小圆点指示器">
+            <Switch
+              checked={cfg.health_tips.show_indicator}
+              onChange={(c) => setCfg({ ...cfg, health_tips: { ...cfg.health_tips, show_indicator: c } })}
+            />
+          </Form.Item>
+
+          <Divider plain>空对话占位（用户首次进入时显示）</Divider>
+          <Form.Item label="占位图标 (Emoji)">
+            <Input
+              style={{ width: 120 }}
+              value={cfg.empty_placeholder.icon}
+              maxLength={4}
+              onChange={(e) => setCfg({ ...cfg, empty_placeholder: { ...cfg.empty_placeholder, icon: e.target.value } })}
+              placeholder="💬"
+            />
+          </Form.Item>
+          <Form.Item label="主标题（≤20字）">
+            <Input
+              value={cfg.empty_placeholder.main_title}
+              maxLength={20}
+              showCount
+              onChange={(e) => setCfg({ ...cfg, empty_placeholder: { ...cfg.empty_placeholder, main_title: e.target.value } })}
+              placeholder="还没有对话记录"
+            />
+          </Form.Item>
+        </Form>
+      </Card>
+
       {/* 3. 推荐问 */}
       <Card
-        title='3. 推荐问列表配置（"试着问我"卡片）'
+        id="anchor-recommended"
+        title='Tab 2 · 推荐问列表（横向滚动胶囊，1~8 条）'
         style={{ marginBottom: 16 }}
         extra={
           <Space>
@@ -632,20 +852,25 @@ export default function AIHomeConfigPage() {
                   style={{ width: 80 }}
                   value={q.icon}
                   onChange={(e) => updateRQ(idx, { icon: e.target.value })}
-                  placeholder="🩺"
+                  placeholder="📋"
+                  maxLength={4}
                 />
                 <Input
                   style={{ flex: 1 }}
                   value={q.title}
                   onChange={(e) => updateRQ(idx, { title: e.target.value })}
-                  placeholder="卡片主标题（如：健康咨询）"
+                  placeholder="显示文案（按钮上展示，≤8字，如：体检解读）"
+                  maxLength={8}
+                  showCount
                 />
               </Space.Compact>
               <Input.TextArea
                 rows={2}
                 value={q.question}
                 onChange={(e) => updateRQ(idx, { question: e.target.value })}
-                placeholder="实际发送的提问文本"
+                placeholder="实际发送内容（点击后发给 AI 的完整提问，≤200字，可与显示文案不同）"
+                maxLength={200}
+                showCount
               />
             </Space>
           </Card>
@@ -661,9 +886,270 @@ export default function AIHomeConfigPage() {
         </Button>
       </Card>
 
-      {/* 4. 浮动按钮 */}
+      {/* Tab 3 · 功能宫格 7 字段 */}
       <Card
-        title="4. 浮动健康打卡按钮配置"
+        id="anchor-func-grid"
+        title="Tab 3 · 功能宫格（每项 7 字段，1~6 项）"
+        style={{ marginBottom: 16 }}
+        extra={
+          <Space>
+            <Button
+              type="primary"
+              icon={<SaveOutlined />}
+              onClick={() => saveModule('func_grid', cfg.func_grid)}
+            >
+              保存本节
+            </Button>
+          </Space>
+        }
+      >
+        <Paragraph type="secondary">
+          每项含主文案、副说明、跳转链接、图标、渐变色（起始+结束）、角标、是否启用 7 字段。最少 1 项、最多 6 项。
+        </Paragraph>
+        <Form layout="inline" style={{ marginBottom: 12 }}>
+          <Form.Item label="布局列数">
+            <Radio.Group
+              value={cfg.func_grid.columns}
+              onChange={(e) =>
+                setCfg({ ...cfg, func_grid: { ...cfg.func_grid, columns: e.target.value } })
+              }
+            >
+              <Radio value={2}>2 列</Radio>
+              <Radio value={3}>3 列</Radio>
+              <Radio value={4}>4 列</Radio>
+            </Radio.Group>
+          </Form.Item>
+        </Form>
+        {cfg.func_grid.items.length === 0 && <Empty description="至少 1 项" />}
+        {cfg.func_grid.items.map((it, idx) => (
+          <Card
+            key={it.id || idx}
+            type="inner"
+            size="small"
+            style={{ marginBottom: 8 }}
+            title={`#${idx + 1} ${it.main_text || '(未命名)'}`}
+            extra={
+              <Space>
+                <Switch
+                  checked={it.enabled}
+                  onChange={(c) => {
+                    const list = [...cfg.func_grid.items];
+                    list[idx] = { ...it, enabled: c };
+                    setCfg({ ...cfg, func_grid: { ...cfg.func_grid, items: list } });
+                  }}
+                  checkedChildren="启用"
+                  unCheckedChildren="禁用"
+                />
+                <Button
+                  size="small"
+                  icon={<ArrowUpOutlined />}
+                  disabled={idx === 0}
+                  onClick={() => {
+                    const list = [...cfg.func_grid.items];
+                    [list[idx], list[idx - 1]] = [list[idx - 1], list[idx]];
+                    list.forEach((x, i) => (x.sort = i + 1));
+                    setCfg({ ...cfg, func_grid: { ...cfg.func_grid, items: list } });
+                  }}
+                />
+                <Button
+                  size="small"
+                  icon={<ArrowDownOutlined />}
+                  disabled={idx === cfg.func_grid.items.length - 1}
+                  onClick={() => {
+                    const list = [...cfg.func_grid.items];
+                    [list[idx], list[idx + 1]] = [list[idx + 1], list[idx]];
+                    list.forEach((x, i) => (x.sort = i + 1));
+                    setCfg({ ...cfg, func_grid: { ...cfg.func_grid, items: list } });
+                  }}
+                />
+                <Button
+                  size="small"
+                  danger
+                  icon={<DeleteOutlined />}
+                  disabled={cfg.func_grid.items.length <= 1}
+                  onClick={() => {
+                    const list = cfg.func_grid.items.filter((_, i) => i !== idx);
+                    setCfg({ ...cfg, func_grid: { ...cfg.func_grid, items: list } });
+                  }}
+                />
+              </Space>
+            }
+          >
+            <Row gutter={12}>
+              <Col span={8}>
+                <Form.Item label="主文案（≤8字）">
+                  <Input
+                    value={it.main_text}
+                    maxLength={8}
+                    showCount
+                    onChange={(e) => {
+                      const list = [...cfg.func_grid.items];
+                      list[idx] = { ...it, main_text: e.target.value };
+                      setCfg({ ...cfg, func_grid: { ...cfg.func_grid, items: list } });
+                    }}
+                    placeholder="如：AI诊室"
+                  />
+                </Form.Item>
+              </Col>
+              <Col span={8}>
+                <Form.Item label="副说明（≤12字）">
+                  <Input
+                    value={it.sub_text}
+                    maxLength={12}
+                    showCount
+                    onChange={(e) => {
+                      const list = [...cfg.func_grid.items];
+                      list[idx] = { ...it, sub_text: e.target.value };
+                      setCfg({ ...cfg, func_grid: { ...cfg.func_grid, items: list } });
+                    }}
+                    placeholder="如：智能问诊"
+                  />
+                </Form.Item>
+              </Col>
+              <Col span={8}>
+                <Form.Item label="跳转链接（/ 或 http(s)://）">
+                  <Input
+                    value={it.target_path}
+                    onChange={(e) => {
+                      const list = [...cfg.func_grid.items];
+                      list[idx] = { ...it, target_path: e.target.value };
+                      setCfg({ ...cfg, func_grid: { ...cfg.func_grid, items: list } });
+                    }}
+                    placeholder="/ai-doctor"
+                  />
+                </Form.Item>
+              </Col>
+              <Col span={6}>
+                <Form.Item label="图标（Emoji）">
+                  <Input
+                    value={it.icon}
+                    maxLength={4}
+                    onChange={(e) => {
+                      const list = [...cfg.func_grid.items];
+                      list[idx] = { ...it, icon: e.target.value };
+                      setCfg({ ...cfg, func_grid: { ...cfg.func_grid, items: list } });
+                    }}
+                    placeholder="🩺"
+                  />
+                </Form.Item>
+              </Col>
+              <Col span={6}>
+                <Form.Item label="渐变起始色">
+                  <Input
+                    value={it.gradient_start}
+                    onChange={(e) => {
+                      const list = [...cfg.func_grid.items];
+                      list[idx] = { ...it, gradient_start: e.target.value };
+                      setCfg({ ...cfg, func_grid: { ...cfg.func_grid, items: list } });
+                    }}
+                    placeholder="#5B6CFF"
+                    addonAfter={
+                      <input
+                        type="color"
+                        value={it.gradient_start}
+                        onChange={(e) => {
+                          const list = [...cfg.func_grid.items];
+                          list[idx] = { ...it, gradient_start: e.target.value };
+                          setCfg({ ...cfg, func_grid: { ...cfg.func_grid, items: list } });
+                        }}
+                        style={{ width: 24, height: 24, border: 'none', padding: 0, background: 'transparent' }}
+                      />
+                    }
+                  />
+                </Form.Item>
+              </Col>
+              <Col span={6}>
+                <Form.Item label="渐变结束色">
+                  <Input
+                    value={it.gradient_end}
+                    onChange={(e) => {
+                      const list = [...cfg.func_grid.items];
+                      list[idx] = { ...it, gradient_end: e.target.value };
+                      setCfg({ ...cfg, func_grid: { ...cfg.func_grid, items: list } });
+                    }}
+                    placeholder="#8B9AFF"
+                    addonAfter={
+                      <input
+                        type="color"
+                        value={it.gradient_end}
+                        onChange={(e) => {
+                          const list = [...cfg.func_grid.items];
+                          list[idx] = { ...it, gradient_end: e.target.value };
+                          setCfg({ ...cfg, func_grid: { ...cfg.func_grid, items: list } });
+                        }}
+                        style={{ width: 24, height: 24, border: 'none', padding: 0, background: 'transparent' }}
+                      />
+                    }
+                  />
+                </Form.Item>
+              </Col>
+              <Col span={6}>
+                <Form.Item label="角标（≤4字，可空）">
+                  <Input
+                    value={it.badge || ''}
+                    maxLength={4}
+                    onChange={(e) => {
+                      const list = [...cfg.func_grid.items];
+                      list[idx] = { ...it, badge: e.target.value };
+                      setCfg({ ...cfg, func_grid: { ...cfg.func_grid, items: list } });
+                    }}
+                    placeholder="如：NEW / HOT"
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
+            {/* 实时预览：渐变背景 */}
+            <div
+              style={{
+                marginTop: 4,
+                padding: 12,
+                borderRadius: 12,
+                background: `linear-gradient(135deg, ${it.gradient_start} 0%, ${it.gradient_end} 100%)`,
+                color: '#fff',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 12,
+              }}
+            >
+              <span style={{ fontSize: 28 }}>{it.icon}</span>
+              <div>
+                <div style={{ fontWeight: 600 }}>{it.main_text || '主文案'}</div>
+                <div style={{ fontSize: 12, opacity: 0.9 }}>{it.sub_text || '副说明'}</div>
+              </div>
+              {it.badge && (
+                <span style={{ background: '#FF4D4F', borderRadius: 8, padding: '2px 6px', fontSize: 10 }}>{it.badge}</span>
+              )}
+            </div>
+          </Card>
+        ))}
+        <Button
+          type="dashed"
+          icon={<PlusOutlined />}
+          block
+          disabled={cfg.func_grid.items.length >= 6}
+          onClick={() => {
+            const newItem: FuncGridItem = {
+              main_text: '',
+              sub_text: '',
+              target_path: '/',
+              icon: '✨',
+              gradient_start: '#5B6CFF',
+              gradient_end: '#8B9AFF',
+              badge: '',
+              enabled: true,
+              sort: cfg.func_grid.items.length + 1,
+            };
+            setCfg({ ...cfg, func_grid: { ...cfg.func_grid, items: [...cfg.func_grid.items, newItem] } });
+          }}
+        >
+          新增宫格项 ({cfg.func_grid.items.length}/6)
+        </Button>
+      </Card>
+
+      {/* 4. 浮动按钮（Tab 6 · 全局开关 - 打卡按钮） */}
+      <Card
+        id="anchor-floating-button"
+        title="Tab 6 · 浮动健康打卡按钮（4 字段精简版）"
         style={{ marginBottom: 16 }}
         extra={
           <Space>
@@ -770,9 +1256,10 @@ export default function AIHomeConfigPage() {
         </Form>
       </Card>
 
-      {/* 5. 输入栏 */}
+      {/* Tab 4 · 输入栏 */}
       <Card
-        title="5. 输入栏配置"
+        id="anchor-input"
+        title="Tab 4 · 输入栏配置（含家庭成员咨询胶囊）"
         style={{ marginBottom: 16 }}
         extra={
           <Space>
@@ -827,12 +1314,156 @@ export default function AIHomeConfigPage() {
               ]}
             />
           </Form.Item>
+
+          <Divider plain>家庭成员咨询胶囊（输入框下方第二层）</Divider>
+          <Form.Item label="是否显示家庭成员咨询胶囊">
+            <Switch
+              checked={cfg.input.family_consult.enabled}
+              onChange={(c) => setCfg({ ...cfg, input: { ...cfg.input, family_consult: { ...cfg.input.family_consult, enabled: c } } })}
+            />
+          </Form.Item>
+          <Tooltip title="必须包含 {name} 占位符，将被替换为当前咨询对象姓名">
+            <Form.Item label="胶囊默认文案模板（必含 {name}，≤20字）">
+              <Input
+                value={cfg.input.family_consult.template}
+                onChange={(e) => setCfg({ ...cfg, input: { ...cfg.input, family_consult: { ...cfg.input.family_consult, template: e.target.value } } })}
+                maxLength={20}
+                showCount
+                placeholder="为({name})咨询"
+              />
+            </Form.Item>
+          </Tooltip>
+          <Form.Item label="是否显示「查看档案」按钮">
+            <Switch
+              checked={cfg.input.family_consult.show_archive_link}
+              onChange={(c) => setCfg({ ...cfg, input: { ...cfg.input, family_consult: { ...cfg.input.family_consult, show_archive_link: c } } })}
+            />
+          </Form.Item>
+          <Form.Item label="查看档案跳转链接">
+            <Input
+              value={cfg.input.family_consult.archive_path}
+              onChange={(e) => setCfg({ ...cfg, input: { ...cfg.input, family_consult: { ...cfg.input.family_consult, archive_path: e.target.value } } })}
+              placeholder="/health-records"
+            />
+          </Form.Item>
         </Form>
       </Card>
 
-      {/* 6. 会话策略 */}
+      {/* Tab 5 · 会话策略（v1.0 新增 7 字段） */}
       <Card
-        title="6. 空闲超时与会话策略"
+        id="anchor-session-strategy"
+        title="Tab 5 · 会话策略（7 个全局字段）"
+        style={{ marginBottom: 16 }}
+        extra={
+          <Space>
+            <Button
+              type="primary"
+              icon={<SaveOutlined />}
+              onClick={() => saveModule('session', cfg.session)}
+            >
+              保存本节
+            </Button>
+          </Space>
+        }
+      >
+        <Form layout="vertical">
+          <Row gutter={16}>
+            <Col span={8}>
+              <Form.Item label="单次回答最大字数（100~5000）">
+                <InputNumber
+                  min={100}
+                  max={5000}
+                  value={cfg.session.strategy.max_answer_chars}
+                  onChange={(v) =>
+                    setCfg({ ...cfg, session: { ...cfg.session, strategy: { ...cfg.session.strategy, max_answer_chars: Number(v) || 1000 } } })
+                  }
+                  style={{ width: '100%' }}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item label="单日免费提问次数上限（1~999）">
+                <InputNumber
+                  min={1}
+                  max={999}
+                  value={cfg.session.strategy.daily_free_quota}
+                  onChange={(v) =>
+                    setCfg({ ...cfg, session: { ...cfg.session, strategy: { ...cfg.session.strategy, daily_free_quota: Number(v) || 50 } } })
+                  }
+                  style={{ width: '100%' }}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item label="上下文记忆轮数">
+                <Select
+                  value={cfg.session.strategy.context_memory_rounds}
+                  onChange={(v) =>
+                    setCfg({ ...cfg, session: { ...cfg.session, strategy: { ...cfg.session.strategy, context_memory_rounds: v } } })
+                  }
+                  options={[
+                    { value: 3, label: '3 轮' },
+                    { value: 5, label: '5 轮' },
+                    { value: 10, label: '10 轮' },
+                    { value: 20, label: '20 轮' },
+                  ]}
+                />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Form.Item label="默认回答风格">
+            <Radio.Group
+              value={cfg.session.strategy.answer_style}
+              onChange={(e) =>
+                setCfg({ ...cfg, session: { ...cfg.session, strategy: { ...cfg.session.strategy, answer_style: e.target.value } } })
+              }
+            >
+              <Radio value="professional">专业医学术语</Radio>
+              <Radio value="easy">通俗易懂</Radio>
+              <Radio value="friendly">温馨亲切</Radio>
+            </Radio.Group>
+          </Form.Item>
+          <Row gutter={16}>
+            <Col span={8}>
+              <Form.Item label="启用「AI 思考中...」加载动画">
+                <Switch
+                  checked={cfg.session.strategy.show_loading}
+                  onChange={(c) =>
+                    setCfg({ ...cfg, session: { ...cfg.session, strategy: { ...cfg.session.strategy, show_loading: c } } })
+                  }
+                />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item label="敏感词过滤开关">
+                <Switch
+                  checked={cfg.session.strategy.sensitive_filter}
+                  onChange={(c) =>
+                    setCfg({ ...cfg, session: { ...cfg.session, strategy: { ...cfg.session.strategy, sensitive_filter: c } } })
+                  }
+                />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Form.Item label="免责声明文案（≤100字，每次回答末尾自动追加）">
+            <Input.TextArea
+              rows={2}
+              value={cfg.session.strategy.disclaimer}
+              maxLength={100}
+              showCount
+              onChange={(e) =>
+                setCfg({ ...cfg, session: { ...cfg.session, strategy: { ...cfg.session.strategy, disclaimer: e.target.value } } })
+              }
+              placeholder="以上内容仅供参考，不能替代医生诊疗"
+            />
+          </Form.Item>
+        </Form>
+      </Card>
+
+      {/* 6. 会话策略（旧）- 空闲超时 */}
+      <Card
+        id="anchor-session"
+        title="Tab 5 · 空闲超时与空会话引导"
         style={{ marginBottom: 16 }}
         extra={
           <Space>
@@ -912,9 +1543,56 @@ export default function AIHomeConfigPage() {
         </Form>
       </Card>
 
-      {/* 7. Banner / 宫格 / 标签条显隐 */}
+      {/* Tab 6 · 全局开关（9 个总开关） */}
       <Card
-        title="7. Banner / 功能宫格 / 底部快捷标签条 显隐配置"
+        id="anchor-global-switches"
+        title="Tab 6 · 全局开关（9 个模块级总开关）"
+        style={{ marginBottom: 16 }}
+        extra={
+          <Space>
+            <Button
+              type="primary"
+              icon={<SaveOutlined />}
+              onClick={() => saveModule('global_switches', cfg.global_switches)}
+            >
+              保存本节
+            </Button>
+          </Space>
+        }
+      >
+        <Paragraph type="secondary">
+          子项级开关（如功能宫格里某一项是否显示、推荐问某一条是否显示）由各项内部的「是否启用」字段承担。本卡片只放<strong>模块级</strong>开关。与对应字段 Tab 内的「是否启用」联动取并集——只要其中一处关闭，模块即不显示。
+        </Paragraph>
+        <Row gutter={[16, 16]}>
+          {[
+            { key: 'welcome_visible', label: '1. 欢迎区 - 整块显隐' },
+            { key: 'health_tips_visible', label: '2. 今日健康贴士 - 整块显隐' },
+            { key: 'func_grid_visible', label: '3. 功能宫格 - 整块显隐' },
+            { key: 'recommended_visible', label: '4. 推荐问 - 整块显隐' },
+            { key: 'empty_placeholder_visible', label: '5. 空对话占位 - 整块显隐' },
+            { key: 'family_pill_visible', label: '6. 输入栏 - 家庭成员咨询胶囊' },
+            { key: 'archive_link_visible', label: '7. 输入栏 - 查看档案按钮' },
+            { key: 'voice_input_visible', label: '8. 输入栏 - 语音输入图标' },
+            { key: 'floating_button_visible', label: '9. 打卡悬浮按钮 - 整块显隐' },
+          ].map((item) => (
+            <Col span={8} key={item.key}>
+              <Form.Item label={item.label} style={{ marginBottom: 0 }}>
+                <Switch
+                  checked={(cfg.global_switches as any)[item.key]}
+                  onChange={(c) =>
+                    setCfg({ ...cfg, global_switches: { ...cfg.global_switches, [item.key]: c } as GlobalSwitches })
+                  }
+                />
+              </Form.Item>
+            </Col>
+          ))}
+        </Row>
+      </Card>
+
+      {/* 7. Banner / 宫格 / 标签条显隐（兼容旧字段） */}
+      <Card
+        id="anchor-banner"
+        title="补充 · Banner / 标签条 显隐（兼容旧字段）"
         style={{ marginBottom: 16 }}
         extra={
           <Space>

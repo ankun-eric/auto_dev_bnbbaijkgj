@@ -53,6 +53,10 @@ VALID_MODULES = {
     "func_grid",
     "quick_tags",
     "recommended_questions",
+    # v1.0 新增模块
+    "health_tips",
+    "empty_placeholder",
+    "global_switches",
     "all",
 }
 
@@ -137,6 +141,18 @@ def _normalize_recommended(items: Any) -> Any:
     return out
 
 
+def _normalize_func_grid_items(cfg: Dict[str, Any]) -> Dict[str, Any]:
+    """为 func_grid.items 自动生成缺失的 id。"""
+    fg = cfg.get("func_grid")
+    if isinstance(fg, dict):
+        items = fg.get("items")
+        if isinstance(items, list):
+            for it in items:
+                if isinstance(it, dict) and not it.get("id"):
+                    it["id"] = uuid.uuid4().hex
+    return cfg
+
+
 def _summarize(module: str, before: Dict[str, Any], after: Dict[str, Any]) -> str:
     if module == "all":
         return "整体保存 AI 对话首页配置"
@@ -195,6 +211,14 @@ def _validate_idle_timeout(minutes: Any):
         raise HTTPException(status_code=400, detail="idle_timeout_minutes 取值范围 1~1440")
 
 
+_HEX_RE = __import__("re").compile(r"^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$")
+
+
+def _is_valid_path(p: Any) -> bool:
+    """合法路径或 URL：以 / 开头或以 http(s):// 开头。"""
+    return isinstance(p, str) and (p.startswith("/") or p.startswith("http://") or p.startswith("https://"))
+
+
 def _validate_payload(cfg: Dict[str, Any]):
     fb = cfg.get("floating_button") or {}
     if fb.get("enabled"):
@@ -202,10 +226,67 @@ def _validate_payload(cfg: Dict[str, Any]):
     sess = cfg.get("session") or {}
     if "idle_timeout_minutes" in sess:
         _validate_idle_timeout(sess["idle_timeout_minutes"])
+
+    # v1.0 会话策略校验
+    strategy = sess.get("strategy") or {}
+    if strategy:
+        m = strategy.get("max_answer_chars")
+        if m is not None and (not isinstance(m, int) or m < 100 or m > 5000):
+            raise HTTPException(status_code=400, detail="session.strategy.max_answer_chars 取值范围 100~5000")
+        q = strategy.get("daily_free_quota")
+        if q is not None and (not isinstance(q, int) or q < 1 or q > 999):
+            raise HTTPException(status_code=400, detail="session.strategy.daily_free_quota 取值范围 1~999")
+        ctx = strategy.get("context_memory_rounds")
+        if ctx is not None and ctx not in (3, 5, 10, 20):
+            raise HTTPException(status_code=400, detail="session.strategy.context_memory_rounds 仅支持 3/5/10/20")
+        style = strategy.get("answer_style")
+        if style is not None and style not in ("professional", "easy", "friendly"):
+            raise HTTPException(status_code=400, detail="session.strategy.answer_style 仅支持 professional/easy/friendly")
+        disc = strategy.get("disclaimer")
+        if disc is not None and len(disc) > 100:
+            raise HTTPException(status_code=400, detail="session.strategy.disclaimer 不超过 100 字")
+
     grids = cfg.get("func_grid") or {}
     if grids.get("columns") not in (2, 3, 4, None):
         raise HTTPException(status_code=400, detail="func_grid.columns 仅支持 2/3/4")
+
+    # v1.0 功能宫格项校验：1~6 项，每项主文案 ≤8、副说明 ≤12、跳转合法、HEX 合法、角标 ≤4
+    items = grids.get("items") or []
+    if items:
+        if len(items) < 1 or len(items) > 6:
+            raise HTTPException(status_code=400, detail="func_grid.items 数量须在 1~6 项之间")
+        for idx, it in enumerate(items):
+            if not isinstance(it, dict):
+                continue
+            if not it.get("main_text") or len(it.get("main_text", "")) > 8:
+                raise HTTPException(status_code=400, detail=f"func_grid.items[{idx}].main_text 必填且不超过 8 字")
+            if not it.get("sub_text") or len(it.get("sub_text", "")) > 12:
+                raise HTTPException(status_code=400, detail=f"func_grid.items[{idx}].sub_text 必填且不超过 12 字")
+            if not _is_valid_path(it.get("target_path")):
+                raise HTTPException(status_code=400, detail=f"func_grid.items[{idx}].target_path 必须是 / 开头的路径或 http(s):// URL")
+            for color_field in ("gradient_start", "gradient_end"):
+                v = it.get(color_field)
+                if v and not _HEX_RE.match(str(v)):
+                    raise HTTPException(status_code=400, detail=f"func_grid.items[{idx}].{color_field} 不是合法 HEX 颜色")
+            badge = it.get("badge") or ""
+            if len(badge) > 4:
+                raise HTTPException(status_code=400, detail=f"func_grid.items[{idx}].badge 不超过 4 字")
+
     welcome = cfg.get("welcome") or {}
+    # v1.0 新增主标题/副标题校验
+    main_title = welcome.get("main_title")
+    if main_title is not None:
+        if not main_title:
+            raise HTTPException(status_code=400, detail="welcome.main_title 必填")
+        if len(main_title) > 30:
+            raise HTTPException(status_code=400, detail="welcome.main_title 不超过 30 字")
+    sub_title = welcome.get("sub_title")
+    if sub_title is not None:
+        if not sub_title:
+            raise HTTPException(status_code=400, detail="welcome.sub_title 必填")
+        if len(sub_title) > 50:
+            raise HTTPException(status_code=400, detail="welcome.sub_title 不超过 50 字")
+
     greetings = welcome.get("greetings") or {}
     for k in ("morning", "afternoon", "evening"):
         arr = greetings.get(k, [])
@@ -215,9 +296,45 @@ def _validate_payload(cfg: Dict[str, Any]):
             raise HTTPException(status_code=400, detail=f"welcome.greetings.{k} 不超过 20 条")
     if not welcome.get("subtitles") or len(welcome.get("subtitles", [])) < 1:
         raise HTTPException(status_code=400, detail="welcome.subtitles 至少 1 条")
+
     rqs = cfg.get("recommended_questions") or []
     if len(rqs) > 20:
         raise HTTPException(status_code=400, detail="recommended_questions 最多 20 条")
+    for idx, q in enumerate(rqs):
+        if not isinstance(q, dict):
+            continue
+        title = q.get("title") or ""
+        question = q.get("question") or ""
+        if not title or len(title) > 8:
+            raise HTTPException(status_code=400, detail=f"recommended_questions[{idx}].title 必填且不超过 8 字")
+        if not question or len(question) > 200:
+            raise HTTPException(status_code=400, detail=f"recommended_questions[{idx}].question 必填且不超过 200 字")
+
+    # v1.0 健康贴士轮播校验
+    tips = cfg.get("health_tips") or {}
+    if tips:
+        sec = tips.get("interval_seconds")
+        if sec is not None and (not isinstance(sec, int) or sec < 3 or sec > 5):
+            raise HTTPException(status_code=400, detail="health_tips.interval_seconds 取值范围 3~5 秒")
+
+    # v1.0 输入栏家庭成员胶囊校验
+    inp = cfg.get("input") or {}
+    fc = inp.get("family_consult") or {}
+    if fc:
+        tpl = fc.get("template") or ""
+        if not tpl or "{name}" not in tpl:
+            raise HTTPException(status_code=400, detail="input.family_consult.template 必须包含 {name} 占位符")
+        if len(tpl) > 20:
+            raise HTTPException(status_code=400, detail="input.family_consult.template 不超过 20 字")
+        if fc.get("show_archive_link") and not _is_valid_path(fc.get("archive_path")):
+            raise HTTPException(status_code=400, detail="input.family_consult.archive_path 必须是合法路径")
+
+    # v1.0 空对话占位校验
+    ep = cfg.get("empty_placeholder") or {}
+    if ep:
+        mt = ep.get("main_title") or ""
+        if not mt or len(mt) > 20:
+            raise HTTPException(status_code=400, detail="empty_placeholder.main_title 必填且不超过 20 字")
 
 
 # ──────────────── 接口：用户端读取（公开） ────────────────
@@ -265,6 +382,7 @@ async def admin_put_config(
 ):
     new_cfg = payload.model_dump()
     new_cfg["recommended_questions"] = _normalize_recommended(new_cfg.get("recommended_questions"))
+    new_cfg = _normalize_func_grid_items(new_cfg)
     _validate_payload(new_cfg)
 
     before = await _load_config(db)
@@ -311,6 +429,7 @@ async def admin_patch_module(
     # 重新经过 schema 校验填充默认值
     new_cfg = AIHomeConfigPayload(**new_cfg).model_dump()
     new_cfg["recommended_questions"] = _normalize_recommended(new_cfg.get("recommended_questions"))
+    new_cfg = _normalize_func_grid_items(new_cfg)
     _validate_payload(new_cfg)
 
     setting = await _save_config(db, new_cfg)
