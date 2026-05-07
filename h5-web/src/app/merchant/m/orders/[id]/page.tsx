@@ -1,10 +1,26 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { NavBar, Toast, Button, Dialog, TextArea, Empty, DotLoading, Tag } from 'antd-mobile';
+import { NavBar, Toast, Button, Dialog, TextArea, Empty, DotLoading, Tag, Popup, DatePicker, Selector } from 'antd-mobile';
 import { useRouter, useParams } from 'next/navigation';
 import api from '@/lib/api';
 import { getCurrentStoreId, statusMap } from '../../mobile-lib';
+// [BUG-FIX-MERCHANT-RESCHEDULE-V1 2026-05-07] 商家 H5 端「调整预约时间」抽屉化改造
+// 复用客户端服务器时间工具，按服务器时间过滤已过去的整段时段
+import {
+  initServerTime,
+  getServerNow,
+  isSameDayAsServer,
+  filterPastSlots,
+  isServerTimeUnreliable,
+} from '@/lib/server-time';
+
+// [BUG-FIX-MERCHANT-RESCHEDULE-V1] 改期固定 9 段时段（来自 PRD-01 §2.3，与客户端 RESCHEDULE_TIME_SLOTS_9 完全一致）
+const RESCHEDULE_TIME_SLOTS_9 = [
+  '06:00-08:00', '08:00-10:00', '10:00-12:00',
+  '12:00-14:00', '14:00-16:00', '16:00-18:00',
+  '18:00-20:00', '20:00-22:00', '22:00-24:00',
+];
 
 // [PRD-04 §F-04-5 / §2.7] 改期通知状态
 interface RescheduleNotifyChannel {
@@ -24,6 +40,7 @@ interface OrderDetail {
   order_id: number;
   order_no: string;
   product_name: string;
+  product_id?: number;
   amount: number;
   status: string;
   created_at: string;
@@ -34,6 +51,8 @@ interface OrderDetail {
   time_slot?: string;
   store_name?: string;
   is_appointment?: boolean;
+  // [BUG-FIX-MERCHANT-RESCHEDULE-V1] 商品预约模式：none / date / time_slot / custom_form
+  appointment_mode?: 'none' | 'date' | 'time_slot' | 'custom_form' | null;
   // [BUGFIX-UO-20260507-001] 支付方式相关字段
   payment_method?: string;
   payment_method_text?: string;
@@ -82,6 +101,13 @@ export default function OrderDetailMobilePage() {
   const [noteText, setNoteText] = useState('');
   const [submittingNote, setSubmittingNote] = useState(false);
   const [confirming, setConfirming] = useState(false);
+
+  // [BUG-FIX-MERCHANT-RESCHEDULE-V1] 调整预约时间抽屉相关状态
+  const [showApptPopup, setShowApptPopup] = useState(false);
+  const [showApptDatePicker, setShowApptDatePicker] = useState(false);
+  const [apptDate, setApptDate] = useState<Date | null>(null);
+  const [apptSlot, setApptSlot] = useState<string>('');
+  const [apptSubmitting, setApptSubmitting] = useState(false);
 
   const loadOrder = useCallback(async () => {
     try {
@@ -132,61 +158,71 @@ export default function OrderDetailMobilePage() {
     }
   };
 
-  const handleAdjustTime = async () => {
-    const dateStr = await new Promise<string | null>((resolve) => {
-      let inputVal = order?.appointment_time?.split('T')[0] || '';
-      Dialog.confirm({
-        title: '调整预约日期',
-        content: (
-          <div style={{ padding: '12px 0' }}>
-            <input
-              type="date"
-              defaultValue={inputVal}
-              onChange={(e) => { inputVal = e.target.value; }}
-              style={{ width: '100%', padding: 8, fontSize: 16, border: '1px solid #ddd', borderRadius: 6 }}
-            />
-          </div>
-        ),
-        onConfirm: () => resolve(inputVal),
-        onCancel: () => resolve(null),
-      });
-    });
-    if (!dateStr) return;
+  // [BUG-FIX-MERCHANT-RESCHEDULE-V1 2026-05-07] 商家 H5 端「调整预约时间」抽屉化改造
+  // 与客户端「改约」抽屉完全对齐：
+  //  - 按订单对应商品 appointment_mode 分支：date 模式仅日期；time_slot 模式日期+9段时段网格
+  //  - 按服务器时间过滤已过去的整段时段（与 BUG-FIX-RESCHEDULE-V2 一致）
+  //  - 默认选中订单当前预约日期/时段（方便商家在原时间附近做微调）
+  //  - 不允许选择已过去的日期；保存条件按模式校验
+  const openAdjustTimePopup = () => {
+    if (!order) return;
+    // 默认日期：优先用订单当前预约日期；否则明天
+    let defaultDate: Date;
+    if (order.appointment_date) {
+      defaultDate = new Date(`${order.appointment_date}T00:00:00`);
+    } else if (order.appointment_time) {
+      try {
+        defaultDate = new Date(order.appointment_time);
+      } catch {
+        defaultDate = new Date();
+        defaultDate.setDate(defaultDate.getDate() + 1);
+      }
+    } else {
+      defaultDate = new Date();
+      defaultDate.setDate(defaultDate.getDate() + 1);
+    }
+    setApptDate(defaultDate);
+    // 默认时段：订单当前 time_slot；空则保持空（time_slot 模式必须用户主动选择）
+    setApptSlot(order.time_slot || '');
+    // 弹窗打开时拉服务器时间，保证 9 段过滤准确
+    initServerTime().catch(() => {});
+    setShowApptPopup(true);
+  };
 
-    const slotResult = await Dialog.show({
-      title: '选择时段',
-      closeOnAction: true,
-      actions: [
-        [
-          { key: 'morning', text: '上午 (9:00-12:00)' },
-          { key: 'afternoon', text: '下午 (13:00-17:00)' },
-          { key: 'evening', text: '晚间 (18:00-21:00)' },
-        ],
-        [{ key: 'cancel', text: '取消' }],
-      ],
-    });
-
-    const slot = slotResult as unknown as string;
-    if (!slot || slot === 'cancel') return;
-
-    const slotTimeMap: Record<string, string> = {
-      morning: '09:00',
-      afternoon: '13:00',
-      evening: '18:00',
-    };
-
+  const submitAdjustTime = async () => {
+    if (!order || !apptDate) {
+      Toast.show({ content: '请选择预约日期' });
+      return;
+    }
+    const mode = order.appointment_mode || 'time_slot';
+    const isTimeSlotMode = mode === 'time_slot';
+    if (isTimeSlotMode && !apptSlot) {
+      Toast.show({ content: '请选择预约时段' });
+      return;
+    }
+    setApptSubmitting(true);
     try {
+      const y = apptDate.getFullYear();
+      const m = String(apptDate.getMonth() + 1).padStart(2, '0');
+      const d = String(apptDate.getDate()).padStart(2, '0');
+      const dateStr = `${y}-${m}-${d}`;
       const adjustSid = getCurrentStoreId();
       const adjustParams: any = {};
       if (adjustSid) adjustParams.store_id = adjustSid;
-      await api.put(`/api/merchant/orders/${orderId}/appointment-time`, {
-        new_date: dateStr,
-        new_time_slot: slotTimeMap[slot] || '09:00',
-      }, { params: adjustParams });
-      Toast.show({ icon: 'success', content: '预约时间已调整' });
+      const payload: any = { new_date: dateStr };
+      if (isTimeSlotMode) {
+        payload.new_time_slot = apptSlot;
+      }
+      await api.put(`/api/merchant/orders/${orderId}/appointment-time`, payload, { params: adjustParams });
+      Toast.show({ icon: 'success', content: '改约成功' });
+      setShowApptPopup(false);
       loadOrder();
     } catch (e: any) {
-      Toast.show({ icon: 'fail', content: e?.response?.data?.detail || '调整失败' });
+      const detail = e?.response?.data?.detail;
+      const msg = typeof detail === 'string' ? detail : (detail?.message || '改约失败');
+      Toast.show({ icon: 'fail', content: msg });
+    } finally {
+      setApptSubmitting(false);
     }
   };
 
@@ -353,7 +389,7 @@ export default function OrderDetailMobilePage() {
               color="primary"
               fill="outline"
               style={{ flex: 1 }}
-              onClick={handleAdjustTime}
+              onClick={openAdjustTimePopup}
             >
               调整预约时间
             </Button>
@@ -400,6 +436,152 @@ export default function OrderDetailMobilePage() {
           </div>
         )}
       </div>
+
+      {/* [BUG-FIX-MERCHANT-RESCHEDULE-V1 2026-05-07] 调整预约时间抽屉
+          - 完全对齐客户端「改约」抽屉：
+            · 从底部弹出
+            · 横向日期选择 + 时段网格（time_slot 模式才有时段网格）
+            · 按服务器时间过滤已过去的整段时段
+            · date 模式仅显示日期；time_slot 模式按 9 段固定切片
+       */}
+      {(() => {
+        const mode = order?.appointment_mode || 'time_slot';
+        const isTimeSlotMode = mode === 'time_slot';
+        const slotOptions = filterPastSlots(apptDate, RESCHEDULE_TIME_SLOTS_9);
+        const isToday = !!apptDate && isSameDayAsServer(apptDate);
+        const todayHasNoSlot = isTimeSlotMode && isToday && slotOptions.length === 0;
+        const serverTimeUnreliable = isServerTimeUnreliable();
+        const goTomorrow = () => {
+          const tomorrow = new Date(getServerNow());
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          tomorrow.setHours(0, 0, 0, 0);
+          setApptDate(tomorrow);
+          setApptSlot('');
+        };
+        const submitDisabled =
+          apptSubmitting ||
+          !apptDate ||
+          (isTimeSlotMode && (!apptSlot || todayHasNoSlot));
+
+        return (
+          <Popup
+            visible={showApptPopup}
+            onMaskClick={() => setShowApptPopup(false)}
+            onClose={() => setShowApptPopup(false)}
+            bodyStyle={{ borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: '20px 16px 24px' }}
+          >
+            <div style={{ fontSize: 16, fontWeight: 600, textAlign: 'center', marginBottom: 12 }}>
+              调整预约时间
+            </div>
+            {serverTimeUnreliable && (
+              <div
+                style={{
+                  background: '#fff2f0',
+                  border: '1px solid #ffccc7',
+                  color: '#cf1322',
+                  padding: '6px 10px',
+                  borderRadius: 6,
+                  marginBottom: 12,
+                  fontSize: 12,
+                  lineHeight: 1.5,
+                }}
+              >
+                网络异常，时段以服务器为准；如改约失败请重试
+              </div>
+            )}
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 13, color: '#666', marginBottom: 6 }}>预约日期</div>
+              <Button
+                block
+                onClick={() => setShowApptDatePicker(true)}
+                style={{ height: 44, fontSize: 14, textAlign: 'left', borderRadius: 8 }}
+              >
+                {apptDate
+                  ? `${apptDate.getFullYear()}-${String(apptDate.getMonth() + 1).padStart(2, '0')}-${String(apptDate.getDate()).padStart(2, '0')}`
+                  : '请选择日期'}
+              </Button>
+            </div>
+            {isTimeSlotMode && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 13, color: '#666', marginBottom: 8 }}>预约时段</div>
+                {todayHasNoSlot ? (
+                  <div
+                    style={{
+                      background: '#fafafa',
+                      border: '1px dashed #d9d9d9',
+                      borderRadius: 6,
+                      padding: '16px 12px',
+                      textAlign: 'center',
+                      color: '#8c8c8c',
+                      fontSize: 13,
+                    }}
+                  >
+                    <div style={{ marginBottom: 10 }}>今日剩余时段已过，请选择明天起的日期</div>
+                    <Button size="small" color="primary" onClick={goTomorrow}>
+                      一键切到明天
+                    </Button>
+                  </div>
+                ) : (
+                  <Selector
+                    options={slotOptions.map((s) => ({ label: s, value: s }))}
+                    value={apptSlot ? [apptSlot] : []}
+                    onChange={(arr) => setApptSlot(arr[0] || '')}
+                    columns={3}
+                    style={{ '--padding': '8px 0', '--border-radius': '6px' } as any}
+                  />
+                )}
+              </div>
+            )}
+            <Button
+              block
+              loading={apptSubmitting}
+              onClick={submitAdjustTime}
+              disabled={submitDisabled}
+              style={{
+                background: submitDisabled ? '#d9d9d9' : '#1677ff',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 22,
+                height: 44,
+                fontSize: 15,
+              }}
+            >
+              确认改约
+            </Button>
+          </Popup>
+        );
+      })()}
+
+      <DatePicker
+        visible={showApptDatePicker}
+        onClose={() => setShowApptDatePicker(false)}
+        min={(() => {
+          // 不允许选择已过去的日期
+          const d = new Date(getServerNow());
+          d.setHours(0, 0, 0, 0);
+          return d;
+        })()}
+        max={(() => {
+          const d = new Date(getServerNow());
+          d.setDate(d.getDate() + 90);
+          return d;
+        })()}
+        precision="day"
+        value={apptDate || undefined}
+        onConfirm={(d) => {
+          setApptDate(d);
+          // 切换日期时清空时段，避免选了今天又切回明天的旧时段误提交
+          if (apptDate && d.getTime() !== apptDate.getTime()) {
+            // 仅当跨日时清空，避免重选同一天误清
+            const sameDay =
+              d.getFullYear() === apptDate.getFullYear() &&
+              d.getMonth() === apptDate.getMonth() &&
+              d.getDate() === apptDate.getDate();
+            if (!sameDay) setApptSlot('');
+          }
+          setShowApptDatePicker(false);
+        }}
+      />
     </div>
   );
 }
