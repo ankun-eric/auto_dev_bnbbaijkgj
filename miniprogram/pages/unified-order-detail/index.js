@@ -266,7 +266,10 @@ Page({
       this.setData({ showApptModal: false });
       this.loadOrder();
     } catch (e) {
-      wx.showToast({ title: (e && e.detail) || '预约失败', icon: 'none' });
+      // [双重身份用户 H5 顾客端改约失败 Bug 修复 v1.0]
+      // 已在 utils/request.js 的 formatErrorDetail 中按 {code, message} 结构化解析，
+      // 这里 e.detail 已经是具体业务文案；仅保留极端兜底"改约失败"（不再统一"预约失败"）。
+      wx.showToast({ title: (e && e.detail) || '改约失败，请稍后重试或联系客服', icon: 'none' });
     }
   },
 

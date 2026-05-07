@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime, timedelta, date
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -42,7 +42,12 @@ from app.models.models import (
     UserCouponStatus,
 )
 from app.utils.time_slots import appointment_to_slot as _appt_to_slot
-from app.utils.client_source import require_customer_client_session
+from app.utils.client_source import (
+    require_customer_client_session,
+    is_customer_entry,
+    parse_client_source_from_header,
+    detect_client_type,
+)
 from app.schemas.unified_orders import (
     ALLOWED_PAYMENT_METHODS,
     PAYMENT_METHOD_TEXT_MAP,
@@ -1933,29 +1938,92 @@ async def confirm_receipt(
 # ─────────── PRD V2: 预约相关 ───────────
 
 
+def _reschedule_error(
+    *,
+    status_code: int,
+    code: str,
+    message: str,
+    detail: Optional[str] = None,
+) -> HTTPException:
+    """[双重身份用户 H5 顾客端改约失败 Bug 修复 v1.0]
+    构造结构化的改约失败响应。
+
+    返回体结构：
+        {"code": "RESCHEDULE_XXX", "message": "...", "detail": "..."}
+
+    与历史 detail=str 的扁平结构相比，此处把字符串改为结构化对象，
+    便于 H5 顾客端 / 小程序 / Flutter 客户端按 code 做精细化文案映射，
+    同时保留 message / detail 字段做兜底显示。
+    """
+    body = {
+        "code": code,
+        "message": message,
+        "detail": detail if detail is not None else message,
+    }
+    return HTTPException(status_code=status_code, detail=body)
+
+
+# [双重身份用户 H5 顾客端改约失败 Bug 修复 v1.0] 改约错误码常量
+RESCHEDULE_NO_PERMISSION = "RESCHEDULE_NO_PERMISSION"
+RESCHEDULE_ORDER_NOT_FOUND = "RESCHEDULE_ORDER_NOT_FOUND"
+RESCHEDULE_ORDER_STATUS_INVALID = "RESCHEDULE_ORDER_STATUS_INVALID"
+RESCHEDULE_LIMIT_EXCEEDED = "RESCHEDULE_LIMIT_EXCEEDED"
+RESCHEDULE_NOT_ALLOWED = "RESCHEDULE_NOT_ALLOWED"
+RESCHEDULE_TIME_EXPIRED = "RESCHEDULE_TIME_EXPIRED"
+RESCHEDULE_TIME_OUT_OF_RANGE = "RESCHEDULE_TIME_OUT_OF_RANGE"
+RESCHEDULE_TIME_CONFLICT = "RESCHEDULE_TIME_CONFLICT"
+RESCHEDULE_REFUND_IN_PROGRESS = "RESCHEDULE_REFUND_IN_PROGRESS"
+RESCHEDULE_PARTIALLY_USED = "RESCHEDULE_PARTIALLY_USED"
+RESCHEDULE_INTERNAL_ERROR = "RESCHEDULE_INTERNAL_ERROR"
+
+
 @router.post("/{order_id}/appointment")
 async def set_order_appointment(
     order_id: int,
     data: UnifiedOrderSetAppointmentRequest,
+    request: Request,
     current_user: User = Depends(get_current_user),
-    client_type: str = Depends(require_customer_client_session),
     db: AsyncSession = Depends(get_db),
 ):
     """[PRD 订单状态机简化方案 v1.0 + PRD-03 客户端改期能力收口 v1.0
-    + 客户端订单顾客操作鉴权误判 Bug 修复 v1.0] 用户填写预约时间。
+    + 客户端订单顾客操作鉴权误判 Bug 修复 v1.0
+    + 双重身份用户 H5 顾客端改约失败 Bug 修复 v1.0] 用户填写预约时间。
 
     新策略（2026-05-03 起）：
     - 首次填预约日：pending_appointment → **pending_use**（直接跳过 appointed，立即出码）
     - 修改预约日：pending_use 阶段持续允许调整，状态保持不变
     - 兼容历史 appointed：旧订单仍可调用本接口改预约日，状态翻为 pending_use
 
-    [客户端订单顾客操作鉴权误判 Bug 修复 v1.0] 鉴权依据从「全局 users.role 字段」
-    切换为「本次请求的客户端会话来源」（require_customer_client_session 依赖）：
-    - 客户端家族（h5-user / miniprogram-user / app-user）→ 放行
-    - 商家端家族（h5-mobile / verify-miniprogram / pc-web / unknown）→ 403
-    解决「商家兼顾客」用户在客户端做顾客操作被一刀切的问题（PRD-03 旧版仅看
-    users.role 的硬校验已移除）。
+    [双重身份用户 H5 顾客端改约失败 Bug 修复 v1.0] 鉴权与改约规则按"入口"区分：
+    - **顾客端入口**（X-Client-Source ∈ {h5-customer, miniprogram-customer, flutter-customer}
+      或兼容旧版的 Client-Type ∈ {h5-user, miniprogram-user, app-user}）：
+      → 放行；只校验"订单是否属于当前登录手机号"；商家身份在顾客端入口改约**不卡次数**
+    - **其他来源**（商家管家 PC、核销小程序、未知）：抛 403，引导切换到顾客端
+    - 商家管家 PC 后台原有的"商家不允许改约"规则在 merchant 路由上保留，本接口不做反向限制
+
+    所有失败均返回结构化错误：{"code": "RESCHEDULE_XXX", "message": "...", "detail": "..."}，
+    便于前端按 code 做文案映射，避免统一的"预约失败"兜底。
     """
+    # ─── [双重身份用户 H5 顾客端改约失败 Bug 修复 v1.0] 入口鉴权 ───
+    # 优先识别 X-Client-Source（新机制），其次回退到 Client-Type（旧机制），都不识别才拒绝。
+    client_source = parse_client_source_from_header(request)
+    client_type = detect_client_type(request)
+    is_customer_input = is_customer_entry(request)
+    if not is_customer_input:
+        raise _reschedule_error(
+            status_code=403,
+            code=RESCHEDULE_NO_PERMISSION,
+            message="该操作仅限客户端使用,请切换到顾客 APP / H5 用户端登录后再试",
+        )
+
+    # 是否为"商家身份"在顾客端入口走改约（用于不卡改约次数）
+    # 判定：用户在顾客端入口操作 + 自身具备商家家族角色（含 merchant / staff / admin 等）
+    user_role_value = getattr(current_user, "role", None)
+    if hasattr(user_role_value, "value"):
+        user_role_value = user_role_value.value
+    user_role_str = str(user_role_value or "").lower()
+    is_merchant_identity = user_role_str in ("merchant", "merchant_staff", "staff", "admin")
+
     result = await db.execute(
         select(UnifiedOrder)
         .options(selectinload(UnifiedOrder.items))
@@ -1963,19 +2031,34 @@ async def set_order_appointment(
     )
     order = result.scalar_one_or_none()
     if not order:
-        raise HTTPException(status_code=404, detail="订单不存在")
+        raise _reschedule_error(
+            status_code=404,
+            code=RESCHEDULE_ORDER_NOT_FOUND,
+            message="订单不存在或无权操作此订单",
+        )
 
     cur = _normalize_status(order.status)
     if cur not in ("pending_appointment", "appointed", "pending_use"):
-        raise HTTPException(status_code=400, detail="该订单当前状态不允许预约")
+        raise _reschedule_error(
+            status_code=400,
+            code=RESCHEDULE_ORDER_STATUS_INVALID,
+            message="当前订单状态不允许改约",
+        )
 
-    # [核销订单过期+改期规则优化 v1.0] 改期上限校验
+    # [核销订单过期+改期规则优化 v1.0
+    #  + 双重身份用户 H5 顾客端改约失败 Bug 修复 v1.0] 改期上限校验
     # 仅当订单已经有过预约时间（修改预约 = 改约）才计入。首次填预约日不消耗改期次数。
+    # 商家身份从顾客端入口改约时，不受顾客侧"每单最多改 N 次"限制（设计取舍：
+    # 商家自身订单的改约场景天然带有"内部测试 / 自用调整"性质，强行卡次数会带来更多客诉）。
     has_existing_appt = any(getattr(it, "appointment_time", None) for it in (order.items or []))
     rcount = int(getattr(order, "reschedule_count", 0) or 0)
     rlimit = int(getattr(order, "reschedule_limit", 3) or 3)
-    if has_existing_appt and rcount >= rlimit:
-        raise HTTPException(status_code=400, detail="本订单已达改期上限")
+    if has_existing_appt and rcount >= rlimit and not is_merchant_identity:
+        raise _reschedule_error(
+            status_code=400,
+            code=RESCHEDULE_LIMIT_EXCEEDED,
+            message="该订单已达改约次数上限，无法继续改约",
+        )
 
     # [PRD-03 §F-03-6 / §R-03-04] 商品级 allow_reschedule 开关：任一商品禁止改期 → 整单不允许
     # 仅在「真正的改期」（已有过预约时间）时校验；首次填预约日不卡此项
@@ -1986,9 +2069,10 @@ async def set_order_appointment(
                 if prod is not None:
                     v = getattr(prod, "allow_reschedule", True)
                     if v is False:
-                        raise HTTPException(
+                        raise _reschedule_error(
                             status_code=400,
-                            detail="该商品不支持改期",
+                            code=RESCHEDULE_NOT_ALLOWED,
+                            message="该商品不支持改期",
                         )
         except HTTPException:
             raise
@@ -2013,13 +2097,17 @@ async def set_order_appointment(
         if appt_naive.tzinfo is not None:
             appt_naive = appt_naive.replace(tzinfo=None)
         if appt_naive < tomorrow_start:
-            raise HTTPException(
+            raise _reschedule_error(
                 status_code=400,
+                code=RESCHEDULE_TIME_EXPIRED,
+                message="所选时段已过期，请选择未来时间",
                 detail="改期日期最早从明天起",
             )
         if appt_naive > max_date:
-            raise HTTPException(
+            raise _reschedule_error(
                 status_code=400,
+                code=RESCHEDULE_TIME_OUT_OF_RANGE,
+                message="所选日期超出可改约范围（90 天内）",
                 detail="改期日期最远 90 天内",
             )
 
@@ -2035,8 +2123,10 @@ async def set_order_appointment(
                 appointment_time=data.appointment_time,
             )
             if not valid_res.ok:
-                raise HTTPException(
+                raise _reschedule_error(
                     status_code=400,
+                    code=RESCHEDULE_TIME_CONFLICT,
+                    message=valid_res.reason or "所选时段已被预约满，请选其他时段",
                     detail=valid_res.reason or "目标时段不可改期",
                 )
         except HTTPException:
@@ -2052,18 +2142,30 @@ async def set_order_appointment(
     if hasattr(refund_val, "value"):
         refund_val = refund_val.value
     if refund_val in ("applied", "reviewing", "approved", "returning", "refund_success"):
-        raise HTTPException(status_code=400, detail="该订单退款处理中，暂不允许调整预约时间")
+        raise _reschedule_error(
+            status_code=400,
+            code=RESCHEDULE_REFUND_IN_PROGRESS,
+            message="该订单退款处理中，暂不允许调整预约时间",
+        )
 
     target_items = order.items
     if data.order_item_id:
         target_items = [it for it in order.items if it.id == data.order_item_id]
         if not target_items:
-            raise HTTPException(status_code=404, detail="订单项不存在")
+            raise _reschedule_error(
+                status_code=404,
+                code=RESCHEDULE_ORDER_NOT_FOUND,
+                message="订单项不存在",
+            )
 
     # 已核销过的订单不允许改预约日（保护核销轨迹）
     any_used = any((it.used_redeem_count or 0) > 0 for it in order.items)
     if cur == "pending_use" and any_used:
-        raise HTTPException(status_code=400, detail="该订单已部分核销，无法修改预约时间")
+        raise _reschedule_error(
+            status_code=400,
+            code=RESCHEDULE_PARTIALLY_USED,
+            message="该订单已部分核销，无法修改预约时间",
+        )
 
     for it in target_items:
         it.appointment_time = data.appointment_time

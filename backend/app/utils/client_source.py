@@ -40,6 +40,21 @@ CLIENT_H5_USER = "h5-user"
 CLIENT_MINIPROGRAM_USER = "miniprogram-user"
 CLIENT_APP_USER = "app-user"
 
+# [双重身份用户 H5 顾客端改约失败 Bug 修复 v1.0] 顾客端入口标识（X-Client-Source）
+# 由各客户端入口在请求 Header 中显式声明本次操作"以顾客身份发起"。
+# 该标识与 Client-Type 互为补充，专门解决「同一手机号既是商家又是顾客」时
+# 顾客端入口被误判/被卡次数等问题。
+CUSTOMER_SOURCE_H5 = "h5-customer"
+CUSTOMER_SOURCE_MINIPROGRAM = "miniprogram-customer"
+CUSTOMER_SOURCE_FLUTTER = "flutter-customer"
+CUSTOMER_SOURCES = frozenset({
+    CUSTOMER_SOURCE_H5,
+    CUSTOMER_SOURCE_MINIPROGRAM,
+    CUSTOMER_SOURCE_FLUTTER,
+})
+
+CLIENT_SOURCE_HEADERS = ("X-Client-Source", "x-client-source", "Client-Source", "client-source")
+
 # 允许发起核销动作的来源
 MOBILE_VERIFY_CLIENTS = frozenset({CLIENT_H5_MOBILE, CLIENT_VERIFY_MINIPROGRAM})
 
@@ -205,6 +220,55 @@ async def require_mobile_verify_client(request: Request) -> str:
     return client_type
 
 
+def parse_client_source_from_header(request: Request) -> str:
+    """[双重身份用户 H5 顾客端改约失败 Bug 修复 v1.0] 从 Header 解析 X-Client-Source。
+
+    返回标准化后的来源字符串，命中 CUSTOMER_SOURCES 时返回对应值；
+    其他情况返回空字符串。
+
+    也兼容部分客户端把 client_source 放到 body 中的情况（可由调用方读取请求体）。
+    """
+    if request is None:
+        return ""
+    headers = request.headers
+    for name in CLIENT_SOURCE_HEADERS:
+        v = headers.get(name)
+        if v:
+            nv = _normalize(v).replace("_", "-")
+            if nv in CUSTOMER_SOURCES:
+                return nv
+    return ""
+
+
+def is_customer_entry(request: Request) -> bool:
+    """[双重身份用户 H5 顾客端改约失败 Bug 修复 v1.0]
+    判断本次请求是否从「顾客端入口」发起。
+
+    判定来源（满足任一条件即认定为顾客端入口）：
+    1. X-Client-Source Header ∈ {h5-customer, miniprogram-customer, flutter-customer}
+    2. Client-Type Header ∈ {h5-user, miniprogram-user, app-user}（向下兼容旧版前端）
+
+    用于 reschedule 等"商家兼顾客"场景敏感的接口：
+    - 顾客端入口 → 跳过商家身份校验、按顾客身份处理
+    - 商家管家 PC 后台入口 → 维持原有规则
+    """
+    if request is None:
+        return False
+    if parse_client_source_from_header(request):
+        return True
+    return is_customer_client(detect_client_type(request))
+
+
+async def get_optional_client_type(request: Request) -> str:
+    """[双重身份用户 H5 顾客端改约失败 Bug 修复 v1.0]
+    宽松版客户端来源识别依赖，不抛 403。
+
+    与 require_customer_client_session 的区别：本依赖**仅返回**识别结果，
+    不做拦截。供"按入口区分"的接口使用，由业务层自己决定如何处理。
+    """
+    return detect_client_type(request)
+
+
 async def require_customer_client_session(request: Request) -> str:
     """[客户端订单顾客操作鉴权误判 Bug 修复 v1.0] 客户端会话强校验。
 
@@ -249,15 +313,22 @@ __all__ = [
     "CLIENT_H5_USER",
     "CLIENT_MINIPROGRAM_USER",
     "CLIENT_APP_USER",
+    "CUSTOMER_SOURCE_H5",
+    "CUSTOMER_SOURCE_MINIPROGRAM",
+    "CUSTOMER_SOURCE_FLUTTER",
+    "CUSTOMER_SOURCES",
     "MOBILE_VERIFY_CLIENTS",
     "CUSTOMER_CLIENTS",
     "VERIFY_FORBIDDEN_DETAIL",
     "CUSTOMER_FORBIDDEN_DETAIL",
     "parse_client_type_from_header",
     "parse_client_type_from_user_agent",
+    "parse_client_source_from_header",
+    "is_customer_entry",
     "detect_client_type",
     "is_mobile_verify_client",
     "is_customer_client",
+    "get_optional_client_type",
     "require_mobile_verify_client",
     "require_customer_client_session",
 ]

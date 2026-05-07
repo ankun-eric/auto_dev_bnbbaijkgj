@@ -5,6 +5,7 @@ import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { Card, Image, Tag, Button, Steps, Divider, Toast, Dialog, SpinLoading, ProgressBar, Popup, DatePicker, Selector } from 'antd-mobile';
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
+import { extractRescheduleErrorText } from '@/lib/reschedule-error';
 import { fulfillmentLabel } from '@/utils/fulfillmentLabel';
 import { redirectToPayUrl } from '@/lib/basePath';
 import ContactStoreModal from '@/app/orders/components/ContactStoreModal';
@@ -318,7 +319,10 @@ export default function UnifiedOrderDetailPage() {
       setShowAppointmentPopup(false);
       fetchOrder();
     } catch (err: any) {
-      Toast.show({ content: err?.response?.data?.detail || '预约失败' });
+      // [双重身份用户 H5 顾客端改约失败 Bug 修复 v1.0]
+      // 不再统一兜底"预约失败"，而是按后端返回的 {code, message} 结构展示具体原因。
+      // 优先使用错误码 → 文案映射；无映射时回退到 message；都没有则展示 HTTP/网络错误兜底。
+      Toast.show({ content: extractRescheduleErrorText(err) });
     } finally {
       setApptSubmitting(false);
     }

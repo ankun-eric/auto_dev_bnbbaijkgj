@@ -22,6 +22,9 @@ class ApiService {
         // （改期/取消/退款/确认/评价/下单/支付等），避免商家兼顾客用户被一刀切。
         'Client-Type': 'app-user',
         'X-Client-Type': 'app-user',
+        // [双重身份用户 H5 顾客端改约失败 Bug 修复 v1.0]
+        // 顾客端入口标识：后端据此让双重身份用户的改约请求跳过商家身份限制、不卡改约次数。
+        'X-Client-Source': 'flutter-customer',
       },
     ));
 
@@ -37,6 +40,8 @@ class ApiService {
         // 拦截器也保证 Client-Type 一定带上。
         options.headers['Client-Type'] ??= 'app-user';
         options.headers['X-Client-Type'] ??= 'app-user';
+        // [双重身份用户 H5 顾客端改约失败 Bug 修复 v1.0] 顾客端入口标识
+        options.headers['X-Client-Source'] ??= 'flutter-customer';
         return handler.next(options);
       },
       onResponse: (response, handler) {
@@ -73,6 +78,8 @@ class ApiService {
           // [客户端订单顾客操作鉴权误判 Bug 修复 v1.0]
           'Client-Type': 'app-user',
           'X-Client-Type': 'app-user',
+          // [双重身份用户 H5 顾客端改约失败 Bug 修复 v1.0]
+          'X-Client-Source': 'flutter-customer',
         }),
       );
 

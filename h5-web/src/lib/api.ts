@@ -93,6 +93,11 @@ api.interceptors.request.use(
           clientType = 'pc-web';
         } else {
           clientType = 'h5-user';
+          // [双重身份用户 H5 顾客端改约失败 Bug 修复 v1.0]
+          // C 端顾客域请求统一带上 X-Client-Source: h5-customer，
+          // 后端据此识别"本次操作以顾客身份发起"，避免双重身份用户被商家规则误伤。
+          // 仅在 C 端顾客域（非 /merchant/*）注入此 Header，避免污染商家端请求。
+          config.headers['X-Client-Source'] = 'h5-customer';
         }
         config.headers['Client-Type'] = clientType;
         config.headers['X-Client-Type'] = clientType;

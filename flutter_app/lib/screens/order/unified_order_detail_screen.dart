@@ -5,6 +5,8 @@ import '../../models/unified_order.dart';
 import '../../services/api_service.dart';
 import '../../utils/price_formatter.dart';
 import '../../utils/fulfillment_label.dart';
+// [双重身份用户 H5 顾客端改约失败 Bug 修复 v1.0]
+import '../../utils/reschedule_error.dart';
 // [2026-05-05 订单页地址导航按钮 PRD v1.0]
 import '../../widgets/address_nav_button.dart';
 import 'contact_store_sheet.dart';
@@ -974,9 +976,11 @@ class _UnifiedOrderDetailScreenState extends State<UnifiedOrderDetailScreen> {
                     );
                     if (ctx2.mounted) Navigator.pop(ctx2, true);
                   } catch (e) {
+                    // [双重身份用户 H5 顾客端改约失败 Bug 修复 v1.0]
+                    // 不再统一兜底"预约失败：$e"，按后端 {code, message} 结构显示具体原因。
                     if (ctx2.mounted) {
                       ScaffoldMessenger.of(ctx2).showSnackBar(
-                        SnackBar(content: Text('预约失败：$e')),
+                        SnackBar(content: Text(extractRescheduleErrorText(e))),
                       );
                     }
                   }
