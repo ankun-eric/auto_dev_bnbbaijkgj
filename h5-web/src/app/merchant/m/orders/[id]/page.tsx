@@ -29,8 +29,16 @@ interface OrderDetail {
   created_at: string;
   user_display: string;
   appointment_time?: string;
+  // [BUGFIX-UO-20260507-001] 预约时段相关字段
+  appointment_date?: string;
+  time_slot?: string;
   store_name?: string;
   is_appointment?: boolean;
+  // [BUGFIX-UO-20260507-001] 支付方式相关字段
+  payment_method?: string;
+  payment_method_text?: string;
+  payment_channel_code?: string;
+  payment_display_name?: string;
   // [PRD-04] 改期通知状态（none / ok / all_failed）
   last_reschedule_notify_status?: 'none' | 'ok' | 'all_failed';
   last_reschedule_notify?: RescheduleNotifyDetail | null;
@@ -249,9 +257,25 @@ export default function OrderDetailMobilePage() {
           <div>金额: <span style={{ color: '#fa541c', fontWeight: 600 }}>¥{order.amount}</span></div>
           <div>门店: <span style={{ color: '#333' }}>{order.store_name || '—'}</span></div>
           <div>下单: <span style={{ color: '#333' }}>{order.created_at ? new Date(order.created_at).toLocaleString('zh-CN') : '—'}</span></div>
-          {order.appointment_time && (
+          {(order.appointment_time || order.time_slot) && (
             <div style={{ gridColumn: '1 / -1' }}>
-              预约时间: <span style={{ color: '#1677ff', fontWeight: 500 }}>{new Date(order.appointment_time).toLocaleString('zh-CN')}</span>
+              预约时间: <span style={{ color: '#1677ff', fontWeight: 500 }}>
+                {/* [BUGFIX-UO-20260507-001] 优先显示 appointment_date + time_slot，
+                    与客户端"2026-05-08 14:00-15:00"保持一致；缺失时回退到 appointment_time。 */}
+                {order.appointment_date && order.time_slot
+                  ? `${order.appointment_date} ${order.time_slot}`
+                  : order.time_slot
+                    ? order.time_slot
+                    : (order.appointment_time ? new Date(order.appointment_time).toLocaleString('zh-CN') : '—')}
+              </span>
+            </div>
+          )}
+          {/* [BUGFIX-UO-20260507-001] 商家移动端详情新增「支付方式」行 */}
+          {(order.payment_method_text || order.payment_method) && (
+            <div style={{ gridColumn: '1 / -1' }}>
+              支付方式: <span style={{ color: '#333' }}>
+                {order.payment_method_text || order.payment_method}
+              </span>
             </div>
           )}
         </div>

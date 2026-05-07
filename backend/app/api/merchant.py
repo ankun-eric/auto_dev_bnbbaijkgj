@@ -1126,6 +1126,25 @@ async def merchant_list_orders(
         )
         att_cnt = int(att_cnt_res.scalar() or 0)
         nickname = getattr(user, "nickname", None) if user else None
+        # [BUGFIX-UO-20260507-001] 商家端订单「预约时段」与「支付方式」与客户端不一致修复：
+        # ① 预约时段：原仅返回 `appointment_time`（DateTime，仅含时段起点，常见为 09:00），
+        #    丢失了 `appointment_data.time_slot`（如 "14:00-15:00"）信息。
+        #    复用同文件已有的 `_format_time_slot` 函数，新增 `time_slot` 字段（"14:00-15:00"）
+        #    与 `appointment_date` 字段（"2026-05-08"），前端三端（H5/小程序/App）优先使用
+        #    `time_slot` 渲染，回退到 `appointment_time`，保证与客户端展示一致。
+        # ② 支付方式：原直接吐 `uo.payment_method` 枚举值（如 wechat），但当前端只传 channel_code
+        #    导致 schema 默认值污染（payment_method=wechat 但 channel_code=alipay_h5）时，
+        #    商家端会显示"微信"而客户端显示"支付宝（H5）"。改为同时返回 channel_code 与
+        #    display_name，前端可优先使用 `payment_method_text`（已经走 _build_payment_method_text
+        #    并对齐 channel_code 优先级），保证三端一致。
+        time_slot_text = _format_time_slot(
+            oi.appointment_time if oi else None,
+            oi.appointment_data if oi else None,
+        )
+        appt_date_text = (
+            oi.appointment_time.strftime("%Y-%m-%d")
+            if oi and oi.appointment_time else None
+        )
         items.append({
             "order_id": uo.id,
             "order_no": uo.order_no,
@@ -1136,11 +1155,15 @@ async def merchant_list_orders(
             "total_quantity": total_qty,
             "created_at": uo.created_at.isoformat() if uo.created_at else None,
             "appointment_time": oi.appointment_time.isoformat() if oi and oi.appointment_time else None,
+            "appointment_date": appt_date_text,
+            "time_slot": time_slot_text,
             "store_id": store_id,
             "store_name": store.store_name if store else "",
             "status": uo.status.value if hasattr(uo.status, "value") else str(uo.status),
             "amount": float(uo.total_amount or 0),
             "payment_method": uo.payment_method,
+            "payment_channel_code": getattr(uo, "payment_channel_code", None),
+            "payment_display_name": getattr(uo, "payment_display_name", None),
             "attachment_count": att_cnt,
             "is_appointment": bool(oi and oi.appointment_time),
             # [2026-05-05 H5 订单详情"支付方式"显示错误（优惠券全额抵扣场景）Bug 修复 v1.0]
@@ -1225,6 +1248,18 @@ async def merchant_get_order_detail(
             "[PRD-04] 查询改期通知状态失败（已忽略）：%s", _e
         )
 
+    # [BUGFIX-UO-20260507-001] 商家端订单详情「预约时段」与「支付方式」补齐：
+    # 同步列表接口的逻辑，新增 `time_slot` / `appointment_date` / `payment_method` /
+    # `payment_method_text` / `payment_channel_code` / `payment_display_name` 字段，
+    # 让 H5 商家端、商家小程序、商家 App 三端订单详情显示与客户端完全一致。
+    time_slot_text = _format_time_slot(
+        oi.appointment_time if oi else None,
+        oi.appointment_data if oi else None,
+    )
+    appt_date_text = (
+        oi.appointment_time.strftime("%Y-%m-%d")
+        if oi and oi.appointment_time else None
+    )
     return {
         "order_id": uo.id,
         "order_no": uo.order_no,
@@ -1232,6 +1267,8 @@ async def merchant_get_order_detail(
         "product_name": oi.product_name if oi else "",
         "created_at": uo.created_at.isoformat() if uo.created_at else None,
         "appointment_time": oi.appointment_time.isoformat() if oi and oi.appointment_time else None,
+        "appointment_date": appt_date_text,
+        "time_slot": time_slot_text,
         "store_id": store_id,
         "store_name": store.store_name if store else "",
         "status": uo.status.value if hasattr(uo.status, "value") else str(uo.status),
@@ -1239,6 +1276,11 @@ async def merchant_get_order_detail(
         "is_appointment": bool(oi and oi.appointment_time),
         "store_confirmed": getattr(uo, "store_confirmed", False),
         "store_confirmed_at": uo.store_confirmed_at.isoformat() if getattr(uo, "store_confirmed_at", None) else None,
+        # 支付方式（与客户端对齐）
+        "payment_method": uo.payment_method,
+        "payment_channel_code": getattr(uo, "payment_channel_code", None),
+        "payment_display_name": getattr(uo, "payment_display_name", None),
+        "payment_method_text": _build_payment_method_text(uo),
         # [PRD-04 §F-04-5 / §2.7] 改期通知状态
         "last_reschedule_notify_status": last_reschedule_notify_status,
         "last_reschedule_notify": last_reschedule_notify,

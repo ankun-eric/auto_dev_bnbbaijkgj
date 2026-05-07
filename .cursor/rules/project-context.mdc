@@ -33,7 +33,35 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: BUG-FIX-RESCHEDULE-DUAL-IDENTITY-V1｜双重身份用户 H5 顾客端改约失败修复（2026-05-07 16:50）
+## Latest Update: BUGFIX-UO-20260507-001｜商家端订单「预约时间」与「支付方式」与客户端不一致修复（2026-05-07 16:50）
+
+### 一句话结论
+按 `cursor_prompt_401_20260507162039.txt` 走 develop-all 流程修复线上 P0：客户端下单后，**商家管理后台 Web、商家小程序、商家 App** 三端在订单列表 / 详情看到的「预约时间」会丢失具体时段并回退为 09:00、「支付方式」会错乱（如客户端显示「支付宝（H5）」但商家端显示「微信」）。**根因双链路**：① 商家端 list/detail 接口只返回 `OrderItem.appointment_time`（DateTime，仅含时段起点），没有返回 `appointment_data.time_slot`（"14:00-15:00" 字符串），文件中 `_format_time_slot()` 已被 calendar 系列正确使用，订单接口漏调用；② `UnifiedOrderPayRequest.payment_method` schema 默认值为 `"wechat"`，前端只传 `channel_code` 时落库变成 `payment_method=wechat / payment_channel_code=alipay_h5` 不一致状态，且支付宝异步通知幂等条件下永远跳过矫正，最终商家端列表直接吐 `uo.payment_method` 显示成「微信」，detail 完全没返回支付字段。**修复策略**：① 商家端 `merchant.py` list/detail 与 `merchant_v1.py` list 全部新增 `time_slot` / `appointment_date` / `payment_method_text` / `payment_channel_code` / `payment_display_name` 字段，list 改为复用 `_format_time_slot` + `_build_payment_method_text`；② 源头在 `_build_payment_method_text` 增加交叉校验——当 `payment_method` 与 `payment_channel_code` 反推 provider 不一致时以 channel_code 为准，使存量脏数据展示也能立即修正；③ `/api/orders/unified/{id}/pay` 端点接收 `channel_code` 后强制以 `channel.provider` 覆盖 payment_method，杜绝 schema 默认值再污染新订单；④ `alipay_notify` 把"状态推进"和"支付方式矫正"解耦，即使订单已 `pending_payment → pending_use` 状态推进过，仍然强制把 `payment_method/payment_channel_code` 矫正为 `alipay/alipay_h5` 后 commit；⑤ H5 商家端 `/merchant/orders` 列表与 `/merchant/m/orders/[id]` 详情页改为优先用 `payment_method_text` + `appointment_date + time_slot` 渲染。
+
+### 改动文件
+- 后端：`backend/app/api/merchant.py`（list & detail 接口字段补齐）、`backend/app/api/merchant_v1.py`（list 接口字段补齐）、`backend/app/schemas/merchant_v1.py`（`MerchantOrderItem` 新增 6 个字段）、`backend/app/api/unified_orders.py`（`_build_payment_method_text` 交叉校验 + `/pay` 强制反推 provider）、`backend/app/api/alipay_notify.py`（解耦状态推进与 payment_method 矫正）
+- 后端测试：`backend/tests/test_bugfix_uo_20260507_001.py`（10 个新增用例覆盖 A1~A5 支付方式矫正 + B1~B5 _format_time_slot 全分支，本地容器执行 23 passed）
+- H5：`h5-web/src/app/merchant/orders/page.tsx`（PC 商家订单列表「预约时间 / 支付方式」列优先用新字段；详情侧抽屉新增「支付方式」行 + 预约时间显示完整时段）、`h5-web/src/app/merchant/m/orders/[id]/page.tsx`（移动端商家订单详情同步使用新字段）
+- 部署脚本：`_deploy_bug401.py`（后端 docker cp + restart 热更新 6 个文件）、`_deploy_bug401_h5.py`（h5-web 容器 rebuild）、`_smoke_bug401.py`（端到端验证脚本，对样本订单 UO20260507075333421500 直接调用 `_format_time_slot` 与 `_build_payment_method_text` 断言两个核心函数返回 "14:00-15:00" 与 "支付宝（H5）"，断言全部通过）
+
+### 关键技术决策
+- **不改库、不回溯历史脏数据**：用户在方案文档中明确选 B（不回溯）。但商家端展示侧增加 `_build_payment_method_text` 交叉校验后，**历史脏单的展示也会被自动矫正**（因为读取层根据 channel_code 反推 provider），相当于"不动数据但显示对齐"——比迁移脚本更稳妥。
+- **不改前端三端独立客户端**：本次修复完全不触动 miniprogram / flutter_app / admin-web 的代码（小程序 / 安卓 / iOS / 管理端独立 Next.js）。商家管理后台 Web 与 商家小程序 / App 共享同一份 `/api/merchant/orders*` 接口，后端字段补齐后三端全部受益；H5 商家页面是 Next.js SSR，重新 docker compose build h5-web 后浏览器即可获得最新版。
+- **alipay_notify 解耦设计**：原代码"已 advance 即跳过"会让脏的 payment_method=wechat 永远残留。修复后即便订单已被沙盒兜底分支推进过状态，异步通知到达时仍然只校正 payment_method/channel_code，不重复推进状态机，幂等性不受影响。
+- **样本订单 UO20260507075333421500 取证**：直接 `docker exec mysql` 查 DB，`unified_orders.payment_method='wechat' / payment_channel_code='alipay_h5'`、`order_items.appointment_time='2026-05-08 09:00:00' / appointment_data={"time_slot":"14:00-15:00"}`，与 Bug 描述完全吻合，确认根因画像准确。
+
+### 验证情况
+- 容器内 `pytest tests/test_bugfix_uo_20260507_001.py tests/test_payment_method_text_priority_v10.py` → 23 passed；
+- 容器内 `pytest test_h5_zero_order_pm_v10 test_zero_order_payment_method_v22 test_payment_method_normalize_bugfix test_alipay_h5_real_payment` 等支付链路相关 → 70 passed；
+- 端到端脚本 `_smoke_bug401.py` 对线上样本订单调用：`_format_time_slot → "14:00-15:00"`（期望 "14:00-15:00" ✅）、`_build_payment_method_text → "支付宝（H5）"`（期望 "支付宝（H5）" ✅）；
+- 商家端 H5 页面 `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/orders` 容器健康检查 200/308（HTTPS 重定向）。
+
+### 用户体验手册
+- `user_docs/manual_20260507_164842_7d8b.md`
+
+---
+
+## Previous Update: BUG-FIX-RESCHEDULE-DUAL-IDENTITY-V1｜双重身份用户 H5 顾客端改约失败修复（2026-05-07 16:50）
 
 ### 一句话结论
 按 `cursor_prompt_400_20260507155319.txt` 走 develop-all 流程修复 P0/P1 复合 Bug：同一手机号既是顾客又是商家的"双重身份用户"在 H5 顾客端 / 微信小程序 / Flutter App 任意顾客侧入口对自己订单点改约时，被错误识别成商家身份而拒绝，且失败一律兜底"预约失败"无法定位。修复方案：① **后端**新增 `X-Client-Source` 请求头协议（`h5-customer / miniprogram-customer / flutter-customer`），改约接口判定来自顾客侧入口时按顾客身份放行；双重身份用户从顾客侧入口操作自己订单时**改约次数不再受 `reschedule_limit` 限制**；改约失败一律返回结构化错误 `{detail: {code, message, detail}}`，错误码 11 个全枚举（`RESCHEDULE_NO_PERMISSION / RESCHEDULE_ORDER_NOT_FOUND / RESCHEDULE_ORDER_STATUS_INVALID / RESCHEDULE_LIMIT_EXCEEDED / RESCHEDULE_NOT_ALLOWED / RESCHEDULE_TIME_EXPIRED / RESCHEDULE_TIME_OUT_OF_RANGE / RESCHEDULE_TIME_CONFLICT / RESCHEDULE_REFUND_IN_PROGRESS / RESCHEDULE_PARTIALLY_USED / RESCHEDULE_INTERNAL_ERROR`）；② **H5 顾客端**Axios 拦截器自动追加 `X-Client-Source: h5-customer`，新增 `lib/reschedule-error.ts` 把后端错误码映射成具体业务文案；③ **微信小程序**`request.js` 全局头追加 + `formatErrorDetail` 优先解析 `detail.code`；④ **Flutter App**Dio `BaseOptions` 全局头 + 新增 `lib/utils/reschedule_error.dart`，覆盖 token 刷新兜底请求；⑤ 兼容性：未发 `X-Client-Source` 时仍按 `Client-Type` 老路径走，旧版前端不受影响。

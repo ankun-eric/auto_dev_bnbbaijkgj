@@ -274,6 +274,17 @@ def _build_payment_method_text(order) -> Optional[str]:
     code = getattr(order, "payment_channel_code", None)
     name = getattr(order, "payment_display_name", None)
 
+    # [BUGFIX-UO-20260507-001] 当 payment_method 与 payment_channel_code 的 provider 不一致时，
+    # 以 payment_channel_code 反推的 provider 为准重新决定 pm_val。
+    # 历史触发链路：H5 客户端 /pay 没传 payment_method（schema 默认值"wechat"）+ alipay 异步通知
+    # 因订单状态已推进而幂等跳过 → 落库 payment_method=wechat 但 payment_channel_code=alipay_h5。
+    # 商家端如果直接渲染 payment_method 会显示"微信"，与客户端走 _build_payment_method_text 后
+    # 显示的"支付宝（H5）"不一致。这里同步矫正一次，让两端文案完全对齐。
+    if isinstance(code, str) and "_" in code:
+        code_provider = code.split("_", 1)[0]
+        if code_provider in {"wechat", "alipay"} and pm_val in {"wechat", "alipay"} and pm_val != code_provider:
+            pm_val = code_provider
+
     # 第 2 优先级：真实通道支付（wechat / alipay），且 code+name 齐备
     if pm_val in {"wechat", "alipay"} and code and name:
         suffix = PLATFORM_LABEL.get(code)
@@ -1781,6 +1792,19 @@ async def pay_unified_order(
         order.payment_channel_code = ch.channel_code
         order.payment_display_name = ch.display_name
         ch_provider = ch.provider
+
+        # [BUGFIX-UO-20260507-001] 当 channel_code 已带明确 provider（如 alipay_h5 / wechat_app），
+        # 必须以 channel.provider 为准重新覆盖 payment_method，避免前端
+        # 调用 /pay 时漏传 payment_method（Schema 默认值 "wechat"）导致 payment_method=wechat
+        # 但 payment_channel_code=alipay_h5 的脏数据。该脏数据在支付宝异步通知幂等条件下
+        # 永远无法被矫正，最终导致商家端显示"微信"而客户端显示"支付宝（H5）"。
+        if ch_provider in {"wechat", "alipay"} and order.payment_method != ch_provider:
+            logger.info(
+                "[BUGFIX-UO-20260507-001] /pay 反推 payment_method：原值=%s，"
+                "channel_code=%s 的 provider=%s，已强制矫正为 %s",
+                order.payment_method, data.channel_code, ch_provider, ch_provider,
+            )
+            order.payment_method = ch_provider
 
     # [支付宝 H5 正式接入 v1.0 · 核心改动]
     # 当 channel_code=alipay_h5 时不再立即推进订单状态：

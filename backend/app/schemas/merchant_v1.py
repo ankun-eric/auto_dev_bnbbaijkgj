@@ -113,11 +113,22 @@ class MerchantOrderItem(BaseModel):
     product_name: str
     created_at: datetime
     appointment_time: Optional[datetime] = None
+    # [BUGFIX-UO-20260507-001] 商家端预约时段与支付方式与客户端一致性修复：
+    # appointment_time 仅含时段起点（DateTime），不能体现 "14:00-15:00" 段尾，
+    # 这里新增基于 appointment_data.time_slot 解析得到的 time_slot 字符串，并附预约日期。
+    appointment_date: Optional[str] = None
+    time_slot: Optional[str] = None
     store_id: Optional[int] = None
     store_name: Optional[str] = None
     status: str
     amount: float
     attachment_count: int = 0
+    # [BUGFIX-UO-20260507-001] 同步透传支付方式相关字段，前端可优先使用
+    # payment_method_text 渲染，保证三端商家显示与客户端一致。
+    payment_method: Optional[str] = None
+    payment_channel_code: Optional[str] = None
+    payment_display_name: Optional[str] = None
+    payment_method_text: Optional[str] = None
 
 
 class MerchantOrderListResponse(BaseModel):

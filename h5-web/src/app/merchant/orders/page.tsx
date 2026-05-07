@@ -28,11 +28,18 @@ interface OrderRow {
   total_quantity?: number;
   created_at: string;
   appointment_time?: string;
+  // [BUGFIX-UO-20260507-001] 新增 time_slot / appointment_date，避免商家端只显示
+  // appointment_time（仅含时段起点 09:00），与客户端 "14:00-15:00" 不一致。
+  appointment_date?: string;
+  time_slot?: string;
   store_id?: number;
   store_name?: string;
   status: string;
   amount: number;
   payment_method?: string;
+  // [BUGFIX-UO-20260507-001] 新增支付通道字段，前端优先用 payment_method_text 渲染。
+  payment_channel_code?: string;
+  payment_display_name?: string;
   attachment_count: number;
   payment_method_text?: string;
   redemption_code?: string;
@@ -339,16 +346,34 @@ export default function OrdersPage() {
       ),
     },
     {
-      title: '支付方式', key: 'payment_method', width: 110,
+      // [BUGFIX-UO-20260507-001] 商家端支付方式应与客户端一致：
+      // 优先使用后端经 _build_payment_method_text 计算的 payment_method_text
+      // （已对 channel_code 与 payment_method 做交叉校验和文案纠正），
+      // 回退到 payment_method 枚举的中文映射，最后才显示原值。
+      title: '支付方式', key: 'payment_method', width: 130,
       render: (_: any, row: OrderRow) => {
+        if (row.payment_method_text) return row.payment_method_text;
         if (row.payment_method) return PAYMENT_METHOD_LABEL[row.payment_method] || row.payment_method;
-        return row.payment_method_text || '-';
+        return '-';
       },
     },
     // ── 以下为商家 PC 端专属字段，本次保留现有顺序与宽度，仅取消左固定 ──
     { title: '核销码', dataIndex: 'redemption_code', key: 'redemption_code', width: 140, render: (v: string) => v ? <code style={{ fontSize: 12 }}>{v}</code> : '-' },
     { title: '门店', dataIndex: 'store_name', key: 'store_name', width: 140, ellipsis: true },
-    { title: '预约时间', dataIndex: 'appointment_time', key: 'appointment_time', width: 160, render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm') : '-' },
+    {
+      // [BUGFIX-UO-20260507-001] 预约时间列改为优先显示「日期 + time_slot 字符串」，
+      // 例如 "2026-05-08 14:00-15:00"，与客户端展示一致；当 time_slot 缺失时回退到
+      // appointment_time（仅含起点）。
+      title: '预约时间', key: 'appointment_time', width: 200,
+      render: (_: any, row: OrderRow) => {
+        if (row.appointment_date && row.time_slot) {
+          return `${row.appointment_date} ${row.time_slot}`;
+        }
+        if (row.time_slot) return row.time_slot;
+        if (row.appointment_time) return dayjs(row.appointment_time).format('YYYY-MM-DD HH:mm');
+        return '-';
+      },
+    },
     { title: '附件', dataIndex: 'attachment_count', key: 'attachment_count', width: 70, align: 'center' as const, render: (n: number) => <span>{n || 0}</span> },
     {
       title: '状态', dataIndex: 'status', key: 'status', width: 100,
@@ -530,9 +555,25 @@ export default function OrdersPage() {
               <Descriptions.Item label="金额"><span style={{ color: '#fa541c', fontWeight: 600 }}>¥{detailOrder.amount || 0}</span></Descriptions.Item>
               <Descriptions.Item label="门店">{detailOrder.store_name || '—'}</Descriptions.Item>
               <Descriptions.Item label="下单时间" span={2}>{detailOrder.created_at ? dayjs(detailOrder.created_at).format('YYYY-MM-DD HH:mm') : '—'}</Descriptions.Item>
-              {detailOrder.appointment_time && (
+              {/* [BUGFIX-UO-20260507-001] 预约时间优先显示 time_slot，与客户端"14:00-15:00"对齐 */}
+              {(detailOrder.appointment_time || detailOrder.time_slot) && (
                 <Descriptions.Item label="预约时间" span={2}>
-                  <span style={{ color: '#1677ff', fontWeight: 500 }}>{dayjs(detailOrder.appointment_time).format('YYYY-MM-DD HH:mm')}</span>
+                  <span style={{ color: '#1677ff', fontWeight: 500 }}>
+                    {detailOrder.appointment_date && detailOrder.time_slot
+                      ? `${detailOrder.appointment_date} ${detailOrder.time_slot}`
+                      : detailOrder.time_slot
+                        ? detailOrder.time_slot
+                        : (detailOrder.appointment_time ? dayjs(detailOrder.appointment_time).format('YYYY-MM-DD HH:mm') : '—')}
+                  </span>
+                </Descriptions.Item>
+              )}
+              {/* [BUGFIX-UO-20260507-001] 商家端详情新增「支付方式」行，复用 payment_method_text */}
+              {(detailOrder.payment_method_text || detailOrder.payment_method) && (
+                <Descriptions.Item label="支付方式" span={2}>
+                  {detailOrder.payment_method_text
+                    || PAYMENT_METHOD_LABEL[detailOrder.payment_method || '']
+                    || detailOrder.payment_method
+                    || '—'}
                 </Descriptions.Item>
               )}
             </Descriptions>

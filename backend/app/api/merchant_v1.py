@@ -534,6 +534,15 @@ async def merchant_list_orders(
         st = s.scalar_one_or_none()
         if st:
             store_name = st.store_name
+        # [BUGFIX-UO-20260507-001] 与 merchant.py 同步：从 appointment_data.time_slot
+        # 派生 time_slot 字符串和 appointment_date，并透传支付字段。
+        # 复用 merchant.py 中已有的 _format_time_slot 与 _build_payment_method_text。
+        from app.api.merchant import _format_time_slot
+        from app.api.unified_orders import _build_payment_method_text
+        time_slot_text = _format_time_slot(oi.appointment_time, oi.appointment_data)
+        appt_date_text = (
+            oi.appointment_time.strftime("%Y-%m-%d") if oi.appointment_time else None
+        )
         items.append(
             MerchantOrderItem(
                 order_id=oi.id,
@@ -542,11 +551,17 @@ async def merchant_list_orders(
                 product_name=oi.product_name,
                 created_at=uo.created_at,
                 appointment_time=oi.appointment_time,
+                appointment_date=appt_date_text,
+                time_slot=time_slot_text,
                 store_id=red.store_id,
                 store_name=store_name,
                 status=uo.status.value if hasattr(uo.status, "value") else str(uo.status),
                 amount=float(oi.subtotal or 0),
                 attachment_count=int(att_count.scalar() or 0),
+                payment_method=str(uo.payment_method.value) if hasattr(uo.payment_method, "value") else (str(uo.payment_method) if uo.payment_method else None),
+                payment_channel_code=getattr(uo, "payment_channel_code", None),
+                payment_display_name=getattr(uo, "payment_display_name", None),
+                payment_method_text=_build_payment_method_text(uo),
             )
         )
     return MerchantOrderListResponse(items=items, total=int(total), page=page, page_size=page_size)

@@ -151,13 +151,40 @@ async def alipay_async_notify(
         return PlainTextResponse("success")
 
     # 7. 幂等 + 状态机推进
-    # 幂等键：order.status 已不在 pending_payment 状态时（已推进过），直接 success
+    # [BUGFIX-UO-20260507-001] 拆分两件事：
+    # ① 状态机推进：仍然只在 pending_payment 时执行，避免重复推进。
+    # ② 支付方式矫正：与状态推进解耦。即使订单已不在 pending_payment（例如沙盒兜底先把
+    #    状态推进了一步），也必须把 payment_method/payment_channel_code 矫正为
+    #    alipay/alipay_h5；否则前端 /pay 漏传 payment_method 时残留的 "wechat" 脏值
+    #    会一直留在订单上，导致商家端显示"微信支付"而客户端显示"支付宝（H5）"。
     cur_status_val = order.status.value if hasattr(order.status, "value") else order.status
+    pm_val = order.payment_method.value if hasattr(order.payment_method, "value") else order.payment_method
+    need_pm_fix = (str(pm_val) if pm_val is not None else None) != "alipay" or (
+        order.payment_channel_code != "alipay_h5"
+    )
+
     if cur_status_val != "pending_payment":
-        logger.info(
-            "alipay_notify idempotent: order_no=%s already advanced (status=%s)",
-            out_trade_no, cur_status_val,
-        )
+        # 即使订单状态已推进，仍然需要纠正支付方式字段，否则商家端会持续显示错误。
+        if need_pm_fix:
+            logger.warning(
+                "[BUGFIX-UO-20260507-001] alipay_notify 订单 %s 已 advance(status=%s)，"
+                "但 payment_method=%s/channel_code=%s 与回调不一致，强制矫正为 alipay/alipay_h5",
+                out_trade_no, cur_status_val, pm_val, order.payment_channel_code,
+            )
+            order.payment_method = UnifiedPaymentMethod.alipay
+            order.payment_channel_code = "alipay_h5"
+            order.updated_at = datetime.utcnow()
+            try:
+                await db.commit()
+            except Exception as e:  # noqa: BLE001
+                await db.rollback()
+                logger.error("alipay_notify pm-fix commit failed: %s", e)
+                return PlainTextResponse("fail")
+        else:
+            logger.info(
+                "alipay_notify idempotent: order_no=%s already advanced (status=%s)",
+                out_trade_no, cur_status_val,
+            )
         return PlainTextResponse("success")
 
     order.payment_method = UnifiedPaymentMethod.alipay
