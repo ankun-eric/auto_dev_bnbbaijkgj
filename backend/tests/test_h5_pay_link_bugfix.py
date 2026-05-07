@@ -362,7 +362,12 @@ async def test_confirm_free_rejects_other_users_order(
     order_id = create_resp.json()["id"]
 
     token_b = await _register_second_user(client, phone="13900000099")
-    headers_b = {"Authorization": f"Bearer {token_b}"}
+    # [客户端订单顾客操作鉴权误判 Bug 修复 v1.0]
+    # 验证「订单归属」拦截而非「客户端来源」拦截，需要带上客户端 Header 才能进到内部 forbidden 分支
+    headers_b = {
+        "Authorization": f"Bearer {token_b}",
+        "Client-Type": "h5-user",
+    }
 
     free_resp = await client.post(
         f"/api/orders/unified/{order_id}/confirm-free",

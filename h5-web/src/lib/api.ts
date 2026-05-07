@@ -75,14 +75,25 @@ api.interceptors.request.use(
       if (token && config.headers) {
         config.headers.Authorization = `Bearer ${token}`;
       }
-      // [PRD-05 核销动作收口手机端 v1.0] 客户端类型 Header
+      // [PRD-05 核销动作收口手机端 v1.0 + 客户端订单顾客操作鉴权误判 Bug 修复 v1.0]
+      // 客户端类型 Header 三段式判定（按 path 分流）：
       // - /merchant/m/*           -> h5-mobile（商家端 H5 移动版，含 /merchant/m/verify 核销页）
-      // - 其他 H5 页面（含 PC 端商家后台 /merchant/*、C 端 /*）-> pc-web
-      // 后端 require_mobile_verify_client 依赖项据此放行/拦截核销动作。
+      // - /merchant/*（含 /merchant、/merchant/login 等 PC 商家后台）-> pc-web
+      // - 其他（C 端顾客域/路径）-> h5-user（顾客 H5 客户端，订单顾客接口的合法来源之一）
+      //
+      // 用途：
+      //   - require_mobile_verify_client：放行 h5-mobile / verify-miniprogram
+      //   - require_customer_client_session：放行 h5-user / miniprogram-user / app-user
+      // 商家兼顾客的用户在 C 端登录后将以 h5-user 身份发请求，不再被全局 role=merchant 一刀切。
       if (config.headers) {
-        const clientType = appPath.startsWith('/merchant/m/') || appPath === '/merchant/m'
-          ? 'h5-mobile'
-          : 'pc-web';
+        let clientType: string;
+        if (appPath.startsWith('/merchant/m/') || appPath === '/merchant/m') {
+          clientType = 'h5-mobile';
+        } else if (appPath.startsWith('/merchant/') || appPath === '/merchant') {
+          clientType = 'pc-web';
+        } else {
+          clientType = 'h5-user';
+        }
         config.headers['Client-Type'] = clientType;
         config.headers['X-Client-Type'] = clientType;
       }

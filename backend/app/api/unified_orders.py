@@ -41,6 +41,7 @@ from app.models.models import (
     UserCouponStatus,
 )
 from app.utils.time_slots import appointment_to_slot as _appt_to_slot
+from app.utils.client_source import require_customer_client_session
 from app.schemas.unified_orders import (
     ALLOWED_PAYMENT_METHODS,
     PAYMENT_METHOD_TEXT_MAP,
@@ -557,6 +558,7 @@ def _generate_verification_code() -> str:
 async def create_unified_order(
     data: UnifiedOrderCreate,
     current_user: User = Depends(get_current_user),
+    client_type: str = Depends(require_customer_client_session),
     db: AsyncSession = Depends(get_db),
 ):
     if not data.items:
@@ -1712,6 +1714,7 @@ async def pay_unified_order(
     order_id: int,
     data: UnifiedOrderPayRequest,
     current_user: User = Depends(get_current_user),
+    client_type: str = Depends(require_customer_client_session),
     db: AsyncSession = Depends(get_db),
 ):
     """统一订单支付（已移除真实支付接入，目前为状态机推进 + 桩 URL）。
@@ -1820,6 +1823,7 @@ async def confirm_free_unified_order(
     order_id: int,
     data: ConfirmFreeRequest,
     current_user: User = Depends(get_current_user),
+    client_type: str = Depends(require_customer_client_session),
     db: AsyncSession = Depends(get_db),
 ):
     """[H5 支付链路修复 v1.0] 0 元订单确认入口（不走支付链路）。
@@ -1891,6 +1895,7 @@ async def confirm_free_unified_order(
 async def confirm_receipt(
     order_id: int,
     current_user: User = Depends(get_current_user),
+    client_type: str = Depends(require_customer_client_session),
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
@@ -1932,31 +1937,24 @@ async def set_order_appointment(
     order_id: int,
     data: UnifiedOrderSetAppointmentRequest,
     current_user: User = Depends(get_current_user),
+    client_type: str = Depends(require_customer_client_session),
     db: AsyncSession = Depends(get_db),
 ):
-    """[PRD 订单状态机简化方案 v1.0 + PRD-03 客户端改期能力收口 v1.0] 用户填写预约时间。
+    """[PRD 订单状态机简化方案 v1.0 + PRD-03 客户端改期能力收口 v1.0
+    + 客户端订单顾客操作鉴权误判 Bug 修复 v1.0] 用户填写预约时间。
 
     新策略（2026-05-03 起）：
     - 首次填预约日：pending_appointment → **pending_use**（直接跳过 appointed，立即出码）
     - 修改预约日：pending_use 阶段持续允许调整，状态保持不变
     - 兼容历史 appointed：旧订单仍可调用本接口改预约日，状态翻为 pending_use
 
-    PRD-03 角色校验（§2.4 / §R-03-06）：
-    - 改期权 100% 归客户端；本接口仅允许 role=user（C 端客户）调用
-    - role in (merchant / admin / doctor / content_editor) → 403 Forbidden
+    [客户端订单顾客操作鉴权误判 Bug 修复 v1.0] 鉴权依据从「全局 users.role 字段」
+    切换为「本次请求的客户端会话来源」（require_customer_client_session 依赖）：
+    - 客户端家族（h5-user / miniprogram-user / app-user）→ 放行
+    - 商家端家族（h5-mobile / verify-miniprogram / pc-web / unknown）→ 403
+    解决「商家兼顾客」用户在客户端做顾客操作被一刀切的问题（PRD-03 旧版仅看
+    users.role 的硬校验已移除）。
     """
-    # [PRD-03 §2.4 / §R-03-06] 角色校验：仅允许 customer 角色（即 UserRole.user）调用
-    # 注意：项目中 UserRole 枚举值为 user/admin/doctor/merchant/content_editor，
-    # 其中 "user" 即 PRD 文档所述的 "customer"（C 端客户）
-    role_val = current_user.role
-    if hasattr(role_val, "value"):
-        role_val = role_val.value
-    if str(role_val) != "user":
-        raise HTTPException(
-            status_code=403,
-            detail="无操作权限：改期权仅限客户端，商家/平台无权调用",
-        )
-
     result = await db.execute(
         select(UnifiedOrder)
         .options(selectinload(UnifiedOrder.items))
@@ -2130,6 +2128,7 @@ async def cancel_unified_order(
     order_id: int,
     data: UnifiedOrderCancelRequest,
     current_user: User = Depends(get_current_user),
+    client_type: str = Depends(require_customer_client_session),
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
@@ -2238,6 +2237,7 @@ async def review_unified_order(
     order_id: int,
     data: UnifiedOrderReviewCreate,
     current_user: User = Depends(get_current_user),
+    client_type: str = Depends(require_customer_client_session),
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
@@ -2296,6 +2296,7 @@ async def request_refund(
     order_id: int,
     data: UnifiedOrderRefundRequest,
     current_user: User = Depends(get_current_user),
+    client_type: str = Depends(require_customer_client_session),
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
@@ -2392,6 +2393,7 @@ async def _do_withdraw_refund(order, db: AsyncSession) -> dict:
 async def withdraw_refund(
     order_id: int,
     current_user: User = Depends(get_current_user),
+    client_type: str = Depends(require_customer_client_session),
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
@@ -2410,6 +2412,7 @@ async def cancel_refund(
     order_id: int,
     data: Optional[UnifiedOrderRefundCancelRequest] = None,
     current_user: User = Depends(get_current_user),
+    client_type: str = Depends(require_customer_client_session),
     db: AsyncSession = Depends(get_db),
 ):
     """PRD F-13 别名端点：用户撤销售后申请。

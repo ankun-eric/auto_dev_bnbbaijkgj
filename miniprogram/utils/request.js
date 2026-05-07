@@ -39,6 +39,11 @@ function request(options) {
     const token = app.globalData.token;
     const headers = {
       'Content-Type': 'application/json',
+      // [客户端订单顾客操作鉴权误判 Bug 修复 v1.0] 顾客微信小程序固定来源标识
+      // 后端 require_customer_client_session 依赖项据此放行订单顾客专属接口
+      // （改期/取消/退款/确认/评价/下单/支付等），避免商家兼顾客用户被一刀切。
+      'Client-Type': 'miniprogram-user',
+      'X-Client-Type': 'miniprogram-user',
       ...header
     };
     if (token) {
@@ -127,7 +132,11 @@ function uploadFile(url, filePath, name = 'file', formData = {}, options = {}) {
   }
 
   return new Promise((resolve, reject) => {
-    const headers = {};
+    const headers = {
+      // [客户端订单顾客操作鉴权误判 Bug 修复 v1.0] 上传场景同样标识为顾客小程序
+      'Client-Type': 'miniprogram-user',
+      'X-Client-Type': 'miniprogram-user',
+    };
     if (token) {
       headers.Authorization = `Bearer ${token}`;
     }

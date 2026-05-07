@@ -65,7 +65,12 @@ async def buyer_token(client: AsyncClient):
 
 @pytest_asyncio.fixture
 async def buyer_headers(buyer_token):
-    return {"Authorization": f"Bearer {buyer_token}"}
+    # [客户端订单顾客操作鉴权误判 Bug 修复 v1.0]
+    # 顾客侧订单接口已收口到客户端家族（h5-user/miniprogram-user/app-user）
+    return {
+        "Authorization": f"Bearer {buyer_token}",
+        "Client-Type": "h5-user",
+    }
 
 
 async def _seed_user_address(user_id: int, name: str = "张三") -> int:

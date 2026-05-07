@@ -146,7 +146,14 @@ async def user_token(client: AsyncClient):
 
 @pytest_asyncio.fixture
 def auth_headers(user_token):
-    return {"Authorization": f"Bearer {user_token}"}
+    # [客户端订单顾客操作鉴权误判 Bug 修复 v1.0]
+    # 顾客侧 API（订单 8 个核心动作）已收口到客户端家族（h5-user/miniprogram-user/app-user）。
+    # 测试环境默认伪装为 H5 用户端来源，模拟真实顾客客户端调用语义；
+    # 商家端拦截测试在专项测试文件中通过显式覆盖 Client-Type 实现。
+    return {
+        "Authorization": f"Bearer {user_token}",
+        "Client-Type": "h5-user",
+    }
 
 
 @pytest_asyncio.fixture

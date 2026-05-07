@@ -32,8 +32,24 @@ CLIENT_VERIFY_MINIPROGRAM = "verify-miniprogram"
 CLIENT_PC_WEB = "pc-web"
 CLIENT_UNKNOWN = "unknown"
 
+# [客户端订单顾客操作鉴权误判 Bug 修复 v1.0] 客户端家族（顾客侧）
+# - h5-user            ：H5 用户端（bangvip.com 顾客域 / 路径）
+# - miniprogram-user   ：顾客微信小程序（不含核销小程序）
+# - app-user           ：顾客 APP（Flutter Android / iOS）
+CLIENT_H5_USER = "h5-user"
+CLIENT_MINIPROGRAM_USER = "miniprogram-user"
+CLIENT_APP_USER = "app-user"
+
 # 允许发起核销动作的来源
 MOBILE_VERIFY_CLIENTS = frozenset({CLIENT_H5_MOBILE, CLIENT_VERIFY_MINIPROGRAM})
+
+# [客户端订单顾客操作鉴权误判 Bug 修复 v1.0] 允许调用「客户端顾客专属接口」的来源
+# 商家端（h5-mobile / verify-miniprogram / pc-web）和 unknown 均不在白名单内
+CUSTOMER_CLIENTS = frozenset({
+    CLIENT_H5_USER,
+    CLIENT_MINIPROGRAM_USER,
+    CLIENT_APP_USER,
+})
 
 # Header 名称（兼容大小写、X- 前缀）
 CLIENT_TYPE_HEADERS = ("Client-Type", "X-Client-Type", "client-type", "x-client-type")
@@ -79,11 +95,23 @@ def parse_client_type_from_header(request: Request) -> str:
                 CLIENT_VERIFY_MINIPROGRAM,
                 CLIENT_PC_WEB,
                 CLIENT_UNKNOWN,
+                # [客户端订单顾客操作鉴权误判 Bug 修复 v1.0] 新增三类客户端顾客来源
+                CLIENT_H5_USER,
+                CLIENT_MINIPROGRAM_USER,
+                CLIENT_APP_USER,
             ):
                 return nv
             # 容错处理：写错连字符 / 下划线
-            if nv.replace("_", "-") in (CLIENT_H5_MOBILE, CLIENT_VERIFY_MINIPROGRAM, CLIENT_PC_WEB):
-                return nv.replace("_", "-")
+            normalized_dash = nv.replace("_", "-")
+            if normalized_dash in (
+                CLIENT_H5_MOBILE,
+                CLIENT_VERIFY_MINIPROGRAM,
+                CLIENT_PC_WEB,
+                CLIENT_H5_USER,
+                CLIENT_MINIPROGRAM_USER,
+                CLIENT_APP_USER,
+            ):
+                return normalized_dash
     return ""
 
 
@@ -136,10 +164,22 @@ def is_mobile_verify_client(client_type: str) -> bool:
     return _normalize(client_type) in MOBILE_VERIFY_CLIENTS
 
 
+def is_customer_client(client_type: str) -> bool:
+    """[客户端订单顾客操作鉴权误判 Bug 修复 v1.0]
+    判断给定的客户端类型是否属于「客户端顾客侧」家族。
+    仅 h5-user / miniprogram-user / app-user 通过；商家端与 unknown 均拒绝。
+    """
+    return _normalize(client_type) in CUSTOMER_CLIENTS
+
+
 # ────────── FastAPI 依赖：来源拦截 ──────────
 
 
 VERIFY_FORBIDDEN_DETAIL = "核销动作仅限手机端发起，请到手机端 H5 / 核销小程序操作"
+
+# [客户端订单顾客操作鉴权误判 Bug 修复 v1.0]
+# 订单顾客专属操作被商家端/PC/不可识别来源调用时的统一文案
+CUSTOMER_FORBIDDEN_DETAIL = "该操作仅限客户端使用,请切换到顾客 APP / H5 用户端登录后再试"
 
 
 async def require_mobile_verify_client(request: Request) -> str:
@@ -165,16 +205,59 @@ async def require_mobile_verify_client(request: Request) -> str:
     return client_type
 
 
+async def require_customer_client_session(request: Request) -> str:
+    """[客户端订单顾客操作鉴权误判 Bug 修复 v1.0] 客户端会话强校验。
+
+    与 `require_mobile_verify_client`（核销动作收口）互为对偶机制：
+    - 后者把「核销动作」收口到商家端手机来源（h5-mobile + verify-miniprogram）
+    - 本依赖把「顾客专属订单动作」收口到客户端家族（h5-user + miniprogram-user + app-user）
+
+    放行条件：
+    1. `Client-Type` Header ∈ {h5-user, miniprogram-user, app-user}
+    2. 订单归属在各业务接口里单独校验（WHERE user_id = current_user.id）
+
+    其他来源（商家端 H5 移动版、核销小程序、PC 后台、不可识别 unknown）→ 抛 403。
+
+    判定依据从「全局 users.role 字段」切换为「本次请求的客户端会话来源」，
+    解决「商家兼顾客」用户在客户端做顾客操作被一刀切的问题。
+
+    用法：
+    ```python
+    @router.post("/{order_id}/appointment")
+    async def set_order_appointment(
+        order_id: int,
+        client_type: str = Depends(require_customer_client_session),
+        ...
+    ):
+        ...
+    ```
+    """
+    client_type = detect_client_type(request)
+    if not is_customer_client(client_type):
+        raise HTTPException(
+            status_code=403,
+            detail=CUSTOMER_FORBIDDEN_DETAIL,
+        )
+    return client_type
+
+
 __all__ = [
     "CLIENT_H5_MOBILE",
     "CLIENT_VERIFY_MINIPROGRAM",
     "CLIENT_PC_WEB",
     "CLIENT_UNKNOWN",
+    "CLIENT_H5_USER",
+    "CLIENT_MINIPROGRAM_USER",
+    "CLIENT_APP_USER",
     "MOBILE_VERIFY_CLIENTS",
+    "CUSTOMER_CLIENTS",
     "VERIFY_FORBIDDEN_DETAIL",
+    "CUSTOMER_FORBIDDEN_DETAIL",
     "parse_client_type_from_header",
     "parse_client_type_from_user_agent",
     "detect_client_type",
     "is_mobile_verify_client",
+    "is_customer_client",
     "require_mobile_verify_client",
+    "require_customer_client_session",
 ]

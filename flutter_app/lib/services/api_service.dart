@@ -17,6 +17,11 @@ class ApiService {
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
+        // [客户端订单顾客操作鉴权误判 Bug 修复 v1.0] 顾客 Flutter APP 固定来源标识
+        // 后端 require_customer_client_session 依赖项据此放行订单顾客专属接口
+        // （改期/取消/退款/确认/评价/下单/支付等），避免商家兼顾客用户被一刀切。
+        'Client-Type': 'app-user',
+        'X-Client-Type': 'app-user',
       },
     ));
 
@@ -27,6 +32,11 @@ class ApiService {
         if (token != null && token.isNotEmpty) {
           options.headers['Authorization'] = 'Bearer $token';
         }
+        // [客户端订单顾客操作鉴权误判 Bug 修复 v1.0]
+        // 双保险：即使某些请求显式设置了 headers 覆盖了默认 BaseOptions，
+        // 拦截器也保证 Client-Type 一定带上。
+        options.headers['Client-Type'] ??= 'app-user';
+        options.headers['X-Client-Type'] ??= 'app-user';
         return handler.next(options);
       },
       onResponse: (response, handler) {
@@ -59,6 +69,11 @@ class ApiService {
       final response = await Dio().post(
         '${ApiConfig.baseUrl}${ApiConfig.refreshToken}',
         data: {'refresh_token': refreshToken},
+        options: Options(headers: {
+          // [客户端订单顾客操作鉴权误判 Bug 修复 v1.0]
+          'Client-Type': 'app-user',
+          'X-Client-Type': 'app-user',
+        }),
       );
 
       if (response.statusCode == 200 && response.data is Map) {
