@@ -33,7 +33,34 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: BUGFIX-UO-20260507-001｜商家端订单「预约时间」与「支付方式」与客户端不一致修复（2026-05-07 16:50）
+## Latest Update: BUGFIX-ADMIN-ORDERS-GATEWAY-OK-20260507｜admin 后台「商家体系-订单明细」点击后白屏 Gateway OK 修复（2026-05-07 17:00）
+
+### 一句话结论
+按 `cursor_prompt_402_20260507165159.txt` 走 develop-all 流程修复 P0：admin 后台运营点击左侧菜单「商家体系 → 订单明细」整页白屏，仅显示纯文本 `Gateway OK`。**根因**：PRD-02 R-02-04「订单视图记忆 + 自动跳预约看板」的旧逻辑没在 PRD-365「预约看板按门店维度」改造时同步删除，订单列表页 useEffect 在无 `bini_orders_view_preference='list'` 记忆时 `window.location.replace('/admin/product-system/orders/dashboard')` 跳走但**未带 storeId**，dashboard 页拦截到缺参数 `message.warning + router.replace('/merchant/stores')` 期间路由瞬态被 nginx 兜底回落成 `Gateway OK` 字符串响应。**修复策略**：① 彻底删除订单列表页 `useEffect` 中"无记忆即自动跳看板"的逻辑，改为顺手 `removeItem('bini_orders_view_preference')` 清理历史脏数据；② 删除订单列表页右上角「切换到预约看板」按钮（看板入口收敛到「门店列表-预约看板按钮」专属承载）；③ dashboard 页缺 `storeId` 时不再 `message + replace` 跳走（容易触发 nginx 兜底白屏），改为渲染 `<Empty>` 友好提示卡片「请先选择门店」+「前往门店列表」按钮，由用户主动点击跳转。
+
+### 改动文件
+- admin-web：`admin-web/src/app/(admin)/product-system/orders/page.tsx`（删除自动跳看板 useEffect、删除右上角切换按钮、保留 EyeOutlined 给详情按钮）、`admin-web/src/app/(admin)/product-system/orders/dashboard/page.tsx`（缺 storeId 改为提前 return 友好提示页面，复用已有 Empty/Title/Text/Button import）
+- 部署脚本：`_deploy_bug401_admin.py`、`_deploy_bug401_v2.py`、`_deploy_bug401_v3.py`（远程 git pull → docker compose build admin-web → up -d）、`_verify_bug401.py`（curl 验证 /orders 与 /dashboard 都返回 200 且无 "Gateway OK" 字符串、订单明细标题存在、旧"切换到预约看板"按钮已不在 HTML、自动跳 dashboard 引用已删除）
+
+### 关键技术决策
+- **不重新引入"视图记忆"**：旧的"列表/看板互跳记忆"在 PRD-365 后已不再合理（看板从"全局视图"变为"按门店"），任何尝试保留记忆的方案都会再次踩到"老路径丢 storeId"的坑。直接彻底废弃。
+- **localStorage 顺手清理**：变量从 `ORDERS_VIEW_PREFERENCE_KEY` 重命名为 `LEGACY_ORDERS_VIEW_PREFERENCE_KEY` 并仅做 removeItem，避免老用户残留偏好继续干扰。
+- **dashboard 友好兜底**：未来若再有其他入口忘传 storeId，用户看到的是友好页面而非白屏；React hooks 调用规则下，条件 return 放在所有 useEffect/useState/useMemo 之后（902 行原主 return 之前），保证 hooks 顺序稳定。
+- **0 后端 / 0 网关 / 0 数据库改动**：仅 admin-web 单端 2 文件 3 处改动，回滚成本极低。
+
+### 验证情况
+- 服务器 `docker compose build admin-web` 构建成功（multi-arch image 已生成、Ready in 142ms）
+- `curl -sL -w 'http=%{http_code}'` 对 `/admin/product-system/orders/` 返回 **200**（76140 字节，含 `订单明细` 标题、不含 `Gateway OK`、不含 `切换到预约看板`、不含 `/orders/dashboard` 自动跳引用）
+- `curl -sL` 对 `/admin/product-system/orders/dashboard/`（不带 storeId）返回 **200**（47633 字节，不含 `Gateway OK`，友好提示由客户端 hydrate 后渲染）
+- `/admin/product-system/orders/dashboard/?storeId=1`（带 storeId）返回 **200**，正常进入看板
+- admin 容器日志 `Ready in 142ms` 无报错
+
+### 用户体验手册
+- `user_docs/manual_20260507_165932_9bbd.md`
+
+---
+
+## Previous Update: BUGFIX-UO-20260507-001｜商家端订单「预约时间」与「支付方式」与客户端不一致修复（2026-05-07 16:50）
 
 ### 一句话结论
 按 `cursor_prompt_401_20260507162039.txt` 走 develop-all 流程修复线上 P0：客户端下单后，**商家管理后台 Web、商家小程序、商家 App** 三端在订单列表 / 详情看到的「预约时间」会丢失具体时段并回退为 09:00、「支付方式」会错乱（如客户端显示「支付宝（H5）」但商家端显示「微信」）。**根因双链路**：① 商家端 list/detail 接口只返回 `OrderItem.appointment_time`（DateTime，仅含时段起点），没有返回 `appointment_data.time_slot`（"14:00-15:00" 字符串），文件中 `_format_time_slot()` 已被 calendar 系列正确使用，订单接口漏调用；② `UnifiedOrderPayRequest.payment_method` schema 默认值为 `"wechat"`，前端只传 `channel_code` 时落库变成 `payment_method=wechat / payment_channel_code=alipay_h5` 不一致状态，且支付宝异步通知幂等条件下永远跳过矫正，最终商家端列表直接吐 `uo.payment_method` 显示成「微信」，detail 完全没返回支付字段。**修复策略**：① 商家端 `merchant.py` list/detail 与 `merchant_v1.py` list 全部新增 `time_slot` / `appointment_date` / `payment_method_text` / `payment_channel_code` / `payment_display_name` 字段，list 改为复用 `_format_time_slot` + `_build_payment_method_text`；② 源头在 `_build_payment_method_text` 增加交叉校验——当 `payment_method` 与 `payment_channel_code` 反推 provider 不一致时以 channel_code 为准，使存量脏数据展示也能立即修正；③ `/api/orders/unified/{id}/pay` 端点接收 `channel_code` 后强制以 `channel.provider` 覆盖 payment_method，杜绝 schema 默认值再污染新订单；④ `alipay_notify` 把"状态推进"和"支付方式矫正"解耦，即使订单已 `pending_payment → pending_use` 状态推进过，仍然强制把 `payment_method/payment_channel_code` 矫正为 `alipay/alipay_h5` 后 commit；⑤ H5 商家端 `/merchant/orders` 列表与 `/merchant/m/orders/[id]` 详情页改为优先用 `payment_method_text` + `appointment_date + time_slot` 渲染。
