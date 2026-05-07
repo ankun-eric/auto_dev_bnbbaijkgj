@@ -436,15 +436,35 @@ async def notify_order_rescheduled(
         product_name = "您的预约服务"
         if items:
             first = items[0]
-            product_name = (
-                getattr(first, "product_name", None)
-                or (getattr(getattr(first, "product", None), "name", None) if getattr(first, "product", None) else None)
-                or "您的预约服务"
-            )
+            # [BUG-FIX-RESCHEDULE-V3 2026-05-08] 避免对 first.product 触发 lazy-load
+            # （OrderItem.product_name 已是冗余落库字段，几乎都有值，足以兜底）。
+            try:
+                _pn = getattr(first, "product_name", None)
+            except Exception:  # noqa: BLE001
+                _pn = None
+            if _pn:
+                product_name = _pn
 
-        store = getattr(order, "store", None)
-        store_name = getattr(store, "name", "") if store else ""
-        store_phone = getattr(store, "contact_phone", "") if store else ""
+        # [BUG-FIX-RESCHEDULE-V3 2026-05-08] 不再 lazy-load order.store / order.user
+        # （async session 中 lazy-load 会抛 MissingGreenlet 并污染整条 session，
+        #  导致主流程 return 阶段再次触发 _load_expired → FastAPI 兜底 500）。
+        # 改为显式 SELECT 一次：拿不到就空字符串，永不抛异常。
+        store_name = ""
+        store_phone = ""
+        try:
+            store_id = getattr(order, "store_id", None)
+            if store_id:
+                from sqlalchemy import select as _select
+                from app.models.models import MerchantStore as _MerchantStore
+                _r = await db.execute(
+                    _select(_MerchantStore).where(_MerchantStore.id == int(store_id))
+                )
+                _store_row = _r.scalar_one_or_none()
+                if _store_row is not None:
+                    store_name = getattr(_store_row, "name", "") or ""
+                    store_phone = getattr(_store_row, "contact_phone", "") or ""
+        except Exception as _se:  # noqa: BLE001
+            logger.warning("[reschedule_notify] 读取门店信息失败（已降级为空）：%s", _se)
         brand = os.getenv("NOTIFY_BRAND_NAME", "").strip()
 
         message_text = build_reschedule_message(
@@ -456,10 +476,22 @@ async def notify_order_rescheduled(
             brand=brand,
         )
 
-        user = getattr(order, "user", None)
+        # [BUG-FIX-RESCHEDULE-V3 2026-05-08] 同样不依赖 order.user lazy-load
         user_id = int(getattr(order, "user_id", 0) or 0)
-        openid = getattr(user, "wechat_openid", None) if user else None
-        phone = getattr(user, "phone", None) if user else None
+        openid = None
+        phone = None
+        user = None
+        if user_id:
+            try:
+                from sqlalchemy import select as _select_u
+                from app.models.models import User as _User
+                _ru = await db.execute(_select_u(_User).where(_User.id == user_id))
+                user = _ru.scalar_one_or_none()
+                if user is not None:
+                    openid = getattr(user, "wechat_openid", None)
+                    phone = getattr(user, "phone", None)
+            except Exception as _ue:  # noqa: BLE001
+                logger.warning("[reschedule_notify] 读取用户信息失败（已降级为空）：%s", _ue)
 
         old_text = _format_slot_text(old_appointment_time)
         new_text = _format_slot_text(new_appointment_time)

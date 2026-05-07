@@ -2054,6 +2054,12 @@ async def set_order_appointment(
             "[reschedule] set_order_appointment unhandled exception trace=%s order_id=%s err=%s",
             trace_id, order_id, exc,
         )
+        # [BUG-FIX-RESCHEDULE-V3 2026-05-08] 主体抛错时 rollback，避免 session 残留写入
+        # 在下一次请求被复用为已损坏状态。
+        try:
+            await db.rollback()
+        except Exception:  # noqa: BLE001
+            pass
         raise _reschedule_error(
             status_code=500,
             code=RESCHEDULE_INTERNAL_ERROR,
@@ -2090,9 +2096,16 @@ async def _set_order_appointment_impl(
     user_role_str = str(user_role_value or "").lower()
     is_merchant_identity = user_role_str in ("merchant", "merchant_staff", "staff", "admin")
 
+    # [BUG-FIX-RESCHEDULE-V3 2026-05-08] 必须把 store / user / items.product 一并 selectinload，
+    # 否则后续 notify_order_rescheduled / 序列化阶段在 async session 里访问关系将触发
+    # MissingGreenlet → session 被毒化 → return 时再次访问 ORM 属性又抛 → FastAPI 兜底 500。
     result = await db.execute(
         select(UnifiedOrder)
-        .options(selectinload(UnifiedOrder.items))
+        .options(
+            selectinload(UnifiedOrder.items).selectinload(OrderItem.product),
+            selectinload(UnifiedOrder.store),
+            selectinload(UnifiedOrder.user),
+        )
         .where(UnifiedOrder.id == order_id, UnifiedOrder.user_id == current_user.id)
     )
     order = result.scalar_one_or_none()
@@ -2290,6 +2303,20 @@ async def _set_order_appointment_impl(
     order.status = UnifiedOrderStatus.pending_use
     order.updated_at = datetime.utcnow()
 
+    # [BUG-FIX-RESCHEDULE-V3 2026-05-08] 把"返回字段"在 commit 前先抓成 local 变量，
+    # 避免 commit / notify 后 session expire/poison 时再 lazy-load 触发 MissingGreenlet。
+    final_reschedule_count = int(getattr(order, "reschedule_count", 0) or 0)
+    final_reschedule_limit = int(getattr(order, "reschedule_limit", 3) or 3)
+
+    # [BUG-FIX-RESCHEDULE-V3 2026-05-08] notify 前先 commit，这样即便后续 notify 因 lazy-load
+    # 失败把 session 弄坏，主流程对 orders / order_items 的写入也已落库；同时通过 expire_on_commit=False
+    # 之外的兜底——commit 后立刻刷新一份 order，确保 ORM 状态可读。
+    try:
+        await db.commit()
+    except Exception:  # noqa: BLE001
+        await db.rollback()
+        raise
+
     # [门店预约看板与改期能力升级 v1.0 · F-11] 改期成功后并行下发三通道通知
     # 仅在「真正的改期」（已存在预约时间）时触发；首次填预约日不触发改期通知
     notify_result = None
@@ -2305,6 +2332,12 @@ async def _set_order_appointment_impl(
         except Exception as _e:  # noqa: BLE001
             import logging as _l
             _l.getLogger(__name__).warning("notify_order_rescheduled 调度失败: %s", _e)
+            # [BUG-FIX-RESCHEDULE-V3] notify 内的 lazy-load / IO 异常会污染 session，
+            # 用 rollback 复位 session，保证后续序列化阶段不会再次 await_only 失败
+            try:
+                await db.rollback()
+            except Exception:  # noqa: BLE001
+                pass
     else:
         # [PRD-365 商家后台「预约看板」替换升级 v1.0]
         # 首次填预约时间（pending_appointment → pending_use）= 真正"新预约"完成，
@@ -2315,14 +2348,27 @@ async def _set_order_appointment_impl(
         except Exception as _e:  # noqa: BLE001
             import logging as _l
             _l.getLogger(__name__).warning("notify_merchant_new_appointment 调度失败: %s", _e)
+            try:
+                await db.rollback()
+            except Exception:  # noqa: BLE001
+                pass
+
+    # [BUG-FIX-RESCHEDULE-V3 2026-05-08] notify_result 可能为 None / RescheduleNotifyResult；
+    # 序列化阶段不再访问 order 上的任何 ORM 关系。
+    notify_payload = None
+    if notify_result is not None:
+        try:
+            notify_payload = notify_result.to_dict()
+        except Exception:  # noqa: BLE001
+            notify_payload = None
 
     return {
         "message": "预约已确认",
         "status": "pending_use",
         "appointment_time": data.appointment_time.isoformat(),
-        "reschedule_count": int(getattr(order, "reschedule_count", 0) or 0),
-        "reschedule_limit": int(getattr(order, "reschedule_limit", 3) or 3),
-        "notify_result": notify_result.to_dict() if notify_result else None,
+        "reschedule_count": final_reschedule_count,
+        "reschedule_limit": final_reschedule_limit,
+        "notify_result": notify_payload,
     }
 
 
