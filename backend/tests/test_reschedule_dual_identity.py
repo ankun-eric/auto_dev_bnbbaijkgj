@@ -15,6 +15,8 @@
 - T_NO_SOURCE_NO_TYPE: 既无 X-Client-Source 也无 Client-Type 顾客标识 → 403
 """
 
+from datetime import datetime, timedelta
+
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
@@ -23,6 +25,12 @@ from sqlalchemy import select
 from app.core.security import get_password_hash
 from app.models.models import User, UserRole
 from tests.conftest import test_session
+
+
+def _future_dt(days_ahead: int, hour: int = 10, minute: int = 0) -> str:
+    """返回距今 days_ahead 天后的 ISO 时间字符串，确保落在 90 天可改约范围内。"""
+    base = datetime.now().replace(hour=hour, minute=minute, second=0, microsecond=0)
+    return (base + timedelta(days=days_ahead)).strftime("%Y-%m-%dT%H:%M:%S")
 
 
 # ─────────── 共用工具 ───────────
@@ -177,7 +185,7 @@ async def test_t01_dual_identity_first_reschedule_succeeds(
     # 第 1 次：首次设置预约（不计入改约次数）
     r1 = await client.post(
         f"/api/orders/unified/{order_id}/appointment",
-        json={"appointment_time": "2030-06-15T09:00:00"},
+        json={"appointment_time": _future_dt(2, 9)},
         headers=headers,
     )
     assert r1.status_code == 200, r1.text
@@ -185,7 +193,7 @@ async def test_t01_dual_identity_first_reschedule_succeeds(
     # 第 2 次：真正的"改约"
     r2 = await client.post(
         f"/api/orders/unified/{order_id}/appointment",
-        json={"appointment_time": "2030-06-16T10:00:00"},
+        json={"appointment_time": _future_dt(3, 10)},
         headers=headers,
     )
     assert r2.status_code == 200, (
@@ -212,7 +220,7 @@ async def test_t02_dual_identity_unlimited_reschedule(
     # 首次预约
     r0 = await client.post(
         f"/api/orders/unified/{order_id}/appointment",
-        json={"appointment_time": "2030-06-15T09:00:00"},
+        json={"appointment_time": _future_dt(2, 9)},
         headers=headers,
     )
     assert r0.status_code == 200
@@ -221,7 +229,7 @@ async def test_t02_dual_identity_unlimited_reschedule(
     for i in range(6):
         r = await client.post(
             f"/api/orders/unified/{order_id}/appointment",
-            json={"appointment_time": f"2030-06-{16 + i:02d}T10:00:00"},
+            json={"appointment_time": _future_dt(3 + i, 10)},
             headers=headers,
         )
         assert r.status_code == 200, (
@@ -247,14 +255,14 @@ async def test_t03_pure_customer_keeps_original_logic(
     # 首次预约
     await client.post(
         f"/api/orders/unified/{order_id}/appointment",
-        json={"appointment_time": "2030-06-15T09:00:00"},
+        json={"appointment_time": _future_dt(2, 9)},
         headers=headers,
     )
     # 改约 3 次
     for i in range(3):
         r = await client.post(
             f"/api/orders/unified/{order_id}/appointment",
-            json={"appointment_time": f"2030-06-{16 + i:02d}T10:00:00"},
+            json={"appointment_time": _future_dt(3 + i, 10)},
             headers=headers,
         )
         assert r.status_code == 200, r.text
@@ -275,7 +283,7 @@ async def test_t05_time_expired_returns_structured_code(
     # 首次预约（合法时间）
     await client.post(
         f"/api/orders/unified/{order_id}/appointment",
-        json={"appointment_time": "2030-06-15T09:00:00"},
+        json={"appointment_time": _future_dt(2, 9)},
         headers=headers,
     )
     # 改约到一个过去的时间（2020 年）
@@ -307,7 +315,7 @@ async def test_t06_time_out_of_range_returns_structured_code(
     order_id = await _place_and_pay(client, headers, pid)
     await client.post(
         f"/api/orders/unified/{order_id}/appointment",
-        json={"appointment_time": "2030-06-15T09:00:00"},
+        json={"appointment_time": _future_dt(2, 9)},
         headers=headers,
     )
     r = await client.post(
@@ -336,21 +344,21 @@ async def test_t07_pure_customer_limit_exceeded_returns_structured_code(
     # 首次预约
     await client.post(
         f"/api/orders/unified/{order_id}/appointment",
-        json={"appointment_time": "2030-06-15T09:00:00"},
+        json={"appointment_time": _future_dt(2, 9)},
         headers=headers,
     )
     # 改约 3 次（消耗到上限）
     for i in range(3):
         r = await client.post(
             f"/api/orders/unified/{order_id}/appointment",
-            json={"appointment_time": f"2030-06-{16 + i:02d}T10:00:00"},
+            json={"appointment_time": _future_dt(3 + i, 10)},
             headers=headers,
         )
         assert r.status_code == 200, r.text
     # 第 4 次必须被拦截
     r4 = await client.post(
         f"/api/orders/unified/{order_id}/appointment",
-        json={"appointment_time": "2030-06-20T10:00:00"},
+        json={"appointment_time": _future_dt(7, 10)},
         headers=headers,
     )
     assert r4.status_code == 400
@@ -381,7 +389,7 @@ async def test_t08_cannot_reschedule_others_order(
     headers_b["X-Client-Source"] = "h5-customer"
     r = await client.post(
         f"/api/orders/unified/{order_id_a}/appointment",
-        json={"appointment_time": "2030-06-15T09:00:00"},
+        json={"appointment_time": _future_dt(2, 9)},
         headers=headers_b,
     )
     assert r.status_code in (404, 403), r.text
@@ -404,7 +412,7 @@ async def test_t_miniprogram_source_allows_dual_identity(
     order_id = await _place_and_pay(client, headers, pid)
     r0 = await client.post(
         f"/api/orders/unified/{order_id}/appointment",
-        json={"appointment_time": "2030-06-15T09:00:00"},
+        json={"appointment_time": _future_dt(2, 9)},
         headers=headers,
     )
     assert r0.status_code == 200, r0.text
@@ -423,7 +431,7 @@ async def test_t_flutter_source_allows_dual_identity(
     order_id = await _place_and_pay(client, headers, pid)
     r0 = await client.post(
         f"/api/orders/unified/{order_id}/appointment",
-        json={"appointment_time": "2030-06-15T09:00:00"},
+        json={"appointment_time": _future_dt(2, 9)},
         headers=headers,
     )
     assert r0.status_code == 200, r0.text
@@ -444,7 +452,7 @@ async def test_t_no_customer_source_rejected(client: AsyncClient, admin_headers)
     bad_headers = _no_customer_headers(token)
     r = await client.post(
         f"/api/orders/unified/{order_id}/appointment",
-        json={"appointment_time": "2030-06-15T09:00:00"},
+        json={"appointment_time": _future_dt(2, 9)},
         headers=bad_headers,
     )
     assert r.status_code == 403, r.text
@@ -466,13 +474,19 @@ async def test_t09_all_errors_are_structured(
     headers["X-Client-Source"] = "h5-customer"
     order_id = await _place_and_pay(client, headers, pid)
 
-    # 触发"过期时间"错误
+    # 先建立首次预约，使后续校验进入"改约"分支
+    await client.post(
+        f"/api/orders/unified/{order_id}/appointment",
+        json={"appointment_time": _future_dt(2, 9)},
+        headers=headers,
+    )
+    # 改约到一个过去时间，触发结构化错误
     r = await client.post(
         f"/api/orders/unified/{order_id}/appointment",
         json={"appointment_time": "2020-01-01T10:00:00"},
         headers=headers,
     )
-    assert r.status_code >= 400
+    assert r.status_code >= 400, r.text
     body = r.json()
     detail = body.get("detail")
     assert isinstance(detail, dict), f"detail 必须是 dict 结构，实际: {body}"
