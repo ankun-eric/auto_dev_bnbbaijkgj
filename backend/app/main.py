@@ -53,6 +53,7 @@ from app.api import (
     health_profile,
     home_config,
     knowledge,
+    login_ui_config,
     maps,
     member_qr,
     messages,
@@ -1048,6 +1049,8 @@ app.include_router(users.router)
 app.include_router(video_consult_config.router)
 app.include_router(feedback.router)
 app.include_router(app_settings.router)
+# [2026-05-07 PRD-370 H5 登录页设计稿对齐] 远程开关：登录 UI 版本（v1 旧版 / v2 新版）
+app.include_router(login_ui_config.router)
 app.include_router(user_health_profile.router)
 # [2026-05-01 门店地图能力 PRD v1.0] 地图代理（逆地理编码/POI 搜索/静态地图）
 app.include_router(maps.router)

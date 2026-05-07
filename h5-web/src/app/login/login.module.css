@@ -1,0 +1,385 @@
+/* PRD-370 H5 登录页设计稿对齐 - BUG-FIX-LOGIN-DESIGN-ALIGN-V1
+ * 上绿下白分屏卡片式布局
+ * 主色 #34C759（iOS 标准绿）+ 三段渐变按钮（#4AD97A → #34C759 → #2BD4C4）
+ */
+
+.page {
+  --brand-primary: #34C759;
+  --brand-primary-light: #4AD97A;
+  --brand-primary-cyan: #2BD4C4;
+  --text-primary: #1F2937;
+  --text-secondary: #6B7280;
+  --text-tertiary: #9CA3AF;
+  --bg-input: #F3F4F6;
+  --bg-card: #FFFFFF;
+  --border-default: #D1D5DB;
+
+  min-height: 100vh;
+  background: linear-gradient(180deg, #4AD97A 0%, #34C759 100%);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow-x: hidden;
+  padding-top: env(safe-area-inset-top);
+}
+
+/* 上半绿色品牌区 */
+.topBrand {
+  flex: 0 0 auto;
+  min-height: 38vh;
+  padding: calc(env(safe-area-inset-top) + 56px) 32px 80px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  background: linear-gradient(180deg, #4AD97A 0%, #34C759 100%);
+}
+
+.logoCircle {
+  width: 92px;
+  height: 92px;
+  border-radius: 50%;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  margin-bottom: 20px;
+  overflow: hidden;
+}
+
+.logoImg {
+  width: 76px;
+  height: 76px;
+  object-fit: contain;
+  border-radius: 50%;
+}
+
+.logoFallback {
+  font-size: 40px;
+}
+
+.brandTitle {
+  color: #ffffff;
+  font-size: 32px;
+  font-weight: 700;
+  margin: 0 0 10px;
+  letter-spacing: 1px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.brandSubtitle {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 14px;
+  margin: 0;
+  letter-spacing: 0.4px;
+}
+
+/* 白色卡片区 */
+.cardWrap {
+  margin-top: -28px;
+  flex: 1 1 auto;
+  background: #ffffff;
+  border-radius: 24px 24px 0 0;
+  padding: 32px 24px calc(env(safe-area-inset-bottom) + 32px);
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.inputBox {
+  display: flex;
+  align-items: center;
+  background: var(--bg-input);
+  border-radius: 14px;
+  height: 52px;
+  padding: 0 16px;
+  transition: background 0.2s, border 0.2s, box-shadow 0.2s;
+  border: 2px solid transparent;
+  box-sizing: border-box;
+}
+
+.inputBox:focus-within {
+  background: #ffffff;
+  border: 2px solid var(--brand-primary);
+  box-shadow: 0 0 0 4px rgba(52, 199, 89, 0.12);
+}
+
+.inputBox input,
+.inputBox :global(.adm-input) {
+  --color: var(--text-primary);
+  --placeholder-color: var(--text-tertiary);
+  --font-size: 16px;
+  flex: 1;
+  border: none;
+  background: transparent;
+  outline: none;
+  height: 100%;
+}
+
+.phonePrefix {
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-primary);
+  font-size: 16px;
+  font-weight: 500;
+  padding-right: 12px;
+}
+
+.divider {
+  width: 1px;
+  height: 20px;
+  background: #E5E7EB;
+  margin-right: 12px;
+}
+
+.codeBtn {
+  flex: 0 0 auto;
+  border: none;
+  background: transparent;
+  color: var(--brand-primary);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 0 0 0 12px;
+  white-space: nowrap;
+  word-break: keep-all;
+  cursor: pointer;
+}
+
+.codeBtn:disabled {
+  color: var(--text-tertiary);
+  cursor: not-allowed;
+}
+
+.referrerHint {
+  font-size: 12px;
+  color: var(--brand-primary);
+  margin: 0;
+  padding: 0 4px;
+}
+
+/* 三段渐变登录按钮 */
+.submitBtn {
+  width: 100%;
+  height: 56px;
+  background: linear-gradient(135deg, #4AD97A 0%, #34C759 50%, #2BD4C4 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: 28px;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  margin-top: 12px;
+  box-shadow: 0 8px 24px rgba(52, 199, 89, 0.32);
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.1s;
+}
+
+.submitBtn:active {
+  transform: scale(0.98);
+}
+
+.submitBtnDisabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.agreementRow {
+  display: flex;
+  align-items: flex-start;
+  margin-top: 16px;
+  gap: 8px;
+  padding: 0 4px;
+}
+
+.checkbox {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  border: 1.5px solid var(--border-default);
+  border-radius: 4px;
+  background: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.checkboxChecked {
+  background: var(--brand-primary);
+  border-color: var(--brand-primary);
+}
+
+.checkMark {
+  color: #ffffff;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.agreementText {
+  flex: 1;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+.agreementLink {
+  color: var(--brand-primary);
+  cursor: pointer;
+}
+
+/* 居中确认弹窗 */
+.dialogMask {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 24px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.dialogCard {
+  width: 100%;
+  max-width: 320px;
+  background: #ffffff;
+  border-radius: 16px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.dialogTitle {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-align: center;
+  padding: 24px 24px 12px;
+}
+
+.dialogBody {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  padding: 0 24px 24px;
+  text-align: center;
+}
+
+.dialogActions {
+  display: flex;
+  border-top: 1px solid #F3F4F6;
+}
+
+.dialogBtn {
+  flex: 1;
+  height: 50px;
+  border: none;
+  background: #ffffff;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.dialogBtnReject {
+  color: var(--text-secondary);
+  border-right: 1px solid #F3F4F6;
+}
+
+.dialogBtnAgree {
+  color: var(--brand-primary);
+  font-weight: 600;
+}
+
+.dialogBtn:active {
+  background: #F9FAFB;
+}
+
+/* 半屏抽屉 */
+.drawerMask {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1100;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.drawer {
+  background: #ffffff;
+  border-radius: 16px 16px 0 0;
+  height: 80vh;
+  display: flex;
+  flex-direction: column;
+  animation: slideUp 0.25s ease-out;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.drawerHandle {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 0 4px;
+  cursor: grab;
+}
+
+.drawerHandleBar {
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: #E5E7EB;
+}
+
+.drawerHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px 12px;
+  border-bottom: 1px solid #F3F4F6;
+}
+
+.drawerTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.drawerCloseBtn {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary);
+  font-size: 22px;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.drawerBody {
+  flex: 1;
+  overflow: hidden;
+  background: #fafafa;
+}
+
+.drawerIframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: #ffffff;
+}

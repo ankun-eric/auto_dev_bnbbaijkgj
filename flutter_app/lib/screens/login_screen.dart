@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:fluttertoast/fluttertoast.dart';
@@ -117,30 +117,35 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  /// 协议二次确认弹窗：未勾选协议时弹出，[再看看] / [同意并登录]
+  /// PRD-370：协议二次确认弹窗（设计稿对齐版）
+  /// 标题：服务协议及隐私保护
+  /// 双按钮：不同意 / 同意（同意后自动勾选 + 立即发起登录）
   Future<bool> _showAgreementConfirmDialog() async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text(
-          '为保障您的权益，请阅读并同意以下协议',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          '服务协议及隐私保护',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: Color(0xFF1F2937)),
         ),
         content: const Text(
-          '您需要阅读并同意《用户服务协议》和《隐私政策》后才能继续登录。',
-          style: TextStyle(fontSize: 14, height: 1.6, color: Color(0xFF555555)),
+          '请您阅读并同意《用户服务协议》和《隐私政策》后才能继续登录。',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 14, height: 1.7, color: Color(0xFF6B7280)),
         ),
+        actionsAlignment: MainAxisAlignment.spaceEvenly,
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('再看看', style: TextStyle(color: Color(0xFF999999))),
+            child: const Text('不同意', style: TextStyle(color: Color(0xFF6B7280))),
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
             child: const Text(
-              '同意并登录',
-              style: TextStyle(color: Color(0xFF2FB56A), fontWeight: FontWeight.w600),
+              '同意',
+              style: TextStyle(color: Color(0xFF34C759), fontWeight: FontWeight.w600),
             ),
           ),
         ],
@@ -203,7 +208,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [Color(0xFF2FB56A), Color(0xFF5CD692)],
+                    colors: [Color(0xFF4AD97A), Color(0xFF34C759)],
                   ),
                 ),
                 padding: const EdgeInsets.fromLTRB(32, 0, 32, 56),
@@ -316,7 +321,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 maxLength: 6,
                                 decoration: const InputDecoration(
                                   hintText: '请输入验证码',
-                                  prefixIcon: Icon(Icons.lock_outline, color: Color(0xFF2FB56A)),
+                                  prefixIcon: Icon(Icons.lock_outline, color: Color(0xFF34C759)),
                                   border: InputBorder.none,
                                   counterText: '',
                                   contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
@@ -333,7 +338,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   softWrap: false,
                                   overflow: TextOverflow.visible,
                                   style: TextStyle(
-                                    color: _countdown > 0 ? Colors.grey : const Color(0xFF2FB56A),
+                                    color: _countdown > 0 ? Colors.grey : const Color(0xFF34C759),
                                     fontSize: 14,
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -353,14 +358,15 @@ class _LoginScreenState extends State<LoginScreen> {
                             gradient: const LinearGradient(
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
-                              colors: [Color(0xFF2FB56A), Color(0xFF5CD692)],
+                              colors: [Color(0xFF4AD97A), Color(0xFF34C759), Color(0xFF2BD4C4)],
+                              stops: [0.0, 0.5, 1.0],
                             ),
-                            borderRadius: BorderRadius.circular(24),
+                            borderRadius: BorderRadius.circular(28),
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFF2FB56A).withOpacity(0.32),
-                                blurRadius: 16,
-                                offset: const Offset(0, 6),
+                                color: const Color(0xFF34C759).withOpacity(0.32),
+                                blurRadius: 24,
+                                offset: const Offset(0, 8),
                               ),
                             ],
                           ),
@@ -370,7 +376,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               backgroundColor: Colors.transparent,
                               shadowColor: Colors.transparent,
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(24),
+                                borderRadius: BorderRadius.circular(28),
                               ),
                             ),
                             child: authProvider.isLoading
@@ -407,9 +413,9 @@ class _LoginScreenState extends State<LoginScreen> {
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
                                 border: Border.all(
-                                  color: _agreeTerms ? const Color(0xFF2FB56A) : Colors.grey[400]!,
+                                  color: _agreeTerms ? const Color(0xFF34C759) : Colors.grey[400]!,
                                 ),
-                                color: _agreeTerms ? const Color(0xFF2FB56A) : Colors.transparent,
+                                color: _agreeTerms ? const Color(0xFF34C759) : Colors.transparent,
                               ),
                               child: _agreeTerms
                                   ? const Icon(Icons.check, size: 12, color: Colors.white)
@@ -425,12 +431,12 @@ class _LoginScreenState extends State<LoginScreen> {
                                   TextSpan(text: '我已阅读并同意'),
                                   TextSpan(
                                     text: '《用户服务协议》',
-                                    style: TextStyle(color: Color(0xFF2FB56A)),
+                                    style: TextStyle(color: Color(0xFF34C759)),
                                   ),
                                   TextSpan(text: '和'),
                                   TextSpan(
                                     text: '《隐私政策》',
-                                    style: TextStyle(color: Color(0xFF2FB56A)),
+                                    style: TextStyle(color: Color(0xFF34C759)),
                                   ),
                                 ],
                               ),
@@ -442,7 +448,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         const SizedBox(height: 12),
                         Text(
                           '🎉 已识别邀请码：${widget.referrerNo}',
-                          style: const TextStyle(fontSize: 12, color: Color(0xFF2FB56A)),
+                          style: const TextStyle(fontSize: 12, color: Color(0xFF34C759)),
                         ),
                       ],
                     ],
@@ -482,7 +488,7 @@ class _LoginScreenState extends State<LoginScreen> {
       height: size,
       decoration: const BoxDecoration(
         gradient: LinearGradient(
-          colors: [Color(0xFF2FB56A), Color(0xFF5CD692)],
+          colors: [Color(0xFF34C759), Color(0xFF4AD97A)],
         ),
         shape: BoxShape.circle,
       ),

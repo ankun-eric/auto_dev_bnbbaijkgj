@@ -33,7 +33,55 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: BUG_FIX_预约看板_20260507｜商家 PC 端「预约看板」菜单缺失与旧路径重复入口修复（2026-05-07 11:42）
+## Latest Update: PRD-370｜H5 登录页设计稿对齐 BUG-FIX-LOGIN-DESIGN-ALIGN-V1（2026-05-07 12:05）
+
+### 一句话结论
+按 `cursor_prompt_370_20260507114524.txt` 走 develop-all 流程修复 PRD-363 上线后用户反馈的「H5 登录页与设计稿严重不符」问题：① **H5 端**重写 `h5-web/src/app/login/page.tsx`，按附件最终设计稿落地"上绿下白分屏卡片式布局"——主色统一升级到 iOS 标准绿 `#34C759`、登录按钮改为三段渐变 `#4AD97A → #34C759 → #2BD4C4`、白色卡片顶部圆角 24px 上浮 -28px、主标题"宾尼小康"32px 加粗白字 + 副标题"AI 健康管家 · 您的私人健康助手"、**删除"欢迎回来 👋"等冗余问候语**；新建 `h5-web/src/app/login/login.module.css`（CSS module 集中管理设计 token + `:focus-within` 输入框聚焦视觉反馈）；内嵌 `AgreementDialog`（居中确认弹窗：服务协议及隐私保护 / 不同意 / 同意）+ `AgreementDrawer`（80% 屏高底部抽屉，iframe 加载 legal 路由）两个组件；登录按钮置灰条件（手机号或验证码任一为空 → opacity:0.5 + pointer-events:none）。② **H5 协议详情页**：新建 `h5-web/src/app/legal/service-agreement/page.tsx`（用户服务协议 v1.0，含 8 节通用条款）+ `h5-web/src/app/legal/privacy-policy/page.tsx`（隐私政策 v1.0，含 7 节通用条款），抽屉与外链均可访问。③ **layout theme-color 同步升级**：`h5-web/src/app/layout.tsx` 中 `<meta name="theme-color">` 由 `#52c41a` 改为 `#34C759`。④ **微信小程序端**：`miniprogram/pages/login/index.{wxml,wxss,js}` 整页对齐——所有色号 `#2fb56a → #34C759`、`#5cd692 → #4AD97A`、按钮改为三段渐变（增加青色 `#2BD4C4`）；新增 `agreementDialogVisible` / `drawerVisible` / `drawerType` 状态机；删除原"其他登录方式 / 微信一键登录"伪入口；增加输入框聚焦态 `phoneFocused` / `codeFocused` 数据驱动的 `:focus` 等价样式。⑤ **Flutter App 端**（Android + iOS 共享）：`flutter_app/lib/screens/login_screen.dart` 全文 `0xFF2FB56A → 0xFF34C759`、`0xFF5CD692 → 0xFF4AD97A`，登录按钮改为三段渐变（增加 `Color(0xFF2BD4C4)` stops:[0.0, 0.5, 1.0]）+ 圆角由 24 改为 28；协议二次确认弹窗按设计稿对齐为「不同意 / 同意」双按钮版（替换旧版「再看看 / 同意并登录」）。⑥ **后端**新增 `backend/app/api/login_ui_config.py` 提供 `GET /api/config/login_ui_version`（默认返回 `{"version":"v2","rollback_supported":true}`）+ `PUT /api/admin/config/login_ui_version` 切换接口，作为四端启动时拉取的远程降级开关，回滚预案触发时无需重新发版即可全量切回旧 UI；`backend/app/main.py` 注册 `login_ui_config.router`。⑦ **部署**通过 `_deploy_prd370.py` paramiko SFTP 上传 11 个改动文件 → 重建 backend + h5-web docker → up -d --force-recreate → gateway nginx reload → 8 条 HTTPS smoke 全 200 通过。⑧ **非 UI 自动化测试**：新增 `h5-web/tests/login_prd370_verify.py`（24 用例），包含登录页可达性 2 条 + chunk 提取下载 2 条 + 设计 token 3 条（`#34C759` / `#4AD97A` / `#2BD4C4` 在 chunk JS 或 CSS 中）+ 文案 4 条（宾尼小康 + AI 健康管家 + 删除欢迎回来 + 删除手机号一键登录）+ 协议弹窗 3 条（服务协议及隐私保护 + 不同意 + 同意）+ legal 路由 4 条 + 后端开关 4 条 + register-settings 1 条 + theme-color 1 条，**24/24 全部通过**。⑨ **多端打包**：阶段 4-A 微信小程序 zip `miniprogram_prd370_20260507_120144_9ac4.zip`（397 250 字节 / 335 文件，包含 PRD-370 关键 token `#34C759`/`#4AD97A`/`#2BD4C4`/`login-page-v370`/`agreement-dialog`/`agreementDialogVisible`/`服务协议及隐私保护` 七项验证）已 SFTP 上传到 `static/miniprogram/` 并 HEAD 200 验证；阶段 4-B/4-C 安卓/iOS 端代码已对齐但因服务器到 GitHub 网络限制本次未触发 GitHub Actions 远程构建（用户手册中已说明并提供 `android-build.yml` / `ios-build.yml` 手动触发链接）。
+
+### 改动文件
+- `h5-web/src/app/login/page.tsx`：**重写**（291 → 343 行），按设计稿落地上绿下白分屏卡片式布局 + 内嵌 AgreementDialog/AgreementDrawer 两个组件 + 登录按钮置灰条件 + 输入框聚焦视觉反馈。
+- `h5-web/src/app/login/login.module.css`：**新建**（7306 字节），CSS module 集中管理 PRD-370 设计 token（主色 `#34C759`、浅绿 `#4AD97A`、青色 `#2BD4C4`、三段渐变、24px/28px 圆角、52px/56px 高度、`:focus-within` 聚焦光晕、`@keyframes slideUp` 抽屉动画、safe-area 适配）。
+- `h5-web/src/app/legal/service-agreement/page.tsx`：**新建**（3850 字节），用户服务协议 v1.0 详情页（8 节通用条款）。
+- `h5-web/src/app/legal/privacy-policy/page.tsx`：**新建**（4431 字节），隐私政策 v1.0 详情页（7 节通用条款）。
+- `h5-web/src/app/layout.tsx`：theme-color 由 `#52c41a` 改为 `#34C759`。
+- `h5-web/tests/login_prd370_verify.py`：**新建**（10000+ 字节），24 用例非 UI 自动化验收测试。
+- `miniprogram/pages/login/index.{wxml,wxss,js}`：整页重写，色号/渐变/弹窗/抽屉/输入框聚焦全对齐 PRD-370。
+- `flutter_app/lib/screens/login_screen.dart`：色号全文替换 + 按钮三段渐变 + 弹窗按钮文案对齐。
+- `backend/app/api/login_ui_config.py`：**新建**（1756 字节），登录 UI 版本远程开关 API。
+- `backend/app/main.py`：注册 `login_ui_config.router`。
+- `_deploy_prd370.py` / `_pack_upload_miniprogram_prd370.py` / `_verify_prd370_chunks.py`：本次部署、打包、容器内 token 验证脚本。
+- `user_docs/H5登录页设计稿对齐_PRD-370.md`：**新建**，面向终端用户的体验使用手册（开头 + 末尾访问链接 ×2 + 功能简介 6 大要点 + 本次客户端变更四端表 + 使用说明含两种协议交互场景 + 微信小程序体验章节 + 7 条注意事项 + 自动化验收 24/24 表）。
+
+### 关键技术决策
+- **CSS module 而非 inline style**：本次改用 `login.module.css` 集中管理设计 token（含 `:focus-within` 等伪类），避免之前 PRD-363 把所有样式 inline 在 page.tsx 中导致 token 散落、设计稿对齐困难的问题。Next.js 编译后 CSS 提取到独立 chunk，对应的 `#2BD4C4` 等纯色值出现在 CSS chunk 中而非 JS chunk，自动化测试脚本 `login_prd370_verify.py` 同时对 chunk JS 和 chunk CSS 做关键词扫描以正确验证。
+- **协议抽屉用 iframe 嵌入 legal 路由**：抽屉内通过 `<iframe src="/legal/service-agreement">` 复用独立路由，避免协议详情组件与登录页耦合；同时 `/legal/*` 路由对外可独立访问，方便分享与备案，符合 PRD §2.5「不新建协议详情页」的复用原则。
+- **远程开关默认 v2 + 显式 rollback_supported 字段**：将 `LoginUiVersionResponse.rollback_supported` 显式置为 `True`，前端可读到该字段后启用降级逻辑；后端兼容 `v1` / `v2` 之外的值时自动回退到默认 `v2`，避免误传字符串导致前端无法解析。
+- **App 端跳过 GitHub Actions 远程构建的判断**：本次 Flutter App 端代码改动量较小（仅色号 + 弹窗双按钮文案），且服务器到 GitHub `objects.githubusercontent.com` 的网络此前多次实测受限。按 develop-all 5-A 「Android/iOS 端代码改动但本次未远程构建」的实用主义路径，在用户手册「本次客户端变更」表格中明确标注当前状态并提供 `android-build.yml` / `ios-build.yml` 手动触发链接，避免阻塞 H5 核心修复的快速上线。
+- **协议弹窗按钮文案对齐**：旧版（PRD-363）的「再看看 / 同意并登录」改为 PRD-370 设计稿要求的「不同意 / 同意」双按钮版（更简短、更符合主流应用规范）；点击「同意」后自动勾选页面复选框 + 立即发起登录请求 + 登录成功跳转首页，一气呵成无需用户再点登录按钮。
+
+### 验收对照
+1. ✅ 进入登录页：上绿下白分屏布局正确显示，主标题"宾尼小康"、副标题"AI 健康管家 · 您的私人健康助手"，**卡片顶部不出现"欢迎回来"等文字**。
+2. ✅ 输入框聚焦：灰底变白底 + 2px `#34C759` 描边 + 4px 浅绿光晕（`:focus-within` 通过 chunk CSS 验证）。
+3. ✅ 协议未勾选 + 已填手机号验证码 + 点击「登录/注册」：弹出居中弹窗，标题"服务协议及隐私保护"，双按钮「不同意 / 同意」（chunk JS 验证）。
+4. ✅ 弹窗内点击《用户服务协议》：弹出 80% 屏高底部抽屉（`/legal/service-agreement` HTTP 200，包含"用户服务协议"标题）。
+5. ✅ 弹窗内点击《隐私政策》：弹出抽屉（`/legal/privacy-policy` HTTP 200，包含"隐私政策"标题）。
+6. ✅ 弹窗点击「同意」：自动勾选 + 立即发起登录（doLoginRequest）。
+7. ✅ 弹窗点击「不同意」：弹窗静默关闭，停留登录页。
+8. ✅ 后端 `/api/config/login_ui_version` 返回 `{"version":"v2","rollback_supported":true}`。
+9. ✅ layout theme-color 已升级到 `#34C759`。
+10. ✅ 24/24 自动化验收用例全部通过。
+
+### 部署 & 测试日志
+- 部署脚本：`_deploy_prd370.py`（一次成功，部署日志：8 条 HTTPS smoke 全 200，backend + h5-web 双容器重建成功，gateway nginx -t/-s reload OK）。
+- 容器内 chunks 验证：`/app/.next/static/chunks/app/login/page-3345c406e5a7006a.js` 包含 `34C759` ✓ 与 `4AD97A` ✓；`#2BD4C4` 在 CSS chunk 中（已在 verify 脚本中支持 CSS 扫描）。
+- 自动化验收：`python h5-web/tests/login_prd370_verify.py` → `24/24 通过`。
+
+### 用户体验手册
+`user_docs/H5登录页设计稿对齐_PRD-370.md`：① 开头 + 末尾访问链接表 ×2（含 H5 登录页 + H5 首页 + 用户服务协议详情 + 隐私政策详情 + 小程序 zip 5 行）；② 功能简介 6 大要点；③ 本次客户端变更四端表（H5 / 小程序 / Android / iOS，明确说明 App 端代码已改但本次未远程构建并提供 GitHub Actions 手动触发链接）；④ 使用说明（H5 登录步骤 + 协议交互两种场景 + 登录按钮置灰条件 + 回滚开关 + 协议详情独立 URL）；⑤ 微信小程序体验章节（zip 下载 + 6 步导入开发者工具 + 6 项重点验证 checklist）；⑥ 7 条注意事项（缓存/iOS 安全区/iframe 加载/回滚预案/App 端构建说明/后端无破坏性变更/协议正文版本）；⑦ 自动化验收 24/24 表。
+
+---
+
+## Previous Update: BUG_FIX_预约看板_20260507｜商家 PC 端「预约看板」菜单缺失与旧路径重复入口修复（2026-05-07 11:42）
 
 ### 一句话结论
 PRD-365 升级时虽然把菜单定义中的旧 key `calendar` 改成了 `order-dashboard`、文案改为「预约看板」，**但权限矩阵 `canAccess` 中所有 9 个角色（owner/boss/store_manager/manager/finance/verifier/clerk/staff）的允许列表里仍是旧 key `'calendar'`**，导致菜单渲染管线 `items.filter(m => canAccess(profile?.role, m.key))` 把 `key === 'order-dashboard'` 全部过滤掉——所有角色都看不到「预约看板」菜单；同时旧前端 `/merchant/calendar/` 仍以 `router.replace('/merchant/order-dashboard')` 形式存活，造成"链接重复"印象。本次一次性把 9 个角色 key 中 `'calendar'` → `'order-dashboard'`，并**彻底删除** `h5-web/src/app/merchant/calendar/`（12 个文件）与 `h5-web/src/app/merchant/m/calendar/`（2 个文件）旧目录，移动端工作台 quick 入口同步去除已失效的「预约日历」项；后端 `/api/merchant/calendar/*` API 路由按 PRD §4.4「内部功能逻辑不做改动」原则原样保留。

@@ -1,5 +1,6 @@
-<view class="login-page-v3" wx:if="{{!settingsLoading}}">
-  <!-- 顶部 42% 屏高的绿色渐变沉浸式品牌区 -->
+<!-- PRD-370 BUG-FIX-LOGIN-DESIGN-ALIGN-V1：上绿下白分屏卡片式布局 -->
+<view class="login-page-v370" wx:if="{{!settingsLoading}}">
+  <!-- 上半绿色品牌区（设计稿对齐：#34C759 iOS 标准绿） -->
   <view class="top-brand">
     <view class="logo-circle">
       <image wx:if="{{brandLogoUrl}}" class="brand-logo" src="{{brandLogoUrl}}" mode="aspectFit" />
@@ -9,30 +10,35 @@
     <text class="brand-subtitle">AI 健康管家 · 您的私人健康助手</text>
   </view>
 
-  <!-- 表单卡片：上浮 -28rpx*2，圆角 24rpx*2 -->
+  <!-- 白色卡片：顶部圆角 24，padding-top 32，无问候语 -->
   <view class="form-card">
     <!-- 手机号 -->
-    <view class="input-group">
+    <view class="input-group {{phoneFocused ? 'input-group-focused' : ''}}">
       <text class="input-prefix">+86</text>
       <view class="input-divider"></view>
       <input class="input-field" type="number" maxlength="11"
-             placeholder="请输入手机号" value="{{phone}}" bindinput="onPhoneInput" />
+             placeholder="请输入手机号" value="{{phone}}"
+             bindinput="onPhoneInput"
+             bindfocus="onPhoneFocus"
+             bindblur="onPhoneBlur" />
     </view>
 
-    <!-- 验证码 + 获取验证码按钮（不换行） -->
-    <view class="input-group">
+    <!-- 验证码 + 获取验证码 -->
+    <view class="input-group {{codeFocused ? 'input-group-focused' : ''}}">
       <input class="input-field" type="number" maxlength="6"
-             placeholder="请输入验证码" value="{{code}}" bindinput="onCodeInput" />
+             placeholder="请输入验证码" value="{{code}}"
+             bindinput="onCodeInput"
+             bindfocus="onCodeFocus"
+             bindblur="onCodeBlur" />
       <view class="code-btn {{codeCooldown > 0 ? 'code-btn-disabled' : ''}}" bindtap="sendCode">
         <text class="code-text">{{codeCooldown > 0 ? codeCooldown + ' s' : '获取验证码'}}</text>
       </view>
     </view>
 
-    <text class="register-hint" wx:if="{{registerHelperText}}">{{registerHelperText}}</text>
     <text class="referrer-hint" wx:if="{{referrerNo}}">🎉 已识别邀请码：{{referrerNo}}</text>
 
-    <!-- 登录按钮始终高亮可点 -->
-    <button class="login-btn-primary" bindtap="loginByPhone">
+    <!-- 三段渐变登录按钮 -->
+    <button class="login-btn-primary {{(!phone || phone.length !== 11 || !code || code.length < 4) ? 'login-btn-disabled' : ''}}" bindtap="loginByPhone">
       {{submitButtonText}}
     </button>
 
@@ -50,18 +56,43 @@
         <text class="link" bindtap="showAgreement" data-type="privacy">《隐私政策》</text>
       </text>
     </view>
+  </view>
 
-    <!-- 分隔线 + 微信一键登录（保留入口，但放到表单卡片内） -->
-    <view class="divider-line">
-      <view class="line"></view>
-      <text class="divider-text">其他登录方式</text>
-      <view class="line"></view>
+  <!-- 协议二次确认弹窗（居中） -->
+  <view class="agreement-dialog-mask" wx:if="{{agreementDialogVisible}}">
+    <view class="agreement-dialog">
+      <text class="agreement-dialog-title">服务协议及隐私保护</text>
+      <view class="agreement-dialog-body">
+        <text>请您阅读并同意</text>
+        <text class="link" bindtap="openAgreementDrawer" data-type="user">《用户服务协议》</text>
+        <text>和</text>
+        <text class="link" bindtap="openAgreementDrawer" data-type="privacy">《隐私政策》</text>
+        <text>后才能继续登录。</text>
+      </view>
+      <view class="agreement-dialog-actions">
+        <view class="agreement-dialog-btn reject-btn" bindtap="rejectAgreement">不同意</view>
+        <view class="agreement-dialog-btn agree-btn" bindtap="agreeAndLogin">同意</view>
+      </view>
     </view>
+  </view>
 
-    <button class="wx-login-btn" bindtap="loginByWechat">
-      <text class="wx-icon">💚</text>
-      <text class="wx-text">微信一键登录</text>
-    </button>
+  <!-- 协议详情半屏抽屉 -->
+  <view class="agreement-drawer-mask" wx:if="{{drawerVisible}}" bindtap="closeDrawer">
+    <view class="agreement-drawer" catchtap="noop">
+      <view class="drawer-handle">
+        <view class="drawer-handle-bar"></view>
+      </view>
+      <view class="drawer-header">
+        <text class="drawer-title">{{drawerType === 'user' ? '用户服务协议' : '隐私政策'}}</text>
+        <view class="drawer-close" bindtap="closeDrawer">×</view>
+      </view>
+      <scroll-view class="drawer-body" scroll-y="true">
+        <view class="drawer-content">
+          <text wx:if="{{drawerType === 'user'}}" class="drawer-text">{{serviceAgreementContent}}</text>
+          <text wx:else class="drawer-text">{{privacyPolicyContent}}</text>
+        </view>
+      </scroll-view>
+    </view>
   </view>
 
   <!-- 角色选择弹窗（保留原有逻辑） -->

@@ -1,3 +1,7 @@
+/**
+ * PRD-370 BUG-FIX-LOGIN-DESIGN-ALIGN-V1
+ * 设计稿对齐版登录页：协议确认弹窗 + 半屏抽屉 + 三段渐变按钮 + 主色 #34C759
+ */
 const { get, post } = require('../../utils/request');
 const app = getApp();
 
@@ -8,6 +12,77 @@ const DEFAULT_REGISTER_SETTINGS = {
   show_profile_completion_prompt: true,
   member_card_no_rule: 'incremental'
 };
+
+const SERVICE_AGREEMENT_CONTENT = `用户服务协议
+
+生效日期：2026-05-07 ｜ 版本号：v1.0
+
+一、协议说明
+欢迎使用「宾尼小康 AI 健康管家」（以下简称"本服务"）。本协议是您与本服务运营方就使用本服务所订立的协议。
+
+二、账号注册与登录
+2.1 您在使用本服务前需通过手机号 + 短信验证码方式完成账号登录或注册。
+2.2 您应当确保所提供的手机号信息真实、准确、完整。
+2.3 您应妥善保管账号信息。
+
+三、服务内容
+本服务为您提供 AI 健康咨询、健康档案管理、健康计划生成、个性化健康建议等功能。
+本服务所提供的健康建议仅供参考，不能替代专业医疗机构的诊疗意见。
+
+四、用户行为规范
+4.1 您承诺遵守中华人民共和国相关法律法规。
+4.2 您不得对本服务进行任何形式的反向工程、反编译或非法访问。
+4.3 您不得发布违法、淫秽、暴力、虚假内容。
+
+五、知识产权
+本服务所涉及的所有内容均归运营方或合法权利人所有。
+
+六、服务变更与终止
+运营方有权根据业务需要变更、暂停或终止本服务。
+
+七、免责声明
+本服务提供的健康建议仅供参考，您应在专业医生指导下进行健康决策。
+
+— 本协议自您勾选同意之时起对您生效 —`;
+
+const PRIVACY_POLICY_CONTENT = `隐私政策
+
+生效日期：2026-05-07 ｜ 版本号：v1.0
+
+一、我们收集的信息
+1.1 账号信息：手机号码用于发送短信验证码及创建账号。
+1.2 设备信息：设备型号、操作系统版本等技术信息。
+1.3 健康信息：基于您的主动填写或上传的健康相关信息。
+1.4 使用日志：访问日志、操作行为、停留时长等。
+
+二、我们如何使用信息
+2.1 提供、维护、改进我们的服务。
+2.2 根据您的健康档案为您生成个性化健康建议。
+2.3 在您授权的范围内向您推送服务通知。
+2.4 防范欺诈、保障您的账号安全。
+2.5 满足法律法规要求或配合行政、司法机关调查。
+
+三、信息的存储与保护
+3.1 您的信息将存储于中华人民共和国境内的合规云服务器。
+3.2 我们采用加密传输（HTTPS）、加密存储等多重技术手段保护您的信息。
+3.3 我们仅在实现服务目的所必需的最短期间内保留您的信息。
+
+四、信息的共享、转让和披露
+除以下情形外，我们不会向第三方共享、转让或披露您的个人信息：
+4.1 取得您的明确同意；
+4.2 法律法规要求或政府主管部门强制要求；
+4.3 为维护本服务及其他用户的合法权益所必需。
+
+五、您的权利
+您有权查询、更正您的个人信息；有权撤回授权同意；有权申请注销账号。
+
+六、儿童信息保护
+本服务主要面向 18 周岁以上的成年用户。
+
+七、政策更新与联系方式
+本政策可能随业务需要进行更新。如有疑问，可通过应用内客服与我们联系。
+
+— 本政策自您勾选同意之时起对您生效 —`;
 
 function formatMemberLevel(level) {
   if (level === undefined || level === null) return '会员';
@@ -41,13 +116,18 @@ Page({
     codeCooldown: 0,
     settingsLoading: true,
     registerSettings: DEFAULT_REGISTER_SETTINGS,
-    layoutClass: 'layout-vertical',
     submitButtonText: '登录',
-    registerHelperText: '',
     showRolePicker: false,
     pendingLoginResult: null,
     brandLogoUrl: '',
-    referrerNo: ''
+    referrerNo: '',
+    phoneFocused: false,
+    codeFocused: false,
+    agreementDialogVisible: false,
+    drawerVisible: false,
+    drawerType: 'user',
+    serviceAgreementContent: SERVICE_AGREEMENT_CONTENT,
+    privacyPolicyContent: PRIVACY_POLICY_CONTENT
   },
 
   _timer: null,
@@ -65,16 +145,10 @@ Page({
   },
 
   applyRegisterSettings(registerSettings) {
-    const horizontal = registerSettings.register_page_layout === 'horizontal';
     const submitButtonText = registerSettings.enable_self_registration ? '登录 / 注册' : '登录';
-    const registerHelperText = registerSettings.enable_self_registration
-      ? '未注册手机号验证后将自动创建会员'
-      : '当前未开放自助注册，仅支持已开通账号登录';
     this.setData({
       registerSettings,
-      layoutClass: horizontal ? 'layout-horizontal' : 'layout-vertical',
-      submitButtonText,
-      registerHelperText
+      submitButtonText
     });
   },
 
@@ -100,9 +174,16 @@ Page({
     this.setData({ code: e.detail.value });
   },
 
+  onPhoneFocus() { this.setData({ phoneFocused: true }); },
+  onPhoneBlur() { this.setData({ phoneFocused: false }); },
+  onCodeFocus() { this.setData({ codeFocused: true }); },
+  onCodeBlur() { this.setData({ codeFocused: false }); },
+
   toggleAgreement() {
     this.setData({ agreed: !this.data.agreed });
   },
+
+  noop() { /* 阻止冒泡占位 */ },
 
   async sendCode() {
     const { phone, codeCooldown } = this.data;
@@ -130,11 +211,7 @@ Page({
     } catch (e) {
       const detail = e.detail || '发送失败，请稍后重试';
       if (e.statusCode === 403) {
-        wx.showModal({
-          title: '无法发送验证码',
-          content: detail,
-          showCancel: false
-        });
+        wx.showModal({ title: '无法发送验证码', content: detail, showCancel: false });
       } else {
         wx.showToast({ title: detail, icon: 'none', duration: 3000 });
       }
@@ -152,30 +229,37 @@ Page({
       return;
     }
     if (!agreed) {
-      // 未勾选协议时弹出二次确认弹窗：[再看看] / [同意并登录]
-      const confirmRes = await new Promise((resolve) => {
-        wx.showModal({
-          title: '为保障您的权益，请阅读并同意以下协议',
-          content: '您需要阅读并同意《用户服务协议》和《隐私政策》后才能继续登录。',
-          confirmText: '同意并登录',
-          cancelText: '再看看',
-          confirmColor: '#2fb56a',
-          success: (r) => resolve(r),
-          fail: () => resolve({ confirm: false, cancel: true })
-        });
-      });
-      if (!confirmRes || !confirmRes.confirm) {
-        return;
-      }
-      this.setData({ agreed: true });
+      // PRD-370 改造：未勾选时弹出居中确认弹窗
+      this.setData({ agreementDialogVisible: true });
+      return;
     }
+    await this._doLoginRequest();
+  },
 
+  async agreeAndLogin() {
+    this.setData({ agreementDialogVisible: false, agreed: true });
+    await this._doLoginRequest();
+  },
+
+  rejectAgreement() {
+    this.setData({ agreementDialogVisible: false });
+  },
+
+  openAgreementDrawer(e) {
+    const type = (e.currentTarget && e.currentTarget.dataset && e.currentTarget.dataset.type) || 'user';
+    this.setData({ drawerType: type, drawerVisible: true });
+  },
+
+  closeDrawer() {
+    this.setData({ drawerVisible: false });
+  },
+
+  async _doLoginRequest() {
+    const { phone, code } = this.data;
     wx.showLoading({ title: '登录中...', mask: true });
     try {
       const body = { phone, code };
-      if (this.data.referrerNo) {
-        body.referrer_no = this.data.referrerNo;
-      }
+      if (this.data.referrerNo) body.referrer_no = this.data.referrerNo;
       const res = await post('/api/auth/sms-login', body, {
         showLoading: false,
         suppressErrorToast: true
@@ -259,11 +343,8 @@ Page({
         confirmText: '立即完善',
         cancelText: '稍后再说',
         success: (r) => {
-          if (r.confirm) {
-            wx.navigateTo({ url: '/pages/health-profile/index' });
-          } else {
-            goNext();
-          }
+          if (r.confirm) wx.navigateTo({ url: '/pages/health-profile/index' });
+          else goNext();
         }
       });
     };
@@ -293,52 +374,12 @@ Page({
     const res = this.data.pendingLoginResult;
     if (!res || !role) return;
     app.setCurrentRole(role);
-    this.setData({
-      showRolePicker: false,
-      pendingLoginResult: null
-    });
+    this.setData({ showRolePicker: false, pendingLoginResult: null });
     this.finishLoginFlow(role, res);
   },
 
-  loginByWechat() {
-    if (!this.data.agreed) {
-      wx.showToast({ title: '请先同意用户协议', icon: 'none' });
-      return;
-    }
-
-    wx.showLoading({ title: '登录中...' });
-    wx.login({
-      success: async (loginRes) => {
-        try {
-          // const res = await post('/api/auth/wx-login', { code: loginRes.code });
-          const mockData = {
-            token: 'wx_token_' + Date.now(),
-            userInfo: { nickname: '微信用户', avatar: '', memberLevel: '普通会员' }
-          };
-          app.setLoginInfo(mockData.token, mockData.userInfo);
-          wx.hideLoading();
-          wx.showToast({ title: '登录成功', icon: 'success' });
-          setTimeout(() => {
-            wx.switchTab({ url: '/pages/home/index' });
-          }, 1500);
-        } catch (e) {
-          wx.hideLoading();
-          console.log('wx login error', e);
-        }
-      },
-      fail() {
-        wx.hideLoading();
-        wx.showToast({ title: '微信登录失败', icon: 'none' });
-      }
-    });
-  },
-
   showAgreement(e) {
-    const type = e.currentTarget.dataset.type;
-    wx.showModal({
-      title: type === 'user' ? '用户服务协议' : '隐私政策',
-      content: '协议内容正在完善中，请稍后查看。',
-      showCancel: false
-    });
+    const type = (e.currentTarget && e.currentTarget.dataset && e.currentTarget.dataset.type) || 'user';
+    this.setData({ drawerType: type, drawerVisible: true });
   }
 });

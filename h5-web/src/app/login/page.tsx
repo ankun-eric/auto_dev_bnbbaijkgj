@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useState, Suspense, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Button, Input, Toast, Checkbox, Dialog, SpinLoading } from 'antd-mobile';
+import { Toast, SpinLoading } from 'antd-mobile';
 import { login } from '@/lib/auth';
 import api from '@/lib/api';
 import { resolveAssetUrl } from '@/lib/asset-url';
+import styles from './login.module.css';
 
 interface RegisterSettings {
   enable_self_registration: boolean;
@@ -23,6 +24,95 @@ const defaultRegisterSettings: RegisterSettings = {
   member_card_no_rule: 'incremental',
 };
 
+// 协议二次确认弹窗（居中）
+function AgreementDialog(props: {
+  visible: boolean;
+  onAgree: () => void;
+  onReject: () => void;
+  onOpenAgreement: (type: 'service' | 'privacy') => void;
+}) {
+  if (!props.visible) return null;
+  return (
+    <div className={styles.dialogMask} role="dialog" aria-modal="true">
+      <div className={styles.dialogCard}>
+        <div className={styles.dialogTitle}>服务协议及隐私保护</div>
+        <div className={styles.dialogBody}>
+          请您阅读并同意
+          <span
+            className={styles.agreementLink}
+            onClick={() => props.onOpenAgreement('service')}
+          >
+            《用户服务协议》
+          </span>
+          和
+          <span
+            className={styles.agreementLink}
+            onClick={() => props.onOpenAgreement('privacy')}
+          >
+            《隐私政策》
+          </span>
+          后才能继续登录。
+        </div>
+        <div className={styles.dialogActions}>
+          <button
+            type="button"
+            className={`${styles.dialogBtn} ${styles.dialogBtnReject}`}
+            onClick={props.onReject}
+          >
+            不同意
+          </button>
+          <button
+            type="button"
+            className={`${styles.dialogBtn} ${styles.dialogBtnAgree}`}
+            onClick={props.onAgree}
+          >
+            同意
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 协议详情半屏抽屉
+function AgreementDrawer(props: {
+  visible: boolean;
+  type: 'service' | 'privacy';
+  onClose: () => void;
+}) {
+  if (!props.visible) return null;
+  const title = props.type === 'service' ? '用户服务协议' : '隐私政策';
+  const url = props.type === 'service' ? '/legal/service-agreement' : '/legal/privacy-policy';
+  return (
+    <div
+      className={styles.drawerMask}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) props.onClose();
+      }}
+    >
+      <div className={styles.drawer}>
+        <div className={styles.drawerHandle} onClick={props.onClose}>
+          <div className={styles.drawerHandleBar} />
+        </div>
+        <div className={styles.drawerHeader}>
+          <span className={styles.drawerTitle}>{title}</span>
+          <button
+            type="button"
+            className={styles.drawerCloseBtn}
+            aria-label="关闭"
+            onClick={props.onClose}
+          >
+            ×
+          </button>
+        </div>
+        <div className={styles.drawerBody}>
+          <iframe className={styles.drawerIframe} src={url} title={title} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -36,6 +126,10 @@ function LoginContent() {
   const [settingsLoading, setSettingsLoading] = useState(true);
   const [registerSettings, setRegisterSettings] = useState<RegisterSettings>(defaultRegisterSettings);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [agreementDialogVisible, setAgreementDialogVisible] = useState(false);
+  const [drawerVisible, setDrawerVisible] = useState(false);
+  const [drawerType, setDrawerType] = useState<'service' | 'privacy'>('service');
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     const fetchLogo = async () => {
@@ -61,6 +155,9 @@ function LoginContent() {
       }
     };
     fetchRegisterSettings();
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
   }, []);
 
   const sendCode = async () => {
@@ -73,40 +170,24 @@ function LoginContent() {
       await api.post('/api/auth/sms-code', { phone, type: 'login' });
       Toast.show({ content: '验证码已发送，请注意查收短信' });
       setCountdown(60);
-      const timer = setInterval(() => {
+      timerRef.current = setInterval(() => {
         setCountdown((prev) => {
           if (prev <= 1) {
-            clearInterval(timer);
+            if (timerRef.current) clearInterval(timerRef.current);
             return 0;
           }
           return prev - 1;
         });
       }, 1000);
     } catch (error: any) {
-      const status = error?.response?.status;
       const detail = error?.response?.data?.detail;
-      if (status === 429 || status === 403) {
-        Toast.show({ content: detail || '发送失败，请稍后重试' });
-      } else if (status === 500) {
-        Toast.show({ content: '短信发送失败，请稍后重试' });
-      } else {
-        Toast.show({ content: detail || '发送失败，请稍后重试' });
-      }
+      Toast.show({ content: detail || '发送失败，请稍后重试' });
     } finally {
       setSending(false);
     }
   };
 
-  // 真实执行登录请求（在协议已勾选/同意之后调用）
   const doLoginRequest = async () => {
-    if (!phone || phone.length !== 11) {
-      Toast.show({ content: '请输入正确的手机号' });
-      return;
-    }
-    if (!code || code.length < 4) {
-      Toast.show({ content: '请输入验证码' });
-      return;
-    }
     setSubmitting(true);
     try {
       const loginPayload: Record<string, string> = { phone, code };
@@ -126,34 +207,19 @@ function LoginContent() {
         Toast.show({ content: '登录成功' });
       }
       if (res.needs_profile_completion && registerSettings.show_profile_completion_prompt) {
-        const shouldComplete = await Dialog.confirm({
-          title: '补充会员信息',
-          content: '完善基础健康信息后，可获得更精准的 AI 健康建议，是否现在去完善？',
-          confirmText: '立即完善',
-          cancelText: '稍后再说',
-        });
-        router.replace(shouldComplete ? '/health-guide' : '/home');
+        router.replace('/health-guide');
         return;
       }
       router.replace('/home');
     } catch (error: any) {
-      const status = error?.response?.status;
       const detail = error?.response?.data?.detail || '';
-      if (status === 403 && detail.includes('暂未开放自助注册')) {
-        Dialog.alert({
-          title: '无法注册',
-          content: '当前系统暂未开放自助注册，请联系管理员开通账号后再登录。',
-          confirmText: '我知道了',
-        });
-      } else {
-        Toast.show({ content: detail || '登录失败，请检查验证码' });
-      }
+      Toast.show({ content: detail || '登录失败，请检查验证码' });
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleLogin = async () => {
+  const handleSubmit = () => {
     if (!phone || phone.length !== 11) {
       Toast.show({ content: '请输入正确的手机号' });
       return;
@@ -163,32 +229,33 @@ function LoginContent() {
       return;
     }
     if (!agreed) {
-      // 未勾选协议时弹出二次确认弹窗
-      const confirmed = await Dialog.confirm({
-        title: '为保障您的权益，请阅读并同意以下协议',
-        content: (
-          <div style={{ fontSize: 14, lineHeight: 1.6, color: '#555' }}>
-            您需要阅读并同意
-            <span style={{ color: '#2fb56a' }}>《用户服务协议》</span>
-            和
-            <span style={{ color: '#2fb56a' }}>《隐私政策》</span>
-            后才能继续登录。
-          </div>
-        ),
-        confirmText: '同意并登录',
-        cancelText: '再看看',
-      });
-      if (!confirmed) {
-        return;
-      }
-      setAgreed(true);
+      setAgreementDialogVisible(true);
+      return;
     }
+    void doLoginRequest();
+  };
+
+  const handleDialogAgree = async () => {
+    setAgreementDialogVisible(false);
+    setAgreed(true);
     await doLoginRequest();
+  };
+
+  const handleDialogReject = () => {
+    setAgreementDialogVisible(false);
+  };
+
+  const handleOpenAgreement = (type: 'service' | 'privacy') => {
+    setDrawerType(type);
+    setDrawerVisible(true);
   };
 
   if (settingsLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(180deg, #2fb56a 0%, #5cd692 100%)' }}>
+      <div
+        className="min-h-screen flex items-center justify-center"
+        style={{ background: 'linear-gradient(180deg, #4AD97A 0%, #34C759 100%)' }}
+      >
         <div className="flex flex-col items-center gap-3 text-sm text-white">
           <SpinLoading color="white" />
           <span>正在加载...</span>
@@ -198,210 +265,141 @@ function LoginContent() {
   }
 
   const submitText = registerSettings.enable_self_registration ? '登录 / 注册' : '登录';
+  const submitDisabled = !phone || phone.length !== 11 || !code || code.length < 4;
 
   return (
-    <div
-      className="login-page-v3"
-      style={{
-        minHeight: '100vh',
-        background: '#f7f8fa',
-        display: 'flex',
-        flexDirection: 'column',
-        position: 'relative',
-        overflow: 'hidden',
-      }}
-    >
-      {/* 顶部 42% 屏高的绿色渐变沉浸式品牌区 */}
-      <div
-        className="top-brand"
-        style={{
-          height: '42vh',
-          minHeight: '280px',
-          background: 'linear-gradient(180deg, #2fb56a 0%, #5cd692 100%)',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '0 32px 56px',
-          position: 'relative',
-        }}
-      >
-        {/* 92×92 白色圆形托盘内嵌项目 LOGO */}
-        <div
-          className="logo-circle"
-          style={{
-            width: '92px',
-            height: '92px',
-            borderRadius: '50%',
-            background: '#ffffff',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
-            marginBottom: '20px',
-            overflow: 'hidden',
-          }}
-        >
+    <div className={styles.page}>
+      {/* 上半绿色渐变品牌区 */}
+      <div className={styles.topBrand}>
+        <div className={styles.logoCircle}>
           {logoUrl ? (
             <img
               src={resolveAssetUrl(logoUrl)}
-              alt="Logo"
-              style={{ width: '76px', height: '76px', objectFit: 'contain', borderRadius: '50%' }}
+              alt="宾尼小康 LOGO"
+              className={styles.logoImg}
             />
           ) : (
-            <span style={{ fontSize: '40px' }}>🌿</span>
+            <span className={styles.logoFallback}>🌿</span>
           )}
         </div>
-
-        <h1
-          style={{
-            color: '#ffffff',
-            fontSize: '28px',
-            fontWeight: 700,
-            margin: '0 0 8px',
-            letterSpacing: '1px',
-            textShadow: '0 2px 4px rgba(0,0,0,0.08)',
-          }}
-        >
-          宾尼小康
-        </h1>
-        <p
-          style={{
-            color: 'rgba(255,255,255,0.92)',
-            fontSize: '14px',
-            margin: 0,
-            letterSpacing: '0.5px',
-          }}
-        >
-          AI 健康管家 · 您的私人健康助手
-        </p>
+        <h1 className={styles.brandTitle}>宾尼小康</h1>
+        <p className={styles.brandSubtitle}>AI 健康管家 · 您的私人健康助手</p>
       </div>
 
-      {/* 表单卡片上浮 -28px，圆角 24px，覆盖在渐变下沿 */}
-      <div
-        className="form-card"
-        style={{
-          marginTop: '-28px',
-          marginLeft: '20px',
-          marginRight: '20px',
-          background: '#ffffff',
-          borderRadius: '24px',
-          padding: '28px 24px 24px',
-          boxShadow: '0 -4px 24px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.04)',
-          position: 'relative',
-          zIndex: 2,
-        }}
-      >
-        <div className="w-full space-y-4">
+      {/* 白色卡片：上浮 -28px，圆角 24px */}
+      <div className={styles.cardWrap}>
+        <div className={styles.formGroup}>
           {/* 手机号输入 */}
-          <div
-            className="bg-gray-50 rounded-xl px-4 py-3 flex items-center"
-            style={{ background: '#f5f7fa', borderRadius: '12px' }}
-          >
-            <span className="text-gray-500 mr-2" style={{ fontSize: '15px' }}>+86</span>
-            <div className="w-px h-5 bg-gray-200 mr-3" />
-            <Input
+          <label className={styles.inputBox}>
+            <span className={styles.phonePrefix}>+86</span>
+            <span className={styles.divider} />
+            <input
+              type="tel"
+              inputMode="numeric"
+              autoComplete="tel"
+              maxLength={11}
               placeholder="请输入手机号"
               value={phone}
-              onChange={setPhone}
-              type="tel"
-              maxLength={11}
-              style={{ '--font-size': '16px' } as React.CSSProperties}
+              onChange={(e) => setPhone(e.target.value.replace(/[^\d]/g, ''))}
             />
-          </div>
+          </label>
 
-          {/* 验证码输入 + 获取验证码按钮 */}
-          <div
-            className="bg-gray-50 rounded-xl px-4 py-3 flex items-center"
-            style={{ background: '#f5f7fa', borderRadius: '12px' }}
-          >
-            <Input
+          {/* 验证码 + 获取验证码 */}
+          <label className={styles.inputBox}>
+            <input
+              type="tel"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
               placeholder="请输入验证码"
               value={code}
-              onChange={setCode}
-              type="number"
-              maxLength={6}
-              className="flex-1"
-              style={{ '--font-size': '16px' } as React.CSSProperties}
+              onChange={(e) => setCode(e.target.value.replace(/[^\d]/g, ''))}
             />
-            <Button
-              size="small"
+            <button
+              type="button"
+              className={styles.codeBtn}
               disabled={countdown > 0 || sending}
               onClick={sendCode}
-              style={{
-                color: countdown > 0 ? '#999' : '#2fb56a',
-                border: 'none',
-                background: 'transparent',
-                padding: '0 0 0 12px',
-                fontSize: '14px',
-                whiteSpace: 'nowrap',
-                wordBreak: 'keep-all',
-                flex: '0 0 auto',
-              }}
             >
               {countdown > 0 ? `${countdown} s` : '获取验证码'}
-            </Button>
-          </div>
+            </button>
+          </label>
 
           {refParam && (
-            <div className="px-1 text-xs" style={{ color: '#2fb56a' }}>
-              🎉 已识别邀请码：<span className="font-medium">{refParam}</span>
-            </div>
+            <p className={styles.referrerHint}>
+              🎉 已识别邀请码：<strong>{refParam}</strong>
+            </p>
           )}
 
-          {/* 登录按钮始终高亮可点 */}
-          <Button
-            block
-            loading={submitting}
-            onClick={handleLogin}
-            style={{
-              background: 'linear-gradient(135deg, #2fb56a 0%, #5cd692 100%)',
-              color: '#fff',
-              border: 'none',
-              borderRadius: '24px',
-              height: '48px',
-              fontSize: '16px',
-              fontWeight: 600,
-              marginTop: '20px',
-              boxShadow: '0 6px 16px rgba(47,181,106,0.32)',
-            }}
+          {/* 登录按钮：手机号或验证码为空时置灰 */}
+          <button
+            type="button"
+            className={`${styles.submitBtn} ${submitDisabled ? styles.submitBtnDisabled : ''}`}
+            disabled={submitDisabled || submitting}
+            onClick={handleSubmit}
+            aria-label={submitText}
           >
-            {submitText}
-          </Button>
+            {submitting ? '登录中...' : submitText}
+          </button>
 
-          {/* 协议勾选行 */}
-          <div className="flex items-start" style={{ marginTop: '16px' }}>
-            <Checkbox
-              checked={agreed}
-              onChange={setAgreed}
-              style={{
-                '--icon-size': '16px',
-                '--adm-color-primary': '#2fb56a',
-              } as React.CSSProperties}
-            />
-            <span className="text-xs ml-2 leading-5" style={{ color: '#999' }}>
+          {/* 协议勾选 */}
+          <div className={styles.agreementRow}>
+            <span
+              className={`${styles.checkbox} ${agreed ? styles.checkboxChecked : ''}`}
+              onClick={() => setAgreed(!agreed)}
+              role="checkbox"
+              aria-checked={agreed}
+            >
+              {agreed && <span className={styles.checkMark}>✓</span>}
+            </span>
+            <span className={styles.agreementText}>
               我已阅读并同意
-              <span style={{ color: '#2fb56a' }}>《用户服务协议》</span>
+              <span
+                className={styles.agreementLink}
+                onClick={() => handleOpenAgreement('service')}
+              >
+                《用户服务协议》
+              </span>
               和
-              <span style={{ color: '#2fb56a' }}>《隐私政策》</span>
+              <span
+                className={styles.agreementLink}
+                onClick={() => handleOpenAgreement('privacy')}
+              >
+                《隐私政策》
+              </span>
             </span>
           </div>
         </div>
       </div>
 
-      {/* 底部留白（删除「登录即表示您将享受 AI 智能健康陪伴服务」文案） */}
-      <div style={{ flex: 1, minHeight: '24px' }} />
+      <AgreementDialog
+        visible={agreementDialogVisible}
+        onAgree={handleDialogAgree}
+        onReject={handleDialogReject}
+        onOpenAgreement={handleOpenAgreement}
+      />
+
+      <AgreementDrawer
+        visible={drawerVisible}
+        type={drawerType}
+        onClose={() => setDrawerVisible(false)}
+      />
     </div>
   );
 }
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(180deg, #2fb56a 0%, #5cd692 100%)' }}>
-        <SpinLoading color="white" />
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div
+          className="min-h-screen flex items-center justify-center"
+          style={{ background: 'linear-gradient(180deg, #4AD97A 0%, #34C759 100%)' }}
+        >
+          <SpinLoading color="white" />
+        </div>
+      }
+    >
       <LoginContent />
     </Suspense>
   );
