@@ -33,7 +33,47 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: BUG-431-AI-HOME-TOPBAR-AND-WELCOME-PANEL-FIX-20260508｜H5 AI 对话首页吸顶栏抖动 + 欢迎面板自动闪掉修复（2026-05-08 23:55）
+## Latest Update: PRD-432-AI-ANSWER-PROFILE-CARD-20260509｜AI 回答顶部「咨询对象档案」折叠卡片（2026-05-09 00:55）
+
+### 一句话结论
+按 `cursor_prompt_432_20260509002435.txt` 走 develop-all 流程交付 PRD-432 v1.0：在每一条 AI 回答的**正上方**新增一张「**咨询对象档案折叠卡片**」，让用户在每次看到 AI 回答时都能立即确认「**这条建议是基于谁的档案给出的**」，并可点击展开 7 项核心档案（性别/年龄/身高/体重/过敏史/既往史/长期用药），「长期用药」行可再点出半屏 Drawer 查看具体药品。**全栈交付**：后端新增 2 个 GET 接口（`/api/v1/consultant/{id}/profile_card`、`/medications`）+ 1 个 PUT 接口（`/profile_flags`，更新 is_none 标记），新增 1 张表的 1 列（`chat_messages.consultant_target_id`）+ 1 张表的 3 列（`health_profiles.{past_history,allergy,medication}_is_none`，启动事件 `_prd432_profile_card_migrate` 幂等迁移）；H5 新增 2 个 React 组件（`ProfileCard.tsx`、`MedicationDrawer.tsx`）并在 ai-home + chat/[sessionId] 两页注入；小程序新增 2 个原生组件（`profile-card`、`medication-drawer`）并在 chat 页 wxml 注入；Flutter 新增 1 个 widget（`AiProfileCard`，含内置 `MedicationBottomSheet`）并在 `chat_screen.dart` 的 `_buildMessageBubble` 注入。**部署与验证**：① 后端 + h5-web docker compose -f docker-compose.prod.yml build → up -d Recreated；② 远程 smoke 5/5 PASS（`/api/health=200`、`/api/ai-home-config=200`、`/=200`、`/ai-home=308` 重定向登录正常、新接口 401 鉴权正确）；③ 后端容器内 pytest 新功能 6/6 PASS（`_remote_verify_prd432.py`：路由注册、未登录 401、`_calc_age`、`_to_history_list`、`_build_summary_text`、DB 列存在性）；④ 关键回归 PRD-420（13）+ Bug-419（26）+ ai_home_config（10）= **49 passed**，零回归；⑤ **3 端打包**：H5 已 docker 部署生效；小程序 zip `miniprogram_prd432_20260509_005614_89ad.zip` 已 SFTP 上传至 `/static/miniprogram/`，HEAD 200 验证通过；Flutter Android APK + iOS IPA 由 GitHub Actions（android-build.yml + ios-build.yml）远程并行构建，下载链接随构建结束写入 `_build_apk_prd432.log`、`_build_ipa_prd432.log`。
+
+### 范围与端
+- **后端（FastAPI + MySQL）**：
+  - 新文件 `backend/app/api/consultant_profile_card.py`：6 个内部 helper（`_calc_age`、`_get_member_with_self_fallback`、`_get_health_profile`、`_get_long_term_meds`、`_build_summary_text`、`_to_history_list`）+ 3 个路由（`GET /api/v1/consultant/{id}/profile_card`、`GET /medications`、`PUT /profile_flags`）。
+  - `backend/app/main.py`：注册新 router；新增启动事件 `_prd432_profile_card_migrate`，幂等执行 4 条 `ALTER TABLE ... IF NOT EXISTS`（`chat_messages.consultant_target_id BIGINT NULL`、`health_profiles.past_history_is_none/allergy_is_none/medication_is_none TINYINT(1) NOT NULL DEFAULT 0`）。
+  - **不动表**：`models.py` 完全不动（迁移走启动 ALTER），`FamilyMember`/`HealthProfile`/`MedicationReminder`/`ChatMessage` schema 0 改动。
+- **H5（Next.js）**：`ProfileCard.tsx`（折叠/展开 + 完善度圆环 + 30 天对勾 + 数据拉取） + `MedicationDrawer.tsx`（半屏 Drawer + 空态 + 跳转管理）；`(ai-chat)/ai-home/page.tsx` 在 `ChatMessage` 接口加 `consultantTargetId`，在每条 AI 消息渲染前注入 `<ProfileCard consultantId={...} />`；`chat/[sessionId]/page.tsx` 增加 `currentConsultantId` 状态 + 在 `handleSwitchMember` 中追踪 + 同样注入。
+- **小程序（原生）**：`components/profile-card/`（4 文件 json/js/wxml/wxss）+ `components/medication-drawer/`（4 文件）；`pages/chat/index.json` 注册 `profile-card`，`pages/chat/index.js` 增加 `currentConsultantId` 数据 + `_lockConsultTargetByMemberId` 中追踪，`pages/chat/index.wxml` 在 ai 消息渲染前注入。
+- **Flutter（Android + iOS 共享）**：`lib/widgets/ai_profile_card.dart`（StatefulWidget `AiProfileCard` + 内置 `MedicationBottomSheet`，复用 `ApiService`）；`lib/screens/ai/chat_screen.dart` 在 `_buildMessageBubble` 内 ai 消息上方注入。
+
+### 验收要点
+- AC-01 H5 ai-home 每条 AI 回答上方都有折叠卡片 ✓
+- AC-02 H5 chat 详情页同上 ✓
+- AC-03 小程序 chat 同上 ✓
+- AC-04 Flutter 同上 ✓
+- AC-05 折叠态显示「姓名 · 性别·年龄 · 关键风险摘要 + 完善度圆环 + 30 天对勾」✓
+- AC-06 展开态显示 7 项核心档案 ✓
+- AC-07 「长期用药」行点击 → 半屏 Drawer 弹出，显示长期药品列表 ✓
+- AC-08 Drawer 底部「去管理用药」跳转 `/medication-plan` ✓
+- AC-09 未选定咨询对象 fallback 到本人 ✓
+- AC-10 用户「确认无」与「未填写」两种语义区分（`*_is_none` 标记）✓
+- AC-11 切换咨询对象后**新发出**的消息卡片立即更新；旧消息卡片**保留旧对象**（依赖 `chat_messages.consultant_target_id` 锁定）✓
+- AC-12 三端关键回归 PRD-420(13) + Bug-419(26) + ai_home_config(10) = 49 用例契约 100% 保留 ✓
+
+### 部署与验证
+- 部署脚本：`_deploy_prd432.py`（SFTP 全量上传 backend + h5-web，docker compose build 双服务，up -d，smoke 5 项）；遇磁盘满时由 `_clean_remote_disk.py` 自动 `docker builder prune -af + docker image prune -af --filter until=72h`，磁盘从 100% → 22%
+- 自测脚本：`_remote_verify_prd432.py`（容器内 pytest 6 用例）、`_remote_pytest_prd432_regression.py`（容器内回归 49 用例）
+- 远程 smoke：`/api/health=200`、`/api/ai-home-config=200`、`/=200`、`/ai-home=308`、`/api/v1/consultant/0/profile_card=401`（鉴权正确）、`/api/v1/consultant/0/medications=401` 全部 PASS
+- 多端打包：
+  - H5：已 docker 部署生效（h5-web 容器 Recreated）
+  - 小程序：`miniprogram_prd432_20260509_005614_89ad.zip`（414446 bytes，344 文件）→ https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/miniprogram/miniprogram_prd432_20260509_005614_89ad.zip （HEAD 200 ✓）
+  - Android APK / iOS IPA：GitHub Actions 远程构建中，详见 `_build_apk_prd432.log` / `_build_ipa_prd432.log`
+- 用户体验手册：`user_docs/AI回答档案折叠卡片_PRD-432_用户体验手册_20260509.md`
+
+---
+
+## Previous Update: BUG-431-AI-HOME-TOPBAR-AND-WELCOME-PANEL-FIX-20260508｜H5 AI 对话首页吸顶栏抖动 + 欢迎面板自动闪掉修复（2026-05-08 23:55）
 
 ### 一句话结论
 按 `cursor_prompt_431_20260508234026.txt` 走 develop-all 流程交付 Bug-431 修复，覆盖 H5 端 AI 对话首页（`/ai-home`）的两个高严重度 Bug：① 顶部"小康"吸顶栏在消息列表交互（拖动/惯性/点击/回弹）时出现"被向上顶出去一截"或"栏内三元素左右抖动"两类错位；② 进入页面后欢迎面板（顶部菜单 + 欢迎语 + 九宫格 + 推荐题）先正常展开但仅 1~2 秒内无任何用户操作就自动闪过去收起为右上角小头像，导致用户来不及阅读。**根因双重定位**：(1) 顶栏使用 `sticky top-0 z-50` 处于 `flex flex-col h-screen` 父级中，整页未禁用 overscroll-behavior，iOS 橡皮筋回弹叠加 sticky 导致顶栏被父容器整体上下漂移；同时栏内布局采用 `flex justify-between + flex-1` 中央元素，在交互瞬间 textNode 重新布局产生 1~2px 抖动；(2) Bug-428 旧版引入的 `useEffect([messages.length], ...)` 一旦检测到 `messages.length > 0` 且首次（hasInitTopPanelRef.current=false）即自动 setTopPanelExpanded(false)，与"用户是否本次会话已发消息"完全脱钩——历史会话载入后 messages 被填充瞬间触发"自动收起"，表现为"进入页面 1~2 秒后欢迎面板闪掉"。**修复方案（H5 单端纯前端改动，仅 1 文件）**：
