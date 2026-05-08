@@ -2056,26 +2056,91 @@ function ChatPageInner() {
           animation: cursor-blink 1s ease-in-out infinite;
           margin-left: 1px;
         }
+        /* [PRD-429] 满屏排版：代码块/表格/图片自适应规则 */
+        .ai-fullwidth-message pre {
+          background: #F5F7FA;
+          border-radius: 8px;
+          padding: 12px 16px;
+          overflow-x: auto;
+          font-size: 13px;
+          line-height: 1.5;
+          margin: 8px 0;
+        }
+        .ai-fullwidth-message code {
+          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        }
+        .ai-fullwidth-message :not(pre) > code {
+          background: #F5F5F5;
+          padding: 1px 4px;
+          border-radius: 3px;
+          font-size: 0.92em;
+        }
+        .ai-fullwidth-message table {
+          display: block;
+          overflow-x: auto;
+          max-width: 100%;
+          border-collapse: collapse;
+          margin: 8px 0;
+        }
+        .ai-fullwidth-message table th,
+        .ai-fullwidth-message table td {
+          padding: 6px 10px;
+          border: 1px solid #E5E7EB;
+        }
+        .ai-fullwidth-message table tr:nth-child(even) {
+          background: #FAFBFC;
+        }
+        .ai-fullwidth-message img {
+          max-width: 280px;
+          height: auto;
+          border-radius: 6px;
+          display: block;
+          margin: 8px 0;
+        }
+        .ai-fullwidth-message p {
+          margin: 0 0 8px 0;
+        }
+        .ai-fullwidth-message p:last-child {
+          margin-bottom: 0;
+        }
+        .ai-fullwidth-message ul,
+        .ai-fullwidth-message ol {
+          padding-left: 20px;
+          margin: 4px 0;
+        }
       `}} />
 
-      <div ref={listRef} className="flex-1 overflow-y-auto px-4 py-3">
+      {/* [PRD-429] 满屏排版：消息列表容器，max-width 760px 居中（兼容超宽屏） */}
+      <div ref={listRef} className="flex-1 overflow-y-auto" style={{ padding: '12px 12px' }}>
+        <div data-testid="chat-message-flow" style={{ maxWidth: 760, margin: '0 auto', width: '100%' }}>
         {messages.map((msg, msgIdx) => {
           const isDrugCard = msg.role === 'assistant' && msg.content.startsWith('__DRUG_CARD__');
           const isLatestAiReply = msg.role === 'assistant' && msg.id !== 'welcome' && !isStreaming &&
             msgIdx === messages.length - 1 - [...messages].reverse().findIndex((m) => m.role === 'assistant' && m.id !== 'welcome');
           const showActionButtons = isLatestAiReply && !isDrugCard && !loading;
+          const isUser = msg.role === 'user';
+          const isFirstUserCard = isUser && isFirstUserMsg(msg);
 
           return (
             <div
               key={msg.id}
-              className={`flex mb-4 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+              data-testid={isUser ? 'chat-user-message' : 'chat-ai-message'}
+              style={{ marginBottom: 24 }}
             >
-              {msg.role === 'assistant' && (
-                <div className="flex flex-col items-start mr-2">
-                  {renderAiAvatar(32)}
-                </div>
-              )}
-              <div className="max-w-[75%]">
+              {/* 头像独占一行：左对齐，AI/用户均为 32px 头像 + 名称 */}
+              <div className="flex items-center" style={{ marginBottom: 8 }}>
+                {isUser ? (
+                  <div className="w-8 h-8 rounded-full bg-primary flex-shrink-0 flex items-center justify-center">
+                    <span className="text-white text-xs">我</span>
+                  </div>
+                ) : (
+                  renderAiAvatar(32)
+                )}
+                <span style={{ marginLeft: 8, fontSize: 12, color: '#999' }}>
+                  {isUser ? '我' : '小康 · 健康助手'}
+                </span>
+              </div>
+              <div style={{ width: '100%' }}>
                 {/* PRD-414 §3.3: AI 署名 + §3.4: 档案行（仅当选中具体家人且配置启用时显示） */}
                 {msg.role === 'assistant' && (
                   <div style={{ marginBottom: 4 }}>
@@ -2141,10 +2206,11 @@ function ChatPageInner() {
                     )}
                   </div>
                 )}
-                {msg.role === 'user' && isFirstUserMsg(msg) ? (
+                {/* [PRD-429] 健康自查摘要卡 = 卡片类组件，按 F-08 保留原宽度 360px 左对齐 */}
+                {isFirstUserCard ? (
                   <div
-                    className="rounded-2xl rounded-tr-sm px-4 py-3 leading-relaxed cursor-pointer"
-                    style={{ background: '#f6ffed', border: '1.5px solid #52c41a', fontSize: chatFontSize }}
+                    className="rounded-2xl px-4 py-3 leading-relaxed cursor-pointer"
+                    style={{ background: '#f6ffed', border: '1.5px solid #52c41a', fontSize: chatFontSize, maxWidth: 360 }}
                     onClick={() => setFirstCardExpanded((v) => !v)}
                   >
                     <div className="flex items-center gap-1 mb-2">
@@ -2157,22 +2223,28 @@ function ChatPageInner() {
                     </div>
                   </div>
                 ) : isDrugCard ? (
+                  /* [PRD-429] 药品信息卡 = 卡片类组件，限制最大宽度 360px */
                   (() => {
                     try {
                       const drugData: DrugInfoCardData = JSON.parse(msg.content.replace('__DRUG_CARD__', ''));
-                      return <DrugInfoCard drug={drugData} />;
+                      return <div style={{ maxWidth: 360 }}><DrugInfoCard drug={drugData} /></div>;
                     } catch { return <div className="text-xs text-gray-400">药品信息解析失败</div>; }
                   })()
                 ) : (
+                  /* [PRD-429] AI 满屏排版：去气泡，去 background/border/borderRadius，文字铺满 */
                   <div
-                    className={`rounded-2xl px-4 py-3 leading-relaxed ${
-                      msg.role === 'user'
-                        ? 'bg-primary text-white rounded-tr-sm'
-                        : 'bg-white text-gray-700 rounded-tl-sm shadow-sm'
-                    }`}
-                    style={{ fontSize: chatFontSize }}
+                    className="ai-fullwidth-message leading-relaxed"
+                    style={{
+                      fontSize: chatFontSize,
+                      color: isUser ? '#1A1A1A' : '#1A1A1A',
+                      lineHeight: 1.6,
+                      wordBreak: 'break-word',
+                      overflowWrap: 'break-word',
+                    }}
                   >
-                    {msg.role === 'assistant' ? renderMarkdown(msg.content) : msg.content}
+                    {msg.role === 'assistant' ? renderMarkdown(msg.content) : (
+                      <span style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</span>
+                    )}
                   </div>
                 )}
                 {msg.role === 'assistant' && msg.knowledge_hits && msg.knowledge_hits.length > 0 && (
@@ -2182,7 +2254,8 @@ function ChatPageInner() {
                     ))}
                   </div>
                 )}
-                <div className={`text-xs text-gray-300 mt-1 ${msg.role === 'user' ? 'text-right' : 'text-left'}`}>
+                {/* [PRD-429] 满屏排版：时间统一左对齐（去气泡后无需对位） */}
+                <div className="text-xs text-gray-300 mt-1 text-left">
                   {msg.time}
                 </div>
                 {/* [2026-04-25 PRD F5] 报告解读 OCR 详情兜底入口：只在报告解读会话的第一条 AI 解读消息底部显示 */}
@@ -2261,78 +2334,84 @@ function ChatPageInner() {
                   </div>
                 )}
               </div>
-              {msg.role === 'user' && (
-                <div className="w-8 h-8 rounded-full bg-primary flex-shrink-0 flex items-center justify-center ml-2">
-                  <span className="text-white text-xs">我</span>
-                </div>
-              )}
+              {/* [PRD-429] 用户头像已上移到顶部，此处不再渲染 */}
             </div>
           );
         })}
 
-        {/* [2026-04-25] 报告解读失败：显示重新解读按钮 */}
+        {/* [PRD-429][2026-04-25] 报告解读失败：满屏排版（去气泡） */}
         {isReportType && interpretFailed && !isStreaming && (
-          <div className="flex mb-4 justify-start">
-            <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center mr-2"
-              style={{ background: 'linear-gradient(135deg, #ff4d4f, #ff7875)' }}>
-              <span className="text-white text-xs">!</span>
-            </div>
-            <div className="max-w-[75%]">
-              <div className="rounded-2xl px-4 py-3 leading-relaxed bg-white text-red-500 rounded-tl-sm shadow-sm"
-                style={{ fontSize: chatFontSize }}>
-                抱歉，本次解读未能完成。
-                <button
-                  onClick={retryInterpret}
-                  className="ml-2 px-3 py-1 rounded bg-red-500 text-white text-xs"
-                >
-                  重新解读
-                </button>
+          <div style={{ marginBottom: 24 }}>
+            <div className="flex items-center" style={{ marginBottom: 8 }}>
+              <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center"
+                style={{ background: 'linear-gradient(135deg, #ff4d4f, #ff7875)' }}>
+                <span className="text-white text-xs">!</span>
               </div>
+              <span style={{ marginLeft: 8, fontSize: 12, color: '#999' }}>小康 · 健康助手</span>
+            </div>
+            <div style={{ fontSize: chatFontSize, color: '#ff4d4f', lineHeight: 1.6 }}>
+              抱歉，本次解读未能完成。
+              <button
+                onClick={retryInterpret}
+                className="ml-2 px-3 py-1 rounded bg-red-500 text-white text-xs"
+              >
+                重新解读
+              </button>
             </div>
           </div>
         )}
 
-        {/* [2026-04-25] 报告解读进行中：首字节到达前显示"AI 正在解读..."骨架态 */}
+        {/* [PRD-429][2026-04-25] 报告解读进行中：满屏排版（保留浅灰骨架背景） */}
         {isReportType && !isStreaming && !interpretFailed && !messages.some((m) => m.role === 'assistant' && m.id !== 'welcome') && (
-          <div className="flex mb-4 justify-start">
-            <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center mr-2"
-              style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}>
-              <span className="text-white text-xs">AI</span>
+          <div style={{ marginBottom: 24 }}>
+            <div className="flex items-center" style={{ marginBottom: 8 }}>
+              <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center"
+                style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}>
+                <span className="text-white text-xs">AI</span>
+              </div>
+              <span style={{ marginLeft: 8, fontSize: 12, color: '#999' }}>小康 · 健康助手</span>
             </div>
-            <div className="bg-white rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm flex items-center gap-2">
+            <div className="flex items-center gap-2">
               <SpinLoading style={{ '--size': '18px', '--color': '#52c41a' }} />
               <span className="text-gray-500 text-sm">AI 正在解读您的报告，请稍候…</span>
             </div>
           </div>
         )}
 
-        {/* Streaming message */}
+        {/* [PRD-429] Streaming message：满屏排版 */}
         {isStreaming && streamingContent && (
-          <div className="flex mb-4 justify-start">
-            <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center mr-2"
-              style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}>
-              <span className="text-white text-xs">AI</span>
-            </div>
-            <div className="max-w-[75%]">
-              <div className="rounded-2xl px-4 py-3 leading-relaxed bg-white text-gray-700 rounded-tl-sm shadow-sm streaming-cursor"
-                style={{ fontSize: chatFontSize }}>
-                {renderMarkdown(streamingContent)}
+          <div style={{ marginBottom: 24 }}>
+            <div className="flex items-center" style={{ marginBottom: 8 }}>
+              <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center"
+                style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}>
+                <span className="text-white text-xs">AI</span>
               </div>
+              <span style={{ marginLeft: 8, fontSize: 12, color: '#999' }}>小康 · 健康助手</span>
+            </div>
+            <div
+              className="ai-fullwidth-message leading-relaxed streaming-cursor"
+              style={{ fontSize: chatFontSize, color: '#1A1A1A', lineHeight: 1.6, wordBreak: 'break-word' }}
+            >
+              {renderMarkdown(streamingContent)}
             </div>
           </div>
         )}
 
         {loading && !isStreaming && (
-          <div className="flex items-center mb-4">
-            <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center mr-2"
-              style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}>
-              <span className="text-white text-xs">AI</span>
+          <div style={{ marginBottom: 24 }}>
+            <div className="flex items-center" style={{ marginBottom: 8 }}>
+              <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center"
+                style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}>
+                <span className="text-white text-xs">AI</span>
+              </div>
+              <span style={{ marginLeft: 8, fontSize: 12, color: '#999' }}>小康 · 健康助手</span>
             </div>
-            <div className="bg-white rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm">
+            <div>
               <SpinLoading style={{ '--size': '20px', '--color': '#52c41a' }} />
             </div>
           </div>
         )}
+        </div>
       </div>
 
       {/* Hidden file inputs for photo/file upload */}

@@ -1619,44 +1619,38 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
+  // [PRD-429] 满屏排版：去气泡，头像在文字上方，文字铺满整行
   Widget _buildStreamingBubble() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      child: Row(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildAvatar(false),
-          const SizedBox(width: 10),
-          Flexible(
-            child: Container(
-              constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.7),
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(16), topRight: Radius.circular(16),
-                  bottomLeft: Radius.circular(4), bottomRight: Radius.circular(16),
-                ),
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6, offset: const Offset(0, 2))],
-              ),
-              child: _streamingContent.isEmpty
-                  ? Row(mainAxisSize: MainAxisSize.min, children: [
-                      SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.grey[400])),
-                      const SizedBox(width: 8),
-                      Text('正在思考中...', style: TextStyle(color: Colors.grey[500], fontSize: 14)),
-                    ])
-                  : RichText(
-                      text: TextSpan(
-                        style: TextStyle(fontSize: _chatFontSize, height: 1.6, color: const Color(0xFF333333)),
-                        children: [
-                          TextSpan(text: _streamingContent),
-                          if (_cursorVisible)
-                            const TextSpan(text: '▌', style: TextStyle(color: Color(0xFF52C41A), fontWeight: FontWeight.bold)),
-                        ],
-                      ),
-                    ),
-            ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildAvatar(false),
+              const SizedBox(width: 8),
+              const Text('小康 · 健康助手', style: TextStyle(fontSize: 12, color: Color(0xFF999999))),
+            ],
           ),
+          const SizedBox(height: 8),
+          _streamingContent.isEmpty
+              ? Row(mainAxisSize: MainAxisSize.min, children: [
+                  SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.grey[400])),
+                  const SizedBox(width: 8),
+                  Text('正在思考中...', style: TextStyle(color: Colors.grey[500], fontSize: 14)),
+                ])
+              : RichText(
+                  text: TextSpan(
+                    style: TextStyle(fontSize: _chatFontSize, height: 1.6, color: const Color(0xFF1A1A1A)),
+                    children: [
+                      TextSpan(text: _streamingContent),
+                      if (_cursorVisible)
+                        const TextSpan(text: '▌', style: TextStyle(color: Color(0xFF52C41A), fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                ),
         ],
       ),
     );
@@ -1712,67 +1706,70 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
+  // [PRD-429] AI 回答消息满屏排版：去气泡，头像独占一行放在文字上方，文字铺满整行
+  // - 用户消息和 AI 回答均无 background/border/borderRadius/boxShadow
+  // - 头像 32x32 + 名称（"我" / "小康 · 健康助手"）独占一行
+  // - 正文左右各 12px 安全边距，宽度铺满
   Widget _buildMessageBubble(ChatMessage message, {bool showActions = false, bool showOcrDetailEntry = false}) {
     final isUser = message.isUser;
+    final senderName = isUser ? '我' : '小康 · 健康助手';
 
     if (message.isLoading) {
       return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Row(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildAvatar(false),
-            const SizedBox(width: 10),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
-              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.grey[400])),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildAvatar(false),
                 const SizedBox(width: 8),
-                Text('正在思考中...', style: TextStyle(color: Colors.grey[500], fontSize: 14)),
-              ]),
+                const Text('小康 · 健康助手', style: TextStyle(fontSize: 12, color: Color(0xFF999999))),
+              ],
             ),
+            const SizedBox(height: 8),
+            Row(mainAxisSize: MainAxisSize.min, children: [
+              SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.grey[400])),
+              const SizedBox(width: 8),
+              Text('正在思考中...', style: TextStyle(color: Colors.grey[500], fontSize: 14)),
+            ]),
           ],
         ),
       );
     }
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       child: Column(
-        crossAxisAlignment: isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // 头像 + 名称行
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              if (!isUser) ...[_buildAvatar(false), const SizedBox(width: 10)],
-              Flexible(
-                child: Container(
-                  constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.7),
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: isUser ? const Color(0xFF52C41A) : Colors.white,
-                    borderRadius: BorderRadius.only(
-                      topLeft: const Radius.circular(16), topRight: const Radius.circular(16),
-                      bottomLeft: Radius.circular(isUser ? 16 : 4), bottomRight: Radius.circular(isUser ? 4 : 16),
-                    ),
-                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6, offset: const Offset(0, 2))],
-                  ),
-                  child: isUser
-                      ? Text(message.content, style: TextStyle(color: Colors.white, fontSize: _chatFontSize, height: 1.5))
-                      : _buildAiMessageContent(message),
-                ),
-              ),
-              if (isUser) ...[const SizedBox(width: 10), _buildAvatar(true)],
+              _buildAvatar(isUser),
+              const SizedBox(width: 8),
+              Text(senderName, style: const TextStyle(fontSize: 12, color: Color(0xFF999999))),
             ],
+          ),
+          const SizedBox(height: 8),
+          // 正文：满宽，无气泡
+          SizedBox(
+            width: double.infinity,
+            child: isUser
+                ? Text(
+                    message.content,
+                    style: TextStyle(color: const Color(0xFF1A1A1A), fontSize: _chatFontSize, height: 1.6),
+                  )
+                : _buildAiMessageContent(message),
           ),
           // [2026-04-25 PRD F5] OCR 详情兜底入口（仅"报告解读"会话第一条 AI 消息底部展示）
           if (showOcrDetailEntry && !isUser) _buildOcrDetailEntry(),
           // Module 7: Bottom action buttons for last AI message
           if (showActions && !isUser)
             Padding(
-              padding: const EdgeInsets.only(left: 46, top: 8),
+              padding: const EdgeInsets.only(top: 12),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [

@@ -1627,14 +1627,27 @@ export default function AiHomePage() {
         {/* [Bug-428] 消息列表：始终常驻渲染（无对话时显示空，有对话时显示气泡列表）。
             收缩态下顶部面板隐藏，消息列表占据主屏；展开态下顶部面板覆盖在消息列表之上。 */}
         {hasConversation && (
-          <div className="px-4 py-3 space-y-1">
+          /* [PRD-429] AI 回答消息满屏排版改造：去气泡纯文本流，
+             用户消息和 AI 回答均无 background/border/borderRadius，
+             头像独占一行放在文字上方，左右各 12px 安全边距，整体 max-width 760px 居中（PC/折叠屏） */
+          <div
+            data-testid="ai-home-message-flow"
+            style={{
+              padding: '12px 12px',
+              maxWidth: 760,
+              margin: '0 auto',
+              width: '100%',
+            }}
+          >
             {messages.map((msg, idx) => {
               const prevTime = idx > 0 ? messages[idx - 1].time : null;
               const showTime = shouldShowTime(prevTime, msg.time);
               const isLastAi = idx === lastAiMsgIndex && msg.role === 'assistant' && !msg.isStreaming;
+              const isUser = msg.role === 'user';
+              const senderName = isUser ? '我' : '小康 · 健康助手';
 
               return (
-                <div key={msg.id}>
+                <div key={msg.id} style={{ marginBottom: 24 }} data-testid={isUser ? 'ai-home-user-message' : 'ai-home-ai-message'}>
                   {showTime && (
                     <div className="text-center py-2">
                       <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: THEME.divider, color: THEME.textSecondary }}>
@@ -1642,77 +1655,92 @@ export default function AiHomePage() {
                       </span>
                     </div>
                   )}
-                  <div className={`flex mb-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    {msg.role === 'assistant' && (
+                  {/* 头像独占一行 + 名称（左对齐） */}
+                  <div className="flex items-center" style={{ marginBottom: 8 }}>
+                    {isUser ? (
                       <div
-                        className="flex-shrink-0 flex items-center justify-center rounded-full mr-2 text-sm mt-1"
-                        style={{ width: 32, height: 32, background: THEME.gradient, color: '#fff' }}
+                        className="flex-shrink-0 flex items-center justify-center rounded-full"
+                        style={{ width: 32, height: 32, background: THEME.primary, color: '#fff', fontSize: 12 }}
+                      >
+                        我
+                      </div>
+                    ) : (
+                      <div
+                        className="flex-shrink-0 flex items-center justify-center rounded-full"
+                        style={{ width: 32, height: 32, background: THEME.gradient, color: '#fff', fontSize: 14 }}
                       >
                         🌿
                       </div>
                     )}
-                    <div className="flex flex-col max-w-[75%]">
-                      <div
-                        className="px-4 py-3 rounded-2xl text-sm leading-relaxed"
-                        style={{
-                          background: msg.role === 'user' ? THEME.primary : '#F5F5F5',
-                          color: msg.role === 'user' ? '#FFFFFF' : THEME.textPrimary,
-                          borderTopRightRadius: msg.role === 'user' ? 4 : 16,
-                          borderTopLeftRadius: msg.role === 'assistant' ? 4 : 16,
-                        }}
-                      >
-                        {msg.role === 'assistant' ? (
-                          <span>
-                            <span dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }} />
-                            {msg.isStreaming && (
-                              <span className="inline-block w-0.5 h-4 ml-0.5 align-middle" style={{
-                                background: THEME.primary,
-                                animation: 'blink 1s steps(2) infinite',
-                              }} />
-                            )}
-                          </span>
-                        ) : (
-                          msg.content
-                        )}
-                      </div>
-
-                      {isLastAi && (
-                        <div className="flex gap-3 mt-1.5 ml-1">
-                          <button
-                            className="text-xs flex items-center gap-1 px-2 py-1 rounded-lg active:opacity-60"
-                            style={{ color: THEME.textSecondary, background: THEME.cardBg, border: `1px solid ${THEME.divider}` }}
-                            onClick={() => handleCopy(msg.content)}
-                          >
-                            📋 复制
-                          </button>
-                          <button
-                            className="text-xs flex items-center gap-1 px-2 py-1 rounded-lg active:opacity-60"
-                            style={{ color: ttsPlaying ? THEME.primary : THEME.textSecondary, background: THEME.cardBg, border: `1px solid ${ttsPlaying ? THEME.primary : THEME.divider}` }}
-                            onClick={() => handleTTS(msg.content)}
-                          >
-                            {ttsPlaying ? '⏹ 停止播报' : '🔊 播报'}
-                          </button>
-                        </div>
-                      )}
-                    </div>
+                    <span style={{ marginLeft: 8, fontSize: 12, color: '#999' }}>{senderName}</span>
                   </div>
+                  {/* 正文：去气泡，满宽，word-break 防长 URL 溢出 */}
+                  <div
+                    className="ai-fullwidth-message"
+                    style={{
+                      fontSize: 16,
+                      lineHeight: 1.6,
+                      color: THEME.textPrimary,
+                      wordBreak: 'break-word',
+                      overflowWrap: 'break-word',
+                    }}
+                  >
+                    {!isUser ? (
+                      <span>
+                        <span dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }} />
+                        {msg.isStreaming && (
+                          <span
+                            className="inline-block ml-0.5 align-middle"
+                            style={{
+                              width: 2,
+                              height: 16,
+                              background: THEME.primary,
+                              animation: 'blink 1s steps(2) infinite',
+                            }}
+                          />
+                        )}
+                      </span>
+                    ) : (
+                      <span style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</span>
+                    )}
+                  </div>
+
+                  {isLastAi && (
+                    <div className="flex gap-3" style={{ marginTop: 12 }}>
+                      <button
+                        className="text-xs flex items-center gap-1 px-2 py-1 rounded-lg active:opacity-60"
+                        style={{ color: THEME.textSecondary, background: THEME.cardBg, border: `1px solid ${THEME.divider}` }}
+                        onClick={() => handleCopy(msg.content)}
+                      >
+                        📋 复制
+                      </button>
+                      <button
+                        className="text-xs flex items-center gap-1 px-2 py-1 rounded-lg active:opacity-60"
+                        style={{ color: ttsPlaying ? THEME.primary : THEME.textSecondary, background: THEME.cardBg, border: `1px solid ${ttsPlaying ? THEME.primary : THEME.divider}` }}
+                        onClick={() => handleTTS(msg.content)}
+                      >
+                        {ttsPlaying ? '⏹ 停止播报' : '🔊 播报'}
+                      </button>
+                    </div>
+                  )}
                 </div>
               );
             })}
             {sending && !messages.some(m => m.isStreaming) && (
-              <div className="flex justify-start mb-2">
-                <div
-                  className="flex-shrink-0 flex items-center justify-center rounded-full mr-2 text-sm"
-                  style={{ width: 32, height: 32, background: THEME.gradient, color: '#fff' }}
-                >
-                  🌿
-                </div>
-                <div className="px-4 py-3 rounded-2xl" style={{ background: '#F5F5F5' }}>
-                  <div className="flex gap-1">
-                    <span className="w-2 h-2 rounded-full" style={{ background: THEME.textSecondary, animation: 'bounce 1.4s infinite ease-in-out both', animationDelay: '0s' }} />
-                    <span className="w-2 h-2 rounded-full" style={{ background: THEME.textSecondary, animation: 'bounce 1.4s infinite ease-in-out both', animationDelay: '0.2s' }} />
-                    <span className="w-2 h-2 rounded-full" style={{ background: THEME.textSecondary, animation: 'bounce 1.4s infinite ease-in-out both', animationDelay: '0.4s' }} />
+              <div style={{ marginBottom: 24 }}>
+                <div className="flex items-center" style={{ marginBottom: 8 }}>
+                  <div
+                    className="flex-shrink-0 flex items-center justify-center rounded-full"
+                    style={{ width: 32, height: 32, background: THEME.gradient, color: '#fff', fontSize: 14 }}
+                  >
+                    🌿
                   </div>
+                  <span style={{ marginLeft: 8, fontSize: 12, color: '#999' }}>小康 · 健康助手</span>
+                </div>
+                <div className="flex gap-1" style={{ paddingLeft: 0 }}>
+                  <span className="w-2 h-2 rounded-full" style={{ background: THEME.textSecondary, animation: 'bounce 1.4s infinite ease-in-out both', animationDelay: '0s' }} />
+                  <span className="w-2 h-2 rounded-full" style={{ background: THEME.textSecondary, animation: 'bounce 1.4s infinite ease-in-out both', animationDelay: '0.2s' }} />
+                  <span className="w-2 h-2 rounded-full" style={{ background: THEME.textSecondary, animation: 'bounce 1.4s infinite ease-in-out both', animationDelay: '0.4s' }} />
                 </div>
               </div>
             )}
@@ -2095,6 +2123,52 @@ export default function AiHomePage() {
         @keyframes bounce {
           0%, 80%, 100% { transform: scale(0); }
           40% { transform: scale(1); }
+        }
+        /* [PRD-429] AI 满屏排版：代码块/表格/图片/卡片自适应规则 */
+        .ai-fullwidth-message pre {
+          background: #F5F7FA;
+          border-radius: 8px;
+          padding: 12px 16px;
+          overflow-x: auto;
+          font-size: 13px;
+          line-height: 1.5;
+          margin: 8px 0;
+        }
+        .ai-fullwidth-message code {
+          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        }
+        .ai-fullwidth-message table {
+          display: block;
+          overflow-x: auto;
+          max-width: 100%;
+          border-collapse: collapse;
+          margin: 8px 0;
+        }
+        .ai-fullwidth-message table th,
+        .ai-fullwidth-message table td {
+          padding: 6px 10px;
+          border: 1px solid #E5E7EB;
+        }
+        .ai-fullwidth-message table tr:nth-child(even) {
+          background: #FAFBFC;
+        }
+        .ai-fullwidth-message img {
+          max-width: 280px;
+          height: auto;
+          border-radius: 6px;
+          display: block;
+          margin: 8px 0;
+        }
+        .ai-fullwidth-message p {
+          margin: 0 0 8px 0;
+        }
+        .ai-fullwidth-message p:last-child {
+          margin-bottom: 0;
+        }
+        .ai-fullwidth-message ul,
+        .ai-fullwidth-message ol {
+          padding-left: 20px;
+          margin: 4px 0;
         }
       `}</style>
     </div>

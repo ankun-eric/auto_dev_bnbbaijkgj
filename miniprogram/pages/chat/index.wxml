@@ -95,81 +95,88 @@
     </view>
 
     <view class="msg-item" wx:for="{{messages}}" wx:key="id" id="msg-{{item.id}}">
-      <!-- AI消息 -->
-      <view class="msg-row msg-left" wx:if="{{item.role === 'assistant'}}">
-        <view class="msg-avatar ai-avatar">
-          <text class="avatar-emoji">🤖</text>
+      <!-- [PRD-429] AI消息 满屏排版（去气泡） -->
+      <view class="msg-flow-row ai-flow" wx:if="{{item.role === 'assistant'}}">
+        <view class="msg-flow-header">
+          <view class="msg-avatar ai-avatar">
+            <text class="avatar-emoji">🤖</text>
+          </view>
+          <text class="msg-sender-name">小康 · 健康助手</text>
         </view>
-        <view class="msg-content-wrap">
-          <view class="msg-bubble ai-bubble">
-            <text class="msg-text" style="font-size:{{msgFontSize}};">{{item.mainContent || item.content}}</text>
-            <!-- SSE 闪烁光标 -->
-            <text class="streaming-cursor" wx:if="{{item.isStreaming && showCursor}}">|</text>
-            <view wx:if="{{item.disclaimer}}" class="disclaimer">
-              <text class="disclaimer-text">{{item.disclaimer}}</text>
-            </view>
-            <block wx:if="{{item.knowledgeHits && item.knowledgeHits.length}}">
-              <knowledge-card
-                wx:for="{{item.knowledgeHits}}"
-                wx:for-item="kh"
-                wx:key="entry_id"
-                hit="{{kh}}"
-                hit-log-id="{{kh.hit_log_id}}"
-                bind:submitted="onKnowledgeFeedback"
-              />
-            </block>
-            <text class="msg-time">{{item.time}}</text>
+        <view class="msg-flow-body">
+          <text class="msg-flow-text" style="font-size:{{msgFontSize}};">{{item.mainContent || item.content}}</text>
+          <!-- SSE 闪烁光标 -->
+          <text class="streaming-cursor" wx:if="{{item.isStreaming && showCursor}}">|</text>
+          <view wx:if="{{item.disclaimer}}" class="disclaimer">
+            <text class="disclaimer-text">{{item.disclaimer}}</text>
           </view>
+          <block wx:if="{{item.knowledgeHits && item.knowledgeHits.length}}">
+            <knowledge-card
+              wx:for="{{item.knowledgeHits}}"
+              wx:for-item="kh"
+              wx:key="entry_id"
+              hit="{{kh}}"
+              hit-log-id="{{kh.hit_log_id}}"
+              bind:submitted="onKnowledgeFeedback"
+            />
+          </block>
+          <text class="msg-flow-time">{{item.time}}</text>
+        </view>
 
-          <!-- [2026-04-25 PRD F5] 报告解读 OCR 详情兜底入口 -->
-          <view
-            wx:if="{{(chatType === 'report_interpret' || chatType === 'report_compare') && item.id === firstAiMsgId && !item.isStreaming && !interpretFailed}}"
-            class="ocr-detail-row"
-          >
-            <text class="ocr-detail-link" catchtap="onToggleOcrDetail">
-              {{ocrDetailLoading ? '加载中…' : (ocrDetailExpanded ? '收起 OCR 识别详情 ▴' : '查看 OCR 识别详情 ▾')}}
-            </text>
-            <view wx:if="{{ocrDetailExpanded}}" class="ocr-detail-box">
-              <text class="ocr-detail-text">{{ocrDetailText || (ocrDetailLoaded ? '（暂无 OCR 文本）' : '加载中…')}}</text>
-            </view>
+        <!-- [2026-04-25 PRD F5] 报告解读 OCR 详情兜底入口 -->
+        <view
+          wx:if="{{(chatType === 'report_interpret' || chatType === 'report_compare') && item.id === firstAiMsgId && !item.isStreaming && !interpretFailed}}"
+          class="ocr-detail-row"
+        >
+          <text class="ocr-detail-link" catchtap="onToggleOcrDetail">
+            {{ocrDetailLoading ? '加载中…' : (ocrDetailExpanded ? '收起 OCR 识别详情 ▴' : '查看 OCR 识别详情 ▾')}}
+          </text>
+          <view wx:if="{{ocrDetailExpanded}}" class="ocr-detail-box">
+            <text class="ocr-detail-text">{{ocrDetailText || (ocrDetailLoaded ? '（暂无 OCR 文本）' : '加载中…')}}</text>
           </view>
+        </view>
 
-          <!-- Module 7: Action buttons (only on latest non-streaming AI message) -->
-          <view class="msg-action-bar" wx:if="{{item.id === latestAiMsgId && !item.isStreaming && item.content}}">
-            <view class="action-btn" catchtap="copyMessage" data-msgid="{{item.id}}">
-              <text class="action-icon">📋</text>
-              <text class="action-label">复制</text>
-            </view>
-            <view class="action-btn" catchtap="toggleTts" data-msgid="{{item.id}}">
-              <text class="action-icon">{{isTtsPlaying && ttsMsgId === item.id ? '⏹️' : '🔊'}}</text>
-              <text class="action-label">{{isTtsPlaying && ttsMsgId === item.id ? '停止' : '播报'}}</text>
-            </view>
-            <view class="action-btn" catchtap="shareToFriend">
-              <text class="action-icon">📤</text>
-              <text class="action-label">分享</text>
-            </view>
+        <!-- Module 7: Action buttons (only on latest non-streaming AI message) -->
+        <view class="msg-action-bar" wx:if="{{item.id === latestAiMsgId && !item.isStreaming && item.content}}">
+          <view class="action-btn" catchtap="copyMessage" data-msgid="{{item.id}}">
+            <text class="action-icon">📋</text>
+            <text class="action-label">复制</text>
+          </view>
+          <view class="action-btn" catchtap="toggleTts" data-msgid="{{item.id}}">
+            <text class="action-icon">{{isTtsPlaying && ttsMsgId === item.id ? '⏹️' : '🔊'}}</text>
+            <text class="action-label">{{isTtsPlaying && ttsMsgId === item.id ? '停止' : '播报'}}</text>
+          </view>
+          <view class="action-btn" catchtap="shareToFriend">
+            <text class="action-icon">📤</text>
+            <text class="action-label">分享</text>
           </view>
         </view>
       </view>
 
-      <!-- 用户消息 -->
-      <view class="msg-row msg-right" wx:elif="{{item.role === 'user'}}">
-        <view class="msg-bubble user-bubble">
+      <!-- [PRD-429] 用户消息 满屏排版（去气泡） -->
+      <view class="msg-flow-row user-flow" wx:elif="{{item.role === 'user'}}">
+        <view class="msg-flow-header">
+          <view class="msg-avatar user-avatar">
+            <text class="avatar-emoji">👤</text>
+          </view>
+          <text class="msg-sender-name">我</text>
+        </view>
+        <view class="msg-flow-body user-flow-body">
           <image class="msg-image" src="{{item.image}}" mode="widthFix" wx:if="{{item.image}}" bindtap="previewImage" data-url="{{item.image}}" />
-          <text class="msg-text" wx:else style="font-size:{{msgFontSize}};">{{item.content}}</text>
-          <text class="msg-time user-time">{{item.time}}</text>
-        </view>
-        <view class="msg-avatar user-avatar">
-          <text class="avatar-emoji">👤</text>
+          <text class="msg-flow-text" wx:else style="font-size:{{msgFontSize}};">{{item.content}}</text>
+          <text class="msg-flow-time">{{item.time}}</text>
         </view>
       </view>
 
-      <!-- 加载中 -->
-      <view class="msg-row msg-left" wx:elif="{{item.role === 'loading'}}">
-        <view class="msg-avatar ai-avatar">
-          <text class="avatar-emoji">🤖</text>
+      <!-- [PRD-429] 加载中 满屏排版（保留浅灰骨架） -->
+      <view class="msg-flow-row ai-flow" wx:elif="{{item.role === 'loading'}}">
+        <view class="msg-flow-header">
+          <view class="msg-avatar ai-avatar">
+            <text class="avatar-emoji">🤖</text>
+          </view>
+          <text class="msg-sender-name">小康 · 健康助手</text>
         </view>
-        <view class="msg-bubble ai-bubble">
+        <view class="msg-flow-body">
           <view class="typing-dots">
             <view class="dot"></view>
             <view class="dot"></view>
