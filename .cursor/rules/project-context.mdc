@@ -68,7 +68,9 @@ alwaysApply: false
 - 多端打包：
   - H5：已 docker 部署生效（h5-web 容器 Recreated）
   - 小程序：`miniprogram_prd432_20260509_005614_89ad.zip`（414446 bytes，344 文件）→ https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/miniprogram/miniprogram_prd432_20260509_005614_89ad.zip （HEAD 200 ✓）
-  - Android APK / iOS IPA：GitHub Actions 远程构建中，详见 `_build_apk_prd432.log` / `_build_ipa_prd432.log`
+  - Android APK：`app_prd432_20260509_011801_fe86.apk`（84,665,819 bytes / 84.6 MB），GH Release `android-prd432-v20260509-010903-1cf3` → https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/apk/app_prd432_20260509_011801_fe86.apk （HEAD 200 ✓）
+  - iOS IPA：`bini_health_ios.ipa`（34,136,801 bytes / 33 MB），GH Release `ios-prd432-v20260509-010902-xmwk` → https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/download/ios-prd432-v20260509-010902-xmwk/bini_health_ios.ipa
+  - 首轮 Flutter 编译错误（`_renderListField` 形参类型不兼容 Dart 强类型 Map）已通过提交 `f61e90f` 修复（`Map<String, dynamic>?` → `Map?`），第二轮构建 APK 与 IPA 全部 SUCCESS
 - 用户体验手册：`user_docs/AI回答档案折叠卡片_PRD-432_用户体验手册_20260509.md`
 
 ---
