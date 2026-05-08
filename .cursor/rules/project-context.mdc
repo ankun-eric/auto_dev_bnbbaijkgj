@@ -33,7 +33,40 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: BUG-FIX-RESCHEDULE-POPUP-AUTO-CLOSE-V1-20260508｜订单改约弹窗自动关闭 + 三端列表联动刷新（2026-05-08 11:46）
+## Latest Update: PRD-411-AI-HOME-CONFIG-TAB-V1-20260508｜AI 对话首页配置页面 Tab 化改造（2026-05-08 12:50）
+
+### 一句话结论
+按 `cursor_prompt_411_20260508124048.txt` 走 develop-all 流程把 admin 后台「AI 对话模式首页配置」从**伪 Tab 锚点滚动**升级为**真 Tab 切换**：6 个 Tab（欢迎区/首屏内容/功能宫格/输入栏/会话策略/全局开关），每 Tab 独立草稿/保存/重置/红点提示/切换确认/二次重置确认；后端 schema/路由 0 改动（仅依赖现有 PATCH /api/admin/ai-home-config/{module}）。**改动范围**：① admin-web `(admin)/home-settings/ai-home-config/page.tsx` **整页重写**（1703→1306 行）——核心数据模型由单 `cfg` 拆分为 `baseline + draft` 双状态，`isTabDirty(tab)` 按 `TAB_MODULES[tab]` 涉及的顶层模块字段做 deepEqual 判定，`dirtyMap` useMemo 缓存所有 Tab dirty 状态，Tab 标题用 `<Badge dot color="#FF4D4F">` 显示红点；新建 antd `Tabs` + `destroyInactiveTabPane`（PRD F-03 仅当前 Tab 内容挂载到 DOM）；新建受控 Modal 三选确认框（保存并切换/放弃修改并切换/取消，pendingTargetTab state 控制开关）；重置按钮触发 `Modal.confirm` 二次确认；统一吸底 sticky 操作栏，按当前 Tab 上下文显示「重置本 Tab + 保存本 Tab」（无改动置灰）；`saveTab(tab)` 按 `TAB_MODULES[tab]` 数组顺序逐个 PATCH 模块（如 Tab 6 顺序提交 global_switches → floating_button → topbar），保存成功后 baseline := latest_response、draft := latest_response，红点立即消失；新增 `validateTab` 函数按 PRD F-12 做提交级强校验（welcome.main_title ≤30/sub_title ≤50、health_tips.interval_seconds 3~5、empty_placeholder.main_title ≤20、recommended_questions.title ≤8/question ≤200、func_grid.items 1~6 + main_text ≤8/sub_text ≤12 + HEX 校验、input.family_consult.template 含 {name}、session.strategy.max_answer_chars 100~5000/daily_free_quota 1~999/disclaimer ≤100），失败时通过 `setFieldErrors` 标红首个错误字段并 `scrollIntoView({block: 'center'})` 自动滚动定位（用 `data-field-key` 定位）；`message.success({content: '保存成功', duration: 2})` Toast 2 秒消失；② TAB 归位重新设计：Tab 1=welcome、Tab 2=health_tips+empty_placeholder+recommended_questions、Tab 3=func_grid、Tab 4=input、Tab 5=session、Tab 6=global_switches+floating_button+**topbar（兼容垫底）**——topbar 从原 Tab 2 顶部移到 Tab 6 末位渲染，符合 PRD §2.1 F-02；③ 后端测试新增 `tests/test_ai_home_config_tab411.py` 8 个用例（TAB01-08：Tab 1 welcome 隔离、Tab 2 三模块顺序保存、Tab 3 func_grid 隔离、Tab 4 input 隔离、Tab 5 session 隔离、Tab 6 三模块顺序保存、6 Tab 全部交叉保存最终状态、PATCH 失败不污染其他模块），合并旧 PRD-405 v0/v1 共 30 用例容器内 pytest **30 passed in 18.02s**；④ 部署：admin-web `docker compose build` 107s + `up -d`（重新打包 dist 包含完整 admin 路由列表 50+ 静态/动态页），远程 smoke `/api/health=200`、`/api/ai-home-config=200`、`/admin/home-settings/ai-home-config/=200`、`/admin/home-settings/ai-home-config/logs/=200`、`/=200` 全 200。
+
+### 改动文件
+- admin-web 重写：`admin-web/src/app/(admin)/home-settings/ai-home-config/page.tsx`（1703→1306 行；备份保留为 `page.tsx.bak_prd411`）
+- 后端测试：`backend/tests/test_ai_home_config_tab411.py`（新建，8 用例 TAB01-08）
+- 部署脚本：`_deploy_prd411.py`
+- 用户体验手册：`user_docs/AI对话首页配置_Tab化改造.md`
+
+### 关键技术决策
+- **baseline + draft 双状态而非单 cfg + dirty flag**：按 PRD R-02 "未保存"判定标准是"任一字段值与上次保存值不同"，必须保留权威 baseline 才能精确判 dirty 与执行重置。`baseline` 在 fetchConfig 成功 + saveTab 成功时刷新，`draft` 在所有用户输入时刷新。`deepEqual(JSON.stringify)` 对 6 模块顶层做对比，性能完全可控（嵌套不深）
+- **TAB_MODULES 配置驱动**：`TAB_MODULES: Record<TabKey, (keyof Cfg)[]>` 把每个 Tab 涉及的顶层模块字段静态映射出来，`isTabDirty/saveTab/resetTab/handleDiscardAndSwitch` 全部基于这个映射统一处理，避免硬编码
+- **destroyInactiveTabPane 而非 visibility**：按 PRD F-03 推荐"按需挂载"，节约 DOM 节点（11 张卡片 + 数十个 Form.Item 全摊开非常重）。切换 Tab 时旧 Tab 内容卸载，再切回时重新渲染，但因 `draft` 是顶层 state 数据不丢
+- **受控 Modal 替代 Modal.confirm.footer**：原计划用 `Modal.confirm({footer: (_, {OkBtn, CancelBtn}) => ...})` 自定义三按钮，但 antd 5 该 API 在 confirm 模式下兼容性弱。改用 `pendingTargetTab` state + 普通 `<Modal open={...}>` + 自定义 footer 三按钮，逻辑更清晰、可控、符合 PRD F-07 三选行为
+- **重置走 `Modal.confirm` 即可**：因为只有"确认/取消"两选（PRD F-08），用 antd `Modal.confirm` 标准 API 即可，无需自定义 footer
+- **保存按模块顺序串行 PATCH 而非并发**：Tab 2/Tab 6 涉及 3 个模块，保证日志按用户期望的顺序写入 + 后续模块能基于前序模块的 normalized 结果继续保存（如 recommended_questions id 自动生成后再保存 func_grid）。性能上 3 个 PATCH 顺序耗时 ~300ms，用户感知可接受
+- **吸底操作栏 sticky 布局而非 fixed**：sticky 在 Spin 容器内自然贴底，避免 fixed 布局带来的层级与遮挡问题；`zIndex: 10` 确保始终覆盖卡片
+- **fieldErrors 用 `module.field.subfield.idx.subfield` 路径键 + data-field-key 定位**：让 scrollIntoView 能精确滚动到第 N 项推荐问的 title 字段（如 `recommended_questions.0.title`），符合 PRD F-10 "首个错误字段标红 + 自动滚动定位"
+- **后端契约 0 改动**：本次纯 admin-web 前端 + 后端 8 个新测试。`PATCH /api/admin/ai-home-config/{module}` 原本就为"按模块独立保存"设计（PRD-405 v0 已实现），完美匹配 PRD-411 的 6 Tab 独立保存需求，无需任何 schema/路由调整
+- **0 终端打包**：本次仅 admin-web 改动，miniprogram / flutter / android / ios / windows / macos / cli 全部无变更，跳过阶段 4 多端打包；H5 端配置生效后用户下次刷新即拉到最新值（H5 已有 5 分钟本地缓存）
+
+### 验证情况
+- 容器内 pytest：`tests/test_ai_home_config.py` + `tests/test_ai_home_config_v1.py` + `tests/test_ai_home_config_tab411.py` → **30 passed in 18.02s**（含本次 8 个 TAB01-08 用例）
+- admin-web docker compose build 成功（107s，next build 输出包含完整路由列表，无 TS/编译错误）
+- 远程 smoke：`/api/health=200`、`/api/ai-home-config=200`、`/admin/home-settings/ai-home-config/=200`、`/admin/home-settings/ai-home-config/logs/=200`、`/=200`
+
+### 用户体验手册
+- `user_docs/AI对话首页配置_Tab化改造.md`
+
+---
+
+## Previous Update: BUG-FIX-RESCHEDULE-POPUP-AUTO-CLOSE-V1-20260508｜订单改约弹窗自动关闭 + 三端列表联动刷新（2026-05-08 11:46）
 
 ### 一句话结论
 按 `cursor_prompt_410_20260508114552.txt` 走 develop-all 流程修复 P0：顾客在三端（H5/小程序/Flutter App）订单详情页改约成功后**弹窗未自动关闭** + **返回订单列表仍是旧时间需手动下拉刷新**两个并发症。**修复策略**：① H5 `unified-order/[id]/page.tsx` 改约成功立即 `setShowAppointmentPopup(false)`（先于 Toast）+ 文案按 isReschedule 区分（改约场景"改约成功"/首次预约"预约成功"）+ 写 localStorage `bini_unified_orders_need_refresh` 标志；`unified-orders/page.tsx` 监听 `pageshow`/`visibilitychange`/`focus` 三事件检测标志触发 `fetchOrders(1, true)` 强制刷新；② 微信小程序 `unified-order-detail/index.js` 中 `submitAppt` 立即 `setData({ showApptModal: false })` + 文案按 `apptIsReschedule` 区分 + `getApp().globalData.unifiedOrdersNeedRefresh = true`；`unified-orders/index.js` 中 `onShow` 检测 globalData 标志强制 `resetList + loadOrders`；`app.js` globalData 字段中追加 `unifiedOrdersNeedRefresh: false`；③ Flutter App 新建 `lib/utils/unified_orders_refresh_notifier.dart`（单例 ValueNotifier<bool> + markNeedsRefresh/consume），`unified_order_detail_screen.dart` 改约成功 `Navigator.pop(ctx2, true)` + 调用 `markNeedsRefresh()`，外层 `if (result == true)` 分支按 `wasReschedule = items.any((it) => it.appointmentTime != null && != "")` 显示「改约成功 / 预约成功」SnackBar；`unified_orders_screen.dart` 在 `_OrderTabState.initState/dispose` 订阅/取消订阅 notifier，监听到 true 自动 `_loadOrders()` + `consume()`；④ 后端测试 `tests/test_bugfix_reschedule_popup_auto_close.py` 4 个用例（T01 首次预约成功 → 详情 appointment_time 已设置 / T02 改约成功 → reschedule_count >=1 + 时间已变 / T03 列表与详情 appointment_time 一致 → 列表刷新数据契约 / T04 失败时 appointment_time 不变 → 失败兜底契约），容器内 pytest **4 passed in 5.83s**；⑤ 部署：h5-web docker compose build + up，远程 smoke `/=200`、`/api/health=200`；⑥ 阶段 4 三端打包：小程序 zip 393KB SFTP 到 `static/miniprogram/miniprogram_bug410_20260508_115714_82be.zip` HEAD=200；安卓 GitHub Actions Run 25535917767 构建 80.6MB APK → SFTP 到 `static/apk/app_bug410_20260508_123145_e880.apk` HEAD=200；iOS GitHub Actions Run 25535852316 构建 32.54MB IPA 自动 gh release create 到 `releases/tag/ios-bug410-v20260508-115806-oixd`。
