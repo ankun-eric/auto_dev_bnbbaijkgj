@@ -322,21 +322,21 @@ export default function AiHomePage() {
   const [shareOpen, setShareOpen] = useState(false);
   const [consultantOpen, setConsultantOpen] = useState(false);
 
-  // [Bug-428 2026-05-08] H5 端 AI 对话首页"瀑布流回看"修复
-  // 原行为：用 !hasConversation 三元判断顶部面板，一旦有对话顶部欢迎/卡片/胶囊整片消失，无法回看
-  // 新行为：顶部面板"始终挂载"，通过 topPanelExpanded 控制展开/收起两态：
-  //   - 进入页面且无对话历史 → expanded（完整展开，无右上角悬浮按钮）
-  //   - 进入页面已有对话 / 用户发送消息后 → collapsed（仅右上角圆形小康头像悬浮按钮）
-  //   - collapsed 态下点击悬浮按钮 → expanded（顶部下拉展开 + 右上角收起按钮）
-  //   - expanded 态下点击收起按钮 / 上滑消息列表 / 输入框聚焦 / 外部点击 → collapsed
+  // [Bug-431 2026-05-08] H5 端 AI 对话首页"欢迎面板自动闪掉"修复
+  // 原行为（Bug-428 旧版）：进入页面后 messages.length > 0 即自动收起 → 进入 1~2 秒后欢迎面板被闪掉
+  // 新行为（Bug-431）：欢迎面板的收起【唯一】触发条件 = 用户在【本次会话】主动发送了第一条消息
+  //   - 进入 /ai-home（无论本次会话是否有历史消息）→ 默认完整展开
+  //   - 进入页面后任何手势（滚动、点击外部空白、输入框聚焦）→ 不会收起面板
+  //   - 用户主动点击发送按钮、消息成功进入待发送队列后 → 收起为右上角圆形小康头像悬浮按钮
+  //   - 收起后点击悬浮按钮 → 重新完整展开；展开态点击右上角收起按钮 → 再次收起（来回切换）
+  //   - 切换家庭成员 / 切换会话 / 从其他页返回首页：以"本次会话是否已发过消息"为唯一判定依据
   // 不接入后台开关，硬编码为常驻行为。
   const [topPanelExpanded, setTopPanelExpanded] = useState(true);
-  // 标记是否曾经有对话（用于决定首次进入时的默认展开/收起状态）
-  const hasInitTopPanelRef = useRef(false);
-  // 消息列表滚动容器 ref（用于监听上滑手势触发自动收起）
+  // [Bug-431] 本次会话是否已主动发送过消息（仅由 handleSend 置 true；切换会话/对象/重新加载时重置）
+  // 用 state 而非 ref，因 fab/收起按钮的可见性依赖此状态触发重渲染
+  const [sentInSession, setSentInSession] = useState(false);
+  // 消息列表滚动容器 ref（保留用于滚动行为，但不再触发面板收起）
   const messageScrollRef = useRef<HTMLDivElement>(null);
-  // 上次 scrollTop（用于判定上滑方向）
-  const lastScrollTopRef = useRef(0);
 
   const [banners, setBanners] = useState<Banner[]>([]);
   const [funcButtons, setFuncButtons] = useState<FunctionButton[]>([]);
@@ -543,7 +543,7 @@ export default function AiHomePage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // [Bug-428] 顶部面板收起 / 展开
+  // [Bug-431] 顶部面板手动展开 / 收起（用户点击右上角小头像 / 收起按钮触发）
   const collapseTopPanel = useCallback(() => {
     setTopPanelExpanded((prev) => (prev ? false : prev));
   }, []);
@@ -551,39 +551,14 @@ export default function AiHomePage() {
     setTopPanelExpanded((prev) => (prev ? prev : true));
   }, []);
 
-  // [Bug-428] 一旦消息列表非空：
-  //   - 首次（hasInitTopPanelRef=false）→ 把面板自动收起为右上角悬浮按钮
-  //   - 后续新消息追加，保持当前折叠/展开状态不强制变更
-  // 进入页面时先等待历史消息渲染完，再触发滚到底部最新消息
+  // [Bug-431] 仅在"本次会话已发过消息"时滚到底部最新消息（不再因 messages 变化触发任何面板收起）
   useEffect(() => {
-    if (!hasInitTopPanelRef.current && messages.length > 0) {
-      hasInitTopPanelRef.current = true;
-      setTopPanelExpanded(false);
-      // 等待下一帧再滚动，确保 DOM 已渲染
+    if (sentInSession && messages.length > 0) {
       requestAnimationFrame(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' });
       });
     }
-  }, [messages.length]);
-
-  // [Bug-428] 监听消息列表上滑手势 → 自动收起顶部面板
-  useEffect(() => {
-    const el = messageScrollRef.current;
-    if (!el) return;
-    const onScroll = () => {
-      const cur = el.scrollTop;
-      const prev = lastScrollTopRef.current;
-      // 上滑（手势上滑、scrollTop 增加）即视为"试图查看消息"，自动收起
-      if (cur - prev > 4 && topPanelExpanded) {
-        collapseTopPanel();
-      }
-      lastScrollTopRef.current = cur;
-    };
-    el.addEventListener('scroll', onScroll, { passive: true });
-    return () => {
-      el.removeEventListener('scroll', onScroll);
-    };
-  }, [topPanelExpanded, collapseTopPanel]);
+  }, [messages.length, sentInSession]);
 
   const loadLastSession = async () => {
     try {
@@ -770,9 +745,11 @@ export default function AiHomePage() {
     setSending(true);
     setLastMsgTime(Date.now());
 
-    // [Bug-428] 用户发送消息后立即收起顶部面板，让消息列表占据主屏
+    // [Bug-431] 用户主动发送消息 = 唯一合法收起触发器
+    // 此处置 true 后，本次会话内消息列表即占据主屏，欢迎面板进入 collapsed 态。
+    // 仅当用户后续切换家庭成员 / 切换会话 / 重新加载页面时，sentInSession 才会被重置。
+    setSentInSession(true);
     setTopPanelExpanded(false);
-    hasInitTopPanelRef.current = true;
 
     // [PRD-423 T-08 EVT-10] 发送消息埋点
     const sendTargetType: AiChatTargetType = selectedConsultant ? 'family' : 'self';
@@ -1111,6 +1088,9 @@ export default function AiHomePage() {
     setSessionId(null);
     setLastMsgTime(0);
     abortRef.current?.abort();
+    // [Bug-431] 新建会话 = 进入"未发消息"状态，欢迎面板重新完整展开
+    setSentInSession(false);
+    setTopPanelExpanded(true);
   }, []);
 
   // [PRD-420 F5] 切换咨询对象后的会话处理
@@ -1164,6 +1144,9 @@ export default function AiHomePage() {
     setMessages([]);
     setSessionId(null);
     setLastMsgTime(0);
+    // [Bug-431] 切换家庭成员 → 新建会话 → 进入"未发消息"状态，欢迎面板重新完整展开
+    setSentInSession(false);
+    setTopPanelExpanded(true);
 
     const res = await createChatSession({
       session_type: 'health_qa',
@@ -1198,6 +1181,11 @@ export default function AiHomePage() {
     setSessionId(undoSnapshot.sessionId);
     setSelectedConsultant(undoSnapshot.consultant);
     setMessages(undoSnapshot.messages);
+    // [Bug-431] 恢复的是"已发过消息"的旧会话 → 维持收起态
+    if (undoSnapshot.messages.length > 0) {
+      setSentInSession(true);
+      setTopPanelExpanded(false);
+    }
     setUndoToastVisible(false);
     setUndoSnapshot(null);
     if (undoTimerRef.current) {
@@ -1258,6 +1246,10 @@ export default function AiHomePage() {
     setMessages([]);
     setSessionId(sid);
     setSidebarOpen(false);
+    // [Bug-431] 切换到历史会话 → 默认进入"未发消息"展开态
+    // 用户在该会话内发送新消息时再触发收起；即便载入了历史消息也不强制收起
+    setSentInSession(false);
+    setTopPanelExpanded(true);
     await loadSessionMessages(sid);
   }, []);
 
@@ -1357,71 +1349,138 @@ export default function AiHomePage() {
   };
 
   return (
-    <div className="flex flex-col h-screen" style={{ background: THEME.background, maxWidth: 750, margin: '0 auto' }}>
-      {/* [PRD-425] 新版顶栏：强制显示「☰ + 标题(小康) + 未读徽标 + ⋯」三段式
-          后台 topbar.visible 配置已被前端忽略，新版顶栏在 /ai-home 永久贴顶展示 */}
+    <div
+      className="flex flex-col h-screen"
+      style={{
+        background: THEME.background,
+        maxWidth: 750,
+        margin: '0 auto',
+        overflow: 'hidden', /* [Bug-431] 禁止整页滚动/橡皮筋回弹，避免顶部栏被"顶出去一截" */
+        overscrollBehavior: 'none' as any,
+      }}
+    >
+      {/* [Bug-431 2026-05-08] 顶部"小康"栏彻底独立钉死：
+          - position: fixed（脱离 flex 文档流，不与下方消息列表共享任何滚动容器）
+          - 内部布局改为绝对定位三元素（左 ☰ / 中 小康标题 / 右 ⋯）：栏内元素位置固定不依赖 flex 重新计算，避免交互瞬间抖动
+          - 不允许任何 transition / animation / transform：栏自身像石头一样钉死
+          - 用 sentinel <div> 占位 48px 高度，保证下方内容不被 fixed 顶栏遮挡（同时取代原 sticky 占位行为） */}
       <SectionErrorBoundary name="topbar">
         <div
-          className="flex items-center justify-between px-3 flex-shrink-0 sticky top-0 z-50"
           style={{
-            height: 48,
-            background: THEME.cardBg,
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 100,
+            height: 'calc(48px + env(safe-area-inset-top))',
             paddingTop: 'env(safe-area-inset-top)',
+            background: THEME.cardBg,
+            maxWidth: 750,
+            marginLeft: 'auto',
+            marginRight: 'auto',
+            transition: 'none',
+            transform: 'none',
+            willChange: 'auto',
           }}
           data-testid="ai-home-topbar"
         >
-          {/* 左：☰ 汉堡菜单 */}
-          {topbarShowSidebar ? (
-            <button
-              className="flex items-center justify-center"
-              style={{ width: 32, height: 32, fontSize: 22, color: THEME.textPrimary, marginLeft: 4 }}
-              onClick={() => setSidebarOpen(true)}
-              aria-label="历史会话"
-            >
-              ☰
-            </button>
-          ) : (
-            <div style={{ width: 32 }} />
-          )}
+          {/* 内层 48px 工作区，使用绝对定位钉死三个子元素位置 */}
+          <div style={{ position: 'relative', height: 48, width: '100%' }}>
+            {/* 左：☰ 汉堡菜单（绝对定位 left:8） */}
+            {topbarShowSidebar ? (
+              <button
+                className="flex items-center justify-center"
+                style={{
+                  position: 'absolute',
+                  left: 8,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  width: 32,
+                  height: 32,
+                  fontSize: 22,
+                  color: THEME.textPrimary,
+                  background: 'transparent',
+                  border: 'none',
+                  padding: 0,
+                  margin: 0,
+                  lineHeight: 1,
+                }}
+                onClick={() => setSidebarOpen(true)}
+                aria-label="历史会话"
+              >
+                ☰
+              </button>
+            ) : null}
 
-          {/* 中：标题（小康） + 右上角未读徽标 */}
-          <div
-            className="flex-1 flex items-center"
-            style={{ minWidth: 0, paddingLeft: 8 }}
-          >
-            <span
-              className="relative inline-block"
+            {/* 中：小康标题 + 未读徽标（绝对居中：left+right 留出 56px 给左右按钮） */}
+            <div
               style={{
-                fontSize: 17,
-                fontWeight: 600,
-                color: THEME.textPrimary,
-                lineHeight: '24px',
-                cursor: 'default',
-                whiteSpace: 'nowrap',
-                overflow: 'visible',
+                position: 'absolute',
+                left: 56,
+                right: 56,
+                top: 0,
+                bottom: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'flex-start',
+                minWidth: 0,
               }}
-              data-testid="ai-home-topbar-title"
             >
-              {topbarTitle}
-              {renderUnreadBadge()}
-            </span>
-          </div>
+              <span
+                className="relative inline-block"
+                style={{
+                  fontSize: 17,
+                  fontWeight: 600,
+                  color: THEME.textPrimary,
+                  lineHeight: '24px',
+                  cursor: 'default',
+                  whiteSpace: 'nowrap',
+                  overflow: 'visible',
+                }}
+                data-testid="ai-home-topbar-title"
+              >
+                {topbarTitle}
+                {renderUnreadBadge()}
+              </span>
+            </div>
 
-          {/* 右：⋯ 更多菜单 */}
-          {topbarShowMoreMenu ? (
-            <button
-              className="flex items-center justify-center tracking-widest"
-              style={{ width: 32, height: 32, fontSize: 22, color: THEME.textPrimary, marginRight: 4 }}
-              onClick={() => setMoreMenuOpen(true)}
-              aria-label="更多菜单"
-            >
-              ⋯
-            </button>
-          ) : (
-            <div style={{ width: 32 }} />
-          )}
+            {/* 右：⋯ 更多菜单（绝对定位 right:8） */}
+            {topbarShowMoreMenu ? (
+              <button
+                className="flex items-center justify-center tracking-widest"
+                style={{
+                  position: 'absolute',
+                  right: 8,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  width: 32,
+                  height: 32,
+                  fontSize: 22,
+                  color: THEME.textPrimary,
+                  background: 'transparent',
+                  border: 'none',
+                  padding: 0,
+                  margin: 0,
+                  lineHeight: 1,
+                }}
+                onClick={() => setMoreMenuOpen(true)}
+                aria-label="更多菜单"
+              >
+                ⋯
+              </button>
+            ) : null}
+          </div>
         </div>
       </SectionErrorBoundary>
+
+      {/* [Bug-431] 顶栏占位：补偿 fixed 顶栏占用的视觉高度，保证下方内容不被遮挡 */}
+      <div
+        aria-hidden
+        style={{
+          flexShrink: 0,
+          height: 'calc(48px + env(safe-area-inset-top))',
+        }}
+      />
 
       {/* Main Content */}
       {/* [Bug-419 H-4/H-7 2026-05-08] 各区块独立 ErrorBoundary，任何子组件
@@ -1434,34 +1493,30 @@ export default function AiHomePage() {
       <div
         ref={messageScrollRef}
         className="flex-1 overflow-y-auto relative"
-        onClick={(e) => {
-          // [Bug-428] 点击消息列表区域（外部空白）→ 自动收起顶部面板
-          if (topPanelExpanded) {
-            collapseTopPanel();
-          }
-        }}
       >
-        {/* [Bug-428] 顶部欢迎面板：始终挂载，根据 topPanelExpanded 控制可见性 */}
+        {/* [Bug-431] 顶部欢迎面板：始终挂载，根据 topPanelExpanded 控制可见性。
+            position：sentInSession=true（用户已发首条消息后再次展开）时为 absolute 覆盖式，
+            否则为 relative 占据正常文档流（未发消息前面板就是页面主视觉）。 */}
         <div
           data-testid="ai-home-top-panel"
           style={{
             display: topPanelExpanded ? 'block' : 'none',
-            position: hasConversation ? 'absolute' : 'relative',
+            position: sentInSession ? 'absolute' : 'relative',
             top: 0,
             left: 0,
             right: 0,
             zIndex: 30,
             background: THEME.background,
-            boxShadow: hasConversation ? '0 4px 12px rgba(0,0,0,0.08)' : 'none',
-            transition: 'all 250ms ease-out',
-            maxHeight: hasConversation ? 'calc(100vh - 160px)' : 'none',
+            boxShadow: sentInSession ? '0 4px 12px rgba(0,0,0,0.08)' : 'none',
+            maxHeight: sentInSession ? 'calc(100vh - 160px)' : 'none',
             overflowY: 'auto',
           }}
           onClick={(e) => e.stopPropagation()}
         >
           <div className="px-4 py-3">
-            {/* [Bug-428] 展开态右上角"收起"按钮 - 仅在已有对话且面板展开时显示 */}
-            {hasConversation && (
+            {/* [Bug-431] 展开态右上角"收起"按钮 - 仅在本次会话已发过消息时显示
+                （没发消息前用户可来回点击 fab/收起按钮的需求不存在，因为 fab 不会出现） */}
+            {sentInSession && (
               <div className="flex justify-end mb-2">
                 <button
                   data-testid="ai-home-top-panel-collapse-btn"
@@ -1749,10 +1804,10 @@ export default function AiHomePage() {
         )}
       </div>
 
-      {/* [Bug-428] 收缩态右上角圆形小康头像悬浮按钮：
-          常驻贴顶（topbar 下方），点击展开顶部欢迎面板。
-          仅在已有对话且面板处于 collapsed 状态时显示。 */}
-      {hasConversation && !topPanelExpanded && (
+      {/* [Bug-431] 收缩态右上角圆形小康头像悬浮按钮：
+          常驻贴顶（topbar 下方），点击重新展开顶部欢迎面板。
+          仅在"本次会话已发过消息"且面板处于 collapsed 状态时显示。 */}
+      {sentInSession && !topPanelExpanded && (
         <button
           data-testid="ai-home-top-panel-fab"
           aria-label="展开欢迎面板"
@@ -1931,13 +1986,8 @@ export default function AiHomePage() {
                 placeholder={aiHomeConfig.input?.placeholder || '发消息或按住说话...'}
                 value={inputValue}
                 onChange={handleTextareaInput}
-                /* [PRD-426] 已移除 onFocus/onBlur 监听：原用于"+ 选择咨询人"浮层显隐控制，浮层删除后输入框聚焦不再触发任何浮层逻辑 */
-                /* [Bug-428] 输入框聚焦 / 开始打字 → 自动收起顶部欢迎面板 */
-                onFocus={() => {
-                  if (hasConversation && topPanelExpanded) {
-                    collapseTopPanel();
-                  }
-                }}
+                /* [PRD-426] 已移除 onFocus/onBlur 监听：原用于"+ 选择咨询人"浮层显隐控制 */
+                /* [Bug-431] 已彻底移除聚焦时自动收起：欢迎面板的唯一收起触发器 = 用户主动点击发送按钮（见 handleSend） */
                 onKeyDown={e => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();

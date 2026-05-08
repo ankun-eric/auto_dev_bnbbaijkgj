@@ -33,7 +33,56 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: PRD-429-AI-MESSAGE-FULLWIDTH-LAYOUT-20260508｜AI 回答消息满屏排版改造（H5 + 小程序 + Flutter 三端）（2026-05-08 23:35）
+## Latest Update: BUG-431-AI-HOME-TOPBAR-AND-WELCOME-PANEL-FIX-20260508｜H5 AI 对话首页吸顶栏抖动 + 欢迎面板自动闪掉修复（2026-05-08 23:55）
+
+### 一句话结论
+按 `cursor_prompt_431_20260508234026.txt` 走 develop-all 流程交付 Bug-431 修复，覆盖 H5 端 AI 对话首页（`/ai-home`）的两个高严重度 Bug：① 顶部"小康"吸顶栏在消息列表交互（拖动/惯性/点击/回弹）时出现"被向上顶出去一截"或"栏内三元素左右抖动"两类错位；② 进入页面后欢迎面板（顶部菜单 + 欢迎语 + 九宫格 + 推荐题）先正常展开但仅 1~2 秒内无任何用户操作就自动闪过去收起为右上角小头像，导致用户来不及阅读。**根因双重定位**：(1) 顶栏使用 `sticky top-0 z-50` 处于 `flex flex-col h-screen` 父级中，整页未禁用 overscroll-behavior，iOS 橡皮筋回弹叠加 sticky 导致顶栏被父容器整体上下漂移；同时栏内布局采用 `flex justify-between + flex-1` 中央元素，在交互瞬间 textNode 重新布局产生 1~2px 抖动；(2) Bug-428 旧版引入的 `useEffect([messages.length], ...)` 一旦检测到 `messages.length > 0` 且首次（hasInitTopPanelRef.current=false）即自动 setTopPanelExpanded(false)，与"用户是否本次会话已发消息"完全脱钩——历史会话载入后 messages 被填充瞬间触发"自动收起"，表现为"进入页面 1~2 秒后欢迎面板闪掉"。**修复方案（H5 单端纯前端改动，仅 1 文件）**：
+
+**Bug-1 修复（顶栏彻底独立钉死）**：① 顶栏 DOM 从 `sticky top-0 z-50` 改为 `position: fixed; top: 0; left: 0; right: 0; zIndex: 100`，完全脱离 flex 父级文档流，maxWidth: 750 + margin: auto 居中；② 栏内布局从 `flex justify-between + flex-1` 改为绝对定位三元素：左 `position:absolute; left:8` + 中 `position:absolute; left:56; right:56` + 右 `position:absolute; right:8`，所有按钮 `top:50%; transform: translateY(-50%)` 锁死垂直居中，避免 flex 重新计算引起的内部抖动；③ 顶栏自身去除 `transition: all 250ms ease-out`，新加 `transition:'none'; transform:'none'; willChange:'auto'` 三连禁止任何动画；④ 外层 `flex flex-col h-screen` 容器加 `overflow:'hidden'; overscrollBehavior:'none'`，禁止整页橡皮筋回弹；⑤ 在原顶栏位置插入一个 `flexShrink:0; height: calc(48px + env(safe-area-inset-top))` 的 sentinel 占位 div，补偿 fixed 顶栏的视觉高度，保证下方消息列表/输入框不被遮挡。
+
+**Bug-2 修复（收起触发条件唯一化）**：① 新增 `sentInSession` state（替代旧 `hasInitTopPanelRef` ref + `topPanelExpanded` 二状态混合判定），**唯一**由 `handleSend` 在用户主动点击发送后置 true；② 彻底删除 `useEffect([messages.length], ...)` 中 `setTopPanelExpanded(false)` 的"自动收起"逻辑——messages 变化只用于触发 `scrollIntoView`，不再影响面板展开/收起状态；③ 彻底删除 `useEffect([topPanelExpanded, collapseTopPanel], ...)` 中的 scroll 监听器（原"上滑 4px 自动收起面板"逻辑，按用户 7A 选项不保留下拉收起入口）；④ 删除消息列表外层容器 `<div onClick={() => topPanelExpanded && collapseTopPanel()}>` 外部点击收起；⑤ 删除 textarea `onFocus={() => hasConversation && topPanelExpanded && collapseTopPanel()}` 输入框聚焦收起；⑥ 顶栏面板 position 切换条件从 `hasConversation` 改为 `sentInSession`，未发消息前保持 relative 占据正常文档流（页面主视觉），已发消息后展开为 absolute 覆盖式（轻量浮层）；⑦ 顶栏面板的 transition: all 250ms 也一并删除，避免任何动画；⑧ 右上角小头像 fab + 收起按钮的可见条件从 `hasConversation` 改为 `sentInSession`——未发消息前不显示 fab，发消息后才出现；⑨ 在 `handleNewConversation` / `handleConsultantSelect` F5-2 / `handleSelectSession` 三个会话切换路径明确 reset `setSentInSession(false); setTopPanelExpanded(true)`，统一以"本次会话是否已发消息"为唯一判定信号；⑩ `handleUndoSwitch` 撤销恢复旧会话且旧会话 messages.length>0 时置 `setSentInSession(true); setTopPanelExpanded(false)`，维持"已发过消息的旧会话"的收起态。
+
+**部署与验证**：① h5-web docker compose -f docker-compose.prod.yml build 84.9s 成功（next build → Compiled successfully → 111 静态页生成）+ up -d Recreated；② 远程 smoke：`/api/health=200` `/api/ai-home-config=200` `/=200` `/ai-home=308`（重定向登录页正常）全部 PASS；③ 构建产物校验：`grep 'sticky top-0 z-50' /app/.next/server/app/(ai-chat)/ai-home/page.js = 0`（旧 sticky CSS 彻底清理） + `grep 'position:"fixed"' = 1`（新 fixed 顶栏标识进入产物） + `ai-home-top-panel-fab` `ai-home-top-panel-collapse-btn` 两个新 testid 都已进入 SSR HTML；④ 后端容器内 pytest 关键回归 PRD-420（13）+ Bug-419（26）+ ai_home_config（10）= **49 passed in 30.49s**，零回归；⑤ **0 端打包**（仅 H5 一个 page.tsx 改动，docker compose build 已部署生效；小程序/安卓/iOS/Windows exe 全部跳过——刷新浏览器即可生效）。
+
+### 改动文件
+- H5 修改：`h5-web/src/app/(ai-chat)/ai-home/page.tsx`（+169/-119 行；唯一改动文件）
+  - 删除：`hasInitTopPanelRef` ref + `lastScrollTopRef` ref + `useEffect([messages.length], ...)` 自动收起 + `useEffect([topPanelExpanded], ...)` scroll 监听 + 容器 onClick + textarea onFocus 收起逻辑
+  - 新增：`sentInSession` state + 三个会话切换路径的 reset 调用 + handleUndoSwitch 恢复旧会话维持收起态
+  - 改造：顶栏从 sticky 改 fixed + flex 三段改绝对定位三元素 + 整页 overflow:hidden + overscrollBehavior:none + 顶栏占位 sentinel + 删除所有 transition
+  - fab/collapse-btn 显示条件从 hasConversation 改为 sentInSession
+- 部署脚本：`_deploy_bug431.py`（paramiko SFTP 上传 page.tsx + docker compose build/up h5-web + smoke 4 路径 + grep 关键 DOM 标记）
+- 验证脚本：`_verify_bug431.py`（远程 docker exec find + grep 校验产物中 sticky 已清理 / fixed 已生效 / 新 testid 已进入）
+- 回归脚本：`_remote_pytest_bug431.py`（容器内 pip install pytest pytest-asyncio httpx aiosqlite + pytest 49 用例）
+- 用户体验手册：`user_docs/AI对话首页吸顶栏与欢迎面板修复_Bug431.md`
+
+### 关键技术决策
+- **顶栏 sticky → fixed + 内部 flex → 绝对定位三元素**：sticky 在 iOS 上的橡皮筋叠加问题难以纯 CSS 解决；fixed 完全脱离父布局，配合外层 overflow:hidden + overscroll:none 三道护栏彻底锁死；内部按钮位置改为 left:8/right:8 绝对值，避免 flex-1 中央元素的 textNode 重排导致的 1~2px 抖动
+- **删除任何 transition/transform/animate**：用户原话"不接受先动一下再回弹的方案，必须从一开始就纹丝不动"——本次直接物理上去掉所有过渡动画，不靠"动画时长缩到 0ms"这种近似手段
+- **sentInSession 是 state 而非 ref**：fab + 收起按钮 + 面板 position 切换都依赖此状态触发重渲染，必须用 state；ref 不会触发 React 更新流，无法控制 UI 显隐
+- **三个会话切换路径全部 reset sentInSession**：handleNewConversation（手动新建）/ handleConsultantSelect F5-2（切咨询人新建）/ handleSelectSession（侧边栏切历史会话）三处都加 `setSentInSession(false); setTopPanelExpanded(true)`，统一"本次会话未发过消息 = 默认展开"的单一信号
+- **handleUndoSwitch 例外保持收起**：撤销恢复的是"已发过消息"的旧会话快照，恢复后应延续旧会话的"已发消息"语义，故 `setSentInSession(true); setTopPanelExpanded(false)`，避免恢复后又看到欢迎面板
+- **零后端改动 + 零 API 契约变更**：本次纯 UI 行为修复，后端代码、Schema、路由、数据库结构 100% 不动；为防御未来回归仍跑 PRD-420(13)+Bug-419(26)+ai_home_config(10) 共 49 用例确认契约稳定
+- **0 端打包跳过阶段 4**：经 git diff 校验本次仅 H5 一个 page.tsx 文件改动，小程序 `miniprogram/pages/chat/*` / Flutter `flutter_app/lib/screens/ai/*` / 安卓/iOS/Windows 端全部无变更，刷新浏览器即可生效，跳过多端打包
+
+### 验证情况
+- h5-web docker compose build：84.9s 成功（next build → 111 静态页 → ai-home 路由 chunk 大小符合预期）
+- h5-web docker compose up -d：容器 Recreated → Started
+- 远程 Smoke：`/api/health=200` `/api/ai-home-config=200` `/=200` `/ai-home=308`（重定向登录页正常） 全部 PASS
+- SSR HTML 校验：`ai-home-topbar` + `ai-home-topbar-title` + `ai-home-top-panel` 三个标记均出现在远程返回的 HTML 中
+- 构建产物校验：旧 `sticky top-0 z-50` 计数 = 0（彻底清理）；新 `position:"fixed"` 计数 = 1（fixed 顶栏已生效）；`ai-home-top-panel-fab` + `ai-home-top-panel-collapse-btn` 两个新 testid 已进入产物
+- 后端容器内 pytest（关键回归）：PRD-420（13） + Bug-419（26） + ai_home_config（10） → **49 passed, 23 warnings in 30.49s**，零回归
+- 已修复行为预期（产品/测试同学回归）：
+  - **Bug-1（顶栏稳定性）**：A-01 进入静止观察顶栏稳定 / A-02 消息列表大力拖动顶栏不抖 / A-03 滑动惯性顶栏纹丝不动 / A-04 消息气泡点击长按顶栏不位移 / A-05 消息列表顶端继续下拉回弹顶栏不被顶出 / A-06 横竖屏切换顶栏稳定
+  - **Bug-2（欢迎面板收起规则）**：B-01 全新成员进入静止 5s 面板始终完整展开 / B-02 有历史对话成员进入静止 5s 面板始终完整展开 / B-03 进入后立即上下滑动消息列表面板不收起 / B-04 进入后下拉/上拉手势面板不收起（无手势收起入口） / B-05 进入后主动输入并发送第一条消息瞬间面板收起为右上角小头像 / B-06 已收起后点击小头像面板再次完整展开 / B-07 展开后再次点击收起按钮面板再次收起（手动来回切换正常）
+  - **多场景一致性**：C-01 A 会话发过消息切到 B 会话 B 进入时完整展开 / C-02 切换家庭成员新成员未在本次会话发过消息新成员首页完整展开 / C-03 从健康计划等其他页返回 ai-home 本次会话未发过消息完整展开 / C-04 从其他页返回本次会话已发过消息保持收起为小头像
+  - **三端兼容**：D-01 微信内置浏览器 / D-02 iOS Safari / D-03 Android Chrome 全部预期通过
+
+### 用户体验手册
+- `user_docs/AI对话首页吸顶栏与欢迎面板修复_Bug431.md`
+
+---
+
+## Previous Update: PRD-429-AI-MESSAGE-FULLWIDTH-LAYOUT-20260508｜AI 回答消息满屏排版改造（H5 + 小程序 + Flutter 三端）（2026-05-08 23:35）
 
 ### 一句话结论
 按 `cursor_prompt_429_20260508230348.txt` 走 develop-all 流程交付 PRD-429 v1.0：把全端 AI 对话场景的「左气泡 AI / 右气泡用户」对话模式整体改造为「无气泡纯文本流」满屏阅读流式排版（参考晓医、ChatGPT、Claude、文心一言、通义千问等头部 AI 产品视觉），用户消息 + AI 回答均**去除 background/border/borderRadius/boxShadow**，头像独占一行放在文字上方（"🌿 小康 · 健康助手" / "我"），正文铺满整行（左右各 12px 安全边距），超宽屏（PC/平板/折叠屏外屏）下内容容器自动 `max-width: 760px` 居中防止行长过宽。**特殊内容保留合适宽度**：代码块（浅灰 `#F5F7FA` 8px 圆角 + 12px×16px 内边距 + 横向滚动）、表格（保留原列宽 + 超宽时 overflow-x:auto + 偶数行 #FAFBFC 隔行色）、卡片类（健康自查摘要卡 / 药品识别卡保留 360px max-width 左对齐）、行内图片（max-width 280px 左对齐）。**纯前端三端样式与组件改造，零后端 API 改动 / 零数据结构变更 / 现有埋点 EVT-01~10 全保留 / 现有 data-testid 全保留**。
