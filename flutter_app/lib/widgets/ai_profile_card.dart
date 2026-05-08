@@ -94,7 +94,7 @@ class _AiProfileCardState extends State<AiProfileCard> {
     }
   }
 
-  String _renderListField(Map<String, dynamic>? f) {
+  String _renderListField(Map? f) {
     if (f == null) return '未填写';
     if (f['is_none'] == true) return '无';
     final val = f['value'];
