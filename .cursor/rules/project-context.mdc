@@ -33,7 +33,38 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: PRD-414-AI-CHAT-V11-20260508｜AI 对话页优化 v1.1（2026-05-08 15:30）
+## Latest Update: BUG-FIX-RESCHEDULE-POPUP-AUTO-CLOSE-V2-20260508｜订单改约弹窗自动关闭 二次修复（2026-05-08 16:10）
+
+### 一句话结论
+按 `cursor_prompt_417_20260508160200.txt` 走 develop-all 流程修复 Bug410 一次修复后出现的「改约成功后抽屉关一次→自己又自动弹回来」二次问题。**根因定位**：H5 顾客端 `h5-web/src/app/unified-order/[id]/page.tsx` 中的 `useEffect([order, searchParams], ...)` 兼容外链 `?action=appointment` 自动开弹窗 —— 但当 `submitAppointment` 提交成功后 `fetchOrder()` 重新 setOrder，order 引用变化触发 useEffect 重跑，URL 上 `?action=appointment` 仍存在 → 第二次自动 `openAppointmentPopup()`。小程序与 Flutter 端经核查不存在此问题（小程序 onLoad 未读 options.action；Flutter `_goDetail` 未透传 action 到详情页 → 只有用户手动点【改约】才开弹窗）。**修复方案**（仅改 H5 一个文件）：① 引入 `actionAppointmentConsumedRef = useRef(false)`，useEffect 内首次自动开弹窗时立即标记 true，后续 order/searchParams 变化全部跳过；② `submitAppointment` 成功分支 `setShowAppointmentPopup(false)` 后用 `router.replace()` 把 URL 上的 `action=appointment` 移除（双重保险），保留其它 query 参数；③ 增加 `usePathname` 用于 router.replace 的 pathname 拼接；保留 v1 的所有既有行为（立即关弹窗、Toast 文案区分、写 localStorage 刷新标志、列表页 pageshow/visibilitychange/focus 监听）。**部署**：git push commit `288086c` → SSH 到服务器 git fetch+reset --hard origin/master → docker compose build h5-web（85s，构建产物含 `/unified-order/[id]` 路由 9.97kB）→ docker compose up -d h5-web 重建容器；服务器端 smoke：`/=200`、`/unified-orders=308（重定向到登录正常）`；后端 pytest `tests/test_bugfix_reschedule_popup_auto_close.py` 容器内 **4 passed in 5.80s**（T01 首次预约 / T02 改约成功 / T03 列表与详情联动 / T04 失败兜底）—— 后端契约稳定；**0 端打包**（仅 H5 改动，小程序/安卓/iOS 未变动直接跳过）。
+
+### 改动文件
+- H5 修改：`h5-web/src/app/unified-order/[id]/page.tsx`（+43/-13 行，引入 useRef + usePathname + actionAppointmentConsumedRef + useEffect 单次消费 + submitAppointment 内 router.replace 移除 action 参数）
+- 部署脚本：`_deploy_bug417_v2.py`（paramiko SSH 执行远程 git pull + docker compose build h5-web + up -d + smoke）
+- 远程测试脚本：`_remote_pytest_bug417_v2.py`（容器内跑 v1 已有的 reschedule popup 回归用例确认后端契约不变）
+- 用户体验手册：`user_docs/订单改约弹窗自动关闭_v2.md`
+
+### 关键技术决策
+- **只改 H5 不动其他端**：经源码核查确认小程序/Flutter 端不存在自动重打开路径（小程序 onLoad 不读 options.action；Flutter _goDetail 不透传 action 到详情页 push 参数）。本次坚持「最小改动」原则，避免在不存在 Bug 的端上"防御性"改代码引入新风险
+- **useRef 而非 useState 做"已消费"标记**：useState 改变会触发组件重渲染，对本场景纯副作用控制是过度反应；useRef 同步可写、不触发渲染，正好满足"useEffect 内瞬时短路"语义
+- **双重保险（ref + URL 清理）**：单靠 ref 已能修复，但增加 URL 清理是为了对抗未来可能的极端场景（如 React 严格模式 / 第三方代码意外重置 ref / 路由级别 unmount-remount 导致 ref 失效）；URL 清理用 router.replace 而非 push，避免污染浏览器历史栈
+- **保留 ?action=appointment 旧行为兼容**：未做"完全移除外链自动开弹窗"这种激进修复，因为这是"修改预约 Bug 修复 v1.0"明确的产品入口（点列表【改约】跳详情自动开弹窗），动它会破坏既有体验
+- **代码原则注释化固化**：在新增的 useRef 声明处和 useEffect 上方都写明"watcher 中只允许保持现状或不动作，绝不能 true"的强约束，作为后续维护者的护栏
+- **0 端打包跳过阶段 4**：本次仅 H5 改动，miniprogram / flutter / android / ios 全部无变更（git diff 18a07aa..HEAD 仅 1 个 H5 文件），跳过多端打包；用户刷新浏览器即可生效
+
+### 验证情况
+- 容器内 pytest（v1 既有回归用例）：`tests/test_bugfix_reschedule_popup_auto_close.py` → **4 passed in 5.80s**（后端契约稳定）
+- h5-web docker compose build：85.7s 成功（next build 输出含 `/unified-order/[id]` 9.97kB 路由）
+- h5-web docker compose up -d：容器 Recreated → Healthy（Up 5 seconds 确认重启成功）
+- 远程 smoke：`/=200`、`/unified-orders=308（未登录重定向到登录页正常）`
+- 已修复行为预期（产品/测试同学回归）：RC-01 改约成功后抽屉只关一次不再自动弹回 / RC-02 改约后再进同一订单不自动开弹窗（URL action 已清除）/ RC-06 同一订单连续多次改约每次都符合 RC-01 / RC-08 列表→详情→改约成功→返回列表→再进同一订单 不自动弹
+
+### 用户体验手册
+- `user_docs/订单改约弹窗自动关闭_v2.md`
+
+---
+
+## Previous Update: PRD-414-AI-CHAT-V11-20260508｜AI 对话页优化 v1.1（2026-05-08 15:30）
 
 ### 一句话结论
 按 `cursor_prompt_414_20260508151745.txt` 走 develop-all 流程实现 PRD-414 v1.1 终版「AI 对话页优化」核心切片：① 后端 schema `ai_home_config.py` 新增 `AIChatAvatar` + `AIChatConfig` 两个 BaseModel（含 avatar/signature/profile_row_enabled/profile_row_template/punchcard_draggable/scroll_to_bottom_button/sticky_topbar/history_retention_days 共 8 字段），`AIHomeConfigPayload` 顶层挂载 `ai_chat` 字段；② 后端 `ai_home_config.py` 路由 `VALID_MODULES` 新增 `ai_chat`，`_validate_payload` 新增 ai_chat 校验（avatar.type 仅 emoji/image、image_url 必须 / 开头或 http(s):// URL、signature ≤10 字、profile_row_template 必含 {name} 且 ≤30 字、history_retention_days 0~3650）；③ admin-web `ai-home-config/page.tsx` Cfg 类型新增 ai_chat 字段，DEFAULT_CFG 给默认值，TAB_MODULES.global 加入 'ai_chat'，`renderGlobalTab` 末尾追加「AI 对话页（chat）配置 — PRD-414 v1.1」卡片（含 8 个 Form.Item：AvatarEditor 头像 + Input 署名 + Switch 档案行/打卡可拖动/回到最新/吸顶 + Input 档案行模板 + InputNumber 历史保留天数），`validateTab('global', cfg)` 增加 ai_chat 三项校验（signature 长度、profile_row_template {name} 占位符、history_retention_days 范围）；④ H5 端 `chat/[sessionId]/page.tsx` 注入 `aiChatCfg` state（默认值 + 从 `/api/ai-home-config` 拉取），新增 `showScrollToBottomBtn`/`unreadDuringScroll`/`profileCardExpanded` state，监听 listRef scroll 事件维护"距离底部 > 100px"标志，新消息进入时若用户离开底部则累加未读，`renderAiAvatar(size)` 工具函数按 type=emoji/image 渲染 32×32 圆形头像；AI 消息渲染区将原"AI"紫色头像替换为 `renderAiAvatar(32)`，气泡上方插入"小康"署名 14px 主文本色 + 档案行（仅当 profile_row_enabled 且 currentRelationLabel ≠ '未选择档案' 时显示，点击 ▽/△ 切换 profileCardExpanded，展开时显示档案信息卡含家人姓名/性别/身高/体重）；输入框区域之后新增"↓ 回到最新消息"圆形浮动按钮（36×36 白底，绝对定位 right:16/bottom:90，含 8×8 红点未读气泡），点击 scrollToBottom + 隐藏按钮 + 清零未读；⑤ 后端测试新建 `tests/test_ai_chat_v11_414.py` 8 用例（T01 公共读取默认值 / T02 PATCH emoji 头像 / T03 PATCH image 头像 / T04 非法 avatar.type 拒绝 / T05 模板缺 {name} 拒绝 / T06 signature 超 10 字拒绝 / T07 history_retention_days 越界拒绝 / T08 PATCH 后 GET 可读回），合并旧 PRD-405 v0+v1+PRD-411 共 38 用例容器内 pytest **38 passed in 23.66s**；⑥ 部署：backend docker cp 3 个文件 + restart，admin-web docker compose build（125s）+ up，h5-web docker compose build（99s）+ up，远程 smoke `/api/health=200`、`/api/ai-home-config=200`（含 ai_chat 完整字段）、`/admin/home-settings/ai-home-config/=200`、`/=200` 全 200。
