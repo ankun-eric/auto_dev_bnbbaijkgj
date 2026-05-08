@@ -9,6 +9,7 @@ import { checkFileSize, uploadWithProgress } from '@/lib/upload-utils';
 import ChatSidebar from '@/components/ChatSidebar';
 import KnowledgeCard, { type KnowledgeHit } from '@/components/KnowledgeCard';
 import { resolveAssetUrl, resolveAssetUrls } from '@/lib/asset-url';
+import { aiChatTrack } from '@/lib/analytics';
 
 interface DrugInfoCardData {
   drug_name?: string;
@@ -348,6 +349,17 @@ function ChatPageInner() {
   const [inputVal, setInputVal] = useState('');
   const [loading, setLoading] = useState(false);
   const [sidebarVisible, setSidebarVisible] = useState(false);
+
+  // [PRD-423 T-08 EVT-01] chat/[sessionId] 进入对话页埋点（仅一次）
+  const pageViewSentRef = useRef(false);
+  useEffect(() => {
+    if (pageViewSentRef.current) return;
+    pageViewSentRef.current = true;
+    // chat/[sessionId] 通过 URL member 参数判断咨询对象类型
+    const targetType = urlMember ? 'family' : 'self';
+    aiChatTrack.pageView(targetType as any);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // [2026-04-23 公共页报告卡片迁移] 体检报告相关 state（仅 report_interpret/report_compare 场景使用）
   const [reportList, setReportList] = useState<ReportMini[]>([]);

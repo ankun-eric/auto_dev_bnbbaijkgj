@@ -33,7 +33,39 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: PRD-420-AI-CONSULT-TARGET-PICKER-20260508｜AI 对话模式 - 咨询对象选择器（2026-05-08 17:35）
+## Latest Update: PRD-423-AI-CHAT-V11-EVT-AND-COLDSTART-20260508｜AI 对话页 v1.1 埋点全量补齐 + 冷启动提示（2026-05-08 21:37）
+
+### 一句话结论
+按 `cursor_prompt_423_20260508212244.txt` 走 develop-all 流程交付 PRD v1.1 三个核心增量：
+1. **T-08 埋点全量补齐** —— 在 `h5-web/src/lib/analytics.ts` 新增 `AI_CHAT_EVENTS` 常量与 `aiChatTrack` API；ai-home 接入 EVT-01/02/03/08/09/10 共 6 个事件；chat/[sessionId] 接入 EVT-01；后端新增 `/api/analytics/track` + `/api/analytics/track/batch` 落日志接口（**不依赖任何新表**）。
+2. **T-03 「未选择档案」冷启动兜底提示** —— 进入 ai-home 自动检测家庭成员中是否含 `is_self=true` 档案；若无则在顶部展示 36px 浅蓝（#EAF4FF）「建议先完善本人档案 →」轻提示横条，点击跳转 `/health-archive?target=self&from=ai-chat` 并触发 EVT-09。
+3. **T-05 切换提示横条规范化** —— 切换咨询对象时的提示条严格对齐 PRD §5：高度 36px / 底色 #EAF4FF / 字号 13px / 文字 `已切换为 XX 咨询，已为您开启新对话`，自动 5 秒消失，5 秒内可点击「返回上一会话」恢复。
+
+本期未实施：T-01（双入口对齐 ai-home 升级）、T-02（chat/[sessionId] 接入打卡）、T-04（档案信息卡 9 字段补齐 + 后端迁移 long_term_medications）、T-06（切换=新会话+原会话归档接口）、T-07（历史会话页对接归档机制）、T-09（admin AI 头像回归）、T-10（性能与兼容性回归）—— 留给 v1.2 迭代。原因：T-04/T-06/T-07 涉及数据库迁移与多端同步（M+F），改造面过宽；T-01/T-02 需要抽 `AnswerBubbleWithProfile` / `ScrollToBottomFab` 公共组件并把 chat/[sessionId] 全面重构，本期时间盒不允许。
+
+### 改动文件
+- `h5-web/src/lib/analytics.ts`：新增 `AI_CHAT_EVENTS` 常量（10 个事件 key）+ `aiChatTrack` 语义化 API（pageView / targetSwitch / archiveHistory / profileRowShow / profileCardExpand / profileCardCollapse / scrollToBottomClick / punchcardDrag / noSelfProfileTipClick / send）
+- `h5-web/src/app/(ai-chat)/ai-home/page.tsx`：
+  - 接入 EVT-01 page_view（mount 时一次）、EVT-02 target_switch、EVT-03 archive_history、EVT-08 punchcard_drag、EVT-09 no_self_profile_tip_click、EVT-10 send
+  - 新增 `showNoSelfTip` state + `handleNoSelfTipClick` callback：进入页面后拉 `/api/family/members` 检测 is_self；无则展示顶部 36px #EAF4FF 提示条（点击跳转 health-archive，可关闭）
+  - 切换 Toast 文案对齐 PRD §5：`已切换为 XX 咨询，已为您开启新对话`；样式调为 36px 高横条贴顶
+- `h5-web/src/app/chat/[sessionId]/page.tsx`：import `aiChatTrack`；mount 时按 URL 参数 `member` 判断咨询对象类型并触发 EVT-01 page_view
+- `backend/app/api/analytics.py`（新增）：`POST /api/analytics/track` + `POST /api/analytics/track/batch`，事件白名单含全部 10 个 EVT；落入 `app.analytics` logger 一行 JSON
+- `backend/app/main.py`：注册 `analytics.router`
+
+### 验证
+- 前端 `next build` ✅ Compiled successfully（111 静态页生成成功）
+- 服务器构建：`docker compose up -d --no-deps --build backend h5-web` ✅
+- 服务器侧 smoke：10 个 EVT 全部 POST 200 / batch 上报 200 / H5 root 200 / ai-home 200 / chat-history 200（详见 `_smoke_prd423.py`）
+
+### 部署
+- 项目目录：`/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`（注意：服务器有同名 `.bak` 目录，是旧快照，**不要使用**）
+- 容器：`6b099ed3-7175-4a78-91f4-44570c84ed27-{backend,h5,admin,db}`
+- 入口 URL：[https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/)
+
+---
+
+## Previous Update: PRD-420-AI-CONSULT-TARGET-PICKER-20260508｜AI 对话模式 - 咨询对象选择器（2026-05-08 17:35）
 
 ### 一句话结论
 按 `cursor_prompt_420_20260508171744.txt` 走 develop-all 流程交付 PRD-420 v1.0：把菜单模式（chat/[sessionId]）已经成熟稳定的「咨询对象选择器」整套交互（**底部抽屉 + 已有家庭成员 + 新建家庭成员（关系九宫格 + 7 字段表单）**）完整搬到 AI 对话模式（`/ai-home`）头部「为本人 ▼」胶囊；H5 + 小程序 + Flutter 三端同步；**后端零改动**（PRD F7 已经把数据全部打通——菜单模式和 AI 模式共用 `/api/family/members` 和 `/api/chat/sessions/:id/switch-member`，前端只需把 UI 拼接到位即可）。

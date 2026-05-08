@@ -13,6 +13,8 @@ import ConsultTargetPicker, { type FamilyMemberItem } from '@/components/ai-chat
 import RecommendCards from '@/components/ai-chat/RecommendCards';
 import SharePanel from '@/components/ai-chat/SharePanel';
 import SectionErrorBoundary from '@/components/SectionErrorBoundary';
+import DraggablePunchCard from '@/components/ai-chat/DraggablePunchCard';
+import { trackEvent, aiChatTrack, type AiChatTargetType } from '@/lib/analytics';
 
 interface ChatMessage {
   id: string;
@@ -676,6 +678,14 @@ export default function AiHomePage() {
     setSending(true);
     setLastMsgTime(Date.now());
 
+    // [PRD-423 T-08 EVT-10] 发送消息埋点
+    const sendTargetType: AiChatTargetType = selectedConsultant ? 'family' : 'self';
+    aiChatTrack.send(sendTargetType, {
+      target_id: selectedConsultant?.id ?? null,
+      target_name: selectedConsultant?.nickname ?? '本人',
+      content_length: msg.length,
+    });
+
     try {
       const sid = await checkIdleAndMaybeNewSession();
       if (!sid) {
@@ -1022,6 +1032,14 @@ export default function AiHomePage() {
       : '本人';
     const displayLabel = member ? `${relationLabel} · ${targetName}` : '本人';
 
+    // [PRD-423 T-08 EVT-02] 切换咨询对象埋点
+    const fromTarget: AiChatTargetType = prevConsultant ? 'family' : 'self';
+    const toTarget: AiChatTargetType = member ? 'family' : 'self';
+    aiChatTrack.targetSwitch(fromTarget, toTarget, {
+      from_name: prevConsultant ? prevConsultant.nickname : '本人',
+      to_name: targetName,
+    });
+
     // 立即更新选中咨询对象
     setSelectedConsultant(member);
 
@@ -1042,6 +1060,11 @@ export default function AiHomePage() {
     }
 
     // F5-2：非空会话 → 自动新建会话归属新对象
+    // [PRD-423 T-08 EVT-03] 归档原会话埋点（实际归档动作由后端在新会话创建时自动处理；前端记录原会话信息）
+    if (prevSessionId) {
+      aiChatTrack.archiveHistory(prevSessionId, prevMessages.length);
+    }
+
     setMessages([]);
     setSessionId(null);
     setLastMsgTime(0);
@@ -1062,7 +1085,8 @@ export default function AiHomePage() {
       messages: prevMessages,
       expiresAt,
     });
-    setUndoToastText(`已为「${displayLabel}」开启新会话，原会话已保存到历史`);
+    // [PRD-423 T-05] 切换提示横条文案严格对齐 PRD §5
+    setUndoToastText(`已切换为 ${displayLabel} 咨询，已为您开启新对话`);
     setUndoToastVisible(true);
     if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
     undoTimerRef.current = setTimeout(() => {
@@ -1096,6 +1120,43 @@ export default function AiHomePage() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // [PRD-423 T-08 EVT-01] 进入对话页埋点（仅触发一次）
+  const pageViewSentRef = useRef(false);
+  useEffect(() => {
+    if (pageViewSentRef.current) return;
+    pageViewSentRef.current = true;
+    aiChatTrack.pageView('self');
+  }, []);
+
+  // [PRD-423 T-03] 冷启动「无本人档案」检测：fallback 到「未选择档案」并展示轻提示
+  // 规则：进入页面后拉取家庭成员，若不存在 is_self=true 的档案 → 显示提示
+  const [showNoSelfTip, setShowNoSelfTip] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res: any = await api.get('/api/family/members');
+        const data = res?.data || res;
+        const list: any[] = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
+        const hasSelf = list.some((m) => !!m?.is_self);
+        if (!cancelled && !hasSelf) {
+          setShowNoSelfTip(true);
+        }
+      } catch {
+        // 静默失败：不影响主流程
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // [PRD-423 T-08 EVT-09] 「先完善本人档案」轻提示点击
+  const handleNoSelfTipClick = useCallback(() => {
+    aiChatTrack.noSelfProfileTipClick();
+    router.push('/health-archive?target=self&from=ai-chat');
+  }, [router]);
 
   const handleSelectSession = useCallback(async (sid: string) => {
     setMessages([]);
@@ -1435,21 +1496,26 @@ export default function AiHomePage() {
         )}
       </div>
 
-      {/* Floating Check-in Button */}
+      {/* Floating Check-in Button —— PRD v1.1 §3.2 可拖动健康打卡 */}
       <SectionErrorBoundary name="floating_button">
         {floatingButtonVisible && (
-          <div
-            className={`fixed cursor-pointer active:scale-95 transition-transform z-30 ${
-              aiHomeConfig.floating_button?.position === 'left_bottom' ? 'left-4' : 'right-4'
-            }`}
-            style={{ bottom: 120 }}
+          <DraggablePunchCard
+            storageKey="__h5_ai_chat_punchcard_y__"
+            defaultBottom={120}
+            topOffset={56}
+            bottomOffset={80}
+            position={aiHomeConfig.floating_button?.position === 'left_bottom' ? 'left' : 'right'}
             onClick={() => {
               const path = aiHomeConfig.floating_button?.target_path || '/health-plan';
               if (path.startsWith('/')) router.push(path);
             }}
+            onDragEnd={(fromY, toY) => {
+              // [PRD-423 T-08 EVT-08]
+              aiChatTrack.punchcardDrag(fromY, toY);
+            }}
           >
             <div
-              className="relative flex items-center justify-center rounded-full shadow-lg text-xl"
+              className="relative flex items-center justify-center rounded-full text-xl"
               style={{
                 minWidth: 48,
                 height: 48,
@@ -1470,7 +1536,7 @@ export default function AiHomePage() {
                 />
               )}
             </div>
-          </div>
+          </DraggablePunchCard>
         )}
       </SectionErrorBoundary>
 
@@ -1674,39 +1740,89 @@ export default function AiHomePage() {
       />
       <SharePanel visible={shareOpen} onClose={() => setShareOpen(false)} />
 
-      {/* [PRD-420 F5-2] 切换会话 Toast + 「返回上一会话」5 秒轻按钮 */}
+      {/* [PRD-423 T-03] 冷启动「无本人档案」轻提示横条 */}
+      {showNoSelfTip && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 999,
+            height: 36,
+            background: '#EAF4FF',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '0 12px',
+            fontSize: 13,
+            color: '#2E2E2E',
+            cursor: 'pointer',
+          }}
+          onClick={handleNoSelfTipClick}
+          data-testid="no-self-profile-tip"
+        >
+          <span style={{ marginRight: 4 }}>建议先完善本人档案，让小康给您更精准的建议</span>
+          <span style={{ color: '#1677FF', fontWeight: 500 }}>→</span>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowNoSelfTip(false);
+            }}
+            style={{
+              position: 'absolute',
+              right: 8,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              background: 'transparent',
+              border: 'none',
+              fontSize: 16,
+              color: '#999',
+              cursor: 'pointer',
+              padding: 4,
+            }}
+            aria-label="关闭"
+          >
+            ×
+          </button>
+        </div>
+      )}
+
+      {/* [PRD-420 F5-2 + PRD-423 T-05] 切换会话提示横条（PRD §5：高度 36px / 底色 #EAF4FF / 文字 13px / 主文本色 #2E2E2E） */}
       {undoToastVisible && undoSnapshot && (
         <div
           style={{
             position: 'fixed',
-            top: 60,
-            left: '50%',
-            transform: 'translateX(-50%)',
+            top: 48,
+            left: 0,
+            right: 0,
             zIndex: 1000,
-            background: 'rgba(0,0,0,0.85)',
-            color: '#fff',
-            borderRadius: 10,
-            padding: '10px 16px',
+            height: 36,
+            background: '#EAF4FF',
             display: 'flex',
             alignItems: 'center',
-            gap: 12,
-            maxWidth: '90%',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+            justifyContent: 'space-between',
+            padding: '0 12px',
+            fontSize: 13,
+            color: '#2E2E2E',
+            transition: 'opacity 200ms ease-out',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
           }}
           data-testid="consult-switch-toast"
         >
-          <span style={{ fontSize: 13, lineHeight: 1.4 }}>{undoToastText}</span>
+          <span style={{ fontSize: 13, lineHeight: 1.4, color: '#2E2E2E', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{undoToastText}</span>
           <button
             onClick={handleUndoSwitch}
             style={{
               background: 'transparent',
-              color: '#5ED963',
-              border: '1px solid #5ED963',
+              color: '#1677FF',
+              border: '1px solid #1677FF',
               borderRadius: 16,
-              padding: '4px 10px',
+              padding: '2px 10px',
               fontSize: 12,
               cursor: 'pointer',
               flexShrink: 0,
+              marginLeft: 8,
             }}
             data-testid="consult-switch-undo-btn"
           >

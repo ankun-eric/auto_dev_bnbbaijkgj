@@ -1073,6 +1073,10 @@ app.include_router(order_enhancement.router)
 from app.api import admin_sdk_health as _admin_sdk_health  # noqa: E402
 app.include_router(_admin_sdk_health.router)
 
+# [PRD-423 T-08 2026-05-08] AI 对话页埋点接收接口（EVT-01 ~ EVT-10）
+from app.api import analytics as _analytics  # noqa: E402
+app.include_router(_analytics.router)
+
 
 # [2026-05-05 SDK 健康看板] 启动期 SDK 分级自检：核心缺失 → 容器退出；可选缺失 → CRITICAL 告警
 @app.on_event("startup")
