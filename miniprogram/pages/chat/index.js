@@ -114,7 +114,13 @@ Page({
     canSaveMember: false,
     todayStr: '',
     medicalOptions: ['高血压', '糖尿病', '心脏病', '哮喘', '甲状腺疾病', '肝病', '肾病', '痛风'],
-    allergyOptions: ['青霉素', '花粉', '海鲜', '牛奶', '尘螨', '坚果', '磺胺类', '头孢类']
+    allergyOptions: ['青霉素', '花粉', '海鲜', '牛奶', '尘螨', '坚果', '磺胺类', '头孢类'],
+
+    // [PRD-425] AI 对话首页顶栏改造
+    aiSignature: '小康',                // 顶栏标题（取 ai_chat.signature，默认"小康"）
+    aiSignatureDisplay: '小康',         // 显示用（超 8 字截断）
+    unreadCount: -1,                    // -1=不显示徽标；0=小红点；1~99=数字；>=100="99+"
+    unreadDisplay: ''                   // 已格式化的徽标文本（如"5"、"99+"）
   },
 
   _recognizeManager: null,
@@ -197,6 +203,8 @@ Page({
     this.loadFontSetting();
     this.loadFamilyMembers();
     this.loadFunctionButtons();
+    // [PRD-425] 加载 AI 助手昵称（signature）与通知中心未读总数，用于顶栏徽标
+    this.loadAiSignatureAndUnread();
 
     if (type === 'drug_identify' || type === 'constitution') {
       this._lockConsultTargetByMemberId(family_member_id);
@@ -775,6 +783,40 @@ Page({
     } catch (e) {
       console.log('loadFunctionButtons error', e);
     }
+  },
+
+  // [PRD-425] 加载 AI 助手昵称（ai_chat.signature）与通知中心未读总数
+  async loadAiSignatureAndUnread() {
+    // 1) 获取 signature；接口异常 → 兜底"小康"
+    try {
+      const res = await get('/api/ai-home-config', {}, { showLoading: false, suppressErrorToast: true });
+      const cfg = res?.data?.config || res?.config || res || {};
+      const sig = (cfg?.ai_chat?.signature || '').trim() || '小康';
+      const display = sig.length > 8 ? sig.slice(0, 8) + '…' : sig;
+      this.setData({ aiSignature: sig, aiSignatureDisplay: display });
+    } catch (e) {
+      this.setData({ aiSignature: '小康', aiSignatureDisplay: '小康' });
+    }
+
+    // 2) 获取通知中心未读总数；接口异常 → 不显示徽标（unreadCount = -1）
+    try {
+      const res = await get('/api/v1/notifications/unread-count', {}, { showLoading: false, suppressErrorToast: true });
+      const cnt = (res?.data?.unreadCount ?? res?.unreadCount);
+      if (typeof cnt === 'number' && cnt >= 0) {
+        const display = cnt >= 100 ? '99+' : String(cnt);
+        this.setData({ unreadCount: cnt, unreadDisplay: display });
+      }
+    } catch (e) {
+      // 静默：保持 unreadCount = -1，前端不显示徽标
+    }
+  },
+
+  // [PRD-425] 点击顶栏未读徽标 → 跳转通知中心
+  onTopBarBadgeTap() {
+    if (this.data.unreadCount < 0) return;
+    wx.navigateTo({ url: '/pages/messages/index' }).catch(() => {
+      // 如果通知中心路径不存在则吞掉错误
+    });
   },
 
   onFunctionButtonTap(e) {

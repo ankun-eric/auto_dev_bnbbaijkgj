@@ -60,6 +60,7 @@ from app.api import (
     messages,
     notice,
     notification,
+    notifications_unified,
     ocr,
     ocr_details,
     order,
@@ -968,6 +969,8 @@ app.include_router(family.router)
 app.include_router(family_management.router)
 app.include_router(content.router)
 app.include_router(notification.router)
+# PRD-425: AI 对话首页顶栏徽标——通知中心未读总数统一聚合接口
+app.include_router(notifications_unified.router)
 app.include_router(customer_service.router)
 app.include_router(drug.router)
 app.include_router(upload.router)

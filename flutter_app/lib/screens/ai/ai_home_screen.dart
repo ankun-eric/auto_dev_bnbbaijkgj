@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../providers/chat_provider.dart';
 import '../../models/chat_session.dart';
 import '../../widgets/chat_history_drawer.dart';
+import '../../services/api_service.dart';
 
 class AiHomeScreen extends StatefulWidget {
   const AiHomeScreen({super.key});
@@ -13,6 +14,12 @@ class AiHomeScreen extends StatefulWidget {
 
 class _AiHomeScreenState extends State<AiHomeScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  final ApiService _apiService = ApiService();
+
+  // [PRD-425] AI 助手昵称（取 ai_chat.signature；为空时兜底"小康"），超 8 字截断
+  String _aiSignature = '小康';
+  // [PRD-425] 通知中心未读总数；-1=未加载/接口异常（不显示徽标）
+  int _unreadCount = -1;
 
   final List<Map<String, dynamic>> _consultTypes = [
     {
@@ -50,7 +57,98 @@ class _AiHomeScreenState extends State<AiHomeScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<ChatProvider>(context, listen: false).loadSessions();
+      _loadAiSignature();
+      _loadUnreadCount();
     });
+  }
+
+  // [PRD-425] 加载 AI 助手昵称（ai_chat.signature）
+  Future<void> _loadAiSignature() async {
+    try {
+      final resp = await _apiService.dio.get('/api/ai-home-config');
+      final data = resp.data is Map ? resp.data['config'] ?? resp.data['data']?['config'] ?? resp.data : null;
+      final sig = (data is Map ? data['ai_chat']?['signature'] : null)?.toString().trim() ?? '';
+      if (!mounted) return;
+      setState(() {
+        _aiSignature = sig.isEmpty ? '小康' : (sig.length > 8 ? '${sig.substring(0, 8)}…' : sig);
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _aiSignature = '小康');
+    }
+  }
+
+  // [PRD-425] 加载通知中心未读总数（进入页面拉一次；接口异常 → 不显示徽标）
+  Future<void> _loadUnreadCount() async {
+    try {
+      final resp = await _apiService.dio.get('/api/v1/notifications/unread-count');
+      final cnt = resp.data is Map ? resp.data['data']?['unreadCount'] : null;
+      if (!mounted) return;
+      if (cnt is int && cnt >= 0) {
+        setState(() => _unreadCount = cnt);
+      }
+    } catch (_) {
+      // 静默失败：保持 _unreadCount = -1（不显示徽标）
+    }
+  }
+
+  // [PRD-425] 顶栏标题 + 右上角未读徽标
+  Widget _buildTopBarTitle() {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Text(
+          _aiSignature,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 17,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        if (_unreadCount >= 0)
+          Positioned(
+            top: -6,
+            right: -16,
+            child: GestureDetector(
+              onTap: () async {
+                // 点击徽标 → 跳转通知中心；路由不存在时静默
+                try {
+                  await Navigator.pushNamed(context, '/messages');
+                } catch (_) {}
+              },
+              child: _unreadCount == 0
+                  ? Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFFF3B30),
+                        shape: BoxShape.circle,
+                      ),
+                    )
+                  : Container(
+                      constraints: const BoxConstraints(minWidth: 16),
+                      height: 16,
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFF3B30),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.white, width: 1),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        _unreadCount >= 100 ? '99+' : '$_unreadCount',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          height: 1.0,
+                        ),
+                      ),
+                    ),
+            ),
+          ),
+      ],
+    );
   }
 
   void _createNewSession(String type) async {
@@ -78,8 +176,8 @@ class _AiHomeScreenState extends State<AiHomeScreen> {
         },
       ),
       appBar: AppBar(
-        // Bug 7：AI 健康咨询页标题栏不再显示品牌 LOGO，仅保留页面标题
-        title: const Text('AI健康咨询'),
+        // [PRD-425] 标题取 ai_chat.signature（默认"小康"），右上角带未读徽标
+        title: _buildTopBarTitle(),
         backgroundColor: const Color(0xFF52C41A),
         centerTitle: true,
         automaticallyImplyLeading: false,
@@ -89,7 +187,7 @@ class _AiHomeScreenState extends State<AiHomeScreen> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.history),
+            icon: const Icon(Icons.more_horiz),
             onPressed: () => _scaffoldKey.currentState?.openDrawer(),
           ),
         ],

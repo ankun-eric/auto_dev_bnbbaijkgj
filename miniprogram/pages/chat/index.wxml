@@ -1,10 +1,23 @@
 <view class="chat-page">
-  <!-- 顶部操作栏 -->
+  <!-- [PRD-425] 顶部操作栏：☰ + 标题(小康) + 未读徽标 + Aa（更多入口） -->
   <view class="chat-top-bar">
     <view class="drawer-toggle" bindtap="openDrawer">
       <text class="toggle-icon">☰</text>
     </view>
-    <view class="top-bar-spacer"></view>
+    <view class="top-bar-title-wrap">
+      <text class="top-bar-title">{{aiSignatureDisplay}}</text>
+      <!-- [PRD-425] 未读徽标：unreadCount<0 不显示；=0 小红点；>=1 数字 -->
+      <view
+        wx:if="{{unreadCount === 0}}"
+        class="top-bar-badge top-bar-badge-dot"
+        catchtap="onTopBarBadgeTap"
+      ></view>
+      <view
+        wx:elif="{{unreadCount > 0}}"
+        class="top-bar-badge top-bar-badge-num"
+        catchtap="onTopBarBadgeTap"
+      >{{unreadDisplay}}</view>
+    </view>
     <view class="font-size-trigger" catchtap="toggleFontPopover">
       <text class="font-trigger-text">Aa</text>
     </view>

@@ -85,7 +85,13 @@ interface FuncGridItemCfg {
   sort: number;
 }
 
+// [PRD-425] AI 助手昵称配置（取自 ai_home_config.ai_chat.signature）
+interface AIChatSignatureCfg {
+  signature?: string;
+}
+
 interface AIHomeConfig {
+  ai_chat?: AIChatSignatureCfg;
   welcome: {
     avatar: { type: 'emoji' | 'image'; emoji?: string; image_url?: string };
     greetings: { morning: string[]; afternoon: string[]; evening: string[] };
@@ -234,6 +240,8 @@ const FALLBACK_CONFIG: AIHomeConfig = {
     { id: 'r4', icon: '💚', title: '失眠', question: '最近总是失眠怎么办？', enabled: true, sort: 4 },
   ],
   empty_placeholder: { icon: '💬', main_title: '还没有对话记录' },
+  // [PRD-425] AI 助手昵称兜底"小康"
+  ai_chat: { signature: '小康' },
   global_switches: {
     welcome_visible: true,
     health_tips_visible: true,
@@ -338,6 +346,9 @@ export default function AiHomePage() {
 
   // PRD-405：从后端读取 AI 首页配置（带 5 分钟本地缓存 + 内置兜底）
   const [aiHomeConfig, setAiHomeConfig] = useState<AIHomeConfig>(FALLBACK_CONFIG);
+
+  // [PRD-425] 通知中心未读总数（进入页面拉一次；接口异常 → null 表示不显示徽标）
+  const [unreadCount, setUnreadCount] = useState<number | null>(null);
   // 同一会话期内固定的随机选择
   const [pickedGreeting, setPickedGreeting] = useState<string>('');
   const [pickedSubtitle, setPickedSubtitle] = useState<string>('');
@@ -487,6 +498,29 @@ export default function AiHomePage() {
 
   useEffect(() => {
     loadLastSession();
+  }, []);
+
+  // [PRD-425] 进入 /ai-home 时拉取一次通知中心未读总数；离开页面再回来视为重新进入
+  // 失败 / 超时 / 未登录 → 保持 null，徽标不显示（按 PRD §5.2 异常兜底）
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : '';
+        if (!token) return;
+        const res: any = await api.get('/api/v1/notifications/unread-count');
+        const data = res?.data ?? res;
+        const cnt = data?.data?.unreadCount;
+        if (!cancelled && typeof cnt === 'number' && cnt >= 0) {
+          setUnreadCount(cnt);
+        }
+      } catch {
+        // 接口异常静默：徽标不显示
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -1209,53 +1243,122 @@ export default function AiHomePage() {
     .slice(0, aiHomeConfig.func_grid?.max_count || 6);
 
   // [Bug-419 H-5] 顶栏字段安全读取，缺失时按 v1.0 设计图（无顶栏）兜底
-  const topbarVisible = aiHomeConfig.topbar?.visible ?? false;
+  // [PRD-425] 旧逻辑保留但前端忽略（新版顶栏强制显示，不再受 topbar.visible 控制）
   const topbarShowSidebar = aiHomeConfig.topbar?.show_sidebar ?? true;
   const topbarShowMoreMenu = aiHomeConfig.topbar?.show_more_menu ?? true;
 
+  // [PRD-425] 新版顶栏标题：取 ai_chat.signature；为空 / 接口异常 → 兜底"小康"
+  // 文案截断：超过 8 个汉字加省略号
+  const rawSignature = aiHomeConfig.ai_chat?.signature || '';
+  const topbarTitle = (() => {
+    const s = (rawSignature && rawSignature.trim()) ? rawSignature.trim() : '小康';
+    return s.length > 8 ? s.slice(0, 8) + '…' : s;
+  })();
+
+  // [PRD-425] 徽标展示形态：null=不显示；0=小红点；1~99=数字；>=100="99+"
+  const renderUnreadBadge = () => {
+    if (unreadCount === null) return null;
+    const isDot = unreadCount === 0;
+    const display = unreadCount >= 100 ? '99+' : String(unreadCount);
+    return (
+      <span
+        onClick={(e) => {
+          e.stopPropagation();
+          // 点击徽标 → 跳转通知中心（不自动清零）
+          router.push('/messages');
+        }}
+        style={{
+          position: 'absolute',
+          top: -6,
+          right: -14,
+          minWidth: isDot ? 8 : 16,
+          height: isDot ? 8 : 16,
+          padding: isDot ? 0 : '0 4px',
+          borderRadius: 9,
+          background: '#FF3B30',
+          color: '#fff',
+          fontSize: 10,
+          fontWeight: 600,
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          lineHeight: 1,
+          boxShadow: '0 0 0 1.5px #fff',
+          cursor: 'pointer',
+        }}
+        data-testid="ai-home-unread-badge"
+        aria-label={isDot ? '有新通知' : `${display} 条未读通知`}
+      >
+        {!isDot && display}
+      </span>
+    );
+  };
+
   return (
     <div className="flex flex-col h-screen" style={{ background: THEME.background, maxWidth: 750, margin: '0 auto' }}>
-      {/* Top Bar (v1.0 设计图无顶栏，由 topbar.visible 控制) */}
+      {/* [PRD-425] 新版顶栏：强制显示「☰ + 标题(小康) + 未读徽标 + ⋯」三段式
+          后台 topbar.visible 配置已被前端忽略，新版顶栏在 /ai-home 永久贴顶展示 */}
       <SectionErrorBoundary name="topbar">
-        {topbarVisible ? (
-          <div
-            className="flex items-center justify-between px-4 flex-shrink-0"
-            style={{ height: 48, background: THEME.cardBg, borderBottom: `1px solid ${THEME.divider}` }}
-          >
-            <div className="flex items-center gap-3">
-              {topbarShowSidebar && (
-                <button className="text-xl" onClick={() => setSidebarOpen(true)}>☰</button>
-              )}
-              {aiHomeConfig.topbar?.logo?.type === 'image' && aiHomeConfig.topbar?.logo?.image_url ? (
-                <img
-                  src={aiHomeConfig.topbar.logo.image_url}
-                  alt="logo"
-                  style={{ width: 24, height: 24, borderRadius: 4, objectFit: 'cover' }}
-                />
-              ) : (
-                <span className="text-base">{aiHomeConfig.topbar?.logo?.emoji || '🌿'}</span>
-              )}
-              <span className="font-bold text-base" style={{ color: THEME.textPrimary }}>
-                {aiHomeConfig.topbar?.title || 'AI 健康助手'}
-              </span>
-            </div>
-            {topbarShowMoreMenu && (
-              <button className="text-xl tracking-widest" onClick={() => setMoreMenuOpen(true)}>···</button>
-            )}
-          </div>
-        ) : (
-          /* v1.0 设计图无顶栏时仍需提供入口（隐藏在欢迎区右上角的 ··· 按钮） */
-          <div className="flex items-center justify-end px-4 pt-2" style={{ height: 32 }}>
+        <div
+          className="flex items-center justify-between px-3 flex-shrink-0 sticky top-0 z-50"
+          style={{
+            height: 48,
+            background: THEME.cardBg,
+            paddingTop: 'env(safe-area-inset-top)',
+          }}
+          data-testid="ai-home-topbar"
+        >
+          {/* 左：☰ 汉堡菜单 */}
+          {topbarShowSidebar ? (
             <button
-              className="text-xl tracking-widest"
-              style={{ color: THEME.textSecondary }}
+              className="flex items-center justify-center"
+              style={{ width: 32, height: 32, fontSize: 22, color: THEME.textPrimary, marginLeft: 4 }}
               onClick={() => setSidebarOpen(true)}
-              aria-label="历史记录"
+              aria-label="历史会话"
             >
               ☰
             </button>
+          ) : (
+            <div style={{ width: 32 }} />
+          )}
+
+          {/* 中：标题（小康） + 右上角未读徽标 */}
+          <div
+            className="flex-1 flex items-center"
+            style={{ minWidth: 0, paddingLeft: 8 }}
+          >
+            <span
+              className="relative inline-block"
+              style={{
+                fontSize: 17,
+                fontWeight: 600,
+                color: THEME.textPrimary,
+                lineHeight: '24px',
+                cursor: 'default',
+                whiteSpace: 'nowrap',
+                overflow: 'visible',
+              }}
+              data-testid="ai-home-topbar-title"
+            >
+              {topbarTitle}
+              {renderUnreadBadge()}
+            </span>
           </div>
-        )}
+
+          {/* 右：⋯ 更多菜单 */}
+          {topbarShowMoreMenu ? (
+            <button
+              className="flex items-center justify-center tracking-widest"
+              style={{ width: 32, height: 32, fontSize: 22, color: THEME.textPrimary, marginRight: 4 }}
+              onClick={() => setMoreMenuOpen(true)}
+              aria-label="更多菜单"
+            >
+              ⋯
+            </button>
+          ) : (
+            <div style={{ width: 32 }} />
+          )}
+        </div>
       </SectionErrorBoundary>
 
       {/* Main Content */}

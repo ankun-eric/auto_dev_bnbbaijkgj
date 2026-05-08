@@ -33,6 +33,55 @@
   flex: 1;
 }
 
+/* [PRD-425] 顶栏中部标题与未读徽标 */
+.top-bar-title-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  padding: 0 16rpx;
+  min-width: 0;
+}
+.top-bar-title {
+  font-size: 34rpx;
+  font-weight: 600;
+  color: #1A1A1A;
+  line-height: 48rpx;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* 标题右上角徽标，绝对定位防止挤压标题文字 */
+.top-bar-badge {
+  position: absolute;
+  background: #FF3B30;
+  color: #fff;
+  border-radius: 18rpx;
+  box-shadow: 0 0 0 3rpx #fff;
+  font-size: 20rpx;
+  font-weight: 600;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+.top-bar-badge-dot {
+  width: 16rpx;
+  height: 16rpx;
+  /* 紧贴标题右上角；标题居中，按文字宽度无法精确对齐时取右上方 */
+  right: 12rpx;
+  top: 6rpx;
+}
+.top-bar-badge-num {
+  min-width: 32rpx;
+  height: 32rpx;
+  padding: 0 8rpx;
+  right: 0;
+  top: 4rpx;
+}
+
 /* 字体大小按钮 */
 .font-size-trigger {
   width: 64rpx;
