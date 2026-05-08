@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { List, Card, Button, Tag, FloatingBubble, Toast, SpinLoading } from 'antd-mobile';
 import { AddOutline, MessageOutline } from 'antd-mobile-icons';
 import api from '@/lib/api';
+import { createChatSession } from '@/lib/chat-session';
 import ChatSidebar from '@/components/ChatSidebar';
 
 const consultTypes = [
@@ -78,19 +79,16 @@ export default function AIPage() {
   const startNewChat = async (type: string) => {
     if (creating) return;
     setCreating(true);
-    try {
-      const res: any = await api.post('/api/chat/sessions', {
-        session_type: type,
-        title: '新对话',
-      });
-      const data = res.data || res;
-      const sessionId = data.id;
-      router.push(`/chat/${sessionId}?type=${type}`);
-    } catch {
-      Toast.show({ content: '创建会话失败，请检查网络或登录状态', icon: 'fail' });
-    } finally {
-      setCreating(false);
+    // [Bug-419 H-3 2026-05-08] 走统一 createChatSession 工具：
+    // 类型别名（如 'symptom' / 'tcm' / 'drug'）由工具自动归一化为后端枚举合法值
+    const res = await createChatSession({
+      session_type: type,
+      title: '新对话',
+    }, { errorToastText: '创建会话失败，请检查网络或登录状态' });
+    if (res.ok && res.sessionId) {
+      router.push(`/chat/${res.sessionId}?type=${type}`);
     }
+    setCreating(false);
   };
 
   return (

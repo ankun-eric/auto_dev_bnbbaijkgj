@@ -11,6 +11,7 @@ import {
 } from 'antd-mobile';
 import { CloseOutline } from 'antd-mobile-icons';
 import api from '@/lib/api';
+import { createChatSession } from '@/lib/chat-session';
 
 interface SessionItem {
   id: number;
@@ -119,23 +120,21 @@ export default function ChatSidebar({
   const handleNewChat = async () => {
     if (creating) return;
     setCreating(true);
-    try {
-      const res: any = await api.post('/api/chat/sessions', {
-        session_type: 'health_qa',
-        title: '新对话',
-      });
-      const data = res.data || res;
+    // [Bug-419 H-3 2026-05-08] 走统一 createChatSession 工具，与其他入口字段语义一致
+    const res = await createChatSession({
+      session_type: 'health_qa',
+      title: '新对话',
+    });
+    if (res.ok && res.sessionId) {
+      const sid = Number(res.sessionId);
       if (onSessionCreated) {
-        onSessionCreated(data.id);
+        onSessionCreated(sid);
       } else {
-        router.push(`/chat/${data.id}`);
+        router.push(`/chat/${sid}`);
       }
       onClose();
-    } catch {
-      Toast.show({ content: '创建失败', icon: 'fail' });
-    } finally {
-      setCreating(false);
     }
+    setCreating(false);
   };
 
   const handleDelete = async (item: SessionItem) => {

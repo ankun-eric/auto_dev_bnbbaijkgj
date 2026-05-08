@@ -215,23 +215,144 @@ async def _build_user_health_profile_context(user_id: int, db: AsyncSession) -> 
         return ""
 
 
+# [Bug-419 2026-05-08] 会话类型枚举映射 — 兼容历史/外部命名（如 'general'/'constitution'），
+# 统一归一化为 SessionType 枚举值。未命中映射时按"未识别 session_type"日志告警并兜底。
+_SESSION_TYPE_ALIASES = {
+    "general": "health_qa",
+    "qa": "health_qa",
+    "chat": "health_qa",
+    "default": "health_qa",
+    "constitution": "constitution_test",
+    "drug": "drug_query",
+    "symptom": "symptom_check",
+    "report": "report_interpret",
+}
+
+
+def _normalize_session_type(raw: Optional[str]) -> str:
+    """[Bug-419] 把任意客户端传入值归一化为合法的 SessionType 枚举值。
+
+    - None / 空串 → 默认 health_qa（B-2 兜底）
+    - 直接命中枚举值 → 原样返回
+    - 命中别名表 → 返回映射值
+    - 完全不识别 → 兜底 health_qa，并在 logger 中告警
+    """
+    valid = {t.value for t in SessionType}
+    if not raw:
+        return "health_qa"
+    if raw in valid:
+        return raw
+    aliased = _SESSION_TYPE_ALIASES.get(raw)
+    if aliased and aliased in valid:
+        return aliased
+    # 兜底：未识别的 session_type 仍按通用咨询处理，避免 422 必现伤用户
+    try:
+        import logging
+
+        logging.getLogger(__name__).warning(
+            "[Bug-419] unknown session_type=%r, fallback to health_qa", raw
+        )
+    except Exception:
+        pass
+    return "health_qa"
+
+
+async def _pick_default_family_member_id(
+    user_id: int, db: AsyncSession
+) -> Optional[int]:
+    """[Bug-419] 当客户端未传 family_member_id 时，优先使用用户的"本人"档案，
+    若无 is_self 记录则回退到该用户最早创建的家庭成员；都没有则返回 None。
+    """
+    try:
+        result = await db.execute(
+            select(FamilyMember)
+            .where(FamilyMember.user_id == user_id, FamilyMember.is_self.is_(True))
+            .limit(1)
+        )
+        member = result.scalar_one_or_none()
+        if member:
+            return member.id
+        result = await db.execute(
+            select(FamilyMember)
+            .where(FamilyMember.user_id == user_id)
+            .order_by(FamilyMember.created_at.asc())
+            .limit(1)
+        )
+        member = result.scalar_one_or_none()
+        return member.id if member else None
+    except Exception:
+        return None
+
+
 @router.post("/sessions", response_model=ChatSessionResponse)
 async def create_session(
     data: ChatSessionCreate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    session = ChatSession(
-        user_id=current_user.id,
-        session_type=data.session_type,
-        title=data.title or "新对话",
-        family_member_id=data.family_member_id,
-        symptom_info=data.symptom_info,
-    )
-    db.add(session)
-    await db.flush()
-    await db.refresh(session)
-    return ChatSessionResponse.model_validate(session)
+    """创建新的 AI 会话。
+
+    [Bug-419 2026-05-08] 此接口对客户端字段做最大限度的容错与兜底：
+      1) session_type 缺失 / 非法 → 自动兜底为 health_qa（B-2）
+      2) family_member_id 缺失 → 优先取用户「默认咨询对象」（B-3）
+      3) H5 早期实现使用的 member_id 字段，自动并入 family_member_id（兼容字段）
+      4) 兜底命中时记录日志，便于排查（B-4）
+    """
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    # 兼容字段：member_id → family_member_id
+    if data.family_member_id is None and getattr(data, "member_id", None) is not None:
+        logger.info(
+            "[Bug-419] H5 旧版字段 member_id=%s 自动归并到 family_member_id",
+            data.member_id,
+        )
+        data.family_member_id = data.member_id
+
+    # session_type 归一化 + 兜底
+    raw_session_type = data.session_type
+    session_type = _normalize_session_type(raw_session_type)
+    if session_type != raw_session_type:
+        logger.info(
+            "[Bug-419] session_type normalized: raw=%r -> %r", raw_session_type, session_type
+        )
+
+    # family_member_id 兜底（仅在客户端未显式传入时）
+    family_member_id = data.family_member_id
+    if family_member_id is None:
+        family_member_id = await _pick_default_family_member_id(current_user.id, db)
+        if family_member_id is not None:
+            logger.info(
+                "[Bug-419] family_member_id 缺失，兜底为用户默认家庭成员 id=%s",
+                family_member_id,
+            )
+
+    try:
+        session = ChatSession(
+            user_id=current_user.id,
+            session_type=session_type,
+            title=data.title or "新对话",
+            family_member_id=family_member_id,
+            symptom_info=data.symptom_info,
+        )
+        db.add(session)
+        await db.flush()
+        await db.refresh(session)
+        return ChatSessionResponse.model_validate(session)
+    except Exception as exc:
+        # [Bug-419 B-1/B-4] 友好的中文错误消息 + 完整请求上下文日志
+        logger.exception(
+            "[Bug-419] create_session 失败 user_id=%s session_type=%r family_member_id=%r title=%r",
+            current_user.id,
+            session_type,
+            family_member_id,
+            data.title,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=f"创建会话失败：{exc}。请稍后重试，若持续报错请联系客服。",
+        )
 
 
 @router.get("/sessions")

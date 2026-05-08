@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Button, TextArea, Tag, Grid, Card, Toast, Popup, Radio, DatePicker } from 'antd-mobile';
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
+import { createChatSession } from '@/lib/chat-session';
 import DiseaseTagSelector, { type DiseaseItem } from '@/components/DiseaseTagSelector';
 import HealthProfileEditor, { type HealthProfileEditorRef, showUnsavedChangesModal } from '@/components/HealthProfileEditor';
 
@@ -368,7 +369,9 @@ export default function SymptomPage() {
       setStep(2);
       setMemberPopupVisible(false);
 
-      const sessionRes: any = await api.post('/api/chat/sessions', {
+      // [Bug-419 H-3 2026-05-08] 走统一 createChatSession 工具，确保字段对齐 +
+      // 内部 try/catch（页面不会因 422 异常崩溃）
+      const sessionResult = await createChatSession({
         session_type: 'symptom_check',
         family_member_id: familyMemberId,
         title,
@@ -377,10 +380,11 @@ export default function SymptomPage() {
           symptoms: selectedSymptoms, description, duration,
         },
       });
-      const session = sessionRes.data || sessionRes;
-      const sessionId = session.id;
-
-      router.push(`/chat/${sessionId}?type=symptom&msg=${encodeURIComponent(msg)}&member=${encodeURIComponent(memberLabel)}`);
+      if (!sessionResult.ok || !sessionResult.sessionId) {
+        setAnalyzing(false);
+        return;
+      }
+      router.push(`/chat/${sessionResult.sessionId}?type=symptom&msg=${encodeURIComponent(msg)}&member=${encodeURIComponent(memberLabel)}`);
     } catch (err: any) {
       Toast.show({ content: err?.response?.data?.detail || '操作失败，请重试', icon: 'fail' });
     }

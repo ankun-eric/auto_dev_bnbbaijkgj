@@ -6,6 +6,7 @@ import { Card, Button, Radio, Space, ProgressBar, Toast, Result, SpinLoading, Em
 import GreenNavBar from '@/components/GreenNavBar';
 import type { ImageUploadItem } from 'antd-mobile/es/components/image-uploader';
 import api from '@/lib/api';
+import { createChatSession } from '@/lib/chat-session';
 import { checkFileSize } from '@/lib/upload-utils';
 
 const constitutionQuestions = [
@@ -414,16 +415,16 @@ export default function TcmPage() {
     }
 
     // 情形 2: 已得到测评结果，跳转 chat 咨询
-    try {
-      const res: any = await api.post('/api/chat/sessions', {
-        session_type: 'constitution',
-        title: `体质分析-${constitutionResult.type}`,
-        family_member_id: memberId,
-      });
-      const data = res.data || res;
-      router.push(`/chat/${data.id}?type=constitution`);
-    } catch {
-      Toast.show({ content: '创建会话失败', icon: 'fail' });
+    // [Bug-419 H-3 2026-05-08] 走统一 createChatSession 工具：
+    // - session_type 修正为 'constitution_test'（原 'constitution' 不在后端枚举内必触发 422）
+    // - 工具内 try/catch + Toast，不会抛异常导致 tcm 页面崩溃
+    const res = await createChatSession({
+      session_type: 'constitution_test',
+      title: `体质分析-${constitutionResult.type}`,
+      family_member_id: memberId,
+    });
+    if (res.ok && res.sessionId) {
+      router.push(`/chat/${res.sessionId}?type=constitution_test`);
     }
   };
 

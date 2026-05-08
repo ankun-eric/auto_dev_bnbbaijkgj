@@ -33,7 +33,49 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: BUG-FIX-RESCHEDULE-POPUP-AUTO-CLOSE-V2-20260508｜订单改约弹窗自动关闭 二次修复（2026-05-08 16:10）
+## Latest Update: BUG-419-AI-HOME-WHITESCREEN-AND-SESSION-422-20260508｜AI 对话首页白屏与创建会话 422 一击到底修复（2026-05-08 17:00）
+
+### 一句话结论
+按 `cursor_prompt_419_20260508164517.txt` 走 develop-all 流程修复 PRD-411 上线后并发出现的两条线上故障：① H5 用户端 `/ai-home` 整页白屏（顶部状态栏外的所有区域：欢迎语/健康小贴士/九宫格/推荐问题/底部输入框 全部不可见）；② 用户在首页输入文字点击发送即提示「创建会话失败」+ 浏览器控制台 422 Unprocessable Entity。**根因双重定位**：(1) H5 `ai-home/page.tsx` 中 `createNewSession` 历史代码把 `family_member_id` 错写成 `member_id` 且完全漏掉 `session_type` → 后端 Pydantic 直接 422（注：这是 PRD-411 之前就存在的问题，但 PRD-411 之前 ai-home 走的是另一套创建会话路径，PRD-411 切到 Tab 化后才暴露）；(2) H5 ai-home 整页使用 `aiHomeConfig.welcome.subtitles` / `.global_switches.welcome_visible` 等深层字段访问，在配置接口任一字段缺失或返回部分配置时直接抛 `Cannot read properties of undefined`，整个 React 子树卸载导致白屏。**修复方案（双向加固，一击到底）**：
+
+**后端 4 项加固**：B-1 `app/main.py` 新增全局 RequestValidationError 处理器，把英文 422 错误转中文（"咨询对象 family_member_id：Input should be..."）+ 保留 errors[] 数组兼容前端 axios + 完整请求体脱敏日志；B-2 `schemas/chat.py` 把 session_type 改为 Optional 默认 health_qa，新增 member_id 字段做老客户端兼容；`api/chat.py` 新增 `_SESSION_TYPE_ALIASES` 字典（general/qa/chat/default→health_qa, constitution→constitution_test, drug→drug_query, symptom→symptom_check, report→report_interpret）+ `_normalize_session_type` 兜底函数；B-3 `api/chat.py` 新增 `_pick_default_family_member_id` 异步函数（先找 is_self=True，再退化到最早创建的家庭成员）+ create_session 路由内当 family_member_id 为 None 时调用兜底；B-4 关键路径全部加 `[Bug-419]` 前缀的 INFO 日志（兜底命中 / 字段映射 / 最终落库参数）。
+
+**H5 11 项加固**：H-1 `ai-home/page.tsx` createNewSession 字段对齐 session_type='health_qa' + family_member_id；H-2/3 新增 `h5-web/src/lib/chat-session.ts` 统一工具 `createChatSession(payload, options)`，所有创建会话入口必须经过此工具，工具内部 try/catch + Toast 兜底，不向上抛异常；H-4 新增 `h5-web/src/components/SectionErrorBoundary.tsx` 区块级 ErrorBoundary（componentDidCatch + getDerivedStateFromError，错误时回退到 `<div data-section-error="..." />` 空占位）；H-5 ai-home 关键 7 个区块（welcome/health_tips/func_grid/recommend/empty_placeholder/floating_button/topbar）全部包裹 SectionErrorBoundary；H-6 aiHomeConfig 全部读取改为 `obj?.field ?? defaultValue` 安全访问（global_switches?.welcome_visible ?? true 等）；H-7 新增内置 `FALLBACK_CONFIG`，配置接口失败时仍保证 UI 完整渲染；H-8 配置加载从 `{...FALLBACK_CONFIG, ...data}` 浅合并改为按一级 key 深合并（`mergeWithFallback` 工具函数），避免接口返回 `welcome:{}` 时把内置默认 welcome 整段抹掉；H-9 `tcm/page.tsx` session_type 从非法 `'constitution'` 改为合法枚举 `'constitution_test'`；H-10 `symptom/page.tsx` + `components/ChatSidebar.tsx` + `(tabs)/ai/page.tsx` 三处全部切换到统一工具；H-11 工具内部统一处理后端兜底 200 / 客户端 400（401 仍特殊处理跳登录）/ 网络错误三类场景，UI 层只需关心 res.ok 即可。
+
+**部署与验证**：① 服务器容器内 pytest `tests/test_bug419_chat_sessions.py` **26 passed in 16.81s**（T01-T09 涵盖标准 payload / session_type 缺省 / family_member_id 缺省 / 完全空 payload / session_type 别名归一化 / member_id 兼容字段 / 全 13 个合法 session_type 枚举值 / 422 中文化 / 默认家庭成员兜底）；② 关键回归 `test_ai_home_config* + test_ai_chat_v11_414 + test_bugfix_reschedule_popup_auto_close` **42 passed in 27.24s**；③ docker cp backend 4 文件 + restart backend；④ docker compose build h5-web（86.9s）+ up -d；⑤ 远程端到端 smoke（注册新用户 → 复现历史错误 payload）：`{"member_id": null}` 缺 session_type → 200（自动兜底为 health_qa + family_member_id=44）/ 完全空 payload → 200 / `general` 别名 → 200 归一化为 health_qa / 非法 family_member_id 类型 → 422 + 中文消息 / `/api/ai-home-config=200` / `/=200` / `/ai-home=308`（重定向到登录页正常）。**1 端打包**（backend + h5-web，两者都已通过 docker 部署生效；admin-web/小程序/安卓/iOS 未变动跳过）。
+
+### 改动文件
+- 后端修改：`backend/app/schemas/chat.py`（ChatSessionCreate.session_type 改 Optional + 新增 member_id 兼容字段）、`backend/app/api/chat.py`（_SESSION_TYPE_ALIASES + _normalize_session_type + _pick_default_family_member_id + create_session 路由全面增强）、`backend/app/main.py`（_VALIDATION_FIELD_LABELS + _zh_validation_message + RequestValidationError 全局处理器）
+- 后端测试：`backend/tests/test_bug419_chat_sessions.py`（新建，T01-T09 共 26 个用例含参数化）
+- H5 新增：`h5-web/src/lib/chat-session.ts`（统一 createChatSession 工具 + VALID_SESSION_TYPES + SESSION_TYPE_ALIASES + normalizeSessionType + Toast 兜底）、`h5-web/src/components/SectionErrorBoundary.tsx`（区块级 ErrorBoundary）
+- H5 修改：`h5-web/src/app/(ai-chat)/ai-home/page.tsx`（核心修复页面：字段对齐 + ErrorBoundary 包裹 7 区块 + ?.+?? 安全访问 + FALLBACK_CONFIG 内置默认 + mergeWithFallback 深合并）、`h5-web/src/app/tcm/page.tsx`（session_type 改 constitution_test + 切工具）、`h5-web/src/app/symptom/page.tsx`（切工具）、`h5-web/src/components/ChatSidebar.tsx`（切工具）、`h5-web/src/app/(tabs)/ai/page.tsx`（切工具 + type 别名归一化）
+- 部署脚本：`_deploy_bug419.py`（paramiko SFTP + docker cp + restart + 容器内 pytest + h5 docker compose build + smoke）、`_smoke_bug419.py`（端到端注册→登录→复现→验证 6 用例）
+- 用户体验手册：`user_docs/AI对话首页白屏与会话422修复_Bug419.md`
+
+### 关键技术决策
+- **后端 + 前端双向防御（一击到底）**：本来仅靠前端字段对齐就能修 422，但既然要"一击到底"，后端做了 5 重防御（B-1 中文化 + B-2 默认值 + 别名映射 + 老字段兼容 + B-3 family_member_id 兜底 + B-4 日志），保证：① 即使未来再有新前端忘记带 session_type/写错字段名也不会 422；② 422 出现时前端能拿到中文消息直接 Toast 给用户；③ 历史老版本 H5（用 member_id 字段）也能继续用，无需热更
+- **统一 createChatSession 工具是架构级护栏**：H5 之前 6 个入口（ai-home/tcm/symptom/sidebar/(tabs)/ai/drug 等）各自直接 `api.post('/api/chat/sessions', {...})`，字段不一致是技术债；本次抽工具后所有入口必须经过工具，工具内部统一字段映射 + Toast 兜底 + 不抛异常，从根本上杜绝同类故障
+- **SectionErrorBoundary 区块级隔离**：React 单一 ErrorBoundary 全包整页太粗（一个区块挂掉整页降级），分到 7 个区块后即使某个区块（如 health_tips 数据格式异常）报错，其他区块仍正常渲染
+- **mergeWithFallback 深合并**：单纯 `{...FALLBACK_CONFIG, ...data}` 是浅合并，如果接口返回 `welcome: {}`（管理后台某天清空了 welcome 子配置），会把 FALLBACK_CONFIG.welcome.title/subtitles 全部抹掉，运行时 `welcome.title.charAt` 直接抛错；按一级 key 深合并保证子字段缺失时回退到内置默认
+- **family_member_id 兜底优先 is_self=True**：注册时一般会自动创建一条 is_self=True 的"本人"家庭成员，后端 fallback 优先取它，最贴合"用户不指定咨询对象 = 给自己问"的产品语义
+- **session_type 默认值选 health_qa 而非 general**：health_qa 是 SessionType 枚举里的合法值，对应"健康问答"，是 ai-home 默认入口的产品定义；general 是历史别名（PRD 早期的非规范命名），归一化映射保留为兼容
+- **422 错误中文化但保留 errors 数组**：前端 axios 拦截器原本可能解析 `error.response.data.errors`，全改为 `detail` 字符串会破坏现有错误提示链；本次新增 `messages[]`+`detail`（首条中文）+ 保留原 `errors[]`，三层兼容
+- **不动 admin-web/小程序/Flutter**：经核查这三端没有创建 chat session 的代码路径（ai 对话是 H5 独有），同时后端兼容字段也覆盖了未来万一的老版本调用，遵循"最小改动"原则跳过这些端的打包
+
+### 验证情况
+- 后端容器内 pytest（Bug-419 专项）：`tests/test_bug419_chat_sessions.py` → **26 passed in 16.81s**
+- 后端容器内 pytest（关键回归）：`test_ai_home_config* + test_ai_chat_v11_414 + test_bugfix_reschedule_popup_auto_close` → **42 passed in 27.24s**
+- h5-web docker compose build：86.9s 成功（next build 含完整路由树，ai-home/tcm/symptom 等均正常 chunk 输出）
+- h5-web docker compose up -d：容器 Recreated → Started
+- 远程端到端 smoke（_smoke_bug419.py，注册新用户 → 复现历史错误 → 验证修复）：T1 历史错误 payload `{"member_id": null}` 缺 session_type → 200（auto-fallback：session_type=health_qa, family_member_id=44 自动取本人）/ T2 完全空 payload → 200 / T3 标准 health_qa → 200 / T4 session_type='general' 别名 → 200 + resolved=health_qa / T5 非法 family_member_id 类型 → 422 + "咨询对象 family_member_id：..." 中文消息 / T6 /api/ai-home-config → 200 / 全部通过
+- 已修复行为预期（产品/测试同学回归）：RC-01 进入 /ai-home 不再白屏 / RC-02 输入文字点击发送不再 422 / RC-03 体质（tcm）/症状（symptom）/侧边栏新建/Tab AI 入口 全部可正常创建会话 / RC-04 即使 /api/ai-home-config 返回不完整配置 ai-home 仍能渲染 / RC-05 任意区块运行时报错不影响其他区块（区块级 ErrorBoundary）
+
+### 用户体验手册
+- `user_docs/AI对话首页白屏与会话422修复_Bug419.md`
+
+---
+
+## Previous Update: BUG-FIX-RESCHEDULE-POPUP-AUTO-CLOSE-V2-20260508｜订单改约弹窗自动关闭 二次修复（2026-05-08 16:10）
 
 ### 一句话结论
 按 `cursor_prompt_417_20260508160200.txt` 走 develop-all 流程修复 Bug410 一次修复后出现的「改约成功后抽屉关一次→自己又自动弹回来」二次问题。**根因定位**：H5 顾客端 `h5-web/src/app/unified-order/[id]/page.tsx` 中的 `useEffect([order, searchParams], ...)` 兼容外链 `?action=appointment` 自动开弹窗 —— 但当 `submitAppointment` 提交成功后 `fetchOrder()` 重新 setOrder，order 引用变化触发 useEffect 重跑，URL 上 `?action=appointment` 仍存在 → 第二次自动 `openAppointmentPopup()`。小程序与 Flutter 端经核查不存在此问题（小程序 onLoad 未读 options.action；Flutter `_goDetail` 未透传 action 到详情页 → 只有用户手动点【改约】才开弹窗）。**修复方案**（仅改 H5 一个文件）：① 引入 `actionAppointmentConsumedRef = useRef(false)`，useEffect 内首次自动开弹窗时立即标记 true，后续 order/searchParams 变化全部跳过；② `submitAppointment` 成功分支 `setShowAppointmentPopup(false)` 后用 `router.replace()` 把 URL 上的 `action=appointment` 移除（双重保险），保留其它 query 参数；③ 增加 `usePathname` 用于 router.replace 的 pathname 拼接；保留 v1 的所有既有行为（立即关弹窗、Toast 文案区分、写 localStorage 刷新标志、列表页 pageshow/visibilitychange/focus 监听）。**部署**：git push commit `288086c` → SSH 到服务器 git fetch+reset --hard origin/master → docker compose build h5-web（85s，构建产物含 `/unified-order/[id]` 路由 9.97kB）→ docker compose up -d h5-web 重建容器；服务器端 smoke：`/=200`、`/unified-orders=308（重定向到登录正常）`；后端 pytest `tests/test_bugfix_reschedule_popup_auto_close.py` 容器内 **4 passed in 5.80s**（T01 首次预约 / T02 改约成功 / T03 列表与详情联动 / T04 失败兜底）—— 后端契约稳定；**0 端打包**（仅 H5 改动，小程序/安卓/iOS 未变动直接跳过）。

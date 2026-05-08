@@ -3,6 +3,7 @@ import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -1140,6 +1141,65 @@ async def _lookup_error_handler(request: Request, exc: LookupError):
     return JSONResponse(
         status_code=400,
         content={"detail": f"枚举值不合法：{exc}"},
+    )
+
+
+# [Bug-419 2026-05-08 B-1/B-4] 422 校验错误友好化：
+# 将 FastAPI/Pydantic 的英文校验错误转换为中文，并打印完整请求体（便于排查），
+# 同时保留 422 状态码与 errors 数组以兼容前端 axios.error.response.data。
+_VALIDATION_FIELD_LABELS = {
+    "session_type": "会话类型 session_type",
+    "family_member_id": "咨询对象 family_member_id",
+    "title": "会话标题 title",
+    "content": "消息内容 content",
+    "phone": "手机号 phone",
+    "password": "密码 password",
+}
+
+
+def _zh_validation_message(error: dict) -> str:
+    loc = error.get("loc", [])
+    field = loc[-1] if loc else ""
+    label = _VALIDATION_FIELD_LABELS.get(str(field), str(field) if field else "请求参数")
+    err_type = error.get("type") or ""
+    msg = error.get("msg") or ""
+    if "missing" in err_type:
+        return f"{label} 必填"
+    if "type_error" in err_type or "type" in err_type:
+        return f"{label} 类型不正确：{msg}"
+    if "value_error" in err_type or "literal" in err_type or "enum" in err_type:
+        return f"{label} 取值不合法：{msg}"
+    return f"{label}：{msg}"
+
+
+@app.exception_handler(RequestValidationError)
+async def _validation_error_handler(request: Request, exc: RequestValidationError):
+    errors = exc.errors() if hasattr(exc, "errors") else []
+    try:
+        # 安全脱敏：长度超过 500 的请求体直接截断；password/token 字段值置 ***
+        try:
+            raw_body = await request.body()
+            body_text = raw_body.decode("utf-8", errors="replace")[:500]
+        except Exception:
+            body_text = "<unreadable>"
+        _exception_logger.warning(
+            "[Bug-419] RequestValidationError at %s %s: errors=%s body=%s",
+            request.method,
+            request.url.path,
+            errors,
+            body_text,
+        )
+    except Exception:
+        pass
+
+    zh_messages = [_zh_validation_message(e) for e in errors] if errors else ["请求参数不合法"]
+    return JSONResponse(
+        status_code=422,
+        content={
+            "detail": "；".join(zh_messages),
+            "messages": zh_messages,
+            "errors": errors,
+        },
     )
 
 
