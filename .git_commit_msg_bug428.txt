@@ -1,0 +1,24 @@
+fix(h5): Bug-428 修复 AI 对话首页"瀑布流回看"消失 bug
+
+H5 端 /ai-home 原本"用户一旦发起对话，顶部欢迎语+三大功能卡片+推荐胶囊整片消失、无法回看"的 Bug 已修复。
+
+核心改动：
+- 取消 !hasConversation 三元判断，顶部面板改为始终挂载
+- 新增 topPanelExpanded 状态控制展开/收起两态
+- 收缩态：屏幕右上角圆形小康头像悬浮按钮（44×48）
+- 展开态：面板下拉展开 + 右上角"⌃ 收起"按钮
+- 自动收起触发：上滑消息列表 / 输入框聚焦 / 外部空白点击 / 推荐胶囊点击发送
+- 已有历史对话进入页面 → 自动滚到底部最新消息
+- 不接入后台开关，硬编码为常驻行为（不读取 ai_home_config）
+
+改动文件：
+- h5-web/src/app/(ai-chat)/ai-home/page.tsx（核心修复）
+- _deploy_bug428.py / _smoke_bug428.py（部署 + 远程 smoke）
+- user_docs/AI对话首页瀑布流回看修复.md（用户体验手册）
+- .cursor/rules/project-context.mdc（项目索引同步更新）
+
+部署与验证：
+- docker compose build/up h5-web，仅 H5 容器变更
+- Smoke：/api/health=200, /api/ai-home-config=200, /=200,
+  /ai-home(SSR HTML 含 ai-home-top-panel 标记)，/api/chat/sessions=401
+- 仅 H5 单端纯前端改动，后端/小程序/Flutter APP 零变动，无需重新打包

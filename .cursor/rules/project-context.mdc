@@ -33,6 +33,22 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
+## Latest Update: Bug-428-AI-HOME-WATERFALL-REVIEW-FIX-20260508｜H5 AI 对话首页"瀑布流回看"修复（2026-05-08 22:55）
+
+### 一句话结论
+按 `cursor_prompt_428_20260508224408.txt` 走 develop-all 流程交付 Bug-428 修复：H5 端 AI 对话首页（`/ai-home`）原本"用户一旦发起任意一句对话，顶部欢迎语+三大功能卡片+推荐胶囊整片消失、无法回看"的 Bug 已修复。修复方案为：取消 `!hasConversation` 三元判断，把顶部面板改为**始终挂载**+ 通过 `topPanelExpanded` 状态控制展开/收起两态：进入页面无对话→完整展开；用户发出消息后→自动收起为屏幕**右上角圆形小康头像悬浮按钮**；点击悬浮按钮→面板下拉展开+右上角 "⌃ 收起" 按钮；展开态下"上滑消息列表 / 输入框聚焦 / 外部空白点击 / 推荐胶囊点击发送" 任一动作→自动收起。本交互硬编码为常驻行为，**不读取 `ai_home_config` 任何后台开关**。**单端（H5 Web）纯前端改动，后端/小程序/Flutter APP 零变动**，无需重新打 APK/IPA/小程序包。
+
+### 改动文件
+- H5 修改：`h5-web/src/app/(ai-chat)/ai-home/page.tsx`（核心修复：新增 `topPanelExpanded` state + `messageScrollRef`/`hasInitTopPanelRef` 等 ref；新增 `collapseTopPanel`/`expandTopPanel` 回调；监听消息列表 scroll 事件做上滑自动收起；textarea onFocus 自动收起；`handleSend` 内部发送后自动收起；废弃 `!hasConversation ? <顶部面板> : <消息列表>` 三元结构，改为顶部面板独立 div（`data-testid="ai-home-top-panel"`，position absolute 覆盖式）+ 消息列表常驻渲染；新增右上角 "⌃ 收起" 按钮（`data-testid="ai-home-top-panel-collapse-btn"`）；新增 collapsed 态右上角圆形小康头像悬浮按钮（`data-testid="ai-home-top-panel-fab"`，position fixed top:48+12 right:16 width/height 44）。已读取 ai-home 页面历史消息时自动滚到底部最新消息。）
+- 部署脚本：`_deploy_bug428.py`（paramiko SFTP 上传 ai-home/page.tsx + docker compose -f docker-compose.prod.yml build/up h5-web + smoke 4 路径 + grep `ai-home-top-panel*` DOM 标记）
+- smoke 脚本：`_smoke_bug428.py`（T1 核心入口可达性 / + /ai-home + /api/ai-home-config + /api/health；T2 SSR HTML 含 `ai-home-top-panel` + `ai-home-topbar` 标记；T3 /api/chat/sessions 接口存活）
+- 用户体验手册：`user_docs/AI对话首页瀑布流回看修复.md`
+
+### 远程部署与 Smoke 测试结果
+- h5-web 容器重新构建并上线，build 84.7s + up 全部 healthy，仅 H5 容器变更，admin/backend/db 不重启
+- Smoke：`/api/health=200`, `/api/ai-home-config=200`, `/=200`, `/ai-home=308→200(follow)`, `/api/chat/sessions(no token)=401`，全部 PASS
+- SSR HTML 验证：`ai-home-top-panel` + `ai-home-topbar` data-testid 标记均出现在远程返回的 HTML 中
+
 ## Latest Update: PRD-426-AI-HOME-REMOVE-CONSULTANT-PICKER-FLOATING-LAYER-20260508｜AI 对话首页 — 删除"+ 选择咨询人"浮层（2026-05-08 22:25）
 
 ### 一句话结论

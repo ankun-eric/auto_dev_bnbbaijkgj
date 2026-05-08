@@ -322,6 +322,22 @@ export default function AiHomePage() {
   const [shareOpen, setShareOpen] = useState(false);
   const [consultantOpen, setConsultantOpen] = useState(false);
 
+  // [Bug-428 2026-05-08] H5 端 AI 对话首页"瀑布流回看"修复
+  // 原行为：用 !hasConversation 三元判断顶部面板，一旦有对话顶部欢迎/卡片/胶囊整片消失，无法回看
+  // 新行为：顶部面板"始终挂载"，通过 topPanelExpanded 控制展开/收起两态：
+  //   - 进入页面且无对话历史 → expanded（完整展开，无右上角悬浮按钮）
+  //   - 进入页面已有对话 / 用户发送消息后 → collapsed（仅右上角圆形小康头像悬浮按钮）
+  //   - collapsed 态下点击悬浮按钮 → expanded（顶部下拉展开 + 右上角收起按钮）
+  //   - expanded 态下点击收起按钮 / 上滑消息列表 / 输入框聚焦 / 外部点击 → collapsed
+  // 不接入后台开关，硬编码为常驻行为。
+  const [topPanelExpanded, setTopPanelExpanded] = useState(true);
+  // 标记是否曾经有对话（用于决定首次进入时的默认展开/收起状态）
+  const hasInitTopPanelRef = useRef(false);
+  // 消息列表滚动容器 ref（用于监听上滑手势触发自动收起）
+  const messageScrollRef = useRef<HTMLDivElement>(null);
+  // 上次 scrollTop（用于判定上滑方向）
+  const lastScrollTopRef = useRef(0);
+
   const [banners, setBanners] = useState<Banner[]>([]);
   const [funcButtons, setFuncButtons] = useState<FunctionButton[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -527,6 +543,48 @@ export default function AiHomePage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // [Bug-428] 顶部面板收起 / 展开
+  const collapseTopPanel = useCallback(() => {
+    setTopPanelExpanded((prev) => (prev ? false : prev));
+  }, []);
+  const expandTopPanel = useCallback(() => {
+    setTopPanelExpanded((prev) => (prev ? prev : true));
+  }, []);
+
+  // [Bug-428] 一旦消息列表非空：
+  //   - 首次（hasInitTopPanelRef=false）→ 把面板自动收起为右上角悬浮按钮
+  //   - 后续新消息追加，保持当前折叠/展开状态不强制变更
+  // 进入页面时先等待历史消息渲染完，再触发滚到底部最新消息
+  useEffect(() => {
+    if (!hasInitTopPanelRef.current && messages.length > 0) {
+      hasInitTopPanelRef.current = true;
+      setTopPanelExpanded(false);
+      // 等待下一帧再滚动，确保 DOM 已渲染
+      requestAnimationFrame(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' });
+      });
+    }
+  }, [messages.length]);
+
+  // [Bug-428] 监听消息列表上滑手势 → 自动收起顶部面板
+  useEffect(() => {
+    const el = messageScrollRef.current;
+    if (!el) return;
+    const onScroll = () => {
+      const cur = el.scrollTop;
+      const prev = lastScrollTopRef.current;
+      // 上滑（手势上滑、scrollTop 增加）即视为"试图查看消息"，自动收起
+      if (cur - prev > 4 && topPanelExpanded) {
+        collapseTopPanel();
+      }
+      lastScrollTopRef.current = cur;
+    };
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      el.removeEventListener('scroll', onScroll);
+    };
+  }, [topPanelExpanded, collapseTopPanel]);
+
   const loadLastSession = async () => {
     try {
       const res: any = await api.get('/api/chat/sessions', { params: { limit: 1, sort: '-updated_at' } });
@@ -711,6 +769,10 @@ export default function AiHomePage() {
     setMessages(prev => [...prev, userMsg]);
     setSending(true);
     setLastMsgTime(Date.now());
+
+    // [Bug-428] 用户发送消息后立即收起顶部面板，让消息列表占据主屏
+    setTopPanelExpanded(false);
+    hasInitTopPanelRef.current = true;
 
     // [PRD-423 T-08 EVT-10] 发送消息埋点
     const sendTargetType: AiChatTargetType = selectedConsultant ? 'family' : 'self';
@@ -1365,9 +1427,61 @@ export default function AiHomePage() {
       {/* [Bug-419 H-4/H-7 2026-05-08] 各区块独立 ErrorBoundary，任何子组件
           异常仅降级该区块（默认占位 8px），绝不让顶部菜单/输入框/浮动按钮
           被牵连 unmount，杜绝"422 → 整页白屏"事故。 */}
-      <div className="flex-1 overflow-y-auto">
-        {!hasConversation ? (
+      {/* [Bug-428 2026-05-08] 顶部面板"始终挂载"，通过 topPanelExpanded 控制展开/收起两态。
+          - 收缩态 collapsed：仅右上角圆形小康头像悬浮按钮，消息列表占据主屏
+          - 展开态 expanded：完整面板下拉显示（覆盖在消息列表之上） + 右上角收起按钮
+          消息列表在两种状态下都常驻渲染，避免布局抖动。 */}
+      <div
+        ref={messageScrollRef}
+        className="flex-1 overflow-y-auto relative"
+        onClick={(e) => {
+          // [Bug-428] 点击消息列表区域（外部空白）→ 自动收起顶部面板
+          if (topPanelExpanded) {
+            collapseTopPanel();
+          }
+        }}
+      >
+        {/* [Bug-428] 顶部欢迎面板：始终挂载，根据 topPanelExpanded 控制可见性 */}
+        <div
+          data-testid="ai-home-top-panel"
+          style={{
+            display: topPanelExpanded ? 'block' : 'none',
+            position: hasConversation ? 'absolute' : 'relative',
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 30,
+            background: THEME.background,
+            boxShadow: hasConversation ? '0 4px 12px rgba(0,0,0,0.08)' : 'none',
+            transition: 'all 250ms ease-out',
+            maxHeight: hasConversation ? 'calc(100vh - 160px)' : 'none',
+            overflowY: 'auto',
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
           <div className="px-4 py-3">
+            {/* [Bug-428] 展开态右上角"收起"按钮 - 仅在已有对话且面板展开时显示 */}
+            {hasConversation && (
+              <div className="flex justify-end mb-2">
+                <button
+                  data-testid="ai-home-top-panel-collapse-btn"
+                  className="flex items-center justify-center rounded-full active:opacity-70"
+                  style={{
+                    width: 32,
+                    height: 32,
+                    background: THEME.cardBg,
+                    color: THEME.textSecondary,
+                    fontSize: 16,
+                    border: `1px solid ${THEME.divider}`,
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+                  }}
+                  onClick={collapseTopPanel}
+                  aria-label="收起欢迎面板"
+                >
+                  ⌃
+                </button>
+              </div>
+            )}
             {/* v1.0 欢迎区：左头像 + 右文字 横向布局 */}
             <SectionErrorBoundary name="welcome">
               {welcomeVisible && (
@@ -1481,7 +1595,11 @@ export default function AiHomePage() {
                         key={i}
                         className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-full cursor-pointer active:opacity-70"
                         style={{ background: '#fff', border: `1px solid ${THEME.divider}`, whiteSpace: 'nowrap' }}
-                        onClick={() => handleSend(q.text)}
+                        onClick={() => {
+                          // [Bug-428] 推荐胶囊点击：自动以胶囊文本作为用户消息发送
+                          // handleSend 内部会自动把面板收起为悬浮按钮，让用户聚焦于 AI 回复
+                          handleSend(q.text);
+                        }}
                       >
                         {q.tag && <span className="text-base">{q.tag}</span>}
                         <span className="text-sm" style={{ color: THEME.textPrimary }}>{q.text.length > 12 ? q.text.slice(0, 12) + '…' : q.text}</span>
@@ -1504,7 +1622,11 @@ export default function AiHomePage() {
               )}
             </SectionErrorBoundary>
           </div>
-        ) : (
+        </div>
+
+        {/* [Bug-428] 消息列表：始终常驻渲染（无对话时显示空，有对话时显示气泡列表）。
+            收缩态下顶部面板隐藏，消息列表占据主屏；展开态下顶部面板覆盖在消息列表之上。 */}
+        {hasConversation && (
           <div className="px-4 py-3 space-y-1">
             {messages.map((msg, idx) => {
               const prevTime = idx > 0 ? messages[idx - 1].time : null;
@@ -1598,6 +1720,46 @@ export default function AiHomePage() {
           </div>
         )}
       </div>
+
+      {/* [Bug-428] 收缩态右上角圆形小康头像悬浮按钮：
+          常驻贴顶（topbar 下方），点击展开顶部欢迎面板。
+          仅在已有对话且面板处于 collapsed 状态时显示。 */}
+      {hasConversation && !topPanelExpanded && (
+        <button
+          data-testid="ai-home-top-panel-fab"
+          aria-label="展开欢迎面板"
+          onClick={expandTopPanel}
+          style={{
+            position: 'fixed',
+            top: 'calc(48px + env(safe-area-inset-top) + 12px)',
+            right: 16,
+            width: 44,
+            height: 44,
+            borderRadius: '50%',
+            background: THEME.gradient || 'linear-gradient(135deg, #5B6CFF 0%, #8B5CF6 100%)',
+            border: '2px solid #fff',
+            boxShadow: '0 4px 12px rgba(91, 108, 255, 0.35)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: 22,
+            color: '#fff',
+            cursor: 'pointer',
+            zIndex: 40,
+            padding: 0,
+          }}
+        >
+          {aiHomeConfig.welcome?.avatar?.type === 'image' && aiHomeConfig.welcome?.avatar?.image_url ? (
+            <img
+              src={aiHomeConfig.welcome.avatar.image_url}
+              alt="小康"
+              style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
+            />
+          ) : (
+            <span>{aiHomeConfig.welcome?.avatar?.emoji || '🌿'}</span>
+          )}
+        </button>
+      )}
 
       {/* Floating Check-in Button —— PRD v1.1 §3.2 可拖动健康打卡 */}
       <SectionErrorBoundary name="floating_button">
@@ -1742,6 +1904,12 @@ export default function AiHomePage() {
                 value={inputValue}
                 onChange={handleTextareaInput}
                 /* [PRD-426] 已移除 onFocus/onBlur 监听：原用于"+ 选择咨询人"浮层显隐控制，浮层删除后输入框聚焦不再触发任何浮层逻辑 */
+                /* [Bug-428] 输入框聚焦 / 开始打字 → 自动收起顶部欢迎面板 */
+                onFocus={() => {
+                  if (hasConversation && topPanelExpanded) {
+                    collapseTopPanel();
+                  }
+                }}
                 onKeyDown={e => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
