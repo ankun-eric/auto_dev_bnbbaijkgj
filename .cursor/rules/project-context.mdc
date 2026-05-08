@@ -33,7 +33,43 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: PRD-405-V1-AI-HOME-CONFIG-20260508｜AI 对话模式首页配置中心 v1.0（2026-05-08 01:50）
+## Latest Update: BUG-FIX-RESCHEDULE-POPUP-AUTO-CLOSE-V1-20260508｜订单改约弹窗自动关闭 + 三端列表联动刷新（2026-05-08 11:46）
+
+### 一句话结论
+按 `cursor_prompt_410_20260508114552.txt` 走 develop-all 流程修复 P0：顾客在三端（H5/小程序/Flutter App）订单详情页改约成功后**弹窗未自动关闭** + **返回订单列表仍是旧时间需手动下拉刷新**两个并发症。**修复策略**：① H5 `unified-order/[id]/page.tsx` 改约成功立即 `setShowAppointmentPopup(false)`（先于 Toast）+ 文案按 isReschedule 区分（改约场景"改约成功"/首次预约"预约成功"）+ 写 localStorage `bini_unified_orders_need_refresh` 标志；`unified-orders/page.tsx` 监听 `pageshow`/`visibilitychange`/`focus` 三事件检测标志触发 `fetchOrders(1, true)` 强制刷新；② 微信小程序 `unified-order-detail/index.js` 中 `submitAppt` 立即 `setData({ showApptModal: false })` + 文案按 `apptIsReschedule` 区分 + `getApp().globalData.unifiedOrdersNeedRefresh = true`；`unified-orders/index.js` 中 `onShow` 检测 globalData 标志强制 `resetList + loadOrders`；`app.js` globalData 字段中追加 `unifiedOrdersNeedRefresh: false`；③ Flutter App 新建 `lib/utils/unified_orders_refresh_notifier.dart`（单例 ValueNotifier<bool> + markNeedsRefresh/consume），`unified_order_detail_screen.dart` 改约成功 `Navigator.pop(ctx2, true)` + 调用 `markNeedsRefresh()`，外层 `if (result == true)` 分支按 `wasReschedule = items.any((it) => it.appointmentTime != null && != "")` 显示「改约成功 / 预约成功」SnackBar；`unified_orders_screen.dart` 在 `_OrderTabState.initState/dispose` 订阅/取消订阅 notifier，监听到 true 自动 `_loadOrders()` + `consume()`；④ 后端测试 `tests/test_bugfix_reschedule_popup_auto_close.py` 4 个用例（T01 首次预约成功 → 详情 appointment_time 已设置 / T02 改约成功 → reschedule_count >=1 + 时间已变 / T03 列表与详情 appointment_time 一致 → 列表刷新数据契约 / T04 失败时 appointment_time 不变 → 失败兜底契约），容器内 pytest **4 passed in 5.83s**；⑤ 部署：h5-web docker compose build + up，远程 smoke `/=200`、`/api/health=200`；⑥ 阶段 4 三端打包：小程序 zip 393KB SFTP 到 `static/miniprogram/miniprogram_bug410_20260508_115714_82be.zip` HEAD=200；安卓 GitHub Actions Run 25535917767 构建 80.6MB APK → SFTP 到 `static/apk/app_bug410_20260508_123145_e880.apk` HEAD=200；iOS GitHub Actions Run 25535852316 构建 32.54MB IPA 自动 gh release create 到 `releases/tag/ios-bug410-v20260508-115806-oixd`。
+
+### 改动文件
+- H5 修改：`h5-web/src/app/unified-order/[id]/page.tsx`（submitAppointment 立即关弹窗 + 文案区分 + 写 localStorage 标志）、`h5-web/src/app/unified-orders/page.tsx`（新增 useEffect 监听 pageshow/visibilitychange/focus 三事件 + 进入页面也检测一次）
+- 小程序修改：`miniprogram/pages/unified-order-detail/index.js`（submitAppt 弹窗关 + globalData 写标志）、`miniprogram/pages/unified-orders/index.js`（onShow 增加 globalData 标志检测）、`miniprogram/app.js`（globalData 新增 unifiedOrdersNeedRefresh 字段）
+- Flutter 新建：`flutter_app/lib/utils/unified_orders_refresh_notifier.dart`（单例 ValueNotifier）
+- Flutter 修改：`flutter_app/lib/screens/order/unified_order_detail_screen.dart`（改约成功 markNeedsRefresh + SnackBar 文案区分）、`flutter_app/lib/screens/order/unified_orders_screen.dart`（监听 notifier 自动刷新）
+- 后端测试：`backend/tests/test_bugfix_reschedule_popup_auto_close.py`（T01-T04 4 用例）
+- 部署/打包脚本：`_deploy_bug410.py`、`_pack_upload_miniprogram_bug410.py`、`_build_apk_bug410.py`、`_build_ipa_bug410.py`
+- 用户体验手册：`user_docs/订单改约弹窗自动关闭.md`
+
+### 关键技术决策
+- **三端通信策略各不相同但语义一致**：H5 用 localStorage（覆盖 BFCache + 跨标签 + visibilitychange + focus 等所有场景），小程序用 globalData（避免重启后失效，符合"会话内一次性"语义），Flutter 用全局 ValueNotifier（避免引入额外的 RouteObserver 耦合）。三端都不依赖外部状态管理库，零侵入。
+- **"立即关弹窗 + 立即 Toast"的视觉同时性**：三端都把"关闭弹窗"调用放在"显示 Toast/SnackBar"之前的相邻语句中。一帧之差人眼无法区分，从而满足 PRD §3.2 "Toast 与关闭弹窗同时进行"。
+- **文案按 isReschedule 区分**：H5/小程序判断 `currentItem.appointment_time` 是否已存在；Flutter 判断 `o.items.any((it) => (it.appointmentTime ?? "").isNotEmpty)`。三端语义完全等价。
+- **失败分支保持原状**：`catch` 分支不动，弹窗保留、Toast 显示具体错误，用户可重试或取消，PRD §3.2 预期 3 完整守住。
+- **后端契约 0 改动**：本次纯前端 + 测试。`POST /api/orders/unified/{id}/appointment` 返回 200 时前端就关弹窗，避免任何后端逻辑波动。
+- **测试聚焦数据契约**：T03 用 detail 与 list 接口同时 GET 校验"列表里的 appointment_time 与详情一致"，这是"列表刷新"功能的根本数据基础——只要列表接口能返回最新数据，前端任何时机的重拉都会拿到正确结果。
+- **GitHub OOM 应对**：仓库本身已经积累大量 untracked 历史日志/产物文件。本次仅 stage 10 个本次实质改动文件 commit 后 push 成功，避免把累积的非必要文件一次性推送导致服务端 OOM（曾尝试 push 87 文件 5531 行变更被拒）。
+- **三端打包并行执行**：在 commit 推送 GitHub 完成后，启动 3 个子 Agent 同时跑（小程序 zip 打包+上传、安卓 GitHub Actions、iOS GitHub Actions），最大化打包效率。本次共耗时 ~10 分钟（iOS 4'50" / Android 8' / 小程序 <30s 并行）。
+
+### 验证情况
+- 容器内 pytest：`tests/test_bugfix_reschedule_popup_auto_close.py` → **4 passed in 5.83s**
+- 远程站点冒烟：`/=200`、`/api/health=200`
+- 小程序 zip HEAD：[miniprogram_bug410_20260508_115714_82be.zip](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/miniprogram/miniprogram_bug410_20260508_115714_82be.zip) = 200，393KB，336 文件
+- 安卓 APK HEAD：[app_bug410_20260508_123145_e880.apk](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/apk/app_bug410_20260508_123145_e880.apk) = 200，80.6MB
+- iOS IPA：[bini_health_ios.ipa](https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/download/ios-bug410-v20260508-115806-oixd/bini_health_ios.ipa) GitHub Release，32.54MB（未签名构建，需 AltStore/Sideloadly 侧载）
+
+### 用户体验手册
+- `user_docs/订单改约弹窗自动关闭.md`
+
+---
+
+## Previous Update: PRD-405-V1-AI-HOME-CONFIG-20260508｜AI 对话模式首页配置中心 v1.0（2026-05-08 01:50）
 
 ### 一句话结论
 按 `cursor_prompt_406_20260508013100.txt` 走 develop-all 流程，在 PRD-405 v0.5 基础上**升级到 v1.0**：admin 后台配置中心重组为 **6 Tab 锚点导航**结构，并新增 v1.0 PRD 列出的所有缺失字段；H5 端 `ai-home` 按"晓医风格"设计图重构。**改动范围**：① 后端 schema `ai_home_config.py` 在保留 v0.5 字段（向下兼容）基础上**新增** 9 类字段——`welcome.main_title`（含 `{昵称}` 占位符）/`welcome.sub_title`、`topbar.visible`、`input.family_consult{enabled,template,show_archive_link,archive_path}`、`session.strategy{max_answer_chars,show_loading,daily_free_quota,answer_style,sensitive_filter,context_memory_rounds,disclaimer}`、`func_grid.items[]` 7 字段（main_text/sub_text/target_path/icon/gradient_start/gradient_end/badge/enabled/sort，1~6 项）、`health_tips{visible,interval_seconds 3~5,show_indicator}`、`empty_placeholder{icon,main_title}`、`global_switches`（9 个模块级开关）；② 后端 `ai_home_config.py` 路由 `VALID_MODULES` 增加 `health_tips/empty_placeholder/global_switches`，`_validate_payload` 新增 v1.0 校验规则（func_grid 数量+主副文案长度+HEX 颜色+角标长度、family_consult.template 必含 {name}、session.strategy.max_answer_chars 100~5000 / daily_free_quota 1~999 / context_memory_rounds 3/5/10/20 / disclaimer ≤100 字、welcome.main_title ≤30 / sub_title ≤50、recommended_questions[*].title ≤8 / question ≤200、health_tips.interval_seconds 3~5、empty_placeholder.main_title ≤20），`_normalize_func_grid_items` 自动为宫格项生成缺失 id；③ admin-web `ai-home-config/page.tsx` 顶部增加粘性 6 Tab 锚点导航（点击滚动到对应卡片），新增"Tab 2 首屏内容（健康贴士+空对话占位）"卡片、"Tab 3 功能宫格 7 字段"卡片（含每项渐变背景实时预览 + 上下箭头排序 + 限 1~6 项）、"Tab 5 会话策略 7 字段"卡片、"Tab 6 全局开关 9 字段"卡片，在欢迎区卡片增加 `main_title/sub_title` 输入项（含 Tooltip 占位符提示），在输入栏卡片增加家庭成员胶囊配置区，在顶栏卡片增加 `visible` 开关，推荐问列表强校验 ≤8/≤200 字 + showCount；④ h5-web `(ai-chat)/ai-home/page.tsx` 全面重构 UI——按 `topbar.visible` 默认隐藏顶栏（仅保留右上角 ☰），欢迎区改为左头像+右文字横向布局并使用 `main_title`/`sub_title`（含 `{昵称}` 替换），紫色今日健康贴士轮播卡（图片做整张卡片背景），功能宫格使用 `func_grid.items` 7 字段（每项渐变背景 + 角标 + 主副文案居中），推荐问改为底部横向滚动胶囊样式，新增空对话占位区（大图标+主标题居中），输入栏重构为双层结构（第一层 🎤+输入+智能隐藏发送按钮，第二层紫色"为({name})咨询"胶囊+"查看档案 ›" 链接），全局开关 9 字段与对应字段联动取并集；⑤ 后端测试新增 `tests/test_ai_home_config_v1.py` 12 个用例（T11 v1.0 公共读取默认值 + T12 保存 func_grid.items 7 字段 + T13 数量超 6 拒绝 + T14 main_text 超 8 字拒绝 + T15 非法 HEX 拒绝 + T16 family_consult.template 缺 {name} 拒绝 + T17 max_answer_chars 越界拒绝 + T18 保存 9 个 global_switches + T19 health_tips.interval_seconds 3~5 / 超 5 拒绝 + T20 保存 empty_placeholder + T21 推荐问 title 超 8 字拒绝 + T22 welcome.main_title 超 30 字拒绝），合并旧 10 用例容器内 pytest **22 passed in 13.12s**；⑥ 部署：backend `docker cp` 3 个文件 + restart，admin-web/h5-web `docker compose build + up`（h5-web build 85.3s），远程 smoke `/api/health=200`、`/api/ai-home-config=200`、`/admin/home-settings/ai-home-config/=200`、`/admin/home-settings/ai-home-config/logs/=200`、`/=200` 全 200。
