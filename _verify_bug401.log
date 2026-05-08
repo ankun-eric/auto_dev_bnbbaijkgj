@@ -1,0 +1,68 @@
+﻿
+>>> curl -sL -o /tmp/orders.html -w 'http=%{http_code} size=%{size_download}\n' 'https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/product-system/orders/'
+http=200 size=76140
+
+
+>>> head -c 800 /tmp/orders.html | tr -d '\0'
+<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/_next/static/css/a6fc960c1c13b056.css" data-precedence="next"/><link rel="preload" as="script" fetchPriority="low" href="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/_next/static/chunks/webpack-93a0cc3567444f38.js"/><script src="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/_next/static/chunks/fd9d1056-cde8d1c8f42e1127.js" async=""></script><script src="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/_next/static/chunks/2117-1ca38137e0e3b541.js" async=""></script><script src="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/_next/static/chunks/main-app-5294d164
+
+>>> grep -c 'Gateway OK' /tmp/orders.html || echo 'Gateway OK 涓嶅瓨鍦?鉁?
+0
+Gateway OK 涓嶅瓨鍦?鉁?
+
+
+>>> grep -c '璁㈠崟鏄庣粏' /tmp/orders.html && echo 'OK: 鍖呭惈璁㈠崟鏄庣粏鏍囬'
+1
+OK: 鍖呭惈璁㈠崟鏄庣粏鏍囬
+
+
+>>> grep -c '鍒囨崲鍒伴绾︾湅鏉? /tmp/orders.html || echo 'OK: 鏃ф寜閽凡绉婚櫎'
+0
+OK: 鏃ф寜閽凡绉婚櫎
+
+
+>>> grep -c '/orders/dashboard' /tmp/orders.html || echo 'OK: 涓嶅啀鍚嚜鍔ㄨ烦 dashboard 寮曠敤'
+0
+OK: 涓嶅啀鍚嚜鍔ㄨ烦 dashboard 寮曠敤
+
+
+>>> curl -sL -o /tmp/dash.html -w 'http=%{http_code} size=%{size_download}\n' 'https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/product-system/orders/dashboard/'
+http=200 size=47633
+
+
+>>> head -c 800 /tmp/dash.html
+<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/_next/static/css/a6fc960c1c13b056.css" data-precedence="next"/><link rel="preload" as="script" fetchPriority="low" href="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/_next/static/chunks/webpack-93a0cc3567444f38.js"/><script src="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/_next/static/chunks/fd9d1056-cde8d1c8f42e1127.js" async=""></script><script src="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/_next/static/chunks/2117-1ca38137e0e3b541.js" async=""></script><script src="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/_next/static/chunks/main-app-5294d164
+
+>>> grep -c 'Gateway OK' /tmp/dash.html || echo 'Gateway OK 涓嶅瓨鍦?鉁?
+0
+Gateway OK 涓嶅瓨鍦?鉁?
+
+
+>>> grep -c '璇峰厛閫夋嫨闂ㄥ簵' /tmp/dash.html && echo 'OK: 鍙嬪ソ鎻愮ず瀛樺湪'
+0
+
+
+>>> grep -c '鍓嶅線闂ㄥ簵鍒楄〃' /tmp/dash.html && echo 'OK: 璺宠浆鎸夐挳瀛樺湪'
+0
+
+
+>>> curl -sL -o /tmp/dash2.html -w 'http=%{http_code} size=%{size_download}\n' 'https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/product-system/orders/dashboard/?storeId=1'
+http=200 size=47633
+
+
+>>> head -c 600 /tmp/dash2.html
+<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/_next/static/css/a6fc960c1c13b056.css" data-precedence="next"/><link rel="preload" as="script" fetchPriority="low" href="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/_next/static/chunks/webpack-93a0cc3567444f38.js"/><script src="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/_next/static/chunks/fd9d1056-cde8d1c8f42e1127.js" async=""></script><script src="/autodev/6b099ed3-
+
+>>> grep -c 'Gateway OK' /tmp/dash2.html || echo 'Gateway OK 涓嶅瓨鍦?鉁?
+0
+Gateway OK 涓嶅瓨鍦?鉁?
+
+
+>>> docker logs --tail 30 6b099ed3-7175-4a78-91f4-44570c84ed27-admin 2>&1
+  鈻?Next.js 14.2.15
+  - Local:        http://0e80624d62fb:3000
+  - Network:      http://192.168.32.6:3000
+
+ 鉁?Starting...
+ 鉁?Ready in 142ms
+

@@ -8,6 +8,7 @@ import { useAuth } from '@/lib/auth';
 import { checkFileSize, uploadWithProgress } from '@/lib/upload-utils';
 import ChatSidebar from '@/components/ChatSidebar';
 import KnowledgeCard, { type KnowledgeHit } from '@/components/KnowledgeCard';
+import ProfileCard from '@/components/ai-chat/ProfileCard';
 import { resolveAssetUrl, resolveAssetUrls } from '@/lib/asset-url';
 import { aiChatTrack } from '@/lib/analytics';
 
@@ -478,6 +479,8 @@ function ChatPageInner() {
     }
     return '本人';
   });
+  // [PRD-432] 当前会话绑定的咨询对象 family_member_id（本人=0）
+  const [currentConsultantId, setCurrentConsultantId] = useState<number>(0);
   const [isSymptomLocked, setIsSymptomLocked] = useState(isSymptom || isDrugIdentify || isConstitution);
 
   // Add member popup state (two-step)
@@ -1768,6 +1771,7 @@ function ChatPageInner() {
         family_member_id: memberId,
       });
       setCurrentRelationLabel(relationName);
+      setCurrentConsultantId(memberId || 0);
       setMemberPopupVisible(false);
       Toast.show({
         content: `已切换为${label}，后续AI回复将基于新的档案`,
@@ -2127,6 +2131,18 @@ function ChatPageInner() {
               data-testid={isUser ? 'chat-user-message' : 'chat-ai-message'}
               style={{ marginBottom: 24 }}
             >
+              {/* [PRD-432] AI 回答顶部「咨询对象档案」折叠卡片 */}
+              {!isUser && msg.id !== 'welcome' && (
+                <div data-testid="chat-profile-card-wrapper" style={{ marginBottom: 8 }}>
+                  <ProfileCard
+                    consultantId={currentConsultantId}
+                    onGoComplete={(cid) => router.push(`/health-archive?target=${cid}&from=ai-chat`)}
+                    onGoMedicationManage={(cid, autoCreate) =>
+                      router.push(`/health-plan/medications?target=${cid}${autoCreate ? '&action=create' : ''}`)
+                    }
+                  />
+                </div>
+              )}
               {/* 头像独占一行：左对齐，AI/用户均为 32px 头像 + 名称 */}
               <div className="flex items-center" style={{ marginBottom: 8 }}>
                 {isUser ? (

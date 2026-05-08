@@ -1,0 +1,71 @@
+﻿### ls /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/static/apk/ 2>&1 | head -30
+app_20260503_213145_bfb0.apk
+app_fulfillment_cleanup_20260504_135810_371c.apk
+app_onsite_1777818014.apk
+app_orderstat_fulfillment_20260504_014200_3a07.apk
+app_paymentconfig_20260503_231130_e313.apk
+bini_health_android_20260505_101727_d7bc.apk
+bini_health_android_20260505_102722_d6da.apk
+bini_health_android_bug367_20260507_112853.apk
+bini_health_android_login_layout_20260506_004240_45e7.apk
+bini_health_android_reschedule_20260504_224940_25ec.apk
+bini_health_android_reschedule_btn_20260505_134055_a3bf.apk
+bini_health_android-v20260504-023553-87ac.apk
+bini_health_book_after_pay_20260503_203439_8a32.apk
+bini_health_coupon_20260504_114911_54f0.apk
+bini_health_coupon_mall_20260504_130854_91a5.apk
+bini_health_datemode_20260504_105800_cd58.apk
+bini_health_h5pay_20260504_122600_e37a.apk
+bini_health_p1bugfix_20260504_145003_1345.apk
+bini_health_pmnorm_20260504_141618_6848.apk
+bini_health_prd01_timeslot_20260505_170832_e3b5.apk
+bini_health_slotbadge_20260504_162352_25e8.apk
+bini_health_slotgrid_20260504_152955_d26d.apk
+### ls -la /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/bini_health_android-v20260504-023553-87ac.apk 2>&1
+-rw-rw-r-- 1 ubuntu ubuntu 83859287 May  4 02:50 /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/bini_health_android-v20260504-023553-87ac.apk
+### ls -la /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/app_paymentconfig_20260503_231130_e313.apk 2>&1
+-rw-r--r-- 1 ubuntu ubuntu 83793751 May  3 23:13 /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/app_paymentconfig_20260503_231130_e313.apk
+### ls -la /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/bini_health_coupon_20260504_114911_54f0.apk 2>&1
+-rw-rw-r-- 1 ubuntu ubuntu 83973975 May  4 11:53 /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/bini_health_coupon_20260504_114911_54f0.apk
+### sudo cat /etc/nginx/conf.d/*.conf 2>/dev/null | grep -A2 -B2 6b099ed3 | head -80
+### docker ps --format '{{.Names}}	{{.Image}}	{{.Status}}' | head -40
+6b099ed3-7175-4a78-91f4-44570c84ed27-h5	6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web	Up 4 minutes
+6b099ed3-7175-4a78-91f4-44570c84ed27-admin	6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web	Up 10 hours
+a46094c5-4cff-434b-a815-3e73fc6d39a6-frontend	a46094c5-4cff-434b-a815-3e73fc6d39a6-frontend	Up 14 hours (healthy)
+a46094c5-4cff-434b-a815-3e73fc6d39a6-backend	a46094c5-4cff-434b-a815-3e73fc6d39a6-backend	Up 14 hours (healthy)
+a46094c5-4cff-434b-a815-3e73fc6d39a6-mysql	mysql:8.0	Up 14 hours (healthy)
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend	6b099ed3-7175-4a78-91f4-44570c84ed27-backend	Up 10 hours
+6b099ed3-7175-4a78-91f4-44570c84ed27-db	mysql:8.0	Up 24 hours (healthy)
+20d0760a-5230-4867-a343-a91a95e05d50-frontend	20d0760a-5230-4867-a343-a91a95e05d50-frontend	Up 2 days
+20d0760a-5230-4867-a343-a91a95e05d50-backend	20d0760a-5230-4867-a343-a91a95e05d50-backend	Up 2 days (healthy)
+85048269-7f40-4ae8-88e2-0f3ce1ce19d1-agent-server	85048269-7f40-4ae8-88e2-0f3ce1ce19d1-agent-server	Up 2 days
+8946923e-5887-4d14-a54f-2cb39819c8f2-frontend	8946923e-5887-4d14-a54f-2cb39819c8f2-frontend	Up 2 days
+8946923e-5887-4d14-a54f-2cb39819c8f2-backend	8946923e-5887-4d14-a54f-2cb39819c8f2-backend	Up 2 days
+85048269-7f40-4ae8-88e2-0f3ce1ce19d1-frontend	85048269-7f40-4ae8-88e2-0f3ce1ce19d1-frontend	Up 2 days
+85048269-7f40-4ae8-88e2-0f3ce1ce19d1-backend	85048269-7f40-4ae8-88e2-0f3ce1ce19d1-backend	Up 2 days
+85048269-7f40-4ae8-88e2-0f3ce1ce19d1-postgres	postgres:16-alpine	Up 4 days (healthy)
+85048269-7f40-4ae8-88e2-0f3ce1ce19d1-redis	redis:7-alpine	Up 4 days (healthy)
+5fa64f53-c6e8-443c-9a5c-611e554ddde1-frontend	5fa64f53-c6e8-443c-9a5c-611e554ddde1-frontend	Up 6 days (healthy)
+gateway	nginx:alpine	Up 4 days
+ed7f67c4-b4f4-4e66-9d43-010316c4069e-frontend	ed7f67c4-b4f4-4e66-9d43-010316c4069e-frontend	Up 7 days
+ed7f67c4-b4f4-4e66-9d43-010316c4069e-backend	ed7f67c4-b4f4-4e66-9d43-010316c4069e-backend	Up 7 days
+ed7f67c4-b4f4-4e66-9d43-010316c4069e-mysql	mysql:8.0	Up 7 days
+9b51e155-b3d1-4515-8137-03bfd66446a1-frontend	9b51e155-b3d1-4515-8137-03bfd66446a1-frontend	Up 8 days
+9b51e155-b3d1-4515-8137-03bfd66446a1-backend	9b51e155-b3d1-4515-8137-03bfd66446a1-backend	Up 8 days (healthy)
+9b51e155-b3d1-4515-8137-03bfd66446a1-mysql	mysql:8.0	Up 8 days (healthy)
+c57cd78e-baf2-4648-be33-611be54734d9-frontend	c57cd78e-baf2-4648-be33-611be54734d9-frontend	Up 9 days (healthy)
+4ad2bc0a-9c36-4b60-9c81-69e945e53cc4-frontend	4ad2bc0a-9c36-4b60-9c81-69e945e53cc4-frontend	Up 9 days (healthy)
+4ad2bc0a-9c36-4b60-9c81-69e945e53cc4-backend	4ad2bc0a-9c36-4b60-9c81-69e945e53cc4-backend	Up 9 days (healthy)
+0a31a546-d493-4b60-bbb1-a5f8f7686924-frontend	0a31a546-d493-4b60-bbb1-a5f8f7686924-frontend	Up 2 weeks (healthy)
+0a31a546-d493-4b60-bbb1-a5f8f7686924-backend	0a31a546-d493-4b60-bbb1-a5f8f7686924-backend	Up 2 weeks (healthy)
+dbc8a82b-07f9-4b5f-b1b7-9cd7118f018f-frontend	dbc8a82b-07f9-4b5f-b1b7-9cd7118f018f-frontend	Up 2 weeks (healthy)
+dbc8a82b-07f9-4b5f-b1b7-9cd7118f018f-backend	dbc8a82b-07f9-4b5f-b1b7-9cd7118f018f-backend	Up 2 weeks (healthy)
+c935e952-5c8f-44c5-8d09-7d77698407fa-frontend	c935e952-5c8f-44c5-8d09-7d77698407fa-frontend	Up 2 weeks (healthy)
+c935e952-5c8f-44c5-8d09-7d77698407fa-backend	c935e952-5c8f-44c5-8d09-7d77698407fa-backend	Up 2 weeks (healthy)
+0451a430-e3c8-49e2-b627-329938d2313d-frontend	0451a430-e3c8-49e2-b627-329938d2313d-frontend	Up 2 weeks (healthy)
+0451a430-e3c8-49e2-b627-329938d2313d-backend	0451a430-e3c8-49e2-b627-329938d2313d-backend	Up 2 weeks (healthy)
+0451a430-e3c8-49e2-b627-329938d2313d-db	mysql:8.0	Up 2 weeks (healthy)
+76078d4e-cf0a-40d0-92bc-ad40ea4436b2-frontend	76078d4e-cf0a-40d0-92bc-ad40ea4436b2-frontend	Up 2 weeks
+76078d4e-cf0a-40d0-92bc-ad40ea4436b2-backend	76078d4e-cf0a-40d0-92bc-ad40ea4436b2-backend	Up 2 weeks
+2c2b48f8-c6fa-4411-b719-8d910baf4f9a-frontend	2c2b48f8-c6fa-4411-b719-8d910baf4f9a-frontend	Up 2 weeks (healthy)
+2c2b48f8-c6fa-4411-b719-8d910baf4f9a-backend	2c2b48f8-c6fa-4411-b719-8d910baf4f9a-backend	Up 2 weeks (healthy)

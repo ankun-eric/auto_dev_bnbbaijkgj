@@ -1,0 +1,13 @@
+feat(PRD-365): merchant 预约看板替换升级 + admin 入口收口 + 新预约微信推送
+
+- h5-web: 新增 /merchant/order-dashboard/ (物理拷贝 admin dashboard, 自动注入 store_id)
+- h5-web: 旧 /merchant/calendar/ 客户端 301 跳转到新地址 + Spin 提示
+- h5-web: merchant layout 菜单 预约日历 → 预约看板
+- admin-web: 门店管理列表行新增 预约看板 按钮 (?storeId=xx)
+- admin-web: dashboard 头部 预约看板·{门店名} + 返回门店列表 按钮
+- admin-web: 直访不带 storeId → message warning + replace(/merchant/stores)
+- admin-web: 用 <Suspense> 包裹外层组件 + 拆出 OrdersDashboardPageInner 修复 Next.js 14 prerender 报错
+- backend: 新增 merchant_new_appointment_notify 服务 (微信模板消息 + 手机号脱敏 + access_token 公众号优先回退小程序)
+- backend: unified_orders 在 _advance_status_after_payment 与 set_order_appointment 首次设定预约时间分支调用通知, try/except 兜底
+- backend: 新增 11 个 pytest 用例覆盖脱敏与各种失败/成功场景, 容器内全部 PASS
+- docs: 用户体验手册 + 项目索引同步更新

@@ -46,6 +46,8 @@ Page({
     consultTarget: { name: '本人', color: '#52c41a' },
     showTargetPicker: false,
     familyMembers: [],
+    // [PRD-432] 当前会话绑定的咨询对象 family_member_id；本人=0
+    currentConsultantId: 0,
     functionButtons: [],
     isSymptomLocked: false,
     uploadPercent: -1,
@@ -1218,7 +1220,8 @@ Page({
       this.setData({
         consultTarget: { name: member.name, color: member.color },
         isTypeLocked: true,
-        lockedFamilyMemberId: memberId
+        lockedFamilyMemberId: memberId,
+        currentConsultantId: Number(memberId) || 0
       });
     }
   },

@@ -1,0 +1,81 @@
+<!-- [PRD-432] AI 回答顶部「咨询对象档案」折叠卡片 -->
+<view wx:if="{{fallbackText}}" class="profile-card-fallback" bindtap="onFallbackClick">
+  {{fallbackText}} →
+</view>
+
+<view wx:elif="{{profile}}" class="profile-card" data-testid="ai-profile-card">
+  <view class="pc-collapsed" bindtap="onToggle">
+    <view class="pc-avatar pc-avatar-{{profile.fields.gender.value === '男' ? 'male' : (profile.fields.gender.value === '女' ? 'female' : 'unknown')}}">
+      {{profile.gender_icon}}
+    </view>
+    <view class="pc-title">本次回答结合 {{profile.nickname || '本人'}} 的档案</view>
+    <view class="pc-summary" wx:if="{{profile.summary_text}}">{{profile.summary_text}}</view>
+    <view class="pc-arrow">{{expanded ? '▴' : '▾'}}</view>
+  </view>
+
+  <view wx:if="{{expanded}}" class="pc-expanded">
+    <view class="pc-meta">
+      <view class="pc-meta-completeness {{profile.is_complete ? 'pc-complete' : ''}}" bindtap="onCompleteClick">
+        <block wx:if="{{profile.is_complete}}">档案已完整 ✓</block>
+        <block wx:else>档案完整度 {{profile.completeness.percent}}%，点击补全 ›</block>
+      </view>
+      <view wx:if="{{profile.updated_within_30d && profile.last_updated_md}}" class="pc-meta-updated">
+        档案已于 {{profile.last_updated_md}} 更新
+      </view>
+    </view>
+    <view class="pc-row">
+      <view class="pc-label">性别</view>
+      <view class="pc-val {{!profile.fields.gender.filled ? 'pc-empty' : ''}}">
+        {{profile.fields.gender.filled ? profile.fields.gender.value : '未填写'}}
+      </view>
+    </view>
+    <view class="pc-row">
+      <view class="pc-label">年龄</view>
+      <view class="pc-val {{!profile.fields.age.filled ? 'pc-empty' : ''}}">
+        {{profile.fields.age.filled ? profile.fields.age.value + ' 岁' : '未填写'}}
+      </view>
+    </view>
+    <view class="pc-row">
+      <view class="pc-label">身高</view>
+      <view class="pc-val {{!profile.fields.height.filled ? 'pc-empty' : ''}}">
+        {{profile.fields.height.filled ? profile.fields.height.value : '未填写'}}
+      </view>
+    </view>
+    <view class="pc-row">
+      <view class="pc-label">体重</view>
+      <view class="pc-val {{!profile.fields.weight.filled ? 'pc-empty' : ''}}">
+        {{profile.fields.weight.filled ? profile.fields.weight.value : '未填写'}}
+      </view>
+    </view>
+    <view class="pc-row">
+      <view class="pc-label">既往病史</view>
+      <view class="pc-val {{(profile.fields.past_history.is_none || !profile.fields.past_history.filled) ? 'pc-empty' : ''}}">
+        {{profile.fields.past_history.display}}
+      </view>
+    </view>
+    <view class="pc-row">
+      <view class="pc-label">过敏史</view>
+      <view class="pc-val {{(profile.fields.allergy.is_none || !profile.fields.allergy.filled) ? 'pc-empty' : ''}}">
+        {{profile.fields.allergy.display}}
+      </view>
+    </view>
+    <view class="pc-row pc-row-meds {{profile.fields.long_term_meds.clickable ? 'pc-row-clickable' : ''}}" bindtap="onMedsClick">
+      <view class="pc-label">长期用药</view>
+      <view class="pc-val {{profile.fields.long_term_meds.is_none ? 'pc-empty' : ''}}">
+        {{profile.fields.long_term_meds.display}}
+        <text wx:if="{{profile.fields.long_term_meds.clickable}}" class="pc-arrow-small">›</text>
+      </view>
+    </view>
+  </view>
+</view>
+
+<view wx:elif="{{loading}}" class="profile-card-loading">加载档案中...</view>
+
+<medication-drawer
+  wx:if="{{drawerVisible && profile}}"
+  consultant-id="{{profile.consultant_id}}"
+  consultant-name="{{profile.nickname}}"
+  bind:close="onDrawerClose"
+  bind:gomanage="onDrawerGoManage"
+  bind:gocreate="onDrawerGoCreate"
+/>

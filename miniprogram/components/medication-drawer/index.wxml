@@ -1,0 +1,24 @@
+<view class="med-drawer-mask" catchtap="onMaskTap">
+  <view class="med-drawer" catchtap="">
+    <view class="med-drawer-handle"></view>
+    <view class="med-drawer-header">
+      <view class="med-drawer-title">长期用药</view>
+      <view class="med-drawer-go-manage" bindtap="onGoManage">去管理 ›</view>
+    </view>
+    <scroll-view scroll-y class="med-drawer-body">
+      <view wx:if="{{loading}}" class="med-state">加载中...</view>
+      <view wx:elif="{{error}}" class="med-state med-state-error">加载失败，请稍后再试</view>
+      <view wx:elif="{{isNone}}" class="med-state">{{consultantName}} 当前无长期用药</view>
+      <view wx:elif="{{!items.length}}" class="med-empty" bindtap="onGoCreate">
+        <view class="med-empty-icon">💊</view>
+        <view class="med-empty-text">暂无长期用药，点击添加 ›</view>
+      </view>
+      <view wx:else>
+        <view wx:for="{{items}}" wx:key="id" class="med-item">
+          <view class="med-name">💊 {{item.medicine_name}}</view>
+          <view class="med-meta">{{item.dosage}}{{item.dosage && item.frequency ? ' / ' : ''}}{{item.frequency}}{{item.used_days > 0 ? ' / 已服用 ' + item.used_days + ' 天' : ''}}</view>
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+</view>

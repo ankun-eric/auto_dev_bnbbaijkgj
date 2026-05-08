@@ -1,0 +1,169 @@
+﻿[ssh] connecting to newbb.test.bangbangvip.com ...
+
+=== SFTP 涓婁紶淇敼鏂囦欢 ===  repo=C:\auto_output\bnbbaijkgj
+[exec] mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/merchant'
+  鈫?h5-web/src/app/merchant/lib.ts  (5631 bytes)
+[exec] mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/merchant/m/dashboard'
+  鈫?h5-web/src/app/merchant/m/dashboard/page.tsx  (9847 bytes)
+
+=== 鍒犻櫎鏃?calendar 鐩綍 ===
+[exec] rm -rf '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/merchant/calendar' && echo removed: h5-web/src/app/merchant/calendar
+removed: h5-web/src/app/merchant/calendar
+
+[exec] ls '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/merchant/calendar' 2>&1 || echo 'confirmed gone: h5-web/src/app/merchant/calendar'
+ls: cannot access '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/merchant/calendar': No such file or directory
+confirmed gone: h5-web/src/app/merchant/calendar
+
+[exec] rm -rf '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/merchant/m/calendar' && echo removed: h5-web/src/app/merchant/m/calendar
+removed: h5-web/src/app/merchant/m/calendar
+
+[exec] ls '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/merchant/m/calendar' 2>&1 || echo 'confirmed gone: h5-web/src/app/merchant/m/calendar'
+ls: cannot access '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/merchant/m/calendar': No such file or directory
+confirmed gone: h5-web/src/app/merchant/m/calendar
+
+[exec] cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && git status --short | head -20 || true
+ D h5-web/src/app/merchant/calendar/BookingActionPopover.tsx
+ D h5-web/src/app/merchant/calendar/CalendarToolbar.tsx
+ D h5-web/src/app/merchant/calendar/DailyOrdersModal.tsx
+ D h5-web/src/app/merchant/calendar/DayView.tsx
+ D h5-web/src/app/merchant/calendar/KpiBar.tsx
+ D h5-web/src/app/merchant/calendar/ListView.tsx
+ D h5-web/src/app/merchant/calendar/MonthView.tsx
+ D h5-web/src/app/merchant/calendar/MyViewsManager.tsx
+ D h5-web/src/app/merchant/calendar/ResourceView.tsx
+ D h5-web/src/app/merchant/calendar/WeekView.tsx
+ D h5-web/src/app/merchant/calendar/page.tsx
+ D h5-web/src/app/merchant/calendar/types.ts
+ M h5-web/src/app/merchant/lib.ts
+ D h5-web/src/app/merchant/m/calendar/DailyOrdersDrawer.tsx
+ D h5-web/src/app/merchant/m/calendar/page.tsx
+ M h5-web/src/app/merchant/m/dashboard/page.tsx
+?? flutter_app/android/.gradle/
+?? flutter_app/android/app/src/main/java/
+?? flutter_app/ios/Flutter/
+
+
+=== docker compose build h5-web ===
+[exec] cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose build h5-web 2>&1 | tail -200
+                       2.12 kB         235 kB
+#12 84.51 鈹?鈼?/sandbox-pay                               2.13 kB         235 kB
+#12 84.51 鈹?鈼?/scan                                      109 kB          319 kB
+#12 84.51 鈹?鈼?/search                                    6.34 kB         239 kB
+#12 84.51 鈹?鈼?/search/result                             7.3 kB          240 kB
+#12 84.51 鈹?鈼?/services                                  5.53 kB         238 kB
+#12 84.51 鈹?鈼?/settings                                  6.08 kB         239 kB
+#12 84.51 鈹?茠 /shared/chat/[token]                       2.06 kB         235 kB
+#12 84.51 鈹?茠 /shared/drug/[token]                       2.46 kB         235 kB
+#12 84.51 鈹?茠 /shared/report/[token]                     2.64 kB         235 kB
+#12 84.51 鈹?鈼?/symptom                                   9.23 kB         247 kB
+#12 84.51 鈹?鈼?/tcm                                       11 kB           243 kB
+#12 84.51 鈹?鈼?/tcm/archive                               505 B           211 kB
+#12 84.51 鈹?茠 /tcm/diagnosis/[id]                        546 B           211 kB
+#12 84.51 鈹?鈼?/tcm/loading                               953 B           211 kB
+#12 84.51 鈹?茠 /tcm/result/[id]                           9.02 kB         241 kB
+#12 84.51 鈹?茠 /unified-order/[id]                        8.15 kB         246 kB
+#12 84.51 鈹?鈼?/unified-orders                            3.48 kB         241 kB
+#12 84.51 + First Load JS shared by all                  87.6 kB
+#12 84.51   鈹?chunks/2117-e9348fb0d4d6144c.js            31.9 kB
+#12 84.51   鈹?chunks/fd9d1056-cde8d1c8f42e1127.js        53.6 kB
+#12 84.51   鈹?other shared chunks (total)                2.09 kB
+#12 84.51 
+#12 84.51 
+#12 84.51 鈼? (Static)   prerendered as static content
+#12 84.51 茠  (Dynamic)  server-rendered on demand
+#12 84.51 
+#12 DONE 84.6s
+
+#7 [builder 2/7] WORKDIR /app
+#7 CACHED
+
+#13 [runner 3/5] COPY --from=builder /app/.next/standalone ./
+#13 DONE 0.4s
+
+#14 [runner 4/5] COPY --from=builder /app/.next/static ./.next/static
+#14 DONE 0.2s
+
+#15 [runner 5/5] COPY --from=builder /app/public ./public
+#15 DONE 0.1s
+
+#16 exporting to image
+#16 exporting layers
+#16 exporting layers 7.6s done
+#16 exporting manifest sha256:18ff3ceac69722780dedcf10a96ea8e5a25d8d8d416587632c13b7d72a4ae409 0.0s done
+#16 exporting config sha256:40de4c4068355f2f1476af67646ef35dd281aaf296c59d277058e7d493ee516b done
+#16 exporting attestation manifest sha256:74b3a9dfd414307cee344bf4f2f3ec0dc3e5a8a14e234f1a798889387c409c50 0.0s done
+#16 exporting manifest list sha256:aae50ceb8d677033eccddcdb863d09fb2fcecdcd87ec8341e6d78ba4c20c4fda 0.0s done
+#16 naming to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:latest done
+#16 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:latest
+#16 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:latest 1.0s done
+#16 DONE 8.7s
+
+#17 resolving provenance for metadata file
+#17 DONE 0.5s
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web Built 
+
+
+=== docker compose up -d --force-recreate h5-web ===
+[exec] cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose up -d --force-recreate h5-web 2>&1 | tail -60
+time="2026-05-07T11:41:28+08:00" level=warning msg="/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Recreate 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Recreated 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Recreate 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Recreated 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Recreate 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Recreated 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Started 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Waiting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Healthy 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Started 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Started 
+
+
+=== gateway nginx reload ===
+[exec] docker exec gateway nginx -t 2>&1 | tail -10
+nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+nginx: configuration file /etc/nginx/nginx.conf test is successful
+
+[exec] docker exec gateway nginx -s reload 2>&1 | tail -10
+2026/05/07 03:41:56 [notice] 883#883: signal process started
+
+
+=== HTTPS smoke ===
+[exec] curl -k -s -o /dev/null -w '%{http_code}' 'https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/login/'
+200
+  [OK  ] https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/login/ -> 200 (expect 200|3)
+[exec] curl -k -s -o /dev/null -w '%{http_code}' 'https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/dashboard/'
+200
+  [OK  ] https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/dashboard/ -> 200 (expect 200|3)
+[exec] curl -k -s -o /dev/null -w '%{http_code}' 'https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/order-dashboard/'
+200
+  [OK  ] https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/order-dashboard/ -> 200 (expect 200|3)
+[exec] curl -k -s -o /dev/null -w '%{http_code}' 'https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/calendar/'
+404
+  [OK  ] https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/calendar/ -> 404 (expect 404)
+[exec] curl -k -s -o /dev/null -w '%{http_code}' 'https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/m/calendar/'
+404
+  [OK  ] https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/m/calendar/ -> 404 (expect 404)
+[exec] curl -k -s -o /dev/null -w '%{http_code}' 'https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/m/dashboard/'
+200
+  [OK  ] https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/m/dashboard/ -> 200 (expect 200|3)
+[exec] curl -k -s -o /dev/null -w '%{http_code}' 'https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/openapi.json'
+200
+  [OK  ] https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/openapi.json -> 200 (expect 200)
+
+=== 瀹瑰櫒鍐?Next.js 璺敱浜х墿妫€鏌?===
+[exec] docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web sh -lc 'ls /app/.next/server/app/merchant/ 2>/dev/null | head -40 || echo no_dir'
+[stderr] Error response from daemon: No such container: 6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web
+
+[exec] docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web sh -lc 'ls /app/.next/server/app/merchant/m/ 2>/dev/null | head -40 || echo no_dir'
+[stderr] Error response from daemon: No such container: 6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web
+
+[exec] docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web sh -lc 'find /app/.next/server/app/merchant -type d -name calendar 2>/dev/null; echo done'
+[stderr] Error response from daemon: No such container: 6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web
+
+
+=== 閮ㄧ讲瀹屾垚 ===
+smoke_pass=True

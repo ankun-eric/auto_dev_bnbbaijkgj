@@ -1,0 +1,231 @@
+﻿=== Step 1: backend 瀹瑰櫒鍐呮墽琛屾柊澧炲崟鍏冩祴璇?===
+[CMD] docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend python -m pytest tests/test_bugfix_uo_20260507_001.py tests/test_payment_method_text_priority_v10.py -v --tb=short 2>&1 | tail -60
+d, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.9/migration/
+    warnings.warn(DEPRECATION_MESSAGE, DeprecationWarning)
+
+app/api/ocr.py:159
+  /app/app/api/ocr.py:159: DeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    period: str = Query("today", regex="^(today|7d|30d|all)$"),
+
+app/api/merchant_v1.py:771
+  /app/app/api/merchant_v1.py:771: DeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    period: str = Query("day", regex="^(day|week|month)$"),
+
+app/api/merchant_v1.py:772
+  /app/app/api/merchant_v1.py:772: DeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    dim: str = Query("merchant", regex="^(merchant|store)$"),
+
+../usr/local/lib/python3.11/site-packages/pydantic/fields.py:795
+  /usr/local/lib/python3.11/site-packages/pydantic/fields.py:795: PydanticDeprecatedSince20: `min_items` is deprecated and will be removed, use `min_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.9/migration/
+    warn('`min_items` is deprecated and will be removed, use `min_length` instead', DeprecationWarning)
+
+../usr/local/lib/python3.11/site-packages/pydantic/fields.py:801
+  /usr/local/lib/python3.11/site-packages/pydantic/fields.py:801: PydanticDeprecatedSince20: `max_items` is deprecated and will be removed, use `max_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.9/migration/
+    warn('`max_items` is deprecated and will be removed, use `max_length` instead', DeprecationWarning)
+
+app/main.py:1071
+  /app/app/main.py:1071: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+../usr/local/lib/python3.11/site-packages/fastapi/applications.py:4495
+../usr/local/lib/python3.11/site-packages/fastapi/applications.py:4495
+  /usr/local/lib/python3.11/site-packages/fastapi/applications.py:4495: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    return self.router.on_event(event_type)
+
+app/main.py:1078
+  /app/app/main.py:1078: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 23 passed, 23 warnings in 1.73s ========================
+
+[RC] 0
+=== Step 2: backend health锛堝鍣ㄥ唴 8000 绔彛锛?==
+[CMD] docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend curl -fsS http://127.0.0.1:8000/api/health || true
+OCI runtime exec failed: exec failed: unable to start container process: exec: "curl": executable file not found in $PATH
+
+[RC] 0
+=== Step 3: rebuild h5-web ===
+[CMD] cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose build h5-web 2>&1 | tail -50
+#12 85.84 鈹?茠 /shared/chat/[token]                       2.07 kB         235 kB
+#12 85.84 鈹?茠 /shared/drug/[token]                       2.46 kB         235 kB
+#12 85.84 鈹?茠 /shared/report/[token]                     2.65 kB         235 kB
+#12 85.84 鈹?鈼?/symptom                                   9.23 kB         247 kB
+#12 85.84 鈹?鈼?/tcm                                       11 kB           243 kB
+#12 85.84 鈹?鈼?/tcm/archive                               508 B           211 kB
+#12 85.84 鈹?茠 /tcm/diagnosis/[id]                        549 B           211 kB
+#12 85.84 鈹?鈼?/tcm/loading                               957 B           211 kB
+#12 85.84 鈹?茠 /tcm/result/[id]                           9.04 kB         242 kB
+#12 85.84 鈹?茠 /unified-order/[id]                        9.14 kB         247 kB
+#12 85.84 鈹?鈼?/unified-orders                            3.88 kB         242 kB
+#12 85.84 + First Load JS shared by all                  87.6 kB
+#12 85.84   鈹?chunks/2117-e9348fb0d4d6144c.js            31.9 kB
+#12 85.84   鈹?chunks/fd9d1056-cde8d1c8f42e1127.js        53.6 kB
+#12 85.84   鈹?other shared chunks (total)                2.1 kB
+#12 85.84 
+#12 85.84 
+#12 85.84 鈼? (Static)   prerendered as static content
+#12 85.84 茠  (Dynamic)  server-rendered on demand
+#12 85.84 
+#12 DONE 86.0s
+
+#8 [builder 2/7] WORKDIR /app
+#8 CACHED
+
+#13 [runner 3/5] COPY --from=builder /app/.next/standalone ./
+#13 DONE 0.4s
+
+#14 [runner 4/5] COPY --from=builder /app/.next/static ./.next/static
+#14 DONE 0.1s
+
+#15 [runner 5/5] COPY --from=builder /app/public ./public
+#15 DONE 0.1s
+
+#16 exporting to image
+#16 exporting layers
+#16 exporting layers 3.6s done
+#16 exporting manifest sha256:dbe1ec5de981d57aecb468af2016528e5ec944dd288f044c9d74f73e1d85fac0 0.0s done
+#16 exporting config sha256:70c9edbbb6dc4578af9399f365972c82f3d0a7e6b4b615474b02536502f34c99 0.0s done
+#16 exporting attestation manifest sha256:d8331b581ebdbb44be99e10d1f73f0e9dd496ba16d065b2541e7b6ec7094e772 0.0s done
+#16 exporting manifest list sha256:31d54ea103b7372b0359ebfc447c3c03c561260b3768602d78fab8268c484321 0.0s done
+#16 naming to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:latest
+#16 naming to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:latest done
+#16 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:latest
+#16 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:latest 1.0s done
+#16 DONE 4.7s
+
+#17 resolving provenance for metadata file
+#17 DONE 0.0s
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web Built 
+
+[RC] 0
+=== Step 4: up -d h5-web ===
+[CMD] cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose up -d h5-web 2>&1 | tail -20
+time="2026-05-07T16:42:34+08:00" level=warning msg="/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Recreate 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Recreated 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Waiting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Healthy 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Started 
+
+[RC] 0
+=== Step 5: 绛夊緟 h5 鍋ュ悍 ===
+[CMD] curl -fsS -o /dev/null -w '%{http_code}\n' https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/orders || true
+308
+
+[RC] 0
+[CMD] curl -fsS -o /dev/null -w '%{http_code}\n' https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/orders || true
+308
+
+[RC] 0
+[CMD] curl -fsS -o /dev/null -w '%{http_code}\n' https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/orders || true
+308
+
+[RC] 0
+[CMD] curl -fsS -o /dev/null -w '%{http_code}\n' https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/orders || true
+308
+
+[RC] 0
+[CMD] curl -fsS -o /dev/null -w '%{http_code}\n' https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/orders || true
+308
+
+[RC] 0
+[CMD] curl -fsS -o /dev/null -w '%{http_code}\n' https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/orders || true
+308
+
+[RC] 0
+[CMD] curl -fsS -o /dev/null -w '%{http_code}\n' https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/orders || true
+308
+
+[RC] 0
+[CMD] curl -fsS -o /dev/null -w '%{http_code}\n' https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/orders || true
+308
+
+[RC] 0
+[CMD] curl -fsS -o /dev/null -w '%{http_code}\n' https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/orders || true
+308
+
+[RC] 0
+[CMD] curl -fsS -o /dev/null -w '%{http_code}\n' https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/orders || true
+308
+
+[RC] 0
+[CMD] curl -fsS -o /dev/null -w '%{http_code}\n' https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/orders || true
+308
+
+[RC] 0
+[CMD] curl -fsS -o /dev/null -w '%{http_code}\n' https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/orders || true
+308
+
+[RC] 0
+[CMD] curl -fsS -o /dev/null -w '%{http_code}\n' https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/orders || true
+308
+
+[RC] 0
+[CMD] curl -fsS -o /dev/null -w '%{http_code}\n' https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/orders || true
+308
+
+[RC] 0
+[CMD] curl -fsS -o /dev/null -w '%{http_code}\n' https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/orders || true
+308
+
+[RC] 0
+[CMD] curl -fsS -o /dev/null -w '%{http_code}\n' https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/orders || true
+308
+
+[RC] 0
+[CMD] curl -fsS -o /dev/null -w '%{http_code}\n' https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/orders || true
+308
+
+[RC] 0
+[CMD] curl -fsS -o /dev/null -w '%{http_code}\n' https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/orders || true
+308
+
+[RC] 0
+[CMD] curl -fsS -o /dev/null -w '%{http_code}\n' https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/orders || true
+308
+
+[RC] 0
+[CMD] curl -fsS -o /dev/null -w '%{http_code}\n' https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/orders || true
+308
+
+[RC] 0
+[CMD] curl -fsS -o /dev/null -w '%{http_code}\n' https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/orders || true
+308
+
+[RC] 0
+[CMD] curl -fsS -o /dev/null -w '%{http_code}\n' https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/orders || true
+308
+
+[RC] 0
+[CMD] curl -fsS -o /dev/null -w '%{http_code}\n' https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/orders || true
+308
+
+[RC] 0
+[CMD] curl -fsS -o /dev/null -w '%{http_code}\n' https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/orders || true
+308
+
+[RC] 0
+[CMD] curl -fsS -o /dev/null -w '%{http_code}\n' https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/orders || true
+308
+
+[RC] 0
+=== Done ===

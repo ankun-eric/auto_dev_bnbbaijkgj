@@ -1,0 +1,82 @@
+[2026-05-08 17:41:56] ============================================================
+[2026-05-08 17:41:56] Stage 4-C: Flutter iOS IPA build via GitHub Actions (PRD-420)
+[2026-05-08 17:41:56] ============================================================
+[2026-05-08 17:41:56] Version tag: ios-prd420-v20260508-174156-jib3
+[2026-05-08 17:41:56] === Trigger workflow (attempt 1/3) ===
+[2026-05-08 17:41:56] $ gh workflow run ios-build.yml -R ankun-eric/auto_dev_bnbbaijkgj -f version=ios-prd420-v20260508-174156-jib3
+[2026-05-08 17:41:58] exit code: 0
+[2026-05-08 17:41:58] Workflow trigger succeeded
+[2026-05-08 17:42:06] === Locating run id ===
+[2026-05-08 17:42:06] $ gh run list -R ankun-eric/auto_dev_bnbbaijkgj --workflow=ios-build.yml --limit 5 --json databaseId,status,conclusion,displayTitle,createdAt,event,headBranch
+[2026-05-08 17:42:07] STDOUT: [{"conclusion":"","createdAt":"2026-05-08T09:41:58Z","databaseId":25548658840,"displayTitle":"iOS Build","event":"workflow_dispatch","headBranch":"master","status":"in_progress"},{"conclusion":"success","createdAt":"2026-05-08T03:58:09Z","databaseId":25535852316,"displayTitle":"iOS Build","event":"workflow_dispatch","headBranch":"master","status":"completed"},{"conclusion":"success","createdAt":"2026-05-07T03:20:09Z","databaseId":25474193102,"displayTitle":"iOS Build","event":"workflow_dispatch","headBranch":"master","status":"completed"},{"conclusion":"success","createdAt":"2026-05-05T16:30:38Z","databaseId":25388969670,"displayTitle":"iOS Build","event":"workflow_dispatch","headBranch":"master","status":"completed"},{"conclusion":"success","createdAt":"2026-05-05T09:08:05Z","databaseId":25367599378,"displayTitle":"iOS Build","event":"workflow_dispatch","headBranch":"master","status":"completed"}]
+[2026-05-08 17:42:07] exit code: 0
+[2026-05-08 17:42:07] Found dispatch run id=25548658840
+[2026-05-08 17:42:07] Actions Run URL: https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25548658840
+[2026-05-08 17:42:07] === Polling run 25548658840 (max 2400s) ===
+[2026-05-08 17:42:07] $ gh run view 25548658840 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,url,name
+[2026-05-08 17:42:07] STDOUT: {"conclusion":"","name":"iOS Build","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25548658840"}
+[2026-05-08 17:42:07] exit code: 0
+[2026-05-08 17:42:07] [0s] status=in_progress conclusion=
+[2026-05-08 17:42:37] $ gh run view 25548658840 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,url,name
+[2026-05-08 17:42:38] STDOUT: {"conclusion":"","name":"iOS Build","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25548658840"}
+[2026-05-08 17:42:38] exit code: 0
+[2026-05-08 17:42:38] [30s] status=in_progress conclusion=
+[2026-05-08 17:43:08] $ gh run view 25548658840 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,url,name
+[2026-05-08 17:43:09] STDOUT: {"conclusion":"","name":"iOS Build","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25548658840"}
+[2026-05-08 17:43:09] exit code: 0
+[2026-05-08 17:43:09] [61s] status=in_progress conclusion=
+[2026-05-08 17:43:39] $ gh run view 25548658840 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,url,name
+[2026-05-08 17:43:39] STDOUT: {"conclusion":"","name":"iOS Build","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25548658840"}
+[2026-05-08 17:43:39] exit code: 0
+[2026-05-08 17:43:39] [91s] status=in_progress conclusion=
+[2026-05-08 17:44:09] $ gh run view 25548658840 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,url,name
+[2026-05-08 17:44:10] STDOUT: {"conclusion":"","name":"iOS Build","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25548658840"}
+[2026-05-08 17:44:10] exit code: 0
+[2026-05-08 17:44:10] [122s] status=in_progress conclusion=
+[2026-05-08 17:44:40] $ gh run view 25548658840 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,url,name
+[2026-05-08 17:44:40] STDOUT: {"conclusion":"","name":"iOS Build","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25548658840"}
+[2026-05-08 17:44:40] exit code: 0
+[2026-05-08 17:44:40] [152s] status=in_progress conclusion=
+[2026-05-08 17:45:10] $ gh run view 25548658840 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,url,name
+[2026-05-08 17:45:11] STDOUT: {"conclusion":"","name":"iOS Build","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25548658840"}
+[2026-05-08 17:45:11] exit code: 0
+[2026-05-08 17:45:11] [183s] status=in_progress conclusion=
+[2026-05-08 17:45:41] $ gh run view 25548658840 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,url,name
+[2026-05-08 17:45:41] STDOUT: {"conclusion":"","name":"iOS Build","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25548658840"}
+[2026-05-08 17:45:41] exit code: 0
+[2026-05-08 17:45:41] [214s] status=in_progress conclusion=
+[2026-05-08 17:46:11] $ gh run view 25548658840 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,url,name
+[2026-05-08 17:46:12] STDOUT: {"conclusion":"","name":"iOS Build","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25548658840"}
+[2026-05-08 17:46:12] exit code: 0
+[2026-05-08 17:46:12] [244s] status=in_progress conclusion=
+[2026-05-08 17:46:42] $ gh run view 25548658840 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,url,name
+[2026-05-08 17:46:43] STDOUT: {"conclusion":"","name":"iOS Build","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25548658840"}
+[2026-05-08 17:46:43] exit code: 0
+[2026-05-08 17:46:43] [275s] status=in_progress conclusion=
+[2026-05-08 17:47:13] $ gh run view 25548658840 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,url,name
+[2026-05-08 17:47:13] STDOUT: {"conclusion":"","name":"iOS Build","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25548658840"}
+[2026-05-08 17:47:13] exit code: 0
+[2026-05-08 17:47:13] [305s] status=in_progress conclusion=
+[2026-05-08 17:47:43] $ gh run view 25548658840 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,url,name
+[2026-05-08 17:47:44] STDOUT: {"conclusion":"success","name":"iOS Build","status":"completed","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25548658840"}
+[2026-05-08 17:47:44] exit code: 0
+[2026-05-08 17:47:44] [336s] status=completed conclusion=success
+[2026-05-08 17:47:44] Build succeeded; fetching release info...
+[2026-05-08 17:47:44] === Get release info for ios-prd420-v20260508-174156-jib3 ===
+[2026-05-08 17:47:44] $ gh release view ios-prd420-v20260508-174156-jib3 -R ankun-eric/auto_dev_bnbbaijkgj --json url,assets,name,tagName,createdAt
+[2026-05-08 17:47:44] STDOUT: {"assets":[{"apiUrl":"https://api.github.com/repos/ankun-eric/auto_dev_bnbbaijkgj/releases/assets/415157605","contentType":"application/octet-stream","createdAt":"2026-05-08T09:47:22Z","downloadCount":0,"id":"RA_kwDORx6WhM4Yvs1l","label":"","name":"bini_health_ios.ipa","size":34120174,"state":"uploaded","updatedAt":"2026-05-08T09:47:24Z","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/download/ios-prd420-v20260508-174156-jib3/bini_health_ios.ipa"}],"createdAt":"2026-05-08T09:40:24Z","name":"iOS Build ios-prd420-v20260508-174156-jib3","tagName":"ios-prd420-v20260508-174156-jib3","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-prd420-v20260508-174156-jib3"}
+[2026-05-08 17:47:44] exit code: 0
+[2026-05-08 17:47:44] IPA asset: {'apiUrl': 'https://api.github.com/repos/ankun-eric/auto_dev_bnbbaijkgj/releases/assets/415157605', 'contentType': 'application/octet-stream', 'createdAt': '2026-05-08T09:47:22Z', 'downloadCount': 0, 'id': 'RA_kwDORx6WhM4Yvs1l', 'label': '', 'name': 'bini_health_ios.ipa', 'size': 34120174, 'state': 'uploaded', 'updatedAt': '2026-05-08T09:47:24Z', 'url': 'https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/download/ios-prd420-v20260508-174156-jib3/bini_health_ios.ipa'}
+[2026-05-08 17:47:44] ============================================================
+[2026-05-08 17:47:44] FINAL RESULT:
+[2026-05-08 17:47:44] {
+  "success": true,
+  "version": "ios-prd420-v20260508-174156-jib3",
+  "release_url": "https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-prd420-v20260508-174156-jib3",
+  "ipa_url": "https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/download/ios-prd420-v20260508-174156-jib3/bini_health_ios.ipa",
+  "ipa_size_bytes": 34120174,
+  "build_seconds": 347,
+  "actions_run_url": "https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25548658840",
+  "error": null
+}
+[2026-05-08 17:47:44] ============================================================

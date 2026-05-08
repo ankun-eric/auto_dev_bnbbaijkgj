@@ -1,0 +1,135 @@
+﻿connecting ubuntu@newbb.test.bangbangvip.com ...
+
+========== 1. git pull origin master (with retry) ==========
+
+>>> cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && git config --global --add safe.directory /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && for i in 1 2 3 4 5; do echo "[try $i] git fetch ..."; if timeout 120 git fetch origin master; then echo OK; break; fi; sleep 10; done && git reset --hard origin/master && git log -1 --oneline
+[try 1] git fetch ...
+[try 2] git fetch ...
+[try 3] git fetch ...
+[try 4] git fetch ...
+OK
+HEAD is now at da9d710 fix(bug-367): 瀹㈡埛绔鍗曢【瀹㈡搷浣滈壌鏉冭鍒?v1.0 - 鍟嗗鍏奸【瀹㈢敤鎴峰湪瀹㈡埛绔涓€鍒€鍒?
+da9d710 fix(bug-367): 瀹㈡埛绔鍗曢【瀹㈡搷浣滈壌鏉冭鍒?v1.0 - 鍟嗗鍏奸【瀹㈢敤鎴峰湪瀹㈡埛绔涓€鍒€鍒?
+
+[stderr]
+fatal: unable to access 'https://github.com/ankun-eric/auto_dev_bnbbaijkgj.git/': Operation too slow. Less than 1000 bytes/sec transferred the last 60 seconds
+From https://github.com/ankun-eric/auto_dev_bnbbaijkgj
+ * branch            master     -> FETCH_HEAD
+   4e20c17..da9d710  master     -> origin/master
+
+[exit=0]
+
+========== 2. docker compose build & restart backend ==========
+
+>>> cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml build backend 2>&1 | tail -25 && docker compose -f docker-compose.prod.yml up -d --no-deps backend 2>&1 | tail -10
+
+#9 [4/6] RUN pip install --no-cache-dir -r requirements.txt -i https://mirrors.cloud.tencent.com/pypi/simple --trusted-host mirrors.cloud.tencent.com --timeout 120
+#9 CACHED
+
+#10 [5/6] COPY . .
+#10 DONE 0.3s
+
+#11 [6/6] RUN mkdir -p uploads
+#11 DONE 0.2s
+
+#12 exporting to image
+#12 exporting layers
+#12 exporting layers 0.3s done
+#12 exporting manifest sha256:26bcda0ab0766b7197c4d375dedc73a819765c3d25adde52d964442c0fbc0267
+#12 exporting manifest sha256:26bcda0ab0766b7197c4d375dedc73a819765c3d25adde52d964442c0fbc0267 0.0s done
+#12 exporting config sha256:b4c1ca988d6966f3b766f5396f83b26b68b140f5fb0d0b8e6ee348217c8e5d53 0.0s done
+#12 exporting attestation manifest sha256:3e857e30b4e95bff2b5694db243f7cf5fd5b82ce5effe0681473e913a3595f90 0.0s done
+#12 exporting manifest list sha256:a33af7f5a9d72fec4b649a812e25c59c33a2a511c73a139e15aced9efdd6967b 0.0s done
+#12 naming to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-backend:latest done
+#12 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-backend:latest 0.1s done
+#12 DONE 0.7s
+
+#13 resolving provenance for metadata file
+#13 DONE 0.0s
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Built 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Recreate 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Recreated 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Started 
+
+[exit=0]
+
+========== 3. wait backend healthy ==========
+
+>>> curl -s -o /dev/null -w '%{http_code}' 'https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health'
+502
+[exit=0]
+  health probe 1: 502
+
+>>> curl -s -o /dev/null -w '%{http_code}' 'https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health'
+502
+[exit=0]
+  health probe 2: 502
+
+>>> curl -s -o /dev/null -w '%{http_code}' 'https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health'
+502
+[exit=0]
+  health probe 3: 502
+
+>>> curl -s -o /dev/null -w '%{http_code}' 'https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health'
+502
+[exit=0]
+  health probe 4: 502
+
+>>> curl -s -o /dev/null -w '%{http_code}' 'https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health'
+502
+[exit=0]
+  health probe 5: 502
+
+>>> curl -s -o /dev/null -w '%{http_code}' 'https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health'
+502
+[exit=0]
+  health probe 6: 502
+
+>>> curl -s -o /dev/null -w '%{http_code}' 'https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health'
+502
+[exit=0]
+  health probe 7: 502
+
+>>> curl -s -o /dev/null -w '%{http_code}' 'https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health'
+502
+[exit=0]
+  health probe 8: 502
+
+========== 4. verify code in container ==========
+
+>>> BC=$(docker ps -qf 'name=6b099ed3-7175-4a78-91f4-44570c84ed27.*backend') && docker exec $BC grep -nE 'require_customer_client_session|CUSTOMER_FORBIDDEN_DETAIL|CLIENT_H5_USER' /app/app/utils/client_source.py | head -20 && echo '---' && docker exec $BC grep -nE 'require_customer_client_session' /app/app/api/unified_orders.py | head -20
+---
+
+[stderr]
+Error response from daemon: Container c43102dffa457f97014d9c046c96017cd7a23aefd669da6015a8ed8347f4dffa is restarting, wait until the container is running
+Error response from daemon: Container c43102dffa457f97014d9c046c96017cd7a23aefd669da6015a8ed8347f4dffa is restarting, wait until the container is running
+
+[exit=0]
+
+========== 5. run targeted pytest in container (non-UI auto test) ==========
+
+>>> BC=$(docker ps -qf 'name=6b099ed3-7175-4a78-91f4-44570c84ed27.*backend') && docker exec $BC python -m pytest tests/test_bugfix_customer_client_session_v1.py tests/test_prd05_verify_lockdown_v1.py tests/test_prd03_reschedule_v1.py tests/test_modify_appointment_bugfix.py tests/test_orders_status_v2.py tests/test_orders_aftersales_v3.py tests/test_h5_pay_link_bugfix.py tests/test_h5_pay_success_bugfix.py tests/test_on_site_fulfillment_v1.py --tb=short -q 2>&1 | tail -40
+Error response from daemon: Container c43102dffa457f97014d9c046c96017cd7a23aefd669da6015a8ed8347f4dffa is restarting, wait until the container is running
+
+[exit=0]
+
+========== 6. full backend pytest collection sanity check ==========
+
+>>> BC=$(docker ps -qf 'name=6b099ed3-7175-4a78-91f4-44570c84ed27.*backend') && docker exec $BC python -m pytest tests/ --collect-only -q 2>&1 | tail -5
+Error response from daemon: Container c43102dffa457f97014d9c046c96017cd7a23aefd669da6015a8ed8347f4dffa is restarting, wait until the container is running
+
+[exit=0]
+
+========== 7. container list ==========
+
+>>> docker ps --filter 'name=6b099ed3-7175-4a78-91f4-44570c84ed27' --format 'table {{.Names}}\t{{.Status}}'
+NAMES                                          STATUS
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend   Restarting (3) 8 seconds ago
+6b099ed3-7175-4a78-91f4-44570c84ed27-h5        Up 23 hours
+6b099ed3-7175-4a78-91f4-44570c84ed27-admin     Up 23 hours
+6b099ed3-7175-4a78-91f4-44570c84ed27-db        Up 23 hours (healthy)
+
+[exit=0]
+
+[DONE]

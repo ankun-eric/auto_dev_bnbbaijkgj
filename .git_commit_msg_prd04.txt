@@ -1,0 +1,10 @@
+feat(PRD-04): 改期通知三通道收尾 - 企业微信告警 + 商家详情页通知状态
+
+- backend: _send_wechat_work_alert 函数 (webhook + 手机号脱敏 + errcode/HTTP 容错)
+- backend: notify_order_rescheduled 在 all_failed 时调用告警 + to_dict 输出 wechat_work_alert
+- backend: merchant_get_order_detail 返回 last_reschedule_notify_status / last_reschedule_notify
+- h5-web: 商家手机端订单详情页通知状态卡片 (绿/红 + 三通道明细 + 异常提示)
+- 测试: test_prd04_reschedule_notify_v1.py 11 case + 历史 18 case = 29/29 PASS
+- 部署: _deploy_prd04_reschedule_notify_20260505.py + 部署后 8 URL 健康检查全 200/401
+- 文档: user_docs/改期通知三通道_PRD-04_v1.0_20260505_202600.md
+- 索引: project-context.mdc 同步 PRD-04 收尾段

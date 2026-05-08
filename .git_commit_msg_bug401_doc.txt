@@ -1,0 +1,6 @@
+docs(bug401): 同步 admin 订单明细 Gateway OK 白屏修复的项目索引、用户手册与部署脚本
+
+- 项目索引：在 .cursor/rules/project-context.mdc 顶部新增 BUGFIX-ADMIN-ORDERS-GATEWAY-OK-20260507 一段，记录根因/修复策略/改动文件/验证结果/手册路径
+- 用户手册：新增 user_docs/manual_20260507_165932_9bbd.md，含访问链接表（开头与末尾各一份）、修复后行为说明、3 大场景操作步骤、注意事项与验收 Checklist
+- 部署脚本：新增 _deploy_bug401_admin.py / _deploy_bug401_v2.py / _deploy_bug401_v3.py（远程 git pull → docker compose build admin-web → up -d）与 _verify_bug401.py（curl 验证 200 + 关键字段断言）
+- 提交信息草稿：保留 .git_commit_msg_bug401.txt 用于历史追溯

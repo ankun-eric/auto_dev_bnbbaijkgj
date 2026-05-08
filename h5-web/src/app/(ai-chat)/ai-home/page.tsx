@@ -14,6 +14,7 @@ import ConsultTargetPicker, { type FamilyMemberItem } from '@/components/ai-chat
 import SharePanel from '@/components/ai-chat/SharePanel';
 import SectionErrorBoundary from '@/components/SectionErrorBoundary';
 import DraggablePunchCard from '@/components/ai-chat/DraggablePunchCard';
+import ProfileCard, { clearProfileCardCache } from '@/components/ai-chat/ProfileCard';
 import { trackEvent, aiChatTrack, type AiChatTargetType } from '@/lib/analytics';
 
 interface ChatMessage {
@@ -22,6 +23,8 @@ interface ChatMessage {
   content: string;
   time: string;
   isStreaming?: boolean;
+  /** [PRD-432] 该消息绑定的咨询对象 family_member_id，AI 回答顶部档案卡片用 */
+  consultantTargetId?: number | null;
 }
 
 interface Banner {
@@ -1708,6 +1711,18 @@ export default function AiHomePage() {
                       <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: THEME.divider, color: THEME.textSecondary }}>
                         {formatTimestamp(msg.time)}
                       </span>
+                    </div>
+                  )}
+                  {/* [PRD-432] AI 回答顶部「咨询对象档案」折叠卡片 */}
+                  {!isUser && (
+                    <div data-testid="ai-home-profile-card-wrapper" style={{ marginBottom: 8 }}>
+                      <ProfileCard
+                        consultantId={(msg.consultantTargetId ?? selectedConsultant?.id ?? 0) as number}
+                        onGoComplete={(cid) => router.push(`/health-archive?target=${cid}&from=ai-chat`)}
+                        onGoMedicationManage={(cid, autoCreate) =>
+                          router.push(`/health-plan/medications?target=${cid}${autoCreate ? '&action=create' : ''}`)
+                        }
+                      />
                     </div>
                   )}
                   {/* 头像独占一行 + 名称（左对齐） */}

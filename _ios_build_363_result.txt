@@ -1,0 +1,2 @@
+IOS_RELEASE_PAGE=https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-login-layout-v20260506-003036-0be0
+IOS_IPA_DOWNLOAD=https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/download/ios-login-layout-v20260506-003036-0be0/bini_health_ios.ipa

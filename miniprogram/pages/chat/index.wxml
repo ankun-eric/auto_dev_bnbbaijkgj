@@ -95,6 +95,11 @@
     </view>
 
     <view class="msg-item" wx:for="{{messages}}" wx:key="id" id="msg-{{item.id}}">
+      <!-- [PRD-432] AI 回答顶部「咨询对象档案」折叠卡片 -->
+      <profile-card
+        wx:if="{{item.role === 'assistant'}}"
+        consultant-id="{{currentConsultantId || 0}}"
+      />
       <!-- [PRD-429] AI消息 满屏排版（去气泡） -->
       <view class="msg-flow-row ai-flow" wx:if="{{item.role === 'assistant'}}">
         <view class="msg-flow-header">

@@ -1,0 +1,30 @@
+fix(BUG-FIX-RESCHEDULE-V3): 用户端订单改约 500 - 异步 session lazy-load 防御加固
+
+根因（与"双重身份"实际无关）：
+- reschedule_notification.notify_order_rescheduled 内 getattr(order, "store"/"user")
+  会在 async session 上触发 lazy-load -> MissingGreenlet
+- 异常将 session 标记为 invalid，主流程 return 时再次访问 ORM 标量属性
+  又触发 _load_expired，再次 MissingGreenlet -> FastAPI 兜底 500
+- 现象上"双重身份号才 500"是因为这类订单关联 store_id，更易触发该路径
+
+修复内容：
+- backend/app/api/unified_orders.py
+  - _set_order_appointment_impl 的 select 加 selectinload(items.product, store, user)
+  - return 字段 commit 前抓成 local 变量 (final_reschedule_count/limit)
+  - notify 前先 await db.commit() 让主写入与通知通道解耦
+  - notify / 外层 except 出错时 await db.rollback() 复位 session
+  - 外层 except 仍按 RESCHEDULE_INTERNAL_ERROR 结构化 500 返回（保留 trace_id）
+- backend/app/services/reschedule_notification.py
+  - 门店信息：显式 SELECT MerchantStore，不再 lazy load order.store
+  - 用户信息：显式 SELECT User，不再 lazy load order.user
+  - 商品名：仅用 OrderItem.product_name 冗余字段，不再 lazy load OrderItem.product
+  - 上述显式查询任何异常均降级为空，绝不向上抛
+
+已部署 + 服务器冒烟验证：
+- 订单 41 (双重身份号 role=merchant) 走 X-Client-Source: h5-customer 改约
+- 连续 3 轮 POST /api/orders/unified/41/appointment 全部 200
+- reschedule_count 0->1->2->3 正常累加（顾客端入口不卡商家身份次数）
+- docker logs 不再出现 MissingGreenlet / 500 Internal Server Error
+
+仅改动后端代码，未改动 H5 / 小程序 / Flutter App / Admin Web，
+无需重新打包客户端。

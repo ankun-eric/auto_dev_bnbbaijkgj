@@ -1,0 +1,114 @@
+/* [PRD-432] AI 回答顶部档案卡片 */
+.profile-card {
+  margin: 8rpx 24rpx 4rpx;
+  background: #F4F6FA;
+  border-radius: 16rpx;
+  overflow: hidden;
+  font-size: 26rpx;
+  color: #374151;
+}
+.pc-collapsed {
+  display: flex;
+  align-items: center;
+  height: 88rpx;
+  padding: 0 24rpx;
+}
+.pc-avatar {
+  width: 48rpx;
+  height: 48rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 28rpx;
+  margin-right: 16rpx;
+  flex-shrink: 0;
+}
+.pc-avatar-male { background: #3B82F6; }
+.pc-avatar-female { background: #EC4899; }
+.pc-avatar-unknown { background: #9CA3AF; }
+.pc-title {
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-weight: 500;
+  color: #1F2937;
+}
+.pc-summary {
+  color: #6B7280;
+  margin-left: 16rpx;
+  font-size: 24rpx;
+  max-width: 50%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.pc-arrow {
+  margin-left: 16rpx;
+  color: #9CA3AF;
+  font-size: 24rpx;
+}
+.pc-arrow-small {
+  margin-left: 8rpx;
+  color: #9CA3AF;
+}
+.pc-expanded {
+  padding: 0 24rpx 20rpx;
+}
+.pc-meta {
+  display: flex;
+  justify-content: space-between;
+  padding: 16rpx 0;
+  border-top: 1rpx solid #E5E7EB;
+  font-size: 24rpx;
+}
+.pc-meta-completeness {
+  color: #2563EB;
+}
+.pc-meta-completeness.pc-complete {
+  color: #10B981;
+}
+.pc-meta-updated {
+  color: #9CA3AF;
+}
+.pc-row {
+  display: flex;
+  padding: 12rpx 0;
+}
+.pc-row-clickable {
+  background: #FAFCFF;
+  border-radius: 8rpx;
+}
+.pc-label {
+  width: 160rpx;
+  color: #6B7280;
+}
+.pc-val {
+  flex: 1;
+  color: #111827;
+  max-width: 65%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.pc-empty {
+  color: #9CA3AF;
+}
+.profile-card-fallback {
+  margin: 16rpx 24rpx 8rpx;
+  padding: 20rpx 24rpx;
+  border-radius: 16rpx;
+  background: #EAF4FF;
+  color: #2563EB;
+  font-size: 26rpx;
+}
+.profile-card-loading {
+  margin: 16rpx 24rpx;
+  padding: 20rpx 24rpx;
+  border-radius: 16rpx;
+  background: #F4F6FA;
+  color: #9CA3AF;
+  font-size: 24rpx;
+}

@@ -1,0 +1,44 @@
+fix(bug-419): AI 对话首页整片白屏 + 创建会话 422 一击到底修复
+
+## 现象
+PRD-411 上线后并发出现两条线上故障：
+1. H5 用户端 /ai-home 整页白屏（顶部状态栏外的所有区域不可见）
+2. 用户在首页输入文字点击发送即提示「创建会话失败」+ 浏览器控制台 422
+
+## 后端 4 项加固
+- B-1 main.py 新增全局 RequestValidationError 处理器，把英文 422 转中文，
+  保留 errors[] 兼容前端 axios，完整请求体脱敏日志
+- B-2 schemas/chat.py: session_type 改 Optional 默认 health_qa，新增 member_id
+  老字段兼容；api/chat.py 新增 _SESSION_TYPE_ALIASES 别名映射 +
+  _normalize_session_type 兜底
+- B-3 api/chat.py: family_member_id 缺省时通过 _pick_default_family_member_id
+  自动取 is_self=True 的本人，没有则取最早创建的家庭成员
+- B-4 关键路径全部加 [Bug-419] 前缀 INFO 日志（兜底命中/字段映射/最终落库参数）
+
+## H5 11 项加固
+- H-1 ai-home/page.tsx createNewSession 字段对齐 session_type='health_qa' +
+  family_member_id（修复历史 member_id 错写）
+- H-2/3 抽取统一工具 lib/chat-session.ts createChatSession，所有创建会话入口
+  必须经过此工具，工具内部 try/catch + Toast 兜底，不向上抛异常
+- H-4 新增 components/SectionErrorBoundary.tsx 区块级 ErrorBoundary
+- H-5 ai-home 关键 7 个区块全部包裹 SectionErrorBoundary
+  (welcome/health_tips/func_grid/recommend/empty_placeholder/floating_button/topbar)
+- H-6 aiHomeConfig 全部读取改为 obj?.field ?? defaultValue 安全访问
+- H-7 内置 FALLBACK_CONFIG，配置接口失败时仍保证 UI 完整渲染
+- H-8 mergeWithFallback 按一级 key 深合并，避免接口返回 welcome:{} 抹掉默认
+- H-9 tcm/page.tsx session_type 从非法 'constitution' 改为 'constitution_test'
+- H-10 symptom/page.tsx + ChatSidebar.tsx + (tabs)/ai/page.tsx 全部切工具
+- H-11 工具内部统一处理后端兜底 200/客户端 400/网络错误三类场景
+
+## 测试与部署
+- 后端容器内 pytest test_bug419_chat_sessions.py：26 passed in 16.81s
+- 关键回归 (test_ai_home_config* + test_ai_chat_v11_414 +
+  test_bugfix_reschedule_popup_auto_close)：42 passed in 27.24s
+- docker cp backend 4 文件 + restart backend
+- docker compose build h5-web (86.9s) + up -d h5-web
+- 远程端到端 smoke：6 个用例全过（含历史错误 payload 自动兜底场景）
+- 1 端打包（仅 backend + h5-web，admin/小程序/iOS/Android 未变动跳过）
+
+## 一击到底承诺
+后端 5 重防御 + H5 统一工具 + 区块级 ErrorBoundary + 深合并兜底，
+即使未来再有新前端忘记带字段也不会 422，老版本客户端也透明兼容。

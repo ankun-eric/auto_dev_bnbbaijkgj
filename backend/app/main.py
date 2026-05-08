@@ -1062,6 +1062,9 @@ app.include_router(_system.router)
 from app.api import ai_home_config as _ai_home_config  # noqa: E402
 app.include_router(_ai_home_config.router)
 app.include_router(user_health_profile.router)
+# [PRD-432 2026-05-09] AI 回答顶部「咨询对象档案」折叠卡片
+from app.api import consultant_profile_card as _consultant_profile_card  # noqa: E402
+app.include_router(_consultant_profile_card.router)
 # [2026-05-01 门店地图能力 PRD v1.0] 地图代理（逆地理编码/POI 搜索/静态地图）
 app.include_router(maps.router)
 # [2026-05-02 H5 下单流程优化 PRD v1.0] 支付页统一选择
@@ -1086,6 +1089,36 @@ app.include_router(_analytics.router)
 async def _sdk_health_startup_check() -> None:
     from app.core.sdk_health import run_startup_sdk_check
     run_startup_sdk_check()
+
+
+# [PRD-432 2026-05-09] AI 回答顶部「咨询对象档案」折叠卡片相关表迁移
+@app.on_event("startup")
+async def _prd432_profile_card_migrate() -> None:
+    _logger = logging.getLogger("app.prd432_migrate")
+    from app.core.database import async_session as _async_session
+    from sqlalchemy import text as _text
+    columns_to_add = [
+        ("health_profiles", "past_history_is_none", "TINYINT(1) NOT NULL DEFAULT 0"),
+        ("health_profiles", "allergy_is_none", "TINYINT(1) NOT NULL DEFAULT 0"),
+        ("health_profiles", "medication_is_none", "TINYINT(1) NOT NULL DEFAULT 0"),
+        ("chat_messages", "consultant_target_id", "BIGINT NULL"),
+    ]
+    try:
+        async with _async_session() as db:
+            for table, col, defn in columns_to_add:
+                try:
+                    await db.execute(_text(f"ALTER TABLE {table} ADD COLUMN {col} {defn}"))
+                    await db.commit()
+                    _logger.info(f"[PRD-432] {table}.{col} 列已添加")
+                except Exception as e:
+                    await db.rollback()
+                    msg = str(e)
+                    if "Duplicate column" in msg or "exists" in msg.lower():
+                        _logger.debug(f"[PRD-432] {table}.{col} 已存在，跳过")
+                    else:
+                        _logger.warning(f"[PRD-432] {table}.{col} 添加失败：{e}")
+    except Exception as e:
+        _logger.warning(f"[PRD-432] 迁移连接失败：{e}")
 
 
 # [Bug 修复] 启动期自检：路由挂载 + 加密密钥环境变量

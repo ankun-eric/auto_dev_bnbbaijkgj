@@ -1,0 +1,4 @@
+﻿[master 9b99b43] feat(prd-411): AI 瀵硅瘽棣栭〉閰嶇疆椤甸潰 Tab 鍖栨敼閫狅紙浼?Tab 鈫?鐪?Tab锛? 5 files changed, 1631 insertions(+), 1091 deletions(-)
+ create mode 100644 _deploy_prd411.py
+ create mode 100644 backend/tests/test_ai_home_config_tab411.py
+ create mode 100644 "user_docs/AI\345\257\271\350\257\235\351\246\226\351\241\265\351\205\215\347\275\256_Tab\345\214\226\346\224\271\351\200\240.md"

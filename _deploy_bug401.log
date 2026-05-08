@@ -1,0 +1,213 @@
+﻿=== Step 1: 涓婁紶鍚庣 + 娴嬭瘯鏂囦欢 ===
+[CMD] scp -o StrictHostKeyChecking=no backend/app/api/merchant.py ubuntu@newbb.test.bangbangvip.com:/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/api/merchant.py
+[RC] 0
+[CMD] scp -o StrictHostKeyChecking=no backend/app/api/merchant_v1.py ubuntu@newbb.test.bangbangvip.com:/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/api/merchant_v1.py
+[RC] 0
+[CMD] scp -o StrictHostKeyChecking=no backend/app/api/unified_orders.py ubuntu@newbb.test.bangbangvip.com:/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/api/unified_orders.py
+[RC] 0
+[CMD] scp -o StrictHostKeyChecking=no backend/app/api/alipay_notify.py ubuntu@newbb.test.bangbangvip.com:/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/api/alipay_notify.py
+[RC] 0
+[CMD] scp -o StrictHostKeyChecking=no backend/app/schemas/merchant_v1.py ubuntu@newbb.test.bangbangvip.com:/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/schemas/merchant_v1.py
+[RC] 0
+[CMD] scp -o StrictHostKeyChecking=no backend/tests/test_bugfix_uo_20260507_001.py ubuntu@newbb.test.bangbangvip.com:/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/tests/test_bugfix_uo_20260507_001.py
+[RC] 0
+
+=== Step 2: 涓婁紶 h5-web 鍟嗗璁㈠崟椤甸潰婧愮爜 ===
+[CMD] scp -o StrictHostKeyChecking=no h5-web/src/app/merchant/orders/page.tsx ubuntu@newbb.test.bangbangvip.com:/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/merchant/orders/page.tsx
+[RC] 0
+[CMD] scp -o StrictHostKeyChecking=no h5-web/src/app/merchant/m/orders/[id]/page.tsx ubuntu@newbb.test.bangbangvip.com:/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/merchant/m/orders/[id]/page.tsx
+[RC] 0
+
+=== Step 3: 鍚屾鍚庣浠ｇ爜鍒?backend 瀹瑰櫒 (/app) ===
+[CMD] ssh -o StrictHostKeyChecking=no ubuntu@newbb.test.bangbangvip.com docker cp /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/api/merchant.py 6b099ed3-7175-4a78-91f4-44570c84ed27-backend:/app/app/api/merchant.py
+[RC] 0
+[CMD] ssh -o StrictHostKeyChecking=no ubuntu@newbb.test.bangbangvip.com docker cp /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/api/merchant_v1.py 6b099ed3-7175-4a78-91f4-44570c84ed27-backend:/app/app/api/merchant_v1.py
+[RC] 0
+[CMD] ssh -o StrictHostKeyChecking=no ubuntu@newbb.test.bangbangvip.com docker cp /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/api/unified_orders.py 6b099ed3-7175-4a78-91f4-44570c84ed27-backend:/app/app/api/unified_orders.py
+[RC] 0
+[CMD] ssh -o StrictHostKeyChecking=no ubuntu@newbb.test.bangbangvip.com docker cp /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/api/alipay_notify.py 6b099ed3-7175-4a78-91f4-44570c84ed27-backend:/app/app/api/alipay_notify.py
+[RC] 0
+[CMD] ssh -o StrictHostKeyChecking=no ubuntu@newbb.test.bangbangvip.com docker cp /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/schemas/merchant_v1.py 6b099ed3-7175-4a78-91f4-44570c84ed27-backend:/app/app/schemas/merchant_v1.py
+[RC] 0
+[CMD] ssh -o StrictHostKeyChecking=no ubuntu@newbb.test.bangbangvip.com docker cp /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/tests/test_bugfix_uo_20260507_001.py 6b099ed3-7175-4a78-91f4-44570c84ed27-backend:/app/tests/test_bugfix_uo_20260507_001.py
+[RC] 0
+
+=== Step 4: 閲嶅惎 backend 瀹瑰櫒浠ヨ浠ｇ爜鐢熸晥 ===
+[CMD] ssh -o StrictHostKeyChecking=no ubuntu@newbb.test.bangbangvip.com docker restart 6b099ed3-7175-4a78-91f4-44570c84ed27-backend
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend
+
+[RC] 0
+
+=== Step 5: 绛夊緟 backend 鍋ュ悍 ===
+[CMD] ssh -o StrictHostKeyChecking=no ubuntu@newbb.test.bangbangvip.com curl -fsS http://127.0.0.1/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health || true
+<html>
+<head><title>301 Moved Permanently</title></head>
+<body>
+<center><h1>301 Moved Permanently</h1></center>
+<hr><center>nginx/1.29.8</center>
+</body>
+</html>
+
+[RC] 0
+[CMD] ssh -o StrictHostKeyChecking=no ubuntu@newbb.test.bangbangvip.com curl -fsS http://127.0.0.1/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health || true
+<html>
+<head><title>301 Moved Permanently</title></head>
+<body>
+<center><h1>301 Moved Permanently</h1></center>
+<hr><center>nginx/1.29.8</center>
+</body>
+</html>
+
+[RC] 0
+[CMD] ssh -o StrictHostKeyChecking=no ubuntu@newbb.test.bangbangvip.com curl -fsS http://127.0.0.1/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health || true
+<html>
+<head><title>301 Moved Permanently</title></head>
+<body>
+<center><h1>301 Moved Permanently</h1></center>
+<hr><center>nginx/1.29.8</center>
+</body>
+</html>
+
+[RC] 0
+[CMD] ssh -o StrictHostKeyChecking=no ubuntu@newbb.test.bangbangvip.com curl -fsS http://127.0.0.1/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health || true
+<html>
+<head><title>301 Moved Permanently</title></head>
+<body>
+<center><h1>301 Moved Permanently</h1></center>
+<hr><center>nginx/1.29.8</center>
+</body>
+</html>
+
+[RC] 0
+[CMD] ssh -o StrictHostKeyChecking=no ubuntu@newbb.test.bangbangvip.com curl -fsS http://127.0.0.1/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health || true
+<html>
+<head><title>301 Moved Permanently</title></head>
+<body>
+<center><h1>301 Moved Permanently</h1></center>
+<hr><center>nginx/1.29.8</center>
+</body>
+</html>
+
+[RC] 0
+[CMD] ssh -o StrictHostKeyChecking=no ubuntu@newbb.test.bangbangvip.com curl -fsS http://127.0.0.1/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health || true
+<html>
+<head><title>301 Moved Permanently</title></head>
+<body>
+<center><h1>301 Moved Permanently</h1></center>
+<hr><center>nginx/1.29.8</center>
+</body>
+</html>
+
+[RC] 0
+[CMD] ssh -o StrictHostKeyChecking=no ubuntu@newbb.test.bangbangvip.com curl -fsS http://127.0.0.1/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health || true
+<html>
+<head><title>301 Moved Permanently</title></head>
+<body>
+<center><h1>301 Moved Permanently</h1></center>
+<hr><center>nginx/1.29.8</center>
+</body>
+</html>
+
+[RC] 0
+[CMD] ssh -o StrictHostKeyChecking=no ubuntu@newbb.test.bangbangvip.com curl -fsS http://127.0.0.1/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health || true
+<html>
+<head><title>301 Moved Permanently</title></head>
+<body>
+<center><h1>301 Moved Permanently</h1></center>
+<hr><center>nginx/1.29.8</center>
+</body>
+</html>
+
+[RC] 0
+[CMD] ssh -o StrictHostKeyChecking=no ubuntu@newbb.test.bangbangvip.com curl -fsS http://127.0.0.1/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health || true
+<html>
+<head><title>301 Moved Permanently</title></head>
+<body>
+<center><h1>301 Moved Permanently</h1></center>
+<hr><center>nginx/1.29.8</center>
+</body>
+</html>
+
+[RC] 0
+[CMD] ssh -o StrictHostKeyChecking=no ubuntu@newbb.test.bangbangvip.com curl -fsS http://127.0.0.1/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health || true
+<html>
+<head><title>301 Moved Permanently</title></head>
+<body>
+<center><h1>301 Moved Permanently</h1></center>
+<hr><center>nginx/1.29.8</center>
+</body>
+</html>
+
+[RC] 0
+[CMD] ssh -o StrictHostKeyChecking=no ubuntu@newbb.test.bangbangvip.com curl -fsS http://127.0.0.1/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health || true
+<html>
+<head><title>301 Moved Permanently</title></head>
+<body>
+<center><h1>301 Moved Permanently</h1></center>
+<hr><center>nginx/1.29.8</center>
+</body>
+</html>
+
+[RC] 0
+[CMD] ssh -o StrictHostKeyChecking=no ubuntu@newbb.test.bangbangvip.com curl -fsS http://127.0.0.1/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health || true
+<html>
+<head><title>301 Moved Permanently</title></head>
+<body>
+<center><h1>301 Moved Permanently</h1></center>
+<hr><center>nginx/1.29.8</center>
+</body>
+</html>
+
+[RC] 0
+[CMD] ssh -o StrictHostKeyChecking=no ubuntu@newbb.test.bangbangvip.com curl -fsS http://127.0.0.1/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health || true
+<html>
+<head><title>301 Moved Permanently</title></head>
+<body>
+<center><h1>301 Moved Permanently</h1></center>
+<hr><center>nginx/1.29.8</center>
+</body>
+</html>
+
+[RC] 0
+[CMD] ssh -o StrictHostKeyChecking=no ubuntu@newbb.test.bangbangvip.com curl -fsS http://127.0.0.1/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health || true
+<html>
+<head><title>301 Moved Permanently</title></head>
+<body>
+<center><h1>301 Moved Permanently</h1></center>
+<hr><center>nginx/1.29.8</center>
+</body>
+</html>
+
+[RC] 0
+[CMD] ssh -o StrictHostKeyChecking=no ubuntu@newbb.test.bangbangvip.com curl -fsS http://127.0.0.1/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health || true
+<html>
+<head><title>301 Moved Permanently</title></head>
+<body>
+<center><h1>301 Moved Permanently</h1></center>
+<hr><center>nginx/1.29.8</center>
+</body>
+</html>
+
+[RC] 0
+[WARN] backend health check 鏈€氳繃锛屼絾缁х画鍚庣画姝ラ
+
+=== Step 6: rebuild h5 瀹瑰櫒浠ヨ鍓嶇浠ｇ爜鐢熸晥 ===
+[CMD] ssh -o StrictHostKeyChecking=no ubuntu@newbb.test.bangbangvip.com cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose build h5 2>&1 | tail -40
+time="2026-05-07T16:40:03+08:00" level=warning msg="/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+no such service: h5
+
+[RC] 0
+[CMD] ssh -o StrictHostKeyChecking=no ubuntu@newbb.test.bangbangvip.com cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && (docker compose up -d h5 || docker-compose up -d h5)
+[STDERR] time="2026-05-07T16:40:05+08:00" level=warning msg="/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+no such service: h5
+bash: line 1: docker-compose: command not found
+
+[RC] 127
+
+=== Step 7: 绛夊緟 h5 鍋ュ悍 ===
+[CMD] ssh -o StrictHostKeyChecking=no ubuntu@newbb.test.bangbangvip.com curl -fsS -o /dev/null -w '%{http_code}' https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/ || true
+200
+[RC] 0
+[OK] h5 healthy at attempt 1
+
+=== Done ===

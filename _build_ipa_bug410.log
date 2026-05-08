@@ -1,0 +1,223 @@
+[2026-05-08 11:58:06] ============================================================
+[2026-05-08 11:58:06] Stage 4-C: Flutter iOS IPA build via GitHub Actions
+[2026-05-08 11:58:06] ============================================================
+[2026-05-08 11:58:06] Version tag: ios-bug410-v20260508-115806-oixd
+[2026-05-08 11:58:06] $ gh auth status
+[2026-05-08 11:58:07] STDERR: github.com
+  ✓ Logged in to github.com account ankun-eric (GH_TOKEN)
+  - Active account: true
+  - Git operations protocol: https
+  - Token: ghp_************************************
+  - Token scopes: 'admin:enterprise', 'admin:gpg_key', 'admin:org', 'admin:org_hook', 'admin:public_key', 'admin:repo_hook', 'admin:ssh_signing_key', 'audit_log', 'codespace', 'copilot', 'delete:packages', 'delete_repo', 'gist', 'notifications', 'project', 'repo', 'user', 'workflow', 'write:discussion', 'write:network_configurations', 'write:packages'
+
+  X Failed to log in to github.com account ankun-eric (keyring)
+  - Active account: false
+  - The token in keyring is invalid.
+  - To re-authenticate, run: gh auth login -h github.com
+  - To forget about this account, run: gh auth logout -h github.com -u ankun-eric
+[2026-05-08 11:58:07] exit code: 1
+[2026-05-08 11:58:07] === Trigger workflow (attempt 1/3) ===
+[2026-05-08 11:58:07] $ gh workflow run ios-build.yml -R ankun-eric/auto_dev_bnbbaijkgj -f version=ios-bug410-v20260508-115806-oixd
+[2026-05-08 11:58:09] exit code: 0
+[2026-05-08 11:58:09] Workflow trigger succeeded
+[2026-05-08 11:58:17] === Locating run id ===
+[2026-05-08 11:58:17] $ gh run list -R ankun-eric/auto_dev_bnbbaijkgj --workflow=ios-build.yml --limit 5 --json databaseId,status,conclusion,displayTitle,createdAt,event,headBranch
+[2026-05-08 11:58:18] STDOUT: [{"conclusion":"","createdAt":"2026-05-08T03:58:09Z","databaseId":25535852316,"displayTitle":"iOS Build","event":"workflow_dispatch","headBranch":"master","status":"in_progress"},{"conclusion":"success","createdAt":"2026-05-07T03:20:09Z","databaseId":25474193102,"displayTitle":"iOS Build","event":"workflow_dispatch","headBranch":"master","status":"completed"},{"conclusion":"success","createdAt":"2026-05-05T16:30:38Z","databaseId":25388969670,"displayTitle":"iOS Build","event":"workflow_dispatch","headBranch":"master","status":"completed"},{"conclusion":"success","createdAt":"2026-05-05T09:08:05Z","databaseId":25367599378,"displayTitle":"iOS Build","event":"workflow_dispatch","headBranch":"master","status":"completed"},{"conclusion":"success","createdAt":"2026-05-05T05:40:31Z","databaseId":25359875516,"displayTitle":"iOS Build","event":"workflow_dispatch","headBranch":"master","status":"completed"}]
+[2026-05-08 11:58:18] exit code: 0
+[2026-05-08 11:58:18] Found dispatch run id=25535852316 status=in_progress created=2026-05-08T03:58:09Z
+[2026-05-08 11:58:18] Actions Run URL: https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25535852316
+[2026-05-08 11:58:18] === Polling run 25535852316 (max 1800s) ===
+[2026-05-08 11:58:18] $ gh run view 25535852316 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl,name
+[2026-05-08 11:58:18] STDERR: Unknown JSON field: "htmlUrl"
+Available fields:
+  attempt
+  conclusion
+  createdAt
+  databaseId
+  displayTitle
+  event
+  headBranch
+  headSha
+  jobs
+  name
+  number
+  startedAt
+  status
+  updatedAt
+  url
+  workflowDatabaseId
+  workflowName
+[2026-05-08 11:58:18] exit code: 1
+[2026-05-08 11:58:48] $ gh run view 25535852316 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl,name
+[2026-05-08 11:58:48] STDERR: Unknown JSON field: "htmlUrl"
+Available fields:
+  attempt
+  conclusion
+  createdAt
+  databaseId
+  displayTitle
+  event
+  headBranch
+  headSha
+  jobs
+  name
+  number
+  startedAt
+  status
+  updatedAt
+  url
+  workflowDatabaseId
+  workflowName
+[2026-05-08 11:58:48] exit code: 1
+[2026-05-08 11:59:18] $ gh run view 25535852316 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl,name
+[2026-05-08 11:59:18] STDERR: Unknown JSON field: "htmlUrl"
+Available fields:
+  attempt
+  conclusion
+  createdAt
+  databaseId
+  displayTitle
+  event
+  headBranch
+  headSha
+  jobs
+  name
+  number
+  startedAt
+  status
+  updatedAt
+  url
+  workflowDatabaseId
+  workflowName
+[2026-05-08 11:59:18] exit code: 1
+[2026-05-08 11:59:48] $ gh run view 25535852316 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl,name
+[2026-05-08 11:59:48] STDERR: Unknown JSON field: "htmlUrl"
+Available fields:
+  attempt
+  conclusion
+  createdAt
+  databaseId
+  displayTitle
+  event
+  headBranch
+  headSha
+  jobs
+  name
+  number
+  startedAt
+  status
+  updatedAt
+  url
+  workflowDatabaseId
+  workflowName
+[2026-05-08 11:59:48] exit code: 1
+[2026-05-08 12:00:18] $ gh run view 25535852316 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl,name
+[2026-05-08 12:00:18] STDERR: Unknown JSON field: "htmlUrl"
+Available fields:
+  attempt
+  conclusion
+  createdAt
+  databaseId
+  displayTitle
+  event
+  headBranch
+  headSha
+  jobs
+  name
+  number
+  startedAt
+  status
+  updatedAt
+  url
+  workflowDatabaseId
+  workflowName
+[2026-05-08 12:00:18] exit code: 1
+[2026-05-08 12:00:48] $ gh run view 25535852316 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl,name
+[2026-05-08 12:00:48] STDERR: Unknown JSON field: "htmlUrl"
+Available fields:
+  attempt
+  conclusion
+  createdAt
+  databaseId
+  displayTitle
+  event
+  headBranch
+  headSha
+  jobs
+  name
+  number
+  startedAt
+  status
+  updatedAt
+  url
+  workflowDatabaseId
+  workflowName
+[2026-05-08 12:00:48] exit code: 1
+[2026-05-08 12:01:18] $ gh run view 25535852316 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl,name
+[2026-05-08 12:01:18] STDERR: Unknown JSON field: "htmlUrl"
+Available fields:
+  attempt
+  conclusion
+  createdAt
+  databaseId
+  displayTitle
+  event
+  headBranch
+  headSha
+  jobs
+  name
+  number
+  startedAt
+  status
+  updatedAt
+  url
+  workflowDatabaseId
+  workflowName
+[2026-05-08 12:01:18] exit code: 1
+[2026-05-08 12:01:48] $ gh run view 25535852316 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl,name
+[2026-05-08 12:01:49] STDERR: Unknown JSON field: "htmlUrl"
+Available fields:
+  attempt
+  conclusion
+  createdAt
+  databaseId
+  displayTitle
+  event
+  headBranch
+  headSha
+  jobs
+  name
+  number
+  startedAt
+  status
+  updatedAt
+  url
+  workflowDatabaseId
+  workflowName
+[2026-05-08 12:01:49] exit code: 1
+[2026-05-08 12:02:19] $ gh run view 25535852316 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl,name
+[2026-05-08 12:02:56] === Polling run 25535852316 ===
+[2026-05-08 12:02:56] $ gh run view 25535852316 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,url
+[2026-05-08 12:02:56] STDOUT: {"conclusion":"","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25535852316"}
+[2026-05-08 12:02:56] exit=0
+[2026-05-08 12:02:56] [0s] status=in_progress conclusion=
+[2026-05-08 12:03:26] $ gh run view 25535852316 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,url
+[2026-05-08 12:03:27] STDOUT: {"conclusion":"success","status":"completed","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25535852316"}
+[2026-05-08 12:03:27] exit=0
+[2026-05-08 12:03:27] [30s] status=completed conclusion=success
+[2026-05-08 12:03:27] Build succeeded; fetch release
+[2026-05-08 12:03:27] $ gh release view ios-bug410-v20260508-115806-oixd -R ankun-eric/auto_dev_bnbbaijkgj --json url,assets,name,tagName
+[2026-05-08 12:03:27] STDOUT: {"assets":[{"apiUrl":"https://api.github.com/repos/ankun-eric/auto_dev_bnbbaijkgj/releases/assets/414960031","contentType":"application/octet-stream","createdAt":"2026-05-08T04:02:59Z","downloadCount":0,"id":"RA_kwDORx6WhM4Yu8mf","label":"","name":"bini_health_ios.ipa","size":34119939,"state":"uploaded","updatedAt":"2026-05-08T04:03:01Z","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/download/ios-bug410-v20260508-115806-oixd/bini_health_ios.ipa"}],"name":"iOS Build ios-bug410-v20260508-115806-oixd","tagName":"ios-bug410-v20260508-115806-oixd","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-bug410-v20260508-115806-oixd"}
+[2026-05-08 12:03:27] exit=0
+[2026-05-08 12:03:27] IPA: {'apiUrl': 'https://api.github.com/repos/ankun-eric/auto_dev_bnbbaijkgj/releases/assets/414960031', 'contentType': 'application/octet-stream', 'createdAt': '2026-05-08T04:02:59Z', 'downloadCount': 0, 'id': 'RA_kwDORx6WhM4Yu8mf', 'label': '', 'name': 'bini_health_ios.ipa', 'size': 34119939, 'state': 'uploaded', 'updatedAt': '2026-05-08T04:03:01Z', 'url': 'https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/download/ios-bug410-v20260508-115806-oixd/bini_health_ios.ipa'}
+[2026-05-08 12:03:27] ============================================================
+[2026-05-08 12:03:27] RESULT: {
+  "success": true,
+  "version": "ios-bug410-v20260508-115806-oixd",
+  "release_url": "https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-bug410-v20260508-115806-oixd",
+  "ipa_url": "https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/download/ios-bug410-v20260508-115806-oixd/bini_health_ios.ipa",
+  "ipa_size_bytes": 34119939,
+  "build_seconds": 31,
+  "actions_run_url": "https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25535852316",
+  "error": null
+}

@@ -1,0 +1,165 @@
+﻿
+>>> cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && git log -1 --oneline
+[?1h=
+[33m7805000[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmaster[m[33m, [m[1;31morigin/master[m[33m, [m[1;31morigin/HEAD[m[33m)[m fix(admin-web): 淇"鍟嗗浣?[m [33m[m[33m[m[1;36m[m[33m[m[1;32m[m[33m[m[1;31m[m[33m[m[1;31m[m[33m[m绯?璁㈠崟鏄庣粏"鐐瑰嚮鍚庣櫧灞?Gateway OK 闂 (Bug401)[m
+
+
+[K[?1l>
+[rc=0]
+
+========== 寮€濮嬮噸寤?admin-web 瀹瑰櫒 ==========
+
+>>> cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose build admin-web 2>&1 | tail -50
+#12 105.3 鈹?鈼?/search/statistics                       239 kB         1.09 MB
+
+#12 105.3 鈹?鈼?/settings                                11 kB           368 kB
+
+#12 105.3 鈹?鈼?/share-config                            4.2 kB          371 kB
+
+#12 105.3 鈹?鈼?/sms                                     25 kB           423 kB
+
+#12 105.3 鈹?鈼?/system-messages                         11.4 kB         433 kB
+
+#12 105.3 鈹?鈼?/system-messages/send                    4.92 kB         313 kB
+
+#12 105.3 鈹?鈼?/system/sdk-health                       17 kB           285 kB
+
+#12 105.3 鈹?鈼?/tcm-config                              4.05 kB         284 kB
+
+#12 105.3 鈹?鈼?/tts-config                              5.07 kB         334 kB
+
+#12 105.3 鈹?鈼?/users                                   15.3 kB         404 kB
+
+#12 105.3 鈹?鈼?/voice-service                           3.46 kB         345 kB
+
+#12 105.3 鈹?鈼?/wechat-push                             4.92 kB         290 kB
+
+#12 105.3 + First Load JS shared by all                87.7 kB
+
+#12 105.3   鈹?chunks/2117-1ca38137e0e3b541.js          31.9 kB
+
+#12 105.3   鈹?chunks/fd9d1056-cde8d1c8f42e1127.js      53.6 kB
+
+#12 105.3   鈹?other shared chunks (total)              2.13 kB
+
+#12 105.3 
+
+#12 105.3 
+
+#12 105.3 鈼? (Static)   prerendered as static content
+
+#12 105.3 茠  (Dynamic)  server-rendered on demand
+
+#12 105.3 
+
+#12 DONE 105.5s
+
+
+
+#7 [builder 2/7] WORKDIR /app
+
+#7 CACHED
+
+
+
+#13 [runner 3/5] COPY --from=builder /app/.next/standalone ./
+
+#13 DONE 0.5s
+
+
+
+#14 [runner 4/5] COPY --from=builder /app/.next/static ./.next/static
+
+#14 DONE 0.1s
+
+
+
+#15 [runner 5/5] COPY --from=builder /app/public ./public
+
+#15 DONE 0.0s
+
+
+
+#16 exporting to image
+
+#16 exporting layers
+
+#16 exporting layers 1.2s done
+
+#16 exporting manifest sha256:1482f7dc4f505310b2e8f4955039f8674543b1b96e34acf048763a5d922eed5b 0.0s done
+
+#16 exporting config sha256:3bfec638f8a315734ce14ff2615cb6a3e0281cd77a60bf6be98bab4501c4e02b 0.0s done
+
+#16 exporting attestation manifest sha256:1ad720ec3fce98114de91efa175e6e76cb12960073908b8e3da8d816424277ba 0.0s done
+
+#16 exporting manifest list sha256:d492c9248c46de66dc3357e71647fb5114000725c3b2314ab8cd3e33de9e7e59 0.0s done
+
+#16 naming to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:latest done
+
+#16 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:latest
+
+#16 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:latest 0.5s done
+
+#16 DONE 1.8s
+
+
+
+#17 resolving provenance for metadata file
+
+#17 DONE 0.0s
+
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web Built 
+
+
+[rc=0]
+
+>>> cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose up -d admin-web 2>&1 | tail -10
+time="2026-05-07T16:58:15+08:00" level=warning msg="/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Running 
+
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Running 
+
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Recreate 
+
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Recreated 
+
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Waiting 
+
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Healthy 
+
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Starting 
+
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Started 
+
+
+[rc=0]
+
+>>> docker ps --filter name=6b099ed3-7175-4a78-91f4-44570c84ed27-admin --format 'table {{.Names}}\t{{.Status}}'
+NAMES                                        STATUS
+
+6b099ed3-7175-4a78-91f4-44570c84ed27-admin   Up 3 seconds
+
+
+[rc=0]
+
+>>> curl -s -o /dev/null -w 'orders=%{http_code}\n' 'https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/product-system/orders'
+orders=308
+
+
+[rc=0]
+
+>>> curl -s -o /dev/null -w 'dashboard=%{http_code}\n' 'https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/product-system/orders/dashboard'
+dashboard=308
+
+
+[rc=0]
+
+>>> curl -s 'https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/product-system/orders' | head -c 500
+/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/product-system/orders/
+[rc=0]
+
+
+>>> curl -s 'https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/product-system/orders/dashboard' | head -c 500
+/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/product-system/orders/dashboard/
+[rc=0]

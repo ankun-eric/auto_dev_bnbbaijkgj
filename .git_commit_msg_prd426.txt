@@ -1,0 +1,17 @@
+feat(h5): 删除 AI 对话首页"+ 选择咨询人"浮层 [PRD-426]
+
+- 移除 h5-web/src/app/(ai-chat)/ai-home/page.tsx 中输入框聚焦时上方
+  浮出的 [👤] + 选择咨询人 浮层 UI 块（PRD §3.1 全部场景下都不再出现）
+- 删除废弃组件 ConsultantPicker.tsx（已无 import 引用）
+- 删除仅服务于该浮层的 RecommendCards.tsx；ai-home 首页常驻推荐题
+  区域（行 1473）使用内联手写胶囊不受影响
+- 清理 inputFocused state 与 textarea 的 onFocus/onBlur 监听
+- SectionErrorBoundary.tsx 注释中废弃组件示例同步更新
+- 经源码核查：小程序、Flutter（android/iOS）端从未存在该浮层，
+  本次为单端（H5）改动；保留底部胶囊「为(本人)咨询 ⇄」+
+  ConsultTargetPicker 抽屉作为唯一咨询人切换入口
+- 后端零改动：PRD-420 / Bug-419 / ai_home_config 三套关键回归
+  共 49 用例全部通过；切换咨询人 API/数据结构/消息体格式不变
+- 部署：docker compose up -d --no-deps --build h5-web；构建产物
+  字符串扫描确认浮层文案彻底消失
+- 索引：同步更新 .cursor/rules/project-context.mdc

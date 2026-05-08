@@ -20,6 +20,7 @@ import '../../widgets/custom_app_bar.dart';
 import '../../widgets/chat_history_drawer.dart';
 import '../../widgets/knowledge_card.dart';
 import '../../widgets/function_buttons_bar.dart';
+import '../../widgets/ai_profile_card.dart';
 import '../../services/api_service.dart';
 import '../../services/sse_service.dart';
 import '../../services/tts_service.dart';
@@ -1744,6 +1745,26 @@ class _ChatScreenState extends State<ChatScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // [PRD-432] AI 回答顶部「咨询对象档案」折叠卡片
+          if (!isUser)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: AiProfileCard(
+                consultantId: _initialFamilyMemberId ?? 0,
+                onGoCompleteProfile: () {
+                  Navigator.of(context).pushNamed('/health-archive', arguments: {
+                    'target': _initialFamilyMemberId ?? 0,
+                    'from': 'ai-chat',
+                  });
+                },
+                onGoMedicationManage: (cid, autoCreate) {
+                  Navigator.of(context).pushNamed('/health-plan/medications', arguments: {
+                    'target': cid,
+                    if (autoCreate) 'action': 'create',
+                  });
+                },
+              ),
+            ),
           // 头像 + 名称行
           Row(
             mainAxisSize: MainAxisSize.min,

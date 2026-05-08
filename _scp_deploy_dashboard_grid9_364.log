@@ -1,0 +1,141 @@
+[01:17:57] [364-scp] connect
+[01:17:58] 
+--- 上传文件 ---
+[01:17:58]   ↑ admin-web/src/app/(admin)/product-system/orders/dashboard/page.tsx -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/admin-web/src/app/(admin)/product-system/orders/dashboard/page.tsx
+[01:18:00]   ↑ backend/app/api/merchant_dashboard.py -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/api/merchant_dashboard.py
+[01:18:02]   ↑ backend/tests/test_merchant_dashboard_grid9.py -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/tests/test_merchant_dashboard_grid9.py
+[01:18:04] 
+--- 改动确认 ---
+[01:18:04] $ grep -c '商菜单（预约看板）' /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/admin-web/src/app/'(admin)'/product-system/orders/dashboard/page.tsx
+[01:18:04]   ↳ 2
+
+[01:18:04]   ↳ exit=0
+[01:18:04] $ grep -c '_status_code' /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/api/merchant_dashboard.py
+[01:18:05]   ↳ 17
+
+[01:18:05]   ↳ exit=0
+[01:18:05] 
+--- 重建 backend (build + force recreate) ---
+[01:18:05] $ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml build backend 2>&1 | tail -10
+[01:18:09]   ↳ #12 exporting config sha256:c5bd1f7cf81a18ab6cf5c470f86adeab6a165f541498a5bfbb5d6510e4fa7247 0.0s done
+#12 exporting attestation manifest sha256:efe2c1f72a8fcf207c32c3f8a326505378e85304faf5bcfd260935626f6c7712 0.0s done
+#12 exporting manifest list sha256:119c94ad5a1c8824868ca6a28d18c7fa7c3ba6219cb1e4166b83b8c05fcd36ad 0.0s done
+#12 naming to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-backend:latest done
+#12 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-backend:latest 0.1s done
+#12 DONE 0.5s
+
+#13 resolving provenance for metadata file
+#13 DONE 0.0s
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Built 
+
+[01:18:09]   ↳ exit=0
+[01:18:09] $ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml up -d --force-recreate backend
+[01:18:12]   ↳ ERR  Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Recreate 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Recreated 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Waiting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Healthy 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Started 
+
+[01:18:12]   ↳ exit=0
+[01:18:12] 
+--- 重建 admin-web ---
+[01:18:12] $ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml build admin-web 2>&1 | tail -10
+[01:20:05]   ↳ #16 exporting attestation manifest sha256:892cffc6c9d032fcd535f801b44b01c4f8c2972ff4c181c60ab0a894d5656973 0.0s done
+#16 exporting manifest list sha256:1a85305f177e89073653af438fbe7077f6c2f5ce9279a8e5c90947701eab1017 0.0s done
+#16 naming to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:latest done
+#16 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:latest
+#16 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:latest 0.5s done
+#16 DONE 1.9s
+
+#17 resolving provenance for metadata file
+#17 DONE 0.0s
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web Built 
+
+[01:20:05]   ↳ exit=0
+[01:20:05] $ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml up -d --force-recreate admin-web
+[01:20:07]   ↳ ERR  Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Recreate 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Recreated 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Waiting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Healthy 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Started 
+
+[01:20:07]   ↳ exit=0
+[01:20:07] 
+--- 等待容器 Up ---
+[01:20:17] $ docker ps --format '{{.Names}}	{{.Status}}' | grep 6b099ed3-7175-4a78-91f4-44570c84ed27
+[01:20:18]   ↳ 6b099ed3-7175-4a78-91f4-44570c84ed27-admin	Up 10 seconds
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend	Up 2 minutes
+6b099ed3-7175-4a78-91f4-44570c84ed27-db	Up 17 minutes (healthy)
+6b099ed3-7175-4a78-91f4-44570c84ed27-h5	Up 53 minutes
+
+[01:20:18]   ↳ exit=0
+[01:20:18] 
+--- 验证容器内代码版本 ---
+[01:20:18] $ docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend grep -c '_status_code' /app/app/api/merchant_dashboard.py
+[01:20:18]   ↳ 17
+
+[01:20:18]   ↳ exit=0
+[01:20:18] $ docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-admin grep -c '商菜单（预约看板）' /app/.next/server/app/'(admin)'/product-system/orders/dashboard/page.js 2>/dev/null || echo 'check standalone'
+[01:20:19]   ↳ 1
+
+[01:20:19]   ↳ exit=0
+[01:20:19] 
+--- gateway reload ---
+[01:20:19] $ docker exec gateway nginx -s reload 2>&1 || true
+[01:20:19]   ↳ 2026/05/05 17:20:19 [notice] 560#560: signal process started
+
+[01:20:19]   ↳ exit=0
+[01:20:19] 
+--- HTTP 验证 ---
+[01:20:19] $ curl -sI 'https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/product-system/orders/dashboard' --max-time 10 -o /dev/null -w 'http_code=%{http_code}  https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175...
+[01:20:20]   ↳ http_code=308  https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/product-system/orders/dashboard
+
+[01:20:20]   ↳ exit=0
+[01:20:20] $ curl -sI 'https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/product-system/orders/dashboard/' --max-time 10 -o /dev/null -w 'http_code=%{http_code}  https://newbb.test.bangbangvip.com/autodev/6b099ed3-717...
+[01:20:21]   ↳ http_code=200  https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/product-system/orders/dashboard/
+
+[01:20:21]   ↳ exit=0
+[01:20:21] $ curl -sI 'https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/merchant/dashboard/time-slots' --max-time 10 -o /dev/null -w 'http_code=%{http_code}  https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a7...
+[01:20:22]   ↳ http_code=405  https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/merchant/dashboard/time-slots
+
+[01:20:22]   ↳ exit=0
+[01:20:22] $ curl -sI 'https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/openapi.json' --max-time 10 -o /dev/null -w 'http_code=%{http_code}  https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed...
+[01:20:23]   ↳ http_code=200  https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/openapi.json
+
+[01:20:23]   ↳ exit=0
+[01:20:23] 
+--- 查看 admin-web 容器日志 ---
+[01:20:23] $ docker logs --tail=30 6b099ed3-7175-4a78-91f4-44570c84ed27-admin 2>&1 | tail -35
+[01:20:24]   ↳   ▲ Next.js 14.2.15
+  - Local:        http://c40fc6afe980:3000
+  - Network:      http://172.20.0.5:3000
+
+ ✓ Starting...
+ ✓ Ready in 87ms
+
+[01:20:24]   ↳ exit=0
+[01:20:24] $ docker logs --tail=15 6b099ed3-7175-4a78-91f4-44570c84ed27-backend 2>&1 | tail -20
+[01:20:24]   ↳ 
+You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
+  warnings.warn(
+/usr/local/lib/python3.11/site-packages/pydantic/_internal/_fields.py:132: UserWarning: Field "model_name" in AdminChatSessionDetail has conflict with protected namespace "model_".
+
+You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
+  warnings.warn(
+INFO:     Started server process [1]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     172.20.0.2:50808 - "HEAD /api/merchant/dashboard/time-slots HTTP/1.1" 405 Method Not Allowed
+/usr/local/lib/python3.11/site-packages/fastapi/openapi/utils.py:225: UserWarning: Duplicate Operation ID admin_list_exchange_records_api_admin_points_exchange_records_get for function admin_list_exchange_records at /app/app/api/admin.py
+  warnings.warn(message, stacklevel=1)
+INFO:     172.20.0.2:50812 - "HEAD /api/openapi.json HTTP/1.1" 200 OK
+
+[01:20:24]   ↳ exit=0
+[01:20:24] 
+[364-scp] done

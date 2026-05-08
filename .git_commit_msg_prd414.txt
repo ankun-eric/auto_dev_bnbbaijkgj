@@ -1,0 +1,9 @@
+feat(prd-414): AI 对话页优化 v1.1 终版
+
+- 后端：ai_home_config schema 新增 AIChatAvatar + AIChatConfig（avatar/signature/profile_row_enabled/profile_row_template/punchcard_draggable/scroll_to_bottom_button/sticky_topbar/history_retention_days）；API VALID_MODULES 加入 ai_chat，_validate_payload 新增 ai_chat 校验
+- admin-web：在「AI 对话首页配置 → 全局开关」Tab 末尾追加「AI 对话页（chat）配置」卡片（8 字段）；TAB_MODULES.global 加入 ai_chat；validateTab 加入 ai_chat 校验
+- H5 chat 页：注入 ai_chat 配置消费、AI 头像可配置（emoji/图片）、新增「小康」署名 + 档案行 + 档案信息卡（点击 ▽ 展开）、右下角「↓ 回到最新消息」浮动按钮（含未读红点）
+- 测试：新增 test_ai_chat_v11_414.py 8 用例（T01-T08），合并旧 30 用例容器内 pytest 38 passed
+- 部署：backend docker cp + restart，admin-web/h5-web docker compose build + up，远程 smoke 全 200
+- 用户手册：user_docs/AI对话页优化v1.1.md
+- 索引：同步更新 .cursor/rules/project-context.mdc

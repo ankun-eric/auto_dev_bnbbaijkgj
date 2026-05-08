@@ -1,0 +1,45 @@
+feat(prd-420): AI 对话模式 - 咨询对象选择器（H5 + 小程序 + Flutter 全端同步）
+
+把菜单模式（chat/[sessionId]）已经成熟稳定的「咨询对象选择器」整套交互
+（底部抽屉 + 已有家庭成员 + 新建家庭成员（关系九宫格 + 7 字段表单））完整搬到
+AI 对话模式（/ai-home）头部「为本人 ▼」胶囊。两个模式共用一份家庭成员数据，
+跨模式即时可见（PRD F7）。后端零改动。
+
+核心实现：
+- H5（2 文件）：① 新增公共组件 h5-web/src/components/ai-chat/ConsultTargetPicker.tsx
+  （Popup 双层抽屉嵌套 + 关系九宫格 + 7 字段表单 + DatePicker + 离弃确认 modal +
+  同关系柔性提示 + 表单校验）；② 改造 h5-web/src/app/(ai-chat)/ai-home/page.tsx：
+  集成公共组件 + F5 切换会话逻辑（空会话只换归属人 / 非空会话自动新建会话 + 5 秒撤销 Toast）+
+  F6 默认本人 + 胶囊文案动态拼接「为 关系·昵称 ▼」
+- 小程序（3 文件）：miniprogram/pages/chat/index.{wxml,js,wxss} 在原选择器基础上
+  叠加「+ 新建家庭成员」入口 + 关系九宫格 + 7 字段表单（100% UI 复刻）
+- Flutter（1 文件）：flutter_app/lib/screens/ai/chat_screen.dart 抽屉新增
+  「新建家庭成员」按钮跳转既有 /health-profile 健康档案页（轻量集成方案）
+- 后端测试（1 新文件 13 用例）：backend/tests/test_prd420_consult_target_picker.py
+  覆盖列表结构 / 排序 / 全字段持久化 / 必填校验 / 重复关系允许 / 创建会话 / 切换归属人 /
+  数据共享 / 跨会话隔离 / 越权防护 / add→list 立即可见
+
+部署与验证：
+- 容器内 PRD-420 测试 13 passed in 9.06s
+- 关键回归 test_bug419_chat_sessions + test_ai_home_config 36 passed in 22.40s
+- docker compose build h5-web 86s 成功
+- 远程端到端 smoke（_smoke_prd420.py）12 类用例全 OK
+- 小程序 zip miniprogram_prd420_20260508_173532_91c8.zip SFTP 已上传
+- HTTP smoke：/api/health=200 /api/relation-types=200 /=200 /ai-home=308
+
+关键技术决策：
+- 公共组件抽取（H5）vs UI 复刻（小程序）vs 跳页轻量集成（Flutter）按各端成本权衡
+- F6 默认本人确保用户每次开局都在最熟悉上下文
+- F5 5 秒撤销 Toast 比 confirm 弹窗更顺滑
+- 同一关系允许重复 + 柔性提示（用户家庭场景复杂）
+- 后端零改动是工程红利（PRD F7 已经把数据全部打通）
+
+新增/修改文件：
+- 新增：h5-web/src/components/ai-chat/ConsultTargetPicker.tsx
+- 新增：backend/tests/test_prd420_consult_target_picker.py
+- 修改：h5-web/src/app/(ai-chat)/ai-home/page.tsx
+- 修改：miniprogram/pages/chat/index.{wxml,js,wxss}
+- 修改：flutter_app/lib/screens/ai/chat_screen.dart
+- 用户体验手册：user_docs/AI对话模式咨询对象选择器_PRD420.md
+- 部署/打包脚本：_deploy_prd420.py、_pack_upload_miniprogram_prd420.py、_smoke_prd420.py
+- 项目索引：.cursor/rules/project-context.mdc 同步本次变更

@@ -1,0 +1,72 @@
+[17:41:54] ============================================================
+[17:41:54] [prd420] starting Android APK remote build pipeline
+[17:41:54] [prd420] version: android-prd420-v20260508-174154-c8cf
+[17:41:54] $ gh workflow run android-build.yml -R ankun-eric/auto_dev_bnbbaijkgj -f version=android-prd420-v20260508-174154-c8cf --ref master
+[17:41:56] [trigger] dispatched, version=android-prd420-v20260508-174154-c8cf
+[17:42:04] $ gh run list -R ankun-eric/auto_dev_bnbbaijkgj --workflow=android-build.yml --limit 5 --json databaseId,status,conclusion,createdAt,event,headBranch
+[17:42:04]   | [{"conclusion":"","createdAt":"2026-05-08T09:41:55Z","databaseId":25548656981,"event":"workflow_dispatch","headBranch":"master","status":"in_progress"},{"conclusion":"success","createdAt":"2026-05-08T04:00:30Z","databaseId":25535917767,"event":"workflow_dispatch","headBranch":"master","status":"completed"},{"conclusion":"success","createdAt":"2026-05-07T03:20:09Z","databaseId":25474193118,"event":"workflow_dispatch","headBranch":"master","status":"completed"},{"conclusion":"success","createdAt":"2026-05-05T16:31:10Z","databaseId":25388996846,"event":"workflow_dispatch","headBranch":"master","status":"completed"},{"conclusion":"success","createdAt":"2026-05-05T09:59:35Z","databaseId":25369849288,"event":"workflow_dispatch","headBranch":"master","status":"completed"}]
+[17:42:04] $ gh run view 25548656981 -R ankun-eric/auto_dev_bnbbaijkgj --json url
+[17:42:05]   | {"url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25548656981"}
+[17:42:05] [prd420] run id=25548656981 url=https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25548656981
+[17:42:05] $ gh run view 25548656981 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,url
+[17:42:05]   | {"conclusion":"","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25548656981"}
+[17:42:05] [poll] 25548656981 status=in_progress conclusion=
+[17:42:35] $ gh run view 25548656981 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,url
+[17:42:36]   | {"conclusion":"","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25548656981"}
+[17:42:36] [poll] 25548656981 status=in_progress conclusion=
+[17:43:06] $ gh run view 25548656981 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,url
+[17:43:07]   | {"conclusion":"","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25548656981"}
+[17:43:07] [poll] 25548656981 status=in_progress conclusion=
+[17:43:37] $ gh run view 25548656981 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,url
+[17:43:37]   | {"conclusion":"","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25548656981"}
+[17:43:37] [poll] 25548656981 status=in_progress conclusion=
+[17:44:07] $ gh run view 25548656981 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,url
+[17:44:08]   | {"conclusion":"","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25548656981"}
+[17:44:08] [poll] 25548656981 status=in_progress conclusion=
+[17:44:38] $ gh run view 25548656981 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,url
+[17:44:38]   | {"conclusion":"","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25548656981"}
+[17:44:38] [poll] 25548656981 status=in_progress conclusion=
+[17:45:09] $ gh run view 25548656981 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,url
+[17:45:09]   | {"conclusion":"","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25548656981"}
+[17:45:09] [poll] 25548656981 status=in_progress conclusion=
+[17:45:39] $ gh run view 25548656981 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,url
+[17:45:40]   | {"conclusion":"","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25548656981"}
+[17:45:40] [poll] 25548656981 status=in_progress conclusion=
+[17:46:10] $ gh run view 25548656981 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,url
+[17:46:10]   | {"conclusion":"","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25548656981"}
+[17:46:10] [poll] 25548656981 status=in_progress conclusion=
+[17:46:40] $ gh run view 25548656981 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,url
+[17:46:41]   | {"conclusion":"","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25548656981"}
+[17:46:41] [poll] 25548656981 status=in_progress conclusion=
+[17:47:11] $ gh run view 25548656981 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,url
+[17:47:11]   | {"conclusion":"","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25548656981"}
+[17:47:11] [poll] 25548656981 status=in_progress conclusion=
+[17:47:41] $ gh run view 25548656981 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,url
+[17:47:42]   | {"conclusion":"","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25548656981"}
+[17:47:42] [poll] 25548656981 status=in_progress conclusion=
+[17:48:12] $ gh run view 25548656981 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,url
+[17:48:13]   | {"conclusion":"","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25548656981"}
+[17:48:13] [poll] 25548656981 status=in_progress conclusion=
+[17:48:43] $ gh run view 25548656981 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,url
+[17:48:43]   | {"conclusion":"","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25548656981"}
+[17:48:43] [poll] 25548656981 status=in_progress conclusion=
+[17:49:13] $ gh run view 25548656981 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,url
+[17:49:14]   | {"conclusion":"","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25548656981"}
+[17:49:14] [poll] 25548656981 status=in_progress conclusion=
+[17:49:44] $ gh run view 25548656981 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,url
+[17:49:44]   | {"conclusion":"success","status":"completed","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25548656981"}
+[17:49:44] [poll] 25548656981 status=completed conclusion=success
+[17:49:44] [prd420] workflow OK; downloading release android-prd420-v20260508-174154-c8cf
+[17:49:44] $ gh release download android-prd420-v20260508-174154-c8cf -R ankun-eric/auto_dev_bnbbaijkgj --pattern "*.apk" --dir "C:\Users\ADMINI~1\AppData\Local\Temp\2\apk_prd420_t9qmihh6" --clobber
+[17:49:51] [download] got C:\Users\ADMINI~1\AppData\Local\Temp\2\apk_prd420_t9qmihh6\bini_health_android-prd420-v20260508-174154-c8cf.apk (84583899 bytes)
+[17:51:47] [upload] /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/static/apk/app_prd420_20260508_174951_5539.apk size=84583899
+[17:51:48] [verify] HEAD https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/apk/app_prd420_20260508_174951_5539.apk -> 200 length=84583899
+[17:51:48] ============================================================
+[17:51:48] [prd420] SUCCESS
+[17:51:48]   APK_VERSION_TAG = android-prd420-v20260508-174154-c8cf
+[17:51:48]   APK_FILENAME    = app_prd420_20260508_174951_5539.apk
+[17:51:48]   APK_SIZE        = 84583899
+[17:51:48]   APK_HTTP_STATUS = 200
+[17:51:48]   APK_DOWNLOAD_URL= https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/apk/app_prd420_20260508_174951_5539.apk
+[17:51:48]   GH_RUN_URL      = https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25548656981
+[17:51:48]   ELAPSED_SECONDS = 593

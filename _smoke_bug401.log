@@ -1,0 +1,32 @@
+﻿=== [Step 1] 鏁版嵁搴撶洿鏌ユ牱鏈鍗曞綋鍓嶇姸鎬?===
+42	wechat	alipay_h5	pending_use
+
+
+=== [Step 2] 鏁版嵁搴撶洿鏌ユ牱鏈鍗?OrderItem ===
+2026-05-08 09:00:00	{"date": "2026-05-08", "time_slot": "14:00-15:00"}
+
+
+=== [Step 3] 鎷垮埌鏍锋湰璁㈠崟鍏宠仈鐨?store_id 鍜屽晢瀹剁敤鎴蜂俊鎭?===
+42	1	2	34
+
+
+=== [Step 4] 鎵句竴涓兘璁块棶璇?store 鐨勫晢瀹惰处鍙?===
+
+
+=== [Step 5] 杩涘叆 backend 瀹瑰櫒锛岀洿鎺ユ瀯閫犺姹傞獙璇佸晢瀹剁 detail 鎺ュ彛 ===
+[DB] order_id=42 order_no=UO20260507075333421500
+[DB] payment_method=UnifiedPaymentMethod.wechat channel_code=alipay_h5 display_name=鏀粯瀹?
+[DB] appointment_time=2026-05-08 09:00:00 appointment_data={'date': '2026-05-08', 'time_slot': '14:00-15:00'}
+[CHECK] _format_time_slot -> '14:00-15:00' (鏈熸湜 '14:00-15:00')
+[CHECK] _build_payment_method_text -> '鏀粯瀹濓紙H5锛? (鏈熸湜 '鏀粯瀹濓紙H5锛?)
+
+[OK] 鍏ㄩ儴鏂█閫氳繃锛?
+Exception ignored in: <function Connection.__del__ at 0x7d753a396020>
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.11/site-packages/aiomysql/connection.py", line 1131, in __del__
+  File "/usr/local/lib/python3.11/site-packages/aiomysql/connection.py", line 339, in close
+  File "/usr/local/lib/python3.11/asyncio/selector_events.py", line 864, in close
+  File "/usr/local/lib/python3.11/asyncio/base_events.py", line 762, in call_soon
+  File "/usr/local/lib/python3.11/asyncio/base_events.py", line 520, in _check_closed
+RuntimeError: Event loop is closed
+

@@ -1,0 +1,1302 @@
+[12:00:29] ============================================================
+[12:00:29] [bug410] starting Android APK remote build & upload pipeline
+[12:00:29] [bug410] version tag: android-bug410-v20260508-120029-6770
+[12:00:29] $ gh workflow run android-build.yml -R ankun-eric/auto_dev_bnbbaijkgj -f version=android-bug410-v20260508-120029-6770 --ref master
+[12:00:31] [trigger] workflow dispatched, version=android-bug410-v20260508-120029-6770
+[12:00:39] $ gh run list -R ankun-eric/auto_dev_bnbbaijkgj --workflow=android-build.yml --limit 5 --json databaseId,status,conclusion,createdAt,displayTitle,event,headBranch
+[12:00:39]   | [{"conclusion":"","createdAt":"2026-05-08T04:00:30Z","databaseId":25535917767,"displayTitle":"Android Build","event":"workflow_dispatch","headBranch":"master","status":"in_progress"},{"conclusion":"success","createdAt":"2026-05-07T03:20:09Z","databaseId":25474193118,"displayTitle":"Android Build","event":"workflow_dispatch","headBranch":"master","status":"completed"},{"conclusion":"success","createdAt":"2026-05-05T16:31:10Z","databaseId":25388996846,"displayTitle":"Android Build","event":"workflow_dispatch","headBranch":"master","status":"completed"},{"conclusion":"success","createdAt":"2026-05-05T09:59:35Z","databaseId":25369849288,"displayTitle":"Android Build","event":"workflow_dispatch","headBranch":"master","status":"completed"},{"conclusion":"success","createdAt":"2026-05-05T09:09:11Z","databaseId":25367646650,"displayTitle":"Android Build","event":"workflow_dispatch","headBranch":"master","status":"completed"}]
+[12:00:39] $ gh run view 25535917767 -R ankun-eric/auto_dev_bnbbaijkgj --json htmlUrl
+[12:00:39]   | Unknown JSON field: "htmlUrl"
+[12:00:39]   | Available fields:
+[12:00:39]   |   attempt
+[12:00:39]   |   conclusion
+[12:00:39]   |   createdAt
+[12:00:39]   |   databaseId
+[12:00:39]   |   displayTitle
+[12:00:39]   |   event
+[12:00:39]   |   headBranch
+[12:00:39]   |   headSha
+[12:00:39]   |   jobs
+[12:00:39]   |   name
+[12:00:39]   |   number
+[12:00:39]   |   startedAt
+[12:00:39]   |   status
+[12:00:39]   |   updatedAt
+[12:00:39]   |   url
+[12:00:39]   |   workflowDatabaseId
+[12:00:39]   |   workflowName
+[12:00:39] [bug410] run id=25535917767 url=
+[12:00:39] $ gh run view 25535917767 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl
+[12:00:40]   | Unknown JSON field: "htmlUrl"
+[12:00:40]   | Available fields:
+[12:00:40]   |   attempt
+[12:00:40]   |   conclusion
+[12:00:40]   |   createdAt
+[12:00:40]   |   databaseId
+[12:00:40]   |   displayTitle
+[12:00:40]   |   event
+[12:00:40]   |   headBranch
+[12:00:40]   |   headSha
+[12:00:40]   |   jobs
+[12:00:40]   |   name
+[12:00:40]   |   number
+[12:00:40]   |   startedAt
+[12:00:40]   |   status
+[12:00:40]   |   updatedAt
+[12:00:40]   |   url
+[12:00:40]   |   workflowDatabaseId
+[12:00:40]   |   workflowName
+[12:00:40] [poll] error: Expecting value: line 1 column 1 (char 0)
+[12:01:10] $ gh run view 25535917767 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl
+[12:01:10]   | Unknown JSON field: "htmlUrl"
+[12:01:10]   | Available fields:
+[12:01:10]   |   attempt
+[12:01:10]   |   conclusion
+[12:01:10]   |   createdAt
+[12:01:10]   |   databaseId
+[12:01:10]   |   displayTitle
+[12:01:10]   |   event
+[12:01:10]   |   headBranch
+[12:01:10]   |   headSha
+[12:01:10]   |   jobs
+[12:01:10]   |   name
+[12:01:10]   |   number
+[12:01:10]   |   startedAt
+[12:01:10]   |   status
+[12:01:10]   |   updatedAt
+[12:01:10]   |   url
+[12:01:10]   |   workflowDatabaseId
+[12:01:10]   |   workflowName
+[12:01:10] [poll] error: Expecting value: line 1 column 1 (char 0)
+[12:01:40] $ gh run view 25535917767 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl
+[12:01:40]   | Unknown JSON field: "htmlUrl"
+[12:01:40]   | Available fields:
+[12:01:40]   |   attempt
+[12:01:40]   |   conclusion
+[12:01:40]   |   createdAt
+[12:01:40]   |   databaseId
+[12:01:40]   |   displayTitle
+[12:01:40]   |   event
+[12:01:40]   |   headBranch
+[12:01:40]   |   headSha
+[12:01:40]   |   jobs
+[12:01:40]   |   name
+[12:01:40]   |   number
+[12:01:40]   |   startedAt
+[12:01:40]   |   status
+[12:01:40]   |   updatedAt
+[12:01:40]   |   url
+[12:01:40]   |   workflowDatabaseId
+[12:01:40]   |   workflowName
+[12:01:40] [poll] error: Expecting value: line 1 column 1 (char 0)
+[12:02:10] $ gh run view 25535917767 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl
+[12:02:10]   | Unknown JSON field: "htmlUrl"
+[12:02:10]   | Available fields:
+[12:02:10]   |   attempt
+[12:02:10]   |   conclusion
+[12:02:10]   |   createdAt
+[12:02:10]   |   databaseId
+[12:02:10]   |   displayTitle
+[12:02:10]   |   event
+[12:02:10]   |   headBranch
+[12:02:10]   |   headSha
+[12:02:10]   |   jobs
+[12:02:10]   |   name
+[12:02:10]   |   number
+[12:02:10]   |   startedAt
+[12:02:10]   |   status
+[12:02:10]   |   updatedAt
+[12:02:10]   |   url
+[12:02:10]   |   workflowDatabaseId
+[12:02:10]   |   workflowName
+[12:02:10] [poll] error: Expecting value: line 1 column 1 (char 0)
+[12:02:40] $ gh run view 25535917767 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl
+[12:02:40]   | Unknown JSON field: "htmlUrl"
+[12:02:40]   | Available fields:
+[12:02:40]   |   attempt
+[12:02:40]   |   conclusion
+[12:02:40]   |   createdAt
+[12:02:40]   |   databaseId
+[12:02:40]   |   displayTitle
+[12:02:40]   |   event
+[12:02:40]   |   headBranch
+[12:02:40]   |   headSha
+[12:02:40]   |   jobs
+[12:02:40]   |   name
+[12:02:40]   |   number
+[12:02:40]   |   startedAt
+[12:02:40]   |   status
+[12:02:40]   |   updatedAt
+[12:02:40]   |   url
+[12:02:40]   |   workflowDatabaseId
+[12:02:40]   |   workflowName
+[12:02:40] [poll] error: Expecting value: line 1 column 1 (char 0)
+[12:03:10] $ gh run view 25535917767 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl
+[12:03:10]   | Unknown JSON field: "htmlUrl"
+[12:03:10]   | Available fields:
+[12:03:10]   |   attempt
+[12:03:10]   |   conclusion
+[12:03:10]   |   createdAt
+[12:03:10]   |   databaseId
+[12:03:10]   |   displayTitle
+[12:03:10]   |   event
+[12:03:10]   |   headBranch
+[12:03:10]   |   headSha
+[12:03:10]   |   jobs
+[12:03:10]   |   name
+[12:03:10]   |   number
+[12:03:10]   |   startedAt
+[12:03:10]   |   status
+[12:03:10]   |   updatedAt
+[12:03:10]   |   url
+[12:03:10]   |   workflowDatabaseId
+[12:03:10]   |   workflowName
+[12:03:10] [poll] error: Expecting value: line 1 column 1 (char 0)
+[12:03:40] $ gh run view 25535917767 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl
+[12:03:40]   | Unknown JSON field: "htmlUrl"
+[12:03:40]   | Available fields:
+[12:03:40]   |   attempt
+[12:03:40]   |   conclusion
+[12:03:40]   |   createdAt
+[12:03:40]   |   databaseId
+[12:03:40]   |   displayTitle
+[12:03:40]   |   event
+[12:03:40]   |   headBranch
+[12:03:40]   |   headSha
+[12:03:40]   |   jobs
+[12:03:40]   |   name
+[12:03:40]   |   number
+[12:03:40]   |   startedAt
+[12:03:40]   |   status
+[12:03:40]   |   updatedAt
+[12:03:40]   |   url
+[12:03:40]   |   workflowDatabaseId
+[12:03:40]   |   workflowName
+[12:03:40] [poll] error: Expecting value: line 1 column 1 (char 0)
+[12:04:10] $ gh run view 25535917767 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl
+[12:04:10]   | Unknown JSON field: "htmlUrl"
+[12:04:10]   | Available fields:
+[12:04:10]   |   attempt
+[12:04:10]   |   conclusion
+[12:04:10]   |   createdAt
+[12:04:10]   |   databaseId
+[12:04:10]   |   displayTitle
+[12:04:10]   |   event
+[12:04:10]   |   headBranch
+[12:04:10]   |   headSha
+[12:04:10]   |   jobs
+[12:04:10]   |   name
+[12:04:10]   |   number
+[12:04:10]   |   startedAt
+[12:04:10]   |   status
+[12:04:10]   |   updatedAt
+[12:04:10]   |   url
+[12:04:10]   |   workflowDatabaseId
+[12:04:10]   |   workflowName
+[12:04:10] [poll] error: Expecting value: line 1 column 1 (char 0)
+[12:04:40] $ gh run view 25535917767 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl
+[12:04:40]   | Unknown JSON field: "htmlUrl"
+[12:04:40]   | Available fields:
+[12:04:40]   |   attempt
+[12:04:40]   |   conclusion
+[12:04:40]   |   createdAt
+[12:04:40]   |   databaseId
+[12:04:40]   |   displayTitle
+[12:04:40]   |   event
+[12:04:40]   |   headBranch
+[12:04:40]   |   headSha
+[12:04:40]   |   jobs
+[12:04:40]   |   name
+[12:04:40]   |   number
+[12:04:40]   |   startedAt
+[12:04:40]   |   status
+[12:04:40]   |   updatedAt
+[12:04:40]   |   url
+[12:04:40]   |   workflowDatabaseId
+[12:04:40]   |   workflowName
+[12:04:40] [poll] error: Expecting value: line 1 column 1 (char 0)
+[12:05:10] $ gh run view 25535917767 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl
+[12:05:10]   | Unknown JSON field: "htmlUrl"
+[12:05:10]   | Available fields:
+[12:05:10]   |   attempt
+[12:05:10]   |   conclusion
+[12:05:10]   |   createdAt
+[12:05:10]   |   databaseId
+[12:05:10]   |   displayTitle
+[12:05:10]   |   event
+[12:05:10]   |   headBranch
+[12:05:10]   |   headSha
+[12:05:10]   |   jobs
+[12:05:10]   |   name
+[12:05:10]   |   number
+[12:05:10]   |   startedAt
+[12:05:10]   |   status
+[12:05:10]   |   updatedAt
+[12:05:10]   |   url
+[12:05:10]   |   workflowDatabaseId
+[12:05:10]   |   workflowName
+[12:05:10] [poll] error: Expecting value: line 1 column 1 (char 0)
+[12:05:40] $ gh run view 25535917767 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl
+[12:05:40]   | Unknown JSON field: "htmlUrl"
+[12:05:40]   | Available fields:
+[12:05:40]   |   attempt
+[12:05:40]   |   conclusion
+[12:05:40]   |   createdAt
+[12:05:40]   |   databaseId
+[12:05:40]   |   displayTitle
+[12:05:40]   |   event
+[12:05:40]   |   headBranch
+[12:05:40]   |   headSha
+[12:05:40]   |   jobs
+[12:05:40]   |   name
+[12:05:40]   |   number
+[12:05:40]   |   startedAt
+[12:05:40]   |   status
+[12:05:40]   |   updatedAt
+[12:05:40]   |   url
+[12:05:40]   |   workflowDatabaseId
+[12:05:40]   |   workflowName
+[12:05:40] [poll] error: Expecting value: line 1 column 1 (char 0)
+[12:06:10] $ gh run view 25535917767 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl
+[12:06:10]   | Unknown JSON field: "htmlUrl"
+[12:06:10]   | Available fields:
+[12:06:10]   |   attempt
+[12:06:10]   |   conclusion
+[12:06:10]   |   createdAt
+[12:06:10]   |   databaseId
+[12:06:10]   |   displayTitle
+[12:06:10]   |   event
+[12:06:10]   |   headBranch
+[12:06:10]   |   headSha
+[12:06:10]   |   jobs
+[12:06:10]   |   name
+[12:06:10]   |   number
+[12:06:10]   |   startedAt
+[12:06:10]   |   status
+[12:06:10]   |   updatedAt
+[12:06:10]   |   url
+[12:06:10]   |   workflowDatabaseId
+[12:06:10]   |   workflowName
+[12:06:10] [poll] error: Expecting value: line 1 column 1 (char 0)
+[12:06:40] $ gh run view 25535917767 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl
+[12:06:40]   | The system cannot execute the specified program.
+[12:06:40] [poll] error: Expecting value: line 1 column 1 (char 0)
+[12:07:10] $ gh run view 25535917767 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl
+[12:07:11]   | Unknown JSON field: "htmlUrl"
+[12:07:11]   | Available fields:
+[12:07:11]   |   attempt
+[12:07:11]   |   conclusion
+[12:07:11]   |   createdAt
+[12:07:11]   |   databaseId
+[12:07:11]   |   displayTitle
+[12:07:11]   |   event
+[12:07:11]   |   headBranch
+[12:07:11]   |   headSha
+[12:07:11]   |   jobs
+[12:07:11]   |   name
+[12:07:11]   |   number
+[12:07:11]   |   startedAt
+[12:07:11]   |   status
+[12:07:11]   |   updatedAt
+[12:07:11]   |   url
+[12:07:11]   |   workflowDatabaseId
+[12:07:11]   |   workflowName
+[12:07:11] [poll] error: Expecting value: line 1 column 1 (char 0)
+[12:07:41] $ gh run view 25535917767 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl
+[12:07:41]   | Unknown JSON field: "htmlUrl"
+[12:07:41]   | Available fields:
+[12:07:41]   |   attempt
+[12:07:41]   |   conclusion
+[12:07:41]   |   createdAt
+[12:07:41]   |   databaseId
+[12:07:41]   |   displayTitle
+[12:07:41]   |   event
+[12:07:41]   |   headBranch
+[12:07:41]   |   headSha
+[12:07:41]   |   jobs
+[12:07:41]   |   name
+[12:07:41]   |   number
+[12:07:41]   |   startedAt
+[12:07:41]   |   status
+[12:07:41]   |   updatedAt
+[12:07:41]   |   url
+[12:07:41]   |   workflowDatabaseId
+[12:07:41]   |   workflowName
+[12:07:41] [poll] error: Expecting value: line 1 column 1 (char 0)
+[12:08:11] $ gh run view 25535917767 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl
+[12:08:11]   | Unknown JSON field: "htmlUrl"
+[12:08:11]   | Available fields:
+[12:08:11]   |   attempt
+[12:08:11]   |   conclusion
+[12:08:11]   |   createdAt
+[12:08:11]   |   databaseId
+[12:08:11]   |   displayTitle
+[12:08:11]   |   event
+[12:08:11]   |   headBranch
+[12:08:11]   |   headSha
+[12:08:11]   |   jobs
+[12:08:11]   |   name
+[12:08:11]   |   number
+[12:08:11]   |   startedAt
+[12:08:11]   |   status
+[12:08:11]   |   updatedAt
+[12:08:11]   |   url
+[12:08:11]   |   workflowDatabaseId
+[12:08:11]   |   workflowName
+[12:08:11] [poll] error: Expecting value: line 1 column 1 (char 0)
+[12:08:41] $ gh run view 25535917767 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl
+[12:08:41]   | Unknown JSON field: "htmlUrl"
+[12:08:41]   | Available fields:
+[12:08:41]   |   attempt
+[12:08:41]   |   conclusion
+[12:08:41]   |   createdAt
+[12:08:41]   |   databaseId
+[12:08:41]   |   displayTitle
+[12:08:41]   |   event
+[12:08:41]   |   headBranch
+[12:08:41]   |   headSha
+[12:08:41]   |   jobs
+[12:08:41]   |   name
+[12:08:41]   |   number
+[12:08:41]   |   startedAt
+[12:08:41]   |   status
+[12:08:41]   |   updatedAt
+[12:08:41]   |   url
+[12:08:41]   |   workflowDatabaseId
+[12:08:41]   |   workflowName
+[12:08:41] [poll] error: Expecting value: line 1 column 1 (char 0)
+[12:09:11] $ gh run view 25535917767 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl
+[12:09:11]   | Unknown JSON field: "htmlUrl"
+[12:09:11]   | Available fields:
+[12:09:11]   |   attempt
+[12:09:11]   |   conclusion
+[12:09:11]   |   createdAt
+[12:09:11]   |   databaseId
+[12:09:11]   |   displayTitle
+[12:09:11]   |   event
+[12:09:11]   |   headBranch
+[12:09:11]   |   headSha
+[12:09:11]   |   jobs
+[12:09:11]   |   name
+[12:09:11]   |   number
+[12:09:11]   |   startedAt
+[12:09:11]   |   status
+[12:09:11]   |   updatedAt
+[12:09:11]   |   url
+[12:09:11]   |   workflowDatabaseId
+[12:09:11]   |   workflowName
+[12:09:11] [poll] error: Expecting value: line 1 column 1 (char 0)
+[12:09:41] $ gh run view 25535917767 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl
+[12:09:41]   | Unknown JSON field: "htmlUrl"
+[12:09:41]   | Available fields:
+[12:09:41]   |   attempt
+[12:09:41]   |   conclusion
+[12:09:41]   |   createdAt
+[12:09:41]   |   databaseId
+[12:09:41]   |   displayTitle
+[12:09:41]   |   event
+[12:09:41]   |   headBranch
+[12:09:41]   |   headSha
+[12:09:41]   |   jobs
+[12:09:41]   |   name
+[12:09:41]   |   number
+[12:09:41]   |   startedAt
+[12:09:41]   |   status
+[12:09:41]   |   updatedAt
+[12:09:41]   |   url
+[12:09:41]   |   workflowDatabaseId
+[12:09:41]   |   workflowName
+[12:09:41] [poll] error: Expecting value: line 1 column 1 (char 0)
+[12:10:11] $ gh run view 25535917767 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl
+[12:10:11]   | Unknown JSON field: "htmlUrl"
+[12:10:11]   | Available fields:
+[12:10:11]   |   attempt
+[12:10:11]   |   conclusion
+[12:10:11]   |   createdAt
+[12:10:11]   |   databaseId
+[12:10:11]   |   displayTitle
+[12:10:11]   |   event
+[12:10:11]   |   headBranch
+[12:10:11]   |   headSha
+[12:10:11]   |   jobs
+[12:10:11]   |   name
+[12:10:11]   |   number
+[12:10:11]   |   startedAt
+[12:10:11]   |   status
+[12:10:11]   |   updatedAt
+[12:10:11]   |   url
+[12:10:11]   |   workflowDatabaseId
+[12:10:11]   |   workflowName
+[12:10:11] [poll] error: Expecting value: line 1 column 1 (char 0)
+[12:10:41] $ gh run view 25535917767 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl
+[12:10:41]   | Unknown JSON field: "htmlUrl"
+[12:10:41]   | Available fields:
+[12:10:41]   |   attempt
+[12:10:41]   |   conclusion
+[12:10:41]   |   createdAt
+[12:10:41]   |   databaseId
+[12:10:41]   |   displayTitle
+[12:10:41]   |   event
+[12:10:41]   |   headBranch
+[12:10:41]   |   headSha
+[12:10:41]   |   jobs
+[12:10:41]   |   name
+[12:10:41]   |   number
+[12:10:41]   |   startedAt
+[12:10:41]   |   status
+[12:10:41]   |   updatedAt
+[12:10:41]   |   url
+[12:10:41]   |   workflowDatabaseId
+[12:10:41]   |   workflowName
+[12:10:41] [poll] error: Expecting value: line 1 column 1 (char 0)
+[12:11:11] $ gh run view 25535917767 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl
+[12:11:11]   | Unknown JSON field: "htmlUrl"
+[12:11:11]   | Available fields:
+[12:11:11]   |   attempt
+[12:11:11]   |   conclusion
+[12:11:11]   |   createdAt
+[12:11:11]   |   databaseId
+[12:11:11]   |   displayTitle
+[12:11:11]   |   event
+[12:11:11]   |   headBranch
+[12:11:11]   |   headSha
+[12:11:11]   |   jobs
+[12:11:11]   |   name
+[12:11:11]   |   number
+[12:11:11]   |   startedAt
+[12:11:11]   |   status
+[12:11:11]   |   updatedAt
+[12:11:11]   |   url
+[12:11:11]   |   workflowDatabaseId
+[12:11:11]   |   workflowName
+[12:11:11] [poll] error: Expecting value: line 1 column 1 (char 0)
+[12:11:41] $ gh run view 25535917767 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl
+[12:11:41]   | Unknown JSON field: "htmlUrl"
+[12:11:41]   | Available fields:
+[12:11:41]   |   attempt
+[12:11:41]   |   conclusion
+[12:11:41]   |   createdAt
+[12:11:41]   |   databaseId
+[12:11:41]   |   displayTitle
+[12:11:41]   |   event
+[12:11:41]   |   headBranch
+[12:11:41]   |   headSha
+[12:11:41]   |   jobs
+[12:11:41]   |   name
+[12:11:41]   |   number
+[12:11:41]   |   startedAt
+[12:11:41]   |   status
+[12:11:41]   |   updatedAt
+[12:11:41]   |   url
+[12:11:41]   |   workflowDatabaseId
+[12:11:41]   |   workflowName
+[12:11:41] [poll] error: Expecting value: line 1 column 1 (char 0)
+[12:12:11] $ gh run view 25535917767 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl
+[12:12:11]   | Unknown JSON field: "htmlUrl"
+[12:12:11]   | Available fields:
+[12:12:11]   |   attempt
+[12:12:11]   |   conclusion
+[12:12:11]   |   createdAt
+[12:12:11]   |   databaseId
+[12:12:11]   |   displayTitle
+[12:12:11]   |   event
+[12:12:11]   |   headBranch
+[12:12:11]   |   headSha
+[12:12:11]   |   jobs
+[12:12:11]   |   name
+[12:12:11]   |   number
+[12:12:11]   |   startedAt
+[12:12:11]   |   status
+[12:12:11]   |   updatedAt
+[12:12:11]   |   url
+[12:12:11]   |   workflowDatabaseId
+[12:12:11]   |   workflowName
+[12:12:11] [poll] error: Expecting value: line 1 column 1 (char 0)
+[12:12:41] $ gh run view 25535917767 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl
+[12:12:42]   | Unknown JSON field: "htmlUrl"
+[12:12:42]   | Available fields:
+[12:12:42]   |   attempt
+[12:12:42]   |   conclusion
+[12:12:42]   |   createdAt
+[12:12:42]   |   databaseId
+[12:12:42]   |   displayTitle
+[12:12:42]   |   event
+[12:12:42]   |   headBranch
+[12:12:42]   |   headSha
+[12:12:42]   |   jobs
+[12:12:42]   |   name
+[12:12:42]   |   number
+[12:12:42]   |   startedAt
+[12:12:42]   |   status
+[12:12:42]   |   updatedAt
+[12:12:42]   |   url
+[12:12:42]   |   workflowDatabaseId
+[12:12:42]   |   workflowName
+[12:12:42] [poll] error: Expecting value: line 1 column 1 (char 0)
+[12:13:12] $ gh run view 25535917767 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl
+[12:13:12]   | Unknown JSON field: "htmlUrl"
+[12:13:12]   | Available fields:
+[12:13:12]   |   attempt
+[12:13:12]   |   conclusion
+[12:13:12]   |   createdAt
+[12:13:12]   |   databaseId
+[12:13:12]   |   displayTitle
+[12:13:12]   |   event
+[12:13:12]   |   headBranch
+[12:13:12]   |   headSha
+[12:13:12]   |   jobs
+[12:13:12]   |   name
+[12:13:12]   |   number
+[12:13:12]   |   startedAt
+[12:13:12]   |   status
+[12:13:12]   |   updatedAt
+[12:13:12]   |   url
+[12:13:12]   |   workflowDatabaseId
+[12:13:12]   |   workflowName
+[12:13:12] [poll] error: Expecting value: line 1 column 1 (char 0)
+[12:13:42] $ gh run view 25535917767 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl
+[12:13:42]   | Unknown JSON field: "htmlUrl"
+[12:13:42]   | Available fields:
+[12:13:42]   |   attempt
+[12:13:42]   |   conclusion
+[12:13:42]   |   createdAt
+[12:13:42]   |   databaseId
+[12:13:42]   |   displayTitle
+[12:13:42]   |   event
+[12:13:42]   |   headBranch
+[12:13:42]   |   headSha
+[12:13:42]   |   jobs
+[12:13:42]   |   name
+[12:13:42]   |   number
+[12:13:42]   |   startedAt
+[12:13:42]   |   status
+[12:13:42]   |   updatedAt
+[12:13:42]   |   url
+[12:13:42]   |   workflowDatabaseId
+[12:13:42]   |   workflowName
+[12:13:42] [poll] error: Expecting value: line 1 column 1 (char 0)
+[12:14:12] $ gh run view 25535917767 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl
+[12:14:12]   | Unknown JSON field: "htmlUrl"
+[12:14:12]   | Available fields:
+[12:14:12]   |   attempt
+[12:14:12]   |   conclusion
+[12:14:12]   |   createdAt
+[12:14:12]   |   databaseId
+[12:14:12]   |   displayTitle
+[12:14:12]   |   event
+[12:14:12]   |   headBranch
+[12:14:12]   |   headSha
+[12:14:12]   |   jobs
+[12:14:12]   |   name
+[12:14:12]   |   number
+[12:14:12]   |   startedAt
+[12:14:12]   |   status
+[12:14:12]   |   updatedAt
+[12:14:12]   |   url
+[12:14:12]   |   workflowDatabaseId
+[12:14:12]   |   workflowName
+[12:14:12] [poll] error: Expecting value: line 1 column 1 (char 0)
+[12:14:42] $ gh run view 25535917767 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl
+[12:14:42]   | Unknown JSON field: "htmlUrl"
+[12:14:42]   | Available fields:
+[12:14:42]   |   attempt
+[12:14:42]   |   conclusion
+[12:14:42]   |   createdAt
+[12:14:42]   |   databaseId
+[12:14:42]   |   displayTitle
+[12:14:42]   |   event
+[12:14:42]   |   headBranch
+[12:14:42]   |   headSha
+[12:14:42]   |   jobs
+[12:14:42]   |   name
+[12:14:42]   |   number
+[12:14:42]   |   startedAt
+[12:14:42]   |   status
+[12:14:42]   |   updatedAt
+[12:14:42]   |   url
+[12:14:42]   |   workflowDatabaseId
+[12:14:42]   |   workflowName
+[12:14:42] [poll] error: Expecting value: line 1 column 1 (char 0)
+[12:15:12] $ gh run view 25535917767 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl
+[12:15:12]   | Unknown JSON field: "htmlUrl"
+[12:15:12]   | Available fields:
+[12:15:12]   |   attempt
+[12:15:12]   |   conclusion
+[12:15:12]   |   createdAt
+[12:15:12]   |   databaseId
+[12:15:12]   |   displayTitle
+[12:15:12]   |   event
+[12:15:12]   |   headBranch
+[12:15:12]   |   headSha
+[12:15:12]   |   jobs
+[12:15:12]   |   name
+[12:15:12]   |   number
+[12:15:12]   |   startedAt
+[12:15:12]   |   status
+[12:15:12]   |   updatedAt
+[12:15:12]   |   url
+[12:15:12]   |   workflowDatabaseId
+[12:15:12]   |   workflowName
+[12:15:12] [poll] error: Expecting value: line 1 column 1 (char 0)
+[12:15:42] $ gh run view 25535917767 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl
+[12:15:42]   | Unknown JSON field: "htmlUrl"
+[12:15:42]   | Available fields:
+[12:15:42]   |   attempt
+[12:15:42]   |   conclusion
+[12:15:42]   |   createdAt
+[12:15:42]   |   databaseId
+[12:15:42]   |   displayTitle
+[12:15:42]   |   event
+[12:15:42]   |   headBranch
+[12:15:42]   |   headSha
+[12:15:42]   |   jobs
+[12:15:42]   |   name
+[12:15:42]   |   number
+[12:15:42]   |   startedAt
+[12:15:42]   |   status
+[12:15:42]   |   updatedAt
+[12:15:42]   |   url
+[12:15:42]   |   workflowDatabaseId
+[12:15:42]   |   workflowName
+[12:15:42] [poll] error: Expecting value: line 1 column 1 (char 0)
+[12:16:12] $ gh run view 25535917767 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl
+[12:16:12]   | Unknown JSON field: "htmlUrl"
+[12:16:12]   | Available fields:
+[12:16:12]   |   attempt
+[12:16:12]   |   conclusion
+[12:16:12]   |   createdAt
+[12:16:12]   |   databaseId
+[12:16:12]   |   displayTitle
+[12:16:12]   |   event
+[12:16:12]   |   headBranch
+[12:16:12]   |   headSha
+[12:16:12]   |   jobs
+[12:16:12]   |   name
+[12:16:12]   |   number
+[12:16:12]   |   startedAt
+[12:16:12]   |   status
+[12:16:12]   |   updatedAt
+[12:16:12]   |   url
+[12:16:12]   |   workflowDatabaseId
+[12:16:12]   |   workflowName
+[12:16:12] [poll] error: Expecting value: line 1 column 1 (char 0)
+[12:16:42] $ gh run view 25535917767 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl
+[12:16:42]   | Unknown JSON field: "htmlUrl"
+[12:16:42]   | Available fields:
+[12:16:42]   |   attempt
+[12:16:42]   |   conclusion
+[12:16:42]   |   createdAt
+[12:16:42]   |   databaseId
+[12:16:42]   |   displayTitle
+[12:16:42]   |   event
+[12:16:42]   |   headBranch
+[12:16:42]   |   headSha
+[12:16:42]   |   jobs
+[12:16:42]   |   name
+[12:16:42]   |   number
+[12:16:42]   |   startedAt
+[12:16:42]   |   status
+[12:16:42]   |   updatedAt
+[12:16:42]   |   url
+[12:16:42]   |   workflowDatabaseId
+[12:16:42]   |   workflowName
+[12:16:42] [poll] error: Expecting value: line 1 column 1 (char 0)
+[12:17:12] $ gh run view 25535917767 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl
+[12:17:12]   | Unknown JSON field: "htmlUrl"
+[12:17:12]   | Available fields:
+[12:17:12]   |   attempt
+[12:17:12]   |   conclusion
+[12:17:12]   |   createdAt
+[12:17:12]   |   databaseId
+[12:17:12]   |   displayTitle
+[12:17:12]   |   event
+[12:17:12]   |   headBranch
+[12:17:12]   |   headSha
+[12:17:12]   |   jobs
+[12:17:12]   |   name
+[12:17:12]   |   number
+[12:17:12]   |   startedAt
+[12:17:12]   |   status
+[12:17:12]   |   updatedAt
+[12:17:12]   |   url
+[12:17:12]   |   workflowDatabaseId
+[12:17:12]   |   workflowName
+[12:17:12] [poll] error: Expecting value: line 1 column 1 (char 0)
+[12:17:42] $ gh run view 25535917767 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl
+[12:17:42]   | Unknown JSON field: "htmlUrl"
+[12:17:42]   | Available fields:
+[12:17:42]   |   attempt
+[12:17:42]   |   conclusion
+[12:17:42]   |   createdAt
+[12:17:42]   |   databaseId
+[12:17:42]   |   displayTitle
+[12:17:42]   |   event
+[12:17:42]   |   headBranch
+[12:17:42]   |   headSha
+[12:17:42]   |   jobs
+[12:17:42]   |   name
+[12:17:42]   |   number
+[12:17:42]   |   startedAt
+[12:17:42]   |   status
+[12:17:42]   |   updatedAt
+[12:17:42]   |   url
+[12:17:42]   |   workflowDatabaseId
+[12:17:42]   |   workflowName
+[12:17:42] [poll] error: Expecting value: line 1 column 1 (char 0)
+[12:18:12] $ gh run view 25535917767 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl
+[12:18:12]   | Unknown JSON field: "htmlUrl"
+[12:18:12]   | Available fields:
+[12:18:12]   |   attempt
+[12:18:12]   |   conclusion
+[12:18:12]   |   createdAt
+[12:18:12]   |   databaseId
+[12:18:12]   |   displayTitle
+[12:18:12]   |   event
+[12:18:12]   |   headBranch
+[12:18:12]   |   headSha
+[12:18:12]   |   jobs
+[12:18:12]   |   name
+[12:18:12]   |   number
+[12:18:12]   |   startedAt
+[12:18:12]   |   status
+[12:18:12]   |   updatedAt
+[12:18:12]   |   url
+[12:18:12]   |   workflowDatabaseId
+[12:18:12]   |   workflowName
+[12:18:12] [poll] error: Expecting value: line 1 column 1 (char 0)
+[12:18:42] $ gh run view 25535917767 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl
+[12:18:43]   | Unknown JSON field: "htmlUrl"
+[12:18:43]   | Available fields:
+[12:18:43]   |   attempt
+[12:18:43]   |   conclusion
+[12:18:43]   |   createdAt
+[12:18:43]   |   databaseId
+[12:18:43]   |   displayTitle
+[12:18:43]   |   event
+[12:18:43]   |   headBranch
+[12:18:43]   |   headSha
+[12:18:43]   |   jobs
+[12:18:43]   |   name
+[12:18:43]   |   number
+[12:18:43]   |   startedAt
+[12:18:43]   |   status
+[12:18:43]   |   updatedAt
+[12:18:43]   |   url
+[12:18:43]   |   workflowDatabaseId
+[12:18:43]   |   workflowName
+[12:18:43] [poll] error: Expecting value: line 1 column 1 (char 0)
+[12:19:13] $ gh run view 25535917767 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl
+[12:19:13]   | Unknown JSON field: "htmlUrl"
+[12:19:13]   | Available fields:
+[12:19:13]   |   attempt
+[12:19:13]   |   conclusion
+[12:19:13]   |   createdAt
+[12:19:13]   |   databaseId
+[12:19:13]   |   displayTitle
+[12:19:13]   |   event
+[12:19:13]   |   headBranch
+[12:19:13]   |   headSha
+[12:19:13]   |   jobs
+[12:19:13]   |   name
+[12:19:13]   |   number
+[12:19:13]   |   startedAt
+[12:19:13]   |   status
+[12:19:13]   |   updatedAt
+[12:19:13]   |   url
+[12:19:13]   |   workflowDatabaseId
+[12:19:13]   |   workflowName
+[12:19:13] [poll] error: Expecting value: line 1 column 1 (char 0)
+[12:19:43] $ gh run view 25535917767 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl
+[12:19:43]   | Unknown JSON field: "htmlUrl"
+[12:19:43]   | Available fields:
+[12:19:43]   |   attempt
+[12:19:43]   |   conclusion
+[12:19:43]   |   createdAt
+[12:19:43]   |   databaseId
+[12:19:43]   |   displayTitle
+[12:19:43]   |   event
+[12:19:43]   |   headBranch
+[12:19:43]   |   headSha
+[12:19:43]   |   jobs
+[12:19:43]   |   name
+[12:19:43]   |   number
+[12:19:43]   |   startedAt
+[12:19:43]   |   status
+[12:19:43]   |   updatedAt
+[12:19:43]   |   url
+[12:19:43]   |   workflowDatabaseId
+[12:19:43]   |   workflowName
+[12:19:43] [poll] error: Expecting value: line 1 column 1 (char 0)
+[12:20:13] $ gh run view 25535917767 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl
+[12:20:13]   | Unknown JSON field: "htmlUrl"
+[12:20:13]   | Available fields:
+[12:20:13]   |   attempt
+[12:20:13]   |   conclusion
+[12:20:13]   |   createdAt
+[12:20:13]   |   databaseId
+[12:20:13]   |   displayTitle
+[12:20:13]   |   event
+[12:20:13]   |   headBranch
+[12:20:13]   |   headSha
+[12:20:13]   |   jobs
+[12:20:13]   |   name
+[12:20:13]   |   number
+[12:20:13]   |   startedAt
+[12:20:13]   |   status
+[12:20:13]   |   updatedAt
+[12:20:13]   |   url
+[12:20:13]   |   workflowDatabaseId
+[12:20:13]   |   workflowName
+[12:20:13] [poll] error: Expecting value: line 1 column 1 (char 0)
+[12:20:43] $ gh run view 25535917767 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl
+[12:20:43]   | Unknown JSON field: "htmlUrl"
+[12:20:43]   | Available fields:
+[12:20:43]   |   attempt
+[12:20:43]   |   conclusion
+[12:20:43]   |   createdAt
+[12:20:43]   |   databaseId
+[12:20:43]   |   displayTitle
+[12:20:43]   |   event
+[12:20:43]   |   headBranch
+[12:20:43]   |   headSha
+[12:20:43]   |   jobs
+[12:20:43]   |   name
+[12:20:43]   |   number
+[12:20:43]   |   startedAt
+[12:20:43]   |   status
+[12:20:43]   |   updatedAt
+[12:20:43]   |   url
+[12:20:43]   |   workflowDatabaseId
+[12:20:43]   |   workflowName
+[12:20:43] [poll] error: Expecting value: line 1 column 1 (char 0)
+[12:21:13] $ gh run view 25535917767 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl
+[12:21:13]   | Unknown JSON field: "htmlUrl"
+[12:21:13]   | Available fields:
+[12:21:13]   |   attempt
+[12:21:13]   |   conclusion
+[12:21:13]   |   createdAt
+[12:21:13]   |   databaseId
+[12:21:13]   |   displayTitle
+[12:21:13]   |   event
+[12:21:13]   |   headBranch
+[12:21:13]   |   headSha
+[12:21:13]   |   jobs
+[12:21:13]   |   name
+[12:21:13]   |   number
+[12:21:13]   |   startedAt
+[12:21:13]   |   status
+[12:21:13]   |   updatedAt
+[12:21:13]   |   url
+[12:21:13]   |   workflowDatabaseId
+[12:21:13]   |   workflowName
+[12:21:13] [poll] error: Expecting value: line 1 column 1 (char 0)
+[12:21:43] $ gh run view 25535917767 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl
+[12:21:43]   | Unknown JSON field: "htmlUrl"
+[12:21:43]   | Available fields:
+[12:21:43]   |   attempt
+[12:21:43]   |   conclusion
+[12:21:43]   |   createdAt
+[12:21:43]   |   databaseId
+[12:21:43]   |   displayTitle
+[12:21:43]   |   event
+[12:21:43]   |   headBranch
+[12:21:43]   |   headSha
+[12:21:43]   |   jobs
+[12:21:43]   |   name
+[12:21:43]   |   number
+[12:21:43]   |   startedAt
+[12:21:43]   |   status
+[12:21:43]   |   updatedAt
+[12:21:43]   |   url
+[12:21:43]   |   workflowDatabaseId
+[12:21:43]   |   workflowName
+[12:21:43] [poll] error: Expecting value: line 1 column 1 (char 0)
+[12:22:13] $ gh run view 25535917767 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl
+[12:22:13]   | Unknown JSON field: "htmlUrl"
+[12:22:13]   | Available fields:
+[12:22:13]   |   attempt
+[12:22:13]   |   conclusion
+[12:22:13]   |   createdAt
+[12:22:13]   |   databaseId
+[12:22:13]   |   displayTitle
+[12:22:13]   |   event
+[12:22:13]   |   headBranch
+[12:22:13]   |   headSha
+[12:22:13]   |   jobs
+[12:22:13]   |   name
+[12:22:13]   |   number
+[12:22:13]   |   startedAt
+[12:22:13]   |   status
+[12:22:13]   |   updatedAt
+[12:22:13]   |   url
+[12:22:13]   |   workflowDatabaseId
+[12:22:13]   |   workflowName
+[12:22:13] [poll] error: Expecting value: line 1 column 1 (char 0)
+[12:22:43] $ gh run view 25535917767 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl
+[12:22:43]   | Unknown JSON field: "htmlUrl"
+[12:22:43]   | Available fields:
+[12:22:43]   |   attempt
+[12:22:43]   |   conclusion
+[12:22:43]   |   createdAt
+[12:22:43]   |   databaseId
+[12:22:43]   |   displayTitle
+[12:22:43]   |   event
+[12:22:43]   |   headBranch
+[12:22:43]   |   headSha
+[12:22:43]   |   jobs
+[12:22:43]   |   name
+[12:22:43]   |   number
+[12:22:43]   |   startedAt
+[12:22:43]   |   status
+[12:22:43]   |   updatedAt
+[12:22:43]   |   url
+[12:22:43]   |   workflowDatabaseId
+[12:22:43]   |   workflowName
+[12:22:43] [poll] error: Expecting value: line 1 column 1 (char 0)
+[12:23:13] $ gh run view 25535917767 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl
+[12:23:13]   | Unknown JSON field: "htmlUrl"
+[12:23:13]   | Available fields:
+[12:23:13]   |   attempt
+[12:23:13]   |   conclusion
+[12:23:13]   |   createdAt
+[12:23:13]   |   databaseId
+[12:23:13]   |   displayTitle
+[12:23:13]   |   event
+[12:23:13]   |   headBranch
+[12:23:13]   |   headSha
+[12:23:13]   |   jobs
+[12:23:13]   |   name
+[12:23:13]   |   number
+[12:23:13]   |   startedAt
+[12:23:13]   |   status
+[12:23:13]   |   updatedAt
+[12:23:13]   |   url
+[12:23:13]   |   workflowDatabaseId
+[12:23:13]   |   workflowName
+[12:23:13] [poll] error: Expecting value: line 1 column 1 (char 0)
+[12:23:43] $ gh run view 25535917767 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl
+[12:23:43]   | Unknown JSON field: "htmlUrl"
+[12:23:43]   | Available fields:
+[12:23:43]   |   attempt
+[12:23:43]   |   conclusion
+[12:23:43]   |   createdAt
+[12:23:43]   |   databaseId
+[12:23:43]   |   displayTitle
+[12:23:43]   |   event
+[12:23:43]   |   headBranch
+[12:23:43]   |   headSha
+[12:23:43]   |   jobs
+[12:23:43]   |   name
+[12:23:43]   |   number
+[12:23:43]   |   startedAt
+[12:23:43]   |   status
+[12:23:43]   |   updatedAt
+[12:23:43]   |   url
+[12:23:43]   |   workflowDatabaseId
+[12:23:43]   |   workflowName
+[12:23:43] [poll] error: Expecting value: line 1 column 1 (char 0)
+[12:24:13] $ gh run view 25535917767 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl
+[12:24:14]   | Unknown JSON field: "htmlUrl"
+[12:24:14]   | Available fields:
+[12:24:14]   |   attempt
+[12:24:14]   |   conclusion
+[12:24:14]   |   createdAt
+[12:24:14]   |   databaseId
+[12:24:14]   |   displayTitle
+[12:24:14]   |   event
+[12:24:14]   |   headBranch
+[12:24:14]   |   headSha
+[12:24:14]   |   jobs
+[12:24:14]   |   name
+[12:24:14]   |   number
+[12:24:14]   |   startedAt
+[12:24:14]   |   status
+[12:24:14]   |   updatedAt
+[12:24:14]   |   url
+[12:24:14]   |   workflowDatabaseId
+[12:24:14]   |   workflowName
+[12:24:14] [poll] error: Expecting value: line 1 column 1 (char 0)
+[12:24:44] $ gh run view 25535917767 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl
+[12:24:44]   | Unknown JSON field: "htmlUrl"
+[12:24:44]   | Available fields:
+[12:24:44]   |   attempt
+[12:24:44]   |   conclusion
+[12:24:44]   |   createdAt
+[12:24:44]   |   databaseId
+[12:24:44]   |   displayTitle
+[12:24:44]   |   event
+[12:24:44]   |   headBranch
+[12:24:44]   |   headSha
+[12:24:44]   |   jobs
+[12:24:44]   |   name
+[12:24:44]   |   number
+[12:24:44]   |   startedAt
+[12:24:44]   |   status
+[12:24:44]   |   updatedAt
+[12:24:44]   |   url
+[12:24:44]   |   workflowDatabaseId
+[12:24:44]   |   workflowName
+[12:24:44] [poll] error: Expecting value: line 1 column 1 (char 0)
+[12:25:14] $ gh run view 25535917767 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl
+[12:25:14]   | Unknown JSON field: "htmlUrl"
+[12:25:14]   | Available fields:
+[12:25:14]   |   attempt
+[12:25:14]   |   conclusion
+[12:25:14]   |   createdAt
+[12:25:14]   |   databaseId
+[12:25:14]   |   displayTitle
+[12:25:14]   |   event
+[12:25:14]   |   headBranch
+[12:25:14]   |   headSha
+[12:25:14]   |   jobs
+[12:25:14]   |   name
+[12:25:14]   |   number
+[12:25:14]   |   startedAt
+[12:25:14]   |   status
+[12:25:14]   |   updatedAt
+[12:25:14]   |   url
+[12:25:14]   |   workflowDatabaseId
+[12:25:14]   |   workflowName
+[12:25:14] [poll] error: Expecting value: line 1 column 1 (char 0)
+[12:25:44] $ gh run view 25535917767 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl
+[12:25:44]   | Unknown JSON field: "htmlUrl"
+[12:25:44]   | Available fields:
+[12:25:44]   |   attempt
+[12:25:44]   |   conclusion
+[12:25:44]   |   createdAt
+[12:25:44]   |   databaseId
+[12:25:44]   |   displayTitle
+[12:25:44]   |   event
+[12:25:44]   |   headBranch
+[12:25:44]   |   headSha
+[12:25:44]   |   jobs
+[12:25:44]   |   name
+[12:25:44]   |   number
+[12:25:44]   |   startedAt
+[12:25:44]   |   status
+[12:25:44]   |   updatedAt
+[12:25:44]   |   url
+[12:25:44]   |   workflowDatabaseId
+[12:25:44]   |   workflowName
+[12:25:44] [poll] error: Expecting value: line 1 column 1 (char 0)
+[12:26:14] $ gh run view 25535917767 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl
+[12:26:14]   | Unknown JSON field: "htmlUrl"
+[12:26:14]   | Available fields:
+[12:26:14]   |   attempt
+[12:26:14]   |   conclusion
+[12:26:14]   |   createdAt
+[12:26:14]   |   databaseId
+[12:26:14]   |   displayTitle
+[12:26:14]   |   event
+[12:26:14]   |   headBranch
+[12:26:14]   |   headSha
+[12:26:14]   |   jobs
+[12:26:14]   |   name
+[12:26:14]   |   number
+[12:26:14]   |   startedAt
+[12:26:14]   |   status
+[12:26:14]   |   updatedAt
+[12:26:14]   |   url
+[12:26:14]   |   workflowDatabaseId
+[12:26:14]   |   workflowName
+[12:26:14] [poll] error: Expecting value: line 1 column 1 (char 0)
+[12:26:44] $ gh run view 25535917767 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl
+[12:26:44]   | Unknown JSON field: "htmlUrl"
+[12:26:44]   | Available fields:
+[12:26:44]   |   attempt
+[12:26:44]   |   conclusion
+[12:26:44]   |   createdAt
+[12:26:44]   |   databaseId
+[12:26:44]   |   displayTitle
+[12:26:44]   |   event
+[12:26:44]   |   headBranch
+[12:26:44]   |   headSha
+[12:26:44]   |   jobs
+[12:26:44]   |   name
+[12:26:44]   |   number
+[12:26:44]   |   startedAt
+[12:26:44]   |   status
+[12:26:44]   |   updatedAt
+[12:26:44]   |   url
+[12:26:44]   |   workflowDatabaseId
+[12:26:44]   |   workflowName
+[12:26:44] [poll] error: Expecting value: line 1 column 1 (char 0)
+[12:27:14] $ gh run view 25535917767 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl
+[12:27:14]   | Unknown JSON field: "htmlUrl"
+[12:27:14]   | Available fields:
+[12:27:14]   |   attempt
+[12:27:14]   |   conclusion
+[12:27:14]   |   createdAt
+[12:27:14]   |   databaseId
+[12:27:14]   |   displayTitle
+[12:27:14]   |   event
+[12:27:14]   |   headBranch
+[12:27:14]   |   headSha
+[12:27:14]   |   jobs
+[12:27:14]   |   name
+[12:27:14]   |   number
+[12:27:14]   |   startedAt
+[12:27:14]   |   status
+[12:27:14]   |   updatedAt
+[12:27:14]   |   url
+[12:27:14]   |   workflowDatabaseId
+[12:27:14]   |   workflowName
+[12:27:14] [poll] error: Expecting value: line 1 column 1 (char 0)
+[12:27:44] $ gh run view 25535917767 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl
+[12:27:44]   | syscall.(*LazyProc).Addr(...)
+[12:27:44]   | 	C:/Users/runneradmin/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.22.6.windows-amd64/src/syscall/dll_windows.go:276
+[12:27:44]   | syscall.RegOpenKeyEx(0x80000002, 0x37?, 0x0, 0x9, 0xc000076000?)
+[12:27:44]   | 	C:/Users/runneradmin/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.22.6.windows-amd64/src/syscall/zsyscall_windows.go:317 +0xae
+[12:27:44]   | internal/syscall/windows/registry.OpenKey(0x80000002, {0x1efc79e?, 0x3b34020?}, 0x9)
+[12:27:44]   | 	C:/Users/runneradmin/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.22.6.windows-amd64/src/internal/syscall/windows/registry/key.go:84 +0x66
+[12:27:44]   | time.toEnglishName({0xc00003e9d8, 0x12}, {0xc000282ef0, 0xf})
+[12:27:44]   | 	C:/Users/runneradmin/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.22.6.windows-amd64/src/time/zoneinfo_windows.go:59 +0x73
+[12:27:44]   | time.abbrev(0xc0006bf8f4)
+[12:27:44]   | 	C:/Users/runneradmin/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.22.6.windows-amd64/src/time/zoneinfo_windows.go:96 +0xab
+[12:27:44]   | time.initLocalFromTZI(0xc0006bf8f4)
+[12:27:44]   | 	C:/Users/runneradmin/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.22.6.windows-amd64/src/time/zoneinfo_windows.go:148 +0xbd
+[12:27:44]   | time.initLocal()
+[12:27:44]   | 	C:/Users/runneradmin/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.22.6.windows-amd64/src/time/zoneinfo_windows.go:236 +0x8f
+[12:27:44]   | sync.(*Once).doSlow(0x3bc38e0?, 0xc0006bfaa0?)
+[12:27:44]   | 	C:/Users/runneradmin/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.22.6.windows-amd64/src/sync/once.go:74 +0xc2
+[12:27:44]   | sync.(*Once).Do(...)
+[12:27:44]   | 	C:/Users/runneradmin/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.22.6.windows-amd64/src/sync/once.go:65
+[12:27:44]   | time.(*Location).get(0x3b32140)
+[12:27:44]   | 	C:/Users/runneradmin/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.22.6.windows-amd64/src/time/zoneinfo.go:96 +0x45
+[12:27:44]   | time.Time.locabs({0x0, 0xe7791f700, 0x3b32140})
+[12:27:44]   | 	C:/Users/runneradmin/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.22.6.windows-amd64/src/time/time.go:490 +0x3f
+[12:27:44]   | time.Time.appendFormat({0xc0006bfd10?, 0xbbab1d?, 0x3b32140?}, {0xc0006bfd60, 0x0, 0x40}, {0x1eccdc2, 0x1d})
+[12:27:44]   | 	C:/Users/runneradmin/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.22.6.windows-amd64/src/time/format.go:650 +0x5a
+[12:27:44]   | time.Time.AppendFormat({0x204ea405e58?, 0x10?, 0x3b32140?}, {0xc0006bfd60, 0x0, 0x40}, {0x1eccdc2, 0x1d})
+[12:27:44]   | 	C:/Users/runneradmin/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.22.6.windows-amd64/src/time/format.go:644 +0x151
+[12:27:44]   | time.Time.Format({0x3082f60?, 0xc000080030?, 0x3b32140?}, {0x1eccdc2?, 0x3?})
+[12:27:44]   | 	C:/Users/runneradmin/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.22.6.windows-amd64/src/time/format.go:630 +0xdf
+[12:27:44]   | github.com/go-chi/chi/middleware.init()
+[12:27:44]   | 	C:/Users/runneradmin/go/pkg/mod/github.com/go-chi/chi@v4.1.2+incompatible/middleware/nocache.go:12 +0xf0
+[12:27:44] [poll] error: Expecting value: line 1 column 1 (char 0)
+[12:28:14] $ gh run view 25535917767 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl
+[12:28:14]   | Unknown JSON field: "htmlUrl"
+[12:28:14]   | Available fields:
+[12:28:14]   |   attempt
+[12:28:14]   |   conclusion
+[12:28:14]   |   createdAt
+[12:28:14]   |   databaseId
+[12:28:14]   |   displayTitle
+[12:28:14]   |   event
+[12:28:14]   |   headBranch
+[12:28:14]   |   headSha
+[12:28:14]   |   jobs
+[12:28:14]   |   name
+[12:28:14]   |   number
+[12:28:14]   |   startedAt
+[12:28:14]   |   status
+[12:28:14]   |   updatedAt
+[12:28:14]   |   url
+[12:28:14]   |   workflowDatabaseId
+[12:28:14]   |   workflowName
+[12:28:14] [poll] error: Expecting value: line 1 column 1 (char 0)
+[12:28:44] $ gh run view 25535917767 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl
+[12:28:44]   | Unknown JSON field: "htmlUrl"
+[12:28:44]   | Available fields:
+[12:28:44]   |   attempt
+[12:28:44]   |   conclusion
+[12:28:44]   |   createdAt
+[12:28:44]   |   databaseId
+[12:28:44]   |   displayTitle
+[12:28:44]   |   event
+[12:28:44]   |   headBranch
+[12:28:44]   |   headSha
+[12:28:44]   |   jobs
+[12:28:44]   |   name
+[12:28:44]   |   number
+[12:28:44]   |   startedAt
+[12:28:44]   |   status
+[12:28:44]   |   updatedAt
+[12:28:44]   |   url
+[12:28:44]   |   workflowDatabaseId
+[12:28:44]   |   workflowName
+[12:28:44] [poll] error: Expecting value: line 1 column 1 (char 0)
+[12:29:14] $ gh run view 25535917767 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl
+[12:29:14]   | Unknown JSON field: "htmlUrl"
+[12:29:14]   | Available fields:
+[12:29:14]   |   attempt
+[12:29:14]   |   conclusion
+[12:29:14]   |   createdAt
+[12:29:14]   |   databaseId
+[12:29:14]   |   displayTitle
+[12:29:14]   |   event
+[12:29:14]   |   headBranch
+[12:29:14]   |   headSha
+[12:29:14]   |   jobs
+[12:29:14]   |   name
+[12:29:14]   |   number
+[12:29:14]   |   startedAt
+[12:29:14]   |   status
+[12:29:14]   |   updatedAt
+[12:29:14]   |   url
+[12:29:14]   |   workflowDatabaseId
+[12:29:14]   |   workflowName
+[12:29:14] [poll] error: Expecting value: line 1 column 1 (char 0)
+[12:29:44] $ gh run view 25535917767 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl
+[12:29:45]   | Unknown JSON field: "htmlUrl"
+[12:29:45]   | Available fields:
+[12:29:45]   |   attempt
+[12:29:45]   |   conclusion
+[12:29:45]   |   createdAt
+[12:29:45]   |   databaseId
+[12:29:45]   |   displayTitle
+[12:29:45]   |   event
+[12:29:45]   |   headBranch
+[12:29:45]   |   headSha
+[12:29:45]   |   jobs
+[12:29:45]   |   name
+[12:29:45]   |   number
+[12:29:45]   |   startedAt
+[12:29:45]   |   status
+[12:29:45]   |   updatedAt
+[12:29:45]   |   url
+[12:29:45]   |   workflowDatabaseId
+[12:29:45]   |   workflowName
+[12:29:45] [poll] error: Expecting value: line 1 column 1 (char 0)
+[12:30:15] $ gh run view 25535917767 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,htmlUrl
+[12:30:15]   | Unknown JSON field: "htmlUrl"
+[12:30:15]   | Available fields:
+[12:30:15]   |   attempt
+[12:30:15]   |   conclusion
+[12:30:15]   |   createdAt
+[12:30:15]   |   databaseId
+[12:30:15]   |   displayTitle
+[12:30:15]   |   event
+[12:30:15]   |   headBranch
+[12:30:15]   |   headSha
+[12:30:15]   |   jobs
+[12:30:15]   |   name
+[12:30:15]   |   number
+[12:30:15]   |   startedAt
+[12:30:15]   |   status
+[12:30:15]   |   updatedAt
+[12:30:15]   |   url
+[12:30:15]   |   workflowDatabaseId
+[12:30:15]   |   workflowName
+[12:30:15] [poll] error: Expecting value: line 1 column 1 (char 0)
+[12:30:45] [bug410] FAILED: workflow timed out, run url: 
+[12:31:37] ============================================================
+[12:31:37] [bug410-resume] reusing existing release version=android-bug410-v20260508-120029-6770 run=25535917767
+[12:31:37] $ gh run view 25535917767 -R ankun-eric/auto_dev_bnbbaijkgj --json url
+[12:31:38]   | {"url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25535917767"}
+[12:31:38] [bug410-resume] run url=https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25535917767
+[12:31:38] $ gh release download android-bug410-v20260508-120029-6770 -R ankun-eric/auto_dev_bnbbaijkgj --pattern "*.apk" --dir "C:\Users\ADMINI~1\AppData\Local\Temp\2\apk_bug410_klp0nbcw" --clobber
+[12:31:45] [download] got C:\Users\ADMINI~1\AppData\Local\Temp\2\apk_bug410_klp0nbcw\bini_health_android-bug410-v20260508-120029-6770.apk (84567515 bytes)
+[12:31:45] [bug410-resume] downloaded C:\Users\ADMINI~1\AppData\Local\Temp\2\apk_bug410_klp0nbcw\bini_health_android-bug410-v20260508-120029-6770.apk size=84567515
+[12:31:45] [bug410-resume] uploading as app_bug410_20260508_123145_e880.apk
+[12:33:39] [upload] /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/static/apk/app_bug410_20260508_123145_e880.apk size=84567515
+[12:33:39] [verify] HEAD https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/apk/app_bug410_20260508_123145_e880.apk -> 200 length=84567515
+[12:33:39] ============================================================
+[12:33:39] [bug410-resume] SUCCESS
+[12:33:39]   APK_VERSION_TAG = android-bug410-v20260508-120029-6770
+[12:33:39]   APK_FILENAME    = app_bug410_20260508_123145_e880.apk
+[12:33:39]   APK_SIZE        = 84567515
+[12:33:39]   APK_HTTP_STATUS = 200
+[12:33:39]   APK_DOWNLOAD_URL= https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/apk/app_bug410_20260508_123145_e880.apk
+[12:33:39]   GH_RUN_URL      = https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25535917767
+[12:33:39]   RESUME_ELAPSED  = 121s

@@ -1,0 +1,28 @@
+feat(PRD-370): H5 登录页设计稿对齐 BUG-FIX-LOGIN-DESIGN-ALIGN-V1
+
+- H5: 重写 login/page.tsx 落地上绿下白分屏卡片式布局，新建 login.module.css
+  集中管理设计 token（主色 #34C759、浅绿 #4AD97A、青色 #2BD4C4 三段渐变、
+  :focus-within 输入框聚焦视觉反馈），删除"欢迎回来"等冗余问候语；
+  内嵌 AgreementDialog（服务协议及隐私保护 / 不同意 / 同意）+ AgreementDrawer
+  （80% 屏高底部抽屉，iframe 加载 legal 路由）两个组件
+- H5: 新建 legal/service-agreement + legal/privacy-policy 协议详情页
+- H5: layout theme-color 由 #52c41a 改为 #34C759
+- 微信小程序: pages/login/{wxml,wxss,js} 整页对齐——色号、三段渐变、
+  agreement-dialog/agreement-drawer 双组件、phoneFocused/codeFocused 聚焦态
+- Flutter App: login_screen.dart 全文 0xFF2FB56A→0xFF34C759、0xFF5CD692→
+  0xFF4AD97A，按钮三段渐变（增加 0xFF2BD4C4，stops:[0.0,0.5,1.0]）+ 圆角 28，
+  协议二次确认弹窗按钮文案对齐为「不同意 / 同意」双按钮版
+- 后端: 新建 api/login_ui_config.py 提供 GET /api/config/login_ui_version 远程
+  降级开关（默认 v2，rollback_supported=true）+ PUT /api/admin/config/
+  login_ui_version 切换接口；main.py 注册 router
+- 部署: _deploy_prd370.py paramiko SFTP 上传 + 重建 backend/h5-web docker +
+  gateway nginx reload + 8 条 HTTPS smoke 200 通过
+- 测试: h5-web/tests/login_prd370_verify.py 24 用例（chunk 提取/设计 token/
+  文案/弹窗/legal/后端开关/theme-color），24/24 全部通过
+- 打包: _pack_upload_miniprogram_prd370.py 输出 397KB / 335 文件 zip 并 SFTP
+  上传到 static/miniprogram/ 验证 HEAD 200；Android/iOS 因服务器到 GitHub
+  网络受限本次跳过远程构建，用户手册已说明
+- 文档: user_docs/H5登录页设计稿对齐_PRD-370.md 用户体验手册（访问链接 x2、
+  6 大功能要点、四端变更表、协议交互两种场景使用说明、小程序导入 6 步、
+  7 条注意事项、24/24 自动化验收表）
+- 索引: .cursor/rules/project-context.mdc 追加 Latest Update 段
