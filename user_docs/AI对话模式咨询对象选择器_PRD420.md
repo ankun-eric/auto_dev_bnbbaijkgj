@@ -134,10 +134,14 @@
 
 ### 4.4 Android / iOS（Flutter）
 
-> Android APK 和 iOS IPA 通过 GitHub Actions 远程构建后下载链接如下（链接在构建完成后注入）。
+> Android APK 和 iOS IPA 通过 GitHub Actions 远程构建。
 
-- **Android APK**：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/apk/`（取最新 PRD-420 版本）
-- **iOS IPA**（TestFlight 上传）：构建完成后 `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/ipa/`
+- **Android APK 下载**：[`app_prd420_20260508_174951_5539.apk`](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/apk/app_prd420_20260508_174951_5539.apk)（84.6 MB）
+  - 构建版本：`android-prd420-v20260508-174154-c8cf`
+  - GH Action：https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25548656981
+- **iOS IPA 下载**：[`bini_health_ios.ipa`](https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/download/ios-prd420-v20260508-174156-jib3/bini_health_ios.ipa)（34.1 MB，需登录 GitHub）
+  - 构建版本：`ios-prd420-v20260508-174156-jib3`
+  - GH Action：https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25548658840
 
 | 验证场景 | 期望 |
 |---|---|
