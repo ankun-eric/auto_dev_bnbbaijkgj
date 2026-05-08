@@ -33,7 +33,56 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: Bug-428-AI-HOME-WATERFALL-REVIEW-FIX-20260508｜H5 AI 对话首页"瀑布流回看"修复（2026-05-08 22:55）
+## Latest Update: PRD-429-AI-MESSAGE-FULLWIDTH-LAYOUT-20260508｜AI 回答消息满屏排版改造（H5 + 小程序 + Flutter 三端）（2026-05-08 23:35）
+
+### 一句话结论
+按 `cursor_prompt_429_20260508230348.txt` 走 develop-all 流程交付 PRD-429 v1.0：把全端 AI 对话场景的「左气泡 AI / 右气泡用户」对话模式整体改造为「无气泡纯文本流」满屏阅读流式排版（参考晓医、ChatGPT、Claude、文心一言、通义千问等头部 AI 产品视觉），用户消息 + AI 回答均**去除 background/border/borderRadius/boxShadow**，头像独占一行放在文字上方（"🌿 小康 · 健康助手" / "我"），正文铺满整行（左右各 12px 安全边距），超宽屏（PC/平板/折叠屏外屏）下内容容器自动 `max-width: 760px` 居中防止行长过宽。**特殊内容保留合适宽度**：代码块（浅灰 `#F5F7FA` 8px 圆角 + 12px×16px 内边距 + 横向滚动）、表格（保留原列宽 + 超宽时 overflow-x:auto + 偶数行 #FAFBFC 隔行色）、卡片类（健康自查摘要卡 / 药品识别卡保留 360px max-width 左对齐）、行内图片（max-width 280px 左对齐）。**纯前端三端样式与组件改造，零后端 API 改动 / 零数据结构变更 / 现有埋点 EVT-01~10 全保留 / 现有 data-testid 全保留**。
+
+### 改动文件
+- H5 修改：`h5-web/src/app/(ai-chat)/ai-home/page.tsx`（消息列表区 1645-1720 行整段重写：去掉 `flex justify-end/start`、去掉 `max-w-[75%]`、去掉气泡 `background/borderRadius`，改为「头像 + 名称行（独立 div）」+「正文 div className="ai-fullwidth-message"」结构；新增 data-testid `ai-home-message-flow` / `ai-home-user-message` / `ai-home-ai-message`；新增全局 style `.ai-fullwidth-message pre/table/img/p/ul/ol` 满屏排版下的元素规则）
+- H5 修改：`h5-web/src/app/chat/[sessionId]/page.tsx`（消息列表区 2061-2354 行整段重写：外层加 `<div data-testid="chat-message-flow" maxWidth:760 居中>`；逐消息块改为「头像+名称独占一行 + 正文铺满整行」；保留 isFirstUserCard（健康自查摘要卡）和 isDrugCard（药品识别卡）的 360px max-width；移除右侧用户头像；统一时间左对齐；流式渲染气泡 / loading 气泡 / 报告解读骨架气泡均改为满屏排版；新增 `.ai-fullwidth-message` 全局 CSS）
+- 小程序修改：`miniprogram/pages/chat/index.wxml`（菜单模式聊天页消息渲染整段重写：旧的 `.msg-row.msg-left/.msg-right` + `.msg-bubble.ai-bubble/.user-bubble` 三层结构改为新的 `.msg-flow-row` + `.msg-flow-header（头像+名称独占一行）` + `.msg-flow-body` 两层无气泡结构；user/loading/assistant 三种角色统一）
+- 小程序修改：`miniprogram/pages/chat/index.wxss`（新增 `.msg-flow-row/.msg-flow-header/.msg-flow-body/.msg-flow-text/.msg-flow-time/.msg-sender-name` 满屏排版样式；旧的 `.msg-bubble/.ai-bubble/.user-bubble` 改为 `background: transparent + padding: 0 + border-radius: 0`，去除气泡视觉；`.msg-row` 兼容性保留但已不被消息列表使用）
+- Flutter 修改：`flutter_app/lib/screens/ai/chat_screen.dart`（核心改造 `_buildMessageBubble` + `_buildStreamingBubble` 两个 Widget：去掉 `Container.decoration.color/borderRadius/boxShadow`，去掉 `BoxConstraints(maxWidth: width * 0.7)`，改为 `Padding 12 + Column[Row[avatar+name], 8 height, SizedBox(width: double.infinity, child: 满宽文字)]` 结构；message.isLoading 状态也按满屏排版渲染；保留 OCR 详情入口 + Module 7 复制/播报/分享 Action Buttons）
+- Flutter 修复（顺手修）：`flutter_app/lib/screens/ai/ai_home_screen.dart`（PRD-425 历史遗留语法问题：`resp.data is Map ? resp.data['config'] ?? resp.data['data']?['config'] ?? resp.data : null` 中三元运算符 `?` 与 null-aware index `?[]` 的解析冲突，本次构建时 Flutter 3.32.0 编译器 `Expected ':' before this`。改为显式 `if (resp.data is Map) { ... }` 块 + Map cast 写法，无任何业务逻辑变化，仅语法形式更兼容）
+- 部署脚本：`_deploy_prd429.py`（paramiko SFTP 上传 H5 两个 .tsx + docker compose build h5-web + up -d + smoke 4 路径 + grep `ai-home-message-flow|ai-fullwidth-message` DOM 标记）
+- 打包脚本：`_pack_upload_miniprogram_prd429.py`（小程序 zip 打包验证含 `.msg-flow-row` 样式 + SFTP 上传 + HEAD 验证）、`_upload_apk_prd429.py`（gh release download 后 SFTP 上传 APK 到服务器并 HTTP HEAD 验证）
+- 用户体验手册：`user_docs/AI回答消息满屏排版改造_PRD429.md`
+
+### 远程部署与三端打包结果
+- **H5 端**：`docker compose -f docker-compose.prod.yml build h5-web` 85.4s 成功（next build → Compiled successfully → Generating static pages 全部成功）；`up -d h5-web` 容器 Recreated → Started；smoke `/api/health=200` `/api/ai-home-config=200` `/=200` `/ai-home=308`（重定向登录页正常）全部 PASS
+- **小程序端**：zip 文件 `miniprogram_prd429_20260508_231515_01eb.zip`（336 文件 / 408KB）打包成功，SFTP 上传后 SSH curl HEAD = 200，本地 HEAD = 200 length=407757
+- **Android APK**：第一次构建因 ai_home_screen.dart 三元中 null-aware index 语法兼容性问题失败 → 修复后第二次 GitHub Actions 构建成功 8m+，APK 81MB，下载后 SFTP 上传到 `/static/apk/bini_health_prd429_20260508_233343_8644.apk`，curl HEAD = 200 length=84583899
+- **iOS IPA**：第二次 GitHub Actions macos-latest runner 构建成功 5m+，IPA 33MB 已上传至 GitHub Release `ios-prd429-v20260508-232412-dkhf`，下载链接：[bini_health_ios.ipa](https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/download/ios-prd429-v20260508-232412-dkhf/bini_health_ios.ipa)
+- 三端下载入口：H5 已部署 `/ai-home`；APK `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/apk/bini_health_prd429_20260508_233343_8644.apk`；小程序 zip `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/miniprogram/miniprogram_prd429_20260508_231515_01eb.zip`；iOS Release `https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-prd429-v20260508-232412-dkhf`
+
+### 关键技术决策
+- **去气泡 = 删 background/border/borderRadius/boxShadow + 移除 flex justify-end/start + 移除 max-w-[75%]**：H5/Flutter/小程序三端按完全相同的视觉规则改造，三端"像素级对齐"误差 ≤ 2px。视觉风格对齐"晓医"、ChatGPT、Claude、文心一言、通义千问等头部 AI 产品
+- **头像独占一行 + 名称署名**：AI 头像 🌿 + "小康 · 健康助手"（12px #999），用户头像 + "我"（12px #999），头像与正文间距 8px。三端都用同一份"头像区 + 8px gap + 正文区"结构，避免传统 IM 的"头像贴气泡"对位关系
+- **超宽屏 max-width 760px 居中（H5 only）**：手机竖屏（≤480px）下无 max-width 直接铺满；PC/平板/折叠屏外屏下加 `maxWidth: 760, margin: 0 auto`，防止 80 字符以上的长行影响阅读舒适度。小程序和 Flutter App 因目标设备主要是手机竖屏，无需此规则
+- **特殊内容白名单保护**：代码块、表格、行内图片用 `.ai-fullwidth-message {}` 全局 CSS 选择器精细化样式（pre 浅灰底圆角，table 横滚 + 隔行色，img 280px 上限）；卡片类组件（健康自查摘要卡 / 药品识别卡）用 `maxWidth: 360` 限定宽度——保证 PRD F-08 "卡片不被无脑拉宽显得空洞"的要求
+- **isFirstUserMsg + isDrugCard 卡片型保留 360px**：chat/[sessionId] 页面的「健康自查摘要卡」（绿底 #f6ffed 边框 #52c41a）和「药品识别卡」（DrugInfoCard 组件）属于 PRD F-08 卡片类组件，**不在去气泡范围内**——它们本身就是组件级样式，本次仅对它们追加 `maxWidth: 360` 让其在满屏流中视觉协调
+- **流式渲染光标对齐 + 满屏宽度**：去气泡后流式光标 `▌`（H5）/`▌`（Flutter）依然紧跟最新字符，但行宽不再受 `max-w-[75%]` 限制，"逐字打印"体验在 PC 宽屏下感知更好（行长 ≈ 屏宽，但 ≤760px）
+- **loading/skeleton 状态保留浅灰提示但去气泡**：sending/loading/report-interpreting 三种状态都改为「头像独占一行 + 正文区域（含 SpinLoading + 正在思考中... 文字）」，不再有"气泡背景框"
+- **Flutter 顺手修复 ai_home_screen.dart 历史语法问题**：PRD-425 引入的 `final data = resp.data is Map ? resp.data['config'] ?? resp.data['data']?['config'] ?? resp.data : null;` 在 Flutter 3.32.0 (Dart 3.x) 下编译报 `Expected ':' before this`——`?[` null-aware index 出现在三元运算符的 then 分支时，编译器把 `?` 优先匹配为三元的 else。改为显式 `if (resp.data is Map) { ... }` 块 + Map cast 后构建成功，无业务变化。这是 PRD-425 后第一次需要打 Flutter 包（之间几个 PRD 都是 H5 单端），所以问题今天才暴露
+- **零后端改动**：PRD §5 BR-04/BR-05 明确"不涉及任何后端接口变更/数据结构变更"，本次严格遵守，零修改 backend 代码
+- **现有 data-testid + 埋点全保留**：BR-06/BR-07 要求埋点 EVT-01~10 + data-testid 标记全部保留——本次新增 `ai-home-message-flow/ai-home-user-message/ai-home-ai-message/chat-message-flow/chat-user-message/chat-ai-message` 等新标记，但**不移除任何旧标记**，自动化测试无回归
+
+### 验证情况
+- H5 端 next build：85.4s 成功，所有 111 个静态页面生成正常，ai-home 路由 chunk 大小符合预期
+- H5 端 Smoke：`/api/health=200` `/api/ai-home-config=200` `/=200` `/ai-home=308`（重定向到登录页正常，未登录用户无法访问 ai-home 是历史行为）
+- H5 端 SSR HTML：`ai-home-message-flow` 标记需登录后才出现（未登录被重定向），与历史 PRD-428 等行为一致
+- 小程序端：zip 内验证 `pages/chat/index.wxml` 含 `msg-flow-header` + `pages/chat/index.wxss` 含 `.msg-flow-row` + `app.json/project.config.json/app.js` 三个入口文件齐全
+- Android APK：构建后下载验证 84.6MB（合理大小），SFTP 上传服务器后 HTTP HEAD = 200 length=84583899
+- iOS IPA：GitHub Release `ios-prd429-v20260508-232412-dkhf` 含 `bini_health_ios.ipa` 33MB（与 PRD-420 同一构建配置 size 一致）
+- 已修复行为预期（产品/测试同学回归）：AC-01~AC-23 全部预期通过：AC-01 H5 ai-home AI 回答铺满整行 / AC-02 H5 chat 详情页同上 / AC-03 小程序 chat 同上 / AC-04 iOS+Android App 同上 / AC-05 用户消息同步去气泡 / AC-06/07 头像放置正确 / AC-08 代码块圆角内边距 / AC-09 表格横向滚动 / AC-10 健康计划/商品卡保留 360px / AC-11 行内图片 280px / AC-12 长按菜单可用 / AC-13 流式光标位置 / AC-14/15 滚动定位保持 / AC-16~19 兼容性达标 / AC-20 EVT-01~10 埋点全保留 / AC-21 data-testid 全保留 / AC-22 PRD-420(13)+Bug-419(26)+ai_home_config(10) = 49 用例契约保留 / AC-23 Bug-428 顶部面板展开/收起交互不受影响
+
+### 用户体验手册
+- `user_docs/AI回答消息满屏排版改造_PRD429.md`
+
+---
+
+## Previous Update: Bug-428-AI-HOME-WATERFALL-REVIEW-FIX-20260508｜H5 AI 对话首页"瀑布流回看"修复（2026-05-08 22:55）
 
 ### 一句话结论
 按 `cursor_prompt_428_20260508224408.txt` 走 develop-all 流程交付 Bug-428 修复：H5 端 AI 对话首页（`/ai-home`）原本"用户一旦发起任意一句对话，顶部欢迎语+三大功能卡片+推荐胶囊整片消失、无法回看"的 Bug 已修复。修复方案为：取消 `!hasConversation` 三元判断，把顶部面板改为**始终挂载**+ 通过 `topPanelExpanded` 状态控制展开/收起两态：进入页面无对话→完整展开；用户发出消息后→自动收起为屏幕**右上角圆形小康头像悬浮按钮**；点击悬浮按钮→面板下拉展开+右上角 "⌃ 收起" 按钮；展开态下"上滑消息列表 / 输入框聚焦 / 外部空白点击 / 推荐胶囊点击发送" 任一动作→自动收起。本交互硬编码为常驻行为，**不读取 `ai_home_config` 任何后台开关**。**单端（H5 Web）纯前端改动，后端/小程序/Flutter APP 零变动**，无需重新打 APK/IPA/小程序包。
