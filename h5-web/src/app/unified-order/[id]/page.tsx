@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter, useParams, useSearchParams } from 'next/navigation';
+import { useState, useEffect, useRef } from 'react';
+import { useRouter, useParams, useSearchParams, usePathname } from 'next/navigation';
 import { Card, Image, Tag, Button, Steps, Divider, Toast, Dialog, SpinLoading, ProgressBar, Popup, DatePicker, Selector } from 'antd-mobile';
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
@@ -145,7 +145,15 @@ export default function UnifiedOrderDetailPage() {
   const router = useRouter();
   const params = useParams();
   const searchParams = useSearchParams();
+  const pathname = usePathname();
   const orderId = params.id as string;
+  // [BUG-FIX-RESCHEDULE-POPUP-AUTO-CLOSE v2.0] 防止改约弹窗自动重新打开
+  // 当顾客从订单列表页带 ?action=appointment 进入详情页后：
+  //  - 首次 order 加载 → 自动打开弹窗（旧行为，保留）
+  //  - 提交成功 → 关闭弹窗 + fetchOrder() 触发 order 重设 → 旧 useEffect 会再次自动打开
+  // 此 ref 保证 ?action=appointment 只被消费一次：弹窗一旦被自动打开就将其置 true，
+  // 之后即使 order/searchParams 再次变化（如 fetchOrder 后），都不会再次自动打开。
+  const actionAppointmentConsumedRef = useRef(false);
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [loading, setLoading] = useState(true);
   // [先下单后预约 Bug 修复 v1.0] 立即预约弹窗状态
@@ -332,6 +340,22 @@ export default function UnifiedOrderDetailPage() {
       // 4) 详情页本身刷新
       const isReschedule = !!(currentItem?.appointment_time);
       setShowAppointmentPopup(false);
+      // [BUG-FIX-RESCHEDULE-POPUP-AUTO-CLOSE v2.0] 提交成功后清除 URL 上的 action=appointment 参数。
+      // 双保险：① ref 已标记 action 被消费；② 这里再把 URL 也清掉，
+      // 这样即使有第三方代码 / 路由重置等导致 ref 失效，URL 上也已无 action=appointment，
+      // 不会再触发"自动打开弹窗"分支。
+      actionAppointmentConsumedRef.current = true;
+      try {
+        if (searchParams?.get('action') === 'appointment' && pathname) {
+          // 保留其它 query，仅移除 action
+          const sp = new URLSearchParams(searchParams.toString());
+          sp.delete('action');
+          const qs = sp.toString();
+          router.replace(qs ? `${pathname}?${qs}` : pathname);
+        }
+      } catch {
+        /* URL 清理失败不影响主流程 */
+      }
       Toast.show({ content: isReschedule ? '改约成功' : '预约成功' });
       try {
         if (typeof window !== 'undefined') {
@@ -352,19 +376,25 @@ export default function UnifiedOrderDetailPage() {
   };
 
   // [修改预约 Bug 修复 v1.0] 兼容外部链接 ?action=appointment 自动打开弹窗
+  // [BUG-FIX-RESCHEDULE-POPUP-AUTO-CLOSE v2.0] 修复"改约成功后弹窗自动重新打开"
+  // 修复原则：?action=appointment 只能被"消费"一次。一旦弹窗被自动打开过，
+  // 后续 order/searchParams 变化（典型场景：提交改约后 fetchOrder 重设 order）
+  // 不得再次把 visible 写为 true。watcher 中只允许保持现状或不动作，绝不能 true。
   useEffect(() => {
     if (!order) return;
-    if (searchParams?.get('action') === 'appointment') {
-      // 仅对待核销/已预约状态生效
-      if (
-        (order.status === 'pending_use' ||
-          order.status === 'appointed' ||
-          order.status === 'partial_used' ||
-          order.status === 'pending_appointment') &&
-        order.refund_status === 'none'
-      ) {
-        openAppointmentPopup();
-      }
+    if (actionAppointmentConsumedRef.current) return;
+    if (searchParams?.get('action') !== 'appointment') return;
+    // 仅对待核销/已预约状态生效
+    if (
+      (order.status === 'pending_use' ||
+        order.status === 'appointed' ||
+        order.status === 'partial_used' ||
+        order.status === 'pending_appointment') &&
+      order.refund_status === 'none'
+    ) {
+      // 先标记为已消费，避免任何同步/异步副作用导致重复进入
+      actionAppointmentConsumedRef.current = true;
+      openAppointmentPopup();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [order, searchParams]);
