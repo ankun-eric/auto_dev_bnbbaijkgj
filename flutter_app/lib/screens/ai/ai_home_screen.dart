@@ -63,11 +63,26 @@ class _AiHomeScreenState extends State<AiHomeScreen> {
   }
 
   // [PRD-425] 加载 AI 助手昵称（ai_chat.signature）
+  // [PRD-429] 修复：用显式 if/Map cast 替代 null-aware index `?[]`，兼容 Flutter 3.32.0
   Future<void> _loadAiSignature() async {
     try {
       final resp = await _apiService.dio.get('/api/ai-home-config');
-      final data = resp.data is Map ? resp.data['config'] ?? resp.data['data']?['config'] ?? resp.data : null;
-      final sig = (data is Map ? data['ai_chat']?['signature'] : null)?.toString().trim() ?? '';
+      dynamic data;
+      if (resp.data is Map) {
+        final m = resp.data as Map;
+        if (m['config'] != null) {
+          data = m['config'];
+        } else if (m['data'] is Map && (m['data'] as Map)['config'] != null) {
+          data = (m['data'] as Map)['config'];
+        } else {
+          data = resp.data;
+        }
+      }
+      String sig = '';
+      if (data is Map && data['ai_chat'] is Map) {
+        final v = (data['ai_chat'] as Map)['signature'];
+        sig = v?.toString().trim() ?? '';
+      }
       if (!mounted) return;
       setState(() {
         _aiSignature = sig.isEmpty ? '小康' : (sig.length > 8 ? '${sig.substring(0, 8)}…' : sig);
@@ -79,13 +94,21 @@ class _AiHomeScreenState extends State<AiHomeScreen> {
   }
 
   // [PRD-425] 加载通知中心未读总数（进入页面拉一次；接口异常 → 不显示徽标）
+  // [PRD-429] 修复：用显式 if/Map cast 替代 null-aware index `?[]`，兼容 Flutter 3.32.0
   Future<void> _loadUnreadCount() async {
     try {
       final resp = await _apiService.dio.get('/api/v1/notifications/unread-count');
-      final cnt = resp.data is Map ? resp.data['data']?['unreadCount'] : null;
+      int? cnt;
+      if (resp.data is Map) {
+        final m = resp.data as Map;
+        if (m['data'] is Map) {
+          final v = (m['data'] as Map)['unreadCount'];
+          if (v is int) cnt = v;
+        }
+      }
       if (!mounted) return;
-      if (cnt is int && cnt >= 0) {
-        setState(() => _unreadCount = cnt);
+      if (cnt != null && cnt >= 0) {
+        setState(() => _unreadCount = cnt!);
       }
     } catch (_) {
       // 静默失败：保持 _unreadCount = -1（不显示徽标）
