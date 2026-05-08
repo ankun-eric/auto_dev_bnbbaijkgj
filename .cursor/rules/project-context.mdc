@@ -33,7 +33,50 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: BUG-419-AI-HOME-WHITESCREEN-AND-SESSION-422-20260508｜AI 对话首页白屏与创建会话 422 一击到底修复（2026-05-08 17:00）
+## Latest Update: PRD-420-AI-CONSULT-TARGET-PICKER-20260508｜AI 对话模式 - 咨询对象选择器（2026-05-08 17:35）
+
+### 一句话结论
+按 `cursor_prompt_420_20260508171744.txt` 走 develop-all 流程交付 PRD-420 v1.0：把菜单模式（chat/[sessionId]）已经成熟稳定的「咨询对象选择器」整套交互（**底部抽屉 + 已有家庭成员 + 新建家庭成员（关系九宫格 + 7 字段表单）**）完整搬到 AI 对话模式（`/ai-home`）头部「为本人 ▼」胶囊；H5 + 小程序 + Flutter 三端同步；**后端零改动**（PRD F7 已经把数据全部打通——菜单模式和 AI 模式共用 `/api/family/members` 和 `/api/chat/sessions/:id/switch-member`，前端只需把 UI 拼接到位即可）。
+
+**核心实现**：
+- **H5（2 文件）**：① 新增公共组件 `h5-web/src/components/ai-chat/ConsultTargetPicker.tsx`（约 600 行：两个 `Popup` 抽屉嵌套 + 关系网格九宫格 + 7 字段表单 + DatePicker + 离弃确认 modal + 同关系柔性提示 + 失败重试 + 表单校验：姓名 1-20 字符 / 身高 30-250 / 体重 1-300 / 病史/过敏多选+自定义）；② 改造 `h5-web/src/app/(ai-chat)/ai-home/page.tsx`：用 ConsultTargetPicker 替换原 ConsultantPicker；新增 `undoSnapshot/undoToastVisible/undoTimerRef` 状态管理 5 秒撤销 Toast；`handleConsultantSelect` 实现 PRD F5「空会话只换归属人 / 非空会话自动新建会话 + 5 秒可撤销」；F6 进入 ai-home 默认始终是「本人」；header 胶囊文案动态拼接为「为 关系·昵称 ▼」
+- **小程序（3 文件）**：`miniprogram/pages/chat/index.{wxml,js,wxss}` 在原选择器底部叠加「+ 新建家庭成员」入口 → 弹出 `add-member-popup` 双层抽屉（关系九宫格 + 表单），完整对齐 H5 体验；新增 14 个 data 状态 + 11 个事件处理函数；新增 7 处 CSS 样式（add-member-mask / popup / form-input / gender-btn / form-tag / add-save-btn 等）
+- **Flutter（1 文件）**：`flutter_app/lib/screens/ai/chat_screen.dart` 优化 `_showConsultTargetPicker` —— 头部加关闭按钮 + 列表底部加「新建家庭成员」按钮，点击跳转既有 `/health-profile` 页（健康档案已有完整添加流程），返回时自动刷新成员列表（设计取舍：避免 Flutter 端重复造表单的高成本，复用既有页面，最终用户体验等价）
+- **后端测试（1 新文件 13 用例）**：`backend/tests/test_prd420_consult_target_picker.py`：T01 列表结构 / T02 排序（本人优先 + created_at 正序）/ T03 F4 全字段持久化 / T04 必填关系缺失拒绝 / T05 同关系允许重复 / T06 创建会话带 family_member_id / T07 空会话切换归属人 / T08 切回本人(null) / T09 F7 数据共享 / T10 跨会话隔离 / T11 未登录拒绝 / T12 跨用户越权防护 / T13 add→list 立即可见 → **13 passed in 9.06s**
+
+**部署与验证**：① 容器内 PRD-420 测试 **13 passed**；② 关键回归 `test_bug419_chat_sessions + test_ai_home_config` **36 passed in 22.40s**；③ docker compose build h5-web（86s）+ up -d；④ 远程端到端 smoke（`_smoke_prd420.py` 注册新用户 → AI 模式新建老婆+儿子 → 切换归属人 → F7 数据共享）**12 类用例全部 OK**；⑤ smoke URL：`/api/health=200`、`/api/relation-types=200`、`/=200`、`/ai-home=308`（重定向到登录页正常）；⑥ **3 端打包**（H5 已 docker 部署生效；小程序 zip `miniprogram_prd420_20260508_173532_91c8.zip` 已 SFTP 上传可下载；Flutter Android APK + iOS IPA 通过 GitHub Actions 远程构建）。
+
+### 改动文件
+- H5 新增：`h5-web/src/components/ai-chat/ConsultTargetPicker.tsx`
+- H5 修改：`h5-web/src/app/(ai-chat)/ai-home/page.tsx`
+- 小程序修改：`miniprogram/pages/chat/index.wxml`、`miniprogram/pages/chat/index.js`、`miniprogram/pages/chat/index.wxss`
+- Flutter 修改：`flutter_app/lib/screens/ai/chat_screen.dart`
+- 后端测试新增：`backend/tests/test_prd420_consult_target_picker.py`
+- 部署/打包脚本：`_deploy_prd420.py`、`_pack_upload_miniprogram_prd420.py`、`_smoke_prd420.py`
+- 用户体验手册：`user_docs/AI对话模式咨询对象选择器_PRD420.md`
+
+### 关键技术决策
+- **公共组件抽取 vs 复制粘贴**：H5 端选择「抽取公共组件 `ConsultTargetPicker`」给 ai-home 使用，老的菜单模式 chat/[sessionId] 页保持不变（避免本次改动影响菜单模式既有体验），未来 PRD 可统一收口
+- **小程序 100% UI 复刻 vs Flutter 跳页轻量集成**：小程序选择 100% UI 复刻（弹层 + 关系九宫格 + 7 字段表单），保持与 H5 一致体验；Flutter 选择「跳健康档案页」的轻量集成方案，复用既有页面规避 Flutter 端重复造表单的高成本——两种方案最终用户体验都是「能在 AI 对话模式新建家庭成员并立即可选」，符合 PRD F2+F3+F4+F7 全部功能要求
+- **F6 默认本人**：进入 `/ai-home` 始终回归「本人」（不记忆上次切到的成员），确保用户每次开局都在最熟悉的上下文，避免上次切到「老婆」后下次进首页一脸懵
+- **F5 5 秒撤销 Toast 而非 confirm 弹窗**：医疗场景对操作流畅性要求高，5 秒撤销 Toast 比阻塞式 confirm 弹窗体验更顺滑；5 秒足够大多数用户反应过来"我点错了"；同时严格保证 AI 上下文隔离（PRD §4.2 安全要求）
+- **后端零改动是工程红利**：PRD F7 已经把数据全部打通，菜单模式和 AI 模式共用同一套接口；本次仅写 13 个契约回归测试以防未来后端改动破坏现有契约
+- **同一关系反复添加允许 + 柔性提示**：用户家庭场景复杂（后妻、再婚、双胞胎），后端不强制拦截；前端 UI 给柔性提示「您已添加过此关系，是否继续？」让用户自决定
+
+### 验证情况
+- 后端容器内 pytest（PRD-420 专项）：`tests/test_prd420_consult_target_picker.py` → **13 passed in 9.06s**
+- 后端容器内 pytest（关键回归）：`test_bug419_chat_sessions.py` + `test_ai_home_config.py` → **36 passed in 22.40s**
+- h5-web docker compose build：86.0s 成功（next build 含完整路由树，ai-home/chat 等均正常）
+- h5-web docker compose up -d：容器 Recreated → Started
+- 远程端到端 smoke（`_smoke_prd420.py`）：T1-T12 共 12 类用例（注册→列出成员→添加老婆→切归属人→撤销 → 添加儿子全字段→F7 数据共享）**全部 OK**
+- 小程序 zip 上传成功：`miniprogram_prd420_20260508_173532_91c8.zip`（336 文件 / 406KB）SFTP HEAD 200
+
+### 用户体验手册
+- `user_docs/AI对话模式咨询对象选择器_PRD420.md`
+
+---
+
+## Previous Update: BUG-419-AI-HOME-WHITESCREEN-AND-SESSION-422-20260508｜AI 对话首页白屏与创建会话 422 一击到底修复（2026-05-08 17:00）
 
 ### 一句话结论
 按 `cursor_prompt_419_20260508164517.txt` 走 develop-all 流程修复 PRD-411 上线后并发出现的两条线上故障：① H5 用户端 `/ai-home` 整页白屏（顶部状态栏外的所有区域：欢迎语/健康小贴士/九宫格/推荐问题/底部输入框 全部不可见）；② 用户在首页输入文字点击发送即提示「创建会话失败」+ 浏览器控制台 422 Unprocessable Entity。**根因双重定位**：(1) H5 `ai-home/page.tsx` 中 `createNewSession` 历史代码把 `family_member_id` 错写成 `member_id` 且完全漏掉 `session_type` → 后端 Pydantic 直接 422（注：这是 PRD-411 之前就存在的问题，但 PRD-411 之前 ai-home 走的是另一套创建会话路径，PRD-411 切到 Tab 化后才暴露）；(2) H5 ai-home 整页使用 `aiHomeConfig.welcome.subtitles` / `.global_switches.welcome_visible` 等深层字段访问，在配置接口任一字段缺失或返回部分配置时直接抛 `Cannot read properties of undefined`，整个 React 子树卸载导致白屏。**修复方案（双向加固，一击到底）**：

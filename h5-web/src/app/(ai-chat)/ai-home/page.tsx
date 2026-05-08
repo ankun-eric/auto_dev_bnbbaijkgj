@@ -9,7 +9,7 @@ import { useAuth } from '@/lib/auth';
 import { createChatSession } from '@/lib/chat-session';
 import Sidebar from '@/components/ai-chat/Sidebar';
 import MoreMenu from '@/components/ai-chat/MoreMenu';
-import ConsultantPicker from '@/components/ai-chat/ConsultantPicker';
+import ConsultTargetPicker, { type FamilyMemberItem } from '@/components/ai-chat/ConsultTargetPicker';
 import RecommendCards from '@/components/ai-chat/RecommendCards';
 import SharePanel from '@/components/ai-chat/SharePanel';
 import SectionErrorBoundary from '@/components/SectionErrorBoundary';
@@ -40,8 +40,8 @@ interface FunctionButton {
 interface FamilyMember {
   id: number;
   nickname: string;
-  relationship_type: string;
-  relation_type_name: string;
+  relationship_type?: string;
+  relation_type_name?: string;
   avatar?: string;
   is_self: boolean;
 }
@@ -339,6 +339,18 @@ export default function AiHomePage() {
   // 同一会话期内固定的随机选择
   const [pickedGreeting, setPickedGreeting] = useState<string>('');
   const [pickedSubtitle, setPickedSubtitle] = useState<string>('');
+
+  // [PRD-420] 切换咨询对象后的「返回上一会话」5 秒撤销栈
+  // 记录切换前的会话 id 与咨询对象，5 秒内点击「返回上一会话」可恢复
+  const [undoSnapshot, setUndoSnapshot] = useState<{
+    sessionId: string | null;
+    consultant: FamilyMemberItem | null;
+    messages: ChatMessage[];
+    expiresAt: number;
+  } | null>(null);
+  const [undoToastVisible, setUndoToastVisible] = useState(false);
+  const [undoToastText, setUndoToastText] = useState('');
+  const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const recommendQuestions = (aiHomeConfig.recommended_questions || [])
     .filter((q) => q.enabled)
@@ -995,6 +1007,96 @@ export default function AiHomePage() {
     abortRef.current?.abort();
   }, []);
 
+  // [PRD-420 F5] 切换咨询对象后的会话处理
+  // 总策略：自动新建会话 + 用户体验增强（含 5 秒「返回上一会话」撤销栈）
+  const handleConsultantSelect = useCallback(async (member: FamilyMemberItem | null) => {
+    // 静默打断当前流式响应
+    abortRef.current?.abort();
+
+    const prevSessionId = sessionId;
+    const prevConsultant = selectedConsultant;
+    const prevMessages = messages;
+    const targetName = member ? member.nickname : '本人';
+    const relationLabel = member
+      ? (member.relation_type_name || member.relationship_type || '家庭成员')
+      : '本人';
+    const displayLabel = member ? `${relationLabel} · ${targetName}` : '本人';
+
+    // 立即更新选中咨询对象
+    setSelectedConsultant(member);
+
+    const hasMessages = prevMessages.length > 0;
+    if (!hasMessages) {
+      // F5-1：当前会话尚未发出过任何消息（空会话）→ 直接复用，不弹 Toast、不新建
+      // 仅把当前会话归属人切换为新选定的对象（若已有 sessionId 则调用 switch-member 接口）
+      if (prevSessionId) {
+        try {
+          await api.post(`/api/chat/sessions/${prevSessionId}/switch-member`, {
+            family_member_id: member ? member.id : null,
+          });
+        } catch {
+          // 静默吞掉失败：因为还没消息，下一次发送会自动按新选的对象创建会话
+        }
+      }
+      return;
+    }
+
+    // F5-2：非空会话 → 自动新建会话归属新对象
+    setMessages([]);
+    setSessionId(null);
+    setLastMsgTime(0);
+
+    const res = await createChatSession({
+      session_type: 'health_qa',
+      family_member_id: member ? member.id : undefined,
+    });
+    if (res.ok && res.sessionId) {
+      setSessionId(res.sessionId);
+    }
+
+    // F5-2：弹出 Toast + 「返回上一会话」轻按钮（5 秒）
+    const expiresAt = Date.now() + 5000;
+    setUndoSnapshot({
+      sessionId: prevSessionId,
+      consultant: prevConsultant,
+      messages: prevMessages,
+      expiresAt,
+    });
+    setUndoToastText(`已为「${displayLabel}」开启新会话，原会话已保存到历史`);
+    setUndoToastVisible(true);
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+    undoTimerRef.current = setTimeout(() => {
+      setUndoToastVisible(false);
+      setUndoSnapshot(null);
+    }, 5000);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId, selectedConsultant, messages]);
+
+  // [PRD-420 F5-2] 「返回上一会话」按钮点击：恢复原会话与原咨询对象
+  const handleUndoSwitch = useCallback(() => {
+    if (!undoSnapshot || Date.now() > undoSnapshot.expiresAt) return;
+    setSessionId(undoSnapshot.sessionId);
+    setSelectedConsultant(undoSnapshot.consultant);
+    setMessages(undoSnapshot.messages);
+    setUndoToastVisible(false);
+    setUndoSnapshot(null);
+    if (undoTimerRef.current) {
+      clearTimeout(undoTimerRef.current);
+      undoTimerRef.current = null;
+    }
+  }, [undoSnapshot]);
+
+  // [PRD-420 F6] 进入页面默认咨询对象为「本人」（不读取上次选择，不与菜单模式联动）
+  useEffect(() => {
+    setSelectedConsultant(null);
+    return () => {
+      if (undoTimerRef.current) {
+        clearTimeout(undoTimerRef.current);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleSelectSession = useCallback(async (sid: string) => {
     setMessages([]);
     setSessionId(sid);
@@ -1028,7 +1130,12 @@ export default function AiHomePage() {
   };
   const renderFamilyPillText = (): string => {
     const tpl = aiHomeConfig.input?.family_consult?.template || '为({name})咨询';
-    const name = selectedConsultant?.nickname || '本人';
+    // [PRD-420 F1] 按钮文案随当前咨询对象动态变化：本人 / 儿子·苏俊林 / 老婆·朱
+    let name = '本人';
+    if (selectedConsultant) {
+      const rel = selectedConsultant.relation_type_name || selectedConsultant.relationship_type;
+      name = rel ? `${rel}·${selectedConsultant.nickname}` : selectedConsultant.nickname;
+    }
     return tpl.replace('{name}', name);
   };
 
@@ -1556,12 +1663,57 @@ export default function AiHomePage() {
         onClose={() => setMoreMenuOpen(false)}
         onShare={() => setShareOpen(true)}
       />
-      <ConsultantPicker
+      <ConsultTargetPicker
         visible={consultantOpen}
         onClose={() => setConsultantOpen(false)}
-        onSelect={setSelectedConsultant}
+        currentMemberId={selectedConsultant ? selectedConsultant.id : null}
+        onSelect={(m) => {
+          setConsultantOpen(false);
+          handleConsultantSelect(m);
+        }}
       />
       <SharePanel visible={shareOpen} onClose={() => setShareOpen(false)} />
+
+      {/* [PRD-420 F5-2] 切换会话 Toast + 「返回上一会话」5 秒轻按钮 */}
+      {undoToastVisible && undoSnapshot && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 60,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 1000,
+            background: 'rgba(0,0,0,0.85)',
+            color: '#fff',
+            borderRadius: 10,
+            padding: '10px 16px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            maxWidth: '90%',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+          }}
+          data-testid="consult-switch-toast"
+        >
+          <span style={{ fontSize: 13, lineHeight: 1.4 }}>{undoToastText}</span>
+          <button
+            onClick={handleUndoSwitch}
+            style={{
+              background: 'transparent',
+              color: '#5ED963',
+              border: '1px solid #5ED963',
+              borderRadius: 16,
+              padding: '4px 10px',
+              fontSize: 12,
+              cursor: 'pointer',
+              flexShrink: 0,
+            }}
+            data-testid="consult-switch-undo-btn"
+          >
+            返回上一会话
+          </button>
+        </div>
+      )}
 
       <style jsx global>{`
         @keyframes blink {

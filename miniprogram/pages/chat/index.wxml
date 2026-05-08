@@ -283,7 +283,7 @@
     </view>
   </view>
 
-  <!-- 咨询对象选择浮层 -->
+  <!-- 咨询对象选择浮层（PRD-420 升级：新增"+ 新建家庭成员"入口） -->
   <view class="target-picker-mask" wx:if="{{showTargetPicker}}" catchtap="toggleTargetPicker"></view>
   <view class="target-picker" wx:if="{{showTargetPicker}}">
     <view class="target-option" wx:for="{{familyMembers}}" wx:key="id" bindtap="onSelectTarget" data-member="{{item}}">
@@ -291,6 +291,106 @@
         <text class="target-avatar-text-small">{{item.name}}</text>
       </view>
       <text class="target-option-check" wx:if="{{consultTarget.name === item.name}}">✓</text>
+    </view>
+    <!-- PRD-420 F2 末行：新建家庭成员入口 -->
+    <view class="target-option target-option-add" bindtap="openAddMemberPopup">
+      <view class="target-avatar-small" style="background: #52c41a;">
+        <text class="target-avatar-text-small">+</text>
+      </view>
+      <text class="target-option-add-label">新建家庭成员</text>
+    </view>
+  </view>
+
+  <!-- PRD-420 F3 + F4：添加家庭成员弹层（关系九宫格 + 信息表单） -->
+  <view class="add-member-mask" wx:if="{{showAddMember}}" catchtap="closeAddMemberPopup"></view>
+  <view class="add-member-popup" wx:if="{{showAddMember}}">
+    <view class="add-member-header">
+      <text class="add-member-title">添加家庭成员</text>
+      <text class="add-member-close" catchtap="closeAddMemberPopup">×</text>
+    </view>
+
+    <view class="add-member-section">
+      <text class="add-member-section-title">选择关系</text>
+      <view class="relation-grid">
+        <view
+          class="relation-card {{selectedRelation && selectedRelation.id === item.id ? 'relation-card-selected' : ''}}"
+          wx:for="{{relationTypes}}"
+          wx:key="id"
+          bindtap="onSelectRelation"
+          data-rt="{{item}}"
+        >
+          <text class="relation-emoji">{{item.emoji}}</text>
+          <text class="relation-name">{{item.name}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="add-member-form" wx:if="{{selectedRelation}}">
+      <view class="add-form-title">填写{{selectedRelation.name}}信息</view>
+
+      <view class="form-row">
+        <text class="form-label">姓名 <text class="form-required">*</text></text>
+        <input class="form-input" placeholder="请输入姓名（1~20字）" value="{{addForm.nickname}}" bindinput="onAddInput" data-field="nickname" maxlength="20" />
+      </view>
+
+      <view class="form-row">
+        <text class="form-label">性别 <text class="form-required">*</text></text>
+        <view class="form-gender">
+          <view class="gender-btn {{addForm.gender === 'male' ? 'gender-btn-active' : ''}}" bindtap="onSelectGender" data-gender="male">男</view>
+          <view class="gender-btn {{addForm.gender === 'female' ? 'gender-btn-active' : ''}}" bindtap="onSelectGender" data-gender="female">女</view>
+        </view>
+      </view>
+
+      <view class="form-row">
+        <text class="form-label">出生日期 <text class="form-required">*</text></text>
+        <picker mode="date" value="{{addForm.birthday}}" start="1900-01-01" end="{{todayStr}}" bindchange="onPickBirthday">
+          <view class="form-input form-input-picker">
+            <text class="{{addForm.birthday ? '' : 'form-input-placeholder'}}">{{addForm.birthday || '请选择出生日期'}}</text>
+            <text class="form-arrow">📅</text>
+          </view>
+        </picker>
+      </view>
+
+      <view class="form-row form-row-flex">
+        <view class="form-col">
+          <text class="form-label">身高 (cm)</text>
+          <input class="form-input" type="number" placeholder="如：170" value="{{addForm.height}}" bindinput="onAddInput" data-field="height" />
+        </view>
+        <view class="form-col">
+          <text class="form-label">体重 (kg)</text>
+          <input class="form-input" type="digit" placeholder="如：65" value="{{addForm.weight}}" bindinput="onAddInput" data-field="weight" />
+        </view>
+      </view>
+
+      <view class="form-row">
+        <text class="form-label">既往病史</text>
+        <view class="tag-list">
+          <view
+            class="form-tag {{addForm.medicalHistories.indexOf(item) >= 0 ? 'form-tag-active' : ''}}"
+            wx:for="{{medicalOptions}}"
+            wx:key="*this"
+            bindtap="onToggleMedical"
+            data-opt="{{item}}"
+          >{{item}}</view>
+        </view>
+        <input class="form-input" placeholder="其他病史（可选）" value="{{addForm.medicalOther}}" bindinput="onAddInput" data-field="medicalOther" />
+      </view>
+
+      <view class="form-row">
+        <text class="form-label">过敏史</text>
+        <view class="tag-list">
+          <view
+            class="form-tag {{addForm.allergies.indexOf(item) >= 0 ? 'form-tag-active' : ''}}"
+            wx:for="{{allergyOptions}}"
+            wx:key="*this"
+            bindtap="onToggleAllergy"
+            data-opt="{{item}}"
+          >{{item}}</view>
+        </view>
+        <input class="form-input" placeholder="其他过敏史（可选）" value="{{addForm.allergyOther}}" bindinput="onAddInput" data-field="allergyOther" />
+      </view>
+
+      <button class="add-save-btn {{canSaveMember ? '' : 'add-save-btn-disabled'}}" disabled="{{!canSaveMember}}" bindtap="onSaveNewMember">{{addLoading ? '保存中...' : '保存'}}</button>
     </view>
   </view>
 

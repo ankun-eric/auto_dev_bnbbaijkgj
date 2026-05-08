@@ -93,7 +93,28 @@ Page({
     ocrDetailExpanded: false,
     ocrDetailLoaded: false,
     ocrDetailLoading: false,
-    ocrDetailText: ''
+    ocrDetailText: '',
+
+    // [PRD-420 2026-05-08] 添加家庭成员弹层（与 H5 ConsultTargetPicker 对齐）
+    showAddMember: false,
+    relationTypes: [],
+    selectedRelation: null,
+    addForm: {
+      nickname: '',
+      gender: '',
+      birthday: '',
+      height: '',
+      weight: '',
+      medicalHistories: [],
+      medicalOther: '',
+      allergies: [],
+      allergyOther: ''
+    },
+    addLoading: false,
+    canSaveMember: false,
+    todayStr: '',
+    medicalOptions: ['高血压', '糖尿病', '心脏病', '哮喘', '甲状腺疾病', '肝病', '肾病', '痛风'],
+    allergyOptions: ['青霉素', '花粉', '海鲜', '牛奶', '尘螨', '坚果', '磺胺类', '头孢类']
   },
 
   _recognizeManager: null,
@@ -1282,6 +1303,208 @@ Page({
       consultTarget: { name: member.name, color: member.color },
       showTargetPicker: false
     });
+  },
+
+  // ============================================================
+  // [PRD-420 2026-05-08] 添加家庭成员（关系九宫格 + 信息表单）
+  // ============================================================
+  async openAddMemberPopup() {
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    this.setData({
+      showAddMember: true,
+      showTargetPicker: false,
+      selectedRelation: null,
+      todayStr,
+      addForm: {
+        nickname: '',
+        gender: '',
+        birthday: '',
+        height: '',
+        weight: '',
+        medicalHistories: [],
+        medicalOther: '',
+        allergies: [],
+        allergyOther: ''
+      },
+      canSaveMember: false
+    });
+    await this._loadRelationTypes();
+  },
+
+  closeAddMemberPopup() {
+    if (this._isAddFormDirty()) {
+      const that = this;
+      wx.showModal({
+        title: '确认离开？',
+        content: '未保存的内容将丢失',
+        confirmText: '确认离开',
+        cancelText: '取消',
+        success: (res) => {
+          if (res.confirm) {
+            that.setData({ showAddMember: false, selectedRelation: null });
+          }
+        }
+      });
+      return;
+    }
+    this.setData({ showAddMember: false, selectedRelation: null });
+  },
+
+  _isAddFormDirty() {
+    const f = this.data.addForm;
+    return !!(
+      this.data.selectedRelation ||
+      (f.nickname && f.nickname.trim()) ||
+      f.gender ||
+      f.birthday ||
+      f.height ||
+      f.weight ||
+      (f.medicalHistories && f.medicalHistories.length) ||
+      f.medicalOther ||
+      (f.allergies && f.allergies.length) ||
+      f.allergyOther
+    );
+  },
+
+  async _loadRelationTypes() {
+    try {
+      const res = await get('/api/relation-types', {}, { showLoading: false, suppressErrorToast: true });
+      const items = (res && res.items) ? res.items : (Array.isArray(res) ? res : []);
+      const RELATION_EMOJI = {
+        '本人': '👤', '爸爸': '👨', '妈妈': '👩', '老公': '🧑', '老婆': '👰',
+        '儿子': '👦', '女儿': '👧', '哥哥': '👱‍♂️', '弟弟': '🧑',
+        '姐姐': '👱‍♀️', '妹妹': '👧', '爷爷': '👴', '奶奶': '👵',
+        '外公': '👴', '外婆': '👵', '其他': '🧑'
+      };
+      const list = items
+        .filter((rt) => rt && rt.name !== '本人')
+        .map((rt) => Object.assign({}, rt, { emoji: RELATION_EMOJI[rt.name] || '🧑' }));
+      this.setData({ relationTypes: list });
+    } catch (e) {
+      this.setData({ relationTypes: [] });
+    }
+  },
+
+  onSelectRelation(e) {
+    const rt = e.currentTarget.dataset.rt;
+    const cur = this.data.selectedRelation;
+    // 再次点击同一关系即取消
+    if (cur && cur.id === rt.id) {
+      this.setData({ selectedRelation: null });
+    } else {
+      this.setData({ selectedRelation: rt });
+    }
+    this._refreshCanSave();
+  },
+
+  onAddInput(e) {
+    const field = e.currentTarget.dataset.field;
+    const value = e.detail.value;
+    const addForm = Object.assign({}, this.data.addForm, { [field]: value });
+    this.setData({ addForm });
+    this._refreshCanSave();
+  },
+
+  onSelectGender(e) {
+    const gender = e.currentTarget.dataset.gender;
+    this.setData({ addForm: Object.assign({}, this.data.addForm, { gender }) });
+    this._refreshCanSave();
+  },
+
+  onPickBirthday(e) {
+    this.setData({ addForm: Object.assign({}, this.data.addForm, { birthday: e.detail.value }) });
+    this._refreshCanSave();
+  },
+
+  onToggleMedical(e) {
+    const opt = e.currentTarget.dataset.opt;
+    const list = (this.data.addForm.medicalHistories || []).slice();
+    const idx = list.indexOf(opt);
+    if (idx >= 0) list.splice(idx, 1);
+    else list.push(opt);
+    this.setData({ addForm: Object.assign({}, this.data.addForm, { medicalHistories: list }) });
+  },
+
+  onToggleAllergy(e) {
+    const opt = e.currentTarget.dataset.opt;
+    const list = (this.data.addForm.allergies || []).slice();
+    const idx = list.indexOf(opt);
+    if (idx >= 0) list.splice(idx, 1);
+    else list.push(opt);
+    this.setData({ addForm: Object.assign({}, this.data.addForm, { allergies: list }) });
+  },
+
+  _refreshCanSave() {
+    const rel = this.data.selectedRelation;
+    const f = this.data.addForm;
+    const ok = !!(
+      rel &&
+      f.nickname && f.nickname.trim() &&
+      f.gender &&
+      f.birthday
+    );
+    this.setData({ canSaveMember: ok });
+  },
+
+  async onSaveNewMember() {
+    if (!this.data.canSaveMember || this.data.addLoading) return;
+    const rel = this.data.selectedRelation;
+    const f = this.data.addForm;
+
+    const nickname = (f.nickname || '').trim();
+    if (nickname.length < 1 || nickname.length > 20) {
+      wx.showToast({ title: '姓名为 1~20 个字符', icon: 'none' });
+      return;
+    }
+    if (f.height) {
+      const h = Number(f.height);
+      if (!isFinite(h) || h < 30 || h > 250) {
+        wx.showToast({ title: '身高范围 30~250cm', icon: 'none' });
+        return;
+      }
+    }
+    if (f.weight) {
+      const w = Number(f.weight);
+      if (!isFinite(w) || w < 1 || w > 500) {
+        wx.showToast({ title: '体重范围 1~500kg', icon: 'none' });
+        return;
+      }
+    }
+
+    this.setData({ addLoading: true });
+    const body = {
+      nickname,
+      name: nickname,
+      relationship_type: rel.name,
+      relation_type_id: rel.id,
+      gender: f.gender,
+      birthday: f.birthday
+    };
+    if (f.height) body.height = Number(f.height);
+    if (f.weight) body.weight = Number(f.weight);
+    const med = (f.medicalHistories || []).slice();
+    if (f.medicalOther && f.medicalOther.trim()) med.push(f.medicalOther.trim());
+    if (med.length) body.medical_histories = med;
+    const aller = (f.allergies || []).slice();
+    if (f.allergyOther && f.allergyOther.trim()) aller.push(f.allergyOther.trim());
+    if (aller.length) body.allergies = aller;
+
+    try {
+      await post('/api/family/members', body, { showLoading: false });
+      wx.showToast({ title: '添加成功', icon: 'success' });
+      // 刷新列表 + 自动选中新成员
+      await this.loadFamilyMembers();
+      this.setData({
+        showAddMember: false,
+        selectedRelation: null,
+        addLoading: false,
+        consultTarget: { name: rel.name, color: getRelationColor(rel.name) }
+      });
+    } catch (e) {
+      this.setData({ addLoading: false });
+      wx.showToast({ title: '添加失败，请重试', icon: 'none' });
+    }
   },
 
   // ========================

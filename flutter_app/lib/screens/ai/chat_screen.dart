@@ -1895,7 +1895,16 @@ class _ChatScreenState extends State<ChatScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('选择咨询对象', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('切换咨询对象', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  GestureDetector(
+                    onTap: () => Navigator.pop(ctx),
+                    child: const Icon(Icons.close, color: Color(0xFF999999), size: 22),
+                  ),
+                ],
+              ),
               const SizedBox(height: 16),
               Wrap(
                 spacing: 12,
@@ -1928,6 +1937,35 @@ class _ChatScreenState extends State<ChatScreen> {
                     ),
                   );
                 }).toList(),
+              ),
+              const SizedBox(height: 16),
+              // [PRD-420 F2] 新建家庭成员入口（与 H5/小程序对齐）：跳转到健康档案页面新增成员
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(top: 4),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF6FFED),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFF52C41A), width: 1),
+                ),
+                child: GestureDetector(
+                  onTap: () async {
+                    Navigator.pop(ctx);
+                    // 跳转到健康档案页面（含成员列表与新增入口）
+                    await Navigator.pushNamed(context, '/health-profile');
+                    // 返回后刷新列表，确保新增的成员立即出现在选择器里
+                    await _loadFamilyMembers();
+                  },
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.add, color: Color(0xFF52C41A), size: 18),
+                      SizedBox(width: 6),
+                      Text('新建家庭成员', style: TextStyle(color: Color(0xFF52C41A), fontSize: 13, fontWeight: FontWeight.w500)),
+                    ],
+                  ),
+                ),
               ),
               const SizedBox(height: 16),
             ],
