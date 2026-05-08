@@ -9,8 +9,8 @@
  * 被 React 卸载，从而避免"422 → 整页白屏"事故。
  *
  * 使用：
- *   <SectionErrorBoundary name="recommend">
- *     <RecommendCards ... />
+ *   <SectionErrorBoundary name="welcome">
+ *     <WelcomeBanner ... />
  *   </SectionErrorBoundary>
  */
 import React from 'react';

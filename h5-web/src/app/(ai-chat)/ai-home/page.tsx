@@ -10,7 +10,7 @@ import { createChatSession } from '@/lib/chat-session';
 import Sidebar from '@/components/ai-chat/Sidebar';
 import MoreMenu from '@/components/ai-chat/MoreMenu';
 import ConsultTargetPicker, { type FamilyMemberItem } from '@/components/ai-chat/ConsultTargetPicker';
-import RecommendCards from '@/components/ai-chat/RecommendCards';
+// [PRD-426] 已移除 RecommendCards：原仅服务于"+ 选择咨询人"浮层；首页推荐问改用常驻横向胶囊（见下方 recommended 区块）
 import SharePanel from '@/components/ai-chat/SharePanel';
 import SectionErrorBoundary from '@/components/SectionErrorBoundary';
 import DraggablePunchCard from '@/components/ai-chat/DraggablePunchCard';
@@ -326,7 +326,7 @@ export default function AiHomePage() {
   const [funcButtons, setFuncButtons] = useState<FunctionButton[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
-  const [inputFocused, setInputFocused] = useState(false);
+  // [PRD-426] 已移除 inputFocused 状态：原仅用于控制"+ 选择咨询人"浮层显隐，浮层删除后无需此状态
   const [sending, setSending] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [hasHealthTask, setHasHealthTask] = useState(false);
@@ -1671,21 +1671,7 @@ export default function AiHomePage() {
           paddingBottom: 'calc(12px + env(safe-area-inset-bottom))',
         }}
       >
-        {inputFocused && !inputValue && !hasConversation && (
-          <div className="mb-2 space-y-2">
-            <div
-              className="flex items-center gap-2 px-3 py-2 rounded-xl cursor-pointer"
-              style={{ background: THEME.primaryLight }}
-              onClick={() => setConsultantOpen(true)}
-            >
-              <span className="text-sm">👤</span>
-              <span className="text-xs" style={{ color: THEME.primary }}>
-                {selectedConsultant ? `咨询人：${selectedConsultant.nickname}` : '+ 选择咨询人'}
-              </span>
-            </div>
-            <RecommendCards items={recommendQuestions} onSelect={handleSend} />
-          </div>
-        )}
+        {/* [PRD-426] 删除输入框上方"+ 选择咨询人"浮层（含其内嵌的 RecommendCards 推荐题），底部"为(XX)咨询 ⇄"作为唯一咨询人切换入口 */}
 
         {voiceMode && voiceSupported ? (
           <div className="flex items-center gap-3">
@@ -1755,8 +1741,7 @@ export default function AiHomePage() {
                 placeholder={aiHomeConfig.input?.placeholder || '发消息或按住说话...'}
                 value={inputValue}
                 onChange={handleTextareaInput}
-                onFocus={() => setInputFocused(true)}
-                onBlur={() => setTimeout(() => setInputFocused(false), 200)}
+                /* [PRD-426] 已移除 onFocus/onBlur 监听：原用于"+ 选择咨询人"浮层显隐控制，浮层删除后输入框聚焦不再触发任何浮层逻辑 */
                 onKeyDown={e => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();

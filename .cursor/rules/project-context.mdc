@@ -33,7 +33,44 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: PRD-423-AI-CHAT-V11-EVT-AND-COLDSTART-20260508｜AI 对话页 v1.1 埋点全量补齐 + 冷启动提示（2026-05-08 21:37）
+## Latest Update: PRD-426-AI-HOME-REMOVE-CONSULTANT-PICKER-FLOATING-LAYER-20260508｜AI 对话首页 — 删除"+ 选择咨询人"浮层（2026-05-08 22:25）
+
+### 一句话结论
+按 `cursor_prompt_426_20260508221743.txt` 走 develop-all 流程交付 PRD-426 v1.0：彻底删除 H5 用户端 AI 对话首页（`/ai-home`）中输入框聚焦时上方浮出的 `[👤] + 选择咨询人` 浮层，简化输入区交互，统一以页面顶部胶囊「为(本人)咨询 ⇄」作为唯一咨询人切换入口；底部胶囊背后的能力（家庭成员列表 + 新建家庭成员）完全保留（来自 PRD-420 的 ConsultTargetPicker）。**经全量代码核查，被删除的「输入框上方浮层」UI 仅存在于 H5 端 `ai-home/page.tsx` 第 1674-1688 行；小程序 `pages/chat/index` 与 Flutter `screens/ai/chat_screen.dart` 中均不存在此类浮层（小程序与 Flutter 切换咨询对象的入口本就只有底部胶囊+抽屉，不存在"输入框聚焦上浮"的浮层），因此本次为单端（H5）纯前端改动，小程序/安卓/iOS 三端零变动。**
+
+### 改动文件
+- H5 修改：`h5-web/src/app/(ai-chat)/ai-home/page.tsx`（删除浮层 UI 块、删除 `inputFocused` state、删除 textarea 的 `onFocus/onBlur` 监听、删除 `RecommendCards` import — 浮层中的 RecommendCards 组件实例与首页常驻推荐题区域（行 1473）独立，常驻区采用内联手写，不受影响）
+- H5 删除：`h5-web/src/components/ai-chat/ConsultantPicker.tsx`（旧浮层组件，已无任何 import 引用）
+- H5 删除：`h5-web/src/components/ai-chat/RecommendCards.tsx`（仅服务于该浮层，删除后首页常驻推荐题区域（内联手写）继续工作）
+- H5 修改：`h5-web/src/components/SectionErrorBoundary.tsx`（注释中 `<RecommendCards />` 示例改为 `<WelcomeBanner />`，因 RecommendCards 已删除）
+- 部署脚本：`_deploy_prd426.py`（SCP + 服务器侧 rm 删除两个废弃组件 + docker compose up -d --no-deps --build h5-web + smoke + 构建产物字符串扫描）
+- smoke 脚本：`_smoke_prd426.py`（HTTPS 5 路由 + 3 路径 HTML 正文中"+ 选择咨询人"文案不存在 断言）
+- 远程 pytest 脚本：`_remote_pytest_prd426.py`（容器内运行 PRD-420 + Bug-419 + ai_home_config 三套关键回归 49 用例）
+- 用户体验手册：`user_docs/AI对话首页删除选择咨询人浮层.md`
+
+### 关键技术决策
+- **三端 PRD 但实际仅 H5 一端有改动**：PRD §2.1 描述"覆盖三端"，但代码全量核查发现"输入框上方浮层"仅在 H5 端存在；小程序 `pages/chat/index.wxml` 输入区只有底部 `consult-target-btn` + 弹层（无聚焦时上浮的浮层），Flutter `chat_screen.dart` 输入区也只有左侧的 36×36 圆形头像（GestureDetector → `_showConsultTargetPicker`，无聚焦时上浮的浮层）。本次坚持「最小改动」原则——已经不存在的浮层无需"防御性删除"，避免在没有问题的端引入新风险
+- **RecommendCards 一并清理**：浮层 UI 块中除了"+ 选择咨询人"还嵌套了一个 `<RecommendCards items={recommendQuestions} onSelect={handleSend} />`；首页常驻的推荐题区域（行 1473）使用的是**内联手写横向滚动胶囊**而不是 RecommendCards 组件，所以 RecommendCards 这个组件文件本质上**只服务于本次要删的浮层**。按 PRD §4.1 "彻底清理力度——仅服务该浮层的组件文件整体删除"原则一并删除
+- **inputFocused state 与监听器一并清理**：`inputFocused` 在改动前唯二的引用是浮层显隐条件（行 1674）和 textarea 的 `onFocus/onBlur` 设置（行 1758-1759），删除浮层后该 state 没有任何其他用途，按 PRD §4.1 "本地状态全部移除"原则一并清理
+- **底部胶囊「为(本人)咨询 ⇄」+ ConsultTargetPicker 抽屉完全保留**：PRD §3.3 明确要求保留底部入口的全部能力（点击展开 + 切换家庭成员 + 添加成员入口 + 文案/称呼/上下文联动），本次不动这部分代码
+- **后端零改动**：PRD §4.3 "切换咨询人 API/数据结构/消息体格式保持不变"——后端 `/api/family/members` 与 `/api/chat/sessions` 接口与数据结构与改动前完全一致；为防御未来回归，特意运行 PRD-420（13 用例，咨询对象选择器契约）+ Bug-419（26 用例，chat session 创建契约）+ ai_home_config（10 用例，AI 首页配置接口契约）三套关键回归，**全部 49 passed**
+- **埋点字典无浮层专属事件**：核查 `h5-web/src/lib/analytics.ts` 中 `AI_CHAT_EVENTS`（PRD-423 v1.1 共 10 个事件）与本浮层均无关联（无浮层曝光埋点、无 + 选择咨询人点击埋点），无需清理任何埋点字典条目
+
+### 验证情况
+- TypeScript 类型检查（H5 项目）：本次改动所涉文件 (`ai-home/page.tsx` / `SectionErrorBoundary.tsx`) **无新增 TS 错误**；项目历史遗留的 TS 错误（如 `cards/redeem-code/[id]/page.tsx` GreenNavBarProps 等）与本次改动无关
+- h5-web docker compose build：61.6s 成功（next build → Compiled successfully → Generating static pages 111/111），ai-home 路由 23.7 kB（与改动前 24+ kB 相比略小，符合"删除代码"预期）
+- h5-web docker compose up -d：容器 Recreated → Up Less than a second
+- 服务器侧远程 smoke（HTTPS 8 项）：H5 root 200 / ai-home 308（重定向到登录页正常）/ login 308 / api/health 200 / api/ai-home-config 200（2842 字节正常返回）/ 三个路径 HTML 正文中均**不再含「+ 选择咨询人」文案**
+- 服务器侧 docker exec grep 关键断言：`grep -r "选择咨询人" /app/.next/server /app/.next/static` → 空结果（构建产物中浮层文案彻底消失）
+- 后端容器内 pytest 三套关键回归：PRD-420（咨询对象选择器） **13 passed in 9.00s** + Bug-419（chat session 创建） **26 passed in 16.86s** + ai_home_config **10 passed in 6.37s** = **总计 49 passed**，零回归
+- 已修复行为预期（产品/测试同学回归）：AC-01 进入 ai-home 初始态无浮层 / AC-02 PC hover 输入框无浮层 / AC-03 移动端触控聚焦无浮层 / AC-04 滚动页面任何时刻无浮层 / AC-05 底部胶囊「为(本人)咨询 ⇄」可正常展开切换抽屉、可切换、可"添加成员" / AC-06 输入文字发送 AI 正常回复 / AC-07 DOM 中无相关节点 / AC-08 三端代码扫描已彻底清理
+
+### 用户体验手册
+- `user_docs/AI对话首页删除选择咨询人浮层.md`
+
+---
+
+## Previous Update: PRD-423-AI-CHAT-V11-EVT-AND-COLDSTART-20260508｜AI 对话页 v1.1 埋点全量补齐 + 冷启动提示（2026-05-08 21:37）
 
 ### 一句话结论
 按 `cursor_prompt_423_20260508212244.txt` 走 develop-all 流程交付 PRD v1.1 三个核心增量：
