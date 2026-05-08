@@ -203,6 +203,9 @@ App({
     isLoggedIn: false,
     fontLevel: '',
     brandLogoUrl: '',
-    subscribeTemplateIds: []
+    subscribeTemplateIds: [],
+    // [BUG-FIX-RESCHEDULE-POPUP-AUTO-CLOSE v1.0]
+    // 当顾客在订单详情页改约/预约成功后置 true，订单列表页 onShow 时检测并强制刷新
+    unifiedOrdersNeedRefresh: false
   }
 });

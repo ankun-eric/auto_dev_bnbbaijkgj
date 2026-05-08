@@ -9,6 +9,8 @@ import '../../utils/price_formatter.dart';
 import '../../utils/fulfillment_label.dart';
 // [双重身份用户 H5 顾客端改约失败 Bug 修复 v1.0]
 import '../../utils/reschedule_error.dart';
+// [BUG-FIX-RESCHEDULE-POPUP-AUTO-CLOSE v1.0] 改约成功通知订单列表刷新
+import '../../utils/unified_orders_refresh_notifier.dart';
 // [2026-05-05 订单页地址导航按钮 PRD v1.0]
 import '../../widgets/address_nav_button.dart';
 import 'contact_store_sheet.dart';
@@ -1052,6 +1054,10 @@ class _UnifiedOrderDetailScreenState extends State<UnifiedOrderDetailScreen> {
                         'appointment_data': appointmentData,
                       },
                     );
+                    // [BUG-FIX-RESCHEDULE-POPUP-AUTO-CLOSE v1.0]
+                    // 改约/预约成功：① 立即关闭弹窗，pop 返回 true（外层据此触发 SnackBar + 重新加载详情）；
+                    // ② 通知 unifiedOrdersNeedRefresh 全局信号，订单列表页监听到后刷新。
+                    UnifiedOrdersRefreshNotifier.instance.markNeedsRefresh();
                     if (ctx2.mounted) Navigator.pop(ctx2, true);
                   } catch (e) {
                     // [双重身份用户 H5 顾客端改约失败 Bug 修复 v1.0]
@@ -1075,7 +1081,16 @@ class _UnifiedOrderDetailScreenState extends State<UnifiedOrderDetailScreen> {
     );
 
     if (result == true && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('预约成功')));
+      // [BUG-FIX-RESCHEDULE-POPUP-AUTO-CLOSE v1.0]
+      // Toast 与弹窗关闭"同时"进行（弹窗已在确认按钮回调里 pop，
+      // 这里 pop 后立刻 showSnackBar 在视觉上等价于「同一时刻出现 Toast」）。
+      // 文案区分：改约场景 → 「改约成功」；首次预约 → 「预约成功」。
+      final bool wasReschedule = o.items.any(
+        (it) => (it.appointmentTime ?? '').isNotEmpty,
+      );
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(wasReschedule ? '改约成功' : '预约成功')),
+      );
       _loadOrder(o.id);
     }
   }

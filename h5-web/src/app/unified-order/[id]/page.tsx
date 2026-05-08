@@ -325,8 +325,21 @@ export default function UnifiedOrderDetailPage() {
         appointment_time: `${dateStr}T${startTime}:00`,
         appointment_data: appointmentData,
       });
-      Toast.show({ content: '预约成功' });
+      // [BUG-FIX-RESCHEDULE-POPUP-AUTO-CLOSE v1.0] 改约/预约成功：
+      // 1) 立即关闭弹窗（先于 Toast，保证「弹窗 0 延迟消失」）
+      // 2) Toast 与弹窗关闭同时进行；按场景区分文案：改约用「改约成功」，首次预约用「预约成功」
+      // 3) 写 localStorage 标志，触发订单列表页 onShow / pageshow 时强制刷新
+      // 4) 详情页本身刷新
+      const isReschedule = !!(currentItem?.appointment_time);
       setShowAppointmentPopup(false);
+      Toast.show({ content: isReschedule ? '改约成功' : '预约成功' });
+      try {
+        if (typeof window !== 'undefined') {
+          window.localStorage.setItem('bini_unified_orders_need_refresh', String(Date.now()));
+        }
+      } catch {
+        /* localStorage 不可用时静默忽略，不影响主流程 */
+      }
       fetchOrder();
     } catch (err: any) {
       // [双重身份用户 H5 顾客端改约失败 Bug 修复 v1.0]

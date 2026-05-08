@@ -158,6 +158,43 @@ function UnifiedOrdersPage() {
     fetchOrders(1, true);
   }, [fetchOrders]);
 
+  // [BUG-FIX-RESCHEDULE-POPUP-AUTO-CLOSE v1.0]
+  // 当顾客在订单详情页改约/预约成功后，会写 localStorage 标志，列表页在以下时机检测并强制刷新：
+  // 1) pageshow：浏览器返回（含 BFCache 命中）时触发，覆盖 H5 路由 router.back() 与浏览器后退
+  // 2) visibilitychange：页面从后台切回前台
+  // 3) focus：窗口重新获得焦点（兜底）
+  useEffect(() => {
+    const REFRESH_KEY = 'bini_unified_orders_need_refresh';
+    const checkAndRefresh = () => {
+      try {
+        const flag = window.localStorage.getItem(REFRESH_KEY);
+        if (flag) {
+          window.localStorage.removeItem(REFRESH_KEY);
+          setLoading(true);
+          setPage(1);
+          fetchOrders(1, true);
+        }
+      } catch {
+        /* localStorage 不可用时静默忽略 */
+      }
+    };
+    const onPageShow = () => checkAndRefresh();
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') checkAndRefresh();
+    };
+    const onFocus = () => checkAndRefresh();
+    window.addEventListener('pageshow', onPageShow);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    window.addEventListener('focus', onFocus);
+    // 进入页面时也检测一次（覆盖 SPA 同窗口路由切换的情况）
+    checkAndRefresh();
+    return () => {
+      window.removeEventListener('pageshow', onPageShow);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      window.removeEventListener('focus', onFocus);
+    };
+  }, [fetchOrders]);
+
   const loadMore = async () => {
     const next = page + 1;
     setPage(next);

@@ -29,7 +29,20 @@ Page({
   },
 
   onShow() {
-    if (this._needRefresh) {
+    // [BUG-FIX-RESCHEDULE-POPUP-AUTO-CLOSE v1.0]
+    // 顾客在订单详情页改约/预约成功后会写 globalData.unifiedOrdersNeedRefresh，
+    // 列表页 onShow 时检测并强制刷新，确保返回列表看到的就是最新预约时间。
+    let needRefresh = !!this._needRefresh;
+    try {
+      const app = getApp();
+      if (app && app.globalData && app.globalData.unifiedOrdersNeedRefresh) {
+        app.globalData.unifiedOrdersNeedRefresh = false;
+        needRefresh = true;
+      }
+    } catch (_) {
+      /* 兜底忽略 */
+    }
+    if (needRefresh) {
       this._needRefresh = false;
       this.resetList();
       this.loadOrders();

@@ -3,6 +3,8 @@ import '../../models/product.dart';
 import '../../models/unified_order.dart';
 import '../../services/api_service.dart';
 import '../../utils/price_formatter.dart';
+// [BUG-FIX-RESCHEDULE-POPUP-AUTO-CLOSE v1.0] 监听订单详情页改约成功后的全局刷新信号
+import '../../utils/unified_orders_refresh_notifier.dart';
 import 'contact_store_sheet.dart';
 
 class UnifiedOrdersScreen extends StatefulWidget {
@@ -94,6 +96,24 @@ class _OrderTabState extends State<_OrderTab> with AutomaticKeepAliveClientMixin
   void initState() {
     super.initState();
     _loadOrders();
+    // [BUG-FIX-RESCHEDULE-POPUP-AUTO-CLOSE v1.0]
+    // 订阅全局改约/预约成功信号；任意 Tab 监听到 true 时刷新自身列表并消费信号。
+    UnifiedOrdersRefreshNotifier.instance.addListener(_onRefreshSignal);
+  }
+
+  @override
+  void dispose() {
+    UnifiedOrdersRefreshNotifier.instance.removeListener(_onRefreshSignal);
+    super.dispose();
+  }
+
+  void _onRefreshSignal() {
+    if (!mounted) return;
+    if (UnifiedOrdersRefreshNotifier.instance.value) {
+      // 当前可见 Tab 主动刷新，并消费信号；其他 Tab 在 keepAlive 重建/下次进入时已自动 _loadOrders。
+      _loadOrders();
+      UnifiedOrdersRefreshNotifier.instance.consume();
+    }
   }
 
   Future<void> _loadOrders() async {

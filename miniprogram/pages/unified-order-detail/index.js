@@ -320,8 +320,25 @@ Page({
         appointment_time: `${this.data.apptDate}T${startTime}:00`,
         appointment_data: appointmentData
       });
-      wx.showToast({ title: '预约成功', icon: 'success' });
+      // [BUG-FIX-RESCHEDULE-POPUP-AUTO-CLOSE v1.0] 改约/预约成功：
+      // 1) 立即关闭弹窗（先于 Toast）
+      // 2) Toast 文案按场景：改约 → 「改约成功」，首次预约 → 「预约成功」
+      // 3) 通过 globalData 标志通知订单列表页在 onShow 时强制刷新
+      // 4) 详情页本身刷新
+      const isReschedule = !!this.data.apptIsReschedule;
       this.setData({ showApptModal: false });
+      wx.showToast({
+        title: isReschedule ? '改约成功' : '预约成功',
+        icon: 'success'
+      });
+      try {
+        const app = getApp();
+        if (app && app.globalData) {
+          app.globalData.unifiedOrdersNeedRefresh = true;
+        }
+      } catch (_) {
+        /* 兜底忽略 */
+      }
       this.loadOrder();
     } catch (e) {
       // [双重身份用户 H5 顾客端改约失败 Bug 修复 v1.0]
