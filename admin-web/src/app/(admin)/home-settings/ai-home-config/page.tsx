@@ -137,6 +137,17 @@ type Cfg = {
   recommended_questions: RecommendedQ[];
   empty_placeholder: { icon: string; icon_image_url?: string; main_title: string };
   global_switches: GlobalSwitches;
+  // PRD-414 v1.1：AI 对话页（chat）配置
+  ai_chat: {
+    avatar: AvatarObj;
+    signature: string;
+    profile_row_enabled: boolean;
+    profile_row_template: string;
+    punchcard_draggable: boolean;
+    scroll_to_bottom_button: boolean;
+    sticky_topbar: boolean;
+    history_retention_days: number;
+  };
 };
 
 const DEFAULT_CFG: Cfg = {
@@ -209,6 +220,16 @@ const DEFAULT_CFG: Cfg = {
     { id: 'r3', icon: '🥗', title: '饮食建议', question: '高血压患者饮食注意什么？', enabled: true, sort: 3 },
   ],
   empty_placeholder: { icon: '💬', main_title: '还没有对话记录' },
+  ai_chat: {
+    avatar: { type: 'emoji', emoji: '🌿', image_url: '' },
+    signature: '小康',
+    profile_row_enabled: true,
+    profile_row_template: '本次回答结合 {name} 的档案',
+    punchcard_draggable: true,
+    scroll_to_bottom_button: true,
+    sticky_topbar: true,
+    history_retention_days: 0,
+  },
   global_switches: {
     welcome_visible: true,
     health_tips_visible: true,
@@ -242,7 +263,8 @@ const TAB_MODULES: Record<TabKey, (keyof Cfg)[]> = {
   func_grid: ['func_grid'],
   input: ['input'],
   session: ['session'],
-  global: ['global_switches', 'floating_button', 'topbar'],
+  // PRD-414 v1.1：ai_chat 模块作为"AI 对话页"配置归入全局开关 Tab
+  global: ['global_switches', 'floating_button', 'topbar', 'ai_chat'],
 };
 
 // ──────────────── 通用工具：深拷贝 + 深比较 ────────────────
@@ -512,6 +534,22 @@ export default function AIHomeConfigPage() {
       }
       if (s.disclaimer && s.disclaimer.length > 100) {
         errs['session.strategy.disclaimer'] = '免责声明不超过100字';
+      }
+    }
+    if (tab === 'global') {
+      // PRD-414 v1.1：ai_chat 模块字段校验
+      const ac = cfg.ai_chat;
+      if (!ac.signature || ac.signature.length > 10) {
+        errs['ai_chat.signature'] = 'AI 署名为必填且不超过10字';
+      }
+      if (!ac.profile_row_template || !ac.profile_row_template.includes('{name}')) {
+        errs['ai_chat.profile_row_template'] = '档案行模板必须包含 {name} 占位符';
+      }
+      if (ac.profile_row_template && ac.profile_row_template.length > 30) {
+        errs['ai_chat.profile_row_template'] = '档案行模板不超过30字';
+      }
+      if (ac.history_retention_days < 0 || ac.history_retention_days > 3650) {
+        errs['ai_chat.history_retention_days'] = '历史保留天数须在 0~3650（0=永久）';
       }
     }
     return errs;
@@ -1391,6 +1429,97 @@ export default function AIHomeConfigPage() {
               checked={draft.topbar.show_share}
               onChange={(c) => update((d) => { d.topbar.show_share = c; })}
             />
+          </Form.Item>
+        </Form>
+      </Card>
+
+      {/* PRD-414 v1.1：AI 对话页（chat 页）配置 */}
+      <Card title="AI 对话页（chat）配置 — PRD-414 v1.1">
+        <Alert
+          type="info"
+          showIcon
+          style={{ marginBottom: 12 }}
+          message="此区域配置 AI 对话页的关键体验：AI 头像（与品牌 Logo 解耦，单独维护）、署名、档案行文案、是否允许拖动健康打卡、是否显示「↓回到最新」按钮、顶栏是否吸顶、历史会话保留时长。"
+        />
+        <Form layout="vertical">
+          <Form.Item
+            label="AI 对话头像（推荐 128×128，PNG/JPG/WEBP，≤500KB；与系统 Logo 完全独立维护）"
+            data-field-key="ai_chat.avatar"
+          >
+            <AvatarEditor
+              value={draft.ai_chat.avatar}
+              onChange={(v) => update((d) => { d.ai_chat.avatar = v; })}
+              uploadAction={upload}
+            />
+          </Form.Item>
+          <Form.Item
+            label="AI 署名（默认「小康」，≤10 字）"
+            help={fieldErrors['ai_chat.signature']}
+            validateStatus={fieldErrors['ai_chat.signature'] ? 'error' : undefined}
+            data-field-key="ai_chat.signature"
+          >
+            <Input
+              value={draft.ai_chat.signature}
+              onChange={(e) => update((d) => { d.ai_chat.signature = e.target.value; })}
+              maxLength={10}
+              showCount
+              placeholder="小康"
+            />
+          </Form.Item>
+          <Form.Item label="档案行总开关（每条 AI 回答上方是否显示「本次回答结合 XX 的档案 ▽」）">
+            <Switch
+              checked={draft.ai_chat.profile_row_enabled}
+              onChange={(c) => update((d) => { d.ai_chat.profile_row_enabled = c; })}
+            />
+          </Form.Item>
+          <Form.Item
+            label="档案行文案模板（必须包含 {name} 占位符）"
+            help={fieldErrors['ai_chat.profile_row_template']}
+            validateStatus={fieldErrors['ai_chat.profile_row_template'] ? 'error' : undefined}
+            data-field-key="ai_chat.profile_row_template"
+          >
+            <Input
+              value={draft.ai_chat.profile_row_template}
+              onChange={(e) => update((d) => { d.ai_chat.profile_row_template = e.target.value; })}
+              maxLength={30}
+              showCount
+              placeholder="本次回答结合 {name} 的档案"
+            />
+          </Form.Item>
+          <Form.Item label="健康打卡可拖动（仅垂直方向，长按 200ms 进入拖动态）">
+            <Switch
+              checked={draft.ai_chat.punchcard_draggable}
+              onChange={(c) => update((d) => { d.ai_chat.punchcard_draggable = c; })}
+            />
+          </Form.Item>
+          <Form.Item label="显示「↓ 回到最新消息」按钮（用户上滑超过 100px 时浮出）">
+            <Switch
+              checked={draft.ai_chat.scroll_to_bottom_button}
+              onChange={(c) => update((d) => { d.ai_chat.scroll_to_bottom_button = c; })}
+            />
+          </Form.Item>
+          <Form.Item label="顶栏吸顶（始终固定在屏幕顶端）">
+            <Switch
+              checked={draft.ai_chat.sticky_topbar}
+              onChange={(c) => update((d) => { d.ai_chat.sticky_topbar = c; })}
+            />
+          </Form.Item>
+          <Form.Item
+            label="历史会话保留天数（0 = 永久保留；最大 3650 天）"
+            help={fieldErrors['ai_chat.history_retention_days']}
+            validateStatus={fieldErrors['ai_chat.history_retention_days'] ? 'error' : undefined}
+            data-field-key="ai_chat.history_retention_days"
+          >
+            <InputNumber
+              min={0}
+              max={3650}
+              value={draft.ai_chat.history_retention_days}
+              onChange={(v) => update((d) => { d.ai_chat.history_retention_days = (v ?? 0) as number; })}
+              style={{ width: 200 }}
+            />
+            <Text type="secondary" style={{ marginLeft: 8 }}>
+              当前：{draft.ai_chat.history_retention_days === 0 ? '永久保留' : `${draft.ai_chat.history_retention_days} 天`}
+            </Text>
           </Form.Item>
         </Form>
       </Card>

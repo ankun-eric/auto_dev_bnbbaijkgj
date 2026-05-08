@@ -213,6 +213,32 @@ class FloatingButtonConfig(BaseModel):
     position: str = "right_bottom"  # right_bottom / left_bottom（v1.0 固定右下，但保留兼容）
 
 
+# ──────────────── PRD-414 v1.1：AI 对话页（chat 页）配置 ────────────────
+
+
+class AIChatAvatar(BaseModel):
+    """AI 对话头像（PRD-414 §3.7）。
+    与系统/品牌 Logo 完全解耦，单独维护。
+    """
+    type: str = "emoji"  # emoji / image
+    emoji: Optional[str] = "🌿"  # emoji 兜底
+    image_url: Optional[str] = ""  # 推荐 128x128 PNG/JPG/WEBP，≤500KB
+
+
+class AIChatConfig(BaseModel):
+    """AI 对话页（chat）配置 v1.1。
+    覆盖 PRD-414 中"AI 头像 / 署名 / 档案行 / 健康打卡可拖动 / 回到最新消息"等能力开关。
+    """
+    avatar: AIChatAvatar = Field(default_factory=AIChatAvatar)
+    signature: str = "小康"  # AI 署名（默认"小康"，14px 主文本色）
+    profile_row_enabled: bool = True  # 档案行总开关（PRD-414 §3.4）
+    profile_row_template: str = "本次回答结合 {name} 的档案"  # 档案行文案模板，{name} 占位符
+    punchcard_draggable: bool = True  # 健康打卡是否可拖动（PRD-414 §3.2）
+    scroll_to_bottom_button: bool = True  # 是否显示"回到最新消息"按钮（PRD-414 §3.1）
+    sticky_topbar: bool = True  # 顶栏是否吸顶（PRD-414 §3.1）
+    history_retention_days: int = 0  # 历史会话保留天数；0=永久（PRD-414 O-04）
+
+
 # ──────────────── 总配置 ────────────────
 
 
@@ -238,6 +264,8 @@ class AIHomeConfigPayload(BaseModel):
     health_tips: HealthTipsConfig = Field(default_factory=HealthTipsConfig)
     empty_placeholder: EmptyDialogPlaceholder = Field(default_factory=EmptyDialogPlaceholder)
     global_switches: GlobalSwitches = Field(default_factory=GlobalSwitches)
+    # v1.1 PRD-414 新增：AI 对话页配置
+    ai_chat: AIChatConfig = Field(default_factory=AIChatConfig)
 
 
 class AIHomeConfigResponse(BaseModel):

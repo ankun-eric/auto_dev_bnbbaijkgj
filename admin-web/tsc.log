@@ -1,0 +1,62 @@
+﻿
+所在位置 C:\Users\Administrator\AppData\Local\Temp\2\ps-script-6c6cb168-e0b7-46e2-956a-a3ef0ab25410.ps1:7 字符: 42
++ ... pescript) { node ".\node_modules\typescript\bin\tsc" --noEmit -p tsco ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+
+#
+# Fatal error in , line 0
+# Fatal process out of memory: Zone
+#
+#
+#
+#FailureMessage Object: 000000EA203F6480
+
+
+#
+# Fatal error in , line 0
+# Fatal process out of memory: Zone
+#
+#
+#
+#FailureMessage Object: 000000EA1EBF65A0
+ 1: 00007FF68F2ED8CF 
+ 1: 00007FF68F2ED8CF 
+ 2: 00007FF68F2019EF 
+ 2: 00007FF68F2019EF 
+ 3: 00007FF6900E5A92 
+ 3: 00007FF6900E5A92 
+ 4: 00007FF68FD09E83 
+ 4: 00007FF68FD09E83 
+ 5: 00007FF68F836330 
+ 5: 00007FF68F836330 
+ 6: 00007FF6902CEFBC 
+ 6: 00007FF69020C1CB 
+ 7: 00007FF6902D10B8 
+ 7: 00007FF69019611E 
+ 8: 00007FF6902CF60E 
+ 8: 00007FF690192EA7 
+ 9: 00007FF6902D077C 
+ 9: 00007FF69018DD9A 
+10: 00007FF6902CC175 
+10: 00007FF68FC8BC21 
+11: 00007FF69018D059 
+11: 00007FF68FC5F8A4 
+12: 00007FF690192FF9 
+12: 00007FF68FC6014F 
+13: 00007FF69018DD9A 
+13: 00007FF68F2043CD 
+14: 00007FF68FC8BC21 
+14: 00007FF68F339A8D 
+15: 00007FF68FC5F8A4 
+15: 00007FF690378420 
+16: 00007FF68FC6014F 
+17: 00007FF68F2043CD 
+18: 00007FF68F339A8D 
+19: 00007FF690378420 
+20: 00007FFAE10D7AC4 BaseThreadInitThunk+20
+16: 00007FFAE10D7AC4 BaseThreadInitThunk+20
+21: 00007FFAE3E4A8C1 
+17: 00007FFAE3E4A8C1 

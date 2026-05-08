@@ -33,7 +33,41 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: PRD-411-AI-HOME-CONFIG-TAB-V1-20260508｜AI 对话首页配置页面 Tab 化改造（2026-05-08 12:50）
+## Latest Update: PRD-414-AI-CHAT-V11-20260508｜AI 对话页优化 v1.1（2026-05-08 15:30）
+
+### 一句话结论
+按 `cursor_prompt_414_20260508151745.txt` 走 develop-all 流程实现 PRD-414 v1.1 终版「AI 对话页优化」核心切片：① 后端 schema `ai_home_config.py` 新增 `AIChatAvatar` + `AIChatConfig` 两个 BaseModel（含 avatar/signature/profile_row_enabled/profile_row_template/punchcard_draggable/scroll_to_bottom_button/sticky_topbar/history_retention_days 共 8 字段），`AIHomeConfigPayload` 顶层挂载 `ai_chat` 字段；② 后端 `ai_home_config.py` 路由 `VALID_MODULES` 新增 `ai_chat`，`_validate_payload` 新增 ai_chat 校验（avatar.type 仅 emoji/image、image_url 必须 / 开头或 http(s):// URL、signature ≤10 字、profile_row_template 必含 {name} 且 ≤30 字、history_retention_days 0~3650）；③ admin-web `ai-home-config/page.tsx` Cfg 类型新增 ai_chat 字段，DEFAULT_CFG 给默认值，TAB_MODULES.global 加入 'ai_chat'，`renderGlobalTab` 末尾追加「AI 对话页（chat）配置 — PRD-414 v1.1」卡片（含 8 个 Form.Item：AvatarEditor 头像 + Input 署名 + Switch 档案行/打卡可拖动/回到最新/吸顶 + Input 档案行模板 + InputNumber 历史保留天数），`validateTab('global', cfg)` 增加 ai_chat 三项校验（signature 长度、profile_row_template {name} 占位符、history_retention_days 范围）；④ H5 端 `chat/[sessionId]/page.tsx` 注入 `aiChatCfg` state（默认值 + 从 `/api/ai-home-config` 拉取），新增 `showScrollToBottomBtn`/`unreadDuringScroll`/`profileCardExpanded` state，监听 listRef scroll 事件维护"距离底部 > 100px"标志，新消息进入时若用户离开底部则累加未读，`renderAiAvatar(size)` 工具函数按 type=emoji/image 渲染 32×32 圆形头像；AI 消息渲染区将原"AI"紫色头像替换为 `renderAiAvatar(32)`，气泡上方插入"小康"署名 14px 主文本色 + 档案行（仅当 profile_row_enabled 且 currentRelationLabel ≠ '未选择档案' 时显示，点击 ▽/△ 切换 profileCardExpanded，展开时显示档案信息卡含家人姓名/性别/身高/体重）；输入框区域之后新增"↓ 回到最新消息"圆形浮动按钮（36×36 白底，绝对定位 right:16/bottom:90，含 8×8 红点未读气泡），点击 scrollToBottom + 隐藏按钮 + 清零未读；⑤ 后端测试新建 `tests/test_ai_chat_v11_414.py` 8 用例（T01 公共读取默认值 / T02 PATCH emoji 头像 / T03 PATCH image 头像 / T04 非法 avatar.type 拒绝 / T05 模板缺 {name} 拒绝 / T06 signature 超 10 字拒绝 / T07 history_retention_days 越界拒绝 / T08 PATCH 后 GET 可读回），合并旧 PRD-405 v0+v1+PRD-411 共 38 用例容器内 pytest **38 passed in 23.66s**；⑥ 部署：backend docker cp 3 个文件 + restart，admin-web docker compose build（125s）+ up，h5-web docker compose build（99s）+ up，远程 smoke `/api/health=200`、`/api/ai-home-config=200`（含 ai_chat 完整字段）、`/admin/home-settings/ai-home-config/=200`、`/=200` 全 200。
+
+### 改动文件
+- 后端修改：`backend/app/schemas/ai_home_config.py`（新增 AIChatAvatar + AIChatConfig + AIHomeConfigPayload.ai_chat）、`backend/app/api/ai_home_config.py`（VALID_MODULES + _validate_payload ai_chat 校验）
+- 后端测试：`backend/tests/test_ai_chat_v11_414.py`（新建，T01-T08 共 8 用例）
+- admin-web 修改：`admin-web/src/app/(admin)/home-settings/ai-home-config/page.tsx`（Cfg 类型扩展 + DEFAULT_CFG.ai_chat + TAB_MODULES.global + AI 对话页配置卡片 + validateTab ai_chat 校验）
+- H5 修改：`h5-web/src/app/chat/[sessionId]/page.tsx`（aiChatCfg state + 滚动监听 + renderAiAvatar 工具 + 小康署名 + 档案行 + 档案信息卡 + 回到最新浮动按钮）
+- 部署脚本：`_deploy_prd414.py`（paramiko SFTP + docker cp + restart + 容器内 pytest + admin/h5 docker compose build + smoke）
+- 用户体验手册：`user_docs/AI对话页优化v1.1.md`
+
+### 关键技术决策
+- **不破坏 v0/v1 兼容**：在 `AIHomeConfigPayload` 顶层新增 `ai_chat` 字段而非替换现有任何字段；旧客户端读取时会忽略 ai_chat，新客户端拿到时才使用，零入侵
+- **ai_chat 单独维护、与系统 Logo 解耦**：用户决策 O-05 明确"AI 对话头像与系统 Logo 完全独立"，因此 schema 中 `AIChatAvatar` 是独立 BaseModel，与 `WelcomeAvatar`/`TopbarLogo` 完全无关；admin 页面也是独立 AvatarEditor 组件实例，运营修改 logo 不影响 ai_chat.avatar
+- **ai_chat 归入 global Tab**：考虑到 admin 页面已 6 Tab 结构（PRD-411 落地），新增模块若另开 Tab 7 会破坏既有布局；ai_chat 本质是"AI 对话页全局开关"语义上属于 global，归入第 6 Tab "全局开关" 末尾追加卡片是最低改造成本
+- **H5 chat 页最小侵入**：chat 页 2691 行，全面重构风险极高；本次仅在关键位置注入：① state + 配置 fetch（70 行）② AI 头像渲染替换（10 行）③ 署名+档案行+档案信息卡插入（70 行）④ 浮动按钮（45 行）；不改动消息列表/输入框/历史加载等核心逻辑，确保已有功能完全不退化
+- **未读红点逻辑**：每次 messages.length 变化时判断"用户当前是否离开底部 > 100px"，若是则未读计数 +1；用户点击按钮 scrollToBottom 后清零；用户主动滚到底部（dist <= 50）也清零；自然语义符合 PRD-414 §3.1 ②「期间有未读消息时显示红点」
+- **0 终端打包**：本次 backend + admin-web + h5-web 三处改动，miniprogram / flutter / android / ios / windows / macos 完全无变更，跳过阶段 4 多端打包；H5 端配置生效后用户下次刷新即拉到最新值（H5 已有 5 分钟本地缓存）
+- **测试聚焦增量**：避免跑全量回归（耗时），只验证新增 ai_chat 模块的保存、读取、校验路径；旧 30 用例继续保护 v0.5/v1.0/PRD-411 行为不退化
+
+### 验证情况
+- 容器内 pytest：`tests/test_ai_home_config.py` + `tests/test_ai_home_config_v1.py` + `tests/test_ai_home_config_tab411.py` + `tests/test_ai_chat_v11_414.py` → **38 passed in 23.66s**（新增 PRD-414 用例 8 个全部通过）
+- admin-web docker compose build：125.1s 成功（next build 输出含完整路由列表，无 TS 编译错误）
+- h5-web docker compose build：98.8s 成功
+- 远程 smoke（curl HTTP_CODE）：`/api/health=200`、`/api/ai-home-config=200`、`/admin/home-settings/ai-home-config/=200`、`/=200`
+- 公共接口 `/api/ai-home-config` 返回 JSON 含完整 ai_chat 字段：`{"avatar":{"type":"emoji","emoji":"🌿","image_url":""},"signature":"小康","profile_row_enabled":true,"profile_row_template":"本次回答结合 {name} 的档案","punchcard_draggable":true,"scroll_to_bottom_button":true,"sticky_topbar":true,"history_retention_days":0}`
+
+### 用户体验手册
+- `user_docs/AI对话页优化v1.1.md`
+
+---
+
+## Previous Update: PRD-411-AI-HOME-CONFIG-TAB-V1-20260508｜AI 对话首页配置页面 Tab 化改造（2026-05-08 12:50）
 
 ### 一句话结论
 按 `cursor_prompt_411_20260508124048.txt` 走 develop-all 流程把 admin 后台「AI 对话模式首页配置」从**伪 Tab 锚点滚动**升级为**真 Tab 切换**：6 个 Tab（欢迎区/首屏内容/功能宫格/输入栏/会话策略/全局开关），每 Tab 独立草稿/保存/重置/红点提示/切换确认/二次重置确认；后端 schema/路由 0 改动（仅依赖现有 PATCH /api/admin/ai-home-config/{module}）。**改动范围**：① admin-web `(admin)/home-settings/ai-home-config/page.tsx` **整页重写**（1703→1306 行）——核心数据模型由单 `cfg` 拆分为 `baseline + draft` 双状态，`isTabDirty(tab)` 按 `TAB_MODULES[tab]` 涉及的顶层模块字段做 deepEqual 判定，`dirtyMap` useMemo 缓存所有 Tab dirty 状态，Tab 标题用 `<Badge dot color="#FF4D4F">` 显示红点；新建 antd `Tabs` + `destroyInactiveTabPane`（PRD F-03 仅当前 Tab 内容挂载到 DOM）；新建受控 Modal 三选确认框（保存并切换/放弃修改并切换/取消，pendingTargetTab state 控制开关）；重置按钮触发 `Modal.confirm` 二次确认；统一吸底 sticky 操作栏，按当前 Tab 上下文显示「重置本 Tab + 保存本 Tab」（无改动置灰）；`saveTab(tab)` 按 `TAB_MODULES[tab]` 数组顺序逐个 PATCH 模块（如 Tab 6 顺序提交 global_switches → floating_button → topbar），保存成功后 baseline := latest_response、draft := latest_response，红点立即消失；新增 `validateTab` 函数按 PRD F-12 做提交级强校验（welcome.main_title ≤30/sub_title ≤50、health_tips.interval_seconds 3~5、empty_placeholder.main_title ≤20、recommended_questions.title ≤8/question ≤200、func_grid.items 1~6 + main_text ≤8/sub_text ≤12 + HEX 校验、input.family_consult.template 含 {name}、session.strategy.max_answer_chars 100~5000/daily_free_quota 1~999/disclaimer ≤100），失败时通过 `setFieldErrors` 标红首个错误字段并 `scrollIntoView({block: 'center'})` 自动滚动定位（用 `data-field-key` 定位）；`message.success({content: '保存成功', duration: 2})` Toast 2 秒消失；② TAB 归位重新设计：Tab 1=welcome、Tab 2=health_tips+empty_placeholder+recommended_questions、Tab 3=func_grid、Tab 4=input、Tab 5=session、Tab 6=global_switches+floating_button+**topbar（兼容垫底）**——topbar 从原 Tab 2 顶部移到 Tab 6 末位渲染，符合 PRD §2.1 F-02；③ 后端测试新增 `tests/test_ai_home_config_tab411.py` 8 个用例（TAB01-08：Tab 1 welcome 隔离、Tab 2 三模块顺序保存、Tab 3 func_grid 隔离、Tab 4 input 隔离、Tab 5 session 隔离、Tab 6 三模块顺序保存、6 Tab 全部交叉保存最终状态、PATCH 失败不污染其他模块），合并旧 PRD-405 v0/v1 共 30 用例容器内 pytest **30 passed in 18.02s**；④ 部署：admin-web `docker compose build` 107s + `up -d`（重新打包 dist 包含完整 admin 路由列表 50+ 静态/动态页），远程 smoke `/api/health=200`、`/api/ai-home-config=200`、`/admin/home-settings/ai-home-config/=200`、`/admin/home-settings/ai-home-config/logs/=200`、`/=200` 全 200。

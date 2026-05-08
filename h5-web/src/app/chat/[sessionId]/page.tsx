@@ -865,6 +865,115 @@ function ChatPageInner() {
 
   const listRef = useRef<HTMLDivElement>(null);
 
+  // ──────────────── PRD-414 v1.1: AI 对话页配置（avatar / signature / profile_row）────────────────
+  const [aiChatCfg, setAiChatCfg] = useState<{
+    avatar: { type: 'emoji' | 'image'; emoji?: string; image_url?: string };
+    signature: string;
+    profile_row_enabled: boolean;
+    profile_row_template: string;
+    punchcard_draggable: boolean;
+    scroll_to_bottom_button: boolean;
+    sticky_topbar: boolean;
+  }>({
+    avatar: { type: 'emoji', emoji: '🌿', image_url: '' },
+    signature: '小康',
+    profile_row_enabled: true,
+    profile_row_template: '本次回答结合 {name} 的档案',
+    punchcard_draggable: true,
+    scroll_to_bottom_button: true,
+    sticky_topbar: true,
+  });
+  // 是否离开底部 100px 的状态（决定是否显示"↓ 回到最新消息"按钮）
+  const [showScrollToBottomBtn, setShowScrollToBottomBtn] = useState(false);
+  const [unreadDuringScroll, setUnreadDuringScroll] = useState(0);
+  // 档案信息卡展开
+  const [profileCardExpanded, setProfileCardExpanded] = useState(false);
+
+  // 拉取 ai_home_config 中的 ai_chat 子配置
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const r: any = await api.get('/api/ai-home-config');
+        const cfg = r?.config || r?.data?.config;
+        if (!cancelled && cfg && cfg.ai_chat) {
+          setAiChatCfg({
+            avatar: cfg.ai_chat.avatar || { type: 'emoji', emoji: '🌿', image_url: '' },
+            signature: cfg.ai_chat.signature || '小康',
+            profile_row_enabled: !!cfg.ai_chat.profile_row_enabled,
+            profile_row_template: cfg.ai_chat.profile_row_template || '本次回答结合 {name} 的档案',
+            punchcard_draggable: !!cfg.ai_chat.punchcard_draggable,
+            scroll_to_bottom_button: !!cfg.ai_chat.scroll_to_bottom_button,
+            sticky_topbar: cfg.ai_chat.sticky_topbar !== false,
+          });
+        }
+      } catch {
+        // 接口失败时使用默认配置兜底
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // 监听 listRef 滚动：当离底部 > 100px 时显示"回到最新"按钮
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+    const handler = () => {
+      const dist = el.scrollHeight - el.scrollTop - el.clientHeight;
+      setShowScrollToBottomBtn(dist > 100);
+      if (dist <= 50) setUnreadDuringScroll(0);
+    };
+    el.addEventListener('scroll', handler, { passive: true });
+    return () => el.removeEventListener('scroll', handler);
+  }, [listRef.current]);
+
+  // 新消息进入时若用户离开底部，则累加未读计数
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+    const dist = el.scrollHeight - el.scrollTop - el.clientHeight;
+    if (dist > 100 && messages.length > 0) {
+      setUnreadDuringScroll((c) => c + 1);
+    }
+  }, [messages.length]);
+
+  // 工具：渲染 AI 头像
+  const renderAiAvatar = (size: number = 32) => {
+    const av = aiChatCfg.avatar;
+    if (av.type === 'image' && av.image_url) {
+      return (
+        <img
+          src={resolveAssetUrl(av.image_url)}
+          alt={aiChatCfg.signature}
+          style={{
+            width: size,
+            height: size,
+            borderRadius: '50%',
+            objectFit: 'cover',
+            flexShrink: 0,
+            background: '#eee',
+          }}
+        />
+      );
+    }
+    // emoji 兜底
+    return (
+      <div
+        className="rounded-full flex-shrink-0 flex items-center justify-center"
+        style={{
+          width: size,
+          height: size,
+          background: 'linear-gradient(135deg, #52c41a, #13c2c2)',
+          fontSize: size * 0.55,
+        }}
+      >
+        <span>{av.emoji || '🌿'}</span>
+      </div>
+    );
+  };
+
   const loadHistory = useCallback(async () => {
     if (!sessionId || isNaN(Number(sessionId))) return;
     try {
@@ -1950,12 +2059,76 @@ function ChatPageInner() {
               className={`flex mb-4 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               {msg.role === 'assistant' && (
-                <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center mr-2"
-                  style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}>
-                  <span className="text-white text-xs">AI</span>
+                <div className="flex flex-col items-start mr-2">
+                  {renderAiAvatar(32)}
                 </div>
               )}
               <div className="max-w-[75%]">
+                {/* PRD-414 §3.3: AI 署名 + §3.4: 档案行（仅当选中具体家人且配置启用时显示） */}
+                {msg.role === 'assistant' && (
+                  <div style={{ marginBottom: 4 }}>
+                    <div style={{ fontSize: 14, fontWeight: 500, color: '#2E2E2E', lineHeight: '18px' }}>
+                      {aiChatCfg.signature || '小康'}
+                    </div>
+                    {aiChatCfg.profile_row_enabled
+                      && currentRelationLabel
+                      && currentRelationLabel !== '未选择档案' && (
+                      <div
+                        style={{ fontSize: 12, color: '#8C8C8C', lineHeight: '18px', cursor: 'pointer', marginTop: 2 }}
+                        onClick={() => setProfileCardExpanded((v) => !v)}
+                      >
+                        {(aiChatCfg.profile_row_template || '本次回答结合 {name} 的档案')
+                          .replace('{name}', currentRelationLabel)}
+                        <span style={{ marginLeft: 4 }}>{profileCardExpanded ? '△' : '▽'}</span>
+                      </div>
+                    )}
+                    {/* 档案信息卡：仅在 expanded 时显示 */}
+                    {profileCardExpanded
+                      && aiChatCfg.profile_row_enabled
+                      && currentRelationLabel
+                      && currentRelationLabel !== '未选择档案'
+                      && msg.id === messages[messages.length - 1]?.id && (
+                      <div
+                        style={{
+                          background: '#F7F8FA',
+                          borderRadius: 8,
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                          padding: 12,
+                          marginTop: 6,
+                          fontSize: 12,
+                          color: '#555',
+                          maxWidth: 320,
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div style={{ fontWeight: 600, color: '#333', marginBottom: 6 }}>
+                          档案：{currentRelationLabel}
+                        </div>
+                        {(() => {
+                          const m = familyMembers.find(
+                            (fm) =>
+                              (fm.relation_label || '').includes(currentRelationLabel)
+                              || (fm.nickname || '').includes(currentRelationLabel)
+                          );
+                          if (!m) {
+                            return <div style={{ color: '#999' }}>暂无档案数据</div>;
+                          }
+                          return (
+                            <>
+                              <div>姓名：{m.nickname || '-'}</div>
+                              <div>性别：{m.gender || '-'}</div>
+                              <div>身高：{m.height ? `${m.height} cm` : '-'}</div>
+                              <div>体重：{m.weight ? `${m.weight} kg` : '-'}</div>
+                              <div style={{ marginTop: 4, color: '#1890ff' }}>
+                                关键信息：长按可查看完整档案
+                              </div>
+                            </>
+                          );
+                        })()}
+                      </div>
+                    )}
+                  </div>
+                )}
                 {msg.role === 'user' && isFirstUserMsg(msg) ? (
                   <div
                     className="rounded-2xl rounded-tr-sm px-4 py-3 leading-relaxed cursor-pointer"
@@ -2361,6 +2534,52 @@ function ChatPageInner() {
           ➤
         </button>
       </div>
+
+      {/* PRD-414 §3.1: 「↓ 回到最新消息」浮动按钮（含未读红点） */}
+      {aiChatCfg.scroll_to_bottom_button && showScrollToBottomBtn && (
+        <button
+          onClick={() => {
+            scrollToBottom();
+            setShowScrollToBottomBtn(false);
+            setUnreadDuringScroll(0);
+          }}
+          aria-label="回到最新消息"
+          style={{
+            position: 'fixed',
+            right: 16,
+            bottom: 90,
+            width: 36,
+            height: 36,
+            borderRadius: '50%',
+            background: '#fff',
+            color: '#52c41a',
+            border: 'none',
+            boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            zIndex: 50,
+            fontSize: 18,
+          }}
+        >
+          ↓
+          {unreadDuringScroll > 0 && (
+            <span
+              style={{
+                position: 'absolute',
+                top: -2,
+                right: -2,
+                minWidth: 8,
+                height: 8,
+                background: '#FF4D4F',
+                borderRadius: '50%',
+                border: '1.5px solid #fff',
+              }}
+            />
+          )}
+        </button>
+      )}
 
       {/* Voice recording overlay */}
       {recordingOverlayVisible && (

@@ -57,6 +57,8 @@ VALID_MODULES = {
     "health_tips",
     "empty_placeholder",
     "global_switches",
+    # v1.1 PRD-414 新增模块
+    "ai_chat",
     "all",
 }
 
@@ -335,6 +337,33 @@ def _validate_payload(cfg: Dict[str, Any]):
         mt = ep.get("main_title") or ""
         if not mt or len(mt) > 20:
             raise HTTPException(status_code=400, detail="empty_placeholder.main_title 必填且不超过 20 字")
+
+    # v1.1 PRD-414 ai_chat 配置校验
+    chat = cfg.get("ai_chat") or {}
+    if chat:
+        avatar = chat.get("avatar") or {}
+        atype = avatar.get("type")
+        if atype is not None and atype not in ("emoji", "image"):
+            raise HTTPException(status_code=400, detail="ai_chat.avatar.type 仅支持 emoji/image")
+        if atype == "image":
+            url = avatar.get("image_url") or ""
+            if url and not _is_valid_path(url):
+                raise HTTPException(status_code=400, detail="ai_chat.avatar.image_url 必须是 / 开头的路径或 http(s):// URL")
+        sig = chat.get("signature")
+        if sig is not None:
+            if not isinstance(sig, str) or not sig.strip():
+                raise HTTPException(status_code=400, detail="ai_chat.signature 必填")
+            if len(sig) > 10:
+                raise HTTPException(status_code=400, detail="ai_chat.signature 不超过 10 字")
+        tpl = chat.get("profile_row_template")
+        if tpl is not None:
+            if not isinstance(tpl, str) or "{name}" not in tpl:
+                raise HTTPException(status_code=400, detail="ai_chat.profile_row_template 必须包含 {name} 占位符")
+            if len(tpl) > 30:
+                raise HTTPException(status_code=400, detail="ai_chat.profile_row_template 不超过 30 字")
+        retention = chat.get("history_retention_days")
+        if retention is not None and (not isinstance(retention, int) or retention < 0 or retention > 3650):
+            raise HTTPException(status_code=400, detail="ai_chat.history_retention_days 取值范围 0~3650（0=永久）")
 
 
 # ──────────────── 接口：用户端读取（公开） ────────────────
