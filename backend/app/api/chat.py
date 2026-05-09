@@ -430,6 +430,10 @@ async def send_message(
     if data.silent:
         msg_metadata = {"silent": True}
 
+    # [Bug-433 2026-05-09] source 归一化
+    raw_source = (getattr(data, "source", None) or "text").strip().lower()
+    user_source = raw_source if raw_source in ("text", "voice", "preset", "voice_repair") else "text"
+
     user_msg = ChatMessage(
         session_id=session_id,
         role=MessageRole.user,
@@ -437,6 +441,7 @@ async def send_message(
         message_type=data.message_type,
         file_url=data.file_url,
         message_metadata=msg_metadata,
+        source=user_source,
     )
     db.add(user_msg)
     await db.flush()
@@ -523,6 +528,9 @@ async def send_message(
         response_time_ms=elapsed_ms,
         prompt_tokens=usage.get("prompt_tokens") if usage else None,
         completion_tokens=usage.get("completion_tokens") if usage else None,
+        # [Bug-433] AI 回复关联到对应的用户消息（成对查询 + 历史孤立扫描）
+        source=user_source,
+        parent_id=user_msg.id,
     )
     db.add(ai_msg)
 
@@ -559,6 +567,10 @@ async def stream_message(
     if data.silent:
         stream_msg_metadata = {"silent": True}
 
+    # [Bug-433 2026-05-09] source 归一化为合法枚举之一，非法值兜底为 'text'
+    raw_source = (getattr(data, "source", None) or "text").strip().lower()
+    user_source = raw_source if raw_source in ("text", "voice", "preset", "voice_repair") else "text"
+
     user_msg = ChatMessage(
         session_id=session_id,
         role=MessageRole.user,
@@ -566,9 +578,13 @@ async def stream_message(
         message_type=data.message_type,
         file_url=data.file_url,
         message_metadata=stream_msg_metadata,
+        source=user_source,
     )
     db.add(user_msg)
-    await db.flush()
+    # [Bug-433 2026-05-09] 用户消息入库强约束：在调用 LLM 之前提交 user 行，
+    # 哪怕 LLM 流式中断、网络断开，user 消息也已落地 chat_messages 表，
+    # 保证刷新/重进会话后用户气泡不会丢失。
+    await db.commit()
     await db.refresh(user_msg)
 
     if not session.device_info:
@@ -639,6 +655,10 @@ async def stream_message(
     captured_session_type_val = session_type_val
     captured_data = data
     captured_history_msgs = history_msgs
+    # [Bug-433 2026-05-09] 把已落地的 user_msg.id 透传给生成器，
+    # done 回调里把 ai_msg.parent_id 关联到对应的用户消息，
+    # 便于成对查询 + 历史孤立 AI 消息回补脚本扫描使用。
+    captured_user_msg_id = user_msg.id
 
     start_time = time.time()
 
@@ -662,6 +682,10 @@ async def stream_message(
                     content=ai_content,
                     message_type=MessageType.text,
                     response_time_ms=elapsed_ms,
+                    # [Bug-433] AI 回复 source 复用对应用户消息 source（便于按入口统计回复链路）
+                    source=user_source,
+                    # [Bug-433] 关联到对应的用户消息，便于成对查询 + 历史孤立扫描
+                    parent_id=captured_user_msg_id,
                 )
                 captured_db.add(ai_msg)
                 captured_session.message_count = (captured_session.message_count or 0) + 1

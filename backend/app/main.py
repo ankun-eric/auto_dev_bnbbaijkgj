@@ -878,6 +878,62 @@ def _scan_route_conflicts(app: "FastAPI") -> list[dict]:
     return conflicts
 
 
+async def _migrate_bug433_chat_message_source_parent_id():
+    """[Bug-433 2026-05-09] AI 对话首页 - 语音/预设按钮"会话首句消息丢失"修复
+
+    chat_messages 表加列：
+    - source VARCHAR(16) NOT NULL DEFAULT 'text'：用户消息来源入口
+      （text/voice/preset/voice_repair），便于排查会话首句丢失类回归 + 运营分析
+    - parent_id INT NULL：AI 回复关联到对应的用户消息 id，便于成对查询和
+      历史孤立 AI 消息扫描；为 parent_id 建立索引以加速回看查询
+
+    幂等执行：基于 information_schema.columns / statistics 检查存在性。
+    """
+    import logging as _l
+    _logger = _l.getLogger(__name__)
+    from app.core.database import async_session as _async_session
+    try:
+        async with _async_session() as db:
+            from sqlalchemy import text
+
+            async def _add_col(column: str, ddl: str):
+                try:
+                    chk = await db.execute(text(
+                        "SELECT COUNT(*) FROM information_schema.columns "
+                        "WHERE table_schema = DATABASE() AND table_name = 'chat_messages' AND column_name = :c"
+                    ), {"c": column})
+                    if (chk.scalar() or 0) == 0:
+                        await db.execute(text(f"ALTER TABLE chat_messages ADD COLUMN {ddl}"))
+                        _logger.info("[bug433] chat_messages.%s 列已添加", column)
+                except Exception as e:  # noqa: BLE001
+                    _logger.debug("加列 chat_messages.%s 跳过: %s", column, e)
+
+            async def _add_idx(idx: str, ddl: str):
+                try:
+                    chk = await db.execute(text(
+                        "SELECT COUNT(*) FROM information_schema.statistics "
+                        "WHERE table_schema = DATABASE() AND table_name = 'chat_messages' AND index_name = :i"
+                    ), {"i": idx})
+                    if (chk.scalar() or 0) == 0:
+                        await db.execute(text(f"ALTER TABLE chat_messages ADD INDEX {ddl}"))
+                        _logger.info("[bug433] chat_messages.%s 索引已添加", idx)
+                except Exception as e:  # noqa: BLE001
+                    _logger.debug("加索引 chat_messages.%s 跳过: %s", idx, e)
+
+            await _add_col("source", "source VARCHAR(16) NOT NULL DEFAULT 'text'")
+            await _add_col("parent_id", "parent_id INT NULL")
+            await _add_idx("idx_chat_messages_parent_id", "idx_chat_messages_parent_id (parent_id)")
+            await _add_idx(
+                "idx_chat_messages_session_role_created",
+                "idx_chat_messages_session_role_created (session_id, role, created_at)",
+            )
+
+            await db.commit()
+            _logger.info("[bug433] chat_messages 迁移完成")
+    except Exception as e:  # noqa: BLE001
+        _logger.error("[bug433] chat_messages 迁移异常（不影响启动）: %s", e)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
@@ -912,6 +968,8 @@ async def lifespan(app: FastAPI):
     # [2026-05-05 营业管理入口收敛 PRD v1.0] merchant_stores 加列 advance_days/booking_cutoff_minutes；
     # products 加列 booking_cutoff_minutes
     await _migrate_business_config_unify_v1()
+    # [Bug-433 2026-05-09] chat_messages 加列 source/parent_id + 索引
+    await _migrate_bug433_chat_message_source_parent_id()
     from app.init_data import init_default_data
     await init_default_data()
     from app.init_cities import init_cities

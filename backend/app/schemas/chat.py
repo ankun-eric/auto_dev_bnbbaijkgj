@@ -34,6 +34,10 @@ class ChatMessageCreate(BaseModel):
     message_type: str = "text"
     file_url: Optional[str] = None
     silent: Optional[bool] = False
+    # [Bug-433 2026-05-09] 用户消息来源入口：text / voice / preset / voice_repair
+    # 默认 text，便于在 chat_messages 表中区分会话首句的实际来源（文字/语音/预设按钮），
+    # 用于排查"语音/预设按钮首句丢失"类回归与运营分析。非法值在路由层归一化为 'text'。
+    source: Optional[str] = "text"
 
 
 class ChatMessageResponse(BaseModel):

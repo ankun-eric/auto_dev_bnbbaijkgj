@@ -911,6 +911,12 @@ class ChatMessage(Base):
     message_metadata = mapped_column(JSON, nullable=True)
     # [2026-04-25] 隐藏消息字段：1=前端默认不拉取（用于隐式首问 Prompt、系统消息）
     is_hidden = mapped_column(Boolean, default=False, nullable=True)
+    # [Bug-433 2026-05-09] 用户消息来源入口：text/voice/preset/voice_repair
+    # 用于排查"语音/预设按钮首句丢失"类回归 + 运营分析
+    source = mapped_column(String(16), nullable=False, default="text")
+    # [Bug-433 2026-05-09] AI 回复关联到对应的用户消息 id，便于历史查询成对返回 +
+    # 一次性数据回补脚本扫描孤立 AI 消息使用。user 消息此字段始终为 NULL。
+    parent_id = mapped_column(Integer, nullable=True, index=True)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
 
     session = relationship("ChatSession", back_populates="messages")

@@ -350,20 +350,9 @@ export default function AiHomePage() {
   const [shareOpen, setShareOpen] = useState(false);
   const [consultantOpen, setConsultantOpen] = useState(false);
 
-  // [Bug-431 2026-05-08] H5 端 AI 对话首页"欢迎面板自动闪掉"修复
-  // 原行为（Bug-428 旧版）：进入页面后 messages.length > 0 即自动收起 → 进入 1~2 秒后欢迎面板被闪掉
-  // 新行为（Bug-431）：欢迎面板的收起【唯一】触发条件 = 用户在【本次会话】主动发送了第一条消息
-  //   - 进入 /ai-home（无论本次会话是否有历史消息）→ 默认完整展开
-  //   - 进入页面后任何手势（滚动、点击外部空白、输入框聚焦）→ 不会收起面板
-  //   - 用户主动点击发送按钮、消息成功进入待发送队列后 → 收起为右上角圆形小康头像悬浮按钮
-  //   - 收起后点击悬浮按钮 → 重新完整展开；展开态点击右上角收起按钮 → 再次收起（来回切换）
-  //   - 切换家庭成员 / 切换会话 / 从其他页返回首页：以"本次会话是否已发过消息"为唯一判定依据
-  // 不接入后台开关，硬编码为常驻行为。
-  const [topPanelExpanded, setTopPanelExpanded] = useState(true);
-  // [Bug-431] 本次会话是否已主动发送过消息（仅由 handleSend 置 true；切换会话/对象/重新加载时重置）
-  // 用 state 而非 ref，因 fab/收起按钮的可见性依赖此状态触发重渲染
-  const [sentInSession, setSentInSession] = useState(false);
-  // 消息列表滚动容器 ref（保留用于滚动行为，但不再触发面板收起）
+  // 顶部欢迎面板（欢迎区/健康贴士/功能宫格/推荐问）改为常驻瀑布流：
+  // 始终位于文档流顶部，与消息列表一起自然向下排布、整体滚动；
+  // 不再有折叠态、不再有右上角圆形小康头像悬浮按钮、不再有"收起/展开"切换。
   const messageScrollRef = useRef<HTMLDivElement>(null);
 
   const [banners, setBanners] = useState<Banner[]>([]);
@@ -376,7 +365,16 @@ export default function AiHomePage() {
   const [hasHealthTask, setHasHealthTask] = useState(false);
   const [selectedConsultant, setSelectedConsultant] = useState<FamilyMember | null>(null);
   const [idleTimeout, setIdleTimeout] = useState<number>(30 * 60 * 1000);
-  const [lastMsgTime, setLastMsgTime] = useState<number>(0);
+  // [Bug-433] lastMsgTime 改为 useRef：避免 React state 异步更新导致 handleSend
+  // 在闭包中读到的旧值，从而错误命中"空闲超时清空消息"分支，造成会话首句丢失。
+  // 任何写入 setLastMsgTime() 的位置都同步更新此 ref，保证语音/预设按钮等异步入口
+  // 在闭包中也能读到最新时间戳。
+  const lastMsgTimeRef = useRef<number>(0);
+  const [lastMsgTime, setLastMsgTimeState] = useState<number>(0);
+  const setLastMsgTime = useCallback((t: number) => {
+    lastMsgTimeRef.current = t;
+    setLastMsgTimeState(t);
+  }, []);
   const [voiceMode, setVoiceMode] = useState(false);
   const [recording, setRecording] = useState(false);
   const [voiceSupported, setVoiceSupported] = useState(false);
@@ -571,22 +569,14 @@ export default function AiHomePage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // [Bug-431] 顶部面板手动展开 / 收起（用户点击右上角小头像 / 收起按钮触发）
-  const collapseTopPanel = useCallback(() => {
-    setTopPanelExpanded((prev) => (prev ? false : prev));
-  }, []);
-  const expandTopPanel = useCallback(() => {
-    setTopPanelExpanded((prev) => (prev ? prev : true));
-  }, []);
-
-  // [Bug-431] 仅在"本次会话已发过消息"时滚到底部最新消息（不再因 messages 变化触发任何面板收起）
+  // 收到新消息后滚动到底部最新消息（瀑布流自然滚动，菜单栏会被推到上方视野外）
   useEffect(() => {
-    if (sentInSession && messages.length > 0) {
+    if (messages.length > 0) {
       requestAnimationFrame(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' });
       });
     }
-  }, [messages.length, sentInSession]);
+  }, [messages.length]);
 
   const loadLastSession = async () => {
     try {
@@ -633,10 +623,18 @@ export default function AiHomePage() {
     return res.sessionId;
   };
 
-  const checkIdleAndMaybeNewSession = async (): Promise<string> => {
+  // [Bug-433] checkIdleAndMaybeNewSession 接受可选的 preserveOnClear 回调：
+  // 当命中"空闲超时清空消息"分支时，外部（handleSend）可以通过该参数把
+  // 即将插入的乐观渲染 userMsg 回填到清空后的列表中，避免会话首句被一并清掉。
+  // 同时 lastMsgTime 改为从 ref 读取，避免闭包过期导致的"语音/预设按钮首句"误清空。
+  const checkIdleAndMaybeNewSession = async (
+    preserveOnClear?: () => ChatMessage[],
+  ): Promise<string> => {
     const now = Date.now();
-    if (sessionId && lastMsgTime && (now - lastMsgTime) > idleTimeout) {
-      setMessages([]);
+    const lmt = lastMsgTimeRef.current;
+    if (sessionId && lmt && (now - lmt) > idleTimeout) {
+      const preserve = preserveOnClear ? preserveOnClear() : [];
+      setMessages(preserve);
       const newSid = await createNewSession();
       return newSid || sessionId;
     }
@@ -647,7 +645,12 @@ export default function AiHomePage() {
     return sessionId;
   };
 
-  const sendSSE = async (sid: string, message: string, retries = 3): Promise<boolean> => {
+  const sendSSE = async (
+    sid: string,
+    message: string,
+    retries = 3,
+    source: 'text' | 'voice' | 'preset' = 'text',
+  ): Promise<boolean> => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : '';
     const aiMsgId = `a-${Date.now()}`;
     const aiMsg: ChatMessage = {
@@ -670,7 +673,7 @@ export default function AiHomePage() {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`,
           },
-          body: JSON.stringify({ content: message, message_type: 'text' }),
+          body: JSON.stringify({ content: message, message_type: 'text', source }),
           signal: controller.signal,
         });
 
@@ -730,11 +733,16 @@ export default function AiHomePage() {
     return false;
   };
 
-  const sendFallback = async (sid: string, message: string) => {
+  const sendFallback = async (
+    sid: string,
+    message: string,
+    source: 'text' | 'voice' | 'preset' = 'text',
+  ) => {
     try {
       const res: any = await api.post(`/api/chat/sessions/${sid}/messages`, {
         content: message,
         message_type: 'text',
+        source,
       });
       const data = res.data || res;
       const aiMsg: ChatMessage = {
@@ -754,7 +762,18 @@ export default function AiHomePage() {
     }
   };
 
-  const handleSend = useCallback(async (text?: string) => {
+  // [Bug-433] 统一发送入口：文字 / 语音 / 预设问题快捷按钮全部走 handleSend。
+  // 关键修复（解决会话首句丢失 P0）：
+  //   1. 立即更新 lastMsgTimeRef.current → 确保后续异步入口（语音 onstop / 预设
+  //      按钮 onClick）读到的"最近消息时间"是最新值，不再因 React state 闭包过期
+  //      错误命中"空闲超时清空"分支。
+  //   2. 把 idle 判断 + sid 决定提前到"加入 userMsg 之前"，并通过 preserveOnClear
+  //      回调把 userMsg 回填到清空后的列表，从源头杜绝首句被一并抹掉。
+  //   3. 透传 source（text/voice/preset）到后端流式接口，便于审计与回归。
+  const handleSend = useCallback(async (
+    text?: string,
+    source: 'text' | 'voice' | 'preset' = 'text',
+  ) => {
     const msg = text || inputValue.trim();
     if (!msg || sending) return;
 
@@ -763,21 +782,11 @@ export default function AiHomePage() {
       textareaRef.current.style.height = '24px';
     }
 
-    const userMsg: ChatMessage = {
-      id: `u-${Date.now()}`,
-      role: 'user',
-      content: msg,
-      time: new Date().toISOString(),
-    };
-    setMessages(prev => [...prev, userMsg]);
     setSending(true);
-    setLastMsgTime(Date.now());
-
-    // [Bug-431] 用户主动发送消息 = 唯一合法收起触发器
-    // 此处置 true 后，本次会话内消息列表即占据主屏，欢迎面板进入 collapsed 态。
-    // 仅当用户后续切换家庭成员 / 切换会话 / 重新加载页面时，sentInSession 才会被重置。
-    setSentInSession(true);
-    setTopPanelExpanded(false);
+    // [Bug-433] 立即更新 ref，确保后续异步入口读取到最新值
+    const sendAt = Date.now();
+    lastMsgTimeRef.current = sendAt;
+    setLastMsgTimeState(sendAt);
 
     // [PRD-423 T-08 EVT-10] 发送消息埋点
     const sendTargetType: AiChatTargetType = selectedConsultant ? 'family' : 'self';
@@ -787,9 +796,19 @@ export default function AiHomePage() {
       content_length: msg.length,
     });
 
+    const userMsg: ChatMessage = {
+      id: `u-${Date.now()}`,
+      role: 'user',
+      content: msg,
+      time: new Date().toISOString(),
+    };
+
     try {
-      const sid = await checkIdleAndMaybeNewSession();
+      // [Bug-433] 先决定 sid（idle 命中时清空消息），命中时通过 preserveOnClear
+      // 把 userMsg 回填到清空后的列表，避免首句被一并抹掉。
+      const sid = await checkIdleAndMaybeNewSession(() => [userMsg]);
       if (!sid) {
+        setMessages(prev => (prev.some(m => m.id === userMsg.id) ? prev : [...prev, userMsg]));
         setMessages(prev => [...prev, {
           id: `e-${Date.now()}`,
           role: 'assistant',
@@ -799,12 +818,16 @@ export default function AiHomePage() {
         setSending(false);
         return;
       }
+      // 若 idle 未命中（preserveOnClear 未被调用），将 userMsg 追加到列表末尾；
+      // 若 idle 命中已通过 preserveOnClear 回填，避免重复插入。
+      setMessages(prev => (prev.some(m => m.id === userMsg.id) ? prev : [...prev, userMsg]));
 
-      const sseOk = await sendSSE(sid, msg);
+      const sseOk = await sendSSE(sid, msg, 3, source);
       if (!sseOk) {
-        await sendFallback(sid, msg);
+        await sendFallback(sid, msg, source);
       }
     } catch {
+      setMessages(prev => (prev.some(m => m.id === userMsg.id) ? prev : [...prev, userMsg]));
       setMessages(prev => [...prev, {
         id: `e-${Date.now()}`,
         role: 'assistant',
@@ -813,7 +836,7 @@ export default function AiHomePage() {
       }]);
     }
     setSending(false);
-  }, [inputValue, sending, sessionId, selectedConsultant, idleTimeout, lastMsgTime]);
+  }, [inputValue, sending, sessionId, selectedConsultant, idleTimeout]);
 
   const handleFuncButton = (btn: FunctionButton) => {
     const key = btn.button_type || btn.id;
@@ -970,7 +993,11 @@ export default function AiHomePage() {
           Toast.clear();
           const text = data?.data?.text || data?.text || '';
           if (text.trim()) {
-            handleSend(text.trim());
+            // [Bug-433] 语音入口在调用 handleSend 之前先把 lastMsgTimeRef 推到当前时间，
+            // 避免异步识别回调里的 React state 闭包是录音开始时的旧版本，导致会话首句
+            // 被错误命中"空闲超时清空"逻辑抹掉。同时 source='voice' 透传到后端便于审计。
+            lastMsgTimeRef.current = Date.now();
+            handleSend(text.trim(), 'voice');
           } else {
             Toast.show({ content: '未识别到语音内容，请重试' });
           }
@@ -1116,9 +1143,6 @@ export default function AiHomePage() {
     setSessionId(null);
     setLastMsgTime(0);
     abortRef.current?.abort();
-    // [Bug-431] 新建会话 = 进入"未发消息"状态，欢迎面板重新完整展开
-    setSentInSession(false);
-    setTopPanelExpanded(true);
   }, []);
 
   // [PRD-420 F5] 切换咨询对象后的会话处理
@@ -1172,9 +1196,6 @@ export default function AiHomePage() {
     setMessages([]);
     setSessionId(null);
     setLastMsgTime(0);
-    // [Bug-431] 切换家庭成员 → 新建会话 → 进入"未发消息"状态，欢迎面板重新完整展开
-    setSentInSession(false);
-    setTopPanelExpanded(true);
 
     const res = await createChatSession({
       session_type: 'health_qa',
@@ -1209,11 +1230,6 @@ export default function AiHomePage() {
     setSessionId(undoSnapshot.sessionId);
     setSelectedConsultant(undoSnapshot.consultant);
     setMessages(undoSnapshot.messages);
-    // [Bug-431] 恢复的是"已发过消息"的旧会话 → 维持收起态
-    if (undoSnapshot.messages.length > 0) {
-      setSentInSession(true);
-      setTopPanelExpanded(false);
-    }
     setUndoToastVisible(false);
     setUndoSnapshot(null);
     if (undoTimerRef.current) {
@@ -1274,10 +1290,6 @@ export default function AiHomePage() {
     setMessages([]);
     setSessionId(sid);
     setSidebarOpen(false);
-    // [Bug-431] 切换到历史会话 → 默认进入"未发消息"展开态
-    // 用户在该会话内发送新消息时再触发收起；即便载入了历史消息也不强制收起
-    setSentInSession(false);
-    setTopPanelExpanded(true);
     await loadSessionMessages(sid);
   }, []);
 
@@ -1513,57 +1525,21 @@ export default function AiHomePage() {
       {/* [Bug-419 H-4/H-7 2026-05-08] 各区块独立 ErrorBoundary，任何子组件
           异常仅降级该区块（默认占位 8px），绝不让顶部菜单/输入框/浮动按钮
           被牵连 unmount，杜绝"422 → 整页白屏"事故。 */}
-      {/* [Bug-428 2026-05-08] 顶部面板"始终挂载"，通过 topPanelExpanded 控制展开/收起两态。
-          - 收缩态 collapsed：仅右上角圆形小康头像悬浮按钮，消息列表占据主屏
-          - 展开态 expanded：完整面板下拉显示（覆盖在消息列表之上） + 右上角收起按钮
-          消息列表在两种状态下都常驻渲染，避免布局抖动。 */}
+      {/* 顶部欢迎面板 + 消息列表共享同一个滚动容器，整体瀑布流：
+          欢迎区/健康贴士/功能宫格/推荐问 始终在文档流顶部，向下连接消息列表，
+          滚动时菜单栏会被自然推出视野，不再有折叠/悬浮圆按钮交互。 */}
       <div
         ref={messageScrollRef}
         className="flex-1 overflow-y-auto relative"
       >
-        {/* [Bug-431] 顶部欢迎面板：始终挂载，根据 topPanelExpanded 控制可见性。
-            position：sentInSession=true（用户已发首条消息后再次展开）时为 absolute 覆盖式，
-            否则为 relative 占据正常文档流（未发消息前面板就是页面主视觉）。 */}
+        {/* 顶部欢迎面板：常驻文档流顶部，跟随主滚动容器一起滚动 */}
         <div
           data-testid="ai-home-top-panel"
           style={{
-            display: topPanelExpanded ? 'block' : 'none',
-            position: sentInSession ? 'absolute' : 'relative',
-            top: 0,
-            left: 0,
-            right: 0,
-            zIndex: 30,
             background: THEME.background,
-            boxShadow: sentInSession ? '0 4px 12px rgba(0,0,0,0.08)' : 'none',
-            maxHeight: sentInSession ? 'calc(100vh - 160px)' : 'none',
-            overflowY: 'auto',
           }}
-          onClick={(e) => e.stopPropagation()}
         >
           <div className="px-4 py-3">
-            {/* [Bug-431] 展开态右上角"收起"按钮 - 仅在本次会话已发过消息时显示
-                （没发消息前用户可来回点击 fab/收起按钮的需求不存在，因为 fab 不会出现） */}
-            {sentInSession && (
-              <div className="flex justify-end mb-2">
-                <button
-                  data-testid="ai-home-top-panel-collapse-btn"
-                  className="flex items-center justify-center rounded-full active:opacity-70"
-                  style={{
-                    width: 32,
-                    height: 32,
-                    background: THEME.cardBg,
-                    color: THEME.textSecondary,
-                    fontSize: 16,
-                    border: `1px solid ${THEME.divider}`,
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-                  }}
-                  onClick={collapseTopPanel}
-                  aria-label="收起欢迎面板"
-                >
-                  ⌃
-                </button>
-              </div>
-            )}
             {/* v1.0 欢迎区：左头像 + 右文字 横向布局 */}
             <SectionErrorBoundary name="welcome">
               {welcomeVisible && (
@@ -1679,8 +1655,10 @@ export default function AiHomePage() {
                         style={{ background: '#fff', border: `1px solid ${THEME.divider}`, whiteSpace: 'nowrap' }}
                         onClick={() => {
                           // [Bug-428] 推荐胶囊点击：自动以胶囊文本作为用户消息发送
-                          // handleSend 内部会自动把面板收起为悬浮按钮，让用户聚焦于 AI 回复
-                          handleSend(q.text);
+                          // [Bug-433] 同步 lastMsgTimeRef 并标注 source='preset'，避免会话首句被
+                          // 错误命中的"空闲超时清空"逻辑抹掉，且便于后端审计预设按钮入口。
+                          lastMsgTimeRef.current = Date.now();
+                          handleSend(q.text, 'preset');
                         }}
                       >
                         {q.tag && <span className="text-base">{q.tag}</span>}
@@ -1706,8 +1684,8 @@ export default function AiHomePage() {
           </div>
         </div>
 
-        {/* [Bug-428] 消息列表：始终常驻渲染（无对话时显示空，有对话时显示气泡列表）。
-            收缩态下顶部面板隐藏，消息列表占据主屏；展开态下顶部面板覆盖在消息列表之上。 */}
+        {/* 消息列表：紧接在顶部欢迎面板之后，二者同处一个滚动容器，
+            形成"菜单栏 → 消息流"的自然瀑布流排布。 */}
         {hasConversation && (
           /* [PRD-429] AI 回答消息满屏排版改造：去气泡纯文本流，
              用户消息和 AI 回答均无 background/border/borderRadius，
@@ -1989,46 +1967,6 @@ export default function AiHomePage() {
           </div>
         )}
       </div>
-
-      {/* [Bug-431] 收缩态右上角圆形小康头像悬浮按钮：
-          常驻贴顶（topbar 下方），点击重新展开顶部欢迎面板。
-          仅在"本次会话已发过消息"且面板处于 collapsed 状态时显示。 */}
-      {sentInSession && !topPanelExpanded && (
-        <button
-          data-testid="ai-home-top-panel-fab"
-          aria-label="展开欢迎面板"
-          onClick={expandTopPanel}
-          style={{
-            position: 'fixed',
-            top: 'calc(48px + env(safe-area-inset-top) + 12px)',
-            right: 16,
-            width: 44,
-            height: 44,
-            borderRadius: '50%',
-            background: THEME.gradient || 'linear-gradient(135deg, #5B6CFF 0%, #8B5CF6 100%)',
-            border: '2px solid #fff',
-            boxShadow: '0 4px 12px rgba(91, 108, 255, 0.35)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: 22,
-            color: '#fff',
-            cursor: 'pointer',
-            zIndex: 40,
-            padding: 0,
-          }}
-        >
-          {aiHomeConfig.welcome?.avatar?.type === 'image' && aiHomeConfig.welcome?.avatar?.image_url ? (
-            <img
-              src={aiHomeConfig.welcome.avatar.image_url}
-              alt="小康"
-              style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
-            />
-          ) : (
-            <span>{aiHomeConfig.welcome?.avatar?.emoji || '🌿'}</span>
-          )}
-        </button>
-      )}
 
       {/* Floating Check-in Button —— PRD v1.1 §3.2 可拖动健康打卡 */}
       <SectionErrorBoundary name="floating_button">
