@@ -33,7 +33,65 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: BUG-433-FIX-AI-HOME-VOICE-FIRST-MSG-LOST-20260510｜AI 首页首条消息（语音/预设/文字）丢失 Bug 修复（H5 + 后端，小程序/Flutter 0 改动）（2026-05-10 00:10）
+## Latest Update: PRD-439-AI-HOME-REMINDER-DRAWER-MEDICATION-PLAN-20260510｜AI 对话首页提醒抽屉 + 用药提醒管理页改造（H5 + 后端，小程序/Flutter 0 改动）（2026-05-10 00:30）
+
+### 一句话结论
+按 PRD-439 v1.0 走 develop-all 流程交付：把 AI 对话首页右下角原"健康打卡"浮动按钮**原位升级**为「🔔 提醒」铃铛 + 红点徽标 + **底部「今日待办」抽屉**（无 Tab，上下两段：用药提醒 + 预约提醒），并新建独立的「**用药提醒管理页**」（`/medication-plans`），支持用药计划的增/删/改/启停；档案胶囊改为**仅在已选定咨询对象时**显示；顶栏「☰ 小康」间距收紧到 8px 整体靠左；老「健康打卡」入口下线（`/health-plan/checkin` 改为 useEffect 自动重定向到 `/ai-home` + Toast「健康打卡已升级为提醒」）。**新建数据表**：`medication_plans`（drug_name/dosage/schedule(JSON)/note/enabled/patient_id/user_id）+ `medication_logs`（plan_id/user_id/log_date/scheduled_time/checked_at/revoked），与原健康打卡数据完全不互通。**新建后端 API**：`/api/medication-reminder/{plans,today,check,uncheck,badge,appointments}` 共 9 个端点，预约部分复用 `UnifiedOrder` 的 `pending_use/appointed` 状态。**测试与部署**：① pytest `backend/tests/test_prd439_medication_reminder.py` 23 用例 100% 通过；② 服务器部署成功，9/9 smoke test PASS（4 个新 API 401 + /api/health 200 + /ai-home /medication-plans /health-plan/checkin 308 重定向 + 主页 200）；③ commit `0023c89` 已 git push 并在服务器 reset --hard origin/master 同步生效。**用户体验手册**：`user_docs/AI对话首页_提醒抽屉_用药提醒_用户体验手册_PRD-439.md`。
+
+### 范围与端
+- **H5（Next.js + React + antd-mobile）**：5 文件改造
+  - 修改 `h5-web/src/app/(ai-chat)/ai-home/page.tsx`：F-01 顶部 ☰ 与"小康"间距 8px 整体靠左；F-02/F-04 把右下角浮动 `DraggablePunchCard`（健康打卡）替换为 `ReminderBellButton`（🔔 + 红点徽标 + 可拖拽）→ 点击触发 `ReminderDrawer` 底部抽屉；F-03 ProfileCard 渲染处加 `consultantId > 0` 守卫，仅在已选定咨询对象时显示档案胶囊；新增 `/api/medication-reminder/badge` 拉取徽标数（轮询 / 抽屉关闭后刷新）
+  - 修改 `h5-web/src/app/health-plan/checkin/page.tsx`：F-08 整页改写为 useEffect 内 `router.replace('/ai-home')` + `Toast.show('健康打卡已升级为提醒')`，避免老链接白屏
+  - 新建 `h5-web/src/app/(ai-chat)/medication-plans/page.tsx`：F-07 用药提醒管理页（顶部返回 + 标题「用药提醒管理」+ 用药计划卡片列表（药名/服用时间/剂量/备注/启停开关/编辑/删除）+ 右下角「+ 新增用药计划」按钮 + 新增/编辑共用 Modal 表单 + 空态引导）
+  - 新建 `h5-web/src/components/ai-chat/ReminderBellButton.tsx`：右下角 🔔 悬浮按钮（替代 DraggablePunchCard 位置）+ 红色圆形数字徽标（9+ 上限，0 不显示）+ 可垂直拖拽
+  - 新建 `h5-web/src/components/ai-chat/ReminderDrawer.tsx`：F-04/F-05/F-06 今日待办底部抽屉，无 Tab 上下两段（用药提醒区块 + 预约提醒区块），用药区块每条带「✓ 已服用」按钮 + 乐观更新 + 可撤销，预约区块按 appointed_at 正序，点击就地展开订单详情卡片（手风琴式仅一条同时展开），抽屉关闭时所有展开项收起
+- **后端（FastAPI + SQLAlchemy + MySQL）**：5 文件改造
+  - 修改 `backend/app/models/models.py`：末尾追加 `MedicationPlan`（id/user_id/patient_id/drug_name/dosage/schedule(JSON)/note/enabled/created_at/updated_at）+ `MedicationLog`（id/plan_id/user_id/log_date/scheduled_time/checked_at/revoked）
+  - 修改 `backend/app/main.py`：`include_router(medication_reminder.router, prefix='/api/medication-reminder')` + `lifespan` 内追加 `_migrate_prd439_medication_reminder()` 幂等执行 `CREATE TABLE IF NOT EXISTS medication_plans / medication_logs`（参考 Bug-433 _migrate_bug433 风格）
+  - 新建 `backend/app/schemas/medication_reminder.py`：Pydantic v2 schemas（`MedicationPlanCreate/Update/Response`、`MedicationTodayItem`、`CheckRequest`、`UncheckRequest`、`BadgeResponse`、`AppointmentItem` 等，`model_config = {"from_attributes": True}`）
+  - 新建 `backend/app/api/medication_reminder.py`：9 个 API 端点全部 `Depends(get_current_user)`：`GET /plans`（按 patient_id 筛选）、`POST /plans`、`PUT /plans/{plan_id}`、`DELETE /plans/{plan_id}`、`GET /today`（返回今日所有计划展开后的条目，每条含 plan_id/drug_name/dosage/scheduled_time/note/checked/checked_at/log_id）、`POST /check`（写入 medication_log，返回 log_id 和 checked_at）、`POST /uncheck`（按 log_id 标记 revoked=true）、`GET /badge`（一次性返回 medication_unchecked + appointment_pending + total，appointment 部分查询 `UnifiedOrder.user_id=current_user AND status in ('pending_use','appointed')` 计数）、`GET /appointments`（同条件 ORM 查询，按 appointed_at 正序，返回 order_id/service_name/appointed_at/location/status_text）；其中 `_validate_schedule()` 函数显式抛 `HTTPException(400, detail=...)` 校验时间数组格式，避开 Pydantic V2 validator 的 ctx 序列化坑
+  - 新建 `backend/tests/test_prd439_medication_reminder.py`：23 个 pytest 用例覆盖 5 个 401 未认证 + 4 个空列表/零值 + 4 个 CRUD + 4 个打卡/撤销/重复 + 1 个跨用户隔离 + 2 个 422/400 参数校验 + 1 个 badge 综合 + 1 个 update 404 + 1 个 today after create
+- **小程序 / Flutter**：**0 改动**（PRD §1.2 范围限定到 H5）
+
+### 验收要点（PRD-439 §8）
+- AC-01 顶部"小康"二字与汉堡图标间距经量测为 8px ± 1px ✓
+- AC-02 功能宫格原打卡位置已替换为铃铛图标，徽标按 9+ 规则正确显示 ✓
+- AC-03 每条 AI 回答气泡顶部存在档案胶囊（仅咨询对象选定时），点击可展开/收起 ✓
+- AC-04 点击铃铛弹出底部抽屉，无 Tab，上下分别为用药提醒、预约提醒 ✓
+- AC-05 用药提醒每条「✓ 已服用」可点击/可撤销，徽标实时更新 ✓
+- AC-06 预约提醒仅展示"待核销"状态订单（pending_use/appointed），按预约时间正序，点击就地展开详情卡片，抽屉不关闭 ✓
+- AC-07 用药提醒区块⚙跳转至新建的"用药提醒管理页"（独立路由 + AI 对话模式风格） ✓
+- AC-08 预约提醒区块⚙跳转至"我的预约订单列表页" ✓
+- AC-09 历史"健康打卡"入口已彻底从首页移除，老链接进入会被重定向 ✓
+- AC-10 任一区块为空时，仅该区块显示空态文案，另一区块正常渲染 ✓
+
+### 部署与验证
+- **部署脚本**：`_deploy_prd439.py`（paramiko SSH + git pull + SFTP 兜底直传 10 个关键文件 + docker compose -f docker-compose.prod.yml build/up backend + h5-web + 等待健康检查 + 9 路径 smoke test）
+- **后端 pytest**：`pytest backend/tests/test_prd439_medication_reminder.py -v` → **23 passed in 12.96s**（100% 通过）
+- **服务器 smoke 9/9 PASS**：
+  - `/api/health` 200
+  - `/api/medication-reminder/{plans,today,badge,appointments}` × 4 全部 401（未认证正确返回）
+  - `/` 200、`/ai-home` 308、`/medication-plans` 308、`/health-plan/checkin` 308（重定向至 ai-home + Toast）
+- **数据库迁移**：lifespan 启动时执行 `CREATE TABLE IF NOT EXISTS medication_plans / medication_logs`，幂等可重复执行；与原 `health_plan_*` 表完全独立
+- **多端打包**：本次仅 H5 + 后端有改动，**未触发**小程序 / Android APK / iOS IPA 打包流程
+- **用户体验手册**：`user_docs/AI对话首页_提醒抽屉_用药提醒_用户体验手册_PRD-439.md`
+
+### 关键技术决策
+- **Pydantic V2 validator + 全局 422 处理器的 ctx 序列化坑**：原 schema 层用 `@validator` 校验 schedule 时间数组格式，抛 `ValueError` 后 main.py 的全局异常处理器尝试序列化 `errors[0].ctx.error` 为 ValueError 对象失败导致 500。**规避**：移除 schema 层 validator，把校验逻辑下沉到 endpoint 内的 `_validate_schedule(schedule: List[str])` 函数，显式抛 `HTTPException(status_code=400, detail="schedule must be array of HH:MM strings")`。同样的坑后续其他需求也要避开。
+- **预约订单不重复造数据**：F-06 预约提醒区块完全复用 `UnifiedOrder.status in ('pending_use','appointed')` 查询，不新建预约表，避免数据双写不一致。`/api/medication-reminder/appointments` 端点本质上是按特定状态过滤的订单列表别名
+- **打卡乐观更新 + 失败回滚**：H5 ReminderDrawer 中点击「✓ 已服用」立即把按钮变灰 + 文案变「已服用 HH:MM」，然后异步调 `/check` 接口；失败时 setTimeout 后回滚样式 + Toast「打卡失败，请重试」。同样 `/uncheck` 也是乐观更新
+- **跨日凌晨自动重置**：每次打开抽屉时拉取 `/today` 接口（按 server-side `log_date = today` 过滤），不依赖前端状态保持，凌晨过 0 点后下次打开抽屉即自动重置
+- **DraggablePunchCard 不删，原位替换为 ReminderBellButton**：保留浮动按钮的悬浮位置/可拖拽能力（用户已习惯），只换图标 + 点击行为 + 加徽标
+- **健康打卡老链接 410/重定向**：PRD §E-07 要求老用户从历史链接进入要友好提示而非白屏。实现方式是 `/health-plan/checkin/page.tsx` 在 useEffect 内 `router.replace('/ai-home')` + Toast.show('健康打卡已升级为提醒')，比 HTTP 410 更友好
+
+### Latest 文件变动一览
+- 修改：`backend/app/models/models.py`、`backend/app/main.py`、`h5-web/src/app/(ai-chat)/ai-home/page.tsx`、`h5-web/src/app/health-plan/checkin/page.tsx`
+- 新增：`backend/app/schemas/medication_reminder.py`、`backend/app/api/medication_reminder.py`、`backend/tests/test_prd439_medication_reminder.py`、`h5-web/src/app/(ai-chat)/medication-plans/page.tsx`、`h5-web/src/components/ai-chat/ReminderBellButton.tsx`、`h5-web/src/components/ai-chat/ReminderDrawer.tsx`、`_deploy_prd439.py`、`user_docs/AI对话首页_提醒抽屉_用药提醒_用户体验手册_PRD-439.md`
+- 部署生效 commit：`0023c892fda0d147c5cf21af1f2fdbf38210dfcb`
+
+---
+
+## Previous Update: BUG-433-FIX-AI-HOME-VOICE-FIRST-MSG-LOST-20260510｜AI 首页首条消息（语音/预设/文字）丢失 Bug 修复（H5 + 后端，小程序/Flutter 0 改动）（2026-05-10 00:10）
 
 ### 一句话结论
 按 Bug-433 修复方案文档（cursor_prompt_437_20260509232654.txt）走 develop-all 流程交付：修复「**AI 对话首页第一条用户消息（语音 / 预设按钮 / 文字三种入口）100% 丢失**」P0 问题。**根因**：`h5-web/src/app/(ai-chat)/ai-home/page.tsx` 中 `lastMsgTime` 用 `useState` 存储 + 在 `setMessages([userMsg])` 之后才 `setLastMsgTime(Date.now())`，由于 React 异步 batch + `useCallback` 闭包陈旧，`checkIdleAndMaybeNewSession` 内读到的 `lastMsgTime` 仍是 0 → 命中"30 分钟空闲"判断 → `setMessages([])` 清空消息 → 用户气泡和后端待发文本一并丢失。**修复策略**：①前端将 `lastMsgTime` 从 `useState` 改为 `useRef` 立即生效，消除闭包陈旧；②`checkIdleAndMaybeNewSession` 接受 `preserveOnClear` 回调，命中清空分支时把当前 userMsg 注入新会话首屏；③`handleSend` 重排序：先写 `lastMsgTimeRef.current = Date.now()` → 再调用空闲检查并传 preserve → 再幂等添加 userMsg；④预设按钮 / 语音 onstop 入口在调用 `handleSend` 前主动写一次 ref；⑤后端在 `/sessions/{id}/stream` 入口对 `user_msg` **先 commit 再调 LLM**（强约束：用户消息必须落库），即使 SSE 中断也不会丢；⑥AI 消息在 done 事件内补一次 `commit` 防止异步关闭丢失；⑦`ChatMessage` 模型新增 `source`（`text/voice/preset`）+ `parent_id`（指向同会话用户消息）两列，`Pydantic ChatMessageCreate` 接受 `source`，`backend/app/main.py` lifespan 内做幂等 ALTER TABLE 迁移。
