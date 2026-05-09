@@ -3707,3 +3707,40 @@ class AIHomeConfigLog(Base):
     after_json = Column(JSON, nullable=True)
     operator_ip = Column(String(64), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+
+
+# ──────────────── PRD-439 用药提醒（H5 健康打卡升级为提醒） ────────────────
+
+
+class MedicationPlan(Base):
+    """用药提醒计划（PRD-439 F-05/F-07）。
+
+    与原健康打卡数据完全独立，新表互不干扰。
+    """
+
+    __tablename__ = "medication_plans"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    patient_id = mapped_column(Integer, nullable=True, index=True)
+    drug_name = mapped_column(String(128), nullable=False)
+    dosage = mapped_column(String(64), nullable=False)
+    schedule = mapped_column(JSON, nullable=False)
+    note = mapped_column(String(256), nullable=True)
+    enabled = mapped_column(Boolean, nullable=False, default=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class MedicationLog(Base):
+    """用药打卡记录（PRD-439 F-05）。"""
+
+    __tablename__ = "medication_logs"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    plan_id = mapped_column(Integer, ForeignKey("medication_plans.id"), nullable=False, index=True)
+    user_id = mapped_column(Integer, nullable=False, index=True)
+    log_date = mapped_column(Date, nullable=False, index=True)
+    scheduled_time = mapped_column(String(8), nullable=False)
+    checked_at = mapped_column(DateTime, default=datetime.utcnow)
+    revoked = mapped_column(Boolean, nullable=False, default=False)

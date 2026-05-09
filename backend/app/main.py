@@ -56,6 +56,7 @@ from app.api import (
     knowledge,
     login_ui_config,
     maps,
+    medication_reminder,
     member_qr,
     messages,
     notice,
@@ -878,6 +879,67 @@ def _scan_route_conflicts(app: "FastAPI") -> list[dict]:
     return conflicts
 
 
+async def _migrate_prd439_medication_reminder():
+    """[PRD-439 2026-05-10] 用药提醒（H5 健康打卡升级）— 幂等建表。
+
+    新增：
+    - medication_plans
+    - medication_logs
+
+    与原 health_plan 数据完全独立。仅 CREATE IF NOT EXISTS，不删除任何旧表。
+    """
+    import logging as _l
+    _logger = _l.getLogger(__name__)
+    from app.core.database import async_session as _async_session
+    try:
+        async with _async_session() as db:
+            from sqlalchemy import text
+            try:
+                await db.execute(text(
+                    """
+                    CREATE TABLE IF NOT EXISTS medication_plans (
+                        id INT NOT NULL AUTO_INCREMENT,
+                        user_id INT NOT NULL,
+                        patient_id INT NULL,
+                        drug_name VARCHAR(128) NOT NULL,
+                        dosage VARCHAR(64) NOT NULL,
+                        schedule JSON NOT NULL,
+                        note VARCHAR(256) NULL,
+                        enabled TINYINT(1) NOT NULL DEFAULT 1,
+                        created_at DATETIME NULL,
+                        updated_at DATETIME NULL,
+                        PRIMARY KEY (id),
+                        KEY ix_medication_plans_user_id (user_id),
+                        KEY ix_medication_plans_patient_id (patient_id)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+                    """
+                ))
+                await db.execute(text(
+                    """
+                    CREATE TABLE IF NOT EXISTS medication_logs (
+                        id INT NOT NULL AUTO_INCREMENT,
+                        plan_id INT NOT NULL,
+                        user_id INT NOT NULL,
+                        log_date DATE NOT NULL,
+                        scheduled_time VARCHAR(8) NOT NULL,
+                        checked_at DATETIME NULL,
+                        revoked TINYINT(1) NOT NULL DEFAULT 0,
+                        PRIMARY KEY (id),
+                        KEY ix_medication_logs_plan_id (plan_id),
+                        KEY ix_medication_logs_user_id (user_id),
+                        KEY ix_medication_logs_log_date (log_date)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+                    """
+                ))
+                await db.commit()
+                _logger.info("[prd439] medication_plans / medication_logs 建表完成")
+            except Exception as e:
+                await db.rollback()
+                _logger.debug("[prd439] 建表跳过（可能 SQLite 测试环境，由 metadata.create_all 建表）: %s", e)
+    except Exception as e:
+        _logger.error("[prd439] 用药提醒迁移异常（不影响启动）: %s", e)
+
+
 async def _migrate_bug433_chat_message_source_parent_id():
     """[Bug-433 2026-05-09] AI 对话首页 - 语音/预设按钮"会话首句消息丢失"修复
 
@@ -970,6 +1032,8 @@ async def lifespan(app: FastAPI):
     await _migrate_business_config_unify_v1()
     # [Bug-433 2026-05-09] chat_messages 加列 source/parent_id + 索引
     await _migrate_bug433_chat_message_source_parent_id()
+    # [PRD-439 2026-05-10] 用药提醒（H5 健康打卡升级）— medication_plans / medication_logs
+    await _migrate_prd439_medication_reminder()
     from app.init_data import init_default_data
     await init_default_data()
     from app.init_cities import init_cities
@@ -1140,6 +1204,9 @@ app.include_router(_admin_sdk_health.router)
 # [PRD-423 T-08 2026-05-08] AI 对话页埋点接收接口（EVT-01 ~ EVT-10）
 from app.api import analytics as _analytics  # noqa: E402
 app.include_router(_analytics.router)
+
+# [PRD-439 2026-05-10] H5 健康打卡升级为用药提醒：用药计划/打卡/徽标/待核销预约
+app.include_router(medication_reminder.router)
 
 
 # [2026-05-05 SDK 健康看板] 启动期 SDK 分级自检：核心缺失 → 容器退出；可选缺失 → CRITICAL 告警

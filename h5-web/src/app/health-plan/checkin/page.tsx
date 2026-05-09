@@ -1,186 +1,46 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
-import { Card, Button, Dialog, Toast, SpinLoading, SwipeAction } from 'antd-mobile';
-import { AddOutline } from 'antd-mobile-icons';
-import GreenNavBar from '@/components/GreenNavBar';
-import api from '@/lib/api';
-import CheckinPointsProgress from '@/components/CheckinPointsProgress';
-import { showCheckinPointsToast } from '@/utils/checkinPointsToast';
+/**
+ * [PRD-439 F-08] 健康打卡入口下线
+ *
+ * 原 /health-plan/checkin 页面已被 ai-home 中的 🔔 提醒铃铛 + 今日待办抽屉取代。
+ * 这里仅做客户端重定向到 /ai-home，并提示"已升级"。
+ *
+ * 历史打卡数据保留在数据库，本页面不再访问。
+ */
 
-interface CheckinItem {
-  id: number;
-  name: string;
-  is_checked: boolean;
-  remind_time: string | null;
-  repeat_frequency: string;
-  today_completed?: boolean;
-}
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { Toast } from 'antd-mobile';
 
 export default function CheckinPage() {
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
-  const [items, setItems] = useState<CheckinItem[]>([]);
-  const [pointsRefreshKey, setPointsRefreshKey] = useState(0);
 
-  const fetchData = useCallback(async () => {
-    try {
-      const res: any = await api.get('/api/health-plan/checkin-items');
-      const data = res.data || res;
-      const rawItems = data.items || data || [];
-      setItems(rawItems.map((item: any) => ({
-        ...item,
-        is_checked: item.today_completed || false,
-        remind_time: Array.isArray(item.remind_times) ? item.remind_times[0] : item.remind_time || null,
-      })));
-    } catch {
-      Toast.show({ content: '加载失败', icon: 'fail' });
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { fetchData(); }, [fetchData]);
-
-  const handleSimpleCheck = async (item: CheckinItem) => {
-    try {
-      const res: any = await api.post(`/api/health-plan/checkin-items/${item.id}/checkin`, { actual_value: null });
-      const result = res.data || res;
-      showCheckinPointsToast(result);
-      fetchData();
-      setPointsRefreshKey((k) => k + 1);
-    } catch {
-      Toast.show({ content: '打卡失败', icon: 'fail' });
-    }
-  };
-
-  const handleDelete = async (item: CheckinItem) => {
-    const confirmed = await Dialog.confirm({ content: `确定删除「${item.name}」吗？` });
-    if (confirmed) {
-      try {
-        await api.delete(`/api/health-plan/checkin-items/${item.id}`);
-        Toast.show({ content: '删除成功', icon: 'success' });
-        fetchData();
-      } catch {
-        Toast.show({ content: '删除失败', icon: 'fail' });
-      }
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <GreenNavBar>健康打卡</GreenNavBar>
-        <div className="flex items-center justify-center" style={{ height: 'calc(100vh - 45px)' }}>
-          <SpinLoading color="primary" />
-        </div>
-      </div>
-    );
-  }
+  useEffect(() => {
+    Toast.show({
+      content: '健康打卡已升级为提醒，请在首页右下角 🔔 查看',
+      duration: 2500,
+    });
+    const timer = setTimeout(() => {
+      router.replace('/ai-home');
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [router]);
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-24">
-      <GreenNavBar>健康打卡</GreenNavBar>
-
-      {/* v6 方案B：删除原渐变 banner，直接展示打卡进度数据卡片 */}
-      <div className="px-4 pt-3">
-        <CheckinPointsProgress refreshKey={pointsRefreshKey} />
-        {items.length === 0 ? (
-          <Card style={{ borderRadius: 12, textAlign: 'center', padding: '40px 20px' }}>
-            <div className="text-4xl mb-3">✅</div>
-            <div className="text-gray-400 text-sm mb-4">暂无打卡项</div>
-            <Button
-              color="primary"
-              size="small"
-              style={{ borderRadius: 20, background: 'linear-gradient(135deg, #52c41a, #73d13d)', border: 'none' }}
-              onClick={() => router.push('/health-plan/checkin/add')}
-            >
-              添加打卡项
-            </Button>
-          </Card>
-        ) : (
-          items.map((item) => (
-            <SwipeAction
-              key={item.id}
-              rightActions={[
-                {
-                  key: 'edit',
-                  text: '编辑',
-                  color: 'primary',
-                  onClick: () => router.push(`/health-plan/checkin/add?id=${item.id}`),
-                },
-                {
-                  key: 'delete',
-                  text: '删除',
-                  color: 'danger',
-                  onClick: () => handleDelete(item),
-                },
-              ]}
-            >
-              <Card style={{ borderRadius: 12, marginBottom: 12 }}>
-                <div className="flex items-center">
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-sm truncate">{item.name}</div>
-                    <div className="flex items-center gap-2 mt-1 flex-wrap">
-                      <span className={`text-xs ${item.is_checked ? 'text-green-500' : 'text-gray-400'}`}>
-                        {item.is_checked ? '✅ 已完成' : '⬜ 未完成'}
-                      </span>
-                      {item.remind_time && (
-                        <span className="text-xs text-gray-400">⏰ {item.remind_time}</span>
-                      )}
-                      <span
-                        className="text-base cursor-pointer"
-                        style={{ padding: '0 2px', lineHeight: 1 }}
-                        onClick={() => router.push(`/health-plan/checkin/add?id=${item.id}`)}
-                      >✏️</span>
-                      <span
-                        className="text-base cursor-pointer"
-                        style={{ padding: '0 2px', lineHeight: 1 }}
-                        onClick={() => handleDelete(item)}
-                      >🗑️</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center ml-3 flex-shrink-0">
-                    {item.is_checked ? (
-                      <Button
-                        size="mini"
-                        disabled
-                        style={{ borderRadius: 8, background: '#f0f0f0', color: '#999', border: 'none' }}
-                      >
-                        已完成
-                      </Button>
-                    ) : (
-                      <Button
-                        size="mini"
-                        color="primary"
-                        style={{ borderRadius: 8, background: '#52c41a', border: 'none' }}
-                        onClick={() => handleSimpleCheck(item)}
-                      >
-                        打卡
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </Card>
-            </SwipeAction>
-          ))
-        )}
-      </div>
-
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white" style={{ maxWidth: 750, margin: '0 auto', boxShadow: '0 -2px 8px rgba(0,0,0,0.06)', paddingBottom: 'calc(16px + env(safe-area-inset-bottom))' }}>
-        <Button
-          block
-          color="primary"
-          size="large"
-          style={{ borderRadius: 12, background: 'linear-gradient(135deg, #52c41a, #73d13d)', border: 'none', height: 48 }}
-          onClick={() => router.push('/health-plan/checkin/add')}
-        >
-          <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
-            <AddOutline /> 添加打卡项
-          </span>
-        </Button>
-      </div>
+    <div
+      data-testid="prd439-checkin-redirect"
+      style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: '#6B7280',
+        fontSize: 14,
+        background: '#F5F5F7',
+      }}
+    >
+      正在跳转…
     </div>
   );
 }

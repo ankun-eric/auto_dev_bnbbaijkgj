@@ -15,6 +15,8 @@ import SharePanel from '@/components/ai-chat/SharePanel';
 import SectionErrorBoundary from '@/components/SectionErrorBoundary';
 import DraggablePunchCard from '@/components/ai-chat/DraggablePunchCard';
 import ProfileCard, { clearProfileCardCache } from '@/components/ai-chat/ProfileCard';
+import ReminderBellButton from '@/components/ai-chat/ReminderBellButton';
+import ReminderDrawer from '@/components/ai-chat/ReminderDrawer';
 import { trackEvent, aiChatTrack, type AiChatTargetType } from '@/lib/analytics';
 
 interface ChatMessage {
@@ -350,6 +352,21 @@ export default function AiHomePage() {
   const [shareOpen, setShareOpen] = useState(false);
   const [consultantOpen, setConsultantOpen] = useState(false);
 
+  // [PRD-439 F-02/F-04] 提醒抽屉 + 徽标
+  const [reminderOpen, setReminderOpen] = useState(false);
+  const [reminderBadge, setReminderBadge] = useState(0);
+
+  const refreshReminderBadge = useCallback(async () => {
+    try {
+      const res: any = await api.get('/api/medication-reminder/badge');
+      const total = (res?.total ?? res?.data?.total ?? 0) as number;
+      setReminderBadge(Number.isFinite(total) ? total : 0);
+    } catch {
+      // 未登录或接口异常时静默：徽标显示 0（即不展示）
+      setReminderBadge(0);
+    }
+  }, []);
+
   // 顶部欢迎面板（欢迎区/健康贴士/功能宫格/推荐问）改为常驻瀑布流：
   // 始终位于文档流顶部，与消息列表一起自然向下排布、整体滚动；
   // 不再有折叠态、不再有右上角圆形小康头像悬浮按钮、不再有"收起/展开"切换。
@@ -434,6 +451,9 @@ export default function AiHomePage() {
       const data = res.data || res;
       setHasHealthTask(!!data.has_tasks);
     }).catch(() => {});
+
+    // [PRD-439 F-02] 提醒徽标：用药未打卡数 + 待核销订单数
+    refreshReminderBadge();
 
     api.get('/api/app-settings/chat-idle-timeout').then((res: any) => {
       const data = res.data || res;
@@ -1451,17 +1471,21 @@ export default function AiHomePage() {
               </button>
             ) : null}
 
-            {/* 中：小康标题 + 未读徽标（绝对居中：left+right 留出 56px 给左右按钮） */}
+            {/* [PRD-439 F-01] "小康"标题：整体靠左，与左侧 ☰ 按钮间距 8px
+                ☰ 按钮在 left:8 + 宽 32px，紧邻其右 = left:48；再加 8px 间距 = left:56 - 即原 56，
+                这里的关键是把 justifyContent 从 flex-start 保持为左对齐，且容器 left 改为 48 + 间距 8 = 56 不动，
+                但去掉 right: 56 让标题尽量左侧。 */}
             <div
               style={{
                 position: 'absolute',
-                left: 56,
+                left: 48, /* ☰ 按钮右侧紧邻 */
                 right: 56,
                 top: 0,
                 bottom: 0,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'flex-start',
+                paddingLeft: 8, /* [PRD-439 F-01] ☰ 与"小康"间距 8px */
                 minWidth: 0,
               }}
             >
@@ -1752,7 +1776,9 @@ export default function AiHomePage() {
                       </span>
                     </div>
                   )}
-                  {/* [PRD-432] AI 回答顶部「咨询对象档案」折叠卡片（保留在卡片外部上方） */}
+                  {/* [PRD-432 / PRD-439 F-03] AI 回答顶部「咨询对象档案」折叠胶囊：
+                      仅在已选定咨询对象时显示（未选则隐藏，避免空胶囊） */}
+                  {((msg.consultantTargetId ?? selectedConsultant?.id ?? 0) > 0) && (
                   <div data-testid="ai-home-profile-card-wrapper" style={{ marginBottom: 8 }}>
                     <ProfileCard
                       consultantId={(msg.consultantTargetId ?? selectedConsultant?.id ?? 0) as number}
@@ -1762,6 +1788,7 @@ export default function AiHomePage() {
                       }
                     />
                   </div>
+                  )}
                   {/* [PRD-433 F-03] AI 头像 + 名称行：保留在卡片外部上方，去掉「· 健康助手」 */}
                   <div className="flex items-center" style={{ marginBottom: 6, paddingLeft: 16 }}>
                     <div
@@ -1968,48 +1995,34 @@ export default function AiHomePage() {
         )}
       </div>
 
-      {/* Floating Check-in Button —— PRD v1.1 §3.2 可拖动健康打卡 */}
+      {/* [PRD-439 F-02/F-08] 健康打卡入口下线，原位替换为 🔔 提醒铃铛
+          - 复用悬浮位置（默认 bottom 120）+ 数字徽标
+          - 点击弹出"今日待办"抽屉（用药提醒 + 预约提醒） */}
       <SectionErrorBoundary name="floating_button">
         {floatingButtonVisible && (
-          <DraggablePunchCard
-            storageKey="__h5_ai_chat_punchcard_y__"
+          <ReminderBellButton
+            badgeCount={reminderBadge}
             defaultBottom={120}
-            topOffset={56}
-            bottomOffset={80}
             position={aiHomeConfig.floating_button?.position === 'left_bottom' ? 'left' : 'right'}
-            onClick={() => {
-              const path = aiHomeConfig.floating_button?.target_path || '/health-plan';
-              if (path.startsWith('/')) router.push(path);
-            }}
-            onDragEnd={(fromY, toY) => {
-              // [PRD-423 T-08 EVT-08]
-              aiChatTrack.punchcardDrag(fromY, toY);
-            }}
-          >
-            <div
-              className="relative flex items-center justify-center rounded-full text-xl"
-              style={{
-                minWidth: 48,
-                height: 48,
-                padding: aiHomeConfig.floating_button?.show_label ? '0 12px' : 0,
-                width: aiHomeConfig.floating_button?.show_label ? 'auto' : 48,
-                background: THEME.gradient,
-                color: '#fff',
-              }}
-            >
-              <span>{aiHomeConfig.floating_button?.icon || '✅'}</span>
-              {aiHomeConfig.floating_button?.show_label && aiHomeConfig.floating_button?.label && (
-                <span className="ml-1 text-sm">{aiHomeConfig.floating_button.label}</span>
-              )}
-              {hasHealthTask && (
-                <div
-                  className="absolute -top-0.5 -right-0.5 rounded-full"
-                  style={{ width: 10, height: 10, background: '#FF4D4F', border: '2px solid #fff' }}
-                />
-              )}
-            </div>
-          </DraggablePunchCard>
+            onClick={() => setReminderOpen(true)}
+          />
         )}
+      </SectionErrorBoundary>
+      {/* [PRD-439 F-04~F-06] 今日待办抽屉 */}
+      <SectionErrorBoundary name="reminder_drawer">
+        <ReminderDrawer
+          open={reminderOpen}
+          onClose={() => setReminderOpen(false)}
+          onChangeBadge={refreshReminderBadge}
+          onGoMedicationManage={() => {
+            setReminderOpen(false);
+            router.push('/medication-plans');
+          }}
+          onGoOrderList={() => {
+            setReminderOpen(false);
+            router.push('/unified-orders');
+          }}
+        />
       </SectionErrorBoundary>
 
       {/* Bottom Quick Tags (兼容旧版本，仅在 quick_tags.visible 时显示) */}
