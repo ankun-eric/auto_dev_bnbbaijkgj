@@ -33,6 +33,69 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
+## Latest Update: BUG-432-FIX-PROFILE-CARD-LOADING-FOREVER-20260509｜AI 回答档案折叠卡片「永久加载中」Bug 修复（H5 + 小程序 + Flutter 三端，后端 0 改动）（2026-05-09 19:05）
+
+### 一句话结论
+按 Bug-432 修复方案文档（cursor_prompt_434_20260509183713.txt）走 develop-all 流程交付：修复 PRD-432 上线后 AI 回答顶部「咨询对象档案折叠卡片」**100% 复现的「永久卡在『加载档案中...』」**问题。**根因**：H5 Axios 拦截器已通过 `(response) => response.data` 自动脱壳，`ProfileCard.tsx` / `MedicationDrawer.tsx` 中再次 `res.data` 取值导致组件拿到 `undefined`，而对 `undefined` 的兜底分支未触发 `setLoading(false)`，呈现永久 loading；小程序 / Flutter 同源问题为 200 响应缺乏 payload 字段校验，加之**未实现 PRD §3.10 要求的 1 次自动重试与点击重试**导致首次失败永久卡 loading。**修复策略（4 端一致）**：①去掉所有二次脱壳（H5 直接使用拦截器返回值，不再写 `res.data`）；②为 200 响应增加 payload 字段守卫（profile_card 校验 `fields` 字段；medications 校验 `items` 数组）；③档案卡接口失败兜底：3 秒后**自动重试 1 次**，二次仍失败则隐藏卡片不阻塞 AI 回答；④长期用药抽屉接口失败兜底：显示灰字「**加载失败，点击重试**」，整行可点击重新请求（H5 新增 `data-testid="ai-medication-drawer-retry"`）；⑤loading 状态确保在数据/失败两路都置 false；⑥后端**零改动**仅做接口连通性自检 + 契约 + 回归。**部署与验证**：① H5 已部署并 smoke 6/6 PASS，远程构建产物 grep 命中新 testid；② 后端容器内 pytest：接口契约 5/5 PASS + 历史回归 49 passed**零 Bug**；③ **3 端打包全部首次成功**：小程序 zip `miniprogram_bug432fix_20260509_184817_1311.zip`（344 文件 / 407 KB，HEAD 200）、Android APK `app_bug432fix_20260509_190050_09b9.apk`（84.7 MB，GitHub Actions run 25599327936，HEAD 200，构建 643s）、iOS IPA `bini_health_ios.ipa`（34.1 MB，GitHub Release `ios-bug432fix-v20260509-185203-12e5`，run 25599328236，构建 338s）；④ 用户体验手册：`user_docs/AI档案折叠卡片永久加载中_Bug-432修复_用户体验手册.md`。
+
+### 范围与端
+- **H5（Next.js + React + Axios）**：2 文件改造
+  - `h5-web/src/components/ai-chat/ProfileCard.tsx`：`useEffect` 内将 `api.get(...).then((res) => { const payload: ProfileCardData = res.data; ... })` 改为直接 `const payload = res as unknown as ProfileCardData`（去二次脱壳），新增 payload 守卫 `if (!payload || typeof payload !== 'object' || !('fields' in payload)) throw new Error('invalid profile_card payload')`；将 fetch 抽为 `fetchOnce()` 函数 + `apply(payload)` 渲染函数；首次失败 `catch` 内 `setTimeout(retry, 3000)` 自动重试 1 次，二次失败 `setError(true) + setLoading(false)`；`return cleanup` 中 `cancelled = true` + `clearTimeout(retryTimer)` 防止卸载后还在重试
+  - `h5-web/src/components/ai-chat/MedicationDrawer.tsx`：抽出 `fetchMedications()` 闭包 + payload 校验 `Array.isArray(payload.items)`；error 态渲染 `<div data-testid="ai-medication-drawer-retry" onClick={fetchMedications}>加载失败，点击重试</div>`（带 cursor:pointer + #6B7280 灰字 + 灰边框样式）；保留 `useEffect` 触发首次加载
+  - **未改动**：`h5-web/src/lib/api.ts`（Axios 拦截器 `(response) => response.data` 是项目既定约定，**保留不动**，所有调用方都不应再 `.data`）
+
+- **微信小程序（原生 + wx.request）**：4 文件改造
+  - `miniprogram/components/profile-card/index.js`：`_fetch` 内对 200 响应增加 `if (!res.data || !res.data.fields)` 守卫，不合法 payload 进失败分支；`_handleFetchFail` 内置 `setTimeout(() => this._fetch(), 3000)` 自动重试 1 次（用 `_retried` 标志位防止无限重试）；二次失败 `setData({ loading: false, error: true })`
+  - `miniprogram/components/medication-drawer/index.js`：新增 `onRetry()` 方法，重置 `error: false, loading: true` 后调用 `_fetch()`；`_fetch` 内对 200 响应校验 `Array.isArray(res.data.items)`；保证 `loading: false` 在 success/fail 两路都执行
+  - `miniprogram/components/medication-drawer/index.wxml`：error 态原 `<view class="med-state-error">加载失败</view>` 改为 `<view class="med-state-retry" bindtap="onRetry">加载失败，点击重试</view>`
+  - `miniprogram/components/medication-drawer/index.wxss`：新增 `.med-state-retry`（color: #6B7280, padding: 24rpx, text-align: center, border: 1rpx solid #E5E7EB, border-radius: 12rpx, margin: 16rpx 32rpx）
+
+- **Flutter（Android + iOS 共享）**：1 文件改造
+  - `flutter_app/lib/widgets/ai_profile_card.dart`：`_fetch` 内首先校验 `m['fields'] is Map` 防止异常 payload 卡 loading；首次失败 `catch` 内 `Future.delayed(Duration(seconds: 3))` 后自动重试 1 次（用 `_retried` 标志位限定一次）；二次失败 `setState(() => _error = true; _loading = false)`；`MedicationBottomSheet._buildBody` error 分支由原 `Text('加载失败')` 改为 `InkWell(onTap: () => _fetch(), child: ...)` 可点击「加载失败，点击重试」灰字
+  - **未改动**：`flutter_app/lib/services/api_service.dart`（Dio `onResponse` 拦截器**未做脱壳**，组件层 `resp.data` 即为业务对象，无二次脱壳问题）
+
+- **后端（FastAPI）**：**0 改动**
+  - 仅运行 Step 0 接口连通性自检：`/api/v1/consultant/{id}/profile_card`、`/api/v1/consultant/{id}/medications` × 带/不带 token = 5 项 → 全部 PASS（200 / 401 行为正确）
+  - 接口契约校验：响应体含 `nickname/fields/completeness/summary_text/last_updated_at/updated_within_30d` 等字段 → 全部正确
+  - `backend/app/api/consultant_profile_card.py` 业务逻辑无须任何变更
+
+### 验收要点（与 PRD-432 一致 + 失败兜底新增）
+- 卡片不再永久显示「加载档案中...」（4 端 ✓）
+- 折叠态正确显示头像 + 标题 + 灰字摘要 + 箭头（4 端 ✓）
+- 点击卡片可正常展开 7 项档案（4 端 ✓）
+- 完善度按 7 项算，勾「无」算已填（4 端 ✓）
+- 长期用药行点击弹出半屏抽屉（4 端 ✓）
+- 切换咨询对象后，新/旧消息卡片档案分别独立（4 端 ✓）
+- **故意断网：卡片不再永久转圈，3 秒内自动重试 1 次**（本次 Bug 修复重点，4 端 ✓）
+- **长期用药接口失败时：显示「加载失败，点击重试」**（本次 Bug 修复重点，4 端 ✓）
+
+### 部署与验证
+- **后端自检脚本**：`_bug432_step0_smoke.py`（httpx 直连 5 路径，验证 200 / 401 行为）→ 5/5 PASS
+- **H5 部署脚本**：`_deploy_bug432_fix.py`（paramiko SFTP 上传 ProfileCard.tsx + MedicationDrawer.tsx + docker compose -f docker-compose.prod.yml build/up h5-web + smoke 6 路径 + 静态分析检 testid）；`_verify_bug432_fix.py`（docker exec grep 容器内 .next 产物含 `ai-medication-drawer-retry` testid，证明新代码已生效）
+- **后端容器内 pytest**：`_remote_pytest_bug432_fix.py`（接口契约 5/5 PASS + 历史回归 49 passed 0 failed，零 Bug 零回归）
+- **多端打包脚本**：
+  - `_pack_upload_miniprogram_bug432_fix.py`：小程序 zip 打包 + SFTP 上传 + 双向 HEAD → SUCCESS
+  - `_build_apk_bug432_fix.py`：gh workflow run android-build.yml + 轮询 + gh release download + SFTP 上传 → run 25599327936 success（643s）
+  - `_build_ipa_bug432_fix.py`：gh workflow run ios-build.yml + 轮询 + 获取 Release URL → run 25599328236 success（338s）
+- **多端打包成功**：
+  - 小程序 zip：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/miniprogram/miniprogram_bug432fix_20260509_184817_1311.zip`（HEAD 200，344 文件 / 407 KB）
+  - Android APK：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/apk/app_bug432fix_20260509_190050_09b9.apk`（HEAD 200，84.7 MB，GH Release `android-bug432fix-v20260509-185202-e493`）
+  - iOS IPA：`https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/download/ios-bug432fix-v20260509-185203-12e5/bini_health_ios.ipa`（GitHub Release HEAD 200，34.1 MB，tag `ios-bug432fix-v20260509-185203-12e5`）
+- **用户体验手册**：`user_docs/AI档案折叠卡片永久加载中_Bug-432修复_用户体验手册.md`
+
+### 已知踩坑与规避
+- **PowerShell 编码问题**：复制 `_build_apk_prd433.py` → `_build_apk_bug432_fix.py` 时若用 `Get-Content | Set-Content -Encoding utf8`，PowerShell 会写入 BOM + 双重编码导致中文 docstring 乱码触发 Python `SyntaxError`。**规避方案**：改用 Python `shutil.copy` 复制文件，再用 Python `open(..., encoding='utf-8')` 做字符串替换（已验证可行，APK / IPA 两个脚本均通过）。
+- **`&&` 在 PowerShell 报错**：PowerShell 5.1 不支持 `&&` 短路语法，应改用 `;` 分隔顺序命令；或拆为多个 Shell 调用。
+- **Axios 拦截器二次脱壳是个坑**：建议把"`api.ts` 已脱壳，组件层不再写 `.data`"作为团队 Code Review Checklist 的一条规约，避免后续其他需求踩同样的坑。
+- **GitHub Actions `gh` 偶发抖动**：本次 APK / IPA 构建均一次成功，但脚本内已内置 `gh attempt 1/3` 重试，对偶发 SSL/网络抖动具备容错能力。
+
+### Latest 文件变动一览
+- 修改：`h5-web/src/components/ai-chat/ProfileCard.tsx`、`h5-web/src/components/ai-chat/MedicationDrawer.tsx`、`miniprogram/components/profile-card/index.js`、`miniprogram/components/medication-drawer/{index.js,index.wxml,index.wxss}`、`flutter_app/lib/widgets/ai_profile_card.dart`
+- 新增（项目根，开发流水线脚本与日志）：`_bug432_step0_smoke.py`、`_deploy_bug432_fix.py`、`_verify_bug432_fix.py`、`_remote_pytest_bug432_fix.py`、`_pack_upload_miniprogram_bug432_fix.py`、`_build_apk_bug432_fix.py`、`_build_ipa_bug432_fix.py`、`_pack_miniprogram_bug432_fix.log`、`_build_apk_bug432_fix.stdout.log`、`_build_ipa_bug432_fix.stdout.log`
+- 新增（用户文档）：`user_docs/AI档案折叠卡片永久加载中_Bug-432修复_用户体验手册.md`
+
+---
+
 ## Latest Update: PRD-433-AI-HOME-BUBBLE-CARD-VISUAL-REVAMP-20260509｜AI 对话首页气泡卡片化视觉改版（H5 + 小程序 + Flutter 三端）（2026-05-09 15:55）
 
 ### 一句话结论
