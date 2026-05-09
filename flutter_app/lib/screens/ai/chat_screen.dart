@@ -976,11 +976,19 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   // Module 7 & 8: Copy, TTS, Share actions
+  // [PRD-440] 移动端复制反馈：调用系统原生轻提示（使用浮层 SnackBar 模拟系统 Toast 风格）
   void _copyMessage(String content) {
     final cleanText = content.split('---disclaimer---').first.trim();
     Clipboard.setData(ClipboardData(text: cleanText));
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('已复制到剪贴板'), duration: Duration(seconds: 1), backgroundColor: Color(0xFF52C41A)),
+      SnackBar(
+        content: const Text('已复制', textAlign: TextAlign.center),
+        duration: const Duration(milliseconds: 1500),
+        backgroundColor: Colors.black.withOpacity(0.85),
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.fromLTRB(80, 0, 80, 200),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
     );
   }
 
@@ -1911,14 +1919,8 @@ class _ChatScreenState extends State<ChatScreen> {
                 // [2026-04-25 PRD F5] OCR 详情入口（仅报告解读会话第一条 AI 消息）
                 if (showOcrDetailEntry) _buildOcrDetailEntry(),
                 const SizedBox(height: 12),
-                // [PRD-433 F-08] 免责声明
-                const Text(
-                  _ChatTokens.disclaimer,
-                  style: TextStyle(fontSize: 12, color: _ChatTokens.disclaimerText),
-                ),
-                const SizedBox(height: 8),
-                // [PRD-433 F-06] 操作按钮行：复制 / 分享 / [Spacer] / 朗读
-                _buildAiActionRow(message),
+                // [PRD-440] AI 回答操作栏：提示文字（靠右） + 全宽虚线 + 渐变三图标（左下一排）
+                _buildAiActionBar440(message),
               ],
             ),
           ),
@@ -1927,53 +1929,50 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  // [PRD-433 F-06] 卡片底部操作按钮行
-  Widget _buildAiActionRow(ChatMessage message) {
+  // [PRD-440] 卡片底部新版操作栏：提示文字（靠右） + 全宽 1px 虚线 + 渐变三图标（左下一排）
+  // 顺序固定：复制 → 转发 → 语音播报
+  Widget _buildAiActionBar440(ChatMessage message) {
     final isPlaying = _ttsService.isPlaying && _ttsService.currentPlayingId == message.id;
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _buildIconActionButton(
-          icon: Icons.copy_outlined,
-          tooltip: '复制',
-          onTap: () => _copyMessage(message.content),
-        ),
-        const SizedBox(width: 24),
-        _buildIconActionButton(
-          icon: Icons.share_outlined,
-          tooltip: '分享',
-          onTap: () => _shareMessage(message),
-        ),
-        const Spacer(),
-        _buildIconActionButton(
-          icon: isPlaying ? Icons.stop_circle_outlined : Icons.volume_up_outlined,
-          tooltip: isPlaying ? '停止' : '朗读',
-          onTap: () => _speakMessage(message),
-          color: isPlaying ? const Color(0xFF52C41A) : null,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildIconActionButton({
-    required IconData icon,
-    required String tooltip,
-    required VoidCallback onTap,
-    Color? color,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
-      child: Tooltip(
-        message: tooltip,
-        child: Padding(
-          padding: const EdgeInsets.all(4),
-          child: Icon(
-            icon,
-            size: 20,
-            color: color ?? const Color(0xFF6B7280),
+        // 提示文字（靠右、11px、#999）
+        const Align(
+          alignment: Alignment.centerRight,
+          child: Padding(
+            padding: EdgeInsets.only(bottom: 6),
+            child: Text(
+              'AI 生成仅供参考',
+              style: TextStyle(fontSize: 11, color: Color(0xFF999999), height: 1.4),
+            ),
           ),
         ),
-      ),
+        // 全宽 1px 虚线
+        const _DashedDivider(color: Color(0xFFE5E5E5)),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            _GradientActionButton(
+              kind: _GradientIconKind.copy,
+              tooltip: '复制',
+              onTap: () => _copyMessage(message.content),
+            ),
+            const SizedBox(width: 16),
+            _GradientActionButton(
+              kind: _GradientIconKind.share,
+              tooltip: '转发',
+              onTap: () => _shareMessage(message),
+            ),
+            const SizedBox(width: 16),
+            _GradientActionButton(
+              kind: _GradientIconKind.speaker,
+              tooltip: isPlaying ? '停止播报' : '语音播报',
+              playing: isPlaying,
+              onTap: () => _speakMessage(message),
+            ),
+          ],
+        ),
+      ],
     );
   }
 
@@ -2442,6 +2441,226 @@ class _ChatReportGalleryState extends State<_ChatReportGallery> {
           ),
         ),
       ),
+    );
+  }
+}
+
+// ============================================================================
+// [PRD-440] AI 回答操作栏 — 通用辅助组件
+// ============================================================================
+
+enum _GradientIconKind { copy, share, speaker }
+
+const LinearGradient _kAiActionGradient = LinearGradient(
+  begin: Alignment.topLeft,
+  end: Alignment.bottomRight,
+  colors: [Color(0xFF6A8DFF), Color(0xFFB07CFF)],
+);
+
+const Color _kAiActionGray = Color(0xFF999999);
+
+/// 全宽 1px dashed 虚线
+class _DashedDivider extends StatelessWidget {
+  final Color color;
+  final double dashWidth;
+  final double dashSpace;
+  const _DashedDivider({this.color = const Color(0xFFE5E5E5), this.dashWidth = 4, this.dashSpace = 3});
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final boxWidth = constraints.constrainWidth();
+        final dashCount = (boxWidth / (dashWidth + dashSpace)).floor();
+        return Flex(
+          direction: Axis.horizontal,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: List.generate(dashCount, (_) {
+            return SizedBox(
+              width: dashWidth,
+              height: 1,
+              child: DecoratedBox(decoration: BoxDecoration(color: color)),
+            );
+          }),
+        );
+      },
+    );
+  }
+}
+
+/// 渐变描边操作按钮（含 Wi-Fi 弧线扩散动效）
+class _GradientActionButton extends StatefulWidget {
+  final _GradientIconKind kind;
+  final String tooltip;
+  final VoidCallback onTap;
+  final bool playing;
+  const _GradientActionButton({
+    required this.kind,
+    required this.tooltip,
+    required this.onTap,
+    this.playing = false,
+  });
+
+  @override
+  State<_GradientActionButton> createState() => _GradientActionButtonState();
+}
+
+class _GradientActionButtonState extends State<_GradientActionButton> with TickerProviderStateMixin {
+  bool _hover = false;
+
+  @override
+  Widget build(BuildContext context) {
+    // 默认未触发态：浅灰；播报中或长按：渐变高亮
+    final useGradient = widget.playing || _hover;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTapDown: (_) => setState(() => _hover = true),
+      onTapCancel: () => setState(() => _hover = false),
+      onTapUp: (_) => setState(() => _hover = false),
+      onTap: widget.onTap,
+      child: Tooltip(
+        message: widget.tooltip,
+        child: SizedBox(
+          width: 32,
+          height: 32,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              if (widget.playing && widget.kind == _GradientIconKind.speaker)
+                const _WifiPulseRings(),
+              CustomPaint(
+                size: const Size(20, 20),
+                painter: _GradientIconPainter(kind: widget.kind, useGradient: useGradient),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GradientIconPainter extends CustomPainter {
+  final _GradientIconKind kind;
+  final bool useGradient;
+  _GradientIconPainter({required this.kind, required this.useGradient});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    if (useGradient) {
+      paint.shader = _kAiActionGradient.createShader(Rect.fromLTWH(0, 0, size.width, size.height));
+    } else {
+      paint.color = _kAiActionGray;
+    }
+
+    // 所有图标按 24x24 viewBox 设计，缩放到目标 size
+    final sx = size.width / 24.0;
+    final sy = size.height / 24.0;
+    canvas.save();
+    canvas.scale(sx, sy);
+
+    switch (kind) {
+      case _GradientIconKind.copy:
+        // 前景方块
+        final r1 = RRect.fromRectAndRadius(const Rect.fromLTWH(9, 9, 11, 11), const Radius.circular(2));
+        canvas.drawRRect(r1, paint);
+        // 背景纸角（部分路径）
+        final p = Path()
+          ..moveTo(5, 15)
+          ..lineTo(4.5, 15)
+          ..arcToPoint(const Offset(3, 13.5), radius: const Radius.circular(1.5))
+          ..lineTo(3, 4.5)
+          ..arcToPoint(const Offset(4.5, 3), radius: const Radius.circular(1.5))
+          ..lineTo(13.5, 3)
+          ..arcToPoint(const Offset(15, 4.5), radius: const Radius.circular(1.5))
+          ..lineTo(15, 5);
+        canvas.drawPath(p, paint);
+        break;
+      case _GradientIconKind.share:
+        // 三个圆 + 两条连线
+        canvas.drawCircle(const Offset(18, 5), 2.5, paint);
+        canvas.drawCircle(const Offset(6, 12), 2.5, paint);
+        canvas.drawCircle(const Offset(18, 19), 2.5, paint);
+        canvas.drawLine(const Offset(8.2, 13.3), const Offset(15.8, 17.7), paint);
+        canvas.drawLine(const Offset(15.8, 6.3), const Offset(8.2, 10.7), paint);
+        break;
+      case _GradientIconKind.speaker:
+        // 喇叭多边形
+        final p = Path()
+          ..moveTo(11, 5)
+          ..lineTo(6, 9)
+          ..lineTo(3, 9)
+          ..lineTo(3, 15)
+          ..lineTo(6, 15)
+          ..lineTo(11, 19)
+          ..close();
+        canvas.drawPath(p, paint);
+        break;
+    }
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant _GradientIconPainter old) =>
+      old.useGradient != useGradient || old.kind != kind;
+}
+
+/// Wi-Fi 弧线扩散动效（1 秒一圈，3 圈错位 333ms）
+class _WifiPulseRings extends StatefulWidget {
+  const _WifiPulseRings();
+  @override
+  State<_WifiPulseRings> createState() => _WifiPulseRingsState();
+}
+
+class _WifiPulseRingsState extends State<_WifiPulseRings> with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1000))..repeat();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _ctrl,
+      builder: (_, __) {
+        return Stack(
+          alignment: Alignment.center,
+          children: List.generate(3, (i) {
+            final phase = (_ctrl.value + (i / 3)) % 1.0;
+            // scale 从 1 -> 2.5，opacity 从 1 -> 0
+            final scale = 1.0 + (2.5 - 1.0) * phase;
+            final opacity = (1.0 - phase).clamp(0.0, 1.0);
+            return Opacity(
+              opacity: opacity,
+              child: Transform.scale(
+                scale: scale,
+                child: Container(
+                  width: 20,
+                  height: 20,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: const Color(0xFF6A8DFF), width: 1.0),
+                  ),
+                ),
+              ),
+            );
+          }),
+        );
+      },
     );
   }
 }

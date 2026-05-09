@@ -157,24 +157,31 @@
             </view>
           </view>
 
-          <!-- [PRD-433 F-08] 免责声明（每条 AI 卡片底部） -->
-          <view wx:if="{{!item.isStreaming && (item.mainContent || item.content)}}" class="ai-card-disclaimer">
-            <text class="ai-card-disclaimer-text">{{item.disclaimer || 'AI 生成内容仅供参考，不作为诊断依据'}}</text>
-          </view>
-
-          <!-- [PRD-433 F-06] 操作按钮行：📋 复制 / 🔗 分享 / 🔁 朗读（朗读最右） -->
-          <view class="ai-card-action-bar" wx:if="{{!item.isStreaming && (item.mainContent || item.content)}}">
-            <view class="ai-card-action-btn" catchtap="copyMessage" data-msgid="{{item.id}}">
-              <text class="ai-card-action-icon">📋</text>
-              <text class="ai-card-action-label">复制</text>
+          <!-- [PRD-440] AI 回答操作栏：提示文字（靠右） + 全宽虚线 + 渐变三图标（左下一排：复制 / 转发 / 语音播报） -->
+          <view class="ai-action-bar-440" wx:if="{{!item.isStreaming && (item.mainContent || item.content)}}">
+            <view class="ai-action-bar-440-disclaimer">
+              <text class="ai-action-bar-440-disclaimer-text">AI 生成仅供参考</text>
             </view>
-            <view class="ai-card-action-btn" catchtap="shareToFriend" data-msgid="{{item.id}}">
-              <text class="ai-card-action-icon">🔗</text>
-              <text class="ai-card-action-label">分享</text>
-            </view>
-            <view class="ai-card-action-btn ai-card-action-btn-right" catchtap="toggleTts" data-msgid="{{item.id}}">
-              <text class="ai-card-action-icon">{{isTtsPlaying && ttsMsgId === item.id ? '⏹️' : '🔁'}}</text>
-              <text class="ai-card-action-label">{{isTtsPlaying && ttsMsgId === item.id ? '停止' : '朗读'}}</text>
+            <view class="ai-action-bar-440-divider"></view>
+            <view class="ai-action-bar-440-icons">
+              <!-- 复制：渐变描边 SVG -->
+              <view class="ai-action-bar-440-btn" catchtap="copyMessage" data-msgid="{{item.id}}">
+                <view class="ai-action-bar-440-icon-copy"></view>
+              </view>
+              <!-- 转发：三点连线分享图（渐变描边） -->
+              <view class="ai-action-bar-440-btn" catchtap="shareToFriend" data-msgid="{{item.id}}">
+                <view class="ai-action-bar-440-icon-share"></view>
+              </view>
+              <!-- 语音播报：喇叭，播报中叠加 Wi-Fi 弧线扩散动效 -->
+              <view class="ai-action-bar-440-btn" catchtap="toggleTts" data-msgid="{{item.id}}">
+                <view class="ai-action-bar-440-icon-speaker {{isTtsPlaying && ttsMsgId === item.id ? 'is-playing' : ''}}">
+                  <block wx:if="{{isTtsPlaying && ttsMsgId === item.id}}">
+                    <view class="ai-action-bar-440-wifi-ring ring1"></view>
+                    <view class="ai-action-bar-440-wifi-ring ring2"></view>
+                    <view class="ai-action-bar-440-wifi-ring ring3"></view>
+                  </block>
+                </view>
+              </view>
             </view>
           </view>
         </view>

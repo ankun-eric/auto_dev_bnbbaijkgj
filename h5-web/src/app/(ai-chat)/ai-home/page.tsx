@@ -12,6 +12,7 @@ import MoreMenu from '@/components/ai-chat/MoreMenu';
 import ConsultTargetPicker, { type FamilyMemberItem } from '@/components/ai-chat/ConsultTargetPicker';
 // [PRD-426] 已移除 RecommendCards：原仅服务于"+ 选择咨询人"浮层；首页推荐问改用常驻横向胶囊（见下方 recommended 区块）
 import SharePanel from '@/components/ai-chat/SharePanel';
+import AiActionBar, { notifyCopied } from '@/components/ai-chat/AiActionBar';
 import SectionErrorBoundary from '@/components/SectionErrorBoundary';
 import DraggablePunchCard from '@/components/ai-chat/DraggablePunchCard';
 import ProfileCard, { clearProfileCardCache } from '@/components/ai-chat/ProfileCard';
@@ -1150,9 +1151,10 @@ export default function AiHomePage() {
     Toast.show({ content: '当前浏览器不支持语音播报' });
   };
 
+  // [PRD-440] 复制反馈：Web 端顶部 Toast「已复制」/ 移动端调用系统原生轻提示
   const handleCopy = (text: string) => {
     navigator.clipboard?.writeText(text).then(() => {
-      Toast.show({ content: '已复制', icon: 'success' });
+      notifyCopied();
     }).catch(() => {
       Toast.show({ content: '复制失败' });
     });
@@ -1858,98 +1860,17 @@ export default function AiHomePage() {
                       </div>
                     )}
 
-                    {/* [PRD-433 F-08] 免责声明：每条 AI 卡片底部都显示，操作按钮行上方 */}
-                    {!msg.isStreaming && (
-                      <div
-                        data-testid="ai-home-ai-disclaimer"
-                        style={{
-                          marginTop: 12,
-                          fontSize: 12,
-                          color: '#9CA3AF',
-                          lineHeight: 1.4,
-                        }}
-                      >
-                        {disclaimerText}
-                      </div>
-                    )}
-
-                    {/* [PRD-433 F-06] 操作按钮行：所有非流式 AI 消息都显示，朗读按钮放最右 */}
+                    {/* [PRD-440] AI 回答操作栏：提示文字 + 全宽虚线 + 渐变三图标（复制 / 转发 / 语音播报） */}
                     {showAiActions && (
-                      <div
-                        data-testid="ai-home-ai-action-bar"
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          marginTop: 10,
-                          paddingTop: 8,
-                          borderTop: '1px solid #F2F3F5',
-                          gap: 24,
-                        }}
-                      >
-                        <button
-                          aria-label="复制"
-                          onClick={() => handleCopy(msg.content)}
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            minWidth: 44,
-                            minHeight: 44,
-                            padding: '0 4px',
-                            background: 'transparent',
-                            border: 'none',
-                            color: '#6B7280',
-                            fontSize: 13,
-                            cursor: 'pointer',
-                            gap: 4,
-                          }}
-                        >
-                          <span style={{ fontSize: 20, lineHeight: 1 }}>📋</span>
-                          <span>复制</span>
-                        </button>
-                        <button
-                          aria-label="分享"
-                          onClick={() => setShareOpen(true)}
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            minWidth: 44,
-                            minHeight: 44,
-                            padding: '0 4px',
-                            background: 'transparent',
-                            border: 'none',
-                            color: '#6B7280',
-                            fontSize: 13,
-                            cursor: 'pointer',
-                            gap: 4,
-                          }}
-                        >
-                          <span style={{ fontSize: 20, lineHeight: 1 }}>🔗</span>
-                          <span>分享</span>
-                        </button>
-                        <button
-                          aria-label={ttsPlaying ? '停止朗读' : '朗读'}
-                          onClick={() => handleTTS(msg.content)}
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            minWidth: 44,
-                            minHeight: 44,
-                            padding: '0 4px',
-                            marginLeft: 'auto',
-                            background: 'transparent',
-                            border: 'none',
-                            color: ttsPlaying ? THEME.primary : '#6B7280',
-                            fontSize: 13,
-                            cursor: 'pointer',
-                            gap: 4,
-                          }}
-                        >
-                          <span style={{ fontSize: 20, lineHeight: 1 }}>🔁</span>
-                          <span>{ttsPlaying ? '停止' : '朗读'}</span>
-                        </button>
+                      <div data-testid="ai-home-ai-action-bar" style={{ marginTop: 12 }}>
+                        <AiActionBar
+                          ttsPlaying={ttsPlaying}
+                          onCopy={() => handleCopy(msg.content)}
+                          onShare={() => setShareOpen(true)}
+                          onTts={() => handleTTS(msg.content)}
+                          disclaimer={disclaimerText}
+                          disableToast
+                        />
                       </div>
                     )}
                   </div>

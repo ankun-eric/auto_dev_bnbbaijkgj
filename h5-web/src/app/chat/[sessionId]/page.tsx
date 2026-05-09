@@ -9,6 +9,7 @@ import { checkFileSize, uploadWithProgress } from '@/lib/upload-utils';
 import ChatSidebar from '@/components/ChatSidebar';
 import KnowledgeCard, { type KnowledgeHit } from '@/components/KnowledgeCard';
 import ProfileCard from '@/components/ai-chat/ProfileCard';
+import AiActionBar, { notifyCopied } from '@/components/ai-chat/AiActionBar';
 import { resolveAssetUrl, resolveAssetUrls } from '@/lib/asset-url';
 import { aiChatTrack } from '@/lib/analytics';
 
@@ -1632,11 +1633,13 @@ function ChatPageInner() {
   }, [ttsPlaying, ttsPlayingMsgId, stopTts]);
 
   // Module 7: Copy
+  // [PRD-440] 复制反馈：Web 顶部 Toast「已复制」/ 移动端原生轻提示
   const handleCopyMsg = useCallback(async (msgId: string, text: string) => {
     const plainText = text.replace(/\*\*(.*?)\*\*/g, '$1').replace(/---disclaimer---/g, '\n').trim();
     try {
       await navigator.clipboard.writeText(plainText);
       setCopiedMsgId(msgId);
+      notifyCopied();
       setTimeout(() => setCopiedMsgId(null), 1500);
     } catch {
       Toast.show({ content: '复制失败', icon: 'fail' });
@@ -2320,33 +2323,17 @@ function ChatPageInner() {
                     )}
                   </div>
                 )}
-                {/* Module 7: Action buttons on latest AI reply */}
+                {/* [PRD-440] AI 回答操作栏：提示文字 + 全宽虚线 + 渐变三图标（复制 / 转发 / 语音播报） */}
                 {showActionButtons && (
-                  <div className="flex items-center gap-3 mt-2">
-                    <button
-                      className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs"
-                      style={{ background: '#f5f5f5', color: copiedMsgId === msg.id ? '#52c41a' : '#666', border: '1px solid #e8e8e8' }}
-                      onClick={() => handleCopyMsg(msg.id, msg.content)}
-                    >
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                      {copiedMsgId === msg.id ? '已复制' : '复制'}
-                    </button>
-                    <button
-                      className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs"
-                      style={{ background: '#f5f5f5', color: ttsPlayingMsgId === msg.id ? '#52c41a' : '#666', border: '1px solid #e8e8e8' }}
-                      onClick={() => handleTts(msg.id, msg.content)}
-                    >
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
-                      {ttsPlayingMsgId === msg.id ? '停止播报' : '播报'}
-                    </button>
-                    <button
-                      className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs"
-                      style={{ background: '#f5f5f5', color: '#666', border: '1px solid #e8e8e8' }}
-                      onClick={() => handleShareMsg(msg.id)}
-                    >
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
-                      分享
-                    </button>
+                  <div data-testid="ai-chat-action-bar" style={{ marginTop: 10 }}>
+                    <AiActionBar
+                      ttsPlaying={ttsPlayingMsgId === msg.id}
+                      onCopy={() => handleCopyMsg(msg.id, msg.content)}
+                      onShare={() => handleShareMsg(msg.id)}
+                      onTts={() => handleTts(msg.id, msg.content)}
+                      disclaimer="AI 生成仅供参考"
+                      disableToast
+                    />
                   </div>
                 )}
               </div>
@@ -3048,7 +3035,8 @@ function ChatPageInner() {
               onClick={handleShareToWechat}
               disabled={shareLoading}
             >
-              <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: '#07c160' }}>
+              {/* [PRD-440] 微信好友按钮：圆形背景升级为方案 C 双色渐变风 */}
+              <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #6a8dff 0%, #b07cff 100%)' }}>
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="#fff"><path d="M8.691 2.188C3.891 2.188 0 5.476 0 9.53c0 2.212 1.17 4.203 3.002 5.55a.59.59 0 0 1 .213.665l-.39 1.48c-.019.07-.048.141-.048.213 0 .163.13.295.29.295a.326.326 0 0 0 .167-.054l1.903-1.114a.864.864 0 0 1 .717-.098 10.16 10.16 0 0 0 2.837.403c.276 0 .543-.027.811-.05-.857-2.578.157-4.972 1.932-6.446 1.703-1.415 3.882-1.98 5.853-1.838-.576-3.583-4.196-6.348-8.596-6.348zM5.785 5.991c.642 0 1.162.529 1.162 1.18a1.17 1.17 0 0 1-1.162 1.178A1.17 1.17 0 0 1 4.623 7.17c0-.651.52-1.18 1.162-1.18zm5.813 0c.642 0 1.162.529 1.162 1.18a1.17 1.17 0 0 1-1.162 1.178 1.17 1.17 0 0 1-1.162-1.178c0-.651.52-1.18 1.162-1.18zm3.297 2.594c-3.232 0-7.455 2.174-7.455 5.906 0 3.07 3.073 5.906 7.455 5.906.652 0 1.297-.082 1.848-.253a.73.73 0 0 1 .56.065l1.428.825a.27.27 0 0 0 .134.044c.11 0 .218-.1.218-.222 0-.055-.02-.108-.033-.16l-.3-1.123a.49.49 0 0 1 .167-.519c1.327-1.071 2.48-2.679 2.48-4.563-.003-3.732-3.27-5.906-6.502-5.906zm-1.896 2.857c.502 0 .91.414.91.923a.917.917 0 0 1-.91.923.917.917 0 0 1-.909-.923c0-.51.408-.923.91-.923zm3.995 0c.502 0 .91.414.91.923a.917.917 0 0 1-.91.923.917.917 0 0 1-.91-.923c0-.51.408-.923.91-.923z"/></svg>
               </div>
               <span className="text-xs text-gray-600">微信好友</span>
@@ -3059,7 +3047,8 @@ function ChatPageInner() {
               onClick={handleSharePoster}
               disabled={shareLoading}
             >
-              <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}>
+              {/* [PRD-440] 生成图片按钮：圆形背景升级为方案 C 双色渐变风 */}
+              <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #6a8dff 0%, #b07cff 100%)' }}>
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
                   <circle cx="8.5" cy="8.5" r="1.5" />
