@@ -693,6 +693,15 @@ async def stream_message(
                     captured_session.title = captured_data.content[:50]
                 await captured_db.flush()
                 await captured_db.refresh(ai_msg)
+                # [Bug-433 2026-05-09] 显式 commit AI 消息，避免流式响应在
+                # generator yield 之后客户端关闭连接、FastAPI 默认依赖 finally
+                # 路径下 commit 时机不稳导致 AI 回复偶发不入库（历史问题）。
+                # user 消息已在 stream 入口提前 commit（见上方），此处只对 AI
+                # 消息和 session 状态做最终持久化。
+                try:
+                    await captured_db.commit()
+                except Exception:
+                    pass
 
                 done_data = json.dumps({
                     "message_id": ai_msg.id,
