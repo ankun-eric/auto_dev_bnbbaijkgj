@@ -33,7 +33,51 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: BUG-432-FIX-PROFILE-CARD-LOADING-FOREVER-20260509｜AI 回答档案折叠卡片「永久加载中」Bug 修复（H5 + 小程序 + Flutter 三端，后端 0 改动）（2026-05-09 19:05）
+## Latest Update: BUG-433-FIX-AI-HOME-VOICE-FIRST-MSG-LOST-20260510｜AI 首页首条消息（语音/预设/文字）丢失 Bug 修复（H5 + 后端，小程序/Flutter 0 改动）（2026-05-10 00:10）
+
+### 一句话结论
+按 Bug-433 修复方案文档（cursor_prompt_437_20260509232654.txt）走 develop-all 流程交付：修复「**AI 对话首页第一条用户消息（语音 / 预设按钮 / 文字三种入口）100% 丢失**」P0 问题。**根因**：`h5-web/src/app/(ai-chat)/ai-home/page.tsx` 中 `lastMsgTime` 用 `useState` 存储 + 在 `setMessages([userMsg])` 之后才 `setLastMsgTime(Date.now())`，由于 React 异步 batch + `useCallback` 闭包陈旧，`checkIdleAndMaybeNewSession` 内读到的 `lastMsgTime` 仍是 0 → 命中"30 分钟空闲"判断 → `setMessages([])` 清空消息 → 用户气泡和后端待发文本一并丢失。**修复策略**：①前端将 `lastMsgTime` 从 `useState` 改为 `useRef` 立即生效，消除闭包陈旧；②`checkIdleAndMaybeNewSession` 接受 `preserveOnClear` 回调，命中清空分支时把当前 userMsg 注入新会话首屏；③`handleSend` 重排序：先写 `lastMsgTimeRef.current = Date.now()` → 再调用空闲检查并传 preserve → 再幂等添加 userMsg；④预设按钮 / 语音 onstop 入口在调用 `handleSend` 前主动写一次 ref；⑤后端在 `/sessions/{id}/stream` 入口对 `user_msg` **先 commit 再调 LLM**（强约束：用户消息必须落库），即使 SSE 中断也不会丢；⑥AI 消息在 done 事件内补一次 `commit` 防止异步关闭丢失；⑦`ChatMessage` 模型新增 `source`（`text/voice/preset`）+ `parent_id`（指向同会话用户消息）两列，`Pydantic ChatMessageCreate` 接受 `source`，`backend/app/main.py` lifespan 内做幂等 ALTER TABLE 迁移。
+
+### 范围与端
+- **H5（Next.js + React）**：1 文件改造
+  - `h5-web/src/app/(ai-chat)/ai-home/page.tsx`（约 +88 / -200 行精简）：`lastMsgTime` 改用 `useRef<number>` + 配套 `setLastMsgTime` 包装；`checkIdleAndMaybeNewSession` 改读 `lastMsgTimeRef.current` + 接 `preserveOnClear?: () => ChatMessage[]` 参数；`handleSend` 增加 `source: 'text' | 'voice' | 'preset' = 'text'` 形参，发送顺序：① `lastMsgTimeRef.current = Date.now()` → ② `await checkIdleAndMaybeNewSession(() => [userMsg])` → ③ 幂等 `setMessages(prev.some(m => m.id === userMsg.id) ? prev : [...prev, userMsg])` → ④ `sendSSE(sid, msg, 3, source)`；`sendSSE` / `sendFallback` 签名增加 `source` 参数并在 body JSON 中带上；预设按钮 `onClick={() => { lastMsgTimeRef.current = Date.now(); handleSend(q.text, 'preset'); }}`；语音 onstop `lastMsgTimeRef.current = Date.now(); handleSend(text.trim(), 'voice')`
+- **后端（FastAPI + SQLAlchemy + MySQL）**：4 文件改造
+  - `backend/app/schemas/chat.py`：`ChatMessageCreate` 新增 `source: Optional[str] = "text"`
+  - `backend/app/models/models.py`：`ChatMessage` 新增 `source = mapped_column(String(16), nullable=False, default="text")` + `parent_id = mapped_column(Integer, nullable=True, index=True)`
+  - `backend/app/api/chat.py`：`stream_message` 入口对 `source` 做白名单归一化（非 `text/voice/preset` 退回 `text`）；`user_msg` 创建后**先 await db.commit()**（强约束）→ 再调 LLM 流式；`event_generator` 内 AI 消息创建时 `source=user_source, parent_id=captured_user_msg_id`，done 分支后追加 `await captured_db.commit()` 兜底；`send_message`（fallback 接口）同步处理 source 归一化 + 设置 user_msg 的 source + ai_msg 的 parent_id 指向 user_msg
+  - `backend/app/main.py`：新增 `_migrate_bug433_chat_message_source_parent_id()` 在 `lifespan` 启动时执行幂等 `ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS source VARCHAR(16) NOT NULL DEFAULT 'text'`、`ADD COLUMN IF NOT EXISTS parent_id INT NULL`、`ADD INDEX IF NOT EXISTS idx_chat_messages_parent_id (parent_id)`
+- **小程序 / Flutter**：**0 改动**（这两端入口都是带 sessionId 的聊天详情页，不存在「无 session 首发」场景；后端 source 字段对它们向后兼容，默认 text）
+
+### 测试与验证
+- **后端契约测试**：新增 `backend/tests/test_bug433_voice_first_msg_lost.py` 8 个用例（T01-T03 stream source 持久化 text/voice/preset、T04 默认 source=text、T05 非法 source 归一化为 text、T06 fallback 端点同样支持 source、T07 parent_id 语义、T08 source 字段进出 schema），均 PASS；本地全量 pytest：57+ PASS，2 项历史 TypeError 失败（test_send_message / test_list_messages）经 git stash 验证为**修复前已存在**的问题，与本 bug 无关
+- **部署脚本**：
+  - `deploy/_bug433_deploy.py`：paramiko 全量部署（git fetch + reset + docker compose build backend h5-web + up + 健康检查 + DB schema 验证）
+  - `deploy/_bug433_scp_redeploy.py`：SFTP 直传 chat.py 到服务器（绕过 GitHub 网络问题）+ 仅重建 backend，30 秒完成
+- **E2E 验证脚本**：
+  - `deploy/_bug433_e2e_smoke.py`：register/login/createSession/stream(source=voice) → SSH 进 MySQL 验证 user_msg 落库
+  - `deploy/_bug433_e2e_full.py`：完整消费 SSE done 事件 → 验证 user(id=397, source=preset) + assistant(id=398, source=preset, parent_id=397) 双消息均落库且 parent_id 正确
+  - `deploy/_bug433_recheck.py`：回查指定 session 在 chat_messages 表的 role/source/parent_id/content
+- **服务器健康检查**：`/api/health` 200 OK；`chat_messages` 表 schema 验证通过（含 source / parent_id 列 + parent_id 索引）
+
+### 验收要点
+- AI 首页**预设按钮**点击后用户气泡立即出现 + 后端有 user_msg 落库 ✓
+- AI 首页**语音输入**松手后用户气泡立即出现 + 后端有 user_msg 落库 + source='voice' ✓
+- AI 首页**文字输入**回车后用户气泡立即出现 + 后端有 user_msg 落库 + source='text' ✓
+- 30 分钟空闲触发新会话切换时**首条 user_msg 不再被清空** ✓
+- AI 流式中断或客户端断开时 user_msg 已先 commit，**不会丢消息** ✓
+- AI 消息通过 `parent_id` 关联到对应 user_msg，**便于父子展示与回溯** ✓
+- 历史孤立 AI 消息（修复前产生）**未做 backfill**（路径与原文未知，避免脏数据），仅做向前兼容（parent_id NULL 允许） ✓
+
+### 部署与产物
+- **服务器**：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/`
+  - H5 入口：`/ai-home`（已部署最新代码）
+  - 后端 API：`/api/`（已部署最新代码 + DB 已迁移）
+- **多端打包**：本次仅 H5 + 后端有改动，**未触发**小程序 / Android APK / iOS IPA 打包流程
+- **用户体验手册**：`USER_MANUAL_bug433_ai_first_msg_fix.md`
+
+---
+
+## Previous Update: BUG-432-FIX-PROFILE-CARD-LOADING-FOREVER-20260509｜AI 回答档案折叠卡片「永久加载中」Bug 修复（H5 + 小程序 + Flutter 三端，后端 0 改动）（2026-05-09 19:05）
 
 ### 一句话结论
 按 Bug-432 修复方案文档（cursor_prompt_434_20260509183713.txt）走 develop-all 流程交付：修复 PRD-432 上线后 AI 回答顶部「咨询对象档案折叠卡片」**100% 复现的「永久卡在『加载档案中...』」**问题。**根因**：H5 Axios 拦截器已通过 `(response) => response.data` 自动脱壳，`ProfileCard.tsx` / `MedicationDrawer.tsx` 中再次 `res.data` 取值导致组件拿到 `undefined`，而对 `undefined` 的兜底分支未触发 `setLoading(false)`，呈现永久 loading；小程序 / Flutter 同源问题为 200 响应缺乏 payload 字段校验，加之**未实现 PRD §3.10 要求的 1 次自动重试与点击重试**导致首次失败永久卡 loading。**修复策略（4 端一致）**：①去掉所有二次脱壳（H5 直接使用拦截器返回值，不再写 `res.data`）；②为 200 响应增加 payload 字段守卫（profile_card 校验 `fields` 字段；medications 校验 `items` 数组）；③档案卡接口失败兜底：3 秒后**自动重试 1 次**，二次仍失败则隐藏卡片不阻塞 AI 回答；④长期用药抽屉接口失败兜底：显示灰字「**加载失败，点击重试**」，整行可点击重新请求（H5 新增 `data-testid="ai-medication-drawer-retry"`）；⑤loading 状态确保在数据/失败两路都置 false；⑥后端**零改动**仅做接口连通性自检 + 契约 + 回归。**部署与验证**：① H5 已部署并 smoke 6/6 PASS，远程构建产物 grep 命中新 testid；② 后端容器内 pytest：接口契约 5/5 PASS + 历史回归 49 passed**零 Bug**；③ **3 端打包全部首次成功**：小程序 zip `miniprogram_bug432fix_20260509_184817_1311.zip`（344 文件 / 407 KB，HEAD 200）、Android APK `app_bug432fix_20260509_190050_09b9.apk`（84.7 MB，GitHub Actions run 25599327936，HEAD 200，构建 643s）、iOS IPA `bini_health_ios.ipa`（34.1 MB，GitHub Release `ios-bug432fix-v20260509-185203-12e5`，run 25599328236，构建 338s）；④ 用户体验手册：`user_docs/AI档案折叠卡片永久加载中_Bug-432修复_用户体验手册.md`。
