@@ -50,6 +50,9 @@
 .med-state-error {
   color: #EF4444;
 }
+.med-state-retry {
+  color: #9CA3AF;
+}
 .med-empty {
   text-align: center;
   padding: 60rpx;

@@ -47,15 +47,46 @@ export default function MedicationDrawer({
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  // [Bug-432-fix 2026-05-09]
+  // 修因：axios 拦截器已脱壳为 response.data，这里再写 res.data 是二次脱壳 → undefined。
+  // 修复：直接使用 res 作为 payload；同时把 fetch 抽出来供"加载失败，点击重试"复用。
+  const fetchMedications = () => {
+    setLoading(true);
+    setError(false);
+    api
+      .get(`/api/v1/consultant/${consultantId}/medications`)
+      .then((res) => {
+        const payload = res as unknown as MedicationsPayload;
+        if (!payload || typeof payload !== 'object' || !Array.isArray((payload as MedicationsPayload).items)) {
+          setError(true);
+          setData(null);
+        } else {
+          setData(payload);
+          setError(false);
+        }
+      })
+      .catch(() => {
+        setError(true);
+      })
+      .finally(() => setLoading(false));
+  };
+
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
+    setError(false);
     api
       .get(`/api/v1/consultant/${consultantId}/medications`)
       .then((res) => {
         if (cancelled) return;
-        setData(res.data);
-        setError(false);
+        const payload = res as unknown as MedicationsPayload;
+        if (!payload || typeof payload !== 'object' || !Array.isArray((payload as MedicationsPayload).items)) {
+          setError(true);
+          setData(null);
+        } else {
+          setData(payload);
+          setError(false);
+        }
       })
       .catch(() => {
         if (cancelled) return;
@@ -128,8 +159,18 @@ export default function MedicationDrawer({
             <div style={{ textAlign: 'center', color: '#9CA3AF', padding: 20 }}>加载中...</div>
           )}
           {!loading && error && (
-            <div style={{ textAlign: 'center', color: '#EF4444', padding: 20 }}>
-              加载失败，请稍后再试
+            <div
+              data-testid="ai-medication-drawer-retry"
+              onClick={fetchMedications}
+              style={{
+                textAlign: 'center',
+                color: '#9CA3AF',
+                padding: 20,
+                cursor: 'pointer',
+                userSelect: 'none',
+              }}
+            >
+              加载失败，点击重试
             </div>
           )}
           {!loading && !error && data?.is_none && (

@@ -41,32 +41,73 @@ class _AiProfileCardState extends State<AiProfileCard> {
     if (old.consultantId != widget.consultantId) _fetch();
   }
 
+  // [Bug-432-fix 2026-05-09]
+  // 原实现：接口失败时直接 _error=true，卡片消失，且**不重试**——
+  //   PRD 3.10 要求接口失败保留 1 次自动重试（3 秒后再试），均失败才静默不展示。
+  // 修因：除"二次脱壳"外，三端的失败兜底都缺重试。本端 dio 拦截器已脱壳（onResponse 不动 response），
+  //   resp.data 才是 JSON 体，所以原来的 `resp.data is Map` 是正确的，无需脱壳层面修复。
+  // 修复：抽出 _fetchOnce()，在外层加 1 次重试逻辑；按 PRD 失败时静默隐藏卡片。
+  Future<Map<String, dynamic>?> _fetchOnce() async {
+    final resp =
+        await _api.get('/api/v1/consultant/${widget.consultantId}/profile_card');
+    if (resp.data is Map) {
+      final m = Map<String, dynamic>.from(resp.data as Map);
+      // 强校验：必须含 fields 字段，避免后端 200 但 body 异常时进入"无声成功"
+      if (m['fields'] is Map) {
+        return m;
+      }
+    }
+    return null;
+  }
+
   Future<void> _fetch() async {
     final cached = _cache[widget.consultantId];
     if (cached != null && DateTime.now().difference(cached.ts) < _cacheTtl) {
-      setState(() {
-        _data = cached.data;
-        _error = false;
-      });
+      if (mounted) {
+        setState(() {
+          _data = cached.data;
+          _error = false;
+          _loading = false;
+        });
+      }
       return;
     }
-    setState(() {
-      _loading = true;
-      _error = false;
-    });
+    if (mounted) {
+      setState(() {
+        _loading = true;
+        _error = false;
+      });
+    }
+    Map<String, dynamic>? data;
     try {
-      final resp = await _api.get('/api/v1/consultant/${widget.consultantId}/profile_card');
-      final data = resp.data is Map ? Map<String, dynamic>.from(resp.data as Map) : null;
-      if (data != null) {
-        _cache[widget.consultantId] = _CacheEntry(data: data, ts: DateTime.now());
-        if (mounted) setState(() => _data = data);
-      } else {
-        if (mounted) setState(() => _error = true);
-      }
+      data = await _fetchOnce();
     } catch (_) {
-      if (mounted) setState(() => _error = true);
-    } finally {
-      if (mounted) setState(() => _loading = false);
+      data = null;
+    }
+    if (data == null) {
+      // PRD 3.10：失败保留 1 次自动重试（3 秒后再试一次）
+      await Future<void>.delayed(const Duration(seconds: 3));
+      if (!mounted) return;
+      try {
+        data = await _fetchOnce();
+      } catch (_) {
+        data = null;
+      }
+    }
+    if (!mounted) return;
+    if (data != null) {
+      _cache[widget.consultantId] =
+          _CacheEntry(data: data, ts: DateTime.now());
+      setState(() {
+        _data = data;
+        _error = false;
+        _loading = false;
+      });
+    } else {
+      setState(() {
+        _error = true;
+        _loading = false;
+      });
     }
   }
 
@@ -445,10 +486,16 @@ class _MedicationBottomSheetState extends State<MedicationBottomSheet> {
       return const Center(child: Padding(padding: EdgeInsets.all(20), child: Text('加载中...')));
     }
     if (_error) {
-      return const Center(
+      return Center(
         child: Padding(
-          padding: EdgeInsets.all(20),
-          child: Text('加载失败，请稍后再试', style: TextStyle(color: Color(0xFFEF4444))),
+          padding: const EdgeInsets.all(20),
+          child: GestureDetector(
+            onTap: () {
+              _fetch();
+            },
+            child: const Text('加载失败，点击重试',
+                style: TextStyle(color: Color(0xFF9CA3AF))),
+          ),
         ),
       );
     }

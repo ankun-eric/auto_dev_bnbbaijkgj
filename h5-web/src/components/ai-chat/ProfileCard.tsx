@@ -107,6 +107,7 @@ export default function ProfileCard({
   useEffect(() => {
     if (!consultantId && consultantId !== 0) return;
     let cancelled = false;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
     const cached = _profileCardCache[consultantId];
     if (cached && Date.now() - cached.ts < CACHE_TTL) {
       setData(cached.data);
@@ -114,23 +115,54 @@ export default function ProfileCard({
     }
     setLoading(true);
     setError(false);
-    api
-      .get(`/api/v1/consultant/${consultantId}/profile_card`)
-      .then((res) => {
-        if (cancelled) return;
-        const payload: ProfileCardData = res.data;
-        _profileCardCache[consultantId] = { data: payload, ts: Date.now() };
+
+    // [Bug-432-fix 2026-05-09]
+    // 修因：axios 响应拦截器已在 lib/api.ts 内执行 `(response) => response.data`，
+    // 这里 then 中的 `res` 实际就是后端 JSON 响应体本身（含 nickname/fields/...），
+    // 之前再写 `res.data` 等于二次脱壳，结果是 undefined → setData(undefined) → loading 永不解除。
+    // 修复：直接把 `res` 当作 payload 使用；类型守卫确保结构合法。
+    const fetchOnce = (): Promise<ProfileCardData> => {
+      return api
+        .get(`/api/v1/consultant/${consultantId}/profile_card`)
+        .then((res) => {
+          // 拦截器已脱壳，res 本身就是 JSON 体
+          const payload = res as unknown as ProfileCardData;
+          if (!payload || typeof payload !== 'object' || !('fields' in payload)) {
+            throw new Error('invalid profile_card payload');
+          }
+          return payload;
+        });
+    };
+
+    const apply = (payload: ProfileCardData) => {
+      _profileCardCache[consultantId] = { data: payload, ts: Date.now() };
+      if (!cancelled) {
         setData(payload);
-      })
+        setError(false);
+        setLoading(false);
+      }
+    };
+
+    fetchOnce()
+      .then(apply)
       .catch(() => {
+        // PRD 3.10：失败保留 1 次自动重试，3s 后再请求一次
         if (cancelled) return;
-        setError(true);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
+        retryTimer = setTimeout(() => {
+          if (cancelled) return;
+          fetchOnce()
+            .then(apply)
+            .catch(() => {
+              if (cancelled) return;
+              setError(true);
+              setLoading(false);
+            });
+        }, 3000);
       });
+
     return () => {
       cancelled = true;
+      if (retryTimer) clearTimeout(retryTimer);
     };
   }, [consultantId]);
 

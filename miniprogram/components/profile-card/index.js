@@ -31,33 +31,53 @@ Component({
   },
 
   methods: {
-    _fetch() {
+    _fetch(isRetry) {
       const cid = this.data.consultantId;
       if (typeof cid !== 'number') return;
       const cached = profileCardCache[cid];
       if (cached && Date.now() - cached.ts < CACHE_TTL) {
-        this.setData({ profile: cached.data, error: false });
+        this.setData({ profile: cached.data, error: false, loading: false });
         return;
       }
       const baseUrl = (app && app.globalData && app.globalData.baseUrl) || '';
       const token = (app && app.globalData && app.globalData.token) || wx.getStorageSync('token') || '';
       this.setData({ loading: true, error: false });
+      // [Bug-432-fix 2026-05-09]
+      // 修因：原写法在 success 分支没有判断 res.data 的"业务字段是否齐全"，
+      //   小程序请求库本身不会二次脱壳，但若返回 200 且 body 异常（无 fields），
+      //   仍走"profile=null + loading=false + error=false"分支 → wx:elif 不命中，卡片永卡 loading 文案。
+      // 修复：① 收到响应后，强校验 fields 字段是否存在；② 失败后按 PRD 3.10 自动重试 1 次（3s 后）。
+      const that = this;
       wx.request({
         url: `${baseUrl}/api/v1/consultant/${cid}/profile_card`,
         method: 'GET',
         header: token ? { Authorization: `Bearer ${token}` } : {},
         success: (res) => {
-          if (res.statusCode === 200 && res.data) {
-            const transformed = this._transformProfile(res.data);
+          if (res.statusCode === 200 && res.data && res.data.fields) {
+            const transformed = that._transformProfile(res.data);
             profileCardCache[cid] = { data: transformed, ts: Date.now() };
-            this.setData({ profile: transformed, error: false });
+            that.setData({ profile: transformed, error: false, loading: false });
           } else {
-            this.setData({ error: true });
+            that._handleFetchFail(isRetry);
           }
         },
-        fail: () => this.setData({ error: true }),
-        complete: () => this.setData({ loading: false })
+        fail: () => that._handleFetchFail(isRetry),
       });
+    },
+
+    _handleFetchFail(isRetry) {
+      // 已经是重试还是失败 → 标记 error=true，loading=false，卡片不再展示（按 PRD 不阻塞 AI 回答）
+      if (isRetry) {
+        this.setData({ error: true, loading: false });
+        return;
+      }
+      // 首次失败：3 秒后自动重试 1 次（PRD 3.10）
+      const that = this;
+      setTimeout(() => {
+        if (that.data && typeof that.data.consultantId === 'number') {
+          that._fetch(true);
+        }
+      }, 3000);
     },
 
     _transformProfile(raw) {
