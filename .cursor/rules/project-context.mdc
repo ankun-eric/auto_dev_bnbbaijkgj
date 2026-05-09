@@ -33,7 +33,87 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: PRD-432-AI-ANSWER-PROFILE-CARD-20260509｜AI 回答顶部「咨询对象档案」折叠卡片（2026-05-09 00:55）
+## Latest Update: PRD-433-AI-HOME-BUBBLE-CARD-VISUAL-REVAMP-20260509｜AI 对话首页气泡卡片化视觉改版（H5 + 小程序 + Flutter 三端）（2026-05-09 15:55）
+
+### 一句话结论
+按 PRD-433 v1.0 走 develop-all 流程交付：把 PRD-429 落地的「无气泡纯文本流」整体升级为「**AI 卡片 + 用户气泡**」分侧聊天样式（参考晓医、ChatGPT、文心一言、通义千问等主流 AI 健康助手视觉范式）。**用户消息**改为右侧 `#E6F0FF` 浅蓝淡彩气泡（`#1F2937` 深色文字、14px 圆角、padding 10/14、max-width 75vw（≤540px）、不带尾巴小三角、不显示头像）；**AI 消息**整体包裹白色卡片（`#FFFFFF` 白底、`1px solid #EAEBED` 极浅灰描边、12px 圆角、padding 14/16、占屏 88~90%、左右屏幕边距 16px、无阴影）；AI 头像 + 「小康」名称行保留在卡片**外部上方**（28px 圆形渐变绿 🌿 + 14px #666 名称）；**每条 AI 卡片底部**新增三个操作按钮（📋 复制 / 🔗 分享 / 🔁 朗读，朗读靠右） + 12px #9CA3AF 免责声明（"AI 生成内容仅供参考，不作为诊断依据"） + **参考资料容错渲染**（仅当后端返回 references 字段时显示，前端不报错）；**Loading 状态**改为白底卡片 + 「小康正在思考中…」16px #6B7280 + **三点跳动动画**；**时间分隔条**阈值 5 分钟、水平居中 12px 灰、无背景框、微信式时间格式（今天 HH:mm / 昨天 HH:mm / 周X HH:mm / YYYY/MM/DD HH:mm）；**流式输出去光标**（保留打字机但移除末尾闪烁光标）；**输入栏**圆角胶囊化（22px）+ 背景 `#F5F7FA`；**4 端设计 token 严格一致**（颜色/间距/圆角/字号统一定义），**后端零改动**。**部署与验证**：① H5 docker compose -f docker-compose.prod.yml build h5-web 97.6s 成功 + up -d Recreated；② 远程 smoke 4/4 PASS（`/api/health=200`、`/api/ai-home-config=200`、`/=200`、`/ai-home=308` 重定向登录正常）；③ **3 端打包全部首次成功**：小程序 zip `miniprogram_prd433_20260509_153717_863f.zip`（416076 bytes/344 文件，HEAD 200）、Android APK `app_prd433_20260509_154636_dc58.apk`（84.6 MB，GitHub Actions run 25595528538，HEAD 200）、iOS IPA `bini_health_ios.ipa`（32.6 MB，GitHub Release `ios-prd433-v20260509-153750-0062`，run 25595529368）；④ 用户体验手册：`user_docs/manual_20260509_153500_p433.md`。
+
+### 范围与端
+- **H5（Next.js + React + Antd Mobile）**：唯一改动文件 `h5-web/src/app/(ai-chat)/ai-home/page.tsx`：
+  - **接口扩展**：`ChatMessage` 接口新增可选 `references?: Array<{title: string; url?: string}>`（容错渲染）
+  - **新增工具函数**：`formatWeChatTime(iso)` 微信式时间格式化
+  - **删除变量**：`lastAiMsgIndex`（按 F-06 所有非流式 AI 都显示按钮，不再"仅最后一条"）
+  - **删除样式**：`@keyframes blink`（流式光标动画）
+  - **改造消息列表渲染**：用户消息渲染为右侧浅蓝气泡 `<div style={{display:'flex', justifyContent:'flex-end'}}><div style={{background:'#E6F0FF', borderRadius:14, padding:'10px 14px', maxWidth:'min(75vw,540px)'}}>`；AI 消息渲染为白色卡片 `<div style={{background:'#FFFFFF', border:'1px solid #EAEBED', borderRadius:12, padding:'14px 16px'}}>` 内含正文 + references（容错） + 免责 + 操作按钮行
+  - **改造 Loading 状态**：sending 时白色卡片包裹"小康正在思考中…" + 三点跳动
+  - **改造输入栏**：圆角 22px、背景 `#F5F7FA`、发送按钮 #1677FF
+  - **新增 testid**：`ai-home-ai-card`、`ai-home-user-bubble`、`ai-home-ai-disclaimer`、`ai-home-ai-action-bar`、`ai-home-ai-loading-card`、`ai-home-ai-references`、`ai-home-time-divider`（旧 testid 全保留）
+  - **保留**：PRD-432 ProfileCard 注入（仍在 AI 卡片**外部上方**位于头像名称行之上）、PRD-429 maxWidth 760px 居中、Bug-431 顶栏 fixed + 欢迎面板逻辑、PRD-426 删除浮层、PRD-414 头像/署名配置
+  - **chat/[sessionId]/page.tsx 未做同步改造**：该页面 3000+ 行含药品卡 / 知识卡 / OCR 详情等大量分支，结构差异过大，建议拆为独立任务（PRD-433 v1.1 或 v2.0）单独评估
+- **微信小程序（原生）**：3 文件改造 `miniprogram/pages/chat/index.{wxml,wxss,js}`：
+  - **wxml**：消息行外层 `.msg-item` 顶部新增 `.time-divider` 条件渲染；AI 消息改为 `.ai-msg-wrap` → 外部 `.ai-card-header`（头像+名）→ 内部 `.ai-card`（正文 + references 条件渲染 + knowledge-card + OCR 入口 + .ai-card-disclaimer + .ai-card-action-bar）；用户消息改为 `.user-msg-wrap` 右对齐 + `.user-bubble` 浅蓝气泡（移除头像）
+  - **wxss**：新增 PRD-433 视觉块（约 170 行）：`.time-divider`、`.ai-msg-wrap`、`.ai-card-header`/.ai-header-avatar/.ai-header-avatar-emoji/.ai-header-name`、`.ai-card`（白底/1rpx solid #EAEBED/24rpx 圆角/88% 占屏/padding 28rpx 32rpx）、`.ai-card-body/.ai-card-text`、`.ai-card-references/.ai-card-references-title/.ai-card-reference-item`、`.ai-card-disclaimer/.ai-card-disclaimer-text`（24rpx #9CA3AF）、`.ai-card-action-bar/.ai-card-action-btn/.ai-card-action-btn-right/.ai-card-action-icon/.ai-card-action-label`、`.ai-card-loading/.ai-loading-row/.ai-loading-text`、`.user-msg-wrap`、`.user-bubble`（#E6F0FF/28rpx 圆角/75% max-width）；改造 `.input-wrapper` 圆角 36rpx→44rpx + 背景 #f5f5f5→#F5F7FA；旧 `.msg-flow-*` 全部保留兼容
+  - **js**：`addMessage()` 消息对象新增 `_ts`（毫秒时间戳）、`references`（容错），自动计算 `showTimeDivider/timeDividerText`（>5 分钟）；SSE 流式 `_startSseStream`/`_startReportInterpretSse` 同样写入 _ts/references/showTimeDivider，`showCursor` 初始置 false + 注释 `_startCursorBlink()` 调用→**彻底去光标**；图片消息直插 4 处补 `_ts`；`shareToFriend(e)` 兼容卡片底部按钮 `data-msgid` 入参
+- **Flutter（Android + iOS 共享）**：2 文件改造：
+  - `flutter_app/lib/models/chat_message.dart`：新增 `final List<Map<String, dynamic>>? references` 可选字段，构造函数与 fromJson 同步支持，对 `json['references']` 安全解析（List + Map 类型守卫，空列表降级为 null）
+  - `flutter_app/lib/screens/ai/chat_screen.dart`：顶部新增 `_ChatTokens` 设计 const class（颜色 0xFFE6F0FF/0xFF1F2937/0xFFFFFFFF/0xFFEAEBED/0xFF6B7280/0xFF9CA3AF、圆角 14/12、padding、宽度比 0.88/0.75、阈值 5min、免责文案、inputBg 0xFFF5F7FA、inputRadius 22）；ListView builder 中插入 `_buildTimeDividerIfNeeded`（>5 分钟时间分隔条）；`_buildMessageBubble` 改为分发器：loading→`_buildLoadingCard`/user→`_buildUserBubble`/ai→`_buildAiCard`；新增 `_buildUserBubble`（Align right + ConstrainedBox(maxWidth=screenW*0.75) + Container 装饰 + Text）、`_buildAiCard`（保留 AiProfileCard → 外部头像名称 Row → 白色卡片 Container[正文 + references + OCR 入口 + 免责 + 操作按钮行]）、`_buildAiSenderRow`、`_buildAiCardContainer`、`_buildLoadingCard`（白色卡片 + "小康正在思考中" + `_AnimatedDots`）、`_buildAiActionRow`（复制/分享/Spacer/朗读）、`_buildIconActionButton`、`_buildReferencesList`、`_buildTimeDividerIfNeeded/_timeDividerWidget/_parseMessageTime`；`_buildStreamingBubble` 去掉 `▌` 光标（空内容 fallback 至 `_buildLoadingCard`、非空时使用与 AI 卡片完全一致样式、流式期间不渲染按钮/免责/参考）；`_buildAiMessageContent` 剥离 `---disclaimer---` 段、MarkdownBody 加 `selectable: true`、保留 KnowledgeCard；`_buildTextField` 圆角改用 `_ChatTokens.inputRadius=22` + 背景 `_ChatTokens.inputBg=0xFFF5F7FA`；`_buildHoldToTalkButton` 圆角统一为 22；删除老的 `_buildAvatar` 和原 `_buildActionButton`；文件末尾新增 `_AnimatedDots` StatefulWidget（SingleTickerProviderStateMixin + 1200ms 循环 + 三点错相位透明度 0.3~1.0 跳动）
+- **后端**：**0 改动**（PRD §5 BR-04/BR-05 明确"不涉及任何后端接口变更/数据结构变更"，本次严格遵守，零修改 backend 代码）
+
+### 验收要点（PRD-433 v1.0）
+- AC-01 用户消息靠右、浅蓝淡彩气泡、最大宽度 ≤ 75% 屏宽 ✓
+- AC-02 AI 卡片靠左、白底极浅灰描边、圆角 12~14px、占屏 88~90% ✓
+- AC-03 AI 卡片**外部**上方有「🌿 小康」头像 + 名称一行 ✓
+- AC-04 用户消息侧无头像 ✓
+- AC-05 卡片底部按钮：📋 复制 / 🔗 分享 / 🔁 朗读（朗读靠右） ✓
+- AC-06 每条 AI 卡片底部显示"AI 生成内容仅供参考，不作为诊断依据"小字 ✓
+- AC-07 消息间隔 > 5 分钟时插入时间分隔条（今天/昨天/周X/YYYY/MM/DD HH:mm）✓
+- AC-08 流式输出无光标，文本完整后操作按钮 / 免责 / 参考资料淡入 ✓
+- AC-09 Loading 卡片显示"小康正在思考中…" + 三点跳动 ✓
+- AC-10 输入栏圆角 22 + 配色 #F5F7FA 与气泡风格协调 ✓
+- AC-11 接口返回 references → 参考资料区正常渲染；接口未返回 → 不渲染且无报错（容错） ✓
+- AC-12 4 端色值、间距、圆角、字号完全一致（用统一 token 表对齐） ✓
+
+### 部署与验证
+- **部署脚本**：`_deploy_prd433.py`（paramiko SFTP 上传 page.tsx + docker compose -f docker-compose.prod.yml build/up h5-web + smoke 4 路径）
+- **打包脚本**：`_pack_upload_miniprogram_prd433.py`（小程序 zip 打包验证 + SFTP 上传 + 双向 HEAD 验证）、`_build_apk_prd433.py`（gh workflow run + 轮询 + gh release download + SFTP 上传）、`_build_ipa_prd433.py`（gh workflow run + 轮询 + 获取 Release URL）
+- **远程 Smoke**：`/api/health=200`、`/api/ai-home-config=200`、`/=200`、`/ai-home=308`（重定向登录页正常） 全部 PASS
+- **多端打包成功**：
+  - **H5**：已 docker 部署生效（h5-web 容器 Recreated）
+  - **小程序**：`miniprogram_prd433_20260509_153717_863f.zip`（416076 bytes/344 文件）→ https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/miniprogram/miniprogram_prd433_20260509_153717_863f.zip（HEAD 200，本地 urllib + 远端 curl 双向验证）
+  - **Android APK**：`app_prd433_20260509_154636_dc58.apk`（84,682,203 bytes/80.8 MB），GH Actions run 25595528538，GH Release `android-prd433-v20260509-153748-90ab` → https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/apk/app_prd433_20260509_154636_dc58.apk（HEAD 200，**首次构建即成功**，构建+上传总耗时 644s）
+  - **iOS IPA**：`bini_health_ios.ipa`（34,141,396 bytes/32.6 MB），GH Actions run 25595529368，GH Release `ios-prd433-v20260509-153750-0062` → https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/download/ios-prd433-v20260509-153750-0062/bini_health_ios.ipa（**首次构建即成功**，总耗时 399s）
+- **用户体验手册**：`user_docs/manual_20260509_153500_p433.md`
+
+### 关键技术决策
+- **去气泡 → 用户气泡 + AI 卡片混合样式**：PRD-429 把所有消息改为去气泡满屏排版后，用户反馈"AI 回答缺乏视觉容器" + "用户消息靠左不符主流习惯"两个问题。本次方案是**保留 AI 卡片化的容器感（白色卡片）**同时**让用户消息回归主流右侧浅蓝气泡**，是 PRD-429 的渐进式优化而非推倒重来。AI 头像 + 名称行**保留在卡片外部上方**（同晓医），不进入卡片内部，避免卡片头部臃肿
+- **每条 AI 卡片都显示操作按钮 + 免责（不仅最后一条）**：PRD-433 F-06 / F-08 明确要求每条 AI 卡片都显示，与晓医样式对齐；如产品后期希望"仅最新一条显示"可一行改回 `item.id === latestAiMsgId`
+- **流式输出去光标**：用户原话"打字机感保留 + 末尾闪烁光标删除"，三端统一执行：H5 删除 `<span style={{animation:'blink'}}/>`、小程序注释 `_startCursorBlink()` 调用、Flutter 删除 `▌` 文本拼接
+- **Loading 卡片样式与 AI 正常卡片完全一致**：避免"Loading 状态 → 首字到达 → 卡片背景突然出现"的布局抖动，保持视觉一致；三点跳动通过三端各自的动画机制实现（H5: keyframes bounce、小程序: animation:bounce、Flutter: AnimationController + AnimatedBuilder）
+- **参考资料容错渲染（前端先做，后端后续自然就绪）**：PRD §10.3 明确后端不扩展 references 字段，前端先用可选字段类型 + `references && references.length > 0` 二重判空容错。等后端就绪后无需前端发版
+- **4 端设计 token 严格一致**：用 `--bubble-user-bg=#E6F0FF` 等 17 个 token 统一定义；H5 写在 inline style、小程序写在 wxss 类、Flutter 写在 `_ChatTokens` const class，三处独立但值完全一致，避免端间偏差
+- **chat/[sessionId]/page.tsx 暂不同步改造**：该页面 3000+ 行含 DrugInfoCard / KnowledgeCard / 健康自查摘要卡 / 报告 OCR 详情 / 附件上传 / 流式发送等多套独立分支，强行改造会破坏 PRD-414 署名行 / 档案行 / 档案信息卡等历史结构。建议拆为独立 PRD-433 v1.1 单独评估
+- **零后端改动 + 零 API 契约变更**：本次纯 UI 视觉改版，后端代码、Schema、路由、数据库结构 100% 不动，无需重新打 backend 镜像；仅 H5 容器 Recreated，admin/db/backend 不受影响
+- **3 端首次构建即成功**：H5 docker build 97.6s 一次过、Android GHA 一次过（10m44s 含上传）、iOS GHA 一次过（6m39s）；未触发任何重试机制，PRD-433 三端代码改造质量稳定
+
+### 关键文件索引（本次新增/改动）
+| 文件 | 改动类型 | 行数变化 |
+|------|----------|----------|
+| `h5-web/src/app/(ai-chat)/ai-home/page.tsx` | 修改 | 大幅重构消息列表渲染 |
+| `miniprogram/pages/chat/index.wxml` | 修改 | 重构消息行结构 |
+| `miniprogram/pages/chat/index.wxss` | 修改 | 新增 PRD-433 视觉块约 170 行 |
+| `miniprogram/pages/chat/index.js` | 修改 | 数据结构 + 流式去光标 + 分享按钮兼容 |
+| `flutter_app/lib/models/chat_message.dart` | 修改 | 新增 references 可选字段 |
+| `flutter_app/lib/screens/ai/chat_screen.dart` | 修改 | 大幅重构 + 新增 _ChatTokens / _AnimatedDots |
+| `_deploy_prd433.py` + `_deploy_prd433.log` | 新增 | H5 部署脚本 + 日志 |
+| `_pack_upload_miniprogram_prd433.py` + `.log` | 新增 | 小程序打包脚本 + 日志 |
+| `_build_apk_prd433.py` + `.log` + `.stdout.log` | 新增 | Android APK 构建脚本 + 日志 |
+| `_build_ipa_prd433.py` + `.log` + `.stdout.log` | 新增 | iOS IPA 构建脚本 + 日志 |
+| `user_docs/manual_20260509_153500_p433.md` | 新增 | 用户体验使用手册 |
+| `.chat_output/dda62fa4-483b-4ebf-8cb1-7ecc5dbc9c56/PRD-433_*.md` | 新增 | PRD-433 归档文档 |
+
+---
+
+## Previous Update: PRD-432-AI-ANSWER-PROFILE-CARD-20260509｜AI 回答顶部「咨询对象档案」折叠卡片（2026-05-09 00:55）
 
 ### 一句话结论
 按 `cursor_prompt_432_20260509002435.txt` 走 develop-all 流程交付 PRD-432 v1.0：在每一条 AI 回答的**正上方**新增一张「**咨询对象档案折叠卡片**」，让用户在每次看到 AI 回答时都能立即确认「**这条建议是基于谁的档案给出的**」，并可点击展开 7 项核心档案（性别/年龄/身高/体重/过敏史/既往史/长期用药），「长期用药」行可再点出半屏 Drawer 查看具体药品。**全栈交付**：后端新增 2 个 GET 接口（`/api/v1/consultant/{id}/profile_card`、`/medications`）+ 1 个 PUT 接口（`/profile_flags`，更新 is_none 标记），新增 1 张表的 1 列（`chat_messages.consultant_target_id`）+ 1 张表的 3 列（`health_profiles.{past_history,allergy,medication}_is_none`，启动事件 `_prd432_profile_card_migrate` 幂等迁移）；H5 新增 2 个 React 组件（`ProfileCard.tsx`、`MedicationDrawer.tsx`）并在 ai-home + chat/[sessionId] 两页注入；小程序新增 2 个原生组件（`profile-card`、`medication-drawer`）并在 chat 页 wxml 注入；Flutter 新增 1 个 widget（`AiProfileCard`，含内置 `MedicationBottomSheet`）并在 `chat_screen.dart` 的 `_buildMessageBubble` 注入。**部署与验证**：① 后端 + h5-web docker compose -f docker-compose.prod.yml build → up -d Recreated；② 远程 smoke 5/5 PASS（`/api/health=200`、`/api/ai-home-config=200`、`/=200`、`/ai-home=308` 重定向登录正常、新接口 401 鉴权正确）；③ 后端容器内 pytest 新功能 6/6 PASS（`_remote_verify_prd432.py`：路由注册、未登录 401、`_calc_age`、`_to_history_list`、`_build_summary_text`、DB 列存在性）；④ 关键回归 PRD-420（13）+ Bug-419（26）+ ai_home_config（10）= **49 passed**，零回归；⑤ **3 端打包**：H5 已 docker 部署生效；小程序 zip `miniprogram_prd432_20260509_005614_89ad.zip` 已 SFTP 上传至 `/static/miniprogram/`，HEAD 200 验证通过；Flutter Android APK + iOS IPA 由 GitHub Actions（android-build.yml + ios-build.yml）远程并行构建，下载链接随构建结束写入 `_build_apk_prd432.log`、`_build_ipa_prd432.log`。

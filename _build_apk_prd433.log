@@ -1,0 +1,75 @@
+[15:37:48] ============================================================
+[15:37:48] [prd433] starting Android APK remote build pipeline
+[15:37:48] [prd433] version: android-prd433-v20260509-153748-90ab
+[15:37:48] $ gh workflow run android-build.yml -R ankun-eric/auto_dev_bnbbaijkgj -f version=android-prd433-v20260509-153748-90ab --ref master
+[15:37:49] [trigger] dispatched, version=android-prd433-v20260509-153748-90ab
+[15:38:19] $ gh run list -R ankun-eric/auto_dev_bnbbaijkgj --workflow=android-build.yml --limit 5 --json databaseId,status,conclusion,createdAt,event,headBranch
+[15:38:20]   | [{"conclusion":"","createdAt":"2026-05-09T07:37:49Z","databaseId":25595528538,"event":"workflow_dispatch","headBranch":"master","status":"in_progress"},{"conclusion":"success","createdAt":"2026-05-08T17:09:04Z","databaseId":25568835029,"event":"workflow_dispatch","headBranch":"master","status":"completed"},{"conclusion":"failure","createdAt":"2026-05-08T17:00:03Z","databaseId":25568433609,"event":"workflow_dispatch","headBranch":"master","status":"completed"},{"conclusion":"success","createdAt":"2026-05-08T15:24:14Z","databaseId":25563919015,"event":"workflow_dispatch","headBranch":"master","status":"completed"},{"conclusion":"failure","createdAt":"2026-05-08T15:16:14Z","databaseId":25563533354,"event":"workflow_dispatch","headBranch":"master","status":"completed"}]
+[15:38:20] $ gh run view 25595528538 -R ankun-eric/auto_dev_bnbbaijkgj --json url
+[15:38:20]   | {"url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25595528538"}
+[15:38:20] [prd433] run id=25595528538 url=https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25595528538
+[15:38:20] $ gh run view 25595528538 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,url
+[15:38:21]   | {"conclusion":"","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25595528538"}
+[15:38:21] [poll] 25595528538 status=in_progress conclusion=
+[15:38:51] $ gh run view 25595528538 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,url
+[15:38:51]   | {"conclusion":"","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25595528538"}
+[15:38:51] [poll] 25595528538 status=in_progress conclusion=
+[15:39:21] $ gh run view 25595528538 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,url
+[15:39:22]   | {"conclusion":"","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25595528538"}
+[15:39:22] [poll] 25595528538 status=in_progress conclusion=
+[15:39:52] $ gh run view 25595528538 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,url
+[15:39:53]   | {"conclusion":"","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25595528538"}
+[15:39:53] [poll] 25595528538 status=in_progress conclusion=
+[15:40:23] $ gh run view 25595528538 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,url
+[15:40:23]   | {"conclusion":"","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25595528538"}
+[15:40:23] [poll] 25595528538 status=in_progress conclusion=
+[15:40:53] $ gh run view 25595528538 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,url
+[15:40:54]   | {"conclusion":"","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25595528538"}
+[15:40:54] [poll] 25595528538 status=in_progress conclusion=
+[15:41:24] $ gh run view 25595528538 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,url
+[15:41:24]   | {"conclusion":"","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25595528538"}
+[15:41:24] [poll] 25595528538 status=in_progress conclusion=
+[15:41:54] $ gh run view 25595528538 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,url
+[15:41:55]   | {"conclusion":"","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25595528538"}
+[15:41:55] [poll] 25595528538 status=in_progress conclusion=
+[15:42:25] $ gh run view 25595528538 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,url
+[15:42:25]   | {"conclusion":"","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25595528538"}
+[15:42:25] [poll] 25595528538 status=in_progress conclusion=
+[15:42:55] $ gh run view 25595528538 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,url
+[15:42:56]   | {"conclusion":"","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25595528538"}
+[15:42:56] [poll] 25595528538 status=in_progress conclusion=
+[15:43:26] $ gh run view 25595528538 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,url
+[15:43:26]   | {"conclusion":"","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25595528538"}
+[15:43:26] [poll] 25595528538 status=in_progress conclusion=
+[15:43:56] $ gh run view 25595528538 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,url
+[15:43:57]   | {"conclusion":"","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25595528538"}
+[15:43:57] [poll] 25595528538 status=in_progress conclusion=
+[15:44:27] $ gh run view 25595528538 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,url
+[15:44:28]   | {"conclusion":"","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25595528538"}
+[15:44:28] [poll] 25595528538 status=in_progress conclusion=
+[15:44:58] $ gh run view 25595528538 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,url
+[15:44:58]   | {"conclusion":"","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25595528538"}
+[15:44:58] [poll] 25595528538 status=in_progress conclusion=
+[15:45:28] $ gh run view 25595528538 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,url
+[15:45:28]   | {"conclusion":"","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25595528538"}
+[15:45:28] [poll] 25595528538 status=in_progress conclusion=
+[15:45:58] $ gh run view 25595528538 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,url
+[15:45:59]   | {"conclusion":"","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25595528538"}
+[15:45:59] [poll] 25595528538 status=in_progress conclusion=
+[15:46:29] $ gh run view 25595528538 -R ankun-eric/auto_dev_bnbbaijkgj --json status,conclusion,url
+[15:46:30]   | {"conclusion":"success","status":"completed","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25595528538"}
+[15:46:30] [poll] 25595528538 status=completed conclusion=success
+[15:46:30] [prd433] workflow OK; downloading release android-prd433-v20260509-153748-90ab
+[15:46:30] $ gh release download android-prd433-v20260509-153748-90ab -R ankun-eric/auto_dev_bnbbaijkgj --pattern "*.apk" --dir "C:\Users\ADMINI~1\AppData\Local\Temp\2\apk_prd433_tjxrboc6" --clobber
+[15:46:36] [download] got C:\Users\ADMINI~1\AppData\Local\Temp\2\apk_prd433_tjxrboc6\bini_health_android-prd433-v20260509-153748-90ab.apk (84682203 bytes)
+[15:48:31] [upload] /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/static/apk/app_prd433_20260509_154636_dc58.apk size=84682203
+[15:48:32] [verify] HEAD https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/apk/app_prd433_20260509_154636_dc58.apk -> 200 length=84682203
+[15:48:32] ============================================================
+[15:48:32] [prd433] SUCCESS
+[15:48:32]   APK_VERSION_TAG = android-prd433-v20260509-153748-90ab
+[15:48:32]   APK_FILENAME    = app_prd433_20260509_154636_dc58.apk
+[15:48:32]   APK_SIZE        = 84682203
+[15:48:32]   APK_HTTP_STATUS = 200
+[15:48:32]   APK_DOWNLOAD_URL= https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/apk/app_prd433_20260509_154636_dc58.apk
+[15:48:32]   GH_RUN_URL      = https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25595528538
+[15:48:32]   ELAPSED_SECONDS = 644
