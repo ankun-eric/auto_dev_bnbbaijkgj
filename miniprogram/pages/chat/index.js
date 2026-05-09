@@ -256,8 +256,9 @@ Page({
     };
   },
 
-  async shareToFriend() {
-    const msgId = this.data.latestAiMsgId;
+  async shareToFriend(e) {
+    // [PRD-433] 支持卡片底部按钮传入 data-msgid，否则回退到 latestAiMsgId
+    const msgId = (e && e.currentTarget && e.currentTarget.dataset && e.currentTarget.dataset.msgid) || this.data.latestAiMsgId;
     if (!msgId) {
       wx.showToast({ title: '暂无可分享的AI回复', icon: 'none' });
       return;
@@ -277,7 +278,7 @@ Page({
       } else {
         wx.showToast({ title: '分享成功', icon: 'success' });
       }
-    } catch (e) {
+    } catch (err) {
       wx.showToast({ title: '生成分享链接失败', icon: 'none' });
     }
   },
@@ -450,7 +451,7 @@ Page({
     const id = generateId();
     const now = new Date();
     const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-    const messages = [...this.data.messages, { id, role: 'user', content: '', image: filePath, time }];
+    const messages = [...this.data.messages, { id, role: 'user', content: '', image: filePath, time, _ts: now.getTime(), references: [] }];
     this.setData({ messages, scrollToId: `msg-${id}`, drugImageUploading: true });
 
     const loadingId = this.addMessage('loading', '');
@@ -494,18 +495,28 @@ Page({
     const now = new Date();
     const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
 
-    const messages = [...this.data.messages, { id: msgId, role: 'assistant', content: '', time, isStreaming: true }];
+    const prev = this.data.messages.length > 0 ? this.data.messages[this.data.messages.length - 1] : null;
+    const showDivider = !prev || (prev._ts && (now.getTime() - prev._ts) > 5 * 60 * 1000);
+    const messages = [...this.data.messages, {
+      id: msgId, role: 'assistant', content: '', time,
+      _ts: now.getTime(),
+      references: [],
+      showTimeDivider: !!showDivider,
+      timeDividerText: time,
+      isStreaming: true
+    }];
     this.setData({
       messages,
       scrollToId: `msg-${msgId}`,
       streamingMsgId: msgId,
       streamingText: '',
       isStreaming: true,
-      showCursor: true,
+      showCursor: false,
       latestAiMsgId: ''
     });
 
-    this._startCursorBlink();
+    // [PRD-433 F-10] 流式输出去光标：不再启动光标闪烁
+    // this._startCursorBlink();
 
     let fullText = '';
 
@@ -943,7 +954,7 @@ Page({
     const id = generateId();
     const now = new Date();
     const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-    const messages = [...this.data.messages, { id, role: 'user', content: `[拍照识药] 共${filePaths.length}张`, image: filePaths[0], time }];
+    const messages = [...this.data.messages, { id, role: 'user', content: `[拍照识药] 共${filePaths.length}张`, image: filePaths[0], time, _ts: now.getTime(), references: [] }];
     this.setData({ messages, scrollToId: `msg-${id}` });
 
     const loadingId = this.addMessage('loading', '');
@@ -1021,14 +1032,23 @@ Page({
     const msgId = generateId();
     const now = new Date();
     const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-    const messages = [...this.data.messages, { id: msgId, role: 'assistant', content: '', time, isStreaming: true }];
+    const prevR = this.data.messages.length > 0 ? this.data.messages[this.data.messages.length - 1] : null;
+    const showDividerR = !prevR || (prevR._ts && (now.getTime() - prevR._ts) > 5 * 60 * 1000);
+    const messages = [...this.data.messages, {
+      id: msgId, role: 'assistant', content: '', time,
+      _ts: now.getTime(),
+      references: [],
+      showTimeDivider: !!showDividerR,
+      timeDividerText: time,
+      isStreaming: true
+    }];
     this.setData({
       messages,
       scrollToId: `msg-${msgId}`,
       streamingMsgId: msgId,
       streamingText: '',
       isStreaming: true,
-      showCursor: true,
+      showCursor: false,
       // [2026-04-25 PRD F5] 记录第一条 AI 解读消息 id，用于在该条消息底部挂载 OCR 详情入口
       firstAiMsgId: this.data.firstAiMsgId || msgId,
       // 重置 OCR 详情状态（新解读未完成前不展示入口）
@@ -1037,7 +1057,8 @@ Page({
       ocrDetailLoading: false,
       ocrDetailText: ''
     });
-    this._startCursorBlink();
+    // [PRD-433 F-10] 流式输出去光标
+    // this._startCursorBlink();
 
     let fullText = '';
     let currentEvent = '';
@@ -1239,7 +1260,7 @@ Page({
     const id = generateId();
     const now = new Date();
     const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-    const messages = [...this.data.messages, { id, role: 'user', content: '', image: filePath, time }];
+    const messages = [...this.data.messages, { id, role: 'user', content: '', image: filePath, time, _ts: now.getTime(), references: [] }];
     this.setData({ messages, scrollToId: `msg-${id}`, showUploadProgress: true, uploadPercent: 0 });
 
     const loadingId = this.addMessage('loading', '');
@@ -1772,11 +1793,28 @@ Page({
     const id = generateId();
     const now = new Date();
     const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-    const msgData = { id, role, content, time, ...extra };
+    const msgData = {
+      id,
+      role,
+      content,
+      time,
+      _ts: now.getTime(),
+      // [PRD-433 F-14] references 字段容错：默认空数组
+      references: (extra && Array.isArray(extra.references)) ? extra.references : [],
+      ...extra
+    };
     if (role === 'assistant' && content && content.includes('---disclaimer---')) {
       const parsed = this._parseMessage(content);
       msgData.mainContent = parsed.mainContent;
       msgData.disclaimer = parsed.disclaimer;
+    }
+    // [PRD-433 F-09] 时间分隔条：与上一条消息间隔 > 5 分钟才插入
+    const prev = this.data.messages.length > 0 ? this.data.messages[this.data.messages.length - 1] : null;
+    if (!prev || (prev._ts && (now.getTime() - prev._ts) > 5 * 60 * 1000)) {
+      msgData.showTimeDivider = true;
+      msgData.timeDividerText = time;
+    } else {
+      msgData.showTimeDivider = false;
     }
     if (role === 'assistant' && content) {
       this.setData({ latestAiMsgId: id });
@@ -1806,7 +1844,7 @@ Page({
         const id = generateId();
         const now = new Date();
         const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-        const messages = [...this.data.messages, { id, role: 'user', content: '', image: tempFilePath, time }];
+        const messages = [...this.data.messages, { id, role: 'user', content: '', image: tempFilePath, time, _ts: now.getTime(), references: [] }];
         this.setData({ messages, scrollToId: `msg-${id}` });
 
         const loadingId = this.addMessage('loading', '');

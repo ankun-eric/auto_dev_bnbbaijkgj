@@ -167,9 +167,191 @@
 /* 消息列表 */
 .msg-list {
   flex: 1;
-  padding: 16rpx 24rpx;
+  padding: 16rpx 32rpx;
   overflow-y: auto;
 }
+
+/* ========== [PRD-433] 气泡卡片化视觉改版 ========== */
+
+/* 时间分隔条：水平居中 12px 灰色无背景 */
+.time-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 24rpx 0 16rpx;
+}
+.time-divider-text {
+  font-size: 24rpx;
+  color: #9CA3AF;
+  background: transparent;
+}
+
+/* AI 消息整体包裹 */
+.ai-msg-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+}
+
+/* AI 卡片外部上方：头像 + 名称行 */
+.ai-card-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12rpx;
+  padding-left: 4rpx;
+}
+.ai-header-avatar {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #52c41a, #13c2c2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.ai-header-avatar-emoji {
+  font-size: 28rpx;
+}
+.ai-header-name {
+  font-size: 28rpx;
+  color: #666;
+  margin-left: 16rpx;
+}
+
+/* AI 卡片：白底 + 1px #EAEBED 描边 + 12px 圆角 + 88% 占屏 */
+.ai-card {
+  width: 88%;
+  background: #FFFFFF;
+  border: 1rpx solid #EAEBED;
+  border-radius: 24rpx;
+  padding: 28rpx 32rpx;
+  box-sizing: border-box;
+  box-shadow: none;
+}
+
+.ai-card-body {
+  width: 100%;
+}
+.ai-card-text {
+  display: block;
+  font-size: 32rpx;
+  line-height: 1.6;
+  color: #1F2937;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+/* 参考资料区 */
+.ai-card-references {
+  margin-top: 20rpx;
+  padding: 16rpx 20rpx;
+  background: #F8FAFC;
+  border-radius: 12rpx;
+}
+.ai-card-references-title {
+  display: block;
+  font-size: 24rpx;
+  color: #6B7280;
+  font-weight: 600;
+  margin-bottom: 8rpx;
+}
+.ai-card-reference-item {
+  margin-top: 6rpx;
+}
+.ai-card-reference-text {
+  font-size: 24rpx;
+  color: #6B7280;
+  line-height: 1.5;
+}
+
+/* 免责声明：12px #9CA3AF，操作按钮行上方 */
+.ai-card-disclaimer {
+  margin-top: 20rpx;
+  padding-top: 16rpx;
+  border-top: 1rpx dashed #EAEBED;
+}
+.ai-card-disclaimer-text {
+  font-size: 24rpx;
+  color: #9CA3AF;
+  line-height: 1.5;
+}
+
+/* 卡片底部操作按钮行：📋 复制 / 🔗 分享 / 🔁 朗读（朗读最右） */
+.ai-card-action-bar {
+  display: flex;
+  align-items: center;
+  margin-top: 16rpx;
+  gap: 48rpx;
+}
+.ai-card-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  padding: 8rpx 0;
+}
+.ai-card-action-btn:active {
+  opacity: 0.6;
+}
+.ai-card-action-btn-right {
+  margin-left: auto;
+}
+.ai-card-action-icon {
+  font-size: 32rpx;
+  line-height: 1;
+}
+.ai-card-action-label {
+  font-size: 24rpx;
+  color: #6B7280;
+}
+
+/* Loading 卡片 */
+.ai-card-loading {
+  padding: 28rpx 32rpx;
+}
+.ai-loading-row {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+.ai-loading-text {
+  font-size: 28rpx;
+  color: #6B7280;
+}
+
+/* ===== 用户消息：右侧浅蓝气泡 ===== */
+.user-msg-wrap {
+  display: flex;
+  justify-content: flex-end;
+  width: 100%;
+}
+/* 注意：覆盖下方旧 .user-bubble（兼容样式），强制使用新视觉 */
+.user-msg-wrap .user-bubble {
+  max-width: 75%;
+  background: #E6F0FF;
+  color: #1F2937;
+  border-radius: 28rpx;
+  padding: 20rpx 28rpx;
+  box-sizing: border-box;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+.user-bubble-text {
+  display: block;
+  font-size: 32rpx;
+  line-height: 1.6;
+  color: #1F2937;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+.user-msg-wrap .msg-image {
+  max-width: 100%;
+  border-radius: 16rpx;
+}
+
+/* ========== [PRD-433] end ========== */
+
 
 /* 提示 */
 .chat-notice {
@@ -558,8 +740,8 @@
   flex: 1;
   display: flex;
   align-items: center;
-  background: #f5f5f5;
-  border-radius: 36rpx;
+  background: #F5F7FA;
+  border-radius: 44rpx;
   padding: 0 8rpx 0 24rpx;
   height: 72rpx;
   min-width: 0;

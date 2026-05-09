@@ -95,26 +95,44 @@
     </view>
 
     <view class="msg-item" wx:for="{{messages}}" wx:key="id" id="msg-{{item.id}}">
-      <!-- [PRD-432] AI 回答顶部「咨询对象档案」折叠卡片 -->
+      <!-- [PRD-433] 时间分隔条：仅当 showTimeDivider 为 true 时渲染 -->
+      <view wx:if="{{item.showTimeDivider}}" class="time-divider">
+        <text class="time-divider-text">{{item.timeDividerText || item.time}}</text>
+      </view>
+
+      <!-- [PRD-432] AI 回答顶部「咨询对象档案」折叠卡片（保留在 AI 卡片外部上方） -->
       <profile-card
         wx:if="{{item.role === 'assistant'}}"
         consultant-id="{{currentConsultantId || 0}}"
       />
-      <!-- [PRD-429] AI消息 满屏排版（去气泡） -->
-      <view class="msg-flow-row ai-flow" wx:if="{{item.role === 'assistant'}}">
-        <view class="msg-flow-header">
-          <view class="msg-avatar ai-avatar">
-            <text class="avatar-emoji">🤖</text>
+
+      <!-- [PRD-433] AI 消息：白色卡片 + 卡片外部上方头像名称行 -->
+      <view class="ai-msg-wrap" wx:if="{{item.role === 'assistant'}}">
+        <view class="ai-card-header">
+          <view class="ai-header-avatar">
+            <text class="ai-header-avatar-emoji">🤖</text>
           </view>
-          <text class="msg-sender-name">小康 · 健康助手</text>
+          <text class="ai-header-name">小康</text>
         </view>
-        <view class="msg-flow-body">
-          <text class="msg-flow-text" style="font-size:{{msgFontSize}};">{{item.mainContent || item.content}}</text>
-          <!-- SSE 闪烁光标 -->
-          <text class="streaming-cursor" wx:if="{{item.isStreaming && showCursor}}">|</text>
-          <view wx:if="{{item.disclaimer}}" class="disclaimer">
-            <text class="disclaimer-text">{{item.disclaimer}}</text>
+        <view class="ai-card">
+          <view class="ai-card-body">
+            <text class="ai-card-text" style="font-size:{{msgFontSize}};">{{item.mainContent || item.content}}</text>
+            <!-- [PRD-433 F-10] 流式输出去光标：保留打字机文本，去掉光标渲染 -->
           </view>
+
+          <!-- [PRD-433 F-14] 参考资料容错渲染 -->
+          <view wx:if="{{item.references && item.references.length > 0}}" class="ai-card-references">
+            <text class="ai-card-references-title">参考资料</text>
+            <view
+              class="ai-card-reference-item"
+              wx:for="{{item.references}}"
+              wx:for-item="ref"
+              wx:key="index"
+            >
+              <text class="ai-card-reference-text">· {{ref.title || ref.name || ref.text || ref}}</text>
+            </view>
+          </view>
+
           <block wx:if="{{item.knowledgeHits && item.knowledgeHits.length}}">
             <knowledge-card
               wx:for="{{item.knowledgeHits}}"
@@ -125,67 +143,67 @@
               bind:submitted="onKnowledgeFeedback"
             />
           </block>
-          <text class="msg-flow-time">{{item.time}}</text>
-        </view>
 
-        <!-- [2026-04-25 PRD F5] 报告解读 OCR 详情兜底入口 -->
-        <view
-          wx:if="{{(chatType === 'report_interpret' || chatType === 'report_compare') && item.id === firstAiMsgId && !item.isStreaming && !interpretFailed}}"
-          class="ocr-detail-row"
-        >
-          <text class="ocr-detail-link" catchtap="onToggleOcrDetail">
-            {{ocrDetailLoading ? '加载中…' : (ocrDetailExpanded ? '收起 OCR 识别详情 ▴' : '查看 OCR 识别详情 ▾')}}
-          </text>
-          <view wx:if="{{ocrDetailExpanded}}" class="ocr-detail-box">
-            <text class="ocr-detail-text">{{ocrDetailText || (ocrDetailLoaded ? '（暂无 OCR 文本）' : '加载中…')}}</text>
+          <!-- [2026-04-25 PRD F5] 报告解读 OCR 详情兜底入口（卡片内） -->
+          <view
+            wx:if="{{(chatType === 'report_interpret' || chatType === 'report_compare') && item.id === firstAiMsgId && !item.isStreaming && !interpretFailed}}"
+            class="ocr-detail-row"
+          >
+            <text class="ocr-detail-link" catchtap="onToggleOcrDetail">
+              {{ocrDetailLoading ? '加载中…' : (ocrDetailExpanded ? '收起 OCR 识别详情 ▴' : '查看 OCR 识别详情 ▾')}}
+            </text>
+            <view wx:if="{{ocrDetailExpanded}}" class="ocr-detail-box">
+              <text class="ocr-detail-text">{{ocrDetailText || (ocrDetailLoaded ? '（暂无 OCR 文本）' : '加载中…')}}</text>
+            </view>
           </view>
-        </view>
 
-        <!-- Module 7: Action buttons (only on latest non-streaming AI message) -->
-        <view class="msg-action-bar" wx:if="{{item.id === latestAiMsgId && !item.isStreaming && item.content}}">
-          <view class="action-btn" catchtap="copyMessage" data-msgid="{{item.id}}">
-            <text class="action-icon">📋</text>
-            <text class="action-label">复制</text>
+          <!-- [PRD-433 F-08] 免责声明（每条 AI 卡片底部） -->
+          <view wx:if="{{!item.isStreaming && (item.mainContent || item.content)}}" class="ai-card-disclaimer">
+            <text class="ai-card-disclaimer-text">{{item.disclaimer || 'AI 生成内容仅供参考，不作为诊断依据'}}</text>
           </view>
-          <view class="action-btn" catchtap="toggleTts" data-msgid="{{item.id}}">
-            <text class="action-icon">{{isTtsPlaying && ttsMsgId === item.id ? '⏹️' : '🔊'}}</text>
-            <text class="action-label">{{isTtsPlaying && ttsMsgId === item.id ? '停止' : '播报'}}</text>
-          </view>
-          <view class="action-btn" catchtap="shareToFriend">
-            <text class="action-icon">📤</text>
-            <text class="action-label">分享</text>
+
+          <!-- [PRD-433 F-06] 操作按钮行：📋 复制 / 🔗 分享 / 🔁 朗读（朗读最右） -->
+          <view class="ai-card-action-bar" wx:if="{{!item.isStreaming && (item.mainContent || item.content)}}">
+            <view class="ai-card-action-btn" catchtap="copyMessage" data-msgid="{{item.id}}">
+              <text class="ai-card-action-icon">📋</text>
+              <text class="ai-card-action-label">复制</text>
+            </view>
+            <view class="ai-card-action-btn" catchtap="shareToFriend" data-msgid="{{item.id}}">
+              <text class="ai-card-action-icon">🔗</text>
+              <text class="ai-card-action-label">分享</text>
+            </view>
+            <view class="ai-card-action-btn ai-card-action-btn-right" catchtap="toggleTts" data-msgid="{{item.id}}">
+              <text class="ai-card-action-icon">{{isTtsPlaying && ttsMsgId === item.id ? '⏹️' : '🔁'}}</text>
+              <text class="ai-card-action-label">{{isTtsPlaying && ttsMsgId === item.id ? '停止' : '朗读'}}</text>
+            </view>
           </view>
         </view>
       </view>
 
-      <!-- [PRD-429] 用户消息 满屏排版（去气泡） -->
-      <view class="msg-flow-row user-flow" wx:elif="{{item.role === 'user'}}">
-        <view class="msg-flow-header">
-          <view class="msg-avatar user-avatar">
-            <text class="avatar-emoji">👤</text>
-          </view>
-          <text class="msg-sender-name">我</text>
-        </view>
-        <view class="msg-flow-body user-flow-body">
+      <!-- [PRD-433 F-01] 用户消息：右侧浅蓝气泡，无头像 -->
+      <view class="user-msg-wrap" wx:elif="{{item.role === 'user'}}">
+        <view class="user-bubble">
           <image class="msg-image" src="{{item.image}}" mode="widthFix" wx:if="{{item.image}}" bindtap="previewImage" data-url="{{item.image}}" />
-          <text class="msg-flow-text" wx:else style="font-size:{{msgFontSize}};">{{item.content}}</text>
-          <text class="msg-flow-time">{{item.time}}</text>
+          <text class="user-bubble-text" wx:else style="font-size:{{msgFontSize}};">{{item.content}}</text>
         </view>
       </view>
 
-      <!-- [PRD-429] 加载中 满屏排版（保留浅灰骨架） -->
-      <view class="msg-flow-row ai-flow" wx:elif="{{item.role === 'loading'}}">
-        <view class="msg-flow-header">
-          <view class="msg-avatar ai-avatar">
-            <text class="avatar-emoji">🤖</text>
+      <!-- [PRD-433 F-11] Loading 卡片：白色卡片样式 + 「小康正在思考中…」+ 三点跳动 -->
+      <view class="ai-msg-wrap" wx:elif="{{item.role === 'loading'}}">
+        <view class="ai-card-header">
+          <view class="ai-header-avatar">
+            <text class="ai-header-avatar-emoji">🤖</text>
           </view>
-          <text class="msg-sender-name">小康 · 健康助手</text>
+          <text class="ai-header-name">小康</text>
         </view>
-        <view class="msg-flow-body">
-          <view class="typing-dots">
-            <view class="dot"></view>
-            <view class="dot"></view>
-            <view class="dot"></view>
+        <view class="ai-card ai-card-loading">
+          <view class="ai-loading-row">
+            <text class="ai-loading-text">小康正在思考中…</text>
+            <view class="typing-dots">
+              <view class="dot"></view>
+              <view class="dot"></view>
+              <view class="dot"></view>
+            </view>
           </view>
         </view>
       </view>

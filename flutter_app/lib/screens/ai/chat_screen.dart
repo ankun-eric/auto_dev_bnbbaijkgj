@@ -25,6 +25,27 @@ import '../../services/api_service.dart';
 import '../../services/sse_service.dart';
 import '../../services/tts_service.dart';
 
+// [PRD-433 v1.0] 气泡卡片化视觉改版 - 设计 Token（与 H5/小程序严格一致）
+class _ChatTokens {
+  static const Color userBubbleBg = Color(0xFFE6F0FF);
+  static const Color userBubbleText = Color(0xFF1F2937);
+  static const Color aiCardBg = Colors.white;
+  static const Color aiCardBorder = Color(0xFFEAEBED);
+  static const Color senderName = Color(0xFF666666);
+  static const Color disclaimerText = Color(0xFF9CA3AF);
+  static const Color loadingText = Color(0xFF6B7280);
+  static const Color inputBg = Color(0xFFF5F7FA);
+  static const Color timeDividerText = Color(0xFF9CA3AF);
+  static const double userBubbleRadius = 14;
+  static const double aiCardRadius = 12;
+  static const double inputRadius = 22;
+  static const double aiCardWidthRatio = 0.88;
+  static const double userBubbleMaxWidthRatio = 0.75;
+  static const double userBubbleMaxWidth = 540;
+  static const Duration timeDividerThreshold = Duration(minutes: 5);
+  static const String disclaimer = 'AI 生成内容仅供参考，不作为诊断依据';
+}
+
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
 
@@ -1479,10 +1500,17 @@ class _ChatScreenState extends State<ChatScreen> {
                     final isLastAi = !message.isUser && _findLastAiIndex(messages) == index;
                     final isReportSession = _initialType == 'report_interpret' || _initialType == 'report_compare';
                     final isFirstAi = isReportSession && !message.isUser && _findFirstAiIndex(messages) == index;
-                    return _buildMessageBubble(
+                    // [PRD-433 F-09] 与上一条消息间隔 > 5 分钟时插入时间分隔条
+                    final divider = _buildTimeDividerIfNeeded(messages, index);
+                    final bubble = _buildMessageBubble(
                       message,
                       showActions: isLastAi && !_isStreaming,
                       showOcrDetailEntry: isFirstAi && !_isStreaming && !_interpretFailed,
+                    );
+                    if (divider == null) return bubble;
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [divider, bubble],
                     );
                   },
                 );
@@ -1620,39 +1648,136 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  // [PRD-429] 满屏排版：去气泡，头像在文字上方，文字铺满整行
+  // [PRD-433 F-02/F-10/F-11] 流式输出：使用 AI 卡片样式；空内容时显示 Loading 卡片；不显示光标
   Widget _buildStreamingBubble() {
+    if (_streamingContent.isEmpty) {
+      return _buildLoadingCard();
+    }
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildAvatar(false),
-              const SizedBox(width: 8),
-              const Text('小康 · 健康助手', style: TextStyle(fontSize: 12, color: Color(0xFF999999))),
-            ],
-          ),
+          _buildAiSenderRow(),
           const SizedBox(height: 8),
-          _streamingContent.isEmpty
-              ? Row(mainAxisSize: MainAxisSize.min, children: [
-                  SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.grey[400])),
-                  const SizedBox(width: 8),
-                  Text('正在思考中...', style: TextStyle(color: Colors.grey[500], fontSize: 14)),
-                ])
-              : RichText(
-                  text: TextSpan(
-                    style: TextStyle(fontSize: _chatFontSize, height: 1.6, color: const Color(0xFF1A1A1A)),
-                    children: [
-                      TextSpan(text: _streamingContent),
-                      if (_cursorVisible)
-                        const TextSpan(text: '▌', style: TextStyle(color: Color(0xFF52C41A), fontWeight: FontWeight.bold)),
-                    ],
-                  ),
-                ),
+          _buildAiCardContainer(
+            child: Text(
+              _streamingContent,
+              style: TextStyle(
+                fontSize: _chatFontSize,
+                height: 1.6,
+                color: const Color(0xFF1A1A1A),
+              ),
+            ),
+          ),
         ],
+      ),
+    );
+  }
+
+  // [PRD-433 F-11] Loading 卡片：白底 + 描边 + 88% 占屏，含「小康正在思考中…」+ 三点跳动
+  Widget _buildLoadingCard() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildAiSenderRow(),
+          const SizedBox(height: 8),
+          _buildAiCardContainer(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: const [
+                Text(
+                  '小康正在思考中',
+                  style: TextStyle(fontSize: 16, color: _ChatTokens.loadingText),
+                ),
+                SizedBox(width: 4),
+                _AnimatedDots(color: _ChatTokens.loadingText, fontSize: 16),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // [PRD-433 F-03] AI 头像 + 名称行（卡片外部上方）
+  Widget _buildAiSenderRow() {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 28,
+          height: 28,
+          decoration: const BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: LinearGradient(
+              colors: [Color(0xFF52C41A), Color(0xFF13C2C2)],
+            ),
+          ),
+          alignment: Alignment.center,
+          child: const Text('🌿', style: TextStyle(fontSize: 14)),
+        ),
+        const SizedBox(width: 8),
+        const Text(
+          '小康',
+          style: TextStyle(fontSize: 14, color: _ChatTokens.senderName),
+        ),
+      ],
+    );
+  }
+
+  // [PRD-433 F-02] AI 白色卡片容器：白底 + 1px 描边 + 12 圆角 + 88% 屏宽
+  Widget _buildAiCardContainer({required Widget child}) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    return Container(
+      width: screenWidth * _ChatTokens.aiCardWidthRatio,
+      decoration: BoxDecoration(
+        color: _ChatTokens.aiCardBg,
+        border: Border.all(color: _ChatTokens.aiCardBorder, width: 1),
+        borderRadius: BorderRadius.circular(_ChatTokens.aiCardRadius),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: child,
+    );
+  }
+
+  // [PRD-433 F-09] 时间分隔条：与上一条消息间隔 > 5 分钟才插入
+  Widget? _buildTimeDividerIfNeeded(List<ChatMessage> messages, int index) {
+    final cur = _parseMessageTime(messages[index].createdAt);
+    if (cur == null) return null;
+    if (index == 0) return _timeDividerWidget(cur);
+    final prev = _parseMessageTime(messages[index - 1].createdAt);
+    if (prev == null) return _timeDividerWidget(cur);
+    if (cur.difference(prev).abs() <= _ChatTokens.timeDividerThreshold) return null;
+    return _timeDividerWidget(cur);
+  }
+
+  DateTime? _parseMessageTime(String? iso) {
+    if (iso == null || iso.isEmpty) return null;
+    try {
+      return DateTime.parse(iso).toLocal();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Widget _timeDividerWidget(DateTime t) {
+    final now = DateTime.now();
+    final isSameDay = t.year == now.year && t.month == now.month && t.day == now.day;
+    final hh = t.hour.toString().padLeft(2, '0');
+    final mm = t.minute.toString().padLeft(2, '0');
+    final label = isSameDay
+        ? '$hh:$mm'
+        : '${t.year}/${t.month.toString().padLeft(2, '0')}/${t.day.toString().padLeft(2, '0')} $hh:$mm';
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Center(
+        child: Text(
+          label,
+          style: const TextStyle(fontSize: 12, color: _ChatTokens.timeDividerText),
+        ),
       ),
     );
   }
@@ -1707,154 +1832,197 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  // [PRD-429] AI 回答消息满屏排版：去气泡，头像独占一行放在文字上方，文字铺满整行
-  // - 用户消息和 AI 回答均无 background/border/borderRadius/boxShadow
-  // - 头像 32x32 + 名称（"我" / "小康 · 健康助手"）独占一行
-  // - 正文左右各 12px 安全边距，宽度铺满
+  // [PRD-433 v1.0] 气泡卡片化：用户右侧浅蓝气泡 + AI 白色卡片
   Widget _buildMessageBubble(ChatMessage message, {bool showActions = false, bool showOcrDetailEntry = false}) {
-    final isUser = message.isUser;
-    final senderName = isUser ? '我' : '小康 · 健康助手';
+    if (message.isLoading) return _buildLoadingCard();
+    if (message.isUser) return _buildUserBubble(message);
+    return _buildAiCard(message, showActions: showActions, showOcrDetailEntry: showOcrDetailEntry);
+  }
 
-    if (message.isLoading) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _buildAvatar(false),
-                const SizedBox(width: 8),
-                const Text('小康 · 健康助手', style: TextStyle(fontSize: 12, color: Color(0xFF999999))),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(mainAxisSize: MainAxisSize.min, children: [
-              SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.grey[400])),
-              const SizedBox(width: 8),
-              Text('正在思考中...', style: TextStyle(color: Colors.grey[500], fontSize: 14)),
-            ]),
-          ],
-        ),
-      );
-    }
-
+  // [PRD-433 F-01/F-04] 用户消息：右侧浅蓝气泡，无头像
+  Widget _buildUserBubble(ChatMessage message) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final maxW = (screenWidth * _ChatTokens.userBubbleMaxWidthRatio)
+        .clamp(0.0, _ChatTokens.userBubbleMaxWidth);
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
+      child: Align(
+        alignment: Alignment.centerRight,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: maxW),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: _ChatTokens.userBubbleBg,
+              borderRadius: BorderRadius.circular(_ChatTokens.userBubbleRadius),
+            ),
+            child: Text(
+              message.content,
+              style: TextStyle(
+                color: _ChatTokens.userBubbleText,
+                fontSize: _chatFontSize,
+                height: 1.6,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // [PRD-433 F-02/F-03/F-06/F-08] AI 消息卡片
+  Widget _buildAiCard(ChatMessage message, {required bool showActions, required bool showOcrDetailEntry}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // [PRD-432] AI 回答顶部「咨询对象档案」折叠卡片
-          if (!isUser)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: AiProfileCard(
-                consultantId: _initialFamilyMemberId ?? 0,
-                onGoCompleteProfile: () {
-                  Navigator.of(context).pushNamed('/health-archive', arguments: {
-                    'target': _initialFamilyMemberId ?? 0,
-                    'from': 'ai-chat',
-                  });
-                },
-                onGoMedicationManage: (cid, autoCreate) {
-                  Navigator.of(context).pushNamed('/health-plan/medications', arguments: {
-                    'target': cid,
-                    if (autoCreate) 'action': 'create',
-                  });
-                },
-              ),
-            ),
-          // 头像 + 名称行
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildAvatar(isUser),
-              const SizedBox(width: 8),
-              Text(senderName, style: const TextStyle(fontSize: 12, color: Color(0xFF999999))),
-            ],
+          // [PRD-432] AI 回答顶部「咨询对象档案」折叠卡片（保留）
+          AiProfileCard(
+            consultantId: _initialFamilyMemberId ?? 0,
+            onGoCompleteProfile: () {
+              Navigator.of(context).pushNamed('/health-archive', arguments: {
+                'target': _initialFamilyMemberId ?? 0,
+                'from': 'ai-chat',
+              });
+            },
+            onGoMedicationManage: (cid, autoCreate) {
+              Navigator.of(context).pushNamed('/health-plan/medications', arguments: {
+                'target': cid,
+                if (autoCreate) 'action': 'create',
+              });
+            },
           ),
           const SizedBox(height: 8),
-          // 正文：满宽，无气泡
-          SizedBox(
-            width: double.infinity,
-            child: isUser
-                ? Text(
-                    message.content,
-                    style: TextStyle(color: const Color(0xFF1A1A1A), fontSize: _chatFontSize, height: 1.6),
-                  )
-                : _buildAiMessageContent(message),
-          ),
-          // [2026-04-25 PRD F5] OCR 详情兜底入口（仅"报告解读"会话第一条 AI 消息底部展示）
-          if (showOcrDetailEntry && !isUser) _buildOcrDetailEntry(),
-          // Module 7: Bottom action buttons for last AI message
-          if (showActions && !isUser)
-            Padding(
-              padding: const EdgeInsets.only(top: 12),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _buildActionButton(
-                    icon: Icons.copy,
-                    label: '复制',
-                    onTap: () => _copyMessage(message.content),
-                  ),
-                  const SizedBox(width: 16),
-                  _buildActionButton(
-                    icon: _ttsService.isPlaying && _ttsService.currentPlayingId == message.id
-                        ? Icons.stop_circle_outlined
-                        : Icons.volume_up,
-                    label: _ttsService.isPlaying && _ttsService.currentPlayingId == message.id ? '停止' : '播报',
-                    onTap: () => _speakMessage(message),
-                    isActive: _ttsService.isPlaying && _ttsService.currentPlayingId == message.id,
-                  ),
-                  const SizedBox(width: 16),
-                  _buildActionButton(
-                    icon: Icons.share,
-                    label: '分享',
-                    onTap: () => _shareMessage(message),
-                  ),
+          // 头像 + 名称（卡片外部上方）
+          _buildAiSenderRow(),
+          const SizedBox(height: 8),
+          // 白色卡片
+          _buildAiCardContainer(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildAiMessageContent(message),
+                // [PRD-433 F-14] 参考资料容错：仅当非空时渲染
+                if (message.references != null && message.references!.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  _buildReferencesList(message.references!),
                 ],
-              ),
+                // [2026-04-25 PRD F5] OCR 详情入口（仅报告解读会话第一条 AI 消息）
+                if (showOcrDetailEntry) _buildOcrDetailEntry(),
+                const SizedBox(height: 12),
+                // [PRD-433 F-08] 免责声明
+                const Text(
+                  _ChatTokens.disclaimer,
+                  style: TextStyle(fontSize: 12, color: _ChatTokens.disclaimerText),
+                ),
+                const SizedBox(height: 8),
+                // [PRD-433 F-06] 操作按钮行：复制 / 分享 / [Spacer] / 朗读
+                _buildAiActionRow(message),
+              ],
             ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildActionButton({required IconData icon, required String label, required VoidCallback onTap, bool isActive = false}) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: isActive ? const Color(0xFF52C41A).withOpacity(0.1) : const Color(0xFFF5F5F5),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: isActive ? const Color(0xFF52C41A).withOpacity(0.3) : Colors.grey[300]!),
+  // [PRD-433 F-06] 卡片底部操作按钮行
+  Widget _buildAiActionRow(ChatMessage message) {
+    final isPlaying = _ttsService.isPlaying && _ttsService.currentPlayingId == message.id;
+    return Row(
+      children: [
+        _buildIconActionButton(
+          icon: Icons.copy_outlined,
+          tooltip: '复制',
+          onTap: () => _copyMessage(message.content),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 14, color: isActive ? const Color(0xFF52C41A) : Colors.grey[600]),
-            const SizedBox(width: 4),
-            Text(label, style: TextStyle(fontSize: 12, color: isActive ? const Color(0xFF52C41A) : Colors.grey[600])),
-          ],
+        const SizedBox(width: 24),
+        _buildIconActionButton(
+          icon: Icons.share_outlined,
+          tooltip: '分享',
+          onTap: () => _shareMessage(message),
+        ),
+        const Spacer(),
+        _buildIconActionButton(
+          icon: isPlaying ? Icons.stop_circle_outlined : Icons.volume_up_outlined,
+          tooltip: isPlaying ? '停止' : '朗读',
+          onTap: () => _speakMessage(message),
+          color: isPlaying ? const Color(0xFF52C41A) : null,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildIconActionButton({
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback onTap,
+    Color? color,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Tooltip(
+        message: tooltip,
+        child: Padding(
+          padding: const EdgeInsets.all(4),
+          child: Icon(
+            icon,
+            size: 20,
+            color: color ?? const Color(0xFF6B7280),
+          ),
         ),
       ),
     );
   }
 
+  // [PRD-433 F-14] 参考资料列表渲染
+  Widget _buildReferencesList(List<Map<String, dynamic>> references) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        border: Border.all(color: const Color(0xFFEAEBED)),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('参考资料',
+              style: TextStyle(fontSize: 12, color: Color(0xFF6B7280), fontWeight: FontWeight.w600)),
+          const SizedBox(height: 6),
+          ...references.asMap().entries.map((e) {
+            final idx = e.key + 1;
+            final ref = e.value;
+            final title = (ref['title'] ?? ref['name'] ?? '').toString();
+            final source = (ref['source'] ?? ref['url'] ?? '').toString();
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 3),
+              child: Text(
+                '[$idx] ${title.isNotEmpty ? title : source}',
+                style: const TextStyle(fontSize: 12, color: Color(0xFF374151), height: 1.5),
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
   Widget _buildAiMessageContent(ChatMessage message) {
+    // [PRD-433 F-08] 免责声明改由卡片底部统一渲染，正文剥离 ---disclaimer--- 段
     final parts = message.content.split('---disclaimer---');
     final mainContent = parts[0].trim();
-    final disclaimer = parts.length > 1 ? parts[1].trim() : null;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
+        // [PRD-433 F-13] 长内容：保留 markdown 表格等横滚（MarkdownBody 自身会处理）
         MarkdownBody(
           data: mainContent,
+          selectable: true,
           styleSheet: MarkdownStyleSheet(
             p: TextStyle(fontSize: _chatFontSize, height: 1.6, color: const Color(0xFF333333)),
             h1: TextStyle(fontSize: _chatFontSize + 5, fontWeight: FontWeight.bold),
@@ -1863,32 +2031,13 @@ class _ChatScreenState extends State<ChatScreen> {
             listBullet: TextStyle(fontSize: _chatFontSize),
           ),
         ),
-        if (disclaimer != null) ...[
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.only(top: 8),
-            decoration: const BoxDecoration(border: Border(top: BorderSide(color: Color(0xFFE8E8E8), width: 0.5))),
-            child: Text(disclaimer, style: const TextStyle(fontSize: 11, color: Color(0xFF999999), fontStyle: FontStyle.italic, height: 1.4)),
-          ),
-        ],
         if (message.knowledgeHits != null && message.knowledgeHits!.isNotEmpty)
           ...message.knowledgeHits!.map((h) => KnowledgeCard(
-            hit: h,
-            onFeedback: (hitLogId, feedback) => Provider.of<ChatProvider>(context, listen: false).submitKnowledgeFeedback(hitLogId, feedback),
-          )),
+                hit: h,
+                onFeedback: (hitLogId, feedback) =>
+                    Provider.of<ChatProvider>(context, listen: false).submitKnowledgeFeedback(hitLogId, feedback),
+              )),
       ],
-    );
-  }
-
-  Widget _buildAvatar(bool isUser) {
-    return Container(
-      width: 36, height: 36,
-      decoration: BoxDecoration(
-        gradient: isUser ? null : const LinearGradient(colors: [Color(0xFF52C41A), Color(0xFF13C2C2)]),
-        color: isUser ? const Color(0xFFE8F5E9) : null,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Icon(isUser ? Icons.person : Icons.smart_toy, color: isUser ? const Color(0xFF52C41A) : Colors.white, size: 20),
     );
   }
 
@@ -2073,9 +2222,13 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
+  // [PRD-433 F-12] 输入栏胶囊式：圆角 22 + 背景 F5F7FA
   Widget _buildTextField() {
     return Container(
-      decoration: BoxDecoration(color: const Color(0xFFF5F7FA), borderRadius: BorderRadius.circular(20)),
+      decoration: BoxDecoration(
+        color: _ChatTokens.inputBg,
+        borderRadius: BorderRadius.circular(_ChatTokens.inputRadius),
+      ),
       child: TextField(
         controller: _textController,
         maxLines: 3,
@@ -2102,11 +2255,73 @@ class _ChatScreenState extends State<ChatScreen> {
         height: 44,
         decoration: BoxDecoration(
           color: _isRecording ? const Color(0xFF3DA512) : const Color(0xFF52C41A),
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(_ChatTokens.inputRadius),
         ),
         alignment: Alignment.center,
         child: Text(_isRecording ? '松开结束' : '按住说话', style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w500)),
       ),
+    );
+  }
+}
+
+// [PRD-433 F-11] Loading 卡片中的三点跳动动画 widget
+class _AnimatedDots extends StatefulWidget {
+  final Color color;
+  final double fontSize;
+  const _AnimatedDots({required this.color, this.fontSize = 16});  // const 构造便于在 const Row 子列表中使用
+
+  @override
+  State<_AnimatedDots> createState() => _AnimatedDotsState();
+}
+
+class _AnimatedDotsState extends State<_AnimatedDots>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _ctrl,
+      builder: (context, _) {
+        final t = _ctrl.value;
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: List.generate(3, (i) {
+            final phase = (t - i * 0.2) % 1.0;
+            final opacity = phase < 0.5 ? (0.3 + phase * 1.4).clamp(0.3, 1.0) : (1.7 - phase * 1.4).clamp(0.3, 1.0);
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 1),
+              child: Opacity(
+                opacity: opacity,
+                child: Text(
+                  '.',
+                  style: TextStyle(
+                    color: widget.color,
+                    fontSize: widget.fontSize + 4,
+                    height: 1,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            );
+          }),
+        );
+      },
     );
   }
 }

@@ -10,6 +10,8 @@ class ChatMessage {
   final bool isLoading;
   final String? createdAt;
   final List<KnowledgeHit>? knowledgeHits;
+  // [PRD-433 F-14] 可选的参考资料列表（每项任意结构 Map），仅当非空时由 UI 渲染。
+  final List<Map<String, dynamic>>? references;
 
   ChatMessage({
     required this.id,
@@ -21,6 +23,7 @@ class ChatMessage {
     this.isLoading = false,
     this.createdAt,
     this.knowledgeHits,
+    this.references,
   });
 
   bool get isUser => role == 'user';
@@ -35,6 +38,15 @@ class ChatMessage {
           .toList();
     }
 
+    List<Map<String, dynamic>>? refs;
+    final rawRefs = json['references'];
+    if (rawRefs is List && rawRefs.isNotEmpty) {
+      refs = rawRefs
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
+    }
+
     return ChatMessage(
       id: json['id']?.toString() ?? '',
       sessionId: json['session_id']?.toString() ?? '',
@@ -44,6 +56,7 @@ class ChatMessage {
       imageUrl: json['image_url'] as String?,
       createdAt: json['created_at']?.toString(),
       knowledgeHits: hits,
+      references: refs,
     );
   }
 

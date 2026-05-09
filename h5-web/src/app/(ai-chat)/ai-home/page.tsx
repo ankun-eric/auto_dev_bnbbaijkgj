@@ -25,6 +25,8 @@ interface ChatMessage {
   isStreaming?: boolean;
   /** [PRD-432] 该消息绑定的咨询对象 family_member_id，AI 回答顶部档案卡片用 */
   consultantTargetId?: number | null;
+  /** [PRD-433 F-14] 参考资料：仅当数组非空时渲染，接口未返回则不显示 */
+  references?: Array<{ title: string; url?: string }>;
 }
 
 interface Banner {
@@ -287,6 +289,29 @@ function formatTimestamp(iso: string): string {
   const hh = d.getHours().toString().padStart(2, '0');
   const mm = d.getMinutes().toString().padStart(2, '0');
   return `${hh}:${mm}`;
+}
+
+// [PRD-433 F-09] 微信式时间分隔条文案：今天 HH:mm / 昨天 HH:mm / 周X HH:mm / YYYY/MM/DD HH:mm
+function formatWeChatTime(iso: string): string {
+  const d = new Date(iso);
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const startOfYesterday = startOfToday - 86400000;
+  const startOfWeek = startOfToday - 6 * 86400000;
+  const t = d.getTime();
+  const hh = d.getHours().toString().padStart(2, '0');
+  const mm = d.getMinutes().toString().padStart(2, '0');
+  const time = `${hh}:${mm}`;
+  if (t >= startOfToday) return `今天 ${time}`;
+  if (t >= startOfYesterday) return `昨天 ${time}`;
+  if (t >= startOfWeek) {
+    const weekDays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+    return `${weekDays[d.getDay()]} ${time}`;
+  }
+  const yyyy = d.getFullYear();
+  const mo = (d.getMonth() + 1).toString().padStart(2, '0');
+  const dd = d.getDate().toString().padStart(2, '0');
+  return `${yyyy}/${mo}/${dd} ${time}`;
 }
 
 function shouldShowTime(prev: string | null, curr: string): boolean {
@@ -1257,7 +1282,6 @@ export default function AiHomePage() {
   }, []);
 
   const hasConversation = messages.length > 0;
-  const lastAiMsgIndex = messages.reduce((acc, m, i) => m.role === 'assistant' ? i : acc, -1);
 
   // v1.0 全局开关取并集
   // [Bug-419 H-5 2026-05-08] 全部使用安全字段读取（?. + ??），即使后端返回的
@@ -1700,117 +1724,264 @@ export default function AiHomePage() {
             {messages.map((msg, idx) => {
               const prevTime = idx > 0 ? messages[idx - 1].time : null;
               const showTime = shouldShowTime(prevTime, msg.time);
-              const isLastAi = idx === lastAiMsgIndex && msg.role === 'assistant' && !msg.isStreaming;
               const isUser = msg.role === 'user';
-              const senderName = isUser ? '我' : '小康 · 健康助手';
+              // [PRD-433 F-06] 操作按钮行：所有非流式 AI 消息都显示（不仅 lastAiMsg）
+              const showAiActions = !isUser && !msg.isStreaming;
+              const senderName = '小康';
+              const disclaimerText = 'AI 生成内容仅供参考，不作为诊断依据';
+              const hasReferences = !isUser && Array.isArray(msg.references) && msg.references.length > 0;
 
+              if (isUser) {
+                // [PRD-433 F-01 + F-04] 用户消息：右侧浅蓝气泡，无头像
+                return (
+                  <div key={msg.id} style={{ marginBottom: 24 }} data-testid="ai-home-user-message">
+                    {showTime && (
+                      <div className="text-center" style={{ padding: '8px 0' }} data-testid="ai-home-time-divider">
+                        <span style={{ fontSize: 12, color: '#9CA3AF' }}>
+                          {formatWeChatTime(msg.time)}
+                        </span>
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginRight: 16 }}>
+                      <div
+                        data-testid="ai-home-user-bubble"
+                        style={{
+                          background: '#E6F0FF',
+                          color: '#1F2937',
+                          borderRadius: 14,
+                          padding: '10px 14px',
+                          maxWidth: 'min(75vw, 540px)',
+                          fontSize: 16,
+                          lineHeight: 1.5,
+                          wordBreak: 'break-word',
+                          whiteSpace: 'pre-wrap',
+                        }}
+                      >
+                        {msg.content}
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+
+              // [PRD-433 F-02/F-03/F-06/F-08/F-10/F-13/F-14] AI 消息：白底卡片
               return (
-                <div key={msg.id} style={{ marginBottom: 24 }} data-testid={isUser ? 'ai-home-user-message' : 'ai-home-ai-message'}>
+                <div key={msg.id} style={{ marginBottom: 24 }} data-testid="ai-home-ai-message">
                   {showTime && (
-                    <div className="text-center py-2">
-                      <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: THEME.divider, color: THEME.textSecondary }}>
-                        {formatTimestamp(msg.time)}
+                    <div className="text-center" style={{ padding: '8px 0' }} data-testid="ai-home-time-divider">
+                      <span style={{ fontSize: 12, color: '#9CA3AF' }}>
+                        {formatWeChatTime(msg.time)}
                       </span>
                     </div>
                   )}
-                  {/* [PRD-432] AI 回答顶部「咨询对象档案」折叠卡片 */}
-                  {!isUser && (
-                    <div data-testid="ai-home-profile-card-wrapper" style={{ marginBottom: 8 }}>
-                      <ProfileCard
-                        consultantId={(msg.consultantTargetId ?? selectedConsultant?.id ?? 0) as number}
-                        onGoComplete={(cid) => router.push(`/health-archive?target=${cid}&from=ai-chat`)}
-                        onGoMedicationManage={(cid, autoCreate) =>
-                          router.push(`/health-plan/medications?target=${cid}${autoCreate ? '&action=create' : ''}`)
-                        }
-                      />
-                    </div>
-                  )}
-                  {/* 头像独占一行 + 名称（左对齐） */}
-                  <div className="flex items-center" style={{ marginBottom: 8 }}>
-                    {isUser ? (
-                      <div
-                        className="flex-shrink-0 flex items-center justify-center rounded-full"
-                        style={{ width: 32, height: 32, background: THEME.primary, color: '#fff', fontSize: 12 }}
-                      >
-                        我
-                      </div>
-                    ) : (
-                      <div
-                        className="flex-shrink-0 flex items-center justify-center rounded-full"
-                        style={{ width: 32, height: 32, background: THEME.gradient, color: '#fff', fontSize: 14 }}
-                      >
-                        🌿
-                      </div>
-                    )}
-                    <span style={{ marginLeft: 8, fontSize: 12, color: '#999' }}>{senderName}</span>
+                  {/* [PRD-432] AI 回答顶部「咨询对象档案」折叠卡片（保留在卡片外部上方） */}
+                  <div data-testid="ai-home-profile-card-wrapper" style={{ marginBottom: 8 }}>
+                    <ProfileCard
+                      consultantId={(msg.consultantTargetId ?? selectedConsultant?.id ?? 0) as number}
+                      onGoComplete={(cid) => router.push(`/health-archive?target=${cid}&from=ai-chat`)}
+                      onGoMedicationManage={(cid, autoCreate) =>
+                        router.push(`/health-plan/medications?target=${cid}${autoCreate ? '&action=create' : ''}`)
+                      }
+                    />
                   </div>
-                  {/* 正文：去气泡，满宽，word-break 防长 URL 溢出 */}
+                  {/* [PRD-433 F-03] AI 头像 + 名称行：保留在卡片外部上方，去掉「· 健康助手」 */}
+                  <div className="flex items-center" style={{ marginBottom: 6, paddingLeft: 16 }}>
+                    <div
+                      className="flex-shrink-0 flex items-center justify-center rounded-full"
+                      style={{ width: 28, height: 28, background: THEME.gradient, color: '#fff', fontSize: 14 }}
+                    >
+                      🌿
+                    </div>
+                    <span style={{ marginLeft: 8, fontSize: 14, color: '#666' }}>{senderName}</span>
+                  </div>
+                  {/* [PRD-433 F-02] AI 卡片：白底 + 浅灰描边，左右屏幕边距 16px */}
                   <div
-                    className="ai-fullwidth-message"
+                    data-testid="ai-home-ai-card"
                     style={{
-                      fontSize: 16,
-                      lineHeight: 1.6,
-                      color: THEME.textPrimary,
-                      wordBreak: 'break-word',
-                      overflowWrap: 'break-word',
+                      background: '#FFFFFF',
+                      border: '1px solid #EAEBED',
+                      borderRadius: 12,
+                      padding: '14px 16px',
+                      marginLeft: 16,
+                      marginRight: 16,
                     }}
                   >
-                    {!isUser ? (
-                      <span>
-                        <span dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }} />
-                        {msg.isStreaming && (
-                          <span
-                            className="inline-block ml-0.5 align-middle"
-                            style={{
-                              width: 2,
-                              height: 16,
-                              background: THEME.primary,
-                              animation: 'blink 1s steps(2) infinite',
-                            }}
-                          />
-                        )}
-                      </span>
-                    ) : (
-                      <span style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</span>
+                    {/* 正文 */}
+                    <div
+                      className="ai-fullwidth-message"
+                      style={{
+                        fontSize: 16,
+                        lineHeight: 1.6,
+                        color: THEME.textPrimary,
+                        wordBreak: 'break-word',
+                        overflowWrap: 'break-word',
+                      }}
+                    >
+                      <span dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }} />
+                      {/* [PRD-433 F-10] 流式输出已去除光标闪烁 span */}
+                    </div>
+
+                    {/* [PRD-433 F-14] 参考资料（容错：仅在数组非空时渲染） */}
+                    {hasReferences && (
+                      <div
+                        data-testid="ai-home-ai-references"
+                        style={{
+                          marginTop: 12,
+                          paddingTop: 10,
+                          borderTop: '1px dashed #EAEBED',
+                          fontSize: 12,
+                          color: '#6B7280',
+                        }}
+                      >
+                        <div style={{ marginBottom: 4, fontWeight: 500 }}>参考资料</div>
+                        {msg.references!.map((ref, i) => (
+                          <div key={i} style={{ marginTop: 2, lineHeight: 1.5 }}>
+                            {ref.url ? (
+                              <a
+                                href={ref.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{ color: '#1677FF', textDecoration: 'none', wordBreak: 'break-all' }}
+                              >
+                                [{i + 1}] {ref.title}
+                              </a>
+                            ) : (
+                              <span style={{ color: '#6B7280' }}>[{i + 1}] {ref.title}</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* [PRD-433 F-08] 免责声明：每条 AI 卡片底部都显示，操作按钮行上方 */}
+                    {!msg.isStreaming && (
+                      <div
+                        data-testid="ai-home-ai-disclaimer"
+                        style={{
+                          marginTop: 12,
+                          fontSize: 12,
+                          color: '#9CA3AF',
+                          lineHeight: 1.4,
+                        }}
+                      >
+                        {disclaimerText}
+                      </div>
+                    )}
+
+                    {/* [PRD-433 F-06] 操作按钮行：所有非流式 AI 消息都显示，朗读按钮放最右 */}
+                    {showAiActions && (
+                      <div
+                        data-testid="ai-home-ai-action-bar"
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          marginTop: 10,
+                          paddingTop: 8,
+                          borderTop: '1px solid #F2F3F5',
+                          gap: 24,
+                        }}
+                      >
+                        <button
+                          aria-label="复制"
+                          onClick={() => handleCopy(msg.content)}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            minWidth: 44,
+                            minHeight: 44,
+                            padding: '0 4px',
+                            background: 'transparent',
+                            border: 'none',
+                            color: '#6B7280',
+                            fontSize: 13,
+                            cursor: 'pointer',
+                            gap: 4,
+                          }}
+                        >
+                          <span style={{ fontSize: 20, lineHeight: 1 }}>📋</span>
+                          <span>复制</span>
+                        </button>
+                        <button
+                          aria-label="分享"
+                          onClick={() => setShareOpen(true)}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            minWidth: 44,
+                            minHeight: 44,
+                            padding: '0 4px',
+                            background: 'transparent',
+                            border: 'none',
+                            color: '#6B7280',
+                            fontSize: 13,
+                            cursor: 'pointer',
+                            gap: 4,
+                          }}
+                        >
+                          <span style={{ fontSize: 20, lineHeight: 1 }}>🔗</span>
+                          <span>分享</span>
+                        </button>
+                        <button
+                          aria-label={ttsPlaying ? '停止朗读' : '朗读'}
+                          onClick={() => handleTTS(msg.content)}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            minWidth: 44,
+                            minHeight: 44,
+                            padding: '0 4px',
+                            marginLeft: 'auto',
+                            background: 'transparent',
+                            border: 'none',
+                            color: ttsPlaying ? THEME.primary : '#6B7280',
+                            fontSize: 13,
+                            cursor: 'pointer',
+                            gap: 4,
+                          }}
+                        >
+                          <span style={{ fontSize: 20, lineHeight: 1 }}>🔁</span>
+                          <span>{ttsPlaying ? '停止' : '朗读'}</span>
+                        </button>
+                      </div>
                     )}
                   </div>
-
-                  {isLastAi && (
-                    <div className="flex gap-3" style={{ marginTop: 12 }}>
-                      <button
-                        className="text-xs flex items-center gap-1 px-2 py-1 rounded-lg active:opacity-60"
-                        style={{ color: THEME.textSecondary, background: THEME.cardBg, border: `1px solid ${THEME.divider}` }}
-                        onClick={() => handleCopy(msg.content)}
-                      >
-                        📋 复制
-                      </button>
-                      <button
-                        className="text-xs flex items-center gap-1 px-2 py-1 rounded-lg active:opacity-60"
-                        style={{ color: ttsPlaying ? THEME.primary : THEME.textSecondary, background: THEME.cardBg, border: `1px solid ${ttsPlaying ? THEME.primary : THEME.divider}` }}
-                        onClick={() => handleTTS(msg.content)}
-                      >
-                        {ttsPlaying ? '⏹ 停止播报' : '🔊 播报'}
-                      </button>
-                    </div>
-                  )}
                 </div>
               );
             })}
+            {/* [PRD-433 F-11] Loading 卡片：白底+浅灰描边+88~90% 占屏，外部头像名称行保留 */}
             {sending && !messages.some(m => m.isStreaming) && (
-              <div style={{ marginBottom: 24 }}>
-                <div className="flex items-center" style={{ marginBottom: 8 }}>
+              <div style={{ marginBottom: 24 }} data-testid="ai-home-ai-loading-card">
+                <div className="flex items-center" style={{ marginBottom: 6, paddingLeft: 16 }}>
                   <div
                     className="flex-shrink-0 flex items-center justify-center rounded-full"
-                    style={{ width: 32, height: 32, background: THEME.gradient, color: '#fff', fontSize: 14 }}
+                    style={{ width: 28, height: 28, background: THEME.gradient, color: '#fff', fontSize: 14 }}
                   >
                     🌿
                   </div>
-                  <span style={{ marginLeft: 8, fontSize: 12, color: '#999' }}>小康 · 健康助手</span>
+                  <span style={{ marginLeft: 8, fontSize: 14, color: '#666' }}>小康</span>
                 </div>
-                <div className="flex gap-1" style={{ paddingLeft: 0 }}>
-                  <span className="w-2 h-2 rounded-full" style={{ background: THEME.textSecondary, animation: 'bounce 1.4s infinite ease-in-out both', animationDelay: '0s' }} />
-                  <span className="w-2 h-2 rounded-full" style={{ background: THEME.textSecondary, animation: 'bounce 1.4s infinite ease-in-out both', animationDelay: '0.2s' }} />
-                  <span className="w-2 h-2 rounded-full" style={{ background: THEME.textSecondary, animation: 'bounce 1.4s infinite ease-in-out both', animationDelay: '0.4s' }} />
+                <div
+                  style={{
+                    background: '#FFFFFF',
+                    border: '1px solid #EAEBED',
+                    borderRadius: 12,
+                    padding: '14px 16px',
+                    marginLeft: 16,
+                    marginRight: 16,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                  }}
+                >
+                  <span style={{ fontSize: 16, color: '#6B7280' }}>小康正在思考中…</span>
+                  <span className="flex gap-1" style={{ alignItems: 'center' }}>
+                    <span className="w-2 h-2 rounded-full" style={{ background: '#9CA3AF', animation: 'bounce 1.4s infinite ease-in-out both', animationDelay: '0s' }} />
+                    <span className="w-2 h-2 rounded-full" style={{ background: '#9CA3AF', animation: 'bounce 1.4s infinite ease-in-out both', animationDelay: '0.2s' }} />
+                    <span className="w-2 h-2 rounded-full" style={{ background: '#9CA3AF', animation: 'bounce 1.4s infinite ease-in-out both', animationDelay: '0.4s' }} />
+                  </span>
                 </div>
               </div>
             )}
@@ -1992,8 +2163,8 @@ export default function AiHomePage() {
               </button>
             )}
             <div
-              className="flex-1 flex items-end rounded-2xl px-3 py-2"
-              style={{ background: THEME.background, minHeight: 40 }}
+              className="flex-1 flex items-end px-4 py-2"
+              style={{ background: '#F5F7FA', borderRadius: 22, minHeight: 44 }}
             >
               <textarea
                 ref={textareaRef}
@@ -2014,12 +2185,13 @@ export default function AiHomePage() {
               />
             </div>
             {/* v1.0 丁香派智能隐藏：键盘模式 + 输入框为空 → 灰显；有文字 → 亮起 */}
+            {/* [PRD-433 F-12] 发送按钮配色与浅蓝气泡协调（活跃态 #1677FF） */}
             <button
               className="flex-shrink-0 flex items-center justify-center rounded-full text-sm font-medium mb-0"
               style={{
-                width: 40,
-                height: 40,
-                background: inputValue.trim() ? THEME.primary : THEME.divider,
+                width: 44,
+                height: 44,
+                background: inputValue.trim() ? '#1677FF' : '#D1D5DB',
                 color: '#fff',
                 transition: 'background 0.2s',
                 opacity: inputValue.trim() ? 1 : 0.6,
@@ -2181,10 +2353,6 @@ export default function AiHomePage() {
       )}
 
       <style jsx global>{`
-        @keyframes blink {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0; }
-        }
         @keyframes bounce {
           0%, 80%, 100% { transform: scale(0); }
           40% { transform: scale(1); }
