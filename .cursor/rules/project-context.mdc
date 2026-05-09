@@ -33,6 +33,77 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
+## Latest Update: PRD-440-AI-ANSWER-ACTION-BAR-OPTIMIZATION-20260510｜AI 回答下方操作栏视觉与交互优化（H5 + 小程序 + Flutter 五端同步，无后端改动）（2026-05-10 02:00）
+
+### 一句话结论
+按 PRD-440 v1.0 走 develop-all 流程交付：把 AI 回答下方操作栏统一升级为"提示文字（靠右） + 全宽 1px 虚线 + 三图标（左下一排：复制 → 转发 → 语音播报）"的新版式，全部图标改为方案 C 双色渐变风（`#6a8dff → #b07cff`），未触发态浅灰 `#999`，触发/播报中切渐变高亮；语音播报中叠加 **三圈错位的 Wi-Fi 弧线扩散动效**（1 秒一圈、333ms 错位）；复制成功 Web 顶部居中弹出「已复制」Toast 1.5s 自动消失，移动端调用各平台原生轻提示；转发弹窗内的渠道小图标也一并升级为渐变风，分享行为完全沿用线上不变；TTS 引擎沿用现网，无后端改动。**测试与部署**：① pytest `tests/test_prd440_action_bar_source.py` 8 用例 100% 通过（源码层级 + 服务器可达）；② H5 容器已重建并部署（commit `d048886` 已 git push 并在服务器 reset --hard origin/master 同步生效）；③ 三端打包成功并上传：小程序 zip / 安卓 APK / iOS Release。**用户体验手册**：`user_docs/AI回答操作栏优化_PRD440.md`。
+
+### 范围与端
+- **H5（Next.js + React + antd-mobile）**：4 文件改造
+  - 新建 `h5-web/src/components/ai-chat/AiActionBar.tsx`：通用操作栏组件，导出 `AiActionBar` 默认组件 + `notifyCopied()` 工具 + `SvgGradientDefs` 共享渐变 defs + `AI_ACTION_BAR_GRADIENT_ID`；内部样式通过 `ensureStylesInjected()` 单次注入到 document.head（包含 `aiActionBarWifi440` keyframe 1000ms ease-out infinite + Toast 滑入/滑出 keyframe）；Wi-Fi 三圈用 `[0, 333, 666]` 数组延迟动画错位
+  - 修改 `h5-web/src/app/(ai-chat)/ai-home/page.tsx`：移除原 PRD-433 的 disclaimer + 三按钮行（旧 emoji 📋/🔗/🔁），统一替换为 `<AiActionBar disableToast onCopy={...} onShare={...} onTts={...} />`；`handleCopy()` 改为调用 `notifyCopied()`
+  - 修改 `h5-web/src/app/chat/[sessionId]/page.tsx`：同样替换 Module 7 的胶囊按钮行为 `<AiActionBar />`；`handleCopyMsg()` 内追加 `notifyCopied()` 调用
+  - 修改 `h5-web/src/components/ai-chat/SharePanel.tsx`：渠道小图标从 emoji 改为 `<ChannelIcon kind="wechat|moments|copy|poster" />`，使用 `url(#${AI_ACTION_BAR_GRADIENT_ID})` 渐变描边 SVG；圆形背景从纯色改为渐变浅色（`linear-gradient(135deg, rgba(106,141,255,0.1) 0%, rgba(176,124,255,0.1) 100%)`）
+  - 修改 `h5-web/src/app/chat/[sessionId]/page.tsx` 内联的 Module 9 Share Popup：微信好友按钮和生成图片按钮的圆形背景从绿色 `#07c160` / `linear-gradient(135deg, #52c41a, #13c2c2)` 一并替换为方案 C 渐变 `linear-gradient(135deg, #6a8dff 0%, #b07cff 100%)`
+- **小程序（原生 wxml/wxss/js）**：2 文件改造
+  - 修改 `miniprogram/pages/chat/index.wxml`：把原 `.ai-card-disclaimer` + `.ai-card-action-bar`（emoji 三按钮）替换为 `.ai-action-bar-440` 容器；内部三个 `.ai-action-bar-440-btn`（catchtap 触发 `copyMessage` / `shareToFriend` / `toggleTts`），第三个按钮按播报状态条件渲染 3 个 `.ai-action-bar-440-wifi-ring`
+  - 修改 `miniprogram/pages/chat/index.wxss`：删除 `.ai-card-action-bar` / `.ai-card-action-btn` / `.ai-card-action-icon` / `.ai-card-action-label` 旧样式；新增 `.ai-action-bar-440-*` 系列样式：渐变描边图标用 `background-image: url("data:image/svg+xml;utf8,<svg ... linearGradient ...>")` 实现（小程序不能直接 inline SVG，故采用 data URI 方案，含 `%23` 转义的 stop-color）；定义 `@keyframes ai-action-bar-440-wifi { 0%->scale(1) opacity:1; 100%->scale(2.5) opacity:0 }`；ring1/ring2/ring3 通过 `animation-delay: 0/333/666ms` 错位
+  - **不修改** `miniprogram/pages/chat/index.js`：原 `copyMessage` 已经使用 `wx.setClipboardData + wx.showToast({title:'已复制', icon:'success'})` 系统原生提示，符合 PRD「移动端调用系统原生轻提示」要求；原 `shareToFriend` / `toggleTts` 行为完全沿用
+- **Flutter（iOS + Android）**：1 文件改造
+  - 修改 `flutter_app/lib/screens/ai/chat_screen.dart`：
+    - 移除原 `_buildAiActionRow(message)` 调用与 `Text(_ChatTokens.disclaimer)`，统一替换为 `_buildAiActionBar440(message)`
+    - 改造 `_copyMessage()`：调用 SnackBar 改为 `behavior: SnackBarBehavior.floating + margin EdgeInsets.fromLTRB(80,0,80,200) + RoundedRectangleBorder(borderRadius:8) + 黑色半透明背景 + 居中文案"已复制" + 1500ms duration`，更接近系统原生 Toast 风格
+    - 新建 `_buildAiActionBar440()`：Column[Align靠右 11px #999 提示文字, _DashedDivider, Row[复制/转发/语音播报 三个 _GradientActionButton]]
+    - 文件末尾追加：`enum _GradientIconKind { copy, share, speaker }` + `LinearGradient _kAiActionGradient`（135° 渐变）+ `_DashedDivider`（LayoutBuilder 计算等距 dash）+ `_GradientActionButton`（StatefulWidget，监听 `onTapDown/Cancel/Up` 实现"长按渐变高亮"，含 `_WifiPulseRings`（仅 speaker 且 playing 时显示）+ `CustomPaint(painter: _GradientIconPainter)`）+ `_GradientIconPainter`（按 24x24 viewBox 设计，按 _GradientIconKind 分别绘制 copy 双层方块、share 三圆两连线、speaker 喇叭多边形；`useGradient` 时 `paint.shader = _kAiActionGradient.createShader(...)`，否则 `paint.color = #999`）+ `_WifiPulseRings`（SingleTickerProviderStateMixin + AnimationController duration:1000ms repeat()，AnimatedBuilder 内 List.generate(3) 用 `(_ctrl.value + i/3) % 1.0` 计算每圈相位，scale 1.0 → 2.5、opacity 1.0 → 0）
+
+### 设计 Token（与 PRD §4 严格一致）
+- 渐变主色：`#6a8dff → #b07cff`，方向 135°
+- 未触发态图标颜色：`#999`
+- 提示文字：「AI 生成仅供参考」11px / `#999` / 靠右对齐
+- 虚线分隔：1px dashed `#E5E5E5`，文字↔虚线 6px、虚线↔图标 8px
+- 操作图标尺寸：18×18 px（Web）/ 20×20 px（移动端，热区 32×32）；线宽 1.5px；图标间距 16px
+- Wi-Fi 扩散动效：1000ms 单圈周期、3 圈错位 333ms、起始尺寸=喇叭、结束尺寸 2.5×、opacity 100%→0、ease-out
+- Toast：背景 `#333` 半透明 + 白字 14px + 圆角 8px + 1500ms 自动消失，定位 `top:56px` 顶部居中
+
+### 验收要点（PRD-440 §8 共 13 条）
+- [x] V1. 三个图标位于 AI 气泡左下角一排，顺序为复制 → 转发 → 语音播报
+- [x] V2. 三个图标视觉风格统一为方案 C 双色渐变（#6a8dff → #b07cff）
+- [x] V3. 转发图标为「三点连线分享图」形态
+- [x] V4. 未触发态三个图标均为浅灰 #999，悬停 / 长按时渐变色高亮
+- [x] V5. "AI 生成仅供参考"位于图标上方一行，靠右对齐，11px / #999
+- [x] V6. 提示文字与图标之间有一条全宽 1px 虚线（#E5E5E5）
+- [x] V7. 点击语音播报后，出现 Wi-Fi 弧线扩散动效，1 秒一圈，3 圈错位
+- [x] V8. 播报中再次点击图标，立即停止并瞬切回静态喇叭（无过渡动画）
+- [x] V9. 点击复制后，Web 端顶部居中弹出「已复制」Toast，1.5s 自动消失
+- [x] V10. 移动端复制后调用系统原生轻提示
+- [x] V11. 转发按钮点击后的弹窗、渠道列表、分享行为与线上现状完全一致
+- [x] V12. 转发弹窗内的渠道小图标已升级为渐变风
+- [x] V13. 五端布局、风格、动效完全对齐
+
+### 部署与验证
+- **部署脚本**：`_deploy_prd440.py`（paramiko SSH + git fetch+reset --hard + docker compose build h5-web + up -d --force-recreate + 等待 + curl 本地验证）
+- **测试**：`tests/test_prd440_action_bar_source.py` → **8 passed**（源码层面校验五端关键设计 token + 服务器可达性 200）
+- **构建产物**：
+  - 小程序：[miniprogram_prd440_20260510_013308_ccbb.zip](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/miniprogram/miniprogram_prd440_20260510_013308_ccbb.zip)
+  - 安卓：[app_prd440_20260510014236_5145.apk](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/apk/app_prd440_20260510014236_5145.apk)
+  - iOS：[ios-prd440-v20260510-013331-8b4b](https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-prd440-v20260510-013331-8b4b) / [bini_health_ios.ipa](https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/download/ios-prd440-v20260510-013331-8b4b/bini_health_ios.ipa)
+- **用户体验手册**：`user_docs/AI回答操作栏优化_PRD440.md`
+
+### 关键技术决策
+- **共享 SVG 渐变 defs（H5）**：因为多个 SVG 图标需要复用同一个 `linearGradient`，把 `<defs><linearGradient id="ai-action-bar-gradient-440">...</linearGradient></defs>` 包装为 `SvgGradientDefs` 组件并 export，在每个使用方（AiActionBar、SharePanel）都渲染一次（多次渲染同 id 在浏览器中以最后一个为准但不影响视觉，且零成本）。SVG 元素通过 `stroke="url(#ai-action-bar-gradient-440)"` 引用渐变描边
+- **小程序无 SVG inline → data URI**：微信小程序 wxml/wxss 不支持嵌入 SVG 元素或 `<defs>`，故图标全部改用 `background-image: url("data:image/svg+xml;utf8,...")` 方案，路径中所有 `#` 字符必须转义为 `%23`（如 `%23g`、`%236a8dff`）；尺寸 40rpx，`background-size: contain`
+- **Flutter 渐变描边 → CustomPainter + Paint.shader**：Material 内置 Icon 不支持渐变 stroke，且 `IconButton` 默认 size 太大与 PRD 不符。改用 `CustomPaint(size: Size(20,20), painter: _GradientIconPainter)`，painter 内 `paint.shader = LinearGradient.createShader(rect)`；图标按 24×24 viewBox 设计后 `canvas.scale(sx, sy)` 缩放，确保与 H5/小程序视觉对齐
+- **Wi-Fi 三圈错位的实现**：H5 用 CSS animation `1000ms ease-out infinite` + `delay: 0/333/666ms`；小程序同；Flutter 用单 AnimationController + `List.generate(3, (i) => phase = (_ctrl.value + i/3) % 1.0)` 让一个控制器驱动三圈，避免三个 controller 增加性能开销
+- **复制反馈双轨制**：组件支持 `disableToast` prop，外部调用方可选择是组件内置 Toast 还是自己处理；`notifyCopied()` 工具函数内置 `isLikelyMobile()` 判断（基于 `matchMedia('(hover: none)')` + UA 双重检测），移动端额外 `navigator.vibrate(20)` 触感反馈；移动端走系统原生通道时也降级显示一条轻 Toast 作为兜底（避免某些 mobile 浏览器无任何反馈）
+- **不破坏现有 PRD-433 disclaimer 行为**：原 PRD-433 的「AI 生成内容仅供参考，不作为诊断依据」disclaimer 节点被移除，改用 PRD-440 新版的「AI 生成仅供参考」（PRD §6.4 明文规定为「AI 生成仅供参考」），与 PRD §4.2 字号 11px 严格一致
+
+### Git 信息
+- 改造 commit：`d048886` feat(prd-440): AI 回答下方操作栏视觉与交互优化（H5/小程序/Flutter 五端同步）
+- 索引同步 + 用户手册 commit：本阶段执行
+- 已 push 到 `origin/master`
+
+---
+
 ## Latest Update: PRD-439-AI-HOME-REMINDER-DRAWER-MEDICATION-PLAN-20260510｜AI 对话首页提醒抽屉 + 用药提醒管理页改造（H5 + 后端，小程序/Flutter 0 改动）（2026-05-10 00:30）
 
 ### 一句话结论
