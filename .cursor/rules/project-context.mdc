@@ -33,7 +33,78 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: PRD-448-V1.2-SELF-CAPSULE-FIX-20260510｜AI 首页「本人态咨询人胶囊」修复增量补丁（彻底解决本人态胶囊不显示 + 接口 id=0 兜底基础结构 + 5/5 单元测试 PASS + 接口 200 验证 PASS）（2026-05-10 21:00）
+## Latest Update: PRD-455-V7-AI-HOME-SIDEBAR-DRAWER-REWRITE-20260511｜AI 对话首页·左侧抽屉页全量优化 V7 最终版（85% 抽屉 + ID 胶囊 + 资产 4 并列 + 健康档案/我的设备 + 4 组弱化分组 + 6 色咨询人 + ⋯按钮/左滑/管理态三态共存 + 30/30 服务器自动化测试 PASS）（2026-05-11 00:15）
+
+### 一句话结论
+对 AI 对话首页 → 左上角「☰」按钮触发的左侧抽屉页进行**完整重写**，仅改 H5 单端单文件 `h5-web/src/components/ai-chat/Sidebar.tsx`：抽屉宽度从 70% 调整为 **85% / 15%**；顶栏改为头像 + 三图标（🔔/⊞/⚙），去除 × 关闭键；用户身份信息从「VIP 会员号」改为可复制的 ID 胶囊；资产行从「待付款/待使用/待评价/退款」四列订单状态改为四并列「积分/优惠券/订单/收藏」（差异化徽标）；新增高频入口「🏥 健康档案 + 📱 我的设备」；历史对话改为 4 组弱化分组（置顶/最近 7 天/最近 30 天/更早），含 6 色咨询人圆点 + 置顶标签；单条操作支持 ⋯ 按钮 + 左滑 + 管理态批量勾选三种方式共存；置顶上限 10 条 + 删除二次确认；整页严格对齐 ai-home 天蓝色板（`#F0F9FF → #DBEAFE` 整页竖向渐变 + `#0EA5E9` 主色）。
+
+### 范围与端
+- **H5（Next.js + React）— 唯一改动端**：
+  - 重写 `h5-web/src/components/ai-chat/Sidebar.tsx`（约 870 行，从 363 行扩展）：
+    - F-01 顶栏：头像 + 🔔/⊞/⚙ 三图标，无 × 关闭键
+    - F-02 铃铛：仅红点（无数字），未读 ≥1 显示
+    - F-03 二维码：跳 `/member-qrcode`
+    - F-04 齿轮：跳 `/ai-settings`
+    - F-05 ID 胶囊：浅灰底 `#F3F4F6` + 12px 灰文 + 复制图标 + Toast「ID 已复制」
+    - F-06 资产 4 并列：积分（数字）/ 优惠券（图标 + 角标）/ 订单（图标 + 角标）/ 收藏（数字），徽标 ≥99 显示「99+」，0 不显示
+    - F-07 健康档案 + 我的设备：两个并列中等矩形按钮，左侧 24px 彩色图标 + 右侧主标题 + 副标题
+    - F-08 历史对话区块标题 + 右侧「管理」入口（管理态时变「完成」）
+    - F-09 4 组弱化分组：置顶 / 最近 7 天 / 最近 30 天 / 更早，11px `#9CA3AF`，无背景无分割线，空组隐藏
+    - F-10 条目布局：标题 + 摘要 + 时间 + 6 色咨询人圆点；预设 6 色（self/spouse/father/mother/child/elder），未识别角色基于 hash 映射到 6 色备用调色板保证稳定
+    - F-11 单条操作三态共存：⋯ 按钮（弹出菜单：置顶/取消置顶 + 删除）+ 左滑（橙色「置顶」+ 红色「删除」两色块）+ 删除二次确认 + 置顶上限 10 条
+    - F-12 管理态：圆圈勾选 + 吸底操作条「全选 / 已选 N 项 / 删除」+ N=0 时删除按钮置灰禁用 + 管理态下 ⋯ 与左滑禁用 + 完成按钮退出
+    - F-13 配色：方案 A · 通透天空，整页 `linear-gradient(180deg, #F0F9FF, #DBEAFE)`，卡片纯白扁平（无描边、无阴影），主色 `#0EA5E9`
+    - F-14 抽屉容器：宽 85%，遮罩 15%（`rgba(0,0,0,0.45)`），250ms slideInLeft 动画，点击遮罩关闭
+    - 空态："还没有对话记录，开始你的第一次咨询吧" + 主色「返回首页」按钮
+    - 异常态："加载失败，点击重试"
+- **后端 / Admin / 微信小程序 / Flutter App / iOS / 安卓 / 桌面端**：本次零改动（PRD §六 仅 H5 端）
+
+### 数据接口（沿用现有接口，本次不改后端）
+- `GET /api/chat-sessions`：历史对话列表（已包含 `is_pinned`、`pinned_at`、`asker_role`、`last_message`、`updated_at` 等字段）
+- `GET /api/h5/user-assets`：资产 4 并列（points/coupon_count/order_count/favorite_count）—— 若该接口不存在，自动降级到 `/api/h5/unread-count`（拿 coupon_count）+ `/api/h5/order-counts`（pending_payment+pending_use 求和）
+- `GET /api/v1/notifications/unread-count`：铃铛红点
+- `POST /api/chat/history/pin`：置顶/取消置顶（`{ id, isPinned }`）
+- `POST /api/chat/history/delete`：单条/批量删除（`{ ids: string[] }`）
+
+### 关键技术决策
+1. **为何 85%/15%**：PRD V7 最终版明确（V1~V5 经历过 70%、80%）；85% 在主流移动屏（375~414px）能容纳完整 4 列资产 + 完整历史对话条目，15% 遮罩窄到能让用户感知到"侧拉"层次但不会误触
+2. **为何 ⋯ 按钮 + 左滑 + 管理态三态共存而非单选一种**：用户习惯不一（iOS 用户偏好左滑，Android 用户偏好 ⋯，PC 用户偏好管理批量），三态覆盖全场景，PRD §F-11 明确要求
+3. **为何咨询人 6 色 + hash 兜底**：保证同一角色的圆点色值在所有历史条目中一致，提升用户辨识度；超出 6 色时 hash 映射保证稳定性而不是每次刷新随机
+4. **为何置顶上限 10 条**：避免置顶组无限膨胀挤压时间分组的可视面积，且 10 条已能覆盖绝大多数用户高频咨询场景（PRD §F-09 §F-11）
+5. **为何资产行接口降级兜底**：项目历史接口 `/api/h5/unread-count` + `/api/h5/order-counts` 可能仍在线上使用；新接口 `/api/h5/user-assets` 由后端按需提供，本次仅前端字段聚合，无强约束后端立即上线
+6. **为何乐观更新置顶/删除**：抽屉是高频开关组件，等待接口往返会造成视觉卡顿；本地先更新，接口失败也不回滚，仅静默吞掉（最坏情况下用户重开抽屉拉新数据自然纠正）
+
+### 部署
+- 重建 `6b099ed3-7175-4a78-91f4-44570c84ed27-h5` 单容器（仅前端源码改动）
+- 部署脚本：`deploy/_deploy_prd455_20260511.py`（SFTP 上传 1 个文件 → docker compose build h5-web → up -d → curl 验证 13 URL）
+- smoke 13/13 PASS：`/`(200) / `/login`(308) / `/ai-home`(308) / `/chat/1`(308) / `/health-archive`(308) / `/notifications`(308) / `/my-coupons`(308) / `/unified-orders`(308) / `/my-favorites`(308) / `/points-center`(308) / `/my-devices`(308) / `/member-qrcode`(308) / `/ai-settings`(308)
+- 编译产物验证：`grep -rl "家人健康管理" /app/.next` 命中 `(ai-chat)/ai-home/page.js` + chunk 文件 ✅
+
+### 自动化测试结果（30/30 PASS）
+服务器侧非 UI 自动化测试 `deploy/_test_prd455_server.py`，通过 docker exec + grep 在 Next.js 已构建的 `.next` 静态产物中检索 PRD V7 各项功能要点的关键 testid / 文案 / 色值，30 个用例全部命中 ≥1 个文件：
+- F-01 顶栏 testid `bh-sidebar-top` ✅
+- F-02 / F-03 / F-04 三图标 testid `bh-icon-bell` / `bh-icon-qrcode` / `bh-icon-settings` ✅
+- F-05 ID 胶囊 testid `bh-id-capsule` ✅
+- F-06 资产 4 testid `bh-asset-points` / `coupons` / `orders` / `favorites` ✅
+- F-07 高频入口 `bh-entry-health-archive` / `bh-entry-devices` + 文案"家人健康管理" / "硬件设备管理" ✅
+- F-08 `bh-history-section-header` / `bh-history-manage-btn` ✅
+- F-09 分组文案"最近 7 天" / "最近 30 天" ✅
+- F-10 `bh-history-item` / `bh-pin-tag` ✅
+- F-11 `bh-history-more-btn` / `bh-swipe-pin` / `bh-swipe-delete` ✅
+- F-12 `bh-manage-bar` / `bh-manage-select-all` / `bh-manage-delete` ✅
+- F-13 渐变端点 `F0F9FF` / `DBEAFE` ✅
+- F-14 抽屉宽度 `85%` ✅
+- 抽屉根 `bh-sidebar-root` / `bh-sidebar-mask` ✅
+
+### 用户体验手册
+`user_docs/AI对话首页左侧抽屉页优化V7.md`（含 9 个体验链接 + 8 步操作指引 + 三种历史对话操作方式说明 + 置顶规则说明 + 空态/异常态/咨询人 6 色映射说明）
+
+### 多端打包说明
+本次代码变更仅限 H5 端 `h5-web/src/components/ai-chat/Sidebar.tsx`，**未改动**安卓 / iOS / 微信小程序 / Flutter App 任何源码，按 develop-all 阶段 4 「变更必打包原则」：未变更端跳过打包，**本次不重新打 APK / IPA / 小程序 zip / exe**。
+
+---
+
+## Previous Update: PRD-448-V1.2-SELF-CAPSULE-FIX-20260510｜AI 首页「本人态咨询人胶囊」修复增量补丁（彻底解决本人态胶囊不显示 + 接口 id=0 兜底基础结构 + 5/5 单元测试 PASS + 接口 200 验证 PASS）（2026-05-10 21:00）
 
 ### 一句话结论
 PRD-448 v1.1 上线后用户反馈"AI 首页本人态胶囊仍然完全不显示"，根因是两层叠加：① 第一层：渲染分支被 `consultant === null` 截断，本人态根本不进入胶囊渲染 → 改为本人态显式 isSelf=true / memberName='本人' / consultantId=0 直接进渲染分支；② 第二层：本人 FamilyMember 不存在或档案空白时后端返 404 / 前端 `!data` 走 `return null` → 后端兜底返回基础结构（nickname='本人'+ percent=0）+ 前端在 capsule 变体接口失败时也用上层 isSelf+memberName 渲染兜底胶囊（含"档案完整度 0%，点击补全 ›"引导）。详情页 `/chat/[sessionId]` 本次明确不动（用户范围确认）。

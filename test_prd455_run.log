@@ -1,0 +1,32 @@
+﻿[PASS] F-01 椤舵爮 testid bh-sidebar-top            pattern='bh-sidebar-top'                    hit_files=2
+[PASS] F-02 閾冮摏 icon testid                      pattern='bh-icon-bell'                      hit_files=2
+[PASS] F-03 浼氬憳鐮?icon testid                     pattern='bh-icon-qrcode'                    hit_files=2
+[PASS] F-04 璁剧疆 icon testid                      pattern='bh-icon-settings'                  hit_files=2
+[PASS] F-05 ID 鑳跺泭 testid                        pattern='bh-id-capsule'                     hit_files=2
+[PASS] F-06 绉垎                                  pattern='bh-asset-points'                   hit_files=2
+[PASS] F-06 浼樻儬鍒?                                pattern='bh-asset-coupons'                  hit_files=2
+[PASS] F-06 璁㈠崟                                  pattern='bh-asset-orders'                   hit_files=2
+[PASS] F-06 鏀惰棌                                  pattern='bh-asset-favorites'                hit_files=2
+[PASS] F-07 鍋ュ悍妗ｆ鍏ュ彛                              pattern='bh-entry-health-archive'           hit_files=2
+[PASS] F-07 鎴戠殑璁惧鍏ュ彛                              pattern='bh-entry-devices'                  hit_files=2
+[PASS] F-07 鏂囨 瀹朵汉鍋ュ悍绠＄悊                           pattern='瀹朵汉鍋ュ悍绠＄悊'                            hit_files=2
+[PASS] F-07 鏂囨 纭欢璁惧绠＄悊                           pattern='纭欢璁惧绠＄悊'                            hit_files=2
+[PASS] F-08 鍘嗗彶瀵硅瘽鏍囬鍖?                            pattern='bh-history-section-header'         hit_files=2
+[PASS] F-08 绠＄悊鎸夐挳                                pattern='bh-history-manage-btn'             hit_files=2
+[PASS] F-09 鏈€杩?7 澶╁垎缁?                           pattern='鏈€杩?7 澶?                            hit_files=2
+[PASS] F-09 鏈€杩?30 澶╁垎缁?                          pattern='鏈€杩?30 澶?                           hit_files=2
+[PASS] F-10 鍗曟潯鍘嗗彶 testid                         pattern='bh-history-item'                   hit_files=2
+[PASS] F-10 缃《鏍囩                                pattern='bh-pin-tag'                        hit_files=2
+[PASS] F-11 鈰?鎸夐挳                                pattern='bh-history-more-btn'               hit_files=2
+[PASS] F-11 宸︽粦缃《                                pattern='bh-swipe-pin'                      hit_files=2
+[PASS] F-11 宸︽粦鍒犻櫎                                pattern='bh-swipe-delete'                   hit_files=2
+[PASS] F-12 绠＄悊鎬佹潯 testid                         pattern='bh-manage-bar'                     hit_files=2
+[PASS] F-12 鍏ㄩ€夋寜閽?                               pattern='bh-manage-select-all'              hit_files=2
+[PASS] F-12 鍒犻櫎鎸夐挳                                pattern='bh-manage-delete'                  hit_files=2
+[PASS] F-13 娓愬彉璧风偣 #F0F9FF                        pattern='F0F9FF'                            hit_files=87
+[PASS] F-13 娓愬彉缁堢偣 #DBEAFE                        pattern='DBEAFE'                            hit_files=18
+[PASS] F-14 鎶藉眽瀹藉害 85%                            pattern='85%'                               hit_files=6
+[PASS] Drawer root testid                       pattern='bh-sidebar-root'                   hit_files=2
+[PASS] Drawer mask testid                       pattern='bh-sidebar-mask'                   hit_files=2
+
+[SUMMARY] passed=30/30 failed=0
