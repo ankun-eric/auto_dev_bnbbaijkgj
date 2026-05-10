@@ -16,6 +16,7 @@ import AiActionBar, { notifyCopied } from '@/components/ai-chat/AiActionBar';
 import SectionErrorBoundary from '@/components/SectionErrorBoundary';
 import DraggablePunchCard from '@/components/ai-chat/DraggablePunchCard';
 import ProfileCard, { clearProfileCardCache } from '@/components/ai-chat/ProfileCard';
+import AiAvatar from '@/components/ai-chat/AiAvatar';
 import ReminderBellButton from '@/components/ai-chat/ReminderBellButton';
 import ReminderDrawer from '@/components/ai-chat/ReminderDrawer';
 import { trackEvent, aiChatTrack, type AiChatTargetType } from '@/lib/analytics';
@@ -1436,7 +1437,9 @@ export default function AiHomePage() {
             zIndex: 100,
             height: 'calc(48px + env(safe-area-inset-top))',
             paddingTop: 'env(safe-area-inset-top)',
-            background: THEME.cardBg,
+            // [PRD-449 R1] 顶部固定栏背景改为全站主色（var(--color-primary)，避免硬编码）
+            // 文字"小康"、☰、⋯ 图标保持原黑色不变（详见下方 color: THEME.textPrimary）
+            background: 'var(--color-primary)',
             maxWidth: 750,
             marginLeft: 'auto',
             marginRight: 'auto',
@@ -1474,21 +1477,20 @@ export default function AiHomePage() {
               </button>
             ) : null}
 
-            {/* [PRD-439 F-01] "小康"标题：整体靠左，与左侧 ☰ 按钮间距 8px
-                ☰ 按钮在 left:8 + 宽 32px，紧邻其右 = left:48；再加 8px 间距 = left:56 - 即原 56，
-                这里的关键是把 justifyContent 从 flex-start 保持为左对齐，且容器 left 改为 48 + 间距 8 = 56 不动，
-                但去掉 right: 56 让标题尽量左侧。 */}
+            {/* [PRD-449 R2] "小康"标题靠左，与 ☰ 间距压缩到 4px（保留呼吸感，不贴死）
+                ☰ 按钮在 left:8 + 宽 32px → 紧邻其右 = left:40；paddingLeft 改为 4px 即得 4px 视觉间距。
+                历史 [PRD-439 F-01] 原间距为 8px，本次按 PRD-449 R2 压缩为 4px。 */}
             <div
               style={{
                 position: 'absolute',
-                left: 48, /* ☰ 按钮右侧紧邻 */
+                left: 40, /* ☰ 按钮右侧紧邻（left:8 + 宽 32 = 40） */
                 right: 56,
                 top: 0,
                 bottom: 0,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'flex-start',
-                paddingLeft: 8, /* [PRD-439 F-01] ☰ 与"小康"间距 8px */
+                paddingLeft: 4, /* [PRD-449 R2] ☰ 与"小康"间距 4px */
                 minWidth: 0,
               }}
             >
@@ -1571,21 +1573,22 @@ export default function AiHomePage() {
             <SectionErrorBoundary name="welcome">
               {welcomeVisible && (
                 <div className="flex items-center gap-3 py-4">
-                  {aiHomeConfig.welcome?.avatar?.type === 'image' && aiHomeConfig.welcome?.avatar?.image_url ? (
-                    <img
-                      src={aiHomeConfig.welcome.avatar.image_url}
-                      alt="avatar"
-                      className="rounded-full flex-shrink-0"
-                      style={{ width: 56, height: 56, objectFit: 'cover' }}
-                    />
-                  ) : (
-                    <div
-                      className="flex items-center justify-center rounded-full text-3xl flex-shrink-0"
-                      style={{ width: 56, height: 56, background: THEME.gradient, color: '#fff' }}
-                    >
-                      {aiHomeConfig.welcome?.avatar?.emoji || '🌿'}
-                    </div>
-                  )}
+                  {/* [PRD-449 R3 + R5 + R6] 欢迎区大头像（A 位）改用 AiAvatar 公共组件
+                      统一处理「取后台 → 兜底 → 占位」三段逻辑：
+                      - 后台返回 image_url（http(s) 或 / 开头相对路径）→ 加载完成后平滑切换显示
+                      - 后台返回 emoji（如 🌿）→ 渲染 emoji 字符
+                      - 接口失败 / 字段为空 / URL 404 / 加载失败 → 显示默认"宾尼小康"图（修复历史裂图 BUG） */}
+                  <AiAvatar
+                    src={
+                      aiHomeConfig.welcome?.avatar?.type === 'image'
+                        ? aiHomeConfig.welcome?.avatar?.image_url
+                        : aiHomeConfig.welcome?.avatar?.emoji
+                    }
+                    size={56}
+                    shape="circle"
+                    alt="AI 头像"
+                    testId="ai-home-welcome-avatar"
+                  />
                   <div className="flex-1 min-w-0">
                     <div className="text-lg font-bold truncate" style={{ color: THEME.textPrimary }}>
                       {renderMainTitle()}
@@ -1770,14 +1773,22 @@ export default function AiHomePage() {
                       </span>
                     </div>
                   )}
-                  {/* [PRD-433 F-03] AI 头像 + 名称行：保留在卡片外部上方，去掉「· 健康助手」 */}
+                  {/* [PRD-433 F-03] AI 头像 + 名称行：保留在卡片外部上方，去掉「· 健康助手」
+                      [PRD-449 R4 + R5] AI 消息小头像（B 位，28x28）改用 AiAvatar 公共组件，
+                      复用「AI 对话模式首页配置 - 欢迎区 - 头像」同一字段（welcome.avatar），
+                      不新增字段。三场景兜底（接口失败 / 字段为空 / 加载失败）统一显示默认"宾尼小康"图。 */}
                   <div className="flex items-center" style={{ marginBottom: 6, paddingLeft: 16 }}>
-                    <div
-                      className="flex-shrink-0 flex items-center justify-center rounded-full"
-                      style={{ width: 28, height: 28, background: THEME.gradient, color: '#fff', fontSize: 14 }}
-                    >
-                      🌿
-                    </div>
+                    <AiAvatar
+                      src={
+                        aiHomeConfig.welcome?.avatar?.type === 'image'
+                          ? aiHomeConfig.welcome?.avatar?.image_url
+                          : aiHomeConfig.welcome?.avatar?.emoji
+                      }
+                      size={28}
+                      shape="circle"
+                      alt="AI 头像"
+                      testId="ai-home-msg-avatar"
+                    />
                     <span style={{ marginLeft: 8, fontSize: 14, color: '#666' }}>{senderName}</span>
                   </div>
                   {/* [PRD-433 F-02] AI 卡片：白底 + 浅灰描边，左右屏幕边距 16px */}
@@ -1873,13 +1884,19 @@ export default function AiHomePage() {
             {/* [PRD-433 F-11] Loading 卡片：白底+浅灰描边+88~90% 占屏，外部头像名称行保留 */}
             {sending && !messages.some(m => m.isStreaming) && (
               <div style={{ marginBottom: 24 }} data-testid="ai-home-ai-loading-card">
+                {/* [PRD-449 R4] Loading 卡片小头像同步使用 AiAvatar 公共组件 */}
                 <div className="flex items-center" style={{ marginBottom: 6, paddingLeft: 16 }}>
-                  <div
-                    className="flex-shrink-0 flex items-center justify-center rounded-full"
-                    style={{ width: 28, height: 28, background: THEME.gradient, color: '#fff', fontSize: 14 }}
-                  >
-                    🌿
-                  </div>
+                  <AiAvatar
+                    src={
+                      aiHomeConfig.welcome?.avatar?.type === 'image'
+                        ? aiHomeConfig.welcome?.avatar?.image_url
+                        : aiHomeConfig.welcome?.avatar?.emoji
+                    }
+                    size={28}
+                    shape="circle"
+                    alt="AI 头像"
+                    testId="ai-home-loading-avatar"
+                  />
                   <span style={{ marginLeft: 8, fontSize: 14, color: '#666' }}>小康</span>
                 </div>
                 <div

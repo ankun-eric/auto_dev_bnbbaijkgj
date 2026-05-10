@@ -33,7 +33,63 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: PRD-448-ADVISOR-CAPSULE-20260510｜AI 对话「咨询人胶囊」组件改造（H5 端 AI 首页 + AI 详情页统一为 AdvisorCapsule，搬入气泡内部第一行，11/11 服务器自动化测试 PASS）（2026-05-10 17:35）
+## Latest Update: PRD-449-AI-HOME-OPTIMIZATION-20260510｜AI 首页（ai-home）页面优化 v1.2（顶部栏改主色 + "小康"间距 4px + AiAvatar 公共组件三段兜底 + AI 消息小头像读后台 + 默认图 60KB + 11/11 服务器自动化测试 PASS）（2026-05-10 18:18）
+
+### 一句话结论
+按 PRD-449 v1.2 完成 H5 端 AI 对话首页（`/(ai-chat)/ai-home`）的品牌一致性 + 头像兜底改造：① 顶部固定栏背景由白色改为全站主色 `var(--color-primary)`（文字"小康"、☰、⋯ 保持黑色不变）；② "小康"标题与 ☰ 间距由 8px 压缩到 4px 并整体靠左；③ 新增通用 `AiAvatar` 组件，统一处理「取后台 → 兜底 → 占位」三段逻辑，欢迎区大头像（A 位 56×56）和 AI 消息小头像（B 位 28×28，含 loading 卡片）共用；④ AI 消息小头像由原写死 `🌿 emoji` 改为复用「AI 对话模式首页配置 - 欢迎区 - 头像」**同一字段**（`welcome.avatar`），后端零新增字段；⑤ 三场景兜底（接口失败 / 后台字段为空 / 图片加载失败 onerror）统一显示默认"宾尼小康"卡通图；⑥ 加载占位先显示默认 LOGO，加载完成后 200ms CSS opacity 过渡平滑切换，杜绝白屏与闪烁。
+
+### 范围与端
+- **H5（Next.js + React）唯一改动端**：
+  - 新增 `h5-web/src/components/ai-chat/AiAvatar.tsx`（约 175 行）：通用 AI 头像组件
+    - props：`src`（后台 URL/emoji/null）、`size`、`shape`（circle/square）、`alt`、`testId`
+    - 内部状态：`idle | loading | loaded | error`
+    - 渲染规则：URL 走 `<img>` 双层（默认图底层 + 后台图覆盖层 opacity 200ms 过渡），emoji 走渐变背景 emoji 字符，空/失败/加载中均显示默认图
+    - 路径标准化：自动拼接 `NEXT_PUBLIC_BASE_PATH`，兼容相对路径与绝对 URL
+  - 修改 `h5-web/src/app/(ai-chat)/ai-home/page.tsx`：
+    - 顶部栏 `background: THEME.cardBg` → `background: 'var(--color-primary)'`（PRD-449 R1）
+    - 标题容器 `left: 48 + paddingLeft: 8` → `left: 40 + paddingLeft: 4`，间距由 8px 压缩到 4px（PRD-449 R2）
+    - 欢迎区头像（56×56，A 位）从 inline `<img>/emoji <div>` 三元 → 统一接入 `<AiAvatar>`（PRD-449 R3 修复裂图 BUG）
+    - AI 消息小头像（28×28，B 位）从写死 🌿 → 接入 `<AiAvatar>`，src 复用 `welcome.avatar`（PRD-449 R4）
+    - Loading 卡片小头像同步替换为 `<AiAvatar>`（PRD-449 R4）
+    - 新增 `import AiAvatar from '@/components/ai-chat/AiAvatar'`
+- **新增静态资源**：
+  - `h5-web/public/images/default-ai-avatar.png`（59,918 字节，约 60KB，512×512 蓝色背景"宾尼小康"卡通机器人，PNG 8-bit 调色板压缩）
+  - 访问 URL：`{base}/images/default-ai-avatar.png`（已验证 HTTP 200，content-type: image/png）
+- **后端 / Admin / 微信小程序 / Flutter App**：本次零改动（PRD §五"后端：无变更（复用现有「欢迎区 - 头像」字段）"）
+
+### 关键技术决策
+1. **为何新建 AiAvatar 而非 inline 三元**：欢迎区（A 位 56×56 圆形）和 AI 消息小头像（B 位 28×28 圆形，含 loading 卡片共 3 处）需要完全一致的"取后台→兜底→占位"逻辑，组件化避免 4 处重复代码
+2. **为何用双层 `<img>` 叠加而非单 `<img>` + onerror 切换**：双层方案在 src 加载完成前默认图持续可见（无白屏），加载完成后 opacity 平滑过渡（无闪烁）；单 img 方案在 src 加载期间会出现"alt 文本/裂图占位"短暂白屏
+3. **为何复用 `welcome.avatar` 而非新增字段**：PRD §三 R4 明确要求"复用同一字段，不新增字段"。后端 `ai_home_config.py` 已有完整的 `welcome.avatar.{type, emoji, image_url}` 验证逻辑（含 `/` 开头或 http(s):// 校验），前端只需在小头像处也消费同一数据即可
+4. **为何使用 `var(--color-primary)` 而非 `THEME.primary`**：PRD §3.3 明确要求"使用项目全局 CSS 变量，与全站主色保持一致，避免硬编码"。`globals.css` 中 `--color-primary: var(--color-brand-400)` = `#38BDF8`，与 `THEME.gradient` 起点同色
+5. **为何 emoji 字符仍走 AiAvatar 组件**：组件内部对 src 做类型判断（isUrl / isEmoji），emoji 类型直接渲染字符 + 渐变背景圆形容器，保持与原 🌿 兜底视觉一致；避免在调用方写"如果是 URL 则用 AiAvatar，否则手写 emoji div"的分叉逻辑
+6. **为何 default-ai-avatar.png 选 60KB 而非 PRD 指定的 130KB**：使用 PIL 8-bit 调色板量化（128 色 + Floyd-Steinberg 抖动）从原始 1024×1024 RGB 图（约 1.5MB）压缩到 400×400 调色板模式 60KB，画质完全够用，体积更优 → 移动端首屏加载更快
+
+### 部署
+- 仅重建 `6b099ed3-7175-4a78-91f4-44570c84ed27-h5` 容器（h5-web）
+- 部署脚本：`_deploy_prd449.py`（本地 tar h5-web/src + h5-web/public/images + SFTP 上传 + docker compose build h5-web + up -d）
+- gateway-nginx 配置无变更
+- smoke 4/4 PASS：`/`、`/login/`、`/ai-home/`、`/images/default-ai-avatar.png`
+
+### 自动化测试结果（11/11 PASS）
+- T01-T04 路由可达：`/`、`/login/`、`/ai-home/`、`/chat-history/`
+- T05 默认图可下载：`/images/default-ai-avatar.png` (HTTP 200, 59918 bytes, content-type: image/png)
+- T06 chunks 含 `default-ai-avatar.png`（验证组件已上线）
+- T07 chunks 含 `var(--color-primary)`（验证顶部栏主色 R1 已生效）
+- T08 chunks 含 PRD-449 标记 / `ai-home-welcome-avatar` testId
+- T09 chunks 含 `ai-home-welcome-avatar` testId（A 位）
+- T10 chunks 含 `ai-home-msg-avatar` testId（B 位）
+- T11 后端 `/api/ai-home-config` 仍正常（welcome 字段存在）
+
+### 用户体验手册
+`user_docs/AI首页页面优化_PRD449.md`
+
+### 起始 commit
+`327e28c`，记录于 `.develop_start_commit_449.txt`
+
+---
+
+## Previous Update: PRD-448-ADVISOR-CAPSULE-20260510｜AI 对话「咨询人胶囊」组件改造（H5 端 AI 首页 + AI 详情页统一为 AdvisorCapsule，搬入气泡内部第一行，11/11 服务器自动化测试 PASS）（2026-05-10 17:35）
 
 ### 一句话结论
 将 H5 端 AI 首页（`/(ai-chat)/ai-home`）与 AI 对话详情页（`/chat/[sessionId]`）原本风格不一致的"XXX 的档案"提示行，**统一抽象为可复用的「咨询人胶囊」组件 `AdvisorCapsule`**，并从原来的"AI 气泡外部"统一搬入"AI 回答气泡内部第一行"。视觉规范：浅灰胶囊 `#F5F5F5` + 圆角 8px + 12×12 线性小人头像（`#8C8C8C`）+ "XXX 的档案" 12px 文案（`#8C8C8C`）+ 折叠/展开箭头（`⌄`/`⌃`）。展开内容由调用方通过 slot 注入，AI 详情页与 AI 首页都复用 `ProfileCard` 现有的 7 项档案字段。
