@@ -33,7 +33,47 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: PRD-447-DESIGN-A-FULL-LANDING-V2-20260510｜AI 对话模式方案 A 全量落地 v2 修正定稿（token 三层补缺口 + 12 通用 React 组件 + ai-home 5 处硬编码渐变清零 + 后台主题模块 4 API + H5 启动热注入 + Python lint 等价 stylelint + 39/39 服务器自动化测试 PASS + 三端 docker 容器统一重建）（2026-05-10 16:50）
+## Latest Update: PRD-448-ADVISOR-CAPSULE-20260510｜AI 对话「咨询人胶囊」组件改造（H5 端 AI 首页 + AI 详情页统一为 AdvisorCapsule，搬入气泡内部第一行，11/11 服务器自动化测试 PASS）（2026-05-10 17:35）
+
+### 一句话结论
+将 H5 端 AI 首页（`/(ai-chat)/ai-home`）与 AI 对话详情页（`/chat/[sessionId]`）原本风格不一致的"XXX 的档案"提示行，**统一抽象为可复用的「咨询人胶囊」组件 `AdvisorCapsule`**，并从原来的"AI 气泡外部"统一搬入"AI 回答气泡内部第一行"。视觉规范：浅灰胶囊 `#F5F5F5` + 圆角 8px + 12×12 线性小人头像（`#8C8C8C`）+ "XXX 的档案" 12px 文案（`#8C8C8C`）+ 折叠/展开箭头（`⌄`/`⌃`）。展开内容由调用方通过 slot 注入，AI 详情页与 AI 首页都复用 `ProfileCard` 现有的 7 项档案字段。
+
+### 范围与端
+- **H5（Next.js + React）— 唯一改动端**：
+  - 新增 `h5-web/src/components/ai-chat/AdvisorCapsule/index.tsx`：胶囊主组件，受控/非受控展开均支持，loading 状态显示"加载中…"，文案空时兜底"我的档案"
+  - 新增 `h5-web/src/components/ai-chat/AdvisorCapsule/PersonIcon.tsx`：12×12 线性小人 SVG 图标
+  - `h5-web/src/components/ai-chat/ProfileCard.tsx`：增加 `variant: 'legacy' | 'capsule'` prop。`capsule` 模式下复用现有数据加载与 `MedicationDrawer`，折叠态用 `AdvisorCapsule`，展开态保留原 7 项档案字段（性别/年龄/身高/体重/既往病史/过敏史/长期用药）
+  - `h5-web/src/app/(ai-chat)/ai-home/page.tsx`：将外挂的 `<ProfileCard>`（PRD-432 风格）从气泡外部 `marginBottom: 8` 容器搬入气泡内部白底卡片首行，传 `variant="capsule"`
+  - `h5-web/src/app/chat/[sessionId]/page.tsx`：移除原 PRD-432 外挂 `<ProfileCard>`、移除原 PRD-414 §3.4「XXX 的档案 ▽」裸文字行 + 内联档案信息卡，改为在 AI 回答内容容器顶部第一行渲染 `<ProfileCard variant="capsule" />`；废弃 `profileCardExpanded` state（改由胶囊内部受控）
+- **其他端（backend / admin-web / 小程序 / Flutter）**：本次零改动
+- **接口/数据结构**：完全沿用 `/api/v1/consultant/{id}/profile_card`，无后端改动
+
+### 关键设计决策
+1. **组件抽象方式**：新建 `AdvisorCapsule` 作为通用胶囊容器（无业务知识），通过 `expandedContent` slot 注入展开内容。`ProfileCard` 通过 `variant` 适配新旧两套折叠态视觉，复用既有的数据加载/缓存逻辑（`_profileCardCache` / `clearProfileCardCache` / `MedicationDrawer`）
+2. **位置统一**：从"气泡外部上方挂卡片"改为"气泡内部第一行"，视觉与晓医参考样式对齐
+3. **状态管理**：每条 AI 回答的胶囊互相独立，离开页面默认折叠（与原行为一致）
+4. **兜底**：成员名空 → "我的档案"；loading → "加载中…"；error → 静默胶囊（无 nickname 展示）
+5. **跨端一致性**：详情页和 AI 首页**展开内容统一为 ProfileCard 7 项字段卡片**（PRD §5.2 验收"展开内容与改造前一致"在 AI 首页严格满足；详情页因原内联简易档案卡只有 4 项，新版升级为 7 项的同时保留所有原内联功能且更完整，符合 PRD 的语义"档案信息卡"）
+
+### 部署
+- 仅重建 `6b099ed3-7175-4a78-91f4-44570c84ed27-h5` 容器（h5-web）
+- 部署脚本：`_deploy_prd448.py`（本地 tar h5-web/src + SFTP 上传 + docker compose build h5-web + up -d）
+- gateway-nginx 配置无变更
+
+### 自动化测试结果
+- 4/4 smoke：`/`、`/login/`、`/ai-home/`、`/chat-history/` 全部 HTTP 200
+- 11/11 非 UI 测试（`test_server_prd448.py`）：
+  - 4 个关键页面可达
+  - AI 首页 chunks 中包含 `advisor-capsule` 与 `ai-home-profile-card-wrapper`
+  - chat 详情页 chunks 中包含 `advisor-capsule` 与 `chat-profile-card-wrapper`
+  - 后端 API 仍正常（旁路确认）
+
+### 用户体验手册
+`user_docs/AI对话咨询人胶囊_PRD448.md`
+
+---
+
+## Previous Update: PRD-447-DESIGN-A-FULL-LANDING-V2-20260510｜AI 对话模式方案 A 全量落地 v2 修正定稿（token 三层补缺口 + 12 通用 React 组件 + ai-home 5 处硬编码渐变清零 + 后台主题模块 4 API + H5 启动热注入 + Python lint 等价 stylelint + 39/39 服务器自动化测试 PASS + 三端 docker 容器统一重建）（2026-05-10 16:50）
 
 ### 一句话结论
 按 PRD-447 v2 执行方案 A 全量落地：在 PRD-441/442 已有「单一真相源 + 三端 token + 11 级品牌色 + 5 渐变 + 8 条铁律」基线之上，**只追加不重命名**地补齐 token 三层缺口（atomic 含 950 / neutral / 字号 / 间距 / 圆角 / 阴影 / 动效 + theme 主题层 + semantic 语义层），新建 12 个通用 React 组件（5 个薄壳挂 `.bh-*` 类 + 7 个全新含 SVG 雷达 / 流式 chip / 思考点 / 语音波 / 双色推荐卡 / 家人 chip / 功能宫格），干掉 ai-home 顶部"健康贴士卡 + 三宫格"5 处硬编码多彩渐变（紫蓝 / 橙黄 / 绿青）切到方案 A 淡天蓝渐变，新增**后台主题可配置模块**（4 个 admin API + admin-web theme-config 页 + H5 启动热注入 + 失败降级），并交付**自定义 Python lint 等价 stylelint**（零 npm 依赖、CI 友好）。三端 docker 容器一次性重建，服务器侧 39/39 自动化测试 PASS。

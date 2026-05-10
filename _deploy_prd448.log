@@ -1,0 +1,136 @@
+﻿======================================================================
+Step 0: tar h5-web/src locally
+======================================================================
+local tar: C:\auto_output\bnbbaijkgj\prd448_h5_src_1778406375.tar.gz  (0.49 MB)
+[ssh] connecting to newbb.test.bangbangvip.com ...
+======================================================================
+Step 1: SFTP upload
+======================================================================
+uploaded -> /tmp/prd448_h5_src_1778406375.tar.gz
+======================================================================
+Step 2: extract & verify on server
+======================================================================
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && rm -rf .prd448_backup && mkdir -p .prd448_backup
+[rc=0]
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && cp -r h5-web/src .prd448_backup/h5_src
+[rc=0]
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && tar -xzf /tmp/prd448_h5_src_1778406375.tar.gz
+[rc=0]
+
+$ ls /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/components/ai-chat/AdvisorCapsule/
+[rc=0]
+index.tsx
+PersonIcon.tsx
+
+
+$ grep -c 'PRD-448' /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/components/ai-chat/AdvisorCapsule/index.tsx
+[rc=0]
+1
+
+
+$ grep -c "variant === 'capsule'" /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/components/ai-chat/ProfileCard.tsx
+[rc=0]
+3
+
+
+$ grep -c 'PRD-448' /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/chat/\[sessionId\]/page.tsx
+[rc=0]
+4
+
+
+$ grep -c 'PRD-448' /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/\(ai-chat\)/ai-home/page.tsx
+[rc=0]
+1
+
+======================================================================
+Step 3: rebuild h5-web container (no-cache)
+======================================================================
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml build h5-web 2>&1 | tail -80
+[rc=0]
+Id]                          2.15 kB         235 kB
+#12 85.21 鈹?鈼?/sandbox-pay                               2.15 kB         235 kB
+#12 85.21 鈹?鈼?/scan                                      109 kB          319 kB
+#12 85.21 鈹?鈼?/search                                    6.37 kB         239 kB
+#12 85.21 鈹?鈼?/search/result                             7.33 kB         240 kB
+#12 85.21 鈹?鈼?/services                                  5.55 kB         238 kB
+#12 85.21 鈹?鈼?/settings                                  6.11 kB         239 kB
+#12 85.21 鈹?茠 /shared/chat/[token]                       2.18 kB         235 kB
+#12 85.21 鈹?茠 /shared/drug/[token]                       2.52 kB         235 kB
+#12 85.21 鈹?茠 /shared/report/[token]                     2.72 kB         235 kB
+#12 85.21 鈹?鈼?/symptom                                   9.96 kB         248 kB
+#12 85.21 鈹?鈼?/tcm                                       11.7 kB         244 kB
+#12 85.21 鈹?鈼?/tcm/archive                               510 B           211 kB
+#12 85.21 鈹?茠 /tcm/diagnosis/[id]                        549 B           211 kB
+#12 85.21 鈹?鈼?/tcm/loading                               960 B           211 kB
+#12 85.21 鈹?茠 /tcm/result/[id]                           9.06 kB         242 kB
+#12 85.21 鈹?茠 /unified-order/[id]                        9.98 kB         248 kB
+#12 85.21 鈹?鈼?/unified-orders                            4.06 kB         242 kB
+#12 85.21 + First Load JS shared by all                  87.6 kB
+#12 85.21   鈹?chunks/2117-e9348fb0d4d6144c.js            31.9 kB
+#12 85.21   鈹?chunks/fd9d1056-cde8d1c8f42e1127.js        53.6 kB
+#12 85.21   鈹?other shared chunks (total)                2.1 kB
+#12 85.21 
+#12 85.21 
+#12 85.21 鈼? (Static)   prerendered as static content
+#12 85.21 茠  (Dynamic)  server-rendered on demand
+#12 85.21 
+#12 DONE 85.6s
+
+#8 [builder 2/7] WORKDIR /app
+#8 CACHED
+
+#13 [runner 3/5] COPY --from=builder /app/.next/standalone ./
+#13 DONE 0.4s
+
+#14 [runner 4/5] COPY --from=builder /app/.next/static ./.next/static
+#14 DONE 0.1s
+
+#15 [runner 5/5] COPY --from=builder /app/public ./public
+#15 DONE 0.2s
+
+#16 exporting to image
+#16 exporting layers
+#16 exporting layers 3.7s done
+#16 exporting manifest sha256:833088b88171798b0236996e5991bcff15c2f4971d1e1734e3e5463e622097c2 0.0s done
+#16 exporting config sha256:e2bc1ff61b5f4d4e7ecf48811184a1ce10176c7d3c4a54fffc5f267bf040ded5 done
+#16 exporting attestation manifest sha256:e2abe09dd829b4f34c755a4382cbb7685616904be62a6dc83ff9285b9bfe3162 0.0s done
+#16 exporting manifest list sha256:09abcfabd90b859a04c16ac394cb7a985278e897d5d5934b507d0f40a9df907d done
+#16 naming to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:latest done
+#16 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:latest
+#16 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:latest 1.0s done
+#16 DONE 4.8s
+
+#17 resolving provenance for metadata file
+#17 DONE 0.0s
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web Built 
+
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml up -d h5-web
+[rc=0]
+
+$ docker ps --filter name=6b099ed3-7175-4a78-91f4-44570c84ed27-h5 --format '{{.Names}}|{{.Status}}'
+[rc=0]
+6b099ed3-7175-4a78-91f4-44570c84ed27-h5|Up Less than a second
+
+
+$ docker network connect 6b099ed3-7175-4a78-91f4-44570c84ed27-network gateway-nginx 2>/dev/null || true
+[rc=0]
+
+$ rm -f /tmp/prd448_h5_src_1778406375.tar.gz
+[rc=0]
+======================================================================
+Step 6: wait 25s & smoke test
+======================================================================
+  https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/  -> 200  PASS
+  https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/login/  -> 200  PASS
+  https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/ai-home/  -> 200  PASS
+  https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/chat-history/  -> 200  PASS
+
+[smoke] 4/4 PASS
+======================================================================
+PRD-448 deploy DONE. smoke = 4/4
+======================================================================
