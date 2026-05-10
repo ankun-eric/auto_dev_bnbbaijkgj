@@ -275,14 +275,14 @@ function LoginContent() {
           {logoUrl ? (
             <img
               src={resolveAssetUrl(logoUrl)}
-              alt="晴空诊室 LOGO"
+              alt="宾尼小康 LOGO"
               className={styles.logoImg}
             />
           ) : (
             <span className={styles.logoFallback}>🌿</span>
           )}
         </div>
-        <h1 className={styles.brandTitle}>晴空诊室</h1>
+        <h1 className={styles.brandTitle}>宾尼小康</h1>
         <p className={styles.brandSubtitle}>AI 健康管家 · 您的私人健康助手</p>
       </div>
 

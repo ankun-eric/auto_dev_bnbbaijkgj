@@ -4,7 +4,7 @@
     "name": "bini-health-design-tokens",
     "version": "1.0.0",
     "prd": "PRD-442",
-    "baseline": "PRD-441 晴空诊室 v1.0",
+    "baseline": "PRD-441 宾尼小康 v1.0",
     "scope": "全域三端（H5 / 微信小程序 / Flutter App）",
     "doNotEditGenerated": "本文件是单一真相源（Single Source of Truth）。三端 token 文件由 scripts/gen-tokens.mjs 自动生成，禁止手动修改生成文件。",
     "lastUpdated": "2026-05-10"

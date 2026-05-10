@@ -1,10 +1,10 @@
 /**
- * PRD-442「晴空诊室」品牌色 token —— H5 端 TS 引用版
+ * PRD-442「宾尼小康」品牌色 token —— H5 端 TS 引用版
  * 单一真相源：design-system/design-tokens.json
  * 色值与 h5-web/src/app/globals.css :root 完全一致
  */
 export const THEME = {
-  primary: '#0EA5E9',          // brand-500（晴空诊室主色）
+  primary: '#0EA5E9',          // brand-500（宾尼小康主色）
   primaryHover: '#0284C7',     // brand-600
   primaryLight: '#E0F2FE',     // brand-100
   background: '#F9FAFB',

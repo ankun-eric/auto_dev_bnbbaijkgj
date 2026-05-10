@@ -86,7 +86,7 @@ export default function MerchantLoginPage() {
           <Title level={3} style={{ color: '#0EA5E9', marginBottom: 4 }}>
             商家/机构工作台
           </Title>
-          <Text type="secondary">晴空诊室 · 合作机构/商家登录</Text>
+          <Text type="secondary">宾尼小康 · 合作机构/商家登录</Text>
         </div>
         <Form form={form} layout="vertical" onFinish={submit} autoComplete="off">
           <Form.Item

@@ -1,5 +1,5 @@
 """
-PRD-442 里程碑 2 · H5 端「晴空诊室」品牌色全量落地部署脚本
+PRD-442 里程碑 2 · H5 端「宾尼小康」品牌色全量落地部署脚本
 ============================================================
 方案：tar 打包 h5-web/src 与 h5-web/public 上传到服务器项目目录，
 覆盖原文件后用 docker compose build h5-web && up -d 重建 H5 容器。
@@ -85,7 +85,7 @@ def main() -> None:
         f"cd {REMOTE_PROJECT_DIR}/h5-web && tar -xzf {REMOTE_TMP_TAR} && ls src | head -5",
         # 校验：确认 globals.css 已含 brand-500
         f"grep -c 'color-brand-500' {REMOTE_PROJECT_DIR}/h5-web/src/app/globals.css || echo MISS",
-        f"grep -c '晴空诊室' {REMOTE_PROJECT_DIR}/h5-web/src/app/layout.tsx || echo MISS",
+        f"grep -c '宾尼小康' {REMOTE_PROJECT_DIR}/h5-web/src/app/layout.tsx || echo MISS",
         # 重建 + 重启 H5 容器（不影响其它容器）
         f"cd {REMOTE_PROJECT_DIR} && docker compose build h5-web 2>&1 | tail -30",
         f"cd {REMOTE_PROJECT_DIR} && docker compose up -d h5-web 2>&1 | tail -10",
@@ -128,11 +128,11 @@ def main() -> None:
                 body = resp.read(8192)
                 code = resp.getcode()
                 ok = code == 200
-                # 对 / 与 /home/ 进一步校验是否含天蓝主色或晴空诊室
+                # 对 / 与 /home/ 进一步校验是否含天蓝主色或宾尼小康
                 hint = ""
                 text = body.decode("utf-8", errors="replace")
-                if "晴空诊室" in text:
-                    hint = "[contains 晴空诊室]"
+                if "宾尼小康" in text:
+                    hint = "[contains 宾尼小康]"
                 elif "0EA5E9" in text or "brand-500" in text or "0ea5e9" in text:
                     hint = "[contains brand-500]"
                 smoke_results.append((url, code, ok, hint))

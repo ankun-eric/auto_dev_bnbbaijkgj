@@ -160,7 +160,7 @@ export default function SharedChatPage() {
         <div className="flex items-center justify-center gap-2">
           <span className="text-lg">🌿</span>
           <span className="font-bold text-sm" style={{ background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-            晴空诊室 AI健康管家
+            宾尼小康 AI健康管家
           </span>
         </div>
         <p className="text-[11px] text-gray-300 mt-1">此为分享内容，仅供参考，不构成医疗建议</p>

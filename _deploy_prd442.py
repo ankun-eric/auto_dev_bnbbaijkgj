@@ -1,5 +1,5 @@
 """
-PRD-442 菜单模式 · 晴空诊室风格改造 · 增量部署脚本
+PRD-442 菜单模式 · 宾尼小康风格改造 · 增量部署脚本
 =================================================
 
 部署内容：
@@ -42,7 +42,7 @@ def main():
         shell=True,
     )
     subprocess.run(
-        'git commit -m "feat(prd-442): 菜单模式晴空诊室风格改造 v1.0（H5 design tokens + 6屏 prototype + 组件库 + 小程序 wxss + Flutter ThemeData + 16 用例 pytest)"',
+        'git commit -m "feat(prd-442): 菜单模式宾尼小康风格改造 v1.0（H5 design tokens + 6屏 prototype + 组件库 + 小程序 wxss + Flutter ThemeData + 16 用例 pytest)"',
         shell=True,
     )
     for i in range(3):

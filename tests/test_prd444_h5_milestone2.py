@@ -1,9 +1,10 @@
 """
-PRD-442 里程碑 2 · H5 端「晴空诊室」品牌色全量落地服务器侧非UI自动化测试
+PRD-442 里程碑 2 · H5 端品牌色 / 品牌词全量落地服务器侧非UI自动化测试
+（PRD-445 回滚后：品牌词旧值已变更为「晴空诊室」/「晴空」，新值固定为「宾尼小康」）
 
 覆盖：
-- T01：H5 主入口可达 + 含「晴空诊室」品牌词
-- T02：登录页可达 + 含「晴空诊室」品牌词
+- T01：H5 主入口可达 + 含「宾尼小康」品牌词
+- T02：登录页可达 + 含「宾尼小康」品牌词
 - T03：底部导航 home / profile / services 主路由可达
 - T04：AI 主战场 ai-home / chat-history / health-archive 可达
 - T05：drug-chat / checkup / health-plan 可达
@@ -11,7 +12,7 @@ PRD-442 里程碑 2 · H5 端「晴空诊室」品牌色全量落地服务器侧
 - T07：design-tokens.css 含 brand-500 (#0ea5e9) 天蓝主色
 - T08：H5 主入口 HTML 不含旧绿色 hex（#52c41a / #389e0d / #13c2c2）
 - T09：H5 主入口 HTML 不含旧紫色 hex（#5B6CFF / #4A5AE8）
-- T10：H5 主入口 HTML 不含旧品牌词「宾尼小康」
+- T10：H5 主入口 HTML 不含旧品牌词「晴空诊室」/「晴空」（PRD-445 回滚后）
 """
 import re
 import urllib.request
@@ -32,8 +33,8 @@ def _get(path: str) -> tuple[int, str]:
 
 # T01-T05：核心路由可达性
 @pytest.mark.parametrize("path,must_contain", [
-    ("/", "晴空诊室"),
-    ("/login/", "晴空诊室"),
+    ("/", "宾尼小康"),
+    ("/login/", "宾尼小康"),
 ])
 def test_t01_t02_root_login_brand(path: str, must_contain: str) -> None:
     code, body = _get(path)
@@ -117,7 +118,7 @@ def test_t09_home_no_legacy_purple() -> None:
 def test_t10_home_no_legacy_brand() -> None:
     code, body = _get("/home/")
     assert code == 200
-    legacy_brands = ["宾尼小康", "宾尼诊所", "宾尼健康"]
+    legacy_brands = ["晴空诊室", "晴空"]
     found = [b for b in legacy_brands if b in body]
     assert not found, f"/home/ 含旧品牌词: {found}"
 

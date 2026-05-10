@@ -70,7 +70,7 @@ export default function FontSettingPopup({
         style={{ fontSize: currentSize }}
       >
         <p className="mb-2">预览文字效果</p>
-        <p className="text-gray-500">晴空诊室，AI健康管家，关爱您的每一天。</p>
+        <p className="text-gray-500">宾尼小康，AI健康管家，关爱您的每一天。</p>
       </div>
 
       <div className="grid grid-cols-3 gap-2 mb-4">

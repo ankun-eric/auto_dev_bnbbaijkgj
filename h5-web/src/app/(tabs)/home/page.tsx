@@ -32,7 +32,7 @@ interface NoticeItem {
   sort_order: number;
 }
 
-const FALLBACK_NOTICE = '晴空诊室提醒您：定期体检，关注健康，预防疾病。';
+const FALLBACK_NOTICE = '宾尼小康提醒您：定期体检，关注健康，预防疾病。';
 const CACHE_DURATION = 30 * 60 * 1000;
 let noticeCache: { data: NoticeItem[]; timestamp: number } | null = null;
 
@@ -393,7 +393,7 @@ export default function HomePage() {
               lineHeight: '24px',
             }}
           >
-            晴空诊室
+            宾尼小康
           </h1>
           <div
             className="flex items-center"

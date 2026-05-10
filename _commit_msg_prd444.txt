@@ -1,0 +1,10 @@
+feat(prd-442 milestone-2): H5 端「宾尼小康」品牌色 / 品牌词全量落地
+
+- 基建 3 文件：globals.css 重写（旧 var(--primary-color) 等重映射到 brand-* 天蓝 11 级色阶 + 5 大渐变 + .green-*/.ai-avatar-gradient 类色值切换 + 新增 .bh-card-medical/.bh-btn-primary）；theme.ts 紫色 → 天蓝 brand-500；layout.tsx theme-color → #0EA5E9 + 标题改为「宾尼小康」
+- 组件 12+ 文件：GreenNavBar 导出常量值切天蓝（保留命名兼容），ChatSidebar/AddressNavButton/KnowledgeCard/MarketingBadge/HealthProfileEditor/FontSettingPopup/CheckinPointsProgress/ConsultTargetPicker/DrugMergeCardFlat 等统一切天蓝
+- 页面 100+ 文件：4 轮 Python 渐进迁移脚本扫描覆盖 6 位 hex / rgba / 8 位带 alpha hex / 旧 antd 浅绿，860 处旧色板替换 + 25 处旧品牌词替换，触达 102 文件
+- 八条铁律 H5 端全部 ✅；business 功能 0 改动；危险态红色按 §7 规范保留；会员金徽 #d4af37 保留
+- 微信小程序 / Flutter App / 后端 / 商家端 admin / Windows / macOS / CLI 全部 0 改动（严守里程碑 2 边界）
+- 部署：tar 整包 + docker compose build h5-web；smoke 5/5 PASS；服务器侧自动化测试 25/25 PASS（tests/test_prd444_h5_milestone2.py，覆盖 13 路由可达 + 4 设计基建资产 + design-tokens 内容 + 主入口 0 旧绿/0 旧紫/0 旧品牌词 + 含天蓝主色）
+- 索引：.cursor/rules/project-context.mdc 顶部前置本里程碑摘要
+- 用户手册：user_docs/H5端宾尼小康品牌色全量落地_PRD442_里程碑2_用户体验手册.md

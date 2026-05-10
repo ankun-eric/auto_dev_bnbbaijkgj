@@ -67,7 +67,7 @@ def main():
     if not chk.stdout.strip():
         print("[git] 无暂存改动，跳过 commit")
     else:
-        run('git commit -m "feat(prd-441): AI 对话风格设计 Token 体系（晴空诊室 v1.0：design-tokens.css/json + 29 屏 HTML 原型 + PRD 文档）" 2>&1', check=False)
+        run('git commit -m "feat(prd-441): AI 对话风格设计 Token 体系（宾尼小康 v1.0：design-tokens.css/json + 29 屏 HTML 原型 + PRD 文档）" 2>&1', check=False)
 
     # push 重试
     for i in range(3):

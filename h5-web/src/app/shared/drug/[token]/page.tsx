@@ -271,7 +271,7 @@ export default function SharedDrugPage() {
               WebkitTextFillColor: 'transparent',
             }}
           >
-            晴空诊室 AI健康管家
+            宾尼小康 AI健康管家
           </span>
         </div>
         <p className="text-[11px] text-gray-300 mt-1">

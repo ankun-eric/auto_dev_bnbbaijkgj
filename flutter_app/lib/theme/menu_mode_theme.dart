@@ -1,9 +1,9 @@
 // ============================================================
-// bini-health · 菜单模式 PRD-442 · 晴空诊室风格
+// bini-health · 菜单模式 PRD-442 · 宾尼小康风格
 // Flutter Design Tokens v1.0 (2026-05-10)
 //
 // 与 H5（design-tokens.css）和小程序（menu-mode-tokens.wxss）
-// 三端共用同一套晴空诊室色板。
+// 三端共用同一套宾尼小康色板。
 //
 // 使用：
 //   import 'package:bini_health/theme/menu_mode_theme.dart';
@@ -13,7 +13,7 @@
 
 import 'package:flutter/material.dart';
 
-/// PRD-442 晴空诊室 11 级天蓝色阶（与 H5/小程序完全一致）
+/// PRD-442 宾尼小康 11 级天蓝色阶（与 H5/小程序完全一致）
 class MenuModeColors {
   static const sky50  = Color(0xFFF0F9FF);
   static const sky100 = Color(0xFFE0F2FE);
@@ -132,7 +132,7 @@ class MenuModeDuration {
   static const slow = Duration(milliseconds: 360);
 }
 
-/// 构建符合 PRD-442 晴空诊室风格的 ThemeData
+/// 构建符合 PRD-442 宾尼小康风格的 ThemeData
 ThemeData buildMenuModeTheme({Brightness brightness = Brightness.light}) {
   final base = ThemeData(brightness: brightness);
 

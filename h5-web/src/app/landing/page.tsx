@@ -31,13 +31,13 @@ function LandingContent() {
           style={{ background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(10px)' }}>
           <span className="text-4xl">🌿</span>
         </div>
-        <h1 className="text-3xl font-bold text-white mb-2">晴空诊室</h1>
+        <h1 className="text-3xl font-bold text-white mb-2">宾尼小康</h1>
         <p className="text-white/80 text-sm">AI健康管家 · 您的私人健康助手</p>
       </div>
 
       <div className="px-5 py-8 flex-1">
         <h2 className="text-lg font-bold text-center mb-6" style={{ color: '#333' }}>
-          为什么选择晴空诊室？
+          为什么选择宾尼小康？
         </h2>
 
         <div className="space-y-4">

@@ -268,7 +268,7 @@ async function generateShareCard(data: ResultData): Promise<string> {
   // 品牌
   ctx.fillStyle = '#888';
   ctx.font = '24px "PingFang SC", sans-serif';
-  ctx.fillText('晴空诊室 · 中医养生', w / 2, 1160);
+  ctx.fillText('宾尼小康 · 中医养生', w / 2, 1160);
 
   // 二维码占位框
   ctx.strokeStyle = '#0EA5E9';

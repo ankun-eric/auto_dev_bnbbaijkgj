@@ -167,7 +167,7 @@ function FamilyInviteContent() {
                   >
                     <span className="text-white text-xs font-bold">B</span>
                   </div>
-                  <span className="text-xs text-gray-500 font-medium">晴空诊室AI健康管家</span>
+                  <span className="text-xs text-gray-500 font-medium">宾尼小康AI健康管家</span>
                 </div>
               </div>
             </div>

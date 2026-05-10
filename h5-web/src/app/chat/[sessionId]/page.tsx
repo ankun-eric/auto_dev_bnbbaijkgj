@@ -203,7 +203,7 @@ const ADD_ALLERGY_OPTIONS = ['青霉素', '花粉', '海鲜', '牛奶', '尘螨'
 const welcomeMessage: Message = {
   id: 'welcome',
   role: 'assistant',
-  content: '您好！我是晴空诊室AI健康助手。请问您有什么健康问题需要咨询吗？',
+  content: '您好！我是宾尼小康AI健康助手。请问您有什么健康问题需要咨询吗？',
   time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
 };
 

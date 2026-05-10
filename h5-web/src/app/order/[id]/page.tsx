@@ -12,7 +12,7 @@ const mockOrder = {
   createTime: '2024-03-15 14:30',
   payTime: '2024-03-15 14:32',
   verifyCode: 'BN2024031500128',
-  location: '晴空诊室体检中心（朝阳分店）',
+  location: '宾尼小康体检中心（朝阳分店）',
   validUntil: '2024-06-15',
   items: [
     '一般检查（身高、体重、血压等）',

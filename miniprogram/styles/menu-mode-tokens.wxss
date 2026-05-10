@@ -1,9 +1,9 @@
 /* ============================================================
- * bini-health · 菜单模式 PRD-442 · 晴空诊室风格
+ * bini-health · 菜单模式 PRD-442 · 宾尼小康风格
  * 小程序端 Design Tokens v1.0 (2026-05-10)
  *
  * 与 H5（design-tokens.css）和 Flutter（menu_mode_theme.dart）
- * 三端共用同一套晴空诊室色板。
+ * 三端共用同一套宾尼小康色板。
  *
  * 引入方式（在 page wxss 中）：
  *   @import "/styles/menu-mode-tokens.wxss";

@@ -83,7 +83,7 @@ export default function DashboardPage() {
         <Space direction="vertical">
           <Text strong>平台公告</Text>
           <Text type="secondary">
-            欢迎使用晴空诊室商家/机构工作台。本页呈现您所属门店的经营核心指标，左侧菜单可进入各业务模块。
+            欢迎使用宾尼小康商家/机构工作台。本页呈现您所属门店的经营核心指标，左侧菜单可进入各业务模块。
           </Text>
         </Space>
       </Card>

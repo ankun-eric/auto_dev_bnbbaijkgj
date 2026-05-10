@@ -95,7 +95,7 @@ export default function MerchantMobileLoginPage() {
         <div style={{ fontSize: 28, fontWeight: 600, color: '#0EA5E9', marginBottom: 6 }}>
           商家工作台
         </div>
-        <div style={{ color: '#999', fontSize: 13 }}>晴空诊室 · 合作机构/商家登录</div>
+        <div style={{ color: '#999', fontSize: 13 }}>宾尼小康 · 合作机构/商家登录</div>
       </div>
 
       <div

@@ -50,7 +50,7 @@ interface DrugRecord {
 const welcomeMessage: Message = {
   id: 'welcome',
   role: 'assistant',
-  content: '您好！我是晴空诊室AI用药助手。我已收到您的药品图片，正在为您分析用药信息。如有其他问题，请随时提问。',
+  content: '您好！我是宾尼小康AI用药助手。我已收到您的药品图片，正在为您分析用药信息。如有其他问题，请随时提问。',
   time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
 };
 

@@ -1,0 +1,10 @@
+feat(prd-445): 「晴空诊室」→「宾尼小康」全域品牌名回滚
+
+- H5 端：layout 标题 / meta / 主题 / 全部业务页面 25+ 处文案统一回滚为「宾尼小康」
+- 设计系统：design-system / design-system-v2 / menu-mode-design-system 三套 PRD/HTML/JSON token 中文案回滚
+- Flutter App / 微信小程序：仅清理 theme/wxss 注释中「晴空诊室风格」措辞
+- 文档：user_docs 4 份手册内容 + 2 份手册文件名一并回滚
+- 测试：新增 tests/test_prd445_brand_rollback.py 9 用例（含主入口/login/landing/home/legal 页面新品牌词存在性 + 旧品牌词清零校验）
+- 历史脚本：_deploy_prd441/442/444_h5、_prd444_h5_color_migrate 注释回滚
+
+技术性命名（API 路由 / 数据库字段 / 接口字段 / 容器名）全程未触碰，老 App、老分享链接、老第三方系统零感知。
