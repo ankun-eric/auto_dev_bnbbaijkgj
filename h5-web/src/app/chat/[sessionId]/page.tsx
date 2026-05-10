@@ -915,7 +915,10 @@ function ChatPageInner() {
           setAiChatCfg({
             avatar: cfg.ai_chat.avatar || { type: 'emoji', emoji: '🌿', image_url: '' },
             signature: cfg.ai_chat.signature || '小康',
-            profile_row_enabled: !!cfg.ai_chat.profile_row_enabled,
+            // [PRD-448 v1.1 §3.2] 兜底：未下发或为 undefined/null 时默认按 true 处理
+            // 只有显式下发为 false 时才不渲染（避免后端字段缺失导致整体灰掉）
+            profile_row_enabled:
+              cfg.ai_chat.profile_row_enabled === false ? false : true,
             profile_row_template: cfg.ai_chat.profile_row_template || '本次回答结合 {name} 的档案',
             punchcard_draggable: !!cfg.ai_chat.punchcard_draggable,
             scroll_to_bottom_button: !!cfg.ai_chat.scroll_to_bottom_button,
@@ -2157,15 +2160,19 @@ function ChatPageInner() {
                     </div>
                   </div>
                 )}
-                {/* [PRD-448] 咨询人胶囊：放在 AI 回答内容容器顶部第一行（正文气泡内部第一行）
-                    仅普通 AI 回复（非 user / 非欢迎语 / 非首次自查卡 / 非药品卡）显示 */}
+                {/* [PRD-448 v1.1 §3.1] 咨询人胶囊：放在 AI 回答内容容器顶部第一行（正文气泡内部第一行）
+                    渲染条件（v1.1 改）：
+                      ① 当前会话/消息绑定了家庭成员（含本人 family_member_id=0）
+                      ② 该成员的 name 已经拿到（由 AdvisorCapsule 内部兜底：name 为空则不渲染）
+                    本人（family_member_id=0）不再被过滤，必须正常渲染胶囊。
+                    详情页 profile_row_enabled 已在拉取时按 §3.2 默认 true 兜底。 */}
                 {msg.role === 'assistant'
                   && msg.id !== 'welcome'
                   && !isDrugCard
                   && aiChatCfg.profile_row_enabled
                   && currentRelationLabel
                   && currentRelationLabel !== '未选择档案'
-                  && currentConsultantId > 0 && (
+                  && currentConsultantId >= 0 && (
                   <div data-testid="chat-profile-card-wrapper" style={{ marginBottom: 8 }}>
                     <ProfileCard
                       consultantId={currentConsultantId}

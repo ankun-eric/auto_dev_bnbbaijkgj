@@ -1,10 +1,13 @@
 'use client';
 
 /**
- * [PRD-448] 咨询人胶囊：左侧线性小人头像 / 人物剪影图标
- * 颜色 #8C8C8C，尺寸 12 × 12
+ * [PRD-448 v1.1] 咨询人胶囊：左侧线性小人头像 / 人物剪影图标
+ * 颜色 #8C8C8C，默认尺寸 16 × 16（v1.1 由 12 → 16）
+ *
+ * 注：viewBox 仍为 0 0 12 12，依赖 SVG 自动等比缩放到 width/height，
+ * 因此可任意尺寸渲染，且笔触保持视觉一致。
  */
-export default function PersonIcon({ size = 12, color = '#8C8C8C' }: { size?: number; color?: string }) {
+export default function PersonIcon({ size = 16, color = '#8C8C8C' }: { size?: number; color?: string }) {
   return (
     <svg
       data-testid="advisor-capsule-icon"

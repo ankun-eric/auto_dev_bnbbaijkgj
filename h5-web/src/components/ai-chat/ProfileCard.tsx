@@ -178,13 +178,8 @@ export default function ProfileCard({
 
   if (fallbackText) {
     if (variant === 'capsule') {
-      return (
-        <AdvisorCapsule
-          memberName=""
-          loading={false}
-          testId="ai-advisor-capsule"
-        />
-      );
+      // [PRD-448 v1.1 §3.3] 未选定 / 名字为空 → 整条胶囊不渲染（不再显示占位胶囊）
+      return null;
     }
     return (
       <div
@@ -207,11 +202,9 @@ export default function ProfileCard({
 
   if (error || !data) {
     if (variant === 'capsule') {
-      // PRD-448 §5.3 兜底：加载中显示 loading 占位；失败时显示"我的档案"占位胶囊
-      if (error) {
-        return <AdvisorCapsule memberName="" loading={false} testId="ai-advisor-capsule" />;
-      }
-      return <AdvisorCapsule memberName="" loading testId="ai-advisor-capsule" />;
+      // [PRD-448 v1.1 §3.3] 加载中 / 失败 / 名字为空 → 整条胶囊不渲染
+      // 不再显示"加载中…"或"我的档案"占位（避免半成品胶囊或文案抖动）
+      return null;
     }
     if (error)
       return null;
@@ -311,10 +304,14 @@ export default function ProfileCard({
   );
 
   if (variant === 'capsule') {
+    // [PRD-448 v1.1 §4.2] 本人固定显示「本人」，不显示真实姓名/账号昵称（避免隐私泄露）
+    // 非本人：显示成员真实 name；name 为空时由 AdvisorCapsule 内部 §3.3 兜底（不渲染）
+    const displayName = data.is_self ? '本人' : (data.nickname || '');
     return (
       <div data-testid="ai-profile-card" data-consultant-id={data.consultant_id}>
         <AdvisorCapsule
-          memberName={data.nickname || '本人'}
+          memberName={displayName}
+          isSelf={data.is_self}
           expanded={expanded}
           onToggle={(next) => setExpanded(next)}
           expandedContent={sevenFieldsContent}

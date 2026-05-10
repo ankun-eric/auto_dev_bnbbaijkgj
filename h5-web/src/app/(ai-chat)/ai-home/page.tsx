@@ -1803,9 +1803,14 @@ export default function AiHomePage() {
                       marginRight: 16,
                     }}
                   >
-                    {/* [PRD-448] 咨询人胶囊：气泡内部第一行，距气泡顶部 0（已由 padding 14px 提供 8px+），距左右内边距 0（已由 padding 16px 提供 12px+）
-                        仅在已选定咨询对象时显示（未选则隐藏，避免空胶囊） */}
-                    {((msg.consultantTargetId ?? selectedConsultant?.id ?? 0) > 0) && (
+                    {/* [PRD-448 v1.1 §3.1] 咨询人胶囊：气泡内部第一行
+                        渲染条件（v1.1 改）：拿到当前会话绑定的家庭成员即渲染（含本人 family_member_id=0）。
+                        v1.0 仅 consultantId > 0 才渲染，导致本人（=0）被过滤；本次取消该限制，
+                        当 selectedConsultant 存在（含本人）时即进入；name 是否拿到由 AdvisorCapsule 内部兜底。
+                        未选定档案（selectedConsultant 与 consultantTargetId 都为 null/undefined）→ 不渲染。 */}
+                    {(msg.consultantTargetId !== undefined && msg.consultantTargetId !== null
+                      ? true
+                      : !!selectedConsultant) && (
                     <div data-testid="ai-home-profile-card-wrapper" style={{ marginBottom: 8 }}>
                       <ProfileCard
                         consultantId={(msg.consultantTargetId ?? selectedConsultant?.id ?? 0) as number}

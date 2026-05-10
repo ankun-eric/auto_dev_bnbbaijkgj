@@ -33,7 +33,58 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: PRD-449-AI-HOME-OPTIMIZATION-20260510｜AI 首页（ai-home）页面优化 v1.2（顶部栏改主色 + "小康"间距 4px + AiAvatar 公共组件三段兜底 + AI 消息小头像读后台 + 默认图 60KB + 11/11 服务器自动化测试 PASS）（2026-05-10 18:18）
+## Latest Update: PRD-448-V1.1-ADVISOR-CAPSULE-REFINE-20260510｜AI 对话「咨询人胶囊」二次细化（本人也渲染 + SVG 箭头 + 14px 字号 + 16×16 图标 + 6×12 内边距 + 圆角 10 + isSelf prop + 12/12 服务器自动化测试 PASS）（2026-05-10 18:45）
+
+### 一句话结论
+在 PRD-448 v1.0 基础上做增量补丁，修复两类问题：① 行为：本人会话（family_member_id=0）不再被过滤，正常渲染胶囊；详情页 `profile_row_enabled` 字段未下发时默认 true；加载中/空时整条不渲染（杜绝"半成品胶囊"）；② 视觉：文字 12→14px、行高 18→20px、小人 12→16、内边距 4×10→6×12、圆角 8→10；右侧箭头由 Unicode 字符 `⌄/⌃` 改为 SVG（同一节点 `transform: rotate(180deg)` 翻转方向，位置完全不动）；新增 `isSelf` prop，本人胶囊文案固定为「本次回答结合 本人 的档案」（避免泄露真实姓名）。
+
+### 范围与端
+- **H5（Next.js + React）— 唯一改动端**：
+  - 修改 `h5-web/src/components/ai-chat/AdvisorCapsule/index.tsx`：移除 `loading` prop / `FALLBACK_NAME`，改为"name 为空 → 直接 return null"；新增 `isSelf` prop（决定 memberName 与样式微调）；视觉规格全面升级到 v1.1（14px / 20 / 16×16 / 6×12 / 10 / gap 8 / flex align-items center）；接入新的 `ArrowIcon`
+  - 新增 `h5-web/src/components/ai-chat/AdvisorCapsule/ArrowIcon.tsx`（约 50 行）：SVG 箭头组件，path d="M4 6L8 10L12 6"，`expanded` 状态控制 `transform: rotate(180deg)`，0.2s 过渡
+  - 修改 `h5-web/src/components/ai-chat/AdvisorCapsule/PersonIcon.tsx`：默认 size 12 → 16，文档同步更新
+  - 修改 `h5-web/src/components/ai-chat/ProfileCard.tsx`：`variant=capsule` 模式下，本人传 `memberName="本人" + isSelf=true`（v1.0 直接传 nickname）；移除"加载中胶囊 / 我的档案占位胶囊"，改为 `return null`（与 §3.3 整条不渲染对齐）
+  - 修改 `h5-web/src/app/(ai-chat)/ai-home/page.tsx`：移除 `consultantId > 0` 强约束，改为「`msg.consultantTargetId` 已绑定 或 `selectedConsultant` 存在 即渲染」（含本人 0）
+  - 修改 `h5-web/src/app/chat/[sessionId]/page.tsx`：① 渲染条件 `currentConsultantId > 0` → `>= 0`（含本人）；② `profile_row_enabled` 兜底由 `!!cfg.ai_chat.profile_row_enabled` 改为「显式下发为 false 时才不渲染，否则默认 true」（PRD §3.2）
+- **后端 / Admin / 微信小程序 / Flutter App**：本次零改动（PRD §九"不改后端接口与数据结构"）
+
+### 关键技术决策
+1. **为何用 SVG 箭头而非 Unicode 字符**：⌃/⌄ 在不同字体下基线、视觉重心不一致，导致 v1.0 折叠态箭头视觉偏下；SVG `viewBox="0 0 16 16"` + `transform: rotate(180deg)` 严格保证折叠/展开两态像素位置完全一致
+2. **为何"name 空 → return null"而非显示占位**：v1.0 的"加载中…"和"我的档案"占位会造成文案抖动 + 看起来像 Bug，PRD §3.3 明确要求"整条胶囊不渲染"
+3. **为何本人显示"本人"而非 nickname/账号昵称**：避免在公共场合（截图分享、微信群里把对话截图发出去）露出真实姓名，PRD §4.2 注脚明确要求
+4. **为何 `profile_row_enabled` 默认 true**：v1.0 用 `!!cfg.ai_chat.profile_row_enabled` 强转，后端某些环境/旧版本未下发该字段时直接 false → 整体灰掉，PRD §3.2 要求"未下发时默认 true，仅显式 false 才不渲染"
+5. **为何 `isSelf` prop 由组件接收但内部不做隐式判断**：保持组件纯展示（无业务知识），由上层（ProfileCard）从 API 的 `is_self` 字段决定 memberName 取值，组件只负责 data-is-self 透出和未来可能的样式微调
+
+### 部署
+- 仅重建 `6b099ed3-7175-4a78-91f4-44570c84ed27-h5` 容器（h5-web）
+- 部署脚本：`deploy/_deploy_prd448_v11_20260510.py`（SFTP 上传 6 个 H5 源文件 → docker compose build h5-web → up -d → curl 验证 5 个 URL）
+- gateway-nginx 配置无变更
+- smoke 5/5 PASS：`/`、`/login`、`/ai-home`、`/chat/1`、`/health-archive`（200/308 均合法）
+
+### 自动化测试结果（12/12 PASS）
+非 UI 自动化测试 `tests/test_server_prd448_v11.py`：
+- T01 ai-home 页面可达（HTTP 200）
+- T02 chat/[sessionId] 页面可达（HTTP 200）
+- T03 chunks 含 v1.1 文案模板「本次回答结合 ... 的档案」
+- T04 chunks 含 v1.1 SVG 箭头 path `M4 6L8 10L12 6`
+- T05 chunks 含 v1.1 内边距 `6px 12px` / 圆角 `10`
+- T06 chunks 含 v1.1 字号 `14` / 行高 `20px`
+- T07 chunks 含 `data-is-self` 属性（isSelf prop 已接入）
+- T08 chunks 含 `advisor-capsule` / `ai-advisor-capsule` / `data-expanded`
+- T09 chunks 中 v1.0 字符箭头 ⌃/⌄ 已下线
+- T10 chunks 中 v1.0 占位文案"我的档案"已下线
+- T11 chunks 中 v1.0「加载中…」占位已下线
+- T12 后端 `/api/ai-home-config` 正常返回
+
+### 用户体验手册
+`user_docs/PRD-448-v1.1-咨询人胶囊二次细化.md`
+
+### 起始 commit
+`c986be9`，记录于 `.develop_start_commit_prd448_v11.txt`
+
+---
+
+## Previous Update: PRD-449-AI-HOME-OPTIMIZATION-20260510｜AI 首页（ai-home）页面优化 v1.2（顶部栏改主色 + "小康"间距 4px + AiAvatar 公共组件三段兜底 + AI 消息小头像读后台 + 默认图 60KB + 11/11 服务器自动化测试 PASS）（2026-05-10 18:18）
 
 ### 一句话结论
 按 PRD-449 v1.2 完成 H5 端 AI 对话首页（`/(ai-chat)/ai-home`）的品牌一致性 + 头像兜底改造：① 顶部固定栏背景由白色改为全站主色 `var(--color-primary)`（文字"小康"、☰、⋯ 保持黑色不变）；② "小康"标题与 ☰ 间距由 8px 压缩到 4px 并整体靠左；③ 新增通用 `AiAvatar` 组件，统一处理「取后台 → 兜底 → 占位」三段逻辑，欢迎区大头像（A 位 56×56）和 AI 消息小头像（B 位 28×28，含 loading 卡片）共用；④ AI 消息小头像由原写死 `🌿 emoji` 改为复用「AI 对话模式首页配置 - 欢迎区 - 头像」**同一字段**（`welcome.avatar`），后端零新增字段；⑤ 三场景兜底（接口失败 / 后台字段为空 / 图片加载失败 onerror）统一显示默认"宾尼小康"卡通图；⑥ 加载占位先显示默认 LOGO，加载完成后 200ms CSS opacity 过渡平滑切换，杜绝白屏与闪烁。
