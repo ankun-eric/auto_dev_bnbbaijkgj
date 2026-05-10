@@ -1,0 +1,61 @@
+﻿======================================================================
+PRD-442 澧為噺閮ㄧ讲锛歮enu-mode-design-system + docker cp 杩?h5 瀹瑰櫒
+======================================================================
+[master 8a8b52a] feat(prd-442): 鑿滃崟妯″紡鏅寸┖璇婂椋庢牸鏀归€?v1.0锛圚5 design tokens + 6灞?prototype + 缁勪欢搴?+ 灏忕▼搴?wxss + Flutter ThemeData + 16 鐢ㄤ緥 pytest)
+ 11 files changed, 4158 insertions(+)
+ create mode 100644 .develop_start_commit_442.txt
+ create mode 100644 _deploy_prd442.py
+ create mode 100644 flutter_app/lib/theme/menu_mode_theme.dart
+ create mode 100644 h5-web/public/menu-mode-design-system/PRD-442.md
+ create mode 100644 h5-web/public/menu-mode-design-system/components.html
+ create mode 100644 h5-web/public/menu-mode-design-system/design-tokens.css
+ create mode 100644 h5-web/public/menu-mode-design-system/design-tokens.json
+ create mode 100644 h5-web/public/menu-mode-design-system/index.html
+ create mode 100644 h5-web/public/menu-mode-design-system/prototype.html
+ create mode 100644 miniprogram/styles/menu-mode-tokens.wxss
+ create mode 100644 tests/test_prd442_menu_mode_design.py
+To https://github.com/ankun-eric/auto_dev_bnbbaijkgj.git
+   51e6970..8a8b52a  master -> master
+
+[git push] OK
+
+[SFTP] 鍚屾 menu-mode-design-system/ 鍒版湇鍔″櫒瀹夸富鏈?..
+  鉁?PRD-442.md  (8686 bytes)
+  鉁?components.html  (17115 bytes)
+  鉁?design-tokens.css  (19384 bytes)
+  鉁?design-tokens.json  (5798 bytes)
+  鉁?index.html  (8743 bytes)
+  鉁?prototype.html  (39460 bytes)
+
+[docker] 鏌ユ壘 h5-web 瀹瑰櫒骞?cp 鏂囦欢...
+6b099ed3-7175-4a78-91f4-44570c84ed27-h5
+
+  瀹瑰櫒锛?b099ed3-7175-4a78-91f4-44570c84ed27-h5
+total 124
+drwxr-xr-x    2 root     root          4096 May 10 03:02 .
+drwxr-xr-x    1 root     root          4096 May 10 03:02 ..
+-rw-rw-r--    1 node     1001          8686 May 10 03:02 PRD-442.md
+-rw-rw-r--    1 node     1001         17115 May 10 03:02 components.html
+-rw-rw-r--    1 node     1001         19384 May 10 03:02 design-tokens.css
+-rw-rw-r--    1 node     1001          5798 May 10 03:02 design-tokens.json
+-rw-rw-r--    1 node     1001          8743 May 10 03:02 index.html
+-rw-rw-r--    1 node     1001         39460 May 10 03:02 prototype.html
+
+
+======================================================================
+Smoke Test锛? 椤瑰叧閿矾寰?
+======================================================================
+  [鉁梋 HTTP 404 /menu-mode-design-system/index.html
+  [鉁梋 HTTP 404 /menu-mode-design-system/prototype.html
+  [鉁梋 HTTP 404 /menu-mode-design-system/components.html
+  [鉁梋 HTTP 404 /menu-mode-design-system/design-tokens.css
+  [鉁梋 HTTP 404 /menu-mode-design-system/design-tokens.json
+  [鉁梋 HTTP 404 /menu-mode-design-system/PRD-442.md
+
+======================================================================
+smoke 缁撴灉锛?/6 閫氳繃
+======================================================================
+
+鍥炲綊妫€鏌ワ細绾夸笂 AI 棣栭〉涓?PRD-441 design-system
+  [鉁揮 HTTP 200 /ai-home
+  [鉁揮 HTTP 200 /design-system/index.html

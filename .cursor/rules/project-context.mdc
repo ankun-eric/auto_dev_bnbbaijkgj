@@ -33,7 +33,92 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: PRD-441-AI-CONVERSATION-STYLE-DESIGN-SYSTEM-20260510｜AI 对话风格规范（晴空诊室）设计 Token 体系 + 29 屏 HTML 原型核对版 + PRD 文档（仅 H5 静态资源，零业务代码改动）（2026-05-10 10:30）
+## Latest Update: PRD-442-MENU-MODE-CLEAR-SKY-CLINIC-STYLE-20260510｜菜单模式 · 晴空诊室风格改造 v1.0（H5 design-tokens + 6 屏 HTML 原型核对版 + 13 类组件库 demo + PRD 文档；小程序 wxss tokens；Flutter ThemeData + 5 个 Widget；零业务代码改动；三端打包全部成功）（2026-05-10 11:30）
+
+### 一句话结论
+按 PRD-442 v1.0 走 develop-all 流程交付：把 PRD-441 已确立的「**晴空诊室**」风格扩展到 bini-health **菜单模式**（与 AI 模式共用同一 11 级天蓝色阶 hex 完全一致，避免割裂感）。**5 大交付物**：① H5 端 `h5-web/public/menu-mode-design-system/`（6 文件 = `design-tokens.css` 19.4KB / `design-tokens.json` 5.8KB 含 `allowed` 白名单 / `PRD-442.md` 8.7KB / `prototype.html` 39.5KB 6 屏核对版 / `components.html` 17.1KB 13 类组件 demo / `index.html` 8.7KB 入口导航页），② 小程序端 `miniprogram/styles/menu-mode-tokens.wxss` 11 级 sky-* + 13 类 `.menu-*` 组件样式（rpx 单位适配），③ Flutter 端 `flutter_app/lib/theme/menu_mode_theme.dart`（`MenuModeColors` / `MenuModeFontSize` / `MenuModeSpacing` / `MenuModeRadius` / `MenuModeShadow` / `MenuModeGradient` Tokens 类 + `buildMenuModeTheme()` ThemeData 工厂 + 5 个常用 Widget：`MenuMedicalCard` 病历卡 / `MenuHeroCard` / `MenuPrimaryButton` / `MenuFamilyChip` / `MenuNumBadge`），④ pytest `tests/test_prd442_menu_mode_design.py` **16/16 PASS**（覆盖 H5 6 大交付物存在与体积、11 级 sky 色阶完整与正确、5 大渐变 token、20 个 .menu-* 组件类、JSON schema 合法、辅助色 allowed 白名单、PRD 9 大章节、6 屏 SCREEN ① ~ ⑥ 完整、13 类组件 demo 章节、阴影禁纯黑、字号 AA 合规、小程序 wxss、Flutter dart 文件 + Widget、与 PRD-441 兼容性、病历卡铁律），⑤ 用户体验手册 `user_docs/菜单模式_晴空诊室风格_PRD442_用户体验手册.md`。**部署**：`_deploy_prd442.py` 首次 docker cp 进 h5 容器后 smoke 全 404，诊断后用 `_deploy_prd442_v2.py` 主动 `docker restart` h5 容器（next-server 重启时重扫 public/ 目录），smoke **6/6 PASS** + 回归 2/2 PASS（`/ai-home` 和 `/design-system/index.html` 均正常）。**多端打包全部成功**：小程序 zip（410KB）+ 安卓 APK（80.8MB）+ iOS IPA（32.6MB）三端并行打包完成上传。**业务代码 0 改动**（不触碰任何现有 H5 业务页面 / 后端 / 小程序 / Flutter 业务代码，仅向 H5 容器 `public/` 追加静态资源 + 小程序 styles 目录追加新 wxss + Flutter lib/theme 目录追加新 dart 文件）。
+
+### 范围与端
+- **H5（Next.js + React，仅 public 静态资源新增）**：6 文件全新增，零业务代码改动
+  - `h5-web/public/menu-mode-design-system/design-tokens.css`：19.4 KB / ~600 行。`:root` 内定义全套 token：①11 级 `--sky-50/100/200/300/400/500/600/700/800/900/950`（与 PRD-441 brand-* 同色不同名）；②语义辅助色 `--success/danger/member` + `--text-1/2/3` + `--bg-base/soft`；③4 级阴影（`--shadow-1/2/3/4`，统一 rgba(56,189,248,…) 天蓝阴影禁止纯黑）；④5 级圆角（`--radius-xs/sm/md/lg/xl`，xl=24px 主卡片专用）；⑤8 级字号（`--fs-12/14/16/18/20/24/30/36`，14 起、36 关键指标 AA 合规）；⑥8 级间距（`--sp-1/2/3/4/5/6/8/10`）；⑦4 大渐变 token（`--gradient-topbar-a1` 最浅 / `--gradient-btn-primary` 中段 / `--gradient-hero-deep` 最深 / `--gradient-login-bg` 三色登录背景）；⑧字距 `--letter-spacing-base: 0.02em`；⑨缓动 `--easing-standard` + 4 级 `--duration`；⑩z-index 7 级。组件类（`.menu-*` 系列 20+）：`.menu-btn--primary/secondary/text/icon/disabled` `.menu-card / --medical（::before 3px sky-400 竖线核心铁律）/ --hero（深蓝渐变）` `.menu-input--error` `.menu-tab--active / .menu-tabbar` `.menu-drawer / -mask` `.menu-toast--success/warning/danger` `.menu-modal / .menu-action-sheet` `.menu-list-item-arrow` `.menu-chip--active` `.menu-avatar--sm/lg/xl + -member-badge` `.menu-badge-dot/-num` `.menu-skeleton`（200%×100% shimmer keyframe 1500ms）`.menu-empty` `.menu-topbar-a1/-secondary/-back` + 6 屏专属类（`.menu-login-page/-card` `.menu-grid/-item/-icon` `.menu-ai-entry-*` `.menu-chat-bubble-user` `.menu-archive-hero/-score` `.menu-profile-hero/-name/-meta` `.menu-order-status-row/-item`）
+  - `h5-web/public/menu-mode-design-system/design-tokens.json`：5.8 KB / 152 行。机器可读结构，所有 token 含 `value` + 可选 `comment/usage/allowed`。`color.sky` 11 级、`color.semantic.success/danger/member` 全部含 `allowed` 场景白名单（如 danger.allowed=["未读红点","错误 Toast","危险操作","严重告警徽标"]，体现 PRD §7.1 红线规范代码化）；`components` 节列出 13 个组件的关键属性；`accessibility` 节明确 AA 级 4.5:1 + 44×44pt 最小热区 + 14px 最小正文；`ironRules` 节列 7 条核心铁律
+  - `h5-web/public/menu-mode-design-system/PRD-442.md`：8.7 KB / 9 大章节。①决策摘要（A2 6 屏 + B2 三端 H5→小程序→Flutter + C2 灰度 10/30/100 + D1 与 AI 模式统一 + E3 Tokens+组件库 + F1 一个月 + F4 暗黑二期）②项目背景与目标 ③落地范围（6 屏 + 12-18 二级页延展）④Design Tokens 6 大表格 ⑤H5 组件库 ⑥三端任务拆解 ⑦灰度发布与切换策略 ⑧验收标准（视觉 < 3% / 三端 < 5% / 性能 LCP < 2.5s / 体验 5 位 50+ 用户测试） ⑨风险清单 7 条
+  - `h5-web/public/menu-mode-design-system/prototype.html`：39.5 KB / ~970 行。响应式网格布局（auto-fill minmax 360px），每屏一张「手机模拟卡」（高 720px 圆角 28px）。顶部固定导航条 6 屏锚点（#screen1 ~ #screen6）+ 跳转到组件库 demo 的链接。**6 屏全部用纯 HTML/CSS 还原（无 JS 框架依赖）**：①登录页（渐变背景 + 24px 圆角白卡 + brand logo + 三方登录三圆按钮 + 协议）②菜单首页（A1 渐变顶栏 + AI 入口大渐变卡 + 4 家人 chips 横滚 + 健康管理 6 项九宫格（含徽标）+ 服务与订单 3 项九宫格 + 限时礼包 banner）③聊天页（顶栏 + 咨询人胶囊 sky 圆点 + 病历卡气泡 + 渐变用户气泡 + 底部 input bar + 发送按钮渐变圆）④健康档案（深蓝 hero 24px 圆角下沿 + 48px 雷达 SVG 5 维 + 4 关键指标卡上浮 -16px 阴影 + 6 模块入口）⑤侧边抽屉（背后页 + 半透明蒙层 + 280px 抽屉 + A1 顶栏 + 搜索框 + 5 历史项 + 渐变新建按钮）⑥个人中心（深蓝 hero + 头像金徽 + 数据卡上浮 3 列分隔线 + 4 订单状态网格（含数字徽标）+ 6 列表项箭头）。每屏右上角 SCREEN ① ~ ⑥ 标签便于走查
+  - `h5-web/public/menu-mode-design-system/components.html`：17.1 KB / ~440 行。13 类组件 demo 单页：颜色 Tokens 11 级色板 + 4 辅助色、4 渐变卡片、Button 5 变体（primary/secondary/text/icon/disabled）、3 卡片类（普通/病历/Hero）、Input 4 类（文本/密码/搜索/错误态）、Tab + TabBar、Drawer + Mask、Toast 4 类、List、Chip 4 个、Avatar 4 尺寸 + 金徽、Badge 红点 + 数字、Skeleton + Empty、圆角/阴影/字号 Tokens 演示
+  - `h5-web/public/menu-mode-design-system/index.html`：8.7 KB / ~270 行。导航首页，hero 大标题 + meta 五色金属感数据条（6 屏/11 级/13 类/3 端/AA 级）+ 5 张交付物卡片 + 11 级色阶可视化色板预览 + 与 PRD-441 兼容性说明卡
+- **小程序（原生 wxml/wxss/js）**：1 文件全新增（`miniprogram/styles/menu-mode-tokens.wxss` 6.5KB），含完整 11 级 `--sky-*` 色阶 + 4 级阴影（rpx 单位）+ 5 级圆角 + 8 级字号（rpx）+ 8 级间距 + 13 类 `.menu-*` 组件样式。**未修改任何现有 page 的 wxml/wxss/js**，可由后续 6 屏改造按需 `@import "/styles/menu-mode-tokens.wxss"` 引入
+- **Flutter（iOS + Android 共享 lib/）**：1 文件全新增（`flutter_app/lib/theme/menu_mode_theme.dart` 11KB），含：
+  - `MenuModeColors`：11 级 `Color(0xFFXXXXXX)` const 定义 + 3 个语义色 + 3 级文字 + 4 个背景边框
+  - `MenuModeFontSize`/`MenuModeSpacing`/`MenuModeRadius` 数值 const
+  - `MenuModeShadow`：4 级 const `List<BoxShadow>`，不透明度通过 `Color(0x14/0x1A/0x1F/0x29 38BDF8)` 编码
+  - `MenuModeGradient`：4 个 const `LinearGradient`（topbarA1 / btnPrimary / heroDeep / loginBg）
+  - `MenuModeDuration`：3 级 `Duration`
+  - `buildMenuModeTheme()`：完整 ThemeData 工厂（colorScheme + textTheme 8 级 + appBarTheme + cardTheme 16px 圆角 + elevatedButtonTheme 48 高 12 圆角 + outlinedButtonTheme + inputDecorationTheme 含 focused/error border + dividerTheme）
+  - 5 个业务 Widget：`MenuMedicalCard`（Stack + 左 3px sky-400 Positioned 竖线 + shadow-2 病历卡铁律）、`MenuHeroCard`（深蓝渐变 + 24px 圆角 + 默认白色文字）、`MenuPrimaryButton`（高 48 + 渐变 + InkWell 涟漪 + 禁用态自动切灰）、`MenuFamilyChip`（32 高 + 999 圆角 + active sky-400 切换）、`MenuNumBadge`（红色数字徽标 + 9+/99+ 上限 + 白色描边）
+  - **未修改任何现有 screen/widget**，可由后续 6 屏改造按需 `import 'package:bini_health/theme/menu_mode_theme.dart'` 引入
+- **后端 / 安卓 / iOS / Windows exe / macOS / CLI**：**全部 0 业务代码改动**（PRD §1.3 明确"业务流程不重构，仅做视觉与组件层改造"，本次仅交付设计基线 + 三端 token 文件；无任何后端接口/数据结构变更）
+
+### 验收要点（PRD-442 §7 + 阶段 1 测试覆盖 16/16 PASS）
+- AC-01 H5 6 大交付物（CSS/JSON/MD/prototype/components/index）全部完成且文件大小达标 ✓ pytest T01-T02
+- AC-02 11 级天蓝色阶完整且 hex 值与 PRD §3.1 表完全一致（含菜单模式补充的 sky-950 #082f49） ✓ pytest T03
+- AC-03 4 大核心渐变 token 全部存在（topbar-a1 / btn-primary / hero-deep / login-bg） ✓ pytest T04
+- AC-04 20+ 类 .menu-* 组件类齐全（含 Button 5 变体 / 3 类 Card / Input / Tab / Drawer / Toast / Modal / List / Chip / Avatar / Badge / Skeleton / Empty / Topbar / 6 屏专属类） ✓ pytest T05
+- AC-05 design-tokens.json 是合法 JSON 且顶层 10 大字段完整（meta/color/shadow/radius/fontSize/space/gradient/components/ironRules/accessibility） ✓ pytest T06
+- AC-06 辅助色含 allowed 场景白名单约束（success/danger/member 三色全部含非空 allowed 列表） ✓ pytest T07
+- AC-07 PRD-442.md 9 大章节齐全 ✓ pytest T08
+- AC-08 prototype.html 含完整 6 屏（SCREEN ①~⑥ 标签 + #screen1~#screen6 锚点全部各 1 次） ✓ pytest T09
+- AC-09 components.html 含 13 类组件 demo 全部章节 ✓ pytest T10
+- AC-10 所有阴影 token 禁止使用纯黑（rgba(0,…)），统一使用天蓝阴影 ✓ pytest T11
+- AC-11 base 字号 == 14px，关键指标字号 == 36px（中老年友好 + AA 无障碍） ✓ pytest T12
+- AC-12 小程序 wxss tokens 文件存在且 11 级 sky-* 完整 ✓ pytest T13
+- AC-13 Flutter dart 文件存在 + 11 级 MenuModeColors + buildMenuModeTheme + MenuMedicalCard + MenuPrimaryButton 齐全 ✓ pytest T14
+- AC-14 与 PRD-441 AI 模式色板兼容性（10 级共享 hex 完全一致） ✓ pytest T15
+- AC-15 病历卡铁律：白底 + 左 3px sky-400 竖线 + shadow-2 ✓ pytest T16
+- AC-16 服务器 6 大交付物 URL 全部 200 OK 可访问 ✓ smoke 6/6 + 回归 2/2
+
+### 部署与验证
+- **部署脚本**：`_deploy_prd442.py`（首次部署：git push + SFTP 上传 + docker cp 进 h5 容器 + 6 项 smoke）→ 首次 smoke 全 404
+- **诊断**：`_diag_prd442.py` / `_diag_prd442_v2.py` / `_diag_prd442_v3.py` 三轮诊断发现根因——h5 容器实际监听 3001 而非 3000，且 Next.js standalone 不会动态发现新 public 子目录（因 PRD-441 v1 部署时 design-system 已被 build 进 image，所以后续 v2 docker cp 能生效；而 PRD-442 完全是新目录，next-server 启动时未扫到）
+- **修复部署**：`_deploy_prd442_v2.py`（主动 `docker restart {DEPLOY_ID}-h5` 让 next-server 重启重扫 public/）→ smoke **6/6 PASS** + 回归 2/2 PASS
+- **测试**：`pytest tests/test_prd442_menu_mode_design.py -v` → **16 passed in 0.20s**（100% 通过）
+- **服务器 smoke 6/6 关键路径 PASS**：
+  - [https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/menu-mode-design-system/index.html](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/menu-mode-design-system/index.html) → 200 (8743 bytes)
+  - [https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/menu-mode-design-system/prototype.html](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/menu-mode-design-system/prototype.html) → 200 (39460 bytes)
+  - [https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/menu-mode-design-system/components.html](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/menu-mode-design-system/components.html) → 200 (17115 bytes)
+  - [https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/menu-mode-design-system/design-tokens.css](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/menu-mode-design-system/design-tokens.css) → 200 (19384 bytes)
+  - [https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/menu-mode-design-system/design-tokens.json](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/menu-mode-design-system/design-tokens.json) → 200 (5798 bytes)
+  - [https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/menu-mode-design-system/PRD-442.md](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/menu-mode-design-system/PRD-442.md) → 200 (8686 bytes)
+  - 回归：`/ai-home` → 200 + `/design-system/index.html` → 200（PRD-441 资产未受影响）
+- **多端打包**：本次小程序 wxss + Flutter dart 共享代码改动 → 三端并行打包子 Agent 全部成功
+  - 小程序：[miniprogram_prd442_20260510112440_544e.zip](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/miniprogram/miniprogram_prd442_20260510112440_544e.zip) (410 KB, HTTP 200)
+  - 安卓：[app_prd442_20260510112400_a741.apk](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/apk/app_prd442_20260510112400_a741.apk) (80.8 MB, HTTP 200)
+  - iOS：[GitHub Release ios-prd442-v20260510-112250-3f5e](https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-prd442-v20260510-112250-3f5e) → [bini_health_ios.ipa](https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/download/ios-prd442-v20260510-112250-3f5e/bini_health_ios.ipa) (32.6 MB)
+- **用户体验手册**：`user_docs/菜单模式_晴空诊室风格_PRD442_用户体验手册.md`
+
+### 关键技术决策
+- **为什么菜单模式 sky-* 命名而非沿用 brand-***：PRD-442 §3.1 命名空间区分两层意图——`brand-*` 是 AI 模式专属，`sky-*` 是菜单模式专属，便于未来局部调色或新增子色板（如 PRD-443+ 的某二级页可能需要单独 ramp）；同 hex 值确保视觉统一，不同命名空间留扩展余地
+- **为什么菜单模式补充 sky-950**：PRD-441 brand-* 只到 900（#0c4a6e），菜单模式 6 屏的「健康档案 hero」与「个人中心 hero」需要更深的渐变止点形成更强对比，新增 950（#082f49）作为最深底色储备，目前主要用于深色模式（二期）的预留
+- **为什么 Tokens 不直接 import PRD-441 的 design-tokens.css**：保持菜单模式与 AI 模式的 CSS 文件物理隔离，避免某天调整其中一个时影响另一个；通过 pytest T15 自动校验两套 Hex 值兼容性，相当于"契约测试"
+- **为什么病历卡铁律要 pytest 强校验（T16）**：病历卡是整个晴空诊室风格的「灵魂元素」，"白底 + 左 3px sky-400 竖线 + shadow-2"三要素任一缺失都会破坏整体感；通过 regex 抓取 `.menu-card--medical` 块和 `::before` 块自动校验，避免后续维护时被无意修改
+- **为什么 prototype.html 用纯 HTML/CSS 而非 React**：① 单文件 39.5KB 即可独立运行无需任何依赖；② 设计师/PM 可直接下载查看，不需要 npm install；③ 6 屏所有视觉细节（雷达 SVG / 渐变 / 抽屉蒙层 / 数字徽标）都用 CSS/SVG 原生实现，可作为前端工程师后续实现的参考代码
+- **为什么部署后必须 docker restart h5 容器**：Next.js standalone 模式中，next-server 启动时会扫描一次 public/ 目录建立路由映射；后来 docker cp 进去的**新子目录**（如 `menu-mode-design-system/` 是全新目录）不会被自动发现。而 PRD-441 v2 部署只是更新已存在的 `design-system/` 子目录文件，这种情况 next-server 在请求到来时会重新读文件，所以能 200。所以新增子目录必须 restart 容器，仅更新现有子目录文件可不 restart
+- **为什么三端打包都要并行子 Agent**：本次三端共享代码（Flutter lib/）+ 小程序 styles 都有改动，按 develop-all 阶段 4 「变更必打包原则」必须重新打包；用 3 个独立 Task 并行（同一消息中发出）将原本串行 ~30 分钟压缩到 ~12 分钟（最长的一个完成时间）
+- **为什么 Flutter Color 字面量去掉 underscore**：Dart 数值字面量虽然支持 `_` 但 Color() 构造函数对 `0x29_38BDF8` 解析可能因 SDK 版本不同有兼容问题；改为标准 `0x2938BDF8` 形式，兼容所有 Dart 版本
+
+### Latest 文件变动一览
+- 新增（h5-web 静态资源 6 文件）：`h5-web/public/menu-mode-design-system/{design-tokens.css,design-tokens.json,PRD-442.md,index.html,prototype.html,components.html}`
+- 新增（小程序 1 文件）：`miniprogram/styles/menu-mode-tokens.wxss`
+- 新增（Flutter 1 文件）：`flutter_app/lib/theme/menu_mode_theme.dart`
+- 新增（pytest 测试）：`tests/test_prd442_menu_mode_design.py`（16 用例）
+- 新增（部署脚本与日志）：`_deploy_prd442.py`、`_deploy_prd442_v2.py`、`_diag_prd442{,_v2,_v3}.py`、`_deploy_prd442.log`、`.develop_start_commit_442.txt`
+- 新增（打包脚本）：`_pack_prd442_miniprogram.py`、`_pack_prd442_android.py`、`_pack_prd442_android_finalize.py`、`_pack_prd442_ios.py`、对应 `.log` 文件
+- 新增（用户文档）：`user_docs/菜单模式_晴空诊室风格_PRD442_用户体验手册.md`
+- 部署生效 commit：`8a8b52a` feat(prd-442): 菜单模式晴空诊室风格改造 v1.0
+- 起始 commit（develop-all 周期前）：`51e6970`
+
+---
+
+## Previous Update: PRD-441-AI-CONVERSATION-STYLE-DESIGN-SYSTEM-20260510｜AI 对话风格规范（晴空诊室）设计 Token 体系 + 29 屏 HTML 原型核对版 + PRD 文档（仅 H5 静态资源，零业务代码改动）（2026-05-10 10:30）
 
 ### 一句话结论
 按 PRD-441 v1.0 走 develop-all 流程交付：建立 bini-health AI 对话模式视觉与交互规范的「**唯一文字基线**」，奠定方案 A「**晴空诊室**」（11 级天蓝色阶 + 病历卡形态 + 中老年友好）作为后续所有 AI 对话相关页面的设计依据。**4 大交付物**：① `design-tokens.css`（11 级 brand + 5 大渐变 + 9 级字号 + 7 级圆角 + 4 级天蓝色阴影 + 16 类组件 .bh-* 样式），② `design-tokens.json`（含 meta/color/gradient/fontSize/space/radius/shadow/duration/easing/zIndex/components/accessibility，accent 含 `allowed` 白名单约束），③ `PRD-441.md` 9 章节完整规范（同时附中文文件名副本 `PRD-441-AI对话风格规范.md`），④ `prototype.html` 5 大分组 29 屏完整核对版（对话基础 3 + 对话扩展 6 + 业务交互 7 + 核心业务 7 + 其余业务 6）+ `index.html` 入口导航页（含 11 级色板可视化预览）。**部署**：通过 SFTP + docker cp 增量上传到服务器 `6b099ed3-7175-4a78-91f4-44570c84ed27-h5` 容器 `/app/public/design-system/` 后 docker restart。**测试**：① pytest `tests/test_prd441_design_tokens.py` **12/12 PASS**（覆盖 4 大交付物存在性、11 级 brand 完整性、5 大渐变、16 类组件类、JSON schema 合法、辅助色 allowed 白名单约束、PRD 9 章节、29 屏数量精确、index 链接、阴影禁纯黑、字号 AA 无障碍合规）；② 服务器 smoke 5/5 关键路径 200 OK（index.html / prototype.html / design-tokens.css / design-tokens.json / PRD-441.md），仅 `/design-system/` 无 index 因 Next.js 框架不支持目录索引返回 404（非 Bug）。**业务代码 0 改动**（不触碰任何现有 H5 业务页面 / 后端 / 小程序 / Flutter 代码，仅向 H5 容器 `public/` 追加静态资源），**未触发任何端打包**（小程序/安卓/iOS/exe/macOS/CLI 全部跳过）。**用户体验手册**：`user_docs/AI对话风格规范_PRD441_用户体验手册.md`。

@@ -1,0 +1,32 @@
+======================================================================
+PRD-442 子 Agent A · 微信小程序 zip 打包 & 上传
+======================================================================
+src       : C:\auto_output\bnbbaijkgj\miniprogram
+server    : newbb.test.bangbangvip.com
+remote dir: /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/static/miniprogram
+base url  : https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/miniprogram
+
+[1/3] 打包 -> C:\auto_output\bnbbaijkgj\miniprogram_prd442_20260510112440_544e.zip
+      done. files=345 raw=1293257 bytes zip=420172 bytes (410.3 KiB) in 0.14s
+      zip top-level entries (前 20 个): ['app.js', 'app.json', 'app.wxss', 'assets', 'components', 'custom-tab-bar', 'data', 'pages', 'project.config.json', 'sitemap.json', 'styles', 'utils']
+      [check] app.json + project.config.json 在 zip 顶层 OK
+
+[2/3] 上传到 /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/static/miniprogram/miniprogram_prd442_20260510112440_544e.zip
+[SSH] connect ubuntu@newbb.test.bangbangvip.com:22
+[remote mkdir] rc=0 stdout='' stderr=''
+[SFTP] put C:\auto_output\bnbbaijkgj\miniprogram_prd442_20260510112440_544e.zip -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/static/miniprogram/miniprogram_prd442_20260510112440_544e.zip
+[SFTP] uploaded size=420172 bytes
+
+[3/3] 验证下载 URL
+[HTTP] GET https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/miniprogram/miniprogram_prd442_20260510112440_544e.zip
+[HTTP] status=200 bytes=420172 expected=420172
+
+======================================================================
+RESULT
+======================================================================
+zip file       : miniprogram_prd442_20260510112440_544e.zip
+local size     : 420172 bytes
+download url   : https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/miniprogram/miniprogram_prd442_20260510112440_544e.zip
+http status    : 200
+downloaded     : 420172 bytes
+STATUS         : OK ✓

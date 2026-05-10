@@ -1,0 +1,102 @@
+[2026-05-10 11:07:50] ======================================================================
+[2026-05-10 11:07:50] PRD-442 Android APK 打包子 Agent B 启动
+[2026-05-10 11:07:50] ======================================================================
+[2026-05-10 11:07:50] 版本标签: android-prd442-v20260510110750-7248
+[2026-05-10 11:07:50] 触发 workflow android-build.yml, version=android-prd442-v20260510110750-7248
+[2026-05-10 11:07:50] $ gh workflow run android-build.yml -f version=android-prd442-v20260510110750-7248  (cwd=C:\auto_output\bnbbaijkgj)
+[2026-05-10 11:07:59] $ gh run list --workflow=android-build.yml --limit 1 --json databaseId,status,headBranch,createdAt  (cwd=C:\auto_output\bnbbaijkgj)
+[2026-05-10 11:08:00]   | [{"createdAt":"2026-05-10T03:07:51Z","databaseId":25618360520,"headBranch":"master","status":"in_progress"}]
+[2026-05-10 11:08:00] 获取到 run id: 25618360520 (status=in_progress)
+[2026-05-10 11:08:00] $ gh run view 25618360520 --json status,conclusion,url  (cwd=C:\auto_output\bnbbaijkgj)
+[2026-05-10 11:08:01]   | {"conclusion":"","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25618360520"}
+[2026-05-10 11:08:01] run 25618360520 status=in_progress conclusion= url=https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25618360520
+[2026-05-10 11:08:31] $ gh run view 25618360520 --json status,conclusion,url  (cwd=C:\auto_output\bnbbaijkgj)
+[2026-05-10 11:08:31]   | {"conclusion":"","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25618360520"}
+[2026-05-10 11:09:01] $ gh run view 25618360520 --json status,conclusion,url  (cwd=C:\auto_output\bnbbaijkgj)
+[2026-05-10 11:09:02]   | {"conclusion":"","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25618360520"}
+[2026-05-10 11:09:32] $ gh run view 25618360520 --json status,conclusion,url  (cwd=C:\auto_output\bnbbaijkgj)
+[2026-05-10 11:09:32]   | {"conclusion":"","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25618360520"}
+[2026-05-10 11:10:02] $ gh run view 25618360520 --json status,conclusion,url  (cwd=C:\auto_output\bnbbaijkgj)
+[2026-05-10 11:10:03]   | {"conclusion":"","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25618360520"}
+[2026-05-10 11:10:33] $ gh run view 25618360520 --json status,conclusion,url  (cwd=C:\auto_output\bnbbaijkgj)
+[2026-05-10 11:10:34]   | {"conclusion":"","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25618360520"}
+[2026-05-10 11:11:04] $ gh run view 25618360520 --json status,conclusion,url  (cwd=C:\auto_output\bnbbaijkgj)
+[2026-05-10 11:11:04]   | {"conclusion":"","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25618360520"}
+[2026-05-10 11:11:34] $ gh run view 25618360520 --json status,conclusion,url  (cwd=C:\auto_output\bnbbaijkgj)
+[2026-05-10 11:11:35]   | {"conclusion":"","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25618360520"}
+[2026-05-10 11:12:05] $ gh run view 25618360520 --json status,conclusion,url  (cwd=C:\auto_output\bnbbaijkgj)
+[2026-05-10 11:12:05]   | {"conclusion":"","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25618360520"}
+[2026-05-10 11:12:35] $ gh run view 25618360520 --json status,conclusion,url  (cwd=C:\auto_output\bnbbaijkgj)
+[2026-05-10 11:12:36]   | {"conclusion":"","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25618360520"}
+[2026-05-10 11:13:06] $ gh run view 25618360520 --json status,conclusion,url  (cwd=C:\auto_output\bnbbaijkgj)
+[2026-05-10 11:13:07]   | {"conclusion":"","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25618360520"}
+[2026-05-10 11:13:37] $ gh run view 25618360520 --json status,conclusion,url  (cwd=C:\auto_output\bnbbaijkgj)
+[2026-05-10 11:13:37]   | {"conclusion":"","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25618360520"}
+[2026-05-10 11:14:07] $ gh run view 25618360520 --json status,conclusion,url  (cwd=C:\auto_output\bnbbaijkgj)
+[2026-05-10 11:14:08]   | {"conclusion":"","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25618360520"}
+[2026-05-10 11:14:38] $ gh run view 25618360520 --json status,conclusion,url  (cwd=C:\auto_output\bnbbaijkgj)
+[2026-05-10 11:14:39]   | {"conclusion":"","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25618360520"}
+[2026-05-10 11:15:09] $ gh run view 25618360520 --json status,conclusion,url  (cwd=C:\auto_output\bnbbaijkgj)
+[2026-05-10 11:15:09]   | {"conclusion":"","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25618360520"}
+[2026-05-10 11:15:39] $ gh run view 25618360520 --json status,conclusion,url  (cwd=C:\auto_output\bnbbaijkgj)
+[2026-05-10 11:15:40]   | {"conclusion":"","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25618360520"}
+[2026-05-10 11:16:10] $ gh run view 25618360520 --json status,conclusion,url  (cwd=C:\auto_output\bnbbaijkgj)
+[2026-05-10 11:16:10]   | {"conclusion":"","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25618360520"}
+[2026-05-10 11:16:40] $ gh run view 25618360520 --json status,conclusion,url  (cwd=C:\auto_output\bnbbaijkgj)
+[2026-05-10 11:16:41]   | {"conclusion":"","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25618360520"}
+[2026-05-10 11:17:11] $ gh run view 25618360520 --json status,conclusion,url  (cwd=C:\auto_output\bnbbaijkgj)
+[2026-05-10 11:17:11]   | {"conclusion":"success","status":"completed","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25618360520"}
+[2026-05-10 11:17:11] run 25618360520 status=completed conclusion=success url=https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25618360520
+[2026-05-10 11:17:11] run 25618360520 完成: conclusion=success
+[2026-05-10 11:17:11] $ gh release download android-prd442-v20260510110750-7248 --pattern *.apk --dir C:\auto_output\bnbbaijkgj\_prd442_android_dl --clobber  (cwd=C:\auto_output\bnbbaijkgj)
+[2026-05-10 11:17:18] 下载到 APK: C:\auto_output\bnbbaijkgj\_prd442_android_dl\bini_health_android-prd442-v20260510110750-7248.apk (84698587 bytes)
+[2026-05-10 11:17:18] 重命名 APK: bini_health_android-prd442-v20260510110750-7248.apk -> app_prd442_20260510111718_26db.apk
+[2026-05-10 11:17:18] SFTP 上传 C:\auto_output\bnbbaijkgj\_prd442_android_dl\app_prd442_20260510111718_26db.apk -> newbb.test.bangbangvip.com:/data/static/apk/app_prd442_20260510111718_26db.apk
+[2026-05-10 11:17:21] ERROR: [Errno 13] Permission denied
+[2026-05-10 11:17:21] SUMMARY_JSON: {"version_tag": "android-prd442-v20260510110750-7248", "run_id": "25618360520", "release_url": "https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/android-prd442-v20260510110750-7248", "apk_filename": "app_prd442_20260510111718_26db.apk", "download_url": null, "http_status": null, "byte_size": null, "error": "[Errno 13] Permission denied"}
+[2026-05-10 11:18:01] SFTP 上传 C:\auto_output\bnbbaijkgj\_prd442_android_dl\app_prd442_20260510111718_26db.apk -> newbb.test.bangbangvip.com:/tmp/app_prd442_20260510111718_26db.apk
+[2026-05-10 11:19:54]   上传到 /tmp 完成, 大小 = 84698587 bytes
+[2026-05-10 11:19:54]   sudo mv 到目标目录
+[2026-05-10 11:19:54]   | -rw-r--r-- 1 ubuntu ubuntu 84698587 May 10 11:19 /data/static/apk/app_prd442_20260510111718_26db.apk
+[2026-05-10 11:19:57] HTTP HEAD/GET 验证: https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/apk/app_prd442_20260510111718_26db.apk
+[2026-05-10 11:19:58]   验证失败 (attempt 1/3): HTTP Error 404: Not Found
+[2026-05-10 11:20:03]   验证失败 (attempt 2/3): HTTP Error 404: Not Found
+[2026-05-10 11:20:14]   验证失败 (attempt 3/3): HTTP Error 404: Not Found
+[2026-05-10 11:22:19] ======================================================================
+[2026-05-10 11:22:19] 补步骤：重新上传到正确路径 + HTTP 验证
+[2026-05-10 11:22:19] APK: C:\auto_output\bnbbaijkgj\_prd442_android_dl\app_prd442_20260510111718_26db.apk (84698587 bytes)
+[2026-05-10 11:22:19] SFTP 上传 C:\auto_output\bnbbaijkgj\_prd442_android_dl\app_prd442_20260510111718_26db.apk -> newbb.test.bangbangvip.com:/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/static/apk/app_prd442_20260510111718_26db.apk
+[2026-05-10 11:22:21]   | drwxr-xr-x 2 ubuntu ubuntu 4096 May 10 01:48 /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/static/apk
+[2026-05-10 11:24:00] ======================================================================
+[2026-05-10 11:24:00] PRD-442 Android 子 Agent B - 最终化（重新上传 + HTTP 验证）
+[2026-05-10 11:24:00] ======================================================================
+[2026-05-10 11:24:00] 使用本地 APK: C:\auto_output\bnbbaijkgj\_prd442_android_dl\bini_health_android-prd442-v20260510110750-7248.apk (84698587 bytes)
+[2026-05-10 11:24:00] 目标远端文件名: app_prd442_20260510112400_a741.apk
+[2026-05-10 11:24:00] [SFTP attempt 1/3] 上传 bini_health_android-prd442-v20260510110750-7248.apk -> newbb.test.bangbangvip.com:/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/static/apk/app_prd442_20260510112400_a741.apk
+[2026-05-10 11:24:02]   | drwxr-xr-x 2 ubuntu ubuntu 4096 May 10 11:22 /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/static/apk
+[2026-05-10 11:24:13]   上传完成, 远端大小 = 84698587 bytes
+[2026-05-10 11:24:14] URL: https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/apk/app_prd442_20260510111718_26db.apk
+[2026-05-10 11:24:15]   ... 10% (8486912/84698587)
+[2026-05-10 11:24:17] HTTP HEAD/GET 验证: https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/apk/app_prd442_20260510111718_26db.apk
+[2026-05-10 11:24:20]   HTTP 200, size=84698587 bytes
+[2026-05-10 11:24:20] FINAL: HTTP 200, size=84698587
+[2026-05-10 11:24:20] SUMMARY_JSON: {"version_tag": "android-prd442-v20260510110750-7248", "run_id": "25618360520", "release_url": "https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/android-prd442-v20260510110750-7248", "apk_filename": "app_prd442_20260510111718_26db.apk", "download_url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/apk/app_prd442_20260510111718_26db.apk", "http_status": 200, "byte_size": 84698587, "error": null}
+[2026-05-10 11:24:37]   ... 30% (25427968/84698587)
+[2026-05-10 11:24:59]   ... 50% (42369024/84698587)
+[2026-05-10 11:25:21]   ... 70% (59310080/84698587)
+[2026-05-10 11:25:44]   ... 90% (76251136/84698587)
+[2026-05-10 11:25:55]   上传完成 in 112.0s, 远端大小 = 84698587 bytes (本地 84698587)
+[2026-05-10 11:25:58] HTTP GET 验证: https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/apk/app_prd442_20260510112400_a741.apk
+[2026-05-10 11:25:59]   HTTP 200, Content-Length=84698587 bytes (本地 84698587)
+[2026-05-10 11:25:59] ======================================================================
+[2026-05-10 11:25:59] 最终结果:
+[2026-05-10 11:25:59]   version_tag: android-prd442-v20260510110750-7248
+[2026-05-10 11:25:59]   run_id: 25618360520
+[2026-05-10 11:25:59]   release_url: https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/android-prd442-v20260510110750-7248
+[2026-05-10 11:25:59]   apk_filename: app_prd442_20260510112400_a741.apk
+[2026-05-10 11:25:59]   download_url: https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/apk/app_prd442_20260510112400_a741.apk
+[2026-05-10 11:25:59]   http_status: 200
+[2026-05-10 11:25:59]   byte_size: 84698587
+[2026-05-10 11:25:59]   error: None
+[2026-05-10 11:25:59] ======================================================================
+[2026-05-10 11:25:59] SUMMARY_JSON: {"version_tag": "android-prd442-v20260510110750-7248", "run_id": "25618360520", "release_url": "https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/android-prd442-v20260510110750-7248", "apk_filename": "app_prd442_20260510112400_a741.apk", "download_url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/apk/app_prd442_20260510112400_a741.apk", "http_status": 200, "byte_size": 84698587, "error": null}

@@ -1,0 +1,62 @@
+[2026-05-10 11:22:50] === PRD-442 iOS pack START ===
+[2026-05-10 11:22:50] Version tag: ios-prd442-v20260510-112250-3f5e
+[2026-05-10 11:22:50] Triggering workflow...
+[2026-05-10 11:22:50] $ gh workflow run ios-build.yml -f version=ios-prd442-v20260510-112250-3f5e (attempt 1/3)
+[2026-05-10 11:23:00] Fetching latest run id...
+[2026-05-10 11:23:00] $ gh run list --workflow=ios-build.yml --limit 1 --json databaseId,status,headBranch,displayTitle,createdAt (attempt 1/3)
+[2026-05-10 11:23:00] [{"createdAt":"2026-05-10T03:22:51Z","databaseId":25618643577,"displayTitle":"iOS Build","headBranch":"master","status":"in_progress"}]
+[2026-05-10 11:23:00] Run ID: 25618643577
+[2026-05-10 11:23:00] Polling run 25618643577 (max 1800s)...
+[2026-05-10 11:23:00] $ gh run view 25618643577 --json status,conclusion (attempt 1/3)
+[2026-05-10 11:23:01] {"conclusion":"","status":"in_progress"}
+[2026-05-10 11:23:01] [0s] status=in_progress conclusion=
+[2026-05-10 11:23:31] $ gh run view 25618643577 --json status,conclusion (attempt 1/3)
+[2026-05-10 11:23:31] {"conclusion":"","status":"in_progress"}
+[2026-05-10 11:23:31] [31s] status=in_progress conclusion=
+[2026-05-10 11:24:01] $ gh run view 25618643577 --json status,conclusion (attempt 1/3)
+[2026-05-10 11:24:02] {"conclusion":"","status":"in_progress"}
+[2026-05-10 11:24:02] [61s] status=in_progress conclusion=
+[2026-05-10 11:24:32] $ gh run view 25618643577 --json status,conclusion (attempt 1/3)
+[2026-05-10 11:24:33] {"conclusion":"","status":"in_progress"}
+[2026-05-10 11:24:33] [92s] status=in_progress conclusion=
+[2026-05-10 11:25:03] $ gh run view 25618643577 --json status,conclusion (attempt 1/3)
+[2026-05-10 11:25:03] {"conclusion":"","status":"in_progress"}
+[2026-05-10 11:25:03] [122s] status=in_progress conclusion=
+[2026-05-10 11:25:33] $ gh run view 25618643577 --json status,conclusion (attempt 1/3)
+[2026-05-10 11:25:34] {"conclusion":"","status":"in_progress"}
+[2026-05-10 11:25:34] [153s] status=in_progress conclusion=
+[2026-05-10 11:26:04] $ gh run view 25618643577 --json status,conclusion (attempt 1/3)
+[2026-05-10 11:26:04] {"conclusion":"","status":"in_progress"}
+[2026-05-10 11:26:04] [184s] status=in_progress conclusion=
+[2026-05-10 11:26:34] $ gh run view 25618643577 --json status,conclusion (attempt 1/3)
+[2026-05-10 11:26:35] {"conclusion":"","status":"in_progress"}
+[2026-05-10 11:26:35] [214s] status=in_progress conclusion=
+[2026-05-10 11:27:05] $ gh run view 25618643577 --json status,conclusion (attempt 1/3)
+[2026-05-10 11:27:06] {"conclusion":"","status":"in_progress"}
+[2026-05-10 11:27:06] [245s] status=in_progress conclusion=
+[2026-05-10 11:27:36] $ gh run view 25618643577 --json status,conclusion (attempt 1/3)
+[2026-05-10 11:27:36] {"conclusion":"","status":"in_progress"}
+[2026-05-10 11:27:36] [275s] status=in_progress conclusion=
+[2026-05-10 11:28:06] $ gh run view 25618643577 --json status,conclusion (attempt 1/3)
+[2026-05-10 11:28:07] {"conclusion":"","status":"in_progress"}
+[2026-05-10 11:28:07] [306s] status=in_progress conclusion=
+[2026-05-10 11:28:37] $ gh run view 25618643577 --json status,conclusion (attempt 1/3)
+[2026-05-10 11:28:37] {"conclusion":"","status":"in_progress"}
+[2026-05-10 11:28:37] [337s] status=in_progress conclusion=
+[2026-05-10 11:29:07] $ gh run view 25618643577 --json status,conclusion (attempt 1/3)
+[2026-05-10 11:29:08] {"conclusion":"","status":"in_progress"}
+[2026-05-10 11:29:08] [367s] status=in_progress conclusion=
+[2026-05-10 11:29:38] $ gh run view 25618643577 --json status,conclusion (attempt 1/3)
+[2026-05-10 11:29:38] {"conclusion":"success","status":"completed"}
+[2026-05-10 11:29:38] [398s] status=completed conclusion=success
+[2026-05-10 11:29:38] Build succeeded. Fetching release info...
+[2026-05-10 11:29:43] $ gh release view ios-prd442-v20260510-112250-3f5e --json url,assets (attempt 1/3)
+[2026-05-10 11:29:44] {"assets":[{"apiUrl":"https://api.github.com/repos/ankun-eric/auto_dev_bnbbaijkgj/releases/assets/416398289","contentType":"application/octet-stream","createdAt":"2026-05-10T03:29:11Z","downloadCount":0,"id":"RA_kwDORx6WhM4Y0bvR","label":"","name":"bini_health_ios.ipa","size":34138579,"state":"uploaded","updatedAt":"2026-05-10T03:29:13Z","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/download/ios-prd442-v20260510-112250-3f5e/bini_health_ios.ipa"}],"url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-prd442-v20260510-112250-3f5e"}
+[2026-05-10 11:29:44] === RESULT ===
+[2026-05-10 11:29:44] {
+  "tag": "ios-prd442-v20260510-112250-3f5e",
+  "run_id": "25618643577",
+  "release_url": "https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-prd442-v20260510-112250-3f5e",
+  "ipa_url": "https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/download/ios-prd442-v20260510-112250-3f5e/bini_health_ios.ipa"
+}
+[2026-05-10 11:29:44] === PRD-442 iOS pack END ===
