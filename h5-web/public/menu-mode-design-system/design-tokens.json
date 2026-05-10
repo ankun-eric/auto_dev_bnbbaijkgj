@@ -1,0 +1,131 @@
+{
+  "meta": {
+    "name": "bini-health Menu Mode Design Tokens",
+    "version": "1.0.0",
+    "prd": "PRD-442",
+    "date": "2026-05-10",
+    "style": "晴空诊室 / Clear Sky Clinic",
+    "compatible_with": "PRD-441 (AI Mode) — same color palette, different naming convention"
+  },
+  "color": {
+    "sky": {
+      "50":  { "value": "#f0f9ff", "comment": "极淡背景" },
+      "100": { "value": "#e0f2fe", "comment": "浅光晕 / Hover 底" },
+      "200": { "value": "#bae6fd", "comment": "云蓝 / 卡片浅底" },
+      "300": { "value": "#7dd3fc", "comment": "副强调" },
+      "400": { "value": "#38bdf8", "comment": "主色 · 病历卡左竖线 · 主强调" },
+      "500": { "value": "#0ea5e9", "comment": "渐变中段" },
+      "600": { "value": "#0284c7", "comment": "主操作止点" },
+      "700": { "value": "#0369a1", "comment": "深医蓝" },
+      "800": { "value": "#075985", "comment": "Hero 深蓝起点" },
+      "900": { "value": "#0c4a6e", "comment": "紧急 / Hero 深蓝止点" },
+      "950": { "value": "#082f49", "comment": "极深医蓝（最深底）" }
+    },
+    "semantic": {
+      "success": { "value": "#22c55e", "allowed": ["在线状态","成功 Toast","达标徽章"] },
+      "danger":  { "value": "#ef4444", "allowed": ["未读红点","错误 Toast","危险操作","严重告警徽标"] },
+      "member":  { "value": "#f59e0b", "allowed": ["会员金徽","会员标签","付费等级"] }
+    },
+    "text": {
+      "1": { "value": "#0f172a", "comment": "一级正文" },
+      "2": { "value": "#475569", "comment": "二级辅助" },
+      "3": { "value": "#94a3b8", "comment": "三级提示" }
+    },
+    "bg": {
+      "base": { "value": "#ffffff" },
+      "soft": { "value": "#f8fafc" }
+    }
+  },
+  "shadow": {
+    "1": { "value": "0 1px 2px rgba(56,189,248,.08)" },
+    "2": { "value": "0 4px 12px rgba(56,189,248,.10)", "comment": "病历卡默认阴影" },
+    "3": { "value": "0 8px 24px rgba(56,189,248,.12)" },
+    "4": { "value": "0 16px 40px rgba(56,189,248,.16)" }
+  },
+  "radius": {
+    "xs": { "value": "4px" },
+    "sm": { "value": "8px" },
+    "md": { "value": "12px" },
+    "lg": { "value": "16px" },
+    "xl": { "value": "24px", "comment": "登录卡 / 主卡片专用 · 最大圆角" }
+  },
+  "fontSize": {
+    "12": { "value": "12px" },
+    "14": { "value": "14px", "comment": "正文最小（中老年友好）" },
+    "16": { "value": "16px" },
+    "18": { "value": "18px" },
+    "20": { "value": "20px" },
+    "24": { "value": "24px" },
+    "30": { "value": "30px" },
+    "36": { "value": "36px", "comment": "关键指标（健康评分等）" }
+  },
+  "space": {
+    "1":  { "value": "4px" },
+    "2":  { "value": "8px" },
+    "3":  { "value": "12px" },
+    "4":  { "value": "16px" },
+    "5":  { "value": "20px" },
+    "6":  { "value": "24px" },
+    "8":  { "value": "32px" },
+    "10": { "value": "40px" }
+  },
+  "gradient": {
+    "topbar_a1": {
+      "value": "linear-gradient(135deg, #f0f9ff 0%, #bae6fd 100%)",
+      "usage": "A1 顶栏 · 三层级渐变最浅级"
+    },
+    "btn_primary": {
+      "value": "linear-gradient(135deg, #38bdf8 0%, #0284c7 100%)",
+      "usage": "主按钮 · 三层级渐变中段"
+    },
+    "hero_deep": {
+      "value": "linear-gradient(135deg, #075985 0%, #0c4a6e 100%)",
+      "usage": "健康档案/个人中心 Hero · 三层级渐变最深"
+    },
+    "login_bg": {
+      "value": "linear-gradient(160deg, #e0f2fe 0%, #bae6fd 50%, #7dd3fc 100%)",
+      "usage": "登录页全屏背景"
+    }
+  },
+  "duration": {
+    "fast": { "value": "180ms" },
+    "base": { "value": "240ms" },
+    "slow": { "value": "360ms" }
+  },
+  "easing": {
+    "standard": { "value": "cubic-bezier(0.4, 0, 0.2, 1)" }
+  },
+  "letterSpacing": {
+    "base": { "value": "0.02em", "comment": "正文统一字距" }
+  },
+  "components": {
+    "Button": { "variants": ["primary", "secondary", "text", "icon", "disabled"], "height": "48px", "radius": "var(--radius-md)" },
+    "Card":   { "variants": ["normal", "medical (病历卡 · 左 3px 竖线)", "hero (深蓝渐变)"], "radius": ["16px", "24px"] },
+    "Input":  { "variants": ["text", "password", "captcha", "search"], "errorState": true },
+    "Tab":    { "variants": ["top-tab", "bottom-tabbar"], "activeColor": "var(--sky-400)" },
+    "Drawer": { "variants": ["left", "right", "bottom"], "mask": true, "width": "280px (left)" },
+    "Toast":  { "variants": ["info", "success", "warning", "danger", "loading"] },
+    "Modal":  { "variants": ["standard", "fullscreen", "action-sheet"] },
+    "List":   { "variants": ["single", "multi", "with-avatar", "with-arrow"] },
+    "Chip":   { "variants": ["family-switch", "tag"], "shape": "pill", "active": "sky-400 background" },
+    "Avatar": { "sizes": ["sm 32", "md 48", "lg 64", "xl 96"], "decorations": ["member-badge"] },
+    "Badge":  { "variants": ["dot (红点)", "num (数字 9+)"] },
+    "Skeleton": { "variants": ["card", "list"] },
+    "Empty":  { "withIllustration": true }
+  },
+  "ironRules": [
+    "病历卡感：白底 + 左侧 3px sky-400 竖线 + shadow-2",
+    "渐变三层级：A1 顶栏（最浅）→ 主按钮（中段）→ Hero（最深）",
+    "按钮高度：48px，圆角 var(--radius-md)",
+    "字距：正文 letter-spacing: 0.02em",
+    "禁止：纯黑阴影、强饱和度色（除语义辅助色 success/danger/member）",
+    "字号最小 14px（中老年友好 + WCAG AA 无障碍）",
+    "辅助色严格控量：仅在 allowed 列表的场景使用，禁止滥用"
+  ],
+  "accessibility": {
+    "wcag_level": "AA",
+    "min_contrast_ratio": "4.5:1 (正文)",
+    "min_touch_target": "44x44px",
+    "min_body_font_size": "14px"
+  }
+}

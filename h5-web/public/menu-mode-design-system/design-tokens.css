@@ -1,0 +1,660 @@
+/* ============================================================
+ * bini-health · 菜单模式 PRD-442 · 晴空诊室风格改造
+ * Design Tokens v1.0 (2026-05-10)
+ *
+ * 与 PRD-441（AI 模式）共用同一晴空诊室色板，菜单模式补充：
+ *   - sky-* 11 级别名（PRD-442 §3.1 命名）
+ *   - --fs-* 字号别名（含 36px 关键指标）
+ *   - --sp-* 间距别名
+ *   - --radius-xl 24px（登录卡 / 主卡片专用）
+ *   - --shadow-1/2/3/4 4 级菜单模式阴影
+ *   - --success / --danger / --member 语义辅助色
+ *   - 病历卡铁律：白底 + 左侧 3px sky-400 竖线 + shadow-2
+ * ============================================================ */
+
+:root {
+  /* ============================================================
+   * 3.1 颜色 Tokens（11 级天蓝色阶 · 菜单模式命名空间）
+   * 完全对齐 PRD-441 brand-* 色阶值，仅命名风格不同
+   * ============================================================ */
+  --sky-50:  #f0f9ff;
+  --sky-100: #e0f2fe;
+  --sky-200: #bae6fd;
+  --sky-300: #7dd3fc;
+  --sky-400: #38bdf8;   /* 主色 · 病历卡竖线 / 强调 */
+  --sky-500: #0ea5e9;   /* 渐变中段 */
+  --sky-600: #0284c7;
+  --sky-700: #0369a1;
+  --sky-800: #075985;   /* Hero 深蓝 */
+  --sky-900: #0c4a6e;
+  --sky-950: #082f49;
+
+  /* ============================================================
+   * 3.2 语义辅助色（极少用 · 严格控量）
+   * ============================================================ */
+  --success: #22c55e;   /* 在线 / 成功 */
+  --danger:  #ef4444;   /* 红点 / 告警 */
+  --member:  #f59e0b;   /* 会员金徽 */
+
+  --text-1:  #0f172a;   /* 一级正文 */
+  --text-2:  #475569;   /* 二级辅助 */
+  --text-3:  #94a3b8;   /* 三级提示 */
+  --bg-base: #ffffff;
+  --bg-soft: #f8fafc;
+
+  /* ============================================================
+   * 3.3 阴影 Tokens（4 级 · 禁止纯黑 · 统一天蓝阴影）
+   * ============================================================ */
+  --shadow-1: 0 1px 2px rgba(56, 189, 248, 0.08);
+  --shadow-2: 0 4px 12px rgba(56, 189, 248, 0.10);   /* 病历卡默认阴影 */
+  --shadow-3: 0 8px 24px rgba(56, 189, 248, 0.12);
+  --shadow-4: 0 16px 40px rgba(56, 189, 248, 0.16);
+
+  /* ============================================================
+   * 3.4 圆角 Tokens（5 级）
+   * ============================================================ */
+  --radius-xs:  4px;
+  --radius-sm:  8px;
+  --radius-md:  12px;
+  --radius-lg:  16px;
+  --radius-xl:  24px;   /* 主卡片 / 登录卡 / 渐变 hero */
+
+  /* ============================================================
+   * 3.5 字号 Tokens（8 级 · 中老年友好 · 14px 起）
+   * ============================================================ */
+  --fs-12: 12px;
+  --fs-14: 14px;   /* 正文最小 */
+  --fs-16: 16px;
+  --fs-18: 18px;
+  --fs-20: 20px;
+  --fs-24: 24px;
+  --fs-30: 30px;
+  --fs-36: 36px;   /* 关键指标数字（健康评分等） */
+
+  /* ============================================================
+   * 3.6 间距 Tokens（8 级）
+   * ============================================================ */
+  --sp-1:  4px;
+  --sp-2:  8px;
+  --sp-3:  12px;
+  --sp-4:  16px;
+  --sp-5:  20px;
+  --sp-6:  24px;
+  --sp-8:  32px;
+  --sp-10: 40px;
+
+  /* ============================================================
+   * 3.7 渐变 Tokens（菜单模式三层级）
+   * ============================================================ */
+  --gradient-topbar-a1:  linear-gradient(135deg, #f0f9ff 0%, #bae6fd 100%);  /* A1 顶栏 · 最浅 */
+  --gradient-btn-primary: linear-gradient(135deg, #38bdf8 0%, #0284c7 100%); /* 主按钮 · 中段 */
+  --gradient-hero-deep:  linear-gradient(135deg, #075985 0%, #0c4a6e 100%);  /* Hero · 最深 */
+  --gradient-login-bg:   linear-gradient(160deg, #e0f2fe 0%, #bae6fd 50%, #7dd3fc 100%);
+
+  /* ============================================================
+   * 字距 / 缓动 / Z-index
+   * ============================================================ */
+  --letter-spacing-base: 0.02em;
+  --easing-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --duration-fast: 180ms;
+  --duration-base: 240ms;
+  --duration-slow: 360ms;
+
+  --z-drawer: 900;
+  --z-mask: 1000;
+  --z-popup: 1100;
+  --z-toast: 1200;
+}
+
+/* ============================================================
+ * 4.1 Button 组件（5 变体 · 高 48px）
+ * ============================================================ */
+
+.menu-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 48px;
+  padding: 0 var(--sp-6);
+  border-radius: var(--radius-md);
+  font-size: var(--fs-16);
+  font-weight: 600;
+  letter-spacing: var(--letter-spacing-base);
+  cursor: pointer;
+  border: none;
+  transition: transform var(--duration-fast) var(--easing-standard),
+              box-shadow var(--duration-fast) var(--easing-standard);
+}
+.menu-btn--primary {
+  background: var(--gradient-btn-primary);
+  color: #fff;
+  box-shadow: var(--shadow-2);
+}
+.menu-btn--primary:active { transform: scale(0.98); }
+.menu-btn--secondary {
+  background: var(--bg-base);
+  color: var(--sky-700);
+  border: 1px solid var(--sky-300);
+}
+.menu-btn--text {
+  background: transparent;
+  color: var(--sky-600);
+  height: 32px;
+  padding: 0 var(--sp-3);
+  font-weight: 500;
+}
+.menu-btn--icon {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  background: var(--bg-base);
+  color: var(--sky-600);
+  border-radius: 50%;
+  box-shadow: var(--shadow-1);
+}
+.menu-btn:disabled,
+.menu-btn--disabled {
+  background: #e2e8f0;
+  color: var(--text-3);
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* ============================================================
+ * 4.2 Card 组件（普通卡 / 病历卡 / Hero 卡）
+ * ============================================================ */
+
+.menu-card {
+  background: var(--bg-base);
+  border-radius: var(--radius-lg);
+  padding: var(--sp-4);
+  box-shadow: var(--shadow-2);
+}
+
+/* 病历卡：白底 + 左侧 3px sky-400 竖线 + shadow-2（核心铁律） */
+.menu-card--medical {
+  position: relative;
+  background: var(--bg-base);
+  border-radius: var(--radius-lg);
+  padding: var(--sp-4) var(--sp-4) var(--sp-4) var(--sp-5);
+  box-shadow: var(--shadow-2);
+}
+.menu-card--medical::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: var(--sky-400);
+  border-top-left-radius: var(--radius-lg);
+  border-bottom-left-radius: var(--radius-lg);
+}
+
+/* Hero 卡（深蓝渐变） */
+.menu-card--hero {
+  background: var(--gradient-hero-deep);
+  color: #fff;
+  border-radius: var(--radius-xl);
+  padding: var(--sp-6);
+  box-shadow: var(--shadow-3);
+}
+
+/* ============================================================
+ * 4.3 Input
+ * ============================================================ */
+.menu-input {
+  width: 100%;
+  height: 48px;
+  padding: 0 var(--sp-4);
+  background: var(--bg-soft);
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-md);
+  font-size: var(--fs-16);
+  letter-spacing: var(--letter-spacing-base);
+  color: var(--text-1);
+  transition: border-color var(--duration-fast) var(--easing-standard),
+              box-shadow var(--duration-fast) var(--easing-standard);
+}
+.menu-input:focus {
+  outline: none;
+  border-color: var(--sky-400);
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.16);
+  background: var(--bg-base);
+}
+.menu-input--error {
+  border-color: var(--danger);
+}
+
+/* ============================================================
+ * 4.4 Tab / TabBar
+ * ============================================================ */
+.menu-tab {
+  display: inline-flex;
+  align-items: center;
+  height: 36px;
+  padding: 0 var(--sp-3);
+  font-size: var(--fs-14);
+  color: var(--text-2);
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: color var(--duration-fast) var(--easing-standard);
+}
+.menu-tab--active {
+  color: var(--sky-600);
+  border-bottom-color: var(--sky-400);
+  font-weight: 600;
+}
+
+.menu-tabbar {
+  display: flex;
+  align-items: stretch;
+  height: 56px;
+  background: var(--bg-base);
+  box-shadow: 0 -2px 12px rgba(56, 189, 248, 0.08);
+}
+.menu-tabbar-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--fs-12);
+  color: var(--text-3);
+  cursor: pointer;
+}
+.menu-tabbar-item--active { color: var(--sky-600); }
+
+/* ============================================================
+ * 4.5 Drawer + Mask
+ * ============================================================ */
+.menu-drawer {
+  position: fixed;
+  top: 0; left: 0;
+  width: 280px;
+  height: 100vh;
+  background: var(--bg-base);
+  box-shadow: 4px 0 16px rgba(56, 189, 248, 0.16);
+  z-index: var(--z-drawer);
+  transform: translateX(-100%);
+  transition: transform var(--duration-base) var(--easing-standard);
+}
+.menu-drawer.open { transform: translateX(0); }
+.menu-drawer-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  z-index: calc(var(--z-drawer) - 1);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--duration-base) var(--easing-standard);
+}
+.menu-drawer-mask.open { opacity: 1; pointer-events: auto; }
+
+/* ============================================================
+ * 4.6 Toast
+ * ============================================================ */
+.menu-toast {
+  position: fixed;
+  top: 20%;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: var(--sp-3) var(--sp-5);
+  background: rgba(15, 23, 42, 0.85);
+  color: #fff;
+  border-radius: var(--radius-md);
+  font-size: var(--fs-14);
+  z-index: var(--z-toast);
+  box-shadow: var(--shadow-3);
+}
+.menu-toast--success { background: var(--success); }
+.menu-toast--warning { background: var(--member); }
+.menu-toast--danger  { background: var(--danger); }
+
+/* ============================================================
+ * 4.7 Modal / ActionSheet
+ * ============================================================ */
+.menu-modal {
+  background: var(--bg-base);
+  border-radius: var(--radius-xl);
+  padding: var(--sp-6);
+  box-shadow: var(--shadow-4);
+  max-width: 80vw;
+}
+.menu-action-sheet {
+  background: var(--bg-base);
+  border-top-left-radius: var(--radius-xl);
+  border-top-right-radius: var(--radius-xl);
+  padding: var(--sp-4) 0;
+  box-shadow: var(--shadow-4);
+}
+
+/* ============================================================
+ * 4.8 List
+ * ============================================================ */
+.menu-list-item {
+  display: flex;
+  align-items: center;
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--bg-base);
+  border-bottom: 1px solid #f1f5f9;
+  font-size: var(--fs-16);
+  color: var(--text-1);
+  letter-spacing: var(--letter-spacing-base);
+}
+.menu-list-item-arrow::after {
+  content: '›';
+  margin-left: auto;
+  color: var(--text-3);
+  font-size: var(--fs-20);
+}
+
+/* ============================================================
+ * 4.9 Chip（家人切换 / 标签）
+ * ============================================================ */
+.menu-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 var(--sp-3);
+  background: var(--bg-base);
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  font-size: var(--fs-14);
+  color: var(--text-2);
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--easing-standard);
+}
+.menu-chip--active {
+  background: var(--sky-400);
+  border-color: var(--sky-400);
+  color: #fff;
+}
+
+/* ============================================================
+ * 4.10 Avatar（带会员金徽）
+ * ============================================================ */
+.menu-avatar {
+  display: inline-block;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--sky-100);
+  position: relative;
+}
+.menu-avatar--sm { width: 32px; height: 32px; }
+.menu-avatar--lg { width: 64px; height: 64px; }
+.menu-avatar--xl { width: 96px; height: 96px; }
+.menu-avatar-member-badge {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 22px; height: 22px;
+  background: var(--member);
+  color: #fff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  border: 2px solid var(--bg-base);
+  font-weight: 700;
+}
+
+/* ============================================================
+ * 4.11 Badge（红点 / 数字）
+ * ============================================================ */
+.menu-badge-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  background: var(--danger);
+  border-radius: 50%;
+}
+.menu-badge-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  background: var(--danger);
+  color: #fff;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* ============================================================
+ * 4.12 Skeleton
+ * ============================================================ */
+.menu-skeleton {
+  background: linear-gradient(
+    90deg,
+    #e2e8f0 25%,
+    #f1f5f9 50%,
+    #e2e8f0 75%
+  );
+  background-size: 200% 100%;
+  animation: menu-skeleton-shimmer 1500ms infinite;
+  border-radius: var(--radius-sm);
+}
+@keyframes menu-skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ============================================================
+ * 4.13 Empty
+ * ============================================================ */
+.menu-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--sp-10) var(--sp-4);
+  color: var(--text-3);
+  font-size: var(--fs-14);
+  letter-spacing: var(--letter-spacing-base);
+}
+.menu-empty-icon {
+  width: 80px;
+  height: 80px;
+  margin-bottom: var(--sp-4);
+  opacity: 0.5;
+}
+
+/* ============================================================
+ * 4.14 顶栏（A1 浅天蓝渐变 / 二级页白底）
+ * ============================================================ */
+.menu-topbar-a1 {
+  display: flex;
+  align-items: center;
+  height: 56px;
+  padding: 0 var(--sp-4);
+  background: var(--gradient-topbar-a1);
+  color: var(--sky-900);
+  font-size: var(--fs-18);
+  font-weight: 600;
+  letter-spacing: var(--letter-spacing-base);
+}
+.menu-topbar-secondary {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 56px;
+  background: var(--bg-base);
+  color: var(--text-1);
+  font-size: var(--fs-18);
+  font-weight: 600;
+  border-bottom: 1px solid #f1f5f9;
+}
+.menu-topbar-back {
+  position: absolute;
+  left: var(--sp-4);
+  font-size: var(--fs-24);
+  color: var(--text-2);
+  cursor: pointer;
+}
+
+/* ============================================================
+ * 5.0 设计稿 6 屏专属：登录卡 / 九宫格 / 气泡 / 雷达 hero / 抽屉 / 个人中心 hero
+ * ============================================================ */
+
+/* ① 登录页：渐变背景 + 24px 圆角白卡 + 主按钮 */
+.menu-login-page {
+  min-height: 100vh;
+  background: var(--gradient-login-bg);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: var(--sp-6);
+}
+.menu-login-card {
+  width: 100%;
+  max-width: 360px;
+  background: var(--bg-base);
+  border-radius: var(--radius-xl);
+  padding: var(--sp-8) var(--sp-6);
+  box-shadow: var(--shadow-3);
+}
+
+/* ② 九宫格菜单首页 */
+.menu-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+}
+.menu-grid-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--sp-4) var(--sp-2);
+  background: var(--bg-base);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-1);
+  font-size: var(--fs-14);
+  color: var(--text-1);
+  letter-spacing: var(--letter-spacing-base);
+  cursor: pointer;
+  transition: transform var(--duration-fast) var(--easing-standard);
+}
+.menu-grid-item:active { transform: scale(0.96); }
+.menu-grid-item-icon {
+  width: 40px; height: 40px;
+  background: var(--sky-100);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--fs-20);
+  color: var(--sky-600);
+  margin-bottom: var(--sp-2);
+}
+
+/* AI 入口大卡（首页顶部） */
+.menu-ai-entry {
+  background: linear-gradient(135deg, #38bdf8 0%, #0369a1 100%);
+  color: #fff;
+  border-radius: var(--radius-xl);
+  padding: var(--sp-5);
+  margin: var(--sp-4);
+  box-shadow: var(--shadow-3);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+}
+.menu-ai-entry-title {
+  font-size: var(--fs-20);
+  font-weight: 700;
+  letter-spacing: var(--letter-spacing-base);
+}
+.menu-ai-entry-desc {
+  font-size: var(--fs-14);
+  opacity: 0.85;
+  margin-top: var(--sp-1);
+  letter-spacing: var(--letter-spacing-base);
+}
+
+/* ③ 聊天页：用户气泡渐变 + AI 病历卡 */
+.menu-chat-bubble-user {
+  display: inline-block;
+  max-width: 75%;
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--gradient-btn-primary);
+  color: #fff;
+  border-radius: var(--radius-lg);
+  font-size: var(--fs-16);
+  letter-spacing: var(--letter-spacing-base);
+  word-break: break-word;
+}
+
+/* ④ 健康档案 Hero（深蓝渐变 + 5 维雷达 + 4 关键指标） */
+.menu-archive-hero {
+  background: var(--gradient-hero-deep);
+  color: #fff;
+  border-radius: 0 0 var(--radius-xl) var(--radius-xl);
+  padding: var(--sp-6) var(--sp-4) var(--sp-8);
+}
+.menu-archive-score {
+  font-size: var(--fs-36);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: var(--letter-spacing-base);
+}
+.menu-archive-score-label {
+  font-size: var(--fs-14);
+  opacity: 0.85;
+  margin-top: var(--sp-1);
+}
+
+/* ⑥ 个人中心 Hero（深蓝 + 会员金徽 + 4 订单状态） */
+.menu-profile-hero {
+  background: var(--gradient-hero-deep);
+  color: #fff;
+  border-radius: 0 0 var(--radius-xl) var(--radius-xl);
+  padding: var(--sp-6) var(--sp-4);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+}
+.menu-profile-name {
+  font-size: var(--fs-20);
+  font-weight: 700;
+  letter-spacing: var(--letter-spacing-base);
+}
+.menu-profile-meta {
+  font-size: var(--fs-14);
+  opacity: 0.8;
+  margin-top: var(--sp-1);
+}
+
+.menu-order-status-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  background: var(--bg-base);
+  border-radius: var(--radius-lg);
+  margin: calc(-1 * var(--sp-6)) var(--sp-4) var(--sp-4);
+  padding: var(--sp-4) 0;
+  box-shadow: var(--shadow-2);
+  position: relative;
+  z-index: 2;
+}
+.menu-order-status-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: var(--fs-12);
+  color: var(--text-2);
+}
+.menu-order-status-item-icon {
+  width: 32px; height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--sky-100);
+  color: var(--sky-600);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--sp-1);
+  font-size: var(--fs-16);
+}

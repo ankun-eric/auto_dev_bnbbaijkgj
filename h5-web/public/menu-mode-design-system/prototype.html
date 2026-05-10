@@ -1,0 +1,1186 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>PRD-442 · 菜单模式 · 晴空诊室风格 · 6 屏核对版</title>
+<link rel="stylesheet" href="./design-tokens.css" />
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: linear-gradient(180deg, #f0f9ff 0%, #f5f7fa 60%);
+    font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    color: var(--text-1);
+    letter-spacing: var(--letter-spacing-base);
+    min-height: 100vh;
+    padding-bottom: 80px;
+  }
+  .top-nav {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: rgba(255,255,255,0.95);
+    backdrop-filter: blur(12px);
+    box-shadow: var(--shadow-1);
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .top-nav .title { font-weight: 700; color: var(--sky-900); font-size: 16px; margin-right: 16px; }
+  .top-nav a {
+    padding: 4px 10px;
+    background: var(--sky-50);
+    color: var(--sky-700);
+    text-decoration: none;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .top-nav a:hover { background: var(--sky-100); }
+
+  .container {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 24px 16px;
+  }
+  .section {
+    margin-bottom: 48px;
+  }
+  .section-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--sky-900);
+    padding-left: 12px;
+    border-left: 4px solid var(--sky-400);
+    margin-bottom: 8px;
+  }
+  .section-desc {
+    color: var(--text-2);
+    font-size: 13px;
+    margin-bottom: 24px;
+    margin-left: 16px;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+    gap: 24px;
+  }
+
+  .phone {
+    width: 100%;
+    height: 720px;
+    background: #fff;
+    border-radius: 28px;
+    box-shadow: var(--shadow-3);
+    overflow: hidden;
+    position: relative;
+    border: 1px solid #e2e8f0;
+  }
+  .phone-tag {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: rgba(15, 23, 42, 0.7);
+    color: #fff;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    z-index: 100;
+    font-weight: 600;
+  }
+  .phone-screen {
+    width: 100%;
+    height: 100%;
+    overflow-y: auto;
+    background: var(--bg-soft);
+  }
+
+  /* ========= 屏① 登录页 ========= */
+  .login-page {
+    min-height: 100%;
+    background: var(--gradient-login-bg);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 24px;
+  }
+  .login-brand {
+    text-align: center;
+    margin-bottom: 32px;
+  }
+  .login-brand-logo {
+    width: 64px;
+    height: 64px;
+    background: rgba(255,255,255,0.4);
+    border-radius: 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    margin-bottom: 12px;
+    box-shadow: var(--shadow-3);
+    backdrop-filter: blur(8px);
+  }
+  .login-brand-title { font-size: 24px; font-weight: 700; color: var(--sky-900); }
+  .login-brand-sub { font-size: 13px; color: var(--sky-700); opacity: 0.8; margin-top: 4px; }
+
+  .login-card {
+    background: var(--bg-base);
+    border-radius: var(--radius-xl);
+    padding: 28px 24px;
+    box-shadow: var(--shadow-3);
+  }
+  .login-card-title { font-size: 20px; font-weight: 700; color: var(--text-1); margin-bottom: 20px; }
+  .login-input-group { margin-bottom: 16px; }
+  .login-input-group label {
+    display: block;
+    font-size: 13px;
+    color: var(--text-2);
+    margin-bottom: 6px;
+  }
+  .login-input { width: 100%; }
+  .login-input-row { display: flex; gap: 8px; }
+  .login-input-row .menu-btn { flex-shrink: 0; height: 48px; padding: 0 16px; font-size: 14px; }
+  .login-actions { margin-top: 24px; }
+  .login-actions .menu-btn { width: 100%; }
+  .login-third {
+    margin-top: 24px;
+    text-align: center;
+    color: var(--text-3);
+    font-size: 12px;
+  }
+  .login-third-icons {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    margin-top: 12px;
+  }
+  .login-third-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: var(--bg-soft);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    box-shadow: var(--shadow-1);
+    cursor: pointer;
+  }
+  .login-protocol {
+    margin-top: 20px;
+    text-align: center;
+    font-size: 11px;
+    color: var(--text-3);
+  }
+  .login-protocol a { color: var(--sky-600); text-decoration: none; }
+
+  /* ========= 屏② 菜单首页 ========= */
+  .home-topbar {
+    height: 56px;
+    background: var(--gradient-topbar-a1);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    color: var(--sky-900);
+    font-weight: 600;
+  }
+  .home-topbar-icon { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+  .home-topbar-title { font-size: 18px; margin-left: 8px; flex: 1; }
+  .home-topbar-action { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; }
+
+  .ai-entry-card {
+    margin: 16px;
+    background: linear-gradient(135deg, #38bdf8 0%, #0369a1 100%);
+    color: #fff;
+    border-radius: var(--radius-xl);
+    padding: 20px;
+    box-shadow: var(--shadow-3);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    cursor: pointer;
+  }
+  .ai-entry-icon {
+    width: 56px;
+    height: 56px;
+    background: rgba(255,255,255,0.18);
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    flex-shrink: 0;
+  }
+  .ai-entry-info { flex: 1; }
+  .ai-entry-title { font-size: 18px; font-weight: 700; }
+  .ai-entry-desc { font-size: 13px; opacity: 0.85; margin-top: 4px; }
+  .ai-entry-arrow { font-size: 20px; opacity: 0.7; }
+
+  .family-row {
+    padding: 8px 16px 0;
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+  }
+  .family-chip {
+    flex-shrink: 0;
+    height: 32px;
+    padding: 0 14px;
+    background: var(--bg-base);
+    border: 1px solid #e2e8f0;
+    border-radius: 999px;
+    display: flex;
+    align-items: center;
+    font-size: 13px;
+    color: var(--text-2);
+  }
+  .family-chip.active {
+    background: var(--sky-400);
+    border-color: var(--sky-400);
+    color: #fff;
+    font-weight: 600;
+  }
+  .family-chip-avatar {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--sky-200);
+    margin-right: 6px;
+  }
+  .family-chip.active .family-chip-avatar { background: rgba(255,255,255,0.4); }
+
+  .menu-section {
+    margin: 16px;
+    background: var(--bg-base);
+    border-radius: var(--radius-lg);
+    padding: 12px 0;
+    box-shadow: var(--shadow-1);
+  }
+  .menu-section-title {
+    padding: 4px 16px 8px;
+    font-size: 13px;
+    color: var(--text-2);
+    font-weight: 600;
+  }
+  .menu-grid-3 {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    padding: 0 8px;
+  }
+  .menu-grid-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 12px 4px;
+    cursor: pointer;
+    border-radius: 8px;
+  }
+  .menu-grid-item:active { background: var(--sky-50); }
+  .menu-grid-icon {
+    width: 44px;
+    height: 44px;
+    background: var(--sky-100);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    color: var(--sky-600);
+    margin-bottom: 6px;
+    position: relative;
+  }
+  .menu-grid-icon-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    background: var(--danger);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    min-width: 16px;
+    height: 16px;
+    border-radius: 999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+    border: 2px solid #fff;
+  }
+  .menu-grid-label { font-size: 12px; color: var(--text-1); }
+
+  .home-banner {
+    margin: 16px;
+    height: 96px;
+    background: linear-gradient(135deg, #bae6fd 0%, #7dd3fc 100%);
+    border-radius: var(--radius-lg);
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    color: var(--sky-900);
+    box-shadow: var(--shadow-2);
+  }
+  .home-banner-title { font-size: 16px; font-weight: 700; }
+  .home-banner-sub { font-size: 12px; margin-top: 4px; opacity: 0.7; }
+
+  /* ========= 屏③ 菜单·聊天页 ========= */
+  .chat-topbar {
+    height: 56px;
+    background: var(--bg-base);
+    border-bottom: 1px solid #f1f5f9;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 8px;
+  }
+  .chat-topbar-back { font-size: 22px; color: var(--text-2); }
+  .chat-topbar-title { font-size: 16px; font-weight: 600; flex: 1; }
+  .consult-chip {
+    margin: 12px 16px 4px;
+    display: inline-flex;
+    align-items: center;
+    height: 28px;
+    padding: 0 10px;
+    background: var(--sky-50);
+    color: var(--sky-700);
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 500;
+  }
+  .consult-chip-dot { width: 6px; height: 6px; background: var(--sky-400); border-radius: 50%; margin-right: 6px; }
+
+  .chat-msg-list { padding: 12px 16px; display: flex; flex-direction: column; gap: 16px; }
+  .chat-msg-ai {
+    position: relative;
+    background: var(--bg-base);
+    border-radius: var(--radius-lg);
+    padding: 14px 14px 14px 18px;
+    box-shadow: var(--shadow-2);
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--text-1);
+    max-width: 88%;
+    align-self: flex-start;
+  }
+  .chat-msg-ai::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: var(--sky-400);
+    border-top-left-radius: var(--radius-lg);
+    border-bottom-left-radius: var(--radius-lg);
+  }
+  .chat-msg-ai-title {
+    font-weight: 700;
+    color: var(--sky-700);
+    margin-bottom: 6px;
+    font-size: 13px;
+  }
+  .chat-msg-user {
+    background: linear-gradient(135deg, #38bdf8 0%, #0284c7 100%);
+    color: #fff;
+    padding: 12px 16px;
+    border-radius: var(--radius-lg);
+    font-size: 14px;
+    line-height: 1.6;
+    max-width: 75%;
+    align-self: flex-end;
+    word-break: break-word;
+  }
+
+  .chat-input-bar {
+    position: sticky;
+    bottom: 0;
+    height: 56px;
+    background: var(--bg-base);
+    border-top: 1px solid #f1f5f9;
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    gap: 8px;
+  }
+  .chat-input-field {
+    flex: 1;
+    height: 36px;
+    background: var(--bg-soft);
+    border-radius: 999px;
+    padding: 0 14px;
+    display: flex;
+    align-items: center;
+    color: var(--text-3);
+    font-size: 14px;
+  }
+  .chat-input-send {
+    width: 40px;
+    height: 40px;
+    background: var(--gradient-btn-primary);
+    color: #fff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    box-shadow: var(--shadow-2);
+  }
+
+  /* ========= 屏④ 健康档案 ========= */
+  .archive-hero {
+    background: var(--gradient-hero-deep);
+    color: #fff;
+    padding: 20px 16px 32px;
+    border-radius: 0 0 24px 24px;
+    position: relative;
+  }
+  .archive-hero-back { font-size: 22px; opacity: 0.9; }
+  .archive-hero-title { font-size: 16px; margin-top: 12px; opacity: 0.85; }
+  .archive-hero-score { font-size: 36px; font-weight: 700; margin-top: 4px; }
+  .archive-hero-trend { font-size: 12px; opacity: 0.8; margin-top: 4px; }
+
+  .archive-radar-wrap {
+    margin-top: 16px;
+    display: flex;
+    justify-content: center;
+  }
+  .archive-radar { width: 180px; height: 180px; }
+
+  .archive-metrics {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    padding: 16px;
+    margin-top: -16px;
+    position: relative;
+    z-index: 2;
+  }
+  .archive-metric-card {
+    background: var(--bg-base);
+    border-radius: var(--radius-lg);
+    padding: 14px;
+    box-shadow: var(--shadow-2);
+  }
+  .archive-metric-label { font-size: 12px; color: var(--text-2); }
+  .archive-metric-value { font-size: 22px; font-weight: 700; color: var(--sky-700); margin-top: 2px; }
+  .archive-metric-unit { font-size: 11px; color: var(--text-3); margin-left: 2px; font-weight: 400; }
+  .archive-metric-status {
+    display: inline-block;
+    margin-top: 4px;
+    padding: 2px 8px;
+    background: #ecfdf5;
+    color: #15803d;
+    font-size: 11px;
+    border-radius: 4px;
+  }
+  .archive-metric-status.high { background: #fef9c3; color: #854d0e; }
+
+  .archive-modules {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    padding: 0 16px 16px;
+  }
+  .archive-module-item {
+    background: var(--bg-base);
+    border-radius: var(--radius-md);
+    padding: 14px 8px;
+    text-align: center;
+    box-shadow: var(--shadow-1);
+  }
+  .archive-module-icon {
+    width: 36px; height: 36px;
+    background: var(--sky-100);
+    color: var(--sky-600);
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    margin-bottom: 6px;
+  }
+  .archive-module-label { font-size: 12px; color: var(--text-1); }
+
+  /* ========= 屏⑤ 历史会话抽屉 ========= */
+  .drawer-page {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    background: var(--bg-soft);
+    overflow: hidden;
+  }
+  .drawer-page-mask {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.5);
+    z-index: 10;
+  }
+  .drawer-panel {
+    position: absolute;
+    top: 0; left: 0;
+    width: 280px;
+    height: 100%;
+    background: var(--bg-base);
+    z-index: 20;
+    box-shadow: 4px 0 16px rgba(56, 189, 248, 0.16);
+    display: flex;
+    flex-direction: column;
+  }
+  .drawer-header {
+    padding: 16px;
+    background: var(--gradient-topbar-a1);
+    color: var(--sky-900);
+  }
+  .drawer-header-title { font-size: 16px; font-weight: 700; }
+  .drawer-header-sub { font-size: 12px; opacity: 0.7; margin-top: 2px; }
+  .drawer-search {
+    margin: 12px;
+    height: 36px;
+    background: var(--bg-soft);
+    border-radius: 999px;
+    padding: 0 14px;
+    display: flex;
+    align-items: center;
+    color: var(--text-3);
+    font-size: 13px;
+  }
+  .drawer-list { flex: 1; overflow-y: auto; padding: 0 8px; }
+  .drawer-item {
+    padding: 12px;
+    border-radius: 12px;
+    margin-bottom: 4px;
+    cursor: pointer;
+  }
+  .drawer-item:hover { background: var(--sky-50); }
+  .drawer-item.active { background: var(--sky-100); }
+  .drawer-item-title {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-1);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .drawer-item-time { font-size: 11px; color: var(--text-3); margin-top: 4px; }
+
+  .drawer-new-btn {
+    margin: 12px;
+    height: 48px;
+    background: var(--gradient-btn-primary);
+    color: #fff;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    font-weight: 600;
+    gap: 8px;
+    box-shadow: var(--shadow-2);
+  }
+
+  /* ========= 屏⑥ 个人中心 ========= */
+  .profile-hero {
+    background: var(--gradient-hero-deep);
+    color: #fff;
+    padding: 24px 16px 40px;
+    border-radius: 0 0 24px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .profile-avatar {
+    width: 64px; height: 64px;
+    background: var(--sky-200);
+    border-radius: 50%;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    color: var(--sky-800);
+  }
+  .profile-member-badge {
+    position: absolute;
+    right: -4px;
+    bottom: -4px;
+    width: 24px; height: 24px;
+    background: var(--member);
+    color: #fff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    border: 2px solid #fff;
+  }
+  .profile-info { flex: 1; }
+  .profile-name { font-size: 20px; font-weight: 700; }
+  .profile-meta { font-size: 12px; opacity: 0.8; margin-top: 4px; }
+
+  .profile-data-card {
+    background: var(--bg-base);
+    border-radius: var(--radius-lg);
+    margin: -16px 16px 16px;
+    position: relative;
+    z-index: 2;
+    padding: 16px 0;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    box-shadow: var(--shadow-2);
+  }
+  .profile-data-item {
+    text-align: center;
+    border-right: 1px solid #f1f5f9;
+  }
+  .profile-data-item:last-child { border-right: none; }
+  .profile-data-value { font-size: 18px; font-weight: 700; color: var(--text-1); }
+  .profile-data-label { font-size: 11px; color: var(--text-2); margin-top: 2px; }
+
+  .profile-orders {
+    background: var(--bg-base);
+    margin: 0 16px 16px;
+    border-radius: var(--radius-lg);
+    padding: 12px 0;
+    box-shadow: var(--shadow-1);
+  }
+  .profile-orders-header {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 16px 12px;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .profile-orders-more { font-size: 12px; color: var(--text-3); font-weight: 400; }
+  .profile-orders-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+  }
+  .profile-order-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 8px 0;
+    font-size: 12px;
+    color: var(--text-1);
+    position: relative;
+  }
+  .profile-order-icon {
+    width: 32px; height: 32px;
+    background: var(--sky-100);
+    color: var(--sky-600);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    margin-bottom: 4px;
+  }
+  .profile-order-badge {
+    position: absolute;
+    top: 0; right: 24%;
+    background: var(--danger);
+    color: #fff;
+    font-size: 10px;
+    min-width: 16px;
+    height: 16px;
+    border-radius: 999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+    border: 2px solid #fff;
+    font-weight: 700;
+  }
+
+  .profile-list {
+    background: var(--bg-base);
+    margin: 0 16px;
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-1);
+  }
+  .profile-list-item {
+    display: flex;
+    align-items: center;
+    padding: 14px 16px;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 15px;
+    color: var(--text-1);
+  }
+  .profile-list-item:last-child { border-bottom: none; }
+  .profile-list-item-icon {
+    width: 28px; height: 28px;
+    color: var(--sky-600);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 12px;
+    font-size: 16px;
+  }
+  .profile-list-item-arrow {
+    margin-left: auto;
+    color: var(--text-3);
+    font-size: 18px;
+  }
+
+  /* SVG 雷达辅助样式 */
+  .radar-svg .grid-line { stroke: rgba(255,255,255,0.2); fill: none; }
+  .radar-svg .grid-axis { stroke: rgba(255,255,255,0.3); }
+  .radar-svg .data-area { fill: rgba(186, 230, 253, 0.4); stroke: #bae6fd; stroke-width: 2; }
+  .radar-svg .label { fill: #fff; font-size: 11px; }
+</style>
+</head>
+<body>
+
+<nav class="top-nav">
+  <span class="title">PRD-442 · 6 屏核对版</span>
+  <a href="#screen1">① 登录</a>
+  <a href="#screen2">② 菜单首页</a>
+  <a href="#screen3">③ 菜单聊天</a>
+  <a href="#screen4">④ 健康档案</a>
+  <a href="#screen5">⑤ 历史抽屉</a>
+  <a href="#screen6">⑥ 个人中心</a>
+  <a href="./components.html">→ 组件库 demo</a>
+  <a href="./PRD-442.md">PRD 文档</a>
+</nav>
+
+<div class="container">
+
+  <section class="section" id="screen1">
+    <div class="section-title">屏 ① 登录页</div>
+    <div class="section-desc">渐变背景 + 24px 圆角白卡 + 三段渐变主按钮 + 三方登录</div>
+    <div class="grid">
+      <div class="phone">
+        <div class="phone-tag">SCREEN ①</div>
+        <div class="phone-screen">
+          <div class="login-page">
+            <div class="login-brand">
+              <div class="login-brand-logo">🩺</div>
+              <div class="login-brand-title">bini-health</div>
+              <div class="login-brand-sub">您的家庭健康管家</div>
+            </div>
+            <div class="login-card">
+              <div class="login-card-title">欢迎登录</div>
+              <div class="login-input-group">
+                <label>手机号</label>
+                <input class="menu-input login-input" placeholder="请输入手机号" />
+              </div>
+              <div class="login-input-group">
+                <label>验证码</label>
+                <div class="login-input-row">
+                  <input class="menu-input login-input" placeholder="6 位验证码" />
+                  <button class="menu-btn menu-btn--secondary">获取验证码</button>
+                </div>
+              </div>
+              <div class="login-actions">
+                <button class="menu-btn menu-btn--primary">登 录</button>
+              </div>
+              <div class="login-third">
+                <span>—— 第三方登录 ——</span>
+                <div class="login-third-icons">
+                  <div class="login-third-icon" title="微信">💬</div>
+                  <div class="login-third-icon" title="Apple">🍎</div>
+                  <div class="login-third-icon" title="QQ">🐧</div>
+                </div>
+              </div>
+              <div class="login-protocol">
+                登录代表您同意 <a href="#">服务协议</a> 和 <a href="#">隐私政策</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="screen2">
+    <div class="section-title">屏 ② 菜单首页（九宫格）</div>
+    <div class="section-desc">A1 顶栏 + AI 入口大卡 + 家人 chips + 双菜单组 + banner</div>
+    <div class="grid">
+      <div class="phone">
+        <div class="phone-tag">SCREEN ②</div>
+        <div class="phone-screen">
+          <div class="home-topbar">
+            <div class="home-topbar-icon">☰</div>
+            <div class="home-topbar-title">菜单</div>
+            <div class="home-topbar-action">🔔</div>
+          </div>
+
+          <div class="ai-entry-card">
+            <div class="ai-entry-icon">🤖</div>
+            <div class="ai-entry-info">
+              <div class="ai-entry-title">问问小康 AI</div>
+              <div class="ai-entry-desc">7×24 在线 · 病历卡解读 · 用药提醒</div>
+            </div>
+            <div class="ai-entry-arrow">›</div>
+          </div>
+
+          <div class="family-row">
+            <div class="family-chip active">
+              <div class="family-chip-avatar"></div>
+              本人
+            </div>
+            <div class="family-chip">
+              <div class="family-chip-avatar"></div>
+              妈妈
+            </div>
+            <div class="family-chip">
+              <div class="family-chip-avatar"></div>
+              爸爸
+            </div>
+            <div class="family-chip">+ 添加家人</div>
+          </div>
+
+          <div class="menu-section">
+            <div class="menu-section-title">健康管理</div>
+            <div class="menu-grid-3">
+              <div class="menu-grid-item">
+                <div class="menu-grid-icon">📋<span class="menu-grid-icon-badge">3</span></div>
+                <div class="menu-grid-label">健康档案</div>
+              </div>
+              <div class="menu-grid-item">
+                <div class="menu-grid-icon">💊</div>
+                <div class="menu-grid-label">用药提醒</div>
+              </div>
+              <div class="menu-grid-item">
+                <div class="menu-grid-icon">📊</div>
+                <div class="menu-grid-label">报告解读</div>
+              </div>
+              <div class="menu-grid-item">
+                <div class="menu-grid-icon">📅</div>
+                <div class="menu-grid-label">健康计划</div>
+              </div>
+              <div class="menu-grid-item">
+                <div class="menu-grid-icon">💬</div>
+                <div class="menu-grid-label">问诊记录</div>
+              </div>
+              <div class="menu-grid-item">
+                <div class="menu-grid-icon">🩻</div>
+                <div class="menu-grid-label">体检报告</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="menu-section">
+            <div class="menu-section-title">服务与订单</div>
+            <div class="menu-grid-3">
+              <div class="menu-grid-item">
+                <div class="menu-grid-icon">🛒</div>
+                <div class="menu-grid-label">订单中心</div>
+              </div>
+              <div class="menu-grid-item">
+                <div class="menu-grid-icon">💳</div>
+                <div class="menu-grid-label">会员中心</div>
+              </div>
+              <div class="menu-grid-item">
+                <div class="menu-grid-icon">⚙️</div>
+                <div class="menu-grid-label">设置</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="home-banner">
+            <div class="home-banner-title">🎁 新春关怀礼包</div>
+            <div class="home-banner-sub">免费领取 · 限时 7 天</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="screen3">
+    <div class="section-title">屏 ③ 菜单模式 · 聊天页</div>
+    <div class="section-desc">咨询人胶囊 + 病历卡气泡 + 渐变用户气泡</div>
+    <div class="grid">
+      <div class="phone">
+        <div class="phone-tag">SCREEN ③</div>
+        <div class="phone-screen" style="display:flex; flex-direction: column;">
+          <div class="chat-topbar">
+            <div class="chat-topbar-back">‹</div>
+            <div class="chat-topbar-title">咨询对话</div>
+            <div style="font-size:18px;">⋯</div>
+          </div>
+
+          <div class="consult-chip">
+            <span class="consult-chip-dot"></span>
+            正在咨询：妈妈 · 65 岁 · 高血压病史
+          </div>
+
+          <div class="chat-msg-list" style="flex:1; overflow-y: auto;">
+            <div class="chat-msg-ai">
+              <div class="chat-msg-ai-title">📋 病历卡解读</div>
+              妈妈本次血压报告显示：收缩压 145 mmHg，舒张压 92 mmHg，处于 1 级高血压范围。建议：①每日早晚定时测量；②控制食盐摄入 &lt;5g；③继续按医嘱服用降压药。
+            </div>
+
+            <div class="chat-msg-user">妈妈最近说头有点晕，需要去医院吗？</div>
+
+            <div class="chat-msg-ai">
+              <div class="chat-msg-ai-title">⚠️ 风险提示</div>
+              头晕可能与血压波动有关。建议：<br/>
+              ① 立即测量血压并记录；<br/>
+              ② 如收缩压 &gt;160 mmHg 持续不降，请尽快就医；<br/>
+              ③ 注意休息，避免突然起立。
+            </div>
+          </div>
+
+          <div class="chat-input-bar">
+            <div class="chat-input-field">说说您的健康问题…</div>
+            <div class="chat-input-send">➤</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="screen4">
+    <div class="section-title">屏 ④ 健康档案</div>
+    <div class="section-desc">深蓝渐变 hero + 5 维雷达 + 4 关键指标卡 + 6 模块入口</div>
+    <div class="grid">
+      <div class="phone">
+        <div class="phone-tag">SCREEN ④</div>
+        <div class="phone-screen">
+          <div class="archive-hero">
+            <div class="archive-hero-back">‹</div>
+            <div class="archive-hero-title">健康综合评分</div>
+            <div class="archive-hero-score">82<span style="font-size:14px;opacity:0.7;">分</span></div>
+            <div class="archive-hero-trend">↑ 较上月 +3 分 · 良好</div>
+
+            <div class="archive-radar-wrap">
+              <svg class="radar-svg archive-radar" viewBox="0 0 200 200">
+                <!-- 5 维雷达背景 -->
+                <polygon class="grid-line" points="100,30 168,75 142,160 58,160 32,75" />
+                <polygon class="grid-line" points="100,55 148,89 130,142 70,142 52,89" />
+                <polygon class="grid-line" points="100,80 128,103 117,124 83,124 72,103" />
+                <line class="grid-axis" x1="100" y1="100" x2="100" y2="30" />
+                <line class="grid-axis" x1="100" y1="100" x2="168" y2="75" />
+                <line class="grid-axis" x1="100" y1="100" x2="142" y2="160" />
+                <line class="grid-axis" x1="100" y1="100" x2="58" y2="160" />
+                <line class="grid-axis" x1="100" y1="100" x2="32" y2="75" />
+                <!-- 数据 -->
+                <polygon class="data-area" points="100,40 158,80 132,150 65,148 42,82" />
+                <text class="label" x="100" y="22" text-anchor="middle">心血管</text>
+                <text class="label" x="180" y="76">代谢</text>
+                <text class="label" x="146" y="178">睡眠</text>
+                <text class="label" x="42" y="178" text-anchor="end">运动</text>
+                <text class="label" x="20" y="76" text-anchor="end">营养</text>
+              </svg>
+            </div>
+          </div>
+
+          <div class="archive-metrics">
+            <div class="archive-metric-card">
+              <div class="archive-metric-label">血压</div>
+              <div class="archive-metric-value">128<span class="archive-metric-unit">/85 mmHg</span></div>
+              <span class="archive-metric-status">正常</span>
+            </div>
+            <div class="archive-metric-card">
+              <div class="archive-metric-label">心率</div>
+              <div class="archive-metric-value">72<span class="archive-metric-unit">bpm</span></div>
+              <span class="archive-metric-status">正常</span>
+            </div>
+            <div class="archive-metric-card">
+              <div class="archive-metric-label">血糖</div>
+              <div class="archive-metric-value">6.2<span class="archive-metric-unit">mmol/L</span></div>
+              <span class="archive-metric-status high">偏高</span>
+            </div>
+            <div class="archive-metric-card">
+              <div class="archive-metric-label">BMI</div>
+              <div class="archive-metric-value">23.1</div>
+              <span class="archive-metric-status">标准</span>
+            </div>
+          </div>
+
+          <div style="padding: 0 16px; font-size:13px; color: var(--text-2); font-weight:600; margin: 4px 0 8px;">健康模块</div>
+          <div class="archive-modules">
+            <div class="archive-module-item">
+              <div class="archive-module-icon">📈</div>
+              <div class="archive-module-label">趋势图</div>
+            </div>
+            <div class="archive-module-item">
+              <div class="archive-module-icon">📋</div>
+              <div class="archive-module-label">体检对比</div>
+            </div>
+            <div class="archive-module-item">
+              <div class="archive-module-icon">💊</div>
+              <div class="archive-module-label">用药史</div>
+            </div>
+            <div class="archive-module-item">
+              <div class="archive-module-icon">🩺</div>
+              <div class="archive-module-label">就诊史</div>
+            </div>
+            <div class="archive-module-item">
+              <div class="archive-module-icon">🧬</div>
+              <div class="archive-module-label">家族史</div>
+            </div>
+            <div class="archive-module-item">
+              <div class="archive-module-icon">📤</div>
+              <div class="archive-module-label">导出报告</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="screen5">
+    <div class="section-title">屏 ⑤ 侧边抽屉 · 历史会话</div>
+    <div class="section-desc">半透明蒙层 + 280px 抽屉 + 渐变新建按钮</div>
+    <div class="grid">
+      <div class="phone">
+        <div class="phone-tag">SCREEN ⑤</div>
+        <div class="phone-screen">
+          <div class="drawer-page">
+            <!-- 背后页面（虚化） -->
+            <div style="padding:20px 16px; background: var(--bg-base); height:100%;">
+              <div style="font-size:18px; font-weight:600; color: var(--text-1); margin-bottom:12px;">咨询对话</div>
+              <div style="font-size:13px; color: var(--text-3);">点击外部蒙层关闭抽屉</div>
+            </div>
+            <!-- 蒙层 -->
+            <div class="drawer-page-mask"></div>
+            <!-- 抽屉 -->
+            <div class="drawer-panel">
+              <div class="drawer-header">
+                <div class="drawer-header-title">历史会话</div>
+                <div class="drawer-header-sub">已保存 28 条 · 自动清理 90 天前</div>
+              </div>
+              <div class="drawer-search">🔍 搜索关键词…</div>
+              <div class="drawer-list">
+                <div class="drawer-item active">
+                  <div class="drawer-item-title">妈妈血压报告解读</div>
+                  <div class="drawer-item-time">今天 14:32</div>
+                </div>
+                <div class="drawer-item">
+                  <div class="drawer-item-title">爸爸糖尿病用药咨询</div>
+                  <div class="drawer-item-time">昨天 09:15</div>
+                </div>
+                <div class="drawer-item">
+                  <div class="drawer-item-title">小明感冒发烧处理建议</div>
+                  <div class="drawer-item-time">3 天前</div>
+                </div>
+                <div class="drawer-item">
+                  <div class="drawer-item-title">体检报告综合解读</div>
+                  <div class="drawer-item-time">5 天前</div>
+                </div>
+                <div class="drawer-item">
+                  <div class="drawer-item-title">高血压日常饮食建议</div>
+                  <div class="drawer-item-time">上周</div>
+                </div>
+              </div>
+              <div class="drawer-new-btn">
+                <span style="font-size:18px;">＋</span> 新建对话
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="screen6">
+    <div class="section-title">屏 ⑥ 菜单模式 · 个人中心</div>
+    <div class="section-desc">深蓝 hero + 会员金徽 + 数据卡 + 4 订单状态 + 列表组</div>
+    <div class="grid">
+      <div class="phone">
+        <div class="phone-tag">SCREEN ⑥</div>
+        <div class="phone-screen">
+          <div class="profile-hero">
+            <div class="profile-avatar">
+              👤
+              <div class="profile-member-badge">★</div>
+            </div>
+            <div class="profile-info">
+              <div class="profile-name">王小康</div>
+              <div class="profile-meta">尊享会员 · 有效期至 2027-05-10</div>
+            </div>
+            <div style="font-size:18px; opacity:0.8;">⚙</div>
+          </div>
+
+          <div class="profile-data-card">
+            <div class="profile-data-item">
+              <div class="profile-data-value">128</div>
+              <div class="profile-data-label">连续打卡</div>
+            </div>
+            <div class="profile-data-item">
+              <div class="profile-data-value">82</div>
+              <div class="profile-data-label">健康评分</div>
+            </div>
+            <div class="profile-data-item">
+              <div class="profile-data-value">2680</div>
+              <div class="profile-data-label">健康积分</div>
+            </div>
+          </div>
+
+          <div class="profile-orders">
+            <div class="profile-orders-header">
+              <span>我的订单</span>
+              <span class="profile-orders-more">查看全部 ›</span>
+            </div>
+            <div class="profile-orders-grid">
+              <div class="profile-order-item">
+                <div class="profile-order-icon">💰</div>
+                <div>待付款</div>
+              </div>
+              <div class="profile-order-item">
+                <div class="profile-order-icon">📦</div>
+                <div>待发货</div>
+                <div class="profile-order-badge">2</div>
+              </div>
+              <div class="profile-order-item">
+                <div class="profile-order-icon">🚚</div>
+                <div>待收货</div>
+                <div class="profile-order-badge">1</div>
+              </div>
+              <div class="profile-order-item">
+                <div class="profile-order-icon">⭐</div>
+                <div>待评价</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="profile-list">
+            <div class="profile-list-item">
+              <div class="profile-list-item-icon">👨‍👩‍👧</div>
+              我的家人
+              <div class="profile-list-item-arrow">›</div>
+            </div>
+            <div class="profile-list-item">
+              <div class="profile-list-item-icon">🎫</div>
+              优惠券
+              <div class="profile-list-item-arrow">›</div>
+            </div>
+            <div class="profile-list-item">
+              <div class="profile-list-item-icon">📍</div>
+              收货地址
+              <div class="profile-list-item-arrow">›</div>
+            </div>
+            <div class="profile-list-item">
+              <div class="profile-list-item-icon">🔔</div>
+              消息通知
+              <div class="profile-list-item-arrow">›</div>
+            </div>
+            <div class="profile-list-item">
+              <div class="profile-list-item-icon">💁</div>
+              在线客服
+              <div class="profile-list-item-arrow">›</div>
+            </div>
+            <div class="profile-list-item">
+              <div class="profile-list-item-icon">⚙</div>
+              设置
+              <div class="profile-list-item-arrow">›</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer style="text-align:center; padding: 40px 16px; color: var(--text-3); font-size:12px;">
+    bini-health · PRD-442 菜单模式晴空诊室风格 · 6 屏核对版 v1.0 · 2026-05-10
+  </footer>
+</div>
+
+</body>
+</html>

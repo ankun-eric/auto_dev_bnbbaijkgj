@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>PRD-442 · 菜单模式 · 组件库 demo</title>
+<link rel="stylesheet" href="./design-tokens.css" />
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg-soft);
+    font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    color: var(--text-1);
+    letter-spacing: var(--letter-spacing-base);
+    padding-bottom: 80px;
+  }
+  .top-nav {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: rgba(255,255,255,0.95);
+    backdrop-filter: blur(12px);
+    box-shadow: var(--shadow-1);
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .top-nav .title { font-weight: 700; color: var(--sky-900); font-size: 16px; margin-right: 16px; }
+  .top-nav a {
+    padding: 4px 10px;
+    background: var(--sky-50);
+    color: var(--sky-700);
+    text-decoration: none;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .top-nav a:hover { background: var(--sky-100); }
+
+  .container { max-width: 960px; margin: 0 auto; padding: 32px 16px; }
+  .comp-section {
+    background: #fff;
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 20px;
+    box-shadow: var(--shadow-1);
+  }
+  .comp-section h2 {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--sky-900);
+    margin-bottom: 6px;
+    padding-left: 12px;
+    border-left: 4px solid var(--sky-400);
+  }
+  .comp-section .sub { font-size: 13px; color: var(--text-2); margin-bottom: 16px; margin-left: 16px; }
+  .comp-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 12px 0;
+    border-top: 1px dashed #e2e8f0;
+  }
+  .comp-row:first-of-type { border-top: none; }
+  .comp-row .label {
+    width: 120px;
+    font-size: 12px;
+    color: var(--text-3);
+    flex-shrink: 0;
+  }
+
+  .demo-card-area {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+  .demo-list-area {
+    background: var(--bg-soft);
+    padding: 8px;
+    border-radius: 12px;
+  }
+
+  /* Tab demo */
+  .tabs-demo {
+    display: flex;
+    gap: 16px;
+    border-bottom: 1px solid #e2e8f0;
+  }
+
+  /* 颜色色板 */
+  .palette-grid {
+    display: grid;
+    grid-template-columns: repeat(11, 1fr);
+    gap: 4px;
+  }
+  .swatch {
+    aspect-ratio: 1;
+    border-radius: 6px;
+    position: relative;
+    box-shadow: var(--shadow-1);
+  }
+  .swatch-label {
+    position: absolute;
+    bottom: -16px;
+    left: 0; right: 0;
+    text-align: center;
+    font-size: 9px;
+    color: var(--text-3);
+  }
+
+  .gradient-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+  .gradient-card {
+    height: 80px;
+    border-radius: 12px;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 600;
+    box-shadow: var(--shadow-2);
+  }
+
+  .icon-svg-row { display: flex; gap: 12px; }
+
+  /* TabBar demo */
+  .tabbar-demo {
+    height: 56px;
+    background: #fff;
+    border-top: 1px solid #f1f5f9;
+    display: flex;
+    margin-top: 12px;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: var(--shadow-1);
+  }
+  .tabbar-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    color: var(--text-3);
+    cursor: pointer;
+  }
+  .tabbar-item.active { color: var(--sky-600); font-weight: 600; }
+  .tabbar-item .ic { font-size: 18px; margin-bottom: 2px; }
+</style>
+</head>
+<body>
+
+<nav class="top-nav">
+  <span class="title">PRD-442 · 组件库 demo</span>
+  <a href="./prototype.html">← 6 屏核对版</a>
+  <a href="./index.html">设计系统首页</a>
+  <a href="./PRD-442.md">PRD 文档</a>
+  <a href="./design-tokens.css">tokens.css</a>
+</nav>
+
+<div class="container">
+
+  <div class="comp-section">
+    <h2>🎨 颜色 Tokens · 11 级天蓝色阶</h2>
+    <div class="sub">主色调 sky-50 ~ sky-950，与 PRD-441 AI 模式完全统一</div>
+    <div class="palette-grid" style="padding-bottom: 20px;">
+      <div class="swatch" style="background: var(--sky-50);"><div class="swatch-label">50</div></div>
+      <div class="swatch" style="background: var(--sky-100);"><div class="swatch-label">100</div></div>
+      <div class="swatch" style="background: var(--sky-200);"><div class="swatch-label">200</div></div>
+      <div class="swatch" style="background: var(--sky-300);"><div class="swatch-label">300</div></div>
+      <div class="swatch" style="background: var(--sky-400);"><div class="swatch-label">400</div></div>
+      <div class="swatch" style="background: var(--sky-500);"><div class="swatch-label">500</div></div>
+      <div class="swatch" style="background: var(--sky-600);"><div class="swatch-label">600</div></div>
+      <div class="swatch" style="background: var(--sky-700);"><div class="swatch-label">700</div></div>
+      <div class="swatch" style="background: var(--sky-800);"><div class="swatch-label">800</div></div>
+      <div class="swatch" style="background: var(--sky-900);"><div class="swatch-label">900</div></div>
+      <div class="swatch" style="background: var(--sky-950);"><div class="swatch-label">950</div></div>
+    </div>
+    <div class="comp-row">
+      <span class="label">语义辅助色</span>
+      <span class="menu-chip" style="background: var(--success); color: #fff; border: none;">success</span>
+      <span class="menu-chip" style="background: var(--danger); color: #fff; border: none;">danger</span>
+      <span class="menu-chip" style="background: var(--member); color: #fff; border: none;">member</span>
+    </div>
+  </div>
+
+  <div class="comp-section">
+    <h2>🌈 渐变 Tokens · 三层级</h2>
+    <div class="sub">A1 顶栏（最浅）→ 主按钮（中段）→ Hero（最深）</div>
+    <div class="gradient-grid">
+      <div class="gradient-card" style="background: var(--gradient-topbar-a1); color: var(--sky-900);">A1 顶栏 · topbar-a1</div>
+      <div class="gradient-card" style="background: var(--gradient-btn-primary);">主按钮 · btn-primary</div>
+      <div class="gradient-card" style="background: var(--gradient-hero-deep);">Hero · hero-deep</div>
+      <div class="gradient-card" style="background: var(--gradient-login-bg); color: var(--sky-900);">登录页 · login-bg</div>
+    </div>
+  </div>
+
+  <div class="comp-section">
+    <h2>🔘 Button · 5 变体（高 48px）</h2>
+    <div class="comp-row">
+      <span class="label">主按钮（渐变）</span>
+      <button class="menu-btn menu-btn--primary">登 录</button>
+      <button class="menu-btn menu-btn--primary" disabled>禁用态</button>
+    </div>
+    <div class="comp-row">
+      <span class="label">次按钮</span>
+      <button class="menu-btn menu-btn--secondary">取消</button>
+      <button class="menu-btn menu-btn--secondary">获取验证码</button>
+    </div>
+    <div class="comp-row">
+      <span class="label">文字按钮</span>
+      <button class="menu-btn menu-btn--text">忘记密码？</button>
+      <button class="menu-btn menu-btn--text">查看更多</button>
+    </div>
+    <div class="comp-row">
+      <span class="label">图标按钮</span>
+      <button class="menu-btn menu-btn--icon">+</button>
+      <button class="menu-btn menu-btn--icon">⚙</button>
+    </div>
+  </div>
+
+  <div class="comp-section">
+    <h2>🃏 Card · 普通 / 病历 / Hero</h2>
+    <div class="demo-card-area">
+      <div class="menu-card">
+        <div style="font-weight: 600;">普通卡片</div>
+        <div style="font-size: 13px; color: var(--text-2); margin-top: 4px;">用于一般信息展示</div>
+      </div>
+      <div class="menu-card--medical">
+        <div style="font-weight: 600; color: var(--sky-700); font-size: 13px;">📋 病历卡感</div>
+        <div style="font-size: 13px; color: var(--text-1); margin-top: 4px;">白底 + 左 3px 竖线 + shadow-2</div>
+      </div>
+      <div class="menu-card--hero" style="padding: 16px;">
+        <div style="font-size: 12px; opacity: 0.85;">健康评分</div>
+        <div style="font-size: 28px; font-weight: 700;">82<span style="font-size:13px;opacity:0.7;">分</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="comp-section">
+    <h2>📝 Input · 文本 / 验证码 / 错误态</h2>
+    <div class="comp-row">
+      <span class="label">文本</span>
+      <input class="menu-input" style="max-width: 280px;" placeholder="请输入内容" />
+    </div>
+    <div class="comp-row">
+      <span class="label">密码</span>
+      <input class="menu-input" type="password" style="max-width: 280px;" placeholder="请输入密码" value="••••••" />
+    </div>
+    <div class="comp-row">
+      <span class="label">搜索</span>
+      <input class="menu-input" style="max-width: 280px;" placeholder="🔍 搜索关键词" />
+    </div>
+    <div class="comp-row">
+      <span class="label">错误态</span>
+      <input class="menu-input menu-input--error" style="max-width: 280px;" value="格式错误" />
+      <span style="color: var(--danger); font-size: 12px;">请输入正确格式</span>
+    </div>
+  </div>
+
+  <div class="comp-section">
+    <h2>📑 Tab / TabBar</h2>
+    <div class="tabs-demo">
+      <div class="menu-tab menu-tab--active">推荐</div>
+      <div class="menu-tab">健康</div>
+      <div class="menu-tab">用药</div>
+      <div class="menu-tab">体检</div>
+    </div>
+    <div class="tabbar-demo">
+      <div class="tabbar-item active">
+        <div class="ic">🏠</div>
+        <div>菜单</div>
+      </div>
+      <div class="tabbar-item">
+        <div class="ic">💬</div>
+        <div>对话</div>
+      </div>
+      <div class="tabbar-item">
+        <div class="ic">📋</div>
+        <div>档案</div>
+      </div>
+      <div class="tabbar-item">
+        <div class="ic">👤</div>
+        <div>我的</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="comp-section">
+    <h2>🚪 Drawer + Mask</h2>
+    <div style="position: relative; height: 240px; background: var(--bg-soft); border-radius: 12px; overflow: hidden;">
+      <div style="position: absolute; inset: 0; background: rgba(15,23,42,0.4);"></div>
+      <div style="position: absolute; top: 0; left: 0; width: 200px; height: 100%; background: #fff; padding: 16px; box-shadow: var(--shadow-3);">
+        <div style="font-weight: 700; color: var(--sky-900); margin-bottom: 8px;">📜 历史会话</div>
+        <div style="font-size: 12px; color: var(--text-3);">280px 抽屉 · 半透明蒙层</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="comp-section">
+    <h2>💬 Toast · 4 类</h2>
+    <div class="comp-row">
+      <span class="label">默认</span>
+      <span class="menu-toast" style="position: static; transform: none;">已复制</span>
+      <span class="menu-toast menu-toast--success" style="position: static; transform: none;">✓ 操作成功</span>
+      <span class="menu-toast menu-toast--warning" style="position: static; transform: none;">⚠ 注意网络</span>
+      <span class="menu-toast menu-toast--danger" style="position: static; transform: none;">✗ 操作失败</span>
+    </div>
+  </div>
+
+  <div class="comp-section">
+    <h2>📜 List · 列表</h2>
+    <div class="demo-list-area">
+      <div style="background:#fff; border-radius: 12px; overflow: hidden; box-shadow: var(--shadow-1);">
+        <div class="menu-list-item menu-list-item-arrow">个人信息</div>
+        <div class="menu-list-item menu-list-item-arrow">账号安全</div>
+        <div class="menu-list-item menu-list-item-arrow">隐私设置</div>
+        <div class="menu-list-item menu-list-item-arrow">关于我们</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="comp-section">
+    <h2>🏷 Chip · 家人切换 / 标签</h2>
+    <div class="comp-row">
+      <span class="menu-chip menu-chip--active">本人</span>
+      <span class="menu-chip">妈妈</span>
+      <span class="menu-chip">爸爸</span>
+      <span class="menu-chip">+ 添加</span>
+    </div>
+  </div>
+
+  <div class="comp-section">
+    <h2>👤 Avatar · 4 尺寸 + 会员金徽</h2>
+    <div class="comp-row">
+      <div class="menu-avatar menu-avatar--sm" style="display:inline-flex;align-items:center;justify-content:center;color:var(--sky-700);">A</div>
+      <div class="menu-avatar" style="display:inline-flex;align-items:center;justify-content:center;color:var(--sky-700);">B</div>
+      <div class="menu-avatar menu-avatar--lg" style="display:inline-flex;align-items:center;justify-content:center;color:var(--sky-700);font-size:20px;">C</div>
+      <div class="menu-avatar menu-avatar--xl" style="display:inline-flex;align-items:center;justify-content:center;color:var(--sky-700);font-size:32px;position: relative;">
+        D
+        <div class="menu-avatar-member-badge">★</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="comp-section">
+    <h2>🔴 Badge · 红点 / 数字</h2>
+    <div class="comp-row">
+      <span class="label">红点</span>
+      <span style="position: relative; display: inline-flex; align-items:center; gap:12px;">通知 <span class="menu-badge-dot"></span></span>
+    </div>
+    <div class="comp-row">
+      <span class="label">数字</span>
+      <span style="position: relative; display: inline-flex; align-items:center; gap:12px;">未读 <span class="menu-badge-num">3</span></span>
+      <span style="position: relative; display: inline-flex; align-items:center; gap:12px;">9+ <span class="menu-badge-num">99+</span></span>
+    </div>
+  </div>
+
+  <div class="comp-section">
+    <h2>💀 Skeleton + Empty</h2>
+    <div class="comp-row" style="display:flex; gap:24px; align-items: flex-start;">
+      <div style="flex: 1;">
+        <div style="font-size: 12px; color: var(--text-3); margin-bottom: 8px;">骨架屏</div>
+        <div class="menu-skeleton" style="height: 14px; width: 60%; margin-bottom: 8px;"></div>
+        <div class="menu-skeleton" style="height: 14px; width: 80%; margin-bottom: 8px;"></div>
+        <div class="menu-skeleton" style="height: 80px; width: 100%;"></div>
+      </div>
+      <div style="flex: 1;">
+        <div style="font-size: 12px; color: var(--text-3); margin-bottom: 8px;">空状态</div>
+        <div class="menu-empty">
+          <div style="font-size: 48px; opacity: 0.3;">📭</div>
+          <div>暂无数据</div>
+          <div style="font-size: 12px; margin-top: 4px;">数据正在赶来的路上</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="comp-section">
+    <h2>📐 圆角 / 阴影 / 字号 Tokens</h2>
+    <div class="comp-row">
+      <span class="label">圆角 5 级</span>
+      <span style="background: var(--sky-200); padding: 8px 16px; border-radius: var(--radius-xs);">xs 4</span>
+      <span style="background: var(--sky-200); padding: 8px 16px; border-radius: var(--radius-sm);">sm 8</span>
+      <span style="background: var(--sky-200); padding: 8px 16px; border-radius: var(--radius-md);">md 12</span>
+      <span style="background: var(--sky-200); padding: 8px 16px; border-radius: var(--radius-lg);">lg 16</span>
+      <span style="background: var(--sky-200); padding: 8px 16px; border-radius: var(--radius-xl);">xl 24</span>
+    </div>
+    <div class="comp-row">
+      <span class="label">阴影 4 级（天蓝色）</span>
+      <span style="background:#fff; padding: 12px 16px; box-shadow: var(--shadow-1); border-radius:8px;">shadow-1</span>
+      <span style="background:#fff; padding: 12px 16px; box-shadow: var(--shadow-2); border-radius:8px;">shadow-2</span>
+      <span style="background:#fff; padding: 12px 16px; box-shadow: var(--shadow-3); border-radius:8px;">shadow-3</span>
+      <span style="background:#fff; padding: 12px 16px; box-shadow: var(--shadow-4); border-radius:8px;">shadow-4</span>
+    </div>
+    <div class="comp-row">
+      <span class="label">字号 8 级</span>
+      <span style="font-size: var(--fs-12);">12</span>
+      <span style="font-size: var(--fs-14);">14</span>
+      <span style="font-size: var(--fs-16);">16</span>
+      <span style="font-size: var(--fs-18);">18</span>
+      <span style="font-size: var(--fs-20);">20</span>
+      <span style="font-size: var(--fs-24);">24</span>
+      <span style="font-size: var(--fs-30); font-weight: 600; color: var(--sky-700);">30</span>
+      <span style="font-size: var(--fs-36); font-weight: 700; color: var(--sky-700);">36</span>
+    </div>
+  </div>
+
+  <footer style="text-align:center; padding: 40px 16px; color: var(--text-3); font-size:12px;">
+    bini-health · PRD-442 菜单模式组件库 demo v1.0 · 2026-05-10
+  </footer>
+
+</div>
+
+</body>
+</html>
