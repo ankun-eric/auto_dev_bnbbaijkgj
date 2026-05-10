@@ -1,4 +1,4 @@
-package com.binihealth.app
+package com.benekang.app
 
 import io.flutter.embedding.android.FlutterActivity
 

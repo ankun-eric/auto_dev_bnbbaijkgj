@@ -33,7 +33,7 @@ jobs:
         working-directory: flutter_app
         run: |
           rm -rf ios
-          flutter create --platforms ios --org com.binihealth --project-name bini_health .
+          flutter create --platforms ios --org com.benekang --project-name bini_health .
           flutter pub get
 
       - name: Update Info.plist permissions

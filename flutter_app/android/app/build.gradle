@@ -5,12 +5,12 @@ plugins {
 }
 
 android {
-    namespace "com.binihealth.app"
+    namespace "com.benekang.app"
     compileSdk 35
     ndkVersion "26.1.10909125"
 
     defaultConfig {
-        applicationId "com.binihealth.app"
+        applicationId "com.benekang.app"
         minSdk 24
         targetSdk 34
         versionCode 1
