@@ -19,6 +19,7 @@ import ProfileCard, { clearProfileCardCache } from '@/components/ai-chat/Profile
 import ReminderBellButton from '@/components/ai-chat/ReminderBellButton';
 import ReminderDrawer from '@/components/ai-chat/ReminderDrawer';
 import { trackEvent, aiChatTrack, type AiChatTargetType } from '@/lib/analytics';
+import { FnCell } from '@/components/design-system';
 
 interface ChatMessage {
   id: string;
@@ -1600,7 +1601,11 @@ export default function AiHomePage() {
             {/* v1.0 紫色今日健康贴士轮播卡（图片做整张卡片背景） */}
             <SectionErrorBoundary name="health_tips">
               {healthTipsVisible && banners.length > 0 && (
-                <div className="rounded-2xl overflow-hidden mb-4 shadow-lg" style={{ background: 'linear-gradient(135deg, #0EA5E9 0%, #38BDF8 100%)' }}>
+                <div
+                  className="rounded-2xl overflow-hidden mb-4 shadow-lg"
+                  style={{ background: 'var(--gradient-primary)' }}
+                  data-prd447="health-tips-card"
+                >
                   <Swiper
                     autoplay
                     autoplayInterval={(aiHomeConfig.health_tips?.interval_seconds || 4) * 1000}
@@ -1633,14 +1638,12 @@ export default function AiHomePage() {
                   style={{ gridTemplateColumns: `repeat(${aiHomeConfig.func_grid?.columns || 3}, minmax(0, 1fr))` }}
                 >
                   {gridItems.map(it => (
-                    <div
+                    <FnCell
                       key={it.id}
-                      className="relative flex flex-col items-center justify-center gap-1.5 py-4 rounded-2xl cursor-pointer active:opacity-80"
-                      style={{
-                        background: `linear-gradient(135deg, ${it.gradient_start} 0%, ${it.gradient_end} 100%)`,
-                        color: '#fff',
-                        minHeight: 90,
-                      }}
+                      icon={it.icon || '📌'}
+                      main={it.main_text}
+                      sub={it.sub_text}
+                      badge={it.badge || undefined}
                       onClick={() => {
                         const p = it.target_path;
                         if (p && (p.startsWith('/') || p.startsWith('http'))) {
@@ -1648,19 +1651,8 @@ export default function AiHomePage() {
                           else router.push(p);
                         }
                       }}
-                    >
-                      <span className="text-2xl">{it.icon || '📌'}</span>
-                      <span className="text-sm font-semibold">{it.main_text}</span>
-                      <span className="text-xs opacity-90 text-center px-1">{it.sub_text}</span>
-                      {it.badge && (
-                        <span
-                          className="absolute top-1 right-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold"
-                          style={{ background: '#FF4D4F', color: '#fff' }}
-                        >
-                          {it.badge}
-                        </span>
-                      )}
-                    </div>
+                      testId={`bh-fn-cell-${it.id}`}
+                    />
                   ))}
                 </div>
               )}

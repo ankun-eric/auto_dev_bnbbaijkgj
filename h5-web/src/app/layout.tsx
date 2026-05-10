@@ -1,6 +1,7 @@
 'use client';
 
 import './globals.css';
+import ThemeBootstrap from './ThemeBootstrap';
 
 export default function RootLayout({
   children,
@@ -19,7 +20,10 @@ export default function RootLayout({
         <title>宾尼小康 - AI健康管家</title>
         <meta name="description" content="宾尼小康 · 您的私人AI健康管家" />
       </head>
-      <body>{children}</body>
+      <body>
+        <ThemeBootstrap />
+        {children}
+      </body>
     </html>
   );
 }

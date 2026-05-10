@@ -315,3 +315,287 @@ html, body {
   border: 0;
   border-radius: 22px;
 }
+
+/* ============================================================
+   PRD-447 v2 · AI 对话模式方案 A 全量落地
+   - 只追加，绝不重命名已有变量（铁律）
+   - 三层 token：原子层 / 主题层 / 语义层
+   - 配合 12 个通用 React 组件（components/design-system/*）
+   ============================================================ */
+:root {
+  /* ===== 原子层：色板（追加 950 + 中性灰阶梯） ===== */
+  --color-brand-950: #082f49;
+
+  --color-neutral-50:  #fafafa;
+  --color-neutral-100: #f5f5f5;
+  --color-neutral-200: #e5e5e5;
+  --color-neutral-300: #d4d4d4;
+  --color-neutral-400: #a3a3a3;
+  --color-neutral-500: #737373;
+  --color-neutral-600: #525252;
+  --color-neutral-700: #404040;
+  --color-neutral-800: #262626;
+  --color-neutral-900: #171717;
+
+  /* ===== 原子层：方案 A 5 大渐变（命名兼容已有渐变变量） ===== */
+  --gradient-topbar-a:    linear-gradient(180deg, #bae6fd 0%, #7dd3fc 100%);
+  --gradient-fn-cell:     linear-gradient(135deg, #bae6fd 0%, #7dd3fc 100%);
+  --gradient-primary:     linear-gradient(135deg, #38bdf8 0%, #0284c7 100%);
+  --gradient-hero-dark:   linear-gradient(135deg, #0c4a6e 0%, #075985 100%);
+  --gradient-user-card-a: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+
+  /* ===== 原子层：字号阶梯（rem，基准 375） ===== */
+  --font-size-xs:   0.6875rem;
+  --font-size-sm:   0.75rem;
+  --font-size-base: 0.875rem;
+  --font-size-md:   1rem;
+  --font-size-lg:   1.125rem;
+  --font-size-xl:   1.25rem;
+  --font-size-2xl:  1.5rem;
+  --font-size-3xl:  1.875rem;
+
+  /* ===== 原子层：间距阶梯 ===== */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+
+  /* ===== 原子层：圆角 ===== */
+  --radius-sm:   4px;
+  --radius-md:   8px;
+  --radius-lg:   12px;
+  --radius-xl:   16px;
+  --radius-2xl:  20px;
+  --radius-full: 9999px;
+
+  /* ===== 原子层：阴影 ===== */
+  --shadow-card:    0 2px 8px 0 rgba(14, 165, 233, 0.08);
+  --shadow-bubble:  0 1px 4px 0 rgba(2, 132, 199, 0.10);
+  --shadow-float:   0 4px 12px 0 rgba(56, 189, 248, 0.20);
+  --shadow-modal:   0 8px 24px 0 rgba(12, 74, 110, 0.16);
+
+  /* ===== 原子层：动效曲线 ===== */
+  --ease-standard:   cubic-bezier(0.4, 0.0, 0.2, 1);
+  --ease-decelerate: cubic-bezier(0.0, 0.0, 0.2, 1);
+  --duration-fast:   150ms;
+  --duration-base:   250ms;
+  --duration-slow:   400ms;
+
+  /* ===== 主题层：semantic tokens ===== */
+  --color-primary:        var(--color-brand-400);
+  --color-primary-hover:  var(--color-brand-500);
+  --color-primary-active: var(--color-brand-600);
+  --color-primary-bg:     var(--color-brand-50);
+  --color-primary-border: var(--color-brand-200);
+
+  --color-text-strong:   var(--color-neutral-900);
+  --color-text-base:     var(--color-neutral-700);
+  --color-text-weak:     var(--color-neutral-500);
+  --color-text-disabled: var(--color-neutral-300);
+  --color-text-inverse:  #ffffff;
+
+  --color-bg-page:    #ffffff;
+  --color-bg-card:    #ffffff;
+  --color-bg-subtle:  var(--color-neutral-50);
+  --color-bg-overlay: rgba(12, 74, 110, 0.40);
+
+  /* ===== 语义层：业务语义 tokens ===== */
+  --color-topbar-bg:         var(--gradient-topbar-a);
+  --color-fn-cell-bg:        var(--gradient-fn-cell);
+  --color-btn-primary-bg:    var(--gradient-primary);
+  --color-bubble-user-bg:    var(--gradient-user-card-a);
+  --color-bubble-ai-bg:      var(--color-bg-card);
+  --color-card-medical-line: var(--color-brand-400);
+  --color-chip-family-bg:    var(--color-brand-100);
+  --color-radar-fill:        rgba(56, 189, 248, 0.30);
+  --color-radar-stroke:      var(--color-brand-500);
+}
+
+/* ============================================================
+   PRD-447 v2 · 工具类（包薄壳与全新组件共用）
+   ============================================================ */
+
+/* 顶栏（淡天蓝） */
+.bh-topbar {
+  background: var(--color-topbar-bg);
+  color: var(--color-brand-900);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 88rpx;
+  min-height: 44px;
+  padding: 0 16px;
+}
+
+/* 功能宫格（替代旧多彩渐变） */
+.bh-fn-cell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 90px;
+  padding: 12px;
+  border-radius: var(--radius-2xl);
+  background: var(--color-fn-cell-bg);
+  color: var(--color-brand-900);
+  cursor: pointer;
+  transition: opacity var(--duration-fast) var(--ease-standard);
+}
+.bh-fn-cell:active { opacity: 0.85; }
+.bh-fn-cell .bh-fn-cell-icon { font-size: 28px; }
+.bh-fn-cell .bh-fn-cell-main { font-size: var(--font-size-base); font-weight: 600; color: var(--color-brand-900); }
+.bh-fn-cell .bh-fn-cell-sub { font-size: var(--font-size-sm); color: var(--color-brand-700); opacity: 0.85; text-align: center; }
+
+/* 用户气泡（深一档天蓝） */
+.bh-bubble-user {
+  background: var(--color-bubble-user-bg);
+  color: var(--color-brand-900);
+  padding: 10px 14px;
+  border-radius: var(--radius-xl);
+  border-top-right-radius: var(--radius-sm);
+  box-shadow: var(--shadow-bubble);
+  display: inline-block;
+  max-width: 80%;
+}
+
+/* 深色 hero */
+.bh-hero-dark {
+  background: var(--gradient-hero-dark);
+  color: var(--color-text-inverse);
+  padding: 20px 16px;
+  border-radius: var(--radius-2xl);
+}
+
+/* 双色 SVG 推荐卡（屏 ④） */
+.bh-recommend-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-brand-100);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-card);
+  cursor: pointer;
+  transition: transform var(--duration-fast) var(--ease-standard);
+}
+.bh-recommend-card:active { transform: scale(0.98); }
+.bh-recommend-card .bh-recommend-card-icon {
+  width: 40px; height: 40px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: var(--radius-lg);
+  background: var(--color-brand-50);
+  color: var(--color-brand-500);
+  flex-shrink: 0;
+}
+.bh-recommend-card .bh-recommend-card-text {
+  flex: 1; font-size: var(--font-size-base); color: var(--color-text-base);
+}
+
+/* 家人 chip（屏 ⑤、⑱） */
+.bh-family-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  background: var(--color-chip-family-bg);
+  color: var(--color-brand-700);
+  font-size: var(--font-size-sm);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-standard);
+}
+.bh-family-chip.active {
+  background: var(--color-brand-400);
+  color: var(--color-text-inverse);
+  border-color: var(--color-brand-500);
+}
+
+/* 流式追问 chip（屏 ⑨） */
+.bh-followup-chip {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: var(--radius-full);
+  background: var(--color-brand-50);
+  border: 1px solid var(--color-brand-200);
+  color: var(--color-brand-600);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  animation: bh-followup-in var(--duration-base) var(--ease-decelerate);
+}
+@keyframes bh-followup-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* 思考态三圆点 */
+.bh-thinking-dots {
+  display: inline-flex; gap: 4px;
+}
+.bh-thinking-dots span {
+  width: 6px; height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--color-brand-400);
+  animation: bh-think-bounce 1.2s infinite ease-in-out both;
+}
+.bh-thinking-dots span:nth-child(2) { animation-delay: 0.15s; }
+.bh-thinking-dots span:nth-child(3) { animation-delay: 0.30s; }
+@keyframes bh-think-bounce {
+  0%, 80%, 100% { opacity: 0.3; transform: scale(0.85); }
+  40% { opacity: 1; transform: scale(1); }
+}
+
+/* 浮动铃铛 */
+.bh-float-bell {
+  position: fixed;
+  right: 16px;
+  bottom: calc(80px + env(safe-area-inset-bottom));
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-full);
+  background: var(--color-bg-card);
+  color: var(--color-brand-500);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: var(--shadow-float);
+  cursor: pointer;
+  z-index: 100;
+}
+
+/* 5 维雷达图容器 */
+.bh-radar-chart {
+  display: block;
+  margin: 0 auto;
+  fill: var(--color-radar-fill);
+  stroke: var(--color-radar-stroke);
+}
+
+/* 语音声波 */
+.bh-voice-wave {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 28px;
+}
+.bh-voice-wave span {
+  width: 3px;
+  background: var(--color-brand-500);
+  border-radius: var(--radius-sm);
+  animation: bh-wave 1s ease-in-out infinite;
+}
+.bh-voice-wave span:nth-child(1) { animation-delay: 0s; }
+.bh-voice-wave span:nth-child(2) { animation-delay: 0.1s; }
+.bh-voice-wave span:nth-child(3) { animation-delay: 0.2s; }
+.bh-voice-wave span:nth-child(4) { animation-delay: 0.3s; }
+.bh-voice-wave span:nth-child(5) { animation-delay: 0.4s; }
+@keyframes bh-wave {
+  0%, 100% { height: 8px; }
+  50% { height: 24px; }
+}

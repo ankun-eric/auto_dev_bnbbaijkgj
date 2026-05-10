@@ -86,6 +86,7 @@ from app.api import (
     sms,
     tcm,
     tcm_config,
+    themes,
     third_party_openapi,
     tts,
     unified_orders,
@@ -1155,6 +1156,7 @@ from app.api import services_filter as _services_filter  # OPT-1
 app.include_router(_services_filter.router)
 app.include_router(tcm_config.router)
 app.include_router(tcm_config.admin_router)
+app.include_router(themes.router)  # PRD-447 v2 后台主题模块（4 admin API + H5 注入）
 app.include_router(unified_orders.router)
 app.include_router(member_qr.router)
 app.include_router(favorites.router)
