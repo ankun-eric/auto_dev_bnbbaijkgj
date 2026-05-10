@@ -36,7 +36,7 @@ def run(cmd, cwd=None, check=True):
     return result
 
 
-def ssh_exec(ssh, cmd, timeout=600):
+def ssh_exec(ssh, cmd, timeout=600, check=False):
     print(f"\n[remote] $ {cmd}")
     stdin, stdout, stderr = ssh.exec_command(cmd, timeout=timeout, get_pty=True)
     out_chunks = []
@@ -50,6 +50,8 @@ def ssh_exec(ssh, cmd, timeout=600):
     err = stderr.read().decode("utf-8", errors="replace")
     if err:
         print(f"  ! stderr: {err[:1500]}", file=sys.stderr)
+    if check and rc != 0:
+        raise RuntimeError(f"remote command failed (rc={rc}): {cmd}")
     return rc, "\n".join(out_chunks), err
 
 
@@ -83,20 +85,25 @@ def main():
     print(f"\n[ssh] connecting to {USER}@{HOST}...")
     ssh.connect(HOST, username=USER, password=PWD, timeout=30)
 
-    # 3. 服务器同步代码
-    rc, _, _ = ssh_exec(ssh, f"cd {REMOTE_DIR} && git fetch origin master 2>&1 && git reset --hard origin/master 2>&1 | tail -20", timeout=120)
+    # 3. 服务器同步代码：先尝试 git，失败则 SFTP 兜底
+    rc, _, _ = ssh_exec(ssh, f"cd {REMOTE_DIR} && timeout 60 git fetch origin master && git reset --hard origin/master 2>&1 | tail -5", timeout=90)
+    sftp_used = False
     if rc != 0:
-        print("[remote git] 失败，尝试 SFTP 直传 design-system...")
+        print("[remote git] 失败/超时，使用 SFTP 兜底直传 design-system...")
         sftp = ssh.open_sftp()
         local_dir = os.path.join(os.path.dirname(__file__), "h5-web", "public", "design-system")
         remote_dir = f"{REMOTE_DIR}/h5-web/public/design-system"
-        ssh_exec(ssh, f"mkdir -p {remote_dir}", check=False)
+        ssh_exec(ssh, f"mkdir -p {remote_dir}")
         for f in os.listdir(local_dir):
             local = os.path.join(local_dir, f)
             remote = f"{remote_dir}/{f}"
             print(f"  SFTP: {f}")
             sftp.put(local, remote)
         sftp.close()
+        sftp_used = True
+
+    # 验证服务器上的文件
+    ssh_exec(ssh, f"ls -la {REMOTE_DIR}/h5-web/public/design-system/")
 
     # 4. 重建 h5-web 容器
     rc, _, _ = ssh_exec(
