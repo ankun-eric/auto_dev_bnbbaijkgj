@@ -902,8 +902,7 @@ function ChatPageInner() {
   // 是否离开底部 100px 的状态（决定是否显示"↓ 回到最新消息"按钮）
   const [showScrollToBottomBtn, setShowScrollToBottomBtn] = useState(false);
   const [unreadDuringScroll, setUnreadDuringScroll] = useState(0);
-  // 档案信息卡展开
-  const [profileCardExpanded, setProfileCardExpanded] = useState(false);
+  // [PRD-448] 档案展开状态由 AdvisorCapsule 内部受控管理，旧 profileCardExpanded 已废弃
 
   // 拉取 ai_home_config 中的 ai_chat 子配置
   useEffect(() => {
@@ -2135,18 +2134,7 @@ function ChatPageInner() {
               data-testid={isUser ? 'chat-user-message' : 'chat-ai-message'}
               style={{ marginBottom: 24 }}
             >
-              {/* [PRD-432] AI 回答顶部「咨询对象档案」折叠卡片 */}
-              {!isUser && msg.id !== 'welcome' && (
-                <div data-testid="chat-profile-card-wrapper" style={{ marginBottom: 8 }}>
-                  <ProfileCard
-                    consultantId={currentConsultantId}
-                    onGoComplete={(cid) => router.push(`/health-archive?target=${cid}&from=ai-chat`)}
-                    onGoMedicationManage={(cid, autoCreate) =>
-                      router.push(`/health-plan/medications?target=${cid}${autoCreate ? '&action=create' : ''}`)
-                    }
-                  />
-                </div>
-              )}
+              {/* [PRD-448] AI 回答顶部"咨询人胶囊"已搬入气泡内部第一行，此处不再渲染外部 ProfileCard */}
               {/* 头像独占一行：左对齐，AI/用户均为 32px 头像 + 名称 */}
               <div className="flex items-center" style={{ marginBottom: 8 }}>
                 {isUser ? (
@@ -2161,69 +2149,32 @@ function ChatPageInner() {
                 </span>
               </div>
               <div style={{ width: '100%' }}>
-                {/* PRD-414 §3.3: AI 署名 + §3.4: 档案行（仅当选中具体家人且配置启用时显示） */}
+                {/* PRD-414 §3.3: AI 署名（保留），档案文字行已被 PRD-448「咨询人胶囊」替代，挪到正文气泡内部第一行 */}
                 {msg.role === 'assistant' && (
                   <div style={{ marginBottom: 4 }}>
                     <div style={{ fontSize: 14, fontWeight: 500, color: '#2E2E2E', lineHeight: '18px' }}>
                       {aiChatCfg.signature || '小康'}
                     </div>
-                    {aiChatCfg.profile_row_enabled
-                      && currentRelationLabel
-                      && currentRelationLabel !== '未选择档案' && (
-                      <div
-                        style={{ fontSize: 12, color: '#8C8C8C', lineHeight: '18px', cursor: 'pointer', marginTop: 2 }}
-                        onClick={() => setProfileCardExpanded((v) => !v)}
-                      >
-                        {(aiChatCfg.profile_row_template || '本次回答结合 {name} 的档案')
-                          .replace('{name}', currentRelationLabel)}
-                        <span style={{ marginLeft: 4 }}>{profileCardExpanded ? '△' : '▽'}</span>
-                      </div>
-                    )}
-                    {/* 档案信息卡：仅在 expanded 时显示 */}
-                    {profileCardExpanded
-                      && aiChatCfg.profile_row_enabled
-                      && currentRelationLabel
-                      && currentRelationLabel !== '未选择档案'
-                      && msg.id === messages[messages.length - 1]?.id && (
-                      <div
-                        style={{
-                          background: '#F7F8FA',
-                          borderRadius: 8,
-                          boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-                          padding: 12,
-                          marginTop: 6,
-                          fontSize: 12,
-                          color: '#555',
-                          maxWidth: 320,
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <div style={{ fontWeight: 600, color: '#333', marginBottom: 6 }}>
-                          档案：{currentRelationLabel}
-                        </div>
-                        {(() => {
-                          const m = familyMembers.find(
-                            (fm) =>
-                              (fm.relation_label || '').includes(currentRelationLabel)
-                              || (fm.nickname || '').includes(currentRelationLabel)
-                          );
-                          if (!m) {
-                            return <div style={{ color: '#999' }}>暂无档案数据</div>;
-                          }
-                          return (
-                            <>
-                              <div>姓名：{m.nickname || '-'}</div>
-                              <div>性别：{m.gender || '-'}</div>
-                              <div>身高：{m.height ? `${m.height} cm` : '-'}</div>
-                              <div>体重：{m.weight ? `${m.weight} kg` : '-'}</div>
-                              <div style={{ marginTop: 4, color: '#1890ff' }}>
-                                关键信息：长按可查看完整档案
-                              </div>
-                            </>
-                          );
-                        })()}
-                      </div>
-                    )}
+                  </div>
+                )}
+                {/* [PRD-448] 咨询人胶囊：放在 AI 回答内容容器顶部第一行（正文气泡内部第一行）
+                    仅普通 AI 回复（非 user / 非欢迎语 / 非首次自查卡 / 非药品卡）显示 */}
+                {msg.role === 'assistant'
+                  && msg.id !== 'welcome'
+                  && !isDrugCard
+                  && aiChatCfg.profile_row_enabled
+                  && currentRelationLabel
+                  && currentRelationLabel !== '未选择档案'
+                  && currentConsultantId > 0 && (
+                  <div data-testid="chat-profile-card-wrapper" style={{ marginBottom: 8 }}>
+                    <ProfileCard
+                      consultantId={currentConsultantId}
+                      variant="capsule"
+                      onGoComplete={(cid) => router.push(`/health-archive?target=${cid}&from=ai-chat`)}
+                      onGoMedicationManage={(cid, autoCreate) =>
+                        router.push(`/health-plan/medications?target=${cid}${autoCreate ? '&action=create' : ''}`)
+                      }
+                    />
                   </div>
                 )}
                 {/* [PRD-429] 健康自查摘要卡 = 卡片类组件，按 F-08 保留原宽度 360px 左对齐 */}

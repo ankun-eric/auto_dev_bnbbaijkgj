@@ -1770,19 +1770,6 @@ export default function AiHomePage() {
                       </span>
                     </div>
                   )}
-                  {/* [PRD-432 / PRD-439 F-03] AI 回答顶部「咨询对象档案」折叠胶囊：
-                      仅在已选定咨询对象时显示（未选则隐藏，避免空胶囊） */}
-                  {((msg.consultantTargetId ?? selectedConsultant?.id ?? 0) > 0) && (
-                  <div data-testid="ai-home-profile-card-wrapper" style={{ marginBottom: 8 }}>
-                    <ProfileCard
-                      consultantId={(msg.consultantTargetId ?? selectedConsultant?.id ?? 0) as number}
-                      onGoComplete={(cid) => router.push(`/health-archive?target=${cid}&from=ai-chat`)}
-                      onGoMedicationManage={(cid, autoCreate) =>
-                        router.push(`/health-plan/medications?target=${cid}${autoCreate ? '&action=create' : ''}`)
-                      }
-                    />
-                  </div>
-                  )}
                   {/* [PRD-433 F-03] AI 头像 + 名称行：保留在卡片外部上方，去掉「· 健康助手」 */}
                   <div className="flex items-center" style={{ marginBottom: 6, paddingLeft: 16 }}>
                     <div
@@ -1805,6 +1792,20 @@ export default function AiHomePage() {
                       marginRight: 16,
                     }}
                   >
+                    {/* [PRD-448] 咨询人胶囊：气泡内部第一行，距气泡顶部 0（已由 padding 14px 提供 8px+），距左右内边距 0（已由 padding 16px 提供 12px+）
+                        仅在已选定咨询对象时显示（未选则隐藏，避免空胶囊） */}
+                    {((msg.consultantTargetId ?? selectedConsultant?.id ?? 0) > 0) && (
+                    <div data-testid="ai-home-profile-card-wrapper" style={{ marginBottom: 8 }}>
+                      <ProfileCard
+                        consultantId={(msg.consultantTargetId ?? selectedConsultant?.id ?? 0) as number}
+                        variant="capsule"
+                        onGoComplete={(cid) => router.push(`/health-archive?target=${cid}&from=ai-chat`)}
+                        onGoMedicationManage={(cid, autoCreate) =>
+                          router.push(`/health-plan/medications?target=${cid}${autoCreate ? '&action=create' : ''}`)
+                        }
+                      />
+                    </div>
+                    )}
                     {/* 正文 */}
                     <div
                       className="ai-fullwidth-message"

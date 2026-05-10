@@ -14,6 +14,7 @@
 import { useEffect, useState } from 'react';
 import api from '@/lib/api';
 import MedicationDrawer from './MedicationDrawer';
+import AdvisorCapsule from './AdvisorCapsule';
 
 export interface ProfileCardProps {
   consultantId: number;
@@ -24,6 +25,14 @@ export interface ProfileCardProps {
   onGoComplete?: (consultantId: number) => void;
   /** 跳转到「用药管理设置页」 */
   onGoMedicationManage?: (consultantId: number, autoCreate: boolean) => void;
+  /**
+   * [PRD-448] 展示模式
+   * - 'legacy'（默认）：保留原 PRD-432 折叠卡片样式（外部胶囊 + 灰色摘要）
+   * - 'capsule'：使用新「咨询人胶囊」（AdvisorCapsule）作为折叠态，
+   *   折叠态浅灰圆角胶囊 + 小人图标 + "XXX 的档案" + 箭头；展开态保留 7 项档案字段。
+   *   用于 AI 首页 / AI 对话详情页气泡内部第一行。
+   */
+  variant?: 'legacy' | 'capsule';
 }
 
 interface ProfileField<T> {
@@ -97,6 +106,7 @@ export default function ProfileCard({
   onFallbackClick,
   onGoComplete,
   onGoMedicationManage,
+  variant = 'legacy',
 }: ProfileCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [data, setData] = useState<ProfileCardData | null>(null);
@@ -167,6 +177,15 @@ export default function ProfileCard({
   }, [consultantId]);
 
   if (fallbackText) {
+    if (variant === 'capsule') {
+      return (
+        <AdvisorCapsule
+          memberName=""
+          loading={false}
+          testId="ai-advisor-capsule"
+        />
+      );
+    }
     return (
       <div
         data-testid="ai-profile-card-fallback"
@@ -187,6 +206,13 @@ export default function ProfileCard({
   }
 
   if (error || !data) {
+    if (variant === 'capsule') {
+      // PRD-448 §5.3 兜底：加载中显示 loading 占位；失败时显示"我的档案"占位胶囊
+      if (error) {
+        return <AdvisorCapsule memberName="" loading={false} testId="ai-advisor-capsule" />;
+      }
+      return <AdvisorCapsule memberName="" loading testId="ai-advisor-capsule" />;
+    }
     if (error)
       return null;
     return (
@@ -214,6 +240,104 @@ export default function ProfileCard({
 
   const completePercent = data.completeness.percent;
   const isComplete = completePercent >= 100;
+
+  // [PRD-448] 7 项档案字段公共渲染（详情页/AI 首页通用，作为 AdvisorCapsule 展开内容）
+  const sevenFieldsContent = (
+    <div
+      data-testid="ai-profile-card-expanded"
+      data-consultant-id={data.consultant_id}
+      style={{
+        background: '#F4F6FA',
+        borderRadius: 8,
+        padding: '8px 12px 10px',
+        fontSize: 13,
+        color: '#374151',
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          padding: '4px 0 8px',
+          fontSize: 12,
+        }}
+      >
+        <div
+          data-testid="ai-profile-card-completeness"
+          style={{
+            color: isComplete ? '#10B981' : '#2563EB',
+            cursor: isComplete ? 'default' : 'pointer',
+          }}
+          onClick={() => {
+            if (!isComplete) onGoComplete?.(data.consultant_id);
+          }}
+        >
+          {isComplete ? '档案已完整 ✓' : `档案完整度 ${completePercent}%，点击补全 ›`}
+        </div>
+        {data.updated_within_30d && data.last_updated_at && (
+          <div style={{ color: '#9CA3AF' }}>
+            档案已于 {formatMonthDay(data.last_updated_at)} 更新
+          </div>
+        )}
+      </div>
+      <Row label="性别" value={renderField(f.gender, 'string')} />
+      <Row label="年龄" value={f.age.filled ? `${f.age.value} 岁` : <Empty />} />
+      <Row label="身高" value={renderField(f.height, 'string')} />
+      <Row label="体重" value={renderField(f.weight, 'string')} />
+      <Row label="既往病史" value={renderListField(f.past_history)} />
+      <Row label="过敏史" value={renderListField(f.allergy)} />
+      <Row
+        label="长期用药"
+        clickable={medsClickable}
+        onClick={() => {
+          if (medsClickable) setDrawerOpen(true);
+        }}
+        value={
+          meds.is_none ? (
+            <span style={{ color: '#9CA3AF' }}>无</span>
+          ) : meds.count > 0 ? (
+            <span>
+              {meds.value_brief || `共 ${meds.count} 项`}
+              <span style={{ marginLeft: 4, color: '#9CA3AF' }}>›</span>
+            </span>
+          ) : (
+            <span style={{ color: '#9CA3AF' }}>
+              未填写 <span style={{ marginLeft: 4 }}>›</span>
+            </span>
+          )
+        }
+      />
+    </div>
+  );
+
+  if (variant === 'capsule') {
+    return (
+      <div data-testid="ai-profile-card" data-consultant-id={data.consultant_id}>
+        <AdvisorCapsule
+          memberName={data.nickname || '本人'}
+          expanded={expanded}
+          onToggle={(next) => setExpanded(next)}
+          expandedContent={sevenFieldsContent}
+          testId="ai-advisor-capsule"
+        />
+        {drawerOpen && (
+          <MedicationDrawer
+            consultantId={data.consultant_id}
+            consultantName={data.nickname}
+            onClose={() => setDrawerOpen(false)}
+            onGoManage={() => {
+              setDrawerOpen(false);
+              onGoMedicationManage?.(data.consultant_id, false);
+            }}
+            onGoCreate={() => {
+              setDrawerOpen(false);
+              onGoMedicationManage?.(data.consultant_id, true);
+            }}
+          />
+        )}
+      </div>
+    );
+  }
 
   return (
     <div
