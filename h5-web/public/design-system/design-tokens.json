@@ -1,0 +1,151 @@
+{
+  "$schema": "https://design-tokens.org/schema/v1.json",
+  "meta": {
+    "name": "bini-health · AI 对话风格 PRD-441",
+    "scheme": "方案A · 晴空诊室",
+    "version": "1.0.0",
+    "date": "2026-05-10",
+    "author": "小白 AI"
+  },
+  "color": {
+    "brand": {
+      "50":  { "value": "#f0f9ff", "comment": "顶栏起点 / 极淡背景" },
+      "100": { "value": "#e0f2fe", "comment": "浅光晕 / Hover 底" },
+      "150": { "value": "#dbeafe", "comment": "顶栏止点" },
+      "200": { "value": "#bae6fd", "comment": "云蓝 / 卡片浅底" },
+      "300": { "value": "#7dd3fc", "comment": "副强调" },
+      "400": { "value": "#38bdf8", "comment": "主强调：AI 卡片左竖线 / 用户气泡起点" },
+      "500": { "value": "#0ea5e9", "comment": "主操作中段" },
+      "600": { "value": "#0284c7", "comment": "主操作：用户气泡止点" },
+      "700": { "value": "#0369a1", "comment": "深医蓝：强调标题" },
+      "800": { "value": "#075985", "comment": "雷达图描边" },
+      "900": { "value": "#0c4a6e", "comment": "紧急竖线深医蓝" }
+    },
+    "text": {
+      "primary":   { "value": "#1f2937" },
+      "secondary": { "value": "#6b7280" },
+      "tertiary":  { "value": "#9ca3af", "comment": "辅助文本 / 免责声明" },
+      "disabled":  { "value": "#c7c7c7" },
+      "inverse":   { "value": "#ffffff" }
+    },
+    "bg": {
+      "base":  { "value": "#f5f7fa" },
+      "card":  { "value": "#ffffff" },
+      "hover": { "value": "#f0f9ff" },
+      "mask":  { "value": "rgba(15, 23, 42, 0.45)" }
+    },
+    "border": {
+      "base":    { "value": "#eaebed" },
+      "light":   { "value": "#f0f1f3" },
+      "divider": { "value": "#e5e7eb" }
+    },
+    "accent": {
+      "warm-orange": { "value": "#fbbf24", "allowed": ["会员等级", "星级评价", "倒计时高亮"] },
+      "red":         { "value": "#ef4444", "allowed": ["紧急徽标", "错误重试", "危险操作"] },
+      "green":       { "value": "#22c55e", "allowed": ["在线状态", "达标徽章", "成功 Toast"] },
+      "yellow":      { "value": "#eab308", "allowed": ["偏高/临界指标徽章"] }
+    },
+    "badge": {
+      "normal":   { "bg": "#ecfdf5", "fg": "#15803d" },
+      "high":     { "bg": "#fef9c3", "fg": "#854d0e" },
+      "critical": { "bg": "#fee2e2", "fg": "#b91c1c" },
+      "member":   { "bg": "#fef3c7", "fg": "#b45309" }
+    }
+  },
+  "gradient": {
+    "topbar":      { "value": "linear-gradient(135deg, #f0f9ff 0%, #dbeafe 100%)", "comment": "一级页顶栏" },
+    "user-bubble": { "value": "linear-gradient(135deg, #38bdf8 0%, #0284c7 100%)", "comment": "用户气泡" },
+    "primary-btn": { "value": "linear-gradient(135deg, #38bdf8 0%, #0284c7 100%)", "comment": "主操作按钮" },
+    "hero-deep":   { "value": "linear-gradient(135deg, #0c4a6e 0%, #0284c7 100%)", "comment": "订单详情 / 客服 hero" },
+    "user-card":   { "value": "linear-gradient(135deg, #7dd3fc 0%, #0284c7 100%)", "comment": "健康档案用户卡" }
+  },
+  "fontSize": {
+    "xs":   { "value": "12px", "usage": "辅助说明 / 标签" },
+    "sm":   { "value": "13px", "usage": "时间戳 / 次要文字" },
+    "base": { "value": "14px", "usage": "正文默认" },
+    "md":   { "value": "15px", "usage": "AI 卡片正文" },
+    "lg":   { "value": "16px", "usage": "列表标题" },
+    "xl":   { "value": "18px", "usage": "二级页标题" },
+    "2xl":  { "value": "20px", "usage": "模块标题" },
+    "3xl":  { "value": "22px", "usage": "关键指标数字" },
+    "4xl":  { "value": "28px", "usage": "Hero 数字（健康评分）" }
+  },
+  "lineHeight": {
+    "tight": { "value": 1.25 },
+    "base":  { "value": 1.5 },
+    "loose": { "value": 1.75 }
+  },
+  "fontWeight": {
+    "regular":  { "value": 400 },
+    "medium":   { "value": 500 },
+    "semibold": { "value": 600 },
+    "bold":     { "value": 700 }
+  },
+  "space": {
+    "1":  { "value": "4px" },
+    "2":  { "value": "8px" },
+    "3":  { "value": "12px" },
+    "4":  { "value": "16px" },
+    "5":  { "value": "20px" },
+    "6":  { "value": "24px" },
+    "8":  { "value": "32px" },
+    "10": { "value": "40px" },
+    "12": { "value": "48px" }
+  },
+  "radius": {
+    "xs":   { "value": "4px" },
+    "sm":   { "value": "6px" },
+    "md":   { "value": "8px" },
+    "lg":   { "value": "12px" },
+    "xl":   { "value": "16px" },
+    "2xl":  { "value": "20px" },
+    "pill": { "value": "999px" }
+  },
+  "shadow": {
+    "card":       { "value": "0 2px 8px rgba(56, 189, 248, 0.08)" },
+    "card-hover": { "value": "0 4px 12px rgba(56, 189, 248, 0.12)" },
+    "popup":      { "value": "0 8px 24px rgba(56, 189, 248, 0.16)" },
+    "floating":   { "value": "0 4px 16px rgba(2, 132, 199, 0.16)" }
+  },
+  "duration": {
+    "instant": { "value": "100ms", "usage": "按下反馈 / Hover" },
+    "fast":    { "value": "180ms", "usage": "弹出菜单 / Toast" },
+    "base":    { "value": "240ms", "usage": "抽屉滑入 / 页面切换" },
+    "slow":    { "value": "360ms", "usage": "大型转场 / 全屏弹层" }
+  },
+  "easing": {
+    "standard":   { "value": "cubic-bezier(0.4, 0, 0.2, 1)" },
+    "decelerate": { "value": "cubic-bezier(0.0, 0.0, 0.2, 1)", "usage": "出现" },
+    "accelerate": { "value": "cubic-bezier(0.4, 0.0, 1, 1)", "usage": "消失" }
+  },
+  "zIndex": {
+    "content":   { "value": 1 },
+    "sticky":    { "value": 100 },
+    "drawer":    { "value": 900 },
+    "mask":      { "value": 1000 },
+    "popup":     { "value": 1100 },
+    "toast":     { "value": 1200 },
+    "emergency": { "value": 1300 }
+  },
+  "components": {
+    "button-primary": { "height": "44px", "radius": "8px", "press-scale": 0.97 },
+    "chip":           { "height": "28px", "radius": "999px" },
+    "badge":          { "height": "20px", "radius": "4px" },
+    "input":          { "height": "40px", "radius": "6px", "border": "1px solid var(--color-border-base)" },
+    "ai-card":        { "left-bar": "3px solid var(--color-brand-400)", "radius": "12px", "padding": "16px 16px 16px 20px", "shadow": "var(--shadow-card)" },
+    "user-bubble":    { "background": "var(--gradient-user-bubble)", "color": "#ffffff", "radius": "12px", "max-width": "75%" },
+    "thinking":       { "dot-size": "6px", "interval": "200ms", "loop": "600ms" },
+    "reminder-emergency":  { "left-bar": "6px solid var(--color-brand-900)" },
+    "reminder-medication": { "left-bar": "4px solid var(--color-brand-600)" },
+    "reminder-followup":   { "left-bar": "4px dashed var(--color-brand-400)" },
+    "radar":          { "size": "110×110", "stroke": "var(--color-brand-800)" },
+    "topbar-primary": { "background": "var(--gradient-topbar)", "height": "44px" },
+    "floating-bell":  { "size": "48px", "shadow": "var(--shadow-floating)" }
+  },
+  "accessibility": {
+    "min-tap-area":     "44x44pt",
+    "min-text-contrast": "4.5:1 (AA)",
+    "min-body-font":     "14px",
+    "min-key-metric":    "22px"
+  }
+}

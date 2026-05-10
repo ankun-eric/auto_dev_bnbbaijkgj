@@ -1,0 +1,429 @@
+/* ============================================================
+ * bini-health · AI 对话风格 PRD-441 · 方案A 晴空诊室
+ * Design Tokens v1.0 (2026-05-10)
+ *
+ * 主色铁律：整个 App 严格使用「淡天蓝」单一主色调，
+ * 强调辅助色（暖橙/红/绿/黄）严格控量，仅用于第七章规定的少数语义场景。
+ * ============================================================ */
+
+:root {
+  /* ============================================================
+   * 3.1 颜色 Token · 品牌色（天蓝色阶 11 级）
+   * ============================================================ */
+  --color-brand-50:  #f0f9ff;  /* 顶栏起点 / 极淡背景 */
+  --color-brand-100: #e0f2fe;  /* 浅光晕 / Hover 底 */
+  --color-brand-150: #dbeafe;  /* 顶栏止点 */
+  --color-brand-200: #bae6fd;  /* 云蓝 / 卡片浅底 */
+  --color-brand-300: #7dd3fc;  /* 副强调 */
+  --color-brand-400: #38bdf8;  /* 主强调：AI 卡片左竖线 / 用户气泡起点 */
+  --color-brand-500: #0ea5e9;  /* 主操作中段 */
+  --color-brand-600: #0284c7;  /* 主操作：用户气泡止点 */
+  --color-brand-700: #0369a1;  /* 深医蓝：强调标题 */
+  --color-brand-800: #075985;  /* 雷达图描边 */
+  --color-brand-900: #0c4a6e;  /* 紧急竖线深医蓝 */
+
+  /* ============================================================
+   * 中性色（文本 / 背景 / 边框）
+   * ============================================================ */
+  --color-text-primary:    #1f2937;  /* 主文本 */
+  --color-text-secondary:  #6b7280;  /* 次要文本 */
+  --color-text-tertiary:   #9ca3af;  /* 辅助文本 / 免责声明 */
+  --color-text-disabled:   #c7c7c7;
+  --color-text-inverse:    #ffffff;
+
+  --color-bg-base:         #f5f7fa;  /* 应用底色 */
+  --color-bg-card:         #ffffff;  /* 卡片白底 */
+  --color-bg-hover:        #f0f9ff;  /* Hover 底（同 brand-50） */
+  --color-bg-mask:         rgba(15, 23, 42, 0.45); /* 蒙层 */
+
+  --color-border-base:     #eaebed;  /* 默认边框（极浅灰） */
+  --color-border-light:    #f0f1f3;  /* 浅边框 */
+  --color-border-divider:  #e5e7eb;  /* 分隔线 */
+
+  /* ============================================================
+   * 3.2 渐变 Token
+   * ============================================================ */
+  --gradient-topbar:      linear-gradient(135deg, #f0f9ff 0%, #dbeafe 100%);
+  --gradient-user-bubble: linear-gradient(135deg, #38bdf8 0%, #0284c7 100%);
+  --gradient-primary-btn: linear-gradient(135deg, #38bdf8 0%, #0284c7 100%);
+  --gradient-hero-deep:   linear-gradient(135deg, #0c4a6e 0%, #0284c7 100%);
+  --gradient-user-card:   linear-gradient(135deg, #7dd3fc 0%, #0284c7 100%);
+
+  /* ============================================================
+   * 3.3 字号 Token
+   * ============================================================ */
+  --font-size-xs:   12px;  /* 辅助说明 / 标签 */
+  --font-size-sm:   13px;  /* 时间戳 / 次要文字 */
+  --font-size-base: 14px;  /* 正文默认 */
+  --font-size-md:   15px;  /* AI 卡片正文 */
+  --font-size-lg:   16px;  /* 列表标题 */
+  --font-size-xl:   18px;  /* 二级页标题 */
+  --font-size-2xl:  20px;  /* 模块标题 */
+  --font-size-3xl:  22px;  /* 关键指标数字 */
+  --font-size-4xl:  28px;  /* Hero 数字（健康评分） */
+
+  /* 行高 Token */
+  --line-height-tight: 1.25;
+  --line-height-base:  1.5;
+  --line-height-loose: 1.75;
+
+  /* 字重 Token */
+  --font-weight-regular:  400;
+  --font-weight-medium:   500;
+  --font-weight-semibold: 600;
+  --font-weight-bold:     700;
+
+  /* ============================================================
+   * 3.4 间距 Token（4px 栅格）
+   * ============================================================ */
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  20px;
+  --space-6:  24px;
+  --space-8:  32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* ============================================================
+   * 3.4 圆角 Token
+   * ============================================================ */
+  --radius-xs:   4px;
+  --radius-sm:   6px;
+  --radius-md:   8px;
+  --radius-lg:   12px;
+  --radius-xl:   16px;
+  --radius-2xl:  20px;
+  --radius-pill: 999px;
+
+  /* ============================================================
+   * 3.4 阴影 Token（统一使用天蓝色阴影，禁止纯黑）
+   * ============================================================ */
+  --shadow-card:        0 2px 8px rgba(56, 189, 248, 0.08);
+  --shadow-card-hover:  0 4px 12px rgba(56, 189, 248, 0.12);
+  --shadow-popup:       0 8px 24px rgba(56, 189, 248, 0.16);
+  --shadow-floating:    0 4px 16px rgba(2, 132, 199, 0.16);
+  --shadow-inner:       inset 0 1px 2px rgba(56, 189, 248, 0.06);
+
+  /* ============================================================
+   * 7.1 辅助色（严格控量，仅允许指定场景使用）
+   * ============================================================ */
+  --color-accent-warm-orange: #fbbf24; /* 会员等级 / 星级评价 / 倒计时高亮 */
+  --color-accent-red:         #ef4444; /* 紧急徽标 / 错误重试 / 危险操作 */
+  --color-accent-green:       #22c55e; /* 在线状态 / 达标徽章 / 成功 Toast */
+  --color-accent-yellow:      #eab308; /* 偏高/临界指标徽章 */
+
+  /* 状态徽章背景（淡色版，用于 chip/badge） */
+  --color-badge-normal-bg:    #ecfdf5;  --color-badge-normal-fg:    #15803d;
+  --color-badge-high-bg:      #fef9c3;  --color-badge-high-fg:      #854d0e;
+  --color-badge-critical-bg: #fee2e2;   --color-badge-critical-fg: #b91c1c;
+  --color-badge-member-bg:    #fef3c7;  --color-badge-member-fg:    #b45309;
+
+  /* ============================================================
+   * 6.1 响应分级
+   * ============================================================ */
+  --duration-instant: 100ms;
+  --duration-fast:    180ms;
+  --duration-base:    240ms;
+  --duration-slow:    360ms;
+  --easing-standard:  cubic-bezier(0.4, 0, 0.2, 1);
+  --easing-decelerate: cubic-bezier(0.0, 0.0, 0.2, 1);
+  --easing-accelerate: cubic-bezier(0.4, 0.0, 1, 1);
+
+  /* ============================================================
+   * Z-index 层级
+   * ============================================================ */
+  --z-content:    1;
+  --z-sticky:     100;
+  --z-drawer:     900;
+  --z-mask:       1000;
+  --z-popup:      1100;
+  --z-toast:      1200;
+  --z-emergency:  1300;
+}
+
+/* ============================================================
+ * 4.1 基础组件
+ * ============================================================ */
+
+/* 主按钮 */
+.bh-btn-primary {
+  height: 44px;
+  padding: 0 var(--space-6);
+  background: var(--gradient-primary-btn);
+  color: var(--color-text-inverse);
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  transition: transform var(--duration-instant) var(--easing-standard);
+  box-shadow: var(--shadow-floating);
+}
+.bh-btn-primary:active { transform: scale(0.97); }
+.bh-btn-primary:disabled {
+  background: var(--color-text-disabled);
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* 胶囊 chip */
+.bh-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 var(--space-3);
+  background: var(--color-bg-card);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border-base);
+  border-radius: var(--radius-pill);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--easing-standard);
+}
+.bh-chip--active {
+  background: var(--color-brand-400);
+  color: var(--color-text-inverse);
+  border-color: var(--color-brand-400);
+}
+
+/* 状态徽章 */
+.bh-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-xs);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+}
+.bh-badge--normal   { background: var(--color-badge-normal-bg);   color: var(--color-badge-normal-fg); }
+.bh-badge--high     { background: var(--color-badge-high-bg);     color: var(--color-badge-high-fg); }
+.bh-badge--critical { background: var(--color-badge-critical-bg); color: var(--color-badge-critical-fg); }
+.bh-badge--member   { background: var(--color-badge-member-bg);   color: var(--color-badge-member-fg); }
+
+/* 输入框 */
+.bh-input {
+  height: 40px;
+  padding: 0 var(--space-3);
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border-base);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-base);
+  color: var(--color-text-primary);
+  transition: border-color var(--duration-fast) var(--easing-standard);
+}
+.bh-input:focus {
+  outline: none;
+  border-color: var(--color-brand-400);
+}
+
+/* ============================================================
+ * 4.2 业务组件
+ * ============================================================ */
+
+/* AI 卡片（病历卡） */
+.bh-ai-card {
+  position: relative;
+  background: var(--color-bg-card);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4) var(--space-4) var(--space-4) var(--space-5);
+  margin: var(--space-3) 0;
+  box-shadow: var(--shadow-card);
+  font-size: var(--font-size-md);
+  line-height: var(--line-height-loose);
+  color: var(--color-text-primary);
+}
+.bh-ai-card::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: var(--color-brand-400);
+  border-radius: var(--radius-lg) 0 0 var(--radius-lg);
+}
+
+/* 用户气泡 */
+.bh-user-bubble {
+  display: inline-block;
+  max-width: 75%;
+  padding: var(--space-3) var(--space-4);
+  background: var(--gradient-user-bubble);
+  color: var(--color-text-inverse);
+  border-radius: var(--radius-lg);
+  font-size: var(--font-size-md);
+  line-height: var(--line-height-base);
+  word-break: break-word;
+}
+
+/* 思考态 */
+.bh-thinking {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-bg-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+.bh-thinking-dot {
+  width: 6px;
+  height: 6px;
+  background: var(--color-brand-400);
+  border-radius: 50%;
+  animation: bh-thinking-bounce 600ms infinite ease-in-out;
+}
+.bh-thinking-dot:nth-child(2) { animation-delay: 200ms; }
+.bh-thinking-dot:nth-child(3) { animation-delay: 400ms; }
+@keyframes bh-thinking-bounce {
+  0%, 60%, 100% { transform: translateY(0);   opacity: 0.4; }
+  30%           { transform: translateY(-4px); opacity: 1; }
+}
+
+/* 提醒卡片 */
+.bh-reminder-card {
+  position: relative;
+  background: var(--color-bg-card);
+  border-radius: var(--radius-md);
+  padding: var(--space-4) var(--space-4) var(--space-4) var(--space-5);
+  margin-bottom: var(--space-3);
+  box-shadow: var(--shadow-card);
+}
+.bh-reminder-card--emergency::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 6px;
+  background: var(--color-brand-900);
+  border-radius: var(--radius-md) 0 0 var(--radius-md);
+}
+.bh-reminder-card--medication::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 4px;
+  background: var(--color-brand-600);
+  border-radius: var(--radius-md) 0 0 var(--radius-md);
+}
+.bh-reminder-card--followup::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 4px;
+  background-image: linear-gradient(to bottom, var(--color-brand-400) 50%, transparent 50%);
+  background-size: 4px 8px;
+  background-repeat: repeat-y;
+  border-radius: var(--radius-md) 0 0 var(--radius-md);
+}
+
+/* 关键指标卡 */
+.bh-metric-card {
+  background: var(--color-bg-card);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  box-shadow: var(--shadow-card);
+}
+.bh-metric-card-value {
+  font-size: var(--font-size-3xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-brand-700);
+  line-height: var(--line-height-tight);
+}
+.bh-metric-card-unit {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  margin-left: var(--space-1);
+}
+.bh-metric-card-label {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  margin-top: var(--space-1);
+}
+
+/* ============================================================
+ * 4.3 布局组件
+ * ============================================================ */
+
+/* 一级页顶栏（A1 淡天蓝渐变） */
+.bh-topbar-primary {
+  display: flex;
+  align-items: center;
+  height: 44px;
+  padding: 0 var(--space-4);
+  background: var(--gradient-topbar);
+  color: var(--color-brand-900);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* 二级页顶栏（白底 + 居中标题 + 左返回） */
+.bh-topbar-secondary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  height: 44px;
+  background: var(--color-bg-card);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  border-bottom: 1px solid var(--color-border-light);
+}
+.bh-topbar-secondary-back {
+  position: absolute;
+  left: var(--space-4);
+  font-size: var(--font-size-2xl);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+/* 浮动铃铛 */
+.bh-floating-bell {
+  position: fixed;
+  right: var(--space-4);
+  bottom: var(--space-12);
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--color-bg-card);
+  box-shadow: var(--shadow-floating);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: var(--z-sticky);
+}
+.bh-floating-bell-dot {
+  position: absolute;
+  top: 8px; right: 8px;
+  width: 8px; height: 8px;
+  background: var(--color-accent-red);
+  border-radius: 50%;
+  border: 2px solid var(--color-bg-card);
+}
+
+/* 抽屉/弹层 */
+.bh-drawer-right {
+  position: fixed;
+  top: 0; right: 0;
+  height: 100vh;
+  width: 80vw;
+  max-width: 360px;
+  background: var(--color-bg-card);
+  box-shadow: -4px 0 16px rgba(56, 189, 248, 0.16);
+  transform: translateX(100%);
+  transition: transform var(--duration-base) var(--easing-standard);
+  z-index: var(--z-drawer);
+}
+.bh-drawer-right.open { transform: translateX(0); }
+.bh-drawer-mask {
+  position: fixed;
+  inset: 0;
+  background: var(--color-bg-mask);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--duration-base) var(--easing-standard);
+  z-index: calc(var(--z-drawer) - 1);
+}
+.bh-drawer-mask.open { opacity: 1; pointer-events: auto; }

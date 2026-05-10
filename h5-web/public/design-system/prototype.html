@@ -1,0 +1,1819 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>bini-health · AI 对话风格 PRD-441 · 29 屏核对版</title>
+<link rel="stylesheet" href="./design-tokens.css" />
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #eef2f7;
+    font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    color: var(--color-text-primary);
+    padding-bottom: 80px;
+  }
+
+  /* ===== 全局头部 ===== */
+  .doc-header {
+    background: var(--gradient-hero-deep);
+    color: #fff;
+    padding: 40px 24px 32px;
+    text-align: center;
+  }
+  .doc-header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+  .doc-header p { font-size: 14px; opacity: 0.85; }
+  .doc-meta {
+    display: inline-flex; gap: 16px; margin-top: 16px;
+    background: rgba(255,255,255,0.08); padding: 10px 20px; border-radius: 999px;
+    font-size: 13px;
+  }
+
+  /* ===== 锚点导航 ===== */
+  .nav-bar {
+    position: sticky; top: 0; z-index: 50;
+    background: #fff;
+    border-bottom: 1px solid var(--color-border-light);
+    padding: 12px 16px;
+    overflow-x: auto;
+    white-space: nowrap;
+    scrollbar-width: none;
+  }
+  .nav-bar::-webkit-scrollbar { display: none; }
+  .nav-bar a {
+    display: inline-block;
+    padding: 6px 12px;
+    margin-right: 6px;
+    background: var(--color-brand-50);
+    color: var(--color-brand-700);
+    border-radius: 999px;
+    font-size: 12px;
+    text-decoration: none;
+    transition: all 0.2s;
+  }
+  .nav-bar a:hover { background: var(--color-brand-200); }
+
+  /* ===== 分组标题 ===== */
+  .group-title {
+    margin: 32px 24px 16px;
+    padding-left: 12px;
+    border-left: 4px solid var(--color-brand-400);
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--color-brand-900);
+  }
+
+  /* ===== 屏幕网格 ===== */
+  .screens-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+    gap: 24px;
+    padding: 0 24px;
+  }
+  .screen {
+    background: #fff;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.06);
+    display: flex; flex-direction: column;
+  }
+  .screen-label {
+    padding: 12px 16px;
+    background: linear-gradient(135deg, #f8fafc 0%, #eef2f7 100%);
+    border-bottom: 1px solid var(--color-border-light);
+    font-size: 13px;
+    color: var(--color-brand-700);
+    font-weight: 600;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .screen-num {
+    display: inline-block;
+    width: 22px; height: 22px;
+    background: var(--color-brand-400);
+    color: #fff;
+    border-radius: 50%;
+    text-align: center; line-height: 22px;
+    font-size: 12px; font-weight: 700;
+    margin-right: 8px;
+  }
+  .screen-tag {
+    background: var(--color-bg-base);
+    color: var(--color-text-tertiary);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 400;
+  }
+
+  /* 模拟手机屏 */
+  .phone {
+    width: 100%;
+    height: 600px;
+    background: var(--color-bg-base);
+    overflow: hidden;
+    position: relative;
+    display: flex; flex-direction: column;
+    font-size: 14px;
+  }
+
+  /* 通用内容区 */
+  .content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+  }
+  .content::-webkit-scrollbar { width: 4px; }
+  .content::-webkit-scrollbar-thumb { background: rgba(56,189,248,0.3); border-radius: 2px; }
+
+  /* AI 卡片快速 mixin */
+  .ai-row { display: flex; gap: 8px; margin-bottom: 12px; }
+  .ai-avatar {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: var(--gradient-user-bubble);
+    color: #fff; display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 700;
+    flex-shrink: 0;
+  }
+  .user-row { display: flex; justify-content: flex-end; margin-bottom: 12px; }
+  .small { font-size: 12px; color: var(--color-text-tertiary); }
+  .ts { text-align: center; font-size: 12px; color: var(--color-text-tertiary); margin: 12px 0; }
+
+  /* 输入栏 */
+  .input-bar {
+    display: flex; gap: 8px;
+    padding: 8px 12px;
+    background: #fff;
+    border-top: 1px solid var(--color-border-light);
+    align-items: center;
+  }
+  .input-bar .ib-input {
+    flex: 1;
+    height: 36px;
+    padding: 0 14px;
+    background: var(--color-brand-50);
+    border-radius: 18px;
+    border: none;
+    color: var(--color-text-primary);
+    font-size: 14px;
+    outline: none;
+  }
+  .ib-icon {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: var(--color-brand-50);
+    color: var(--color-brand-600);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; cursor: pointer;
+  }
+  .ib-send {
+    background: var(--gradient-primary-btn);
+    color: #fff;
+  }
+
+  /* 推荐 SVG 图标卡 */
+  .reco-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-top: 12px;
+  }
+  .reco-card {
+    background: #fff;
+    border: 1px solid var(--color-border-light);
+    border-radius: 12px;
+    padding: 14px 12px;
+    display: flex; flex-direction: column; align-items: center;
+    box-shadow: var(--shadow-card);
+  }
+  .reco-card svg { width: 36px; height: 36px; margin-bottom: 6px; }
+  .reco-card-title { font-size: 13px; font-weight: 600; color: var(--color-brand-900); }
+  .reco-card-desc { font-size: 11px; color: var(--color-text-tertiary); margin-top: 2px; text-align: center; }
+
+  /* 灵感胶囊 */
+  .inspire-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+  .inspire-chip {
+    padding: 4px 10px;
+    background: var(--color-brand-50);
+    color: var(--color-brand-700);
+    border-radius: 999px;
+    font-size: 12px;
+    border: 1px solid var(--color-brand-200);
+  }
+
+  /* 雷达 SVG */
+  .radar-wrap { display: flex; justify-content: center; padding: 16px 0; }
+
+  /* 指标小卡 */
+  .metrics4 {
+    display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;
+  }
+  .metrics4 .bh-metric-card { padding: 10px; }
+  .metrics4 .bh-metric-card-value { font-size: 18px; }
+
+  /* 模块入口 */
+  .modules6 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
+  .module-icon {
+    background: #fff;
+    border-radius: 10px;
+    padding: 10px 4px;
+    text-align: center;
+    box-shadow: var(--shadow-card);
+  }
+  .module-icon .ic { font-size: 22px; }
+  .module-icon .lb { font-size: 11px; color: var(--color-text-secondary); margin-top: 4px; }
+
+  /* 家人 chip 横滚 */
+  .family-strip { display: flex; gap: 8px; padding: 8px 0; overflow-x: auto; }
+  .family-chip {
+    flex-shrink: 0;
+    width: 50px; text-align: center;
+  }
+  .family-chip .av {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    background: var(--color-brand-200);
+    margin: 0 auto 4px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--color-brand-700);
+    font-weight: 600;
+  }
+  .family-chip.active .av {
+    box-shadow: 0 0 0 2px var(--color-brand-400);
+    background: var(--color-brand-300);
+  }
+  .family-chip .name { font-size: 11px; color: var(--color-text-secondary); }
+
+  /* 提醒抽屉项 */
+  .reminder-list { display: flex; flex-direction: column; gap: 10px; }
+
+  /* 历史会话项 */
+  .history-item {
+    padding: 12px 14px;
+    background: #fff;
+    border-radius: 8px;
+    margin-bottom: 8px;
+  }
+  .history-item-title { font-size: 14px; font-weight: 500; color: var(--color-text-primary); }
+  .history-item-meta { font-size: 12px; color: var(--color-text-tertiary); margin-top: 4px; }
+
+  /* tab 行 */
+  .tab-row {
+    display: flex;
+    background: #fff;
+    border-bottom: 1px solid var(--color-border-light);
+  }
+  .tab-row .tab {
+    flex: 1;
+    padding: 12px 0;
+    text-align: center;
+    font-size: 14px;
+    color: var(--color-text-secondary);
+    position: relative;
+    cursor: pointer;
+  }
+  .tab-row .tab.active {
+    color: var(--color-brand-600);
+    font-weight: 600;
+  }
+  .tab-row .tab.active::after {
+    content: '';
+    position: absolute;
+    left: 50%; bottom: 0;
+    transform: translateX(-50%);
+    width: 24px; height: 2px;
+    background: var(--color-brand-600);
+    border-radius: 2px;
+  }
+  .tab-badge {
+    display: inline-block;
+    background: var(--color-accent-red);
+    color: #fff;
+    font-size: 10px;
+    padding: 0 5px;
+    border-radius: 999px;
+    height: 16px;
+    line-height: 16px;
+    margin-left: 4px;
+    font-weight: 500;
+  }
+
+  /* 列表卡片 */
+  .list-card {
+    background: #fff;
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    box-shadow: var(--shadow-card);
+  }
+  .list-card h4 { font-size: 14px; margin-bottom: 4px; color: var(--color-text-primary); }
+  .list-card p { font-size: 12px; color: var(--color-text-tertiary); }
+
+  /* hero 卡 */
+  .hero-deep {
+    background: var(--gradient-hero-deep);
+    color: #fff;
+    padding: 20px 16px;
+    border-radius: 12px;
+    margin-bottom: 12px;
+  }
+  .hero-deep h3 { font-size: 16px; margin-bottom: 8px; }
+  .hero-deep .countdown {
+    display: inline-block;
+    background: rgba(255,255,255,0.18);
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 13px;
+  }
+
+  /* 时间线 */
+  .timeline { padding: 8px 0; }
+  .timeline-item {
+    display: flex; gap: 10px;
+    padding: 8px 0;
+    position: relative;
+  }
+  .timeline-dot {
+    width: 10px; height: 10px;
+    background: var(--color-brand-400);
+    border-radius: 50%;
+    margin-top: 4px;
+    flex-shrink: 0;
+  }
+  .timeline-dot.done { background: var(--color-brand-600); }
+  .timeline-dot.idle { background: var(--color-border-divider); }
+  .timeline-content { font-size: 13px; }
+  .timeline-meta { font-size: 11px; color: var(--color-text-tertiary); margin-top: 2px; }
+
+  /* 撕票券 */
+  .coupon {
+    display: flex;
+    background: #fff;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: var(--shadow-card);
+    margin-bottom: 10px;
+    position: relative;
+  }
+  .coupon-amount {
+    background: var(--gradient-user-bubble);
+    color: #fff;
+    padding: 14px 12px;
+    text-align: center;
+    min-width: 90px;
+    position: relative;
+  }
+  .coupon-amount::after {
+    content: '';
+    position: absolute;
+    right: -5px; top: 50%; transform: translateY(-50%);
+    width: 10px; height: 10px;
+    background: #fff;
+    border-radius: 50%;
+  }
+  .coupon-amount .num {
+    font-size: 22px; font-weight: 700;
+  }
+  .coupon-amount .num small { font-size: 12px; }
+  .coupon-info { flex: 1; padding: 10px 14px; }
+  .coupon-info h4 { font-size: 13px; margin-bottom: 4px; }
+  .coupon-info p { font-size: 11px; color: var(--color-text-tertiary); }
+  .coupon-corner {
+    position: absolute;
+    top: 0; right: 0;
+    background: var(--color-accent-warm-orange);
+    color: #fff;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 0 0 0 6px;
+    font-weight: 500;
+  }
+
+  /* 会员 hero */
+  .member-hero {
+    background: var(--gradient-hero-deep);
+    color: #fff;
+    padding: 20px 16px;
+    border-radius: 12px;
+    text-align: center;
+    margin-bottom: 12px;
+  }
+  .member-avatar {
+    width: 60px; height: 60px;
+    border-radius: 50%;
+    background: var(--color-accent-warm-orange);
+    margin: 0 auto 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px;
+  }
+  .member-rights {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    background: #fff;
+    border-radius: 10px;
+    padding: 12px;
+    box-shadow: var(--shadow-card);
+  }
+  .right-icon { text-align: center; font-size: 11px; color: var(--color-text-secondary); }
+  .right-icon .ic { font-size: 22px; display: block; margin-bottom: 2px; }
+
+  .plan-row { display: flex; gap: 8px; margin-top: 12px; }
+  .plan-card {
+    flex: 1;
+    background: #fff;
+    border: 2px solid var(--color-border-light);
+    border-radius: 10px;
+    padding: 12px 8px;
+    text-align: center;
+  }
+  .plan-card.featured {
+    border-color: var(--color-brand-400);
+    background: var(--color-brand-50);
+  }
+  .plan-card h5 { font-size: 13px; margin-bottom: 4px; color: var(--color-brand-900); }
+  .plan-card .price { font-size: 16px; color: var(--color-brand-600); font-weight: 700; }
+
+  /* 设置项 */
+  .settings-group { background: #fff; border-radius: 10px; padding: 4px 0; margin-bottom: 12px; }
+  .settings-row {
+    display: flex; align-items: center;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--color-border-light);
+  }
+  .settings-row:last-child { border-bottom: none; }
+  .settings-label { flex: 1; font-size: 14px; }
+  .switch {
+    width: 40px; height: 22px;
+    background: var(--color-brand-400);
+    border-radius: 999px;
+    position: relative;
+  }
+  .switch::after {
+    content: '';
+    position: absolute;
+    width: 18px; height: 18px;
+    background: #fff;
+    border-radius: 50%;
+    top: 2px; right: 2px;
+  }
+  .switch.off { background: var(--color-border-divider); }
+  .switch.off::after { right: auto; left: 2px; }
+  .logout-btn {
+    width: 100%;
+    height: 44px;
+    background: #fff;
+    color: var(--color-accent-red);
+    border-radius: 10px;
+    border: none;
+    font-size: 16px;
+    font-weight: 600;
+  }
+
+  /* 日历 */
+  .calendar {
+    background: #fff;
+    border-radius: 10px;
+    padding: 12px;
+  }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+  .cal-cell {
+    aspect-ratio: 1;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px;
+    border-radius: 6px;
+  }
+  .cal-cell.today { background: var(--color-brand-400); color: #fff; }
+  .cal-cell.disabled { color: var(--color-text-disabled); }
+
+  /* 关闭/底部按钮区 */
+  .bottom-bar {
+    padding: 10px 16px;
+    background: #fff;
+    border-top: 1px solid var(--color-border-light);
+    display: flex; gap: 8px;
+  }
+  .btn-confirm {
+    flex: 1;
+    background: var(--gradient-primary-btn);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    height: 40px;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .btn-secondary {
+    flex: 1;
+    background: #fff;
+    color: var(--color-brand-600);
+    border: 1px solid var(--color-brand-400);
+    border-radius: 8px;
+    height: 40px;
+    font-size: 14px;
+  }
+
+  /* 离线条 */
+  .offline-bar {
+    background: #4b5563;
+    color: #fff;
+    text-align: center;
+    padding: 6px 0;
+    font-size: 12px;
+  }
+  .skeleton {
+    height: 12px;
+    background: linear-gradient(90deg, #f3f4f6 0%, #e0f2fe 50%, #f3f4f6 100%);
+    background-size: 200% 100%;
+    border-radius: 4px;
+    margin-bottom: 8px;
+    animation: bh-skeleton 1.5s infinite ease-in-out;
+  }
+  @keyframes bh-skeleton {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  /* 蒙层 */
+  .mask {
+    position: absolute;
+    inset: 0;
+    background: var(--color-bg-mask);
+    z-index: 5;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .menu-popup {
+    width: 200px;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: var(--shadow-popup);
+    overflow: hidden;
+  }
+  .menu-popup .item {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--color-border-light);
+    font-size: 14px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .menu-popup .item:last-child { border-bottom: none; }
+
+  /* 顶栏占位 */
+  .topbar-placeholder {
+    height: 44px;
+    background: var(--gradient-topbar);
+    display: flex; align-items: center;
+    padding: 0 12px;
+    color: var(--color-brand-900);
+    font-weight: 600;
+    font-size: 16px;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+  .topbar-secondary-placeholder {
+    height: 44px;
+    background: #fff;
+    border-bottom: 1px solid var(--color-border-light);
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+    font-weight: 600; font-size: 16px;
+    color: var(--color-text-primary);
+    flex-shrink: 0;
+  }
+  .topbar-secondary-placeholder .back {
+    position: absolute; left: 12px; font-size: 22px; color: var(--color-text-secondary); cursor: pointer;
+  }
+
+  /* 紧急/语音浮层 */
+  .voice-wave {
+    display: flex; align-items: flex-end; justify-content: center;
+    gap: 3px; height: 40px;
+    padding: 16px 0;
+  }
+  .voice-wave .bar {
+    width: 4px;
+    background: var(--gradient-primary-btn);
+    border-radius: 2px;
+    animation: bh-wave 1s infinite ease-in-out;
+  }
+  @keyframes bh-wave {
+    0%, 100% { height: 6px; }
+    50% { height: 32px; }
+  }
+
+  /* 错误重试 */
+  .error-card {
+    border: 1px solid var(--color-accent-red);
+    background: #fef2f2;
+    border-radius: 8px;
+    padding: 12px 14px;
+  }
+
+  /* 文档底部 */
+  .footer {
+    text-align: center;
+    margin-top: 48px;
+    padding: 24px;
+    color: var(--color-text-tertiary);
+    font-size: 12px;
+  }
+  .footer a { color: var(--color-brand-600); margin: 0 6px; text-decoration: none; }
+
+  /* 隐私锁 */
+  .privacy-lock {
+    background: #fff;
+    border-radius: 12px;
+    padding: 20px;
+    width: 80%;
+    text-align: center;
+  }
+  .privacy-lock .lock {
+    width: 50px; height: 50px;
+    border-radius: 50%;
+    background: var(--color-accent-warm-orange);
+    color: #fff;
+    margin: 0 auto 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px;
+  }
+</style>
+</head>
+<body>
+
+<!-- ==================== 文档头部 ==================== -->
+<header class="doc-header">
+  <h1>bini-health · AI 对话风格 PRD-441</h1>
+  <p>方案 A · 晴空诊室 · v1.0 定稿基线（2026-05-10）</p>
+  <div class="doc-meta">
+    <span>📐 全集 29 屏</span>
+    <span>🎨 11 级天蓝色阶</span>
+    <span>♿ AA 级无障碍</span>
+  </div>
+</header>
+
+<!-- ==================== 锚点导航 ==================== -->
+<nav class="nav-bar">
+  <a href="#group1">① 对话基础（3）</a>
+  <a href="#group2">② 对话扩展（6）</a>
+  <a href="#group3">③ 业务交互（7）</a>
+  <a href="#group4">④ 核心业务（7）</a>
+  <a href="#group5">⑤ 其余业务（6）</a>
+  <a href="./PRD-441-AI对话风格规范.md">📄 PRD 文档</a>
+  <a href="./design-tokens.css">🎨 Tokens CSS</a>
+  <a href="./design-tokens.json">📦 Tokens JSON</a>
+</nav>
+
+<!-- ==================== 第一组 · 对话基础态（3 屏） ==================== -->
+<h2 id="group1" class="group-title">第一组 · 对话基础态（3 屏）</h2>
+<div class="screens-grid">
+
+  <!-- ① AI 对话主页面 -->
+  <div class="screen">
+    <div class="screen-label"><span><span class="screen-num">1</span>AI 对话主页面（默认态）</span><span class="screen-tag">A1 淡天蓝</span></div>
+    <div class="phone">
+      <div class="topbar-placeholder">
+        <span>☰ 小康</span>
+        <span style="font-size: 14px;">⋯</span>
+      </div>
+      <div class="content">
+        <div class="ts">今天 09:30</div>
+        <div class="ai-row">
+          <div class="ai-avatar">康</div>
+          <div class="bh-ai-card">您好，我是您的 AI 健康管家小康，请问今天哪里不舒服？或者想咨询什么健康问题？</div>
+        </div>
+        <div class="user-row">
+          <div class="bh-user-bubble">最近总觉得疲劳，睡眠也不太好</div>
+        </div>
+        <div class="ai-row">
+          <div class="ai-avatar">康</div>
+          <div class="bh-ai-card">疲劳和睡眠问题可能与多种因素相关。请问您的睡眠时长大约是几小时？是否有入睡困难、易醒等情况？</div>
+        </div>
+      </div>
+      <div class="input-bar">
+        <span class="ib-icon">+</span>
+        <input class="ib-input" placeholder="给小康发消息" />
+        <span class="ib-icon">🎤</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ② 更多菜单展开 -->
+  <div class="screen">
+    <div class="screen-label"><span><span class="screen-num">2</span>⋯ 更多菜单展开态</span><span class="screen-tag">蒙层弹层</span></div>
+    <div class="phone">
+      <div class="topbar-placeholder">
+        <span>☰ 小康</span>
+        <span style="font-size: 14px;">⋯</span>
+      </div>
+      <div class="content"><div class="ts">今天 09:30</div></div>
+      <div class="mask">
+        <div class="menu-popup">
+          <div class="item">📷 扫一扫</div>
+          <div class="item">🔤 字体大小</div>
+          <div class="item">📤 立即分享</div>
+          <div class="item">🗑 清空对话</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ③ 历史会话侧边栏 -->
+  <div class="screen">
+    <div class="screen-label"><span><span class="screen-num">3</span>☰ 历史会话侧边栏</span><span class="screen-tag">右侧抽屉</span></div>
+    <div class="phone">
+      <div class="topbar-secondary-placeholder">历史会话<span class="back">×</span></div>
+      <div class="content">
+        <div style="margin-bottom: 12px;">
+          <input class="bh-input" placeholder="🔍 搜索会话" style="width: 100%;" />
+        </div>
+        <div class="history-item">
+          <div class="history-item-title">关于失眠的咨询</div>
+          <div class="history-item-meta">今天 09:30 · 5 条对话</div>
+        </div>
+        <div class="history-item">
+          <div class="history-item-title">高血压用药调整</div>
+          <div class="history-item-meta">昨天 21:15 · 12 条对话</div>
+        </div>
+        <div class="history-item">
+          <div class="history-item-title">体检报告解读</div>
+          <div class="history-item-meta">5月7日 · 8 条对话</div>
+        </div>
+        <div class="history-item">
+          <div class="history-item-title">糖尿病饮食建议</div>
+          <div class="history-item-meta">5月3日 · 15 条对话</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ==================== 第二组 · 对话扩展态（6 屏） ==================== -->
+<h2 id="group2" class="group-title">第二组 · 对话扩展态（6 屏）</h2>
+<div class="screens-grid">
+
+  <!-- ④ 纯空对话页 -->
+  <div class="screen">
+    <div class="screen-label"><span><span class="screen-num">4</span>纯空对话页（双色 SVG）</span><span class="screen-tag">空状态引导</span></div>
+    <div class="phone">
+      <div class="topbar-placeholder"><span>☰ 小康</span><span style="font-size: 14px;">⋯</span></div>
+      <div class="content">
+        <div style="text-align: center; margin: 16px 0; color: var(--color-text-secondary); font-size: 13px;">
+          您好，我能帮您：
+        </div>
+        <div class="reco-grid">
+          <div class="reco-card">
+            <svg viewBox="0 0 48 48" fill="none">
+              <rect x="8" y="6" width="32" height="36" rx="4" fill="#bae6fd"/>
+              <rect x="14" y="14" width="20" height="2" fill="#0284c7"/>
+              <rect x="14" y="20" width="14" height="2" fill="#0284c7"/>
+              <rect x="14" y="26" width="18" height="2" fill="#0284c7"/>
+              <circle cx="32" cy="36" r="6" fill="#0284c7"/>
+              <path d="M29 36 L31 38 L35 34" stroke="#fff" stroke-width="2" fill="none"/>
+            </svg>
+            <div class="reco-card-title">解读体检报告</div>
+            <div class="reco-card-desc">PDF/图片识别+AI讲解</div>
+          </div>
+          <div class="reco-card">
+            <svg viewBox="0 0 48 48" fill="none">
+              <rect x="14" y="10" width="20" height="28" rx="3" fill="#bae6fd"/>
+              <rect x="18" y="16" width="12" height="2" fill="#0284c7"/>
+              <rect x="18" y="22" width="12" height="2" fill="#0284c7"/>
+              <rect x="18" y="28" width="8" height="2" fill="#0284c7"/>
+              <circle cx="34" cy="14" r="6" fill="#0284c7"/>
+              <text x="34" y="17" text-anchor="middle" fill="#fff" font-size="7" font-weight="700">Rx</text>
+            </svg>
+            <div class="reco-card-title">用药咨询</div>
+            <div class="reco-card-desc">配伍/副作用/剂量</div>
+          </div>
+          <div class="reco-card">
+            <svg viewBox="0 0 48 48" fill="none">
+              <circle cx="24" cy="20" r="10" fill="#bae6fd"/>
+              <circle cx="24" cy="20" r="4" fill="#0284c7"/>
+              <path d="M14 38 Q24 30 34 38" stroke="#0284c7" stroke-width="2" fill="none"/>
+              <circle cx="36" cy="14" r="3" fill="#0284c7"/>
+              <text x="36" y="17" text-anchor="middle" fill="#fff" font-size="5">?</text>
+            </svg>
+            <div class="reco-card-title">症状自查</div>
+            <div class="reco-card-desc">智能问诊+定位</div>
+          </div>
+          <div class="reco-card">
+            <svg viewBox="0 0 48 48" fill="none">
+              <ellipse cx="24" cy="28" rx="14" ry="10" fill="#bae6fd"/>
+              <circle cx="18" cy="24" r="3" fill="#0284c7"/>
+              <circle cx="30" cy="24" r="3" fill="#0284c7"/>
+              <path d="M14 34 Q24 30 34 34" stroke="#0284c7" stroke-width="2" fill="none"/>
+              <path d="M18 12 L20 8 M24 10 L24 6 M30 12 L28 8" stroke="#0284c7" stroke-width="2"/>
+            </svg>
+            <div class="reco-card-title">健康饮食</div>
+            <div class="reco-card-desc">营养/食疗/食谱</div>
+          </div>
+        </div>
+        <div class="inspire-row">
+          <span class="inspire-chip">💡 我的化验单怎么解读</span>
+          <span class="inspire-chip">💊 这两种药能一起吃吗</span>
+          <span class="inspire-chip">😴 失眠怎么办</span>
+          <span class="inspire-chip">🩺 体检该查什么</span>
+        </div>
+      </div>
+      <div class="input-bar">
+        <span class="ib-icon">+</span>
+        <input class="ib-input" placeholder="给小康发消息" />
+        <span class="ib-icon">🎤</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ⑤ 长对话页 -->
+  <div class="screen">
+    <div class="screen-label"><span><span class="screen-num">5</span>长对话页（多轮+引用）</span><span class="screen-tag">引用块</span></div>
+    <div class="phone">
+      <div class="topbar-placeholder"><span>☰ 小康</span><span style="font-size: 14px;">⋯</span></div>
+      <div class="content">
+        <div class="user-row"><div class="bh-user-bubble">这次糖化是 7.2，正常吗？</div></div>
+        <div class="ai-row">
+          <div class="ai-avatar">康</div>
+          <div class="bh-ai-card">糖化血红蛋白（HbA1c）7.2% 略高于正常范围（4.0%-6.0%）<br/><br/>
+            <div style="background: var(--color-brand-50); border-left: 3px solid var(--color-brand-300); padding: 8px 10px; margin: 8px 0; border-radius: 4px; font-size: 12px; color: var(--color-text-secondary);">
+              📚 引用：《2型糖尿病诊疗指南 2024》<br/>
+              建议患者控制目标 &lt; 7%
+            </div>
+            建议：①规律运动；②控制饮食；③遵医嘱用药。
+          </div>
+        </div>
+        <div class="user-row"><div class="bh-user-bubble">那运动该怎么安排</div></div>
+        <div class="ai-row">
+          <div class="ai-avatar">康</div>
+          <div class="bh-thinking">
+            <span class="bh-thinking-dot"></span>
+            <span class="bh-thinking-dot"></span>
+            <span class="bh-thinking-dot"></span>
+          </div>
+        </div>
+      </div>
+      <div class="input-bar">
+        <span class="ib-icon">+</span>
+        <input class="ib-input" placeholder="给小康发消息" />
+        <span class="ib-icon">🎤</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ⑥ 语音输入态 -->
+  <div class="screen">
+    <div class="screen-label"><span><span class="screen-num">6</span>语音输入态</span><span class="screen-tag">15 根声波</span></div>
+    <div class="phone">
+      <div class="topbar-placeholder"><span>☰ 小康</span><span style="font-size: 14px;">⋯</span></div>
+      <div class="content">
+        <div class="user-row"><div class="bh-user-bubble">最近头疼</div></div>
+        <div style="background: #fff; border-radius: 12px; padding: 16px; box-shadow: var(--shadow-card); margin-top: 16px;">
+          <div class="voice-wave">
+            <div class="bar" style="animation-delay: 0s"></div>
+            <div class="bar" style="animation-delay: 0.05s"></div>
+            <div class="bar" style="animation-delay: 0.1s"></div>
+            <div class="bar" style="animation-delay: 0.15s"></div>
+            <div class="bar" style="animation-delay: 0.2s"></div>
+            <div class="bar" style="animation-delay: 0.25s"></div>
+            <div class="bar" style="animation-delay: 0.3s"></div>
+            <div class="bar" style="animation-delay: 0.35s"></div>
+            <div class="bar" style="animation-delay: 0.4s"></div>
+            <div class="bar" style="animation-delay: 0.45s"></div>
+            <div class="bar" style="animation-delay: 0.5s"></div>
+            <div class="bar" style="animation-delay: 0.55s"></div>
+            <div class="bar" style="animation-delay: 0.6s"></div>
+            <div class="bar" style="animation-delay: 0.65s"></div>
+            <div class="bar" style="animation-delay: 0.7s"></div>
+          </div>
+          <div style="text-align: center; color: var(--color-text-secondary); font-size: 13px;">
+            正在识别…「头痛主要在右侧太阳穴…」
+          </div>
+        </div>
+      </div>
+      <div class="input-bar">
+        <span class="ib-icon">×</span>
+        <div style="flex: 1; text-align: center; color: var(--color-brand-600); font-weight: 600;">松开发送 / 上滑取消</div>
+        <span class="ib-icon ib-send">✓</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ⑦ 切换咨询人 Toast -->
+  <div class="screen">
+    <div class="screen-label"><span><span class="screen-num">7</span>切换咨询人 Toast</span><span class="screen-tag">家人列表</span></div>
+    <div class="phone">
+      <div class="topbar-placeholder"><span>☰ 小康</span><span style="font-size: 14px;">⋯</span></div>
+      <div class="content">
+        <div style="background: #fff; border-radius: 12px; padding: 14px; box-shadow: var(--shadow-popup);">
+          <div style="font-size: 14px; font-weight: 600; margin-bottom: 12px; color: var(--color-brand-900);">切换咨询对象</div>
+          <div class="family-strip">
+            <div class="family-chip active"><div class="av">我</div><div class="name">本人</div></div>
+            <div class="family-chip"><div class="av">爸</div><div class="name">爸爸</div></div>
+            <div class="family-chip"><div class="av">妈</div><div class="name">妈妈</div></div>
+            <div class="family-chip"><div class="av">儿</div><div class="name">儿子</div></div>
+            <div class="family-chip"><div class="av" style="background: var(--color-brand-50); color: var(--color-brand-600);">+</div><div class="name">添加</div></div>
+          </div>
+          <div style="font-size: 12px; color: var(--color-text-tertiary); margin-top: 12px;">
+            💡 切换后，AI 将基于该家人的健康档案给出建议
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ⑧ 提醒抽屉（全天蓝） -->
+  <div class="screen">
+    <div class="screen-label"><span><span class="screen-num">8</span>提醒抽屉（全天蓝）</span><span class="screen-tag">紧急/用药/复诊</span></div>
+    <div class="phone">
+      <div class="topbar-secondary-placeholder">今日提醒<span class="back">‹</span></div>
+      <div class="content">
+        <div class="reminder-list">
+          <div class="bh-reminder-card bh-reminder-card--emergency">
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <span style="background: var(--color-brand-900); color: #fff; width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 14px;">!</span>
+              <div>
+                <div style="font-weight: 600; color: var(--color-brand-900);">紧急 · 复诊提醒</div>
+                <div class="small">今天 14:00 · 张医生 · 心内科</div>
+              </div>
+            </div>
+          </div>
+          <div class="bh-reminder-card bh-reminder-card--medication">
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <span style="background: var(--color-brand-100); color: var(--color-brand-600); width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 14px;">💊</span>
+              <div>
+                <div style="font-weight: 600;">用药 · 阿司匹林</div>
+                <div class="small">每日 08:00 · 今日已服</div>
+              </div>
+            </div>
+          </div>
+          <div class="bh-reminder-card bh-reminder-card--medication">
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <span style="background: var(--color-brand-100); color: var(--color-brand-600); width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 14px;">💊</span>
+              <div>
+                <div style="font-weight: 600;">用药 · 二甲双胍</div>
+                <div class="small">每日 12:00 · 待服</div>
+              </div>
+            </div>
+          </div>
+          <div class="bh-reminder-card bh-reminder-card--followup">
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <span style="background: var(--color-brand-100); color: var(--color-brand-600); width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 14px;">📅</span>
+              <div>
+                <div style="font-weight: 600;">复诊 · 内分泌科</div>
+                <div class="small">5月20日 上午 · 提前 3 天提醒</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ⑨ 流式输出 + 追问引导 -->
+  <div class="screen">
+    <div class="screen-label"><span><span class="screen-num">9</span>流式输出 + 追问引导</span><span class="screen-tag">闪烁光标</span></div>
+    <div class="phone">
+      <div class="topbar-placeholder"><span>☰ 小康</span><span style="font-size: 14px;">⋯</span></div>
+      <div class="content">
+        <div class="user-row"><div class="bh-user-bubble">高血压平时要注意什么？</div></div>
+        <div class="ai-row">
+          <div class="ai-avatar">康</div>
+          <div class="bh-ai-card">
+            高血压患者日常管理建议：<br/>
+            ①低盐饮食（每日 &lt; 6g）；<br/>
+            ②规律运动（每周 5 次，每次 30 分钟）；<br/>
+            ③定时监测血压<span style="display: inline-block; width: 1px; height: 14px; background: var(--color-brand-600); margin-left: 2px; animation: bh-cursor 0.5s infinite;"></span>
+            <style>@keyframes bh-cursor { 0%,49% { opacity: 1; } 50%,100% { opacity: 0; } }</style>
+          </div>
+        </div>
+        <div style="margin: 8px 40px; display: flex; flex-direction: column; gap: 6px;">
+          <div class="bh-chip">📊 我想看血压趋势图</div>
+          <div class="bh-chip">📅 帮我预约复诊</div>
+          <div class="bh-chip">💊 推荐降压药</div>
+        </div>
+      </div>
+      <div class="input-bar">
+        <span class="ib-icon">+</span>
+        <input class="ib-input" placeholder="AI 正在回答..." disabled />
+        <span class="ib-icon" style="background: var(--color-accent-red); color: #fff;">⏸</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ==================== 第三组 · 业务交互态（7 屏） ==================== -->
+<h2 id="group3" class="group-title">第三组 · 业务交互态（7 屏）</h2>
+<div class="screens-grid">
+
+  <!-- ⑩ 关联报告解读态 -->
+  <div class="screen">
+    <div class="screen-label"><span><span class="screen-num">10</span>关联报告解读态</span><span class="screen-tag">报告缩略+高亮</span></div>
+    <div class="phone">
+      <div class="topbar-placeholder"><span>☰ 小康</span><span style="font-size: 14px;">⋯</span></div>
+      <div class="content">
+        <div class="user-row"><div class="bh-user-bubble">帮我看看这次的体检报告</div></div>
+        <div class="ai-row">
+          <div class="ai-avatar">康</div>
+          <div class="bh-ai-card">
+            <div style="background: var(--color-brand-50); border: 1px solid var(--color-brand-200); border-radius: 8px; padding: 8px; margin-bottom: 8px; display: flex; gap: 8px;">
+              <div style="width: 36px; height: 48px; background: #fff; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 18px;">📄</div>
+              <div style="font-size: 12px;">
+                <div style="font-weight: 600;">体检报告 2026-05-08</div>
+                <div class="small">12 项指标 · 3 项异常</div>
+              </div>
+            </div>
+            报告整体健康状况良好，但有 3 项需要关注：
+            <div style="margin: 8px 0;">
+              <span class="bh-badge bh-badge--high">糖化 7.2%</span>
+              <span class="bh-badge bh-badge--high" style="margin-left: 4px;">血压 145/95</span>
+              <span class="bh-badge bh-badge--critical" style="margin-left: 4px;">LDL 4.2</span>
+            </div>
+            建议尽快咨询心内科医生。
+          </div>
+        </div>
+      </div>
+      <div class="input-bar">
+        <span class="ib-icon">+</span>
+        <input class="ib-input" placeholder="给小康发消息" />
+        <span class="ib-icon">🎤</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ⑪ 图片附件态 -->
+  <div class="screen">
+    <div class="screen-label"><span><span class="screen-num">11</span>图片附件态</span><span class="screen-tag">识别 loading</span></div>
+    <div class="phone">
+      <div class="topbar-placeholder"><span>☰ 小康</span><span style="font-size: 14px;">⋯</span></div>
+      <div class="content">
+        <div class="user-row">
+          <div class="bh-user-bubble" style="padding: 8px;">
+            <div style="width: 160px; height: 100px; background: linear-gradient(135deg, #94a3b8, #64748b); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #fff;">📷 化验单</div>
+            <div style="margin-top: 6px; font-size: 12px;">这是我的血常规</div>
+          </div>
+        </div>
+        <div class="ai-row">
+          <div class="ai-avatar">康</div>
+          <div class="bh-ai-card">
+            <div style="display: flex; gap: 6px; align-items: center; color: var(--color-brand-600);">
+              <div class="bh-thinking" style="background: transparent; box-shadow: none; padding: 0;">
+                <span class="bh-thinking-dot"></span>
+                <span class="bh-thinking-dot"></span>
+                <span class="bh-thinking-dot"></span>
+              </div>
+              <span style="font-size: 13px;">正在识别图片中的关键信息...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="input-bar">
+        <span class="ib-icon">+</span>
+        <input class="ib-input" placeholder="给小康发消息" />
+        <span class="ib-icon">🎤</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ⑫ 快捷"+"展开态 -->
+  <div class="screen">
+    <div class="screen-label"><span><span class="screen-num">12</span>快捷 + 展开态</span><span class="screen-tag">4 项快捷</span></div>
+    <div class="phone">
+      <div class="topbar-placeholder"><span>☰ 小康</span><span style="font-size: 14px;">⋯</span></div>
+      <div class="content"><div class="ts">今天 09:30</div></div>
+      <div style="background: #fff; border-top: 1px solid var(--color-border-light); padding: 16px;">
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
+          <div style="text-align: center;">
+            <div style="width: 48px; height: 48px; border-radius: 12px; background: var(--color-brand-50); margin: 0 auto 4px; display: flex; align-items: center; justify-content: center; color: var(--color-brand-600); font-size: 22px;">📷</div>
+            <div style="font-size: 11px;">拍照</div>
+          </div>
+          <div style="text-align: center;">
+            <div style="width: 48px; height: 48px; border-radius: 12px; background: var(--color-brand-50); margin: 0 auto 4px; display: flex; align-items: center; justify-content: center; color: var(--color-brand-600); font-size: 22px;">🖼</div>
+            <div style="font-size: 11px;">上传</div>
+          </div>
+          <div style="text-align: center;">
+            <div style="width: 48px; height: 48px; border-radius: 12px; background: var(--color-brand-50); margin: 0 auto 4px; display: flex; align-items: center; justify-content: center; color: var(--color-brand-600); font-size: 22px;">🎤</div>
+            <div style="font-size: 11px;">语音</div>
+          </div>
+          <div style="text-align: center;">
+            <div style="width: 48px; height: 48px; border-radius: 12px; background: var(--color-brand-50); margin: 0 auto 4px; display: flex; align-items: center; justify-content: center; color: var(--color-brand-600); font-size: 22px;">🗑</div>
+            <div style="font-size: 11px;">清空</div>
+          </div>
+        </div>
+      </div>
+      <div class="input-bar">
+        <span class="ib-icon" style="background: var(--color-brand-400); color: #fff;">×</span>
+        <input class="ib-input" placeholder="给小康发消息" />
+        <span class="ib-icon">🎤</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ⑬ 历史会话进入态 -->
+  <div class="screen">
+    <div class="screen-label"><span><span class="screen-num">13</span>历史会话进入态</span><span class="screen-tag">回到当前</span></div>
+    <div class="phone">
+      <div class="topbar-placeholder"><span>☰ 小康</span><span style="font-size: 14px;">⋯</span></div>
+      <div style="background: var(--color-brand-50); padding: 6px; text-align: center; font-size: 12px; color: var(--color-brand-700);">
+        ⬆ 已加载 3 天前的对话
+      </div>
+      <div class="content">
+        <div class="ts">5 月 7 日 10:00</div>
+        <div class="ai-row">
+          <div class="ai-avatar">康</div>
+          <div class="bh-ai-card">您好，关于失眠问题…</div>
+        </div>
+        <div class="user-row"><div class="bh-user-bubble">我已经吃了一周的助眠茶了</div></div>
+      </div>
+      <div style="position: absolute; right: 12px; bottom: 70px; background: var(--gradient-primary-btn); color: #fff; padding: 6px 12px; border-radius: 999px; font-size: 12px; box-shadow: var(--shadow-floating);">
+        ↓ 回到当前
+      </div>
+      <div class="input-bar">
+        <span class="ib-icon">+</span>
+        <input class="ib-input" placeholder="给小康发消息" />
+        <span class="ib-icon">🎤</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ⑭ 多轮中断态 -->
+  <div class="screen">
+    <div class="screen-label"><span><span class="screen-num">14</span>多轮中断态</span><span class="screen-tag">暖黄中断条</span></div>
+    <div class="phone">
+      <div class="topbar-placeholder"><span>☰ 小康</span><span style="font-size: 14px;">⋯</span></div>
+      <div class="content">
+        <div class="user-row"><div class="bh-user-bubble">糖尿病饮食有哪些禁忌？</div></div>
+        <div class="ai-row">
+          <div class="ai-avatar">康</div>
+          <div class="bh-ai-card">
+            糖尿病饮食的核心原则：<br/>
+            ①控制碳水摄入；<br/>
+            ②少食多餐；<br/>
+            <div style="margin-top: 8px; padding: 8px 12px; background: #fef9c3; border-radius: 6px; color: #854d0e; font-size: 12px; display: flex; gap: 6px; align-items: center;">
+              ⏸ 已中断生成 · <a href="#" style="color: var(--color-brand-700);">继续</a> · <a href="#" style="color: var(--color-brand-700);">重答</a>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="input-bar">
+        <span class="ib-icon">+</span>
+        <input class="ib-input" placeholder="给小康发消息" />
+        <span class="ib-icon">🎤</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ⑮ 错误重试态 -->
+  <div class="screen">
+    <div class="screen-label"><span><span class="screen-num">15</span>错误重试态</span><span class="screen-tag">AI-503</span></div>
+    <div class="phone">
+      <div class="topbar-placeholder"><span>☰ 小康</span><span style="font-size: 14px;">⋯</span></div>
+      <div class="content">
+        <div class="user-row"><div class="bh-user-bubble">能帮我解读一下吗？</div></div>
+        <div class="ai-row">
+          <div class="ai-avatar">康</div>
+          <div class="error-card">
+            <div style="display: flex; gap: 8px; align-items: center; color: var(--color-accent-red); font-weight: 600; margin-bottom: 6px;">
+              <span>⚠</span><span>抱歉，回答失败</span>
+            </div>
+            <div style="font-size: 12px; color: var(--color-text-secondary); margin-bottom: 10px;">
+              错误码：AI-503 · 服务暂时不可用
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <button class="bh-btn-primary" style="height: 32px; padding: 0 12px; font-size: 13px;">重新回答</button>
+              <button style="height: 32px; padding: 0 12px; font-size: 13px; background: #fff; border: 1px solid var(--color-border-base); border-radius: 6px; color: var(--color-text-secondary);">联系客服</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="input-bar">
+        <span class="ib-icon">+</span>
+        <input class="ib-input" placeholder="给小康发消息" />
+        <span class="ib-icon">🎤</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ⑯ 隐私确认态 -->
+  <div class="screen">
+    <div class="screen-label"><span><span class="screen-num">16</span>隐私确认态</span><span class="screen-tag">5 分钟自动清</span></div>
+    <div class="phone">
+      <div class="topbar-placeholder"><span>☰ 小康</span><span style="font-size: 14px;">⋯</span></div>
+      <div class="content"></div>
+      <div class="mask">
+        <div class="privacy-lock">
+          <div class="lock">🔒</div>
+          <div style="font-size: 16px; font-weight: 600; margin-bottom: 8px; color: var(--color-brand-900);">隐私数据使用确认</div>
+          <div style="font-size: 12px; color: var(--color-text-secondary); margin-bottom: 12px;">本次咨询将临时使用以下数据：</div>
+          <div style="text-align: left; font-size: 12px; color: var(--color-text-secondary); background: var(--color-brand-50); padding: 8px 10px; border-radius: 6px; margin-bottom: 12px;">
+            ✓ 健康档案<br/>✓ 用药记录<br/>✓ 最近检查报告
+          </div>
+          <div style="font-size: 11px; color: var(--color-accent-warm-orange); margin-bottom: 12px;">⏱ 5 分钟后将自动清除会话</div>
+          <button class="bh-btn-primary" style="width: 100%;">同意并继续</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ==================== 第四组 · 核心业务页（7 屏） ==================== -->
+<h2 id="group4" class="group-title">第四组 · 核心业务页（7 屏）</h2>
+<div class="screens-grid">
+
+  <!-- ⑰ 离线/弱网态 -->
+  <div class="screen">
+    <div class="screen-label"><span><span class="screen-num">17</span>离线/弱网态</span><span class="screen-tag">骨架屏</span></div>
+    <div class="phone">
+      <div class="topbar-placeholder"><span>☰ 小康</span><span style="font-size: 14px;">⋯</span></div>
+      <div class="offline-bar">⚠ 网络连接不稳定，正在重试...</div>
+      <div class="content">
+        <div style="background: #fff; border-radius: 12px; padding: 16px;">
+          <div class="skeleton" style="width: 60%;"></div>
+          <div class="skeleton" style="width: 90%;"></div>
+          <div class="skeleton" style="width: 75%;"></div>
+          <div class="skeleton" style="width: 85%;"></div>
+          <div class="skeleton" style="width: 50%;"></div>
+        </div>
+      </div>
+      <div class="input-bar">
+        <span class="ib-icon" style="opacity: 0.4;">+</span>
+        <input class="ib-input" placeholder="离线模式 · 请检查网络" disabled style="opacity: 0.6;" />
+        <span class="ib-icon" style="opacity: 0.4;">🎤</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ⑱ 健康档案 -->
+  <div class="screen">
+    <div class="screen-label"><span><span class="screen-num">18</span>健康档案</span><span class="screen-tag">5维雷达图</span></div>
+    <div class="phone">
+      <div class="topbar-placeholder"><span>‹ 健康档案</span><span></span></div>
+      <div class="content">
+        <div style="background: var(--gradient-user-card); border-radius: 12px; padding: 16px; color: #fff; margin-bottom: 12px;">
+          <div style="display: flex; gap: 10px; align-items: center;">
+            <div style="width: 48px; height: 48px; background: rgba(255,255,255,0.25); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px;">👤</div>
+            <div>
+              <div style="font-weight: 600;">张先生 · 65 岁</div>
+              <div style="font-size: 12px; opacity: 0.9;">高血压 · 2型糖尿病</div>
+            </div>
+          </div>
+        </div>
+        <div class="family-strip">
+          <div class="family-chip active"><div class="av">我</div><div class="name">本人</div></div>
+          <div class="family-chip"><div class="av">爸</div><div class="name">爸爸</div></div>
+          <div class="family-chip"><div class="av">妈</div><div class="name">妈妈</div></div>
+          <div class="family-chip"><div class="av" style="background: var(--color-brand-50); color: var(--color-brand-600);">+</div><div class="name">添加</div></div>
+        </div>
+        <div class="radar-wrap">
+          <svg width="160" height="160" viewBox="0 0 160 160">
+            <polygon points="80,20 140,55 120,130 40,130 20,55" fill="none" stroke="#bae6fd" stroke-width="1"/>
+            <polygon points="80,40 120,65 110,115 50,115 40,65" fill="none" stroke="#bae6fd" stroke-width="1"/>
+            <polygon points="80,60 100,70 95,100 65,100 60,70" fill="none" stroke="#bae6fd" stroke-width="1"/>
+            <polygon points="80,30 130,60 110,120 55,125 35,68" fill="rgba(56,189,248,0.25)" stroke="#075985" stroke-width="2"/>
+            <text x="80" y="14" text-anchor="middle" font-size="11" fill="#0c4a6e">心血管</text>
+            <text x="148" y="55" text-anchor="middle" font-size="11" fill="#0c4a6e">代谢</text>
+            <text x="125" y="148" text-anchor="middle" font-size="11" fill="#0c4a6e">睡眠</text>
+            <text x="35" y="148" text-anchor="middle" font-size="11" fill="#0c4a6e">运动</text>
+            <text x="12" y="55" text-anchor="middle" font-size="11" fill="#0c4a6e">营养</text>
+          </svg>
+        </div>
+        <div class="metrics4">
+          <div class="bh-metric-card">
+            <div><span class="bh-metric-card-value">75</span><span class="bh-metric-card-unit">次/分</span></div>
+            <div class="bh-metric-card-label">心率 <span class="bh-badge bh-badge--normal" style="margin-left: 4px;">正常</span></div>
+          </div>
+          <div class="bh-metric-card">
+            <div><span class="bh-metric-card-value">145/95</span></div>
+            <div class="bh-metric-card-label">血压 <span class="bh-badge bh-badge--high" style="margin-left: 4px;">偏高</span></div>
+          </div>
+          <div class="bh-metric-card">
+            <div><span class="bh-metric-card-value">7.2</span><span class="bh-metric-card-unit">%</span></div>
+            <div class="bh-metric-card-label">糖化 <span class="bh-badge bh-badge--high" style="margin-left: 4px;">偏高</span></div>
+          </div>
+          <div class="bh-metric-card">
+            <div><span class="bh-metric-card-value">22.4</span></div>
+            <div class="bh-metric-card-label">BMI <span class="bh-badge bh-badge--normal" style="margin-left: 4px;">正常</span></div>
+          </div>
+        </div>
+        <div class="modules6" style="margin-top: 12px;">
+          <div class="module-icon"><div class="ic">📋</div><div class="lb">报告</div></div>
+          <div class="module-icon"><div class="ic">💊</div><div class="lb">用药</div></div>
+          <div class="module-icon"><div class="ic">📅</div><div class="lb">就诊</div></div>
+          <div class="module-icon"><div class="ic">⚕</div><div class="lb">手术</div></div>
+          <div class="module-icon"><div class="ic">🌡</div><div class="lb">疫苗</div></div>
+          <div class="module-icon"><div class="ic">🩺</div><div class="lb">家族史</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ⑲ 订单列表 -->
+  <div class="screen">
+    <div class="screen-label"><span><span class="screen-num">19</span>订单列表</span><span class="screen-tag">5 状态 Tab</span></div>
+    <div class="phone">
+      <div class="topbar-secondary-placeholder">我的订单<span class="back">‹</span></div>
+      <div class="tab-row">
+        <div class="tab">全部</div>
+        <div class="tab active">待付款<span class="tab-badge">2</span></div>
+        <div class="tab">待使用</div>
+        <div class="tab">待评价</div>
+        <div class="tab">已完成</div>
+      </div>
+      <div class="content">
+        <div class="list-card">
+          <div style="display: flex; gap: 10px; margin-bottom: 8px;">
+            <div style="width: 60px; height: 60px; background: var(--color-brand-100); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 28px;">🩺</div>
+            <div style="flex: 1;">
+              <h4>糖尿病管理套餐 · 月卡</h4>
+              <p>张医生 · 内分泌科</p>
+              <div style="margin-top: 4px;"><span class="bh-badge bh-badge--high">待付款</span> <span style="color: var(--color-brand-700); font-weight: 600; font-size: 16px; margin-left: 6px;">¥299</span></div>
+            </div>
+          </div>
+          <div style="display: flex; gap: 8px; justify-content: flex-end;">
+            <button style="height: 30px; padding: 0 12px; background: #fff; border: 1px solid var(--color-border-base); border-radius: 6px; font-size: 12px; color: var(--color-text-secondary);">取消</button>
+            <button class="bh-btn-primary" style="height: 30px; padding: 0 12px; font-size: 12px;">立即支付</button>
+          </div>
+        </div>
+        <div class="list-card">
+          <div style="display: flex; gap: 10px; margin-bottom: 8px;">
+            <div style="width: 60px; height: 60px; background: var(--color-brand-100); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 28px;">💊</div>
+            <div style="flex: 1;">
+              <h4>降压药配送 · 30 天</h4>
+              <p>线上药房</p>
+              <div style="margin-top: 4px;"><span class="bh-badge bh-badge--high">待付款</span> <span style="color: var(--color-brand-700); font-weight: 600; font-size: 16px; margin-left: 6px;">¥158</span></div>
+            </div>
+          </div>
+          <div style="display: flex; gap: 8px; justify-content: flex-end;">
+            <button style="height: 30px; padding: 0 12px; background: #fff; border: 1px solid var(--color-border-base); border-radius: 6px; font-size: 12px;">取消</button>
+            <button class="bh-btn-primary" style="height: 30px; padding: 0 12px; font-size: 12px;">立即支付</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ⑳ 订单详情 -->
+  <div class="screen">
+    <div class="screen-label"><span><span class="screen-num">20</span>订单详情</span><span class="screen-tag">14 分倒计时</span></div>
+    <div class="phone">
+      <div class="topbar-secondary-placeholder">订单详情<span class="back">‹</span></div>
+      <div class="content">
+        <div class="hero-deep">
+          <h3>⏱ 待付款</h3>
+          <div style="font-size: 13px; opacity: 0.85;">订单将在 14:23 后自动取消</div>
+          <div class="countdown" style="margin-top: 8px;">14 分 23 秒</div>
+        </div>
+        <div style="background: #fff; border-radius: 12px; padding: 14px; margin-bottom: 10px; box-shadow: var(--shadow-card);">
+          <h4 style="margin-bottom: 8px;">订单进度</h4>
+          <div class="timeline">
+            <div class="timeline-item">
+              <div class="timeline-dot done"></div>
+              <div class="timeline-content"><div>下单成功</div><div class="timeline-meta">2026-05-10 09:23</div></div>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-dot"></div>
+              <div class="timeline-content"><div>等待付款</div><div class="timeline-meta">— —</div></div>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-dot idle"></div>
+              <div class="timeline-content"><div style="color: var(--color-text-tertiary);">商家发货</div></div>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-dot idle"></div>
+              <div class="timeline-content"><div style="color: var(--color-text-tertiary);">订单完成</div></div>
+            </div>
+          </div>
+        </div>
+        <div style="background: #fff; border-radius: 12px; padding: 14px; box-shadow: var(--shadow-card);">
+          <h4 style="margin-bottom: 8px;">商品信息</h4>
+          <div style="display: flex; gap: 8px;">
+            <div style="width: 50px; height: 50px; background: var(--color-brand-100); border-radius: 6px; display: flex; align-items: center; justify-content: center;">🩺</div>
+            <div style="flex: 1;">
+              <div style="font-size: 14px; font-weight: 500;">糖尿病管理套餐 · 月卡</div>
+              <div style="color: var(--color-brand-700); font-weight: 700; font-size: 18px; margin-top: 4px;">¥299</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="bottom-bar">
+        <button class="btn-secondary">联系客服</button>
+        <button class="btn-confirm">立即支付</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ㉑ 服务列表 -->
+  <div class="screen">
+    <div class="screen-label"><span><span class="screen-num">21</span>服务列表</span><span class="screen-tag">6 类胶囊</span></div>
+    <div class="phone">
+      <div class="topbar-secondary-placeholder">服务<span class="back">‹</span></div>
+      <div style="padding: 10px 12px; background: #fff;">
+        <input class="bh-input" placeholder="🔍 搜索服务" style="width: 100%;" />
+      </div>
+      <div style="padding: 10px 12px; background: #fff; border-bottom: 1px solid var(--color-border-light);">
+        <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+          <span class="bh-chip bh-chip--active">全部</span>
+          <span class="bh-chip">问诊</span>
+          <span class="bh-chip">体检</span>
+          <span class="bh-chip">预约</span>
+          <span class="bh-chip">配药</span>
+          <span class="bh-chip">康复</span>
+        </div>
+      </div>
+      <div class="content">
+        <div class="list-card" style="display: flex; gap: 10px;">
+          <div style="width: 70px; height: 70px; background: var(--color-brand-100); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 32px;">🩺</div>
+          <div style="flex: 1;">
+            <h4>三甲名医图文问诊</h4>
+            <p>北京协和 · 内科 · 24 小时回复</p>
+            <div style="margin-top: 6px;">
+              <span style="color: var(--color-brand-700); font-weight: 700; font-size: 16px;">¥39</span>
+              <span style="color: var(--color-text-tertiary); text-decoration: line-through; margin-left: 6px; font-size: 12px;">¥99</span>
+            </div>
+          </div>
+        </div>
+        <div class="list-card" style="display: flex; gap: 10px;">
+          <div style="width: 70px; height: 70px; background: var(--color-brand-100); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 32px;">📋</div>
+          <div style="flex: 1;">
+            <h4>中老年体检套餐 A</h4>
+            <p>包含 35 项检测 · 三甲医院出报告</p>
+            <div style="margin-top: 6px;">
+              <span style="color: var(--color-brand-700); font-weight: 700; font-size: 16px;">¥598</span>
+              <span style="color: var(--color-text-tertiary); text-decoration: line-through; margin-left: 6px; font-size: 12px;">¥888</span>
+            </div>
+          </div>
+        </div>
+        <div class="list-card" style="display: flex; gap: 10px;">
+          <div style="width: 70px; height: 70px; background: var(--color-brand-100); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 32px;">💊</div>
+          <div style="flex: 1;">
+            <h4>慢病用药托管</h4>
+            <p>专属药师 · 每月送药上门</p>
+            <div style="margin-top: 6px;">
+              <span style="color: var(--color-brand-700); font-weight: 700; font-size: 16px;">¥199/月</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ㉒ 会员中心 -->
+  <div class="screen">
+    <div class="screen-label"><span><span class="screen-num">22</span>会员中心</span><span class="screen-tag">深蓝 hero</span></div>
+    <div class="phone">
+      <div class="topbar-secondary-placeholder">会员中心<span class="back">‹</span></div>
+      <div class="content">
+        <div class="member-hero">
+          <div class="member-avatar">👑</div>
+          <div style="font-size: 18px; font-weight: 700;">尊享会员</div>
+          <div style="font-size: 12px; opacity: 0.85; margin-top: 4px;">有效期至 2027-05-10</div>
+        </div>
+        <div style="font-size: 14px; font-weight: 600; margin: 8px 0;">会员专享权益</div>
+        <div class="member-rights">
+          <div class="right-icon"><span class="ic">💬</span>无限咨询</div>
+          <div class="right-icon"><span class="ic">🩺</span>专家义诊</div>
+          <div class="right-icon"><span class="ic">📋</span>免费体检</div>
+          <div class="right-icon"><span class="ic">🎁</span>积分加倍</div>
+          <div class="right-icon"><span class="ic">🚚</span>免邮配送</div>
+          <div class="right-icon"><span class="ic">⏱</span>极速响应</div>
+          <div class="right-icon"><span class="ic">🎟</span>专属优惠</div>
+          <div class="right-icon"><span class="ic">👨‍⚕️</span>家医服务</div>
+        </div>
+        <div style="font-size: 14px; font-weight: 600; margin: 16px 0 8px;">套餐选择</div>
+        <div class="plan-row">
+          <div class="plan-card">
+            <h5>月卡</h5>
+            <div class="price">¥39</div>
+            <div class="small">/月</div>
+          </div>
+          <div class="plan-card featured">
+            <h5>季卡 推荐</h5>
+            <div class="price">¥99</div>
+            <div class="small">省 ¥18</div>
+          </div>
+          <div class="plan-card">
+            <h5>年卡</h5>
+            <div class="price">¥299</div>
+            <div class="small">省 ¥169</div>
+          </div>
+        </div>
+      </div>
+      <div class="bottom-bar">
+        <button class="btn-confirm">立即续费 ¥99 / 季卡</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ㉓ 优惠券中心 -->
+  <div class="screen">
+    <div class="screen-label"><span><span class="screen-num">23</span>优惠券中心</span><span class="screen-tag">撕票式</span></div>
+    <div class="phone">
+      <div class="topbar-secondary-placeholder">我的优惠券<span class="back">‹</span></div>
+      <div class="tab-row">
+        <div class="tab active">未使用<span class="tab-badge">5</span></div>
+        <div class="tab">已使用</div>
+        <div class="tab">已过期</div>
+        <div class="tab">领券中心</div>
+      </div>
+      <div class="content">
+        <div class="coupon">
+          <div class="coupon-amount"><div class="num"><small>¥</small>50</div><div style="font-size: 11px; opacity: 0.85; margin-top: 2px;">满 200 减</div></div>
+          <div class="coupon-info">
+            <h4>问诊专享券</h4>
+            <p>限三甲名医图文问诊使用</p>
+            <p style="margin-top: 4px;">有效期至 5 月 31 日</p>
+          </div>
+          <div class="coupon-corner">3 天后过期</div>
+        </div>
+        <div class="coupon">
+          <div class="coupon-amount"><div class="num"><small>¥</small>30</div><div style="font-size: 11px; opacity: 0.85; margin-top: 2px;">无门槛</div></div>
+          <div class="coupon-info">
+            <h4>新人专享</h4>
+            <p>全场服务通用</p>
+            <p style="margin-top: 4px;">有效期至 5 月 25 日</p>
+          </div>
+        </div>
+        <div class="coupon">
+          <div class="coupon-amount"><div class="num"><small>¥</small>100</div><div style="font-size: 11px; opacity: 0.85; margin-top: 2px;">满 500 减</div></div>
+          <div class="coupon-info">
+            <h4>会员尊享</h4>
+            <p>限体检套餐使用</p>
+            <p style="margin-top: 4px;">有效期至 6 月 30 日</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ==================== 第五组 · 其余业务页（6 屏） ==================== -->
+<h2 id="group5" class="group-title">第五组 · 其余业务页（6 屏）</h2>
+<div class="screens-grid">
+
+  <!-- ㉔ 收货地址 -->
+  <div class="screen">
+    <div class="screen-label"><span><span class="screen-num">24</span>收货地址</span><span class="screen-tag">默认深蓝竖线</span></div>
+    <div class="phone">
+      <div class="topbar-secondary-placeholder">收货地址<span class="back">‹</span></div>
+      <div class="content">
+        <div class="bh-ai-card" style="background: var(--color-brand-50);">
+          <div style="display: flex; justify-content: space-between; align-items: start;">
+            <div>
+              <div style="font-weight: 600; margin-bottom: 4px;">张先生 · 138 0013 8000</div>
+              <div style="font-size: 13px; color: var(--color-text-secondary);">北京市朝阳区建国路 88 号</div>
+              <div style="margin-top: 6px;"><span class="bh-badge bh-badge--member" style="background: var(--color-brand-100); color: var(--color-brand-700);">默认</span></div>
+            </div>
+            <span style="color: var(--color-brand-600); font-size: 13px;">编辑</span>
+          </div>
+        </div>
+        <div style="background: #fff; border-radius: 8px; padding: 14px 16px; margin-bottom: 10px; box-shadow: var(--shadow-card);">
+          <div style="display: flex; justify-content: space-between;">
+            <div>
+              <div style="font-weight: 600; margin-bottom: 4px;">张妈妈 · 138 0023 4567</div>
+              <div style="font-size: 13px; color: var(--color-text-secondary);">上海市浦东新区世纪大道 100 号</div>
+            </div>
+            <div style="display: flex; gap: 8px; color: var(--color-text-tertiary); font-size: 12px; align-items: center;">
+              <span>复制</span><span>编辑</span><span>删除</span>
+            </div>
+          </div>
+        </div>
+        <div style="background: #fff; border-radius: 8px; padding: 14px 16px; box-shadow: var(--shadow-card);">
+          <div style="display: flex; justify-content: space-between;">
+            <div>
+              <div style="font-weight: 600; margin-bottom: 4px;">张爸爸 · 139 8888 9999</div>
+              <div style="font-size: 13px; color: var(--color-text-secondary);">广州市天河区珠江新城</div>
+            </div>
+            <div style="display: flex; gap: 8px; color: var(--color-text-tertiary); font-size: 12px; align-items: center;">
+              <span>复制</span><span>编辑</span><span>删除</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="bottom-bar">
+        <button class="btn-confirm">+ 新增收货地址</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ㉕ 客服中心 -->
+  <div class="screen">
+    <div class="screen-label"><span><span class="screen-num">25</span>客服中心</span><span class="screen-tag">在线 banner</span></div>
+    <div class="phone">
+      <div class="topbar-secondary-placeholder">客服中心<span class="back">‹</span></div>
+      <div class="content">
+        <div class="hero-deep">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div style="width: 8px; height: 8px; background: var(--color-accent-green); border-radius: 50%; box-shadow: 0 0 8px var(--color-accent-green);"></div>
+            <h3 style="margin: 0;">在线客服 · 平均 30 秒响应</h3>
+          </div>
+          <div style="font-size: 13px; opacity: 0.85; margin-top: 6px;">7×24 小时为您服务</div>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 12px;">
+          <div class="module-icon"><div class="ic">💬</div><div class="lb">在线咨询</div></div>
+          <div class="module-icon"><div class="ic">📞</div><div class="lb">电话客服</div></div>
+          <div class="module-icon"><div class="ic">✉</div><div class="lb">留言反馈</div></div>
+          <div class="module-icon"><div class="ic">❓</div><div class="lb">常见问题</div></div>
+        </div>
+        <div style="background: #fff; border-radius: 12px; padding: 12px; box-shadow: var(--shadow-card);">
+          <h4 style="font-size: 14px; margin-bottom: 8px; color: var(--color-brand-900);">高频问题</h4>
+          <div style="font-size: 13px; color: var(--color-text-secondary); padding: 8px 0; border-bottom: 1px solid var(--color-border-light);">如何修改预约时间？</div>
+          <div style="font-size: 13px; color: var(--color-text-secondary); padding: 8px 0; border-bottom: 1px solid var(--color-border-light);">退款多久到账？</div>
+          <div style="font-size: 13px; color: var(--color-text-secondary); padding: 8px 0; border-bottom: 1px solid var(--color-border-light);">如何添加家人档案？</div>
+          <div style="font-size: 13px; color: var(--color-text-secondary); padding: 8px 0; border-bottom: 1px solid var(--color-border-light);">优惠券怎么使用？</div>
+          <div style="font-size: 13px; color: var(--color-text-secondary); padding: 8px 0;">会员权益有哪些？</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ㉖ 设置页 -->
+  <div class="screen">
+    <div class="screen-label"><span><span class="screen-num">26</span>设置页</span><span class="screen-tag">5 分组+退出</span></div>
+    <div class="phone">
+      <div class="topbar-secondary-placeholder">设置<span class="back">‹</span></div>
+      <div class="content">
+        <div class="settings-group">
+          <div class="settings-row"><div class="settings-label">个人资料</div><span style="color: var(--color-text-tertiary);">›</span></div>
+          <div class="settings-row"><div class="settings-label">健康档案</div><span style="color: var(--color-text-tertiary);">›</span></div>
+        </div>
+        <div class="settings-group">
+          <div class="settings-row"><div class="settings-label">消息推送</div><div class="switch"></div></div>
+          <div class="settings-row"><div class="settings-label">提醒声音</div><div class="switch"></div></div>
+        </div>
+        <div class="settings-group">
+          <div class="settings-row"><div class="settings-label">字体大小</div><span style="color: var(--color-text-tertiary);">标准 ›</span></div>
+          <div class="settings-row"><div class="settings-label">无障碍语音</div><div class="switch off"></div></div>
+        </div>
+        <div class="settings-group">
+          <div class="settings-row"><div class="settings-label">隐私协议</div><span style="color: var(--color-text-tertiary);">›</span></div>
+          <div class="settings-row"><div class="settings-label">服务条款</div><span style="color: var(--color-text-tertiary);">›</span></div>
+          <div class="settings-row"><div class="settings-label">关于我们</div><span style="color: var(--color-text-tertiary);">v1.0.0 ›</span></div>
+        </div>
+        <div class="settings-group">
+          <div class="settings-row"><div class="settings-label">清除缓存</div><span style="color: var(--color-text-tertiary);">12.5MB ›</span></div>
+          <div class="settings-row"><div class="settings-label">检查更新</div><div class="switch"></div></div>
+        </div>
+        <button class="logout-btn">退出登录</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ㉗ 报告详情 -->
+  <div class="screen">
+    <div class="screen-label"><span><span class="screen-num">27</span>报告详情</span><span class="screen-tag">7 异常+AI 解读</span></div>
+    <div class="phone">
+      <div class="topbar-secondary-placeholder">报告详情<span class="back">‹</span></div>
+      <div class="content">
+        <div class="hero-deep" style="background: var(--gradient-user-card);">
+          <h3>2026 年度全面体检报告</h3>
+          <div style="font-size: 13px; opacity: 0.9; margin-top: 4px;">出具日期：2026-05-08 · 北京协和医院</div>
+          <div style="display: flex; gap: 16px; margin-top: 12px;">
+            <div><span style="font-size: 28px; font-weight: 700;">85</span><span style="font-size: 12px; opacity: 0.85; margin-left: 4px;">健康分</span></div>
+            <div><span style="font-size: 14px;">异常 7 项</span></div>
+          </div>
+        </div>
+        <div style="background: #fff; border-radius: 12px; padding: 14px; margin-bottom: 10px; box-shadow: var(--shadow-card);">
+          <h4 style="font-size: 14px; margin-bottom: 8px;">摘要</h4>
+          <div style="font-size: 13px; color: var(--color-text-secondary); line-height: 1.7;">
+            整体健康状况良好，部分代谢指标偏高，建议加强血糖与血压监测，定期复查心血管相关项目。
+          </div>
+        </div>
+        <div style="background: #fff; border-radius: 12px; padding: 14px; margin-bottom: 10px; box-shadow: var(--shadow-card);">
+          <h4 style="font-size: 14px; margin-bottom: 8px;">异常指标 (7)</h4>
+          <div style="font-size: 13px;">
+            <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--color-border-light);"><span>糖化血红蛋白</span><span><b style="color: var(--color-accent-yellow);">7.2%</b> <span class="bh-badge bh-badge--high" style="margin-left: 4px;">偏高</span></span></div>
+            <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--color-border-light);"><span>收缩压</span><span><b style="color: var(--color-accent-yellow);">145</b> <span class="bh-badge bh-badge--high" style="margin-left: 4px;">偏高</span></span></div>
+            <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--color-border-light);"><span>低密度胆固醇</span><span><b style="color: var(--color-accent-red);">4.2</b> <span class="bh-badge bh-badge--critical" style="margin-left: 4px;">临界</span></span></div>
+            <div style="display: flex; justify-content: space-between; padding: 6px 0;"><span>尿酸</span><span><b style="color: var(--color-accent-yellow);">468</b> <span class="bh-badge bh-badge--high" style="margin-left: 4px;">偏高</span></span></div>
+          </div>
+        </div>
+        <div class="bh-ai-card">
+          <div style="display: flex; gap: 6px; align-items: center; margin-bottom: 6px;">
+            <div class="ai-avatar" style="width: 22px; height: 22px; font-size: 12px;">康</div>
+            <span style="font-weight: 600; font-size: 13px;">小康综合解读</span>
+          </div>
+          <div style="font-size: 13px; color: var(--color-text-secondary);">
+            您的报告显示主要为代谢综合征早期表现。建议：①优化饮食结构；②启动规律有氧运动；③咨询心内科医生用药调整。
+          </div>
+        </div>
+      </div>
+      <div class="bottom-bar">
+        <button class="btn-secondary">下载 PDF</button>
+        <button class="btn-confirm">咨询小康</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ㉘ 医生详情 -->
+  <div class="screen">
+    <div class="screen-label"><span><span class="screen-num">28</span>医生详情</span><span class="screen-tag">7 天排班</span></div>
+    <div class="phone">
+      <div class="topbar-secondary-placeholder">医生详情<span class="back">‹</span></div>
+      <div class="content" style="padding: 0;">
+        <div class="hero-deep" style="border-radius: 0;">
+          <div style="display: flex; gap: 12px; align-items: center;">
+            <div style="width: 60px; height: 60px; background: rgba(255,255,255,0.25); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 28px;">👨‍⚕️</div>
+            <div>
+              <div style="font-size: 18px; font-weight: 700;">张明华 主任医师</div>
+              <div style="font-size: 13px; opacity: 0.85;">北京协和医院 · 心内科</div>
+            </div>
+          </div>
+          <div style="display: flex; justify-content: space-around; margin-top: 16px; text-align: center;">
+            <div><div style="font-size: 18px; font-weight: 700;">25 年</div><div style="font-size: 11px; opacity: 0.85;">从业</div></div>
+            <div><div style="font-size: 18px; font-weight: 700;">4.9 ⭐</div><div style="font-size: 11px; opacity: 0.85;">评分</div></div>
+            <div><div style="font-size: 18px; font-weight: 700;">2.3w</div><div style="font-size: 11px; opacity: 0.85;">问诊量</div></div>
+          </div>
+        </div>
+        <div style="padding: 12px;">
+          <div style="background: #fff; border-radius: 12px; padding: 12px; margin-bottom: 10px; box-shadow: var(--shadow-card);">
+            <h4 style="font-size: 14px; margin-bottom: 8px;">擅长</h4>
+            <div style="font-size: 13px; color: var(--color-text-secondary); line-height: 1.7;">
+              冠心病、高血压、心力衰竭、心律失常等心血管疾病的诊断与治疗。
+            </div>
+          </div>
+          <div style="background: #fff; border-radius: 12px; padding: 12px; box-shadow: var(--shadow-card);">
+            <h4 style="font-size: 14px; margin-bottom: 8px;">近 7 天排班</h4>
+            <div style="display: flex; gap: 4px; overflow-x: auto;">
+              <div style="flex-shrink: 0; padding: 8px 10px; border: 1px solid var(--color-brand-400); border-radius: 6px; text-align: center; background: var(--color-brand-50); color: var(--color-brand-700);">
+                <div style="font-size: 11px;">周一</div><div style="font-size: 13px; font-weight: 600;">5/12</div><div style="font-size: 10px;">余 8</div>
+              </div>
+              <div style="flex-shrink: 0; padding: 8px 10px; border: 1px solid var(--color-border-base); border-radius: 6px; text-align: center;">
+                <div style="font-size: 11px;">周二</div><div style="font-size: 13px;">5/13</div><div style="font-size: 10px; color: var(--color-text-tertiary);">余 0</div>
+              </div>
+              <div style="flex-shrink: 0; padding: 8px 10px; border: 1px solid var(--color-border-base); border-radius: 6px; text-align: center;">
+                <div style="font-size: 11px;">周三</div><div style="font-size: 13px;">5/14</div><div style="font-size: 10px; color: var(--color-brand-600);">余 5</div>
+              </div>
+              <div style="flex-shrink: 0; padding: 8px 10px; border: 1px solid var(--color-border-base); border-radius: 6px; text-align: center;">
+                <div style="font-size: 11px;">周四</div><div style="font-size: 13px;">5/15</div><div style="font-size: 10px; color: var(--color-brand-600);">余 12</div>
+              </div>
+              <div style="flex-shrink: 0; padding: 8px 10px; border: 1px solid var(--color-border-base); border-radius: 6px; text-align: center;">
+                <div style="font-size: 11px;">周五</div><div style="font-size: 13px;">5/16</div><div style="font-size: 10px; color: var(--color-brand-600);">余 6</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="bottom-bar">
+        <button class="btn-confirm">立即预约</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ㉙ 预约时间 -->
+  <div class="screen">
+    <div class="screen-label"><span><span class="screen-num">29</span>预约时间</span><span class="screen-tag">月日历+时段</span></div>
+    <div class="phone">
+      <div class="topbar-secondary-placeholder">选择预约时间<span class="back">‹</span></div>
+      <div class="content">
+        <div class="calendar">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <span style="color: var(--color-brand-600);">‹</span>
+            <span style="font-weight: 600;">2026 年 5 月</span>
+            <span style="color: var(--color-brand-600);">›</span>
+          </div>
+          <div class="cal-grid">
+            <div class="cal-cell small">日</div><div class="cal-cell small">一</div><div class="cal-cell small">二</div><div class="cal-cell small">三</div><div class="cal-cell small">四</div><div class="cal-cell small">五</div><div class="cal-cell small">六</div>
+            <div class="cal-cell disabled">28</div><div class="cal-cell disabled">29</div><div class="cal-cell disabled">30</div><div class="cal-cell disabled">1</div><div class="cal-cell disabled">2</div><div class="cal-cell disabled">3</div><div class="cal-cell disabled">4</div>
+            <div class="cal-cell disabled">5</div><div class="cal-cell disabled">6</div><div class="cal-cell disabled">7</div><div class="cal-cell disabled">8</div><div class="cal-cell disabled">9</div><div class="cal-cell today">10</div><div class="cal-cell">11</div>
+            <div class="cal-cell">12</div><div class="cal-cell">13</div><div class="cal-cell">14</div><div class="cal-cell">15</div><div class="cal-cell">16</div><div class="cal-cell">17</div><div class="cal-cell">18</div>
+            <div class="cal-cell">19</div><div class="cal-cell">20</div><div class="cal-cell">21</div><div class="cal-cell">22</div><div class="cal-cell">23</div><div class="cal-cell">24</div><div class="cal-cell">25</div>
+          </div>
+        </div>
+        <div style="background: #fff; border-radius: 12px; padding: 14px; margin-top: 10px;">
+          <h4 style="font-size: 14px; margin-bottom: 10px;">5 月 12 日 周一 上午</h4>
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px;">
+            <div style="padding: 8px; text-align: center; border: 1px solid var(--color-brand-400); background: var(--color-brand-50); border-radius: 6px; color: var(--color-brand-700); font-size: 13px;">9:00<br/><span style="font-size: 10px;">余 3</span></div>
+            <div style="padding: 8px; text-align: center; border: 1px solid var(--color-border-base); border-radius: 6px; font-size: 13px;">9:30<br/><span style="font-size: 10px; color: var(--color-text-tertiary);">余 0</span></div>
+            <div style="padding: 8px; text-align: center; border: 1px solid var(--color-border-base); border-radius: 6px; font-size: 13px;">10:00<br/><span style="font-size: 10px; color: var(--color-brand-600);">余 5</span></div>
+            <div style="padding: 8px; text-align: center; border: 1px solid var(--color-border-base); border-radius: 6px; font-size: 13px;">10:30<br/><span style="font-size: 10px; color: var(--color-brand-600);">余 8</span></div>
+            <div style="padding: 8px; text-align: center; border: 1px solid var(--color-border-base); border-radius: 6px; font-size: 13px;">11:00<br/><span style="font-size: 10px; color: var(--color-brand-600);">余 6</span></div>
+            <div style="padding: 8px; text-align: center; border: 1px solid var(--color-border-base); border-radius: 6px; font-size: 13px;">11:30<br/><span style="font-size: 10px; color: var(--color-text-tertiary);">余 0</span></div>
+          </div>
+          <h4 style="font-size: 14px; margin-bottom: 10px;">下午</h4>
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+            <div style="padding: 8px; text-align: center; border: 1px solid var(--color-border-base); border-radius: 6px; font-size: 13px;">14:00<br/><span style="font-size: 10px; color: var(--color-brand-600);">余 4</span></div>
+            <div style="padding: 8px; text-align: center; border: 1px solid var(--color-border-base); border-radius: 6px; font-size: 13px;">14:30<br/><span style="font-size: 10px; color: var(--color-brand-600);">余 7</span></div>
+            <div style="padding: 8px; text-align: center; border: 1px solid var(--color-border-base); border-radius: 6px; font-size: 13px;">15:00<br/><span style="font-size: 10px; color: var(--color-brand-600);">余 9</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="bottom-bar">
+        <button class="btn-confirm">确认预约 · 5/12 9:00</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ==================== 文档底部 ==================== -->
+<footer class="footer">
+  <div>bini-health · AI 对话风格 PRD-441 · 方案 A 晴空诊室 v1.0</div>
+  <div style="margin-top: 8px;">
+    <a href="./PRD-441-AI对话风格规范.md">📄 PRD 文档</a> ·
+    <a href="./design-tokens.css">🎨 design-tokens.css</a> ·
+    <a href="./design-tokens.json">📦 design-tokens.json</a>
+  </div>
+  <div style="margin-top: 8px;">© 2026 bini-health · 由 小白 AI 编制</div>
+</footer>
+
+</body>
+</html>
