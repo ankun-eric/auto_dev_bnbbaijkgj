@@ -86,19 +86,26 @@ export default function CustomerServicePage() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
-      <GreenNavBar
-        right={
-          <span
-            className="text-white text-sm font-medium"
-            onClick={transferHuman}
-          >
-            转人工
-          </span>
-        }
-      >
-        在线客服
-      </GreenNavBar>
+    <div className="flex flex-col h-screen bh-ai-page">
+      <div className="bh-ai-topbar">
+        <GreenNavBar
+          right={
+            <span
+              className="text-sm font-medium"
+              style={{ color: '#0C4A6E' }}
+              onClick={transferHuman}
+            >
+              转人工
+            </span>
+          }
+          style={{
+            background: 'linear-gradient(135deg, #F0F9FF 0%, #DBEAFE 100%)',
+            color: '#0C4A6E',
+          } as React.CSSProperties}
+        >
+          <span style={{ color: '#0C4A6E' }}>在线客服</span>
+        </GreenNavBar>
+      </div>
 
       <div ref={listRef} className="flex-1 overflow-y-auto px-4 py-3">
         {messages.map((msg) => {
@@ -124,10 +131,11 @@ export default function CustomerServicePage() {
               <div className="max-w-[75%]">
                 <div
                   className={`rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-line ${
-                    msg.role === 'user'
-                      ? 'bg-primary text-white rounded-tr-sm'
-                      : 'bg-white text-gray-700 rounded-tl-sm shadow-sm'
+                    msg.role === 'user' ? 'rounded-tr-sm' : 'rounded-tl-sm'
                   }`}
+                  style={msg.role === 'user'
+                    ? { background: 'linear-gradient(135deg, #7DD3FC 0%, #38BDF8 100%)', color: '#fff', boxShadow: '0 1px 4px rgba(2,132,199,0.18)' }
+                    : { background: 'var(--color-brand-100)', color: 'var(--color-brand-900)', boxShadow: '0 1px 4px rgba(56,189,248,0.08)' }}
                 >
                   {msg.content}
                 </div>
@@ -148,7 +156,7 @@ export default function CustomerServicePage() {
             <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center mr-2 bg-primary">
               <span className="text-white text-xs">客</span>
             </div>
-            <div className="bg-white rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm">
+            <div className="rounded-2xl rounded-tl-sm px-4 py-3" style={{ background: 'var(--color-brand-100)', boxShadow: '0 1px 4px rgba(56,189,248,0.08)' }}>
               <SpinLoading style={{ '--size': '20px', '--color': '#0EA5E9' }} />
             </div>
           </div>
@@ -156,7 +164,7 @@ export default function CustomerServicePage() {
       </div>
 
       <div className="bg-white border-t border-gray-100 px-4 py-3 flex items-end gap-2">
-        <div className="flex-1 bg-gray-50 rounded-2xl px-4 py-2">
+        <div className="flex-1 bh-ai-input px-4 py-2">
           <Input
             placeholder="输入您的问题..."
             value={inputVal}
@@ -169,7 +177,7 @@ export default function CustomerServicePage() {
           onClick={sendMessage}
           disabled={!inputVal.trim() || loading}
           style={{
-            background: inputVal.trim() ? '#0EA5E9' : '#e8e8e8',
+            background: inputVal.trim() ? 'linear-gradient(135deg, #38BDF8 0%, #0284C7 100%)' : '#e8e8e8',
             color: inputVal.trim() ? '#fff' : '#999',
             border: 'none',
             borderRadius: '50%',

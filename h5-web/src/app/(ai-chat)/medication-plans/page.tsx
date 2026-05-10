@@ -160,7 +160,7 @@ export default function MedicationPlansPage() {
       data-testid="prd439-medication-plans-page"
       style={{
         minHeight: '100vh',
-        background: '#F5F5F7',
+        background: 'var(--color-brand-50)',
         maxWidth: 750,
         margin: '0 auto',
       }}
@@ -197,7 +197,7 @@ export default function MedicationPlansPage() {
         <button
           onClick={openCreate}
           style={{
-            background: '#10B981',
+            background: 'linear-gradient(135deg, #38BDF8 0%, #0284C7 100%)',
             border: 'none',
             color: '#fff',
             padding: '6px 12px',
@@ -391,7 +391,7 @@ export default function MedicationPlansPage() {
                 disabled={saving}
                 style={{
                   flex: 1,
-                  background: '#10B981',
+                  background: 'linear-gradient(135deg, #38BDF8 0%, #0284C7 100%)',
                   border: 'none',
                   color: '#fff',
                   padding: '10px',

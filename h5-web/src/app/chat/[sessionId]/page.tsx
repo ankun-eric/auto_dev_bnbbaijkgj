@@ -1858,8 +1858,9 @@ function ChatPageInner() {
   const bannerText = urlMsg.slice(0, 50) + (urlMsg.length > 50 ? '...' : '');
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
+    <div className="flex flex-col h-screen bh-ai-page">
       <NavBar
+        className="bh-ai-topbar"
         onBack={() => router.back()}
         left={
           <button
@@ -1868,10 +1869,10 @@ function ChatPageInner() {
               setSidebarVisible(true);
             }}
             className="w-8 h-8 flex items-center justify-center rounded-lg -ml-1"
-            style={{ background: 'rgba(255,255,255,0.2)' }}
+            style={{ background: 'rgba(14,165,233,0.10)' }}
             aria-label="打开历史对话"
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0C4A6E" strokeWidth="2.2" strokeLinecap="round">
               <line x1="3" y1="6" x2="21" y2="6" />
               <line x1="3" y1="12" x2="21" y2="12" />
               <line x1="3" y1="18" x2="21" y2="18" />
@@ -1888,10 +1889,10 @@ function ChatPageInner() {
                   setFontPopoverVisible((v) => !v);
                 }}
                 className="w-8 h-8 flex items-center justify-center rounded-lg"
-                style={{ background: 'rgba(255,255,255,0.2)' }}
+                style={{ background: 'rgba(14,165,233,0.10)' }}
                 aria-label="字体大小设置"
               >
-                <span className="text-white text-sm font-bold">Aa</span>
+                <span className="text-sm font-bold" style={{ color: '#0C4A6E' }}>Aa</span>
               </button>
               {fontPopoverVisible && (
                 <div
@@ -1951,12 +1952,12 @@ function ChatPageInner() {
         }
         style={{
           '--height': '48px',
-          background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)',
-          color: '#fff',
+          background: 'linear-gradient(135deg, #F0F9FF 0%, #DBEAFE 100%)',
+          color: '#0C4A6E',
           '--border-bottom': 'none',
         } as React.CSSProperties}
       >
-        <span className="text-white font-medium">AI健康咨询</span>
+        <span className="font-medium" style={{ color: '#0C4A6E' }}>AI健康咨询</span>
       </NavBar>
 
       {/* Symptom banner */}
@@ -2599,7 +2600,7 @@ function ChatPageInner() {
             {isRecording ? (isCancelZone ? '松开取消' : '松开结束') : '按住说话'}
           </div>
         ) : (
-          <div className="flex-1 bg-gray-50 rounded-2xl px-3 py-1 flex items-center" style={{ position: 'relative' }}>
+          <div className="flex-1 bh-ai-input px-3 py-1 flex items-center" style={{ position: 'relative' }}>
             <Input
               placeholder="发信息..."
               value={inputVal}

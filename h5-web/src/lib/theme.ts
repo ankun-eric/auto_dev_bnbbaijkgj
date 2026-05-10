@@ -7,7 +7,7 @@ export const THEME = {
   primary: '#0EA5E9',          // brand-500（宾尼小康主色）
   primaryHover: '#0284C7',     // brand-600
   primaryLight: '#E0F2FE',     // brand-100
-  background: '#F9FAFB',
+  background: '#F0F9FF',
   cardBg: '#FFFFFF',
   textPrimary: '#1F2937',
   textSecondary: '#6B7280',

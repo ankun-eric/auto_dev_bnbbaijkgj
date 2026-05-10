@@ -109,19 +109,19 @@ export default function SharedReportPage() {
   const suggestions = report.ai_analysis_json?.suggestions || [];
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bh-ai-page">
       {/* Header */}
       <div
-        className="px-4 py-5"
-        style={{ background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)' }}
+        className="px-4 py-5 bh-ai-topbar"
+        style={{ background: 'linear-gradient(135deg, #F0F9FF 0%, #DBEAFE 100%)' }}
       >
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
+          <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'linear-gradient(135deg, #38BDF8 0%, #0284C7 100%)' }}>
             <span className="text-white text-sm font-bold">AI</span>
           </div>
           <div>
-            <h1 className="text-white font-bold text-base">体检报告解读</h1>
-            <p className="text-white/70 text-xs mt-0.5">
+            <h1 className="font-bold text-base" style={{ color: '#0C4A6E' }}>体检报告解读</h1>
+            <p className="text-xs mt-0.5" style={{ color: 'rgba(12,74,110,0.7)' }}>
               AI智能解读
             </p>
           </div>

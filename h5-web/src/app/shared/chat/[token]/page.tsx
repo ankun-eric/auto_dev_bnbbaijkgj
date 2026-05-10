@@ -102,16 +102,16 @@ export default function SharedChatPage() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50">
+    <div className="flex flex-col min-h-screen bh-ai-page">
       {/* Header */}
-      <div className="flex-shrink-0 px-4 py-4" style={{ background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)' }}>
+      <div className="flex-shrink-0 px-4 py-4 bh-ai-topbar" style={{ background: 'linear-gradient(135deg, #F0F9FF 0%, #DBEAFE 100%)' }}>
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(255,255,255,0.2)' }}>
+          <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'linear-gradient(135deg, #38BDF8 0%, #0284C7 100%)' }}>
             <span className="text-white text-sm font-bold">AI</span>
           </div>
           <div className="flex-1 min-w-0">
-            <h1 className="text-white font-bold text-base truncate">{chat.session_title || 'AI健康咨询'}</h1>
-            <p className="text-white/70 text-xs mt-0.5">
+            <h1 className="font-bold text-base truncate" style={{ color: '#0C4A6E' }}>{chat.session_title || 'AI健康咨询'}</h1>
+            <p className="text-xs mt-0.5" style={{ color: 'rgba(12,74,110,0.7)' }}>
               {chat.view_count}次查看
               {chat.created_at && ` · ${new Date(chat.created_at).toLocaleDateString('zh-CN')}`}
               {chat.user_nickname && ` · ${chat.user_nickname}分享`}
@@ -133,9 +133,11 @@ export default function SharedChatPage() {
             <div className="max-w-[75%]">
               <div
                 className={`rounded-2xl px-4 py-3 text-sm leading-relaxed ${
-                  msg.role === 'user' ? 'rounded-tr-sm text-white' : 'bg-white text-gray-700 rounded-tl-sm shadow-sm'
+                  msg.role === 'user' ? 'rounded-tr-sm text-white' : 'rounded-tl-sm'
                 }`}
-                style={msg.role === 'user' ? { background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)' } : undefined}
+                style={msg.role === 'user'
+                  ? { background: 'linear-gradient(135deg, #7DD3FC 0%, #38BDF8 100%)', boxShadow: '0 1px 4px rgba(2,132,199,0.18)' }
+                  : { background: 'var(--color-brand-100)', color: 'var(--color-brand-900)', boxShadow: '0 1px 4px rgba(56,189,248,0.08)' }}
               >
                 {msg.role === 'assistant' ? renderMarkdown(msg.content) : msg.content}
               </div>

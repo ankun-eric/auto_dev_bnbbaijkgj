@@ -678,7 +678,7 @@ export default function CheckupPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bh-ai-page">
       <GreenNavBar>
         体检报告
       </GreenNavBar>

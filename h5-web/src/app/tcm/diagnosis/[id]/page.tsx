@@ -23,7 +23,7 @@ export default function DeprecatedDiagnosisPage() {
   }, [id, router]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+    <div className="min-h-screen flex items-center justify-center bh-ai-page">
       <SpinLoading style={{ '--size': '32px', '--color': '#0EA5E9' }} />
     </div>
   );

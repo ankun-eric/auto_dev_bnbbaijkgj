@@ -123,8 +123,17 @@ export default function CheckupDetailPage() {
   const memberLabel = data.member_name ? `${data.member_relation || ''} · ${data.member_name}` : '未设置咨询人';
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f6f7f9', paddingBottom: 100 }}>
-      <NavBar onBack={() => router.back()}>报告详情</NavBar>
+    <div className="bh-ai-page" style={{ minHeight: '100vh', paddingBottom: 100 }}>
+      <NavBar
+        className="bh-ai-topbar"
+        onBack={() => router.back()}
+        style={{
+          background: 'linear-gradient(135deg, #F0F9FF 0%, #DBEAFE 100%)',
+          color: '#0C4A6E',
+        } as React.CSSProperties}
+      >
+        <span style={{ color: '#0C4A6E' }}>报告详情</span>
+      </NavBar>
 
       <div style={{ padding: 12 }}>
         <div style={{ background: '#fff', borderRadius: 12, padding: 16, marginBottom: 12 }}>

@@ -255,3 +255,63 @@ html, body {
   transition: opacity 180ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 .bh-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ============================================================
+   PRD-442 修复 · AI 对话模式工具类（晴空诊室主色调一致性）
+   适用范围：AI 主聊天 / 用药聊天 / 客服 / 共享 / 中医 /
+            AI 主页 / 用药方案 / 反馈 / 历史会话 / 账户安全 /
+            AI 设置 / 健康档案 / 体检 AI / 数字人 等 20 屏
+   ============================================================ */
+.bh-ai-page {
+  background: var(--color-brand-50);
+  min-height: 100vh;
+}
+.bh-ai-topbar {
+  background: var(--gradient-topbar);
+  color: var(--color-brand-900);
+}
+.bh-ai-topbar .adm-nav-bar {
+  background: var(--gradient-topbar) !important;
+  color: var(--color-brand-900) !important;
+}
+.bh-ai-topbar .adm-nav-bar-back-arrow,
+.bh-ai-topbar .adm-nav-bar-back,
+.bh-ai-topbar .adm-nav-bar-title,
+.bh-ai-topbar .adm-nav-bar-right,
+.bh-ai-topbar .adm-nav-bar-left {
+  color: var(--color-brand-900) !important;
+}
+.bh-ai-bubble {
+  background: var(--color-brand-100);
+  color: var(--color-brand-900);
+  border-radius: 16px;
+  border-top-left-radius: 4px;
+  padding: 10px 14px;
+  box-shadow: 0 1px 4px rgba(56, 189, 248, 0.08);
+}
+.bh-ai-user-bubble {
+  background: var(--gradient-user-bubble);
+  color: #ffffff;
+  border-radius: 16px;
+  border-top-right-radius: 4px;
+  padding: 10px 14px;
+  box-shadow: 0 1px 4px rgba(2, 132, 199, 0.18);
+}
+.bh-ai-input {
+  background: #ffffff;
+  border: 1px solid var(--color-brand-200);
+  border-radius: 22px;
+}
+.bh-ai-quick-chip {
+  background: var(--color-brand-50);
+  border: 1px solid var(--color-brand-200);
+  color: var(--color-brand-500);
+  border-radius: 16px;
+  padding: 6px 12px;
+}
+.bh-ai-send-btn {
+  background: var(--gradient-primary-btn);
+  color: #ffffff;
+  border: 0;
+  border-radius: 22px;
+}

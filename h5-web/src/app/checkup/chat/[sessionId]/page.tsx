@@ -431,9 +431,16 @@ function CheckupChatContent() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: '#f6f7f9' }}>
-      <NavBar onBack={() => router.back()}>
-        {session?.title || (isCompare ? '报告对比' : '报告解读')}
+    <div className="bh-ai-page" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      <NavBar
+        className="bh-ai-topbar"
+        onBack={() => router.back()}
+        style={{
+          background: 'linear-gradient(135deg, #F0F9FF 0%, #DBEAFE 100%)',
+          color: '#0C4A6E',
+        } as React.CSSProperties}
+      >
+        <span style={{ color: '#0C4A6E' }}>{session?.title || (isCompare ? '报告对比' : '报告解读')}</span>
       </NavBar>
 
       {topCard}
@@ -456,13 +463,19 @@ function CheckupChatContent() {
             <div
               style={{
                 maxWidth: '85%',
-                padding: '10px 12px',
-                borderRadius: 12,
-                background: m.role === 'user' ? '#1890ff' : '#fff',
-                color: m.role === 'user' ? '#fff' : '#222',
+                padding: '10px 14px',
+                borderRadius: 16,
+                borderTopLeftRadius: m.role === 'assistant' ? 4 : 16,
+                borderTopRightRadius: m.role === 'user' ? 4 : 16,
+                background: m.role === 'user'
+                  ? 'linear-gradient(135deg, #7DD3FC 0%, #38BDF8 100%)'
+                  : 'var(--color-brand-100)',
+                color: m.role === 'user' ? '#fff' : 'var(--color-brand-900)',
                 fontSize: 14,
                 lineHeight: 1.75,
-                boxShadow: m.role === 'assistant' ? '0 1px 4px rgba(0,0,0,0.05)' : 'none',
+                boxShadow: m.role === 'assistant'
+                  ? '0 1px 4px rgba(56,189,248,0.08)'
+                  : '0 1px 4px rgba(2,132,199,0.18)',
                 wordBreak: 'break-word',
               }}
               dangerouslySetInnerHTML={{
@@ -495,12 +508,10 @@ function CheckupChatContent() {
           }}
           placeholder="继续追问..."
           disabled={streaming}
+          className="bh-ai-input"
           style={{
             flex: 1,
-            padding: '10px 12px',
-            borderRadius: 20,
-            border: '1px solid #e5e5e5',
-            background: '#f9f9f9',
+            padding: '10px 14px',
             fontSize: 14,
             outline: 'none',
           }}
@@ -510,8 +521,10 @@ function CheckupChatContent() {
           disabled={!input.trim() || streaming}
           style={{
             padding: '10px 16px',
-            borderRadius: 20,
-            background: input.trim() && !streaming ? '#1890ff' : '#d9d9d9',
+            borderRadius: 22,
+            background: input.trim() && !streaming
+              ? 'linear-gradient(135deg, #38BDF8 0%, #0284C7 100%)'
+              : '#d9d9d9',
             color: '#fff',
             fontSize: 14,
             border: 0,

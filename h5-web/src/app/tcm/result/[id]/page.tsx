@@ -383,7 +383,7 @@ export default function TcmResultPage() {
 
   if (loading || !data) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bh-ai-page">
         <GreenNavBar back={() => router.back()}>体质分析报告</GreenNavBar>
         <div className="flex flex-col items-center justify-center py-32">
           <SpinLoading style={{ '--size': '36px', '--color': '#0EA5E9' }} />
@@ -396,7 +396,7 @@ export default function TcmResultPage() {
   const color = data.screen1_card.color || '#0EA5E9';
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
+    <div className="min-h-screen bh-ai-page pb-20">
       <GreenNavBar back={() => router.push('/tcm')}>体质分析报告</GreenNavBar>
 
       {/* ─────── 第一屏：体质名片 ─────── */}

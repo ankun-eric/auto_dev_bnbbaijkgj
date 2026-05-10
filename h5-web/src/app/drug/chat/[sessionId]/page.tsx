@@ -742,14 +742,15 @@ export default function DrugChatPage() {
   const aiResult = drugRecord ? parseAiResult(drugRecord.ai_result) : null;
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
+    <div className="flex flex-col h-screen bh-ai-page">
       <NavBar
+        className="bh-ai-topbar"
         onBack={() => router.push('/drug')}
         right={
           aiResult ? (
             <button
               className="text-sm font-medium"
-              style={{ color: '#0EA5E9' }}
+              style={{ color: '#0C4A6E' }}
               onClick={() => setDrugResultVisible(true)}
             >
               查看解读
@@ -758,8 +759,8 @@ export default function DrugChatPage() {
         }
         style={{
           '--height': '48px',
-          background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)',
-          color: '#fff',
+          background: 'linear-gradient(135deg, #F0F9FF 0%, #DBEAFE 100%)',
+          color: '#0C4A6E',
           '--border-bottom': 'none',
         } as React.CSSProperties}
       >
@@ -894,11 +895,11 @@ export default function DrugChatPage() {
               )}
               <div
                 className={`rounded-2xl px-4 py-3 text-[15px] leading-relaxed ${
-                  msg.role === 'user' ? 'text-white rounded-tr-sm' : 'bg-[#f5f5f5] rounded-tl-sm'
+                  msg.role === 'user' ? 'text-white rounded-tr-sm' : 'rounded-tl-sm'
                 }`}
                 style={msg.role === 'user'
-                  ? { background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)' }
-                  : { color: '#333' }}
+                  ? { background: 'linear-gradient(135deg, #7DD3FC 0%, #38BDF8 100%)' }
+                  : { background: 'var(--color-brand-100)', color: 'var(--color-brand-900)', boxShadow: '0 1px 4px rgba(56,189,248,0.08)' }}
               >
                 {msg.role === 'assistant' ? renderMarkdown(msg.content) : msg.content}
                 {msg.role === 'assistant'
@@ -940,7 +941,7 @@ export default function DrugChatPage() {
               <span className="text-white text-xs">AI</span>
             </div>
             <div className="max-w-[80%]">
-              <div className="rounded-2xl px-4 py-3 text-sm leading-relaxed bg-[#f5f5f5] text-gray-700 rounded-tl-sm streaming-cursor">
+              <div className="rounded-2xl px-4 py-3 text-sm leading-relaxed rounded-tl-sm streaming-cursor" style={{ background: 'var(--color-brand-100)', color: 'var(--color-brand-900)', boxShadow: '0 1px 4px rgba(56,189,248,0.08)' }}>
                 {renderMarkdown(streamingContent)}
               </div>
             </div>
@@ -953,7 +954,7 @@ export default function DrugChatPage() {
               style={{ background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)' }}>
               <span className="text-white text-xs">AI</span>
             </div>
-            <div className="bg-[#f5f5f5] rounded-2xl rounded-tl-sm px-4 py-3">
+            <div className="rounded-2xl rounded-tl-sm px-4 py-3" style={{ background: 'var(--color-brand-100)', boxShadow: '0 1px 4px rgba(56,189,248,0.08)' }}>
               <SpinLoading style={{ '--size': '20px', '--color': '#0EA5E9' }} />
             </div>
           </div>
@@ -1004,7 +1005,7 @@ export default function DrugChatPage() {
             </svg>
           </button>
 
-          <div className="flex-1 bg-gray-50 rounded-2xl px-4 py-2">
+          <div className="flex-1 bh-ai-input px-4 py-2">
             <TextArea
               placeholder="输入用药问题..."
               value={inputVal}
