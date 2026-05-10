@@ -33,7 +33,66 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: PRD-440-AI-ANSWER-ACTION-BAR-OPTIMIZATION-20260510｜AI 回答下方操作栏视觉与交互优化（H5 + 小程序 + Flutter 五端同步，无后端改动）（2026-05-10 02:00）
+## Latest Update: PRD-441-AI-CONVERSATION-STYLE-DESIGN-SYSTEM-20260510｜AI 对话风格规范（晴空诊室）设计 Token 体系 + 29 屏 HTML 原型核对版 + PRD 文档（仅 H5 静态资源，零业务代码改动）（2026-05-10 10:30）
+
+### 一句话结论
+按 PRD-441 v1.0 走 develop-all 流程交付：建立 bini-health AI 对话模式视觉与交互规范的「**唯一文字基线**」，奠定方案 A「**晴空诊室**」（11 级天蓝色阶 + 病历卡形态 + 中老年友好）作为后续所有 AI 对话相关页面的设计依据。**4 大交付物**：① `design-tokens.css`（11 级 brand + 5 大渐变 + 9 级字号 + 7 级圆角 + 4 级天蓝色阴影 + 16 类组件 .bh-* 样式），② `design-tokens.json`（含 meta/color/gradient/fontSize/space/radius/shadow/duration/easing/zIndex/components/accessibility，accent 含 `allowed` 白名单约束），③ `PRD-441.md` 9 章节完整规范（同时附中文文件名副本 `PRD-441-AI对话风格规范.md`），④ `prototype.html` 5 大分组 29 屏完整核对版（对话基础 3 + 对话扩展 6 + 业务交互 7 + 核心业务 7 + 其余业务 6）+ `index.html` 入口导航页（含 11 级色板可视化预览）。**部署**：通过 SFTP + docker cp 增量上传到服务器 `6b099ed3-7175-4a78-91f4-44570c84ed27-h5` 容器 `/app/public/design-system/` 后 docker restart。**测试**：① pytest `tests/test_prd441_design_tokens.py` **12/12 PASS**（覆盖 4 大交付物存在性、11 级 brand 完整性、5 大渐变、16 类组件类、JSON schema 合法、辅助色 allowed 白名单约束、PRD 9 章节、29 屏数量精确、index 链接、阴影禁纯黑、字号 AA 无障碍合规）；② 服务器 smoke 5/5 关键路径 200 OK（index.html / prototype.html / design-tokens.css / design-tokens.json / PRD-441.md），仅 `/design-system/` 无 index 因 Next.js 框架不支持目录索引返回 404（非 Bug）。**业务代码 0 改动**（不触碰任何现有 H5 业务页面 / 后端 / 小程序 / Flutter 代码，仅向 H5 容器 `public/` 追加静态资源），**未触发任何端打包**（小程序/安卓/iOS/exe/macOS/CLI 全部跳过）。**用户体验手册**：`user_docs/AI对话风格规范_PRD441_用户体验手册.md`。
+
+### 范围与端
+- **H5（Next.js + React，仅 public 静态资源新增）**：6 文件全新增，零业务代码改动
+  - `h5-web/public/design-system/design-tokens.css`：14.5 KB / 350+ 行。`:root` 内定义全套 token：①11 级 brand 色阶（`--color-brand-50/100/150/200/300/400/500/600/700/800/900` 严格对应 `#f0f9ff/e0f2fe/dbeafe/bae6fd/7dd3fc/38bdf8/0ea5e9/0284c7/0369a1/075985/0c4a6e`）；②5 大中性色 + 5 大背景 + 3 大边框；③5 大渐变 token（topbar/user-bubble/primary-btn/hero-deep/user-card 全部 135°）；④9 级字号 xs(12)→4xl(28) + 3 级行高 + 4 级字重；⑤9 个间距档（4/8/12/16/20/24/32/40/48）+ 7 级圆角 + 4 级阴影（统一 rgba(56,189,248,…) 天蓝阴影，禁止纯黑）；⑥4 个辅助色 + 4 类徽章配色；⑦4 级响应时长（100/180/240/360ms） + 3 个 cubic-bezier 缓动；⑧7 级 z-index。组件类：`.bh-btn-primary` `.bh-chip[--active]` `.bh-badge--{normal,high,critical,member}` `.bh-input` `.bh-ai-card`（病历卡 ::before 3px 天蓝竖线）`.bh-user-bubble`（渐变填充）`.bh-thinking`（3 圆点 200ms 错位 600ms 循环 keyframe）`.bh-reminder-card--{emergency,medication,followup}`（紧急 6px 实线 deep blue / 用药 4px 实线 / 复诊 4px **虚线** 三种语义化竖线）`.bh-metric-card`（22px 大数字）`.bh-topbar-{primary,secondary}` `.bh-floating-bell`（带红点未读徽标）`.bh-drawer-right`（右侧滑入 + 蒙层）
+  - `h5-web/public/design-system/design-tokens.json`：7 KB / 153 行。机器可读结构，所有 token 含 `value` + 可选 `comment/usage/allowed`。`color.brand` 11 级、`color.accent` 4 个辅助色含 `allowed` 场景白名单（如 red.allowed=["紧急徽标","错误重试","危险操作"]，体现 PRD §7 红线规范）、`components` 节列出 16 个组件的关键属性、`accessibility` 节明确 AA 级 4.5:1 对比度 + 44x44pt 最小热区 + 14px 最小正文字号
+  - `h5-web/public/design-system/PRD-441.md`：12 KB / 9 章节。①文档定位与范围 ②设计哲学（三大设计原则 + 风格基准）③设计 Token 体系（颜色/渐变/字号/间距/圆角/阴影 6 大表格）④组件库（4 类基础 + 8 类业务 + 4 类布局）⑤页面规范（29 屏分 5 组一览表）⑥交互规范（响应分级/流式输出/手势/动效/无障碍）⑦辅助色控量（红线规范 + 严禁滥用清单）⑧开发交付（清单 + 排期）⑨版本历史
+  - `h5-web/public/design-system/PRD-441-AI对话风格规范.md`：中文文件名副本（与 PRD-441.md 内容 100% 一致），便于业务人员阅读
+  - `h5-web/public/design-system/prototype.html`：88 KB / ~1500 行。响应式网格布局（auto-fill minmax 360px），每屏一张「手机模拟卡」（高 600px）。5 大分组锚点 `#group1` ~ `#group5` + 顶部固定导航条。29 屏全部用纯 HTML/CSS 还原（无 JS 框架依赖）：①AI 对话主页面（用户/AI 气泡 + AI 头像）②⋯ 更多菜单蒙层（扫一扫/字体/分享/清空）③☰ 历史会话抽屉（搜索 + 4 条历史项）④纯空对话（4 张双色 SVG 推荐卡 inline + 4 个灵感胶囊）⑤长对话（多轮 + 引用资料块 + 思考态）⑥语音输入（15 根 CSS keyframe 渐变声波）⑦切换咨询人 Toast（家人 chip 横滚）⑧提醒抽屉（紧急/用药/复诊三种语义竖线）⑨流式输出（CSS keyframe 闪烁光标 + 3 个追问 chip）⑩报告解读（缩略图 + 高亮指标徽章）⑪图片附件（识别 loading）⑫快捷+展开（4 项）⑬历史会话进入（已加载提示条 + 回到当前浮按钮）⑭多轮中断（暖黄中断条）⑮错误重试（红边 AI-503）⑯隐私确认（蒙层 + 黄锁徽 + 5 分钟自动清除提示）⑰离线/弱网（深灰条 + 5 行波光骨架屏 keyframe）⑱健康档案（5 维 SVG 雷达图 + 4 关键指标卡 + 6 模块入口）⑲订单列表（5 状态 Tab + 待付款数字徽章）⑳订单详情（深蓝 hero + 14 分倒计时 + 4 节点时间线）㉑服务列表（搜索 + 6 类 chip + 划线价）㉒会员中心（皇冠头像 + 8 项权益网格 + 三档套餐）㉓优惠券（4 Tab + 撕票式 + 即将过期角标）㉔收货地址（默认深蓝竖线）㉕客服中心（在线绿点 banner）㉖设置（5 大分组 + 4 开关 + 红色退出按钮）㉗报告详情（hero + 7 异常 + AI 综合解读卡）㉘医生详情（深蓝 hero + 7 天排班）㉙预约时间（月日历 + 时段 + 余号）。每屏右上角 `screen-tag` 标注关键看点，便于走查
+  - `h5-web/public/design-system/index.html`：7.5 KB。导航首页，hero 大标题 + meta 三色金属感数据条（29 屏/11 级/16 类/AA 级）+ 4 张交付物卡片 + 11 级色阶可视化色板预览
+- **后端 / 小程序 / Flutter / 安卓 / iOS / Windows exe / macOS / CLI**：**全部 0 改动**（PRD §1.3 明确"业务流程编排参见各业务线 PRD"，本次仅交付设计规范基线；PRD §5 BR-04 不涉及任何后端接口/数据结构变更）
+
+### 验收要点（PRD-441 §8.1 + 阶段 1 测试覆盖）
+- AC-01 4 大交付物（CSS/JSON/MD/HTML）全部完成且文件大小 > 100 字节 ✓ pytest T02
+- AC-02 11 级天蓝色阶完整且 hex 值与 PRD §3.1 表完全一致 ✓ pytest T03
+- AC-03 5 大核心渐变 token 全部存在 ✓ pytest T04
+- AC-04 16 类组件类齐全（4 基础 + 8 业务 + 4 布局） ✓ pytest T05
+- AC-05 design-tokens.json 是合法 JSON 且顶层结构完整 ✓ pytest T06
+- AC-06 辅助色含 `allowed` 场景白名单约束（红线规范的代码化落地） ✓ pytest T07
+- AC-07 PRD Markdown 9 大章节齐全 ✓ pytest T08
+- AC-08 prototype.html 含完整 29 屏（screen-num 出现次数精确 == 29） ✓ pytest T09
+- AC-09 index.html 含 4 大交付物可点击链接 ✓ pytest T10
+- AC-10 所有阴影 token 禁止使用纯黑（rgba(0,…)），统一使用天蓝阴影 ✓ pytest T11
+- AC-11 base 字号 = 14px，关键指标字号 ≥ 22px（中老年友好 + AA 无障碍） ✓ pytest T12
+- AC-12 服务器 5 大交付物 URL 全部 200 OK 可访问 ✓ smoke
+
+### 部署与验证
+- **部署脚本**：`_deploy_prd441.py`（首次完整部署，含 git push + git fetch/reset + docker build h5-web + up --force-recreate + smoke）+ `_deploy_prd441_v2.py`（增量补丁部署，仅 SFTP + docker cp + restart h5 容器，30 秒完成）
+- **测试**：`pytest tests/test_prd441_design_tokens.py -v` → **12 passed in 0.17s**（100% 通过）
+- **服务器 smoke 5/5 关键路径 PASS**：
+  - [https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/design-system/index.html](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/design-system/index.html) → 200 (7546 bytes)
+  - [https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/design-system/prototype.html](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/design-system/prototype.html) → 200 (88378 bytes)
+  - [https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/design-system/design-tokens.css](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/design-system/design-tokens.css) → 200 (14863 bytes)
+  - [https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/design-system/design-tokens.json](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/design-system/design-tokens.json) → 200 (7034 bytes)
+  - [https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/design-system/PRD-441.md](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/design-system/PRD-441.md) → 200 (11904 bytes)
+  - 回归：`/ai-home` → 200（线上原 AI 首页未受影响）
+- **多端打包**：本次**仅 H5 public 静态资源**有改动（无任何 Next.js 业务页面、组件、API 改动），**未触发**小程序 / Android APK / iOS IPA / Windows exe / macOS 等任何端的打包流程
+- **用户体验手册**：`user_docs/AI对话风格规范_PRD441_用户体验手册.md`
+
+### 关键技术决策
+- **为什么放在 `h5-web/public/design-system/` 而非独立部署**：复用现有 H5 容器的 Nginx 静态文件服务能力，无需修改 gateway 反向代理配置；Next.js standalone 模式打包时虽然 `public/` 已被 COPY 到镜像，但通过 `docker cp` 将新文件直接复制进运行中的容器即可即时生效（无需重新 build），适合静态文档的快速发布
+- **为什么 PRD MD 同时提供英文文件名副本**：URL 含中文需做 percent-encoding（curl/部分浏览器/某些 markdown 渲染器对中文 URL 支持不一致），提供 `PRD-441.md` 英文副本作为更稳妥的引用入口；中文文件名副本 `PRD-441-AI对话风格规范.md` 仍保留以便业务人员直接看文件名识别内容
+- **为什么辅助色在 JSON 中要带 `allowed` 字段**：PRD §7 的「红线规范」是文字约束，难以工程化校验；通过在 design-tokens.json 中给每个 accent 色挂上 `allowed` 场景列表，未来可写脚本扫描代码自动报警（如发现 accent.red 用在未被列入 allowed 的场景就 fail CI）。本期暂未实现该 lint，但数据结构已准备好
+- **为什么阴影必须用天蓝而非纯黑**：天蓝色阴影 (`rgba(56,189,248,0.08~0.16)`) 与品牌主色调和谐统一，避免纯黑阴影在浅色背景上产生「沉重感」与「医疗冷峻感」相悖；通过 pytest T11 自动校验所有 `--shadow-*` 不含 `rgba(0,…)`
+- **prototype.html 用纯 HTML/CSS 而非 React 框架**：① 单文件 88KB 即可独立运行无需任何依赖；② 设计师/PM 可直接下载查看，不需要 npm install；③ 所有动效（思考态/声波/光标/骨架屏）都用 CSS keyframe 实现，可作为前端工程师后续实现的参考代码
+- **业务页面零改动**：本次严格遵循 PRD §1.3「业务流程编排不在范围」，不动任何线上现有 H5 / 小程序 / Flutter 业务代码。后续 AI 对话相关模块的实际落地（如把现有 ai-home 改成天蓝色调）将通过单独的 PRD-442/443 任务执行
+
+### Latest 文件变动一览
+- 新增（h5-web 静态资源）：`h5-web/public/design-system/{design-tokens.css,design-tokens.json,PRD-441.md,PRD-441-AI对话风格规范.md,index.html,prototype.html}`
+- 新增（pytest 测试）：`tests/test_prd441_design_tokens.py`（12 用例）
+- 新增（部署脚本与日志）：`_deploy_prd441.py`、`_deploy_prd441_v2.py`、`_deploy_prd441.log`、`_deploy_prd441_v2.log`、`.develop_start_commit_441.txt`
+- 新增（用户文档）：`user_docs/AI对话风格规范_PRD441_用户体验手册.md`
+- 部署生效 commit：`fa31bd2` feat(prd-441): add PRD-441.md english copy + incremental deploy
+
+---
+
+## Previous Update: PRD-440-AI-ANSWER-ACTION-BAR-OPTIMIZATION-20260510｜AI 回答下方操作栏视觉与交互优化（H5 + 小程序 + Flutter 五端同步，无后端改动）（2026-05-10 02:00）
 
 ### 一句话结论
 按 PRD-440 v1.0 走 develop-all 流程交付：把 AI 回答下方操作栏统一升级为"提示文字（靠右） + 全宽 1px 虚线 + 三图标（左下一排：复制 → 转发 → 语音播报）"的新版式，全部图标改为方案 C 双色渐变风（`#6a8dff → #b07cff`），未触发态浅灰 `#999`，触发/播报中切渐变高亮；语音播报中叠加 **三圈错位的 Wi-Fi 弧线扩散动效**（1 秒一圈、333ms 错位）；复制成功 Web 顶部居中弹出「已复制」Toast 1.5s 自动消失，移动端调用各平台原生轻提示；转发弹窗内的渠道小图标也一并升级为渐变风，分享行为完全沿用线上不变；TTS 引擎沿用现网，无后端改动。**测试与部署**：① pytest `tests/test_prd440_action_bar_source.py` 8 用例 100% 通过（源码层级 + 服务器可达）；② H5 容器已重建并部署（commit `d048886` 已 git push 并在服务器 reset --hard origin/master 同步生效）；③ 三端打包成功并上传：小程序 zip / 安卓 APK / iOS Release。**用户体验手册**：`user_docs/AI回答操作栏优化_PRD440.md`。
