@@ -1,0 +1,66 @@
+[2026-05-10 11:48:15] ======================================================================
+[2026-05-10 11:48:15] PRD-443 Android APK 打包子 Agent 启动
+[2026-05-10 11:48:15] ======================================================================
+[2026-05-10 11:48:15] 版本标签: android-prd443-v20260510114815-cb07
+[2026-05-10 11:48:15] 触发 workflow android-build.yml, version=android-prd443-v20260510114815-cb07
+[2026-05-10 11:48:15] $ gh workflow run android-build.yml -f version=android-prd443-v20260510114815-cb07  (cwd=C:\auto_output\bnbbaijkgj)
+[2026-05-10 11:48:24] $ gh run list --workflow=android-build.yml --limit 1 --json databaseId,status,headBranch,createdAt  (cwd=C:\auto_output\bnbbaijkgj)
+[2026-05-10 11:48:25]   | [{"createdAt":"2026-05-10T03:48:16Z","databaseId":25619100767,"headBranch":"master","status":"in_progress"}]
+[2026-05-10 11:48:25] 获取到 run id: 25619100767 (status=in_progress)
+[2026-05-10 11:48:25] $ gh run view 25619100767 --json status,conclusion,url  (cwd=C:\auto_output\bnbbaijkgj)
+[2026-05-10 11:48:26]   | {"conclusion":"","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25619100767"}
+[2026-05-10 11:48:26] run 25619100767 status=in_progress conclusion= url=https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25619100767
+[2026-05-10 11:48:56] $ gh run view 25619100767 --json status,conclusion,url  (cwd=C:\auto_output\bnbbaijkgj)
+[2026-05-10 11:48:56]   | {"conclusion":"","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25619100767"}
+[2026-05-10 11:49:26] $ gh run view 25619100767 --json status,conclusion,url  (cwd=C:\auto_output\bnbbaijkgj)
+[2026-05-10 11:49:27]   | {"conclusion":"","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25619100767"}
+[2026-05-10 11:49:57] $ gh run view 25619100767 --json status,conclusion,url  (cwd=C:\auto_output\bnbbaijkgj)
+[2026-05-10 11:49:57]   | {"conclusion":"","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25619100767"}
+[2026-05-10 11:50:27] $ gh run view 25619100767 --json status,conclusion,url  (cwd=C:\auto_output\bnbbaijkgj)
+[2026-05-10 11:50:28]   | {"conclusion":"","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25619100767"}
+[2026-05-10 11:50:58] $ gh run view 25619100767 --json status,conclusion,url  (cwd=C:\auto_output\bnbbaijkgj)
+[2026-05-10 11:50:58]   | {"conclusion":"","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25619100767"}
+[2026-05-10 11:51:28] $ gh run view 25619100767 --json status,conclusion,url  (cwd=C:\auto_output\bnbbaijkgj)
+[2026-05-10 11:51:29]   | {"conclusion":"","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25619100767"}
+[2026-05-10 11:51:59] $ gh run view 25619100767 --json status,conclusion,url  (cwd=C:\auto_output\bnbbaijkgj)
+[2026-05-10 11:52:00]   | {"conclusion":"","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25619100767"}
+[2026-05-10 11:52:30] $ gh run view 25619100767 --json status,conclusion,url  (cwd=C:\auto_output\bnbbaijkgj)
+[2026-05-10 11:52:30]   | {"conclusion":"","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25619100767"}
+[2026-05-10 11:53:00] $ gh run view 25619100767 --json status,conclusion,url  (cwd=C:\auto_output\bnbbaijkgj)
+[2026-05-10 11:53:01]   | {"conclusion":"","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25619100767"}
+[2026-05-10 11:53:31] $ gh run view 25619100767 --json status,conclusion,url  (cwd=C:\auto_output\bnbbaijkgj)
+[2026-05-10 11:53:31]   | {"conclusion":"","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25619100767"}
+[2026-05-10 11:54:01] $ gh run view 25619100767 --json status,conclusion,url  (cwd=C:\auto_output\bnbbaijkgj)
+[2026-05-10 11:54:02]   | {"conclusion":"","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25619100767"}
+[2026-05-10 11:54:32] $ gh run view 25619100767 --json status,conclusion,url  (cwd=C:\auto_output\bnbbaijkgj)
+[2026-05-10 11:54:33]   | {"conclusion":"","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25619100767"}
+[2026-05-10 11:55:03] $ gh run view 25619100767 --json status,conclusion,url  (cwd=C:\auto_output\bnbbaijkgj)
+[2026-05-10 11:55:03]   | {"conclusion":"","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25619100767"}
+[2026-05-10 11:55:33] $ gh run view 25619100767 --json status,conclusion,url  (cwd=C:\auto_output\bnbbaijkgj)
+[2026-05-10 11:55:34]   | {"conclusion":"","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25619100767"}
+[2026-05-10 11:56:04] $ gh run view 25619100767 --json status,conclusion,url  (cwd=C:\auto_output\bnbbaijkgj)
+[2026-05-10 11:56:05]   | {"conclusion":"","status":"in_progress","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25619100767"}
+[2026-05-10 11:56:35] $ gh run view 25619100767 --json status,conclusion,url  (cwd=C:\auto_output\bnbbaijkgj)
+[2026-05-10 11:56:35]   | {"conclusion":"success","status":"completed","url":"https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25619100767"}
+[2026-05-10 11:56:35] run 25619100767 status=completed conclusion=success url=https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25619100767
+[2026-05-10 11:56:35] run 25619100767 完成: conclusion=success
+[2026-05-10 11:56:35] $ gh release download android-prd443-v20260510114815-cb07 --pattern *.apk --dir C:\auto_output\bnbbaijkgj\_prd443_android_dl --clobber  (cwd=C:\auto_output\bnbbaijkgj)
+[2026-05-10 11:56:42] 下载到 APK: C:\auto_output\bnbbaijkgj\_prd443_android_dl\bini_health_android-prd443-v20260510114815-cb07.apk (84698587 bytes)
+[2026-05-10 11:56:42] 重命名 APK: bini_health_android-prd443-v20260510114815-cb07.apk -> app_prd443_20260510115642_bcb3.apk
+[2026-05-10 11:56:42] SFTP 上传 C:\auto_output\bnbbaijkgj\_prd443_android_dl\app_prd443_20260510115642_bcb3.apk -> newbb.test.bangbangvip.com:/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/static/apk/app_prd443_20260510115642_bcb3.apk
+[2026-05-10 11:56:44]   | drwxr-xr-x 2 ubuntu ubuntu 4096 May 10 11:26 /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/static/apk
+[2026-05-10 11:58:38]   上传完成, 远端大小 = 84698587 bytes
+[2026-05-10 11:58:41] HTTP HEAD/GET 验证: https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/apk/app_prd443_20260510115642_bcb3.apk
+[2026-05-10 11:58:41]   HTTP 200, size=84698587 bytes
+[2026-05-10 11:58:41] ======================================================================
+[2026-05-10 11:58:41] 最终结果:
+[2026-05-10 11:58:41]   version_tag: android-prd443-v20260510114815-cb07
+[2026-05-10 11:58:41]   run_id: 25619100767
+[2026-05-10 11:58:41]   release_url: https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/android-prd443-v20260510114815-cb07
+[2026-05-10 11:58:41]   apk_filename: app_prd443_20260510115642_bcb3.apk
+[2026-05-10 11:58:41]   download_url: https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/apk/app_prd443_20260510115642_bcb3.apk
+[2026-05-10 11:58:41]   http_status: 200
+[2026-05-10 11:58:41]   byte_size: 84698587
+[2026-05-10 11:58:41]   error: None
+[2026-05-10 11:58:41] ======================================================================
+[2026-05-10 11:58:41] SUMMARY_JSON: {"version_tag": "android-prd443-v20260510114815-cb07", "run_id": "25619100767", "release_url": "https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/android-prd443-v20260510114815-cb07", "apk_filename": "app_prd443_20260510115642_bcb3.apk", "download_url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/apk/app_prd443_20260510115642_bcb3.apk", "http_status": 200, "byte_size": 84698587, "error": null}

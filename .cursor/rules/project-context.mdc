@@ -33,7 +33,100 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: PRD-442-MENU-MODE-CLEAR-SKY-CLINIC-STYLE-20260510｜菜单模式 · 晴空诊室风格改造 v1.0（H5 design-tokens + 6 屏 HTML 原型核对版 + 13 类组件库 demo + PRD 文档；小程序 wxss tokens；Flutter ThemeData + 5 个 Widget；零业务代码改动；三端打包全部成功）（2026-05-10 11:30）
+## Latest Update: PRD-442-FULL-MIGRATION-FOUNDATION-20260510｜AI 对话风格全域迁移落地（晴空诊室落地）— 单一真相源 + 三端 token 自动生成 + Flutter 包 + 8 图标种子集 + 旧绿色 lint（H5 部署 smoke 4/4 PASS + 回归 3/3 PASS；三端打包全部成功）（2026-05-10 12:00）
+
+### 一句话结论
+按 PRD-442 v1.0 全域迁移走 develop-all 流程交付**最小可交付基建增量**：建立 bini-health 全域三端的「**单一真相源 + 三端自动同步**」机制，把 PRD-441/442-v1（菜单模式）已确立的 token 体系工程化。**8 大交付物**：
+① **单一真相源** `design-system/design-tokens.json`（11 级 brand + 5 渐变 + 6 大 token + duration/easing + 字号四档无障碍 + 8 条铁律 + meta），
+② **三端 token 生成脚本** `scripts/gen-tokens.mjs`（JSON → H5 css / 小程序 wxss / Flutter dart 一键生成），
+③ **图标生成脚本** `scripts/gen-icons.mjs`（SVG → 三端 icons.json + Flutter icons.g.dart），
+④ **旧绿色 lint** `scripts/lint-legacy-green.mjs`（三层扫描：色值正则 / 语义关键词 / 图片资源；--strict 阻断 CI），
+⑤ **Flutter token 包** `packages/bini_design_tokens/`（Monorepo `path:` 引用，含 `BhTokens` / `BhGradients` / `BhShadows` / `BhTheme.lightTheme()` / `BhIcon` Widget；flutter_app 已通过 `path: ../packages/bini_design_tokens` 接入），
+⑥ **8 个种子双色 SVG 图标** `design-system/icons/*.svg`（health-report / heart-rate / medication / family / bell / camera / voice / chevron-down，统一 viewBox 0 0 24 24，描边 1.5px），
+⑦ **H5 入口可视化页** `h5-web/public/design-system-v2/`（4 文件：index.html 7.5KB 11 级色板 + 8 图标 + 病历卡铁律 demo / design-tokens.css 3.5KB 自动生成 / icons.json 3.7KB / PRD-442.md 5KB 实施版文档），
+⑧ **小程序集成** `miniprogram/app.wxss` 顶部新增 `@import "/styles/design-tokens.wxss"` 引入新 tokens（旧 `--primary-color: #52c41a` 暂保留以兼容现有页面，按 PRD §7 渐进式清退）。
+**测试**：pytest `tests/test_prd442_full_migration.py` **20/20 PASS**（覆盖 JSON 合法 / 11 级 brand 完整 hex / 5 大渐变 / 阴影禁纯黑 / base 字号 AA / 字号四档配置 / 三端生成产物存在 + 内容正确 / Flutter 包 + path 引用 / 8 种子图标 viewBox / lint 脚本运行 / 生成脚本幂等 / app.wxss 已 import / PRD doc 章节 / index.html 入口 / 与 PRD-441 hex 兼容性 / 8 条铁律）。
+**部署**：`_deploy_prd443_full_migration.py` SFTP 上传 4 文件 → docker cp 进 `{DEPLOY_ID}-h5` 容器 `/app/public/design-system-v2/` → docker restart h5（让 next-server 重扫 public/）→ smoke **4/4 PASS** + 回归 **3/3 PASS**（`/ai-home`、`/design-system/index.html`、`/menu-mode-design-system/index.html` 全部 200 OK，PRD-441 + PRD-442-v1 资产无副作用）。
+**多端打包全部成功**：小程序 412KB + 安卓 APK 80.8MB + iOS IPA via GitHub Release 三端并行打包完成。
+**业务代码 0 改动**（不触碰任何现有 H5 业务页面 / 后端 / 小程序业务 page / Flutter screen；仅向 H5 容器 public/ 追加静态资源 + 小程序 app.wxss 追加 1 行 import + Flutter lib/theme 追加 1 个适配器 dart 文件 + 新增 packages/ 顶层 token 包）。
+
+### 范围与端
+- **基建（无端归属）**：`design-system/design-tokens.json` 单一真相源 + `design-system/icons/*.svg` 8 种子集 + `design-system/PRD-442.md` 实施版文档
+- **构建工具（脚本）**：`scripts/gen-tokens.mjs` + `scripts/gen-icons.mjs` + `scripts/lint-legacy-green.mjs`
+- **H5（Next.js）**：`h5-web/public/design-system-v2/` 4 文件全新增（`index.html` 7501B 入口可视化 / `design-tokens.css` 3483B 自动生成 / `icons.json` 3689B / `PRD-442.md` 5087B），零业务代码改动
+- **小程序（原生 wxml/wxss/js）**：`miniprogram/styles/design-tokens.wxss` + `miniprogram/styles/icons.json` 全新增，`miniprogram/app.wxss` 顶部追加 1 行 `@import "/styles/design-tokens.wxss";`
+- **Flutter（iOS + Android 共享 lib/）**：
+  - 新增 `packages/bini_design_tokens/`：`pubspec.yaml`（name: bini_design_tokens, version: 0.1.0）+ `README.md` + `lib/bini_design_tokens.dart`（公开导出）+ `lib/src/tokens.g.dart`（自动生成：BhTokens 11 级 brand + 4 文字 + 3 背景 + 4 语义 + 9 字号 + 9 间距 + 7 圆角 + 4 duration；BhGradients 5 LinearGradient；BhShadows 4 List<BoxShadow> 全天蓝 0xXX38BDF8）+ `lib/src/icons.g.dart`（自动生成：BhIcons.svgMap 8 entry + names 列表）+ `lib/src/theme.dart`（BhTheme.lightTheme() 基于 ThemeData/ColorScheme.fromSeed）+ `lib/src/bh_icon.dart`（BhIcon Widget，Material 兜底图标 fallback map）
+  - `flutter_app/pubspec.yaml`：新增 `bini_design_tokens: { path: ../packages/bini_design_tokens }` 依赖
+  - `flutter_app/lib/theme/bh_design_v2.dart`：新增 PRD-442 设计 v2 适配器（`BhDesignV2.prdVersion = 'PRD-442'`，re-export 包内全部符号）
+  - **未修改任何现有 screen/widget**，可由后续业务页改造按需 `import 'package:bini_design_tokens/bini_design_tokens.dart'` 引入
+- **后端 / Windows exe / macOS / CLI**：**全部 0 改动**
+
+### 验收要点（pytest 20/20 PASS）
+- T01 design-tokens.json 合法 + 顶层 8 大字段（meta/color/gradient/fontSize/space/radius/shadow/ironRules）✓
+- T02 11 级 brand hex 与 PRD-441 表完全一致 ✓
+- T03 5 大渐变 token（topbar/userBubble/primaryBtn/heroDeep/userCard）✓
+- T04 阴影禁纯黑（rgba(0,...) 不允许，全部 rgba(56,189,248,*)）✓
+- T05 base 字号 == 14px、关键指标字号 ≥ 22px ✓
+- T06 字号四档（standard/large/xlarge/xxlarge 缩放 1.0/1.15/1.3/1.5）✓
+- T07 H5 design-tokens.css 含 AUTO-GENERATED 头 + brand-400 hex + 病历卡 ::before 铁律 ✓
+- T08 小程序 design-tokens.wxss 含 brand 色 + rpx 单位（fs-sm: 28rpx）✓
+- T09 Flutter dart 含 BhTokens + BhGradients + BhShadows + colorBrand400 = Color(0xFF38BDF8) + 阴影 38BDF8 ✓
+- T10 packages/bini_design_tokens/pubspec.yaml name + version 0.1.0 ✓
+- T11 flutter_app/pubspec.yaml 通过 `path: ../packages/bini_design_tokens` 引用 ✓
+- T12 8 个种子图标存在 + viewBox 0 0 24 24 ✓
+- T13 lint 脚本能正常运行（rc=0）✓
+- T14 gen-tokens.mjs 二次执行幂等 ✓
+- T15 gen-icons.mjs 二次执行幂等 + icons.json $count == 8 ✓
+- T16 app.wxss 已 @import 新 tokens ✓
+- T17 PRD-442.md 4 大章节齐全（已交付 / 未交付 / 铁律 / 命令）✓
+- T18 H5 index.html 入口可视化页存在 ✓
+- T19 与 PRD-441 兼容性：11 级 brand hex 完全一致 ✓
+- T20 铁律列表 ≥ 7 条 ✓
+
+### 部署与验证
+- **部署脚本**：`_deploy_prd443_full_migration.py`（SFTP 上传 4 文件到 /tmp + docker cp 进 h5 容器 + docker restart + 35s 等待 + smoke）
+- **服务器 smoke 4/4 PASS**：
+  - [https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/design-system-v2/index.html](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/design-system-v2/index.html) → 200 (7501 bytes)
+  - [https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/design-system-v2/design-tokens.css](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/design-system-v2/design-tokens.css) → 200 (3483 bytes)
+  - [https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/design-system-v2/icons.json](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/design-system-v2/icons.json) → 200 (3689 bytes)
+  - [https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/design-system-v2/PRD-442.md](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/design-system-v2/PRD-442.md) → 200 (5087 bytes)
+  - 回归 3/3：`/ai-home` 200 + `/design-system/index.html` 200 + `/menu-mode-design-system/index.html` 200（PRD-441 + PRD-442-v1 资产未受影响）
+- **多端打包**：本次小程序 wxss/app.wxss + Flutter lib/ + packages/ 共享代码改动 → 三端并行打包子 Agent 全部成功
+  - 小程序：[miniprogram_prd443_20260510114745_be9e.zip](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/miniprogram/miniprogram_prd443_20260510114745_be9e.zip) (412 KB, HTTP 200, 字节匹配)
+  - 安卓：[app_prd443_20260510115642_bcb3.apk](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/apk/app_prd443_20260510115642_bcb3.apk) (80.8 MB, HTTP 200, GH Actions run 25619100767 success)
+  - iOS：[GitHub Release ios-prd443-v20260510-114747-3858](https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-prd443-v20260510-114747-3858) → [bini_health_ios.ipa](https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/download/ios-prd443-v20260510-114747-3858/bini_health_ios.ipa)
+- **用户体验手册**：`user_docs/AI对话风格全域迁移落地_PRD442_用户体验手册.md`
+
+### 关键技术决策
+- **为什么 design-system-v2/ 而非覆盖 design-system/**：PRD-441 的 `h5-web/public/design-system/` 已上线生产，含 29 屏 prototype/components 等不可重写资产；本次 v2 以"基建"形态独立目录共存，未来逐步迁移业务页时可对单页定向切换 css 文件，避免全量覆盖风险
+- **为什么 token 名沿用 brand-* 而非新建 sky-***：PRD-442 v1（菜单模式）用 `--sky-*` 命名是为了与 AI 模式做命名空间隔离；本次 PRD-442 全域迁移落地的目的是**统一全域**，所以沿用 PRD-441 的 `--color-brand-*` 命名以最大化代码兼容性；hex 与 sky-* 完全相同（pytest T19 强校验兼容）
+- **为什么 design-tokens.json 把 fontScaleAccessibility 写在 JSON 而非脚本硬编码**：字号四档（标准/大/超大/特大缩放 1.0/1.15/1.3/1.5）属于无障碍规范的"产品决策"，未来调整缩放系数时不应改代码，而应改 JSON；当前生成脚本暂未消费此字段（CSS/Flutter 的字号还是按 base 14px 输出），但已为后续接入 `MediaQuery.textScaleFactorOf` + Provider 双轨字号开关预留
+- **为什么 lint 默认非 strict**：项目存量代码（如 `miniprogram/app.wxss` 自身就有 `--primary-color: #52c41a`）会被 lint 命中；如果首次接入就 strict 阻断，会让本次 PR 无法合并；先以"报告模式"接入 CI，让团队看见违规清单，再逐页修复，最后切 strict
+- **为什么 BhIcon Widget 用 Material 兜底图标 + fallback map 而非真实 SVG**：真实 SVG 渲染需引入 `flutter_svg` 包（增加 APK 体积 + 启动时间），且本期只有 8 个种子图标；用 Material Icons 的同义图标做 fallback 既零依赖又能跑通 API（name/size/color），未来扩展到 80 个图标时再升级到 `SvgPicture.string(BhIcons.svgMap[name]!)`
+- **为什么 BhShadows 用 const Color(0xXX38BDF8) 编码透明度**：Dart 的 `BoxShadow.color` 支持 `Color.fromARGB` 但不能在 `const` 上下文使用变量；必须把透明度直接编进 hex 的 alpha 通道（0x14 ≈ 0.08, 0x1A ≈ 0.10, 0x1F ≈ 0.12, 0x29 ≈ 0.16），这样 `static const List<BoxShadow>` 才能成立，避免运行时构造开销
+- **为什么 docker restart 而非 docker compose down/up**：next-server 启动时只扫一次 public/ 目录建立路由映射；docker cp 进容器的**全新子目录**不会被自动发现，必须 restart；但只是新文件而非新目录则可不 restart（Next.js 会按需读文件）。本次 design-system-v2/ 是新目录，必须 restart
+- **为什么测试不走小程序自动化和 Flutter golden**：截图回归（PRD §10）规划在第四阶段 D24~D29 接入；本期先把基建（生成脚本 + 包 + lint）跑通即可；接入截图回归是后续 PR 的范围
+- **为什么 path 引用 Flutter 包而非发布到 pub.dev**：Monorepo 内部路径引用零网络依赖、可同步 commit、版本永远与业务代码一致；未来若三端设计师团队独立维护 token 包则可拆出来发布 pub.dev 或建独立 git 仓库（PRD §6.3 升级路径，<30 分钟改造成本）
+
+### Latest 文件变动一览
+- 新增（基建 design-system 单一真相源）：`design-system/design-tokens.json`、`design-system/PRD-442.md`、`design-system/icons/{bell,camera,chevron-down,family,health-report,heart-rate,medication,voice}.svg`
+- 新增（构建脚本）：`scripts/gen-tokens.mjs`、`scripts/gen-icons.mjs`、`scripts/lint-legacy-green.mjs`
+- 新增（Flutter token 包）：`packages/bini_design_tokens/{pubspec.yaml,README.md}` + `packages/bini_design_tokens/lib/bini_design_tokens.dart` + `packages/bini_design_tokens/lib/src/{tokens.g.dart,icons.g.dart,theme.dart,bh_icon.dart}`
+- 新增（H5 静态资源 4 文件）：`h5-web/public/design-system-v2/{index.html,design-tokens.css,icons.json,PRD-442.md}`
+- 新增（小程序 2 文件）：`miniprogram/styles/{design-tokens.wxss,icons.json}`
+- 修改（小程序 1 处）：`miniprogram/app.wxss` 顶部追加 `@import "/styles/design-tokens.wxss";`
+- 新增（Flutter 接入 1 文件）：`flutter_app/lib/theme/bh_design_v2.dart`
+- 修改（Flutter 1 处）：`flutter_app/pubspec.yaml` 新增 `bini_design_tokens: { path: ../packages/bini_design_tokens }`
+- 新增（pytest 测试）：`tests/test_prd442_full_migration.py`（20 用例）
+- 新增（部署/打包脚本与日志）：`_deploy_prd443_full_migration.py`、`_pack_prd443_miniprogram.py`、`_pack_prd443_android.py`、`_pack_prd443_ios.py`、对应 `.log`
+- 新增（用户文档）：`user_docs/AI对话风格全域迁移落地_PRD442_用户体验手册.md`
+- 起始 commit（develop-all 周期前）：`b143c4a`
+- 部署生效 commit：`f89d766` feat(prd-442): 全域迁移落地基线 — 单一真相源 + 三端 token 生成 + Flutter 包 + 8 图标种子集 + 旧绿色 lint
+
+---
+
+## Previous Update: PRD-442-MENU-MODE-CLEAR-SKY-CLINIC-STYLE-20260510｜菜单模式 · 晴空诊室风格改造 v1.0（H5 design-tokens + 6 屏 HTML 原型核对版 + 13 类组件库 demo + PRD 文档；小程序 wxss tokens；Flutter ThemeData + 5 个 Widget；零业务代码改动；三端打包全部成功）（2026-05-10 11:30）
 
 ### 一句话结论
 按 PRD-442 v1.0 走 develop-all 流程交付：把 PRD-441 已确立的「**晴空诊室**」风格扩展到 bini-health **菜单模式**（与 AI 模式共用同一 11 级天蓝色阶 hex 完全一致，避免割裂感）。**5 大交付物**：① H5 端 `h5-web/public/menu-mode-design-system/`（6 文件 = `design-tokens.css` 19.4KB / `design-tokens.json` 5.8KB 含 `allowed` 白名单 / `PRD-442.md` 8.7KB / `prototype.html` 39.5KB 6 屏核对版 / `components.html` 17.1KB 13 类组件 demo / `index.html` 8.7KB 入口导航页），② 小程序端 `miniprogram/styles/menu-mode-tokens.wxss` 11 级 sky-* + 13 类 `.menu-*` 组件样式（rpx 单位适配），③ Flutter 端 `flutter_app/lib/theme/menu_mode_theme.dart`（`MenuModeColors` / `MenuModeFontSize` / `MenuModeSpacing` / `MenuModeRadius` / `MenuModeShadow` / `MenuModeGradient` Tokens 类 + `buildMenuModeTheme()` ThemeData 工厂 + 5 个常用 Widget：`MenuMedicalCard` 病历卡 / `MenuHeroCard` / `MenuPrimaryButton` / `MenuFamilyChip` / `MenuNumBadge`），④ pytest `tests/test_prd442_menu_mode_design.py` **16/16 PASS**（覆盖 H5 6 大交付物存在与体积、11 级 sky 色阶完整与正确、5 大渐变 token、20 个 .menu-* 组件类、JSON schema 合法、辅助色 allowed 白名单、PRD 9 大章节、6 屏 SCREEN ① ~ ⑥ 完整、13 类组件 demo 章节、阴影禁纯黑、字号 AA 合规、小程序 wxss、Flutter dart 文件 + Widget、与 PRD-441 兼容性、病历卡铁律），⑤ 用户体验手册 `user_docs/菜单模式_晴空诊室风格_PRD442_用户体验手册.md`。**部署**：`_deploy_prd442.py` 首次 docker cp 进 h5 容器后 smoke 全 404，诊断后用 `_deploy_prd442_v2.py` 主动 `docker restart` h5 容器（next-server 重启时重扫 public/ 目录），smoke **6/6 PASS** + 回归 2/2 PASS（`/ai-home` 和 `/design-system/index.html` 均正常）。**多端打包全部成功**：小程序 zip（410KB）+ 安卓 APK（80.8MB）+ iOS IPA（32.6MB）三端并行打包完成上传。**业务代码 0 改动**（不触碰任何现有 H5 业务页面 / 后端 / 小程序 / Flutter 业务代码，仅向 H5 容器 `public/` 追加静态资源 + 小程序 styles 目录追加新 wxss + Flutter lib/theme 目录追加新 dart 文件）。
