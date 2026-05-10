@@ -145,7 +145,10 @@ export default function Sidebar({ visible, onClose, activeSessionId, onSelectSes
   return (
     <>
       {visible && (
-        <div className="fixed inset-0 z-50 flex">
+        // [BUG_FIX_AI_SIDEBAR_TOP_COVERED_20260510] 抽屉根容器层级提升到 z-[200]，
+        // 高于 AI 模式首页顶栏（zIndex=100），确保抽屉打开时整条抽屉盖在顶栏之上，
+        // 不再被「☰ 小康 ⋯」顶栏遮挡顶部头像 / 昵称 / VIP 会员号。
+        <div className="fixed inset-0 z-[200] flex">
           <div
             className="absolute inset-0 bg-black/40"
             onClick={onClose}
@@ -159,8 +162,20 @@ export default function Sidebar({ visible, onClose, activeSessionId, onSelectSes
               animation: 'slideInLeft 0.25s ease-out',
             }}
           >
-            {/* User Info */}
-            <div className="p-5 pb-3" style={{ background: THEME.primaryLight }}>
+            {/* User Info
+                [BUG_FIX_AI_SIDEBAR_TOP_COVERED_20260510] 顶部预留"系统状态栏 + 外层 APP 标题栏"安全区高度：
+                  paddingTop = max(24px, env(safe-area-inset-top) + var(--app-titlebar-height, 44px))
+                - APP 内嵌：safe-area-inset-top + 44px 原生标题栏高度
+                - 浏览器：safe-area-inset-top（无原生标题栏）
+                - 兜底：至少 24px，避免头像紧贴屏幕顶端 */}
+            <div
+              className="pb-3 px-5"
+              style={{
+                background: THEME.primaryLight,
+                paddingTop:
+                  'max(24px, calc(env(safe-area-inset-top) + var(--app-titlebar-height, 44px)))',
+              }}
+            >
               <div className="flex items-center gap-3">
                 <Avatar
                   src={user?.avatar || ''}

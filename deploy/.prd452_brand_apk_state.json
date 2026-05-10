@@ -1,0 +1,15 @@
+{
+  "tag": "prd452-brand-v20260510-202532-0c3c",
+  "run_id": 25628675871,
+  "poll_start": 1778415942.258198,
+  "conclusion": "success",
+  "build_duration": 488,
+  "local_apk": "C:\\auto_output\\bnbbaijkgj\\apk_download\\bini_health_prd452-brand-v20260510-202532-0c3c.apk",
+  "file_size": 84698583,
+  "sha256": "eccff10691fb84979b7bfc3ad0453b88920289f3e1c31d4f4a563c768b609ca0",
+  "remote_name": "benekang_v1.0.0_inner_20260510_203358_cadd.apk",
+  "verified_http_status": 200,
+  "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/apk/benekang_v1.0.0_inner_20260510_203358_cadd.apk",
+  "content_type": "application/vnd.android.package-archive",
+  "remote_size": 84698583
+}
