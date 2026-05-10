@@ -45,7 +45,7 @@ const AFTERSALES_LABEL: Record<string, string> = {
 const AFTERSALES_COLOR: Record<string, string> = {
   pending: '#fa8c16',
   processing: '#1890ff',
-  completed: '#52c41a',
+  completed: '#0EA5E9',
   rejected: '#8c8c8c',
   none: '#8c8c8c',
 };
@@ -133,7 +133,7 @@ export default function RefundListPage() {
               onClick={() => handleTabChange(tab.key)}
               className="flex-shrink-0 px-4 py-3 text-sm cursor-pointer relative"
               style={{
-                color: active ? '#52c41a' : '#4b5563',
+                color: active ? '#0EA5E9' : '#4b5563',
                 fontWeight: active ? 600 : 400,
               }}
             >
@@ -147,7 +147,7 @@ export default function RefundListPage() {
                     bottom: 4,
                     width: 20,
                     height: 2,
-                    background: '#52c41a',
+                    background: '#0EA5E9',
                     borderRadius: 1,
                   }}
                 />
@@ -195,7 +195,7 @@ export default function RefundListPage() {
                         {item.product_image ? (
                           <Image src={resolveAssetUrl(item.product_image)} width={64} height={64} fit="cover" style={{ borderRadius: 8 }} />
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center text-2xl" style={{ background: '#f6ffed' }}>
+                          <div className="w-full h-full flex items-center justify-center text-2xl" style={{ background: '#F0F9FF' }}>
                             🛍️
                           </div>
                         )}

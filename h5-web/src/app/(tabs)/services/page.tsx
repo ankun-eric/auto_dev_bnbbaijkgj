@@ -27,7 +27,7 @@ import MarketingBadge from '@/components/MarketingBadge';
  * 角标色值规范（终稿）：
  *   - 到店服务（in_store）→ 暖橙 #FF8A3D
  *   - 快递配送（delivery）→ 科技蓝 #3B82F6
- *   - 虚拟商品（virtual）  → 尊贵紫 #8B5CF6
+ *   - 虚拟商品（virtual）  → 尊贵紫 #38BDF8
  *
  * F1/F2: 左侧分类栏固定 + 独立滚动
  * F3/F4/F5: 二级Tab固定 + 横向滑动 + 底部阴影
@@ -83,7 +83,7 @@ const PAGE_SIZE = 10;
 const FULFILLMENT_BADGE: Record<string, { label: string; bg: string; color: string }> = {
   in_store: { label: '到店', bg: '#FF8A3D', color: '#FFFFFF' },
   delivery: { label: '快递', bg: '#3B82F6', color: '#FFFFFF' },
-  virtual: { label: '虚拟', bg: '#8B5CF6', color: '#FFFFFF' },
+  virtual: { label: '虚拟', bg: '#38BDF8', color: '#FFFFFF' },
   on_site: { label: '上门', bg: '#10B981', color: '#FFFFFF' },
 };
 
@@ -160,7 +160,7 @@ function ProductCard({
           )}
           {/* F9: 价格行 + 履约角标移至此行最右 */}
           <div className="mt-1 flex items-center justify-between">
-            <span className="text-base font-bold" style={{ color: '#52c41a' }}>
+            <span className="text-base font-bold" style={{ color: '#0EA5E9' }}>
               ¥{product.min_price || product.sale_price}
               {product.has_multi_spec && <span style={{ fontSize: '0.75em', fontWeight: 'normal' }}>起</span>}
             </span>
@@ -694,7 +694,7 @@ function ServicesPage() {
                 className="px-2 py-3 text-center cursor-pointer relative"
                 style={{
                   background: active ? '#fff' : 'transparent',
-                  color: active ? '#52c41a' : '#666',
+                  color: active ? '#0EA5E9' : '#666',
                   fontWeight: active ? 600 : 400,
                   fontSize: 14,
                 }}
@@ -707,7 +707,7 @@ function ServicesPage() {
                       top: 8,
                       bottom: 8,
                       width: 3,
-                      background: '#52c41a',
+                      background: '#0EA5E9',
                       borderRadius: 2,
                     }}
                   />
@@ -744,7 +744,7 @@ function ServicesPage() {
                 className="inline-block px-3 py-1 mr-2 rounded-full text-xs cursor-pointer"
                 style={{
                   position: 'relative',
-                  background: activeSubId === null ? '#52c41a' : '#f5f5f5',
+                  background: activeSubId === null ? '#0EA5E9' : '#f5f5f5',
                   color: activeSubId === null ? '#fff' : '#666',
                   transition: 'background 250ms ease-in-out, color 250ms ease-in-out',
                 }}
@@ -759,7 +759,7 @@ function ServicesPage() {
                   className="inline-block px-3 py-1 mr-2 rounded-full text-xs cursor-pointer"
                   style={{
                     position: 'relative',
-                    background: activeSubId === sub.id ? '#52c41a' : '#f5f5f5',
+                    background: activeSubId === sub.id ? '#0EA5E9' : '#f5f5f5',
                     color: activeSubId === sub.id ? '#fff' : '#666',
                     transition: 'background 250ms ease-in-out, color 250ms ease-in-out',
                   }}

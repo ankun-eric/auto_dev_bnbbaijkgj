@@ -300,17 +300,17 @@ function PaySuccessPage() {
             width: 64,
             height: 64,
             borderRadius: '50%',
-            background: '#52c41a15',
+            background: '#0EA5E915',
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
             marginBottom: 16,
           }}
         >
-          <CheckCircleFill fontSize={48} color="#52c41a" />
+          <CheckCircleFill fontSize={48} color="#0EA5E9" />
         </div>
         <div style={{ fontSize: 24, fontWeight: 700, color: '#262626' }}>支付成功</div>
-        <div style={{ fontSize: 16, color: '#52c41a', marginTop: 8, fontWeight: 600 }}>
+        <div style={{ fontSize: 16, color: '#0EA5E9', marginTop: 8, fontWeight: 600 }}>
           实付金额 ¥{paidAmountFmt}
         </div>
         {isFreeOrder && order.coupon_discount > 0 && (
@@ -338,7 +338,7 @@ function PaySuccessPage() {
           style={{
             borderRadius: 24,
             height: 48,
-            background: 'linear-gradient(135deg, #52c41a, #13c2c2)',
+            background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)',
             border: 'none',
             color: '#fff',
             fontSize: 16,
@@ -356,8 +356,8 @@ function PaySuccessPage() {
             borderRadius: 24,
             height: 44,
             background: '#fff',
-            border: '1px solid #52c41a',
-            color: '#52c41a',
+            border: '1px solid #0EA5E9',
+            color: '#0EA5E9',
             fontSize: 15,
           }}
         >

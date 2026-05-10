@@ -33,10 +33,10 @@ export default function CheckinPointsProgress({ refreshKey }: { refreshKey?: num
   return (
     <div style={{
       padding: '12px 16px',
-      background: data.is_limit_reached ? '#f6ffed' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      background: data.is_limit_reached ? '#F0F9FF' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
       borderRadius: 12,
       margin: '0 0 12px 0',
-      color: data.is_limit_reached ? '#52c41a' : '#fff',
+      color: data.is_limit_reached ? '#0EA5E9' : '#fff',
     }}>
       <div style={{ fontSize: 13, marginBottom: 6, fontWeight: 500 }}>
         {data.is_limit_reached
@@ -48,7 +48,7 @@ export default function CheckinPointsProgress({ refreshKey }: { refreshKey?: num
         percent={percent}
         style={{
           '--track-color': data.is_limit_reached ? '#d9f7be' : 'rgba(255,255,255,0.3)',
-          '--fill-color': data.is_limit_reached ? '#52c41a' : '#fff',
+          '--fill-color': data.is_limit_reached ? '#0EA5E9' : '#fff',
           '--track-width': '6px',
         }}
       />

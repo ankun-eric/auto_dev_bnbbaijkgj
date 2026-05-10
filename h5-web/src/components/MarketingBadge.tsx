@@ -16,7 +16,7 @@ const BADGE_CONF: Record<
   limited: { label: '限时', bg: '#FF4D4F' },
   hot: { label: '热销', bg: '#FF8C1A' },
   new: { label: '新品', bg: '#1890FF' },
-  recommend: { label: '推荐', bg: '#52C41A' },
+  recommend: { label: '推荐', bg: '#0EA5E9' },
 };
 
 const PRIORITY: MarketingBadgeValue[] = ['limited', 'hot', 'new', 'recommend'];

@@ -176,9 +176,9 @@ function CheckinAddContent() {
                 onClick={() => setFrequency(opt.value)}
                 className="flex-1 text-center py-2 rounded-lg cursor-pointer text-sm"
                 style={{
-                  background: frequency === opt.value ? '#52c41a15' : '#f5f5f5',
-                  color: frequency === opt.value ? '#52c41a' : '#666',
-                  border: frequency === opt.value ? '1px solid #52c41a40' : '1px solid transparent',
+                  background: frequency === opt.value ? '#0EA5E915' : '#f5f5f5',
+                  color: frequency === opt.value ? '#0EA5E9' : '#666',
+                  border: frequency === opt.value ? '1px solid #0EA5E940' : '1px solid transparent',
                   fontWeight: frequency === opt.value ? 600 : 400,
                 }}
               >
@@ -196,7 +196,7 @@ function CheckinAddContent() {
                     onClick={() => toggleDay(d.value)}
                     className="w-9 h-9 rounded-full flex items-center justify-center text-sm cursor-pointer"
                     style={{
-                      background: selected ? '#52c41a' : '#f5f5f5',
+                      background: selected ? '#0EA5E9' : '#f5f5f5',
                       color: selected ? '#fff' : '#666',
                     }}
                   >
@@ -229,7 +229,7 @@ function CheckinAddContent() {
           color="primary"
           size="large"
           loading={submitting}
-          style={{ borderRadius: 12, background: 'linear-gradient(135deg, #52c41a, #73d13d)', border: 'none', height: 48 }}
+          style={{ borderRadius: 12, background: 'linear-gradient(135deg, #0EA5E9, #73d13d)', border: 'none', height: 48 }}
           onClick={handleSubmit}
         >
           {isEdit ? '保存修改' : '添加打卡项'}

@@ -18,7 +18,7 @@ interface ArticleRow {
 }
 
 const tagColors: Record<string, string> = {
-  养生: '#52c41a',
+  养生: '#0EA5E9',
   饮食: '#fa8c16',
   中医: '#eb2f96',
   运动: '#1890ff',
@@ -81,8 +81,8 @@ export default function ArticlesPage() {
                     <div className="flex items-center mt-2">
                       <Tag
                         style={{
-                          '--background-color': `${tagColors[tagName] || '#52c41a'}15`,
-                          '--text-color': tagColors[tagName] || '#52c41a',
+                          '--background-color': `${tagColors[tagName] || '#0EA5E9'}15`,
+                          '--text-color': tagColors[tagName] || '#0EA5E9',
                           '--border-color': 'transparent',
                           fontSize: 10,
                         }}
@@ -107,7 +107,7 @@ export default function ArticlesPage() {
                   ) : (
                     <div
                       className="w-20 h-16 rounded-lg ml-3 flex items-center justify-center text-2xl flex-shrink-0"
-                      style={{ background: '#f6ffed' }}
+                      style={{ background: '#F0F9FF' }}
                     >
                       📄
                     </div>

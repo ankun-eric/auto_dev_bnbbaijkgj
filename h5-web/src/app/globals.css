@@ -2,17 +2,56 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================================
+   PRD-442 里程碑 2 · H5 端「晴空诊室」品牌色全量落地
+   单一真相源：design-system/design-tokens.json
+   构建产物（已部署）：/design-system-v2/design-tokens.css
+   本文件作为 H5 业务代码的兼容层：
+   - 旧 var(--primary-color) 等变量值统一映射到 brand-* 天蓝色
+   - 旧绿色硬编码类（.green-nav-bar / .green-tab-selected /
+     .green-bold-tabs / .ai-avatar-gradient 等）统一切到天蓝
+   - 老页面无需改动即可获得新视觉
+   ============================================================ */
+
 :root {
-  --primary-color: #52c41a;
-  --primary-light: #95de64;
-  --primary-dark: #389e0d;
-  --secondary-color: #13c2c2;
-  --secondary-light: #5cdbd3;
-  --secondary-dark: #08979c;
+  /* ===== 天蓝品牌 11 级（与 design-tokens.json brand 完全一致） ===== */
+  --color-brand-50: #f0f9ff;
+  --color-brand-100: #e0f2fe;
+  --color-brand-150: #dbeafe;
+  --color-brand-200: #bae6fd;
+  --color-brand-300: #7dd3fc;
+  --color-brand-400: #38bdf8;
+  --color-brand-500: #0ea5e9;
+  --color-brand-600: #0284c7;
+  --color-brand-700: #0369a1;
+  --color-brand-800: #075985;
+  --color-brand-900: #0c4a6e;
+
+  /* ===== 渐变 token（与 design-tokens.json 完全一致） ===== */
+  --gradient-topbar: linear-gradient(135deg, #f0f9ff 0%, #dbeafe 100%);
+  --gradient-user-bubble: linear-gradient(135deg, #7dd3fc 0%, #38bdf8 100%);
+  --gradient-primary-btn: linear-gradient(135deg, #38bdf8 0%, #0284c7 100%);
+  --gradient-hero-deep: linear-gradient(135deg, #0369a1 0%, #0c4a6e 100%);
+  --gradient-user-card: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+
+  /* ===== 兼容层：把旧变量名重定向到天蓝 token（业务页面零改动） ===== */
+  --primary-color: var(--color-brand-500);       /* 旧绿 #52c41a → 天蓝 #0ea5e9 */
+  --primary-light: var(--color-brand-300);       /* 旧浅绿 #95de64 → 天蓝 #7dd3fc */
+  --primary-dark: var(--color-brand-700);        /* 旧深绿 #389e0d → 天蓝 #0369a1 */
+  --secondary-color: var(--color-brand-400);     /* 旧青 #13c2c2 → 天蓝 #38bdf8 */
+  --secondary-light: var(--color-brand-200);     /* 旧浅青 #5cdbd3 → 天蓝 #bae6fd */
+  --secondary-dark: var(--color-brand-600);      /* 旧深青 #08979c → 天蓝 #0284c7 */
+
   --bg-color: #f5f7fa;
-  --text-color: #333333;
-  --text-secondary: #999999;
-  --border-color: #eee;
+  --text-color: #1f2937;          /* 与 design-tokens text-primary 一致 */
+  --text-secondary: #6b7280;
+  --border-color: #e5e7eb;
+
+  /* 语义色：保留 PRD-442 §7 红线规范允许场景 */
+  --color-success: #22c55e;
+  --color-warning: #fbbf24;
+  --color-danger: #ef4444;
+  --color-member: #d4af37;
 }
 
 * {
@@ -46,12 +85,13 @@ html, body {
   display: none;
 }
 
+/* antd-mobile 主色统一为天蓝 brand-500 */
 .adm-tab-bar {
-  --adm-color-primary: var(--primary-color) !important;
+  --adm-color-primary: var(--color-brand-500) !important;
 }
 
 .adm-button--primary {
-  --adm-color-primary: var(--primary-color) !important;
+  --adm-color-primary: var(--color-brand-500) !important;
 }
 
 .page-container {
@@ -64,19 +104,19 @@ html, body {
   border-radius: 12px;
   padding: 16px;
   margin-bottom: 12px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 2px 8px rgba(56, 189, 248, 0.10);
 }
 
 .gradient-header {
-  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+  background: var(--gradient-primary-btn);
   color: #fff;
   padding: 20px 16px;
   border-radius: 0 0 20px 20px;
 }
 
-/* 首页紧凑顶部：品牌绿底 + 白前景，双行堆叠 */
+/* 首页紧凑顶部：晴空诊室天蓝底 + 白前景 */
 .compact-home-header {
-  background: var(--primary-color);
+  background: var(--color-brand-500);
   color: #fff;
   width: 100%;
 }
@@ -93,10 +133,11 @@ html, body {
 }
 
 /* ========================================
-   v6 视觉一致性优化：GreenNavBar 全局样式
+   PRD-442 落地：旧绿色全局类 → 天蓝重映射
+   命名保留以兼容旧 className 引用，色值切换到 brand-*
    ======================================== */
 .green-nav-bar .adm-nav-bar {
-  background: #52c41a !important;
+  background: var(--color-brand-500) !important;
   color: #fff !important;
   --height: 46px;
 }
@@ -112,9 +153,9 @@ html, body {
   font-size: 17px !important;
 }
 
-/* 绿青渐变 LOGO 样式（用于 AI 头像、装饰元素） */
+/* 晴空诊室 AI 头像渐变（替代旧绿青渐变） */
 .ai-avatar-gradient {
-  background: linear-gradient(135deg, #52c41a, #13c2c2);
+  background: var(--gradient-primary-btn);
   color: #fff;
   font-weight: 700;
   display: flex;
@@ -123,9 +164,9 @@ html, body {
   border-radius: 50%;
 }
 
-/* tab 选中态：绿色加粗文字 + 绿色 2px 下划线（订单/优惠券） */
+/* tab 选中态：天蓝加粗文字 + 天蓝 2px 下划线 */
 .green-tab-selected {
-  color: #52c41a !important;
+  color: var(--color-brand-500) !important;
   font-weight: 600 !important;
   position: relative;
 }
@@ -137,22 +178,22 @@ html, body {
   transform: translateX(-50%);
   width: 24px;
   height: 2px;
-  background: #52c41a;
+  background: var(--color-brand-500);
   border-radius: 2px;
 }
 
-/* 订单/优惠券 tab：选中态绿色加粗 + 绿色 2px 下划线 */
+/* 订单/优惠券 tab：选中态天蓝加粗 + 天蓝 2px 下划线 */
 .green-bold-tabs .adm-tabs-tab-active {
   font-weight: 600 !important;
-  color: #52c41a !important;
+  color: var(--color-brand-500) !important;
 }
 .green-bold-tabs .adm-tabs-tab-line {
-  background-color: #52c41a !important;
+  background-color: var(--color-brand-500) !important;
   height: 2px !important;
   border-radius: 2px;
 }
 
-/* v8 富文本渲染样式（文章/资讯详情） */
+/* 富文本渲染样式（文章/资讯详情）— 引用色块改为天蓝 */
 .rich-text { word-break: break-word; }
 .rich-text img { max-width: 100%; height: auto; border-radius: 6px; margin: 8px 0; display: block; }
 .rich-text video { max-width: 100%; height: auto; border-radius: 6px; margin: 8px 0; display: block; }
@@ -163,22 +204,54 @@ html, body {
 .rich-text h3 { font-size: 15px; }
 .rich-text ul, .rich-text ol { padding-left: 22px; margin: 8px 0; }
 .rich-text li { margin: 4px 0; line-height: 1.7; }
-.rich-text blockquote { border-left: 3px solid #52c41a; padding: 4px 10px; background: #f6ffed; color: #555; margin: 12px 0; border-radius: 2px; }
-.rich-text a { color: #1890ff; text-decoration: underline; }
+.rich-text blockquote { border-left: 3px solid var(--color-brand-400); padding: 4px 10px; background: var(--color-brand-50); color: #555; margin: 12px 0; border-radius: 2px; }
+.rich-text a { color: var(--color-brand-600); text-decoration: underline; }
 .rich-text strong { color: #333; }
 
-/* 「字号偏小」快捷横条 */
+/* 「字号偏小」快捷横条：旧 #E8F7EE 绿底 → 天蓝 brand-50；旧 #389e0d → brand-700 */
 .font-size-shortcut {
   display: flex;
   align-items: center;
   justify-content: space-between;
   height: 36px;
   padding: 0 14px;
-  background: #E8F7EE;
+  background: var(--color-brand-50);
   border-radius: 18px;
-  color: #389e0d;
+  color: var(--color-brand-700);
   font-size: 13px;
   cursor: pointer;
   margin: 8px 0;
 }
 
+/* PRD-442 病历卡铁律：左侧 3px brand-400 竖线（业务卡片可直接挂 .bh-card-medical 类） */
+.bh-card-medical {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(56, 189, 248, 0.10);
+  padding: 16px;
+  position: relative;
+}
+.bh-card-medical::before {
+  content: "";
+  position: absolute;
+  top: 0; bottom: 0; left: 0;
+  width: 3px;
+  background: var(--color-brand-400);
+  border-top-left-radius: 12px;
+  border-bottom-left-radius: 12px;
+}
+
+/* PRD-442 主操作按钮：天蓝渐变（业务可直接挂 .bh-btn-primary） */
+.bh-btn-primary {
+  background: var(--gradient-primary-btn);
+  color: #fff;
+  border: 0;
+  border-radius: 12px;
+  min-height: 44px;
+  padding: 0 20px;
+  font-size: 16px;
+  box-shadow: 0 2px 8px rgba(56, 189, 248, 0.10);
+  cursor: pointer;
+  transition: opacity 180ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.bh-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }

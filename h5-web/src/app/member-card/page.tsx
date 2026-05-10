@@ -60,7 +60,7 @@ export default function MemberCardPage() {
   }, [fetchQRCode]);
 
   return (
-    <div className="min-h-screen" style={{ background: 'linear-gradient(180deg, #52c41a, #13c2c2 60%, #f5f5f5)' }}>
+    <div className="min-h-screen" style={{ background: 'linear-gradient(180deg, #0EA5E9, #38BDF8 60%, #f5f5f5)' }}>
       <NavBar
         onBack={() => router.back()}
         style={{ background: 'transparent', color: '#fff' }}
@@ -81,7 +81,7 @@ export default function MemberCardPage() {
             style={{
               '--size': '72px',
               '--border-radius': '50%',
-              border: '3px solid #52c41a',
+              border: '3px solid #0EA5E9',
               margin: '0 auto',
             }}
           />
@@ -120,8 +120,8 @@ export default function MemberCardPage() {
             style={{
               marginTop: 12,
               borderRadius: 20,
-              color: '#52c41a',
-              borderColor: '#52c41a',
+              color: '#0EA5E9',
+              borderColor: '#0EA5E9',
             }}
           >
             手动刷新

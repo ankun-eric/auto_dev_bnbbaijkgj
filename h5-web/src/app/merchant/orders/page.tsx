@@ -50,19 +50,19 @@ interface OrderRow {
 const statusMap: Record<string, { text: string; color: string }> = {
   pending_payment: { text: '待付款', color: '#fa8c16' },
   pending_shipment: { text: '待发货', color: '#1890ff' },
-  pending_receipt: { text: '待收货', color: '#13c2c2' },
+  pending_receipt: { text: '待收货', color: '#38BDF8' },
   pending_appointment: { text: '待预约', color: '#722ed1' },
-  appointed: { text: '待核销', color: '#13c2c2' },
-  pending_use: { text: '待核销', color: '#13c2c2' },
+  appointed: { text: '待核销', color: '#38BDF8' },
+  pending_use: { text: '待核销', color: '#38BDF8' },
   partial_used: { text: '部分核销', color: '#faad14' },
   pending_review: { text: '待评价', color: '#eb2f96' },
-  completed: { text: '已完成', color: '#52c41a' },
+  completed: { text: '已完成', color: '#0EA5E9' },
   expired: { text: '已过期', color: '#8c8c8c' },
   refunding: { text: '退款中', color: '#f5222d' },
   refunded: { text: '已退款', color: '#8c8c8c' },
   cancelled: { text: '已取消', color: '#8c8c8c' },
   // 历史遗留兼容映射（不在筛选器中暴露）
-  redeemed: { text: '已完成', color: '#52c41a' },
+  redeemed: { text: '已完成', color: '#0EA5E9' },
   paid: { text: '待核销', color: '#1677ff' },
 };
 

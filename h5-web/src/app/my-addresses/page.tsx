@@ -250,9 +250,9 @@ export default function MyAddressesPage() {
           onClick={() => { setTag(t); setCustomTagMode(false); setCustomTagValue(''); }}
           style={{
             padding: '4px 12px', borderRadius: 16, fontSize: 12,
-            background: tag === t ? '#52c41a15' : '#f5f5f5',
-            color: tag === t ? '#52c41a' : '#666',
-            border: tag === t ? '1px solid #52c41a' : '1px solid transparent',
+            background: tag === t ? '#0EA5E915' : '#f5f5f5',
+            color: tag === t ? '#0EA5E9' : '#666',
+            border: tag === t ? '1px solid #0EA5E9' : '1px solid transparent',
             cursor: 'pointer',
           }}
         >{t}</span>
@@ -270,7 +270,7 @@ export default function MyAddressesPage() {
           onClick={() => { setCustomTagMode(true); setTag(''); }}
           style={{
             padding: '4px 12px', borderRadius: 16, fontSize: 12,
-            background: '#fff', color: '#52c41a', border: '1px dashed #52c41a',
+            background: '#fff', color: '#0EA5E9', border: '1px dashed #0EA5E9',
             cursor: 'pointer',
           }}
         >+ 自定义</span>
@@ -333,7 +333,7 @@ export default function MyAddressesPage() {
                   </Button>
                 )}
                 <Button size="mini" onClick={() => openEditForm(addr)}
-                  style={{ borderRadius: 16, fontSize: 12, color: '#52c41a', borderColor: '#52c41a' }}>
+                  style={{ borderRadius: 16, fontSize: 12, color: '#0EA5E9', borderColor: '#0EA5E9' }}>
                   编辑
                 </Button>
                 <Button size="mini" onClick={() => onDelete(addr.id)}
@@ -359,7 +359,7 @@ export default function MyAddressesPage() {
           onClick={openAddForm}
           style={{
             borderRadius: 24, height: 44,
-            background: addresses.length >= ADDR_LIMIT ? '#d9d9d9' : 'linear-gradient(135deg, #52c41a, #13c2c2)',
+            background: addresses.length >= ADDR_LIMIT ? '#d9d9d9' : 'linear-gradient(135deg, #0EA5E9, #38BDF8)',
             color: '#fff', border: 'none',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}
@@ -424,7 +424,7 @@ export default function MyAddressesPage() {
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-700">设为默认地址</span>
-              <Switch checked={isDefault} onChange={setIsDefault} style={{ '--checked-color': '#52c41a' } as any} />
+              <Switch checked={isDefault} onChange={setIsDefault} style={{ '--checked-color': '#0EA5E9' } as any} />
             </div>
           </div>
 
@@ -434,7 +434,7 @@ export default function MyAddressesPage() {
             onClick={submit}
             style={{
               borderRadius: 24, height: 44, marginTop: 24,
-              background: 'linear-gradient(135deg, #52c41a, #13c2c2)',
+              background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)',
               color: '#fff', border: 'none',
             }}
           >保存</Button>

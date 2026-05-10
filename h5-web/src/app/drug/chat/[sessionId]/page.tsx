@@ -50,7 +50,7 @@ interface DrugRecord {
 const welcomeMessage: Message = {
   id: 'welcome',
   role: 'assistant',
-  content: '您好！我是宾尼小康AI用药助手。我已收到您的药品图片，正在为您分析用药信息。如有其他问题，请随时提问。',
+  content: '您好！我是晴空诊室AI用药助手。我已收到您的药品图片，正在为您分析用药信息。如有其他问题，请随时提问。',
   time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
 };
 
@@ -105,7 +105,7 @@ function DrugInfoCard({ drug, recordId }: { drug: DrugInfo; recordId: number | n
   return (
     <div className="rounded-xl bg-white overflow-hidden" style={{ border: '1px solid #f0f0f0', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
       {/* Drug name header */}
-      <div className="px-4 py-3" style={{ background: 'linear-gradient(135deg, #52c41a18, #13c2c218)' }}>
+      <div className="px-4 py-3" style={{ background: 'linear-gradient(135deg, #0EA5E918, #38BDF818)' }}>
         <h3 className="font-bold text-base text-gray-800">{drug.name}</h3>
         {drug.specification && (
           <p className="text-xs text-gray-400 mt-0.5">{drug.specification}</p>
@@ -136,8 +136,8 @@ function DrugInfoCard({ drug, recordId }: { drug: DrugInfo; recordId: number | n
             onChange={handleTabChange}
             style={{
               '--title-font-size': '13px',
-              '--active-title-color': '#52c41a',
-              '--active-line-color': '#52c41a',
+              '--active-title-color': '#0EA5E9',
+              '--active-line-color': '#0EA5E9',
             }}
           >
             <Tabs.Tab title="通用建议" key="general" />
@@ -152,7 +152,7 @@ function DrugInfoCard({ drug, recordId }: { drug: DrugInfo; recordId: number | n
               )
             ) : personalLoading ? (
               <div className="flex items-center gap-2 py-3">
-                <SpinLoading style={{ '--size': '18px', '--color': '#52c41a' }} />
+                <SpinLoading style={{ '--size': '18px', '--color': '#0EA5E9' }} />
                 <span className="text-sm text-gray-400">加载个性化建议...</span>
               </div>
             ) : personalSuggestion ? (
@@ -172,7 +172,7 @@ function InfoRow({ label, value, highlight }: { label: string; value: string; hi
     <div>
       <span
         className="text-xs font-medium mr-1"
-        style={{ color: highlight ? '#FF4D4F' : '#52c41a' }}
+        style={{ color: highlight ? '#FF4D4F' : '#0EA5E9' }}
       >
         {label}
       </span>
@@ -749,7 +749,7 @@ export default function DrugChatPage() {
           aiResult ? (
             <button
               className="text-sm font-medium"
-              style={{ color: '#52c41a' }}
+              style={{ color: '#0EA5E9' }}
               onClick={() => setDrugResultVisible(true)}
             >
               查看解读
@@ -758,7 +758,7 @@ export default function DrugChatPage() {
         }
         style={{
           '--height': '48px',
-          background: 'linear-gradient(135deg, #52c41a, #13c2c2)',
+          background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)',
           color: '#fff',
           '--border-bottom': 'none',
         } as React.CSSProperties}
@@ -786,7 +786,7 @@ export default function DrugChatPage() {
       {/* Upload overlay */}
       {uploading && (
         <div className="fixed inset-0 z-50 bg-black/50 flex flex-col items-center justify-center">
-          <SpinLoading style={{ '--size': '48px', '--color': '#52c41a' }} />
+          <SpinLoading style={{ '--size': '48px', '--color': '#0EA5E9' }} />
           <span className="text-white text-base mt-4 font-medium">
             {uploadPercent < 100 ? '上传中...' : 'AI识别中...'}
           </span>
@@ -818,8 +818,8 @@ export default function DrugChatPage() {
               disabled={drugList.length >= MAX_DRUGS_COMPARE || uploading || loading}
               className="bg-white border rounded-full px-3 py-1.5 text-[13px]"
               style={{
-                borderColor: drugList.length >= MAX_DRUGS_COMPARE ? '#d9d9d9' : '#52c41a',
-                color: drugList.length >= MAX_DRUGS_COMPARE ? '#bfbfbf' : '#52c41a',
+                borderColor: drugList.length >= MAX_DRUGS_COMPARE ? '#d9d9d9' : '#0EA5E9',
+                color: drugList.length >= MAX_DRUGS_COMPARE ? '#bfbfbf' : '#0EA5E9',
                 opacity: drugList.length >= MAX_DRUGS_COMPARE ? 0.7 : 1,
               }}
             >
@@ -862,7 +862,7 @@ export default function DrugChatPage() {
         }
         .streaming-cursor::after {
           content: '▌';
-          color: #52c41a;
+          color: #0EA5E9;
           animation: cursor-blink 1s ease-in-out infinite;
           margin-left: 1px;
         }
@@ -878,7 +878,7 @@ export default function DrugChatPage() {
             {msg.role === 'assistant' && (
               <div
                 className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center mr-2"
-                style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}
+                style={{ background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)' }}
               >
                 <span className="text-white text-xs">AI</span>
               </div>
@@ -897,7 +897,7 @@ export default function DrugChatPage() {
                   msg.role === 'user' ? 'text-white rounded-tr-sm' : 'bg-[#f5f5f5] rounded-tl-sm'
                 }`}
                 style={msg.role === 'user'
-                  ? { background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }
+                  ? { background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)' }
                   : { color: '#333' }}
               >
                 {msg.role === 'assistant' ? renderMarkdown(msg.content) : msg.content}
@@ -910,7 +910,7 @@ export default function DrugChatPage() {
                         disabled={regenerating}
                         className="bg-transparent border-0 p-0 text-[13px]"
                         style={{
-                          color: regenerating ? '#bfbfbf' : '#52c41a',
+                          color: regenerating ? '#bfbfbf' : '#0EA5E9',
                           textDecoration: 'underline',
                           cursor: regenerating ? 'not-allowed' : 'pointer',
                         }}
@@ -936,7 +936,7 @@ export default function DrugChatPage() {
         {isStreaming && streamingContent && (
           <div className="flex mb-4 justify-start">
             <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center mr-2"
-              style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}>
+              style={{ background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)' }}>
               <span className="text-white text-xs">AI</span>
             </div>
             <div className="max-w-[80%]">
@@ -950,11 +950,11 @@ export default function DrugChatPage() {
         {loading && !isStreaming && (
           <div className="flex items-center mb-4">
             <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center mr-2"
-              style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}>
+              style={{ background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)' }}>
               <span className="text-white text-xs">AI</span>
             </div>
             <div className="bg-[#f5f5f5] rounded-2xl rounded-tl-sm px-4 py-3">
-              <SpinLoading style={{ '--size': '20px', '--color': '#52c41a' }} />
+              <SpinLoading style={{ '--size': '20px', '--color': '#0EA5E9' }} />
             </div>
           </div>
         )}
@@ -966,7 +966,7 @@ export default function DrugChatPage() {
           <button
             onClick={() => setDrugResultVisible(true)}
             className="w-full mb-2 py-2 rounded-xl text-xs font-medium flex items-center justify-center gap-1"
-            style={{ background: '#F6FFED', color: '#52C41A', border: '1px solid #B7EB8F' }}
+            style={{ background: '#F0F9FF', color: '#0EA5E9', border: '1px solid #BAE6FD' }}
           >
             <span>💊</span>
             <span>查看药物识别解读结果</span>
@@ -982,7 +982,7 @@ export default function DrugChatPage() {
               opacity: uploading || loading ? 0.5 : 1,
             }}
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#52c41a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0EA5E9" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
               <circle cx="12" cy="13" r="4" />
             </svg>
@@ -997,7 +997,7 @@ export default function DrugChatPage() {
               opacity: uploading || loading ? 0.5 : 1,
             }}
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#52c41a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0EA5E9" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
               <circle cx="8.5" cy="8.5" r="1.5" />
               <polyline points="21 15 16 10 5 21" />
@@ -1018,7 +1018,7 @@ export default function DrugChatPage() {
             onClick={sendMessage}
             disabled={!inputVal.trim() || loading}
             style={{
-              background: inputVal.trim() ? 'linear-gradient(135deg, #52c41a, #13c2c2)' : '#e8e8e8',
+              background: inputVal.trim() ? 'linear-gradient(135deg, #0EA5E9, #38BDF8)' : '#e8e8e8',
               color: inputVal.trim() ? '#fff' : '#999',
               border: 'none',
               borderRadius: '50%',
@@ -1066,7 +1066,7 @@ export default function DrugChatPage() {
             <button
               onClick={handleCopyFromDialog}
               className="mt-3 w-full py-2.5 rounded-xl text-sm font-medium text-white"
-              style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}
+              style={{ background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)' }}
             >
               复制链接
             </button>

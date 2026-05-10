@@ -190,16 +190,16 @@ function ProductDetailPage() {
                 onClick={() => setMediaTab('image')}
                 style={{
                   flex: 1, textAlign: 'center', padding: '8px 0',
-                  borderBottom: mediaTab === 'image' ? '2px solid #52c41a' : '2px solid transparent',
-                  color: mediaTab === 'image' ? '#52c41a' : '#666', fontWeight: 500,
+                  borderBottom: mediaTab === 'image' ? '2px solid #0EA5E9' : '2px solid transparent',
+                  color: mediaTab === 'image' ? '#0EA5E9' : '#666', fontWeight: 500,
                 }}
               >图片</div>
               <div
                 onClick={() => setMediaTab('video')}
                 style={{
                   flex: 1, textAlign: 'center', padding: '8px 0',
-                  borderBottom: mediaTab === 'video' ? '2px solid #52c41a' : '2px solid transparent',
-                  color: mediaTab === 'video' ? '#52c41a' : '#666', fontWeight: 500,
+                  borderBottom: mediaTab === 'video' ? '2px solid #0EA5E9' : '2px solid transparent',
+                  color: mediaTab === 'video' ? '#0EA5E9' : '#666', fontWeight: 500,
                 }}
               >视频</div>
             </div>
@@ -219,7 +219,7 @@ function ProductDetailPage() {
               <MarketingBadge badges={product?.marketing_badges} />
             </div>
           ) : (
-            <div className="h-[280px] flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #52c41a30, #13c2c230)' }}>
+            <div className="h-[280px] flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #0EA5E930, #38BDF830)' }}>
               <div className="text-center">
                 <div className="text-5xl mb-2">🛍️</div>
                 <p className="text-sm text-gray-500">商品图片</p>
@@ -229,7 +229,7 @@ function ProductDetailPage() {
         </div>
       )}
       {imageList.length === 0 && !hasVideo && (
-        <div className="h-[280px] flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #52c41a30, #13c2c230)' }}>
+        <div className="h-[280px] flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #0EA5E930, #38BDF830)' }}>
           <div className="text-center">
             <div className="text-5xl mb-2">🛍️</div>
             <p className="text-sm text-gray-500">商品图片</p>
@@ -245,8 +245,8 @@ function ProductDetailPage() {
               <div className="flex items-center mt-1 flex-wrap gap-1">
                 <Tag
                   style={{
-                    '--background-color': '#52c41a15',
-                    '--text-color': '#52c41a',
+                    '--background-color': '#0EA5E915',
+                    '--text-color': '#0EA5E9',
                     '--border-color': 'transparent',
                     fontSize: 10,
                   }}
@@ -312,9 +312,9 @@ function ProductDetailPage() {
                       position: 'relative',
                       padding: '6px 14px',
                       borderRadius: 20,
-                      border: selected ? '1px solid #52c41a' : '1px solid #e5e5e5',
-                      background: selected ? '#f6ffed' : (soldOut ? '#f5f5f5' : '#fff'),
-                      color: soldOut ? '#bbb' : (selected ? '#52c41a' : '#333'),
+                      border: selected ? '1px solid #0EA5E9' : '1px solid #e5e5e5',
+                      background: selected ? '#F0F9FF' : (soldOut ? '#f5f5f5' : '#fff'),
+                      color: soldOut ? '#bbb' : (selected ? '#0EA5E9' : '#333'),
                       cursor: soldOut ? 'not-allowed' : 'pointer',
                       fontSize: 13,
                     }}
@@ -399,7 +399,7 @@ function ProductDetailPage() {
             flex: 1,
             borderRadius: 24,
             height: 44,
-            background: currentStock > 0 ? 'linear-gradient(135deg, #52c41a, #13c2c2)' : '#e8e8e8',
+            background: currentStock > 0 ? 'linear-gradient(135deg, #0EA5E9, #38BDF8)' : '#e8e8e8',
             color: currentStock > 0 ? '#fff' : '#999',
             border: 'none',
           }}

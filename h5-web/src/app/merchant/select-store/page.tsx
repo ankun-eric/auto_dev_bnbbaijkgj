@@ -45,7 +45,7 @@ export default function SelectStorePage() {
                   </Button>,
                 ]}
               >
-                <List.Item.Meta avatar={<ShopOutlined style={{ fontSize: 24, color: '#52c41a' }} />} title={s.name} />
+                <List.Item.Meta avatar={<ShopOutlined style={{ fontSize: 24, color: '#0EA5E9' }} />} title={s.name} />
               </List.Item>
             )}
           />

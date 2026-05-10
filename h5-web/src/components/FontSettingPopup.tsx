@@ -70,7 +70,7 @@ export default function FontSettingPopup({
         style={{ fontSize: currentSize }}
       >
         <p className="mb-2">预览文字效果</p>
-        <p className="text-gray-500">宾尼小康，AI健康管家，关爱您的每一天。</p>
+        <p className="text-gray-500">晴空诊室，AI健康管家，关爱您的每一天。</p>
       </div>
 
       <div className="grid grid-cols-3 gap-2 mb-4">
@@ -82,8 +82,8 @@ export default function FontSettingPopup({
               key={lv}
               onClick={() => onFontLevelChange(lv)}
               style={{
-                border: `1.5px solid ${active ? '#52c41a' : '#e5e7eb'}`,
-                background: active ? '#E8F7EE' : '#fff',
+                border: `1.5px solid ${active ? '#0EA5E9' : '#e5e7eb'}`,
+                background: active ? '#E0F2FE' : '#fff',
                 borderRadius: 12,
                 padding: '10px 8px',
                 textAlign: 'center',
@@ -94,7 +94,7 @@ export default function FontSettingPopup({
                 style={{
                   fontSize: size,
                   fontWeight: 600,
-                  color: active ? '#389e0d' : '#333',
+                  color: active ? '#0369A1' : '#333',
                   lineHeight: 1.2,
                 }}
               >
@@ -117,7 +117,7 @@ export default function FontSettingPopup({
           }}
           ticks
           style={{
-            '--fill-color': '#52c41a',
+            '--fill-color': '#0EA5E9',
           } as React.CSSProperties}
         />
         <div className="flex justify-between mt-2">

@@ -230,7 +230,7 @@ export default function StaffMobilePage() {
         onBack={() => router.back()}
         right={
           isOwner && (
-            <span onClick={openCreate} style={{ color: '#52c41a', fontSize: 14 }}>
+            <span onClick={openCreate} style={{ color: '#0EA5E9', fontSize: 14 }}>
               + 新增
             </span>
           )

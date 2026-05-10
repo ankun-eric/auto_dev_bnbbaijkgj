@@ -4,7 +4,7 @@
  * [2026-05-05 订单页地址导航按钮 PRD v1.0] 通用「导航」按钮
  *
  * 用于下单页（checkout）与订单明细页（unified-order/[id]）所有地址展示行的右侧。
- * 视觉风格与商家详情页/ContactStoreModal 的"导航"按钮保持一致（绿色 #52c41a）。
+ * 视觉风格与商家详情页/ContactStoreModal 的"导航"按钮保持一致（绿色 #0EA5E9）。
  *
  * 行为：
  *   - 点击后弹出 MapNavSheet 选择地图 App
@@ -71,8 +71,8 @@ export default function AddressNavButton({
           display: 'inline-flex',
           alignItems: 'center',
           gap: 4,
-          background: '#52c41a15',
-          color: '#52c41a',
+          background: '#0EA5E915',
+          color: '#0EA5E9',
           padding: '6px 12px',
           borderRadius: 16,
           fontSize: 12,

@@ -67,7 +67,7 @@ export default function PointsRecordsPage() {
               extra={
                 <span
                   style={{
-                    color: r.points >= 0 ? '#52c41a' : '#ff4d4f',
+                    color: r.points >= 0 ? '#0EA5E9' : '#ff4d4f',
                     fontWeight: 600,
                   }}
                 >

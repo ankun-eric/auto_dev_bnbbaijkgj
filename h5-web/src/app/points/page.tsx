@@ -29,7 +29,7 @@ const TASK_ROUTE_OVERRIDES: Record<string, string> = {
 };
 
 const CATEGORY_LABEL: Record<string, { text: string; color: string }> = {
-  daily: { text: '每日', color: '#52c41a' },
+  daily: { text: '每日', color: '#0EA5E9' },
   once: { text: '一次性', color: '#fa8c16' },
   repeatable: { text: '可重复', color: '#1890ff' },
 };
@@ -224,7 +224,7 @@ export default function PointsPage() {
                       style={{
                         background: disabled || (t.action_type === 'sign_in' && signedToday)
                           ? '#e8e8e8'
-                          : 'linear-gradient(135deg, #52c41a, #13c2c2)',
+                          : 'linear-gradient(135deg, #0EA5E9, #38BDF8)',
                         color: disabled || (t.action_type === 'sign_in' && signedToday) ? '#999' : '#fff',
                         border: 'none',
                         borderRadius: 16,

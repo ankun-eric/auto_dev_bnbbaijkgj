@@ -80,10 +80,10 @@ export default function SettingsPage() {
       <div className="pt-2">
         <List header="通知设置" style={{ '--border-top': 'none' }}>
           <List.Item extra={<Switch checked={pushEnabled} onChange={setPushEnabled}
-            style={{ '--checked-color': '#52c41a' }} />}>
+            style={{ '--checked-color': '#0EA5E9' }} />}>
             推送通知
           </List.Item>
-          <List.Item extra={<Switch defaultChecked style={{ '--checked-color': '#52c41a' }} />}>
+          <List.Item extra={<Switch defaultChecked style={{ '--checked-color': '#0EA5E9' }} />}>
             健康提醒
           </List.Item>
         </List>

@@ -229,7 +229,7 @@ export default function HealthGuidePage() {
       >
         <div className="text-sm text-gray-500 text-center">获取成员信息失败，请返回首页重试</div>
         <Button
-          style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)', color: '#fff', border: 'none', borderRadius: 24 }}
+          style={{ background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)', color: '#fff', border: 'none', borderRadius: 24 }}
           onClick={() => router.replace('/home')}
         >
           返回首页
@@ -268,7 +268,7 @@ export default function HealthGuidePage() {
             className="h-full rounded-full transition-all duration-500"
             style={{
               width: `${progress}%`,
-              background: 'linear-gradient(90deg, #52c41a, #13c2c2)',
+              background: 'linear-gradient(90deg, #0EA5E9, #38BDF8)',
             }}
           />
         </div>
@@ -278,13 +278,13 @@ export default function HealthGuidePage() {
               <div
                 className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all"
                 style={{
-                  background: s <= currentStep ? 'linear-gradient(135deg, #52c41a, #13c2c2)' : '#e8e8e8',
+                  background: s <= currentStep ? 'linear-gradient(135deg, #0EA5E9, #38BDF8)' : '#e8e8e8',
                   color: s <= currentStep ? '#fff' : '#bbb',
                 }}
               >
                 {s}
               </div>
-              <span className="text-[10px] mt-1" style={{ color: s === currentStep ? '#52c41a' : '#bbb' }}>
+              <span className="text-[10px] mt-1" style={{ color: s === currentStep ? '#0EA5E9' : '#bbb' }}>
                 {s === 1 ? '基本信息' : s === 2 ? '慢性病史' : s === 3 ? '过敏史' : '遗传病史'}
               </span>
             </div>
@@ -316,8 +316,8 @@ export default function HealthGuidePage() {
               flex: 1,
               borderRadius: 24,
               height: 48,
-              border: '1.5px solid #52c41a',
-              color: '#52c41a',
+              border: '1.5px solid #0EA5E9',
+              color: '#0EA5E9',
               background: 'transparent',
               fontWeight: 600,
             }}
@@ -334,7 +334,7 @@ export default function HealthGuidePage() {
             borderRadius: 24,
             height: 48,
             border: 'none',
-            background: 'linear-gradient(135deg, #52c41a, #13c2c2)',
+            background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)',
             color: '#fff',
             fontWeight: 600,
             fontSize: 16,
@@ -387,7 +387,7 @@ function Step1Form({
                 key={g}
                 className="px-4 py-1 rounded-full text-xs font-medium transition-all"
                 style={{
-                  background: data.gender === g ? 'linear-gradient(135deg, #52c41a, #13c2c2)' : '#f5f5f5',
+                  background: data.gender === g ? 'linear-gradient(135deg, #0EA5E9, #38BDF8)' : '#f5f5f5',
                   color: data.gender === g ? '#fff' : '#888',
                 }}
                 onClick={() => onChange({ ...data, gender: g })}

@@ -82,7 +82,7 @@ export default function SharedChatPage() {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
         <div className="text-center">
-          <SpinLoading style={{ '--size': '36px', '--color': '#52c41a' }} />
+          <SpinLoading style={{ '--size': '36px', '--color': '#0EA5E9' }} />
           <p className="text-sm text-gray-400 mt-4">加载中...</p>
         </div>
       </div>
@@ -104,7 +104,7 @@ export default function SharedChatPage() {
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="flex-shrink-0 px-4 py-4" style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}>
+      <div className="flex-shrink-0 px-4 py-4" style={{ background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)' }}>
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(255,255,255,0.2)' }}>
             <span className="text-white text-sm font-bold">AI</span>
@@ -126,7 +126,7 @@ export default function SharedChatPage() {
           <div key={idx} className={`flex mb-4 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
             {msg.role === 'assistant' && (
               <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center mr-2"
-                style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}>
+                style={{ background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)' }}>
                 <span className="text-white text-xs">AI</span>
               </div>
             )}
@@ -135,7 +135,7 @@ export default function SharedChatPage() {
                 className={`rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                   msg.role === 'user' ? 'rounded-tr-sm text-white' : 'bg-white text-gray-700 rounded-tl-sm shadow-sm'
                 }`}
-                style={msg.role === 'user' ? { background: 'linear-gradient(135deg, #52c41a, #13c2c2)' } : undefined}
+                style={msg.role === 'user' ? { background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)' } : undefined}
               >
                 {msg.role === 'assistant' ? renderMarkdown(msg.content) : msg.content}
               </div>
@@ -147,7 +147,7 @@ export default function SharedChatPage() {
             </div>
             {msg.role === 'user' && (
               <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center ml-2"
-                style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}>
+                style={{ background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)' }}>
                 <span className="text-white text-xs">用户</span>
               </div>
             )}
@@ -159,8 +159,8 @@ export default function SharedChatPage() {
       <div className="flex-shrink-0 border-t border-gray-100 bg-white px-4 py-4 text-center">
         <div className="flex items-center justify-center gap-2">
           <span className="text-lg">🌿</span>
-          <span className="font-bold text-sm" style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-            宾尼小康 AI健康管家
+          <span className="font-bold text-sm" style={{ background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+            晴空诊室 AI健康管家
           </span>
         </div>
         <p className="text-[11px] text-gray-300 mt-1">此为分享内容，仅供参考，不构成医疗建议</p>

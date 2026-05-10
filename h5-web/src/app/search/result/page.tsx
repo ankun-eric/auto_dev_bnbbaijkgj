@@ -45,7 +45,7 @@ const TAB_TYPES = [
 const TYPE_COLORS: Record<string, string> = {
   article: '#1890ff',
   video: '#722ed1',
-  service: '#52c41a',
+  service: '#0EA5E9',
   points_mall: '#fa8c16',
 };
 
@@ -504,7 +504,7 @@ function SearchResultContent() {
                   className="flex-shrink-0 w-8 h-8 flex items-center justify-center"
                   onClick={handleMicClick}
                 >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#52c41a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0EA5E9" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
                     <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
                     <line x1="12" y1="19" x2="12" y2="23" />
@@ -525,7 +525,7 @@ function SearchResultContent() {
         </div>
         <button
           className="flex-shrink-0 text-sm font-medium"
-          style={{ color: '#52c41a' }}
+          style={{ color: '#0EA5E9' }}
           onClick={handleSearch}
         >
           搜索
@@ -534,7 +534,7 @@ function SearchResultContent() {
 
       {/* Auto search countdown hint */}
       {autoSearchCountdown !== null && (
-        <div style={{ padding: '8px 16px', background: '#f6ffed', borderBottom: '1px solid #b7eb8f', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ padding: '8px 16px', background: '#F0F9FF', borderBottom: '1px solid #BAE6FD', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span style={{ fontSize: 13, color: '#333' }}>
             听到啦~ {autoSearchCountdown}秒后帮你搜索
           </span>
@@ -555,9 +555,9 @@ function SearchResultContent() {
         >
           <div
             className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 mr-3"
-            style={{ background: 'linear-gradient(135deg, #52c41a20, #13c2c220)' }}
+            style={{ background: 'linear-gradient(135deg, #0EA5E920, #38BDF820)' }}
           >
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#52c41a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0EA5E9" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
               <circle cx="12" cy="13" r="4" />
             </svg>
@@ -579,8 +579,8 @@ function SearchResultContent() {
           onChange={setActiveTab}
           style={{
             '--title-font-size': '14px',
-            '--active-line-color': '#52c41a',
-            '--active-title-color': '#52c41a',
+            '--active-line-color': '#0EA5E9',
+            '--active-title-color': '#0EA5E9',
           } as React.CSSProperties}
         >
           {TAB_TYPES.map((tab) => (
@@ -593,7 +593,7 @@ function SearchResultContent() {
       <div className="flex-1 px-4 py-3">
         {(allLoading || (loading && tabResults.length === 0)) && (
           <div className="flex justify-center py-10">
-            <SpinLoading style={{ '--size': '28px', '--color': '#52c41a' }} />
+            <SpinLoading style={{ '--size': '28px', '--color': '#0EA5E9' }} />
           </div>
         )}
 
@@ -662,7 +662,7 @@ function SearchResultContent() {
                 onClick={loadMore}
               >
                 {loading ? (
-                  <SpinLoading style={{ '--size': '20px', '--color': '#52c41a' }} />
+                  <SpinLoading style={{ '--size': '20px', '--color': '#0EA5E9' }} />
                 ) : (
                   <span className="text-sm text-gray-400">加载更多</span>
                 )}
@@ -677,7 +677,7 @@ function SearchResultContent() {
 
         {activeTab !== 'all' && loading && tabResults.length > 0 && (
           <div className="flex justify-center py-4">
-            <SpinLoading style={{ '--size': '20px', '--color': '#52c41a' }} />
+            <SpinLoading style={{ '--size': '20px', '--color': '#0EA5E9' }} />
           </div>
         )}
       </div>
@@ -708,12 +708,12 @@ function SearchResultContent() {
             <>
               <style dangerouslySetInnerHTML={{ __html: `
                 @-webkit-keyframes pulse-glow {
-                  0%, 100% { box-shadow: 0 0 0 0 rgba(82,196,26,0.4); -webkit-transform: scale(1); transform: scale(1); }
-                  50% { box-shadow: 0 0 20px 10px rgba(82,196,26,0.2); -webkit-transform: scale(1.05); transform: scale(1.05); }
+                  0%, 100% { box-shadow: 0 0 0 0 rgba(56,189,248,0.4); -webkit-transform: scale(1); transform: scale(1); }
+                  50% { box-shadow: 0 0 20px 10px rgba(56,189,248,0.2); -webkit-transform: scale(1.05); transform: scale(1.05); }
                 }
                 @keyframes pulse-glow {
-                  0%, 100% { box-shadow: 0 0 0 0 rgba(82,196,26,0.4); transform: scale(1); }
-                  50% { box-shadow: 0 0 20px 10px rgba(82,196,26,0.2); transform: scale(1.05); }
+                  0%, 100% { box-shadow: 0 0 0 0 rgba(56,189,248,0.4); transform: scale(1); }
+                  50% { box-shadow: 0 0 20px 10px rgba(56,189,248,0.2); transform: scale(1.05); }
                 }
               `}} />
               <div style={{
@@ -728,7 +728,7 @@ function SearchResultContent() {
                 {volumeBars.map((v, i) => (
                   <div key={i} style={{
                     width: 5, borderRadius: 3,
-                    background: 'linear-gradient(to top, #52c41a, #13c2c2)',
+                    background: 'linear-gradient(to top, #0EA5E9, #38BDF8)',
                     height: `${Math.max(15, v * 100)}px`,
                     transition: 'height 0.1s ease-out',
                   }} />
@@ -739,22 +739,22 @@ function SearchResultContent() {
                 onClick={stopRecording}
                 style={{
                   width: 100, height: 100, borderRadius: '50%',
-                  background: '#fff', border: '3px solid #52c41a',
+                  background: '#fff', border: '3px solid #0EA5E9',
                   display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                   cursor: 'pointer', gap: 4,
                   WebkitAnimation: 'pulse-glow 1.5s ease-in-out infinite',
                   animation: 'pulse-glow 1.5s ease-in-out infinite',
                 }}
               >
-                <div style={{ width: 10, height: 10, background: '#52c41a', borderRadius: 1 }} />
-                <span style={{ fontSize: 16, color: '#52c41a', fontWeight: 500, lineHeight: 1.2 }}>点我结束~</span>
+                <div style={{ width: 10, height: 10, background: '#0EA5E9', borderRadius: 1 }} />
+                <span style={{ fontSize: 16, color: '#0EA5E9', fontWeight: 500, lineHeight: 1.2 }}>点我结束~</span>
               </button>
             </>
           )}
 
           {overlayState === 'recognizing' && (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20 }}>
-              <SpinLoading style={{ '--size': '40px', '--color': '#52c41a' } as any} />
+              <SpinLoading style={{ '--size': '40px', '--color': '#0EA5E9' } as any} />
               <div style={{ fontSize: 16, color: '#fff', fontWeight: 500 }}>
                 我在认真听，马上就好~
               </div>
@@ -781,7 +781,7 @@ function SearchResultContent() {
                 }}
                 style={{
                   marginTop: 8, padding: '10px 32px', borderRadius: 24,
-                  background: 'linear-gradient(135deg, #52c41a, #13c2c2)',
+                  background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)',
                   color: '#fff', fontSize: 15, fontWeight: 500,
                   border: 'none', cursor: 'pointer',
                 }}
@@ -875,7 +875,7 @@ function EmptyState({ hotList, router }: { hotList: HotItem[]; router: ReturnTyp
 
       <button
         className="text-sm font-medium px-6 py-2 rounded-full text-white"
-        style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}
+        style={{ background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)' }}
         onClick={() => router.push('/ai')}
       >
         试试 AI 健康咨询
@@ -889,7 +889,7 @@ export default function SearchResultPage() {
     <Suspense
       fallback={
         <div className="min-h-screen flex items-center justify-center">
-          <SpinLoading style={{ '--size': '32px', '--color': '#52c41a' }} />
+          <SpinLoading style={{ '--size': '32px', '--color': '#0EA5E9' }} />
         </div>
       }
     >

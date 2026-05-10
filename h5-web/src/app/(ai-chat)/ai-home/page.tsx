@@ -235,7 +235,7 @@ const FALLBACK_CONFIG: AIHomeConfig = {
     columns: 3,
     max_count: 6,
     items: [
-      { id: 'g1', main_text: 'AI诊室', sub_text: '智能问诊', target_path: '/ai-doctor', icon: '🩺', gradient_start: '#5B6CFF', gradient_end: '#8B9AFF', badge: '', enabled: true, sort: 1 },
+      { id: 'g1', main_text: 'AI诊室', sub_text: '智能问诊', target_path: '/ai-doctor', icon: '🩺', gradient_start: '#0EA5E9', gradient_end: '#8B9AFF', badge: '', enabled: true, sort: 1 },
       { id: 'g2', main_text: '看报告', sub_text: '解读体检报告', target_path: '/checkup', icon: '📋', gradient_start: '#FF7E5F', gradient_end: '#FEB47B', badge: '', enabled: true, sort: 2 },
       { id: 'g3', main_text: '健康档案', sub_text: '查看个人档案', target_path: '/health-archive', icon: '📁', gradient_start: '#43E97B', gradient_end: '#38F9D7', badge: '', enabled: true, sort: 3 },
     ],
@@ -1600,7 +1600,7 @@ export default function AiHomePage() {
             {/* v1.0 紫色今日健康贴士轮播卡（图片做整张卡片背景） */}
             <SectionErrorBoundary name="health_tips">
               {healthTipsVisible && banners.length > 0 && (
-                <div className="rounded-2xl overflow-hidden mb-4 shadow-lg" style={{ background: 'linear-gradient(135deg, #5B6CFF 0%, #8B5CF6 100%)' }}>
+                <div className="rounded-2xl overflow-hidden mb-4 shadow-lg" style={{ background: 'linear-gradient(135deg, #0EA5E9 0%, #38BDF8 100%)' }}>
                   <Swiper
                     autoplay
                     autoplayInterval={(aiHomeConfig.health_tips?.interval_seconds || 4) * 1000}
@@ -1614,7 +1614,7 @@ export default function AiHomePage() {
                           style={{
                             height: 130,
                             backgroundImage: `url(${banner.image_url})`,
-                            backgroundColor: '#5B6CFF',
+                            backgroundColor: '#0EA5E9',
                           }}
                           onClick={() => banner.link_url && router.push(banner.link_url)}
                         />

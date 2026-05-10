@@ -27,12 +27,12 @@ interface SuggestItem {
 const CATEGORY_COLORS: Record<string, string> = {
   article: '#1890ff',
   video: '#722ed1',
-  service: '#52c41a',
+  service: '#0EA5E9',
   points_mall: '#fa8c16',
-  '拍照识药': '#13c2c2',
+  '拍照识药': '#38BDF8',
   '文章': '#1890ff',
   '视频': '#722ed1',
-  '服务': '#52c41a',
+  '服务': '#0EA5E9',
   '积分商品': '#fa8c16',
 };
 
@@ -491,7 +491,7 @@ export default function SearchPage() {
                   className="flex-shrink-0 w-8 h-8 flex items-center justify-center"
                   onClick={handleMicClick}
                 >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#52c41a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0EA5E9" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
                     <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
                     <line x1="12" y1="19" x2="12" y2="23" />
@@ -512,7 +512,7 @@ export default function SearchPage() {
         </div>
         <button
           className="flex-shrink-0 text-sm font-medium ml-1"
-          style={{ color: '#52c41a' }}
+          style={{ color: '#0EA5E9' }}
           onClick={() => { clearAutoSearch(); doSearch(keyword); }}
         >
           搜索
@@ -521,7 +521,7 @@ export default function SearchPage() {
 
       {/* Auto search countdown hint */}
       {autoSearchCountdown !== null && (
-        <div style={{ padding: '8px 16px', background: '#f6ffed', borderBottom: '1px solid #b7eb8f', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ padding: '8px 16px', background: '#F0F9FF', borderBottom: '1px solid #BAE6FD', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span style={{ fontSize: 13, color: '#333' }}>
             听到啦~ {autoSearchCountdown}秒后帮你搜索
           </span>
@@ -540,7 +540,7 @@ export default function SearchPage() {
           <div className="px-4 py-2">
             {suggestLoading && (
               <div className="flex justify-center py-4">
-                <SpinLoading style={{ '--size': '20px', '--color': '#52c41a' }} />
+                <SpinLoading style={{ '--size': '20px', '--color': '#0EA5E9' }} />
               </div>
             )}
             {!suggestLoading && suggestions.length === 0 && debouncedKeyword.trim() && (
@@ -615,7 +615,7 @@ export default function SearchPage() {
                   <p className="text-sm text-gray-400 mb-3">登录后可查看搜索历史</p>
                   <button
                     className="text-sm font-medium px-6 py-1.5 rounded-full border"
-                    style={{ color: '#52c41a', borderColor: '#52c41a' }}
+                    style={{ color: '#0EA5E9', borderColor: '#0EA5E9' }}
                     onClick={() => router.push('/login')}
                   >
                     去登录
@@ -712,12 +712,12 @@ export default function SearchPage() {
             <>
               <style dangerouslySetInnerHTML={{ __html: `
                 @-webkit-keyframes pulse-glow {
-                  0%, 100% { box-shadow: 0 0 0 0 rgba(82,196,26,0.4); -webkit-transform: scale(1); transform: scale(1); }
-                  50% { box-shadow: 0 0 20px 10px rgba(82,196,26,0.2); -webkit-transform: scale(1.05); transform: scale(1.05); }
+                  0%, 100% { box-shadow: 0 0 0 0 rgba(56,189,248,0.4); -webkit-transform: scale(1); transform: scale(1); }
+                  50% { box-shadow: 0 0 20px 10px rgba(56,189,248,0.2); -webkit-transform: scale(1.05); transform: scale(1.05); }
                 }
                 @keyframes pulse-glow {
-                  0%, 100% { box-shadow: 0 0 0 0 rgba(82,196,26,0.4); transform: scale(1); }
-                  50% { box-shadow: 0 0 20px 10px rgba(82,196,26,0.2); transform: scale(1.05); }
+                  0%, 100% { box-shadow: 0 0 0 0 rgba(56,189,248,0.4); transform: scale(1); }
+                  50% { box-shadow: 0 0 20px 10px rgba(56,189,248,0.2); transform: scale(1.05); }
                 }
               `}} />
               {/* Timer */}
@@ -734,7 +734,7 @@ export default function SearchPage() {
                 {volumeBars.map((v, i) => (
                   <div key={i} style={{
                     width: 5, borderRadius: 3,
-                    background: 'linear-gradient(to top, #52c41a, #13c2c2)',
+                    background: 'linear-gradient(to top, #0EA5E9, #38BDF8)',
                     height: `${Math.max(15, v * 100)}px`,
                     transition: 'height 0.1s ease-out',
                   }} />
@@ -746,22 +746,22 @@ export default function SearchPage() {
                 onClick={stopRecording}
                 style={{
                   width: 100, height: 100, borderRadius: '50%',
-                  background: '#fff', border: '3px solid #52c41a',
+                  background: '#fff', border: '3px solid #0EA5E9',
                   display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                   cursor: 'pointer', gap: 4,
                   WebkitAnimation: 'pulse-glow 1.5s ease-in-out infinite',
                   animation: 'pulse-glow 1.5s ease-in-out infinite',
                 }}
               >
-                <div style={{ width: 10, height: 10, background: '#52c41a', borderRadius: 1 }} />
-                <span style={{ fontSize: 16, color: '#52c41a', fontWeight: 500, lineHeight: 1.2 }}>点我结束~</span>
+                <div style={{ width: 10, height: 10, background: '#0EA5E9', borderRadius: 1 }} />
+                <span style={{ fontSize: 16, color: '#0EA5E9', fontWeight: 500, lineHeight: 1.2 }}>点我结束~</span>
               </button>
             </>
           )}
 
           {overlayState === 'recognizing' && (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20 }}>
-              <SpinLoading style={{ '--size': '40px', '--color': '#52c41a' } as any} />
+              <SpinLoading style={{ '--size': '40px', '--color': '#0EA5E9' } as any} />
               <div style={{ fontSize: 16, color: '#fff', fontWeight: 500 }}>
                 我在认真听，马上就好~
               </div>
@@ -788,7 +788,7 @@ export default function SearchPage() {
                 }}
                 style={{
                   marginTop: 8, padding: '10px 32px', borderRadius: 24,
-                  background: 'linear-gradient(135deg, #52c41a, #13c2c2)',
+                  background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)',
                   color: '#fff', fontSize: 15, fontWeight: 500,
                   border: 'none', cursor: 'pointer',
                 }}

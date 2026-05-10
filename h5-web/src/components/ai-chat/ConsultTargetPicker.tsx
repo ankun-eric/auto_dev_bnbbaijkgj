@@ -66,7 +66,7 @@ function getRelationEmoji(name: string): string {
 }
 
 function getRelationColor(relation: string): string {
-  if (relation === '本人') return '#52c41a';
+  if (relation === '本人') return '#0EA5E9';
   if (['爸爸', '妈妈', '父亲', '母亲'].includes(relation)) return '#1890ff';
   if (['儿子', '女儿', '子女'].includes(relation)) return '#eb2f96';
   if (['爷爷', '奶奶', '外公', '外婆'].includes(relation)) return '#fa8c16';
@@ -312,7 +312,7 @@ export default function ConsultTargetPicker({
               <div className="text-sm text-gray-500">加载失败</div>
               <button
                 className="px-4 py-1.5 rounded-full text-xs"
-                style={{ background: '#52c41a', color: '#fff' }}
+                style={{ background: '#0EA5E9', color: '#fff' }}
                 onClick={fetchMembers}
               >
                 点击重试
@@ -338,7 +338,7 @@ export default function ConsultTargetPicker({
                     <div
                       className="w-9 h-9 rounded-full flex items-center justify-center text-xl"
                       style={{
-                        background: m.is_self ? 'linear-gradient(135deg, #52c41a, #13c2c2)' : '#87d068',
+                        background: m.is_self ? 'linear-gradient(135deg, #0EA5E9, #38BDF8)' : '#87d068',
                       }}
                     >
                       {m.is_self ? <span className="text-white text-sm">我</span> : emoji}
@@ -357,7 +357,7 @@ export default function ConsultTargetPicker({
                     {isCurrent && (
                       <span
                         className="text-base"
-                        style={{ color: '#52c41a', fontWeight: 700 }}
+                        style={{ color: '#0EA5E9', fontWeight: 700 }}
                         aria-label="当前选中"
                       >
                         ✓
@@ -375,11 +375,11 @@ export default function ConsultTargetPicker({
               >
                 <div
                   className="w-9 h-9 rounded-full flex items-center justify-center text-white text-lg"
-                  style={{ background: '#52c41a' }}
+                  style={{ background: '#0EA5E9' }}
                 >
                   +
                 </div>
-                <span className="text-sm font-medium" style={{ color: '#52c41a' }}>
+                <span className="text-sm font-medium" style={{ color: '#0EA5E9' }}>
                   新建家庭成员
                 </span>
               </div>
@@ -418,15 +418,15 @@ export default function ConsultTargetPicker({
                     key={rt.id}
                     className="flex flex-col items-center py-2 rounded-xl transition-all"
                     style={{
-                      background: isSelected ? 'linear-gradient(135deg, #f6ffed, #e6fffb)' : '#f9f9f9',
-                      border: isSelected ? '1.5px solid #52c41a' : '1.5px solid transparent',
+                      background: isSelected ? 'linear-gradient(135deg, #F0F9FF, #e6fffb)' : '#f9f9f9',
+                      border: isSelected ? '1.5px solid #0EA5E9' : '1.5px solid transparent',
                     }}
                     onClick={() =>
                       setSelectedRelation((cur) => (cur?.id === rt.id ? null : rt))
                     }
                   >
                     <span className="text-2xl">{emoji}</span>
-                    <span className="text-xs mt-1" style={{ color: isSelected ? '#52c41a' : '#555' }}>
+                    <span className="text-xs mt-1" style={{ color: isSelected ? '#0EA5E9' : '#555' }}>
                       {rt.name}
                     </span>
                   </button>
@@ -438,9 +438,9 @@ export default function ConsultTargetPicker({
           {selectedRelation && (
             <div
               className="mt-5 p-4 rounded-2xl"
-              style={{ background: '#f6ffed', border: '1px solid #b7eb8f' }}
+              style={{ background: '#F0F9FF', border: '1px solid #BAE6FD' }}
             >
-              <div className="text-sm font-semibold mb-4" style={{ color: '#52c41a' }}>
+              <div className="text-sm font-semibold mb-4" style={{ color: '#0EA5E9' }}>
                 {getRelationEmoji(selectedRelation.name)} 填写{selectedRelation.name}信息
               </div>
 
@@ -469,9 +469,9 @@ export default function ConsultTargetPicker({
                         className="flex-1 py-2 rounded-xl text-sm font-medium transition-all"
                         style={{
                           background:
-                            newGender === g ? 'linear-gradient(135deg, #52c41a, #13c2c2)' : '#fff',
+                            newGender === g ? 'linear-gradient(135deg, #0EA5E9, #38BDF8)' : '#fff',
                           color: newGender === g ? '#fff' : '#666',
-                          border: `1px solid ${newGender === g ? '#52c41a' : '#e8e8e8'}`,
+                          border: `1px solid ${newGender === g ? '#0EA5E9' : '#e8e8e8'}`,
                         }}
                         onClick={() => setNewGender(g)}
                       >
@@ -531,9 +531,9 @@ export default function ConsultTargetPicker({
                           )
                         }
                         style={{
-                          '--background-color': newMedicalHistories.includes(opt) ? '#52c41a' : '#fff',
+                          '--background-color': newMedicalHistories.includes(opt) ? '#0EA5E9' : '#fff',
                           '--text-color': newMedicalHistories.includes(opt) ? '#fff' : '#666',
-                          '--border-color': newMedicalHistories.includes(opt) ? '#52c41a' : '#d9d9d9',
+                          '--border-color': newMedicalHistories.includes(opt) ? '#0EA5E9' : '#d9d9d9',
                           padding: '4px 10px',
                           borderRadius: 14,
                           fontSize: 12,
@@ -564,9 +564,9 @@ export default function ConsultTargetPicker({
                           )
                         }
                         style={{
-                          '--background-color': newAllergies.includes(opt) ? '#52c41a' : '#fff',
+                          '--background-color': newAllergies.includes(opt) ? '#0EA5E9' : '#fff',
                           '--text-color': newAllergies.includes(opt) ? '#fff' : '#666',
-                          '--border-color': newAllergies.includes(opt) ? '#52c41a' : '#d9d9d9',
+                          '--border-color': newAllergies.includes(opt) ? '#0EA5E9' : '#d9d9d9',
                           padding: '4px 10px',
                           borderRadius: 14,
                           fontSize: 12,
@@ -591,7 +591,7 @@ export default function ConsultTargetPicker({
                 style={{
                   background: saveDisabled
                     ? '#d9d9d9'
-                    : 'linear-gradient(135deg, #52c41a, #13c2c2)',
+                    : 'linear-gradient(135deg, #0EA5E9, #38BDF8)',
                   cursor: saveDisabled ? 'not-allowed' : 'pointer',
                 }}
                 disabled={saveDisabled}

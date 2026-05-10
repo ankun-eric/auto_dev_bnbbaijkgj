@@ -77,7 +77,7 @@ function isExchangeable(state?: string): boolean {
 
 const TYPE_BADGE: Record<string, { text: string; color: string }> = {
   coupon: { text: '优惠券', color: '#fa8c16' },
-  service: { text: '体验服务', color: '#13c2c2' },
+  service: { text: '体验服务', color: '#38BDF8' },
   physical: { text: '实物', color: '#722ed1' },
   virtual: { text: '虚拟（开发中）', color: '#bfbfbf' },
   third_party: { text: '第三方（开发中）', color: '#bfbfbf' },

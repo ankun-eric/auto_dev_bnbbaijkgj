@@ -126,7 +126,7 @@ export default function DashboardMobilePage() {
         {/* 顶部 */}
         <div
           style={{
-            background: 'linear-gradient(135deg, #52c41a 0%, #73d13d 100%)',
+            background: 'linear-gradient(135deg, #0EA5E9 0%, #73d13d 100%)',
             color: '#fff',
             padding: '20px 16px 56px',
           }}
@@ -158,7 +158,7 @@ export default function DashboardMobilePage() {
           >
             {[
               { label: '今日订单', value: metrics.today_orders ?? 0, color: '#1677ff' },
-              { label: '今日核销', value: metrics.today_verifications ?? 0, color: '#52c41a' },
+              { label: '今日核销', value: metrics.today_verifications ?? 0, color: '#0EA5E9' },
               { label: '今日营业额', value: `¥${metrics.today_amount ?? 0}`, color: '#fa8c16' },
               { label: '待核销', value: metrics.pending_verify ?? 0, color: '#ff4d4f' },
             ].map((m) => (
@@ -204,7 +204,7 @@ export default function DashboardMobilePage() {
           <div style={{ background: '#fff', borderRadius: 12, padding: '12px 12px 4px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
               <div style={{ fontSize: 15, fontWeight: 600 }}>最近订单</div>
-              <div style={{ fontSize: 12, color: '#52c41a' }} onClick={() => router.push('/merchant/m/orders')}>
+              <div style={{ fontSize: 12, color: '#0EA5E9' }} onClick={() => router.push('/merchant/m/orders')}>
                 查看全部 ›
               </div>
             </div>

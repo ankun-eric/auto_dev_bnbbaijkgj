@@ -24,7 +24,7 @@ export default function DeprecatedDiagnosisPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <SpinLoading style={{ '--size': '32px', '--color': '#52c41a' }} />
+      <SpinLoading style={{ '--size': '32px', '--color': '#0EA5E9' }} />
     </div>
   );
 }

@@ -260,7 +260,7 @@ function MyCouponsPage() {
       {/* Bug#3：顶部"合计"与下方"可用(N)" Tab 同源（均来自可用券 total） */}
       <div
         className="px-4 py-3 flex items-center justify-between"
-        style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)', color: '#fff' }}
+        style={{ background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)', color: '#fff' }}
       >
         <div>
           <div className="text-xs opacity-80">合计可用</div>
@@ -274,8 +274,8 @@ function MyCouponsPage() {
         onChange={setActiveTab}
         className="green-bold-tabs"
         style={{
-          '--active-line-color': '#52c41a',
-          '--active-title-color': '#52c41a',
+          '--active-line-color': '#0EA5E9',
+          '--active-title-color': '#0EA5E9',
           '--active-line-height': '2px',
           background: '#fff',
         } as React.CSSProperties}
@@ -300,7 +300,7 @@ function MyCouponsPage() {
             <Button
               size="small"
               onClick={() => router.push('/coupon-center')}
-              style={{ marginTop: 16, borderRadius: 20, color: '#52c41a', borderColor: '#52c41a' }}
+              style={{ marginTop: 16, borderRadius: 20, color: '#0EA5E9', borderColor: '#0EA5E9' }}
             >
               去领券中心
             </Button>
@@ -332,7 +332,7 @@ function MyCouponsPage() {
                   style={{
                     background: isDisabled
                       ? '#bfbfbf'
-                      : 'linear-gradient(135deg, #52c41a, #13c2c2)',
+                      : 'linear-gradient(135deg, #0EA5E9, #38BDF8)',
                   }}
                 >
                   <div className="text-xl font-bold">{getCouponValue(coupon)}</div>
@@ -343,8 +343,8 @@ function MyCouponsPage() {
                     <span className="font-medium text-sm truncate">{coupon.name}</span>
                     <Tag
                       style={{
-                        '--background-color': '#52c41a15',
-                        '--text-color': '#52c41a',
+                        '--background-color': '#0EA5E915',
+                        '--text-color': '#0EA5E9',
                         '--border-color': 'transparent',
                         fontSize: 10,
                         marginLeft: 6,
@@ -388,7 +388,7 @@ function MyCouponsPage() {
                         style={{
                           borderRadius: 14,
                           fontSize: 12,
-                          background: 'linear-gradient(135deg, #52c41a, #13c2c2)',
+                          background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)',
                           color: '#fff',
                           border: 'none',
                           padding: '0 14px',
@@ -412,7 +412,7 @@ function MyCouponsPage() {
             <Button
               size="small"
               onClick={() => router.push('/coupon-center')}
-              style={{ borderRadius: 20, color: '#52c41a', borderColor: '#52c41a' }}
+              style={{ borderRadius: 20, color: '#0EA5E9', borderColor: '#0EA5E9' }}
             >
               领更多券
             </Button>

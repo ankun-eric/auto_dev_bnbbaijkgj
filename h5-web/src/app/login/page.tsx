@@ -254,7 +254,7 @@ function LoginContent() {
     return (
       <div
         className="min-h-screen flex items-center justify-center"
-        style={{ background: 'linear-gradient(180deg, #4AD97A 0%, #34C759 100%)' }}
+        style={{ background: 'linear-gradient(180deg, #4AD97A 0%, #0EA5E9 100%)' }}
       >
         <div className="flex flex-col items-center gap-3 text-sm text-white">
           <SpinLoading color="white" />
@@ -275,14 +275,14 @@ function LoginContent() {
           {logoUrl ? (
             <img
               src={resolveAssetUrl(logoUrl)}
-              alt="宾尼小康 LOGO"
+              alt="晴空诊室 LOGO"
               className={styles.logoImg}
             />
           ) : (
             <span className={styles.logoFallback}>🌿</span>
           )}
         </div>
-        <h1 className={styles.brandTitle}>宾尼小康</h1>
+        <h1 className={styles.brandTitle}>晴空诊室</h1>
         <p className={styles.brandSubtitle}>AI 健康管家 · 您的私人健康助手</p>
       </div>
 
@@ -394,7 +394,7 @@ export default function LoginPage() {
       fallback={
         <div
           className="min-h-screen flex items-center justify-center"
-          style={{ background: 'linear-gradient(180deg, #4AD97A 0%, #34C759 100%)' }}
+          style={{ background: 'linear-gradient(180deg, #4AD97A 0%, #0EA5E9 100%)' }}
         >
           <SpinLoading color="white" />
         </div>

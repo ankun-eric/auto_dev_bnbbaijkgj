@@ -220,7 +220,7 @@ export function KnowledgeCard({ hit, hitLogId, onFeedback }: KnowledgeCardProps)
       <div className="px-3 py-2">
         {richHtml ? (
           <div
-            className="kb-rich text-sm text-gray-700 leading-relaxed [&_img]:max-w-full [&_img]:rounded-lg [&_a]:text-[#52c41a] [&_p]:mb-1"
+            className="kb-rich text-sm text-gray-700 leading-relaxed [&_img]:max-w-full [&_img]:rounded-lg [&_a]:text-[#0EA5E9] [&_p]:mb-1"
             dangerouslySetInnerHTML={{ __html: richHtml }}
           />
         ) : plain ? (
@@ -308,10 +308,10 @@ export function KnowledgeCard({ hit, hitLogId, onFeedback }: KnowledgeCardProps)
           <LikeOutlined
             style={{
               fontSize: 20,
-              color: localFeedback === 'like' ? '#52c41a' : '#999',
+              color: localFeedback === 'like' ? '#0EA5E9' : '#999',
             }}
           />
-          <span style={{ color: localFeedback === 'like' ? '#52c41a' : '#666' }}>有用</span>
+          <span style={{ color: localFeedback === 'like' ? '#0EA5E9' : '#666' }}>有用</span>
         </button>
         <button
           type="button"

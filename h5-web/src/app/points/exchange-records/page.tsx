@@ -35,14 +35,14 @@ interface ExchangeRecord {
 
 const TYPE_META: Record<string, { text: string; color: string }> = {
   coupon: { text: '优惠券', color: '#fa8c16' },
-  service: { text: '体验服务', color: '#13c2c2' },
+  service: { text: '体验服务', color: '#38BDF8' },
   physical: { text: '实物', color: '#722ed1' },
   virtual: { text: '虚拟', color: '#bfbfbf' },
   third_party: { text: '第三方', color: '#bfbfbf' },
 };
 
 const STATUS_META: Record<string, { text: string; color: string }> = {
-  success: { text: '兑换成功', color: '#52c41a' },
+  success: { text: '兑换成功', color: '#0EA5E9' },
   pending: { text: '处理中', color: '#1890ff' },
   failed: { text: '失败', color: '#ff4d4f' },
   used: { text: '已使用', color: '#8c8c8c' },
@@ -256,7 +256,7 @@ export default function PointsExchangeRecordsPage() {
                                     style={{
                                       borderRadius: 12,
                                       fontSize: 12,
-                                      background: 'linear-gradient(135deg, #52c41a, #13c2c2)',
+                                      background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)',
                                       color: '#fff',
                                       border: 'none',
                                     }}
@@ -290,7 +290,7 @@ export default function PointsExchangeRecordsPage() {
                                     : replaced
                                     ? 'linear-gradient(135deg, #fa8c16, #faad14)'
                                     : r.goods_type === 'service'
-                                    ? 'linear-gradient(135deg, #52c41a, #13c2c2)'
+                                    ? 'linear-gradient(135deg, #0EA5E9, #38BDF8)'
                                     : 'rgba(114, 46, 209, 0.1)',
                                   color: offline
                                     ? '#bfbfbf'

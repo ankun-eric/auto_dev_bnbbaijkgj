@@ -149,7 +149,7 @@ function FamilyAuthContent() {
               <Button
                 block
                 style={{
-                  background: 'linear-gradient(135deg, #52c41a, #13c2c2)',
+                  background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)',
                   color: '#fff',
                   border: 'none',
                   borderRadius: 24,
@@ -171,13 +171,13 @@ function FamilyAuthContent() {
               style={{
                 maxWidth: 340,
                 background: '#fff',
-                boxShadow: '0 8px 32px rgba(82, 196, 26, 0.12)',
+                boxShadow: '0 8px 32px rgba(56,189,248, 0.12)',
               }}
             >
               <div className="px-6 pt-10 pb-6 text-center">
                 <div
                   className="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center"
-                  style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}
+                  style={{ background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)' }}
                 >
                   <span className="text-white text-2xl font-bold">
                     {(invitation.inviter_nickname || '对')[0]}
@@ -197,7 +197,7 @@ function FamilyAuthContent() {
                     block
                     loading={submitting}
                     style={{
-                      background: 'linear-gradient(135deg, #52c41a, #13c2c2)',
+                      background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)',
                       color: '#fff',
                       border: 'none',
                       borderRadius: 24,
@@ -236,13 +236,13 @@ function FamilyAuthContent() {
               style={{
                 maxWidth: 340,
                 background: '#fff',
-                boxShadow: '0 8px 32px rgba(82, 196, 26, 0.12)',
+                boxShadow: '0 8px 32px rgba(56,189,248, 0.12)',
               }}
             >
               <div className="px-6 pt-10 pb-8 text-center">
                 <div
                   className="w-20 h-20 rounded-full mx-auto mb-4 flex items-center justify-center"
-                  style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}
+                  style={{ background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)' }}
                 >
                   <span className="text-white text-3xl font-bold">
                     {(invitation.inviter_nickname || '对')[0]}
@@ -257,7 +257,7 @@ function FamilyAuthContent() {
 
                 <div
                   className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs mb-8"
-                  style={{ background: '#f6ffed', color: '#52c41a', border: '1px solid #d9f7be' }}
+                  style={{ background: '#F0F9FF', color: '#0EA5E9', border: '1px solid #d9f7be' }}
                 >
                   <span>✓</span>
                   <span>授权成功</span>
@@ -302,7 +302,7 @@ function FamilyAuthContent() {
               <Button
                 block
                 style={{
-                  background: 'linear-gradient(135deg, #52c41a, #13c2c2)',
+                  background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)',
                   color: '#fff',
                   border: 'none',
                   borderRadius: 24,

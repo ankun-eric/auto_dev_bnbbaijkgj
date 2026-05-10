@@ -42,7 +42,7 @@ function DrugInfoCard({ drug }: { drug: DrugInfoCardData }) {
           {drug.indications && <div className="text-xs text-gray-500 mt-0.5 truncate">功能主治：{drug.indications}</div>}
           {drug.dosage && <div className="text-xs text-gray-500 mt-0.5 truncate">用法用量：{drug.dosage}</div>}
         </div>
-        <span className="text-xs flex-shrink-0" style={{ color: '#52c41a' }}>{expanded ? '收起' : '查看详情'}</span>
+        <span className="text-xs flex-shrink-0" style={{ color: '#0EA5E9' }}>{expanded ? '收起' : '查看详情'}</span>
       </div>
       <div
         style={{
@@ -190,7 +190,7 @@ function getMemberEmoji(relationName: string): string {
 }
 
 function getRelationColor(relationName: string): string {
-  if (relationName === '本人') return '#52c41a';
+  if (relationName === '本人') return '#0EA5E9';
   if (['爸爸', '妈妈', '父亲', '母亲'].includes(relationName)) return '#1890ff';
   if (['儿子', '女儿', '子女'].includes(relationName)) return '#eb2f96';
   if (['爷爷', '奶奶', '外公', '外婆', '祖父母', '外祖父母'].includes(relationName)) return '#fa8c16';
@@ -203,7 +203,7 @@ const ADD_ALLERGY_OPTIONS = ['青霉素', '花粉', '海鲜', '牛奶', '尘螨'
 const welcomeMessage: Message = {
   id: 'welcome',
   role: 'assistant',
-  content: '您好！我是宾尼小康AI健康助手。请问您有什么健康问题需要咨询吗？',
+  content: '您好！我是晴空诊室AI健康助手。请问您有什么健康问题需要咨询吗？',
   time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
 };
 
@@ -981,7 +981,7 @@ function ChatPageInner() {
         style={{
           width: size,
           height: size,
-          background: 'linear-gradient(135deg, #52c41a, #13c2c2)',
+          background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)',
           fontSize: size * 0.55,
         }}
       >
@@ -1934,13 +1934,13 @@ function ChatPageInner() {
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'space-between',
-                          background: isActive ? '#f6ffed' : '#fff',
-                          color: isActive ? '#52c41a' : '#333',
+                          background: isActive ? '#F0F9FF' : '#fff',
+                          color: isActive ? '#0EA5E9' : '#333',
                           fontWeight: isActive ? 600 : 400,
                         }}
                       >
                         <span>{FONT_LABEL_MAP[level]}</span>
-                        {isActive && <span style={{ color: '#52c41a', fontSize: 14 }}>✓</span>}
+                        {isActive && <span style={{ color: '#0EA5E9', fontSize: 14 }}>✓</span>}
                       </div>
                     );
                   })}
@@ -1951,7 +1951,7 @@ function ChatPageInner() {
         }
         style={{
           '--height': '48px',
-          background: 'linear-gradient(135deg, #52c41a, #13c2c2)',
+          background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)',
           color: '#fff',
           '--border-bottom': 'none',
         } as React.CSSProperties}
@@ -1963,19 +1963,19 @@ function ChatPageInner() {
       {isSymptom && urlMsg && (
         <div
           className="mx-3 mt-2 rounded-xl px-3 py-2 cursor-pointer flex items-start gap-2"
-          style={{ background: '#f6ffed', border: '1px solid #b7eb8f' }}
+          style={{ background: '#F0F9FF', border: '1px solid #BAE6FD' }}
           onClick={() => setBannerExpanded((v) => !v)}
         >
-          <span style={{ color: '#52c41a', fontSize: 15, flexShrink: 0, marginTop: 1 }}>✚</span>
+          <span style={{ color: '#0EA5E9', fontSize: 15, flexShrink: 0, marginTop: 1 }}>✚</span>
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between gap-1">
-              <span className="text-xs font-medium" style={{ color: '#52c41a' }}>健康自查</span>
+              <span className="text-xs font-medium" style={{ color: '#0EA5E9' }}>健康自查</span>
               {urlMember && (
                 <span className="text-xs" style={{ color: '#87d068' }}>
                   咨询对象：{urlMember}
                 </span>
               )}
-              <span className="text-xs" style={{ color: '#52c41a', flexShrink: 0 }}>
+              <span className="text-xs" style={{ color: '#0EA5E9', flexShrink: 0 }}>
                 {bannerExpanded ? '▲' : '▼'}
               </span>
             </div>
@@ -2059,7 +2059,7 @@ function ChatPageInner() {
         }
         .streaming-cursor::after {
           content: '▌';
-          color: #52c41a;
+          color: #0EA5E9;
           animation: cursor-blink 1s ease-in-out infinite;
           margin-left: 1px;
         }
@@ -2229,13 +2229,13 @@ function ChatPageInner() {
                 {isFirstUserCard ? (
                   <div
                     className="rounded-2xl px-4 py-3 leading-relaxed cursor-pointer"
-                    style={{ background: '#f6ffed', border: '1.5px solid #52c41a', fontSize: chatFontSize, maxWidth: 360 }}
+                    style={{ background: '#F0F9FF', border: '1.5px solid #0EA5E9', fontSize: chatFontSize, maxWidth: 360 }}
                     onClick={() => setFirstCardExpanded((v) => !v)}
                   >
                     <div className="flex items-center gap-1 mb-2">
-                      <span style={{ color: '#52c41a', fontSize: 14 }}>✚</span>
-                      <span className="font-semibold text-xs" style={{ color: '#52c41a' }}>健康自查摘要</span>
-                      <span className="ml-auto text-xs" style={{ color: '#52c41a' }}>{firstCardExpanded ? '▲' : '▼'}</span>
+                      <span style={{ color: '#0EA5E9', fontSize: 14 }}>✚</span>
+                      <span className="font-semibold text-xs" style={{ color: '#0EA5E9' }}>健康自查摘要</span>
+                      <span className="ml-auto text-xs" style={{ color: '#0EA5E9' }}>{firstCardExpanded ? '▲' : '▼'}</span>
                     </div>
                     <div style={{ color: '#444', overflow: 'hidden', maxHeight: firstCardExpanded ? 'none' : '1.6em', whiteSpace: firstCardExpanded ? 'normal' : 'nowrap', textOverflow: firstCardExpanded ? 'unset' : 'ellipsis' }}>
                       {msg.content}
@@ -2369,13 +2369,13 @@ function ChatPageInner() {
           <div style={{ marginBottom: 24 }}>
             <div className="flex items-center" style={{ marginBottom: 8 }}>
               <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center"
-                style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}>
+                style={{ background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)' }}>
                 <span className="text-white text-xs">AI</span>
               </div>
               <span style={{ marginLeft: 8, fontSize: 12, color: '#999' }}>小康 · 健康助手</span>
             </div>
             <div className="flex items-center gap-2">
-              <SpinLoading style={{ '--size': '18px', '--color': '#52c41a' }} />
+              <SpinLoading style={{ '--size': '18px', '--color': '#0EA5E9' }} />
               <span className="text-gray-500 text-sm">AI 正在解读您的报告，请稍候…</span>
             </div>
           </div>
@@ -2386,7 +2386,7 @@ function ChatPageInner() {
           <div style={{ marginBottom: 24 }}>
             <div className="flex items-center" style={{ marginBottom: 8 }}>
               <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center"
-                style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}>
+                style={{ background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)' }}>
                 <span className="text-white text-xs">AI</span>
               </div>
               <span style={{ marginLeft: 8, fontSize: 12, color: '#999' }}>小康 · 健康助手</span>
@@ -2404,13 +2404,13 @@ function ChatPageInner() {
           <div style={{ marginBottom: 24 }}>
             <div className="flex items-center" style={{ marginBottom: 8 }}>
               <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center"
-                style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}>
+                style={{ background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)' }}>
                 <span className="text-white text-xs">AI</span>
               </div>
               <span style={{ marginLeft: 8, fontSize: 12, color: '#999' }}>小康 · 健康助手</span>
             </div>
             <div>
-              <SpinLoading style={{ '--size': '20px', '--color': '#52c41a' }} />
+              <SpinLoading style={{ '--size': '20px', '--color': '#0EA5E9' }} />
             </div>
           </div>
         )}
@@ -2449,7 +2449,7 @@ function ChatPageInner() {
             <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
               <div
                 className="h-full rounded-full transition-all duration-300"
-                style={{ width: `${uploadPercent}%`, background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}
+                style={{ width: `${uploadPercent}%`, background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)' }}
               />
             </div>
             <span className="text-xs text-gray-500 w-10 text-right">{uploadPercent}%</span>
@@ -2558,7 +2558,7 @@ function ChatPageInner() {
           aria-label={voiceMode ? '切换键盘' : '语音输入'}
         >
           {voiceMode ? (
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#52c41a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0EA5E9" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="2" y="4" width="20" height="16" rx="3" ry="3" />
               <line x1="6" y1="8" x2="6" y2="8" />
               <line x1="10" y1="8" x2="10" y2="8" />
@@ -2569,7 +2569,7 @@ function ChatPageInner() {
               <line x1="8" y1="16" x2="16" y2="16" />
             </svg>
           ) : (
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#52c41a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0EA5E9" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
               <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
               <line x1="12" y1="19" x2="12" y2="23" />
@@ -2583,7 +2583,7 @@ function ChatPageInner() {
             className="flex-1 rounded-2xl flex items-center justify-center select-none"
             style={{
               height: 40,
-              background: isCancelZone && isRecording ? '#d32f2f' : '#52c41a',
+              background: isCancelZone && isRecording ? '#d32f2f' : '#0EA5E9',
               color: '#fff',
               fontSize: 14,
               fontWeight: 500,
@@ -2619,7 +2619,7 @@ function ChatPageInner() {
             height: 36,
             borderRadius: '50%',
             border: 'none',
-            background: inputVal.trim() ? 'linear-gradient(135deg, #52c41a, #13c2c2)' : '#e8e8e8',
+            background: inputVal.trim() ? 'linear-gradient(135deg, #0EA5E9, #38BDF8)' : '#e8e8e8',
             color: inputVal.trim() ? '#fff' : '#999',
             cursor: inputVal.trim() ? 'pointer' : 'default',
             fontSize: 14,
@@ -2646,7 +2646,7 @@ function ChatPageInner() {
             height: 36,
             borderRadius: '50%',
             background: '#fff',
-            color: '#52c41a',
+            color: '#0EA5E9',
             border: 'none',
             boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
             display: 'flex',
@@ -2699,7 +2699,7 @@ function ChatPageInner() {
 
           {isRecognizing ? (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20 }}>
-              <SpinLoading style={{ '--size': '40px', '--color': '#52c41a' } as React.CSSProperties} />
+              <SpinLoading style={{ '--size': '40px', '--color': '#0EA5E9' } as React.CSSProperties} />
               <div style={{ fontSize: 16, color: '#fff', fontWeight: 500 }}>识别中...</div>
             </div>
           ) : (
@@ -2722,7 +2722,7 @@ function ChatPageInner() {
                     style={{
                       width: 6,
                       borderRadius: 3,
-                      background: isCancelZone ? '#ff6b6b' : '#52c41a',
+                      background: isCancelZone ? '#ff6b6b' : '#0EA5E9',
                       height: `${Math.max(12, v * 60)}px`,
                       transition: 'height 0.08s ease-out, background 0.2s ease',
                       animation: isRecording ? `voice-wave-bar ${0.6 + i * 0.15}s ease-in-out infinite` : 'none',
@@ -2789,7 +2789,7 @@ function ChatPageInner() {
                   onClick={() => handleSwitchMember(m.is_self ? null : m.id, switchLabel, m.is_self ? '本人' : relationLabel)}
                 >
                   <div className="w-9 h-9 rounded-full flex items-center justify-center text-xl"
-                    style={{ background: m.is_self ? 'linear-gradient(135deg, #52c41a, #13c2c2)' : '#87d068' }}>
+                    style={{ background: m.is_self ? 'linear-gradient(135deg, #0EA5E9, #38BDF8)' : '#87d068' }}>
                     {m.is_self ? <span className="text-white text-sm">我</span> : emoji}
                   </div>
                   <div>
@@ -2808,10 +2808,10 @@ function ChatPageInner() {
               }}
             >
               <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-lg"
-                style={{ background: '#52c41a' }}>
+                style={{ background: '#0EA5E9' }}>
                 +
               </div>
-              <span className="text-sm font-medium" style={{ color: '#52c41a' }}>新建家庭成员</span>
+              <span className="text-sm font-medium" style={{ color: '#0EA5E9' }}>新建家庭成员</span>
             </div>
           </div>
         </div>
@@ -2841,8 +2841,8 @@ function ChatPageInner() {
                     key={rt.id}
                     className="flex flex-col items-center py-2 rounded-xl transition-all"
                     style={{
-                      background: isSelected ? 'linear-gradient(135deg, #f6ffed, #e6fffb)' : '#f9f9f9',
-                      border: isSelected ? '1.5px solid #52c41a' : '1.5px solid transparent',
+                      background: isSelected ? 'linear-gradient(135deg, #F0F9FF, #e6fffb)' : '#f9f9f9',
+                      border: isSelected ? '1.5px solid #0EA5E9' : '1.5px solid transparent',
                     }}
                     onClick={() => {
                       setSelectedRelation(rt);
@@ -2850,7 +2850,7 @@ function ChatPageInner() {
                     }}
                   >
                     <span className="text-2xl">{emoji}</span>
-                    <span className="text-xs mt-1" style={{ color: isSelected ? '#52c41a' : '#555' }}>{rt.name}</span>
+                    <span className="text-xs mt-1" style={{ color: isSelected ? '#0EA5E9' : '#555' }}>{rt.name}</span>
                   </button>
                 );
               })}
@@ -2858,8 +2858,8 @@ function ChatPageInner() {
           </div>
 
           {addStep === 'info' && selectedRelation && (
-            <div className="mt-5 p-4 rounded-2xl" style={{ background: '#f6ffed', border: '1px solid #b7eb8f' }}>
-              <div className="text-sm font-semibold mb-4" style={{ color: '#52c41a' }}>
+            <div className="mt-5 p-4 rounded-2xl" style={{ background: '#F0F9FF', border: '1px solid #BAE6FD' }}>
+              <div className="text-sm font-semibold mb-4" style={{ color: '#0EA5E9' }}>
                 {getMemberEmoji(selectedRelation.name)} 填写{selectedRelation.name}信息
               </div>
 
@@ -2882,9 +2882,9 @@ function ChatPageInner() {
                         key={g}
                         className="flex-1 py-2 rounded-xl text-sm font-medium transition-all"
                         style={{
-                          background: newGender === g ? 'linear-gradient(135deg, #52c41a, #13c2c2)' : '#fff',
+                          background: newGender === g ? 'linear-gradient(135deg, #0EA5E9, #38BDF8)' : '#fff',
                           color: newGender === g ? '#fff' : '#666',
-                          border: `1px solid ${newGender === g ? '#52c41a' : '#e8e8e8'}`,
+                          border: `1px solid ${newGender === g ? '#0EA5E9' : '#e8e8e8'}`,
                         }}
                         onClick={() => setNewGender(g)}
                       >
@@ -2936,9 +2936,9 @@ function ChatPageInner() {
                         key={opt}
                         onClick={() => setNewMedicalHistories((prev) => prev.includes(opt) ? prev.filter((x) => x !== opt) : [...prev, opt])}
                         style={{
-                          '--background-color': newMedicalHistories.includes(opt) ? '#52c41a' : '#fff',
+                          '--background-color': newMedicalHistories.includes(opt) ? '#0EA5E9' : '#fff',
                           '--text-color': newMedicalHistories.includes(opt) ? '#fff' : '#666',
-                          '--border-color': newMedicalHistories.includes(opt) ? '#52c41a' : '#d9d9d9',
+                          '--border-color': newMedicalHistories.includes(opt) ? '#0EA5E9' : '#d9d9d9',
                           padding: '4px 10px',
                           borderRadius: 14,
                           fontSize: 12,
@@ -2965,9 +2965,9 @@ function ChatPageInner() {
                         key={opt}
                         onClick={() => setNewAllergies((prev) => prev.includes(opt) ? prev.filter((x) => x !== opt) : [...prev, opt])}
                         style={{
-                          '--background-color': newAllergies.includes(opt) ? '#52c41a' : '#fff',
+                          '--background-color': newAllergies.includes(opt) ? '#0EA5E9' : '#fff',
                           '--text-color': newAllergies.includes(opt) ? '#fff' : '#666',
-                          '--border-color': newAllergies.includes(opt) ? '#52c41a' : '#d9d9d9',
+                          '--border-color': newAllergies.includes(opt) ? '#0EA5E9' : '#d9d9d9',
                           padding: '4px 10px',
                           borderRadius: 14,
                           fontSize: 12,
@@ -2989,7 +2989,7 @@ function ChatPageInner() {
 
               <button
                 className="w-full mt-4 py-3 rounded-2xl text-white font-semibold text-sm"
-                style={{ background: addLoading ? '#d9d9d9' : 'linear-gradient(135deg, #52c41a, #13c2c2)' }}
+                style={{ background: addLoading ? '#d9d9d9' : 'linear-gradient(135deg, #0EA5E9, #38BDF8)' }}
                 disabled={addLoading}
                 onClick={handleAddMemberConfirm}
               >
@@ -3060,7 +3060,7 @@ function ChatPageInner() {
           </div>
           {shareLoading && (
             <div className="flex items-center justify-center mt-4 gap-2">
-              <SpinLoading style={{ '--size': '18px', '--color': '#52c41a' }} />
+              <SpinLoading style={{ '--size': '18px', '--color': '#0EA5E9' }} />
               <span className="text-sm text-gray-400">生成中...</span>
             </div>
           )}
@@ -3077,7 +3077,7 @@ function ChatPageInner() {
           <p className="text-white text-sm mt-4">长按图片保存到相册</p>
           <button
             className="mt-3 px-6 py-2 rounded-full text-sm font-medium text-white"
-            style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}
+            style={{ background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)' }}
             onClick={(e) => { e.stopPropagation(); setPosterPreviewVisible(false); }}
           >
             关闭

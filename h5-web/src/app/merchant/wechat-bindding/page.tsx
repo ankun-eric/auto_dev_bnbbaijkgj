@@ -98,7 +98,7 @@ export default function WechatBinddingPCPage() {
 
   return (
     <div>
-      <Title level={4}><WechatOutlined style={{ marginRight: 8, color: '#52c41a' }} />公众号通知绑定</Title>
+      <Title level={4}><WechatOutlined style={{ marginRight: 8, color: '#0EA5E9' }} />公众号通知绑定</Title>
 
       {status === 'loading' && (
         <div style={{ textAlign: 'center', padding: 64 }}><Spin /></div>
@@ -108,7 +108,7 @@ export default function WechatBinddingPCPage() {
         <Card style={{ maxWidth: 480, margin: '24px auto', textAlign: 'center' }}>
           <Result
             status="success"
-            icon={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
+            icon={<CheckCircleOutlined style={{ color: '#0EA5E9' }} />}
             title="已绑定微信公众号"
             subTitle="您将通过微信公众号接收订单通知推送"
             extra={

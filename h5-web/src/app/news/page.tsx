@@ -106,8 +106,8 @@ export default function NewsListPage() {
                       <Tag
                         key={t}
                         style={{
-                          '--background-color': '#52c41a15',
-                          '--text-color': '#52c41a',
+                          '--background-color': '#0EA5E915',
+                          '--text-color': '#0EA5E9',
                           '--border-color': 'transparent',
                           fontSize: 10,
                         }}
@@ -134,7 +134,7 @@ export default function NewsListPage() {
                 ) : (
                   <div
                     className="w-20 h-16 rounded-lg ml-3 flex items-center justify-center text-2xl flex-shrink-0"
-                    style={{ background: '#f6ffed' }}
+                    style={{ background: '#F0F9FF' }}
                   >
                     📰
                   </div>

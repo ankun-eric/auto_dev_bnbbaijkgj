@@ -180,8 +180,8 @@ export default function ArticleDetailPage() {
           {article.category && (
             <Tag
               style={{
-                '--background-color': '#52c41a15',
-                '--text-color': '#52c41a',
+                '--background-color': '#0EA5E915',
+                '--text-color': '#0EA5E9',
                 '--border-color': 'transparent',
                 fontSize: 10,
               }}
@@ -233,7 +233,7 @@ export default function ArticleDetailPage() {
             style={{
               alignSelf: 'flex-end',
               borderRadius: 16,
-              background: '#52c41a',
+              background: '#0EA5E9',
               color: '#fff',
               border: 'none',
             }}
@@ -249,7 +249,7 @@ export default function ArticleDetailPage() {
               style={{
                 '--size': '32px',
                 '--border-radius': '50%',
-                background: '#52c41a30',
+                background: '#0EA5E930',
                 flexShrink: 0,
               }}
             />

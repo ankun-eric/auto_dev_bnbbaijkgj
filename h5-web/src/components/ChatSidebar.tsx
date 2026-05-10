@@ -36,8 +36,8 @@ interface ChatSidebarProps {
 }
 
 const typeLabel: Record<string, { text: string; color: string }> = {
-  health_qa: { text: '问答', color: '#52c41a' },
-  health: { text: '问答', color: '#52c41a' },
+  health_qa: { text: '问答', color: '#0EA5E9' },
+  health: { text: '问答', color: '#0EA5E9' },
   symptom_check: { text: '健康自查', color: '#1890ff' },
   symptom: { text: '健康自查', color: '#1890ff' },
   tcm: { text: '养生', color: '#eb2f96' },
@@ -277,7 +277,7 @@ export default function ChatSidebar({
         <div
           className="flex items-center justify-between px-4 py-3 flex-shrink-0"
           style={{
-            background: 'linear-gradient(135deg, #52c41a, #13c2c2)',
+            background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)',
           }}
         >
           <span className="text-white font-bold text-base">对话记录</span>
@@ -298,7 +298,7 @@ export default function ChatSidebar({
             onClick={handleNewChat}
             loading={creating}
             style={{
-              background: 'linear-gradient(135deg, #52c41a, #13c2c2)',
+              background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)',
               color: '#fff',
               border: 'none',
               borderRadius: 10,
@@ -323,7 +323,7 @@ export default function ChatSidebar({
         <div className="flex-1 overflow-y-auto">
           {loading ? (
             <div className="flex items-center justify-center py-10">
-              <SpinLoading style={{ '--size': '24px', '--color': '#52c41a' }} />
+              <SpinLoading style={{ '--size': '24px', '--color': '#0EA5E9' }} />
             </div>
           ) : sessions.length === 0 ? (
             <div className="text-center py-10 text-gray-400 text-sm">暂无对话记录</div>
@@ -363,7 +363,7 @@ export default function ChatSidebar({
                         <span
                           className="text-sm truncate flex-1"
                           style={{
-                            color: isActive ? '#52c41a' : '#333',
+                            color: isActive ? '#0EA5E9' : '#333',
                             fontWeight: isActive ? 600 : 400,
                           }}
                         >

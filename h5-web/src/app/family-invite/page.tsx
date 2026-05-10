@@ -109,7 +109,7 @@ function FamilyInviteContent() {
             <div className="text-gray-400 text-sm mb-4">{error}</div>
             <Button
               size="small"
-              style={{ '--border-color': '#52c41a', '--text-color': '#52c41a', borderRadius: 20 }}
+              style={{ '--border-color': '#0EA5E9', '--text-color': '#0EA5E9', borderRadius: 20 }}
               onClick={() => router.back()}
             >
               返回
@@ -123,13 +123,13 @@ function FamilyInviteContent() {
               style={{
                 maxWidth: 340,
                 background: '#fff',
-                boxShadow: '0 8px 32px rgba(82, 196, 26, 0.15)',
+                boxShadow: '0 8px 32px rgba(56,189,248, 0.15)',
               }}
             >
               {/* Card header */}
               <div
                 className="px-6 pt-8 pb-6 text-center"
-                style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}
+                style={{ background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)' }}
               >
                 <div className="text-white text-lg font-bold mb-1">家庭健康档案共管</div>
                 <div className="text-white/80 text-xs">邀请您一起守护家人健康</div>
@@ -163,11 +163,11 @@ function FamilyInviteContent() {
                 <div className="flex items-center justify-center gap-2 mb-2">
                   <div
                     className="w-6 h-6 rounded-full flex items-center justify-center"
-                    style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}
+                    style={{ background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)' }}
                   >
                     <span className="text-white text-xs font-bold">B</span>
                   </div>
-                  <span className="text-xs text-gray-500 font-medium">宾尼小康AI健康管家</span>
+                  <span className="text-xs text-gray-500 font-medium">晴空诊室AI健康管家</span>
                 </div>
               </div>
             </div>
@@ -177,7 +177,7 @@ function FamilyInviteContent() {
               <Button
                 block
                 style={{
-                  background: 'linear-gradient(135deg, #52c41a, #13c2c2)',
+                  background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)',
                   color: '#fff',
                   border: 'none',
                   borderRadius: 24,
@@ -192,8 +192,8 @@ function FamilyInviteContent() {
                 block
                 style={{
                   background: '#fff',
-                  color: '#52c41a',
-                  border: '1.5px solid #52c41a',
+                  color: '#0EA5E9',
+                  border: '1.5px solid #0EA5E9',
                   borderRadius: 24,
                   height: 44,
                   fontWeight: 600,

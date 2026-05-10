@@ -138,7 +138,7 @@ export default function TabsLayout({ children }: { children: React.ReactNode }) 
           activeKey={activeKey}
           onChange={(key) => router.push(key)}
           style={{
-            '--adm-color-primary': '#52c41a',
+            '--adm-color-primary': '#0EA5E9',
           } as React.CSSProperties}
         >
           {tabs.map((item) => (

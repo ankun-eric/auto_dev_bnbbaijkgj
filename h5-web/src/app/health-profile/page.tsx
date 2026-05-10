@@ -96,7 +96,7 @@ function getMemberEmoji(relationName: string): string {
 }
 
 function getRelationColor(relationName: string): string {
-  if (relationName === '本人') return '#52c41a';
+  if (relationName === '本人') return '#0EA5E9';
   if (['爸爸', '妈妈', '父亲', '母亲'].includes(relationName)) return '#1890ff';
   if (['儿子', '女儿', '子女'].includes(relationName)) return '#eb2f96';
   if (['爷爷', '奶奶', '外公', '外婆', '祖父母', '外祖父母'].includes(relationName)) return '#fa8c16';
@@ -131,7 +131,7 @@ function useDebounce<T extends (...args: any[]) => any>(fn: T, delay: number): T
 // ─── Progress bar ─────────────────────────────────────────────────────────────
 
 function ProgressBar({ value }: { value: number }) {
-  const color = value < 30 ? '#f5222d' : value < 70 ? '#fa8c16' : '#52c41a';
+  const color = value < 30 ? '#f5222d' : value < 70 ? '#fa8c16' : '#0EA5E9';
   return (
     <div className="mt-3">
       <div className="flex justify-between items-center mb-1">
@@ -504,8 +504,8 @@ export default function HealthProfilePage() {
           <div
             className="flex items-center justify-between cursor-pointer"
             style={{
-              background: 'linear-gradient(135deg, #f6ffed, #e6fffb)',
-              border: '1px solid #b7eb8f',
+              background: 'linear-gradient(135deg, #F0F9FF, #e6fffb)',
+              border: '1px solid #BAE6FD',
               borderRadius: 12,
               padding: '12px 16px',
             }}
@@ -574,7 +574,7 @@ export default function HealthProfilePage() {
                     {!m.is_self && linked && (
                       <div
                         className="absolute -top-0.5 -right-0.5"
-                        style={{ width: 10, height: 10, borderRadius: '50%', background: '#52c41a', border: '2px solid #fff' }}
+                        style={{ width: 10, height: 10, borderRadius: '50%', background: '#0EA5E9', border: '2px solid #fff' }}
                       />
                     )}
                   </div>
@@ -595,7 +595,7 @@ export default function HealthProfilePage() {
                       className="text-center mt-0.5"
                       style={{
                         fontSize: 9,
-                        color: linked ? '#52c41a' : '#bbb',
+                        color: linked ? '#0EA5E9' : '#bbb',
                         lineHeight: 1,
                       }}
                     >
@@ -619,8 +619,8 @@ export default function HealthProfilePage() {
                 width: 44,
                 height: 44,
                 background: 'rgba(255,255,255,0.85)',
-                border: '1.5px dashed #b7eb8f',
-                color: '#52c41a',
+                border: '1.5px dashed #BAE6FD',
+                color: '#0EA5E9',
                 fontSize: 22,
               }}
             >
@@ -636,12 +636,12 @@ export default function HealthProfilePage() {
         <div className="px-4 mb-3">
           <div
             className="rounded-2xl p-4"
-            style={{ background: 'linear-gradient(135deg, #52c41a22, #13c2c222)', border: '1px solid #b7eb8f40' }}
+            style={{ background: 'linear-gradient(135deg, #0EA5E922, #38BDF822)', border: '1px solid #BAE6FD40' }}
           >
             <div className="flex items-center gap-3">
               <div
                 className="text-3xl flex items-center justify-center rounded-full"
-                style={{ width: 56, height: 56, background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}
+                style={{ width: 56, height: 56, background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)' }}
               >
                 {getMemberEmoji(selectedMember.relation_type_name || selectedMember.relationship_type)}
               </div>
@@ -666,7 +666,7 @@ export default function HealthProfilePage() {
           {isMemberLinked(selectedMember) ? (
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-1.5 flex-1">
-                <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#52c41a' }} />
+                <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#0EA5E9' }} />
                 <span className="text-sm text-gray-400">已关联</span>
               </div>
               <Button
@@ -689,7 +689,7 @@ export default function HealthProfilePage() {
             <Button
               block
               style={{
-                background: 'linear-gradient(135deg, #52c41a, #13c2c2)',
+                background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)',
                 color: '#fff',
                 border: 'none',
                 borderRadius: 24,
@@ -730,7 +730,7 @@ export default function HealthProfilePage() {
                         key={g}
                         className="px-4 py-1 rounded-full text-xs font-medium transition-all"
                         style={{
-                          background: profile.gender === g ? 'linear-gradient(135deg, #52c41a, #13c2c2)' : '#f5f5f5',
+                          background: profile.gender === g ? 'linear-gradient(135deg, #0EA5E9, #38BDF8)' : '#f5f5f5',
                           color: profile.gender === g ? '#fff' : '#888',
                         }}
                         onClick={() => updateProfile({ gender: g })}
@@ -872,8 +872,8 @@ export default function HealthProfilePage() {
                     key={rt.id}
                     className="flex flex-col items-center py-2 rounded-xl transition-all"
                     style={{
-                      background: isSelected ? 'linear-gradient(135deg, #f6ffed, #e6fffb)' : '#f9f9f9',
-                      border: isSelected ? '1.5px solid #52c41a' : '1.5px solid transparent',
+                      background: isSelected ? 'linear-gradient(135deg, #F0F9FF, #e6fffb)' : '#f9f9f9',
+                      border: isSelected ? '1.5px solid #0EA5E9' : '1.5px solid transparent',
                     }}
                     onClick={() => {
                       setSelectedRelation(rt);
@@ -881,7 +881,7 @@ export default function HealthProfilePage() {
                     }}
                   >
                     <span className="text-2xl">{emoji}</span>
-                    <span className="text-xs mt-1" style={{ color: isSelected ? '#52c41a' : '#555' }}>{rt.name}</span>
+                    <span className="text-xs mt-1" style={{ color: isSelected ? '#0EA5E9' : '#555' }}>{rt.name}</span>
                   </button>
                 );
               })}
@@ -890,8 +890,8 @@ export default function HealthProfilePage() {
 
           {/* Step 2: Fill info */}
           {addStep === 'info' && selectedRelation && (
-            <div className="mt-5 p-4 rounded-2xl" style={{ background: '#f6ffed', border: '1px solid #b7eb8f' }}>
-              <div className="text-sm font-semibold mb-4" style={{ color: '#52c41a' }}>
+            <div className="mt-5 p-4 rounded-2xl" style={{ background: '#F0F9FF', border: '1px solid #BAE6FD' }}>
+              <div className="text-sm font-semibold mb-4" style={{ color: '#0EA5E9' }}>
                 {getMemberEmoji(selectedRelation.name)} 填写{selectedRelation.name}信息
               </div>
 
@@ -914,9 +914,9 @@ export default function HealthProfilePage() {
                         key={g}
                         className="flex-1 py-2 rounded-xl text-sm font-medium transition-all"
                         style={{
-                          background: newGender === g ? 'linear-gradient(135deg, #52c41a, #13c2c2)' : '#fff',
+                          background: newGender === g ? 'linear-gradient(135deg, #0EA5E9, #38BDF8)' : '#fff',
                           color: newGender === g ? '#fff' : '#666',
-                          border: `1px solid ${newGender === g ? '#52c41a' : '#e8e8e8'}`,
+                          border: `1px solid ${newGender === g ? '#0EA5E9' : '#e8e8e8'}`,
                         }}
                         onClick={() => setNewGender(g)}
                       >
@@ -985,7 +985,7 @@ export default function HealthProfilePage() {
 
               <button
                 className="w-full mt-4 py-3 rounded-2xl text-white font-semibold text-sm"
-                style={{ background: addLoading ? '#d9d9d9' : 'linear-gradient(135deg, #52c41a, #13c2c2)' }}
+                style={{ background: addLoading ? '#d9d9d9' : 'linear-gradient(135deg, #0EA5E9, #38BDF8)' }}
                 disabled={addLoading}
                 onClick={handleAddConfirm}
               >

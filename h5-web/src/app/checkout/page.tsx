@@ -805,7 +805,7 @@ function CheckoutPage() {
               {product.images && product.images.length > 0 ? (
                 <Image src={resolveAssetUrl(product.images[0])} width={80} height={80} fit="cover" style={{ borderRadius: 8 }} />
               ) : (
-                <div className="w-full h-full flex items-center justify-center text-2xl" style={{ background: '#f6ffed' }}>🛍️</div>
+                <div className="w-full h-full flex items-center justify-center text-2xl" style={{ background: '#F0F9FF' }}>🛍️</div>
               )}
             </div>
             <div className="flex-1 ml-3">
@@ -889,11 +889,11 @@ function CheckoutPage() {
                         ? '#F5F5F5'
                         : isPastDate
                           ? '#fafafa'
-                          : (sel ? '#52c41a' : '#fff'),
+                          : (sel ? '#0EA5E9' : '#fff'),
                       color: isDisabled
                         ? '#999999'
                         : (sel ? '#fff' : '#333'),
-                      border: sel && !isDisabled ? '1px solid #52c41a' : '1px solid #e5e5e5',
+                      border: sel && !isDisabled ? '1px solid #0EA5E9' : '1px solid #e5e5e5',
                       cursor: isDisabled ? 'not-allowed' : 'pointer',
                       fontSize: 12,
                     }}
@@ -971,7 +971,7 @@ function CheckoutPage() {
                         ? '#F5F5F5'
                         : showRed
                           ? '#fff1f0'
-                          : (sel ? '#52c41a' : '#fff'),
+                          : (sel ? '#0EA5E9' : '#fff'),
                       color: showBadge
                         ? '#999999'
                         : showRed
@@ -981,7 +981,7 @@ function CheckoutPage() {
                         ? '1px solid #E0E0E0'
                         : (showRed
                           ? '1px solid #ff4d4f'
-                          : (sel ? '1px solid #52c41a' : '1px solid #e5e5e5')),
+                          : (sel ? '1px solid #0EA5E9' : '1px solid #e5e5e5')),
                       cursor: s.disabled ? 'not-allowed' : 'pointer',
                       whiteSpace: 'nowrap',
                     }}
@@ -1127,7 +1127,7 @@ function CheckoutPage() {
                     setPointsDeduction(maxPoints);
                   }
                 }}
-                style={{ '--checked-color': '#52c41a' }}
+                style={{ '--checked-color': '#0EA5E9' }}
               />
             </div>
             {usePoints && (
@@ -1190,7 +1190,7 @@ function CheckoutPage() {
                   height: 44,
                   width: 160,
                   background: btnEnabled
-                    ? 'linear-gradient(135deg, #52c41a, #13c2c2)'
+                    ? 'linear-gradient(135deg, #0EA5E9, #38BDF8)'
                     : '#e8e8e8',
                   color: btnEnabled ? '#fff' : '#999',
                   border: 'none',
@@ -1215,7 +1215,7 @@ function CheckoutPage() {
             <Button
               size="mini"
               onClick={() => { setShowAddressPicker(false); router.push('/my-addresses'); }}
-              style={{ color: '#52c41a', borderColor: '#52c41a', borderRadius: 16 }}
+              style={{ color: '#0EA5E9', borderColor: '#0EA5E9', borderRadius: 16 }}
             >
               管理地址
             </Button>
@@ -1233,7 +1233,7 @@ function CheckoutPage() {
                 >
                   <span className="text-sm">{addr.name} {addr.phone}</span>
                   {addr.is_default && (
-                    <Tag style={{ '--background-color': '#52c41a15', '--text-color': '#52c41a', '--border-color': 'transparent', fontSize: 10, marginLeft: 6 }}>默认</Tag>
+                    <Tag style={{ '--background-color': '#0EA5E915', '--text-color': '#0EA5E9', '--border-color': 'transparent', fontSize: 10, marginLeft: 6 }}>默认</Tag>
                   )}
                 </List.Item>
               ))}
@@ -1321,7 +1321,7 @@ function CheckoutPage() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontWeight: 500 }}>{s.name}</span>
                   {s.distance_km != null && (
-                    <span style={{ color: '#52c41a', fontSize: 12 }}>距您 {s.distance_km} km</span>
+                    <span style={{ color: '#0EA5E9', fontSize: 12 }}>距您 {s.distance_km} km</span>
                   )}
                 </div>
                 {(s.province || s.city || s.district || s.address) && (

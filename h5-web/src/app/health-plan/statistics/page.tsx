@@ -26,7 +26,7 @@ interface Statistics {
   plan_ranks: PlanRank[];
 }
 
-const RANK_COLORS = ['#52c41a', '#1890ff', '#fa8c16', '#eb2f96', '#722ed1', '#13c2c2', '#faad14'];
+const RANK_COLORS = ['#0EA5E9', '#1890ff', '#fa8c16', '#eb2f96', '#722ed1', '#38BDF8', '#faad14'];
 
 /**
  * 月视图平滑曲线 + 渐变面积填充折线图（v6 新增）
@@ -93,8 +93,8 @@ function SmoothLineChart({ data }: { data: DayData[] }) {
       >
         <defs>
           <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#52c41a" stopOpacity="0.35" />
-            <stop offset="100%" stopColor="#52c41a" stopOpacity="0.02" />
+            <stop offset="0%" stopColor="#0EA5E9" stopOpacity="0.35" />
+            <stop offset="100%" stopColor="#0EA5E9" stopOpacity="0.02" />
           </linearGradient>
         </defs>
         {/* 背景网格线 */}
@@ -112,18 +112,18 @@ function SmoothLineChart({ data }: { data: DayData[] }) {
         {/* 渐变面积 */}
         <path d={areaPath} fill="url(#areaGradient)" />
         {/* 平滑曲线 */}
-        <path d={linePath} fill="none" stroke="#52c41a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        <path d={linePath} fill="none" stroke="#0EA5E9" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
         {/* 最高点：绿▲ */}
         <g>
           <polygon
             points={`${maxPoint.x},${maxPoint.y - 7} ${maxPoint.x - 5},${maxPoint.y + 1} ${maxPoint.x + 5},${maxPoint.y + 1}`}
-            fill="#52c41a"
+            fill="#0EA5E9"
           />
           <text
             x={maxPoint.x}
             y={maxPoint.y - 10}
             textAnchor="middle"
-            style={{ fontSize: 9, fill: '#52c41a', fontWeight: 600 }}
+            style={{ fontSize: 9, fill: '#0EA5E9', fontWeight: 600 }}
           >
             {Math.round(maxPoint.rate)}%
           </text>
@@ -231,7 +231,7 @@ export default function StatisticsPage() {
     <div className="min-h-screen bg-gray-50 pb-20">
       <GreenNavBar>打卡统计</GreenNavBar>
 
-      <div className="px-4 py-5" style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}>
+      <div className="px-4 py-5" style={{ background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)' }}>
         <div className="flex items-center justify-around text-white">
           <div className="text-center">
             <div className="relative w-20 h-20 mx-auto mb-2">
@@ -269,7 +269,7 @@ export default function StatisticsPage() {
           <Card style={{ borderRadius: 12, marginBottom: 12 }}>
             <div className="flex items-center justify-around text-center">
               <div>
-                <div className="text-lg font-bold" style={{ color: '#52c41a' }}>
+                <div className="text-lg font-bold" style={{ color: '#0EA5E9' }}>
                   {chartData.length > 0
                     ? Math.round(chartData.reduce((sum, d) => sum + d.rate, 0) / chartData.length)
                     : 0}%
@@ -306,8 +306,8 @@ export default function StatisticsPage() {
                   onClick={() => setTimeRange(r)}
                   className="px-3 py-1 rounded-full text-xs cursor-pointer"
                   style={{
-                    background: timeRange === r ? '#52c41a15' : '#f5f5f5',
-                    color: timeRange === r ? '#52c41a' : '#999',
+                    background: timeRange === r ? '#0EA5E915' : '#f5f5f5',
+                    color: timeRange === r ? '#0EA5E9' : '#999',
                     fontWeight: timeRange === r ? 600 : 400,
                   }}
                 >
@@ -333,7 +333,7 @@ export default function StatisticsPage() {
                         style={{
                           height: `${Math.max(h, 2)}%`,
                           background: d.rate >= 80
-                            ? 'linear-gradient(180deg, #52c41a, #73d13d)'
+                            ? 'linear-gradient(180deg, #0EA5E9, #73d13d)'
                             : d.rate >= 50
                             ? 'linear-gradient(180deg, #faad14, #ffc53d)'
                             : 'linear-gradient(180deg, #ff7a45, #ffa39e)',

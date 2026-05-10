@@ -16,7 +16,7 @@ const initialMessages: Message[] = [
   {
     id: '1',
     role: 'assistant',
-    content: '您好！欢迎来到宾尼小康客服中心，我是AI客服小康。请问有什么可以帮到您？\n\n您可以咨询：\n• 订单相关问题\n• 服务使用指南\n• 积分与会员\n• 账户与设置',
+    content: '您好！欢迎来到晴空诊室客服中心，我是AI客服小康。请问有什么可以帮到您？\n\n您可以咨询：\n• 订单相关问题\n• 服务使用指南\n• 积分与会员\n• 账户与设置',
     time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
   },
 ];
@@ -25,7 +25,7 @@ const autoReplies: Record<string, string> = {
   订单: '关于订单问题，您可以在「我的 → 我的订单」中查看订单状态。如需退款，请提供订单号，我将为您处理。',
   退款: '退款流程：\n1. 进入「我的订单」\n2. 找到需要退款的订单\n3. 点击「申请退款」\n4. 填写退款原因\n\n退款将在3个工作日内原路退回。',
   积分: '积分获取方式：\n• 每日签到 +10积分\n• 完成健康任务 +5~20积分\n• 邀请好友 +100积分\n• 购买服务返积分\n\n积分可在积分商城兑换礼品和优惠券。',
-  会员: '宾尼小康会员等级：\n• 普通会员：注册即可\n• 银卡会员：累计消费500元\n• 金卡会员：累计消费2000元\n• 钻石会员：累计消费5000元\n\n更高等级享受更多专属优惠！',
+  会员: '晴空诊室会员等级：\n• 普通会员：注册即可\n• 银卡会员：累计消费500元\n• 金卡会员：累计消费2000元\n• 钻石会员：累计消费5000元\n\n更高等级享受更多专属优惠！',
 };
 
 export default function CustomerServicePage() {
@@ -149,7 +149,7 @@ export default function CustomerServicePage() {
               <span className="text-white text-xs">客</span>
             </div>
             <div className="bg-white rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm">
-              <SpinLoading style={{ '--size': '20px', '--color': '#52c41a' }} />
+              <SpinLoading style={{ '--size': '20px', '--color': '#0EA5E9' }} />
             </div>
           </div>
         )}
@@ -169,7 +169,7 @@ export default function CustomerServicePage() {
           onClick={sendMessage}
           disabled={!inputVal.trim() || loading}
           style={{
-            background: inputVal.trim() ? '#52c41a' : '#e8e8e8',
+            background: inputVal.trim() ? '#0EA5E9' : '#e8e8e8',
             color: inputVal.trim() ? '#fff' : '#999',
             border: 'none',
             borderRadius: '50%',

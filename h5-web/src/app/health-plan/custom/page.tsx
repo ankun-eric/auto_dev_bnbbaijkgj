@@ -54,7 +54,7 @@ export default function CustomPlanPage() {
 
   const statusLabel = (status: string) => {
     switch (status) {
-      case 'active': return { text: '进行中', color: '#52c41a' };
+      case 'active': return { text: '进行中', color: '#0EA5E9' };
       case 'completed': return { text: '已完成', color: '#1890ff' };
       case 'paused': return { text: '已暂停', color: '#faad14' };
       default: return { text: status, color: '#999' };
@@ -84,7 +84,7 @@ export default function CustomPlanPage() {
             <div className="text-gray-400 text-sm mb-4">暂无计划，快来创建一个吧</div>
             <Button
               color="primary"
-              style={{ borderRadius: 8, background: '#52c41a', border: 'none' }}
+              style={{ borderRadius: 8, background: '#0EA5E9', border: 'none' }}
               onClick={() => router.push('/health-plan/custom/create')}
             >
               创建计划
@@ -180,7 +180,7 @@ export default function CustomPlanPage() {
           block
           color="primary"
           size="large"
-          style={{ borderRadius: 12, background: 'linear-gradient(135deg, #52c41a, #13c2c2)', border: 'none', height: 48 }}
+          style={{ borderRadius: 12, background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)', border: 'none', height: 48 }}
           onClick={() => router.push('/health-plan/custom/create')}
         >
           创建计划

@@ -59,7 +59,7 @@ function InfoRow({ label, value, highlight }: { label: string; value: string; hi
     <div>
       <span
         className="text-xs font-medium mr-1"
-        style={{ color: highlight ? '#FF4D4F' : '#52c41a' }}
+        style={{ color: highlight ? '#FF4D4F' : '#0EA5E9' }}
       >
         {label}
       </span>
@@ -74,7 +74,7 @@ function SharedDrugCard({ drug }: { drug: DrugInfo }) {
       className="rounded-xl bg-white overflow-hidden"
       style={{ border: '1px solid #f0f0f0', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
     >
-      <div className="px-4 py-3" style={{ background: 'linear-gradient(135deg, #52c41a18, #13c2c218)' }}>
+      <div className="px-4 py-3" style={{ background: 'linear-gradient(135deg, #0EA5E918, #38BDF818)' }}>
         <h3 className="font-bold text-base text-gray-800">{drug.name}</h3>
         {drug.specification && (
           <p className="text-xs text-gray-400 mt-0.5">{drug.specification}</p>
@@ -90,7 +90,7 @@ function SharedDrugCard({ drug }: { drug: DrugInfo }) {
 
       {drug.ai_suggestion_general && (
         <div className="border-t px-4 pb-4 pt-3" style={{ borderColor: '#f0f0f0' }}>
-          <p className="text-xs font-medium mb-1" style={{ color: '#52c41a' }}>通用建议</p>
+          <p className="text-xs font-medium mb-1" style={{ color: '#0EA5E9' }}>通用建议</p>
           <p className="text-sm text-gray-600 leading-relaxed">{drug.ai_suggestion_general}</p>
         </div>
       )}
@@ -137,7 +137,7 @@ export default function SharedDrugPage() {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
         <div className="text-center">
-          <SpinLoading style={{ '--size': '36px', '--color': '#52c41a' }} />
+          <SpinLoading style={{ '--size': '36px', '--color': '#0EA5E9' }} />
           <p className="text-sm text-gray-400 mt-4">加载中...</p>
         </div>
       </div>
@@ -167,7 +167,7 @@ export default function SharedDrugPage() {
       {/* Brand header */}
       <div
         className="px-4 py-5"
-        style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}
+        style={{ background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)' }}
       >
         <div className="flex items-center gap-3">
           <div
@@ -266,12 +266,12 @@ export default function SharedDrugPage() {
           <span
             className="font-bold text-sm"
             style={{
-              background: 'linear-gradient(135deg, #52c41a, #13c2c2)',
+              background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
             }}
           >
-            宾尼小康 AI健康管家
+            晴空诊室 AI健康管家
           </span>
         </div>
         <p className="text-[11px] text-gray-300 mt-1">

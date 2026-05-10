@@ -486,7 +486,7 @@ export default function UnifiedOrderDetailPage() {
 
       <div
         className="px-4 py-6 text-center"
-        style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}
+        style={{ background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)' }}
       >
         <div className="text-white text-lg font-bold">
           {order.refund_status !== 'none' ? '退款处理中' : (order.display_status || STATUS_TEXT[order.status] || order.status)}
@@ -517,7 +517,7 @@ export default function UnifiedOrderDetailPage() {
               size="small"
               onClick={openAppointmentPopup}
               style={{
-                background: '#52c41a',
+                background: '#0EA5E9',
                 color: '#fff',
                 border: 'none',
                 borderRadius: 14,
@@ -545,7 +545,7 @@ export default function UnifiedOrderDetailPage() {
             </div>
           )}
           {order.refund_status === 'approved' && (
-            <div style={{ background: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#389e0d' }}>
+            <div style={{ background: '#F0F9FF', border: '1px solid #BAE6FD', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#0369A1' }}>
               退款已批准，退款处理中...
             </div>
           )}
@@ -575,7 +575,7 @@ export default function UnifiedOrderDetailPage() {
                 {item.product_image ? (
                   <Image src={resolveAssetUrl(item.product_image)} width={64} height={64} fit="cover" style={{ borderRadius: 8 }} />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-2xl" style={{ background: '#f6ffed' }}>🛍️</div>
+                  <div className="w-full h-full flex items-center justify-center text-2xl" style={{ background: '#F0F9FF' }}>🛍️</div>
                 )}
               </div>
               <div className="flex-1 ml-3">
@@ -792,7 +792,7 @@ export default function UnifiedOrderDetailPage() {
                   <Button
                     size="small"
                     onClick={() => copyCode(item.verification_code!)}
-                    style={{ color: '#52c41a', borderColor: '#52c41a', borderRadius: 16, fontSize: 12 }}
+                    style={{ color: '#0EA5E9', borderColor: '#0EA5E9', borderRadius: 16, fontSize: 12 }}
                   >
                     复制核销码
                   </Button>
@@ -820,7 +820,7 @@ export default function UnifiedOrderDetailPage() {
                   </div>
                   <ProgressBar
                     percent={(item.used_redeem_count / item.total_redeem_count) * 100}
-                    style={{ '--fill-color': '#52c41a', '--track-width': '6px' }}
+                    style={{ '--fill-color': '#0EA5E9', '--track-width': '6px' }}
                   />
                 </div>
               )}
@@ -882,7 +882,7 @@ export default function UnifiedOrderDetailPage() {
             </Button>
             <Button
               onClick={handlePay}
-              style={{ borderRadius: 20, height: 40, fontSize: 14, background: '#52c41a', color: '#fff', border: 'none' }}
+              style={{ borderRadius: 20, height: 40, fontSize: 14, background: '#0EA5E9', color: '#fff', border: 'none' }}
             >
               立即支付
             </Button>
@@ -892,7 +892,7 @@ export default function UnifiedOrderDetailPage() {
         {order.status === 'pending_appointment' && order.refund_status === 'none' && (
           <Button
             onClick={openAppointmentPopup}
-            style={{ borderRadius: 20, height: 40, fontSize: 14, background: '#52c41a', color: '#fff', border: 'none' }}
+            style={{ borderRadius: 20, height: 40, fontSize: 14, background: '#0EA5E9', color: '#fff', border: 'none' }}
           >
             立即预约
           </Button>
@@ -900,7 +900,7 @@ export default function UnifiedOrderDetailPage() {
         {order.status === 'pending_receipt' && (
           <Button
             onClick={handleConfirmReceipt}
-            style={{ borderRadius: 20, height: 40, fontSize: 14, background: '#52c41a', color: '#fff', border: 'none' }}
+            style={{ borderRadius: 20, height: 40, fontSize: 14, background: '#0EA5E9', color: '#fff', border: 'none' }}
           >
             确认收货
           </Button>
@@ -908,7 +908,7 @@ export default function UnifiedOrderDetailPage() {
         {order.status === 'pending_review' && (
           <Button
             onClick={() => router.push(`/review/${order.id}`)}
-            style={{ borderRadius: 20, height: 40, fontSize: 14, color: '#52c41a', borderColor: '#52c41a' }}
+            style={{ borderRadius: 20, height: 40, fontSize: 14, color: '#0EA5E9', borderColor: '#0EA5E9' }}
           >
             去评价
           </Button>
@@ -917,7 +917,7 @@ export default function UnifiedOrderDetailPage() {
         {(order.status === 'completed' || order.status === 'expired') && (
           <Button
             onClick={handleRebuy}
-            style={{ borderRadius: 20, height: 40, fontSize: 14, background: '#52c41a', color: '#fff', border: 'none' }}
+            style={{ borderRadius: 20, height: 40, fontSize: 14, background: '#0EA5E9', color: '#fff', border: 'none' }}
           >
             再来一单
           </Button>
@@ -1116,7 +1116,7 @@ export default function UnifiedOrderDetailPage() {
               loading={apptSubmitting}
               onClick={submitAppointment}
               disabled={todayHasNoSlot}
-              style={{ background: todayHasNoSlot ? '#d9d9d9' : '#52c41a', color: '#fff', border: 'none', borderRadius: 22, height: 44, fontSize: 15 }}
+              style={{ background: todayHasNoSlot ? '#d9d9d9' : '#0EA5E9', color: '#fff', border: 'none', borderRadius: 22, height: 44, fontSize: 15 }}
             >
               {isReschedule ? '确认改期' : '确认预约'}
             </Button>

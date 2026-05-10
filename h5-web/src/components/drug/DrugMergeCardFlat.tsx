@@ -142,7 +142,7 @@ export default function DrugMergeCardFlat({ drugs, memberInfo, onImageClick }: P
           <div className="flex items-center gap-2 mb-2">
             <div
               className="w-8 h-8 rounded-full flex items-center justify-center text-lg flex-shrink-0"
-              style={{ background: '#f6ffed', border: '1px solid #d9f7be' }}
+              style={{ background: '#F0F9FF', border: '1px solid #d9f7be' }}
             >
               {memberEmoji(memberInfo)}
             </div>

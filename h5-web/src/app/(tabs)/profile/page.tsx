@@ -121,9 +121,9 @@ export default function ProfilePage() {
   }, []);
 
   const menuItems = [
-    { icon: <TeamOutline />, title: '家庭关联', path: '/family-bindlist', color: '#52c41a' },
+    { icon: <TeamOutline />, title: '家庭关联', path: '/family-bindlist', color: '#0EA5E9' },
     { icon: <EnvironmentOutline />, title: '我的地址', path: '/my-addresses', color: '#1890ff' },
-    { icon: <MessageOutline />, title: '在线客服', path: '/customer-service', color: '#13c2c2' },
+    { icon: <MessageOutline />, title: '在线客服', path: '/customer-service', color: '#38BDF8' },
     { icon: <span>🎁</span>, title: '邀请好友', path: '/invite', color: '#fa541c' },
     { icon: <SetOutline />, title: '设置', path: '/settings', color: '#8c8c8c' },
   ];
@@ -134,7 +134,7 @@ export default function ProfilePage() {
         className="px-4 pb-4"
         style={{
           paddingTop: 32,
-          background: 'linear-gradient(135deg, #52c41a, #13c2c2)',
+          background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)',
         }}
       >
         <div className="flex items-center">
@@ -209,7 +209,7 @@ export default function ProfilePage() {
           <Grid columns={3} gap={0}>
             <Grid.Item onClick={() => router.push('/points')}>
               <div className="text-center py-2">
-                <div className="text-lg font-bold" style={{ color: '#52c41a' }}>{stats.points}</div>
+                <div className="text-lg font-bold" style={{ color: '#0EA5E9' }}>{stats.points}</div>
                 <div className="text-xs text-gray-500 mt-1">积分</div>
               </div>
             </Grid.Item>

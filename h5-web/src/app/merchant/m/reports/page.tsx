@@ -53,19 +53,19 @@ export default function ReportsMobilePage() {
   const statusColors: Record<string, string> = {
     pending_payment: '#fa8c16',
     pending_shipment: '#1890ff',
-    pending_receipt: '#13c2c2',
+    pending_receipt: '#38BDF8',
     pending_appointment: '#722ed1',
-    appointed: '#13c2c2',
-    pending_use: '#13c2c2',
+    appointed: '#38BDF8',
+    pending_use: '#38BDF8',
     partial_used: '#faad14',
     pending_review: '#eb2f96',
-    completed: '#52c41a',
+    completed: '#0EA5E9',
     expired: '#8c8c8c',
     refunding: '#f5222d',
     refunded: '#8c8c8c',
     cancelled: '#8c8c8c',
     // 历史兼容
-    redeemed: '#52c41a',
+    redeemed: '#0EA5E9',
     paid: '#1677ff',
   };
 
@@ -117,7 +117,7 @@ export default function ReportsMobilePage() {
           {[
             { label: '营业额', value: `¥${data.total_amount || 0}`, color: '#fa541c' },
             { label: '订单数', value: data.total_orders ?? 0, color: '#1677ff' },
-            { label: '核销数', value: data.total_verifications ?? 0, color: '#52c41a' },
+            { label: '核销数', value: data.total_verifications ?? 0, color: '#0EA5E9' },
             { label: '客单价', value: `¥${data.avg_price || 0}`, color: '#722ed1' },
           ].map((m) => (
             <div key={m.label} style={{ textAlign: 'center', padding: '12px 0' }}>
@@ -146,7 +146,7 @@ export default function ReportsMobilePage() {
                   const y = 140 - h;
                   return (
                     <g key={i}>
-                      <rect x={x - 10} y={y} width={20} height={h} fill="#52c41a" rx={2} />
+                      <rect x={x - 10} y={y} width={20} height={h} fill="#0EA5E9" rx={2} />
                       <text x={x} y={155} textAnchor="middle" fontSize={9} fill="#666">
                         {t.date?.slice(5) || ''}
                       </text>

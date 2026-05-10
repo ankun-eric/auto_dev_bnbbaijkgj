@@ -131,8 +131,8 @@ export default function ProductsPage() {
         activeKey={activeCat}
         onChange={(key) => { setActiveCat(key); setActiveSubCat(null); }}
         style={{
-          '--active-line-color': '#52c41a',
-          '--active-title-color': '#52c41a',
+          '--active-line-color': '#0EA5E9',
+          '--active-title-color': '#0EA5E9',
           background: '#fff',
           position: 'sticky',
           top: 0,
@@ -150,7 +150,7 @@ export default function ProductsPage() {
           <Tag
             onClick={() => setActiveSubCat(null)}
             style={{
-              '--background-color': !activeSubCat ? '#52c41a' : '#f5f5f5',
+              '--background-color': !activeSubCat ? '#0EA5E9' : '#f5f5f5',
               '--text-color': !activeSubCat ? '#fff' : '#666',
               '--border-color': 'transparent',
               flexShrink: 0,
@@ -163,7 +163,7 @@ export default function ProductsPage() {
               key={sub.id}
               onClick={() => setActiveSubCat(sub.id)}
               style={{
-                '--background-color': activeSubCat === sub.id ? '#52c41a' : '#f5f5f5',
+                '--background-color': activeSubCat === sub.id ? '#0EA5E9' : '#f5f5f5',
                 '--text-color': activeSubCat === sub.id ? '#fff' : '#666',
                 '--border-color': 'transparent',
                 flexShrink: 0,

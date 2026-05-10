@@ -93,7 +93,7 @@ export default function InvitePage() {
 
       <div className="px-6 pt-4 pb-10 flex flex-col items-center">
         <div className="w-20 h-20 rounded-full flex items-center justify-center mb-4"
-          style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}>
+          style={{ background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)' }}>
           <span className="text-4xl">🎁</span>
         </div>
 
@@ -120,7 +120,7 @@ export default function InvitePage() {
 
           {shareData?.user_no && (
             <div className="mt-4 text-sm text-gray-500">
-              我的邀请码：<span className="font-bold" style={{ color: '#52c41a' }}>{shareData.user_no}</span>
+              我的邀请码：<span className="font-bold" style={{ color: '#0EA5E9' }}>{shareData.user_no}</span>
             </div>
           )}
 
@@ -128,7 +128,7 @@ export default function InvitePage() {
             block
             onClick={handleCopy}
             style={{
-              background: 'linear-gradient(135deg, #52c41a, #13c2c2)',
+              background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)',
               color: '#fff',
               border: 'none',
               borderRadius: '24px',
@@ -146,15 +146,15 @@ export default function InvitePage() {
           <h3 className="text-sm font-medium text-gray-600 mb-3">邀请说明</h3>
           <div className="space-y-2 text-xs text-gray-400">
             <div className="flex items-start gap-2">
-              <span style={{ color: '#52c41a' }}>1.</span>
+              <span style={{ color: '#0EA5E9' }}>1.</span>
               <span>将二维码或链接分享给好友</span>
             </div>
             <div className="flex items-start gap-2">
-              <span style={{ color: '#52c41a' }}>2.</span>
+              <span style={{ color: '#0EA5E9' }}>2.</span>
               <span>好友通过链接注册成为会员</span>
             </div>
             <div className="flex items-start gap-2">
-              <span style={{ color: '#52c41a' }}>3.</span>
+              <span style={{ color: '#0EA5E9' }}>3.</span>
               <span>邀请成功后双方均可获得奖励</span>
             </div>
           </div>
@@ -166,7 +166,7 @@ export default function InvitePage() {
             <div className="flex items-center justify-around mb-3 pb-3 border-b border-gray-100">
               <div className="text-center">
                 <div className="text-xs text-gray-400">累计邀请</div>
-                <div className="text-xl font-bold" style={{ color: '#52c41a' }}>
+                <div className="text-xl font-bold" style={{ color: '#0EA5E9' }}>
                   {stats?.total_invited ?? 0}
                 </div>
               </div>
@@ -191,7 +191,7 @@ export default function InvitePage() {
                         {it.registered_at?.replace('T', ' ').slice(0, 16)}
                       </div>
                     </div>
-                    <span style={{ color: '#52c41a' }} className="font-medium">
+                    <span style={{ color: '#0EA5E9' }} className="font-medium">
                       +{it.points_awarded}
                     </span>
                   </div>

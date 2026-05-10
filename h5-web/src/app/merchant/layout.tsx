@@ -104,7 +104,7 @@ export default function MerchantLayout({ children }: { children: React.ReactNode
       <ConfigProvider
         locale={zhCN}
         theme={{
-          token: { colorPrimary: '#52c41a', borderRadius: 8 },
+          token: { colorPrimary: '#0EA5E9', borderRadius: 8 },
         }}
       >
         <AntdApp>{children}</AntdApp>
@@ -117,7 +117,7 @@ export default function MerchantLayout({ children }: { children: React.ReactNode
       <ConfigProvider
         locale={zhCN}
         theme={{
-          token: { colorPrimary: '#52c41a', borderRadius: 8 },
+          token: { colorPrimary: '#0EA5E9', borderRadius: 8 },
         }}
       >
         <AntdApp>{children}</AntdApp>
@@ -141,7 +141,7 @@ export default function MerchantLayout({ children }: { children: React.ReactNode
     <ConfigProvider
       locale={zhCN}
       theme={{
-        token: { colorPrimary: '#52c41a', borderRadius: 8 },
+        token: { colorPrimary: '#0EA5E9', borderRadius: 8 },
       }}
     >
       <AntdApp>
@@ -155,7 +155,7 @@ export default function MerchantLayout({ children }: { children: React.ReactNode
                 justifyContent: 'center',
                 fontWeight: 600,
                 fontSize: 16,
-                color: '#52c41a',
+                color: '#0EA5E9',
                 borderBottom: '1px solid #f0f0f0',
               }}
             >
@@ -222,7 +222,7 @@ export default function MerchantLayout({ children }: { children: React.ReactNode
                 }}
               >
                 <Space style={{ cursor: 'pointer' }}>
-                  <Avatar icon={<UserOutlined />} style={{ backgroundColor: '#52c41a' }} />
+                  <Avatar icon={<UserOutlined />} style={{ backgroundColor: '#0EA5E9' }} />
                   <Text>{profile ? roleLabel[profile.role] || profile.role : ''}</Text>
                 </Space>
               </Dropdown>

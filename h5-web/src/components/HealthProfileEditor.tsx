@@ -124,7 +124,7 @@ export function showUnsavedChangesModal(
     box.innerHTML = `
       <div style="font-size:17px;font-weight:600;text-align:center;margin-bottom:8px;">${title}</div>
       <div style="font-size:14px;color:#666;text-align:center;margin-bottom:16px;line-height:1.5;">您对档案做了修改但尚未保存，请选择：</div>
-      <button data-act="save" style="width:100%;padding:11px 0;background:#52c41a;color:#fff;border:none;border-radius:10px;font-size:15px;margin-bottom:8px;cursor:pointer;">${primaryLabel}</button>
+      <button data-act="save" style="width:100%;padding:11px 0;background:#0EA5E9;color:#fff;border:none;border-radius:10px;font-size:15px;margin-bottom:8px;cursor:pointer;">${primaryLabel}</button>
       <button data-act="discard" style="width:100%;padding:11px 0;background:#fff;color:#ff4d4f;border:1px solid #ff4d4f;border-radius:10px;font-size:15px;margin-bottom:8px;cursor:pointer;">${discardLabel}</button>
       <button data-act="cancel" style="width:100%;padding:11px 0;background:#fff;color:#666;border:1px solid #d9d9d9;border-radius:10px;font-size:15px;cursor:pointer;">取消</button>
     `;
@@ -237,7 +237,7 @@ const HealthProfileEditor = forwardRef<HealthProfileEditorRef, HealthProfileEdit
 
     const complete = isProfileComplete(profileEdits);
     const statusText = complete ? '已完善' : '待完善';
-    const statusColor = complete ? '#52c41a' : '#fa8c16';
+    const statusColor = complete ? '#0EA5E9' : '#fa8c16';
 
     const updateField = <K extends keyof HealthProfile>(key: K, value: HealthProfile[K]) => {
       onChange({ ...profileEdits, [key]: value });
@@ -277,7 +277,7 @@ const HealthProfileEditor = forwardRef<HealthProfileEditorRef, HealthProfileEdit
               )}
             </div>
           </div>
-          <div style={{ fontSize: 13, color: '#52c41a', paddingLeft: 8 }}>编辑 ▼</div>
+          <div style={{ fontSize: 13, color: '#0EA5E9', paddingLeft: 8 }}>编辑 ▼</div>
         </div>
       );
     }
@@ -290,7 +290,7 @@ const HealthProfileEditor = forwardRef<HealthProfileEditorRef, HealthProfileEdit
           </span>
           {mode === 'existing' && (
             <span
-              style={{ color: '#52c41a', fontSize: 13, cursor: 'pointer' }}
+              style={{ color: '#0EA5E9', fontSize: 13, cursor: 'pointer' }}
               onClick={() => setExpanded(false)}
             >
               收起 ▲
@@ -346,9 +346,9 @@ const HealthProfileEditor = forwardRef<HealthProfileEditorRef, HealthProfileEdit
                   key={g}
                   className="flex-1 text-center py-2 rounded-lg text-sm cursor-pointer"
                   style={{
-                    background: profileEdits.gender === g ? '#52c41a' : '#fff',
+                    background: profileEdits.gender === g ? '#0EA5E9' : '#fff',
                     color: profileEdits.gender === g ? '#fff' : '#666',
-                    border: `1px solid ${profileEdits.gender === g ? '#52c41a' : (profileErrors.gender ? '#ff4d4f' : '#d9d9d9')}`,
+                    border: `1px solid ${profileEdits.gender === g ? '#0EA5E9' : (profileErrors.gender ? '#ff4d4f' : '#d9d9d9')}`,
                   }}
                   onClick={() => {
                     updateField('gender', g);
@@ -438,7 +438,7 @@ const HealthProfileEditor = forwardRef<HealthProfileEditorRef, HealthProfileEdit
               marginTop: 12,
               width: '100%',
               padding: '11px 0',
-              background: saving ? '#91d5a4' : '#52c41a',
+              background: saving ? '#7DD3FC' : '#0EA5E9',
               color: '#fff',
               border: 'none',
               borderRadius: 10,

@@ -90,8 +90,8 @@ export default function MyFavoritesPage() {
         activeKey={activeTab}
         onChange={setActiveTab}
         style={{
-          '--active-line-color': '#52c41a',
-          '--active-title-color': '#52c41a',
+          '--active-line-color': '#0EA5E9',
+          '--active-title-color': '#0EA5E9',
           background: '#fff',
         }}
       >
@@ -130,7 +130,7 @@ export default function MyFavoritesPage() {
                       item.detail.images && item.detail.images.length > 0 ? (
                         <Image src={resolveAssetUrl(item.detail.images[0])} width={80} height={80} fit="cover" style={{ borderRadius: 8 }} />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center text-2xl" style={{ background: '#f6ffed' }}>🛍️</div>
+                        <div className="w-full h-full flex items-center justify-center text-2xl" style={{ background: '#F0F9FF' }}>🛍️</div>
                       )
                     ) : item.detail?.cover_image ? (
                       <Image src={resolveAssetUrl(item.detail.cover_image)} width={80} height={80} fit="cover" style={{ borderRadius: 8 }} />

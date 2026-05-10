@@ -103,7 +103,7 @@ export default function MyPlanExecutionPage() {
     <div className="min-h-screen bg-gray-50 pb-20">
       <GreenNavBar>{plan.name}</GreenNavBar>
 
-      <div className="px-4 py-5" style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}>
+      <div className="px-4 py-5" style={{ background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)' }}>
         <div className="text-white">
           <div className="flex items-center justify-between mb-2">
             <div className="text-lg font-bold">{plan.name}</div>
@@ -151,8 +151,8 @@ export default function MyPlanExecutionPage() {
                     <div
                       className="w-5 h-5 rounded-full border-2 flex items-center justify-center mr-3 shrink-0 cursor-pointer"
                       style={{
-                        borderColor: task.is_checked ? '#52c41a' : '#ddd',
-                        background: task.is_checked ? '#52c41a' : 'transparent',
+                        borderColor: task.is_checked ? '#0EA5E9' : '#ddd',
+                        background: task.is_checked ? '#0EA5E9' : 'transparent',
                       }}
                       onClick={() => {
                         if (!task.is_checked) handleSimpleCheck(task);
@@ -169,7 +169,7 @@ export default function MyPlanExecutionPage() {
                       <Button
                         size="mini"
                         color="primary"
-                        style={{ borderRadius: 8, background: '#52c41a', border: 'none' }}
+                        style={{ borderRadius: 8, background: '#0EA5E9', border: 'none' }}
                         onClick={() => handleSimpleCheck(task)}
                       >
                         打卡

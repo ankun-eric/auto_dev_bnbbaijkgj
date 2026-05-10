@@ -14,7 +14,7 @@ const consultTypes = [
     title: '健康问答',
     desc: 'AI健康顾问在线解答',
     icon: '💬',
-    color: '#52c41a',
+    color: '#0EA5E9',
   },
   {
     key: 'symptom',
@@ -47,8 +47,8 @@ interface SessionItem {
 }
 
 const typeLabel: Record<string, { text: string; color: string }> = {
-  health_qa: { text: '问答', color: '#52c41a' },
-  health: { text: '问答', color: '#52c41a' },
+  health_qa: { text: '问答', color: '#0EA5E9' },
+  health: { text: '问答', color: '#0EA5E9' },
   symptom_check: { text: '健康自查', color: '#1890ff' },
   symptom: { text: '健康自查', color: '#1890ff' },
   tcm: { text: '养生', color: '#eb2f96' },
@@ -152,7 +152,7 @@ export default function AIPage() {
           <span className="section-title mb-0">最近对话</span>
           <button
             className="text-xs px-3 py-1 rounded-full"
-            style={{ color: '#52c41a', background: '#f0faf0' }}
+            style={{ color: '#0EA5E9', background: '#f0faf0' }}
             onClick={() => setSidebarVisible(true)}
           >
             查看全部
@@ -169,8 +169,8 @@ export default function AIPage() {
               loading={creating}
               style={{
                 marginTop: 12,
-                color: '#52c41a',
-                borderColor: '#52c41a',
+                color: '#0EA5E9',
+                borderColor: '#0EA5E9',
                 borderRadius: 20,
               }}
             >
@@ -221,7 +221,7 @@ export default function AIPage() {
           '--initial-position-bottom': 'calc(80px + env(safe-area-inset-bottom))',
           '--initial-position-right': '20px',
           '--edge-distance': '20px',
-          '--background': 'linear-gradient(135deg, #52c41a, #13c2c2)',
+          '--background': 'linear-gradient(135deg, #0EA5E9, #38BDF8)',
           '--size': '52px',
         }}
         onClick={() => startNewChat('health_qa')}

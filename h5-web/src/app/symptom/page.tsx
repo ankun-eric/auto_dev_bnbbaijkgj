@@ -84,20 +84,20 @@ function StepBar({ current, onStepClick }: { current: number; onStepClick: (idx:
               <div
                 className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold transition-all"
                 style={{
-                  background: isDone ? '#52c41a' : isActive ? 'linear-gradient(135deg, #52c41a, #13c2c2)' : '#e8e8e8',
+                  background: isDone ? '#0EA5E9' : isActive ? 'linear-gradient(135deg, #0EA5E9, #38BDF8)' : '#e8e8e8',
                   color: isDone || isActive ? '#fff' : '#999',
                 }}
               >
                 {isDone ? '✓' : idx + 1}
               </div>
               <div className="min-w-0">
-                <div className="text-xs font-medium truncate" style={{ color: isActive ? '#52c41a' : isDone ? '#52c41a' : '#999' }}>
+                <div className="text-xs font-medium truncate" style={{ color: isActive ? '#0EA5E9' : isDone ? '#0EA5E9' : '#999' }}>
                   {item.title}
                 </div>
               </div>
             </button>
             {idx < STEP_ITEMS.length - 1 && (
-              <div className="h-px flex-shrink-0 mx-2" style={{ width: 20, background: idx < current ? '#52c41a' : '#e8e8e8' }} />
+              <div className="h-px flex-shrink-0 mx-2" style={{ width: 20, background: idx < current ? '#0EA5E9' : '#e8e8e8' }} />
             )}
           </div>
         );
@@ -425,7 +425,7 @@ export default function SymptomPage() {
                         selectedPart === part.key ? 'ring-2 ring-green-400' : ''
                       }`}
                       onClick={() => setSelectedPart(part.key)}
-                      style={selectedPart === part.key ? { background: '#f6ffed' } : {}}
+                      style={selectedPart === part.key ? { background: '#F0F9FF' } : {}}
                     >
                       <div className="text-2xl mb-1">{part.icon}</div>
                       <div className="text-xs">{part.label}</div>
@@ -448,7 +448,7 @@ export default function SymptomPage() {
                         key={s}
                         onClick={() => toggleSymptom(s)}
                         style={{
-                          '--background-color': selectedSymptoms.includes(s) ? '#52c41a' : '#f5f5f5',
+                          '--background-color': selectedSymptoms.includes(s) ? '#0EA5E9' : '#f5f5f5',
                           '--text-color': selectedSymptoms.includes(s) ? '#fff' : '#666',
                           '--border-color': 'transparent',
                           padding: '6px 14px', borderRadius: 20, fontSize: 13, cursor: 'pointer',
@@ -479,7 +479,7 @@ export default function SymptomPage() {
                         key={d}
                         onClick={() => setDuration(d)}
                         style={{
-                          '--background-color': duration === d ? '#52c41a' : '#f5f5f5',
+                          '--background-color': duration === d ? '#0EA5E9' : '#f5f5f5',
                           '--text-color': duration === d ? '#fff' : '#666',
                           '--border-color': 'transparent',
                           padding: '6px 14px', borderRadius: 20, fontSize: 13, cursor: 'pointer',
@@ -507,7 +507,7 @@ export default function SymptomPage() {
                   loading={analyzing}
                   onClick={handleStep1Next}
                   style={{
-                    background: 'linear-gradient(135deg, #52c41a, #13c2c2)',
+                    background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)',
                     color: '#fff', border: 'none', borderRadius: 24, height: 44,
                   }}
                 >
@@ -553,14 +553,14 @@ export default function SymptomPage() {
                   key={m.id}
                   className="flex items-center justify-between px-3 py-3 rounded-xl cursor-pointer"
                   style={{
-                    background: selectedMemberId === m.id ? '#f6ffed' : '#f9f9f9',
-                    border: selectedMemberId === m.id ? '1px solid #52c41a' : '1px solid transparent',
+                    background: selectedMemberId === m.id ? '#F0F9FF' : '#f9f9f9',
+                    border: selectedMemberId === m.id ? '1px solid #0EA5E9' : '1px solid transparent',
                   }}
                   onClick={() => handleSelectMember(m.id)}
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-full flex items-center justify-center text-xl"
-                      style={{ background: selectedMemberId === m.id ? 'linear-gradient(135deg,#52c41a,#13c2c2)' : '#f0f0f0' }}>
+                      style={{ background: selectedMemberId === m.id ? 'linear-gradient(135deg,#0EA5E9,#38BDF8)' : '#f0f0f0' }}>
                       {m.is_self && selectedMemberId === m.id ? <span className="text-white text-sm">我</span> : emoji}
                     </div>
                     <div><div className="text-sm font-medium">{displayName}</div></div>
@@ -575,8 +575,8 @@ export default function SymptomPage() {
               style={{ background: '#f9f9f9', border: '1px solid transparent' }}
               onClick={openAddMemberPopup}
             >
-              <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-lg" style={{ background: '#52c41a' }}>+</div>
-              <span className="text-sm text-primary font-medium" style={{ color: '#52c41a' }}>添加家庭成员</span>
+              <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-lg" style={{ background: '#0EA5E9' }}>+</div>
+              <span className="text-sm text-primary font-medium" style={{ color: '#0EA5E9' }}>添加家庭成员</span>
             </div>
           </div>
 
@@ -600,7 +600,7 @@ export default function SymptomPage() {
           )}
 
           <Button block loading={analyzing} onClick={handleConfirm}
-            style={{ marginTop: 20, background: 'linear-gradient(135deg, #52c41a, #13c2c2)', color: '#fff', border: 'none', borderRadius: 24, height: 46, fontSize: 15 }}
+            style={{ marginTop: 20, background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)', color: '#fff', border: 'none', borderRadius: 24, height: 46, fontSize: 15 }}
           >
             AI 开始分析
           </Button>
@@ -627,19 +627,19 @@ export default function SymptomPage() {
                 const isSelected = selectedRelation?.id === rt.id;
                 return (
                   <button key={rt.id} className="flex flex-col items-center py-2 rounded-xl transition-all"
-                    style={{ background: isSelected ? 'linear-gradient(135deg, #f6ffed, #e6fffb)' : '#f9f9f9', border: isSelected ? '1.5px solid #52c41a' : '1.5px solid transparent' }}
+                    style={{ background: isSelected ? 'linear-gradient(135deg, #F0F9FF, #e6fffb)' : '#f9f9f9', border: isSelected ? '1.5px solid #0EA5E9' : '1.5px solid transparent' }}
                     onClick={() => { setSelectedRelation(rt); setAddStep('info'); }}
                   >
                     <span className="text-2xl">{emoji}</span>
-                    <span className="text-xs mt-1" style={{ color: isSelected ? '#52c41a' : '#555' }}>{rt.name}</span>
+                    <span className="text-xs mt-1" style={{ color: isSelected ? '#0EA5E9' : '#555' }}>{rt.name}</span>
                   </button>
                 );
               })}
             </div>
           </div>
           {addStep === 'info' && selectedRelation && (
-            <div className="mt-5 p-4 rounded-2xl" style={{ background: '#f6ffed', border: '1px solid #b7eb8f' }}>
-              <div className="text-sm font-semibold mb-4" style={{ color: '#52c41a' }}>{getMemberEmoji(selectedRelation.name)} 填写{selectedRelation.name}信息</div>
+            <div className="mt-5 p-4 rounded-2xl" style={{ background: '#F0F9FF', border: '1px solid #BAE6FD' }}>
+              <div className="text-sm font-semibold mb-4" style={{ color: '#0EA5E9' }}>{getMemberEmoji(selectedRelation.name)} 填写{selectedRelation.name}信息</div>
               <div className="space-y-3">
                 <div>
                   <div className="text-xs text-gray-500 mb-1">姓名 <span style={{color:'#ff4d4f'}}>*</span></div>
@@ -650,7 +650,7 @@ export default function SymptomPage() {
                   <div className="flex gap-3">
                     {['male', 'female'].map((g) => (
                       <button key={g} className="flex-1 py-2 rounded-xl text-sm font-medium transition-all"
-                        style={{ background: newGender === g ? 'linear-gradient(135deg, #52c41a, #13c2c2)' : '#fff', color: newGender === g ? '#fff' : '#666', border: `1px solid ${newGender === g ? '#52c41a' : '#e8e8e8'}` }}
+                        style={{ background: newGender === g ? 'linear-gradient(135deg, #0EA5E9, #38BDF8)' : '#fff', color: newGender === g ? '#fff' : '#666', border: `1px solid ${newGender === g ? '#0EA5E9' : '#e8e8e8'}` }}
                         onClick={() => setNewGender(g)}
                       >{g === 'male' ? '男' : '女'}</button>
                     ))}
@@ -683,7 +683,7 @@ export default function SymptomPage() {
                 </div>
               </div>
               <button className="w-full mt-4 py-3 rounded-2xl text-white font-semibold text-sm"
-                style={{ background: addLoading ? '#d9d9d9' : 'linear-gradient(135deg, #52c41a, #13c2c2)' }}
+                style={{ background: addLoading ? '#d9d9d9' : 'linear-gradient(135deg, #0EA5E9, #38BDF8)' }}
                 disabled={addLoading} onClick={handleAddMemberConfirm}
               >{addLoading ? '添加中...' : '确认添加'}</button>
             </div>

@@ -119,7 +119,7 @@ export default function ProfileEditPage() {
           style={{
             borderRadius: 24,
             height: 44,
-            background: '#52c41a',
+            background: '#0EA5E9',
             border: 'none',
           }}
         >

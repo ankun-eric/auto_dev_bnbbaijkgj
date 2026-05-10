@@ -234,7 +234,7 @@ export default function CitySelectPage() {
           <div className="px-4 py-2">
             {searching && (
               <div className="flex justify-center py-6">
-                <SpinLoading style={{ '--size': '20px', '--color': '#52c41a' } as any} />
+                <SpinLoading style={{ '--size': '20px', '--color': '#0EA5E9' } as any} />
               </div>
             )}
             {!searching && filteredCities.length === 0 && (

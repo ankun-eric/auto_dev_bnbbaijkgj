@@ -182,8 +182,8 @@ export default function MedicationsPage() {
                       <div
                         className="w-5 h-5 rounded-full border-2 flex items-center justify-center mr-3 shrink-0"
                         style={{
-                          borderColor: item.is_checked ? '#52c41a' : '#ddd',
-                          background: item.is_checked ? '#52c41a' : 'transparent',
+                          borderColor: item.is_checked ? '#0EA5E9' : '#ddd',
+                          background: item.is_checked ? '#0EA5E9' : 'transparent',
                         }}
                       >
                         {item.is_checked && <span className="text-white text-xs">✓</span>}

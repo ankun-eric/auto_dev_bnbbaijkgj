@@ -86,16 +86,16 @@ export default function MerchantMobileLoginPage() {
     <div
       style={{
         minHeight: '100vh',
-        background: 'linear-gradient(135deg, #e6fffb 0%, #f6ffed 100%)',
+        background: 'linear-gradient(135deg, #e6fffb 0%, #F0F9FF 100%)',
         padding: '48px 20px 20px',
         boxSizing: 'border-box',
       }}
     >
       <div style={{ textAlign: 'center', marginBottom: 32 }}>
-        <div style={{ fontSize: 28, fontWeight: 600, color: '#52c41a', marginBottom: 6 }}>
+        <div style={{ fontSize: 28, fontWeight: 600, color: '#0EA5E9', marginBottom: 6 }}>
           商家工作台
         </div>
-        <div style={{ color: '#999', fontSize: 13 }}>宾尼小康 · 合作机构/商家登录</div>
+        <div style={{ color: '#999', fontSize: 13 }}>晴空诊室 · 合作机构/商家登录</div>
       </div>
 
       <div

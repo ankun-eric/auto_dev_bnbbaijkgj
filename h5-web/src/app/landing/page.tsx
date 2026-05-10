@@ -25,19 +25,19 @@ function LandingContent() {
     <div className="min-h-screen flex flex-col" style={{ background: '#fff' }}>
       <div
         className="relative px-6 pt-14 pb-10 text-center"
-        style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}
+        style={{ background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)' }}
       >
         <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4"
           style={{ background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(10px)' }}>
           <span className="text-4xl">🌿</span>
         </div>
-        <h1 className="text-3xl font-bold text-white mb-2">宾尼小康</h1>
+        <h1 className="text-3xl font-bold text-white mb-2">晴空诊室</h1>
         <p className="text-white/80 text-sm">AI健康管家 · 您的私人健康助手</p>
       </div>
 
       <div className="px-5 py-8 flex-1">
         <h2 className="text-lg font-bold text-center mb-6" style={{ color: '#333' }}>
-          为什么选择宾尼小康？
+          为什么选择晴空诊室？
         </h2>
 
         <div className="space-y-4">
@@ -49,7 +49,7 @@ function LandingContent() {
             >
               <div
                 className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
-                style={{ background: 'linear-gradient(135deg, #52c41a20, #13c2c220)' }}
+                style={{ background: 'linear-gradient(135deg, #0EA5E920, #38BDF820)' }}
               >
                 <span className="text-2xl">{f.icon}</span>
               </div>
@@ -67,7 +67,7 @@ function LandingContent() {
           block
           onClick={handleRegister}
           style={{
-            background: 'linear-gradient(135deg, #52c41a, #13c2c2)',
+            background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)',
             color: '#fff',
             border: 'none',
             borderRadius: '24px',

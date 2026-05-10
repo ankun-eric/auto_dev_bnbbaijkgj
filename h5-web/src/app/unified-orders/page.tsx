@@ -93,13 +93,13 @@ const STATUS_TEXT: Record<string, string> = {
 const STATUS_COLOR: Record<string, string> = {
   pending_payment: '#fa8c16',
   pending_shipment: '#1890ff',
-  pending_receipt: '#13c2c2',
+  pending_receipt: '#38BDF8',
   pending_appointment: '#722ed1',
   appointed: '#722ed1',
-  pending_use: '#13c2c2',
+  pending_use: '#38BDF8',
   partial_used: '#faad14',
   pending_review: '#eb2f96',
-  completed: '#52c41a',
+  completed: '#0EA5E9',
   expired: '#8c8c8c',
   refunding: '#f5222d',
   refunded: '#8c8c8c',
@@ -320,7 +320,7 @@ function UnifiedOrdersPage() {
           key="pay"
           size="mini"
           onClick={(e) => { e.stopPropagation(); handlePay(order.id); }}
-          style={{ borderRadius: 16, fontSize: 12, background: '#52c41a', color: '#fff', border: 'none' }}
+          style={{ borderRadius: 16, fontSize: 12, background: '#0EA5E9', color: '#fff', border: 'none' }}
         >去支付</Button>
       );
     }
@@ -330,7 +330,7 @@ function UnifiedOrdersPage() {
           key="confirm"
           size="mini"
           onClick={(e) => { e.stopPropagation(); handleConfirmReceipt(order.id); }}
-          style={{ borderRadius: 16, fontSize: 12, background: '#52c41a', color: '#fff', border: 'none' }}
+          style={{ borderRadius: 16, fontSize: 12, background: '#0EA5E9', color: '#fff', border: 'none' }}
         >确认收货</Button>
       );
     }
@@ -350,7 +350,7 @@ function UnifiedOrdersPage() {
           key="qr"
           size="mini"
           onClick={(e) => { e.stopPropagation(); router.push(`/unified-order/${order.id}`); }}
-          style={{ borderRadius: 16, fontSize: 12, background: '#13c2c2', color: '#fff', border: 'none' }}
+          style={{ borderRadius: 16, fontSize: 12, background: '#38BDF8', color: '#fff', border: 'none' }}
         >查看核销码</Button>
       );
     }
@@ -401,7 +401,7 @@ function UnifiedOrdersPage() {
           key="review"
           size="mini"
           onClick={(e) => { e.stopPropagation(); router.push(`/review/${order.id}`); }}
-          style={{ borderRadius: 16, fontSize: 12, color: '#52c41a', borderColor: '#52c41a' }}
+          style={{ borderRadius: 16, fontSize: 12, color: '#0EA5E9', borderColor: '#0EA5E9' }}
         >去评价</Button>
       );
     }
@@ -507,8 +507,8 @@ function UnifiedOrdersPage() {
         onChange={(k) => { setActiveTab(k); setActiveSubTab('all'); }}
         className="green-bold-tabs"
         style={{
-          '--active-line-color': '#52c41a',
-          '--active-title-color': '#52c41a',
+          '--active-line-color': '#0EA5E9',
+          '--active-title-color': '#0EA5E9',
           '--title-font-size': '14px',
           '--active-line-height': '2px',
           background: '#fff',
@@ -532,8 +532,8 @@ function UnifiedOrdersPage() {
                 borderRadius: 16,
                 fontSize: 12,
                 whiteSpace: 'nowrap',
-                background: activeSubTab === s.key ? '#52c41a15' : '#f5f5f5',
-                color: activeSubTab === s.key ? '#52c41a' : '#666',
+                background: activeSubTab === s.key ? '#0EA5E915' : '#f5f5f5',
+                color: activeSubTab === s.key ? '#0EA5E9' : '#666',
                 fontWeight: activeSubTab === s.key ? 600 : 400,
                 cursor: 'pointer',
               }}
@@ -583,7 +583,7 @@ function UnifiedOrdersPage() {
                       {item.product_image ? (
                         <Image src={resolveAssetUrl(item.product_image)} width={64} height={64} fit="cover" style={{ borderRadius: 8 }} />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center text-2xl" style={{ background: '#f6ffed' }}>
+                        <div className="w-full h-full flex items-center justify-center text-2xl" style={{ background: '#F0F9FF' }}>
                           🛍️
                         </div>
                       )}
@@ -602,7 +602,7 @@ function UnifiedOrdersPage() {
                     </span>
                     {showHotBadge && (
                       <span style={{
-                        background: '#13c2c2',
+                        background: '#38BDF8',
                         color: '#fff',
                         fontSize: 10,
                         padding: '2px 6px',

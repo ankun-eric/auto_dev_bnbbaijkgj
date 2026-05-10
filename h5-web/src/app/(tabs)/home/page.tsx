@@ -32,7 +32,7 @@ interface NoticeItem {
   sort_order: number;
 }
 
-const FALLBACK_NOTICE = '宾尼小康提醒您：定期体检，关注健康，预防疾病。';
+const FALLBACK_NOTICE = '晴空诊室提醒您：定期体检，关注健康，预防疾病。';
 const CACHE_DURATION = 30 * 60 * 1000;
 let noticeCache: { data: NoticeItem[]; timestamp: number } | null = null;
 
@@ -88,7 +88,7 @@ interface TodayTodosResponse {
   groups: TodoGroup[];
 }
 
-const FALLBACK_COLORS = ['#52c41a', '#13c2c2', '#1890ff', '#722ed1', '#eb2f96', '#fa8c16'];
+const FALLBACK_COLORS = ['#0EA5E9', '#38BDF8', '#1890ff', '#722ed1', '#eb2f96', '#fa8c16'];
 
 function handleLink(
   linkType: string,
@@ -393,7 +393,7 @@ export default function HomePage() {
               lineHeight: '24px',
             }}
           >
-            宾尼小康
+            晴空诊室
           </h1>
           <div
             className="flex items-center"
@@ -580,7 +580,7 @@ export default function HomePage() {
                   已完成 {todayTodos.total_completed}/{todayTodos.total_count}
                 </span>
               )}
-              <span className="text-xs" style={{ color: '#52c41a' }} onClick={() => router.push('/health-plan')}>
+              <span className="text-xs" style={{ color: '#0EA5E9' }} onClick={() => router.push('/health-plan')}>
                 查看全部
               </span>
             </div>
@@ -596,7 +596,7 @@ export default function HomePage() {
               <div className="text-sm text-gray-400 mb-3">暂无待办任务</div>
               <Button
                 size="mini"
-                style={{ borderRadius: 20, color: '#52c41a', borderColor: '#52c41a' }}
+                style={{ borderRadius: 20, color: '#0EA5E9', borderColor: '#0EA5E9' }}
                 onClick={() => router.push('/health-plan')}
               >
                 创建你的第一个健康计划
@@ -631,8 +631,8 @@ export default function HomePage() {
                           <div
                             className="w-4 h-4 rounded-full border-2 flex items-center justify-center mr-2 shrink-0"
                             style={{
-                              borderColor: item.is_completed ? '#52c41a' : '#ddd',
-                              background: item.is_completed ? '#52c41a' : 'transparent',
+                              borderColor: item.is_completed ? '#0EA5E9' : '#ddd',
+                              background: item.is_completed ? '#0EA5E9' : 'transparent',
                             }}
                           >
                             {item.is_completed && <span className="text-white" style={{ fontSize: 8 }}>✓</span>}
@@ -652,7 +652,7 @@ export default function HomePage() {
                               className="flex-1 text-xs px-2 py-1.5 rounded-lg border border-gray-200"
                               autoFocus
                             />
-                            <Button size="mini" color="primary" style={{ borderRadius: 6, background: '#52c41a', border: 'none', fontSize: 11 }} onClick={() => handleValueSubmit(item)}>确认</Button>
+                            <Button size="mini" color="primary" style={{ borderRadius: 6, background: '#0EA5E9', border: 'none', fontSize: 11 }} onClick={() => handleValueSubmit(item)}>确认</Button>
                             <Button size="mini" style={{ borderRadius: 6, fontSize: 11 }} onClick={() => { setInputVisible(null); setInputValue(''); }}>取消</Button>
                           </div>
                         )}
@@ -682,8 +682,8 @@ export default function HomePage() {
                         <div
                           className="w-4 h-4 rounded-full border-2 flex items-center justify-center mr-2 shrink-0"
                           style={{
-                            borderColor: item.is_completed ? '#52c41a' : '#ddd',
-                            background: item.is_completed ? '#52c41a' : 'transparent',
+                            borderColor: item.is_completed ? '#0EA5E9' : '#ddd',
+                            background: item.is_completed ? '#0EA5E9' : 'transparent',
                           }}
                         >
                           {item.is_completed && <span className="text-white" style={{ fontSize: 8 }}>✓</span>}
@@ -703,7 +703,7 @@ export default function HomePage() {
                             className="flex-1 text-xs px-2 py-1.5 rounded-lg border border-gray-200"
                             autoFocus
                           />
-                          <Button size="mini" color="primary" style={{ borderRadius: 6, background: '#52c41a', border: 'none', fontSize: 11 }} onClick={() => handleValueSubmit(item)}>确认</Button>
+                          <Button size="mini" color="primary" style={{ borderRadius: 6, background: '#0EA5E9', border: 'none', fontSize: 11 }} onClick={() => handleValueSubmit(item)}>确认</Button>
                           <Button size="mini" style={{ borderRadius: 6, fontSize: 11 }} onClick={() => { setInputVisible(null); setInputValue(''); }}>取消</Button>
                         </div>
                       )}
@@ -720,14 +720,14 @@ export default function HomePage() {
                 className="cursor-pointer"
                 onClick={() => router.push('/health-plan/statistics')}
               >
-                <span className="text-xs" style={{ color: '#52c41a' }}>📊 查看统计</span>
+                <span className="text-xs" style={{ color: '#0EA5E9' }}>📊 查看统计</span>
               </div>
             )}
             <div
               className="cursor-pointer ml-auto"
               onClick={() => router.push('/health-plan')}
             >
-              <span className="text-xs font-medium" style={{ color: '#52c41a' }}>查看全部计划 &gt;</span>
+              <span className="text-xs font-medium" style={{ color: '#0EA5E9' }}>查看全部计划 &gt;</span>
             </div>
           </div>
         </div>
@@ -804,7 +804,7 @@ export default function HomePage() {
                           {sellingLine}
                         </div>
                       )}
-                      <div style={{ color: '#52c41a', fontWeight: 700, fontSize: 14, marginTop: 2 }}>
+                      <div style={{ color: '#0EA5E9', fontWeight: 700, fontSize: 14, marginTop: 2 }}>
                         ¥{p.sale_price}
                       </div>
                     </div>
@@ -865,7 +865,7 @@ export default function HomePage() {
                   onClick={() => router.push(`/article/${a.id}`)}
                   description={
                     <div className="flex items-center mt-1">
-                      <Tag color="primary" fill="outline" style={{ '--border-radius': '4px', fontSize: 10, '--background-color': '#52c41a15', '--text-color': '#52c41a', '--border-color': '#52c41a30' }}>
+                      <Tag color="primary" fill="outline" style={{ '--border-radius': '4px', fontSize: 10, '--background-color': '#0EA5E915', '--text-color': '#0EA5E9', '--border-color': '#0EA5E930' }}>
                         {a.tag || '健康'}
                       </Tag>
                       <span className="text-xs text-gray-400 ml-2">{a.views ?? 0} 阅读</span>
@@ -883,7 +883,7 @@ export default function HomePage() {
 
       <div
         className="fixed right-4 bottom-24 z-50 w-12 h-12 rounded-full flex items-center justify-center shadow-lg cursor-pointer"
-        style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}
+        style={{ background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)' }}
         onClick={() => router.push('/invite')}
       >
         <span className="text-xl">🎁</span>

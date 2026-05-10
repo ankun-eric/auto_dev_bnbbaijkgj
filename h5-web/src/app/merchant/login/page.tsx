@@ -75,7 +75,7 @@ export default function MerchantLoginPage() {
     <div
       style={{
         minHeight: '100vh',
-        background: 'linear-gradient(135deg, #e6fffb 0%, #f6ffed 100%)',
+        background: 'linear-gradient(135deg, #e6fffb 0%, #F0F9FF 100%)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -83,10 +83,10 @@ export default function MerchantLoginPage() {
     >
       <Card style={{ width: 420, boxShadow: '0 6px 24px rgba(0,0,0,0.08)' }}>
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <Title level={3} style={{ color: '#52c41a', marginBottom: 4 }}>
+          <Title level={3} style={{ color: '#0EA5E9', marginBottom: 4 }}>
             商家/机构工作台
           </Title>
-          <Text type="secondary">宾尼小康 · 合作机构/商家登录</Text>
+          <Text type="secondary">晴空诊室 · 合作机构/商家登录</Text>
         </div>
         <Form form={form} layout="vertical" onFinish={submit} autoComplete="off">
           <Form.Item

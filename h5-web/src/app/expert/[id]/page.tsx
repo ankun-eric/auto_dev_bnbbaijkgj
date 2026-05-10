@@ -91,7 +91,7 @@ export default function ExpertDetailPage() {
 
       <div
         className="px-4 py-6"
-        style={{ background: 'linear-gradient(135deg, #5B6CFF, #8B5CF6)' }}
+        style={{ background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)' }}
       >
         <div className="flex items-center">
           <Avatar
@@ -137,8 +137,8 @@ export default function ExpertDetailPage() {
           <div className="flex flex-wrap gap-1 mt-3">
             {expert.tags.map((tag) => (
               <Tag key={tag} style={{
-                '--background-color': '#5B6CFF15',
-                '--text-color': '#5B6CFF',
+                '--background-color': '#0EA5E915',
+                '--text-color': '#0EA5E9',
                 '--border-color': 'transparent',
               }}>
                 {tag}
@@ -155,7 +155,7 @@ export default function ExpertDetailPage() {
                 key={s.day}
                 className={`px-4 py-2 rounded-xl text-sm cursor-pointer`}
                 style={{
-                  background: selectedDay === s.day ? '#5B6CFF' : '#f5f5f5',
+                  background: selectedDay === s.day ? '#0EA5E9' : '#f5f5f5',
                   color: selectedDay === s.day ? '#fff' : '#666',
                 }}
                 onClick={() => { setSelectedDay(s.day); setSelectedTime(''); }}
@@ -171,7 +171,7 @@ export default function ExpertDetailPage() {
                   key={t}
                   className={`px-4 py-2 rounded-lg text-sm cursor-pointer`}
                   style={{
-                    background: selectedTime === t ? '#5B6CFF' : '#fafafa',
+                    background: selectedTime === t ? '#0EA5E9' : '#fafafa',
                     color: selectedTime === t ? '#fff' : '#666',
                     border: selectedTime === t ? 'none' : '1px solid #e8e8e8',
                   }}
@@ -212,7 +212,7 @@ export default function ExpertDetailPage() {
             onClick={handleBook}
             disabled={!!isOffline}
             style={{
-              background: isOffline ? '#ccc' : 'linear-gradient(135deg, #5B6CFF, #8B5CF6)',
+              background: isOffline ? '#ccc' : 'linear-gradient(135deg, #0EA5E9, #38BDF8)',
               color: '#fff',
               border: 'none',
               borderRadius: 24,

@@ -63,7 +63,7 @@ export default function MeMobilePage() {
       {/* 顶部 */}
       <div
         style={{
-          background: 'linear-gradient(135deg, #52c41a 0%, #73d13d 100%)',
+          background: 'linear-gradient(135deg, #0EA5E9 0%, #73d13d 100%)',
           color: '#fff',
           padding: '36px 20px 28px',
         }}

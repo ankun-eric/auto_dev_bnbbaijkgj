@@ -24,16 +24,16 @@ export default function TcmLoadingPage() {
   return (
     <div
       className="min-h-screen flex flex-col items-center justify-center px-6"
-      style={{ background: 'linear-gradient(180deg, #f6ffed 0%, #e6fffb 50%, #fff 100%)' }}
+      style={{ background: 'linear-gradient(180deg, #F0F9FF 0%, #e6fffb 50%, #fff 100%)' }}
     >
       <div className="text-6xl mb-4 animate-pulse">🌿</div>
       <div className="text-lg font-semibold text-gray-800 mb-3">数字中医师分析中</div>
       <div className="mb-6">
-        <SpinLoading style={{ '--size': '44px', '--color': '#52c41a' }} />
+        <SpinLoading style={{ '--size': '44px', '--color': '#0EA5E9' }} />
       </div>
       <div
         className="text-sm min-h-[24px] text-center"
-        style={{ color: '#52c41a', fontWeight: 500 }}
+        style={{ color: '#0EA5E9', fontWeight: 500 }}
       >
         {LOADING_TIPS[tipIndex]}
       </div>

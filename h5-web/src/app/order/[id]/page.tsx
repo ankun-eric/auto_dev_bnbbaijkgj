@@ -12,7 +12,7 @@ const mockOrder = {
   createTime: '2024-03-15 14:30',
   payTime: '2024-03-15 14:32',
   verifyCode: 'BN2024031500128',
-  location: '宾尼健康体检中心（朝阳分店）',
+  location: '晴空诊室体检中心（朝阳分店）',
   validUntil: '2024-06-15',
   items: [
     '一般检查（身高、体重、血压等）',
@@ -41,7 +41,7 @@ export default function OrderDetailPage() {
 
       <div
         className="px-4 py-6 text-center"
-        style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}
+        style={{ background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)' }}
       >
         <div className="text-white text-lg font-bold">{mockOrder.statusText}</div>
         <div className="text-white/70 text-xs mt-1">请在有效期内前往门店核销</div>
@@ -57,7 +57,7 @@ export default function OrderDetailPage() {
             <Button
               size="small"
               onClick={copyCode}
-              style={{ color: '#52c41a', borderColor: '#52c41a', borderRadius: 16, fontSize: 12 }}
+              style={{ color: '#0EA5E9', borderColor: '#0EA5E9', borderRadius: 16, fontSize: 12 }}
             >
               复制核销码
             </Button>
@@ -71,7 +71,7 @@ export default function OrderDetailPage() {
           <div className="flex items-center mb-3">
             <div
               className="w-14 h-14 rounded-lg flex items-center justify-center text-2xl flex-shrink-0"
-              style={{ background: '#f6ffed' }}
+              style={{ background: '#F0F9FF' }}
             >
               🏥
             </div>

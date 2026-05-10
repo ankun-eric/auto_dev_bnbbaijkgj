@@ -79,7 +79,7 @@ export default function SharedReportPage() {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
         <div className="text-center">
-          <SpinLoading style={{ '--size': '36px', '--color': '#52c41a' }} />
+          <SpinLoading style={{ '--size': '36px', '--color': '#0EA5E9' }} />
           <p className="text-sm text-gray-400 mt-4">加载中...</p>
         </div>
       </div>
@@ -113,7 +113,7 @@ export default function SharedReportPage() {
       {/* Header */}
       <div
         className="px-4 py-5"
-        style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}
+        style={{ background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)' }}
       >
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
@@ -134,7 +134,7 @@ export default function SharedReportPage() {
           <div className="flex items-center gap-2 mb-2">
             <div
               className="w-6 h-6 rounded-full flex items-center justify-center"
-              style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}
+              style={{ background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)' }}
             >
               <span className="text-white text-[10px] font-bold">AI</span>
             </div>
@@ -159,8 +159,8 @@ export default function SharedReportPage() {
           onChange={setActiveTab}
           style={{
             '--title-font-size': '14px',
-            '--active-title-color': '#52c41a',
-            '--active-line-color': '#52c41a',
+            '--active-title-color': '#0EA5E9',
+            '--active-line-color': '#0EA5E9',
           }}
         >
           <Tabs.Tab title="按分类" key="category" />
@@ -264,12 +264,12 @@ export default function SharedReportPage() {
           <span
             className="font-bold text-sm"
             style={{
-              background: 'linear-gradient(135deg, #52c41a, #13c2c2)',
+              background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
             }}
           >
-            宾尼小康 AI健康管家
+            晴空诊室 AI健康管家
           </span>
         </div>
         <p className="text-[11px] text-gray-300 mt-1">

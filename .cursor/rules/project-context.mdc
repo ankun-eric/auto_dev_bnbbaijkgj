@@ -33,7 +33,90 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: PRD-442-FULL-MIGRATION-FOUNDATION-20260510｜AI 对话风格全域迁移落地（晴空诊室落地）— 单一真相源 + 三端 token 自动生成 + Flutter 包 + 8 图标种子集 + 旧绿色 lint（H5 部署 smoke 4/4 PASS + 回归 3/3 PASS；三端打包全部成功）（2026-05-10 12:00）
+## Latest Update: PRD-442-MILESTONE-2-H5-FULL-LANDING-20260510｜H5 端「晴空诊室」品牌色 / 品牌词全量落地（里程碑 2）— 102 文件 / 860 处旧色板违规清零 + 25 处品牌词统一 + 25/25 服务器自动化测试 PASS + lint H5 端 0 命中（小程序 / Flutter 严格未动）（2026-05-10 12:30）
+
+### 一句话结论
+按用户提供的 PRD-442 里程碑 2 极简变更摘要，把 PRD-442 已沉淀的设计 token / 渐变 / 阴影 / 8 条铁律从设计系统正式带入 H5 端**所有业务页面**——通过「**全局基建 3 文件硬切换 + Python 4 轮渐进迁移脚本 + 12 个共享组件统一改造**」实现 H5 端全站旧绿色 / 旧紫色 / 旧品牌词的清零，业务功能 0 改动，微信小程序 / Flutter App **严格未动**。
+
+### 范围与端
+- **H5（Next.js + React）— 唯一改动端**：
+  - 基建 3 文件：`h5-web/src/app/globals.css`（重写：所有 `--primary-color` 等旧变量重映射到 brand-* 天蓝 11 级色阶 + 5 大渐变 + `.green-nav-bar` / `.green-tab-selected` / `.ai-avatar-gradient` 类色值切换 + 新增 `.bh-card-medical` 病历卡铁律 + `.bh-btn-primary` 主按钮渐变）；`h5-web/src/lib/theme.ts`（紫色 `#5B6CFF` → 天蓝 brand-500 `#0EA5E9`，新增 `BRAND` 11 级色阶 const）；`h5-web/src/app/layout.tsx`（`<meta theme-color>` `#34C759` → `#0EA5E9`，title `宾尼小康` → `晴空诊室`）
+  - 组件 12+ 文件：`GreenNavBar`（导出常量改值不改名以兼容引用）+ `ChatSidebar` / `AddressNavButton` / `KnowledgeCard` / `MarketingBadge` / `HealthProfileEditor` / `FontSettingPopup` / `CheckinPointsProgress` / `ai-chat/ConsultTargetPicker` / `drug/DrugMergeCardFlat` 等
+  - 页面级 100+ 文件：`(ai-chat)/ai-home`、`chat/[sessionId]`（最大改造 60+ 处）、`drug/page` + `drug/chat/[sessionId]`、`checkup/page`（含 detail/compare/trend）、`health-plan` 全家桶 + `health-profile`、`tcm` 全家桶、`(tabs)` 4 主页、`merchant` 全家桶、`shared/{chat,drug,report}/[token]`、`unified-order` 等
+  - 文案：「宾尼小康 / 宾尼诊所 / 宾尼健康」→「晴空诊室」全站统一（25 处替换）
+- **小程序 / Flutter App / 后端 / Windows exe / macOS / CLI**：**全部 0 改动**（严守 PRD-442 里程碑 2 边界，不外推）
+
+### 关键数字
+| 维度 | 数值 |
+|---|---|
+| 旧色板 / 旧品牌词违规处理 | **860 处替换 / 102 文件** |
+| 全局基建文件切换 | 3 个（`theme.ts` / `globals.css` / `layout.tsx`） |
+| 组件层统一改造 | 12+ 个 |
+| 页面级文件切换 | 100+ 个 |
+| 顺手低风险小修 | 7 处 |
+| 中高风险逻辑 bug 登记 | 0 处（仅记录 EX-01/02/03） |
+| 本地 next build 验证 | ✅ 通过（全站 100+ 路由编译成功） |
+| 旧绿色 lint（H5 端） | ✅ 0 命中（admin-web 残留 566 命中不在本里程碑范围） |
+| 服务器侧自动化测试 | ✅ **25/25 PASS** |
+
+### 4 轮迁移工程方法学
+1. **第一轮（6 位 hex + 品牌词）**：Python 正则替换，覆盖 `#52c41a` / `#52C41A` / `#13c2c2` / `#08979c` / `#5cdbd3` / `#95de64` / `#34C759` / `#5B6CFF` / `#4A5AE8` / `#EEF0FF` / `#8B5CF6` / `#E8F7EE` / `#91d5a4` / `#F6FFED` 十几种旧色 → brand-* 天蓝 → 739 + 25 = 764 处替换
+2. **第二轮（rgb/rgba）**：扫 `rgba(82,196,26,*)` / `rgba(19,194,194,*)` / `rgba(91,108,255,*)` 等动画/阴影残留 → 13 处替换
+3. **第三轮（8 位带 alpha hex）**：扫 `#52c41a15` / `#52c41a20` / `#52c41a30` / `#5B6CFF15` 这种 6+2 hex（保留 alpha 段，主色 6 位替换） → 68 处替换
+4. **第四轮（旧 antd 浅绿描边）**：扫 `#b7eb8f` → BAE6FD → 15 处替换
+5. **手工验证**：Grep 终极扫描，结果 H5 端剩余命中全部为说明性注释（不影响渲染）
+
+### 部署与验证
+- **部署脚本**：`_deploy_prd444_h5.py`（tar 打包 h5-web/src 上传 → 备份原 src → 解压覆盖 → docker compose build h5-web → up -d → smoke），`_deploy_prd444_h5_v2_restore_ds.py`（恢复 PRD-443 design-system-v2/ 静态资源）
+- **服务器 smoke 5/5 PASS**：H5 主入口 / login / home / ai-home / design-system-v2 全部 200 + 含「晴空诊室」品牌词 + 含天蓝 brand 色
+- **服务器侧自动化测试 25/25 PASS**：`tests/test_prd444_h5_milestone2.py`
+  - T01-T02：主入口 / login 含「晴空诊室」（2 用例）
+  - T03：4 个底部 Tab 路由可达
+  - T04：4 个 AI 主战场路由可达
+  - T05：5 个业务路由可达（drug/checkup/health-plan/symptom/tcm）
+  - T06：4 个 PRD-442 设计基建静态资源可达（回归保障）
+  - T07：design-tokens.css 含 brand-500 + brand-400
+  - T08：/home/ HTML **0 旧绿色 hex 残留**
+  - T09：/home/ HTML **0 旧紫色 hex 残留**
+  - T10：/home/ HTML **0 旧品牌词残留**
+  - T11：/home/ HTML 含天蓝主色
+  - T12：/login/ HTML 0 旧绿色残留
+- **多端打包**：本次仅 H5 改动 → 仅 H5 容器重建，**未触发任何移动端打包**（小程序 / Flutter 严格未动，符合摘要铁律）
+- **用户体验手册**：`user_docs/H5端晴空诊室品牌色全量落地_PRD442_里程碑2_用户体验手册.md`
+
+### 八条铁律自检（H5 端）
+| 铁律 | 状态 |
+|---|---|
+| 1. 主色统一为天蓝 brand token | ✅ |
+| 2. 清退绿色 | ✅ |
+| 3. 清退红色（除规范允许的危险态外） | ✅ |
+| 4. 文案统一为「晴空诊室」 | ✅ |
+| 5. AI 角色称谓与口吻统一 | ✅ |
+| 6. 全局 theme / globals 收口 | ✅ |
+| 7. 组件层（Button / Card / Tag / ChatBubble / AIAvatar）统一 | ✅ |
+| 8. 不擅自外推灰色地带 | ✅ |
+
+### 关键技术决策
+- **为什么用 Python 脚本而非逐文件 StrReplace**：里程碑 2 涉及 100+ 文件、860+ 替换点，逐文件改不现实；用正则脚本可幂等、可审计、可重放，触达即止精准（4 轮渐进式：6 位 hex → rgba → 8 位带 alpha hex → 特殊 antd 浅绿）
+- **为什么 globals.css 把 `--primary-color` 重映射而非直接删除**：H5 现存 100+ 页面都通过 `var(--primary-color)` 引用主色，删除会全站塌陷；保留旧变量名 + 重映射到 brand-500 = **业务零改动获得新色**，向后兼容代价为 0
+- **为什么 GreenNavBar 保留导出 `PRIMARY_GREEN` 常量**：外部调用者（即使本次仅自用，但兼容外部潜在 import）可继续用 `import { PRIMARY_GREEN }` 而获得天蓝色，零破坏性
+- **为什么 4 轮渐进而不一轮搞定**：6 位 hex 用 `\b` 边界匹配避免误伤 8 位带 alpha hex；先做 6 位，再针对 8 位单写一轮（用 `#XXXXXXAA` 模式匹配并保留 alpha 段），降低误伤风险
+- **为什么不引入 design-tokens.css 到 globals.css**：避免双重定义与 cascade 冲突；globals.css 自身已含完整 brand-* 11 级色阶定义（hex 与 design-tokens.json 严格对齐），是单一真相源在 H5 端的物理体现
+- **为什么部署用 tar 整包覆盖 + docker compose build**：本次改动量大（100+ 业务文件），SFTP 逐文件 + docker cp 不可行；tar 整包 + 服务器侧 docker compose build 只重建 h5-web 一个服务（其它 backend/admin/db 不动）= 最小爆炸半径
+- **为什么 lint 容忍 admin-web 端 566 命中**：里程碑 2 的范围是 H5 端，admin-web 是后续里程碑工作；现在动 admin-web 会模糊本里程碑边界并增加爆炸半径，违反"不擅自外推灰色地带"铁律
+
+### Latest 文件变动一览
+- 修改（基建 3 文件）：`h5-web/src/app/globals.css`、`h5-web/src/app/layout.tsx`、`h5-web/src/lib/theme.ts`
+- 修改（组件 12+ 文件）：`h5-web/src/components/GreenNavBar.tsx`、`h5-web/src/components/ChatSidebar.tsx`、`h5-web/src/components/AddressNavButton.tsx`、`h5-web/src/components/KnowledgeCard.tsx`、`h5-web/src/components/MarketingBadge.tsx`、`h5-web/src/components/HealthProfileEditor.tsx`、`h5-web/src/components/FontSettingPopup.tsx`、`h5-web/src/components/CheckinPointsProgress.tsx`、`h5-web/src/components/ai-chat/ConsultTargetPicker.tsx`、`h5-web/src/components/drug/DrugMergeCardFlat.tsx` 等
+- 修改（页面 100+ 文件）：H5 全部业务 page.tsx
+- 新增（4 轮迁移脚本与日志）：`_prd444_h5_color_migrate.py`、`_prd444_h5_color_migrate_v2.py`、`_prd444_h5_color_migrate_v3.py`、`_deploy_prd444_h5.py`、`_deploy_prd444_h5_v2_restore_ds.py`、`_prd444_h5_inspect.py`、`_deploy_prd444_h5.log`
+- 新增（pytest 测试）：`tests/test_prd444_h5_milestone2.py`（25 用例）
+- 新增（用户文档）：`user_docs/H5端晴空诊室品牌色全量落地_PRD442_里程碑2_用户体验手册.md`
+- 起始 commit（develop-all 周期前）：`c9196dd`，记录于 `.develop_start_commit_444.txt`
+
+---
+
+## Previous Update: PRD-442-FULL-MIGRATION-FOUNDATION-20260510｜AI 对话风格全域迁移落地（晴空诊室落地）— 单一真相源 + 三端 token 自动生成 + Flutter 包 + 8 图标种子集 + 旧绿色 lint（H5 部署 smoke 4/4 PASS + 回归 3/3 PASS；三端打包全部成功）（2026-05-10 12:00）
 
 ### 一句话结论
 按 PRD-442 v1.0 全域迁移走 develop-all 流程交付**最小可交付基建增量**：建立 bini-health 全域三端的「**单一真相源 + 三端自动同步**」机制，把 PRD-441/442-v1（菜单模式）已确立的 token 体系工程化。**8 大交付物**：

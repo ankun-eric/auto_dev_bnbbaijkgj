@@ -141,7 +141,7 @@ export default function CheckupDetailPage() {
                 <button
                   onClick={handleSaveTitle}
                   disabled={savingTitle}
-                  style={{ padding: '4px 10px', background: '#52c41a', color: '#fff', borderRadius: 6, border: 0, fontSize: 13 }}
+                  style={{ padding: '4px 10px', background: '#0EA5E9', color: '#fff', borderRadius: 6, border: 0, fontSize: 13 }}
                 >
                   保存
                 </button>
@@ -259,7 +259,7 @@ export default function CheckupDetailPage() {
             flex: 1,
             padding: '12px',
             borderRadius: 22,
-            background: 'linear-gradient(135deg, #52c41a, #13c2c2)',
+            background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)',
             color: '#fff',
             border: 0,
             fontSize: 14,

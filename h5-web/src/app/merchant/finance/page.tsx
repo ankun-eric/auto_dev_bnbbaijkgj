@@ -19,7 +19,7 @@ export default function MerchantFinancePage() {
         <Col xs={24} sm={12} md={8}>
           <Card hoverable onClick={() => router.push('/merchant/settlement')}>
             <Space align="start" size={16}>
-              <AccountBookOutlined style={{ fontSize: 32, color: '#52c41a' }} />
+              <AccountBookOutlined style={{ fontSize: 32, color: '#0EA5E9' }} />
               <div>
                 <Title level={5} style={{ margin: 0 }}>对账结算</Title>
                 <Paragraph type="secondary" style={{ margin: '4px 0 0' }}>

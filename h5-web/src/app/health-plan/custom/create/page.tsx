@@ -166,7 +166,7 @@ function CreateCustomPlanContent() {
                   <Switch
                     checked={isInfinite}
                     onChange={setIsInfinite}
-                    style={{ '--checked-color': '#52c41a' } as React.CSSProperties}
+                    style={{ '--checked-color': '#0EA5E9' } as React.CSSProperties}
                   />
                 </div>
                 {!isInfinite && (
@@ -176,7 +176,7 @@ function CreateCustomPlanContent() {
                       max={365}
                       value={durationDays}
                       onChange={(val) => setDurationDays(val as number)}
-                      style={{ '--button-background-color': '#52c41a15' } as React.CSSProperties}
+                      style={{ '--button-background-color': '#0EA5E915' } as React.CSSProperties}
                     />
                     <span className="text-sm text-gray-500">天</span>
                   </div>
@@ -192,7 +192,7 @@ function CreateCustomPlanContent() {
             <Button
               size="mini"
               onClick={addTask}
-              style={{ borderRadius: 8, color: '#52c41a', borderColor: '#52c41a' }}
+              style={{ borderRadius: 8, color: '#0EA5E9', borderColor: '#0EA5E9' }}
             >
               <AddOutline /> 添加
             </Button>
@@ -229,7 +229,7 @@ function CreateCustomPlanContent() {
           color="primary"
           size="large"
           loading={submitting}
-          style={{ borderRadius: 12, background: 'linear-gradient(135deg, #52c41a, #13c2c2)', border: 'none', height: 48 }}
+          style={{ borderRadius: 12, background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)', border: 'none', height: 48 }}
           onClick={handleSubmit}
         >
           {isEdit ? '保存修改' : '创建计划'}

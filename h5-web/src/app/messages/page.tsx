@@ -20,11 +20,11 @@ interface NotificationItem {
 
 const typeConfig: Record<string, { icon: string; color: string }> = {
   system: { icon: '🔔', color: '#1890ff' },
-  health_alert: { icon: '💚', color: '#52c41a' },
-  family_invite: { icon: '👨‍👩‍👧', color: '#52c41a' },
-  family_invite_accepted: { icon: '✅', color: '#52c41a' },
+  health_alert: { icon: '💚', color: '#0EA5E9' },
+  family_invite: { icon: '👨‍👩‍👧', color: '#0EA5E9' },
+  family_invite_accepted: { icon: '✅', color: '#0EA5E9' },
   family_invite_rejected: { icon: '❌', color: '#fa8c16' },
-  family_auth_granted: { icon: '🔓', color: '#52c41a' },
+  family_auth_granted: { icon: '🔓', color: '#0EA5E9' },
   family_auth_rejected: { icon: '🔒', color: '#fa8c16' },
   medication_remind: { icon: '💊', color: '#1890ff' },
 };
@@ -152,7 +152,7 @@ export default function MessagesPage() {
           unreadCount > 0 ? (
             <span
               className="text-xs cursor-pointer"
-              style={{ color: '#52c41a' }}
+              style={{ color: '#0EA5E9' }}
               onClick={markAllRead}
             >
               全部已读
@@ -195,7 +195,7 @@ export default function MessagesPage() {
                     <List.Item
                       onClick={() => markRead(n)}
                       prefix={
-                        <Badge content={n.is_read ? null : Badge.dot} style={{ '--color': '#52c41a' }}>
+                        <Badge content={n.is_read ? null : Badge.dot} style={{ '--color': '#0EA5E9' }}>
                           <div
                             className="w-10 h-10 rounded-full flex items-center justify-center text-xl"
                             style={{ background: `${cfg.color}15` }}
@@ -215,8 +215,8 @@ export default function MessagesPage() {
                                 style={{
                                   borderRadius: 12,
                                   fontSize: 10,
-                                  color: '#52c41a',
-                                  borderColor: '#52c41a',
+                                  color: '#0EA5E9',
+                                  borderColor: '#0EA5E9',
                                   padding: '0 8px',
                                   height: 22,
                                 }}
@@ -232,7 +232,7 @@ export default function MessagesPage() {
                         </div>
                       }
                       style={{
-                        background: n.is_read ? 'transparent' : '#f6ffed',
+                        background: n.is_read ? 'transparent' : '#F0F9FF',
                         borderRadius: 8,
                         marginBottom: 4,
                       }}

@@ -364,7 +364,7 @@ function DigitalHumanCallInner() {
         <button
           onClick={() => router.back()}
           className="px-8 py-3 rounded-full text-white font-medium"
-          style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}
+          style={{ background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)' }}
         >
           返回
         </button>
@@ -432,7 +432,7 @@ function DigitalHumanCallInner() {
       {/* Listening indicator */}
       {isListening && (
         <div className="absolute top-12 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 px-4 py-2 rounded-full"
-          style={{ background: 'rgba(82,196,26,0.8)', backdropFilter: 'blur(8px)' }}
+          style={{ background: 'rgba(56,189,248,0.8)', backdropFilter: 'blur(8px)' }}
         >
           <span className="inline-block w-2 h-2 rounded-full bg-white animate-pulse" />
           <span className="text-white text-sm">聆听中...</span>
@@ -459,7 +459,7 @@ function DigitalHumanCallInner() {
                 className="max-w-[80%] px-3 py-2 rounded-2xl text-sm leading-relaxed"
                 style={
                   msg.role === 'user'
-                    ? { background: 'rgba(82,196,26,0.85)', color: '#fff', borderBottomRightRadius: 4 }
+                    ? { background: 'rgba(56,189,248,0.85)', color: '#fff', borderBottomRightRadius: 4 }
                     : { background: 'rgba(255,255,255,0.9)', color: '#333', borderBottomLeftRadius: 4 }
                 }
               >

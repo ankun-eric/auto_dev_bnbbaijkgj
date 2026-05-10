@@ -30,8 +30,8 @@ const categories = [
     title: '健康打卡',
     desc: '自定义每日健康习惯打卡项',
     icon: '✅',
-    color: '#52c41a',
-    gradient: 'linear-gradient(135deg, #52c41a, #73d13d)',
+    color: '#0EA5E9',
+    gradient: 'linear-gradient(135deg, #0EA5E9, #73d13d)',
     countKey: 'checkin_count' as keyof PlanCounts,
   },
   {
@@ -148,10 +148,10 @@ export default function HealthPlanPage() {
         <div
           className="card cursor-pointer flex items-center justify-center py-4"
           onClick={() => router.push('/health-plan/statistics')}
-          style={{ background: 'linear-gradient(135deg, #f0faf0, #e8f8f5)', border: '1px dashed #52c41a40' }}
+          style={{ background: 'linear-gradient(135deg, #f0faf0, #e8f8f5)', border: '1px dashed #0EA5E940' }}
         >
           <span className="text-xl mr-2">📊</span>
-          <span className="text-sm font-medium" style={{ color: '#52c41a' }}>查看打卡统计</span>
+          <span className="text-sm font-medium" style={{ color: '#0EA5E9' }}>查看打卡统计</span>
         </div>
       </div>
     </div>

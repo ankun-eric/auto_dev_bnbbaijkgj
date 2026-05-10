@@ -92,16 +92,16 @@ const CONSTITUTION_COLORS: Record<string, string> = {
   '气虚质': '#fa8c16',
   '阳虚质': '#1890ff',
   '阴虚质': '#eb2f96',
-  '痰湿质': '#13c2c2',
+  '痰湿质': '#38BDF8',
   '湿热质': '#f5222d',
   '血瘀质': '#722ed1',
   '气郁质': '#2f54eb',
   '特禀质': '#faad14',
-  '平和质': '#52c41a',
+  '平和质': '#0EA5E9',
 };
 
 function getConstitutionColor(type: string): string {
-  return CONSTITUTION_COLORS[type] || '#52c41a';
+  return CONSTITUTION_COLORS[type] || '#0EA5E9';
 }
 
 // 体质测评流程 StepBar（对齐健康自查：1.答题 → 2.选择对象 → 3.AI 分析）
@@ -123,7 +123,7 @@ function TcmStepBar({ current }: { current: number }) {
               <div
                 className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold transition-all"
                 style={{
-                  background: isDone ? '#52c41a' : isActive ? 'linear-gradient(135deg, #52c41a, #13c2c2)' : '#e8e8e8',
+                  background: isDone ? '#0EA5E9' : isActive ? 'linear-gradient(135deg, #0EA5E9, #38BDF8)' : '#e8e8e8',
                   color: isDone || isActive ? '#fff' : '#999',
                 }}
               >
@@ -132,7 +132,7 @@ function TcmStepBar({ current }: { current: number }) {
               <div className="min-w-0">
                 <div
                   className="text-xs font-medium truncate"
-                  style={{ color: isActive || isDone ? '#52c41a' : '#999' }}
+                  style={{ color: isActive || isDone ? '#0EA5E9' : '#999' }}
                 >
                   {`${idx + 1}. ${item.title}`}
                 </div>
@@ -141,7 +141,7 @@ function TcmStepBar({ current }: { current: number }) {
             {idx < TCM_STEP_ITEMS.length - 1 && (
               <div
                 className="h-px flex-shrink-0 mx-2"
-                style={{ width: 20, background: idx < current ? '#52c41a' : '#e8e8e8' }}
+                style={{ width: 20, background: idx < current ? '#0EA5E9' : '#e8e8e8' }}
               />
             )}
           </div>
@@ -490,7 +490,7 @@ export default function TcmPage() {
         <div className="px-4 pt-4 pb-6">
           <div
             className="rounded-xl p-6 mb-4 text-center"
-            style={{ background: 'linear-gradient(135deg, #52c41a20, #13c2c220)' }}
+            style={{ background: 'linear-gradient(135deg, #0EA5E920, #38BDF820)' }}
           >
             <div className="text-3xl mb-2">🏥</div>
             <h2 className="font-bold text-lg text-gray-800">智能中医养生</h2>
@@ -499,7 +499,7 @@ export default function TcmPage() {
 
           {configLoading ? (
             <div className="flex items-center justify-center py-10">
-              <SpinLoading style={{ '--size': '24px', '--color': '#52c41a' }} />
+              <SpinLoading style={{ '--size': '24px', '--color': '#0EA5E9' }} />
             </div>
           ) : features.length === 0 ? (
             <div className="text-center py-10 text-gray-400 text-sm">暂无可用功能</div>
@@ -513,7 +513,7 @@ export default function TcmPage() {
                 <div className="flex items-center">
                   <div
                     className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl mr-4"
-                    style={{ background: '#52c41a15' }}
+                    style={{ background: '#0EA5E915' }}
                   >
                     {f.icon}
                   </div>
@@ -537,7 +537,7 @@ export default function TcmPage() {
             </div>
             {archiveLoading ? (
               <div className="flex items-center justify-center py-8">
-                <SpinLoading style={{ '--size': '24px', '--color': '#52c41a' }} />
+                <SpinLoading style={{ '--size': '24px', '--color': '#0EA5E9' }} />
               </div>
             ) : archiveList.length === 0 ? (
               <div className="bg-white rounded-2xl py-8 text-center shadow-sm">
@@ -611,7 +611,7 @@ export default function TcmPage() {
               onClick={handleTongueAnalyze}
               style={{
                 marginTop: 16,
-                background: 'linear-gradient(135deg, #52c41a, #13c2c2)',
+                background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)',
                 color: '#fff',
                 border: 'none',
                 borderRadius: 24,
@@ -650,7 +650,7 @@ export default function TcmPage() {
               onClick={handleFaceAnalyze}
               style={{
                 marginTop: 16,
-                background: 'linear-gradient(135deg, #52c41a, #13c2c2)',
+                background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)',
                 color: '#fff',
                 border: 'none',
                 borderRadius: 24,
@@ -679,7 +679,7 @@ export default function TcmPage() {
           </div>
           {submittingTest ? (
             <div className="flex flex-col items-center justify-center py-20">
-              <SpinLoading style={{ '--size': '36px', '--color': '#52c41a' }} />
+              <SpinLoading style={{ '--size': '36px', '--color': '#0EA5E9' }} />
               <span className="text-sm text-gray-500 mt-4">正在分析体质...</span>
             </div>
           ) : (
@@ -694,7 +694,7 @@ export default function TcmPage() {
                 percent={progress}
                 style={{
                   '--track-width': '6px',
-                  '--fill-color': '#52c41a',
+                  '--fill-color': '#0EA5E9',
                   marginBottom: 20,
                 }}
               />
@@ -750,7 +750,7 @@ export default function TcmPage() {
             onClick={handleConstitutionConsult}
             style={{
               marginTop: 16,
-              background: 'linear-gradient(135deg, #52c41a, #13c2c2)',
+              background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)',
               color: '#fff',
               border: 'none',
               borderRadius: 24,
@@ -787,14 +787,14 @@ export default function TcmPage() {
                   key={m.id}
                   className="flex items-center justify-between px-3 py-3 rounded-xl cursor-pointer"
                   style={{
-                    background: selectedMemberId === m.id ? '#f6ffed' : '#f9f9f9',
-                    border: selectedMemberId === m.id ? '1px solid #52c41a' : '1px solid transparent',
+                    background: selectedMemberId === m.id ? '#F0F9FF' : '#f9f9f9',
+                    border: selectedMemberId === m.id ? '1px solid #0EA5E9' : '1px solid transparent',
                   }}
                   onClick={() => setSelectedMemberId(m.id)}
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-full flex items-center justify-center text-xl"
-                      style={{ background: selectedMemberId === m.id ? 'linear-gradient(135deg,#52c41a,#13c2c2)' : '#f0f0f0' }}>
+                      style={{ background: selectedMemberId === m.id ? 'linear-gradient(135deg,#0EA5E9,#38BDF8)' : '#f0f0f0' }}>
                       {m.is_self && selectedMemberId === m.id ? <span className="text-white text-sm">我</span> : emoji}
                     </div>
                     <div><div className="text-sm font-medium">{displayName}</div></div>
@@ -813,8 +813,8 @@ export default function TcmPage() {
               style={{ background: '#f9f9f9', border: '1px solid transparent' }}
               onClick={openAddMemberPopup}
             >
-              <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-lg" style={{ background: '#52c41a' }}>+</div>
-              <span className="text-sm font-medium" style={{ color: '#52c41a' }}>添加家庭成员</span>
+              <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-lg" style={{ background: '#0EA5E9' }}>+</div>
+              <span className="text-sm font-medium" style={{ color: '#0EA5E9' }}>添加家庭成员</span>
             </div>
           </div>
 
@@ -827,7 +827,7 @@ export default function TcmPage() {
               marginTop: 20,
               background: selectedMemberId === null
                 ? '#d9d9d9'
-                : 'linear-gradient(135deg, #52c41a, #13c2c2)',
+                : 'linear-gradient(135deg, #0EA5E9, #38BDF8)',
               color: '#fff',
               border: 'none',
               borderRadius: 24,
@@ -860,19 +860,19 @@ export default function TcmPage() {
                 const isSelected = selectedRelation?.id === rt.id;
                 return (
                   <button key={rt.id} className="flex flex-col items-center py-2 rounded-xl transition-all"
-                    style={{ background: isSelected ? 'linear-gradient(135deg, #f6ffed, #e6fffb)' : '#f9f9f9', border: isSelected ? '1.5px solid #52c41a' : '1.5px solid transparent' }}
+                    style={{ background: isSelected ? 'linear-gradient(135deg, #F0F9FF, #e6fffb)' : '#f9f9f9', border: isSelected ? '1.5px solid #0EA5E9' : '1.5px solid transparent' }}
                     onClick={() => { setSelectedRelation(rt); setAddStep('info'); }}
                   >
                     <span className="text-2xl">{emoji}</span>
-                    <span className="text-xs mt-1" style={{ color: isSelected ? '#52c41a' : '#555' }}>{rt.name}</span>
+                    <span className="text-xs mt-1" style={{ color: isSelected ? '#0EA5E9' : '#555' }}>{rt.name}</span>
                   </button>
                 );
               })}
             </div>
           </div>
           {addStep === 'info' && selectedRelation && (
-            <div className="mt-5 p-4 rounded-2xl" style={{ background: '#f6ffed', border: '1px solid #b7eb8f' }}>
-              <div className="text-sm font-semibold mb-4" style={{ color: '#52c41a' }}>
+            <div className="mt-5 p-4 rounded-2xl" style={{ background: '#F0F9FF', border: '1px solid #BAE6FD' }}>
+              <div className="text-sm font-semibold mb-4" style={{ color: '#0EA5E9' }}>
                 {getMemberEmoji(selectedRelation.name)} 填写{selectedRelation.name}信息
               </div>
               <div className="space-y-3">
@@ -885,7 +885,7 @@ export default function TcmPage() {
                   <div className="flex gap-3">
                     {['male', 'female'].map((g) => (
                       <button key={g} className="flex-1 py-2 rounded-xl text-sm font-medium transition-all"
-                        style={{ background: newGender === g ? 'linear-gradient(135deg, #52c41a, #13c2c2)' : '#fff', color: newGender === g ? '#fff' : '#666', border: `1px solid ${newGender === g ? '#52c41a' : '#e8e8e8'}` }}
+                        style={{ background: newGender === g ? 'linear-gradient(135deg, #0EA5E9, #38BDF8)' : '#fff', color: newGender === g ? '#fff' : '#666', border: `1px solid ${newGender === g ? '#0EA5E9' : '#e8e8e8'}` }}
                         onClick={() => setNewGender(g)}
                       >{g === 'male' ? '男' : '女'}</button>
                     ))}
@@ -901,7 +901,7 @@ export default function TcmPage() {
               </div>
               <button
                 className="w-full mt-4 py-3 rounded-2xl text-white font-semibold text-sm"
-                style={{ background: addLoading ? '#d9d9d9' : 'linear-gradient(135deg, #52c41a, #13c2c2)' }}
+                style={{ background: addLoading ? '#d9d9d9' : 'linear-gradient(135deg, #0EA5E9, #38BDF8)' }}
                 disabled={addLoading} onClick={handleAddMemberConfirm}
               >{addLoading ? '添加中...' : '确认添加'}</button>
             </div>

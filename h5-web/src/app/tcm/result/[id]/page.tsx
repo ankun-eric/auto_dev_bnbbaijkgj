@@ -102,7 +102,7 @@ interface ResultData {
 function RadarChart({
   dimensions,
   scores,
-  color = '#52c41a',
+  color = '#0EA5E9',
   size = 220,
 }: {
   dimensions: string[];
@@ -205,14 +205,14 @@ async function generateShareCard(data: ResultData): Promise<string> {
 
   // 背景（国风渐变）
   const grad = ctx.createLinearGradient(0, 0, 0, h);
-  grad.addColorStop(0, '#f6ffed');
+  grad.addColorStop(0, '#F0F9FF');
   grad.addColorStop(0.5, '#fff');
   grad.addColorStop(1, '#e6fffb');
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, w, h);
 
   // 顶部装饰
-  ctx.fillStyle = data.screen1_card.color || '#52c41a';
+  ctx.fillStyle = data.screen1_card.color || '#0EA5E9';
   ctx.globalAlpha = 0.1;
   ctx.fillRect(0, 0, w, 200);
   ctx.globalAlpha = 1;
@@ -223,7 +223,7 @@ async function generateShareCard(data: ResultData): Promise<string> {
   ctx.fillText(data.screen1_card.persona.emoji || '🌿', w / 2, 220);
 
   // 标题
-  ctx.fillStyle = data.screen1_card.color || '#52c41a';
+  ctx.fillStyle = data.screen1_card.color || '#0EA5E9';
   ctx.font = 'bold 64px "PingFang SC", sans-serif';
   ctx.fillText(data.screen1_card.type, w / 2, 320);
 
@@ -243,7 +243,7 @@ async function generateShareCard(data: ResultData): Promise<string> {
     const y = barTop + i * 50;
     ctx.fillStyle = '#eee';
     ctx.fillRect(barLeft + 80, y + 14, barW - 80, 16);
-    ctx.fillStyle = data.screen1_card.color || '#52c41a';
+    ctx.fillStyle = data.screen1_card.color || '#0EA5E9';
     const ww = ((barW - 80) * Math.max(0, Math.min(100, scores[i]))) / 100;
     ctx.fillRect(barLeft + 80, y + 14, ww, 16);
     ctx.fillStyle = '#333';
@@ -260,7 +260,7 @@ async function generateShareCard(data: ResultData): Promise<string> {
   ctx.stroke();
 
   // Slogan
-  ctx.fillStyle = '#52c41a';
+  ctx.fillStyle = '#0EA5E9';
   ctx.font = 'bold 40px "PingFang SC", sans-serif';
   ctx.textAlign = 'center';
   ctx.fillText(data.screen6_share.slogan || '一起测，测完约个艾灸', w / 2, 1100);
@@ -268,14 +268,14 @@ async function generateShareCard(data: ResultData): Promise<string> {
   // 品牌
   ctx.fillStyle = '#888';
   ctx.font = '24px "PingFang SC", sans-serif';
-  ctx.fillText('宾尼小康 · 中医养生', w / 2, 1160);
+  ctx.fillText('晴空诊室 · 中医养生', w / 2, 1160);
 
   // 二维码占位框
-  ctx.strokeStyle = '#52c41a';
+  ctx.strokeStyle = '#0EA5E9';
   ctx.lineWidth = 3;
   ctx.strokeRect(w / 2 - 70, 1200, 140, 140);
   ctx.font = '20px "PingFang SC", sans-serif';
-  ctx.fillStyle = '#52c41a';
+  ctx.fillStyle = '#0EA5E9';
   ctx.fillText('扫码测体质', w / 2, 1360 - 20);
 
   return canvas.toDataURL('image/png');
@@ -386,14 +386,14 @@ export default function TcmResultPage() {
       <div className="min-h-screen bg-gray-50">
         <GreenNavBar back={() => router.back()}>体质分析报告</GreenNavBar>
         <div className="flex flex-col items-center justify-center py-32">
-          <SpinLoading style={{ '--size': '36px', '--color': '#52c41a' }} />
+          <SpinLoading style={{ '--size': '36px', '--color': '#0EA5E9' }} />
           <span className="text-sm text-gray-500 mt-4">加载中...</span>
         </div>
       </div>
     );
   }
 
-  const color = data.screen1_card.color || '#52c41a';
+  const color = data.screen1_card.color || '#0EA5E9';
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
@@ -649,7 +649,7 @@ export default function TcmResultPage() {
                       onClick={() => handleBuyPackage(pkg)}
                       style={{
                         background: pkg.matched
-                          ? `linear-gradient(135deg, ${color}, #13c2c2)`
+                          ? `linear-gradient(135deg, ${color}, #38BDF8)`
                           : '#d9d9d9',
                         color: '#fff',
                         border: 'none',
@@ -719,9 +719,9 @@ export default function TcmResultPage() {
                 size="small"
                 onClick={handleViewCoupons}
                 style={{
-                  background: '#f6ffed',
-                  color: '#52c41a',
-                  border: '1px solid #52c41a',
+                  background: '#F0F9FF',
+                  color: '#0EA5E9',
+                  border: '1px solid #0EA5E9',
                   borderRadius: 16,
                   fontSize: 12,
                   padding: '4px 14px',
@@ -763,7 +763,7 @@ export default function TcmResultPage() {
           block
           onClick={handleShare}
           style={{
-            background: `linear-gradient(135deg, ${color}, #13c2c2)`,
+            background: `linear-gradient(135deg, ${color}, #38BDF8)`,
             color: '#fff',
             border: 'none',
             borderRadius: 24,
@@ -794,7 +794,7 @@ export default function TcmResultPage() {
             </div>
             <div className="p-4 overflow-auto flex items-center justify-center" style={{ minHeight: 360 }}>
               {generatingShare && !shareImageUrl && (
-                <SpinLoading style={{ '--size': '36px', '--color': '#52c41a' }} />
+                <SpinLoading style={{ '--size': '36px', '--color': '#0EA5E9' }} />
               )}
               {shareImageUrl && (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -806,7 +806,7 @@ export default function TcmResultPage() {
                 block
                 onClick={handleSaveShareImage}
                 disabled={!shareImageUrl}
-                style={{ background: '#52c41a', color: '#fff', border: 'none', borderRadius: 20 }}
+                style={{ background: '#0EA5E9', color: '#fff', border: 'none', borderRadius: 20 }}
               >
                 保存图片
               </Button>

@@ -101,7 +101,7 @@ export default function FamilyBindListPage() {
                     style={{
                       width: 44,
                       height: 44,
-                      background: 'linear-gradient(135deg, #52c41a, #13c2c2)',
+                      background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)',
                     }}
                   >
                     <span className="text-white text-lg">

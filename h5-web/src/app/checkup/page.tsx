@@ -102,7 +102,7 @@ function getMemberTagColor(relationshipType: string): string {
   if (['爸爸', '父亲'].includes(t)) return '#fa8c16';
   if (['妈妈', '母亲'].includes(t)) return '#eb2f96';
   if (['老公', '老婆', '配偶'].includes(t)) return '#722ed1';
-  if (['儿子', '女儿', '子女'].includes(t)) return '#13c2c2';
+  if (['儿子', '女儿', '子女'].includes(t)) return '#38BDF8';
   return '#8c8c8c';
 }
 
@@ -144,7 +144,7 @@ function StepBar({ current, onStepClick }: { current: number; onStepClick: (idx:
               <div
                 className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold transition-all"
                 style={{
-                  background: isDone ? '#52c41a' : isActive ? 'linear-gradient(135deg, #1890ff, #096dd9)' : '#e8e8e8',
+                  background: isDone ? '#0EA5E9' : isActive ? 'linear-gradient(135deg, #1890ff, #096dd9)' : '#e8e8e8',
                   color: isDone || isActive ? '#fff' : '#999',
                 }}
               >
@@ -153,7 +153,7 @@ function StepBar({ current, onStepClick }: { current: number; onStepClick: (idx:
               <div className="min-w-0">
                 <div
                   className="text-xs font-medium truncate"
-                  style={{ color: isActive ? '#1890ff' : isDone ? '#52c41a' : '#999' }}
+                  style={{ color: isActive ? '#1890ff' : isDone ? '#0EA5E9' : '#999' }}
                 >
                   {item.title}
                 </div>
@@ -162,7 +162,7 @@ function StepBar({ current, onStepClick }: { current: number; onStepClick: (idx:
             {idx < STEP_ITEMS.length - 1 && (
               <div
                 className="h-px flex-shrink-0 mx-2"
-                style={{ width: 20, background: idx < current ? '#52c41a' : '#e8e8e8' }}
+                style={{ width: 20, background: idx < current ? '#0EA5E9' : '#e8e8e8' }}
               />
             )}
           </div>
@@ -718,7 +718,7 @@ export default function CheckupPage() {
             >
               <div
                 className="w-10 h-10 rounded-full flex items-center justify-center"
-                style={{ background: '#52c41a15', color: '#52c41a' }}
+                style={{ background: '#0EA5E915', color: '#0EA5E9' }}
               >
                 <CameraOutline fontSize={22} />
               </div>
@@ -762,7 +762,7 @@ export default function CheckupPage() {
           {uploading && (
             <div className="mt-4 py-3 px-3 rounded-xl bg-green-50">
               <div className="flex items-center gap-2 mb-2">
-                <SpinLoading style={{ '--size': '18px', '--color': '#52c41a' }} />
+                <SpinLoading style={{ '--size': '18px', '--color': '#0EA5E9' }} />
                 <span className="text-sm text-green-600">{uploadProgress}</span>
               </div>
               {uploadPercent >= 0 && (
@@ -770,7 +770,7 @@ export default function CheckupPage() {
                   <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
                     <div
                       className="h-full rounded-full transition-all duration-300"
-                      style={{ width: `${uploadPercent}%`, background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}
+                      style={{ width: `${uploadPercent}%`, background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)' }}
                     />
                   </div>
                   <span className="text-xs text-gray-500 w-10 text-right">{uploadPercent}%</span>
@@ -905,8 +905,8 @@ export default function CheckupPage() {
                       {report.status === 'completed' ? (
                         <Tag
                           style={{
-                            '--background-color': '#52c41a15',
-                            '--text-color': '#52c41a',
+                            '--background-color': '#0EA5E915',
+                            '--text-color': '#0EA5E9',
                             '--border-color': 'transparent',
                             fontSize: 10,
                           }}
@@ -1010,7 +1010,7 @@ export default function CheckupPage() {
         <InfiniteScroll loadMore={loadMore} hasMore={hasMore}>
           {loadingList && (
             <div className="flex justify-center py-4">
-              <SpinLoading style={{ '--size': '24px', '--color': '#52c41a' }} />
+              <SpinLoading style={{ '--size': '24px', '--color': '#0EA5E9' }} />
             </div>
           )}
         </InfiniteScroll>
@@ -1052,14 +1052,14 @@ export default function CheckupPage() {
                   key={m.id}
                   className="flex items-center justify-between px-3 py-3 rounded-xl cursor-pointer"
                   style={{
-                    background: selectedMemberId === m.id ? '#f6ffed' : '#f9f9f9',
-                    border: selectedMemberId === m.id ? '1px solid #52c41a' : '1px solid transparent',
+                    background: selectedMemberId === m.id ? '#F0F9FF' : '#f9f9f9',
+                    border: selectedMemberId === m.id ? '1px solid #0EA5E9' : '1px solid transparent',
                   }}
                   onClick={() => handleSelectMember(m.id)}
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-full flex items-center justify-center text-xl"
-                      style={{ background: selectedMemberId === m.id ? 'linear-gradient(135deg,#52c41a,#13c2c2)' : '#f0f0f0' }}>
+                      style={{ background: selectedMemberId === m.id ? 'linear-gradient(135deg,#0EA5E9,#38BDF8)' : '#f0f0f0' }}>
                       {m.is_self && selectedMemberId === m.id ? <span className="text-white text-sm">我</span> : emoji}
                     </div>
                     <div>
@@ -1081,10 +1081,10 @@ export default function CheckupPage() {
               onClick={openAddMemberPopup}
             >
               <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-lg"
-                style={{ background: '#52c41a' }}>
+                style={{ background: '#0EA5E9' }}>
                 +
               </div>
-              <span className="text-sm text-primary font-medium" style={{ color: '#52c41a' }}>添加家庭成员</span>
+              <span className="text-sm text-primary font-medium" style={{ color: '#0EA5E9' }}>添加家庭成员</span>
             </div>
           </div>
 
@@ -1113,7 +1113,7 @@ export default function CheckupPage() {
             onClick={handleMemberConfirm}
             style={{
               marginTop: 20,
-              background: 'linear-gradient(135deg, #52c41a, #13c2c2)',
+              background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)',
               color: '#fff',
               border: 'none',
               borderRadius: 24,
@@ -1150,8 +1150,8 @@ export default function CheckupPage() {
                     key={rt.id}
                     className="flex flex-col items-center py-2 rounded-xl transition-all"
                     style={{
-                      background: isSelected ? 'linear-gradient(135deg, #f6ffed, #e6fffb)' : '#f9f9f9',
-                      border: isSelected ? '1.5px solid #52c41a' : '1.5px solid transparent',
+                      background: isSelected ? 'linear-gradient(135deg, #F0F9FF, #e6fffb)' : '#f9f9f9',
+                      border: isSelected ? '1.5px solid #0EA5E9' : '1.5px solid transparent',
                     }}
                     onClick={() => {
                       setSelectedRelation(rt);
@@ -1159,7 +1159,7 @@ export default function CheckupPage() {
                     }}
                   >
                     <span className="text-2xl">{emoji}</span>
-                    <span className="text-xs mt-1" style={{ color: isSelected ? '#52c41a' : '#555' }}>{rt.name}</span>
+                    <span className="text-xs mt-1" style={{ color: isSelected ? '#0EA5E9' : '#555' }}>{rt.name}</span>
                   </button>
                 );
               })}
@@ -1167,8 +1167,8 @@ export default function CheckupPage() {
           </div>
 
           {addStep === 'info' && selectedRelation && (
-            <div className="mt-5 p-4 rounded-2xl" style={{ background: '#f6ffed', border: '1px solid #b7eb8f' }}>
-              <div className="text-sm font-semibold mb-4" style={{ color: '#52c41a' }}>
+            <div className="mt-5 p-4 rounded-2xl" style={{ background: '#F0F9FF', border: '1px solid #BAE6FD' }}>
+              <div className="text-sm font-semibold mb-4" style={{ color: '#0EA5E9' }}>
                 {getMemberEmoji(selectedRelation.name)} 填写{selectedRelation.name}信息
               </div>
 
@@ -1191,9 +1191,9 @@ export default function CheckupPage() {
                         key={g}
                         className="flex-1 py-2 rounded-xl text-sm font-medium transition-all"
                         style={{
-                          background: newGender === g ? 'linear-gradient(135deg, #52c41a, #13c2c2)' : '#fff',
+                          background: newGender === g ? 'linear-gradient(135deg, #0EA5E9, #38BDF8)' : '#fff',
                           color: newGender === g ? '#fff' : '#666',
-                          border: `1px solid ${newGender === g ? '#52c41a' : '#e8e8e8'}`,
+                          border: `1px solid ${newGender === g ? '#0EA5E9' : '#e8e8e8'}`,
                         }}
                         onClick={() => setNewGender(g)}
                       >
@@ -1262,7 +1262,7 @@ export default function CheckupPage() {
 
               <button
                 className="w-full mt-4 py-3 rounded-2xl text-white font-semibold text-sm"
-                style={{ background: addLoading ? '#d9d9d9' : 'linear-gradient(135deg, #52c41a, #13c2c2)' }}
+                style={{ background: addLoading ? '#d9d9d9' : 'linear-gradient(135deg, #0EA5E9, #38BDF8)' }}
                 disabled={addLoading}
                 onClick={handleAddMemberConfirm}
               >

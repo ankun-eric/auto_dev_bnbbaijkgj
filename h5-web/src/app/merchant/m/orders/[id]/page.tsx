@@ -74,19 +74,19 @@ interface OrderNote {
 const STATUS_CONFIG: Record<string, { text: string; color: string; bg: string }> = {
   pending_payment: { text: '待付款', color: '#fa8c16', bg: '#fff7e6' },
   pending_shipment: { text: '待发货', color: '#1890ff', bg: '#e6f4ff' },
-  pending_receipt: { text: '待收货', color: '#13c2c2', bg: '#e6fffb' },
+  pending_receipt: { text: '待收货', color: '#38BDF8', bg: '#e6fffb' },
   pending_appointment: { text: '待预约', color: '#722ed1', bg: '#f9f0ff' },
-  appointed: { text: '待核销', color: '#13c2c2', bg: '#e6fffb' },
-  pending_use: { text: '待核销', color: '#13c2c2', bg: '#e6fffb' },
+  appointed: { text: '待核销', color: '#38BDF8', bg: '#e6fffb' },
+  pending_use: { text: '待核销', color: '#38BDF8', bg: '#e6fffb' },
   partial_used: { text: '部分核销', color: '#faad14', bg: '#fffbe6' },
   pending_review: { text: '待评价', color: '#eb2f96', bg: '#fff0f6' },
-  completed: { text: '已完成', color: '#52c41a', bg: '#f6ffed' },
+  completed: { text: '已完成', color: '#0EA5E9', bg: '#F0F9FF' },
   expired: { text: '已过期', color: '#8c8c8c', bg: '#f5f5f5' },
   refunding: { text: '退款中', color: '#f5222d', bg: '#fff1f0' },
   refunded: { text: '已退款', color: '#8c8c8c', bg: '#f5f5f5' },
   cancelled: { text: '已取消', color: '#8c8c8c', bg: '#f5f5f5' },
   // 历史遗留兼容（防御性映射，不在筛选器中暴露）
-  redeemed: { text: '已完成', color: '#52c41a', bg: '#f6ffed' },
+  redeemed: { text: '已完成', color: '#0EA5E9', bg: '#F0F9FF' },
   paid: { text: '待核销', color: '#1677ff', bg: '#e6f4ff' },
 };
 
@@ -322,11 +322,11 @@ export default function OrderDetailMobilePage() {
         <div
           style={{
             margin: '0 12px 12px',
-            background: order.last_reschedule_notify_status === 'all_failed' ? '#fff1f0' : '#f6ffed',
+            background: order.last_reschedule_notify_status === 'all_failed' ? '#fff1f0' : '#F0F9FF',
             border:
               order.last_reschedule_notify_status === 'all_failed'
                 ? '1px solid #ffa39e'
-                : '1px solid #b7eb8f',
+                : '1px solid #BAE6FD',
             borderRadius: 12,
             padding: 14,
           }}
@@ -336,7 +336,7 @@ export default function OrderDetailMobilePage() {
               fontSize: 14,
               fontWeight: 600,
               marginBottom: 6,
-              color: order.last_reschedule_notify_status === 'all_failed' ? '#cf1322' : '#389e0d',
+              color: order.last_reschedule_notify_status === 'all_failed' ? '#cf1322' : '#0369A1',
             }}
           >
             改期通知状态：{order.last_reschedule_notify.display}
@@ -350,7 +350,7 @@ export default function OrderDetailMobilePage() {
                   {c.name === 'sms' && '短信'}
                   {!['wechat_subscribe', 'app_push', 'sms'].includes(c.name) && c.name}
                 </span>
-                <span style={{ color: c.ok ? '#52c41a' : '#fa541c', fontWeight: 500 }}>
+                <span style={{ color: c.ok ? '#0EA5E9' : '#fa541c', fontWeight: 500 }}>
                   {c.ok ? '✓ 成功' : '✗ 失败'}
                 </span>
                 {c.detail && <span style={{ marginLeft: 8, color: '#999' }}>（{c.detail}）</span>}

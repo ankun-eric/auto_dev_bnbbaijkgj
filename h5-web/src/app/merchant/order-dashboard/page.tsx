@@ -44,7 +44,7 @@ type StatusCode = 'pending' | 'arrived' | 'verified' | 'cancelled';
 const STATUS_COLOR: Record<StatusCode, { color: string; label: string; tag: string }> = {
   pending:   { color: '#1677FF', label: '待到店', tag: 'blue' },
   arrived:   { color: '#FA8C16', label: '已到店', tag: 'orange' },
-  verified:  { color: '#52C41A', label: '已核销', tag: 'green' },
+  verified:  { color: '#0EA5E9', label: '已核销', tag: 'green' },
   cancelled: { color: '#BFBFBF', label: '已取消', tag: 'default' },
 };
 
@@ -489,7 +489,7 @@ export default function MerchantOrderDashboardPage() {
                   style={{
                     borderLeft: `4px solid ${cfg.color}`,
                     border: isCurrent ? `2px solid ${cfg.color}` : undefined,
-                    background: isCurrent ? '#f6ffed' : undefined,
+                    background: isCurrent ? '#F0F9FF' : undefined,
                     minHeight: 150,
                   }}
                   styles={{ body: { padding: 16 } }}
@@ -760,7 +760,7 @@ export default function MerchantOrderDashboardPage() {
             <Text type="secondary">备注：</Text>{o.notes}
           </div>
         )}
-        <div style={{ marginBottom: 12, color: '#52C41A' }}>
+        <div style={{ marginBottom: 12, color: '#0EA5E9' }}>
           <Text type="secondary" style={{ color: 'inherit' }}>金额：</Text>{formatYuan(o.amount)}
         </div>
         <Space wrap>

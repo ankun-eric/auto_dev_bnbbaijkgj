@@ -166,7 +166,7 @@ function CompareSelectContent() {
                         {m.relation_type_name || m.relationship_type}
                       </span>
                     </div>
-                    <div style={{ fontSize: 12, color: disabled ? '#cc4e4e' : '#52c41a', marginTop: 4 }}>
+                    <div style={{ fontSize: 12, color: disabled ? '#cc4e4e' : '#0EA5E9', marginTop: 4 }}>
                       {count} 份报告{disabled ? ' · 不足 2 份' : ''}
                     </div>
                   </div>
@@ -272,7 +272,7 @@ function CompareSelectContent() {
                 color: '#fff',
                 background:
                   selectedIds.size === 2 && !submitting
-                    ? 'linear-gradient(135deg, #52c41a, #13c2c2)'
+                    ? 'linear-gradient(135deg, #0EA5E9, #38BDF8)'
                     : '#d9d9d9',
               }}
             >

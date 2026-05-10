@@ -107,7 +107,7 @@ export default function CouponCenterPage() {
         领券中心
       </GreenNavBar>
 
-      <div className="px-4 py-4" style={{ background: 'linear-gradient(135deg, #52c41a, #13c2c2)' }}>
+      <div className="px-4 py-4" style={{ background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)' }}>
         <div className="text-white text-lg font-bold">优惠券等你来领</div>
         <div className="text-white/70 text-xs mt-1">每张券每人限领 1 次</div>
       </div>
@@ -134,7 +134,7 @@ export default function CouponCenterPage() {
                   style={{
                     background: btnDisabled
                       ? 'linear-gradient(135deg, #bdbdbd, #9e9e9e)'
-                      : 'linear-gradient(135deg, #52c41a, #13c2c2)',
+                      : 'linear-gradient(135deg, #0EA5E9, #38BDF8)',
                   }}
                 >
                   <div className="text-xl font-bold">{getCouponValue(coupon)}</div>
@@ -148,8 +148,8 @@ export default function CouponCenterPage() {
                       </span>
                       <Tag
                         style={{
-                          '--background-color': btnDisabled ? '#eee' : '#52c41a15',
-                          '--text-color': btnDisabled ? '#999' : '#52c41a',
+                          '--background-color': btnDisabled ? '#eee' : '#0EA5E915',
+                          '--text-color': btnDisabled ? '#999' : '#0EA5E9',
                           '--border-color': 'transparent',
                           fontSize: 10,
                           marginLeft: 6,
@@ -174,7 +174,7 @@ export default function CouponCenterPage() {
                       borderRadius: 20,
                       background: btnDisabled
                         ? '#e8e8e8'
-                        : 'linear-gradient(135deg, #52c41a, #13c2c2)',
+                        : 'linear-gradient(135deg, #0EA5E9, #38BDF8)',
                       color: btnDisabled ? '#999' : '#fff',
                       border: 'none',
                       flexShrink: 0,

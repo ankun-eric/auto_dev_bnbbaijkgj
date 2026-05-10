@@ -146,8 +146,8 @@ export default function ContactStoreModal({
                 <div
                   onClick={() => navigate(info.lat, info.lng, info.store_name)}
                   style={{
-                    background: '#52c41a15',
-                    color: '#52c41a',
+                    background: '#0EA5E915',
+                    color: '#0EA5E9',
                     padding: '6px 14px',
                     borderRadius: 16,
                     fontSize: 12,
@@ -181,7 +181,7 @@ export default function ContactStoreModal({
                 <div
                   onClick={() => callPhone(info.contact_phone || '')}
                   style={{
-                    background: '#52c41a',
+                    background: '#0EA5E9',
                     color: '#fff',
                     padding: '6px 14px',
                     borderRadius: 16,

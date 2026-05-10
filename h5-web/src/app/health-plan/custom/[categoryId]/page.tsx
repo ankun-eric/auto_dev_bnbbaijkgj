@@ -188,8 +188,8 @@ export default function CategoryDetailPage() {
                   <span className="font-bold text-sm">{plan.name}</span>
                   <Tag
                     style={{
-                      '--background-color': plan.status === 'active' ? '#52c41a15' : '#99999915',
-                      '--text-color': plan.status === 'active' ? '#52c41a' : '#999',
+                      '--background-color': plan.status === 'active' ? '#0EA5E915' : '#99999915',
+                      '--text-color': plan.status === 'active' ? '#0EA5E9' : '#999',
                       '--border-color': 'transparent',
                       fontSize: 10,
                     }}
@@ -203,11 +203,11 @@ export default function CategoryDetailPage() {
                 )}
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-xs text-gray-400">进度</span>
-                  <span className="text-xs" style={{ color: '#52c41a' }}>{plan.progress}%</span>
+                  <span className="text-xs" style={{ color: '#0EA5E9' }}>{plan.progress}%</span>
                 </div>
                 <ProgressBar
                   percent={plan.progress}
-                  style={{ '--track-width': '6px', '--fill-color': '#52c41a' }}
+                  style={{ '--track-width': '6px', '--fill-color': '#0EA5E9' }}
                 />
               </Card>
             ))}

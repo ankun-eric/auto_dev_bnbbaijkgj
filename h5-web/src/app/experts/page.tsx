@@ -22,7 +22,7 @@ const mockExperts = [
     name: '李营养师',
     title: '高级营养师',
     department: '营养科',
-    hospital: '宾尼健康中心',
+    hospital: '晴空诊室中心',
     rating: 4.8,
     consultCount: 1580,
     price: 128,
@@ -46,7 +46,7 @@ const mockExperts = [
     name: '陈医生',
     title: '副主任医师',
     department: '全科',
-    hospital: '宾尼健康体检中心',
+    hospital: '晴空诊室体检中心',
     rating: 4.9,
     consultCount: 3100,
     price: 168,
@@ -89,7 +89,7 @@ export default function ExpertsPage() {
                 style={{
                   '--size': '56px',
                   '--border-radius': '12px',
-                  background: 'linear-gradient(135deg, #52c41a40, #13c2c240)',
+                  background: 'linear-gradient(135deg, #0EA5E940, #38BDF840)',
                   flexShrink: 0,
                 }}
               />
@@ -110,8 +110,8 @@ export default function ExpertsPage() {
                     <Tag
                       key={tag}
                       style={{
-                        '--background-color': '#52c41a10',
-                        '--text-color': '#52c41a',
+                        '--background-color': '#0EA5E910',
+                        '--text-color': '#0EA5E9',
                         '--border-color': 'transparent',
                         fontSize: 10,
                       }}
