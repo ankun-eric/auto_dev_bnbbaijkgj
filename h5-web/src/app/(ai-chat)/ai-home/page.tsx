@@ -1437,9 +1437,9 @@ export default function AiHomePage() {
             zIndex: 100,
             height: 'calc(48px + env(safe-area-inset-top))',
             paddingTop: 'env(safe-area-inset-top)',
-            // [PRD-449 R1] 顶部固定栏背景改为全站主色（var(--color-primary)，避免硬编码）
-            // 文字"小康"、☰、⋯ 图标保持原黑色不变（详见下方 color: THEME.textPrimary）
-            background: 'var(--color-primary)',
+            // 顶部固定栏背景改为 AI 主页背景色（THEME.background），与下方欢迎区/消息流形成整体感，
+            // 避免与下方区域出现色块割裂。文字"小康"、☰、⋯ 图标保持原黑色不变（详见下方 color: THEME.textPrimary）
+            background: THEME.background,
             maxWidth: 750,
             marginLeft: 'auto',
             marginRight: 'auto',
@@ -1477,9 +1477,9 @@ export default function AiHomePage() {
               </button>
             ) : null}
 
-            {/* [PRD-449 R2] "小康"标题靠左，与 ☰ 间距压缩到 4px（保留呼吸感，不贴死）
-                ☰ 按钮在 left:8 + 宽 32px → 紧邻其右 = left:40；paddingLeft 改为 4px 即得 4px 视觉间距。
-                历史 [PRD-439 F-01] 原间距为 8px，本次按 PRD-449 R2 压缩为 4px。 */}
+            {/* "小康"标题靠左，与 ☰ 间距进一步压缩到 3px（更紧凑）
+                ☰ 按钮在 left:8 + 宽 32px → 紧邻其右 = left:40；paddingLeft 改为 3px 即得 3px 视觉间距。
+                历史轨迹：原 8px → 4px → 现 3px。 */}
             <div
               style={{
                 position: 'absolute',
@@ -1490,7 +1490,7 @@ export default function AiHomePage() {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'flex-start',
-                paddingLeft: 4, /* [PRD-449 R2] ☰ 与"小康"间距 4px */
+                paddingLeft: 3, /* ☰ 与"小康"间距 3px（更紧凑） */
                 minWidth: 0,
               }}
             >
@@ -1803,25 +1803,30 @@ export default function AiHomePage() {
                       marginRight: 16,
                     }}
                   >
-                    {/* [PRD-448 v1.1 §3.1] 咨询人胶囊：气泡内部第一行
-                        渲染条件（v1.1 改）：拿到当前会话绑定的家庭成员即渲染（含本人 family_member_id=0）。
-                        v1.0 仅 consultantId > 0 才渲染，导致本人（=0）被过滤；本次取消该限制，
-                        当 selectedConsultant 存在（含本人）时即进入；name 是否拿到由 AdvisorCapsule 内部兜底。
-                        未选定档案（selectedConsultant 与 consultantTargetId 都为 null/undefined）→ 不渲染。 */}
-                    {(msg.consultantTargetId !== undefined && msg.consultantTargetId !== null
-                      ? true
-                      : !!selectedConsultant) && (
+                    {/* [PRD-448 v1.2 §3.1] 咨询人胶囊：气泡内部第一行
+                        渲染规则（v1.2 修复，取代 v1.1）：
+                        进入此分支的页面已通过 isSelfMode 标志识别"本人"态，
+                        与"已选定家庭成员"等价处理 → 本人态（selectedConsultant === null）
+                        也进入胶囊渲染，传 consultantId=0 + memberName='本人' + isSelf=true。
+                        不再用 `consultant === null` 判定为"未选择"，根因彻底修复。
+                        未渲染条件：仅在极短的"页面初始化未确定咨询对象"时跳过（本项目中 ai-home
+                        进入页面默认即设 isSelfMode，故不会出现"未选定"分支）。 */}
                     <div data-testid="ai-home-profile-card-wrapper" style={{ marginBottom: 8 }}>
                       <ProfileCard
                         consultantId={(msg.consultantTargetId ?? selectedConsultant?.id ?? 0) as number}
                         variant="capsule"
-                        onGoComplete={(cid) => router.push(`/health-archive?target=${cid}&from=ai-chat`)}
+                        isSelf={!selectedConsultant && (msg.consultantTargetId === null || msg.consultantTargetId === undefined || msg.consultantTargetId === 0)}
+                        memberName={
+                          !selectedConsultant && (msg.consultantTargetId === null || msg.consultantTargetId === undefined || msg.consultantTargetId === 0)
+                            ? '本人'
+                            : (selectedConsultant?.nickname || undefined)
+                        }
+                        onGoComplete={(cid) => router.push(`/health-archive?target=${cid || 'self'}&from=ai-chat`)}
                         onGoMedicationManage={(cid, autoCreate) =>
-                          router.push(`/health-plan/medications?target=${cid}${autoCreate ? '&action=create' : ''}`)
+                          router.push(`/health-plan/medications?target=${cid || 'self'}${autoCreate ? '&action=create' : ''}`)
                         }
                       />
                     </div>
-                    )}
                     {/* 正文 */}
                     <div
                       className="ai-fullwidth-message"

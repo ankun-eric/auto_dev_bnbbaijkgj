@@ -33,7 +33,49 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: PRD-448-V1.1-ADVISOR-CAPSULE-REFINE-20260510｜AI 对话「咨询人胶囊」二次细化（本人也渲染 + SVG 箭头 + 14px 字号 + 16×16 图标 + 6×12 内边距 + 圆角 10 + isSelf prop + 12/12 服务器自动化测试 PASS）（2026-05-10 18:45）
+## Latest Update: PRD-448-V1.2-SELF-CAPSULE-FIX-20260510｜AI 首页「本人态咨询人胶囊」修复增量补丁（彻底解决本人态胶囊不显示 + 接口 id=0 兜底基础结构 + 5/5 单元测试 PASS + 接口 200 验证 PASS）（2026-05-10 21:00）
+
+### 一句话结论
+PRD-448 v1.1 上线后用户反馈"AI 首页本人态胶囊仍然完全不显示"，根因是两层叠加：① 第一层：渲染分支被 `consultant === null` 截断，本人态根本不进入胶囊渲染 → 改为本人态显式 isSelf=true / memberName='本人' / consultantId=0 直接进渲染分支；② 第二层：本人 FamilyMember 不存在或档案空白时后端返 404 / 前端 `!data` 走 `return null` → 后端兜底返回基础结构（nickname='本人'+ percent=0）+ 前端在 capsule 变体接口失败时也用上层 isSelf+memberName 渲染兜底胶囊（含"档案完整度 0%，点击补全 ›"引导）。详情页 `/chat/[sessionId]` 本次明确不动（用户范围确认）。
+
+### 范围与端
+- **H5（Next.js + React）**：
+  - 修改 `h5-web/src/app/(ai-chat)/ai-home/page.tsx`：移除 `(msg.consultantTargetId !== undefined && msg.consultantTargetId !== null ? true : !!selectedConsultant)` 条件中本人态 (`null`) 被卡死的分支，本人态显式传 `isSelf=true` + `memberName='本人'` + `consultantId=0`；`onGoComplete` 跳转路径在 cid=0 时改为 `/health-archive?target=self`
+  - 修改 `h5-web/src/components/ai-chat/ProfileCard.tsx`：新增 `isSelf` / `memberName` 两个 props 供上层覆盖；capsule 变体下接口失败/数据为空时，若上层显式标记 isSelf 也渲染兜底胶囊（折叠态"本次回答结合 本人 的档案" + 展开态全 7 项"未填写"+"档案完整度 0%，点击补全 ›"引导）；正常态下折叠态文案优先 isSelf prop 决定（true → '本人'；false → memberNameProp || data.nickname）
+- **后端（FastAPI）**：
+  - 修改 `backend/app/api/consultant_profile_card.py`：新增 `_empty_self_profile_card_payload()` 工厂函数；`GET /api/v1/consultant/0/profile_card` 当本人 FamilyMember 不存在时不再返 404，调用工厂函数返回基础结构体（`nickname="本人"` + 7 项空字段 + `is_self=true` + `percent=0`）
+  - 新增 `backend/tests/test_prd448_v12_self_consultant_card.py`（5 个用例覆盖：①无本人 FamilyMember 兜底 ②有本人但档案空白 ③本人档案完整 ④未登录 401/403 ⑤非本人 id 不存在仍 404）
+- **Admin / 微信小程序 / Flutter App / 详情页 `/chat/[sessionId]`**：本次零改动（PRD-448 v1.2 §六"不改"清单）
+
+### 关键技术决策
+1. **为何不引入 `is_self` 显式入参，继续用 `id=0` 约定**：与现有前端调用方式兼容（无需改 fetch 层），保持接口单一（PRD §4.2）
+2. **为何本人档案空白也必须 200 + 返回基础结构**：v1.1 失败的主因之一就是后端 404 → 前端 `!data` → `return null` → 胶囊消失，本次必须从源头杜绝
+3. **为何前端在接口失败时也对 isSelf 做兜底**：双层保护——即使后端兜底失效（如完全宕机），本人态前端也仍能渲染胶囊，绝不回归
+4. **为何不修详情页**：用户明确范围确认（PRD §六），改动可在 v1.3 99% 复用本次方案
+5. **为何展开态可显示真实姓名而折叠态固定"本人"**：折叠态 = 公共场合可视面（截图易泄露），展开态 = 用户主动点击 = 知情同意
+
+### 部署
+- 重建 `6b099ed3-7175-4a78-91f4-44570c84ed27-h5` + `6b099ed3-7175-4a78-91f4-44570c84ed27-backend` 双容器
+- 部署脚本：`deploy/_deploy_prd448_v12_20260510.py`（SFTP 上传 4 个文件 → docker compose build h5-web backend → up -d → curl 验证 5 URL + /api/v1/consultant/0/profile_card 鉴权 401 验证）
+- 部署后非 UI 自动化端点验证：`deploy/_verify_prd448_v12_endpoint.py`（注册新用户 → 登录拿 token → GET /api/v1/consultant/0/profile_card → 断言 200 + is_self=true + 7 项字段齐全 + percent=0）
+- smoke 5/5 PASS：`/`(200) / `/login`(308) / `/ai-home`(308) / `/chat/1`(308) / `/health-archive`(308)
+
+### 自动化测试结果（5/5 PASS）
+后端单元测试 `backend/tests/test_prd448_v12_self_consultant_card.py`：
+- T01 用户没有 is_self=True 的 FamilyMember → id=0 仍 200 返回 nickname='本人' + 字段全空 + percent=0
+- T02 本人 FamilyMember 已自动创建但档案空白 → 200 + is_self=true + percent=0
+- T03 本人档案 6/7 项填全（性别/年龄/身高/体重/既往病史/过敏史）→ 200 + percent>=80 + is_self=true
+- T04 未登录态 GET /api/v1/consultant/0/profile_card → 401/403（鉴权未被绕过）
+- T05 非本人成员 id=99999 不存在 → 404（兜底仅对 id=0 生效，不影响其他成员）
+
+非 UI 端点验证：登录态调 `/api/v1/consultant/0/profile_card` 实际返回 200 + `is_self=true` + `nickname='本人'` + 7 项字段结构齐全 + `percent=0`。
+
+### 用户体验手册
+`user_docs/AI首页本人态咨询人胶囊修复使用手册.md`（含体验链接、操作步骤、隐私说明、范围收敛说明）
+
+---
+
+## Previous Update: PRD-448-V1.1-ADVISOR-CAPSULE-REFINE-20260510｜AI 对话「咨询人胶囊」二次细化（本人也渲染 + SVG 箭头 + 14px 字号 + 16×16 图标 + 6×12 内边距 + 圆角 10 + isSelf prop + 12/12 服务器自动化测试 PASS）（2026-05-10 18:45）
 
 ### 一句话结论
 在 PRD-448 v1.0 基础上做增量补丁，修复两类问题：① 行为：本人会话（family_member_id=0）不再被过滤，正常渲染胶囊；详情页 `profile_row_enabled` 字段未下发时默认 true；加载中/空时整条不渲染（杜绝"半成品胶囊"）；② 视觉：文字 12→14px、行高 18→20px、小人 12→16、内边距 4×10→6×12、圆角 8→10；右侧箭头由 Unicode 字符 `⌄/⌃` 改为 SVG（同一节点 `transform: rotate(180deg)` 翻转方向，位置完全不动）；新增 `isSelf` prop，本人胶囊文案固定为「本次回答结合 本人 的档案」（避免泄露真实姓名）。

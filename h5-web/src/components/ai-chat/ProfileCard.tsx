@@ -33,6 +33,17 @@ export interface ProfileCardProps {
    *   用于 AI 首页 / AI 对话详情页气泡内部第一行。
    */
   variant?: 'legacy' | 'capsule';
+  /**
+   * [PRD-448 v1.2] 是否本人。本人态由上层（AI 首页）显式传入，组件内部不再依赖
+   * 后端 is_self 字段作为唯一判定依据，确保本人态在数据未到 / 失败时也能稳定渲染。
+   */
+  isSelf?: boolean;
+  /**
+   * [PRD-448 v1.2] 折叠态显示文字（成员名）。本人态上层固定传 "本人"，
+   * 不使用接口返回的 nickname（隐私保护）。非本人态上层传成员真实 name。
+   * 上层未传时，组件内部按"data.is_self ? '本人' : data.nickname"自适应（兼容旧调用）。
+   */
+  memberName?: string;
 }
 
 interface ProfileField<T> {
@@ -107,6 +118,8 @@ export default function ProfileCard({
   onGoComplete,
   onGoMedicationManage,
   variant = 'legacy',
+  isSelf: isSelfProp,
+  memberName: memberNameProp,
 }: ProfileCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [data, setData] = useState<ProfileCardData | null>(null);
@@ -202,8 +215,61 @@ export default function ProfileCard({
 
   if (error || !data) {
     if (variant === 'capsule') {
-      // [PRD-448 v1.1 §3.3] 加载中 / 失败 / 名字为空 → 整条胶囊不渲染
-      // 不再显示"加载中…"或"我的档案"占位（避免半成品胶囊或文案抖动）
+      // [PRD-448 v1.2 §3.2] 本人态（上层显式传 isSelf=true）即使接口失败 / 数据空，
+      // 也必须渲染胶囊（折叠态文案"本次回答结合 本人 的档案"），点击展开后显示
+      // "档案完整度 0%，点击补全 ›" 引导，杜绝"接口空 → return null → 胶囊消失"回归。
+      if (isSelfProp && (memberNameProp || '本人')) {
+        const fallbackName = memberNameProp || '本人';
+        const emptyContent = (
+          <div
+            data-testid="ai-profile-card-expanded"
+            style={{
+              background: '#F4F6FA',
+              borderRadius: 8,
+              padding: '8px 12px 10px',
+              fontSize: 13,
+              color: '#374151',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                padding: '4px 0 8px',
+                fontSize: 12,
+              }}
+            >
+              <div
+                data-testid="ai-profile-card-completeness"
+                style={{ color: '#2563EB', cursor: 'pointer' }}
+                onClick={() => onGoComplete?.(0)}
+              >
+                档案完整度 0%，点击补全 ›
+              </div>
+            </div>
+            <Row label="性别" value={<Empty />} />
+            <Row label="年龄" value={<Empty />} />
+            <Row label="身高" value={<Empty />} />
+            <Row label="体重" value={<Empty />} />
+            <Row label="既往病史" value={<Empty />} />
+            <Row label="过敏史" value={<Empty />} />
+            <Row label="长期用药" value={<Empty />} />
+          </div>
+        );
+        return (
+          <div data-testid="ai-profile-card" data-consultant-id={0} data-self-fallback="1">
+            <AdvisorCapsule
+              memberName={fallbackName}
+              isSelf={true}
+              expanded={expanded}
+              onToggle={(next) => setExpanded(next)}
+              expandedContent={emptyContent}
+              testId="ai-advisor-capsule"
+            />
+          </div>
+        );
+      }
+      // [PRD-448 v1.1 §3.3] 非本人态：加载中 / 失败 / 名字为空 → 整条胶囊不渲染
       return null;
     }
     if (error)
@@ -304,14 +370,19 @@ export default function ProfileCard({
   );
 
   if (variant === 'capsule') {
-    // [PRD-448 v1.1 §4.2] 本人固定显示「本人」，不显示真实姓名/账号昵称（避免隐私泄露）
-    // 非本人：显示成员真实 name；name 为空时由 AdvisorCapsule 内部 §3.3 兜底（不渲染）
-    const displayName = data.is_self ? '本人' : (data.nickname || '');
+    // [PRD-448 v1.2 §3.3] 折叠态文案优先使用上层显式传入 memberName / isSelf：
+    // - 本人态（isSelfProp=true）：固定显示 "本人"，不使用接口返回的真实姓名（隐私保护）
+    // - 非本人态：优先用上层传入的 memberName；未传则用接口 nickname 兜底
+    // - 兼容旧调用（未传 isSelf/memberName）：维持 v1.1 行为（is_self ? '本人' : nickname）
+    const isSelfFinal = typeof isSelfProp === 'boolean' ? isSelfProp : !!data.is_self;
+    const displayName = isSelfFinal
+      ? '本人'
+      : (memberNameProp || data.nickname || '');
     return (
       <div data-testid="ai-profile-card" data-consultant-id={data.consultant_id}>
         <AdvisorCapsule
           memberName={displayName}
-          isSelf={data.is_self}
+          isSelf={isSelfFinal}
           expanded={expanded}
           onToggle={(next) => setExpanded(next)}
           expandedContent={sevenFieldsContent}

@@ -162,6 +162,39 @@ def _to_history_list(value: Any) -> List[str]:
     return [str(value)]
 
 
+def _empty_self_profile_card_payload() -> Dict[str, Any]:
+    """
+    [PRD-448 v1.2 §4.3] 本人态档案兜底响应：
+    当 id=0 但当前用户尚未建立 is_self=True 的 FamilyMember 或本人健康档案空白时，
+    必须 200 + 返回基础结构体（name="本人" + 其他字段空），不能返回 404 / 空对象，
+    否则前端会因 `!data` 走 `return null` 分支，导致本人态又看不到胶囊（回到老问题）。
+    """
+    return {
+        "consultant_id": 0,
+        "nickname": "本人",
+        "avatar_url": "",
+        "is_self": True,
+        "fields": {
+            "gender": {"value": "", "filled": False},
+            "age": {"value": None, "filled": False},
+            "height": {"value": "", "filled": False},
+            "weight": {"value": "", "filled": False},
+            "past_history": {"value": [], "filled": False, "is_none": False},
+            "allergy": {"value": [], "filled": False, "is_none": False},
+            "long_term_meds": {
+                "value_brief": "",
+                "count": 0,
+                "filled": False,
+                "is_none": False,
+            },
+        },
+        "completeness": {"filled_count": 0, "total": 7, "percent": 0},
+        "summary_text": "未填·未填",
+        "last_updated_at": None,
+        "updated_within_30d": False,
+    }
+
+
 @router.get("/{consultant_id}/profile_card")
 async def get_profile_card(
     consultant_id: int,
@@ -171,9 +204,17 @@ async def get_profile_card(
     """
     返回 PRD-432 「咨询对象档案折叠卡片」所需的全部数据。
     consultant_id=0 表示"本人"兜底。
+
+    [PRD-448 v1.2] 本人态（id=0）档案兜底：当未建立本人 FamilyMember / 本人健康档案
+    完全空白时，必须 200 + 返回基础结构体（name="本人" + 其他字段空），不能返回 404，
+    否则前端 ProfileCard `!data` 分支会 return null，导致本人态胶囊不显示（回归老问题）。
     """
     member = await _get_member_with_self_fallback(db, current_user, consultant_id)
     if not member:
+        # [PRD-448 v1.2 §4.3] 本人态兜底：id=0 且未建立 is_self=True 的 FamilyMember
+        # 时不返 404，返回基础空结构，让前端胶囊正常渲染 + 显示"档案完整度 0%"引导。
+        if consultant_id == 0:
+            return _empty_self_profile_card_payload()
         raise HTTPException(status_code=404, detail="咨询对象不存在")
 
     hp = await _get_health_profile(db, current_user, member)
