@@ -33,7 +33,66 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: PRD-442-MILESTONE-2-H5-FULL-LANDING-20260510｜H5 端「宾尼小康」品牌色 / 品牌词全量落地（里程碑 2）— 102 文件 / 860 处旧色板违规清零 + 25 处品牌词统一 + 25/25 服务器自动化测试 PASS + lint H5 端 0 命中（小程序 / Flutter 严格未动）（2026-05-10 12:30）
+## Latest Update: PRD-445-BRAND-ROLLBACK-QINGKONG-TO-BINNIXIAOKANG-20260510｜「晴空诊室」→「宾尼小康」全域品牌名回滚（H5 文案 25+ 处 + 设计系统 3 套 + Flutter/小程序注释 + 4 份用户手册 + 2 份手册文件名重命名 + 22/22 服务器自动化测试 PASS + 三端全部重打包上传）（2026-05-10 14:00）
+
+### 一句话结论
+按需求「全域回滚清单」执行：把 PRD-444 临时改为「晴空诊室」的所有用户可见文案、设计系统文档、用户手册、历史脚本注释**全部静默回滚为正式品牌名「宾尼小康」**。技术性命名（API 路由 / 数据库字段 / 接口 schema / 容器名 / 域名 / URL Path / 应用注册名）全程零改动，老 App / 老分享链接 / 老第三方对接「零感知」，无需任何兼容方案。
+
+### 范围与端
+- **H5（Next.js）唯一用户可感知端**：
+  - `h5-web/src/app/layout.tsx`：标签页 title「晴空诊室 - AI健康管家」→「宾尼小康 - AI健康管家」；meta description 同步回滚
+  - 25 个业务页面文案：登录/落地/首页/商户登录/商户工作台/服务协议/隐私政策/在线客服/家庭邀请/名医专家/AI 对话/用药咨询/中医辨证结果/体检报告分享/用药方案分享/AI 对话分享/订单详情等
+  - 共享组件：`GreenNavBar.tsx`、`FontSettingPopup.tsx` 注释回滚
+  - `globals.css`、`theme.ts` 文件头注释回滚
+- **设计系统三套全文档回滚**：
+  - `h5-web/public/design-system/`（v1，PRD-441）：`PRD-441.md`、`PRD-441-AI对话风格规范.md`、`prototype.html`、`index.html`、`design-tokens.json`、`design-tokens.css`
+  - `h5-web/public/design-system-v2/`（v2，PRD-442）：`PRD-442.md`、`index.html`
+  - `h5-web/public/menu-mode-design-system/`（菜单模式，PRD-442）：`PRD-442.md`、`prototype.html`、`index.html`、`design-tokens.json`、`design-tokens.css`
+  - `design-system/`（项目根，PRD-442 副本）：`PRD-442.md`、`design-tokens.json`
+- **Flutter App / 微信小程序仅清理代码注释**：
+  - `flutter_app/lib/theme/menu_mode_theme.dart`：4 处「晴空诊室风格」措辞回滚
+  - `miniprogram/styles/menu-mode-tokens.wxss`：2 处「晴空诊室风格」措辞回滚
+  - 用户层零感知，APK / IPA / 小程序运行行为零差异
+- **历史用户手册**：
+  - 内容回滚：`AI对话风格全域迁移落地_PRD442_用户体验手册.md`、`AI对话风格规范_PRD441_用户体验手册.md`
+  - 内容 + 文件名一并回滚：`H5端晴空诊室品牌色全量落地_PRD442_里程碑2_用户体验手册.md` → `H5端宾尼小康品牌色全量落地_PRD442_里程碑2_用户体验手册.md`；`菜单模式_晴空诊室风格_PRD442_用户体验手册.md` → `菜单模式_宾尼小康风格_PRD442_用户体验手册.md`
+- **历史部署 / 测试 / 迁移脚本注释**：`_deploy_prd441.py`、`_deploy_prd442.py`、`_deploy_prd444_h5.py`、`_prd444_h5_color_migrate.py`、`tests/test_prd442_menu_mode_design.py`、`tests/test_prd444_h5_milestone2.py`（旧测试 T10 的 legacy_brands 列表也由「宾尼小康/宾尼诊所/宾尼健康」修正为新的旧词「晴空诊室/晴空」）
+- **后端 / 数据库 / API / 域名 / nginx / 应用注册名**：**全部 0 改动**（盘点显示从未污染过技术性命名）
+
+### 关键数字
+| 维度 | 数值 |
+|------|------|
+| 替换文件总数 | 54 个文件 + 2 个文件重命名 |
+| 替换条目总数 | 149 处中文文案 |
+| 新增 PRD-445 测试 | 22 用例（覆盖主入口/login/landing/home/legal 新品牌词存在性 + 旧品牌词清零校验 + 路由可达性 + 品牌色保持） |
+| 服务器自动化测试 | 22/22 PASS（部署后从外部用真实域名 HTTPS 验证） |
+| 三端打包 | 小程序 zip 420.5KB / 安卓 APK 80.77MB / iOS IPA 32.6MB（GitHub Actions 远程构建，全部上传成功） |
+
+### 部署
+- 本地 commit + push 到 GitHub master（commit `6fa6a27`）
+- 服务器 git fetch + reset 到最新 commit（成功）
+- 仅重建 H5 容器：`docker compose -f docker-compose.prod.yml build --no-cache h5-web` + `up -d h5-web`（无需重建 backend / db / admin，因这些容器代码无改动）
+- 容器重启后所有路由可达性 + 22 用例自动化测试一次性通过
+
+### 多端打包
+- **小程序 zip**：[miniprogram_20260510_131939_75c2.zip](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/downloads/miniprogram_20260510_131939_75c2.zip)（420.5 KB，HTTP 200 已验证）
+- **安卓 APK**：[app_20260510_132218_781f.apk](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/downloads/app_20260510_132218_781f.apk)（80.77 MB，构建耗时 9 分钟，GitHub Actions Run [25620687233](https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25620687233)）
+- **iOS IPA**：[ios-v20260510-134547-dd19](https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-v20260510-134547-dd19)（32.6 MB，构建耗时 7 分 38 秒，GitHub Actions Run [25621084649](https://github.com/ankun-eric/auto_dev_bnbbaijkgj/actions/runs/25621084649)）
+
+### 关键决策与产出
+| 维度 | 决策 / 产出 |
+|------|------------|
+| 兼容策略 | PRD 第 7 题选项 A「静默切换」，无需任何对外公告/老 URL 跳转/老 App 兼容 |
+| 第 5 题（技术标识符回滚） | 经盘点**实际无需执行**——「晴空诊室」从未污染过任何 URL/接口字段/数据库字段 |
+| 第 8 题（兼容方案） | 由于第 5 题无需执行，第 8 题**自动消解** |
+| 4-A 吉祥物 | 按 PRD 选项 6-A 形象保留不变（吉祥物字样一直印的就是「宾尼小康」） |
+| 自动化脚本 | `_prd445_brand_rollback.py`（一键执行 149 处替换 + 2 个文件重命名）+ `tests/test_prd445_brand_rollback.py`（9 个测试函数 / 22 用例） |
+| 用户体验手册 | `user_docs/「晴空诊室」全域回滚为「宾尼小康」_PRD445_用户体验手册.md` |
+| 部署生效 commit | `6fa6a27` feat(prd-445): 「晴空诊室」→「宾尼小康」全域品牌名回滚 |
+
+---
+
+## Previous Update: PRD-442-MILESTONE-2-H5-FULL-LANDING-20260510｜H5 端「宾尼小康」品牌色 / 品牌词全量落地（里程碑 2）— 102 文件 / 860 处旧色板违规清零 + 25 处品牌词统一 + 25/25 服务器自动化测试 PASS + lint H5 端 0 命中（小程序 / Flutter 严格未动）（2026-05-10 12:30）
 
 ### 一句话结论
 按用户提供的 PRD-442 里程碑 2 极简变更摘要，把 PRD-442 已沉淀的设计 token / 渐变 / 阴影 / 8 条铁律从设计系统正式带入 H5 端**所有业务页面**——通过「**全局基建 3 文件硬切换 + Python 4 轮渐进迁移脚本 + 12 个共享组件统一改造**」实现 H5 端全站旧绿色 / 旧紫色 / 旧品牌词的清零，业务功能 0 改动，微信小程序 / Flutter App **严格未动**。

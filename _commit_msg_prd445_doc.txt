@@ -1,0 +1,11 @@
+docs(prd-445): 同步 project-context 索引 + 用户手册 + 多端打包脚本
+
+- 项目索引：在最新更新区追加 PRD-445「晴空诊室」→「宾尼小康」全域回滚记录（含 54 文件 / 149 处替换 / 22 用例 PASS / 三端打包结果）
+- 用户手册：user_docs/「晴空诊室」全域回滚为「宾尼小康」_PRD445_用户体验手册.md
+- 部署脚本：
+  - deploy/_pack_and_upload_mp.py（小程序 zip 打包并上传）
+  - deploy/_apk_brand_revert_pipeline.py（安卓 APK GitHub Actions 流水线）
+  - deploy/_ssh_one.py（SSH 单命令辅助）
+  - deploy/.android_apk_brand_revert_state.json（流水线状态记录）
+
+本次变更不涉及任何业务代码改动。

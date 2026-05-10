@@ -1,0 +1,13 @@
+{
+  "tag": "android-v20260510-132218-781f",
+  "ts": "20260510-132218",
+  "rnd": "781f",
+  "run_id": 25620687233,
+  "poll_start": 1778390551.1686988,
+  "conclusion": "success",
+  "build_duration": 550,
+  "local_apk": "C:\\auto_output\\bnbbaijkgj\\apk_brand_revert_dl\\bini_health_android-v20260510-132218-781f.apk",
+  "file_size": 84698587,
+  "remote_name": "app_20260510_132218_781f.apk",
+  "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/downloads/app_20260510_132218_781f.apk"
+}
