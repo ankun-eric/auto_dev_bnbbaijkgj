@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>PRD-442 全域设计系统 v2 · 晴空诊室落地</title>
+<link rel="stylesheet" href="./design-tokens.css" />
+<style>
+  body { margin: 0; font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; background: var(--color-bg-soft); color: var(--color-text-primary); }
+  .hero {
+    background: var(--gradient-hero-deep);
+    color: var(--color-text-inverse);
+    padding: var(--sp-12) var(--sp-6);
+    border-bottom-left-radius: var(--radius-2xl);
+    border-bottom-right-radius: var(--radius-2xl);
+  }
+  .hero h1 { margin: 0 0 var(--sp-2); font-size: var(--fs-4xl); }
+  .hero p  { margin: 0; opacity: 0.9; font-size: var(--fs-md); }
+  .meta { display: flex; gap: var(--sp-3); margin-top: var(--sp-6); flex-wrap: wrap; }
+  .meta span {
+    background: rgba(255,255,255,0.15);
+    padding: var(--sp-1) var(--sp-3);
+    border-radius: var(--radius-full);
+    font-size: var(--fs-sm);
+  }
+  .container { max-width: 960px; margin: 0 auto; padding: var(--sp-6); }
+  section { margin: var(--sp-8) 0; }
+  h2 { font-size: var(--fs-3xl); margin: 0 0 var(--sp-4); color: var(--color-brand-700); }
+  .palette { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: var(--sp-2); }
+  .swatch {
+    border-radius: var(--radius-md);
+    padding: var(--sp-3);
+    color: var(--color-text-inverse);
+    font-size: var(--fs-xs);
+    box-shadow: var(--shadow-1);
+    text-align: center;
+  }
+  .swatch.dark { color: var(--color-text-primary); }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4); }
+  @media (max-width: 600px) { .grid-2 { grid-template-columns: 1fr; } }
+  .deliverables {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--sp-4);
+  }
+  .deliverable-card {
+    background: var(--color-bg-base);
+    border-radius: var(--radius-lg);
+    padding: var(--sp-4);
+    box-shadow: var(--shadow-2);
+  }
+  .deliverable-card h3 {
+    margin: 0 0 var(--sp-2);
+    font-size: var(--fs-lg);
+    color: var(--color-brand-700);
+  }
+  .deliverable-card a {
+    display: inline-block;
+    margin-top: var(--sp-2);
+    color: var(--color-brand-600);
+    text-decoration: none;
+    font-size: var(--fs-sm);
+  }
+  .deliverable-card a:hover { text-decoration: underline; }
+  .icon-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+    gap: var(--sp-3);
+  }
+  .icon-card {
+    background: var(--color-bg-base);
+    border-radius: var(--radius-lg);
+    padding: var(--sp-3);
+    text-align: center;
+    box-shadow: var(--shadow-1);
+  }
+  .icon-card .ic { color: var(--color-brand-600); width: 32px; height: 32px; }
+  .icon-card .nm { display: block; font-size: var(--fs-xs); color: var(--color-text-secondary); margin-top: var(--sp-1); }
+  /* iron rule: medical card */
+  .demo-medical {
+    margin-top: var(--sp-3);
+  }
+</style>
+</head>
+<body>
+<header class="hero">
+  <div class="container">
+    <h1>PRD-442 全域设计系统 v2</h1>
+    <p>晴空诊室落地 · 单一真相源 · 三端 token 一致性 · 8 图标种子集 · 旧绿色清退 lint</p>
+    <div class="meta">
+      <span>11 级天蓝色阶</span>
+      <span>5 大渐变</span>
+      <span>三端对齐</span>
+      <span>AA 无障碍</span>
+      <span>字号四档</span>
+      <span>2026-05-10</span>
+    </div>
+  </div>
+</header>
+
+<div class="container">
+
+  <section>
+    <h2>11 级天蓝色阶</h2>
+    <div class="palette" id="palette"></div>
+  </section>
+
+  <section>
+    <h2>核心交付物</h2>
+    <div class="deliverables">
+      <div class="deliverable-card">
+        <h3>单一真相源</h3>
+        <p>所有 token 由 design-system/design-tokens.json 驱动，三端文件 100% 自动生成，禁止手改。</p>
+      </div>
+      <div class="deliverable-card">
+        <h3>H5 CSS Tokens</h3>
+        <p>11 级 brand + 5 大渐变 + 9 字号 + 7 圆角 + 4 天蓝阴影。</p>
+        <a href="./design-tokens.css">查看 design-tokens.css</a>
+      </div>
+      <div class="deliverable-card">
+        <h3>小程序 WXSS Tokens</h3>
+        <p>同源 token，rpx 单位自动 ×2 适配。</p>
+      </div>
+      <div class="deliverable-card">
+        <h3>Flutter Token 包</h3>
+        <p>packages/bini_design_tokens（Monorepo path 引用）。</p>
+      </div>
+      <div class="deliverable-card">
+        <h3>双色 SVG 图标库（种子集）</h3>
+        <p>8 个核心图标（health-report / heart-rate / medication / family / bell / camera / voice / chevron-down），后续按 PRD §5.1 扩展至 80。</p>
+        <a href="./icons.json">查看 icons.json</a>
+      </div>
+      <div class="deliverable-card">
+        <h3>CI Lint：旧绿色清退</h3>
+        <p>三层扫描（色值 / 语义关键词 / 图片资源），渐进式收敛。</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>图标种子集</h2>
+    <div class="icon-grid" id="iconGrid"></div>
+  </section>
+
+  <section>
+    <h2>病历卡铁律演示</h2>
+    <div class="grid-2">
+      <div class="bh-card-medical demo-medical">
+        <strong>心率指标</strong>
+        <div style="font-size: var(--fs-3xl); color: var(--color-brand-700); font-weight: 600;">75 次/分</div>
+        <div style="color: var(--color-text-secondary); font-size: var(--fs-sm);">正常范围（60~100）</div>
+      </div>
+      <div class="bh-card-medical demo-medical">
+        <strong>用药提醒</strong>
+        <div style="margin-top: var(--sp-2);">每日 8:00 / 20:00 各一片</div>
+        <button class="bh-btn-primary" style="margin-top: var(--sp-3);">已服用</button>
+      </div>
+    </div>
+    <p style="margin-top: var(--sp-3); color: var(--color-text-secondary); font-size: var(--fs-sm);">
+      铁律：白底 + 左 3px brand-400 竖线 + shadow-2，由 .bh-card-medical 类与 ::before 伪元素共同实现。
+    </p>
+  </section>
+
+</div>
+
+<script>
+  const brands = [
+    ['50',  '#f0f9ff', true],
+    ['100', '#e0f2fe', true],
+    ['150', '#dbeafe', true],
+    ['200', '#bae6fd', true],
+    ['300', '#7dd3fc', true],
+    ['400', '#38bdf8', false],
+    ['500', '#0ea5e9', false],
+    ['600', '#0284c7', false],
+    ['700', '#0369a1', false],
+    ['800', '#075985', false],
+    ['900', '#0c4a6e', false],
+  ];
+  const palette = document.getElementById('palette');
+  brands.forEach(([k, hex, dark]) => {
+    const d = document.createElement('div');
+    d.className = 'swatch' + (dark ? ' dark' : '');
+    d.style.background = hex;
+    d.innerHTML = `<div>brand-${k}</div><div>${hex}</div>`;
+    palette.appendChild(d);
+  });
+
+  fetch('./icons.json').then(r => r.json()).then(data => {
+    const grid = document.getElementById('iconGrid');
+    Object.entries(data.icons || {}).forEach(([name, svg]) => {
+      const c = document.createElement('div');
+      c.className = 'icon-card';
+      c.innerHTML = svg.replace('<svg', '<svg class="ic" stroke="#0284c7"').replace(/currentColor/g, '#0284c7');
+      const nm = document.createElement('span');
+      nm.className = 'nm';
+      nm.textContent = name;
+      c.appendChild(nm);
+      grid.appendChild(c);
+    });
+  }).catch(e => console.error('icons.json load failed', e));
+</script>
+
+</body>
+</html>

@@ -1,0 +1,14 @@
+name: bini_design_tokens
+description: PRD-442 全域设计 Token 包（颜色/字号/间距/圆角/阴影/渐变 + 80 图标）
+version: 0.1.0
+publish_to: 'none'
+
+environment:
+  sdk: ">=2.18.0 <4.0.0"
+  flutter: ">=3.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+flutter:

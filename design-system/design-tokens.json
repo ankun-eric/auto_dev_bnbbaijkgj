@@ -1,0 +1,152 @@
+{
+  "$schema": "./design-tokens.schema.json",
+  "meta": {
+    "name": "bini-health-design-tokens",
+    "version": "1.0.0",
+    "prd": "PRD-442",
+    "baseline": "PRD-441 晴空诊室 v1.0",
+    "scope": "全域三端（H5 / 微信小程序 / Flutter App）",
+    "doNotEditGenerated": "本文件是单一真相源（Single Source of Truth）。三端 token 文件由 scripts/gen-tokens.mjs 自动生成，禁止手动修改生成文件。",
+    "lastUpdated": "2026-05-10"
+  },
+  "color": {
+    "brand": {
+      "50":  { "value": "#f0f9ff", "comment": "极浅天蓝，背景/浅卡片底" },
+      "100": { "value": "#e0f2fe", "comment": "浅天蓝" },
+      "150": { "value": "#dbeafe", "comment": "顶栏 A1 深端" },
+      "200": { "value": "#bae6fd", "comment": "辅色/双色 SVG 浅色" },
+      "300": { "value": "#7dd3fc", "comment": "高亮辅色" },
+      "400": { "value": "#38bdf8", "comment": "主品牌色，按钮/链接" },
+      "500": { "value": "#0ea5e9", "comment": "次主色" },
+      "600": { "value": "#0284c7", "comment": "深色双色 SVG 主色" },
+      "700": { "value": "#0369a1", "comment": "深医蓝（商品现价）" },
+      "800": { "value": "#075985", "comment": "深背景" },
+      "900": { "value": "#0c4a6e", "comment": "最深底色" }
+    },
+    "text": {
+      "primary":   { "value": "#1f2937", "comment": "正文主色" },
+      "secondary": { "value": "#6b7280", "comment": "次要文本/划线价" },
+      "tertiary":  { "value": "#9ca3af", "comment": "占位/弱化" },
+      "inverse":   { "value": "#ffffff", "comment": "深色背景上的反白文本" }
+    },
+    "bg": {
+      "base":   { "value": "#ffffff" },
+      "soft":   { "value": "#f9fafb" },
+      "subtle": { "value": "#f0f9ff" }
+    },
+    "semantic": {
+      "success": {
+        "value": "#22c55e",
+        "comment": "成功色 — PRD-441 §7 严格白名单",
+        "allowed": ["在线状态徽章", "达标徽章", "成功 Toast"]
+      },
+      "warning": {
+        "value": "#fbbf24",
+        "comment": "暖橙 — 仅星级评分",
+        "allowed": ["星级评分", "警告提示"]
+      },
+      "danger": {
+        "value": "#ef4444",
+        "comment": "红色 — 仅退出登录与紧急徽标",
+        "allowed": ["退出登录", "紧急徽标", "未读红点", "错误重试"]
+      },
+      "member": {
+        "value": "#d4af37",
+        "comment": "会员金"
+      }
+    }
+  },
+  "gradient": {
+    "topbar": {
+      "value": "linear-gradient(135deg, #f0f9ff 0%, #dbeafe 100%)",
+      "comment": "A1 顶栏渐变"
+    },
+    "userBubble": {
+      "value": "linear-gradient(135deg, #7dd3fc 0%, #38bdf8 100%)",
+      "comment": "用户气泡渐变"
+    },
+    "primaryBtn": {
+      "value": "linear-gradient(135deg, #38bdf8 0%, #0284c7 100%)",
+      "comment": "主按钮渐变"
+    },
+    "heroDeep": {
+      "value": "linear-gradient(135deg, #0369a1 0%, #0c4a6e 100%)",
+      "comment": "深蓝 hero（订单/支付/健康档案）"
+    },
+    "userCard": {
+      "value": "linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)",
+      "comment": "用户卡片浅渐变"
+    }
+  },
+  "fontSize": {
+    "xs":  { "value": 12, "unit": "px" },
+    "sm":  { "value": 14, "unit": "px", "comment": "base 字号 — AA 无障碍下限" },
+    "md":  { "value": 16, "unit": "px" },
+    "lg":  { "value": 18, "unit": "px" },
+    "xl":  { "value": 20, "unit": "px" },
+    "2xl": { "value": 22, "unit": "px", "comment": "关键指标字号下限" },
+    "3xl": { "value": 24, "unit": "px" },
+    "4xl": { "value": 28, "unit": "px" },
+    "5xl": { "value": 36, "unit": "px", "comment": "数据 hero 大字号" }
+  },
+  "fontScaleAccessibility": {
+    "comment": "字号四档无障碍 — 跟随系统 + App 内独立开关（PRD-442 §11）",
+    "scales": {
+      "standard": { "value": 1.0,  "label": "标准" },
+      "large":    { "value": 1.15, "label": "大" },
+      "xlarge":   { "value": 1.3,  "label": "超大" },
+      "xxlarge":  { "value": 1.5,  "label": "特大" }
+    }
+  },
+  "space": {
+    "1":  { "value": 4,  "unit": "px" },
+    "2":  { "value": 8,  "unit": "px" },
+    "3":  { "value": 12, "unit": "px" },
+    "4":  { "value": 16, "unit": "px" },
+    "5":  { "value": 20, "unit": "px" },
+    "6":  { "value": 24, "unit": "px" },
+    "8":  { "value": 32, "unit": "px" },
+    "10": { "value": 40, "unit": "px" },
+    "12": { "value": 48, "unit": "px" }
+  },
+  "radius": {
+    "xs":   { "value": 4,    "unit": "px" },
+    "sm":   { "value": 6,    "unit": "px" },
+    "md":   { "value": 8,    "unit": "px" },
+    "lg":   { "value": 12,   "unit": "px" },
+    "xl":   { "value": 16,   "unit": "px" },
+    "2xl":  { "value": 24,   "unit": "px", "comment": "主卡片 / hero 圆角" },
+    "full": { "value": 9999, "unit": "px", "comment": "胶囊 / 圆形头像" }
+  },
+  "shadow": {
+    "comment": "全部使用天蓝色阴影 rgba(56,189,248,*) — 严禁纯黑（CI lint 阻断）",
+    "1": { "value": "0 1px 2px rgba(56, 189, 248, 0.08)" },
+    "2": { "value": "0 2px 8px rgba(56, 189, 248, 0.10)" },
+    "3": { "value": "0 4px 16px rgba(56, 189, 248, 0.12)" },
+    "4": { "value": "0 8px 32px rgba(56, 189, 248, 0.16)" }
+  },
+  "duration": {
+    "instant": { "value": 100, "unit": "ms" },
+    "fast":    { "value": 180, "unit": "ms" },
+    "base":    { "value": 240, "unit": "ms" },
+    "slow":    { "value": 360, "unit": "ms" }
+  },
+  "easing": {
+    "standard":   { "value": "cubic-bezier(0.4, 0, 0.2, 1)" },
+    "decelerate": { "value": "cubic-bezier(0, 0, 0.2, 1)" },
+    "accelerate": { "value": "cubic-bezier(0.4, 0, 1, 1)" }
+  },
+  "ironRules": {
+    "comment": "PRD-442 铁律列表，CI lint 与人工评审共同遵守",
+    "rules": [
+      "全域统一天蓝色阶（brand-50 ~ brand-900），不得引入新色板",
+      "严禁旧版本绿色主色 #52c41a（含 hex/rgb/hsl/语义命名）",
+      "阴影必须使用天蓝 rgba(56,189,248,*)，禁止 rgba(0,0,0,*) 纯黑",
+      "病历卡：白底 + 左 3px brand-400 竖线 + shadow-2",
+      "可点击区域 ≥ 44pt，AA 对比度 ≥ 4.5:1",
+      "字号四档（标准/大/超大/特大）必须支持系统跟随 + App 内独立开关",
+      "图标统一双色 SVG（主色 brand-600 / 辅色 brand-200），viewBox 0 0 24 24",
+      "商品现价用 brand-700 深医蓝，不用红色"
+    ]
+  }
+}

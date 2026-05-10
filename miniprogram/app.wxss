@@ -1,3 +1,6 @@
+/* PRD-442 新 tokens 引入（优先级高于旧主题；旧绿色保留以兼容现有页面，渐进式清退） */
+@import "/styles/design-tokens.wxss";
+
 page {
   --primary-color: #52c41a;
   --primary-light: #95de64;
