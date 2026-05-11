@@ -6,12 +6,13 @@
  * 范围：仅 H5 端 `h5-web/src/app/(ai-chat)/ai-home/` 顶部 ☰ 触发的左侧抽屉。
  *
  * 核心规格（来自 PRD V7 最终版）：
- *  - F-01：顶栏 = 用户头像 Logo + 右侧三图标（🔔 铃铛 / ⊞ 二维码 / ⚙ 齿轮），无 × 关闭键
+ *  - F-01：顶栏 = 用户头像 Logo + 右侧两图标（🔔 铃铛 / ⚙ 齿轮）—— [BUG-457] 删除中间「⊞ 会员二维码」
  *  - F-02：铃铛 ≥1 显示红点（无数字）
- *  - F-03：二维码 = 会员码入口
+ *  - F-03：二维码 = 会员码入口   —— [BUG-457] 已废弃
  *  - F-04：齿轮 = 设置入口
- *  - F-05：用户身份 = 昵称 + ID 胶囊（替代旧"VIP 会员号"），右侧复制图标
+ *  - F-05：用户身份 = 昵称 + ID 胶囊  —— [BUG-457] 删除右侧 📋；点击胶囊跳 /profile/edit
  *  - F-06：资产行四并列（积分数字 / 优惠券角标 / 订单角标 / 收藏数字）
+ *           —— [BUG-457] 接入「我的」同款接口（points/coupons/orders/users me-stats）
  *  - F-07：健康档案 + 我的设备 高频入口（替代旧 4 列订单状态）
  *  - F-08：历史对话区块标题 + 右侧"管理"
  *  - F-09：4 组弱化分组（置顶 / 最近 7 天 / 最近 30 天 / 更早），空组隐藏
@@ -20,9 +21,15 @@
  *  - F-12：管理态批量勾选，吸底 全选 / 已选 N 项 / 删除
  *  - F-13：方案 A · 通透天空 配色（#F0F9FF → #DBEAFE 整页竖向渐变）
  *  - F-14：抽屉宽度 85% / 遮罩 15%（rgba(0,0,0,0.45)）
+ *
+ * [BUG-457 (2026-05-11)] 抽屉页优化 4 个 Bug：
+ *  1. 删除 ID 胶囊右侧 📋 复制图标，点击胶囊改为跳转个人资料编辑页
+ *  2. 删除顶部「⊞ 会员二维码」入口
+ *  3. 资产 4 格接入正确接口（积分/优惠券/订单/收藏），避免全 0
+ *  4. 历史对话 .catch 收窄为仅捕获网络错误，避免空数据被误判为「加载失败」
  */
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Avatar, Dialog, Toast } from 'antd-mobile';
 import { THEME } from '@/lib/theme';
@@ -220,54 +227,87 @@ export default function Sidebar({
   const swipeStartXRef = useRef<number>(0);
 
   // ─────────────────── 数据加载 ───────────────────
+  // 历史对话加载封装（供 useEffect 与「重试」按钮共用）
+  // [BUG-457 Fix-4] .catch 收窄：仅捕获真正的网络错误（fetch reject / 5xx 等），
+  // 接口正常返回但数据为空时进入空态而不是「加载失败」
+  const loadHistories = useCallback(async () => {
+    setLoadFailed(false);
+    try {
+      const res: any = await api.get('/api/chat-sessions');
+      // 网络层成功（无 reject），按字段映射写入。即便 list 为空也不视为失败。
+      const data = res?.data ?? res;
+      const list = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.items)
+          ? data.items
+          : [];
+      setHistories(
+        list.map((s: any) => ({
+          id: String(s.id),
+          title: s.title || '新对话',
+          summary: s.last_message || s.preview || s.summary || '',
+          time: s.updated_at || s.created_at || '',
+          pinned: !!(s.is_pinned || s.pinned),
+          pinnedAt: s.pinned_at || null,
+          askerRole: s.asker_role || s.role || 'self',
+        }))
+      );
+    } catch (err) {
+      // 仅网络错误进入这里
+      setLoadFailed(true);
+    }
+  }, []);
+
   useEffect(() => {
     if (!visible) return;
-    setLoadFailed(false);
 
-    // F-09/F-10 历史对话
-    api
-      .get('/api/chat-sessions')
-      .then((res: any) => {
-        const data = res.data || res;
-        const list = Array.isArray(data) ? data : Array.isArray(data?.items) ? data.items : [];
-        setHistories(
-          list.map((s: any) => ({
-            id: String(s.id),
-            title: s.title || '新对话',
-            summary: s.last_message || s.preview || s.summary || '',
-            time: s.updated_at || s.created_at || '',
-            pinned: !!(s.is_pinned || s.pinned),
-            pinnedAt: s.pinned_at || null,
-            askerRole: s.asker_role || s.role || (s.family_member_id ? 'self' : 'self'),
-          }))
-        );
-      })
-      .catch(() => setLoadFailed(true));
+    // [BUG-457 Fix-4] 历史对话：F-09 / F-10
+    loadHistories();
 
-    // F-06 资产行数据
+    // [BUG-457 Fix-3] 资产 4 格：完全替换为「我的」页面同款接口
+    // - 积分： GET /api/points/summary -> available_points
+    // - 优惠券：GET /api/coupons/summary -> available_count
+    // - 订单： GET /api/orders/unified/counts -> pending_payment + pending_receipt + pending_use
+    // - 收藏： GET /api/users/me/stats -> favorite_count
+    // 任意接口失败仅影响该单格（保持 0），不互相牵连
     api
-      .get('/api/h5/user-assets')
+      .get('/api/points/summary')
       .then((res: any) => {
-        const data = res.data || res;
-        setAssets({
-          points: Number(data.points) || 0,
-          couponCount: Number(data.coupon_count) || 0,
-          orderCount: Number(data.order_count) || 0,
-          favoriteCount: Number(data.favorite_count) || 0,
-        });
+        const data = res?.data ?? res;
+        const v = Number(data?.available_points ?? data?.total_points ?? 0) || 0;
+        setAssets((s) => ({ ...s, points: v }));
       })
-      .catch(() => {
-        // F-06 兼容旧接口：尝试 fallback 到 unread-count 拿优惠券
-        api.get('/api/h5/unread-count').then((res: any) => {
-          const data = res.data || res;
-          setAssets((s) => ({ ...s, couponCount: Number(data.coupon_count) || 0 }));
-        }).catch(() => {});
-        api.get('/api/h5/order-counts').then((res: any) => {
-          const data = res.data || res;
-          const total = (Number(data.pending_payment) || 0) + (Number(data.pending_use) || 0);
-          setAssets((s) => ({ ...s, orderCount: total }));
-        }).catch(() => {});
-      });
+      .catch(() => {});
+
+    api
+      .get('/api/coupons/summary')
+      .then((res: any) => {
+        const data = res?.data ?? res;
+        const v = Number(data?.available_count ?? data?.available ?? 0) || 0;
+        setAssets((s) => ({ ...s, couponCount: v }));
+      })
+      .catch(() => {});
+
+    api
+      .get('/api/orders/unified/counts')
+      .then((res: any) => {
+        const data = res?.data ?? res;
+        const total =
+          (Number(data?.pending_payment) || 0) +
+          (Number(data?.pending_receipt) || 0) +
+          (Number(data?.pending_use) || 0);
+        setAssets((s) => ({ ...s, orderCount: total }));
+      })
+      .catch(() => {});
+
+    api
+      .get('/api/users/me/stats')
+      .then((res: any) => {
+        const data = res?.data ?? res;
+        const v = Number(data?.favorite_count ?? 0) || 0;
+        setAssets((s) => ({ ...s, favoriteCount: v }));
+      })
+      .catch(() => {});
 
     // F-02 铃铛红点（消息未读总数 ≥1 显示）
     api
@@ -278,7 +318,7 @@ export default function Sidebar({
         setUnread(Number(cnt) || 0);
       })
       .catch(() => setUnread(0));
-  }, [visible]);
+  }, [visible, loadHistories]);
 
   // 抽屉关闭时重置交互态
   useEffect(() => {
@@ -310,31 +350,10 @@ export default function Sidebar({
     router.push(path);
   };
 
-  // ─────────────────── F-05 复制 ID ───────────────────
-  const handleCopyId = (id: string) => {
-    if (!id) return;
-    if (navigator.clipboard?.writeText) {
-      navigator.clipboard
-        .writeText(id)
-        .then(() => Toast.show({ content: 'ID 已复制', icon: 'success' }))
-        .catch(() => Toast.show({ content: '复制失败' }));
-    } else {
-      // 浏览器兼容兜底
-      try {
-        const ta = document.createElement('textarea');
-        ta.value = id;
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand('copy');
-        document.body.removeChild(ta);
-        Toast.show({ content: 'ID 已复制', icon: 'success' });
-      } catch {
-        Toast.show({ content: '复制失败' });
-      }
-    }
-  };
-
   // ─────────────────── F-11 单条操作 ───────────────────
+  // [BUG-457 Fix-1] 删除 ID 胶囊「📋 复制」入口与 handleCopyId 函数。
+  // 整个胶囊改为跳转到个人资料编辑页 /profile/edit，
+  // 用户如需复制 ID，可在编辑页中自行选中复制。
   const handleSelectSession = (id: string) => {
     if (manageMode) {
       // F-12 管理态点击 = 切换勾选
@@ -829,25 +848,7 @@ export default function Sidebar({
                     />
                   )}
                 </button>
-                {/* F-03 二维码（会员码） */}
-                <button
-                  onClick={() => navigateTo('/member-qrcode')}
-                  style={{
-                    width: 24,
-                    height: 24,
-                    background: 'transparent',
-                    border: 'none',
-                    padding: 0,
-                    cursor: 'pointer',
-                    color: COLOR.textPrimary,
-                    fontSize: 22,
-                    lineHeight: 1,
-                  }}
-                  aria-label="会员码"
-                  data-testid="bh-icon-qrcode"
-                >
-                  ⊞
-                </button>
+                {/* [BUG-457 Fix-2] 已删除中间「⊞ 会员二维码」入口（PRD-455 F-03） */}
                 {/* F-04 齿轮（设置） */}
                 <button
                   onClick={() => navigateTo('/ai-settings')}
@@ -885,6 +886,9 @@ export default function Sidebar({
               >
                 {user?.nickname || '未登录'}
               </div>
+              {/* [BUG-457 Fix-1] ID 胶囊：移除右侧 📋 复制图标；
+                   整个胶囊点击行为改为跳转到个人资料编辑页 /profile/edit，
+                   彻底取消「一键复制 ID」功能。 */}
               <div
                 style={{
                   display: 'inline-flex',
@@ -898,16 +902,10 @@ export default function Sidebar({
                   color: COLOR.capsuleText,
                   cursor: 'pointer',
                 }}
-                onClick={() => handleCopyId(idDisplay)}
+                onClick={() => navigateTo('/profile/edit')}
                 data-testid="bh-id-capsule"
               >
                 <span>ID: {idDisplay}</span>
-                <span
-                  style={{ fontSize: 14, lineHeight: 1, display: 'inline-flex' }}
-                  aria-label="复制 ID"
-                >
-                  📋
-                </span>
               </div>
             </div>
           </div>
@@ -1182,7 +1180,8 @@ export default function Sidebar({
               </div>
             )}
 
-            {/* 异常态 */}
+            {/* [BUG-457 Fix-4] 网络异常态：仅当 loadHistories 真正 reject 时进入；
+                显示「加载失败，点击重试」按钮，点击后复用同一加载函数 */}
             {loadFailed && (
               <div
                 style={{
@@ -1193,34 +1192,20 @@ export default function Sidebar({
                 }}
                 data-testid="bh-history-error"
               >
-                <div>加载失败，</div>
+                <div style={{ marginBottom: 8 }}>加载失败</div>
                 <button
                   onClick={() => {
-                    setLoadFailed(false);
-                    // 重新触发加载
                     setHistories([]);
-                    api.get('/api/chat-sessions').then((res: any) => {
-                      const data = res.data || res;
-                      const list = Array.isArray(data) ? data : Array.isArray(data?.items) ? data.items : [];
-                      setHistories(
-                        list.map((s: any) => ({
-                          id: String(s.id),
-                          title: s.title || '新对话',
-                          summary: s.last_message || s.preview || '',
-                          time: s.updated_at || s.created_at || '',
-                          pinned: !!(s.is_pinned || s.pinned),
-                          pinnedAt: s.pinned_at || null,
-                          askerRole: s.asker_role || 'self',
-                        }))
-                      );
-                    }).catch(() => setLoadFailed(true));
+                    loadHistories();
                   }}
                   style={{
                     background: 'transparent',
-                    border: 'none',
+                    border: `1px solid ${COLOR.primary}`,
                     color: COLOR.primary,
                     cursor: 'pointer',
                     fontSize: 13,
+                    padding: '4px 14px',
+                    borderRadius: 14,
                   }}
                 >
                   点击重试
