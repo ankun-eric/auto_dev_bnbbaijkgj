@@ -9,9 +9,10 @@ from sqlalchemy import case, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import get_current_user, require_role
-from app.models.models import ChatMessage, ChatSession, MessageRole, User
+from app.models.models import ChatMessage, ChatSession, MessageRole, SessionType, User
 from app.schemas.chat_history import (
     AdminChatMessageItem,
     AdminChatSessionDetail,
@@ -20,12 +21,70 @@ from app.schemas.chat_history import (
     ChatSessionUpdate,
     SharedChatMessageItem,
     SharedChatResponse,
+    UserChatSessionCreate,
     UserChatSessionItem,
 )
 
 router = APIRouter(tags=["对话记录"])
 
 admin_dep = require_role("admin")
+
+
+# [BUG-461 (2026-05-11)] 关系名称中文 → 前端 6 色键归一化
+# 前端 ChatHistoryItem.askerRole 期望 key 为：self / spouse / father / mother / child / elder。
+# 此映射兼容历史数据库中以中文存储的 relationship_type。
+# 命中即返回对应英文 key，未命中保留原值（前端会回退到默认色）。
+_RELATION_CN_TO_EN = {
+    "本人": "self",
+    "自己": "self",
+    "我": "self",
+    "配偶": "spouse",
+    "丈夫": "spouse",
+    "妻子": "spouse",
+    "老公": "spouse",
+    "老婆": "spouse",
+    "爸爸": "father",
+    "父亲": "father",
+    "爹": "father",
+    "妈妈": "mother",
+    "母亲": "mother",
+    "娘": "mother",
+    "孩子": "child",
+    "儿子": "child",
+    "女儿": "child",
+    "小孩": "child",
+    "子女": "child",
+    "爷爷": "elder",
+    "奶奶": "elder",
+    "外公": "elder",
+    "外婆": "elder",
+    "姥爷": "elder",
+    "姥姥": "elder",
+    "祖父": "elder",
+    "祖母": "elder",
+    "外祖父": "elder",
+    "外祖母": "elder",
+    "长辈": "elder",
+}
+
+
+def _normalize_relation(raw: Optional[str]) -> str:
+    """将 FamilyMember.relationship_type 归一化为前端 6 色键。
+
+    - None/空 → 'self'
+    - 已是英文 key → 原样返回
+    - 中文常见称谓 → 映射为英文 key
+    - 未能识别 → 原样返回，前端按 hash 调色板回退
+    """
+    if not raw:
+        return "self"
+    key = str(raw).strip()
+    if not key:
+        return "self"
+    low = key.lower()
+    if low in {"self", "spouse", "father", "mother", "child", "elder"}:
+        return low
+    return _RELATION_CN_TO_EN.get(key, key)
 
 
 # ──────────────── 管理端 API ────────────────
@@ -253,8 +312,11 @@ async def user_list_sessions(
     # 模拟「NULL 排在最后」的效果（IS NULL 结果 0/1，ASC 时 0 在前 → 非 NULL 在前）。
     # 排序优先级：① 置顶在前 ② 置顶内按 pinned_at 倒序（NULL 置后） ③ 最近活跃在前。
     pinned_at_is_null = case((ChatSession.pinned_at.is_(None), 1), else_=0)
+    # [BUG-461 (2026-05-11)] selectinload(family_member) 关联拉取，避免 N+1；
+    # 关联为空时统一兜底 relation='self'。
     query = (
         select(ChatSession)
+        .options(selectinload(ChatSession.family_member))
         .where(ChatSession.user_id == current_user.id, ChatSession.is_deleted == False)
         .order_by(
             ChatSession.is_pinned.desc(),
@@ -273,6 +335,7 @@ async def user_list_sessions(
         # 影响左侧抽屉「历史对话」整列加载。退化为按 updated_at 倒序，保证可读性。
         fallback_query = (
             select(ChatSession)
+            .options(selectinload(ChatSession.family_member))
             .where(ChatSession.user_id == current_user.id, ChatSession.is_deleted == False)
             .order_by(ChatSession.updated_at.desc())
             .offset((page - 1) * page_size)
@@ -287,6 +350,18 @@ async def user_list_sessions(
         # 任何单条数据异常不应导致整列接口 500。
         try:
             session_type_value = s.session_type.value if hasattr(s.session_type, "value") else (s.session_type or "consultation")
+            # [BUG-461 (2026-05-11)] 提取咨询人信息：family_member 关联可能为 None
+            family_member_relation: Optional[str] = "self"
+            family_member_nickname: Optional[str] = None
+            if s.family_member is not None:
+                try:
+                    rel_raw = getattr(s.family_member, "relationship_type", None)
+                    family_member_relation = _normalize_relation(rel_raw)
+                    family_member_nickname = getattr(s.family_member, "nickname", None)
+                except Exception:
+                    # 关联对象异常不阻塞整列输出，回退为 self
+                    family_member_relation = "self"
+                    family_member_nickname = None
             items.append(
                 UserChatSessionItem(
                     id=s.id,
@@ -294,6 +369,9 @@ async def user_list_sessions(
                     title=s.title,
                     message_count=s.message_count or 0,
                     is_pinned=bool(s.is_pinned) if s.is_pinned is not None else False,
+                    family_member_id=s.family_member_id,
+                    family_member_relation=family_member_relation,
+                    family_member_nickname=family_member_nickname,
                     created_at=s.created_at or datetime.utcnow(),
                     updated_at=s.updated_at or s.created_at or datetime.utcnow(),
                 )
@@ -302,6 +380,132 @@ async def user_list_sessions(
             # 单条异常静默跳过，保证整列其他会话仍可正常展示
             continue
     return items
+
+
+# [BUG-461 (2026-05-11)] 新增用户端「直接创建新会话」接口
+# 用于「切换咨询人 → 立即开新会话」流程（Bug-C 修复）：
+# 前端在用户确认切换咨询人后，调用此接口落库新会话，拿到 session_id 再跳转。
+@router.post("/api/chat-sessions")
+async def user_create_session(
+    data: UserChatSessionCreate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """用户端直接创建新会话（轻量版）。
+
+    [BUG-461 修复 Bug-C] 与 `POST /api/chat/sessions` 同义但路径对齐抽屉
+    `GET /api/chat-sessions` 列表接口，便于前端"列表 + 创建"成对调用，
+    并支持 family_member_id 立即落库（空会话允许存在）。
+    """
+    # session_type 兜底：传入非法值或缺失时统一回退为 health_qa
+    raw_type = (data.session_type or "health_qa").strip()
+    try:
+        session_type = SessionType(raw_type)
+    except Exception:
+        session_type = SessionType.health_qa
+
+    # family_member 校验：若提供则必须属于当前用户
+    family_member_id = data.family_member_id
+    family_member_relation: Optional[str] = "self"
+    family_member_nickname: Optional[str] = None
+    if family_member_id is not None:
+        from app.models.models import FamilyMember as _FM
+
+        fm_result = await db.execute(
+            select(_FM).where(_FM.id == family_member_id, _FM.user_id == current_user.id)
+        )
+        member = fm_result.scalar_one_or_none()
+        if not member:
+            # 不存在 / 不属于当前用户 → 视为本人会话，避免越权
+            family_member_id = None
+        else:
+            family_member_relation = _normalize_relation(
+                getattr(member, "relationship_type", None)
+            )
+            family_member_nickname = getattr(member, "nickname", None)
+
+    new_session = ChatSession(
+        user_id=current_user.id,
+        session_type=session_type,
+        title=data.title or "新对话",
+        family_member_id=family_member_id,
+        message_count=0,
+        is_pinned=False,
+        is_deleted=False,
+    )
+    db.add(new_session)
+    await db.flush()
+    await db.refresh(new_session)
+
+    return {
+        "id": new_session.id,
+        "session_type": session_type.value if hasattr(session_type, "value") else str(session_type),
+        "title": new_session.title,
+        "family_member_id": new_session.family_member_id,
+        "family_member_relation": family_member_relation,
+        "family_member_nickname": family_member_nickname,
+        "message_count": 0,
+        "is_pinned": False,
+        "created_at": new_session.created_at.isoformat() if new_session.created_at else None,
+        "updated_at": new_session.updated_at.isoformat() if new_session.updated_at else None,
+    }
+
+
+# [BUG-461 业务规则② (2026-05-11)] 检查是否应该开启新会话
+# 前端在进入 AI 对话页时调用，依据 AI_CHAT_AUTO_NEW_SESSION_HOURS 阈值判断
+# 上一活动会话是否已超过 N 小时未活动；如超过则提示前端开新会话。
+@router.get("/api/chat-sessions/active-check")
+async def user_check_active_session(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """检查用户上一次活动会话是否需要切片为新会话。
+
+    返回：
+      - should_new_session: bool  是否建议开新会话
+      - last_session_id: int|None 上一次活动会话 ID
+      - last_updated_at: ISO 时间字符串
+      - inactive_hours: float    距上次活动的小时数
+      - threshold_hours: int     阈值（来自 AI_CHAT_AUTO_NEW_SESSION_HOURS）
+
+    判定逻辑：取该用户最近一条 `updated_at` 最大的非删除会话，
+    若距今 ≥ 阈值则 should_new_session=True。
+    """
+    threshold = max(1, int(getattr(settings, "AI_CHAT_AUTO_NEW_SESSION_HOURS", 6) or 6))
+    try:
+        result = await db.execute(
+            select(ChatSession)
+            .where(
+                ChatSession.user_id == current_user.id,
+                ChatSession.is_deleted == False,
+            )
+            .order_by(ChatSession.updated_at.desc())
+            .limit(1)
+        )
+        last = result.scalar_one_or_none()
+    except Exception:
+        last = None
+
+    if last is None:
+        return {
+            "should_new_session": False,
+            "last_session_id": None,
+            "last_updated_at": None,
+            "inactive_hours": 0.0,
+            "threshold_hours": threshold,
+        }
+
+    now = datetime.utcnow()
+    last_ts = last.updated_at or last.created_at or now
+    delta = now - last_ts
+    inactive_hours = max(0.0, delta.total_seconds() / 3600.0)
+    return {
+        "should_new_session": inactive_hours >= threshold,
+        "last_session_id": last.id,
+        "last_updated_at": last_ts.isoformat() if last_ts else None,
+        "inactive_hours": round(inactive_hours, 2),
+        "threshold_hours": threshold,
+    }
 
 
 @router.get("/api/chat-sessions/{session_id}")
@@ -346,11 +550,13 @@ async def user_get_session_detail(
     except Exception:
         session_type_value = "consultation"
 
-    family_member_relation = None
+    family_member_relation = "self"
     family_member_nickname = None
     if session.family_member is not None:
         try:
-            family_member_relation = getattr(session.family_member, "relationship_type", None)
+            family_member_relation = _normalize_relation(
+                getattr(session.family_member, "relationship_type", None)
+            )
             family_member_nickname = getattr(session.family_member, "nickname", None)
         except Exception:
             pass

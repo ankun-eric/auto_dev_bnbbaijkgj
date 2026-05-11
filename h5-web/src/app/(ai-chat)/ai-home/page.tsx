@@ -1281,6 +1281,38 @@ export default function AiHomePage() {
     aiChatTrack.pageView('self');
   }, []);
 
+  // [BUG-461 业务规则② (2026-05-11)] 旧会话 6 小时无活动 → 自动开新会话
+  // 进入 AI 对话首页时调用 GET /api/chat-sessions/active-check，
+  // 若后端判断 inactive_hours >= 阈值（默认 6h），则前端不复用旧会话，
+  // 让首条消息自动以「新会话」身份落库；同时通知抽屉列表刷新。
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res: any = await api.get('/api/chat-sessions/active-check');
+        const data = res?.data ?? res;
+        if (cancelled) return;
+        if (data?.should_new_session === true) {
+          // 静默切片：重置当前 sessionId & messages，让下一条消息触发新会话创建
+          setSessionId(null);
+          setMessages([]);
+          setLastMsgTime(0);
+          try {
+            window.dispatchEvent(new Event('bh-history-refresh'));
+          } catch {
+            /* ignore */
+          }
+        }
+      } catch {
+        // 静默失败：不影响主流程，沿用既有会话上下文
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // [PRD-423 T-03] 冷启动「无本人档案」检测：fallback 到「未选择档案」并展示轻提示
   // 规则：进入页面后拉取家庭成员，若不存在 is_self=true 的档案 → 显示提示
   const [showNoSelfTip, setShowNoSelfTip] = useState(false);

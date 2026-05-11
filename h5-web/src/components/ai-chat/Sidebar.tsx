@@ -33,9 +33,19 @@
  *      头像（固定宽）│ 名片块（弹性宽，内部纵向：昵称+ID 胶囊）│ 顶栏图标组（固定宽，右对齐）
  *  - 名片块设 `flex:1; min-width:0;` + 昵称 `text-overflow:ellipsis` 单行省略号兜底
  *  - 取消 ID 胶囊点击复制行为：仅纯展示，不响应点击、不显示复制图标、不显示 Toast、不带 cursor:pointer
+ *
+ * [BUG-461 (2026-05-11)] 抽屉「历史对话」三 Bug 联合修复：
+ *  - Bug A：⋯ 弹出菜单改用 `ReactDOM.createPortal` 渲染到 `document.body`，并基于
+ *    `getBoundingClientRect()` 动态计算位置，菜单 `z-index = 9999` 高于抽屉遮罩；
+ *    新增「点击菜单外区域自动关闭」全局监听；菜单距底部不足时向上翻转避让屏幕边缘。
+ *  - Bug B：`ChatHistoryItem` 新增 `family_member_id / nickname` 字段；
+ *    `askerRole` 来源升级为后端新返回的 `family_member_relation`（self/spouse/...）。
+ *  - Bug C 配套：监听 `bh-history-refresh` 自定义事件后，主动重新拉取历史列表，
+ *    供「咨询人切换 → 立即创建新会话」流程消费。
  */
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import ReactDOM from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { Avatar, Dialog, Toast } from 'antd-mobile';
 import { THEME } from '@/lib/theme';
@@ -56,6 +66,10 @@ interface ChatHistoryItem {
   pinnedAt?: string | null; // 置顶时间（用于排序）
   /** F-10 咨询人角色：self/spouse/father/mother/child/elder/其他 */
   askerRole?: string;
+  /** [BUG-461] 咨询人家庭成员 ID（本人=null） */
+  familyMemberId?: number | null;
+  /** [BUG-461] 咨询人昵称（用于 hover 提示或长文展示） */
+  familyMemberNickname?: string | null;
 }
 
 /** F-06 资产行数据 */
@@ -232,6 +246,13 @@ export default function Sidebar({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const swipeStartXRef = useRef<number>(0);
 
+  // [BUG-461 Fix-A] ⋯ 菜单 Portal 化所需的"菜单几何位置"
+  // - anchorRect：触发按钮的 DOM 矩形（用于计算菜单出现位置）
+  // - 菜单本身渲染到 document.body 的最外层，z-index = 9999，
+  //   不再受抽屉容器/卡片 overflow:hidden 与堆叠上下文限制。
+  const [menuAnchorRect, setMenuAnchorRect] = useState<DOMRect | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
   // ─────────────────── 数据加载 ───────────────────
   // 历史对话加载封装（供 useEffect 与「重试」按钮共用）
   // [BUG-457 Fix-4] .catch 收窄：仅捕获真正的网络错误（fetch reject / 5xx 等），
@@ -255,7 +276,20 @@ export default function Sidebar({
           time: s.updated_at || s.created_at || '',
           pinned: !!(s.is_pinned || s.pinned),
           pinnedAt: s.pinned_at || null,
-          askerRole: s.asker_role || s.role || 'self',
+          // [BUG-461 Fix-B] 咨询人角色优先消费后端新返回的 family_member_relation 字段，
+          // 兜底兼容历史字段 asker_role / role，仍然没有则视为本人
+          askerRole:
+            s.family_member_relation ||
+            s.familyMemberRelation ||
+            s.asker_role ||
+            s.role ||
+            'self',
+          familyMemberId:
+            s.family_member_id !== undefined
+              ? s.family_member_id
+              : s.familyMemberId ?? null,
+          familyMemberNickname:
+            s.family_member_nickname ?? s.familyMemberNickname ?? null,
         }))
       );
     } catch (err) {
@@ -330,11 +364,52 @@ export default function Sidebar({
   useEffect(() => {
     if (!visible) {
       setMenuOpenId(null);
+      setMenuAnchorRect(null);
       setSwipeOpenId(null);
       setManageMode(false);
       setSelectedIds(new Set());
     }
   }, [visible]);
+
+  // [BUG-461 Fix-A] 「点击菜单外区域自动关闭」全局监听
+  // 仅在菜单打开时挂载；点击事件冒泡到 document 时，若目标不在菜单 DOM 内部，
+  // 则关闭菜单。同时监听滚动 / 窗口尺寸变化，菜单也应关闭，避免悬空。
+  useEffect(() => {
+    if (!menuOpenId) return;
+    const closeMenu = () => {
+      setMenuOpenId(null);
+      setMenuAnchorRect(null);
+    };
+    const onDocPointerDown = (e: Event) => {
+      const node = menuRef.current;
+      if (node && node.contains(e.target as Node)) return; // 点在菜单内部 → 保留
+      closeMenu();
+    };
+    // 使用 capture=true 以更早接到事件，避免被 stopPropagation 吞掉
+    document.addEventListener('mousedown', onDocPointerDown, true);
+    document.addEventListener('touchstart', onDocPointerDown, true);
+    window.addEventListener('resize', closeMenu);
+    // 历史列表滚动容器内滚动时也关闭菜单
+    document.addEventListener('scroll', closeMenu, true);
+    return () => {
+      document.removeEventListener('mousedown', onDocPointerDown, true);
+      document.removeEventListener('touchstart', onDocPointerDown, true);
+      window.removeEventListener('resize', closeMenu);
+      document.removeEventListener('scroll', closeMenu, true);
+    };
+  }, [menuOpenId]);
+
+  // [BUG-461 Fix-C 配套] 外部触发"历史对话刷新"事件后，主动重新拉取列表。
+  // 例：用户在 chat 页切换咨询人 → 创建新会话成功后 dispatch 此事件，
+  //     抽屉无需用户重新打开即可看到新条目。
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handler = () => {
+      loadHistories();
+    };
+    window.addEventListener('bh-history-refresh', handler);
+    return () => window.removeEventListener('bh-history-refresh', handler);
+  }, [loadHistories]);
 
   // ─────────────────── 计算分组（F-09） ───────────────────
   const { pinnedItems, groups } = useMemo(() => {
@@ -498,7 +573,7 @@ export default function Sidebar({
   /** F-10 单条历史对话 */
   const renderHistoryItem = (item: ChatHistoryItem, fromPinned = false) => {
     const isActive = activeSessionId === item.id;
-    const menuVisible = menuOpenId === item.id;
+    // [BUG-461 Fix-A] menuVisible 不再用于渲染内联菜单（菜单已 Portal 化）
     const swipeVisible = swipeOpenId === item.id;
     const checked = selectedIds.has(item.id);
 
@@ -671,7 +746,15 @@ export default function Sidebar({
               onClick={(e) => {
                 e.stopPropagation();
                 setSwipeOpenId(null);
-                setMenuOpenId(menuOpenId === item.id ? null : item.id);
+                // [BUG-461 Fix-A] 记录按钮 DOMRect，供 Portal 菜单基于按钮位置计算
+                if (menuOpenId === item.id) {
+                  setMenuOpenId(null);
+                  setMenuAnchorRect(null);
+                } else {
+                  const btn = e.currentTarget as HTMLButtonElement;
+                  setMenuAnchorRect(btn.getBoundingClientRect());
+                  setMenuOpenId(item.id);
+                }
               }}
               style={{
                 background: 'transparent',
@@ -691,67 +774,110 @@ export default function Sidebar({
             </button>
           )}
         </div>
-
-        {/* F-11 ⋯ 弹出菜单 */}
-        {menuVisible && !manageMode && (
-          <div
-            style={{
-              position: 'absolute',
-              top: 36,
-              right: 8,
-              background: COLOR.cardBg,
-              borderRadius: 8,
-              boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
-              zIndex: 10,
-              minWidth: 110,
-              overflow: 'hidden',
-              border: `1px solid ${COLOR.divider}`,
-            }}
-            data-testid="bh-history-menu"
-          >
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                togglePin(item.id);
-              }}
-              style={{
-                display: 'block',
-                width: '100%',
-                padding: '10px 14px',
-                background: 'transparent',
-                border: 'none',
-                fontSize: 13,
-                color: COLOR.textPrimary,
-                textAlign: 'left',
-                cursor: 'pointer',
-              }}
-            >
-              {item.pinned ? '取消置顶' : '置顶'}
-            </button>
-            <div style={{ height: 1, background: COLOR.divider }} />
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                deleteOne(item.id);
-              }}
-              style={{
-                display: 'block',
-                width: '100%',
-                padding: '10px 14px',
-                background: 'transparent',
-                border: 'none',
-                fontSize: 13,
-                color: COLOR.danger,
-                textAlign: 'left',
-                cursor: 'pointer',
-              }}
-            >
-              删除
-            </button>
-          </div>
-        )}
+        {/* [BUG-461 Fix-A] F-11 ⋯ 菜单已挪到组件根部统一通过 Portal 渲染，此处不再渲染内联菜单 */}
       </div>
     );
+  };
+
+  /**
+   * [BUG-461 Fix-A] ⋯ 菜单 Portal 渲染：
+   *   - 渲染到 document.body 最外层，z-index = 9999
+   *   - 位置基于 menuAnchorRect 计算：默认置于按钮下方右对齐
+   *   - 菜单下方空间不足时（距离视口底部 < menuHeightEstimate）向上翻转
+   *   - 距离视口左边过近时左对齐到按钮左侧
+   * 注意：必须保证仅在浏览器环境且菜单打开时才调用 createPortal。
+   */
+  const renderHistoryMenuPortal = () => {
+    if (typeof document === 'undefined') return null;
+    if (!menuOpenId || !menuAnchorRect || manageMode) return null;
+    const item = histories.find((h) => h.id === menuOpenId);
+    if (!item) return null;
+
+    const MENU_WIDTH = 120;
+    const MENU_HEIGHT_ESTIMATE = 90; // 两行 + 分隔线，约 90px
+    const SAFE_MARGIN = 8;
+
+    const vw = typeof window !== 'undefined' ? window.innerWidth : 360;
+    const vh = typeof window !== 'undefined' ? window.innerHeight : 640;
+
+    // 水平：默认右对齐到按钮右边缘；右边超出则向左收
+    let left = menuAnchorRect.right - MENU_WIDTH;
+    if (left + MENU_WIDTH > vw - SAFE_MARGIN) {
+      left = vw - MENU_WIDTH - SAFE_MARGIN;
+    }
+    if (left < SAFE_MARGIN) left = SAFE_MARGIN;
+
+    // 垂直：默认按钮下方；底部空间不足则向上翻转（出现在按钮上方）
+    let top = menuAnchorRect.bottom + 4;
+    if (top + MENU_HEIGHT_ESTIMATE > vh - SAFE_MARGIN) {
+      top = menuAnchorRect.top - MENU_HEIGHT_ESTIMATE - 4;
+      if (top < SAFE_MARGIN) top = SAFE_MARGIN;
+    }
+
+    const node = (
+      <div
+        ref={menuRef}
+        style={{
+          position: 'fixed',
+          left,
+          top,
+          width: MENU_WIDTH,
+          background: COLOR.cardBg,
+          borderRadius: 8,
+          boxShadow: '0 6px 20px rgba(0,0,0,0.18)',
+          zIndex: 9999,
+          overflow: 'hidden',
+          border: `1px solid ${COLOR.divider}`,
+        }}
+        data-testid="bh-history-menu"
+        onMouseDown={(e) => e.stopPropagation()}
+        onTouchStart={(e) => e.stopPropagation()}
+      >
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            togglePin(item.id);
+          }}
+          style={{
+            display: 'block',
+            width: '100%',
+            padding: '10px 14px',
+            background: 'transparent',
+            border: 'none',
+            fontSize: 13,
+            color: COLOR.textPrimary,
+            textAlign: 'left',
+            cursor: 'pointer',
+          }}
+          data-testid="bh-history-menu-pin"
+        >
+          {item.pinned ? '取消置顶' : '置顶'}
+        </button>
+        <div style={{ height: 1, background: COLOR.divider }} />
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            deleteOne(item.id);
+          }}
+          style={{
+            display: 'block',
+            width: '100%',
+            padding: '10px 14px',
+            background: 'transparent',
+            border: 'none',
+            fontSize: 13,
+            color: COLOR.danger,
+            textAlign: 'left',
+            cursor: 'pointer',
+          }}
+          data-testid="bh-history-menu-delete"
+        >
+          删除
+        </button>
+      </div>
+    );
+
+    return ReactDOM.createPortal(node, document.body);
   };
 
   // ─────────────────── 渲染 ───────────────────
@@ -1327,6 +1453,9 @@ export default function Sidebar({
           to { transform: translateX(0); }
         }
       `}</style>
+
+      {/* [BUG-461 Fix-A] ⋯ 菜单 Portal 渲染入口 */}
+      {renderHistoryMenuPortal()}
     </>
   );
 }

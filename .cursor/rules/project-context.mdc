@@ -33,6 +33,26 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
+## Latest Update: BUG-461-AI-CHAT-DRAWER-HISTORY-3BUG-20260511｜AI 对话模式·左侧抽屉历史会话三 Bug 联合修复（A 菜单遮挡 / B 咨询人不可区分 / C 改人不开新会话 + 业务规则 6h 自动新会话 + 11/11 服务器自动化测试 PASS）（2026-05-11 15:30）
+
+### 一句话结论
+用户在 H5 抽屉「历史对话」区块反馈三个独立但同区域的体验问题：(A) ⋯ 弹出菜单被相邻条目/容器边缘遮挡，「删除」按钮无法点击；(B) 多家庭成员账号下所有会话左侧都显示「本人」蓝色圆点，无法分辨咨询对象，根因为用户端 `GET /api/chat-sessions` 列表接口未透传 `family_member_*` 字段；(C) 改咨询人后系统继续在原会话续聊，**新咨询人的会话从未被创建**，历史列表里看不到新条目。本次一次性闭环：后端 `UserChatSessionItem` 新增 `family_member_id/relation/nickname` 三个字段并对中文称谓做归一化映射，新增 `POST /api/chat-sessions` 直接建会话接口和 `GET /api/chat-sessions/active-check` 用于 6h 自动新会话判定；前端 Sidebar 把 ⋯ 菜单改为 `ReactDOM.createPortal` 渲染到 `document.body` 最外层（`z-index=9999`）+ 全局监听点击外区域自动关闭 + 距底部不足时向上翻转避让；chat 页咨询人切换在已有消息会话时弹二次确认 + 立即调用 `POST /api/chat-sessions` 建新会话 + `bh-history-refresh` 事件订阅式刷新抽屉；ai-home 进入时调用 active-check，超阈值则静默切片新会话。后端 `AI_CHAT_AUTO_NEW_SESSION_HOURS=6` 配置项参数化运营可调。
+
+### 范围与端
+
+| 维度 | 内容 |
+|------|------|
+| 涉及端 | 后端（FastAPI）+ H5（Next.js）；小程序、Flutter、admin 均 0 改动 |
+| 涉及表 | `chat_sessions`（仅消费 family_member 关联，未改表结构） |
+| 新增/变更接口 | `GET /api/chat-sessions`（返回字段扩展 3 项）、`POST /api/chat-sessions`（新增）、`GET /api/chat-sessions/active-check`（新增） |
+| 新增配置项 | `AI_CHAT_AUTO_NEW_SESSION_HOURS`（默认 6） |
+| 自动化测试 | `backend/tests/test_bug461_drawer_history.py` 11 用例 100% PASS（B 字段返回 + 中文关系归一化 + C 创建会话 + 越权拒绝 + 非法 session_type 兜底 + 业务规则② 三态校验） |
+| 关键文件 | `backend/app/schemas/chat_history.py` / `backend/app/api/chat_history.py` / `backend/app/core/config.py` / `h5-web/src/components/ai-chat/Sidebar.tsx` / `h5-web/src/app/chat/[sessionId]/page.tsx` / `h5-web/src/app/(ai-chat)/ai-home/page.tsx` |
+| 部署脚本 | `_deploy_bug461.py`（SFTP 上传 backend/app + backend/tests + h5-web/src → docker compose build backend & h5-web → up -d → smoke 4/4 PASS） |
+| 用户手册 | `user_docs/AI对话历史抽屉修复.md` |
+
+---
+
 ## Latest Update: BUG-460-CHAT-SESSIONS-500-FIX-20260511｜AI 对话首页·左侧抽屉「历史对话」加载失败修复（/api/chat-sessions 500 → 200，MySQL 不支持 NULLS LAST 语法替换为 CASE WHEN + 双层兜底 + 18/18 服务器自动化测试 PASS）（2026-05-11 14:35）
 
 ### 一句话结论

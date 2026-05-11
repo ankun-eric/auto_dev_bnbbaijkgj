@@ -37,6 +37,11 @@ class Settings(BaseSettings):
     # 默认 15 分钟（与团购到店行业惯例一致），通过 .env 覆盖后重启服务生效。
     PAYMENT_TIMEOUT_MINUTES: int = 15
 
+    # [BUG-461 (2026-05-11)] AI 对话「旧会话 X 小时无活动 → 自动开新会话」阈值
+    # 默认 6 小时，运营可通过 .env 覆盖为 4 / 8 / 12 等。
+    # 判定字段：ChatSession.updated_at（最后一次消息往返时间）
+    AI_CHAT_AUTO_NEW_SESSION_HOURS: int = 6
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
 

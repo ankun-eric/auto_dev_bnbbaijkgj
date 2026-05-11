@@ -1770,6 +1770,60 @@ function ChatPageInner() {
   };
 
   const handleSwitchMember = async (memberId: number | null, label: string, relationName: string) => {
+    // [BUG-461 Fix-C (2026-05-11)] 切换咨询人 → 业务规则①：
+    //   - 当前会话有消息时：弹二次确认，确认后立即调用 POST /api/chat-sessions
+    //     创建一条挂在新咨询人下的「新会话」，跳转到新会话，旧会话保留为历史。
+    //   - 当前会话无消息（空会话）：静默调用原有 switch-member 接口变更归属，
+    //     不弹窗、不开新会话，避免污染历史列表。
+    //   - 切换完成后 dispatch `bh-history-refresh` 事件，让抽屉历史列表立即刷新。
+    const hasMessages = (messages?.length || 0) > 0;
+
+    if (hasMessages) {
+      const prevLabel = currentRelationLabel || '本人';
+      const ok = await Dialog.confirm({
+        title: '切换咨询人将开启新会话',
+        content: `当前与「${prevLabel}」的对话将自动保存到历史，接下来的对话将归属于「${label}」。`,
+        confirmText: '确认切换',
+        cancelText: '取消',
+      });
+      if (!ok) {
+        return;
+      }
+      setSwitchingMember(true);
+      try {
+        // 立即创建新会话，挂在新咨询人下
+        const res: any = await api.post('/api/chat-sessions', {
+          session_type: 'health_qa',
+          title: '新对话',
+          family_member_id: memberId,
+        });
+        const data = res?.data ?? res;
+        const newId = data?.id;
+        if (!newId) {
+          throw new Error('未取得新会话 ID');
+        }
+        setMemberPopupVisible(false);
+        Toast.show({
+          content: `已切换为${label}，已为您开启新会话`,
+          icon: 'success',
+          duration: 2200,
+        });
+        // 通知抽屉历史列表立即刷新（订阅式）
+        try {
+          window.dispatchEvent(new Event('bh-history-refresh'));
+        } catch {
+          /* ignore */
+        }
+        // 跳转到新会话
+        router.replace(`/chat/${newId}`);
+      } catch {
+        Toast.show({ content: '切换失败，请稍后重试', icon: 'fail' });
+      }
+      setSwitchingMember(false);
+      return;
+    }
+
+    // 空会话：保留原有「静默切换」语义
     setSwitchingMember(true);
     try {
       await api.post(`/api/chat/sessions/${sessionId}/switch-member`, {
@@ -1783,6 +1837,12 @@ function ChatPageInner() {
         icon: 'success',
         duration: 2500,
       });
+      // 空会话归属变更后，列表中该会话的咨询人圆点也需要刷新
+      try {
+        window.dispatchEvent(new Event('bh-history-refresh'));
+      } catch {
+        /* ignore */
+      }
     } catch {
       Toast.show({ content: '切换失败，请稍后重试', icon: 'fail' });
     }

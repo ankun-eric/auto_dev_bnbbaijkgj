@@ -67,10 +67,29 @@ class UserChatSessionItem(BaseModel):
     title: Optional[str] = None
     message_count: int = 0
     is_pinned: bool = False
+    # [BUG-461 (2026-05-11)] 抽屉「历史对话」列表新增咨询人字段，
+    # 用于左侧 6 色圆点 + 关系文字渲染。
+    # 关联为空时统一返回 self，本人时 family_member_id=None。
+    family_member_id: Optional[int] = None
+    family_member_relation: Optional[str] = "self"
+    family_member_nickname: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+# [BUG-461 (2026-05-11)] AI 对话用户端建议项 / 创建会话 / 切咨询人新会话
+class UserChatSessionCreate(BaseModel):
+    """用户端创建新会话请求体。
+
+    用于 Bug-C 修复：用户切换咨询人时，前端立即调用此接口创建
+    挂在新咨询人下的新会话，而不是等到首条消息发送时才落库。
+    """
+
+    session_type: Optional[str] = "health_qa"
+    title: Optional[str] = None
+    family_member_id: Optional[int] = None
 
 
 class ChatSessionUpdate(BaseModel):
