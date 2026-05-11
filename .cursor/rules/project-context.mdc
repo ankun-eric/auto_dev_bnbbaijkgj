@@ -33,6 +33,25 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
+## Latest Update: BUG-462-AI-CHAT-HISTORY-DELETE-ENDPOINT-FIX-20260511｜H5 端 AI 对话「历史对话删除接口错位」修复（单条/批量删除均改打真实后端接口 + 失败立刻回滚 + 文案改为「删除失败,请稍后重试」+ 8/8 服务端 smoke 测试 PASS）（2026-05-11 15:50）
+
+### 一句话结论
+H5 抽屉「历史对话」删除（单条 ⋯ 菜单 / 左滑红按钮 / 管理模式批量删除）100% 不可用：前端 `Sidebar.tsx` 的 `deleteOne` / `batchDelete` 调用的是**不存在**的接口 `POST /api/chat/history/delete`，每次必然 4xx 进 catch，乐观更新让条目视觉消失，但数据库实际未删，刷新后被删对话全部"复活"，并弹"删除可能未同步，请稍后刷新"兜底 Toast。修复：前端单文件改 `deleteOne` 调 `DELETE /api/chat-sessions/{id}`、`batchDelete` 调 `POST /api/chat-sessions/batch-delete`（请求体 `session_ids: number[]`，后端已存在），失败时立即用 `histories` 快照整体回滚（批量场景额外恢复 `manageMode` + `selectedIds`），文案改为「删除失败,请稍后重试」并带 `icon: 'fail'`。
+
+### 范围与端
+
+| 维度 | 内容 |
+|------|------|
+| 涉及端 | H5（Next.js）单端；后端、admin、小程序、Flutter 均 0 改动 |
+| 涉及表 | 无（仅消费已有的 `chat_sessions.is_deleted` 软删字段） |
+| 接口变更 | 无新增接口，仅前端切换调用路径 |
+| 关键文件 | `h5-web/src/components/ai-chat/Sidebar.tsx`（`deleteOne` + `batchDelete`） |
+| 部署脚本 | `deploy/_deploy_bug462_20260511.py`（SFTP 上传 1 文件 → docker compose build h5-web → up -d → curl 4 URL 验证 + 远端源码 BUG-462 标记 + 新旧接口路径 grep 验证） |
+| 自动化测试 | `deploy/_test_bug462_server.py` 8/8 PASS（DELETE/batch-delete 路由 401、旧路径 404、源码无 legacy 调用、容器 running、bundle 含新接口） |
+| 用户手册 | `user_docs/AI对话历史删除接口修复_BUG462.md` |
+
+---
+
 ## Latest Update: BUG-461-AI-CHAT-DRAWER-HISTORY-3BUG-20260511｜AI 对话模式·左侧抽屉历史会话三 Bug 联合修复（A 菜单遮挡 / B 咨询人不可区分 / C 改人不开新会话 + 业务规则 6h 自动新会话 + 11/11 服务器自动化测试 PASS）（2026-05-11 15:30）
 
 ### 一句话结论

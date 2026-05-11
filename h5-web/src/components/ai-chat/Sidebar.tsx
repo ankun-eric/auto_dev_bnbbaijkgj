@@ -479,6 +479,13 @@ export default function Sidebar({
     }
   };
 
+  // [BUG-462 (2026-05-11)] 单条删除修复：
+  //  - 旧实现调用不存在的 `POST /api/chat/history/delete`，每次必然 4xx 进 catch，
+  //    乐观更新虽然让条目视觉上消失，但数据库实际并未删除，刷新后被删条目"复活"，
+  //    并弹出"删除可能未同步，请稍后刷新"的兜底 Toast。
+  //  - 改为真实接口 `DELETE /api/chat-sessions/{id}`。
+  //  - 失败时按"立刻回滚 + 友好提示"方案：保留删除前的完整 histories 快照，
+  //    出错时 setHistories(snapshot) 整体恢复，并显示"删除失败,请稍后重试"。
   const deleteOne = async (id: string) => {
     setMenuOpenId(null);
     setSwipeOpenId(null);
@@ -488,16 +495,27 @@ export default function Sidebar({
       cancelText: '取消',
     });
     if (!ok) return;
+
+    const snapshot = histories;
     setHistories((prev) => prev.filter((h) => h.id !== id));
+
     try {
-      await api.post('/api/chat/history/delete', { ids: [id] });
+      await api.delete(`/api/chat-sessions/${id}`);
       Toast.show({ content: '已删除', icon: 'success' });
     } catch {
-      Toast.show({ content: '删除可能未同步，请稍后刷新' });
+      setHistories(snapshot);
+      Toast.show({ content: '删除失败,请稍后重试', icon: 'fail' });
     }
   };
 
   // ─────────────────── F-12 批量删除 ───────────────────
+  // [BUG-462 (2026-05-11)] 批量删除修复：
+  //  - 旧实现调用不存在的 `POST /api/chat/history/delete`，必然 4xx，
+  //    与单条删除同样的问题（视觉消失但实际未删 + 兜底 Toast）。
+  //  - 改为真实接口 `POST /api/chat-sessions/batch-delete`，请求体字段为
+  //    `session_ids`（后端 `List[int]`，前端 id 为字符串 → 转 number 后下发）。
+  //  - 失败时：恢复 histories 快照 + 保留管理模式 + 保留勾选状态 + 友好提示，
+  //    让用户可以原地重试或调整选择。
   const batchDelete = async () => {
     if (selectedIds.size === 0) return;
     const n = selectedIds.size;
@@ -508,14 +526,27 @@ export default function Sidebar({
     });
     if (!ok) return;
     const ids = Array.from(selectedIds);
+
+    const snapshotHistories = histories;
+    const snapshotSelectedIds = new Set(selectedIds);
+
     setHistories((prev) => prev.filter((h) => !selectedIds.has(h.id)));
     setSelectedIds(new Set());
     setManageMode(false);
+
     try {
-      await api.post('/api/chat/history/delete', { ids });
+      const sessionIds = ids
+        .map((s) => Number(s))
+        .filter((n) => Number.isFinite(n));
+      await api.post('/api/chat-sessions/batch-delete', {
+        session_ids: sessionIds,
+      });
       Toast.show({ content: '已删除', icon: 'success' });
     } catch {
-      Toast.show({ content: '删除可能未同步，请稍后刷新' });
+      setHistories(snapshotHistories);
+      setSelectedIds(snapshotSelectedIds);
+      setManageMode(true);
+      Toast.show({ content: '删除失败,请稍后重试', icon: 'fail' });
     }
   };
 
