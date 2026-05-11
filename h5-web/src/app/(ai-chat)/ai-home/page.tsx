@@ -58,6 +58,29 @@ interface FamilyMember {
   is_self: boolean;
 }
 
+// [PRD-467] AI 对话首页字号设置（与「菜单模式·AI 健康咨询页」字号设置打通体验）
+// 后端接口 /api/user/font-setting 用 font_size_level：'standard' | 'large' | 'extra_large'
+// 实际数值与会话页保持一致：standard=14 / large=18 / extra_large=22
+type FontSizeLevel = 'standard' | 'large' | 'extra_large';
+
+const FONT_SIZE_MAP: Record<FontSizeLevel, number> = {
+  standard: 14,
+  large: 18,
+  extra_large: 22,
+};
+
+const FONT_LABEL_MAP: Record<FontSizeLevel, string> = {
+  standard: '标准',
+  large: '大',
+  extra_large: '超大',
+};
+
+const FONT_TOAST_MAP: Record<FontSizeLevel, string> = {
+  standard: '已切换为标准字体',
+  large: '已切换为大字体',
+  extra_large: '已切换为超大字体',
+};
+
 const FUNCTION_ROUTES: Record<string, string> = {
   'view_report': '/checkup',
   'check_drug': '/drug',
@@ -343,7 +366,7 @@ function renderMarkdown(text: string): string {
 
 export default function AiHomePage() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, isLoggedIn } = useAuth();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -354,6 +377,12 @@ export default function AiHomePage() {
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [consultantOpen, setConsultantOpen] = useState(false);
+
+  // [PRD-467 FR-02~FR-06] 字号设置：popover 开关 + 当前字号 + 锚点引用 + 300ms debounce 保存
+  const [fontPopoverOpen, setFontPopoverOpen] = useState(false);
+  const [fontSizeLevel, setFontSizeLevel] = useState<FontSizeLevel>('standard');
+  const fontPopoverRef = useRef<HTMLDivElement>(null);
+  const fontSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // [PRD-439 F-02/F-04] 提醒抽屉 + 徽标
   const [reminderOpen, setReminderOpen] = useState(false);
@@ -1468,6 +1497,90 @@ export default function AiHomePage() {
     router.push('/health-archive?target=self&from=ai-chat');
   }, [router]);
 
+  // [PRD-467 FR-05] 进入页面拉取一次用户字号设置（与会话页打通）
+  // 未登录 / 接口异常 → 静默失败，使用默认 standard(14px)
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    api.get('/api/user/font-setting')
+      .then((res: any) => {
+        const data = res.data || res;
+        const level = data.font_size_level;
+        if (level && FONT_SIZE_MAP[level as FontSizeLevel] !== undefined) {
+          setFontSizeLevel(level as FontSizeLevel);
+        }
+      })
+      .catch(() => {
+        // 静默失败，使用默认 standard(14px)
+      });
+  }, [isLoggedIn]);
+
+  // [PRD-467 FR-02] 点击⋯菜单中的「扫一扫」：复用 /scan 已有扫码页
+  const handleScan = useCallback(() => {
+    setMoreMenuOpen(false);
+    router.push('/scan');
+  }, [router]);
+
+  // [PRD-467 FR-02 / FR-06] 点击⋯菜单中的「字体大小」
+  //  - 未登录：Toast「请先登录」+ 跳登录页
+  //  - 已登录：关闭⋯菜单 → 在⋯按钮正下方弹出字号 popover
+  //  - popover 打开时与⋯菜单互斥
+  const handleFontSize = useCallback(() => {
+    setMoreMenuOpen(false);
+    if (!isLoggedIn) {
+      Toast.show({ content: '请先登录', duration: 1500 });
+      router.push('/login');
+      return;
+    }
+    setFontPopoverOpen(true);
+  }, [isLoggedIn, router]);
+
+  // [PRD-467 FR-03 / FR-05] 字号档位切换：立即生效 + 300ms debounce 持久化 + Toast
+  // 失败时回滚到上一档字号 + Toast「保存失败，请重试」
+  const handleFontChange = useCallback((level: FontSizeLevel) => {
+    const prev = fontSizeLevel;
+    setFontSizeLevel(level);
+    setFontPopoverOpen(false);
+    Toast.show({ content: FONT_TOAST_MAP[level], duration: 1500 });
+    if (!isLoggedIn) return;
+    if (fontSaveTimerRef.current) clearTimeout(fontSaveTimerRef.current);
+    fontSaveTimerRef.current = setTimeout(() => {
+      api.put('/api/user/font-setting', { font_size_level: level }).catch(() => {
+        setFontSizeLevel(prev);
+        Toast.show({ content: '保存失败，请重试', icon: 'fail', duration: 1500 });
+      });
+    }, 300);
+  }, [fontSizeLevel, isLoggedIn]);
+
+  // [PRD-467 状态机 6] popover 外点击自动关闭
+  useEffect(() => {
+    if (!fontPopoverOpen) return;
+    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
+      const target = e.target as Node;
+      if (fontPopoverRef.current && !fontPopoverRef.current.contains(target)) {
+        // 排除⋯按钮自身：⋯按钮的 onClick 会单独处理互斥
+        const moreBtn = document.querySelector('[data-testid="ai-home-more-btn"]');
+        if (moreBtn && moreBtn.contains(target)) return;
+        setFontPopoverOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside as any);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside as any);
+    };
+  }, [fontPopoverOpen]);
+
+  // [PRD-467 状态机 7] 组件卸载时清理 debounce 定时器
+  useEffect(() => {
+    return () => {
+      if (fontSaveTimerRef.current) clearTimeout(fontSaveTimerRef.current);
+    };
+  }, []);
+
+  // [PRD-467 FR-04] 字号仅作用于消息流气泡正文字号
+  const chatFontSize = FONT_SIZE_MAP[fontSizeLevel];
+
   const handleSelectSession = useCallback(async (sid: string) => {
     setMessages([]);
     currentSidRef.current = sid;
@@ -1690,12 +1803,80 @@ export default function AiHomePage() {
                   margin: 0,
                   lineHeight: 1,
                 }}
-                onClick={() => setMoreMenuOpen(true)}
+                onClick={() => {
+                  // [PRD-467 状态机 5] popover 打开时再点⋯：popover 关闭并打开⋯菜单（互斥）
+                  if (fontPopoverOpen) setFontPopoverOpen(false);
+                  setMoreMenuOpen(true);
+                }}
                 aria-label="更多菜单"
+                data-testid="ai-home-more-btn"
               >
                 ⋯
               </button>
             ) : null}
+
+            {/* [PRD-467 FR-02/FR-03] 字号 popover：锚定在⋯按钮正下方，宽 160 / 行高 40 / 朝上小三角 */}
+            {fontPopoverOpen && (
+              <div
+                ref={fontPopoverRef}
+                data-testid="ai-home-font-popover"
+                style={{
+                  position: 'absolute',
+                  top: 44,
+                  right: 8,
+                  width: 160,
+                  background: THEME.background, // #F0F9FF
+                  border: '1px solid #BAE6FD',
+                  borderRadius: 8,
+                  boxShadow: '0 4px 12px rgba(14,165,233,0.15)',
+                  padding: '6px 0',
+                  zIndex: 110,
+                }}
+              >
+                {/* 朝上小三角：对齐⋯按钮中心 */}
+                <span
+                  style={{
+                    position: 'absolute',
+                    top: -5,
+                    right: 14,
+                    width: 8,
+                    height: 8,
+                    background: THEME.background,
+                    borderTop: '1px solid #BAE6FD',
+                    borderLeft: '1px solid #BAE6FD',
+                    transform: 'rotate(45deg)',
+                  }}
+                />
+                {(['standard', 'large', 'extra_large'] as FontSizeLevel[]).map((level) => {
+                  const isActive = fontSizeLevel === level;
+                  const size = FONT_SIZE_MAP[level];
+                  return (
+                    <div
+                      key={level}
+                      data-testid={`ai-home-font-option-${level}`}
+                      onClick={() => handleFontChange(level)}
+                      style={{
+                        height: 40,
+                        padding: '0 12px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        cursor: 'pointer',
+                      }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = '#E0F2FE'; }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}
+                    >
+                      <span style={{ fontSize: 14, color: THEME.textPrimary }}>{FONT_LABEL_MAP[level]}</span>
+                      {isActive ? (
+                        <span style={{ color: '#0EA5E9', fontSize: 14, fontWeight: 600 }}>✓</span>
+                      ) : (
+                        <span style={{ color: '#9CA3AF', fontSize: 12 }}>{size}px</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       </SectionErrorBoundary>
@@ -1909,7 +2090,8 @@ export default function AiHomePage() {
                           borderRadius: 14,
                           padding: '10px 14px',
                           maxWidth: 'min(75vw, 540px)',
-                          fontSize: 16,
+                          // [PRD-467 FR-04] 字号仅作用于消息流气泡正文
+                          fontSize: chatFontSize,
                           lineHeight: 1.5,
                           wordBreak: 'break-word',
                           whiteSpace: 'pre-wrap',
@@ -1990,7 +2172,8 @@ export default function AiHomePage() {
                     <div
                       className="ai-fullwidth-message"
                       style={{
-                        fontSize: 16,
+                        // [PRD-467 FR-04] 字号仅作用于消息流气泡正文（AI 回答）
+                        fontSize: chatFontSize,
                         lineHeight: 1.6,
                         color: THEME.textPrimary,
                         wordBreak: 'break-word',
@@ -2299,6 +2482,8 @@ export default function AiHomePage() {
       <MoreMenu
         visible={moreMenuOpen}
         onClose={() => setMoreMenuOpen(false)}
+        onScan={handleScan}
+        onFontSize={handleFontSize}
         onShare={() => setShareOpen(true)}
       />
       <ConsultTargetPicker

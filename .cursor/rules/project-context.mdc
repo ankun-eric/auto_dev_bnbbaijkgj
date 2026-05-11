@@ -33,7 +33,63 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: BUG-466-AI-CHAT-AUTO-SLICE-FIX-20260511｜AI 对话首页「自动新会话切片」失效联合修复（切换咨询对象同事务归档+创建合并接口 / 6 小时切片多触发点 visibilitychange+focus+pageshow+发送兜底 / currentSidRef 彻底规避闭包旧 sid / handleConsultantSelect 与撤销均 dispatch bh-history-refresh + 7/7 服务器自动化测试 PASS）（2026-05-11 17:10）
+## Latest Update: PRD-467-AI-HOME-MORE-MENU-FIX-20260511｜AI 对话首页右上角「⋯」菜单三 Bug 修复（H5 单端，零后端改动）（2026-05-11 19:55）
+
+### 一句话结论
+AI 对话首页（`/ai-home`）右上角「⋯」菜单存在三个用户可感知问题：① 「扫一扫」点击无响应；② 「字体大小」点击无响应；③ 弹出菜单卡片是纯白底色，与首页 `THEME.background` (#F0F9FF) 浅蓝主题割裂。根因：`MoreMenu` 组件已经提供了 `onScan` / `onFontSize` 两个可选 prop，但 `ai-home/page.tsx` 在调用时只传了 `onShare`，前两者未挂接到具体业务逻辑；视觉割裂是 `MoreMenu` 卡片硬编码 `background: THEME.cardBg`（白色）+ `borderBottom: THEME.divider`（#E5E7EB）所致。本次一次性闭环：① `MoreMenu.tsx` 将卡片底色改为 `THEME.background` (#F0F9FF)、分隔线改为 `#BAE6FD`（主题浅蓝点缀色）、加 `data-testid` 便于自动化测试；② `ai-home/page.tsx` 引入 `FontSizeLevel / FONT_SIZE_MAP / FONT_LABEL_MAP / FONT_TOAST_MAP` 常量（与「菜单模式·AI 健康咨询页」严格对齐：standard=14 / large=18 / extra_large=22），新增 `fontPopoverOpen` / `fontSizeLevel` state、`handleScan` / `handleFontSize` / `handleFontChange` 三个 callback；③ `handleScan` → `router.push('/scan')`；④ `handleFontSize` 未登录 Toast「请先登录」+ 跳登录页，已登录关闭⋯菜单并打开字号 popover；⑤ `handleFontChange` 立即生效 + Toast + 300ms debounce 调用 `PUT /api/user/font-setting`（失败回滚到上一档 + Toast「保存失败，请重试」）；⑥ 在 ⋯ 按钮 absolute 容器中渲染字号 popover（width=160 / 行高=40 / 背景=#F0F9FF / 边框=#BAE6FD / 朝上小三角），3 档左侧标签 + 右侧选中蓝色 ✓ 或未选灰色数值 `Npx`；⑦ 字号通过 `chatFontSize = FONT_SIZE_MAP[fontSizeLevel]` 应用到用户气泡（`fontSize: chatFontSize`）和 AI 正文（`.ai-fullwidth-message` 容器），与 PRD FR-04「仅作用于消息流气泡正文」严格一致；⑧ popover 外点击监听 + 与⋯菜单互斥（点⋯时若 popover 打开则先关闭再开菜单）；⑨ 复用既有后端接口 `/api/user/font-setting`，与会话页字号设置共享同一份用户偏好。
+
+### 范围与端
+
+| 维度 | 内容 |
+|------|------|
+| 涉及端 | H5（Next.js）单端；后端、admin、小程序、Flutter 均 0 改动 |
+| 涉及表 | 无（复用既有 `users.chat_font_size` 字段） |
+| 接口变更 | 无（复用 `GET / PUT /api/user/font-setting`） |
+| 关键文件 | `h5-web/src/components/ai-chat/MoreMenu.tsx`、`h5-web/src/app/(ai-chat)/ai-home/page.tsx` |
+| 部署脚本 | `deploy/_deploy_bug467_20260511.py`（SFTP 上传 2 文件 → 远端 grep 验证 PRD-467 / onFontSize / #BAE6FD / fontPopoverOpen / handleScan / handleFontSize / handleFontChange / ai-home-font-popover testid 标记齐全 → docker compose build h5-web → up -d → 容器 running → curl 4 URL smoke 全部通过） |
+| 自动化测试 | `deploy/_test_bug467_server.py` 6/6 PASS（ai-home/scan/login 三页面可达 200、字号 GET/PUT 未登录 401 而非 500、字号登录态 GET/PUT 三档 happy path 验证） |
+| 用户手册 | `user_docs/AI对话首页菜单修复_用户体验手册.md` |
+
+### 关键文件
+
+```text
+h5-web/src/components/ai-chat/MoreMenu.tsx
+  - 卡片背景 THEME.cardBg(#FFFFFF) → THEME.background(#F0F9FF)
+  - 分隔线 THEME.divider(#E5E7EB) → #BAE6FD（主题浅蓝点缀色）
+  - 卡片外加 1px solid #BAE6FD 边框；hover 改为 active:bg-sky-100
+  - 加 data-testid="ai-home-more-menu-card" 与每个菜单项的 testid
+
+h5-web/src/app/(ai-chat)/ai-home/page.tsx
+  - 顶部新增 FontSizeLevel 类型 + 三个 MAP 常量（与会话页严格对齐）
+  - 从 useAuth 解构 isLoggedIn
+  - 新增 fontPopoverOpen / fontSizeLevel state + fontPopoverRef + fontSaveTimerRef
+  - useEffect[isLoggedIn]：GET /api/user/font-setting 拉取并初始化
+  - handleScan / handleFontSize / handleFontChange：3 个 useCallback
+  - useEffect[fontPopoverOpen]：popover 外点击自动关闭（mousedown + touchstart）
+  - useEffect 卸载：清理 debounce 定时器
+  - ⋯按钮加 data-testid + 点击时若 popover 已开先关
+  - ⋯按钮下方渲染字号 popover（朝上小三角 + 3 档列表）
+  - <MoreMenu> 调用挂接 onScan={handleScan} onFontSize={handleFontSize}
+  - 用户气泡 fontSize: 16 → chatFontSize
+  - AI 正文 .ai-fullwidth-message fontSize: 16 → chatFontSize
+
+deploy/_deploy_bug467_20260511.py
+  - SFTP 上传 2 文件 → 8 类源码标记 grep 验证 → docker build h5-web →
+    up -d → 等待 h5 容器 running → curl 4 URL smoke
+
+deploy/_test_bug467_server.py
+  - 6 项服务器侧自动化测试（路由可达性 + 字号接口 401 兜底 + 登录态字号 happy path）
+
+user_docs/AI对话首页菜单修复_用户体验手册.md
+  - 面向用户的完整使用手册（开头/末尾访问链接 + 4 步操作指引 + 注意事项 + FAQ）
+```
+
+### 用户手册
+- `user_docs/AI对话首页菜单修复_用户体验手册.md`
+
+---
+
+## Previous Update: BUG-466-AI-CHAT-AUTO-SLICE-FIX-20260511｜AI 对话首页「自动新会话切片」失效联合修复（切换咨询对象同事务归档+创建合并接口 / 6 小时切片多触发点 visibilitychange+focus+pageshow+发送兜底 / currentSidRef 彻底规避闭包旧 sid / handleConsultantSelect 与撤销均 dispatch bh-history-refresh + 7/7 服务器自动化测试 PASS）（2026-05-11 17:10）
 
 ### 一句话结论
 AI 对话首页两条核心业务规则（A. 切换咨询对象自动新建会话；B. 6 小时无活动自动切片）在终端用户视角下完全不可感知——前者切换后抽屉里既看不到原会话也看不到新会话条目（根因：`handleConsultantSelect` 没有派发 `bh-history-refresh`、闭包旧 sid 导致极速发送串到旧会话、原会话归档无显式后端动作）；后者切片只在挂载时检查一次（依赖空数组 useEffect），用户长时间停留 / 切回 Tab / 浏览器前进后退都不再复检。本次一次性闭环：① 后端 `POST /api/chat-sessions` 新增可选 `archive_previous_session_id` 字段，一次请求完成"归档旧会话（推 updated_at 到当前时间，让其立即沉到抽屉顶部）+ 创建新会话"原子动作；② 后端新增 `POST /api/chat-sessions/{session_id}/archive` 单独归档接口；③ 前端引入 `currentSidRef` 同步保存最新 sessionId，所有 setSessionId 调用配套 `currentSidRef.current = ...`，闭包旧 sid 问题彻底消除；④ `handleConsultantSelect` 优先调用合并接口（失败退化为旧 createChatSession）+ 切换瞬间立刻 `currentSidRef.current = null` 屏蔽旧 sid + 拿到新 sid 后立即 dispatch `bh-history-refresh`；⑤ 6 小时切片改为统一 `runActiveCheck(reason)` 函数，挂载 + `document.visibilitychange` + `window.focus` + `pageshow`（含 bfcache）四个时机全部触发；⑥ `checkIdleAndMaybeNewSession` 增加发送前最后兜底（命中阈值时强制 `setSessionId(null)` + dispatch refresh 再发送）；⑦ `handleSelectSession` / `handleNewConversation` / `handleUndoSwitch` 均同步更新 ref 并派发刷新事件。
