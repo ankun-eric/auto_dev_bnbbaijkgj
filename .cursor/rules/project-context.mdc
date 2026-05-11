@@ -33,7 +33,57 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: PRD-455-V7-AI-HOME-SIDEBAR-DRAWER-REWRITE-20260511｜AI 对话首页·左侧抽屉页全量优化 V7 最终版（85% 抽屉 + ID 胶囊 + 资产 4 并列 + 健康档案/我的设备 + 4 组弱化分组 + 6 色咨询人 + ⋯按钮/左滑/管理态三态共存 + 30/30 服务器自动化测试 PASS）（2026-05-11 00:15）
+## Latest Update: BUG-458-AI-HOME-SIDEBAR-TOP-INLINE-FIX-20260511｜AI 对话首页·左侧抽屉页·顶栏「头像 / 账号名 / ID 胶囊」三行堆叠 → 同一行修复（名片块 flex:1 + min-width:0 + 单行省略号 + ID 胶囊取消点击复制 + 10/10 服务器自动化测试 PASS）（2026-05-11 13:15）
+
+### 一句话结论
+用户反馈 AI 对话首页左侧抽屉顶栏左上角「头像 / 账号名 / ID 胶囊」被强制纵向堆叠成三行，头像右侧大段空白浪费、视觉重心严重下沉。本次仅改 H5 单端单文件 `h5-web/src/components/ai-chat/Sidebar.tsx`，把顶栏从原来「头像+图标 一行 / 昵称 一行 / ID 一行」三行布局重构为单行水平 Flex：**头像（固定宽）│ 名片块（flex:1 + min-width:0，内部纵向：昵称 + ID 胶囊）│ 顶栏图标组（固定宽，右对齐）**，并按 BUG 文档 R-09 取消 ID 胶囊点击复制（移除 onClick 跳 /profile/edit + 移除 cursor:pointer，仅纯展示，不再触发任何业务行为）。
+
+### 范围与端
+- **H5（Next.js + React）— 唯一改动端**：
+  - 修改 `h5-web/src/components/ai-chat/Sidebar.tsx`：
+    - 顶栏外层 `<div data-testid="bh-sidebar-top">` 内由「外层 Flex（头像 + 图标）+ 同级 marginTop:10 的昵称/ID 区块」三行布局，改为「外层 Flex 单行」+ 三段水平：
+      1. 左：48×48 头像（`flex-shrink:0`）
+      2. 中：名片块容器 `bh-user-nameblock`（`flex:1; min-width:0; flex-direction:column; gap:4`），内部第一行 `bh-user-nickname`（16px 700，`text-overflow:ellipsis`），第二行 `bh-id-capsule`（4px 10px 内边距、10 圆角、灰底胶囊、`alignSelf:flex-start`，自身也 ellipsis 兜底）
+      3. 右：图标组 `flex-shrink:0; gap:16`（铃铛 `bh-icon-bell` + 设置 `bh-icon-settings`）
+    - ID 胶囊：移除 `onClick={() => navigateTo('/profile/edit')}` 与 `cursor:pointer`，纯展示，不再有任何点击跳转/复制 Toast
+    - 头部注释新增 `[BUG-458 (2026-05-11)]` 模块说明，便于审计
+- **后端 / Admin / 微信小程序 / Flutter App / iOS / 安卓 / 桌面端 / 实名认证小程序**：本次零改动（纯前端 CSS/JSX 布局问题）
+
+### 关键技术决策
+1. **为何 `flex:1; min-width:0` 而不是固定宽**：移动端屏宽差异大（320~414），名片块需自适应；`min-width:0` 是触发 `text-overflow:ellipsis` 的关键 Flex 子项约束，没有它子元素会按内容撑开，省略号根本不生效
+2. **为何 ID 胶囊也加 `overflow:hidden + ellipsis`**：防止极端长 ID（11 位以上）也撑破名片块第二行
+3. **为何 ID 胶囊改为纯展示而非保留点击跳转**：BUG 文档 §3.2 R-09 明确要求「ID 仅作纯展示，不响应点击、不显示复制图标、不显示 Toast、不带 cursor:pointer」，避免用户产生「应可点」的预期
+4. **为何头像右侧 `marginLeft:auto` 改为 `gap:10` + 名片块 flex:1**：原方案中没有名片块容器，账号信息只能放在外层 Flex 之下导致换行；改为 gap + 名片块吸收剩余空间后，三段在同行自然分布，且图标组靠 `flex-shrink:0` 永远右贴
+
+### 部署
+- 仅重建 `6b099ed3-7175-4a78-91f4-44570c84ed27-h5` 单容器（h5-web 前端源码改动）
+- 部署脚本：`deploy/_deploy_bug458_20260511.py`（SFTP 上传 1 个文件 → docker compose build h5-web → up -d → curl 验证 12 URL + 远端源码 BUG-458 标记 grep 验证 + 容器 .next 产物 `bh-user-nameblock` testid 命中验证）
+- 部署 12/12 PASS：`/`(200) / `/login`(308) / `/ai-home`(308) / `/chat/1`(308) / `/health-archive`(308) / `/notifications`(308) / `/my-coupons`(308) / `/unified-orders`(308) / `/my-favorites`(308) / `/points-center`(308) / `/my-devices`(308) / `/ai-settings`(308)
+- 编译产物验证：`bh-user-nameblock` testid 在 `/app/.next/server/app/(ai-chat)/ai-home/page.js` + chunk 文件均命中 ✅
+- 远端源码验证：`grep -c 'BUG-458' .../Sidebar.tsx` = 3 ✅
+
+### 自动化测试结果（10/10 PASS）
+非 UI 自动化测试 `deploy/_test_bug458_server.py`：
+- T01 / 路径 200 ✅
+- T02 /ai-home 路径 308（未登录跳转）✅
+- T03 顶栏单行容器 `bh-sidebar-top-row` 进入 .next（hits=2）✅
+- T04 名片块容器 `bh-user-nameblock` 进入 .next（hits=2）✅
+- T05 ID 胶囊 `bh-id-capsule` 进入 .next（hits=2）✅
+- T06 铃铛 `bh-icon-bell` 进入 .next（hits=2）✅
+- T07 设置 `bh-icon-settings` 进入 .next（hits=2）✅
+- T08 远端源码 BUG-458 标记 ≥1（count=3）✅
+- T09 ID 胶囊「`handleCopyId` / `ID 已复制` Toast」已彻底下线（hits=0）✅
+- T10 BUG-457「⊞ 二维码」入口仍下线（hits=0，未回归）✅
+
+### 用户体验手册
+`user_docs/AI对话首页抽屉顶栏账号信息同行修复_BUG458_用户体验手册.md`（含修复前后视觉对比、7 个体验链接、7 步操作指引、5 项注意事项与极端场景说明）
+
+### 多端打包说明
+本次代码变更仅限 H5 端 `h5-web/src/components/ai-chat/Sidebar.tsx`，**未改动**安卓 / iOS / 微信小程序 / Flutter App 任何源码，按 develop-all 阶段 4 「变更必打包原则」：未变更端跳过打包，**本次不重新打 APK / IPA / 小程序 zip / exe**。
+
+---
+
+## Previous Update: PRD-455-V7-AI-HOME-SIDEBAR-DRAWER-REWRITE-20260511｜AI 对话首页·左侧抽屉页全量优化 V7 最终版（85% 抽屉 + ID 胶囊 + 资产 4 并列 + 健康档案/我的设备 + 4 组弱化分组 + 6 色咨询人 + ⋯按钮/左滑/管理态三态共存 + 30/30 服务器自动化测试 PASS）（2026-05-11 00:15）
 
 ### 一句话结论
 对 AI 对话首页 → 左上角「☰」按钮触发的左侧抽屉页进行**完整重写**，仅改 H5 单端单文件 `h5-web/src/components/ai-chat/Sidebar.tsx`：抽屉宽度从 70% 调整为 **85% / 15%**；顶栏改为头像 + 三图标（🔔/⊞/⚙），去除 × 关闭键；用户身份信息从「VIP 会员号」改为可复制的 ID 胶囊；资产行从「待付款/待使用/待评价/退款」四列订单状态改为四并列「积分/优惠券/订单/收藏」（差异化徽标）；新增高频入口「🏥 健康档案 + 📱 我的设备」；历史对话改为 4 组弱化分组（置顶/最近 7 天/最近 30 天/更早），含 6 色咨询人圆点 + 置顶标签；单条操作支持 ⋯ 按钮 + 左滑 + 管理态批量勾选三种方式共存；置顶上限 10 条 + 删除二次确认；整页严格对齐 ai-home 天蓝色板（`#F0F9FF → #DBEAFE` 整页竖向渐变 + `#0EA5E9` 主色）。

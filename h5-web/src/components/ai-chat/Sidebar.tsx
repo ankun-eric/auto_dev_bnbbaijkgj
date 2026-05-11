@@ -27,6 +27,12 @@
  *  2. 删除顶部「⊞ 会员二维码」入口
  *  3. 资产 4 格接入正确接口（积分/优惠券/订单/收藏），避免全 0
  *  4. 历史对话 .catch 收窄为仅捕获网络错误，避免空数据被误判为「加载失败」
+ *
+ * [BUG-458 (2026-05-11)] 顶栏左上角「账号信息与头像未同行」修复：
+ *  - 顶栏由「头像+图标 / 昵称 / ID 胶囊」三行纵向堆叠，重构为单行水平 Flex：
+ *      头像（固定宽）│ 名片块（弹性宽，内部纵向：昵称+ID 胶囊）│ 顶栏图标组（固定宽，右对齐）
+ *  - 名片块设 `flex:1; min-width:0;` + 昵称 `text-overflow:ellipsis` 单行省略号兜底
+ *  - 取消 ID 胶囊点击复制行为：仅纯展示，不响应点击、不显示复制图标、不显示 Toast、不带 cursor:pointer
  */
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
@@ -782,7 +788,13 @@ export default function Sidebar({
           }}
           data-testid="bh-sidebar-panel"
         >
-          {/* ─── F-01 顶栏：头像 + 三图标（无 × 关闭键） ─── */}
+          {/* ─── F-01 顶栏：头像 + 名片块（昵称+ID）+ 顶栏图标（同一行） ─── */}
+          {/*
+            [BUG-458 (2026-05-11)] 顶栏布局重构：
+            把原本「头像/图标」第一行 + 「昵称」第二行 + 「ID 胶囊」第三行的纵向堆叠，
+            改为 单行 Flex：头像（固定）│ 名片块（弹性，内部纵向：昵称 + ID 胶囊）│ 顶栏图标组（固定，右对齐）。
+            同时按 BUG 文档 R-09 取消 ID 胶囊的点击复制功能（仅作纯展示，不响应点击、不显示复制图标、不显示 Toast、不展示 cursor:pointer）。
+          */}
           <div
             style={{
               padding: '12px 16px 8px 16px',
@@ -791,7 +803,14 @@ export default function Sidebar({
             }}
             data-testid="bh-sidebar-top"
           >
-            <div style={{ display: 'flex', alignItems: 'center' }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+              }}
+              data-testid="bh-sidebar-top-row"
+            >
               {/* 左：用户头像 Logo（48×48） */}
               <Avatar
                 src={user?.avatar || ''}
@@ -805,10 +824,67 @@ export default function Sidebar({
                 } as any}
               />
 
-              {/* 右：三图标整体右对齐，垂直居中对齐头像 */}
+              {/* 中：名片块（昵称 + ID 胶囊，纵向两行）—— flex:1 + min-width:0 保证 ellipsis 可生效 */}
               <div
                 style={{
-                  marginLeft: 'auto',
+                  flex: 1,
+                  minWidth: 0,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  gap: 4,
+                }}
+                data-testid="bh-user-nameblock"
+              >
+                <div
+                  style={{
+                    fontSize: 16,
+                    fontWeight: 700,
+                    color: COLOR.textPrimary,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    lineHeight: 1.2,
+                  }}
+                  data-testid="bh-user-nickname"
+                >
+                  {user?.nickname || '未登录'}
+                </div>
+                {/* [BUG-458 R-09] ID 胶囊：纯展示，不响应点击、无复制图标、无 Toast、无 cursor:pointer */}
+                <div
+                  style={{
+                    display: 'inline-flex',
+                    alignSelf: 'flex-start',
+                    alignItems: 'center',
+                    maxWidth: '100%',
+                    padding: '2px 10px',
+                    background: COLOR.capsuleBg,
+                    borderRadius: 10,
+                    fontSize: 12,
+                    lineHeight: '16px',
+                    color: COLOR.capsuleText,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                  data-testid="bh-id-capsule"
+                >
+                  <span
+                    style={{
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    ID: {idDisplay}
+                  </span>
+                </div>
+              </div>
+
+              {/* 右：顶栏图标组（固定宽，右对齐，垂直居中对齐名片块） */}
+              <div
+                style={{
+                  flexShrink: 0,
                   display: 'flex',
                   alignItems: 'center',
                   gap: 16,
@@ -868,44 +944,6 @@ export default function Sidebar({
                 >
                   ⚙
                 </button>
-              </div>
-            </div>
-
-            {/* F-05 用户身份信息：昵称 + ID 胶囊 */}
-            <div style={{ marginTop: 10 }}>
-              <div
-                style={{
-                  fontSize: 16,
-                  fontWeight: 700,
-                  color: COLOR.textPrimary,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}
-                data-testid="bh-user-nickname"
-              >
-                {user?.nickname || '未登录'}
-              </div>
-              {/* [BUG-457 Fix-1] ID 胶囊：移除右侧 📋 复制图标；
-                   整个胶囊点击行为改为跳转到个人资料编辑页 /profile/edit，
-                   彻底取消「一键复制 ID」功能。 */}
-              <div
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  marginTop: 6,
-                  padding: '4px 10px',
-                  background: COLOR.capsuleBg,
-                  borderRadius: 10,
-                  fontSize: 12,
-                  color: COLOR.capsuleText,
-                  cursor: 'pointer',
-                }}
-                onClick={() => navigateTo('/profile/edit')}
-                data-testid="bh-id-capsule"
-              >
-                <span>ID: {idDisplay}</span>
               </div>
             </div>
           </div>
