@@ -382,6 +382,16 @@ export default function AiHomePage() {
   // [PRD-426] 已移除 inputFocused 状态：原仅用于控制"+ 选择咨询人"浮层显隐，浮层删除后无需此状态
   const [sending, setSending] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
+  // [BUG-466 (2026-05-11)] 用 ref 同步保存"当前最新 sessionId"
+  // 切片瞬间 / 异步 await 期间，闭包里读到的 React state 可能仍是旧值，
+  // 而 currentSidRef 是同步赋值，所有判断、发送都以它为准，彻底规避
+  // "切换瞬间发送被串到旧会话"。任何写入 setSessionId 的位置都必须
+  // 先写 currentSidRef.current，再调用 setSessionId（ref 永远领先 state）。
+  const currentSidRef = useRef<string | null>(null);
+  const setSidAndRef = useCallback((sid: string | null) => {
+    currentSidRef.current = sid;
+    setSessionId(sid);
+  }, []);
   const [hasHealthTask, setHasHealthTask] = useState(false);
   const [selectedConsultant, setSelectedConsultant] = useState<FamilyMember | null>(null);
   const [idleTimeout, setIdleTimeout] = useState<number>(30 * 60 * 1000);
@@ -609,7 +619,7 @@ export default function AiHomePage() {
       if (list.length > 0) {
         const session = list[0];
         const sid = String(session.id);
-        setSessionId(sid);
+        setSidAndRef(sid);
         setLastMsgTime(new Date(session.updated_at || session.created_at).getTime());
         await loadSessionMessages(sid);
       }
@@ -642,30 +652,41 @@ export default function AiHomePage() {
       family_member_id: selectedConsultant ? selectedConsultant.id : undefined,
     });
     if (!res.ok || !res.sessionId) return null;
-    setSessionId(res.sessionId);
+    setSidAndRef(res.sessionId);
     return res.sessionId;
   };
 
-  // [Bug-433] checkIdleAndMaybeNewSession 接受可选的 preserveOnClear 回调：
+  // [Bug-433 / BUG-466] checkIdleAndMaybeNewSession 接受可选的 preserveOnClear 回调：
   // 当命中"空闲超时清空消息"分支时，外部（handleSend）可以通过该参数把
   // 即将插入的乐观渲染 userMsg 回填到清空后的列表中，避免会话首句被一并清掉。
-  // 同时 lastMsgTime 改为从 ref 读取，避免闭包过期导致的"语音/预设按钮首句"误清空。
+  // 同时 lastMsgTime 与 sessionId 均改为从 ref 读取，避免闭包过期导致：
+  //   1. "语音/预设按钮首句"误清空（Bug-433）
+  //   2. 切换咨询对象的同一帧内按下发送时，sid 闭包还是旧值（BUG-466 根因 C）
   const checkIdleAndMaybeNewSession = async (
     preserveOnClear?: () => ChatMessage[],
   ): Promise<string> => {
     const now = Date.now();
     const lmt = lastMsgTimeRef.current;
-    if (sessionId && lmt && (now - lmt) > idleTimeout) {
+    const sid = currentSidRef.current;
+    if (sid && lmt && (now - lmt) > idleTimeout) {
+      // [BUG-466 发送前最后一道兜底] 距上次活动超阈值 → 强制开新会话
       const preserve = preserveOnClear ? preserveOnClear() : [];
       setMessages(preserve);
+      currentSidRef.current = null;
+      setSessionId(null);
+      try {
+        window.dispatchEvent(new Event('bh-history-refresh'));
+      } catch {
+        /* ignore */
+      }
       const newSid = await createNewSession();
-      return newSid || sessionId;
+      return newSid || sid;
     }
-    if (!sessionId) {
+    if (!sid) {
       const newSid = await createNewSession();
       return newSid || '';
     }
-    return sessionId;
+    return sid;
   };
 
   const sendSSE = async (
@@ -859,7 +880,10 @@ export default function AiHomePage() {
       }]);
     }
     setSending(false);
-  }, [inputValue, sending, sessionId, selectedConsultant, idleTimeout]);
+    // [BUG-466] 依赖数组移除 sessionId：handleSend 内已统一从 currentSidRef.current
+    // 读取最新 sid，闭包不再需要绑定 state；保留 selectedConsultant 是因为
+    // createChatSession 内部需要使用最新选定的咨询对象。
+  }, [inputValue, sending, selectedConsultant, idleTimeout]);
 
   const handleFuncButton = (btn: FunctionButton) => {
     const key = btn.button_type || btn.id;
@@ -1164,18 +1188,35 @@ export default function AiHomePage() {
 
   const handleNewConversation = useCallback(() => {
     setMessages([]);
+    currentSidRef.current = null;
     setSessionId(null);
     setLastMsgTime(0);
     abortRef.current?.abort();
+    // [BUG-466] 主动开新会话也通知抽屉刷新，让原会话立刻"沉"到历史列表里
+    try {
+      window.dispatchEvent(new Event('bh-history-refresh'));
+    } catch {
+      /* ignore */
+    }
   }, []);
 
-  // [PRD-420 F5] 切换咨询对象后的会话处理
+  // [PRD-420 F5 / BUG-466 (2026-05-11)] 切换咨询对象后的会话处理
   // 总策略：自动新建会话 + 用户体验增强（含 5 秒「返回上一会话」撤销栈）
+  //
+  // BUG-466 修复要点：
+  // 1. 切换"瞬间"先把 currentSidRef.current = null，立刻屏蔽旧 sid 的可用性，
+  //    防止极速操作（切换同一帧按发送）把消息串到旧会话上（根因 C）
+  // 2. 调用合并版后端接口 `POST /api/chat-sessions`，
+  //    携带 archive_previous_session_id 一次完成"归档旧会话 + 创建新会话"（根因 D）
+  // 3. 拿到新 sid 后立刻 currentSidRef.current = newSid → setSessionId(newSid)（ref 永远先行）
+  // 4. 派发 `bh-history-refresh` 事件，让左侧抽屉重新拉取列表（根因 A）
+  //    确保"原会话被归档到顶部 + 新会话作为占位条目"两条记录立刻可见
+  // 5. 撤销时同样派发 bh-history-refresh，让抽屉同步回滚显示
   const handleConsultantSelect = useCallback(async (member: FamilyMemberItem | null) => {
     // 静默打断当前流式响应
     abortRef.current?.abort();
 
-    const prevSessionId = sessionId;
+    const prevSessionId = currentSidRef.current;
     const prevConsultant = selectedConsultant;
     const prevMessages = messages;
     const targetName = member ? member.nickname : '本人';
@@ -1217,16 +1258,57 @@ export default function AiHomePage() {
       aiChatTrack.archiveHistory(prevSessionId, prevMessages.length);
     }
 
-    setMessages([]);
+    // [BUG-466 关键修复] 切换瞬间立刻屏蔽旧 sid，防止 await 期间用户极速发送
+    // 时 handleSend / checkIdleAndMaybeNewSession 闭包仍读到旧 sid。
+    currentSidRef.current = null;
     setSessionId(null);
+    setMessages([]);
     setLastMsgTime(0);
 
-    const res = await createChatSession({
-      session_type: 'health_qa',
-      family_member_id: member ? member.id : undefined,
-    });
-    if (res.ok && res.sessionId) {
-      setSessionId(res.sessionId);
+    // [BUG-466] 合并版接口：一次请求完成"归档旧会话 + 创建新会话"
+    // 优先使用 /api/chat-sessions（支持 archive_previous_session_id），
+    // 失败 / 该接口不可用时退化为单独的 createChatSession（保持向后兼容）。
+    let newSid: string | null = null;
+    try {
+      const tryRes: any = await api.post('/api/chat-sessions', {
+        session_type: 'health_qa',
+        family_member_id: member ? member.id : null,
+        archive_previous_session_id:
+          prevSessionId !== null && prevSessionId !== undefined
+            ? Number(prevSessionId)
+            : null,
+      });
+      const data = tryRes?.data ?? tryRes;
+      const id = data?.id;
+      if (id !== undefined && id !== null) {
+        newSid = String(id);
+      }
+    } catch {
+      // 合并接口失败，退化为旧路径
+      newSid = null;
+    }
+
+    if (!newSid) {
+      const res = await createChatSession({
+        session_type: 'health_qa',
+        family_member_id: member ? member.id : undefined,
+      });
+      newSid = res.ok ? res.sessionId : null;
+    }
+
+    if (newSid) {
+      // ref 永远领先 state，保证后续即便 React 还未提交 state，也能读到新 sid
+      currentSidRef.current = newSid;
+      setSessionId(newSid);
+    }
+
+    // [BUG-466 根因 A 修复] 派发 history 刷新事件，
+    // 左侧抽屉 Sidebar 监听到后会立刻重新拉取 /api/chat-sessions 列表，
+    // 让原会话被归档到顶部 + 新会话作为占位条目立刻可见。
+    try {
+      window.dispatchEvent(new Event('bh-history-refresh'));
+    } catch {
+      /* ignore */
     }
 
     // F5-2：弹出 Toast + 「返回上一会话」轻按钮（5 秒）
@@ -1246,11 +1328,15 @@ export default function AiHomePage() {
       setUndoSnapshot(null);
     }, 5000);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionId, selectedConsultant, messages]);
+  }, [selectedConsultant, messages]);
 
-  // [PRD-420 F5-2] 「返回上一会话」按钮点击：恢复原会话与原咨询对象
+  // [PRD-420 F5-2 / BUG-466] 「返回上一会话」按钮点击：恢复原会话与原咨询对象
+  // 撤销时同样要：
+  //   1. 同步更新 currentSidRef.current（保证后续 handleSend 立刻命中正确 sid）
+  //   2. 派发 bh-history-refresh，让抽屉同步回滚显示原会话条目
   const handleUndoSwitch = useCallback(() => {
     if (!undoSnapshot || Date.now() > undoSnapshot.expiresAt) return;
+    currentSidRef.current = undoSnapshot.sessionId;
     setSessionId(undoSnapshot.sessionId);
     setSelectedConsultant(undoSnapshot.consultant);
     setMessages(undoSnapshot.messages);
@@ -1259,6 +1345,11 @@ export default function AiHomePage() {
     if (undoTimerRef.current) {
       clearTimeout(undoTimerRef.current);
       undoTimerRef.current = null;
+    }
+    try {
+      window.dispatchEvent(new Event('bh-history-refresh'));
+    } catch {
+      /* ignore */
     }
   }, [undoSnapshot]);
 
@@ -1281,37 +1372,72 @@ export default function AiHomePage() {
     aiChatTrack.pageView('self');
   }, []);
 
-  // [BUG-461 业务规则② (2026-05-11)] 旧会话 6 小时无活动 → 自动开新会话
-  // 进入 AI 对话首页时调用 GET /api/chat-sessions/active-check，
-  // 若后端判断 inactive_hours >= 阈值（默认 6h），则前端不复用旧会话，
-  // 让首条消息自动以「新会话」身份落库；同时通知抽屉列表刷新。
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res: any = await api.get('/api/chat-sessions/active-check');
-        const data = res?.data ?? res;
-        if (cancelled) return;
-        if (data?.should_new_session === true) {
-          // 静默切片：重置当前 sessionId & messages，让下一条消息触发新会话创建
-          setSessionId(null);
-          setMessages([]);
-          setLastMsgTime(0);
-          try {
-            window.dispatchEvent(new Event('bh-history-refresh'));
-          } catch {
-            /* ignore */
-          }
+  // [BUG-461 业务规则② / BUG-466 (2026-05-11)] 旧会话 6 小时无活动 → 自动开新会话
+  //
+  // BUG-466 修复：原来只有挂载时检查一次（依赖 []），用户长期常驻页面或切回 Tab
+  // 都不会再检查，导致 6 小时自动切片在用户感知上"失效"（根因 B）。
+  // 现在改为统一函数 runActiveCheck(reason)，在以下 4 个时机全部调用：
+  //   1. 页面挂载（与现状一致）
+  //   2. document.visibilitychange → 变为可见时（切回 Tab）
+  //   3. window.focus（窗口聚焦）
+  //   4. pageshow（含 bfcache 回退；浏览器后退/前进时恢复页面）
+  // 发送消息前的"最后一道兜底"在 checkIdleAndMaybeNewSession 内单独处理。
+  const runActiveCheck = useCallback(async (reason: string) => {
+    try {
+      const res: any = await api.get('/api/chat-sessions/active-check');
+      const data = res?.data ?? res;
+      if (data?.should_new_session === true) {
+        // 命中阈值：原会话立刻"沉"到抽屉，清空当前活跃 sid，让下一条消息触发新会话创建
+        currentSidRef.current = null;
+        setSessionId(null);
+        setMessages([]);
+        setLastMsgTime(0);
+        try {
+          window.dispatchEvent(new Event('bh-history-refresh'));
+        } catch {
+          /* ignore */
         }
-      } catch {
-        // 静默失败：不影响主流程，沿用既有会话上下文
+        if (typeof console !== 'undefined') {
+          // eslint-disable-next-line no-console
+          console.info(
+            `[BUG-466] active-check sliced session (reason=${reason}); inactive_hours=`,
+            data?.inactive_hours,
+          );
+        }
       }
-    })();
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    } catch {
+      // 静默失败：不影响主流程，沿用既有会话上下文
+    }
   }, []);
+
+  useEffect(() => {
+    // 挂载即检查一次
+    runActiveCheck('mount');
+
+    if (typeof window === 'undefined' || typeof document === 'undefined') return;
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        runActiveCheck('visibilitychange');
+      }
+    };
+    const onFocus = () => {
+      runActiveCheck('focus');
+    };
+    const onPageShow = (e: PageTransitionEvent) => {
+      // bfcache 回退时 persisted=true；任何 pageshow 都复检一次
+      runActiveCheck(e?.persisted ? 'pageshow-bfcache' : 'pageshow');
+    };
+
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    window.addEventListener('focus', onFocus);
+    window.addEventListener('pageshow', onPageShow);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      window.removeEventListener('focus', onFocus);
+      window.removeEventListener('pageshow', onPageShow);
+    };
+  }, [runActiveCheck]);
 
   // [PRD-423 T-03] 冷启动「无本人档案」检测：fallback 到「未选择档案」并展示轻提示
   // 规则：进入页面后拉取家庭成员，若不存在 is_self=true 的档案 → 显示提示
@@ -1344,6 +1470,7 @@ export default function AiHomePage() {
 
   const handleSelectSession = useCallback(async (sid: string) => {
     setMessages([]);
+    currentSidRef.current = sid;
     setSessionId(sid);
     setSidebarOpen(false);
     await loadSessionMessages(sid);

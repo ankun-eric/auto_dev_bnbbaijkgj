@@ -33,7 +33,63 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: BUG-464-GLOBAL-TOAST-VERTICAL-ALIGN-FIX-20260511｜H5 端全局黑色半透明 Toast 勾图标与文字垂直错位修复（一次性在 globals.css 覆盖 antd-mobile `.adm-toast-main-icon` 为 flex 列向居中）（2026-05-11 16:55）
+## Latest Update: BUG-466-AI-CHAT-AUTO-SLICE-FIX-20260511｜AI 对话首页「自动新会话切片」失效联合修复（切换咨询对象同事务归档+创建合并接口 / 6 小时切片多触发点 visibilitychange+focus+pageshow+发送兜底 / currentSidRef 彻底规避闭包旧 sid / handleConsultantSelect 与撤销均 dispatch bh-history-refresh + 7/7 服务器自动化测试 PASS）（2026-05-11 17:10）
+
+### 一句话结论
+AI 对话首页两条核心业务规则（A. 切换咨询对象自动新建会话；B. 6 小时无活动自动切片）在终端用户视角下完全不可感知——前者切换后抽屉里既看不到原会话也看不到新会话条目（根因：`handleConsultantSelect` 没有派发 `bh-history-refresh`、闭包旧 sid 导致极速发送串到旧会话、原会话归档无显式后端动作）；后者切片只在挂载时检查一次（依赖空数组 useEffect），用户长时间停留 / 切回 Tab / 浏览器前进后退都不再复检。本次一次性闭环：① 后端 `POST /api/chat-sessions` 新增可选 `archive_previous_session_id` 字段，一次请求完成"归档旧会话（推 updated_at 到当前时间，让其立即沉到抽屉顶部）+ 创建新会话"原子动作；② 后端新增 `POST /api/chat-sessions/{session_id}/archive` 单独归档接口；③ 前端引入 `currentSidRef` 同步保存最新 sessionId，所有 setSessionId 调用配套 `currentSidRef.current = ...`，闭包旧 sid 问题彻底消除；④ `handleConsultantSelect` 优先调用合并接口（失败退化为旧 createChatSession）+ 切换瞬间立刻 `currentSidRef.current = null` 屏蔽旧 sid + 拿到新 sid 后立即 dispatch `bh-history-refresh`；⑤ 6 小时切片改为统一 `runActiveCheck(reason)` 函数，挂载 + `document.visibilitychange` + `window.focus` + `pageshow`（含 bfcache）四个时机全部触发；⑥ `checkIdleAndMaybeNewSession` 增加发送前最后兜底（命中阈值时强制 `setSessionId(null)` + dispatch refresh 再发送）；⑦ `handleSelectSession` / `handleNewConversation` / `handleUndoSwitch` 均同步更新 ref 并派发刷新事件。
+
+### 范围与端
+
+| 维度 | 内容 |
+|------|------|
+| 涉及端 | 后端（FastAPI）+ H5（Next.js）；小程序、Flutter、admin 均 0 改动 |
+| 涉及表 | `chat_sessions`（仅消费已有字段，无表结构变更） |
+| 新增/变更接口 | `POST /api/chat-sessions`（新增字段 `archive_previous_session_id`，向下兼容）、`POST /api/chat-sessions/{session_id}/archive`（新增） |
+| 关键文件 | `backend/app/api/chat_history.py`、`backend/app/schemas/chat_history.py`、`h5-web/src/app/(ai-chat)/ai-home/page.tsx` |
+| 部署脚本 | `deploy/_deploy_bug466_20260511.py`（SFTP 上传 3 文件 → 远端 grep 验证 BUG-466 / archive_previous_session_id / /archive / currentSidRef / runActiveCheck / bh-history-refresh 标记齐全 → docker compose build backend + h5-web → up -d → 容器 running → curl 5 URL smoke 全过） |
+| 自动化测试 | `deploy/_test_bug466_server.py` 7/7 PASS（archive 路由 401、合并接口 archive_previous_session_id 字段 401 非 500、active-check 401、源码标记 + 4 个时机监听 + bh-history-refresh ≥2 次 dispatch、ai-home 308 可达） |
+| 用户手册 | `user_docs/AI对话首页自动新会话切片修复_BUG466.md` |
+
+### 关键文件
+
+```text
+backend/app/api/chat_history.py
+  - user_create_session：新增 archive_previous_session_id 处理段，归档失败静默不阻塞创建
+  - 新增 user_archive_session：POST /api/chat-sessions/{id}/archive，仅更新 updated_at 为当前时间
+
+backend/app/schemas/chat_history.py
+  - UserChatSessionCreate：新增可选字段 archive_previous_session_id: Optional[int] = None
+
+h5-web/src/app/(ai-chat)/ai-home/page.tsx
+  - 新增 currentSidRef + setSidAndRef：所有 setSessionId 调用配套写入，ref 永远先行
+  - handleConsultantSelect：切换瞬间立刻 currentSidRef.current = null，优先调合并接口
+    携带 archive_previous_session_id 一次完成归档+创建；失败退化到 createChatSession；
+    拿到新 sid 后立刻 dispatch new Event('bh-history-refresh')
+  - handleUndoSwitch：撤销时同步更新 currentSidRef 并 dispatch refresh
+  - handleNewConversation：主动开新会话也 dispatch refresh
+  - 新增 runActiveCheck(reason) 统一函数 + 4 个事件监听
+    （挂载 + visibilitychange + focus + pageshow），命中阈值即清空 sid+messages+refresh
+  - checkIdleAndMaybeNewSession：从 ref 读取 sid（彻底规避闭包问题）+ 命中阈值时
+    强制 setSessionId(null) + dispatch refresh 再创建新会话
+  - handleSend useCallback 依赖数组移除 sessionId（统一从 ref 读，闭包不再绑定 state）
+
+deploy/_deploy_bug466_20260511.py
+  - SFTP 上传 3 文件 → 6 类源码标记 grep 验证 → docker build backend+h5-web →
+    up -d → 等待 backend 与 h5 两容器 running → curl 5 URL smoke
+
+deploy/_test_bug466_server.py
+  - 7 项服务器侧自动化测试：路由可达性（401 非 404 非 500）+ 源码标记 + 派发次数
+
+user_docs/AI对话首页自动新会话切片修复_BUG466.md
+  - 面向用户的完整使用手册（含开头/末尾访问链接 + 两种切片场景操作步骤 + 体验小贴士 + 注意事项）
+```
+
+### 用户手册
+- `user_docs/AI对话首页自动新会话切片修复_BUG466.md`
+
+---
+
+## Previous Update: BUG-464-GLOBAL-TOAST-VERTICAL-ALIGN-FIX-20260511｜H5 端全局黑色半透明 Toast 勾图标与文字垂直错位修复（一次性在 globals.css 覆盖 antd-mobile `.adm-toast-main-icon` 为 flex 列向居中）（2026-05-11 16:55）
 
 ### 一句话结论
 H5 全 App 所有使用 antd-mobile 统一 Toast（`Toast.show({ icon: 'success'/'fail'/'loading', content })`）的位置（约 20+ 入口，包括 AI 对话删除/置顶/复制、健康档案保存、订单操作、支付成功、优惠券领取、登录退出等），由于 antd-mobile 默认 `.adm-toast-main-icon` 使用块级 + `padding: 35px 12px` 的布局，图标和"删除成功"等文字在垂直方向看起来错位（图标偏上、文字偏下、视觉重心不在同一中线）。本次修复采用**全局组件样式层一次性收口**：仅在 `h5-web/src/app/globals.css` 末尾追加一段全局覆盖，将 `.adm-toast-mask .adm-toast-main-icon` 改为 `display: flex; flex-direction: column; align-items: center; justify-content: center;` + 对称 padding `20px 16px` + `gap: 8px` + `border-radius: 12px` + `rgba(0,0,0,0.75)` 背景，图标 / `AutoCenter` 文字容器内部样式同步重置，整体改为上下两行紧凑居中、视觉重心统一。无业务代码改动，无接口改动，无交互改动；全局 20+ 处 Toast 自动获得新样式。

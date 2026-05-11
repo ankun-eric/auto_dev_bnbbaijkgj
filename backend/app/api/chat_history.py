@@ -424,6 +424,27 @@ async def user_create_session(
             )
             family_member_nickname = getattr(member, "nickname", None)
 
+    # [BUG-466 (2026-05-11)] 切咨询对象 / 6 小时切片 强一致归档：
+    # 若请求体携带 archive_previous_session_id，则在同事务里把旧会话的 updated_at
+    # 推到当前时间，确保抽屉历史列表立刻把"刚刚发生的活跃对话"提到顶部。
+    # 仅校验：会话存在 + 属于当前用户 + 未删除；非法 / 越权 ID 静默忽略，
+    # 不阻塞主流程（新会话仍然能创建出来）。
+    if data.archive_previous_session_id is not None:
+        try:
+            prev_result = await db.execute(
+                select(ChatSession).where(
+                    ChatSession.id == int(data.archive_previous_session_id),
+                    ChatSession.user_id == current_user.id,
+                    ChatSession.is_deleted == False,
+                )
+            )
+            prev_session = prev_result.scalar_one_or_none()
+            if prev_session is not None:
+                prev_session.updated_at = datetime.utcnow()
+        except Exception:
+            # 归档失败不影响新会话创建
+            pass
+
     new_session = ChatSession(
         user_id=current_user.id,
         session_type=session_type,
@@ -446,8 +467,46 @@ async def user_create_session(
         "family_member_nickname": family_member_nickname,
         "message_count": 0,
         "is_pinned": False,
+        "archived_previous_session_id": data.archive_previous_session_id,
         "created_at": new_session.created_at.isoformat() if new_session.created_at else None,
         "updated_at": new_session.updated_at.isoformat() if new_session.updated_at else None,
+    }
+
+
+# [BUG-466 (2026-05-11)] 新增「会话归档」接口
+# 用于将指定会话标记为「已归档」（不删除，仅推 updated_at 到当前时间），
+# 确保抽屉历史列表按"最近活动"排序时立刻被提到顶部。
+# 既可被切咨询对象主流程合并到创建接口里使用，也可单独被前端撤销动作调用。
+@router.post("/api/chat-sessions/{session_id}/archive")
+async def user_archive_session(
+    session_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """将指定会话标记为「已归档」。
+
+    实际行为：把会话的 `updated_at` 推到当前 UTC 时间。
+    - 不删除消息、不修改 `is_deleted`、不修改其它业务字段
+    - 仅会话属于当前用户、未删除时生效；否则返回 404
+    """
+    result = await db.execute(
+        select(ChatSession).where(
+            ChatSession.id == session_id,
+            ChatSession.user_id == current_user.id,
+            ChatSession.is_deleted == False,
+        )
+    )
+    session = result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(status_code=404, detail="对话不存在")
+
+    now = datetime.utcnow()
+    session.updated_at = now
+    await db.flush()
+    return {
+        "message": "归档成功",
+        "id": session.id,
+        "updated_at": session.updated_at.isoformat() if session.updated_at else None,
     }
 
 

@@ -85,11 +85,19 @@ class UserChatSessionCreate(BaseModel):
 
     用于 Bug-C 修复：用户切换咨询人时，前端立即调用此接口创建
     挂在新咨询人下的新会话，而不是等到首条消息发送时才落库。
+
+    [BUG-466 (2026-05-11)] 新增 archive_previous_session_id 字段：
+    用户切换咨询对象或 6 小时自动切片时，前端在一次请求中同时
+    完成「归档旧会话 + 创建新会话」，保证原子性，避免抽屉中出现
+    "原会话消失"的中间态。后端会更新旧会话的 updated_at 为当前时间，
+    使其在历史列表中按"最近活动"排序时立刻被提到顶部。
     """
 
     session_type: Optional[str] = "health_qa"
     title: Optional[str] = None
     family_member_id: Optional[int] = None
+    # [BUG-466] 同请求归档旧会话；非法/越权 ID 会被静默忽略。
+    archive_previous_session_id: Optional[int] = None
 
 
 class ChatSessionUpdate(BaseModel):
