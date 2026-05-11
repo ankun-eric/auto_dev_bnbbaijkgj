@@ -33,7 +33,56 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: PRD-463-AI-CHAT-SIDEBAR-ASSET-ROW-OPTIMIZATION-20260511｜H5 端 AI 对话页左上角抽屉「资产行」展示优化（去除 emoji 图标 / 顺序调整 / 订单数字口径切换 v2_* / 优惠券/收藏/订单应用 9+ 截断 / 点击订单格智能定位 Tab）（2026-05-11 16:00）
+## Latest Update: BUG-464-GLOBAL-TOAST-VERTICAL-ALIGN-FIX-20260511｜H5 端全局黑色半透明 Toast 勾图标与文字垂直错位修复（一次性在 globals.css 覆盖 antd-mobile `.adm-toast-main-icon` 为 flex 列向居中）（2026-05-11 16:55）
+
+### 一句话结论
+H5 全 App 所有使用 antd-mobile 统一 Toast（`Toast.show({ icon: 'success'/'fail'/'loading', content })`）的位置（约 20+ 入口，包括 AI 对话删除/置顶/复制、健康档案保存、订单操作、支付成功、优惠券领取、登录退出等），由于 antd-mobile 默认 `.adm-toast-main-icon` 使用块级 + `padding: 35px 12px` 的布局，图标和"删除成功"等文字在垂直方向看起来错位（图标偏上、文字偏下、视觉重心不在同一中线）。本次修复采用**全局组件样式层一次性收口**：仅在 `h5-web/src/app/globals.css` 末尾追加一段全局覆盖，将 `.adm-toast-mask .adm-toast-main-icon` 改为 `display: flex; flex-direction: column; align-items: center; justify-content: center;` + 对称 padding `20px 16px` + `gap: 8px` + `border-radius: 12px` + `rgba(0,0,0,0.75)` 背景，图标 / `AutoCenter` 文字容器内部样式同步重置，整体改为上下两行紧凑居中、视觉重心统一。无业务代码改动，无接口改动，无交互改动；全局 20+ 处 Toast 自动获得新样式。
+
+### 范围与端
+
+| 维度 | 内容 |
+|------|------|
+| 涉及端 | H5（Next.js）单端；后端、admin、小程序、Flutter 均 0 改动 |
+| 涉及表 | 无 |
+| 接口变更 | 无 |
+| 关键文件 | `h5-web/src/app/globals.css`（末尾追加 BUG-464 节，全局覆盖 `.adm-toast-mask .adm-toast-main-icon` flex 列向居中 + 配套子元素重置） |
+| 部署脚本 | `deploy/_deploy_bug464_20260511.py`（SFTP 上传 1 文件 → 远端 grep 验证 BUG-464 / adm-toast-main-icon / flex-direction: column / rgba(0,0,0,0.75) / border-radius: 12px 全部命中 → docker compose build h5-web → up -d → 容器 running → curl 6 URL smoke 全部通过） |
+| 自动化测试 | `deploy/_test_bug464_server.py` 11/11 PASS（容器 running、源码 5 项 grep、构建产物含 `.adm-toast-main-icon` + `flex` 规则、6 个 URL 全部可达 200/308） |
+| 用户手册 | `user_docs/全局Toast勾图标与文字垂直错位修复.md` |
+
+### 关键文件
+
+```text
+h5-web/src/app/globals.css
+  - 末尾追加 "BUG-464 · 全局 Toast 勾图标与文字垂直错位修复" 节
+  - 覆盖 .adm-toast-mask .adm-toast-main-icon：
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 20px 16px; min-width: 120px; min-height: 100px;
+      background-color: rgba(0, 0, 0, 0.75); border-radius: 12px; gap: 8px;
+  - 重置 .adm-toast-icon：flex 居中、margin: 0、font-size: 36px、line-height: 1
+  - 重置 .adm-auto-center / .adm-auto-center-content：宽度 100% + text-align: center + 白色 14px
+  - 重置 .adm-toast-loading：margin: 0
+  - 全部规则均带 !important 确保覆盖 antd-mobile 默认样式
+
+deploy/_deploy_bug464_20260511.py
+  - SFTP 上传 globals.css → 远端 5 项 grep（BUG-464 / adm-toast-main-icon / flex-direction: column /
+    rgba(0,0,0,0.75) / border-radius: 12px）→ docker compose build/up h5-web →
+    容器 running → curl 6 URL smoke 全过
+
+deploy/_test_bug464_server.py
+  - 服务器侧自动化测试 11 项：容器 running + 源码 5 项 grep +
+    构建产物 .next/static/css/*.css 包含 adm-toast-main-icon + flex 规则 + 6 URL 可达
+
+user_docs/全局Toast勾图标与文字垂直错位修复.md
+  - 面向用户的完整体验手册（含开头/末尾访问链接、修复后视觉规范、20 条验收清单）
+```
+
+### 用户手册
+- `user_docs/全局Toast勾图标与文字垂直错位修复.md`
+
+---
+
+## Previous Update: PRD-463-AI-CHAT-SIDEBAR-ASSET-ROW-OPTIMIZATION-20260511｜H5 端 AI 对话页左上角抽屉「资产行」展示优化（去除 emoji 图标 / 顺序调整 / 订单数字口径切换 v2_* / 优惠券/收藏/订单应用 9+ 截断 / 点击订单格智能定位 Tab）（2026-05-11 16:00）
 
 ### 一句话结论
 H5 抽屉「积分 / 优惠券 / 订单 / 收藏」四格资产行优化：① 视觉去 emoji（🎫/📦）四格统一为「大号数字 + 下方文字」；② 顺序由「积分/优惠券/订单/收藏」→「积分/优惠券/收藏/订单」；③ 订单数字口径切换到 `v2_pending_receipt + v2_pending_use`（等价于订单列表「待收货 Tab + 待使用 Tab」之和，杜绝旧字段漏算 `pending_shipment / pending_appointment / appointed / partial_used`）；④ 新增 `formatBadge` 工具函数应用于优惠券/收藏/订单（0→0, 1~9→真实数字, ≥10→9+），积分仍按原始数字展示；⑤ 点击订单格智能定位 Tab：v2Receipt>v2Use→`?tab=pending_receipt`、v2Receipt<v2Use→`?tab=pending_use`、相等且都>0→`?tab=pending_receipt`、都=0→`?tab=all`。
