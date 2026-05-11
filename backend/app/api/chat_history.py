@@ -5,7 +5,7 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
-from sqlalchemy import func, or_, select, update
+from sqlalchemy import case, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -249,28 +249,59 @@ async def user_list_sessions(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    # [BUG-460 (2026-05-11)] MySQL 不支持 `NULLS LAST` 语法，使用 `pinned_at IS NULL` 表达式
+    # 模拟「NULL 排在最后」的效果（IS NULL 结果 0/1，ASC 时 0 在前 → 非 NULL 在前）。
+    # 排序优先级：① 置顶在前 ② 置顶内按 pinned_at 倒序（NULL 置后） ③ 最近活跃在前。
+    pinned_at_is_null = case((ChatSession.pinned_at.is_(None), 1), else_=0)
     query = (
         select(ChatSession)
         .where(ChatSession.user_id == current_user.id, ChatSession.is_deleted == False)
-        .order_by(ChatSession.is_pinned.desc(), ChatSession.pinned_at.desc().nullslast(), ChatSession.updated_at.desc())
+        .order_by(
+            ChatSession.is_pinned.desc(),
+            pinned_at_is_null.asc(),
+            ChatSession.pinned_at.desc(),
+            ChatSession.updated_at.desc(),
+        )
         .offset((page - 1) * page_size)
         .limit(page_size)
     )
-    result = await db.execute(query)
-    sessions = result.scalars().all()
-
-    return [
-        UserChatSessionItem(
-            id=s.id,
-            session_type=s.session_type.value if hasattr(s.session_type, "value") else s.session_type,
-            title=s.title,
-            message_count=s.message_count or 0,
-            is_pinned=s.is_pinned or False,
-            created_at=s.created_at,
-            updated_at=s.updated_at,
+    try:
+        result = await db.execute(query)
+        sessions = result.scalars().all()
+    except Exception:
+        # [BUG-460 (2026-05-11)] 接口健壮性兜底：极端情况下查询异常不应直接 500，
+        # 影响左侧抽屉「历史对话」整列加载。退化为按 updated_at 倒序，保证可读性。
+        fallback_query = (
+            select(ChatSession)
+            .where(ChatSession.user_id == current_user.id, ChatSession.is_deleted == False)
+            .order_by(ChatSession.updated_at.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
         )
-        for s in sessions
-    ]
+        result = await db.execute(fallback_query)
+        sessions = result.scalars().all()
+
+    items = []
+    for s in sessions:
+        # [BUG-460] 历史脏数据兜底：session_type/title/created_at/updated_at 取值时全部容错，
+        # 任何单条数据异常不应导致整列接口 500。
+        try:
+            session_type_value = s.session_type.value if hasattr(s.session_type, "value") else (s.session_type or "consultation")
+            items.append(
+                UserChatSessionItem(
+                    id=s.id,
+                    session_type=session_type_value or "consultation",
+                    title=s.title,
+                    message_count=s.message_count or 0,
+                    is_pinned=bool(s.is_pinned) if s.is_pinned is not None else False,
+                    created_at=s.created_at or datetime.utcnow(),
+                    updated_at=s.updated_at or s.created_at or datetime.utcnow(),
+                )
+            )
+        except Exception:
+            # 单条异常静默跳过，保证整列其他会话仍可正常展示
+            continue
+    return items
 
 
 @router.get("/api/chat-sessions/{session_id}")
@@ -306,15 +337,33 @@ async def user_get_session_detail(
         for m in session.messages
     ]
 
+    # [BUG-460 (2026-05-11)] 详情接口同步加固字段健壮性：family_member 关联可能为 None，
+    # session_type/枚举字段历史脏数据兜底，避免 selectinload 关联缺失时 500。
+    try:
+        session_type_value = (
+            session.session_type.value if hasattr(session.session_type, "value") else (session.session_type or "consultation")
+        )
+    except Exception:
+        session_type_value = "consultation"
+
+    family_member_relation = None
+    family_member_nickname = None
+    if session.family_member is not None:
+        try:
+            family_member_relation = getattr(session.family_member, "relationship_type", None)
+            family_member_nickname = getattr(session.family_member, "nickname", None)
+        except Exception:
+            pass
+
     return {
         "id": session.id,
-        "session_type": session.session_type.value if hasattr(session.session_type, "value") else session.session_type,
+        "session_type": session_type_value,
         "title": session.title,
         "family_member_id": session.family_member_id,
-        "family_member_relation": session.family_member.relationship_type if session.family_member else None,
-        "family_member_nickname": session.family_member.nickname if session.family_member else None,
+        "family_member_relation": family_member_relation,
+        "family_member_nickname": family_member_nickname,
         "message_count": session.message_count or 0,
-        "is_pinned": session.is_pinned or False,
+        "is_pinned": bool(session.is_pinned) if session.is_pinned is not None else False,
         "created_at": session.created_at.isoformat() if session.created_at else None,
         "updated_at": session.updated_at.isoformat() if session.updated_at else None,
         "messages": messages,

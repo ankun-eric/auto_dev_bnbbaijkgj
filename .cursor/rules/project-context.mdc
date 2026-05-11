@@ -33,7 +33,65 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: BUG-458-AI-HOME-SIDEBAR-TOP-INLINE-FIX-20260511｜AI 对话首页·左侧抽屉页·顶栏「头像 / 账号名 / ID 胶囊」三行堆叠 → 同一行修复（名片块 flex:1 + min-width:0 + 单行省略号 + ID 胶囊取消点击复制 + 10/10 服务器自动化测试 PASS）（2026-05-11 13:15）
+## Latest Update: BUG-460-CHAT-SESSIONS-500-FIX-20260511｜AI 对话首页·左侧抽屉「历史对话」加载失败修复（/api/chat-sessions 500 → 200，MySQL 不支持 NULLS LAST 语法替换为 CASE WHEN + 双层兜底 + 18/18 服务器自动化测试 PASS）（2026-05-11 14:35）
+
+### 一句话结论
+用户反馈 AI 对话首页左侧抽屉中「历史对话」区块**全量用户**持续显示「加载失败」，根因为 BUG-457/PRD-455 V7 部署引入的 `ChatSession.pinned_at.desc().nullslast()` 在 MySQL 方言下生成 `ORDER BY ... NULLS LAST` 语法，**MySQL 8.0 完全不支持**（PostgreSQL/Oracle 专属），直接被拒绝（错误码 1064，`syntax error near 'NULLS LAST, chat_sessions.updated_at DESC LIMIT 0, 20'`），FastAPI 转 500，导致整列接口失败。本次仅改后端单文件 `backend/app/api/chat_history.py`，将排序改为 MySQL 原生兼容的 `case((pinned_at IS NULL, 1), else_=0).asc() + pinned_at.desc()` 表达式（行为完全等价于 NULLS LAST），并对 user_list_sessions / user_get_session_detail 同步增加双层兜底（ORDER BY 整体异常降级 + 单条数据序列化异常静默跳过 + family_member 关联缺失兜底）。
+
+### 范围与端
+- **后端（FastAPI）— 唯一改动端**：
+  - 修改 `backend/app/api/chat_history.py`：
+    - 新增 `case` import
+    - `user_list_sessions`：
+      - ORDER BY 由 `is_pinned.desc(), pinned_at.desc().nullslast(), updated_at.desc()` 改为 `is_pinned.desc(), case((pinned_at IS NULL,1), else_=0).asc(), pinned_at.desc(), updated_at.desc()`
+      - 整体 try/except 兜底：极端情况下查询异常降级为 `updated_at.desc()` 单字段排序，保证抽屉不再 500
+      - 单条记录序列化 try/except：`session_type` 枚举异常 / `created_at`/`updated_at` 为 NULL / `is_pinned` 为 NULL 等历史脏数据全部兜底，任何单条异常**静默跳过**而不让整列失败
+    - `user_get_session_detail`：`family_member` 关联可能为 None / `session_type` 枚举异常全部 try/except 兜底
+- **H5 / Admin / 微信小程序 / Flutter App / iOS / 安卓 / 桌面端**：本次零改动（纯后端 SQL 方言问题）
+
+### 关键技术决策
+1. **为何不直接用 `pinned_at DESC` 单字段**：MySQL 中 `DESC` 默认 NULL 排在最后，看似可以省略 case；但 SQLAlchemy 的 `.desc()` 后 .nullslast() 会被 MySQL 方言**强制翻译**为 `NULLS LAST`（导致 1064），所以必须显式用 case 表达式替代 nullslast() 才能彻底切断"翻译"路径
+2. **为何不用 `pinned_at IS NULL ASC` 而要包一层 case**：`is_(None).asc()` SQLAlchemy 也能生成正确 SQL，但在不同方言下表现略有差异；显式 case 跨方言完全一致，未来若切换 PG/SQLite 都不需要再改
+3. **为何加双层兜底**：根因虽是 SQL 语法，但抽屉是用户主流程入口，任何二次回归都会全量爆炸；双层兜底保证哪怕未来再有类似方言问题或脏数据问题，最坏情况也只是"排序退化为按 updated_at 倒序"而非整列 500
+4. **为何同步加固 detail 接口**：BUG 文档 §5.2 明确建议；detail 接口用了 `selectinload(family_member)`，关联缺失场景更多，未来很容易踩坑
+
+### 部署
+- 仅重建 `6b099ed3-7175-4a78-91f4-44570c84ed27-backend` 单容器（后端源码改动）
+- 部署脚本：`deploy/_deploy_bug460_20260511.py`（SFTP 上传 1 个文件 → docker compose build backend → up -d → curl 验证 3 URL + 远端源码 BUG-460 标记 grep 验证 + 容器日志 NULLS LAST 关键字 grep=0 验证）
+- 部署 3/3 PASS：`/`(200) / `/api/chat-sessions`(401 未登录，由原来的 **500 → 401**) / `/ai-home`(308)
+- 远端源码验证：`grep -c 'BUG-460' .../chat_history.py` = 4 ✅
+- 后端日志 NULLS LAST 报错命中数 = 0 ✅
+
+### 自动化测试结果（18/18 PASS）
+非 UI 自动化测试 `deploy/_test_bug460_server.py`（真实 HTTPS 接口 + 真实 MySQL 数据驱动）：
+- T01 注册新用户成功 ✅
+- T02 **核心**：空数据 GET /api/chat-sessions 返回 200 + [] ✅
+- T03 未登录返回 401 ✅
+- T04 错误 token 返回 401 ✅
+- T05 分页 page=1, page_size=20 返回 200 ✅
+- T06 边界分页 page=999, page_size=100 返回 200 + [] ✅
+- T07 响应类型是 JSON 数组（list） ✅
+- T08 详情接口对不存在 id 返回 404 ✅
+- T09 远端源码含 BUG-460 标记 = 4 ✅
+- T10 backend 最近 200 行日志已无 'NULLS LAST' / '1064' ✅
+- T11 管理端 /api/admin/chat-sessions 普通用户返 403 ✅
+- T12 关联接口（通知未读数）未登录 401 ✅
+- T13 同账号 5 次请求稳定 200（无偶发 500） ✅
+- T14 GET /api/chat-sessions/0 返 404 ✅
+- T15 **核心**：三条数据排序 = ['A-PinnedNew','C-PinnedOld','B-Recent']（置顶新→置顶旧→非置顶最近，完整验证 ORDER BY 在 MySQL 上无 1064 错误且逻辑正确） ✅
+- T16 响应中 is_pinned 字段类型为 bool ✅
+- T17 响应中 message_count 字段为非负 int ✅
+- T18 置顶 B 后再次拉列表，B 跃升首位（写接口 + 读接口联动验证） ✅
+
+### 用户体验手册
+`user_docs/AI对话首页抽屉历史对话加载失败修复_BUG460_用户体验手册.md`（含 7 个体验链接、7 步操作指引、修复前后对照表、5 项注意事项、18/18 测试结果展示）
+
+### 多端打包说明
+本次代码变更仅限后端单文件 `backend/app/api/chat_history.py`，**未改动**安卓 / iOS / 微信小程序 / Flutter App / H5 任何源码，按 develop-all 阶段 4 「变更必打包原则」：未变更端跳过打包，**本次不重新打 APK / IPA / 小程序 zip / exe**。
+
+---
+
+## Previous Update: BUG-458-AI-HOME-SIDEBAR-TOP-INLINE-FIX-20260511｜AI 对话首页·左侧抽屉页·顶栏「头像 / 账号名 / ID 胶囊」三行堆叠 → 同一行修复（名片块 flex:1 + min-width:0 + 单行省略号 + ID 胶囊取消点击复制 + 10/10 服务器自动化测试 PASS）（2026-05-11 13:15）
 
 ### 一句话结论
 用户反馈 AI 对话首页左侧抽屉顶栏左上角「头像 / 账号名 / ID 胶囊」被强制纵向堆叠成三行，头像右侧大段空白浪费、视觉重心严重下沉。本次仅改 H5 单端单文件 `h5-web/src/components/ai-chat/Sidebar.tsx`，把顶栏从原来「头像+图标 一行 / 昵称 一行 / ID 一行」三行布局重构为单行水平 Flex：**头像（固定宽）│ 名片块（flex:1 + min-width:0，内部纵向：昵称 + ID 胶囊）│ 顶栏图标组（固定宽，右对齐）**，并按 BUG 文档 R-09 取消 ID 胶囊点击复制（移除 onClick 跳 /profile/edit + 移除 cursor:pointer，仅纯展示，不再触发任何业务行为）。
