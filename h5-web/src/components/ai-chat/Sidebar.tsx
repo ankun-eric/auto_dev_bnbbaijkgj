@@ -76,8 +76,13 @@ interface ChatHistoryItem {
 interface AssetCounts {
   points: number;       // 积分余额
   couponCount: number;  // 优惠券总数
-  orderCount: number;   // 订单总数
+  orderCount: number;   // 订单总数（v2_pending_receipt + v2_pending_use）
   favoriteCount: number; // 收藏总数
+  // [PRD-463 2026-05-11] 智能定位 Tab 所需的拆分字段
+  // - v2_pending_receipt：抽屉口径下「待收货 Tab」聚合数（pending_shipment + pending_receipt）
+  // - v2_pending_use：抽屉口径下「待使用 Tab」聚合数（pending_appointment + appointed + pending_use + partial_used）
+  v2Receipt: number;
+  v2Use: number;
 }
 
 interface SidebarProps {
@@ -133,6 +138,20 @@ const PIN_LIMIT = 10;
 /** F-09 时间分组阈值 */
 const DAY_MS = 86400000;
 
+/**
+ * [PRD-463 2026-05-11] 资产格角标数字展示规则（边界值）：
+ *   0     → '0'（不隐藏，保持四格一致）
+ *   1~9   → 显示真实数字
+ *   ≥10   → 显示 '9+'
+ * 适用于「优惠券 / 收藏 / 订单」三格；
+ * 积分通常为较大数值，保留原始数字不应用本截断。
+ */
+const formatBadge = (n: number): string => {
+  const v = Number.isFinite(n) ? Number(n) : 0;
+  if (v <= 0) return '0';
+  return v >= 10 ? '9+' : String(v);
+};
+
 // ─────────────────────────────────────────────────────────────────────
 // 工具函数
 // ─────────────────────────────────────────────────────────────────────
@@ -184,40 +203,11 @@ function groupHistories(items: ChatHistoryItem[]) {
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// 子组件：徽标（红色实心圆 + 白色数字）
-// ─────────────────────────────────────────────────────────────────────
-
-function CountBadge({ count }: { count: number }) {
-  if (!count || count <= 0) return null;
-  const display = count >= 99 ? '99+' : String(count);
-  return (
-    <span
-      style={{
-        position: 'absolute',
-        top: -4,
-        right: -8,
-        minWidth: 14,
-        height: 14,
-        padding: '0 3px',
-        borderRadius: 7,
-        background: COLOR.danger,
-        color: '#fff',
-        fontSize: 10,
-        fontWeight: 600,
-        lineHeight: '14px',
-        textAlign: 'center',
-        boxSizing: 'border-box',
-      }}
-      data-testid="bh-asset-badge"
-    >
-      {display}
-    </span>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────
 // 主组件
 // ─────────────────────────────────────────────────────────────────────
+// [PRD-463 2026-05-11] CountBadge 子组件已废弃：
+// 资产行改为「大号数字 + 下方文字」统一风格，不再使用图标右上角小红点徽标。
+// 数字展示规则由 formatBadge 工具函数承担。
 
 export default function Sidebar({
   visible,
@@ -235,6 +225,8 @@ export default function Sidebar({
     couponCount: 0,
     orderCount: 0,
     favoriteCount: 0,
+    v2Receipt: 0,
+    v2Use: 0,
   });
   const [unread, setUnread] = useState(0);
   const [loadFailed, setLoadFailed] = useState(false);
@@ -307,7 +299,10 @@ export default function Sidebar({
     // [BUG-457 Fix-3] 资产 4 格：完全替换为「我的」页面同款接口
     // - 积分： GET /api/points/summary -> available_points
     // - 优惠券：GET /api/coupons/summary -> available_count
-    // - 订单： GET /api/orders/unified/counts -> pending_payment + pending_receipt + pending_use
+    // - 订单： GET /api/orders/unified/counts -> v2_pending_receipt + v2_pending_use
+    //          [PRD-463 2026-05-11] 切换到 v2_* 字段，与订单列表「待收货 / 待使用 Tab」口径一致
+    //          严禁使用旧字段 pending_receipt / pending_use（它们仅含单一状态，会漏算
+    //          pending_shipment / pending_appointment / appointed / partial_used 等）
     // - 收藏： GET /api/users/me/stats -> favorite_count
     // 任意接口失败仅影响该单格（保持 0），不互相牵连
     api
@@ -332,11 +327,11 @@ export default function Sidebar({
       .get('/api/orders/unified/counts')
       .then((res: any) => {
         const data = res?.data ?? res;
-        const total =
-          (Number(data?.pending_payment) || 0) +
-          (Number(data?.pending_receipt) || 0) +
-          (Number(data?.pending_use) || 0);
-        setAssets((s) => ({ ...s, orderCount: total }));
+        // [PRD-463 2026-05-11] 切换至 v2_* 字段，确保抽屉订单数字 ≡ 订单列表「待收货 + 待使用 Tab」之和
+        const v2Receipt = Number(data?.v2_pending_receipt) || 0;
+        const v2Use = Number(data?.v2_pending_use) || 0;
+        const total = v2Receipt + v2Use;
+        setAssets((s) => ({ ...s, orderCount: total, v2Receipt, v2Use }));
       })
       .catch(() => {});
 
@@ -429,6 +424,23 @@ export default function Sidebar({
   const navigateTo = (path: string) => {
     onClose();
     router.push(path);
+  };
+
+  /**
+   * [PRD-463 2026-05-11] 点击「订单」格智能定位 Tab：
+   *   - v2Receipt > v2Use            → 待收货 Tab (pending_receipt)
+   *   - v2Receipt < v2Use            → 待使用 Tab (pending_use)
+   *   - v2Receipt == v2Use 且都 > 0   → 待收货 Tab（业务紧急度更高）
+   *   - 两者都为 0                    → 全部 Tab (all)
+   */
+  const handleOrderClick = () => {
+    const r = assets.v2Receipt || 0;
+    const u = assets.v2Use || 0;
+    let tab: 'all' | 'pending_receipt' | 'pending_use' = 'all';
+    if (r === 0 && u === 0) tab = 'all';
+    else if (r >= u) tab = 'pending_receipt';
+    else tab = 'pending_use';
+    navigateTo(`/unified-orders?tab=${tab}`);
   };
 
   // ─────────────────── F-11 单条操作 ───────────────────
@@ -1112,7 +1124,14 @@ export default function Sidebar({
               flexShrink: 0,
             }}
           >
-            {/* ─── F-06 资产行四并列 ─── */}
+            {/*
+              [PRD-463 2026-05-11] F-06 资产行四并列 · 展示优化：
+                1. 视觉风格统一：四格全部采用「大号数字 + 下方文字」展示，去除优惠券/订单 emoji 图标
+                2. 顺序调整：积分 → 优惠券 → 收藏 → 订单（收藏与订单互换）
+                3. 数字展示：优惠券/收藏/订单 应用 formatBadge（0 显示 0，1~9 显示真实数字，≥10 显示 9+）
+                   积分保留原始数字，不应用截断
+                4. 订单点击智能定位 Tab，详见 handleOrderClick
+            */}
             <div
               style={{
                 background: COLOR.cardBg,
@@ -1134,40 +1153,38 @@ export default function Sidebar({
                 </div>
                 <div style={{ fontSize: 12, color: COLOR.textSecondary, marginTop: 4 }}>积分</div>
               </div>
-              {/* 2. 优惠券（图标 + 角标） */}
+              {/* 2. 优惠券（统一数字风格） */}
               <div
                 style={{ flex: 1, textAlign: 'center', cursor: 'pointer' }}
                 onClick={() => navigateTo('/my-coupons')}
                 data-testid="bh-asset-coupons"
               >
-                <div style={{ position: 'relative', display: 'inline-block', fontSize: 22, lineHeight: '24px' }}>
-                  🎫
-                  <CountBadge count={assets.couponCount} />
+                <div style={{ fontSize: 16, fontWeight: 700, color: COLOR.textPrimary, lineHeight: 1.2 }}>
+                  {formatBadge(assets.couponCount)}
                 </div>
                 <div style={{ fontSize: 12, color: COLOR.textSecondary, marginTop: 4 }}>优惠券</div>
               </div>
-              {/* 3. 订单（图标 + 角标） */}
-              <div
-                style={{ flex: 1, textAlign: 'center', cursor: 'pointer' }}
-                onClick={() => navigateTo('/unified-orders')}
-                data-testid="bh-asset-orders"
-              >
-                <div style={{ position: 'relative', display: 'inline-block', fontSize: 22, lineHeight: '24px' }}>
-                  📦
-                  <CountBadge count={assets.orderCount} />
-                </div>
-                <div style={{ fontSize: 12, color: COLOR.textSecondary, marginTop: 4 }}>订单</div>
-              </div>
-              {/* 4. 收藏（数字） */}
+              {/* 3. 收藏（统一数字风格；顺序上移到订单前） */}
               <div
                 style={{ flex: 1, textAlign: 'center', cursor: 'pointer' }}
                 onClick={() => navigateTo('/my-favorites')}
                 data-testid="bh-asset-favorites"
               >
                 <div style={{ fontSize: 16, fontWeight: 700, color: COLOR.textPrimary, lineHeight: 1.2 }}>
-                  {assets.favoriteCount}
+                  {formatBadge(assets.favoriteCount)}
                 </div>
                 <div style={{ fontSize: 12, color: COLOR.textSecondary, marginTop: 4 }}>收藏</div>
+              </div>
+              {/* 4. 订单（统一数字风格 + 智能定位 Tab；顺序下移到收藏之后） */}
+              <div
+                style={{ flex: 1, textAlign: 'center', cursor: 'pointer' }}
+                onClick={handleOrderClick}
+                data-testid="bh-asset-orders"
+              >
+                <div style={{ fontSize: 16, fontWeight: 700, color: COLOR.textPrimary, lineHeight: 1.2 }}>
+                  {formatBadge(assets.orderCount)}
+                </div>
+                <div style={{ fontSize: 12, color: COLOR.textSecondary, marginTop: 4 }}>订单</div>
               </div>
             </div>
 

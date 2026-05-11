@@ -33,7 +33,49 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: BUG-462-AI-CHAT-HISTORY-DELETE-ENDPOINT-FIX-20260511｜H5 端 AI 对话「历史对话删除接口错位」修复（单条/批量删除均改打真实后端接口 + 失败立刻回滚 + 文案改为「删除失败,请稍后重试」+ 8/8 服务端 smoke 测试 PASS）（2026-05-11 15:50）
+## Latest Update: PRD-463-AI-CHAT-SIDEBAR-ASSET-ROW-OPTIMIZATION-20260511｜H5 端 AI 对话页左上角抽屉「资产行」展示优化（去除 emoji 图标 / 顺序调整 / 订单数字口径切换 v2_* / 优惠券/收藏/订单应用 9+ 截断 / 点击订单格智能定位 Tab）（2026-05-11 16:00）
+
+### 一句话结论
+H5 抽屉「积分 / 优惠券 / 订单 / 收藏」四格资产行优化：① 视觉去 emoji（🎫/📦）四格统一为「大号数字 + 下方文字」；② 顺序由「积分/优惠券/订单/收藏」→「积分/优惠券/收藏/订单」；③ 订单数字口径切换到 `v2_pending_receipt + v2_pending_use`（等价于订单列表「待收货 Tab + 待使用 Tab」之和，杜绝旧字段漏算 `pending_shipment / pending_appointment / appointed / partial_used`）；④ 新增 `formatBadge` 工具函数应用于优惠券/收藏/订单（0→0, 1~9→真实数字, ≥10→9+），积分仍按原始数字展示；⑤ 点击订单格智能定位 Tab：v2Receipt>v2Use→`?tab=pending_receipt`、v2Receipt<v2Use→`?tab=pending_use`、相等且都>0→`?tab=pending_receipt`、都=0→`?tab=all`。
+
+### 范围与端
+
+| 维度 | 内容 |
+|------|------|
+| 涉及端 | H5（Next.js）单端；后端、admin、小程序、Flutter 均 0 改动 |
+| 涉及表 | 无（仅消费已有的 `/api/orders/unified/counts` 接口的 `v2_pending_receipt` / `v2_pending_use` 字段，后端已实现） |
+| 接口变更 | 无新增接口，仅前端切换字段消费（旧字段 `pending_receipt` / `pending_use` 在本组件中已不再使用） |
+| 关键文件 | `h5-web/src/components/ai-chat/Sidebar.tsx`（资产行 JSX + `AssetCounts` 类型 + 订单接口 then 回调 + `handleOrderClick` + `formatBadge` + 删除废弃的 `CountBadge` 子组件） |
+| 部署脚本 | `deploy/_deploy_prd463_20260511.py`（SFTP 上传 1 文件 → 远端 grep 验证 PRD-463 / v2_pending_receipt / v2_pending_use / formatBadge / handleOrderClick 标记齐全 + emoji 计数为 0 → docker compose build h5-web → up -d → curl 4 URL smoke 全部通过） |
+| 验收用例 | 1) 视觉去 emoji + 顺序; 2) 订单 0→显示 0; 3) v2_receipt=1,v2_use=4→显示 5，点击跳「待使用」; 4) v2_receipt=1,v2_use=7→显示 8，点击跳「待使用」（对照之前 6 的 Bug）; 5) total=12→显示 9+; 6) v2_receipt=v2_use=3→显示 6，点击跳「待收货」; 7) v2_receipt=v2_use=0→显示 0，点击跳「全部」; 8) 抽屉订单数字 ≡ 订单列表待收货+待使用 Tab 数之和 |
+| 用户手册 | `user_docs/AI对话页抽屉资产行展示优化.md` |
+
+### 关键文件
+
+```text
+h5-web/src/components/ai-chat/Sidebar.tsx
+  - AssetCounts 接口新增 v2Receipt / v2Use 字段（用于点击订单格的智能跳转判断）
+  - 文件顶部新增 formatBadge(n) 工具函数：0→'0', 1~9→真实数字, ≥10→'9+'
+  - /api/orders/unified/counts 的 then 回调改为消费 v2_pending_receipt + v2_pending_use
+  - 新增 handleOrderClick 函数：基于 v2Receipt / v2Use 决策 ?tab= 参数后 navigateTo /unified-orders
+  - 资产行 JSX 重构：去除优惠券🎫 / 订单📦 emoji；调整顺序为 积分 → 优惠券 → 收藏 → 订单；
+    优惠券/收藏/订单 三格的数字调用 formatBadge；订单格 onClick 改为 handleOrderClick
+  - 废弃 CountBadge 子组件（不再使用，已删除以避免 lint 警告）
+
+deploy/_deploy_prd463_20260511.py
+  - SFTP 上传 Sidebar.tsx → 远端 grep 验证 5 个关键标记 + emoji 计数 0
+    → docker compose build/up h5-web → 容器 running → curl 4 URL smoke 全过
+
+user_docs/AI对话页抽屉资产行展示优化.md
+  - 面向用户的完整使用手册（含访问链接、四格展示规则、订单智能定位规则、口径验证步骤）
+```
+
+### 用户手册
+- `user_docs/AI对话页抽屉资产行展示优化.md`
+
+---
+
+## Previous Update: BUG-462-AI-CHAT-HISTORY-DELETE-ENDPOINT-FIX-20260511｜H5 端 AI 对话「历史对话删除接口错位」修复（单条/批量删除均改打真实后端接口 + 失败立刻回滚 + 文案改为「删除失败,请稍后重试」+ 8/8 服务端 smoke 测试 PASS）（2026-05-11 15:50）
 
 ### 一句话结论
 H5 抽屉「历史对话」删除（单条 ⋯ 菜单 / 左滑红按钮 / 管理模式批量删除）100% 不可用：前端 `Sidebar.tsx` 的 `deleteOne` / `batchDelete` 调用的是**不存在**的接口 `POST /api/chat/history/delete`，每次必然 4xx 进 catch，乐观更新让条目视觉消失，但数据库实际未删，刷新后被删对话全部"复活"，并弹"删除可能未同步，请稍后刷新"兜底 Toast。修复：前端单文件改 `deleteOne` 调 `DELETE /api/chat-sessions/{id}`、`batchDelete` 调 `POST /api/chat-sessions/batch-delete`（请求体 `session_ids: number[]`，后端已存在），失败时立即用 `histories` 快照整体回滚（批量场景额外恢复 `manageMode` + `selectedIds`），文案改为「删除失败,请稍后重试」并带 `icon: 'fail'`。
