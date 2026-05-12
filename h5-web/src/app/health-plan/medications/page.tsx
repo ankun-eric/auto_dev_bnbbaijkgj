@@ -85,6 +85,28 @@ export default function MedicationsPage() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
+  // [PRD-469 M5] 修复 Bug：从添加页返回时强制刷新列表
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      try {
+        const flag = sessionStorage.getItem('medication_changed');
+        if (flag) {
+          sessionStorage.removeItem('medication_changed');
+          fetchData();
+        }
+      } catch {
+        /* 忽略 sessionStorage 异常 */
+      }
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onVisible);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onVisible);
+    };
+  }, [fetchData]);
+
   const handleCheck = async (item: MedicationItem) => {
     try {
       const res: any = await api.post(`/api/health-plan/medications/${item.id}/checkin`);

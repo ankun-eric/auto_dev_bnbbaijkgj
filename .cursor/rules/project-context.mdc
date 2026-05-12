@@ -33,7 +33,127 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: PRD-468-HEALTH-PROFILE-REVAMP-20260512｜H5 健康档案改版（信息架构重构 + 11 级天蓝基线 + 漏打卡代为提醒最小版本 + 17/17 服务器自动化测试 PASS）（2026-05-12 18:20）
+## Latest Update: PRD-469-HEALTH-PROFILE-V5-ALIGN-20260512｜健康档案 v2 优化（对齐 v5 设计稿 + 旧路由 404 + 新建成员弹层 + 药品库 + 健康信息 + 共管/事件/设备/提醒规则 + 修复用药保存 Bug + 5 张新表）（2026-05-12 20:45）
+
+### 一句话结论
+PRD-468 上线的 `/health-profile-v2` 与 v5 设计稿存在视觉差距，且旧路由 `/health-profile` 仍被多处入口引用，新建家庭成员、用药添加页等模块尚未完成 v5 对齐。本次 PRD-469 一次性完成 10 个 P0 模块的迁移：①M1 旧 `/health-profile` 路由 → 404（不重定向）；②M2 主页对齐 v5 设计稿（健康绿主色 + 5 Tab + 6 宫格 + 头像化成员条 + 设备区）；③M3 新建家庭成员弹层（16 关系网格 + emoji 头像 + 自定义关系名重复校验）；④M4 用药添加页加入药品库联想搜索（300ms 防抖）；⑤M5 修复添加用药保存后列表不刷新 P0 Bug（sessionStorage + visibilitychange 双保险）；⑥M6 新增健康信息模块（既往病史/过敏史/家族病史/个人习惯 + 主页摘要胶囊）；⑦M7 共管与提醒（漏打卡阈值 1/2/3/5/7 天 + 静默时段 + 多通道推送）；⑧M8 健康事件 Tab（时间轴 + 手动日记）；⑨M9 设备绑定列表（10 项设备清单，华为手环已接通，9 项「敬请期待」+ 上线后通知我）；⑩M10 自建药品库（落地 200+ 条核心慢病药种子数据 + 联想搜索 API + OCR 拍照识药接口）。线上验证：`/health-profile-v2 200` + `/health-profile 404` + `/api/prd469/family-member/relation-options 200` + `/api/prd469/medication-library/search?kw=阿 200`（已返回阿利沙坦酯片/阿卡波糖片等真实数据）+ `/api/prd469/device/list 401`（鉴权正常）。
+
+### 范围与端
+
+| 维度 | 内容 |
+|------|------|
+| 涉及端 | H5（Next.js）+ 后端（FastAPI）；admin / 小程序 / Flutter 均 0 改动 |
+| 新增表 | `medication_library`（自建药品库）+ `health_info_extra`（健康信息）+ `health_events`（健康事件）+ `device_bindings`（设备绑定）+ `reminder_settings`（提醒规则）共 5 张 |
+| 新增接口 | `/api/prd469/*` 共 14 个端点（关系选项 / 关系名校验 / 药品库搜索/详情/OCR / 健康信息 GET·PUT / 设备列表 / 设备订阅 / 健康事件时间轴·POST / 提醒规则 GET·PUT / 主页 v5 summary） |
+| 关键文件 | `backend/app/api/prd469_health_v5.py`、`backend/app/data/medication_seeds.py`、`backend/app/models/models.py` (patch)、`backend/app/init_data.py` (patch)、`backend/app/main.py` (patch)、`h5-web/src/app/health-profile-v2/page.tsx`（重写）、`h5-web/src/app/health-profile/page.tsx`（重写为 notFound）、`h5-web/src/components/health-profile-v5/*.tsx`（5 个新组件）、`h5-web/src/app/health-plan/medications/page.tsx` (patch)、`h5-web/src/app/health-plan/medications/add/page.tsx` (patch) |
+| 部署脚本 | `deploy/_deploy_prd469_20260512.py` |
+| 自动化测试 | `backend/tests/test_prd469_health_v5.py`（14 个测试用例：M3 关系选项/重名校验 + M5 用药保存回归 + M6 健康信息 + M7 提醒规则 + M8 健康事件 + M9 设备列表 + M10 药品库联想/OCR + v5 summary 胶囊） |
+| 用户手册 | `user_docs/manual_20260512_204449_prd469.md` |
+
+### 关键文件
+
+```text
+backend/app/models/models.py (PATCH 末尾追加 5 张表)
+  - MedicationLibrary：name/generic_name/spec/manufacturer/category/rx_type/disease_tags/indications/usage/contraindications/adverse_reactions/notes/source
+  - HealthInfoExtra：与 HealthProfile 1:1（profile_id 唯一）；chronic_diseases/surgery_history/drug_allergies/food_allergies/other_allergies/family_history/habit_*（smoking/drinking/exercise/diet）
+  - HealthEvent：user_id/profile_id/event_type(diary/medication/abnormal/upload)/title/content/event_date/tags
+  - DeviceBinding：user_id/device_type/device_name/bound_at/last_sync_at/status
+  - ReminderSetting：user_id 唯一；miss_threshold_days(默认3)/push_inapp/push_wechat/silent_start/silent_end/notify_caregivers
+
+backend/app/api/prd469_health_v5.py（新增）
+  - RELATION_AVATAR_MAP：16 项关系 → emoji 头像（与 AI 对话页一致）
+  - GET /api/prd469/family-member/relation-options：返回 16 项关系 + emoji
+  - POST /api/prd469/family-member/relation-custom/check：自定义关系名重复校验（预置名 + 该账号已有成员名）
+  - GET /api/prd469/medication-library/search?kw=&limit=：药品库联想（name + generic_name 同时 ilike，limit 1-50）
+  - GET /api/prd469/medication-library/{id}：药品详情（含富文本说明）
+  - POST /api/prd469/medication-library/ocr：OCR 文字 → 库内模糊匹配 Top 5
+  - GET / PUT /api/prd469/health-info/{profile_id}：健康信息 4 子模块（鉴权 + profile_id 归属校验）
+  - GET /api/prd469/device/list：10 项设备清单（DEVICE_CATALOG）+ 已绑定状态
+  - POST /api/prd469/device/subscribe：「敬请期待」设备的「上线后通知我」订阅
+  - GET /api/prd469/health-event/timeline?profile_id&event_type&limit：事件时间轴（支持类型筛选）
+  - POST /api/prd469/health-event：手动添加事件（默认日期 today）
+  - GET / PUT /api/prd469/reminder-setting：用户维度的提醒规则
+  - GET /api/prd469/summary/{profile_id}：主页 v5 聚合（capsules 胶囊摘要：习惯 + 慢病 + 过敏）
+
+backend/app/data/medication_seeds.py（新增）
+  - get_medication_seeds()：返回 200+ 条核心慢病药种子
+  - 覆盖：高血压 30 + 糖尿病 30 + 高血脂 20 + 心血管 20 + 哮喘/慢阻肺 15 + 甲状腺 10 + 痛风 10 + 慢性肾病 10 + 脑卒中 10 + OTC/保健品 15
+  - 每条含：name/generic_name/spec/manufacturer/category/rx_type/disease_tags/indications/usage/contraindications/adverse_reactions/notes/source(seed_v1)
+
+backend/app/init_data.py (PATCH)
+  - import MedicationLibrary + get_medication_seeds
+  - 在 init_default_data 中调用 await _init_medication_library_prd469(db)
+  - _init_medication_library_prd469：若数据库已有 ≥50 条则跳过；否则按 name+spec 唯一去重插入
+
+backend/app/main.py (PATCH)
+  - from app.api import (...) 末尾加 `prd469_health_v5`
+  - 在 medication_reminder.router 注册后追加 app.include_router(prd469_health_v5.router)
+
+h5-web/src/app/health-profile-v2/page.tsx（重写）
+  - v5 健康绿主色 Token（T.brand50~brand800 + cardLineGreen/cardLineYellow + shadow + gradient）
+  - 5 Tab：today-data / health-info / medication-plan / care-reminder / health-events
+  - 成员条头像化（emoji 关系头像 + 选中态边框/阴影 + 共管标识小绿点）+ 「+ 添加」虚线圆按钮触发新建弹层
+  - Hero 卡：64px 头像 + 姓名 + 关系标签 + 5 字段网格（性别/年龄/身高/体重/血型）
+  - 6 宫格今日数据：血压/血糖/心率/睡眠/血氧/用药提醒（异常显示黄色徽章）
+  - 用药计划 Tab：右上角「+ 添加用药」按钮 + 卡片列表
+  - sessionStorage 'medication_changed' + visibilitychange/focus 监听 → 自动刷新用药列表（修复 PRD-468 遗留 Bug）
+
+h5-web/src/components/health-profile-v5/NewFamilyMemberModal.tsx（新增）
+  - 两步式：① 关系选择（4×4 网格 + 选中态边框） ② 信息表单（7 字段）
+  - 「其他」展开自定义关系名输入框 + 调用 /api/prd469/family-member/relation-custom/check 校验
+  - 保存调用 /api/family/members（沿用既有接口）
+
+h5-web/src/components/health-profile-v5/DeviceListBlock.tsx（新增）
+  - 默认显示 4 项 + 「查看全部」展开 10 项
+  - 「敬请期待」设备点击 → /api/prd469/device/subscribe + Toast 提示
+  - 华为手环点击进入绑定流程
+
+h5-web/src/components/health-profile-v5/HealthInfoBlock.tsx（新增）
+  - 摘要胶囊（习惯 emoji + 慢病 🩺 + 过敏 ⚠️）
+  - 4 子模块计数（既往病史 / 过敏史 / 家族病史 / 个人习惯）
+  - 编辑弹层：10 项预置慢病多选 + 过敏 TagsInput + 4 项习惯单选
+
+h5-web/src/components/health-profile-v5/CareReminderBlock.tsx（新增）
+  - 共管列表 / 邀请共管入口（跳 /family-bindlist / /family-invite）
+  - 漏打卡阈值 5 选 1（1/2/3/5/7 天）
+  - 3 个 ToggleRow：站内 / 微信订阅 / 通知共管家人
+  - 静默时段双 time picker
+
+h5-web/src/components/health-profile-v5/HealthEventsBlock.tsx（新增）
+  - 5 项类型筛选（全部/日记/用药/异常/报告）
+  - 「+ 写日记」按钮 → 日期 + 标题 + 详情 + 4 种标签
+  - 时间轴卡片：图标 + 标题 + 日期 + 内容 + 标签胶囊
+
+h5-web/src/app/health-profile/page.tsx（重写）
+  - 仅一行 notFound()，导致访问 /health-profile 直接 404
+
+h5-web/src/app/health-plan/medications/add/page.tsx (PATCH)
+  - 药品名输入框 + 300ms 防抖联想搜索（/api/prd469/medication-library/search）
+  - 联想下拉显示：商品名（通用名）+ 规格 · 厂家 · 处方类型
+  - 点选后显示「✓ 已从药品库选择 [处方类型] 关联疾病」
+  - 保存成功后写 sessionStorage 'medication_changed' = Date.now() → 触发列表页刷新
+
+h5-web/src/app/health-plan/medications/page.tsx (PATCH)
+  - 新增 visibilitychange + focus 监听 → 检测 sessionStorage 标记 → fetchData()
+
+h5-web/src/app/{family,family-auth,points}/page.tsx (PATCH)
+  - 所有 /health-profile 跳转改为 /health-profile-v2
+
+deploy/_deploy_prd469_20260512.py
+  - 上传 20 个文件 → 9 项源码 grep 验证 → docker compose build backend h5-web → up -d
+  - smoke 5 URL（/health-profile-v2 → 200，/health-profile → 404，关系选项 200，药品库搜索 200，设备列表 401）
+  - 容器内 pytest（缺 pytest 模块则跳过）
+
+deploy/_check_prd469_routes.py
+  - 部署后路由校验：含 -L 跟随重定向 + 中文 kw URL 编码 + backend logs 检查
+```
+
+### 用户手册
+- `user_docs/manual_20260512_204449_prd469.md`
+
+---
+
+## Previous Update: PRD-468-HEALTH-PROFILE-REVAMP-20260512｜H5 健康档案改版（信息架构重构 + 11 级天蓝基线 + 漏打卡代为提醒最小版本 + 17/17 服务器自动化测试 PASS）（2026-05-12 18:20）
 
 ### 一句话结论
 现有 `/health-profile` 折叠分区式信息架构旧、视觉与 PRD-441/442 基线脱节、漏打卡场景缺失共管者代为提醒能力。本次新增 `/health-profile-v2` 改版主页面（家庭成员条 + Hero + 粘性 Tab + 5 Tab 内容）+ 5 个指标详情页 `/health-metric/[type]`（双入口：✎ 手工填写主按钮 + ⌚ 绑定设备次按钮 + 7 天趋势曲线 + 历史记录 + 设备绑定列表）；后端新增 `health_metric_record` / `device_binding` 两张表、`/api/health-profile-v3/*` 10 个端点、`miss_check_medication_reminders` 漏打卡扫描任务（10 min 扫一次 + 15 min 宽限 + active 共管者全部通知 + 每事件每人每天 1 条去重）。

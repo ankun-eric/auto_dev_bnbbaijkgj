@@ -25,7 +25,7 @@ interface DailyTask {
 // Bug 7：完善健康档案统一跳转 /health-profile
 // Bug 8：移除 first_order 硬编码（后端已过滤，完全由后端 task.route 驱动）
 const TASK_ROUTE_OVERRIDES: Record<string, string> = {
-  complete_profile: '/health-profile',
+  complete_profile: '/health-profile-v2',
 };
 
 const CATEGORY_LABEL: Record<string, { text: string; color: string }> = {

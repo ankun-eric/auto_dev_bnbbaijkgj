@@ -1,10 +1,21 @@
 'use client';
 
-import { Suspense, useState, useEffect } from 'react';
+import { Suspense, useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Form, Input, Button, Checkbox, Toast, SpinLoading, TextArea, Picker } from 'antd-mobile';
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
+
+interface DrugLibItem {
+  id: number;
+  name: string;
+  generic_name?: string;
+  spec?: string;
+  manufacturer?: string;
+  category?: string;
+  rx_type?: string;
+  disease_tags?: string[];
+}
 
 const PERIODS = [
   { value: 'morning', label: '早晨', emoji: '🌅', defaultTime: '08:00' },
@@ -45,6 +56,10 @@ function MedicationAddContent() {
   const [dosage, setDosage] = useState('');
   const [note, setNote] = useState('');
   const [selectedPeriods, setSelectedPeriods] = useState<string[]>([]);
+  const [drugSuggestions, setDrugSuggestions] = useState<DrugLibItem[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [selectedDrugMeta, setSelectedDrugMeta] = useState<DrugLibItem | null>(null);
+  const searchTimer = useRef<any>(null);
   const [periodTimes, setPeriodTimes] = useState<Record<string, string>>({
     morning: '08:00',
     noon: '12:30',
@@ -76,6 +91,36 @@ function MedicationAddContent() {
     };
     fetchMedication();
   }, [editId]);
+
+  // [PRD-469 M4/M10] 药品库联想搜索（300ms 防抖）
+  const handleNameChange = (val: string) => {
+    setName(val);
+    setSelectedDrugMeta(null);
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    if (!val.trim() || val.trim().length < 2) {
+      setDrugSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+    searchTimer.current = setTimeout(async () => {
+      try {
+        const res: any = await api.get(`/api/prd469/medication-library/search?kw=${encodeURIComponent(val.trim())}&limit=8`);
+        const data = res.data || res;
+        const items: DrugLibItem[] = Array.isArray(data.items) ? data.items : [];
+        setDrugSuggestions(items);
+        setShowSuggestions(items.length > 0);
+      } catch {
+        setDrugSuggestions([]);
+        setShowSuggestions(false);
+      }
+    }, 300);
+  };
+
+  const pickDrug = (drug: DrugLibItem) => {
+    setName(drug.name);
+    setSelectedDrugMeta(drug);
+    setShowSuggestions(false);
+  };
 
   const togglePeriod = (val: string) => {
     setSelectedPeriods((prev) =>
@@ -129,6 +174,12 @@ function MedicationAddContent() {
           Toast.show({ content: `成功添加${successCount}条提醒`, icon: 'success' });
         }
       }
+      // [PRD-469 M5] 修复 Bug：保存后用 sessionStorage 标记，让列表页/v2 主页刷新
+      try {
+        sessionStorage.setItem('medication_changed', String(Date.now()));
+      } catch {
+        /* 忽略 sessionStorage 异常 */
+      }
       router.back();
     } catch {
       Toast.show({ content: '保存失败', icon: 'fail' });
@@ -160,13 +211,51 @@ function MedicationAddContent() {
         <div className="card">
           <div className="section-title">药品信息</div>
           <Form layout="vertical">
-            <Form.Item label={<><span style={{ color: 'red' }}>*</span> 药品名称</>}>
-              <Input
-                placeholder="请输入药品名称"
-                value={name}
-                onChange={setName}
-                clearable
-              />
+            <Form.Item label={<><span style={{ color: 'red' }}>*</span> 药品名称（支持联想搜索）</>}>
+              <div style={{ position: 'relative' }}>
+                <Input
+                  placeholder="如：阿司匹林"
+                  value={name}
+                  onChange={handleNameChange}
+                  clearable
+                />
+                {showSuggestions && drugSuggestions.length > 0 && (
+                  <div
+                    data-testid="prd469-drug-suggestions"
+                    style={{
+                      position: 'absolute', left: 0, right: 0, top: '100%', zIndex: 10,
+                      background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8,
+                      marginTop: 4, maxHeight: 240, overflowY: 'auto',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+                    }}
+                  >
+                    {drugSuggestions.map((d) => (
+                      <div
+                        key={d.id}
+                        onClick={() => pickDrug(d)}
+                        data-testid={`prd469-drug-option-${d.id}`}
+                        style={{
+                          padding: '10px 12px', cursor: 'pointer',
+                          borderBottom: '1px solid #f3f4f6',
+                        }}
+                      >
+                        <div style={{ fontSize: 14, fontWeight: 600, color: '#1f2937' }}>
+                          {d.name}{d.generic_name && d.generic_name !== d.name ? `（${d.generic_name}）` : ''}
+                        </div>
+                        <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>
+                          {[d.spec, d.manufacturer, d.rx_type].filter(Boolean).join(' · ')}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {selectedDrugMeta && (
+                <div style={{ fontSize: 12, color: '#16a34a', marginTop: 6 }}>
+                  ✓ 已从药品库选择：{selectedDrugMeta.rx_type ? `[${selectedDrugMeta.rx_type}] ` : ''}
+                  {(selectedDrugMeta.disease_tags || []).join('、')}
+                </div>
+              )}
             </Form.Item>
             <Form.Item label="用药剂量">
               <Input

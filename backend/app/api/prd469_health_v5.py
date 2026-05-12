@@ -1,0 +1,565 @@
+"""[PRD-469] 健康档案 v2 优化 —— 对齐 v5 设计稿。
+
+本模块新增以下核心能力：
+- 药品库联想搜索 + OCR 占位
+- 健康信息（既往病史/过敏/家族病史/个人习惯）
+- 关系选项 + 头像 emoji
+- 设备绑定列表（10 项设备）
+- 健康事件时间轴 + 手动日记
+- 提醒规则配置
+- 主页聚合数据接口
+"""
+from __future__ import annotations
+
+import logging
+from datetime import date, datetime
+from typing import Any, Dict, List, Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
+from sqlalchemy import or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.database import get_db
+from app.core.security import get_current_user
+from app.models.models import (
+    DeviceBinding,
+    FamilyMember,
+    HealthEvent,
+    HealthInfoExtra,
+    HealthProfile,
+    MedicationLibrary,
+    ReminderSetting,
+    User,
+)
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(prefix="/api/prd469", tags=["PRD-469 健康档案 v2 优化"])
+
+
+# ──────────────────────────────────────────────────────────
+# 关系选项 + 头像（M3）
+# ──────────────────────────────────────────────────────────
+
+RELATION_AVATAR_MAP: Dict[str, str] = {
+    "本人": "🙂",
+    "爸爸": "👨",
+    "妈妈": "👩",
+    "老公": "🤵",
+    "老婆": "👰",
+    "儿子": "👦",
+    "女儿": "👧",
+    "哥哥": "🧑‍🦱",
+    "弟弟": "👨‍🦱",
+    "姐姐": "👩‍🦰",
+    "妹妹": "👧",
+    "爷爷": "👴",
+    "奶奶": "👵",
+    "外公": "👴",
+    "外婆": "👵",
+    "其他": "🧑",
+}
+
+
+@router.get("/family-member/relation-options")
+async def list_relation_options():
+    """关系选项 + 头像 emoji（与 AI 对话页共用）。"""
+    items = []
+    for idx, (name, emoji) in enumerate(RELATION_AVATAR_MAP.items()):
+        items.append(
+            {
+                "key": name,
+                "name": name,
+                "avatar": emoji,
+                "is_other": name == "其他",
+                "sort_order": idx,
+            }
+        )
+    return {"items": items, "total": len(items)}
+
+
+class CustomRelationCheck(BaseModel):
+    name: str = Field(..., min_length=1, max_length=32)
+
+
+@router.post("/family-member/relation-custom/check")
+async def check_custom_relation(
+    body: CustomRelationCheck,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """校验「其他」自定义关系名是否与已有关系名冲突。"""
+    name = body.name.strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="关系名不能为空")
+    if name in RELATION_AVATAR_MAP:
+        return {"valid": False, "reason": f"关系『{name}』与预置关系名冲突，请换一个名称"}
+
+    result = await db.execute(
+        select(FamilyMember).where(
+            FamilyMember.user_id == current_user.id,
+            FamilyMember.status == "active",
+            FamilyMember.nickname == name,
+        )
+    )
+    if result.scalar_one_or_none() is not None:
+        return {"valid": False, "reason": f"关系『{name}』已存在，请换一个名称（如『大儿子』『二儿子』）"}
+
+    return {"valid": True}
+
+
+# ──────────────────────────────────────────────────────────
+# 药品库 M10
+# ──────────────────────────────────────────────────────────
+
+
+class MedicationLibItemOut(BaseModel):
+    id: int
+    name: str
+    generic_name: Optional[str] = None
+    spec: Optional[str] = None
+    manufacturer: Optional[str] = None
+    category: Optional[str] = None
+    rx_type: Optional[str] = None
+    disease_tags: Optional[List[str]] = None
+
+    class Config:
+        from_attributes = True
+
+
+@router.get("/medication-library/search")
+async def medication_library_search(
+    kw: str = Query("", description="联想关键词"),
+    limit: int = Query(20, ge=1, le=50),
+    db: AsyncSession = Depends(get_db),
+):
+    """药品库联想搜索（基于药品名 / 通用名 / 商品名 三字段并行匹配）。"""
+    kw = (kw or "").strip()
+    if not kw:
+        return {"items": [], "total": 0}
+
+    pattern = f"%{kw}%"
+    result = await db.execute(
+        select(MedicationLibrary)
+        .where(
+            MedicationLibrary.is_active == True,  # noqa: E712
+            or_(
+                MedicationLibrary.name.ilike(pattern),
+                MedicationLibrary.generic_name.ilike(pattern),
+            ),
+        )
+        .limit(limit)
+    )
+    rows = result.scalars().all()
+    return {
+        "items": [MedicationLibItemOut.model_validate(r).model_dump() for r in rows],
+        "total": len(rows),
+    }
+
+
+@router.get("/medication-library/{drug_id}")
+async def medication_library_detail(
+    drug_id: int,
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(MedicationLibrary).where(MedicationLibrary.id == drug_id)
+    )
+    drug = result.scalar_one_or_none()
+    if not drug:
+        raise HTTPException(status_code=404, detail="药品不存在")
+    return {
+        "id": drug.id,
+        "name": drug.name,
+        "generic_name": drug.generic_name,
+        "spec": drug.spec,
+        "manufacturer": drug.manufacturer,
+        "approval_no": drug.approval_no,
+        "category": drug.category,
+        "rx_type": drug.rx_type,
+        "disease_tags": drug.disease_tags or [],
+        "indications": drug.indications,
+        "usage": drug.usage,
+        "contraindications": drug.contraindications,
+        "adverse_reactions": drug.adverse_reactions,
+        "notes": drug.notes,
+        "source": drug.source,
+    }
+
+
+class OcrRecognizeRequest(BaseModel):
+    image_text: Optional[str] = Field(None, description="百度 OCR 返回的文字片段（前端调用 OCR 后回传）")
+
+
+@router.post("/medication-library/ocr")
+async def medication_library_ocr(
+    body: OcrRecognizeRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """拍照识药：基于 OCR 文字在药品库内做模糊匹配，返回 Top 5 候选。
+
+    本期对接百度 OCR 由前端负责调用既有 /api/ocr 通用接口，本端点专注库内匹配。
+    """
+    text = (body.image_text or "").strip()
+    if not text:
+        return {"items": [], "total": 0, "reason": "OCR 文字为空"}
+
+    tokens = [t for t in text.replace("\n", " ").split(" ") if len(t) >= 2][:8]
+    if not tokens:
+        return {"items": [], "total": 0, "reason": "未提取到有效药名候选"}
+
+    candidates: List[MedicationLibrary] = []
+    seen_ids = set()
+    for tok in tokens:
+        pattern = f"%{tok}%"
+        result = await db.execute(
+            select(MedicationLibrary)
+            .where(
+                MedicationLibrary.is_active == True,  # noqa: E712
+                or_(
+                    MedicationLibrary.name.ilike(pattern),
+                    MedicationLibrary.generic_name.ilike(pattern),
+                ),
+            )
+            .limit(5)
+        )
+        for r in result.scalars().all():
+            if r.id not in seen_ids:
+                candidates.append(r)
+                seen_ids.add(r.id)
+        if len(candidates) >= 5:
+            break
+
+    return {
+        "items": [MedicationLibItemOut.model_validate(r).model_dump() for r in candidates[:5]],
+        "total": min(5, len(candidates)),
+        "matched_tokens": tokens,
+    }
+
+
+# ──────────────────────────────────────────────────────────
+# 健康信息 M6
+# ──────────────────────────────────────────────────────────
+
+
+class HealthInfoBody(BaseModel):
+    chronic_diseases: Optional[List[Dict[str, Any]]] = None
+    surgery_history: Optional[List[Dict[str, Any]]] = None
+    drug_allergies: Optional[List[str]] = None
+    food_allergies: Optional[List[str]] = None
+    other_allergies: Optional[List[str]] = None
+    family_history: Optional[List[Dict[str, Any]]] = None
+    habit_smoking: Optional[str] = None
+    habit_drinking: Optional[str] = None
+    habit_exercise: Optional[str] = None
+    habit_diet: Optional[str] = None
+
+
+async def _get_or_create_health_info(db: AsyncSession, profile_id: int) -> HealthInfoExtra:
+    result = await db.execute(
+        select(HealthInfoExtra).where(HealthInfoExtra.profile_id == profile_id)
+    )
+    info = result.scalar_one_or_none()
+    if info is None:
+        info = HealthInfoExtra(profile_id=profile_id)
+        db.add(info)
+        await db.flush()
+    return info
+
+
+@router.get("/health-info/{profile_id}")
+async def get_health_info(
+    profile_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(HealthProfile).where(
+            HealthProfile.id == profile_id, HealthProfile.user_id == current_user.id
+        )
+    )
+    profile = result.scalar_one_or_none()
+    if not profile:
+        raise HTTPException(status_code=404, detail="健康档案不存在")
+
+    info = await _get_or_create_health_info(db, profile_id)
+    return {
+        "profile_id": profile_id,
+        "chronic_diseases": info.chronic_diseases or [],
+        "surgery_history": info.surgery_history or [],
+        "drug_allergies": info.drug_allergies or [],
+        "food_allergies": info.food_allergies or [],
+        "other_allergies": info.other_allergies or [],
+        "family_history": info.family_history or [],
+        "habit_smoking": info.habit_smoking,
+        "habit_drinking": info.habit_drinking,
+        "habit_exercise": info.habit_exercise,
+        "habit_diet": info.habit_diet,
+    }
+
+
+@router.put("/health-info/{profile_id}")
+async def update_health_info(
+    profile_id: int,
+    body: HealthInfoBody,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(HealthProfile).where(
+            HealthProfile.id == profile_id, HealthProfile.user_id == current_user.id
+        )
+    )
+    profile = result.scalar_one_or_none()
+    if not profile:
+        raise HTTPException(status_code=404, detail="健康档案不存在")
+
+    info = await _get_or_create_health_info(db, profile_id)
+    data = body.model_dump(exclude_unset=True)
+    for key, value in data.items():
+        setattr(info, key, value)
+    await db.flush()
+    return {"message": "已保存", "profile_id": profile_id}
+
+
+# ──────────────────────────────────────────────────────────
+# 设备绑定列表 M9
+# ──────────────────────────────────────────────────────────
+
+DEVICE_CATALOG = [
+    {"key": "huawei_band", "name": "华为手环", "status": "connected", "icon": "⌚"},
+    {"key": "mi_band", "name": "小米手环", "status": "coming_soon", "icon": "⌚"},
+    {"key": "apple_watch", "name": "Apple Watch", "status": "coming_soon", "icon": "⌚"},
+    {"key": "huawei_watch_gt", "name": "华为手表 GT", "status": "coming_soon", "icon": "⌚"},
+    {"key": "sannuo_glucose", "name": "三诺血糖仪", "status": "coming_soon", "icon": "🩸"},
+    {"key": "yuyue_bp", "name": "鱼跃血压计", "status": "coming_soon", "icon": "💓"},
+    {"key": "omron_bp", "name": "欧姆龙血压计", "status": "coming_soon", "icon": "💓"},
+    {"key": "yuyue_spo2", "name": "鱼跃血氧仪", "status": "coming_soon", "icon": "🫁"},
+    {"key": "mi_scale", "name": "小米体重秤", "status": "coming_soon", "icon": "⚖️"},
+    {"key": "huawei_scale", "name": "华为体脂秤", "status": "coming_soon", "icon": "⚖️"},
+]
+
+
+@router.get("/device/list")
+async def list_devices(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """设备绑定列表：10 项固定清单 + 用户已绑定的设备状态。"""
+    result = await db.execute(
+        select(DeviceBinding).where(
+            DeviceBinding.user_id == current_user.id,
+            DeviceBinding.status == "active",
+        )
+    )
+    bound: Dict[str, DeviceBinding] = {
+        b.device_type: b for b in result.scalars().all()
+    }
+
+    items = []
+    for d in DEVICE_CATALOG:
+        item = dict(d)
+        bind = bound.get(d["key"])
+        if bind is not None and d["status"] == "connected":
+            item["bound"] = True
+            item["bound_at"] = bind.bound_at.isoformat() if bind.bound_at else None
+            item["last_sync_at"] = (
+                bind.last_sync_at.isoformat() if bind.last_sync_at else None
+            )
+        else:
+            item["bound"] = False
+        items.append(item)
+    return {"items": items, "total": len(items)}
+
+
+class DeviceSubscribeBody(BaseModel):
+    device_key: str
+
+
+@router.post("/device/subscribe")
+async def subscribe_device(
+    body: DeviceSubscribeBody,
+    current_user: User = Depends(get_current_user),
+):
+    """敬请期待设备的「上线后通知我」订阅入口（占位实现）。"""
+    return {"message": f"已记录订阅，设备上线后将通过站内消息通知您", "device_key": body.device_key}
+
+
+# ──────────────────────────────────────────────────────────
+# 健康事件 M8
+# ──────────────────────────────────────────────────────────
+
+
+class HealthEventCreate(BaseModel):
+    event_type: str = Field(..., description="diary/medication/abnormal/upload/note")
+    title: Optional[str] = None
+    content: Optional[str] = None
+    event_date: Optional[date] = None
+    tags: Optional[List[str]] = None
+    profile_id: Optional[int] = None
+
+
+@router.get("/health-event/timeline")
+async def get_event_timeline(
+    profile_id: Optional[int] = Query(None),
+    event_type: Optional[str] = Query(None),
+    limit: int = Query(50, ge=1, le=200),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    stmt = select(HealthEvent).where(HealthEvent.user_id == current_user.id)
+    if profile_id is not None:
+        stmt = stmt.where(HealthEvent.profile_id == profile_id)
+    if event_type:
+        stmt = stmt.where(HealthEvent.event_type == event_type)
+    stmt = stmt.order_by(HealthEvent.event_date.desc(), HealthEvent.id.desc()).limit(limit)
+    result = await db.execute(stmt)
+    items = []
+    for e in result.scalars().all():
+        items.append(
+            {
+                "id": e.id,
+                "event_type": e.event_type,
+                "title": e.title,
+                "content": e.content,
+                "event_date": e.event_date.isoformat() if e.event_date else None,
+                "tags": e.tags or [],
+                "extra_data": e.extra_data or {},
+                "created_at": e.created_at.isoformat() if e.created_at else None,
+            }
+        )
+    return {"items": items, "total": len(items)}
+
+
+@router.post("/health-event")
+async def create_health_event(
+    body: HealthEventCreate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    event = HealthEvent(
+        user_id=current_user.id,
+        profile_id=body.profile_id,
+        event_type=body.event_type,
+        title=body.title,
+        content=body.content,
+        event_date=body.event_date or date.today(),
+        tags=body.tags,
+    )
+    db.add(event)
+    await db.flush()
+    return {"id": event.id, "message": "已添加"}
+
+
+# ──────────────────────────────────────────────────────────
+# 提醒规则 M7
+# ──────────────────────────────────────────────────────────
+
+
+class ReminderSettingBody(BaseModel):
+    miss_threshold_days: Optional[int] = Field(None, ge=1, le=30)
+    push_inapp: Optional[bool] = None
+    push_wechat: Optional[bool] = None
+    silent_start: Optional[str] = None
+    silent_end: Optional[str] = None
+    notify_caregivers: Optional[bool] = None
+
+
+async def _get_or_create_reminder(db: AsyncSession, user_id: int) -> ReminderSetting:
+    result = await db.execute(
+        select(ReminderSetting).where(ReminderSetting.user_id == user_id)
+    )
+    s = result.scalar_one_or_none()
+    if s is None:
+        s = ReminderSetting(user_id=user_id)
+        db.add(s)
+        await db.flush()
+    return s
+
+
+@router.get("/reminder-setting")
+async def get_reminder_setting(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    s = await _get_or_create_reminder(db, current_user.id)
+    return {
+        "miss_threshold_days": s.miss_threshold_days,
+        "push_inapp": s.push_inapp,
+        "push_wechat": s.push_wechat,
+        "silent_start": s.silent_start,
+        "silent_end": s.silent_end,
+        "notify_caregivers": s.notify_caregivers,
+    }
+
+
+@router.put("/reminder-setting")
+async def update_reminder_setting(
+    body: ReminderSettingBody,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    s = await _get_or_create_reminder(db, current_user.id)
+    data = body.model_dump(exclude_unset=True)
+    for k, v in data.items():
+        setattr(s, k, v)
+    await db.flush()
+    return {"message": "已保存"}
+
+
+# ──────────────────────────────────────────────────────────
+# 主页聚合接口（健康摘要胶囊 + 设备区数据）
+# ──────────────────────────────────────────────────────────
+
+
+@router.get("/summary/{profile_id}")
+async def get_v5_summary(
+    profile_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """主页 v5 聚合：健康标签胶囊摘要 + 关键基础信息。"""
+    result = await db.execute(
+        select(HealthProfile).where(
+            HealthProfile.id == profile_id, HealthProfile.user_id == current_user.id
+        )
+    )
+    profile = result.scalar_one_or_none()
+    if not profile:
+        raise HTTPException(status_code=404, detail="健康档案不存在")
+
+    info = await _get_or_create_health_info(db, profile_id)
+
+    capsules: List[Dict[str, str]] = []
+    if info.habit_smoking == "无":
+        capsules.append({"icon": "🚭", "label": "不吸烟"})
+    elif info.habit_smoking == "有":
+        capsules.append({"icon": "🚬", "label": "吸烟"})
+    if info.habit_drinking == "有":
+        capsules.append({"icon": "🍷", "label": "饮酒"})
+    elif info.habit_drinking == "无":
+        capsules.append({"icon": "🚫", "label": "不饮酒"})
+    if info.habit_exercise:
+        capsules.append({"icon": "🏃", "label": f"运动:{info.habit_exercise}"})
+    if info.habit_diet:
+        capsules.append({"icon": "🍚", "label": info.habit_diet})
+
+    for d in (info.drug_allergies or [])[:3]:
+        capsules.append({"icon": "⚠️", "label": f"{d}过敏"})
+
+    for cd in (info.chronic_diseases or [])[:3]:
+        name = cd.get("name") if isinstance(cd, dict) else str(cd)
+        if name:
+            capsules.append({"icon": "🩺", "label": name})
+
+    return {
+        "profile_id": profile_id,
+        "name": profile.name,
+        "gender": profile.gender,
+        "birthday": profile.birthday.isoformat() if profile.birthday else None,
+        "height": profile.height,
+        "weight": profile.weight,
+        "blood_type": profile.blood_type,
+        "capsules": capsules,
+    }

@@ -1,12 +1,17 @@
 'use client';
 
 /**
- * [PRD-468 2026-05-12] 健康档案改版 v2 主页面
+ * [PRD-469 2026-05-12] 健康档案 v2 优化 —— 对齐 v5 设计稿
  *
  * 信息架构：
- *   家庭成员条 → Hero 卡（基本信息）→ 粘性 Tab（5 个）→ Tab 内容
+ *   家庭成员条（"+"按钮）→ Hero 卡 → 我的设备 → 粘性 5 Tab（滚动联动）
+ *     Tab 1 今日数据 6 宫格
+ *     Tab 2 健康信息（既往病史 / 过敏史 / 家族病史 / 个人习惯）
+ *     Tab 3 用药计划
+ *     Tab 4 共管与提醒
+ *     Tab 5 健康事件
  *
- * 视觉基线：PRD-441/442（11 级天蓝 + 病历卡左竖线 + 天蓝阴影 + 中老年友好字号）
+ * 视觉规范：v5 健康绿主色 + 圆角 12/16px + 病历卡左侧 3px 竖线
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -14,44 +19,41 @@ import { useRouter } from 'next/navigation';
 import { Toast } from 'antd-mobile';
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
+import NewFamilyMemberModal from '@/components/health-profile-v5/NewFamilyMemberModal';
+import DeviceListBlock from '@/components/health-profile-v5/DeviceListBlock';
+import HealthInfoBlock from '@/components/health-profile-v5/HealthInfoBlock';
+import CareReminderBlock from '@/components/health-profile-v5/CareReminderBlock';
+import HealthEventsBlock from '@/components/health-profile-v5/HealthEventsBlock';
 
-// ─── 设计 Token（PRD-441/442 11 级天蓝） ─────────────────────────────────
+// ─── v5 设计 Token（健康绿主色） ──────────────────────────────────────────
 const T = {
-  brand50: '#f0f9ff',
-  brand100: '#e0f2fe',
-  brand200: '#bae6fd',
-  brand300: '#7dd3fc',
-  brand400: '#38bdf8',
-  brand500: '#0ea5e9',
-  brand600: '#0284c7',
-  brand700: '#0369a1',
-  brand800: '#075985',
+  brand50: '#f0fdf4',
+  brand100: '#dcfce7',
+  brand200: '#bbf7d0',
+  brand300: '#86efac',
+  brand400: '#4ade80',
+  brand500: '#22c55e',
+  brand600: '#16a34a',
+  brand700: '#15803d',
+  brand800: '#166534',
   yellow: '#f59e0b',
-  green: '#10b981',
-  danger: '#ef4444',
-  cardLineBlue: '3px solid #38bdf8',
+  warn: '#ef4444',
+  textPrimary: '#1f2937',
+  textSecondary: '#6b7280',
+  cardLineGreen: '3px solid #22c55e',
   cardLineYellow: '3px solid #f59e0b',
-  shadow: '0 4px 16px rgba(56, 189, 248, 0.08)',
-  gradient: 'linear-gradient(135deg, #7dd3fc 0%, #0284c7 100%)',
+  shadow: '0 2px 8px rgba(0,0,0,0.06)',
+  gradient: 'linear-gradient(135deg, #4ade80 0%, #16a34a 100%)',
 };
 
 const TAB_LIST = [
   { id: 'today-data', label: '今日数据' },
-  { id: 'health-tags', label: '健康标签' },
+  { id: 'health-info', label: '健康信息' },
   { id: 'medication-plan', label: '用药计划' },
-  { id: 'management', label: '共管' },
-  { id: 'events', label: '事件' },
+  { id: 'care-reminder', label: '共管与提醒' },
+  { id: 'health-events', label: '健康事件' },
 ];
 
-const METRIC_LABEL: Record<string, string> = {
-  blood_pressure: '血压',
-  blood_glucose: '血糖',
-  heart_rate: '心率',
-  sleep: '睡眠',
-  spo2: '血氧',
-};
-
-// ─── 类型 ─────────────────────────────────────────────────────────────────
 interface FamilyMember {
   id: number;
   user_id: number;
@@ -91,11 +93,7 @@ interface TodayMetricsResponse {
   heart_rate: MetricSnapshot;
   sleep: MetricSnapshot;
   spo2: MetricSnapshot;
-  medication: {
-    checked: number;
-    total: number;
-    has_overdue: boolean;
-  };
+  medication: { checked: number; total: number; has_overdue: boolean };
 }
 
 interface MedicationPlanCard {
@@ -109,8 +107,8 @@ interface MedicationPlanCard {
   weekly_rate: number;
 }
 
-// ─── 病历卡组件 ───────────────────────────────────────────────────────────
-function MedicalCard({
+// ─── 病历卡组件（v5 风格） ─────────────────────────────────────────────────
+export function V5Card({
   children,
   abnormal = false,
   onClick,
@@ -129,8 +127,8 @@ function MedicalCard({
       onClick={onClick}
       style={{
         background: '#FFFFFF',
-        borderLeft: abnormal ? T.cardLineYellow : T.cardLineBlue,
-        borderRadius: 16,
+        borderLeft: abnormal ? T.cardLineYellow : T.cardLineGreen,
+        borderRadius: 12,
         padding: 16,
         boxShadow: T.shadow,
         cursor: onClick ? 'pointer' : 'default',
@@ -143,31 +141,21 @@ function MedicalCard({
   );
 }
 
-// ─── 主页 ─────────────────────────────────────────────────────────────────
+export const HP_V5_TOKEN = T;
+
 export default function HealthProfileV2Page() {
   const router = useRouter();
 
-  // 成员条
   const [members, setMembers] = useState<FamilyMember[]>([]);
   const [selectedMemberId, setSelectedMemberId] = useState<number | null>(null);
-
-  // 当前成员的 profile
   const [profile, setProfile] = useState<HealthProfileBasic | null>(null);
-
-  // 今日 6 项
   const [todayMetrics, setTodayMetrics] = useState<TodayMetricsResponse | null>(null);
-
-  // 用药计划
   const [medications, setMedications] = useState<MedicationPlanCard[]>([]);
-
-  // 当前激活的 Tab
   const [activeTab, setActiveTab] = useState<string>('today-data');
   const isScrollingRef = useRef(false);
-
-  // 关联状态
   const [isLinked, setIsLinked] = useState(false);
+  const [showAddMember, setShowAddMember] = useState(false);
 
-  // ─── 拉成员列表 ───
   const fetchMembers = useCallback(async () => {
     try {
       const res: any = await api.get('/api/family/members');
@@ -183,7 +171,6 @@ export default function HealthProfileV2Page() {
     }
   }, [selectedMemberId]);
 
-  // ─── 拉 profile (member id) → 取得 profile_id ───
   const fetchProfile = useCallback(async (memberId: number) => {
     try {
       const res: any = await api.get(`/api/health/profile/member/${memberId}`);
@@ -196,7 +183,6 @@ export default function HealthProfileV2Page() {
     }
   }, []);
 
-  // ─── 拉今日 6 项 ───
   const fetchTodayMetrics = useCallback(async (profileId: number) => {
     try {
       const res: any = await api.get(`/api/health-profile-v3/${profileId}/today-metrics`);
@@ -207,7 +193,6 @@ export default function HealthProfileV2Page() {
     }
   }, []);
 
-  // ─── 拉用药计划 ───
   const fetchMedication = useCallback(async (profileId: number) => {
     try {
       const res: any = await api.get(`/api/health-profile-v3/${profileId}/medication-plan`);
@@ -218,7 +203,6 @@ export default function HealthProfileV2Page() {
     }
   }, []);
 
-  // ─── 拉共管关联状态 ───
   const fetchLinkStatus = useCallback(async (memberId: number) => {
     try {
       const res: any = await api.get('/api/family/management');
@@ -230,9 +214,7 @@ export default function HealthProfileV2Page() {
     }
   }, []);
 
-  useEffect(() => {
-    fetchMembers();
-  }, [fetchMembers]);
+  useEffect(() => { fetchMembers(); }, [fetchMembers]);
 
   useEffect(() => {
     if (selectedMemberId == null) return;
@@ -248,7 +230,28 @@ export default function HealthProfileV2Page() {
     })();
   }, [selectedMemberId, fetchProfile, fetchTodayMetrics, fetchMedication, fetchLinkStatus]);
 
-  // ─── 滚动联动 Tab ───
+  // [PRD-469 M5] 修复：从添加用药页返回时，强制刷新用药计划
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') {
+        const flag = sessionStorage.getItem('medication_changed');
+        if (flag && profile?.id != null) {
+          sessionStorage.removeItem('medication_changed');
+          fetchMedication(profile.id);
+        }
+      }
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onVisible);
+    // 挂载时也检测一次
+    onVisible();
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onVisible);
+    };
+  }, [profile?.id, fetchMedication]);
+
+  // 滚动联动 Tab
   useEffect(() => {
     const onScroll = () => {
       if (isScrollingRef.current) return;
@@ -278,45 +281,41 @@ export default function HealthProfileV2Page() {
     setTimeout(() => { isScrollingRef.current = false; }, 800);
   }, []);
 
-  // ─── 渲染：成员条 ───
+  const selectedMember = useMemo(
+    () => members.find((m) => m.id === selectedMemberId) || null,
+    [members, selectedMemberId]
+  );
+
+  // ─── 成员条（头像化 + "+" 添加按钮）─────────────────────────────────
   const renderMemberBar = () => (
     <div
-      data-testid="prd468-member-bar"
+      data-testid="prd469-member-bar"
       style={{ background: T.brand50, padding: '12px 16px', display: 'flex', gap: 12, overflowX: 'auto' }}
     >
       {members.map((m) => {
         const active = m.id === selectedMemberId;
         const hasLink = !!m.member_user_id;
+        const avatar = m.is_self ? '🙂' : relationEmoji(m.relation_type_name || m.relationship_type || '');
         return (
           <div
             key={m.id}
             onClick={() => setSelectedMemberId(m.id)}
             style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              minWidth: 64,
-              cursor: 'pointer',
-              position: 'relative',
+              display: 'flex', flexDirection: 'column', alignItems: 'center',
+              minWidth: 64, cursor: 'pointer', position: 'relative',
             }}
           >
             <div
               style={{
-                width: 48,
-                height: 48,
-                borderRadius: '50%',
-                background: active ? T.brand500 : T.brand100,
+                width: 48, height: 48, borderRadius: '50%',
+                background: active ? T.brand500 : '#fff',
                 color: active ? '#fff' : T.brand700,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 20,
-                fontWeight: 600,
-                border: active ? `2px solid ${T.brand300}` : 'none',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 22, fontWeight: 600,
+                border: active ? `2px solid ${T.brand600}` : `1px solid ${T.brand200}`,
+                boxShadow: active ? '0 4px 12px rgba(34,197,94,0.25)' : 'none',
               }}
-            >
-              {m.is_self ? '我' : (m.nickname || '?').slice(0, 1)}
-            </div>
+            >{avatar}</div>
             {hasLink && (
               <div
                 style={{
@@ -332,7 +331,8 @@ export default function HealthProfileV2Page() {
         );
       })}
       <div
-        onClick={() => router.push('/health-profile')}
+        onClick={() => setShowAddMember(true)}
+        data-testid="prd469-add-member-btn"
         style={{
           minWidth: 64, display: 'flex', flexDirection: 'column',
           alignItems: 'center', cursor: 'pointer',
@@ -341,7 +341,7 @@ export default function HealthProfileV2Page() {
         <div
           style={{
             width: 48, height: 48, borderRadius: '50%',
-            background: '#fff', border: `2px dashed ${T.brand300}`,
+            background: '#fff', border: `2px dashed ${T.brand400}`,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: 24, color: T.brand500,
           }}
@@ -351,12 +351,13 @@ export default function HealthProfileV2Page() {
     </div>
   );
 
-  // ─── Hero 卡 ───
+  // ─── Hero ──────────────────────────────────────────────────────────
   const renderHero = () => {
     if (!profile) return null;
+    const age = profile.birthday ? calcAge(profile.birthday) : null;
     const fields = [
       { label: '性别', value: profile.gender || '未填' },
-      { label: '生日', value: profile.birthday || '未填' },
+      { label: '年龄', value: age != null ? `${age} 岁` : '未填' },
       { label: '身高', value: profile.height ? `${profile.height} cm` : '未填' },
       { label: '体重', value: profile.weight ? `${profile.weight} kg` : '未填' },
       { label: '血型', value: profile.blood_type || '未填' },
@@ -364,7 +365,7 @@ export default function HealthProfileV2Page() {
     return (
       <div style={{ padding: '12px 16px' }}>
         <div
-          data-testid="prd468-hero-card"
+          data-testid="prd469-hero-card"
           style={{
             background: T.gradient, color: '#fff', borderRadius: 16, padding: 20,
             boxShadow: T.shadow,
@@ -374,30 +375,27 @@ export default function HealthProfileV2Page() {
             <div
               style={{
                 width: 64, height: 64, borderRadius: '50%',
-                background: 'rgba(255,255,255,0.2)',
+                background: 'rgba(255,255,255,0.25)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 28, fontWeight: 700,
+                fontSize: 32, fontWeight: 700,
               }}
-            >{(profile.name || '我').slice(0, 1)}</div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 22, fontWeight: 700, marginBottom: 4 }}>{profile.name || '我'}</div>
-              {isLinked && (
-                <div
-                  style={{
-                    display: 'inline-block', padding: '2px 8px', borderRadius: 10,
-                    background: 'rgba(16, 185, 129, 0.9)', fontSize: 12, fontWeight: 600,
-                  }}
-                >✓ 已关联本人</div>
-              )}
+            >
+              {selectedMember?.is_self ? '🙂' : relationEmoji(selectedMember?.relation_type_name || '')}
             </div>
-            <button
-              onClick={() => router.push('/health-profile')}
-              style={{
-                background: 'rgba(255,255,255,0.25)', color: '#fff',
-                border: 'none', borderRadius: 20, padding: '8px 14px',
-                fontSize: 14, cursor: 'pointer', fontWeight: 600,
-              }}
-            >✎ 编辑</button>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 22, fontWeight: 700, marginBottom: 4 }}>{profile.name || '未填'}</div>
+              <div style={{ fontSize: 13, opacity: 0.9 }}>
+                {selectedMember?.is_self ? '本人' : (selectedMember?.relation_type_name || '家庭成员')}
+                {isLinked && (
+                  <span
+                    style={{
+                      marginLeft: 8, padding: '2px 8px', borderRadius: 10,
+                      background: 'rgba(255,255,255,0.3)', fontSize: 11, fontWeight: 600,
+                    }}
+                  >✓ 已关联</span>
+                )}
+              </div>
+            </div>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8, marginTop: 16 }}>
             {fields.map((f) => (
@@ -412,10 +410,10 @@ export default function HealthProfileV2Page() {
     );
   };
 
-  // ─── 粘性 Tab ───
+  // ─── 粘性 Tab ──────────────────────────────────────────────────────
   const renderStickyTabs = () => (
     <div
-      data-testid="prd468-sticky-tabs"
+      data-testid="prd469-sticky-tabs"
       style={{
         position: 'sticky', top: 56, zIndex: 10, background: '#fff',
         borderBottom: `1px solid ${T.brand200}`,
@@ -428,12 +426,13 @@ export default function HealthProfileV2Page() {
             <button
               key={t.id}
               onClick={() => handleTabClick(t.id)}
+              data-testid={`prd469-tab-${t.id}`}
               style={{
                 flex: '0 0 auto', padding: '12px 16px',
                 background: 'none', border: 'none',
                 fontSize: 16, fontWeight: active ? 700 : 500,
-                color: active ? T.brand500 : T.brand800,
-                borderBottom: active ? `2px solid ${T.brand500}` : '2px solid transparent',
+                color: active ? T.brand600 : T.textSecondary,
+                borderBottom: active ? `2px solid ${T.brand600}` : '2px solid transparent',
                 cursor: 'pointer',
               }}
             >{t.label}</button>
@@ -443,7 +442,7 @@ export default function HealthProfileV2Page() {
     </div>
   );
 
-  // ─── Tab 1：今日 6 宫格 ───
+  // ─── Tab 1：今日数据 6 宫格 ─────────────────────────────────────────
   const renderTodayMetrics = () => {
     const tm = todayMetrics;
     const cells = [
@@ -451,126 +450,128 @@ export default function HealthProfileV2Page() {
         id: 'blood_pressure',
         label: '血压',
         unit: 'mmHg',
-        value: tm?.blood_pressure.value ? `${tm.blood_pressure.value.systolic || '-'}/${tm.blood_pressure.value.diastolic || '-'}` : '—',
-        abnormal: tm?.blood_pressure.is_abnormal,
+        icon: '💓',
+        value: tm?.blood_pressure?.value
+          ? `${tm.blood_pressure.value.systolic || '-'}/${tm.blood_pressure.value.diastolic || '-'}`
+          : '—',
+        abnormal: tm?.blood_pressure?.is_abnormal,
       },
       {
         id: 'blood_glucose',
         label: '血糖',
         unit: 'mmol/L',
-        value: tm?.blood_glucose.value?.value ?? '—',
-        abnormal: tm?.blood_glucose.is_abnormal,
+        icon: '🩸',
+        value: tm?.blood_glucose?.value?.value ?? '—',
+        abnormal: tm?.blood_glucose?.is_abnormal,
       },
       {
         id: 'heart_rate',
         label: '心率',
         unit: 'bpm',
-        value: tm?.heart_rate.value?.value ?? '—',
-        abnormal: tm?.heart_rate.is_abnormal,
+        icon: '❤️',
+        value: tm?.heart_rate?.value?.value ?? '—',
+        abnormal: tm?.heart_rate?.is_abnormal,
       },
       {
         id: 'sleep',
         label: '睡眠',
         unit: 'h',
-        value: tm?.sleep.value?.duration_h ?? '—',
-        abnormal: tm?.sleep.is_abnormal,
+        icon: '🌙',
+        value: tm?.sleep?.value?.duration_h ?? '—',
+        abnormal: tm?.sleep?.is_abnormal,
       },
       {
         id: 'spo2',
         label: '血氧',
         unit: '%',
-        value: tm?.spo2.value?.value ?? '—',
-        abnormal: tm?.spo2.is_abnormal,
+        icon: '🫁',
+        value: tm?.spo2?.value?.value ?? '—',
+        abnormal: tm?.spo2?.is_abnormal,
       },
     ];
 
     return (
-      <div id="today-data" data-testid="prd468-today-data" style={{ padding: '12px 16px' }}>
+      <div id="today-data" data-testid="prd469-today-data" style={{ padding: '12px 16px' }}>
         <h3 style={{ fontSize: 18, fontWeight: 600, color: T.brand700, margin: '8px 0 12px' }}>今日数据</h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
           {cells.map((c) => (
-            <MedicalCard
+            <V5Card
               key={c.id}
               abnormal={!!c.abnormal}
-              testid={`prd468-metric-${c.id}`}
+              testid={`prd469-metric-${c.id}`}
               onClick={() => router.push(`/health-metric/${c.id}?profileId=${profile?.id || ''}`)}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
-                <span style={{ fontSize: 13, color: T.brand800 }}>{c.label}</span>
+                <span style={{ fontSize: 13, color: T.textSecondary }}>{c.icon} {c.label}</span>
                 {c.abnormal && (
                   <span
                     style={{
                       fontSize: 11, fontWeight: 600, color: '#fff', background: T.yellow,
                       padding: '2px 6px', borderRadius: 6,
                     }}
-                  >偏高</span>
+                  >异常</span>
                 )}
               </div>
               <div style={{ marginTop: 8 }}>
-                <span style={{ fontSize: 22, fontWeight: 700, color: T.brand700 }}>{c.value}</span>
-                <span style={{ fontSize: 13, color: T.brand800, marginLeft: 4 }}>{c.unit}</span>
+                <span style={{ fontSize: 22, fontWeight: 700, color: T.textPrimary }}>{c.value}</span>
+                <span style={{ fontSize: 13, color: T.textSecondary, marginLeft: 4 }}>{c.unit}</span>
               </div>
-            </MedicalCard>
+              <div style={{ position: 'absolute', top: 12, right: 12, fontSize: 14, color: T.brand500 }}>›</div>
+            </V5Card>
           ))}
-          {/* 第 6 格：用药 X/Y */}
-          <MedicalCard
-            abnormal={!!tm?.medication.has_overdue}
-            testid="prd468-metric-medication"
+          <V5Card
+            abnormal={!!tm?.medication?.has_overdue}
+            testid="prd469-metric-medication"
             onClick={() => handleTabClick('medication-plan')}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
-              <span style={{ fontSize: 13, color: T.brand800 }}>用药打卡</span>
-              {tm?.medication.has_overdue && (
+              <span style={{ fontSize: 13, color: T.textSecondary }}>💊 用药提醒</span>
+              {tm?.medication?.has_overdue && (
                 <span
                   style={{
                     fontSize: 11, fontWeight: 600, color: '#fff', background: T.yellow,
                     padding: '2px 6px', borderRadius: 6,
                   }}
-                >待打卡</span>
+                >待服</span>
               )}
             </div>
             <div style={{ marginTop: 8 }}>
-              <span style={{ fontSize: 22, fontWeight: 700, color: T.brand700 }}>
-                {tm?.medication.checked ?? 0}/{tm?.medication.total ?? 0}
+              <span style={{ fontSize: 22, fontWeight: 700, color: T.textPrimary }}>
+                {tm?.medication?.checked ?? 0}/{tm?.medication?.total ?? 0}
               </span>
-              <span style={{ fontSize: 13, color: T.brand800, marginLeft: 4 }}>已打卡</span>
+              <span style={{ fontSize: 13, color: T.textSecondary, marginLeft: 4 }}>已服</span>
             </div>
             <div style={{ height: 6, background: T.brand100, borderRadius: 3, marginTop: 8 }}>
               <div
                 style={{
-                  width: `${tm?.medication.total ? (tm.medication.checked / tm.medication.total) * 100 : 0}%`,
+                  width: `${tm?.medication?.total ? (tm.medication.checked / tm.medication.total) * 100 : 0}%`,
                   height: '100%', background: T.brand500, borderRadius: 3,
                 }}
               />
             </div>
-          </MedicalCard>
+          </V5Card>
         </div>
       </div>
     );
   };
 
-  // ─── Tab 2：健康标签 ───
-  const renderHealthTags = () => (
-    <div id="health-tags" data-testid="prd468-health-tags" style={{ padding: '12px 16px' }}>
-      <h3 style={{ fontSize: 18, fontWeight: 600, color: T.brand700, margin: '8px 0 12px' }}>健康标签速览</h3>
-      <MedicalCard testid="prd468-tags-card">
-        <div
-          onClick={() => router.push('/health-profile')}
-          style={{ display: 'flex', flexWrap: 'wrap', gap: 8, fontSize: 14, cursor: 'pointer' }}
-        >
-          <span style={{ color: T.brand800 }}>点击进入档案详情查看完整标签列表</span>
-        </div>
-      </MedicalCard>
-    </div>
-  );
-
-  // ─── Tab 3：用药计划 ───
+  // ─── Tab 3：用药计划 ───────────────────────────────────────────────
   const renderMedicationPlan = () => (
-    <div id="medication-plan" data-testid="prd468-medication-plan" style={{ padding: '12px 16px' }}>
-      <h3 style={{ fontSize: 18, fontWeight: 600, color: T.brand700, margin: '8px 0 12px' }}>用药计划</h3>
+    <div id="medication-plan" data-testid="prd469-medication-plan" style={{ padding: '12px 16px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '8px 0 12px' }}>
+        <h3 style={{ fontSize: 18, fontWeight: 600, color: T.brand700, margin: 0 }}>用药计划</h3>
+        <button
+          onClick={() => router.push('/health-plan/medications/add')}
+          data-testid="prd469-add-medication-btn"
+          style={{
+            padding: '6px 14px', background: T.brand500, color: '#fff',
+            border: 'none', borderRadius: 16, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+          }}
+        >+ 添加用药</button>
+      </div>
       {medications.length === 0 ? (
-        <MedicalCard>
-          <div style={{ textAlign: 'center', color: T.brand800, padding: '24px 0', fontSize: 14 }}>
+        <V5Card>
+          <div style={{ textAlign: 'center', color: T.textSecondary, padding: '24px 0', fontSize: 14 }}>
             暂无用药计划
             <div
               onClick={() => router.push('/health-plan/medications/add')}
@@ -580,16 +581,16 @@ export default function HealthProfileV2Page() {
               }}
             >+ 添加用药</div>
           </div>
-        </MedicalCard>
+        </V5Card>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {medications.map((m) => (
-            <MedicalCard key={m.plan_id} testid={`prd468-med-${m.plan_id}`}>
+            <V5Card key={m.plan_id} testid={`prd469-med-${m.plan_id}`}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: 18, fontWeight: 600, color: T.brand700 }}>
-                  {m.drug_name} {m.dosage}
+                <span style={{ fontSize: 17, fontWeight: 600, color: T.textPrimary }}>
+                  💊 {m.drug_name} {m.dosage}
                 </span>
-                <span style={{ fontSize: 13, color: T.brand800 }}>{`每日 ${m.schedule.length} 次`}</span>
+                <span style={{ fontSize: 13, color: T.textSecondary }}>{`每日 ${m.schedule.length} 次`}</span>
               </div>
               <div style={{ display: 'flex', gap: 10, marginTop: 12, flexWrap: 'wrap' }}>
                 {m.time_chips.map((c) => (
@@ -597,8 +598,8 @@ export default function HealthProfileV2Page() {
                     key={c.scheduled_time}
                     style={{
                       padding: '8px 12px', borderRadius: 8,
-                      background: c.checked ? '#d1fae5' : '#fee2e2',
-                      color: c.checked ? '#065f46' : '#991b1b',
+                      background: c.checked ? T.brand100 : '#fee2e2',
+                      color: c.checked ? T.brand700 : '#991b1b',
                       fontSize: 14, fontWeight: 600,
                     }}
                   >
@@ -607,96 +608,69 @@ export default function HealthProfileV2Page() {
                 ))}
               </div>
               <div style={{ marginTop: 12 }}>
-                <div style={{ fontSize: 13, color: T.brand800, marginBottom: 4 }}>
+                <div style={{ fontSize: 13, color: T.textSecondary, marginBottom: 4 }}>
                   本周完成率 {m.weekly_rate}%（{m.weekly_completed}/{m.weekly_total}）
                 </div>
                 <div style={{ height: 6, background: T.brand100, borderRadius: 3 }}>
                   <div style={{ width: `${m.weekly_rate}%`, height: '100%', background: T.brand500, borderRadius: 3 }} />
                 </div>
               </div>
-              <div style={{ marginTop: 10, fontSize: 13, color: T.brand600 }}>
-                ⓘ 漏打卡超 15 分钟将通知共管者
-              </div>
-            </MedicalCard>
+            </V5Card>
           ))}
         </div>
       )}
     </div>
   );
 
-  // ─── Tab 4：共管与提醒 ───
-  const renderManagement = () => (
-    <div id="management" data-testid="prd468-management" style={{ padding: '12px 16px' }}>
-      <h3 style={{ fontSize: 18, fontWeight: 600, color: T.brand700, margin: '8px 0 12px' }}>共管与提醒</h3>
-      <MedicalCard>
-        <div
-          onClick={() => router.push('/health-profile')}
-          style={{
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            padding: '12px 0', borderBottom: `1px solid ${T.brand100}`, cursor: 'pointer',
-          }}
-        >
-          <span style={{ fontSize: 15, color: T.brand800 }}>👥 共同管理者</span>
-          <span style={{ fontSize: 13, color: T.brand600 }}>查看 ▶</span>
-        </div>
-        <div
-          onClick={() => router.push('/health-profile')}
-          style={{
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            padding: '12px 0', borderBottom: `1px solid ${T.brand100}`, cursor: 'pointer',
-          }}
-        >
-          <span style={{ fontSize: 15, color: T.brand800 }}>📨 邀请本人关联</span>
-          <span style={{ fontSize: 13, color: isLinked ? T.green : T.brand600 }}>
-            {isLinked ? '✓ 已关联 ▶' : '邀请 ▶'}
-          </span>
-        </div>
-        <div
-          style={{
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            padding: '12px 0',
-          }}
-        >
-          <span style={{ fontSize: 15, color: T.brand800 }}>🔔 漏打卡代为提醒</span>
-          <span style={{ fontSize: 13, color: T.green, fontWeight: 600 }}>开启（15min 宽限）</span>
-        </div>
-        <div
-          style={{
-            background: T.brand50, padding: '10px 12px', borderRadius: 8,
-            fontSize: 13, color: T.brand800, marginTop: 8, lineHeight: 1.6,
-          }}
-        >
-          系统级固定开启。当本人漏打卡超过 15 分钟时，全部共管者将收到通知，提醒联系本人。
-        </div>
-      </MedicalCard>
-    </div>
-  );
-
-  // ─── Tab 5：事件流 ───
-  const renderEvents = () => (
-    <div id="events" data-testid="prd468-events" style={{ padding: '12px 16px 80px' }}>
-      <h3 style={{ fontSize: 18, fontWeight: 600, color: T.brand700, margin: '8px 0 12px' }}>健康事件流</h3>
-      <MedicalCard>
-        <div style={{ fontSize: 14, color: T.brand800, lineHeight: 1.8 }}>
-          事件流将聚合您的指标录入、用药打卡、报告上传等关键事件。
-          <br />
-          请在「今日数据」录入一项指标，事件流将自动展示。
-        </div>
-      </MedicalCard>
-    </div>
-  );
-
   return (
-    <div style={{ background: '#F0F9FF', minHeight: '100vh', paddingBottom: 80 }}>
+    <div style={{ background: T.brand50, minHeight: '100vh', paddingBottom: 80 }}>
       <GreenNavBar>我的健康档案</GreenNavBar>
       {renderMemberBar()}
       {renderHero()}
+      <DeviceListBlock token={T} />
       {renderStickyTabs()}
       {renderTodayMetrics()}
-      {renderHealthTags()}
+      <HealthInfoBlock profileId={profile?.id} token={T} />
       {renderMedicationPlan()}
-      {renderManagement()}
-      {renderEvents()}
+      <CareReminderBlock profileId={profile?.id} token={T} isLinked={isLinked} />
+      <HealthEventsBlock profileId={profile?.id} token={T} />
+
+      {showAddMember && (
+        <NewFamilyMemberModal
+          onClose={() => setShowAddMember(false)}
+          onSuccess={() => {
+            setShowAddMember(false);
+            fetchMembers();
+            Toast.show({ content: '已添加家庭成员', icon: 'success' });
+          }}
+        />
+      )}
     </div>
   );
+}
+
+// ──────────── 辅助：关系 emoji 映射 ─────────────────────────────────
+function relationEmoji(name: string): string {
+  const map: Record<string, string> = {
+    '本人': '🙂', '爸爸': '👨', '妈妈': '👩',
+    '老公': '🤵', '老婆': '👰', '儿子': '👦', '女儿': '👧',
+    '哥哥': '🧑', '弟弟': '👨', '姐姐': '👩', '妹妹': '👧',
+    '爷爷': '👴', '奶奶': '👵', '外公': '👴', '外婆': '👵',
+    '其他': '🧑',
+  };
+  return map[name] || '🧑';
+}
+
+function calcAge(birthday: string): number | null {
+  try {
+    const b = new Date(birthday);
+    if (Number.isNaN(b.getTime())) return null;
+    const now = new Date();
+    let age = now.getFullYear() - b.getFullYear();
+    const m = now.getMonth() - b.getMonth();
+    if (m < 0 || (m === 0 && now.getDate() < b.getDate())) age--;
+    return age;
+  } catch {
+    return null;
+  }
 }

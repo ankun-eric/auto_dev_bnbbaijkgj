@@ -97,6 +97,7 @@ from app.api import (
     video_consult_config,
     wechat_bindding,
     wechat_push,
+    prd469_health_v5,
 )
 from app.core.database import Base, engine
 from app.core.price_formatter import PriceFormattedJSONResponse
@@ -1262,6 +1263,7 @@ app.include_router(_analytics.router)
 
 # [PRD-439 2026-05-10] H5 健康打卡升级为用药提醒：用药计划/打卡/徽标/待核销预约
 app.include_router(medication_reminder.router)
+app.include_router(prd469_health_v5.router)  # [PRD-469] 健康档案 v2 优化（v5 设计稿对齐）
 # [PRD-468 2026-05-12] 健康档案改版 v3
 app.include_router(health_profile_v3.router)
 

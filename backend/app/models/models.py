@@ -3744,3 +3744,112 @@ class MedicationLog(Base):
     scheduled_time = mapped_column(String(8), nullable=False)
     checked_at = mapped_column(DateTime, default=datetime.utcnow)
     revoked = mapped_column(Boolean, nullable=False, default=False)
+
+
+# ──────────────── [PRD-469] 健康档案 v2 优化 ────────────────
+
+
+class MedicationLibrary(Base):
+    """[PRD-469 M10] 自建药品库。
+
+    四源融合（医保目录 / 基本药物目录 / 慢病常用药 / NMPA 公开数据）+ 富文本说明。
+    本期落地最小可用集合，运营后台可后续批量录入。
+    """
+
+    __tablename__ = "medication_library"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name = mapped_column(String(128), nullable=False, index=True)
+    generic_name = mapped_column(String(128), nullable=True, index=True)
+    spec = mapped_column(String(128), nullable=True)
+    manufacturer = mapped_column(String(128), nullable=True)
+    approval_no = mapped_column(String(64), nullable=True)
+    category = mapped_column(String(64), nullable=True)
+    rx_type = mapped_column(String(32), nullable=True)
+    disease_tags = mapped_column(JSON, nullable=True)
+    indications = mapped_column(Text, nullable=True)
+    usage = mapped_column(Text, nullable=True)
+    contraindications = mapped_column(Text, nullable=True)
+    adverse_reactions = mapped_column(Text, nullable=True)
+    notes = mapped_column(Text, nullable=True)
+    source = mapped_column(String(32), nullable=True)
+    is_active = mapped_column(Boolean, default=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class HealthInfoExtra(Base):
+    """[PRD-469 M6] 健康信息模块扩展数据：既往病史 / 过敏 / 家族病史 / 个人习惯。
+
+    与 HealthProfile 一对一关联（profile_id 唯一）。
+    """
+
+    __tablename__ = "health_info_extra"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    profile_id = mapped_column(Integer, ForeignKey("health_profiles.id"), nullable=False, unique=True, index=True)
+    chronic_diseases = mapped_column(JSON, nullable=True)
+    surgery_history = mapped_column(JSON, nullable=True)
+    drug_allergies = mapped_column(JSON, nullable=True)
+    food_allergies = mapped_column(JSON, nullable=True)
+    other_allergies = mapped_column(JSON, nullable=True)
+    family_history = mapped_column(JSON, nullable=True)
+    habit_smoking = mapped_column(String(16), nullable=True)
+    habit_drinking = mapped_column(String(16), nullable=True)
+    habit_exercise = mapped_column(String(16), nullable=True)
+    habit_diet = mapped_column(String(16), nullable=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class HealthEvent(Base):
+    """[PRD-469 M8] 健康事件（时间轴 + 手动日记）。"""
+
+    __tablename__ = "health_events"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    profile_id = mapped_column(Integer, ForeignKey("health_profiles.id"), nullable=True, index=True)
+    event_type = mapped_column(String(32), nullable=False, index=True)
+    title = mapped_column(String(128), nullable=True)
+    content = mapped_column(Text, nullable=True)
+    event_date = mapped_column(Date, nullable=False, index=True)
+    tags = mapped_column(JSON, nullable=True)
+    extra_data = mapped_column(JSON, nullable=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class DeviceBinding(Base):
+    """[PRD-469 M9] 设备绑定记录。"""
+
+    __tablename__ = "device_bindings"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    device_type = mapped_column(String(32), nullable=False)
+    device_name = mapped_column(String(64), nullable=False)
+    device_sn = mapped_column(String(128), nullable=True)
+    bound_at = mapped_column(DateTime, default=datetime.utcnow)
+    last_sync_at = mapped_column(DateTime, nullable=True)
+    status = mapped_column(String(16), default="active")
+    extra_data = mapped_column(JSON, nullable=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class ReminderSetting(Base):
+    """[PRD-469 M7] 用户提醒规则（漏打卡阈值、静默时段、推送通道）。"""
+
+    __tablename__ = "reminder_settings"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, unique=True, index=True)
+    miss_threshold_days = mapped_column(Integer, default=3)
+    push_inapp = mapped_column(Boolean, default=True)
+    push_wechat = mapped_column(Boolean, default=True)
+    silent_start = mapped_column(String(8), nullable=True)
+    silent_end = mapped_column(String(8), nullable=True)
+    notify_caregivers = mapped_column(Boolean, default=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

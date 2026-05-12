@@ -8,7 +8,7 @@ export default function FamilyPage() {
   const router = useRouter();
 
   useEffect(() => {
-    router.replace('/health-profile');
+    router.replace('/health-profile-v2');
   }, [router]);
 
   return (
@@ -28,7 +28,7 @@ export default function FamilyPage() {
           paddingLeft: 32,
           paddingRight: 32,
         }}
-        onClick={() => router.replace('/health-profile')}
+        onClick={() => router.replace('/health-profile-v2')}
       >
         前往健康档案
       </Button>

@@ -42,6 +42,8 @@ from app.models.models import (
     UserRole,
     VoiceServiceConfig,
 )
+from app.models.models import MedicationLibrary  # [PRD-469 M10] 自建药品库
+from app.data.medication_seeds import get_medication_seeds  # [PRD-469 M10] 种子数据
 
 logger = logging.getLogger(__name__)
 
@@ -76,6 +78,7 @@ async def init_default_data():
             await _init_chat_function_buttons(db)
             await _init_voice_service_configs(db)
             await _init_cos_upload_limits(db)
+            await _init_medication_library_prd469(db)
             await db.commit()
             logger.info("Default data initialization completed")
         except Exception as e:
@@ -1406,3 +1409,34 @@ async def _init_cos_upload_limits(db: AsyncSession):
         db.add(CosUploadLimit(**item))
     await db.flush()
     logger.info("Created default COS upload limits (%d)", len(defaults))
+
+
+# ──────────────── [PRD-469 M10] 自建药品库初始化 ────────────────
+
+
+async def _init_medication_library_prd469(db: AsyncSession):
+    """初始化自建药品库种子数据（200+ 条核心慢病药）。
+
+    若数据库已有 ≥ 50 条记录则跳过，避免重复插入。
+    """
+    count_result = await db.execute(select(func.count(MedicationLibrary.id)))
+    existing = count_result.scalar() or 0
+    if existing >= 50:
+        return
+
+    seeds = get_medication_seeds()
+    inserted = 0
+    for seed in seeds:
+        result = await db.execute(
+            select(MedicationLibrary.id).where(
+                MedicationLibrary.name == seed["name"],
+                MedicationLibrary.spec == seed.get("spec"),
+            )
+        )
+        if result.scalar_one_or_none() is not None:
+            continue
+        db.add(MedicationLibrary(**seed))
+        inserted += 1
+    if inserted:
+        await db.flush()
+        logger.info("[PRD-469 M10] Inserted %d medication library seeds", inserted)
