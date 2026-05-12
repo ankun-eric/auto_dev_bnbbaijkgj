@@ -382,6 +382,15 @@ def init_scheduler():
         replace_existing=True,
     )
 
+    # [PRD-468 2026-05-12] 漏打卡代为提醒扫描，每 10 分钟一次
+    from app.tasks.medication_miss_check import miss_check_medication_reminders
+    scheduler.add_job(
+        miss_check_medication_reminders,
+        trigger=IntervalTrigger(minutes=10),
+        id="miss_check_medication_reminders",
+        replace_existing=True,
+    )
+
     scheduler.start()
     logger.info("Notification scheduler started")
 

@@ -52,6 +52,7 @@ from app.api import (
     h5_checkout,
     health_plan_v2,
     health_profile,
+    health_profile_v3,
     home_config,
     knowledge,
     login_ui_config,
@@ -880,6 +881,56 @@ def _scan_route_conflicts(app: "FastAPI") -> list[dict]:
     return conflicts
 
 
+async def _migrate_prd468_health_v3():
+    """[PRD-468 2026-05-12] health_metric_record / device_binding."""
+    import logging as _l
+    _logger = _l.getLogger(__name__)
+    from app.core.database import async_session as _async_session
+    try:
+        async with _async_session() as db:
+            from sqlalchemy import text
+            try:
+                await db.execute(text(
+                    "CREATE TABLE IF NOT EXISTS health_metric_record ("
+                    " id BIGINT NOT NULL AUTO_INCREMENT,"
+                    " profile_id BIGINT NOT NULL,"
+                    " metric_type VARCHAR(32) NOT NULL,"
+                    " value_json JSON NOT NULL,"
+                    " source VARCHAR(32) NOT NULL DEFAULT 'manual',"
+                    " measured_at DATETIME NOT NULL,"
+                    " created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,"
+                    " created_by BIGINT NOT NULL,"
+                    " PRIMARY KEY (id),"
+                    " KEY idx_profile_metric_time (profile_id, metric_type, measured_at),"
+                    " KEY idx_source_hmr (source)"
+                    ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+                ))
+                await db.execute(text(
+                    "CREATE TABLE IF NOT EXISTS device_binding ("
+                    " id BIGINT NOT NULL AUTO_INCREMENT,"
+                    " user_id BIGINT NOT NULL,"
+                    " device_type VARCHAR(32) NOT NULL,"
+                    " device_id VARCHAR(128) NOT NULL,"
+                    " access_token TEXT NULL,"
+                    " refresh_token TEXT NULL,"
+                    " token_expires_at DATETIME NULL,"
+                    " status VARCHAR(16) NOT NULL DEFAULT 'active',"
+                    " bound_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,"
+                    " last_sync_at DATETIME NULL,"
+                    " PRIMARY KEY (id),"
+                    " UNIQUE KEY uk_user_device (user_id, device_type),"
+                    " KEY idx_status_devbind (status)"
+                    ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+                ))
+                await db.commit()
+                _logger.info("[PRD-468] migration done")
+            except Exception as e:
+                await db.rollback()
+                _logger.debug("[PRD-468] skip: %s", e)
+    except Exception as e:
+        _logger.error("[PRD-468] migration error: %s", e)
+
+
 async def _migrate_prd439_medication_reminder():
     """[PRD-439 2026-05-10] 用药提醒（H5 健康打卡升级）— 幂等建表。
 
@@ -1035,6 +1086,8 @@ async def lifespan(app: FastAPI):
     await _migrate_bug433_chat_message_source_parent_id()
     # [PRD-439 2026-05-10] 用药提醒（H5 健康打卡升级）— medication_plans / medication_logs
     await _migrate_prd439_medication_reminder()
+    # [PRD-468 2026-05-12] health_metric_record / device_binding
+    await _migrate_prd468_health_v3()
     from app.init_data import init_default_data
     await init_default_data()
     from app.init_cities import init_cities
@@ -1209,6 +1262,8 @@ app.include_router(_analytics.router)
 
 # [PRD-439 2026-05-10] H5 健康打卡升级为用药提醒：用药计划/打卡/徽标/待核销预约
 app.include_router(medication_reminder.router)
+# [PRD-468 2026-05-12] 健康档案改版 v3
+app.include_router(health_profile_v3.router)
 
 
 # [2026-05-05 SDK 健康看板] 启动期 SDK 分级自检：核心缺失 → 容器退出；可选缺失 → CRITICAL 告警

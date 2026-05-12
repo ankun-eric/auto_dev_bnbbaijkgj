@@ -33,7 +33,90 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: PRD-467-AI-HOME-MORE-MENU-FIX-20260511｜AI 对话首页右上角「⋯」菜单三 Bug 修复（H5 单端，零后端改动）（2026-05-11 19:55）
+## Latest Update: PRD-468-HEALTH-PROFILE-REVAMP-20260512｜H5 健康档案改版（信息架构重构 + 11 级天蓝基线 + 漏打卡代为提醒最小版本 + 17/17 服务器自动化测试 PASS）（2026-05-12 18:20）
+
+### 一句话结论
+现有 `/health-profile` 折叠分区式信息架构旧、视觉与 PRD-441/442 基线脱节、漏打卡场景缺失共管者代为提醒能力。本次新增 `/health-profile-v2` 改版主页面（家庭成员条 + Hero + 粘性 Tab + 5 Tab 内容）+ 5 个指标详情页 `/health-metric/[type]`（双入口：✎ 手工填写主按钮 + ⌚ 绑定设备次按钮 + 7 天趋势曲线 + 历史记录 + 设备绑定列表）；后端新增 `health_metric_record` / `device_binding` 两张表、`/api/health-profile-v3/*` 10 个端点、`miss_check_medication_reminders` 漏打卡扫描任务（10 min 扫一次 + 15 min 宽限 + active 共管者全部通知 + 每事件每人每天 1 条去重）。
+
+### 范围与端
+
+| 维度 | 内容 |
+|------|------|
+| 涉及端 | H5（Next.js）+ 后端（FastAPI）；admin、小程序、Flutter 均 0 改动 |
+| 涉及表 | 新增 `health_metric_record`（指标记录）+ `device_binding`（设备绑定）；复用既有 `family_management` / `medication_plans` / `medication_logs` / `notification_logs` |
+| 新增接口 | 10 个 `/api/health-profile-v3/*` 端点（today-metrics / metric CRUD / devices / medication-plan / events） |
+| 新增定时任务 | `miss_check_medication_reminders`（每 10 min，IntervalTrigger） |
+| 关键文件 | `backend/app/models/health_v3.py`、`backend/app/schemas/health_v3.py`、`backend/app/api/health_profile_v3.py`、`backend/app/tasks/medication_miss_check.py`、`backend/app/main.py` (patch)、`backend/app/services/notification_scheduler.py` (patch)、`h5-web/src/app/health-profile-v2/page.tsx`、`h5-web/src/app/health-metric/[type]/page.tsx` |
+| 部署脚本 | `deploy/_deploy_prd468_20260512.py`（SFTP 上传 9 文件 → 源码标记校验 → docker compose build backend + h5-web → up -d → 容器 running → curl 5 URL smoke 全过） |
+| 自动化测试 | `deploy/_test_prd468_server.py` 17/17 PASS（API 401 × 7 + 前端可达 × 2 + 源码标记 × 4 + 数据库表 × 3 + scheduler 注册 × 1） |
+| 用户手册 | `user_docs/健康档案改版_用户体验手册.md` |
+
+### 关键文件
+
+```text
+backend/app/models/health_v3.py
+  - HealthMetricRecord(BIGINT pk, profile_id, metric_type, value_json, source, measured_at, created_by)
+  - DeviceBinding(user_id+device_type unique, OAuth token 占位字段, status active/expired/unbound)
+
+backend/app/schemas/health_v3.py
+  - TodayMetricsResponse / MetricCreateRequest / MetricHistoryResponse / DevicesListResponse 等
+
+backend/app/api/health_profile_v3.py
+  - /api/health-profile-v3 前缀，10 个端点
+  - _is_abnormal(metric_type, value) 异常判定（默认阈值见 THRESHOLDS）
+  - _principal_value 抽取主指标值用于 7 天趋势曲线
+  - 设备字典 DEVICE_CATALOG：huawei_watch/xiaomi_band 真接通（占位通道），glucometer/bp_meter/scale 敬请期待
+
+backend/app/tasks/medication_miss_check.py
+  - GRACE_MINUTES = 15
+  - SOURCE_TYPE = "medication_missed_for_managed_user"
+  - 扫描所有 enabled MedicationPlan + 今日时间槽 → 已逾期 15min 且无 MedicationLog
+  - 取 owner 昵称（user.nickname 或 phone）+ 查 active 共管者 → 写 NotificationLog
+  - 去重 source_id = hash("{plan_id}_{date}_{HH:MM}")
+
+backend/app/main.py
+  - 新增 _migrate_prd468_health_v3()：CREATE TABLE IF NOT EXISTS health_metric_record / device_binding
+  - lifespan 中 await _migrate_prd468_health_v3()
+  - import health_profile_v3 + app.include_router(health_profile_v3.router)
+
+backend/app/services/notification_scheduler.py
+  - init_scheduler 新增 add_job(miss_check_medication_reminders, IntervalTrigger(minutes=10))
+
+backend/app/tasks/__init__.py
+  - from . import medication_miss_check  # noqa: F401
+
+h5-web/src/app/health-profile-v2/page.tsx
+  - 整页：GreenNavBar + 成员条 + Hero(渐变 brand-300→brand-600) + 粘性 Tab + 5 个 Tab 内容
+  - 11 级天蓝 Token 内联（T.brand50~brand800 + cardLineBlue/cardLineYellow + shadow + gradient）
+  - 病历卡组件 MedicalCard：白底 + 3px brand-400 左竖线（异常时变 yellow）+ 0 4px 16px rgba(56,189,248,0.08) 阴影
+  - 6 宫格今日数据（血压/血糖/心率/睡眠/血氧/用药）+ 点击进入 /health-metric/[type]
+  - 粘性 Tab 滚动联动（IntersectionObserver-like 滚动监听 + 1/3 屏阈值）
+
+h5-web/src/app/health-metric/[type]/page.tsx
+  - META 字典定义 5 个指标的字段 / 时段 / 主值
+  - DEVICE_LABELS 字典定义 5 类设备显示文案
+  - Hero 当前值卡 + 双按钮（手工填写主 60% / 绑定设备次 40%）+ 7 天趋势 SVG + 历史记录列表 + 设备列表
+  - 录入弹窗：Popup + 动态字段 + 时段胶囊选择 + 数字校验 + Toast 反馈
+  - 设备列表：active 显示「✓ 已绑定 解绑」、unbound 显示「立即绑定」蓝按钮、coming_soon 显示灰色「敬请期待」
+
+deploy/_deploy_prd468_20260512.py
+  - SFTP 上传 9 文件 → 10 项源码 grep 验证 →
+    docker compose build backend h5-web → up -d → 等容器 running →
+    curl 5 URL smoke（/health-profile-v2 + /health-metric/* + 2 个 API 401）
+
+deploy/_test_prd468_server.py
+  - 17 项服务器侧自动化测试：API 401 × 7、前端可达 × 2、源码标记 × 4、数据库表 × 3、scheduler 注册 × 1
+
+user_docs/健康档案改版_用户体验手册.md
+  - 面向用户的完整手册：开头/末尾访问链接 + 功能简介 + 6 步操作指引 + 注意事项 + 17 项测试用例
+```
+
+### 用户手册
+- `user_docs/健康档案改版_用户体验手册.md`
+
+---
+
+## Previous Update: PRD-467-AI-HOME-MORE-MENU-FIX-20260511｜AI 对话首页右上角「⋯」菜单三 Bug 修复（H5 单端，零后端改动）（2026-05-11 19:55）
 
 ### 一句话结论
 AI 对话首页（`/ai-home`）右上角「⋯」菜单存在三个用户可感知问题：① 「扫一扫」点击无响应；② 「字体大小」点击无响应；③ 弹出菜单卡片是纯白底色，与首页 `THEME.background` (#F0F9FF) 浅蓝主题割裂。根因：`MoreMenu` 组件已经提供了 `onScan` / `onFontSize` 两个可选 prop，但 `ai-home/page.tsx` 在调用时只传了 `onShare`，前两者未挂接到具体业务逻辑；视觉割裂是 `MoreMenu` 卡片硬编码 `background: THEME.cardBg`（白色）+ `borderBottom: THEME.divider`（#E5E7EB）所致。本次一次性闭环：① `MoreMenu.tsx` 将卡片底色改为 `THEME.background` (#F0F9FF)、分隔线改为 `#BAE6FD`（主题浅蓝点缀色）、加 `data-testid` 便于自动化测试；② `ai-home/page.tsx` 引入 `FontSizeLevel / FONT_SIZE_MAP / FONT_LABEL_MAP / FONT_TOAST_MAP` 常量（与「菜单模式·AI 健康咨询页」严格对齐：standard=14 / large=18 / extra_large=22），新增 `fontPopoverOpen` / `fontSizeLevel` state、`handleScan` / `handleFontSize` / `handleFontChange` 三个 callback；③ `handleScan` → `router.push('/scan')`；④ `handleFontSize` 未登录 Toast「请先登录」+ 跳登录页，已登录关闭⋯菜单并打开字号 popover；⑤ `handleFontChange` 立即生效 + Toast + 300ms debounce 调用 `PUT /api/user/font-setting`（失败回滚到上一档 + Toast「保存失败，请重试」）；⑥ 在 ⋯ 按钮 absolute 容器中渲染字号 popover（width=160 / 行高=40 / 背景=#F0F9FF / 边框=#BAE6FD / 朝上小三角），3 档左侧标签 + 右侧选中蓝色 ✓ 或未选灰色数值 `Npx`；⑦ 字号通过 `chatFontSize = FONT_SIZE_MAP[fontSizeLevel]` 应用到用户气泡（`fontSize: chatFontSize`）和 AI 正文（`.ai-fullwidth-message` 容器），与 PRD FR-04「仅作用于消息流气泡正文」严格一致；⑧ popover 外点击监听 + 与⋯菜单互斥（点⋯时若 popover 打开则先关闭再开菜单）；⑨ 复用既有后端接口 `/api/user/font-setting`，与会话页字号设置共享同一份用户偏好。
