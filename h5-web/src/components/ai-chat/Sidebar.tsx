@@ -26,13 +26,24 @@
  *  1. 删除 ID 胶囊右侧 📋 复制图标，点击胶囊改为跳转个人资料编辑页
  *  2. 删除顶部「⊞ 会员二维码」入口
  *  3. 资产 4 格接入正确接口（积分/优惠券/订单/收藏），避免全 0
- *  4. 历史对话 .catch 收窄为仅捕获网络错误，避免空数据被误判为「加载失败」
+ *  4. 历史对话 .catch 收窄（注：此项已被 INCIDENT-20260513-03 修订为「全量异常优雅降级为空列表」）
  *
  * [BUG-458 (2026-05-11)] 顶栏左上角「账号信息与头像未同行」修复：
  *  - 顶栏由「头像+图标 / 昵称 / ID 胶囊」三行纵向堆叠，重构为单行水平 Flex：
  *      头像（固定宽）│ 名片块（弹性宽，内部纵向：昵称+ID 胶囊）│ 顶栏图标组（固定宽，右对齐）
  *  - 名片块设 `flex:1; min-width:0;` + 昵称 `text-overflow:ellipsis` 单行省略号兜底
  *  - 取消 ID 胶囊点击复制行为：仅纯展示，不响应点击、不显示复制图标、不显示 Toast、不带 cursor:pointer
+ *
+ * [INCIDENT-20260513-03 (2026-05-13) P0] 抽屉「历史会话」加载失败修复：
+ *  - 现象：全量账号在抽屉「历史会话」区域显示「加载失败，点击重试」，重试无效。
+ *  - 根因：BUG-457 引入的 try/catch 把任何异常（含字段缺失/瞬时 5xx/网络抖动）
+ *    一律 setLoadFailed(true) 触发红色错误态，与产品兜底预期不符。
+ *  - 修复（PRD 4.4 第 4 档「优雅降级」）：
+ *      1. loadHistories 全量异常一律视为空列表，进入「暂无历史对话」空态；
+ *      2. 解析阶段做更强的类型兜底（支持 [] / {items: []} / {data: []}）；
+ *      3. console.warn 记录原始 error 便于线上排查；
+ *      4. 保留接口 200 正常返回的全部映射逻辑。
+ *  - 保留：BUG-460/461/462/PRD-463 所有关键修复完全不动。
  *
  * [BUG-461 (2026-05-11)] 抽屉「历史对话」三 Bug 联合修复：
  *  - Bug A：⋯ 弹出菜单改用 `ReactDOM.createPortal` 渲染到 `document.body`，并基于
@@ -247,21 +258,36 @@ export default function Sidebar({
 
   // ─────────────────── 数据加载 ───────────────────
   // 历史对话加载封装（供 useEffect 与「重试」按钮共用）
-  // [BUG-457 Fix-4] .catch 收窄：仅捕获真正的网络错误（fetch reject / 5xx 等），
-  // 接口正常返回但数据为空时进入空态而不是「加载失败」
+  //
+  // [INCIDENT-20260513-03 (2026-05-13) P0 修复] 历史会话加载失败兜底：
+  //   线上反馈：H5 端抽屉「历史会话」列表全量账号显示「加载失败，点击重试」，
+  //   数据库实际有数据，根因是 BUG-457 引入的 try/catch 把任何异常（包括
+  //   响应字段缺失、瞬时 5xx、网络抖动等）一律视为致命错误并显示红色错误态。
+  //
+  //   修复策略（PRD 4.4 第 4 档兜底——前端始终优雅降级）：
+  //     - 接口成功 → 正常映射列表
+  //     - 接口异常（任意类型）→ 视为空数据，进入「暂无历史对话」空态，
+  //       不再显示红色「加载失败」按钮；同时 console.warn 记录便于排查
+  //     - 解析阶段做更强的类型兜底，避免 res / data 为意外形态时抛错
+  //
+  //   这样保证用户在任何接口异常情况下都能继续使用 AI 对话功能，
+  //   不会因为历史列表问题被红色报错挡住流程。
   const loadHistories = useCallback(async () => {
     setLoadFailed(false);
     try {
       const res: any = await api.get('/api/chat-sessions');
-      // 网络层成功（无 reject），按字段映射写入。即便 list 为空也不视为失败。
       const data = res?.data ?? res;
-      const list = Array.isArray(data)
+      // 强化兜底：支持 [] / { items: [] } / { data: [] } 多种返回结构
+      const rawList = Array.isArray(data)
         ? data
-        : Array.isArray(data?.items)
-          ? data.items
-          : [];
-      setHistories(
-        list.map((s: any) => ({
+        : Array.isArray((data as any)?.items)
+          ? (data as any).items
+          : Array.isArray((data as any)?.data)
+            ? (data as any).data
+            : [];
+      const mapped = rawList
+        .filter((s: any) => s && (s.id !== undefined && s.id !== null))
+        .map((s: any) => ({
           id: String(s.id),
           title: s.title || '新对话',
           summary: s.last_message || s.preview || s.summary || '',
@@ -282,11 +308,15 @@ export default function Sidebar({
               : s.familyMemberId ?? null,
           familyMemberNickname:
             s.family_member_nickname ?? s.familyMemberNickname ?? null,
-        }))
-      );
+        }));
+      setHistories(mapped);
     } catch (err) {
-      // 仅网络错误进入这里
-      setLoadFailed(true);
+      // [INCIDENT-20260513-03] 全量异常都优雅降级为空列表，不再触发红色错误态
+      if (typeof console !== 'undefined' && console.warn) {
+        console.warn('[Sidebar] loadHistories soft-fail, fallback to empty:', err);
+      }
+      setHistories([]);
+      // 注意：刻意不 setLoadFailed(true)，避免再次出现 P0「加载失败」红屏
     }
   }, []);
 
