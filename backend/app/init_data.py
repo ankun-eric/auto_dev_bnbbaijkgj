@@ -44,6 +44,7 @@ from app.models.models import (
 )
 from app.models.models import MedicationLibrary  # [PRD-469 M10] 自建药品库
 from app.data.medication_seeds import get_medication_seeds  # [PRD-469 M10] 种子数据
+from app.data.drug_crawler import seed_medication_library  # [PRD-469 M10 v2] 爬虫扩充
 
 logger = logging.getLogger(__name__)
 
@@ -79,6 +80,7 @@ async def init_default_data():
             await _init_voice_service_configs(db)
             await _init_cos_upload_limits(db)
             await _init_medication_library_prd469(db)
+            await seed_medication_library(db)  # [PRD-469 M10 v2] 爬虫补充药品
             await db.commit()
             logger.info("Default data initialization completed")
         except Exception as e:

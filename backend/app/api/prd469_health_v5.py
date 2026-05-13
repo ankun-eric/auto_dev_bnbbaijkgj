@@ -24,12 +24,14 @@ from app.core.database import get_db
 from app.core.security import get_current_user
 from app.models.models import (
     DeviceBinding,
+    FamilyManagement,
     FamilyMember,
     HealthEvent,
     HealthInfoExtra,
     HealthProfile,
     MedicalRecordCard,
     MedicationLibrary,
+    MedicationReminder,
     ReminderSetting,
     User,
 )
@@ -554,6 +556,293 @@ async def update_reminder_setting(
 
 
 # ──────────────────────────────────────────────────────────
+# 家族病史独立 CRUD（M6 P0）
+# ──────────────────────────────────────────────────────────
+
+
+class FamilyHistoryItem(BaseModel):
+    relation: str = Field(..., min_length=1, max_length=32)
+    disease: str = Field(..., min_length=1, max_length=64)
+    note: Optional[str] = Field(None, max_length=128)
+
+
+@router.get("/health-info/{profile_id}/family-history")
+async def get_family_history(
+    profile_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    info = await _get_or_create_health_info(db, profile_id)
+    items = info.family_history or []
+    return {"items": items, "total": len(items)}
+
+
+@router.post("/health-info/{profile_id}/family-history")
+async def add_family_history(
+    profile_id: int,
+    body: FamilyHistoryItem,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    info = await _get_or_create_health_info(db, profile_id)
+    items = list(info.family_history or [])
+    items.append(body.model_dump())
+    info.family_history = items
+    await db.flush()
+    return {"message": "已添加", "items": items, "total": len(items)}
+
+
+@router.put("/health-info/{profile_id}/family-history/{item_index}")
+async def update_family_history(
+    profile_id: int,
+    item_index: int,
+    body: FamilyHistoryItem,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    info = await _get_or_create_health_info(db, profile_id)
+    items = list(info.family_history or [])
+    if item_index < 0 or item_index >= len(items):
+        raise HTTPException(status_code=404, detail="条目不存在")
+    items[item_index] = body.model_dump()
+    info.family_history = items
+    await db.flush()
+    return {"message": "已更新", "items": items, "total": len(items)}
+
+
+@router.delete("/health-info/{profile_id}/family-history/{item_index}")
+async def delete_family_history(
+    profile_id: int,
+    item_index: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    info = await _get_or_create_health_info(db, profile_id)
+    items = list(info.family_history or [])
+    if item_index < 0 or item_index >= len(items):
+        raise HTTPException(status_code=404, detail="条目不存在")
+    items.pop(item_index)
+    info.family_history = items
+    await db.flush()
+    return {"message": "已删除", "items": items, "total": len(items)}
+
+
+# ──────────────────────────────────────────────────────────
+# 手术史独立 CRUD（M6 P0）
+# ──────────────────────────────────────────────────────────
+
+
+class SurgeryHistoryItem(BaseModel):
+    name: str = Field(..., min_length=1, max_length=64)
+    time: Optional[str] = Field(None, max_length=32)
+    note: Optional[str] = Field(None, max_length=128)
+
+
+@router.get("/health-info/{profile_id}/surgery-history")
+async def get_surgery_history(
+    profile_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    info = await _get_or_create_health_info(db, profile_id)
+    items = info.surgery_history or []
+    return {"items": items, "total": len(items)}
+
+
+@router.post("/health-info/{profile_id}/surgery-history")
+async def add_surgery_history(
+    profile_id: int,
+    body: SurgeryHistoryItem,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    info = await _get_or_create_health_info(db, profile_id)
+    items = list(info.surgery_history or [])
+    items.append(body.model_dump())
+    info.surgery_history = items
+    await db.flush()
+    return {"message": "已添加", "items": items, "total": len(items)}
+
+
+@router.put("/health-info/{profile_id}/surgery-history/{item_index}")
+async def update_surgery_history(
+    profile_id: int,
+    item_index: int,
+    body: SurgeryHistoryItem,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    info = await _get_or_create_health_info(db, profile_id)
+    items = list(info.surgery_history or [])
+    if item_index < 0 or item_index >= len(items):
+        raise HTTPException(status_code=404, detail="条目不存在")
+    items[item_index] = body.model_dump()
+    info.surgery_history = items
+    await db.flush()
+    return {"message": "已更新", "items": items, "total": len(items)}
+
+
+@router.delete("/health-info/{profile_id}/surgery-history/{item_index}")
+async def delete_surgery_history(
+    profile_id: int,
+    item_index: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    info = await _get_or_create_health_info(db, profile_id)
+    items = list(info.surgery_history or [])
+    if item_index < 0 or item_index >= len(items):
+        raise HTTPException(status_code=404, detail="条目不存在")
+    items.pop(item_index)
+    info.surgery_history = items
+    await db.flush()
+    return {"message": "已删除", "items": items, "total": len(items)}
+
+
+# ──────────────────────────────────────────────────────────
+# M2 Hero 四格健康摘要统计（P1）
+# ──────────────────────────────────────────────────────────
+
+
+@router.get("/summary-stats/{profile_id}")
+async def get_summary_stats(
+    profile_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    info = await _get_or_create_health_info(db, profile_id)
+    chronic_count = len(info.chronic_diseases or [])
+    allergy_count = (
+        len(info.drug_allergies or [])
+        + len(info.food_allergies or [])
+        + len(info.other_allergies or [])
+    )
+    family_history_count = len(info.family_history or [])
+
+    med_count_q = await db.execute(
+        select(MedicationReminder).where(
+            MedicationReminder.user_id == current_user.id,
+            MedicationReminder.status == "active",
+        )
+    )
+    long_term_med_count = len(med_count_q.scalars().all())
+
+    return {
+        "chronic_count": chronic_count,
+        "allergy_count": allergy_count,
+        "family_history_count": family_history_count,
+        "long_term_med_count": long_term_med_count,
+    }
+
+
+# ──────────────────────────────────────────────────────────
+# M2 编辑基本信息（P1）
+# ──────────────────────────────────────────────────────────
+
+
+class ProfileBasicInfoUpdate(BaseModel):
+    name: Optional[str] = Field(None, max_length=64)
+    gender: Optional[str] = Field(None, max_length=8)
+    birthday: Optional[str] = None
+    height: Optional[float] = None
+    weight: Optional[float] = None
+    blood_type: Optional[str] = Field(None, max_length=8)
+
+
+@router.put("/profile/{profile_id}/basic-info")
+async def update_profile_basic_info(
+    profile_id: int,
+    body: ProfileBasicInfoUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(HealthProfile).where(
+            HealthProfile.id == profile_id,
+            HealthProfile.user_id == current_user.id,
+        )
+    )
+    profile = result.scalar_one_or_none()
+    if not profile:
+        raise HTTPException(status_code=404, detail="健康档案不存在")
+
+    data = body.model_dump(exclude_unset=True)
+    for k, v in data.items():
+        if k == "birthday" and v:
+            try:
+                from datetime import date as _date
+                v = _date.fromisoformat(v)
+            except ValueError:
+                raise HTTPException(status_code=400, detail="生日格式无效，请使用 YYYY-MM-DD")
+        setattr(profile, k, v)
+    await db.flush()
+    return {"message": "已保存", "profile_id": profile_id}
+
+
+# ──────────────────────────────────────────────────────────
+# M7 共管与权限（P1）
+# ──────────────────────────────────────────────────────────
+
+
+@router.get("/care-partners")
+async def list_care_partners(
+    profile_id: Optional[int] = Query(None),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    stmt = select(FamilyManagement).where(
+        FamilyManagement.user_id == current_user.id,
+        FamilyManagement.status == "active",
+    )
+    if profile_id is not None:
+        stmt = stmt.where(FamilyManagement.managed_member_id == profile_id)
+    result = await db.execute(stmt)
+    items = []
+    for m in result.scalars().all():
+        items.append({
+            "id": m.id,
+            "managed_member_id": m.managed_member_id,
+            "name": m.caregiver_name or "",
+            "relation": m.relation_type or "共管人",
+            "avatar": RELATION_AVATAR_MAP.get(m.relation_type, "🧑"),
+            "status": m.status,
+            "can_edit": m.can_edit if hasattr(m, "can_edit") and m.can_edit is not None else True,
+            "can_view": m.can_view if hasattr(m, "can_view") and m.can_view is not None else True,
+        })
+    return {"items": items, "total": len(items)}
+
+
+class CarePartnerPermissionUpdate(BaseModel):
+    can_edit: Optional[bool] = None
+    can_view: Optional[bool] = None
+
+
+@router.put("/care-partners/{management_id}/permissions")
+async def update_care_partner_permissions(
+    management_id: int,
+    body: CarePartnerPermissionUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(FamilyManagement).where(
+            FamilyManagement.id == management_id,
+            FamilyManagement.user_id == current_user.id,
+        )
+    )
+    mgmt = result.scalar_one_or_none()
+    if not mgmt:
+        raise HTTPException(status_code=404, detail="共管关系不存在")
+
+    data = body.model_dump(exclude_unset=True)
+    for k, v in data.items():
+        if hasattr(mgmt, k):
+            setattr(mgmt, k, v)
+    await db.flush()
+    return {"message": "权限已更新", "management_id": management_id}
+
+
+# ──────────────────────────────────────────────────────────
 # 病历卡 + OCR（M8 P0）
 # ──────────────────────────────────────────────────────────
 
@@ -815,8 +1104,6 @@ async def get_v5_summary(
     family_count = len(info.family_history or [])
 
     # 长期用药数量
-    from app.models.models import MedicationReminder
-
     med_count_q = await db.execute(
         select(MedicationReminder).where(
             MedicationReminder.user_id == current_user.id,

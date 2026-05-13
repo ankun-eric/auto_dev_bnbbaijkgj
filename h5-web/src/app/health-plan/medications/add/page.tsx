@@ -1,19 +1,8 @@
 'use client';
 
-/**
- * [PRD-469 v2 P0 M4] 添加用药提醒页（重做）
- * 关键新增字段：
- * - 每日次数（1-6 次）
- * - 自定义时间点（增删任意时间）
- * - 开始/结束日期（含「长期服用」开关）
- * - 提醒开关（默认开启）
- * - 关联疾病标签（多选）
- * - 拍照识药入口（调用 /api/ocr/recognize → /api/prd469/medication-library/ocr）
- */
-
 import { Suspense, useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Form, Input, Button, Toast, SpinLoading, TextArea, Picker, Switch } from 'antd-mobile';
+import { Form, Input, Button, Checkbox, Toast, SpinLoading, TextArea, Picker, Switch, Mask } from 'antd-mobile';
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 
@@ -28,9 +17,7 @@ interface DrugLibItem {
   disease_tags?: string[];
 }
 
-const DISEASE_PRESETS = ['高血压', '糖尿病', '高血脂', '冠心病', '脑卒中', '慢阻肺', '哮喘', '慢性肾病', '甲状腺', '痛风', '关节炎', '骨质疏松'];
-
-const FREQ_OPTIONS = [1, 2, 3, 4, 5, 6];
+const DISEASE_PRESETS = ['高血压', '糖尿病', '高血脂', '冠心病', '脑卒中', '哮喘', '慢阻肺', '痛风', '甲亢', '甲减'];
 
 const TIME_HOUR_COL = Array.from({ length: 24 }, (_, i) => {
   const v = String(i).padStart(2, '0');
@@ -41,19 +28,6 @@ const TIME_MINUTE_COL = Array.from({ length: 60 }, (_, i) => {
   return { label: v, value: v };
 });
 const TIME_PICKER_COLUMNS = [TIME_HOUR_COL, TIME_MINUTE_COL];
-
-const PERIOD_DEFAULTS: Record<number, string[]> = {
-  1: ['08:00'],
-  2: ['08:00', '20:00'],
-  3: ['08:00', '12:30', '20:00'],
-  4: ['08:00', '12:30', '18:00', '22:00'],
-  5: ['08:00', '11:00', '14:00', '18:00', '22:00'],
-  6: ['07:00', '10:00', '13:00', '16:00', '19:00', '22:00'],
-};
-
-function todayStr(): string {
-  return new Date().toISOString().slice(0, 10);
-}
 
 export default function MedicationAddPage() {
   return (
@@ -69,92 +43,70 @@ function MedicationAddContent() {
   const editId = searchParams.get('id');
   const isEdit = !!editId;
 
+  const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(isEdit);
   const [submitting, setSubmitting] = useState(false);
 
   const [name, setName] = useState('');
   const [dosage, setDosage] = useState('');
   const [note, setNote] = useState('');
-
-  // P0 新字段
-  const [frequency, setFrequency] = useState<number>(1);
-  const [customTimes, setCustomTimes] = useState<string[]>(['08:00']);
-  const [startDate, setStartDate] = useState<string>(todayStr());
-  const [endDate, setEndDate] = useState<string>('');
-  const [longTerm, setLongTerm] = useState<boolean>(false);
-  const [reminderEnabled, setReminderEnabled] = useState<boolean>(true);
-  const [diseaseTags, setDiseaseTags] = useState<string[]>([]);
-  const [customDisease, setCustomDisease] = useState<string>('');
-
   const [drugSuggestions, setDrugSuggestions] = useState<DrugLibItem[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedDrugMeta, setSelectedDrugMeta] = useState<DrugLibItem | null>(null);
   const searchTimer = useRef<any>(null);
 
-  const [timePickerIdx, setTimePickerIdx] = useState<number | null>(null);
+  const [dailyTimes, setDailyTimes] = useState(1);
+  const [customTimes, setCustomTimes] = useState<string[]>(['08:00']);
+  const [timePickerVisible, setTimePickerVisible] = useState<number | null>(null);
+  const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10));
+  const [isLongTerm, setIsLongTerm] = useState(true);
+  const [endDate, setEndDate] = useState('');
+  const [reminderEnabled, setReminderEnabled] = useState(true);
+  const [diseaseTags, setDiseaseTags] = useState<string[]>([]);
+  const [customDisease, setCustomDisease] = useState('');
 
-  const fileRef = useRef<HTMLInputElement | null>(null);
-  const [ocrLoading, setOcrLoading] = useState(false);
+  useEffect(() => {
+    if (dailyTimes > customTimes.length) {
+      const newTimes = [...customTimes];
+      while (newTimes.length < dailyTimes) {
+        newTimes.push('08:00');
+      }
+      setCustomTimes(newTimes);
+    } else if (dailyTimes < customTimes.length) {
+      setCustomTimes(customTimes.slice(0, dailyTimes));
+    }
+  }, [dailyTimes]);
 
   useEffect(() => {
     if (!editId) return;
-    const fetchMed = async () => {
+    const fetchMedication = async () => {
       try {
         const res: any = await api.get(`/api/health-plan/medications/${editId}`);
-        const d = res.data || res;
-        setName(d.medicine_name || '');
-        setDosage(d.dosage || '');
-        setNote(d.notes || '');
-        if (Array.isArray(d.custom_times) && d.custom_times.length > 0) {
-          setCustomTimes(d.custom_times);
-          setFrequency(d.frequency_per_day || d.custom_times.length);
-        } else if (d.remind_time) {
-          setCustomTimes([d.remind_time]);
-          setFrequency(d.frequency_per_day || 1);
+        const data = res.data || res;
+        setName(data.medicine_name || '');
+        setDosage(data.dosage || '');
+        setNote(data.notes || '');
+        if (data.custom_times && Array.isArray(data.custom_times) && data.custom_times.length > 0) {
+          setCustomTimes(data.custom_times);
+          setDailyTimes(data.custom_times.length);
+        } else if (data.time_period && data.remind_time) {
+          setCustomTimes([data.remind_time]);
+          setDailyTimes(1);
         }
-        if (d.start_date) setStartDate(d.start_date);
-        if (d.end_date) setEndDate(d.end_date);
-        if (typeof d.long_term === 'boolean') setLongTerm(d.long_term);
-        if (typeof d.reminder_enabled === 'boolean') setReminderEnabled(d.reminder_enabled);
-        if (Array.isArray(d.disease_tags)) setDiseaseTags(d.disease_tags);
+        if (data.start_date) setStartDate(data.start_date);
+        if (data.end_date) { setEndDate(data.end_date); setIsLongTerm(false); }
+        if (data.long_term !== undefined) setIsLongTerm(data.long_term);
+        if (data.reminder_enabled !== undefined) setReminderEnabled(data.reminder_enabled);
+        if (data.disease_tags) setDiseaseTags(data.disease_tags);
+        if (data.frequency_per_day) setDailyTimes(data.frequency_per_day);
       } catch {
         Toast.show({ content: '加载失败', icon: 'fail' });
       } finally {
         setFetching(false);
       }
     };
-    fetchMed();
+    fetchMedication();
   }, [editId]);
-
-  const handleFreqChange = (n: number) => {
-    setFrequency(n);
-    if (customTimes.length === 0 || customTimes.length !== n) {
-      setCustomTimes(PERIOD_DEFAULTS[n] || Array(n).fill('08:00'));
-    }
-  };
-
-  const updateTimeAt = (idx: number, val: string) => {
-    setCustomTimes((prev) => prev.map((t, i) => (i === idx ? val : t)));
-  };
-
-  const addCustomTime = () => {
-    if (customTimes.length >= 6) {
-      Toast.show({ content: '最多 6 个时间点', icon: 'fail' });
-      return;
-    }
-    setCustomTimes([...customTimes, '08:00']);
-    setFrequency(customTimes.length + 1);
-  };
-
-  const removeCustomTime = (idx: number) => {
-    if (customTimes.length <= 1) {
-      Toast.show({ content: '至少保留 1 个时间点', icon: 'fail' });
-      return;
-    }
-    const next = customTimes.filter((_, i) => i !== idx);
-    setCustomTimes(next);
-    setFrequency(next.length);
-  };
 
   const handleNameChange = (val: string) => {
     setName(val);
@@ -183,53 +135,75 @@ function MedicationAddContent() {
     setName(drug.name);
     setSelectedDrugMeta(drug);
     setShowSuggestions(false);
-    // 自动填充关联疾病标签
-    if (drug.disease_tags && drug.disease_tags.length > 0) {
-      const merged = Array.from(new Set([...diseaseTags, ...drug.disease_tags]));
-      setDiseaseTags(merged);
-    }
   };
 
-  const toggleDisease = (d: string) => {
-    setDiseaseTags((prev) => (prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d]));
+  const handlePhotoRecognition = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.capture = 'environment';
+    input.onchange = async (e: any) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      Toast.show({ content: '正在识别…', icon: 'loading', duration: 0 });
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        const ocrRes: any = await api.post('/api/ocr/recognize', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        const ocrText = (ocrRes.data || ocrRes)?.text || '';
+        if (ocrText) {
+          const matchRes: any = await api.post('/api/prd469/medication-library/ocr', { image_text: ocrText });
+          const items = (matchRes.data || matchRes)?.items || [];
+          if (items.length > 0) {
+            setName(items[0].name);
+            setSelectedDrugMeta(items[0]);
+            Toast.show({ content: `识别结果：${items[0].name}`, icon: 'success' });
+          } else {
+            Toast.show({ content: '未识别到药品，请手动输入', icon: 'fail' });
+          }
+        }
+      } catch {
+        Toast.show({ content: '识别失败', icon: 'fail' });
+      } finally {
+        Toast.clear();
+      }
+    };
+    input.click();
+  };
+
+  const toggleDiseaseTag = (tag: string) => {
+    setDiseaseTags((prev) =>
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
+    );
   };
 
   const addCustomDisease = () => {
-    const d = customDisease.trim();
-    if (!d) return;
-    if (!diseaseTags.includes(d)) setDiseaseTags([...diseaseTags, d]);
+    const val = customDisease.trim();
+    if (!val) return;
+    if (diseaseTags.includes(val)) { setCustomDisease(''); return; }
+    setDiseaseTags([...diseaseTags, val]);
     setCustomDisease('');
   };
 
-  const handleOcr = async (file: File) => {
-    setOcrLoading(true);
-    try {
-      const fd = new FormData();
-      fd.append('file', file);
-      // 1) 通用 OCR 识别图片
-      const ocrRes: any = await api.post('/api/ocr/recognize', fd, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      const ocrData = ocrRes?.data || ocrRes;
-      const text = ocrData?.text || ocrData?.ocr_text || '';
-      if (!text) {
-        Toast.show({ content: 'OCR 未识别到内容', icon: 'fail' });
-        return;
-      }
-      // 2) 在药品库做匹配
-      const matchRes: any = await api.post('/api/prd469/medication-library/ocr', { image_text: text });
-      const items: DrugLibItem[] = (matchRes?.data?.items) || matchRes?.items || [];
-      if (items.length === 0) {
-        Toast.show({ content: '未在药品库匹配到药品', icon: 'fail' });
-        return;
-      }
-      pickDrug(items[0]);
-      Toast.show({ content: `识别到「${items[0].name}」`, icon: 'success' });
-    } catch (e) {
-      Toast.show({ content: '识别失败', icon: 'fail' });
-    } finally {
-      setOcrLoading(false);
-    }
+  const updateCustomTime = (index: number, time: string) => {
+    const newTimes = [...customTimes];
+    newTimes[index] = time;
+    setCustomTimes(newTimes);
+  };
+
+  const removeTimeSlot = (index: number) => {
+    if (customTimes.length <= 1) return;
+    const newTimes = customTimes.filter((_, i) => i !== index);
+    setCustomTimes(newTimes);
+    setDailyTimes(newTimes.length);
+  };
+
+  const addTimeSlot = () => {
+    if (customTimes.length >= 6) return;
+    setCustomTimes([...customTimes, '08:00']);
+    setDailyTimes(customTimes.length + 1);
   };
 
   const handleSubmit = async () => {
@@ -238,25 +212,25 @@ function MedicationAddContent() {
       return;
     }
     if (customTimes.length === 0) {
-      Toast.show({ content: '请至少设置 1 个用药时间点', icon: 'fail' });
+      Toast.show({ content: '请设置至少一个服药时间', icon: 'fail' });
       return;
     }
 
     setSubmitting(true);
     try {
-      const payload: any = {
+      const payload = {
         medicine_name: name.trim(),
         dosage: dosage.trim(),
         notes: note.trim(),
-        time_period: '',
-        remind_time: customTimes[0] || '',
-        frequency_per_day: frequency,
+        time_period: 'custom',
+        remind_time: customTimes[0] || '08:00',
+        frequency_per_day: dailyTimes,
         custom_times: customTimes,
-        start_date: startDate || undefined,
-        end_date: longTerm ? undefined : (endDate || undefined),
-        long_term: longTerm,
+        start_date: startDate || null,
+        end_date: isLongTerm ? null : (endDate || null),
+        long_term: isLongTerm,
         reminder_enabled: reminderEnabled,
-        disease_tags: diseaseTags,
+        disease_tags: diseaseTags.length > 0 ? diseaseTags : null,
       };
 
       if (isEdit) {
@@ -268,9 +242,7 @@ function MedicationAddContent() {
       }
       try {
         sessionStorage.setItem('medication_changed', String(Date.now()));
-      } catch {
-        /* 忽略 */
-      }
+      } catch {}
       router.back();
     } catch {
       Toast.show({ content: '保存失败', icon: 'fail' });
@@ -291,51 +263,33 @@ function MedicationAddContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-32" data-testid="prd469-med-add-page">
+    <div className="min-h-screen bg-gray-50 pb-24">
       <GreenNavBar>{isEdit ? '编辑用药提醒' : '添加用药提醒'}</GreenNavBar>
 
-      <div className="px-4 pt-4 space-y-3">
-        {/* 药品信息卡 */}
-        <div className="bg-white rounded-xl p-4" style={{ borderLeft: '3px solid #22c55e' }}>
-          <div className="text-base font-semibold text-gray-800 mb-3">药品信息</div>
-
-          {/* 拍照识药入口 */}
-          <button
-            data-testid="prd469-ocr-btn"
-            onClick={() => fileRef.current?.click()}
-            disabled={ocrLoading}
-            style={{
-              width: '100%', padding: '10px 12px', borderRadius: 10,
-              background: 'linear-gradient(135deg, #4ade80, #16a34a)', color: '#fff',
-              border: 'none', fontSize: 14, fontWeight: 600, marginBottom: 12,
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-            }}
-          >
-            {ocrLoading ? '识别中…' : '📷 拍照识药（OCR 自动识别药名）'}
-          </button>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            style={{ display: 'none' }}
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) handleOcr(f);
-              e.target.value = '';
-            }}
-          />
-
+      <div className="px-4 pt-4">
+        <div className="card">
+          <div className="section-title">药品信息</div>
           <Form layout="vertical">
             <Form.Item label={<><span style={{ color: 'red' }}>*</span> 药品名称（支持联想搜索）</>}>
               <div style={{ position: 'relative' }}>
-                <Input
-                  data-testid="prd469-input-medname"
-                  placeholder="如：阿司匹林"
-                  value={name}
-                  onChange={handleNameChange}
-                  clearable
-                />
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <Input
+                    placeholder="如：阿司匹林"
+                    value={name}
+                    onChange={handleNameChange}
+                    clearable
+                    style={{ flex: 1 }}
+                  />
+                  <button
+                    onClick={handlePhotoRecognition}
+                    data-testid="prd469-photo-recognize-btn"
+                    style={{
+                      padding: '8px 12px', background: '#16a34a', color: '#fff',
+                      borderRadius: 8, border: 'none', fontSize: 16, cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >📷 拍照识药</button>
+                </div>
                 {showSuggestions && drugSuggestions.length > 0 && (
                   <div
                     data-testid="prd469-drug-suggestions"
@@ -350,7 +304,11 @@ function MedicationAddContent() {
                       <div
                         key={d.id}
                         onClick={() => pickDrug(d)}
-                        style={{ padding: '10px 12px', cursor: 'pointer', borderBottom: '1px solid #f3f4f6' }}
+                        data-testid={`prd469-drug-option-${d.id}`}
+                        style={{
+                          padding: '10px 12px', cursor: 'pointer',
+                          borderBottom: '1px solid #f3f4f6',
+                        }}
                       >
                         <div style={{ fontSize: 14, fontWeight: 600, color: '#1f2937' }}>
                           {d.name}{d.generic_name && d.generic_name !== d.name ? `（${d.generic_name}）` : ''}
@@ -370,150 +328,132 @@ function MedicationAddContent() {
                 </div>
               )}
             </Form.Item>
-
             <Form.Item label="用药剂量">
               <Input placeholder="如：1片、2粒、5ml" value={dosage} onChange={setDosage} clearable />
             </Form.Item>
-
             <Form.Item label="备注">
               <TextArea placeholder="如：饭后服用、需空腹" value={note} onChange={setNote} rows={2} maxLength={200} showCount />
             </Form.Item>
           </Form>
         </div>
 
-        {/* 每日次数 + 自定义时间点 */}
-        <div className="bg-white rounded-xl p-4" style={{ borderLeft: '3px solid #22c55e' }}>
-          <div className="text-base font-semibold text-gray-800 mb-2">
-            <span style={{ color: 'red' }}>*</span> 每日次数
+        <div className="card">
+          <div className="section-title">
+            <span style={{ color: 'red' }}>*</span> 服药时间设置
           </div>
-          <div className="flex gap-2 mb-4 flex-wrap" data-testid="prd469-frequency-row">
-            {FREQ_OPTIONS.map((n) => {
-              const active = frequency === n;
-              return (
-                <button
-                  key={n}
-                  data-testid={`prd469-freq-${n}`}
-                  onClick={() => handleFreqChange(n)}
-                  style={{
-                    minWidth: 56, padding: '8px 14px', borderRadius: 18,
-                    background: active ? '#22c55e' : '#f3f4f6',
-                    color: active ? '#fff' : '#374151',
-                    border: 'none', fontSize: 14, fontWeight: 600, cursor: 'pointer',
-                  }}
-                >{n} 次</button>
-              );
-            })}
-          </div>
-
-          <div className="text-sm font-semibold text-gray-700 mb-2 flex items-center justify-between">
-            <span>提醒时间点</span>
-            <button
-              data-testid="prd469-add-time"
-              onClick={addCustomTime}
-              style={{
-                padding: '4px 10px', borderRadius: 12, background: '#dcfce7', color: '#16a34a',
-                border: 'none', fontSize: 12, fontWeight: 600,
-              }}
-            >+ 添加时间</button>
-          </div>
-          <div className="space-y-2">
-            {customTimes.map((t, idx) => (
-              <div
-                key={idx}
-                className="flex items-center gap-2 p-2 rounded-lg"
-                style={{ background: '#f9fafb' }}
-              >
-                <span className="text-sm text-gray-500" style={{ width: 50 }}>第{idx + 1}次</span>
-                <button
-                  data-testid={`prd469-time-${idx}`}
-                  onClick={() => setTimePickerIdx(idx)}
-                  style={{
-                    flex: 1, padding: '8px 12px', borderRadius: 8,
-                    background: '#fff', border: '1px solid #d1d5db',
-                    fontSize: 14, color: '#1f2937', textAlign: 'left',
-                  }}
-                >{t}</button>
-                {customTimes.length > 1 && (
-                  <button
-                    onClick={() => removeCustomTime(idx)}
-                    style={{
-                      padding: '4px 10px', borderRadius: 8, background: '#fee2e2', color: '#dc2626',
-                      border: 'none', fontSize: 12,
-                    }}
-                  >删除</button>
-                )}
-              </div>
+          <div className="text-xs text-gray-400 mb-3">选择每日服药次数和时间点</div>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+            <span style={{ fontSize: 12, color: '#6b7280', marginRight: 4, alignSelf: 'center' }}>每日次数：</span>
+            {[1, 2, 3, 4, 5, 6].map((n) => (
+              <button
+                key={n}
+                onClick={() => setDailyTimes(n)}
+                data-testid={`prd469-daily-times-${n}`}
+                style={{
+                  width: 36, height: 36, borderRadius: 8,
+                  background: dailyTimes === n ? '#22c55e' : '#f3f4f6',
+                  color: dailyTimes === n ? '#fff' : '#374151',
+                  border: 'none', fontSize: 14, fontWeight: 600, cursor: 'pointer',
+                }}
+              >{n}</button>
             ))}
           </div>
-        </div>
 
-        {/* 用药日期 */}
-        <div className="bg-white rounded-xl p-4" style={{ borderLeft: '3px solid #22c55e' }}>
-          <div className="text-base font-semibold text-gray-800 mb-3">用药周期</div>
-
-          <div className="mb-3">
-            <div className="text-sm text-gray-500 mb-1">开始日期</div>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              data-testid="prd469-start-date"
-              style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: 14, boxSizing: 'border-box' }}
-            />
-          </div>
-
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-gray-700">长期服用（无截止日）</span>
-            <Switch
-              data-testid="prd469-long-term"
-              checked={longTerm}
-              onChange={setLongTerm}
-              style={{ '--checked-color': '#22c55e' } as React.CSSProperties}
-            />
-          </div>
-
-          {!longTerm && (
-            <div>
-              <div className="text-sm text-gray-500 mb-1">结束日期</div>
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                data-testid="prd469-end-date"
-                style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: 14, boxSizing: 'border-box' }}
-              />
+          {customTimes.map((time, idx) => (
+            <div key={idx} className="mb-3">
+              <div
+                style={{
+                  display: 'flex', alignItems: 'center', padding: '12px 14px',
+                  borderRadius: 12, background: '#22c55e10', border: '1px solid #22c55e30',
+                }}
+              >
+                <span style={{ fontSize: 18, marginRight: 10 }}>⏰</span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: '#374151', minWidth: 50 }}>
+                  服药 {idx + 1}
+                </span>
+                <div
+                  role="button"
+                  tabIndex={0}
+                  data-testid={`prd469-time-slot-${idx}`}
+                  style={{
+                    fontSize: 15, fontWeight: 600, color: '#22c55e',
+                    padding: '6px 12px', borderRadius: 8,
+                    border: '1px solid #22c55e40', background: '#fff',
+                    cursor: 'pointer', marginLeft: 8,
+                  }}
+                  onClick={() => setTimePickerVisible(idx)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setTimePickerVisible(idx); }}
+                >{time}</div>
+                {customTimes.length > 1 && (
+                  <button
+                    onClick={() => removeTimeSlot(idx)}
+                    data-testid={`prd469-remove-time-${idx}`}
+                    style={{
+                      marginLeft: 'auto', width: 28, height: 28, borderRadius: '50%',
+                      background: '#fee2e2', color: '#ef4444', border: 'none',
+                      fontSize: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}
+                  >×</button>
+                )}
+              </div>
             </div>
+          ))}
+          {customTimes.length < 6 && (
+            <button
+              onClick={addTimeSlot}
+              data-testid="prd469-add-time-slot"
+              style={{
+                width: '100%', padding: '10px 0', borderRadius: 12,
+                background: '#f0fdf4', color: '#22c55e', border: '1px dashed #22c55e',
+                fontSize: 14, fontWeight: 600, cursor: 'pointer',
+              }}
+            >+ 添加服药时间</button>
           )}
         </div>
 
-        {/* 提醒开关 */}
-        <div className="bg-white rounded-xl p-4 flex items-center justify-between" style={{ borderLeft: '3px solid #22c55e' }}>
-          <div>
-            <div className="text-base font-semibold text-gray-800">🔔 服药提醒</div>
-            <div className="text-xs text-gray-500 mt-1">按设置的时间点推送站内/微信提醒</div>
+        <div className="card">
+          <div className="section-title">日期设置</div>
+          <Form.Item label="开始日期">
+            <input
+              type="date" value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              data-testid="prd469-start-date"
+              style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 14, boxSizing: 'border-box' }}
+            />
+          </Form.Item>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0' }}>
+            <span style={{ fontSize: 14, color: '#374151' }}>长期服用</span>
+            <Switch checked={isLongTerm} onChange={setIsLongTerm} />
           </div>
-          <Switch
-            data-testid="prd469-reminder-switch"
-            checked={reminderEnabled}
-            onChange={setReminderEnabled}
-            style={{ '--checked-color': '#22c55e' } as React.CSSProperties}
-          />
+          {!isLongTerm && (
+            <Form.Item label="结束日期">
+              <input
+                type="date" value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                data-testid="prd469-end-date"
+                style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 14, boxSizing: 'border-box' }}
+              />
+            </Form.Item>
+          )}
         </div>
 
-        {/* 关联疾病 */}
-        <div className="bg-white rounded-xl p-4" style={{ borderLeft: '3px solid #22c55e' }}>
-          <div className="text-base font-semibold text-gray-800 mb-2">关联疾病（多选）</div>
-          <div className="text-xs text-gray-500 mb-3">
-            标记此药用于治疗哪些疾病，便于在病历卡 / 健康事件中关联展示
+        <div className="card">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0' }}>
+            <span style={{ fontSize: 15, fontWeight: 500 }}>🔔 开启用药提醒</span>
+            <Switch checked={reminderEnabled} onChange={setReminderEnabled} />
           </div>
-          <div className="flex gap-2 flex-wrap mb-3" data-testid="prd469-disease-tags">
+        </div>
+
+        <div className="card">
+          <div className="section-title">关联疾病（可选）</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
             {DISEASE_PRESETS.map((d) => {
               const active = diseaseTags.includes(d);
               return (
                 <button
                   key={d}
-                  data-testid={`prd469-disease-${d}`}
-                  onClick={() => toggleDisease(d)}
+                  onClick={() => toggleDiseaseTag(d)}
+                  data-testid={`prd469-disease-tag-${d}`}
                   style={{
                     padding: '6px 12px', borderRadius: 14,
                     background: active ? '#22c55e' : '#f3f4f6',
@@ -524,80 +464,53 @@ function MedicationAddContent() {
               );
             })}
           </div>
-          {/* 自定义疾病 */}
-          <div className="flex gap-2">
+          <div style={{ display: 'flex', gap: 8 }}>
             <input
-              type="text"
-              placeholder="自定义疾病名"
-              value={customDisease}
+              type="text" value={customDisease}
               onChange={(e) => setCustomDisease(e.target.value)}
-              style={{ flex: 1, padding: '8px 10px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: 13 }}
+              placeholder="自定义疾病名称"
+              style={{ flex: 1, padding: '8px 10px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 13, boxSizing: 'border-box' }}
+              onKeyDown={(e) => { if (e.key === 'Enter') addCustomDisease(); }}
             />
             <button
               onClick={addCustomDisease}
-              style={{ padding: '8px 14px', borderRadius: 8, background: '#22c55e', color: '#fff', border: 'none', fontSize: 13 }}
+              style={{ padding: '8px 16px', borderRadius: 8, background: '#22c55e', color: '#fff', border: 'none', fontSize: 13, cursor: 'pointer' }}
             >添加</button>
           </div>
-          {diseaseTags.length > 0 && (
-            <div className="mt-3 flex gap-2 flex-wrap">
-              {diseaseTags.filter((d) => !DISEASE_PRESETS.includes(d)).map((d) => (
-                <span
-                  key={d}
-                  style={{ padding: '4px 10px', borderRadius: 12, background: '#dcfce7', color: '#166534', fontSize: 12 }}
-                >
-                  {d}
-                  <span
-                    onClick={() => toggleDisease(d)}
-                    style={{ marginLeft: 6, cursor: 'pointer', color: '#9ca3af' }}
-                  >×</span>
-                </span>
-              ))}
-            </div>
-          )}
         </div>
       </div>
 
-      {/* 时间选择器 */}
       <Picker
         columns={TIME_PICKER_COLUMNS}
-        visible={timePickerIdx !== null}
+        visible={timePickerVisible !== null}
         title="选择提醒时间"
         value={
-          timePickerIdx !== null
+          timePickerVisible !== null
             ? (() => {
-                const [h = '08', m = '00'] = (customTimes[timePickerIdx] || '08:00').split(':');
+                const raw = customTimes[timePickerVisible] || '08:00';
+                const [h = '00', m = '00'] = raw.split(':');
                 return [h.padStart(2, '0'), m.padStart(2, '0')];
               })()
             : undefined
         }
-        onClose={() => setTimePickerIdx(null)}
-        onCancel={() => setTimePickerIdx(null)}
+        onClose={() => setTimePickerVisible(null)}
+        onCancel={() => setTimePickerVisible(null)}
         onConfirm={(val) => {
-          if (timePickerIdx !== null) {
+          if (timePickerVisible !== null) {
             const [h, m] = val as string[];
-            updateTimeAt(timePickerIdx, `${h}:${m}`);
+            updateCustomTime(timePickerVisible, `${h}:${m}`);
           }
-          setTimePickerIdx(null);
+          setTimePickerVisible(null);
         }}
       />
 
-      {/* 底部保存按钮 */}
-      <div
-        className="fixed bottom-0 left-0 right-0 p-4 bg-white"
-        style={{
-          maxWidth: 750,
-          margin: '0 auto',
-          boxShadow: '0 -2px 8px rgba(0,0,0,0.06)',
-          paddingBottom: 'calc(16px + env(safe-area-inset-bottom))',
-        }}
-      >
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white" style={{ maxWidth: 750, margin: '0 auto', boxShadow: '0 -2px 8px rgba(0,0,0,0.06)', paddingBottom: 'calc(16px + env(safe-area-inset-bottom))' }}>
         <Button
           block
           color="primary"
           size="large"
           loading={submitting}
-          data-testid="prd469-save-medication"
-          style={{ borderRadius: 12, background: 'linear-gradient(135deg, #4ade80, #16a34a)', border: 'none', height: 48 }}
+          style={{ borderRadius: 12, background: 'linear-gradient(135deg, #22c55e, #16a34a)', border: 'none', height: 48 }}
           onClick={handleSubmit}
         >
           {isEdit ? '保存修改' : '添加用药提醒'}

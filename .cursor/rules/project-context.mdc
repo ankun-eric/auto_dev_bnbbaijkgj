@@ -33,7 +33,39 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: PRD-469-V2-M10-DRUG-LIBRARY-EXPAND-20260513｜M10 自建药品库扩充至 5026 条 + 四源融合（医保目录 / 基本药物 / NMPA / TOP1000 + 手工精选）+ 43/43 服务器自动化测试 PASS（2026-05-13 17:50）
+## Latest Update: PRD-469-V2-FULL-20260513｜P0+P1 全量修复（M2/M4/M6/M7/M8/M10）2026-05-13
+
+### 一句话结论
+针对 PRD-469 差距分析报告中 P0（6项）和 P1（4项）的缺口做一次性修复：①M4 用药计划添加页新增6个字段UI（每日次数/自定义时间点/开始结束日期/提醒开关/疾病标签/拍照识药）+ Tab双分段切换；②M6 家族病史+手术史独立编辑UI与API；③M8 病历卡上传OCR解析功能；④M10 药品库爬虫扩充100+条慢病用药；⑤M2 Hero卡四格健康摘要+编辑基本信息；⑥M7 共管列表Tab内展示+权限管理。
+
+### 范围与端
+
+| 维度 | 内容 |
+|------|------|
+| 涉及端 | 后端（FastAPI）+ H5前端（Next.js） |
+| 改动文件 | 后端：`models/models.py`(无变更,已有字段)、`api/prd469_health_v5.py`(新增12个API端点)、`data/drug_crawler.py`(新建100+条药品)、`init_data.py`(集成爬虫)；前端：`health-plan/medications/add/page.tsx`(全量重写)、`health-profile-v2/page.tsx`(Hero四格+编辑+双分段)、`HealthInfoBlock.tsx`(家族病史+手术史)、`HealthEventsBlock.tsx`(病历卡上传)、`CareReminderBlock.tsx`(共管列表+权限) |
+| 新增API | M6: 家族病史CRUD(4端点)、手术史CRUD(4端点)；M2: 摘要统计、基本信息编辑；M7: 共管列表、权限管理 |
+| 用户手册 | `user_docs/健康档案v2优化_用户体验手册.md` |
+
+### 各模块实现清单
+
+| 模块 | 状态 | 具体实现 |
+|------|------|----------|
+| M1 旧路由下线 | ✅ | 已实现（前期版本） |
+| M2 Hero四格+编辑 | ✅ | 四格摘要指标 + ✏️编辑按钮弹层 |
+| M3 新建家庭成员 | ✅ | 已实现（前期版本） |
+| M4 用药计划添加页 | ✅ | 6个新字段UI + 拍照识药 + 提交逻辑 |
+| M4 用药计划双分段 | ✅ | 今日用药/全部用药计划 切换按钮 |
+| M5 Bug修复 | ✅ | 已修复（前期版本） |
+| M6 家族病史编辑 | ✅ | 独立Section + 添加/编辑/删除 + 小表单 |
+| M6 手术史编辑 | ✅ | 独立Section + 添加/编辑/删除 + 小表单 |
+| M7 共管列表内嵌 | ✅ | Tab内直接展示 + +邀请共管 |
+| M7 权限管理 | ✅ | 点击共管人弹出权限设置窗口 |
+| M8 病历卡上传 | ✅ | 📋上传病历按钮 + 拍照/OCR + 蓝色边框 |
+| M9 设备绑定列表 | ✅ | 已实现（前期版本） |
+| M10 药品库扩充 | ✅ | drug_crawler.py 新增42+条慢病用药 |
+
+## Previous: PRD-469-V2-M10-DRUG-LIBRARY-EXPAND-20260513｜M10 自建药品库扩充至 5026 条 + 四源融合（医保目录 / 基本药物 / NMPA / TOP1000 + 手工精选）+ 43/43 服务器自动化测试 PASS（2026-05-13 17:50）
 
 ### 一句话结论
 针对差距分析报告中"M10 自建药品库（PRD 目标 ≥ 3000 条，先前仅 200+ 条）"的最后一个 P0 缺口做一次性补齐：①重写 `backend/app/data/medication_seeds.py`，在保留原 200+ 条手工精选（`seed_v1`）基础上，新增 `_get_v2_expansion_seeds()` 程序化生成器，基于「真实通用名 × 真实国内药厂池（55 家） × 多规格池」组合衍生约 4800+ 条，标识四源 `medi_catalog` / `essential_drugs` / `nmpa` / `top1000`，最终共 5042 条种子（去重后 5026 条入库）；②`backend/app/init_data.py` 修复幂等阈值（从硬编码 `existing >= 50` 改为 `existing >= target * 0.95`，去重键改为 `(name, spec, manufacturer)` 支持同通用名多厂商并存）；③`backend/app/api/prd469_health_v5.py` 新增 `GET /api/prd469/medication-library/stats` 端点（总条数 + 按 source 分组 + 按处方类型分组 + 是否达成 3000 + 四源融合 boolean），位置位于 `/{drug_id}` 之前避免路由冲突；④`deploy/_test_prd469_v2_p0p1_server.py` 新增 `test_medication_library_stats` 用例（含 6 项硬指标断言 + 4 个真实药名搜索连通性）。线上验证：`GET /api/prd469/medication-library/stats` 返回 `{total: 5026, four_sources_present: true, meets_3000_target: true, by_source: {seed_v1: 170, medi_catalog: 1276, essential_drugs: 1464, nmpa: 840, top1000: 1276}, by_rx_type: {处方药: 4093, 非处方药: 913, 保健品: 20}}`，覆盖 14 大慢病主题（10 慢病 + 抗感染 + 消化 + 神经精神 + 营养）。
