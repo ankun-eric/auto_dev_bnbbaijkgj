@@ -2266,6 +2266,14 @@ class MedicationReminder(Base):
     is_paused = mapped_column(Boolean, default=False)
     status = mapped_column(String(20), default="active")
     created_at = mapped_column(DateTime, default=datetime.utcnow)
+    # [PRD-469 v2 P0] 新增字段：每日次数 / 自定义时间点 / 开始结束日期 / 长期服用 / 提醒开关 / 关联疾病
+    frequency_per_day = mapped_column(Integer, nullable=True)
+    custom_times = mapped_column(JSON, nullable=True)  # ["08:00", "12:30", ...]
+    start_date = mapped_column(Date, nullable=True)
+    end_date = mapped_column(Date, nullable=True)
+    long_term = mapped_column(Boolean, default=False)
+    reminder_enabled = mapped_column(Boolean, default=True)
+    disease_tags = mapped_column(JSON, nullable=True)  # ["高血压", "糖尿病"]
 
     user = relationship("User")
     check_ins = relationship("MedicationCheckIn", back_populates="reminder")
@@ -3851,5 +3859,32 @@ class ReminderSetting(Base):
     silent_start = mapped_column(String(8), nullable=True)
     silent_end = mapped_column(String(8), nullable=True)
     notify_caregivers = mapped_column(Boolean, default=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class MedicalRecordCard(Base):
+    """[PRD-469 v2 P0 M8] 病历卡（健康事件 Tab 下的病历卡列表 + OCR 解析）。
+
+    用户可上传病历卡图片，OCR 解析后将关键信息保存到此表，并自动同步到健康事件时间轴。
+    """
+
+    __tablename__ = "medical_record_cards"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    profile_id = mapped_column(Integer, ForeignKey("health_profiles.id"), nullable=True, index=True)
+    image_url = mapped_column(String(512), nullable=True)
+    ocr_text = mapped_column(Text, nullable=True)
+    parsed_hospital = mapped_column(String(128), nullable=True)
+    parsed_department = mapped_column(String(128), nullable=True)
+    parsed_diagnosis = mapped_column(Text, nullable=True)
+    parsed_visit_date = mapped_column(Date, nullable=True)
+    parsed_doctor = mapped_column(String(64), nullable=True)
+    parsed_prescription = mapped_column(Text, nullable=True)
+    title = mapped_column(String(200), nullable=True)
+    note = mapped_column(Text, nullable=True)
+    parse_status = mapped_column(String(16), default="pending")  # pending / parsed / failed
+    related_event_id = mapped_column(Integer, ForeignKey("health_events.id"), nullable=True)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

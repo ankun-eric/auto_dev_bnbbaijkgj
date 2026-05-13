@@ -107,6 +107,12 @@ interface MedicationPlanCard {
   weekly_rate: number;
 }
 
+interface HeroMetric {
+  label: string;
+  count: number;
+  unit: string;
+}
+
 // ─── 病历卡组件（v5 风格） ─────────────────────────────────────────────────
 export function V5Card({
   children,
@@ -155,6 +161,11 @@ export default function HealthProfileV2Page() {
   const isScrollingRef = useRef(false);
   const [isLinked, setIsLinked] = useState(false);
   const [showAddMember, setShowAddMember] = useState(false);
+  const [heroMetrics, setHeroMetrics] = useState<HeroMetric[]>([]);
+  // [PRD-469 v2 P0 M4] 用药计划 Tab 双分段切换
+  const [medSegment, setMedSegment] = useState<'today' | 'all'>('today');
+  const [showHeroEdit, setShowHeroEdit] = useState(false);
+  const [heroEditDraft, setHeroEditDraft] = useState<HealthProfileBasic | null>(null);
 
   const fetchMembers = useCallback(async () => {
     try {
@@ -203,6 +214,16 @@ export default function HealthProfileV2Page() {
     }
   }, []);
 
+  const fetchHeroSummary = useCallback(async (profileId: number) => {
+    try {
+      const res: any = await api.get(`/api/prd469/summary/${profileId}`);
+      const data = res.data || res;
+      setHeroMetrics(Array.isArray(data.hero_metrics) ? data.hero_metrics : []);
+    } catch {
+      setHeroMetrics([]);
+    }
+  }, []);
+
   const fetchLinkStatus = useCallback(async (memberId: number) => {
     try {
       const res: any = await api.get('/api/family/management');
@@ -225,10 +246,11 @@ export default function HealthProfileV2Page() {
           fetchTodayMetrics(profileId),
           fetchMedication(profileId),
           fetchLinkStatus(selectedMemberId),
+          fetchHeroSummary(profileId),
         ]);
       }
     })();
-  }, [selectedMemberId, fetchProfile, fetchTodayMetrics, fetchMedication, fetchLinkStatus]);
+  }, [selectedMemberId, fetchProfile, fetchTodayMetrics, fetchMedication, fetchLinkStatus, fetchHeroSummary]);
 
   // [PRD-469 M5] 修复：从添加用药页返回时，强制刷新用药计划
   useEffect(() => {
@@ -351,26 +373,51 @@ export default function HealthProfileV2Page() {
     </div>
   );
 
-  // ─── Hero ──────────────────────────────────────────────────────────
+  // ─── Hero（v5 设计稿对齐：头像+姓名+四格健康摘要+编辑按钮） ────────────
   const renderHero = () => {
     if (!profile) return null;
     const age = profile.birthday ? calcAge(profile.birthday) : null;
-    const fields = [
-      { label: '性别', value: profile.gender || '未填' },
-      { label: '年龄', value: age != null ? `${age} 岁` : '未填' },
-      { label: '身高', value: profile.height ? `${profile.height} cm` : '未填' },
-      { label: '体重', value: profile.weight ? `${profile.weight} kg` : '未填' },
-      { label: '血型', value: profile.blood_type || '未填' },
+    // 5 行基础信息收纳到副标题，主体改为 4 格健康摘要指标
+    const baseLine = [
+      profile.gender || '',
+      age != null ? `${age} 岁` : '',
+      profile.height ? `${profile.height} cm` : '',
+      profile.weight ? `${profile.weight} kg` : '',
+      profile.blood_type ? `${profile.blood_type}型` : '',
+    ].filter(Boolean).join(' · ') || '未填基础信息';
+
+    const metrics: HeroMetric[] = heroMetrics.length > 0 ? heroMetrics : [
+      { label: '既往病史', count: 0, unit: '项' },
+      { label: '过敏史', count: 0, unit: '项' },
+      { label: '家族遗传', count: 0, unit: '项' },
+      { label: '长期用药', count: 0, unit: '种' },
     ];
+
     return (
       <div style={{ padding: '12px 16px' }}>
         <div
           data-testid="prd469-hero-card"
           style={{
             background: T.gradient, color: '#fff', borderRadius: 16, padding: 20,
-            boxShadow: T.shadow,
+            boxShadow: T.shadow, position: 'relative',
           }}
         >
+          {/* 编辑基本信息按钮 [PRD-469 v2 P1] */}
+          <button
+            data-testid="prd469-hero-edit-btn"
+            onClick={() => {
+              setHeroEditDraft(profile);
+              setShowHeroEdit(true);
+            }}
+            style={{
+              position: 'absolute', top: 12, right: 12,
+              padding: '4px 10px', borderRadius: 12,
+              background: 'rgba(255,255,255,0.25)', color: '#fff',
+              border: '1px solid rgba(255,255,255,0.4)',
+              fontSize: 12, fontWeight: 500, cursor: 'pointer',
+            }}
+          >✏️ 编辑</button>
+
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <div
               style={{
@@ -395,15 +442,94 @@ export default function HealthProfileV2Page() {
                   >✓ 已关联</span>
                 )}
               </div>
+              <div style={{ fontSize: 12, opacity: 0.75, marginTop: 4 }}>{baseLine}</div>
             </div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8, marginTop: 16 }}>
-            {fields.map((f) => (
-              <div key={f.label} style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: 12, opacity: 0.85 }}>{f.label}</div>
-                <div style={{ fontSize: 14, fontWeight: 600, marginTop: 2 }}>{f.value}</div>
+
+          {/* 四格健康摘要指标（设计稿对齐） */}
+          <div
+            data-testid="prd469-hero-metrics"
+            style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginTop: 16 }}
+          >
+            {metrics.map((m) => (
+              <div
+                key={m.label}
+                data-testid={`prd469-hero-metric-${m.label}`}
+                style={{
+                  textAlign: 'center', padding: '10px 4px',
+                  background: 'rgba(255,255,255,0.18)', borderRadius: 10,
+                }}
+              >
+                <div style={{ fontSize: 20, fontWeight: 700 }}>{m.count}</div>
+                <div style={{ fontSize: 11, opacity: 0.85, marginTop: 2 }}>{m.label}</div>
               </div>
             ))}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // ─── Hero 编辑弹层 ─────────────────────────────────────────────────
+  const renderHeroEditModal = () => {
+    if (!showHeroEdit || !heroEditDraft) return null;
+    const saveHero = async () => {
+      if (!heroEditDraft || !selectedMemberId) return;
+      try {
+        await api.put(`/api/health/profile/member/${selectedMemberId}`, {
+          name: heroEditDraft.name,
+          gender: heroEditDraft.gender,
+          birthday: heroEditDraft.birthday,
+          height: heroEditDraft.height,
+          weight: heroEditDraft.weight,
+          blood_type: heroEditDraft.blood_type,
+        });
+        setProfile(heroEditDraft);
+        setShowHeroEdit(false);
+        Toast.show({ content: '已保存', icon: 'success' });
+        if (selectedMemberId) await fetchProfile(selectedMemberId);
+      } catch {
+        Toast.show({ content: '保存失败', icon: 'fail' });
+      }
+    };
+
+    return (
+      <div
+        data-testid="prd469-hero-edit-modal"
+        style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+          zIndex: 100, display: 'flex', alignItems: 'flex-end',
+        }}
+      >
+        <div style={{ background: '#fff', width: '100%', borderTopLeftRadius: 16, borderTopRightRadius: 16, maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ padding: '14px 16px', borderBottom: `1px solid ${T.brand100}`, display: 'flex', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: 17, fontWeight: 700 }}>编辑基本信息</span>
+            <span onClick={() => setShowHeroEdit(false)} style={{ fontSize: 22, color: '#9ca3af', cursor: 'pointer' }}>×</span>
+          </div>
+          <div style={{ flex: 1, overflowY: 'auto', padding: 16 }}>
+            <HeroEditRow label="姓名" value={heroEditDraft.name || ''}
+              onChange={(v) => setHeroEditDraft({ ...heroEditDraft, name: v })} />
+            <HeroEditRow label="性别" value={heroEditDraft.gender || ''}
+              onChange={(v) => setHeroEditDraft({ ...heroEditDraft, gender: v })}
+              options={['男', '女', '其他']} />
+            <HeroEditRow label="生日" value={heroEditDraft.birthday || ''}
+              onChange={(v) => setHeroEditDraft({ ...heroEditDraft, birthday: v })}
+              inputType="date" />
+            <HeroEditRow label="身高 (cm)" value={String(heroEditDraft.height ?? '')}
+              onChange={(v) => setHeroEditDraft({ ...heroEditDraft, height: v ? Number(v) : null })}
+              inputType="number" />
+            <HeroEditRow label="体重 (kg)" value={String(heroEditDraft.weight ?? '')}
+              onChange={(v) => setHeroEditDraft({ ...heroEditDraft, weight: v ? Number(v) : null })}
+              inputType="number" />
+            <HeroEditRow label="血型" value={heroEditDraft.blood_type || ''}
+              onChange={(v) => setHeroEditDraft({ ...heroEditDraft, blood_type: v })}
+              options={['A', 'B', 'AB', 'O', '未知']} />
+          </div>
+          <div style={{ padding: 16, borderTop: `1px solid ${T.brand100}`, display: 'flex', gap: 12 }}>
+            <button onClick={() => setShowHeroEdit(false)}
+              style={{ flex: 1, padding: '12px 0', borderRadius: 24, background: '#fff', border: `1px solid ${T.brand200}`, fontSize: 15, fontWeight: 600 }}>取消</button>
+            <button onClick={saveHero} data-testid="prd469-hero-save"
+              style={{ flex: 1, padding: '12px 0', borderRadius: 24, background: T.brand500, color: '#fff', border: 'none', fontSize: 15, fontWeight: 600 }}>保存</button>
           </div>
         </div>
       </div>
@@ -555,8 +681,14 @@ export default function HealthProfileV2Page() {
     );
   };
 
-  // ─── Tab 3：用药计划 ───────────────────────────────────────────────
-  const renderMedicationPlan = () => (
+  // ─── Tab 3：用药计划（双分段：今日用药 / 全部用药计划）──────────────
+  const renderMedicationPlan = () => {
+    // 今日用药 = 今天有计划时间点的用药
+    const todayList = medications.filter((m) => m.schedule && m.schedule.length > 0);
+    const allList = medications;
+    const visibleList = medSegment === 'today' ? todayList : allList;
+
+    return (
     <div id="medication-plan" data-testid="prd469-medication-plan" style={{ padding: '12px 16px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '8px 0 12px' }}>
         <h3 style={{ fontSize: 18, fontWeight: 600, color: T.brand700, margin: 0 }}>用药计划</h3>
@@ -569,7 +701,40 @@ export default function HealthProfileV2Page() {
           }}
         >+ 添加用药</button>
       </div>
-      {medications.length === 0 ? (
+
+      {/* [PRD-469 v2 P0 M4] 双分段切换：今日用药 / 全部用药计划 */}
+      <div
+        data-testid="prd469-med-segment"
+        style={{
+          display: 'flex', background: '#fff', borderRadius: 20, padding: 4,
+          marginBottom: 12, boxShadow: T.shadow,
+        }}
+      >
+        {[
+          { id: 'today', label: '今日用药', count: todayList.length },
+          { id: 'all', label: '全部用药计划', count: allList.length },
+        ].map((s) => {
+          const active = medSegment === s.id;
+          return (
+            <button
+              key={s.id}
+              data-testid={`prd469-med-seg-${s.id}`}
+              onClick={() => setMedSegment(s.id as 'today' | 'all')}
+              style={{
+                flex: 1, padding: '8px 0', borderRadius: 16,
+                background: active ? T.brand500 : 'transparent',
+                color: active ? '#fff' : T.textSecondary,
+                border: 'none', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                transition: 'all 0.2s',
+              }}
+            >
+              {s.label}（{s.count}）
+            </button>
+          );
+        })}
+      </div>
+
+      {visibleList.length === 0 ? (
         <V5Card>
           <div style={{ textAlign: 'center', color: T.textSecondary, padding: '24px 0', fontSize: 14 }}>
             暂无用药计划
@@ -584,7 +749,7 @@ export default function HealthProfileV2Page() {
         </V5Card>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {medications.map((m) => (
+          {visibleList.map((m) => (
             <V5Card key={m.plan_id} testid={`prd469-med-${m.plan_id}`}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: 17, fontWeight: 600, color: T.textPrimary }}>
@@ -620,7 +785,8 @@ export default function HealthProfileV2Page() {
         </div>
       )}
     </div>
-  );
+    );
+  };
 
   return (
     <div style={{ background: T.brand50, minHeight: '100vh', paddingBottom: 80 }}>
@@ -642,6 +808,52 @@ export default function HealthProfileV2Page() {
             setShowAddMember(false);
             fetchMembers();
             Toast.show({ content: '已添加家庭成员', icon: 'success' });
+          }}
+        />
+      )}
+
+      {renderHeroEditModal()}
+    </div>
+  );
+}
+
+function HeroEditRow({
+  label, value, onChange, options, inputType,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  options?: string[];
+  inputType?: string;
+}) {
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 6 }}>{label}</div>
+      {options ? (
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {options.map((o) => (
+            <button
+              key={o}
+              data-testid={`prd469-hero-${label}-${o}`}
+              onClick={() => onChange(o)}
+              style={{
+                padding: '6px 14px', borderRadius: 14,
+                background: value === o ? '#22c55e' : '#f3f4f6',
+                color: value === o ? '#fff' : '#374151',
+                border: 'none', fontSize: 13, cursor: 'pointer',
+              }}
+            >{o}</button>
+          ))}
+        </div>
+      ) : (
+        <input
+          type={inputType || 'text'}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          data-testid={`prd469-hero-input-${label}`}
+          style={{
+            width: '100%', padding: '10px 12px', borderRadius: 8,
+            border: '1px solid #d1d5db', fontSize: 14, boxSizing: 'border-box',
           }}
         />
       )}

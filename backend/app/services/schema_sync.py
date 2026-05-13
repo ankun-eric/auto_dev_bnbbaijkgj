@@ -2280,6 +2280,55 @@ async def _sync_reschedule_columns(conn: AsyncConnection) -> None:
                 print(f"[schema_sync] unified_orders add reschedule_limit warn: {e}")
 
 
+async def _sync_medication_reminders_prd469_v2(conn: AsyncConnection) -> None:
+    """[PRD-469 v2 P0] 为 medication_reminders 表补充新字段。"""
+
+    def _load(sync_conn):
+        inspector = inspect(sync_conn)
+        if "medication_reminders" not in set(inspector.get_table_names()):
+            return None
+        return {col["name"] for col in inspector.get_columns("medication_reminders")}
+
+    cols = await conn.run_sync(_load)
+    if cols is None:
+        return
+    if "frequency_per_day" not in cols:
+        try:
+            await conn.execute(text("ALTER TABLE medication_reminders ADD COLUMN frequency_per_day INT NULL"))
+        except Exception as e:
+            print(f"[schema_sync] medication_reminders.frequency_per_day add warn: {e}")
+    if "custom_times" not in cols:
+        try:
+            await conn.execute(text("ALTER TABLE medication_reminders ADD COLUMN custom_times JSON NULL"))
+        except Exception as e:
+            print(f"[schema_sync] medication_reminders.custom_times add warn: {e}")
+    if "start_date" not in cols:
+        try:
+            await conn.execute(text("ALTER TABLE medication_reminders ADD COLUMN start_date DATE NULL"))
+        except Exception as e:
+            print(f"[schema_sync] medication_reminders.start_date add warn: {e}")
+    if "end_date" not in cols:
+        try:
+            await conn.execute(text("ALTER TABLE medication_reminders ADD COLUMN end_date DATE NULL"))
+        except Exception as e:
+            print(f"[schema_sync] medication_reminders.end_date add warn: {e}")
+    if "long_term" not in cols:
+        try:
+            await conn.execute(text("ALTER TABLE medication_reminders ADD COLUMN long_term TINYINT(1) DEFAULT 0"))
+        except Exception as e:
+            print(f"[schema_sync] medication_reminders.long_term add warn: {e}")
+    if "reminder_enabled" not in cols:
+        try:
+            await conn.execute(text("ALTER TABLE medication_reminders ADD COLUMN reminder_enabled TINYINT(1) DEFAULT 1"))
+        except Exception as e:
+            print(f"[schema_sync] medication_reminders.reminder_enabled add warn: {e}")
+    if "disease_tags" not in cols:
+        try:
+            await conn.execute(text("ALTER TABLE medication_reminders ADD COLUMN disease_tags JSON NULL"))
+        except Exception as e:
+            print(f"[schema_sync] medication_reminders.disease_tags add warn: {e}")
+
+
 async def sync_register_schema(conn: AsyncConnection) -> None:
     def load_user_schema(sync_conn):
         inspector = inspect(sync_conn)
@@ -2336,6 +2385,8 @@ async def sync_register_schema(conn: AsyncConnection) -> None:
     await _sync_payment_config(conn)
     # [核销订单过期+改期规则优化 v1.0] products.allow_reschedule + unified_orders.reschedule_*
     await _sync_reschedule_columns(conn)
+    # [PRD-469 v2 P0] medication_reminders 新增字段
+    await _sync_medication_reminders_prd469_v2(conn)
     await run_all_migrations(conn)
 
     columns, indexes, unique_constraints = await conn.run_sync(load_user_schema)

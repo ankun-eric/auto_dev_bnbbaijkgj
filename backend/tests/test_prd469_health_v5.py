@@ -300,3 +300,241 @@ async def test_medication_create_returns_full_object(client: AsyncClient, auth_h
         for it in items:
             names.append(it.get("medicine_name"))
     assert "拜阿司匹灵" in names
+
+
+# ─────────────────── [PRD-469 v2 P0] 新增字段回归 ─────────────────
+
+
+@pytest.mark.asyncio
+async def test_medication_create_with_new_p0_fields(client: AsyncClient, auth_headers):
+    """[PRD-469 v2 P0 M4] 添加用药支持每日次数 / 自定义时间点 / 起止日期 / 长期 / 提醒开关 / 关联疾病。"""
+    res = await client.post(
+        "/api/health-plan/medications",
+        json={
+            "medicine_name": "二甲双胍",
+            "dosage": "0.5g",
+            "notes": "餐后",
+            "frequency_per_day": 3,
+            "custom_times": ["08:00", "12:30", "20:00"],
+            "start_date": "2026-05-13",
+            "long_term": True,
+            "reminder_enabled": True,
+            "disease_tags": ["糖尿病", "高血压"],
+        },
+        headers=auth_headers,
+    )
+    assert res.status_code == 200, res.text
+    data = res.json()
+    assert data["medicine_name"] == "二甲双胍"
+    assert data.get("frequency_per_day") == 3
+    assert data.get("custom_times") == ["08:00", "12:30", "20:00"]
+    assert data.get("long_term") is True
+    assert data.get("reminder_enabled") is True
+    assert "糖尿病" in (data.get("disease_tags") or [])
+
+
+@pytest.mark.asyncio
+async def test_medication_update_p0_fields(client: AsyncClient, auth_headers):
+    """[PRD-469 v2 P0 M4] 编辑保留并更新 P0 字段。"""
+    create_res = await client.post(
+        "/api/health-plan/medications",
+        json={
+            "medicine_name": "卡托普利",
+            "dosage": "1片",
+            "frequency_per_day": 2,
+            "custom_times": ["08:00", "20:00"],
+            "long_term": False,
+            "start_date": "2026-05-13",
+            "end_date": "2026-08-13",
+            "disease_tags": ["高血压"],
+        },
+        headers=auth_headers,
+    )
+    mid = create_res.json()["id"]
+    upd = await client.put(
+        f"/api/health-plan/medications/{mid}",
+        json={
+            "frequency_per_day": 1,
+            "custom_times": ["09:00"],
+            "long_term": True,
+            "reminder_enabled": False,
+        },
+        headers=auth_headers,
+    )
+    assert upd.status_code == 200, upd.text
+    d = upd.json()
+    assert d.get("frequency_per_day") == 1
+    assert d.get("custom_times") == ["09:00"]
+    assert d.get("long_term") is True
+    assert d.get("reminder_enabled") is False
+
+
+@pytest.mark.asyncio
+async def test_hero_summary_metrics(client: AsyncClient, auth_headers, user_profile_id):
+    """[PRD-469 v2 P1] /summary/{profile_id} 返回四格 Hero 指标。"""
+    profile_id = user_profile_id
+    # 准备：写入慢病、过敏、家族史
+    await client.put(
+        f"/api/prd469/health-info/{profile_id}",
+        json={
+            "chronic_diseases": [{"name": "高血压"}, {"name": "糖尿病"}],
+            "drug_allergies": ["青霉素"],
+            "food_allergies": ["海鲜"],
+            "family_history": [{"relation": "父亲", "disease": "高血压"}],
+        },
+        headers=auth_headers,
+    )
+    await client.post(
+        "/api/health-plan/medications",
+        json={"medicine_name": "降压药A", "dosage": "1片"},
+        headers=auth_headers,
+    )
+
+    res = await client.get(f"/api/prd469/summary/{profile_id}", headers=auth_headers)
+    assert res.status_code == 200, res.text
+    data = res.json()
+    hero = data.get("hero_metrics") or []
+    assert len(hero) == 4
+    labels = {m["label"]: m["count"] for m in hero}
+    assert labels.get("既往病史", 0) >= 2
+    assert labels.get("过敏史", 0) >= 2
+    assert labels.get("家族遗传", 0) >= 1
+    assert labels.get("长期用药", 0) >= 1
+
+
+# ─────────────────── [PRD-469 v2 P0 M8] 病历卡 + OCR ─────────────────
+
+
+@pytest.mark.asyncio
+async def test_medical_record_create_with_ocr_text(client: AsyncClient, auth_headers, user_profile_id):
+    """病历卡创建时通过 OCR 文本自动解析关键字段。"""
+    profile_id = user_profile_id
+    ocr_text = (
+        "上海第六人民医院\n"
+        "内科门诊\n"
+        "就诊日期：2026-04-12\n"
+        "诊断：原发性高血压（2级）\n"
+        "处方医师：王医师\n"
+        "处方：苯磺酸氨氯地平 5mg 每日 1 次"
+    )
+    res = await client.post(
+        "/api/prd469/medical-record",
+        json={
+            "profile_id": profile_id,
+            "ocr_text": ocr_text,
+            "image_url": "https://example.com/test.jpg",
+        },
+        headers=auth_headers,
+    )
+    assert res.status_code == 200, res.text
+    data = res.json()
+    assert data["id"] > 0
+    assert data["event_id"] > 0
+    assert data.get("parse_status") == "parsed"
+    # 解析字段
+    assert "医院" in (data.get("parsed_hospital") or "")
+    assert "诊断" in (data.get("parsed_diagnosis") or "") or "高血压" in (data.get("parsed_diagnosis") or "")
+    assert data.get("parsed_visit_date") == "2026-04-12"
+
+
+@pytest.mark.asyncio
+async def test_medical_record_list_and_delete(client: AsyncClient, auth_headers, user_profile_id):
+    """病历卡列表 + 删除。"""
+    profile_id = user_profile_id
+    # 先创建一条
+    create_res = await client.post(
+        "/api/prd469/medical-record",
+        json={
+            "profile_id": profile_id,
+            "ocr_text": "测试医院\n2026-05-01 \n诊断：感冒",
+        },
+        headers=auth_headers,
+    )
+    rid = create_res.json()["id"]
+
+    # 列表
+    list_res = await client.get(
+        f"/api/prd469/medical-record/list?profile_id={profile_id}",
+        headers=auth_headers,
+    )
+    assert list_res.status_code == 200
+    items = list_res.json().get("items") or []
+    assert any(it["id"] == rid for it in items)
+
+    # 删除
+    del_res = await client.delete(
+        f"/api/prd469/medical-record/{rid}", headers=auth_headers
+    )
+    assert del_res.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_medical_record_creates_health_event(client: AsyncClient, auth_headers, user_profile_id):
+    """病历卡创建应自动同步一条 health_event 进入时间轴。"""
+    profile_id = user_profile_id
+    res = await client.post(
+        "/api/prd469/medical-record",
+        json={
+            "profile_id": profile_id,
+            "ocr_text": "测试病历卡\n2026-05-10\n诊断：测试",
+        },
+        headers=auth_headers,
+    )
+    assert res.status_code == 200
+    # 查询时间轴是否含 upload 事件
+    tl = await client.get(
+        f"/api/prd469/health-event/timeline?profile_id={profile_id}",
+        headers=auth_headers,
+    )
+    assert tl.status_code == 200
+    items = tl.json().get("items") or []
+    has_upload = any(it["event_type"] == "upload" for it in items)
+    assert has_upload, "病历卡上传后应在健康事件时间轴出现 upload 事件"
+
+
+@pytest.mark.asyncio
+async def test_medical_record_404(client: AsyncClient, auth_headers):
+    """不存在的病历卡返回 404。"""
+    res = await client.get("/api/prd469/medical-record/999999", headers=auth_headers)
+    assert res.status_code == 404
+
+
+# ─────────────────── [PRD-469 v2 P0 M6] 健康信息：家族病史 + 手术史 ──
+
+
+@pytest.mark.asyncio
+async def test_health_info_family_history_and_surgery(client: AsyncClient, auth_headers, user_profile_id):
+    """健康信息 PUT 应能接收家族病史 + 手术史 + 慢病确诊年份。"""
+    profile_id = user_profile_id
+    payload = {
+        "chronic_diseases": [
+            {"name": "高血压", "year": "2018"},
+            {"name": "糖尿病", "year": "2020"},
+        ],
+        "surgery_history": [
+            {"name": "阑尾切除术", "time": "2015-06", "note": "上海仁济医院"},
+        ],
+        "family_history": [
+            {"relation": "父亲", "disease": "高血压"},
+            {"relation": "母亲", "disease": "糖尿病"},
+        ],
+    }
+    res = await client.put(
+        f"/api/prd469/health-info/{profile_id}",
+        json=payload,
+        headers=auth_headers,
+    )
+    assert res.status_code == 200
+
+    get_res = await client.get(
+        f"/api/prd469/health-info/{profile_id}", headers=auth_headers
+    )
+    assert get_res.status_code == 200
+    d = get_res.json()
+    chronic = d.get("chronic_diseases") or []
+    assert any(c.get("name") == "高血压" and c.get("year") == "2018" for c in chronic)
+    surgery = d.get("surgery_history") or []
+    assert any(s.get("name") == "阑尾切除术" for s in surgery)
+    fam = d.get("family_history") or []
+    assert any(f.get("relation") == "父亲" and f.get("disease") == "高血压" for f in fam)
+    assert any(f.get("relation") == "母亲" and f.get("disease") == "糖尿病" for f in fam)

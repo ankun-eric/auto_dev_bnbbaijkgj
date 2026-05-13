@@ -13,6 +13,14 @@ class MedicationReminderCreate(BaseModel):
     time_period: Optional[str] = None
     remind_time: Optional[str] = None
     notes: Optional[str] = None
+    # [PRD-469 v2 P0] 新字段
+    frequency_per_day: Optional[int] = None
+    custom_times: Optional[List[str]] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    long_term: Optional[bool] = None
+    reminder_enabled: Optional[bool] = None
+    disease_tags: Optional[List[str]] = None
 
 
 class MedicationReminderUpdate(BaseModel):
@@ -21,6 +29,14 @@ class MedicationReminderUpdate(BaseModel):
     time_period: Optional[str] = None
     remind_time: Optional[str] = None
     notes: Optional[str] = None
+    # [PRD-469 v2 P0] 新字段
+    frequency_per_day: Optional[int] = None
+    custom_times: Optional[List[str]] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    long_term: Optional[bool] = None
+    reminder_enabled: Optional[bool] = None
+    disease_tags: Optional[List[str]] = None
 
 
 class MedicationReminderResponse(BaseModel):
@@ -35,6 +51,14 @@ class MedicationReminderResponse(BaseModel):
     status: str
     created_at: datetime
     today_checked: Optional[bool] = None
+    # [PRD-469 v2 P0] 新字段
+    frequency_per_day: Optional[int] = None
+    custom_times: Optional[List[str]] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    long_term: Optional[bool] = None
+    reminder_enabled: Optional[bool] = None
+    disease_tags: Optional[List[str]] = None
 
     model_config = ConfigDict(from_attributes=True)
 

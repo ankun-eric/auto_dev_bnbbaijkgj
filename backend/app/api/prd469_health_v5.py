@@ -28,6 +28,7 @@ from app.models.models import (
     HealthEvent,
     HealthInfoExtra,
     HealthProfile,
+    MedicalRecordCard,
     MedicationLibrary,
     ReminderSetting,
     User,
@@ -509,6 +510,213 @@ async def update_reminder_setting(
 
 
 # ──────────────────────────────────────────────────────────
+# 病历卡 + OCR（M8 P0）
+# ──────────────────────────────────────────────────────────
+
+
+class MedicalRecordCreate(BaseModel):
+    profile_id: Optional[int] = None
+    image_url: Optional[str] = None
+    ocr_text: Optional[str] = None
+    title: Optional[str] = None
+    note: Optional[str] = None
+    parsed_hospital: Optional[str] = None
+    parsed_department: Optional[str] = None
+    parsed_diagnosis: Optional[str] = None
+    parsed_visit_date: Optional[date] = None
+    parsed_doctor: Optional[str] = None
+    parsed_prescription: Optional[str] = None
+
+
+def _ocr_parse_medical_record(ocr_text: str) -> Dict[str, Any]:
+    """从 OCR 文本中提取病历卡关键字段（简化版规则提取）。"""
+    text = (ocr_text or "").strip()
+    if not text:
+        return {}
+
+    parsed: Dict[str, Any] = {}
+    lines = [l.strip() for l in text.replace("\r", "").split("\n") if l.strip()]
+
+    for line in lines:
+        if "医院" in line and "parsed_hospital" not in parsed:
+            parsed["parsed_hospital"] = line[:64]
+        if "科" in line and ("内" in line or "外" in line or "儿" in line or "妇" in line) and "parsed_department" not in parsed:
+            parsed["parsed_department"] = line[:32]
+        if ("诊断" in line or "印象" in line) and "parsed_diagnosis" not in parsed:
+            idx = max(line.find("诊断"), line.find("印象"))
+            parsed["parsed_diagnosis"] = line[idx:][:256] if idx >= 0 else line[:256]
+        if ("医师" in line or "医生" in line) and "parsed_doctor" not in parsed:
+            parsed["parsed_doctor"] = line[:32]
+        if ("处方" in line or "用药" in line) and "parsed_prescription" not in parsed:
+            parsed["parsed_prescription"] = line[:512]
+
+    import re
+
+    date_match = re.search(r"(20\d{2})[-/年](\d{1,2})[-/月](\d{1,2})", text)
+    if date_match:
+        try:
+            from datetime import date as _date
+            parsed["parsed_visit_date"] = _date(
+                int(date_match.group(1)),
+                int(date_match.group(2)),
+                int(date_match.group(3)),
+            )
+        except Exception:
+            pass
+
+    return parsed
+
+
+@router.post("/medical-record")
+async def create_medical_record(
+    body: MedicalRecordCreate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """新建病历卡（支持 OCR 文本自动解析）。
+
+    前端调用流程：
+    1. 用户拍照 / 上传图片 → 调通用 /api/ocr/recognize 获取 ocr_text + 图片 URL
+    2. 调本接口，提交 ocr_text + image_url（也可提交手工编辑后的字段覆盖）
+    3. 后端规则提取关键字段，落地病历卡，并自动同步一条 health_event（type=upload）
+    """
+    parsed = _ocr_parse_medical_record(body.ocr_text or "") if body.ocr_text else {}
+    # 用户手工字段覆盖优先
+    user_fields = body.model_dump(exclude_unset=True, exclude={"ocr_text", "image_url", "profile_id", "title", "note"})
+    parsed.update({k: v for k, v in user_fields.items() if v is not None})
+
+    card = MedicalRecordCard(
+        user_id=current_user.id,
+        profile_id=body.profile_id,
+        image_url=body.image_url,
+        ocr_text=body.ocr_text,
+        title=body.title or (parsed.get("parsed_hospital") or "病历卡"),
+        note=body.note,
+        parsed_hospital=parsed.get("parsed_hospital"),
+        parsed_department=parsed.get("parsed_department"),
+        parsed_diagnosis=parsed.get("parsed_diagnosis"),
+        parsed_visit_date=parsed.get("parsed_visit_date"),
+        parsed_doctor=parsed.get("parsed_doctor"),
+        parsed_prescription=parsed.get("parsed_prescription"),
+        parse_status="parsed" if body.ocr_text else "pending",
+    )
+    db.add(card)
+    await db.flush()
+
+    # 同步到健康事件时间轴
+    event = HealthEvent(
+        user_id=current_user.id,
+        profile_id=body.profile_id,
+        event_type="upload",
+        title=card.title or "病历卡",
+        content=(card.parsed_diagnosis or card.note or "")[:512],
+        event_date=card.parsed_visit_date or date.today(),
+        tags=["病历卡"],
+        extra_data={"medical_record_id": card.id, "image_url": card.image_url},
+    )
+    db.add(event)
+    await db.flush()
+
+    card.related_event_id = event.id
+    await db.flush()
+
+    return {
+        "id": card.id,
+        "event_id": event.id,
+        "title": card.title,
+        "parsed_hospital": card.parsed_hospital,
+        "parsed_department": card.parsed_department,
+        "parsed_diagnosis": card.parsed_diagnosis,
+        "parsed_visit_date": card.parsed_visit_date.isoformat() if card.parsed_visit_date else None,
+        "parsed_doctor": card.parsed_doctor,
+        "parsed_prescription": card.parsed_prescription,
+        "parse_status": card.parse_status,
+        "image_url": card.image_url,
+    }
+
+
+@router.get("/medical-record/list")
+async def list_medical_records(
+    profile_id: Optional[int] = Query(None),
+    limit: int = Query(50, ge=1, le=200),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    stmt = select(MedicalRecordCard).where(MedicalRecordCard.user_id == current_user.id)
+    if profile_id is not None:
+        stmt = stmt.where(MedicalRecordCard.profile_id == profile_id)
+    stmt = stmt.order_by(MedicalRecordCard.created_at.desc()).limit(limit)
+    result = await db.execute(stmt)
+    items = []
+    for c in result.scalars().all():
+        items.append({
+            "id": c.id,
+            "title": c.title,
+            "image_url": c.image_url,
+            "parsed_hospital": c.parsed_hospital,
+            "parsed_department": c.parsed_department,
+            "parsed_diagnosis": c.parsed_diagnosis,
+            "parsed_visit_date": c.parsed_visit_date.isoformat() if c.parsed_visit_date else None,
+            "parsed_doctor": c.parsed_doctor,
+            "parse_status": c.parse_status,
+            "created_at": c.created_at.isoformat() if c.created_at else None,
+        })
+    return {"items": items, "total": len(items)}
+
+
+@router.get("/medical-record/{record_id}")
+async def get_medical_record(
+    record_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(MedicalRecordCard).where(
+            MedicalRecordCard.id == record_id,
+            MedicalRecordCard.user_id == current_user.id,
+        )
+    )
+    card = result.scalar_one_or_none()
+    if not card:
+        raise HTTPException(status_code=404, detail="病历卡不存在")
+    return {
+        "id": card.id,
+        "title": card.title,
+        "image_url": card.image_url,
+        "ocr_text": card.ocr_text,
+        "note": card.note,
+        "parsed_hospital": card.parsed_hospital,
+        "parsed_department": card.parsed_department,
+        "parsed_diagnosis": card.parsed_diagnosis,
+        "parsed_visit_date": card.parsed_visit_date.isoformat() if card.parsed_visit_date else None,
+        "parsed_doctor": card.parsed_doctor,
+        "parsed_prescription": card.parsed_prescription,
+        "parse_status": card.parse_status,
+        "related_event_id": card.related_event_id,
+    }
+
+
+@router.delete("/medical-record/{record_id}")
+async def delete_medical_record(
+    record_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(MedicalRecordCard).where(
+            MedicalRecordCard.id == record_id,
+            MedicalRecordCard.user_id == current_user.id,
+        )
+    )
+    card = result.scalar_one_or_none()
+    if not card:
+        raise HTTPException(status_code=404, detail="病历卡不存在")
+    await db.delete(card)
+    await db.flush()
+    return {"message": "已删除"}
+
+
+# ──────────────────────────────────────────────────────────
 # 主页聚合接口（健康摘要胶囊 + 设备区数据）
 # ──────────────────────────────────────────────────────────
 
@@ -553,6 +761,33 @@ async def get_v5_summary(
         if name:
             capsules.append({"icon": "🩺", "label": name})
 
+    # [PRD-469 v2 P1] Hero 四格健康摘要指标
+    chronic_count = len(info.chronic_diseases or [])
+    allergy_count = (
+        len(info.drug_allergies or [])
+        + len(info.food_allergies or [])
+        + len(info.other_allergies or [])
+    )
+    family_count = len(info.family_history or [])
+
+    # 长期用药数量
+    from app.models.models import MedicationReminder
+
+    med_count_q = await db.execute(
+        select(MedicationReminder).where(
+            MedicationReminder.user_id == current_user.id,
+            MedicationReminder.status == "active",
+        )
+    )
+    med_count = len(med_count_q.scalars().all())
+
+    hero_metrics = [
+        {"label": "既往病史", "count": chronic_count, "unit": "项"},
+        {"label": "过敏史", "count": allergy_count, "unit": "项"},
+        {"label": "家族遗传", "count": family_count, "unit": "项"},
+        {"label": "长期用药", "count": med_count, "unit": "种"},
+    ]
+
     return {
         "profile_id": profile_id,
         "name": profile.name,
@@ -562,4 +797,5 @@ async def get_v5_summary(
         "weight": profile.weight,
         "blood_type": profile.blood_type,
         "capsules": capsules,
+        "hero_metrics": hero_metrics,
     }

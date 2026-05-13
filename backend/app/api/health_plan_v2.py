@@ -63,13 +63,10 @@ async def create_medication(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    payload = data.model_dump(exclude_unset=True)
     reminder = MedicationReminder(
         user_id=current_user.id,
-        medicine_name=data.medicine_name,
-        dosage=data.dosage,
-        time_period=data.time_period,
-        remind_time=data.remind_time,
-        notes=data.notes,
+        **{k: v for k, v in payload.items() if k != "user_id"},
     )
     db.add(reminder)
     await db.flush()
