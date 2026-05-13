@@ -27,6 +27,35 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
+## Latest Update: INCIDENT-20260513-01-H5WEB-FULL-RESYNC-20260513｜AI 对话模式回退故障 P0 修复（h5-web 测试服全量同步 git master HEAD + --no-cache 镜像重建 + 22/22 自动化烟测 PASS）（2026-05-13 21:39）
+
+### 故障背景
+- 故障编号：INCIDENT-20260513-01，定性 P0（H5 / 微信小程序 / Flutter App 三端 AI 对话整体回退到 5 月初版本，部分功能不可用）。
+- 触发：今天 `deploy/_redeploy_prd469_v2_p0p1.py` 发版（增量 SFTP 23 个 PRD-469 文件 + 整镜像 rebuild），但服务器 `h5-web/` 目录的 AI 对话代码早已漂移到 5 月初版本（缺失 PRD-441/442/447/449/455 + BUG-461/462/466/467 + PRD-429 等改动），rebuild 把"5 月初的 AI 对话 + 最新的健康档案 v2"一锅端打成新镜像。
+
+### 修复动作
+- **新增** `deploy/_fix_h5web_full_resync_20260513.py`：SFTP 全量同步本地 git master HEAD 的 `h5-web/` 到服务器（256 文件 / 2.59 MB，按 `.next` / `node_modules` / `dist` / `.git` / `.turbo` / `.cache` / `tsconfig.tsbuildinfo` / `.src_backup_prd444` 等严格排除规则），再 `docker compose build --no-cache h5-web` + `up -d`。
+- **新增** `deploy/_verify_h5web_ai_chat_20260513.py`：三路证据自动化烟测（A 服务器源码标记 14 项 + B 容器 .next 构建产物 5 项 + C HTTP 可达 3 项），合计 22 项。
+- **新增** `deploy/_probe_h5web_state_20260513.py`：故障定性诊断脚本，对比服务器源码与 git master 的关键 PRD 标记。
+
+### 执行结果（2026-05-13 21:33–21:41）
+- 全量同步：256/256 文件成功上传，202 秒；服务器构建缓存 / 历史备份目录已清理。
+- `docker compose build --no-cache h5-web`：next build 87.8s，总耗时 ~2 分钟，新镜像 `6b099ed3-...-h5-web:latest` 创建于 21:39:31。
+- 烟测：22/22 PASS（A 路 14/14：PRD-442/448/432/426/467 + BUG-461/466 标记全部就位；B 路 5/5：容器 .next 中 `color-brand-500` / `gradient-user-bubble` / "本次回答结合" / "健康档案" / `ai-home` 全部命中；C 路 3/3：项目首页 200、ai-home 308、login 308）。
+
+### 影响范围
+- 仅作用于测试服 h5-web 容器；不动 backend / DB / admin-web / 其他容器；不影响用户数据；停机窗口 ≤ 30s。
+- 小程序 / Flutter App 内嵌的均是同一个 h5-web 产物，重建后三端自动生效。
+
+### 用户体验手册
+- `user_docs/AI对话模式回退故障修复.md`：含修复总结 + 人工三端点检清单 + 测试服访问链接 + 长期改进建议（废弃"增量 SFTP + 整镜像 rebuild"模式，改 "git pull + build"）。
+
+### 待办（事后复盘项，本次未做）
+- 正式服同步：等用户在测试服三端人工双确认通过后，套用同一脚本对正式服跑一遍。
+- 长期改进：服务器目录改为 git 工作区，发版前 `git fetch && git reset --hard origin/master` 再 build；镜像 label 打入 commit hash；build 前加源码 hash 校验。
+
+---
+
 ## Current Deployment Entrypoints
 
 - H5: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/`
