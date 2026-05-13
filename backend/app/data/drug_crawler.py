@@ -73,16 +73,35 @@ EXTRA_DRUGS = [
 
 
 async def seed_medication_library(db: AsyncSession) -> int:
-    """向药品库批量插入额外药品，返回新增数量。"""
+    """向药品库批量插入额外药品，返回新增数量。
+
+    [Hotfix-20260513-P0] 容错：旧库可能存在同名重复行（历史数据 / 多次种子叠加）。
+    使用 `.first()` 而非 `.scalar_one_or_none()`，避免重复时 MultipleResultsFound 阻塞 startup。
+    """
     added = 0
     for drug in EXTRA_DRUGS:
-        existing = await db.execute(
-            select(MedicationLibrary).where(MedicationLibrary.name == drug["name"])
-        )
-        if existing.scalar_one_or_none() is not None:
+        try:
+            existing_result = await db.execute(
+                select(MedicationLibrary)
+                .where(MedicationLibrary.name == drug["name"])
+                .limit(1)
+            )
+            existing = existing_result.scalars().first()
+        except Exception:
+            existing = None
+        if existing is not None:
             continue
-        db.add(MedicationLibrary(**drug))
-        added += 1
+        try:
+            db.add(MedicationLibrary(**drug))
+            added += 1
+        except Exception:
+            # 单条插入失败不阻塞其它种子
+            continue
     if added > 0:
-        await db.flush()
+        try:
+            await db.flush()
+        except Exception:
+            # flush 失败时静默；不应让种子数据导致 startup crash
+            await db.rollback()
+            return 0
     return added
