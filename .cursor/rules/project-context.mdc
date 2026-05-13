@@ -33,7 +33,36 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
-## Latest Update: PRD-469-V2-P0P1-GAP-FIX-20260513｜健康档案 v2 优化 P0/P1 缺口补全（用药 6 字段 + 病历卡 OCR + 家族病史/手术史 + Hero 四格 + 用药双分段 + 编辑基本信息）（2026-05-13 16:46）
+## Latest Update: PRD-469-V2-P0P1-REDEPLOY-20260513｜健康档案 v2 优化 P0/P1 — 修复后端路由未注册导致 /api/prd469/* 404（重新部署 + 32/32 服务器自动化测试 PASS）（2026-05-13 17:35）
+
+### 一句话结论
+排查发现上一次部署虽然修改了 `backend/app/main.py` 增加 `prd469_health_v5` 路由注册，但部署脚本上传文件清单缺失 `main.py`，导致服务器宿主与容器内 `main.py` 都未包含 `app.include_router(prd469_health_v5.router)`，引发 `/api/prd469/family-member/relation-options` / `/api/prd469/medication-library/search` / `/api/prd469/medical-record/list` / `/api/prd469/device/list` / `/api/prd469/summary/{id}` 全部 404。本次重新构建 `deploy/_redeploy_prd469_v2_p0p1.py` 上传了 22 个文件（覆盖后端 10 + 前端 12），强制 `docker compose build backend h5-web` + recreate 容器，并新增 `deploy/_test_prd469_v2_p0p1_server.py` 32 个用例的服务器端自动化测试，全部通过：M1 旧路由 404 / M2 Hero 四格 + 4 标签 / M4 用药 6 大字段持久化 / M6 家族病史+手术史+慢病年份 / M8 病历卡 OCR 6 字段+时间轴+列表+删除 / M7+M9 提醒规则+设备列表 / M10 药品库联想 / 前端 3 页面可达。
+
+### 范围与端
+
+| 维度 | 内容 |
+|------|------|
+| 涉及端 | H5（Next.js）+ 后端（FastAPI）；admin / 小程序 / Flutter 均 0 改动 |
+| 本周期 git 实际新增 | `deploy/_check_server_status.py`、`deploy/_check_main_py.py`、`deploy/_redeploy_prd469_v2_p0p1.py`、`deploy/_test_prd469_v2_p0p1_server.py` |
+| 本周期未改动源码 | 后端、前端业务源码未做任何代码改动；仅是「上次未上传到服务器的代码」本次被正确上传并 build 进容器 |
+| 服务器测试 | 32/32 PASS（注册→建档→Hero 四格→用药 6 字段→健康信息→病历卡 OCR 全链路→提醒/设备→药品库联想→前端可达性） |
+| 用户手册 | `user_docs/健康档案v2优化_P0P1差距补全.md` |
+
+### 关键验证
+
+```text
+容器内 grep prd469_health_v5 /app/app/main.py = 2 次（import + include_router）
+GET /api/prd469/family-member/relation-options = 200
+GET /api/prd469/medication-library/search?kw=阿 = 200（5 条命中）
+POST /api/prd469/medical-record = 200（parsed_hospital/department/doctor/diagnosis/visit_date/prescription 6 字段全解析）
+GET /api/prd469/summary/{id} hero_metrics 含 既往病史/过敏史/家族遗传/长期用药 4 标签
+POST /api/health-plan/medications = 200，回写 frequency_per_day/custom_times/start_date/end_date/long_term/reminder_enabled/disease_tags 7 字段
+/health-profile（跟随重定向后）= 404
+```
+
+---
+
+## Previous Update: PRD-469-V2-P0P1-GAP-FIX-20260513｜健康档案 v2 优化 P0/P1 缺口补全（用药 6 字段 + 病历卡 OCR + 家族病史/手术史 + Hero 四格 + 用药双分段 + 编辑基本信息）（2026-05-13 16:46）
 
 ### 一句话结论
 基于 2026-05-13 出具的「PRD-469 健康档案 v2 优化 —— 设计稿 vs 代码实现差距分析报告」中识别出的 P0/P1 缺口，一次性完成 6 项核心增量：①M4 用药添加页补齐 6 大缺失字段（每日次数 1-6 / 自定义服药时间点增删 / 开始日期 / 结束日期/长期服用 / 提醒开关 / 关联疾病多选 / 拍照识药接入 OCR）；②M4 用药计划 Tab 增加「今日用药 / 全部用药计划」双分段切换；③M6 健康信息新增家族病史编辑 UI（关系选择 + 疾病预设/自定义 + 多条增删）；④M6 健康信息新增手术史编辑（名称/时间/备注 + 多条增删）+ 慢病确诊年份；⑤M8 健康事件 Tab 新增病历卡列表 + 拍照 OCR 解析（医院/科室/诊断/日期/医生/处方）+ 自动入时间轴；⑥M2 Hero 卡改为「既往病史 / 过敏史 / 家族遗传 / 长期用药」四格健康摘要 + 右上角「编辑基本信息」入口。线上验证：H5 `/health-profile-v2 200` + `/api/health 200` + 数据库 `medication_reminders` 已新增 7 列 + `medical_record_cards` 表已创建。
