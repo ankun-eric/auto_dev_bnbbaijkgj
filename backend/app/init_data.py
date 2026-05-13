@@ -1,7 +1,7 @@
 import json
 import logging
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import async_session
@@ -1310,30 +1310,66 @@ async def _init_chat_function_buttons(db: AsyncSession):
 
 
 async def _dedup_health_profiles(db: AsyncSession):
-    """Remove duplicate health_profiles per user_id, keeping the oldest record."""
-    dup_result = await db.execute(
-        select(HealthProfile.user_id, func.count(HealthProfile.id).label("cnt"))
-        .group_by(HealthProfile.user_id)
-        .having(func.count(HealthProfile.id) > 1)
-    )
-    dup_rows = dup_result.all()
-    if not dup_rows:
-        return
+    """Remove duplicate health_profiles per user_id, keeping the oldest record.
 
-    total_deleted = 0
-    for row in dup_rows:
-        uid = row[0]
-        all_result = await db.execute(
-            select(HealthProfile)
-            .where(HealthProfile.user_id == uid)
-            .order_by(HealthProfile.id.asc())
+    使用原生 SQL 直接判断子表是否存在依赖，存在则跳过，避免外键冲突导致启动失败。
+    """
+    try:
+        dup_result = await db.execute(
+            select(HealthProfile.user_id, func.count(HealthProfile.id).label("cnt"))
+            .group_by(HealthProfile.user_id)
+            .having(func.count(HealthProfile.id) > 1)
         )
-        profiles = all_result.scalars().all()
-        for dup in profiles[1:]:
-            await db.delete(dup)
-            total_deleted += 1
-    await db.flush()
-    logger.info("Deduplicated health_profiles: removed %d duplicate rows for %d users", total_deleted, len(dup_rows))
+        dup_rows = dup_result.all()
+        if not dup_rows:
+            return
+
+        total_deleted = 0
+        skipped = 0
+        for row in dup_rows:
+            uid = row[0]
+            all_result = await db.execute(
+                select(HealthProfile.id)
+                .where(HealthProfile.user_id == uid)
+                .order_by(HealthProfile.id.asc())
+            )
+            profile_ids = [r[0] for r in all_result.all()]
+            for dup_id in profile_ids[1:]:
+                ref = await db.execute(
+                    text(
+                        "SELECT 1 FROM information_schema.KEY_COLUMN_USAGE "
+                        "WHERE REFERENCED_TABLE_NAME='health_profiles' LIMIT 1"
+                    )
+                )
+                _ = ref.first()
+                try:
+                    ref2 = await db.execute(
+                        text("SELECT COUNT(*) FROM health_info_extra WHERE profile_id=:pid"),
+                        {"pid": dup_id},
+                    )
+                    cnt = ref2.scalar() or 0
+                except Exception:
+                    cnt = 1
+                if cnt > 0:
+                    skipped += 1
+                    continue
+                try:
+                    await db.execute(
+                        text("DELETE FROM health_profiles WHERE id=:pid"),
+                        {"pid": dup_id},
+                    )
+                    total_deleted += 1
+                except Exception as exc:
+                    skipped += 1
+                    logger.warning(
+                        "Skip dedup health_profile id=%s due to FK: %s", dup_id, exc
+                    )
+        logger.info(
+            "Deduplicated health_profiles: removed %d, users=%d, skipped=%d",
+            total_deleted, len(dup_rows), skipped,
+        )
+    except Exception as exc:
+        logger.warning("_dedup_health_profiles failed (ignored): %s", exc)
 
 
 async def _init_voice_service_configs(db: AsyncSession):

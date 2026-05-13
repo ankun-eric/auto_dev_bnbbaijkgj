@@ -33,6 +33,30 @@ alwaysApply: false
 - Admin: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/`
 - API: `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/`
 
+## Latest Update: PRD-469-V2-P0P1-GAP-FIX-20260513｜健康档案 v2 优化 P0/P1 缺口补全（用药 6 字段 + 病历卡 OCR + 家族病史/手术史 + Hero 四格 + 用药双分段 + 编辑基本信息）（2026-05-13 16:46）
+
+### 一句话结论
+基于 2026-05-13 出具的「PRD-469 健康档案 v2 优化 —— 设计稿 vs 代码实现差距分析报告」中识别出的 P0/P1 缺口，一次性完成 6 项核心增量：①M4 用药添加页补齐 6 大缺失字段（每日次数 1-6 / 自定义服药时间点增删 / 开始日期 / 结束日期/长期服用 / 提醒开关 / 关联疾病多选 / 拍照识药接入 OCR）；②M4 用药计划 Tab 增加「今日用药 / 全部用药计划」双分段切换；③M6 健康信息新增家族病史编辑 UI（关系选择 + 疾病预设/自定义 + 多条增删）；④M6 健康信息新增手术史编辑（名称/时间/备注 + 多条增删）+ 慢病确诊年份；⑤M8 健康事件 Tab 新增病历卡列表 + 拍照 OCR 解析（医院/科室/诊断/日期/医生/处方）+ 自动入时间轴；⑥M2 Hero 卡改为「既往病史 / 过敏史 / 家族遗传 / 长期用药」四格健康摘要 + 右上角「编辑基本信息」入口。线上验证：H5 `/health-profile-v2 200` + `/api/health 200` + 数据库 `medication_reminders` 已新增 7 列 + `medical_record_cards` 表已创建。
+
+### 范围与端
+
+| 维度 | 内容 |
+|------|------|
+| 涉及端 | H5（Next.js）+ 后端（FastAPI）；admin / 小程序 / Flutter 均 0 改动 |
+| 新增表 | `medical_record_cards`（病历卡 + OCR 解析字段） |
+| 表结构变更 | `medication_reminders` 追加 7 列：`frequency_per_day` / `custom_times`(JSON) / `start_date` / `end_date` / `long_term` / `reminder_enabled` / `disease_tags`(JSON) |
+| 新增/修改接口 | `POST/GET/DELETE /api/prd469/medical-record` 共 4 个端点；`GET /api/prd469/summary/{profile_id}` 返回 `hero_metrics` 四格指标；`POST/PUT /api/health-plan/medications` 支持 7 个新字段 |
+| 关键文件 | `backend/app/api/prd469_health_v5.py`（新增 4 个 medical-record 端点 + `_ocr_parse_medical_record` 解析器 + hero_metrics）、`backend/app/models/models.py`（MedicationReminder 加 7 列 + 新 MedicalRecordCard）、`backend/app/schemas/health_plan_v2.py`、`backend/app/api/health_plan_v2.py`、`backend/app/services/schema_sync.py`（`_sync_medication_reminders_prd469_v2`）、`backend/app/init_data.py`（dedup_health_profiles 容错改用 raw SQL + try 容错避免 FK 阻塞）、`h5-web/src/app/health-plan/medications/add/page.tsx`（全面重写：频次/时间点/日期/开关/疾病标签/拍照识药）、`h5-web/src/app/health-profile-v2/page.tsx`（Hero 四格 + 编辑弹层 + 用药双分段）、`h5-web/src/components/health-profile-v5/HealthInfoBlock.tsx`（家族病史 + 手术史 + 慢病确诊年）、`h5-web/src/components/health-profile-v5/HealthEventsBlock.tsx`（病历卡列表 + 上传 OCR + 详情/删除） |
+| 自动化测试 | `backend/tests/test_prd469_health_v5.py` 新增 8 个测试：medication_create/update 7 新字段 + hero_summary_metrics + medical_record_create_with_ocr + list/delete + auto health_event + 404 + health_info family/surgery/年份 |
+| 用户手册 | `user_docs/健康档案v2优化.md` |
+
+### 部署与上线验证
+
+- 后端镜像重建 + 容器重启；通过 docker cp 修复 init_data 启动 FK 阻塞问题。
+- 数据库 schema_sync 自动追加 7 列 + 自动创建 `medical_record_cards` 表，无需手动迁移。
+- 关键 URL 验证：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/` → 200；`/health-profile-v2/` → 200；`/api/health` → 200。
+- 数据库列校验：`DESC medication_reminders` 包含 `frequency_per_day/custom_times/start_date/end_date/long_term/reminder_enabled/disease_tags`；`SHOW TABLES` 包含 `medical_record_cards`。
+
 ## Latest Update: PRD-469-HEALTH-PROFILE-V5-ALIGN-20260512｜健康档案 v2 优化（对齐 v5 设计稿 + 旧路由 404 + 新建成员弹层 + 药品库 + 健康信息 + 共管/事件/设备/提醒规则 + 修复用药保存 Bug + 5 张新表）（2026-05-12 20:45）
 
 ### 一句话结论
