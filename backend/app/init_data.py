@@ -1451,28 +1451,46 @@ async def _init_cos_upload_limits(db: AsyncSession):
 
 
 async def _init_medication_library_prd469(db: AsyncSession):
-    """初始化自建药品库种子数据（200+ 条核心慢病药）。
+    """初始化自建药品库种子数据（v2 扩展至 5000+ 条，四源融合）。
 
-    若数据库已有 ≥ 50 条记录则跳过，避免重复插入。
+    幂等策略：
+    - 加载当前的种子列表 `seeds`，得到目标条数 `target`
+    - 如果 DB 现有条数 ≥ target 的 95%，认为已充分填充，跳过本次 reseed
+    - 否则按 (name, spec, manufacturer) 去重逐条补齐
     """
+    seeds = get_medication_seeds()
+    target = len(seeds)
     count_result = await db.execute(select(func.count(MedicationLibrary.id)))
     existing = count_result.scalar() or 0
-    if existing >= 50:
+    # 已达 95% 目标 → 视为已填充，跳过
+    if target > 0 and existing >= int(target * 0.95):
         return
-
-    seeds = get_medication_seeds()
+    logger.info(
+        "[PRD-469 M10] reseed start: existing=%d target=%d (need补齐)", existing, target
+    )
+    # 去重键：(name, spec, manufacturer) —— 同通用名+同规格+不同厂商视为不同条目
+    # 这是真实药品库的常态：同一个通用名往往有几十家厂商在生产
     inserted = 0
+    seen_in_batch: set = set()
     for seed in seeds:
+        dedup_key = (seed["name"], seed.get("spec"), seed.get("manufacturer"))
+        if dedup_key in seen_in_batch:
+            continue
+        seen_in_batch.add(dedup_key)
         result = await db.execute(
             select(MedicationLibrary.id).where(
                 MedicationLibrary.name == seed["name"],
                 MedicationLibrary.spec == seed.get("spec"),
+                MedicationLibrary.manufacturer == seed.get("manufacturer"),
             )
         )
         if result.scalar_one_or_none() is not None:
             continue
         db.add(MedicationLibrary(**seed))
         inserted += 1
+        # 每 500 条 flush 一次，避免内存占用过大
+        if inserted % 500 == 0:
+            await db.flush()
     if inserted:
         await db.flush()
         logger.info("[PRD-469 M10] Inserted %d medication library seeds", inserted)

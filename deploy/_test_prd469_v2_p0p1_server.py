@@ -341,6 +341,46 @@ class TestRunner:
                              isinstance(items, list) and len(items) >= 1,
                              f"count={len(items) if isinstance(items, list) else 'n/a'}")
 
+    # ===== M10 v2: 药品库 3000+ 条 + 四源融合 =====
+    def test_medication_library_stats(self):
+        log("=== M10 v2: 药品库扩充至 3000+ + 四源融合 ===")
+        r = self.session.get(
+            f"{BASE}/api/prd469/medication-library/stats",
+            timeout=30,
+        )
+        log(f"  GET medication-library/stats -> {r.status_code} {r.text[:500]}")
+        self.assert_eq("M10v2.stats_status", r.status_code, 200)
+        if r.status_code != 200:
+            return
+        d = r.json()
+        total = d.get("total", 0)
+        by_source = d.get("by_source") or {}
+        four_present = d.get("four_sources_present", False)
+        meets_3000 = d.get("meets_3000_target", False)
+        log(f"  total={total} by_source={by_source} four_present={four_present} meets_3000={meets_3000}")
+
+        self.assert_true("M10v2.total_ge_3000", total >= 3000,
+                         f"got total={total}")
+        self.assert_true("M10v2.four_sources_present", four_present,
+                         f"got sources={list(by_source.keys())}")
+        # 单独校验每个 source 至少有 100 条
+        for src in ("medi_catalog", "essential_drugs", "nmpa", "top1000"):
+            cnt = by_source.get(src, 0)
+            self.assert_true(f"M10v2.source_{src}_ge_100", cnt >= 100,
+                             f"got {src}={cnt}")
+        # 多关键词搜索，验证扩充后能命中各类药品
+        for kw in ("二甲双胍", "阿托伐他汀", "孟鲁司特", "格列美脲"):
+            rr = self.session.get(
+                f"{BASE}/api/prd469/medication-library/search?kw={kw}&limit=5",
+                timeout=15,
+            )
+            ok = False
+            if rr.status_code == 200:
+                dd = rr.json()
+                items = dd.get("items") or []
+                ok = isinstance(items, list) and len(items) >= 1
+            self.assert_true(f"M10v2.search_{kw}", ok, f"status={rr.status_code}")
+
     # ===== Reminder / Device =====
     def test_reminder_and_device(self):
         log("=== M7/M9: 提醒规则 + 设备列表 ===")
@@ -375,6 +415,7 @@ class TestRunner:
             self.test_medical_record_ocr()
             self.test_reminder_and_device()
         self.test_medication_library_search()
+        self.test_medication_library_stats()
         self.test_frontend_reachable()
 
         log("=" * 60)

@@ -159,6 +159,50 @@ async def medication_library_search(
     }
 
 
+@router.get("/medication-library/stats")
+async def medication_library_stats(db: AsyncSession = Depends(get_db)):
+    """[PRD-469 M10 v2] 药品库统计：总条数 + 按 source 分组 + 按疾病标签分布。
+
+    用于验证四源融合数据是否已成功入库，并暴露给运营后台监控。
+    """
+    from sqlalchemy import func as _func
+
+    total_q = await db.execute(
+        select(_func.count(MedicationLibrary.id)).where(
+            MedicationLibrary.is_active == True  # noqa: E712
+        )
+    )
+    total = int(total_q.scalar() or 0)
+
+    src_q = await db.execute(
+        select(MedicationLibrary.source, _func.count(MedicationLibrary.id))
+        .where(MedicationLibrary.is_active == True)  # noqa: E712
+        .group_by(MedicationLibrary.source)
+    )
+    by_source: Dict[str, int] = {}
+    for src, cnt in src_q.all():
+        by_source[src or "unknown"] = int(cnt)
+
+    rx_q = await db.execute(
+        select(MedicationLibrary.rx_type, _func.count(MedicationLibrary.id))
+        .where(MedicationLibrary.is_active == True)  # noqa: E712
+        .group_by(MedicationLibrary.rx_type)
+    )
+    by_rx_type: Dict[str, int] = {}
+    for rx, cnt in rx_q.all():
+        by_rx_type[rx or "unknown"] = int(cnt)
+
+    return {
+        "total": total,
+        "by_source": by_source,
+        "by_rx_type": by_rx_type,
+        "four_sources_present": all(
+            s in by_source for s in ("medi_catalog", "essential_drugs", "nmpa", "top1000")
+        ),
+        "meets_3000_target": total >= 3000,
+    }
+
+
 @router.get("/medication-library/{drug_id}")
 async def medication_library_detail(
     drug_id: int,

@@ -123,3 +123,7 @@ deploy_order_enh.log
 # Temp deployment / smoke test helpers
 .tools/
 .dev_start_commit.txt
+
+# Cursor chat session artifacts and ad-hoc debug helpers
+.chat_output/
+.chat_prompts/
