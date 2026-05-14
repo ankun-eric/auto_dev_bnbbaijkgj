@@ -518,6 +518,10 @@ class _ChatScreenState extends State<ChatScreen> {
       case 'file_upload':
         _handleFileUpload();
         break;
+      // [PRD-PROMPT-CONFIG-V1 2026-05-14] 报告解读专属按钮：复用拍照上传交互
+      case 'report_interpret':
+        _handlePhotoUpload();
+        break;
       case 'ai_dialog_trigger':
         final triggerMsg = btn.params?['trigger_message']?.toString() ?? btn.name;
         _sendMessageWithSSE(triggerMsg);

@@ -9,40 +9,62 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.security import get_current_user, require_role
-from app.models.models import PromptTemplate, User
+from app.models.models import PromptTemplate, PromptTypeConfig, User
 from app.services.ai_service import call_ai_model
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/admin/prompt-templates", tags=["Prompt模板管理"])
 
-VALID_PROMPT_TYPES = {
+# [PRD-PROMPT-CONFIG-V1 2026-05-14] 类型集合从 prompt_type_config 表动态读取，
+# 兼容性兜底：当 DB 尚未迁移到位时，仍允许下列硬编码集合作为合法值。
+_FALLBACK_VALID_PROMPT_TYPES = {
     "checkup_report",
     "drug_general",
     "drug_personal",
     "drug_interaction",
     "drug_query",
     "trend_analysis",
-    # [2026-04-23] 报告解读对话化
     "checkup_report_interpret",
     "checkup_report_compare",
-    # [2026-04-23] 用药参考功能优化 v1.2：对话首条消息
     "drug_chat_opening_single",
     "drug_chat_opening_multi",
 }
 
-TYPE_DISPLAY_NAMES = {
+_FALLBACK_DISPLAY_NAMES = {
     "checkup_report": "体检报告解读（旧 · 结构化，已下线）",
     "drug_general": "药物识别通用建议",
     "drug_personal": "药物识别个性化建议",
     "drug_interaction": "药物相互作用分析",
-    "drug_query": "用药咨询对话（支持 {member_info} + {drug_list} 占位符）",
+    "drug_query": "用药咨询对话",
     "trend_analysis": "趋势解读（已下线）",
     "checkup_report_interpret": "体检报告解读（对话式）",
     "checkup_report_compare": "报告对比（对话式）",
-    "drug_chat_opening_single": "用药对话首条消息（单药 · 4段式）",
-    "drug_chat_opening_multi": "用药对话首条消息（多药对比 · 最多2个）",
+    "drug_chat_opening_single": "用药对话首条消息（单药）",
+    "drug_chat_opening_multi": "用药对话首条消息（多药）",
 }
+
+
+async def _load_type_configs(db: AsyncSession, include_offline: bool = False) -> list[PromptTypeConfig]:
+    stmt = select(PromptTypeConfig).order_by(
+        PromptTypeConfig.business_group.asc(),
+        PromptTypeConfig.sort_order.asc(),
+        PromptTypeConfig.id.asc(),
+    )
+    if not include_offline:
+        stmt = stmt.where(PromptTypeConfig.is_online == True)  # noqa: E712
+    res = await db.execute(stmt)
+    return list(res.scalars().all())
+
+
+async def _is_valid_prompt_type(db: AsyncSession, prompt_type: str) -> bool:
+    """合法即：prompt_type_config 中存在 type_key（无论上下线），或在兜底集合中。"""
+    res = await db.execute(
+        select(PromptTypeConfig).where(PromptTypeConfig.type_key == prompt_type)
+    )
+    if res.scalar_one_or_none():
+        return True
+    return prompt_type in _FALLBACK_VALID_PROMPT_TYPES
 
 
 class PromptTemplateResponse(BaseModel):
@@ -61,6 +83,11 @@ class PromptTemplateResponse(BaseModel):
 class PromptTemplateGroupResponse(BaseModel):
     prompt_type: str
     display_name: str
+    # [PRD-PROMPT-CONFIG-V1 2026-05-14] 新增 business_group + allowed_button_types
+    business_group: Optional[str] = None
+    allowed_button_types: List[str] = []
+    description: Optional[str] = None
+    preview_input_default: Optional[str] = None
     active_template: Optional[PromptTemplateResponse] = None
 
 
@@ -94,22 +121,46 @@ class RollbackResponse(BaseModel):
 
 @router.get("", response_model=List[PromptTemplateGroupResponse])
 async def list_prompt_templates(
+    include_offline: int = 0,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role("admin")),
 ):
+    # [PRD-PROMPT-CONFIG-V1 2026-05-14] 从 prompt_type_config 加载 is_online=1 的类型；
+    # 已下线类型默认隐藏（前端高级模式可传 include_offline=1）
+    configs = await _load_type_configs(db, include_offline=bool(include_offline))
+
     result = await db.execute(
         select(PromptTemplate).where(PromptTemplate.is_active == True)  # noqa: E712
     )
     active_templates = {t.prompt_type: t for t in result.scalars().all()}
 
-    groups = []
-    for pt in VALID_PROMPT_TYPES:
-        tpl = active_templates.get(pt)
+    groups: list[PromptTemplateGroupResponse] = []
+    seen = set()
+    for cfg in configs:
+        seen.add(cfg.type_key)
+        tpl = active_templates.get(cfg.type_key)
         groups.append(PromptTemplateGroupResponse(
-            prompt_type=pt,
-            display_name=TYPE_DISPLAY_NAMES.get(pt, pt),
+            prompt_type=cfg.type_key,
+            display_name=cfg.display_name,
+            business_group=cfg.business_group,
+            allowed_button_types=list(cfg.allowed_button_types or []),
+            description=cfg.description,
+            preview_input_default=cfg.preview_input_default,
             active_template=PromptTemplateResponse.model_validate(tpl) if tpl else None,
         ))
+
+    # 兜底：当配置表为空时仍返回兜底列表，保证不会出现"下拉永远为空"
+    if not configs:
+        for pt in _FALLBACK_VALID_PROMPT_TYPES:
+            tpl = active_templates.get(pt)
+            groups.append(PromptTemplateGroupResponse(
+                prompt_type=pt,
+                display_name=_FALLBACK_DISPLAY_NAMES.get(pt, pt),
+                business_group=None,
+                allowed_button_types=[],
+                active_template=PromptTemplateResponse.model_validate(tpl) if tpl else None,
+            ))
+
     return groups
 
 
@@ -119,8 +170,14 @@ async def get_prompt_template(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role("admin")),
 ):
-    if prompt_type not in VALID_PROMPT_TYPES:
+    if not await _is_valid_prompt_type(db, prompt_type):
         raise HTTPException(status_code=400, detail=f"无效的模板类型: {prompt_type}")
+
+    cfg_res = await db.execute(
+        select(PromptTypeConfig).where(PromptTypeConfig.type_key == prompt_type)
+    )
+    cfg = cfg_res.scalar_one_or_none()
+    display_name = cfg.display_name if cfg else _FALLBACK_DISPLAY_NAMES.get(prompt_type, prompt_type)
 
     result = await db.execute(
         select(PromptTemplate)
@@ -140,7 +197,7 @@ async def get_prompt_template(
 
     return PromptTemplateHistoryResponse(
         prompt_type=prompt_type,
-        display_name=TYPE_DISPLAY_NAMES.get(prompt_type, prompt_type),
+        display_name=display_name,
         active=active,
         history=history,
     )
@@ -153,8 +210,12 @@ async def update_prompt_template(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role("admin")),
 ):
-    if prompt_type not in VALID_PROMPT_TYPES:
+    if not await _is_valid_prompt_type(db, prompt_type):
         raise HTTPException(status_code=400, detail=f"无效的模板类型: {prompt_type}")
+    # 取展示名
+    cfg_res = await db.execute(select(PromptTypeConfig).where(PromptTypeConfig.type_key == prompt_type))
+    cfg = cfg_res.scalar_one_or_none()
+    default_name = cfg.display_name if cfg else _FALLBACK_DISPLAY_NAMES.get(prompt_type, prompt_type)
 
     result = await db.execute(
         select(PromptTemplate).where(
@@ -174,7 +235,7 @@ async def update_prompt_template(
         await db.flush()
 
     new_template = PromptTemplate(
-        name=body.name or TYPE_DISPLAY_NAMES.get(prompt_type, prompt_type),
+        name=body.name or default_name,
         prompt_type=prompt_type,
         content=body.content,
         version=new_version,
@@ -197,7 +258,7 @@ async def preview_prompt_template(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role("admin")),
 ):
-    if prompt_type not in VALID_PROMPT_TYPES:
+    if not await _is_valid_prompt_type(db, prompt_type):
         raise HTTPException(status_code=400, detail=f"无效的模板类型: {prompt_type}")
 
     result = await db.execute(
@@ -245,7 +306,7 @@ async def rollback_prompt_template(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role("admin")),
 ):
-    if prompt_type not in VALID_PROMPT_TYPES:
+    if not await _is_valid_prompt_type(db, prompt_type):
         raise HTTPException(status_code=400, detail=f"无效的模板类型: {prompt_type}")
 
     result = await db.execute(

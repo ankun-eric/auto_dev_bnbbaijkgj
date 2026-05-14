@@ -14,6 +14,8 @@ from app.models.models import (
     DigitalHuman,
     MessageRole,
     MessageType,
+    PromptTemplate,
+    PromptTypeConfig,
     SessionType,
     User,
     VoiceCallRecord,
@@ -287,11 +289,46 @@ async def admin_list_buttons(
 
 
 def _validate_button_type(btn_type: Optional[str]) -> None:
-    """[AI对话模式优化 PRD v1.0] 校验按钮类型属于 7 种枚举之一。"""
+    """[AI对话模式优化 PRD v1.0] 校验按钮类型属于 8 种枚举之一。"""
     if btn_type is not None and btn_type not in ALLOWED_BUTTON_TYPES:
         raise HTTPException(
             status_code=400,
             detail=f"按钮类型 button_type 取值不合法：{btn_type}，允许值：{sorted(ALLOWED_BUTTON_TYPES)}",
+        )
+
+
+async def _validate_button_prompt_binding(
+    db: AsyncSession,
+    button_type: Optional[str],
+    prompt_template_id: Optional[int],
+) -> None:
+    """[PRD-PROMPT-CONFIG-V1 2026-05-14] 校验 button_type 与 prompt_template_id 的绑定关系。
+
+    规则：
+    - 如果未提供 prompt_template_id：跳过校验
+    - 否则：查 PromptTemplate -> 查 PromptTypeConfig -> 校验 button_type 在 allowed_button_types 中
+    - 配置缺失（兜底）：放行，避免误伤历史数据
+    """
+    if not prompt_template_id or not button_type:
+        return
+    tpl = await db.get(PromptTemplate, prompt_template_id)
+    if not tpl:
+        raise HTTPException(status_code=400, detail=f"prompt_template_id={prompt_template_id} 不存在")
+    cfg_res = await db.execute(
+        select(PromptTypeConfig).where(PromptTypeConfig.type_key == tpl.prompt_type)
+    )
+    cfg = cfg_res.scalar_one_or_none()
+    if not cfg:
+        # 配置缺失视为兜底放行（不阻断写入）
+        return
+    allowed = list(cfg.allowed_button_types or [])
+    if allowed and button_type not in allowed:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"按钮类型 {button_type} 不允许绑定 Prompt 类型 {tpl.prompt_type}"
+                f"（允许的按钮类型：{allowed}）"
+            ),
         )
 
 
@@ -302,6 +339,7 @@ async def admin_create_button(
     db: AsyncSession = Depends(get_db),
 ):
     _validate_button_type(data.button_type)
+    await _validate_button_prompt_binding(db, data.button_type, data.prompt_template_id)
     btn = ChatFunctionButton(**data.model_dump())
     db.add(btn)
     await db.flush()
@@ -324,7 +362,12 @@ async def admin_update_button(
         raise HTTPException(status_code=404, detail="按钮不存在")
 
     _validate_button_type(data.button_type)
-    for field, value in data.model_dump(exclude_unset=True).items():
+    # 计算更新后的有效 button_type / prompt_template_id（取请求里有值的覆盖现有）
+    updates = data.model_dump(exclude_unset=True)
+    effective_btn_type = updates.get("button_type", btn.button_type)
+    effective_pt_id = updates.get("prompt_template_id", btn.prompt_template_id)
+    await _validate_button_prompt_binding(db, effective_btn_type, effective_pt_id)
+    for field, value in updates.items():
         setattr(btn, field, value)
     await db.flush()
     await db.refresh(btn)

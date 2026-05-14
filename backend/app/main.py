@@ -77,9 +77,11 @@ from app.api import (
     product_admin,
     products,
     prompt_templates,
+    prompt_type_config,
     referral,
     report,
     report_interpret,
+    report_interpret_button,
     checkup_api_v2,
     scan,
     search,
@@ -1227,6 +1229,122 @@ async def _migrate_aichat_optim_fix_v1():
         _logger.error("[aichat_optim_fix_v1] 迁移异常（不影响启动）: %s", e)
 
 
+async def _migrate_prompt_type_config_v1():
+    """[PRD-PROMPT-CONFIG-V1 2026-05-14] Prompt 类型配置改造 v1
+    
+    迁移内容（幂等）：
+      1. 创建 prompt_type_config 表（如不存在）
+      2. 初始化 10 条默认数据（仅在表空时插入）
+      3. 历史 function_buttons 自动迁移：button_type=photo_upload/file_upload
+         且 prompt_template_id 绑定到 report_interpret 业务分组的 Prompt 时
+         → 改为 button_type=report_interpret
+         （备份至 function_buttons_backup_pcv1）
+    """
+    import logging as _l
+    _logger = _l.getLogger(__name__)
+    from app.core.database import async_session as _async_session
+    try:
+        async with _async_session() as db:
+            from sqlalchemy import text
+
+            # ── 1. 表已由 Base.metadata.create_all 创建，本步主要兜底（MySQL DDL 幂等） ──
+            # 不显式 CREATE TABLE，因为 ORM Base 自动建表
+            print("[migrate] prompt_type_config_v1: 启动", flush=True)
+
+            # ── 2. 初始化数据（仅在表空时） ──
+            chk = await db.execute(text("SELECT COUNT(*) FROM prompt_type_config"))
+            count = chk.scalar() or 0
+            if count == 0:
+                # type_key, display_name, business_group, description, allowed_button_types(JSON), preview_input_default, is_online, sort_order
+                seed_rows = [
+                    ("checkup_report_interpret", "体检报告解读（对话式）", "report_interpret",
+                     "单份体检报告对话化解读", '["report_interpret"]',
+                     "示例：体检报告全文…（在此粘贴 OCR 文本进行预览）", 1, 10),
+                    ("checkup_report_compare", "报告对比（对话式）", "report_interpret",
+                     "两份及以上报告对比解读", '["report_interpret"]',
+                     "示例：两份报告全文…", 1, 20),
+                    ("drug_general", "药物识别通用建议", "drug_identify",
+                     "拍照识药通用建议（无档案）", '["photo_recognize_drug"]',
+                     "示例：阿莫西林胶囊", 1, 10),
+                    ("drug_personal", "药物识别个性化建议", "drug_identify",
+                     "拍照识药结合用户档案", '["photo_recognize_drug"]',
+                     "示例：阿莫西林胶囊+用户档案", 1, 20),
+                    ("drug_interaction", "药物相互作用分析", "drug_identify",
+                     "多药相互作用", '["photo_recognize_drug","ai_chat_trigger"]',
+                     "示例：阿莫西林+布洛芬", 1, 30),
+                    ("drug_query", "用药咨询对话", "drug_chat",
+                     "用药咨询对话", '["ai_chat_trigger","quick_ask"]',
+                     "示例：阿莫西林能和布洛芬一起吃吗？", 1, 10),
+                    ("drug_chat_opening_single", "用药对话首条消息（单药）", "drug_chat",
+                     "单药对话开场", '["ai_chat_trigger"]',
+                     "示例：阿莫西林", 1, 20),
+                    ("drug_chat_opening_multi", "用药对话首条消息（多药）", "drug_chat",
+                     "多药对话开场", '["ai_chat_trigger"]',
+                     "示例：阿莫西林+布洛芬", 1, 30),
+                    ("checkup_report", "体检报告解读（旧·结构化）", "_deprecated",
+                     "已下线", '[]', None, 0, 90),
+                    ("trend_analysis", "趋势解读", "_deprecated",
+                     "已下线", '[]', None, 0, 91),
+                ]
+                for row in seed_rows:
+                    await db.execute(text(
+                        "INSERT INTO prompt_type_config "
+                        "(type_key, display_name, business_group, description, allowed_button_types, preview_input_default, is_online, sort_order, created_by) "
+                        "VALUES (:k, :n, :g, :d, :a, :p, :o, :s, 'system')"
+                    ), {
+                        "k": row[0], "n": row[1], "g": row[2], "d": row[3],
+                        "a": row[4], "p": row[5], "o": row[6], "s": row[7],
+                    })
+                print(f"[migrate] prompt_type_config_v1: 初始化 {len(seed_rows)} 条数据", flush=True)
+                _logger.info("[prompt_type_config_v1] 初始化 %d 条数据", len(seed_rows))
+            else:
+                print(f"[migrate] prompt_type_config_v1: 已有 {count} 条数据，跳过初始化", flush=True)
+
+            # ── 3. 历史按钮迁移：报告类 prompt 绑定的 photo_upload/file_upload → report_interpret ──
+            # 先备份（如存在则跳过）
+            try:
+                bak_chk = await db.execute(text(
+                    "SELECT COUNT(*) FROM information_schema.tables "
+                    "WHERE table_schema = DATABASE() AND table_name = 'function_buttons_backup_pcv1'"
+                ))
+                if (bak_chk.scalar() or 0) == 0:
+                    await db.execute(text(
+                        "CREATE TABLE function_buttons_backup_pcv1 AS SELECT * FROM chat_function_buttons"
+                    ))
+                    print("[migrate] prompt_type_config_v1: 已备份 chat_function_buttons → function_buttons_backup_pcv1", flush=True)
+            except Exception as be:
+                _logger.debug("[prompt_type_config_v1] 备份跳过: %s", be)
+
+            # 找出报告类业务分组的 prompt_template_id
+            try:
+                rows = await db.execute(text(
+                    "SELECT pt.id FROM prompt_templates pt "
+                    "JOIN prompt_type_config c ON pt.prompt_type = c.type_key "
+                    "WHERE c.business_group = 'report_interpret' AND pt.is_active = 1"
+                ))
+                ids = [r[0] for r in rows.fetchall()]
+                if ids:
+                    placeholders = ",".join(str(i) for i in ids)
+                    upd = await db.execute(text(
+                        f"UPDATE chat_function_buttons SET button_type = 'report_interpret' "
+                        f"WHERE prompt_template_id IN ({placeholders}) "
+                        f"AND button_type IN ('photo_upload','file_upload')"
+                    ))
+                    rc = upd.rowcount if hasattr(upd, "rowcount") else 0
+                    print(f"[migrate] prompt_type_config_v1: 迁移 {rc} 个历史按钮 → report_interpret", flush=True)
+                else:
+                    print("[migrate] prompt_type_config_v1: 无报告类 active Prompt，跳过按钮迁移", flush=True)
+            except Exception as ue:
+                _logger.debug("[prompt_type_config_v1] 按钮迁移跳过: %s", ue)
+
+            await db.commit()
+            print("[migrate] prompt_type_config_v1: 完成", flush=True)
+            _logger.info("[prompt_type_config_v1] 迁移完成")
+    except Exception as e:  # noqa: BLE001
+        print(f"[migrate] prompt_type_config_v1: 迁移异常（不影响启动）: {e}", flush=True)
+        _logger.error("[prompt_type_config_v1] 迁移异常（不影响启动）: %s", e)
+
+
 async def _migrate_bug433_chat_message_source_parent_id():
     """[Bug-433 2026-05-09] AI 对话首页 - 语音/预设按钮"会话首句消息丢失"修复
 
@@ -1329,6 +1447,10 @@ async def lifespan(app: FastAPI):
     print("[migrate] aichat_optim_fix_v1: 启动迁移...", flush=True)
     await _migrate_aichat_optim_fix_v1()
     print("[migrate] aichat_optim_fix_v1: 迁移完成", flush=True)
+    # [PRD-PROMPT-CONFIG-V1 2026-05-14] Prompt 类型配置改造：表 + 数据 + 历史按钮迁移
+    print("[migrate] prompt_type_config_v1: 启动迁移...", flush=True)
+    await _migrate_prompt_type_config_v1()
+    print("[migrate] prompt_type_config_v1: 迁移完成", flush=True)
     from app.init_data import init_default_data
     await init_default_data()
     from app.init_cities import init_cities
@@ -1421,6 +1543,10 @@ app.include_router(ocr.admin_router)
 app.include_router(ocr_details.router)
 app.include_router(ocr_details.user_router)
 app.include_router(prompt_templates.router)
+# [PRD-PROMPT-CONFIG-V1 2026-05-14] Prompt 类型配置 API
+app.include_router(prompt_type_config.router)
+# [PRD-PROMPT-CONFIG-V1 2026-05-14] 报告解读按钮专属流程入口 /api/report-interpret/start
+app.include_router(report_interpret_button.router)
 app.include_router(drug_identify_share.router)
 app.include_router(drug_chat.router)  # [2026-04-23 v1.2] 用药对话首条消息 + 重新生成
 app.include_router(home_config.router)

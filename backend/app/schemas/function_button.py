@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict
 
 
 # [AI对话模式优化 PRD v1.0] 7 种按钮类型枚举（应用层校验）
+# [PRD-PROMPT-CONFIG-V1 2026-05-14] 新增第 8 种：report_interpret（报告解读专属）
 ALLOWED_BUTTON_TYPES = {
     "digital_human_call",
     "photo_upload",
@@ -16,6 +17,7 @@ ALLOWED_BUTTON_TYPES = {
     "external_link",
     "photo_recognize_drug",
     "quick_ask",
+    "report_interpret",
 }
 
 

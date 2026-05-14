@@ -856,6 +856,20 @@ Page({
         });
         break;
 
+      // [PRD-PROMPT-CONFIG-V1 2026-05-14] 报告解读专属按钮：复用拍照上传交互，
+      // 上传成功后调用 /api/report-interpret/start 跳转到对话页
+      case 'report_interpret':
+        wx.chooseMedia({
+          count: 1,
+          mediaType: ['image'],
+          sourceType: ['album', 'camera'],
+          success: (res) => {
+            const filePath = res.tempFiles[0].tempFilePath;
+            this._uploadAndStartReportInterpret(filePath, btn.id);
+          }
+        });
+        break;
+
       case 'file_upload':
         wx.chooseMessageFile({
           count: 1,
@@ -1244,6 +1258,39 @@ Page({
         lockedFamilyMemberId: memberId,
         currentConsultantId: Number(memberId) || 0
       });
+    }
+  },
+
+  // [PRD-PROMPT-CONFIG-V1 2026-05-14] 报告解读按钮：先上传图片到服务器，
+  // 然后调用 /api/report-interpret/start 创建会话并跳转
+  async _uploadAndStartReportInterpret(filePath, buttonId) {
+    try {
+      filePath = await compressImage(filePath);
+    } catch (_) { /* 压缩失败回退原图 */ }
+    wx.showLoading({ title: '上传中...', mask: true });
+    try {
+      const uploadRes = await uploadWithProgress('/api/upload/image', filePath, {});
+      const imageUrl = (uploadRes && (uploadRes.url || uploadRes.image_url)) || '';
+      if (!imageUrl) {
+        wx.hideLoading();
+        wx.showToast({ title: '图片上传失败', icon: 'none' });
+        return;
+      }
+      const { request: apiReq } = require('../../utils/request.js');
+      const res = await apiReq({
+        url: '/api/report-interpret/start',
+        method: 'POST',
+        data: { button_id: buttonId, image_urls: [imageUrl] },
+      });
+      wx.hideLoading();
+      if (res && res.session_id) {
+        wx.navigateTo({ url: `/pages/chat/index?id=${res.session_id}&type=report_interpret` });
+      } else {
+        wx.showToast({ title: '创建会话失败', icon: 'none' });
+      }
+    } catch (e) {
+      wx.hideLoading();
+      wx.showToast({ title: '报告解读启动失败', icon: 'none' });
     }
   },
 

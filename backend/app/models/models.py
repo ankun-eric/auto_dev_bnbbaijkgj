@@ -2079,6 +2079,26 @@ class PromptTemplate(Base):
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+# [PRD-PROMPT-CONFIG-V1 2026-05-14] Prompt 类型配置表（替代硬编码 VALID_PROMPT_TYPES）
+# 业务分组：report_interpret / drug_identify / drug_chat / general_material / _deprecated
+class PromptTypeConfig(Base):
+    __tablename__ = "prompt_type_config"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    type_key = mapped_column(String(64), nullable=False, unique=True, comment="系统标识 e.g. checkup_report_interpret")
+    display_name = mapped_column(String(128), nullable=False, comment="展示名")
+    business_group = mapped_column(String(32), nullable=False, comment="业务分组")
+    description = mapped_column(Text, nullable=True)
+    allowed_button_types = mapped_column(JSON, nullable=False, default=list, comment="允许绑定的按钮类型 JSON 数组")
+    param_schema = mapped_column(JSON, nullable=True, comment="Prompt 变量声明，预留")
+    preview_input_default = mapped_column(Text, nullable=True, comment="预览功能预置示例输入")
+    is_online = mapped_column(Boolean, nullable=False, default=True, comment="是否上线（0=已下线，前端隐藏）")
+    sort_order = mapped_column(Integer, nullable=False, default=0)
+    created_by = mapped_column(String(32), nullable=False, default="system")
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 # ──────────────── 分享链接 ────────────────
 
 

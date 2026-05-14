@@ -311,6 +311,8 @@ export function resolveCardType(buttonType: string): ChatCardType {
     case 'photo_recognize_drug':
     case 'medication_recognize':
     case 'drug_identify':
+    // [PRD-PROMPT-CONFIG-V1 2026-05-14] 报告解读复用 upload 卡片（拍照/选相册/选文件三选一）
+    case 'report_interpret':
       return 'upload';
     case 'external_link':
       return 'navigate';

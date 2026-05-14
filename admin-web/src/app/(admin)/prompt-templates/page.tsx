@@ -47,18 +47,41 @@ interface PromptTemplateHistoryResponse {
   history: TemplateVersion[];
 }
 
-const TEMPLATE_TYPES = [
-  { key: 'checkup_report_interpret', label: '体检报告解读（对话式）' },
-  { key: 'checkup_report_compare', label: '报告对比（对话式）' },
-  { key: 'drug_general', label: '药物识别通用建议' },
-  { key: 'drug_personal', label: '药物识别个性化建议' },
-  { key: 'drug_interaction', label: '药物相互作用分析' },
-  { key: 'drug_query', label: '用药咨询对话' },
-  { key: 'drug_chat_opening_single', label: '用药对话首条消息（单药 · 4段式）' },
-  { key: 'drug_chat_opening_multi', label: '用药对话首条消息（多药对比 · 最多2个）' },
-  { key: 'checkup_report', label: '体检报告解读（旧·已下线）' },
-  { key: 'trend_analysis', label: '趋势解读（已下线）' },
+// [PRD-PROMPT-CONFIG-V1 2026-05-14] 业务分组定义
+const BUSINESS_GROUP_LABELS: Record<string, string> = {
+  report_interpret: '🩺 报告解读',
+  drug_identify: '🔍 药品识别',
+  drug_chat: '💬 用药对话',
+  general_material: '📦 通用素材',
+  _deprecated: '🚫 已下线',
+};
+
+const BUSINESS_GROUP_ORDER = [
+  'report_interpret',
+  'drug_identify',
+  'drug_chat',
+  'general_material',
 ];
+
+// 兜底（DB 为空时使用）
+const FALLBACK_TYPES = [
+  { key: 'checkup_report_interpret', label: '体检报告解读（对话式）', business_group: 'report_interpret' },
+  { key: 'checkup_report_compare', label: '报告对比（对话式）', business_group: 'report_interpret' },
+  { key: 'drug_general', label: '药物识别通用建议', business_group: 'drug_identify' },
+  { key: 'drug_personal', label: '药物识别个性化建议', business_group: 'drug_identify' },
+  { key: 'drug_interaction', label: '药物相互作用分析', business_group: 'drug_identify' },
+  { key: 'drug_query', label: '用药咨询对话', business_group: 'drug_chat' },
+  { key: 'drug_chat_opening_single', label: '用药对话首条消息（单药）', business_group: 'drug_chat' },
+  { key: 'drug_chat_opening_multi', label: '用药对话首条消息（多药）', business_group: 'drug_chat' },
+];
+
+interface PromptGroupItem {
+  prompt_type: string;
+  display_name: string;
+  business_group?: string;
+  allowed_button_types?: string[];
+  preview_input_default?: string | null;
+}
 
 const DEFAULT_PREVIEW_INPUTS: Record<string, string> = {
   checkup_report:
@@ -120,7 +143,10 @@ const TYPE_HINTS: Record<string, string> = {
 };
 
 export default function PromptTemplatesPage() {
-  const [activeType, setActiveType] = useState('checkup_report');
+  // [PRD-PROMPT-CONFIG-V1 2026-05-14] 改为按 business_group 分组展示，已下线类型默认隐藏
+  const [groupedTypes, setGroupedTypes] = useState<PromptGroupItem[]>([]);
+  const [activeType, setActiveType] = useState<string>('');
+  const [activeGroup, setActiveGroup] = useState<string>('report_interpret');
   const [templates, setTemplates] = useState<Record<string, PromptTemplateHistoryResponse>>({});
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -130,7 +156,76 @@ export default function PromptTemplatesPage() {
   const [previewing, setPreviewing] = useState(false);
   const [rollingBack, setRollingBack] = useState<number | null>(null);
 
+  // 按 business_group 切分（隐藏 _deprecated）
+  const groupsByBusiness = React.useMemo(() => {
+    const map: Record<string, PromptGroupItem[]> = {};
+    groupedTypes.forEach((g) => {
+      const bg = g.business_group || 'general_material';
+      if (bg === '_deprecated') return; // 已下线不展示
+      if (!map[bg]) map[bg] = [];
+      map[bg].push(g);
+    });
+    return map;
+  }, [groupedTypes]);
+
+  // 当前业务分组下的具体类型
+  const currentGroupTypes = groupsByBusiness[activeGroup] || [];
+
+  const fetchTypes = useCallback(async () => {
+    try {
+      const res = await get<any>('/api/admin/prompt-templates');
+      const groups = Array.isArray(res) ? res : (res?.items || []);
+      const list: PromptGroupItem[] = groups.map((g: any) => ({
+        prompt_type: g.prompt_type,
+        display_name: g.display_name || g.prompt_type,
+        business_group: g.business_group,
+        allowed_button_types: g.allowed_button_types || [],
+        preview_input_default: g.preview_input_default || null,
+      }));
+      if (list.length === 0) {
+        setGroupedTypes(FALLBACK_TYPES.map((t) => ({
+          prompt_type: t.key,
+          display_name: t.label,
+          business_group: t.business_group,
+          allowed_button_types: [],
+        })));
+      } else {
+        setGroupedTypes(list);
+      }
+    } catch {
+      // 兜底列表
+      setGroupedTypes(FALLBACK_TYPES.map((t) => ({
+        prompt_type: t.key,
+        display_name: t.label,
+        business_group: t.business_group,
+        allowed_button_types: [],
+      })));
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchTypes();
+  }, [fetchTypes]);
+
+  // 初始化默认选中
+  useEffect(() => {
+    if (groupedTypes.length === 0) return;
+    // 选第一个有内容的 group
+    for (const g of BUSINESS_GROUP_ORDER) {
+      const arr = groupsByBusiness[g];
+      if (arr && arr.length > 0) {
+        setActiveGroup((prev) => prev || g);
+        if (!activeType) {
+          setActiveType(arr[0].prompt_type);
+        }
+        break;
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groupedTypes]);
+
   const fetchTemplate = useCallback(async (type: string) => {
+    if (!type) return;
     setLoading(true);
     try {
       const res = await get<PromptTemplateHistoryResponse>(`/api/admin/prompt-templates/${type}`);
@@ -143,7 +238,9 @@ export default function PromptTemplatesPage() {
   }, []);
 
   useEffect(() => {
-    fetchTemplate(activeType);
+    if (activeType) {
+      fetchTemplate(activeType);
+    }
   }, [activeType, fetchTemplate]);
 
   const handleContentChange = (value: string) => {
@@ -189,7 +286,10 @@ export default function PromptTemplatesPage() {
   };
 
   const handleOpenPreview = () => {
-    setPreviewInput(DEFAULT_PREVIEW_INPUTS[activeType] || '');
+    // [PRD-PROMPT-CONFIG-V1 2026-05-14] 预设示例改从后端配置 preview_input_default 读取
+    // 找不到则降级使用前端 DEFAULT_PREVIEW_INPUTS
+    const cfg = groupedTypes.find((g) => g.prompt_type === activeType);
+    setPreviewInput(cfg?.preview_input_default || DEFAULT_PREVIEW_INPUTS[activeType] || '');
     setPreviewResult('');
     setPreviewOpen(true);
   };
@@ -233,42 +333,85 @@ export default function PromptTemplatesPage() {
 
   const currentTplGroup = templates[activeType];
   const currentTpl = currentTplGroup?.active;
-  const currentTypeLabel = TEMPLATE_TYPES.find((t) => t.key === activeType)?.label || '';
+  const currentItem = groupedTypes.find((g) => g.prompt_type === activeType);
+  const currentTypeLabel = currentItem?.display_name || activeType;
+
+  // 业务分组 Tab 按定义顺序展示（仅在线）
+  const visibleGroups = BUSINESS_GROUP_ORDER.filter((g) => (groupsByBusiness[g] || []).length > 0);
 
   return (
     <div>
       <Title level={4} style={{ marginBottom: 24 }}>
         Prompt 模板配置
       </Title>
+      {/* [PRD-PROMPT-CONFIG-V1 2026-05-14] 业务分组一级 Tab */}
+      <div
+        style={{
+          display: 'flex',
+          gap: 8,
+          marginBottom: 16,
+          borderBottom: '1px solid #f0f0f0',
+          paddingBottom: 12,
+          flexWrap: 'wrap',
+        }}
+        data-testid="prompt-business-group-tabs"
+      >
+        {visibleGroups.map((g) => (
+          <div
+            key={g}
+            onClick={() => {
+              setActiveGroup(g);
+              const arr = groupsByBusiness[g];
+              if (arr && arr.length > 0) setActiveType(arr[0].prompt_type);
+            }}
+            style={{
+              padding: '8px 16px',
+              cursor: 'pointer',
+              borderRadius: 6,
+              background: activeGroup === g ? '#4096ff' : '#f5f5f5',
+              color: activeGroup === g ? '#fff' : '#333',
+              fontWeight: 600,
+              fontSize: 14,
+              transition: 'all 0.2s',
+            }}
+          >
+            {BUSINESS_GROUP_LABELS[g] || g}（{(groupsByBusiness[g] || []).length}）
+          </div>
+        ))}
+      </div>
       <div style={{ display: 'flex', gap: 0, minHeight: 600 }}>
-        {/* Left nav */}
+        {/* Left nav 二级 - 当前业务分组下的 Prompt 类型 */}
         <div
           style={{
-            width: 200,
+            width: 240,
             flexShrink: 0,
             borderRight: '1px solid #f0f0f0',
             paddingRight: 0,
           }}
+          data-testid="prompt-type-list"
         >
-          {TEMPLATE_TYPES.map((type) => (
+          {currentGroupTypes.length === 0 && (
+            <div style={{ padding: 16, color: '#999', fontSize: 13 }}>当前分组暂无类型</div>
+          )}
+          {currentGroupTypes.map((type) => (
             <div
-              key={type.key}
-              onClick={() => setActiveType(type.key)}
+              key={type.prompt_type}
+              onClick={() => setActiveType(type.prompt_type)}
               style={{
                 padding: '12px 16px',
                 cursor: 'pointer',
                 borderRadius: '8px 0 0 8px',
                 marginBottom: 4,
-                background: activeType === type.key ? '#f0f5ff' : 'transparent',
+                background: activeType === type.prompt_type ? '#f0f5ff' : 'transparent',
                 borderRight:
-                  activeType === type.key ? '3px solid #4096ff' : '3px solid transparent',
-                color: activeType === type.key ? '#4096ff' : '#333',
-                fontWeight: activeType === type.key ? 600 : 400,
+                  activeType === type.prompt_type ? '3px solid #4096ff' : '3px solid transparent',
+                color: activeType === type.prompt_type ? '#4096ff' : '#333',
+                fontWeight: activeType === type.prompt_type ? 600 : 400,
                 transition: 'all 0.2s',
                 fontSize: 14,
               }}
             >
-              {type.label}
+              {type.display_name}
             </div>
           ))}
         </div>

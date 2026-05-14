@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Table, Button, Space, Tag, Switch, Modal, Form, Input, Select,
-  InputNumber, Typography, message,
+  InputNumber, Typography, message, Empty,
 } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, SmileOutlined } from '@ant-design/icons';
 import { get, post, put, del } from '@/lib/api';
@@ -13,21 +14,23 @@ import { EmojiPickerModal } from '@/components/EmojiPicker';
 const { Title } = Typography;
 const { TextArea } = Input;
 
-// [AI对话模式优化 PRD v1.0 §3.2] 按钮类型枚举（最终 7 种）
+// [PRD-PROMPT-CONFIG-V1 2026-05-14] 按钮类型枚举（8 种，新增 report_interpret 报告解读专属类型）
 const BUTTON_TYPE_OPTIONS = [
-  { value: 'digital_human_call', label: '数字人通话' },
-  { value: 'photo_upload', label: '拍照上传' },
-  { value: 'file_upload', label: '文件上传' },
-  { value: 'ai_chat_trigger', label: 'AI对话触发' },
-  { value: 'external_link', label: '外部链接' },
-  { value: 'photo_recognize_drug', label: '拍照识药' },
-  { value: 'quick_ask', label: '快捷提问' },
+  { value: 'digital_human_call', label: '📞 数字人通话' },
+  { value: 'photo_upload', label: '📷 拍照上传（通用素材）' },
+  { value: 'file_upload', label: '📄 文件上传（通用素材）' },
+  { value: 'report_interpret', label: '🩺 报告解读（体检报告专属）' },
+  { value: 'photo_recognize_drug', label: '🔍 拍照识药' },
+  { value: 'ai_chat_trigger', label: '💬 AI对话触发' },
+  { value: 'quick_ask', label: '⚡ 快捷提问' },
+  { value: 'external_link', label: '🔗 外部链接' },
 ];
 
 const BUTTON_TYPE_MAP: Record<string, { label: string; color: string }> = {
   digital_human_call: { label: '数字人通话', color: 'blue' },
   photo_upload: { label: '拍照上传', color: 'green' },
   file_upload: { label: '文件上传', color: 'orange' },
+  report_interpret: { label: '报告解读', color: 'volcano' },
   ai_chat_trigger: { label: 'AI对话触发', color: 'purple' },
   external_link: { label: '外部链接', color: 'default' },
   photo_recognize_drug: { label: '拍照识药', color: 'cyan' },
@@ -37,12 +40,11 @@ const BUTTON_TYPE_MAP: Record<string, { label: string; color: string }> = {
   drug_identify: { label: '拍照识药(旧)', color: 'cyan' },
 };
 
-// 需要关联 Prompt 模板的按钮类型（PRD §3.2）
+// 需要关联 Prompt 模板的按钮类型（PRD §3.2 + PRD-PROMPT-CONFIG-V1）
 const PROMPT_TEMPLATE_REQUIRED_TYPES = new Set([
   'ai_chat_trigger',
-  'file_upload',
   'photo_recognize_drug',
-  'photo_upload',
+  'report_interpret',
 ]);
 
 const AI_REPLY_MODE_OPTIONS = [
@@ -77,9 +79,13 @@ interface FunctionButton {
 interface PromptTemplateOption {
   value: number;
   label: string;
+  promptType?: string;
+  businessGroup?: string;
+  allowedButtonTypes: string[];
 }
 
 export default function FunctionButtonsPage() {
+  const router = useRouter();
   const [items, setItems] = useState<FunctionButton[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -96,24 +102,41 @@ export default function FunctionButtonsPage() {
   // [AICHAT-OPTIM-FIX-V1 F-01] Emoji 选择器弹窗状态
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
 
-  // 加载 Prompt 模板列表，作为「关联 Prompt 模板」下拉数据源
+  // [PRD-PROMPT-CONFIG-V1 2026-05-14] 修复"下拉永远为空" Bug：
+  // 后端返回的是 GroupResponse 列表 [{prompt_type, display_name, active_template:{id,name,...}, business_group, allowed_button_types}]
+  // 此前错误读取 it.id / it.is_active，导致 .filter 全部丢弃 → 永远 0 项
+  // 正确做法：遍历 groups，从 active_template 拿 id，并保留 business_group + allowed_button_types 用于联动过滤
   const fetchPromptTemplates = useCallback(async () => {
     try {
-      const res = await get<any>('/api/admin/prompt-templates', { page: 1, page_size: 200 });
-      const items = Array.isArray(res) ? res : (res?.items || []);
-      setPromptOptions(
-        items
-          .filter((it: any) => it && it.id && it.is_active !== false)
-          .map((it: any) => ({
-            value: it.id,
-            label: `${it.name}${it.prompt_type ? ` [${it.prompt_type}]` : ''}`,
-          })),
-      );
+      const res = await get<any>('/api/admin/prompt-templates');
+      const groups = Array.isArray(res) ? res : (res?.items || []);
+      const options: PromptTemplateOption[] = [];
+      groups.forEach((g: any) => {
+        const tpl = g?.active_template;
+        if (!tpl || !tpl.id || tpl.is_active === false) return;
+        options.push({
+          value: tpl.id,
+          label: `${g.display_name || tpl.name || tpl.prompt_type}`,
+          promptType: g.prompt_type,
+          businessGroup: g.business_group,
+          allowedButtonTypes: Array.isArray(g.allowed_button_types) ? g.allowed_button_types : [],
+        });
+      });
+      setPromptOptions(options);
     } catch {
       // 静默失败：Prompt 列表加载失败不阻塞按钮管理
       setPromptOptions([]);
     }
   }, []);
+
+  // 联动过滤：根据当前选中的 button_type 过滤可绑定 Prompt
+  const filteredPromptOptions = useMemo(() => {
+    if (!watchedButtonType) return promptOptions;
+    return promptOptions.filter((o) =>
+      // 配置缺失（无 allowed_button_types）时不阻断
+      !o.allowedButtonTypes || o.allowedButtonTypes.length === 0 || o.allowedButtonTypes.includes(watchedButtonType),
+    );
+  }, [promptOptions, watchedButtonType]);
 
   useEffect(() => {
     fetchPromptTemplates();
@@ -454,21 +477,36 @@ export default function FunctionButtonsPage() {
               </Form.Item>
             </>
           )}
-          {/* [AI对话模式优化 PRD v1.0 §3.2] 关联 Prompt 模板（仅部分类型显示） */}
+          {/* [PRD-PROMPT-CONFIG-V1 2026-05-14] 关联 Prompt 模板（仅部分类型显示） + 联动过滤 + 空状态跳转 */}
           {watchedButtonType && PROMPT_TEMPLATE_REQUIRED_TYPES.has(watchedButtonType) && (
             <Form.Item
               label="关联 Prompt 模板"
               name="prompt_template_id"
               rules={[{ required: true, message: '请选择关联 Prompt 模板' }]}
-              extra="数据源：AI 配置中心 → Prompt 模板配置中已启用的模板"
+              extra="数据源：AI 配置中心 → Prompt 模板配置（已按按钮类型过滤）"
             >
               <Select
                 placeholder="请选择 Prompt 模板"
-                options={promptOptions}
+                options={filteredPromptOptions}
                 showSearch
                 allowClear
                 filterOption={(input, option) =>
                   String(option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                }
+                notFoundContent={
+                  <div style={{ padding: 12, textAlign: 'center' }} data-testid="prompt-empty-state">
+                    <Empty
+                      image={Empty.PRESENTED_IMAGE_SIMPLE}
+                      description="当前按钮类型暂无可用 Prompt 模板"
+                    />
+                    <Button
+                      type="link"
+                      size="small"
+                      onClick={() => router.push('/prompt-templates')}
+                    >
+                      去 Prompt 配置中心 →
+                    </Button>
+                  </div>
                 }
               />
             </Form.Item>
