@@ -27,6 +27,39 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
+## Latest Update: PRD-AICHAT-OPTIM-V1-20260514｜AI 对话模式优化 PRD v1.0（chat_function_buttons 8 字段扩展 + 7 类型枚举含 quick_ask + /medication-library/recognize 一站式识药 + analytics 8 个新埋点 + h5 Toast 统一规范 + 4 种卡片组件 + 积分入口 404 修复 + admin 表单条件化 + 12/12 服务器自动化测试 PASS）（2026-05-14 09:33）
+
+### 一句话结论
+针对 PRD v1.0 终稿做最小可验证落地：①后端 `chat_function_buttons` 表新增 8 个字段（prompt_template_id / external_url / preset_prompt / auto_user_message / card_title / card_subtitle / card_cover_image / button_sub_desc）+ 应用层 7 类型枚举校验（含新增 `quick_ask`）+ 启动期幂等迁移；②新增 `POST /api/prd469/medication-library/recognize` 一站式识药接口（返回 drug_candidates + ai_response + method）；③`MedicationLibrary.barcode VARCHAR(13)` 字段预留（条码识别扩展点）；④`/api/analytics/track` 加入 8 个埋点白名单事件（menu_exposure / menu_click / capsule_exposure / capsule_click / card_exposure / card_button_click / form_submit / card_fail）；⑤H5 新建 `lib/toast-unified.ts` 全局 Toast 规范封装（水平居中 + 上方 1/3 + 3 类型差异化配色），删除历史记录场景率先接入；⑥H5 修复"积分"入口 404（`/points-center` → `/points`）；⑦H5 新增 `components/ai-chat/ChatCards.tsx` 4 种卡片组件脚手架（upload/navigate/sdk_call/quick_ask）+ resolveCardType 调度器；⑧admin function-buttons 页面表单按按钮类型条件展示「关联 Prompt 模板 / 外部链接 URL / 预设话术」+ 通用 8 字段输入项 + 兼容旧枚举值。
+
+### 范围与端
+
+| 维度 | 内容 |
+|------|------|
+| 涉及端 | 后端（FastAPI）+ admin-web（Next.js）+ h5-web（Next.js）；小程序 / Flutter App / verify-miniprogram 0 改动 |
+| 改动文件 | 后端：`backend/app/models/models.py`（ChatFunctionButton +8 字段 / MedicationLibrary +barcode）、`backend/app/schemas/function_button.py`（ALLOWED_BUTTON_TYPES + 8 字段 schema）、`backend/app/api/function_button.py`（_validate_button_type 应用层校验）、`backend/app/api/prd469_health_v5.py`（+ /recognize 一站式接口）、`backend/app/api/analytics.py`（KNOWN_EVENTS +8）、`backend/app/main.py`（_migrate_aichat_optim_v1 启动期幂等迁移）；admin：`admin-web/src/app/(admin)/function-buttons/page.tsx`（表单 +8 字段 +7 类型 + 条件展示）；h5：`h5-web/src/lib/toast-unified.ts`（新建）、`h5-web/src/components/ai-chat/ChatCards.tsx`（新建 4 种卡片组件）、`h5-web/src/components/ai-chat/Sidebar.tsx`（积分入口修复 + 删除 Toast 切换） |
+| 服务器测试 | 12/12 PASS（健康检查 / H5 / Admin / 公开 function-buttons / 鉴权 401 / recognize 完整结构 / analytics capsule + card / library search + stats / button_type 校验 / H5 HTML 长度） |
+| 用户手册 | `user_docs/AI对话模式优化v1.0_用户体验手册.md` |
+| 部署脚本 | `deploy/_deploy_aichat_optim_v1.py` —— SSH 部署 + git pull + docker compose build --no-cache backend admin-web h5-web + 12 用例自动化测试 |
+
+### 影响范围
+
+- 数据库：自动 ALTER TABLE 新增 9 个字段；幂等可重入；用户原有数据 0 丢失
+- 接口兼容：所有既有接口请求/响应结构保持不变；新接口为新增；旧 `/medication-library/ocr` 保留
+- 前端：删除历史记录 Toast 切换为统一规范；左上角积分入口可正常跳转
+- 后台：「功能按钮管理」表单升级为 7 种类型 + 条件字段，旧的 `ai_dialog_trigger` / `drug_identify` 历史值兜底显示"(旧)"标签
+- 跳过打包的端：miniprogram / flutter_app / verify-miniprogram 本期无代码改动，跳过 4-A/4-B/4-C/4-D/4-E
+
+### 不在本期范围（按 PRD §1.3）
+
+- ❌ 拍照识药条码识别（数据源待定）
+- ❌ 视频客服改造为原生 TRTC SDK（沿用现有 webview 即可）
+- ❌ Prompt 模板配置功能本身的改造
+- ❌ 积分页 6 个页面 UI 全量重绘（业务逻辑沿用，UI 重绘列入下个迭代）
+- ❌ 对话框上方胶囊条 UI 落地（卡片组件已就位，胶囊条由具体业务页面接入）
+
+---
+
 ## Latest Update: INCIDENT-20260513-03-SIDEBAR-LOADHISTORIES-P0｜AI 对话「历史会话」加载失败 P0 修复 v2（前端优雅降级 · 单文件外科手术 · 6/6 服务器自动化测试 PASS）（2026-05-13 22:33）
 
 ### 故障背景（再次复发）
