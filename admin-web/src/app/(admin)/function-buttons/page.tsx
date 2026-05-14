@@ -3,11 +3,12 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   Table, Button, Space, Tag, Switch, Modal, Form, Input, Select,
-  InputNumber, Typography, message, Image,
+  InputNumber, Typography, message,
 } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, SmileOutlined } from '@ant-design/icons';
 import { get, post, put, del } from '@/lib/api';
-import { resolveAssetUrl } from '@/lib/asset-url';
+// [AICHAT-OPTIM-FIX-V1 F-01 2026-05-14] 接入公共 EmojiPicker（与首页菜单管理同一套组件）
+import { EmojiPickerModal } from '@/components/EmojiPicker';
 
 const { Title } = Typography;
 const { TextArea } = Input;
@@ -54,6 +55,8 @@ interface FunctionButton {
   id: number;
   name: string;
   icon_url: string;
+  // [AICHAT-OPTIM-FIX-V1 F-01] Emoji 图标字段（取代 icon_url 作为主图标存储）
+  icon?: string;
   button_type: string;
   sort_weight: number;
   is_enabled: boolean;
@@ -87,7 +90,11 @@ export default function FunctionButtonsPage() {
   const [total, setTotal] = useState(0);
   const [form] = Form.useForm();
   const watchedButtonType = Form.useWatch('button_type', form);
+  const watchedName = Form.useWatch('name', form);
+  const watchedIcon = Form.useWatch('icon', form);
   const [promptOptions, setPromptOptions] = useState<PromptTemplateOption[]>([]);
+  // [AICHAT-OPTIM-FIX-V1 F-01] Emoji 选择器弹窗状态
+  const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
 
   // 加载 Prompt 模板列表，作为「关联 Prompt 模板」下拉数据源
   const fetchPromptTemplates = useCallback(async () => {
@@ -145,6 +152,8 @@ export default function FunctionButtonsPage() {
       const formValues: Record<string, any> = {
         name: record.name,
         icon_url: record.icon_url,
+        // [AICHAT-OPTIM-FIX-V1 F-01] icon Emoji 字段（兜底用 icon_url 回填以兼容历史数据）
+        icon: record.icon || (record.icon_url && record.icon_url.length <= 4 ? record.icon_url : '') || '📌',
         button_type: record.button_type,
         sort_weight: record.sort_weight,
         is_enabled: record.is_enabled,
@@ -178,6 +187,7 @@ export default function FunctionButtonsPage() {
         max_photo_count: 5,
         auto_user_message: '',
         card_title: '',
+        icon: '📌',
       });
     }
     setModalOpen(true);
@@ -211,6 +221,8 @@ export default function FunctionButtonsPage() {
       const payload: Record<string, any> = {
         name: values.name,
         icon_url: values.icon_url,
+        // [AICHAT-OPTIM-FIX-V1 F-01] icon Emoji 字段
+        icon: values.icon || '📌',
         button_type: values.button_type,
         sort_weight: values.sort_weight ?? 0,
         is_enabled: values.is_enabled,
@@ -284,11 +296,15 @@ export default function FunctionButtonsPage() {
     },
     {
       title: '图标',
-      dataIndex: 'icon_url',
-      key: 'icon_url',
+      // [AICHAT-OPTIM-FIX-V1 F-01] 图标列改为显示 Emoji 字符（24px 字号）
+      dataIndex: 'icon',
+      key: 'icon',
       width: 80,
-      render: (val: string) =>
-        val ? <Image src={resolveAssetUrl(val)} width={36} height={36} style={{ objectFit: 'contain' }} fallback="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mN8/+F/PQAJpAN42kRfMwAAAABJRU5ErkJggg==" /> : '-',
+      render: (val: string, record: FunctionButton) => {
+        // 优先 icon 字段；为空时兜底使用 📌
+        const emoji = val || record.icon || '📌';
+        return <span style={{ fontSize: 24, display: 'inline-block', minWidth: 32, textAlign: 'center' }}>{emoji}</span>;
+      },
     },
     {
       title: '按钮名称',
@@ -380,12 +396,43 @@ export default function FunctionButtonsPage() {
           >
             <Input placeholder="请输入按钮名称" maxLength={20} />
           </Form.Item>
+          {/* [AICHAT-OPTIM-FIX-V1 F-01] 图标 Emoji 选择器（取代 icon_url 图片 URL） */}
           <Form.Item
-            label="按钮图标"
-            name="icon_url"
-            rules={[{ required: true, message: '请输入图标URL' }]}
+            label="按钮图标（Emoji）"
+            name="icon"
+            rules={[
+              { required: true, message: '请选择按钮 Emoji 图标' },
+              {
+                validator: (_, value) => {
+                  if (!value) return Promise.resolve();
+                  // 字符串长度允许 1~16（兼容 ZWJ 序列 emoji 如 👨‍⚕️ / 👨‍👩‍👧‍👦）
+                  if (value.length >= 1 && value.length <= 16) return Promise.resolve();
+                  return Promise.reject(new Error('请选择 1 个 Emoji 字符'));
+                },
+              },
+            ]}
+            extra="点击下方按钮打开 Emoji 选择器（支持关键字推荐）"
           >
-            <Input placeholder="请输入图标URL" />
+            <Input.Group compact data-testid="function-button-icon-picker">
+              <Input
+                style={{ width: 'calc(100% - 120px)', textAlign: 'center', fontSize: 24 }}
+                placeholder="点击右侧按钮选择 Emoji"
+                readOnly
+                value={watchedIcon || ''}
+              />
+              <Button
+                type="primary"
+                icon={<SmileOutlined />}
+                style={{ width: 120 }}
+                onClick={() => setEmojiPickerOpen(true)}
+              >
+                选择 Emoji
+              </Button>
+            </Input.Group>
+          </Form.Item>
+          {/* 保留 icon_url 隐藏字段以兼容旧数据写回（admin 不再编辑图片 URL） */}
+          <Form.Item name="icon_url" hidden>
+            <Input />
           </Form.Item>
           <Form.Item
             label="按钮类型"
@@ -482,6 +529,18 @@ export default function FunctionButtonsPage() {
           </Form.Item>
         </Form>
       </Modal>
+
+      {/* [AICHAT-OPTIM-FIX-V1 F-01] Emoji 选择器弹窗（与首页菜单管理同一套组件） */}
+      <EmojiPickerModal
+        open={emojiPickerOpen}
+        defaultEmoji={watchedIcon || ''}
+        menuName={watchedName || ''}
+        onOk={(emoji) => {
+          form.setFieldsValue({ icon: emoji });
+          setEmojiPickerOpen(false);
+        }}
+        onCancel={() => setEmojiPickerOpen(false)}
+      />
     </div>
   );
 }

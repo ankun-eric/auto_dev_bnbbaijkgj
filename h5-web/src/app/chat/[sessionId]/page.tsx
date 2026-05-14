@@ -11,7 +11,10 @@ import KnowledgeCard, { type KnowledgeHit } from '@/components/KnowledgeCard';
 import ProfileCard from '@/components/ai-chat/ProfileCard';
 import AiActionBar, { notifyCopied } from '@/components/ai-chat/AiActionBar';
 import { resolveAssetUrl, resolveAssetUrls } from '@/lib/asset-url';
-import { aiChatTrack } from '@/lib/analytics';
+import { aiChatTrack, aiHomeFnTrack } from '@/lib/analytics';
+// [AICHAT-OPTIM-FIX-V1 F-05/F-06 2026-05-14] 胶囊条 + ChatCard 组件
+import CapsuleBar from '@/components/ai-chat/CapsuleBar';
+import { ChatCard, resolveCardType, backendButtonToCardButton, type ChatCardType } from '@/components/ai-chat/ChatCards';
 
 interface DrugInfoCardData {
   drug_name?: string;
@@ -70,11 +73,26 @@ function DrugInfoCard({ drug }: { drug: DrugInfoCardData }) {
   );
 }
 
+// [AICHAT-OPTIM-FIX-V1 2026-05-14] FunctionButton 扩展 8 个新字段 + icon Emoji
 interface FunctionButton {
-  id: string;
+  id: string | number;
   name: string;
-  button_type: 'digital_human_call' | 'photo_upload' | 'file_upload' | 'ai_dialog_trigger' | 'external_link' | 'drug_identify';
-  params: Record<string, any>;
+  icon?: string;
+  icon_url?: string;
+  // PRD §3.2 7 种枚举 + 兼容 4 个旧值
+  button_type: string;
+  params?: Record<string, any>;
+  sort_weight?: number;
+  is_enabled?: boolean;
+  // [AICHAT-OPTIM-FIX-V1 F-07] 8 个新字段
+  prompt_template_id?: number | null;
+  external_url?: string | null;
+  preset_prompt?: string | null;
+  auto_user_message?: string | null;
+  card_title?: string | null;
+  card_subtitle?: string | null;
+  card_cover_image?: string | null;
+  button_sub_desc?: string | null;
 }
 
 const BUTTON_EMOJI: Record<string, string> = {
@@ -351,6 +369,10 @@ function ChatPageInner() {
   const [inputVal, setInputVal] = useState('');
   const [loading, setLoading] = useState(false);
   const [sidebarVisible, setSidebarVisible] = useState(false);
+  // [AICHAT-OPTIM-FIX-V1 F-05 2026-05-14] 输入框聚焦时隐藏胶囊条
+  const [isInputFocused, setIsInputFocused] = useState(false);
+  // 卡片消息：跟踪每个 button_id 是否已经触发过卡片主操作（PRD 6.4 卡片消息只渲染一次/触发一次）
+  const [cardActionedIds, setCardActionedIds] = useState<Set<string>>(new Set());
 
   // [PRD-423 T-08 EVT-01] chat/[sessionId] 进入对话页埋点（仅一次）
   const pageViewSentRef = useRef(false);
@@ -541,10 +563,13 @@ function ChatPageInner() {
       setFuncButtons(_btnCache.data);
       return;
     }
-    api.get('/api/chat/function-buttons')
+    // [AICHAT-OPTIM-FIX-V1 F-04 2026-05-14] 改用公开 /api/function-buttons?is_enabled=true
+    // 仅返回启用按钮，含 8 个新字段 + icon Emoji；按 sort_weight ASC 排序
+    api.get('/api/function-buttons?is_enabled=true')
       .then((res: any) => {
         const data = res.data || res;
-        const items: FunctionButton[] = Array.isArray(data.items) ? data.items : Array.isArray(data) ? data : [];
+        const items: FunctionButton[] = Array.isArray(data) ? data
+          : Array.isArray(data?.items) ? data.items : [];
         _btnCache = { data: items, ts: Date.now() };
         setFuncButtons(items);
       })
@@ -562,9 +587,10 @@ function ChatPageInner() {
   };
 
   const handleFuncBtnClick = (btn: FunctionButton) => {
+    const params = btn.params || {};
     switch (btn.button_type) {
       case 'digital_human_call':
-        router.push(`/digital-human-call?dhId=${btn.params.digital_human_id || ''}&sessionId=${sessionId}`);
+        router.push(`/digital-human-call?dhId=${params.digital_human_id || ''}&sessionId=${sessionId}`);
         break;
       case 'photo_upload':
         photoInputRef.current?.click();
@@ -572,7 +598,8 @@ function ChatPageInner() {
       case 'file_upload':
         fileInputRef.current?.click();
         break;
-      case 'ai_dialog_trigger': {
+      case 'ai_dialog_trigger':
+      case 'ai_chat_trigger': {
         let triggerMsg = '';
         for (const key of Object.keys(AI_TRIGGER_MSG)) {
           if (btn.name.includes(key)) { triggerMsg = AI_TRIGGER_MSG[key]; break; }
@@ -582,13 +609,67 @@ function ChatPageInner() {
         break;
       }
       case 'external_link':
-        if (btn.params.url) window.open(btn.params.url, '_blank');
+        if (btn.external_url) window.location.href = btn.external_url;
+        else if (params.url) window.open(params.url, '_blank');
         break;
       case 'drug_identify':
-        setDrugIdentifyTip(btn.params.photo_tip_text || '请拍摄或选择药品包装照片');
-        setDrugIdentifyMaxPhotos(btn.params.max_photo_count || 5);
+      case 'photo_recognize_drug':
+        setDrugIdentifyTip(params.photo_tip_text || '请拍摄或选择药品包装照片');
+        setDrugIdentifyMaxPhotos(params.max_photo_count || 5);
         setDrugActionSheetVisible(true);
         break;
+    }
+  };
+
+  /**
+   * [AICHAT-OPTIM-FIX-V1 F-06/F-07] 胶囊点击 → 按 button_type 调度卡片，
+   * 把卡片消息以 AI 气泡形态插入当前对话流（不新建会话）。
+   */
+  const handleCapsuleClick = (btn: FunctionButton) => {
+    try {
+      const cardType: ChatCardType = resolveCardType(btn.button_type);
+      // quick_ask 类型：直接发预设话术
+      if (cardType === 'quick_ask') {
+        const text = (btn.preset_prompt || btn.auto_user_message || btn.name || '').trim();
+        if (text) sendMessageText(text);
+        return;
+      }
+      // navigate 类型 + external_url：跳转
+      if (cardType === 'navigate' && btn.external_url) {
+        const url = btn.external_url.trim();
+        if (url.startsWith('http')) { window.location.href = url; return; }
+        if (url.startsWith('/')) { router.push(url); return; }
+      }
+      // 其他类型：插入卡片消息
+      const cardContent = JSON.stringify({
+        kind: 'ai-chat-card',
+        cardType,
+        button: backendButtonToCardButton({
+          id: btn.id,
+          name: btn.name,
+          icon: btn.icon,
+          icon_url: btn.icon_url,
+          button_type: btn.button_type,
+          prompt_template_id: btn.prompt_template_id,
+          external_url: btn.external_url,
+          preset_prompt: btn.preset_prompt,
+          auto_user_message: btn.auto_user_message,
+          card_title: btn.card_title,
+          card_subtitle: btn.card_subtitle,
+          card_cover_image: btn.card_cover_image,
+          button_sub_desc: btn.button_sub_desc,
+        }),
+      });
+      const cardMsg: Message = {
+        id: `card-${Date.now()}-${btn.id}`,
+        role: 'assistant',
+        content: cardContent,
+        time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+      };
+      setMessages((prev) => [...prev, cardMsg]);
+      try { aiHomeFnTrack.cardExposure(btn.id, cardType); } catch {}
+    } catch (e: any) {
+      try { aiHomeFnTrack.cardFail(btn.id, String(e?.message || 'click-error')); } catch {}
     }
   };
 
@@ -2191,6 +2272,74 @@ function ChatPageInner() {
           const isUser = msg.role === 'user';
           const isFirstUserCard = isUser && isFirstUserMsg(msg);
 
+          // [AICHAT-OPTIM-FIX-V1 F-06] 检测特殊"ChatCard 卡片消息"，独立渲染为 4 种卡片之一
+          let chatCardData: { kind: string; cardType: ChatCardType; button: any } | null = null;
+          if (!isUser && typeof msg.content === 'string'
+              && msg.content.startsWith('{') && msg.content.includes('"kind":"ai-chat-card"')) {
+            try {
+              const parsed = JSON.parse(msg.content);
+              if (parsed && parsed.kind === 'ai-chat-card' && parsed.button) {
+                chatCardData = parsed;
+              }
+            } catch {}
+          }
+          if (chatCardData) {
+            const buttonKey = chatCardData.button.key;
+            const cardDisabled = cardActionedIds.has(String(buttonKey));
+            return (
+              <div key={msg.id} data-testid="chat-ai-card-msg" style={{ marginBottom: 24 }}>
+                <div className="flex items-center" style={{ marginBottom: 8 }}>
+                  {renderAiAvatar(32)}
+                  <span style={{ marginLeft: 8, fontSize: 12, color: '#999' }}>小康 · 健康助手</span>
+                </div>
+                <div data-testid="chat-chatcard-wrapper">
+                  <ChatCard
+                    cardType={chatCardData.cardType}
+                    button={chatCardData.button}
+                    disabled={cardDisabled}
+                    onAction={(sub) => {
+                      try { aiHomeFnTrack.cardButtonClick(buttonKey, chatCardData!.cardType); } catch {}
+                      // 标记本卡片已触发（PRD 6.4：卡片消息只渲染一次/触发一次）
+                      setCardActionedIds((prev) => {
+                        const next = new Set(prev);
+                        next.add(String(buttonKey));
+                        return next;
+                      });
+                      // navigate 类型：external_url 跳转
+                      if (chatCardData!.cardType === 'navigate' && chatCardData!.button.externalUrl) {
+                        const url = chatCardData!.button.externalUrl;
+                        if (url.startsWith('http')) window.location.href = url;
+                        else router.push(url);
+                        return;
+                      }
+                      // upload 类型：触发上传文件
+                      if (chatCardData!.cardType === 'upload') {
+                        const auto = (chatCardData!.button.autoUserMessage || '').trim();
+                        if (auto) sendMessageText(auto);
+                        // 根据 sub_action 决定相册 / 拍照入口
+                        if (sub === 'camera') drugCameraRef.current?.click();
+                        else drugAlbumRef.current?.click();
+                        return;
+                      }
+                      // sdk_call：插入 auto_user_message 并触发对应 SDK
+                      if (chatCardData!.cardType === 'sdk_call') {
+                        const auto = (chatCardData!.button.autoUserMessage || '').trim();
+                        if (auto) sendMessageText(auto);
+                        return;
+                      }
+                      // quick_ask：发预设话术
+                      if (chatCardData!.cardType === 'quick_ask') {
+                        const text = (chatCardData!.button.presetPrompt || chatCardData!.button.autoUserMessage || '').trim();
+                        if (text) sendMessageText(text);
+                        return;
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+            );
+          }
+
           return (
             <div
               key={msg.id}
@@ -2476,49 +2625,23 @@ function ChatPageInner() {
         </div>
       )}
 
-      {/* Function buttons bar */}
-      {funcButtons.length > 0 && (
-        <div className="bg-white border-t border-gray-100" style={{ position: 'relative' }}>
-          <div
-            ref={funcScrollRef}
-            className="flex items-center gap-2 overflow-x-auto px-3 py-1 no-scrollbar"
-            style={{ scrollBehavior: 'smooth', WebkitOverflowScrolling: 'touch', height: 44 }}
-          >
-            {funcButtons.map((btn) => {
-              const isDrugBtn = btn.button_type === 'drug_identify';
-              const isDisabled = isDrugBtn && drugRecognizing;
-              return (
-              <button
-                key={btn.id}
-                onClick={() => !isDisabled && handleFuncBtnClick(btn)}
-                disabled={isDisabled}
-                className="flex items-center gap-1 flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all active:scale-95"
-                style={{
-                  background: '#f5f5f5',
-                  border: '1px solid #e8e8e8',
-                  color: '#333',
-                  whiteSpace: 'nowrap',
-                  opacity: isDisabled ? 0.5 : 1,
-                }}
-              >
-                <span style={{ fontSize: 13 }}>{getFuncBtnEmoji(btn)}</span>
-                <span>{isDrugBtn && drugRecognizing ? '识别中...' : btn.name}</span>
-              </button>
-              );
-            })}
-          </div>
-          <div style={{
-            position: 'absolute', right: 0, top: 0, bottom: 0, width: 32,
-            background: 'linear-gradient(to right, transparent, white)',
-            pointerEvents: 'none',
-          }} />
-          <div style={{
-            position: 'absolute', left: 0, top: 0, bottom: 0, width: 32,
-            background: 'linear-gradient(to left, transparent, white)',
-            pointerEvents: 'none',
-          }} />
-        </div>
-      )}
+      {/* [AICHAT-OPTIM-FIX-V1 F-05 2026-05-14] 胶囊条 UI：紧贴输入框上沿；
+          数据源 /api/function-buttons?is_enabled=true；键盘弹起整体隐藏；
+          点击胶囊 → 调用 handleCapsuleClick 渲染卡片消息到对话流 */}
+      <CapsuleBar
+        buttons={funcButtons.map((b) => ({
+          id: b.id,
+          name: b.name,
+          icon: b.icon || getFuncBtnEmoji(b),
+          button_type: b.button_type,
+        }))}
+        hidden={isInputFocused}
+        onCapsuleClick={(cap) => {
+          // 找到完整 button 对象
+          const full = funcButtons.find((b) => String(b.id) === String(cap.id));
+          if (full) handleCapsuleClick(full);
+        }}
+      />
 
       {/* Hidden drug identify file inputs */}
       <input ref={drugCameraRef} type="file" accept="image/*" capture="environment" className="hidden"
@@ -2624,7 +2747,10 @@ function ChatPageInner() {
               value={inputVal}
               onChange={setInputVal}
               onEnterPress={sendMessage}
+              onFocus={() => setIsInputFocused(true)}
+              onBlur={() => setIsInputFocused(false)}
               style={{ '--font-size': '14px', flex: 1 }}
+              data-testid="ai-chat-input"
             />
           </div>
         )}

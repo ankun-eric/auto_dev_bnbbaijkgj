@@ -499,25 +499,15 @@ export default function AIHomeConfigPage() {
       });
     }
     if (tab === 'func_grid') {
-      const items = cfg.func_grid.items;
-      if (items.length < 1 || items.length > 6) {
-        errs['func_grid.items'] = '功能宫格须有 1~6 项';
+      // [AICHAT-OPTIM-FIX-V1 F-03] func_grid 简化为 visible / max_count / cols 三字段
+      // items 字段已弃用，校验仅保留 max_count 范围
+      const fg = cfg.func_grid;
+      if (typeof fg.max_count !== 'number' || fg.max_count < 1 || fg.max_count > 12) {
+        errs['func_grid.max_count'] = '最大数量须在 1~12 之间';
       }
-      const hex = /^#[0-9A-Fa-f]{6}$/;
-      items.forEach((it, i) => {
-        if (!it.main_text || it.main_text.length > 8) {
-          errs[`func_grid.items.${i}.main_text`] = '主文案为必填且不超过8字';
-        }
-        if (it.sub_text && it.sub_text.length > 12) {
-          errs[`func_grid.items.${i}.sub_text`] = '副说明不超过12字';
-        }
-        if (!hex.test(it.gradient_start)) {
-          errs[`func_grid.items.${i}.gradient_start`] = '起始色须为合法 HEX，如 #5B6CFF';
-        }
-        if (!hex.test(it.gradient_end)) {
-          errs[`func_grid.items.${i}.gradient_end`] = '结束色须为合法 HEX，如 #8B9AFF';
-        }
-      });
+      if (![2, 3, 4].includes(fg.columns)) {
+        errs['func_grid.columns'] = '列数仅支持 2 / 3 / 4';
+      }
     }
     if (tab === 'input') {
       if (cfg.input.family_consult.enabled && !cfg.input.family_consult.template.includes('{name}')) {
@@ -931,8 +921,70 @@ export default function AIHomeConfigPage() {
     </Space>
   );
 
+  // [AICHAT-OPTIM-FIX-V1 F-03 2026-05-14] 功能宫格 Tab 简化重写：
+  // 编辑器整体移除，仅保留 visible / max_count / cols 三个字段 + 跳转到功能按钮管理。
+  // 数据源统一收敛到 chat_function_buttons 表（通过「AI 咨询配置 → 功能按钮管理」维护）。
   const renderFuncGridTab = () => (
-    <Card title="功能宫格（每项 7 字段，1~6 项）">
+    <Card title="功能宫格 - 简化面板（数据源已收敛到「功能按钮管理」）" data-testid="ai-home-config-func-grid-simplified">
+      <Alert
+        showIcon
+        type="info"
+        style={{ marginBottom: 16 }}
+        message="宫格的图标、文案、点击行为统一在「AI 咨询配置 → 功能按钮管理」中维护"
+        description="此处仅控制宫格在 H5 端的显示开关、最大数量与列数。如需新增 / 删除快捷指令，请前往功能按钮管理操作。"
+      />
+      <Form layout="vertical" style={{ maxWidth: 480 }}>
+        <Form.Item label="是否显示宫格">
+          <Switch
+            checked={draft.func_grid.visible}
+            checkedChildren="显示"
+            unCheckedChildren="隐藏"
+            onChange={(c) => update((d) => { d.func_grid.visible = c; })}
+          />
+        </Form.Item>
+        <Form.Item
+          label="最大数量（1 ~ 12）"
+          extra="H5 宫格区取前 N 个按钮显示，按 sort_weight 升序排序。"
+        >
+          <InputNumber
+            min={1}
+            max={12}
+            style={{ width: 200 }}
+            value={draft.func_grid.max_count}
+            onChange={(v) => update((d) => { d.func_grid.max_count = Number(v) || 6; })}
+          />
+        </Form.Item>
+        <Form.Item label="列数" extra="H5 宫格区每行显示几列卡片。">
+          <Radio.Group
+            value={draft.func_grid.columns}
+            onChange={(e) => update((d) => {
+              d.func_grid.columns = e.target.value;
+              // 兼容写入 cols 同步字段（后端 schema 含 cols）
+              (d.func_grid as any).cols = e.target.value;
+            })}
+          >
+            <Radio value={2}>2 列</Radio>
+            <Radio value={3}>3 列</Radio>
+            <Radio value={4}>4 列</Radio>
+          </Radio.Group>
+        </Form.Item>
+        <Form.Item>
+          <Button
+            type="primary"
+            onClick={() => router.push('/function-buttons')}
+            data-testid="goto-function-buttons-btn"
+          >
+            前往功能按钮管理 →
+          </Button>
+        </Form.Item>
+      </Form>
+    </Card>
+  );
+
+  // [AICHAT-OPTIM-FIX-V1 F-03] 兜底：保留旧的 7 字段编辑器为不可见状态（仅作为类型守卫，避免编译期警告）
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const renderFuncGridTab_DEPRECATED = () => (
+    <Card title="功能宫格（已弃用，仅保留为类型守卫）" style={{ display: 'none' }}>
       <Paragraph type="secondary">
         每项含主文案、副说明、跳转链接、图标、渐变色（起始+结束）、角标、是否启用 7 字段。最少 1 项、最多 6 项。
       </Paragraph>

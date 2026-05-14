@@ -175,9 +175,15 @@ class BannerVisible(BaseModel):
 
 
 class FuncGridConfig(BaseModel):
-    """v1.0 重构：将原 visible/columns/max_count 与 items 合一。"""
+    """v1.0 重构：将原 visible/columns/max_count 与 items 合一。
+
+    [AICHAT-OPTIM-FIX-V1 F-03 2026-05-14] 增加 `cols` 字段（与 columns 同义），
+    供 admin 简化面板使用；items 字段标记 deprecated（保留兼容老数据，但 H5 不再读取）。
+    """
     visible: bool = True
     columns: int = 3
+    # [AICHAT-OPTIM-FIX-V1 F-03] 与 columns 同义，新简化面板使用 cols 字段名
+    cols: Optional[int] = None
     max_count: int = 6
     # v1.0 新增：宫格项详细配置（默认 3 项：AI诊室/看报告/健康档案）
     items: List[FuncGridItem] = Field(

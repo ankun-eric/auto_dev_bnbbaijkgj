@@ -2492,6 +2492,9 @@ class ChatFunctionButton(Base):
     id = mapped_column(Integer, primary_key=True, autoincrement=True)
     name = mapped_column(String(50), nullable=False)
     icon_url = mapped_column(String(500), nullable=True)
+    # [AICHAT-OPTIM-FIX-V1 F-01 2026-05-14] Emoji 图标字段，取代 icon_url 成为主图标存储
+    # 长度 32 兼容 ZWJ 序列复合 emoji（如 👨‍👩‍👧‍👦），单独显示一个图标占用 11~12 字节
+    icon = mapped_column(String(32), nullable=True, comment="按钮 Emoji 图标（取代 icon_url 作为主图标存储）")
     # button_type 枚举（v1.0 终稿 7 种）：digital_human_call / photo_upload / file_upload /
     # ai_chat_trigger / external_link / photo_recognize_drug / quick_ask
     button_type = mapped_column(String(50), nullable=False)

@@ -41,6 +41,9 @@ from app.services.ai_service import call_ai_model
 
 router = APIRouter(prefix="/api/chat", tags=["功能按钮与数字人"])
 admin_router = APIRouter(prefix="/api/admin", tags=["管理后台-功能按钮与数字人"])
+# [AICHAT-OPTIM-FIX-V1 F-04 2026-05-14] 公开顶层路由 /api/function-buttons
+# 作为 H5 ai-home 宫格 + chat 详情页胶囊条统一数据源（同一表 chat_function_buttons）
+public_router = APIRouter(prefix="/api", tags=["公开-功能按钮"])
 
 admin_dep = require_role("admin")
 
@@ -57,6 +60,33 @@ async def get_function_buttons(db: AsyncSession = Depends(get_db)):
         .where(ChatFunctionButton.is_enabled == True)  # noqa: E712
         .order_by(ChatFunctionButton.sort_weight.asc())
     )
+    return [ChatFunctionButtonResponse.model_validate(b) for b in result.scalars().all()]
+
+
+# ────────────────────────────────────────
+#  [AICHAT-OPTIM-FIX-V1 F-04] 公开顶层 /api/function-buttons
+# ----------------------------------------
+# - 与 /api/chat/function-buttons 等价但 path 平铺，便于 H5 ai-home 宫格 + chat
+#   胶囊条统一调用
+# - 支持 ?is_enabled=true 仅返回启用按钮（默认）
+# - 严禁暴露未启用按钮（避免运营草稿泄露）
+# - 排序：sort_weight ASC, id ASC
+# - 返回字段：含 8 个新字段 + icon（Emoji）
+# ────────────────────────────────────────
+
+
+@public_router.get("/function-buttons", response_model=list[ChatFunctionButtonResponse])
+async def get_public_function_buttons(
+    is_enabled: Optional[bool] = Query(True, description="仅返回启用按钮（默认 True；传 false 强行返回禁用按钮无效，按 true 处理）"),
+    db: AsyncSession = Depends(get_db),
+):
+    # 安全约束：未启用按钮永不公开返回（即使显式传 is_enabled=false 也强制按 true）
+    stmt = (
+        select(ChatFunctionButton)
+        .where(ChatFunctionButton.is_enabled == True)  # noqa: E712
+        .order_by(ChatFunctionButton.sort_weight.asc(), ChatFunctionButton.id.asc())
+    )
+    result = await db.execute(stmt)
     return [ChatFunctionButtonResponse.model_validate(b) for b in result.scalars().all()]
 
 

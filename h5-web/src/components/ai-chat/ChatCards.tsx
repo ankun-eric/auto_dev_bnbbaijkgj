@@ -296,23 +296,73 @@ export function ChatCard(props: ChatCardProps) {
 
 /**
  * 根据按钮类型推导卡片类型（PRD §4 9 项功能与按钮类型最终映射）。
+ *
+ * [AICHAT-OPTIM-FIX-V1 F-06 2026-05-14] 修订映射规则，兼容旧值：
+ *   - medication_recognize / drug_identify / photo_upload / photo_recognize_drug / file_upload → upload
+ *   - external_link → navigate
+ *   - video_consult / live_chat / digital_human_call → sdk_call
+ *   - quick_ask / prompt_template → quick_ask
+ *   - ai_chat_trigger / ai_dialog_trigger → navigate（带卡片样式跳转）
  */
 export function resolveCardType(buttonType: string): ChatCardType {
   switch (buttonType) {
     case 'file_upload':
     case 'photo_upload':
     case 'photo_recognize_drug':
+    case 'medication_recognize':
+    case 'drug_identify':
       return 'upload';
-    case 'ai_chat_trigger':
     case 'external_link':
       return 'navigate';
+    case 'ai_chat_trigger':
+    case 'ai_dialog_trigger':
+      // PRD: ai_dialog_trigger 旧值兜底，作为带卡片的 navigate 渲染
+      return 'navigate';
     case 'digital_human_call':
+    case 'video_consult':
+    case 'live_chat':
       return 'sdk_call';
     case 'quick_ask':
+    case 'prompt_template':
       return 'quick_ask';
     default:
       return 'navigate';
   }
+}
+
+/**
+ * [AICHAT-OPTIM-FIX-V1 F-07] 后端 FunctionButton 接口数据 → ChatCardButton 适配器
+ * 从 chat_function_buttons 表的 8 字段及通用字段填充卡片渲染所需 props。
+ */
+export interface BackendFunctionButton {
+  id: number | string;
+  name: string;
+  icon?: string;
+  icon_url?: string;
+  button_type: string;
+  prompt_template_id?: number | null;
+  external_url?: string | null;
+  preset_prompt?: string | null;
+  auto_user_message?: string | null;
+  card_title?: string | null;
+  card_subtitle?: string | null;
+  card_cover_image?: string | null;
+  button_sub_desc?: string | null;
+}
+
+export function backendButtonToCardButton(b: BackendFunctionButton): ChatCardButton {
+  return {
+    key: String(b.id),
+    buttonType: b.button_type,
+    title: b.card_title || b.name || '',
+    subtitle: b.card_subtitle || undefined,
+    coverImage: b.card_cover_image || b.icon_url || undefined,
+    buttonSubDesc: b.button_sub_desc || undefined,
+    promptTemplateId: b.prompt_template_id || undefined,
+    externalUrl: b.external_url || undefined,
+    presetPrompt: b.preset_prompt || undefined,
+    autoUserMessage: b.auto_user_message || undefined,
+  };
 }
 
 export default ChatCard;

@@ -19,8 +19,10 @@ import ProfileCard, { clearProfileCardCache } from '@/components/ai-chat/Profile
 import AiAvatar from '@/components/ai-chat/AiAvatar';
 import ReminderBellButton from '@/components/ai-chat/ReminderBellButton';
 import ReminderDrawer from '@/components/ai-chat/ReminderDrawer';
-import { trackEvent, aiChatTrack, type AiChatTargetType } from '@/lib/analytics';
+import { trackEvent, aiChatTrack, aiHomeFnTrack, type AiChatTargetType } from '@/lib/analytics';
 import { FnCell } from '@/components/design-system';
+// [AICHAT-OPTIM-FIX-V1 F-06] ChatCards 调度器
+import { resolveCardType, backendButtonToCardButton, ChatCard, type ChatCardType } from '@/components/ai-chat/ChatCards';
 
 interface ChatMessage {
   id: string;
@@ -41,12 +43,25 @@ interface Banner {
   title?: string;
 }
 
+// [AICHAT-OPTIM-FIX-V1 2026-05-14] 扩展 8 个新字段以支持完整卡片调度
 interface FunctionButton {
-  id: string;
+  id: string | number;
   name: string;
   icon?: string;
+  icon_url?: string;
   button_type: string;
   params?: Record<string, any>;
+  // [AICHAT-OPTIM-FIX-V1 F-07] 8 个新字段（用于卡片调度）
+  prompt_template_id?: number | null;
+  external_url?: string | null;
+  preset_prompt?: string | null;
+  auto_user_message?: string | null;
+  card_title?: string | null;
+  card_subtitle?: string | null;
+  card_cover_image?: string | null;
+  button_sub_desc?: string | null;
+  sort_weight?: number;
+  is_enabled?: boolean;
 }
 
 interface FamilyMember {
@@ -484,10 +499,17 @@ export default function AiHomePage() {
       setBanners(Array.isArray(data.items) ? data.items : []);
     }).catch(() => {});
 
-    api.get('/api/function-buttons').then((res: any) => {
+    // [AICHAT-OPTIM-FIX-V1 F-04 2026-05-14] 公开 /api/function-buttons?is_enabled=true
+    // 返回数组（非 wrapped），统一来源 chat_function_buttons，含 8 个新字段
+    api.get('/api/function-buttons?is_enabled=true').then((res: any) => {
       const data = res.data || res;
-      setFuncButtons(Array.isArray(data.items) ? data.items : []);
-    }).catch(() => {});
+      const arr: FunctionButton[] = Array.isArray(data) ? data
+        : Array.isArray(data?.items) ? data.items : [];
+      setFuncButtons(arr);
+    }).catch(() => {
+      // 接口异常静默：宫格区会显示内置 3 项兜底（FALLBACK_CONFIG.func_grid.items）
+      setFuncButtons([]);
+    });
 
     api.get('/api/health-plan/today-tasks').then((res: any) => {
       const data = res.data || res;
@@ -915,7 +937,7 @@ export default function AiHomePage() {
   }, [inputValue, sending, selectedConsultant, idleTimeout]);
 
   const handleFuncButton = (btn: FunctionButton) => {
-    const key = btn.button_type || btn.id;
+    const key = btn.button_type || String(btn.id);
     if (DIALOG_TRIGGERS.has(key)) {
       const route = FUNCTION_ROUTES[key] || '/';
       const cardMsg: ChatMessage = {
@@ -928,6 +950,73 @@ export default function AiHomePage() {
     } else {
       const route = FUNCTION_ROUTES[key];
       if (route) router.push(route);
+    }
+  };
+
+  /**
+   * [AICHAT-OPTIM-FIX-V1 F-06/F-07] 功能按钮点击调度器（数据源：chat_function_buttons）
+   * 根据 button_type 调用 resolveCardType 决定行为：
+   *  - quick_ask → 直接以 preset_prompt 作为用户消息发送（首页就地处理）
+   *  - navigate(external_link) → external_url 跳转
+   *  - upload / sdk_call / navigate(其它) → 把卡片消息插入对话流（AI 气泡，含 ChatCard）
+   * 同时上报曝光埋点 + 在执行 auto_user_message 时同步插入用户消息
+   */
+  const handleFunctionButtonClick = (btn: FunctionButton) => {
+    try {
+      const cardType: ChatCardType = resolveCardType(btn.button_type);
+
+      // quick_ask 类型：直接以 preset_prompt（或 auto_user_message）作为用户消息发送
+      if (cardType === 'quick_ask') {
+        const presetText = (btn.preset_prompt || btn.auto_user_message || btn.name || '').trim();
+        if (presetText) {
+          lastMsgTimeRef.current = Date.now();
+          handleSend(presetText, 'preset');
+        }
+        return;
+      }
+
+      // navigate 类型 + external_url 存在：直接跳转
+      if (cardType === 'navigate' && btn.external_url) {
+        const url = btn.external_url.trim();
+        if (url.startsWith('http')) {
+          window.location.href = url;
+          return;
+        } else if (url.startsWith('/')) {
+          router.push(url);
+          return;
+        }
+      }
+
+      // 其余情况（upload / sdk_call / navigate 无 url）→ 在对话流插入卡片消息
+      const cardContent = JSON.stringify({
+        kind: 'ai-chat-card',
+        cardType,
+        button: backendButtonToCardButton({
+          id: btn.id,
+          name: btn.name,
+          icon: btn.icon,
+          icon_url: btn.icon_url,
+          button_type: btn.button_type,
+          prompt_template_id: btn.prompt_template_id,
+          external_url: btn.external_url,
+          preset_prompt: btn.preset_prompt,
+          auto_user_message: btn.auto_user_message,
+          card_title: btn.card_title,
+          card_subtitle: btn.card_subtitle,
+          card_cover_image: btn.card_cover_image,
+          button_sub_desc: btn.button_sub_desc,
+        }),
+      });
+      const cardMsg: ChatMessage = {
+        id: `card-${Date.now()}-${btn.id}`,
+        role: 'assistant',
+        content: cardContent,
+        time: new Date().toISOString(),
+      };
+      setMessages((prev) => [...prev, cardMsg]);
+      try { aiHomeFnTrack.cardExposure(btn.id, cardType); } catch {}
+    } catch (e: any) {
+      try { aiHomeFnTrack.cardFail(btn.id, String(e?.message || 'click-error')); } catch {}
     }
   };
 
@@ -1623,13 +1712,33 @@ export default function AiHomePage() {
     return tpl.replace('{name}', name);
   };
 
-  // 兜底功能宫格项：优先使用配置中的 items；若为空，使用 FALLBACK 3 项
+  // [AICHAT-OPTIM-FIX-V1 F-04 2026-05-14] 宫格数据源统一切换到 chat_function_buttons
+  // 主数据：funcButtons（来自 /api/function-buttons?is_enabled=true）
+  // 兜底：当后端返回为空时，使用配置中的旧 items 或 FALLBACK 3 项
+  const maxGridCount = (aiHomeConfig.func_grid as any)?.max_count
+    || aiHomeConfig.func_grid?.max_count
+    || 6;
+  const gridCols = (aiHomeConfig.func_grid as any)?.cols
+    || aiHomeConfig.func_grid?.columns
+    || 3;
+
+  // 优先用功能按钮管理（chat_function_buttons）数据，按 sort_weight 升序、取前 max_count
+  const fnGridItems = funcButtons
+    .slice()
+    .sort((a, b) => (a.sort_weight ?? 0) - (b.sort_weight ?? 0))
+    .slice(0, maxGridCount);
+
+  // 兜底：当 fnGridItems 为空且配置中有 items（或 FALLBACK 兜底），使用旧逻辑
   const configuredItems = (aiHomeConfig.func_grid?.items && aiHomeConfig.func_grid.items.length > 0)
     ? aiHomeConfig.func_grid.items
     : FALLBACK_CONFIG.func_grid.items;
-  const gridItems = (configuredItems || [])
+  const fallbackGridItems = (configuredItems || [])
     .filter((g) => g && g.enabled)
-    .slice(0, aiHomeConfig.func_grid?.max_count || 6);
+    .slice(0, maxGridCount);
+
+  const gridItems = fnGridItems.length > 0 ? null : fallbackGridItems;
+  // 标记：宫格曝光埋点的按钮 id 列表
+  const gridExposureIds = fnGridItems.map((b) => b.id);
 
   // [Bug-419 H-5] 顶栏字段安全读取，缺失时按 v1.0 设计图（无顶栏）兜底
   // [PRD-425] 旧逻辑保留但前端忽略（新版顶栏强制显示，不再受 topbar.visible 控制）
@@ -1973,12 +2082,45 @@ export default function AiHomePage() {
               )}
             </SectionErrorBoundary>
 
-            {/* v1.0 功能宫格 7 字段 */}
+            {/* [AICHAT-OPTIM-FIX-V1 F-04/F-06 2026-05-14] 功能宫格：数据源统一到 chat_function_buttons */}
             <SectionErrorBoundary name="func_grid">
-              {funcGridVisible && gridItems.length > 0 && (
+              {funcGridVisible && fnGridItems.length > 0 && (
                 <div
                   className={`grid gap-3 mb-4`}
-                  style={{ gridTemplateColumns: `repeat(${aiHomeConfig.func_grid?.columns || 3}, minmax(0, 1fr))` }}
+                  data-testid="ai-home-func-grid"
+                  data-grid-cols={gridCols}
+                  data-grid-source="chat_function_buttons"
+                  style={{ gridTemplateColumns: `repeat(${gridCols}, minmax(0, 1fr))` }}
+                  ref={(el) => {
+                    // 首次进入视窗发宫格曝光埋点
+                    if (el && !(el as any).__exposed && gridExposureIds.length > 0) {
+                      (el as any).__exposed = true;
+                      try { aiHomeFnTrack.menuExposure(gridExposureIds); } catch {}
+                    }
+                  }}
+                >
+                  {fnGridItems.map((btn) => (
+                    <FnCell
+                      key={btn.id}
+                      icon={btn.icon || '📌'}
+                      main={btn.name}
+                      sub={btn.button_sub_desc || ''}
+                      onClick={() => {
+                        try { aiHomeFnTrack.menuClick(btn.id, btn.name, btn.button_type); } catch {}
+                        handleFunctionButtonClick(btn);
+                      }}
+                      testId={`bh-fn-cell-${btn.id}`}
+                    />
+                  ))}
+                </div>
+              )}
+              {/* 兜底：fnGridItems 为空时显示静态配置 / FALLBACK 3 项 */}
+              {funcGridVisible && fnGridItems.length === 0 && gridItems && gridItems.length > 0 && (
+                <div
+                  className={`grid gap-3 mb-4`}
+                  data-testid="ai-home-func-grid"
+                  data-grid-source="fallback"
+                  style={{ gridTemplateColumns: `repeat(${gridCols}, minmax(0, 1fr))` }}
                 >
                   {gridItems.map(it => (
                     <FnCell
@@ -2069,6 +2211,58 @@ export default function AiHomePage() {
               const senderName = '小康';
               const disclaimerText = 'AI 生成内容仅供参考，不作为诊断依据';
               const hasReferences = !isUser && Array.isArray(msg.references) && msg.references.length > 0;
+
+              // [AICHAT-OPTIM-FIX-V1 F-06] 检测特殊"卡片消息"，渲染 ChatCard 组件
+              let chatCardData: { kind: string; cardType: ChatCardType; button: any } | null = null;
+              if (!isUser && typeof msg.content === 'string' && msg.content.startsWith('{') && msg.content.includes('"kind":"ai-chat-card"')) {
+                try {
+                  const parsed = JSON.parse(msg.content);
+                  if (parsed && parsed.kind === 'ai-chat-card' && parsed.button) {
+                    chatCardData = parsed;
+                  }
+                } catch {}
+              }
+              if (chatCardData && !isUser) {
+                return (
+                  <div key={msg.id} style={{ marginBottom: 24 }} data-testid="ai-home-ai-card-msg">
+                    <div className="flex items-center" style={{ marginBottom: 6, paddingLeft: 16 }}>
+                      <AiAvatar
+                        src={aiHomeConfig.welcome?.avatar?.type === 'image' ? aiHomeConfig.welcome?.avatar?.image_url : aiHomeConfig.welcome?.avatar?.emoji}
+                        size={28}
+                        shape="circle"
+                        alt="AI 头像"
+                        testId="ai-home-msg-avatar"
+                      />
+                      <span style={{ marginLeft: 8, fontSize: 14, color: '#666' }}>{senderName}</span>
+                    </div>
+                    <div style={{ marginLeft: 16, marginRight: 16 }} data-testid="ai-home-chatcard-wrapper">
+                      <ChatCard
+                        cardType={chatCardData.cardType}
+                        button={chatCardData.button}
+                        onAction={(sub) => {
+                          try { aiHomeFnTrack.cardButtonClick(chatCardData!.button.key, chatCardData!.cardType); } catch {}
+                          // navigate 类型：跳 external_url
+                          if (chatCardData!.cardType === 'navigate' && chatCardData!.button.externalUrl) {
+                            const url = chatCardData!.button.externalUrl;
+                            if (url.startsWith('http')) window.location.href = url;
+                            else router.push(url);
+                            return;
+                          }
+                          // quick_ask 类型：发预设话术
+                          if (chatCardData!.cardType === 'quick_ask') {
+                            const text = (chatCardData!.button.presetPrompt || chatCardData!.button.autoUserMessage || '').trim();
+                            if (text) { lastMsgTimeRef.current = Date.now(); handleSend(text, 'preset'); }
+                            return;
+                          }
+                          // upload / sdk_call：先插入 autoUserMessage（如有），再触发对应 SDK / 上传逻辑
+                          const auto = (chatCardData!.button.autoUserMessage || '').trim();
+                          if (auto) { lastMsgTimeRef.current = Date.now(); handleSend(auto, 'preset'); }
+                        }}
+                      />
+                    </div>
+                  </div>
+                );
+              }
 
               if (isUser) {
                 // [PRD-433 F-01 + F-04] 用户消息：右侧浅蓝气泡，无头像

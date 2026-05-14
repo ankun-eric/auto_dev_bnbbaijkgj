@@ -22,6 +22,8 @@ ALLOWED_BUTTON_TYPES = {
 class ChatFunctionButtonCreate(BaseModel):
     name: str
     icon_url: Optional[str] = None
+    # [AICHAT-OPTIM-FIX-V1 F-01] 新的 Emoji 图标字段（取代 icon_url 作为图标主存储）
+    icon: Optional[str] = None
     button_type: str
     sort_weight: int = 0
     is_enabled: bool = True
@@ -43,6 +45,8 @@ class ChatFunctionButtonCreate(BaseModel):
 class ChatFunctionButtonUpdate(BaseModel):
     name: Optional[str] = None
     icon_url: Optional[str] = None
+    # [AICHAT-OPTIM-FIX-V1 F-01] 新的 Emoji 图标字段
+    icon: Optional[str] = None
     button_type: Optional[str] = None
     sort_weight: Optional[int] = None
     is_enabled: Optional[bool] = None
@@ -65,6 +69,8 @@ class ChatFunctionButtonResponse(BaseModel):
     id: int
     name: str
     icon_url: Optional[str] = None
+    # [AICHAT-OPTIM-FIX-V1 F-01] 新的 Emoji 图标字段
+    icon: Optional[str] = None
     button_type: str
     sort_weight: int
     is_enabled: bool

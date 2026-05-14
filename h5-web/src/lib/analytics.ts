@@ -158,3 +158,53 @@ export const aiChatTrack = {
     trackEvent(AI_CHAT_EVENTS.SEND, { target_type: targetType, ...extra });
   },
 };
+
+// ────────────────────────────────────────────────────────────────────────────
+// [AICHAT-OPTIM-FIX-V1 F-08 2026-05-14] 宫格 + 胶囊 + 卡片 8 类埋点封装
+// 后端 /api/analytics/track 白名单已在上版 PRD 加入：
+//   menu_exposure / menu_click / capsule_exposure / capsule_click /
+//   card_exposure / card_button_click / form_submit / card_fail
+// ────────────────────────────────────────────────────────────────────────────
+
+export const aiHomeFnTrack = {
+  /** 宫格区首次进入视窗：menu_ids 数组 */
+  menuExposure(menuIds: Array<number | string>) {
+    trackEvent('menu_exposure', { menu_ids: menuIds });
+  },
+  /** 宫格卡片被点击 */
+  menuClick(buttonId: number | string, buttonName: string, buttonType: string) {
+    trackEvent('menu_click', {
+      button_id: buttonId,
+      button_name: buttonName,
+      button_type: buttonType,
+    });
+  },
+  /** chat 详情页胶囊条首次出现：button_ids 数组 */
+  capsuleExposure(buttonIds: Array<number | string>) {
+    trackEvent('capsule_exposure', { button_ids: buttonIds });
+  },
+  /** 胶囊被点击 */
+  capsuleClick(buttonId: number | string, buttonName: string, buttonType: string) {
+    trackEvent('capsule_click', {
+      button_id: buttonId,
+      button_name: buttonName,
+      button_type: buttonType,
+    });
+  },
+  /** 4 种卡片之一被渲染到对话流 */
+  cardExposure(buttonId: number | string, cardType: string) {
+    trackEvent('card_exposure', { button_id: buttonId, card_type: cardType });
+  },
+  /** 卡片主操作按钮被点击 */
+  cardButtonClick(buttonId: number | string, cardType: string) {
+    trackEvent('card_button_click', { button_id: buttonId, card_type: cardType });
+  },
+  /** upload 卡片用户提交了图片 */
+  formSubmit(buttonId: number | string, success: boolean) {
+    trackEvent('form_submit', { button_id: buttonId, success });
+  },
+  /** 任一卡片渲染失败（异常兜底） */
+  cardFail(buttonId: number | string, errorMessage: string) {
+    trackEvent('card_fail', { button_id: buttonId, error_message: errorMessage });
+  },
+};

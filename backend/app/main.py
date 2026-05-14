@@ -1043,6 +1043,180 @@ async def _migrate_aichat_optim_v1():
         _logger.error("[aichat_optim_v1] 迁移异常（不影响启动）: %s", e)
 
 
+# ─────────────────────────────────────────────────────────────────
+# [AICHAT-OPTIM-FIX-V1 F-01/F-02/F-03/F-09 2026-05-14] 关键字 → Emoji 推荐字典
+# 与 admin-web/src/app/(admin)/home-menus/page.tsx 内的 EMOJI_KEYWORD_MAP 保持同源
+# 用于：① 数据迁移自动填 icon；② admin 前端推荐
+# ─────────────────────────────────────────────────────────────────
+_EMOJI_KEYWORD_MAP_FIX_V1 = [
+    (["药", "用药", "服药", "吃药"], "💊"),
+    (["识药", "拍照识药"], "📷"),
+    (["家庭", "家人", "亲子"], "👨‍👩‍👧"),
+    (["医生", "问诊", "看诊", "大夫"], "🩺"),
+    (["提醒", "闹钟"], "⏰"),
+    (["健康", "保健", "体检"], "❤️"),
+    (["视频"], "📹"),
+    (["客服", "咨询"], "💬"),
+    (["积分", "奖励"], "🎁"),
+    (["商城", "商品", "购物"], "🛒"),
+    (["文档", "报告"], "📄"),
+    (["数据", "报表"], "📊"),
+    (["设置"], "⚙️"),
+    (["疫苗", "接种"], "💉"),
+    (["心理", "情绪"], "🧠"),
+    (["睡眠", "失眠"], "😴"),
+    (["饮食", "营养"], "🥗"),
+    (["运动", "健身"], "🏃"),
+    (["挂号", "预约"], "📅"),
+    (["专家"], "👨‍⚕️"),
+    (["地图", "导航", "位置"], "📍"),
+    (["扫码", "二维码"], "📱"),
+    (["支付", "钱包"], "💳"),
+    (["消息", "通知", "公告"], "🔔"),
+    (["搜索", "查找"], "🔍"),
+    (["收藏", "关注"], "⭐"),
+    (["点赞", "喜欢"], "👍"),
+    (["反馈", "投诉", "建议"], "📮"),
+    (["分享"], "🔗"),
+    (["教育", "课程", "学习"], "📚"),
+    (["签到", "打卡"], "✅"),
+    (["问卷", "测评", "评估"], "📝"),
+    (["眼睛", "眼科", "视力"], "👁️"),
+    (["口腔", "牙齿"], "🦷"),
+    (["皮肤", "美容"], "🧴"),
+    (["孕期", "产检", "母婴"], "🤰"),
+    (["儿童", "儿科", "小儿"], "👶"),
+    (["老人", "养老"], "👴"),
+    (["保险", "医保"], "🛡️"),
+    (["急救", "120", "紧急"], "🚑"),
+]
+
+
+def _recommend_emoji_for_name(name: str) -> str:
+    """根据按钮名命中关键字推荐 Emoji；未命中则用默认 📌。"""
+    if not name:
+        return "📌"
+    for keywords, emoji in _EMOJI_KEYWORD_MAP_FIX_V1:
+        for kw in keywords:
+            if kw in name:
+                return emoji
+    return "📌"
+
+
+async def _migrate_aichat_optim_fix_v1():
+    """[AICHAT-OPTIM-FIX-V1 2026-05-14] AI 对话模式优化修复 PRD v1.0
+
+    迁移内容：
+    1. chat_function_buttons 表新增 icon VARCHAR(16) 列
+    2. 对所有 icon 字段为空的记录：按按钮名关键字推荐 Emoji 自动填充
+    3. 简化 ai_home_config.func_grid 模块：保留 visible / max_count / cols（columns），
+       items 字段保留 DB 但 H5 不再读取
+    幂等执行：基于 information_schema.columns 检查存在性 + icon 非空跳过保护
+    """
+    import logging as _l
+    _logger = _l.getLogger(__name__)
+    from app.core.database import async_session as _async_session
+    try:
+        async with _async_session() as db:
+            from sqlalchemy import text
+
+            # ── 1. 加 icon 列 ──
+            try:
+                chk = await db.execute(text(
+                    "SELECT COUNT(*) FROM information_schema.columns "
+                    "WHERE table_schema = DATABASE() AND table_name = 'chat_function_buttons' "
+                    "AND column_name = 'icon'"
+                ))
+                if (chk.scalar() or 0) == 0:
+                    await db.execute(text(
+                        "ALTER TABLE chat_function_buttons ADD COLUMN icon VARCHAR(32) NULL"
+                    ))
+                    _logger.info("[aichat_optim_fix_v1] chat_function_buttons.icon 列已添加")
+            except Exception as e:  # noqa: BLE001
+                _logger.debug("[aichat_optim_fix_v1] icon 列添加跳过: %s", e)
+
+            # ── 2. 按按钮名推荐 Emoji 自动填充空 icon ──
+            migrated_count = 0
+            skipped_count = 0
+            try:
+                rows = await db.execute(text(
+                    "SELECT id, name, icon FROM chat_function_buttons"
+                ))
+                for row in rows.fetchall():
+                    bid, bname, bicon = row[0], row[1] or "", row[2] or ""
+                    if bicon and bicon.strip():
+                        skipped_count += 1
+                        continue
+                    new_emoji = _recommend_emoji_for_name(bname)
+                    await db.execute(
+                        text("UPDATE chat_function_buttons SET icon = :icon WHERE id = :id"),
+                        {"icon": new_emoji, "id": bid},
+                    )
+                    migrated_count += 1
+                _logger.info(
+                    "[aichat_optim_fix_v1] aichat_optim_fix_v1: %d 条记录迁移, %d 条跳过",
+                    migrated_count, skipped_count,
+                )
+            except Exception as e:  # noqa: BLE001
+                _logger.debug("[aichat_optim_fix_v1] icon 数据回填跳过: %s", e)
+
+            # ── 3. func_grid 简化迁移（保留 visible/max_count/cols(columns)） ──
+            # ai_home_config 存储在 app_settings 表中 key='ai_home_config' 一个 JSON blob
+            simplified_updated = 0
+            simplified_skipped = 0
+            try:
+                import json as _json
+                row = await db.execute(text(
+                    "SELECT id, value FROM app_settings WHERE `key` = 'ai_home_config'"
+                ))
+                rec = row.fetchone()
+                if rec is None:
+                    simplified_skipped += 1
+                else:
+                    setting_id, raw = rec[0], rec[1]
+                    try:
+                        cfg = _json.loads(raw) if raw else {}
+                    except Exception:
+                        cfg = {}
+                    if not isinstance(cfg, dict):
+                        cfg = {}
+                    fg = cfg.get("func_grid") if isinstance(cfg.get("func_grid"), dict) else {}
+                    needs_update = False
+                    if "visible" not in fg:
+                        fg["visible"] = True
+                        needs_update = True
+                    # 兼容 columns / cols 两个键名，PRD 要求 cols；同时保留 columns 兼容已有数据
+                    if "columns" not in fg:
+                        fg["columns"] = 3
+                        needs_update = True
+                    if "cols" not in fg:
+                        fg["cols"] = fg.get("columns", 3)
+                        needs_update = True
+                    if "max_count" not in fg:
+                        fg["max_count"] = 6
+                        needs_update = True
+                    if needs_update:
+                        cfg["func_grid"] = fg
+                        await db.execute(
+                            text("UPDATE app_settings SET value = :v WHERE id = :id"),
+                            {"v": _json.dumps(cfg, ensure_ascii=False), "id": setting_id},
+                        )
+                        simplified_updated += 1
+                    else:
+                        simplified_skipped += 1
+                _logger.info(
+                    "[aichat_optim_fix_v1] func_grid simplified: %d records updated, %d skipped",
+                    simplified_updated, simplified_skipped,
+                )
+            except Exception as e:  # noqa: BLE001
+                _logger.debug("[aichat_optim_fix_v1] func_grid 简化跳过: %s", e)
+
+            await db.commit()
+            _logger.info("[aichat_optim_fix_v1] AI 对话模式优化修复 v1 迁移完成")
+    except Exception as e:  # noqa: BLE001
+        _logger.error("[aichat_optim_fix_v1] 迁移异常（不影响启动）: %s", e)
+
+
 async def _migrate_bug433_chat_message_source_parent_id():
     """[Bug-433 2026-05-09] AI 对话首页 - 语音/预设按钮"会话首句消息丢失"修复
 
@@ -1141,6 +1315,8 @@ async def lifespan(app: FastAPI):
     await _migrate_prd468_health_v3()
     # [AI对话模式优化 PRD v1.0 2026-05-14] chat_function_buttons 8 字段 + medication_library.barcode
     await _migrate_aichat_optim_v1()
+    # [AICHAT-OPTIM-FIX-V1 2026-05-14] chat_function_buttons 加 icon 字段 + 自动回填 Emoji + func_grid 简化
+    await _migrate_aichat_optim_fix_v1()
     from app.init_data import init_default_data
     await init_default_data()
     from app.init_cities import init_cities
@@ -1249,6 +1425,8 @@ app.include_router(city.router)
 app.include_router(city.admin_router)
 app.include_router(function_button.router)
 app.include_router(function_button.admin_router)
+# [AICHAT-OPTIM-FIX-V1 F-04 2026-05-14] 公开顶层 /api/function-buttons
+app.include_router(function_button.public_router)
 app.include_router(messages.router)
 app.include_router(admin_messages.router)
 app.include_router(referral.router)
