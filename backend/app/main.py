@@ -1110,13 +1110,6 @@ async def _migrate_aichat_optim_fix_v1():
       1. chat_function_buttons 添加 icon VARCHAR(32) 列（幂等）
       2. 根据按钮名关键字推荐 Emoji 自动回填空 icon 字段
       3. app_settings.ai_home_config.func_grid 简化为 visible/max_count/cols(columns)
-    """
-
-    迁移内容：
-    1. chat_function_buttons 表新增 icon VARCHAR(16) 列
-    2. 对所有 icon 字段为空的记录：按按钮名关键字推荐 Emoji 自动填充
-    3. 简化 ai_home_config.func_grid 模块：保留 visible / max_count / cols（columns），
-       items 字段保留 DB 但 H5 不再读取
     幂等执行：基于 information_schema.columns 检查存在性 + icon 非空跳过保护
     """
     import logging as _l

@@ -1,40 +1,58 @@
-import os, sys
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from ssh_helper import create_client, run_cmd
-import time
+#!/usr/bin/env python3
+"""Rebuild + recreate backend container with the latest local main.py."""
+import paramiko, sys, time, requests
 
-DEPLOY_ID = '6b099ed3-7175-4a78-91f4-44570c84ed27'
-REMOTE_ROOT = f'/home/ubuntu/{DEPLOY_ID}'
+HOST = "newbb.test.bangbangvip.com"; USER = "ubuntu"; PASSWORD = "Newbang888"
+PROJECT_ID = "6b099ed3-7175-4a78-91f4-44570c84ed27"
+REMOTE_DIR = f"/home/ubuntu/{PROJECT_ID}"
+BASE_URL = f"https://{HOST}/autodev/{PROJECT_ID}"
 
-ssh = create_client()
-try:
-    print('[rebuild] build backend ...')
-    out, err, code = run_cmd(
-        ssh,
-        f'cd {REMOTE_ROOT} && docker compose build backend 2>&1 | tail -30',
-        timeout=1200,
-    )
-    print(out)
-    if code != 0:
-        print(f'ERROR build exit code {code}')
-        sys.exit(code)
+ssh = paramiko.SSHClient()
+ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+ssh.connect(HOST, port=22, username=USER, password=PASSWORD, timeout=30, allow_agent=False, look_for_keys=False)
 
-    print('[rebuild] up -d --no-deps backend ...')
-    out, _, _ = run_cmd(
-        ssh,
-        f'cd {REMOTE_ROOT} && docker compose up -d --no-deps backend 2>&1 | tail -10',
-        timeout=180,
-    )
-    print(out)
+# 1. SCP 上传 main.py 到 backend/app/main.py（仓库源码）
+print("=== SCP main.py ===")
+sftp = ssh.open_sftp()
+sftp.put(r"C:\auto_output\bnbbaijkgj\backend\app\main.py",
+         f"{REMOTE_DIR}/backend/app/main.py")
+sftp.close()
+print("[OK] main.py 已上传")
 
-    print('[rebuild] wait 15s ...')
-    time.sleep(15)
+def run(cmd, timeout=600):
+    print(f"\n>>> {cmd[:140]}")
+    _, stdout, _ = ssh.exec_command(cmd, timeout=timeout, get_pty=True)
+    out = []
+    for line in iter(stdout.readline, ""):
+        if not line: break
+        sys.stdout.write(line); sys.stdout.flush()
+        out.append(line)
+    return "".join(out)
 
-    out, _, _ = run_cmd(
-        ssh,
-        f'docker logs --tail 40 {DEPLOY_ID}-backend 2>&1 | tail -20',
-        timeout=30,
-    )
-    print(out)
-finally:
-    ssh.close()
+# 验证文件内容
+run(f"grep -n '启动迁移' {REMOTE_DIR}/backend/app/main.py | head -5")
+run(f"sed -n '1110,1125p' {REMOTE_DIR}/backend/app/main.py")
+
+# 2. rebuild (no-cache 确保 main.py 重新拷贝进 image)
+run(f"cd {REMOTE_DIR} && (docker compose stop backend 2>&1 || docker-compose stop backend 2>&1) | tail -3")
+run(f"cd {REMOTE_DIR} && (docker compose rm -f backend 2>&1 || docker-compose rm -f backend 2>&1) | tail -3")
+run(f"cd {REMOTE_DIR} && (docker compose build --no-cache backend 2>&1 || docker-compose build --no-cache backend 2>&1) | tail -30", timeout=900)
+run(f"cd {REMOTE_DIR} && (docker compose up -d backend 2>&1 || docker-compose up -d backend 2>&1) | tail -5")
+
+# 3. 等就绪
+for i in range(60):
+    try:
+        r = requests.get(f"{BASE_URL}/api/health", timeout=10)
+        if r.status_code in (200, 404):
+            print(f"[OK] (第{i+1}次)")
+            break
+    except: pass
+    time.sleep(2)
+
+time.sleep(2)
+print("\n========== 迁移日志 ==========")
+run(f"docker logs --tail 500 {PROJECT_ID}-backend 2>&1 | grep -E 'migrate|aichat' | tail -30 || true")
+print("\n========== 容器状态 ==========")
+run(f"docker ps --format '{{{{.Names}}}}\\t{{{{.Status}}}}' | grep {PROJECT_ID}")
+
+ssh.close()
