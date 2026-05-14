@@ -1131,6 +1131,7 @@ async def _migrate_aichat_optim_fix_v1():
                     await db.execute(text(
                         "ALTER TABLE chat_function_buttons ADD COLUMN icon VARCHAR(32) NULL"
                     ))
+                    print("[migrate] aichat_optim_fix_v1: chat_function_buttons.icon 列已添加", flush=True)
                     _logger.info("[aichat_optim_fix_v1] chat_function_buttons.icon 列已添加")
             except Exception as e:  # noqa: BLE001
                 _logger.debug("[aichat_optim_fix_v1] icon 列添加跳过: %s", e)
@@ -1153,6 +1154,10 @@ async def _migrate_aichat_optim_fix_v1():
                         {"icon": new_emoji, "id": bid},
                     )
                     migrated_count += 1
+                print(
+                    f"[migrate] aichat_optim_fix_v1: {migrated_count} 条记录迁移, {skipped_count} 条跳过",
+                    flush=True,
+                )
                 _logger.info(
                     "[aichat_optim_fix_v1] aichat_optim_fix_v1: %d 条记录迁移, %d 条跳过",
                     migrated_count, skipped_count,
@@ -1204,6 +1209,10 @@ async def _migrate_aichat_optim_fix_v1():
                         simplified_updated += 1
                     else:
                         simplified_skipped += 1
+                print(
+                    f"[migrate] func_grid simplified: {simplified_updated} records updated, {simplified_skipped} skipped",
+                    flush=True,
+                )
                 _logger.info(
                     "[aichat_optim_fix_v1] func_grid simplified: %d records updated, %d skipped",
                     simplified_updated, simplified_skipped,
