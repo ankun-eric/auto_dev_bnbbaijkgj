@@ -3924,3 +3924,81 @@ class MedicalRecordCard(Base):
     related_event_id = mapped_column(Integer, ForeignKey("health_events.id"), nullable=True)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+# ──────────────── [PRD-HEALTH-OPT-V1 2026-05-14] 健康档案优化：AI 外呼用药提醒 ────────────────
+
+
+class AiCallMembershipLevel(Base):
+    """[PRD-HEALTH-OPT-V1] AI 外呼会员等级与每月额度配置。
+
+    admin 后台可新增 / 编辑等级名称 + 月额度（默认：normal=30、health=100）。
+    """
+
+    __tablename__ = "ai_call_membership_levels"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    level_code = mapped_column(String(32), unique=True, nullable=False, index=True)
+    display_name = mapped_column(String(64), nullable=False)
+    monthly_quota = mapped_column(Integer, default=30, nullable=False)
+    sort_order = mapped_column(Integer, default=100)
+    is_active = mapped_column(Boolean, default=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class AiCallGlobalConfig(Base):
+    """[PRD-HEALTH-OPT-V1] AI 外呼全局配置（单行表）。
+
+    包含：默认勿扰时段、默认话术模板、重拨次数与间隔、扣减规则 A/B。
+    """
+
+    __tablename__ = "ai_call_global_config"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    default_dnd_start = mapped_column(String(8), default="22:00", nullable=False)
+    default_dnd_end = mapped_column(String(8), default="07:00", nullable=False)
+    default_script_template = mapped_column(
+        Text,
+        default="您好，到了服用 {药物名} 的时间，请按时用药。",
+        nullable=False,
+    )
+    retry_max = mapped_column(Integer, default=2, nullable=False)
+    retry_interval_minutes = mapped_column(Integer, default=5, nullable=False)
+    # 规则 A：每条用药提醒最多扣 1 次（默认 ON）
+    rule_a_per_plan_once = mapped_column(Boolean, default=True, nullable=False)
+    # 规则 B：接通才扣（默认 OFF，即发起即扣）
+    rule_b_charge_on_answer = mapped_column(Boolean, default=False, nullable=False)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class UserMembership(Base):
+    """[PRD-HEALTH-OPT-V1] 用户会员等级 + 当月 AI 外呼额度使用情况。"""
+
+    __tablename__ = "user_memberships"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, unique=True, index=True)
+    level_code = mapped_column(String(32), default="normal", nullable=False, index=True)
+    ai_call_quota_used_month = mapped_column(Integer, default=0, nullable=False)
+    quota_reset_month = mapped_column(String(7), nullable=True)  # YYYY-MM 用于判断是否需重置
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class AiCallLog(Base):
+    """[PRD-HEALTH-OPT-V1] AI 外呼日志（用于扣减统计与状态轨迹）。"""
+
+    __tablename__ = "ai_call_logs"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    plan_id = mapped_column(Integer, ForeignKey("medication_plans.id"), nullable=False, index=True)
+    user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    phone_masked = mapped_column(String(32), nullable=True)  # 脱敏入库
+    call_at = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    retry_index = mapped_column(Integer, default=0)  # 0 / 1 / 2
+    status = mapped_column(String(16), default="dialing")  # dialing / answered / no_answer / busy / failed
+    duration = mapped_column(Integer, default=0)
+    quota_consumed = mapped_column(Boolean, default=False)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)

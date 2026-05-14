@@ -20,30 +20,32 @@ import { Toast } from 'antd-mobile';
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 import NewFamilyMemberModal from '@/components/health-profile-v5/NewFamilyMemberModal';
-import DeviceListBlock from '@/components/health-profile-v5/DeviceListBlock';
+// [PRD-HEALTH-OPT-V1 2026-05-14 R2] 中部「我的设备」卡片已移除，由顶部右上角设备图标替代
+// import DeviceListBlock from '@/components/health-profile-v5/DeviceListBlock';
 import HealthInfoBlock from '@/components/health-profile-v5/HealthInfoBlock';
 import CareReminderBlock from '@/components/health-profile-v5/CareReminderBlock';
 import HealthEventsBlock from '@/components/health-profile-v5/HealthEventsBlock';
+import { BH_TOKENS } from '@/lib/health-tokens';
 
-// ─── v5 设计 Token（健康绿主色） ──────────────────────────────────────────
+// ─── [PRD-HEALTH-OPT-V1 2026-05-14 R1] 设计 Token：蓝白渐变 + 大圆角 ───
 const T = {
-  brand50: '#f0fdf4',
-  brand100: '#dcfce7',
-  brand200: '#bbf7d0',
-  brand300: '#86efac',
-  brand400: '#4ade80',
-  brand500: '#22c55e',
-  brand600: '#16a34a',
-  brand700: '#15803d',
-  brand800: '#166534',
-  yellow: '#f59e0b',
-  warn: '#ef4444',
-  textPrimary: '#1f2937',
-  textSecondary: '#6b7280',
-  cardLineGreen: '3px solid #22c55e',
-  cardLineYellow: '3px solid #f59e0b',
-  shadow: '0 2px 8px rgba(0,0,0,0.06)',
-  gradient: 'linear-gradient(135deg, #4ade80 0%, #16a34a 100%)',
+  brand50: BH_TOKENS.brand50,
+  brand100: BH_TOKENS.brand100,
+  brand200: BH_TOKENS.brand200,
+  brand300: BH_TOKENS.brand300,
+  brand400: BH_TOKENS.brand400,
+  brand500: BH_TOKENS.brand500,
+  brand600: BH_TOKENS.brand600,
+  brand700: BH_TOKENS.brand700,
+  brand800: BH_TOKENS.brand800,
+  yellow: BH_TOKENS.yellow,
+  warn: BH_TOKENS.warn,
+  textPrimary: BH_TOKENS.textPrimary,
+  textSecondary: BH_TOKENS.textSecondary,
+  cardLineGreen: BH_TOKENS.cardLineGreen,
+  cardLineYellow: BH_TOKENS.cardLineYellow,
+  shadow: BH_TOKENS.shadow,
+  gradient: BH_TOKENS.gradient,
 };
 
 const TAB_LIST = [
@@ -134,9 +136,9 @@ export function V5Card({
       style={{
         background: '#FFFFFF',
         borderLeft: abnormal ? T.cardLineYellow : T.cardLineGreen,
-        borderRadius: 12,
+        borderRadius: BH_TOKENS.cardRadius,
         padding: 16,
-        boxShadow: T.shadow,
+        boxShadow: BH_TOKENS.cardShadow,
         cursor: onClick ? 'pointer' : 'default',
         position: 'relative',
         ...style,
@@ -536,16 +538,21 @@ export default function HealthProfileV2Page() {
     );
   };
 
-  // ─── 粘性 Tab ──────────────────────────────────────────────────────
+  // ─── [PRD-HEALTH-OPT-V1 R3] 粘性 Tab：吸顶 + 高度 48px + 白底 + 轻微阴影 ─
   const renderStickyTabs = () => (
     <div
       data-testid="prd469-sticky-tabs"
       style={{
-        position: 'sticky', top: 56, zIndex: 10, background: '#fff',
+        position: 'sticky',
+        top: 0,
+        zIndex: 50,
+        background: '#FFFFFF',
         borderBottom: `1px solid ${T.brand200}`,
+        boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+        height: BH_TOKENS.tabHeight,
       }}
     >
-      <div style={{ display: 'flex', overflowX: 'auto' }}>
+      <div style={{ display: 'flex', overflowX: 'auto', height: '100%' }}>
         {TAB_LIST.map((t) => {
           const active = activeTab === t.id;
           return (
@@ -554,9 +561,9 @@ export default function HealthProfileV2Page() {
               onClick={() => handleTabClick(t.id)}
               data-testid={`prd469-tab-${t.id}`}
               style={{
-                flex: '0 0 auto', padding: '12px 16px',
+                flex: '0 0 auto', padding: '0 16px', height: '100%',
                 background: 'none', border: 'none',
-                fontSize: 16, fontWeight: active ? 700 : 500,
+                fontSize: 15, fontWeight: active ? 700 : 500,
                 color: active ? T.brand600 : T.textSecondary,
                 borderBottom: active ? `2px solid ${T.brand600}` : '2px solid transparent',
                 cursor: 'pointer',
@@ -565,6 +572,25 @@ export default function HealthProfileV2Page() {
           );
         })}
       </div>
+    </div>
+  );
+
+  // ─── [PRD-HEALTH-OPT-V1 R2] 顶部右上角设备图标入口 ─
+  const renderTopDeviceEntry = () => (
+    <div
+      data-testid="bh-top-device-entry"
+      onClick={() => router.push('/devices')}
+      style={{
+        position: 'absolute', top: 12, right: 16,
+        width: 36, height: 36, borderRadius: 18,
+        background: 'rgba(255,255,255,0.92)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        cursor: 'pointer', zIndex: 5,
+        boxShadow: '0 2px 8px rgba(74, 158, 224, 0.15)',
+      }}
+      title="设备管理"
+    >
+      <span style={{ fontSize: 18 }}>⌚</span>
     </div>
   );
 
@@ -789,11 +815,12 @@ export default function HealthProfileV2Page() {
   };
 
   return (
-    <div style={{ background: T.brand50, minHeight: '100vh', paddingBottom: 80 }}>
+    <div style={{ background: BH_TOKENS.bgPage, minHeight: '100vh', paddingBottom: 80, position: 'relative' }}>
       <GreenNavBar>我的健康档案</GreenNavBar>
+      {renderTopDeviceEntry()}
       {renderMemberBar()}
       {renderHero()}
-      <DeviceListBlock token={T} />
+      {/* [PRD-HEALTH-OPT-V1 R2] 中部「我的设备」卡片已移除；改由顶部右上角图标进入设备管理页 */}
       {renderStickyTabs()}
       {renderTodayMetrics()}
       <HealthInfoBlock profileId={profile?.id} token={T} />

@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Form, Input, Button, Checkbox, Toast, SpinLoading, TextArea, Picker, Switch, Mask } from 'antd-mobile';
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
+import AiCallPanel, { AiCallDraft } from '@/components/medication/AiCallPanel';
 
 interface DrugLibItem {
   id: number;
@@ -64,6 +65,12 @@ function MedicationAddContent() {
   const [reminderEnabled, setReminderEnabled] = useState(true);
   const [diseaseTags, setDiseaseTags] = useState<string[]>([]);
   const [customDisease, setCustomDisease] = useState('');
+  // [PRD-HEALTH-OPT-V1 2026-05-14 R5] AI 外呼草稿
+  const [aiCallDraft, setAiCallDraft] = useState<AiCallDraft>({
+    ai_call_enabled: false,
+    ai_call_dnd_start: '22:00',
+    ai_call_dnd_end: '07:00',
+  });
 
   useEffect(() => {
     if (dailyTimes > customTimes.length) {
@@ -439,10 +446,18 @@ function MedicationAddContent() {
 
         <div className="card">
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0' }}>
-            <span style={{ fontSize: 15, fontWeight: 500 }}>🔔 开启用药提醒</span>
+            <span style={{ fontSize: 15, fontWeight: 500 }}>🔔 开启用药提醒（App 推送 / 短信）</span>
             <Switch checked={reminderEnabled} onChange={setReminderEnabled} />
           </div>
         </div>
+
+        {/* [PRD-HEALTH-OPT-V1 2026-05-14 R5] AI 外呼提醒面板 */}
+        <AiCallPanel
+          planId={editId ? Number(editId) : null}
+          draftMode={!editId}
+          initialDraft={aiCallDraft}
+          onDraftChange={setAiCallDraft}
+        />
 
         <div className="card">
           <div className="section-title">关联疾病（可选）</div>

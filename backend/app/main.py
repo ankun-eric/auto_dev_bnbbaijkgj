@@ -100,6 +100,7 @@ from app.api import (
     wechat_bindding,
     wechat_push,
     prd469_health_v5,
+    ai_call,
 )
 from app.core.database import Base, engine
 from app.core.price_formatter import PriceFormattedJSONResponse
@@ -1401,6 +1402,79 @@ async def _migrate_bug433_chat_message_source_parent_id():
         _logger.error("[bug433] chat_messages 迁移异常（不影响启动）: %s", e)
 
 
+async def _migrate_health_opt_v1_ai_call():
+    """[PRD-HEALTH-OPT-V1 2026-05-14] 健康档案优化：AI 外呼用药提醒。
+
+    1. medication_plans 加列：ai_call_enabled / ai_call_dnd_start / ai_call_dnd_end / ai_call_target_user_id
+    2. 初始化 ai_call_membership_levels（normal=30、health=100）
+    3. 初始化 ai_call_global_config 单行配置
+    """
+    import logging as _l
+    _logger = _l.getLogger(__name__)
+    from app.core.database import async_session as _async_session
+    print("[migrate] health_opt_v1_ai_call: 启动迁移...", flush=True)
+    try:
+        async with _async_session() as db:
+            from sqlalchemy import text
+
+            async def _add_col(table: str, column: str, ddl: str):
+                try:
+                    chk = await db.execute(text(
+                        "SELECT COUNT(*) FROM information_schema.columns "
+                        "WHERE table_schema = DATABASE() AND table_name = :t AND column_name = :c"
+                    ), {"t": table, "c": column})
+                    if (chk.scalar() or 0) == 0:
+                        await db.execute(text(f"ALTER TABLE {table} ADD COLUMN {ddl}"))
+                        print(f"[migrate] health_opt_v1: {table}.{column} 列已添加", flush=True)
+                except Exception as e:  # noqa: BLE001
+                    _logger.debug("加列 %s.%s 跳过: %s", table, column, e)
+
+            await _add_col("medication_plans", "ai_call_enabled", "ai_call_enabled TINYINT(1) NOT NULL DEFAULT 0")
+            await _add_col("medication_plans", "ai_call_dnd_start", "ai_call_dnd_start VARCHAR(8) NULL DEFAULT '22:00'")
+            await _add_col("medication_plans", "ai_call_dnd_end", "ai_call_dnd_end VARCHAR(8) NULL DEFAULT '07:00'")
+            await _add_col("medication_plans", "ai_call_target_user_id", "ai_call_target_user_id INT NULL")
+
+            # 初始化默认会员等级
+            res = await db.execute(text(
+                "SELECT COUNT(*) FROM ai_call_membership_levels WHERE level_code IN ('normal','health')"
+            ))
+            existing = res.scalar() or 0
+            if existing < 2:
+                seed = [
+                    ("normal", "普通会员", 30, 100),
+                    ("health", "健康会员", 100, 200),
+                ]
+                for code, name, quota, sort_o in seed:
+                    chk = await db.execute(text(
+                        "SELECT COUNT(*) FROM ai_call_membership_levels WHERE level_code = :c"
+                    ), {"c": code})
+                    if (chk.scalar() or 0) == 0:
+                        await db.execute(text(
+                            "INSERT INTO ai_call_membership_levels "
+                            "(level_code, display_name, monthly_quota, sort_order, is_active) "
+                            "VALUES (:c, :n, :q, :s, 1)"
+                        ), {"c": code, "n": name, "q": quota, "s": sort_o})
+                        print(f"[migrate] health_opt_v1: 初始化会员等级 {code}", flush=True)
+
+            # 初始化全局配置（单行）
+            chk = await db.execute(text("SELECT COUNT(*) FROM ai_call_global_config"))
+            if (chk.scalar() or 0) == 0:
+                await db.execute(text(
+                    "INSERT INTO ai_call_global_config "
+                    "(default_dnd_start, default_dnd_end, default_script_template, "
+                    " retry_max, retry_interval_minutes, rule_a_per_plan_once, rule_b_charge_on_answer) "
+                    "VALUES ('22:00', '07:00', "
+                    "'您好，到了服用 {药物名} 的时间，请按时用药。', 2, 5, 1, 0)"
+                ))
+                print("[migrate] health_opt_v1: 初始化全局配置", flush=True)
+
+            await db.commit()
+        print("[migrate] health_opt_v1_ai_call: 迁移完成", flush=True)
+    except Exception as e:  # noqa: BLE001
+        _logger.error("[health_opt_v1] AI 外呼迁移异常（不影响启动）: %s", e)
+        print(f"[migrate] health_opt_v1_ai_call: 异常 {e}", flush=True)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
@@ -1451,6 +1525,8 @@ async def lifespan(app: FastAPI):
     print("[migrate] prompt_type_config_v1: 启动迁移...", flush=True)
     await _migrate_prompt_type_config_v1()
     print("[migrate] prompt_type_config_v1: 迁移完成", flush=True)
+    # [PRD-HEALTH-OPT-V1 2026-05-14] 健康档案优化：AI 外呼用药提醒
+    await _migrate_health_opt_v1_ai_call()
     from app.init_data import init_default_data
     await init_default_data()
     from app.init_cities import init_cities
@@ -1545,6 +1621,9 @@ app.include_router(ocr_details.user_router)
 app.include_router(prompt_templates.router)
 # [PRD-PROMPT-CONFIG-V1 2026-05-14] Prompt 类型配置 API
 app.include_router(prompt_type_config.router)
+# [PRD-HEALTH-OPT-V1 2026-05-14] AI 外呼用药提醒
+app.include_router(ai_call.router)
+app.include_router(ai_call.admin_router)
 # [PRD-PROMPT-CONFIG-V1 2026-05-14] 报告解读按钮专属流程入口 /api/report-interpret/start
 app.include_router(report_interpret_button.router)
 app.include_router(drug_identify_share.router)

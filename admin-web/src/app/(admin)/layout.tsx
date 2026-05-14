@@ -92,6 +92,7 @@ const menuItems: MenuItem[] = [
     label: 'AI咨询配置',
     children: [
       { key: '/function-buttons', label: '功能按钮管理' },
+      { key: '/ai-call-config', label: 'AI 外呼配置' },
       { key: '/digital-humans', label: '数字人形象管理' },
       { key: '/voice-service', label: '语音服务配置' },
       { key: '/tts-config', label: 'TTS语音配置' },
