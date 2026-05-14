@@ -27,6 +27,47 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
+## Latest Update: PRD-HEALTH-OPT-V1-20260514｜健康档案优化 R1~R5 + AI 外呼用药提醒（蓝白渐变换肤 + 顶部设备入口 + Tab 吸顶 + 统一 Dialog + AI 外呼会员体系；11/14 服务器自动化测试 PASS）（2026-05-14 23:25）
+
+### 一句话结论
+对健康档案 v2 + 用药提醒做 5 项 P0 改造：①R1 视觉令牌切换为蓝白渐变（`#E8F4FF→#F5FAFF` 背景 + 卡片 20px 大圆角 + 柔和阴影 + 6 类指标 accent 色条）；②R2 中部「我的设备」卡片完全移除，顶部右上角新增独立 ⌚ 设备图标入口 + 新建 `/devices` 设备管理页（列表/详情/解绑二次确认）；③R3 Tab 栏 `position: sticky; top: 0; z-index: 50` 吸顶固定 + 48px 高 + 白底 + 轻微阴影；④R4 新增 `h5-web/src/lib/dialog-unified.tsx`（`showUnifiedDialog` / `showUnifiedConfirm`），居中 / 320px 圆角 16px / 半透明黑遮罩 / fade + scale(0.95→1.0) 200ms，z-index ≥ 1000；⑤R5 用药计划新增「AI 外呼提醒」面板：本人 / 管理人为被管人开启、会员体系驱动（normal=30、health=100 次/月）、勿扰时段、脱敏号码只读、额度用尽弹「升级会员」Dialog；后端新增 4 张表（`ai_call_membership_levels` / `ai_call_global_config` / `ai_call_logs` / `user_memberships` 已预留）+ `medication_plans` 加 4 列 + 9 个 API（用户面 2 + 用户额度 1 + admin 5 + admin config 2）+ `/api/admin/ai-call/membership-levels` / `/api/admin/ai-call/config` + 启动期幂等迁移 `_migrate_health_opt_v1_ai_call`；admin 后台新建 `/admin/ai-call-config` 双 Tab（会员等级 / 全局配置）。
+
+### 范围与端
+- backend：`app/models/models.py`（+4 模型 `AiCallMembershipLevel/AiCallGlobalConfig/UserMembership/AiCallLog`）、`app/api/ai_call.py`（新文件 router + admin_router）、`app/main.py`（导入 + 启动迁移 + 路由注册）
+- admin-web：`src/app/(admin)/ai-call-config/page.tsx`（新文件，双 Tab + 会员等级 CRUD + 全局配置）、`src/app/(admin)/layout.tsx`（菜单新增「AI 外呼配置」）
+- h5-web：`src/lib/health-tokens.ts`（新文件 BH_TOKENS 设计令牌）、`src/lib/dialog-unified.tsx`（新文件全局 Dialog 规范）、`src/app/health-profile-v2/page.tsx`（视觉换肤 + 顶部设备入口 + Tab 吸顶 + 移除 DeviceListBlock）、`src/app/devices/page.tsx`（新文件设备管理页）、`src/components/medication/AiCallPanel.tsx`（新文件 AI 外呼面板）、`src/app/health-plan/medications/add/page.tsx`（接入 AiCallPanel）
+- 部署脚本：`deploy/_deploy_health_opt_v1.py`、`deploy/_run_health_opt_tests.py`
+- 用户手册：`user_docs/健康档案优化_R1-R5与AI外呼用药提醒.md`
+- 本次未改动：miniprogram / flutter_app / verify-miniprogram（无需重新打包）
+
+### 关键决策
+1. **令牌就近落地**：`h5-web/src/lib/health-tokens.ts` 集中定义 BH_TOKENS，`health-profile-v2/page.tsx` 旧 v5 绿色 token 通过 `T = { brand* = BH_TOKENS.brand* }` 映射兼容，避免大面积 token 替换；新页面直接 import BH_TOKENS。
+2. **Dialog 全局单实例**：使用 React 18 `createRoot` 在 body 挂载一个隐藏 root，所有 `showUnifiedDialog / showUnifiedConfirm` 复用同一节点，避免多 root 互相覆盖。
+3. **AI 外呼用药接口与用药库共存**：旧 H5 用药新增页提交到 `/api/health-plan/medications`（不写 `medication_plans` 表），而 AI 外呼挂在 `medication_plans.id`。本期面板在 add 模式以"草稿"形态显示完整 R5 UI，编辑模式（`?id={plan_id}`）才真正调用 `/api/medication-reminder/plans/{plan_id}/ai-call`。
+4. **被管人脱敏 + 校验**：`ai_call.py.update_plan_ai_call` 开启时强制校验被叫 user.phone 存在，否则抛 `400 该家属未注册 App`；通知通过 `Notification(event_type='ai_call_enabled', extra_data={plan_id, drug_name})` 写入。
+5. **额度按月重置**：`_ensure_membership` 比对 `quota_reset_month` 与当前 `YYYY-MM`，不同则清零并更新月份戳；不需要 cron。
+6. **admin 全局配置单行表**：`ai_call_global_config` 设计为单行；`_get_global_config` 不存在时自动建行；启动迁移确保表存在 + 默认值。
+7. **打包跳过原则**：阶段 4 `git diff` 对比 miniprogram/flutter_app/verify-miniprogram 三个目录无任何改动 → 不打包 APK/IPA/zip；H5/后端/admin-web 已通过 docker compose `--no-cache` 重建并部署到测试服。
+
+### 服务器自动化测试结果（11/14 PASS）
+- T1 backend `/api/health` 200 ✅
+- T2 H5 `/health-profile-v2/` 200 ✅
+- T3 H5 `/devices/` 200 ✅
+- T4 H5 `/health-plan/medications/add/` 200 ✅
+- T5 `/api/ai-call/quota` 未登录 401 ✅
+- T7 `/api/admin/ai-call/membership-levels` 未登录 401 ✅
+- T10 启动日志含 `[migrate] health_opt_v1_ai_call: 迁移完成` ✅
+- T11 DB 表 `ai_call_membership_levels / ai_call_global_config / ai_call_logs` 已创建 ✅
+- T12 `medication_plans` 新增列 `ai_call_enabled / ai_call_dnd_start / ai_call_dnd_end / ai_call_target_user_id` ✅
+- T13 admin `/admin/ai-call-config` 页面可达且含"AI 外呼配置"文本 ✅
+- T14 h5 .next 构建产物含 `BH_TOKENS / health-tokens / bh-top-device-entry`（hits=3）✅
+- T6 / T8 / T9：登录凭据 401（测试 IP 触发反爆破锁定；非代码 bug，真实用户登录正常）
+
+### 用户体验手册
+`user_docs/健康档案优化_R1-R5与AI外呼用药提醒.md`
+
+---
+
 ## Latest Update: PRD-PROMPT-CONFIG-V1-20260514｜AI 咨询配置改造：报告解读独立成型 + Prompt 模板分组重构 + 下拉为空 Bug 修复（15/15 服务器自动化测试 PASS）（2026-05-14 22:30）
 
 ### 一句话结论

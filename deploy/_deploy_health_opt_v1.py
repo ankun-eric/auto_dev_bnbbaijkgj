@@ -49,7 +49,13 @@ def deploy():
     ssh.connect(HOST, port=22, username=USER, password=PASSWORD, timeout=30,
                 allow_agent=False, look_for_keys=False)
     try:
-        run(ssh, f"cd {REMOTE_DIR} && git fetch origin master 2>&1 | tail -10")
+        # 网络不稳定时重试 git fetch
+        for attempt in range(3):
+            rc, out, _ = run(ssh, f"cd {REMOTE_DIR} && timeout 180 git fetch origin master 2>&1 | tail -10", timeout=200)
+            if "fatal" not in out and "unable to access" not in out:
+                break
+            print(f"[retry] git fetch 第 {attempt + 1} 次失败，重试...")
+            time.sleep(8)
         run(ssh, f"cd {REMOTE_DIR} && git reset --hard origin/master 2>&1 | tail -5")
         run(ssh, f"cd {REMOTE_DIR} && git log -3 --oneline")
         # 验证关键代码标记
@@ -256,11 +262,12 @@ def run_tests() -> int:
 
     # T13 admin 页面可达
     try:
-        r = _req("GET", "/ai-call-config/", allow_redirects=True)
-        ok = r.status_code in (200, 308) or (200 <= r.status_code < 400)
-        add("T13 admin /ai-call-config 可达", ok, f"status={r.status_code}")
+        r = _req("GET", "/admin/ai-call-config", allow_redirects=True)
+        ok_text = ('AI 外呼配置' in r.text) or ('ai-call-config' in r.text)
+        ok = (r.status_code in (200, 308) or (200 <= r.status_code < 400)) and ok_text
+        add("T13 admin /admin/ai-call-config 可达", ok, f"status={r.status_code}, has_text={ok_text}")
     except Exception as e:
-        add("T13 admin /ai-call-config", False, str(e))
+        add("T13 admin /admin/ai-call-config", False, str(e))
 
     # T14 h5 容器构建产物含 BH_TOKENS
     try:
@@ -270,8 +277,8 @@ def run_tests() -> int:
                     allow_agent=False, look_for_keys=False)
         _, out, _ = run(
             ssh,
-            f"docker exec {PROJECT_ID}-h5-web sh -lc "
-            "'grep -r \"BH_TOKENS\\|health-tokens\\|bh-top-device-entry\" /app/.next/ 2>/dev/null "
+            f"docker exec {PROJECT_ID}-h5 sh -lc "
+            "'grep -r \"bh-top-device-entry\\|BH_TOKENS\\|health-tokens\" /app/.next/ 2>/dev/null "
             "| head -3 | wc -l' || true",
         )
         cnt = 0
