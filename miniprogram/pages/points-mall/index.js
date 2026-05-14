@@ -1,9 +1,10 @@
 const { get, post } = require('../../utils/request');
 
+// PRD-POINTS-SKIN-V1: 全部统一为天蓝色系
 const TYPE_BADGE = {
-  coupon: { text: '优惠券', bg: 'rgba(250,140,22,0.12)', color: '#fa8c16' },
-  service: { text: '体验服务', bg: 'rgba(19,194,194,0.12)', color: '#13c2c2' },
-  physical: { text: '实物', bg: 'rgba(114,46,209,0.12)', color: '#722ed1' },
+  coupon: { text: '优惠券', bg: 'rgba(14,165,233,0.12)', color: '#0EA5E9' },
+  service: { text: '体验服务', bg: 'rgba(56,189,248,0.12)', color: '#38BDF8' },
+  physical: { text: '实物', bg: 'rgba(2,132,199,0.12)', color: '#0284C7' },
   virtual: { text: '虚拟(开发中)', bg: 'rgba(191,191,191,0.2)', color: '#888' },
   third_party: { text: '第三方(开发中)', bg: 'rgba(191,191,191,0.2)', color: '#888' }
 };
@@ -128,6 +129,11 @@ Page({
 
   goExchangeRecords() {
     wx.navigateTo({ url: '/pages/points/detail/index?tab=exchange' });
+  },
+
+  // PRD-POINTS-SKIN-V1: 「去赚积分 →」按钮跳转积分主页
+  goEarnPoints() {
+    wx.navigateTo({ url: '/pages/points/index' });
   },
 
   goDetail(e) {

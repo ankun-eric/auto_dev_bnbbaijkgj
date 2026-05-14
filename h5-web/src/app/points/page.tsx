@@ -28,10 +28,11 @@ const TASK_ROUTE_OVERRIDES: Record<string, string> = {
   complete_profile: '/health-profile-v2',
 };
 
+// PRD-POINTS-SKIN-V1: 全部统一为天蓝色系
 const CATEGORY_LABEL: Record<string, { text: string; color: string }> = {
   daily: { text: '每日', color: '#0EA5E9' },
-  once: { text: '一次性', color: '#fa8c16' },
-  repeatable: { text: '可重复', color: '#1890ff' },
+  once: { text: '一次性', color: '#0EA5E9' },
+  repeatable: { text: '可重复', color: '#38BDF8' },
 };
 
 export default function PointsPage() {
@@ -111,16 +112,16 @@ export default function PointsPage() {
         积分中心
       </GreenNavBar>
 
-      {/* Bug 3：我的积分卡片背景色统一为 #C8E6C9（浅绿），与上方深绿标题区形成层次 */}
+      {/* PRD-POINTS-SKIN-V1: 我的积分卡片背景色换肤为天蓝色（#F0F9FF → #DBEAFE 渐变） */}
       <div
         className="px-4 pt-6 pb-8 text-center"
-        style={{ background: '#C8E6C9' }}
+        style={{ background: 'linear-gradient(135deg, #F0F9FF, #DBEAFE)' }}
       >
-        <div className="text-sm" style={{ color: '#1B5E20' }}>可用积分</div>
-        <div className="text-4xl font-bold my-2" style={{ color: '#1B5E20' }}>
+        <div className="text-sm" style={{ color: '#0369A1' }}>可用积分</div>
+        <div className="text-4xl font-bold my-2" style={{ color: '#0EA5E9' }}>
           {loading ? '--' : availablePoints}
         </div>
-        <div className="text-sm mt-1" style={{ color: '#2E7D32' }}>
+        <div className="text-sm mt-1" style={{ color: '#0284C7' }}>
           {todayEarned > 0
             ? `今天获得积分 +${todayEarned}`
             : '今天还未获得积分，快去赚取吧'}
@@ -206,7 +207,7 @@ export default function PointsPage() {
                         >
                           {cat.text}
                         </Tag>
-                        <span style={{ color: onceDone ? '#bfbfbf' : '#fa8c16', fontSize: 12 }}>
+                        <span style={{ color: onceDone ? '#bfbfbf' : '#0EA5E9', fontSize: 12 }}>
                           +{t.points} 积分
                         </span>
                       </div>

@@ -75,10 +75,11 @@ function isExchangeable(state?: string): boolean {
   return state === 'exchangeable' || state === 'normal';
 }
 
+// PRD-POINTS-SKIN-V1: 统一为天蓝色系
 const TYPE_BADGE: Record<string, { text: string; color: string }> = {
-  coupon: { text: '优惠券', color: '#fa8c16' },
+  coupon: { text: '优惠券', color: '#0EA5E9' },
   service: { text: '体验服务', color: '#38BDF8' },
-  physical: { text: '实物', color: '#722ed1' },
+  physical: { text: '实物', color: '#0284C7' },
   virtual: { text: '虚拟（开发中）', color: '#bfbfbf' },
   third_party: { text: '第三方（开发中）', color: '#bfbfbf' },
 };
@@ -258,10 +259,10 @@ function PointsProductDetailInner() {
         </div>
         <div style={{ fontSize: 18, fontWeight: 600, color: '#222' }}>{item.name}</div>
         <div style={{ marginTop: 10, display: 'flex', alignItems: 'baseline', gap: 12 }}>
-          <span style={{ color: '#2E7D32', fontWeight: 700, fontSize: 24 }}>
+          <span style={{ color: '#0EA5E9', fontWeight: 700, fontSize: 24 }}>
             {item.price_points}
           </span>
-          <span style={{ color: '#2E7D32', fontSize: 13 }}>积分</span>
+          <span style={{ color: '#0EA5E9', fontSize: 13 }}>积分</span>
           <span style={{ color: '#999', fontSize: 12, marginLeft: 'auto' }}>
             {item.type === 'service'
               ? '服务券'
@@ -350,16 +351,17 @@ function PointsProductDetailInner() {
           zIndex: 10,
         }}
       >
+        {/* PRD-POINTS-SKIN-V1: CTA 升级为天蓝实心 + 白字 + 8px 圆角 */}
         <Button
           block
           loading={exchanging}
           onClick={handleExchange}
           style={{
-            height: 48,
-            borderRadius: 10,
+            height: 44,
+            borderRadius: 8,
             fontSize: 16,
-            background: exchangeable ? '#4CAF50' : '#e0e0e0',
-            color: exchangeable ? '#fff' : '#999',
+            background: exchangeable ? '#0EA5E9' : '#BAE6FD',
+            color: exchangeable ? '#fff' : 'rgba(255,255,255,0.6)',
             border: 'none',
           }}
         >

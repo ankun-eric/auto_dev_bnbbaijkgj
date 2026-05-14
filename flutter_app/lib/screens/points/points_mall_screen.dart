@@ -79,10 +79,11 @@ class _PointsMallScreenState extends State<PointsMallScreen>
   late TabController _tabController;
   String _currentTab = 'all';
 
+  // PRD-POINTS-SKIN-V1: 统一为天蓝色系
   static const Map<String, Map<String, dynamic>> _typeMeta = {
-    'coupon': {'text': '优惠券', 'color': Color(0xFFFA8C16), 'icon': '🎫'},
-    'service': {'text': '体验服务', 'color': Color(0xFF13C2C2), 'icon': '💆'},
-    'physical': {'text': '实物', 'color': Color(0xFF722ED1), 'icon': '📦'},
+    'coupon': {'text': '优惠券', 'color': Color(0xFF0EA5E9), 'icon': '🎫'},
+    'service': {'text': '体验服务', 'color': Color(0xFF38BDF8), 'icon': '💆'},
+    'physical': {'text': '实物', 'color': Color(0xFF0284C7), 'icon': '📦'},
     'virtual': {'text': '虚拟', 'color': Color(0xFFBFBFBF), 'icon': '🎁'},
     'third_party': {'text': '第三方', 'color': Color(0xFFBFBFBF), 'icon': '🛍️'},
   };
@@ -188,7 +189,7 @@ class _PointsMallScreenState extends State<PointsMallScreen>
           style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600),
         ),
         centerTitle: true,
-        backgroundColor: const Color(0xFF4CAF50),
+        backgroundColor: const Color(0xFF0EA5E9),
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
         leading: IconButton(
@@ -209,9 +210,17 @@ class _PointsMallScreenState extends State<PointsMallScreen>
       ),
       body: Column(
         children: [
+          // PRD-POINTS-SKIN-V1: 商城顶部 banner（天蓝渐变 + 我的积分 + 去赚积分 + 兑换记录）
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-            color: const Color(0xFFC8E6C9),
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFFF0F9FF), Color(0xFFDBEAFE)],
+              ),
+              borderRadius: BorderRadius.vertical(bottom: Radius.circular(16)),
+            ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -219,38 +228,69 @@ class _PointsMallScreenState extends State<PointsMallScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text('可用积分',
-                        style: TextStyle(fontSize: 13, color: Color(0xFF1B5E20))),
+                    const Text('我的积分',
+                        style: TextStyle(fontSize: 14, color: Color(0xFF666666))),
                     const SizedBox(height: 2),
-                    Text('$_availablePoints',
-                        style: const TextStyle(
-                            fontSize: 26,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF1B5E20))),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.baseline,
+                      textBaseline: TextBaseline.alphabetic,
+                      children: [
+                        Text('$_availablePoints',
+                            style: const TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF0EA5E9))),
+                        const SizedBox(width: 4),
+                        const Text('分',
+                            style: TextStyle(fontSize: 14, color: Color(0xFF0EA5E9))),
+                      ],
+                    ),
                     const SizedBox(height: 2),
                     const Text('用积分兑换好礼',
-                        style: TextStyle(fontSize: 12, color: Color(0xFF2E7D32))),
+                        style: TextStyle(fontSize: 12, color: Color(0xFF0284C7))),
                   ],
                 ),
-                OutlinedButton(
-                  onPressed: () => Navigator.pushNamed(
-                    context,
-                    '/points-detail',
-                    arguments: const {'tab': 'exchange'},
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF1B5E20),
-                    side: const BorderSide(color: Color(0x591B5E20)),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-                  ),
-                  child: const Text('兑换记录'),
+                Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    OutlinedButton(
+                      onPressed: () => Navigator.pushNamed(context, '/points'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF0EA5E9),
+                        backgroundColor: Colors.white,
+                        side: const BorderSide(color: Color(0xFF0EA5E9)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                        minimumSize: const Size(0, 32),
+                      ),
+                      child: const Text('去赚积分 →', style: TextStyle(fontSize: 12)),
+                    ),
+                    const SizedBox(height: 8),
+                    OutlinedButton(
+                      onPressed: () => Navigator.pushNamed(
+                        context,
+                        '/points-detail',
+                        arguments: const {'tab': 'exchange'},
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF0EA5E9),
+                        backgroundColor: const Color(0x1A0EA5E9),
+                        side: const BorderSide(color: Color(0xFF7DD3FC)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                        minimumSize: const Size(0, 28),
+                      ),
+                      child: const Text('兑换记录', style: TextStyle(fontSize: 12)),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
           Expanded(
             child: _loading
-                ? const Center(child: CircularProgressIndicator(color: Color(0xFF4CAF50)))
+                ? const Center(child: CircularProgressIndicator(color: Color(0xFF0EA5E9)))
                 : _goods.isEmpty
                     ? const Center(child: Text('暂无商品', style: TextStyle(color: Colors.grey)))
                     : RefreshIndicator(
@@ -285,10 +325,10 @@ class _PointsMallScreenState extends State<PointsMallScreen>
           ? ElevatedButton(
               onPressed: () => _openDetail(item),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF52C41A),
+                backgroundColor: const Color(0xFF0EA5E9),
                 foregroundColor: Colors.white,
                 padding: EdgeInsets.zero,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
               child: Text(btnText, style: const TextStyle(fontSize: 12)),
             )
@@ -296,11 +336,11 @@ class _PointsMallScreenState extends State<PointsMallScreen>
           : ElevatedButton(
               onPressed: () => _openDetail(item),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFE0E0E0),
-                foregroundColor: const Color(0xFF999999),
+                backgroundColor: const Color(0xFFBAE6FD),
+                foregroundColor: Colors.white,
                 padding: EdgeInsets.zero,
                 elevation: 0,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
               child: Text(btnText, style: const TextStyle(fontSize: 12)),
             ),
@@ -328,7 +368,8 @@ class _PointsMallScreenState extends State<PointsMallScreen>
               child: Container(
                 width: double.infinity,
                 decoration: const BoxDecoration(
-                  color: Color(0xFFF0F9EB),
+                  // PRD-POINTS-SKIN-V1: 卡片图片占位区底色改为天蓝浅调
+                  color: Color(0xFFF0F9FF),
                   borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
                 ),
                 child: img != null
@@ -381,7 +422,7 @@ class _PointsMallScreenState extends State<PointsMallScreen>
                           style: const TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.bold,
-                              color: Color(0xFF2E7D32)),
+                              color: Color(0xFF0EA5E9)),
                         ),
                         Text(
                           item.type == 'service' ? '服务券' : '库存${item.stock}',

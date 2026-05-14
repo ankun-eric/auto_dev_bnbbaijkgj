@@ -65,9 +65,10 @@ export default function PointsRecordsPage() {
             <List.Item
               key={r.id}
               extra={
+                /* PRD-POINTS-SKIN-V1: 正向积分 #0EA5E9 / 负向积分保持灰色 #999999 */
                 <span
                   style={{
-                    color: r.points >= 0 ? '#0EA5E9' : '#ff4d4f',
+                    color: r.points >= 0 ? '#0EA5E9' : '#999999',
                     fontWeight: 600,
                   }}
                 >

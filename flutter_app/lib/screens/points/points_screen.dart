@@ -83,8 +83,9 @@ class _PointsScreenState extends State<PointsScreen> {
       final data = res.data is Map ? res.data as Map : {};
       final earned = data['points_earned'] ?? 0;
       if (mounted) {
+        // PRD-POINTS-SKIN-V1: 统一为天蓝色
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(earned > 0 ? '签到成功 +$earned' : '签到成功'), backgroundColor: const Color(0xFF52C41A)),
+          SnackBar(content: Text(earned > 0 ? '签到成功 +$earned' : '签到成功'), backgroundColor: const Color(0xFF0EA5E9)),
         );
       }
       _loadData();
@@ -142,29 +143,34 @@ class _PointsScreenState extends State<PointsScreen> {
         ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFF52C41A)))
+          ? const Center(child: CircularProgressIndicator(color: Color(0xFF0EA5E9)))
           : RefreshIndicator(
-              color: const Color(0xFF52C41A),
+              color: const Color(0xFF0EA5E9),
               onRefresh: _loadData,
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 child: Column(
                   children: [
+                    // PRD-POINTS-SKIN-V1: 积分头部背景改为天蓝色渐变（F0F9FF → DBEAFE）
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.fromLTRB(24, 24, 24, 36),
                       decoration: const BoxDecoration(
-                        color: Color(0xFFC8E6C9),
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [Color(0xFFF0F9FF), Color(0xFFDBEAFE)],
+                        ),
                       ),
                       child: Column(
                         children: [
-                          const Text('我的可用积分', style: TextStyle(color: Color(0xFF1B5E20), fontSize: 14)),
+                          const Text('我的可用积分', style: TextStyle(color: Color(0xFF0369A1), fontSize: 14)),
                           const SizedBox(height: 8),
-                          Text('$_availablePoints', style: const TextStyle(color: Color(0xFF1B5E20), fontSize: 44, fontWeight: FontWeight.bold)),
+                          Text('$_availablePoints', style: const TextStyle(color: Color(0xFF0EA5E9), fontSize: 44, fontWeight: FontWeight.bold)),
                           const SizedBox(height: 8),
                           Text(
                             _todayEarned > 0 ? '今天获得积分 +$_todayEarned' : '今天还未获得积分，快去赚取吧',
-                            style: const TextStyle(color: Color(0xFF2E7D32), fontSize: 13),
+                            style: const TextStyle(color: Color(0xFF0284C7), fontSize: 13),
                           ),
                         ],
                       ),
@@ -232,9 +238,9 @@ class _PointsScreenState extends State<PointsScreen> {
           ElevatedButton(
             onPressed: _loadData,
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF52C41A),
+              backgroundColor: const Color(0xFF0EA5E9),
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 8),
             ),
             child: const Text('点击重试'),
@@ -265,7 +271,8 @@ class _PointsScreenState extends State<PointsScreen> {
     final category = task['category']?.toString();
     final actionType = task['action_type']?.toString();
     final categoryLabel = category == 'daily' ? '每日' : category == 'once' ? '一次性' : '可重复';
-    final baseCategoryColor = category == 'daily' ? const Color(0xFF52C41A) : category == 'once' ? const Color(0xFFFA8C16) : const Color(0xFF1890FF);
+    // PRD-POINTS-SKIN-V1: 统一为天蓝色系
+    final baseCategoryColor = category == 'daily' ? const Color(0xFF0EA5E9) : category == 'once' ? const Color(0xFF0EA5E9) : const Color(0xFF38BDF8);
     final onceDone = completed && category == 'once';
     final disabled = onceDone || (actionType == 'sign_in' && _signedToday);
     final btnText = onceDone ? '✓ 已完成'
@@ -277,7 +284,7 @@ class _PointsScreenState extends State<PointsScreen> {
 
     final categoryColor = onceDone ? const Color(0xFFBFBFBF) : baseCategoryColor;
     final titleColor = onceDone ? const Color(0xFF999999) : const Color(0xFF333333);
-    final pointsColor = onceDone ? const Color(0xFFBFBFBF) : const Color(0xFFFA8C16);
+    final pointsColor = onceDone ? const Color(0xFFBFBFBF) : const Color(0xFF0EA5E9);
     final subtitleColor = onceDone ? const Color(0xFFBFBFBF) : Colors.grey[600];
 
     return Opacity(
@@ -309,7 +316,7 @@ class _PointsScreenState extends State<PointsScreen> {
                         ),
                       ),
                       if (onceDone)
-                        const Text('✓ 已完成', style: TextStyle(fontSize: 11, color: Color(0xFF52C41A))),
+                        const Text('✓ 已完成', style: TextStyle(fontSize: 11, color: Color(0xFF0EA5E9))),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                         decoration: BoxDecoration(
@@ -333,10 +340,10 @@ class _PointsScreenState extends State<PointsScreen> {
             ElevatedButton(
               onPressed: disabled ? null : () => _handleTask(task),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF52C41A),
-                disabledBackgroundColor: const Color(0xFFE8E8E8),
-                disabledForegroundColor: Colors.grey[600],
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                backgroundColor: const Color(0xFF0EA5E9),
+                disabledBackgroundColor: const Color(0xFFBAE6FD),
+                disabledForegroundColor: Colors.white70,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                 minimumSize: const Size(72, 32),
               ),

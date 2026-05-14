@@ -42,7 +42,7 @@ class _PointsDetailScreenState extends State<PointsDetailScreen> with SingleTick
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
         title: const Text('积分明细'),
-        backgroundColor: const Color(0xFF4CAF50),
+        backgroundColor: const Color(0xFF0EA5E9),
         foregroundColor: Colors.white,
         iconTheme: const IconThemeData(color: Colors.white),
         bottom: TabBar(
@@ -146,7 +146,7 @@ class _PointsRecordsTabState extends State<_PointsRecordsTab> {
           if (_loading) {
             return const Padding(
               padding: EdgeInsets.all(16),
-              child: Center(child: CircularProgressIndicator(color: Color(0xFF4CAF50))),
+              child: Center(child: CircularProgressIndicator(color: Color(0xFF0EA5E9))),
             );
           }
           if (_noMore && _records.isNotEmpty) {
@@ -187,12 +187,13 @@ class _PointsRecordsTabState extends State<_PointsRecordsTab> {
                   ],
                 ),
               ),
+              // PRD-POINTS-SKIN-V1: 正向积分 #0EA5E9 / 负向积分 #999999（不再红色）
               Text(
                 '${isIncome ? '+' : ''}$pts',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: isIncome ? const Color(0xFF4CAF50) : const Color(0xFFF44336),
+                  color: isIncome ? const Color(0xFF0EA5E9) : const Color(0xFF999999),
                 ),
               ),
             ],
@@ -219,19 +220,21 @@ class _ExchangeRecordsTabState extends State<_ExchangeRecordsTab> {
   bool _hasMore = true;
   bool _loading = true;
 
+  // PRD-POINTS-SKIN-V1: 统一为天蓝色系
   static const Map<String, Map<String, dynamic>> _typeMeta = {
-    'coupon': {'text': '优惠券', 'color': Color(0xFFFA8C16), 'icon': '🎫'},
-    'service': {'text': '体验服务', 'color': Color(0xFF13C2C2), 'icon': '💆'},
-    'physical': {'text': '实物', 'color': Color(0xFF722ED1), 'icon': '📦'},
+    'coupon': {'text': '优惠券', 'color': Color(0xFF0EA5E9), 'icon': '🎫'},
+    'service': {'text': '体验服务', 'color': Color(0xFF38BDF8), 'icon': '💆'},
+    'physical': {'text': '实物', 'color': Color(0xFF0284C7), 'icon': '📦'},
     'virtual': {'text': '虚拟', 'color': Color(0xFFBFBFBF), 'icon': '🎁'},
     'third_party': {'text': '第三方', 'color': Color(0xFFBFBFBF), 'icon': '🛍️'},
   };
 
+  // PRD-POINTS-SKIN-V1: 状态徽章用天蓝不同深浅
   static const Map<String, Map<String, dynamic>> _statusMeta = {
-    'success': {'text': '兑换成功', 'color': Color(0xFF52C41A)},
-    'pending': {'text': '处理中', 'color': Color(0xFF1890FF)},
-    'failed': {'text': '失败', 'color': Color(0xFFFF4D4F)},
-    'used': {'text': '已使用', 'color': Color(0xFF8C8C8C)},
+    'success': {'text': '兑换成功', 'color': Color(0xFF0EA5E9)},
+    'pending': {'text': '处理中', 'color': Color(0xFF7DD3FC)},
+    'failed': {'text': '失败', 'color': Color(0xFF999999)},
+    'used': {'text': '已使用', 'color': Color(0xFF0284C7)},
     'expired': {'text': '已过期', 'color': Color(0xFFBFBFBF)},
     'cancelled': {'text': '已取消', 'color': Color(0xFFBFBFBF)},
   };
@@ -309,7 +312,7 @@ class _ExchangeRecordsTabState extends State<_ExchangeRecordsTab> {
           if (_loading && _items.isEmpty)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 60),
-              child: Center(child: CircularProgressIndicator(color: Color(0xFF4CAF50))),
+              child: Center(child: CircularProgressIndicator(color: Color(0xFF0EA5E9))),
             )
           else if (_items.isEmpty)
             const Padding(
@@ -341,10 +344,11 @@ class _ExchangeRecordsTabState extends State<_ExchangeRecordsTab> {
 
     Widget? actionBtn;
     if (type == 'service' && status != 'expired' && refServiceId != null) {
+      // PRD-POINTS-SKIN-V1: 统一为天蓝色系
       actionBtn = ElevatedButton(
         onPressed: () => Navigator.pushNamed(context, '/product-detail', arguments: refServiceId),
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF4CAF50),
+          backgroundColor: const Color(0xFF0EA5E9),
           foregroundColor: Colors.white,
           minimumSize: const Size(64, 28),
           padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -364,8 +368,8 @@ class _ExchangeRecordsTabState extends State<_ExchangeRecordsTab> {
           },
         ),
         style: OutlinedButton.styleFrom(
-          foregroundColor: const Color(0xFFFA8C16),
-          side: const BorderSide(color: Color(0xFFFA8C16)),
+          foregroundColor: const Color(0xFF0EA5E9),
+          side: const BorderSide(color: Color(0xFF0EA5E9)),
           minimumSize: const Size(64, 28),
           padding: const EdgeInsets.symmetric(horizontal: 10),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -375,7 +379,7 @@ class _ExchangeRecordsTabState extends State<_ExchangeRecordsTab> {
       final useBtn = ElevatedButton(
         onPressed: () => jumpToUseCoupon(context, rec.couponId),
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFFFA8C16),
+          backgroundColor: const Color(0xFF0EA5E9),
           foregroundColor: Colors.white,
           minimumSize: const Size(64, 28),
           padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -397,8 +401,8 @@ class _ExchangeRecordsTabState extends State<_ExchangeRecordsTab> {
       actionBtn = OutlinedButton(
         onPressed: () => Navigator.pushNamed(context, '/unified-orders'),
         style: OutlinedButton.styleFrom(
-          foregroundColor: const Color(0xFF722ED1),
-          side: const BorderSide(color: Color(0xFF722ED1)),
+          foregroundColor: const Color(0xFF0284C7),
+          side: const BorderSide(color: Color(0xFF0284C7)),
           minimumSize: const Size(64, 28),
           padding: const EdgeInsets.symmetric(horizontal: 10),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -480,14 +484,15 @@ class _ExchangeRecordsTabState extends State<_ExchangeRecordsTab> {
                 ),
                 if (expireStr.isNotEmpty)
                   Text('有效期至：$expireStr',
-                      style: const TextStyle(fontSize: 12, color: Color(0xFFFA8C16))),
+                      style: const TextStyle(fontSize: 12, color: Color(0xFF0284C7))),
                 const SizedBox(height: 8),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
+                    // PRD-POINTS-SKIN-V1: 负向积分由红改灰
                     Text(
                       '-$cost 积分',
-                      style: const TextStyle(color: Color(0xFFF44336), fontWeight: FontWeight.w600),
+                      style: const TextStyle(color: Color(0xFF999999), fontWeight: FontWeight.w600),
                     ),
                     if (actionBtn != null) actionBtn,
                   ],

@@ -19,8 +19,9 @@
   color: #666;
   position: relative;
 }
+/* PRD-POINTS-SKIN-V1: 激活态 tab 改为天蓝色 */
 .tab-item.active {
-  color: #4CAF50;
+  color: #0EA5E9;
   font-weight: 600;
 }
 .tab-item.active::after {
@@ -31,7 +32,7 @@
   transform: translateX(-50%);
   width: 56rpx;
   height: 4rpx;
-  background: #4CAF50;
+  background: #0EA5E9;
   border-radius: 2rpx;
 }
 
@@ -50,8 +51,9 @@
 .record-title { font-size: 28rpx; color: #333; display: block; }
 .record-time { font-size: 22rpx; color: #999; margin-top: 6rpx; display: block; }
 .record-points { font-size: 30rpx; font-weight: 600; }
-.record-points.positive { color: #4CAF50; }
-.record-points.negative { color: #F44336; }
+/* PRD-POINTS-SKIN-V1: 正向积分天蓝 / 负向积分灰色（不再红色） */
+.record-points.positive { color: #0EA5E9; }
+.record-points.negative { color: #999999; }
 
 .ex-list { display: flex; flex-direction: column; gap: 16rpx; }
 .ex-card {
@@ -78,13 +80,14 @@
 .ex-status { font-size: 20rpx; padding: 2rpx 10rpx; border-radius: 4rpx; border: 1rpx solid #ccc; background: #fff; }
 .ex-name { font-size: 28rpx; color: #333; display: block; margin-top: 8rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ex-time { font-size: 22rpx; color: #999; display: block; margin-top: 6rpx; }
-.ex-expire { font-size: 22rpx; color: #fa8c16; display: block; margin-top: 4rpx; }
+/* PRD-POINTS-SKIN-V1: 全部统一为天蓝色系 */
+.ex-expire { font-size: 22rpx; color: #0284C7; display: block; margin-top: 4rpx; }
 .ex-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 12rpx; }
-.ex-cost { color: #F44336; font-weight: 600; font-size: 26rpx; }
+.ex-cost { color: #999999; font-weight: 600; font-size: 26rpx; }
 .ex-btn { padding: 6rpx 20rpx; border-radius: 24rpx; font-size: 22rpx; }
-.ex-btn-primary { background: #4CAF50; color: #fff; }
-.ex-btn-orange { background: rgba(250,140,22,0.1); color: #fa8c16; border: 1rpx solid #fa8c16; }
-.ex-btn-purple { background: rgba(114,46,209,0.1); color: #722ed1; border: 1rpx solid #722ed1; }
+.ex-btn-primary { background: #0EA5E9; color: #fff; }
+.ex-btn-orange { background: rgba(14,165,233,0.1); color: #0EA5E9; border: 1rpx solid #0EA5E9; }
+.ex-btn-purple { background: rgba(2,132,199,0.1); color: #0284C7; border: 1rpx solid #0284C7; }
 
 .ex-btn-group {
   display: flex;

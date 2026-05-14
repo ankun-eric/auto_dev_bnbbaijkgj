@@ -1,12 +1,18 @@
 <view class="mall-page">
+  <!-- PRD-POINTS-SKIN-V1: 商城顶部 banner（我的积分 + 去赚积分 + 兑换记录） -->
   <view class="points-bar">
     <view class="points-bar-left">
-      <text class="my-points">可用积分</text>
-      <text class="points-num">{{totalPoints}}</text>
+      <text class="my-points">我的积分</text>
+      <text class="points-num">{{totalPoints}}<text class="points-unit-text">分</text></text>
       <text class="points-tip">用积分兑换好礼</text>
     </view>
-    <view class="exchange-record-btn" bindtap="goExchangeRecords">
-      <text>兑换记录</text>
+    <view class="points-bar-right">
+      <view class="earn-points-btn" bindtap="goEarnPoints">
+        <text>去赚积分 →</text>
+      </view>
+      <view class="exchange-record-btn" bindtap="goExchangeRecords">
+        <text>兑换记录</text>
+      </view>
     </view>
   </view>
 

@@ -67,7 +67,7 @@ class _PointsRecordsScreenState extends State<PointsRecordsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
-      appBar: AppBar(title: const Text('积分明细'), backgroundColor: const Color(0xFF52C41A)),
+      appBar: AppBar(title: const Text('积分明细'), backgroundColor: const Color(0xFF0EA5E9)),
       body: _records.isEmpty && !_loading
           ? const Center(child: Text('暂无积分记录', style: TextStyle(color: Colors.grey)))
           : ListView.builder(
@@ -75,7 +75,7 @@ class _PointsRecordsScreenState extends State<PointsRecordsScreen> {
               itemCount: _records.length + 1,
               itemBuilder: (context, index) {
                 if (index == _records.length) {
-                  if (_loading) return const Padding(padding: EdgeInsets.all(16), child: Center(child: CircularProgressIndicator(color: Color(0xFF52C41A))));
+                  if (_loading) return const Padding(padding: EdgeInsets.all(16), child: Center(child: CircularProgressIndicator(color: Color(0xFF0EA5E9))));
                   if (_noMore && _records.isNotEmpty) return const Padding(padding: EdgeInsets.all(16), child: Center(child: Text('— 没有更多了 —', style: TextStyle(color: Colors.grey, fontSize: 12))));
                   return const SizedBox.shrink();
                 }
@@ -103,7 +103,8 @@ class _PointsRecordsScreenState extends State<PointsRecordsScreen> {
                       ),
                       Text(
                         '${isIncome ? '+' : ''}$pts',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: isIncome ? const Color(0xFF52C41A) : Colors.red),
+                        // PRD-POINTS-SKIN-V1: 正向积分 #0EA5E9 / 负向积分 #999999
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: isIncome ? const Color(0xFF0EA5E9) : const Color(0xFF999999)),
                       ),
                     ],
                   ),

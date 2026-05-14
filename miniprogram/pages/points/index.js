@@ -49,7 +49,8 @@ Page({
           return {
             ...i,
             categoryLabel: i.category === 'daily' ? '每日' : i.category === 'once' ? '一次性' : '可重复',
-            categoryColor: i.category === 'daily' ? '#52c41a' : i.category === 'once' ? '#fa8c16' : '#1890ff',
+            // PRD-POINTS-SKIN-V1: 统一为天蓝色系
+            categoryColor: i.category === 'daily' ? '#0EA5E9' : i.category === 'once' ? '#0EA5E9' : '#38BDF8',
             onceDone,
             btnText: onceDone ? '✓ 已完成'
               : (i.completed && i.category === 'daily') ? '已完成'

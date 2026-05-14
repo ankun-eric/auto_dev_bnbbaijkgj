@@ -31,10 +31,11 @@ class _PointsProductDetailScreenState extends State<PointsProductDetailScreen> {
   final PageController _pageCtrl = PageController();
   int _currentPage = 0;
 
+  // PRD-POINTS-SKIN-V1: 统一为天蓝色系
   static const Map<String, Map<String, dynamic>> _typeMeta = {
-    'coupon': {'text': '优惠券', 'color': Color(0xFFFA8C16), 'icon': '🎫'},
-    'service': {'text': '体验服务', 'color': Color(0xFF13C2C2), 'icon': '💆'},
-    'physical': {'text': '实物', 'color': Color(0xFF722ED1), 'icon': '📦'},
+    'coupon': {'text': '优惠券', 'color': Color(0xFF0EA5E9), 'icon': '🎫'},
+    'service': {'text': '体验服务', 'color': Color(0xFF38BDF8), 'icon': '💆'},
+    'physical': {'text': '实物', 'color': Color(0xFF0284C7), 'icon': '📦'},
     'virtual': {'text': '虚拟', 'color': Color(0xFFBFBFBF), 'icon': '🎁'},
     'third_party': {'text': '第三方', 'color': Color(0xFFBFBFBF), 'icon': '🛍️'},
   };
@@ -113,7 +114,7 @@ class _PointsProductDetailScreenState extends State<PointsProductDetailScreen> {
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF4CAF50)),
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0EA5E9)),
             child: const Text('确认兑换', style: TextStyle(color: Colors.white)),
           ),
         ],
@@ -126,7 +127,7 @@ class _PointsProductDetailScreenState extends State<PointsProductDetailScreen> {
       await _api.exchangePointsGoods(goodsId: _id!, quantity: 1);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('兑换成功'), backgroundColor: Color(0xFF4CAF50)),
+        const SnackBar(content: Text('兑换成功'), backgroundColor: Color(0xFF0EA5E9)),
       );
       Future.delayed(const Duration(milliseconds: 600), () {
         if (mounted) {
@@ -152,12 +153,12 @@ class _PointsProductDetailScreenState extends State<PointsProductDetailScreen> {
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
         title: const Text('商品详情'),
-        backgroundColor: const Color(0xFF4CAF50),
+        backgroundColor: const Color(0xFF0EA5E9),
         foregroundColor: Colors.white,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFF4CAF50)))
+          ? const Center(child: CircularProgressIndicator(color: Color(0xFF0EA5E9)))
           : _item == null
               ? const Center(child: Text('商品不存在或已下架', style: TextStyle(color: Colors.grey)))
               : _buildContent(),
@@ -224,7 +225,7 @@ class _PointsProductDetailScreenState extends State<PointsProductDetailScreen> {
                                 width: active ? 16 : 6,
                                 height: 6,
                                 decoration: BoxDecoration(
-                                  color: active ? const Color(0xFF4CAF50) : Colors.white,
+                                  color: active ? const Color(0xFF0EA5E9) : Colors.white,
                                   borderRadius: BorderRadius.circular(3),
                                 ),
                               );
@@ -282,10 +283,10 @@ class _PointsProductDetailScreenState extends State<PointsProductDetailScreen> {
                         style: const TextStyle(
                             fontSize: 26,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF2E7D32))),
+                            color: Color(0xFF0EA5E9))),
                     const SizedBox(width: 4),
                     const Text('积分',
-                        style: TextStyle(fontSize: 13, color: Color(0xFF2E7D32))),
+                        style: TextStyle(fontSize: 13, color: Color(0xFF0EA5E9))),
                     const Spacer(),
                     Text(
                       type == 'service' ? '服务券' : (stock > 0 ? '剩余库存 $stock' : '已兑完'),
@@ -378,12 +379,13 @@ class _PointsProductDetailScreenState extends State<PointsProductDetailScreen> {
           height: 48,
           child: ElevatedButton(
             onPressed: disabled ? null : _handleExchange,
+            // PRD-POINTS-SKIN-V1: CTA 升级为天蓝实心 + 白字 + 8px 圆角 + 44px 高
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF4CAF50),
+              backgroundColor: const Color(0xFF0EA5E9),
               foregroundColor: Colors.white,
-              disabledBackgroundColor: const Color(0xFFE0E0E0),
-              disabledForegroundColor: const Color(0xFF999999),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              disabledBackgroundColor: const Color(0xFFBAE6FD),
+              disabledForegroundColor: Colors.white70,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               textStyle: const TextStyle(fontSize: 16),
             ),
             child: _exchanging

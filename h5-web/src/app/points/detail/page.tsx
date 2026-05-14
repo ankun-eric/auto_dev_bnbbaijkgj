@@ -63,19 +63,21 @@ const TYPE_LABEL: Record<string, string> = {
   purchase: '购物奖励',
 };
 
+// PRD-POINTS-SKIN-V1: 统一为天蓝色系（保留辅助灰）
 const TYPE_META: Record<string, { text: string; color: string }> = {
-  coupon: { text: '优惠券', color: '#fa8c16' },
+  coupon: { text: '优惠券', color: '#0EA5E9' },
   service: { text: '体验服务', color: '#38BDF8' },
-  physical: { text: '实物', color: '#722ed1' },
+  physical: { text: '实物', color: '#0284C7' },
   virtual: { text: '虚拟', color: '#bfbfbf' },
   third_party: { text: '第三方', color: '#bfbfbf' },
 };
 
+// PRD-POINTS-SKIN-V1: 状态徽章用天蓝不同深浅区分
 const STATUS_META: Record<string, { text: string; color: string }> = {
   success: { text: '兑换成功', color: '#0EA5E9' },
-  pending: { text: '处理中', color: '#1890ff' },
-  failed: { text: '失败', color: '#ff4d4f' },
-  used: { text: '已使用', color: '#8c8c8c' },
+  pending: { text: '处理中', color: '#7DD3FC' },
+  failed: { text: '失败', color: '#999999' },
+  used: { text: '已使用', color: '#0284C7' },
   expired: { text: '已过期', color: '#bfbfbf' },
   cancelled: { text: '已取消', color: '#bfbfbf' },
 };
@@ -124,7 +126,8 @@ function PointsRecordsTab() {
           <List.Item
             key={r.id}
             extra={
-              <span style={{ color: r.points >= 0 ? '#4CAF50' : '#F44336', fontWeight: 600 }}>
+              /* PRD-POINTS-SKIN-V1: 正向积分 #0EA5E9 / 负向积分保持灰色 #999999（不再用红色） */
+              <span style={{ color: r.points >= 0 ? '#0EA5E9' : '#999999', fontWeight: 600 }}>
                 {r.points >= 0 ? '+' : ''}{r.points}
               </span>
             }
@@ -206,15 +209,16 @@ function ExchangeRecordsTab() {
                   </div>
                   <div style={{ fontSize: 12, color: '#999', marginTop: 2 }}>兑换时间：{fmt(r.exchange_time)}</div>
                   {r.expire_at && (
-                    <div style={{ fontSize: 12, color: '#fa8c16', marginTop: 2 }}>有效期至：{fmt(r.expire_at)}</div>
+                    <div style={{ fontSize: 12, color: '#0284C7', marginTop: 2 }}>有效期至：{fmt(r.expire_at)}</div>
                   )}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
-                    <span style={{ color: '#F44336', fontWeight: 600 }}>-{r.points_cost} 积分</span>
+                    {/* PRD-POINTS-SKIN-V1: 负向积分由红改灰 */}
+                    <span style={{ color: '#999999', fontWeight: 600 }}>-{r.points_cost} 积分</span>
                     {r.goods_type === 'service' && r.ref_service_id && r.status !== 'expired' && (
                       <Button
                         size="mini"
                         onClick={() => router.push(`/product-detail/${r.ref_service_id}`)}
-                        style={{ borderRadius: 12, background: '#4CAF50', color: '#fff', border: 'none', fontSize: 12 }}
+                        style={{ borderRadius: 12, background: '#0EA5E9', color: '#fff', border: 'none', fontSize: 12 }}
                       >
                         去使用
                       </Button>
@@ -239,8 +243,8 @@ function ExchangeRecordsTab() {
                             style={{
                               borderRadius: 12,
                               fontSize: 12,
-                              color: '#fa8c16',
-                              border: '1px solid #fa8c16',
+                              color: '#0EA5E9',
+                              border: '1px solid #0EA5E9',
                               background: '#fff',
                             }}
                           >
@@ -275,7 +279,7 @@ function ExchangeRecordsTab() {
                       <Button
                         size="mini"
                         onClick={() => router.push('/unified-orders')}
-                        style={{ borderRadius: 12, background: 'rgba(114,46,209,0.1)', color: '#722ed1', border: '1px solid #722ed1', fontSize: 12 }}
+                        style={{ borderRadius: 12, background: 'rgba(14,165,233,0.1)', color: '#0EA5E9', border: '1px solid #0EA5E9', fontSize: 12 }}
                       >
                         查看订单
                       </Button>

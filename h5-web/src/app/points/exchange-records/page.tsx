@@ -33,19 +33,21 @@ interface ExchangeRecord {
   coupon_status?: string | null;
 }
 
+// PRD-POINTS-SKIN-V1: 统一为天蓝色系
 const TYPE_META: Record<string, { text: string; color: string }> = {
-  coupon: { text: '优惠券', color: '#fa8c16' },
+  coupon: { text: '优惠券', color: '#0EA5E9' },
   service: { text: '体验服务', color: '#38BDF8' },
-  physical: { text: '实物', color: '#722ed1' },
+  physical: { text: '实物', color: '#0284C7' },
   virtual: { text: '虚拟', color: '#bfbfbf' },
   third_party: { text: '第三方', color: '#bfbfbf' },
 };
 
+// PRD-POINTS-SKIN-V1: 状态徽章用天蓝不同深浅区分
 const STATUS_META: Record<string, { text: string; color: string }> = {
   success: { text: '兑换成功', color: '#0EA5E9' },
-  pending: { text: '处理中', color: '#1890ff' },
-  failed: { text: '失败', color: '#ff4d4f' },
-  used: { text: '已使用', color: '#8c8c8c' },
+  pending: { text: '处理中', color: '#7DD3FC' },
+  failed: { text: '失败', color: '#999999' },
+  used: { text: '已使用', color: '#0284C7' },
   expired: { text: '已过期', color: '#bfbfbf' },
   cancelled: { text: '已取消', color: '#bfbfbf' },
 };
@@ -152,11 +154,15 @@ export default function PointsExchangeRecordsPage() {
     <div className="min-h-screen bg-gray-50 pb-8">
       <GreenNavBar>兑换记录</GreenNavBar>
 
-      <div style={{ background: '#C8E6C9' }} className="px-4 py-3">
-        <div style={{ color: '#1B5E20', fontSize: 13, fontWeight: 600 }}>
+      {/* PRD-POINTS-SKIN-V1: 顶部装饰条改为天蓝色渐变 */}
+      <div
+        style={{ background: 'linear-gradient(135deg, #F0F9FF, #DBEAFE)' }}
+        className="px-4 py-3"
+      >
+        <div style={{ color: '#0EA5E9', fontSize: 13, fontWeight: 600 }}>
           我的兑换记录
         </div>
-        <div style={{ color: '#2E7D32', fontSize: 12, marginTop: 2 }}>
+        <div style={{ color: '#0284C7', fontSize: 12, marginTop: 2 }}>
           优惠券、体验服务、实物兑换均在此处查看
         </div>
       </div>
@@ -205,12 +211,13 @@ export default function PointsExchangeRecordsPage() {
                         兑换时间：{fmt(r.exchange_time)}
                       </div>
                       {r.expire_at && (
-                        <div style={{ fontSize: 12, color: '#fa8c16', marginTop: 2 }}>
+                        <div style={{ fontSize: 12, color: '#0284C7', marginTop: 2 }}>
                           有效期至：{fmt(r.expire_at)}
                         </div>
                       )}
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
-                        <span style={{ color: '#B8860B', fontWeight: 600 }}>
+                        {/* PRD-POINTS-SKIN-V1: 负向积分由橙金/红改灰 */}
+                        <span style={{ color: '#999999', fontWeight: 600 }}>
                           -{r.points_cost} 积分
                         </span>
                         {r.goods_type === 'coupon' ? (
@@ -235,8 +242,8 @@ export default function PointsExchangeRecordsPage() {
                                   style={{
                                     borderRadius: 12,
                                     fontSize: 12,
-                                    color: '#fa8c16',
-                                    border: '1px solid #fa8c16',
+                                    color: '#0EA5E9',
+                                    border: '1px solid #0EA5E9',
                                     background: '#fff',
                                   }}
                                 >
@@ -284,26 +291,27 @@ export default function PointsExchangeRecordsPage() {
                                 disabled={offline}
                                 onClick={() => handleUseButton(r)}
                                 style={{
+                                  /* PRD-POINTS-SKIN-V1: 全部按钮统一为天蓝色系 */
                                   borderRadius: 12,
                                   background: offline
                                     ? '#f0f0f0'
                                     : replaced
-                                    ? 'linear-gradient(135deg, #fa8c16, #faad14)'
+                                    ? 'linear-gradient(135deg, #0EA5E9, #38BDF8)'
                                     : r.goods_type === 'service'
                                     ? 'linear-gradient(135deg, #0EA5E9, #38BDF8)'
-                                    : 'rgba(114, 46, 209, 0.1)',
+                                    : 'rgba(14, 165, 233, 0.1)',
                                   color: offline
                                     ? '#bfbfbf'
                                     : replaced
                                     ? '#fff'
                                     : r.goods_type === 'service'
                                     ? '#fff'
-                                    : '#722ed1',
+                                    : '#0EA5E9',
                                   border: offline
                                     ? 'none'
                                     : replaced || r.goods_type === 'service'
                                     ? 'none'
-                                    : '1px solid #722ed1',
+                                    : '1px solid #0EA5E9',
                                   fontSize: 12,
                                 }}
                               >

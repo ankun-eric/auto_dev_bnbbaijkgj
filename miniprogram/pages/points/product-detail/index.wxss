@@ -18,8 +18,9 @@
 
 .name { display: block; font-size: 34rpx; font-weight: 600; color: #222; }
 .points-row { display: flex; align-items: baseline; gap: 10rpx; margin-top: 16rpx; }
-.points-num { color: #2E7D32; font-weight: 700; font-size: 44rpx; }
-.points-unit { color: #2E7D32; font-size: 24rpx; }
+/* PRD-POINTS-SKIN-V1: 积分数字主操作色为天蓝 */
+.points-num { color: #0EA5E9; font-weight: 700; font-size: 44rpx; }
+.points-unit { color: #0EA5E9; font-size: 24rpx; }
 .stock { color: #999; font-size: 22rpx; margin-left: auto; }
 .limit-tip { display: block; margin-top: 10rpx; color: #999; font-size: 22rpx; }
 
@@ -41,11 +42,12 @@
   padding: 16rpx 24rpx;
   background: #fff; border-top: 1rpx solid #eee;
 }
+/* PRD-POINTS-SKIN-V1: 立即兑换 CTA 升级为天蓝实心 + 白字 + 16rpx 圆角 */
 .exchange-btn {
   width: 100%; height: 88rpx; line-height: 88rpx;
-  border-radius: 14rpx; font-size: 30rpx;
-  background: #4CAF50; color: #fff; border: none;
+  border-radius: 16rpx; font-size: 30rpx;
+  background: #0EA5E9; color: #fff; border: none;
 }
-.btn-disabled { background: #e0e0e0 !important; color: #999 !important; }
+.btn-disabled { background: #BAE6FD !important; color: rgba(255,255,255,0.6) !important; }
 
 .empty { padding: 120rpx 0; text-align: center; color: #999; font-size: 28rpx; }

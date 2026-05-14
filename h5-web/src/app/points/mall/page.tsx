@@ -44,10 +44,11 @@ const REDEEM_BLOCK_REASON_TEXT: Record<string, string> = {
   INSUFFICIENT_POINTS: '积分不足',
 };
 
+// PRD-POINTS-SKIN-V1: 全部统一为天蓝色系（保留辅助灰色）
 const TYPE_BADGE: Record<string, { text: string; color: string }> = {
-  coupon: { text: '优惠券', color: '#fa8c16' },
+  coupon: { text: '优惠券', color: '#0EA5E9' },
   service: { text: '体验服务', color: '#38BDF8' },
-  physical: { text: '实物', color: '#722ed1' },
+  physical: { text: '实物', color: '#0284C7' },
   virtual: { text: '虚拟（开发中）', color: '#bfbfbf' },
   third_party: { text: '第三方（开发中）', color: '#bfbfbf' },
 };
@@ -142,39 +143,64 @@ export default function PointsMallPage() {
     <div className="min-h-screen bg-gray-50">
       <GreenNavBar>积分商城</GreenNavBar>
 
+      {/* PRD-POINTS-SKIN-V1：商城顶部 banner（120px 高，左"我的积分"+ 右"去赚积分→"+ "兑换记录") */}
       <div
         className="px-4 py-4 flex items-center justify-between"
-        style={{ background: '#C8E6C9' }}
+        style={{
+          background: 'linear-gradient(135deg, #F0F9FF, #DBEAFE)',
+          minHeight: 120,
+          borderBottomLeftRadius: 16,
+          borderBottomRightRadius: 16,
+        }}
       >
         <div>
-          <div style={{ fontSize: 12, color: '#1B5E20' }}>可用积分</div>
+          <div style={{ fontSize: 14, color: '#666666' }}>我的积分</div>
           <div
             style={{
-              fontSize: 26,
+              fontSize: 28,
               fontWeight: 'bold',
-              color: '#1B5E20',
+              color: '#0EA5E9',
               lineHeight: 1.2,
               marginTop: 2,
             }}
           >
             {userPoints}
+            <span style={{ fontSize: 14, fontWeight: 'normal', marginLeft: 4 }}>分</span>
           </div>
-          <div style={{ fontSize: 12, color: '#2E7D32', marginTop: 2 }}>
+          <div style={{ fontSize: 12, color: '#0284C7', marginTop: 2 }}>
             用积分兑换好礼
           </div>
         </div>
-        <Button
-          size="small"
-          onClick={() => router.push('/points/detail?tab=exchange')}
-          style={{
-            background: 'rgba(27, 94, 32, 0.15)',
-            color: '#1B5E20',
-            border: '1px solid rgba(27, 94, 32, 0.35)',
-            borderRadius: 16,
-          }}
-        >
-          兑换记录
-        </Button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <Button
+            size="small"
+            onClick={() => router.push('/points')}
+            style={{
+              background: '#FFFFFF',
+              color: '#0EA5E9',
+              border: '1px solid #0EA5E9',
+              borderRadius: 18,
+              height: 32,
+              fontSize: 13,
+              fontWeight: 500,
+            }}
+          >
+            去赚积分 →
+          </Button>
+          <Button
+            size="small"
+            onClick={() => router.push('/points/detail?tab=exchange')}
+            style={{
+              background: 'rgba(14, 165, 233, 0.1)',
+              color: '#0EA5E9',
+              border: '1px solid #7DD3FC',
+              borderRadius: 16,
+              fontSize: 12,
+            }}
+          >
+            兑换记录
+          </Button>
+        </div>
       </div>
 
       {/* Tab 切换 */}
@@ -191,7 +217,7 @@ export default function PointsMallPage() {
             fontSize: 14,
             fontWeight: tab === 'all' ? 600 : 400,
             color: tab === 'all' ? '#fff' : '#666',
-            background: tab === 'all' ? '#2E7D32' : '#f5f5f5',
+            background: tab === 'all' ? '#0EA5E9' : '#f5f5f5',
             cursor: 'pointer',
           }}
         >
@@ -206,7 +232,7 @@ export default function PointsMallPage() {
               fontSize: 14,
               fontWeight: tab === 'exchangeable' ? 600 : 400,
               color: tab === 'exchangeable' ? '#fff' : '#666',
-              background: tab === 'exchangeable' ? '#2E7D32' : '#f5f5f5',
+              background: tab === 'exchangeable' ? '#0EA5E9' : '#f5f5f5',
               cursor: 'pointer',
             }}
           >
@@ -275,7 +301,7 @@ export default function PointsMallPage() {
                       </div>
                       <div
                         className="font-bold mt-1"
-                        style={{ color: '#2E7D32' }}
+                        style={{ color: '#0EA5E9' }}
                       >
                         {item.price_points} 积分
                       </div>

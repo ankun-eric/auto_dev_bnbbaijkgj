@@ -3,36 +3,59 @@
   padding-bottom: 24rpx;
 }
 
+/* PRD-POINTS-SKIN-V1: 商城顶部 banner 换肤为天蓝渐变（高度 240rpx，圆角底部） */
 .points-bar {
-  background: #C8E6C9;
-  padding: 28rpx 32rpx;
+  background: linear-gradient(135deg, #F0F9FF, #DBEAFE);
+  padding: 32rpx 32rpx;
+  min-height: 240rpx;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  border-bottom-left-radius: 24rpx;
+  border-bottom-right-radius: 24rpx;
 }
 
 .points-bar-left {
   display: flex;
   flex-direction: column;
 }
+.points-bar-right {
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+}
 
-.my-points { font-size: 24rpx; color: #1B5E20; }
+.my-points { font-size: 26rpx; color: #666666; }
 .points-num {
-  font-size: 44rpx;
+  font-size: 56rpx;
   font-weight: bold;
-  color: #1B5E20;
+  color: #0EA5E9;
   margin-top: 4rpx;
   line-height: 1.2;
 }
-.points-tip { font-size: 22rpx; color: #2E7D32; margin-top: 4rpx; }
+.points-unit-text { font-size: 24rpx; font-weight: normal; color: #0EA5E9; margin-left: 4rpx; }
+.points-tip { font-size: 22rpx; color: #0284C7; margin-top: 4rpx; }
+
+/* 去赚积分按钮（次级胶囊：白底蓝字蓝边） */
+.earn-points-btn {
+  padding: 8rpx 24rpx;
+  border: 1rpx solid #0EA5E9;
+  background: #FFFFFF;
+  color: #0EA5E9;
+  font-size: 24rpx;
+  font-weight: 500;
+  border-radius: 36rpx;
+  text-align: center;
+}
 
 .exchange-record-btn {
-  padding: 10rpx 24rpx;
-  border: 1rpx solid rgba(27, 94, 32, 0.35);
-  background: rgba(27, 94, 32, 0.12);
-  color: #1B5E20;
-  font-size: 24rpx;
+  padding: 8rpx 24rpx;
+  border: 1rpx solid #7DD3FC;
+  background: rgba(14, 165, 233, 0.1);
+  color: #0EA5E9;
+  font-size: 22rpx;
   border-radius: 30rpx;
+  text-align: center;
 }
 
 /* v1.1 M5 Tab */
@@ -51,8 +74,9 @@
   color: #666;
   background: #f5f5f5;
 }
+/* PRD-POINTS-SKIN-V1: tab 激活态改为天蓝 */
 .tab-item.tab-active {
-  background: #2E7D32;
+  background: #0EA5E9;
   color: #fff;
   font-weight: 600;
 }
@@ -126,33 +150,34 @@
   min-height: 32rpx;
 }
 
-.goods-points { font-size: 26rpx; font-weight: bold; color: #B8860B; }
-.goods-lowstock { font-size: 20rpx; color: #ff4d4f; }
+/* PRD-POINTS-SKIN-V1: 积分数字和按钮换为天蓝色系 */
+.goods-points { font-size: 26rpx; font-weight: bold; color: #0EA5E9; }
+.goods-lowstock { font-size: 20rpx; color: #999999; }
 
 .quick-btn {
   width: 100%;
   text-align: center;
   padding: 14rpx 0;
   font-size: 24rpx;
-  border-radius: 28rpx;
+  border-radius: 16rpx;
   line-height: 1;
 }
 .quick-btn.primary {
-  background: linear-gradient(135deg, #2E7D32, #43A047);
+  background: #0EA5E9;
   color: #fff;
 }
 .quick-btn.outline {
   background: #fff;
-  color: #2E7D32;
-  border: 1rpx solid #2E7D32;
+  color: #0EA5E9;
+  border: 1rpx solid #0EA5E9;
 }
 .quick-btn.disabled,
 .quick-btn.btn-disabled {
-  background: #f0f0f0;
-  color: #bfbfbf;
+  background: #BAE6FD;
+  color: rgba(255,255,255,0.7);
 }
 .quick-btn.warn {
-  background: linear-gradient(135deg, #fa8c16, #faad14);
+  background: linear-gradient(135deg, #0EA5E9, #38BDF8);
   color: #fff;
 }
 

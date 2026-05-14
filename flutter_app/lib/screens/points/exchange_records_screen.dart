@@ -62,19 +62,21 @@ class _PointsExchangeRecordsScreenState extends State<PointsExchangeRecordsScree
   bool _hasMore = true;
   bool _loading = true;
 
+  // PRD-POINTS-SKIN-V1: 统一为天蓝色系
   static const Map<String, Map<String, dynamic>> _typeMeta = {
-    'coupon': {'text': '优惠券', 'color': Color(0xFFFA8C16), 'icon': '🎫'},
-    'service': {'text': '体验服务', 'color': Color(0xFF13C2C2), 'icon': '💆'},
-    'physical': {'text': '实物', 'color': Color(0xFF722ED1), 'icon': '📦'},
+    'coupon': {'text': '优惠券', 'color': Color(0xFF0EA5E9), 'icon': '🎫'},
+    'service': {'text': '体验服务', 'color': Color(0xFF38BDF8), 'icon': '💆'},
+    'physical': {'text': '实物', 'color': Color(0xFF0284C7), 'icon': '📦'},
     'virtual': {'text': '虚拟', 'color': Color(0xFFBFBFBF), 'icon': '🎁'},
     'third_party': {'text': '第三方', 'color': Color(0xFFBFBFBF), 'icon': '🛍️'},
   };
 
+  // PRD-POINTS-SKIN-V1: 状态徽章用天蓝不同深浅
   static const Map<String, Map<String, dynamic>> _statusMeta = {
-    'success': {'text': '兑换成功', 'color': Color(0xFF52C41A)},
-    'pending': {'text': '处理中', 'color': Color(0xFF1890FF)},
-    'failed': {'text': '失败', 'color': Color(0xFFFF4D4F)},
-    'used': {'text': '已使用', 'color': Color(0xFF8C8C8C)},
+    'success': {'text': '兑换成功', 'color': Color(0xFF0EA5E9)},
+    'pending': {'text': '处理中', 'color': Color(0xFF7DD3FC)},
+    'failed': {'text': '失败', 'color': Color(0xFF999999)},
+    'used': {'text': '已使用', 'color': Color(0xFF0284C7)},
     'expired': {'text': '已过期', 'color': Color(0xFFBFBFBF)},
     'cancelled': {'text': '已取消', 'color': Color(0xFFBFBFBF)},
   };
@@ -179,27 +181,34 @@ class _PointsExchangeRecordsScreenState extends State<PointsExchangeRecordsScree
           controller: _scroll,
           physics: const AlwaysScrollableScrollPhysics(),
           children: [
+            // PRD-POINTS-SKIN-V1: 顶部装饰条改为天蓝渐变
             Container(
-              color: const Color(0xFFC8E6C9),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xFFF0F9FF), Color(0xFFDBEAFE)],
+                ),
+              ),
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
               child: const Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text('我的兑换记录',
                       style: TextStyle(
-                          color: Color(0xFF1B5E20),
+                          color: Color(0xFF0EA5E9),
                           fontSize: 15,
                           fontWeight: FontWeight.bold)),
                   SizedBox(height: 4),
                   Text('优惠券、体验服务、实物兑换均在此查看',
-                      style: TextStyle(color: Color(0xFF2E7D32), fontSize: 12)),
+                      style: TextStyle(color: Color(0xFF0284C7), fontSize: 12)),
                 ],
               ),
             ),
             if (_loading && _items.isEmpty)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 60),
-                child: Center(child: CircularProgressIndicator(color: Color(0xFF52C41A))),
+                child: Center(child: CircularProgressIndicator(color: Color(0xFF0EA5E9))),
               )
             else if (_items.isEmpty)
               const Padding(
@@ -229,11 +238,12 @@ class _PointsExchangeRecordsScreenState extends State<PointsExchangeRecordsScree
     final expireStr = _fmt(r['expire_at'] as String?);
 
     Widget? actionBtn;
+    // PRD-POINTS-SKIN-V1: 全部按钮统一为天蓝色系
     if (type == 'service' && status != 'expired') {
       actionBtn = ElevatedButton(
         onPressed: () => _goAppointment(r),
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF52C41A),
+          backgroundColor: const Color(0xFF0EA5E9),
           foregroundColor: Colors.white,
           minimumSize: const Size(64, 28),
           padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -254,8 +264,8 @@ class _PointsExchangeRecordsScreenState extends State<PointsExchangeRecordsScree
           },
         ),
         style: OutlinedButton.styleFrom(
-          foregroundColor: const Color(0xFFFA8C16),
-          side: const BorderSide(color: Color(0xFFFA8C16)),
+          foregroundColor: const Color(0xFF0EA5E9),
+          side: const BorderSide(color: Color(0xFF0EA5E9)),
           minimumSize: const Size(64, 28),
           padding: const EdgeInsets.symmetric(horizontal: 10),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -265,7 +275,7 @@ class _PointsExchangeRecordsScreenState extends State<PointsExchangeRecordsScree
       final useBtn = ElevatedButton(
         onPressed: () => jumpToUseCoupon(context, rec.couponId),
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFFFA8C16),
+          backgroundColor: const Color(0xFF0EA5E9),
           foregroundColor: Colors.white,
           minimumSize: const Size(64, 28),
           padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -287,8 +297,8 @@ class _PointsExchangeRecordsScreenState extends State<PointsExchangeRecordsScree
       actionBtn = OutlinedButton(
         onPressed: () => Navigator.pushNamed(context, '/unified-orders'),
         style: OutlinedButton.styleFrom(
-          foregroundColor: const Color(0xFF722ED1),
-          side: const BorderSide(color: Color(0xFF722ED1)),
+          foregroundColor: const Color(0xFF0284C7),
+          side: const BorderSide(color: Color(0xFF0284C7)),
           minimumSize: const Size(64, 28),
           padding: const EdgeInsets.symmetric(horizontal: 10),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -366,14 +376,15 @@ class _PointsExchangeRecordsScreenState extends State<PointsExchangeRecordsScree
                     style: const TextStyle(fontSize: 12, color: Colors.grey)),
                 if (expireStr.isNotEmpty)
                   Text('有效期至：$expireStr',
-                      style: const TextStyle(fontSize: 12, color: Color(0xFFFA8C16))),
+                      style: const TextStyle(fontSize: 12, color: Color(0xFF0284C7))),
                 const SizedBox(height: 8),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
+                    // PRD-POINTS-SKIN-V1: 负向积分由橙金改灰
                     Text('-$cost 积分',
                         style: const TextStyle(
-                            color: Color(0xFFB8860B), fontWeight: FontWeight.w600)),
+                            color: Color(0xFF999999), fontWeight: FontWeight.w600)),
                     if (actionBtn != null) actionBtn,
                   ],
                 ),

@@ -4,14 +4,15 @@
   padding-bottom: 40rpx;
 }
 
+/* PRD-POINTS-SKIN-V1: 顶部装饰条换肤为天蓝渐变 */
 .header {
-  background: #C8E6C9;
+  background: linear-gradient(135deg, #F0F9FF, #DBEAFE);
   padding: 28rpx 32rpx;
   display: flex;
   flex-direction: column;
 }
-.header .title { color: #1B5E20; font-size: 28rpx; font-weight: bold; }
-.header .tip { color: #2E7D32; font-size: 22rpx; margin-top: 6rpx; }
+.header .title { color: #0EA5E9; font-size: 28rpx; font-weight: bold; }
+.header .tip { color: #0284C7; font-size: 22rpx; margin-top: 6rpx; }
 
 .loading-tip, .empty-tip, .no-more {
   text-align: center;
@@ -66,8 +67,9 @@
   white-space: nowrap;
 }
 
+/* PRD-POINTS-SKIN-V1: 所有按钮统一天蓝色系；负向积分由橙金/红改灰 */
 .time-row, .expire-row { font-size: 22rpx; color: #999; }
-.expire-row { color: #fa8c16; }
+.expire-row { color: #0284C7; }
 
 .bottom-row {
   display: flex;
@@ -75,7 +77,7 @@
   justify-content: space-between;
   margin-top: 10rpx;
 }
-.points { color: #B8860B; font-weight: 600; font-size: 26rpx; }
+.points { color: #999999; font-weight: 600; font-size: 26rpx; }
 
 .btn {
   padding: 8rpx 22rpx;
@@ -84,18 +86,18 @@
   line-height: 1.4;
 }
 .btn-primary {
-  background: linear-gradient(135deg, #52c41a, #13c2c2);
+  background: linear-gradient(135deg, #0EA5E9, #38BDF8);
   color: #fff;
 }
 .btn-outline {
-  border: 1rpx solid #fa8c16;
-  color: #fa8c16;
-  background: rgba(250,140,22,0.08);
+  border: 1rpx solid #0EA5E9;
+  color: #0EA5E9;
+  background: rgba(14,165,233,0.08);
 }
 .btn-outline.purple {
-  border-color: #722ed1;
-  color: #722ed1;
-  background: rgba(114,46,209,0.08);
+  border-color: #0284C7;
+  color: #0284C7;
+  background: rgba(2,132,199,0.08);
 }
 
 /* OPT-4：优惠券双按钮组 */

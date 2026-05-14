@@ -16,18 +16,19 @@
 
 .record-info { flex: 1; }
 .record-title { font-size: 28rpx; color: #333; margin-right: 12rpx; }
+/* PRD-POINTS-SKIN-V1: 统一为天蓝色系 */
 .record-tag {
   font-size: 20rpx;
-  color: #1890ff;
-  background: #e6f7ff;
+  color: #0EA5E9;
+  background: #F0F9FF;
   padding: 2rpx 10rpx;
   border-radius: 10rpx;
   margin-right: 12rpx;
 }
 .record-time { font-size: 22rpx; color: #999; display: block; margin-top: 8rpx; }
 .record-points { font-size: 32rpx; font-weight: bold; }
-.record-points.add { color: #52c41a; }
-.record-points.sub { color: #ff4d4f; }
+.record-points.add { color: #0EA5E9; }
+.record-points.sub { color: #999999; }
 
 .empty, .footer {
   text-align: center;
