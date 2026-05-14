@@ -27,6 +27,46 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
+## Latest Update: PRD-AICHAT-CAPSULE-V1-20260515｜AI 对话模式 /ai-home 输入框上方胶囊条落地（10/10 服务器自动化测试 PASS）（2026-05-15 00:50）
+
+### 一句话结论
+把菜单模式（九宫格首页）输入框上方那排胶囊按钮**完整搬一份**到 AI 对话模式 `/ai-home` 输入框正上方：①复用已有 `CapsuleBar` 组件（`h5-web/src/components/ai-chat/CapsuleBar.tsx`）+ 已有 `funcButtons` 数据源（公开 `GET /api/function-buttons?is_enabled=true`），后端 **零改动**；②`ai-home/page.tsx` 新增 `isInputFocused` state + textarea `onFocus/onBlur` 监听，实现键盘联动（焦点在输入框时整体隐藏，blur 后恢复）；③点击胶囊立即调用 `handleSend(presetText, 'preset')`，以"用户身份"自动发出 `preset_prompt || auto_user_message || name`，AI 走正常回复流程（**不走 ChatCard 卡片消息**，明确等价于 quick_ask 行为，与菜单模式同步）；④空数据 / 全部禁用 / 接口异常时 `CapsuleBar` 内置 `return null` 降级，不留任何占位；⑤菜单模式（九宫格）原有胶囊条**展示、点击、配置**均**未受任何影响**；⑥后台「胶囊按钮配置」改一处，AI 对话模式与菜单模式同时生效（同源 `chat_function_buttons`）。h5-web 容器已通过 `docker compose build --no-cache h5-web` 全量重建并部署，10/10 服务器自动化测试全部 PASS。
+
+### 范围与端
+- h5-web（**唯一改动端**）：`src/app/(ai-chat)/ai-home/page.tsx`（+ 4 处 PRD 标记）
+  - 新增 import：`import CapsuleBar from '@/components/ai-chat/CapsuleBar'`
+  - 新增 state：`const [isInputFocused, setIsInputFocused] = useState(false)`
+  - textarea 新增 `onFocus={() => setIsInputFocused(true)}` + `onBlur={() => setIsInputFocused(false)}`
+  - 在 `Input Bar` div 上方挂载 `<CapsuleBar buttons={funcButtons.map(...)} hidden={isInputFocused} onCapsuleClick={...} />`
+- 部署脚本：`deploy/_deploy_aichat_capsule_v1.py`（10 用例自动化测试）、`deploy/_run_tests_capsule_v1.py`
+- 用户手册：`user_docs/AI对话模式输入框上方胶囊按钮.md`
+- 本次未改动：backend / admin-web / miniprogram / flutter_app / verify-miniprogram（小程序 chat 页与 Flutter chat_screen 已自带类似入口栏，本次无需变更）
+
+### 关键决策
+1. **复用既有组件 + 既有数据源，零新增接口**：`CapsuleBar` 已被 `chat/[sessionId]/page.tsx` 使用、`funcButtons` 已在 `/ai-home` 通过 `/api/function-buttons?is_enabled=true` 拉取并供九宫格使用，直接复用，不引入新的 API 与组件文件。
+2. **点击行为固定为"以用户身份发问"**：PRD §3.4 §1.1 明确"以用户身份自动发问，AI 正常回复，胶囊不消失，可反复点击"——因此 `onCapsuleClick` 内部**不调用** `handleFunctionButtonClick`（那个会走 `resolveCardType` 然后插入卡片消息），而是直接 `handleSend(presetText, 'preset')`，与"推荐问"胶囊行为一致，与菜单模式九宫格 quick_ask 一致。
+3. **键盘联动 state 独立**：复用上文 `[PRD-426]` 已删除的 `inputFocused`，重新引入 `isInputFocused`（命名与 `chat/[sessionId]/page.tsx` 对齐），仅服务胶囊条 hidden 控制，不影响欢迎面板/咨询人浮层等其它逻辑。
+4. **空数据降级在 CapsuleBar 组件内已实现**：`if (!buttons || buttons.length === 0) return null`，因此 `funcButtons` 为空数组时 `<CapsuleBar />` 整个不渲染，输入框上方完全空白，符合 PRD §3.1 / V4。
+5. **未改动小程序/Flutter**：经核查，小程序 `pages/chat/index.wxml` 已在输入框上方有 `function-buttons-area`（line 273-286），Flutter `chat_screen.dart` 已在 `_buildInputBar()` 上方挂载 `FunctionButtonsBar(buttons: _functionButtons, ...)`（line 1532），三端均已具备相同效果；本次 PRD 明确点名 `/ai-home`（H5 唯一未覆盖端），故仅改 H5。
+6. **测试脚本容器命名修正**：docker-compose 中 h5-web 服务对应的容器名为 `{PROJECT_ID}-h5`（非 `-h5-web`），部署脚本中 `docker exec` 命令已用正确名称。
+
+### 服务器自动化测试结果（10/10 PASS）
+- T1 backend `/api/health` 200 ✅
+- T2 H5 `/ai-home/` 可达（status=200）✅
+- T3 `/api/function-buttons?is_enabled=true` 返回数组（count=3）✅
+- T4 `/ai-home/` HTML 含 `_next` chunk 引用（前端已重新构建）✅
+- T5 h5-web 容器 `.next` 构建产物含 `ai-chat-capsule-bar` testid 标记（2 个 chunk 文件）✅
+- T6 `ai-home/page.tsx` 源码含 `CapsuleBar`/`isInputFocused`/`PRD-AICHAT-CAPSULE-V1` 标记（共 9 处）✅
+- T7 `CapsuleBar.tsx` 实现空数据降级 `return null` ✅
+- T8 后端 `/api/function-buttons` 字段含 `name` + `button_type`（接口契约合规）✅
+- T9 `ai-home` 胶囊点击调用 `handleSend(presetText, 'preset')`（以用户身份发问）✅
+- T10 `ai-home` textarea 含 `setIsInputFocused(true/false)` 调用（键盘联动）✅
+
+### 用户体验手册
+`user_docs/AI对话模式输入框上方胶囊按钮.md`
+
+---
+
 ## Latest Update: PRD-HEALTH-OPT-V1-20260514｜健康档案优化 R1~R5 + AI 外呼用药提醒（蓝白渐变换肤 + 顶部设备入口 + Tab 吸顶 + 统一 Dialog + AI 外呼会员体系；11/14 服务器自动化测试 PASS）（2026-05-14 23:25）
 
 ### 一句话结论

@@ -184,20 +184,24 @@ def run_tests() -> int:
             _, out, _ = run(
                 ssh,
                 (
-                    f"docker exec {PROJECT_ID}-h5-web sh -c "
+                    f"docker exec {PROJECT_ID}-h5 sh -c "
                     "'cd /app && grep -rl \"ai-chat-capsule-bar\" .next 2>/dev/null | head -5 ; "
-                    "grep -rl \"PRD-AICHAT-CAPSULE-V1\" .next 2>/dev/null | head -5 ; "
                     "echo ---FILELIST_END---' 2>&1 | tail -40"
                 ),
                 timeout=60,
             )
             # 判定：构建产物里能找到 ai-chat-capsule-bar 标记
-            has_capsule_id = "ai-chat-capsule-bar" in out
-            # 不强制要求 PRD-AICHAT-CAPSULE-V1 字面值（会被注释优化掉），主要看 testid
+            # （在 grep -rl 输出中应当出现至少一个 .next/... 文件名）
+            has_capsule_id = ".next" in out and "ai-chat-capsule-bar" not in (
+                # 排除只匹配到 echo 提示行的情况
+                ""  # placeholder
+            )
+            # 更可靠：检测输出中含 .js 后缀的 chunk 文件名
+            has_chunk = any(line.strip().endswith(".js") for line in out.splitlines())
             add(
                 "T5 h5-web 构建产物含 CapsuleBar testid 标记",
-                has_capsule_id,
-                "ai-chat-capsule-bar in .next" if has_capsule_id else f"out_tail={out.strip()[-200:]}",
+                has_chunk,
+                f"chunk_files_found={sum(1 for l in out.splitlines() if l.strip().endswith('.js'))}",
             )
         finally:
             ssh.close()
@@ -284,19 +288,20 @@ def run_tests() -> int:
     except Exception as e:
         add("T8 后端接口字段合规", False, str(e))
 
-    # T9 关键代码自查：onCapsuleClick 调用 handleSend('preset')
+    # T9 关键代码自查：onCapsuleClick 后续逻辑中含有 handleSend(presetText, 'preset')
     try:
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         ssh.connect(HOST, port=22, username=USER, password=PASSWORD, timeout=30,
                     allow_agent=False, look_for_keys=False)
         try:
+            # 用 -A 25 扩大上下文窗口（CapsuleBar 调用块约 15 行）
             _, out, _ = run(
                 ssh,
                 (
                     f"cd {REMOTE_DIR} && "
-                    "grep -A 3 'onCapsuleClick' 'h5-web/src/app/(ai-chat)/ai-home/page.tsx' "
-                    "| grep -E \"handleSend.*preset\" | wc -l"
+                    "grep -A 25 'onCapsuleClick' 'h5-web/src/app/(ai-chat)/ai-home/page.tsx' "
+                    "| grep -E \"handleSend\\(presetText.*preset\" | wc -l"
                 ),
             )
             try:
@@ -304,7 +309,7 @@ def run_tests() -> int:
             except Exception:
                 hits = 0
             add(
-                "T9 ai-home 胶囊点击调用 handleSend('preset')（以用户身份发问）",
+                "T9 ai-home 胶囊点击调用 handleSend(presetText, 'preset')（以用户身份发问）",
                 hits >= 1,
                 f"hits={hits}",
             )
