@@ -27,6 +27,47 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
+## Latest Update: PRD-AICHAT-OPTIM-FIX-V1-20260514｜AI 对话模式优化修复 v1.0（胶囊条 UI 落地 + 4 卡片激活 + 8 字段读取 + 后台 Emoji 选择器 + 数据源唯一化 + 12/12 服务器自动化测试 PASS）（2026-05-14 17:35）
+
+### 一句话结论
+对上一版 PRD-AICHAT-OPTIM-V1 暴露的"5 处事实上未生效"做一次性修复：①新增 `backend/app/api/function_button.py` 中的 `public_router`，提供公开 `GET /api/function-buttons?is_enabled=true` 接口（统一胶囊+宫格数据源，仅返回启用按钮防止草稿泄露）；②`chat_function_buttons` 表新增 `icon VARCHAR(32)` 列（取代 `icon_url` 作为主图标存储）+ `_migrate_aichat_optim_fix_v1` 启动期幂等迁移（按按钮名关键字推荐 Emoji 自动回填）+ `app_settings.ai_home_config.func_grid` 简化（补全 `visible/max_count/cols`）；③admin `(admin)/function-buttons/page.tsx` 接入新建公共组件 `admin-web/src/components/EmojiPicker.tsx`（从 home-menus 抽离的 Emoji 选择器，含 800+ Emoji + 关键字智能推荐）；④admin `(admin)/home-settings/ai-home-config/page.tsx` 第 3 Tab「功能宫格」整体重写为简化面板（仅保留 visible/max_count/cols + 前往功能按钮管理按钮）；⑤h5-web `app/(ai-chat)/ai-home/page.tsx` 宫格数据源切换到 `/api/function-buttons?is_enabled=true`，按 `sort_weight` 升序、取前 `max_count`，点击调度 `resolveCardType` 并插入卡片消息（含曝光/点击埋点）；⑥h5-web `app/chat/[sessionId]/page.tsx` 新增 `components/ai-chat/CapsuleBar.tsx` 胶囊条（紧贴输入框上沿，键盘 focus 时隐藏，36px 高度 + 28px 胶囊 + 全圆角 14px + Emoji 16px + 按钮名 13px），点击胶囊插入卡片消息到对话流；⑦`components/ai-chat/ChatCards.tsx` 4 种卡片（upload/navigate/sdk_call/quick_ask）真正激活，含 `backendButtonToCardButton` 适配器从后端 FunctionButton 读取 8 个新字段；⑧`lib/analytics.ts` 新增 `aiHomeFnTrack` 封装 8 类埋点（menu_exposure / menu_click / capsule_exposure / capsule_click / card_exposure / card_button_click / form_submit / card_fail）；⑨服务器自动化测试 12/12 全部 PASS（含 `/api/function-buttons` 公开接口、`is_enabled` 过滤、admin 页面可达、capsule_click / card_button_click 埋点上报、`[migrate]` 启动日志、DB icon 字段全非空、func_grid 简化迁移日志）。
+
+### 范围与端
+- backend：`app/api/function_button.py`（新增 public_router）、`app/models/models.py`（新增 icon 列）、`app/schemas/function_button.py`（icon 字段加入 3 个 Pydantic schema）、`app/schemas/ai_home_config.py`（FuncGridConfig 加 cols 字段）、`app/main.py`（迁移函数 + print 日志）
+- admin-web：`src/components/EmojiPicker.tsx`（新增公共组件）、`src/app/(admin)/function-buttons/page.tsx`（接入 EmojiPicker）、`src/app/(admin)/home-settings/ai-home-config/page.tsx`（Tab3 简化重写）
+- h5-web：`src/components/ai-chat/CapsuleBar.tsx`（新增）、`src/components/ai-chat/ChatCards.tsx`（resolveCardType 修订 + adapter）、`src/app/(ai-chat)/ai-home/page.tsx`（数据源改造 + 卡片消息渲染）、`src/app/chat/[sessionId]/page.tsx`（胶囊条接入 + 卡片消息渲染 + 输入框 focus/blur 隐藏胶囊）、`src/lib/analytics.ts`（aiHomeFnTrack）
+- 部署脚本：`deploy/_deploy_aichat_optim_fix_v1.py`、`deploy/_run_tests_only.py`、`deploy/_rebuild_backend.py`
+- 用户手册：`user_docs/AI对话模式优化修复.md`
+
+### 关键决策
+1. **公开端点分离**：新增 `/api/function-buttons` 公开 `public_router`（不带 `/chat` 前缀，不鉴权），与既有 `/api/chat/function-buttons` 共存，互不影响；返回字段对齐 H5 期望（直接数组，含 8 新字段）。
+2. **数据源唯一化**：H5 端宫格 + 胶囊**唯一**来源于 `chat_function_buttons`，`func_grid.items` 不再读取（DB 数据保留但 H5 静默忽略），新增 `cols` 字段与 `columns` 并存兼容。
+3. **icon 字段长度 VARCHAR(32)**：兼容 ZWJ 序列复合 Emoji（如 👨‍👩‍👧‍👦），允许长度 1~16 字符串；旧 `icon_url` 字段保留但不再读写。
+4. **EmojiPicker 复用**：从 `(admin)/home-menus/page.tsx` 抽出，按 40+ 关键字推荐组 + 8 类 800+ Emoji + 中文标签搜索，新组件 `admin-web/src/components/EmojiPicker.tsx`。
+5. **卡片消息载体**：复用 AI 消息气泡，content 为 JSON 字符串 `{kind:'ai-chat-card', cardType, button}`，渲染层检测并切换到 `ChatCard` 组件；主操作按钮点击后置灰（`cardActionedIds` 跟踪），防止重复触发。
+6. **键盘 focus 隐藏胶囊条**：通过 `isInputFocused` state + onFocus/onBlur 监听控制 `hidden` prop；极端机型 focus 监听失败时静默保留显示。
+7. **迁移日志可见性**：使用 `print(..., flush=True)` 替代 `_logger.info`，确保在 docker logs 中可见（Python 默认 logging 级别 WARNING 不输出 info）；同时输出"启动迁移"/"完成"配对日志，便于服务器自动化测试 grep 验证。
+8. **服务器部署**：`docker compose build --no-cache backend admin-web h5-web` 全量重建 + `up -d`，单次 build ~3 分钟；MySQL 容器名为 `-db` 后缀，root 密码取自 `MYSQL_ROOT_PASSWORD` 环境变量（`bini_health_2026`）。
+
+### 服务器自动化测试结果（12/12 PASS）
+- T1 /api/health 200 ✅
+- T2 H5 主页可达 ✅
+- T3 公开 /api/function-buttons 返回数组 + 字段完整 ✅
+- T4 is_enabled 过滤生效（不暴露已禁用按钮）✅
+- T5 admin /function-buttons 页面可达 ✅
+- T6 admin /home-settings/ai-home-config 页面可达 ✅
+- T7 H5 /ai-home 页面可达 ✅
+- T8 analytics capsule_click 埋点上报 ✅
+- T9 analytics card_button_click 埋点上报 ✅
+- T10 启动日志含 `[migrate] aichat_optim_fix_v1` ✅
+- T11 DB `chat_function_buttons.icon` 字段全部非空（total=5, empty=0）✅
+- T12 启动日志含 `func_grid simplified` ✅
+
+### 用户体验手册
+`user_docs/AI对话模式优化修复.md`
+
+---
+
 ## Latest Update: PRD-AICHAT-OPTIM-V1-20260514｜AI 对话模式优化 PRD v1.0（chat_function_buttons 8 字段扩展 + 7 类型枚举含 quick_ask + /medication-library/recognize 一站式识药 + analytics 8 个新埋点 + h5 Toast 统一规范 + 4 种卡片组件 + 积分入口 404 修复 + admin 表单条件化 + 12/12 服务器自动化测试 PASS）（2026-05-14 09:33）
 
 ### 一句话结论
