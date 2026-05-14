@@ -27,6 +27,56 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
+## Latest Update: PRD-PROMPT-CONFIG-V1-20260514｜AI 咨询配置改造：报告解读独立成型 + Prompt 模板分组重构 + 下拉为空 Bug 修复（15/15 服务器自动化测试 PASS）（2026-05-14 22:30）
+
+### 一句话结论
+对 AI 咨询配置中心做三处一次性改造：①新增第 8 种按钮类型 `report_interpret`（报告解读专属，独立于通用 `photo_upload`/`file_upload`）；②修复管理后台「关联 Prompt 模板」下拉永远为空的根因 Bug（前端解析路径错误：原代码读取 `it.id` 应改为 `g.active_template.id`）+ 联动按钮类型过滤 + 空状态跳转「去 Prompt 配置中心」；③Prompt 模板配置页左侧导航从扁平改为业务分组两级 Tab（报告解读/药品识别/用药对话/通用素材），已下线类型（checkup_report / trend_analysis）从界面完全隐藏。后端新增 `prompt_type_config` 表（10 条初始数据）替代硬编码 `VALID_PROMPT_TYPES`；新增 `/api/admin/prompt-type-config` 与 `/api/report-interpret/start` 接口；按钮保存时新增「button_type ↔ prompt 业务分组」交叉校验；启动期幂等迁移自动建表 + 初始化 + 历史按钮自动重分类（备份至 `function_buttons_backup_pcv1`）。15/15 服务器自动化测试全部 PASS。
+
+### 范围与端
+- backend：`app/models/models.py`（新增 `PromptTypeConfig`）、`app/schemas/function_button.py`（`ALLOWED_BUTTON_TYPES` 加 `report_interpret`）、`app/api/prompt_templates.py`（从 DB 读取类型 + 返回 `business_group`/`allowed_button_types` + 已下线隐藏 + 兜底列表）、`app/api/prompt_type_config.py`（新文件 CRUD）、`app/api/report_interpret_button.py`（新文件，`/api/report-interpret/start`）、`app/api/function_button.py`（`_validate_button_prompt_binding` 校验）、`app/main.py`（`_migrate_prompt_type_config_v1` 启动迁移 + 路由注册）
+- admin-web：`src/app/(admin)/function-buttons/page.tsx`（核心 Bug 修复：`fetchPromptTemplates` 重写 + `filteredPromptOptions` 联动 + 空状态 `notFoundContent` + 新增 `report_interpret` 选项）、`src/app/(admin)/prompt-templates/page.tsx`（业务分组 Tab + 隐藏已下线 + 预览示例从 DB 读取）
+- h5-web：`src/components/ai-chat/ChatCards.tsx`（`resolveCardType` 添加 `report_interpret → upload`）
+- miniprogram：`pages/chat/index.js`（`onFunctionButtonTap` 添加 `report_interpret` 分支 + `_uploadAndStartReportInterpret` 函数）
+- flutter_app：`lib/screens/ai/chat_screen.dart`（`_handleFunctionButton` 添加 `report_interpret` 分支）
+- 部署脚本：`deploy/_deploy_prompt_config_v1.py`（15 用例自动化测试）
+- 用户手册：`user_docs/AI咨询配置改造_报告解读独立成型与Prompt分组重构.md`
+
+### 关键决策
+1. **不改 button_type 数据库枚举**：`chat_function_buttons.button_type` 在 DB 层是 VARCHAR(50)，只需应用层 `ALLOWED_BUTTON_TYPES` 扩为 8 种，零迁移成本。
+2. **下拉为空 Bug 根因**：原 `fetchPromptTemplates` 把响应当作扁平模板列表，调用 `items.filter(it => it.id && it.is_active !== false)`，而后端返回的是分组结构 `[{prompt_type, display_name, active_template: {...}}]`，**因此过滤后永远 0 项**。修复方式：遍历 groups，从 `g.active_template.id` 取值。
+3. **联动过滤数据来源**：把后端新增的 `allowed_button_types` 字段透传到前端 `PromptTemplateOption.allowedButtonTypes`，前端 `useMemo` 按 `watchedButtonType` 过滤。允许后端配置缺失（数组为空）时不过滤，避免误伤旧数据。
+4. **历史按钮自动迁移规则**：JOIN `prompt_templates` + `prompt_type_config` 找出 `business_group='report_interpret'` 的 active 模板 id 集合，对所有 `button_type IN ('photo_upload','file_upload')` 且绑定到这些 prompt_id 的按钮，整体 UPDATE 为 `report_interpret`；先 `CREATE TABLE function_buttons_backup_pcv1 AS SELECT * FROM chat_function_buttons` 做备份，可一键回滚。
+5. **`/api/report-interpret/start` 复用现有 worker**：内部调 `report_interpret._schedule_interpret(session_id)` 投递异步任务，复用 SSE 推送机制；接口本身只创建 `CheckupReport` 草稿 + `ChatSession` + 隐式首条 user prompt，秒返。
+6. **预览示例从 DB 读取**：`PromptTypeConfig.preview_input_default` 字段被透传到前端 `PromptGroupItem.preview_input_default`，预览弹窗优先用 DB 配置，回退到前端 `DEFAULT_PREVIEW_INPUTS`。
+7. **客户端兼容降级**：旧版 H5/小程序/App 未升级时收到 `button_type='report_interpret'` 走 `default` 分支（Toast 提示「暂不支持」），但本次同步发布了三端新包，正常无感知；新版本中 H5 端 `resolveCardType` 把 `report_interpret` 也映射为 `upload` 卡片，复用 4 选 1 上传 UI。
+
+### 服务器自动化测试结果（15/15 PASS）
+- T1 backend `/api/health` 200 ✅
+- T2 admin / 主页可达 ✅
+- T3 公开 `/api/function-buttons` 返回数组 ✅
+- T4 启动日志含 `[migrate] prompt_type_config_v1` ✅
+- T5 `prompt_type_config` 表 10 条数据 ✅
+- T6 `report_interpret` 业务分组下有 2 条在线类型 ✅
+- T7 `_deprecated` 组下有 2 条已下线类型 ✅
+- T8 `function_buttons_backup_pcv1` 备份表已创建 ✅
+- T9 `ALLOWED_BUTTON_TYPES` 含 `report_interpret`（共 8 种）✅
+- T10 `_load_type_configs` 隐藏已下线 + 含 `report_interpret` + 含 `business_group` ✅
+- T11 GroupResponse 含 `business_group` + `allowed_button_types` 字段（FIRST_ABT=['ai_chat_trigger','quick_ask']）✅
+- T12 `/api/report-interpret/start` 路由已注册 ✅
+- T13 `/api/admin/prompt-type-config` 路由已注册 ✅
+- T14 admin-web function-buttons 源码 Bug 修复标记 7 处 ✅
+- T15 admin-web prompt-templates 业务分组 Tab 代码 4 处 ✅
+
+### 各端打包产物
+- 小程序 zip：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/miniprogram/miniprogram_promptcfg_20260514_222237_0362.zip`
+- 安卓 APK：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/app_promptcfg_20260514_222647_f9f6.apk`（GitHub Run #25865660553，80.77 MB）
+- iOS IPA：`https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-promptcfg-v1778768517-c3d0`（GitHub Run #25865410567）
+
+### 用户体验手册
+`user_docs/AI咨询配置改造_报告解读独立成型与Prompt分组重构.md`
+
+---
+
 ## Latest Update: PRD-POINTS-SKIN-V1-20260514｜积分模块视觉换肤 v1.0（6 个页面 + 三端同步 + 橙金/绿色→天蓝 + 商城顶部 banner + 10/10 服务器自动化测试 PASS）（2026-05-14 18:30）
 
 ### 一句话结论

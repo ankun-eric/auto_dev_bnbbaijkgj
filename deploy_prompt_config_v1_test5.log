@@ -1,0 +1,124 @@
+﻿
+=== 鏈嶅姟鍣ㄨ嚜鍔ㄥ寲娴嬭瘯 ===
+  鉁?T1 backend /api/health 200
+  鉁?T2 admin / 涓婚〉鍙揪
+  鉁?T3 鍏紑 /api/function-buttons 杩斿洖鏁扮粍
+
+>>> SSH: docker logs 6b099ed3-7175-4a78-91f4-44570c84ed27-backend 2>&1 | grep -E "prompt_type_config_v1" | head -20
+[migrate] prompt_type_config_v1: 鍚姩杩佺Щ...
+
+[migrate] prompt_type_config_v1: 鍚姩
+
+[migrate] prompt_type_config_v1: 鍒濆鍖?10 鏉℃暟鎹?
+[migrate] prompt_type_config_v1: 宸插浠?chat_function_buttons 鈫?function_buttons_backup_pcv1
+
+[migrate] prompt_type_config_v1: 杩佺Щ 0 涓巻鍙叉寜閽?鈫?report_interpret
+
+[migrate] prompt_type_config_v1: 瀹屾垚
+
+[migrate] prompt_type_config_v1: 杩佺Щ瀹屾垚
+
+  鉁?T4 backend 鍚姩鏃ュ織鍚?[migrate] prompt_type_config_v1
+
+>>> SSH: docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" bini_health -N -B -e "SELECT COUNT(*) FROM ...
+mysql: [Warning] Using a password on the command line interface can be insecure.
+
+10
+
+  鉁?T5 prompt_type_config 琛?>=10 鏉℃暟鎹?
+
+>>> SSH: docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" bini_health -N -B -e "SELECT COUNT(*) FROM ...
+mysql: [Warning] Using a password on the command line interface can be insecure.
+
+2
+
+  鉁?T6 report_interpret 涓氬姟鍒嗙粍涓嬫湁 2 鏉″湪绾跨被鍨?
+
+>>> SSH: docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" bini_health -N -B -e "SELECT COUNT(*) FROM ...
+mysql: [Warning] Using a password on the command line interface can be insecure.
+
+2
+
+  鉁?T7 _deprecated 缁勪笅鏈?2 鏉″凡涓嬬嚎绫诲瀷
+
+>>> SSH: docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" bini_health -N -B -e "SELECT COUNT(*) FROM ...
+mysql: [Warning] Using a password on the command line interface can be insecure.
+
+1
+
+  鉁?T8 function_buttons_backup_pcv1 澶囦唤琛ㄥ凡鍒涘缓
+
+>>> SSH: docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend python -c "from app.schemas.function_button import ALLOWED_BUTTON_TYPES; print('REP...
+REPORT_OK
+
+['ai_chat_trigger', 'digital_human_call', 'external_link', 'file_upload', 'photo_recognize_drug', 'photo_upload', 'quick_ask', 'report_interpret']
+
+  鉁?T9 ALLOWED_BUTTON_TYPES 鍚?report_interpret
+
+>>> SSH: docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend bash -c 'cat > /tmp/_t10.py' <<'PYEOF'
+import asyncio
+from app.core.database import...
+
+>>> SSH: docker exec -w /app -e PYTHONPATH=/app 6b099ed3-7175-4a78-91f4-44570c84ed27-backend bash -c "echo aW1wb3J0IGFzeW5jaW8KZnJvbSBhcHAuY29yZS5kYX...
+TYPES=drug_query,drug_chat_opening_single,drug_chat_opening_multi,drug_general,drug_personal,drug_interaction,checkup_report_interpret,checkup_report_compare
+
+GROUPS=drug_chat,drug_identify,report_interpret
+
+Exception ignored in: <function Connection.__del__ at 0x7c73a400a200>
+
+Traceback (most recent call last):
+
+  File "/usr/local/lib/python3.11/site-packages/aiomysql/connection.py", line 1131, in __del__
+
+  File "/usr/local/lib/python3.11/site-packages/aiomysql/connection.py", line 339, in close
+
+  File "/usr/local/lib/python3.11/asyncio/selector_events.py", line 864, in close
+
+  File "/usr/local/lib/python3.11/asyncio/base_events.py", line 762, in call_soon
+
+  File "/usr/local/lib/python3.11/asyncio/base_events.py", line 520, in _check_closed
+
+RuntimeError: Event loop is closed
+
+  鉁?T10 _load_type_configs 涓嶅惈宸蹭笅绾跨被鍨?+ 鍚?report_interpret + 鍚?business_group
+
+>>> SSH: docker exec -w /app -e PYTHONPATH=/app 6b099ed3-7175-4a78-91f4-44570c84ed27-backend bash -c "echo aW1wb3J0IGFzeW5jaW8sanNvbgpmcm9tIGFwcC5jb3...
+FIELDS=active_template,allowed_button_types,business_group,description,display_name,preview_input_default,prompt_type
+
+FIRST_GROUP=drug_chat
+
+FIRST_ABT=['ai_chat_trigger', 'quick_ask']
+
+Exception ignored in: <function Connection.__del__ at 0x748a1d60e2a0>
+
+Traceback (most recent call last):
+
+  File "/usr/local/lib/python3.11/site-packages/aiomysql/connection.py", line 1131, in __del__
+
+  File "/usr/local/lib/python3.11/site-packages/aiomysql/connection.py", line 339, in close
+
+  File "/usr/local/lib/python3.11/asyncio/selector_events.py", line 864, in close
+
+  File "/usr/local/lib/python3.11/asyncio/base_events.py", line 762, in call_soon
+
+  File "/usr/local/lib/python3.11/asyncio/base_events.py", line 520, in _check_closed
+
+RuntimeError: Event loop is closed
+
+  鉁?T11 GroupResponse 鍖呭惈 business_group + allowed_button_types 瀛楁
+  鉁?T12 /api/report-interpret/start 璺敱宸叉敞鍐?
+  鉁?T13 /api/admin/prompt-type-config 璺敱宸叉敞鍐?
+
+>>> SSH: grep -c "PRD-PROMPT-CONFIG-V1\|filteredPromptOptions\|鍘?Prompt 閰嶇疆涓績" /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/admin-web/src/app/\(a...
+7
+
+  鉁?T14 admin-web function-buttons 婧愮爜鍚?Bug 淇鏍囪 (>=3)
+
+>>> SSH: grep -c "BUSINESS_GROUP_LABELS\|prompt-business-group-tabs\|prompt-type-list" /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/admin-web/sr...
+4
+
+  鉁?T15 admin-web prompt-templates 涓氬姟鍒嗙粍 Tab 浠ｇ爜宸插氨浣?(>=2)
+
+============================================================
+娴嬭瘯鎬荤粨锛氶€氳繃 15 / 澶辫触 0
+鉁?鍏ㄩ儴閫氳繃

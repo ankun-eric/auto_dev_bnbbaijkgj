@@ -1,0 +1,284 @@
+﻿=== 杩炴帴 newbb.test.bangbangvip.com ===
+
+>>> SSH: cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && git fetch origin master 2>&1 | tail -10
+From https://github.com/ankun-eric/auto_dev_bnbbaijkgj
+
+ * branch            master     -> FETCH_HEAD
+
+   e2a002c..5e66247  master     -> origin/master
+
+
+>>> SSH: cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && git reset --hard origin/master 2>&1 | tail -5
+HEAD is now at 5e66247 feat(prompt-config): 鎶ュ憡瑙ｈ鐙珛鎸夐挳绫诲瀷 + Prompt 妯℃澘鍒嗙粍閲嶆瀯 + 涓嬫媺涓虹┖ Bug 淇 [PRD-PROMPT-CONFIG-V1]
+
+
+>>> SSH: cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && git log -3 --oneline
+[?1h=
+[33m5e66247[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmaster[m[33m, [m[1;31morigin/master[m[33m, [m[1;31morigin/HEAD[m[33m)[m feat(prompt-config): 鎶ュ憡瑙?[m [33m[m[33m[m[1;36m[m[33m[m[1;32m[m[33m[m[1;31m[m[33m[m[1;31m[m[33m[m璇荤嫭绔嬫寜閽被鍨?+ Prompt 妯℃澘鍒嗙粍閲嶆瀯 + 涓嬫媺涓虹┖ Bug 淇 [PRD-PROMPT-CONFIG-V1][m
+
+[33mc3c97ba[m docs(points): 娣诲姞绉垎鎹㈣偆鎵嬪唽 + 鍚屾鏇存柊椤圭洰绱㈠紩 + 閮ㄧ讲娴嬭瘯鑴氭湰[m
+
+[33me2a002c[m feat(points): PRD-POINTS-SKIN-V1 绉垎妯″潡瑙嗚鎹㈣偆涓哄ぉ钃濊壊[m
+
+
+[K[?1l>
+>>> SSH: cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && grep -c "PRD-PROMPT-CONFIG-V1" backend/app/main.py backend/app/api/prompt_templates....
+backend/app/main.py:4
+
+backend/app/api/prompt_templates.py:3
+
+backend/app/schemas/function_button.py:1
+
+
+>>> SSH: cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && (docker compose stop backend admin-web 2>&1 || docker-compose stop backend admin-web...
+time="2026-05-14T22:06:05+08:00" level=warning msg="/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Stopping 
+
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Stopped 
+
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Stopping 
+
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Stopped 
+
+
+>>> SSH: cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && (docker compose rm -f backend admin-web 2>&1 || docker-compose rm -f backend admin-w...
+Going to remove 6b099ed3-7175-4a78-91f4-44570c84ed27-backend, 6b099ed3-7175-4a78-91f4-44570c84ed27-admin
+
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Removing 
+
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Removing 
+
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Removed 
+
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Removed 
+
+
+>>> SSH: cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && (docker compose build --no-cache backend admin-web 2>&1 || docker-compose build --no...
+#20 115.2 鈹?鈼?/users                                   15.3 kB         404 kB
+
+#20 115.2 鈹?鈼?/voice-service                           3.46 kB         345 kB
+
+#20 115.2 鈹?鈼?/wechat-push                             4.92 kB         291 kB
+
+#20 115.2 + First Load JS shared by all                87.7 kB
+
+#20 115.2   鈹?chunks/2117-1ca38137e0e3b541.js          31.9 kB
+
+#20 115.2   鈹?chunks/fd9d1056-cde8d1c8f42e1127.js      53.6 kB
+
+#20 115.2   鈹?other shared chunks (total)              2.13 kB
+
+#20 115.2 
+
+#20 115.2 
+
+#20 115.2 鈼? (Static)   prerendered as static content
+
+#20 115.2 茠  (Dynamic)  server-rendered on demand
+
+#20 115.2 
+
+#20 DONE 115.3s
+
+
+
+#25 [admin-web runner 3/5] COPY --from=builder /app/.next/standalone ./
+
+#25 DONE 0.6s
+
+
+
+#26 [admin-web runner 4/5] COPY --from=builder /app/.next/static ./.next/static
+
+#26 DONE 0.2s
+
+
+
+#27 [admin-web runner 5/5] COPY --from=builder /app/public ./public
+
+#27 DONE 0.1s
+
+
+
+#28 [admin-web] exporting to image
+
+#28 exporting layers
+
+#28 exporting layers 2.4s done
+
+#28 exporting manifest sha256:efa02f30deb312c95b55e30235627dcb546c3a5fd6e7df2c66e997ca02105bef 0.0s done
+
+#28 exporting config sha256:c600ae7b6e0927a7f40cc022864f5007472cd36bfb285dd304a1de14232d6298 0.0s done
+
+#28 exporting attestation manifest sha256:79f7275cec27612e6cfb55ff609b33180a2b79c547f0d70690bea6812c61333f
+
+#28 exporting attestation manifest sha256:79f7275cec27612e6cfb55ff609b33180a2b79c547f0d70690bea6812c61333f 0.0s done
+
+#28 exporting manifest list sha256:0a6c1fb7886df7f408e65ef720849c68023676f348aadb7aa153afe07c29adc4 0.0s done
+
+#28 naming to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:latest done
+
+#28 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:latest
+
+#28 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:latest 0.5s done
+
+#28 DONE 3.1s
+
+
+
+#29 [admin-web] resolving provenance for metadata file
+
+#29 DONE 0.4s
+
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Built 
+
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web Built 
+
+
+>>> SSH: cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && (docker compose up -d backend admin-web 2>&1 || docker-compose up -d backend admin-w...
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Healthy 
+
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Starting 
+
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Started 
+
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Starting 
+
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Started 
+
+
+>>> SSH: docker logs --tail 80 6b099ed3-7175-4a78-91f4-44570c84ed27-backend 2>&1 | tail -80
+/usr/local/lib/python3.11/site-packages/pydantic/_internal/_fields.py:132: UserWarning: Field "model_name" in AIModelConfigCreate has conflict with protected namespace "model_".
+
+
+
+You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
+
+  warnings.warn(
+
+/usr/local/lib/python3.11/site-packages/pydantic/_internal/_fields.py:132: UserWarning: Field "model_name" in AIModelConfigUpdate has conflict with protected namespace "model_".
+
+
+
+You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
+
+  warnings.warn(
+
+/usr/local/lib/python3.11/site-packages/pydantic/_internal/_fields.py:132: UserWarning: Field "model_name" in AIModelConfigResponse has conflict with protected namespace "model_".
+
+
+
+You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
+
+  warnings.warn(
+
+/usr/local/lib/python3.11/site-packages/pydantic/_internal/_fields.py:132: UserWarning: Field "model_name" in AIModelConfigTestRequest has conflict with protected namespace "model_".
+
+
+
+You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
+
+  warnings.warn(
+
+/usr/local/lib/python3.11/site-packages/pydantic/_internal/_fields.py:132: UserWarning: Field "model_name" in AIModelTemplateCreate has conflict with protected namespace "model_".
+
+
+
+You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
+
+  warnings.warn(
+
+/usr/local/lib/python3.11/site-packages/pydantic/_internal/_fields.py:132: UserWarning: Field "model_name" in AIModelTemplateUpdate has conflict with protected namespace "model_".
+
+
+
+You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
+
+  warnings.warn(
+
+/usr/local/lib/python3.11/site-packages/pydantic/_internal/_fields.py:132: UserWarning: Field "model_name" in AIModelTemplateResponse has conflict with protected namespace "model_".
+
+
+
+You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
+
+  warnings.warn(
+
+/usr/local/lib/python3.11/site-packages/pydantic/_internal/_fields.py:132: UserWarning: Field "model_name" in AdminChatSessionItem has conflict with protected namespace "model_".
+
+
+
+You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
+
+  warnings.warn(
+
+/usr/local/lib/python3.11/site-packages/pydantic/_internal/_fields.py:132: UserWarning: Field "model_name" in AdminChatSessionDetail has conflict with protected namespace "model_".
+
+
+
+You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
+
+  warnings.warn(
+
+/usr/local/lib/python3.11/site-packages/pydantic/_internal/_config.py:341: UserWarning: Valid config keys have changed in V2:
+
+* 'orm_mode' has been renamed to 'from_attributes'
+
+  warnings.warn(message, UserWarning)
+
+INFO:     Started server process [1]
+
+INFO:     Waiting for application startup.
+
+[migrate] aichat_optim_fix_v1: 鍚姩杩佺Щ...
+
+[migrate] aichat_optim_fix_v1: 0 鏉¤褰曡縼绉? 5 鏉¤烦杩?
+[migrate] func_grid simplified: 0 records updated, 1 skipped
+
+[migrate] aichat_optim_fix_v1: func_grid simplified DONE; AI 瀵硅瘽妯″紡浼樺寲淇 v1 杩佺Щ瀹屾垚
+
+[migrate] aichat_optim_fix_v1: 杩佺Щ瀹屾垚
+
+[migrate] prompt_type_config_v1: 鍚姩杩佺Щ...
+
+[migrate] prompt_type_config_v1: 鍚姩
+
+[migrate] prompt_type_config_v1: 鍒濆鍖?10 鏉℃暟鎹?
+[migrate] prompt_type_config_v1: 宸插浠?chat_function_buttons 鈫?function_buttons_backup_pcv1
+
+[migrate] prompt_type_config_v1: 杩佺Щ 0 涓巻鍙叉寜閽?鈫?report_interpret
+
+[migrate] prompt_type_config_v1: 瀹屾垚
+
+[migrate] prompt_type_config_v1: 杩佺Щ瀹屾垚
+
+INFO:     Application startup complete.
+
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+
+INFO:     192.168.32.5:47892 - "PUT /api/prd469/reminder-setting HTTP/1.1" 200 OK
+
+INFO:     192.168.32.5:47900 - "PUT /api/prd469/reminder-setting HTTP/1.1" 200 OK
+
+INFO:     192.168.32.5:47906 - "PUT /api/prd469/reminder-setting HTTP/1.1" 200 OK
+
+INFO:     192.168.32.5:47912 - "PUT /api/prd469/reminder-setting HTTP/1.1" 200 OK
+
+INFO:     192.168.32.5:47914 - "PUT /api/prd469/reminder-setting HTTP/1.1" 200 OK
+
+INFO:     192.168.32.5:32854 - "PUT /api/prd469/reminder-setting HTTP/1.1" 200 OK
+
+
+=== 鏈嶅姟鍣ㄨ嚜鍔ㄥ寲娴嬭瘯 ===
+  鉁?T1 backend /api/health 200
+  鉁?T2 admin / 涓婚〉鍙揪
+  鉁?T3 鍏紑 /api/function-buttons 杩斿洖鏁扮粍
+  鉂?T4 admin 鐧诲綍鎴愬姛锛堣幏鍙?token锛?| 鏃?admin token
+
+============================================================
+娴嬭瘯鎬荤粨锛氶€氳繃 3 / 澶辫触 1
+
+澶辫触鐢ㄤ緥锛?
+  - T4 admin 鐧诲綍鎴愬姛锛堣幏鍙?token锛?
+    鏃?admin token

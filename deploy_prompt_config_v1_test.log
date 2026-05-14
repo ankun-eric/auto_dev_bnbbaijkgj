@@ -1,0 +1,14 @@
+﻿
+=== 鏈嶅姟鍣ㄨ嚜鍔ㄥ寲娴嬭瘯 ===
+  鉁?T1 backend /api/health 200
+  鉁?T2 admin / 涓婚〉鍙揪
+  鉁?T3 鍏紑 /api/function-buttons 杩斿洖鏁扮粍
+[admin login non-200] status=403 body={"detail":"璐﹀彿鏈厤缃彲鐢ㄨ韩浠?}
+  鉂?T4 admin 鐧诲綍鎴愬姛锛堣幏鍙?token锛?| 鏃?admin token
+
+============================================================
+娴嬭瘯鎬荤粨锛氶€氳繃 3 / 澶辫触 1
+
+澶辫触鐢ㄤ緥锛?
+  - T4 admin 鐧诲綍鎴愬姛锛堣幏鍙?token锛?
+    鏃?admin token
