@@ -2492,6 +2492,8 @@ class ChatFunctionButton(Base):
     id = mapped_column(Integer, primary_key=True, autoincrement=True)
     name = mapped_column(String(50), nullable=False)
     icon_url = mapped_column(String(500), nullable=True)
+    # button_type 枚举（v1.0 终稿 7 种）：digital_human_call / photo_upload / file_upload /
+    # ai_chat_trigger / external_link / photo_recognize_drug / quick_ask
     button_type = mapped_column(String(50), nullable=False)
     sort_weight = mapped_column(Integer, default=0)
     is_enabled = mapped_column(Boolean, default=True)
@@ -2499,6 +2501,15 @@ class ChatFunctionButton(Base):
     ai_reply_mode = mapped_column(String(50), nullable=True, default="complete_analysis")
     photo_tip_text = mapped_column(String(500), nullable=True, default="请确保药品名称、品牌、规格完整，拍摄清晰")
     max_photo_count = mapped_column(Integer, nullable=True, default=5)
+    # ───── [AI对话模式优化 PRD v1.0] 新增 8 个字段 ─────
+    prompt_template_id = mapped_column(Integer, nullable=True, comment="关联 Prompt 模板 ID")
+    external_url = mapped_column(String(500), nullable=True, comment="外部链接 URL (按钮类型=external_link)")
+    preset_prompt = mapped_column(Text, nullable=True, comment="快捷提问预设话术 (按钮类型=quick_ask)")
+    auto_user_message = mapped_column(String(200), nullable=False, default="", comment="自动用户消息（点击后插入对话流的用户气泡文案）")
+    card_title = mapped_column(String(50), nullable=False, default="", comment="卡片头部主标题")
+    card_subtitle = mapped_column(String(100), nullable=True, comment="卡片头部副标题")
+    card_cover_image = mapped_column(String(500), nullable=True, comment="卡片封面图 URL")
+    button_sub_desc = mapped_column(String(100), nullable=True, comment="按钮副说明文字")
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -3781,6 +3792,8 @@ class MedicationLibrary(Base):
     adverse_reactions = mapped_column(Text, nullable=True)
     notes = mapped_column(Text, nullable=True)
     source = mapped_column(String(32), nullable=True)
+    # [AI对话模式优化 PRD v1.0 §9.1] 条码字段预留：本期不用，结构先到位
+    barcode = mapped_column(String(13), nullable=True, unique=False, index=True, comment="药品条码 EAN-13；本期预留，未来用于扫码识药")
     is_active = mapped_column(Boolean, default=True)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

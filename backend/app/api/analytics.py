@@ -34,6 +34,15 @@ KNOWN_EVENTS = {
     "ai_chat_punchcard_drag",
     "ai_chat_no_self_profile_tip_click",
     "ai_chat_send",
+    # [AI对话模式优化 PRD v1.0 §10] 8 个新增埋点事件
+    "menu_exposure",
+    "menu_click",
+    "capsule_exposure",
+    "capsule_click",
+    "card_exposure",
+    "card_button_click",
+    "form_submit",
+    "card_fail",
 }
 
 

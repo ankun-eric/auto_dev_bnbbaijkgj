@@ -286,6 +286,134 @@ async def medication_library_ocr(
 
 
 # ──────────────────────────────────────────────────────────
+# [AI对话模式优化 PRD v1.0 §9] 拍照识药 —— 一站式 /recognize
+# 设计要点：
+#   - 前端只调一次接口，传入 image 文件 + prompt_template_id
+#   - 后端内部完成：（未来）扫码 → OCR → 模糊匹配 → AI 解读
+#   - 本期固定走 OCR 单路径，barcode 字段已在 schema 预留
+#   - 返回：drug_candidates + ai_response 一站式数据
+# ──────────────────────────────────────────────────────────
+
+
+from fastapi import File, UploadFile, Form  # noqa: E402
+
+
+@router.post("/medication-library/recognize")
+async def medication_library_recognize(
+    image: Optional[UploadFile] = File(None, description="药品图片文件 multipart"),
+    image_url: Optional[str] = Form(None, description="替代 image 的图片 URL（已上传后回填）"),
+    image_text: Optional[str] = Form(None, description="替代 image 的预 OCR 文字（兼容旧前端）"),
+    prompt_template_id: Optional[int] = Form(None, description="关联 Prompt 模板 ID"),
+    db: AsyncSession = Depends(get_db),
+):
+    """[AI对话模式优化 PRD v1.0 §9.2] 一站式识药接口。
+
+    - 前端单次调用即可拿到完整结果（drug_candidates + ai_response）
+    - 内部目前固定走 OCR 路径，barcode/扫码识别为未来扩展点
+    - method 字段用于告知前端本次使用的识别路径（"ocr" / "barcode"）
+    """
+    from app.services.ai_service import call_ai_model
+
+    ocr_text = (image_text or "").strip()
+
+    # 路径 1（未来）：扫码识药 —— 占位，barcode 字段已在 MedicationLibrary 中预留
+    matched_by_barcode = None
+
+    # 路径 2（本期）：OCR + 模糊匹配
+    if not ocr_text and image is not None:
+        # 本期不在 recognize 内部直跑 OCR（避免引入新的服务依赖与超时风险），
+        # 推荐前端先调通用 /api/ocr/recognize 拿到 image_text 再回传到本接口。
+        # 这里仅做兜底：若客户端只传了文件而没传 image_text，则置空走 AI 兜底。
+        try:
+            _ = await image.read()  # 读出但暂不消费，保证文件流闭合
+        except Exception:
+            pass
+        ocr_text = ""
+
+    candidates: List[MedicationLibrary] = []
+    matched_tokens: List[str] = []
+    if ocr_text:
+        tokens = [t for t in ocr_text.replace("\n", " ").split(" ") if len(t) >= 2][:8]
+        matched_tokens = tokens
+        seen_ids: set = set()
+        for tok in tokens:
+            pattern = f"%{tok}%"
+            res = await db.execute(
+                select(MedicationLibrary)
+                .where(
+                    MedicationLibrary.is_active == True,  # noqa: E712
+                    or_(
+                        MedicationLibrary.name.ilike(pattern),
+                        MedicationLibrary.generic_name.ilike(pattern),
+                    ),
+                )
+                .limit(5)
+            )
+            for r in res.scalars().all():
+                if r.id not in seen_ids:
+                    candidates.append(r)
+                    seen_ids.add(r.id)
+            if len(candidates) >= 5:
+                break
+
+    drug_candidates = [
+        MedicationLibItemOut.model_validate(r).model_dump() for r in candidates[:5]
+    ]
+
+    # AI 解读：用关联的 Prompt 模板（若指定），否则使用通用药品识别 prompt
+    system_prompt = (
+        "你是一位专业的药品识别 AI 助手。请根据用户提供的药品候选列表与 OCR 文字，"
+        "给出药品名称归类、用法用量、注意事项等关键信息，所有内容仅供参考，"
+        "具体用药请严格遵医嘱。"
+    )
+    if prompt_template_id:
+        try:
+            from app.models.models import PromptTemplate  # type: ignore
+            pt_res = await db.execute(
+                select(PromptTemplate).where(PromptTemplate.id == prompt_template_id)
+            )
+            pt = pt_res.scalar_one_or_none()
+            if pt and getattr(pt, "content", None):
+                system_prompt = pt.content
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("[recognize] PromptTemplate 加载失败：%s", exc)
+
+    user_prompt = (
+        f"OCR 识别文字：{ocr_text or '（无）'}\n"
+        f"候选药品（共 {len(drug_candidates)} 条）：\n"
+        + "\n".join(
+            f"- {c['name']} {c.get('spec') or ''} {c.get('manufacturer') or ''}"
+            for c in drug_candidates
+        )
+        + "\n\n请基于以上信息给出该药品的简明分析、用法用量与注意事项。"
+    )
+
+    ai_response = ""
+    try:
+        ai_result = await call_ai_model(
+            [{"role": "user", "content": user_prompt}],
+            system_prompt,
+            db,
+            return_usage=True,
+        )
+        ai_response = ai_result["content"] if isinstance(ai_result, dict) else (ai_result or "")
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("[recognize] AI 解读失败：%s", exc)
+        ai_response = "AI 解读暂不可用，请稍后再试或联系客服。"
+
+    return {
+        "code": 0,
+        "data": {
+            "recognized": bool(drug_candidates) or bool(matched_by_barcode),
+            "method": "barcode" if matched_by_barcode else "ocr",
+            "drug_candidates": drug_candidates,
+            "ai_response": ai_response,
+            "matched_tokens": matched_tokens,
+        },
+    }
+
+
+# ──────────────────────────────────────────────────────────
 # 健康信息 M6
 # ──────────────────────────────────────────────────────────
 

@@ -993,6 +993,56 @@ async def _migrate_prd439_medication_reminder():
         _logger.error("[prd439] 用药提醒迁移异常（不影响启动）: %s", e)
 
 
+async def _migrate_aichat_optim_v1():
+    """[AI对话模式优化 PRD v1.0] 2026-05-14
+    - chat_function_buttons 表新增 8 个字段
+    - medication_library 表新增 barcode 字段（本期仅建结构，预留扩展）
+    幂等执行：基于 information_schema.columns 检查存在性。
+    """
+    import logging as _l
+    _logger = _l.getLogger(__name__)
+    from app.core.database import async_session as _async_session
+    try:
+        async with _async_session() as db:
+            from sqlalchemy import text
+
+            async def _add_col(table: str, column: str, ddl: str):
+                try:
+                    chk = await db.execute(text(
+                        "SELECT COUNT(*) FROM information_schema.columns "
+                        "WHERE table_schema = DATABASE() AND table_name = :t AND column_name = :c"
+                    ), {"t": table, "c": column})
+                    if (chk.scalar() or 0) == 0:
+                        await db.execute(text(f"ALTER TABLE {table} ADD COLUMN {ddl}"))
+                        _logger.info("[aichat_optim_v1] %s.%s 列已添加", table, column)
+                except Exception as e:  # noqa: BLE001
+                    _logger.debug("加列 %s.%s 跳过: %s", table, column, e)
+
+            # chat_function_buttons 8 个字段
+            await _add_col("chat_function_buttons", "prompt_template_id", "prompt_template_id INT NULL")
+            await _add_col("chat_function_buttons", "external_url", "external_url VARCHAR(500) NULL")
+            await _add_col("chat_function_buttons", "preset_prompt", "preset_prompt TEXT NULL")
+            await _add_col("chat_function_buttons", "auto_user_message", "auto_user_message VARCHAR(200) NOT NULL DEFAULT ''")
+            await _add_col("chat_function_buttons", "card_title", "card_title VARCHAR(50) NOT NULL DEFAULT ''")
+            await _add_col("chat_function_buttons", "card_subtitle", "card_subtitle VARCHAR(100) NULL")
+            await _add_col("chat_function_buttons", "card_cover_image", "card_cover_image VARCHAR(500) NULL")
+            await _add_col("chat_function_buttons", "button_sub_desc", "button_sub_desc VARCHAR(100) NULL")
+
+            # medication_library.barcode 预留
+            await _add_col("medication_library", "barcode", "barcode VARCHAR(13) NULL")
+            try:
+                await db.execute(text(
+                    "CREATE INDEX idx_medication_library_barcode ON medication_library(barcode)"
+                ))
+            except Exception:  # noqa: BLE001
+                pass
+
+            await db.commit()
+            _logger.info("[aichat_optim_v1] AI对话模式优化 v1.0 迁移完成")
+    except Exception as e:  # noqa: BLE001
+        _logger.error("[aichat_optim_v1] 迁移异常（不影响启动）: %s", e)
+
+
 async def _migrate_bug433_chat_message_source_parent_id():
     """[Bug-433 2026-05-09] AI 对话首页 - 语音/预设按钮"会话首句消息丢失"修复
 
@@ -1089,6 +1139,8 @@ async def lifespan(app: FastAPI):
     await _migrate_prd439_medication_reminder()
     # [PRD-468 2026-05-12] health_metric_record / device_binding
     await _migrate_prd468_health_v3()
+    # [AI对话模式优化 PRD v1.0 2026-05-14] chat_function_buttons 8 字段 + medication_library.barcode
+    await _migrate_aichat_optim_v1()
     from app.init_data import init_default_data
     await init_default_data()
     from app.init_cities import init_cities

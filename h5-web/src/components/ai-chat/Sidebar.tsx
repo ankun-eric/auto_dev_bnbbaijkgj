@@ -59,6 +59,8 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import ReactDOM from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { Avatar, Dialog, Toast } from 'antd-mobile';
+// [AI对话模式优化 PRD v1.0 §7] 全局 Toast 规范封装（位置上方 1/3 + 类型差异化配色）
+import { ToastUnified } from '@/lib/toast-unified';
 import { THEME } from '@/lib/theme';
 import { useAuth } from '@/lib/auth';
 import api from '@/lib/api';
@@ -543,10 +545,11 @@ export default function Sidebar({
 
     try {
       await api.delete(`/api/chat-sessions/${id}`);
-      Toast.show({ content: '已删除', icon: 'success' });
+      // [AI对话模式优化 PRD v1.0 §7] 改走统一 Toast：水平居中 + 上方 1/3 + 绿色/对勾
+      ToastUnified.success('已删除');
     } catch {
       setHistories(snapshot);
-      Toast.show({ content: '删除失败,请稍后重试', icon: 'fail' });
+      ToastUnified.fail('删除失败,请稍后重试');
     }
   };
 
@@ -1172,10 +1175,10 @@ export default function Sidebar({
               }}
               data-testid="bh-asset-row"
             >
-              {/* 1. 积分 */}
+              {/* 1. 积分 — [AI对话模式优化 PRD v1.0 §8.1] 修复 404：/points-center → /points（新版积分主页） */}
               <div
                 style={{ flex: 1, textAlign: 'center', cursor: 'pointer' }}
-                onClick={() => navigateTo('/points-center')}
+                onClick={() => navigateTo('/points')}
                 data-testid="bh-asset-points"
               >
                 <div style={{ fontSize: 16, fontWeight: 700, color: COLOR.textPrimary, lineHeight: 1.2 }}>

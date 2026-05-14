@@ -12,23 +12,37 @@ import { resolveAssetUrl } from '@/lib/asset-url';
 const { Title } = Typography;
 const { TextArea } = Input;
 
+// [AI对话模式优化 PRD v1.0 §3.2] 按钮类型枚举（最终 7 种）
 const BUTTON_TYPE_OPTIONS = [
   { value: 'digital_human_call', label: '数字人通话' },
   { value: 'photo_upload', label: '拍照上传' },
   { value: 'file_upload', label: '文件上传' },
-  { value: 'ai_dialog_trigger', label: 'AI对话触发' },
+  { value: 'ai_chat_trigger', label: 'AI对话触发' },
   { value: 'external_link', label: '外部链接' },
-  { value: 'drug_identify', label: '拍照识药' },
+  { value: 'photo_recognize_drug', label: '拍照识药' },
+  { value: 'quick_ask', label: '快捷提问' },
 ];
 
 const BUTTON_TYPE_MAP: Record<string, { label: string; color: string }> = {
   digital_human_call: { label: '数字人通话', color: 'blue' },
   photo_upload: { label: '拍照上传', color: 'green' },
   file_upload: { label: '文件上传', color: 'orange' },
-  ai_dialog_trigger: { label: 'AI对话触发', color: 'purple' },
+  ai_chat_trigger: { label: 'AI对话触发', color: 'purple' },
   external_link: { label: '外部链接', color: 'default' },
-  drug_identify: { label: '拍照识药', color: 'cyan' },
+  photo_recognize_drug: { label: '拍照识药', color: 'cyan' },
+  quick_ask: { label: '快捷提问', color: 'magenta' },
+  // 兼容旧值
+  ai_dialog_trigger: { label: 'AI对话触发(旧)', color: 'purple' },
+  drug_identify: { label: '拍照识药(旧)', color: 'cyan' },
 };
+
+// 需要关联 Prompt 模板的按钮类型（PRD §3.2）
+const PROMPT_TEMPLATE_REQUIRED_TYPES = new Set([
+  'ai_chat_trigger',
+  'file_upload',
+  'photo_recognize_drug',
+  'photo_upload',
+]);
 
 const AI_REPLY_MODE_OPTIONS = [
   { value: 'complete_analysis', label: '完整分析（含药物相互作用）' },
@@ -44,8 +58,22 @@ interface FunctionButton {
   sort_weight: number;
   is_enabled: boolean;
   params: any;
+  // [AI对话模式优化 PRD v1.0] 8 个新字段
+  prompt_template_id?: number | null;
+  external_url?: string | null;
+  preset_prompt?: string | null;
+  auto_user_message?: string;
+  card_title?: string;
+  card_subtitle?: string | null;
+  card_cover_image?: string | null;
+  button_sub_desc?: string | null;
   created_at?: string;
   updated_at?: string;
+}
+
+interface PromptTemplateOption {
+  value: number;
+  label: string;
 }
 
 export default function FunctionButtonsPage() {
@@ -59,6 +87,30 @@ export default function FunctionButtonsPage() {
   const [total, setTotal] = useState(0);
   const [form] = Form.useForm();
   const watchedButtonType = Form.useWatch('button_type', form);
+  const [promptOptions, setPromptOptions] = useState<PromptTemplateOption[]>([]);
+
+  // 加载 Prompt 模板列表，作为「关联 Prompt 模板」下拉数据源
+  const fetchPromptTemplates = useCallback(async () => {
+    try {
+      const res = await get<any>('/api/admin/prompt-templates', { page: 1, page_size: 200 });
+      const items = Array.isArray(res) ? res : (res?.items || []);
+      setPromptOptions(
+        items
+          .filter((it: any) => it && it.id && it.is_active !== false)
+          .map((it: any) => ({
+            value: it.id,
+            label: `${it.name}${it.prompt_type ? ` [${it.prompt_type}]` : ''}`,
+          })),
+      );
+    } catch {
+      // 静默失败：Prompt 列表加载失败不阻塞按钮管理
+      setPromptOptions([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchPromptTemplates();
+  }, [fetchPromptTemplates]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -99,9 +151,18 @@ export default function FunctionButtonsPage() {
         params: record.params
           ? (typeof record.params === 'string' ? record.params : JSON.stringify(record.params, null, 2))
           : '',
+        // [AI对话模式优化 PRD v1.0] 8 个新字段回填
+        prompt_template_id: record.prompt_template_id || undefined,
+        external_url: record.external_url || '',
+        preset_prompt: record.preset_prompt || '',
+        auto_user_message: record.auto_user_message || '',
+        card_title: record.card_title || '',
+        card_subtitle: record.card_subtitle || '',
+        card_cover_image: record.card_cover_image || '',
+        button_sub_desc: record.button_sub_desc || '',
       };
 
-      if (record.button_type === 'drug_identify' && parsedParams) {
+      if ((record.button_type === 'photo_recognize_drug' || record.button_type === 'drug_identify') && parsedParams) {
         formValues.ai_reply_mode = parsedParams.ai_reply_mode || 'ai_auto';
         formValues.photo_tip_text = parsedParams.photo_tip_text || '请确保药品名称、品牌、规格完整，拍摄清晰';
         formValues.max_photo_count = parsedParams.max_photo_count ?? 5;
@@ -115,6 +176,8 @@ export default function FunctionButtonsPage() {
         ai_reply_mode: 'ai_auto',
         photo_tip_text: '请确保药品名称、品牌、规格完整，拍摄清晰',
         max_photo_count: 5,
+        auto_user_message: '',
+        card_title: '',
       });
     }
     setModalOpen(true);
@@ -135,7 +198,7 @@ export default function FunctionButtonsPage() {
       }
 
       let finalParams = parsedParams || null;
-      if (values.button_type === 'drug_identify') {
+      if (values.button_type === 'photo_recognize_drug' || values.button_type === 'drug_identify') {
         const base = (typeof finalParams === 'object' && finalParams) ? finalParams : {};
         finalParams = {
           ...base,
@@ -145,13 +208,24 @@ export default function FunctionButtonsPage() {
         };
       }
 
-      const payload = {
+      const payload: Record<string, any> = {
         name: values.name,
         icon_url: values.icon_url,
         button_type: values.button_type,
         sort_weight: values.sort_weight ?? 0,
         is_enabled: values.is_enabled,
         params: finalParams,
+        // [AI对话模式优化 PRD v1.0] 8 个新字段（按类型条件传）
+        prompt_template_id: PROMPT_TEMPLATE_REQUIRED_TYPES.has(values.button_type)
+          ? (values.prompt_template_id || null)
+          : null,
+        external_url: values.button_type === 'external_link' ? (values.external_url || null) : null,
+        preset_prompt: values.button_type === 'quick_ask' ? (values.preset_prompt || null) : null,
+        auto_user_message: values.auto_user_message || '',
+        card_title: values.card_title || '',
+        card_subtitle: values.card_subtitle || null,
+        card_cover_image: values.card_cover_image || null,
+        button_sub_desc: values.button_sub_desc || null,
       };
 
       if (editingItem) {
@@ -320,7 +394,7 @@ export default function FunctionButtonsPage() {
           >
             <Select placeholder="请选择按钮类型" options={BUTTON_TYPE_OPTIONS} />
           </Form.Item>
-          {watchedButtonType === 'drug_identify' && (
+          {(watchedButtonType === 'photo_recognize_drug' || watchedButtonType === 'drug_identify') && (
             <>
               <Form.Item label="AI 回复模式" name="ai_reply_mode" rules={[{ required: true, message: '请选择AI回复模式' }]}>
                 <Select placeholder="请选择AI回复模式" options={AI_REPLY_MODE_OPTIONS} />
@@ -333,6 +407,70 @@ export default function FunctionButtonsPage() {
               </Form.Item>
             </>
           )}
+          {/* [AI对话模式优化 PRD v1.0 §3.2] 关联 Prompt 模板（仅部分类型显示） */}
+          {watchedButtonType && PROMPT_TEMPLATE_REQUIRED_TYPES.has(watchedButtonType) && (
+            <Form.Item
+              label="关联 Prompt 模板"
+              name="prompt_template_id"
+              rules={[{ required: true, message: '请选择关联 Prompt 模板' }]}
+              extra="数据源：AI 配置中心 → Prompt 模板配置中已启用的模板"
+            >
+              <Select
+                placeholder="请选择 Prompt 模板"
+                options={promptOptions}
+                showSearch
+                allowClear
+                filterOption={(input, option) =>
+                  String(option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                }
+              />
+            </Form.Item>
+          )}
+          {/* 外部链接 URL（仅 external_link） */}
+          {watchedButtonType === 'external_link' && (
+            <Form.Item
+              label="外部链接 URL"
+              name="external_url"
+              rules={[{ required: true, message: '请输入外部链接 URL' }]}
+            >
+              <Input placeholder="例：https://example.com 或 /services 或 webview://..." />
+            </Form.Item>
+          )}
+          {/* 预设话术（仅 quick_ask） */}
+          {watchedButtonType === 'quick_ask' && (
+            <Form.Item
+              label="预设话术"
+              name="preset_prompt"
+              rules={[{ required: true, message: '请输入预设话术（点击后作为用户消息发给 AI）' }]}
+            >
+              <TextArea rows={3} placeholder="例：我想了解高血压日常注意事项有哪些？" maxLength={500} showCount />
+            </Form.Item>
+          )}
+          {/* 通用 8 字段：所有类型可填 */}
+          <Form.Item
+            label="自动用户消息"
+            name="auto_user_message"
+            rules={[{ required: true, message: '请输入点击后插入对话流的用户消息' }]}
+            extra="点击按钮后插入对话流的用户气泡文案，例：我想做体质测评"
+          >
+            <Input placeholder="例：我想做体质测评" maxLength={200} />
+          </Form.Item>
+          <Form.Item
+            label="卡片标题"
+            name="card_title"
+            rules={[{ required: true, message: '请输入卡片标题' }]}
+          >
+            <Input placeholder="卡片头部主标题" maxLength={50} />
+          </Form.Item>
+          <Form.Item label="卡片副标题" name="card_subtitle">
+            <Input placeholder="卡片头部副标题（可选）" maxLength={100} />
+          </Form.Item>
+          <Form.Item label="卡片封面图 URL" name="card_cover_image" extra="支持任意尺寸图片 URL">
+            <Input placeholder="https://..." />
+          </Form.Item>
+          <Form.Item label="按钮副说明文字" name="button_sub_desc" extra="显示在卡片主按钮下方，例：约 6 道题，2 分钟完成">
+            <Input placeholder="按钮副说明（可选）" maxLength={100} />
+          </Form.Item>
           <Form.Item label="排序权重" name="sort_weight">
             <InputNumber min={0} max={9999} style={{ width: '100%' }} placeholder="数值越大越靠前" />
           </Form.Item>

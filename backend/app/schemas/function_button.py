@@ -7,6 +7,18 @@ from pydantic import BaseModel, ConfigDict
 # ──────────────── ChatFunctionButton ────────────────
 
 
+# [AI对话模式优化 PRD v1.0] 7 种按钮类型枚举（应用层校验）
+ALLOWED_BUTTON_TYPES = {
+    "digital_human_call",
+    "photo_upload",
+    "file_upload",
+    "ai_chat_trigger",
+    "external_link",
+    "photo_recognize_drug",
+    "quick_ask",
+}
+
+
 class ChatFunctionButtonCreate(BaseModel):
     name: str
     icon_url: Optional[str] = None
@@ -17,6 +29,15 @@ class ChatFunctionButtonCreate(BaseModel):
     ai_reply_mode: Optional[str] = None
     photo_tip_text: Optional[str] = None
     max_photo_count: Optional[int] = None
+    # [AI对话模式优化 PRD v1.0] 8 个新字段
+    prompt_template_id: Optional[int] = None
+    external_url: Optional[str] = None
+    preset_prompt: Optional[str] = None
+    auto_user_message: Optional[str] = ""
+    card_title: Optional[str] = ""
+    card_subtitle: Optional[str] = None
+    card_cover_image: Optional[str] = None
+    button_sub_desc: Optional[str] = None
 
 
 class ChatFunctionButtonUpdate(BaseModel):
@@ -29,6 +50,15 @@ class ChatFunctionButtonUpdate(BaseModel):
     ai_reply_mode: Optional[str] = None
     photo_tip_text: Optional[str] = None
     max_photo_count: Optional[int] = None
+    # [AI对话模式优化 PRD v1.0] 8 个新字段
+    prompt_template_id: Optional[int] = None
+    external_url: Optional[str] = None
+    preset_prompt: Optional[str] = None
+    auto_user_message: Optional[str] = None
+    card_title: Optional[str] = None
+    card_subtitle: Optional[str] = None
+    card_cover_image: Optional[str] = None
+    button_sub_desc: Optional[str] = None
 
 
 class ChatFunctionButtonResponse(BaseModel):
@@ -42,6 +72,15 @@ class ChatFunctionButtonResponse(BaseModel):
     ai_reply_mode: Optional[str] = None
     photo_tip_text: Optional[str] = None
     max_photo_count: Optional[int] = None
+    # [AI对话模式优化 PRD v1.0] 8 个新字段
+    prompt_template_id: Optional[int] = None
+    external_url: Optional[str] = None
+    preset_prompt: Optional[str] = None
+    auto_user_message: Optional[str] = ""
+    card_title: Optional[str] = ""
+    card_subtitle: Optional[str] = None
+    card_cover_image: Optional[str] = None
+    button_sub_desc: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 

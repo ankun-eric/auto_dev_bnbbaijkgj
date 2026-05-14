@@ -20,6 +20,7 @@ from app.models.models import (
     VoiceServiceConfig,
 )
 from app.schemas.function_button import (
+    ALLOWED_BUTTON_TYPES,
     ButtonSortRequest,
     ChatFunctionButtonCreate,
     ChatFunctionButtonResponse,
@@ -255,12 +256,22 @@ async def admin_list_buttons(
     return {"items": items, "total": total, "page": page, "page_size": page_size}
 
 
+def _validate_button_type(btn_type: Optional[str]) -> None:
+    """[AI对话模式优化 PRD v1.0] 校验按钮类型属于 7 种枚举之一。"""
+    if btn_type is not None and btn_type not in ALLOWED_BUTTON_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"按钮类型 button_type 取值不合法：{btn_type}，允许值：{sorted(ALLOWED_BUTTON_TYPES)}",
+        )
+
+
 @admin_router.post("/function-buttons", response_model=ChatFunctionButtonResponse)
 async def admin_create_button(
     data: ChatFunctionButtonCreate,
     current_user=Depends(admin_dep),
     db: AsyncSession = Depends(get_db),
 ):
+    _validate_button_type(data.button_type)
     btn = ChatFunctionButton(**data.model_dump())
     db.add(btn)
     await db.flush()
@@ -282,6 +293,7 @@ async def admin_update_button(
     if not btn:
         raise HTTPException(status_code=404, detail="按钮不存在")
 
+    _validate_button_type(data.button_type)
     for field, value in data.model_dump(exclude_unset=True).items():
         setattr(btn, field, value)
     await db.flush()
