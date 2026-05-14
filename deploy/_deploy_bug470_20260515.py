@@ -152,13 +152,13 @@ def run_tests() -> int:
     except Exception as e:
         add("T2 /ai-home/ 可达", False, str(e))
 
-    # T3 chat_function_buttons 公共接口（无需登录可能 401 也算正常存在）
+    # T3 chat_function_buttons 公共接口（无需登录）
     try:
-        r = _req("GET", "/api/chat-function-buttons")
+        r = _req("GET", "/api/function-buttons")
         ok = r.status_code in (200, 401, 403)
-        add("T3 /api/chat-function-buttons 接口存在", ok, f"status={r.status_code}")
+        add("T3 /api/function-buttons 接口存在", ok, f"status={r.status_code}")
     except Exception as e:
-        add("T3 chat-function-buttons", False, str(e))
+        add("T3 function-buttons", False, str(e))
 
     user_tok = get_user_token()
     if not user_tok:
@@ -174,10 +174,10 @@ def run_tests() -> int:
         except Exception as e:
             print(f"[WARN] 自动注册失败: {e}")
 
-    # T4 chat_function_buttons 返回的所有按钮，icon_url/card_cover_image 不应为字面值 "无" / 非法 URL
+    # T4 function_buttons 返回的所有按钮，icon_url/card_cover_image 不应为字面值 "无" / 非法 URL
     try:
         headers = {"Authorization": f"Bearer {user_tok}"} if user_tok else {}
-        r = _req("GET", "/api/chat-function-buttons", headers=headers)
+        r = _req("GET", "/api/function-buttons", headers=headers)
         ok_url = True
         bad = []
         if r.status_code == 200:
